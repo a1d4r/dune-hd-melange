@@ -228,7 +228,8 @@ function aio_carry_tracks($rows, $old)
 
 // Rows without audio tracks get those of their release in $by_hash (infoHash
 // => array('tracks' => ..., 'subs' => ...)), its subtitle languages if they
-// have none and the audio of the card from the tracks if they have none.
+// have none, the audio of the card from the tracks if they have none and the
+// languages of the tracks (aio_track_langs).
 function aio_fill_tracks($rows, $by_hash)
 {
     foreach ($rows as $i => $r)
@@ -236,6 +237,7 @@ function aio_fill_tracks($rows, $by_hash)
         if ($r['tracks'] || !isset($by_hash[$r['hash']]))
             continue;
         $rows[$i]['tracks'] = $by_hash[$r['hash']]['tracks'];
+        $rows[$i]['langs'] = aio_track_langs($rows[$i]['tracks'], $r['langs']);
         if ($r['audio_full'] === '')
             $rows[$i]['audio_full'] = aio_jr_audio_text($rows[$i]['tracks']);
         if (!$r['subs'])

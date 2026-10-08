@@ -320,6 +320,20 @@ function aio_tracks($pf)
     return $out;
 }
 
+// Languages of a row: the unique codes of its audio tracks in track order when
+// any track has one, else $langs (parsedFile.languages: JacRed's Torznab marks
+// any Cyrillic title ru-RU and AIOStreams takes that over the title).
+function aio_track_langs($tracks, $langs)
+{
+    $out = array();
+    foreach ($tracks as $t)
+    {
+        if ($t['lang'] !== '')
+            $out[$t['lang']] = $t['lang'];
+    }
+    return $out ? array_values($out) : $langs;
+}
+
 // Name of a debrid service by streamData.service.id, as SERVICE_DETAILS of
 // AIOStreams (packages/core/src/utils/constants.ts). An unknown id is shown
 // as it is when short and plain; else '' (no name).
@@ -367,7 +381,8 @@ function aio_service_name($id)
 //                description (shown with "≈"); rate_src: its source, '' for none
 //   quality      parsedFile.quality, capped: the screen wraps it (12 000 characters took seconds)
 //   size         bytes, float: PHP on Dune is 32-bit, sizes over 2 GB do not fit an int
-//   langs        language codes of parsedFile.languages
+//   langs        language codes of the audio tracks, else of parsedFile.languages
+//                (aio_track_langs); JacRed replaces them with its tracks
 //   trackers     indexers
 //   addon        streamData.addon: the name of the AIOStreams add-on ("DMM Cast"), at most 60
 //                characters; shown where there are no trackers
@@ -407,6 +422,7 @@ function aio_row($st, $series)
     if ($res === '' && preg_match('/\\b([0-9]{3,4}p|4k)\\b/i', $name, $m))
         $res = $m[1];
     $size = aio_str($sd, 'size') !== '' ? aio_str($sd, 'size') : aio_str($bh, 'videoSize');
+    $tracks = aio_tracks($pf);
     $langs = array();
     foreach (aio_arr($pf, 'languages') as $l)
     {
@@ -481,7 +497,7 @@ function aio_row($st, $series)
         'resolution' => $res,
         'badges' => aio_badges($pf, $res),
         'audio_full' => aio_audio_text($pf),
-        'tracks' => aio_tracks($pf),
+        'tracks' => $tracks,
         'subs' => array_values($subs),
         'group' => aio_cut($group, 60),
         'expr' => aio_cut($ranked !== '' ? $ranked : $expr, 60),
@@ -492,7 +508,7 @@ function aio_row($st, $series)
         'rate_src' => $rate > 0 ? $rate_src : '',
         'quality' => aio_cut(aio_str($pf, 'quality'), AIO_TEXT_MAX),
         'size' => aio_num($size),
-        'langs' => array_values($langs),
+        'langs' => aio_track_langs($tracks, array_values($langs)),
         'trackers' => $trackers,
         'addon' => aio_cut(aio_str($sd, 'addon'), 60),
         'pf_seasons' => isset($pf['seasons']) && is_array($pf['seasons']) && $pf['seasons'] ?
