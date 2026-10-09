@@ -27,8 +27,9 @@ define('AIO_GC_HINT_Y', 990);  // P+/P- key and "1 / 60", as the vendor hint row
 define('AIO_GC_HINT_GAP', 80);  // between hints of that row (vendor HINTS_HGAP)
 define('AIO_GC_PAD', 16);      // row padding left and right
 define('AIO_GC_GAP', 16);      // between columns
-// "rutracker +3" by the estimate; less room: no tracker column (the card has them).
-define('AIO_GC_TRACKER_MIN', 160);
+// "rutracker +3" (142 px by the estimate) with a margin; less room: no tracker
+// column (the card has them).
+define('AIO_GC_TRACKER_MIN', 145);
 define('AIO_GC_BADGE_H', 46);  // badge pictures with their plate
 // Revision in the badge file names (BADGE_REV of their generator):
 // the shell caches pictures by URL even across a reinstall.
