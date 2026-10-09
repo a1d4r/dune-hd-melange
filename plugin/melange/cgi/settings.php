@@ -13,7 +13,8 @@
 //                      errors -> the form back (only without JS);
 //   POST ?t=<token>&ajax=1 -> the same save without the config, JSON {ok,
 //                      next, aio[, notes] | errors} to the script of the page
-//                      (aio: create, update or '' - what a=aio_sync is to do):
+//                      (aio: create, update, reset (0.40.0: its button or
+//                      another template) or '' - what a=aio_sync is to do):
 //                      no page is ever an answer to a POST (a mobile browser
 //                      would post it again on return);
 //   POST ?t=<token>&a=aio_status&ajax=1 (url) -> GET /api/v1/status of that
@@ -26,7 +27,8 @@
 //                      there -> no Debrid key: no
 //                      request, else POST /api/v1/user of the template; a
 //                      config -> GET ?raw=true, our fields, PUT (none if it has
-//                      no Debrid at all). aio_confs written; JSON {ok, msg,
+//                      no Debrid at all); reset=1 -> PUT of the template with
+//                      our fields, no GET. aio_confs written; JSON {ok, msg,
 //                      skip, base, conf};
 //   GET  ?t=<token>&a=log -> <FS_PREFIX>/tmp/run/melange.log masked, an attachment;
 //   GET  ?t=<token>&a=ts_check&ts=<address> -> GET <TorrServer>/echo, JSON
@@ -1039,11 +1041,12 @@ function aio_cgi_aio_ok($r)
     return !$r[0] && $r[1] >= 200 && $r[1] < 300 && is_object($r[2]) && isset($r[2]->success) && $r[2]->success === true;
 }
 
-// What the page shows of a config: the link to its web settings, login, password.
+// What the page shows of a config: the link to its web settings, login,
+// password, its template (aio_aio_conf: null - not known yet).
 function aio_cgi_aio_show($c)
 {
     return $c ? array('cfg' => aio_manifest_base($c['manifest']) . 'configure', 'login' => $c['uuid'],
-        'pass' => $c['pass']) : null;
+        'pass' => $c['pass'], 'tpl' => $c['tpl']) : null;
 }
 
 // aio_confs[$base] of settings.json set to $c (null: forgotten), the rest as
@@ -1059,12 +1062,16 @@ function aio_cgi_aio_keep($dir, $base, $c)
 }
 
 // The config of the chosen server (of the list or the own one) by
-// settings.json: none -> POST of the template with our fields; there -> GET,
-// our fields, PUT. The own server: its TMDB by /status first. The own config
-// chosen -> nothing (skip). No config and no Debrid key -> no request.
+// settings.json: none -> POST of the template (aio_tpl) with our fields;
+// there -> GET, its template by its presets stored (tpl), our fields, PUT;
+// $reset (0.40.0) -> PUT of the template with our fields as for a new one,
+// no GET (manual edits lost; the login, password and manifest stay). The
+// own server: its TMDB by /status first.
+// The own config chosen -> nothing (skip). No config and no Debrid key, or
+// a reset without one -> no request.
 // -> array(ok, the line for the page, skip, the choice (aio_server),
 // aio_cgi_aio_show() of its config now).
-function aio_cgi_aio_sync($dir)
+function aio_cgi_aio_sync($dir, $reset = false)
 {
     set_time_limit(120);
     $s = aio_settings_read($dir);
@@ -1072,13 +1079,18 @@ function aio_cgi_aio_sync($dir)
     $base = aio_settings_base($s);
     $host = (string) parse_url($base, PHP_URL_HOST);
     $conf = $base !== '' && isset($s['aio_confs'][$base]) ? $s['aio_confs'][$base] : null;
+    $id = $s['aio_tpl'];
+    // No config: made by the template.
+    $reset = $reset && $conf;
     if ($s['source'] === 'own' || $base === '')
     {
         aio_cgi_log('aio sync: own config or no address, skipped');
         return array(true, '', true, $choice, aio_cgi_aio_show($conf));
     }
-    $fail = $conf ? aio_cgi_l('Конфиг не обновлён: ', 'The config is not updated: ') :
-        aio_cgi_l('Конфиг не создан: ', 'No config made: ');
+    $fail = $reset ? aio_cgi_l('Конфиг не сброшен: ', 'The config is not reset: ') : ($conf ?
+        aio_cgi_l('Конфиг не обновлён: ', 'The config is not updated: ') : aio_cgi_l('Конфиг не создан: ', 'No config made: '));
+    // The template is stored already: "Сохранить" again only updates.
+    $again = $reset ? aio_cgi_l('; повторить — «Сбросить к шаблону»', '; to retry: "Reset to the template"') : '';
     // A config there may have a service of its own (set by hand): GET decides.
     if (!$conf && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
@@ -1086,23 +1098,30 @@ function aio_cgi_aio_sync($dir)
         return array(false, aio_cgi_l('Для конфига нужен ключ Debrid (Real-Debrid или TorBox)',
             'The config needs a Debrid key (Real-Debrid or TorBox)'), false, $choice, null);
     }
-    $tpl = aio_conf_template();
+    // The template has no service of its own.
+    if ($reset && $s['rd_key'] === '' && $s['tb_key'] === '')
+    {
+        aio_cgi_log("aio sync: reset ($id): no Debrid key, not changed");
+        return array(false, $fail . aio_cgi_l('нужен ключ Debrid в Melange', 'a Debrid key in Melange is needed') . $again,
+            false, $choice, aio_cgi_aio_show($conf));
+    }
+    $tpl = aio_conf_template($id);
     if (!$tpl)
     {
         aio_cgi_log('aio sync: no template');
-        return array(false, $fail . aio_cgi_l('нет шаблона в плагине', 'no template in the plugin'), false, $choice,
-            aio_cgi_aio_show($conf));
+        return array(false, $fail . aio_cgi_l('нет шаблона в плагине', 'no template in the plugin') . $again, false,
+            $choice, aio_cgi_aio_show($conf));
     }
     $tmdbs = null;
     if ($choice === 'own')
     {
         list($ok, $why, $tmdbs) = aio_cgi_aio_status($base);
         if (!$ok)
-            return array(false, $fail . $why, false, $choice, aio_cgi_aio_show($conf));
+            return array(false, $fail . $why . $again, false, $choice, aio_cgi_aio_show($conf));
     }
     if (!$conf)
     {
-        $c = aio_conf_template();
+        $c = aio_conf_template($id);
         list($tmdb, $set) = aio_conf_patch($c, $tpl, aio_conf_params($s, null, $tmdbs));
         $pass = aio_cgi_rand_hex(12);
         $r = aio_cgi_aio_req($base, 'POST', aio_conf_encode((object) array('config' => $c, 'password' => $pass)), null);
@@ -1111,7 +1130,7 @@ function aio_cgi_aio_sync($dir)
         $enc = $d && isset($d->encryptedPassword) && is_string($d->encryptedPassword) &&
             preg_match('/^[A-Za-z0-9._~%=+\-]{1,1500}\z/', $d->encryptedPassword) ? $d->encryptedPassword : '';
         $new = $enc !== '' ? aio_aio_conf($base, array('uuid' => $uuid, 'pass' => $pass,
-            'manifest' => "$base/stremio/$uuid/$enc/manifest.json", 'tmdb' => $tmdb, 'set' => $set)) : null;
+            'manifest' => "$base/stremio/$uuid/$enc/manifest.json", 'tmdb' => $tmdb, 'set' => $set, 'tpl' => $id)) : null;
         aio_cgi_log('aio sync: create: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]") . ($new ? ', made' : ''));
         if (!$new)
         {
@@ -1131,12 +1150,32 @@ function aio_cgi_aio_sync($dir)
             $host), false, $choice, aio_cgi_aio_show($new));
     }
     $auth = array($conf['uuid'], $conf['pass']);
-    $r = aio_cgi_aio_req($base, 'GET', null, $auth);
-    $u = aio_cgi_aio_ok($r) && isset($r[2]->data) && is_object($r[2]->data) && isset($r[2]->data->userData) &&
-        is_object($r[2]->data->userData) ? $r[2]->data->userData : null;
-    aio_cgi_log('aio sync: get: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]") . ($u ? ', config' : ''));
-    if ($u)
+    if ($reset)
     {
+        $u = aio_conf_template($id);
+        list($tmdb, $set) = aio_conf_patch($u, $tpl, aio_conf_params($s, null, $tmdbs));
+        $r = aio_cgi_aio_req($base, 'PUT', aio_conf_encode((object) array('config' => $u)), $auth);
+        aio_cgi_log("aio sync: reset ($id): put: " . ($r[0] ? "curl $r[0]" : "HTTP $r[1]"));
+    }
+    else
+    {
+        $r = aio_cgi_aio_req($base, 'GET', null, $auth);
+        $u = aio_cgi_aio_ok($r) && isset($r[2]->data) && is_object($r[2]->data) && isset($r[2]->data->userData) &&
+            is_object($r[2]->data->userData) ? $r[2]->data->userData : null;
+        aio_cgi_log('aio sync: get: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]") . ($u ? ', config' : ''));
+    }
+    if ($u && !$reset)
+    {
+        // As it is there, before our fields; stored even if the PUT fails.
+        $t = aio_conf_tpl_of($u);
+        aio_cgi_log("aio sync: template $t");
+        if ($t !== $conf['tpl'])
+        {
+            $conf['tpl'] = $t;
+            $w = aio_cgi_aio_keep($dir, $base, $conf);
+            if ($w !== '')
+                aio_cgi_log("aio sync: $w");
+        }
         list($tmdb, $set) = aio_conf_patch($u, $tpl, aio_conf_params($s, $conf, $tmdbs));
         // No key of melange and none set by hand: PUT would get 400.
         if (!aio_conf_has_debrid($u))
@@ -1167,24 +1206,29 @@ function aio_cgi_aio_sync($dir)
                 'Melange forgot it; "Save and create the config" makes a new one'), $host), false, $choice,
                 $w === '' ? null : aio_cgi_aio_show($conf));
         }
-        return array(false, $fail . $why, false, $choice, aio_cgi_aio_show($conf));
+        return array(false, $fail . $why . $again, false, $choice, aio_cgi_aio_show($conf));
     }
     $conf['tmdb'] = $tmdb;
     $conf['set'] = $set;
+    if ($reset)
+        $conf['tpl'] = $id;
     $w = aio_cgi_aio_keep($dir, $base, $conf);
     if ($w !== '')
         aio_cgi_log("aio sync: $w");
-    return array(true, sprintf(aio_cgi_l('Конфиг AIOStreams на %s обновлён', 'The AIOStreams config on %s is updated'), $host),
+    $tpls = aio_cgi_tpls();
+    return array(true, $reset ? sprintf(aio_cgi_l('Конфиг AIOStreams на %s сброшен к шаблону «%s»',
+        'The AIOStreams config on %s is reset to the template "%s"'), $host, $tpls[$id][0]) :
+        sprintf(aio_cgi_l('Конфиг AIOStreams на %s обновлён', 'The AIOStreams config on %s is updated'), $host),
         false, $choice, aio_cgi_aio_show($conf));
 }
 
-// a=aio_sync: JSON {ok, msg, skip, base, conf: {cfg, login, pass} | null}.
+// a=aio_sync (reset=1: to the template): JSON {ok, msg, skip, base, conf: {cfg, login, pass} | null}.
 function aio_cgi_aio_sync_post($dir)
 {
     if (!aio_cgi_dir_ok($dir))
         aio_cgi_json(200, array('ok' => false, 'msg' => aio_cgi_l('Нет папки плагина на Дюне',
             'No folder of the plugin on the Dune'), 'skip' => false, 'base' => '', 'conf' => null));
-    $r = aio_cgi_aio_sync($dir);
+    $r = aio_cgi_aio_sync($dir, aio_cgi_param($_POST, 'reset') === '1');
     aio_cgi_json(200, array('ok' => $r[0], 'msg' => $r[1], 'skip' => $r[2], 'base' => $r[3], 'conf' => $r[4]));
 }
 
@@ -1324,6 +1368,38 @@ function aio_cgi_jr403()
     return array('https://aiostreams.fortheweak.cloud');
 }
 
+// The templates of the config (aio_aio_tpls of common.php, 0.40.0): id =>
+// array(its name, its hint).
+function aio_cgi_tpls()
+{
+    return array(
+        'addons' => array(aio_cgi_l('JacRed + аддоны', 'JacRed + addons'), aio_cgi_l(
+            'Torrentio, MediaFusion, Comet, StremThru Torz — больше раздач в кэше Debrid.',
+            'Torrentio, MediaFusion, Comet, StremThru Torz: more releases cached in Debrid.')),
+        'jacred' => array(aio_cgi_l('Только JacRed', 'JacRed only'), aio_cgi_l(
+            'Русские трекеры, ответ быстрее; с одним RD раздач мало.',
+            'Russian trackers, a faster reply; few releases with RD alone.')));
+}
+
+// The template the page shows for the server $server (aio_server; 'own' -
+// at $own) with the configs $confs (aio_confs), 0.40.0: that of its config
+// ('none' - not known yet), else $new (aio_tpl, for a new config).
+function aio_cgi_tpl_shown($server, $own, $confs, $new)
+{
+    $b = $server === 'own' ? aio_aio_own($own) : $server;
+    if ($b === '' || !isset($confs[$b]))
+        return $new;
+    return $confs[$b]['tpl'] !== null ? $confs[$b]['tpl'] : 'none';
+}
+
+// The server chosen in $d (settings.json) is the stored one of $cur: the
+// one a page without the script showed.
+function aio_cgi_same_server($d, $cur)
+{
+    return $d['aio_server'] === $cur['aio_server'] && ($d['aio_server'] !== 'own' ||
+        $d['aio_own_url'] === $cur['aio_own_url']);
+}
+
 // The chosen server (of the list or the own one) has a config made by melange.
 function aio_cgi_aio_has($v)
 {
@@ -1331,18 +1407,54 @@ function aio_cgi_aio_has($v)
     return $b !== '' && isset($v['confs'][$b]);
 }
 
-// data- of an option of the AIOStreams choice for its config (none: '').
+// data- of an option of the AIOStreams choice for its config (none: '';
+// data-tpl: none while its template is not known).
 function aio_cgi_aio_data($c)
 {
     return $c ? ' data-cfg="' . aio_cgi_h($c['cfg']) . '" data-login="' . aio_cgi_h($c['login']) . '" data-pass="' .
-        aio_cgi_h($c['pass']) . '"' : '';
+        aio_cgi_h($c['pass']) . '"' . ($c['tpl'] !== null ? ' data-tpl="' . $c['tpl'] . '"' : '') : '';
+}
+
+// The marks of the template choice only shown, never chosen (0.40.0): id
+// (aio_cgi_tpl_shown) => array(its name, its hint).
+function aio_cgi_tpl_marks()
+{
+    return array(
+        'custom' => array(aio_cgi_l('Свой набор аддонов (изменён в AIOStreams)', 'Custom set of addons (changed in AIOStreams)'),
+            aio_cgi_l('Выберите шаблон, чтобы заменить им конфиг.', 'Choose a template to replace the config with it.')),
+        'none' => array(aio_cgi_l('Не определён — нажмите «Сохранить»', 'Unknown - press "Save"'),
+            aio_cgi_l('Melange узнает шаблон конфига на сервере при сохранении.',
+            'Melange learns the template of the config there on the save.')));
+}
+
+// "Шаблон конфига" (0.40.0) with the hint of the chosen one: that of the
+// config of the chosen server, else the one for a new config (tpl_new),
+// unless one is chosen in a form back. A mark (aio_cgi_tpl_marks) is
+// disabled, so never posted; the one not shown is hidden. data-new: the one
+// for a new config; aio_tpl_seen: the one the page shows (another one on
+// "Сохранить" resets the config there; changed by another tab since: the
+// save is refused).
+function aio_cgi_tpl($v)
+{
+    $tpls = aio_cgi_tpls();
+    $all = $tpls + aio_cgi_tpl_marks();
+    $shown = aio_cgi_tpl_shown($v['aio_server'], $v['aio_own'], $v['confs'], $v['tpl_new']);
+    $sel = isset($tpls[$v['aio_tpl']]) ? $v['aio_tpl'] : (isset($all[$shown]) ? $shown : key($tpls));
+    $out = '<label for="at">' . aio_cgi_l('Шаблон конфига', 'Config template') . '</label><select id="at" name="aio_tpl" ' .
+        'data-new="' . aio_cgi_h($v['tpl_new']) . '">';
+    foreach ($all as $id => $x)
+        $out .= '<option value="' . $id . '" data-hint="' . aio_cgi_h($x[1]) . '"' .
+            (isset($tpls[$id]) ? '' : ' disabled' . ($id === $sel ? '' : ' hidden')) . ($id === $sel ? ' selected' : '') . '>' .
+            aio_cgi_h($x[0]) . '</option>';
+    return $out . '</select><input type="hidden" id="ats" name="aio_tpl_seen" value="' . aio_cgi_h($shown) . '">' .
+        '<p class="hint" id="ath">' . aio_cgi_h($all[$sel][1]) . '</p>';
 }
 
 // "Конфиг AIOStreams - откуда Melange берёт раздачи" (0.35.2): one of two.
 // "Melange создаст конфиг": the server (of the list or another one), the
-// Debrid keys, the TMDB key under a server without TMDB of its own (another
-// one: always), the config of the chosen server - its link, login and
-// password, or "none yet". "У меня свой конфиг": its manifest address, only
+// template, the Debrid keys, the TMDB key under a server without TMDB of its
+// own (another one: always), the config of the chosen server - its link,
+// login and password, "Сбросить к шаблону", or "none yet". "У меня свой конфиг": its manifest address, only
 // read. The script shows the fields of the chosen one (all without JS) and
 // the config of the chosen server from data- of its option.
 function aio_cgi_aio($v)
@@ -1372,6 +1484,7 @@ function aio_cgi_aio($v)
         ($v['aio_server'] === 'own' ? ' selected' : '') . '>' . aio_cgi_l('Другой сервер…', 'Another server…') .
         '</option></select><div id="aobox">' . aio_cgi_plain('ao', 'aio_own_url', aio_cgi_l('Адрес сервера AIOStreams',
         'AIOStreams server address'), $v['aio_own'], 'http://192.168.1.10:3000', 300) . sprintf($chk, 'aob', 'aor') . '</div>' .
+        aio_cgi_tpl($v) .
         aio_cgi_field('rd', 'rd_key', aio_cgi_l('Ключ Real-Debrid (нужен хотя бы один)', 'Real-Debrid key (at least one is needed)'),
             $v['rd'], aio_cgi_l('Где взять: ', 'Get it at ') .
             aio_cgi_link('https://real-debrid.com/apitoken', 'real-debrid.com/apitoken'), 100) .
@@ -1396,7 +1509,9 @@ function aio_cgi_aio($v)
         aio_cgi_field('ap', '', aio_cgi_l('Пароль', 'Password'), $sel ? $sel['pass'] : '', aio_cgi_l(
         'Вход в настройки AIOStreams — по этому логину и паролю.', 'Log in to the AIOStreams settings with this login and password.'),
         24) . '<button type="button" id="apc" class="chk">' . aio_cgi_l('Копировать', 'Copy') . '</button><div id="apr"></div>' .
-        '</div></div></div>';
+        // A submit without the script: the save, then the reset (0.40.0).
+        '<button type="submit" id="arb" class="chk" name="aio_reset" value="1">' .
+        aio_cgi_l('Сбросить к шаблону', 'Reset to the template') . '</button></div></div></div>';
     return $out . aio_cgi_radio('srco', 'source', 'own', aio_cgi_l('У меня свой конфиг AIOStreams',
         'I have my own AIOStreams config'), $v['source'] === 'own') . '<div id="sown">' .
         aio_cgi_field('m', 'manifest', aio_cgi_l('Ссылка на конфиг', 'Config link'), $v['manifest'],
@@ -1419,6 +1534,11 @@ function aio_cgi_js()
         'save' => aio_cgi_l('Сохранить', 'Save'), 'saved' => aio_cgi_saved(), 'savec' => aio_cgi_savec(),
         'creating' => aio_cgi_l('Создаю конфиг…', 'Creating the config…'),
         'updating' => aio_cgi_l('Обновляю конфиг…', 'Updating the config…'),
+        'resetting' => aio_cgi_l('Сбрасываю конфиг…', 'Resetting the config…'),
+        'reset' => aio_cgi_l('Конфиг на %s будет заменён шаблоном «%s». Ваши правки в веб-настройках AIOStreams ' .
+            'пропадут; логин, пароль и ссылка останутся. Продолжить?', 'The config on %s will be replaced with the ' .
+            'template "%s". Your edits in the AIOStreams web settings will be lost; the login, password and link stay. ' .
+            'Go on?'),
         'copied' => aio_cgi_l('Пароль скопирован', 'The password is copied'),
         'nocopy' => aio_cgi_l('Не скопировалось — пароль показан, скопируйте вручную',
             'Not copied: the password is shown, copy it by hand'),
@@ -1502,12 +1622,31 @@ dupState();
 var as=document.getElementById("as"),tmbox=document.getElementById("tmbox"),ao=document.getElementById("ao");
 var sv=f.querySelector(".save"),ap=document.getElementById("ap"),apr=document.getElementById("apr");
 var rdi=document.getElementById("rd"),tbi=document.getElementById("tb"),srcs=f.querySelectorAll("input[name=source]");
+var at=document.getElementById("at"),ats=document.getElementById("ats"),tk;
 function ownUrl(){return ao.value.replace(/^\s+|\s+$/g,"").replace(/\/$/,"").replace(/:0+(\d)/g,":$1").toLowerCase();}
 function swap(id,own){var e=document.getElementById(id);e.textContent=e.getAttribute(own?"data-own":"data-made");}
+// The link of the config of the chosen server, or null.
+function conf(){
+var o=as.options[as.selectedIndex],c=o?o.getAttribute("data-cfg"):null;
+return o&&o.value==="own"&&ownUrl()!==o.getAttribute("data-url")?null:c;
+}
+function hint(){document.getElementById("ath").textContent=at.options[at.selectedIndex].getAttribute("data-hint");}
+// The template of the config of the chosen server ("none": not known yet), else the one for a new config.
+function shown(){var o=as.options[as.selectedIndex];return conf()?o.getAttribute("data-tpl")||"none":at.getAttribute("data-new");}
+// The choice shows it; a mark (disabled) only while it is the one.
+function tState(){
+var t=shown();
+for(var i=0;i<at.options.length;i++)if(at.options[i].disabled)at.options[i].hidden=at.options[i].value!==t;
+at.value=t;
+ats.value=t;
+hint();
+}
 function aState(){
 var o=as.options[as.selectedIndex],m=f.querySelector("input[name=source]:checked"),own=!!m&&m.value==="own";
-var other=!!o&&o.value==="own",c=o?o.getAttribute("data-cfg"):null;
-if(other&&ownUrl()!==o.getAttribute("data-url"))c=null;
+var other=!!o&&o.value==="own",c=conf();
+// Another config (or none): its template; the page came with the right one.
+var k=c?o.value+" "+c:"";
+if(k!==tk){if(tk!==undefined)tState();tk=k;}
 document.getElementById("smade").style.display=own?"none":"";
 document.getElementById("sown").style.display=own?"":"none";
 document.getElementById("aobox").style.display=other?"":"none";
@@ -1535,6 +1674,7 @@ rdi.addEventListener("input",aState);
 tbi.addEventListener("input",aState);
 for(var i=0;i<srcs.length;i++)srcs[i].addEventListener("change",aState);
 aState();
+at.addEventListener("change",hint);
 document.getElementById("apc").addEventListener("click",function(){
 function done(ok){
 if(!ok){ap.classList.remove("sec");document.querySelector(".eye[data-for=ap]").classList.add("on");}
@@ -1720,9 +1860,9 @@ return n;
 // The config of the chosen server after the save: its result replaces the "creating" line.
 function sync(how){
 sb.disabled=true;
-sb.textContent=how==="create"?T.creating:T.updating;
+sb.textContent=how==="create"?T.creating:how==="reset"?T.resetting:T.updating;
 var w=note("hint",sb.textContent);
-req("POST",base+"&a=aio_sync&ajax=1","",function(s,k){
+req("POST",base+"&a=aio_sync&ajax=1",how==="reset"?"reset=1":"",function(s,k){
 sb.disabled=false;
 if(k&&typeof k.ok==="boolean"){
 for(var i=0;i<as.options.length;i++){
@@ -1731,7 +1871,11 @@ if(o.value!==k.base)continue;
 if(k.base==="own")o.setAttribute("data-url",ownUrl());
 if(k.conf){o.setAttribute("data-cfg",k.conf.cfg);o.setAttribute("data-login",k.conf.login);o.setAttribute("data-pass",k.conf.pass);}
 else{o.removeAttribute("data-cfg");o.removeAttribute("data-login");o.removeAttribute("data-pass");}
+if(k.conf&&k.conf.tpl)o.setAttribute("data-tpl",k.conf.tpl);
+else o.removeAttribute("data-tpl");
 }
+// The template of the config as the server found it; a failed reset keeps the choice for the retry.
+if(k.ok||how!=="reset")tk=null;
 if(k.skip)sr.removeChild(w);
 else{w.className=k.ok?"ok":"err";w.textContent=String(k.msg);}
 }
@@ -1739,15 +1883,23 @@ else{w.className="err";w.textContent=why(s);}
 aState();
 },60000);
 }
-f.addEventListener("submit",function(e){
-if(sb.disabled){e.preventDefault();return;}
+// The config of the chosen server is replaced with the template: OK of the user first.
+// A mark shown: the reset is to the template for a new config (nothing posted).
+function ask(){
+var o=as.options[as.selectedIndex],u=o.value==="own"?ownUrl():o.value,x=at.options[at.selectedIndex];
+if(x.disabled)for(var i=0;i<at.options.length;i++)if(at.options[i].value===at.getAttribute("data-new"))x=at.options[i];
+return confirm(T.reset.replace("%s",u.replace(/^[a-z]+:\/\//,"").replace(/[:\/].*$/,"")).replace("%s",x.text));
+}
+function save(reset){
 var p=[],el=f.elements;
 for(var i=0;i<el.length;i++){
 if(!el[i].name||el[i].disabled||el[i].tagName==="BUTTON")continue;
+// A mark of the template is never posted, as by the browser.
+if(el[i].tagName==="SELECT"&&el[i].selectedIndex>=0&&el[i].options[el[i].selectedIndex].disabled)continue;
 if((el[i].type==="checkbox"||el[i].type==="radio")&&!el[i].checked)continue;
 p.push(encodeURIComponent(el[i].name)+"="+encodeURIComponent(el[i].value));
 }
-e.preventDefault();
+if(reset)p.push("aio_reset=1");
 sb.disabled=true;
 sb.textContent=T.saving;
 document.getElementById("msg").textContent="";
@@ -1756,11 +1908,14 @@ req("POST",base+"&ajax=1",p.join("&"),function(s,j){
 sb.disabled=false;
 aState();
 if(j&&j.ok===true&&typeof j.next==="string"){
+// Stored as the one for a new config; with no config there it is the one shown.
+if(!at.options[at.selectedIndex].disabled)at.setAttribute("data-new",at.value);
+if(!conf())ats.value=at.value;
 var nn=j.notes&&j.notes.length?j.notes:[];
 if(!nn.length&&!j.aio){location.replace(j.next);return;}
 show(sr,"ok",[T.saved]);
 for(var k=0;k<nn.length;k++)note(nn[k].level==="ok"?"ok":"warn",nn[k].msg);
-if(j.aio==="create"||j.aio==="update")sync(j.aio);
+if(j.aio==="create"||j.aio==="update"||j.aio==="reset")sync(j.aio);
 return;
 }
 var e=j&&j.errors&&j.errors.length?j.errors:[why(s)];
@@ -1770,6 +1925,22 @@ var m=new RegExp("^"+T.srv+" ([1-9]):").exec(String(e[k]));
 if(m&&sg.ds[m[1]-1]){adv.open=true;sg.reveal(sg.ds[m[1]-1]);}
 }
 });
+}
+f.addEventListener("submit",function(e){
+e.preventDefault();
+if(sb.disabled)return;
+var m=f.querySelector("input[name=source]:checked");
+// Another template with a config there: the save resets it, only asked.
+if((!m||m.value!=="own")&&conf()&&at.value!==ats.value){
+if(ask())save(true);
+return;
+}
+save(false);
+});
+document.getElementById("arb").addEventListener("click",function(e){
+e.preventDefault();
+if(sb.disabled||!ask())return;
+save(true);
 });
 })();
 JS;
@@ -1783,7 +1954,8 @@ JS;
 function aio_cgi_values($s)
 {
     $v = array('source' => $s['source'], 'manifest' => $s['manifest_url'], 'rd' => $s['rd_key'], 'tb' => $s['tb_key'], 'tmdb' => $s['tmdb_key'],
-        'aio_server' => $s['aio_server'], 'aio_own' => $s['aio_own_url'], 'ts' => $s['ts_url'], 'servers' => $s['servers'],
+        'aio_server' => $s['aio_server'], 'aio_own' => $s['aio_own_url'], 'aio_tpl' => '', 'tpl_new' => $s['aio_tpl'],
+        'ts' => $s['ts_url'], 'servers' => $s['servers'],
         'jacred' => $s['jacred'], 'jo' => array('url' => $s['jacred_own_url'], 'key' => $s['jacred_own_key']),
         'confs' => $s['aio_confs']);
     return $v;
@@ -1795,7 +1967,7 @@ function aio_cgi_posted()
         'key' => aio_cgi_param($_POST, 'jacred_own_key')), 'confs' => array());
     foreach (array('manifest' => 'manifest', 'rd' => 'rd_key', 'tb' => 'tb_key', 'tmdb' => 'tmdb_key',
         'aio_server' => 'aio_server', 'aio_own' => 'aio_own_url', 'ts' => 'ts', 'jacred' => 'jacred',
-        'source' => 'source') as $k => $name)
+        'source' => 'source', 'aio_tpl' => 'aio_tpl', 'tpl_seen' => 'aio_tpl_seen') as $k => $name)
         $v[$k] = trim(aio_cgi_param($_POST, $name), AIO_TRIM);
     // A form without the source: 0.35.1 chose the own config by aio_server
     // "manifest", 0.35.0 and older (no aio_own_url) by the manifest address
@@ -1878,6 +2050,25 @@ function aio_cgi_check_values($v)
             'Another AIOStreams server: an address like http(s)://host[:port] without a path is needed');
         $bad[] = 'aio_own_url';
     }
+    // No field (a form of 0.39 or older), or a wrong one of the own config: the stored one.
+    $d['aio_tpl'] = array_key_exists($v['aio_tpl'], aio_aio_tpls()) ? $v['aio_tpl'] : $v['cur']['aio_tpl'];
+    if ($made && $v['aio_tpl'] !== '' && $d['aio_tpl'] !== $v['aio_tpl'])
+    {
+        $errors[] = aio_cgi_l('Шаблон конфига: нет такого шаблона', 'Config template: no such template');
+        $bad[] = 'aio_tpl';
+    }
+    // The page showed another one for the chosen server (none: a form of
+    // 0.39 or older): another tab changed it since. A page without the
+    // script showed the stored server only; the script, for an own address
+    // other than the stored one, the one for a new config (its conf()).
+    $shown = $d['aio_server'] === 'own' && $d['aio_own_url'] !== $v['cur']['aio_own_url'] ? $v['cur']['aio_tpl'] :
+        aio_cgi_tpl_shown($d['aio_server'], $d['aio_own_url'], $v['confs'], $v['cur']['aio_tpl']);
+    if ($v['tpl_seen'] !== '' && ($v['ajax'] || aio_cgi_same_server($d, $v['cur'])) && $v['tpl_seen'] !== $shown)
+    {
+        $errors[] = aio_cgi_l('Шаблон изменён в другой вкладке — обновите страницу',
+            'The template was changed in another tab: reload the page');
+        $bad[] = 'aio_tpl_seen';
+    }
     // No config there yet and no key to make it.
     $base = $d['aio_server'] === 'own' ? $d['aio_own_url'] : $d['aio_server'];
     if ($made && $base !== '' && !isset($v['confs'][$base]) && $d['rd_key'] === '' && $d['tb_key'] === '' &&
@@ -1947,6 +2138,8 @@ function aio_cgi_form($t, $v, $errors, $saved)
     $title = aio_cgi_l('Melange — настройки', 'Melange - settings');
     $body = '<h1>' . $title . '</h1><div id="msg">' . $msg . '</div>' .
         '<form method="post" action="settings?t=' . aio_cgi_h($t) . '" autocomplete="off">' .
+        // Enter in a field without the script submits the first button: the save, not the reset.
+        '<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>' .
         aio_cgi_aio($v) .
         aio_cgi_jacred($v) .
         '<h2>' . aio_cgi_l('Смотреть через TorrServer', 'Watch via TorrServer') . '</h2>' .
@@ -1980,7 +2173,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
         '.save{margin-top:24px;width:100%;padding:14px;font-size:17px;border:0;border-radius:8px;' .
         'background:#2d7ff9;color:#fff}.err{background:#4a1515;padding:10px;border-radius:8px}' .
         '.ok{background:#153d1f;padding:10px;border-radius:8px}.warn{background:#4a3a10;padding:10px;border-radius:8px}' .
-        '.log{margin:28px 0 0}.log a{color:#2d7ff9}' .
+        '.log{margin:28px 0 0}.log a{color:#2d7ff9}.dflt{position:absolute;left:-9999px;width:1px;height:1px}' .
         'h2{font-size:17px;margin:28px 0 0}details{margin:12px 0 0;padding:4px 12px 12px;border:1px solid #333;' .
         'border-radius:8px}summary{padding:8px 0;color:#ccc}#adv>summary{font-size:17px;color:#eee}' .
         'select{width:100%;padding:12px;font-size:16px;' .
@@ -2035,6 +2228,8 @@ function aio_cgi_save($dir, $t)
     $cur = aio_settings_read(aio_cgi_dir_ok($dir) ? $dir : '');
     $v['confs'] = $cur['aio_confs'];
     $v['cur'] = $cur;
+    $v['tpl_new'] = $cur['aio_tpl'];
+    $v['ajax'] = $ajax;
     list($data, $errors, $bad) = aio_cgi_check_values($v);
     if ($errors)
     {
@@ -2078,15 +2273,22 @@ function aio_cgi_save($dir, $t)
             'Not saved: a write error on the Dune')), "500 Settings not saved\n");
     }
     aio_cgi_log('save: ok');
+    // The config there is reset to the template (0.40.0): by its button, or
+    // a template chosen other than that of the config (tpl, also 'none' or
+    // 'custom'). The script asks first and then posts aio_reset; without it
+    // another template resets the config the page showed (the stored server).
+    $has = isset($data['aio_confs'][aio_settings_base($data)]);
+    $reset = $has && (aio_cgi_param($_POST, 'aio_reset') === '1' || (!$ajax && aio_cgi_same_server($data, $v['cur']) &&
+        $v['aio_tpl'] !== '' && $v['aio_tpl'] !== aio_cgi_tpl_shown($data['aio_server'], $data['aio_own_url'],
+        $data['aio_confs'], $data['aio_tpl'])));
     // Only the checked token, as in the redirect below. aio: what a=aio_sync
     // is to do next ('' - nothing, the own address).
     if ($ajax)
         aio_cgi_json(200, array_merge(array('ok' => true, 'next' => 'settings?t=' . $t . '&saved=1',
-            'aio' => $data['source'] === 'own' ? '' : (isset($data['aio_confs'][aio_settings_base($data)]) ?
-            'update' : 'create')),
+            'aio' => $data['source'] === 'own' ? '' : ($reset ? 'reset' : ($has ? 'update' : 'create'))),
             $notes ? array('notes' => $notes) : array()));
     // Without the script: the config right here; its result is seen on the page (made or not).
-    aio_cgi_aio_sync($dir);
+    aio_cgi_aio_sync($dir, $reset);
     // Post/Redirect/Get. Relative to this page; only the checked token, no
     // value of the request (and not the Host header).
     header('HTTP/1.0 303 See Other');

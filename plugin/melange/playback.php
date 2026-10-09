@@ -147,6 +147,8 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
 // the file is ready, else to a placeholder video of their own host:
 // AIOStreams /static/<file>.mp4, Torrentio /videos/<file>.mp4, MediaFusion
 // /static/exceptions/<file>.mp4, StremThru /v0/store/_/static/<file>.mp4.
+// The add-ons of ElfHosted redirect to slate.elfhosted.com instead, the
+// reason in its title and body.
 // (Comet sends its placeholder as the body, 200: not told from a stream.)
 
 define('AIO_PRE_CONNECT', 5);
@@ -160,12 +162,17 @@ define('AIO_PRE_LOC_MAX', 4096);
 
 // HTTP code $code and Location $loc of stream URL $url -> array('class' =>
 // 'stream' (with 'url' => the Location), 'placeholder' (with 'file' => its
-// name) or 'unclear' (with 'why')). Only an absolute http(s) Location of
-// another host is a stream.
+// name, or of aio_pre_slate()) or 'unclear' (with 'why')). Only an absolute
+// http(s) Location of another host, not the slate, is a stream.
 function aio_pre_class($url, $code, $loc)
 {
     if ($code < 300 || $code > 399 || $loc === '')
         return array('class' => 'unclear', 'why' => "HTTP $code" . ($code >= 300 && $code <= 399 ? ', no Location' : ''));
+    // The slate before the limits of a stream URL: a long one is still a placeholder.
+    $p = preg_match('~^https?://~i', $loc) ? parse_url($loc) : false;
+    if (is_array($p) && isset($p['host']) && strtolower($p['host']) === 'slate.elfhosted.com' &&
+        !isset($p['user']) && !isset($p['pass']))
+        return aio_pre_slate(isset($p['query']) ? $p['query'] : '');
     if (strlen($loc) > AIO_PRE_LOC_MAX || preg_match('/[^\x21-\x7e]/', $loc))
         return array('class' => 'unclear', 'why' => "HTTP $code, Location not a URL");
     $self = strtolower(strval(parse_url($url, PHP_URL_HOST)));
@@ -189,6 +196,28 @@ function aio_pre_class($url, $code, $loc)
     return array('class' => 'unclear', 'why' => "HTTP $code, same host, not a placeholder");
 }
 
+// Query of a slate.elfhosted.com Location -> a placeholder with 'slate' =>
+// its title (printable, no leading "%": not a %tr% key of the shell, cut)
+// and 'infringing' => title or body tell of a
+// refusal as infringing / for legal reasons. Not parse_str: magic quotes.
+function aio_pre_slate($query)
+{
+    $q = array('title' => '', 'body' => '');
+    foreach (explode('&', $query) as $kv)
+    {
+        $kv = explode('=', $kv, 2);
+        if (isset($kv[1]) && isset($q[$kv[0]]) && $q[$kv[0]] === '')
+            $q[$kv[0]] = urldecode($kv[1]);
+    }
+    $why = $q['title'] . ' ' . $q['body'];
+    $title = preg_replace('/[\x00-\x20\x7f]+/', ' ', $q['title']);
+    if (!preg_match('//u', $title))
+        $title = preg_replace('/[\x80-\xff]+/', '', $title);
+    $title = rtrim(ltrim($title, '% '));
+    return array('class' => 'placeholder', 'slate' => aio_cut($title, 100),
+        'infringing' => stripos($why, 'infring') !== false || stripos($why, 'legal reason') !== false);
+}
+
 // The check of stream URL $url -> aio_pre_class() and, for a placeholder,
 // 'key' and 'detail' of its message (by the file name).
 function aio_precheck($url)
@@ -208,13 +237,27 @@ function aio_precheck($url)
     // Not the URLs: the row's and the CDN's carry keys and tokens.
     if ($pre['class'] === 'stream')
         aio_log(sprintf('precheck: stream, HTTP %d -> %s, %.2f s', $code, $pre['host'], $t));
+    else if ($pre['class'] === 'placeholder' && isset($pre['slate']))
+    {
+        // Not its query: sig and ts.
+        aio_log(sprintf('precheck: placeholder, HTTP %d, slate: %s, %.2f s', $code,
+            $pre['slate'] !== '' ? $pre['slate'] : '-', $t));
+        $pre['key'] = $pre['infringing'] ? 'err_pre_infringing' : 'err_pre_placeholder';
+        $pre['detail'] = $pre['infringing'] ? '' : ($pre['slate'] !== '' ? $pre['slate'] : 'slate');
+    }
     else if ($pre['class'] === 'placeholder')
     {
         aio_log(sprintf('precheck: placeholder, HTTP %d, %s, %.2f s', $code, aio_cut($pre['file'], 100), $t));
         $f = strtolower($pre['file']);
-        // MediaFusion: torrent_not_downloaded.mp4.
-        $pre['key'] = strpos($f, 'downloading') !== false || strpos($f, 'not_downloaded') !== false ?
-            'err_pre_downloading' : (strpos($f, 'limit') !== false ? 'err_pre_limit' : 'err_pre_placeholder');
+        // Infringing: MediaFusion content_infringing.mp4, Torrentio
+        // failed_infringement_v3.mp4, StremThru 451.mp4, AIOStreams
+        // unavailable_for_legal_reasons.mp4. MediaFusion: torrent_not_downloaded.mp4.
+        if (strpos($f, 'infring') !== false || strpos($f, 'legal') !== false || $f === '451.mp4')
+            $pre['key'] = 'err_pre_infringing';
+        else if (strpos($f, 'downloading') !== false || strpos($f, 'not_downloaded') !== false)
+            $pre['key'] = 'err_pre_downloading';
+        else
+            $pre['key'] = strpos($f, 'limit') !== false ? 'err_pre_limit' : 'err_pre_placeholder';
         $pre['detail'] = $pre['key'] === 'err_pre_placeholder' ? aio_cut($pre['file'], 100) : '';
     }
     else

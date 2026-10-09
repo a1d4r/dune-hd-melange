@@ -11,6 +11,7 @@ err_no_streams = AIOStreams не нашёл потоков
 err_too_big = Слишком большой ответ: уменьшите лимит результатов в настройках AIOStreams
 err_list_expired = Список устарел, откройте его заново
 err_pre_downloading = Debrid ещё не скачал раздачу, попробуйте позже
+err_pre_infringing = Debrid заблокировал раздачу: авторские права
 err_pre_limit = Лимит Debrid
 err_pre_placeholder = Debrid вернул заглушку
 next_no_episode = Серии {ep} нет в этой раздаче

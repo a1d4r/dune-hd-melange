@@ -11,6 +11,7 @@ err_no_streams = AIOStreams found no streams
 err_too_big = Reply too big: lower the result limit in the AIOStreams settings
 err_list_expired = The list is outdated, open it again
 err_pre_downloading = Debrid has not downloaded the release yet, try later
+err_pre_infringing = Debrid blocked the release: copyright
 err_pre_limit = Debrid limit
 err_pre_placeholder = Debrid returned a placeholder video
 next_no_episode = Episode {ep} is not in this release

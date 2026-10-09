@@ -41,11 +41,57 @@ function aio_conf_encode($v)
     return preg_replace('/"\\\\u0001big:(-?[0-9][0-9.eE+\-]*)"/', '$1', json_encode($v));
 }
 
-// The template as an object, null when unreadable.
-function aio_conf_template()
+// The template $id (a key of aio_aio_tpls of common.php: the file with only
+// its presets) as an object, null when unreadable or no such template.
+function aio_conf_template($id = 'addons')
 {
+    $tpls = aio_aio_tpls();
     $j = aio_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . AIO_CONF_TEMPLATE));
-    return is_object($j) ? $j : null;
+    if (!is_object($j) || !is_string($id) || !array_key_exists($id, $tpls))
+        return null;
+    if ($tpls[$id] !== null && isset($j->presets) && is_array($j->presets))
+    {
+        $keep = array();
+        foreach ($j->presets as $x)
+        {
+            if (is_object($x) && isset($x->instanceId) && in_array($x->instanceId, $tpls[$id], true))
+                $keep[] = $x;
+        }
+        $j->presets = $keep;
+    }
+    return $j;
+}
+
+// instanceIds of the presets of a config, sorted; null when not a list of
+// presets each with a string instanceId.
+function aio_conf_preset_ids($c)
+{
+    if (!is_object($c) || !isset($c->presets) || !is_array($c->presets))
+        return null;
+    $ids = array();
+    foreach ($c->presets as $x)
+    {
+        if (!is_object($x) || !isset($x->instanceId) || !is_string($x->instanceId))
+            return null;
+        $ids[] = $x->instanceId;
+    }
+    sort($ids, SORT_STRING);
+    return $ids;
+}
+
+// The template of a config as it is on the server (0.40.0; before
+// aio_conf_patch, which brings back a removed JacRed preset): its set of
+// presets is exactly that of a template -> its id, else 'custom'. Enabled
+// or not, the order: not looked at.
+function aio_conf_tpl_of($c)
+{
+    $ids = aio_conf_preset_ids($c);
+    foreach (array_keys(aio_aio_tpls()) as $id)
+    {
+        if ($ids !== null && $ids === aio_conf_preset_ids(aio_conf_template($id)))
+            return $id;
+    }
+    return 'custom';
 }
 
 // Torznab endpoint of a JacRed base (no trailing slash).

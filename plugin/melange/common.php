@@ -4,7 +4,7 @@
 // addresses and the mask of the log. Plain PHP 5.3: no firmware API, no
 // logging here.
 
-define('AIO_VERSION', '0.39.0');
+define('AIO_VERSION', '0.40.0');
 // In data_dir: written by the settings page only; the plugin only reads it.
 define('AIO_SETTINGS_FILE', 'settings.json');
 // In data_dir: the token of the settings page; written by the plugin only.
@@ -188,6 +188,14 @@ function aio_aio_servers()
         'https://aiostreams.fortheweak.cloud' => false);
 }
 
+// Templates of the config melange makes (0.40.0): id => instanceIds of the
+// presets of cgi/aio_template.json it keeps (null: all). The first one is
+// the default.
+function aio_aio_tpls()
+{
+    return array('addons' => null, 'jacred' => array('melange'));
+}
+
 // A config of AIOStreams made by the settings page (0.35.0), as stored in
 // aio_confs of settings.json under its server $base (a key of
 // aio_aio_servers()): uuid, pass - the login and password of the config
@@ -195,7 +203,9 @@ function aio_aio_servers()
 // server (<base>/stremio/<uuid>/<encrypted password>/manifest.json), tmdb -
 // the config had TMDB at its last change, set (0.35.1) - of rd, tb, tmdb
 // the fields melange put in the config (null: not stored, a file of
-// 0.35.0). -> the same keys checked, or null.
+// 0.35.0), tpl (0.40.0) - its template by its presets: a key of
+// aio_aio_tpls(), 'custom' (changed in AIOStreams) or null (not known yet,
+// a config of 0.39 or older). -> the same keys checked, or null.
 function aio_aio_conf($base, $c)
 {
     $servers = aio_aio_servers();
@@ -207,7 +217,9 @@ function aio_aio_conf($base, $c)
         return null;
     return array('uuid' => $c['uuid'], 'pass' => $c['pass'], 'manifest' => $c['manifest'],
         'tmdb' => isset($c['tmdb']) && $c['tmdb'] === true, 'set' => isset($c['set']) && is_array($c['set']) ?
-        array_values(array_intersect(array('rd', 'tb', 'tmdb'), $c['set'])) : null);
+        array_values(array_intersect(array('rd', 'tb', 'tmdb'), $c['set'])) : null,
+        'tpl' => isset($c['tpl']) && is_string($c['tpl']) && ($c['tpl'] === 'custom' ||
+        array_key_exists($c['tpl'], aio_aio_tpls())) ? $c['tpl'] : null);
 }
 
 // The TMDB key melange puts in the config on the server $base: a server of
@@ -349,7 +361,8 @@ function aio_settings_hosts($s)
 // 'jacred' => a key of aio_jacred_builtin() or 'own', 'jacred_own_url',
 // 'jacred_own_key' => aio_jacred_own() or '' (kept when a built-in one is
 // chosen), 'aio_server' => a key of aio_aio_servers() or 'own' (another
-// server: aio_own_url), 'aio_own_url' => aio_aio_own(); everything kept
+// server: aio_own_url), 'aio_own_url' => aio_aio_own(), 'aio_tpl' => a key
+// of aio_aio_tpls() (one for all servers); everything kept
 // whatever is chosen, 'tmdb_key',
 // 'servers' => list of aio_server_conf(), 'ts_url' => aio_ts_addr() or '',
 // 'aio_confs' => base of a server => aio_aio_conf()),
@@ -361,9 +374,10 @@ function aio_settings_hosts($s)
 function aio_settings_read($dir)
 {
     $servers = array_keys(aio_aio_servers());
+    $tpls = aio_aio_tpls();
     $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
-        'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '', 'tmdb_key' => '',
-        'servers' => array(), 'ts_url' => '', 'aio_confs' => array());
+        'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
+        'aio_tpl' => key($tpls), 'tmdb_key' => '', 'servers' => array(), 'ts_url' => '', 'aio_confs' => array());
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
     if ($dir === '' || is_link($f) || !is_file($f) || !is_readable($f) || filesize($f) > AIO_SETTINGS_MAX)
@@ -390,6 +404,8 @@ function aio_settings_read($dir)
         $r['source'] = 'own';
     if (isset($j['aio_own_url']))
         $r['aio_own_url'] = aio_aio_own($j['aio_own_url']);
+    if (isset($j['aio_tpl']) && is_string($j['aio_tpl']) && array_key_exists($j['aio_tpl'], $tpls))
+        $r['aio_tpl'] = $j['aio_tpl'];
     if (!isset($j['v']) || $j['v'] !== 2)
         list($r['jacred'], $r['jacred_own_url'], $r['jacred_own_key']) =
             aio_jacred_migrate(isset($j['jacred_url']) ? $j['jacred_url'] : '');
