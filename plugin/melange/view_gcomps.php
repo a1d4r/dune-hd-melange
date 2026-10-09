@@ -1129,8 +1129,10 @@ function aio_gc_input($in)
         // A P2P stream (no URL, infoHash only): through TorrServer.
         if ($st['rows'][$sel]['url'] === '')
             return aio_ts_open(Aio::$state, $sel, 0, $st['rid']);
-        aio_playing($st['rid'], Aio::$state, $sel);
-        return aio_play($st, $st['rows'][$sel], 0);
+        $a = aio_play($st, $st['rows'][$sel], 0);
+        if ($a[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
+            aio_playing($st['rid'], Aio::$state, $sel);
+        return $a;
     }
 
     $key = isset($in->d) && is_string($in->d) ? $in->d : '';

@@ -1,8 +1,9 @@
 <?php
-// Playback: vod_play linked to the Dune card, the playlist of the season with
-// lazy episodes, back from the player to the list, episodes by the left and
-// right keys. Needs of main.php: Aio (state), aio_log, aio_mask, aio_error,
-// aio_tr, aio_input, aio_close_and, aio_dialog, aio_fetch, aio_list_state,
+// Playback: the stream check before the player, vod_play linked to the Dune
+// card, the playlist of the season with lazy episodes, back from the player to
+// the list, episodes by the left and right keys. Needs of main.php: Aio
+// (state), aio_log, aio_mask, aio_error, aio_tr, aio_input, aio_close_and,
+// aio_dialog, aio_fetch, aio_http_peek, aio_list_state,
 // aio_open_list, AIO_SUP_ID; of parse.php: aio_str, aio_arr, aio_cut,
 // aio_dialog_lines, aio_magnet; of jacred.php: aio_jacred, aio_carry_tracks, AIO_JACRED;
 // of view_gcomps.php: aio_gc_act, aio_gc_cursor, aio_gc_pos.
@@ -64,17 +65,36 @@ function aio_vod_item($mv, $s, $e, $url, $hash)
 // $ts (TorrServer, torrserver.php): array('url' => stream URL, 'eps' =>
 // episode => URL of the other episodes of the season in the pack); those go
 // to the playlist as they are, not lazy.
-function aio_play($st, $r, $pos, $ts = null)
+// $lazy: a lazy episode under the player (aio_next), a placeholder gets its
+// dialog there. $pre: aio_precheck() of the row's URL already done.
+function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
 {
     $mv = $st['movie'];
     $s = $st['s'];
     $e = $st['e'];
     $name = aio_ep_name($mv, $s, $e);
-    // A stream not in the debrid cache plays a 2-minute placeholder video:
-    // linked, it would put the placeholder's progress on the card. Unknown
-    // status (null) is not linked either. TorrServer has no placeholder.
-    $linked = $mv['dune_id'] !== '' && $r['hash'] !== '' && ($ts || $r['cached'] === true);
-    $ser = aio_vod_item($mv, $s, $e, $ts ? $ts['url'] : $r['url'], $linked ? $r['hash'] : '');
+    $url = $ts ? $ts['url'] : $r['url'];
+    // A Debrid placeholder video (not cached, a limit), linked, would put
+    // its progress on the card: it is not played at all. A redirect to the
+    // Debrid CDN means the file is ready: linked whatever "cached" says.
+    // Else linked only if cached; unknown status (null) is not. TorrServer
+    // has no placeholder.
+    $ready = false;
+    if (!$ts && preg_match('~^https?://~i', $url))
+    {
+        if (!$pre)
+            $pre = aio_precheck($url);
+        if ($pre['class'] === 'placeholder')
+            return $lazy ? aio_next_failed($st['lang'], sprintf('S%02dE%02d', $s, $e), $pre['key'], $pre['detail']) :
+                aio_error($pre['key'], $pre['detail']);
+        if ($pre['class'] === 'stream')
+        {
+            $url = $pre['url'];
+            $ready = true;
+        }
+    }
+    $linked = $mv['dune_id'] !== '' && $r['hash'] !== '' && ($ts || $ready || $r['cached'] === true);
+    $ser = aio_vod_item($mv, $s, $e, $url, $linked ? $r['hash'] : '');
     $series = array($ser);
     $seasons = $mv['seasons'];
     if ($linked && $e > 0 && isset($seasons[$s]) && $e <= $seasons[$s] && $seasons[$s] <= AIO_EPISODES_MAX &&
@@ -120,6 +140,86 @@ function aio_play($st, $r, $pos, $ts = null)
     return array(
         GuiAction::handler_string_id => PLUGIN_VOD_PLAY_ACTION_ID,
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
+}
+
+// --- Stream check before the player: one GET of the row's URL, no
+// redirects followed. Debrid add-ons redirect to the CDN of the service when
+// the file is ready, else to a placeholder video of their own host:
+// AIOStreams /static/<file>.mp4, Torrentio /videos/<file>.mp4, MediaFusion
+// /static/exceptions/<file>.mp4, StremThru /v0/store/_/static/<file>.mp4.
+// (Comet sends its placeholder as the body, 200: not told from a stream.)
+
+define('AIO_PRE_CONNECT', 5);
+define('AIO_PRE_TOTAL', 30);
+// handle_user_input and play_action have 60 s: the check gets what is left
+// of this many seconds of the operation, nothing below AIO_PRE_MIN.
+define('AIO_OP_BUDGET', 55);
+define('AIO_PRE_MIN', 3);
+// A longer Location is not taken for a stream URL.
+define('AIO_PRE_LOC_MAX', 4096);
+
+// HTTP code $code and Location $loc of stream URL $url -> array('class' =>
+// 'stream' (with 'url' => the Location), 'placeholder' (with 'file' => its
+// name) or 'unclear' (with 'why')). Only an absolute http(s) Location of
+// another host is a stream.
+function aio_pre_class($url, $code, $loc)
+{
+    if ($code < 300 || $code > 399 || $loc === '')
+        return array('class' => 'unclear', 'why' => "HTTP $code" . ($code >= 300 && $code <= 399 ? ', no Location' : ''));
+    if (strlen($loc) > AIO_PRE_LOC_MAX || preg_match('/[^\x21-\x7e]/', $loc))
+        return array('class' => 'unclear', 'why' => "HTTP $code, Location not a URL");
+    $self = strtolower(strval(parse_url($url, PHP_URL_HOST)));
+    if (preg_match('~^[a-z][a-z0-9+.\-]*:~i', $loc))
+    {
+        $p = parse_url($loc);
+        if (!preg_match('~^https?://~i', $loc) || !is_array($p) || !isset($p['host']) || $p['host'] === '' ||
+            isset($p['user']) || isset($p['pass']))
+            return array('class' => 'unclear', 'why' => "HTTP $code, Location not http(s)");
+        $host = strtolower($p['host']);
+        if ($host !== $self)
+            return array('class' => 'stream', 'url' => $loc, 'host' => $host);
+        $path = isset($p['path']) ? $p['path'] : '';
+    }
+    else if (substr($loc, 0, 2) === '//')
+        return array('class' => 'unclear', 'why' => "HTTP $code, Location not http(s)");
+    else
+        $path = preg_replace('/[?#].*$/s', '', $loc);
+    if (preg_match('~(?:^|/)(?:static|videos)/(?:.*/)?([^/]+\.mp4)$~i', $path, $m))
+        return array('class' => 'placeholder', 'file' => $m[1]);
+    return array('class' => 'unclear', 'why' => "HTTP $code, same host, not a placeholder");
+}
+
+// The check of stream URL $url -> aio_pre_class() and, for a placeholder,
+// 'key' and 'detail' of its message (by the file name).
+function aio_precheck($url)
+{
+    $left = Aio::$t0 > 0 ? AIO_OP_BUDGET - (microtime(true) - Aio::$t0) : AIO_PRE_TOTAL;
+    $total = (int) min(AIO_PRE_TOTAL, floor($left));
+    if ($total < AIO_PRE_MIN)
+    {
+        aio_log(sprintf('precheck: skipped, the operation took %.1f s', AIO_OP_BUDGET - $left));
+        return array('class' => 'unclear', 'why' => 'no time');
+    }
+    $t = microtime(true);
+    $err = '';
+    list($code, $loc) = aio_http_peek($url, $err, min(AIO_PRE_CONNECT, $total), $total);
+    $t = microtime(true) - $t;
+    $pre = $err !== '' ? array('class' => 'unclear', 'why' => $err) : aio_pre_class($url, $code, $loc);
+    // Not the URLs: the row's and the CDN's carry keys and tokens.
+    if ($pre['class'] === 'stream')
+        aio_log(sprintf('precheck: stream, HTTP %d -> %s, %.2f s', $code, $pre['host'], $t));
+    else if ($pre['class'] === 'placeholder')
+    {
+        aio_log(sprintf('precheck: placeholder, HTTP %d, %s, %.2f s', $code, aio_cut($pre['file'], 100), $t));
+        $f = strtolower($pre['file']);
+        // MediaFusion: torrent_not_downloaded.mp4.
+        $pre['key'] = strpos($f, 'downloading') !== false || strpos($f, 'not_downloaded') !== false ?
+            'err_pre_downloading' : (strpos($f, 'limit') !== false ? 'err_pre_limit' : 'err_pre_placeholder');
+        $pre['detail'] = $pre['key'] === 'err_pre_placeholder' ? aio_cut($pre['file'], 100) : '';
+    }
+    else
+        aio_log(sprintf('precheck: unclear (%s), %.2f s', $pre['why'], $t));
+    return $pre;
 }
 
 // --- Back from the player to the list screen.
@@ -599,11 +699,13 @@ function aio_has_ep($r, $s, $e)
     return in_array($e, $r['pf_episodes'], true) && ($r['pf_seasons'] === null || in_array($s, $r['pf_seasons'], true));
 }
 
-// A lazy episode: the same release (infoHash), cached, with this episode in
-// its file -> vod_play of it; else the same release as a P2P stream (no URL)
-// -> through TorrServer, the file of the episode in the pack (torrserver.php);
-// else the dialog "not in this release". Not bingeGroup: one value for many
-// releases, a silent change of the voice.
+// A lazy episode: the same release (infoHash) with a URL and this episode in
+// its file, a cached row first -> vod_play of it (aio_play checks it: a
+// placeholder gets its dialog). A row not cached plays only if the check finds
+// a stream (the CDN): else, as for no such row, the same release as a P2P
+// stream (no URL) -> through TorrServer, the file of the episode in the pack
+// (torrserver.php); else the dialog "not in this release" (a placeholder: its
+// own). Not bingeGroup: one value for many releases, a silent change of the voice.
 function aio_next($in)
 {
     // Language of the dialogs without a saved card: of the input, else of
@@ -637,24 +739,43 @@ function aio_next($in)
         if ($r['hash'] !== $hash)
             continue;
         $same++;
-        if ($r['url'] === '' && $p2p < 0)
-            $p2p = $i;
-        if ($r['cached'] !== true)
+        if ($r['url'] === '')
+        {
+            if ($p2p < 0)
+                $p2p = $i;
             continue;
-        $cached++;
-        if (!$found && aio_has_ep($r, $s, $e))
+        }
+        if ($r['cached'] === true)
+            $cached++;
+        if (aio_has_ep($r, $s, $e) && (!$found || ($r['cached'] === true && $found['cached'] !== true)))
         {
             $found = $r;
             $sel = $i;
         }
     }
     aio_log("next: $ep: " . count($st['rows']) . " rows, $same with the hash, $cached of them cached, " .
-        ($found ? 'found' : "none with $ep") . ($p2p >= 0 ? ", P2P row $p2p" : ''));
+        ($found ? ($found['cached'] === true ? 'found' : 'found not cached') : "none with $ep") .
+        ($p2p >= 0 ? ", P2P row $p2p" : ''));
     $from = Aio::$playing ? Aio::$playing['from'] : '';
+    $pre = null;
+    if ($found && $found['cached'] !== true)
+    {
+        $pre = preg_match('~^https?://~i', $found['url']) ? aio_precheck($found['url']) :
+            array('class' => 'unclear', 'why' => 'not http(s)');
+        // A placeholder without P2P: its dialog (aio_play), not "not in this release".
+        if ($pre['class'] !== 'stream' && ($p2p >= 0 || $pre['class'] !== 'placeholder'))
+        {
+            aio_log("next: $ep: row $sel not cached, no stream from Debrid");
+            $found = null;
+        }
+    }
     if ($found)
     {
-        aio_playing($from, $st, $sel);
-        return aio_play($st, $found, 0);
+        $a = aio_play($st, $found, 0, null, true, $pre);
+        // A placeholder: the list under the player stays that of the episode played.
+        if ($a[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
+            aio_playing($from, $st, $sel);
+        return $a;
     }
     if ($p2p >= 0)
         return aio_ts_open($st, $p2p, 0, $from, true);

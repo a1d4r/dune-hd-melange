@@ -72,6 +72,9 @@ class Aio
     // The list state of a TorrServer waiting dialog when it is not the list
     // on screen (a lazy episode, aio_next): its timer finds it by rid.
     public static $tswait = null;
+    // Start of the operation (microtime), for the time left to the stream
+    // check (aio_precheck); 0 outside an operation.
+    public static $t0 = 0;
 }
 
 // --- Log: /tmp/run/melange.log (stdout of php_server).
@@ -325,6 +328,64 @@ if (!function_exists('aio_http_post'))
     }
 }
 
+// Tests define their own aio_http_peek().
+if (!function_exists('aio_http_peek'))
+{
+    // GET of a stream URL for its status and Location only -> array(HTTP
+    // code, Location as sent or ''). No redirects; the transfer stops at the
+    // end of the headers, the body (a video) is never read. $err is set on a
+    // transport error.
+    function aio_http_peek($url, &$err, $connect = 5, $total = 30)
+    {
+        $code = 0;
+        $loc = '';
+        $done = false;
+        $ch = curl_init($url);
+        $set = curl_setopt_array($ch, array(
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_CONNECTTIMEOUT => $connect,
+            CURLOPT_TIMEOUT => $total,
+            CURLOPT_CAINFO => '/firmware/certs/ca-bundle.crt',
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            // The User-Agent of aio_fetch: the add-ons see the same client.
+            CURLOPT_USERAGENT => 'AIOStreams-DuneClient/' . AIO_VERSION,
+            CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$code, &$loc, &$done)
+            {
+                // A status line starts a response (also after "100 Continue").
+                if (preg_match('~^HTTP/\S+\s+([0-9]{3})~', $line, $m))
+                {
+                    $code = intval($m[1]);
+                    $loc = '';
+                }
+                else if ($loc === '' && preg_match('/^Location:[ \t]*(.*)$/is', $line, $m))
+                    $loc = rtrim($m[1], " \t\r\n");
+                else if (rtrim($line, "\r\n") === '' && $code >= 200)
+                {
+                    // End of the final headers: a short count aborts the transfer.
+                    $done = true;
+                    return 0;
+                }
+                return strlen($line);
+            },
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk)
+            {
+                return 0;
+            }));
+        if (!$set)
+        {
+            curl_close($ch);
+            $err = 'curl options refused';
+            return array(0, '');
+        }
+        $ok = curl_exec($ch);
+        $err = $ok === false && !$done ? 'curl ' . curl_errno($ch) . ': ' . curl_error($ch) : '';
+        curl_close($ch);
+        return $err !== '' ? array(0, '') : array($code, $loc);
+    }
+}
+
 // Error streams of the reply (streamData.type "error": a failed add-on, a bad
 // config): the count and the text of the first 3, masked before the cut.
 function aio_log_error_streams($streams)
@@ -470,12 +531,28 @@ function aio_play_action($in)
 
     if ($resume)
     {
+        // Through Debrid: the row of the release with a URL, a cached one
+        // first (aio_play checks it). One not cached only if the check finds
+        // a stream: else maybe a placeholder, as before.
+        $deb = null;
         foreach ($st['rows'] as $r)
         {
-            // Not cached or unknown: maybe a placeholder video, let the user choose.
-            if ($r['hash'] === $resume['hash'] && $r['cached'] === true)
-                return aio_play($st, $r, $resume['pos']);
+            if ($r['hash'] === $resume['hash'] && $r['url'] !== '' &&
+                (!$deb || ($r['cached'] === true && $deb['cached'] !== true)))
+                $deb = $r;
         }
+        $pre = null;
+        if ($deb && $deb['cached'] !== true)
+        {
+            $pre = preg_match('~^https?://~i', $deb['url']) ? aio_precheck($deb['url']) : array('class' => 'unclear');
+            if ($pre['class'] !== 'stream')
+            {
+                aio_log("resume: release {$resume['hash']} not cached, no stream from Debrid");
+                $deb = null;
+            }
+        }
+        if ($deb)
+            return aio_play($st, $deb, $resume['pos'], null, false, $pre);
         // Not cached (watched via TorrServer, or gone from the cache) or P2P:
         // through TorrServer, only if it answers; else the list.
         $ts = -1;
@@ -657,6 +734,7 @@ class AioFw extends DunePluginFw
             $ctx->input_data : null;
         if ($in && isset($ctx->op_type_code))
         {
+            Aio::$t0 = microtime(true);
             aio_settings_load();
             $op = $ctx->op_type_code;
             if ($op === PLUGIN_OP_GET_FOLDER_VIEW)
