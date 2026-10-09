@@ -29,6 +29,70 @@
         "paginate": false,
         "useMultipleInstances": false
       }
+    },
+    {
+      "type": "comet",
+      "instanceId": "comet",
+      "enabled": true,
+      "options": {
+        "name": "Comet",
+        "timeout": 5000,
+        "resources": [
+          "stream"
+        ],
+        "includeP2P": false,
+        "removeTrash": true,
+        "scrapeDebridAccountTorrents": false,
+        "useMultipleInstances": true,
+        "mediaTypes": [],
+        "url": "https://cometfortheweebs.midnightignite.me"
+      }
+    },
+    {
+      "type": "stremthruTorz",
+      "instanceId": "torz",
+      "enabled": true,
+      "options": {
+        "name": "StremThru Torz",
+        "timeout": 5000,
+        "resources": [
+          "stream"
+        ],
+        "mediaTypes": [],
+        "includeP2P": false,
+        "useMultipleInstances": true
+      }
+    },
+    {
+      "type": "mediafusion",
+      "instanceId": "mf",
+      "enabled": true,
+      "options": {
+        "name": "MediaFusion",
+        "timeout": 7000,
+        "resources": [
+          "stream"
+        ],
+        "mediaTypes": [],
+        "useCachedResultsOnly": true,
+        "enableWatchlistCatalogs": false,
+        "includeP2P": false,
+        "useMultipleInstances": true
+      }
+    },
+    {
+      "type": "torrentio",
+      "instanceId": "torrentio",
+      "enabled": true,
+      "options": {
+        "name": "Torrentio",
+        "timeout": 7000,
+        "resources": [
+          "stream"
+        ],
+        "mediaTypes": [],
+        "useMultipleInstances": false
+      }
     }
   ],
   "excludedResolutions": [
@@ -148,10 +212,6 @@
     "global": [
       {
         "key": "language",
-        "direction": "desc"
-      },
-      {
-        "key": "streamExpressionScore",
         "direction": "desc"
       },
       {
@@ -318,18 +378,7 @@
   },
   "checkOwned": true,
   "preferredStreamExpressions": [],
-  "rankedStreamExpressions": [
-    {
-      "expression": "seeders(type(streams, 'p2p'), 0, 2)",
-      "score": -20,
-      "enabled": true
-    },
-    {
-      "expression": "seeders(type(streams, 'p2p'), 3, 9)",
-      "score": -10,
-      "enabled": true
-    }
-  ],
+  "rankedStreamExpressions": [],
   "remuxDb": {
     "enabled": true
   }

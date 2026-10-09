@@ -1356,8 +1356,8 @@ function aio_cgi_aio($v)
         aio_cgi_radio('srcm', 'source', 'made', aio_cgi_l('Melange создаст конфиг', 'Melange makes the config'),
         $v['source'] !== 'own') . '<div id="smade"><p class="hint">' .
         aio_cgi_l('Нужен ключ Real-Debrid или TorBox.', 'A Real-Debrid or TorBox key is needed.') . '</p><p class="hint">' .
-        aio_cgi_l('Раздачи ищет JacRed (раздел ниже), смотрятся через Debrid.',
-        'JacRed (below) finds the releases, they play via Debrid.') . '</p>' .
+        aio_cgi_l('Раздачи ищут JacRed (раздел ниже) и другие аддоны, смотрятся через Debrid.',
+        'JacRed (below) and other addons find the releases, they play via Debrid.') . '</p>' .
         '<label for="as">' . aio_cgi_l('Сервер AIOStreams', 'AIOStreams server') . '</label><select id="as" name="aio_server">';
     foreach (aio_aio_servers() as $url => $tmdb)
     {
