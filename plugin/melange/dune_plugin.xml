@@ -68,6 +68,6 @@
       </data>
     </uninstall>
   </global_actions>
-  <version>0.35.9</version>
-  <version_index>74</version_index>
+  <version>0.35.10</version>
+  <version_index>75</version_index>
 </dune_plugin>

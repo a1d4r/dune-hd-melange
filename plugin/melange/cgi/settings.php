@@ -2,7 +2,7 @@
 // Settings page of melange (www/cgi-bin/settings -> php-cgi): root on the
 // device, open to the whole LAN without a password. Without the token of
 // <data_dir>/web_token every request gets the same 403, with no
-// diagnostics and no outgoing request.
+// diagnostics and no outgoing request (no data dir at all: 500, a hint).
 //   GET  ?t=<token> -> the form with the current values, in the language of
 //                      the Dune (aio_cgi_lang);
 //   POST ?t=<token> -> format (no request out) -> the keys given checked with
@@ -166,20 +166,54 @@ function aio_cgi_forbidden()
     aio_cgi_send(403, 'text/plain', "403 Forbidden\n");
 }
 
-// run_plugin_cgi sets PLUGIN_CGI_DIR = realpath(<tmp>/www/plugins/<name>)/cgi-bin,
-// that is <storage>/plugins/melange/www/cgi-bin; the shell keeps the data
-// in <storage>/plugins_data/melange. Else the path of Screenshoter:
-// /persistfs (Sigma) or $FS_PREFIX/flashdata. '' for another plugin name.
-function aio_cgi_data_dir()
+// <storage>/plugins_data/melange for <storage>/plugins/melange<$suffix>; '' else.
+function aio_cgi_data_of($path, $suffix)
 {
-    if (getenv('PLUGIN_NAME') !== AIO_CGI_NAME)
-        return '';
-    $cgi = (string) getenv('PLUGIN_CGI_DIR');
-    if (!preg_match('#(^|/)\.\.?(/|\z)|//#', $cgi) &&
-        preg_match('#^((?:/[^/]+)+)/plugins/' . AIO_CGI_NAME . '/www/cgi-bin\z#', $cgi, $m))
+    if (!preg_match('#(^|/)\.\.?(/|\z)|//#', $path) &&
+        preg_match('#^((?:/[^/]+)+)/plugins/' . AIO_CGI_NAME . preg_quote($suffix, '#') . '\z#', $path, $m))
         return $m[1] . '/plugins_data/' . AIO_CGI_NAME;
-    $p = '/persistfs/plugins_data/' . AIO_CGI_NAME;
-    return is_dir($p) ? $p : getenv('FS_PREFIX') . '/flashdata/plugins_data/' . AIO_CGI_NAME;
+    return '';
+}
+
+// Where the data dir may be, in order. run_plugin_cgi (APK firmware) sets
+// PLUGIN_NAME and PLUGIN_CGI_DIR = realpath(<tmp>/www/plugins/<name>)/cgi-bin;
+// older firmware sets neither (its plugins take the name from $PWD). Then the
+// place of this script, then the paths of Screenshoter: /persistfs (Sigma),
+// $FS_PREFIX/flashdata. None for another plugin name.
+function aio_cgi_data_dirs()
+{
+    $name = (string) getenv('PLUGIN_NAME');
+    if ($name !== '' && $name !== AIO_CGI_NAME)
+        return array();
+    $dirs = array(
+        $name !== '' ? aio_cgi_data_of((string) getenv('PLUGIN_CGI_DIR'), '/www/cgi-bin') : '',
+        aio_cgi_data_of(dirname(dirname(__FILE__)), ''),
+        '/persistfs/plugins_data/' . AIO_CGI_NAME,
+        getenv('FS_PREFIX') . '/flashdata/plugins_data/' . AIO_CGI_NAME);
+    return array_values(array_unique(array_diff($dirs, array(''))));
+}
+
+// The data dir that holds the given token; '' if none. Nothing at any of
+// the paths (a layout not known here): 500, whatever the token.
+function aio_cgi_data_dir($t)
+{
+    $dirs = aio_cgi_data_dirs();
+    $seen = false;
+    foreach ($dirs as $d)
+    {
+        if (aio_cgi_token_ok($d, $t))
+            return $d;
+        $seen = $seen || file_exists($d) || is_link($d);
+    }
+    if ($dirs && !$seen)
+    {
+        aio_cgi_log('no data dir: ' . implode(', ', $dirs));
+        $GLOBALS['AIO_CGI_LANG'] = aio_cgi_lang();
+        aio_cgi_send(500, 'text/plain', aio_cgi_l(
+            'Melange: на этой Дюне не найдена папка данных плагина. Сообщите автору модель Дюны и версию прошивки.',
+            'Melange: the data folder of the plugin was not found on this Dune. Please tell the author the model of the Dune and the firmware version.') . "\n");
+    }
+    return '';
 }
 
 // The CGI never creates it: a root-owned dir would lock the plugin out.
@@ -2128,9 +2162,9 @@ function aio_cgi_log_download($dir)
     exit(0);
 }
 
-$dir = aio_cgi_data_dir();
 $t = aio_cgi_param($_GET, 't');
-if (!aio_cgi_token_ok($dir, $t))
+$dir = aio_cgi_data_dir($t);
+if ($dir === '')
     aio_cgi_forbidden();
 $AIO_CGI_LANG = aio_cgi_lang();
 $method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : '';
