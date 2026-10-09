@@ -355,8 +355,7 @@ function aio_info_col_source($r, $sd, $pf, $tt)
     aio_info_put($c, '', aio_gc_wrap($status, 26, AIO_INF_CW, 2, true), true, aio_gc_status_color($r['cached']));
     if ($r['trackers'])
         aio_info_field($c, $tt['trackers'], aio_cut(implode(', ', $r['trackers']), AIO_TEXT_MAX), 2);
-    else
-        aio_info_field($c, $tt['addon'], $r['addon'], 2);
+    aio_info_field($c, $tt['addon'], $r['addon'], 2);
     $tor = aio_arr($sd, 'torrent');
     if (isset($tor['seeders']) && is_int($tor['seeders']) && $tor['seeders'] >= 0)
         aio_info_field($c, $l['seeders'], strval($tor['seeders']), 1);

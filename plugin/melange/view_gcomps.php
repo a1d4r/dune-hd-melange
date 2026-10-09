@@ -747,11 +747,12 @@ function aio_gc_share($prog, $r)
 // Children of 'card' (left column, at the poster's top left). Beside the
 // poster: the size (48 px), the bit rate, the size of a season pack, the
 // cache status (in the colour of the row's icon), the release group, the
-// source (platform of a WEB-DL). Under
+// source (platform of a WEB-DL); at the poster's bottom the add-on when it
+// fits. Under
 // the poster: the name (a fixed block of 2 lines, 26 px), then by priority
 // video, audio, voices (of the audio tracks and the name), subtitles, languages,
-// trackers (without them the add-on) - what does not fit above
-// AIO_GC_CARD_BOTTOM is cut or left out from the end.
+// trackers (without them the add-on, unless beside the poster) - what does not
+// fit above AIO_GC_CARD_BOTTOM is cut or left out from the end.
 function aio_gc_card($st, $sel)
 {
     $r = $st['rows'][$sel];
@@ -809,6 +810,16 @@ function aio_gc_card($st, $sel)
             AIO_GC_TEXT2);
         $y += $lh;
     }
+    // The add-on at the poster's bottom (its value ends at AIO_GC_PH), when it
+    // fits under the fields above; else under the poster without trackers.
+    $addon = aio_clean($r['addon']);
+    $ay = AIO_GC_PH - $lh - 32;
+    $addon_side = $addon !== '' && $y + 16 <= $ay;
+    if ($addon_side)
+    {
+        $d[] = aio_gc_cut(null, aio_gc_at($sw, 32, $sx, $ay), $tt['addon'], 26, AIO_GC_DIM);
+        $d[] = aio_gc_cut(null, aio_gc_at($sw, $lh, $sx, $ay + 32), aio_gc_cut_w($addon, 30, $sw), 30, AIO_GC_TEXT2);
+    }
 
     // Under the poster's place even without a poster: the fields do not move.
     $y = AIO_GC_PH + 20;
@@ -844,7 +855,7 @@ function aio_gc_card($st, $sel)
         array('subs', aio_cut(implode(', ', $r['subs']), AIO_TEXT_MAX)),
         array('langs', aio_cut(implode(', ', $r['langs']), AIO_TEXT_MAX)),
         $r['trackers'] ? array('trackers', aio_cut(implode(', ', $r['trackers']), AIO_TEXT_MAX)) :
-            array('addon', $r['addon'])) as $f)
+            array('addon', $addon_side ? '' : $r['addon'])) as $f)
     {
         $v = aio_clean($f[1]);
         $vlh = $f[0] === 'voices' ? AIO_GC_VOICES_LH : $lh;
