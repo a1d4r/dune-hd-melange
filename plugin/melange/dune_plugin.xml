@@ -68,6 +68,13 @@
       </data>
     </uninstall>
   </global_actions>
-  <version>0.35.10</version>
-  <version_index>75</version_index>
+  <check_update>
+    <schema>2</schema>
+    <url>https://a1d4r.github.io/dune-hd-melange/melange/update_info.xml</url>
+    <timeout>86400</timeout>
+    <required>no</required>
+    <auto>yes</auto>
+  </check_update>
+  <version>0.36.0</version>
+  <version_index>76</version_index>
 </dune_plugin>

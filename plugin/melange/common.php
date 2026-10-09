@@ -4,7 +4,7 @@
 // addresses and the mask of the log. Plain PHP 5.3: no firmware API, no
 // logging here.
 
-define('AIO_VERSION', '0.35.10');
+define('AIO_VERSION', '0.36.0');
 // In data_dir: written by the settings page only; the plugin only reads it.
 define('AIO_SETTINGS_FILE', 'settings.json');
 // In data_dir: the token of the settings page; written by the plugin only.

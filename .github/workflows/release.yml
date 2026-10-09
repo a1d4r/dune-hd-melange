@@ -44,11 +44,31 @@ jobs:
           base="https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME"
           {
             echo "Скачайте zip ниже, в Assets. Установка — в [README]($base/README.md)."
+            echo "Для ручной установки нужен zip; \`.tar.gz\` — тот же плагин для онлайн-обновления."
             echo
             echo "Что нового — в [CHANGELOG]($base/CHANGELOG.md)."
           } > notes.md
           cat notes.md
+      # The online update channel: dist/pages/melange/update_info.xml and the
+      # archive it points to. Each deploy replaces the whole site. Uploaded
+      # before the release, so a failed upload leaves no half-done release.
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/pages
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.zip --title "Melange $GITHUB_REF_NAME" --notes-file notes.md
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip dist/pages/*/*.tar.gz --title "Melange $GITHUB_REF_NAME" --notes-file notes.md
+
+  pages:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
