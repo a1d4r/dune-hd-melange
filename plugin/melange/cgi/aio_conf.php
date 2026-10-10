@@ -232,8 +232,8 @@ function aio_conf_params($s, $conf, $tmdbs = null)
     $servers = aio_aio_servers();
     $base = aio_settings_base($s);
     $jr = aio_jacred_list($s);
-    return array('rd' => $s['rd_key'], 'tb' => $s['tb_key'], 'jr_url' => aio_conf_torznab($jr[0][0]),
-        'jr_key' => $jr[0][2], 'tmdb_key' => aio_tmdb_sent($base, $s['tmdb_key']),
+    return array('rd' => $s['rd_key'], 'tb' => $s['tb_key'], 'jr_url' => aio_conf_torznab($jr[0]['base']),
+        'jr_key' => $jr[0]['key'], 'tmdb_key' => aio_tmdb_sent($base, $s['tmdb_key']),
         'tmdb_server' => $tmdbs !== null ? $tmdbs : !empty($servers[$base]), 'tmdb_prev' => $conf ? $conf['tmdb'] : null,
         'set' => $conf ? $conf['set'] : array());
 }

@@ -98,10 +98,8 @@ function aio_voices_parse($s, $tails = true)
     $p = count($pipe);
     if ($n === 0)
         return $v;
-    // The first year: before it studios and types are of the title and the
-    // director; original and subtitles only in brackets ("[RUS(int), JAP+Sub]
-    // [2013, ...]" of anime; not "Original Sin (2009)"), studios only in the
-    // leading group ("[AniLibria] ...").
+    // The first year: the words before it are of the title and the director
+    // (rules of the voices loop below).
     $year = 0;
     while ($year < $n && !(strlen($word[$year]) === 4 && ctype_digit($word[$year]) &&
         ($word[$year][0] . $word[$year][1] === '19' || $word[$year][0] . $word[$year][1] === '20')))
@@ -167,8 +165,20 @@ function aio_voices_parse($s, $tails = true)
     $types = array();
     foreach ($cls as $i => $c)
     {
-        if (!$c || ($c[0] === 'code' && $ok[$part[$i]] !== 1) || ($i < $year && $dep[$i] === 0) ||
-            ($i < $year && $c[0] !== 'orig' && $c[0] !== 'subs' && !($c[0] === 'studio' && $lead[$i])))
+        if (!$c)
+            continue;
+        // Tracker codes only in the parts of voices.
+        if ($c[0] === 'code' && $ok[$part[$i]] !== 1)
+            continue;
+        // Before the year only in brackets: not "Original Sin (2009)".
+        if ($i < $year && $dep[$i] === 0)
+            continue;
+        // The Japanese original only in brackets: not "JPN Transfer", "...Tur.Jpn.2160p".
+        if ($c[0] === 'orig' && $c[1] === 'jap' && $dep[$i] === 0)
+            continue;
+        // Before the year only original, subtitles ("[RUS(int), JAP+Sub] [2013") and
+        // a studio of the leading group ("[AniLibria] ...").
+        if ($i < $year && $c[0] !== 'orig' && $c[0] !== 'subs' && !($c[0] === 'studio' && $lead[$i]))
             continue;
         if ($c[0] === 'studio' && $c[1] !== '' && count($v['studios']) < 20 && !isset($v['keys'][$c[1]]) &&
             ($from === 0 || $part[$i] < $from || (strpos($head, $c[2]) === false && !isset($unsafe[$c[1]]))))
@@ -389,23 +399,6 @@ function aio_voices_words($lang)
     return array('dub' => aio_tr($lang, 'voices_dub'), 'mvo' => aio_tr($lang, 'voices_mvo'),
         'dvo' => aio_tr($lang, 'voices_dvo'), 'avo' => aio_tr($lang, 'voices_avo'),
         'orig' => aio_tr($lang, 'voices_orig'), 'subs' => aio_tr($lang, 'voices_subs'));
-}
-
-// Voices of a name with all their types: "Дубляж, ПМ · LostFilm, Кубик в Кубе ·
-// оригинал JAP · субтитры"; '' if the name tells nothing. Not used by the
-// plugin: for the tests and offline checks.
-function aio_voices_text($v, $lang, $subs = true)
-{
-    $w = aio_voices_words($lang);
-    $types = array();
-    foreach ($v['types'] as $type)
-        $types[] = $w[$type];
-    $p = array(implode(', ', $types), implode(', ', $v['studios']));
-    if ($v['orig'] !== '')
-        $p[] = $w['orig'] . ($v['orig'] === 'jap' ? ' JAP' : '');
-    if ($v['subs'] && $subs)
-        $p[] = $w['subs'];
-    return aio_cut(implode(' · ', array_filter($p, 'strlen')), AIO_TEXT_MAX);
 }
 
 // Lower case, ё -> е, words joined by a space: the key of voices.php.
@@ -897,9 +890,12 @@ function aio_voices_name_extra($s)
             if ($pv['studios'] || $pv['types'] || $pv['orig'] !== '' || $pv['subs'] || !aio_voices_as_written($p) ||
                 mb_strlen($p, 'UTF-8') > 40)
                 continue;
+            // "JAP", "японская": the original is no studio (the parse above keeps
+            // the Japanese one only in brackets).
             foreach (explode(' ', $k) as $w)
             {
-                if (isset($noise[$w]) || isset($stop[$w]) || preg_match('/^[0-9]+$/', $w))
+                $c = aio_voices_word($w, $w);
+                if (isset($noise[$w]) || isset($stop[$w]) || preg_match('/^[0-9]+$/', $w) || ($c && $c[0] === 'orig'))
                     continue 2;
             }
             $out[] = array(aio_voices_person($p), $l[1]);
@@ -990,7 +986,7 @@ function aio_row_voices_struct($r)
     }
     $nv['studios'] = $keep;
     $orig = $orig !== '' ? $orig : $nv['orig'];
-    // As aio_voices_text: the types and studios of the name, no groups.
+    // No voice from the tracks: the types and studios of the name, no groups.
     if (!$groups && !$types)
         return aio_voices_by_tracker(array('groups' => array(), 'types' => $nv['types'], 'studios' => $nv['studios'],
             'orig' => $orig, 'subs' => $nv['subs']), $r);
@@ -1113,14 +1109,4 @@ function aio_row_voices($r)
         $r['label'] = $p[$r['label']]['name'];
     unset($r['names']);
     return $r;
-}
-
-// One release for offline checks, not used
-// by the plugin: its names (torrent name; folder and file) and audio tracks as
-// aio_tracks() makes them ('lang' => 'RU', 'title' => ...), trackers (indexer)
-// -> aio_row_voices_struct().
-function aio_voices_release($names, $tracks, $trackers = array())
-{
-    return aio_row_voices_struct(aio_row_voices(array('names' => $names, 'label' => $names ? $names[0] : '',
-        'tracks' => $tracks, 'trackers' => $trackers)));
 }

@@ -44,7 +44,8 @@ function aio_manifest_base($url)
 // or "http://host:9117/?apikey=KEY", a key of 8+ printable ASCII characters
 // without & and #; a key with %XX in it is taken as already encoded. '' or
 // anything else (control bytes, non-ASCII) -> null.
-// -> array(base without a slash, host, key as written, key for the URL).
+// -> array('base' => without a slash, 'host', 'key' => as written,
+// 'key_url' => for the URL).
 function aio_jacred_conf($s)
 {
     $url = is_string($s) ? trim(preg_replace('/^\xEF\xBB\xBF/', '', $s), AIO_TRIM) : '';
@@ -55,7 +56,17 @@ function aio_jacred_conf($s)
     // A short key would be masked all over the log.
     if ($key !== '' && strlen($key) < 8)
         return null;
-    return array($m[1], $m[2], $key, preg_match('/%[0-9A-Fa-f]{2}/', $key) ? $key : rawurlencode($key));
+    return array('base' => $m[1], 'host' => $m[2], 'key' => $key,
+        'key_url' => preg_match('/%[0-9A-Fa-f]{2}/', $key) ? $key : rawurlencode($key));
+}
+
+// Built-in JacRed $id of aio_jacred_builtin() -> aio_jacred_conf() +
+// 'builtin' => true, null for another id.
+function aio_jacred_builtin_conf($id)
+{
+    $b = aio_jacred_builtin();
+    return isset($b[$id]) ? array('base' => $b[$id][0], 'host' => $id, 'key' => $b[$id][1],
+        'key_url' => rawurlencode($b[$id][1]), 'builtin' => true) : null;
 }
 
 // "Download to server" (0.30.0): at most this many qBittorrent WebAPI servers.
@@ -283,32 +294,31 @@ function aio_jacred_migrate($url)
 {
     $c = aio_jacred_conf($url);
     $b = aio_jacred_builtin();
-    if ($c && isset($b[strtolower($c[1])]))
-        return array(strtolower($c[1]), '', '');
-    $own = $c ? aio_jacred_own(array('url' => $c[0], 'key' => $c[2])) : null;
+    if ($c && isset($b[strtolower($c['host'])]))
+        return array(strtolower($c['host']), '', '');
+    $own = $c ? aio_jacred_own(array('url' => $c['base'], 'key' => $c['key'])) : null;
     return $own ? array('own', $own['url'], $own['key']) : array(AIO_JACRED_DEFAULT, '', '');
 }
 
 // The own JacRed of the settings, chosen or not, for the mask of the log:
-// array() or array(aio_jacred_conf() + built-in false).
+// array() or array(aio_jacred_conf() + 'builtin' => false).
 function aio_jacred_own_confs($s)
 {
     $c = $s['jacred_own_url'] !== '' ? aio_jacred_conf($s['jacred_own_url'] .
         ($s['jacred_own_key'] !== '' ? '/?apikey=' . $s['jacred_own_key'] : '')) : null;
-    return $c ? array(array($c[0], $c[1], $c[2], $c[3], false)) : array();
+    return $c ? array($c + array('builtin' => false)) : array();
 }
 
 // The JacRed to ask, in this order: the chosen one, then AIO_JACRED_DEFAULT
-// if that is another. -> list of array(base, host, key as written, key for
-// the URL, built-in).
+// if that is another. -> list of aio_jacred_conf() + 'builtin'.
 function aio_jacred_list($s)
 {
-    $b = aio_jacred_builtin();
     $list = $s['jacred'] === 'own' ? aio_jacred_own_confs($s) : array();
     foreach (array_unique(array($s['jacred'], AIO_JACRED_DEFAULT)) as $id)
     {
-        if (isset($b[$id]))
-            $list[] = array($b[$id][0], $id, $b[$id][1], rawurlencode($b[$id][1]), true);
+        $c = aio_jacred_builtin_conf($id);
+        if ($c)
+            $list[] = $c;
     }
     return $list;
 }
@@ -509,14 +519,14 @@ function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
     }
     foreach ($jrs as $jr)
     {
-        if (!empty($jr[4]))
+        if (!empty($jr['builtin']))
             continue;
-        if ($jr[2] !== '')
-            $s = str_replace(array($jr[2], rawurlencode($jr[2]), urlencode($jr[2]), substr(json_encode($jr[2]), 1, -1)),
-                '***', $s);
-        if ($jr[1] !== '')
-            $s = preg_replace('~(?<![A-Za-z0-9.\\-])' . preg_quote($jr[1], '~') . '(?![A-Za-z0-9\\-])~', '<jacred>',
-                str_replace($jr[0], '<jacred>', $s));
+        if ($jr['key'] !== '')
+            $s = str_replace(array($jr['key'], rawurlencode($jr['key']), urlencode($jr['key']),
+                substr(json_encode($jr['key']), 1, -1)), '***', $s);
+        if ($jr['host'] !== '')
+            $s = preg_replace('~(?<![A-Za-z0-9.\\-])' . preg_quote($jr['host'], '~') . '(?![A-Za-z0-9\\-])~', '<jacred>',
+                str_replace($jr['base'], '<jacred>', $s));
     }
     if ($aio !== '')
         $s = aio_mask_host($s, $aio, '<aio>');

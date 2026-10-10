@@ -1,12 +1,9 @@
 <?php
 // Playback: the stream check before the player, vod_play linked to the Dune
 // card, the playlist of the season with lazy episodes, back from the player to
-// the list, episodes by the left and right keys. Needs of main.php: Aio
-// (state), aio_log, aio_mask, aio_error, aio_tr, aio_input, aio_close_and,
-// aio_dialog, aio_fetch, aio_http_peek, aio_list_state,
-// aio_open_list, AIO_SUP_ID; of parse.php: aio_str, aio_arr, aio_cut,
-// aio_dialog_lines, aio_magnet; of jacred.php: aio_jacred, aio_carry_tracks, AIO_JACRED;
-// of view_gcomps.php: aio_gc_act, aio_gc_cursor, aio_gc_pos.
+// the list, episodes by the left and right keys.
+// Reads and writes Aio (state, next, playing, movies); reads Aio::$settings,
+// Aio::$t0. Functions are global; the require order is in main.php.
 
 // A season with more episodes (by season_numbers) plays as one episode: a
 // playlist item takes ~1.7 KB of memory (limit 128 MB).
@@ -314,8 +311,7 @@ function aio_finish($in)
     }
     $sel = $p['sel'];
     $n = count($ns['rows']);
-    $ns['gc'] = aio_gc_cursor($sel, $n);
-    $ns['gc_new'] = true;
+    $ns = aio_gc_put_cursor($ns, $sel);
     $ns['rows'] = aio_carry_tracks($ns['rows'], $st['rows']);
     Aio::$state = $ns;
     // The playback goes on from the new screen: if the event came while the
@@ -393,7 +389,6 @@ function aio_flip_ep($seasons, $s, $e, $dir)
 // state stay as they were.
 function aio_flip($in)
 {
-    $t0 = microtime(true);
     $st = Aio::$state;
     $d = isset($in->d) && is_string($in->d) ? $in->d : '';
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || ($d !== 'prev' && $d !== 'next'))
@@ -411,21 +406,9 @@ function aio_flip($in)
         return null;
     list($s, $e) = $to;
     list($cur) = aio_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
-    $hash = $st['rows'][$cur]['hash'];
-    $mv = $st['movie'];
     $ep = sprintf('S%02dE%02d', $s, $e);
-    $r = aio_relist($st, $s, $e, $hash, $t0);
-    if (isset($r['error']))
-    {
-        aio_log(sprintf('flip: %s -> %s failed: %s, %.2f s, the screen kept', aio_ep_tag($st), $ep, $r['error'],
-            microtime(true) - $t0));
-        return aio_relist_dialog(aio_tr($st['lang'], 'next_failed', $ep), $st['lang'], $r);
-    }
-    $ns = $r['st'];
-    Aio::$state = $ns;
-    aio_log(sprintf('flip: %s -> %s, screen replaced, %d rows, row %d (%s), %.2f s', aio_ep_tag($st), $ep, count($ns['rows']),
-        $r['sel'], $r['by'], microtime(true) - $t0));
-    return aio_replace_act("streams:{$ns['rid']}", aio_ep_name($mv, $s, $e));
+    return aio_relist_screen($st, $s, $e, $cur, 'flip: ' . aio_ep_tag($st) . " -> $ep", false,
+        aio_tr($st['lang'], 'next_failed', $ep), 1);
 }
 
 // gc_refresh (MENU "Refresh") of a live list, a movie or an episode: the same
@@ -434,7 +417,6 @@ function aio_flip($in)
 // stay as they were.
 function aio_refresh($in)
 {
-    $t0 = microtime(true);
     $st = Aio::$state;
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
     {
@@ -442,18 +424,8 @@ function aio_refresh($in)
         return null;
     }
     list($cur) = aio_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
-    $r = aio_relist($st, $st['s'], $st['e'], $st['rows'][$cur]['hash'], $t0);
-    if (isset($r['error']))
-    {
-        aio_log(sprintf('refresh: %s failed: %s, %.2f s, the screen kept', aio_ep_tag($st), $r['error'],
-            microtime(true) - $t0));
-        return aio_relist_dialog(aio_tr($st['lang'], 'refresh_failed'), $st['lang'], $r);
-    }
-    $ns = $r['st'];
-    Aio::$state = $ns;
-    aio_log(sprintf('refresh: %s, screen replaced, %d -> %d rows, row %d -> %d (%s), %.2f s', aio_ep_tag($st),
-        count($st['rows']), count($ns['rows']), $cur, $r['sel'], $r['by'], microtime(true) - $t0));
-    return aio_replace_act("streams:{$ns['rid']}", aio_ep_name($ns['movie'], $ns['s'], $ns['e']));
+    return aio_relist_screen($st, $st['s'], $st['e'], $cur, 'refresh: ' . aio_ep_tag($st), true,
+        aio_tr($st['lang'], 'refresh_failed'), 1);
 }
 
 // --- "Choose episode" in MENU of an episode list (0.28.0): the shell's own
@@ -509,7 +481,6 @@ function aio_chosen_num($in, $k, $re)
 // and the state as they were.
 function aio_chosen($in)
 {
-    $t0 = microtime(true);
     $st = Aio::$state;
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
     {
@@ -529,18 +500,8 @@ function aio_chosen($in)
         aio_cut(strval($in->se_chosen_manually), 10) : '-';
     list($cur) = aio_gc_pos($st, null);
     $ep = sprintf('S%02dE%02d', $s, $e);
-    $r = aio_relist($st, $s, $e, $st['rows'][$cur]['hash'], $t0);
-    if (isset($r['error']))
-    {
-        aio_log(sprintf('pick: %s -> %s (manually %s) failed: %s, %.2f s, the screen kept', aio_ep_tag($st), $ep, $how,
-            $r['error'], microtime(true) - $t0));
-        return aio_relist_dialog(aio_tr($st['lang'], 'next_failed', $ep), $st['lang'], $r);
-    }
-    $ns = $r['st'];
-    Aio::$state = $ns;
-    aio_log(sprintf('pick: %s -> %s (manually %s), screen replaced, %d rows, row %d (%s), %.2f s', aio_ep_tag($st), $ep, $how,
-        count($ns['rows']), $r['sel'], $r['by'], microtime(true) - $t0));
-    return aio_replace_act("streams:{$ns['rid']}", aio_ep_name($ns['movie'], $s, $e), 3);
+    return aio_relist_screen($st, $s, $e, $cur, 'pick: ' . aio_ep_tag($st) . " -> $ep (manually $how)", false,
+        aio_tr($st['lang'], 'next_failed', $ep), 3);
 }
 
 // --- "Download in app" in MENU of the list (0.29.0): the magnet of the row
@@ -585,7 +546,7 @@ function aio_download($in)
 // for the rest. Cursor on release $hash (an episode: with it in its file
 // first), else the first row. -> array('error' => key, 'detail' => text) of
 // aio_fetch or array('st' => new state, 'sel' => row, 'by' => why that row).
-function aio_relist($st, $s, $e, $hash, $t0)
+function aio_relist($st, $s, $e, $hash)
 {
     $mv = $st['movie'];
     // From the list screen the player may be near: no detour to the settings.
@@ -596,7 +557,7 @@ function aio_relist($st, $s, $e, $hash, $t0)
         return $res;
     $rows = aio_carry_tracks($res['rows'], $st['rows']);
     if (AIO_JACRED)
-        $rows = aio_jacred($rows, $mv, $s, $t0);
+        $rows = aio_jacred($rows, $mv, $s);
 
     // The release with the episode in its file, as aio_next: a release not
     // in the cache has its hash in every reply, even a pack of another season.
@@ -619,9 +580,7 @@ function aio_relist($st, $s, $e, $hash, $t0)
         }
     }
     $sel = max(0, $sel);
-    $ns = aio_list_state($mv, $s, $e, $rows, $st['lang']);
-    $ns['gc'] = aio_gc_cursor($sel, count($rows));
-    $ns['gc_new'] = true;
+    $ns = aio_gc_put_cursor(aio_list_state($mv, $s, $e, $rows, $st['lang']), $sel);
     return array('st' => $ns, 'sel' => $sel, 'by' => $by);
 }
 
@@ -631,6 +590,26 @@ function aio_relist_dialog($title, $lang, $res)
     return aio_dialog($title, array_merge(aio_dialog_lines(aio_tr($lang, $res['error'])),
         aio_dialog_lines($res['detail'])),
         array('OK' => aio_close_and(null)));
+}
+
+// The list of S$s E$e of the card of live list $st anew (aio_relist, cursor
+// on the release of row $cur) replaces the screen and $erase screens over it
+// (aio_replace_act); an error: dialog $title, the screen and the state kept.
+// $tag starts the log lines; $log_old: they show the old rows and row too.
+function aio_relist_screen($st, $s, $e, $cur, $tag, $log_old, $title, $erase)
+{
+    $r = aio_relist($st, $s, $e, $st['rows'][$cur]['hash']);
+    if (isset($r['error']))
+    {
+        aio_log(sprintf('%s failed: %s, %.2f s, the screen kept', $tag, $r['error'], microtime(true) - Aio::$t0));
+        return aio_relist_dialog($title, $st['lang'], $r);
+    }
+    $ns = $r['st'];
+    Aio::$state = $ns;
+    aio_log(sprintf('%s, screen replaced, %s rows, row %s (%s), %.2f s', $tag,
+        ($log_old ? count($st['rows']) . ' -> ' : '') . count($ns['rows']), ($log_old ? "$cur -> " : '') . $r['sel'], $r['by'],
+        microtime(true) - Aio::$t0));
+    return aio_replace_act("streams:{$ns['rid']}", aio_ep_name($ns['movie'], $ns['s'], $ns['e']), $erase);
 }
 
 // --- Lazy episodes of the playlist (proven on the device 05.10.2026): the
@@ -742,6 +721,44 @@ function aio_has_ep($r, $s, $e)
     return in_array($e, $r['pf_episodes'], true) && ($r['pf_seasons'] === null || in_array($s, $r['pf_seasons'], true));
 }
 
+// The rows of release $hash in $rows (indexes, -1: none): 'deb' the row with a
+// URL, a cached one first, with episode $s/$e in its file ($e < 1: any);
+// 'p2p' the first P2P row (no URL); 'any' the first row; 'rows' rows of the
+// release, 'cached' of them cached with a URL. The check of a row not cached
+// (aio_deb_precheck) and TorrServer are the caller's (aio_play_action resume,
+// aio_next).
+function aio_release_pick($rows, $hash, $s, $e)
+{
+    $p = array('deb' => -1, 'p2p' => -1, 'any' => -1, 'rows' => 0, 'cached' => 0);
+    foreach ($rows as $i => $r)
+    {
+        if ($r['hash'] !== $hash)
+            continue;
+        $p['rows']++;
+        if ($p['any'] < 0)
+            $p['any'] = $i;
+        if ($r['url'] === '')
+        {
+            if ($p['p2p'] < 0)
+                $p['p2p'] = $i;
+            continue;
+        }
+        if ($r['cached'] === true)
+            $p['cached']++;
+        if (($e < 1 || aio_has_ep($r, $s, $e)) &&
+            ($p['deb'] < 0 || ($r['cached'] === true && $rows[$p['deb']]['cached'] !== true)))
+            $p['deb'] = $i;
+    }
+    return $p;
+}
+
+// aio_precheck() of the URL of Debrid row $r; a URL not http(s) is unclear.
+function aio_deb_precheck($r)
+{
+    return preg_match('~^https?://~i', $r['url']) ? aio_precheck($r['url']) :
+        array('class' => 'unclear', 'why' => 'not http(s)');
+}
+
 // A lazy episode: the same release (infoHash) with a URL and this episode in
 // its file, a cached row first -> vod_play of it (aio_play checks it: a
 // placeholder gets its dialog). A row not cached plays only if the check finds
@@ -772,39 +789,19 @@ function aio_next($in)
     if (isset($res['error']))
         return aio_next_failed($res['lang'] !== '' ? $res['lang'] : $lang, $ep, $res['error'], $res['detail']);
     $st = $res['st'];
-    $same = 0;
-    $cached = 0;
-    $found = null;
-    $sel = -1;
-    $p2p = -1;
-    foreach ($st['rows'] as $i => $r)
-    {
-        if ($r['hash'] !== $hash)
-            continue;
-        $same++;
-        if ($r['url'] === '')
-        {
-            if ($p2p < 0)
-                $p2p = $i;
-            continue;
-        }
-        if ($r['cached'] === true)
-            $cached++;
-        if (aio_has_ep($r, $s, $e) && (!$found || ($r['cached'] === true && $found['cached'] !== true)))
-        {
-            $found = $r;
-            $sel = $i;
-        }
-    }
-    aio_log("next: $ep: " . count($st['rows']) . " rows, $same with the hash, $cached of them cached, " .
+    $pick = aio_release_pick($st['rows'], $hash, $s, $e);
+    $sel = $pick['deb'];
+    $found = $sel >= 0 ? $st['rows'][$sel] : null;
+    // Only a P2P row goes to TorrServer here, its own echo: a dialog under the player.
+    $p2p = $pick['p2p'];
+    aio_log("next: $ep: " . count($st['rows']) . " rows, {$pick['rows']} with the hash, {$pick['cached']} of them cached, " .
         ($found ? ($found['cached'] === true ? 'found' : 'found not cached') : "none with $ep") .
         ($p2p >= 0 ? ", P2P row $p2p" : ''));
     $from = Aio::$playing ? Aio::$playing['from'] : '';
     $pre = null;
     if ($found && $found['cached'] !== true)
     {
-        $pre = preg_match('~^https?://~i', $found['url']) ? aio_precheck($found['url']) :
-            array('class' => 'unclear', 'why' => 'not http(s)');
+        $pre = aio_deb_precheck($found);
         // A placeholder without P2P: its dialog (aio_play), not "not in this release".
         if ($pre['class'] !== 'stream' && ($p2p >= 0 || $pre['class'] !== 'placeholder'))
         {
@@ -843,7 +840,6 @@ function aio_next_missing($st, $hash)
 // php_server restart).
 function aio_next_pick($in)
 {
-    $t0 = microtime(true);
     $st = Aio::$next;
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
     {
@@ -855,5 +851,5 @@ function aio_next_pick($in)
     }
     Aio::$next = null;
     aio_log(sprintf('next: -> list of S%02dE%02d', $st['s'], $st['e']));
-    return aio_close_and(aio_open_list($st, $t0));
+    return aio_close_and(aio_open_list($st));
 }

@@ -48,7 +48,7 @@ class Aio
     public static $state = null;
     // Settings of the operation (aio_settings_load): 'base' - base URL of the
     // manifest (the own config, else the config made on the chosen server), '' when none; 'jrs' - aio_jacred_list(): the chosen JacRed,
-    // then jacred.stream (base URL, host, apikey, built-in); 'jrm' -
+    // then jacred.stream (keys of aio_jacred_conf() + 'builtin'); 'jrm' -
     // aio_jacred_own_confs(): the own JacRed, chosen or not, for the mask of the log;
     // 'servers' - aio_server_conf() list of "Download to server", 'pw' - their
     // passwords and the keys of the services. Hidden in the log. 'ts' - the
@@ -72,8 +72,12 @@ class Aio
     // The list state of a TorrServer waiting dialog when it is not the list
     // on screen (a lazy episode, aio_next): its timer finds it by rid.
     public static $tswait = null;
-    // Start of the operation (microtime), for the time left to the stream
-    // check (aio_precheck); 0 outside an operation.
+    // Start of the operation (microtime): set at the start of every
+    // call_plugin and never reset (php_server keeps the last one). Its
+    // readers - aio_precheck (time left to the stream check), aio_jacred
+    // (cutoff), aio_relist_screen (log times) - run only inside call_plugin;
+    // tests set it themselves. 0: aio_precheck takes its full timeout,
+    // aio_jacred skips the request.
     public static $t0 = 0;
 }
 
@@ -197,6 +201,21 @@ function aio_resume($in)
 function aio_data_dir()
 {
     return isset(DuneSystem::$properties['data_dir_path']) ? strval(DuneSystem::$properties['data_dir_path']) : '';
+}
+
+// Writes $data to $path atomically, 0600: a fresh file next to it, then rename.
+function aio_write_file($path, $data)
+{
+    // A name, not a secret: fopen 'x' fails rather than reuse an existing file.
+    $tmp = $path . '.' . substr(md5(uniqid(mt_rand(), true)), 0, 8) . '.tmp';
+    $fp = is_dir(dirname($path)) ? fopen($tmp, 'x') : false;
+    if (!$fp)
+        return false;
+    $ok = chmod($tmp, 0600) && fwrite($fp, $data) === strlen($data);
+    $ok = fclose($fp) && $ok && rename($tmp, $path);
+    if (!$ok && is_file($tmp))
+        unlink($tmp);
+    return $ok;
 }
 
 // data_dir/settings.json, read at the start of every operation, before its
@@ -481,6 +500,11 @@ function aio_rid()
 
 // State of a stream list (Aio::$state): its screen "streams:<rid>", the card,
 // season and episode (-1 for a movie), rows, the shell language of play_action.
+// view_gcomps.php adds 'gc' - array(sel, top), the last cursor; 'gc_new' -
+// the first view of a replaced screen ignores the shell's sel_state; 'gc_prog'
+// - progress of the rows for their redraw. A screen replaced by a new list
+// sets its cursor only by aio_gc_put_cursor, else 'gc_new' is lost. The one
+// writer outside view_gcomps.php: aio_choose keeps 'gc' before it leaves.
 function aio_list_state($mv, $s, $e, $rows, $lang)
 {
     return array('rid' => aio_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => $rows, 'lang' => $lang);
@@ -490,7 +514,6 @@ function aio_list_state($mv, $s, $e, $rows, $lang)
 
 function aio_play_action($in)
 {
-    $t0 = microtime(true);
     Aio::$playing = null;
     aio_log_input($in);
 
@@ -533,18 +556,14 @@ function aio_play_action($in)
     {
         // Through Debrid: the row of the release with a URL, a cached one
         // first (aio_play checks it). One not cached only if the check finds
-        // a stream: else maybe a placeholder, as before.
-        $deb = null;
-        foreach ($st['rows'] as $r)
-        {
-            if ($r['hash'] === $resume['hash'] && $r['url'] !== '' &&
-                (!$deb || ($r['cached'] === true && $deb['cached'] !== true)))
-                $deb = $r;
-        }
+        // a stream: else maybe a placeholder, as before. Any episode in the
+        // file: the reply is of the episode watched.
+        $pick = aio_release_pick($st['rows'], $resume['hash'], -1, -1);
+        $deb = $pick['deb'] >= 0 ? $st['rows'][$pick['deb']] : null;
         $pre = null;
         if ($deb && $deb['cached'] !== true)
         {
-            $pre = preg_match('~^https?://~i', $deb['url']) ? aio_precheck($deb['url']) : array('class' => 'unclear');
+            $pre = aio_deb_precheck($deb);
             if ($pre['class'] !== 'stream')
             {
                 aio_log("resume: release {$resume['hash']} not cached, no stream from Debrid");
@@ -554,13 +573,9 @@ function aio_play_action($in)
         if ($deb)
             return aio_play($st, $deb, $resume['pos'], null, false, $pre);
         // Not cached (watched via TorrServer, or gone from the cache) or P2P:
-        // through TorrServer, only if it answers; else the list.
-        $ts = -1;
-        foreach ($st['rows'] as $i => $r)
-        {
-            if ($r['hash'] === $resume['hash'] && ($ts < 0 || ($r['url'] === '' && $st['rows'][$ts]['url'] !== '')))
-                $ts = $i;
-        }
+        // through TorrServer, only if it answers; else the list. A P2P row
+        // first, else any of the release.
+        $ts = $pick['p2p'] >= 0 ? $pick['p2p'] : $pick['any'];
         if ($ts >= 0 && aio_ts_alive())
         {
             aio_log("resume: release {$resume['hash']} not cached -> TorrServer");
@@ -569,16 +584,16 @@ function aio_play_action($in)
         aio_log("resume: release {$resume['hash']} " . ($ts < 0 ? 'not found' : 'not cached, TorrServer does not answer') .
             ', showing the list');
     }
-    return aio_open_list($st, $t0);
+    return aio_open_list($st);
 }
 
-// Opens the list of $st; $t0: start of the operation.
-function aio_open_list($st, $t0)
+// Opens the list of $st.
+function aio_open_list($st)
 {
     Aio::$state = $st;
     if (AIO_JACRED)
     {
-        $st['rows'] = aio_jacred($st['rows'], $st['movie'], $st['s'], $t0);
+        $st['rows'] = aio_jacred($st['rows'], $st['movie'], $st['s']);
         Aio::$state = $st;
     }
 

@@ -5,10 +5,8 @@
 // the Dune player buffers a TorrServer stream itself. The episodes of the
 // pack go to the playlist as such URLs; the player switches them alone.
 // TorrServer drops a torrent nobody reads after its own timeout: no drop/rem.
-// Needs of main.php: Aio, aio_log, aio_tr, aio_dialog, aio_dialog_act,
-// aio_ctl, aio_input, aio_close_and, aio_error; of parse.php: aio_str,
-// aio_arr, aio_num, aio_cut, aio_dialog_lines, aio_magnet; of playback.php:
-// aio_play, aio_playing, aio_ep_name, aio_ep_tag.
+// Reads Aio (state, settings), writes Aio::$tswait. Functions are global; the
+// require order is in main.php.
 
 // Dialog ticks: every AIO_TS_TICK_MS a "get"; the file list awaited
 // AIO_TS_WAIT s at most (Online movies: 60 ticks of 950 ms), and AIO_TS_TICKS

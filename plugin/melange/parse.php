@@ -9,6 +9,10 @@ define('AIO_TEXT_MAX', 300);
 define('AIO_RATE_MAX', 1e9);
 // PCM is not in kingsizew/badges, its badge is our own: false drops it.
 define('AIO_BADGE_PCM', true);
+// streamData.sources (aio_addons): items looked at - and ids of each
+// "cached" -, add-ons kept of them.
+define('AIO_ADDONS_SCAN', 30);
+define('AIO_ADDONS_MAX', 10);
 
 function aio_cut($s, $max)
 {
@@ -386,6 +390,8 @@ function aio_service_name($id)
 //   trackers     indexers
 //   addon        streamData.addon: the name of the AIOStreams add-on ("DMM Cast"), at most 60
 //                characters; shown where there are no trackers
+//   addons       add-ons that found the same release (aio_addons, of streamData.sources):
+//                list of array('addon' => name, 'cached' => bool); empty for fewer than 2
 //   pf_seasons   seasons in the file, null when not parsed; pf_episodes: its
 //                episodes (aio_has_ep)
 //   names        array(folder, file); aio_row_voices replaces it by 'voices'
@@ -511,12 +517,67 @@ function aio_row($st, $series)
         'langs' => aio_track_langs($tracks, array_values($langs)),
         'trackers' => $trackers,
         'addon' => aio_cut(aio_str($sd, 'addon'), 60),
+        'addons' => aio_addons(aio_arr($sd, 'sources'), aio_str($svc, 'id'), aio_str($sd, 'addon')),
         'pf_seasons' => isset($pf['seasons']) && is_array($pf['seasons']) && $pf['seasons'] ?
             aio_ints($pf['seasons']) : null,
         'pf_episodes' => aio_ints(aio_arr($pf, 'episodes')),
         'names' => array($folder, $file),
         'label' => $label !== '' ? $label : aio_plain_name($name),
         'raw' => $st);
+}
+
+// streamData.sources of a patched AIOStreams build (upstream has no such
+// field; copies of one infoHash merged by its dedup): [{"addon":
+// "MediaFusion", "cached": ["realdebrid"]}, ...]. $own: streamData.addon, the
+// row's add-on, always first (added unmarked when the list lacks it). ->
+// array(array('addon' => name, 'cached' => whether this add-on itself said
+// the release is cached on service $svc, the service of the row)), in the
+// order given, at most AIO_ADDONS_MAX; an add-on once (names compared whole,
+// ignoring case); items that are not an object with a visible string name are
+// left out. Fewer than 2 add-ons: array() - the screens show 'addon' as before.
+function aio_addons($src, $svc, $own)
+{
+    $out = array();
+    $seen = array();
+    $own_key = null;
+    $own = aio_addon_name($own);
+    if ($own !== '')
+    {
+        $out[] = array('addon' => aio_cut($own, 60), 'cached' => false);
+        $own_key = mb_strtolower($own, 'UTF-8');
+    }
+    $n = 0;
+    foreach ($src as $it)
+    {
+        if (++$n > AIO_ADDONS_SCAN || count($out) >= AIO_ADDONS_MAX)
+            break;
+        if (!is_array($it) || !isset($it['addon']) || !is_string($it['addon']))
+            continue;
+        $name = aio_addon_name($it['addon']);
+        $key = mb_strtolower($name, 'UTF-8');
+        if ($name === '' || isset($seen[$key]))
+            continue;
+        $seen[$key] = true;
+        $cached = false;
+        if ($svc !== '' && isset($it['cached']) && is_array($it['cached']))
+        {
+            foreach (array_slice($it['cached'], 0, AIO_ADDONS_SCAN) as $id)
+                $cached = $cached || (is_string($id) && $id === $svc);
+        }
+        if ($key === $own_key)
+            $out[0]['cached'] = $cached;
+        else
+            $out[] = array('addon' => aio_cut($name, 60), 'cached' => $cached);
+    }
+    return count($out) >= 2 ? $out : array();
+}
+
+// An add-on name without white space and invisible characters (NBSP, ZWSP,
+// ZWNJ, ZWJ, word joiner, BOM) at its ends: '' for one with nothing visible.
+function aio_addon_name($s)
+{
+    return strval(preg_replace('/^[\\s\\x{00A0}\\x{200B}-\\x{200D}\\x{2060}\\x{FEFF}]+|' .
+        '[\\s\\x{00A0}\\x{200B}-\\x{200D}\\x{2060}\\x{FEFF}]+$/u', '', aio_utf8($s)));
 }
 
 // The releaser credited as "от X" / "by X" (the last credit: it follows the

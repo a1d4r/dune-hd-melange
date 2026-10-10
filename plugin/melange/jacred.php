@@ -1,9 +1,8 @@
 <?php
 // Audio tracks from ffprobe of the JacRed of the settings
 // for rows without their own; tracks of an old list carried over by infoHash.
-// Needs of main.php: aio_http_get, AIO_HTTP_TOO_BIG, aio_log, Aio::$settings;
-// of parse.php: aio_str, aio_arr, aio_num, aio_cut, aio_lang_code, aio_tracks,
-// AIO_TEXT_MAX; of voices_parse.php: aio_jr_title.
+// Reads Aio::$settings, Aio::$t0. Functions are global; the require order is
+// in main.php.
 
 // Audio tracks from ffprobe of JacRed (its address in the settings) for
 // streams without their own. false: no request, as 0.5.2.
@@ -107,12 +106,12 @@ function aio_jr_audio_text($tracks)
 // timing in ['dec'], or null when it did not answer with them.
 function aio_jacred_ask($conf, $path, $connect, $total)
 {
-    $url = $conf[0] . ($conf[3] !== '' ? $path . 'apikey=' . $conf[3] : rtrim($path, '&'));
+    $url = $conf['base'] . ($conf['key_url'] !== '' ? $path . 'apikey=' . $conf['key_url'] : rtrim($path, '&'));
     $t = microtime(true);
     $err = '';
     list($code, $body) = aio_http_get($url, $err, $connect, $total, AIO_JR_MAX_BYTES);
     // The key stays out of the log; the own JacRed is "<jacred>" there (aio_mask).
-    aio_log(sprintf('jacred: request %s%s: %s, %d bytes, %.0f ms', $conf[0], rtrim($path, '&'),
+    aio_log(sprintf('jacred: request %s%s: %s, %d bytes, %.0f ms', $conf['base'], rtrim($path, '&'),
         $err !== '' ? $err : "HTTP $code", strlen($body), (microtime(true) - $t) * 1000));
     if ($err === AIO_HTTP_TOO_BIG)
     {
@@ -137,8 +136,8 @@ function aio_jacred_ask($conf, $path, $connect, $total)
 // (infoHash) from ffprobe of a JacRed of the settings, and its subtitle
 // languages if they have none: one card search, after the AIOStreams reply,
 // in the chosen JacRed, else jacred.stream (aio_jacred_list). Any failure leaves the rows
-// as they are. $t0: start of play_action.
-function aio_jacred($rows, $mv, $s, $t0)
+// as they are. Aio::$t0: start of the operation.
+function aio_jacred($rows, $mv, $s)
 {
     $need = array();
     foreach ($rows as $r)
@@ -148,9 +147,9 @@ function aio_jacred($rows, $mv, $s, $t0)
     }
     if (!$need)
         return $rows;
-    if (microtime(true) - $t0 > AIO_JR_AFTER)
+    if (microtime(true) - Aio::$t0 > AIO_JR_AFTER)
     {
-        aio_log(sprintf('jacred: skipped, play_action took %.1f s', microtime(true) - $t0));
+        aio_log(sprintf('jacred: skipped, play_action took %.1f s', microtime(true) - Aio::$t0));
         return $rows;
     }
     $list = Aio::$settings['jrs'];

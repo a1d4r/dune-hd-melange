@@ -1,7 +1,7 @@
 <?php
 // Dune's watch history (shell_ext recent/watch_history.php), read only: the
 // episode of a series opened from its main card, the progress of the
-// releases of a list. Needs of main.php: aio_log, AIO_SUP_ID.
+// releases of a list. Functions are global; the require order is in main.php.
 
 // Dune's watch history, as shell_ext reads it: PHP adds FS_PREFIX to /config
 // itself. Tests may define it first.

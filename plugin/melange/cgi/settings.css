@@ -1,0 +1,39 @@
+body{font:16px/1.4 -apple-system,Roboto,sans-serif;margin:0;padding:16px;background:#111;color:#eee}
+main{max-width:520px;margin:0 auto}
+h1{font-size:20px;margin:0 0 10px}
+.toc{display:flex;flex-wrap:wrap;margin:-6px 0 0;font-size:15px}
+.toc a{margin-right:16px;padding:10px 0;color:#2d7ff9;text-decoration:none}
+label{display:block;margin:18px 0 6px;color:#ccc}
+.f{display:flex;gap:8px}
+input{box-sizing:border-box;flex:1;min-width:0;padding:12px;font-size:16px;border:1px solid #444;border-radius:8px;background:#1c1c1c;color:#fff}
+label.cb{margin:10px 0 0;color:#eee}
+label.cb input{width:20px;height:20px;margin:0 8px 0 0;vertical-align:middle}
+.eye{width:48px;border:1px solid #444;border-radius:8px;background:#1c1c1c;color:#bbb}
+.sec{-webkit-text-security:disc}
+.eye.on{color:#2d7ff9}
+.hint{margin:6px 0 0;font-size:13px;color:#999}
+.hint a{color:#2d7ff9}
+.save{margin-top:24px;width:100%;padding:14px;font-size:17px;border:0;border-radius:8px;background:#2d7ff9;color:#fff}
+.err{background:#4a1515;padding:10px;border-radius:8px}
+.ok{background:#153d1f;padding:10px;border-radius:8px}
+.warn{background:#4a3a10;padding:10px;border-radius:8px}
+.log{margin:28px 0 0}
+.log a{color:#2d7ff9}
+.dflt{position:absolute;left:-9999px;width:1px;height:1px}
+h2{font-size:17px;margin:28px 0 0}
+details{margin:12px 0 0;padding:4px 12px 12px;border:1px solid #333;border-radius:8px}
+summary{padding:8px 0;color:#ccc}
+#adv>summary{font-size:17px;color:#eee}
+select{width:100%;padding:12px;font-size:16px;border:1px solid #444;border-radius:8px;background:#1c1c1c;color:#fff}
+table{width:100%;margin:10px 0 0;border-collapse:collapse;font-size:14px}
+th,td{padding:6px 4px;border-bottom:1px solid #333;text-align:left;vertical-align:top}
+td:first-child,td:nth-child(2){word-break:break-word;overflow-wrap:anywhere}
+#jrsr{overflow-x:auto}
+.res p{margin:10px 0 0}
+p.cfg{margin:14px 0 0}
+p.cfg a{color:#2d7ff9}
+.chk{margin-top:10px;padding:10px 18px;font-size:16px;border:1px solid #444;border-radius:8px;background:#1c1c1c;color:#eee}
+.srvdup{margin-left:8px}
+td .chk{display:block;margin:6px 0 0;padding:6px 10px;font-size:14px;white-space:nowrap}
+.chk:disabled{opacity:.5}
+.bad{border-color:#ff5c5c;box-shadow:0 0 0 1px #ff5c5c}

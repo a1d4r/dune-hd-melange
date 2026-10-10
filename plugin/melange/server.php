@@ -3,10 +3,8 @@
 // to a qBittorrent WebAPI server of the settings (qBittorrent, rdt-client):
 // POST /api/v2/auth/login, then /api/v2/torrents/add (category, tags). A hash goes to a
 // server once: data_dir/servers_added.txt keeps "<hash> <server url>" lines.
-// Needs of main.php: Aio, aio_log, aio_error, aio_tr, aio_dialog,
-// aio_close_and, aio_data_dir, aio_http_post; of parse.php: aio_magnet,
-// aio_cut; of playback.php: aio_ep_tag; of view_gcomps.php: aio_gc_act;
-// of view_setup.php: aio_setup_write.
+// Reads Aio (state, settings). Functions are global; the require order is in
+// main.php.
 
 define('AIO_DONE_FILE', 'servers_added.txt');
 // The last lines of the file kept.
@@ -42,7 +40,7 @@ function aio_done_add($hash, $srv)
     $lines = aio_done_read();
     $lines[] = "$hash {$srv['url']}";
     $lines = array_slice($lines, -AIO_DONE_MAX);
-    return aio_data_dir() !== '' && aio_setup_write(aio_data_dir() . '/' . AIO_DONE_FILE, implode("\n", $lines) . "\n");
+    return aio_data_dir() !== '' && aio_write_file(aio_data_dir() . '/' . AIO_DONE_FILE, implode("\n", $lines) . "\n");
 }
 
 // Index of the server the cursor starts on: the one standing for the debrid

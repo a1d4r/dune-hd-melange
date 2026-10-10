@@ -5,6 +5,7 @@
 // polls the file by its timer. The token of the page is permanent (a
 // bookmark keeps working): data_dir/web_token, written here only, new on
 // "Change the link". Neither the token nor the page address goes to the log.
+// Reads Aio::$settings.
 
 define('AIO_SETUP_TICK_MS', 1500);
 // Seconds the QR dialog waits after a save for the config the page makes
@@ -63,7 +64,7 @@ function aio_setup_host($url)
 function aio_setup_jacred($s)
 {
     $l = aio_jacred_list($s);
-    return $l ? $l[0][1] : '';
+    return $l ? $l[0]['host'] : '';
 }
 
 function aio_setup_label($title, $caption)
@@ -120,34 +121,15 @@ function aio_setup_sig()
     return $s === false ? '' : $s['ino'] . ':' . $s['mtime'] . ':' . $s['size'];
 }
 
-// 32 hex of openssl or urandom; '' without them, unless $weak (names of
-// temp files): then a guessable fallback.
-function aio_setup_rand_hex($weak = false)
+// 32 hex of openssl or urandom; '' without them.
+function aio_setup_rand_hex()
 {
     $b = AIO_OPENSSL && function_exists('openssl_random_pseudo_bytes') ? (string) openssl_random_pseudo_bytes(16) : '';
     if (strlen($b) !== 16 && is_readable(AIO_URANDOM))
         $b = (string) file_get_contents(AIO_URANDOM, false, null, 0, 16);
     if (strlen($b) !== 16)
-    {
-        if (!$weak)
-            return '';
-        $b = md5(uniqid(mt_rand(), true) . mt_rand(), true);
-    }
+        return '';
     return bin2hex($b);
-}
-
-// Writes $data to $path atomically, 0600: a fresh file next to it, then rename.
-function aio_setup_write($path, $data)
-{
-    $tmp = $path . '.' . substr(aio_setup_rand_hex(true), 0, 8) . '.tmp';
-    $fp = is_dir(dirname($path)) ? fopen($tmp, 'x') : false;
-    if (!$fp)
-        return false;
-    $ok = chmod($tmp, 0600) && fwrite($fp, $data) === strlen($data);
-    $ok = fclose($fp) && $ok && rename($tmp, $path);
-    if (!$ok && is_file($tmp))
-        unlink($tmp);
-    return $ok;
 }
 
 // The token of the page: the one in data_dir, a new one when there is none
@@ -172,7 +154,7 @@ function aio_setup_token($renew)
         return '';
     }
     aio_log('setup: ' . ($renew ? 'new link' : 'first link'));
-    return aio_setup_write($f, $t) ? $t : '';
+    return aio_write_file($f, $t) ? $t : '';
 }
 
 // IP of the Dune for the phone: the first non-loopback address of ifconfig,
@@ -270,7 +252,7 @@ function aio_setup_qr()
         require_once dirname(__FILE__) . '/qrpng.php';
         $t = microtime(true);
         $qr = AioQrPng::make($url, 8, 4);
-        if (!aio_setup_write($png, $qr['png']))
+        if (!aio_write_file($png, $qr['png']))
             return aio_error('err_setup_write');
         $side = $qr['size'];
         aio_log(sprintf('setup: QR v%d, %d px, %d ms', $qr['version'], $side, (microtime(true) - $t) * 1000));

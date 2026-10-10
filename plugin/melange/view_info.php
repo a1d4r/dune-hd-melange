@@ -6,6 +6,7 @@
 // sent it, then the row as Melange computed it (without the stream). P+/P-
 // slide the pages with change_gcomps (as the list scrolls); the page travels
 // in sel_state {"page":N}. URLs are cut to the host: they carry tokens.
+// Reads Aio::$state.
 
 // YAML lines at most, both blocks (a huge reply stays bounded); the Melange
 // block takes at most half.
@@ -342,11 +343,22 @@ function aio_info_col_tracks($r, $pf, $tt)
     return $c['d'];
 }
 
+// Add-ons of one release (row key 'addons'): "JacRed · MediaFusion (кэш)",
+// "(кэш)" after those that said themselves it is cached on the row's service
+// (no ⚡: not in the Dune font).
+function aio_info_addons($addons, $lang)
+{
+    $v = array();
+    foreach ($addons as $a)
+        $v[] = aio_clean($a['addon']) . ($a['cached'] ? ' ' . aio_tr($lang, 'info_src_cached') : '');
+    return implode(' · ', $v);
+}
+
 function aio_info_col_source($r, $sd, $pf, $tt)
 {
     $lang = $tt['lang'];
     $l = array();
-    foreach (array('seeders', 'age', 'expr', 'eps_file', 'eps_pack', 'type') as $k)
+    foreach (array('seeders', 'age', 'expr', 'eps_file', 'eps_pack', 'type', 'addons') as $k)
         $l[$k] = aio_tr($lang, "info_$k");
     $c = aio_info_col(2, aio_tr($lang, 'info_col_source'),
         array_merge($l, array($tt['trackers'], $tt['addon'], $tt['source'])));
@@ -355,7 +367,12 @@ function aio_info_col_source($r, $sd, $pf, $tt)
     aio_info_put($c, '', aio_gc_wrap($status, 26, AIO_INF_CW, 2, true), true, aio_gc_status_color($r['cached']));
     if ($r['trackers'])
         aio_info_field($c, $tt['trackers'], aio_cut(implode(', ', $r['trackers']), AIO_TEXT_MAX), 2);
-    aio_info_field($c, $tt['addon'], $r['addon'], 2);
+    // A line an add-on at most (no more than AIO_ADDONS_MAX), so none is cut;
+    // the room of the column still limits it.
+    if (!empty($r['addons']))
+        aio_info_field($c, $l['addons'], aio_info_addons($r['addons'], $lang), count($r['addons']), false, true);
+    else
+        aio_info_field($c, $tt['addon'], $r['addon'], 2);
     $tor = aio_arr($sd, 'torrent');
     if (isset($tor['seeders']) && is_int($tor['seeders']) && $tor['seeders'] >= 0)
         aio_info_field($c, $l['seeders'], strval($tor['seeders']), 1);
