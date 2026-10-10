@@ -48,6 +48,9 @@ parameters:
         AioBadges: 'array{res: string, src: string, vis: string, ai: bool, audio: list<string>, tags: list<string>}'
         # An audio track of the media info (aio_tracks, parse.php).
         AioTrack: 'array{lang: string, codec: string, ch: string, title: string}'
+        # Tracks of a release by infoHash, from ffprobe of JacRed (aio_jacred,
+        # jacred.php); a row (AioRow) is one too (aio_carry_tracks).
+        AioMedia: 'array{tracks: list<AioTrack>, subs: list<string>}'
         # An add-on that found the release (aio_addons, parse.php).
         AioAddon: 'array{addon: string, cached: bool}'
         # A row of the stream list (aio_row, parse.php). names: until

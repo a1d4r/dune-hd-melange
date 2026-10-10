@@ -3,6 +3,7 @@
 // for rows without their own; tracks of an old list carried over by infoHash.
 // Reads Aio::$settings, Aio::$t0. Functions are global; the require order is
 // in main.php.
+// Types in the PHPDoc (AioRow and others): phpstan-types.neon of the repository.
 
 // Audio tracks from ffprobe of JacRed (its address in the settings) for
 // streams without their own. false: no request, as 0.5.2.
@@ -23,6 +24,10 @@ define('AIO_JR_MAX_BYTES', 4000000);
 
 // ISO 639-2 of ffprobe -> the language name of AIOStreams (as audioTracks
 // have it); other codes as they are, '' for none.
+/**
+ * @param string $code
+ * @return string
+ */
 function aio_jr_lang($code)
 {
     static $names = array('rus' => 'Russian', 'eng' => 'English', 'ukr' => 'Ukrainian', 'jpn' => 'Japanese',
@@ -43,6 +48,10 @@ function aio_jr_lang($code)
 
 // ffprobe of one file -> array(audio tracks as aio_tracks() makes them,
 // subtitle language codes). Video (covers among it) is not looked at.
+/**
+ * @param array<mixed> $ff
+ * @return array{list<AioTrack>, list<string>}
+ */
 function aio_jr_media($ff)
 {
     static $codecs = array('ac3' => 'DD', 'eac3' => 'DD+', 'truehd' => 'TrueHD', 'dts' => 'DTS',
@@ -80,6 +89,10 @@ function aio_jr_media($ff)
 
 // Audio of the card from tracks of JacRed: codecs from the best down, then
 // channel layouts from the most, as aio_audio_text ("DD+ · DD · 7.1 / 5.1").
+/**
+ * @param list<AioTrack> $tracks
+ * @return string
+ */
 function aio_jr_audio_text($tracks)
 {
     static $rank = array('TrueHD Atmos' => 1, 'DTS:X' => 2, 'DTS-HD MA' => 3, 'TrueHD' => 4, 'DD+ Atmos' => 5,
@@ -104,6 +117,13 @@ function aio_jr_audio_text($tracks)
 
 // One card search in JacRed $conf (aio_jacred_list) -> its Results with
 // timing in ['dec'], or null when it did not answer with them.
+/**
+ * @param AioJacred $conf
+ * @param string $path
+ * @param int $connect
+ * @param int $total
+ * @return array{Results: array<mixed>, dec: float}|null
+ */
 function aio_jacred_ask($conf, $path, $connect, $total)
 {
     $url = $conf['base'] . ($conf['key_url'] !== '' ? $path . 'apikey=' . $conf['key_url'] : rtrim($path, '&'));
@@ -137,6 +157,12 @@ function aio_jacred_ask($conf, $path, $connect, $total)
 // languages if they have none: one card search, after the AIOStreams reply,
 // in the chosen JacRed, else jacred.stream (aio_jacred_list). Any failure leaves the rows
 // as they are. Aio::$t0: start of the operation.
+/**
+ * @param list<AioRow> $rows
+ * @param AioMovie $mv
+ * @param int $s
+ * @return list<AioRow>
+ */
 function aio_jacred($rows, $mv, $s)
 {
     $need = array();
@@ -214,6 +240,11 @@ function aio_jacred($rows, $mv, $s)
 
 // Rows without tracks get those of an old row with the same hash (JacRed of
 // the season; a release has the same tracks in every episode).
+/**
+ * @param list<AioRow> $rows
+ * @param list<AioRow> $old
+ * @return list<AioRow>
+ */
 function aio_carry_tracks($rows, $old)
 {
     $by = array();
@@ -229,6 +260,11 @@ function aio_carry_tracks($rows, $old)
 // => array('tracks' => ..., 'subs' => ...)), its subtitle languages if they
 // have none, the audio of the card from the tracks if they have none and the
 // languages of the tracks (aio_track_langs).
+/**
+ * @param list<AioRow> $rows
+ * @param array<string, AioMedia> $by_hash
+ * @return list<AioRow>
+ */
 function aio_fill_tracks($rows, $by_hash)
 {
     foreach ($rows as $i => $r)
