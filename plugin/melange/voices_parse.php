@@ -3,6 +3,7 @@
 // studios, types, original and subtitles from its names and audio tracks.
 // Pure functions, no screens. Needs voices.php (the dictionary), of
 // parse.php: aio_utf8, aio_cut, AIO_TEXT_MAX, and of main.php: aio_tr.
+// Types in the PHPDoc (AioVoices and others): phpstan-types.neon of the repository.
 
 // Bytes of a release name read for its voices (real names are below 1 KB).
 define('AIO_VOICES_BYTES', 4000);
@@ -13,6 +14,10 @@ define('AIO_VOICES_TRACKS', 32);
 // A track title without what the codec and channels show, its parts joined
 // by " | ": "Original | AC3 5.1 | 640 Kbps" -> "Original", "Dub \| DD 5.1 @
 // 640 kbps - RHS" -> "Dub | RHS".
+/**
+ * @param string $t
+ * @return string
+ */
 function aio_jr_title($t)
 {
     $t = preg_replace('/(?<![\p{L}\p{N}])(?:(?:e-?ac-?3|ac-?3|ddp?\+?|dolby\s+digital(?:\s+plus)?|' .
@@ -38,6 +43,11 @@ function aio_jr_title($t)
 // (orig, jap), 'subs'; null if it tells nothing. $low: lower case, ё -> е.
 // Tracker codes ("ДБ, 2 x ПМ, АП (Сербин), СТ") only as written: "по", "ст"
 // are words.
+/**
+ * @param string $low
+ * @param string $word
+ * @return array{'type'|'orig'|'subs', string}|null
+ */
 function aio_voices_word($low, $word)
 {
     static $words = array('dub' => 'type:dub', 'dubbed' => 'type:dub', 'mvo' => 'type:mvo',
@@ -70,6 +80,11 @@ function aio_voices_word($low, $word)
 // Studios: whole words of the dictionary (voices.php), the longest first, no
 // overlaps, none before the first year (the title and the director of
 // rutracker: "Белорусский вокзал (Андрей Смирнов) [1970, ...]").
+/**
+ * @param string $s
+ * @param bool $tails
+ * @return AioVoicesName
+ */
 function aio_voices_parse($s, $tails = true)
 {
     // Bytes first: no regex on a huge string; aio_utf8 mends a cut letter.
@@ -222,6 +237,10 @@ function aio_voices_parse($s, $tails = true)
 // (the voice studio of anime releases: "[AniLibria] Jujutsu Kaisen (2020)").
 // pipe: where each "|" is, from 1. Lower case at once; word by word if that
 // changed the words (a letter whose lower case is a letter and a mark).
+/**
+ * @param string $s
+ * @return AioVoicesTokens
+ */
 function aio_voices_tokens($s)
 {
     $re = '/([^\p{L}\p{N}]+)/u';
@@ -275,6 +294,14 @@ function aio_voices_tokens($s)
 // the name shown, then its key), 'type', 'code' (of rutor), 'orig', 'subs';
 // 'in' - inside a studio; 'n' - a number or "x" ("2 x ПМ"); null - unknown.
 // Studios: whole words of the dictionary (voices.php), the longest first.
+/**
+ * @param array<int, string> $word
+ * @param array<int, string> $low
+ * @param array<int, string> $join
+ * @param array<int, string> $seps
+ * @param array<int, int> $part
+ * @return array<int, AioVoicesClass|null>
+ */
 function aio_voices_classes($word, $low, $join, $seps, $part)
 {
     // Kept here: a static array returned by a function is copied on every call.
@@ -347,6 +374,13 @@ function aio_voices_classes($word, $low, $join, $seps, $part)
 // the name only inside a longer word (or before the year) is JacRed's
 // substring ("Королёв" of "Королева", "Amedia" of "Novamedia"); one not in
 // the name at all comes from a duplicate.
+/**
+ * @param AioVoicesName $v
+ * @param string $norm
+ * @param string $tail
+ * @param array<string, true> $unsafe
+ * @return AioVoicesName
+ */
 function aio_voices_tail($v, $norm, $tail, $unsafe)
 {
     $t = aio_voices_parse($tail, false);
@@ -366,6 +400,10 @@ function aio_voices_tail($v, $norm, $tail, $unsafe)
 // Voices of a release from its names (folder, file): types and studios in
 // order, without repeats; a studio inside a longer one found is dropped
 // ("Сербин" with "Ю. Сербин").
+/**
+ * @param array<AioVoicesName> $names
+ * @return AioVoices
+ */
 function aio_voices($names)
 {
     $v = array('types' => array(), 'studios' => array(), 'orig' => '', 'subs' => false, 'stype' => array());
@@ -394,6 +432,10 @@ function aio_voices($names)
 }
 
 // Words of the voices on the screens.
+/**
+ * @param string $lang
+ * @return array{dub: string, mvo: string, dvo: string, avo: string, orig: string, subs: string}
+ */
 function aio_voices_words($lang)
 {
     return array('dub' => aio_tr($lang, 'voices_dub'), 'mvo' => aio_tr($lang, 'voices_mvo'),
@@ -402,6 +444,10 @@ function aio_voices_words($lang)
 }
 
 // Lower case, ё -> е, words joined by a space: the key of voices.php.
+/**
+ * @param string $s
+ * @return string
+ */
 function aio_voices_key($s)
 {
     return trim(preg_replace('/[^\p{L}\p{N}+]+/u', ' ', mb_strtolower(str_replace(array('ё', 'Ё'), 'е', $s), 'UTF-8')));
@@ -409,6 +455,10 @@ function aio_voices_key($s)
 
 // Key of one person or studio, for repeats: the key of its name in voices.php;
 // a name not there whose last word is ("Андрей Дольский") - that word's.
+/**
+ * @param string $name
+ * @return string
+ */
 function aio_voices_same($name)
 {
     static $dict = null;
@@ -429,6 +479,11 @@ function aio_voices_same($name)
 // voices.php found in a part by words, else the part as written - only for
 // RU, UA and unknown tracks (a foreign one names its studios only by the
 // dictionary: "Surround", "Director's Cut" are no studios).
+/**
+ * @param string $title
+ * @param string $lang
+ * @return array{types: list<string>, studios: list<string>, orig: bool}|null
+ */
 function aio_track_voice($title, $lang = '')
 {
     static $noise = null;
@@ -574,6 +629,10 @@ function aio_track_voice($title, $lang = '')
 // A side of brackets in a track title: array('studios' => of voices.php and
 // common words of a track ("Україна"), 'n' => names, 'other' => whether one is
 // not a studio).
+/**
+ * @param string $s
+ * @return AioVoicesSide
+ */
 function aio_voices_side($s)
 {
     static $own = null;
@@ -605,6 +664,11 @@ function aio_voices_side($s)
 // Whether side $a of the brackets is the cast of studio side $b: no studio
 // against some, or a list of names (one not a studio: JacRed knows a few nicks)
 // against one studio.
+/**
+ * @param AioVoicesSide $a
+ * @param AioVoicesSide $b
+ * @return bool
+ */
 function aio_voices_cast($a, $b)
 {
     return ($b['studios'] && !$a['studios']) ||
@@ -612,6 +676,10 @@ function aio_voices_cast($a, $b)
 }
 
 // Names of a list: "A & B, C и D".
+/**
+ * @param string $s
+ * @return list<string>
+ */
 function aio_voices_items($s)
 {
     $out = array();
@@ -629,6 +697,10 @@ function aio_voices_items($s)
 // Two names in one part of a title or a name list: by "&" and " + " unless the
 // whole part is one name ("kubik&ko"); by "и", "с", "and" only if each side is
 // a known name or a person ("Гланц и Королёва", not "Иванов и сыновья").
+/**
+ * @param string $p
+ * @return list<string>
+ */
 function aio_voices_names($p)
 {
     static $dict = null;
@@ -667,12 +739,19 @@ function aio_voices_names($p)
 }
 
 // Key of a name to skip: one-letter words out ("Trina D", the "D" is a type).
+/**
+ * @param string $s
+ * @return string
+ */
 function aio_voices_skip_key($s)
 {
     return trim(preg_replace('/(?:^|\s)\p{L}(?=\s|$)/u', '', aio_voices_key($s)));
 }
 
 // First names of people of the voices, lower case, е for ё.
+/**
+ * @return array<string, int>
+ */
 function aio_voices_first_names()
 {
     static $first = array('александр' => 1, 'алексей' => 1, 'анастасия' => 1, 'андрей' => 1, 'анна' => 1,
@@ -688,6 +767,10 @@ function aio_voices_first_names()
 
 // "Андрей Федоров" -> "А. Федоров": a person whose surname voices.php knows,
 // as the dictionary writes people. Else as it is.
+/**
+ * @param string $p
+ * @return string
+ */
 function aio_voices_person($p)
 {
     static $dict = null;
@@ -708,6 +791,9 @@ function aio_voices_person($p)
 
 // Not studios: languages, words about a translation, a source, a file or an
 // edition, typos of them. Words of tracks and of the voice lists of names.
+/**
+ * @return array<string, int>
+ */
 function aio_voices_noise()
 {
     static $noise = array('russian' => 1, 'english' => 1, 'ukrainian' => 1, 'rus' => 1, 'eng' => 1, 'ukr' => 1,
@@ -751,6 +837,9 @@ function aio_voices_noise()
 // Studios of an audio track that are common words in release names: TV
 // channels (Інтер of International, a country, "Карусель"), studios named as
 // words (Tycoon, Twister), people of a pair ("Гланц и Королёва"), "Гоблина".
+/**
+ * @return array<string, string>
+ */
 function aio_voices_own()
 {
     static $own = array('інтер' => 'Інтер', 'интер' => 'Інтер', 'україна' => 'Україна', 'украина' => 'Україна',
@@ -766,6 +855,10 @@ function aio_voices_own()
 
 // A part without the words around a name: a customer ("для ТВ3", "по заказу
 // РТР"), "по переводу Гоблина", a channel ("т/к", "телеканал").
+/**
+ * @param string $p
+ * @return string
+ */
 function aio_voices_unwrap($p)
 {
     return preg_replace('~^(?:(?:для|по\s+заказу|по\s+переводу|т\s*/\s*к|тк|телеканал|канал)\s+)+|\s+по$~iu', '',
@@ -774,6 +867,10 @@ function aio_voices_unwrap($p)
 
 // Text where names are shown as written, without HTML ("<b>LostFilm</b>",
 // "&amp;") and pictographs ("MVO 🎬 Кубик"), as aio_plain_name.
+/**
+ * @param string $s
+ * @return string
+ */
 function aio_voices_clean($s)
 {
     $s = preg_replace('/&#?[A-Za-z0-9]+;/', ' ', html_entity_decode($s, ENT_QUOTES, 'UTF-8'));
@@ -786,6 +883,10 @@ function aio_voices_clean($s)
 // A part not in voices.php may be shown as written: three letters at least, no
 // file name, year, resolution, bit rate, letters of two scripts in a word, no
 // patronymic ("Юрий Владимирович" of "Сербин, Юрий Владимирович").
+/**
+ * @param string $p
+ * @return bool
+ */
 function aio_voices_as_written($p)
 {
     static $first = null;
@@ -801,6 +902,9 @@ function aio_voices_as_written($p)
 }
 
 // Codes of rutor: type ids.
+/**
+ * @return array<string, string>
+ */
 function aio_voices_codes()
 {
     static $codes = array('D' => 'dub', 'P' => 'mvo', 'L' => 'mvo', 'P2' => 'dvo', 'L2' => 'dvo', 'P1' => 'avo',
@@ -812,6 +916,10 @@ function aio_voices_codes()
 // first year: in brackets right after a type ("ЛД (AlisaDirilis)", "ПМ (Нота)",
 // "MVO (TVShows, WinMedia)") and in the part after rutor's codes ("| L2 |
 // AEROChannelEkat & Риша"). -> list of array(name, type id or '').
+/**
+ * @param string $s
+ * @return list<array{string, string}>
+ */
 function aio_voices_name_extra($s)
 {
     // Words of an edition or a release after rutor's codes ("| Open Matte").
@@ -908,6 +1016,12 @@ function aio_voices_name_extra($s)
 // "Дубляж: Bravo Records, Red Head Sound · LostFilm, Ю. Сербин, Кубик в Кубе ·
 // оригинал · субтитры" (aio_voices_struct_text). One person or studio is one
 // entry. $subs false: no "субтитры" (GComps has a field of its own).
+/**
+ * @param AioRow $r
+ * @param string $lang
+ * @param bool $subs
+ * @return string
+ */
 function aio_row_voices_text($r, $lang, $subs = true)
 {
     return aio_voices_struct_text(aio_row_voices_struct($r), $lang, $subs);
@@ -917,6 +1031,10 @@ function aio_row_voices_text($r, $lang, $subs = true)
 // (dub, mvo, dvo, avo; only with a track of a type and a studio), 'types' =>
 // types without studios, 'studios' => studios without a type, 'orig' => '' |
 // 'orig' | 'jap', 'subs' => bool of the name).
+/**
+ * @param AioRow $r
+ * @return AioVoicesStruct
+ */
 function aio_row_voices_struct($r)
 {
     $groups = array();
@@ -1031,6 +1149,11 @@ function aio_row_voices_struct($r)
 // A release of a tracker of one voice studio, anywhere in streamData.indexer of
 // AIOStreams ("kinozal, rudub"), whose names and tracks name no studio: that
 // studio. BaibaKo's "(УКР.)" is its Ukrainian voice.
+/**
+ * @param AioVoicesStruct $v
+ * @param AioRow $r
+ * @return AioVoicesStruct
+ */
 function aio_voices_by_tracker($v, $r)
 {
     static $studio = array('lostfilm' => 'LostFilm', 'baibako' => 'BaibaKo', 'leproduction' => 'LE-Production',
@@ -1056,6 +1179,12 @@ function aio_voices_by_tracker($v, $r)
 // ("Дубляж" alone without its studios); the other studios in one list, groups
 // in order, then those without a type, no repeats; bare types (ПМ, АП) not
 // shown. '' if empty.
+/**
+ * @param AioVoicesStruct $v
+ * @param string $lang
+ * @param bool $subs
+ * @return string
+ */
 function aio_voices_struct_text($v, $lang, $subs = true)
 {
     $w = aio_voices_words($lang);
@@ -1093,6 +1222,10 @@ function aio_voices_struct_text($v, $lang, $subs = true)
 
 // Voices of the names of a row and the name shown without JacRed's tails;
 // only for the rows listed (two parses a row).
+/**
+ * @param AioRow $r
+ * @return AioRow
+ */
 function aio_row_voices($r)
 {
     $p = array();

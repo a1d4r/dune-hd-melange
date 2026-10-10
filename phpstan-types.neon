@@ -82,7 +82,7 @@ parameters:
                 pf_seasons: list<int>|null,
                 pf_episodes: list<int>,
                 names?: array{string, string},
-                voices?: array<string, mixed>,
+                voices?: AioVoices,
                 label: string,
                 raw: array<mixed>
             }
@@ -203,3 +203,67 @@ parameters:
                 transition: string
             }
         '''
+        # Voices of one release name (aio_voices_parse, voices_parse.php):
+        # type ids (dub, mvo, dvo, avo) in the order of the name, studios
+        # shown, orig '' | 'orig' | 'jap', the name without JacRed's tails,
+        # keys: studio => its key of voices.php, stype: studio => its type id.
+        AioVoicesName: '''
+            array{
+                types: list<string>,
+                studios: list<string>,
+                orig: string,
+                subs: bool,
+                name: string,
+                keys: array<string, string>,
+                stype: array<string, string>
+            }
+        '''
+        # Voices of a row from its names (aio_voices, voices_parse.php); ua:
+        # "(УКР.)" in a name (aio_row_voices).
+        AioVoices: '''
+            array{
+                types: list<string>,
+                studios: list<string>,
+                orig: string,
+                subs: bool,
+                stype: array<string, string>,
+                ua?: true
+            }
+        '''
+        # What the "Voices" field shows (aio_row_voices_struct,
+        # voices_parse.php): groups: type id (dub, mvo, dvo, avo) => its
+        # studios, types without studios, studios without a type.
+        AioVoicesStruct: '''
+            array{
+                groups: array<string, list<string>>,
+                types: list<string>,
+                studios: list<string>,
+                orig: string,
+                subs: bool
+            }
+        '''
+        # Tokens of a name (aio_voices_tokens, voices_parse.php), by word from
+        # 0: as written, lower case, the joint to the next, the separator after
+        # it, its part between "|", its depth in brackets, inside the leading
+        # "[...]"; then where each "|" is, from 1.
+        AioVoicesTokens: '''
+            array{
+                list<string>,
+                list<string>,
+                list<string>,
+                list<string>,
+                list<int>,
+                list<int>,
+                list<bool>,
+                array<int, int>
+            }
+        '''
+        # What a word of a name is (aio_voices_classes, voices_parse.php):
+        # kind and id; a studio: its name shown and its key.
+        AioVoicesClass: '''
+            array{'studio', string, string}
+            |array{'in'|'n', ''}
+            |array{'type'|'code'|'orig'|'subs', string}
+        '''
+        # A side of brackets of a track title (aio_voices_side, voices_parse.php).
+        AioVoicesSide: 'array{studios: list<string>, n: int, other: bool}'
