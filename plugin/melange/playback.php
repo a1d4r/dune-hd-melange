@@ -4,6 +4,7 @@
 // the list, episodes by the left and right keys.
 // Reads and writes Aio (state, next, playing, movies); reads Aio::$settings,
 // Aio::$t0. Functions are global; the require order is in main.php.
+// Types in the PHPDoc (AioState and others): phpstan-types.neon of the repository.
 
 // A season with more episodes (by season_numbers) plays as one episode: a
 // playlist item takes ~1.7 KB of memory (limit 128 MB).
@@ -12,6 +13,12 @@ define('AIO_EPISODES_MAX', 500);
 // --- Playback.
 
 // "Title S02E04" for an episode, the title for a movie.
+/**
+ * @param AioMovie $mv
+ * @param int $s
+ * @param int $e
+ * @return string
+ */
 function aio_ep_name($mv, $s, $e)
 {
     return $mv['title'] . ($e > 0 ? sprintf(' S%02dE%02d', $s, $e) : '');
@@ -19,6 +26,13 @@ function aio_ep_name($mv, $s, $e)
 
 // An episode of the playlist without a URL: the player asks for it with
 // get_vod_stream_url (aio_lazy_action). No recent_uid: its own vod_play has it.
+/**
+ * @param AioMovie $mv
+ * @param int $s
+ * @param int $e
+ * @param string $hash
+ * @return array<string, mixed>
+ */
 function aio_lazy_series($mv, $s, $e, $hash)
 {
     return array(
@@ -28,6 +42,14 @@ function aio_lazy_series($mv, $s, $e, $hash)
 }
 
 // A playlist item of URL $url, linked to the card by $hash ('' - unlinked).
+/**
+ * @param AioMovie $mv
+ * @param int $s
+ * @param int $e
+ * @param string $url
+ * @param string $hash
+ * @return array<string, mixed>
+ */
 function aio_vod_item($mv, $s, $e, $url, $hash)
 {
     $ser = array(
@@ -64,6 +86,15 @@ function aio_vod_item($mv, $s, $e, $url, $hash)
 // to the playlist as they are, not lazy.
 // $lazy: a lazy episode under the player (aio_next), a placeholder gets its
 // dialog there. $pre: aio_precheck() of the row's URL already done.
+/**
+ * @param AioState $st
+ * @param AioRow $r
+ * @param int $pos
+ * @param array{url: string, eps: array<int, string>}|null $ts
+ * @param bool $lazy
+ * @param AioPrecheck|null $pre
+ * @return AioAction
+ */
 function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
 {
     $mv = $st['movie'];
@@ -161,6 +192,12 @@ define('AIO_PRE_LOC_MAX', 4096);
 // 'stream' (with 'url' => the Location), 'placeholder' (with 'file' => its
 // name, or of aio_pre_slate()) or 'unclear' (with 'why')). Only an absolute
 // http(s) Location of another host, not the slate, is a stream.
+/**
+ * @param string $url
+ * @param int $code
+ * @param string $loc
+ * @return AioPreClass
+ */
 function aio_pre_class($url, $code, $loc)
 {
     if ($code < 300 || $code > 399 || $loc === '')
@@ -197,6 +234,10 @@ function aio_pre_class($url, $code, $loc)
 // its title (printable, no leading "%": not a %tr% key of the shell, cut)
 // and 'infringing' => title or body tell of a
 // refusal as infringing / for legal reasons. Not parse_str: magic quotes.
+/**
+ * @param string $query
+ * @return array{class: 'placeholder', slate: string, infringing: bool}
+ */
 function aio_pre_slate($query)
 {
     $q = array('title' => '', 'body' => '');
@@ -217,6 +258,10 @@ function aio_pre_slate($query)
 
 // The check of stream URL $url -> aio_pre_class() and, for a placeholder,
 // 'key' and 'detail' of its message (by the file name).
+/**
+ * @param string $url
+ * @return AioPrecheck
+ */
 function aio_precheck($url)
 {
     $left = Aio::$t0 > 0 ? AIO_OP_BUDGET - (microtime(true) - Aio::$t0) : AIO_PRE_TOTAL;
@@ -265,12 +310,22 @@ function aio_precheck($url)
 // --- Back from the player to the list screen.
 
 // Playback of row $sel of list state $st; $from: rid of the screen under the player.
+/**
+ * @param string $from
+ * @param AioState $st
+ * @param int $sel
+ * @return void
+ */
 function aio_playing($from, $st, $sel)
 {
     Aio::$playing = array('from' => $from, 'st' => $st, 'sel' => $sel);
 }
 
 // "S01E05", or "movie".
+/**
+ * @param AioState $st
+ * @return string
+ */
 function aio_ep_tag($st)
 {
     return $st['e'] > 0 ? sprintf('S%02dE%02d', $st['s'], $st['e']) : 'movie';
@@ -278,6 +333,10 @@ function aio_ep_tag($st)
 
 // menu_playback_finish of a live list screen. Only after a real stop, not a
 // restart of the player (the flag, as Online movies has it on its screens).
+/**
+ * @param string $rid
+ * @return AioAction
+ */
 function aio_finish_act($rid)
 {
     $a = aio_gc_act('finish', $rid);
@@ -292,6 +351,10 @@ function aio_finish_act($rid)
 // shell keeps the screen and its cursor; only the progress bar of the
 // release played may change (aio_gc_bar_update). No request: the rows are those
 // of "next"; JacRed tracks of the old list go over by hash (one release).
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
 function aio_finish($in)
 {
     $st = Aio::$state;
@@ -325,6 +388,12 @@ function aio_finish($in)
 // media_url, so nothing cached of the old one is reused. $erase: screens
 // taken off the top of the path first (3: the shell's episodes and seasons
 // over the list, aio_chosen).
+/**
+ * @param string $media_url
+ * @param string $caption
+ * @param int $erase
+ * @return AioAction
+ */
 function aio_replace_act($media_url, $caption, $erase = 1)
 {
     return array(
@@ -347,6 +416,13 @@ function aio_replace_act($media_url, $caption, $erase = 1)
 // the one before, else the last of the nearest earlier season. No playlist
 // here: no AIO_EPISODES_MAX. An episode past episodes_count (the card lags
 // behind a running series) only goes back. -> array(s, e) or null.
+/**
+ * @param array<int, int> $seasons
+ * @param int $s
+ * @param int $e
+ * @param int $dir
+ * @return array{int, int}|null
+ */
 function aio_flip_ep($seasons, $s, $e, $dir)
 {
     $from = sprintf('S%02dE%02d', $s, $e);
@@ -387,6 +463,10 @@ function aio_flip_ep($seasons, $s, $e, $dir)
 // goes to the card, the old rid is outdated. Cursor on the release of the
 // current row (with the episode first), else on the first. An error: a dialog, the screen and the
 // state stay as they were.
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
 function aio_flip($in)
 {
     $st = Aio::$state;
@@ -415,6 +495,10 @@ function aio_flip($in)
 // request anew, the screen replaced as by aio_flip, cursor on the same
 // release, else the first row. An error: a dialog, the screen and the state
 // stay as they were.
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
 function aio_refresh($in)
 {
     $st = Aio::$state;
@@ -436,6 +520,10 @@ function aio_refresh($in)
 // gc_choose of a live list of an episode -> the shell's seasons screen.
 // No chosen_s/chosen_e (the shell would pick the episode itself), no
 // season_filter (AIOStreams does not say which seasons have releases).
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
 function aio_choose($in)
 {
     $st = Aio::$state;
@@ -466,6 +554,12 @@ function aio_choose($in)
 
 // chosen_s / chosen_e of the shell: an int or a string of digits, >= 1.
 // -> the number or 0.
+/**
+ * @param stdClass $in
+ * @param string $k
+ * @param string $re
+ * @return int
+ */
 function aio_chosen_num($in, $k, $re)
 {
     $v = isset($in->$k) ? $in->$k : null;
@@ -479,6 +573,10 @@ function aio_chosen_num($in, $k, $re)
 // request tt:s:e, tracks by hash, cursor on the release of the list. The same
 // episode: just anew. An error: a dialog over the episodes screen, the list
 // and the state as they were.
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
 function aio_chosen($in)
 {
     $st = Aio::$state;
@@ -511,6 +609,10 @@ function aio_chosen($in)
 // package (no -p: old firmware lacks it). The error action runs when no app
 // takes magnet or the shell keeps focus for delay s (delay 0 raced the
 // chooser and showed the error over it, device 08.10.2026).
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
 function aio_download($in)
 {
     $st = Aio::$state;
@@ -546,6 +648,13 @@ function aio_download($in)
 // for the rest. Cursor on release $hash (an episode: with it in its file
 // first), else the first row. -> array('error' => key, 'detail' => text) of
 // aio_fetch or array('st' => new state, 'sel' => row, 'by' => why that row).
+/**
+ * @param AioState $st
+ * @param int $s
+ * @param int $e
+ * @param string $hash
+ * @return array{error: string, detail: string}|array{st: AioState, sel: int, by: string}
+ */
 function aio_relist($st, $s, $e, $hash)
 {
     $mv = $st['movie'];
@@ -585,6 +694,12 @@ function aio_relist($st, $s, $e, $hash)
 }
 
 // The dialog of a failed aio_relist: the error, its detail, OK.
+/**
+ * @param string $title
+ * @param string $lang
+ * @param array{error: string, detail: string} $res
+ * @return AioAction
+ */
 function aio_relist_dialog($title, $lang, $res)
 {
     return aio_dialog($title, array_merge(aio_dialog_lines(aio_tr($lang, $res['error'])),
@@ -596,6 +711,17 @@ function aio_relist_dialog($title, $lang, $res)
 // on the release of row $cur) replaces the screen and $erase screens over it
 // (aio_replace_act); an error: dialog $title, the screen and the state kept.
 // $tag starts the log lines; $log_old: they show the old rows and row too.
+/**
+ * @param AioState $st
+ * @param int $s
+ * @param int $e
+ * @param int $cur
+ * @param string $tag
+ * @param bool $log_old
+ * @param string $title
+ * @param int $erase
+ * @return AioAction
+ */
 function aio_relist_screen($st, $s, $e, $cur, $tag, $log_old, $title, $erase)
 {
     $r = aio_relist($st, $s, $e, $st['rows'][$cur]['hash']);
@@ -618,6 +744,10 @@ function aio_relist_screen($st, $s, $e, $cur, $tag, $log_old, $title, $erase)
 // dialog from it); show_dialog, stop_playback or "error" right in
 // error_action hang the player.
 
+/**
+ * @param string $key
+ * @return string
+ */
 function aio_movie_path($key)
 {
     $dir = isset(DuneSystem::$properties['tmp_dir_path']) ? strval(DuneSystem::$properties['tmp_dir_path']) : '';
@@ -626,6 +756,11 @@ function aio_movie_path($key)
 
 // Card data of a playlist with lazy episodes: memory and tmp_dir (RAM,
 // cleared by a reboot), so that a restarted php_server still finds it.
+/**
+ * @param AioMovie $mv
+ * @param string $lang
+ * @return void
+ */
 function aio_movie_save($mv, $lang)
 {
     $key = $mv['dune_id'];
@@ -638,6 +773,10 @@ function aio_movie_save($mv, $lang)
 }
 
 // -> array('movie' => as aio_movie, 'lang' => ...) or null.
+/**
+ * @param string $key
+ * @return AioLazyMovie|null
+ */
 function aio_movie_load($key)
 {
     if (isset(Aio::$movies[$key]))
@@ -662,6 +801,10 @@ function aio_movie_load($key)
 }
 
 // get_vod_stream_url of a lazy episode -> error_action.
+/**
+ * @param mixed $pb
+ * @return AioAction
+ */
 function aio_lazy_action($pb)
 {
     if (!is_string($pb) || !preg_match('/^aio_next:([0-9a-f]{24}):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([0-9a-f]{40})$/D',
@@ -675,6 +818,13 @@ function aio_lazy_action($pb)
 }
 
 // "Episode SxEy did not load": the error and "Stop" only.
+/**
+ * @param string $lang
+ * @param string $ep
+ * @param string $key
+ * @param string $detail
+ * @return AioAction
+ */
 function aio_next_failed($lang, $ep, $key, $detail = '')
 {
     aio_log("next: -> dialog: $key" . ($detail !== '' ? " ($detail)" : ''));
@@ -684,6 +834,10 @@ function aio_next_failed($lang, $ep, $key, $detail = '')
 }
 
 // Params k, s, e, h of next/next_pick -> array(key, s, e, hash) or null.
+/**
+ * @param stdClass $in
+ * @return array{string, int, int, string}|null
+ */
 function aio_next_params($in)
 {
     $p = array();
@@ -699,6 +853,12 @@ function aio_next_params($in)
 
 // Streams of the episode -> array('st' => list state) or array('error' =>
 // key, 'detail' => text); 'lang' in both.
+/**
+ * @param string $key
+ * @param int $s
+ * @param int $e
+ * @return array{error: string, detail: string, lang: string}|array{lang: string, st: AioState}
+ */
 function aio_next_fetch($key, $s, $e)
 {
     $saved = aio_movie_load($key);
@@ -716,6 +876,12 @@ function aio_next_fetch($key, $s, $e)
 }
 
 // The file of the row has the episode. Seasons may be absent (not parsed).
+/**
+ * @param AioRow $r
+ * @param int $s
+ * @param int $e
+ * @return bool
+ */
 function aio_has_ep($r, $s, $e)
 {
     return in_array($e, $r['pf_episodes'], true) && ($r['pf_seasons'] === null || in_array($s, $r['pf_seasons'], true));
@@ -727,6 +893,13 @@ function aio_has_ep($r, $s, $e)
 // release, 'cached' of them cached with a URL. The check of a row not cached
 // (aio_deb_precheck) and TorrServer are the caller's (aio_play_action resume,
 // aio_next).
+/**
+ * @param list<AioRow> $rows
+ * @param string $hash
+ * @param int $s
+ * @param int $e
+ * @return array{deb: int, p2p: int, any: int, rows: int, cached: int}
+ */
 function aio_release_pick($rows, $hash, $s, $e)
 {
     $p = array('deb' => -1, 'p2p' => -1, 'any' => -1, 'rows' => 0, 'cached' => 0);
@@ -753,6 +926,10 @@ function aio_release_pick($rows, $hash, $s, $e)
 }
 
 // aio_precheck() of the URL of Debrid row $r; a URL not http(s) is unclear.
+/**
+ * @param AioRow $r
+ * @return AioPrecheck
+ */
 function aio_deb_precheck($r)
 {
     return preg_match('~^https?://~i', $r['url']) ? aio_precheck($r['url']) :
@@ -766,6 +943,10 @@ function aio_deb_precheck($r)
 // stream (no URL) -> through TorrServer, the file of the episode in the pack
 // (torrserver.php); else the dialog "not in this release" (a placeholder: its
 // own). Not bingeGroup: one value for many releases, a silent change of the voice.
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
 function aio_next($in)
 {
     // Language of the dialogs without a saved card: of the input, else of
@@ -824,6 +1005,11 @@ function aio_next($in)
 
 // The dialog "S2E3 is not in this release" over the stopped player of a lazy
 // episode of list state $st: "Choose a release" (its list) and "Stop".
+/**
+ * @param AioState $st
+ * @param string $hash
+ * @return AioAction
+ */
 function aio_next_missing($st, $hash)
 {
     Aio::$next = $st;
@@ -838,6 +1024,10 @@ function aio_next_missing($st, $hash)
 
 // "Choose a release": the list of the episode (fetched again after a
 // php_server restart).
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
 function aio_next_pick($in)
 {
     $st = Aio::$next;

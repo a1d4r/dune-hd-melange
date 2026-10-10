@@ -62,17 +62,21 @@ class Aio
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
+    /** @var array<string, AioLazyMovie> */
     public static $movies = array();
     // The list of an episode that is not in the release, until "Choose a
     // release" of its dialog.
+    /** @var AioState|null */
     public static $next = null;
     // What plays: array('from' => rid of the list screen under the player
     // ('' if none), 'st' => list state of the episode playing now, 'sel' =>
     // row of its release). Lazy episodes move it on; back on that screen
     // aio_finish replaces it with the list of the episode played last.
+    /** @var AioPlaying|null */
     public static $playing = null;
     // The list state of a TorrServer waiting dialog when it is not the list
     // on screen (a lazy episode, aio_next): its timer finds it by rid.
+    /** @var AioState|null */
     public static $tswait = null;
     // Start of the operation (microtime): set at the start of every
     // call_plugin and never reset (php_server keeps the last one). Its
@@ -441,6 +445,12 @@ function aio_log_error_streams($streams)
 }
 
 // -> array('rows' => list) or array('error' => key, 'detail' => text).
+/**
+ * @param string $base
+ * @param string $id
+ * @param bool $series
+ * @return AioFetch
+ */
 function aio_fetch($base, $id, $series)
 {
     $url = $base . 'stream/' . ($series ? 'series' : 'movie') . "/$id.json";

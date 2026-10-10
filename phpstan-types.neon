@@ -117,3 +117,31 @@ parameters:
                 gc_prog?: array<string, float>
             }
         '''
+        # Of the shell: a GuiAction (handler_string_id, data, params, ...),
+        # its fields by the handler (aio_error, aio_input, main.php).
+        AioAction: 'array<string, mixed>'
+        # The stream check of a URL, by its redirect (aio_pre_class,
+        # playback.php): the CDN, a placeholder video of the add-on (its file)
+        # or of ElfHosted (aio_pre_slate), else unclear.
+        AioPreClass: '''
+            array{class: 'stream', url: string, host: string}
+            |array{class: 'placeholder', file: string}
+            |array{class: 'placeholder', slate: string, infringing: bool}
+            |array{class: 'unclear', why: string}
+        '''
+        # The stream check (aio_precheck, playback.php): of aio_pre_class, a
+        # placeholder with the key and detail of its message.
+        AioPrecheck: '''
+            array{class: 'stream', url: string, host: string}
+            |array{class: 'placeholder', file: string, key: string, detail: string}
+            |array{class: 'placeholder', slate: string, infringing: bool, key: string, detail: string}
+            |array{class: 'unclear', why: string}
+        '''
+        # The card of a playlist with lazy episodes (Aio::$movies,
+        # aio_movie_save, aio_movie_load, playback.php).
+        AioLazyMovie: 'array{movie: AioMovie, lang: string}'
+        # What plays (Aio::$playing, aio_playing, playback.php): rid of the
+        # list screen under the player ('' none), the list state, its row.
+        AioPlaying: 'array{from: string, st: AioState, sel: int}'
+        # A stream request (aio_fetch, main.php).
+        AioFetch: 'array{rows: list<AioRow>}|array{error: string, detail: string}'
