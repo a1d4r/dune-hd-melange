@@ -16,7 +16,8 @@ export type ConfHow = "create" | "update" | "reset";
 export type Save = { ok: true; next: string; aio: ConfHow | ""; notes: SaveNote[] } | { ok: false; errors: SaveError[] };
 
 export type ServerConf = { cfg: string; login: string; pass: string; tpl: string | null };
-export type Sync = { ok: boolean; msg: string; skip: boolean; base: string | null; conf: ServerConf | null };
+// field: of a failure, as of a SaveError.
+export type Sync = { ok: boolean; msg: string; skip: boolean; base: string | null; conf: ServerConf | null; field: string | null };
 
 // http: no answer of the endpoint (not JSON, not its shape) with this status; timeout (after seconds), net: no answer at all.
 export type Failure = { kind: "http"; status: number } | { kind: "timeout"; seconds: number } | { kind: "net" };
@@ -72,6 +73,7 @@ function parseSync(json: Json): Sync | null {
     conf: isObject(conf)
       ? { cfg: String(conf.cfg), login: String(conf.login), pass: String(conf.pass), tpl: conf.tpl ? String(conf.tpl) : null }
       : null,
+    field: typeof json.field === "string" ? json.field : null,
   };
 }
 

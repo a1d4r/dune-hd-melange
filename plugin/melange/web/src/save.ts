@@ -52,6 +52,8 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
         aio.applySync(sync, how === "reset");
         if (sync.skip) results().removeChild(line);
         else setLine(line, sync.ok ? "ok" : "err", sync.msg);
+        // Its field marked as of a save error (no Debrid key, the own server).
+        if (!sync.ok) marks.show([{ msg: sync.msg, field: sync.field }]);
       } else if (result.kind !== "http") setLine(line, "err", texts[failed]);
       else setLine(line, "err", failureText(texts, result));
       aio.render();

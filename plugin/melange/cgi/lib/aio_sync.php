@@ -166,11 +166,13 @@ function aio_cgi_aio_keep($dir, $base, $c)
 // The own config chosen -> nothing (skip). No config and no Debrid key, or
 // a reset without one -> no request.
 // -> array(ok, the line for the page, skip, the choice (aio_server),
-// aio_cgi_aio_show() of its config now).
+// aio_cgi_aio_show() of its config now[, the name= of the field a failure
+// is about: no Debrid key, the own server not taken]).
 function aio_cgi_aio_sync($dir, $reset = false)
 {
     set_time_limit(120);
     $s = aio_settings_read($dir);
+    $f = aio_cgi_fields();
     $choice = $s['aio_server'];
     $base = aio_settings_base($s);
     $host = (string) parse_url($base, PHP_URL_HOST);
@@ -192,14 +194,14 @@ function aio_cgi_aio_sync($dir, $reset = false)
     {
         aio_cgi_log('aio sync: no Debrid key');
         return array(false, aio_cgi_l('Для конфига нужен ключ Debrid (Real-Debrid или TorBox)',
-            'The config needs a Debrid key (Real-Debrid or TorBox)'), false, $choice, null);
+            'The config needs a Debrid key (Real-Debrid or TorBox)'), false, $choice, null, $f['rd']['name']);
     }
     // The template has no service of its own.
     if ($reset && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
         aio_cgi_log("aio sync: reset ($id): no Debrid key, not changed");
         return array(false, $fail . aio_cgi_l('нужен ключ Debrid в Melange', 'a Debrid key in Melange is needed') . $again,
-            false, $choice, aio_cgi_aio_show($conf));
+            false, $choice, aio_cgi_aio_show($conf), $f['rd']['name']);
     }
     $tpl = aio_conf_template($id);
     if (!$tpl)
@@ -213,7 +215,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     {
         list($ok, $why, $tmdbs) = aio_cgi_aio_status($base);
         if (!$ok)
-            return array(false, $fail . $why . $again, false, $choice, aio_cgi_aio_show($conf));
+            return array(false, $fail . $why . $again, false, $choice, aio_cgi_aio_show($conf), $f['aio_own']['name']);
     }
     if (!$conf)
     {
@@ -278,7 +280,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
         {
             aio_cgi_log('aio sync: no Debrid key, not changed');
             return array(false, aio_cgi_l('Конфиг не изменён: нужен хотя бы один ключ Debrid',
-            'The config is not changed: at least one Debrid key is needed'), false, $choice, aio_cgi_aio_show($conf));
+            'The config is not changed: at least one Debrid key is needed'), false, $choice, aio_cgi_aio_show($conf),
+            $f['rd']['name']);
         }
         $r = aio_cgi_aio_req($base, 'PUT', aio_conf_encode((object) array('config' => $u)), $auth);
         aio_cgi_log('aio sync: put: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]"));
@@ -318,12 +321,15 @@ function aio_cgi_aio_sync($dir, $reset = false)
         false, $choice, aio_cgi_aio_show($conf));
 }
 
-// a=aio_sync (reset=1: to the template): JSON {ok, msg, skip, base, conf: {cfg, login, pass} | null}.
+// a=aio_sync (reset=1: to the template): JSON {ok, msg, skip, base, conf: {cfg, login, pass} | null[, field]}.
 function aio_cgi_aio_sync_post($dir)
 {
     if (!aio_cgi_dir_ok($dir))
         aio_cgi_json(200, array('ok' => false, 'msg' => aio_cgi_l('Нет папки плагина на Дюне',
             'No folder of the plugin on the Dune'), 'skip' => false, 'base' => '', 'conf' => null));
     $r = aio_cgi_aio_sync($dir, aio_cgi_param($_POST, 'reset') === '1');
-    aio_cgi_json(200, array('ok' => $r[0], 'msg' => $r[1], 'skip' => $r[2], 'base' => $r[3], 'conf' => $r[4]));
+    $j = array('ok' => $r[0], 'msg' => $r[1], 'skip' => $r[2], 'base' => $r[3], 'conf' => $r[4]);
+    if (isset($r[5]))
+        $j['field'] = $r[5];
+    aio_cgi_json(200, $j);
 }

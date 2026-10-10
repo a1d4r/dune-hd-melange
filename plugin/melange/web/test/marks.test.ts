@@ -139,4 +139,43 @@ describe("errors lead to the field", () => {
     expect(scrolls.map(([el]) => el)).toEqual(["rd_key"]);
     expect(page.calls[0]!.body).toContain("rd_key=bad%20key");
   });
+
+  // Saved, then aio_sync refused with the field it is about: marked as of a save error, its text under the button.
+  const SYNC_NO_KEY = { ok: false, msg: "Конфиг не изменён: нужен хотя бы один ключ Debrid", skip: false, base: null, conf: null };
+
+  test("aio_sync with a field (no Debrid key): marked, in view, focused; the mark goes on typing", async () => {
+    const page = open("filled");
+    const scrolls = spyScroll(page);
+    page.replies.push(json({ ok: true, next: "x", aio: "update" }), json({ ...SYNC_NO_KEY, field: "rd_key" }));
+    await save(page);
+    expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved], ["err", SYNC_NO_KEY.msg]]);
+    expect(marked(page)).toEqual(["rd_key"]);
+    expect(scrolls).toEqual([["rd_key", { block: "center" }]]);
+    expect(focused(page)).toBe("rd_key");
+    page.type("rd_key", "RDTESTKEY00000000000000002");
+    expect(marked(page)).toEqual([]);
+  });
+
+  test("aio_sync with a field (the own server): its address marked; gone at the next save", async () => {
+    const page = open("filled");
+    page.type(ID.aioServer, "own");
+    page.type(ID.aioOwnUrl, "http://192.168.1.10:3000");
+    page.replies.push(json({ ok: true, next: "x", aio: "create" }), json({ ok: false, msg: "Down", skip: false, base: "own", conf: null, field: "aio_own_url" }));
+    await save(page);
+    expect([marked(page), focused(page)]).toEqual([["aio_own_url"], "aio_own_url"]);
+    page.replies.push(later().reply);
+    await save(page);
+    expect(marked(page)).toEqual([]);
+  });
+
+  test("aio_sync without a field, or ok with one: nothing marked or scrolled", async () => {
+    const page = open("filled");
+    const scrolls = spyScroll(page);
+    page.replies.push(json({ ok: true, next: "x", aio: "update" }), json(SYNC_NO_KEY));
+    await save(page);
+    expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved], ["err", SYNC_NO_KEY.msg]]);
+    page.replies.push(json({ ok: true, next: "x", aio: "update" }), json({ ok: true, msg: "Updated", skip: false, base: null, conf: null, field: "rd_key" }));
+    await save(page);
+    expect([marked(page), scrolls]).toEqual([[], []]);
+  });
 });

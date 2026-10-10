@@ -29,7 +29,7 @@
 //                      config -> GET ?raw=true, our fields, PUT (none if it has
 //                      no Debrid at all); reset=1 -> PUT of the template with
 //                      our fields, no GET. aio_confs written; JSON {ok, msg,
-//                      skip, base, conf};
+//                      skip, base, conf[, field]} (field: as of a save error);
 //   GET  ?t=<token>&a=log -> <FS_PREFIX>/tmp/run/melange.log masked, an attachment;
 //   GET  ?t=<token>&a=ts_check&ts=<address> -> GET <TorrServer>/echo, JSON
 //                      {ok, msg}, nothing written;
