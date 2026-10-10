@@ -41,8 +41,9 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
   const button = query<HTMLButtonElement>(form, "." + CLS.save);
   const results = () => byId(doc, ID.saveResult);
 
-  // The config of the chosen server after the save: its result replaces the "creating" line.
-  function syncConf(how: ConfHow): void {
+  // The config of the chosen server after the save: its result replaces the "creating" line; failed, the line
+  // "Saved" (savedLine) says only the settings on the Dune are.
+  function syncConf(how: ConfHow, savedLine: HTMLElement): void {
     const [going, failed] = CONF_TEXTS[how];
     button.textContent = texts[going];
     const line = addLine(results(), "hint", button.textContent);
@@ -56,6 +57,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
         if (!sync.ok) marks.show([{ msg: sync.msg, field: sync.field }]);
       } else if (result.kind !== "http") setLine(line, "err", texts[failed]);
       else setLine(line, "err", failureText(texts, result));
+      if (result.kind !== "data" || !result.data.ok) savedLine.textContent = texts.savedOnDune;
       aio.render();
     });
   }
@@ -70,9 +72,10 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       location.replace(answer.next);
       return;
     }
-    show(results(), "ok", [texts.saved]);
+    results().textContent = "";
+    const savedLine = addLine(results(), "ok", texts.saved);
     for (const note of answer.notes) addLine(results(), note.level === "ok" ? "ok" : "warn", note.msg);
-    if (answer.aio) syncConf(answer.aio);
+    if (answer.aio) syncConf(answer.aio, savedLine);
   }
   function save(reset: boolean): void {
     const pairs = encodedOr(results(), texts.badChars, () => serialize(form));

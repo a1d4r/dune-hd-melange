@@ -196,14 +196,15 @@ function aio_cgi_aio_sync($dir, $reset = false)
     if (!$conf && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
         aio_cgi_log('aio sync: no Debrid key');
-        return array(false, aio_cgi_l('Для конфига нужен ключ Debrid (Real-Debrid или TorBox)',
-            'The config needs a Debrid key (Real-Debrid or TorBox)'), false, $choice, null, $f['rd']['name']);
+        return array(false, aio_cgi_l('Для конфига на сервере AIOStreams нужен ключ Debrid (Real-Debrid или TorBox)',
+            'The config on the AIOStreams server needs a Debrid key (Real-Debrid or TorBox)'), false, $choice, null, $f['rd']['name']);
     }
     // The template has no service of its own.
     if ($reset && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
         aio_cgi_log("aio sync: reset ($id): no Debrid key, not changed");
-        return array(false, $fail . aio_cgi_l('нужен ключ Debrid в Melange', 'a Debrid key in Melange is needed') . $again,
+        return array(false, aio_cgi_l('Конфиг на сервере AIOStreams не сброшен: нужен ключ Debrid в Melange',
+            'The config on the AIOStreams server is not reset: a Debrid key in Melange is needed') . $again,
             false, $choice, aio_cgi_aio_show($conf), $f['rd']['name']);
     }
     $tpl = aio_conf_template($id);
@@ -284,8 +285,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
         if (!aio_conf_has_debrid($u))
         {
             aio_cgi_log('aio sync: no Debrid key, not changed');
-            return array(false, aio_cgi_l('Конфиг не изменён: нужен хотя бы один ключ Debrid',
-            'The config is not changed: at least one Debrid key is needed'), false, $choice, aio_cgi_aio_show($conf),
+            return array(false, aio_cgi_l('Конфиг на сервере AIOStreams не изменён: нужен хотя бы один ключ Debrid',
+            'The config on the AIOStreams server is not changed: at least one Debrid key is needed'), false, $choice, aio_cgi_aio_show($conf),
             $f['rd']['name']);
         }
         $r = aio_cgi_aio_req($base, 'PUT', aio_conf_encode((object) array('config' => $u)), $auth);

@@ -187,11 +187,20 @@ describe("the config after the save (aio_sync)", () => {
     expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved]]);
   });
 
-  test("not ok: err", async () => {
+  test("not ok: err; Saved says the settings are saved on the Dune, the notes stay", async () => {
     const page = open("filled");
-    page.replies.push(json({ ok: true, next: NEXT, aio: "update" }), json({ ok: false, msg: "Server down", skip: false, base: MADE, conf: conf("1", "addons") }));
+    const sync = later();
+    page.replies.push(json({ ok: true, next: NEXT, aio: "update", notes: [{ level: "warn", msg: "Hm" }] }), sync.reply);
     await save(page);
-    expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved], ["err", "Server down"]]);
+    expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved], ["warn", "Hm"], ["hint", page.init.i18n.updating]]);
+    sync.resolve(json({ ok: false, msg: "Server down", skip: false, base: MADE, conf: conf("1", "addons") }));
+    await flush();
+    expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.savedOnDune], ["warn", "Hm"], ["err", "Server down"]]);
+  });
+
+  test("the line instead of Saved when the config failed", () => {
+    const { init } = open("filled", { start: false });
+    expect(init.i18n.savedOnDune).toBe("Настройки Melange сохранены на Дюне.");
   });
 
   test("the config gone (conf null): none shown", async () => {
@@ -233,7 +242,7 @@ describe("the config after the save (aio_sync)", () => {
     jest.advanceTimersByTime(1);
     await flush();
     expect(lines(page.el(ID.saveResult))).toEqual([
-      ["ok", page.init.i18n.saved], ["err", "Настройки сохранены, конфиг не создан — нажмите «Сохранить» ещё раз"],
+      ["ok", page.init.i18n.savedOnDune], ["err", "Настройки сохранены, конфиг не создан — нажмите «Сохранить» ещё раз"],
     ]);
     expect([button(page).disabled, button(page).textContent]).toEqual([false, page.init.i18n.save]);
   });
@@ -244,7 +253,7 @@ describe("the config after the save (aio_sync)", () => {
       const page = open("filled");
       page.replies.push(json({ ok: true, next: NEXT, aio: how }), NET);
       await save(page);
-      expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved], ["err", page.init.i18n[text]]]);
+      expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.savedOnDune], ["err", page.init.i18n[text]]]);
     },
   );
 
@@ -261,10 +270,10 @@ describe("the config after the save (aio_sync)", () => {
     const t = page.init.i18n;
     page.replies.push(json({ ok: true, next: NEXT, aio: "update" }), { text: "oops", status: 500 });
     await save(page);
-    expect(lines(page.el(ID.saveResult))).toEqual([["ok", t.saved], ["err", t.httpError.replace("%d", "500")]]);
+    expect(lines(page.el(ID.saveResult))).toEqual([["ok", t.savedOnDune], ["err", t.httpError.replace("%d", "500")]]);
     page.replies.push(json({ ok: true, next: NEXT, aio: "create" }), { text: "403 Forbidden\n", status: 403 });
     await save(page);
-    expect(lines(page.el(ID.saveResult))).toEqual([["ok", t.saved], ["err", t.linkExpired]]);
+    expect(lines(page.el(ID.saveResult))).toEqual([["ok", t.savedOnDune], ["err", t.linkExpired]]);
   });
 });
 

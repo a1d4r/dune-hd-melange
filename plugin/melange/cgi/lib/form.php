@@ -393,6 +393,7 @@ function aio_cgi_js($v)
         'server' => aio_cgi_l('Сервер', 'Server'),
         'checking' => aio_cgi_l('Проверяю…', 'Checking…'), 'saving' => aio_cgi_l('Сохраняю…', 'Saving…'),
         'save' => aio_cgi_l('Сохранить', 'Save'), 'saved' => aio_cgi_saved(), 'saveAndCreate' => aio_cgi_savec(),
+        'savedOnDune' => aio_cgi_l('Настройки Melange сохранены на Дюне.', 'Melange settings are saved on the Dune.'),
         'creating' => aio_cgi_l('Создаю конфиг…', 'Creating the config…'),
         'updating' => aio_cgi_l('Обновляю конфиг…', 'Updating the config…'),
         'resetting' => aio_cgi_l('Сбрасываю конфиг…', 'Resetting the config…'),
