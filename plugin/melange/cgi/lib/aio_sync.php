@@ -101,7 +101,8 @@ function aio_cgi_aio_why($r, $host, $own = false)
 }
 
 // GET /api/v1/status of the server $base (no limit of /user there) ->
-// array(ok, version or the reason (aio_cgi_aio_why), it has TMDB of its own).
+// array(ok, version or the reason (aio_cgi_aio_why), it has TMDB of its own,
+// refused by its request limit (429)).
 function aio_cgi_aio_status($base)
 {
     $r = aio_cgi_aio_req($base, 'GET', null, null, 'status');
@@ -116,12 +117,13 @@ function aio_cgi_aio_status($base)
         if ($r[0] || !aio_cgi_aio_ok($r))
         {
             list($why) = aio_cgi_aio_why($r, (string) parse_url($base, PHP_URL_HOST), true);
-            return array(false, $why, false);
+            return array(false, $why, false, !$r[0] && $r[1] === 429);
         }
-        return array(false, aio_cgi_l('Ответ не похож на AIOStreams', 'The reply does not look like AIOStreams'), false);
+        return array(false, aio_cgi_l('Ответ не похож на AIOStreams', 'The reply does not look like AIOStreams'), false,
+            false);
     }
     return array(true, $v, $t && ((isset($t->accessToken) && $t->accessToken === true) ||
-        (isset($t->apiKey) && $t->apiKey === true)));
+        (isset($t->apiKey) && $t->apiKey === true)), false);
 }
 
 // a=aio_status: the own server of the posted field (url), nothing written. -> JSON {ok, level, msg}.
@@ -167,7 +169,8 @@ function aio_cgi_aio_keep($dir, $base, $c)
 // a reset without one -> no request.
 // -> array(ok, the line for the page, skip, the choice (aio_server),
 // aio_cgi_aio_show() of its config now[, the name= of the field a failure
-// is about: no Debrid key, the own server not taken]).
+// is about: no Debrid key, the own server not taken (not its 429: the
+// address is right, wait)]).
 function aio_cgi_aio_sync($dir, $reset = false)
 {
     set_time_limit(120);
@@ -213,7 +216,9 @@ function aio_cgi_aio_sync($dir, $reset = false)
     $tmdbs = null;
     if ($choice === 'own')
     {
-        list($ok, $why, $tmdbs) = aio_cgi_aio_status($base);
+        list($ok, $why, $tmdbs, $busy) = aio_cgi_aio_status($base);
+        if ($busy)
+            return array(false, $fail . $why . $again, false, $choice, aio_cgi_aio_show($conf));
         if (!$ok)
             return array(false, $fail . $why . $again, false, $choice, aio_cgi_aio_show($conf), $f['aio_own']['name']);
     }
