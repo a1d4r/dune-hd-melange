@@ -24,19 +24,45 @@ else
     echo "php not in PATH: php -l skipped" >&2
 fi
 
+# The page script from TypeScript (web/): the committed build must match it.
+web="$src/web"
+if command -v bun >/dev/null 2>&1; then
+    # Always: a no-op when in sync, else node_modules follows the changed lock.
+    (cd "$web" && bun install --frozen-lockfile) ||
+        { echo "web: bun install failed (offline?) in plugin/$name/web" >&2; exit 1; }
+    (cd "$web" && bun run verify) ||
+        { echo "web: bun run verify failed in plugin/$name/web" >&2; exit 1; }
+else
+    echo "warning: no bun, plugin/$name/web not checked (the committed build goes as is)" >&2
+fi
+
 version=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' "$manifest")
 out="$root/dist/dune_plugin_${name}_$version.zip"
 mkdir -p "$root/dist"
 rm -f "$out"
 # Own settings and addresses never go into the zip; nor the source of the
-# icon (the plugin uses logo.png) and the docs (*.md).
+# icon (the plugin uses logo.png), the docs (*.md), the TypeScript sources
+# (web/, *.ts; the build is in cgi/).
 (cd "$src" && zip -q -X -r "$out" . -x '.DS_Store' -x '*/.DS_Store' -x '*_url.txt' -x 'settings.json' \
-    -x '*/settings.json' -x 'icons/logo.svg' -x '*.md')
+    -x '*/settings.json' -x 'icons/logo.svg' -x '*.md' -x 'web/*' -x '*/node_modules/*' -x '*.ts')
 if unzip -Z1 "$out" | grep -E '(^|/)([^/]*_url\.txt|settings\.json)$'; then
     rm -f "$out"
     echo "secrets in the zip (*_url.txt, settings.json): removed" >&2
     exit 1
 fi
+if unzip -Z1 "$out" | grep -E '^web/|\.ts$'; then
+    rm -f "$out"
+    echo "TypeScript sources in the zip (web/, *.ts): removed" >&2
+    exit 1
+fi
+# Without them the settings page silently loses its script and style.
+for f in cgi/settings.js cgi/settings.css; do
+    if ! unzip -Z1 "$out" | grep -qx "$f"; then
+        rm -f "$out"
+        echo "no $f in the zip: removed" >&2
+        exit 1
+    fi
+done
 unzip -l "$out"
 
 # No leftovers of an earlier build, with or without <check_update> now.
