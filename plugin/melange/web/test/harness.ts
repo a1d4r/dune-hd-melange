@@ -75,22 +75,26 @@ export function setGlobal(name: string, value: unknown): void {
 }
 
 // A second page would take over fetch, location and confirm of the first one.
-let opened = false;
+let opened: Document | null = null;
 
 // For afterEach of every test file.
 export function cleanup(): void {
-  opened = false;
+  // A test going on after its end (timed out, then resumed) finds no fields, nor buttons to click.
+  if (opened && opened.documentElement) opened.removeChild(opened.documentElement);
+  opened = null;
+  if (jest.isFakeTimers()) jest.useRealTimers();
   while (saved.length) {
     const [name, desc] = saved.pop()!;
     if (desc) Object.defineProperty(globalThis, name, desc);
     else delete (globalThis as Record<string, unknown>)[name];
   }
-  if (jest.isFakeTimers()) jest.useRealTimers();
 }
 
-// All the promises of the script settled (they chain on microtasks only: the replies above).
-export function flush(): Promise<void> {
-  return new Promise((done) => setImmediate(done));
+// All the promises of the script settled (they chain on microtasks only: the replies above; 15 turns are
+// enough now). Not setImmediate: bun 1.3.11 compares its real timers with the fake clock, so after
+// advanceTimersByTime past the uptime (a fresh CI VM: a few minutes) the event loop stalls for seconds.
+export async function flush(): Promise<void> {
+  for (let i = 0; i < 100; i++) await Promise.resolve();
 }
 
 export interface Page {
@@ -134,13 +138,13 @@ function fixSelects(doc: Document): void {
 
 export function open(name: string, options: Options = {}): Page {
   if (opened) throw new Error("open: one page a test (cleanup in afterEach)");
-  opened = true;
   const win = new Window({
     url: "http://192.168.1.10/plugins/melange/cgi-bin/" + TOKEN,
     settings: { navigation: { disableMainFrameNavigation: true, disableFallbackToSetURL: true } },
   });
   win.document.write(fixtureHtml(name));
   const doc = win.document as unknown as Document;
+  opened = doc;
   fixSelects(doc);
   const init = readInit(doc);
   if (!init) throw new Error("fixture " + name + ": no #init");
