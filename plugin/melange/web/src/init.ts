@@ -57,10 +57,22 @@ function setupForm(page: Page, init: Init): void {
   setupSave(page, api, lock, aio, setupMarks(page, servers));
 }
 
+// saved=1 of the address after a save (the "Saved" line of PHP) dropped, the rest kept as it is: a reload does not
+// show it again. No history API: nothing.
+function dropSaved(): void {
+  try {
+    const params = location.search.slice(1).split("&");
+    const kept = params.filter((param) => param !== "saved=1");
+    if (kept.length === params.length || typeof history.replaceState !== "function") return;
+    history.replaceState(history.state, "", location.pathname + (kept.length ? "?" + kept.join("&") : "") + location.hash);
+  } catch (e) {}
+}
+
 // Once per document: a second call on the same one binds every handler twice. No state is kept between documents.
 export function start(doc: Document): void {
   const init = readInit(doc);
   if (!init) return;
+  dropSaved();
   const form = doc.forms[0];
   if (form) setupForm({ doc: doc, form: form, texts: init.i18n }, init);
   maskSecrets(doc);

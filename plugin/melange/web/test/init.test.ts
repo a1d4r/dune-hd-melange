@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { CLS, ID } from "../src/dom";
-import { cleanup, flush, open, setGlobal, shown } from "./harness";
+import { cleanup, flush, open, type Page, setGlobal, shown, TOKEN } from "./harness";
 
 afterEach(cleanup);
 
@@ -64,6 +64,68 @@ describe("eyes", () => {
     expect([el(ID.rdKey).classList.contains(CLS.secret), eye.classList.contains(CLS.on)]).toEqual([true, false]);
     // Only its own field.
     expect(el(ID.tbKey).classList.contains(CLS.secret)).toBe(true);
+  });
+});
+
+describe("saved=1 of the address after a save", () => {
+  // The page at settings?t=<token><query>, with the "Saved" line PHP draws for saved=1; the history of the page
+  // given to the script (replaceState calls counted).
+  function openAt(query: string): { page: Page; replaced: string[] } {
+    const replaced: string[] = [];
+    const page = open("filled", {
+      before: (doc) => {
+        const win = doc.defaultView!;
+        win.history.replaceState(null, "", win.location.pathname + win.location.search + query);
+        doc.getElementById(ID.message)!.innerHTML = '<p class="ok">Сохранено.</p>';
+        const history = win.history;
+        setGlobal("location", win.location);
+        setGlobal("history", {
+          get state() {
+            return history.state;
+          },
+          replaceState: (state: unknown, title: string, url: string) => {
+            replaced.push(url);
+            history.replaceState(state, title, url);
+          },
+        });
+      },
+    });
+    return { page: page, replaced: replaced };
+  }
+  const message = (page: Page) => page.el(ID.message).innerHTML;
+
+  const SEARCH = TOKEN.slice(TOKEN.indexOf("?"));
+
+  test("dropped without a reload: the token stays, the Saved line too", () => {
+    const { page, replaced } = openAt("&saved=1");
+    expect(page.win.location.search).toBe(SEARCH);
+    expect(replaced).toEqual([page.win.location.pathname + SEARCH]);
+    expect(message(page)).toBe('<p class="ok">Сохранено.</p>');
+  });
+
+  test("only saved=1 dropped: the other parameters as they were, the hash kept", () => {
+    const { page } = openAt("&x=%20a+b&saved=1&y=1#aioh");
+    expect([page.win.location.search, page.win.location.hash]).toEqual([SEARCH + "&x=%20a+b&y=1", "#aioh"]);
+  });
+
+  test.each(["", "&saved=0", "&saved=12"])("no saved=1 (%p): replaceState not called", (query) => {
+    const { page, replaced } = openAt(query);
+    expect(replaced).toEqual([]);
+    expect(page.win.location.search).toBe(SEARCH + query);
+  });
+
+  test.each([
+    ["no history", undefined],
+    ["no replaceState", {}],
+    ["replaceState throws", { replaceState: () => { throw new Error("SecurityError"); } }],
+  ])("%s: nothing, the page set up", (_name, history) => {
+    const page = open("filled", {
+      before: () => {
+        setGlobal("location", { search: SEARCH + "&saved=1", pathname: "/settings", hash: "", replace: () => {} });
+        setGlobal("history", history);
+      },
+    });
+    expect(dupButtons(page.doc).length).toBe(5);
   });
 });
 
