@@ -102,8 +102,8 @@ parameters:
                 seasons: array<int, int>
             }
         '''
-        # A stream list (Aio::$state, aio_list_state, main.php); gc, gc_new,
-        # gc_prog: of view_gcomps.php.
+        # A stream list (Aio::$state, aio_list_state, main.php); gc (sel, top:
+        # the last cursor), gc_new, gc_prog: of view_gcomps.php.
         AioState: '''
             array{
                 rid: string,
@@ -114,7 +114,7 @@ parameters:
                 lang: string,
                 gc?: array{int, int},
                 gc_new?: bool,
-                gc_prog?: array<string, float>
+                gc_prog?: AioProgress
             }
         '''
         # Of the shell: a GuiAction (handler_string_id, data, params, ...),
@@ -145,3 +145,61 @@ parameters:
         AioPlaying: 'array{from: string, st: AioState, sel: int}'
         # A stream request (aio_fetch, main.php).
         AioFetch: 'array{rows: list<AioRow>}|array{error: string, detail: string}'
+        # Progress of the releases of a list (aio_wh_progress, history.php):
+        # the tail of our uid of the history after "aio:<dune id>:<s>:<e>:" =>
+        # share in (0, 1]. Our uids end in an infoHash (40 hex: a string key);
+        # a record of the history not written by us may end in a decimal
+        # number, which PHP makes an int key - no infoHash matches it.
+        AioProgress: 'array<int|string, float>'
+        # Words of the list screen (aio_gc_text, view_gcomps.php).
+        AioGcText: '''
+            array{
+                lang: string, page: string, pack: string, release: string, source: string,
+                cached: string, cached_in: string, download: string, unknown: string, p2p: string,
+                video: string, audio: string, voices: string, subs: string, langs: string,
+                trackers: string, addon: string, flip: string
+            }
+        '''
+        # Columns of the list (aio_gc_cols, view_gcomps.php): x and width;
+        # an empty column is not there.
+        AioGcCols: '''
+            array{
+                icon: array{int, int},
+                res?: array{int, int},
+                src?: array{int, int},
+                vis?: array{int, int},
+                audio?: array{int, int},
+                size?: array{int, int},
+                langs?: array{int, int},
+                tracker?: array{int, int}
+            }
+        '''
+        # GComps of the shell (gcomps.php). GCompAlignDef: its non-zero
+        # fields only (aio_gc_align).
+        AioGcAlign: 'array<string, bool|int|string>'
+        # GCompGeometryDef (aio_gc_geom).
+        AioGcGeom: 'array{w: int, h: int, align_def?: AioGcAlign}'
+        # GComponentDef of a label, rect, picture or panel (aio_gc_ttf,
+        # aio_gc_rect, aio_gc_image, aio_gc_panel); specific_def by the kind.
+        AioGcComp: '''
+            array{
+                id?: string|null,
+                geom_def: AioGcGeom,
+                margins_def?: null,
+                options?: int,
+                kind: string,
+                specific_def: array<string, mixed>
+            }
+        '''
+        # ChangeGCompDef of change_gcomps (aio_gc_change).
+        AioGcChange: '''
+            array{
+                id: string,
+                geom_def: AioGcGeom|null,
+                props: null,
+                view_position: null,
+                selected: null,
+                children: list<AioGcComp>|null,
+                transition: string
+            }
+        '''

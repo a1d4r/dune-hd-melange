@@ -5,6 +5,7 @@
 // require order of main.php. Not self-contained: aio_gc_act puts the rid of
 // the list and calls aio_input (main.php), aio_gc_ttf calls aio_clean
 // (parse.php). PHP 5.3.6, firmware API only.
+// Types in the PHPDoc (AioGcComp and others): phpstan-types.neon of the repository.
 
 require_once dirname(__FILE__) . '/font_w.php';
 
@@ -15,6 +16,10 @@ define('AIO_GC_W_MARGIN', 1.03);   // text widths: the font's advances + 3 %
 // Advance of a glyph of OpenSans of the firmware, thousandths of the size
 // (font_w.php); CJK and full-width forms (not
 // in the font) as 1 em, other unknowns the average.
+/**
+ * @param string $c
+ * @return int
+ */
 function aio_gc_glyph($c)
 {
     // Kept, not copied on every glyph (684 entries); "=== null": is_null()
@@ -30,6 +35,11 @@ function aio_gc_glyph($c)
 
 // Width of a text at $px: advances rounded to pixels glyph by glyph, as
 // FreeType hints them (1.7 % from its layout on test lines), plus AIO_GC_W_MARGIN.
+/**
+ * @param string $s
+ * @param int $px
+ * @return int
+ */
 function aio_gc_w($s, $px)
 {
     $w = 0;
@@ -39,6 +49,12 @@ function aio_gc_w($s, $px)
 }
 
 // The longest prefix of $s (in characters) not wider than $width.
+/**
+ * @param string $s
+ * @param int $px
+ * @param int $width
+ * @return int
+ */
 function aio_gc_fit($s, $px, $width)
 {
     $n = 0;
@@ -54,6 +70,12 @@ function aio_gc_fit($s, $px, $width)
 }
 
 // $s cut to $width with "…".
+/**
+ * @param string $s
+ * @param int $px
+ * @param int $width
+ * @return string
+ */
 function aio_gc_cut_w($s, $px, $width)
 {
     if (aio_gc_w($s, $px) <= $width)
@@ -64,6 +86,14 @@ function aio_gc_cut_w($s, $px, $width)
 
 // Lines of at most $width, broken after spaces and separators (a long word
 // by characters); more than $max lines: the last one ends with "…".
+/**
+ * @param string $s
+ * @param int $px
+ * @param int $width
+ * @param int $max
+ * @param bool $spaces
+ * @return list<string>
+ */
 function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
 {
     $lines = array();
@@ -107,6 +137,13 @@ function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
 // Like aio_gc_wrap, but by items of " · ": an item goes to the next line
 // whole and no line ends with the separator; an item wider than a line is
 // wrapped by itself.
+/**
+ * @param string $s
+ * @param int $px
+ * @param int $width
+ * @param int $max
+ * @return list<string>
+ */
 function aio_gc_wrap_items($s, $px, $width, $max)
 {
     $lines = array();
@@ -147,6 +184,14 @@ function aio_gc_wrap_items($s, $px, $width, $max)
 // inside a name; a group that fits a line but not the rest of this one starts
 // the next; $alone: the first group ("Дубляж: …") has lines of its own; more
 // than $max lines: the last ends with "…".
+/**
+ * @param string $s
+ * @param int $px
+ * @param int $width
+ * @param int $max
+ * @param bool $alone
+ * @return list<string>
+ */
 function aio_gc_wrap_voices($s, $px, $width, $max, $alone = false)
 {
     $lines = array();
@@ -201,6 +246,18 @@ function aio_gc_wrap_voices($s, $px, $width, $max, $alone = false)
 // --- Builders: the shapes of vendor GCompGeom / GCompsFactory (non-zero align
 // fields only), as proven on the device.
 
+/**
+ * @param int $x
+ * @param int $y
+ * @param bool $ubw
+ * @param bool $ubh
+ * @param int $ha
+ * @param int $va
+ * @param int $bha
+ * @param int $bva
+ * @param string|null $base_id
+ * @return AioGcAlign
+ */
 function aio_gc_align($x, $y, $ubw, $ubh, $ha, $va, $bha, $bva, $base_id)
 {
     $a = array();
@@ -216,6 +273,12 @@ function aio_gc_align($x, $y, $ubw, $ubh, $ha, $va, $bha, $bva, $base_id)
     return $a;
 }
 
+/**
+ * @param int $w
+ * @param int $h
+ * @param AioGcAlign $align
+ * @return AioGcGeom
+ */
 function aio_gc_geom($w, $h, $align)
 {
     $g = array(GCompGeometryDef::w => $w, GCompGeometryDef::h => $h);
@@ -225,12 +288,25 @@ function aio_gc_geom($w, $h, $align)
 }
 
 // Top-left corner at (x, y) of the parent.
+/**
+ * @param int $w
+ * @param int $h
+ * @param int $x
+ * @param int $y
+ * @return AioGcGeom
+ */
 function aio_gc_at($w, $h, $x, $y)
 {
     return aio_gc_geom($w, $h, aio_gc_align($x, $y, false, false, 0, 0, 0, 0, null));
 }
 
 // Left edge at x, vertically centred in the parent.
+/**
+ * @param int $w
+ * @param int $h
+ * @param int $x
+ * @return AioGcGeom
+ */
 function aio_gc_left_center($w, $h, $x)
 {
     return aio_gc_geom($w, $h, aio_gc_align($x, 0, false, false,
@@ -238,6 +314,15 @@ function aio_gc_left_center($w, $h, $x)
 }
 
 // A text label; the text is cleaned of line breaks and '|' here.
+/**
+ * @param string|null $id
+ * @param AioGcGeom $geom
+ * @param string $text
+ * @param int $size
+ * @param string $color
+ * @param array<string, mixed> $more
+ * @return AioGcComp
+ */
 function aio_gc_ttf($id, $geom, $text, $size, $color, $more = array())
 {
     $spec = array(
@@ -255,12 +340,27 @@ function aio_gc_ttf($id, $geom, $text, $size, $color, $more = array())
 }
 
 // One line; the shell cuts it with "..." if our estimate was short.
+/**
+ * @param string|null $id
+ * @param AioGcGeom $geom
+ * @param string $text
+ * @param int $size
+ * @param string $color
+ * @param array<string, mixed> $more
+ * @return AioGcComp
+ */
 function aio_gc_cut($id, $geom, $text, $size, $color, $more = array())
 {
     $more[GCompTtfLabelDef::fit] = GCOMP_TEXT_FIT_APPEND_ELLIPSIS;
     return aio_gc_ttf($id, $geom, $text, $size, $color, $more);
 }
 
+/**
+ * @param AioGcGeom $geom
+ * @param string $color
+ * @param string|null $id
+ * @return AioGcComp
+ */
 function aio_gc_rect($geom, $color, $id = null)
 {
     $r = array(
@@ -274,6 +374,12 @@ function aio_gc_rect($geom, $color, $id = null)
 
 // A picture; a poster gets the shell's own "loading" and "no poster" pictures,
 // as the vendor card (plugin_file://%<plugin>% works from our plugin, device 03.10.2026).
+/**
+ * @param AioGcGeom $geom
+ * @param string $url
+ * @param bool $poster
+ * @return AioGcComp
+ */
 function aio_gc_image($geom, $url, $poster = false)
 {
     return array(
@@ -295,6 +401,13 @@ function aio_gc_image($geom, $url, $poster = false)
 }
 
 // $options 0 = clipping panel, default NO_CLIP (vendor panel()).
+/**
+ * @param string $id
+ * @param AioGcGeom $geom
+ * @param list<AioGcComp> $children
+ * @param int $options
+ * @return AioGcComp
+ */
 function aio_gc_panel($id, $geom, $children, $options = GCOMP_OPT_NO_CLIP)
 {
     $p = array(
@@ -307,6 +420,13 @@ function aio_gc_panel($id, $geom, $children, $options = GCOMP_OPT_NO_CLIP)
     return $p;
 }
 
+/**
+ * @param string $id
+ * @param AioGcGeom|null $geom
+ * @param string $transition
+ * @param list<AioGcComp>|null $children
+ * @return AioGcChange
+ */
 function aio_gc_change($id, $geom, $transition, $children = null)
 {
     return array(
@@ -321,6 +441,12 @@ function aio_gc_change($id, $geom, $transition, $children = null)
 
 // The rid of the list goes with every key: a screen of a replaced list is
 // stale.
+/**
+ * @param string $control_id
+ * @param string $rid
+ * @param array<string, string> $params
+ * @return AioAction
+ */
 function aio_gc_act($control_id, $rid, $params = array())
 {
     return aio_input($control_id, array_merge(array('rid' => $rid), $params));

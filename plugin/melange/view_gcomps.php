@@ -11,6 +11,7 @@
 // Shapes as proven on the device (04.10.2026).
 // Reads Aio (state, settings), writes the cursor keys of Aio::$state.
 // PHP 5.3.6, firmware API only.
+// Types in the PHPDoc (AioGcComp and others): phpstan-types.neon of the repository.
 
 require_once dirname(__FILE__) . '/gcomps.php';
 
@@ -65,6 +66,7 @@ class AioGc
     // Badge id of aio_badges -> width of img/nb<REV>_<id>.png, 46 px high with the
     // plate: the output of the badge generator (the tests compare it with
     // the PNGs).
+    /** @var array<string, int> */
     public static $badge_w = array(
         '4k' => 58, '1440p' => 58, '1080p' => 79, '720p' => 62, '576p' => 90, '480p' => 92,
         '360p' => 89, '240p' => 91, '144p' => 86,
@@ -81,6 +83,10 @@ class AioGc
 }
 
 // Words of the list screen in language $lang of aio_gc_lang, by key.
+/**
+ * @param string $lang
+ * @return AioGcText
+ */
 function aio_gc_text($lang)
 {
     return array('lang' => $lang, 'page' => aio_tr($lang, 'gc_page'), 'pack' => aio_tr($lang, 'gc_pack'),
@@ -98,6 +104,11 @@ function aio_gc_text($lang)
 
 // The cache status of row $r: "В кэше <service>", "Нужно скачать", "P2P" (no
 // URL: TorrServer plays it), "неизвестно".
+/**
+ * @param AioRow $r
+ * @param AioGcText $tt
+ * @return string
+ */
 function aio_gc_status($r, $tt)
 {
     if ($r['cached'] === true)
@@ -109,12 +120,22 @@ function aio_gc_status($r, $tt)
 
 // --- Position.
 
+/**
+ * @param int $sel
+ * @param int $top
+ * @return string
+ */
 function aio_gc_state($sel, $top)
 {
     return json_encode(array('sel' => $sel, 'top' => $top));
 }
 
 // sel_state -> array(sel, top), or null when it does not fit $n rows.
+/**
+ * @param mixed $s
+ * @param int $n
+ * @return array{int, int}|null
+ */
 function aio_gc_parse($s, $n)
 {
     $j = is_string($s) && $s !== '' ? json_decode($s) : null;
@@ -127,6 +148,11 @@ function aio_gc_parse($s, $n)
 }
 
 // From the shell's sel_state; else the last known position of this list.
+/**
+ * @param AioState $st
+ * @param mixed $raw
+ * @return array{int, int}
+ */
 function aio_gc_pos($st, $raw)
 {
     $n = count($st['rows']);
@@ -138,6 +164,11 @@ function aio_gc_pos($st, $raw)
 
 // Position of a list put in with row $sel of $n selected: the row in the
 // middle of the screen, as far as the list allows. -> array(sel, top).
+/**
+ * @param int $sel
+ * @param int $n
+ * @return array{int, int}
+ */
 function aio_gc_cursor($sel, $n)
 {
     return array($sel, max(0, min($sel - intval(AIO_GC_VIS / 2), $n - AIO_GC_VIS)));
@@ -145,6 +176,11 @@ function aio_gc_cursor($sel, $n)
 
 // List state $st put in with row $sel selected (aio_finish, aio_relist): the
 // cursor as aio_gc_cursor, and its first view ignores the shell's sel_state.
+/**
+ * @param AioState $st
+ * @param int $sel
+ * @return AioState
+ */
 function aio_gc_put_cursor($st, $sel)
 {
     $st['gc'] = aio_gc_cursor($sel, count($st['rows']));
@@ -153,6 +189,13 @@ function aio_gc_put_cursor($st, $sel)
 }
 
 // One key: up, down, pgup (P+), pgdn (P-). A page keeps the row on screen.
+/**
+ * @param int $sel
+ * @param int $top
+ * @param int $n
+ * @param 'up'|'down'|'pgup'|'pgdn' $key
+ * @return array{int, int}
+ */
 function aio_gc_step($sel, $top, $n, $key)
 {
     $d = array('up' => -1, 'down' => 1, 'pgup' => -AIO_GC_VIS, 'pgdn' => AIO_GC_VIS);
@@ -171,6 +214,9 @@ function aio_gc_step($sel, $top, $n, $key)
 // Language code of aio_lang_code -> flag of the base skin (gui_skin://flags/XX.png,
 // checked against the r24 skin). Languages of several countries take the main
 // one; codes without a flag (MULTI, LAT, Indian languages but Hindi) stay text.
+/**
+ * @return array<string, string>
+ */
 function aio_gc_flags()
 {
     return array('RU' => 'RU', 'EN' => 'GB', 'UA' => 'UA', 'JA' => 'JP', 'ZH' => 'CN',
@@ -183,6 +229,10 @@ function aio_gc_flags()
 }
 
 // Cache icon of a row: lightning, arrow down, "?".
+/**
+ * @param bool|null $cached
+ * @return string
+ */
 function aio_gc_icon($cached)
 {
     return 'plugin_file://img/' . (is_null($cached) ? 'unknown.png' :
@@ -191,6 +241,10 @@ function aio_gc_icon($cached)
 
 // Languages of a row: those with a flag first, then the rest; the service
 // codes only if there is no real language.
+/**
+ * @param list<string> $langs
+ * @return list<string>
+ */
 function aio_gc_tail_langs($langs)
 {
     $flags = aio_gc_flags();
@@ -201,12 +255,21 @@ function aio_gc_tail_langs($langs)
     return $out['flag'] || $out['text'] ? array_merge($out['flag'], $out['text']) : $out['service'];
 }
 
+/**
+ * @param AioState $st
+ * @return 'ru'|'en'
+ */
 function aio_gc_lang($st)
 {
     return $st['lang'] === 'ru' ? 'ru' : 'en';
 }
 
 // array(title with year, "S05E03 · 60 раздач").
+/**
+ * @param AioState $st
+ * @param int $n
+ * @return array{string, string}
+ */
 function aio_gc_title($st, $n)
 {
     $mv = $st['movie'];
@@ -227,6 +290,11 @@ function aio_gc_title($st, $n)
 // without a flag as text, the rest as "+N"; service codes (MULTI, DUAL, ...)
 // only without a real language. Only what fits $width with the "+N" after
 // it. -> array(flag|text, value, width).
+/**
+ * @param list<string> $langs
+ * @param int $width
+ * @return list<array{'flag'|'text', string, int}>
+ */
 function aio_gc_lang_items($langs, $width)
 {
     $flags = aio_gc_flags();
@@ -248,6 +316,10 @@ function aio_gc_lang_items($langs, $width)
     return $items;
 }
 
+/**
+ * @param list<array{'flag'|'text', string, int}> $items
+ * @return int
+ */
 function aio_gc_items_w($items)
 {
     $w = 0;
@@ -258,6 +330,11 @@ function aio_gc_items_w($items)
 
 // "rutracker, bitru +2" if that fits $width, else "rutracker +3"
 // with the name cut; the "+N" stays.
+/**
+ * @param AioRow $r
+ * @param int $width
+ * @return string
+ */
 function aio_gc_tracker($r, $width)
 {
     $n = count($r['trackers']);
@@ -275,6 +352,10 @@ function aio_gc_tracker($r, $width)
 
 // Badges of a row by column: resolution, source, picture, audio; AI only
 // in the card. Only ids with a picture (aio_badges knows no others).
+/**
+ * @param AioBadges $b
+ * @return array{res: list<string>, src: list<string>, vis: list<string>, audio: list<string>}
+ */
 function aio_gc_row_badges($b)
 {
     $cols = array('res' => array($b['res']), 'src' => array($b['src']),
@@ -285,6 +366,10 @@ function aio_gc_row_badges($b)
 }
 
 // Width of badges side by side, gaps between.
+/**
+ * @param list<string> $ids
+ * @return int
+ */
 function aio_gc_plates_w($ids)
 {
     $w = 0;
@@ -297,6 +382,11 @@ function aio_gc_plates_w($ids)
 // take no room. The badges and the size keep their width; the languages get
 // what is left, the trackers (or the expression name, or the add-on) the rest
 // if it is at least AIO_GC_TRACKER_MIN.
+/**
+ * @param list<AioRow> $rows
+ * @param AioGcText $tt
+ * @return AioGcCols
+ */
 function aio_gc_cols($rows, $tt)
 {
     $max = array('res' => 0, 'src' => 0, 'vis' => 0, 'audio' => 0, 'size' => 0);
@@ -335,17 +425,31 @@ function aio_gc_cols($rows, $tt)
 
 // --- Screen parts.
 
+/**
+ * @param int $i
+ * @return AioGcGeom
+ */
 function aio_gc_row_geom($i)
 {
     return aio_gc_at(AIO_GC_LW, AIO_GC_ROW_H, 0, $i * AIO_GC_ROW_H);
 }
 
+/**
+ * @param int $top
+ * @param int $n
+ * @return AioGcGeom
+ */
 function aio_gc_rows_geom($top, $n)
 {
     return aio_gc_at(AIO_GC_LW, $n * AIO_GC_ROW_H, 0, -$top * AIO_GC_ROW_H);
 }
 
 // Scrollbar thumb: height by the visible share, y by the top row.
+/**
+ * @param int $top
+ * @param int $n
+ * @return AioGcGeom
+ */
 function aio_gc_thumb_geom($top, $n)
 {
     $track = AIO_GC_VIS * AIO_GC_ROW_H;
@@ -355,6 +459,11 @@ function aio_gc_thumb_geom($top, $n)
 }
 
 // Badge pictures (the plate is in the PNG) from x, centred in the row.
+/**
+ * @param list<string> $ids
+ * @param int $x
+ * @return list<AioGcComp>
+ */
 function aio_gc_plates($ids, $x)
 {
     $d = array();
@@ -367,6 +476,10 @@ function aio_gc_plates($ids, $x)
     return $d;
 }
 
+/**
+ * @param bool|null $cached
+ * @return string
+ */
 function aio_gc_status_color($cached)
 {
     return is_null($cached) ? AIO_GC_DIM : ($cached ? AIO_GC_GREEN : AIO_GC_GREY);
@@ -375,6 +488,14 @@ function aio_gc_status_color($cached)
 // Children of row panel "r$i". The row in focus is brighter, as in the
 // shell's own lists: its texts TEXT, the add-on TEXT2; the others TEXT2, DIM.
 // A release watched before ($share > 0): a progress bar at the row bottom.
+/**
+ * @param AioRow $r
+ * @param AioGcText $tt
+ * @param AioGcCols $c
+ * @param bool $on
+ * @param float|int $share
+ * @return list<AioGcComp>
+ */
 function aio_gc_row_items($r, $tt, $c, $on, $share = 0)
 {
     $hi = $on ? AIO_GC_TEXT : AIO_GC_TEXT2;
@@ -426,12 +547,26 @@ function aio_gc_row_items($r, $tt, $c, $on, $share = 0)
     return $d;
 }
 
+/**
+ * @param int $i
+ * @param AioRow $r
+ * @param AioGcText $tt
+ * @param AioGcCols $c
+ * @param bool $on
+ * @param float|int $share
+ * @return AioGcComp
+ */
 function aio_gc_row($i, $r, $tt, $c, $on = false, $share = 0)
 {
     return aio_gc_panel("r$i", aio_gc_row_geom($i), aio_gc_row_items($r, $tt, $c, $on, $share));
 }
 
 // Share of the release of a row watched before (aio_wh_progress), or 0.
+/**
+ * @param AioProgress $prog
+ * @param AioRow $r
+ * @return float|int
+ */
 function aio_gc_share($prog, $r)
 {
     return $r['hash'] !== '' && isset($prog[$r['hash']]) ? $prog[$r['hash']] : 0;
@@ -446,6 +581,11 @@ function aio_gc_share($prog, $r)
 // video, audio, voices (of the audio tracks and the name), subtitles, languages,
 // trackers (without them the add-on, unless beside the poster) - what does not
 // fit above AIO_GC_CARD_BOTTOM is cut or left out from the end.
+/**
+ * @param AioState $st
+ * @param int $sel
+ * @return list<AioGcComp>
+ */
 function aio_gc_card($st, $sel)
 {
     $r = $st['rows'][$sel];
@@ -581,6 +721,12 @@ function aio_gc_card($st, $sel)
 }
 
 // Bit rate: "59 Мбит/с", "≈ 7.4 Mbps" (one decimal under 10).
+/**
+ * @param float $bps
+ * @param bool $approx
+ * @param string $lang
+ * @return string
+ */
 function aio_gc_rate($bps, $approx, $lang)
 {
     // By the rounded value: 9.96 -> "10", not "10.0".
@@ -590,12 +736,23 @@ function aio_gc_rate($bps, $approx, $lang)
 }
 
 // Children of 'counter' (under the list, at the right): "5 / 60".
+/**
+ * @param int $sel
+ * @param int $n
+ * @return list<AioGcComp>
+ */
 function aio_gc_counter($sel, $n)
 {
     return array(aio_gc_cut(null, aio_gc_at(300, 50, 0, 0), ($sel + 1) . " / $n", 36, AIO_GC_TEXT2,
         array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
 }
 
+/**
+ * @param AioState $st
+ * @param int $sel
+ * @param int $top
+ * @return array<string, mixed>
+ */
 function aio_gc_window($st, $sel, $top)
 {
     $mv = $st['movie'];
@@ -675,6 +832,11 @@ function aio_gc_window($st, $sel, $top)
 // event - one shell log, unverified); the rows of release $hash (one hash
 // may come in several rows: RD and TorBox) redrawn when its share changed,
 // else null.
+/**
+ * @param AioState $st
+ * @param string $hash
+ * @return AioAction|null
+ */
 function aio_gc_bar_update($st, $hash)
 {
     $old = isset($st['gc_prog']) ? $st['gc_prog'] : array();
@@ -712,6 +874,11 @@ function aio_gc_bar_update($st, $hash)
 }
 
 // get_folder_view of a live list ($st matches the media_url).
+/**
+ * @param AioState $st
+ * @param mixed $sel_state
+ * @return array<string, mixed>
+ */
 function aio_gc_folder_view($st, $sel_state)
 {
     // First view of a list put in by aio_finish or aio_flip: its row, not a sel_state
@@ -756,6 +923,10 @@ function aio_gc_folder_view($st, $sel_state)
 // with infoHash: "Download in app" (aio_download) and, with a server in the
 // settings, "Download to server" (aio_srv_menu), "Settings". A screen of a
 // lost list (replaced, php_server restarted): "Settings" only.
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
 function aio_gc_menu($in)
 {
     $st = Aio::$state;
@@ -805,6 +976,10 @@ function aio_gc_menu($in)
 
 // gc_move -> change_gcomps (null at an edge); gc_pick -> playback; gc_info ->
 // the details screen (back on this one, aio_gc_pos finds the row in 'gc').
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
 function aio_gc_input($in)
 {
     $st = Aio::$state;

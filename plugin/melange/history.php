@@ -169,6 +169,10 @@ function aio_wh_ours_all()
 // Progress of the releases of a list watched before (the movie or the
 // episode of $st): infoHash => share in (0, 1]. No dune id: none, the history
 // is not read.
+/**
+ * @param AioState $st
+ * @return AioProgress
+ */
 function aio_wh_progress($st)
 {
     $mv = $st['movie'];
