@@ -141,7 +141,7 @@ describe("errors lead to the field", () => {
   });
 
   // Saved, then aio_sync refused with the field it is about: marked as of a save error, its text under the button.
-  const SYNC_NO_KEY = { ok: false, msg: "Конфиг на сервере AIOStreams не изменён: нужен хотя бы один ключ Debrid", skip: false, base: null, conf: null };
+  const SYNC_NO_KEY = { ok: false, msg: "Конфиг на сервере AIOStreams не обновлён: нужен хотя бы один ключ Debrid", skip: false, base: null, conf: null };
 
   test("aio_sync with a field (no Debrid key): marked, in view, focused; the mark goes on typing", async () => {
     const page = open("filled");

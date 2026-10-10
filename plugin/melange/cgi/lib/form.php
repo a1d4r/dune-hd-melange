@@ -397,12 +397,12 @@ function aio_cgi_js($v)
         'creating' => aio_cgi_l('Создаю конфиг…', 'Creating the config…'),
         'updating' => aio_cgi_l('Обновляю конфиг…', 'Updating the config…'),
         'resetting' => aio_cgi_l('Сбрасываю конфиг…', 'Resetting the config…'),
-        'notCreated' => aio_cgi_l('Настройки сохранены, конфиг не создан — нажмите «Сохранить» ещё раз',
-            'Settings saved, but the config was not created: press "Save" again'),
-        'notUpdated' => aio_cgi_l('Настройки сохранены, конфиг не обновлён — нажмите «Сохранить» ещё раз',
-            'Settings saved, but the config was not updated: press "Save" again'),
-        'notReset' => aio_cgi_l('Настройки сохранены, конфиг не сброшен — нажмите «Сбросить к шаблону» ещё раз',
-            'Settings saved, but the config was not reset: press "Reset to the template" again'),
+        'notCreated' => aio_cgi_l('Конфиг на сервере AIOStreams не создан — нажмите «Сохранить» ещё раз',
+            'The config on the AIOStreams server is not created: press "Save" again'),
+        'notUpdated' => aio_cgi_l('Конфиг на сервере AIOStreams не обновлён — нажмите «Сохранить» ещё раз',
+            'The config on the AIOStreams server is not updated: press "Save" again'),
+        'notReset' => aio_cgi_l('Конфиг на сервере AIOStreams не сброшен — нажмите «Сбросить к шаблону» ещё раз',
+            'The config on the AIOStreams server is not reset: press "Reset to the template" again'),
         'resetConfirm' => aio_cgi_l('Конфиг на %s будет заменён шаблоном «%s». Ваши правки в веб-настройках AIOStreams ' .
             'пропадут; логин, пароль и ссылка останутся. Продолжить?', 'The config on %s will be replaced with the ' .
             'template "%s". Your edits in the AIOStreams web settings will be lost; the login, password and link stay. ' .

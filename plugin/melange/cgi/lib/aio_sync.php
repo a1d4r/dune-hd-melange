@@ -188,23 +188,23 @@ function aio_cgi_aio_sync($dir, $reset = false)
         aio_cgi_log('aio sync: own config or no address, skipped');
         return array(true, '', true, $choice, aio_cgi_aio_show($conf));
     }
-    $fail = $reset ? aio_cgi_l('Конфиг не сброшен: ', 'The config is not reset: ') : ($conf ?
-        aio_cgi_l('Конфиг не обновлён: ', 'The config is not updated: ') : aio_cgi_l('Конфиг не создан: ', 'No config made: '));
+    $fail = $reset ? aio_cgi_l('Конфиг на сервере AIOStreams не сброшен: ', 'The config on the AIOStreams server is not reset: ') :
+        ($conf ? aio_cgi_l('Конфиг на сервере AIOStreams не обновлён: ', 'The config on the AIOStreams server is not updated: ') :
+        aio_cgi_l('Конфиг на сервере AIOStreams не создан: ', 'The config on the AIOStreams server is not created: '));
     // The template is stored already: "Сохранить" again only updates.
     $again = $reset ? aio_cgi_l('; повторить — «Сбросить к шаблону»', '; to retry: "Reset to the template"') : '';
     // A config there may have a service of its own (set by hand): GET decides.
     if (!$conf && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
         aio_cgi_log('aio sync: no Debrid key');
-        return array(false, aio_cgi_l('Для конфига на сервере AIOStreams нужен ключ Debrid (Real-Debrid или TorBox)',
-            'The config on the AIOStreams server needs a Debrid key (Real-Debrid or TorBox)'), false, $choice, null, $f['rd']['name']);
+        return array(false, $fail . aio_cgi_l('нужен ключ Debrid (Real-Debrid или TorBox)',
+            'a Debrid key is needed (Real-Debrid or TorBox)'), false, $choice, null, $f['rd']['name']);
     }
     // The template has no service of its own.
     if ($reset && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
         aio_cgi_log("aio sync: reset ($id): no Debrid key, not changed");
-        return array(false, aio_cgi_l('Конфиг на сервере AIOStreams не сброшен: нужен ключ Debrid в Melange',
-            'The config on the AIOStreams server is not reset: a Debrid key in Melange is needed') . $again,
+        return array(false, $fail . aio_cgi_l('нужен ключ Debrid в Melange', 'a Debrid key in Melange is needed') . $again,
             false, $choice, aio_cgi_aio_show($conf), $f['rd']['name']);
     }
     $tpl = aio_conf_template($id);
@@ -285,9 +285,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
         if (!aio_conf_has_debrid($u))
         {
             aio_cgi_log('aio sync: no Debrid key, not changed');
-            return array(false, aio_cgi_l('Конфиг на сервере AIOStreams не изменён: нужен хотя бы один ключ Debrid',
-            'The config on the AIOStreams server is not changed: at least one Debrid key is needed'), false, $choice, aio_cgi_aio_show($conf),
-            $f['rd']['name']);
+            return array(false, $fail . aio_cgi_l('нужен хотя бы один ключ Debrid', 'at least one Debrid key is needed'),
+                false, $choice, aio_cgi_aio_show($conf), $f['rd']['name']);
         }
         $r = aio_cgi_aio_req($base, 'PUT', aio_conf_encode((object) array('config' => $u)), $auth);
         aio_cgi_log('aio sync: put: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]"));

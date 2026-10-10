@@ -242,7 +242,7 @@ describe("the config after the save (aio_sync)", () => {
     jest.advanceTimersByTime(1);
     await flush();
     expect(lines(page.el(ID.saveResult))).toEqual([
-      ["ok", page.init.i18n.savedOnDune], ["err", "Настройки сохранены, конфиг не создан — нажмите «Сохранить» ещё раз"],
+      ["ok", page.init.i18n.savedOnDune], ["err", "Конфиг на сервере AIOStreams не создан — нажмите «Сохранить» ещё раз"],
     ]);
     expect([button(page).disabled, button(page).textContent]).toEqual([false, page.init.i18n.save]);
   });
@@ -260,8 +260,8 @@ describe("the config after the save (aio_sync)", () => {
   test("the texts of the config not done: update says Save, reset says Reset to the template", () => {
     const { init } = open("filled", { start: false });
     expect([init.i18n.notUpdated, init.i18n.notReset]).toEqual([
-      "Настройки сохранены, конфиг не обновлён — нажмите «Сохранить» ещё раз",
-      "Настройки сохранены, конфиг не сброшен — нажмите «Сбросить к шаблону» ещё раз",
+      "Конфиг на сервере AIOStreams не обновлён — нажмите «Сохранить» ещё раз",
+      "Конфиг на сервере AIOStreams не сброшен — нажмите «Сбросить к шаблону» ещё раз",
     ]);
   });
 
