@@ -319,7 +319,7 @@ function aio_aio_own($s)
 // server of the list or another one -> its base, the key of its config in
 // aio_confs ('' for another one without an address).
 /**
- * @param AioSettings $s
+ * @param array{aio_server: string, aio_own_url: string} $s
  * @return string
  */
 function aio_settings_base($s)

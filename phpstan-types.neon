@@ -1,3 +1,4 @@
+# PHPStan typeAliases syntax; the config of the check is not published in this repository.
 # Shapes of the main arrays of plugin/melange, for the PHPDoc of its code
 # (@param AioRow $r ...). The code is PHP 5.3, so the types live in comments
 # only and are checked by PHPStan; this file is not in the zip. The meaning of

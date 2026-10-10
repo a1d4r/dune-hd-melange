@@ -140,6 +140,9 @@ function aio_log_input($in)
     }
 }
 
+/**
+ * @return AioMovie|null
+ */
 function aio_movie($in)
 {
     $m = isset($in->movie_str) && is_string($in->movie_str) ?
@@ -223,6 +226,9 @@ function aio_write_file($path, $data)
 // data_dir/settings.json, read at the start of every operation, before its
 // first log line (the values are masked there). Not cached: the page writes
 // it while php_server runs.
+/**
+ * @return void
+ */
 function aio_settings_load()
 {
     $s = aio_settings_read(aio_data_dir());
@@ -507,6 +513,9 @@ function aio_rid()
 // - progress of the rows for their redraw. A screen replaced by a new list
 // sets its cursor only by aio_gc_put_cursor, else 'gc_new' is lost. The one
 // writer outside view_gcomps.php: aio_choose keeps 'gc' before it leaves.
+/**
+ * @return AioState
+ */
 function aio_list_state($mv, $s, $e, $rows, $lang)
 {
     return array('rid' => aio_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => $rows, 'lang' => $lang);
