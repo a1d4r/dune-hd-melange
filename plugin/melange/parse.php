@@ -2,6 +2,7 @@
 // AIOStreams reply -> rows of the list: accessors of decoded JSON, a stream
 // -> row (aio_row), its badges, audio and tracks. Pure functions: no firmware
 // API, no log, no state.
+// Types in the PHPDoc (AioRow and others): phpstan-types.neon of the repository.
 
 // Characters of a joined list (trackers, languages) on a screen, before wrapping.
 define('AIO_TEXT_MAX', 300);
@@ -14,6 +15,11 @@ define('AIO_BADGE_PCM', true);
 define('AIO_ADDONS_SCAN', 30);
 define('AIO_ADDONS_MAX', 10);
 
+/**
+ * @param string $s
+ * @param int $max
+ * @return string
+ */
 function aio_cut($s, $max)
 {
     return mb_strlen($s, 'UTF-8') > $max ? mb_substr($s, 0, $max, 'UTF-8') . '...' : $s;
@@ -25,6 +31,10 @@ define('AIO_DIALOG_LINE', 60);
 
 // Text (an error detail) -> at most 3 lines of a dialog, wrapped at spaces;
 // a word longer than a line is cut hard, text past 3 lines ends in "...".
+/**
+ * @param mixed $s
+ * @return list<string>
+ */
 function aio_dialog_lines($s)
 {
     $max = AIO_DIALOG_LINE;
@@ -51,11 +61,20 @@ function aio_dialog_lines($s)
 
 // json_decode of PHP 5.3 turns a lone surrogate ("\ud83d") into bytes that
 // are not UTF-8, and json_encode then makes the whole string null.
+/**
+ * @param mixed $s
+ * @return string
+ */
 function aio_utf8($s)
 {
     return mb_convert_encoding(strval($s), 'UTF-8', 'UTF-8');
 }
 
+/**
+ * @param mixed $a
+ * @param int|string $k
+ * @return string
+ */
 function aio_str($a, $k)
 {
     return is_array($a) && isset($a[$k]) && is_scalar($a[$k]) && !is_bool($a[$k]) ? trim(aio_utf8($a[$k])) : '';
@@ -63,6 +82,10 @@ function aio_str($a, $k)
 
 // http(s) picture with the shell's image cache flag (as vendor
 // HD::enable_caching_for_image_url), or '' for no picture.
+/**
+ * @param string $url
+ * @return string
+ */
 function aio_img($url)
 {
     if (!preg_match('~^https?://[^\\s]+$~', $url))
@@ -74,23 +97,42 @@ function aio_img($url)
 
 // One line of plain text for the screens: no line breaks or tabs; '|' as '/'
 // (it split item_detailed_info of the list screen, removed in 0.12.0).
+/**
+ * @param mixed $s
+ * @return string
+ */
 function aio_clean($s)
 {
     return trim(str_replace('|', '/', preg_replace('/[\\r\\n\\t]+/', ' ', strval($s))));
 }
 
 // A positive finite number from a JSON value (sizes come quoted), else 0.
+/**
+ * @param mixed $v
+ * @return float
+ */
 function aio_num($v)
 {
     $f = is_numeric($v) ? (float) $v : 0.0;
     return $f > 0 && $f < 1e18 ? $f : 0.0;
 }
 
+/**
+ * @param mixed $a
+ * @param int|string $k
+ * @return array<mixed>
+ */
 function aio_arr($a, $k)
 {
     return is_array($a) && isset($a[$k]) && is_array($a[$k]) ? $a[$k] : array();
 }
 
+/**
+ * @param mixed $obj
+ * @param string $k
+ * @param int $def
+ * @return int
+ */
 function aio_int($obj, $k, $def)
 {
     return is_object($obj) && isset($obj->$k) && is_numeric($obj->$k) ? intval($obj->$k) : $def;
@@ -98,6 +140,10 @@ function aio_int($obj, $k, $def)
 
 // Language of AIOStreams (parsedFile.languages) -> short code: ISO 639-1
 // where there is one, UA as on Russian trackers; '' for Unknown.
+/**
+ * @param string $name
+ * @return string
+ */
 function aio_lang_code($name)
 {
     static $codes = array('English' => 'EN', 'Japanese' => 'JA', 'Chinese' => 'ZH',
@@ -121,6 +167,9 @@ function aio_lang_code($name)
 
 // Audio badges: id => array(family, tier, audioTags it needs), the best of a
 // family first (Smart Tier of Nuvio).
+/**
+ * @return array<string, array{string, int, list<string>}>
+ */
 function aio_audio_rules()
 {
     return array(
@@ -149,6 +198,11 @@ function aio_audio_rules()
 // any order: only presence counts. $res overrides parsedFile.resolution.
 // -> array('res' => id|'', 'src' => id|'', 'vis' => id|'', 'ai' => bool,
 //    'audio' => array() or array(the best audio id), 'tags' => IMAX, editions, flags)
+/**
+ * @param array<mixed> $pf
+ * @param string|null $res
+ * @return AioBadges
+ */
 function aio_badges($pf, $res = null)
 {
     $set = array();
@@ -223,6 +277,10 @@ function aio_badges($pf, $res = null)
 }
 
 // Badge id of aio_badges as text, for the card: "DV · HDR10", "TrueHD Atmos".
+/**
+ * @param string $id
+ * @return string
+ */
 function aio_badge_text($id)
 {
     static $t = array('dolby-vision-hdr10-plus' => 'DV · HDR10+', 'dolby-vision-hdr10' => 'DV · HDR10',
@@ -239,6 +297,10 @@ function aio_badge_text($id)
 // All audio of a release in words for the card: codecs from the best down
 // in the words of the badges ("TrueHD Atmos · DTS:X MA · DD+"), tags we do not
 // know as they are, then every channel layout from the most ("7.1 / 5.1 / 2.0").
+/**
+ * @param array<mixed> $pf
+ * @return string
+ */
 function aio_audio_text($pf)
 {
     $left = array();
@@ -275,6 +337,11 @@ function aio_audio_text($pf)
 
 // A track title without the language the code already shows: "Russian Dub
 // iTunes" -> "Dub iTunes", "Английский" -> "". Spaces collapsed.
+/**
+ * @param string $title
+ * @param string $lang
+ * @return string
+ */
 function aio_track_title($title, $lang)
 {
     static $ru = array('Russian' => 'русский|русская|рус',
@@ -298,6 +365,10 @@ function aio_track_title($title, $lang)
 // Audio tracks of the media info (parsedFile.audioTracks, only with a probe),
 // in file order: array('lang' => 'RU', 'codec' => 'TrueHD', 'ch' => '7.1',
 // 'title' => 'Dub Jaskier'). At most 99 tracks.
+/**
+ * @param array<mixed> $pf
+ * @return list<AioTrack>
+ */
 function aio_tracks($pf)
 {
     $out = array();
@@ -327,6 +398,11 @@ function aio_tracks($pf)
 // Languages of a row: the unique codes of its audio tracks in track order when
 // any track has one, else $langs (parsedFile.languages: JacRed's Torznab marks
 // any Cyrillic title ru-RU and AIOStreams takes that over the title).
+/**
+ * @param list<AioTrack> $tracks
+ * @param list<string> $langs
+ * @return list<string>
+ */
 function aio_track_langs($tracks, $langs)
 {
     $out = array();
@@ -341,6 +417,10 @@ function aio_track_langs($tracks, $langs)
 // Name of a debrid service by streamData.service.id, as SERVICE_DETAILS of
 // AIOStreams (packages/core/src/utils/constants.ts). An unknown id is shown
 // as it is when short and plain; else '' (no name).
+/**
+ * @param string $id
+ * @return string
+ */
 function aio_service_name($id)
 {
     $names = array('realdebrid' => 'Real-Debrid', 'alldebrid' => 'AllDebrid', 'premiumize' => 'Premiumize',
@@ -399,6 +479,11 @@ function aio_service_name($id)
 //   label        name of the release: the file of a movie, the folder of a season pack
 //   raw          the stream as it came, for the details screen (INFO); memory of
 //                php_server only, as the URL: never logged nor saved
+/**
+ * @param array<mixed> $st
+ * @param bool $series
+ * @return AioRow|null
+ */
 function aio_row($st, $series)
 {
     $url = aio_str($st, 'url');
@@ -535,6 +620,12 @@ function aio_row($st, $series)
 // order given, at most AIO_ADDONS_MAX; an add-on once (names compared whole,
 // ignoring case); items that are not an object with a visible string name are
 // left out. Fewer than 2 add-ons: array() - the screens show 'addon' as before.
+/**
+ * @param array<mixed> $src
+ * @param string $svc
+ * @param string $own
+ * @return list<AioAddon>
+ */
 function aio_addons($src, $svc, $own)
 {
     $out = array();
@@ -569,11 +660,17 @@ function aio_addons($src, $svc, $own)
         else
             $out[] = array('addon' => aio_cut($name, 60), 'cached' => $cached);
     }
+    // The write to $out[0] above loses the shape for PHPStan.
+    /** @var list<AioAddon> $out */
     return count($out) >= 2 ? $out : array();
 }
 
 // An add-on name without white space and invisible characters (NBSP, ZWSP,
 // ZWNJ, ZWJ, word joiner, BOM) at its ends: '' for one with nothing visible.
+/**
+ * @param mixed $s
+ * @return string
+ */
 function aio_addon_name($s)
 {
     return strval(preg_replace('/^[\\s\\x{00A0}\\x{200B}-\\x{200D}\\x{2060}\\x{FEFF}]+|' .
@@ -583,6 +680,10 @@ function aio_addon_name($s)
 // The releaser credited as "от X" / "by X" (the last credit: it follows the
 // title), else ''. One token; dots inside stay, trailing ".-_" go. "by" needs
 // a space or "_" after it: "Stand.by.Me" is a title, not a credit.
+/**
+ * @param string $s
+ * @return string
+ */
 function aio_release_by($s)
 {
     if (!preg_match_all('/(?:^|[\\s._\\-(\\[])(?:от|by)[\\s_]+([^\\s|\\[\\](),\\/]+)/iu', $s, $m))
@@ -591,6 +692,10 @@ function aio_release_by($s)
 }
 
 // Whole numbers of a JSON list.
+/**
+ * @param array<mixed> $a
+ * @return list<int>
+ */
 function aio_ints($a)
 {
     $res = array();
@@ -604,6 +709,10 @@ function aio_ints($a)
 
 // "[TB⚡] JacRed 2160p" -> "JacRed 2160p": no bracket tags, no emoji (the
 // Dune font may lack them).
+/**
+ * @param string $name
+ * @return string
+ */
 function aio_plain_name($name)
 {
     $name = preg_replace('/\\[[^\\]]*\\]/', ' ', $name);
@@ -614,6 +723,11 @@ function aio_plain_name($name)
 // PHP on Dune is 32-bit and json_decode of 5.3 clamps big integers to
 // 2147483647 (no JSON_BIGINT_AS_STRING): sizes are quoted before decoding.
 // The body is changed in place: one copy of a 10 MB reply less in memory.
+/**
+ * @param string $body
+ * @param-out string|null $body
+ * @return mixed
+ */
 function aio_decode_streams(&$body)
 {
     // One bad byte fails json_decode of the whole list: invalid UTF-8 goes
@@ -634,6 +748,9 @@ function aio_decode_streams(&$body)
 define('AIO_MAGNET_TR', 20);
 
 // Trackers of a magnet when the stream names none: common public trackers.
+/**
+ * @return list<string>
+ */
 function aio_magnet_trackers()
 {
     return array('udp://tracker.opentrackr.org:1337/announce', 'udp://open.stealth.si:80/announce',
@@ -645,6 +762,10 @@ function aio_magnet_trackers()
 // AIO_MAGNET_TR "tracker:<url>" of sources (of the stream, of
 // streamData.torrent), else the public ones. Every
 // value is percent-encoded: no quote, space, "#" or ";" for the intent URI.
+/**
+ * @param AioRow $r
+ * @return array{string, int, 'sources'|'public'}
+ */
 function aio_magnet($r)
 {
     $raw = $r['raw'];

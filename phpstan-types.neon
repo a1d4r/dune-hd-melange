@@ -1,0 +1,115 @@
+# Shapes of the main arrays of plugin/melange, for the PHPDoc of its code
+# (@param AioRow $r ...). The code is PHP 5.3, so the types live in comments
+# only and are checked by PHPStan; this file is not in the zip. The meaning of
+# each key is in the comment of the function that makes the array.
+parameters:
+    typeAliases:
+        # A server of "Download to server" (aio_server_conf, common.php).
+        AioServer: 'array{name: string, url: string, user: string, pass: string, category: string, tags: string, cache: string}'
+        # A config of AIOStreams made by the settings page (aio_aio_conf, common.php).
+        AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null}'
+        # A JacRed to ask (aio_jacred_conf, aio_jacred_builtin_conf, common.php).
+        AioJacred: 'array{base: string, host: string, key: string, key_url: string, builtin?: bool}'
+        # settings.json as read (aio_settings_read, common.php).
+        AioSettings: '''
+            array{
+                source: 'made'|'own',
+                manifest_url: string,
+                rd_key: string,
+                tb_key: string,
+                jacred: string,
+                jacred_own_url: string,
+                jacred_own_key: string,
+                aio_server: string,
+                aio_own_url: string,
+                aio_tpl: string,
+                tmdb_key: string,
+                servers: list<AioServer>,
+                ts_url: string,
+                aio_confs: array<string, AioConf>
+            }
+        '''
+        # Settings of the operation (Aio::$settings, aio_settings_load, main.php).
+        AioOpSettings: '''
+            array{
+                base: string,
+                jrs: list<AioJacred>,
+                jrm: list<AioJacred>,
+                servers: list<AioServer>,
+                pw: list<string>,
+                ts: string,
+                aio: string,
+                own: bool,
+                hosts: array<string, string>
+            }
+        '''
+        # Badges of a release (aio_badges, parse.php).
+        AioBadges: 'array{res: string, src: string, vis: string, ai: bool, audio: list<string>, tags: list<string>}'
+        # An audio track of the media info (aio_tracks, parse.php).
+        AioTrack: 'array{lang: string, codec: string, ch: string, title: string}'
+        # An add-on that found the release (aio_addons, parse.php).
+        AioAddon: 'array{addon: string, cached: bool}'
+        # A row of the stream list (aio_row, parse.php). names: until
+        # aio_row_voices (voices_parse.php) puts voices in its place.
+        AioRow: '''
+            array{
+                url: string,
+                hash: string,
+                cached: bool|null,
+                service: string,
+                resolution: string,
+                badges: AioBadges,
+                audio_full: string,
+                tracks: list<AioTrack>,
+                subs: list<string>,
+                group: string,
+                expr: string,
+                network: string,
+                pack: float,
+                rate: float,
+                rate_approx: bool,
+                rate_src: string,
+                quality: string,
+                size: float,
+                langs: list<string>,
+                trackers: list<string>,
+                addon: string,
+                addons: list<AioAddon>,
+                pf_seasons: list<int>|null,
+                pf_episodes: list<int>,
+                names?: array{string, string},
+                voices?: array<string, mixed>,
+                label: string,
+                raw: array<mixed>
+            }
+        '''
+        # The card of play_action (aio_movie, main.php).
+        AioMovie: '''
+            array{
+                series: bool,
+                imdb: string,
+                dune_id: string,
+                title: string,
+                native: string,
+                year: string,
+                poster: string,
+                fanart: string,
+                rate_imdb: string,
+                seasons: array<int, int>
+            }
+        '''
+        # A stream list (Aio::$state, aio_list_state, main.php); gc, gc_new,
+        # gc_prog: of view_gcomps.php.
+        AioState: '''
+            array{
+                rid: string,
+                movie: AioMovie,
+                s: int,
+                e: int,
+                rows: list<AioRow>,
+                lang: string,
+                gc?: array{int, int},
+                gc_new?: bool,
+                gc_prog?: array<string, float>
+            }
+        '''

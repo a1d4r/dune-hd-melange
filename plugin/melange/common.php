@@ -3,6 +3,7 @@
 // php-cgi as root): the version, the files of data_dir, the rules for the
 // addresses and the mask of the log. Plain PHP 5.3: no firmware API, no
 // logging here.
+// Types in the PHPDoc (AioSettings and others): phpstan-types.neon of the repository.
 
 define('AIO_VERSION', '0.41.0');
 // In data_dir: written by the settings page only; the plugin only reads it.
@@ -21,6 +22,10 @@ define('AIO_MASK_SEGMENT', 16);
 // AIOStreams manifest address as typed or stored -> the URL to use, or ''
 // when it does not fit: http(s)://host[:port]/path/manifest.json, printable
 // ASCII without ? # quotes <>; stremio:// is https://, the scheme in any case.
+/**
+ * @param mixed $s
+ * @return string
+ */
 function aio_manifest_url($s)
 {
     if (!is_string($s))
@@ -35,6 +40,10 @@ function aio_manifest_url($s)
 }
 
 // The manifest address -> its base, with the trailing slash ('' for '').
+/**
+ * @param string $url
+ * @return string
+ */
 function aio_manifest_base($url)
 {
     return $url !== '' ? substr($url, 0, -strlen('manifest.json')) : '';
@@ -46,6 +55,10 @@ function aio_manifest_base($url)
 // anything else (control bytes, non-ASCII) -> null.
 // -> array('base' => without a slash, 'host', 'key' => as written,
 // 'key_url' => for the URL).
+/**
+ * @param mixed $s
+ * @return AioJacred|null
+ */
 function aio_jacred_conf($s)
 {
     $url = is_string($s) ? trim(preg_replace('/^\xEF\xBB\xBF/', '', $s), AIO_TRIM) : '';
@@ -62,6 +75,10 @@ function aio_jacred_conf($s)
 
 // Built-in JacRed $id of aio_jacred_builtin() -> aio_jacred_conf() +
 // 'builtin' => true, null for another id.
+/**
+ * @param string $id
+ * @return AioJacred|null
+ */
 function aio_jacred_builtin_conf($id)
 {
     $b = aio_jacred_builtin();
@@ -74,6 +91,9 @@ define('AIO_SERVERS_MAX', 5);
 
 // Debrid services a server may stand for (its "cache"): id of
 // streamData.service of AIOStreams => name.
+/**
+ * @return array<string, string>
+ */
 function aio_server_caches()
 {
     return array('torbox' => 'TorBox', 'realdebrid' => 'Real-Debrid');
@@ -87,6 +107,10 @@ function aio_server_caches()
 // to 100 printable characters, pass: up to 200; tags: comma-separated,
 // stored without spaces around each tag, empty ones and repeats; cache: a key of
 // aio_server_caches() or ''. No control bytes, UTF-8 only.
+/**
+ * @param mixed $a
+ * @return AioServer|null
+ */
 function aio_server_conf($a)
 {
     if (!is_array($a))
@@ -130,6 +154,10 @@ define('AIO_TS_DEFAULT', 'http://127.0.0.1:8090');
 // TorrServer address as typed or stored: [http://]host[:port][/] -> 'http://host:port'
 // (port 8090 when none, as Online movies), '' for empty, null when it does
 // not fit (https, a path, a query, a user).
+/**
+ * @param mixed $s
+ * @return string|null
+ */
 function aio_ts_addr($s)
 {
     if (!is_string($s))
@@ -144,6 +172,10 @@ function aio_ts_addr($s)
 }
 
 // The stored address ('' for none) -> the TorrServer to use.
+/**
+ * @param string $stored
+ * @return string
+ */
 function aio_ts_base($stored)
 {
     return $stored !== '' ? $stored : AIO_TS_DEFAULT;
@@ -153,6 +185,9 @@ function aio_ts_base($stored)
 // id (its host) => array(base, key). Public: neither is hidden in the log.
 // jacred.stream answers 403 to a "curl/*" User-Agent and to a wrong key;
 // jac.red answers 429 to a second request within ~0.5 s.
+/**
+ * @return array<string, array{string, string}>
+ */
 function aio_jacred_builtin()
 {
     return array(
@@ -171,6 +206,10 @@ define('AIO_JACRED_URL_MAX', 300);
 // characters, stored without the slash, scheme and host in lower case, port
 // 1-65535; key: '' or 8-200 printable ASCII without space & # (as
 // aio_jacred_conf; a shorter one would be masked all over the log).
+/**
+ * @param mixed $a
+ * @return array{url: string, key: string}|null
+ */
 function aio_jacred_own($a)
 {
     if (!is_array($a))
@@ -188,6 +227,9 @@ function aio_jacred_own($a)
 // AIOStreams servers to choose from (0.34.0; the config is made on them from 0.35.0):
 // base => it has a TMDB key of its own (else titles are not matched and
 // series get fewer releases without a key of the user). The first one is the default.
+/**
+ * @return array<string, bool>
+ */
 function aio_aio_servers()
 {
     return array(
@@ -202,6 +244,9 @@ function aio_aio_servers()
 // Templates of the config melange makes (0.40.0): id => instanceIds of the
 // presets of cgi/aio_template.json it keeps (null: all). The first one is
 // the default.
+/**
+ * @return array<string, list<string>|null>
+ */
 function aio_aio_tpls()
 {
     return array('addons' => null, 'jacred' => array('melange'));
@@ -217,6 +262,11 @@ function aio_aio_tpls()
 // 0.35.0), tpl (0.40.0) - its template by its presets: a key of
 // aio_aio_tpls(), 'custom' (changed in AIOStreams) or null (not known yet,
 // a config of 0.39 or older). -> the same keys checked, or null.
+/**
+ * @param int|string $base
+ * @param mixed $c
+ * @return AioConf|null
+ */
 function aio_aio_conf($base, $c)
 {
     $servers = aio_aio_servers();
@@ -237,6 +287,11 @@ function aio_aio_conf($base, $c)
 // the list with TMDB of its own hides the field on the page and never gets
 // the key (a stale one would fail every change: 400); an own server always
 // gets it.
+/**
+ * @param int|string $base
+ * @param string $key
+ * @return string
+ */
 function aio_tmdb_sent($base, $key)
 {
     $servers = aio_aio_servers();
@@ -247,6 +302,10 @@ function aio_tmdb_sent($base, $key)
 // -> 'scheme://host[:port]' in lower case, port 1-65535; '' when it does not
 // fit (a path, a query, a user). A LAN address is fine. The host: 2+
 // characters, a letter or digit at both ends (the log masks it as a word).
+/**
+ * @param mixed $s
+ * @return string
+ */
 function aio_aio_own($s)
 {
     $s = is_string($s) ? trim($s, AIO_TRIM) : '';
@@ -259,6 +318,10 @@ function aio_aio_own($s)
 // The server melange makes the config on (aio_server of the settings): a
 // server of the list or another one -> its base, the key of its config in
 // aio_confs ('' for another one without an address).
+/**
+ * @param AioSettings $s
+ * @return string
+ */
 function aio_settings_base($s)
 {
     return $s['aio_server'] === 'own' ? $s['aio_own_url'] : $s['aio_server'];
@@ -266,6 +329,10 @@ function aio_settings_base($s)
 
 // The manifest the plugin uses: the own config (source own), else the
 // config made on the chosen server ('' for none).
+/**
+ * @param AioSettings $s
+ * @return string
+ */
 function aio_settings_manifest($s)
 {
     if ($s['source'] === 'own')
@@ -277,6 +344,11 @@ function aio_settings_manifest($s)
 // Keys of the services as typed or stored -> the key, or '' when it does not
 // fit. Real-Debrid: 52 upper-case letters and digits, TorBox: a UUID, TMDB
 // v3: 32 hex - checked loosely, the service decides.
+/**
+ * @param string $what
+ * @param mixed $s
+ * @return string
+ */
 function aio_key_ok($what, $s)
 {
     if (!is_string($s))
@@ -290,6 +362,10 @@ function aio_key_ok($what, $s)
 // jacred_url of 0.33 and older -> array(jacred, own url, own key): a
 // built-in one if its host is one of them, else the own one (the key from
 // ?apikey=); empty or wrong -> AIO_JACRED_DEFAULT.
+/**
+ * @param mixed $url
+ * @return array{string, string, string}
+ */
 function aio_jacred_migrate($url)
 {
     $c = aio_jacred_conf($url);
@@ -302,6 +378,10 @@ function aio_jacred_migrate($url)
 
 // The own JacRed of the settings, chosen or not, for the mask of the log:
 // array() or array(aio_jacred_conf() + 'builtin' => false).
+/**
+ * @param AioSettings $s
+ * @return list<AioJacred>
+ */
 function aio_jacred_own_confs($s)
 {
     $c = $s['jacred_own_url'] !== '' ? aio_jacred_conf($s['jacred_own_url'] .
@@ -311,6 +391,10 @@ function aio_jacred_own_confs($s)
 
 // The JacRed to ask, in this order: the chosen one, then AIO_JACRED_DEFAULT
 // if that is another. -> list of aio_jacred_conf() + 'builtin'.
+/**
+ * @param AioSettings $s
+ * @return list<AioJacred>
+ */
 function aio_jacred_list($s)
 {
     $list = $s['jacred'] === 'own' ? aio_jacred_own_confs($s) : array();
@@ -327,6 +411,10 @@ function aio_jacred_list($s)
 // passwords, keys of Real-Debrid, TorBox, TMDB, passwords of the configs
 // and the long segments of their manifests, as of the manifest in use
 // (aio_mask_secrets).
+/**
+ * @param AioSettings $s
+ * @return list<string>
+ */
 function aio_settings_secrets($s)
 {
     $pw = aio_server_secrets($s['servers']);
@@ -350,6 +438,10 @@ function aio_settings_secrets($s)
 // Addresses of the settings to hide in the log, scheme://host[:port] =>
 // tag: the own TorrServer "<ts>" (not the default one on the Dune), the
 // servers of "Download to server" "<server>".
+/**
+ * @param AioSettings $s
+ * @return array<string, string>
+ */
 function aio_settings_hosts($s)
 {
     $h = array();
@@ -381,6 +473,10 @@ function aio_settings_hosts($s)
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
 // (aio_jacred_migrate); the plugin never writes it. Never through a symlink
 // (the page runs as root).
+/**
+ * @param string $dir
+ * @return AioSettings
+ */
 function aio_settings_read($dir)
 {
     $servers = array_keys(aio_aio_servers());
@@ -457,6 +553,10 @@ function aio_settings_read($dir)
 }
 
 // Passwords of the servers to hide in the log (aio_mask_secrets).
+/**
+ * @param list<AioServer> $servers
+ * @return list<string>
+ */
 function aio_server_secrets($servers)
 {
     $pw = array();
@@ -466,12 +566,22 @@ function aio_server_secrets($servers)
 }
 
 // 32 hex characters, as the plugin makes it.
+/**
+ * @param mixed $t
+ * @return bool
+ */
 function aio_token_ok($t)
 {
     return is_string($t) && preg_match('/^[0-9a-f]{32}\z/', $t) === 1;
 }
 
 // The address $aio (scheme://host[:port]) and its host in $s -> $tag.
+/**
+ * @param string $s
+ * @param string $aio
+ * @param string $tag
+ * @return string
+ */
 function aio_mask_host($s, $aio, $tag)
 {
     // Only as a whole host: not "aio" of "aio sync", not the start of
@@ -506,6 +616,15 @@ function aio_mask_host($s, $aio, $tag)
 // JSON-escaped slashes ("\/") are covered too. $aio: the own AIOStreams
 // server (aio_aio_own(), '' for none; a LAN or NAS address) -> "<aio>";
 // $hosts: more such addresses, as aio_settings_hosts().
+/**
+ * @param string $s
+ * @param string $base
+ * @param list<AioJacred> $jrs
+ * @param list<string> $pw
+ * @param string $aio
+ * @param array<string, string> $hosts
+ * @return string
+ */
 function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = array())
 {
     if ($base !== '')

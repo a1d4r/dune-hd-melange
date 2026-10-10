@@ -45,6 +45,7 @@ class Aio
 {
     // The last stream list. Memory of php_server only: stream URLs carry
     // tokens and never go to a file. After a server restart the list expires.
+    /** @var AioState|null */
     public static $state = null;
     // Settings of the operation (aio_settings_load): 'base' - base URL of the
     // manifest (the own config, else the config made on the chosen server), '' when none; 'jrs' - aio_jacred_list(): the chosen JacRed,
@@ -55,6 +56,7 @@ class Aio
     // TorrServer to use, http://host:port (aio_ts_base). 'aio' - the own
     // AIOStreams server ('' none), "<aio>" in the log. 'own' - the own config
     // is chosen (source own). 'hosts' - aio_settings_hosts(), hidden in the log.
+    /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'aio' => '', 'own' => false, 'hosts' => array());
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
