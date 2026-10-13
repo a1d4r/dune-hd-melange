@@ -10,7 +10,7 @@ afterEach(cleanup);
 
 const URL = TOKEN + "&a=jr_speed&ajax=1";
 const OWN = "b=&url=http%3A%2F%2F192.168.1.10%3A9117&key=testkey01";
-const BUILTINS = ["jacred.stream", "jr.maxvol.pro", "jac.stull.xyz", "jac.red"];
+const BUILTINS = ["jacred.kompotik.com", "jacred.stream", "jr.maxvol.pro", "jac.stull.xyz", "jac.red"];
 
 const speed = (n: number, ms: number) => json({ ok: true, msg: "", n: n, ms: ms });
 const fail = (msg: string) => json({ ok: false, msg: msg, n: 0, ms: 0 });
@@ -33,19 +33,19 @@ describe("Check", () => {
     const t = page.init.i18n;
     page.replies.push(speed(10, 1200), speed(12, 1500), speed(11, 1800));
     await page.click(ID.jacredCheck);
-    expect(bodies(page)).toEqual(["b=jacred.stream&q=0"]);
+    expect(bodies(page)).toEqual(["b=jacred.kompotik.com&q=0"]);
     expect(lines(page.el(ID.jacredResult))).toEqual([["hint", t.checking + " 1/3"]]);
     expect(busy(page)).toEqual([true, true]);
     expect(ariaBusy(page)).toEqual(["true", null]);
     await pause(1999);
     expect(page.calls.length).toBe(1);
     await pause(1);
-    expect(bodies(page)).toEqual(["b=jacred.stream&q=0", "b=jacred.stream&q=1"]);
+    expect(bodies(page)).toEqual(["b=jacred.kompotik.com&q=0", "b=jacred.kompotik.com&q=1"]);
     expect(lines(page.el(ID.jacredResult))).toEqual([["hint", t.checking + " 2/3"]]);
     await pause();
-    expect(bodies(page)).toEqual(["b=jacred.stream&q=0", "b=jacred.stream&q=1", "b=jacred.stream&q=2"]);
+    expect(bodies(page)).toEqual(["b=jacred.kompotik.com&q=0", "b=jacred.kompotik.com&q=1", "b=jacred.kompotik.com&q=2"]);
     expect(lines(page.el(ID.jacredResult))).toEqual([
-      ["ok", "jacred.stream · " + t.yes + " · 1.5 " + t.seconds + " · " + t.releases + ": 10 / 12 / 11"],
+      ["ok", "jacred.kompotik.com · " + t.yes + " · 1.5 " + t.seconds + " · " + t.releases + ": 10 / 12 / 11"],
     ]);
     expect(busy(page)).toEqual([false, false]);
     expect(ariaBusy(page)).toEqual([null, null]);
@@ -73,7 +73,7 @@ describe("Check", () => {
     await pause();
     expect(page.calls.length).toBe(3);
     expect(lines(page.el(ID.jacredResult))).toEqual([
-      ["ok", "jacred.stream · " + t.yes + " (1/3) · 2.5 " + t.seconds + " · " + t.releases + ": — / — / 7"],
+      ["ok", "jacred.kompotik.com · " + t.yes + " (1/3) · 2.5 " + t.seconds + " · " + t.releases + ": — / — / 7"],
     ]);
   });
 
@@ -85,7 +85,7 @@ describe("Check", () => {
     await pause();
     await pause();
     expect(lines(page.el(ID.jacredResult))).toEqual([
-      ["err", "jacred.stream · " + t.no + ": HTTP 502 · — · " + t.releases + ": — / — / —"],
+      ["err", "jacred.kompotik.com · " + t.no + ": HTTP 502 · — · " + t.releases + ": — / — / —"],
     ]);
   });
 
@@ -187,6 +187,7 @@ describe("Compare all", () => {
       [names[2]!, t.yes + " (2/3)", sec("1.0"), "2 / 2 / —"],
       [names[3]!, t.yes, sec("2.0"), "3 / 3 / 3"],
       [names[4]!, t.yes, sec("2.0"), "4 / 4 / 4"],
+      [names[5]!, t.yes, sec("2.0"), "5 / 5 / 5"],
     ]);
     expect(busy(page)).toEqual([false, false]);
     expect(ariaBusy(page)).toEqual([null, null]);
@@ -195,43 +196,43 @@ describe("Compare all", () => {
   test("Choose in every row from the start: checks the radio of that JacRed (own one too), the note follows", async () => {
     const page = open("filled");
     const t = page.init.i18n;
-    for (let i = 0; i < 15; i++) page.replies.push(speed(1, 1000));
+    for (let i = 0; i < 18; i++) page.replies.push(speed(1, 1000));
     await page.click(ID.jacredCompare);
     const buttons = chooseButtons(page);
     // Under the name, no column of its own (the table fits a phone of 320 px).
     expect(buttons.map((button) => [button.textContent, button.previousSibling!.textContent, button.closest("td")!.cellIndex])).toEqual(
       [...BUILTINS, "192.168.1.10"].map((name) => [t.choose, name, 0]),
     );
-    expect(Array.from(page.el(ID.jacredTable).querySelectorAll("tr"), (row) => row.cells.length)).toEqual([4, 4, 4, 4, 4, 4]);
+    expect(Array.from(page.el(ID.jacredTable).querySelectorAll("tr"), (row) => row.cells.length)).toEqual([4, 4, 4, 4, 4, 4, 4]);
     expect(page.el("jrnote").hidden).toBe(false);
     buttons[0]!.click();
     expect([page.el<HTMLInputElement>("jrb1").checked, page.el<HTMLInputElement>("jrown").checked, page.el("jrnote").hidden]).toEqual([true, false, true]);
     buttons[3]!.click();
     expect([page.el<HTMLInputElement>("jrb4").checked, page.el("jrnote").hidden]).toEqual([true, false]);
-    buttons[4]!.click();
+    buttons[5]!.click();
     expect(page.el<HTMLInputElement>("jrown").checked).toBe(true);
     // Measuring goes on meanwhile, the buttons stay after it.
-    for (let i = 0; i < 10; i++) await pause();
-    expect(page.calls.length).toBe(15);
-    expect(chooseButtons(page).map((button) => button.disabled)).toEqual([false, false, false, false, false]);
+    for (let i = 0; i < 12; i++) await pause();
+    expect(page.calls.length).toBe(18);
+    expect(chooseButtons(page).map((button) => button.disabled)).toEqual([false, false, false, false, false, false]);
   });
 
   test("a new Compare all: the rows (and their buttons) of the old table go", async () => {
     const page = open("empty");
-    for (let i = 0; i < 24; i++) page.replies.push(speed(1, 1000));
+    for (let i = 0; i < 30; i++) page.replies.push(speed(1, 1000));
     await page.click(ID.jacredCompare);
-    for (let i = 0; i < 8; i++) await pause();
+    for (let i = 0; i < 10; i++) await pause();
     await page.click(ID.jacredCompare);
-    expect(chooseButtons(page).length).toBe(4);
+    expect(chooseButtons(page).length).toBe(5);
     expect(page.el(ID.jacredTable).querySelectorAll("table").length).toBe(1);
   });
 
   test("no own address: the built-in ones only; bad: format does not stop it", async () => {
     const page = open("empty");
-    for (let i = 0; i < 12; i++) page.replies.push(i < 3 ? badFormat(page.init.i18n.jacredFormat) : speed(1, 1000));
+    for (let i = 0; i < 15; i++) page.replies.push(i < 3 ? badFormat(page.init.i18n.jacredFormat) : speed(1, 1000));
     await page.click(ID.jacredCompare);
-    for (let i = 0; i < 8; i++) await pause();
-    expect(page.calls.length).toBe(12);
+    for (let i = 0; i < 10; i++) await pause();
+    expect(page.calls.length).toBe(15);
     expect(table(page).map((row) => row[0])).toEqual([page.init.i18n.colName, ...BUILTINS]);
   });
 

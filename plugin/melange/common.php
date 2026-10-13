@@ -191,6 +191,9 @@ function aio_ts_base($stored)
 function aio_jacred_builtin()
 {
     return array(
+        // Melange's own backend (a VPS run by the author for Melange users).
+        // If you found it, feel free to use it, but please don't abuse it.
+        'jacred.kompotik.com' => array('https://jacred.kompotik.com', '5f72a2f4a5dc1bcc38ae00697f89c8c3'),
         'jacred.stream' => array('https://jacred.stream', 'pp'),
         'jr.maxvol.pro' => array('https://jr.maxvol.pro', ''),
         'jac.stull.xyz' => array('https://jac.stull.xyz', ''),
@@ -198,7 +201,7 @@ function aio_jacred_builtin()
 }
 // Chosen when the settings choose none (no file, 0.33 without one, a wrong
 // choice); also the one asked when the chosen one does not answer.
-define('AIO_JACRED_DEFAULT', 'jacred.stream');
+define('AIO_JACRED_DEFAULT', 'jacred.kompotik.com');
 define('AIO_JACRED_URL_MAX', 300);
 
 // The own JacRed as typed or stored: array(url, key) -> the same keys
@@ -233,6 +236,9 @@ function aio_jacred_own($a)
 function aio_aio_servers()
 {
     return array(
+        // Melange's own backend (a VPS run by the author for Melange users).
+        // If you found it, feel free to use it, but please don't abuse it.
+        'https://aiostreams.kompotik.com' => true,
         'https://aiostreams.12312023.xyz' => true,
         'https://aiostreamsfortheweebsstable.midnightignite.me' => false,
         'https://aio.atbphosting.com' => false,

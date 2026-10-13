@@ -45,7 +45,7 @@ describe("JacRed note", () => {
     expect(empty.el(ID.jacredNote).hidden).toBe(true);
     empty.choose("jacred", "jac.red");
     expect(empty.el(ID.jacredNote).hidden).toBe(false);
-    empty.choose("jacred", "jacred.stream");
+    empty.choose("jacred", "jacred.kompotik.com");
     expect(empty.el(ID.jacredNote).hidden).toBe(true);
   });
 
@@ -146,7 +146,7 @@ describe("nothing without #init or fetch", () => {
   };
   test("no #init", () => untouched((doc) => doc.getElementById(ID.init)!.remove()));
   test("#init not JSON", () => untouched((doc) => (doc.getElementById(ID.init)!.textContent = "{")));
-  test("#init without i18n", () => untouched((doc) => (doc.getElementById(ID.init)!.textContent = '{"jacredDefault":"jacred.stream"}')));
+  test("#init without i18n", () => untouched((doc) => (doc.getElementById(ID.init)!.textContent = '{"jacredDefault":"jacred.kompotik.com"}')));
 
   test("no fetch: the page is set up, but no check and no save by the script", async () => {
     const page = open("filled", { before: () => setGlobal("fetch", undefined) });

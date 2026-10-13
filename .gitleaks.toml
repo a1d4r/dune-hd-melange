@@ -1,0 +1,7 @@
+# gitleaks: the default rules, plus one public value they flag.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "The shared public apikey of jacred.kompotik.com, Melange's own JacRed (aio_jacred_builtin, cgi/aio_template.json)"
+regexes = ['''^5f72a2f4a5dc1bcc38ae00697f89c8c3$''']

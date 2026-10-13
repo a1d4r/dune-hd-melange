@@ -18,7 +18,7 @@ describe.each([...FIXTURES])("%s", (name) => {
     const page = open(name, { start: false });
     expect(Object.keys(page.init.i18n).sort()).toEqual([...TEXT_KEYS].sort());
     for (const key of TEXT_KEYS) expect(typeof page.init.i18n[key] === "string" && page.init.i18n[key] !== "").toBe(true);
-    expect(page.init.jacredDefault).toBe("jacred.stream");
+    expect(page.init.jacredDefault).toBe("jacred.kompotik.com");
     expect(typeof page.init.tplNew).toBe("string");
     expect(typeof page.init.confs === "object" && page.init.confs !== null && !Array.isArray(page.init.confs)).toBe(true);
   });
@@ -52,7 +52,12 @@ describe.each([...FIXTURES])("%s", (name) => {
     doc.querySelectorAll<HTMLOptionElement>("#" + ID.aioServer + " option").forEach((option) =>
       expect(option.getAttribute(DATA.tmdb)).toMatch(/^[01]$/),
     );
-    expect(doc.querySelectorAll("#" + ID.aioServer + " option[" + DATA.jr403 + "='1']").length).toBeGreaterThan(0);
+    // A server JacRed answers 403: the id of that JacRed, a radio of the choice.
+    const refused = doc.querySelectorAll<HTMLOptionElement>("#" + ID.aioServer + " option[" + DATA.jr403 + "]");
+    expect(refused.length).toBeGreaterThan(0);
+    refused.forEach((option) =>
+      expect(form.querySelectorAll(JACRED_RADIOS + "[value='" + option.getAttribute(DATA.jr403) + "']").length).toBe(1),
+    );
 
     // Every eye: a button for a field there, masked.
     const eyes = doc.querySelectorAll("." + CLS.eye);

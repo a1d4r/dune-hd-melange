@@ -155,7 +155,7 @@ function aio_jacred_ask($conf, $path, $connect, $total)
 // Rows without audio tracks of their own get those of the same release
 // (infoHash) from ffprobe of a JacRed of the settings, and its subtitle
 // languages if they have none: one card search, after the AIOStreams reply,
-// in the chosen JacRed, else jacred.stream (aio_jacred_list). Any failure leaves the rows
+// in the chosen JacRed, else AIO_JACRED_DEFAULT (aio_jacred_list). Any failure leaves the rows
 // as they are. Aio::$t0: start of the operation.
 /**
  * @param list<AioRow> $rows

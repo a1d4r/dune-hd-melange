@@ -51,7 +51,7 @@ describe("source", () => {
 });
 
 describe("server", () => {
-  test("own: its address box, no TMDB note, no LAN note; TMDB box by data-tmdb; 403 note by data-jr403", () => {
+  test("own: its address box, no TMDB note, no LAN note; TMDB box by data-tmdb; 403 note by data-jr403 and the JacRed chosen", () => {
     const page = open("filled");
     const vis = () => ({
       ownBox: shown(page.el(ID.aioOwnBox)), tmdbBox: shown(page.el(ID.tmdbBox)), tmdbNote: shown(page.el(ID.tmdbNote)),
@@ -59,8 +59,14 @@ describe("server", () => {
     });
     // TMDB of its own.
     expect(vis()).toEqual({ ownBox: false, tmdbBox: false, tmdbNote: true, lan: true, jr403: false });
+    // The 403 note only while the JacRed that refuses the server is chosen (here: own one).
     server(page, "https://aiostreams.fortheweak.cloud");
+    expect(vis()).toEqual({ ownBox: false, tmdbBox: true, tmdbNote: true, lan: true, jr403: false });
+    page.choose("jacred", "jacred.stream");
     expect(vis()).toEqual({ ownBox: false, tmdbBox: true, tmdbNote: true, lan: true, jr403: true });
+    page.choose("jacred", "jacred.kompotik.com");
+    expect(vis().jr403).toBe(false);
+    page.choose("jacred", "jacred.stream");
     server(page, "own");
     expect(vis()).toEqual({ ownBox: true, tmdbBox: true, tmdbNote: false, lan: false, jr403: false });
     // The 403 note only under source made.

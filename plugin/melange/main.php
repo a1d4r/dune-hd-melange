@@ -49,7 +49,7 @@ class Aio
     public static $state = null;
     // Settings of the operation (aio_settings_load): 'base' - base URL of the
     // manifest (the own config, else the config made on the chosen server), '' when none; 'jrs' - aio_jacred_list(): the chosen JacRed,
-    // then jacred.stream (keys of aio_jacred_conf() + 'builtin'); 'jrm' -
+    // then AIO_JACRED_DEFAULT (keys of aio_jacred_conf() + 'builtin'); 'jrm' -
     // aio_jacred_own_confs(): the own JacRed, chosen or not, for the mask of the log;
     // 'servers' - aio_server_conf() list of "Download to server", 'pw' - their
     // passwords and the keys of the services. Hidden in the log. 'ts' - the

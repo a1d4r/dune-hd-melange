@@ -19,8 +19,8 @@
       "options": {
         "name": "JacRed",
         "api": {
-          "url": "https://jacred.stream/api/v2.0/indexers/all/results/torznab/api",
-          "apiKey": "pp"
+          "url": "https://jacred.kompotik.com/api/v2.0/indexers/all/results/torznab/api",
+          "apiKey": "5f72a2f4a5dc1bcc38ae00697f89c8c3"
         },
         "timeout": 15000,
         "mediaTypes": [],

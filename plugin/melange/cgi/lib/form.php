@@ -161,13 +161,15 @@ function aio_cgi_jacred($v)
     $out = '<h2 id="jrh" data-made="' . aio_cgi_h($t['h'][0]) . '" data-own="' . aio_cgi_h($t['h'][1]) . '">' . $t['h'][$k] .
         '</h2><p class="hint" id="jrp" data-made="' . aio_cgi_h($t['p'][0]) . '" data-own="' . aio_cgi_h($t['p'][1]) . '">' .
         $t['p'][$k] . '</p>' .
-        // The created config on a server jacred.stream refuses (the script follows the choice).
-        '<p class="hint" id="jr403"' . (!$k && in_array($v['aio_server'], aio_cgi_jr403(), true) ? '' : ' hidden') . '>' .
+        // The created config on a server jacred.stream refuses, jacred.stream chosen (the script follows both).
+        '<p class="hint" id="jr403"' . (!$k && in_array($v['aio_server'], aio_cgi_jr403(), true) &&
+        $v['jacred'] === 'jacred.stream' ? '' : ' hidden') . '>' .
         aio_cgi_l('jacred.stream не пускает выбранный сервер AIOStreams — выберите другой JacRed',
         'jacred.stream refuses the chosen AIOStreams server: choose another JacRed') . '</p>' .
-        // Not when jacred.stream itself is chosen (the script follows the choice).
+        // Not when the default itself is chosen (the script follows the choice).
         '<p class="hint" id="jrnote"' . ($v['jacred'] === AIO_JACRED_DEFAULT ? ' hidden' : '') . '>' .
-        aio_cgi_l('Не ответил — Melange спросит jacred.stream.', 'No answer - Melange asks jacred.stream.') . '</p>';
+        aio_cgi_l('Не ответил — Melange спросит ' . AIO_JACRED_DEFAULT . '.', 'No answer - Melange asks ' . AIO_JACRED_DEFAULT . '.') .
+        '</p>';
     $i = 0;
     foreach (array_keys(aio_jacred_builtin()) as $id)
     {
@@ -191,7 +193,8 @@ function aio_cgi_jacred($v)
         'Three searches in each JacRed, 2 s apart.') . '</p><div id="jrsr" class="res" aria-live="polite"></div>';
 }
 
-// AIOStreams servers where jacred.stream answers 403 to the server (0.35.0).
+// AIOStreams servers where jacred.stream answers 403 to the server (0.35.0);
+// data-jr403 of their option: the JacRed that refuses them.
 function aio_cgi_jr403()
 {
     return array('https://aiostreams.fortheweak.cloud');
@@ -322,7 +325,7 @@ function aio_cgi_aio($v)
         '</label><select id="' . $f['aio_server']['id'] . '" name="' . $f['aio_server']['name'] . '">';
     foreach (aio_aio_servers() as $url => $tmdb)
         $out .= '<option value="' . aio_cgi_h($url) . '" data-tmdb="' . ($tmdb ? '1' : '0') . '"' .
-            (in_array($url, aio_cgi_jr403(), true) ? ' data-jr403="1"' : '') .
+            (in_array($url, aio_cgi_jr403(), true) ? ' data-jr403="jacred.stream"' : '') .
             ($v['aio_server'] === $url ? ' selected' : '') . '>' .
             aio_cgi_h(substr($url, strlen('https://'))) . ($tmdb ? '' : aio_cgi_l(' — без TMDB', ' - no TMDB')) . '</option>';
     $out .= '<option value="own" data-tmdb="0"' .

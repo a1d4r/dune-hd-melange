@@ -22,6 +22,8 @@ const checkButtons = (page: Page) => [
 ];
 const disabled = (buttons: HTMLButtonElement[]) => buttons.map((button) => button.disabled);
 const all = (count: number, value: boolean) => Array.from({ length: count }, () => value);
+// The built-in JacRed of the page: the rows of "Compare all" on "empty".
+const BUILTINS = 5;
 const rowStates = (page: Page) => Array.from(page.el(ID.jacredTable).querySelectorAll("tr")).slice(1).map((row) => row.cells[1]!.textContent);
 async function pause(): Promise<void> {
   jest.advanceTimersByTime(2000);
@@ -69,8 +71,8 @@ describe("after a 403", () => {
     await pause();
     for (let i = 0; i < 10; i++) await pause();
     expect(page.calls.length).toBe(2);
-    expect(rowStates(page)).toEqual([t.linkExpired, t.linkExpired, t.linkExpired, t.linkExpired]);
-    expect(Array.from(page.el(ID.jacredTable).querySelectorAll<HTMLButtonElement>("button." + CLS.jacredChoose)).map((b) => b.disabled)).toEqual(all(4, true));
+    expect(rowStates(page)).toEqual(Array(BUILTINS).fill(t.linkExpired));
+    expect(Array.from(page.el(ID.jacredTable).querySelectorAll<HTMLButtonElement>("button." + CLS.jacredChoose)).map((b) => b.disabled)).toEqual(all(BUILTINS, true));
     expect(page.el(ID.jacredTable).getAttribute("aria-busy")).toBe(null);
     expect(lines(page.el(ID.message))).toEqual([["err", t.linkExpired]]);
     expect(disabled([page.el(ID.jacredCheck), page.el(ID.jacredCompare)])).toEqual([true, true]);
@@ -84,7 +86,7 @@ describe("after a 403", () => {
     await pause();
     await pause();
     expect(page.calls.length).toBe(2);
-    expect(lines(page.el(ID.jacredResult))).toEqual([["err", "jacred.stream · " + page.init.i18n.linkExpired]]);
+    expect(lines(page.el(ID.jacredResult))).toEqual([["err", "jacred.kompotik.com · " + page.init.i18n.linkExpired]]);
   });
 });
 
@@ -170,7 +172,7 @@ describe("a save while JacRed is measured", () => {
     await pause();
     await pause();
     expect(page.calls.length).toBe(2);
-    expect(rowStates(page)).toEqual([t.stopped, t.stopped, t.stopped, t.stopped]);
+    expect(rowStates(page)).toEqual(Array(BUILTINS).fill(t.stopped));
     expect(page.el<HTMLButtonElement>(ID.jacredCompare).disabled).toBe(true);
     answer.resolve(json({ ok: false, errors: [{ msg: "Bad", field: null }] }));
     await flush();
@@ -190,7 +192,7 @@ describe("a save while JacRed is measured", () => {
     expect([saveButton(page).disabled, lines(page.el(ID.saveResult))]).toEqual([false, [["err", "Bad"]]]);
     for (let i = 0; i < 4; i++) await pause();
     expect(page.calls.map((call) => call.url)).toEqual([JR_URL, JR_URL, SAVE_URL]);
-    expect(rowStates(page)).toEqual([t.stopped, t.stopped, t.stopped, t.stopped]);
+    expect(rowStates(page)).toEqual(Array(BUILTINS).fill(t.stopped));
     expect(disabled([page.el(ID.jacredCheck), page.el(ID.jacredCompare)])).toEqual([false, false]);
   });
 
@@ -200,11 +202,11 @@ describe("a save while JacRed is measured", () => {
     page.replies.push(json({ ok: false, errors: [{ msg: "Bad", field: null }] }));
     saveButton(page).click();
     await flush();
-    for (let i = 0; i < 12; i++) page.replies.push(speed);
+    for (let i = 0; i < 3 * BUILTINS; i++) page.replies.push(speed);
     await page.click(ID.jacredCompare);
-    for (let i = 0; i < 8; i++) await pause();
-    expect(page.calls.length).toBe(13);
-    expect(rowStates(page)).toEqual(Array(4).fill(page.init.i18n.yes));
+    for (let i = 0; i < 2 * BUILTINS; i++) await pause();
+    expect(page.calls.length).toBe(3 * BUILTINS + 1);
+    expect(rowStates(page)).toEqual(Array(BUILTINS).fill(page.init.i18n.yes));
   });
 
   test("Choose in the table: disabled while the save goes, back after it; a click starts nothing meanwhile", async () => {
@@ -214,16 +216,16 @@ describe("a save while JacRed is measured", () => {
     page.replies.push(speed, answer.reply);
     await page.click(ID.jacredCompare);
     const choose = () => Array.from(page.el(ID.jacredTable).querySelectorAll<HTMLButtonElement>("button." + CLS.jacredChoose));
-    expect(choose().map((button) => button.disabled)).toEqual(all(4, false));
+    expect(choose().map((button) => button.disabled)).toEqual(all(BUILTINS, false));
     saveButton(page).click();
     await flush();
-    expect(choose().map((button) => button.disabled)).toEqual(all(4, true));
+    expect(choose().map((button) => button.disabled)).toEqual(all(BUILTINS, true));
     choose()[1]!.disabled = false;
     choose()[1]!.click();
     expect(page.el<HTMLInputElement>("jrb2").checked).toBe(false);
     answer.resolve(json({ ok: false, errors: [{ msg: "Bad", field: null }] }));
     await flush();
-    expect(choose().map((button) => button.disabled)).toEqual(all(4, false));
+    expect(choose().map((button) => button.disabled)).toEqual(all(BUILTINS, false));
     choose()[1]!.click();
     expect(page.el<HTMLInputElement>("jrb2").checked).toBe(true);
   });
@@ -237,7 +239,7 @@ describe("a save while JacRed is measured", () => {
     await flush();
     await pause();
     expect(page.calls.length).toBe(2);
-    expect(lines(page.el(ID.jacredResult))).toEqual([["hint", "jacred.stream · " + page.init.i18n.stopped]]);
+    expect(lines(page.el(ID.jacredResult))).toEqual([["hint", "jacred.kompotik.com · " + page.init.i18n.stopped]]);
     expect(page.el(ID.jacredResult).getAttribute("aria-busy")).toBe(null);
   });
 });

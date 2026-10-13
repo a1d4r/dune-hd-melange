@@ -2,7 +2,7 @@
 
 import type { Sync } from "./api";
 import type { Confs, KnownConf } from "./confs";
-import { byId, CLS, DATA, ID, isMark, isOwnSource, NAME, type Page, query, VALUE } from "./dom";
+import { byId, checkedValue, CLS, DATA, ID, isMark, isOwnSource, JACRED_RADIOS, NAME, type Page, query, VALUE } from "./dom";
 import type { Lock } from "./lock";
 
 export interface Aio {
@@ -95,7 +95,8 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     if (conf) renderConf(conf);
     swapText(ID.jacredHeading, ownSource);
     swapText(ID.jacredText, ownSource);
-    byId(doc, ID.jacred403).hidden = ownSource || !option || option.getAttribute(DATA.jr403) !== "1";
+    const refuses = option ? option.getAttribute(DATA.jr403) : null;
+    byId(doc, ID.jacred403).hidden = ownSource || !refuses || refuses !== checkedValue(form, NAME.jacred);
     byId(doc, ID.tsOwn).hidden = !ownSource;
     byId(doc, ID.jacredLan).hidden = ownSource || ownServer;
     const hasKey = (rdKey.value + tbKey.value).replace(/\s+/g, "") !== "";
@@ -108,6 +109,8 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   tbKey.addEventListener("input", render);
   const sources = form.querySelectorAll<HTMLInputElement>("input[name=" + NAME.source + "]");
   for (let i = 0; i < sources.length; i++) sources[i]!.addEventListener("change", render);
+  const jacreds = form.querySelectorAll<HTMLInputElement>(JACRED_RADIOS);
+  for (let i = 0; i < jacreds.length; i++) jacreds[i]!.addEventListener("change", render);
   render();
   template.addEventListener("change", renderHint);
 
