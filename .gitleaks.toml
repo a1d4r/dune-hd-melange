@@ -3,5 +3,5 @@
 useDefault = true
 
 [allowlist]
-description = "The shared public apikey of jacred.kompotik.com, Melange's own JacRed (aio_jacred_builtin, cgi/aio_template.json)"
+description = "The shared public apikey of jacred.kompotik.com, Melange's own JacRed (aio_jacred_builtin; in the history of cgi/aio_template.json, 6d96e40)"
 regexes = ['''^5f72a2f4a5dc1bcc38ae00697f89c8c3$''']

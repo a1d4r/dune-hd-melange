@@ -185,6 +185,7 @@ function aio_ts_base($stored)
 // id (its host) => array(base, key). Public: neither is hidden in the log.
 // jacred.stream answers 403 to a "curl/*" User-Agent and to a wrong key;
 // jac.red answers 429 to a second request within ~0.5 s.
+// The order is only that of the page: the default (and fallback) is AIO_JACRED_DEFAULT.
 /**
  * @return array<string, array{string, string}>
  */
