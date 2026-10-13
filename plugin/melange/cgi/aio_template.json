@@ -201,9 +201,7 @@
   "excludeCachedFromServices": [],
   "excludeCachedFromStreamTypes": [],
   "excludeUncachedFromAddons": [],
-  "excludeUncachedFromServices": [
-    "realdebrid"
-  ],
+  "excludeUncachedFromServices": [],
   "excludeUncachedFromStreamTypes": [],
   "excludedStreamExpressions": [],
   "regexOverrides": [],
