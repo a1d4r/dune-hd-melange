@@ -1,11 +1,14 @@
-// The marks of the errors of a save (marks.ts): the field or server block of each, the top one in view and focused,
-// a mark gone on editing or at the next save.
+// The marks of the errors of a save (marks.ts): the field or server block of each, the top one on its screen (the
+// address #<screen>, details around it open), in view and focused, a mark gone on editing or at the next save.
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { CLS, ID } from "../src/dom";
 import { cleanup, flush, json, later, lines, NET, open, type Page } from "./harness";
 
 afterEach(cleanup);
+
+// The hash the script set (location of the harness: no hash until then).
+const hash = () => (globalThis as unknown as { location: { hash?: string } }).location.hash;
 
 async function save(page: Page): Promise<void> {
   page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
@@ -38,9 +41,21 @@ describe("errors lead to the field", () => {
     page.replies.push(json({ ok: false, errors: [KEY_ERROR] }));
     await save(page);
     expect(marked(page)).toEqual(["rd_key"]);
+    expect(page.field("rd_key").getAttribute("aria-invalid")).toBe("true");
     expect(scrolls).toEqual([["rd_key", { block: "center" }]]);
     expect(focused(page)).toBe("rd_key");
+    expect(hash()).toBe("#src");
     expect(lines(page.el(ID.saveResult))).toEqual([["err", KEY_ERROR.msg]]);
+    // The bar with the errors stays.
+    expect(page.el(ID.bar).hidden).toBe(false);
+  });
+
+  test("the key of TorBox hidden (Real-Debrid shown by the switch): shown for its error", async () => {
+    const page = open("empty");
+    expect(page.el(ID.tbBox).hidden).toBe(true);
+    page.replies.push(json({ ok: false, errors: [{ msg: "TorBox", field: "tb_key" }] }));
+    await save(page);
+    expect([page.el(ID.tbBox).hidden, focused(page), hash()]).toEqual([false, "tb_key", "#src"]);
   });
 
   test("own JacRed and TorrServer: both marked, the first one brought into view", async () => {
@@ -51,9 +66,26 @@ describe("errors lead to the field", () => {
     expect(marked(page)).toEqual(["jacred_own_url", "ts"]);
     expect(scrolls.map(([el]) => el)).toEqual(["jacred_own_url"]);
     expect(focused(page)).toBe("jacred_own_url");
+    // Its screen, "Own JacRed…" around it open.
+    expect([hash(), page.el<HTMLDetailsElement>("jrownd").open]).toEqual(["#voices", true]);
   });
 
-  test("a server block (s3_url for any of its fields): the block marked, not the address; Advanced open, the block in view, no focus", async () => {
+  test("the address of own AIOStreams in the closed details of the server: opened, on #src", async () => {
+    const page = open("filled");
+    page.el<HTMLDetailsElement>("asd").open = false;
+    page.replies.push(json({ ok: false, errors: [{ msg: "AIOStreams", field: "aio_own_url" }] }));
+    await save(page);
+    expect([hash(), page.el<HTMLDetailsElement>("asd").open, focused(page)]).toEqual(["#src", true, "aio_own_url"]);
+  });
+
+  test("TorrServer in Torrents (moved to #src): the screen of where it is now", async () => {
+    const page = open("p2p");
+    page.replies.push(json({ ok: false, errors: [{ msg: "TS", field: "ts" }] }));
+    await save(page);
+    expect([hash(), focused(page)]).toEqual(["#src", "ts"]);
+  });
+
+  test("a server block (s3_url for any of its fields): the block marked, not the address; its screen, the block in view, no focus", async () => {
     const page = open("filled");
     const scrolls = spyScroll(page);
     const before = focused(page);
@@ -61,7 +93,7 @@ describe("errors lead to the field", () => {
     await save(page);
     expect(marked(page)).toEqual(["block 3"]);
     expect(page.field("s3_url").classList.contains(CLS.bad)).toBe(false);
-    expect([page.el<HTMLDetailsElement>(ID.advanced).open, block(page, 3).open, block(page, 3).style.display]).toEqual([true, true, ""]);
+    expect([hash(), block(page, 3).open, block(page, 3).style.display]).toEqual(["#dl", true, ""]);
     expect(scrolls).toEqual([["block 3", { block: "center" }]]);
     expect(focused(page)).toBe(before);
   });
@@ -109,16 +141,16 @@ describe("errors lead to the field", () => {
     expect(marked(page)).toEqual(["ts"]);
   });
 
-  test("no field, a field not in the form, a radio group, a block not there, no answer: nothing marked or scrolled, Advanced closed", async () => {
+  test("no field, a field not in the form, a block not there, no answer: nothing marked or scrolled, no screen opened", async () => {
     const page = open("filled");
     const scrolls = spyScroll(page);
     page.replies.push(
-      json({ ok: false, errors: [{ msg: "a", field: null }, { msg: "b", field: "nope" }, { msg: "c", field: "jacred" }, { msg: "d", field: "s7_url" }, { msg: "e" }] }),
+      json({ ok: false, errors: [{ msg: "a", field: null }, { msg: "b", field: "nope" }, { msg: "d", field: "s7_url" }, { msg: "e" }] }),
       NET,
     );
     await save(page);
-    expect(lines(page.el(ID.saveResult)).length).toBe(5);
-    expect([page.el<HTMLDetailsElement>(ID.advanced).open, page.replaced]).toEqual([false, []]);
+    expect(lines(page.el(ID.saveResult)).length).toBe(4);
+    expect([hash(), page.replaced]).toEqual([undefined, []]);
     await save(page);
     expect(lines(page.el(ID.saveResult))).toEqual([["err", page.init.i18n.noConnection]]);
     expect([marked(page), scrolls]).toEqual([[], []]);
@@ -140,18 +172,21 @@ describe("errors lead to the field", () => {
     expect(page.calls[0]!.body).toContain("rd_key=bad%20key");
   });
 
-  test("the mode (radios in a group): the group marked and in view, not focused; choosing one takes the mark off", async () => {
+  test.each([
+    ["watch", "wd", "#src"],
+    ["jacred", "jrb2", "#voices"],
+  ])("radios %s: the cards of their group marked and in view on the screen, not focused; choosing one takes the mark off", async (name, other, screen) => {
     const page = open("p2p");
-    const group = page.el(ID.modeDebrid).previousElementSibling as HTMLElement;
+    const group = page.doc.querySelector("label[for=" + page.form.querySelector("input[name=" + name + "]")!.id + "]")!.closest(".choice") as HTMLElement;
     let scrolled: unknown = null;
     group.scrollIntoView = (options?: boolean | ScrollIntoViewOptions) => void (scrolled = options);
     const before = focused(page);
-    page.replies.push(json({ ok: false, errors: [{ msg: "Режим: нет такого режима", field: "aio_mode" }] }));
+    page.replies.push(json({ ok: false, errors: [{ msg: "Режим: нет такого режима", field: name }] }));
     await save(page);
-    expect([group.getAttribute("role"), group.classList.contains(CLS.bad), page.form.querySelectorAll("." + CLS.bad).length]).toEqual(
-      ["radiogroup", true, 1]);
-    expect([scrolled, focused(page)]).toEqual([{ block: "center" }, before]);
-    page.choose("aio_mode", "debrid");
+    expect([group.closest("section")!.id, group.classList.contains(CLS.bad), page.form.querySelectorAll("." + CLS.bad).length]).toEqual(
+      [screen.slice(1), true, 1]);
+    expect([scrolled, focused(page), hash()]).toEqual([{ block: "center" }, before, screen]);
+    page.choose(name, page.el<HTMLInputElement>(other).value);
     expect(group.classList.contains(CLS.bad)).toBe(false);
   });
 

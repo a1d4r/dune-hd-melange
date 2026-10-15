@@ -1,6 +1,5 @@
 // The blocks of qBittorrent servers (details.srv): blank ones hidden, "Add", "Duplicate", "Check".
 
-import type { Advanced } from "./advanced";
 import type { Api } from "./api";
 import { bindCheck } from "./checks";
 import { byId, CLS, ID, type Page, query, SERVER_BLOCK, SERVER_CHECK_FIELD, SERVER_FIELD } from "./dom";
@@ -11,7 +10,7 @@ type Field = HTMLInputElement | HTMLSelectElement;
 export interface Servers {
   // blockNo: 1-based, as in s<n>_<key>.
   has(blockNo: number): boolean;
-  // The block shown and opened, and Advanced around it.
+  // The block shown and opened.
   reveal(blockNo: number): HTMLDetailsElement;
 }
 
@@ -37,7 +36,8 @@ function isBlank(block: Element): boolean {
   return true;
 }
 
-export function setupServers(page: Page, advanced: Advanced): Servers {
+// changed: after a block is filled by "Duplicate" (no event of a field).
+export function setupServers(page: Page, changed: () => void): Servers {
   const { form, texts } = page;
   const blocks = form.querySelectorAll<HTMLDetailsElement>(SERVER_BLOCK);
   const addButton = byId(page.doc, ID.addServer);
@@ -74,6 +74,7 @@ export function setupServers(page: Page, advanced: Advanced): Servers {
     to.byKey.name!.value = copyName + suffix;
     query(target, "." + CLS.serverResult).textContent = "";
     reveal(target);
+    changed();
     if (target.scrollIntoView) target.scrollIntoView();
     to.byKey.name!.focus();
   }
@@ -101,7 +102,6 @@ export function setupServers(page: Page, advanced: Advanced): Servers {
     has: (blockNo: number) => !!blocks[blockNo - 1],
     reveal: (blockNo: number) => {
       const block = blocks[blockNo - 1]!;
-      advanced.open();
       reveal(block);
       return block;
     },

@@ -4,11 +4,12 @@ import type { Texts } from "./i18n";
 
 export const ID = {
   init: "init",
-  advanced: "adv",
-  // The link of the contents of the page to Advanced (to a heading inside it).
-  tocAdvanced: "tocadv",
+  // The screens: shown by :target (the CSS); #home last, shown when none is the target.
+  screenTorr: "torr",
   addServer: "addsrv",
   aioServer: "as",
+  // The name of the chosen server in the summary of details#asd.
+  aioServerName: "asn",
   aioOwnUrl: "ao",
   aioOwnBox: "aobox",
   aioOwnCheck: "aob",
@@ -16,11 +17,12 @@ export const ID = {
   template: "at",
   templateShown: "ats",
   templateHint: "ath",
-  // The parts of the mode (Debrid: the template and the keys; P2P: its hints).
-  modeDebrid: "mdeb",
-  modeP2p: "mp2p",
-  sourceMade: "smade",
-  sourceOwn: "sown",
+  // Debrid: the switch of the service (both keys empty), the box of each key and the link opening the other one.
+  debridSwitch: "dseg",
+  rdBox: "rdbox",
+  tbBox: "tbbox",
+  rdAdd: "rdadd",
+  tbAdd: "tbadd",
   tmdbBox: "tmbox",
   tmdbNote: "tmnote",
   confNone: "anone",
@@ -43,7 +45,6 @@ export const ID = {
   manifest: "m",
   manifestCheck: "mb",
   manifestResult: "mr",
-  jacredHeading: "jrh",
   jacredText: "jrp",
   jacred403: "jr403",
   jacredLan: "jrlan",
@@ -53,14 +54,29 @@ export const ID = {
   jacredCheck: "jcb",
   jacredResult: "jcr",
   jacredCompare: "jrsb",
-  jacredTable: "jrsr",
+  // The errors of "Compare speed" (its results go into the rows).
+  jacredSpeed: "jrsr",
   ts: "ts",
   tsCheck: "tsb",
   tsResult: "tsr",
-  tsOwn: "tsown",
+  // The box of the TorrServer field: on #torr, moved by the script into #tsp2p of the answer "Torrents"; then
+  // #tsmoved on #torr points there and #tslink (the way without the script) goes.
+  tsBox: "tsbox",
+  tsP2p: "tsp2p",
+  tsLink: "tslink",
+  tsMoved: "tsmoved",
+  // The main screen: the state (none on the first run) and the value and dot of the line of each screen.
+  state: "state",
+  // The save: the bar under the screens (its results, the count of the changes).
+  bar: "bar",
+  dirty: "dirty",
   saveResult: "sr",
   message: "msg",
 } as const;
+
+// The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>.
+export const ROWS = ["src", "voices", "torr", "dl", "cfg", "log"] as const;
+export type Row = (typeof ROWS)[number];
 
 export const CLS = {
   save: "save",
@@ -73,8 +89,10 @@ export const CLS = {
   serverDup: "srvdup",
   serverResult: "srvr",
   jacredBuiltin: "jrb",
-  // "Choose" in a row of the table of "Compare all" (made by the script).
-  jacredChoose: "jrch",
+  // The time and the releases of a JacRed of "Compare speed" in its card (data-jr: its id or "own").
+  jacredSpeed: "ms",
+  // A screen of the page.
+  screen: "scr",
   // A field or server block an error of the save is about (made by the script).
   bad: "bad",
 } as const;
@@ -83,7 +101,7 @@ export const CLS = {
 export const DATA = {
   // An option of the template choice: its hint.
   hint: "data-hint",
-  // The texts of #jrh, #jrp by the source.
+  // The texts of #jrp by the answer: a config made by melange or own one.
   made: "data-made",
   own: "data-own",
   // An option of the server choice: "1" - TMDB of its own; the id of the JacRed that answers it 403;
@@ -95,18 +113,25 @@ export const DATA = {
   eyeFor: "data-for",
   // A built-in JacRed: its id.
   jacredId: "data-id",
+  // The card of a JacRed in "Compare speed": its id, "own".
+  jacredOf: "data-jr",
+  // An option of the template choice: its name on the main screen.
+  short: "data-short",
+  // A button of #dseg: rd, tb.
+  key: "data-k",
+  // The state of #state and its lines: key, conf, man, ok.
+  state: "data-st",
 } as const;
 
 export const NAME = {
-  source: "source",
-  // The mode of the config melange makes: VALUE.debrid or VALUE.p2p.
-  mode: "aio_mode",
+  // "Where to get films": VALUE.debrid, VALUE.p2p (the configs melange makes, by their mode) or VALUE.own.
+  watch: "watch",
   jacred: "jacred",
 } as const;
 
 // The values of the page the script compares with.
 export const VALUE = {
-  // The own one of a choice: of the source (a config of its own), the AIOStreams server, JacRed.
+  // The own one of a choice: the answer (a config of its own), the AIOStreams server, JacRed.
   own: "own",
   // The mark of the template choice: the template of the config not known yet.
   none: "none",
@@ -118,8 +143,8 @@ export const VALUE = {
 // The radios of the choice of JacRed.
 export const JACRED_RADIOS = "input[name=" + NAME.jacred + "]";
 
-// A group of radios with its name (the mode): an error of their name= marks it.
-export const RADIO_GROUP = "[role=radiogroup]";
+// The cards of a group of radios (label.opt[for] of each): an error of their name= marks it.
+export const RADIO_GROUP = ".choice";
 
 // A block of a qBittorrent server.
 export const SERVER_BLOCK = "details." + CLS.serverBlock;
@@ -152,9 +177,13 @@ export function checkedValue(form: HTMLFormElement, name: string): string | null
   return el ? el.value : null;
 }
 
-export function isOwnSource(form: HTMLFormElement): boolean {
-  return checkedValue(form, NAME.source) === VALUE.own;
+// The answer of "Where to get films" (none checked: Debrid, as PHP shows it).
+export function watchOf(form: HTMLFormElement): string {
+  return checkedValue(form, NAME.watch) || VALUE.debrid;
 }
+
+// A value without the spaces around it, as PHP trims it (AIO_TRIM).
+export const trimmed = (value: string): string => value.replace(/^[ \t\r\n\x0B]+|[ \t\r\n\x0B]+$/g, "");
 
 // A disabled option of the template choice is a mark (the template of the config, as "none"), not a template to
 // choose: never posted, never kept as the one for a new config.

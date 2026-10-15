@@ -1,13 +1,15 @@
 // The start of the script: the JSON of #init, then the parts of the page.
 // No #init or a broken one: nothing at all, the page stays as without JS.
 
-import { setupAdvanced } from "./advanced";
 import { setupAio } from "./aio";
 import { createApi, isObject } from "./api";
+import { setupBar } from "./bar";
 import { setupChecks } from "./checks";
 import { setupClipboard } from "./clipboard";
 import { createConfs } from "./confs";
+import { setupDebrid } from "./debrid";
 import { ID, type Page } from "./dom";
+import { setupHome } from "./home";
 import type { Texts } from "./i18n";
 import { setupJacredNote, setupJacredSpeed } from "./jacred";
 import { createLock } from "./lock";
@@ -15,6 +17,7 @@ import { setupMarks } from "./marks";
 import { setupSave } from "./save";
 import { bindEyes, maskSecrets } from "./secrets";
 import { setupServerChecks, setupServers } from "./servers";
+import { setupTorrServer } from "./torrserver";
 
 // Written by aio_cgi_js(). i18n and jacredDefault: always written, checked by isInit() (else #init is broken);
 // confs: {<mode>: {<value of a server option>: {cfg, login, pass, tpl, url?}}}, tplNew: the template for a new config;
@@ -43,18 +46,30 @@ export function readInit(doc: Document): Init | null {
 }
 
 function setupForm(page: Page, init: Init): void {
-  const servers = setupServers(page, setupAdvanced(page));
+  // The main screen and the bar after any change: the handlers of the form, after those of its fields.
+  let changed = () => {};
+  const servers = setupServers(page, () => changed());
   const lock = createLock(page);
   const aio = setupAio(page, createConfs(init.confs, init.tplNew), lock);
+  const debrid = setupDebrid(page);
+  setupTorrServer(page);
   setupClipboard(page);
   setupJacredNote(page, init.jacredDefault);
+  const home = setupHome(page, aio.hasConf);
+  const bar = setupBar(page, aio.creates, lock.saving);
+  changed = () => {
+    home.render();
+    bar.render();
+  };
+  page.form.addEventListener("input", changed);
+  page.form.addEventListener("change", changed);
   // No fetch: the checks are not there, the form posts as without JS.
   if (typeof fetch !== "function") return;
   const api = createApi(page.form.getAttribute("action"), lock);
   setupChecks(page, api, lock);
   setupServerChecks(page, api, lock);
   setupJacredSpeed(page, api, lock);
-  setupSave(page, api, lock, aio, setupMarks(page, servers));
+  setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, changed);
 }
 
 // saved=1 of the address after a save (the "Saved" line of PHP) dropped, the rest kept as it is: a reload does not

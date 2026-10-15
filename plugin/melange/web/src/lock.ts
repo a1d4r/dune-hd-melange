@@ -4,12 +4,11 @@ import type { ApiHooks } from "./api";
 import { byId, CLS, ID, type Page, query } from "./dom";
 import { setBusy, show } from "./ui";
 
-// What may go on the page: no check while a save goes (a save stops "Compare all" instead: Save is never held up
+// What may go on the page: no check while a save goes (a save stops "Compare speed" instead: Save is never held up
 // by a check), nothing after an answer 403 (the token of the link is not the one of the Dune any more).
 export interface Lock extends ApiHooks {
-  // Holds a button that may not go while a save goes: a check, or Choose of "Compare all" (it sends nothing, but
-  // changes the choice under a save). Disabled while its request goes (run), while a save goes and after a 403.
-  // One taken off the page (a row of an old table of "Compare all") is let go.
+  // Holds a button that may not go while a save goes: a check. Disabled while its request goes (run), while a save
+  // goes and after a 403. One taken off the page is let go.
   hold(button: HTMLButtonElement): void;
   run(button: HTMLButtonElement, on: boolean): void;
   saving(): boolean;

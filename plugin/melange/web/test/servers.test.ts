@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { CLS, ID } from "../src/dom";
-import { cleanup, flush, json, later, lines, open, type Page, setGlobal, shown, TOKEN } from "./harness";
+import { cleanup, flush, json, later, lines, open, type Page, shown, TOKEN } from "./harness";
 
 afterEach(cleanup);
 
@@ -29,69 +29,6 @@ describe("Add server", () => {
   });
 });
 
-describe("the contents", () => {
-  test("the link to Advanced opens it (not every browser does on the way to the heading inside)", async () => {
-    const page = open("filled");
-    expect(page.el<HTMLDetailsElement>(ID.advanced).open).toBe(false);
-    await page.click(ID.tocAdvanced);
-    expect(page.el<HTMLDetailsElement>(ID.advanced).open).toBe(true);
-  });
-});
-
-describe("Advanced kept open for the tab (sessionStorage)", () => {
-  // A sessionStorage of the given items; its setItem() calls.
-  function storage(items: Record<string, string>): string[][] {
-    const sets: string[][] = [];
-    setGlobal("sessionStorage", {
-      getItem: (key: string) => (key in items ? items[key] : null),
-      setItem: (key: string, value: string) => void sets.push([key, value]),
-    });
-    return sets;
-  }
-  const advanced = (page: Page) => page.el<HTMLDetailsElement>(ID.advanced);
-  const toggled = () => new Promise((done) => setTimeout(done, 5));
-
-  test("opened, closed: kept; the next page comes open", async () => {
-    let sets: string[][] = [];
-    const page = open("filled", { before: () => (sets = storage({})) });
-    expect(advanced(page).open).toBe(false);
-    advanced(page).open = true;
-    await toggled();
-    advanced(page).open = false;
-    await toggled();
-    expect(sets).toEqual([["melange.adv", "1"], ["melange.adv", "0"]]);
-    cleanup();
-    const next = open("filled", { before: () => storage({ "melange.adv": "1" }) });
-    expect(advanced(next).open).toBe(true);
-  });
-
-  test("kept closed: the page as it comes", () => {
-    const page = open("filled", { before: () => storage({ "melange.adv": "0" }) });
-    expect(advanced(page).open).toBe(false);
-  });
-
-  test("sessionStorage throwing (getItem, setItem) or refused: nothing kept, the page works", async () => {
-    const fail = () => {
-      throw new Error("SecurityError");
-    };
-    let page = open("filled", { before: () => setGlobal("sessionStorage", { getItem: fail, setItem: fail }) });
-    advanced(page).open = true;
-    await toggled();
-    await page.click(ID.addServer);
-    expect(page.doc.activeElement).toBe(page.field("s2_name"));
-    cleanup();
-    page = open("filled", {
-      before: () => {
-        setGlobal("sessionStorage", null);
-        Object.defineProperty(globalThis, "sessionStorage", { get: fail, configurable: true });
-      },
-    });
-    advanced(page).open = true;
-    await toggled();
-    expect(advanced(page).open).toBe(true);
-  });
-});
-
 describe("Duplicate", () => {
   test("every field copied into the next hidden block, name + suffix, result cleared, shown, scrolled, focused", () => {
     const page = open("filled");
@@ -112,6 +49,9 @@ describe("Duplicate", () => {
     expect(scroll).toHaveBeenCalledTimes(1);
     expect(page.doc.activeElement).toBe(page.field("s2_name"));
     expect(page.el(ID.addServer).hidden).toBe(false);
+    // No event of a field: the line of the main screen and the bar follow anyway.
+    expect(page.el("vdl").textContent).toBe("qBittorrent, qBittorrent" + page.init.i18n.copySuffix);
+    expect(page.el(ID.bar).hidden).toBe(false);
   });
 
   test("into the first hidden block, not the one after", () => {

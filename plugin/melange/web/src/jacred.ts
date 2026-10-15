@@ -1,15 +1,17 @@
-// JacRed: the note under a non-default choice, "Check" and "Compare all" (3 probes each, 2 s apart).
+// JacRed: the note under a non-default choice, "Check" of own one and "Compare speed" (3 probes each, 2 s apart).
 
 import type { Api, JrSpeed } from "./api";
-import { byId, checkedValue, CLS, DATA, ID, JACRED_RADIOS, NAME, type Page, VALUE } from "./dom";
+import { byId, checkedValue, CLS, DATA, ID, JACRED_RADIOS, NAME, type Page, query, VALUE } from "./dom";
 import { failureText, type Texts } from "./i18n";
-import { type Choice, createTable } from "./jrtable";
 import type { Lock } from "./lock";
 import { encodedOr, setBusy, show } from "./ui";
 
 const PROBES = 3;
-// target: the body of jr_speed without q.
-interface Target extends Choice {
+// name: as shown, value: the id of a built-in one or "own" (data-jr of its card), target: the body of jr_speed
+// without q.
+interface Target {
+  name: string;
+  value: string;
   target: string;
 }
 
@@ -38,6 +40,18 @@ function summarize(texts: Texts, results: JrSpeed[]) {
   };
 }
 
+// The line of a card of "Compare speed": the mean time of the probes answered and the releases they found
+// ("0,6 s · 214"), how many answered if not all; none: noAnswer.
+function speedLine(texts: Texts, lang: string, results: JrSpeed[]): string {
+  const ok = results.filter((result) => result.ok);
+  if (!ok.length) return texts.noAnswer;
+  let time = (ok.reduce((sum, result) => sum + result.ms, 0) / ok.length / 1000).toFixed(1);
+  if (lang === "ru") time = time.replace(".", ",");
+  const counts = ok.map((result) => Number(result.count));
+  const releases = counts.every((n) => isFinite(n)) ? String(counts.reduce((sum, n) => sum + n, 0)) : ok.map((result) => result.count).join(" / ");
+  return time + " " + texts.seconds + " · " + releases + (ok.length < results.length ? " (" + ok.length + "/" + results.length + ")" : "");
+}
+
 // Own JacRed by its address; null: no address. A lone surrogate in a field: URIError.
 function ownTarget(doc: Document): Target | null {
   const url = byId<HTMLInputElement>(doc, ID.jacredOwnUrl).value,
@@ -50,7 +64,8 @@ function ownTarget(doc: Document): Target | null {
 const builtinTarget = (id: string): Target => ({ name: id, value: id, target: "b=" + encodeURIComponent(id) });
 
 export function setupJacredSpeed(page: Page, api: Api, lock: Lock): void {
-  const { doc, form, texts } = page;
+  const { doc, form, texts } = page,
+    lang = doc.documentElement.lang;
   const checkButton = byId<HTMLButtonElement>(doc, ID.jacredCheck),
     compareButton = byId<HTMLButtonElement>(doc, ID.jacredCompare);
   // Both disabled while either one goes; out aria-busy (a screen reader says the result, not each step).
@@ -79,14 +94,12 @@ export function setupJacredSpeed(page: Page, api: Api, lock: Lock): void {
     return targets.length;
   }
 
+  // "Check" of own JacRed (its address): the line under the field.
   checkButton.addEventListener("click", () => {
     if (!lock.free(checkButton)) return;
     const out = byId(doc, ID.jacredResult),
-      chosen = checkedValue(form, NAME.jacred),
       badOwn = texts.ownJacred + ": " + texts.jacredFormat;
-    const target = encodedOr(out, texts.badChars, () =>
-      chosen !== null && chosen !== VALUE.own ? builtinTarget(chosen) : ownTarget(doc),
-    );
+    const target = encodedOr(out, texts.badChars, () => ownTarget(doc));
     if (target === undefined) return;
     if (!target) return show(out, "err", [badOwn]);
     setRunning(out, true);
@@ -111,26 +124,42 @@ export function setupJacredSpeed(page: Page, api: Api, lock: Lock): void {
     });
   });
 
+  // Every built-in JacRed and own one (if its address is there): the line of each in its card (data-jr), the
+  // errors of those that failed in #jrsr.
   compareButton.addEventListener("click", () => {
     if (!lock.free(compareButton)) return;
-    const out = byId(doc, ID.jacredTable),
+    const out = byId(doc, ID.jacredSpeed),
       own = encodedOr(out, texts.badChars, () => ownTarget(doc));
     if (own === undefined) return;
     const builtins = form.querySelectorAll<HTMLInputElement>("input." + CLS.jacredBuiltin);
     const targets = Array.from(builtins, (radio) => builtinTarget(radio.getAttribute(DATA.jacredId)!));
     if (own) targets.push(own);
+    const cards = targets.map((target) => query(form, "." + CLS.jacredSpeed + "[" + DATA.jacredOf + '="' + target.value + '"]'));
+    // Own one not compared: no old line of it left.
+    form.querySelectorAll("." + CLS.jacredSpeed).forEach((card) => (card.textContent = ""));
+    cards.forEach((card) => (card.textContent = "…"));
+    out.textContent = "";
     setRunning(out, true);
-    const table = createTable(page, lock, out, targets);
+    const errors: string[] = [];
     measure(targets, (index, results) => {
+      // Own one is the last: a wrong address or key stops it at once.
+      if (results[results.length - 1]!.badFormat && targets[index]!.value === VALUE.own) {
+        cards[index]!.textContent = texts.noAnswer;
+        errors.push(texts.ownJacred + ": " + texts.jacredFormat);
+        return false;
+      }
       if (results.length < PROBES) {
-        table.set(index, [texts.checking + " " + results.length + "/" + PROBES]);
+        cards[index]!.textContent = results.length + "/" + PROBES;
         return true;
       }
-      const sum = summarize(texts, results);
-      table.set(index, [sum.avail, sum.time, sum.count]);
+      cards[index]!.textContent = speedLine(texts, lang, results);
+      const failed = results.filter((result) => !result.ok);
+      if (failed.length) errors.push(targets[index]!.name + ": " + failed[failed.length - 1]!.msg);
       return true;
     }).then((done) => {
-      for (let i = done; i < targets.length; i++) table.set(i, [stopText()]);
+      for (let i = done; i < targets.length; i++) cards[i]!.textContent = texts.stopped;
+      if (done < targets.length && lock.expired()) errors.push(texts.linkExpired);
+      show(out, "err", errors);
       setRunning(out, false);
     });
   });

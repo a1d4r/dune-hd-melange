@@ -557,7 +557,10 @@ function aio_cgi_js($v)
         'watchOwn' => aio_cgi_l('Свой конфиг AIOStreams', 'Own AIOStreams config'),
         'needKey' => aio_cgi_l('нужен ключ', 'a key is needed'), 'needLink' => aio_cgi_l('нужна ссылка', 'a link is needed'),
         'viaTs' => aio_cgi_l('через TorrServer', 'via TorrServer'), 'tsDune' => aio_cgi_l('Приложение на Дюне', 'The app on the Dune'),
-        'tsSpare' => aio_cgi_l('запасной путь', 'fallback'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'));
+        'tsSpare' => aio_cgi_l('запасной путь', 'fallback'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'),
+        // The count of the changes by "Сохранить": the forms of 1, 2-4 and 5 (English: 1 and the rest).
+        'changeOne' => aio_cgi_l('%d изменение', '%d change'), 'changeFew' => aio_cgi_l('%d изменения', '%d changes'),
+        'changeMany' => aio_cgi_l('%d изменений', '%d changes'));
     $js = dirname(dirname(__FILE__)) . '/settings.js';
     $js = is_readable($js) ? file_get_contents($js) : false;
     if (!is_string($js))

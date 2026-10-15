@@ -2,6 +2,7 @@
 
 import type { Aio } from "./aio";
 import type { Api, ConfHow, Save, SaveError } from "./api";
+import type { Bar } from "./bar";
 import { byId, CLS, ID, isMark, type Page, query } from "./dom";
 import { failureText, type Texts } from "./i18n";
 import type { Lock } from "./lock";
@@ -36,7 +37,8 @@ const CONF_TEXTS: Record<ConfHow, readonly [keyof Texts, keyof Texts]> = {
   reset: ["resetting", "notReset"],
 };
 
-export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Marks): void {
+// changed: the main screen and the bar follow (a config made, the values saved).
+export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Marks, bar: Bar, changed: () => void): void {
   const { doc, form, texts } = page;
   const button = query<HTMLButtonElement>(form, "." + CLS.save);
   const results = () => byId(doc, ID.saveResult);
@@ -59,6 +61,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       else setLine(line, "err", failureText(texts, result));
       if (result.kind !== "data" || !result.data.ok) savedLine.textContent = texts.savedOnDune;
       aio.render();
+      changed();
     });
   }
   // The list under the button stays; the fields of the errors marked.
@@ -73,6 +76,8 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       return;
     }
     results().textContent = "";
+    // Staying on the page: what is saved is not a change any more.
+    bar.rebase();
     const savedLine = addLine(results(), "ok", texts.saved);
     for (const note of answer.notes) addLine(results(), note.level === "ok" ? "ok" : "warn", note.msg);
     if (answer.aio) syncConf(answer.aio, savedLine);
@@ -90,6 +95,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       if (result.kind !== "data") showErrors([{ msg: failureText(texts, result), field: null }]);
       else if (result.data.ok) saved(result.data);
       else showErrors(result.data.errors);
+      changed();
     });
   }
 

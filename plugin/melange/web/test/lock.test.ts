@@ -22,9 +22,11 @@ const checkButtons = (page: Page) => [
 ];
 const disabled = (buttons: HTMLButtonElement[]) => buttons.map((button) => button.disabled);
 const all = (count: number, value: boolean) => Array.from({ length: count }, () => value);
-// The built-in JacRed of the page: the rows of "Compare all" on "empty".
+// The built-in JacRed of the page: the cards of "Compare speed" on "empty" (no own address).
 const BUILTINS = 5;
-const rowStates = (page: Page) => Array.from(page.el(ID.jacredTable).querySelectorAll("tr")).slice(1).map((row) => row.cells[1]!.textContent);
+const rowStates = (page: Page) => Array.from(page.form.querySelectorAll("." + CLS.jacredSpeed)).slice(0, BUILTINS).map((card) => card.textContent);
+// "Check" of JacRed is of own one: its address.
+const OWN = "http://jr.example:9117";
 async function pause(): Promise<void> {
   jest.advanceTimersByTime(2000);
   await flush();
@@ -59,7 +61,7 @@ describe("after a 403", () => {
     expect([saveButton(page).disabled, page.el<HTMLButtonElement>(ID.resetConf).disabled]).toEqual([true, true]);
   });
 
-  test("in Compare all: no more probes, the rows not done say the link expired (not stopped); the buttons stay disabled", async () => {
+  test("in Compare speed: no more probes, the cards not done say stopped, the link expired under it; the buttons stay disabled", async () => {
     jest.useFakeTimers();
     const page = open("empty");
     const t = page.init.i18n;
@@ -67,13 +69,13 @@ describe("after a 403", () => {
     await page.click(ID.jacredCompare);
     await pause();
     expect(page.calls.length).toBe(2);
-    expect(rowStates(page)[0]).toBe(t.checking + " 2/3");
+    expect(rowStates(page)[0]).toBe("2/3");
     await pause();
     for (let i = 0; i < 10; i++) await pause();
     expect(page.calls.length).toBe(2);
-    expect(rowStates(page)).toEqual(Array(BUILTINS).fill(t.linkExpired));
-    expect(Array.from(page.el(ID.jacredTable).querySelectorAll<HTMLButtonElement>("button." + CLS.jacredChoose)).map((b) => b.disabled)).toEqual(all(BUILTINS, true));
-    expect(page.el(ID.jacredTable).getAttribute("aria-busy")).toBe(null);
+    expect(rowStates(page)).toEqual(Array(BUILTINS).fill(t.stopped));
+    expect(lines(page.el(ID.jacredSpeed))).toEqual([["err", t.linkExpired]]);
+    expect(page.el(ID.jacredSpeed).getAttribute("aria-busy")).toBe(null);
     expect(lines(page.el(ID.message))).toEqual([["err", t.linkExpired]]);
     expect(disabled([page.el(ID.jacredCheck), page.el(ID.jacredCompare)])).toEqual([true, true]);
   });
@@ -81,12 +83,13 @@ describe("after a 403", () => {
   test("in Check: its line says the link expired, err", async () => {
     jest.useFakeTimers();
     const page = open("empty");
+    page.type("jacred_own_url", OWN);
     page.replies.push(speed, FORBIDDEN);
     await page.click(ID.jacredCheck);
     await pause();
     await pause();
     expect(page.calls.length).toBe(2);
-    expect(lines(page.el(ID.jacredResult))).toEqual([["err", "jacred.kompotik.com · " + page.init.i18n.linkExpired]]);
+    expect(lines(page.el(ID.jacredResult))).toEqual([["err", "jr.example · " + page.init.i18n.linkExpired]]);
   });
 });
 
@@ -158,7 +161,7 @@ describe("while a save goes", () => {
 });
 
 describe("a save while JacRed is measured", () => {
-  test("Compare all: Save goes at once, the probes stop before the next one, the rows not done say stopped", async () => {
+  test("Compare speed: Save goes at once, the probes stop before the next one, the cards not done say stopped", async () => {
     jest.useFakeTimers();
     const page = open("empty");
     const t = page.init.i18n;
@@ -179,14 +182,14 @@ describe("a save while JacRed is measured", () => {
     expect(disabled([page.el(ID.jacredCheck), page.el(ID.jacredCompare)])).toEqual([false, false]);
   });
 
-  test("Compare all: a quick save with an error within a pause stops it too (the settings may have changed)", async () => {
+  test("Compare speed: a quick save with an error within a pause stops it too (the settings may have changed)", async () => {
     jest.useFakeTimers();
     const page = open("empty");
     const t = page.init.i18n;
     page.replies.push(speed, speed, json({ ok: false, errors: [{ msg: "Bad", field: null }] }));
     await page.click(ID.jacredCompare);
     await pause();
-    expect(rowStates(page)[0]).toBe(t.checking + " 2/3");
+    expect(rowStates(page)[0]).toBe("2/3");
     saveButton(page).click();
     await flush();
     expect([saveButton(page).disabled, lines(page.el(ID.saveResult))]).toEqual([false, [["err", "Bad"]]]);
@@ -196,7 +199,7 @@ describe("a save while JacRed is measured", () => {
     expect(disabled([page.el(ID.jacredCheck), page.el(ID.jacredCompare)])).toEqual([false, false]);
   });
 
-  test("a save before the start does not stop the next Compare all", async () => {
+  test("a save before the start does not stop the next Compare speed", async () => {
     jest.useFakeTimers();
     const page = open("empty");
     page.replies.push(json({ ok: false, errors: [{ msg: "Bad", field: null }] }));
@@ -206,40 +209,20 @@ describe("a save while JacRed is measured", () => {
     await page.click(ID.jacredCompare);
     for (let i = 0; i < 2 * BUILTINS; i++) await pause();
     expect(page.calls.length).toBe(3 * BUILTINS + 1);
-    expect(rowStates(page)).toEqual(Array(BUILTINS).fill(page.init.i18n.yes));
-  });
-
-  test("Choose in the table: disabled while the save goes, back after it; a click starts nothing meanwhile", async () => {
-    jest.useFakeTimers();
-    const page = open("empty");
-    const answer = later();
-    page.replies.push(speed, answer.reply);
-    await page.click(ID.jacredCompare);
-    const choose = () => Array.from(page.el(ID.jacredTable).querySelectorAll<HTMLButtonElement>("button." + CLS.jacredChoose));
-    expect(choose().map((button) => button.disabled)).toEqual(all(BUILTINS, false));
-    saveButton(page).click();
-    await flush();
-    expect(choose().map((button) => button.disabled)).toEqual(all(BUILTINS, true));
-    choose()[1]!.disabled = false;
-    choose()[1]!.click();
-    expect(page.el<HTMLInputElement>("jrb2").checked).toBe(false);
-    answer.resolve(json({ ok: false, errors: [{ msg: "Bad", field: null }] }));
-    await flush();
-    expect(choose().map((button) => button.disabled)).toEqual(all(BUILTINS, false));
-    choose()[1]!.click();
-    expect(page.el<HTMLInputElement>("jrb2").checked).toBe(true);
+    expect(rowStates(page)).toEqual(Array(BUILTINS).fill("1,0 " + page.init.i18n.seconds + " · 3"));
   });
 
   test("Check: its line says stopped", async () => {
     jest.useFakeTimers();
     const page = open("empty");
+    page.type("jacred_own_url", OWN);
     page.replies.push(speed, later().reply);
     await page.click(ID.jacredCheck);
     saveButton(page).click();
     await flush();
     await pause();
     expect(page.calls.length).toBe(2);
-    expect(lines(page.el(ID.jacredResult))).toEqual([["hint", "jacred.kompotik.com · " + page.init.i18n.stopped]]);
+    expect(lines(page.el(ID.jacredResult))).toEqual([["hint", "jr.example · " + page.init.i18n.stopped]]);
     expect(page.el(ID.jacredResult).getAttribute("aria-busy")).toBe(null);
   });
 });

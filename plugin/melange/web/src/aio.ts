@@ -1,12 +1,17 @@
-// AIOStreams: the source, the server, its config, the mode and the template, and what of the page depends on them.
+// AIOStreams: the answer of "Where to get films" (the mode of a config melange makes, or own config), the server,
+// its config and the template, and what of the page depends on them the CSS can't show.
 
 import type { Sync } from "./api";
 import type { Confs, KnownConf } from "./confs";
-import { byId, checkedValue, CLS, DATA, ID, isMark, isOwnSource, JACRED_RADIOS, NAME, type Page, query, VALUE } from "./dom";
+import { byId, checkedValue, CLS, DATA, ID, isMark, JACRED_RADIOS, NAME, type Page, query, VALUE, watchOf } from "./dom";
 import type { Lock } from "./lock";
 
 export interface Aio {
   render(): void;
+  // The chosen server has a config of the mode chosen (not for own config).
+  hasConf(): boolean;
+  // "Save" creates a config: "Save and create the config".
+  creates(): boolean;
   // The config of the server (of the mode synced) after aio_sync; then render().
   applySync(sync: Sync, reset: boolean): void;
   // A save now would replace the config of Debrid of the server with another template.
@@ -25,7 +30,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     tbKey = byId<HTMLInputElement>(doc, ID.tbKey),
     template = byId<HTMLSelectElement>(doc, ID.template),
     templateShown = byId<HTMLInputElement>(doc, ID.templateShown),
-    modes = form.querySelectorAll<HTMLInputElement>("input[name=" + NAME.mode + "]"),
+    serverName = byId(doc, ID.aioServerName),
     saveButton = query<HTMLButtonElement>(form, "." + CLS.save);
   // The config of Debrid the template choice shows, by "<server> <config>"; undefined: as the page came.
   let templateKey: string | null | undefined;
@@ -40,9 +45,13 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
       .replace(/:0+(\d)/g, ":$1")
       .toLowerCase();
   }
-  // The mode chosen (one for all servers: a server has a config of each).
+  // The mode chosen (one for all servers: a server has a config of each). Own config: the fields of the mode are
+  // not shown (the CSS), Debrid stands for it.
   function mode(): string {
-    return checkedValue(form, NAME.mode) || VALUE.debrid;
+    return watchOf(form) === VALUE.p2p ? VALUE.p2p : VALUE.debrid;
+  }
+  function ownWatch(): boolean {
+    return watchOf(form) === VALUE.own;
   }
   // Of the chosen server in the mode (the one chosen by default); of own one only if it is of the address typed.
   function currentConf(ofMode: string = mode()): KnownConf | null {
@@ -83,9 +92,20 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     const el = byId(doc, id);
     el.textContent = el.getAttribute(own ? DATA.own : DATA.made);
   }
+  // The host of the server in the summary of #asd; own server without an address of a host typed: the option's name.
+  function renderServerName(option: HTMLOptionElement | undefined): void {
+    if (!option) return;
+    const own = option.value === VALUE.own;
+    const host = /^[a-z][a-z0-9+.-]*:\/\/(?:[^\/?#@]*@)?(\[[^\]\/]*\]|[^\/:?#]+)/i.exec(own ? ownUrl() : option.value);
+    serverName.textContent = host ? host[1]! : option.text.replace(/…$/, "");
+  }
+  function creates(): boolean {
+    const hasKey = (rdKey.value + tbKey.value).replace(/\s+/g, "") !== "";
+    return !ownWatch() && !currentConf() && (hasKey || p2p());
+  }
   function render(): void {
     const option = selected(),
-      ownSource = isOwnSource(form),
+      ownSource = ownWatch(),
       ownServer = !!option && option.value === VALUE.own,
       conf = currentConf(),
       debrid = currentConf(VALUE.debrid);
@@ -95,37 +115,30 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
       if (templateKey !== undefined) renderTemplate();
       templateKey = key;
     }
-    byId(doc, ID.sourceMade).style.display = ownSource ? "none" : "";
-    byId(doc, ID.sourceOwn).style.display = ownSource ? "" : "none";
     const modeP2p = p2p();
-    byId(doc, ID.modeDebrid).style.display = modeP2p ? "none" : "";
-    byId(doc, ID.modeP2p).style.display = modeP2p ? "" : "none";
+    renderServerName(option);
     byId(doc, ID.aioOwnBox).style.display = ownServer ? "" : "none";
     byId(doc, ID.tmdbBox).style.display = !option || option.getAttribute(DATA.tmdb) === "1" ? "none" : "";
     byId(doc, ID.tmdbNote).style.display = ownServer ? "none" : "";
     byId(doc, ID.confNone).hidden = !!conf;
     byId(doc, ID.confHave).hidden = !conf;
     if (conf) renderConf(conf);
-    swapText(ID.jacredHeading, ownSource);
     swapText(ID.jacredText, ownSource);
     const refuses = option ? option.getAttribute(DATA.jr403) : null;
     // P2P on a server with Magnetio (no data-p2ptz): Magnetio asks JacRed, not the server; it can't reach a home
     // address either.
     const magnetio = modeP2p && !(option && option.getAttribute(DATA.p2pTorznab) === "1");
     byId(doc, ID.jacred403).hidden = ownSource || magnetio || !refuses || refuses !== checkedValue(form, NAME.jacred);
-    byId(doc, ID.tsOwn).hidden = !ownSource;
     byId(doc, ID.jacredLan).hidden = ownSource || (ownServer && !magnetio);
-    const hasKey = (rdKey.value + tbKey.value).replace(/\s+/g, "") !== "";
-    if (!lock.saving()) saveButton.textContent = !ownSource && !conf && (hasKey || modeP2p) ? texts.saveAndCreate : texts.save;
+    if (!lock.saving()) saveButton.textContent = creates() ? texts.saveAndCreate : texts.save;
   }
 
   server.addEventListener("change", render);
   ownUrlField.addEventListener("input", render);
   rdKey.addEventListener("input", render);
   tbKey.addEventListener("input", render);
-  const sources = form.querySelectorAll<HTMLInputElement>("input[name=" + NAME.source + "]");
-  for (let i = 0; i < sources.length; i++) sources[i]!.addEventListener("change", render);
-  for (let i = 0; i < modes.length; i++) modes[i]!.addEventListener("change", render);
+  const watches = form.querySelectorAll<HTMLInputElement>("input[name=" + NAME.watch + "]");
+  for (let i = 0; i < watches.length; i++) watches[i]!.addEventListener("change", render);
   const jacreds = form.querySelectorAll<HTMLInputElement>(JACRED_RADIOS);
   for (let i = 0; i < jacreds.length; i++) jacreds[i]!.addEventListener("change", render);
   render();
@@ -133,6 +146,8 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
 
   return {
     render: render,
+    hasConf: () => !!currentConf(),
+    creates: creates,
     applySync(sync: Sync, reset: boolean): void {
       // Of a server of the choice only.
       for (let i = 0; i < server.options.length; i++)
@@ -143,7 +158,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     },
     // Of Debrid with a config there, another template (another mode: its own config, never a reset).
     resetPending(): boolean {
-      return !isOwnSource(form) && !p2p() && !!currentConf() && template.value !== templateShown.value;
+      return !ownWatch() && !p2p() && !!currentConf() && template.value !== templateShown.value;
     },
     // P2P: its name; a mark shown: the reset is to the template for a new config (nothing posted).
     confirmReset(): boolean {

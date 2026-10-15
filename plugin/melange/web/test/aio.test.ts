@@ -1,4 +1,4 @@
-// §2.3 AIOStreams config: the source, the server (own one by its address), its config, the template, the text of
+// §2.3 AIOStreams config: the answer of "Where to get films" (watch), the server (own one by its address), its config, the template, the text of
 // the save button, "Copy" of the password.
 
 import { afterEach, describe, expect, mock, test } from "bun:test";
@@ -30,26 +30,56 @@ const template = (page: Page) => {
 const hint = (page: Page, value: string) => page.doc.querySelector('#at option[value="' + value + '"]')!.getAttribute("data-hint") || "";
 const saveText = (page: Page) => page.form.querySelector("." + CLS.save)!.textContent || "";
 
-describe("source", () => {
-  test("own: its block, the own texts of JacRed, the TorrServer note; no 403 or LAN note; and back", () => {
+describe("answer", () => {
+  test("own: the own text of JacRed; no 403 or LAN note; and back", () => {
     const page = open("filled");
     const vis = () => ({
-      made: shown(page.el(ID.sourceMade)), own: shown(page.el(ID.sourceOwn)), tsOwn: shown(page.el(ID.tsOwn)),
-      jr403: shown(page.el(ID.jacred403)), lan: shown(page.el(ID.jacredLan)),
-      heading: page.el(ID.jacredHeading).textContent || "", text: page.el(ID.jacredText).textContent || "",
+      jr403: shown(page.el(ID.jacred403)), lan: shown(page.el(ID.jacredLan)), text: page.el(ID.jacredText).textContent || "",
     });
-    const texts = (attr: string) => ({ heading: page.el(ID.jacredHeading).getAttribute(attr) || "", text: page.el(ID.jacredText).getAttribute(attr) || "" });
-    expect(vis()).toEqual({ made: true, own: false, tsOwn: false, jr403: false, lan: true, ...texts("data-made") });
-    page.choose("source", "own");
-    expect(vis()).toEqual({ made: false, own: true, tsOwn: true, jr403: false, lan: false, ...texts("data-own") });
-    page.choose("source", "made");
-    expect(vis()).toEqual({ made: true, own: false, tsOwn: false, jr403: false, lan: true, ...texts("data-made") });
+    const text = (attr: string) => page.el(ID.jacredText).getAttribute(attr) || "";
+    expect(vis()).toEqual({ jr403: false, lan: true, text: text("data-made") });
+    page.choose("watch", "own");
+    expect(vis()).toEqual({ jr403: false, lan: false, text: text("data-own") });
+    page.choose("watch", "debrid");
+    expect(vis()).toEqual({ jr403: false, lan: true, text: text("data-made") });
   });
 
-  test("a page of source own: set so at the start", () => {
+  test("a page of the answer own: set so at the start", () => {
     const page = open("own");
-    expect([shown(page.el(ID.sourceMade)), shown(page.el(ID.sourceOwn)), shown(page.el(ID.tsOwn))]).toEqual([false, true, true]);
-    expect(page.el(ID.jacredHeading).textContent).toBe(page.el(ID.jacredHeading).getAttribute("data-own") || "");
+    expect(page.el(ID.jacredText).textContent).toBe(page.el(ID.jacredText).getAttribute("data-own") || "");
+  });
+
+  test("Torrents: the TorrServer field on #src (#tsmoved on #torr points there), else back in its place on #torr", () => {
+    const page = open("filled");
+    const box = page.el(ID.tsBox);
+    const where = () => ({ screen: box.closest("section")!.id, moved: shown(page.el(ID.tsMoved)) });
+    const after = box.previousElementSibling;
+    // The way without the script: gone, the field is on #src itself.
+    expect(page.el(ID.tsLink).hidden).toBe(true);
+    expect(where()).toEqual({ screen: "torr", moved: false });
+    page.choose("watch", "p2p");
+    expect(where()).toEqual({ screen: "src", moved: true });
+    expect(box.parentElement!.id).toBe(ID.tsP2p);
+    page.choose("watch", "own");
+    expect(where()).toEqual({ screen: "torr", moved: false });
+    expect(box.previousElementSibling).toBe(after);
+    // A page of Torrents: there from the start.
+    cleanup();
+    const p2p = open("p2p");
+    expect([p2p.el(ID.tsBox).parentElement!.id, shown(p2p.el(ID.tsMoved))]).toEqual([ID.tsP2p, true]);
+  });
+
+  test("the name of the server in the summary follows the choice and the address of own one", () => {
+    const page = open("filled");
+    const name = () => page.el(ID.aioServerName).textContent;
+    expect(name()).toBe("aiostreams.12312023.xyz");
+    server(page, ATB);
+    expect(name()).toBe("aio.atbphosting.com");
+    server(page, "own");
+    page.type(ID.aioOwnUrl, "");
+    expect(name()).toBe(page.el<HTMLSelectElement>(ID.aioServer).selectedOptions[0]!.text.replace(/…$/, ""));
+    page.type(ID.aioOwnUrl, "http://192.168.1.10:3000");
+    expect(name()).toBe("192.168.1.10");
   });
 });
 
@@ -72,9 +102,9 @@ describe("server", () => {
     page.choose("jacred", "jacred.stream");
     server(page, "own");
     expect(vis()).toEqual({ ownBox: true, tmdbBox: true, tmdbNote: false, lan: false, jr403: false });
-    // The 403 note only under source made.
+    // The 403 note not for own config.
     server(page, "https://aiostreams.fortheweak.cloud");
-    page.choose("source", "own");
+    page.choose("watch", "own");
     expect(vis().jr403).toBe(false);
   });
 
@@ -139,18 +169,19 @@ describe("template", () => {
 });
 
 describe("mode", () => {
-  const mode = (page: Page) => page.form.querySelector<HTMLInputElement>("input[name=aio_mode]:checked")!.value;
-  const parts = (page: Page) => ({ mode: mode(page), debrid: shown(page.el(ID.modeDebrid)), p2p: shown(page.el(ID.modeP2p)) });
+  const mode = (page: Page) => page.form.querySelector<HTMLInputElement>("input[name=watch]:checked")!.value;
+  // The parts of Debrid and Torrents are shown by the CSS (by the radio): the TorrServer field of Torrents here.
+  const parts = (page: Page) => ({ mode: mode(page), debrid: mode(page) === "debrid", p2p: page.el(ID.tsBox).parentElement!.id === ID.tsP2p });
   const login = (page: Page) => (conf(page).have ? conf(page).login : null);
 
-  test("aio_mode, one for all servers: another server keeps it", () => {
+  test("the answer, one for all servers: another server keeps it", () => {
     const page = open("p2p");
     expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
     server(page, ATB);
     expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
     server(page, WIZ);
     expect(mode(page)).toBe("p2p");
-    page.choose("aio_mode", "debrid");
+    page.choose("watch", "debrid");
     server(page, MADE);
     expect(mode(page)).toBe("debrid");
   });
@@ -158,22 +189,22 @@ describe("mode", () => {
   test("the config shown: of the server in the mode chosen (a config of each); none of the mode: the note", () => {
     const page = open("p2p");
     expect(login(page)).toBe("00000000-0000-4000-8000-000000000001");
-    page.choose("aio_mode", "debrid");
+    page.choose("watch", "debrid");
     expect(login(page)).toBe("00000000-0000-4000-8000-000000000004");
     server(page, ATB);
     expect(login(page)).toBe("00000000-0000-4000-8000-000000000002");
-    page.choose("aio_mode", "p2p");
+    page.choose("watch", "p2p");
     expect([conf(page).none, conf(page).have]).toEqual([true, false]);
   });
 
   test("the template choice: of the config of Debrid in either mode, else the one for a new config", () => {
     const page = open("p2p");
     expect([template(page).value, template(page).seen]).toEqual(["addons", "addons"]);
-    page.choose("aio_mode", "debrid");
+    page.choose("watch", "debrid");
     expect([template(page).value, template(page).seen]).toEqual(["addons", "addons"]);
     server(page, WIZ);
     expect([template(page).value, template(page).seen]).toEqual(["custom", "custom"]);
-    page.choose("aio_mode", "p2p");
+    page.choose("watch", "p2p");
     expect([template(page).value, template(page).seen]).toEqual(["custom", "custom"]);
     server(page, "https://aiostreams.stremio.ru");
     expect([template(page).value, template(page).seen]).toEqual(["jacred", "jacred"]);
@@ -186,18 +217,18 @@ describe("mode", () => {
     expect([template(page).value, login(page)]).toEqual(["custom", "00000000-0000-4000-8000-000000000002"]);
     server(page, WIZ);
     expect([template(page).value, login(page)]).toEqual(["addons", null]);
-    page.choose("aio_mode", "p2p");
+    page.choose("watch", "p2p");
     expect([template(page).value, login(page)]).toEqual(["addons", "00000000-0000-4000-8000-000000000003"]);
   });
 
   test("chosen: its part shown; the choice kept while the config is the same", () => {
     const page = open("filled");
     expect(parts(page)).toEqual({ mode: "debrid", debrid: true, p2p: false });
-    page.choose("aio_mode", "p2p");
+    page.choose("watch", "p2p");
     expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
     page.type(ID.rdKey, "x");
     expect(mode(page)).toBe("p2p");
-    page.choose("aio_mode", "debrid");
+    page.choose("watch", "debrid");
     expect(parts(page)).toEqual({ mode: "debrid", debrid: true, p2p: false });
   });
 
@@ -207,7 +238,7 @@ describe("mode", () => {
     expect(saveText(page)).toBe(save);
     server(page, ATB);
     expect(saveText(page)).toBe(saveAndCreate);
-    page.choose("aio_mode", "debrid");
+    page.choose("watch", "debrid");
     expect(saveText(page)).toBe(save);
     server(page, "https://aiostreams.stremio.ru");
     expect(saveText(page)).toBe(save);
@@ -219,12 +250,12 @@ describe("mode", () => {
     server(page, "https://aiostreams.fortheweak.cloud");
     page.choose("jacred", "jacred.stream");
     expect(vis()).toEqual({ jr403: false, lan: true });
-    page.choose("aio_mode", "debrid");
+    page.choose("watch", "debrid");
     expect(vis()).toEqual({ jr403: true, lan: true });
     server(page, "own");
-    page.choose("aio_mode", "debrid");
+    page.choose("watch", "debrid");
     expect(vis()).toEqual({ jr403: false, lan: false });
-    page.choose("aio_mode", "p2p");
+    page.choose("watch", "p2p");
     expect(vis()).toEqual({ jr403: false, lan: true });
   });
 
@@ -238,16 +269,16 @@ describe("mode", () => {
     server(page, "https://aiostreams.kompotik.com");
     page.choose("jacred", "jacred.stream");
     expect(vis()).toEqual({ jr403: true, lan: true });
-    page.choose("aio_mode", "debrid");
+    page.choose("watch", "debrid");
     expect(vis()).toEqual({ jr403: true, lan: true });
     kompotik.removeAttribute("data-p2ptz");
-    page.choose("aio_mode", "p2p");
+    page.choose("watch", "p2p");
     expect(vis()).toEqual({ jr403: false, lan: true });
   });
 });
 
 describe("save button text", () => {
-  test("Save and create: source made, no config, a RD or TorBox key; else Save", () => {
+  test("Save and create: Debrid, no config, a RD or TorBox key; else Save", () => {
     const page = open("empty");
     const { save, saveAndCreate } = page.init.i18n;
     expect(saveText(page)).toBe(save);
@@ -255,9 +286,9 @@ describe("save button text", () => {
     expect(saveText(page)).toBe(save);
     page.type(ID.tbKey, "TBKEY");
     expect(saveText(page)).toBe(saveAndCreate);
-    page.choose("source", "own");
+    page.choose("watch", "own");
     expect(saveText(page)).toBe(save);
-    page.choose("source", "made");
+    page.choose("watch", "debrid");
     expect(saveText(page)).toBe(saveAndCreate);
   });
 
