@@ -279,14 +279,13 @@ function aio_setup_qr()
 }
 
 // After a save the page makes the config of the chosen server in a second
-// write (cgi/settings.php aio_cgi_aio_sync): Melange config, no config there
-// yet, a Debrid key.
+// write (cgi/settings.php aio_cgi_aio_sync): Melange config, none there yet
+// in the mode chosen, P2P or a Debrid key.
 function aio_setup_config_due()
 {
     $s = aio_settings_read(aio_data_dir());
-    $b = aio_settings_base($s);
-    return $s['source'] === 'made' && $b !== '' && !isset($s['aio_confs'][$b]) &&
-        ($s['rd_key'] !== '' || $s['tb_key'] !== '');
+    return $s['source'] === 'made' && aio_settings_base($s) !== '' && !aio_settings_conf($s) &&
+        ($s['aio_mode'] === AIO_TPL_P2P || $s['rd_key'] !== '' || $s['tb_key'] !== '');
 }
 
 // Timer of the QR dialog: a new settings.json closes it and redraws the

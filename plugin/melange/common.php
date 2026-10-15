@@ -271,8 +271,9 @@ function aio_aio_tpls()
         AIO_TPL_P2P => array('torrentio', 'magnetio', 'torrentsdb', 'comet', 'torz'));
 }
 
-// Modes of the config melange makes (aio_mode of the settings): debrid -
-// aio_tpl with the Debrid keys; p2p - AIO_TPL_P2P, the keys kept but never
+// Modes of the config melange makes (aio_mode of the settings, the one in
+// use, one for all servers; a server has a config of each at most): debrid
+// - aio_tpl with the Debrid keys; p2p - AIO_TPL_P2P, the keys kept but never
 // sent. The first one is the default.
 /**
  * @return list<string>
@@ -303,53 +304,35 @@ function aio_settings_tpl($s)
     return $s['aio_mode'] === AIO_TPL_P2P ? AIO_TPL_P2P : $s['aio_tpl'];
 }
 
-// The JacRed preset of the template $id (a key of aio_aio_tpls): Magnetio
-// if it has one, else Torznab of AIOStreams.
-/**
- * @param string $id
- * @return string
- */
-function aio_tpl_jacred($id)
-{
-    $tpls = aio_aio_tpls();
-    return in_array(AIO_CONF_MAGNETIO, $tpls[$id], true) ? AIO_CONF_MAGNETIO : AIO_CONF_PRESET;
-}
-
-// The mode of a config (aio_aio_conf; aio_mode is only that of a new one):
-// by its template $tpl - P2P, or one of the Debrid mode -> debrid; else
-// ('custom', null) $mode, the one it had (a JacRed preset deleted by hand
-// comes back in it); none ($mode null: a config of 0.42 or older, tpl null:
-// melange writes tpl and mode together) - by $ids, the instanceIds of its
-// presets (null: not known): the JacRed preset of the template P2P there ->
-// P2P, else debrid.
+// The mode of a config of 0.42 or older (one per server; moved to the cell
+// of its mode once, by aio_settings_read): by its template $tpl - P2P, or
+// one of the Debrid mode -> debrid; else ('custom', null) $mode, the one
+// stored with it, none -> debrid (a config of P2P always had it stored).
 /**
  * @param mixed $tpl
- * @param list<string>|null $ids
  * @param string|null $mode
  * @return string
  */
-function aio_mode_of($tpl, $ids, $mode = null)
+function aio_mode_of($tpl, $mode = null)
 {
     if ($tpl === AIO_TPL_P2P)
         return AIO_TPL_P2P;
     if (aio_tpl_debrid($tpl))
         return 'debrid';
-    if ($mode !== null)
-        return $mode;
-    return $ids !== null && in_array(aio_tpl_jacred(AIO_TPL_P2P), $ids, true) ? AIO_TPL_P2P : 'debrid';
+    return $mode !== null ? $mode : 'debrid';
 }
 
 // A config of AIOStreams made by the settings page (0.35.0), as stored in
 // aio_confs of settings.json under its server $base (a key of
-// aio_aio_servers()): uuid, pass - the login and password of the config
+// aio_aio_servers()) and its mode (aio_aio_modes(): a server has a config
+// of each mode at most): uuid, pass - the login and password of the config
 // (24 hex, made by the page), manifest - its URL from the reply of the
 // server (<base>/stremio/<uuid>/<encrypted password>/manifest.json), tmdb -
 // the config had TMDB at its last change, set (0.35.1) - of rd, tb, tmdb
 // the fields melange put in the config (null: not stored, a file of
 // 0.35.0), tpl (0.40.0) - its template by its presets: a key of
 // aio_aio_tpls(), 'custom' (changed in AIOStreams) or null (not known yet,
-// a config of 0.39 or older), mode - its mode (aio_mode_of; none stored:
-// by tpl). -> the same keys checked, or null.
+// a config of 0.39 or older). -> the same keys checked, or null.
 /**
  * @param int|string $base
  * @param mixed $c
@@ -368,8 +351,7 @@ function aio_aio_conf($base, $c)
         array_key_exists($c['tpl'], aio_aio_tpls())) ? $c['tpl'] : null;
     return array('uuid' => $c['uuid'], 'pass' => $c['pass'], 'manifest' => $c['manifest'],
         'tmdb' => isset($c['tmdb']) && $c['tmdb'] === true, 'set' => isset($c['set']) && is_array($c['set']) ?
-        array_values(array_intersect(array('rd', 'tb', 'tmdb'), $c['set'])) : null, 'tpl' => $tpl,
-        'mode' => isset($c['mode']) && in_array($c['mode'], aio_aio_modes(), true) ? $c['mode'] : aio_mode_of($tpl, null));
+        array_values(array_intersect(array('rd', 'tb', 'tmdb'), $c['set'])) : null, 'tpl' => $tpl);
 }
 
 // The TMDB key melange puts in the config on the server $base: a server of
@@ -405,7 +387,7 @@ function aio_aio_own($s)
 }
 
 // The server melange makes the config on (aio_server of the settings): a
-// server of the list or another one -> its base, the key of its config in
+// server of the list or another one -> its base, the key of its configs in
 // aio_confs ('' for another one without an address).
 /**
  * @param array{aio_server: string, aio_own_url: string} $s
@@ -416,8 +398,19 @@ function aio_settings_base($s)
     return $s['aio_server'] === 'own' ? $s['aio_own_url'] : $s['aio_server'];
 }
 
+// The config made in use: that of the chosen server in the mode aio_mode, or null.
+/**
+ * @param AioSettings $s
+ * @return AioConf|null
+ */
+function aio_settings_conf($s)
+{
+    $b = aio_settings_base($s);
+    return $b !== '' && isset($s['aio_confs'][$b][$s['aio_mode']]) ? $s['aio_confs'][$b][$s['aio_mode']] : null;
+}
+
 // The manifest the plugin uses: the own config (source own), else the
-// config made on the chosen server ('' for none).
+// config made in use (aio_settings_conf; '' for none).
 /**
  * @param AioSettings $s
  * @return string
@@ -426,8 +419,8 @@ function aio_settings_manifest($s)
 {
     if ($s['source'] === 'own')
         return $s['manifest_url'];
-    $b = aio_settings_base($s);
-    return $b !== '' && isset($s['aio_confs'][$b]) ? $s['aio_confs'][$b]['manifest'] : '';
+    $c = aio_settings_conf($s);
+    return $c ? $c['manifest'] : '';
 }
 
 // Keys of the services as typed or stored -> the key, or '' when it does not
@@ -512,13 +505,16 @@ function aio_settings_secrets($s)
         if ($s[$k] !== '')
             $pw[] = $s[$k];
     }
-    foreach ($s['aio_confs'] as $c)
+    foreach ($s['aio_confs'] as $cs)
     {
-        $pw[] = $c['pass'];
-        foreach (explode('/', preg_replace('~^[^:]*://[^/]*~', '', aio_manifest_base($c['manifest']))) as $seg)
+        foreach ($cs as $c)
         {
-            if (strlen($seg) >= AIO_MASK_SEGMENT)
-                $pw[] = $seg;
+            $pw[] = $c['pass'];
+            foreach (explode('/', preg_replace('~^[^:]*://[^/]*~', '', aio_manifest_base($c['manifest']))) as $seg)
+            {
+                if (strlen($seg) >= AIO_MASK_SEGMENT)
+                    $pw[] = $seg;
+            }
         }
     }
     return $pw;
@@ -557,7 +553,9 @@ function aio_settings_hosts($s)
 // servers); everything kept
 // whatever is chosen, 'tmdb_key',
 // 'servers' => list of aio_server_conf(), 'ts_url' => aio_ts_addr() or '',
-// 'aio_confs' => base of a server => aio_aio_conf()),
+// 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
+// 0.42 or older (one per server, base => config) is read into the cell of
+// its mode (aio_mode_of), written back so by the next save),
 // each checked by the rules above; absent or wrong -> as not set ('', the
 // default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
@@ -631,15 +629,24 @@ function aio_settings_read($dir)
         $r['ts_url'] = aio_ts_addr($j['ts_url']);
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
-        foreach ($j['aio_confs'] as $b => $c)
+        foreach ($j['aio_confs'] as $b => $cs)
         {
-            $c = aio_aio_conf($b, $c);
-            // 0.35.0 stored no marks: the keys melange has now are taken as its own.
-            if ($c && $c['set'] === null)
-                $c['set'] = array_keys(array_filter(array('rd' => $r['rd_key'] !== '', 'tb' => $r['tb_key'] !== '',
-                    'tmdb' => aio_tmdb_sent($b, $r['tmdb_key']) !== '')));
-            if ($c)
-                $r['aio_confs'][$b] = $c;
+            if (!is_array($cs))
+                continue;
+            // One config of 0.42 or older: in the cell of its mode.
+            if (isset($cs['uuid']))
+                $cs = array(aio_mode_of(isset($cs['tpl']) ? $cs['tpl'] : null, isset($cs['mode']) &&
+                    in_array($cs['mode'], aio_aio_modes(), true) ? $cs['mode'] : null) => $cs);
+            foreach (aio_aio_modes() as $m)
+            {
+                $c = isset($cs[$m]) ? aio_aio_conf($b, $cs[$m]) : null;
+                // 0.35.0 stored no marks: the keys melange has now are taken as its own.
+                if ($c && $c['set'] === null)
+                    $c['set'] = array_keys(array_filter(array('rd' => $r['rd_key'] !== '', 'tb' => $r['tb_key'] !== '',
+                        'tmdb' => aio_tmdb_sent($b, $r['tmdb_key']) !== '')));
+                if ($c)
+                    $r['aio_confs'][$b][$m] = $c;
+            }
         }
     }
     return $r;

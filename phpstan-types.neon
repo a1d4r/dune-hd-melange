@@ -8,7 +8,7 @@ parameters:
         # A server of "Download to server" (aio_server_conf, common.php).
         AioServer: 'array{name: string, url: string, user: string, pass: string, category: string, tags: string, cache: string}'
         # A config of AIOStreams made by the settings page (aio_aio_conf, common.php).
-        AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null, mode: string}'
+        AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null}'
         # A JacRed to ask (aio_jacred_conf, aio_jacred_builtin_conf, common.php).
         AioJacred: 'array{base: string, host: string, key: string, key_url: string, builtin?: bool}'
         # settings.json as read (aio_settings_read, common.php).
@@ -28,7 +28,7 @@ parameters:
                 tmdb_key: string,
                 servers: list<AioServer>,
                 ts_url: string,
-                aio_confs: array<string, AioConf>
+                aio_confs: array<string, array<string, AioConf>>
             }
         '''
         # Settings of the operation (Aio::$settings, aio_settings_load, main.php).

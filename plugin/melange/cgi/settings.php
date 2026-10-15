@@ -21,7 +21,8 @@
 //                      own AIOStreams server: version, TMDB of its own; JSON
 //                      {ok, level, msg}, nothing written;
 //   POST ?t=<token>&a=aio_sync&ajax=1 -> the config of AIOStreams on the
-//                      chosen server (of the list or the own one, 0.35.1) by
+//                      chosen server (of the list or the own one, 0.35.1) in
+//                      the mode chosen (a config per mode) by
 //                      settings.json: the own config chosen -> nothing; the
 //                      own server -> its TMDB by /status first; no config
 //                      there -> no Debrid key (mode Debrid): no
@@ -29,7 +30,7 @@
 //                      config -> GET ?raw=true, our fields, PUT (none if it has
 //                      no Debrid at all, mode Debrid); reset=1 -> PUT of the template with
 //                      our fields, no GET. aio_confs written; JSON {ok, msg,
-//                      skip, base, conf[, field]} (field: as of a save error);
+//                      skip, base, mode, conf[, field]} (field: as of a save error);
 //   GET  ?t=<token>&a=log -> <FS_PREFIX>/tmp/run/melange.log masked, an attachment;
 //   GET  ?t=<token>&a=ts_check&ts=<address> -> GET <TorrServer>/echo, JSON
 //                      {ok, msg}, nothing written;
@@ -119,7 +120,7 @@ function aio_cgi_save($dir, $t)
         // A server with a TMDB key of its own: the field is hidden, the key kept unchecked.
         // Only the keys of the chosen source: the own config needs none, nor a config of P2P a Debrid one.
         if ($data[$k] === '' || $data['source'] === 'own' || ($what === 'tmdb' ?
-            aio_tmdb_sent(aio_settings_base($data), $data[$k]) === '' : aio_cgi_mode_to($data, $v['confs'], $v) === AIO_TPL_P2P))
+            aio_tmdb_sent(aio_settings_base($data), $data[$k]) === '' : $data['aio_mode'] === AIO_TPL_P2P))
             continue;
         $r = aio_cgi_key_check($what, $data[$k]);
         if ($r[0] === 'err')
@@ -144,8 +145,8 @@ function aio_cgi_save($dir, $t)
             'Not saved: write error on the Dune'))), "500 Settings not saved\n");
     }
     aio_cgi_log('save: ok');
-    // The config there is reset to the template (0.40.0): aio_cgi_resets.
-    $has = isset($data['aio_confs'][aio_settings_base($data)]);
+    // The config there (of the mode chosen) is reset to the template (0.40.0): aio_cgi_resets.
+    $has = (bool) aio_settings_conf($data);
     $reset = aio_cgi_resets($data, $data['aio_confs'], $v);
     // Only the checked token, as in the redirect below. aio: what a=aio_sync
     // is to do next ('' - nothing, the own address).
