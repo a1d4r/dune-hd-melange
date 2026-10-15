@@ -2,6 +2,10 @@
 
 **English version**
 
+## Unreleased
+- English interface: clearer error and hint wording, the settings path now reads Setup → Apps as in the firmware, and an item is consistently called a release.
+- Documentation: README in English (README.en.md), CHANGELOG in two languages.
+
 ## 0.42.2 — 15.10.2026
 - Comet's placeholder no longer plays as a movie. When Debrid refuses (for example, Real-Debrid will not serve a release because of copyright), Comet sends a short clip "Provider is currently unavailable." instead of the movie, and it used to open in the player. Now the player does not start, and Melange shows "Debrid returned a placeholder video" with the size of the clip; the history and Continue Watching are not spoiled. Comet's reply does not say why it refused.
 - Internal: when JacRed is skipped for lack of time, the log now says "jacred: skipped, the operation took N s" instead of "play_action took": the skip also happens on paging, refresh and episode choice. Melange behaves the same.
@@ -69,6 +73,10 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## Не выпущено
+- Английский интерфейс: исправлены формулировки ошибок и подсказок, путь к настройкам — Setup → Apps, как в прошивке; раздача везде называется release.
+- Документация: README на английском (README.en.md), CHANGELOG на двух языках.
 
 ## 0.42.2 — 15.10.2026
 - Заглушка Comet больше не играет как фильм. Когда Debrid отказывает (например, Real-Debrid не отдаёт раздачу из-за авторских прав), Comet присылает вместо фильма короткий ролик «Provider is currently unavailable.» — раньше он открывался в плеере. Теперь плеер не запускается, а Melange показывает «Debrid вернул заглушку» с размером ролика; история и «Продолжить просмотр» не портятся. Причину отказа Comet в ответе не сообщает.
