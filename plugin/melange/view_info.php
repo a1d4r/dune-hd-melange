@@ -28,6 +28,11 @@ define('AIO_INF_YROWS', 28);    // YAML pages: lines of a column
 define('AIO_INF_IND', 20);      // YAML pages: indent of a level
 
 // open_folder of the details screen of row $n of list $st.
+/**
+ * @param AioState $st
+ * @param int $n
+ * @return AioAction
+ */
 function aio_info_open($st, $n)
 {
     aio_log("info: row $n of " . count($st['rows']));
@@ -42,6 +47,10 @@ function aio_info_open($st, $n)
 
 // "https://host:port/…" of a URL (no path, query or user: the user part
 // ends at the last "@" of the authority); other text as is.
+/**
+ * @param string $s
+ * @return string
+ */
 function aio_info_url($s)
 {
     if (!preg_match('~^\s*(https?://)([^/?#\s]*)~i', $s, $m))
@@ -50,6 +59,10 @@ function aio_info_url($s)
     return $m[1] . ($at === false ? $m[2] : substr($m[2], $at + 1)) . "/\xE2\x80\xA6";
 }
 
+/**
+ * @param mixed $v
+ * @return string
+ */
 function aio_info_scalar($v)
 {
     if (is_null($v))
@@ -65,12 +78,23 @@ function aio_info_scalar($v)
 
 // One line of text as sent: line breaks and tabs as a space; "|" kept
 // (aio_clean makes it "/" for the list screen).
+/**
+ * @param string $s
+ * @return string
+ */
 function aio_info_clean($s)
 {
     return trim(preg_replace('/[\\r\\n\\t]+/', ' ', strval($s)));
 }
 
 // aio_gc_cut of the pages of this screen: the text by aio_info_clean.
+/**
+ * @param AioGcGeom $geom
+ * @param string $text
+ * @param int $size
+ * @param string $color
+ * @return AioGcComp
+ */
 function aio_info_cut($geom, $text, $size, $color)
 {
     $l = aio_gc_cut(null, $geom, '', $size, $color);
@@ -81,6 +105,10 @@ function aio_info_cut($geom, $text, $size, $color)
 // --- Page 1: the passport.
 
 // "1–7, 9, 11" of whole numbers; a run of three or more as a range.
+/**
+ * @param list<int> $a
+ * @return string
+ */
 function aio_info_ranges($a)
 {
     $a = array_values(array_unique($a));
@@ -102,6 +130,11 @@ function aio_info_ranges($a)
 }
 
 // "S05E03" of one episode, else "S1–5 · E1–62"; '' without numbers.
+/**
+ * @param list<int> $seasons
+ * @param list<int> $episodes
+ * @return string
+ */
 function aio_info_eps($seasons, $episodes)
 {
     if (count($seasons) === 1 && count($episodes) === 1)
@@ -115,6 +148,10 @@ function aio_info_eps($seasons, $episodes)
 }
 
 // "3:00:23" of seconds.
+/**
+ * @param float $s
+ * @return string
+ */
 function aio_info_duration($s)
 {
     $s = intval(round($s));
@@ -124,6 +161,12 @@ function aio_info_duration($s)
 
 // A column of page 1: its x, the y of the next field, its bottom, the x of
 // values after the widest of its $labels, components.
+/**
+ * @param int $i
+ * @param string $head
+ * @param array<string> $labels
+ * @return AioInfoCol
+ */
 function aio_info_col($i, $head, $labels)
 {
     $x = $i * (AIO_INF_CW + AIO_INF_CGAP);
@@ -137,6 +180,11 @@ function aio_info_col($i, $head, $labels)
 
 // Value lines a field of column $c has room for: $block - its label takes a
 // line of its own.
+/**
+ * @param AioInfoCol $c
+ * @param bool $block
+ * @return int
+ */
 function aio_info_room($c, $block)
 {
     return intval(($c['end'] - $c['y']) / AIO_INF_LH) - ($block ? 1 : 0);
@@ -145,6 +193,14 @@ function aio_info_room($c, $block)
 // A field of column $c: the label (24 px, dimmed) at the left of the first
 // value line or ($block) on a line above them; the value lines (26 px) cut to
 // the width with "…". No lines: no field.
+/**
+ * @param AioInfoCol $c
+ * @param string $label
+ * @param list<string> $lines
+ * @param bool $block
+ * @param string $color
+ * @return void
+ */
 function aio_info_put(&$c, $label, $lines, $block, $color = AIO_GC_TEXT2)
 {
     if (!$lines)
@@ -167,6 +223,15 @@ function aio_info_put(&$c, $label, $lines, $block, $color = AIO_GC_TEXT2)
 }
 
 // A text field of up to $max lines, wrapped by words or ($items) by " · ".
+/**
+ * @param AioInfoCol $c
+ * @param string $label
+ * @param string $v
+ * @param int $max
+ * @param bool $block
+ * @param bool $items
+ * @return void
+ */
 function aio_info_field(&$c, $label, $v, $max, $block = false, $items = false)
 {
     $v = aio_info_clean($v);
@@ -178,6 +243,10 @@ function aio_info_field(&$c, $label, $v, $max, $block = false, $items = false)
 }
 
 // A subtitle codec of ffprobe in capitals, the long ones by their usual names ("SRT").
+/**
+ * @param string $c
+ * @return string
+ */
 function aio_info_sub_codec($c)
 {
     $names = array('subrip' => 'SRT', 'hdmv_pgs_subtitle' => 'PGS', 'dvd_subtitle' => 'VobSub', 'mov_text' => 'TX3G');
@@ -187,6 +256,14 @@ function aio_info_sub_codec($c)
 
 // One line of a track: "• RU · TrueHD 5.1 · Дубляж / HotVoice 41", "•" for
 // the default one (★ is in no font of the firmware, ● not in NotoSans Condensed).
+/**
+ * @param string $lang
+ * @param string $codec
+ * @param string $ch
+ * @param string $title
+ * @param bool $default
+ * @return string
+ */
 function aio_info_track($lang, $codec, $ch, $title, $default)
 {
     $p = array_filter(array($lang, trim("$codec $ch"), $title), 'strlen');
@@ -194,6 +271,11 @@ function aio_info_track($lang, $codec, $ch, $title, $default)
 }
 
 // Tracks of a list of parsedFile, empty objects left out.
+/**
+ * @param array<mixed> $pf
+ * @param string $k
+ * @return list<non-empty-array<mixed>>
+ */
 function aio_info_raw_tracks($pf, $k)
 {
     $out = array();
@@ -208,6 +290,11 @@ function aio_info_raw_tracks($pf, $k)
 // array(lines, count) of the audio tracks of row $r (its own, at most 99, or
 // JacRed's), the default marked by parsedFile.audioTracks (row tracks follow
 // its order, empty objects too); the count of all of them.
+/**
+ * @param AioRow $r
+ * @param array<mixed> $pf
+ * @return array{list<string>, int}
+ */
 function aio_info_audio($r, $pf)
 {
     $raw = array_values(array_filter(aio_arr($pf, 'audioTracks'), 'is_array'));
@@ -224,6 +311,10 @@ function aio_info_audio($r, $pf)
 
 // array(lines, count) of the subtitle tracks of parsedFile.subtitleTracks:
 // 99 lines at most, the count of all.
+/**
+ * @param array<mixed> $pf
+ * @return array{list<string>, int}
+ */
 function aio_info_subs($pf)
 {
     $all = aio_info_raw_tracks($pf, 'subtitleTracks');
@@ -238,6 +329,13 @@ function aio_info_subs($pf)
 }
 
 // Lines of a list of $total items cut to $max: the last says "… ещё N".
+/**
+ * @param list<string> $lines
+ * @param int $max
+ * @param int $total
+ * @param string $lang
+ * @return list<string>
+ */
 function aio_info_more($lines, $max, $total, $lang)
 {
     if (count($lines) <= $max && $total <= count($lines))
@@ -248,6 +346,14 @@ function aio_info_more($lines, $max, $total, $lang)
     return $more;
 }
 
+/**
+ * @param AioRow $r
+ * @param array<mixed> $raw
+ * @param array<mixed> $sd
+ * @param array<mixed> $pf
+ * @param AioGcText $tt
+ * @return list<AioGcComp>
+ */
 function aio_info_col_file($r, $raw, $sd, $pf, $tt)
 {
     $lang = $tt['lang'];
@@ -305,6 +411,12 @@ function aio_info_col_file($r, $raw, $sd, $pf, $tt)
 
 // Voices, then the audio and the subtitles, a line a track: what does not fit
 // ends with "… ещё N", the subtitles keep AIO_INF_SUBS_MIN lines.
+/**
+ * @param AioRow $r
+ * @param array<mixed> $pf
+ * @param AioGcText $tt
+ * @return list<AioGcComp>
+ */
 function aio_info_col_tracks($r, $pf, $tt)
 {
     $lang = $tt['lang'];
@@ -346,6 +458,11 @@ function aio_info_col_tracks($r, $pf, $tt)
 // Add-ons of one release (row key 'addons'): "JacRed · MediaFusion (кэш)",
 // "(кэш)" after those that said themselves it is cached on the row's service
 // (no ⚡: not in the Dune font).
+/**
+ * @param list<AioAddon> $addons
+ * @param string $lang
+ * @return string
+ */
 function aio_info_addons($addons, $lang)
 {
     $v = array();
@@ -354,6 +471,13 @@ function aio_info_addons($addons, $lang)
     return implode(' · ', $v);
 }
 
+/**
+ * @param AioRow $r
+ * @param array<mixed> $sd
+ * @param array<mixed> $pf
+ * @param AioGcText $tt
+ * @return list<AioGcComp>
+ */
 function aio_info_col_source($r, $sd, $pf, $tt)
 {
     $lang = $tt['lang'];
@@ -398,6 +522,11 @@ function aio_info_col_source($r, $sd, $pf, $tt)
 }
 
 // Children of page 1: the name (2 lines) and the three columns.
+/**
+ * @param AioState $st
+ * @param int $n
+ * @return list<AioGcComp>
+ */
 function aio_info_passport($st, $n)
 {
     $r = $st['rows'][$n];
@@ -419,6 +548,10 @@ function aio_info_passport($st, $n)
 
 // A JSON list (keys 0..n-1) by its first and last keys: a list of 200 000
 // is not walked; an object keyed so is shown as a list.
+/**
+ * @param array<mixed> $v
+ * @return bool
+ */
 function aio_info_list($v)
 {
     if (!$v)
@@ -430,6 +563,10 @@ function aio_info_list($v)
 }
 
 // One line of text of a scalar: control characters as spaces.
+/**
+ * @param string $s
+ * @return string
+ */
 function aio_info_line($s)
 {
     return preg_replace('/[\\x00-\\x1F]+/', ' ', $s);
@@ -437,6 +574,12 @@ function aio_info_line($s)
 
 // $v in flow style: "a", "[a, b]", "{k: v}"; about $room characters at most
 // (it goes down), the rest "…", as past AIO_INFO_DEPTH.
+/**
+ * @param mixed $v
+ * @param int $room
+ * @param int $depth
+ * @return string
+ */
 function aio_info_flow($v, &$room, $depth)
 {
     if ($v === '')
@@ -464,6 +607,11 @@ function aio_info_flow($v, &$room, $depth)
 }
 
 // Width of $s at $px before AIO_GC_W_MARGIN: aio_gc_w is ceil(this * margin).
+/**
+ * @param string $s
+ * @param int $px
+ * @return float|int
+ */
 function aio_info_sum($s, $px)
 {
     $w = 0;
@@ -475,6 +623,13 @@ function aio_info_sum($s, $px)
 // $s in lines of at most $width (by aio_gc_w), broken as aio_gc_wrap does, a
 // word wider than a line by characters; at most $max lines, the rest
 // dropped. Linear: aio_gc_wrap measures the line again for every word.
+/**
+ * @param string $s
+ * @param int $px
+ * @param int $width
+ * @param int $max
+ * @return list<string>
+ */
 function aio_info_wrap($s, $px, $width, $max)
 {
     $lines = array();
@@ -521,6 +676,14 @@ function aio_info_wrap($s, $px, $width, $max)
 
 // Line $text at indent $lvl to $out (array(level, text, colour)), wrapped to
 // the column, the rest one level deeper. false once $max lines are reached.
+/**
+ * @param list<array{int, string, string}> $out
+ * @param int $lvl
+ * @param string $text
+ * @param int $max
+ * @param string $color
+ * @return bool
+ */
 function aio_info_yline(&$out, $lvl, $text, $max, $color = AIO_GC_TEXT2)
 {
     $left = $max - count($out);
@@ -541,6 +704,15 @@ function aio_info_yline(&$out, $lvl, $text, $max, $color = AIO_GC_TEXT2)
 // object field by field a level deeper; a list of scalars in flow style; a
 // list with objects or lists item by item "- {k: v}"; a string of several
 // lines line by line a level deeper. false once $max lines are reached.
+/**
+ * @param list<array{int, string, string}> $out
+ * @param int $lvl
+ * @param string $head
+ * @param mixed $v
+ * @param int $max
+ * @param int $depth
+ * @return bool
+ */
 function aio_info_yaml(&$out, $lvl, $head, $v, $max, $depth = 0)
 {
     $nested = false;
@@ -595,6 +767,11 @@ function aio_info_yaml(&$out, $lvl, $head, $v, $max, $depth = 0)
 // YAML lines of row $n: array(AIOStreams lines, Melange lines), each block
 // with its head; together at most AIO_INFO_LINES, the last of a cut block
 // says so.
+/**
+ * @param AioState $st
+ * @param int $n
+ * @return array{list<array{int, string, string}>, list<array{int, string, string}>}
+ */
 function aio_info_blocks($st, $n)
 {
     $r = $st['rows'][$n];
@@ -629,6 +806,10 @@ function aio_info_blocks($st, $n)
 }
 
 // Children of a YAML page: up to 3 columns of AIO_INF_YROWS lines.
+/**
+ * @param list<array{int, string, string}> $lines
+ * @return list<AioGcComp>
+ */
 function aio_info_ypage($lines)
 {
     $d = array();
@@ -643,6 +824,11 @@ function aio_info_ypage($lines)
 
 // Children of every page: the passport, then the AIOStreams pages, then the
 // Melange ones.
+/**
+ * @param AioState $st
+ * @param int $n
+ * @return list<list<AioGcComp>>
+ */
 function aio_info_pages($st, $n)
 {
     $pages = array(aio_info_passport($st, $n));
@@ -656,12 +842,22 @@ function aio_info_pages($st, $n)
 
 // --- Screen.
 
+/**
+ * @param int $page
+ * @param int $n
+ * @return AioGcGeom
+ */
 function aio_info_pages_geom($page, $n)
 {
     return aio_gc_at(AIO_INF_W, $n * AIO_INF_H, 0, -$page * AIO_INF_H);
 }
 
 // Children of 'icount' (under the pages, at the right): "1 / 4".
+/**
+ * @param int $page
+ * @param int $n
+ * @return list<AioGcComp>
+ */
 function aio_info_counter($page, $n)
 {
     return array(aio_gc_cut(null, aio_gc_at(300, 50, 0, 0), ($page + 1) . " / $n", 36, AIO_GC_TEXT2,
@@ -669,12 +865,24 @@ function aio_info_counter($page, $n)
 }
 
 // sel_state -> page, 0 when it does not fit $n pages.
+/**
+ * @param mixed $s
+ * @param int $n
+ * @return int
+ */
 function aio_info_page($s, $n)
 {
     $j = is_string($s) && $s !== '' ? json_decode($s) : null;
     return is_object($j) && isset($j->page) && is_int($j->page) && $j->page >= 0 && $j->page < $n ? $j->page : 0;
 }
 
+/**
+ * @param AioState $st
+ * @param int $n
+ * @param list<list<AioGcComp>> $pages
+ * @param int $page
+ * @return array<string, mixed>
+ */
 function aio_info_window($st, $n, $pages, $page)
 {
     $mv = $st['movie'];
@@ -720,6 +928,11 @@ function aio_info_window($st, $n, $pages, $page)
 }
 
 // get_folder_view of "info:<rid>:<row>"; a gone list: the "outdated" screen.
+/**
+ * @param string $media_url
+ * @param mixed $sel_state
+ * @return array<string, mixed>
+ */
 function aio_info_folder_view($media_url, $sel_state = null)
 {
     $st = Aio::$state;
@@ -747,6 +960,10 @@ function aio_info_folder_view($media_url, $sel_state = null)
 // P+/P- on the details screen -> change_gcomps of the page; null at an edge.
 // Only the drawn screen moves: no list needed (its count of pages comes
 // with the key).
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
 function aio_info_input($in)
 {
     $n = isset($in->pages) && is_string($in->pages) && preg_match('/^[1-9][0-9]{0,2}$/D', $in->pages) ?
@@ -770,6 +987,9 @@ function aio_info_input($in)
 
 // The one row of a screen whose list is gone (replaced, php_server restarted):
 // in both languages, the language of the list is gone too.
+/**
+ * @return array<string, mixed>
+ */
 function aio_expired_item()
 {
     return array(
@@ -781,6 +1001,10 @@ function aio_expired_item()
 // A plain list of text lines, the view of the 0.1.1 list: the "outdated"
 // screen. OK on a line does nothing: its action asks for a control no one
 // handles.
+/**
+ * @param list<array<string, mixed>> $items
+ * @return array<string, mixed>
+ */
 function aio_lines_view($items)
 {
     return array(

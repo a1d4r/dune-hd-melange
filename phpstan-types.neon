@@ -205,6 +205,10 @@ parameters:
                 transition: string
             }
         '''
+        # A column of page 1 of the details screen (aio_info_col, view_info.php):
+        # its x, the y of the next field, its bottom, the x of values, its
+        # components so far (aio_info_put adds the fields).
+        AioInfoCol: 'array{x: int, y: int, end: int, lw: int, d: list<AioGcComp>}'
         # Voices of one release name (aio_voices_parse, voices_parse.php):
         # type ids (dub, mvo, dvo, avo) in the order of the name, studios
         # shown, orig '' | 'orig' | 'jap', the name without JacRed's tails,
