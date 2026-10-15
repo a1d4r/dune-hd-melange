@@ -150,3 +150,15 @@ function aio_cgi_store($dir, $data)
     // PHP 5.3 turns a value that is not UTF-8 into null, not an error.
     return is_string($json) && json_decode($json, true) === $data ? aio_cgi_write($dir, $json) : 'json_encode failed';
 }
+
+// The page never saved yet (0.43.0, the first run of the main screen): no
+// settings.json with saved_at in $dir, read as aio_settings_read reads it.
+function aio_cgi_first($dir)
+{
+    $f = "$dir/" . AIO_SETTINGS_FILE;
+    clearstatcache();
+    if ($dir === '' || is_link($f) || !is_file($f) || !is_readable($f) || filesize($f) > AIO_SETTINGS_MAX)
+        return true;
+    $j = json_decode((string) file_get_contents($f, false, null, 0, AIO_SETTINGS_MAX), true);
+    return !is_array($j) || !isset($j['saved_at']);
+}

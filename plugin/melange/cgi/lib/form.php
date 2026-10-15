@@ -18,6 +18,9 @@ function aio_cgi_h($s)
 function aio_cgi_fields()
 {
     return array(
+        // The one choice of the page (debrid | p2p | own): source and aio_mode
+        // from it (aio_cgi_posted); those two only of a form of 0.42 or older.
+        'watch' => array('id' => '', 'name' => 'watch', 'set' => '', 'max' => 0, 'type' => 'radio'),
         'source' => array('id' => '', 'name' => 'source', 'set' => 'source', 'max' => 0, 'type' => 'radio'),
         'manifest' => array('id' => 'm', 'name' => 'manifest', 'set' => 'manifest_url', 'max' => 2100, 'type' => 'sec'),
         'aio_server' => array('id' => 'as', 'name' => 'aio_server', 'set' => 'aio_server', 'max' => 0, 'type' => 'select'),
@@ -58,43 +61,62 @@ function aio_cgi_srv_field($n, $k)
 }
 
 // A text field of the row $f of aio_cgi_fields() (sec or plain); $more: the
-// hint of sec, the placeholder of plain.
-function aio_cgi_input($f, $label, $value, $more)
+// hint of sec, the placeholder of plain; $chk: aio_cgi_chk() or ''.
+function aio_cgi_input($f, $label, $value, $more, $chk = '')
 {
-    return $f['type'] === 'sec' ? aio_cgi_field($f['id'], $f['name'], $label, $value, $more, $f['max']) :
-        aio_cgi_plain($f['id'], $f['name'], $label, $value, $more, $f['max']);
+    return $f['type'] === 'sec' ? aio_cgi_field($f['id'], $f['name'], $label, $value, $more, $f['max'], $chk) :
+        aio_cgi_plain($f['id'], $f['name'], $label, $value, $more, $f['max'], $chk);
+}
+
+// A small button in a field ("Проверить", "Копировать") and the box of its
+// result right under the field: array(button, box).
+function aio_cgi_chk($bid, $rid, $text = '')
+{
+    return array('<button type="button" id="' . $bid . '" class="chk in">' . ($text !== '' ? $text :
+        aio_cgi_l('Проверить', 'Check')) . '</button>', '<div id="' . $rid . '" class="res" aria-live="polite"></div>');
 }
 
 // $name '' - read-only, not posted.
-function aio_cgi_field($id, $name, $label, $value, $hint, $max = 2100)
+function aio_cgi_field($id, $name, $label, $value, $hint, $max = 2100, $chk = '')
 {
+    $chk = is_array($chk) ? $chk : array('', '');
     return '<label for="' . $id . '">' . $label . '</label><div class="f">' .
         // Not type=password: Chrome would offer to keep it in the Google password manager (the script makes it
         // one where CSS can't mask it: Firefox).
         '<input id="' . $id . '" ' . ($name !== '' ? 'name="' . $name . '"' : 'readonly') . ' type="text" class="sec" value="' .
         aio_cgi_h($value) . '" ' .
-        'autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="' . $max . '">' .
+        'autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="' . $max . '">' . $chk[0] .
         '<button type="button" class="eye" data-for="' . $id . '" aria-label="' . aio_cgi_l('Показать', 'Show') . '">' .
         '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">' .
         '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>' .
-        '</button></div>' . ($hint !== '' ? '<p class="hint">' . $hint . '</p>' : '');
+        '</button></div>' . $chk[1] . ($hint !== '' ? '<p class="hint">' . $hint . '</p>' : '');
 }
 
 // A plain text field (no hiding); $max: the limit of aio_server_conf();
 // $name '' - read-only, not posted.
-function aio_cgi_plain($id, $name, $label, $value, $placeholder, $max = 300)
+function aio_cgi_plain($id, $name, $label, $value, $placeholder, $max = 300, $chk = '')
 {
+    $chk = is_array($chk) ? $chk : array('', '');
     return '<label for="' . $id . '">' . $label . '</label><div class="f">' .
         '<input id="' . $id . '" ' . ($name !== '' ? 'name="' . $name . '"' : 'readonly') . ' type="text" value="' .
         aio_cgi_h($value) . '" placeholder="' .
         aio_cgi_h($placeholder) . '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" ' .
-        'maxlength="' . $max . '"></div>';
+        'maxlength="' . $max . '">' . $chk[0] . '</div>' . $chk[1];
 }
 
-function aio_cgi_radio($id, $name, $value, $label, $on, $attr = '')
+// A radio hidden (a card of aio_cgi_card shows it): its label goes elsewhere.
+function aio_cgi_vradio($id, $name, $value, $on, $attr = '')
 {
-    return '<label class="cb"><input type="radio" id="' . $id . '" name="' . $name . '" value="' . aio_cgi_h($value) . '"' .
-        $attr . ($on ? ' checked' : '') . '> ' . $label . '</label>';
+    return '<input type="radio" class="vh" id="' . $id . '" name="' . $name . '" value="' . aio_cgi_h($value) . '"' . $attr .
+        ($on ? ' checked' : '') . '>';
+}
+
+// The card of a choice: the label of the radio $for (aio_cgi_vradio), a title,
+// a line under it ('' - none) and $more after them.
+function aio_cgi_card($for, $title, $sub, $more = '')
+{
+    return '<label for="' . $for . '" class="opt"><span class="r"></span><span class="ot"><span class="t">' . $title .
+        '</span>' . ($sub !== '' ? '<span class="v">' . $sub . '</span>' : '') . '</span>' . $more . '</label>';
 }
 
 // A link of a hint, opened without the address of the page (it has the token).
@@ -108,9 +130,8 @@ function aio_cgi_link($url, $text)
 function aio_cgi_servers($servers)
 {
     // One short line each: the rest is in the README.
-    $out = '<h2 id="srvh">' . aio_cgi_l('Скачать на сервер (необязательно)', 'Download to server (optional)') . '</h2>' .
-        '<p class="hint">' . aio_cgi_l('qBittorrent или rdt-client: адрес веб-интерфейса; логин пустой — без входа.',
-        'qBittorrent or rdt-client: the web UI address; leave the login empty if none is needed.') . '</p><p class="hint">' .
+    $out = '<p class="hint">' . aio_cgi_l('Адрес веб-интерфейса; логин пустой — без входа.',
+        'The web UI address; leave the login empty if none is needed.') . '</p><p class="hint wn">' .
         aio_cgi_l('Не проверяйте с неверным паролем подряд — qBittorrent блокирует Дюну.',
         'Do not check with a wrong password repeatedly: qBittorrent bans the Dune.') . '</p>';
     for ($n = 1; $n <= AIO_SERVERS_MAX; $n++)
@@ -144,59 +165,58 @@ function aio_cgi_servers($servers)
         '</button>';
 }
 
-// JacRed: one of the built-in ones or the own one (radio "jacred"); the
-// fields of the own one are always there, used when it is chosen.
-// "Проверить" asks the chosen one (the own one by the fields of the form),
-// "Сравнить все" every built-in one and the own one if filled; one at a time.
+// The screen "Озвучки и дорожки" - JacRed: one of the built-in ones or the
+// own one (radio "jacred"), a card each with a box for "Сравнить скорость"
+// (span.ms data-jr: the id, "own"); the own one with its fields in
+// #jrownd, open when chosen or filled; "Проверить" there asks the own one.
 function aio_cgi_jacred($v)
 {
     // By the source: the script swaps the texts of data-made / data-own.
-    $t = array('h' => array(aio_cgi_l('JacRed — поиск раздач и озвучки', 'JacRed - releases and voice-overs'),
-        aio_cgi_l('JacRed — дорожки и озвучки', 'JacRed - audio tracks and voice-overs')),
-        'p' => array(aio_cgi_l('По нему ищет раздачи созданный конфиг; озвучки и дорожки Melange берёт из него же',
-        'The created config searches for releases with it; Melange also takes voice-overs and tracks from it'),
-        aio_cgi_l('Только озвучки и дорожки; раздачи ищет ваш конфиг',
-        'Voice-overs and tracks only; your config finds the releases')));
+    $t = array(aio_cgi_l('JacRed ищет русские раздачи и подсказывает озвучки.',
+        'JacRed finds Russian releases and tells the voice-overs.'),
+        aio_cgi_l('JacRed подсказывает озвучки и дорожки; раздачи ищет ваш конфиг.',
+        'JacRed tells the voice-overs and tracks; your config finds the releases.'));
     $f = aio_cgi_fields();
     $k = $v['source'] === 'own' ? 1 : 0;
     // P2P on a server with Magnetio (not of aio_conf_p2p_torznab): Magnetio asks JacRed, not the server.
     $mg = aio_cgi_mode_sel($v) === AIO_TPL_P2P && !in_array($v['aio_server'], aio_conf_p2p_torznab(), true);
     $jr403 = aio_cgi_jr403();
-    $out = '<h2 id="jrh" data-made="' . aio_cgi_h($t['h'][0]) . '" data-own="' . aio_cgi_h($t['h'][1]) . '">' . $t['h'][$k] .
-        '</h2><p class="hint" id="jrp" data-made="' . aio_cgi_h($t['p'][0]) . '" data-own="' . aio_cgi_h($t['p'][1]) . '">' .
-        $t['p'][$k] . '</p>' .
+    $out = '<p class="sub" id="jrp" data-made="' . aio_cgi_h($t[0]) . '" data-own="' . aio_cgi_h($t[1]) . '">' . $t[$k] . '</p>' .
         // The created config on a server jacred.stream refuses, jacred.stream chosen (the script follows both);
         // not when Magnetio asks.
-        '<p class="hint" id="jr403"' . (!$k && !$mg && isset($jr403[$v['aio_server']]) &&
+        '<p class="hint wn" id="jr403"' . (!$k && !$mg && isset($jr403[$v['aio_server']]) &&
         $v['jacred'] === $jr403[$v['aio_server']] ? '' : ' hidden') . '>' .
         aio_cgi_l('jacred.stream не пускает выбранный сервер AIOStreams — выберите другой JacRed',
         'jacred.stream refuses the chosen AIOStreams server: choose another JacRed') . '</p>' .
         // Not when the default itself is chosen (the script follows the choice).
-        '<p class="hint" id="jrnote"' . ($v['jacred'] === AIO_JACRED_DEFAULT ? ' hidden' : '') . '>' .
+        '<p class="hint wn" id="jrnote"' . ($v['jacred'] === AIO_JACRED_DEFAULT ? ' hidden' : '') . '>' .
         aio_cgi_l('Не ответил — Melange спросит ' . AIO_JACRED_DEFAULT . '.', 'No answer - Melange will ask ' . AIO_JACRED_DEFAULT . '.') .
-        '</p>';
+        '</p><div class="choice">';
     $i = 0;
     foreach (array_keys(aio_jacred_builtin()) as $id)
     {
         $i++;
-        $out .= aio_cgi_radio("jrb$i", $f['jacred']['name'], $id, aio_cgi_h($id), $v['jacred'] === $id,
-            ' class="jrb" data-id="' . aio_cgi_h($id) . '"');
+        $out .= aio_cgi_vradio("jrb$i", $f['jacred']['name'], $id, $v['jacred'] === $id,
+            ' class="jrb" data-id="' . aio_cgi_h($id) . '"') . aio_cgi_card("jrb$i", aio_cgi_h($id) .
+            ($id === AIO_JACRED_DEFAULT ? '<span class="badge">' . aio_cgi_l('у Melange', 'of Melange') . '</span>' : ''), '',
+            '<span class="ms" data-jr="' . aio_cgi_h($id) . '"></span>');
     }
-    return $out . aio_cgi_radio('jrown', $f['jacred']['name'], 'own', aio_cgi_l('Свой', 'Own'), $v['jacred'] === 'own') .
-        aio_cgi_input($f['jo_url'], aio_cgi_l('Адрес своего JacRed', 'Own JacRed address'), $v['jo_url'],
-            'http://192.168.1.10:9117') .
+    $own = $v['jacred'] === 'own' || trim($v['jo_url'] . $v['jo_key'], AIO_TRIM) !== '';
+    return $out . '</div><button type="button" id="jrsb" class="btn ghost">' . aio_cgi_l('Сравнить скорость', 'Compare speed') .
+        '</button><p class="hint c">' . aio_cgi_l('Время ответа и число раздач на трёх фильмах',
+        'Reply time and the number of releases on three films') . '</p><div id="jrsr" class="res" aria-live="polite"></div>' .
+        '<details id="jrownd"' . ($own ? ' open' : '') . '><summary>' . aio_cgi_l('Свой JacRed…', 'Own JacRed…') . '</summary>' .
+        '<div class="choice">' . aio_cgi_vradio('jrown', $f['jacred']['name'], 'own', $v['jacred'] === 'own') .
+        aio_cgi_card('jrown', aio_cgi_l('Свой JacRed', 'Own JacRed'), '', '<span class="ms" data-jr="own"></span>') . '</div>' .
+        aio_cgi_input($f['jo_url'], aio_cgi_l('Адрес', 'Address'), $v['jo_url'], 'http://192.168.1.10:9117',
+            aio_cgi_chk('jcb', 'jcr')) .
         // The config made on a public server: it can't reach a home address (the script follows the choice);
         // nor Magnetio, whatever the server.
-        '<p class="hint" id="jrlan"' . ($k || ($v['aio_server'] === 'own' && !$mg) ? ' hidden' : '') . '>' .
+        '<p class="hint wn" id="jrlan"' . ($k || ($v['aio_server'] === 'own' && !$mg) ? ' hidden' : '') . '>' .
         aio_cgi_l('Адрес в домашней сети публичному серверу недоступен: нужен адрес из интернета',
         'A public server cannot reach a home network address: use an internet address') .
         '</p>' .
-        aio_cgi_input($f['jo_key'], aio_cgi_l('Ключ своего JacRed (необязательно)', 'Own JacRed key (optional)'),
-            $v['jo_key'], '') .
-        '<button type="button" id="jcb" class="chk">' . aio_cgi_l('Проверить', 'Check') . '</button><div id="jcr" class="res" aria-live="polite"></div>' .
-        '<button type="button" id="jrsb" class="chk">' . aio_cgi_l('Сравнить все', 'Compare all') .
-        '</button><p class="hint">' . aio_cgi_l('Три поиска в каждом JacRed, с паузой 2 с.',
-        'Three searches in each JacRed, 2 s apart.') . '</p><div id="jrsr" class="res" aria-live="polite"></div>';
+        aio_cgi_input($f['jo_key'], aio_cgi_l('Ключ, если нужен', 'Key, if needed'), $v['jo_key'], '') . '</details>';
 }
 
 // AIOStreams server => id of the JacRed that answers 403 to it (0.35.0);
@@ -207,16 +227,15 @@ function aio_cgi_jr403()
 }
 
 // The templates of the Debrid mode (aio_tpl_debrid of common.php, 0.40.0):
-// id => array(its name, its hint).
+// id => array(its name, its hint, its short name for the main screen).
 function aio_cgi_tpls()
 {
     return array(
-        'addons' => array(aio_cgi_l('JacRed + аддоны', 'JacRed + addons'), aio_cgi_l(
-            'Torrentio, MediaFusion, Comet, StremThru Torz — больше раздач в кэше Debrid.',
-            'Torrentio, MediaFusion, Comet, StremThru Torz: more releases cached in Debrid.')),
-        'jacred' => array(aio_cgi_l('Только JacRed', 'JacRed only'), aio_cgi_l(
-            'Русские трекеры, ответ быстрее; с одним RD раздач мало.',
-            'Russian trackers, faster replies; few releases with RD alone.')));
+        'addons' => array(aio_cgi_l('Везде', 'Everywhere'), aio_cgi_l('JacRed, Torrentio, MediaFusion и другие — больше раздач в кэше Debrid.',
+            'JacRed, Torrentio, MediaFusion and more: more releases cached in Debrid.'), aio_cgi_l('везде', 'everywhere')),
+        'jacred' => array(aio_cgi_l('Только русские трекеры', 'Russian trackers only'), aio_cgi_l(
+            'JacRed: быстрее; с одним Real-Debrid раздач мало.', 'JacRed: faster; few releases with Real-Debrid alone.'),
+            aio_cgi_l('только русские', 'Russian only')));
 }
 
 // The name of the template $id: of the Debrid mode or P2P.
@@ -229,7 +248,7 @@ function aio_cgi_tpl_name($id)
 // The mode P2P on the page and as a template.
 function aio_cgi_mode_p2p()
 {
-    return aio_cgi_l('P2P (без Debrid)', 'P2P (no Debrid)');
+    return aio_cgi_l('Торренты', 'Torrents');
 }
 
 // The template the page shows for the server $server (aio_server; 'own' -
@@ -316,18 +335,29 @@ function aio_cgi_aio_confs($v)
 }
 
 // The marks of the template choice only shown, never chosen (0.40.0): id
-// (aio_cgi_tpl_shown) => array(its name, its hint).
+// (aio_cgi_tpl_shown) => array as aio_cgi_tpls().
 function aio_cgi_tpl_marks()
 {
     return array(
         'custom' => array(aio_cgi_l('Свой набор аддонов (изменён в AIOStreams)', 'Custom set of addons (changed in AIOStreams)'),
-            aio_cgi_l('Выберите шаблон, чтобы заменить им конфиг.', 'Choose a template to replace the config with it.')),
+            aio_cgi_l('Выберите шаблон, чтобы заменить им конфиг.', 'Choose a template to replace the config with it.'),
+            aio_cgi_l('свой набор', 'custom set')),
         'none' => array(aio_cgi_l('Не определён — нажмите «Сохранить»', 'Unknown - press "Save"'),
             aio_cgi_l('Melange узнает шаблон конфига на сервере при сохранении.',
-            'Melange detects the config template on the server when you save.')));
+            'Melange detects the config template on the server when you save.'), aio_cgi_l('шаблон не определён', 'template unknown')));
 }
 
-// "Шаблон конфига" (0.40.0, the mode Debrid) with the hint of the chosen
+// The template chosen on the page (aio_cgi_tpl): one chosen in a form back,
+// else the one shown (aio_cgi_tpl_shown), else the one for a new config.
+function aio_cgi_tpl_sel($v)
+{
+    $tpls = aio_cgi_tpls();
+    $shown = aio_cgi_tpl_shown($v['aio_server'], $v['aio_own'], $v['confs'], $v['tpl_new']);
+    $all = $tpls + aio_cgi_tpl_marks();
+    return isset($tpls[$v['aio_tpl']]) ? $v['aio_tpl'] : (isset($all[$shown]) ? $shown : $v['tpl_new']);
+}
+
+// "Где искать раздачи" - the template (0.40.0, the mode Debrid) with the hint of the chosen
 // one: that of the config of Debrid of the chosen server (a template or a
 // mark), else the one for a new config (tpl_new), unless one is chosen in a
 // form back. A mark (aio_cgi_tpl_marks) is disabled, so never posted; the
@@ -340,11 +370,11 @@ function aio_cgi_tpl($v)
     $tpls = aio_cgi_tpls();
     $all = $tpls + aio_cgi_tpl_marks();
     $shown = aio_cgi_tpl_shown($v['aio_server'], $v['aio_own'], $v['confs'], $v['tpl_new']);
-    $sel = isset($tpls[$v['aio_tpl']]) ? $v['aio_tpl'] : (isset($all[$shown]) ? $shown : $v['tpl_new']);
-    $out = '<label for="' . $f['aio_tpl']['id'] . '">' . aio_cgi_l('Шаблон конфига', 'Config template') . '</label><select id="' .
+    $sel = aio_cgi_tpl_sel($v);
+    $out = '<label for="' . $f['aio_tpl']['id'] . '">' . aio_cgi_l('Где искать раздачи', 'Where to look for releases') . '</label><select id="' .
         $f['aio_tpl']['id'] . '" name="' . $f['aio_tpl']['name'] . '">';
     foreach ($all as $id => $x)
-        $out .= '<option value="' . $id . '" data-hint="' . aio_cgi_h($x[1]) . '"' .
+        $out .= '<option value="' . $id . '" data-hint="' . aio_cgi_h($x[1]) . '" data-short="' . aio_cgi_h($x[2]) . '"' .
             (isset($tpls[$id]) ? '' : ' disabled' . ($id === $sel ? '' : ' hidden')) . ($id === $sel ? ' selected' : '') . '>' .
             aio_cgi_h($x[0]) . '</option>';
     return $out . '</select><input type="hidden" id="' . $f['tpl_seen']['id'] . '" name="' . $f['tpl_seen']['name'] .
@@ -352,88 +382,120 @@ function aio_cgi_tpl($v)
         '<p class="hint" id="ath">' . aio_cgi_h($all[$sel][1]) . '</p>';
 }
 
-// "Конфиг AIOStreams - откуда Melange берёт раздачи" (0.35.2): one of two.
-// "Melange создаст конфиг": the server (of the list or another one), the
-// mode - Debrid (the template, the Debrid keys) or P2P (only a hint), the
-// TMDB key under a server without TMDB of its
-// own (another one: always), the config of the chosen server in the mode -
-// its link, login and password, "Сбросить к шаблону", or "none yet". "У меня свой конфиг": its manifest address, only
-// read. The script shows the fields of the chosen one (all without JS) and
-// the config of the chosen server and mode from #init.confs (aio_cgi_aio_confs).
-function aio_cgi_aio($v)
+// The answers of "Откуда брать фильмы" (radio watch): id of the radio => value.
+function aio_cgi_watches()
 {
-    $chk = '<button type="button" id="%s" class="chk">' . aio_cgi_l('Проверить', 'Check') . '</button><div id="%s" class="res" aria-live="polite"></div>';
+    return array('wd' => 'debrid', 'wp' => AIO_TPL_P2P, 'wo' => 'own');
+}
+
+// The answer the page shows: the own config, else the mode (aio_cgi_mode_sel).
+function aio_cgi_watch($v)
+{
+    return $v['source'] === 'own' ? 'own' : aio_cgi_mode_sel($v);
+}
+
+// The host of an address ('' - none).
+function aio_cgi_host($url)
+{
+    $h = parse_url($url, PHP_URL_HOST);
+    return is_string($h) ? $h : '';
+}
+
+// The screen "Откуда брать фильмы" (0.43.0): three cards of the radio watch
+// (aio_cgi_form), under them the fields of the answer shown by the CSS
+// (classes xd, xp, xo, xm - Debrid, Торренты, the own config, both made):
+// Debrid - the keys (#dseg, #rdadd, #tbadd: by the script) and the template;
+// Торренты - #tsp2p, where the script moves #tsbox of #torr (without it, a
+// link there); the own config - its manifest address, only read; Debrid and
+// Торренты - the server (#asd: of the list or another one) and the TMDB key
+// under a server without TMDB of its own (another one: always).
+function aio_cgi_src($v)
+{
     $f = aio_cgi_fields();
-    $sel = aio_cgi_aio_show(aio_cgi_aio_sel($v));
-    $p2p = aio_cgi_mode_sel($v) === AIO_TPL_P2P;
-    $out = '<h2 id="aioh">' . aio_cgi_l('Конфиг AIOStreams — откуда Melange берёт раздачи',
-        'AIOStreams config - where Melange gets releases') . '</h2>' .
-        aio_cgi_radio('srcm', $f['source']['name'], 'made', aio_cgi_l('Melange создаст конфиг', 'Melange creates the config'),
-        $v['source'] !== 'own') . '<div id="smade">' .
-        '<label for="' . $f['aio_server']['id'] . '">' . aio_cgi_l('Сервер AIOStreams', 'AIOStreams server') .
-        '</label><select id="' . $f['aio_server']['id'] . '" name="' . $f['aio_server']['name'] . '">';
+    $out = '<div class="choice">' . aio_cgi_card('wd', 'Debrid', aio_cgi_l('Real-Debrid или TorBox. Быстро, платная подписка.',
+        'Real-Debrid or TorBox. Fast, a paid subscription.')) . aio_cgi_card('wp', aio_cgi_mode_p2p(),
+        aio_cgi_l('Бесплатно, через TorrServer на Дюне.', 'Free, via TorrServer on the Dune.')) .
+        aio_cgi_card('wo', aio_cgi_l('Свой конфиг AIOStreams', 'Own AIOStreams config'),
+        aio_cgi_l('Если он у вас уже настроен.', 'If you already have one set up.')) . '</div>' .
+        '<div id="mdeb" class="xd"><div id="dseg" class="seg" role="group" aria-label="' . aio_cgi_l('Сервис', 'Service') .
+        '" hidden><button type="button" data-k="rd" aria-pressed="true">Real-Debrid</button>' .
+        '<button type="button" data-k="tb" aria-pressed="false">TorBox</button></div><div id="rdbox">' .
+        aio_cgi_input($f['rd'], aio_cgi_l('Ключ Real-Debrid', 'Real-Debrid key'), $v['rd'], aio_cgi_l('Где взять: ', 'Get it at ') .
+            aio_cgi_link('https://real-debrid.com/apitoken', 'real-debrid.com/apitoken'), aio_cgi_chk('rdb', 'rdr')) .
+        '</div><button type="button" id="tbadd" class="lnk" hidden>' . aio_cgi_l('+ Добавить TorBox', '+ Add TorBox') .
+        '</button><div id="tbbox">' .
+        aio_cgi_input($f['tb'], aio_cgi_l('Ключ TorBox', 'TorBox key'), $v['tb'], aio_cgi_l('Где взять: ', 'Get it at ') .
+            aio_cgi_link('https://torbox.app/settings', 'torbox.app/settings'), aio_cgi_chk('tbb', 'tbr')) .
+        '</div><button type="button" id="rdadd" class="lnk" hidden>' . aio_cgi_l('+ Добавить Real-Debrid', '+ Add Real-Debrid') .
+        '</button>' . aio_cgi_tpl($v) . '</div>' .
+        '<div id="mp2p" class="xp"><p class="hint">' . aio_cgi_l('Ключ не нужен: фильмы качаются с раздачи и играют через TorrServer.',
+        'No key needed: films are fetched from the swarm and play via TorrServer.') . '</p><div id="tsp2p"></div>' .
+        '<p class="hint" id="tslink"><a href="#torr">' . aio_cgi_l('Адрес TorrServer и проверка ›', 'TorrServer address and check ›') .
+        '</a></p></div>' .
+        '<div id="sown" class="xo">' . aio_cgi_input($f['manifest'], aio_cgi_l('Ссылка на конфиг', 'Config link'), $v['manifest'],
+        aio_cgi_l('Где взять: Save & Install → Stremio → Direct Manifest URL.',
+        'Get it at: Save & Install → Stremio → Direct Manifest URL.'), aio_cgi_chk('mb', 'mr')) .
+        '<p class="hint">' . aio_cgi_l('Melange этот конфиг не меняет.', 'Melange does not change this config.') .
+        '</p><p class="hint">' . aio_cgi_l('Торренты из него играют через ', 'Torrents of it play via ') .
+        '<a href="#torr">TorrServer</a>.</p></div>';
     $jr403 = aio_cgi_jr403();
+    $opts = '';
+    $name = '';
     foreach (aio_aio_servers() as $url => $tmdb)
-        $out .= '<option value="' . aio_cgi_h($url) . '" data-tmdb="' . ($tmdb ? '1' : '0') . '"' .
+    {
+        $host = substr($url, strlen('https://'));
+        if ($v['aio_server'] === $url)
+            $name = $host;
+        $opts .= '<option value="' . aio_cgi_h($url) . '" data-tmdb="' . ($tmdb ? '1' : '0') . '"' .
             (isset($jr403[$url]) ? ' data-jr403="' . aio_cgi_h($jr403[$url]) . '"' : '') .
             (in_array($url, aio_conf_p2p_torznab(), true) ? ' data-p2ptz="1"' : '') .
             ($v['aio_server'] === $url ? ' selected' : '') . '>' .
-            aio_cgi_h(substr($url, strlen('https://'))) . ($tmdb ? '' : aio_cgi_l(' — без TMDB', ' - no TMDB')) . '</option>';
-    $out .= '<option value="own" data-tmdb="0"' .
-        ($v['aio_server'] === 'own' ? ' selected' : '') . '>' . aio_cgi_l('Другой сервер…', 'Another server…') .
+            aio_cgi_h($host) . ($tmdb ? '' : aio_cgi_l(' — без TMDB', ' - no TMDB')) . '</option>';
+    }
+    $own = $v['aio_server'] === 'own';
+    if ($own)
+        $name = aio_cgi_host($v['aio_own']) !== '' ? aio_cgi_host($v['aio_own']) : aio_cgi_l('другой', 'another one');
+    return $out . '<div id="smade" class="xm"><details id="asd"' . ($own ? ' open' : '') . '><summary>' .
+        aio_cgi_l('Сервер: ', 'Server: ') . '<span id="asn">' . aio_cgi_h($name) . '</span> · <span class="lnk">' .
+        aio_cgi_l('Сменить', 'Change') . '</span></summary>' .
+        '<label for="' . $f['aio_server']['id'] . '">' . aio_cgi_l('Сервер AIOStreams', 'AIOStreams server') .
+        '</label><select id="' . $f['aio_server']['id'] . '" name="' . $f['aio_server']['name'] . '">' . $opts .
+        '<option value="own" data-tmdb="0"' . ($own ? ' selected' : '') . '>' . aio_cgi_l('Другой сервер…', 'Another server…') .
         '</option></select><div id="aobox">' . aio_cgi_input($f['aio_own'], aio_cgi_l('Адрес сервера AIOStreams',
-        'AIOStreams server address'), $v['aio_own'], 'http://192.168.1.10:3000') .
-        '<button type="button" id="aob" class="chk">' . aio_cgi_l('Проверить', 'Check') .
-        '</button><div id="aor" class="res" aria-live="polite"></div></div>' .
-        // The mode (aio_mode, one for all servers): a config of each on a server. A group named by its heading (a
-        // label of one radio would choose it on a tap).
-        '<div role="radiogroup" aria-labelledby="amdl"><div id="amdl" class="lbl">' . aio_cgi_l('Режим', 'Mode') . '</div>' .
-        aio_cgi_radio('amd', $f['aio_mode']['name'], 'debrid', 'Debrid', !$p2p) .
-        aio_cgi_radio('amp', $f['aio_mode']['name'], AIO_TPL_P2P, aio_cgi_mode_p2p(), $p2p) . '</div>' .
-        '<div id="mdeb"><p class="hint">' .
-        aio_cgi_l('Нужен ключ Real-Debrid или TorBox.', 'A Real-Debrid or TorBox key is needed.') . '</p><p class="hint">' .
-        aio_cgi_l('Раздачи ищут JacRed (раздел ниже) и другие аддоны, смотрятся через Debrid.',
-        'JacRed (below) and other addons find releases; they play via Debrid.') . '</p>' .
-        aio_cgi_tpl($v) .
-        aio_cgi_input($f['rd'], aio_cgi_l('Ключ Real-Debrid (нужен хотя бы один)', 'Real-Debrid key (at least one is needed)'),
-            $v['rd'], aio_cgi_l('Где взять: ', 'Get it at ') .
-            aio_cgi_link('https://real-debrid.com/apitoken', 'real-debrid.com/apitoken')) .
-        sprintf($chk, 'rdb', 'rdr') .
-        aio_cgi_input($f['tb'], aio_cgi_l('Ключ TorBox (нужен хотя бы один)', 'TorBox key (at least one is needed)'),
-            $v['tb'], aio_cgi_l('Где взять: ', 'Get it at ') .
-            aio_cgi_link('https://torbox.app/settings', 'torbox.app/settings')) .
-        sprintf($chk, 'tbb', 'tbr') . '</div><div id="mp2p"><p class="hint">' .
-        aio_cgi_l('Ключ Debrid не нужен: раздачи играют через TorrServer на Дюне (раздел ниже).',
-        'No Debrid key is needed: releases play via TorrServer on the Dune (see below).') . '</p><p class="hint">' .
-        aio_cgi_l('Раздачи ищут Torrentio, JacRed и другие аддоны.', 'Torrentio, JacRed and other addons find releases.') .
-        '</p></div>';
-    $out .= '<div id="tmbox"><p class="hint" id="tmnote">' .
+        'AIOStreams server address'), $v['aio_own'], 'http://192.168.1.10:3000', aio_cgi_chk('aob', 'aor')) . '</div></details>' .
+        '<div id="tmbox"><p class="hint" id="tmnote">' .
         aio_cgi_l('Без своего TMDB: без сверки названий, меньше раздач сериалов.',
         'The server has no TMDB of its own: titles are not matched, fewer series releases.') . '</p>' .
         aio_cgi_input($f['tmdb'], aio_cgi_l('Ключ TMDB (необязательно)', 'TMDB key (optional)'), $v['tmdb'],
         aio_cgi_link('https://www.themoviedb.org/settings/api', 'themoviedb.org') .
-        aio_cgi_l(' → Settings → API, ключ v3', ' → Settings → API, the v3 key')) . sprintf($chk, 'tmb', 'tmr') . '</div>' .
-        '<div id="acfg"><p class="hint" id="anone"' . ($sel ? ' hidden' : '') . '>' .
+        aio_cgi_l(' → Settings → API, ключ v3', ' → Settings → API, the v3 key'), aio_cgi_chk('tmb', 'tmr')) . '</div></div>';
+}
+
+// The screen "Конфиг в AIOStreams" (Debrid and Торренты, #acfg): the config
+// of the chosen server in the mode - its link, login and password, "Сбросить
+// к шаблону" - or "none yet"; the script shows the one of the chosen server
+// and mode from #init.confs (aio_cgi_aio_confs).
+function aio_cgi_cfg($v)
+{
+    $sel = aio_cgi_aio_show(aio_cgi_aio_sel($v));
+    return '<p class="sub">' . aio_cgi_l('Для опытных: аддоны и фильтры — в веб-настройках AIOStreams.',
+        'For the experienced: addons and filters are in the AIOStreams web settings.') . '</p>' .
+        '<p class="hint xo" id="cfgown">' . aio_cgi_l('Свой конфиг Melange не меняет.', 'Melange does not change your own config.') .
+        '</p><div id="acfg" class="xm"><p class="hint" id="anone"' . ($sel ? ' hidden' : '') . '>' .
         aio_cgi_l('Конфига на этом сервере ещё нет: создастся при сохранении.',
         'No config on this server yet: saving will create one.') . '</p>' .
-        '<div id="ahave"' . ($sel ? '' : ' hidden') . '><p class="cfg"><a id="alink"' . ($sel ? ' href="' .
+        '<div id="ahave"' . ($sel ? '' : ' hidden') . '><p class="cfg"><a id="alink" class="btn ghost"' . ($sel ? ' href="' .
         aio_cgi_h($sel['cfg']) . '"' : '') . ' target="_blank" rel="noreferrer">' .
         aio_cgi_l('Открыть настройки AIOStreams', 'Open the AIOStreams settings') .
         '</a></p>' . aio_cgi_plain('al', '', aio_cgi_l('Логин', 'Login'), $sel ? $sel['login'] : '', '', 36) .
         aio_cgi_field('ap', '', aio_cgi_l('Пароль', 'Password'), $sel ? $sel['pass'] : '', aio_cgi_l(
         'Вход в настройки AIOStreams — по этому логину и паролю.', 'Log in to the AIOStreams settings with this login and password.'),
-        24) . '<button type="button" id="apc" class="chk">' . aio_cgi_l('Копировать', 'Copy') . '</button><div id="apr" class="res" aria-live="polite"></div>' .
+        24, aio_cgi_chk('apc', 'apr', aio_cgi_l('Копировать', 'Copy'))) .
         // A submit without the script: the save, then the reset (0.40.0).
-        '<button type="submit" id="arb" class="chk" name="aio_reset" value="1">' .
-        aio_cgi_l('Сбросить к шаблону', 'Reset to the template') . '</button></div></div></div>';
-    return $out . aio_cgi_radio('srco', $f['source']['name'], 'own', aio_cgi_l('У меня свой конфиг AIOStreams',
-        'I have my own AIOStreams config'), $v['source'] === 'own') . '<div id="sown">' .
-        aio_cgi_input($f['manifest'], aio_cgi_l('Ссылка на конфиг', 'Config link'), $v['manifest'],
-        aio_cgi_l('Где взять: Save & Install → Stremio → Direct Manifest URL.',
-        'Get it at: Save & Install → Stremio → Direct Manifest URL.')) . sprintf($chk, 'mb', 'mr') .
-        '<p class="hint">' . aio_cgi_l('Melange этот конфиг не меняет.', 'Melange does not change this config.') .
-        '</p><p class="hint">' . aio_cgi_l('Без Debrid (раздачи P2P) нужен TorrServer — раздел ниже.',
-        'Without Debrid (P2P releases) TorrServer is needed: see below.') . '</p></div>';
+        '<button type="submit" id="arb" class="btn danger" name="aio_reset" value="1">' .
+        aio_cgi_l('Сбросить к шаблону', 'Reset to the template') . '</button><p class="hint">' .
+        aio_cgi_l('Ваши правки в AIOStreams пропадут; логин, пароль и ссылка останутся.',
+        'Your edits in AIOStreams are lost; the login, password and link stay.') . '</p></div></div>';
 }
 
 // The style of the page: cgi/settings.css inline (none readable: the page without it).
@@ -487,10 +549,14 @@ function aio_cgi_js($v)
             'A broken character in the field: delete it and type it again'),
         'httpError' => aio_cgi_l('Ошибка Дюны (HTTP %d), попробуйте ещё раз', 'Dune error (HTTP %d), try again'),
         'jacredFormat' => aio_cgi_fmt_jacred(), 'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'),
-        'colName' => 'JacRed', 'colAvailable' => aio_cgi_l('доступен', 'available'),
-        'colTime' => aio_cgi_l('время', 'time'), 'releases' => aio_cgi_l('раздач', 'releases'),
-        'choose' => aio_cgi_l('Выбрать', 'Choose'), 'yes' => aio_cgi_l('да', 'yes'),
-        'no' => aio_cgi_l('нет', 'no'), 'seconds' => aio_cgi_l('с', 's'), 'stopped' => aio_cgi_l('прервано', 'stopped'));
+        'releases' => aio_cgi_l('раздач', 'releases'), 'noAnswer' => aio_cgi_l('нет ответа', 'no answer'),
+        'yes' => aio_cgi_l('да', 'yes'),
+        'no' => aio_cgi_l('нет', 'no'), 'seconds' => aio_cgi_l('с', 's'), 'stopped' => aio_cgi_l('прервано', 'stopped'),
+        // The lines of the main screen (aio_cgi_rows).
+        'watchOwn' => aio_cgi_l('Свой конфиг AIOStreams', 'Own AIOStreams config'),
+        'needKey' => aio_cgi_l('нужен ключ', 'a key is needed'), 'needLink' => aio_cgi_l('нужна ссылка', 'a link is needed'),
+        'viaTs' => aio_cgi_l('через TorrServer', 'via TorrServer'), 'tsDune' => aio_cgi_l('Приложение на Дюне', 'The app on the Dune'),
+        'tsSpare' => aio_cgi_l('запасной путь', 'fallback'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'));
     $js = dirname(dirname(__FILE__)) . '/settings.js';
     $js = is_readable($js) ? file_get_contents($js) : false;
     if (!is_string($js))
@@ -532,6 +598,15 @@ function aio_cgi_posted()
     foreach ($f as $k => $x)
         $v[$k] = $k === 'jo_url' || $k === 'jo_key' ? aio_cgi_param($_POST, $x['name']) :
             trim(aio_cgi_param($_POST, $x['name']), AIO_TRIM);
+    // The answer of 0.43.0 (watch): the source and the mode by it; the own
+    // config keeps the stored mode. None (a form of 0.42 or older) or another
+    // one (an error, aio_cgi_check_values): source and aio_mode as posted.
+    $w = array_search($v['watch'], aio_cgi_watches(), true);
+    if ($w !== false)
+    {
+        $v['source'] = $w === 'wo' ? 'own' : 'made';
+        $v['aio_mode'] = $w === 'wo' ? '' : $v['watch'];
+    }
     // A form without the source: 0.35.1 chose the own config by aio_server
     // "manifest", 0.35.0 and older (no aio_own_url) by the manifest address
     // alone, as aio_settings_read.
@@ -569,9 +644,14 @@ function aio_cgi_check_values($v)
     $made = $v['source'] === 'made';
     // No field (a form of 0.42 or older), or a wrong one of the own config: the stored one.
     $mode = in_array($v['aio_mode'], aio_aio_modes(), true) ? $v['aio_mode'] : $v['cur']['aio_mode'];
-    if ($made && $v['aio_mode'] !== '' && $mode !== $v['aio_mode'])
+    if ($v['watch'] !== '' && !in_array($v['watch'], aio_cgi_watches(), true))
     {
-        $errors[] = aio_cgi_err(aio_cgi_l('Режим: нет такого режима', 'Mode: no such mode'), $f['aio_mode']['name']);
+        $errors[] = aio_cgi_err(aio_cgi_l('Откуда брать фильмы: нет такого ответа', 'Where to get films: no such answer'),
+            $f['watch']['name']);
+    }
+    elseif ($made && $v['aio_mode'] !== '' && $mode !== $v['aio_mode'])
+    {
+        $errors[] = aio_cgi_err(aio_cgi_l('Режим: нет такого режима', 'Mode: no such mode'), $f['watch']['name']);
     }
     // The keys of settings.json: only by aio_cgi_fields().
     $set = array();
@@ -610,8 +690,8 @@ function aio_cgi_check_values($v)
     // The fields of both sources are kept; those of the chosen one must be there.
     if (!$made && $v['manifest'] === '')
     {
-        $errors[] = aio_cgi_err(aio_cgi_l('Укажите ссылку на конфиг — или выберите «Melange создаст конфиг»',
-            'Enter the config link, or choose "Melange creates the config"'), $f['manifest']['name']);
+        $errors[] = aio_cgi_err(aio_cgi_l('Укажите ссылку на конфиг — или выберите Debrid или «Торренты»',
+            'Enter the config link, or choose Debrid or "Torrents"'), $f['manifest']['name']);
     }
     $d[$set['aio_own']] = aio_aio_own($v['aio_own']);
     // Hidden unless another server is chosen to make the config on.
@@ -666,14 +746,14 @@ function aio_cgi_check_values($v)
     if ($made && $mode === 'debrid' && $base !== '' && !isset($v['confs'][$base]['debrid']) && $d[$set['rd']] === '' &&
         $d[$set['tb']] === '' && $v['rd'] . $v['tb'] === '')
     {
-        $errors[] = aio_cgi_err(aio_cgi_l('Для режима Debrid нужен ключ Real-Debrid или TorBox; без ключа выберите режим P2P',
-            'Debrid mode needs a Real-Debrid or TorBox key; without one, choose P2P mode'), $f['rd']['name']);
+        $errors[] = aio_cgi_err(aio_cgi_l('Для Debrid нужен ключ Real-Debrid или TorBox; без ключа выберите «Торренты»',
+            'Debrid needs a Real-Debrid or TorBox key; without one, choose "Torrents"'), $f['rd']['name']);
     }
     // P2P: the own JacRed goes to Magnetio in one path segment "k=v|k=v".
     if ($made && $mode === AIO_TPL_P2P && $d[$set['jacred']] === 'own' && strpos($d[$set['jo_key']], '|') !== false)
     {
-        $errors[] = aio_cgi_err(aio_cgi_l('Свой JacRed: в режиме P2P ключ — без символа |',
-            'Own JacRed: in P2P mode, the key must not contain |'), $f['jo_key']['name']);
+        $errors[] = aio_cgi_err(aio_cgi_l('Свой JacRed: в режиме «Торренты» ключ — без символа |',
+            'Own JacRed: with "Torrents", the key must not contain |'), $f['jo_key']['name']);
     }
     $d[$set['tmdb']] = aio_key_ok('tmdb', $v['tmdb']);
     // Hidden: the own config, or a server with TMDB of its own.
@@ -721,46 +801,201 @@ function aio_cgi_saved()
     return aio_cgi_l('Сохранено. Дюна подхватит настройки сама.', 'Saved. The Dune picks up the settings automatically.');
 }
 
-// $v: aio_cgi_values() or aio_cgi_posted(); $errors: of aio_cgi_err().
+// The screens of the page (0.43.0): id => title; the main one is #home.
+function aio_cgi_screens()
+{
+    return array('src' => aio_cgi_l('Откуда брать фильмы', 'Where to get films'),
+        'voices' => aio_cgi_l('Озвучки и дорожки', 'Voice-overs and tracks'), 'torr' => 'TorrServer',
+        'dl' => aio_cgi_l('Скачивать на свой сервер', 'Download to your server'),
+        'cfg' => aio_cgi_l('Конфиг в AIOStreams', 'Config in AIOStreams'), 'log' => aio_cgi_l('Лог', 'Log'));
+}
+
+// The screen of the field name= $field of an error (aio_cgi_err): '' - none.
+function aio_cgi_err_screen($field)
+{
+    if ($field === null)
+        return '';
+    if (preg_match('/^s[0-9]+_/', $field))
+        return 'dl';
+    $f = aio_cgi_fields();
+    if (in_array($field, array($f['jacred']['name'], $f['jo_url']['name'], $f['jo_key']['name']), true))
+        return 'voices';
+    return $field === $f['ts']['name'] ? 'torr' : 'src';
+}
+
+// The state of the main screen by the values (no request): key - Debrid
+// without a key, conf - Debrid or Торренты without a config on the chosen
+// server in that mode, man - the own config without its link, ok.
+function aio_cgi_state($v)
+{
+    $w = aio_cgi_watch($v);
+    if ($w === 'own')
+        return $v['manifest'] === '' ? 'man' : 'ok';
+    if ($w === 'debrid' && $v['rd'] . $v['tb'] === '')
+        return 'key';
+    return aio_cgi_aio_sel($v) ? 'ok' : 'conf';
+}
+
+// The lines of the main screen: id of the screen => array(dot: ok, warn or
+// '' - grey, the value now).
+function aio_cgi_rows($v)
+{
+    $w = aio_cgi_watch($v);
+    $st = aio_cgi_state($v);
+    $dot = $st === 'ok' ? 'ok' : 'warn';
+    if ($w === 'own')
+        $src = aio_cgi_l('Свой конфиг AIOStreams', 'Own AIOStreams config') . ($v['manifest'] === '' ? ' · ' .
+            aio_cgi_l('нужна ссылка', 'a link is needed') : '');
+    elseif ($w === AIO_TPL_P2P)
+        $src = aio_cgi_mode_p2p() . ' · ' . aio_cgi_l('через TorrServer', 'via TorrServer');
+    else
+    {
+        $keys = array();
+        if ($v['rd'] !== '')
+            $keys[] = 'Real-Debrid';
+        if ($v['tb'] !== '')
+            $keys[] = 'TorBox';
+        $all = aio_cgi_tpls() + aio_cgi_tpl_marks();
+        $tpl = aio_cgi_tpl_sel($v);
+        $src = 'Debrid · ' . ($keys ? implode(' + ', $keys) : aio_cgi_l('нужен ключ', 'a key is needed')) .
+            (isset($all[$tpl]) ? ' · ' . $all[$tpl][2] : '');
+    }
+    $jr = $v['jacred'] !== 'own' ? $v['jacred'] : aio_cgi_host($v['jo_url']);
+    $names = array();
+    foreach ($v['servers'] as $x)
+    {
+        $n = isset($x['name']) && is_string($x['name']) ? trim($x['name'], AIO_TRIM) : '';
+        $u = isset($x['url']) && is_string($x['url']) ? trim($x['url'], AIO_TRIM) : '';
+        if ($n . $u !== '')
+            $names[] = $n !== '' ? $n : $u;
+    }
+    return array('src' => array($dot, $src),
+        'voices' => array($jr === '' ? 'warn' : 'ok', $jr !== '' ? $jr : aio_cgi_l('Свой JacRed', 'Own JacRed')),
+        'torr' => array($w === AIO_TPL_P2P ? 'ok' : '', ($v['ts'] !== '' ? $v['ts'] : aio_cgi_l('Приложение на Дюне',
+            'The app on the Dune')) . ($w === 'debrid' ? ' · ' . aio_cgi_l('запасной путь', 'fallback') : '')),
+        'dl' => array($names ? 'ok' : '', $names ? implode(', ', $names) : aio_cgi_l('Не настроено', 'Not set up')),
+        'cfg' => array('', aio_cgi_l('Для опытных: вход, сброс', 'For the experienced: login, reset')),
+        'log' => array('', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));
+}
+
+// The main screen (#home): the first run (no saved_at: $v['first']) - the
+// question of #src by its cards and "Начать"; else the state (#state, its
+// data-st: aio_cgi_state, one <p data-st> shown); then the lines of the
+// screens (#r<id>: the dot #d<id>, the value #v<id>; the line of #cfg -
+// class xm: not for the own config).
+function aio_cgi_home($v)
+{
+    $scr = aio_cgi_screens();
+    $out = '<h1>Melange</h1><p class="sub">' . aio_cgi_l('Настройки на Дюне', 'Settings on the Dune') . '</p>';
+    if (isset($v['first']) && $v['first'])
+        $out .= '<div id="first"><h2>' . $scr['src'] . '</h2><p class="sub">' . aio_cgi_l('Можно поменять потом',
+            'You can change it later') . '</p><div class="choice">' .
+            aio_cgi_card('wd', 'Debrid', aio_cgi_l('Real-Debrid или TorBox. Быстро, платная подписка.',
+            'Real-Debrid or TorBox. Fast, a paid subscription.')) . aio_cgi_card('wp', aio_cgi_mode_p2p(),
+            aio_cgi_l('Бесплатно, через TorrServer на Дюне.', 'Free, via TorrServer on the Dune.')) .
+            aio_cgi_card('wo', aio_cgi_l('Свой конфиг AIOStreams', 'Own AIOStreams config'),
+            aio_cgi_l('Если он у вас уже настроен.', 'If you already have one set up.')) . '</div>' .
+            '<a id="start" class="btn" href="#src">' . aio_cgi_l('Начать', 'Start') . '</a></div>';
+    else
+    {
+        $st = aio_cgi_state($v);
+        $txt = array('key' => aio_cgi_l('<b>Нужен ключ Debrid.</b> Введите его в «Откуда брать фильмы».',
+            '<b>A Debrid key is needed.</b> Enter it in "Where to get films".'),
+            'conf' => aio_cgi_l('<b>Конфиг ещё не создан</b> — нажмите «Сохранить».', '<b>No config yet</b>: press "Save".'),
+            'man' => aio_cgi_l('<b>Нужна ссылка на свой конфиг.</b> Вставьте её в «Откуда брать фильмы».',
+            '<b>Your config link is needed.</b> Paste it in "Where to get films".'),
+            'ok' => aio_cgi_l('<b>Всё готово к просмотру.</b> На Дюне: фильм → Смотреть… → Melange.',
+            '<b>All set to watch.</b> On the Dune: a film → Play... → Melange.'));
+        $out .= '<div id="state" class="state ' . ($st === 'ok' ? 'ok' : 'warn') . '" data-st="' . $st .
+            '"><span class="dot"></span><div>';
+        foreach ($txt as $k => $x)
+            $out .= '<p data-st="' . $k . '"' . ($k === $st ? '' : ' hidden') . '>' . $x . '</p>';
+        $out .= '</div></div>';
+    }
+    $rows = aio_cgi_rows($v);
+    $groups = array(aio_cgi_l('Просмотр', 'Watching') => array('src', 'voices', 'torr'),
+        aio_cgi_l('Ещё', 'More') => array('dl', 'cfg', 'log'));
+    foreach ($groups as $h => $ids)
+    {
+        $out .= '<h3 class="gh">' . $h . '</h3><div class="list">';
+        foreach ($ids as $id)
+            $out .= '<a class="row' . ($id === 'cfg' ? ' xm' : '') . '" id="r' . $id . '" href="#' . $id . '"><span class="dot' .
+                ($rows[$id][0] !== '' ? ' ' . $rows[$id][0] : '') . '" id="d' . $id . '"></span><span class="rt"><span class="t">' .
+                $scr[$id] . '</span><span class="v" id="v' . $id . '">' . aio_cgi_h($rows[$id][1]) .
+                '</span></span><span class="chev">›</span></a>';
+        $out .= '</div>';
+    }
+    return $out;
+}
+
+// A screen of the page: shown by :target (the CSS), back to #home.
+function aio_cgi_screen($id, $body)
+{
+    $scr = aio_cgi_screens();
+    return '<section id="' . $id . '" class="scr"><a class="back" href="#home">' . aio_cgi_l('‹ Настройки', '‹ Settings') .
+        '</a><h2>' . $scr[$id] . '</h2>' . $body . '</section>';
+}
+
+// $v: aio_cgi_values() or aio_cgi_posted() (first: no saved_at yet,
+// aio_cgi_first); $errors: of aio_cgi_err().
+// The page (0.43.0): the radios of watch, then the screens, #home last -
+// the CSS shows the one of the address (#src...), else #home, and the
+// fields of the answer chosen (without the script too); the bar of the
+// save under them (#bar: the script shows it on a change, #dirty - their
+// number). Errors without the script: in #msg, each with a link to the
+// screen of its field, the field aria-invalid.
 function aio_cgi_form($t, $v, $errors, $saved)
 {
+    $scr = aio_cgi_screens();
     $msg = '';
     foreach ($errors as $e)
-        $msg .= '<p class="err">' . aio_cgi_h($e['msg']) . '</p>';
+    {
+        $to = aio_cgi_err_screen($e['field']);
+        $msg .= '<p class="err">' . aio_cgi_h($e['msg']) . ($to !== '' ? ' <a href="#' . $to . '">' . $scr[$to] . ' ›</a>' : '') .
+            '</p>';
+    }
     if ($saved)
         $msg .= '<p class="ok">' . aio_cgi_saved() . '</p>';
-    $chk = '<button type="button" id="%s" class="chk">' . aio_cgi_l('Проверить', 'Check') . '</button><div id="%s" class="res" aria-live="polite"></div>';
     $title = aio_cgi_l('Melange — настройки', 'Melange settings');
     $f = aio_cgi_fields();
-    // The sections; Advanced by the heading inside it: a browser opens the closed details on the way to it
-    // (newer ones; the script opens it too).
-    $toc = '<nav class="toc" aria-label="' . aio_cgi_l('Разделы', 'Sections') . '"><a href="#aioh">AIOStreams</a>' .
-        '<a href="#jrh">JacRed</a><a href="#tsh">TorrServer</a><a href="#srvh" id="tocadv">' .
-        aio_cgi_l('Дополнительно', 'Advanced') . '</a></nav>';
-    $body = '<h1>' . $title . '</h1>' . $toc . '<div id="msg" aria-live="polite">' . $msg . '</div>' .
-        '<form method="post" action="settings?t=' . aio_cgi_h($t) . '" autocomplete="off">' .
+    $w = aio_cgi_watch($v);
+    $radios = '';
+    foreach (aio_cgi_watches() as $id => $x)
+        $radios .= aio_cgi_vradio($id, $f['watch']['name'], $x, $w === $x);
+    $form = '<form method="post" action="settings?t=' . aio_cgi_h($t) . '" autocomplete="off">' .
         // Enter in a field without the script submits the first button: the save, not the reset.
-        '<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>' .
-        aio_cgi_aio($v) .
-        aio_cgi_jacred($v) .
-        '<h2 id="tsh">' . aio_cgi_l('Смотреть через TorrServer', 'Watch via TorrServer') . '</h2>' .
-        aio_cgi_input($f['ts'], aio_cgi_l('Адрес TorrServer (необязательно)', 'TorrServer address (optional)'),
-            $v['ts'], '127.0.0.1:8090') .
-        '<p class="hint">' . aio_cgi_l('Пусто — приложение TorrServe на Дюне; свой — http://хост:порт',
-            'Empty - the TorrServe app on the Dune; your own - http://host:port') . '</p>' .
-        '<p class="hint" id="tsown"' . ($v['source'] === 'own' ? '' : ' hidden') . '>' .
-        aio_cgi_l('Раздачи P2P из вашего конфига играют через TorrServer',
-        'P2P releases from your config play via TorrServer') . '</p>' .
-        sprintf($chk, 'tsb', 'tsr') .
-        '<details id="adv"><summary>' . aio_cgi_l('Дополнительно', 'Advanced') . '</summary>' .
-        aio_cgi_servers($v['servers']) . '</details>' .
-        '<div id="sr" class="res" aria-live="polite"></div><button type="submit" class="save">' . ($v['source'] !== 'own' && !aio_cgi_aio_sel($v) &&
-        ($v['rd'] . $v['tb'] !== '' || aio_cgi_mode_sel($v) === AIO_TPL_P2P) ? aio_cgi_savec() : aio_cgi_l('Сохранить', 'Save')) . '</button></form>' .
-        '<p class="log"><a href="settings?t=' . aio_cgi_h($t) . '&amp;a=log">' . aio_cgi_l('Скачать лог', 'Download the log') .
-        '</a></p><p class="hint">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты.',
-        'Since the Dune was last switched on; addresses and keys hidden.') . '</p>';
+        '<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>' . $radios .
+        aio_cgi_screen('src', aio_cgi_src($v)) .
+        aio_cgi_screen('voices', aio_cgi_jacred($v)) .
+        aio_cgi_screen('torr', '<p class="sub xd">' . aio_cgi_l('Запасной путь для раздач не из кэша Debrid.',
+            'A fallback for releases not cached in Debrid.') . '</p><p class="sub xp">' .
+            aio_cgi_l('С ответом «Торренты» без него не посмотреть.', 'With "Torrents" nothing plays without it.') . '</p>' .
+            '<p class="sub xo" id="tsown">' . aio_cgi_l('Торренты из вашего конфига играют через TorrServer.',
+            'Torrents of your config play via TorrServer.') . '</p>' .
+            '<p class="hint" id="tsmoved" hidden><a href="#src">' . aio_cgi_l('Адрес — на экране «Откуда брать фильмы» ›',
+            'The address is on the screen "Where to get films" ›') . '</a></p><div id="tsbox">' .
+            aio_cgi_input($f['ts'], aio_cgi_l('Адрес TorrServer', 'TorrServer address'), $v['ts'],
+                aio_cgi_l('Приложение на этой Дюне', 'The app on this Dune'), aio_cgi_chk('tsb', 'tsr')) .
+            '<p class="hint">' . aio_cgi_l('Пусто — приложение TorrServe на Дюне; свой — http://хост:порт',
+            'Empty - the TorrServe app on the Dune; your own - http://host:port') . '</p></div>') .
+        aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
+            'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
+        aio_cgi_screen('cfg', aio_cgi_cfg($v)) .
+        aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
+            'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .
+            '<a class="btn" href="settings?t=' . aio_cgi_h($t) . '&amp;a=log">' . aio_cgi_l('Скачать лог', 'Download the log') . '</a>') .
+        '<section id="home" class="scr">' . aio_cgi_home($v) . '</section>' .
+        '<div id="bar"><div id="sr" class="res" aria-live="polite"></div><div class="barrow"><span id="dirty"></span>' .
+        '<button type="submit" id="save" class="save">' . ($v['source'] !== 'own' && !aio_cgi_aio_sel($v) &&
+        ($v['rd'] . $v['tb'] !== '' || aio_cgi_mode_sel($v) === AIO_TPL_P2P) ? aio_cgi_savec() : aio_cgi_l('Сохранить', 'Save')) .
+        '</button></div></div></form>';
+    // The fields of the errors marked (a radio of watch or jacred: each one).
+    foreach ($errors as $e)
+        if ($e['field'] !== null)
+            $form = str_replace(' name="' . $e['field'] . '"', ' name="' . $e['field'] . '" aria-invalid="true"', $form);
     return '<!DOCTYPE html><html lang="' . aio_cgi_l('ru', 'en') . '"><head><meta charset="utf-8">' .
         '<meta name="viewport" content="width=device-width, initial-scale=1">' .
+        '<meta name="color-scheme" content="light dark">' .
         '<meta name="referrer" content="no-referrer"><title>' . $title . '</title>' . aio_cgi_css() . '</head><body><main>' .
-        $body . '</main>' . aio_cgi_js($v) . '</body></html>';
+        '<div id="msg" aria-live="polite">' . $msg . '</div>' . $form . '</main>' . aio_cgi_js($v) . '</body></html>';
 }
