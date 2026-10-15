@@ -104,11 +104,12 @@ function aio_cgi_plain($id, $name, $label, $value, $placeholder, $max = 300, $ch
         'maxlength="' . $max . '">' . $chk[0] . '</div>' . $chk[1];
 }
 
-// A radio hidden (a card of aio_cgi_card shows it): its label goes elsewhere.
-function aio_cgi_vradio($id, $name, $value, $on, $attr = '')
+// A radio hidden (a card of aio_cgi_card shows it): its label goes elsewhere;
+// $cls: more classes.
+function aio_cgi_vradio($id, $name, $value, $on, $cls = '', $attr = '')
 {
-    return '<input type="radio" class="vh" id="' . $id . '" name="' . $name . '" value="' . aio_cgi_h($value) . '"' . $attr .
-        ($on ? ' checked' : '') . '>';
+    return '<input type="radio" class="vh' . ($cls !== '' ? " $cls" : '') . '" id="' . $id . '" name="' . $name . '" value="' .
+        aio_cgi_h($value) . '"' . $attr . ($on ? ' checked' : '') . '>';
 }
 
 // The card of a choice: the label of the radio $for (aio_cgi_vradio), a title,
@@ -196,8 +197,8 @@ function aio_cgi_jacred($v)
     foreach (array_keys(aio_jacred_builtin()) as $id)
     {
         $i++;
-        $out .= aio_cgi_vradio("jrb$i", $f['jacred']['name'], $id, $v['jacred'] === $id,
-            ' class="jrb" data-id="' . aio_cgi_h($id) . '"') . aio_cgi_card("jrb$i", aio_cgi_h($id) .
+        $out .= aio_cgi_vradio("jrb$i", $f['jacred']['name'], $id, $v['jacred'] === $id, 'jrb',
+            ' data-id="' . aio_cgi_h($id) . '"') . aio_cgi_card("jrb$i", aio_cgi_h($id) .
             ($id === AIO_JACRED_DEFAULT ? '<span class="badge">' . aio_cgi_l('у Melange', 'of Melange') . '</span>' : ''), '',
             '<span class="ms" data-jr="' . aio_cgi_h($id) . '"></span>');
     }
