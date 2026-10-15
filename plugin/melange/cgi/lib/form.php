@@ -451,9 +451,9 @@ function aio_cgi_src($v)
     $own = $v['aio_server'] === 'own';
     if ($own)
         $name = aio_cgi_host($v['aio_own']) !== '' ? aio_cgi_host($v['aio_own']) : aio_cgi_l('другой', 'another one');
-    return $out . '<div id="smade" class="xm"><details id="asd"' . ($own ? ' open' : '') . '><summary>' .
-        aio_cgi_l('Сервер: ', 'Server: ') . '<span id="asn">' . aio_cgi_h($name) . '</span> · <span class="lnk">' .
-        aio_cgi_l('Сменить', 'Change') . '</span></summary>' .
+    return $out . '<div id="smade" class="xm"><details id="asd"' . ($own ? ' open' : '') . '><summary><span class="sumr"><span>' .
+        aio_cgi_l('Сервер: ', 'Server: ') . '<span id="asn">' . aio_cgi_h($name) . '</span></span><span class="lnk">' .
+        aio_cgi_l('Сменить', 'Change') . '</span></span></summary>' .
         '<label for="' . $f['aio_server']['id'] . '">' . aio_cgi_l('Сервер AIOStreams', 'AIOStreams server') .
         '</label><select id="' . $f['aio_server']['id'] . '" name="' . $f['aio_server']['name'] . '">' . $opts .
         '<option value="own" data-tmdb="0"' . ($own ? ' selected' : '') . '>' . aio_cgi_l('Другой сервер…', 'Another server…') .

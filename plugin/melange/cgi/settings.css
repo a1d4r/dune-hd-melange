@@ -76,8 +76,11 @@ p.cfg{margin:0}
 details{margin:14px 0 0}
 summary{padding:8px 4px;color:var(--acc);cursor:pointer}
 #asd{margin-top:16px;padding:4px 12px;background:var(--surf);border-radius:12px}
-#asd>summary{list-style:none;color:var(--mute)}
+#asd>summary{list-style:none;font-size:15px;color:var(--mute)}
 #asd>summary::-webkit-details-marker{display:none}
+#asd .sumr{display:flex;justify-content:space-between;gap:8px}
+#asd .sumr>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#asd .sumr>.lnk{flex:none}
 #asd[open]{padding-bottom:12px}
 details.srv{margin:10px 0 0;padding:4px 12px 12px;background:var(--surf);border:1px solid var(--line);border-radius:12px}
 details.srv>summary{color:var(--ink)}
