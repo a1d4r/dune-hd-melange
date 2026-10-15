@@ -175,7 +175,7 @@ function aio_jacred($rows, $mv, $s)
         return $rows;
     if (microtime(true) - Aio::$t0 > AIO_JR_AFTER)
     {
-        aio_log(sprintf('jacred: skipped, play_action took %.1f s', microtime(true) - Aio::$t0));
+        aio_log(sprintf('jacred: skipped, the operation took %.1f s', microtime(true) - Aio::$t0));
         return $rows;
     }
     $list = Aio::$settings['jrs'];
