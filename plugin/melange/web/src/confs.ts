@@ -3,12 +3,13 @@
 
 import { isObject, type ServerConf } from "./api";
 
-// url: of own server only, the address the config is of.
+// mode: of the config (null: none sent); url: of own server only, the address the config is of.
 export interface KnownConf {
   cfg: string;
   login: string | null;
   pass: string | null;
   tpl: string | null;
+  mode: string | null;
   url: string | null;
 }
 
@@ -30,10 +31,10 @@ const text = (value: unknown): string | null => (typeof value === "string" ? val
 // A conf of #init.confs; null: not one (no cfg).
 function parseConf(json: unknown): KnownConf | null {
   if (!isObject(json) || typeof json.cfg !== "string" || json.cfg === "") return null;
-  return { cfg: json.cfg, login: text(json.login), pass: text(json.pass), tpl: text(json.tpl) || null, url: text(json.url) };
+  return { cfg: json.cfg, login: text(json.login), pass: text(json.pass), tpl: text(json.tpl) || null, mode: text(json.mode), url: text(json.url) };
 }
 
-// confs: {<value of an option>: {cfg, login, pass, tpl, url?}}, tplNew, modeNew: strings (all of #init).
+// confs: {<value of an option>: {cfg, login, pass, tpl, mode, url?}}, tplNew, modeNew: strings (all of #init).
 export function createConfs(confs: unknown, tplNew: unknown, modeNew: unknown): Confs {
   const byServer = new Map<string, KnownConf>();
   let forNew = text(tplNew),
@@ -47,7 +48,8 @@ export function createConfs(confs: unknown, tplNew: unknown, modeNew: unknown): 
     known: (server: string) => byServer.get(server) || null,
     store(server: string, conf: ServerConf | null, url: string | null): void {
       // No cfg: no config, as one without it in #init.
-      if (conf && conf.cfg) byServer.set(server, { cfg: conf.cfg, login: conf.login, pass: conf.pass, tpl: conf.tpl || null, url: url });
+      if (conf && conf.cfg)
+        byServer.set(server, { cfg: conf.cfg, login: conf.login, pass: conf.pass, tpl: conf.tpl || null, mode: conf.mode, url: url });
       else byServer.delete(server);
     },
     templateForNew: () => forNew,

@@ -2,7 +2,7 @@
 // into view. A mark goes once its field is edited or a new save starts.
 
 import type { SaveError } from "./api";
-import { CLS, type Page, SERVER_FIELD } from "./dom";
+import { CLS, type Page, RADIO_GROUP, SERVER_FIELD } from "./dom";
 import type { Servers } from "./servers";
 
 export interface Marks {
@@ -27,8 +27,10 @@ export function setupMarks(page: Page, servers: Servers): Marks {
       return servers.has(blockNo) ? { el: servers.reveal(blockNo), focus: false } : null;
     }
     const field = form.elements.namedItem(error.field);
-    // A radio group (RadioNodeList) is no field to mark.
-    return field && "tagName" in field ? { el: field as HTMLElement, focus: true } : null;
+    if (field && "tagName" in field) return { el: field as HTMLElement, focus: true };
+    // Radios (RadioNodeList): their group, if they are in one (RADIO_GROUP); no focus, as of a block.
+    const group = field && field.length ? (field[0] as Element).closest(RADIO_GROUP) : null;
+    return group ? { el: group as HTMLElement, focus: false } : null;
   }
   function clear(): void {
     form.querySelectorAll("." + CLS.bad).forEach((marked) => marked.classList.remove(CLS.bad));

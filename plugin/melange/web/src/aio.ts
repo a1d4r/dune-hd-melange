@@ -52,14 +52,10 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   function p2p(): boolean {
     return checkedValue(form, NAME.mode) === VALUE.p2p;
   }
-  // The mode of a config: P2P by its template, Debrid by a template of the choice; else (custom, none, no config)
-  // the one for a new config.
+  // The mode of a config as PHP found it (not the one for a new config: that is one for all servers); no config (or
+  // none sent): the one for a new config.
   function modeOf(conf: KnownConf | null): string | null {
-    const tpl = conf ? conf.tpl : null;
-    if (tpl === VALUE.p2p) return VALUE.p2p;
-    for (let i = 0; i < template.options.length; i++)
-      if (template.options[i]!.value === tpl && !isMark(template.options[i])) return VALUE.debrid;
-    return confs.modeForNew();
+    return conf && conf.mode ? conf.mode : confs.modeForNew();
   }
   // The template of the config ("none": not known yet), else the one for a new config (P2P in that mode); the
   // choice shows it, of P2P the one for a new config of Debrid; a mark (disabled) only while it is the one. The mode:

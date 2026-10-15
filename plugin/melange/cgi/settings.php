@@ -95,6 +95,7 @@ function aio_cgi_save($dir, $t)
     $v['tpl_new'] = $cur['aio_tpl'];
     $v['mode_new'] = $cur['aio_mode'];
     $v['ajax'] = $ajax;
+    $v['reset'] = aio_cgi_param($_POST, 'aio_reset') === '1';
     list($data, $errors) = aio_cgi_check_values($v);
     if ($errors)
     {
@@ -116,9 +117,9 @@ function aio_cgi_save($dir, $t)
     {
         $k = $f[$what]['set'];
         // A server with a TMDB key of its own: the field is hidden, the key kept unchecked.
-        // Only the keys of the chosen source: the own config needs none, nor the mode P2P a Debrid one.
+        // Only the keys of the chosen source: the own config needs none, nor a config of P2P a Debrid one.
         if ($data[$k] === '' || $data['source'] === 'own' || ($what === 'tmdb' ?
-            aio_tmdb_sent(aio_settings_base($data), $data[$k]) === '' : $data['aio_mode'] === AIO_TPL_P2P))
+            aio_tmdb_sent(aio_settings_base($data), $data[$k]) === '' : aio_cgi_mode_to($data, $v['confs'], $v) === AIO_TPL_P2P))
             continue;
         $r = aio_cgi_key_check($what, $data[$k]);
         if ($r[0] === 'err')
@@ -143,16 +144,9 @@ function aio_cgi_save($dir, $t)
             'Not saved: write error on the Dune'))), "500 Settings not saved\n");
     }
     aio_cgi_log('save: ok');
-    // The config there is reset to the template (0.40.0): by its button, or
-    // a template chosen other than that of the config (tpl, also 'none' or
-    // 'custom'), or another mode than that of the config. The
-    // script asks first and then posts aio_reset; without it another template
-    // or mode resets the config the page showed (the stored server).
+    // The config there is reset to the template (0.40.0): aio_cgi_resets.
     $has = isset($data['aio_confs'][aio_settings_base($data)]);
-    $shown = $has ? aio_cgi_tpl_shown($data['aio_server'], $data['aio_own_url'], $data['aio_confs'], '') : '';
-    $reset = $has && (aio_cgi_param($_POST, 'aio_reset') === '1' || (!$ajax && aio_cgi_same_server($data, $v['cur']) &&
-        ($data['aio_mode'] !== aio_cgi_mode_shown($shown, $v['cur']['aio_mode']) ||
-        ($data['aio_mode'] === 'debrid' && $v['aio_tpl'] !== '' && $v['aio_tpl'] !== $shown))));
+    $reset = aio_cgi_resets($data, $data['aio_confs'], $v);
     // Only the checked token, as in the redirect below. aio: what a=aio_sync
     // is to do next ('' - nothing, the own address).
     if ($ajax)

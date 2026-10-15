@@ -250,6 +250,11 @@ function aio_aio_servers()
 
 // The template of the mode P2P (and the value of that mode).
 define('AIO_TPL_P2P', 'p2p');
+// instanceIds of the JacRed presets of cgi/aio_template.json (aio_conf_patch
+// puts the chosen JacRed in that of a template): Torznab of AIOStreams
+// (needs a Debrid service), Magnetio (P2P, preset custom).
+define('AIO_CONF_PRESET', 'melange');
+define('AIO_CONF_MAGNETIO', 'magnetio');
 
 // Templates of the config melange makes (0.40.0): id => instanceIds of the
 // presets of cgi/aio_template.json it has, in this order. The first one is
@@ -298,6 +303,34 @@ function aio_settings_tpl($s)
     return $s['aio_mode'] === AIO_TPL_P2P ? AIO_TPL_P2P : $s['aio_tpl'];
 }
 
+// The JacRed preset of the template $id (a key of aio_aio_tpls): Magnetio
+// if it has one, else Torznab of AIOStreams.
+/**
+ * @param string $id
+ * @return string
+ */
+function aio_tpl_jacred($id)
+{
+    $tpls = aio_aio_tpls();
+    return in_array(AIO_CONF_MAGNETIO, $tpls[$id], true) ? AIO_CONF_MAGNETIO : AIO_CONF_PRESET;
+}
+
+// The mode of a config (aio_aio_conf; aio_mode is only that of a new one):
+// by its template $tpl - P2P, or one of the Debrid mode -> debrid; else
+// ('custom', null) by $ids, the instanceIds of its presets (null: not
+// known): the JacRed preset of the template P2P there -> P2P, else debrid.
+/**
+ * @param mixed $tpl
+ * @param list<string>|null $ids
+ * @return string
+ */
+function aio_mode_of($tpl, $ids)
+{
+    if ($tpl === AIO_TPL_P2P)
+        return AIO_TPL_P2P;
+    return !aio_tpl_debrid($tpl) && $ids !== null && in_array(aio_tpl_jacred(AIO_TPL_P2P), $ids, true) ? AIO_TPL_P2P : 'debrid';
+}
+
 // A config of AIOStreams made by the settings page (0.35.0), as stored in
 // aio_confs of settings.json under its server $base (a key of
 // aio_aio_servers()): uuid, pass - the login and password of the config
@@ -307,7 +340,8 @@ function aio_settings_tpl($s)
 // the fields melange put in the config (null: not stored, a file of
 // 0.35.0), tpl (0.40.0) - its template by its presets: a key of
 // aio_aio_tpls(), 'custom' (changed in AIOStreams) or null (not known yet,
-// a config of 0.39 or older). -> the same keys checked, or null.
+// a config of 0.39 or older), mode - its mode (aio_mode_of; none stored:
+// by tpl). -> the same keys checked, or null.
 /**
  * @param int|string $base
  * @param mixed $c
@@ -322,11 +356,12 @@ function aio_aio_conf($base, $c)
         aio_manifest_url($c['manifest']) !== $c['manifest'] ||
         strpos($c['manifest'], "$base/stremio/{$c['uuid']}/") !== 0)
         return null;
+    $tpl = isset($c['tpl']) && is_string($c['tpl']) && ($c['tpl'] === 'custom' ||
+        array_key_exists($c['tpl'], aio_aio_tpls())) ? $c['tpl'] : null;
     return array('uuid' => $c['uuid'], 'pass' => $c['pass'], 'manifest' => $c['manifest'],
         'tmdb' => isset($c['tmdb']) && $c['tmdb'] === true, 'set' => isset($c['set']) && is_array($c['set']) ?
-        array_values(array_intersect(array('rd', 'tb', 'tmdb'), $c['set'])) : null,
-        'tpl' => isset($c['tpl']) && is_string($c['tpl']) && ($c['tpl'] === 'custom' ||
-        array_key_exists($c['tpl'], aio_aio_tpls())) ? $c['tpl'] : null);
+        array_values(array_intersect(array('rd', 'tb', 'tmdb'), $c['set'])) : null, 'tpl' => $tpl,
+        'mode' => isset($c['mode']) && in_array($c['mode'], aio_aio_modes(), true) ? $c['mode'] : aio_mode_of($tpl, null));
 }
 
 // The TMDB key melange puts in the config on the server $base: a server of

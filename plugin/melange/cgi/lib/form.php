@@ -242,12 +242,42 @@ function aio_cgi_tpl_shown($server, $own, $confs, $new)
     return $confs[$b]['tpl'] !== null ? $confs[$b]['tpl'] : 'none';
 }
 
-// The mode of a config by its template $shown (aio_cgi_tpl_shown): P2P, a
-// template of the Debrid mode -> debrid, else (custom, none) $new (aio_mode,
-// the one for a new config).
-function aio_cgi_mode_shown($shown, $new)
+// The mode the page shows for the server $server (aio_server; 'own' - at
+// $own) with the configs $confs (aio_confs): that of its config (mode), else
+// $new (aio_mode, for a new config).
+function aio_cgi_mode_shown($server, $own, $confs, $new)
 {
-    return $shown === AIO_TPL_P2P ? AIO_TPL_P2P : (aio_tpl_debrid($shown) ? 'debrid' : $new);
+    $b = $server === 'own' ? aio_aio_own($own) : $server;
+    return $b !== '' && isset($confs[$b]) ? $confs[$b]['mode'] : $new;
+}
+
+// The save resets the config on the server chosen in $d (the values checked)
+// to the template of the mode chosen (0.40.0); $confs: the configs (aio_confs),
+// $v: as posted (aio_cgi_posted with reset, ajax, cur). By its button or the
+// script (it asks first and posts aio_reset); without the script, on the
+// server the page showed (aio_cgi_same_server): another mode than that of
+// the config, or of Debrid another template (aio_tpl) than its tpl (also
+// 'none' or 'custom').
+function aio_cgi_resets($d, $confs, $v)
+{
+    $b = aio_settings_base($d);
+    if ($b === '' || !isset($confs[$b]))
+        return false;
+    if ($v['reset'])
+        return true;
+    if ($v['ajax'] || !aio_cgi_same_server($d, $v['cur']))
+        return false;
+    $tpl = $confs[$b]['tpl'] !== null ? $confs[$b]['tpl'] : 'none';
+    return $d['aio_mode'] !== $confs[$b]['mode'] || ($d['aio_mode'] === 'debrid' && $v['aio_tpl'] !== '' && $v['aio_tpl'] !== $tpl);
+}
+
+// The mode of the config on the server chosen in $d after the save (as
+// aio_cgi_resets): that of its config there unless reset; a reset or a new
+// one: the mode chosen.
+function aio_cgi_mode_to($d, $confs, $v)
+{
+    $b = aio_settings_base($d);
+    return $b !== '' && isset($confs[$b]) && !aio_cgi_resets($d, $confs, $v) ? $confs[$b]['mode'] : $d['aio_mode'];
 }
 
 // The template for a new config of the values $v (aio_cgi_values, or posted with mode_new and tpl_new).
@@ -262,8 +292,7 @@ function aio_cgi_mode_sel($v)
 {
     if (in_array($v['aio_mode'], aio_aio_modes(), true))
         return $v['aio_mode'];
-    return aio_cgi_mode_shown(aio_cgi_tpl_shown($v['aio_server'], $v['aio_own'], $v['confs'], aio_cgi_tpl_new($v)),
-        $v['mode_new']);
+    return aio_cgi_mode_shown($v['aio_server'], $v['aio_own'], $v['confs'], $v['mode_new']);
 }
 
 // The server chosen in $d (settings.json) is the stored one of $cur: the
@@ -282,16 +311,16 @@ function aio_cgi_aio_has($v)
 }
 
 // What the page shows of a config: the link to its web settings, login,
-// password, its template (aio_aio_conf: null - not known yet).
+// password, its template (aio_aio_conf: null - not known yet) and mode.
 function aio_cgi_aio_show($c)
 {
     return $c ? array('cfg' => aio_manifest_base($c['manifest']) . 'configure', 'login' => $c['uuid'],
-        'pass' => $c['pass'], 'tpl' => $c['tpl']) : null;
+        'pass' => $c['pass'], 'tpl' => $c['tpl'], 'mode' => $c['mode']) : null;
 }
 
 // The configs of the AIOStreams choice for the script (#init.confs): value
-// of an option => {cfg, login, pass, tpl} (tpl null: its template not known
-// yet); that of "own" also with url, the address the config is of. A server
+// of an option => {cfg, login, pass, tpl, mode} (tpl null: its template not
+// known yet); that of "own" also with url, the address the config is of. A server
 // without a config: none. An object even when empty.
 function aio_cgi_aio_confs($v)
 {
@@ -376,10 +405,11 @@ function aio_cgi_aio($v)
         'AIOStreams server address'), $v['aio_own'], 'http://192.168.1.10:3000') .
         '<button type="button" id="aob" class="chk">' . aio_cgi_l('Проверить', 'Check') .
         '</button><div id="aor" class="res" aria-live="polite"></div></div>' .
-        // The mode: by the config of the chosen server, as the template.
-        '<label for="amd">' . aio_cgi_l('Режим', 'Mode') . '</label>' .
+        // The mode: by the config of the chosen server, as the template. A group named by its heading (a label of
+        // one radio would choose it on a tap).
+        '<div role="radiogroup" aria-labelledby="amdl"><div id="amdl" class="lbl">' . aio_cgi_l('Режим', 'Mode') . '</div>' .
         aio_cgi_radio('amd', $f['aio_mode']['name'], 'debrid', 'Debrid', !$p2p) .
-        aio_cgi_radio('amp', $f['aio_mode']['name'], AIO_TPL_P2P, aio_cgi_mode_p2p(), $p2p) .
+        aio_cgi_radio('amp', $f['aio_mode']['name'], AIO_TPL_P2P, aio_cgi_mode_p2p(), $p2p) . '</div>' .
         '<div id="mdeb"><p class="hint">' .
         aio_cgi_l('Нужен ключ Real-Debrid или TorBox.', 'A Real-Debrid or TorBox key is needed.') . '</p><p class="hint">' .
         aio_cgi_l('Раздачи ищут JacRed (раздел ниже) и другие аддоны, смотрятся через Debrid.',
@@ -644,13 +674,22 @@ function aio_cgi_check_values($v)
             'The template was changed in another tab: reload the page'), $f['aio_tpl']['name']);
     }
     // The mode Debrid and no key to make the config there (none there yet, or
-    // one of P2P to reset).
+    // one of P2P to reset). The mode of the config after the save: not the
+    // one chosen when that is no reset (a page without the script with
+    // another server chosen updates the config in its mode).
     $base = $d[$set['aio_server']] === 'own' ? $d[$set['aio_own']] : $d[$set['aio_server']];
-    if ($debrid && $base !== '' && (!isset($v['confs'][$base]) || aio_cgi_mode_shown($shown, $v['cur']['aio_mode']) ===
+    $to = aio_cgi_mode_to($d, $v['confs'], $v);
+    if ($made && $to === 'debrid' && $base !== '' && (!isset($v['confs'][$base]) || $v['confs'][$base]['mode'] ===
         AIO_TPL_P2P) && $d[$set['rd']] === '' && $d[$set['tb']] === '' && $v['rd'] . $v['tb'] === '')
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Для режима Debrid нужен ключ Real-Debrid или TorBox; без ключа выберите режим P2P',
             'Debrid mode needs a Real-Debrid or TorBox key; without one, choose P2P mode'), $f['rd']['name']);
+    }
+    // P2P: the own JacRed goes to Magnetio in one path segment "k=v|k=v".
+    if ($made && $to === AIO_TPL_P2P && $d[$set['jacred']] === 'own' && strpos($d[$set['jo_key']], '|') !== false)
+    {
+        $errors[] = aio_cgi_err(aio_cgi_l('Свой JacRed: в режиме P2P ключ — без символа |',
+            'Own JacRed: in P2P mode, the key must not contain |'), $f['jo_key']['name']);
     }
     $d[$set['tmdb']] = aio_key_ok('tmdb', $v['tmdb']);
     // Hidden: the own config, or a server with TMDB of its own.

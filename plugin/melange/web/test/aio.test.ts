@@ -10,6 +10,9 @@ afterEach(cleanup);
 const OWN_CFG = "http://192.168.1.10:3000/stremio/00000000-0000-4000-8000-000000000001/dGVzdA/configure";
 const ATB = "https://aio.atbphosting.com";
 const ATB_CFG = ATB + "/stremio/00000000-0000-4000-8000-000000000002/dGVzdA/configure";
+const MADE = "https://aiostreams.12312023.xyz";
+// The third server of p2p.html and ownconf.html: a config changed in AIOStreams.
+const WIZ = "https://aiostreams-stable.forthewizards.uk";
 
 const server = (page: Page, value: string) => page.type(ID.aioServer, value);
 const conf = (page: Page) => ({
@@ -152,11 +155,27 @@ describe("mode", () => {
     expect([template(page).value, template(page).seen]).toEqual(["jacred", "p2p"]);
   });
 
-  test("custom or not known: the mode for a new config (Debrid)", () => {
+  test("custom or not known: the mode of the config as PHP found it (Debrid here)", () => {
     const page = open("ownconf");
     expect(mode(page)).toBe("debrid");
     server(page, ATB);
     expect([mode(page), template(page).value]).toEqual(["debrid", "custom"]);
+  });
+
+  test("custom Debrid, P2P for a new one (one for all servers): Debrid, its own mode", () => {
+    const page = open("p2p");
+    server(page, WIZ);
+    expect(parts(page)).toEqual({ mode: "debrid", debrid: true, p2p: false });
+    expect([template(page).value, template(page).seen]).toEqual(["custom", "custom"]);
+    server(page, MADE);
+    expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
+  });
+
+  test("custom P2P, Debrid for a new one: P2P, its own mode", () => {
+    const page = open("ownconf");
+    server(page, WIZ);
+    expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
+    expect(template(page).seen).toBe("custom");
   });
 
   test("chosen: its part shown; the choice kept while the config is the same", () => {

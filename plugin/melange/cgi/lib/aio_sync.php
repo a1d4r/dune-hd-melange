@@ -162,7 +162,8 @@ function aio_cgi_aio_keep($dir, $base, $c)
 // The config of the chosen server (of the list or the own one) by
 // settings.json: none -> POST of the template (aio_settings_tpl: aio_tpl, or
 // P2P with no Debrid key needed) with our fields;
-// there -> GET, its template by its presets stored (tpl), our fields, PUT;
+// there -> GET, its template and mode by its presets stored (tpl, mode), our
+// fields of its mode (not of aio_mode: that of a new config), PUT;
 // $reset (0.40.0) -> PUT of the template with our fields as for a new one,
 // no GET (manual edits lost; the login, password and manifest stay). The
 // own server: its TMDB by /status first.
@@ -181,10 +182,12 @@ function aio_cgi_aio_sync($dir, $reset = false)
     $base = aio_settings_base($s);
     $host = (string) parse_url($base, PHP_URL_HOST);
     $conf = $base !== '' && isset($s['aio_confs'][$base]) ? $s['aio_confs'][$base] : null;
-    $id = aio_settings_tpl($s);
-    $debrid = $id !== AIO_TPL_P2P;
     // No config: made by the template.
     $reset = $reset && $conf;
+    // The mode of the config there; a new one, a reset: that of the settings.
+    $mode = $conf && !$reset ? $conf['mode'] : $s['aio_mode'];
+    $id = aio_settings_tpl(array('aio_mode' => $mode, 'aio_tpl' => $s['aio_tpl']));
+    $debrid = $id !== AIO_TPL_P2P;
     if ($s['source'] === 'own' || $base === '')
     {
         aio_cgi_log('aio sync: own config or no address, skipped');
@@ -228,7 +231,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     if (!$conf)
     {
         $c = aio_conf_template($id);
-        list($tmdb, $set) = aio_conf_patch($c, $tpl, aio_conf_params($s, null, $tmdbs));
+        list($tmdb, $set) = aio_conf_patch($c, $tpl, aio_conf_params($s, $mode, null, $tmdbs));
         $pass = aio_cgi_rand_hex(12);
         $r = aio_cgi_aio_req($base, 'POST', aio_conf_encode((object) array('config' => $c, 'password' => $pass)), null);
         $d = aio_cgi_aio_ok($r) && isset($r[2]->data) && is_object($r[2]->data) ? $r[2]->data : null;
@@ -236,7 +239,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
         $enc = $d && isset($d->encryptedPassword) && is_string($d->encryptedPassword) &&
             preg_match('/^[A-Za-z0-9._~%=+\-]{1,1500}\z/', $d->encryptedPassword) ? $d->encryptedPassword : '';
         $new = $enc !== '' ? aio_aio_conf($base, array('uuid' => $uuid, 'pass' => $pass,
-            'manifest' => "$base/stremio/$uuid/$enc/manifest.json", 'tmdb' => $tmdb, 'set' => $set, 'tpl' => $id)) : null;
+            'manifest' => "$base/stremio/$uuid/$enc/manifest.json", 'tmdb' => $tmdb, 'set' => $set, 'tpl' => $id, 'mode' => $mode)) : null;
         aio_cgi_log('aio sync: create: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]") . ($new ? ', made' : ''));
         if (!$new)
         {
@@ -259,7 +262,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     if ($reset)
     {
         $u = aio_conf_template($id);
-        list($tmdb, $set) = aio_conf_patch($u, $tpl, aio_conf_params($s, null, $tmdbs));
+        list($tmdb, $set) = aio_conf_patch($u, $tpl, aio_conf_params($s, $mode, null, $tmdbs));
         $r = aio_cgi_aio_req($base, 'PUT', aio_conf_encode((object) array('config' => $u)), $auth);
         aio_cgi_log("aio sync: reset ($id): put: " . ($r[0] ? "curl $r[0]" : "HTTP $r[1]"));
     }
@@ -274,15 +277,31 @@ function aio_cgi_aio_sync($dir, $reset = false)
     {
         // As it is there, before our fields; stored even if the PUT fails.
         $t = aio_conf_tpl_of($u);
-        aio_cgi_log("aio sync: template $t");
-        if ($t !== $conf['tpl'])
+        $m = aio_mode_of($t, aio_conf_preset_ids($u));
+        aio_cgi_log("aio sync: template $t, mode $m");
+        if ($t !== $conf['tpl'] || $m !== $conf['mode'])
         {
             $conf['tpl'] = $t;
+            $conf['mode'] = $m;
             $w = aio_cgi_aio_keep($dir, $base, $conf);
             if ($w !== '')
                 aio_cgi_log("aio sync: $w");
         }
-        list($tmdb, $set) = aio_conf_patch($u, $tpl, aio_conf_params($s, $conf, $tmdbs));
+        // Changed there since the last sync: the template of that mode.
+        if ($m !== $mode)
+        {
+            $mode = $m;
+            $id = aio_settings_tpl(array('aio_mode' => $mode, 'aio_tpl' => $s['aio_tpl']));
+            $debrid = $id !== AIO_TPL_P2P;
+            $tpl = aio_conf_template($id);
+            if (!$tpl)
+            {
+                aio_cgi_log('aio sync: no template');
+                return array(false, $fail . aio_cgi_l('нет шаблона в плагине', 'no template in the plugin'), false,
+                    $choice, aio_cgi_aio_show($conf));
+            }
+        }
+        list($tmdb, $set) = aio_conf_patch($u, $tpl, aio_conf_params($s, $mode, $conf, $tmdbs));
         // No key of melange and none set by hand: PUT would get 400 (Torznab).
         if ($debrid && !aio_conf_has_debrid($u))
         {
@@ -317,7 +336,10 @@ function aio_cgi_aio_sync($dir, $reset = false)
     $conf['tmdb'] = $tmdb;
     $conf['set'] = $set;
     if ($reset)
+    {
         $conf['tpl'] = $id;
+        $conf['mode'] = $mode;
+    }
     $w = aio_cgi_aio_keep($dir, $base, $conf);
     if ($w !== '')
         aio_cgi_log("aio sync: $w");

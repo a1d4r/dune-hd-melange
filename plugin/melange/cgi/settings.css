@@ -3,7 +3,7 @@ main{max-width:520px;margin:0 auto}
 h1{font-size:20px;margin:0 0 10px}
 .toc{display:flex;flex-wrap:wrap;margin:-6px 0 0;font-size:15px}
 .toc a{margin-right:16px;padding:10px 0;color:#2d7ff9;text-decoration:none}
-label{display:block;margin:18px 0 6px;color:#ccc}
+label,.lbl{display:block;margin:18px 0 6px;color:#ccc}
 .f{display:flex;gap:8px}
 input{box-sizing:border-box;flex:1;min-width:0;padding:12px;font-size:16px;border:1px solid #444;border-radius:8px;background:#1c1c1c;color:#fff}
 label.cb{margin:10px 0 0;color:#eee}

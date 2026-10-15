@@ -99,7 +99,7 @@
       "enabled": true,
       "options": {
         "name": "JacRed",
-        "manifestUrl": "https://magnetio.peterdsp.dev/providers%3Dtorznab%7CtorznabUrl%3Dhttps%3A%2F%2Fjacred.example%2Fapi%2Fv2.0%2Findexers%2Fall%2Fresults%2Ftorznab%2Fapi%7Climit%3D100/manifest.json",
+        "manifestUrl": "https://magnetio.peterdsp.dev/providers%3Dtorznab%7CtorznabUrl%3Dhttps%3A%2F%2Fjacred.example%2Fapi%2Fv2.0%2Findexers%2Fall%2Fresults%2Ftorznab%2Fapi/manifest.json",
         "timeout": 15000,
         "resources": [
           "stream"

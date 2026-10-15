@@ -7,10 +7,7 @@
 // server refuses [] for a record such as credentials). Plain PHP 5.3, no
 // firmware API, no request.
 
-// instanceIds of the JacRed presets of the templates: Torznab of AIOStreams
-// (needs a Debrid service), Magnetio (P2P, preset custom).
-define('AIO_CONF_PRESET', 'melange');
-define('AIO_CONF_MAGNETIO', 'magnetio');
+// The JacRed presets of the templates: AIO_CONF_PRESET, AIO_CONF_MAGNETIO of common.php.
 define('AIO_CONF_TEMPLATE', 'aio_template.json');
 // The fields of the template P2P over those of aio_template.json.
 define('AIO_CONF_TEMPLATE_P2P', 'aio_template_p2p.json');
@@ -270,16 +267,17 @@ function aio_conf_patch($c, $tpl, $p)
 }
 
 // The fields of aio_conf_patch from the settings $s (aio_settings_read of
-// common.php) for the chosen server (of the list or the own one); $conf: its
-// config of aio_confs, null for a new one; $tmdbs: the server has TMDB of
-// its own (null: as the list says; /status of the own server). The key of
-// TMDB as aio_tmdb_sent(); the Debrid keys: none in the mode P2P.
-function aio_conf_params($s, $conf, $tmdbs = null)
+// common.php) for the chosen server (of the list or the own one); $mode: the
+// mode of the config (aio_aio_modes; of a new one or a reset: aio_mode);
+// $conf: its config of aio_confs, null for a new one; $tmdbs: the server has
+// TMDB of its own (null: as the list says; /status of the own server). The
+// key of TMDB as aio_tmdb_sent(); the Debrid keys: none in the mode P2P.
+function aio_conf_params($s, $mode, $conf, $tmdbs = null)
 {
     $servers = aio_aio_servers();
     $base = aio_settings_base($s);
     $jr = aio_jacred_list($s);
-    $p2p = $s['aio_mode'] === AIO_TPL_P2P;
+    $p2p = $mode === AIO_TPL_P2P;
     return array('rd' => $p2p ? '' : $s['rd_key'], 'tb' => $p2p ? '' : $s['tb_key'], 'jr_url' => aio_conf_torznab($jr[0]['base']),
         'jr_key' => $jr[0]['key'], 'tmdb_key' => aio_tmdb_sent($base, $s['tmdb_key']),
         'tmdb_server' => $tmdbs !== null ? $tmdbs : !empty($servers[$base]), 'tmdb_prev' => $conf ? $conf['tmdb'] : null,

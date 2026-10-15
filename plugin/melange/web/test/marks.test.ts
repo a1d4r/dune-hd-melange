@@ -140,6 +140,21 @@ describe("errors lead to the field", () => {
     expect(page.calls[0]!.body).toContain("rd_key=bad%20key");
   });
 
+  test("the mode (radios in a group): the group marked and in view, not focused; choosing one takes the mark off", async () => {
+    const page = open("p2p");
+    const group = page.el(ID.modeDebrid).previousElementSibling as HTMLElement;
+    let scrolled: unknown = null;
+    group.scrollIntoView = (options?: boolean | ScrollIntoViewOptions) => void (scrolled = options);
+    const before = focused(page);
+    page.replies.push(json({ ok: false, errors: [{ msg: "Режим: нет такого режима", field: "aio_mode" }] }));
+    await save(page);
+    expect([group.getAttribute("role"), group.classList.contains(CLS.bad), page.form.querySelectorAll("." + CLS.bad).length]).toEqual(
+      ["radiogroup", true, 1]);
+    expect([scrolled, focused(page)]).toEqual([{ block: "center" }, before]);
+    page.choose("aio_mode", "debrid");
+    expect(group.classList.contains(CLS.bad)).toBe(false);
+  });
+
   // Saved, then aio_sync refused with the field it is about: marked as of a save error, its text under the button.
   const SYNC_NO_KEY = { ok: false, msg: "Конфиг на сервере AIOStreams не обновлён: нужен хотя бы один ключ Debrid", skip: false, base: null, conf: null };
 

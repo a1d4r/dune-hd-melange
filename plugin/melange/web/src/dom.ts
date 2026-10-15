@@ -116,6 +116,9 @@ export const VALUE = {
 // The radios of the choice of JacRed.
 export const JACRED_RADIOS = "input[name=" + NAME.jacred + "]";
 
+// A group of radios with its name (the mode): an error of their name= marks it.
+export const RADIO_GROUP = "[role=radiogroup]";
+
 // A block of a qBittorrent server.
 export const SERVER_BLOCK = "details." + CLS.serverBlock;
 // s<n>_<key>: a field of server block n.

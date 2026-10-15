@@ -17,7 +17,7 @@ import { bindEyes, maskSecrets } from "./secrets";
 import { setupServerChecks, setupServers } from "./servers";
 
 // Written by aio_cgi_js(). i18n and jacredDefault: always written, checked by isInit() (else #init is broken);
-// confs: {<value of a server option>: {cfg, login, pass, tpl, url?}}, tplNew, modeNew: the template and the mode for a
+// confs: {<value of a server option>: {cfg, login, pass, tpl, mode, url?}}, tplNew, modeNew: the template and the mode for a
 // new config; all checked by createConfs().
 export interface Init {
   i18n: Texts;

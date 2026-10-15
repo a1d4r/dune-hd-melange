@@ -15,7 +15,8 @@ export type ConfHow = "create" | "update" | "reset";
 // aio: "" - nothing (another value sent is taken as that).
 export type Save = { ok: true; next: string; aio: ConfHow | ""; notes: SaveNote[] } | { ok: false; errors: SaveError[] };
 
-export type ServerConf = { cfg: string; login: string; pass: string; tpl: string | null };
+// mode: of the config (debrid, p2p), null: none sent.
+export type ServerConf = { cfg: string; login: string; pass: string; tpl: string | null; mode: string | null };
 export type Sync = { ok: boolean; msg: string; skip: boolean; base: string | null; conf: ServerConf | null; field: SaveError["field"] };
 
 // http: no answer of the endpoint (not JSON, not its shape) with this status; timeout (after seconds), net: no answer at all.
@@ -70,7 +71,13 @@ function parseSync(json: Json): Sync | null {
     skip: !!json.skip,
     base: typeof json.base === "string" ? json.base : null,
     conf: isObject(conf)
-      ? { cfg: String(conf.cfg), login: String(conf.login), pass: String(conf.pass), tpl: conf.tpl ? String(conf.tpl) : null }
+      ? {
+          cfg: String(conf.cfg),
+          login: String(conf.login),
+          pass: String(conf.pass),
+          tpl: conf.tpl ? String(conf.tpl) : null,
+          mode: typeof conf.mode === "string" ? conf.mode : null,
+        }
       : null,
     field: typeof json.field === "string" ? json.field : null,
   };

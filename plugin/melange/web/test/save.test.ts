@@ -40,9 +40,10 @@ const conf = (n: string, tpl: string | null) => ({
   cfg: "https://cfg.example/" + n, login: "00000000-0000-4000-8000-00000000000" + n, pass: "fedcba9876543210fedcba9" + n, tpl: tpl,
 });
 // The config of the chosen server of filled.html, as aio_sync sends it.
+// The mode as PHP sends it (aio_mode_of): P2P of its template, else Debrid.
 const FILLED_CONF = (tpl: string) => ({
   cfg: MADE + "/stremio/00000000-0000-4000-8000-000000000001/dGVzdA/configure", login: "00000000-0000-4000-8000-000000000001",
-  pass: "0123456789abcdef01234567", tpl: tpl,
+  pass: "0123456789abcdef01234567", tpl: tpl, mode: tpl === "p2p" ? "p2p" : "debrid",
 });
 
 describe("the form posted", () => {
@@ -405,6 +406,16 @@ describe("the reset", () => {
     page.choose("aio_mode", "debrid");
     await save(page);
     expect(page.confirms).toEqual([page.init.i18n.resetConfirm.replace("%s", "aiostreams.12312023.xyz").replace("%s", "Только JacRed")]);
+  });
+
+  test("a custom config of Debrid, P2P for a new one: no confirm, the mode of the config posted, no reset", async () => {
+    const page = open("p2p");
+    page.type(ID.aioServer, "https://aiostreams-stable.forthewizards.uk");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "update" }), later().reply);
+    await save(page);
+    expect([page.confirms, pairs(page.calls[0]!.body).filter(([k]) => /^aio_(mode|tpl|reset)/.test(k!))]).toEqual([
+      [], [["aio_mode", "debrid"], ["aio_tpl_seen", "custom"]],
+    ]);
   });
 
   test("Reset to the template in P2P: the name of P2P", async () => {
