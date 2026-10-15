@@ -176,8 +176,8 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
 // AIOStreams /static/<file>.mp4, Torrentio /videos/<file>.mp4, MediaFusion
 // /static/exceptions/<file>.mp4, StremThru /v0/store/_/static/<file>.mp4.
 // The add-ons of ElfHosted redirect to slate.elfhosted.com instead, the
-// reason in its title and body.
-// (Comet sends its placeholder as the body, 200: not told from a stream.)
+// reason in its title and body. Comet sends its placeholder as the body: 200,
+// a video/* type and a Content-Length under 1 MB, no film is that small.
 
 define('AIO_PRE_CONNECT', 5);
 define('AIO_PRE_TOTAL', 30);
@@ -187,19 +187,32 @@ define('AIO_OP_BUDGET', 55);
 define('AIO_PRE_MIN', 3);
 // A longer Location is not taken for a stream URL.
 define('AIO_PRE_LOC_MAX', 4096);
+// A 200 video body shorter than this is a placeholder.
+define('AIO_PRE_BODY_MAX', 1048576);
 
-// HTTP code $code and Location $loc of stream URL $url -> array('class' =>
-// 'stream' (with 'url' => the Location), 'placeholder' (with 'file' => its
-// name, or of aio_pre_slate()) or 'unclear' (with 'why')). Only an absolute
-// http(s) Location of another host, not the slate, is a stream.
+// HTTP code $code, Location $loc, Content-Type $type and Content-Length
+// $len (-1: none) of stream URL $url -> array('class' => 'stream' (with
+// 'url' => the Location), 'placeholder' (with 'file' => its name, of
+// aio_pre_slate(), or with 'type' and 'len' of a 200 body) or 'unclear' (with
+// 'why')). Only an absolute http(s) Location of another host, not the slate,
+// is a stream.
 /**
  * @param string $url
  * @param int $code
  * @param string $loc
+ * @param string $type
+ * @param int $len
  * @return AioPreClass
  */
-function aio_pre_class($url, $code, $loc)
+function aio_pre_class($url, $code, $loc, $type = '', $len = -1)
 {
+    if ($code === 200 && $len > 0 && $len < AIO_PRE_BODY_MAX)
+    {
+        $t = strtolower(trim(preg_replace('/;.*$/s', '', $type)));
+        if (substr($t, 0, 6) === 'video/')
+            return array('class' => 'placeholder', 'type' => aio_cut(preg_replace('/[^\x21-\x7e]+/', '', $t), 60),
+                'len' => $len);
+    }
     if ($code < 300 || $code > 399 || $loc === '')
         return array('class' => 'unclear', 'why' => "HTTP $code" . ($code >= 300 && $code <= 399 ? ', no Location' : ''));
     // The slate before the limits of a stream URL: a long one is still a placeholder.
@@ -273,9 +286,9 @@ function aio_precheck($url)
     }
     $t = microtime(true);
     $err = '';
-    list($code, $loc) = aio_http_peek($url, $err, min(AIO_PRE_CONNECT, $total), $total);
+    list($code, $loc, $type, $len) = aio_http_peek($url, $err, min(AIO_PRE_CONNECT, $total), $total);
     $t = microtime(true) - $t;
-    $pre = $err !== '' ? array('class' => 'unclear', 'why' => $err) : aio_pre_class($url, $code, $loc);
+    $pre = $err !== '' ? array('class' => 'unclear', 'why' => $err) : aio_pre_class($url, $code, $loc, $type, $len);
     // Not the URLs: the row's and the CDN's carry keys and tokens.
     if ($pre['class'] === 'stream')
         aio_log(sprintf('precheck: stream, HTTP %d -> %s, %.2f s', $code, $pre['host'], $t));
@@ -286,6 +299,13 @@ function aio_precheck($url)
             $pre['slate'] !== '' ? $pre['slate'] : '-', $t));
         $pre['key'] = $pre['infringing'] ? 'err_pre_infringing' : 'err_pre_placeholder';
         $pre['detail'] = $pre['infringing'] ? '' : ($pre['slate'] !== '' ? $pre['slate'] : 'slate');
+    }
+    else if ($pre['class'] === 'placeholder' && isset($pre['type']))
+    {
+        // Comet: the reason is not in the headers.
+        aio_log(sprintf('precheck: placeholder, HTTP %d, %s %d bytes, %.2f s', $code, $pre['type'], $pre['len'], $t));
+        $pre['key'] = 'err_pre_placeholder';
+        $pre['detail'] = sprintf('HTTP %d, %d KB', $code, round($pre['len'] / 1024));
     }
     else if ($pre['class'] === 'placeholder')
     {

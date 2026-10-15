@@ -362,14 +362,16 @@ if (!function_exists('aio_http_post'))
 // Tests define their own aio_http_peek().
 if (!function_exists('aio_http_peek'))
 {
-    // GET of a stream URL for its status and Location only -> array(HTTP
-    // code, Location as sent or ''). No redirects; the transfer stops at the
-    // end of the headers, the body (a video) is never read. $err is set on a
-    // transport error.
+    // GET of a stream URL for its status and headers only -> array(HTTP
+    // code, Location as sent or '', Content-Type or '', Content-Length or -1).
+    // No redirects; the transfer stops at the end of the headers, the body (a
+    // video) is never read. $err is set on a transport error.
     function aio_http_peek($url, &$err, $connect = 5, $total = 30)
     {
         $code = 0;
         $loc = '';
+        $type = '';
+        $len = -1;
         $done = false;
         $ch = curl_init($url);
         $set = curl_setopt_array($ch, array(
@@ -382,16 +384,22 @@ if (!function_exists('aio_http_peek'))
             CURLOPT_SSL_VERIFYHOST => 2,
             // The User-Agent of aio_fetch: the add-ons see the same client.
             CURLOPT_USERAGENT => 'AIOStreams-DuneClient/' . AIO_VERSION,
-            CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$code, &$loc, &$done)
+            CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$code, &$loc, &$type, &$len, &$done)
             {
                 // A status line starts a response (also after "100 Continue").
                 if (preg_match('~^HTTP/\S+\s+([0-9]{3})~', $line, $m))
                 {
                     $code = intval($m[1]);
                     $loc = '';
+                    $type = '';
+                    $len = -1;
                 }
                 else if ($loc === '' && preg_match('/^Location:[ \t]*(.*)$/is', $line, $m))
                     $loc = rtrim($m[1], " \t\r\n");
+                else if ($type === '' && preg_match('/^Content-Type:[ \t]*(.*)$/is', $line, $m))
+                    $type = rtrim($m[1], " \t\r\n");
+                else if ($len < 0 && preg_match('/^Content-Length:[ \t]*([0-9]+)[ \t\r\n]*$/i', $line, $m))
+                    $len = intval($m[1]);
                 else if (rtrim($line, "\r\n") === '' && $code >= 200)
                 {
                     // End of the final headers: a short count aborts the transfer.
@@ -408,12 +416,12 @@ if (!function_exists('aio_http_peek'))
         {
             curl_close($ch);
             $err = 'curl options refused';
-            return array(0, '');
+            return array(0, '', '', -1);
         }
         $ok = curl_exec($ch);
         $err = $ok === false && !$done ? 'curl ' . curl_errno($ch) . ': ' . curl_error($ch) : '';
         curl_close($ch);
-        return $err !== '' ? array(0, '') : array($code, $loc);
+        return $err !== '' ? array(0, '', '', -1) : array($code, $loc, $type, $len);
     }
 }
 

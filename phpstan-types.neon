@@ -121,12 +121,13 @@ parameters:
         # its fields by the handler (aio_error, aio_input, main.php).
         AioAction: 'array<string, mixed>'
         # The stream check of a URL, by its redirect (aio_pre_class,
-        # playback.php): the CDN, a placeholder video of the add-on (its file)
-        # or of ElfHosted (aio_pre_slate), else unclear.
+        # playback.php): the CDN, a placeholder video of the add-on (its file),
+        # of ElfHosted (aio_pre_slate) or a small 200 video (Comet), else unclear.
         AioPreClass: '''
             array{class: 'stream', url: string, host: string}
             |array{class: 'placeholder', file: string}
             |array{class: 'placeholder', slate: string, infringing: bool}
+            |array{class: 'placeholder', type: string, len: int}
             |array{class: 'unclear', why: string}
         '''
         # The stream check (aio_precheck, playback.php): of aio_pre_class, a
@@ -135,6 +136,7 @@ parameters:
             array{class: 'stream', url: string, host: string}
             |array{class: 'placeholder', file: string, key: string, detail: string}
             |array{class: 'placeholder', slate: string, infringing: bool, key: string, detail: string}
+            |array{class: 'placeholder', type: string, len: int, key: string, detail: string}
             |array{class: 'unclear', why: string}
         '''
         # The card of a playlist with lazy episodes (Aio::$movies,
