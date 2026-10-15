@@ -67,19 +67,23 @@ function aio_cgi_mask_url($m)
 function aio_cgi_mask_shell($s)
 {
     $h = '[0-9A-Fa-f]{1,4}';
-    $kv = '((?<![A-Za-z0-9_\-])(?:[A-Za-z0-9_\-]*(?:auth|serial|token|secret|passw(?:or)?d|cookie|key)[A-Za-z0-9_\-]*|pass|pwd)' .
+    // pcre.backtrack_limit (100000 in PHP 5.3) on a long word: possessive, no
+    // backtracking over it; the name before the keyword is at most 200 chars.
+    $kv = '((?<![A-Za-z0-9_\-])(?=[A-Za-z0-9_\-]++"?[=:])(?:[A-Za-z0-9_\-]{0,200}(?:auth|serial|token|secret|passw(?:or)?d|cookie|key)[A-Za-z0-9_\-]*+|pass|pwd)' .
         '"?(?:=|:[ \t]*))';
     $steps = array(
         array('~[0-9A-Fa-f]{4}(?:-[0-9A-Fa-f]{4}){5}-[0-9A-Fa-f]+~', '<serial>'),
         array('~(?<![0-9A-Fa-f:\-])[0-9A-Fa-f]{2}([:\-])[0-9A-Fa-f]{2}(?:\1[0-9A-Fa-f]{2}){4}(?![0-9A-Fa-f:\-])~', '<mac>'),
         // Also JSON-escaped (":\/\/").
         array('~(?<![A-Za-z0-9+.\-])(https?|smb|nfs|s?ftps?|rtsps?|rtmp[a-z]*|rtp|udp|mms[a-z]*|(?:web)?davs?|wss?)' .
-            ':(?:\\\\?/){2}(?:[^\s/\\\\?#@\'"]*@)?(\[[0-9A-Fa-f:.]*\]|<[a-z]+>|[A-Za-z0-9.\-_\~%]*)(:[0-9]*)?' .
+            ':(?:\\\\?/){2}(?:[^\s/\\\\?#@\'"]*+@)?(\[[0-9A-Fa-f:.]*\]|<[a-z]+>|[A-Za-z0-9.\-_\~%]*)(:[0-9]*)?' .
             '((?:\\\\?/|[?#])[^\s\'"]*)?~i', 'aio_cgi_mask_url'),
         // An address of aio_mask_secrets ("<aio>/path") as a URL; "<manifest>/" keeps its path (no secret left).
         array('~(<(?:aio|ts|server|jacred)>(?::[0-9]+)?)(?:\\\\?/|[?#])[^\s\'"]*~', '$1/…'),
-        // Not a time ("16:04:43"): 8 groups or "::"; IPv4-mapped too.
-        array("~(?<![0-9A-Za-z:.])(?!::1(?![0-9A-Za-z:]))(?:(?:$h:){7}$h|$h(?::$h)*::(?:$h(?::$h)*)?|::$h(?::$h)*)" .
+        // Not a time ("16:04:43"): 8 groups or "::"; IPv4-mapped too. A digit in
+        // it: not a C++ name of hex letters ("DB::add", "Face::Bad"). At most 7
+        // groups by "::": an unbounded group repeat overflows the PCRE stack.
+        array("~(?<![0-9A-Za-z:.])(?!::1(?![0-9A-Za-z:]))(?=[A-Fa-f:]*+[0-9])(?:(?:$h:){7}$h|$h(?::$h){0,6}::(?:$h(?::$h){0,6})?|::$h(?::$h){0,6})" .
             '(?::(?:[0-9]{1,3}\.){3}[0-9]{1,3})?(?![0-9A-Za-z:]|\.[0-9])~', '<ip>'),
         array('~(?<![0-9.])(?!127\.0\.0\.1(?![0-9]|\.[0-9]))(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?![0-9]|\.[0-9])~', '<ip>'),
         array('~(nmblookup got server \')[^\']*~', '$1<host>'),
