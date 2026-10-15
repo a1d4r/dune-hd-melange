@@ -149,7 +149,7 @@ function aio_cgi_log_lines($fp, $m, $shell)
     while (($line = fgets($fp)) !== false)
     {
         $out = aio_mask_secrets($line, $m['base'], $m['jrs'], $m['pw'], $m['aio'], $m['hosts']);
-        if (!is_string($out) || $out === '')
+        if ((string) $out === '')
             $out = "(line hidden)\n";
         $out = $shell ? aio_cgi_mask_shell($out) : $out;
         echo substr($out, -1) === "\n" ? $out : "$out\n";
