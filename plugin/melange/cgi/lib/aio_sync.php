@@ -217,7 +217,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
         return array(false, $fail . aio_cgi_l('нужен ключ Debrid в Melange', 'a Debrid key is needed in Melange') . $again,
             false, $choice, $mode, aio_cgi_aio_show($conf), $f['rd']['name']);
     }
-    $tpl = aio_conf_template($id);
+    $tpl = aio_conf_template($id, $base);
     if (!$tpl)
     {
         aio_cgi_log('aio sync: no template');
@@ -235,7 +235,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     }
     if (!$conf)
     {
-        $c = aio_conf_template($id);
+        $c = aio_conf_template($id, $base);
         list($tmdb, $set) = aio_conf_patch($c, $tpl, aio_conf_params($s, null, $tmdbs));
         $pass = aio_cgi_rand_hex(12);
         $r = aio_cgi_aio_req($base, 'POST', aio_conf_encode((object) array('config' => $c, 'password' => $pass)), null);
@@ -266,7 +266,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     $auth = array($conf['uuid'], $conf['pass']);
     if ($reset)
     {
-        $u = aio_conf_template($id);
+        $u = aio_conf_template($id, $base);
         list($tmdb, $set) = aio_conf_patch($u, $tpl, aio_conf_params($s, null, $tmdbs));
         $r = aio_cgi_aio_req($base, 'PUT', aio_conf_encode((object) array('config' => $u)), $auth);
         aio_cgi_log("aio sync: reset ($id): put: " . ($r[0] ? "curl $r[0]" : "HTTP $r[1]"));
@@ -293,7 +293,11 @@ function aio_cgi_aio_sync($dir, $reset = false)
             if ($w !== '')
                 aio_cgi_log("aio sync: $w");
         }
-        list($tmdb, $set) = aio_conf_patch($u, $tpl, aio_conf_params($s, $conf, $tmdbs));
+        // P2P made with Magnetio before the server got Torznab (aio_conf_p2p_torznab):
+        // Magnetio kept, Torznab only by a reset.
+        $ids = aio_conf_preset_ids($u);
+        $pt = !$debrid && $ids && in_array(AIO_CONF_MAGNETIO, $ids, true) ? aio_conf_template($id) : $tpl;
+        list($tmdb, $set) = aio_conf_patch($u, $pt, aio_conf_params($s, $conf, $tmdbs));
         // No key of melange and none set by hand: PUT would get 400 (Torznab).
         if ($debrid && !aio_conf_has_debrid($u))
         {

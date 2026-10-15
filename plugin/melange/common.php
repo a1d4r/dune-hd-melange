@@ -256,7 +256,8 @@ define('AIO_TPL_P2P', 'p2p');
 // the default; the Debrid mode chooses one of them but AIO_TPL_P2P (the
 // mode P2P, no Debrid service: Torrentio first, its rows win the dedup).
 // Their JacRed: Torznab of AIOStreams "melange" (needs a Debrid service) or
-// Magnetio "magnetio" (aio_conf_patch puts the chosen JacRed in either).
+// Magnetio "magnetio" (aio_conf_patch puts the chosen JacRed in either); P2P
+// on the servers of aio_conf_p2p_torznab: Torznab in the place of Magnetio.
 /**
  * @return array<string, list<string>>
  */

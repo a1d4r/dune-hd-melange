@@ -8,8 +8,9 @@
 // firmware API, no request.
 
 // instanceIds of the JacRed presets of the templates (aio_conf_patch puts
-// the chosen JacRed in that of a template): Torznab of AIOStreams (needs a
-// Debrid service), Magnetio (P2P, preset custom).
+// the chosen JacRed in that of a template): Torznab of AIOStreams (Debrid;
+// P2P on the servers of aio_conf_p2p_torznab), Magnetio (P2P elsewhere,
+// preset custom).
 define('AIO_CONF_PRESET', 'melange');
 define('AIO_CONF_MAGNETIO', 'magnetio');
 define('AIO_CONF_TEMPLATE', 'aio_template.json');
@@ -49,20 +50,31 @@ function aio_conf_encode($v)
     return preg_replace('/"\\\\u0001big:(-?[0-9][0-9.eE+\-]*)"/', '$1', json_encode($v));
 }
 
+// AIOStreams servers whose JacRed in the template P2P is Torznab of
+// AIOStreams, not Magnetio: the fork of melange there makes P2P rows of
+// Torznab with no Debrid service (elsewhere the server refuses it: 400).
+function aio_conf_p2p_torznab()
+{
+    return array('https://aiostreams.kompotik.com');
+}
+
 // The template $id (a key of aio_aio_tpls of common.php: the file with only
 // its presets, in its order; the title and year matched for its JacRed
 // only; P2P: the fields of AIO_CONF_TEMPLATE_P2P over, those of an object
-// into it) as an object, null when unreadable or no such template.
-function aio_conf_template($id = 'addons')
+// into it) for the AIOStreams server $base ('' - none: P2P with Magnetio;
+// one of aio_conf_p2p_torznab: P2P with Torznab in the place of Magnetio)
+// as an object, null when unreadable or no such template.
+function aio_conf_template($id = 'addons', $base = '')
 {
     $tpls = aio_aio_tpls();
+    $tz = in_array($base, aio_conf_p2p_torznab(), true);
     $j = aio_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . AIO_CONF_TEMPLATE));
     if (!is_object($j) || !is_string($id) || !array_key_exists($id, $tpls) || !isset($j->presets) || !is_array($j->presets))
         return null;
     $keep = array();
     foreach ($tpls[$id] as $want)
     {
-        $x = aio_conf_find($j->presets, 'instanceId', $want);
+        $x = aio_conf_find($j->presets, 'instanceId', $tz && $want === AIO_CONF_MAGNETIO ? AIO_CONF_PRESET : $want);
         if ($x)
             $keep[] = $x;
     }
@@ -123,14 +135,18 @@ function aio_conf_preset_ids($c)
 // The template of a config as it is on the server (0.40.0; before
 // aio_conf_patch, which brings back a removed JacRed preset): its set of
 // presets is exactly that of a template -> its id, else 'custom'. Enabled
-// or not, the order: not looked at.
+// or not, the order: not looked at. P2P: with Magnetio or Torznab, whatever
+// the server (made with Magnetio before the server got Torznab: still p2p).
 function aio_conf_tpl_of($c)
 {
     $ids = aio_conf_preset_ids($c);
     foreach (array_keys(aio_aio_tpls()) as $id)
     {
-        if ($ids !== null && $ids === aio_conf_preset_ids(aio_conf_template($id)))
-            return $id;
+        foreach (array_merge(array(''), aio_conf_p2p_torznab()) as $base)
+        {
+            if ($ids !== null && $ids === aio_conf_preset_ids(aio_conf_template($id, $base)))
+                return $id;
+        }
     }
     return 'custom';
 }
