@@ -5,6 +5,9 @@
 
 define('AIO_VOICES_NGRAM', 4);   // words in the longest key
 
+/**
+ * @return array<string, string>
+ */
 function aio_voices_dict()
 {
     static $d = array(
@@ -365,6 +368,9 @@ function aio_voices_dict()
 }
 
 // Keys matched only as written.
+/**
+ * @return array<string, string>
+ */
 function aio_voices_exact()
 {
     static $e = array(
