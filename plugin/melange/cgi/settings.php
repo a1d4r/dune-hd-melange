@@ -58,6 +58,7 @@ require dirname(__FILE__) . '/lib/http.php';
 require dirname(__FILE__) . '/lib/checks.php';
 require dirname(__FILE__) . '/lib/aio_sync.php';
 require dirname(__FILE__) . '/lib/store.php';
+require dirname(__FILE__) . '/lib/log.php';
 require dirname(__FILE__) . '/lib/form.php';
 
 // --- The save of the form.
