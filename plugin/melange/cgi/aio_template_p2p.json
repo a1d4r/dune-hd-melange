@@ -1,0 +1,71 @@
+{
+  "rankedStreamExpressions": [
+    {
+      "expression": "seeders(type(streams, 'p2p'), 0, 2)",
+      "score": -20,
+      "enabled": true
+    },
+    {
+      "expression": "seeders(type(streams, 'p2p'), 3, 9)",
+      "score": -10,
+      "enabled": true
+    }
+  ],
+  "sortCriteria": {
+    "global": [
+      {
+        "key": "language",
+        "direction": "desc"
+      },
+      {
+        "key": "streamExpressionScore",
+        "direction": "desc"
+      },
+      {
+        "key": "library",
+        "direction": "desc"
+      },
+      {
+        "key": "cached",
+        "direction": "desc"
+      },
+      {
+        "key": "resolution",
+        "direction": "desc"
+      },
+      {
+        "key": "quality",
+        "direction": "desc"
+      },
+      {
+        "key": "visualTag",
+        "direction": "desc"
+      },
+      {
+        "key": "audioTag",
+        "direction": "desc"
+      },
+      {
+        "key": "size",
+        "direction": "desc"
+      },
+      {
+        "key": "audioChannel",
+        "direction": "desc"
+      },
+      {
+        "key": "encode",
+        "direction": "desc"
+      },
+      {
+        "key": "seeders",
+        "direction": "desc"
+      }
+    ],
+    "anime": [],
+    "cached": [],
+    "uncached": [],
+    "cachedAnime": [],
+    "uncachedAnime": []
+  }
+}

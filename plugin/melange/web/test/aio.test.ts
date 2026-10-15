@@ -135,6 +135,67 @@ describe("template", () => {
   });
 });
 
+describe("mode", () => {
+  const mode = (page: Page) => page.form.querySelector<HTMLInputElement>("input[name=aio_mode]:checked")!.value;
+  const parts = (page: Page) => ({ mode: mode(page), debrid: shown(page.el(ID.modeDebrid)), p2p: shown(page.el(ID.modeP2p)) });
+
+  test("by the config of the server: P2P, of a template of Debrid - Debrid, none - the one for a new config", () => {
+    const page = open("p2p");
+    expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
+    // A config of P2P: the choice shows the template for a new config of Debrid; seen p2p.
+    expect([template(page).value, template(page).seen]).toEqual(["jacred", "p2p"]);
+    server(page, ATB);
+    expect(parts(page)).toEqual({ mode: "debrid", debrid: true, p2p: false });
+    expect([template(page).value, template(page).seen]).toEqual(["addons", "addons"]);
+    server(page, "https://aiostreams.stremio.ru");
+    expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
+    expect([template(page).value, template(page).seen]).toEqual(["jacred", "p2p"]);
+  });
+
+  test("custom or not known: the mode for a new config (Debrid)", () => {
+    const page = open("ownconf");
+    expect(mode(page)).toBe("debrid");
+    server(page, ATB);
+    expect([mode(page), template(page).value]).toEqual(["debrid", "custom"]);
+  });
+
+  test("chosen: its part shown; the choice kept while the config is the same", () => {
+    const page = open("filled");
+    expect(parts(page)).toEqual({ mode: "debrid", debrid: true, p2p: false });
+    page.choose("aio_mode", "p2p");
+    expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
+    page.type(ID.rdKey, "x");
+    expect(mode(page)).toBe("p2p");
+    page.choose("aio_mode", "debrid");
+    expect(parts(page)).toEqual({ mode: "debrid", debrid: true, p2p: false });
+  });
+
+  test("Save and create: P2P without a key; with a config: Save", () => {
+    const page = open("p2p");
+    const { save, saveAndCreate } = page.init.i18n;
+    expect(saveText(page)).toBe(save);
+    server(page, "https://aiostreams.stremio.ru");
+    expect(saveText(page)).toBe(saveAndCreate);
+    page.choose("aio_mode", "debrid");
+    expect(saveText(page)).toBe(save);
+  });
+
+  test("JacRed notes in P2P: no 403 of the server (Magnetio asks), the home address one for own server too", () => {
+    const page = open("p2p");
+    const vis = () => ({ jr403: shown(page.el(ID.jacred403)), lan: shown(page.el(ID.jacredLan)) });
+    server(page, "https://aiostreams.fortheweak.cloud");
+    page.choose("jacred", "jacred.stream");
+    expect(vis()).toEqual({ jr403: false, lan: true });
+    page.choose("aio_mode", "debrid");
+    expect(vis()).toEqual({ jr403: true, lan: true });
+    server(page, "own");
+    page.choose("aio_mode", "debrid");
+    expect(vis()).toEqual({ jr403: false, lan: false });
+    page.choose("aio_mode", "p2p");
+    expect(vis()).toEqual({ jr403: false, lan: true });
+  });
+});
+
 describe("save button text", () => {
   test("Save and create: source made, no config, a RD or TorBox key; else Save", () => {
     const page = open("empty");

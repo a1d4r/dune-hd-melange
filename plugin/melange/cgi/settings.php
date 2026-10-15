@@ -24,10 +24,10 @@
 //                      chosen server (of the list or the own one, 0.35.1) by
 //                      settings.json: the own config chosen -> nothing; the
 //                      own server -> its TMDB by /status first; no config
-//                      there -> no Debrid key: no
+//                      there -> no Debrid key (mode Debrid): no
 //                      request, else POST /api/v1/user of the template; a
 //                      config -> GET ?raw=true, our fields, PUT (none if it has
-//                      no Debrid at all); reset=1 -> PUT of the template with
+//                      no Debrid at all, mode Debrid); reset=1 -> PUT of the template with
 //                      our fields, no GET. aio_confs written; JSON {ok, msg,
 //                      skip, base, conf[, field]} (field: as of a save error);
 //   GET  ?t=<token>&a=log -> <FS_PREFIX>/tmp/run/melange.log masked, an attachment;
@@ -93,6 +93,7 @@ function aio_cgi_save($dir, $t)
     $v['confs'] = $cur['aio_confs'];
     $v['cur'] = $cur;
     $v['tpl_new'] = $cur['aio_tpl'];
+    $v['mode_new'] = $cur['aio_mode'];
     $v['ajax'] = $ajax;
     list($data, $errors) = aio_cgi_check_values($v);
     if ($errors)
@@ -115,9 +116,9 @@ function aio_cgi_save($dir, $t)
     {
         $k = $f[$what]['set'];
         // A server with a TMDB key of its own: the field is hidden, the key kept unchecked.
-        // Only the keys of the chosen source: the own config needs none.
-        if ($data[$k] === '' || $data['source'] === 'own' || ($what === 'tmdb' &&
-            aio_tmdb_sent(aio_settings_base($data), $data[$k]) === ''))
+        // Only the keys of the chosen source: the own config needs none, nor the mode P2P a Debrid one.
+        if ($data[$k] === '' || $data['source'] === 'own' || ($what === 'tmdb' ?
+            aio_tmdb_sent(aio_settings_base($data), $data[$k]) === '' : $data['aio_mode'] === AIO_TPL_P2P))
             continue;
         $r = aio_cgi_key_check($what, $data[$k]);
         if ($r[0] === 'err')
@@ -144,12 +145,14 @@ function aio_cgi_save($dir, $t)
     aio_cgi_log('save: ok');
     // The config there is reset to the template (0.40.0): by its button, or
     // a template chosen other than that of the config (tpl, also 'none' or
-    // 'custom'). The script asks first and then posts aio_reset; without it
-    // another template resets the config the page showed (the stored server).
+    // 'custom'), or another mode than that of the config. The
+    // script asks first and then posts aio_reset; without it another template
+    // or mode resets the config the page showed (the stored server).
     $has = isset($data['aio_confs'][aio_settings_base($data)]);
+    $shown = $has ? aio_cgi_tpl_shown($data['aio_server'], $data['aio_own_url'], $data['aio_confs'], '') : '';
     $reset = $has && (aio_cgi_param($_POST, 'aio_reset') === '1' || (!$ajax && aio_cgi_same_server($data, $v['cur']) &&
-        $v['aio_tpl'] !== '' && $v['aio_tpl'] !== aio_cgi_tpl_shown($data['aio_server'], $data['aio_own_url'],
-        $data['aio_confs'], $data['aio_tpl'])));
+        ($data['aio_mode'] !== aio_cgi_mode_shown($shown, $v['cur']['aio_mode']) ||
+        ($data['aio_mode'] === 'debrid' && $v['aio_tpl'] !== '' && $v['aio_tpl'] !== $shown))));
     // Only the checked token, as in the redirect below. aio: what a=aio_sync
     // is to do next ('' - nothing, the own address).
     if ($ajax)

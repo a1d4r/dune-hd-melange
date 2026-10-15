@@ -1,5 +1,5 @@
-// What the page knows of the AIOStreams configs: of each server, and the template for a new one.
-// From #init (confs, tplNew); a save and aio_sync change them here.
+// What the page knows of the AIOStreams configs: of each server, and the template and the mode for a new one.
+// From #init (confs, tplNew, modeNew); a save and aio_sync change them here.
 
 import { isObject, type ServerConf } from "./api";
 
@@ -20,6 +20,9 @@ export interface Confs {
   // null: none in #init.
   templateForNew(): string | null;
   storeTemplateForNew(value: string): void;
+  // null: none in #init.
+  modeForNew(): string | null;
+  storeModeForNew(value: string): void;
 }
 
 const text = (value: unknown): string | null => (typeof value === "string" ? value : null);
@@ -30,10 +33,11 @@ function parseConf(json: unknown): KnownConf | null {
   return { cfg: json.cfg, login: text(json.login), pass: text(json.pass), tpl: text(json.tpl) || null, url: text(json.url) };
 }
 
-// confs: {<value of an option>: {cfg, login, pass, tpl, url?}}, tplNew: a string (both of #init).
-export function createConfs(confs: unknown, tplNew: unknown): Confs {
+// confs: {<value of an option>: {cfg, login, pass, tpl, url?}}, tplNew, modeNew: strings (all of #init).
+export function createConfs(confs: unknown, tplNew: unknown, modeNew: unknown): Confs {
   const byServer = new Map<string, KnownConf>();
-  let forNew = text(tplNew);
+  let forNew = text(tplNew),
+    forNewMode = text(modeNew);
   if (isObject(confs) && !Array.isArray(confs))
     for (const server of Object.keys(confs)) {
       const conf = parseConf(confs[server]);
@@ -49,6 +53,10 @@ export function createConfs(confs: unknown, tplNew: unknown): Confs {
     templateForNew: () => forNew,
     storeTemplateForNew(value: string): void {
       forNew = value;
+    },
+    modeForNew: () => forNewMode,
+    storeModeForNew(value: string): void {
+      forNewMode = value;
     },
   };
 }

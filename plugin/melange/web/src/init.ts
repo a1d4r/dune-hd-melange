@@ -17,12 +17,13 @@ import { bindEyes, maskSecrets } from "./secrets";
 import { setupServerChecks, setupServers } from "./servers";
 
 // Written by aio_cgi_js(). i18n and jacredDefault: always written, checked by isInit() (else #init is broken);
-// confs: {<value of a server option>: {cfg, login, pass, tpl, url?}}, tplNew: the template for a new config; both
-// checked by createConfs().
+// confs: {<value of a server option>: {cfg, login, pass, tpl, url?}}, tplNew, modeNew: the template and the mode for a
+// new config; all checked by createConfs().
 export interface Init {
   i18n: Texts;
   jacredDefault: string;
   tplNew?: unknown;
+  modeNew?: unknown;
   confs?: unknown;
 }
 
@@ -45,7 +46,7 @@ export function readInit(doc: Document): Init | null {
 function setupForm(page: Page, init: Init): void {
   const servers = setupServers(page, setupAdvanced(page));
   const lock = createLock(page);
-  const aio = setupAio(page, createConfs(init.confs, init.tplNew), lock);
+  const aio = setupAio(page, createConfs(init.confs, init.tplNew, init.modeNew), lock);
   setupClipboard(page);
   setupJacredNote(page, init.jacredDefault);
   // No fetch: the checks are not there, the form posts as without JS.

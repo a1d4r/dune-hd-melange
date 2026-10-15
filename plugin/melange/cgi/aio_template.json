@@ -92,6 +92,34 @@
         "mediaTypes": [],
         "useMultipleInstances": false
       }
+    },
+    {
+      "type": "custom",
+      "instanceId": "magnetio",
+      "enabled": true,
+      "options": {
+        "name": "JacRed",
+        "manifestUrl": "https://magnetio.peterdsp.dev/providers%3Dtorznab%7CtorznabUrl%3Dhttps%3A%2F%2Fjacred.example%2Fapi%2Fv2.0%2Findexers%2Fall%2Fresults%2Ftorznab%2Fapi%7Climit%3D100/manifest.json",
+        "timeout": 15000,
+        "resources": [
+          "stream"
+        ],
+        "mediaTypes": []
+      }
+    },
+    {
+      "type": "torrents-db",
+      "instanceId": "torrentsdb",
+      "enabled": true,
+      "options": {
+        "name": "TorrentsDB",
+        "timeout": 7000,
+        "resources": [
+          "stream"
+        ],
+        "mediaTypes": [],
+        "useMultipleInstances": false
+      }
     }
   ],
   "excludedResolutions": [

@@ -30,7 +30,7 @@ function servers(first: [string, string][]): [string, string][] {
   return out;
 }
 const FILLED: [string, string][] = [
-  ["source", "made"], ["aio_server", MADE], ["aio_own_url", ""], ["aio_tpl", "addons"], ["aio_tpl_seen", "addons"],
+  ["source", "made"], ["aio_server", MADE], ["aio_own_url", ""], ["aio_mode", "debrid"], ["aio_tpl", "addons"], ["aio_tpl_seen", "addons"],
   ["rd_key", "RDTESTKEY00000000000000001"], ["tb_key", "tbtest-0000000000000000001"], ["tmdb_key", "TMDBTESTKEY000000000001"],
   ["manifest", ""], ["jacred", "own"], ["jacred_own_url", "http://192.168.1.10:9117"], ["jacred_own_key", "testkey01"],
   ["ts", "http://192.168.1.10:8090"],
@@ -150,6 +150,21 @@ describe("saved", () => {
     expect(page.el<HTMLSelectElement>(ID.template).value).toBe("addons");
     page.type(ID.aioServer, "https://aiostreams.stremio.ru");
     expect(page.el<HTMLSelectElement>(ID.template).value).toBe("jacred");
+  });
+
+  test("the mode saved: the one for a new config, P2P seen when there is no config", async () => {
+    const page = open("filled");
+    const mode = () => page.form.querySelector<HTMLInputElement>("input[name=aio_mode]:checked")!.value;
+    page.type(ID.aioServer, ATB);
+    page.choose("aio_mode", "p2p");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
+    await save(page);
+    expect([page.confirms, page.el<HTMLInputElement>(ID.templateShown).value]).toEqual([[], "p2p"]);
+    page.type(ID.aioServer, MADE);
+    expect([mode(), page.el<HTMLInputElement>(ID.templateShown).value]).toEqual(["debrid", "addons"]);
+    page.type(ID.aioServer, "https://aiostreams.stremio.ru");
+    expect([mode(), page.el<HTMLInputElement>(ID.templateShown).value, page.el<HTMLSelectElement>(ID.template).value]).toEqual(
+      ["p2p", "p2p", "addons"]);
   });
 });
 
@@ -366,6 +381,50 @@ describe("the reset", () => {
     await page.click(ID.resetConf);
     expect(page.confirms).toEqual([]);
     expect(page.calls.length).toBe(1);
+  });
+
+  test("P2P over a config of Debrid: confirm with the name of P2P; yes: aio_mode=p2p and aio_reset=1", async () => {
+    const page = open("filled");
+    page.choose("aio_mode", "p2p");
+    await save(page);
+    expect(page.confirms).toEqual([page.init.i18n.resetConfirm.replace("%s", "aiostreams.12312023.xyz").replace("%s", "P2P (без Debrid)")]);
+    expect(page.calls).toEqual([]);
+    page.confirmAnswer = true;
+    page.replies.push(json({ ok: true, next: NEXT, aio: "" }));
+    await save(page);
+    expect(page.calls[0]!.body).toBe(encode(FILLED).replace("aio_mode=debrid", "aio_mode=p2p") + "&aio_reset=1");
+  });
+
+  test("Debrid over a config of P2P: confirm with the template chosen (the one for a new config); the same mode: none", async () => {
+    const page = open("p2p");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "" }));
+    await save(page);
+    expect([page.confirms, pairs(page.calls[0]!.body).filter(([k]) => /^aio_(mode|tpl|reset)/.test(k!))]).toEqual([
+      [], [["aio_mode", "p2p"], ["aio_tpl", "jacred"], ["aio_tpl_seen", "p2p"]],
+    ]);
+    page.choose("aio_mode", "debrid");
+    await save(page);
+    expect(page.confirms).toEqual([page.init.i18n.resetConfirm.replace("%s", "aiostreams.12312023.xyz").replace("%s", "Только JacRed")]);
+  });
+
+  test("Reset to the template in P2P: the name of P2P", async () => {
+    const page = open("p2p");
+    await page.click(ID.resetConf);
+    expect(page.confirms).toEqual([page.init.i18n.resetConfirm.replace("%s", "aiostreams.12312023.xyz").replace("%s", "P2P (без Debrid)")]);
+  });
+
+  test.each([false, true])("ok %p: a failed reset to P2P keeps P2P chosen (asked again); a done one shows P2P of the config", async (ok) => {
+    const page = open("filled");
+    page.confirmAnswer = true;
+    page.choose("aio_mode", "p2p");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "reset" }),
+      json({ ok: ok, msg: "m", skip: false, base: MADE, conf: FILLED_CONF(ok ? "p2p" : "addons") }));
+    await save(page);
+    expect([page.form.querySelector<HTMLInputElement>("input[name=aio_mode]:checked")!.value,
+      page.el<HTMLInputElement>(ID.templateShown).value]).toEqual(ok ? ["p2p", "p2p"] : ["p2p", "addons"]);
+    page.replies.push(json({ ok: true, next: NEXT, aio: "" }));
+    await save(page);
+    expect(page.confirms.length).toBe(ok ? 1 : 2);
   });
 
   test.each([false, true])("ok %p: a failed reset keeps the template chosen; a done one shows the template of the config", async (ok) => {

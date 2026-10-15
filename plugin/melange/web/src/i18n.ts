@@ -26,6 +26,8 @@ export const TEXT_KEYS = [
   "notReset",
   // %s: the host of the server, %s: the name of the template.
   "resetConfirm",
+  // The name of the template of the mode P2P in resetConfirm.
+  "templateP2p",
   "passCopied",
   "passNotCopied",
   // No answer at all: no connection; %d: the seconds waited.

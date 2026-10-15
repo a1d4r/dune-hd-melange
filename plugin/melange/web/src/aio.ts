@@ -1,4 +1,4 @@
-// AIOStreams: the source, the server, its config and the template, and what of the page depends on them.
+// AIOStreams: the source, the server, its config, the mode and the template, and what of the page depends on them.
 
 import type { Sync } from "./api";
 import type { Confs, KnownConf } from "./confs";
@@ -9,11 +9,11 @@ export interface Aio {
   render(): void;
   // The config of the server after aio_sync; then render().
   applySync(sync: Sync, reset: boolean): void;
-  // A save now would replace the config of the server with another template.
+  // A save now would replace the config of the server with another template (or another mode).
   resetPending(): boolean;
   // The OK of the user to replace the config with the template.
   confirmReset(): boolean;
-  // After a save: the template chosen is the one for a new config.
+  // After a save: the template and the mode chosen are the ones for a new config.
   rememberTemplate(): void;
 }
 
@@ -24,6 +24,8 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     rdKey = byId<HTMLInputElement>(doc, ID.rdKey),
     tbKey = byId<HTMLInputElement>(doc, ID.tbKey),
     template = byId<HTMLSelectElement>(doc, ID.template),
+    templateShown = byId<HTMLInputElement>(doc, ID.templateShown),
+    modes = form.querySelectorAll<HTMLInputElement>("input[name=" + NAME.mode + "]"),
     saveButton = query<HTMLButtonElement>(form, "." + CLS.save);
   // The config shown, by "<server> <config>"; undefined: as the page came.
   let templateKey: string | null | undefined;
@@ -47,18 +49,34 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   function renderHint(): void {
     byId(doc, ID.templateHint).textContent = template.options[template.selectedIndex]!.getAttribute(DATA.hint);
   }
-  // The template of the config ("none": not known yet), else the one for a new config.
-  // The choice shows it; a mark (disabled) only while it is the one.
+  function p2p(): boolean {
+    return checkedValue(form, NAME.mode) === VALUE.p2p;
+  }
+  // The mode of a config: P2P by its template, Debrid by a template of the choice; else (custom, none, no config)
+  // the one for a new config.
+  function modeOf(conf: KnownConf | null): string | null {
+    const tpl = conf ? conf.tpl : null;
+    if (tpl === VALUE.p2p) return VALUE.p2p;
+    for (let i = 0; i < template.options.length; i++)
+      if (template.options[i]!.value === tpl && !isMark(template.options[i])) return VALUE.debrid;
+    return confs.modeForNew();
+  }
+  // The template of the config ("none": not known yet), else the one for a new config (P2P in that mode); the
+  // choice shows it, of P2P the one for a new config of Debrid; a mark (disabled) only while it is the one. The mode:
+  // that of the config.
   function renderTemplate(): void {
     const conf = currentConf();
-    const shown = conf ? conf.tpl || VALUE.none : confs.templateForNew();
+    const shown = conf ? conf.tpl || VALUE.none : confs.modeForNew() === VALUE.p2p ? VALUE.p2p : confs.templateForNew();
+    const choice = shown === VALUE.p2p ? confs.templateForNew() : shown;
     for (let i = 0; i < template.options.length; i++) {
       const option = template.options[i]!;
-      if (isMark(option)) option.hidden = option.value !== shown;
+      if (isMark(option)) option.hidden = option.value !== choice;
     }
     // A missing tplNew assigns null, as a missing data-new did.
-    template.value = shown!;
-    byId<HTMLInputElement>(doc, ID.templateShown).value = shown!;
+    template.value = choice!;
+    templateShown.value = shown!;
+    const mode = modeOf(conf);
+    for (let i = 0; i < modes.length; i++) modes[i]!.checked = modes[i]!.value === mode;
     renderHint();
   }
   // The link, login and password of the config (a missing one: empty).
@@ -87,6 +105,9 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     }
     byId(doc, ID.sourceMade).style.display = ownSource ? "none" : "";
     byId(doc, ID.sourceOwn).style.display = ownSource ? "" : "none";
+    const modeP2p = p2p();
+    byId(doc, ID.modeDebrid).style.display = modeP2p ? "none" : "";
+    byId(doc, ID.modeP2p).style.display = modeP2p ? "" : "none";
     byId(doc, ID.aioOwnBox).style.display = ownServer ? "" : "none";
     byId(doc, ID.tmdbBox).style.display = !option || option.getAttribute(DATA.tmdb) === "1" ? "none" : "";
     byId(doc, ID.tmdbNote).style.display = ownServer ? "none" : "";
@@ -96,11 +117,12 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     swapText(ID.jacredHeading, ownSource);
     swapText(ID.jacredText, ownSource);
     const refuses = option ? option.getAttribute(DATA.jr403) : null;
-    byId(doc, ID.jacred403).hidden = ownSource || !refuses || refuses !== checkedValue(form, NAME.jacred);
+    // P2P: Magnetio asks JacRed, not the server; it can't reach a home address either.
+    byId(doc, ID.jacred403).hidden = ownSource || modeP2p || !refuses || refuses !== checkedValue(form, NAME.jacred);
     byId(doc, ID.tsOwn).hidden = !ownSource;
-    byId(doc, ID.jacredLan).hidden = ownSource || ownServer;
+    byId(doc, ID.jacredLan).hidden = ownSource || (ownServer && !modeP2p);
     const hasKey = (rdKey.value + tbKey.value).replace(/\s+/g, "") !== "";
-    if (!lock.saving()) saveButton.textContent = !ownSource && !conf && hasKey ? texts.saveAndCreate : texts.save;
+    if (!lock.saving()) saveButton.textContent = !ownSource && !conf && (hasKey || modeP2p) ? texts.saveAndCreate : texts.save;
   }
 
   server.addEventListener("change", render);
@@ -109,6 +131,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   tbKey.addEventListener("input", render);
   const sources = form.querySelectorAll<HTMLInputElement>("input[name=" + NAME.source + "]");
   for (let i = 0; i < sources.length; i++) sources[i]!.addEventListener("change", render);
+  for (let i = 0; i < modes.length; i++) modes[i]!.addEventListener("change", render);
   const jacreds = form.querySelectorAll<HTMLInputElement>(JACRED_RADIOS);
   for (let i = 0; i < jacreds.length; i++) jacreds[i]!.addEventListener("change", render);
   render();
@@ -123,10 +146,13 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
       // The template of the config as the server found it; a failed reset keeps the choice for the retry.
       if (sync.ok || !reset) templateKey = null;
     },
+    // Another mode than that of the config, or of Debrid another template.
     resetPending(): boolean {
-      return !isOwnSource(form) && !!currentConf() && template.value !== byId<HTMLInputElement>(doc, ID.templateShown).value;
+      const conf = currentConf();
+      if (isOwnSource(form) || !conf) return false;
+      return checkedValue(form, NAME.mode) !== modeOf(conf) || (!p2p() && template.value !== templateShown.value);
     },
-    // A mark shown: the reset is to the template for a new config (nothing posted).
+    // P2P: its name; a mark shown: the reset is to the template for a new config (nothing posted).
     confirmReset(): boolean {
       const option = selected()!,
         address = option.value === VALUE.own ? ownUrl() : option.value;
@@ -135,11 +161,13 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
         for (let i = 0; i < template.options.length; i++)
           if (template.options[i]!.value === confs.templateForNew()) chosen = template.options[i]!;
       const host = address.replace(/^[a-z]+:\/\//, "").replace(/[:\/].*$/, "");
-      return confirm(texts.resetConfirm.replace("%s", host).replace("%s", chosen.text));
+      return confirm(texts.resetConfirm.replace("%s", host).replace("%s", p2p() ? texts.templateP2p : chosen.text));
     },
     rememberTemplate(): void {
       if (!isMark(template.options[template.selectedIndex])) confs.storeTemplateForNew(template.value);
-      if (!currentConf()) byId<HTMLInputElement>(doc, ID.templateShown).value = template.value;
+      const mode = checkedValue(form, NAME.mode);
+      if (mode) confs.storeModeForNew(mode);
+      if (!currentConf()) templateShown.value = p2p() ? VALUE.p2p : template.value;
     },
   };
 }

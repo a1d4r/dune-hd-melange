@@ -7,9 +7,16 @@
 // server refuses [] for a record such as credentials). Plain PHP 5.3, no
 // firmware API, no request.
 
-// instanceId of the JacRed preset of the template.
+// instanceIds of the JacRed presets of the templates: Torznab of AIOStreams
+// (needs a Debrid service), Magnetio (P2P, preset custom).
 define('AIO_CONF_PRESET', 'melange');
+define('AIO_CONF_MAGNETIO', 'magnetio');
 define('AIO_CONF_TEMPLATE', 'aio_template.json');
+// The fields of the template P2P over those of aio_template.json.
+define('AIO_CONF_TEMPLATE_P2P', 'aio_template_p2p.json');
+// Magnetio: its server; the releases it gives, the best seeded (its default: 10).
+define('AIO_CONF_MAGNETIO_URL', 'https://magnetio.peterdsp.dev');
+define('AIO_CONF_MAGNETIO_LIMIT', 100);
 
 // PHP on Dune is 32-bit and json_decode of 5.3 clamps big integers to
 // 2147483647: numbers of 10+ digits (sizes in bytes of the filters) pass
@@ -42,24 +49,49 @@ function aio_conf_encode($v)
 }
 
 // The template $id (a key of aio_aio_tpls of common.php: the file with only
-// its presets) as an object, null when unreadable or no such template.
+// its presets, in its order; the title and year matched for its JacRed
+// only; P2P: the fields of AIO_CONF_TEMPLATE_P2P over) as an object, null
+// when unreadable or no such template.
 function aio_conf_template($id = 'addons')
 {
     $tpls = aio_aio_tpls();
     $j = aio_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . AIO_CONF_TEMPLATE));
-    if (!is_object($j) || !is_string($id) || !array_key_exists($id, $tpls))
+    if (!is_object($j) || !is_string($id) || !array_key_exists($id, $tpls) || !isset($j->presets) || !is_array($j->presets))
         return null;
-    if ($tpls[$id] !== null && isset($j->presets) && is_array($j->presets))
+    $keep = array();
+    foreach ($tpls[$id] as $want)
     {
-        $keep = array();
-        foreach ($j->presets as $x)
-        {
-            if (is_object($x) && isset($x->instanceId) && in_array($x->instanceId, $tpls[$id], true))
-                $keep[] = $x;
-        }
-        $j->presets = $keep;
+        $x = aio_conf_find($j->presets, 'instanceId', $want);
+        if ($x)
+            $keep[] = $x;
+    }
+    $j->presets = $keep;
+    foreach (array('titleMatching', 'yearMatching') as $k)
+        aio_conf_obj($j, $k)->addons = array(aio_conf_jacred_id($j));
+    if ($id === AIO_TPL_P2P)
+    {
+        $o = aio_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . AIO_CONF_TEMPLATE_P2P));
+        if (!is_object($o))
+            return null;
+        foreach (get_object_vars($o) as $k => $x)
+            $j->$k = $x;
     }
     return $j;
+}
+
+// instanceId of the JacRed preset of a template: Magnetio if it has one,
+// else Torznab of AIOStreams.
+function aio_conf_jacred_id($tpl)
+{
+    return aio_conf_find($tpl->presets, 'instanceId', AIO_CONF_MAGNETIO) ? AIO_CONF_MAGNETIO : AIO_CONF_PRESET;
+}
+
+// The manifest of Magnetio searching the Torznab endpoint $url with the key
+// $key ('' none) of JacRed. Its config is "k=v|k=v" in one path segment.
+function aio_conf_magnetio($url, $key)
+{
+    return AIO_CONF_MAGNETIO_URL . '/' . rawurlencode("providers=torznab|torznabUrl=$url" .
+        ($key !== '' ? "|torznabKey=$key" : '') . '|limit=' . AIO_CONF_MAGNETIO_LIMIT) . '/manifest.json';
 }
 
 // instanceIds of the presets of a config, sorted; null when not a list of
@@ -149,9 +181,10 @@ function aio_conf_has_debrid($c)
 }
 
 // Our fields of the config $c (the template or userData of GET), changed in
-// place; $tpl: the template (the preset back from it). $p: rd, tb - the
+// place; $tpl: the template (its JacRed preset, back from it). $p: rd, tb - the
 // keys ('' none); jr_url, jr_key - the Torznab endpoint and key ('' none) of
-// the chosen JacRed; tmdb_key - the key to send ('' none); tmdb_server - the
+// the chosen JacRed, put in the JacRed preset of $tpl (Torznab: its api;
+// Magnetio: its manifest); tmdb_key - the key to send ('' none); tmdb_server - the
 // server has TMDB of its own; tmdb_prev - TMDB at the last change (null:
 // a new config); set - of rd, tb, tmdb those melange put in the config. A
 // key of melange is put (and marked); none -> the field is cleared only if
@@ -182,27 +215,33 @@ function aio_conf_patch($c, $tpl, $p)
     }
     if (!isset($c->presets) || !is_array($c->presets))
         $c->presets = array();
-    $pr = aio_conf_find($c->presets, 'instanceId', AIO_CONF_PRESET);
+    $jid = aio_conf_jacred_id($tpl);
+    $pr = aio_conf_find($c->presets, 'instanceId', $jid);
     if (!$pr)
     {
         // Deleted in the web settings: back from the template, with its id
         // in the matching (the server dropped it from there).
-        $c->presets[] = $pr = aio_conf_copy(aio_conf_find($tpl->presets, 'instanceId', AIO_CONF_PRESET));
+        $c->presets[] = $pr = aio_conf_copy(aio_conf_find($tpl->presets, 'instanceId', $jid));
         foreach (array('titleMatching', 'yearMatching') as $k)
         {
             $m = aio_conf_obj($c, $k);
             if (!isset($m->addons) || !is_array($m->addons))
                 $m->addons = array();
-            if (!in_array(AIO_CONF_PRESET, $m->addons, true))
-                $m->addons[] = AIO_CONF_PRESET;
+            if (!in_array($jid, $m->addons, true))
+                $m->addons[] = $jid;
         }
     }
-    $api = aio_conf_obj(aio_conf_obj($pr, 'options'), 'api');
-    $api->url = $p['jr_url'];
-    if ($p['jr_key'] !== '')
-        $api->apiKey = $p['jr_key'];
+    if ($jid === AIO_CONF_MAGNETIO)
+        aio_conf_obj($pr, 'options')->manifestUrl = aio_conf_magnetio($p['jr_url'], $p['jr_key']);
     else
-        unset($api->apiKey);
+    {
+        $api = aio_conf_obj(aio_conf_obj($pr, 'options'), 'api');
+        $api->url = $p['jr_url'];
+        if ($p['jr_key'] !== '')
+            $api->apiKey = $p['jr_key'];
+        else
+            unset($api->apiKey);
+    }
     if ($p['tmdb_key'] !== '')
     {
         $c->tmdbApiKey = $p['tmdb_key'];
@@ -226,13 +265,14 @@ function aio_conf_patch($c, $tpl, $p)
 // common.php) for the chosen server (of the list or the own one); $conf: its
 // config of aio_confs, null for a new one; $tmdbs: the server has TMDB of
 // its own (null: as the list says; /status of the own server). The key of
-// TMDB as aio_tmdb_sent().
+// TMDB as aio_tmdb_sent(); the Debrid keys: none in the mode P2P.
 function aio_conf_params($s, $conf, $tmdbs = null)
 {
     $servers = aio_aio_servers();
     $base = aio_settings_base($s);
     $jr = aio_jacred_list($s);
-    return array('rd' => $s['rd_key'], 'tb' => $s['tb_key'], 'jr_url' => aio_conf_torznab($jr[0]['base']),
+    $p2p = $s['aio_mode'] === AIO_TPL_P2P;
+    return array('rd' => $p2p ? '' : $s['rd_key'], 'tb' => $p2p ? '' : $s['tb_key'], 'jr_url' => aio_conf_torznab($jr[0]['base']),
         'jr_key' => $jr[0]['key'], 'tmdb_key' => aio_tmdb_sent($base, $s['tmdb_key']),
         'tmdb_server' => $tmdbs !== null ? $tmdbs : !empty($servers[$base]), 'tmdb_prev' => $conf ? $conf['tmdb'] : null,
         'set' => $conf ? $conf['set'] : array());

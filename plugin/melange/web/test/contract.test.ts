@@ -39,6 +39,9 @@ describe.each([...FIXTURES])("%s", (name) => {
       expect([cls, doc.querySelectorAll("." + cls).length > 0]).toEqual([cls, !SCRIPT_CLASSES.includes(cls)]);
     expect(form.querySelectorAll("." + CLS.save + "[type=submit]").length).toBe(1);
     expect(form.querySelectorAll("input[type=radio][name=" + NAME.source + "]").length).toBe(2);
+    // The modes: the values the script compares with.
+    expect(Array.from(form.querySelectorAll<HTMLInputElement>("input[type=radio][name=" + NAME.mode + "]")).map((radio) => radio.value))
+      .toEqual([VALUE.debrid, VALUE.p2p]);
     expect(form.querySelectorAll(JACRED_RADIOS + "[type=radio]").length).toBe(form.querySelectorAll("input[name=" + NAME.jacred + "]").length);
     // Every built-in JacRed is a radio of the choice with its id.
     const builtins = form.querySelectorAll<HTMLInputElement>("input." + CLS.jacredBuiltin);

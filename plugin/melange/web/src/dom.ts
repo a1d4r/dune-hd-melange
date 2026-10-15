@@ -16,6 +16,9 @@ export const ID = {
   template: "at",
   templateShown: "ats",
   templateHint: "ath",
+  // The parts of the mode (Debrid: the template and the keys; P2P: its hints).
+  modeDebrid: "mdeb",
+  modeP2p: "mp2p",
   sourceMade: "smade",
   sourceOwn: "sown",
   tmdbBox: "tmbox",
@@ -94,6 +97,8 @@ export const DATA = {
 
 export const NAME = {
   source: "source",
+  // The mode of the config melange makes: VALUE.debrid or VALUE.p2p.
+  mode: "aio_mode",
   jacred: "jacred",
 } as const;
 
@@ -103,6 +108,9 @@ export const VALUE = {
   own: "own",
   // The mark of the template choice: the template of the config not known yet.
   none: "none",
+  // The modes; P2P is also the template of a config of that mode.
+  debrid: "debrid",
+  p2p: "p2p",
 } as const;
 
 // The radios of the choice of JacRed.

@@ -23,6 +23,7 @@ parameters:
                 jacred_own_key: string,
                 aio_server: string,
                 aio_own_url: string,
+                aio_mode: string,
                 aio_tpl: string,
                 tmdb_key: string,
                 servers: list<AioServer>,

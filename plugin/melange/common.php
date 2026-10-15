@@ -248,15 +248,54 @@ function aio_aio_servers()
         'https://aiostreams.fortheweak.cloud' => false);
 }
 
+// The template of the mode P2P (and the value of that mode).
+define('AIO_TPL_P2P', 'p2p');
+
 // Templates of the config melange makes (0.40.0): id => instanceIds of the
-// presets of cgi/aio_template.json it keeps (null: all). The first one is
-// the default.
+// presets of cgi/aio_template.json it has, in this order. The first one is
+// the default; the Debrid mode chooses one of them but AIO_TPL_P2P (the
+// mode P2P, no Debrid service: Torrentio first, its rows win the dedup).
+// Their JacRed: Torznab of AIOStreams "melange" (needs a Debrid service) or
+// Magnetio "magnetio" (aio_conf_patch puts the chosen JacRed in either).
 /**
- * @return array<string, list<string>|null>
+ * @return array<string, list<string>>
  */
 function aio_aio_tpls()
 {
-    return array('addons' => null, 'jacred' => array('melange'));
+    return array('addons' => array('melange', 'comet', 'torz', 'mf', 'torrentio'), 'jacred' => array('melange'),
+        AIO_TPL_P2P => array('torrentio', 'magnetio', 'torrentsdb', 'comet', 'torz'));
+}
+
+// Modes of the config melange makes (aio_mode of the settings): debrid -
+// aio_tpl with the Debrid keys; p2p - AIO_TPL_P2P, the keys kept but never
+// sent. The first one is the default.
+/**
+ * @return list<string>
+ */
+function aio_aio_modes()
+{
+    return array('debrid', AIO_TPL_P2P);
+}
+
+// $id is a template of the Debrid mode (aio_tpl).
+/**
+ * @param mixed $id
+ * @return bool
+ */
+function aio_tpl_debrid($id)
+{
+    return is_string($id) && $id !== AIO_TPL_P2P && array_key_exists($id, aio_aio_tpls());
+}
+
+// The template of a new config or a reset by the settings: the mode P2P ->
+// AIO_TPL_P2P, else aio_tpl.
+/**
+ * @param array{aio_mode: string, aio_tpl: string} $s
+ * @return string
+ */
+function aio_settings_tpl($s)
+{
+    return $s['aio_mode'] === AIO_TPL_P2P ? AIO_TPL_P2P : $s['aio_tpl'];
 }
 
 // A config of AIOStreams made by the settings page (0.35.0), as stored in
@@ -470,8 +509,9 @@ function aio_settings_hosts($s)
 // 'jacred' => a key of aio_jacred_builtin() or 'own', 'jacred_own_url',
 // 'jacred_own_key' => aio_jacred_own() or '' (kept when a built-in one is
 // chosen), 'aio_server' => a key of aio_aio_servers() or 'own' (another
-// server: aio_own_url), 'aio_own_url' => aio_aio_own(), 'aio_tpl' => a key
-// of aio_aio_tpls() (one for all servers); everything kept
+// server: aio_own_url), 'aio_own_url' => aio_aio_own(), 'aio_mode' => one of
+// aio_aio_modes(), 'aio_tpl' => aio_tpl_debrid() (both one for all
+// servers); everything kept
 // whatever is chosen, 'tmdb_key',
 // 'servers' => list of aio_server_conf(), 'ts_url' => aio_ts_addr() or '',
 // 'aio_confs' => base of a server => aio_aio_conf()),
@@ -490,7 +530,8 @@ function aio_settings_read($dir)
     $tpls = aio_aio_tpls();
     $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
-        'aio_tpl' => key($tpls), 'tmdb_key' => '', 'servers' => array(), 'ts_url' => '', 'aio_confs' => array());
+        'aio_mode' => 'debrid', 'aio_tpl' => key($tpls), 'tmdb_key' => '', 'servers' => array(), 'ts_url' => '',
+        'aio_confs' => array());
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
     if ($dir === '' || is_link($f) || !is_file($f) || !is_readable($f) || filesize($f) > AIO_SETTINGS_MAX)
@@ -517,7 +558,9 @@ function aio_settings_read($dir)
         $r['source'] = 'own';
     if (isset($j['aio_own_url']))
         $r['aio_own_url'] = aio_aio_own($j['aio_own_url']);
-    if (isset($j['aio_tpl']) && is_string($j['aio_tpl']) && array_key_exists($j['aio_tpl'], $tpls))
+    if (isset($j['aio_mode']) && in_array($j['aio_mode'], aio_aio_modes(), true))
+        $r['aio_mode'] = $j['aio_mode'];
+    if (isset($j['aio_tpl']) && aio_tpl_debrid($j['aio_tpl']))
         $r['aio_tpl'] = $j['aio_tpl'];
     if (!isset($j['v']) || $j['v'] !== 2)
         list($r['jacred'], $r['jacred_own_url'], $r['jacred_own_key']) =

@@ -160,13 +160,14 @@ function aio_cgi_aio_keep($dir, $base, $c)
 }
 
 // The config of the chosen server (of the list or the own one) by
-// settings.json: none -> POST of the template (aio_tpl) with our fields;
+// settings.json: none -> POST of the template (aio_settings_tpl: aio_tpl, or
+// P2P with no Debrid key needed) with our fields;
 // there -> GET, its template by its presets stored (tpl), our fields, PUT;
 // $reset (0.40.0) -> PUT of the template with our fields as for a new one,
 // no GET (manual edits lost; the login, password and manifest stay). The
 // own server: its TMDB by /status first.
-// The own config chosen -> nothing (skip). No config and no Debrid key, or
-// a reset without one -> no request.
+// The own config chosen -> nothing (skip). Mode Debrid: no config and no
+// Debrid key, or a reset without one -> no request.
 // -> array(ok, the line for the page, skip, the choice (aio_server),
 // aio_cgi_aio_show() of its config now[, the name= of the field a failure
 // is about: no Debrid key, the own server not taken (not its 429: the
@@ -180,7 +181,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
     $base = aio_settings_base($s);
     $host = (string) parse_url($base, PHP_URL_HOST);
     $conf = $base !== '' && isset($s['aio_confs'][$base]) ? $s['aio_confs'][$base] : null;
-    $id = $s['aio_tpl'];
+    $id = aio_settings_tpl($s);
+    $debrid = $id !== AIO_TPL_P2P;
     // No config: made by the template.
     $reset = $reset && $conf;
     if ($s['source'] === 'own' || $base === '')
@@ -194,14 +196,14 @@ function aio_cgi_aio_sync($dir, $reset = false)
     // The template is stored already: "Сохранить" again only updates.
     $again = $reset ? aio_cgi_l('; повторить — «Сбросить к шаблону»', '; to retry: "Reset to the template"') : '';
     // A config there may have a service of its own (set by hand): GET decides.
-    if (!$conf && $s['rd_key'] === '' && $s['tb_key'] === '')
+    if ($debrid && !$conf && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
         aio_cgi_log('aio sync: no Debrid key');
         return array(false, $fail . aio_cgi_l('нужен ключ Debrid (Real-Debrid или TorBox)',
             'a Debrid key is needed (Real-Debrid or TorBox)'), false, $choice, null, $f['rd']['name']);
     }
     // The template has no service of its own.
-    if ($reset && $s['rd_key'] === '' && $s['tb_key'] === '')
+    if ($debrid && $reset && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
         aio_cgi_log("aio sync: reset ($id): no Debrid key, not changed");
         return array(false, $fail . aio_cgi_l('нужен ключ Debrid в Melange', 'a Debrid key is needed in Melange') . $again,
@@ -281,8 +283,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
                 aio_cgi_log("aio sync: $w");
         }
         list($tmdb, $set) = aio_conf_patch($u, $tpl, aio_conf_params($s, $conf, $tmdbs));
-        // No key of melange and none set by hand: PUT would get 400.
-        if (!aio_conf_has_debrid($u))
+        // No key of melange and none set by hand: PUT would get 400 (Torznab).
+        if ($debrid && !aio_conf_has_debrid($u))
         {
             aio_cgi_log('aio sync: no Debrid key, not changed');
             return array(false, $fail . aio_cgi_l('нужен хотя бы один ключ Debrid', 'at least one Debrid key is needed'),
@@ -319,9 +321,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
     $w = aio_cgi_aio_keep($dir, $base, $conf);
     if ($w !== '')
         aio_cgi_log("aio sync: $w");
-    $tpls = aio_cgi_tpls();
     return array(true, $reset ? sprintf(aio_cgi_l('Конфиг AIOStreams на %s сброшен к шаблону «%s»',
-        'The AIOStreams config on %s was reset to the template "%s"'), $host, $tpls[$id][0]) :
+        'The AIOStreams config on %s was reset to the template "%s"'), $host, aio_cgi_tpl_name($id)) :
         sprintf(aio_cgi_l('Конфиг AIOStreams на %s обновлён', 'The AIOStreams config on %s was updated'), $host),
         false, $choice, aio_cgi_aio_show($conf));
 }
