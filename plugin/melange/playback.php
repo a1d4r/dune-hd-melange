@@ -177,7 +177,8 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
 // /static/exceptions/<file>.mp4, StremThru /v0/store/_/static/<file>.mp4.
 // The add-ons of ElfHosted redirect to slate.elfhosted.com instead, the
 // reason in its title and body. Comet sends its placeholder as the body: 200,
-// a video/* type and a Content-Length under 1 MB, no film is that small.
+// a video/* type (not an HLS playlist) and a Content-Length under 1 MB, no
+// film is that small.
 
 define('AIO_PRE_CONNECT', 5);
 define('AIO_PRE_TOTAL', 30);
@@ -204,12 +205,13 @@ define('AIO_PRE_BODY_MAX', 1048576);
  * @param int $len
  * @return AioPreClass
  */
-function aio_pre_class($url, $code, $loc, $type = '', $len = -1)
+function aio_pre_class($url, $code, $loc, $type, $len)
 {
     if ($code === 200 && $len > 0 && $len < AIO_PRE_BODY_MAX)
     {
         $t = strtolower(trim(preg_replace('/;.*$/s', '', $type)));
-        if (substr($t, 0, 6) === 'video/')
+        // Not an HLS playlist: small, yet a stream.
+        if (substr($t, 0, 6) === 'video/' && strpos($t, 'mpegurl') === false)
             return array('class' => 'placeholder', 'type' => aio_cut(preg_replace('/[^\x21-\x7e]+/', '', $t), 60),
                 'len' => $len);
     }
@@ -305,7 +307,7 @@ function aio_precheck($url)
         // Comet: the reason is not in the headers.
         aio_log(sprintf('precheck: placeholder, HTTP %d, %s %d bytes, %.2f s', $code, $pre['type'], $pre['len'], $t));
         $pre['key'] = 'err_pre_placeholder';
-        $pre['detail'] = sprintf('HTTP %d, %d KB', $code, round($pre['len'] / 1024));
+        $pre['detail'] = sprintf('HTTP %d, %d KB', $code, max(1, round($pre['len'] / 1024)));
     }
     else if ($pre['class'] === 'placeholder')
     {
