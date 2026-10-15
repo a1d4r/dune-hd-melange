@@ -593,8 +593,6 @@ function aio_cgi_check_values($v)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Режим: нет такого режима', 'Mode: no such mode'), $f['aio_mode']['name']);
     }
-    // The Debrid keys: only of the mode Debrid (else hidden, kept, never sent).
-    $debrid = $made && $mode === 'debrid';
     // The keys of settings.json: only by aio_cgi_fields().
     $set = array();
     foreach ($f as $k => $x)
@@ -609,20 +607,11 @@ function aio_cgi_check_values($v)
             $errors[] = aio_cgi_err(aio_cgi_fmt_manifest(), $f['manifest']['name']);
         }
     }
-    foreach (array('rd', 'tb') as $what)
-    {
-        $k = $set[$what];
-        $d[$k] = aio_key_ok($what, $v[$what]);
-        if ($v[$what] !== '' && $d[$k] === '')
-        {
-            if (!$debrid)
-                $d[$k] = $v['cur'][$k];
-            else
-            {
-                $errors[] = aio_cgi_err(aio_cgi_fmt_key($what), $f[$what]['name']);
-            }
-        }
-    }
+    // The Debrid keys: checked below by the mode of the config after the
+    // save; their errors go here, in the order of the page.
+    $keys_at = count($errors);
+    $d[$set['rd']] = '';
+    $d[$set['tb']] = '';
     // Not one of the list (a form of 0.33): the default; the own one only with its address.
     $d[$set['jacred']] = $v['jacred'] === 'own' || array_key_exists($v['jacred'], aio_jacred_builtin()) ? $v['jacred'] :
         AIO_JACRED_DEFAULT;
@@ -679,6 +668,23 @@ function aio_cgi_check_values($v)
     // another server chosen updates the config in its mode).
     $base = $d[$set['aio_server']] === 'own' ? $d[$set['aio_own']] : $d[$set['aio_server']];
     $to = aio_cgi_mode_to($d, $v['confs'], $v);
+    // The Debrid keys: only of a config of Debrid (else not sent; a wrong one: the stored one kept).
+    $keys = array();
+    foreach (array('rd', 'tb') as $what)
+    {
+        $k = $set[$what];
+        $d[$k] = aio_key_ok($what, $v[$what]);
+        if ($v[$what] !== '' && $d[$k] === '')
+        {
+            if (!$made || $to !== 'debrid')
+                $d[$k] = $v['cur'][$k];
+            else
+            {
+                $keys[] = aio_cgi_err(aio_cgi_fmt_key($what), $f[$what]['name']);
+            }
+        }
+    }
+    array_splice($errors, $keys_at, 0, $keys);
     if ($made && $to === 'debrid' && $base !== '' && (!isset($v['confs'][$base]) || $v['confs'][$base]['mode'] ===
         AIO_TPL_P2P) && $d[$set['rd']] === '' && $d[$set['tb']] === '' && $v['rd'] . $v['tb'] === '')
     {

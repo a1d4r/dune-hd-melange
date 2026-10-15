@@ -317,18 +317,26 @@ function aio_tpl_jacred($id)
 
 // The mode of a config (aio_aio_conf; aio_mode is only that of a new one):
 // by its template $tpl - P2P, or one of the Debrid mode -> debrid; else
-// ('custom', null) by $ids, the instanceIds of its presets (null: not
-// known): the JacRed preset of the template P2P there -> P2P, else debrid.
+// ('custom', null) $mode, the one it had (a JacRed preset deleted by hand
+// comes back in it); none ($mode null: a config of 0.42 or older, tpl null:
+// melange writes tpl and mode together) - by $ids, the instanceIds of its
+// presets (null: not known): the JacRed preset of the template P2P there ->
+// P2P, else debrid.
 /**
  * @param mixed $tpl
  * @param list<string>|null $ids
+ * @param string|null $mode
  * @return string
  */
-function aio_mode_of($tpl, $ids)
+function aio_mode_of($tpl, $ids, $mode = null)
 {
     if ($tpl === AIO_TPL_P2P)
         return AIO_TPL_P2P;
-    return !aio_tpl_debrid($tpl) && $ids !== null && in_array(aio_tpl_jacred(AIO_TPL_P2P), $ids, true) ? AIO_TPL_P2P : 'debrid';
+    if (aio_tpl_debrid($tpl))
+        return 'debrid';
+    if ($mode !== null)
+        return $mode;
+    return $ids !== null && in_array(aio_tpl_jacred(AIO_TPL_P2P), $ids, true) ? AIO_TPL_P2P : 'debrid';
 }
 
 // A config of AIOStreams made by the settings page (0.35.0), as stored in

@@ -277,7 +277,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
     {
         // As it is there, before our fields; stored even if the PUT fails.
         $t = aio_conf_tpl_of($u);
-        $m = aio_mode_of($t, aio_conf_preset_ids($u));
+        // custom: the mode it had; by its presets only if not known (tpl null).
+        $m = aio_mode_of($t, aio_conf_preset_ids($u), $conf['tpl'] === null ? null : $conf['mode']);
         aio_cgi_log("aio sync: template $t, mode $m");
         if ($t !== $conf['tpl'] || $m !== $conf['mode'])
         {
