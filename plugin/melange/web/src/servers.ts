@@ -36,8 +36,7 @@ function isBlank(block: Element): boolean {
   return true;
 }
 
-// changed: after a block is filled by "Duplicate" (no event of a field).
-export function setupServers(page: Page, changed: () => void): Servers {
+export function setupServers(page: Page): Servers {
   const { form, texts } = page;
   const blocks = form.querySelectorAll<HTMLDetailsElement>(SERVER_BLOCK);
   const addButton = byId(page.doc, ID.addServer);
@@ -74,7 +73,8 @@ export function setupServers(page: Page, changed: () => void): Servers {
     to.byKey.name!.value = copyName + suffix;
     query(target, "." + CLS.serverResult).textContent = "";
     reveal(target);
-    changed();
+    // The fields filled by the script: an input of the form, as typed (the main screen and the bar follow).
+    to.byKey.name!.dispatchEvent(new page.doc.defaultView!.Event("input", { bubbles: true }));
     if (target.scrollIntoView) target.scrollIntoView();
     to.byKey.name!.focus();
   }

@@ -46,18 +46,17 @@ export function readInit(doc: Document): Init | null {
 }
 
 function setupForm(page: Page, init: Init): void {
-  // The main screen and the bar after any change: the handlers of the form, after those of its fields.
-  let changed = () => {};
-  const servers = setupServers(page, () => changed());
+  const servers = setupServers(page);
   const lock = createLock(page);
   const aio = setupAio(page, createConfs(init.confs, init.tplNew), lock);
   const debrid = setupDebrid(page);
   setupTorrServer(page);
   setupClipboard(page);
   setupJacredNote(page, init.jacredDefault);
-  const home = setupHome(page, aio.hasConf);
-  const bar = setupBar(page, aio.creates, lock.saving);
-  changed = () => {
+  const home = setupHome(page, aio.creates);
+  const bar = setupBar(page, () => aio.creates() || aio.templateUnknown(), lock.saving);
+  // The main screen and the bar after any change: the handlers of the form, after those of its fields.
+  const changed = () => {
     home.render();
     bar.render();
   };
@@ -69,7 +68,7 @@ function setupForm(page: Page, init: Init): void {
   setupChecks(page, api, lock);
   setupServerChecks(page, api, lock);
   setupJacredSpeed(page, api, lock);
-  setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, changed);
+  setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, home, changed);
 }
 
 // saved=1 of the address after a save (the "Saved" line of PHP) dropped, the rest kept as it is: a reload does not

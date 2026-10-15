@@ -1,7 +1,7 @@
 // The keys of Debrid: both empty - the switch Real-Debrid / TorBox (#dseg) and the field of one; one filled - its
 // field and "+ Add <the other>"; both filled (or the other one added) - both fields.
 
-import { byId, DATA, ID, type Page } from "./dom";
+import { byId, DATA, ID, type Page, trimmed } from "./dom";
 
 export interface Debrid {
   // The field of the key shown (an error of a save is about it).
@@ -17,7 +17,7 @@ export function setupDebrid(page: Page): Debrid {
     rd: { field: byId<HTMLInputElement>(doc, ID.rdKey), box: byId(doc, ID.rdBox), add: byId(doc, ID.rdAdd) },
     tb: { field: byId<HTMLInputElement>(doc, ID.tbKey), box: byId(doc, ID.tbBox), add: byId(doc, ID.tbAdd) },
   };
-  const filled = (key: Key) => keys[key].field.value.replace(/\s+/g, "") !== "";
+  const filled = (key: Key) => trimmed(keys[key].field.value) !== "";
   // The one shown while not both are; both: as the page came filled, or one added.
   let current: Key = !filled("rd") && filled("tb") ? "tb" : "rd";
   let both = filled("rd") && filled("tb");

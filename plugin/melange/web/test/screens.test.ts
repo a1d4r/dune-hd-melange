@@ -4,16 +4,16 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { CLS, ID, ROWS } from "../src/dom";
 import { plural } from "../src/i18n";
-import { cleanup, FIXTURES, flush, json, lines, open, type Page, TOKEN } from "./harness";
+import { cleanup, FIXTURES, flush, HANG, json, lines, open, type Page, TOKEN } from "./harness";
 
 afterEach(cleanup);
 
-// What the main screen says: the state (null on the first run) and [dot, value] of every line.
+// What the main screen says: the state (null while hidden: the first run) and [dot, value] of every line.
 function home(page: Page) {
-  const state = page.doc.getElementById(ID.state);
-  const shownLines = state ? Array.from(state.querySelectorAll<HTMLElement>("p[data-st]")).filter((line) => !line.hidden) : [];
+  const state = page.el(ID.state);
+  const shownLines = Array.from(state.querySelectorAll<HTMLElement>("p[data-st]")).filter((line) => !line.hidden);
   return {
-    state: state ? [state.className, state.getAttribute("data-st"), shownLines.map((line) => line.getAttribute("data-st"))] : null,
+    state: state.hidden ? null : [state.className, state.getAttribute("data-st"), shownLines.map((line) => line.getAttribute("data-st"))],
     rows: ROWS.map((row) => [row, page.el("d" + row).className, page.el("v" + row).textContent]),
   };
 }
@@ -66,12 +66,31 @@ describe("the main screen", () => {
     expect(value("dl")).toEqual(["dot", t.noServers]);
   });
 
-  test("the first run: no state, the lines follow", () => {
+  test("the first run: the question, the state hidden, the lines follow", () => {
     const page = open("empty");
-    expect(home(page).state).toBeNull();
+    expect([home(page).state, page.el(ID.first).hidden]).toEqual([null, false]);
     expect(page.el("start").getAttribute("href")).toBe("#src");
     page.choose("watch", "p2p");
     expect(page.el("vsrc").textContent).toBe(page.init.i18n.templateP2p + " · " + page.init.i18n.viaTs);
+  });
+
+  test("the first save that stays on the page: the state instead of the question, as of the form now", async () => {
+    const page = open("empty");
+    page.type(ID.rdKey, "RDKEY");
+    page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "create", notes: [] }),
+      json({ ok: true, msg: "Created", skip: false, base: "https://aiostreams.kompotik.com", mode: "debrid",
+        conf: { cfg: "https://cfg.example/1", login: "l", pass: "p", tpl: "addons" } }));
+    page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
+    await flush();
+    expect([page.el(ID.first).hidden, home(page).state]).toEqual([true, ["state ok", "ok", ["ok"]]]);
+  });
+
+  test("a failed save: still the first run", async () => {
+    const page = open("empty");
+    page.replies.push(json({ ok: false, errors: [{ msg: "Key", field: "rd_key" }] }));
+    page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
+    await flush();
+    expect([page.el(ID.first).hidden, home(page).state]).toEqual([false, null]);
   });
 
   test("a config made by the save on the page: the state turns ok", async () => {
@@ -137,7 +156,7 @@ describe("the bar of the save", () => {
   test("hidden with no change; the count of the fields changed, back to the value: one less, none: hidden", () => {
     const page = open("filled");
     expect(bar(page)).toBeNull();
-    page.type(ID.ts, "http://192.168.1.11:8090");
+    page.type(ID.ts, "http://192.168.1.10:8091");
     expect(bar(page)).toBe("1 изменение");
     page.choose("jacred", "jac.red");
     page.type("s2_name", "x");
@@ -159,6 +178,26 @@ describe("the bar of the save", () => {
     expect([bar(page), page.form.querySelector("." + CLS.save)!.textContent]).toEqual(["", page.init.i18n.saveAndCreate]);
   });
 
+  test("the template of the config not known yet (the mark none: Save finds it): shown with no change; not for own config", () => {
+    const page = open("ownconf");
+    expect([page.el<HTMLSelectElement>(ID.template).value, bar(page)]).toEqual(["none", ""]);
+    page.choose("watch", "own");
+    expect(bar(page)).toBe("1 изменение");
+  });
+
+  test("the save finds the template of the config: no change after it (the mark none gone is none)", async () => {
+    const page = open("ownconf");
+    page.type(ID.ts, "http://192.168.1.10:8091");
+    page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "update", notes: [] }),
+      json({ ok: true, msg: "Updated", skip: false, base: "own", mode: "debrid",
+        conf: { cfg: "https://cfg.example/1", login: "l", pass: "p", tpl: "addons" } }));
+    page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
+    await flush();
+    expect(page.el<HTMLSelectElement>(ID.template).value).toBe("addons");
+    page.el(ID.hideResult).click();
+    expect(bar(page)).toBeNull();
+  });
+
   test("the first run: Torrents chosen - a change and a config to create", () => {
     const page = open("empty");
     expect(bar(page)).toBeNull();
@@ -170,14 +209,40 @@ describe("the bar of the save", () => {
 
   test("a save that stays on the page: its lines shown, what is saved no change any more", async () => {
     const page = open("filled");
-    page.type(ID.ts, "http://192.168.1.11:8090");
+    page.type(ID.ts, "http://192.168.1.10:8091");
     page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "", notes: [{ level: "warn", msg: "Note" }] }));
     page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
     await flush();
     expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved], ["warn", "Note"]]);
-    expect(bar(page)).toBe("");
+    expect([bar(page), page.el(ID.hideResult).hidden]).toEqual(["", false]);
     page.type(ID.ts, "http://192.168.1.10:8090");
     expect(bar(page)).toBe("1 изменение");
+  });
+
+  test("Hide: the results gone, the bar with them while nothing to save; a new save - new results", async () => {
+    const page = open("filled");
+    page.type(ID.ts, "http://192.168.1.10:8091");
+    page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "", notes: [{ level: "warn", msg: "Note" }] }));
+    page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
+    await flush();
+    page.el(ID.hideResult).click();
+    expect([lines(page.el(ID.saveResult)), page.el(ID.hideResult).hidden, bar(page)]).toEqual([[], true, null]);
+    page.type(ID.ts, "http://192.168.1.10:8090");
+    page.replies.push(json({ ok: false, errors: [{ msg: "TorrServer", field: "ts" }] }));
+    page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
+    await flush();
+    expect([lines(page.el(ID.saveResult)), page.el(ID.hideResult).hidden, bar(page)]).toEqual([[["err", "TorrServer"]], false, "1 изменение"]);
+    page.el(ID.hideResult).click();
+    expect([page.el(ID.hideResult).hidden, bar(page)]).toEqual([true, "1 изменение"]);
+  });
+
+  test("no Hide while the config is made (its line comes into the results)", async () => {
+    const page = open("filled");
+    page.type(ID.aioServer, "https://aio.atbphosting.com");
+    page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "create", notes: [] }), HANG);
+    page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
+    await flush();
+    expect([lines(page.el(ID.saveResult)).length, page.el(ID.hideResult).hidden, bar(page)]).toEqual([2, true, ""]);
   });
 
   test("errors of a save: the count stays, the errors in the bar", async () => {
@@ -187,6 +252,12 @@ describe("the bar of the save", () => {
     page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
     await flush();
     expect([bar(page), lines(page.el(ID.saveResult))]).toEqual(["1 изменение", [["err", "TorrServer"]]]);
+  });
+
+  test("Duplicate: the block filled counts as typed (the bar, the line of the servers)", () => {
+    const page = open("filled");
+    page.form.querySelector<HTMLButtonElement>("." + CLS.serverDup)!.click();
+    expect([bar(page), page.el("vdl").textContent]).toEqual(["5 изменений", "qBittorrent, qBittorrent (копия)"]);
   });
 
   test("the forms of the count: Russian three, English two", () => {

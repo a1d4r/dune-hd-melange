@@ -3,15 +3,15 @@
 
 import type { Sync } from "./api";
 import type { Confs, KnownConf } from "./confs";
-import { byId, checkedValue, CLS, DATA, ID, isMark, JACRED_RADIOS, NAME, type Page, query, VALUE, watchOf } from "./dom";
+import { byId, checkedValue, CLS, DATA, hostOf, ID, isMark, JACRED_RADIOS, NAME, type Page, query, trimmed, VALUE, watchOf } from "./dom";
 import type { Lock } from "./lock";
 
 export interface Aio {
   render(): void;
-  // The chosen server has a config of the mode chosen (not for own config).
-  hasConf(): boolean;
   // "Save" creates a config: "Save and create the config".
   creates(): boolean;
+  // Debrid: the template of the config of the server is not known yet (the mark "none"): a save finds it.
+  templateUnknown(): boolean;
   // The config of the server (of the mode synced) after aio_sync; then render().
   applySync(sync: Sync, reset: boolean): void;
   // A save now would replace the config of Debrid of the server with another template.
@@ -96,11 +96,11 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   function renderServerName(option: HTMLOptionElement | undefined): void {
     if (!option) return;
     const own = option.value === VALUE.own;
-    const host = /^[a-z][a-z0-9+.-]*:\/\/(?:[^\/?#@]*@)?(\[[^\]\/]*\]|[^\/:?#]+)/i.exec(own ? ownUrl() : option.value);
-    serverName.textContent = host ? host[1]! : option.text.replace(/…$/, "");
+    const host = hostOf(own ? ownUrl() : option.value);
+    serverName.textContent = host !== "" ? host : option.text.replace(/…$/, "");
   }
   function creates(): boolean {
-    const hasKey = (rdKey.value + tbKey.value).replace(/\s+/g, "") !== "";
+    const hasKey = trimmed(rdKey.value) + trimmed(tbKey.value) !== "";
     return !ownWatch() && !currentConf() && (hasKey || p2p());
   }
   function render(): void {
@@ -146,8 +146,8 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
 
   return {
     render: render,
-    hasConf: () => !!currentConf(),
     creates: creates,
+    templateUnknown: () => watchOf(form) === VALUE.debrid && template.value === VALUE.none,
     applySync(sync: Sync, reset: boolean): void {
       // Of a server of the choice only.
       for (let i = 0; i < server.options.length; i++)

@@ -188,11 +188,7 @@ function aio_cgi_jacred($v)
         '<p class="hint wn" id="jr403"' . (!$k && !$mg && isset($jr403[$v['aio_server']]) &&
         $v['jacred'] === $jr403[$v['aio_server']] ? '' : ' hidden') . '>' .
         aio_cgi_l('jacred.stream не пускает выбранный сервер AIOStreams — выберите другой JacRed',
-        'jacred.stream refuses the chosen AIOStreams server: choose another JacRed') . '</p>' .
-        // Not when the default itself is chosen (the script follows the choice).
-        '<p class="hint wn" id="jrnote"' . ($v['jacred'] === AIO_JACRED_DEFAULT ? ' hidden' : '') . '>' .
-        aio_cgi_l('Не ответил — Melange спросит ' . AIO_JACRED_DEFAULT . '.', 'No answer - Melange will ask ' . AIO_JACRED_DEFAULT . '.') .
-        '</p><div class="choice">';
+        'jacred.stream refuses the chosen AIOStreams server: choose another JacRed') . '</p><div class="choice">';
     $i = 0;
     foreach (array_keys(aio_jacred_builtin()) as $id)
     {
@@ -203,7 +199,10 @@ function aio_cgi_jacred($v)
             '<span class="ms" data-jr="' . aio_cgi_h($id) . '"></span>');
     }
     $own = $v['jacred'] === 'own' || trim($v['jo_url'] . $v['jo_key'], AIO_TRIM) !== '';
-    return $out . '</div><button type="button" id="jrsb" class="btn ghost">' . aio_cgi_l('Сравнить скорость', 'Compare speed') .
+    // A hint under the list, not when the default itself is chosen (the script follows the choice).
+    return $out . '</div><p class="hint" id="jrnote"' . ($v['jacred'] === AIO_JACRED_DEFAULT ? ' hidden' : '') . '>' .
+        aio_cgi_l('Не ответил — Melange спросит ' . AIO_JACRED_DEFAULT . '.', 'No answer - Melange will ask ' . AIO_JACRED_DEFAULT . '.') .
+        '</p><button type="button" id="jrsb" class="btn ghost">' . aio_cgi_l('Сравнить скорость', 'Compare speed') .
         '</button><p class="hint c">' . aio_cgi_l('Время ответа и число раздач на трёх фильмах',
         'Reply time and the number of releases on three films') . '</p><div id="jrsr" class="res" aria-live="polite"></div>' .
         '<details id="jrownd"' . ($own ? ' open' : '') . '><summary>' . aio_cgi_l('Свой JacRed…', 'Own JacRed…') . '</summary>' .
@@ -413,11 +412,7 @@ function aio_cgi_host($url)
 function aio_cgi_src($v)
 {
     $f = aio_cgi_fields();
-    $out = '<div class="choice">' . aio_cgi_card('wd', 'Debrid', aio_cgi_l('Real-Debrid или TorBox. Быстро, платная подписка.',
-        'Real-Debrid or TorBox. Fast, a paid subscription.')) . aio_cgi_card('wp', aio_cgi_mode_p2p(),
-        aio_cgi_l('Бесплатно, через TorrServer на Дюне.', 'Free, via TorrServer on the Dune.')) .
-        aio_cgi_card('wo', aio_cgi_l('Свой конфиг AIOStreams', 'Own AIOStreams config'),
-        aio_cgi_l('Если он у вас уже настроен.', 'If you already have one set up.')) . '</div>' .
+    $out = aio_cgi_watch_cards() .
         '<div id="mdeb" class="xd"><div id="dseg" class="seg" role="group" aria-label="' . aio_cgi_l('Сервис', 'Service') .
         '" hidden><button type="button" data-k="rd" aria-pressed="true">Real-Debrid</button>' .
         '<button type="button" data-k="tb" aria-pressed="false">TorBox</button></div><div id="rdbox">' .
@@ -549,18 +544,15 @@ function aio_cgi_js($v)
         'badChars' => aio_cgi_l('В поле испорченный символ — сотрите его и введите заново',
             'A broken character in the field: delete it and type it again'),
         'httpError' => aio_cgi_l('Ошибка Дюны (HTTP %d), попробуйте ещё раз', 'Dune error (HTTP %d), try again'),
-        'jacredFormat' => aio_cgi_fmt_jacred(), 'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'),
+        'jacredFormat' => aio_cgi_fmt_jacred(),
         'releases' => aio_cgi_l('раздач', 'releases'), 'noAnswer' => aio_cgi_l('нет ответа', 'no answer'),
         'yes' => aio_cgi_l('да', 'yes'),
         'no' => aio_cgi_l('нет', 'no'), 'seconds' => aio_cgi_l('с', 's'), 'stopped' => aio_cgi_l('прервано', 'stopped'),
-        // The lines of the main screen (aio_cgi_rows).
-        'watchOwn' => aio_cgi_l('Свой конфиг AIOStreams', 'Own AIOStreams config'),
-        'needKey' => aio_cgi_l('нужен ключ', 'a key is needed'), 'needLink' => aio_cgi_l('нужна ссылка', 'a link is needed'),
-        'viaTs' => aio_cgi_l('через TorrServer', 'via TorrServer'), 'tsDune' => aio_cgi_l('Приложение на Дюне', 'The app on the Dune'),
-        'tsSpare' => aio_cgi_l('запасной путь', 'fallback'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'),
         // The count of the changes by "Сохранить": the forms of 1, 2-4 and 5 (English: 1 and the rest).
         'changeOne' => aio_cgi_l('%d изменение', '%d change'), 'changeFew' => aio_cgi_l('%d изменения', '%d changes'),
-        'changeMany' => aio_cgi_l('%d изменений', '%d changes'));
+        'changeMany' => aio_cgi_l('%d изменений', '%d changes')) +
+        // The lines of the main screen (aio_cgi_rows).
+        aio_cgi_home_texts();
     $js = dirname(dirname(__FILE__)) . '/settings.js';
     $js = is_readable($js) ? file_get_contents($js) : false;
     if (!is_string($js))
@@ -811,7 +803,7 @@ function aio_cgi_saved()
 // the CSS shows the one of the address (#src...), else #home, and the
 // fields of the answer chosen (without the script too); the bar of the
 // save under them (#bar: the script shows it on a change, #dirty - their
-// number). Errors without the script: in #msg, each with a link to the
+// number, #srx - "Скрыть" of the results of a save). Errors without the script: in #msg, each with a link to the
 // screen of its field, the field aria-invalid.
 function aio_cgi_form($t, $v, $errors, $saved)
 {
@@ -854,16 +846,17 @@ function aio_cgi_form($t, $v, $errors, $saved)
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .
             '<a class="btn" href="settings?t=' . aio_cgi_h($t) . '&amp;a=log">' . aio_cgi_l('Скачать лог', 'Download the log') . '</a>') .
         '<section id="home" class="scr">' . aio_cgi_home($v) . '</section>' .
-        '<div id="bar"><div id="sr" class="res" aria-live="polite"></div><div class="barrow"><span id="dirty"></span>' .
-        '<button type="submit" id="save" class="save">' . ($v['source'] !== 'own' && !aio_cgi_aio_sel($v) &&
-        ($v['rd'] . $v['tb'] !== '' || aio_cgi_mode_sel($v) === AIO_TPL_P2P) ? aio_cgi_savec() : aio_cgi_l('Сохранить', 'Save')) .
+        '<div id="bar"><div id="sr" class="res" aria-live="polite"></div><button type="button" id="srx" class="lnk" hidden>' .
+        aio_cgi_l('Скрыть', 'Hide') . '</button><div class="barrow"><span id="dirty"></span>' .
+        '<button type="submit" id="save" class="save">' . (aio_cgi_state($v) === 'conf' ? aio_cgi_savec() :
+        aio_cgi_l('Сохранить', 'Save')) .
         '</button></div></div></form>';
     // The fields of the errors marked (a radio of watch or jacred: each one).
     foreach ($errors as $e)
         if ($e['field'] !== null)
             $form = str_replace(' name="' . $e['field'] . '"', ' name="' . $e['field'] . '" aria-invalid="true"', $form);
     return '<!DOCTYPE html><html lang="' . aio_cgi_l('ru', 'en') . '"><head><meta charset="utf-8">' .
-        '<meta name="viewport" content="width=device-width, initial-scale=1">' .
+        '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' .
         '<meta name="color-scheme" content="light dark">' .
         '<meta name="referrer" content="no-referrer"><title>' . $title . '</title>' . aio_cgi_css() . '</head><body><main>' .
         '<div id="msg" aria-live="polite">' . $msg . '</div>' . $form . '</main>' . aio_cgi_js($v) . '</body></html>';

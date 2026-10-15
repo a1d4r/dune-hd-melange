@@ -35,23 +35,22 @@ describe.each([...FIXTURES])("%s", (name) => {
     for (const key of TEXT_KEYS) expect([key, [...(init.i18n[key].match(/%[a-z]/g) || [])]]).toEqual([key, PLACEHOLDERS[key] || []]);
   });
 
-  test("every id of ID, once (#state: not on the first run, #first there); the line of each screen of ROWS", () => {
+  test("every id of ID, once (#first: on the first run only, #state hidden there); the line of each screen of ROWS", () => {
     const { doc } = open(name, { start: false });
-    const first = doc.querySelectorAll("#first").length === 1;
+    const first = doc.querySelectorAll("#" + ID.first).length === 1;
     for (const id of Object.values(ID))
-      expect([id, doc.querySelectorAll("#" + id).length]).toEqual([id, id === ID.state && first ? 0 : 1]);
+      expect([id, doc.querySelectorAll("#" + id).length]).toEqual([id, id === ID.first && !first ? 0 : 1]);
+    expect(doc.getElementById(ID.state)!.hidden).toBe(first);
     for (const row of ROWS) {
       expect([row, doc.querySelectorAll("section#" + row + "." + CLS.screen).length]).toEqual([row, 1]);
       expect(doc.querySelectorAll("#home a#r" + row + "[href='#" + row + "'] #d" + row + ".dot").length).toBe(1);
       expect(doc.querySelectorAll("#r" + row + " #v" + row).length).toBe(1);
     }
     // The state: a line of each state, one shown.
-    const state = doc.getElementById(ID.state);
-    if (state) {
-      const lines = Array.from(state.querySelectorAll<HTMLElement>("p[" + DATA.state + "]"));
-      expect(lines.map((line) => line.getAttribute(DATA.state))).toEqual(["key", "conf", "man", "ok"]);
-      expect(lines.filter((line) => !line.hidden).map((line) => line.getAttribute(DATA.state))).toEqual([state.getAttribute(DATA.state)]);
-    }
+    const state = doc.getElementById(ID.state)!;
+    const lines = Array.from(state.querySelectorAll<HTMLElement>("p[" + DATA.state + "]"));
+    expect(lines.map((line) => line.getAttribute(DATA.state))).toEqual(["key", "conf", "man", "ok"]);
+    expect(lines.filter((line) => !line.hidden).map((line) => line.getAttribute(DATA.state))).toEqual([state.getAttribute(DATA.state)]);
   });
 
   test("the classes of CLS (but those the script makes), names of NAME, data- of DATA", () => {
@@ -75,10 +74,10 @@ describe.each([...FIXTURES])("%s", (name) => {
     ]);
     // The TorrServer field, once, in its box on #torr; the place of "Torrents" on #src.
     expect(form.querySelectorAll("input[name=ts]").length).toBe(1);
-    expect(doc.getElementById(ID.ts)!.closest("#" + ID.tsBox)!.closest("section")!.id).toBe(ID.screenTorr);
+    expect(doc.getElementById(ID.ts)!.closest("#" + ID.tsBox)!.closest("section")!.id).toBe("torr");
     expect(doc.getElementById(ID.tsP2p)!.closest("section")!.id).toBe("src");
-    // The bar of the save under the screens, its button the save.
-    expect(doc.querySelector("#" + ID.bar + " #" + ID.saveResult + "+ * #" + ID.dirty + "+ button." + CLS.save)).not.toBeNull();
+    // The bar of the save under the screens: its results, "Hide" of them (a button, not a submit), its button the save.
+    expect(doc.querySelector("#" + ID.bar + " #" + ID.saveResult + "+ button#" + ID.hideResult + "[type=button][hidden] + * #" + ID.dirty + "+ button." + CLS.save)).not.toBeNull();
     expect(form.querySelectorAll(JACRED_RADIOS + "[type=radio]").length).toBe(form.querySelectorAll("input[name=" + NAME.jacred + "]").length);
     // Every built-in JacRed is a radio of the choice with its id.
     const builtins = form.querySelectorAll<HTMLInputElement>("input." + CLS.jacredBuiltin);

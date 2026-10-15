@@ -4,6 +4,7 @@ import type { Aio } from "./aio";
 import type { Api, ConfHow, Save, SaveError } from "./api";
 import type { Bar } from "./bar";
 import { byId, CLS, ID, isMark, type Page, query } from "./dom";
+import type { Home } from "./home";
 import { failureText, type Texts } from "./i18n";
 import type { Lock } from "./lock";
 import type { Marks } from "./marks";
@@ -38,7 +39,7 @@ const CONF_TEXTS: Record<ConfHow, readonly [keyof Texts, keyof Texts]> = {
 };
 
 // changed: the main screen and the bar follow (a config made, the values saved).
-export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Marks, bar: Bar, changed: () => void): void {
+export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Marks, bar: Bar, home: Home, changed: () => void): void {
   const { doc, form, texts } = page;
   const button = query<HTMLButtonElement>(form, "." + CLS.save);
   const results = () => byId(doc, ID.saveResult);
@@ -53,7 +54,8 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       if (result.kind === "data") {
         const sync = result.data;
         aio.applySync(sync, how === "reset");
-        if (sync.skip) results().removeChild(line);
+        // Hidden by "Hide" meanwhile: gone already.
+        if (sync.skip && line.parentNode) line.parentNode.removeChild(line);
         else setLine(line, sync.ok ? "ok" : "err", sync.msg);
         // Its field marked as of a save error (no Debrid key, the own server).
         if (!sync.ok) marks.show([{ msg: sync.msg, field: sync.field }]);
@@ -61,6 +63,8 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       else setLine(line, "err", failureText(texts, result));
       if (result.kind !== "data" || !result.data.ok) savedLine.textContent = texts.savedOnDune;
       aio.render();
+      // The template of the config found (a mark "none" no more) is no change either.
+      bar.rebase();
       changed();
     });
   }
@@ -76,6 +80,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       return;
     }
     results().textContent = "";
+    home.saved();
     // Staying on the page: what is saved is not a change any more.
     bar.rebase();
     const savedLine = addLine(results(), "ok", texts.saved);

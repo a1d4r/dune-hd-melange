@@ -4,8 +4,6 @@ import type { Texts } from "./i18n";
 
 export const ID = {
   init: "init",
-  // The screens: shown by :target (the CSS); #home last, shown when none is the target.
-  screenTorr: "torr",
   addServer: "addsrv",
   aioServer: "as",
   // The name of the chosen server in the summary of details#asd.
@@ -65,12 +63,14 @@ export const ID = {
   tsP2p: "tsp2p",
   tsLink: "tslink",
   tsMoved: "tsmoved",
-  // The main screen: the state (none on the first run) and the value and dot of the line of each screen.
+  // The main screen: the question of the first run (none after it), the state (hidden on the first run).
+  first: "first",
   state: "state",
-  // The save: the bar under the screens (its results, the count of the changes).
+  // The save: the bar under the screens (its results, the button hiding them, the count of the changes).
   bar: "bar",
   dirty: "dirty",
   saveResult: "sr",
+  hideResult: "srx",
   message: "msg",
 } as const;
 
@@ -184,6 +184,12 @@ export function watchOf(form: HTMLFormElement): string {
 
 // A value without the spaces around it, as PHP trims it (AIO_TRIM).
 export const trimmed = (value: string): string => value.replace(/^[ \t\r\n\x0B]+|[ \t\r\n\x0B]+$/g, "");
+
+// The host of an address as parse_url() of PHP finds it ("" - none).
+export function hostOf(url: string): string {
+  const found = /^[a-z][a-z0-9+.-]*:\/\/(?:[^\/?#@]*@)?(\[[^\]\/]*\]|[^\/:?#]*)/i.exec(url);
+  return found ? found[1]! : "";
+}
 
 // A disabled option of the template choice is a mark (the template of the config, as "none"), not a template to
 // choose: never posted, never kept as the one for a new config.

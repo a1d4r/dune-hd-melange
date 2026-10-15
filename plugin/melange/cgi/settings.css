@@ -83,7 +83,10 @@ details.srv{margin:10px 0 0;padding:4px 12px 12px;background:var(--surf);border:
 details.srv>summary{color:var(--ink)}
 #asd .f,#asd select,.srv .f,.srv select{background:var(--bg)}
 form{display:flex;flex-direction:column;min-height:calc(100vh - 16px)}
+@supports (min-height:100svh){form{min-height:calc(100svh - 16px)}}
 #bar{position:sticky;bottom:0;margin:auto -16px 0;padding:18px 16px 12px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(rgba(0,0,0,0),var(--bg) 40%)}
+#sr{max-height:30vh;overflow-y:auto}
+#srx{display:block;margin-left:auto;padding:6px 4px 0;font-size:13px}
 .barrow{display:flex;align-items:center;gap:10px}
 #dirty{font-size:13px;color:var(--mute);white-space:nowrap}
 #dirty:empty{display:none}
