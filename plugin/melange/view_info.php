@@ -606,20 +606,6 @@ function aio_info_flow($v, &$room, $depth)
     return ($list ? '[' : '{') . implode(', ', $parts) . ($list ? ']' : '}');
 }
 
-// Width of $s at $px before AIO_GC_W_MARGIN: aio_gc_w is ceil(this * margin).
-/**
- * @param string $s
- * @param int $px
- * @return float|int
- */
-function aio_info_sum($s, $px)
-{
-    $w = 0;
-    foreach (preg_split('//u', $s, -1, PREG_SPLIT_NO_EMPTY) as $c)
-        $w += round(aio_gc_glyph($c) * $px / 1000);
-    return $w;
-}
-
 // $s in lines of at most $width (by aio_gc_w), broken as aio_gc_wrap does, a
 // word wider than a line by characters; at most $max lines, the rest
 // dropped. Linear: aio_gc_wrap measures the line again for every word.
@@ -637,7 +623,7 @@ function aio_info_wrap($s, $px, $width, $max)
     $cw = 0;
     foreach (preg_split('~(?<=[ _\\-/,)\\]])|(?<=\\.)(?![0-9])~u', $s, -1, PREG_SPLIT_NO_EMPTY) as $t)
     {
-        $tw = aio_info_sum($t, $px);
+        $tw = aio_gc_sum($t, $px);
         if (ceil(($cw + $tw) * AIO_GC_W_MARGIN) <= $width)
         {
             $cur .= $t;
@@ -649,7 +635,7 @@ function aio_info_wrap($s, $px, $width, $max)
         if (count($lines) >= $max)
             return $lines;
         $cur = ltrim($t);
-        $cw = aio_info_sum($cur, $px);
+        $cw = aio_gc_sum($cur, $px);
         if (ceil($cw * AIO_GC_W_MARGIN) <= $width)
             continue;
         $cur = '';

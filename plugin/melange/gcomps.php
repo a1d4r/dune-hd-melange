@@ -33,8 +33,22 @@ function aio_gc_glyph($c)
         1000 : AIO_FONT_AVG;
 }
 
-// Width of a text at $px: advances rounded to pixels glyph by glyph, as
-// FreeType hints them (1.7 % from its layout on test lines), plus AIO_GC_W_MARGIN.
+// Width of a text at $px before AIO_GC_W_MARGIN: advances rounded to pixels
+// glyph by glyph, as FreeType hints them (1.7 % from its layout on test lines).
+/**
+ * @param string $s
+ * @param int $px
+ * @return float|int
+ */
+function aio_gc_sum($s, $px)
+{
+    $w = 0;
+    foreach (preg_split('//u', $s, -1, PREG_SPLIT_NO_EMPTY) as $c)
+        $w += round(aio_gc_glyph($c) * $px / 1000);
+    return $w;
+}
+
+// Width of a text at $px: aio_gc_sum plus AIO_GC_W_MARGIN.
 /**
  * @param string $s
  * @param int $px
@@ -42,10 +56,7 @@ function aio_gc_glyph($c)
  */
 function aio_gc_w($s, $px)
 {
-    $w = 0;
-    foreach (preg_split('//u', $s, -1, PREG_SPLIT_NO_EMPTY) as $c)
-        $w += round(aio_gc_glyph($c) * $px / 1000);
-    return intval(ceil($w * AIO_GC_W_MARGIN));
+    return intval(ceil(aio_gc_sum($s, $px) * AIO_GC_W_MARGIN));
 }
 
 // The longest prefix of $s (in characters) not wider than $width.
