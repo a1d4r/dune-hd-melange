@@ -50,8 +50,8 @@ function aio_conf_encode($v)
 
 // The template $id (a key of aio_aio_tpls of common.php: the file with only
 // its presets, in its order; the title and year matched for its JacRed
-// only; P2P: the fields of AIO_CONF_TEMPLATE_P2P over) as an object, null
-// when unreadable or no such template.
+// only; P2P: the fields of AIO_CONF_TEMPLATE_P2P over, those of an object
+// into it) as an object, null when unreadable or no such template.
 function aio_conf_template($id = 'addons')
 {
     $tpls = aio_aio_tpls();
@@ -74,7 +74,15 @@ function aio_conf_template($id = 'addons')
         if (!is_object($o))
             return null;
         foreach (get_object_vars($o) as $k => $x)
-            $j->$k = $x;
+        {
+            if (is_object($x) && isset($j->$k) && is_object($j->$k))
+            {
+                foreach (get_object_vars($x) as $kk => $xx)
+                    $j->$k->$kk = $xx;
+            }
+            else
+                $j->$k = $x;
+        }
     }
     return $j;
 }

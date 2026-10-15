@@ -61,11 +61,14 @@
         "key": "seeders",
         "direction": "desc"
       }
-    ],
-    "anime": [],
-    "cached": [],
-    "uncached": [],
-    "cachedAnime": [],
-    "uncachedAnime": []
+    ]
+  },
+  "deduplicator": {
+    "tiebreakers": [
+      {
+        "type": "torrent_seeders",
+        "position": "after_addon"
+      }
+    ]
   }
 }
