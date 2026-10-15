@@ -250,11 +250,6 @@ function aio_aio_servers()
 
 // The template of the mode P2P (and the value of that mode).
 define('AIO_TPL_P2P', 'p2p');
-// instanceIds of the JacRed presets of cgi/aio_template.json (aio_conf_patch
-// puts the chosen JacRed in that of a template): Torznab of AIOStreams
-// (needs a Debrid service), Magnetio (P2P, preset custom).
-define('AIO_CONF_PRESET', 'melange');
-define('AIO_CONF_MAGNETIO', 'magnetio');
 
 // Templates of the config melange makes (0.40.0): id => instanceIds of the
 // presets of cgi/aio_template.json it has, in this order. The first one is

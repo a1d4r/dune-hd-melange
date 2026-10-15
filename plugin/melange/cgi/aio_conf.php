@@ -7,7 +7,11 @@
 // server refuses [] for a record such as credentials). Plain PHP 5.3, no
 // firmware API, no request.
 
-// The JacRed presets of the templates: AIO_CONF_PRESET, AIO_CONF_MAGNETIO of common.php.
+// instanceIds of the JacRed presets of the templates (aio_conf_patch puts
+// the chosen JacRed in that of a template): Torznab of AIOStreams (needs a
+// Debrid service), Magnetio (P2P, preset custom).
+define('AIO_CONF_PRESET', 'melange');
+define('AIO_CONF_MAGNETIO', 'magnetio');
 define('AIO_CONF_TEMPLATE', 'aio_template.json');
 // The fields of the template P2P over those of aio_template.json.
 define('AIO_CONF_TEMPLATE_P2P', 'aio_template_p2p.json');

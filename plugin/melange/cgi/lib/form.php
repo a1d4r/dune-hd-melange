@@ -264,7 +264,7 @@ function aio_cgi_resets($d, $confs, $v)
 // the settings (one for all servers).
 function aio_cgi_mode_sel($v)
 {
-    return in_array($v['aio_mode'], aio_aio_modes(), true) ? $v['aio_mode'] : $v['mode_new'];
+    return in_array($v['aio_mode'], aio_aio_modes(), true) ? $v['aio_mode'] : $v['mode_cur'];
 }
 
 // The server chosen in $d (settings.json) is the stored one of $cur: the
@@ -363,8 +363,6 @@ function aio_cgi_aio($v)
 {
     $chk = '<button type="button" id="%s" class="chk">' . aio_cgi_l('Проверить', 'Check') . '</button><div id="%s" class="res" aria-live="polite"></div>';
     $f = aio_cgi_fields();
-    $own = aio_aio_own($v['aio_own']);
-    $base = $v['aio_server'] === 'own' ? $own : $v['aio_server'];
     $sel = aio_cgi_aio_show(aio_cgi_aio_sel($v));
     $p2p = aio_cgi_mode_sel($v) === AIO_TPL_P2P;
     $out = '<h2 id="aioh">' . aio_cgi_l('Конфиг AIOStreams — откуда Melange берёт раздачи',
@@ -505,10 +503,10 @@ function aio_cgi_js($v)
 // Values of the form from the settings (aio_settings_read) or as posted
 // (aio_cgi_posted), by the keys of aio_cgi_fields() - strings (aio_tpl,
 // aio_mode: the one chosen in a form back, '' from the settings; tpl_seen
-// only posted); tpl_new, mode_new - aio_tpl, aio_mode of the settings (for a
-// new config); servers - lists of
-// strings by aio_cgi_server_fields(); confs - aio_confs of the settings
-// (never posted).
+// only posted); tpl_new - aio_tpl of the settings (for a new config);
+// mode_cur - aio_mode of the settings (one for all servers); servers -
+// lists of strings by aio_cgi_server_fields(); confs - aio_confs of the
+// settings (never posted).
 function aio_cgi_values($s)
 {
     $v = array();
@@ -517,7 +515,7 @@ function aio_cgi_values($s)
             $v[$k] = $s[$f['set']];
     $v['tpl_new'] = $v['aio_tpl'];
     $v['aio_tpl'] = '';
-    $v['mode_new'] = $v['aio_mode'];
+    $v['mode_cur'] = $v['aio_mode'];
     $v['aio_mode'] = '';
     $v['servers'] = $s['servers'];
     $v['confs'] = $s['aio_confs'];
@@ -637,7 +635,9 @@ function aio_cgi_check_values($v)
     $new = $v['cur'][$set['aio_tpl']];
     $shown = $d[$set['aio_server']] === 'own' && $d[$set['aio_own']] !== $v['cur'][$set['aio_own']] ? $new :
         aio_cgi_tpl_shown($d[$set['aio_server']], $d[$set['aio_own']], $v['confs'], $new);
-    if ($v['tpl_seen'] !== '' && ($v['ajax'] || aio_cgi_same_server($d, $v['cur'])) && $v['tpl_seen'] !== $shown)
+    // Only Debrid: P2P hides the template, no reset by it there.
+    if ($mode === 'debrid' && $v['tpl_seen'] !== '' && ($v['ajax'] || aio_cgi_same_server($d, $v['cur'])) &&
+        $v['tpl_seen'] !== $shown)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Шаблон изменён в другой вкладке — обновите страницу',
             'The template was changed in another tab: reload the page'), $f['aio_tpl']['name']);

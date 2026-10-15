@@ -94,7 +94,7 @@ function aio_cgi_save($dir, $t)
     $v['confs'] = $cur['aio_confs'];
     $v['cur'] = $cur;
     $v['tpl_new'] = $cur['aio_tpl'];
-    $v['mode_new'] = $cur['aio_mode'];
+    $v['mode_cur'] = $cur['aio_mode'];
     $v['ajax'] = $ajax;
     $v['reset'] = aio_cgi_param($_POST, 'aio_reset') === '1';
     list($data, $errors) = aio_cgi_check_values($v);
