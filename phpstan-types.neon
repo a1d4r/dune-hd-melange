@@ -265,7 +265,10 @@ parameters:
         AioVoicesClass: '''
             array{'studio', string, string}
             |array{'in'|'n', ''}
-            |array{'type'|'code'|'orig'|'subs', string}
+            |array{'code', string}
+            |AioVoicesWord
         '''
+        # A word by itself (aio_voices_word, voices_parse.php): kind and id.
+        AioVoicesWord: "array{'type'|'orig'|'subs', string}"
         # A side of brackets of a track title (aio_voices_side, voices_parse.php).
         AioVoicesSide: 'array{studios: list<string>, n: int, other: bool}'

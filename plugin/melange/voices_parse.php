@@ -46,7 +46,7 @@ function aio_jr_title($t)
 /**
  * @param string $low
  * @param string $word
- * @return array{'type'|'orig'|'subs', string}|null
+ * @return AioVoicesWord|null
  */
 function aio_voices_word($low, $word)
 {
