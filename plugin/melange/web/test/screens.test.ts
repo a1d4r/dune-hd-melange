@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { CLS, ID, ROWS } from "../src/dom";
 import { plural } from "../src/i18n";
-import { cleanup, FIXTURES, flush, HANG, json, lines, open, type Page, TOKEN } from "./harness";
+import { cleanup, FIXTURES, flush, HANG, json, later, lines, NET, open, type Page, TOKEN } from "./harness";
 
 afterEach(cleanup);
 
@@ -243,6 +243,39 @@ describe("the bar of the save", () => {
     page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
     await flush();
     expect([lines(page.el(ID.saveResult)).length, page.el(ID.hideResult).hidden, bar(page)]).toEqual([2, true, ""]);
+  });
+
+  test("typed while the save goes: still a change (saved is what was posted)", async () => {
+    const page = open("filled");
+    page.type(ID.ts, "http://192.168.1.10:8091");
+    const answer = later();
+    page.replies.push(answer.reply);
+    page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
+    await flush();
+    page.type("s2_name", "x");
+    answer.resolve(json({ ok: true, next: TOKEN + "&saved=1", aio: "", notes: [{ level: "warn", msg: "Note" }] }));
+    await flush();
+    expect(bar(page)).toBe("1 изменение");
+    page.type("s2_name", "");
+    expect(bar(page)).toBe("");
+  });
+
+  test.each([["ok", true], ["no connection", false]] as const)("typed while the config is made (%s): still a change", async (_name, ok) => {
+    const page = open("filled");
+    page.type(ID.aioServer, "https://aio.atbphosting.com");
+    const sync = later();
+    page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "create", notes: [] }), sync.reply);
+    page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
+    await flush();
+    page.type(ID.ts, "http://192.168.1.10:8091");
+    expect(bar(page)).toBe("1 изменение");
+    sync.resolve(ok ? json({ ok: true, msg: "Created", skip: false, base: "https://aio.atbphosting.com", mode: "debrid",
+      conf: { cfg: "https://cfg.example/7", login: "l", pass: "p", tpl: "jacred" } }) : NET);
+    await flush();
+    // The template of the new config (jacred) is set by the script: no change.
+    expect([page.el<HTMLSelectElement>(ID.template).value, bar(page)]).toEqual([ok ? "jacred" : "addons", "1 изменение"]);
+    page.type(ID.ts, "http://192.168.1.10:8090");
+    expect(bar(page)).toBe("");
   });
 
   test("errors of a save: the count stays, the errors in the bar", async () => {

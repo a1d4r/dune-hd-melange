@@ -2,7 +2,7 @@
 
 import type { Aio } from "./aio";
 import type { Api, ConfHow, Save, SaveError } from "./api";
-import type { Bar } from "./bar";
+import type { Bar, Values } from "./bar";
 import { byId, CLS, ID, isMark, type Page, query } from "./dom";
 import type { Home } from "./home";
 import { failureText, type Texts } from "./i18n";
@@ -43,6 +43,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
   const { doc, form, texts } = page;
   const button = query<HTMLButtonElement>(form, "." + CLS.save);
   const results = () => byId(doc, ID.saveResult);
+  const template = byId<HTMLSelectElement>(doc, ID.template);
 
   // The config of the chosen server after the save: its result replaces the "creating" line; failed, the line
   // "Saved" (savedLine) says only the settings on the Dune are.
@@ -62,9 +63,10 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       } else if (result.kind !== "http") setLine(line, "err", texts[failed]);
       else setLine(line, "err", failureText(texts, result));
       if (result.kind !== "data" || !result.data.ok) savedLine.textContent = texts.savedOnDune;
+      const before = template.value;
       aio.render();
-      // The template of the config found (a mark "none" no more) is no change either.
-      bar.rebase();
+      // The template of the config found (a mark "none" no more) is no change either; the rest typed meanwhile is.
+      if (template.value !== before) bar.rebaseField(template.name);
       changed();
     });
   }
@@ -73,7 +75,8 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     show(results(), "err", errors.map((error) => error.msg));
     marks.show(errors);
   }
-  function saved(answer: Extract<Save, { ok: true }>): void {
+  // posted: the values of the form as the save posted them.
+  function saved(answer: Extract<Save, { ok: true }>, posted: Values): void {
     aio.rememberTemplate();
     if (!answer.notes.length && !answer.aio) {
       location.replace(answer.next);
@@ -81,8 +84,8 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     }
     results().textContent = "";
     home.saved();
-    // Staying on the page: what is saved is not a change any more.
-    bar.rebase();
+    // Staying on the page: what is saved is not a change any more; typed while it went still is.
+    bar.rebase(posted);
     const savedLine = addLine(results(), "ok", texts.saved);
     for (const note of answer.notes) addLine(results(), note.level === "ok" ? "ok" : "warn", note.msg);
     if (answer.aio) syncConf(answer.aio, savedLine);
@@ -90,6 +93,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
   function save(reset: boolean): void {
     const pairs = encodedOr(results(), texts.badChars, () => serialize(form));
     if (!pairs) return;
+    const posted = bar.snapshot();
     if (reset) pairs.push("aio_reset=1");
     button.textContent = texts.saving;
     byId(doc, ID.message).textContent = "";
@@ -98,7 +102,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     api.save(pairs.join("&")).then((result) => {
       aio.render();
       if (result.kind !== "data") showErrors([{ msg: failureText(texts, result), field: null }]);
-      else if (result.data.ok) saved(result.data);
+      else if (result.data.ok) saved(result.data, posted);
       else showErrors(result.data.errors);
       changed();
     });

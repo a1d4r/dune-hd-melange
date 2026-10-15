@@ -8,16 +8,22 @@ import { plural } from "./i18n";
 export interface Bar {
   // After a change of the form.
   render(): void;
-  // After a save: the values now are the ones saved.
-  rebase(): void;
+  // The values of the form now: what a save posts.
+  snapshot(): Values;
+  // After a save: the values posted (snapshot) are the ones saved.
+  rebase(saved: Values): void;
+  // A field set by the script (the template found by aio_sync): its value now is no change.
+  rebaseField(name: string): void;
 }
+
+export type Values = Record<string, string>;
 
 type Control = HTMLInputElement | HTMLSelectElement | HTMLButtonElement;
 
 // The values of the controls posted, by name (a radio group: the value checked); not the hidden ones (the script's or
 // PHP's own, as aio_tpl_seen), not the buttons.
-function values(form: HTMLFormElement): Record<string, string> {
-  const out: Record<string, string> = {};
+function values(form: HTMLFormElement): Values {
+  const out: Values = {};
   const controls = form.elements;
   for (let i = 0; i < controls.length; i++) {
     const control = controls[i] as Control;
@@ -60,8 +66,13 @@ export function setupBar(page: Page, wanted: () => boolean, saving: () => boolea
   render();
   return {
     render: render,
-    rebase(): void {
-      base = values(form);
+    snapshot: () => values(form),
+    rebase(saved: Values): void {
+      base = saved;
+      render();
+    },
+    rebaseField(name: string): void {
+      base[name] = values(form)[name]!;
       render();
     },
   };
