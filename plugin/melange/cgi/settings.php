@@ -61,6 +61,7 @@ require dirname(__FILE__) . '/lib/aio_sync.php';
 require dirname(__FILE__) . '/lib/store.php';
 require dirname(__FILE__) . '/lib/log.php';
 require dirname(__FILE__) . '/lib/form.php';
+require dirname(__FILE__) . '/lib/home.php';
 
 // --- The save of the form.
 
