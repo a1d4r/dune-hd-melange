@@ -197,7 +197,7 @@ function aio_cgi_log_download($dir)
         aio_cgi_device() . "\n";
     $fp = aio_cgi_log_open(aio_cgi_log_path(), 'melange.log', AIO_CGI_LOG_MAX,
         "\n" . aio_cgi_l('Лог пуст: после перезагрузки Дюны он начинается заново',
-        'The log is empty: it starts anew after a restart of the Dune') . "\n");
+        'The log is empty: it starts over when the Dune restarts') . "\n");
     if ($fp)
         aio_cgi_log_lines($fp, $m, false);
     foreach (array('shell.log.old', 'shell.log') as $name)

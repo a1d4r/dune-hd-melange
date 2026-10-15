@@ -312,7 +312,7 @@ function aio_cgi_key_check($what, $key)
     $d = is_array($j) && isset($j['data']) && is_array($j['data']) ? $j['data'] : array();
     if ($e)
         $res = array('warn', sprintf(aio_cgi_l('%s: ключ не проверен — %s; сохранится как есть',
-            '%s: the key is not checked - %s; it is saved as it is'), $name, aio_cgi_srv_net($e, $name)));
+            '%s: the key was not checked - %s; it will be saved as is'), $name, aio_cgi_srv_net($e, $name)));
     // TorBox may answer a bad key with 200 and an error code of its own.
     elseif ($code === 401 || $code === 403 || ($what === 'tb' && is_array($j) && isset($j['success'], $j['error']) &&
         $j['success'] === false && in_array($j['error'], array('BAD_TOKEN', 'AUTH_ERROR', 'NO_AUTH'), true)))
@@ -322,10 +322,10 @@ function aio_cgi_key_check($what, $key)
             sprintf(aio_cgi_l('%s: ключ не принят (HTTP %d)', '%s: the key is not accepted (HTTP %d)'), $name, $code));
     elseif ($code !== 200)
         $res = array('warn', sprintf(aio_cgi_l('%s: ключ не проверен — сервис ответил HTTP %d; сохранится как есть',
-            '%s: the key is not checked - the service answered HTTP %d; it is saved as it is'), $name, $code));
+            '%s: the key was not checked - the service answered HTTP %d; it will be saved as is'), $name, $code));
     elseif (!is_array($j) || ($what === 'rd' && !isset($j['type'])) || ($what === 'tb' && !isset($d['plan'])))
         $res = array('warn', sprintf(aio_cgi_l('%s: ключ не проверен — неожиданный ответ сервиса; сохранится как есть',
-            '%s: the key is not checked - an unexpected reply of the service; it is saved as it is'), $name));
+            '%s: the key was not checked - unexpected reply from the service; it will be saved as is'), $name));
     elseif ($what === 'tmdb')
         $res = array('ok', aio_cgi_l('TMDB: ключ верный', 'TMDB: the key is valid'));
     else
@@ -392,7 +392,7 @@ function aio_cgi_ts_check($base)
         return array(false, aio_cgi_l('Не отвечает: соединение отклонено', 'No answer: connection refused') .
             ($local ? aio_cgi_l(' — установите и запустите приложение TorrServe на Дюне',
             ': install and start the TorrServe app on the Dune') :
-            aio_cgi_l(' — TorrServer по этому адресу не запущен', ': no TorrServer runs at this address')));
+            aio_cgi_l(' — TorrServer по этому адресу не запущен', ': TorrServer is not running at this address')));
     if ($ok === false && $errno === 28)
         return array(false, aio_cgi_l('Нет ответа за 3 с', 'No answer within 3 s'));
     if ($ok === false && $errno !== 23)
@@ -401,7 +401,7 @@ function aio_cgi_ts_check($base)
         return array(false, sprintf(aio_cgi_l('Ответил HTTP %d — это не TorrServer?', 'It answered HTTP %d: not a TorrServer?'), $code));
     $v = trim(substr($AIO_CGI_BODY, 0, 64));
     if (preg_match('/^MatriX\.[0-9A-Za-z.\-]{1,20}\z/', $v))
-        return array(true, sprintf(aio_cgi_l('TorrServer %s отвечает', 'TorrServer %s answers'), $v));
+        return array(true, sprintf(aio_cgi_l('TorrServer %s отвечает', 'TorrServer %s is responding'), $v));
     return array(false, aio_cgi_l('Ответил не TorrServer MatriX (старый 1.1?)', 'Not a TorrServer MatriX (an old 1.1?)'));
 }
 
@@ -447,7 +447,7 @@ function aio_cgi_srv_check($srv)
         if ($e)
             return array(false, array(aio_cgi_srv_net($e)));
         if ($code === 401 || $code === 403)
-            return array(false, array(aio_cgi_l('Сервер требует вход: укажите логин и пароль', 'The server wants a login: fill in the login and password')));
+            return array(false, array(aio_cgi_l('Сервер требует вход: укажите логин и пароль', 'The server requires a login: fill in the login and password')));
         if ($v === '')
             return array(false, array(aio_cgi_l('Ответ не похож на qBittorrent', 'The reply does not look like qBittorrent') . ($code !== 200 ? " (HTTP $code)" : '')));
         $parts[] = aio_cgi_l('без входа', 'no login');
@@ -455,7 +455,7 @@ function aio_cgi_srv_check($srv)
     // After a login: no cookie (403), a web page, a wrong port.
     elseif ($v === '')
         return array(false, array(sprintf(aio_cgi_l('Вход ответил, но API не отвечает (%s) — это точно qBittorrent или rdt-client?',
-            'The login answered, the API does not (%s): is it qBittorrent or rdt-client?'), $e ? "curl $e" : "HTTP $code")));
+            'The login responded but the API does not (%s): is this really qBittorrent or rdt-client?'), $e ? "curl $e" : "HTTP $code")));
     $parts[] = aio_cgi_l('версия', 'version') . " $v";
     $more = array();
     if ($srv['category'] !== '')
@@ -465,12 +465,12 @@ function aio_cgi_srv_check($srv)
         $j = !$e && $code === 200 ? json_decode($body, true) : null;
         aio_cgi_log("server check: categories: " . ($e ? "curl $e" : "HTTP $code") . (is_array($j) ? ', JSON' : ''));
         if (!is_array($j))
-            $parts[] = aio_cgi_l('категорию проверить не удалось', 'the category not checked');
+            $parts[] = aio_cgi_l('категорию проверить не удалось', 'category not checked');
         elseif (array_key_exists($c, $j))
-            $parts[] = sprintf(aio_cgi_l('категория %s есть', 'category %s is there'), $c);
+            $parts[] = sprintf(aio_cgi_l('категория %s есть', 'category %s exists'), $c);
         else
             // qBittorrent creates a missing category on add; rdt-client takes any.
-            $more[] = sprintf(aio_cgi_l('Категории %s нет — qBittorrent создаст её при первой закачке (папка — по умолчанию)', 'No category %s: qBittorrent makes it on the first download (the default folder)'), $c);
+            $more[] = sprintf(aio_cgi_l('Категории %s нет — qBittorrent создаст её при первой закачке (папка — по умолчанию)', 'No category %s: qBittorrent will create it on the first download (in the default folder)'), $c);
     }
     if ($srv['tags'] !== '')
     {
@@ -478,15 +478,15 @@ function aio_cgi_srv_check($srv)
         $j = !$e && $code === 200 ? json_decode($body, true) : null;
         aio_cgi_log("server check: tags: " . ($e ? "curl $e" : "HTTP $code") . (is_array($j) ? ', JSON' : ''));
         if (!is_array($j))
-            $parts[] = aio_cgi_l('теги проверить не удалось', 'the tags not checked');
+            $parts[] = aio_cgi_l('теги проверить не удалось', 'tags not checked');
         else
         {
             foreach (explode(',', $srv['tags']) as $t)
             {
                 if (in_array($t, $j, true))
-                    $parts[] = sprintf(aio_cgi_l('тег %s есть', 'tag %s is there'), $t);
+                    $parts[] = sprintf(aio_cgi_l('тег %s есть', 'tag %s exists'), $t);
                 else
-                    $more[] = sprintf(aio_cgi_l('Тега %s нет — qBittorrent создаст его при первой закачке (rdt-client теги не хранит)', 'No tag %s: qBittorrent makes it on the first download (rdt-client keeps no tags)'), $t);
+                    $more[] = sprintf(aio_cgi_l('Тега %s нет — qBittorrent создаст его при первой закачке (rdt-client теги не хранит)', 'No tag %s: qBittorrent will create it on the first download (rdt-client does not store tags)'), $t);
             }
         }
     }

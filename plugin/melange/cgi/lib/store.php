@@ -47,7 +47,7 @@ function aio_cgi_data_dir($t)
         aio_cgi_log('no data dir: ' . implode(', ', $dirs));
         aio_cgi_send(500, 'text/plain', aio_cgi_l(
             'Melange: на этой Дюне не найдена папка данных плагина. Сообщите автору модель Дюны и версию прошивки.',
-            'Melange: the data folder of the plugin was not found on this Dune. Please tell the author the model of the Dune and the firmware version.') . "\n");
+            'Melange: the plugin data folder was not found on this Dune. Please tell the author your Dune model and firmware version.') . "\n");
     }
     return '';
 }

@@ -84,19 +84,19 @@ function aio_cgi_aio_why($r, $host, $own = false)
     // curl 60, 51: the certificate is not taken.
     if ($own && ($e === 60 || $e === 51))
         return array("$host: " . aio_cgi_l('сертификат сервера не принят (самоподписанный?) — попробуйте http://',
-            'the certificate of the server is not accepted (self-signed?): try http://'), '');
+            'the server certificate is not accepted (self-signed?): try http://'), '');
     if ($e)
         return array("$host: " . aio_cgi_srv_net($e, 'AIOStreams'), '');
     if ($code === 429)
         return array(sprintf(aio_cgi_l('лимит запросов сервера %s, повторите через минуту',
-            'the request limit of the server %s, try again in a minute'), $host), $ec);
+            'server %s request limit reached, try again in a minute'), $host), $ec);
     if ($msg !== '')
     {
         preg_match('/^.{0,300}/su', $msg, $m);
         return array(sprintf(aio_cgi_l('%s ответил: %s', '%s answered: %s'), $host, $m[0]), $ec);
     }
     return array($code >= 200 && $code < 300 ? sprintf(aio_cgi_l('%s: неожиданный ответ сервера',
-        '%s: an unexpected reply of the server'), $host) : sprintf(aio_cgi_l('%s ответил HTTP %d', '%s answered HTTP %d'),
+        '%s: unexpected reply from the server'), $host) : sprintf(aio_cgi_l('%s ответил HTTP %d', '%s answered HTTP %d'),
         $host, $code), $ec);
 }
 
@@ -188,9 +188,9 @@ function aio_cgi_aio_sync($dir, $reset = false)
         aio_cgi_log('aio sync: own config or no address, skipped');
         return array(true, '', true, $choice, aio_cgi_aio_show($conf));
     }
-    $fail = $reset ? aio_cgi_l('Конфиг на сервере AIOStreams не сброшен: ', 'The config on the AIOStreams server is not reset: ') :
-        ($conf ? aio_cgi_l('Конфиг на сервере AIOStreams не обновлён: ', 'The config on the AIOStreams server is not updated: ') :
-        aio_cgi_l('Конфиг на сервере AIOStreams не создан: ', 'The config on the AIOStreams server is not created: '));
+    $fail = $reset ? aio_cgi_l('Конфиг на сервере AIOStreams не сброшен: ', 'The config on the AIOStreams server was not reset: ') :
+        ($conf ? aio_cgi_l('Конфиг на сервере AIOStreams не обновлён: ', 'The config on the AIOStreams server was not updated: ') :
+        aio_cgi_l('Конфиг на сервере AIOStreams не создан: ', 'The config on the AIOStreams server was not created: '));
     // The template is stored already: "Сохранить" again only updates.
     $again = $reset ? aio_cgi_l('; повторить — «Сбросить к шаблону»', '; to retry: "Reset to the template"') : '';
     // A config there may have a service of its own (set by hand): GET decides.
@@ -204,7 +204,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     if ($reset && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
         aio_cgi_log("aio sync: reset ($id): no Debrid key, not changed");
-        return array(false, $fail . aio_cgi_l('нужен ключ Debrid в Melange', 'a Debrid key in Melange is needed') . $again,
+        return array(false, $fail . aio_cgi_l('нужен ключ Debrid в Melange', 'a Debrid key is needed in Melange') . $again,
             false, $choice, aio_cgi_aio_show($conf), $f['rd']['name']);
     }
     $tpl = aio_conf_template($id);
@@ -248,9 +248,9 @@ function aio_cgi_aio_sync($dir, $reset = false)
         {
             aio_cgi_log("aio sync: $w");
             return array(false, aio_cgi_l('Конфиг создан, но не записан на Дюне — ошибка записи',
-                'The config is made but not written on the Dune: a write error'), false, $choice, null);
+                'The config was created but not saved on the Dune: write error'), false, $choice, null);
         }
-        return array(true, sprintf(aio_cgi_l('Конфиг AIOStreams создан на %s', 'The AIOStreams config is made on %s'),
+        return array(true, sprintf(aio_cgi_l('Конфиг AIOStreams создан на %s', 'The AIOStreams config was created on %s'),
             $host), false, $choice, aio_cgi_aio_show($new));
     }
     $auth = array($conf['uuid'], $conf['pass']);
@@ -306,8 +306,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
                 aio_cgi_log("aio sync: $w");
             return array(false, sprintf(aio_cgi_l('Сервер %s не узнал конфиг (удалён на сервере или сменён пароль?) — ' .
                 'Melange его забыл; «Сохранить и создать конфиг» создаст новый',
-                'The server %s does not know the config (deleted there or its password changed?): ' .
-                'Melange forgot it; "Save and create the config" makes a new one'), $host), false, $choice,
+                'Server %s does not recognize the config (deleted there or password changed?): ' .
+                'Melange has forgotten it; "Save and create the config" will create a new one'), $host), false, $choice,
                 $w === '' ? null : aio_cgi_aio_show($conf));
         }
         return array(false, $fail . $why . $again, false, $choice, aio_cgi_aio_show($conf));
@@ -321,8 +321,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
         aio_cgi_log("aio sync: $w");
     $tpls = aio_cgi_tpls();
     return array(true, $reset ? sprintf(aio_cgi_l('Конфиг AIOStreams на %s сброшен к шаблону «%s»',
-        'The AIOStreams config on %s is reset to the template "%s"'), $host, $tpls[$id][0]) :
-        sprintf(aio_cgi_l('Конфиг AIOStreams на %s обновлён', 'The AIOStreams config on %s is updated'), $host),
+        'The AIOStreams config on %s was reset to the template "%s"'), $host, $tpls[$id][0]) :
+        sprintf(aio_cgi_l('Конфиг AIOStreams на %s обновлён', 'The AIOStreams config on %s was updated'), $host),
         false, $choice, aio_cgi_aio_show($conf));
 }
 
@@ -331,7 +331,7 @@ function aio_cgi_aio_sync_post($dir)
 {
     if (!aio_cgi_dir_ok($dir))
         aio_cgi_json(200, array('ok' => false, 'msg' => aio_cgi_l('Нет папки плагина на Дюне',
-            'No folder of the plugin on the Dune'), 'skip' => false, 'base' => '', 'conf' => null));
+            'The plugin folder is missing on the Dune'), 'skip' => false, 'base' => '', 'conf' => null));
     $r = aio_cgi_aio_sync($dir, aio_cgi_param($_POST, 'reset') === '1');
     $j = array('ok' => $r[0], 'msg' => $r[1], 'skip' => $r[2], 'base' => $r[3], 'conf' => $r[4]);
     if (isset($r[5]))

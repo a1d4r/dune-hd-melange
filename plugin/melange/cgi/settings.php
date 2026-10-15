@@ -107,7 +107,7 @@ function aio_cgi_save($dir, $t)
     {
         aio_cgi_log('save: no data dir');
         aio_cgi_failed($ajax, 500, array(aio_cgi_err(aio_cgi_l('Не сохранено: нет папки плагина на Дюне',
-            'Not saved: no folder of the plugin on the Dune'))), "500 No data dir, nothing written\n");
+            'Not saved: the plugin folder is missing on the Dune'))), "500 No data dir, nothing written\n");
     }
     $notes = array();
     $f = aio_cgi_fields();
@@ -139,7 +139,7 @@ function aio_cgi_save($dir, $t)
     {
         aio_cgi_log("save: $why");
         aio_cgi_failed($ajax, 500, array(aio_cgi_err(aio_cgi_l('Не сохранено: ошибка записи на Дюне',
-            'Not saved: a write error on the Dune'))), "500 Settings not saved\n");
+            'Not saved: write error on the Dune'))), "500 Settings not saved\n");
     }
     aio_cgi_log('save: ok');
     // The config there is reset to the template (0.40.0): by its button, or

@@ -109,9 +109,9 @@ function aio_cgi_servers($servers)
     // One short line each: the rest is in the README.
     $out = '<h2 id="srvh">' . aio_cgi_l('Скачать на сервер (необязательно)', 'Download to server (optional)') . '</h2>' .
         '<p class="hint">' . aio_cgi_l('qBittorrent или rdt-client: адрес веб-интерфейса; логин пустой — без входа.',
-        'qBittorrent or rdt-client: the web UI address; no login - none needed.') . '</p><p class="hint">' .
+        'qBittorrent or rdt-client: the web UI address; leave the login empty if none is needed.') . '</p><p class="hint">' .
         aio_cgi_l('Не проверяйте с неверным паролем подряд — qBittorrent блокирует Дюну.',
-        'Do not check a wrong password again and again: qBittorrent bans the Dune.') . '</p>';
+        'Do not check with a wrong password repeatedly: qBittorrent bans the Dune.') . '</p>';
     for ($n = 1; $n <= AIO_SERVERS_MAX; $n++)
     {
         $v = isset($servers[$n - 1]) ? $servers[$n - 1] : array();
@@ -153,7 +153,7 @@ function aio_cgi_jacred($v)
     $t = array('h' => array(aio_cgi_l('JacRed — поиск раздач и озвучки', 'JacRed - releases and voice-overs'),
         aio_cgi_l('JacRed — дорожки и озвучки', 'JacRed - audio tracks and voice-overs')),
         'p' => array(aio_cgi_l('По нему ищет раздачи созданный конфиг; озвучки и дорожки Melange берёт из него же',
-        'The config made finds releases with it; Melange takes voice-overs and tracks from it too'),
+        'The created config searches for releases with it; Melange also takes voice-overs and tracks from it'),
         aio_cgi_l('Только озвучки и дорожки; раздачи ищет ваш конфиг',
         'Voice-overs and tracks only; your config finds the releases')));
     $f = aio_cgi_fields();
@@ -169,7 +169,7 @@ function aio_cgi_jacred($v)
         'jacred.stream refuses the chosen AIOStreams server: choose another JacRed') . '</p>' .
         // Not when the default itself is chosen (the script follows the choice).
         '<p class="hint" id="jrnote"' . ($v['jacred'] === AIO_JACRED_DEFAULT ? ' hidden' : '') . '>' .
-        aio_cgi_l('Не ответил — Melange спросит ' . AIO_JACRED_DEFAULT . '.', 'No answer - Melange asks ' . AIO_JACRED_DEFAULT . '.') .
+        aio_cgi_l('Не ответил — Melange спросит ' . AIO_JACRED_DEFAULT . '.', 'No answer - Melange will ask ' . AIO_JACRED_DEFAULT . '.') .
         '</p>';
     $i = 0;
     foreach (array_keys(aio_jacred_builtin()) as $id)
@@ -179,14 +179,14 @@ function aio_cgi_jacred($v)
             ' class="jrb" data-id="' . aio_cgi_h($id) . '"');
     }
     return $out . aio_cgi_radio('jrown', $f['jacred']['name'], 'own', aio_cgi_l('Свой', 'Own'), $v['jacred'] === 'own') .
-        aio_cgi_input($f['jo_url'], aio_cgi_l('Адрес своего JacRed', 'Address of the own JacRed'), $v['jo_url'],
+        aio_cgi_input($f['jo_url'], aio_cgi_l('Адрес своего JacRed', 'Your JacRed address'), $v['jo_url'],
             'http://192.168.1.10:9117') .
         // The config made on a public server: it can't reach a home address (the script follows the choice).
         '<p class="hint" id="jrlan"' . ($k || $v['aio_server'] === 'own' ? ' hidden' : '') . '>' .
         aio_cgi_l('Адрес в домашней сети публичному серверу недоступен: нужен адрес из интернета',
-        'A home network address is out of reach of a public server: use a public one') .
+        'A public server cannot reach a home network address: use an internet address') .
         '</p>' .
-        aio_cgi_input($f['jo_key'], aio_cgi_l('Ключ своего JacRed (необязательно)', 'Key of the own JacRed (optional)'),
+        aio_cgi_input($f['jo_key'], aio_cgi_l('Ключ своего JacRed (необязательно)', 'Your JacRed key (optional)'),
             $v['jo_key'], '') .
         '<button type="button" id="jcb" class="chk">' . aio_cgi_l('Проверить', 'Check') . '</button><div id="jcr" class="res" aria-live="polite"></div>' .
         '<button type="button" id="jrsb" class="chk">' . aio_cgi_l('Сравнить все', 'Compare all') .
@@ -211,7 +211,7 @@ function aio_cgi_tpls()
             'Torrentio, MediaFusion, Comet, StremThru Torz: more releases cached in Debrid.')),
         'jacred' => array(aio_cgi_l('Только JacRed', 'JacRed only'), aio_cgi_l(
             'Русские трекеры, ответ быстрее; с одним RD раздач мало.',
-            'Russian trackers, a faster reply; few releases with RD alone.')));
+            'Russian trackers, faster replies; few releases with RD alone.')));
 }
 
 // The template the page shows for the server $server (aio_server; 'own' -
@@ -273,7 +273,7 @@ function aio_cgi_tpl_marks()
             aio_cgi_l('Выберите шаблон, чтобы заменить им конфиг.', 'Choose a template to replace the config with it.')),
         'none' => array(aio_cgi_l('Не определён — нажмите «Сохранить»', 'Unknown - press "Save"'),
             aio_cgi_l('Melange узнает шаблон конфига на сервере при сохранении.',
-            'Melange learns the template of the config there on the save.')));
+            'Melange detects the config template on the server when you save.')));
 }
 
 // "Шаблон конфига" (0.40.0) with the hint of the chosen one: that of the
@@ -317,11 +317,11 @@ function aio_cgi_aio($v)
     $sel = $base !== '' && isset($v['confs'][$base]) ? aio_cgi_aio_show($v['confs'][$base]) : null;
     $out = '<h2 id="aioh">' . aio_cgi_l('Конфиг AIOStreams — откуда Melange берёт раздачи',
         'AIOStreams config - where Melange gets releases') . '</h2>' .
-        aio_cgi_radio('srcm', $f['source']['name'], 'made', aio_cgi_l('Melange создаст конфиг', 'Melange makes the config'),
+        aio_cgi_radio('srcm', $f['source']['name'], 'made', aio_cgi_l('Melange создаст конфиг', 'Melange creates the config'),
         $v['source'] !== 'own') . '<div id="smade"><p class="hint">' .
         aio_cgi_l('Нужен ключ Real-Debrid или TorBox.', 'A Real-Debrid or TorBox key is needed.') . '</p><p class="hint">' .
         aio_cgi_l('Раздачи ищут JacRed (раздел ниже) и другие аддоны, смотрятся через Debrid.',
-        'JacRed (below) and other addons find the releases, they play via Debrid.') . '</p>' .
+        'JacRed (below) and other addons find releases; they play via Debrid.') . '</p>' .
         '<label for="' . $f['aio_server']['id'] . '">' . aio_cgi_l('Сервер AIOStreams', 'AIOStreams server') .
         '</label><select id="' . $f['aio_server']['id'] . '" name="' . $f['aio_server']['name'] . '">';
     $jr403 = aio_cgi_jr403();
@@ -347,13 +347,13 @@ function aio_cgi_aio($v)
         sprintf($chk, 'tbb', 'tbr');
     $out .= '<div id="tmbox"><p class="hint" id="tmnote">' .
         aio_cgi_l('Без своего TMDB: без сверки названий, меньше раздач сериалов.',
-        'No TMDB of its own: titles not matched, fewer series releases.') . '</p>' .
+        'The server has no TMDB of its own: titles are not matched, fewer series releases.') . '</p>' .
         aio_cgi_input($f['tmdb'], aio_cgi_l('Ключ TMDB (необязательно)', 'TMDB key (optional)'), $v['tmdb'],
         aio_cgi_link('https://www.themoviedb.org/settings/api', 'themoviedb.org') .
         aio_cgi_l(' → Settings → API, ключ v3', ' → Settings → API, the v3 key')) . sprintf($chk, 'tmb', 'tmr') . '</div>' .
         '<div id="acfg"><p class="hint" id="anone"' . ($sel ? ' hidden' : '') . '>' .
         aio_cgi_l('Конфига на этом сервере ещё нет: создастся при сохранении.',
-        'No config on this server yet: saving makes one.') . '</p>' .
+        'No config on this server yet: saving will create one.') . '</p>' .
         '<div id="ahave"' . ($sel ? '' : ' hidden') . '><p class="cfg"><a id="alink"' . ($sel ? ' href="' .
         aio_cgi_h($sel['cfg']) . '"' : '') . ' target="_blank" rel="noreferrer">' .
         aio_cgi_l('Открыть настройки AIOStreams', 'Open the AIOStreams settings') .
@@ -368,7 +368,7 @@ function aio_cgi_aio($v)
         'I have my own AIOStreams config'), $v['source'] === 'own') . '<div id="sown">' .
         aio_cgi_input($f['manifest'], aio_cgi_l('Ссылка на конфиг', 'Config link'), $v['manifest'],
         aio_cgi_l('Где взять: Save & Install → Stremio → Direct Manifest URL.',
-        'Where: Save & Install → Stremio → Direct Manifest URL.')) . sprintf($chk, 'mb', 'mr') .
+        'Get it at: Save & Install → Stremio → Direct Manifest URL.')) . sprintf($chk, 'mb', 'mr') .
         '<p class="hint">' . aio_cgi_l('Melange этот конфиг не меняет.', 'Melange does not change this config.') .
         '</p><p class="hint">' . aio_cgi_l('Без Debrid (раздачи P2P) нужен TorrServer — раздел ниже.',
         'Without Debrid (P2P releases) TorrServer is needed: see below.') . '</p></div>';
@@ -393,7 +393,7 @@ function aio_cgi_js($v)
 {
     $t = array(
         'duplicate' => aio_cgi_l('Дублировать', 'Duplicate'),
-        'serversFull' => aio_cgi_l('Все 5 блоков заняты', 'All 5 blocks are in use'),
+        'serversFull' => aio_cgi_l('Все 5 блоков заняты', 'All 5 server slots are in use'),
         'copySuffix' => aio_cgi_l(' (копия)', ' (copy)'),
         'server' => aio_cgi_l('Сервер', 'Server'),
         'checking' => aio_cgi_l('Проверяю…', 'Checking…'), 'saving' => aio_cgi_l('Сохраняю…', 'Saving…'),
@@ -403,26 +403,26 @@ function aio_cgi_js($v)
         'updating' => aio_cgi_l('Обновляю конфиг…', 'Updating the config…'),
         'resetting' => aio_cgi_l('Сбрасываю конфиг…', 'Resetting the config…'),
         'notCreated' => aio_cgi_l('Конфиг на сервере AIOStreams не создан — нажмите «Сохранить» ещё раз',
-            'The config on the AIOStreams server is not created: press "Save" again'),
+            'The config on the AIOStreams server was not created: press "Save" again'),
         'notUpdated' => aio_cgi_l('Конфиг на сервере AIOStreams не обновлён — нажмите «Сохранить» ещё раз',
-            'The config on the AIOStreams server is not updated: press "Save" again'),
+            'The config on the AIOStreams server was not updated: press "Save" again'),
         'notReset' => aio_cgi_l('Конфиг на сервере AIOStreams не сброшен — нажмите «Сбросить к шаблону» ещё раз',
-            'The config on the AIOStreams server is not reset: press "Reset to the template" again'),
+            'The config on the AIOStreams server was not reset: press "Reset to the template" again'),
         'resetConfirm' => aio_cgi_l('Конфиг на %s будет заменён шаблоном «%s». Ваши правки в веб-настройках AIOStreams ' .
             'пропадут; логин, пароль и ссылка останутся. Продолжить?', 'The config on %s will be replaced with the ' .
             'template "%s". Your edits in the AIOStreams web settings will be lost; the login, password and link stay. ' .
-            'Go on?'),
-        'passCopied' => aio_cgi_l('Пароль скопирован', 'The password is copied'),
+            'Continue?'),
+        'passCopied' => aio_cgi_l('Пароль скопирован', 'Password copied'),
         'passNotCopied' => aio_cgi_l('Не скопировалось — пароль показан, скопируйте вручную',
             'Not copied: the password is shown, copy it by hand'),
         'noConnection' => aio_cgi_l('Нет связи с Дюной: проверьте, что телефон в той же сети, и нажмите ещё раз',
             'No connection to the Dune: check that the phone is on the same network and try again'),
         'timeout' => aio_cgi_l('Дюна не ответила за %d с — повторите', 'The Dune did not answer within %d s: try again'),
         'linkExpired' => aio_cgi_l('Ссылка устарела: откройте настройки заново по QR-коду на Дюне',
-            'The link is out of date: open the settings again by the QR code on the Dune'),
+            'The link is out of date: open the settings again via the QR code on the Dune'),
         'badChars' => aio_cgi_l('В поле испорченный символ — сотрите его и введите заново',
             'A broken character in the field: delete it and type it again'),
-        'httpError' => aio_cgi_l('Ошибка Дюны (HTTP %d), попробуйте ещё раз', 'Error of the Dune (HTTP %d), try again'),
+        'httpError' => aio_cgi_l('Ошибка Дюны (HTTP %d), попробуйте ещё раз', 'Dune error (HTTP %d), try again'),
         'jacredFormat' => aio_cgi_fmt_jacred(), 'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'),
         'colName' => 'JacRed', 'colAvailable' => aio_cgi_l('доступен', 'available'),
         'colTime' => aio_cgi_l('время', 'time'), 'releases' => aio_cgi_l('раздач', 'releases'),
@@ -548,7 +548,7 @@ function aio_cgi_check_values($v)
     if (!$made && $v['manifest'] === '')
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Укажите ссылку на конфиг — или выберите «Melange создаст конфиг»',
-            'Give the config link, or choose "Melange makes the config"'), $f['manifest']['name']);
+            'Enter the config link, or choose "Melange creates the config"'), $f['manifest']['name']);
     }
     $d[$set['aio_own']] = aio_aio_own($v['aio_own']);
     // Hidden unless another server is chosen to make the config on.
@@ -628,7 +628,7 @@ function aio_cgi_savec()
 
 function aio_cgi_saved()
 {
-    return aio_cgi_l('Сохранено. Дюна подхватит настройки сама.', 'Saved. The Dune picks the settings up by itself.');
+    return aio_cgi_l('Сохранено. Дюна подхватит настройки сама.', 'Saved. The Dune picks up the settings automatically.');
 }
 
 // $v: aio_cgi_values() or aio_cgi_posted(); $errors: of aio_cgi_err().
@@ -640,7 +640,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
     if ($saved)
         $msg .= '<p class="ok">' . aio_cgi_saved() . '</p>';
     $chk = '<button type="button" id="%s" class="chk">' . aio_cgi_l('Проверить', 'Check') . '</button><div id="%s" class="res" aria-live="polite"></div>';
-    $title = aio_cgi_l('Melange — настройки', 'Melange - settings');
+    $title = aio_cgi_l('Melange — настройки', 'Melange settings');
     $f = aio_cgi_fields();
     // The sections; Advanced by the heading inside it: a browser opens the closed details on the way to it
     // (newer ones; the script opens it too).
@@ -660,7 +660,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
             'Empty - the TorrServe app on the Dune; your own - http://host:port') . '</p>' .
         '<p class="hint" id="tsown"' . ($v['source'] === 'own' ? '' : ' hidden') . '>' .
         aio_cgi_l('Раздачи P2P из вашего конфига играют через TorrServer',
-        'P2P releases of your config play via TorrServer') . '</p>' .
+        'P2P releases from your config play via TorrServer') . '</p>' .
         sprintf($chk, 'tsb', 'tsr') .
         '<details id="adv"><summary>' . aio_cgi_l('Дополнительно', 'Advanced') . '</summary>' .
         aio_cgi_servers($v['servers']) . '</details>' .
