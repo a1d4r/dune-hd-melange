@@ -7,13 +7,13 @@ import type { Lock } from "./lock";
 
 export interface Aio {
   render(): void;
-  // The config of the server after aio_sync; then render().
+  // The config of the server (of the mode synced) after aio_sync; then render().
   applySync(sync: Sync, reset: boolean): void;
-  // A save now would replace the config of the server with another template (or another mode).
+  // A save now would replace the config of Debrid of the server with another template.
   resetPending(): boolean;
-  // The OK of the user to replace the config with the template.
+  // The OK of the user to replace the config of the mode chosen with the template.
   confirmReset(): boolean;
-  // After a save: the template and the mode chosen are the ones for a new config.
+  // After a save: the template chosen is the one for a new config.
   rememberTemplate(): void;
 }
 
@@ -27,7 +27,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     templateShown = byId<HTMLInputElement>(doc, ID.templateShown),
     modes = form.querySelectorAll<HTMLInputElement>("input[name=" + NAME.mode + "]"),
     saveButton = query<HTMLButtonElement>(form, "." + CLS.save);
-  // The config shown, by "<server> <config>"; undefined: as the page came.
+  // The config of Debrid the template choice shows, by "<server> <config>"; undefined: as the page came.
   let templateKey: string | null | undefined;
 
   function selected(): HTMLOptionElement | undefined {
@@ -40,39 +40,34 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
       .replace(/:0+(\d)/g, ":$1")
       .toLowerCase();
   }
-  // Of the chosen server; of own one only if it is of the address typed.
-  function currentConf(): KnownConf | null {
+  // The mode chosen (one for all servers: a server has a config of each).
+  function mode(): string {
+    return checkedValue(form, NAME.mode) || VALUE.debrid;
+  }
+  // Of the chosen server in the mode (the one chosen by default); of own one only if it is of the address typed.
+  function currentConf(ofMode: string = mode()): KnownConf | null {
     const option = selected();
-    const conf = option ? confs.known(option.value) : null;
+    const conf = option ? confs.known(option.value, ofMode) : null;
     return option && option.value === VALUE.own && ownUrl() !== (conf ? conf.url : null) ? null : conf;
   }
   function renderHint(): void {
     byId(doc, ID.templateHint).textContent = template.options[template.selectedIndex]!.getAttribute(DATA.hint);
   }
   function p2p(): boolean {
-    return checkedValue(form, NAME.mode) === VALUE.p2p;
+    return mode() === VALUE.p2p;
   }
-  // The mode of a config as PHP found it (not the one for a new config: that is one for all servers); no config (or
-  // none sent): the one for a new config.
-  function modeOf(conf: KnownConf | null): string | null {
-    return conf && conf.mode ? conf.mode : confs.modeForNew();
-  }
-  // The template of the config ("none": not known yet), else the one for a new config (P2P in that mode); the
-  // choice shows it, of P2P the one for a new config of Debrid; a mark (disabled) only while it is the one. The mode:
-  // that of the config.
+  // The template of the config of Debrid ("none": not known yet), else the one for a new config; a mark (disabled)
+  // only while it is the one.
   function renderTemplate(): void {
-    const conf = currentConf();
-    const shown = conf ? conf.tpl || VALUE.none : confs.modeForNew() === VALUE.p2p ? VALUE.p2p : confs.templateForNew();
-    const choice = shown === VALUE.p2p ? confs.templateForNew() : shown;
+    const conf = currentConf(VALUE.debrid);
+    const shown = conf ? conf.tpl || VALUE.none : confs.templateForNew();
     for (let i = 0; i < template.options.length; i++) {
       const option = template.options[i]!;
-      if (isMark(option)) option.hidden = option.value !== choice;
+      if (isMark(option)) option.hidden = option.value !== shown;
     }
     // A missing tplNew assigns null, as a missing data-new did.
-    template.value = choice!;
+    template.value = shown!;
     templateShown.value = shown!;
-    const mode = modeOf(conf);
-    for (let i = 0; i < modes.length; i++) modes[i]!.checked = modes[i]!.value === mode;
     renderHint();
   }
   // The link, login and password of the config (a missing one: empty).
@@ -92,9 +87,10 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     const option = selected(),
       ownSource = isOwnSource(form),
       ownServer = !!option && option.value === VALUE.own,
-      conf = currentConf();
-    // Another config (or none): its template; the page came with the right one.
-    const key = conf ? option!.value + " " + conf.cfg : "";
+      conf = currentConf(),
+      debrid = currentConf(VALUE.debrid);
+    // Another config of Debrid (or none): its template; the page came with the right one.
+    const key = debrid ? option!.value + " " + debrid.cfg : "";
     if (key !== templateKey) {
       if (templateKey !== undefined) renderTemplate();
       templateKey = key;
@@ -138,15 +134,14 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     applySync(sync: Sync, reset: boolean): void {
       // Of a server of the choice only.
       for (let i = 0; i < server.options.length; i++)
-        if (server.options[i]!.value === sync.base) confs.store(sync.base, sync.conf, sync.base === VALUE.own ? ownUrl() : null);
+        if (server.options[i]!.value === sync.base && sync.mode)
+          confs.store(sync.base, sync.mode, sync.conf, sync.base === VALUE.own ? ownUrl() : null);
       // The template of the config as the server found it; a failed reset keeps the choice for the retry.
       if (sync.ok || !reset) templateKey = null;
     },
-    // Another mode than that of the config, or of Debrid another template.
+    // Of Debrid with a config there, another template (another mode: its own config, never a reset).
     resetPending(): boolean {
-      const conf = currentConf();
-      if (isOwnSource(form) || !conf) return false;
-      return checkedValue(form, NAME.mode) !== modeOf(conf) || (!p2p() && template.value !== templateShown.value);
+      return !isOwnSource(form) && !p2p() && !!currentConf() && template.value !== templateShown.value;
     },
     // P2P: its name; a mark shown: the reset is to the template for a new config (nothing posted).
     confirmReset(): boolean {
@@ -161,9 +156,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     },
     rememberTemplate(): void {
       if (!isMark(template.options[template.selectedIndex])) confs.storeTemplateForNew(template.value);
-      const mode = checkedValue(form, NAME.mode);
-      if (mode) confs.storeModeForNew(mode);
-      if (!currentConf()) templateShown.value = p2p() ? VALUE.p2p : template.value;
+      if (!currentConf(VALUE.debrid)) templateShown.value = template.value;
     },
   };
 }

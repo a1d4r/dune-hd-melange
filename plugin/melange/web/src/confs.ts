@@ -1,29 +1,25 @@
-// What the page knows of the AIOStreams configs: of each server, and the template and the mode for a new one.
-// From #init (confs, tplNew, modeNew); a save and aio_sync change them here.
+// What the page knows of the AIOStreams configs: of each server in each mode (a config per mode), and the template for
+// a new one. From #init (confs, tplNew); a save and aio_sync change them here.
 
 import { isObject, type ServerConf } from "./api";
 
-// mode: of the config (null: none sent); url: of own server only, the address the config is of.
+// url: of own server only, the address the config is of.
 export interface KnownConf {
   cfg: string;
   login: string | null;
   pass: string | null;
   tpl: string | null;
-  mode: string | null;
   url: string | null;
 }
 
 export interface Confs {
-  // server: the value of its option ("own" for own one); null: no config.
-  known(server: string): KnownConf | null;
+  // server: the value of its option ("own" for own one), mode: VALUE.debrid or VALUE.p2p; null: no config.
+  known(server: string, mode: string): KnownConf | null;
   // After aio_sync; url: own server (else null).
-  store(server: string, conf: ServerConf | null, url: string | null): void;
+  store(server: string, mode: string, conf: ServerConf | null, url: string | null): void;
   // null: none in #init.
   templateForNew(): string | null;
   storeTemplateForNew(value: string): void;
-  // null: none in #init.
-  modeForNew(): string | null;
-  storeModeForNew(value: string): void;
 }
 
 const text = (value: unknown): string | null => (typeof value === "string" ? value : null);
@@ -31,34 +27,34 @@ const text = (value: unknown): string | null => (typeof value === "string" ? val
 // A conf of #init.confs; null: not one (no cfg).
 function parseConf(json: unknown): KnownConf | null {
   if (!isObject(json) || typeof json.cfg !== "string" || json.cfg === "") return null;
-  return { cfg: json.cfg, login: text(json.login), pass: text(json.pass), tpl: text(json.tpl) || null, mode: text(json.mode), url: text(json.url) };
+  return { cfg: json.cfg, login: text(json.login), pass: text(json.pass), tpl: text(json.tpl) || null, url: text(json.url) };
 }
 
-// confs: {<value of an option>: {cfg, login, pass, tpl, mode, url?}}, tplNew, modeNew: strings (all of #init).
-export function createConfs(confs: unknown, tplNew: unknown, modeNew: unknown): Confs {
+// confs: {<mode>: {<value of an option>: {cfg, login, pass, tpl, url?}}}, tplNew: a string (all of #init).
+export function createConfs(confs: unknown, tplNew: unknown): Confs {
+  // By "<mode> <server>".
   const byServer = new Map<string, KnownConf>();
-  let forNew = text(tplNew),
-    forNewMode = text(modeNew);
+  let forNew = text(tplNew);
   if (isObject(confs) && !Array.isArray(confs))
-    for (const server of Object.keys(confs)) {
-      const conf = parseConf(confs[server]);
-      if (conf) byServer.set(server, conf);
+    for (const mode of Object.keys(confs)) {
+      const ofMode = confs[mode];
+      if (isObject(ofMode) && !Array.isArray(ofMode))
+        for (const server of Object.keys(ofMode)) {
+          const conf = parseConf(ofMode[server]);
+          if (conf) byServer.set(mode + " " + server, conf);
+        }
     }
   return {
-    known: (server: string) => byServer.get(server) || null,
-    store(server: string, conf: ServerConf | null, url: string | null): void {
+    known: (server: string, mode: string) => byServer.get(mode + " " + server) || null,
+    store(server: string, mode: string, conf: ServerConf | null, url: string | null): void {
       // No cfg: no config, as one without it in #init.
       if (conf && conf.cfg)
-        byServer.set(server, { cfg: conf.cfg, login: conf.login, pass: conf.pass, tpl: conf.tpl || null, mode: conf.mode, url: url });
-      else byServer.delete(server);
+        byServer.set(mode + " " + server, { cfg: conf.cfg, login: conf.login, pass: conf.pass, tpl: conf.tpl || null, url: url });
+      else byServer.delete(mode + " " + server);
     },
     templateForNew: () => forNew,
     storeTemplateForNew(value: string): void {
       forNew = value;
-    },
-    modeForNew: () => forNewMode,
-    storeModeForNew(value: string): void {
-      forNewMode = value;
     },
   };
 }

@@ -133,7 +133,7 @@ describe("while a save goes", () => {
     await flush();
     expect(page.calls.length).toBe(2);
     expect(disabled(checkButtons(page))).toEqual(all(13, true));
-    sync.resolve(json({ ok: true, msg: "Updated", skip: false, base: null, conf: null }));
+    sync.resolve(json({ ok: true, msg: "Updated", skip: false, base: null, mode: "debrid", conf: null }));
     await flush();
     expect(disabled(checkButtons(page))).toEqual(all(13, false));
   });

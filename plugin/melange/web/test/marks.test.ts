@@ -156,7 +156,7 @@ describe("errors lead to the field", () => {
   });
 
   // Saved, then aio_sync refused with the field it is about: marked as of a save error, its text under the button.
-  const SYNC_NO_KEY = { ok: false, msg: "Конфиг на сервере AIOStreams не обновлён: нужен хотя бы один ключ Debrid", skip: false, base: null, conf: null };
+  const SYNC_NO_KEY = { ok: false, msg: "Конфиг на сервере AIOStreams не обновлён: нужен хотя бы один ключ Debrid", skip: false, base: null, mode: "debrid", conf: null };
 
   test("aio_sync with a field (no Debrid key): marked, in view, focused; the mark goes on typing", async () => {
     const page = open("filled");
@@ -175,7 +175,7 @@ describe("errors lead to the field", () => {
     const page = open("filled");
     page.type(ID.aioServer, "own");
     page.type(ID.aioOwnUrl, "http://192.168.1.10:3000");
-    page.replies.push(json({ ok: true, next: "x", aio: "create" }), json({ ok: false, msg: "Down", skip: false, base: "own", conf: null, field: "aio_own_url" }));
+    page.replies.push(json({ ok: true, next: "x", aio: "create" }), json({ ok: false, msg: "Down", skip: false, base: "own", mode: "debrid", conf: null, field: "aio_own_url" }));
     await save(page);
     expect([marked(page), focused(page)]).toEqual([["aio_own_url"], "aio_own_url"]);
     page.replies.push(later().reply);
@@ -189,7 +189,7 @@ describe("errors lead to the field", () => {
     page.replies.push(json({ ok: true, next: "x", aio: "update" }), json(SYNC_NO_KEY));
     await save(page);
     expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.savedOnDune], ["err", SYNC_NO_KEY.msg]]);
-    page.replies.push(json({ ok: true, next: "x", aio: "update" }), json({ ok: true, msg: "Updated", skip: false, base: null, conf: null, field: "rd_key" }));
+    page.replies.push(json({ ok: true, next: "x", aio: "update" }), json({ ok: true, msg: "Updated", skip: false, base: null, mode: "debrid", conf: null, field: "rd_key" }));
     await save(page);
     expect([marked(page), scrolls]).toEqual([[], []]);
   });
