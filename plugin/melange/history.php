@@ -14,11 +14,19 @@ define('AIO_WH_MAX_BYTES', 4000000);
 // until the history files change.
 class AioWh
 {
+    /** @var string|null */
     public static $sig = null;
+    /** @var array<string, float> */
     public static $all = array();
 }
 
 // An episode record of the series that WatchHistory::do_update keeps.
+/**
+ * @param mixed $w
+ * @param string $dune_id
+ * @return bool
+ * @phpstan-assert-if-true stdClass $w
+ */
 function aio_wh_match($w, $dune_id)
 {
     if (!is_object($w) || (isset($w->deleted) && $w->deleted == 1))
@@ -41,6 +49,12 @@ function aio_wh_match($w, $dune_id)
 // one, records from the end), to $visit($w, $arg, &$acc) until it returns
 // true. Only what it keeps in $acc stays in memory. One log line
 // "<$tag>: N files, ..., count($acc) found". -> $acc
+/**
+ * @param string $tag
+ * @param callable $visit
+ * @param mixed $arg
+ * @return array<mixed>
+ */
 function aio_wh_find($tag, $visit, $arg)
 {
     $t = microtime(true);
@@ -85,12 +99,22 @@ function aio_wh_find($tag, $visit, $arg)
 
 // The latest episode record of the series in any NNNNNN.json, from any
 // supplier or a local file, or null.
+/**
+ * @param string $dune_id
+ * @return stdClass|null
+ */
 function aio_wh_last($dune_id)
 {
     $found = aio_wh_find('history', 'aio_wh_last_visit', $dune_id);
     return $found ? $found[0] : null;
 }
 
+/**
+ * @param mixed $w
+ * @param string $dune_id
+ * @param list<stdClass> $acc
+ * @return bool
+ */
 function aio_wh_last_visit($w, $dune_id, &$acc)
 {
     if (aio_wh_match($w, $dune_id))
@@ -99,6 +123,13 @@ function aio_wh_last_visit($w, $dune_id, &$acc)
 }
 
 // A record of a release of ours: not deleted, uid "<$prefix><infoHash>".
+/**
+ * @param mixed $w
+ * @param string $prefix
+ * @return bool
+ * @phpstan-assert-if-true stdClass $w
+ * @phpstan-assert-if-true string $w->uid
+ */
 function aio_wh_ours($w, $prefix)
 {
     return is_object($w) && !(isset($w->deleted) && $w->deleted == 1) && isset($w->uid) && is_string($w->uid) &&
@@ -108,6 +139,12 @@ function aio_wh_ours($w, $prefix)
 // The latest record of each release of ours -> its share in $acc (uid =>
 // share, only a float each: there may be thousands). $arg: array(prefix,
 // aio_wh_marked_set()).
+/**
+ * @param mixed $w
+ * @param array{string, array<int|string, true>} $arg
+ * @param array<string, float> $acc
+ * @return bool
+ */
 function aio_wh_ours_visit($w, $arg, &$acc)
 {
     if (!aio_wh_ours($w, $arg[0]) || isset($acc[$w->uid]))
@@ -120,6 +157,11 @@ function aio_wh_ours_visit($w, $arg, &$acc)
 }
 
 // is_fully_watched of the shell with its default settings: 90 %, 30 s left.
+/**
+ * @param float|int $pos
+ * @param float|int $len
+ * @return bool
+ */
 function aio_wh_full($pos, $len)
 {
     return $len > 0 && $pos >= 0 && $pos >= $len - 30 && round($pos * 100.0 / $len) >= 90;
@@ -128,6 +170,9 @@ function aio_wh_full($pos, $len)
 // Names, sizes and times of the history files (NNNNNN.json and
 // watched_files.txt); null without the folder or while a file is younger than
 // 2 s (written again within the same second it would keep its signature).
+/**
+ * @return string|null
+ */
 function aio_wh_sig()
 {
     $dir = AIO_WH_PATH;
@@ -151,6 +196,9 @@ function aio_wh_sig()
 // Our records (uid "aio:..."): uid => share of its latest record, 0 without
 // progress, 1 once watched (by position or marked). Read again only when the
 // history files change.
+/**
+ * @return array<string, float>
+ */
 function aio_wh_ours_all()
 {
     $t = microtime(true);
@@ -191,6 +239,9 @@ function aio_wh_progress($st)
 
 // uids marked as watched in watched_files.txt, as load_idset_from_wh_file:
 // uid => true.
+/**
+ * @return array<int|string, true>
+ */
 function aio_wh_marked_set()
 {
     $path = AIO_WH_PATH . '/watched_files.txt';
@@ -210,6 +261,10 @@ function aio_wh_marked_set()
 }
 
 // uid in watched_files.txt (marked as watched).
+/**
+ * @param string $uid
+ * @return bool
+ */
 function aio_wh_marked($uid)
 {
     $set = $uid !== '' ? aio_wh_marked_set() : array();
@@ -219,6 +274,10 @@ function aio_wh_marked($uid)
 // Episode of a series opened from its main card (season = episode = -1):
 // the last one in the history, the next one once it is watched, S1E1 with
 // no record or after the last episode. -> array(s, e)
+/**
+ * @param AioMovie $mv
+ * @return array{int, int}
+ */
 function aio_wh_episode($mv)
 {
     $w = $mv['dune_id'] !== '' ? aio_wh_last($mv['dune_id']) : null;
