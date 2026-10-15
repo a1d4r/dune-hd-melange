@@ -179,14 +179,14 @@ function aio_cgi_jacred($v)
             ' class="jrb" data-id="' . aio_cgi_h($id) . '"');
     }
     return $out . aio_cgi_radio('jrown', $f['jacred']['name'], 'own', aio_cgi_l('Свой', 'Own'), $v['jacred'] === 'own') .
-        aio_cgi_input($f['jo_url'], aio_cgi_l('Адрес своего JacRed', 'Your JacRed address'), $v['jo_url'],
+        aio_cgi_input($f['jo_url'], aio_cgi_l('Адрес своего JacRed', 'Own JacRed address'), $v['jo_url'],
             'http://192.168.1.10:9117') .
         // The config made on a public server: it can't reach a home address (the script follows the choice).
         '<p class="hint" id="jrlan"' . ($k || $v['aio_server'] === 'own' ? ' hidden' : '') . '>' .
         aio_cgi_l('Адрес в домашней сети публичному серверу недоступен: нужен адрес из интернета',
         'A public server cannot reach a home network address: use an internet address') .
         '</p>' .
-        aio_cgi_input($f['jo_key'], aio_cgi_l('Ключ своего JacRed (необязательно)', 'Your JacRed key (optional)'),
+        aio_cgi_input($f['jo_key'], aio_cgi_l('Ключ своего JacRed (необязательно)', 'Own JacRed key (optional)'),
             $v['jo_key'], '') .
         '<button type="button" id="jcb" class="chk">' . aio_cgi_l('Проверить', 'Check') . '</button><div id="jcr" class="res" aria-live="polite"></div>' .
         '<button type="button" id="jrsb" class="chk">' . aio_cgi_l('Сравнить все', 'Compare all') .

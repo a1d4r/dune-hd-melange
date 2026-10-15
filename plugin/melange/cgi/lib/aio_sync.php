@@ -331,7 +331,7 @@ function aio_cgi_aio_sync_post($dir)
 {
     if (!aio_cgi_dir_ok($dir))
         aio_cgi_json(200, array('ok' => false, 'msg' => aio_cgi_l('Нет папки плагина на Дюне',
-            'The plugin folder is missing on the Dune'), 'skip' => false, 'base' => '', 'conf' => null));
+            'The plugin data folder is missing on the Dune'), 'skip' => false, 'base' => '', 'conf' => null));
     $r = aio_cgi_aio_sync($dir, aio_cgi_param($_POST, 'reset') === '1');
     $j = array('ok' => $r[0], 'msg' => $r[1], 'skip' => $r[2], 'base' => $r[3], 'conf' => $r[4]);
     if (isset($r[5]))
