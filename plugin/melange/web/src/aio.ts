@@ -109,10 +109,12 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     swapText(ID.jacredHeading, ownSource);
     swapText(ID.jacredText, ownSource);
     const refuses = option ? option.getAttribute(DATA.jr403) : null;
-    // P2P: Magnetio asks JacRed, not the server; it can't reach a home address either.
-    byId(doc, ID.jacred403).hidden = ownSource || modeP2p || !refuses || refuses !== checkedValue(form, NAME.jacred);
+    // P2P on a server with Magnetio (no data-p2ptz): Magnetio asks JacRed, not the server; it can't reach a home
+    // address either.
+    const magnetio = modeP2p && !(option && option.getAttribute(DATA.p2pTorznab) === "1");
+    byId(doc, ID.jacred403).hidden = ownSource || magnetio || !refuses || refuses !== checkedValue(form, NAME.jacred);
     byId(doc, ID.tsOwn).hidden = !ownSource;
-    byId(doc, ID.jacredLan).hidden = ownSource || (ownServer && !modeP2p);
+    byId(doc, ID.jacredLan).hidden = ownSource || (ownServer && !magnetio);
     const hasKey = (rdKey.value + tbKey.value).replace(/\s+/g, "") !== "";
     if (!lock.saving()) saveButton.textContent = !ownSource && !conf && (hasKey || modeP2p) ? texts.saveAndCreate : texts.save;
   }

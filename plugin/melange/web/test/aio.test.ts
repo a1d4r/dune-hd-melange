@@ -227,6 +227,23 @@ describe("mode", () => {
     page.choose("aio_mode", "p2p");
     expect(vis()).toEqual({ jr403: false, lan: true });
   });
+
+  test("JacRed notes in P2P on a server with Torznab (data-p2ptz): as in Debrid - the server asks JacRed", () => {
+    const page = open("p2p");
+    const vis = () => ({ jr403: shown(page.el(ID.jacred403)), lan: shown(page.el(ID.jacredLan)) });
+    const kompotik = page.doc.querySelector<HTMLOptionElement>('#as option[value="https://aiostreams.kompotik.com"]')!;
+    expect(kompotik.getAttribute("data-p2ptz")).toBe("1");
+    // No server of the list both refused by a JacRed and with Torznab: the 403 note on a made-up one.
+    kompotik.setAttribute("data-jr403", "jacred.stream");
+    server(page, "https://aiostreams.kompotik.com");
+    page.choose("jacred", "jacred.stream");
+    expect(vis()).toEqual({ jr403: true, lan: true });
+    page.choose("aio_mode", "debrid");
+    expect(vis()).toEqual({ jr403: true, lan: true });
+    kompotik.removeAttribute("data-p2ptz");
+    page.choose("aio_mode", "p2p");
+    expect(vis()).toEqual({ jr403: false, lan: true });
+  });
 });
 
 describe("save button text", () => {

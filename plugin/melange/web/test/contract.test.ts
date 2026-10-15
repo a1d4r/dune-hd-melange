@@ -61,6 +61,11 @@ describe.each([...FIXTURES])("%s", (name) => {
     refused.forEach((option) =>
       expect(form.querySelectorAll(JACRED_RADIOS + "[value='" + option.getAttribute(DATA.jr403) + "']").length).toBe(1),
     );
+    // A server asking JacRed itself in P2P (Torznab): "1"; the own one never.
+    const torznab = doc.querySelectorAll<HTMLOptionElement>("#" + ID.aioServer + " option[" + DATA.p2pTorznab + "]");
+    expect(Array.from(torznab).map((option) => [option.value, option.getAttribute(DATA.p2pTorznab)])).toEqual([
+      ["https://aiostreams.kompotik.com", "1"],
+    ]);
 
     // Every eye: a button for a field there, masked.
     const eyes = doc.querySelectorAll("." + CLS.eye);

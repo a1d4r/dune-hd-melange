@@ -159,14 +159,15 @@ function aio_cgi_jacred($v)
         'Voice-overs and tracks only; your config finds the releases')));
     $f = aio_cgi_fields();
     $k = $v['source'] === 'own' ? 1 : 0;
-    $p2p = aio_cgi_mode_sel($v) === AIO_TPL_P2P;
+    // P2P on a server with Magnetio (not of aio_conf_p2p_torznab): Magnetio asks JacRed, not the server.
+    $mg = aio_cgi_mode_sel($v) === AIO_TPL_P2P && !in_array($v['aio_server'], aio_conf_p2p_torznab(), true);
     $jr403 = aio_cgi_jr403();
     $out = '<h2 id="jrh" data-made="' . aio_cgi_h($t['h'][0]) . '" data-own="' . aio_cgi_h($t['h'][1]) . '">' . $t['h'][$k] .
         '</h2><p class="hint" id="jrp" data-made="' . aio_cgi_h($t['p'][0]) . '" data-own="' . aio_cgi_h($t['p'][1]) . '">' .
         $t['p'][$k] . '</p>' .
         // The created config on a server jacred.stream refuses, jacred.stream chosen (the script follows both);
-        // P2P: Magnetio asks JacRed, not the server.
-        '<p class="hint" id="jr403"' . (!$k && !$p2p && isset($jr403[$v['aio_server']]) &&
+        // not when Magnetio asks.
+        '<p class="hint" id="jr403"' . (!$k && !$mg && isset($jr403[$v['aio_server']]) &&
         $v['jacred'] === $jr403[$v['aio_server']] ? '' : ' hidden') . '>' .
         aio_cgi_l('jacred.stream не пускает выбранный сервер AIOStreams — выберите другой JacRed',
         'jacred.stream refuses the chosen AIOStreams server: choose another JacRed') . '</p>' .
@@ -185,8 +186,8 @@ function aio_cgi_jacred($v)
         aio_cgi_input($f['jo_url'], aio_cgi_l('Адрес своего JacRed', 'Own JacRed address'), $v['jo_url'],
             'http://192.168.1.10:9117') .
         // The config made on a public server: it can't reach a home address (the script follows the choice);
-        // P2P: nor Magnetio, whatever the server.
-        '<p class="hint" id="jrlan"' . ($k || ($v['aio_server'] === 'own' && !$p2p) ? ' hidden' : '') . '>' .
+        // nor Magnetio, whatever the server.
+        '<p class="hint" id="jrlan"' . ($k || ($v['aio_server'] === 'own' && !$mg) ? ' hidden' : '') . '>' .
         aio_cgi_l('Адрес в домашней сети публичному серверу недоступен: нужен адрес из интернета',
         'A public server cannot reach a home network address: use an internet address') .
         '</p>' .
@@ -375,6 +376,7 @@ function aio_cgi_aio($v)
     foreach (aio_aio_servers() as $url => $tmdb)
         $out .= '<option value="' . aio_cgi_h($url) . '" data-tmdb="' . ($tmdb ? '1' : '0') . '"' .
             (isset($jr403[$url]) ? ' data-jr403="' . aio_cgi_h($jr403[$url]) . '"' : '') .
+            (in_array($url, aio_conf_p2p_torznab(), true) ? ' data-p2ptz="1"' : '') .
             ($v['aio_server'] === $url ? ' selected' : '') . '>' .
             aio_cgi_h(substr($url, strlen('https://'))) . ($tmdb ? '' : aio_cgi_l(' — без TMDB', ' - no TMDB')) . '</option>';
     $out .= '<option value="own" data-tmdb="0"' .

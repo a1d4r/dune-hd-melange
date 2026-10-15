@@ -86,9 +86,11 @@ export const DATA = {
   // The texts of #jrh, #jrp by the source.
   made: "data-made",
   own: "data-own",
-  // An option of the server choice: "1" - TMDB of its own; the id of the JacRed that answers it 403.
+  // An option of the server choice: "1" - TMDB of its own; the id of the JacRed that answers it 403;
+  // "1" - in P2P the server asks JacRed itself (Torznab), not Magnetio.
   tmdb: "data-tmdb",
   jr403: "data-jr403",
+  p2pTorznab: "data-p2ptz",
   // An eye: the id of its field.
   eyeFor: "data-for",
   // A built-in JacRed: its id.
