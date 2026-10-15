@@ -3,7 +3,7 @@
 **English version**
 
 ## Unreleased
-- Without Debrid: the settings page has a **Mode** choice for the config Melange makes, "Debrid" (as before) or "P2P (no Debrid)". In P2P mode no key is needed: releases are found by Torrentio, JacRed (through the public Magnetio addon), TorrentsDB, Comet and StremThru Torz and play via TorrServer on the Dune; releases with 10 or more seeders come first. The Debrid keys are kept in Melange but not put in the config. Changing the mode of an existing config resets it to the template of that mode, after a confirmation; back to Debrid only with a key.
+- Without Debrid: the settings page has a **Mode** choice for the config Melange makes, "Debrid" (as before) or "P2P (no Debrid)". In P2P mode no key is needed: releases are found by Torrentio, JacRed (through the public Magnetio addon), TorrentsDB, Comet and StremThru Torz and play via TorrServer on the Dune; releases with 10 or more seeders come first. The Debrid keys are kept in Melange but not put in the config. In P2P mode the JacRed address and key are passed to the third-party Magnetio addon (`magnetio.peterdsp.dev`): AIOStreams searches JacRed through it. Changing the mode of an existing config resets it to the template of that mode, after a confirmation; back to Debrid only with a key.
 - English interface: clearer error and hint wording, the settings path now reads Setup → Apps as in the firmware, and an item is consistently called a release.
 - Documentation: README in English (README.en.md), CHANGELOG in two languages.
 
@@ -76,7 +76,7 @@ First public release. What it does:
 **Russian version**
 
 ## Не выпущено
-- Без Debrid: на странице настроек у конфига Melange появился выбор **«Режим»** — «Debrid» (как раньше) или «P2P (без Debrid)». В режиме P2P ключ не нужен: раздачи ищут Torrentio, JacRed (через публичный аддон Magnetio), TorrentsDB, Comet и StremThru Torz, играют через TorrServer на Дюне; выше — раздачи с 10 сидами и больше. Ключи Debrid хранятся в Melange, но в конфиг не идут. Смена режима у созданного конфига сбрасывает его к шаблону режима (после подтверждения); обратно в Debrid — только с ключом.
+- Без Debrid: на странице настроек у конфига Melange появился выбор **«Режим»** — «Debrid» (как раньше) или «P2P (без Debrid)». В режиме P2P ключ не нужен: раздачи ищут Torrentio, JacRed (через публичный аддон Magnetio), TorrentsDB, Comet и StremThru Torz, играют через TorrServer на Дюне; выше — раздачи с 10 сидами и больше. Ключи Debrid хранятся в Melange, но в конфиг не идут. В режиме P2P адрес и ключ JacRed передаются стороннему аддону Magnetio (`magnetio.peterdsp.dev`): через него AIOStreams ищет в JacRed. Смена режима у созданного конфига сбрасывает его к шаблону режима (после подтверждения); обратно в Debrid — только с ключом.
 - Английский интерфейс: исправлены формулировки ошибок и подсказок, путь к настройкам — Setup → Apps, как в прошивке; раздача везде называется release.
 - Документация: README на английском (README.en.md), CHANGELOG на двух языках.
 
