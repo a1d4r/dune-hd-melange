@@ -615,8 +615,8 @@ function aio_cgi_saved()
     return aio_cgi_l('Сохранено. Дюна подхватит настройки сама.', 'Saved. The Dune picks up the settings automatically.');
 }
 
-// $v: aio_cgi_values() or aio_cgi_posted() (first: no saved_at yet,
-// aio_cgi_first); $errors: of aio_cgi_err().
+// $v: aio_cgi_values() or aio_cgi_posted() (first: no saved_at yet, not
+// saved of aio_settings_read); $errors: of aio_cgi_err().
 // The page (0.43.0): the radios of watch, then the screens, #home last -
 // the CSS shows the one of the address (#src...), else #home, and the
 // fields of the answer chosen (without the script too); the bar of the

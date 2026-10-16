@@ -558,7 +558,9 @@ function aio_settings_hosts($s)
 // default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
 // (aio_jacred_migrate); the plugin never writes it. Never through a symlink
-// (the page runs as root).
+// (the page runs as root). 'saved' => the file has saved_at (the page saved
+// it, cgi/settings.php: the first run till then); never written back
+// (aio_cgi_store drops it).
 /**
  * @param string $dir
  * @return AioSettings
@@ -570,7 +572,7 @@ function aio_settings_read($dir)
     $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'tmdb_key' => '', 'servers' => array(), 'ts_url' => '',
-        'aio_confs' => array());
+        'aio_confs' => array(), 'saved' => false);
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
     if ($dir === '' || is_link($f) || !is_file($f) || !is_readable($f) || filesize($f) > AIO_SETTINGS_MAX)
@@ -579,6 +581,7 @@ function aio_settings_read($dir)
     $j = json_decode((string) $raw, true);
     if (!is_array($j))
         return $r;
+    $r['saved'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
         $r['manifest_url'] = aio_manifest_url($j['manifest_url']);
     foreach (array('rd_key' => 'rd', 'tb_key' => 'tb', 'tmdb_key' => 'tmdb') as $k => $what)

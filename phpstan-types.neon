@@ -28,7 +28,8 @@ parameters:
                 tmdb_key: string,
                 servers: list<AioServer>,
                 ts_url: string,
-                aio_confs: array<string, array<string, AioConf>>
+                aio_confs: array<string, array<string, AioConf>>,
+                saved: bool
             }
         '''
         # Settings of the operation (Aio::$settings, aio_settings_load, main.php).
