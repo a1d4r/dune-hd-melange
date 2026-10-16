@@ -128,6 +128,26 @@ function aio_gc_cut_w($s, $px, $width)
     return rtrim(mb_substr($s, 0, aio_gc_fit($s, $px, $width - aio_gc_w($ell, $px)), 'UTF-8')) . $ell;
 }
 
+// The byte after the word of $s from byte $p: after one of $brk (a dot not
+// before a digit), else the end of $s; looked for up to byte $far, past it
+// the byte after a dot inside the word. Resumes from such a byte as well.
+/**
+ * @param string $s
+ * @param int $p
+ * @param string $brk
+ * @param int $far
+ * @return int
+ */
+function aio_gc_word_end($s, $p, $brk, $far)
+{
+    $len = strlen($s);
+    $e = $p;
+    do
+        $e += strcspn($s, $brk, $e) + 1;
+    while ($e < $far && $e < $len && $s[$e - 1] === '.' && $s[$e] >= '0' && $s[$e] <= '9');
+    return min($e, $len);
+}
+
 // Lines of at most $width, broken after spaces and separators (a long word
 // by characters); more than $max lines: the last one ends with "…". Every
 // other line is a piece of $s as is, but the spaces trimmed at its ends:
@@ -163,11 +183,15 @@ function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
             if ($p >= $len)
                 break;
         }
-        $e = $p;
-        do
-            $e += strcspn($s, $brk, $e) + 1;
-        while ($e < $len && $s[$e - 1] === '.' && $s[$e] >= '0' && $s[$e] <= '9');
-        $e = min($e, $len);
+        $e = aio_gc_word_end($s, $p, $brk, $p + 256);
+        // Still in a word of "5.1.2...": its end only as far as the lines left
+        // reach (each holds a glyph of 2 em or $width at most), so no run
+        // below gets to $e; past the reach, $e is after a dot inside it.
+        if ($e < $len && $s[$e - 1] === '.' && $s[$e] >= '0' && $s[$e] <= '9')
+        {
+            list($r) = aio_gc_run($s, $p, $len, $px, 2 * ($max + 1) * ($width + 2 * $px));
+            $e = aio_gc_word_end($s, $e, $brk, $r < $len ? $r + aio_gc_clen($s, $r) : $len);
+        }
         // The word on the line.
         list($j, , $w) = aio_gc_run($s, $p, $e, $px, $width, $cw);
         if ($j === $e)
