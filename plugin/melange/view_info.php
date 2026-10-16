@@ -300,6 +300,8 @@ function aio_info_sub_codec($c)
 
 // One line of a track: "• RU · TrueHD 5.1 · Дубляж / HotVoice 41", "•" for
 // the default one (★ is in no font of the firmware, ● not in NotoSans Condensed).
+// A title starting with the codec and channels ("DD 5.1 - Dub", "DD5.1"; the
+// codec alone without channels) goes without them and the separators after.
 /**
  * @param string $lang
  * @param string $codec
@@ -310,6 +312,11 @@ function aio_info_sub_codec($c)
  */
 function aio_info_track($lang, $codec, $ch, $title, $default)
 {
+    $re = '~^' . preg_quote($codec, '~') . ($ch !== '' ? ' ?' . preg_quote($ch, '~') : '') .
+        '(?![\pL\pN])[\s\-\x{2013}:,/|\x{00B7}]*~iu';
+    $t = $codec === '' ? null : preg_replace($re, '', $title);
+    if (is_string($t))
+        $title = $t;
     $p = array_filter(array($lang, trim("$codec $ch"), $title), 'strlen');
     return ($default ? "\xE2\x80\xA2 " : '') . implode(' · ', $p);
 }
@@ -353,13 +360,17 @@ function aio_info_audio($r, $pf)
     return array($out, max(count($out), count(aio_info_raw_tracks($pf, 'audioTracks'))));
 }
 
-// array(lines, count) of the subtitle tracks of parsedFile.subtitleTracks:
-// 99 lines at most, the count of all.
+// Subtitles of row $r, null without any: the label with the count of all,
+// the tracks of parsedFile.subtitleTracks (99 at most, aio_info_wrap_tracks in
+// the lines of a page), else the languages (JacRed, parsedFile.subtitles)
+// joined by ", ".
 /**
+ * @param AioRow $r
  * @param array<mixed> $pf
- * @return array{list<string>, int}
+ * @param AioGcText $tt
+ * @return array{label: string, st: list<list<string>>, codes: string, n: int}|null
  */
-function aio_info_subs($pf)
+function aio_info_subs($r, $pf, $tt)
 {
     $all = aio_info_raw_tracks($pf, 'subtitleTracks');
     $out = array();
@@ -369,7 +380,31 @@ function aio_info_subs($pf)
         $out[] = aio_info_track($l !== '' ? aio_lang_code($l) : '', aio_info_sub_codec(aio_str($t, 'codec')), '',
             aio_info_clean(aio_str($t, 'title')), isset($t['default']) && $t['default'] === true);
     }
-    return array($out, count($all));
+    if (!$out && !$r['subs'])
+        return null;
+    $n = $out ? count($all) : count($r['subs']);
+    return array('label' => "{$tt['subs']} ($n)", 'st' => aio_info_wrap_tracks($out, intval(AIO_INF_H / AIO_INF_LH)),
+        'codes' => $out ? '' : implode(', ', $r['subs']), 'n' => $n);
+}
+
+// Subtitles $s in $max lines (aio_info_more, the languages cut with "…"):
+// array(tracks, how many of them are not shown whole).
+/**
+ * @param array{label: string, st: list<list<string>>, codes: string, n: int} $s
+ * @param int $max
+ * @param string $lang
+ * @return array{list<list<string>>, int}
+ */
+function aio_info_subs_fit($s, $max, $lang)
+{
+    if ($max < 1)
+        return array(array(), $s['n']);
+    if ($s['codes'] === '')
+        return aio_info_more($s['st'], $max, $s['n'], $lang);
+    $l = aio_gc_wrap($s['codes'], 26, AIO_INF_CW, $max);
+    $t = implode(' ', $l);
+    // Cut: the languages before the last comma are whole.
+    return array(array_chunk($l, 1), substr($t, -3) === "\xE2\x80\xA6" ? $s['n'] - substr_count($t, ',') : 0);
 }
 
 // Tracks $items in lines wrapped by words (aio_gc_wrap): the first of the
@@ -412,17 +447,18 @@ function aio_info_nlines($tracks)
 
 // Tracks of a list of $total in $max lines: whole tracks, then a line "… ещё
 // N" of the rest; no track whole in the room: the first one cut with "…".
+// array(lines, how many tracks are not shown whole).
 /**
  * @param list<list<string>> $tracks
  * @param int $max
  * @param int $total
  * @param string $lang
- * @return list<list<string>>
+ * @return array{list<list<string>>, int}
  */
 function aio_info_more($tracks, $max, $total, $lang)
 {
     if (aio_info_nlines($tracks) <= $max && $total <= count($tracks))
-        return $tracks;
+        return array($tracks, 0);
     $one = count($tracks) === 1 && $total <= 1;
     $left = $one ? $max : max(1, $max) - 1;
     $more = array();
@@ -433,6 +469,7 @@ function aio_info_more($tracks, $max, $total, $lang)
         $more[] = $t;
         $left -= count($t);
     }
+    $hid = $total - count($more);
     if (!$more && $left > 0 && $tracks)
     {
         $t = array_slice($tracks[0], 0, $left - 1);
@@ -441,7 +478,7 @@ function aio_info_more($tracks, $max, $total, $lang)
     }
     if (!$one)
         $more[] = array(str_replace('{n}', $total - count($more), aio_tr($lang, 'info_more')));
-    return $more;
+    return array($more, $hid);
 }
 
 /**
@@ -509,17 +546,19 @@ function aio_info_col_file($r, $raw, $sd, $pf, $tt, $top)
     return $c['d'];
 }
 
-// Voices, then the audio and the subtitles, a track wrapped by words: what
-// does not fit ends with "… ещё N", the voices leave the audio a line and the
-// subtitles AIO_INF_SUBS_MIN lines.
+// Voices, then the audio and the subtitles $s (null: none here), a track
+// wrapped by words: what does not fit ends with "… ещё N", the voices leave
+// the audio a line and the subtitles AIO_INF_SUBS_MIN lines. array(components,
+// how many tracks are not shown whole).
 /**
  * @param AioRow $r
  * @param array<mixed> $pf
  * @param AioGcText $tt
  * @param int $top
- * @return list<AioGcComp>
+ * @param array{label: string, st: list<list<string>>, codes: string, n: int}|null $s
+ * @return array{list<AioGcComp>, int}
  */
-function aio_info_col_tracks($r, $pf, $tt, $top)
+function aio_info_col_tracks($r, $pf, $tt, $top, $s)
 {
     $lang = $tt['lang'];
     $c = aio_info_col(1, aio_tr($lang, 'info_col_tracks'), array(), $top);
@@ -536,13 +575,9 @@ function aio_info_col_tracks($r, $pf, $tt, $top)
         $na = count($audio);
     }
     $at = aio_info_wrap_tracks($audio, aio_info_room($c, true));
-    list($subs, $ns) = aio_info_subs($pf);
-    $slabel = $tt['subs'] . ($subs || $r['subs'] ? ' (' . ($subs ? $ns : count($r['subs'])) . ')' : '');
-    // Languages only (JacRed, parsedFile.subtitles): joined, at most AIO_INF_SUBS_MIN lines.
-    $codes = !$subs && $r['subs'];
-    $st = aio_info_wrap_tracks($subs, aio_info_room($c, true));
-    $sl = $codes ? count(aio_gc_wrap(implode(', ', $r['subs']), 26, AIO_INF_CW, AIO_INF_SUBS_MIN)) :
-        aio_info_nlines($st);
+    // Languages only: at most AIO_INF_SUBS_MIN lines.
+    $sl = !$s ? 0 : ($s['codes'] !== '' ? count(aio_gc_wrap($s['codes'], 26, AIO_INF_CW, AIO_INF_SUBS_MIN)) :
+        aio_info_nlines($s['st']));
     // Voices: the room but a line of the audio and the least of the subtitles.
     $max = aio_info_left($c, $sl ? 3 : 2) - 1 - ($sl ? min(AIO_INF_SUBS_MIN, $sl) : 0);
     if ($v !== '' && $max > 0)
@@ -552,15 +587,16 @@ function aio_info_col_tracks($r, $pf, $tt, $top)
     // Value lines left for both.
     $room = aio_info_left($c, $sl ? 2 : 1);
     $sn = min($sl, max(AIO_INF_SUBS_MIN, $room - aio_info_nlines($at)));
-    $at = aio_info_more($at, max(1, $room - $sn), $na, $lang);
+    list($at, $hid) = aio_info_more($at, max(1, $room - $sn), $na, $lang);
     aio_info_put_tracks($c, $alabel, $at);
     // The subtitles: the rest (with what whole audio tracks left).
-    $sn = min($sl, $room - aio_info_nlines($at));
-    if ($sn > 0 && $codes)
-        aio_info_put($c, $slabel, aio_gc_wrap(implode(', ', $r['subs']), 26, AIO_INF_CW, $sn), true);
-    else if ($sn > 0)
-        aio_info_put_tracks($c, $slabel, aio_info_more($st, $sn, $ns, $lang));
-    return $c['d'];
+    if ($s)
+    {
+        list($st, $hs) = aio_info_subs_fit($s, min($sl, $room - aio_info_nlines($at)), $lang);
+        aio_info_put_tracks($c, $s['label'], $st);
+        $hid += $hs;
+    }
+    return array($c['d'], $hid);
 }
 
 // Add-ons of one release (row key 'addons'): "JacRed · MediaFusion (кэш)",
@@ -585,7 +621,7 @@ function aio_info_addons($addons, $lang)
  * @param array<mixed> $pf
  * @param AioGcText $tt
  * @param int $top
- * @return list<AioGcComp>
+ * @return AioInfoCol
  */
 function aio_info_col_source($r, $sd, $pf, $tt, $top)
 {
@@ -627,10 +663,12 @@ function aio_info_col_source($r, $sd, $pf, $tt, $top)
         $type[] = isset($tor[$k]) && $tor[$k] === true ? $k : '';
     aio_info_field($c, $l['type'], implode(' · ', array_filter($type, 'strlen')), 1);
     aio_info_field($c, aio_tr($lang, 'info_hash'), $r['hash'], 2, true);
-    return $c['d'];
+    return $c;
 }
 
 // Children of page 1: the name (4 lines at most) and the three columns under it.
+// Subtitles that the middle column does not show whole go to the bottom of
+// the right one when the tracks left out of both are then fewer.
 /**
  * @param AioState $st
  * @param int $n
@@ -649,8 +687,20 @@ function aio_info_passport($st, $n)
         $d[] = aio_info_cut(aio_gc_at(AIO_INF_W, AIO_INF_LH, 0, $i * AIO_INF_LH), $line, 26, AIO_GC_TEXT);
     // A name of 3-4 lines moves the columns down.
     $top = AIO_INF_COLS_Y + max(0, count($name) - 2) * AIO_INF_LH;
-    return array_merge($d, aio_info_col_file($r, $raw, $sd, $pf, $tt, $top), aio_info_col_tracks($r, $pf, $tt, $top),
-        aio_info_col_source($r, $sd, $pf, $tt, $top));
+    $s = aio_info_subs($r, $pf, $tt);
+    list($mid, $hid) = aio_info_col_tracks($r, $pf, $tt, $top, $s);
+    $src = aio_info_col_source($r, $sd, $pf, $tt, $top);
+    if ($s && $hid > 0)
+    {
+        list($mb, $hb) = aio_info_col_tracks($r, $pf, $tt, $top, null);
+        list($sub, $hs) = aio_info_subs_fit($s, aio_info_left($src, 1), $tt['lang']);
+        if ($hb + $hs < $hid)
+        {
+            $mid = $mb;
+            aio_info_put_tracks($src, $s['label'], $sub);
+        }
+    }
+    return array_merge($d, aio_info_col_file($r, $raw, $sd, $pf, $tt, $top), $mid, $src['d']);
 }
 
 // --- YAML pages.
