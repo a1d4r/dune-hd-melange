@@ -68,16 +68,49 @@ function aio_gc_w($s, $px)
  */
 function aio_gc_fit($s, $px, $width)
 {
+    $r = aio_gc_run($s, 0, strlen($s), $px, $width);
+    return $r[1];
+}
+
+// Bytes of the UTF-8 character of $s at byte $i.
+/**
+ * @param string $s
+ * @param int $i
+ * @return int
+ */
+function aio_gc_clen($s, $i)
+{
+    $b = ord($s[$i]);
+    return $b < 0xC0 ? 1 : ($b < 0xE0 ? 2 : ($b < 0xF0 ? 3 : 4));
+}
+
+// The longest run of characters of $s from byte $i (to byte $e at most) not
+// wider than $width after a width $w (aio_gc_sum) before it: array(the byte
+// after it, its characters, $w with its width). Reads a character past it at
+// most, not the whole rest: linear on a long word. $s: valid UTF-8.
+/**
+ * @param string $s
+ * @param int $i
+ * @param int $e
+ * @param int $px
+ * @param int $width
+ * @param float|int $w
+ * @return array{int, int, float|int}
+ */
+function aio_gc_run($s, $i, $e, $px, $width, $w = 0)
+{
     $n = 0;
-    $w = 0;
-    foreach (preg_split('//u', $s, -1, PREG_SPLIT_NO_EMPTY) as $c)
+    while ($i < $e)
     {
-        $w += round(aio_gc_glyph($c) * $px / 1000);
-        if ($w * AIO_GC_W_MARGIN > $width)
+        $l = aio_gc_clen($s, $i);
+        $g = round(aio_gc_glyph(substr($s, $i, $l)) * $px / 1000);
+        if (($w + $g) * AIO_GC_W_MARGIN > $width)
             break;
+        $w += $g;
+        $i += $l;
         $n++;
     }
-    return $n;
+    return array($i, $n, $w);
 }
 
 // $s cut to $width with "…".
@@ -99,6 +132,7 @@ function aio_gc_cut_w($s, $px, $width)
 // by characters); more than $max lines: the last one ends with "…". Every
 // other line is a piece of $s as is, but the spaces trimmed at its ends:
 // aio_info_wrap_tracks finds the rest of $s after the first line by its length.
+// Linear: a word is measured once, past $max lines the rest is not read.
 /**
  * @param string $s
  * @param int $px
@@ -110,29 +144,48 @@ function aio_gc_cut_w($s, $px, $width)
 function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
 {
     $lines = array();
+    // Invalid UTF-8: no lines, as preg_split('//u') gave.
+    if (!preg_match('//u', $s))
+        return $lines;
     $cur = '';
-    // Not after a dot before a digit: "5.1" stays whole. $spaces: only after
-    // spaces ("Real-Debrid" whole).
-    $re = $spaces ? '~(?<= )~u' : '~(?<=[ _\\-/,)\\]])|(?<=\\.)(?![0-9])~u';
-    foreach (preg_split($re, $s, -1, PREG_SPLIT_NO_EMPTY) as $t)
+    $cw = 0;
+    $len = strlen($s);
+    // Words end after these, a dot not before a digit ("5.1" stays whole);
+    // $spaces: only after spaces ("Real-Debrid" whole).
+    $brk = $spaces ? ' ' : ' _-/,)].';
+    for ($p = 0; $p < $len; $p = $e)
     {
-        if (aio_gc_w($cur . $t, $px) <= $width)
+        $e = $p;
+        do
+            $e += strcspn($s, $brk, $e) + 1;
+        while ($e < $len && $s[$e - 1] === '.' && $s[$e] >= '0' && $s[$e] <= '9');
+        $e = min($e, $len);
+        // The word on the line.
+        list($j, , $w) = aio_gc_run($s, $p, $e, $px, $width, $cw);
+        if ($j === $e)
         {
-            $cur .= $t;
+            $cur .= substr($s, $p, $e - $p);
+            $cw = $w;
             continue;
         }
         if (trim($cur) !== '')
             $lines[] = rtrim($cur);
-        while (aio_gc_w($t, $px) > $width && count($lines) <= $max)
+        // A word wider than a line: lines of characters (one at least).
+        while (count($lines) <= $max)
         {
-            $n = max(1, aio_gc_fit($t, $px, $width));
-            $lines[] = mb_substr($t, 0, $n, 'UTF-8');
-            $t = mb_substr($t, $n, mb_strlen($t, 'UTF-8') - $n, 'UTF-8');
+            list($j, $n) = aio_gc_run($s, $p, $e, $px, $width);
+            if ($j === $e)
+                break;
+            if ($n === 0)
+                $j = $p + aio_gc_clen($s, $p);
+            $lines[] = (string) substr($s, $p, $j - $p);
+            $p = $j;
         }
-        $cur = ltrim($t);
         // Enough to know it is cut: the rest is not wrapped.
         if (count($lines) > $max)
             break;
+        $cur = ltrim(substr($s, $p, $e - $p));
+        $cw = aio_gc_sum($cur, $px);
     }
     if (trim($cur) !== '' && count($lines) <= $max)
         $lines[] = rtrim($cur);

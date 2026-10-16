@@ -24,10 +24,6 @@ define('AIO_INF_LH', 32);       // page 1: labels 24 px, values 26 px
 define('AIO_INF_GAP', 6);       // page 1: between fields
 define('AIO_INF_SUBS_MIN', 3);  // page 1: subtitle lines kept when tracks do not fit
 define('AIO_INF_TIND', 24);     // page 1: indent of the lines of a track after its first
-// Page 1: characters of a value wrapped, at most: a column holds ~1800 of the
-// narrowest glyph ("i"), and aio_gc_wrap is slow on a long word (a word of
-// 4000 characters: 1-2 s a screen on the Dune).
-define('AIO_INF_TEXT_MAX', 2000);
 define('AIO_INF_YLH', 30);      // YAML pages: 24 px lines
 define('AIO_INF_YROWS', 28);    // YAML pages: lines of a column
 define('AIO_INF_IND', 20);      // YAML pages: indent of a level
@@ -278,7 +274,7 @@ function aio_info_put_tracks(&$c, $label, $tracks)
  */
 function aio_info_field(&$c, $label, $v, $max, $block = false, $items = false)
 {
-    $v = mb_substr(aio_info_clean($v), 0, AIO_INF_TEXT_MAX, 'UTF-8');
+    $v = aio_info_clean($v);
     $max = min($max, aio_info_room($c, $block));
     if ($v === '' || $max < 1)
         return;
@@ -427,7 +423,7 @@ function aio_info_wrap_tracks($items, $max)
     {
         if ($n > $max)
             break;
-        $s = mb_substr(aio_info_clean($s), 0, AIO_INF_TEXT_MAX, 'UTF-8');
+        $s = aio_info_clean($s);
         $l = aio_gc_wrap($s, 26, AIO_INF_CW, min(2, $max));
         if (count($l) > 1)
             $l = array_merge(array($l[0]), aio_gc_wrap(ltrim(mb_substr($s, mb_strlen($l[0], 'UTF-8'),
@@ -686,7 +682,7 @@ function aio_info_passport($st, $n)
     $sd = aio_arr($raw, 'streamData');
     $pf = aio_arr($sd, 'parsedFile');
     $d = array();
-    $name = aio_gc_wrap(mb_substr(aio_info_clean($r['label']), 0, AIO_INF_TEXT_MAX, 'UTF-8'), 26, AIO_INF_W, 4);
+    $name = aio_gc_wrap(aio_info_clean($r['label']), 26, AIO_INF_W, 4);
     foreach ($name as $i => $line)
         $d[] = aio_info_cut(aio_gc_at(AIO_INF_W, AIO_INF_LH, 0, $i * AIO_INF_LH), $line, 26, AIO_GC_TEXT);
     // A name of 3-4 lines moves the columns down.
@@ -769,60 +765,6 @@ function aio_info_flow($v, &$room, $depth)
     return ($list ? '[' : '{') . implode(', ', $parts) . ($list ? ']' : '}');
 }
 
-// $s in lines of at most $width (by aio_gc_w), broken as aio_gc_wrap does, a
-// word wider than a line by characters; at most $max lines, the rest
-// dropped. Linear: aio_gc_wrap measures the line again for every word.
-/**
- * @param string $s
- * @param int $px
- * @param int $width
- * @param int $max
- * @return list<string>
- */
-function aio_info_wrap($s, $px, $width, $max)
-{
-    $lines = array();
-    $cur = '';
-    $cw = 0;
-    foreach (preg_split('~(?<=[ _\\-/,)\\]])|(?<=\\.)(?![0-9])~u', $s, -1, PREG_SPLIT_NO_EMPTY) as $t)
-    {
-        $tw = aio_gc_sum($t, $px);
-        if (ceil(($cw + $tw) * AIO_GC_W_MARGIN) <= $width)
-        {
-            $cur .= $t;
-            $cw += $tw;
-            continue;
-        }
-        if (trim($cur) !== '')
-            $lines[] = rtrim($cur);
-        if (count($lines) >= $max)
-            return $lines;
-        $cur = ltrim($t);
-        $cw = aio_gc_sum($cur, $px);
-        if (ceil($cw * AIO_GC_W_MARGIN) <= $width)
-            continue;
-        $cur = '';
-        $cw = 0;
-        foreach (preg_split('//u', ltrim($t), -1, PREG_SPLIT_NO_EMPTY) as $c)
-        {
-            $gw = round(aio_gc_glyph($c) * $px / 1000);
-            if ($cur !== '' && ceil(($cw + $gw) * AIO_GC_W_MARGIN) > $width)
-            {
-                $lines[] = $cur;
-                if (count($lines) >= $max)
-                    return $lines;
-                $cur = '';
-                $cw = 0;
-            }
-            $cur .= $c;
-            $cw += $gw;
-        }
-    }
-    if (trim($cur) !== '')
-        $lines[] = rtrim($cur);
-    return $lines;
-}
-
 // Line $text at indent $lvl to $out (array(level, text, colour)), wrapped to
 // the column, the rest one level deeper. false once $max lines are reached.
 /**
@@ -840,7 +782,8 @@ function aio_info_yline(&$out, $lvl, $text, $max, $color = AIO_GC_TEXT2)
         return false;
     // More could not be shown anyway.
     $text = mb_substr($text, 0, ($left + 1) * 100, 'UTF-8');
-    foreach (aio_info_wrap($text, 24, AIO_INF_CW - ($lvl + 1) * AIO_INF_IND, $left + 1) as $i => $l)
+    // $left + 1 lines: the last one (and its "…") only tells there is more.
+    foreach (aio_gc_wrap($text, 24, AIO_INF_CW - ($lvl + 1) * AIO_INF_IND, $left + 1) as $i => $l)
     {
         if (count($out) >= $max)
             return false;
