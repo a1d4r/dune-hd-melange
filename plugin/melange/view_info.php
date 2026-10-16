@@ -579,9 +579,9 @@ function aio_info_mid($r, $pf, $tt, $top)
             AIO_INF_CW, 2);
         $na = count($audio);
     }
-    return array('c' => $c, 'v' => $v,
+    return array('col' => $c, 'voices' => $v,
         'alone' => $v === $dub || strpos($v, "$dub:") === 0 || strpos($v, "$dub \xC2\xB7") === 0,
-        'alabel' => $alabel, 'at' => aio_info_wrap_tracks($audio, aio_info_room($c, true)), 'na' => $na);
+        'alabel' => $alabel, 'audio' => aio_info_wrap_tracks($audio, aio_info_room($c, true)), 'n_audio' => $na);
 }
 
 // The middle column of $m (aio_info_mid): voices, then the audio and the
@@ -597,9 +597,9 @@ function aio_info_mid($r, $pf, $tt, $top)
 function aio_info_col_tracks($m, $tt, $s)
 {
     $lang = $tt['lang'];
-    $c = $m['c'];
-    $v = $m['v'];
-    $at = $m['at'];
+    $c = $m['col'];
+    $v = $m['voices'];
+    $at = $m['audio'];
     $sl = $s ? $s['lines'] : 0;
     // Voices: the room but a line of the audio and the least of the subtitles.
     $max = aio_info_left($c, $sl ? 3 : 2) - 1 - ($sl ? min(AIO_INF_SUBS_MIN, $sl) : 0);
@@ -609,7 +609,7 @@ function aio_info_col_tracks($m, $tt, $s)
     // Value lines left for both.
     $room = aio_info_left($c, $sl ? 2 : 1);
     $sn = min($sl, max(AIO_INF_SUBS_MIN, $room - aio_info_nlines($at)));
-    list($at, $c['hid']) = aio_info_more($at, max(1, $room - $sn), $m['na'], $lang);
+    list($at, $c['hid']) = aio_info_more($at, max(1, $room - $sn), $m['n_audio'], $lang);
     aio_info_put_tracks($c, $m['alabel'], $at);
     // The subtitles: the rest (with what whole audio tracks left).
     if ($s)

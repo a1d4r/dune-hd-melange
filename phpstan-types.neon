@@ -223,7 +223,7 @@ parameters:
         # The middle column of page 1 before its layout (aio_info_mid,
         # view_info.php): the column with its head, the voices, their first
         # group alone, the label of the audio, its tracks wrapped, their count.
-        AioInfoMid: 'array{c: AioInfoCol, v: string, alone: bool, alabel: string, at: list<list<string>>, na: int}'
+        AioInfoMid: 'array{col: AioInfoCol, voices: string, alone: bool, alabel: string, audio: list<list<string>>, n_audio: int}'
         # Voices of one release name (aio_voices_parse, voices_parse.php):
         # type ids (dub, mvo, dvo, avo) in the order of the name, studios
         # shown, orig '' | 'orig' | 'jap', the name without JacRed's tails,
