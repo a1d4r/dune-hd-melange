@@ -2,7 +2,7 @@
 
 **English version**
 
-## 0.43.2
+## 0.43.2 — 17.10.2026
 - Release details (INFO): the voices are shown in full, down to the bottom of the column; before, their text was cut at 300 characters with "...". The card on the left in the release list keeps the short text.
 - Internal: line wrapping no longer slows down on a long word without spaces, and the release details no longer cut a value to 2000 characters before wrapping it. Melange behaves the same.
 
@@ -86,7 +86,7 @@ First public release. What it does:
 
 **Russian version**
 
-## 0.43.2
+## 0.43.2 — 17.10.2026
 - Сведения о раздаче (INFO): озвучки показываются целиком — до низа колонки; раньше их текст обрезался на 300 символах с «...». В карточке слева в списке раздач — по-прежнему короткий текст.
 - Внутреннее: перенос строк не тормозит на длинном слове без пробелов, сведения о раздаче больше не режут значение до 2000 символов перед переносом. Melange работает так же.
 
