@@ -512,6 +512,7 @@ function aio_info_col_source($r, $sd, $pf, $tt)
     aio_info_field($c, $l['eps_file'], implode(' · ', array_filter(array($eps, $et), 'strlen')), 2);
     aio_info_field($c, $l['eps_pack'], aio_info_eps(aio_ints(aio_arr($pf, 'folderSeasons')),
         aio_ints(aio_arr($pf, 'folderEpisodes'))), 2);
+    $tor = aio_arr($sd, 'torrent');
     $type = array(aio_str($sd, 'type'));
     foreach (array('private', 'freeleech') as $k)
         $type[] = isset($tor[$k]) && $tor[$k] === true ? $k : '';
