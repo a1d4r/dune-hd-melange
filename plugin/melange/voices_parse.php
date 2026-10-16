@@ -1015,16 +1015,18 @@ function aio_voices_name_extra($s)
 // Voices of a row for the screens, by the audio tracks and the name:
 // "Дубляж: Bravo Records, Red Head Sound · LostFilm, Ю. Сербин, Кубик в Кубе ·
 // оригинал · субтитры" (aio_voices_struct_text). One person or studio is one
-// entry. $subs false: no "субтитры" (GComps has a field of its own).
+// entry. $subs false: no "субтитры" (GComps has a field of its own). $max:
+// as aio_voices_struct_text.
 /**
  * @param AioRow $r
  * @param string $lang
  * @param bool $subs
+ * @param int $max
  * @return string
  */
-function aio_row_voices_text($r, $lang, $subs = true)
+function aio_row_voices_text($r, $lang, $subs = true, $max = AIO_TEXT_MAX)
 {
-    return aio_voices_struct_text(aio_row_voices_struct($r), $lang, $subs);
+    return aio_voices_struct_text(aio_row_voices_struct($r), $lang, $subs, $max);
 }
 
 // What aio_row_voices_text shows, in order: array('groups' => type => studios
@@ -1178,14 +1180,16 @@ function aio_voices_by_tracker($v, $r)
 // Red Head Sound · LostFilm, HDRezka, Ю. Сербин · оригинал JAP · субтитры"
 // ("Дубляж" alone without its studios); the other studios in one list, groups
 // in order, then those without a type, no repeats; bare types (ПМ, АП) not
-// shown. '' if empty.
+// shown. '' if empty. Past $max characters cut with "..." (the card); 0: whole
+// (INFO, the bottom of its column cuts).
 /**
  * @param AioVoicesStruct $v
  * @param string $lang
  * @param bool $subs
+ * @param int $max
  * @return string
  */
-function aio_voices_struct_text($v, $lang, $subs = true)
+function aio_voices_struct_text($v, $lang, $subs = true, $max = AIO_TEXT_MAX)
 {
     $w = aio_voices_words($lang);
     $p = array();
@@ -1217,7 +1221,8 @@ function aio_voices_struct_text($v, $lang, $subs = true)
         $p[] = $w['orig'] . ($v['orig'] === 'jap' ? ' JAP' : '');
     if ($v['subs'] && $subs)
         $p[] = $w['subs'];
-    return aio_cut(implode(' · ', array_filter($p, 'strlen')), AIO_TEXT_MAX);
+    $s = implode(' · ', array_filter($p, 'strlen'));
+    return $max > 0 ? aio_cut($s, $max) : $s;
 }
 
 // Voices of the names of a row and the name shown without JacRed's tails;

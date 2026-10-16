@@ -563,7 +563,7 @@ function aio_info_col_tracks($r, $pf, $tt, $top, $s)
     $c = aio_info_col(1, aio_tr($lang, 'info_col_tracks'), array(), $top);
     $dub = aio_voices_words($lang);
     $dub = $dub['dub'];
-    $v = aio_info_clean(aio_row_voices_text($r, $lang, false));
+    $v = aio_info_clean(aio_row_voices_text($r, $lang, false, 0));
 
     list($audio, $na) = aio_info_audio($r, $pf);
     $alabel = $tt['audio'] . ($audio ? " ($na)" : '');
