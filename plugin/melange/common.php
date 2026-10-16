@@ -5,7 +5,7 @@
 // logging here.
 // Types in the PHPDoc (AioSettings and others): phpstan-types.neon of the repository.
 
-define('AIO_VERSION', '0.43.0');
+define('AIO_VERSION', '0.43.1');
 // In data_dir: written by the settings page only; the plugin only reads it.
 define('AIO_SETTINGS_FILE', 'settings.json');
 // In data_dir: the token of the settings page; written by the plugin only.

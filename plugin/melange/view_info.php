@@ -18,11 +18,13 @@ define('AIO_INF_CW', 563);      // three columns, 40 px apart
 define('AIO_INF_CGAP', 40);
 define('AIO_INF_Y', 116);       // the pages: under the title, down to y 962
 define('AIO_INF_H', 846);
-define('AIO_INF_COLS_Y', 84);   // page 1: the columns at y 200, under the name
+define('AIO_INF_COLS_Y', 84);   // page 1: the columns at y 200, under a name of 2 lines
 define('AIO_INF_HEAD_H', 40);   // page 1: column heads, 28 px
 define('AIO_INF_LH', 32);       // page 1: labels 24 px, values 26 px
 define('AIO_INF_GAP', 6);       // page 1: between fields
 define('AIO_INF_SUBS_MIN', 3);  // page 1: subtitle lines kept when tracks do not fit
+define('AIO_INF_TIND', 24);     // page 1: indent of the lines of a track after its first
+define('AIO_INF_TEXT_MAX', 4000); // page 1: characters of a value wrapped, at most (more never fit a column)
 define('AIO_INF_YLH', 30);      // YAML pages: 24 px lines
 define('AIO_INF_YROWS', 28);    // YAML pages: lines of a column
 define('AIO_INF_IND', 20);      // YAML pages: indent of a level
@@ -159,22 +161,23 @@ function aio_info_duration($s)
         sprintf('%d:%02d', $s / 60, $s % 60);
 }
 
-// A column of page 1: its x, the y of the next field, its bottom, the x of
-// values after the widest of its $labels, components.
+// A column of page 1 with its head at y $top: its x, the y of the next field,
+// its bottom, the x of values after the widest of its $labels, components.
 /**
  * @param int $i
  * @param string $head
  * @param array<string> $labels
+ * @param int $top
  * @return AioInfoCol
  */
-function aio_info_col($i, $head, $labels)
+function aio_info_col($i, $head, $labels, $top)
 {
     $x = $i * (AIO_INF_CW + AIO_INF_CGAP);
     $lw = 0;
     foreach ($labels as $l)
         $lw = max($lw, aio_gc_w($l, 24));
-    return array('x' => $x, 'y' => AIO_INF_COLS_Y + AIO_INF_HEAD_H, 'end' => AIO_INF_H, 'lw' => min(240, $lw + 14),
-        'd' => array(aio_info_cut(aio_gc_at(AIO_INF_CW, AIO_INF_HEAD_H, $x, AIO_INF_COLS_Y),
+    return array('x' => $x, 'y' => $top + AIO_INF_HEAD_H, 'end' => AIO_INF_H, 'lw' => min(240, $lw + 14),
+        'd' => array(aio_info_cut(aio_gc_at(AIO_INF_CW, AIO_INF_HEAD_H, $x, $top),
             aio_gc_cut_w($head, 28, AIO_INF_CW), 28, AIO_GC_TEXT)));
 }
 
@@ -192,16 +195,18 @@ function aio_info_room($c, $block)
 
 // A field of column $c: the label (24 px, dimmed) at the left of the first
 // value line or ($block) on a line above them; the value lines (26 px) cut to
-// the width with "…". No lines: no field.
+// the width with "…", those of $cont (indexes) indented by AIO_INF_TIND. No
+// lines: no field.
 /**
  * @param AioInfoCol $c
  * @param string $label
  * @param list<string> $lines
  * @param bool $block
  * @param string $color
+ * @param array<int, true> $cont
  * @return void
  */
-function aio_info_put(&$c, $label, $lines, $block, $color = AIO_GC_TEXT2)
+function aio_info_put(&$c, $label, $lines, $block, $color = AIO_GC_TEXT2, $cont = array())
 {
     if (!$lines)
         return;
@@ -213,13 +218,37 @@ function aio_info_put(&$c, $label, $lines, $block, $color = AIO_GC_TEXT2)
             AIO_GC_DIM);
         $c['y'] += $block ? AIO_INF_LH : 0;
     }
-    foreach ($lines as $l)
+    foreach ($lines as $i => $l)
     {
-        $c['d'][] = aio_info_cut(aio_gc_at(AIO_INF_CW - $vx, AIO_INF_LH, $c['x'] + $vx, $c['y']),
-            aio_gc_cut_w($l, 26, AIO_INF_CW - $vx), 26, $color);
+        $x = $vx + (isset($cont[$i]) ? AIO_INF_TIND : 0);
+        $c['d'][] = aio_info_cut(aio_gc_at(AIO_INF_CW - $x, AIO_INF_LH, $c['x'] + $x, $c['y']),
+            aio_gc_cut_w($l, 26, AIO_INF_CW - $x), 26, $color);
         $c['y'] += AIO_INF_LH;
     }
     $c['y'] += AIO_INF_GAP;
+}
+
+// Tracks (lines each, aio_info_tracks) as a block field of column $c.
+/**
+ * @param AioInfoCol $c
+ * @param string $label
+ * @param list<list<string>> $tracks
+ * @return void
+ */
+function aio_info_put_tracks(&$c, $label, $tracks)
+{
+    $lines = array();
+    $cont = array();
+    foreach ($tracks as $t)
+    {
+        foreach ($t as $i => $l)
+        {
+            if ($i > 0)
+                $cont[count($lines)] = true;
+            $lines[] = $l;
+        }
+    }
+    aio_info_put($c, $label, $lines, true, AIO_GC_TEXT2, $cont);
 }
 
 // A text field of up to $max lines, wrapped by words or ($items) by " · ".
@@ -234,7 +263,7 @@ function aio_info_put(&$c, $label, $lines, $block, $color = AIO_GC_TEXT2)
  */
 function aio_info_field(&$c, $label, $v, $max, $block = false, $items = false)
 {
-    $v = aio_info_clean($v);
+    $v = mb_substr(aio_info_clean($v), 0, AIO_INF_TEXT_MAX, 'UTF-8');
     $max = min($max, aio_info_room($c, $block));
     if ($v === '' || $max < 1)
         return;
@@ -323,26 +352,80 @@ function aio_info_subs($pf)
     {
         $l = aio_str($t, 'lang');
         $out[] = aio_info_track($l !== '' ? aio_lang_code($l) : '', aio_info_sub_codec(aio_str($t, 'codec')), '',
-            aio_cut(aio_info_clean(aio_str($t, 'title')), 120), isset($t['default']) && $t['default'] === true);
+            aio_info_clean(aio_str($t, 'title')), isset($t['default']) && $t['default'] === true);
     }
     return array($out, count($all));
 }
 
-// Lines of a list of $total items cut to $max: the last says "… ещё N".
+// Tracks $items in lines wrapped by words (aio_gc_wrap): the first of the
+// column width, the rest indented by AIO_INF_TIND; more than $max lines: the
+// last ends with "…". Past $max lines in all, the rest is left out.
 /**
- * @param list<string> $lines
+ * @param list<string> $items
+ * @param int $max
+ * @return list<list<string>>
+ */
+function aio_info_tracks($items, $max)
+{
+    $max = max(1, $max);
+    $out = array();
+    $n = 0;
+    foreach ($items as $s)
+    {
+        if ($n > $max)
+            break;
+        $s = mb_substr(aio_info_clean($s), 0, AIO_INF_TEXT_MAX, 'UTF-8');
+        $l = aio_gc_wrap($s, 26, AIO_INF_CW, min(2, $max));
+        if (count($l) > 1)
+            $l = array_merge(array($l[0]), aio_gc_wrap(ltrim(mb_substr($s, mb_strlen($l[0], 'UTF-8'),
+                mb_strlen($s, 'UTF-8'), 'UTF-8')), 26, AIO_INF_CW - AIO_INF_TIND, $max - 1));
+        $out[] = $l = $l ? $l : array($s);
+        $n += count($l);
+    }
+    return $out;
+}
+
+// Lines of tracks.
+/**
+ * @param list<list<string>> $tracks
+ * @return int
+ */
+function aio_info_nlines($tracks)
+{
+    return count($tracks, COUNT_RECURSIVE) - count($tracks);
+}
+
+// Tracks of a list of $total in $max lines: whole tracks, then a line "… ещё
+// N" of the rest; no track whole in the room: the first one cut with "…".
+/**
+ * @param list<list<string>> $tracks
  * @param int $max
  * @param int $total
  * @param string $lang
- * @return list<string>
+ * @return list<list<string>>
  */
-function aio_info_more($lines, $max, $total, $lang)
+function aio_info_more($tracks, $max, $total, $lang)
 {
-    if (count($lines) <= $max && $total <= count($lines))
-        return $lines;
-    $keep = min(count($lines), max(1, $max) - 1);
-    $more = array_slice($lines, 0, $keep);
-    $more[] = str_replace('{n}', $total - $keep, aio_tr($lang, 'info_more'));
+    if (aio_info_nlines($tracks) <= $max && $total <= count($tracks))
+        return $tracks;
+    $one = count($tracks) === 1 && $total <= 1;
+    $left = $one ? $max : max(1, $max) - 1;
+    $more = array();
+    foreach ($tracks as $t)
+    {
+        if (count($t) > $left)
+            break;
+        $more[] = $t;
+        $left -= count($t);
+    }
+    if (!$more && $left > 0 && $tracks)
+    {
+        $t = array_slice($tracks[0], 0, $left - 1);
+        $t[] = aio_gc_cut_w($tracks[0][$left - 1] . "\xE2\x80\xA6", 26, AIO_INF_CW - ($left > 1 ? AIO_INF_TIND : 0));
+        $more[] = $t;
+    }
+    if (!$one)
+        $more[] = array(str_replace('{n}', $total - count($more), aio_tr($lang, 'info_more')));
     return $more;
 }
 
@@ -352,15 +435,16 @@ function aio_info_more($lines, $max, $total, $lang)
  * @param array<mixed> $sd
  * @param array<mixed> $pf
  * @param AioGcText $tt
+ * @param int $top
  * @return list<AioGcComp>
  */
-function aio_info_col_file($r, $raw, $sd, $pf, $tt)
+function aio_info_col_file($r, $raw, $sd, $pf, $tt, $top)
 {
     $lang = $tt['lang'];
     $l = array();
     foreach (array('size', 'rate', 'duration', 'picture', 'edition', 'container') as $k)
         $l[$k] = aio_tr($lang, "info_$k");
-    $c = aio_info_col(0, aio_tr($lang, 'info_col_file'), array_merge($l, array($tt['video'], $tt['release'])));
+    $c = aio_info_col(0, aio_tr($lang, 'info_col_file'), array_merge($l, array($tt['video'], $tt['release'])), $top);
     $size = $r['size'] > 0 ? aio_size_str($r['size'], $lang) : '';
     if ($r['pack'] > 0)
         $size .= ($size !== '' ? ' · ' : '') . $tt['pack'] . ' ' . aio_size_str($r['pack'], $lang);
@@ -404,30 +488,29 @@ function aio_info_col_file($r, $raw, $sd, $pf, $tt)
     // As aio_row takes them: aio_row_voices drops 'names' of the row once parsed.
     $file = aio_str($sd, 'filename') !== '' ? aio_str($sd, 'filename') :
         aio_str(aio_arr($raw, 'behaviorHints'), 'filename');
-    aio_info_field($c, aio_tr($lang, 'info_file'), aio_cut($file, AIO_TEXT_MAX), 3, true);
-    aio_info_field($c, aio_tr($lang, 'info_folder'), aio_cut(aio_str($sd, 'folderName'), AIO_TEXT_MAX), 3, true);
+    // Whole, the room of the column only.
+    aio_info_field($c, aio_tr($lang, 'info_file'), $file, aio_info_room($c, true), true);
+    aio_info_field($c, aio_tr($lang, 'info_folder'), aio_str($sd, 'folderName'), aio_info_room($c, true), true);
     return $c['d'];
 }
 
-// Voices, then the audio and the subtitles, a line a track: what does not fit
-// ends with "… ещё N", the subtitles keep AIO_INF_SUBS_MIN lines.
+// Voices, then the audio and the subtitles, a track wrapped by words: what
+// does not fit ends with "… ещё N", the voices leave the audio a line and the
+// subtitles AIO_INF_SUBS_MIN lines.
 /**
  * @param AioRow $r
  * @param array<mixed> $pf
  * @param AioGcText $tt
+ * @param int $top
  * @return list<AioGcComp>
  */
-function aio_info_col_tracks($r, $pf, $tt)
+function aio_info_col_tracks($r, $pf, $tt, $top)
 {
     $lang = $tt['lang'];
-    $c = aio_info_col(1, aio_tr($lang, 'info_col_tracks'), array());
+    $c = aio_info_col(1, aio_tr($lang, 'info_col_tracks'), array(), $top);
     $dub = aio_voices_words($lang);
     $dub = $dub['dub'];
     $v = aio_info_clean(aio_row_voices_text($r, $lang, false));
-    $max = min(4, aio_info_room($c, true));
-    if ($v !== '' && $max > 0)
-        aio_info_put($c, $tt['voices'], aio_gc_wrap_voices($v, 26, AIO_INF_CW, $max,
-            $v === $dub || strpos($v, "$dub:") === 0 || strpos($v, "$dub \xC2\xB7") === 0), true);
 
     list($audio, $na) = aio_info_audio($r, $pf);
     $alabel = $tt['audio'] . ($audio ? " ($na)" : '');
@@ -437,21 +520,33 @@ function aio_info_col_tracks($r, $pf, $tt)
             AIO_INF_CW, 2);
         $na = count($audio);
     }
+    $at = aio_info_tracks($audio, aio_info_room($c, true));
     list($subs, $ns) = aio_info_subs($pf);
     $slabel = $tt['subs'] . ($subs || $r['subs'] ? ' (' . ($subs ? $ns : count($r['subs'])) . ')' : '');
     // Languages only (JacRed, parsedFile.subtitles): joined, at most AIO_INF_SUBS_MIN lines.
     $codes = !$subs && $r['subs'];
-    if ($codes)
-        $subs = aio_gc_wrap(implode(', ', $r['subs']), 26, AIO_INF_CW, AIO_INF_SUBS_MIN);
+    $st = aio_info_tracks($subs, aio_info_room($c, true));
+    $sl = $codes ? count(aio_gc_wrap(implode(', ', $r['subs']), 26, AIO_INF_CW, AIO_INF_SUBS_MIN)) :
+        aio_info_nlines($st);
+    // Voices: the room but the audio label and a line, the subtitle label and
+    // lines, the gaps.
+    $max = intval(($c['end'] - $c['y'] - AIO_INF_GAP - ($sl ? AIO_INF_GAP : 0)) / AIO_INF_LH) - 3 -
+        ($sl ? 1 + min(AIO_INF_SUBS_MIN, $sl) : 0);
+    if ($v !== '' && $max > 0)
+        aio_info_put($c, $tt['voices'], aio_gc_wrap_voices($v, 26, AIO_INF_CW, $max,
+            $v === $dub || strpos($v, "$dub:") === 0 || strpos($v, "$dub \xC2\xB7") === 0), true);
+
     // Value lines left for both: the two labels and a gap between.
-    $room = intval(($c['end'] - $c['y'] - ($subs ? AIO_INF_GAP : 0)) / AIO_INF_LH) - ($subs ? 2 : 1);
-    $sn = min(count($subs), max(AIO_INF_SUBS_MIN, $room - count($audio)));
-    $an = max(1, $room - $sn);
-    $sn = min($sn, $room - $an);
-    aio_info_put($c, $alabel, aio_info_more($audio, $an, $na, $lang), true);
-    if ($sn > 0)
-        aio_info_put($c, $slabel, $codes ? aio_gc_wrap(implode(', ', $r['subs']), 26, AIO_INF_CW, $sn) :
-            aio_info_more($subs, $sn, $ns, $lang), true);
+    $room = intval(($c['end'] - $c['y'] - ($sl ? AIO_INF_GAP : 0)) / AIO_INF_LH) - ($sl ? 2 : 1);
+    $sn = min($sl, max(AIO_INF_SUBS_MIN, $room - aio_info_nlines($at)));
+    $at = aio_info_more($at, max(1, $room - $sn), $na, $lang);
+    aio_info_put_tracks($c, $alabel, $at);
+    // The subtitles: the rest (with what whole audio tracks left).
+    $sn = min($sl, $room - aio_info_nlines($at));
+    if ($sn > 0 && $codes)
+        aio_info_put($c, $slabel, aio_gc_wrap(implode(', ', $r['subs']), 26, AIO_INF_CW, $sn), true);
+    else if ($sn > 0)
+        aio_info_put_tracks($c, $slabel, aio_info_more($st, $sn, $ns, $lang));
     return $c['d'];
 }
 
@@ -476,16 +571,17 @@ function aio_info_addons($addons, $lang)
  * @param array<mixed> $sd
  * @param array<mixed> $pf
  * @param AioGcText $tt
+ * @param int $top
  * @return list<AioGcComp>
  */
-function aio_info_col_source($r, $sd, $pf, $tt)
+function aio_info_col_source($r, $sd, $pf, $tt, $top)
 {
     $lang = $tt['lang'];
     $l = array();
     foreach (array('seeders', 'age', 'expr', 'eps_file', 'eps_pack', 'type', 'addons') as $k)
         $l[$k] = aio_tr($lang, "info_$k");
     $c = aio_info_col(2, aio_tr($lang, 'info_col_source'),
-        array_merge($l, array($tt['trackers'], $tt['addon'], $tt['source'])));
+        array_merge($l, array($tt['trackers'], $tt['addon'], $tt['source'])), $top);
     // The cache status, as the card but without the seeders (own field below).
     $status = aio_gc_status($r, $tt);
     aio_info_put($c, '', aio_gc_wrap($status, 26, AIO_INF_CW, 2, true), true, aio_gc_status_color($r['cached']));
@@ -521,7 +617,7 @@ function aio_info_col_source($r, $sd, $pf, $tt)
     return $c['d'];
 }
 
-// Children of page 1: the name (2 lines) and the three columns.
+// Children of page 1: the name (4 lines at most) and the three columns under it.
 /**
  * @param AioState $st
  * @param int $n
@@ -535,13 +631,13 @@ function aio_info_passport($st, $n)
     $sd = aio_arr($raw, 'streamData');
     $pf = aio_arr($sd, 'parsedFile');
     $d = array();
-    $name = aio_info_clean($r['label']);
-    if (mb_strlen($name, 'UTF-8') > AIO_GC_NAME_MAX)
-        $name = rtrim(mb_substr($name, 0, AIO_GC_NAME_MAX, 'UTF-8')) . "\xE2\x80\xA6";
-    foreach (aio_gc_wrap($name, 26, AIO_INF_W, 2) as $i => $line)
+    $name = aio_gc_wrap(aio_info_clean($r['label']), 26, AIO_INF_W, 4);
+    foreach ($name as $i => $line)
         $d[] = aio_info_cut(aio_gc_at(AIO_INF_W, AIO_INF_LH, 0, $i * AIO_INF_LH), $line, 26, AIO_GC_TEXT);
-    return array_merge($d, aio_info_col_file($r, $raw, $sd, $pf, $tt), aio_info_col_tracks($r, $pf, $tt),
-        aio_info_col_source($r, $sd, $pf, $tt));
+    // A name of 3-4 lines moves the columns down.
+    $top = AIO_INF_COLS_Y + max(0, count($name) - 2) * AIO_INF_LH;
+    return array_merge($d, aio_info_col_file($r, $raw, $sd, $pf, $tt, $top), aio_info_col_tracks($r, $pf, $tt, $top),
+        aio_info_col_source($r, $sd, $pf, $tt, $top));
 }
 
 // --- YAML pages.
