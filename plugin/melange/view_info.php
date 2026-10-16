@@ -497,9 +497,8 @@ function aio_info_col_source($r, $sd, $pf, $tt)
         aio_info_field($c, $l['addons'], aio_info_addons($r['addons'], $lang), count($r['addons']), false, true);
     else
         aio_info_field($c, $tt['addon'], $r['addon'], 2);
-    $tor = aio_arr($sd, 'torrent');
-    if (isset($tor['seeders']) && is_int($tor['seeders']) && $tor['seeders'] >= 0)
-        aio_info_field($c, $l['seeders'], strval($tor['seeders']), 1);
+    if (!is_null($r['seeders']))
+        aio_info_field($c, $l['seeders'], strval($r['seeders']), 1);
     // streamData.age: hours (AIOStreams packages/core/src/debrid/utils.ts
     // "age in hours", formatters/base.ts formatHours: under a day in hours, else days).
     $age = aio_num(aio_str($sd, 'age'));

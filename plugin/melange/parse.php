@@ -442,6 +442,8 @@ function aio_service_name($id)
 //   hash         infoHash, 40 lower-case hex digits (streamData.torrent, else
 //                the stream's own), or ''
 //   cached       service.cached: true, false, or null when unknown (no service)
+//   seeders      streamData.torrent.seeders: an int >= 0, else null (unknown);
+//                the list shows it for a P2P row (url '')
 //   service      service name for "Cached in ..."; '' when unknown (aio_service_name)
 //   resolution   parsedFile.resolution, else from the name ("2160p"); may be ''
 //   badges       aio_badges()
@@ -584,6 +586,7 @@ function aio_row($st, $series)
         'url' => $url,
         'hash' => $hash,
         'cached' => $cached,
+        'seeders' => isset($tor['seeders']) && is_int($tor['seeders']) && $tor['seeders'] >= 0 ? $tor['seeders'] : null,
         'service' => aio_service_name(aio_str($svc, 'id')),
         'resolution' => $res,
         'badges' => aio_badges($pf, $res),

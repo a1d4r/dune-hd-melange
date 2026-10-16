@@ -61,6 +61,7 @@ parameters:
                 url: string,
                 hash: string,
                 cached: bool|null,
+                seeders: int|null,
                 service: string,
                 resolution: string,
                 badges: AioBadges,
