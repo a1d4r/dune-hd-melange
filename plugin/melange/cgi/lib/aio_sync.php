@@ -198,11 +198,9 @@ function aio_cgi_aio_sync($dir, $reset = false)
         aio_cgi_log('aio sync: own config or no address, skipped');
         return array(true, '', true, $choice, $mode, aio_cgi_aio_show($conf));
     }
-    $fail = $reset ? aio_cgi_l('Конфиг на сервере AIOStreams не сброшен: ', 'The config on the AIOStreams server was not reset: ') :
-        ($conf ? aio_cgi_l('Конфиг на сервере AIOStreams не обновлён: ', 'The config on the AIOStreams server was not updated: ') :
-        aio_cgi_l('Конфиг на сервере AIOStreams не создан: ', 'The config on the AIOStreams server was not created: '));
+    $fail = aio_cgi_not_done($reset ? 'reset' : ($conf ? 'update' : 'create')) . ': ';
     // The template is stored already: "Сохранить" again only updates.
-    $again = $reset ? aio_cgi_l('; повторить — «Сбросить к шаблону»', '; to retry: "Reset to the template"') : '';
+    $again = $reset ? sprintf(aio_cgi_l('; повторить — «%s»', '; to retry: "%s"'), aio_cgi_resetb()) : '';
     // A config there may have a service of its own (set by hand): GET decides.
     if ($debrid && !$conf && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
@@ -322,9 +320,9 @@ function aio_cgi_aio_sync($dir, $reset = false)
             if ($w !== '')
                 aio_cgi_log("aio sync: $w");
             return array(false, sprintf(aio_cgi_l('Сервер %s не узнал конфиг (удалён на сервере или сменён пароль?) — ' .
-                'Melange его забыл; «Сохранить и создать конфиг» создаст новый',
+                'Melange его забыл; «%s» создаст новый',
                 'Server %s does not recognize the config (deleted there or password changed?): ' .
-                'Melange has forgotten it; "Save and create the config" will create a new one'), $host), false, $choice,
+                'Melange has forgotten it; "%s" will create a new one'), $host, aio_cgi_savec()), false, $choice,
                 $mode, $w === '' ? null : aio_cgi_aio_show($conf));
         }
         return array(false, $fail . $why . $again, false, $choice, $mode, aio_cgi_aio_show($conf));

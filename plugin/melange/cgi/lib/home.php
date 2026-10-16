@@ -120,7 +120,8 @@ function aio_cgi_home($v)
     $st = aio_cgi_state($v);
     $txt = array('key' => aio_cgi_l('<b>Нужен ключ Debrid.</b> Введите его в «Откуда брать фильмы».',
         '<b>A Debrid key is needed.</b> Enter it in "Where to get films".'),
-        'conf' => aio_cgi_l('<b>Конфиг ещё не создан</b> — нажмите «Сохранить».', '<b>No config yet</b>: press "Save".'),
+        'conf' => sprintf(aio_cgi_l('<b>Конфиг ещё не создан</b> — нажмите «%s».', '<b>No config yet</b>: press "%s".'),
+        aio_cgi_saveb()),
         'man' => aio_cgi_l('<b>Нужна ссылка на свой конфиг.</b> Вставьте её в «Откуда брать фильмы».',
         '<b>Your config link is needed.</b> Paste it in "Where to get films".'),
         'ok' => aio_cgi_l('<b>Всё готово к просмотру.</b> На Дюне: фильм → Смотреть… → Melange.',

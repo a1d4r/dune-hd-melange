@@ -342,7 +342,7 @@ function aio_cgi_tpl_marks()
         'custom' => array(aio_cgi_l('Свой набор аддонов (изменён в AIOStreams)', 'Custom set of addons (changed in AIOStreams)'),
             aio_cgi_l('Выберите шаблон, чтобы заменить им конфиг.', 'Choose a template to replace the config with it.'),
             aio_cgi_l('свой набор', 'custom set')),
-        'none' => array(aio_cgi_l('Не определён — нажмите «Сохранить»', 'Unknown - press "Save"'),
+        'none' => array(sprintf(aio_cgi_l('Не определён — нажмите «%s»', 'Unknown - press "%s"'), aio_cgi_saveb()),
             aio_cgi_l('Melange узнает шаблон конфига на сервере при сохранении.',
             'Melange detects the config template on the server when you save.'), aio_cgi_l('шаблон не определён', 'template unknown')));
 }
@@ -489,7 +489,7 @@ function aio_cgi_cfg($v)
         24, aio_cgi_chk('apc', 'apr', aio_cgi_l('Копировать', 'Copy'))) .
         // A submit without the script: the save, then the reset (0.40.0).
         '<button type="submit" id="arb" class="btn danger" name="aio_reset" value="1">' .
-        aio_cgi_l('Сбросить к шаблону', 'Reset to the template') . '</button><p class="hint">' .
+        aio_cgi_resetb() . '</button><p class="hint">' .
         aio_cgi_l('Ваши правки в AIOStreams пропадут; логин, пароль и ссылка останутся.',
         'Your edits in AIOStreams are lost; the login, password and link stay.') . '</p></div></div>';
 }
@@ -511,23 +511,21 @@ function aio_cgi_css()
 // the page without it).
 function aio_cgi_js($v)
 {
+    $again = aio_cgi_l('%s — нажмите «%s» ещё раз', '%s: press "%s" again');
     $t = array(
         'duplicate' => aio_cgi_l('Дублировать', 'Duplicate'),
         'serversFull' => aio_cgi_l('Все 5 блоков заняты', 'All 5 server slots are in use'),
         'copySuffix' => aio_cgi_l(' (копия)', ' (copy)'),
         'server' => aio_cgi_l('Сервер', 'Server'),
         'checking' => aio_cgi_l('Проверяю…', 'Checking…'), 'saving' => aio_cgi_l('Сохраняю…', 'Saving…'),
-        'save' => aio_cgi_l('Сохранить', 'Save'), 'saved' => aio_cgi_saved(), 'saveAndCreate' => aio_cgi_savec(),
+        'save' => aio_cgi_saveb(), 'saved' => aio_cgi_saved(), 'saveAndCreate' => aio_cgi_savec(),
         'savedOnDune' => aio_cgi_l('Настройки Melange сохранены на Дюне.', 'Melange settings are saved on the Dune.'),
         'creating' => aio_cgi_l('Создаю конфиг…', 'Creating the config…'),
         'updating' => aio_cgi_l('Обновляю конфиг…', 'Updating the config…'),
         'resetting' => aio_cgi_l('Сбрасываю конфиг…', 'Resetting the config…'),
-        'notCreated' => aio_cgi_l('Конфиг на сервере AIOStreams не создан — нажмите «Сохранить» ещё раз',
-            'The config on the AIOStreams server was not created: press "Save" again'),
-        'notUpdated' => aio_cgi_l('Конфиг на сервере AIOStreams не обновлён — нажмите «Сохранить» ещё раз',
-            'The config on the AIOStreams server was not updated: press "Save" again'),
-        'notReset' => aio_cgi_l('Конфиг на сервере AIOStreams не сброшен — нажмите «Сбросить к шаблону» ещё раз',
-            'The config on the AIOStreams server was not reset: press "Reset to the template" again'),
+        'notCreated' => sprintf($again, aio_cgi_not_done('create'), aio_cgi_saveb()),
+        'notUpdated' => sprintf($again, aio_cgi_not_done('update'), aio_cgi_saveb()),
+        'notReset' => sprintf($again, aio_cgi_not_done('reset'), aio_cgi_resetb()),
         'resetConfirm' => aio_cgi_l('Конфиг на %s будет заменён шаблоном «%s». Ваши правки в веб-настройках AIOStreams ' .
             'пропадут; логин, пароль и ссылка останутся. Продолжить?', 'The config on %s will be replaced with the ' .
             'template "%s". Your edits in the AIOStreams web settings will be lost; the login, password and link stay. ' .
@@ -786,10 +784,29 @@ function aio_cgi_check_values($v)
     return array($d, $errors);
 }
 
+// The labels of the buttons, quoted in other texts as well.
+function aio_cgi_saveb()
+{
+    return aio_cgi_l('Сохранить', 'Save');
+}
+
 // The main button while the chosen server has no config.
 function aio_cgi_savec()
 {
     return aio_cgi_l('Сохранить и создать конфиг', 'Save and create the config');
+}
+
+function aio_cgi_resetb()
+{
+    return aio_cgi_l('Сбросить к шаблону', 'Reset to the template');
+}
+
+// The sync with the AIOStreams server failed; $what: create, update or reset.
+function aio_cgi_not_done($what)
+{
+    $t = array('create' => array('не создан', 'created'), 'update' => array('не обновлён', 'updated'),
+        'reset' => array('не сброшен', 'reset'));
+    return aio_cgi_l('Конфиг на сервере AIOStreams ' . $t[$what][0], 'The config on the AIOStreams server was not ' . $t[$what][1]);
 }
 
 function aio_cgi_saved()
@@ -849,7 +866,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
         '<div id="bar"><div id="sr" class="res" aria-live="polite"></div><button type="button" id="srx" class="lnk" hidden>' .
         aio_cgi_l('Скрыть', 'Hide') . '</button><div class="barrow"><span id="dirty"></span>' .
         '<button type="submit" id="save" class="save">' . (aio_cgi_state($v) === 'conf' ? aio_cgi_savec() :
-        aio_cgi_l('Сохранить', 'Save')) .
+        aio_cgi_saveb()) .
         '</button></div></div></form>';
     // The fields of the errors marked (a radio of watch or jacred: each one).
     foreach ($errors as $e)
