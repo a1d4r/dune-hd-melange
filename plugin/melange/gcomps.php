@@ -96,7 +96,9 @@ function aio_gc_cut_w($s, $px, $width)
 }
 
 // Lines of at most $width, broken after spaces and separators (a long word
-// by characters); more than $max lines: the last one ends with "…".
+// by characters); more than $max lines: the last one ends with "…". Every
+// other line is a piece of $s as is, but the spaces trimmed at its ends:
+// aio_info_wrap_tracks finds the rest of $s after the first line by its length.
 /**
  * @param string $s
  * @param int $px

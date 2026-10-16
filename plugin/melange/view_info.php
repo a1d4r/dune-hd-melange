@@ -24,7 +24,10 @@ define('AIO_INF_LH', 32);       // page 1: labels 24 px, values 26 px
 define('AIO_INF_GAP', 6);       // page 1: between fields
 define('AIO_INF_SUBS_MIN', 3);  // page 1: subtitle lines kept when tracks do not fit
 define('AIO_INF_TIND', 24);     // page 1: indent of the lines of a track after its first
-define('AIO_INF_TEXT_MAX', 4000); // page 1: characters of a value wrapped, at most (more never fit a column)
+// Page 1: characters of a value wrapped, at most: a column holds ~1800 of the
+// narrowest glyph ("i"), and aio_gc_wrap is slow on a long word (a word of
+// 4000 characters: 1-2 s a screen on the Dune).
+define('AIO_INF_TEXT_MAX', 2000);
 define('AIO_INF_YLH', 30);      // YAML pages: 24 px lines
 define('AIO_INF_YROWS', 28);    // YAML pages: lines of a column
 define('AIO_INF_IND', 20);      // YAML pages: indent of a level
@@ -193,6 +196,18 @@ function aio_info_room($c, $block)
     return intval(($c['end'] - $c['y']) / AIO_INF_LH) - ($block ? 1 : 0);
 }
 
+// Value lines left in column $c for $fields block fields: their labels and
+// the gaps between them taken.
+/**
+ * @param AioInfoCol $c
+ * @param int $fields
+ * @return int
+ */
+function aio_info_left($c, $fields)
+{
+    return intval(($c['end'] - $c['y'] - ($fields - 1) * AIO_INF_GAP) / AIO_INF_LH) - $fields;
+}
+
 // A field of column $c: the label (24 px, dimmed) at the left of the first
 // value line or ($block) on a line above them; the value lines (26 px) cut to
 // the width with "…", those of $cont (indexes) indented by AIO_INF_TIND. No
@@ -228,7 +243,7 @@ function aio_info_put(&$c, $label, $lines, $block, $color = AIO_GC_TEXT2, $cont 
     $c['y'] += AIO_INF_GAP;
 }
 
-// Tracks (lines each, aio_info_tracks) as a block field of column $c.
+// Tracks (lines each, aio_info_wrap_tracks) as a block field of column $c.
 /**
  * @param AioInfoCol $c
  * @param string $label
@@ -365,7 +380,7 @@ function aio_info_subs($pf)
  * @param int $max
  * @return list<list<string>>
  */
-function aio_info_tracks($items, $max)
+function aio_info_wrap_tracks($items, $max)
 {
     $max = max(1, $max);
     $out = array();
@@ -520,24 +535,22 @@ function aio_info_col_tracks($r, $pf, $tt, $top)
             AIO_INF_CW, 2);
         $na = count($audio);
     }
-    $at = aio_info_tracks($audio, aio_info_room($c, true));
+    $at = aio_info_wrap_tracks($audio, aio_info_room($c, true));
     list($subs, $ns) = aio_info_subs($pf);
     $slabel = $tt['subs'] . ($subs || $r['subs'] ? ' (' . ($subs ? $ns : count($r['subs'])) . ')' : '');
     // Languages only (JacRed, parsedFile.subtitles): joined, at most AIO_INF_SUBS_MIN lines.
     $codes = !$subs && $r['subs'];
-    $st = aio_info_tracks($subs, aio_info_room($c, true));
+    $st = aio_info_wrap_tracks($subs, aio_info_room($c, true));
     $sl = $codes ? count(aio_gc_wrap(implode(', ', $r['subs']), 26, AIO_INF_CW, AIO_INF_SUBS_MIN)) :
         aio_info_nlines($st);
-    // Voices: the room but the audio label and a line, the subtitle label and
-    // lines, the gaps.
-    $max = intval(($c['end'] - $c['y'] - AIO_INF_GAP - ($sl ? AIO_INF_GAP : 0)) / AIO_INF_LH) - 3 -
-        ($sl ? 1 + min(AIO_INF_SUBS_MIN, $sl) : 0);
+    // Voices: the room but a line of the audio and the least of the subtitles.
+    $max = aio_info_left($c, $sl ? 3 : 2) - 1 - ($sl ? min(AIO_INF_SUBS_MIN, $sl) : 0);
     if ($v !== '' && $max > 0)
         aio_info_put($c, $tt['voices'], aio_gc_wrap_voices($v, 26, AIO_INF_CW, $max,
             $v === $dub || strpos($v, "$dub:") === 0 || strpos($v, "$dub \xC2\xB7") === 0), true);
 
-    // Value lines left for both: the two labels and a gap between.
-    $room = intval(($c['end'] - $c['y'] - ($sl ? AIO_INF_GAP : 0)) / AIO_INF_LH) - ($sl ? 2 : 1);
+    // Value lines left for both.
+    $room = aio_info_left($c, $sl ? 2 : 1);
     $sn = min($sl, max(AIO_INF_SUBS_MIN, $room - aio_info_nlines($at)));
     $at = aio_info_more($at, max(1, $room - $sn), $na, $lang);
     aio_info_put_tracks($c, $alabel, $at);
@@ -631,7 +644,7 @@ function aio_info_passport($st, $n)
     $sd = aio_arr($raw, 'streamData');
     $pf = aio_arr($sd, 'parsedFile');
     $d = array();
-    $name = aio_gc_wrap(aio_info_clean($r['label']), 26, AIO_INF_W, 4);
+    $name = aio_gc_wrap(mb_substr(aio_info_clean($r['label']), 0, AIO_INF_TEXT_MAX, 'UTF-8'), 26, AIO_INF_W, 4);
     foreach ($name as $i => $line)
         $d[] = aio_info_cut(aio_gc_at(AIO_INF_W, AIO_INF_LH, 0, $i * AIO_INF_LH), $line, 26, AIO_GC_TEXT);
     // A name of 3-4 lines moves the columns down.
