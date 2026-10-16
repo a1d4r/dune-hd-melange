@@ -2,7 +2,7 @@
 
 **English version**
 
-## 0.43.1 — not released yet
+## 0.43.1 — 16.10.2026
 - Release details (INFO on a release): long names go on to the next lines instead of being cut with "…" after a line or two. An audio or subtitle track wraps by words, its next lines indented under the first, and is shown as a whole track: what does not fit goes to "… N more", counting tracks. Voices (up to 4 lines before), the file and the folder (up to 3 lines before) wrap down to the bottom of the column. The release name takes up to 4 lines (2 before); under a name of 3–4 lines the columns move down.
 - Release details: when the subtitles do not fit in the middle column ("Tracks"), they move to the bottom of the right column, if more tracks are shown that way; the audio then takes the whole middle column. A track title no longer repeats the codec and channels: "RU · DD 5.1 · DD 5.1 - Dub Pythagor" is now "RU · DD 5.1 · Dub Pythagor".
 
@@ -82,7 +82,7 @@ First public release. What it does:
 
 **Russian version**
 
-## 0.43.1 — ещё не выпущена
+## 0.43.1 — 16.10.2026
 - Сведения о раздаче (INFO на раздаче): длинные названия переносятся на следующие строки, а не обрезаются «…» после строки-двух. Дорожка аудио или субтитров переносится по словам, продолжение — с отступом под первой строкой, и показывается целой дорожкой: что не влезло — в «… ещё N», N считает дорожки. Озвучки (раньше — до 4 строк), файл и папка (раньше — до 3 строк) переносятся до низа колонки. Название раздачи — до 4 строк (раньше — 2); под названием в 3–4 строки колонки сдвигаются ниже.
 - Сведения о раздаче: если субтитры не помещаются в средней колонке («Дорожки»), они уходят вниз правой колонки — когда так видно больше дорожек; аудио тогда занимает всю среднюю колонку. Из названия дорожки убран повтор кодека и каналов: вместо «RU · DD 5.1 · DD 5.1 - Dub Pythagor» — «RU · DD 5.1 · Dub Pythagor».
 
