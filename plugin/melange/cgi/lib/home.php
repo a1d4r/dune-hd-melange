@@ -34,17 +34,18 @@ function aio_cgi_screens()
         'cfg' => aio_cgi_l('Конфиг в AIOStreams', 'Config in AIOStreams'), 'log' => aio_cgi_l('Лог', 'Log'));
 }
 
-// The screen of the field name= $field of an error (aio_cgi_err): '' - none.
+// The screen of the field name= $field of an error (aio_cgi_err): its scr
+// (aio_cgi_fields), the servers #dl; '' - none (no field, an unknown one).
 function aio_cgi_err_screen($field)
 {
     if ($field === null)
         return '';
     if (preg_match('/^s[0-9]+_/', $field))
         return 'dl';
-    $f = aio_cgi_fields();
-    if (in_array($field, array($f['jacred']['name'], $f['jo_url']['name'], $f['jo_key']['name']), true))
-        return 'voices';
-    return $field === $f['ts']['name'] ? 'torr' : 'src';
+    foreach (aio_cgi_fields() as $f)
+        if ($f['name'] === $field)
+            return $f['scr'];
+    return '';
 }
 
 // The state of the main screen by the values (no request): key - Debrid
