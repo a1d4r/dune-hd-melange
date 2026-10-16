@@ -321,15 +321,27 @@ function aio_gc_title($st, $n)
     $mv = $st['movie'];
     $title = $mv['title'] . (preg_match('/^[0-9]{4}$/', $mv['year']) ? " ({$mv['year']})" : '');
     $ep = $st['e'] > 0 ? sprintf('S%02dE%02d · ', $st['s'], $st['e']) : '';
-    $lang = aio_gc_lang($st);
+    return array($title, "$ep$n " . aio_gc_plural(aio_gc_lang($st), $n, 'gc_streams'));
+}
+
+// The word <$key>_one/_few/_many for $n: English 1 / else, Russian by the
+// last digit (1, 2-4, else; 11-14 as 5).
+/**
+ * @param string $lang
+ * @param int $n
+ * @param string $key
+ * @return string
+ */
+function aio_gc_plural($lang, $n, $key)
+{
     if ($lang === 'en')
-        $form = $n === 1 ? 'gc_streams_one' : 'gc_streams_many';
+        $form = $n === 1 ? 'one' : 'many';
     else
     {
         $m = $n % 100 >= 11 && $n % 100 <= 14 ? 5 : $n % 10;
-        $form = $m === 1 ? 'gc_streams_one' : ($m >= 2 && $m <= 4 ? 'gc_streams_few' : 'gc_streams_many');
+        $form = $m === 1 ? 'one' : ($m >= 2 && $m <= 4 ? 'few' : 'many');
     }
-    return array($title, "$ep$n " . aio_tr($lang, $form));
+    return aio_tr($lang, "{$key}_$form");
 }
 
 // Languages of a row: up to AIO_GC_LANGS_MAX flags of the skin, a code
@@ -536,6 +548,23 @@ function aio_gc_status_color($cached)
     return is_null($cached) ? AIO_GC_DIM : ($cached ? AIO_GC_GREEN : AIO_GC_GREY);
 }
 
+// The status of the card: that of aio_gc_status; a P2P row with seeders adds
+// them ("P2P · 79 сидов") in the colour of the number in the list row in focus.
+// -> array(text, colour).
+/**
+ * @param AioRow $r
+ * @param AioGcText $tt
+ * @return array{string, string}
+ */
+function aio_gc_card_status($r, $tt)
+{
+    $status = aio_gc_status($r, $tt);
+    $n = is_null($r['cached']) ? aio_gc_seeds($r) : null;
+    if (is_null($n))
+        return array($status, aio_gc_status_color($r['cached']));
+    return array("$status · $n " . aio_gc_plural($tt['lang'], $n, 'gc_seeds'), aio_gc_seed_color($n, true));
+}
+
 // Children of row panel "r$i". The row in focus is brighter, as in the
 // shell's own lists: its texts TEXT, the add-on TEXT2; the others TEXT2, DIM.
 // A release watched before ($share > 0): a progress bar at the row bottom.
@@ -674,10 +703,10 @@ function aio_gc_card($st, $sel)
         $y += $lh;
     }
     $y += 8;
-    $status = aio_gc_status($r, $tt);
+    list($status, $color) = aio_gc_card_status($r, $tt);
     foreach (aio_gc_wrap($status, 30, $sw, 2, true) as $line)
     {
-        $d[] = aio_gc_cut(null, aio_gc_at($sw, $lh, $sx, $y), $line, 30, aio_gc_status_color($r['cached']));
+        $d[] = aio_gc_cut(null, aio_gc_at($sw, $lh, $sx, $y), $line, 30, $color);
         $y += $lh;
     }
     if ($r['group'] !== '')
