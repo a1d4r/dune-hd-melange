@@ -181,7 +181,7 @@ function aio_cgi_jacred($v)
     $f = aio_cgi_fields();
     $k = $v['source'] === 'own' ? 1 : 0;
     // P2P on a server with Magnetio (not of aio_conf_p2p_torznab): Magnetio asks JacRed, not the server.
-    $mg = aio_cgi_mode_sel($v) === AIO_TPL_P2P && !aio_conf_p2p_tz($v['aio_server']);
+    $mg = aio_cgi_mode_sel($v) === AIO_TPL_P2P && !aio_conf_has_torznab($v['aio_server']);
     $jr403 = aio_cgi_jr403();
     $out = '<p class="sub" id="jrp" data-made="' . aio_cgi_h($t[0]) . '" data-own="' . aio_cgi_h($t[1]) . '">' . $t[$k] . '</p>' .
         // The created config on a server jacred.stream refuses, jacred.stream chosen (the script follows both);
@@ -445,7 +445,7 @@ function aio_cgi_src($v)
             $name = $host;
         $opts .= '<option value="' . aio_cgi_h($url) . '" data-tmdb="' . ($tmdb ? '1' : '0') . '"' .
             (isset($jr403[$url]) ? ' data-jr403="' . aio_cgi_h($jr403[$url]) . '"' : '') .
-            (aio_conf_p2p_tz($url) ? ' data-p2ptz="1"' : '') .
+            (aio_conf_has_torznab($url) ? ' data-p2ptz="1"' : '') .
             ($v['aio_server'] === $url ? ' selected' : '') . '>' .
             aio_cgi_h($host) . ($tmdb ? '' : aio_cgi_l(' — без TMDB', ' - no TMDB')) . '</option>';
     }

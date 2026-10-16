@@ -58,8 +58,8 @@ function aio_conf_p2p_torznab()
     return array('https://aiostreams.kompotik.com');
 }
 
-// $base is one of aio_conf_p2p_torznab.
-function aio_conf_p2p_tz($base)
+// The AIOStreams server $base has Torznab for P2P (one of aio_conf_p2p_torznab).
+function aio_conf_has_torznab($base)
 {
     return in_array($base, aio_conf_p2p_torznab(), true);
 }
@@ -75,14 +75,14 @@ function aio_conf_p2p_tz($base)
 function aio_conf_template($id = 'addons', $base = '')
 {
     $tpls = aio_aio_tpls();
-    $tz = aio_conf_p2p_tz($base);
+    $torznab = aio_conf_has_torznab($base);
     $j = aio_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . AIO_CONF_TEMPLATE));
     if (!is_object($j) || !is_string($id) || !array_key_exists($id, $tpls) || !isset($j->presets) || !is_array($j->presets))
         return null;
     $keep = array();
     foreach ($tpls[$id] as $want)
     {
-        $x = aio_conf_find($j->presets, 'instanceId', $tz && $want === AIO_CONF_MAGNETIO ? AIO_CONF_PRESET : $want);
+        $x = aio_conf_find($j->presets, 'instanceId', $torznab && $want === AIO_CONF_MAGNETIO ? AIO_CONF_PRESET : $want);
         if ($x)
             $keep[] = $x;
     }
