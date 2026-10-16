@@ -301,7 +301,9 @@ function aio_info_sub_codec($c)
 // One line of a track: "• RU · TrueHD 5.1 · Дубляж / HotVoice 41", "•" for
 // the default one (★ is in no font of the firmware, ● not in NotoSans Condensed).
 // A title starting with the codec and channels ("DD 5.1 - Dub", "DD5.1"; the
-// codec alone without channels) goes without them and the separators after.
+// codec alone without channels) goes without them and the separators after;
+// not when a word goes on ("DTS-HD", "DD+") or a hyphen is glued to the next
+// one ("DD 5.1 -EX").
 /**
  * @param string $lang
  * @param string $codec
@@ -313,7 +315,7 @@ function aio_info_sub_codec($c)
 function aio_info_track($lang, $codec, $ch, $title, $default)
 {
     $re = '~^' . preg_quote($codec, '~') . ($ch !== '' ? ' ?' . preg_quote($ch, '~') : '') .
-        '(?![\pL\pN])[\s\-\x{2013}:,/|\x{00B7}]*~iu';
+        '(?![\pL\pN+\-])(?:[\s\x{2013}\x{2014}:,/|@\x{00B7}]|-(?![\pL\pN]))*+(?!-)~iu';
     $t = $codec === '' ? null : preg_replace($re, '', $title);
     if (is_string($t))
         $title = $t;
@@ -368,7 +370,7 @@ function aio_info_audio($r, $pf)
  * @param AioRow $r
  * @param array<mixed> $pf
  * @param AioGcText $tt
- * @return array{label: string, st: list<list<string>>, codes: string, n: int}|null
+ * @return AioInfoSubs|null
  */
 function aio_info_subs($r, $pf, $tt)
 {
@@ -390,7 +392,7 @@ function aio_info_subs($r, $pf, $tt)
 // Subtitles $s in $max lines (aio_info_more, the languages cut with "…"):
 // array(tracks, how many of them are not shown whole).
 /**
- * @param array{label: string, st: list<list<string>>, codes: string, n: int} $s
+ * @param AioInfoSubs $s
  * @param int $max
  * @param string $lang
  * @return array{list<list<string>>, int}
@@ -402,9 +404,10 @@ function aio_info_subs_fit($s, $max, $lang)
     if ($s['codes'] === '')
         return aio_info_more($s['st'], $max, $s['n'], $lang);
     $l = aio_gc_wrap($s['codes'], 26, AIO_INF_CW, $max);
-    $t = implode(' ', $l);
-    // Cut: the languages before the last comma are whole.
-    return array(array_chunk($l, 1), substr($t, -3) === "\xE2\x80\xA6" ? $s['n'] - substr_count($t, ',') : 0);
+    if (count(aio_gc_wrap($s['codes'], 26, AIO_INF_CW, $max + 1)) <= $max)
+        return array(array_chunk($l, 1), 0);
+    // Cut: the languages before the last comma shown are whole.
+    return array(array_chunk($l, 1), $s['n'] - substr_count(implode(' ', $l), ','));
 }
 
 // Tracks $items in lines wrapped by words (aio_gc_wrap): the first of the
@@ -555,7 +558,7 @@ function aio_info_col_file($r, $raw, $sd, $pf, $tt, $top)
  * @param array<mixed> $pf
  * @param AioGcText $tt
  * @param int $top
- * @param array{label: string, st: list<list<string>>, codes: string, n: int}|null $s
+ * @param AioInfoSubs|null $s
  * @return array{list<AioGcComp>, int}
  */
 function aio_info_col_tracks($r, $pf, $tt, $top, $s)
@@ -668,7 +671,8 @@ function aio_info_col_source($r, $sd, $pf, $tt, $top)
 
 // Children of page 1: the name (4 lines at most) and the three columns under it.
 // Subtitles that the middle column does not show whole go to the bottom of
-// the right one when the tracks left out of both are then fewer.
+// the right one when the tracks left out of both are then fewer and a
+// subtitle (a language) at least is whole there.
 /**
  * @param AioState $st
  * @param int $n
@@ -694,7 +698,7 @@ function aio_info_passport($st, $n)
     {
         list($mb, $hb) = aio_info_col_tracks($r, $pf, $tt, $top, null);
         list($sub, $hs) = aio_info_subs_fit($s, aio_info_left($src, 1), $tt['lang']);
-        if ($hb + $hs < $hid)
+        if ($hs < $s['n'] && $hb + $hs < $hid)
         {
             $mid = $mb;
             aio_info_put_tracks($src, $s['label'], $sub);

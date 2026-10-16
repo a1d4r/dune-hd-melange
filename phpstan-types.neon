@@ -211,6 +211,10 @@ parameters:
         # its x, the y of the next field, its bottom, the x of values, its
         # components so far (aio_info_put adds the fields).
         AioInfoCol: 'array{x: int, y: int, end: int, lw: int, d: list<AioGcComp>}'
+        # Subtitles of page 1 (aio_info_subs, view_info.php): the label with
+        # the count of all, the tracks wrapped (else []), the languages joined
+        # by ", " (else ''), the count of all.
+        AioInfoSubs: 'array{label: string, st: list<list<string>>, codes: string, n: int}'
         # Voices of one release name (aio_voices_parse, voices_parse.php):
         # type ids (dub, mvo, dvo, avo) in the order of the name, studios
         # shown, orig '' | 'orig' | 'jap', the name without JacRed's tails,
