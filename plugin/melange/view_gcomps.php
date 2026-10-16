@@ -101,7 +101,7 @@ class AioGc
 function aio_gc_text($lang)
 {
     return array('lang' => $lang, 'page' => aio_tr($lang, 'gc_page'), 'pack' => aio_tr($lang, 'gc_pack'),
-        'release' => aio_tr($lang, 'gc_release'), 'source' => aio_tr($lang, 'gc_source'),
+        'release' => aio_tr($lang, 'gc_group'), 'source' => aio_tr($lang, 'gc_source'),
         'cached' => aio_tr($lang, 'gc_cached'),
         'cached_in' => aio_tr($lang, 'gc_cached_in'),
         'download' => aio_tr($lang, 'gc_download'), 'unknown' => aio_tr($lang, 'gc_unknown'),
