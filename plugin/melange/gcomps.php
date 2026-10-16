@@ -144,8 +144,9 @@ function aio_gc_cut_w($s, $px, $width)
 function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
 {
     $lines = array();
-    // Invalid UTF-8: no lines, as preg_split('//u') gave.
-    if (!preg_match('//u', $s))
+    // No room or invalid UTF-8: no lines (on purpose; names never come here
+    // invalid: json_decode, mb_substr).
+    if ($max < 1 || !preg_match('//u', $s))
         return $lines;
     $cur = '';
     $cw = 0;
@@ -193,9 +194,8 @@ function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
     {
         $lines = array_slice($lines, 0, $max);
         $ell = "\xE2\x80\xA6";
-        $l = $lines[$max - 1];
-        $lines[$max - 1] = rtrim(mb_substr($l, 0, aio_gc_fit($l, $px, $width - aio_gc_w($ell, $px)),
-            'UTF-8')) . $ell;
+        $l = (string) array_pop($lines);
+        $lines[] = rtrim(mb_substr($l, 0, aio_gc_fit($l, $px, $width - aio_gc_w($ell, $px)), 'UTF-8')) . $ell;
     }
     return $lines;
 }
