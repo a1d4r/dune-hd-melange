@@ -164,6 +164,14 @@ function aio_cgi_aio_keep($dir, $base, $mode, $c)
     return aio_cgi_store($dir, $s);
 }
 
+// The answer of a=aio_sync before its outcome (aio_cgi_aio_sync, the
+// failures of aio_cgi_aio_sync_post): of the choice $base (aio_server) in
+// the mode $mode, the keys in the order of the JSON.
+function aio_cgi_aio_res($base, $mode)
+{
+    return array('ok' => false, 'msg' => '', 'skip' => false, 'base' => $base, 'mode' => $mode, 'conf' => null);
+}
+
 // The config of the chosen server (of the list or the own one) in the mode
 // aio_mode by settings.json (that of the other mode is never touched): none
 // -> POST of the template (aio_settings_tpl: aio_tpl, or P2P with no Debrid
@@ -189,7 +197,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     $host = (string) parse_url($base, PHP_URL_HOST);
     $mode = $s['aio_mode'];
     // The answer; each return sets ok, msg, conf, field over it.
-    $res = array('ok' => false, 'msg' => '', 'skip' => false, 'base' => $choice, 'mode' => $mode, 'conf' => null);
+    $res = aio_cgi_aio_res($choice, $mode);
     $conf = aio_settings_conf($s);
     // No config: made by the template.
     $reset = $reset && $conf;
@@ -349,7 +357,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
 function aio_cgi_aio_sync_post($dir)
 {
     if (!aio_cgi_dir_ok($dir))
-        aio_cgi_json(200, array('ok' => false, 'msg' => aio_cgi_l('Нет папки плагина на Дюне',
-            'The plugin data folder is missing on the Dune'), 'skip' => false, 'base' => '', 'mode' => '', 'conf' => null));
+        aio_cgi_json(200, array_merge(aio_cgi_aio_res('', ''), array('msg' => aio_cgi_l('Нет папки плагина на Дюне',
+            'The plugin data folder is missing on the Dune'))));
     aio_cgi_json(200, aio_cgi_aio_sync($dir, aio_cgi_param($_POST, 'reset') === '1'));
 }
