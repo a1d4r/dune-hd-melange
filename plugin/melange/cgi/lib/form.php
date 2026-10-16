@@ -1,6 +1,7 @@
 <?php
 // The settings page (cgi/settings.php): the form - its HTML, the style and
-// the script inline (the values posted and their check: values.php).
+// the script inline (the values of the form, their check and what the save
+// does with them: values.php).
 
 function aio_cgi_h($s)
 {
@@ -263,37 +264,11 @@ function aio_cgi_tpl_shown($server, $own, $confs, $new)
     return $confs[$b][AIO_MODE_DEBRID]['tpl'] !== null ? $confs[$b][AIO_MODE_DEBRID]['tpl'] : 'none';
 }
 
-// The save resets the config on the server chosen in $d (the values checked)
-// in the mode chosen to the template of that mode (0.40.0); $confs: the
-// configs (aio_confs), $v: as posted (aio_cgi_posted with reset, ajax, cur).
-// By its button or the script (it asks first and posts aio_reset); without
-// the script, on the server the page showed (aio_cgi_same_server): of Debrid
-// another template (aio_tpl) than its tpl (also 'none' or 'custom').
-function aio_cgi_resets($d, $confs, $v)
-{
-    $b = aio_settings_base($d);
-    if ($b === '' || !isset($confs[$b][$d['aio_mode']]))
-        return false;
-    if ($v['reset'])
-        return true;
-    if ($v['ajax'] || !aio_cgi_same_server($d, $v['cur']) || $d['aio_mode'] !== AIO_MODE_DEBRID)
-        return false;
-    return $v['aio_tpl'] !== '' && $v['aio_tpl'] !== aio_cgi_tpl_shown($d['aio_server'], $d['aio_own_url'], $confs, '');
-}
-
 // The mode the page shows: the one chosen in a form back, else aio_mode of
 // the settings (one for all servers).
 function aio_cgi_mode_sel($v)
 {
     return in_array($v['aio_mode'], aio_aio_modes(), true) ? $v['aio_mode'] : $v['mode_cur'];
-}
-
-// The server chosen in $d (settings.json) is the stored one of $cur: the
-// one a page without the script showed.
-function aio_cgi_same_server($d, $cur)
-{
-    return $d['aio_server'] === $cur['aio_server'] && ($d['aio_server'] !== 'own' ||
-        $d['aio_own_url'] === $cur['aio_own_url']);
 }
 
 // The config made by melange on the chosen server (of the list or the own
@@ -561,28 +536,6 @@ function aio_cgi_js($v)
     // JSON_HEX_TAG for "<" (PHP 5.3 has none): no "</script>" or "<!--" in the element; "<" is only in strings.
     return '<script type="application/json" id="init">' . str_replace('<', '\\u003c', $init) . '</script><script>' .
         $js . '</script>';
-}
-
-// Values of the form from the settings (aio_settings_read) or as posted
-// (aio_cgi_posted), by the keys of aio_cgi_fields() - strings (aio_tpl,
-// aio_mode: the one chosen in a form back, '' from the settings; tpl_seen
-// only posted); tpl_new - aio_tpl of the settings (for a new config);
-// mode_cur - aio_mode of the settings (one for all servers); servers -
-// lists of strings by aio_cgi_server_fields(); confs - aio_confs of the
-// settings (never posted).
-function aio_cgi_values($s)
-{
-    $v = array();
-    foreach (aio_cgi_fields() as $k => $f)
-        if ($f['set'] !== '')
-            $v[$k] = $s[$f['set']];
-    $v['tpl_new'] = $v['aio_tpl'];
-    $v['aio_tpl'] = '';
-    $v['mode_cur'] = $v['aio_mode'];
-    $v['aio_mode'] = '';
-    $v['servers'] = $s['servers'];
-    $v['confs'] = $s['aio_confs'];
-    return $v;
 }
 
 // The labels of the buttons, quoted in other texts as well.
