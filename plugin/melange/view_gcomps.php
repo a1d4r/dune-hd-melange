@@ -3,11 +3,12 @@
 // movie card (poster 288x432 at 75,60, margins 75): darkened
 // fanart; on the left the poster, beside it the size and the cache status,
 // under it a card of the selected release (name, video, audio, voices,
-// subtitles, languages, trackers); on the right the list: cache icon, badges
-// of kingsizew/badges (resolution, source, picture, the best audio),
-// size, language flags, trackers if room is left; under it the P+/P- hint
-// and "1 / 60". The plugin draws and moves the selection itself with
-// change_gcomps; the position travels in sel_state {"sel":N,"top":T}.
+// subtitles, languages, trackers); on the right the list: cache icon (the
+// seeders of a P2P row), badges of kingsizew/badges (resolution, source,
+// picture, the best audio), size, language flags, trackers if room is left;
+// under it the P+/P- hint and "1 / 60". The plugin draws and moves the
+// selection itself with change_gcomps; the position travels in sel_state
+// {"sel":N,"top":T}.
 // Shapes as proven on the device (04.10.2026).
 // Reads Aio (state, settings), writes the cursor keys of Aio::$state.
 // PHP 5.3.6, firmware API only.
@@ -55,6 +56,14 @@ define('AIO_GC_DIM', '#FF808080');
 define('AIO_GC_SEL', '#D02850C0');
 define('AIO_GC_GREEN', '#FF34C759');
 define('AIO_GC_GREY', '#FF8E8E93');    // the "not cached" icon
+// Seeders of a P2P row in place of its "?" icon (aio_gc_seed_color). Bins as
+// the ranked expressions of the P2P template (cgi/aio_template_p2p.json:
+// 0-2, 3-9), then 10-29 and 30+: a bin starts at LOW, MID, HIGH.
+define('AIO_GC_SEED_LOW', 3);
+define('AIO_GC_SEED_MID', 10);
+define('AIO_GC_SEED_HIGH', 30);
+define('AIO_GC_SEED_MAX', 999);    // more: "999+"
+define('AIO_GC_SEED_PX', 28);
 // Progress bar of a release watched before, as the vendor's.
 define('AIO_GC_BAR_H', 4);
 define('AIO_GC_BAR_MIN', 4);    // the white part at least, even for a second watched
@@ -239,6 +248,41 @@ function aio_gc_icon($cached)
         ($cached ? 'cached.png' : 'download.png'));
 }
 
+// Seeders the list shows in place of the icon: those of a P2P row (no URL;
+// its cache status means nothing), else null.
+/**
+ * @param AioRow $r
+ * @return int|null
+ */
+function aio_gc_seeds($r)
+{
+    return $r['url'] === '' ? $r['seeders'] : null;
+}
+
+/**
+ * @param int $n
+ * @return string
+ */
+function aio_gc_seeds_str($n)
+{
+    return $n > AIO_GC_SEED_MAX ? AIO_GC_SEED_MAX . '+' : strval($n);
+}
+
+// Colour of the seeders by bins; the row in focus brighter, as its texts.
+/**
+ * @param int $n
+ * @param bool $on
+ * @return string
+ */
+function aio_gc_seed_color($n, $on)
+{
+    if ($n < AIO_GC_SEED_LOW)
+        return $on ? AIO_GC_TEXT2 : AIO_GC_DIM;
+    if ($n < AIO_GC_SEED_MID)
+        return $on ? AIO_GC_TEXT : AIO_GC_TEXT2;
+    return $n < AIO_GC_SEED_HIGH ? AIO_GC_TEXT : AIO_GC_GREEN;
+}
+
 // Languages of a row: those with a flag first, then the rest; the service
 // codes only if there is no real language.
 /**
@@ -379,9 +423,10 @@ function aio_gc_plates_w($ids)
 }
 
 // Column x and width for this list, each by its widest value; empty columns
-// take no room. The badges and the size keep their width; the languages get
-// what is left, the trackers (or the expression name, or the add-on) the rest
-// if it is at least AIO_GC_TRACKER_MIN.
+// take no room; the icon column 38 px, wider only for wider seeders. The
+// badges and the size keep their width; the languages get what is left, the
+// trackers (or the expression name, or the add-on) the rest if it is at least
+// AIO_GC_TRACKER_MIN.
 /**
  * @param list<AioRow> $rows
  * @param AioGcText $tt
@@ -392,8 +437,12 @@ function aio_gc_cols($rows, $tt)
     $max = array('res' => 0, 'src' => 0, 'vis' => 0, 'audio' => 0, 'size' => 0);
     $langs = 0;
     $any_tracker = false;
+    $icon = 38;
     foreach ($rows as $r)
     {
+        $n = aio_gc_seeds($r);
+        if (!is_null($n))
+            $icon = max($icon, aio_gc_w(aio_gc_seeds_str($n), AIO_GC_SEED_PX));
         foreach (aio_gc_row_badges($r['badges']) as $k => $ids)
             $max[$k] = max($max[$k], aio_gc_plates_w($ids));
         $max['size'] = max($max['size'], $r['size'] > 0 ?
@@ -401,8 +450,8 @@ function aio_gc_cols($rows, $tt)
         $langs = max($langs, min(260, aio_gc_items_w(aio_gc_lang_items($r['langs'], PHP_INT_MAX))));
         $any_tracker = $any_tracker || $r['expr'] !== '' || $r['trackers'] || $r['addon'] !== '';
     }
-    $cols = array('icon' => array(12, 38));
-    $x = 12 + 38 + 14;
+    $cols = array('icon' => array(12, $icon));
+    $x = 12 + $icon + 14;
     foreach ($max as $k => $w)
     {
         if ($w > 0)
@@ -500,7 +549,14 @@ function aio_gc_row_items($r, $tt, $c, $on, $share = 0)
 {
     $hi = $on ? AIO_GC_TEXT : AIO_GC_TEXT2;
     $d = array();
-    $d[] = aio_gc_image(aio_gc_left_center(38, 38, $c['icon'][0]), aio_gc_icon($r['cached']));
+    // The icon, or the seeders of a P2P row, centred in the icon column.
+    $n = aio_gc_seeds($r);
+    if (is_null($n))
+        $d[] = aio_gc_image(aio_gc_left_center(38, 38, $c['icon'][0] + intval(($c['icon'][1] - 38) / 2)),
+            aio_gc_icon($r['cached']));
+    else
+        $d[] = aio_gc_cut(null, aio_gc_left_center($c['icon'][1], 44, $c['icon'][0]), aio_gc_seeds_str($n),
+            AIO_GC_SEED_PX, aio_gc_seed_color($n, $on), array(GCompTtfLabelDef::halign => HALIGN_CENTER));
     foreach (aio_gc_row_badges($r['badges']) as $k => $ids)
     {
         if ($ids && isset($c[$k]))
