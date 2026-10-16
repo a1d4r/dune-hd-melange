@@ -701,7 +701,7 @@ function aio_info_passport($st, $n)
 {
     $r = $st['rows'][$n];
     $tt = aio_gc_text(aio_gc_lang($st));
-    $raw = isset($r['raw']) && is_array($r['raw']) ? $r['raw'] : array();
+    $raw = $r['raw'];
     $sd = aio_arr($raw, 'streamData');
     $pf = aio_arr($sd, 'parsedFile');
     $d = array();
@@ -917,7 +917,7 @@ function aio_info_blocks($st, $n)
     }
     $max = AIO_INFO_LINES - count($mel);
     $aio = array(array(0, 'AIOStreams', AIO_GC_TEXT));
-    if (!aio_info_yaml($aio, 0, '', isset($r['raw']) ? $r['raw'] : array(), $max))
+    if (!aio_info_yaml($aio, 0, '', $r['raw'], $max))
         $aio[$max - 1] = $cut;
     return array($aio, $mel);
 }
