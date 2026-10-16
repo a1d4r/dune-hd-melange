@@ -53,6 +53,8 @@ parameters:
         # Tracks of a release by infoHash, from ffprobe of JacRed (aio_jacred,
         # jacred.php); a row (AioRow) is one too (aio_carry_tracks).
         AioTracks: 'array{tracks: list<AioTrack>, subs: list<string>}'
+        # A file of a torrent in TorrServer, ids from 1 (aio_ts_files, torrserver.php).
+        AioTsFile: 'array{id: int, path: string, size: float}'
         # An add-on that found the release (aio_addons, parse.php).
         AioAddon: 'array{addon: string, cached: bool}'
         # A row of the stream list (aio_row, parse.php). names: until

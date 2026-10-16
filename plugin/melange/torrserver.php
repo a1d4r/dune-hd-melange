@@ -23,6 +23,14 @@ if (!function_exists('aio_ts_call'))
     // GET ($post null) or POST of JSON $post to TorrServer -> array(HTTP
     // code, body); $err is set on a transport error. http only, no redirects;
     // the errors of TorrServer have an empty body: the code tells.
+    /**
+     * @param string $url
+     * @param string|null $post
+     * @param string $err
+     * @param-out string $err
+     * @param int $total
+     * @return array{int, string}
+     */
     function aio_ts_call($url, $post, &$err, $total = 2)
     {
         $body = '';
@@ -67,6 +75,9 @@ if (!function_exists('aio_ts_call'))
 
 // TorrServer MatriX answers /echo within a second ("Continue watching" asks
 // before it goes there).
+/**
+ * @return bool
+ */
 function aio_ts_alive()
 {
     $err = '';
@@ -78,6 +89,10 @@ function aio_ts_alive()
 
 // A TorrentStatus of TorrServer -> array or null. Sizes over 2 GB are quoted
 // first: json_decode of PHP 5.3 on the 32-bit Dune clamps them.
+/**
+ * @param string $body
+ * @return array<mixed>|null
+ */
 function aio_ts_decode($body)
 {
     $body = preg_replace('/("(?:length|torrent_size|loaded_size|preloaded_bytes|preload_size|bytes_[a-z_]+)"\s*:\s*)' .
@@ -88,6 +103,10 @@ function aio_ts_decode($body)
 
 // file_stats of a TorrentStatus -> list of array('id' => int, 'path' =>
 // string, 'size' => float), as TorrServer sorts them (ids from 1).
+/**
+ * @param array<mixed>|null $j
+ * @return list<AioTsFile>
+ */
 function aio_ts_files($j)
 {
     $out = array();
@@ -101,17 +120,29 @@ function aio_ts_files($j)
     return $out;
 }
 
+/**
+ * @param string $path
+ * @return bool
+ */
 function aio_ts_video($path)
 {
     return preg_match('/\.(mkv|mp4|m4v|avi|mov|wmv|ts|m2ts|mts|mpg|mpeg|vob|webm|flv|divx)$/iD', $path) === 1;
 }
 
+/**
+ * @param string $path
+ * @return string
+ */
 function aio_ts_basename($path)
 {
     $p = strrpos($path, '/');
     return $p === false ? $path : substr($path, $p + 1);
 }
 
+/**
+ * @param string $path
+ * @return string
+ */
 function aio_ts_dirname($path)
 {
     $p = strrpos($path, '/');
@@ -121,6 +152,10 @@ function aio_ts_dirname($path)
 // Season and episode by the name of a file -> array(season or null, episode)
 // or null: S01E02, s1.e2, 1x02; else E02 / EP02 / "Серия 2" / "2 серия" /
 // " - 07" (season unknown). Only to find a file in a known pack.
+/**
+ * @param string $path
+ * @return array{int|null, int}|null
+ */
 function aio_ts_ep($path)
 {
     $n = aio_ts_basename($path);
@@ -137,6 +172,11 @@ function aio_ts_ep($path)
 }
 
 // A folder of the path names season $s ("Season 1", "S01", "1 сезон").
+/**
+ * @param string $path
+ * @param int $s
+ * @return bool
+ */
 function aio_ts_dir_season($path, $s)
 {
     return preg_match('/(?<![a-z0-9])(?:s|season[ ._\-]?)0*' . $s . '(?![0-9])|(?<![0-9])0*' . $s .
@@ -146,6 +186,12 @@ function aio_ts_dir_season($path, $s)
 // Files of episode $e of season $s among $files (video only): its season in
 // the name, else an unknown season with the season in the folder, else any
 // unknown season. -> keys of $files.
+/**
+ * @param list<AioTsFile> $files
+ * @param int $s
+ * @param int $e
+ * @return list<int>
+ */
 function aio_ts_ep_files($files, $s, $e)
 {
     $named = array();
@@ -169,6 +215,13 @@ function aio_ts_ep_files($files, $s, $e)
 // The file of row $r in $files -> array(key of $files or -1, why). The one
 // AIOStreams chose: its name (behaviorHints.filename) and size (videoSize);
 // else an episode by the name of the file; else, for a movie, the biggest video.
+/**
+ * @param list<AioTsFile> $files
+ * @param AioRow $r
+ * @param int $s
+ * @param int $e
+ * @return array{int, string}
+ */
 function aio_ts_pick($files, $r, $s, $e)
 {
     $raw = $r['raw'];
@@ -215,6 +268,12 @@ function aio_ts_pick($files, $r, $s, $e)
 }
 
 // The stream URL of file $f of torrent $hash for the player.
+/**
+ * @param string $base
+ * @param string $hash
+ * @param AioTsFile $f
+ * @return string
+ */
 function aio_ts_url($base, $hash, $f)
 {
     return "$base/stream/" . rawurlencode(aio_ts_basename($f['path'])) . "?link=$hash&index={$f['id']}&play";
@@ -224,6 +283,16 @@ function aio_ts_url($base, $hash, $f)
 // episode => URL. Each name parsed once (a pack may have thousands of files).
 // Its season in the name first, then a file of the folder of $chosen; an
 // unknown season counts only in that folder.
+/**
+ * @param string $base
+ * @param string $hash
+ * @param list<AioTsFile> $files
+ * @param int $s
+ * @param int $e
+ * @param int $chosen
+ * @param int $max
+ * @return array<int, string>
+ */
 function aio_ts_episodes($base, $hash, $files, $s, $e, $chosen, $max)
 {
     $dir = aio_ts_dirname($files[$chosen]['path']);
@@ -251,6 +320,13 @@ function aio_ts_episodes($base, $hash, $files, $s, $e, $chosen, $max)
 
 // "Could not open via TorrServer": the reason, its detail, OK; over the
 // stopped player of a lazy episode ($lazy) - "Stop", as aio_next_failed.
+/**
+ * @param string $lang
+ * @param string $key
+ * @param string $detail
+ * @param bool $lazy
+ * @return AioAction
+ */
 function aio_ts_fail($lang, $key, $detail = '', $lazy = false)
 {
     aio_log("ts: -> dialog: $key" . ($detail !== '' ? " ($detail)" : ''));
@@ -265,6 +341,15 @@ function aio_ts_fail($lang, $key, $detail = '', $lazy = false)
 // -> vod_play when the files are known at once, else the dialog that waits
 // for them (its state in Aio::$tswait when $st is not the list on screen); an
 // error dialog. $alive: aio_ts_alive() has just answered, no echo again.
+/**
+ * @param AioState $st
+ * @param int $i
+ * @param int $pos
+ * @param string $from
+ * @param bool $lazy
+ * @param bool $alive
+ * @return AioAction
+ */
 function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false)
 {
     $r = $st['rows'][$i];
@@ -310,12 +395,24 @@ function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false)
         ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => AIO_TS_TICK_MS)));
 }
 
+/**
+ * @param array<string, string> $p
+ * @return array<string, AioAction>
+ */
 function aio_ts_wait_acts($p)
 {
     return array(GUI_EVENT_TIMER => aio_input('ts_tick', $p));
 }
 
 // Controls of the waiting dialog: the release, seconds and peers, "Cancel".
+/**
+ * @param AioState $st
+ * @param AioRow $r
+ * @param int $sec
+ * @param array<mixed>|null $j
+ * @param bool $lazy
+ * @return list<array<string, mixed>>
+ */
 function aio_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
 {
     $lang = $st['lang'];
@@ -333,6 +430,10 @@ function aio_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
 
 // Timer of the waiting dialog: "get" of the torrent; its files -> playback;
 // still none -> the timer again, the text redrawn; gone or too long -> error.
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
 function aio_ts_tick($in)
 {
     $p = array();
@@ -390,6 +491,15 @@ function aio_ts_tick($in)
 // The file of the row among $files -> vod_play (the pack's episodes of the
 // season as ready URLs), or the dialog "no video" ($lazy: "not in this
 // release" of a lazy episode).
+/**
+ * @param AioState $st
+ * @param int $i
+ * @param list<AioTsFile> $files
+ * @param int $pos
+ * @param string $from
+ * @param bool $lazy
+ * @return AioAction
+ */
 function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
 {
     $r = $st['rows'][$i];
@@ -412,6 +522,10 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
 }
 
 // gc_ts (MENU "Watch via TorrServer") of row i of a live list.
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
 function aio_ts_menu($in)
 {
     $st = Aio::$state;
