@@ -160,7 +160,8 @@ function aio_voices_parse($s, $tails = true)
     $deeper = false;
     for ($i = 0; $i < $n; $i++)
     {
-        if ($pt !== '' && $i > 0 && $dep[$i] <= $pd && ($deeper || strpbrk($seps[$i - 1], ',+|;/') !== false))
+        // $pt is '' at $i = 0: $seps[$i - 1] exists.
+        if ($pt !== '' && $dep[$i] <= $pd && ($deeper || strpbrk($seps[$i - 1], ',+|;/') !== false))
             $pt = '';
         $c = isset($cls[$i]) ? $cls[$i] : null;
         if ($c && ($c[0] === 'type' || ($c[0] === 'code' && $ok[$part[$i]] === 1)))
@@ -409,7 +410,7 @@ function aio_voices($names)
     $v = array('types' => array(), 'studios' => array(), 'orig' => '', 'subs' => false, 'stype' => array());
     foreach ($names as $p)
     {
-        $v['stype'] += isset($p['stype']) ? $p['stype'] : array();
+        $v['stype'] += $p['stype'];
         $v['types'] = array_merge($v['types'], array_diff($p['types'], $v['types']));
         $v['studios'] = array_merge($v['studios'], array_diff($p['studios'], $v['studios']));
         $v['orig'] = $v['orig'] === 'jap' || $p['orig'] === '' ? $v['orig'] : $p['orig'];
@@ -550,9 +551,9 @@ function aio_track_voice($title, $lang = '')
         {
             if ($tm[1] !== '')
                 $c = array('type', 'dub');
-            else if (isset($tm[2]) && $tm[2] !== '')
+            else if ($tm[2] !== '')
                 $c = array('type', 'mvo');
-            else if (isset($tm[3]) && $tm[3] !== '')
+            else if ($tm[3] !== '')
                 $c = array('type', 'dvo');
             else
                 $c = array('type', 'avo');
@@ -893,7 +894,7 @@ function aio_voices_as_written($p)
     if ($first === null)
         $first = aio_voices_first_names();
     if (preg_match('/^(?:(\p{Lu}\p{Ll}+)\s+)?\p{Lu}\p{Ll}+(?:ович|евич|ьич|овна|евна|ична)$/u', trim($p), $m) &&
-        (!isset($m[1]) || $m[1] === '' || isset($first[mb_strtolower(str_replace('ё', 'е', $m[1]), 'UTF-8')])))
+        (!isset($m[1]) || isset($first[mb_strtolower(str_replace('ё', 'е', $m[1]), 'UTF-8')])))
         return false;
     return preg_match('/\p{L}.*\p{L}.*\p{L}/su', $p) && !preg_match('/^\p{Ll}\.?\s/u', $p) &&
         !preg_match('/(?:19|20)[0-9]{2}|[0-9]{3,4}p|\..*\..*\.|[0-9]+\s*kb/i', $p) &&
@@ -1046,7 +1047,7 @@ function aio_row_voices_struct($r)
     $nv = $r['voices'];
     // Types the name gives its studios: "DVO (Кубик в Кубе)".
     $nst = array();
-    foreach (isset($nv['stype']) ? $nv['stype'] : array() as $st => $type)
+    foreach ($nv['stype'] as $st => $type)
         $nst[aio_voices_same($st)] = $type;
     foreach (array_slice($r['tracks'], 0, AIO_VOICES_TRACKS) as $t)
     {

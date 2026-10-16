@@ -167,7 +167,7 @@ function aio_ts_addr($s)
         return '';
     if (strlen($s) > 300 || !preg_match('~^(?:(?i)http://)?([A-Za-z0-9.\-]+)(?::([0-9]{1,5}))?/?\z~', $s, $m))
         return null;
-    $port = isset($m[2]) && $m[2] !== '' ? intval($m[2]) : 8090;
+    $port = isset($m[2]) ? intval($m[2]) : 8090;
     return $port >= 1 && $port <= 65535 ? 'http://' . strtolower($m[1]) . ":$port" : null;
 }
 
@@ -222,10 +222,10 @@ function aio_jacred_own($a)
     $key = isset($a['key']) && is_string($a['key']) ? trim($a['key'], AIO_TRIM) : '';
     // 300 + "/?apikey=" + 200 stays within AIO_URL_MAX of aio_jacred_conf.
     if (strlen($url) > AIO_JACRED_URL_MAX || !preg_match('~^(https?)://([A-Za-z0-9.\-]+)(?::([0-9]{1,5}))?/?\z~i', $url, $m) ||
-        (isset($m[3]) && $m[3] !== '' && (intval($m[3]) < 1 || intval($m[3]) > 65535)) ||
+        (isset($m[3]) && (intval($m[3]) < 1 || intval($m[3]) > 65535)) ||
         ($key !== '' && !preg_match('~^[\x21\x22\x24\x25\x27-\x7e]{8,200}\z~', $key)))
         return null;
-    return array('url' => strtolower("$m[1]://$m[2]") . (isset($m[3]) && $m[3] !== '' ? ":$m[3]" : ''), 'key' => $key);
+    return array('url' => strtolower("$m[1]://$m[2]") . (isset($m[3]) ? ":$m[3]" : ''), 'key' => $key);
 }
 
 // AIOStreams servers to choose from (0.34.0; the config is made on them from 0.35.0):
@@ -379,9 +379,9 @@ function aio_aio_own($s)
 {
     $s = is_string($s) ? trim($s, AIO_TRIM) : '';
     if (strlen($s) > 300 || !preg_match('~^(https?)://([A-Za-z0-9][A-Za-z0-9.\-]*[A-Za-z0-9])(?::([0-9]{1,5}))?/?\z~i', $s, $m) ||
-        (isset($m[3]) && $m[3] !== '' && (intval($m[3]) < 1 || intval($m[3]) > 65535)))
+        (isset($m[3]) && (intval($m[3]) < 1 || intval($m[3]) > 65535)))
         return '';
-    return strtolower("$m[1]://$m[2]") . (isset($m[3]) && $m[3] !== '' ? ':' . intval($m[3]) : '');
+    return strtolower("$m[1]://$m[2]") . (isset($m[3]) ? ':' . intval($m[3]) : '');
 }
 
 // The server melange makes the config on (aio_server of the settings): a
