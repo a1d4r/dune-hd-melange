@@ -2,11 +2,26 @@
   "rankedStreamExpressions": [
     {
       "expression": "seeders(type(streams, 'p2p'), 0, 2)",
-      "score": -20,
+      "score": -30,
       "enabled": true
     },
     {
       "expression": "seeders(type(streams, 'p2p'), 3, 9)",
+      "score": -20,
+      "enabled": true
+    },
+    {
+      "expression": "seeders(type(streams, 'p2p'), 10, 29)",
+      "score": -10,
+      "enabled": true
+    },
+    {
+      "expression": "seeders(bitrate(type(streams, 'p2p'), '20Mbps'), 0, 49)",
+      "score": -10,
+      "enabled": true
+    },
+    {
+      "expression": "seeders(bitrate(type(streams, 'p2p'), '40Mbps'), 0, 99)",
       "score": -10,
       "enabled": true
     }

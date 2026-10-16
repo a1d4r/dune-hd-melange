@@ -57,8 +57,9 @@ define('AIO_GC_SEL', '#D02850C0');
 define('AIO_GC_GREEN', '#FF34C759');
 define('AIO_GC_GREY', '#FF8E8E93');    // the "not cached" icon
 // Seeders of a P2P row in place of its "?" icon (aio_gc_seed_color). Bins as
-// the ranked expressions of the P2P template (cgi/aio_template_p2p.json:
-// 0-2, 3-9), then 10-29 and 30+: a bin starts at LOW, MID, HIGH.
+// the ranked expressions of the P2P template (cgi/aio_template_p2p.json):
+// 0-2, 3-9, 10-29, 30+, a bin starts at LOW, MID, HIGH; the template also
+// ranks a high bit rate with few seeders lower, the colour does not.
 define('AIO_GC_SEED_LOW', 3);
 define('AIO_GC_SEED_MID', 10);
 define('AIO_GC_SEED_HIGH', 30);
