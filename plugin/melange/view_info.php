@@ -362,7 +362,8 @@ function aio_info_audio($r, $pf)
 // Subtitles of row $r, null without any: the label with the count of all,
 // the tracks of parsedFile.subtitleTracks (99 at most, aio_info_wrap_tracks in
 // the lines of a page), else the languages (JacRed, parsedFile.subtitles)
-// joined by ", ".
+// joined by ", "; the lines the middle column gives them at most: all of the
+// tracks, AIO_INF_SUBS_MIN of the languages.
 /**
  * @param AioRow $r
  * @param array<mixed> $pf
@@ -382,8 +383,10 @@ function aio_info_subs($r, $pf, $tt)
     if (!$out && !$r['subs'])
         return null;
     $n = $out ? count($all) : count($r['subs']);
-    return array('label' => "{$tt['subs']} ($n)", 'st' => aio_info_wrap_tracks($out, intval(AIO_INF_H / AIO_INF_LH)),
-        'codes' => $out ? '' : implode(', ', $r['subs']), 'n' => $n);
+    $st = aio_info_wrap_tracks($out, intval(AIO_INF_H / AIO_INF_LH));
+    $codes = $out ? '' : implode(', ', $r['subs']);
+    return array('label' => "{$tt['subs']} ($n)", 'st' => $st, 'codes' => $codes, 'n' => $n,
+        'lines' => $codes !== '' ? count(aio_gc_wrap($codes, 26, AIO_INF_CW, AIO_INF_SUBS_MIN)) : aio_info_nlines($st));
 }
 
 // Subtitles $s in $max lines (aio_info_more, the languages cut with "…"):
@@ -575,9 +578,7 @@ function aio_info_col_tracks($r, $pf, $tt, $top, $s)
         $na = count($audio);
     }
     $at = aio_info_wrap_tracks($audio, aio_info_room($c, true));
-    // Languages only: at most AIO_INF_SUBS_MIN lines.
-    $sl = !$s ? 0 : ($s['codes'] !== '' ? count(aio_gc_wrap($s['codes'], 26, AIO_INF_CW, AIO_INF_SUBS_MIN)) :
-        aio_info_nlines($s['st']));
+    $sl = $s ? $s['lines'] : 0;
     // Voices: the room but a line of the audio and the least of the subtitles.
     $max = aio_info_left($c, $sl ? 3 : 2) - 1 - ($sl ? min(AIO_INF_SUBS_MIN, $sl) : 0);
     if ($v !== '' && $max > 0)

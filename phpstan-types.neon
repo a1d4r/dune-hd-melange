@@ -215,8 +215,9 @@ parameters:
         AioInfoCol: 'array{x: int, y: int, end: int, lw: int, d: list<AioGcComp>, hid: int}'
         # Subtitles of page 1 (aio_info_subs, view_info.php): the label with
         # the count of all, the tracks wrapped (else []), the languages joined
-        # by ", " (else ''), the count of all.
-        AioInfoSubs: 'array{label: string, st: list<list<string>>, codes: string, n: int}'
+        # by ", " (else ''), the count of all, the lines the middle column
+        # gives them at most.
+        AioInfoSubs: 'array{label: string, st: list<list<string>>, codes: string, n: int, lines: int}'
         # Voices of one release name (aio_voices_parse, voices_parse.php):
         # type ids (dub, mvo, dvo, avo) in the order of the name, studios
         # shown, orig '' | 'orig' | 'jap', the name without JacRed's tails,
