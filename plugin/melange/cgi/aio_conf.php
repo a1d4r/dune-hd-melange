@@ -58,16 +58,24 @@ function aio_conf_p2p_torznab()
     return array('https://aiostreams.kompotik.com');
 }
 
+// $base is one of aio_conf_p2p_torznab.
+function aio_conf_p2p_tz($base)
+{
+    return in_array($base, aio_conf_p2p_torznab(), true);
+}
+
 // The template $id (a key of aio_aio_tpls of common.php: the file with only
 // its presets, in its order; the title and year matched for its JacRed
 // only; P2P: the fields of AIO_CONF_TEMPLATE_P2P over, those of an object
 // into it) for the AIOStreams server $base ('' - none: P2P with Magnetio;
 // one of aio_conf_p2p_torznab: P2P with Torznab in the place of Magnetio)
-// as an object, null when unreadable or no such template.
+// as an object, null when unreadable or no such template. No $base on
+// purpose: the template with Magnetio whatever the server (the patch of a
+// P2P config made with Magnetio, aio_cgi_aio_sync; aio_conf_tpl_of).
 function aio_conf_template($id = 'addons', $base = '')
 {
     $tpls = aio_aio_tpls();
-    $tz = in_array($base, aio_conf_p2p_torznab(), true);
+    $tz = aio_conf_p2p_tz($base);
     $j = aio_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . AIO_CONF_TEMPLATE));
     if (!is_object($j) || !is_string($id) || !array_key_exists($id, $tpls) || !isset($j->presets) || !is_array($j->presets))
         return null;

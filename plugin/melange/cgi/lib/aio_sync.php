@@ -297,8 +297,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
         // P2P made with Magnetio before the server got Torznab (aio_conf_p2p_torznab):
         // Magnetio kept, Torznab only by a reset.
         $ids = aio_conf_preset_ids($u);
-        $pt = !$debrid && $ids && in_array(AIO_CONF_MAGNETIO, $ids, true) ? aio_conf_template($id) : $tpl;
-        list($tmdb, $set) = aio_conf_patch($u, $pt, aio_conf_params($s, $conf, $tmdbs));
+        $tpl_patch = !$debrid && $ids && in_array(AIO_CONF_MAGNETIO, $ids, true) ? aio_conf_template($id) : $tpl;
+        list($tmdb, $set) = aio_conf_patch($u, $tpl_patch, aio_conf_params($s, $conf, $tmdbs));
         // No key of melange and none set by hand: PUT would get 400 (Torznab).
         if ($debrid && !aio_conf_has_debrid($u))
         {
