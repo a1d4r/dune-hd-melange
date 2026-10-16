@@ -616,7 +616,7 @@ function aio_cgi_saved()
 }
 
 // $v: aio_cgi_values() or aio_cgi_posted() (first: no saved_at yet, not
-// saved of aio_settings_read); $errors: of aio_cgi_err().
+// saved_once of aio_settings_read); $errors: of aio_cgi_err().
 // The page (0.43.0): the radios of watch, then the screens, #home last -
 // the CSS shows the one of the address (#src...), else #home, and the
 // fields of the answer chosen (without the script too); the bar of the

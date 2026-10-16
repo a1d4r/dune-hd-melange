@@ -29,7 +29,7 @@ parameters:
                 servers: list<AioServer>,
                 ts_url: string,
                 aio_confs: array<string, array<string, AioConf>>,
-                saved: bool
+                saved_once: bool
             }
         '''
         # Settings of the operation (Aio::$settings, aio_settings_load, main.php).

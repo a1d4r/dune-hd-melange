@@ -99,7 +99,7 @@ function aio_cgi_save($dir, $t)
     $v['mode_cur'] = $cur['aio_mode'];
     $v['ajax'] = $ajax;
     $v['reset'] = aio_cgi_param($_POST, 'aio_reset') === '1';
-    $v['first'] = !$cur['saved'];
+    $v['first'] = !$cur['saved_once'];
     list($data, $errors) = aio_cgi_check_values($v);
     if ($errors)
     {
@@ -214,7 +214,7 @@ if ($method === 'GET')
 {
     $s = aio_settings_read($dir);
     $v = aio_cgi_values($s);
-    $v['first'] = !$s['saved'];
+    $v['first'] = !$s['saved_once'];
     aio_cgi_send(200, 'text/html', aio_cgi_form($t, $v, array(), aio_cgi_param($_GET, 'saved') === '1'));
 }
 aio_cgi_send(405, 'text/plain', "405 Method Not Allowed\n");
