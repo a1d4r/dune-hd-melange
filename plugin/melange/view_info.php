@@ -486,7 +486,7 @@ function aio_info_col_source($r, $sd, $pf, $tt)
         $l[$k] = aio_tr($lang, "info_$k");
     $c = aio_info_col(2, aio_tr($lang, 'info_col_source'),
         array_merge($l, array($tt['trackers'], $tt['addon'], $tt['source'])));
-    // The cache status, as the card.
+    // The cache status, as the card but without the seeders (own field below).
     $status = aio_gc_status($r, $tt);
     aio_info_put($c, '', aio_gc_wrap($status, 26, AIO_INF_CW, 2, true), true, aio_gc_status_color($r['cached']));
     if ($r['trackers'])
