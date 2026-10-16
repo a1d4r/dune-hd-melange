@@ -156,6 +156,13 @@ function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
     $brk = $spaces ? ' ' : ' _-/,)].';
     for ($p = 0; $p < $len; $p = $e)
     {
+        // A line after the first one starts with no spaces.
+        if ($cur === '' && $lines)
+        {
+            $p += strspn($s, " \t\n\r\0\x0B", $p);
+            if ($p >= $len)
+                break;
+        }
         $e = $p;
         do
             $e += strcspn($s, $brk, $e) + 1;
