@@ -376,7 +376,7 @@ function aio_info_subs($r, $pf, $tt)
     // Lines of a column (under a name of 2 lines): a block of it has fewer,
     // so a track cut at them is whole nowhere. A track is a line at least:
     // past $max + 1 of them none is wrapped.
-    $max = intval((AIO_INF_H - AIO_INF_COLS_Y - AIO_INF_HEAD_H) / AIO_INF_LH);
+    $max = aio_info_room(aio_info_col(1, '', array(), AIO_INF_COLS_Y), false);
     $out = array();
     foreach (array_slice($all, 0, $max + 1) as $t)
     {
