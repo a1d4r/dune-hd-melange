@@ -257,9 +257,9 @@ function aio_cgi_mode_p2p()
 function aio_cgi_tpl_shown($server, $own, $confs, $new)
 {
     $b = $server === 'own' ? aio_aio_own($own) : $server;
-    if ($b === '' || !isset($confs[$b]['debrid']))
+    if ($b === '' || !isset($confs[$b][AIO_MODE_DEBRID]))
         return $new;
-    return $confs[$b]['debrid']['tpl'] !== null ? $confs[$b]['debrid']['tpl'] : 'none';
+    return $confs[$b][AIO_MODE_DEBRID]['tpl'] !== null ? $confs[$b][AIO_MODE_DEBRID]['tpl'] : 'none';
 }
 
 // The save resets the config on the server chosen in $d (the values checked)
@@ -275,7 +275,7 @@ function aio_cgi_resets($d, $confs, $v)
         return false;
     if ($v['reset'])
         return true;
-    if ($v['ajax'] || !aio_cgi_same_server($d, $v['cur']) || $d['aio_mode'] !== 'debrid')
+    if ($v['ajax'] || !aio_cgi_same_server($d, $v['cur']) || $d['aio_mode'] !== AIO_MODE_DEBRID)
         return false;
     return $v['aio_tpl'] !== '' && $v['aio_tpl'] !== aio_cgi_tpl_shown($d['aio_server'], $d['aio_own_url'], $confs, '');
 }
@@ -385,7 +385,7 @@ function aio_cgi_tpl($v)
 // The answers of "Откуда брать фильмы" (radio watch): id of the radio => value.
 function aio_cgi_watches()
 {
-    return array('wd' => 'debrid', 'wp' => AIO_TPL_P2P, 'wo' => 'own');
+    return array('wd' => AIO_MODE_DEBRID, 'wp' => AIO_TPL_P2P, 'wo' => 'own');
 }
 
 // The answer the page shows: the own config, else the mode (aio_cgi_mode_sel).
@@ -712,7 +712,7 @@ function aio_cgi_check_values($v)
     $shown = $d[$set['aio_server']] === 'own' && $d[$set['aio_own']] !== $v['cur'][$set['aio_own']] ? $new :
         aio_cgi_tpl_shown($d[$set['aio_server']], $d[$set['aio_own']], $v['confs'], $new);
     // Only Debrid: P2P hides the template, no reset by it there.
-    if ($mode === 'debrid' && $v['tpl_seen'] !== '' && ($v['ajax'] || aio_cgi_same_server($d, $v['cur'])) &&
+    if ($mode === AIO_MODE_DEBRID && $v['tpl_seen'] !== '' && ($v['ajax'] || aio_cgi_same_server($d, $v['cur'])) &&
         $v['tpl_seen'] !== $shown)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Шаблон изменён в другой вкладке — обновите страницу',
@@ -728,7 +728,7 @@ function aio_cgi_check_values($v)
         $d[$k] = aio_key_ok($what, $v[$what]);
         if ($v[$what] !== '' && $d[$k] === '')
         {
-            if (!$made || $mode !== 'debrid')
+            if (!$made || $mode !== AIO_MODE_DEBRID)
                 $d[$k] = $v['cur'][$k];
             else
             {
@@ -737,8 +737,8 @@ function aio_cgi_check_values($v)
         }
     }
     array_splice($errors, $keys_at, 0, $keys);
-    if ($made && $mode === 'debrid' && $base !== '' && !isset($v['confs'][$base]['debrid']) && $d[$set['rd']] === '' &&
-        $d[$set['tb']] === '' && $v['rd'] . $v['tb'] === '')
+    if ($made && $mode === AIO_MODE_DEBRID && $base !== '' && !isset($v['confs'][$base][AIO_MODE_DEBRID]) &&
+        $d[$set['rd']] === '' && $d[$set['tb']] === '' && $v['rd'] . $v['tb'] === '')
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Для Debrid нужен ключ Real-Debrid или TorBox; без ключа выберите «Торренты»',
             'Debrid needs a Real-Debrid or TorBox key; without one, choose "Torrents"'), $f['rd']['name']);

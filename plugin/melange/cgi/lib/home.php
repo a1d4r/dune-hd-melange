@@ -55,7 +55,7 @@ function aio_cgi_state($v)
     $w = aio_cgi_watch($v);
     if ($w === 'own')
         return $v['manifest'] === '' ? 'man' : 'ok';
-    if ($w === 'debrid' && $v['rd'] . $v['tb'] === '')
+    if ($w === AIO_MODE_DEBRID && $v['rd'] . $v['tb'] === '')
         return 'key';
     return aio_cgi_aio_sel($v) ? 'ok' : 'conf';
 }
@@ -96,7 +96,7 @@ function aio_cgi_rows($v)
     return array('src' => array($dot, $src),
         'voices' => array($jr === '' ? 'warn' : 'ok', $jr !== '' ? $jr : $t['ownJacred']),
         'torr' => array($w === AIO_TPL_P2P ? 'ok' : '', ($v['ts'] !== '' ? $v['ts'] : $t['tsDune']) .
-            ($w === 'debrid' ? ' · ' . $t['tsSpare'] : '')),
+            ($w === AIO_MODE_DEBRID ? ' · ' . $t['tsSpare'] : '')),
         'dl' => array($names ? 'ok' : '', $names ? implode(', ', $names) : $t['noServers']),
         'cfg' => array('', aio_cgi_l('Для опытных: вход, сброс', 'For the experienced: login, reset')),
         'log' => array('', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));

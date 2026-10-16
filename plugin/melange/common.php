@@ -250,6 +250,8 @@ function aio_aio_servers()
 
 // The template of the mode P2P (and the value of that mode).
 define('AIO_TPL_P2P', 'p2p');
+// The value of the mode Debrid (aio_mode).
+define('AIO_MODE_DEBRID', 'debrid');
 
 // Templates of the config melange makes (0.40.0): id => instanceIds of the
 // presets of cgi/aio_template.json it has, in this order. The first one is
@@ -276,7 +278,7 @@ function aio_aio_tpls()
  */
 function aio_aio_modes()
 {
-    return array('debrid', AIO_TPL_P2P);
+    return array(AIO_MODE_DEBRID, AIO_TPL_P2P);
 }
 
 // $id is a template of the Debrid mode (aio_tpl).
@@ -314,8 +316,8 @@ function aio_mode_of($tpl, $mode = null)
     if ($tpl === AIO_TPL_P2P)
         return AIO_TPL_P2P;
     if (aio_tpl_debrid($tpl))
-        return 'debrid';
-    return $mode !== null ? $mode : 'debrid';
+        return AIO_MODE_DEBRID;
+    return $mode !== null ? $mode : AIO_MODE_DEBRID;
 }
 
 // A config of AIOStreams made by the settings page (0.35.0), as stored in
@@ -567,7 +569,7 @@ function aio_settings_read($dir)
     $tpls = aio_aio_tpls();
     $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
-        'aio_mode' => 'debrid', 'aio_tpl' => key($tpls), 'tmdb_key' => '', 'servers' => array(), 'ts_url' => '',
+        'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'tmdb_key' => '', 'servers' => array(), 'ts_url' => '',
         'aio_confs' => array());
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
