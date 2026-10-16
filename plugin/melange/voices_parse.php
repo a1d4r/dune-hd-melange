@@ -435,13 +435,12 @@ function aio_voices($names)
 // Words of the voices on the screens.
 /**
  * @param string $lang
- * @return array{dub: string, mvo: string, dvo: string, avo: string, orig: string, subs: string}
+ * @return array{dub: string, orig: string, subs: string}
  */
 function aio_voices_words($lang)
 {
-    return array('dub' => aio_tr($lang, 'voices_dub'), 'mvo' => aio_tr($lang, 'voices_mvo'),
-        'dvo' => aio_tr($lang, 'voices_dvo'), 'avo' => aio_tr($lang, 'voices_avo'),
-        'orig' => aio_tr($lang, 'voices_orig'), 'subs' => aio_tr($lang, 'voices_subs'));
+    return array('dub' => aio_tr($lang, 'voices_dub'), 'orig' => aio_tr($lang, 'voices_orig'),
+        'subs' => aio_tr($lang, 'voices_subs'));
 }
 
 // Lower case, ё -> е, words joined by a space: the key of voices.php.
