@@ -161,7 +161,7 @@ parameters:
         # Words of the list screen (aio_gc_text, view_gcomps.php).
         AioGcText: '''
             array{
-                lang: string, page: string, pack: string, release: string, source: string,
+                lang: string, page: string, pack: string, group: string, source: string,
                 cached: string, cached_in: string, download: string, unknown: string, p2p: string,
                 video: string, audio: string, voices: string, subs: string, langs: string,
                 trackers: string, addon: string, flip: string

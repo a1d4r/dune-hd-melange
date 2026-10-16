@@ -503,7 +503,7 @@ function aio_info_col_file($r, $raw, $sd, $pf, $tt, $top)
     $l = array();
     foreach (array('size', 'rate', 'duration', 'picture', 'edition', 'container') as $k)
         $l[$k] = aio_tr($lang, "info_$k");
-    $c = aio_info_col(0, aio_tr($lang, 'info_col_file'), array_merge($l, array($tt['video'], $tt['release'])), $top);
+    $c = aio_info_col(0, aio_tr($lang, 'info_col_file'), array_merge($l, array($tt['video'], $tt['group'])), $top);
     $size = $r['size'] > 0 ? aio_size_str($r['size'], $lang) : '';
     if ($r['pack'] > 0)
         $size .= ($size !== '' ? ' · ' : '') . $tt['pack'] . ' ' . aio_size_str($r['pack'], $lang);
@@ -543,7 +543,7 @@ function aio_info_col_file($r, $raw, $sd, $pf, $tt, $top)
         $cont .= ($cont !== '' ? ' · ' : '') .
             aio_tr($lang, $pf['hasChapters'] ? 'info_chapters' : 'info_no_chapters');
     aio_info_field($c, $l['container'], $cont, 1, false, true);
-    aio_info_field($c, $tt['release'], $r['group'], 2);
+    aio_info_field($c, $tt['group'], $r['group'], 2);
     // As aio_row takes them: aio_row_voices drops 'names' of the row once parsed.
     $file = aio_str($sd, 'filename') !== '' ? aio_str($sd, 'filename') :
         aio_str(aio_arr($raw, 'behaviorHints'), 'filename');

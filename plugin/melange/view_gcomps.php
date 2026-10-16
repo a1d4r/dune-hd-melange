@@ -101,7 +101,7 @@ class AioGc
 function aio_gc_text($lang)
 {
     return array('lang' => $lang, 'page' => aio_tr($lang, 'gc_page'), 'pack' => aio_tr($lang, 'gc_pack'),
-        'release' => aio_tr($lang, 'gc_group'), 'source' => aio_tr($lang, 'gc_source'),
+        'group' => aio_tr($lang, 'gc_group'), 'source' => aio_tr($lang, 'gc_source'),
         'cached' => aio_tr($lang, 'gc_cached'),
         'cached_in' => aio_tr($lang, 'gc_cached_in'),
         'download' => aio_tr($lang, 'gc_download'), 'unknown' => aio_tr($lang, 'gc_unknown'),
@@ -712,7 +712,7 @@ function aio_gc_card($st, $sel)
     if ($r['group'] !== '')
     {
         $y += 16;
-        $d[] = aio_gc_cut(null, aio_gc_at($sw, 32, $sx, $y), $tt['release'], 26, AIO_GC_DIM);
+        $d[] = aio_gc_cut(null, aio_gc_at($sw, 32, $sx, $y), $tt['group'], 26, AIO_GC_DIM);
         $y += 32;
         foreach (aio_gc_wrap(aio_clean($r['group']), 30, $sw, 2) as $line)
         {
