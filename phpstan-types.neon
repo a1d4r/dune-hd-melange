@@ -220,6 +220,10 @@ parameters:
         # by ", " (else ''), the count of all, the lines the middle column
         # gives them at most.
         AioInfoSubs: 'array{label: string, st: list<list<string>>, codes: string, n: int, lines: int}'
+        # The middle column of page 1 before its layout (aio_info_mid,
+        # view_info.php): the column with its head, the voices, their first
+        # group alone, the label of the audio, its tracks wrapped, their count.
+        AioInfoMid: 'array{c: AioInfoCol, v: string, alone: bool, alabel: string, at: list<list<string>>, na: int}'
         # Voices of one release name (aio_voices_parse, voices_parse.php):
         # type ids (dub, mvo, dvo, avo) in the order of the name, studios
         # shown, orig '' | 'orig' | 'jap', the name without JacRed's tails,
