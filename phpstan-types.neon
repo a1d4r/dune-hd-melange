@@ -210,8 +210,9 @@ parameters:
         '''
         # A column of page 1 of the details screen (aio_info_col, view_info.php):
         # its x, the y of the next field, its bottom, the x of values, its
-        # components so far (aio_info_put adds the fields).
-        AioInfoCol: 'array{x: int, y: int, end: int, lw: int, d: list<AioGcComp>}'
+        # components so far (aio_info_put adds the fields), how many tracks
+        # it does not show whole (aio_info_col_tracks; else 0).
+        AioInfoCol: 'array{x: int, y: int, end: int, lw: int, d: list<AioGcComp>, hid: int}'
         # Subtitles of page 1 (aio_info_subs, view_info.php): the label with
         # the count of all, the tracks wrapped (else []), the languages joined
         # by ", " (else ''), the count of all.

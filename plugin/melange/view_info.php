@@ -161,7 +161,8 @@ function aio_info_duration($s)
 }
 
 // A column of page 1 with its head at y $top: its x, the y of the next field,
-// its bottom, the x of values after the widest of its $labels, components.
+// its bottom, the x of values after the widest of its $labels, components,
+// no track left out yet.
 /**
  * @param int $i
  * @param string $head
@@ -177,7 +178,7 @@ function aio_info_col($i, $head, $labels, $top)
         $lw = max($lw, aio_gc_w($l, 24));
     return array('x' => $x, 'y' => $top + AIO_INF_HEAD_H, 'end' => AIO_INF_H, 'lw' => min(240, $lw + 14),
         'd' => array(aio_info_cut(aio_gc_at(AIO_INF_CW, AIO_INF_HEAD_H, $x, $top),
-            aio_gc_cut_w($head, 28, AIO_INF_CW), 28, AIO_GC_TEXT)));
+            aio_gc_cut_w($head, 28, AIO_INF_CW), 28, AIO_GC_TEXT)), 'hid' => 0);
 }
 
 // Value lines a field of column $c has room for: $block - its label takes a
@@ -487,7 +488,7 @@ function aio_info_more($tracks, $max, $total, $lang)
  * @param array<mixed> $pf
  * @param AioGcText $tt
  * @param int $top
- * @return list<AioGcComp>
+ * @return AioInfoCol
  */
 function aio_info_col_file($r, $raw, $sd, $pf, $tt, $top)
 {
@@ -542,20 +543,20 @@ function aio_info_col_file($r, $raw, $sd, $pf, $tt, $top)
     // Whole, the room of the column only.
     aio_info_field($c, aio_tr($lang, 'info_file'), $file, aio_info_room($c, true), true);
     aio_info_field($c, aio_tr($lang, 'info_folder'), aio_str($sd, 'folderName'), aio_info_room($c, true), true);
-    return $c['d'];
+    return $c;
 }
 
 // Voices, then the audio and the subtitles $s (null: none here), a track
 // wrapped by words: what does not fit ends with "… ещё N", the voices leave
-// the audio a line and the subtitles AIO_INF_SUBS_MIN lines. array(components,
-// how many tracks are not shown whole).
+// the audio a line and the subtitles AIO_INF_SUBS_MIN lines; 'hid': how many
+// tracks are not shown whole.
 /**
  * @param AioRow $r
  * @param array<mixed> $pf
  * @param AioGcText $tt
  * @param int $top
  * @param AioInfoSubs|null $s
- * @return array{list<AioGcComp>, int}
+ * @return AioInfoCol
  */
 function aio_info_col_tracks($r, $pf, $tt, $top, $s)
 {
@@ -586,16 +587,16 @@ function aio_info_col_tracks($r, $pf, $tt, $top, $s)
     // Value lines left for both.
     $room = aio_info_left($c, $sl ? 2 : 1);
     $sn = min($sl, max(AIO_INF_SUBS_MIN, $room - aio_info_nlines($at)));
-    list($at, $hid) = aio_info_more($at, max(1, $room - $sn), $na, $lang);
+    list($at, $c['hid']) = aio_info_more($at, max(1, $room - $sn), $na, $lang);
     aio_info_put_tracks($c, $alabel, $at);
     // The subtitles: the rest (with what whole audio tracks left).
     if ($s)
     {
         list($st, $hs) = aio_info_subs_fit($s, min($sl, $room - aio_info_nlines($at)), $lang);
         aio_info_put_tracks($c, $s['label'], $st);
-        $hid += $hs;
+        $c['hid'] += $hs;
     }
-    return array($c['d'], $hid);
+    return $c;
 }
 
 // Add-ons of one release (row key 'addons'): "JacRed · MediaFusion (кэш)",
@@ -688,19 +689,20 @@ function aio_info_passport($st, $n)
     // A name of 3-4 lines moves the columns down.
     $top = AIO_INF_COLS_Y + max(0, count($name) - 2) * AIO_INF_LH;
     $s = aio_info_subs($r, $pf, $tt);
-    list($mid, $hid) = aio_info_col_tracks($r, $pf, $tt, $top, $s);
+    $mid = aio_info_col_tracks($r, $pf, $tt, $top, $s);
     $src = aio_info_col_source($r, $sd, $pf, $tt, $top);
-    if ($s && $hid > 0)
+    if ($s && $mid['hid'] > 0)
     {
-        list($mb, $hb) = aio_info_col_tracks($r, $pf, $tt, $top, null);
+        $mb = aio_info_col_tracks($r, $pf, $tt, $top, null);
         list($sub, $hs) = aio_info_subs_fit($s, aio_info_left($src, 1), $tt['lang']);
-        if ($hs < $s['n'] && $hb + $hs < $hid)
+        if ($hs < $s['n'] && $mb['hid'] + $hs < $mid['hid'])
         {
             $mid = $mb;
             aio_info_put_tracks($src, $s['label'], $sub);
         }
     }
-    return array_merge($d, aio_info_col_file($r, $raw, $sd, $pf, $tt, $top), $mid, $src['d']);
+    $file = aio_info_col_file($r, $raw, $sd, $pf, $tt, $top);
+    return array_merge($d, $file['d'], $mid['d'], $src['d']);
 }
 
 // --- YAML pages.
