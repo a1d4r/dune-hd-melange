@@ -262,7 +262,7 @@ function aio_carry_tracks($rows, $old)
 // languages of the tracks (aio_track_langs).
 /**
  * @param list<AioRow> $rows
- * @param array<string, AioMedia> $by_hash
+ * @param array<string, AioTracks> $by_hash
  * @return list<AioRow>
  */
 function aio_fill_tracks($rows, $by_hash)
