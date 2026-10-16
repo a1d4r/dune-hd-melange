@@ -65,6 +65,7 @@ define('AIO_GC_SEED_MID', 10);
 define('AIO_GC_SEED_HIGH', 30);
 define('AIO_GC_SEED_MAX', 999);    // more: "999+"
 define('AIO_GC_SEED_PX', 28);
+define('AIO_GC_ICON', 38);    // the cache icon, square; the least width of its column
 // Progress bar of a release watched before, as the vendor's.
 define('AIO_GC_BAR_H', 4);
 define('AIO_GC_BAR_MIN', 4);    // the white part at least, even for a second watched
@@ -424,10 +425,10 @@ function aio_gc_plates_w($ids)
 }
 
 // Column x and width for this list, each by its widest value; empty columns
-// take no room; the icon column 38 px, wider only for wider seeders. The
-// badges and the size keep their width; the languages get what is left, the
-// trackers (or the expression name, or the add-on) the rest if it is at least
-// AIO_GC_TRACKER_MIN.
+// take no room; the icon column AIO_GC_ICON px, wider only for wider
+// seeders. The badges and the size keep their width; the languages get what
+// is left, the trackers (or the expression name, or the add-on) the rest if it
+// is at least AIO_GC_TRACKER_MIN.
 /**
  * @param list<AioRow> $rows
  * @param AioGcText $tt
@@ -438,7 +439,7 @@ function aio_gc_cols($rows, $tt)
     $max = array('res' => 0, 'src' => 0, 'vis' => 0, 'audio' => 0, 'size' => 0);
     $langs = 0;
     $any_tracker = false;
-    $icon = 38;
+    $icon = AIO_GC_ICON;
     foreach ($rows as $r)
     {
         $n = aio_gc_seeds($r);
@@ -553,7 +554,8 @@ function aio_gc_row_items($r, $tt, $c, $on, $share = 0)
     // The icon, or the seeders of a P2P row, centred in the icon column.
     $n = aio_gc_seeds($r);
     if (is_null($n))
-        $d[] = aio_gc_image(aio_gc_left_center(38, 38, $c['icon'][0] + intval(($c['icon'][1] - 38) / 2)),
+        $d[] = aio_gc_image(aio_gc_left_center(AIO_GC_ICON, AIO_GC_ICON,
+            $c['icon'][0] + intval(($c['icon'][1] - AIO_GC_ICON) / 2)),
             aio_gc_icon($r['cached']));
     else
         $d[] = aio_gc_cut(null, aio_gc_left_center($c['icon'][1], 44, $c['icon'][0]), aio_gc_seeds_str($n),
