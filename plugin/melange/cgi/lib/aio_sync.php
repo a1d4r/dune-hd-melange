@@ -175,10 +175,10 @@ function aio_cgi_aio_keep($dir, $base, $mode, $c)
 // own server: its TMDB by /status first.
 // The own config chosen -> nothing (skip). Mode Debrid: no config and no
 // Debrid key, or a reset without one -> no request.
-// -> array(ok, the line for the page, skip, the choice (aio_server), the
-// mode, aio_cgi_aio_show() of its config now[, the name= of the field a failure
-// is about: no Debrid key, the own server not taken (not its 429: the
-// address is right, wait)]).
+// -> the JSON of a=aio_sync: array(ok, msg - the line for the page, skip,
+// base - the choice (aio_server), mode, conf - aio_cgi_aio_show() of its
+// config now[, field - the name= of the field a failure is about: no Debrid
+// key, the own server not taken (not its 429: the address is right, wait)]).
 function aio_cgi_aio_sync($dir, $reset = false)
 {
     set_time_limit(120);
@@ -188,6 +188,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
     $base = aio_settings_base($s);
     $host = (string) parse_url($base, PHP_URL_HOST);
     $mode = $s['aio_mode'];
+    // The answer; each return sets ok, msg, conf, field over it.
+    $res = array('ok' => false, 'msg' => '', 'skip' => false, 'base' => $choice, 'mode' => $mode, 'conf' => null);
     $conf = aio_settings_conf($s);
     // No config: made by the template.
     $reset = $reset && $conf;
@@ -196,7 +198,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     if ($s['source'] === 'own' || $base === '')
     {
         aio_cgi_log('aio sync: own config or no address, skipped');
-        return array(true, '', true, $choice, $mode, aio_cgi_aio_show($conf));
+        return array_merge($res, array('ok' => true, 'skip' => true, 'conf' => aio_cgi_aio_show($conf)));
     }
     $fail = aio_cgi_not_done($reset ? 'reset' : ($conf ? 'update' : 'create')) . ': ';
     // The template is stored already: "Сохранить" again only updates.
@@ -205,31 +207,32 @@ function aio_cgi_aio_sync($dir, $reset = false)
     if ($debrid && !$conf && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
         aio_cgi_log('aio sync: no Debrid key');
-        return array(false, $fail . aio_cgi_l('нужен ключ Debrid (Real-Debrid или TorBox)',
-            'a Debrid key is needed (Real-Debrid or TorBox)'), false, $choice, $mode, null, $f['rd']['name']);
+        return array_merge($res, array('msg' => $fail . aio_cgi_l('нужен ключ Debrid (Real-Debrid или TorBox)',
+            'a Debrid key is needed (Real-Debrid or TorBox)'), 'field' => $f['rd']['name']));
     }
     // The template has no service of its own.
     if ($debrid && $reset && $s['rd_key'] === '' && $s['tb_key'] === '')
     {
         aio_cgi_log("aio sync: reset ($id): no Debrid key, not changed");
-        return array(false, $fail . aio_cgi_l('нужен ключ Debrid в Melange', 'a Debrid key is needed in Melange') . $again,
-            false, $choice, $mode, aio_cgi_aio_show($conf), $f['rd']['name']);
+        return array_merge($res, array('msg' => $fail . aio_cgi_l('нужен ключ Debrid в Melange',
+            'a Debrid key is needed in Melange') . $again, 'conf' => aio_cgi_aio_show($conf), 'field' => $f['rd']['name']));
     }
     $tpl = aio_conf_template($id, $base);
     if (!$tpl)
     {
         aio_cgi_log('aio sync: no template');
-        return array(false, $fail . aio_cgi_l('нет шаблона в плагине', 'no template in the plugin') . $again, false,
-            $choice, $mode, aio_cgi_aio_show($conf));
+        return array_merge($res, array('msg' => $fail . aio_cgi_l('нет шаблона в плагине', 'no template in the plugin') .
+            $again, 'conf' => aio_cgi_aio_show($conf)));
     }
     $tmdbs = null;
     if ($choice === 'own')
     {
         list($ok, $why, $tmdbs, $busy) = aio_cgi_aio_status($base);
         if ($busy)
-            return array(false, $fail . $why . $again, false, $choice, $mode, aio_cgi_aio_show($conf));
+            return array_merge($res, array('msg' => $fail . $why . $again, 'conf' => aio_cgi_aio_show($conf)));
         if (!$ok)
-            return array(false, $fail . $why . $again, false, $choice, $mode, aio_cgi_aio_show($conf), $f['aio_own']['name']);
+            return array_merge($res, array('msg' => $fail . $why . $again, 'conf' => aio_cgi_aio_show($conf),
+                'field' => $f['aio_own']['name']));
     }
     if (!$conf)
     {
@@ -249,17 +252,17 @@ function aio_cgi_aio_sync($dir, $reset = false)
             list($why, $ec) = aio_cgi_aio_why($r, $host, $choice === 'own');
             if ($ec !== '')
                 aio_cgi_log("aio sync: $ec");
-            return array(false, $fail . $why, false, $choice, $mode, null);
+            return array_merge($res, array('msg' => $fail . $why));
         }
         $w = aio_cgi_aio_keep($dir, $base, $mode, $new);
         if ($w !== '')
         {
             aio_cgi_log("aio sync: $w");
-            return array(false, aio_cgi_l('Конфиг создан, но не записан на Дюне — ошибка записи',
-                'The config was created but not saved on the Dune: write error'), false, $choice, $mode, null);
+            return array_merge($res, array('msg' => aio_cgi_l('Конфиг создан, но не записан на Дюне — ошибка записи',
+                'The config was created but not saved on the Dune: write error')));
         }
-        return array(true, sprintf(aio_cgi_l('Конфиг AIOStreams создан на %s', 'The AIOStreams config was created on %s'),
-            $host), false, $choice, $mode, aio_cgi_aio_show($new));
+        return array_merge($res, array('ok' => true, 'msg' => sprintf(aio_cgi_l('Конфиг AIOStreams создан на %s',
+            'The AIOStreams config was created on %s'), $host), 'conf' => aio_cgi_aio_show($new)));
     }
     $auth = array($conf['uuid'], $conf['pass']);
     if ($reset)
@@ -300,8 +303,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
         if ($debrid && !aio_conf_has_debrid($u))
         {
             aio_cgi_log('aio sync: no Debrid key, not changed');
-            return array(false, $fail . aio_cgi_l('нужен хотя бы один ключ Debrid', 'at least one Debrid key is needed'),
-                false, $choice, $mode, aio_cgi_aio_show($conf), $f['rd']['name']);
+            return array_merge($res, array('msg' => $fail . aio_cgi_l('нужен хотя бы один ключ Debrid',
+                'at least one Debrid key is needed'), 'conf' => aio_cgi_aio_show($conf), 'field' => $f['rd']['name']));
         }
         $r = aio_cgi_aio_req($base, 'PUT', aio_conf_encode((object) array('config' => $u)), $auth);
         aio_cgi_log('aio sync: put: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]"));
@@ -319,13 +322,13 @@ function aio_cgi_aio_sync($dir, $reset = false)
             $w = aio_cgi_aio_keep($dir, $base, $mode, null);
             if ($w !== '')
                 aio_cgi_log("aio sync: $w");
-            return array(false, sprintf(aio_cgi_l('Сервер %s не узнал конфиг (удалён на сервере или сменён пароль?) — ' .
-                'Melange его забыл; «%s» создаст новый',
+            return array_merge($res, array('msg' => sprintf(aio_cgi_l(
+                'Сервер %s не узнал конфиг (удалён на сервере или сменён пароль?) — Melange его забыл; «%s» создаст новый',
                 'Server %s does not recognize the config (deleted there or password changed?): ' .
-                'Melange has forgotten it; "%s" will create a new one'), $host, aio_cgi_savec()), false, $choice,
-                $mode, $w === '' ? null : aio_cgi_aio_show($conf));
+                'Melange has forgotten it; "%s" will create a new one'), $host, aio_cgi_savec()),
+                'conf' => $w === '' ? null : aio_cgi_aio_show($conf)));
         }
-        return array(false, $fail . $why . $again, false, $choice, $mode, aio_cgi_aio_show($conf));
+        return array_merge($res, array('msg' => $fail . $why . $again, 'conf' => aio_cgi_aio_show($conf)));
     }
     $conf['tmdb'] = $tmdb;
     $conf['set'] = $set;
@@ -334,10 +337,11 @@ function aio_cgi_aio_sync($dir, $reset = false)
     $w = aio_cgi_aio_keep($dir, $base, $mode, $conf);
     if ($w !== '')
         aio_cgi_log("aio sync: $w");
-    return array(true, $reset ? sprintf(aio_cgi_l('Конфиг AIOStreams на %s сброшен к шаблону «%s»',
-        'The AIOStreams config on %s was reset to the template "%s"'), $host, aio_cgi_tpl_name($id)) :
+    return array_merge($res, array('ok' => true, 'msg' => $reset ? sprintf(aio_cgi_l(
+        'Конфиг AIOStreams на %s сброшен к шаблону «%s»', 'The AIOStreams config on %s was reset to the template "%s"'),
+        $host, aio_cgi_tpl_name($id)) :
         sprintf(aio_cgi_l('Конфиг AIOStreams на %s обновлён', 'The AIOStreams config on %s was updated'), $host),
-        false, $choice, $mode, aio_cgi_aio_show($conf));
+        'conf' => aio_cgi_aio_show($conf)));
 }
 
 // a=aio_sync (reset=1: to the template): JSON {ok, msg, skip, base, mode (aio_mode: the config is of
@@ -347,9 +351,5 @@ function aio_cgi_aio_sync_post($dir)
     if (!aio_cgi_dir_ok($dir))
         aio_cgi_json(200, array('ok' => false, 'msg' => aio_cgi_l('Нет папки плагина на Дюне',
             'The plugin data folder is missing on the Dune'), 'skip' => false, 'base' => '', 'mode' => '', 'conf' => null));
-    $r = aio_cgi_aio_sync($dir, aio_cgi_param($_POST, 'reset') === '1');
-    $j = array('ok' => $r[0], 'msg' => $r[1], 'skip' => $r[2], 'base' => $r[3], 'mode' => $r[4], 'conf' => $r[5]);
-    if (isset($r[6]))
-        $j['field'] = $r[6];
-    aio_cgi_json(200, $j);
+    aio_cgi_json(200, aio_cgi_aio_sync($dir, aio_cgi_param($_POST, 'reset') === '1'));
 }
