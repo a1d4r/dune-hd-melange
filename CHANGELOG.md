@@ -2,6 +2,12 @@
 
 **English version**
 
+## 0.44.0 — 19.10.2026
+- "Torrents" got its own **"Where to look for releases"** on the "Where to get films" screen, apart from the Debrid one: **"Russian trackers only"** (JacRed only, a faster reply) or **"Everywhere"** (Torrentio, JacRed, TorrentsDB, Comet and StremThru Torz: more releases). On `aiostreams.kompotik.com` the server itself searches JacRed, on the other servers it is searched through Magnetio, as before.
+- **"Russian trackers only" is now the default for "Torrents"**: a new "Torrents" config gets JacRed only. Existing "Torrents" configs do not change: the choice shows their template ("Everywhere") until you choose another one. As with Debrid, another template and "Save" reset the config after a question; the main screen shows the template: "Torrents · via TorrServer · Russian only".
+- "Reset to the template" with "Torrents" names the template ("Everywhere", "Russian trackers only") instead of "Torrents".
+- If you go back to 0.43.x, a "Russian trackers only" config keeps working; "Reset to the template" there makes it "Everywhere".
+
 ## 0.43.2 — 17.10.2026
 - Release details (INFO): the voices are shown in full, down to the bottom of the column; before, their text was cut at 300 characters with "...". The card on the left in the release list keeps the short text.
 - Internal: line wrapping no longer slows down on a long word without spaces, and the release details no longer cut a value to 2000 characters before wrapping it. Melange behaves the same.
@@ -85,6 +91,12 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.44.0 — 19.10.2026
+- У «Торрентов» — свой выбор **«Где искать раздачи»** на экране «Откуда брать фильмы», отдельно от Debrid: **«Только русские трекеры»** (только JacRed, ответ быстрее) или **«Везде»** (Torrentio, JacRed, TorrentsDB, Comet и StremThru Torz — больше раздач). На `aiostreams.kompotik.com` в JacRed ищет сам сервер, на других — через Magnetio, как раньше.
+- **«Только русские трекеры» — теперь по умолчанию для «Торрентов»**: новый конфиг «Торрентов» — только JacRed. Уже созданные конфиги «Торрентов» не меняются: выбор показывает их шаблон («Везде»), пока вы не выберете другой. Как у Debrid, другой шаблон и «Сохранить» сбрасывают конфиг после вопроса; на главном экране — шаблон: «Торренты · через TorrServer · только русские».
+- «Сбросить к шаблону» при «Торрентах» называет шаблон («Везде», «Только русские трекеры»), а не «Торренты».
+- Если вернуться на 0.43.x, конфиг «Только русские трекеры» продолжает работать; «Сбросить к шаблону» там сделает его «Везде».
 
 ## 0.43.2 — 17.10.2026
 - Сведения о раздаче (INFO): озвучки показываются целиком — до низа колонки; раньше их текст обрезался на 300 символах с «...». В карточке слева в списке раздач — по-прежнему короткий текст.
