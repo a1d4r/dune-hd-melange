@@ -11,7 +11,7 @@ function aio_cgi_home_texts()
         'needKey' => aio_cgi_l('нужен ключ', 'a key is needed'), 'needLink' => aio_cgi_l('нужна ссылка', 'a link is needed'),
         'viaTs' => aio_cgi_l('через TorrServer', 'via TorrServer'), 'tsDune' => aio_cgi_l('Приложение на Дюне', 'The app on the Dune'),
         'tsSpare' => aio_cgi_l('запасной путь', 'fallback'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'),
-        'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'));
+        'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'), 'otherServer' => aio_cgi_l('другой', 'another one'));
 }
 
 // The three cards of the answers of "Откуда брать фильмы" (the radio watch):
@@ -31,7 +31,7 @@ function aio_cgi_screens()
     return array('src' => aio_cgi_l('Откуда брать фильмы', 'Where to get films'),
         'voices' => aio_cgi_l('Озвучки и дорожки', 'Voice-overs and tracks'), 'torr' => 'TorrServer',
         'dl' => aio_cgi_l('Скачивать на свой сервер', 'Download to your server'),
-        'cfg' => aio_cgi_l('Конфиг в AIOStreams', 'Config in AIOStreams'), 'log' => aio_cgi_l('Лог', 'Log'));
+        'cfg' => aio_cgi_l('Сервер AIOStreams', 'AIOStreams server'), 'log' => aio_cgi_l('Лог', 'Log'));
 }
 
 // The screen of the field name= $field of an error (aio_cgi_err): its scr
@@ -62,7 +62,8 @@ function aio_cgi_state($v)
 }
 
 // The lines of the main screen: id of the screen => array(dot: ok, warn or
-// '' - grey, the value now).
+// '' - grey, the value now). The server (#cfg, 0.44.0): its host (another
+// one without a host: otherServer), ok - a config of the mode there.
 function aio_cgi_rows($v)
 {
     $t = aio_cgi_home_texts();
@@ -99,12 +100,13 @@ function aio_cgi_rows($v)
         if ($n . $u !== '')
             $names[] = $n !== '' ? $n : $u;
     }
+    $host = aio_cgi_host($v['aio_server'] === 'own' ? $v['aio_own'] : $v['aio_server']);
     return array('src' => array($dot, $src),
+        'cfg' => array($w === 'own' ? '' : (aio_cgi_aio_sel($v) ? 'ok' : 'warn'), $host !== '' ? $host : $t['otherServer']),
         'voices' => array($jr === '' ? 'warn' : 'ok', $jr !== '' ? $jr : $t['ownJacred']),
         'torr' => array($w === AIO_MODE_P2P ? 'ok' : '', ($v['ts'] !== '' ? $v['ts'] : $t['tsDune']) .
             ($w === AIO_MODE_DEBRID ? ' · ' . $t['tsSpare'] : '')),
         'dl' => array($names ? 'ok' : '', $names ? implode(', ', $names) : $t['noServers']),
-        'cfg' => array('', aio_cgi_l('Для опытных: вход, сброс', 'For the experienced: login, reset')),
         'log' => array('', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));
 }
 
@@ -112,8 +114,8 @@ function aio_cgi_rows($v)
 // question of #src by its cards and "Начать", the state hidden (the script
 // shows it instead after the first save); else the state (#state, its
 // data-st: aio_cgi_state, one <p data-st> shown); then the lines of the
-// screens (#r<id>: the dot #d<id>, the value #v<id>; the line of #cfg -
-// class xm: not for the own config).
+// screens (#r<id>: the dot #d<id>, the value #v<id>; the line of #cfg, the
+// server, right under that of #src - class xm: not for the own config).
 function aio_cgi_home($v)
 {
     $scr = aio_cgi_screens();
@@ -138,8 +140,8 @@ function aio_cgi_home($v)
         $out .= '<p data-st="' . $k . '"' . ($k === $st ? '' : ' hidden') . '>' . $x . '</p>';
     $out .= '</div></div>';
     $rows = aio_cgi_rows($v);
-    $groups = array(aio_cgi_l('Просмотр', 'Watching') => array('src', 'voices', 'torr'),
-        aio_cgi_l('Ещё', 'More') => array('dl', 'cfg', 'log'));
+    $groups = array(aio_cgi_l('Просмотр', 'Watching') => array('src', 'cfg', 'voices', 'torr'),
+        aio_cgi_l('Ещё', 'More') => array('dl', 'log'));
     foreach ($groups as $h => $ids)
     {
         $out .= '<h3 class="gh">' . $h . '</h3><div class="list">';

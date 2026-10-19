@@ -25,8 +25,8 @@ function aio_cgi_fields()
         'watch' => array('id' => '', 'name' => 'watch', 'set' => '', 'max' => 0, 'type' => 'radio', 'scr' => 'src'),
         'source' => array('id' => '', 'name' => 'source', 'set' => 'source', 'max' => 0, 'type' => 'radio', 'scr' => 'src'),
         'manifest' => array('id' => 'm', 'name' => 'manifest', 'set' => 'manifest_url', 'max' => 2100, 'type' => 'sec', 'scr' => 'src'),
-        'aio_server' => array('id' => 'as', 'name' => 'aio_server', 'set' => 'aio_server', 'max' => 0, 'type' => 'select', 'scr' => 'src'),
-        'aio_own' => array('id' => 'ao', 'name' => 'aio_own_url', 'set' => 'aio_own_url', 'max' => 300, 'type' => 'plain', 'scr' => 'src'),
+        'aio_server' => array('id' => '', 'name' => 'aio_server', 'set' => 'aio_server', 'max' => 0, 'type' => 'radio', 'scr' => 'cfg'),
+        'aio_own' => array('id' => 'ao', 'name' => 'aio_own_url', 'set' => 'aio_own_url', 'max' => 300, 'type' => 'plain', 'scr' => 'cfg'),
         'aio_mode' => array('id' => '', 'name' => 'aio_mode', 'set' => 'aio_mode', 'max' => 0, 'type' => 'radio', 'scr' => 'src'),
         'aio_tpl' => array('id' => 'at', 'name' => 'aio_tpl', 'set' => 'aio_tpl', 'max' => 0, 'type' => 'select', 'scr' => 'src'),
         'tpl_seen' => array('id' => 'ats', 'name' => 'aio_tpl_seen', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src'),
@@ -37,7 +37,7 @@ function aio_cgi_fields()
             'scr' => 'src'),
         'rd' => array('id' => 'rd', 'name' => 'rd_key', 'set' => 'rd_key', 'max' => 100, 'type' => 'sec', 'scr' => 'src'),
         'tb' => array('id' => 'tb', 'name' => 'tb_key', 'set' => 'tb_key', 'max' => 100, 'type' => 'sec', 'scr' => 'src'),
-        'tmdb' => array('id' => 'tm', 'name' => 'tmdb_key', 'set' => 'tmdb_key', 'max' => 100, 'type' => 'sec', 'scr' => 'src'),
+        'tmdb' => array('id' => 'tm', 'name' => 'tmdb_key', 'set' => 'tmdb_key', 'max' => 100, 'type' => 'sec', 'scr' => 'cfg'),
         'jacred' => array('id' => '', 'name' => 'jacred', 'set' => 'jacred', 'max' => 0, 'type' => 'radio', 'scr' => 'voices'),
         'jo_url' => array('id' => 'jou', 'name' => 'jacred_own_url', 'set' => 'jacred_own_url', 'max' => AIO_JACRED_URL_MAX,
             'type' => 'plain', 'scr' => 'voices'),
@@ -227,7 +227,7 @@ function aio_cgi_jacred($v)
 }
 
 // AIOStreams server => id of the JacRed that answers 403 to it (0.35.0);
-// data-jr403 of the server's option.
+// data-jr403 of the server's radio.
 function aio_cgi_jr403()
 {
     return array('https://aiostreams.fortheweak.cloud' => 'jacred.stream');
@@ -417,13 +417,12 @@ function aio_cgi_host($url)
 // (classes xd, xp, xo, xm - Debrid, Торренты, the own config, both made):
 // Debrid - the keys (#dseg, #rdadd, #tbadd: by the script) and the template;
 // Торренты - #tsp2p, where the script moves #tsbox of #torr (without it, a
-// link there), and the template of P2P; the own config - its manifest address, only read; Debrid and
-// Торренты - the server (#asd: of the list or another one) and the TMDB key
-// under a server without TMDB of its own (another one: always).
+// link there), and the template of P2P; the own config - its manifest
+// address, only read. The server of both made: on #cfg (aio_cgi_cfg).
 function aio_cgi_src($v)
 {
     $f = aio_cgi_fields();
-    $out = aio_cgi_watch_cards() .
+    return aio_cgi_watch_cards() .
         '<div id="mdeb" class="xd"><div id="dseg" class="seg" role="group" aria-label="' . aio_cgi_l('Сервис', 'Service') .
         '" hidden><button type="button" data-k="rd" aria-pressed="true">Real-Debrid</button>' .
         '<button type="button" data-k="tb" aria-pressed="false">TorBox</button></div><div id="rdbox">' .
@@ -445,50 +444,53 @@ function aio_cgi_src($v)
         '<p class="hint">' . aio_cgi_l('Melange этот конфиг не меняет.', 'Melange does not change this config.') .
         '</p><p class="hint">' . aio_cgi_l('Торренты из него играют через ', 'Torrents of it play via ') .
         '<a href="#torr">TorrServer</a>.</p></div>';
+}
+
+// The screen "Сервер AIOStreams" (#cfg, 0.44.0; its fields: Debrid and
+// Торренты, #smade of class xm): the server melange makes the config on - a
+// card of the radio aio_server each (the host; "у Melange" of the first one,
+// the default; "без TMDB" of one without TMDB of its own; data-tmdb,
+// data-jr403, data-p2ptz for the script), another one in #asownd (its radio
+// "own" and its address; open when chosen or filled); the TMDB key under a
+// server without TMDB of its own (another one: always); then the config of
+// the chosen server in the mode (#acfg) - its link, login and password,
+// "Сбросить к шаблону" - or "none yet"; the script shows the one of the
+// chosen server and mode from #init.confs (aio_cgi_aio_confs).
+function aio_cgi_cfg($v)
+{
+    $f = aio_cgi_fields();
+    $name = $f['aio_server']['name'];
     $jr403 = aio_cgi_jr403();
-    $opts = '';
-    $name = '';
+    $out = '<p class="hint xo" id="cfgown">' . aio_cgi_l('Свой конфиг Melange не меняет.', 'Melange does not change your own config.') .
+        '</p><div id="smade" class="xm"><div class="choice">';
+    $i = 0;
     foreach (aio_aio_servers() as $url => $tmdb)
     {
-        $host = substr($url, strlen('https://'));
-        if ($v['aio_server'] === $url)
-            $name = $host;
-        $opts .= '<option value="' . aio_cgi_h($url) . '" data-tmdb="' . ($tmdb ? '1' : '0') . '"' .
+        $i++;
+        $out .= aio_cgi_vradio("as$i", $name, $url, $v['aio_server'] === $url, '', ' data-tmdb="' . ($tmdb ? '1' : '0') . '"' .
             (isset($jr403[$url]) ? ' data-jr403="' . aio_cgi_h($jr403[$url]) . '"' : '') .
-            (aio_conf_has_torznab($url) ? ' data-p2ptz="1"' : '') .
-            ($v['aio_server'] === $url ? ' selected' : '') . '>' .
-            aio_cgi_h($host) . ($tmdb ? '' : aio_cgi_l(' — без TMDB', ' - no TMDB')) . '</option>';
+            (aio_conf_has_torznab($url) ? ' data-p2ptz="1"' : '')) .
+            aio_cgi_card("as$i", aio_cgi_h(aio_cgi_host($url)) . ($i === 1 ? '<span class="badge">' .
+            aio_cgi_l('у Melange', 'of Melange') . '</span>' : ''), $tmdb ? '' : aio_cgi_l('без TMDB', 'no TMDB'));
     }
     $own = $v['aio_server'] === 'own';
-    if ($own)
-        $name = aio_cgi_host($v['aio_own']) !== '' ? aio_cgi_host($v['aio_own']) : aio_cgi_l('другой', 'another one');
-    return $out . '<div id="smade" class="xm"><details id="asd"' . ($own ? ' open' : '') . '><summary><span class="sumr"><span>' .
-        aio_cgi_l('Сервер: ', 'Server: ') . '<span id="asn">' . aio_cgi_h($name) . '</span></span><span class="lnk">' .
-        aio_cgi_l('Сменить', 'Change') . '</span></span></summary>' .
-        '<label for="' . $f['aio_server']['id'] . '">' . aio_cgi_l('Сервер AIOStreams', 'AIOStreams server') .
-        '</label><select id="' . $f['aio_server']['id'] . '" name="' . $f['aio_server']['name'] . '">' . $opts .
-        '<option value="own" data-tmdb="0"' . ($own ? ' selected' : '') . '>' . aio_cgi_l('Другой сервер…', 'Another server…') .
-        '</option></select><div id="aobox">' . aio_cgi_input($f['aio_own'], aio_cgi_l('Адрес сервера AIOStreams',
-        'AIOStreams server address'), $v['aio_own'], 'http://192.168.1.10:3000', aio_cgi_chk('aob', 'aor')) . '</div></details>' .
+    $sel = aio_cgi_aio_show(aio_cgi_aio_sel($v));
+    return $out . '</div><details id="asownd"' . ($own || trim($v['aio_own'], AIO_TRIM) !== '' ? ' open' : '') . '><summary>' .
+        aio_cgi_l('Другой сервер…', 'Another server…') . '</summary><div class="choice">' .
+        aio_cgi_vradio('asown', $name, 'own', $own, '', ' data-tmdb="0"') .
+        aio_cgi_card('asown', aio_cgi_l('Другой сервер', 'Another server'), '') . '</div>' .
+        aio_cgi_input($f['aio_own'], aio_cgi_l('Адрес сервера AIOStreams', 'AIOStreams server address'), $v['aio_own'],
+        'http://192.168.1.10:3000', aio_cgi_chk('aob', 'aor')) . '</details>' .
         '<div id="tmbox"><p class="hint" id="tmnote">' .
         aio_cgi_l('Без своего TMDB: без сверки названий, меньше раздач сериалов.',
         'The server has no TMDB of its own: titles are not matched, fewer series releases.') . '</p>' .
         aio_cgi_input($f['tmdb'], aio_cgi_l('Ключ TMDB (необязательно)', 'TMDB key (optional)'), $v['tmdb'],
         aio_cgi_link('https://www.themoviedb.org/settings/api', 'themoviedb.org') .
-        aio_cgi_l(' → Settings → API, ключ v3', ' → Settings → API, the v3 key'), aio_cgi_chk('tmb', 'tmr')) . '</div></div>';
-}
-
-// The screen "Конфиг в AIOStreams" (Debrid and Торренты, #acfg): the config
-// of the chosen server in the mode - its link, login and password, "Сбросить
-// к шаблону" - or "none yet"; the script shows the one of the chosen server
-// and mode from #init.confs (aio_cgi_aio_confs).
-function aio_cgi_cfg($v)
-{
-    $sel = aio_cgi_aio_show(aio_cgi_aio_sel($v));
-    return '<p class="sub">' . aio_cgi_l('Для опытных: аддоны и фильтры — в веб-настройках AIOStreams.',
+        aio_cgi_l(' → Settings → API, ключ v3', ' → Settings → API, the v3 key'), aio_cgi_chk('tmb', 'tmr')) . '</div>' .
+        '<h3 class="gh">' . aio_cgi_l('Конфиг в AIOStreams', 'Config in AIOStreams') . '</h3><p class="sub">' .
+        aio_cgi_l('Для опытных: аддоны и фильтры — в веб-настройках AIOStreams.',
         'For the experienced: addons and filters are in the AIOStreams web settings.') . '</p>' .
-        '<p class="hint xo" id="cfgown">' . aio_cgi_l('Свой конфиг Melange не меняет.', 'Melange does not change your own config.') .
-        '</p><div id="acfg" class="xm"><p class="hint" id="anone"' . ($sel ? ' hidden' : '') . '>' .
+        '<div id="acfg"><p class="hint" id="anone"' . ($sel ? ' hidden' : '') . '>' .
         aio_cgi_l('Конфига на этом сервере ещё нет: создастся при сохранении.',
         'No config on this server yet: saving will create one.') . '</p>' .
         '<div id="ahave"' . ($sel ? '' : ' hidden') . '><p class="cfg"><a id="alink" class="btn ghost"' . ($sel ? ' href="' .
@@ -502,7 +504,7 @@ function aio_cgi_cfg($v)
         '<button type="submit" id="arb" class="btn danger" name="aio_reset" value="1">' .
         aio_cgi_resetb() . '</button><p class="hint">' .
         aio_cgi_l('Ваши правки в AIOStreams пропадут; логин, пароль и ссылка останутся.',
-        'Your edits in AIOStreams are lost; the login, password and link stay.') . '</p></div></div>';
+        'Your edits in AIOStreams are lost; the login, password and link stay.') . '</p></div></div></div>';
 }
 
 // The style of the page: cgi/settings.css inline (none readable: the page without it).
