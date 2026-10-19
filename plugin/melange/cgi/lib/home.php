@@ -29,9 +29,9 @@ function aio_cgi_watch_cards()
 function aio_cgi_screens()
 {
     return array('src' => aio_cgi_l('Откуда брать фильмы', 'Where to get films'),
-        'voices' => aio_cgi_l('Озвучки и дорожки', 'Voice-overs and tracks'), 'torr' => 'TorrServer',
+        'voices' => 'JacRed', 'torr' => 'TorrServer',
         'dl' => aio_cgi_l('Скачивать на свой сервер', 'Download to your server'),
-        'cfg' => aio_cgi_l('Сервер AIOStreams', 'AIOStreams server'), 'log' => aio_cgi_l('Лог', 'Log'));
+        'cfg' => 'AIOStreams', 'log' => aio_cgi_l('Лог', 'Log'));
 }
 
 // The screen of the field name= $field of an error (aio_cgi_err): its scr

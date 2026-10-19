@@ -173,7 +173,7 @@ function aio_cgi_servers($servers)
         '</button>';
 }
 
-// The screen "Озвучки и дорожки" - JacRed: one of the built-in ones or the
+// The screen "JacRed" (#voices): one of the built-in ones or the
 // own one (radio "jacred"), a card each with a box for "Сравнить скорость"
 // (span.ms data-jr: the id, "own"); the own one with its fields in
 // #jrownd, open when chosen or filled; "Проверить" there asks the own one.
@@ -446,7 +446,7 @@ function aio_cgi_src($v)
         '<a href="#torr">TorrServer</a>.</p></div>';
 }
 
-// The screen "Сервер AIOStreams" (#cfg, 0.44.0; its fields: Debrid and
+// The screen "AIOStreams" (#cfg, 0.44.0; its fields: Debrid and
 // Торренты, #smade of class xm): the server melange makes the config on - a
 // card of the radio aio_server each (the host; "у Melange" of
 // AIO_AIO_SERVER_MELANGE; "без TMDB" of one without TMDB of its own; data-tmdb,
