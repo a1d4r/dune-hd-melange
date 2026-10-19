@@ -141,6 +141,7 @@ function aio_cgi_check_values($v)
     $d[$set['aio_mode']] = $mode;
     // No field (a form of 0.39 or older), or a wrong one of the own config: the stored one.
     $d[$set['aio_tpl']] = aio_tpl_debrid($v['aio_tpl']) ? $v['aio_tpl'] : $v['cur'][$set['aio_tpl']];
+    $d['aio_tpl_p2p'] = $v['cur']['aio_tpl_p2p'];
     if ($made && $v['aio_tpl'] !== '' && $d[$set['aio_tpl']] !== $v['aio_tpl'])
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Шаблон конфига: нет такого шаблона', 'Config template: no such template'),

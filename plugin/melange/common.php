@@ -248,31 +248,44 @@ function aio_aio_servers()
         'https://aiostreams.fortheweak.cloud' => false);
 }
 
-// The template of the mode P2P (and the value of that mode).
+// The template of the mode P2P "everywhere" (and the value of that mode).
 define('AIO_TPL_P2P', 'p2p');
+// The template of the mode P2P "JacRed only" (0.44.0), its default.
+define('AIO_TPL_P2P_JACRED', 'p2p_jacred');
 // The value of the mode Debrid (aio_mode).
 define('AIO_MODE_DEBRID', 'debrid');
 
 // Templates of the config melange makes (0.40.0): id => instanceIds of the
 // presets of cgi/aio_template.json it has, in this order. The first one is
-// the default; the Debrid mode chooses one of them but AIO_TPL_P2P (the
-// mode P2P, no Debrid service: Torrentio first, its rows win the dedup).
+// the default; the Debrid mode chooses one of them, the mode P2P (no Debrid
+// service) one of aio_aio_tpls_p2p (Torrentio first, its rows win the dedup).
 // Their JacRed: Torznab of AIOStreams "melange" (needs a Debrid service) or
 // Magnetio "magnetio" (aio_conf_patch puts the chosen JacRed in either); P2P
-// on the servers of aio_conf_p2p_torznab: Torznab in the place of Magnetio.
+// on the servers of aio_conf_p2p_torznab: Torznab in the place of Magnetio
+// (so p2p_jacred there has the presets of jacred: aio_conf_tpl_of by the mode).
 /**
  * @return array<string, list<string>>
  */
 function aio_aio_tpls()
 {
     return array('addons' => array('melange', 'comet', 'torz', 'mf', 'torrentio'), 'jacred' => array('melange'),
-        AIO_TPL_P2P => array('torrentio', 'magnetio', 'torrentsdb', 'comet', 'torz'));
+        AIO_TPL_P2P => array('torrentio', 'magnetio', 'torrentsdb', 'comet', 'torz'), AIO_TPL_P2P_JACRED => array('magnetio'));
+}
+
+// The templates of the mode P2P (aio_tpl_p2p of the settings), the rest of
+// aio_aio_tpls are of Debrid; the default: AIO_TPL_P2P_JACRED.
+/**
+ * @return list<string>
+ */
+function aio_aio_tpls_p2p()
+{
+    return array(AIO_TPL_P2P, AIO_TPL_P2P_JACRED);
 }
 
 // Modes of the config melange makes (aio_mode of the settings, the one in
 // use, one for all servers; a server has a config of each at most): debrid
-// - aio_tpl with the Debrid keys; p2p - AIO_TPL_P2P, the keys kept but never
-// sent. The first one is the default.
+// - aio_tpl with the Debrid keys; p2p (AIO_TPL_P2P) - aio_tpl_p2p, the keys
+// kept but never sent. The first one is the default.
 /**
  * @return list<string>
  */
@@ -288,23 +301,33 @@ function aio_aio_modes()
  */
 function aio_tpl_debrid($id)
 {
-    return is_string($id) && $id !== AIO_TPL_P2P && array_key_exists($id, aio_aio_tpls());
+    return is_string($id) && !aio_tpl_p2p($id) && array_key_exists($id, aio_aio_tpls());
+}
+
+// $id is a template of the mode P2P (aio_tpl_p2p).
+/**
+ * @param mixed $id
+ * @return bool
+ */
+function aio_tpl_p2p($id)
+{
+    return in_array($id, aio_aio_tpls_p2p(), true);
 }
 
 // The template of a new config or a reset by the settings: the mode P2P ->
-// AIO_TPL_P2P, else aio_tpl.
+// aio_tpl_p2p, else aio_tpl.
 /**
- * @param array{aio_mode: string, aio_tpl: string} $s
+ * @param array{aio_mode: string, aio_tpl: string, aio_tpl_p2p: string} $s
  * @return string
  */
 function aio_settings_tpl($s)
 {
-    return $s['aio_mode'] === AIO_TPL_P2P ? AIO_TPL_P2P : $s['aio_tpl'];
+    return $s['aio_mode'] === AIO_TPL_P2P ? $s['aio_tpl_p2p'] : $s['aio_tpl'];
 }
 
 // The mode of a config of 0.42 or older (one per server; moved to the cell
-// of its mode once, by aio_settings_read): by its template $tpl - P2P, or
-// one of the Debrid mode -> debrid; else ('custom', null) $mode, the one
+// of its mode once, by aio_settings_read): by its template $tpl - one of
+// P2P -> p2p, of the Debrid mode -> debrid; else ('custom', null) $mode, the one
 // stored with it, none -> debrid (a config of P2P always had it stored).
 /**
  * @param mixed $tpl
@@ -313,7 +336,7 @@ function aio_settings_tpl($s)
  */
 function aio_mode_of($tpl, $mode = null)
 {
-    if ($tpl === AIO_TPL_P2P)
+    if (aio_tpl_p2p($tpl))
         return AIO_TPL_P2P;
     if (aio_tpl_debrid($tpl))
         return AIO_MODE_DEBRID;
@@ -547,8 +570,9 @@ function aio_settings_hosts($s)
 // 'jacred_own_key' => aio_jacred_own() or '' (kept when a built-in one is
 // chosen), 'aio_server' => a key of aio_aio_servers() or 'own' (another
 // server: aio_own_url), 'aio_own_url' => aio_aio_own(), 'aio_mode' => one of
-// aio_aio_modes(), 'aio_tpl' => aio_tpl_debrid() (both one for all
-// servers); everything kept
+// aio_aio_modes(), 'aio_tpl' => aio_tpl_debrid(), 'aio_tpl_p2p' =>
+// aio_tpl_p2p() (0.44.0; none - AIO_TPL_P2P_JACRED, a config there keeps its
+// template; all three one for all servers); everything kept
 // whatever is chosen, 'tmdb_key',
 // 'servers' => list of aio_server_conf(), 'ts_url' => aio_ts_addr() or '',
 // 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
@@ -571,7 +595,8 @@ function aio_settings_read($dir)
     $tpls = aio_aio_tpls();
     $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
-        'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'tmdb_key' => '', 'servers' => array(), 'ts_url' => '',
+        'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => AIO_TPL_P2P_JACRED, 'tmdb_key' => '',
+        'servers' => array(), 'ts_url' => '',
         'aio_confs' => array(), 'saved_once' => false);
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
@@ -604,6 +629,8 @@ function aio_settings_read($dir)
         $r['aio_mode'] = $j['aio_mode'];
     if (isset($j['aio_tpl']) && aio_tpl_debrid($j['aio_tpl']))
         $r['aio_tpl'] = $j['aio_tpl'];
+    if (isset($j['aio_tpl_p2p']) && aio_tpl_p2p($j['aio_tpl_p2p']))
+        $r['aio_tpl_p2p'] = $j['aio_tpl_p2p'];
     if (!isset($j['v']) || $j['v'] !== 2)
         list($r['jacred'], $r['jacred_own_url'], $r['jacred_own_key']) =
             aio_jacred_migrate(isset($j['jacred_url']) ? $j['jacred_url'] : '');

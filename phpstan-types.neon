@@ -25,6 +25,7 @@ parameters:
                 aio_own_url: string,
                 aio_mode: string,
                 aio_tpl: string,
+                aio_tpl_p2p: string,
                 tmdb_key: string,
                 servers: list<AioServer>,
                 ts_url: string,

@@ -174,8 +174,8 @@ function aio_cgi_aio_res($base, $mode)
 
 // The config of the chosen server (of the list or the own one) in the mode
 // aio_mode by settings.json (that of the other mode is never touched): none
-// -> POST of the template (aio_settings_tpl: aio_tpl, or P2P with no Debrid
-// key needed) with our fields;
+// -> POST of the template (aio_settings_tpl: aio_tpl, or aio_tpl_p2p with no
+// Debrid key needed) with our fields;
 // there -> GET, its template by its presets stored (tpl), our fields of the
 // mode, PUT;
 // $reset (0.40.0) -> PUT of the template with our fields as for a new one,
@@ -202,7 +202,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     // No config: made by the template.
     $reset = $reset && $conf;
     $id = aio_settings_tpl($s);
-    $debrid = $id !== AIO_TPL_P2P;
+    $debrid = $mode !== AIO_TPL_P2P;
     if ($s['source'] === 'own' || $base === '')
     {
         aio_cgi_log('aio sync: own config or no address, skipped');
@@ -291,9 +291,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     {
         // As it is there, before our fields; stored even if the PUT fails.
         // The mode is that of its cell: a template of the other one is custom here.
-        $t = aio_conf_tpl_of($u);
-        if (($t === AIO_TPL_P2P) === $debrid)
-            $t = 'custom';
+        $t = aio_conf_tpl_of($u, $mode);
         aio_cgi_log("aio sync: template $t ($mode)");
         if ($t !== $conf['tpl'])
         {
@@ -303,7 +301,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
                 aio_cgi_log("aio sync: $w");
         }
         // P2P made with Magnetio before the server got Torznab (aio_conf_p2p_torznab):
-        // Magnetio kept, Torznab only by a reset.
+        // Magnetio kept, Torznab only by a reset (either template of P2P: the same JacRed preset).
         $ids = aio_conf_preset_ids($u);
         $tpl_patch = !$debrid && $ids && in_array(AIO_CONF_MAGNETIO, $ids, true) ? aio_conf_template($id) : $tpl;
         list($tmdb, $set) = aio_conf_patch($u, $tpl_patch, aio_conf_params($s, $conf, $tmdbs));

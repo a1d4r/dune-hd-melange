@@ -66,8 +66,8 @@ function aio_conf_has_torznab($base)
 
 // The template $id (a key of aio_aio_tpls of common.php: the file with only
 // its presets, in its order; the title and year matched for its JacRed
-// only; P2P: the fields of AIO_CONF_TEMPLATE_P2P over, those of an object
-// into it) for the AIOStreams server $base ('' - none: P2P with Magnetio;
+// only; one of P2P (aio_tpl_p2p): the fields of AIO_CONF_TEMPLATE_P2P over,
+// those of an object into it) for the AIOStreams server $base ('' - none: P2P with Magnetio;
 // one of aio_conf_p2p_torznab: P2P with Torznab in the place of Magnetio)
 // as an object, null when unreadable or no such template. No $base on
 // purpose: the template with Magnetio whatever the server (the patch of a
@@ -89,7 +89,7 @@ function aio_conf_template($id = 'addons', $base = '')
     $j->presets = $keep;
     foreach (array('titleMatching', 'yearMatching') as $k)
         aio_conf_obj($j, $k)->addons = array(aio_conf_jacred_id($j));
-    if ($id === AIO_TPL_P2P)
+    if (aio_tpl_p2p($id))
     {
         $o = aio_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . AIO_CONF_TEMPLATE_P2P));
         if (!is_object($o))
@@ -141,15 +141,19 @@ function aio_conf_preset_ids($c)
 }
 
 // The template of a config as it is on the server (0.40.0; before
-// aio_conf_patch, which brings back a removed JacRed preset): its set of
-// presets is exactly that of a template -> its id, else 'custom'. Enabled
-// or not, the order: not looked at. P2P: with Magnetio or Torznab, whatever
-// the server (made with Magnetio before the server got Torznab: still p2p).
-function aio_conf_tpl_of($c)
+// aio_conf_patch, which brings back a removed JacRed preset) in the cell of
+// the mode $mode (aio_aio_modes): its set of presets is exactly that of a
+// template of that mode -> its id, else 'custom' (one of the other mode
+// too: p2p_jacred with Torznab is jacred there). Enabled or not, the order:
+// not looked at. P2P: with Magnetio or Torznab, whatever the server (made
+// with Magnetio before the server got Torznab: still its template).
+function aio_conf_tpl_of($c, $mode)
 {
     $ids = aio_conf_preset_ids($c);
     foreach (array_keys(aio_aio_tpls()) as $id)
     {
+        if (aio_tpl_p2p($id) !== ($mode === AIO_TPL_P2P))
+            continue;
         foreach (array_merge(array(''), aio_conf_p2p_torznab()) as $base)
         {
             if ($ids !== null && $ids === aio_conf_preset_ids(aio_conf_template($id, $base)))
