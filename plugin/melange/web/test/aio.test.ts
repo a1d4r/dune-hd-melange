@@ -2,8 +2,8 @@
 // the save button, "Copy" of the password.
 
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { CLS, ID } from "../src/dom";
-import { cleanup, flush, json, later, lines, open, type Page, setGlobal, shown } from "./harness";
+import { CLS, DATA, ID, NAME } from "../src/dom";
+import { cleanup, flush, json, later, lines, open, type Page, setGlobal, shown, templateOf } from "./harness";
 
 afterEach(cleanup);
 
@@ -22,19 +22,18 @@ const conf = (page: Page) => ({
   login: page.el<HTMLInputElement>(ID.confLogin).value,
   pass: page.el<HTMLInputElement>(ID.confPass).value,
 });
-const template = (page: Page) => {
-  const select = page.el<HTMLSelectElement>(ID.template);
-  const visible = Array.from(select.options).filter((option) => !option.hidden).map((option) => option.value);
-  return { value: select.value, seen: page.el<HTMLInputElement>(ID.templateShown).value, visible: visible, hint: page.el(ID.templateHint).textContent || "" };
-};
-const hint = (page: Page, value: string) => page.doc.querySelector('#at option[value="' + value + '"]')!.getAttribute("data-hint") || "";
+// The template choice of a mode: the card checked, else the mark shown (templateOf), the one shown (posted as seen),
+// the lines of the marks shown.
+const choiceOf = (page: Page, mode: "debrid" | "p2p") => ({
+  value: templateOf(page, mode),
+  seen: page.el<HTMLInputElement>(mode === "p2p" ? ID.templateP2pShown : ID.templateShown).value,
+  marks: Array.from(page.el(mode === "p2p" ? ID.templateP2pMarks : ID.templateMarks).querySelectorAll("[" + DATA.mark + "]:not([hidden])"), (line) =>
+    line.getAttribute(DATA.mark),
+  ),
+});
+const template = (page: Page) => choiceOf(page, "debrid");
 // The template choice of P2P (0.44.0).
-const templateP2p = (page: Page) => {
-  const select = page.el<HTMLSelectElement>(ID.templateP2p);
-  const visible = Array.from(select.options).filter((option) => !option.hidden).map((option) => option.value);
-  return { value: select.value, seen: page.el<HTMLInputElement>(ID.templateP2pShown).value, visible: visible, hint: page.el(ID.templateP2pHint).textContent || "" };
-};
-const hintP2p = (page: Page, value: string) => page.doc.querySelector('#atp option[value="' + value + '"]')!.getAttribute("data-hint") || "";
+const templateP2p = (page: Page) => choiceOf(page, "p2p");
 const saveText = (page: Page) => page.form.querySelector("." + CLS.save)!.textContent || "";
 
 describe("answer", () => {
@@ -56,24 +55,14 @@ describe("answer", () => {
     expect(page.el(ID.jacredText).textContent).toBe(page.el(ID.jacredText).getAttribute("data-own") || "");
   });
 
-  test("Torrents: the TorrServer field on #src (#tsmoved on #torr points there), else back in its place on #torr", () => {
-    const page = open("filled");
-    const box = page.el(ID.tsBox);
-    const where = () => ({ screen: box.closest("section")!.id, moved: shown(page.el(ID.tsMoved)) });
-    const after = box.previousElementSibling;
-    // The way without the script: gone, the field is on #src itself.
-    expect(page.el(ID.tsLink).hidden).toBe(true);
-    expect(where()).toEqual({ screen: "torr", moved: false });
+  test("TorrServer: its field stays on #torr in every answer (0.44.0), Torrents link there", () => {
+    const page = open("p2p");
+    const where = () => page.el(ID.ts).closest("section")!.id;
+    expect(where()).toBe("torr");
+    page.choose("watch", "debrid");
     page.choose("watch", "p2p");
-    expect(where()).toEqual({ screen: "src", moved: true });
-    expect(box.parentElement!.id).toBe(ID.tsP2p);
-    page.choose("watch", "own");
-    expect(where()).toEqual({ screen: "torr", moved: false });
-    expect(box.previousElementSibling).toBe(after);
-    // A page of Torrents: there from the start.
-    cleanup();
-    const p2p = open("p2p");
-    expect([p2p.el(ID.tsBox).parentElement!.id, shown(p2p.el(ID.tsMoved))]).toEqual([ID.tsP2p, true]);
+    expect(where()).toBe("torr");
+    expect(page.doc.querySelector<HTMLAnchorElement>("#mp2p a[href='#torr']")).not.toBeNull();
   });
 
   test("the line of the server on the main screen: the host of the choice (own one: of its address, none - otherAioServer), ok - a config of the mode there", () => {
@@ -166,43 +155,40 @@ describe("server", () => {
 describe("template", () => {
   test("by the config of the server: its template, a mark (custom, none) only while shown, else the one for a new config", () => {
     const page = open("ownconf");
-    const all = ["addons", "jacred"];
-    expect(template(page)).toEqual({ value: "none", seen: "none", visible: [...all, "none"], hint: hint(page, "none") });
+    expect(template(page)).toEqual({ value: "none", seen: "none", marks: ["none"] });
     server(page, ATB);
-    expect(template(page)).toEqual({ value: "custom", seen: "custom", visible: [...all, "custom"], hint: hint(page, "custom") });
+    expect(template(page)).toEqual({ value: "custom", seen: "custom", marks: ["custom"] });
     server(page, "https://aiostreams.stremio.ru");
-    expect(template(page)).toEqual({ value: "addons", seen: "addons", visible: all, hint: hint(page, "addons") });
+    expect(template(page)).toEqual({ value: "addons", seen: "addons", marks: [] });
     server(page, "own");
     expect(template(page).value).toBe("none");
-    // The same server and config again: the choice kept.
-    page.type(ID.template, "jacred");
+    // The same server and config again: the choice kept (a card checked: no line of the mark).
+    page.choose(NAME.template, "jacred");
     page.type(ID.rdKey, "x");
-    expect(template(page)).toEqual({ value: "jacred", seen: "none", visible: [...all, "none"], hint: hint(page, "jacred") });
+    expect(template(page)).toEqual({ value: "jacred", seen: "none", marks: [] });
   });
 
   test("at the start the choice of the page stays (a form restored by the browser)", () => {
-    const page = open("filled", { before: (doc) => ((doc.getElementById(ID.template) as HTMLSelectElement).value = "jacred") });
+    const page = open("filled", { before: (doc) => (doc.querySelector<HTMLInputElement>("input[name=" + NAME.template + "][value=jacred]")!.checked = true) });
     expect([template(page).value, template(page).seen]).toEqual(["jacred", "addons"]);
   });
 
-  test("change of the template: only its hint", () => {
+  test("change of the template: only the card checked", () => {
     const page = open("filled");
-    page.type(ID.template, "jacred");
-    expect(template(page)).toEqual({ value: "jacred", seen: "addons", visible: ["addons", "jacred"], hint: hint(page, "jacred") });
+    page.choose(NAME.template, "jacred");
+    expect(template(page)).toEqual({ value: "jacred", seen: "addons", marks: [] });
   });
 });
 
 describe("mode", () => {
   const mode = (page: Page) => page.form.querySelector<HTMLInputElement>("input[name=watch]:checked")!.value;
-  // The parts of Debrid and Torrents are shown by the CSS (by the radio): the TorrServer field of Torrents here.
-  const parts = (page: Page) => ({ mode: mode(page), debrid: mode(page) === "debrid", p2p: page.el(ID.tsBox).parentElement!.id === ID.tsP2p });
   const login = (page: Page) => (conf(page).have ? conf(page).login : null);
 
   test("the answer, one for all servers: another server keeps it", () => {
     const page = open("p2p");
-    expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
+    expect(mode(page)).toBe("p2p");
     server(page, ATB);
-    expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
+    expect(mode(page)).toBe("p2p");
     server(page, WIZ);
     expect(mode(page)).toBe("p2p");
     page.choose("watch", "debrid");
@@ -236,31 +222,26 @@ describe("mode", () => {
 
   test("the template choice of P2P: of the config of P2P of the server, else the one for a new config (p2p_jacred); apart from Debrid", () => {
     const page = open("p2p");
-    const all = ["p2p", "p2p_jacred"];
-    expect(templateP2p(page)).toEqual({ value: "p2p", seen: "p2p", visible: all, hint: hintP2p(page, "p2p") });
+    expect(templateP2p(page)).toEqual({ value: "p2p", seen: "p2p", marks: [] });
     server(page, ATB);
-    expect([templateP2p(page), template(page).value]).toEqual([
-      { value: "p2p_jacred", seen: "p2p_jacred", visible: all, hint: hintP2p(page, "p2p_jacred") }, "addons",
-    ]);
+    expect([templateP2p(page), template(page).value]).toEqual([{ value: "p2p_jacred", seen: "p2p_jacred", marks: [] }, "addons"]);
     page.choose("watch", "debrid");
     server(page, WIZ);
     expect([templateP2p(page).value, template(page).value]).toEqual(["p2p_jacred", "custom"]);
     server(page, MADE);
     expect([templateP2p(page).value, templateP2p(page).seen, template(page).value]).toEqual(["p2p", "p2p", "addons"]);
-    // Changed: only its hint; the same server and config again keep the choice.
-    page.type(ID.templateP2p, "p2p_jacred");
+    // Changed: the same server and config again keep the choice.
+    page.choose(NAME.templateP2p, "p2p_jacred");
     page.choose("watch", "p2p");
-    expect([templateP2p(page), template(page).value]).toEqual([
-      { value: "p2p_jacred", seen: "p2p", visible: all, hint: hintP2p(page, "p2p_jacred") }, "addons",
-    ]);
+    expect([templateP2p(page), template(page).value]).toEqual([{ value: "p2p_jacred", seen: "p2p", marks: [] }, "addons"]);
   });
 
   test("the template choice of P2P, configs of 0.42 (ownconf.html): custom of P2P shown, a mark", () => {
     const page = open("ownconf");
     server(page, WIZ);
-    expect(templateP2p(page)).toEqual({ value: "custom", seen: "custom", visible: ["p2p", "p2p_jacred", "custom"], hint: hintP2p(page, "custom") });
+    expect(templateP2p(page)).toEqual({ value: "custom", seen: "custom", marks: ["custom"] });
     server(page, ATB);
-    expect(templateP2p(page).visible).toEqual(["p2p", "p2p_jacred"]);
+    expect(templateP2p(page).marks).toEqual([]);
   });
 
   test("configs of 0.42 (ownconf.html): each in the cell of its mode, custom of P2P only in P2P", () => {
@@ -274,15 +255,15 @@ describe("mode", () => {
     expect([template(page).value, login(page)]).toEqual(["addons", "00000000-0000-4000-8000-000000000003"]);
   });
 
-  test("chosen: its part shown; the choice kept while the config is the same", () => {
+  test("chosen: the answer kept while typing", () => {
     const page = open("filled");
-    expect(parts(page)).toEqual({ mode: "debrid", debrid: true, p2p: false });
+    expect(mode(page)).toBe("debrid");
     page.choose("watch", "p2p");
-    expect(parts(page)).toEqual({ mode: "p2p", debrid: false, p2p: true });
+    expect(mode(page)).toBe("p2p");
     page.type(ID.rdKey, "x");
     expect(mode(page)).toBe("p2p");
     page.choose("watch", "debrid");
-    expect(parts(page)).toEqual({ mode: "debrid", debrid: true, p2p: false });
+    expect(mode(page)).toBe("debrid");
   });
 
   test("Save and create: P2P without a key; with a config of the mode: Save", () => {

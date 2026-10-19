@@ -373,33 +373,40 @@ function aio_cgi_tpl_sel($v, $m)
 }
 
 // "Где искать раздачи" - the template of the mode $m (0.40.0 Debrid, 0.44.0
-// P2P: one each) with the hint of the chosen one (#<id>h): that of the
-// config of the mode of the chosen server (a template or a mark), else the
-// one for a new config (tpl_new, tpl_p2p_new), unless one is chosen in a
-// form back. A mark (aio_cgi_tpl_marks) is disabled, so never posted; the
-// one not shown is hidden (the one for a new config: #init.tplNew);
-// aio_tpl_seen, aio_tpl_p2p_seen: the one the page shows (another one on
-// "Сохранить" resets the config there; changed by another tab since: the
-// save is refused).
+// P2P: one each): a card of the radio aio_tpl / aio_tpl_p2p each (its name
+// and hint; data-short: its name on the main screen), the chosen one: that of
+// the config of the mode of the chosen server, else the one for a new config
+// (tpl_new, tpl_p2p_new), unless one is chosen in a form back. A mark
+// (aio_cgi_tpl_marks) is no card: none checked, so nothing posted, its name
+// and hint above them (#<id>h, a line of each mark with its data-short, the
+// one not shown hidden; the one for a new config: #init.tplNew); aio_tpl_seen,
+// aio_tpl_p2p_seen: the one the page shows (another one on "Сохранить"
+// resets the config there; changed by another tab since: the save is
+// refused).
 function aio_cgi_tpl($v, $m)
 {
     $f = aio_cgi_fields();
     $tk = aio_cgi_tpl_keys($m);
     $k = $tk['field'];
+    $id = $f[$k]['id'];
     $seen = $tk['seen'];
-    $tpls = $tk['tpls'];
-    $all = $tpls + aio_cgi_tpl_marks();
     $shown = aio_cgi_tpl_shown($m, $v['aio_server'], $v['aio_own'], $v['confs'], $v[$tk['new']]);
     $sel = aio_cgi_tpl_sel($v, $m);
-    $out = '<label for="' . $f[$k]['id'] . '">' . aio_cgi_l('Где искать раздачи', 'Where to look for releases') . '</label><select id="' .
-        $f[$k]['id'] . '" name="' . $f[$k]['name'] . '">';
-    foreach ($all as $id => $x)
-        $out .= '<option value="' . $id . '" data-hint="' . aio_cgi_h($x[1]) . '" data-short="' . aio_cgi_h($x[2]) . '"' .
-            (isset($tpls[$id]) ? '' : ' disabled' . ($id === $sel ? '' : ' hidden')) . ($id === $sel ? ' selected' : '') . '>' .
-            aio_cgi_h($x[0]) . '</option>';
-    return $out . '</select><input type="hidden" id="' . $f[$seen]['id'] . '" name="' . $f[$seen]['name'] .
-        '" value="' . aio_cgi_h($shown) . '">' .
-        '<p class="hint" id="' . $f[$k]['id'] . 'h">' . aio_cgi_h($all[$sel][1]) . '</p>';
+    $out = '<p class="lbl">' . aio_cgi_l('Где искать раздачи', 'Where to look for releases') . '</p><div id="' . $id . 'h">';
+    foreach (aio_cgi_tpl_marks() as $mk => $x)
+        $out .= '<p class="mark" data-mark="' . $mk . '" data-short="' . aio_cgi_h($x[2]) . '"' . ($mk === $sel ? '' : ' hidden') . '>' .
+            '<span class="t">' . aio_cgi_h($x[0]) .
+            '</span><span class="v">' . aio_cgi_h($x[1]) . '</span></p>';
+    $out .= '</div><div class="choice">';
+    $i = 0;
+    foreach ($tk['tpls'] as $t => $x)
+    {
+        $i++;
+        $out .= aio_cgi_vradio($id . $i, $f[$k]['name'], $t, $t === $sel, '', ' data-short="' . aio_cgi_h($x[2]) . '"') .
+            aio_cgi_card($id . $i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
+    }
+    return $out . '</div><input type="hidden" id="' . $f[$seen]['id'] . '" name="' . $f[$seen]['name'] .
+        '" value="' . aio_cgi_h($shown) . '">';
 }
 
 // The answers of "Откуда брать фильмы" (radio watch): id of the radio => value.
@@ -425,8 +432,8 @@ function aio_cgi_host($url)
 // (aio_cgi_form), under them the fields of the answer shown by the CSS
 // (classes xd, xp, xo, xm - Debrid, Торренты, the own config, both made):
 // Debrid - the keys (#dseg, #rdadd, #tbadd: by the script) and the template;
-// Торренты - #tsp2p, where the script moves #tsbox of #torr (without it, a
-// link there), and the template of P2P; the own config - its manifest
+// Торренты - the template of P2P and a link to TorrServer (its field is on
+// #torr only, 0.44.0); the own config - its manifest
 // address, only read. The server of both made: on #cfg (aio_cgi_cfg).
 function aio_cgi_src($v)
 {
@@ -444,9 +451,9 @@ function aio_cgi_src($v)
         '</div><button type="button" id="rdadd" class="lnk" hidden>' . aio_cgi_l('+ Добавить Real-Debrid', '+ Add Real-Debrid') .
         '</button>' . aio_cgi_tpl($v, AIO_MODE_DEBRID) . '</div>' .
         '<div id="mp2p" class="xp"><p class="hint">' . aio_cgi_l('Ключ не нужен: фильмы качаются с раздачи и играют через TorrServer.',
-        'No key needed: films are fetched from the swarm and play via TorrServer.') . '</p><div id="tsp2p"></div>' .
+        'No key needed: films are fetched from the swarm and play via TorrServer.') . '</p>' . aio_cgi_tpl($v, AIO_MODE_P2P) .
         '<p class="hint" id="tslink"><a href="#torr">' . aio_cgi_l('Адрес TorrServer и проверка ›', 'TorrServer address and check ›') .
-        '</a></p>' . aio_cgi_tpl($v, AIO_MODE_P2P) . '</div>' .
+        '</a></p></div>' .
         '<div id="sown" class="xo">' . aio_cgi_input($f['manifest'], aio_cgi_l('Ссылка на конфиг', 'Config link'), $v['manifest'],
         aio_cgi_l('Где взять: Save & Install → Stremio → Direct Manifest URL.',
         'Get it at: Save & Install → Stremio → Direct Manifest URL.'), aio_cgi_chk('mb', 'mr')) .
@@ -652,12 +659,10 @@ function aio_cgi_form($t, $v, $errors, $saved)
             aio_cgi_l('С ответом «Торренты» без него не посмотреть.', 'With "Torrents" nothing plays without it.') . '</p>' .
             '<p class="sub xo" id="tsown">' . aio_cgi_l('Торренты из вашего конфига играют через TorrServer.',
             'Torrents of your config play via TorrServer.') . '</p>' .
-            '<p class="hint" id="tsmoved" hidden><a href="#src">' . aio_cgi_l('Адрес — на экране «Откуда брать фильмы» ›',
-            'The address is on the screen "Where to get films" ›') . '</a></p><div id="tsbox">' .
             aio_cgi_input($f['ts'], aio_cgi_l('Адрес TorrServer', 'TorrServer address'), $v['ts'],
                 aio_cgi_l('Приложение на этой Дюне', 'The app on this Dune'), aio_cgi_chk('tsb', 'tsr')) .
             '<p class="hint">' . aio_cgi_l('Пусто — приложение TorrServe на Дюне; свой — http://хост:порт',
-            'Empty - the TorrServe app on the Dune; your own - http://host:port') . '</p></div>') .
+            'Empty - the TorrServe app on the Dune; your own - http://host:port') . '</p>') .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',

@@ -4,6 +4,7 @@
 import { jest } from "bun:test";
 import { readdirSync, readFileSync } from "fs";
 import { Window } from "happy-dom";
+import { DATA, ID, NAME } from "../src/dom";
 import { type Init, readInit, start } from "../src/init";
 
 const FIXTURE_DIR = import.meta.dir + "/fixtures/";
@@ -223,3 +224,14 @@ export function lines(el: HTMLElement): [string, string][] {
 }
 
 export const shown = (el: HTMLElement): boolean => el.style.display !== "none" && !el.hidden;
+
+// "Where to look for releases" of the mode (0.44.0: cards): the value of the card checked, else of the mark shown
+// (no card checked), else null.
+export function templateOf(page: Page, mode: "debrid" | "p2p"): string | null {
+  const p2p = mode === "p2p";
+  const radio = Array.from(page.doc.querySelectorAll<HTMLInputElement>("input[name=" + (p2p ? NAME.templateP2p : NAME.template) + "]")).find(
+    (one) => one.checked,
+  );
+  const mark = page.el(p2p ? ID.templateP2pMarks : ID.templateMarks).querySelector("[" + DATA.mark + "]:not([hidden])");
+  return radio ? radio.value : mark ? mark.getAttribute(DATA.mark) : null;
+}

@@ -2,7 +2,7 @@
 // the last save that stayed on it), their count in #dirty - or a save wanted with none (a config to create), or
 // results of a save in #sr (until "Hide", #srx).
 
-import { byId, ID, isMark, type Page } from "./dom";
+import { byId, ID, type Page } from "./dom";
 import { plural } from "./i18n";
 
 export interface Bar {
@@ -20,8 +20,8 @@ export type Values = Record<string, string>;
 
 type Control = HTMLInputElement | HTMLSelectElement | HTMLButtonElement;
 
-// The values of the controls posted, by name (a radio group: the value checked); not the hidden ones (the script's or
-// PHP's own, as aio_tpl_seen), not the buttons.
+// The values of the controls posted, by name (a radio group: the value checked, none - "", as a mark of the template);
+// not the hidden ones (the script's or PHP's own, as aio_tpl_seen), not the buttons.
 function values(form: HTMLFormElement): Values {
   const out: Values = {};
   const controls = form.elements;
@@ -33,10 +33,7 @@ function values(form: HTMLFormElement): Values {
       if ((control as HTMLInputElement).checked) out[control.name] = control.value;
       continue;
     }
-    // A mark of the template (disabled option) is never posted: as the template shown, not a change.
-    if (control.tagName === "SELECT" && isMark((control as HTMLSelectElement).options[(control as HTMLSelectElement).selectedIndex]))
-      out[control.name] = "";
-    else out[control.name] = control.value;
+    out[control.name] = control.value;
   }
   return out;
 }

@@ -8,13 +8,12 @@ export const ID = {
   aioOwnUrl: "ao",
   aioOwnCheck: "aob",
   aioOwnResult: "aor",
-  template: "at",
+  // The template choice (its radios: NAME.template): the one shown (posted as seen), the lines of its marks.
   templateShown: "ats",
-  templateHint: "ath",
-  // The same three of "Torrents" (0.44.0: a template choice of each mode).
-  templateP2p: "atp",
+  templateMarks: "ath",
+  // The same two of "Torrents" (0.44.0: a template choice of each mode).
   templateP2pShown: "atps",
-  templateP2pHint: "atph",
+  templateP2pMarks: "atph",
   // Debrid: the switch of the service (both keys empty), the box of each key and the link opening the other one.
   debridSwitch: "dseg",
   rdBox: "rdbox",
@@ -57,12 +56,6 @@ export const ID = {
   ts: "ts",
   tsCheck: "tsb",
   tsResult: "tsr",
-  // The box of the TorrServer field: on #torr, moved by the script into #tsp2p of the answer "Torrents"; then
-  // #tsmoved on #torr points there and #tslink (the way without the script) goes.
-  tsBox: "tsbox",
-  tsP2p: "tsp2p",
-  tsLink: "tslink",
-  tsMoved: "tsmoved",
   // The main screen: the question of the first run (none after it), the state (hidden on the first run).
   first: "first",
   state: "state",
@@ -101,8 +94,6 @@ export const CLS = {
 
 // The data- attributes the page has for the script.
 export const DATA = {
-  // An option of the template choice: its hint.
-  hint: "data-hint",
   // The texts of #jrp by the answer: a config made by melange or own one.
   made: "data-made",
   own: "data-own",
@@ -117,8 +108,10 @@ export const DATA = {
   jacredId: "data-id",
   // The card of a JacRed in "Compare speed": its id, "own".
   jacredOf: "data-jr",
-  // An option of the template choice: its name on the main screen.
+  // A radio of the template choice or a line of its mark: its name on the main screen.
   short: "data-short",
+  // A line of a mark of the template choice (the template of the config not a template to choose): its value.
+  mark: "data-mark",
   // A button of #dseg: rd, tb.
   key: "data-k",
   // The state of #state and its lines: key, conf, man, ok.
@@ -131,6 +124,9 @@ export const NAME = {
   // The AIOStreams server: a URL of the list or VALUE.own (another one, its address in #ao).
   aioServer: "aio_server",
   jacred: "jacred",
+  // The template of the configs of each mode (no radio checked: a mark shown, nothing posted).
+  template: "aio_tpl",
+  templateP2p: "aio_tpl_p2p",
 } as const;
 
 // The values of the page the script compares with.
@@ -195,10 +191,4 @@ export const trimmed = (value: string): string => value.replace(/^[ \t\r\n\x0B]+
 export function hostOf(url: string): string {
   const found = /^[a-z][a-z0-9+.-]*:\/\/(?:[^\/?#@]*@)?(\[[^\]\/]*\]|[^\/:?#]*)/i.exec(url);
   return found ? found[1]! : "";
-}
-
-// A disabled option of the template choice is a mark (the template of the config, as "none"), not a template to
-// choose: never posted, never kept as the one for a new config.
-export function isMark(option: HTMLOptionElement | undefined): boolean {
-  return !!option && option.disabled;
 }

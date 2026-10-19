@@ -3,7 +3,7 @@
 
 import type { Sync } from "./api";
 import type { Confs, KnownConf } from "./confs";
-import { AIO_SERVER_RADIOS, byId, checkedValue, CLS, DATA, hostOf, ID, isMark, JACRED_RADIOS, NAME, type Page, query, trimmed, VALUE, watchOf } from "./dom";
+import { AIO_SERVER_RADIOS, byId, checkedValue, CLS, DATA, hostOf, ID, JACRED_RADIOS, NAME, type Page, query, trimmed, VALUE, watchOf } from "./dom";
 import type { Lock } from "./lock";
 
 export interface Aio {
@@ -26,13 +26,13 @@ export interface Aio {
   rememberTemplate(): void;
 }
 
-// The template choice of a mode (0.44.0: one each): its select, the one shown (posted as seen), its hint; key - the
-// config it shows, by "<server> <config>" (undefined: as the page came).
+// The template choice of a mode (0.44.0: one each): the name of its radios, the one shown (posted as seen), the
+// lines of its marks; key - the config it shows, by "<server> <config>" (undefined: as the page came).
 interface Choice {
   mode: string;
-  select: HTMLSelectElement;
+  name: string;
   shown: HTMLInputElement;
-  hint: HTMLElement;
+  marks: HTMLElement;
   key: string | null | undefined;
 }
 
@@ -43,17 +43,20 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     rdKey = byId<HTMLInputElement>(doc, ID.rdKey),
     tbKey = byId<HTMLInputElement>(doc, ID.tbKey),
     saveButton = query<HTMLButtonElement>(form, "." + CLS.save);
-  const choice = (mode: string, select: string, shown: string, hint: string): Choice => ({
+  const choice = (mode: string, name: string, shown: string, marks: string): Choice => ({
     mode: mode,
-    select: byId<HTMLSelectElement>(doc, select),
+    name: name,
     shown: byId<HTMLInputElement>(doc, shown),
-    hint: byId(doc, hint),
+    marks: byId(doc, marks),
     key: undefined,
   });
   const choices = [
-    choice(VALUE.debrid, ID.template, ID.templateShown, ID.templateHint),
-    choice(VALUE.p2p, ID.templateP2p, ID.templateP2pShown, ID.templateP2pHint),
+    choice(VALUE.debrid, NAME.template, ID.templateShown, ID.templateMarks),
+    choice(VALUE.p2p, NAME.templateP2p, ID.templateP2pShown, ID.templateP2pMarks),
   ];
+  const radiosOf = (c: Choice) => form.querySelectorAll<HTMLInputElement>("input[name=" + c.name + "]");
+  // The template chosen; null: none (a mark shown), nothing posted.
+  const picked = (c: Choice) => checkedValue(form, c.name);
 
   // The radio of the server chosen (none: as a form back with another value came).
   function selected(): HTMLInputElement | undefined {
@@ -81,9 +84,6 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     const conf = radio ? confs.known(radio.value, ofMode) : null;
     return radio && radio.value === VALUE.own && ownUrl() !== (conf ? conf.url : null) ? null : conf;
   }
-  function renderHint(c: Choice): void {
-    c.hint.textContent = c.select.options[c.select.selectedIndex]!.getAttribute(DATA.hint);
-  }
   function p2p(): boolean {
     return mode() === VALUE.p2p;
   }
@@ -91,19 +91,20 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   function chosen(): Choice | null {
     return ownWatch() ? null : choices.find((c) => c.mode === mode())!;
   }
-  // The template of the config of its mode ("none": not known yet), else the one for a new config; a mark (disabled)
-  // only while it is the one.
+  // The line of the mark shown (as PHP): only while no card is checked.
+  function renderMarks(c: Choice): void {
+    const none = picked(c) === null;
+    c.marks.querySelectorAll<HTMLElement>("[" + DATA.mark + "]").forEach((line) => (line.hidden = !none || line.getAttribute(DATA.mark) !== c.shown.value));
+  }
+  // The template of the config of its mode ("none": not known yet), else the one for a new config; a mark: no card
+  // checked, its line shown.
   function renderTemplate(c: Choice): void {
     const conf = currentConf(c.mode);
     const shown = conf ? conf.tpl || VALUE.none : confs.templateForNew(c.mode);
-    for (let i = 0; i < c.select.options.length; i++) {
-      const option = c.select.options[i]!;
-      if (isMark(option)) option.hidden = option.value !== shown;
-    }
+    radiosOf(c).forEach((radio) => (radio.checked = radio.value === shown));
     // A missing tplNew assigns null, as a missing data-new did.
-    c.select.value = shown!;
     c.shown.value = shown!;
-    renderHint(c);
+    renderMarks(c);
   }
   // The link, login and password of the config (a missing one: empty).
   function renderConf(conf: KnownConf): void {
@@ -167,7 +168,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   const jacreds = form.querySelectorAll<HTMLInputElement>(JACRED_RADIOS);
   for (let i = 0; i < jacreds.length; i++) jacreds[i]!.addEventListener("change", render);
   render();
-  for (const c of choices) c.select.addEventListener("change", () => renderHint(c));
+  for (const c of choices) radiosOf(c).forEach((radio) => radio.addEventListener("change", () => renderMarks(c)));
 
   return {
     render: render,
@@ -176,7 +177,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     serverHost: serverHost,
     templateUnknown(): boolean {
       const c = chosen();
-      return !!c && c.select.value === VALUE.none;
+      return !!c && picked(c) === null && c.shown.value === VALUE.none;
     },
     applySync(sync: Sync, reset: boolean): void {
       // Of a server of the choice only.
@@ -190,23 +191,24 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     // Of the mode chosen with a config there, another template (the other mode: its own config, never a reset).
     resetPending(): boolean {
       const c = chosen();
-      return !!c && !!currentConf() && c.select.value !== c.shown.value;
+      const value = c ? picked(c) : null;
+      return !!c && !!currentConf() && value !== null && value !== c.shown.value;
     },
     // A mark shown: the reset is to the template for a new config of the mode (nothing posted).
     confirmReset(): boolean {
       const c = chosen() || choices[0]!;
-      let picked = c.select.options[c.select.selectedIndex]!;
-      if (isMark(picked))
-        for (let i = 0; i < c.select.options.length; i++)
-          if (c.select.options[i]!.value === confs.templateForNew(c.mode)) picked = c.select.options[i]!;
-      return confirm(texts.resetConfirm.replace("%s", serverHost()).replace("%s", picked.text));
+      const value = picked(c) || confs.templateForNew(c.mode);
+      const radio = Array.from(radiosOf(c)).find((one) => one.value === value);
+      const title = radio ? form.querySelector('label[for="' + radio.id + '"] .t') : null;
+      return confirm(texts.resetConfirm.replace("%s", serverHost()).replace("%s", title ? title.textContent || "" : ""));
     },
     rememberTemplate(): void {
       for (const c of choices) {
         // As the save: of P2P only another one than shown (else the default stays), of Debrid the one posted.
-        const posted = !isMark(c.select.options[c.select.selectedIndex]);
-        if (posted && (c.mode !== VALUE.p2p || c.select.value !== c.shown.value)) confs.storeTemplateForNew(c.mode, c.select.value);
-        if (!currentConf(c.mode)) c.shown.value = c.select.value;
+        const value = picked(c);
+        if (value === null) continue;
+        if (c.mode !== VALUE.p2p || value !== c.shown.value) confs.storeTemplateForNew(c.mode, value);
+        if (!currentConf(c.mode)) c.shown.value = value;
       }
     },
   };

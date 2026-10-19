@@ -2,9 +2,9 @@
 // the bar of the save with the count of the changes.
 
 import { afterEach, describe, expect, test } from "bun:test";
-import { CLS, ID, ROWS } from "../src/dom";
+import { CLS, ID, NAME, ROWS } from "../src/dom";
 import { plural } from "../src/i18n";
-import { cleanup, FIXTURES, flush, HANG, json, later, lines, NET, open, type Page, TOKEN } from "./harness";
+import { cleanup, FIXTURES, flush, HANG, json, later, lines, NET, open, type Page, templateOf, TOKEN } from "./harness";
 
 afterEach(cleanup);
 
@@ -37,7 +37,7 @@ describe("the main screen", () => {
     expect(st()).toEqual(["state warn", "key", ["key"]]);
     expect(value("src")).toEqual(["dot warn", "Debrid · " + t.needKey + " · везде"]);
     page.type(ID.rdKey, "x");
-    page.type(ID.template, "jacred");
+    page.choose(NAME.template, "jacred");
     expect(value("src")).toEqual(["dot ok", "Debrid · Real-Debrid · только русские"]);
     // Another server: no config there.
     page.choose("aio_server", "https://aio.atbphosting.com");
@@ -52,7 +52,7 @@ describe("the main screen", () => {
       ["state warn", "conf", ["conf"]], ["dot warn", t.modeP2p + " · " + t.viaTs + " · только русские"], ["dot ok", "http://192.168.1.10:8090"],
     ]);
     // The template of P2P (0.44.0): its short name.
-    page.type(ID.templateP2p, "p2p");
+    page.choose(NAME.templateP2p, "p2p");
     expect(value("src")).toEqual(["dot warn", t.modeP2p + " · " + t.viaTs + " · везде"]);
     page.type(ID.ts, "");
     expect(value("torr")).toEqual(["dot ok", t.tsDune]);
@@ -165,12 +165,12 @@ describe("the bar of the save", () => {
     page.type("s2_name", "x");
     expect(bar(page)).toBe("3 изменения");
     page.type(ID.tmdbKey, "");
-    page.type(ID.template, "jacred");
+    page.choose(NAME.template, "jacred");
     expect(bar(page)).toBe("5 изменений");
     page.choose("jacred", "own");
     page.type("s2_name", "");
     page.type(ID.tmdbKey, "TMDBTESTKEY000000000001");
-    page.type(ID.template, "addons");
+    page.choose(NAME.template, "addons");
     expect(bar(page)).toBe("1 изменение");
     page.type(ID.ts, "http://192.168.1.10:8090");
     expect(bar(page)).toBeNull();
@@ -183,7 +183,7 @@ describe("the bar of the save", () => {
 
   test("the template of the config not known yet (the mark none: Save finds it): shown with no change; not for own config", () => {
     const page = open("ownconf");
-    expect([page.el<HTMLSelectElement>(ID.template).value, bar(page)]).toEqual(["none", ""]);
+    expect([templateOf(page, "debrid"), bar(page)]).toEqual(["none", ""]);
     page.choose("watch", "own");
     expect(bar(page)).toBe("1 изменение");
   });
@@ -196,7 +196,7 @@ describe("the bar of the save", () => {
         conf: { cfg: "https://cfg.example/1", login: "l", pass: "p", tpl: "addons" } }));
     page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
     await flush();
-    expect(page.el<HTMLSelectElement>(ID.template).value).toBe("addons");
+    expect(templateOf(page, "debrid")).toBe("addons");
     page.el(ID.hideResult).click();
     expect(bar(page)).toBeNull();
   });
@@ -276,7 +276,7 @@ describe("the bar of the save", () => {
       conf: { cfg: "https://cfg.example/7", login: "l", pass: "p", tpl: "jacred" } }) : NET);
     await flush();
     // The template of the new config (jacred) is set by the script: no change.
-    expect([page.el<HTMLSelectElement>(ID.template).value, bar(page)]).toEqual([ok ? "jacred" : "addons", "1 изменение"]);
+    expect([templateOf(page, "debrid"), bar(page)]).toEqual([ok ? "jacred" : "addons", "1 изменение"]);
     page.type(ID.ts, "http://192.168.1.10:8090");
     expect(bar(page)).toBe("");
   });

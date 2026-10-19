@@ -17,7 +17,6 @@ import { setupMarks } from "./marks";
 import { setupSave } from "./save";
 import { bindEyes, maskSecrets } from "./secrets";
 import { setupServerChecks, setupServers } from "./servers";
-import { setupTorrServer } from "./torrserver";
 
 // Written by aio_cgi_js(). i18n and jacredDefault: always written, checked by isInit() (else #init is broken);
 // confs: {<mode>: {<value of a server option>: {cfg, login, pass, tpl, url?}}}, tplNew: the template for a new config;
@@ -50,7 +49,6 @@ function setupForm(page: Page, init: Init): void {
   const lock = createLock(page);
   const aio = setupAio(page, createConfs(init.confs, init.tplNew), lock);
   const debrid = setupDebrid(page);
-  setupTorrServer(page);
   setupClipboard(page);
   setupJacredNote(page, init.jacredDefault);
   const home = setupHome(page, aio);

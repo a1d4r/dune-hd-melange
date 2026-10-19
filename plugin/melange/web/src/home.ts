@@ -29,10 +29,12 @@ export function setupHome(page: Page, aio: Aio): Home {
   }
   function sourceLine(watch: string): string {
     if (watch === VALUE.own) return texts.watchOwn + (value(ID.manifest) === "" ? " · " + texts.needLink : "");
-    // The template of the mode by its short name (0.44.0: P2P too).
-    const template = byId<HTMLSelectElement>(doc, watch === VALUE.p2p ? ID.templateP2p : ID.template),
-      option = template.options[template.selectedIndex];
-    const short = option ? option.getAttribute(DATA.short) : null,
+    // The template of the mode by its short name (0.44.0: P2P too): of the card checked, else of the mark shown.
+    const p2p = watch === VALUE.p2p;
+    const picked =
+      form.querySelector("input[name=" + (p2p ? NAME.templateP2p : NAME.template) + "]:checked") ||
+      byId(doc, p2p ? ID.templateP2pMarks : ID.templateMarks).querySelector("[" + DATA.mark + "]:not([hidden])");
+    const short = picked ? picked.getAttribute(DATA.short) : null,
       tail = short ? " · " + short : "";
     if (watch === VALUE.p2p) return texts.modeP2p + " · " + texts.viaTs + tail;
     const keys: string[] = [];

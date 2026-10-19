@@ -84,11 +84,11 @@ describe("errors lead to the field", () => {
     expect(ownShown(page, ID.aioOwnUrl)).toBe(false);
   });
 
-  test("TorrServer in Torrents (moved to #src): the screen of where it is now", async () => {
+  test("TorrServer in Torrents: its screen #torr (0.44.0: the field is never moved)", async () => {
     const page = open("p2p");
     page.replies.push(json({ ok: false, errors: [{ msg: "TS", field: "ts" }] }));
     await save(page);
-    expect([hash(), focused(page)]).toEqual(["#src", "ts"]);
+    expect([hash(), focused(page)]).toEqual(["#torr", "ts"]);
   });
 
   test("a server block (s3_url for any of its fields): the block marked, not the address; its screen, the block in view, no focus", async () => {

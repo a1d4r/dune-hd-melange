@@ -76,10 +76,9 @@ describe.each([...FIXTURES])("%s", (name) => {
       "rd",
       "tb",
     ]);
-    // The TorrServer field, once, in its box on #torr; the place of "Torrents" on #src.
+    // The TorrServer field, once, on #torr (0.44.0: in every answer).
     expect(form.querySelectorAll("input[name=ts]").length).toBe(1);
-    expect(doc.getElementById(ID.ts)!.closest("#" + ID.tsBox)!.closest("section")!.id).toBe("torr");
-    expect(doc.getElementById(ID.tsP2p)!.closest("section")!.id).toBe("src");
+    expect(doc.getElementById(ID.ts)!.closest("section")!.id).toBe("torr");
     // The bar of the save under the screens: its results, "Hide" of them (a button, not a submit), its button the save.
     expect(doc.querySelector("#" + ID.bar + " #" + ID.saveResult + "+ button#" + ID.hideResult + "[type=button][hidden] + * #" + ID.dirty + "+ button." + CLS.save)).not.toBeNull();
     expect(form.querySelectorAll(JACRED_RADIOS + "[type=radio]").length).toBe(form.querySelectorAll("input[name=" + NAME.jacred + "]").length);
@@ -87,9 +86,20 @@ describe.each([...FIXTURES])("%s", (name) => {
     const builtins = form.querySelectorAll<HTMLInputElement>("input." + CLS.jacredBuiltin);
     expect(builtins.length).toBeGreaterThan(1);
     builtins.forEach((radio) => expect([radio.name, radio.getAttribute(DATA.jacredId)]).toEqual([NAME.jacred, radio.value]));
-    doc.querySelectorAll<HTMLOptionElement>("#" + ID.template + " option, #" + ID.templateP2p + " option").forEach((option) =>
-      expect([option.hasAttribute(DATA.hint), option.getAttribute(DATA.short) || ""]).toEqual([true, expect.stringMatching(/./)]),
-    );
+    // The templates of each mode: radios with their cards in a group (0.44.0), each with its short name; the lines of
+    // the marks too, in the box of its marks before the cards.
+    for (const [templateName, marks] of [[NAME.template, ID.templateMarks], [NAME.templateP2p, ID.templateP2pMarks]] as const) {
+      const radios = form.querySelectorAll<HTMLInputElement>("input[type=radio][name=" + templateName + "]");
+      expect(radios.length).toBe(2);
+      radios.forEach((radio) =>
+        expect([radio.getAttribute(DATA.short) || "", !!form.querySelector('label[for="' + radio.id + '"]')!.closest(RADIO_GROUP)]).toEqual([
+          expect.stringMatching(/./),
+          true,
+        ]),
+      );
+      const lines = doc.querySelectorAll("#" + marks + " [" + DATA.mark + "]");
+      expect(Array.from(lines, (line) => [line.getAttribute(DATA.mark), !!line.getAttribute(DATA.short)])).toEqual([["custom", true], [VALUE.none, true]]);
+    }
     const jrp = doc.getElementById(ID.jacredText)!;
     expect([jrp.hasAttribute(DATA.made), jrp.hasAttribute(DATA.own)]).toEqual([true, true]);
     // A card of "Compare speed" for every JacRed (data-jr: the value of its radio).
@@ -125,14 +135,14 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(doc.querySelectorAll("." + CLS.eye + "[" + DATA.eyeFor + "=" + ID.confPass + "]").length).toBe(1);
   });
 
-  test("the values of VALUE: own of the answer, the server and JacRed; none a mark (disabled) of the template", () => {
+  test("the values of VALUE: own of the answer, the server and JacRed; none a mark of the template", () => {
     const { doc, form } = open(name, { start: false });
     expect([
       form.querySelectorAll("input[type=radio][name=" + NAME.watch + "][value=" + VALUE.own + "]").length,
       form.querySelectorAll(AIO_SERVER_RADIOS + "[type=radio][value=" + VALUE.own + "]").length,
       form.querySelectorAll(JACRED_RADIOS + "[type=radio][value=" + VALUE.own + "]").length,
-      doc.querySelectorAll("#" + ID.template + " option[value=" + VALUE.none + "][disabled]").length,
-      doc.querySelectorAll("#" + ID.templateP2p + " option[value=" + VALUE.none + "][disabled]").length,
+      doc.querySelectorAll("#" + ID.templateMarks + " [" + DATA.mark + "=" + VALUE.none + "]").length,
+      doc.querySelectorAll("#" + ID.templateP2pMarks + " [" + DATA.mark + "=" + VALUE.none + "]").length,
     ]).toEqual([1, 1, 1, 1, 1]);
   });
 

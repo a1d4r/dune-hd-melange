@@ -3,7 +3,7 @@
 import type { Aio } from "./aio";
 import type { Api, ConfHow, Save, SaveError } from "./api";
 import type { Bar, Values } from "./bar";
-import { byId, CLS, ID, isMark, type Page, query } from "./dom";
+import { byId, checkedValue, CLS, ID, NAME, type Page, query } from "./dom";
 import type { Home } from "./home";
 import { failureText, type Texts } from "./i18n";
 import type { Lock } from "./lock";
@@ -19,11 +19,6 @@ function serialize(form: HTMLFormElement): string[] {
   for (let i = 0; i < controls.length; i++) {
     const control = controls[i] as Control;
     if (!control.name || control.disabled || control.tagName === "BUTTON") continue;
-    // A mark of the template is never posted, as by the browser.
-    if (control.tagName === "SELECT") {
-      const select = control as HTMLSelectElement;
-      if (isMark(select.options[select.selectedIndex])) continue;
-    }
     if ((control.type === "checkbox" || control.type === "radio") && !(control as HTMLInputElement).checked) continue;
     pairs.push(encodeURIComponent(control.name) + "=" + encodeURIComponent(control.value));
   }
@@ -43,7 +38,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
   const { doc, form, texts } = page;
   const button = query<HTMLButtonElement>(form, "." + CLS.save);
   const results = () => byId(doc, ID.saveResult);
-  const templates = [byId<HTMLSelectElement>(doc, ID.template), byId<HTMLSelectElement>(doc, ID.templateP2p)];
+  const templates = [NAME.template, NAME.templateP2p];
 
   // The config of the chosen server after the save: its result replaces the "creating" line; failed, the line
   // "Saved" (savedLine) says only the settings on the Dune are.
@@ -63,11 +58,11 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       } else if (result.kind !== "http") setLine(line, "err", texts[failed]);
       else setLine(line, "err", failureText(texts, result));
       if (result.kind !== "data" || !result.data.ok) savedLine.textContent = texts.savedOnDune;
-      const before = templates.map((template) => template.value);
+      const before = templates.map((name) => checkedValue(form, name));
       aio.render();
       // The template of the config found (a mark "none" no more) is no change either; the rest typed meanwhile is.
-      templates.forEach((template, i) => {
-        if (template.value !== before[i]) bar.rebaseField(template.name);
+      templates.forEach((name, i) => {
+        if (checkedValue(form, name) !== before[i]) bar.rebaseField(name);
       });
       changed();
     });

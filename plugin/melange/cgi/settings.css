@@ -39,6 +39,7 @@ h2{font-size:22px;margin:2px 0 6px}
 .opt .t{font-weight:600;overflow-wrap:anywhere}
 .ownf{display:none}
 .own:checked~.ownf,.ownf.on{display:block}
+.mark{margin:10px 4px 0;font-size:15px}
 .ms{font-size:13px;color:var(--mute);text-align:right}
 .badge{margin-left:6px;padding:0 6px;font-size:11px;font-weight:400;color:var(--ok);border:1px solid currentColor;border-radius:999px;white-space:nowrap}
 .vh:checked+.opt,#wd:checked~* [for=wd],#wp:checked~* [for=wp],#wo:checked~* [for=wo]{border-color:var(--acc);background:var(--accbg)}
