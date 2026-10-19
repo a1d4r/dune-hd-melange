@@ -28,6 +28,13 @@ const template = (page: Page) => {
   return { value: select.value, seen: page.el<HTMLInputElement>(ID.templateShown).value, visible: visible, hint: page.el(ID.templateHint).textContent || "" };
 };
 const hint = (page: Page, value: string) => page.doc.querySelector('#at option[value="' + value + '"]')!.getAttribute("data-hint") || "";
+// The template choice of P2P (0.44.0).
+const templateP2p = (page: Page) => {
+  const select = page.el<HTMLSelectElement>(ID.templateP2p);
+  const visible = Array.from(select.options).filter((option) => !option.hidden).map((option) => option.value);
+  return { value: select.value, seen: page.el<HTMLInputElement>(ID.templateP2pShown).value, visible: visible, hint: page.el(ID.templateP2pHint).textContent || "" };
+};
+const hintP2p = (page: Page, value: string) => page.doc.querySelector('#atp option[value="' + value + '"]')!.getAttribute("data-hint") || "";
 const saveText = (page: Page) => page.form.querySelector("." + CLS.save)!.textContent || "";
 
 describe("answer", () => {
@@ -208,6 +215,35 @@ describe("mode", () => {
     expect([template(page).value, template(page).seen]).toEqual(["custom", "custom"]);
     server(page, "https://aiostreams.stremio.ru");
     expect([template(page).value, template(page).seen]).toEqual(["jacred", "jacred"]);
+  });
+
+  test("the template choice of P2P: of the config of P2P of the server, else the one for a new config (p2p_jacred); apart from Debrid", () => {
+    const page = open("p2p");
+    const all = ["p2p", "p2p_jacred"];
+    expect(templateP2p(page)).toEqual({ value: "p2p", seen: "p2p", visible: all, hint: hintP2p(page, "p2p") });
+    server(page, ATB);
+    expect([templateP2p(page), template(page).value]).toEqual([
+      { value: "p2p_jacred", seen: "p2p_jacred", visible: all, hint: hintP2p(page, "p2p_jacred") }, "addons",
+    ]);
+    page.choose("watch", "debrid");
+    server(page, WIZ);
+    expect([templateP2p(page).value, template(page).value]).toEqual(["p2p_jacred", "custom"]);
+    server(page, MADE);
+    expect([templateP2p(page).value, templateP2p(page).seen, template(page).value]).toEqual(["p2p", "p2p", "addons"]);
+    // Changed: only its hint; the same server and config again keep the choice.
+    page.type(ID.templateP2p, "p2p_jacred");
+    page.choose("watch", "p2p");
+    expect([templateP2p(page), template(page).value]).toEqual([
+      { value: "p2p_jacred", seen: "p2p", visible: all, hint: hintP2p(page, "p2p_jacred") }, "addons",
+    ]);
+  });
+
+  test("the template choice of P2P, configs of 0.42 (ownconf.html): custom of P2P shown, a mark", () => {
+    const page = open("ownconf");
+    server(page, WIZ);
+    expect(templateP2p(page)).toEqual({ value: "custom", seen: "custom", visible: ["p2p", "p2p_jacred", "custom"], hint: hintP2p(page, "custom") });
+    server(page, ATB);
+    expect(templateP2p(page).visible).toEqual(["p2p", "p2p_jacred"]);
   });
 
   test("configs of 0.42 (ownconf.html): each in the cell of its mode, custom of P2P only in P2P", () => {

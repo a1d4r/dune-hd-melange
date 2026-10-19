@@ -43,7 +43,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
   const { doc, form, texts } = page;
   const button = query<HTMLButtonElement>(form, "." + CLS.save);
   const results = () => byId(doc, ID.saveResult);
-  const template = byId<HTMLSelectElement>(doc, ID.template);
+  const templates = [byId<HTMLSelectElement>(doc, ID.template), byId<HTMLSelectElement>(doc, ID.templateP2p)];
 
   // The config of the chosen server after the save: its result replaces the "creating" line; failed, the line
   // "Saved" (savedLine) says only the settings on the Dune are.
@@ -63,10 +63,12 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       } else if (result.kind !== "http") setLine(line, "err", texts[failed]);
       else setLine(line, "err", failureText(texts, result));
       if (result.kind !== "data" || !result.data.ok) savedLine.textContent = texts.savedOnDune;
-      const before = template.value;
+      const before = templates.map((template) => template.value);
       aio.render();
       // The template of the config found (a mark "none" no more) is no change either; the rest typed meanwhile is.
-      if (template.value !== before) bar.rebaseField(template.name);
+      templates.forEach((template, i) => {
+        if (template.value !== before[i]) bar.rebaseField(template.name);
+      });
       changed();
     });
   }

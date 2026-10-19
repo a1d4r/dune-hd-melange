@@ -31,19 +31,19 @@ function servers(first: [string, string][]): [string, string][] {
 }
 const FILLED: [string, string][] = [
   ["watch", "debrid"], ["rd_key", "RDTESTKEY00000000000000001"], ["tb_key", "tbtest-0000000000000000001"], ["aio_tpl", "addons"],
-  ["aio_tpl_seen", "addons"], ["manifest", ""], ["aio_server", MADE], ["aio_own_url", ""], ["tmdb_key", "TMDBTESTKEY000000000001"],
+  ["aio_tpl_seen", "addons"], ["aio_tpl_p2p", "p2p_jacred"], ["aio_tpl_p2p_seen", "p2p_jacred"], ["manifest", ""], ["aio_server", MADE], ["aio_own_url", ""], ["tmdb_key", "TMDBTESTKEY000000000001"],
   ["jacred", "own"], ["jacred_own_url", "http://192.168.1.10:9117"], ["jacred_own_key", "testkey01"],
   ["ts", "http://192.168.1.10:8090"],
   ...servers([["name", "qBittorrent"], ["url", "http://192.168.1.10:8080"], ["user", "admin"], ["pass", "test-pass"], ["category", "movies"]]),
 ];
-// Torrents: the TorrServer field on #src (torrserver.ts), posted after the template.
+// Torrents: the TorrServer field on #src (torrserver.ts), posted after the template of Debrid, before that of P2P.
 const P2P_BODY = encode([
   ["watch", "p2p"], ...FILLED.slice(1, 5), FILLED.find(([k]) => k === "ts")!, ...FILLED.slice(5).filter(([k]) => k !== "ts"),
 ]);
 const conf = (n: string, tpl: string | null) => ({
   cfg: "https://cfg.example/" + n, login: "00000000-0000-4000-8000-00000000000" + n, pass: "fedcba9876543210fedcba9" + n, tpl: tpl,
 });
-// The config of Debrid of the chosen server of filled.html, as aio_sync sends it.
+// The config of Debrid of the chosen server of filled.html (of P2P there in p2p.html), as aio_sync sends it.
 const FILLED_CONF = (tpl: string) => ({
   cfg: MADE + "/stremio/00000000-0000-4000-8000-000000000001/dGVzdA/configure", login: "00000000-0000-4000-8000-000000000001",
   pass: "0123456789abcdef01234567", tpl: tpl,
@@ -404,7 +404,7 @@ describe("the reset", () => {
     page.replies.push(json({ ok: true, next: NEXT, aio: "" }));
     await save(page);
     expect([page.confirms, pairs(page.calls[0]!.body).filter(([k]) => /^(watch|aio_(tpl|reset))/.test(k!))]).toEqual([
-      [], [["watch", "debrid"], ["aio_tpl", "addons"], ["aio_tpl_seen", "addons"]],
+      [], [["watch", "debrid"], ["aio_tpl", "addons"], ["aio_tpl_seen", "addons"], ["aio_tpl_p2p", "p2p"], ["aio_tpl_p2p_seen", "p2p"]],
     ]);
   });
 
@@ -414,14 +414,63 @@ describe("the reset", () => {
     page.replies.push(json({ ok: true, next: NEXT, aio: "" }));
     await save(page);
     expect([page.confirms, pairs(page.calls[0]!.body).filter(([k]) => /^(watch|aio_(tpl|reset))/.test(k!))]).toEqual([
-      [], [["watch", "p2p"], ["aio_tpl", "jacred"], ["aio_tpl_seen", "addons"]],
+      [], [["watch", "p2p"], ["aio_tpl", "jacred"], ["aio_tpl_seen", "addons"], ["aio_tpl_p2p", "p2p"], ["aio_tpl_p2p_seen", "p2p"]],
     ]);
   });
 
-  test("Reset to the template in P2P: the name of P2P", async () => {
+  test("Reset to the template in P2P: the template of P2P chosen (that of the config)", async () => {
     const page = open("p2p");
     await page.click(ID.resetConf);
-    expect(page.confirms).toEqual([page.init.i18n.resetConfirm.replace("%s", "aiostreams.12312023.xyz").replace("%s", page.init.i18n.templateP2p)]);
+    expect(page.confirms).toEqual([page.init.i18n.resetConfirm.replace("%s", "aiostreams.12312023.xyz").replace("%s", "Везде")]);
+  });
+
+  test("P2P: another template of P2P over its config: confirm with its name; yes: aio_reset=1 with it", async () => {
+    const page = open("p2p");
+    page.type(ID.templateP2p, "p2p_jacred");
+    await save(page);
+    expect(page.confirms).toEqual([page.init.i18n.resetConfirm.replace("%s", "aiostreams.12312023.xyz").replace("%s", "Только русские трекеры")]);
+    expect(page.calls).toEqual([]);
+    page.confirmAnswer = true;
+    page.replies.push(json({ ok: true, next: NEXT, aio: "" }));
+    await save(page);
+    expect(pairs(page.calls[0]!.body).filter(([k]) => /^aio_(tpl_p2p|reset)/.test(k!))).toEqual([
+      ["aio_tpl_p2p", "p2p_jacred"], ["aio_tpl_p2p_seen", "p2p"], ["aio_reset", "1"],
+    ]);
+  });
+
+  test("Debrid: another template of P2P chosen - no confirm, no reset (it is of the config of P2P)", async () => {
+    const page = open("p2p");
+    page.choose("watch", "debrid");
+    page.type(ID.templateP2p, "p2p_jacred");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "" }));
+    await save(page);
+    expect([page.confirms, pairs(page.calls[0]!.body).filter(([k]) => /^aio_(tpl_p2p|reset)/.test(k!))]).toEqual([
+      [], [["aio_tpl_p2p", "p2p_jacred"], ["aio_tpl_p2p_seen", "p2p"]],
+    ]);
+  });
+
+  test("the template of P2P saved: the one for a new config of P2P, that of Debrid as it was", async () => {
+    const page = open("filled");
+    page.choose("watch", "p2p");
+    page.type(ID.templateP2p, "p2p");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
+    await save(page);
+    expect([page.confirms, page.el<HTMLInputElement>(ID.templateP2pShown).value]).toEqual([[], "p2p"]);
+    page.type(ID.aioServer, ATB);
+    expect([page.el<HTMLSelectElement>(ID.templateP2p).value, page.el<HTMLSelectElement>(ID.template).value]).toEqual(["p2p", "addons"]);
+  });
+
+  test.each([false, true])("ok %p: a failed reset in P2P keeps its template chosen; a done one shows that of the config", async (ok) => {
+    const page = open("p2p");
+    page.confirmAnswer = true;
+    page.type(ID.templateP2p, "p2p_jacred");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "reset" }),
+      json({ ok: ok, msg: "m", skip: false, base: MADE, mode: "p2p", conf: FILLED_CONF(ok ? "p2p_jacred" : "p2p") }));
+    await save(page);
+    expect([page.el<HTMLSelectElement>(ID.templateP2p).value, page.el<HTMLInputElement>(ID.templateP2pShown).value]).toEqual(
+      ok ? ["p2p_jacred", "p2p_jacred"] : ["p2p_jacred", "p2p"],
+    );
+    expect(page.el<HTMLSelectElement>(ID.template).value).toBe("addons");
   });
 
   test("a sync of the config of P2P (forgotten): that of Debrid of the server stays", async () => {

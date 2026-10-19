@@ -15,6 +15,10 @@ export const ID = {
   template: "at",
   templateShown: "ats",
   templateHint: "ath",
+  // The same three of "Torrents" (0.44.0: a template choice of each mode).
+  templateP2p: "atp",
+  templateP2pShown: "atps",
+  templateP2pHint: "atph",
   // Debrid: the switch of the service (both keys empty), the box of each key and the link opening the other one.
   debridSwitch: "dseg",
   rdBox: "rdbox",
@@ -135,7 +139,7 @@ export const VALUE = {
   own: "own",
   // The mark of the template choice: the template of the config not known yet.
   none: "none",
-  // The modes; P2P is also the template of a config of that mode.
+  // The modes (the keys of #init.confs and #init.tplNew).
   debrid: "debrid",
   p2p: "p2p",
 } as const;

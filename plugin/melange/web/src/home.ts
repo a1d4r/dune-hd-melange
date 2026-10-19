@@ -28,14 +28,16 @@ export function setupHome(page: Page, creates: () => boolean): Home {
   }
   function sourceLine(watch: string): string {
     if (watch === VALUE.own) return texts.watchOwn + (value(ID.manifest) === "" ? " · " + texts.needLink : "");
-    if (watch === VALUE.p2p) return texts.templateP2p + " · " + texts.viaTs;
+    // The template of the mode by its short name (0.44.0: P2P too).
+    const template = byId<HTMLSelectElement>(doc, watch === VALUE.p2p ? ID.templateP2p : ID.template),
+      option = template.options[template.selectedIndex];
+    const short = option ? option.getAttribute(DATA.short) : null,
+      tail = short ? " · " + short : "";
+    if (watch === VALUE.p2p) return texts.templateP2p + " · " + texts.viaTs + tail;
     const keys: string[] = [];
     if (value(ID.rdKey) !== "") keys.push("Real-Debrid");
     if (value(ID.tbKey) !== "") keys.push("TorBox");
-    const template = byId<HTMLSelectElement>(doc, ID.template),
-      option = template.options[template.selectedIndex];
-    const short = option ? option.getAttribute(DATA.short) : null;
-    return "Debrid · " + (keys.length ? keys.join(" + ") : texts.needKey) + (short ? " · " + short : "");
+    return "Debrid · " + (keys.length ? keys.join(" + ") : texts.needKey) + tail;
   }
   // The names of the server blocks filled (else their address).
   function servers(): string[] {

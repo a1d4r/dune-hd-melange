@@ -49,8 +49,11 @@ describe("the main screen", () => {
     expect(value("torr")).toEqual(["dot", "http://192.168.1.10:8090"]);
     page.choose("watch", "p2p");
     expect([st(), value("src"), value("torr")]).toEqual([
-      ["state warn", "conf", ["conf"]], ["dot warn", t.templateP2p + " · " + t.viaTs], ["dot ok", "http://192.168.1.10:8090"],
+      ["state warn", "conf", ["conf"]], ["dot warn", t.templateP2p + " · " + t.viaTs + " · только русские"], ["dot ok", "http://192.168.1.10:8090"],
     ]);
+    // The template of P2P (0.44.0): its short name.
+    page.type(ID.templateP2p, "p2p");
+    expect(value("src")).toEqual(["dot warn", t.templateP2p + " · " + t.viaTs + " · везде"]);
     page.type(ID.ts, "");
     expect(value("torr")).toEqual(["dot ok", t.tsDune]);
     // Own JacRed: the host of its address; none: warn.
@@ -71,7 +74,7 @@ describe("the main screen", () => {
     expect([home(page).state, page.el(ID.first).hidden]).toEqual([null, false]);
     expect(page.el("start").getAttribute("href")).toBe("#src");
     page.choose("watch", "p2p");
-    expect(page.el("vsrc").textContent).toBe(page.init.i18n.templateP2p + " · " + page.init.i18n.viaTs);
+    expect(page.el("vsrc").textContent).toBe(page.init.i18n.templateP2p + " · " + page.init.i18n.viaTs + " · только русские");
   });
 
   test("the first save that stays on the page: the state instead of the question, as of the form now", async () => {

@@ -26,7 +26,9 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(Object.keys(page.init.i18n).sort()).toEqual([...TEXT_KEYS].sort());
     for (const key of TEXT_KEYS) expect(typeof page.init.i18n[key] === "string" && page.init.i18n[key] !== "").toBe(true);
     expect(page.init.jacredDefault).toBe("jacred.kompotik.com");
-    expect(typeof page.init.tplNew).toBe("string");
+    // The template for a new config of each mode.
+    const tplNew = page.init.tplNew as Record<string, unknown>;
+    expect([Object.keys(tplNew), typeof tplNew[VALUE.debrid], typeof tplNew[VALUE.p2p]]).toEqual([[VALUE.debrid, VALUE.p2p], "string", "string"]);
     expect(typeof page.init.confs === "object" && page.init.confs !== null && !Array.isArray(page.init.confs)).toBe(true);
   });
 
@@ -83,7 +85,7 @@ describe.each([...FIXTURES])("%s", (name) => {
     const builtins = form.querySelectorAll<HTMLInputElement>("input." + CLS.jacredBuiltin);
     expect(builtins.length).toBeGreaterThan(1);
     builtins.forEach((radio) => expect([radio.name, radio.getAttribute(DATA.jacredId)]).toEqual([NAME.jacred, radio.value]));
-    doc.querySelectorAll<HTMLOptionElement>("#" + ID.template + " option").forEach((option) =>
+    doc.querySelectorAll<HTMLOptionElement>("#" + ID.template + " option, #" + ID.templateP2p + " option").forEach((option) =>
       expect([option.hasAttribute(DATA.hint), option.getAttribute(DATA.short) || ""]).toEqual([true, expect.stringMatching(/./)]),
     );
     const jrp = doc.getElementById(ID.jacredText)!;
@@ -124,7 +126,8 @@ describe.each([...FIXTURES])("%s", (name) => {
       doc.querySelectorAll("#" + ID.aioServer + " option[value=" + VALUE.own + "]").length,
       form.querySelectorAll(JACRED_RADIOS + "[type=radio][value=" + VALUE.own + "]").length,
       doc.querySelectorAll("#" + ID.template + " option[value=" + VALUE.none + "][disabled]").length,
-    ]).toEqual([1, 1, 1, 1]);
+      doc.querySelectorAll("#" + ID.templateP2p + " option[value=" + VALUE.none + "][disabled]").length,
+    ]).toEqual([1, 1, 1, 1, 1]);
   });
 
   test("every box the script writes a result or a message into: aria-live polite (a screen reader says it)", () => {

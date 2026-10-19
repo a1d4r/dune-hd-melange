@@ -10,16 +10,26 @@ export interface Aio {
   render(): void;
   // "Save" creates a config: "Save and create the config".
   creates(): boolean;
-  // Debrid: the template of the config of the server is not known yet (the mark "none"): a save finds it.
+  // The template of the config of the server in the mode chosen is not known yet (the mark "none"): a save finds it.
   templateUnknown(): boolean;
   // The config of the server (of the mode synced) after aio_sync; then render().
   applySync(sync: Sync, reset: boolean): void;
-  // A save now would replace the config of Debrid of the server with another template.
+  // A save now would replace the config of the mode chosen of the server with another template.
   resetPending(): boolean;
   // The OK of the user to replace the config of the mode chosen with the template.
   confirmReset(): boolean;
-  // After a save: the template chosen is the one for a new config.
+  // After a save: the template chosen of each mode is the one for a new config.
   rememberTemplate(): void;
+}
+
+// The template choice of a mode (0.44.0: one each): its select, the one shown (posted as seen), its hint; key - the
+// config it shows, by "<server> <config>" (undefined: as the page came).
+interface Choice {
+  mode: string;
+  select: HTMLSelectElement;
+  shown: HTMLInputElement;
+  hint: HTMLElement;
+  key: string | null | undefined;
 }
 
 export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
@@ -28,12 +38,19 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     ownUrlField = byId<HTMLInputElement>(doc, ID.aioOwnUrl),
     rdKey = byId<HTMLInputElement>(doc, ID.rdKey),
     tbKey = byId<HTMLInputElement>(doc, ID.tbKey),
-    template = byId<HTMLSelectElement>(doc, ID.template),
-    templateShown = byId<HTMLInputElement>(doc, ID.templateShown),
     serverName = byId(doc, ID.aioServerName),
     saveButton = query<HTMLButtonElement>(form, "." + CLS.save);
-  // The config of Debrid the template choice shows, by "<server> <config>"; undefined: as the page came.
-  let templateKey: string | null | undefined;
+  const choice = (mode: string, select: string, shown: string, hint: string): Choice => ({
+    mode: mode,
+    select: byId<HTMLSelectElement>(doc, select),
+    shown: byId<HTMLInputElement>(doc, shown),
+    hint: byId(doc, hint),
+    key: undefined,
+  });
+  const choices = [
+    choice(VALUE.debrid, ID.template, ID.templateShown, ID.templateHint),
+    choice(VALUE.p2p, ID.templateP2p, ID.templateP2pShown, ID.templateP2pHint),
+  ];
 
   function selected(): HTMLOptionElement | undefined {
     return server.options[server.selectedIndex];
@@ -59,25 +76,29 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     const conf = option ? confs.known(option.value, ofMode) : null;
     return option && option.value === VALUE.own && ownUrl() !== (conf ? conf.url : null) ? null : conf;
   }
-  function renderHint(): void {
-    byId(doc, ID.templateHint).textContent = template.options[template.selectedIndex]!.getAttribute(DATA.hint);
+  function renderHint(c: Choice): void {
+    c.hint.textContent = c.select.options[c.select.selectedIndex]!.getAttribute(DATA.hint);
   }
   function p2p(): boolean {
     return mode() === VALUE.p2p;
   }
-  // The template of the config of Debrid ("none": not known yet), else the one for a new config; a mark (disabled)
+  // The one of the mode chosen; own config: none.
+  function chosen(): Choice | null {
+    return ownWatch() ? null : choices[p2p() ? 1 : 0]!;
+  }
+  // The template of the config of its mode ("none": not known yet), else the one for a new config; a mark (disabled)
   // only while it is the one.
-  function renderTemplate(): void {
-    const conf = currentConf(VALUE.debrid);
-    const shown = conf ? conf.tpl || VALUE.none : confs.templateForNew();
-    for (let i = 0; i < template.options.length; i++) {
-      const option = template.options[i]!;
+  function renderTemplate(c: Choice): void {
+    const conf = currentConf(c.mode);
+    const shown = conf ? conf.tpl || VALUE.none : confs.templateForNew(c.mode);
+    for (let i = 0; i < c.select.options.length; i++) {
+      const option = c.select.options[i]!;
       if (isMark(option)) option.hidden = option.value !== shown;
     }
     // A missing tplNew assigns null, as a missing data-new did.
-    template.value = shown!;
-    templateShown.value = shown!;
-    renderHint();
+    c.select.value = shown!;
+    c.shown.value = shown!;
+    renderHint(c);
   }
   // The link, login and password of the config (a missing one: empty).
   function renderConf(conf: KnownConf): void {
@@ -107,13 +128,15 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     const option = selected(),
       ownSource = ownWatch(),
       ownServer = !!option && option.value === VALUE.own,
-      conf = currentConf(),
-      debrid = currentConf(VALUE.debrid);
-    // Another config of Debrid (or none): its template; the page came with the right one.
-    const key = debrid ? option!.value + " " + debrid.cfg : "";
-    if (key !== templateKey) {
-      if (templateKey !== undefined) renderTemplate();
-      templateKey = key;
+      conf = currentConf();
+    // Another config of the mode of a choice (or none): its template; the page came with the right one.
+    for (const c of choices) {
+      const ofMode = currentConf(c.mode);
+      const key = ofMode ? option!.value + " " + ofMode.cfg : "";
+      if (key !== c.key) {
+        if (c.key !== undefined) renderTemplate(c);
+        c.key = key;
+      }
     }
     const modeP2p = p2p();
     renderServerName(option);
@@ -142,38 +165,45 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   const jacreds = form.querySelectorAll<HTMLInputElement>(JACRED_RADIOS);
   for (let i = 0; i < jacreds.length; i++) jacreds[i]!.addEventListener("change", render);
   render();
-  template.addEventListener("change", renderHint);
+  for (const c of choices) c.select.addEventListener("change", () => renderHint(c));
 
   return {
     render: render,
     creates: creates,
-    templateUnknown: () => watchOf(form) === VALUE.debrid && template.value === VALUE.none,
+    templateUnknown(): boolean {
+      const c = chosen();
+      return !!c && c.select.value === VALUE.none;
+    },
     applySync(sync: Sync, reset: boolean): void {
       // Of a server of the choice only.
       for (let i = 0; i < server.options.length; i++)
         if (server.options[i]!.value === sync.base && sync.mode)
           confs.store(sync.base, sync.mode, sync.conf, sync.base === VALUE.own ? ownUrl() : null);
       // The template of the config as the server found it; a failed reset keeps the choice for the retry.
-      if (sync.ok || !reset) templateKey = null;
+      for (const c of choices) if (c.mode === sync.mode && (sync.ok || !reset)) c.key = null;
     },
-    // Of Debrid with a config there, another template (another mode: its own config, never a reset).
+    // Of the mode chosen with a config there, another template (the other mode: its own config, never a reset).
     resetPending(): boolean {
-      return !ownWatch() && !p2p() && !!currentConf() && template.value !== templateShown.value;
+      const c = chosen();
+      return !!c && !!currentConf() && c.select.value !== c.shown.value;
     },
-    // P2P: its name; a mark shown: the reset is to the template for a new config (nothing posted).
+    // A mark shown: the reset is to the template for a new config of the mode (nothing posted).
     confirmReset(): boolean {
       const option = selected()!,
-        address = option.value === VALUE.own ? ownUrl() : option.value;
-      let chosen = template.options[template.selectedIndex]!;
-      if (isMark(chosen))
-        for (let i = 0; i < template.options.length; i++)
-          if (template.options[i]!.value === confs.templateForNew()) chosen = template.options[i]!;
+        address = option.value === VALUE.own ? ownUrl() : option.value,
+        c = chosen() || choices[0]!;
+      let picked = c.select.options[c.select.selectedIndex]!;
+      if (isMark(picked))
+        for (let i = 0; i < c.select.options.length; i++)
+          if (c.select.options[i]!.value === confs.templateForNew(c.mode)) picked = c.select.options[i]!;
       const host = address.replace(/^[a-z]+:\/\//, "").replace(/[:\/].*$/, "");
-      return confirm(texts.resetConfirm.replace("%s", host).replace("%s", p2p() ? texts.templateP2p : chosen.text));
+      return confirm(texts.resetConfirm.replace("%s", host).replace("%s", picked.text));
     },
     rememberTemplate(): void {
-      if (!isMark(template.options[template.selectedIndex])) confs.storeTemplateForNew(template.value);
-      if (!currentConf(VALUE.debrid)) templateShown.value = template.value;
+      for (const c of choices) {
+        if (!isMark(c.select.options[c.select.selectedIndex])) confs.storeTemplateForNew(c.mode, c.select.value);
+        if (!currentConf(c.mode)) c.shown.value = c.select.value;
+      }
     },
   };
 }

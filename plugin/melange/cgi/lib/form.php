@@ -30,6 +30,11 @@ function aio_cgi_fields()
         'aio_mode' => array('id' => '', 'name' => 'aio_mode', 'set' => 'aio_mode', 'max' => 0, 'type' => 'radio', 'scr' => 'src'),
         'aio_tpl' => array('id' => 'at', 'name' => 'aio_tpl', 'set' => 'aio_tpl', 'max' => 0, 'type' => 'select', 'scr' => 'src'),
         'tpl_seen' => array('id' => 'ats', 'name' => 'aio_tpl_seen', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src'),
+        // The same two of the mode P2P (0.44.0).
+        'aio_tpl_p2p' => array('id' => 'atp', 'name' => 'aio_tpl_p2p', 'set' => 'aio_tpl_p2p', 'max' => 0, 'type' => 'select',
+            'scr' => 'src'),
+        'tpl_p2p_seen' => array('id' => 'atps', 'name' => 'aio_tpl_p2p_seen', 'set' => '', 'max' => 0, 'type' => 'hidden',
+            'scr' => 'src'),
         'rd' => array('id' => 'rd', 'name' => 'rd_key', 'set' => 'rd_key', 'max' => 100, 'type' => 'sec', 'scr' => 'src'),
         'tb' => array('id' => 'tb', 'name' => 'tb_key', 'set' => 'tb_key', 'max' => 100, 'type' => 'sec', 'scr' => 'src'),
         'tmdb' => array('id' => 'tm', 'name' => 'tmdb_key', 'set' => 'tmdb_key', 'max' => 100, 'type' => 'sec', 'scr' => 'src'),
@@ -240,28 +245,51 @@ function aio_cgi_tpls()
             aio_cgi_l('только русские', 'Russian only')));
 }
 
+// The templates of the mode P2P (aio_tpl_p2p of common.php, 0.44.0), as aio_cgi_tpls().
+function aio_cgi_tpls_p2p()
+{
+    return array(
+        AIO_TPL_P2P => array(aio_cgi_l('Везде', 'Everywhere'), aio_cgi_l(
+            'Torrentio, JacRed, TorrentsDB, Comet и StremThru Torz — больше раздач.',
+            'Torrentio, JacRed, TorrentsDB, Comet and StremThru Torz: more releases.'), aio_cgi_l('везде', 'everywhere')),
+        AIO_TPL_P2P_JACRED => array(aio_cgi_l('Только русские трекеры', 'Russian trackers only'), aio_cgi_l(
+            'JacRed: быстрее, раздачи русских трекеров.', 'JacRed: faster, releases of Russian trackers.'),
+            aio_cgi_l('только русские', 'Russian only')));
+}
+
+// The template choice of the mode $m on the page (0.44.0: one per mode):
+// array(the key of its select in aio_cgi_fields() and the values, that of
+// its aio_tpl_seen, the key of the values with the one for a new config,
+// its templates as aio_cgi_tpls()).
+function aio_cgi_tpl_keys($m)
+{
+    return $m === AIO_TPL_P2P ? array('aio_tpl_p2p', 'tpl_p2p_seen', 'tpl_p2p_new', aio_cgi_tpls_p2p()) :
+        array('aio_tpl', 'tpl_seen', 'tpl_new', aio_cgi_tpls());
+}
+
 // The name of the template $id: of the Debrid mode or P2P.
 function aio_cgi_tpl_name($id)
 {
-    $tpls = aio_cgi_tpls();
-    return isset($tpls[$id]) ? $tpls[$id][0] : aio_cgi_mode_p2p();
+    $tpls = aio_cgi_tpls() + aio_cgi_tpls_p2p();
+    return isset($tpls[$id]) ? $tpls[$id][0] : '';
 }
 
-// The mode P2P on the page and as a template.
+// The mode P2P on the page.
 function aio_cgi_mode_p2p()
 {
     return aio_cgi_l('Торренты', 'Torrents');
 }
 
-// The template the page shows for the server $server (aio_server; 'own' -
-// at $own) with the configs $confs (aio_confs), 0.40.0: that of its config
-// of Debrid ('none' - not known yet), else $new (aio_tpl, for a new config).
-function aio_cgi_tpl_shown($server, $own, $confs, $new)
+// The template the page shows in the mode $m for the server $server
+// (aio_server; 'own' - at $own) with the configs $confs (aio_confs), 0.40.0:
+// that of its config of the mode ('none' - not known yet), else $new
+// (aio_tpl or aio_tpl_p2p, for a new config).
+function aio_cgi_tpl_shown($m, $server, $own, $confs, $new)
 {
     $b = $server === 'own' ? aio_aio_own($own) : $server;
-    if ($b === '' || !isset($confs[$b][AIO_MODE_DEBRID]))
+    if ($b === '' || !isset($confs[$b][$m]))
         return $new;
-    return $confs[$b][AIO_MODE_DEBRID]['tpl'] !== null ? $confs[$b][AIO_MODE_DEBRID]['tpl'] : 'none';
+    return $confs[$b][$m]['tpl'] !== null ? $confs[$b][$m]['tpl'] : 'none';
 }
 
 // The mode the page shows: the one chosen in a form back, else aio_mode of
@@ -323,39 +351,41 @@ function aio_cgi_tpl_marks()
             'Melange detects the config template on the server when you save.'), aio_cgi_l('шаблон не определён', 'template unknown')));
 }
 
-// The template chosen on the page (aio_cgi_tpl): one chosen in a form back,
-// else the one shown (aio_cgi_tpl_shown), else the one for a new config.
-function aio_cgi_tpl_sel($v)
+// The template chosen on the page in the mode $m (aio_cgi_tpl): one chosen
+// in a form back, else the one shown (aio_cgi_tpl_shown), else the one for a new config.
+function aio_cgi_tpl_sel($v, $m)
 {
-    $tpls = aio_cgi_tpls();
-    $shown = aio_cgi_tpl_shown($v['aio_server'], $v['aio_own'], $v['confs'], $v['tpl_new']);
+    list($k, , $new, $tpls) = aio_cgi_tpl_keys($m);
+    $shown = aio_cgi_tpl_shown($m, $v['aio_server'], $v['aio_own'], $v['confs'], $v[$new]);
     $all = $tpls + aio_cgi_tpl_marks();
-    return isset($tpls[$v['aio_tpl']]) ? $v['aio_tpl'] : (isset($all[$shown]) ? $shown : $v['tpl_new']);
+    return isset($tpls[$v[$k]]) ? $v[$k] : (isset($all[$shown]) ? $shown : $v[$new]);
 }
 
-// "Где искать раздачи" - the template (0.40.0, the mode Debrid) with the hint of the chosen
-// one: that of the config of Debrid of the chosen server (a template or a
-// mark), else the one for a new config (tpl_new), unless one is chosen in a
+// "Где искать раздачи" - the template of the mode $m (0.40.0 Debrid, 0.44.0
+// P2P: one each) with the hint of the chosen one (#<id>h): that of the
+// config of the mode of the chosen server (a template or a mark), else the
+// one for a new config (tpl_new, tpl_p2p_new), unless one is chosen in a
 // form back. A mark (aio_cgi_tpl_marks) is disabled, so never posted; the
 // one not shown is hidden (the one for a new config: #init.tplNew);
-// aio_tpl_seen: the one the page shows (another one on "Сохранить" resets
-// the config there; changed by another tab since: the save is refused).
-function aio_cgi_tpl($v)
+// aio_tpl_seen, aio_tpl_p2p_seen: the one the page shows (another one on
+// "Сохранить" resets the config there; changed by another tab since: the
+// save is refused).
+function aio_cgi_tpl($v, $m)
 {
     $f = aio_cgi_fields();
-    $tpls = aio_cgi_tpls();
+    list($k, $seen, $new, $tpls) = aio_cgi_tpl_keys($m);
     $all = $tpls + aio_cgi_tpl_marks();
-    $shown = aio_cgi_tpl_shown($v['aio_server'], $v['aio_own'], $v['confs'], $v['tpl_new']);
-    $sel = aio_cgi_tpl_sel($v);
-    $out = '<label for="' . $f['aio_tpl']['id'] . '">' . aio_cgi_l('Где искать раздачи', 'Where to look for releases') . '</label><select id="' .
-        $f['aio_tpl']['id'] . '" name="' . $f['aio_tpl']['name'] . '">';
+    $shown = aio_cgi_tpl_shown($m, $v['aio_server'], $v['aio_own'], $v['confs'], $v[$new]);
+    $sel = aio_cgi_tpl_sel($v, $m);
+    $out = '<label for="' . $f[$k]['id'] . '">' . aio_cgi_l('Где искать раздачи', 'Where to look for releases') . '</label><select id="' .
+        $f[$k]['id'] . '" name="' . $f[$k]['name'] . '">';
     foreach ($all as $id => $x)
         $out .= '<option value="' . $id . '" data-hint="' . aio_cgi_h($x[1]) . '" data-short="' . aio_cgi_h($x[2]) . '"' .
             (isset($tpls[$id]) ? '' : ' disabled' . ($id === $sel ? '' : ' hidden')) . ($id === $sel ? ' selected' : '') . '>' .
             aio_cgi_h($x[0]) . '</option>';
-    return $out . '</select><input type="hidden" id="' . $f['tpl_seen']['id'] . '" name="' . $f['tpl_seen']['name'] .
+    return $out . '</select><input type="hidden" id="' . $f[$seen]['id'] . '" name="' . $f[$seen]['name'] .
         '" value="' . aio_cgi_h($shown) . '">' .
-        '<p class="hint" id="ath">' . aio_cgi_h($all[$sel][1]) . '</p>';
+        '<p class="hint" id="' . $f[$k]['id'] . 'h">' . aio_cgi_h($all[$sel][1]) . '</p>';
 }
 
 // The answers of "Откуда брать фильмы" (radio watch): id of the radio => value.
@@ -382,7 +412,7 @@ function aio_cgi_host($url)
 // (classes xd, xp, xo, xm - Debrid, Торренты, the own config, both made):
 // Debrid - the keys (#dseg, #rdadd, #tbadd: by the script) and the template;
 // Торренты - #tsp2p, where the script moves #tsbox of #torr (without it, a
-// link there); the own config - its manifest address, only read; Debrid and
+// link there), and the template of P2P; the own config - its manifest address, only read; Debrid and
 // Торренты - the server (#asd: of the list or another one) and the TMDB key
 // under a server without TMDB of its own (another one: always).
 function aio_cgi_src($v)
@@ -399,11 +429,11 @@ function aio_cgi_src($v)
         aio_cgi_input($f['tb'], aio_cgi_l('Ключ TorBox', 'TorBox key'), $v['tb'], aio_cgi_l('Где взять: ', 'Get it at ') .
             aio_cgi_link('https://torbox.app/settings', 'torbox.app/settings'), aio_cgi_chk('tbb', 'tbr')) .
         '</div><button type="button" id="rdadd" class="lnk" hidden>' . aio_cgi_l('+ Добавить Real-Debrid', '+ Add Real-Debrid') .
-        '</button>' . aio_cgi_tpl($v) . '</div>' .
+        '</button>' . aio_cgi_tpl($v, AIO_MODE_DEBRID) . '</div>' .
         '<div id="mp2p" class="xp"><p class="hint">' . aio_cgi_l('Ключ не нужен: фильмы качаются с раздачи и играют через TorrServer.',
         'No key needed: films are fetched from the swarm and play via TorrServer.') . '</p><div id="tsp2p"></div>' .
         '<p class="hint" id="tslink"><a href="#torr">' . aio_cgi_l('Адрес TorrServer и проверка ›', 'TorrServer address and check ›') .
-        '</a></p></div>' .
+        '</a></p>' . aio_cgi_tpl($v, AIO_TPL_P2P) . '</div>' .
         '<div id="sown" class="xo">' . aio_cgi_input($f['manifest'], aio_cgi_l('Ссылка на конфиг', 'Config link'), $v['manifest'],
         aio_cgi_l('Где взять: Save & Install → Stremio → Direct Manifest URL.',
         'Get it at: Save & Install → Stremio → Direct Manifest URL.'), aio_cgi_chk('mb', 'mr')) .
@@ -483,7 +513,7 @@ function aio_cgi_css()
 // the page stays the answer to a GET. No fetch -> the form posts as usual.
 // Messages go in by textContent; #init has the texts (i18n), the defaults,
 // the configs of the servers by mode (confs) and the template for a new
-// config (tplNew); the script is cgi/settings.js, built from web/ (none readable:
+// config of each mode (tplNew); the script is cgi/settings.js, built from web/ (none readable:
 // the page without it).
 function aio_cgi_js($v)
 {
@@ -531,8 +561,8 @@ function aio_cgi_js($v)
     $js = is_readable($js) ? file_get_contents($js) : false;
     if (!is_string($js))
         return '';
-    $init = json_encode(array('i18n' => $t, 'jacredDefault' => AIO_JACRED_DEFAULT, 'tplNew' => $v['tpl_new'],
-        'confs' => aio_cgi_aio_confs($v)));
+    $init = json_encode(array('i18n' => $t, 'jacredDefault' => AIO_JACRED_DEFAULT,
+        'tplNew' => array(AIO_MODE_DEBRID => $v['tpl_new'], AIO_TPL_P2P => $v['tpl_p2p_new']), 'confs' => aio_cgi_aio_confs($v)));
     // JSON_HEX_TAG for "<" (PHP 5.3 has none): no "</script>" or "<!--" in the element; "<" is only in strings.
     return '<script type="application/json" id="init">' . str_replace('<', '\\u003c', $init) . '</script><script>' .
         $js . '</script>';

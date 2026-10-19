@@ -6,8 +6,9 @@
 
 // Values of the form from the settings (aio_settings_read) or as posted
 // (aio_cgi_posted), by the keys of aio_cgi_fields() - strings (aio_tpl,
-// aio_mode: the one chosen in a form back, '' from the settings; tpl_seen
-// only posted); tpl_new - aio_tpl of the settings (for a new config);
+// aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
+// settings; tpl_seen, tpl_p2p_seen only posted); tpl_new, tpl_p2p_new -
+// aio_tpl, aio_tpl_p2p of the settings (for a new config);
 // mode_cur - aio_mode of the settings (one for all servers); servers -
 // lists of strings by aio_cgi_server_fields(); confs - aio_confs of the
 // settings (never posted).
@@ -19,6 +20,8 @@ function aio_cgi_values($s)
             $v[$k] = $s[$f['set']];
     $v['tpl_new'] = $v['aio_tpl'];
     $v['aio_tpl'] = '';
+    $v['tpl_p2p_new'] = $v['aio_tpl_p2p'];
+    $v['aio_tpl_p2p'] = '';
     $v['mode_cur'] = $v['aio_mode'];
     $v['aio_mode'] = '';
     $v['servers'] = $s['servers'];
@@ -141,25 +144,30 @@ function aio_cgi_check_values($v)
     $d[$set['aio_mode']] = $mode;
     // No field (a form of 0.39 or older), or a wrong one of the own config: the stored one.
     $d[$set['aio_tpl']] = aio_tpl_debrid($v['aio_tpl']) ? $v['aio_tpl'] : $v['cur'][$set['aio_tpl']];
-    $d['aio_tpl_p2p'] = $v['cur']['aio_tpl_p2p'];
-    if ($made && $v['aio_tpl'] !== '' && $d[$set['aio_tpl']] !== $v['aio_tpl'])
+    // That of P2P (0.44.0) the same way; none (a form of 0.43 or older): the stored one.
+    $d[$set['aio_tpl_p2p']] = aio_tpl_p2p($v['aio_tpl_p2p']) ? $v['aio_tpl_p2p'] : $v['cur'][$set['aio_tpl_p2p']];
+    foreach (array('aio_tpl', 'aio_tpl_p2p') as $k)
     {
-        $errors[] = aio_cgi_err(aio_cgi_l('Шаблон конфига: нет такого шаблона', 'Config template: no such template'),
-            $f['aio_tpl']['name']);
+        if ($made && $v[$k] !== '' && $d[$set[$k]] !== $v[$k])
+        {
+            $errors[] = aio_cgi_err(aio_cgi_l('Шаблон конфига: нет такого шаблона', 'Config template: no such template'),
+                $f[$k]['name']);
+        }
     }
-    // The page showed another one for the chosen server (none: a form of
-    // 0.39 or older): another tab changed it since. A page without the
-    // script showed the stored server only; the script, for an own address
-    // other than the stored one, the one for a new config (its conf()).
-    $new = $v['cur'][$set['aio_tpl']];
+    // The page showed another one of the mode for the chosen server (none: a
+    // form of 0.39 or older, of P2P 0.43 or older): another tab changed it
+    // since. A page without the script showed the stored server only; the
+    // script, for an own address other than the stored one, the one for a
+    // new config (its conf()). Only the mode chosen: the other one hides its
+    // template, no reset by it there.
+    list($k, $seen) = aio_cgi_tpl_keys($mode);
+    $new = $v['cur'][$set[$k]];
     $shown = $d[$set['aio_server']] === 'own' && $d[$set['aio_own']] !== $v['cur'][$set['aio_own']] ? $new :
-        aio_cgi_tpl_shown($d[$set['aio_server']], $d[$set['aio_own']], $v['confs'], $new);
-    // Only Debrid: P2P hides the template, no reset by it there.
-    if ($mode === AIO_MODE_DEBRID && $v['tpl_seen'] !== '' && ($v['ajax'] || aio_cgi_same_server($d, $v['cur'])) &&
-        $v['tpl_seen'] !== $shown)
+        aio_cgi_tpl_shown($mode, $d[$set['aio_server']], $d[$set['aio_own']], $v['confs'], $new);
+    if ($v[$seen] !== '' && ($v['ajax'] || aio_cgi_same_server($d, $v['cur'])) && $v[$seen] !== $shown)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Шаблон изменён в другой вкладке — обновите страницу',
-            'The template was changed in another tab: reload the page'), $f['aio_tpl']['name']);
+            'The template was changed in another tab: reload the page'), $f[$k]['name']);
     }
     // The mode Debrid and no key to make the config there (none of Debrid there yet).
     $base = $d[$set['aio_server']] === 'own' ? $d[$set['aio_own']] : $d[$set['aio_server']];
@@ -231,8 +239,9 @@ function aio_cgi_check_values($v)
 // in the mode chosen to the template of that mode (0.40.0); $confs: the
 // configs (aio_confs), $v: as posted (aio_cgi_posted with reset, ajax, cur).
 // By its button or the script (it asks first and posts aio_reset); without
-// the script, on the server the page showed (aio_cgi_same_server): of Debrid
-// another template (aio_tpl) than its tpl (also 'none' or 'custom').
+// the script, on the server the page showed (aio_cgi_same_server): another
+// template of the mode (aio_tpl, 0.44.0 aio_tpl_p2p) than its tpl (also
+// 'none' or 'custom').
 function aio_cgi_resets($d, $confs, $v)
 {
     $b = aio_settings_base($d);
@@ -240,9 +249,10 @@ function aio_cgi_resets($d, $confs, $v)
         return false;
     if ($v['reset'])
         return true;
-    if ($v['ajax'] || !aio_cgi_same_server($d, $v['cur']) || $d['aio_mode'] !== AIO_MODE_DEBRID)
+    if ($v['ajax'] || !aio_cgi_same_server($d, $v['cur']))
         return false;
-    return $v['aio_tpl'] !== '' && $v['aio_tpl'] !== aio_cgi_tpl_shown($d['aio_server'], $d['aio_own_url'], $confs, '');
+    list($k) = aio_cgi_tpl_keys($d['aio_mode']);
+    return $v[$k] !== '' && $v[$k] !== aio_cgi_tpl_shown($d['aio_mode'], $d['aio_server'], $d['aio_own_url'], $confs, '');
 }
 
 // The server chosen in $d (settings.json) is the stored one of $cur: the

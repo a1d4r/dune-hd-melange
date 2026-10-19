@@ -80,10 +80,15 @@ function aio_cgi_rows($v)
             $keys[] = 'Real-Debrid';
         if ($v['tb'] !== '')
             $keys[] = 'TorBox';
-        $all = aio_cgi_tpls() + aio_cgi_tpl_marks();
-        $tpl = aio_cgi_tpl_sel($v);
-        $src = 'Debrid · ' . ($keys ? implode(' + ', $keys) : $t['needKey']) .
-            (isset($all[$tpl]) ? ' · ' . $all[$tpl][2] : '');
+        $src = 'Debrid · ' . ($keys ? implode(' + ', $keys) : $t['needKey']);
+    }
+    // The template of the mode, by its short name (0.44.0: P2P too).
+    if ($w !== 'own')
+    {
+        list(, , , $tpls) = aio_cgi_tpl_keys($w);
+        $all = $tpls + aio_cgi_tpl_marks();
+        $tpl = aio_cgi_tpl_sel($v, $w);
+        $src .= isset($all[$tpl]) ? ' · ' . $all[$tpl][2] : '';
     }
     $jr = $v['jacred'] !== 'own' ? $v['jacred'] : aio_cgi_host($v['jo_url']);
     $names = array();

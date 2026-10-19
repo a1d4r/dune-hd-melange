@@ -96,6 +96,7 @@ function aio_cgi_save($dir, $t)
     $v['confs'] = $cur['aio_confs'];
     $v['cur'] = $cur;
     $v['tpl_new'] = $cur['aio_tpl'];
+    $v['tpl_p2p_new'] = $cur['aio_tpl_p2p'];
     $v['mode_cur'] = $cur['aio_mode'];
     $v['ajax'] = $ajax;
     $v['reset'] = aio_cgi_param($_POST, 'aio_reset') === '1';
