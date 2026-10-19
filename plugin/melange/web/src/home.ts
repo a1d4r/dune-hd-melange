@@ -33,7 +33,7 @@ export function setupHome(page: Page, creates: () => boolean): Home {
       option = template.options[template.selectedIndex];
     const short = option ? option.getAttribute(DATA.short) : null,
       tail = short ? " · " + short : "";
-    if (watch === VALUE.p2p) return texts.templateP2p + " · " + texts.viaTs + tail;
+    if (watch === VALUE.p2p) return texts.modeP2p + " · " + texts.viaTs + tail;
     const keys: string[] = [];
     if (value(ID.rdKey) !== "") keys.push("Real-Debrid");
     if (value(ID.tbKey) !== "") keys.push("TorBox");

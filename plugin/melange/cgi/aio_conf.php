@@ -152,7 +152,7 @@ function aio_conf_tpl_of($c, $mode)
     $ids = aio_conf_preset_ids($c);
     foreach (array_keys(aio_aio_tpls()) as $id)
     {
-        if (aio_tpl_p2p($id) !== ($mode === AIO_TPL_P2P))
+        if (aio_tpl_p2p($id) !== ($mode === AIO_MODE_P2P))
             continue;
         foreach (array_merge(array(''), aio_conf_p2p_torznab()) as $base)
         {
@@ -309,7 +309,7 @@ function aio_conf_params($s, $conf, $tmdbs = null)
     $servers = aio_aio_servers();
     $base = aio_settings_base($s);
     $jr = aio_jacred_list($s);
-    $p2p = $s['aio_mode'] === AIO_TPL_P2P;
+    $p2p = $s['aio_mode'] === AIO_MODE_P2P;
     return array('rd' => $p2p ? '' : $s['rd_key'], 'tb' => $p2p ? '' : $s['tb_key'], 'jr_url' => aio_conf_torznab($jr[0]['base']),
         'jr_key' => $jr[0]['key'], 'tmdb_key' => aio_tmdb_sent($base, $s['tmdb_key']),
         'tmdb_server' => $tmdbs !== null ? $tmdbs : !empty($servers[$base]), 'tmdb_prev' => $conf ? $conf['tmdb'] : null,

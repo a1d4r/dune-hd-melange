@@ -167,7 +167,9 @@ function aio_cgi_check_values($v)
     // script, for an own address other than the stored one, the one for a
     // new config (its conf()). Only the mode chosen: the other one hides its
     // template, no reset by it there.
-    list($k, $seen) = aio_cgi_tpl_keys($mode);
+    $tk = aio_cgi_tpl_keys($mode);
+    $k = $tk['field'];
+    $seen = $tk['seen'];
     $new = $v['cur'][$set[$k]];
     $shown = $d[$set['aio_server']] === 'own' && $d[$set['aio_own']] !== $v['cur'][$set['aio_own']] ? $new :
         aio_cgi_tpl_shown($mode, $d[$set['aio_server']], $d[$set['aio_own']], $v['confs'], $new);
@@ -202,7 +204,7 @@ function aio_cgi_check_values($v)
             'Debrid needs a Real-Debrid or TorBox key; without one, choose "Torrents"'), $f['rd']['name']);
     }
     // P2P: the own JacRed goes to Magnetio in one path segment "k=v|k=v".
-    if ($made && $mode === AIO_TPL_P2P && $d[$set['jacred']] === 'own' && strpos($d[$set['jo_key']], '|') !== false)
+    if ($made && $mode === AIO_MODE_P2P && $d[$set['jacred']] === 'own' && strpos($d[$set['jo_key']], '|') !== false)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Свой JacRed: в режиме «Торренты» ключ — без символа |',
             'Own JacRed: with "Torrents", the key must not contain |'), $f['jo_key']['name']);
@@ -258,7 +260,8 @@ function aio_cgi_resets($d, $confs, $v)
         return true;
     if ($v['ajax'] || !aio_cgi_same_server($d, $v['cur']))
         return false;
-    list($k) = aio_cgi_tpl_keys($d['aio_mode']);
+    $tk = aio_cgi_tpl_keys($d['aio_mode']);
+    $k = $tk['field'];
     return $v[$k] !== '' && $v[$k] !== aio_cgi_tpl_shown($d['aio_mode'], $d['aio_server'], $d['aio_own_url'], $confs, '');
 }
 

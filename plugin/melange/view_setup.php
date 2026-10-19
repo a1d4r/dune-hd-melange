@@ -285,7 +285,7 @@ function aio_setup_config_due()
 {
     $s = aio_settings_read(aio_data_dir());
     return $s['source'] === 'made' && aio_settings_base($s) !== '' && !aio_settings_conf($s) &&
-        ($s['aio_mode'] === AIO_TPL_P2P || $s['rd_key'] !== '' || $s['tb_key'] !== '');
+        ($s['aio_mode'] === AIO_MODE_P2P || $s['rd_key'] !== '' || $s['tb_key'] !== '');
 }
 
 // Timer of the QR dialog: a new settings.json closes it and redraws the

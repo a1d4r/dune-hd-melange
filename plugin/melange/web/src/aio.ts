@@ -84,7 +84,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   }
   // The one of the mode chosen; own config: none.
   function chosen(): Choice | null {
-    return ownWatch() ? null : choices[p2p() ? 1 : 0]!;
+    return ownWatch() ? null : choices.find((c) => c.mode === mode())!;
   }
   // The template of the config of its mode ("none": not known yet), else the one for a new config; a mark (disabled)
   // only while it is the one.

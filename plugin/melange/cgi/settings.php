@@ -124,7 +124,7 @@ function aio_cgi_save($dir, $t)
         // A server with a TMDB key of its own: the field is hidden, the key kept unchecked.
         // Only the keys of the chosen source: the own config needs none, nor a config of P2P a Debrid one.
         if ($data[$k] === '' || $data['source'] === 'own' || ($what === 'tmdb' ?
-            aio_tmdb_sent(aio_settings_base($data), $data[$k]) === '' : $data['aio_mode'] === AIO_TPL_P2P))
+            aio_tmdb_sent(aio_settings_base($data), $data[$k]) === '' : $data['aio_mode'] === AIO_MODE_P2P))
             continue;
         $r = aio_cgi_key_check($what, $data[$k]);
         if ($r[0] === 'err')

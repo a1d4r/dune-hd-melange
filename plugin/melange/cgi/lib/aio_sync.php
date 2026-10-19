@@ -202,7 +202,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     // No config: made by the template.
     $reset = $reset && $conf;
     $id = aio_settings_tpl($s);
-    $debrid = $mode !== AIO_TPL_P2P;
+    $debrid = $mode !== AIO_MODE_P2P;
     if ($s['source'] === 'own' || $base === '')
     {
         aio_cgi_log('aio sync: own config or no address, skipped');

@@ -248,17 +248,23 @@ function aio_aio_servers()
         'https://aiostreams.fortheweak.cloud' => false);
 }
 
-// The template of the mode P2P "everywhere" (and the value of that mode).
+// The template of the mode P2P "everywhere". The same value as the mode
+// (AIO_MODE_P2P) by history (one template of P2P till 0.43): not the mode.
 define('AIO_TPL_P2P', 'p2p');
 // The template of the mode P2P "JacRed only" (0.44.0), its default.
 define('AIO_TPL_P2P_JACRED', 'p2p_jacred');
 // The value of the mode Debrid (aio_mode).
 define('AIO_MODE_DEBRID', 'debrid');
+// The value of the mode P2P (aio_mode).
+define('AIO_MODE_P2P', 'p2p');
 
 // Templates of the config melange makes (0.40.0): id => instanceIds of the
 // presets of cgi/aio_template.json it has, in this order. The first one is
-// the default; the Debrid mode chooses one of them, the mode P2P (no Debrid
-// service) one of aio_aio_tpls_p2p (Torrentio first, its rows win the dedup).
+// the default of Debrid; the Debrid mode chooses one of them, the mode P2P
+// (no Debrid service) one of aio_aio_tpls_p2p (Torrentio first, its rows win
+// the dedup). All templates of a mode have the same JacRed preset and the
+// same fields out of presets: aio_cgi_aio_sync patches a config of P2P with
+// Magnetio by the template of the settings, whatever its own.
 // Their JacRed: Torznab of AIOStreams "melange" (needs a Debrid service) or
 // Magnetio "magnetio" (aio_conf_patch puts the chosen JacRed in either); P2P
 // on the servers of aio_conf_p2p_torznab: Torznab in the place of Magnetio
@@ -273,25 +279,26 @@ function aio_aio_tpls()
 }
 
 // The templates of the mode P2P (aio_tpl_p2p of the settings), the rest of
-// aio_aio_tpls are of Debrid; the default: AIO_TPL_P2P_JACRED.
+// aio_aio_tpls are of Debrid. The first one is the default (as of Debrid);
+// the order of the page: aio_cgi_tpls_p2p.
 /**
  * @return list<string>
  */
 function aio_aio_tpls_p2p()
 {
-    return array(AIO_TPL_P2P, AIO_TPL_P2P_JACRED);
+    return array(AIO_TPL_P2P_JACRED, AIO_TPL_P2P);
 }
 
 // Modes of the config melange makes (aio_mode of the settings, the one in
 // use, one for all servers; a server has a config of each at most): debrid
-// - aio_tpl with the Debrid keys; p2p (AIO_TPL_P2P) - aio_tpl_p2p, the keys
+// - aio_tpl with the Debrid keys; p2p (AIO_MODE_P2P) - aio_tpl_p2p, the keys
 // kept but never sent. The first one is the default.
 /**
  * @return list<string>
  */
 function aio_aio_modes()
 {
-    return array(AIO_MODE_DEBRID, AIO_TPL_P2P);
+    return array(AIO_MODE_DEBRID, AIO_MODE_P2P);
 }
 
 // $id is a template of the Debrid mode (aio_tpl).
@@ -322,7 +329,7 @@ function aio_tpl_p2p($id)
  */
 function aio_settings_tpl($s)
 {
-    return $s['aio_mode'] === AIO_TPL_P2P ? $s['aio_tpl_p2p'] : $s['aio_tpl'];
+    return $s['aio_mode'] === AIO_MODE_P2P ? $s['aio_tpl_p2p'] : $s['aio_tpl'];
 }
 
 // The mode of a config of 0.42 or older (one per server; moved to the cell
@@ -337,7 +344,7 @@ function aio_settings_tpl($s)
 function aio_mode_of($tpl, $mode = null)
 {
     if (aio_tpl_p2p($tpl))
-        return AIO_TPL_P2P;
+        return AIO_MODE_P2P;
     if (aio_tpl_debrid($tpl))
         return AIO_MODE_DEBRID;
     return $mode !== null ? $mode : AIO_MODE_DEBRID;
@@ -571,8 +578,8 @@ function aio_settings_hosts($s)
 // chosen), 'aio_server' => a key of aio_aio_servers() or 'own' (another
 // server: aio_own_url), 'aio_own_url' => aio_aio_own(), 'aio_mode' => one of
 // aio_aio_modes(), 'aio_tpl' => aio_tpl_debrid(), 'aio_tpl_p2p' =>
-// aio_tpl_p2p() (0.44.0; none - AIO_TPL_P2P_JACRED, a config there keeps its
-// template; all three one for all servers); everything kept
+// aio_tpl_p2p() (0.44.0; none - the first of aio_aio_tpls_p2p, a config
+// there keeps its template; all three one for all servers); everything kept
 // whatever is chosen, 'tmdb_key',
 // 'servers' => list of aio_server_conf(), 'ts_url' => aio_ts_addr() or '',
 // 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
@@ -593,9 +600,10 @@ function aio_settings_read($dir)
 {
     $servers = array_keys(aio_aio_servers());
     $tpls = aio_aio_tpls();
+    $tpls_p2p = aio_aio_tpls_p2p();
     $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
-        'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => AIO_TPL_P2P_JACRED, 'tmdb_key' => '',
+        'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'servers' => array(), 'ts_url' => '',
         'aio_confs' => array(), 'saved_once' => false);
     $f = "$dir/" . AIO_SETTINGS_FILE;

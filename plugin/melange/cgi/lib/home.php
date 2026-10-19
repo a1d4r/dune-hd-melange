@@ -71,7 +71,7 @@ function aio_cgi_rows($v)
     $dot = $st === 'ok' ? 'ok' : 'warn';
     if ($w === 'own')
         $src = $t['watchOwn'] . ($v['manifest'] === '' ? ' · ' . $t['needLink'] : '');
-    elseif ($w === AIO_TPL_P2P)
+    elseif ($w === AIO_MODE_P2P)
         $src = aio_cgi_mode_p2p() . ' · ' . $t['viaTs'];
     else
     {
@@ -85,8 +85,8 @@ function aio_cgi_rows($v)
     // The template of the mode, by its short name (0.44.0: P2P too).
     if ($w !== 'own')
     {
-        list(, , , $tpls) = aio_cgi_tpl_keys($w);
-        $all = $tpls + aio_cgi_tpl_marks();
+        $tk = aio_cgi_tpl_keys($w);
+        $all = $tk['tpls'] + aio_cgi_tpl_marks();
         $tpl = aio_cgi_tpl_sel($v, $w);
         $src .= isset($all[$tpl]) ? ' · ' . $all[$tpl][2] : '';
     }
@@ -101,7 +101,7 @@ function aio_cgi_rows($v)
     }
     return array('src' => array($dot, $src),
         'voices' => array($jr === '' ? 'warn' : 'ok', $jr !== '' ? $jr : $t['ownJacred']),
-        'torr' => array($w === AIO_TPL_P2P ? 'ok' : '', ($v['ts'] !== '' ? $v['ts'] : $t['tsDune']) .
+        'torr' => array($w === AIO_MODE_P2P ? 'ok' : '', ($v['ts'] !== '' ? $v['ts'] : $t['tsDune']) .
             ($w === AIO_MODE_DEBRID ? ' · ' . $t['tsSpare'] : '')),
         'dl' => array($names ? 'ok' : '', $names ? implode(', ', $names) : $t['noServers']),
         'cfg' => array('', aio_cgi_l('Для опытных: вход, сброс', 'For the experienced: login, reset')),
