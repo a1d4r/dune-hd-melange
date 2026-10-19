@@ -460,6 +460,38 @@ describe("the reset", () => {
     expect([page.el<HTMLSelectElement>(ID.templateP2p).value, page.el<HTMLSelectElement>(ID.template).value]).toEqual(["p2p", "addons"]);
   });
 
+  test.each(["p2p", "debrid"])("%s: saved as shown over a config of P2P everywhere (of 0.43) - the one for a new config of P2P stays", async (watch) => {
+    const page = open("p2p");
+    page.choose("watch", watch);
+    page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
+    await save(page);
+    expect(pairs(page.calls[0]!.body).filter(([k]) => /^aio_tpl_p2p/.test(k!))).toEqual([["aio_tpl_p2p", "p2p"], ["aio_tpl_p2p_seen", "p2p"]]);
+    page.type(ID.aioServer, ATB);
+    page.choose("watch", "p2p");
+    expect([page.el<HTMLSelectElement>(ID.templateP2p).value, page.el<HTMLInputElement>(ID.templateP2pShown).value]).toEqual([
+      "p2p_jacred", "p2p_jacred",
+    ]);
+  });
+
+  test("P2P: another template of Debrid saved, the sync of P2P - that of Debrid back to its config: no question in Debrid", async () => {
+    const page = open("p2p");
+    page.type(ID.template, "jacred");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "update" }),
+      json({ ok: true, msg: "Updated", skip: false, base: MADE, mode: "p2p", conf: FILLED_CONF("p2p") }));
+    await save(page);
+    expect([page.el<HTMLSelectElement>(ID.template).value, page.el<HTMLInputElement>(ID.templateShown).value]).toEqual(["addons", "addons"]);
+    // The one chosen is that for a new config of Debrid, as the save stored it.
+    page.type(ID.aioServer, "https://aiostreams.kompotik.com");
+    expect(page.el<HTMLSelectElement>(ID.template).value).toBe("jacred");
+    page.type(ID.aioServer, MADE);
+    page.choose("watch", "debrid");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
+    await save(page);
+    expect([page.confirms, pairs(page.calls[2]!.body).filter(([k]) => /^aio_(tpl|reset)/.test(k!) && !/p2p/.test(k!))]).toEqual([
+      [], [["aio_tpl", "addons"], ["aio_tpl_seen", "addons"]],
+    ]);
+  });
+
   test.each([false, true])("ok %p: a failed reset in P2P keeps its template chosen; a done one shows that of the config", async (ok) => {
     const page = open("p2p");
     page.confirmAnswer = true;

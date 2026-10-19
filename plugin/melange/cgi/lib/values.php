@@ -144,11 +144,18 @@ function aio_cgi_check_values($v)
     $d[$set['aio_mode']] = $mode;
     // No field (a form of 0.39 or older), or a wrong one of the own config: the stored one.
     $d[$set['aio_tpl']] = aio_tpl_debrid($v['aio_tpl']) ? $v['aio_tpl'] : $v['cur'][$set['aio_tpl']];
-    // That of P2P (0.44.0) the same way; none (a form of 0.43 or older): the stored one.
-    $d[$set['aio_tpl_p2p']] = aio_tpl_p2p($v['aio_tpl_p2p']) ? $v['aio_tpl_p2p'] : $v['cur'][$set['aio_tpl_p2p']];
-    foreach (array('aio_tpl', 'aio_tpl_p2p') as $k)
+    // That of P2P (0.44.0): only one chosen, another than the page showed
+    // (tpl_p2p_seen); as shown, none (a form of 0.43 or older) or a wrong
+    // one: the stored one. Else a save as shown (a config of P2P of 0.43:
+    // p2p; any save of Debrid) would drop the default p2p_jacred for a new
+    // config. Debrid as before (0.40.0): the one posted, shown or chosen
+    // (its default addons is that of the configs of before).
+    $ok = array('aio_tpl' => aio_tpl_debrid($v['aio_tpl']), 'aio_tpl_p2p' => aio_tpl_p2p($v['aio_tpl_p2p']));
+    $d[$set['aio_tpl_p2p']] = $ok['aio_tpl_p2p'] && $v['aio_tpl_p2p'] !== $v['tpl_p2p_seen'] ? $v['aio_tpl_p2p'] :
+        $v['cur'][$set['aio_tpl_p2p']];
+    foreach ($ok as $k => $good)
     {
-        if ($made && $v[$k] !== '' && $d[$set[$k]] !== $v[$k])
+        if ($made && $v[$k] !== '' && !$good)
         {
             $errors[] = aio_cgi_err(aio_cgi_l('Шаблон конфига: нет такого шаблона', 'Config template: no such template'),
                 $f[$k]['name']);

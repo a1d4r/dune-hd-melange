@@ -18,7 +18,7 @@ export interface Aio {
   resetPending(): boolean;
   // The OK of the user to replace the config of the mode chosen with the template.
   confirmReset(): boolean;
-  // After a save: the template chosen of each mode is the one for a new config.
+  // After a save: the template chosen of each mode is the one for a new config (of P2P: only another one than shown).
   rememberTemplate(): void;
 }
 
@@ -179,8 +179,9 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
       for (let i = 0; i < server.options.length; i++)
         if (server.options[i]!.value === sync.base && sync.mode)
           confs.store(sync.base, sync.mode, sync.conf, sync.base === VALUE.own ? ownUrl() : null);
-      // The template of the config as the server found it; a failed reset keeps the choice for the retry.
-      for (const c of choices) if (c.mode === sync.mode && (sync.ok || !reset)) c.key = null;
+      // Of both modes, the template of the config (as the server found it): one of the other mode chosen is saved
+      // already, not a reset to ask for there later; a failed reset keeps the choice of its mode for the retry.
+      for (const c of choices) if (c.mode !== sync.mode || sync.ok || !reset) c.key = null;
     },
     // Of the mode chosen with a config there, another template (the other mode: its own config, never a reset).
     resetPending(): boolean {
@@ -201,7 +202,9 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     },
     rememberTemplate(): void {
       for (const c of choices) {
-        if (!isMark(c.select.options[c.select.selectedIndex])) confs.storeTemplateForNew(c.mode, c.select.value);
+        // As the save: of P2P only another one than shown (else the default stays), of Debrid the one posted.
+        const posted = !isMark(c.select.options[c.select.selectedIndex]);
+        if (posted && (c.mode !== VALUE.p2p || c.select.value !== c.shown.value)) confs.storeTemplateForNew(c.mode, c.select.value);
         if (!currentConf(c.mode)) c.shown.value = c.select.value;
       }
     },
