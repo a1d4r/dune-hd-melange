@@ -1,6 +1,7 @@
 // The main screen: the state (#state) and the line of each screen (its dot and value) by the values of the form now,
 // by the rules of PHP (aio_cgi_state, aio_cgi_rows in cgi/lib/home.php): the same values give the same page.
 
+import type { Aio } from "./aio";
 import { byId, checkedValue, DATA, hostOf, ID, NAME, type Page, type Row, SERVER_BLOCK, SERVER_FIELD, trimmed, VALUE, watchOf } from "./dom";
 
 export interface Home {
@@ -15,8 +16,8 @@ type State = "key" | "conf" | "man" | "ok";
 // A dot: ok, warn or none (grey).
 type Dot = "ok" | "warn" | "";
 
-// creates: "Save" creates a config (Aio): no config of the mode chosen on the server.
-export function setupHome(page: Page, creates: () => boolean): Home {
+// aio: "Save" creates a config (no config of the mode chosen on the server), the server chosen and its config.
+export function setupHome(page: Page, aio: Aio): Home {
   const { doc, form, texts } = page;
   const value = (id: string) => trimmed(byId<HTMLInputElement>(doc, id).value);
 
@@ -24,7 +25,7 @@ export function setupHome(page: Page, creates: () => boolean): Home {
     const watch = watchOf(form);
     if (watch === VALUE.own) return value(ID.manifest) === "" ? "man" : "ok";
     if (watch === VALUE.debrid && value(ID.rdKey) + value(ID.tbKey) === "") return "key";
-    return creates() ? "conf" : "ok";
+    return aio.creates() ? "conf" : "ok";
   }
   function sourceLine(watch: string): string {
     if (watch === VALUE.own) return texts.watchOwn + (value(ID.manifest) === "" ? " · " + texts.needLink : "");
@@ -68,6 +69,9 @@ export function setupHome(page: Page, creates: () => boolean): Home {
     const lines = box.querySelectorAll<HTMLElement>("p[" + DATA.state + "]");
     for (let i = 0; i < lines.length; i++) lines[i]!.hidden = lines[i]!.getAttribute(DATA.state) !== st;
     setRow("src", st === "ok" ? "ok" : "warn", sourceLine(watch));
+    // The server: not for own config (the line hidden).
+    const host = aio.serverHost();
+    setRow("cfg", watch === VALUE.own ? "" : aio.hasConf() ? "ok" : "warn", host !== "" ? host : texts.otherServer);
     const jacred = checkedValue(form, NAME.jacred) || "",
       jr = jacred !== VALUE.own ? jacred : hostOf(byId<HTMLInputElement>(doc, ID.jacredOwnUrl).value);
     setRow("voices", jr === "" ? "warn" : "ok", jr !== "" ? jr : texts.ownJacred);

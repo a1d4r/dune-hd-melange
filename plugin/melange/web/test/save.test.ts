@@ -143,28 +143,28 @@ describe("saved", () => {
 
   test("the template saved: the one for a new config and the one shown when there is no config", async () => {
     const page = open("filled");
-    page.type(ID.aioServer, ATB);
+    page.choose("aio_server", ATB);
     page.type(ID.template, "jacred");
     page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
     await save(page);
     expect(page.confirms).toEqual([]);
     expect(page.el<HTMLInputElement>(ID.templateShown).value).toBe("jacred");
     // Back to the server with a config (its template), then to one without: the new one.
-    page.type(ID.aioServer, MADE);
+    page.choose("aio_server", MADE);
     expect(page.el<HTMLSelectElement>(ID.template).value).toBe("addons");
-    page.type(ID.aioServer, "https://aiostreams.stremio.ru");
+    page.choose("aio_server", "https://aiostreams.stremio.ru");
     expect(page.el<HTMLSelectElement>(ID.template).value).toBe("jacred");
   });
 
   test("the mode saved: kept for every server; the template shown stays that of Debrid", async () => {
     const page = open("filled");
     const mode = () => page.form.querySelector<HTMLInputElement>("input[name=watch]:checked")!.value;
-    page.type(ID.aioServer, ATB);
+    page.choose("aio_server", ATB);
     page.choose("watch", "p2p");
     page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
     await save(page);
     expect([page.confirms, page.el<HTMLInputElement>(ID.templateShown).value]).toEqual([[], "addons"]);
-    page.type(ID.aioServer, MADE);
+    page.choose("aio_server", MADE);
     expect([mode(), page.el<HTMLInputElement>(ID.templateShown).value]).toEqual(["p2p", "addons"]);
   });
 });
@@ -173,7 +173,7 @@ describe("the config after the save (aio_sync)", () => {
   test("create: Creating… on the button and as a line, the result replaces it; the config shown with its template", async () => {
     const page = open("filled");
     const t = page.init.i18n;
-    page.type(ID.aioServer, ATB);
+    page.choose("aio_server", ATB);
     const sync = later();
     page.replies.push(json({ ok: true, next: NEXT, aio: "create" }), sync.reply);
     await save(page);
@@ -235,7 +235,7 @@ describe("the config after the save (aio_sync)", () => {
 
   test("own server: the config is of the address typed", async () => {
     const page = open("filled");
-    page.type(ID.aioServer, "own");
+    page.choose("aio_server", "own");
     page.type(ID.aioOwnUrl, "http://192.168.1.10:3000/");
     page.replies.push(json({ ok: true, next: NEXT, aio: "create" }), json({ ok: true, msg: "Created", skip: false, base: "own", mode: "debrid", conf: conf("2", null) }));
     await save(page);
@@ -340,7 +340,7 @@ describe("the reset", () => {
       page.choose("watch", "own");
     }],
     ["no config there", (page) => {
-      page.type(ID.aioServer, ATB);
+      page.choose("aio_server", ATB);
       page.type(ID.template, "jacred");
     }],
     ["the template unchanged", () => {}],
@@ -456,7 +456,7 @@ describe("the reset", () => {
     page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
     await save(page);
     expect([page.confirms, page.el<HTMLInputElement>(ID.templateP2pShown).value]).toEqual([[], "p2p"]);
-    page.type(ID.aioServer, ATB);
+    page.choose("aio_server", ATB);
     expect([page.el<HTMLSelectElement>(ID.templateP2p).value, page.el<HTMLSelectElement>(ID.template).value]).toEqual(["p2p", "addons"]);
   });
 
@@ -466,7 +466,7 @@ describe("the reset", () => {
     page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
     await save(page);
     expect(pairs(page.calls[0]!.body).filter(([k]) => /^aio_tpl_p2p/.test(k!))).toEqual([["aio_tpl_p2p", "p2p"], ["aio_tpl_p2p_seen", "p2p"]]);
-    page.type(ID.aioServer, ATB);
+    page.choose("aio_server", ATB);
     page.choose("watch", "p2p");
     expect([page.el<HTMLSelectElement>(ID.templateP2p).value, page.el<HTMLInputElement>(ID.templateP2pShown).value]).toEqual([
       "p2p_jacred", "p2p_jacred",
@@ -481,9 +481,9 @@ describe("the reset", () => {
     await save(page);
     expect([page.el<HTMLSelectElement>(ID.template).value, page.el<HTMLInputElement>(ID.templateShown).value]).toEqual(["addons", "addons"]);
     // The one chosen is that for a new config of Debrid, as the save stored it.
-    page.type(ID.aioServer, "https://aiostreams.kompotik.com");
+    page.choose("aio_server", "https://aiostreams.kompotik.com");
     expect(page.el<HTMLSelectElement>(ID.template).value).toBe("jacred");
-    page.type(ID.aioServer, MADE);
+    page.choose("aio_server", MADE);
     page.choose("watch", "debrid");
     page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
     await save(page);

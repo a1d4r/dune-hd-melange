@@ -3,13 +3,17 @@
 
 import type { Sync } from "./api";
 import type { Confs, KnownConf } from "./confs";
-import { byId, checkedValue, CLS, DATA, hostOf, ID, isMark, JACRED_RADIOS, NAME, type Page, query, trimmed, VALUE, watchOf } from "./dom";
+import { AIO_SERVER_RADIOS, byId, checkedValue, CLS, DATA, hostOf, ID, isMark, JACRED_RADIOS, NAME, type Page, query, trimmed, VALUE, watchOf } from "./dom";
 import type { Lock } from "./lock";
 
 export interface Aio {
   render(): void;
   // "Save" creates a config: "Save and create the config".
   creates(): boolean;
+  // The server chosen has a config of the mode chosen.
+  hasConf(): boolean;
+  // The host of the server chosen ("" - none chosen, another one without the host of an address).
+  serverHost(): string;
   // The template of the config of the server in the mode chosen is not known yet (the mark "none"): a save finds it.
   templateUnknown(): boolean;
   // The config of the server (of the mode synced) after aio_sync; then render().
@@ -34,11 +38,10 @@ interface Choice {
 
 export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   const { doc, form, texts } = page;
-  const server = byId<HTMLSelectElement>(doc, ID.aioServer),
+  const servers = form.querySelectorAll<HTMLInputElement>(AIO_SERVER_RADIOS),
     ownUrlField = byId<HTMLInputElement>(doc, ID.aioOwnUrl),
     rdKey = byId<HTMLInputElement>(doc, ID.rdKey),
     tbKey = byId<HTMLInputElement>(doc, ID.tbKey),
-    serverName = byId(doc, ID.aioServerName),
     saveButton = query<HTMLButtonElement>(form, "." + CLS.save);
   const choice = (mode: string, select: string, shown: string, hint: string): Choice => ({
     mode: mode,
@@ -52,8 +55,10 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     choice(VALUE.p2p, ID.templateP2p, ID.templateP2pShown, ID.templateP2pHint),
   ];
 
-  function selected(): HTMLOptionElement | undefined {
-    return server.options[server.selectedIndex];
+  // The radio of the server chosen (none: as a form back with another value came).
+  function selected(): HTMLInputElement | undefined {
+    for (let i = 0; i < servers.length; i++) if (servers[i]!.checked) return servers[i];
+    return undefined;
   }
   function ownUrl(): string {
     return ownUrlField.value
@@ -72,9 +77,9 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   }
   // Of the chosen server in the mode (the one chosen by default); of own one only if it is of the address typed.
   function currentConf(ofMode: string = mode()): KnownConf | null {
-    const option = selected();
-    const conf = option ? confs.known(option.value, ofMode) : null;
-    return option && option.value === VALUE.own && ownUrl() !== (conf ? conf.url : null) ? null : conf;
+    const radio = selected();
+    const conf = radio ? confs.known(radio.value, ofMode) : null;
+    return radio && radio.value === VALUE.own && ownUrl() !== (conf ? conf.url : null) ? null : conf;
   }
   function renderHint(c: Choice): void {
     c.hint.textContent = c.select.options[c.select.selectedIndex]!.getAttribute(DATA.hint);
@@ -113,50 +118,41 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     const el = byId(doc, id);
     el.textContent = el.getAttribute(own ? DATA.own : DATA.made);
   }
-  // The host of the server in the summary of #asd; own server without an address of a host typed: the option's name.
-  function renderServerName(option: HTMLOptionElement | undefined): void {
-    if (!option) return;
-    const own = option.value === VALUE.own;
-    const host = hostOf(own ? ownUrl() : option.value);
-    serverName.textContent = host !== "" ? host : option.text.replace(/…$/, "");
-  }
   function creates(): boolean {
     const hasKey = trimmed(rdKey.value) + trimmed(tbKey.value) !== "";
     return !ownWatch() && !currentConf() && (hasKey || p2p());
   }
   function render(): void {
-    const option = selected(),
+    const radio = selected(),
       ownSource = ownWatch(),
-      ownServer = !!option && option.value === VALUE.own,
+      ownServer = !!radio && radio.value === VALUE.own,
       conf = currentConf();
     // Another config of the mode of a choice (or none): its template; the page came with the right one.
     for (const c of choices) {
       const ofMode = currentConf(c.mode);
-      const key = ofMode ? option!.value + " " + ofMode.cfg : "";
+      const key = ofMode ? radio!.value + " " + ofMode.cfg : "";
       if (key !== c.key) {
         if (c.key !== undefined) renderTemplate(c);
         c.key = key;
       }
     }
     const modeP2p = p2p();
-    renderServerName(option);
-    byId(doc, ID.aioOwnBox).style.display = ownServer ? "" : "none";
-    byId(doc, ID.tmdbBox).style.display = !option || option.getAttribute(DATA.tmdb) === "1" ? "none" : "";
+    byId(doc, ID.tmdbBox).style.display = !radio || radio.getAttribute(DATA.tmdb) === "1" ? "none" : "";
     byId(doc, ID.tmdbNote).style.display = ownServer ? "none" : "";
     byId(doc, ID.confNone).hidden = !!conf;
     byId(doc, ID.confHave).hidden = !conf;
     if (conf) renderConf(conf);
     swapText(ID.jacredText, ownSource);
-    const refuses = option ? option.getAttribute(DATA.jr403) : null;
+    const refuses = radio ? radio.getAttribute(DATA.jr403) : null;
     // P2P on a server with Magnetio (no data-p2ptz): Magnetio asks JacRed, not the server; it can't reach a home
     // address either.
-    const magnetio = modeP2p && !(option && option.getAttribute(DATA.p2pTorznab) === "1");
+    const magnetio = modeP2p && !(radio && radio.getAttribute(DATA.p2pTorznab) === "1");
     byId(doc, ID.jacred403).hidden = ownSource || magnetio || !refuses || refuses !== checkedValue(form, NAME.jacred);
     byId(doc, ID.jacredLan).hidden = ownSource || (ownServer && !magnetio);
     if (!lock.saving()) saveButton.textContent = creates() ? texts.saveAndCreate : texts.save;
   }
 
-  server.addEventListener("change", render);
+  for (let i = 0; i < servers.length; i++) servers[i]!.addEventListener("change", render);
   ownUrlField.addEventListener("input", render);
   rdKey.addEventListener("input", render);
   tbKey.addEventListener("input", render);
@@ -170,14 +166,20 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   return {
     render: render,
     creates: creates,
+    hasConf: () => !!currentConf(),
+    // As aio_cgi_host of PHP: of own one, the address as typed.
+    serverHost(): string {
+      const radio = selected();
+      return radio ? hostOf(radio.value === VALUE.own ? trimmed(ownUrlField.value) : radio.value) : "";
+    },
     templateUnknown(): boolean {
       const c = chosen();
       return !!c && c.select.value === VALUE.none;
     },
     applySync(sync: Sync, reset: boolean): void {
       // Of a server of the choice only.
-      for (let i = 0; i < server.options.length; i++)
-        if (server.options[i]!.value === sync.base && sync.mode)
+      for (let i = 0; i < servers.length; i++)
+        if (servers[i]!.value === sync.base && sync.mode)
           confs.store(sync.base, sync.mode, sync.conf, sync.base === VALUE.own ? ownUrl() : null);
       // Of both modes, the template of the config (as the server found it): one of the other mode chosen is saved
       // already, not a reset to ask for there later; a failed reset keeps the choice of its mode for the retry.
@@ -190,8 +192,8 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     },
     // A mark shown: the reset is to the template for a new config of the mode (nothing posted).
     confirmReset(): boolean {
-      const option = selected()!,
-        address = option.value === VALUE.own ? ownUrl() : option.value,
+      const radio = selected()!,
+        address = radio.value === VALUE.own ? ownUrl() : radio.value,
         c = chosen() || choices[0]!;
       let picked = c.select.options[c.select.selectedIndex]!;
       if (isMark(picked))

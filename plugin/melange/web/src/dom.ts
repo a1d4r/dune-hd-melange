@@ -5,11 +5,7 @@ import type { Texts } from "./i18n";
 export const ID = {
   init: "init",
   addServer: "addsrv",
-  aioServer: "as",
-  // The name of the chosen server in the summary of details#asd.
-  aioServerName: "asn",
   aioOwnUrl: "ao",
-  aioOwnBox: "aobox",
   aioOwnCheck: "aob",
   aioOwnResult: "aor",
   template: "at",
@@ -78,8 +74,8 @@ export const ID = {
   message: "msg",
 } as const;
 
-// The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>.
-export const ROWS = ["src", "voices", "torr", "dl", "cfg", "log"] as const;
+// The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>; in the order of the page.
+export const ROWS = ["src", "cfg", "voices", "torr", "dl", "log"] as const;
 export type Row = (typeof ROWS)[number];
 
 export const CLS = {
@@ -108,7 +104,7 @@ export const DATA = {
   // The texts of #jrp by the answer: a config made by melange or own one.
   made: "data-made",
   own: "data-own",
-  // An option of the server choice: "1" - TMDB of its own; the id of the JacRed that answers it 403;
+  // A radio of the server choice: "1" - TMDB of its own; the id of the JacRed that answers it 403;
   // "1" - in P2P the server asks JacRed itself (Torznab), not Magnetio.
   tmdb: "data-tmdb",
   jr403: "data-jr403",
@@ -130,6 +126,8 @@ export const DATA = {
 export const NAME = {
   // "Where to get films": VALUE.debrid, VALUE.p2p (the configs melange makes, by their mode) or VALUE.own.
   watch: "watch",
+  // The AIOStreams server: a URL of the list or VALUE.own (another one, its address in #ao).
+  aioServer: "aio_server",
   jacred: "jacred",
 } as const;
 
@@ -146,6 +144,8 @@ export const VALUE = {
 
 // The radios of the choice of JacRed.
 export const JACRED_RADIOS = "input[name=" + NAME.jacred + "]";
+// The radios of the choice of the AIOStreams server (screen #cfg).
+export const AIO_SERVER_RADIOS = "input[name=" + NAME.aioServer + "]";
 
 // The cards of a group of radios (label.opt[for] of each): an error of their name= marks it.
 export const RADIO_GROUP = ".choice";

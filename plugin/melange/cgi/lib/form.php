@@ -635,6 +635,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
         // Enter in a field without the script submits the first button: the save, not the reset.
         '<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>' . $radios .
         aio_cgi_screen('src', aio_cgi_src($v)) .
+        aio_cgi_screen('cfg', aio_cgi_cfg($v)) .
         aio_cgi_screen('voices', aio_cgi_jacred($v)) .
         aio_cgi_screen('torr', '<p class="sub xd">' . aio_cgi_l('Запасной путь для раздач не из кэша Debrid.',
             'A fallback for releases not cached in Debrid.') . '</p><p class="sub xp">' .
@@ -649,7 +650,6 @@ function aio_cgi_form($t, $v, $errors, $saved)
             'Empty - the TorrServe app on the Dune; your own - http://host:port') . '</p></div>') .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
-        aio_cgi_screen('cfg', aio_cgi_cfg($v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .
             '<a class="btn" href="settings?t=' . aio_cgi_h($t) . '&amp;a=log">' . aio_cgi_l('Скачать лог', 'Download the log') . '</a>') .

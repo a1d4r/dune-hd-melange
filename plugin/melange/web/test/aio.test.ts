@@ -14,7 +14,7 @@ const MADE = "https://aiostreams.12312023.xyz";
 // The third server of p2p.html and ownconf.html: a config changed in AIOStreams (of Debrid, of P2P).
 const WIZ = "https://aiostreams-stable.forthewizards.uk";
 
-const server = (page: Page, value: string) => page.type(ID.aioServer, value);
+const server = (page: Page, value: string) => page.choose("aio_server", value);
 const conf = (page: Page) => ({
   none: shown(page.el(ID.confNone)),
   have: shown(page.el(ID.confHave)),
@@ -76,39 +76,43 @@ describe("answer", () => {
     expect([p2p.el(ID.tsBox).parentElement!.id, shown(p2p.el(ID.tsMoved))]).toEqual([ID.tsP2p, true]);
   });
 
-  test("the name of the server in the summary follows the choice and the address of own one", () => {
-    const page = open("filled");
-    const name = () => page.el(ID.aioServerName).textContent;
-    expect(name()).toBe("aiostreams.12312023.xyz");
-    server(page, ATB);
-    expect(name()).toBe("aio.atbphosting.com");
-    server(page, "own");
+  test("the line of the server on the main screen: the host of the choice (own one: of its address, none - otherServer), ok - a config of the mode there", () => {
+    const page = open("ownconf");
+    const row = () => [page.el("dcfg").className, page.el("vcfg").textContent];
+    expect(row()).toEqual(["dot ok", "192.168.1.10"]);
+    page.type(ID.aioOwnUrl, " http://192.168.1.10:3001 ");
+    expect(row()).toEqual(["dot warn", "192.168.1.10"]);
     page.type(ID.aioOwnUrl, "");
-    expect(name()).toBe(page.el<HTMLSelectElement>(ID.aioServer).selectedOptions[0]!.text.replace(/…$/, ""));
-    page.type(ID.aioOwnUrl, "http://192.168.1.10:3000");
-    expect(name()).toBe("192.168.1.10");
+    expect(row()).toEqual(["dot warn", page.init.i18n.otherServer]);
+    server(page, ATB);
+    expect(row()).toEqual(["dot ok", "aio.atbphosting.com"]);
+    page.choose("watch", "p2p");
+    expect(row()).toEqual(["dot warn", "aio.atbphosting.com"]);
+    // Own config: no dot (the line hidden).
+    page.choose("watch", "own");
+    expect(row()).toEqual(["dot", "aio.atbphosting.com"]);
   });
 });
 
 describe("server", () => {
-  test("own: its address box, no TMDB note, no LAN note; TMDB box by data-tmdb; 403 note by data-jr403 and the JacRed chosen", () => {
+  test("own: no TMDB note, no LAN note; TMDB box by data-tmdb; 403 note by data-jr403 and the JacRed chosen", () => {
     const page = open("filled");
     const vis = () => ({
-      ownBox: shown(page.el(ID.aioOwnBox)), tmdbBox: shown(page.el(ID.tmdbBox)), tmdbNote: shown(page.el(ID.tmdbNote)),
+      tmdbBox: shown(page.el(ID.tmdbBox)), tmdbNote: shown(page.el(ID.tmdbNote)),
       lan: shown(page.el(ID.jacredLan)), jr403: shown(page.el(ID.jacred403)),
     });
     // TMDB of its own.
-    expect(vis()).toEqual({ ownBox: false, tmdbBox: false, tmdbNote: true, lan: true, jr403: false });
+    expect(vis()).toEqual({ tmdbBox: false, tmdbNote: true, lan: true, jr403: false });
     // The 403 note only while the JacRed that refuses the server is chosen (here: own one).
     server(page, "https://aiostreams.fortheweak.cloud");
-    expect(vis()).toEqual({ ownBox: false, tmdbBox: true, tmdbNote: true, lan: true, jr403: false });
+    expect(vis()).toEqual({ tmdbBox: true, tmdbNote: true, lan: true, jr403: false });
     page.choose("jacred", "jacred.stream");
-    expect(vis()).toEqual({ ownBox: false, tmdbBox: true, tmdbNote: true, lan: true, jr403: true });
+    expect(vis()).toEqual({ tmdbBox: true, tmdbNote: true, lan: true, jr403: true });
     page.choose("jacred", "jacred.kompotik.com");
     expect(vis().jr403).toBe(false);
     page.choose("jacred", "jacred.stream");
     server(page, "own");
-    expect(vis()).toEqual({ ownBox: true, tmdbBox: true, tmdbNote: false, lan: false, jr403: false });
+    expect(vis()).toEqual({ tmdbBox: true, tmdbNote: false, lan: false, jr403: false });
     // The 403 note not for own config.
     server(page, "https://aiostreams.fortheweak.cloud");
     page.choose("watch", "own");
@@ -298,7 +302,7 @@ describe("mode", () => {
   test("JacRed notes in P2P on a server with Torznab (data-p2ptz): as in Debrid - the server asks JacRed", () => {
     const page = open("p2p");
     const vis = () => ({ jr403: shown(page.el(ID.jacred403)), lan: shown(page.el(ID.jacredLan)) });
-    const kompotik = page.doc.querySelector<HTMLOptionElement>('#as option[value="https://aiostreams.kompotik.com"]')!;
+    const kompotik = page.doc.querySelector<HTMLInputElement>('input[name=aio_server][value="https://aiostreams.kompotik.com"]')!;
     expect(kompotik.getAttribute("data-p2ptz")).toBe("1");
     // No server of the list both refused by a JacRed and with Torznab: the 403 note on a made-up one.
     kompotik.setAttribute("data-jr403", "jacred.stream");

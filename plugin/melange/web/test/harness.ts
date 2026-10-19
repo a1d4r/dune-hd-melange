@@ -126,8 +126,8 @@ export interface Options {
 }
 
 // happy-dom 20.14.6: an option with "selected" after another one parsed gets the selectedness of the option at the
-// index of the count of selected ones (HTMLSelectElement updateSelectedness, "selected.length >= 2"), e.g. #as
-// "own" -> its second option. Fixed as a browser parses it: the last option with "selected".
+// index of the count of selected ones (HTMLSelectElement updateSelectedness, "selected.length >= 2"), e.g. the
+// select of the AIOStreams server of 0.43 on "own" -> its second option. Fixed as a browser parses it: the last option with "selected".
 function fixSelects(doc: Document): void {
   doc.querySelectorAll("select").forEach((select) => {
     let last = -1;

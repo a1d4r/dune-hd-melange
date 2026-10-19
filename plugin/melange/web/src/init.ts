@@ -53,7 +53,7 @@ function setupForm(page: Page, init: Init): void {
   setupTorrServer(page);
   setupClipboard(page);
   setupJacredNote(page, init.jacredDefault);
-  const home = setupHome(page, aio.creates);
+  const home = setupHome(page, aio);
   const bar = setupBar(page, () => aio.creates() || aio.templateUnknown(), lock.saving);
   // The main screen and the bar after any change: the handlers of the form, after those of its fields.
   const changed = () => {

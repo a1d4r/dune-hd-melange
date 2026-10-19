@@ -1,7 +1,7 @@
 // The contract PHP <-> script: what dom.ts and i18n.ts name is on every page PHP makes (test/fixtures).
 
 import { afterEach, describe, expect, test } from "bun:test";
-import { CLS, DATA, ID, JACRED_RADIOS, NAME, RADIO_GROUP, ROWS, SERVER_BLOCK, SERVER_CHECK_FIELD, SERVER_FIELD, VALUE } from "../src/dom";
+import { AIO_SERVER_RADIOS, CLS, DATA, ID, JACRED_RADIOS, NAME, RADIO_GROUP, ROWS, SERVER_BLOCK, SERVER_CHECK_FIELD, SERVER_FIELD, VALUE } from "../src/dom";
 import { TEXT_KEYS, type Texts } from "../src/i18n";
 import { cleanup, FIXTURES, open } from "./harness";
 
@@ -94,18 +94,22 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(Array.from(doc.querySelectorAll("." + CLS.jacredSpeed)).map((card) => card.getAttribute(DATA.jacredOf))).toEqual(
       Array.from(form.querySelectorAll<HTMLInputElement>(JACRED_RADIOS)).map((radio) => radio.value),
     );
-    doc.querySelectorAll<HTMLOptionElement>("#" + ID.aioServer + " option").forEach((option) =>
-      expect(option.getAttribute(DATA.tmdb)).toMatch(/^[01]$/),
-    );
+    // The AIOStreams servers (0.44.0): radios with their cards in a group of #cfg, each with data-tmdb; no select.
+    const servers = form.querySelectorAll<HTMLInputElement>(AIO_SERVER_RADIOS);
+    expect([servers.length > 1, form.querySelectorAll("select[name=" + NAME.aioServer + "]").length]).toEqual([true, 0]);
+    servers.forEach((radio) => {
+      expect([radio.type, radio.getAttribute(DATA.tmdb)]).toEqual(["radio", expect.stringMatching(/^[01]$/)]);
+      expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("cfg");
+    });
     // A server JacRed answers 403: the id of that JacRed, a radio of the choice.
-    const refused = doc.querySelectorAll<HTMLOptionElement>("#" + ID.aioServer + " option[" + DATA.jr403 + "]");
+    const refused = form.querySelectorAll<HTMLInputElement>(AIO_SERVER_RADIOS + "[" + DATA.jr403 + "]");
     expect(refused.length).toBeGreaterThan(0);
-    refused.forEach((option) =>
-      expect(form.querySelectorAll(JACRED_RADIOS + "[value='" + option.getAttribute(DATA.jr403) + "']").length).toBe(1),
+    refused.forEach((radio) =>
+      expect(form.querySelectorAll(JACRED_RADIOS + "[value='" + radio.getAttribute(DATA.jr403) + "']").length).toBe(1),
     );
     // A server asking JacRed itself in P2P (Torznab): "1"; the own one never.
-    const torznab = doc.querySelectorAll<HTMLOptionElement>("#" + ID.aioServer + " option[" + DATA.p2pTorznab + "]");
-    expect(Array.from(torznab).map((option) => [option.value, option.getAttribute(DATA.p2pTorznab)])).toEqual([
+    const torznab = form.querySelectorAll<HTMLInputElement>(AIO_SERVER_RADIOS + "[" + DATA.p2pTorznab + "]");
+    expect(Array.from(torznab).map((radio) => [radio.value, radio.getAttribute(DATA.p2pTorznab)])).toEqual([
       ["https://aiostreams.kompotik.com", "1"],
     ]);
 
@@ -123,7 +127,7 @@ describe.each([...FIXTURES])("%s", (name) => {
     const { doc, form } = open(name, { start: false });
     expect([
       form.querySelectorAll("input[type=radio][name=" + NAME.watch + "][value=" + VALUE.own + "]").length,
-      doc.querySelectorAll("#" + ID.aioServer + " option[value=" + VALUE.own + "]").length,
+      form.querySelectorAll(AIO_SERVER_RADIOS + "[type=radio][value=" + VALUE.own + "]").length,
       form.querySelectorAll(JACRED_RADIOS + "[type=radio][value=" + VALUE.own + "]").length,
       doc.querySelectorAll("#" + ID.template + " option[value=" + VALUE.none + "][disabled]").length,
       doc.querySelectorAll("#" + ID.templateP2p + " option[value=" + VALUE.none + "][disabled]").length,

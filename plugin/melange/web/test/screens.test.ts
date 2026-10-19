@@ -40,7 +40,7 @@ describe("the main screen", () => {
     page.type(ID.template, "jacred");
     expect(value("src")).toEqual(["dot ok", "Debrid · Real-Debrid · только русские"]);
     // Another server: no config there.
-    page.type(ID.aioServer, "https://aio.atbphosting.com");
+    page.choose("aio_server", "https://aio.atbphosting.com");
     expect(st()).toEqual(["state warn", "conf", ["conf"]]);
     page.choose("watch", "own");
     expect([st(), value("src")]).toEqual([["state warn", "man", ["man"]], ["dot warn", t.watchOwn + " · " + t.needLink]]);
@@ -98,7 +98,7 @@ describe("the main screen", () => {
 
   test("a config made by the save on the page: the state turns ok", async () => {
     const page = open("filled");
-    page.type(ID.aioServer, "https://aio.atbphosting.com");
+    page.choose("aio_server", "https://aio.atbphosting.com");
     expect(home(page).state![1]).toBe("conf");
     page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "create", notes: [] }),
       json({ ok: true, msg: "Created", skip: false, base: "https://aio.atbphosting.com", mode: "debrid",
@@ -177,7 +177,7 @@ describe("the bar of the save", () => {
   });
 
   test("a config to create: shown with no change (Save and create)", () => {
-    const page = open("filled", { before: (doc) => ((doc.querySelector("#as option[selected]") as HTMLOptionElement).value = "https://aio.atbphosting.com") });
+    const page = open("filled", { before: (doc) => ((doc.querySelector("input[name=aio_server][checked]") as HTMLInputElement).value = "https://aio.atbphosting.com") });
     expect([bar(page), page.form.querySelector("." + CLS.save)!.textContent]).toEqual(["", page.init.i18n.saveAndCreate]);
   });
 
@@ -241,7 +241,7 @@ describe("the bar of the save", () => {
 
   test("no Hide while the config is made (its line comes into the results)", async () => {
     const page = open("filled");
-    page.type(ID.aioServer, "https://aio.atbphosting.com");
+    page.choose("aio_server", "https://aio.atbphosting.com");
     page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "create", notes: [] }), HANG);
     page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
     await flush();
@@ -265,7 +265,7 @@ describe("the bar of the save", () => {
 
   test.each([["ok", true], ["no connection", false]] as const)("typed while the config is made (%s): still a change", async (_name, ok) => {
     const page = open("filled");
-    page.type(ID.aioServer, "https://aio.atbphosting.com");
+    page.choose("aio_server", "https://aio.atbphosting.com");
     const sync = later();
     page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "create", notes: [] }), sync.reply);
     page.form.querySelector<HTMLButtonElement>("." + CLS.save)!.click();

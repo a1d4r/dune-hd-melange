@@ -70,12 +70,12 @@ describe("errors lead to the field", () => {
     expect([hash(), page.el<HTMLDetailsElement>("jrownd").open]).toEqual(["#voices", true]);
   });
 
-  test("the address of own AIOStreams in the closed details of the server: opened, on #src", async () => {
+  test("the address of own AIOStreams in the closed details of another server: opened, on #cfg", async () => {
     const page = open("filled");
-    page.el<HTMLDetailsElement>("asd").open = false;
+    expect(page.el<HTMLDetailsElement>("asownd").open).toBe(false);
     page.replies.push(json({ ok: false, errors: [{ msg: "AIOStreams", field: "aio_own_url" }] }));
     await save(page);
-    expect([hash(), page.el<HTMLDetailsElement>("asd").open, focused(page)]).toEqual(["#src", true, "aio_own_url"]);
+    expect([hash(), page.el<HTMLDetailsElement>("asownd").open, focused(page)]).toEqual(["#cfg", true, "aio_own_url"]);
   });
 
   test("TorrServer in Torrents (moved to #src): the screen of where it is now", async () => {
@@ -208,7 +208,7 @@ describe("errors lead to the field", () => {
 
   test("aio_sync with a field (the own server): its address marked; gone at the next save", async () => {
     const page = open("filled");
-    page.type(ID.aioServer, "own");
+    page.choose("aio_server", "own");
     page.type(ID.aioOwnUrl, "http://192.168.1.10:3000");
     page.replies.push(json({ ok: true, next: "x", aio: "create" }), json({ ok: false, msg: "Down", skip: false, base: "own", mode: "debrid", conf: null, field: "aio_own_url" }));
     await save(page);
