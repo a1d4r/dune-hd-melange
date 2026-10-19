@@ -448,8 +448,8 @@ function aio_cgi_src($v)
 
 // The screen "Сервер AIOStreams" (#cfg, 0.44.0; its fields: Debrid and
 // Торренты, #smade of class xm): the server melange makes the config on - a
-// card of the radio aio_server each (the host; "у Melange" of the first one,
-// the default; "без TMDB" of one without TMDB of its own; data-tmdb,
+// card of the radio aio_server each (the host; "у Melange" of
+// AIO_AIO_SERVER_MELANGE; "без TMDB" of one without TMDB of its own; data-tmdb,
 // data-jr403, data-p2ptz for the script), another one in #asownd (its radio
 // "own" and its address; open when chosen or filled); the TMDB key under a
 // server without TMDB of its own (another one: always); then the config of
@@ -470,7 +470,7 @@ function aio_cgi_cfg($v)
         $out .= aio_cgi_vradio("as$i", $name, $url, $v['aio_server'] === $url, '', ' data-tmdb="' . ($tmdb ? '1' : '0') . '"' .
             (isset($jr403[$url]) ? ' data-jr403="' . aio_cgi_h($jr403[$url]) . '"' : '') .
             (aio_conf_has_torznab($url) ? ' data-p2ptz="1"' : '')) .
-            aio_cgi_card("as$i", aio_cgi_h(aio_cgi_host($url)) . ($i === 1 ? '<span class="badge">' .
+            aio_cgi_card("as$i", aio_cgi_h(aio_cgi_host($url)) . ($url === AIO_AIO_SERVER_MELANGE ? '<span class="badge">' .
             aio_cgi_l('у Melange', 'of Melange') . '</span>' : ''), $tmdb ? '' : aio_cgi_l('без TMDB', 'no TMDB'));
     }
     $own = $v['aio_server'] === 'own';

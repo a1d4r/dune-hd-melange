@@ -247,6 +247,8 @@ function aio_aio_servers()
         'https://aiostreams-stable.forthewizards.uk' => false,
         'https://aiostreams.fortheweak.cloud' => false);
 }
+// The server of Melange in aio_aio_servers() (the badge "у Melange" of the page).
+define('AIO_AIO_SERVER_MELANGE', 'https://aiostreams.kompotik.com');
 
 // The template of the mode P2P "everywhere". The same value as the mode
 // (AIO_MODE_P2P) by history (one template of P2P till 0.43): not the mode.

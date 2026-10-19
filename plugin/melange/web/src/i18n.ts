@@ -59,7 +59,7 @@ export const TEXT_KEYS = [
   "tsSpare",
   "noServers",
   // The line of the AIOStreams server: another one without the host of an address.
-  "otherServer",
+  "otherAioServer",
   // The count of the changes by the bar of the save, %d: the count; the forms of plural() (English: one, many).
   "changeOne",
   "changeFew",

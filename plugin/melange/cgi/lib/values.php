@@ -29,6 +29,15 @@ function aio_cgi_values($s)
     return $v;
 }
 
+// The AIOStreams server of the form: one of aio_aio_servers() or 'own';
+// another one (a form of 0.35.1 with "manifest", a forged one) -> the
+// first one, as aio_settings_read.
+function aio_cgi_server_choice($as)
+{
+    $list = array_keys(aio_aio_servers());
+    return in_array($as, array_merge($list, array('own')), true) ? $as : $list[0];
+}
+
 function aio_cgi_posted()
 {
     $f = aio_cgi_fields();
@@ -52,6 +61,8 @@ function aio_cgi_posted()
     if ($v['source'] !== 'made' && $v['source'] !== 'own')
         $v['source'] = $v['aio_server'] === 'manifest' || ($v['manifest'] !== '' &&
             !array_key_exists($f['aio_own']['name'], $_POST)) ? 'own' : 'made';
+    // Then the server as the save takes it: the page checks that card, the main screen shows it.
+    $v['aio_server'] = aio_cgi_server_choice($v['aio_server']);
     for ($n = 1; $n <= AIO_SERVERS_MAX; $n++)
     {
         $s = array();
@@ -123,9 +134,7 @@ function aio_cgi_check_values($v)
         $errors[] = aio_cgi_err(aio_cgi_l('Свой JacRed', 'Own JacRed') . ': ' . aio_cgi_fmt_jacred(),
             $f[aio_jacred_own(array('url' => $v['jo_url'], 'key' => '')) ? 'jo_key' : 'jo_url']['name']);
     }
-    // Not one of the choices (a form of 0.35.1 or older): the first server, as aio_settings_read.
-    $as = array_keys(aio_aio_servers());
-    $d[$set['aio_server']] = in_array($v['aio_server'], array_merge($as, array('own')), true) ? $v['aio_server'] : $as[0];
+    $d[$set['aio_server']] = aio_cgi_server_choice($v['aio_server']);
     // The fields of both sources are kept; those of the chosen one must be there.
     if (!$made && $v['manifest'] === '')
     {

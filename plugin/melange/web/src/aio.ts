@@ -152,7 +152,20 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     if (!lock.saving()) saveButton.textContent = creates() ? texts.saveAndCreate : texts.save;
   }
 
+  // As aio_cgi_host of PHP: of own one, the address as typed.
+  function serverHost(): string {
+    const radio = selected();
+    return radio ? hostOf(radio.value === VALUE.own ? trimmed(ownUrlField.value) : radio.value) : "";
+  }
+
   for (let i = 0; i < servers.length; i++) servers[i]!.addEventListener("change", render);
+  // An address typed chooses another server (else the save makes the config on the one checked); emptied: kept.
+  const ownRadio = query<HTMLInputElement>(form, AIO_SERVER_RADIOS + "[value=" + VALUE.own + "]");
+  ownUrlField.addEventListener("input", () => {
+    if (trimmed(ownUrlField.value) === "" || ownRadio.checked) return;
+    ownRadio.checked = true;
+    ownRadio.dispatchEvent(new doc.defaultView!.Event("change", { bubbles: true }));
+  });
   ownUrlField.addEventListener("input", render);
   rdKey.addEventListener("input", render);
   tbKey.addEventListener("input", render);
@@ -167,11 +180,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     render: render,
     creates: creates,
     hasConf: () => !!currentConf(),
-    // As aio_cgi_host of PHP: of own one, the address as typed.
-    serverHost(): string {
-      const radio = selected();
-      return radio ? hostOf(radio.value === VALUE.own ? trimmed(ownUrlField.value) : radio.value) : "";
-    },
+    serverHost: serverHost,
     templateUnknown(): boolean {
       const c = chosen();
       return !!c && c.select.value === VALUE.none;
@@ -192,15 +201,12 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     },
     // A mark shown: the reset is to the template for a new config of the mode (nothing posted).
     confirmReset(): boolean {
-      const radio = selected()!,
-        address = radio.value === VALUE.own ? ownUrl() : radio.value,
-        c = chosen() || choices[0]!;
+      const c = chosen() || choices[0]!;
       let picked = c.select.options[c.select.selectedIndex]!;
       if (isMark(picked))
         for (let i = 0; i < c.select.options.length; i++)
           if (c.select.options[i]!.value === confs.templateForNew(c.mode)) picked = c.select.options[i]!;
-      const host = address.replace(/^[a-z]+:\/\//, "").replace(/[:\/].*$/, "");
-      return confirm(texts.resetConfirm.replace("%s", host).replace("%s", picked.text));
+      return confirm(texts.resetConfirm.replace("%s", serverHost()).replace("%s", picked.text));
     },
     rememberTemplate(): void {
       for (const c of choices) {

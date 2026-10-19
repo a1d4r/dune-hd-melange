@@ -71,7 +71,7 @@ export function setupHome(page: Page, aio: Aio): Home {
     setRow("src", st === "ok" ? "ok" : "warn", sourceLine(watch));
     // The server: not for own config (the line hidden).
     const host = aio.serverHost();
-    setRow("cfg", watch === VALUE.own ? "" : aio.hasConf() ? "ok" : "warn", host !== "" ? host : texts.otherServer);
+    setRow("cfg", watch === VALUE.own ? "" : aio.hasConf() ? "ok" : "warn", host !== "" ? host : texts.otherAioServer);
     const jacred = checkedValue(form, NAME.jacred) || "",
       jr = jacred !== VALUE.own ? jacred : hostOf(byId<HTMLInputElement>(doc, ID.jacredOwnUrl).value);
     setRow("voices", jr === "" ? "warn" : "ok", jr !== "" ? jr : texts.ownJacred);
