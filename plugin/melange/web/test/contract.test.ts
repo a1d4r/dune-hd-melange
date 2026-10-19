@@ -17,9 +17,10 @@ const PLACEHOLDERS: Partial<Record<keyof Texts, string[]>> = {
   changeMany: ["%d"],
 };
 
-// Made by the script, not by PHP: "Duplicate", the "on" state of an eye, the mark of an error. PHP makes "on" only of
-// the own fields with an error of a save (checked apart).
+// Made by the script, not by PHP: "Duplicate", the "on" state of an eye, the mark of an error.
 const SCRIPT_CLASSES: string[] = [CLS.serverDup, CLS.on, CLS.bad];
+// Made by PHP only on a page with errors of a save (#msg): the own fields with one shown.
+const ERROR_CLASSES: string[] = [CLS.ownOpen];
 
 describe.each([...FIXTURES])("%s", (name) => {
   test("#init: readInit, i18n has the keys of Texts and only them, none empty", () => {
@@ -58,9 +59,10 @@ describe.each([...FIXTURES])("%s", (name) => {
 
   test("the classes of CLS (but those the script makes), names of NAME, data- of DATA", () => {
     const { doc, form } = open(name, { start: false });
+    const errors = doc.querySelectorAll("#" + ID.message + " .err").length > 0;
     for (const cls of Object.values(CLS))
-      if (cls !== CLS.on) expect([cls, doc.querySelectorAll("." + cls).length > 0]).toEqual([cls, !SCRIPT_CLASSES.includes(cls)]);
-    expect(doc.querySelectorAll("." + CLS.on + ":not(." + CLS.ownFields + ")").length).toBe(0);
+      expect([cls, doc.querySelectorAll("." + cls).length > 0]).toEqual([cls, ERROR_CLASSES.includes(cls) ? errors : !SCRIPT_CLASSES.includes(cls)]);
+    expect(doc.querySelectorAll("." + CLS.ownOpen + ":not(." + CLS.ownFields + ")").length).toBe(0);
     expect(form.querySelectorAll("." + CLS.save + "[type=submit]").length).toBe(1);
     // The answers: the values the script compares with, each with its card in a group of #src.
     const watches = Array.from(form.querySelectorAll<HTMLInputElement>("input[type=radio][name=" + NAME.watch + "]"));

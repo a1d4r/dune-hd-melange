@@ -11,7 +11,7 @@ function aio_cgi_home_texts()
         'needKey' => aio_cgi_l('нужен ключ', 'a key is needed'), 'needLink' => aio_cgi_l('нужна ссылка', 'a link is needed'),
         'viaTs' => aio_cgi_l('через TorrServer', 'via TorrServer'), 'tsDune' => aio_cgi_l('Приложение на Дюне', 'The app on the Dune'),
         'tsSpare' => aio_cgi_l('запасной путь', 'fallback'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'),
-        'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'), 'otherAioServer' => aio_cgi_l('другой', 'another one'));
+        'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'), 'ownAioServer' => aio_cgi_l('свой сервер', 'own server'));
 }
 
 // The three cards of the answers of "Откуда брать фильмы" (the radio watch):
@@ -62,8 +62,8 @@ function aio_cgi_state($v)
 }
 
 // The lines of the main screen: id of the screen => array(dot: ok, warn or
-// '' - grey, the value now). The server (#cfg, 0.44.0): its host (another
-// one without a host: otherAioServer), ok - a config of the mode there.
+// '' - grey, the value now). The server (#cfg, 0.44.0): its host (own
+// one without a host: ownAioServer), ok - a config of the mode there.
 function aio_cgi_rows($v)
 {
     $t = aio_cgi_home_texts();
@@ -102,7 +102,7 @@ function aio_cgi_rows($v)
     }
     $host = aio_cgi_host($v['aio_server'] === 'own' ? $v['aio_own'] : $v['aio_server']);
     return array('src' => array($dot, $src),
-        'cfg' => array($w === 'own' ? '' : (aio_cgi_aio_sel($v) ? 'ok' : 'warn'), $host !== '' ? $host : $t['otherAioServer']),
+        'cfg' => array($w === 'own' ? '' : (aio_cgi_aio_sel($v) ? 'ok' : 'warn'), $host !== '' ? $host : $t['ownAioServer']),
         'voices' => array($jr === '' ? 'warn' : 'ok', $jr !== '' ? $jr : $t['ownJacred']),
         'torr' => array($w === AIO_MODE_P2P ? 'ok' : '', ($v['ts'] !== '' ? $v['ts'] : $t['tsDune']) .
             ($w === AIO_MODE_DEBRID ? ' · ' . $t['tsSpare'] : '')),

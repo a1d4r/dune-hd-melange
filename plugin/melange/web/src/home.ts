@@ -29,12 +29,8 @@ export function setupHome(page: Page, aio: Aio): Home {
   }
   function sourceLine(watch: string): string {
     if (watch === VALUE.own) return texts.watchOwn + (value(ID.manifest) === "" ? " · " + texts.needLink : "");
-    // The template of the mode by its short name (0.44.0: P2P too): of the card checked, else of the mark shown.
-    const p2p = watch === VALUE.p2p;
-    const picked =
-      form.querySelector("input[name=" + (p2p ? NAME.templateP2p : NAME.template) + "]:checked") ||
-      byId(doc, p2p ? ID.templateP2pMarks : ID.templateMarks).querySelector("[" + DATA.mark + "]:not([hidden])");
-    const short = picked ? picked.getAttribute(DATA.short) : null,
+    // The template of the mode by its short name (0.44.0: P2P too).
+    const short = aio.templateShort(watch),
       tail = short ? " · " + short : "";
     if (watch === VALUE.p2p) return texts.modeP2p + " · " + texts.viaTs + tail;
     const keys: string[] = [];
@@ -73,7 +69,7 @@ export function setupHome(page: Page, aio: Aio): Home {
     setRow("src", st === "ok" ? "ok" : "warn", sourceLine(watch));
     // The server: not for own config (the line hidden).
     const host = aio.serverHost();
-    setRow("cfg", watch === VALUE.own ? "" : aio.hasConf() ? "ok" : "warn", host !== "" ? host : texts.otherAioServer);
+    setRow("cfg", watch === VALUE.own ? "" : aio.hasConf() ? "ok" : "warn", host !== "" ? host : texts.ownAioServer);
     const jacred = checkedValue(form, NAME.jacred) || "",
       jr = jacred !== VALUE.own ? jacred : hostOf(byId<HTMLInputElement>(doc, ID.jacredOwnUrl).value);
     setRow("voices", jr === "" ? "warn" : "ok", jr !== "" ? jr : texts.ownJacred);

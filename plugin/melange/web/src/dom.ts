@@ -84,8 +84,12 @@ export const CLS = {
   jacredBuiltin: "jrb",
   // The time and the releases of a JacRed of "Compare speed" in its card (data-jr: its id or "own").
   jacredSpeed: "ms",
-  // The fields of the own one of a choice (the last card): shown by the CSS while it is chosen, or with "on".
+  // The fields of the own one of a choice (the last card): shown by the CSS while it is chosen, or with ownOpen (an
+  // error of a save on one of them: PHP or the script).
   ownFields: "ownf",
+  ownOpen: "open",
+  // The title of a card (label.opt).
+  cardTitle: "t",
   // A screen of the page.
   screen: "scr",
   // A field or server block an error of the save is about (made by the script).
@@ -121,7 +125,7 @@ export const DATA = {
 export const NAME = {
   // "Where to get films": VALUE.debrid, VALUE.p2p (the configs melange makes, by their mode) or VALUE.own.
   watch: "watch",
-  // The AIOStreams server: a URL of the list or VALUE.own (another one, its address in #ao).
+  // The AIOStreams server: a URL of the list or VALUE.own (own one, its address in #ao).
   aioServer: "aio_server",
   jacred: "jacred",
   // The template of the configs of each mode (no radio checked: a mark shown, nothing posted).

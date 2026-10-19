@@ -12,10 +12,13 @@ export interface Aio {
   creates(): boolean;
   // The server chosen has a config of the mode chosen.
   hasConf(): boolean;
-  // The host of the server chosen ("" - none chosen, another one without the host of an address).
+  // The host of the server chosen ("" - none chosen, own one without the host of an address).
   serverHost(): string;
   // The template of the config of the server in the mode chosen is not known yet (the mark "none"): a save finds it.
   templateUnknown(): boolean;
+  // The short name of the template of the mode (the main screen): of the card checked, else of the mark shown; null:
+  // neither.
+  templateShort(mode: string): string | null;
   // The config of the server (of the mode synced) after aio_sync; then render().
   applySync(sync: Sync, reset: boolean): void;
   // A save now would replace the config of the mode chosen of the server with another template.
@@ -179,6 +182,14 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
       const c = chosen();
       return !!c && picked(c) === null && c.shown.value === VALUE.none;
     },
+    templateShort(ofMode: string): string | null {
+      const c = choices.find((one) => one.mode === ofMode);
+      if (!c) return null;
+      const el =
+        form.querySelector("input[name=" + c.name + "]:checked") ||
+        Array.from(c.marks.querySelectorAll("[" + DATA.mark + "]")).find((line) => line.getAttribute(DATA.mark) === c.shown.value);
+      return el ? el.getAttribute(DATA.short) : null;
+    },
     applySync(sync: Sync, reset: boolean): void {
       // Of a server of the choice only.
       for (let i = 0; i < servers.length; i++)
@@ -199,7 +210,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
       const c = chosen() || choices[0]!;
       const value = picked(c) || confs.templateForNew(c.mode);
       const radio = Array.from(radiosOf(c)).find((one) => one.value === value);
-      const title = radio ? form.querySelector('label[for="' + radio.id + '"] .t') : null;
+      const title = radio ? form.querySelector('label[for="' + radio.id + '"] .' + CLS.cardTitle) : null;
       return confirm(texts.resetConfirm.replace("%s", serverHost()).replace("%s", title ? title.textContent || "" : ""));
     },
     rememberTemplate(): void {

@@ -15,8 +15,10 @@ function aio_cgi_h($s)
 // => id, name= (also the field of an error of it, aio_cgi_err), key of
 // settings.json ('' - none), maxlength (0 - none), type: sec - masked
 // (aio_cgi_field), plain - text (aio_cgi_plain), select, radio (an id by
-// option), hidden; scr - its screen (aio_cgi_screens; of a radio, that of
-// its cards), the link of an error of it without the script (aio_cgi_err_screen).
+// option; of the template choices aio_tpl, aio_tpl_p2p the id is the prefix
+// of those of their cards and #<id>h of their marks), hidden; scr - its
+// screen (aio_cgi_screens; of a radio, that of its cards), the link of an
+// error of it without the script (aio_cgi_err_screen).
 function aio_cgi_fields()
 {
     return array(
@@ -28,10 +30,10 @@ function aio_cgi_fields()
         'aio_server' => array('id' => '', 'name' => 'aio_server', 'set' => 'aio_server', 'max' => 0, 'type' => 'radio', 'scr' => 'cfg'),
         'aio_own' => array('id' => 'ao', 'name' => 'aio_own_url', 'set' => 'aio_own_url', 'max' => 300, 'type' => 'plain', 'scr' => 'cfg'),
         'aio_mode' => array('id' => '', 'name' => 'aio_mode', 'set' => 'aio_mode', 'max' => 0, 'type' => 'radio', 'scr' => 'src'),
-        'aio_tpl' => array('id' => 'at', 'name' => 'aio_tpl', 'set' => 'aio_tpl', 'max' => 0, 'type' => 'select', 'scr' => 'src'),
+        'aio_tpl' => array('id' => 'at', 'name' => 'aio_tpl', 'set' => 'aio_tpl', 'max' => 0, 'type' => 'radio', 'scr' => 'src'),
         'tpl_seen' => array('id' => 'ats', 'name' => 'aio_tpl_seen', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src'),
         // The same two of the mode P2P (0.44.0).
-        'aio_tpl_p2p' => array('id' => 'atp', 'name' => 'aio_tpl_p2p', 'set' => 'aio_tpl_p2p', 'max' => 0, 'type' => 'select',
+        'aio_tpl_p2p' => array('id' => 'atp', 'name' => 'aio_tpl_p2p', 'set' => 'aio_tpl_p2p', 'max' => 0, 'type' => 'radio',
             'scr' => 'src'),
         'tpl_p2p_seen' => array('id' => 'atps', 'name' => 'aio_tpl_p2p_seen', 'set' => '', 'max' => 0, 'type' => 'hidden',
             'scr' => 'src'),
@@ -228,11 +230,11 @@ function aio_cgi_jacred($v, $bad = array())
 
 // The fields $html of the own one of a choice (0.44.0), after its card (its
 // radio of class own) in the list: the CSS shows them only while it is
-// chosen, or (class on) while an error of a save is on one of $names (of
+// chosen, or (class open) while an error of a save is on one of $names (of
 // $bad); without the CSS: always.
 function aio_cgi_ownf($names, $bad, $html)
 {
-    return '<div class="ownf' . (array_intersect($names, $bad) ? ' on' : '') . '">' . $html . '</div>';
+    return '<div class="ownf' . (array_intersect($names, $bad) ? ' open' : '') . '">' . $html . '</div>';
 }
 
 // AIOStreams server => id of the JacRed that answers 403 to it (0.35.0);
@@ -267,7 +269,7 @@ function aio_cgi_tpls_p2p()
 }
 
 // The template choice of the mode $m on the page (0.44.0: one per mode):
-// field - the key of its select in aio_cgi_fields() and the values, seen -
+// field - the key of its radios in aio_cgi_fields() and the values, seen -
 // that of its aio_tpl_seen, new - the key of the values with the one for a
 // new config, tpls - its templates as aio_cgi_tpls().
 function aio_cgi_tpl_keys($m)

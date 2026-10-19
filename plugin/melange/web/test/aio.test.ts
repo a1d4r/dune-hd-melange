@@ -65,14 +65,14 @@ describe("answer", () => {
     expect(page.doc.querySelector<HTMLAnchorElement>("#mp2p a[href='#torr']")).not.toBeNull();
   });
 
-  test("the line of the server on the main screen: the host of the choice (own one: of its address, none - otherAioServer), ok - a config of the mode there", () => {
+  test("the line of the server on the main screen: the host of the choice (own one: of its address, none - ownAioServer), ok - a config of the mode there", () => {
     const page = open("ownconf");
     const row = () => [page.el("dcfg").className, page.el("vcfg").textContent];
     expect(row()).toEqual(["dot ok", "192.168.1.10"]);
     page.type(ID.aioOwnUrl, " http://192.168.1.10:3001 ");
     expect(row()).toEqual(["dot warn", "192.168.1.10"]);
     page.type(ID.aioOwnUrl, "");
-    expect(row()).toEqual(["dot warn", page.init.i18n.otherAioServer]);
+    expect(row()).toEqual(["dot warn", page.init.i18n.ownAioServer]);
     server(page, ATB);
     expect(row()).toEqual(["dot ok", "aio.atbphosting.com"]);
     page.choose("watch", "p2p");
@@ -113,7 +113,7 @@ describe("server", () => {
     const posted = () => new page.doc.defaultView!.FormData(page.form).get("aio_own_url");
     const row = () => [page.el("dcfg").className, page.el("vcfg").textContent];
     server(page, "own");
-    expect(row()).toEqual(["dot warn", page.init.i18n.otherAioServer]);
+    expect(row()).toEqual(["dot warn", page.init.i18n.ownAioServer]);
     page.type(ID.aioOwnUrl, "http://192.0.2.50:3000");
     expect(row()).toEqual(["dot warn", "192.0.2.50"]);
     expect([shown(page.el(ID.tmdbBox)), saveText(page)]).toEqual([true, page.init.i18n.saveAndCreate]);

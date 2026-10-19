@@ -34,8 +34,8 @@ describe("errors lead to the field", () => {
   // In the order of the page.
   const marked = (page: Page) => Array.from(page.form.querySelectorAll("." + CLS.bad)).map((el) => label(page, el));
   const focused = (page: Page) => (page.doc.activeElement ? label(page, page.doc.activeElement) : null);
-  // The fields of an own one around the field #id shown for an error (class on), whatever card is chosen.
-  const ownShown = (page: Page, id: string) => page.el(id).closest("." + CLS.ownFields)!.classList.contains(CLS.on);
+  // The fields of an own one around the field #id shown for an error (CLS.ownOpen), whatever card is chosen.
+  const ownShown = (page: Page, id: string) => page.el(id).closest("." + CLS.ownFields)!.classList.contains(CLS.ownOpen);
   const KEY_ERROR = { msg: "Нужен ключ RD или TorBox", field: "rd_key" };
 
   test("the key: marked, brought to the middle of the screen, focused; the list under the button stays", async () => {
@@ -71,6 +71,15 @@ describe("errors lead to the field", () => {
     expect(focused(page)).toBe("jacred_own_url");
     // Its screen, the fields of own JacRed shown whatever card is chosen.
     expect([hash(), ownShown(page, ID.jacredOwnUrl)]).toEqual(["#voices", true]);
+  });
+
+  test("own JacRed not chosen, its error under that of the key: its fields shown too, the key in view on #src", async () => {
+    const page = open("nokey");
+    expect([page.el<HTMLInputElement>("jrown").checked, ownShown(page, ID.jacredOwnUrl)]).toEqual([false, false]);
+    page.replies.push(json({ ok: false, errors: [KEY_ERROR, { msg: "JacRed", field: "jacred_own_url" }] }));
+    await save(page);
+    expect(marked(page)).toEqual(["rd_key", "jacred_own_url"]);
+    expect([hash(), focused(page), ownShown(page, ID.jacredOwnUrl)]).toEqual(["#src", "rd_key", true]);
   });
 
   test("the address of own AIOStreams, another server chosen: its fields shown, on #cfg; a new save: as the card says", async () => {
