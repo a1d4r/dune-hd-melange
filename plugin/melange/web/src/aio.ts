@@ -159,13 +159,6 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   }
 
   for (let i = 0; i < servers.length; i++) servers[i]!.addEventListener("change", render);
-  // An address typed chooses another server (else the save makes the config on the one checked); emptied: kept.
-  const ownRadio = query<HTMLInputElement>(form, AIO_SERVER_RADIOS + "[value=" + VALUE.own + "]");
-  ownUrlField.addEventListener("input", () => {
-    if (trimmed(ownUrlField.value) === "" || ownRadio.checked) return;
-    ownRadio.checked = true;
-    ownRadio.dispatchEvent(new doc.defaultView!.Event("change", { bubbles: true }));
-  });
   ownUrlField.addEventListener("input", render);
   rdKey.addEventListener("input", render);
   tbKey.addEventListener("input", render);

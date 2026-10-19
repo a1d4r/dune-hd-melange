@@ -91,6 +91,8 @@ export const CLS = {
   jacredBuiltin: "jrb",
   // The time and the releases of a JacRed of "Compare speed" in its card (data-jr: its id or "own").
   jacredSpeed: "ms",
+  // The fields of the own one of a choice (the last card): shown by the CSS while it is chosen, or with "on".
+  ownFields: "ownf",
   // A screen of the page.
   screen: "scr",
   // A field or server block an error of the save is about (made by the script).

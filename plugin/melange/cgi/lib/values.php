@@ -147,8 +147,8 @@ function aio_cgi_check_values($v)
         $d[$set['aio_own']] = $v['cur'][$set['aio_own']];
     elseif ($made && $d[$set['aio_server']] === 'own' && $d[$set['aio_own']] === '')
     {
-        $errors[] = aio_cgi_err(aio_cgi_l('Другой сервер AIOStreams: нужен адрес вида http(s)://хост[:порт] без пути',
-            'Another AIOStreams server: an address like http(s)://host[:port] without a path is needed'), $f['aio_own']['name']);
+        $errors[] = aio_cgi_err(aio_cgi_l('Свой сервер AIOStreams: нужен адрес вида http(s)://хост[:порт] без пути',
+            'Own AIOStreams server: an address like http(s)://host[:port] without a path is needed'), $f['aio_own']['name']);
     }
     $d[$set['aio_mode']] = $mode;
     // No field (a form of 0.39 or older), or a wrong one of the own config: the stored one.

@@ -1,5 +1,6 @@
 // The marks of the errors of a save: the field (or the server block, the cards of radios) of each, aria-invalid; the
-// top one on the page: its screen opened (the address #<screen>), the details around it opened, brought into view.
+// top one on the page: its screen opened (the address #<screen>), the details or own fields around it shown, brought
+// into view.
 // A mark goes once its field is edited or a new save starts.
 
 import type { SaveError } from "./api";
@@ -46,12 +47,14 @@ export function setupMarks(page: Page, servers: Servers, debrid: Debrid): Marks 
   }
   function clear(): void {
     form.querySelectorAll("." + CLS.bad + ",[aria-invalid]").forEach(unmark);
+    form.querySelectorAll("." + CLS.ownFields).forEach((box) => box.classList.remove(CLS.on));
   }
   // Its screen the target of the address (the CSS shows it; the back of the phone goes to the main one), every
-  // details around it open.
+  // details around it open, the fields of an own one shown even if another card is chosen.
   function open(el: HTMLElement): void {
     for (let up = el.parentElement; up; up = up.parentElement) {
       if (up.tagName === "DETAILS") (up as HTMLDetailsElement).open = true;
+      if (up.classList.contains(CLS.ownFields)) up.classList.add(CLS.on);
       if (up.classList.contains(CLS.screen) && up.id && location.hash !== "#" + up.id) location.hash = "#" + up.id;
     }
   }

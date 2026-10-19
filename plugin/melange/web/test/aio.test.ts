@@ -119,21 +119,17 @@ describe("server", () => {
     expect(vis().jr403).toBe(false);
   });
 
-  test("an address typed into another server chooses it (the line, TMDB, the button follow); spaces or emptied: the choice kept", () => {
+  test("an address typed into own server (its card chosen): the line, TMDB, the button follow; another card: the address kept", () => {
     const page = open("filled");
-    const checked = () => Array.from(page.doc.querySelectorAll<HTMLInputElement>("input[name=aio_server]")).filter((radio) => radio.checked).map((radio) => radio.value);
-    const posted = () => new page.doc.defaultView!.FormData(page.form).get("aio_server");
+    const posted = () => new page.doc.defaultView!.FormData(page.form).get("aio_own_url");
     const row = () => [page.el("dcfg").className, page.el("vcfg").textContent];
-    page.type(ID.aioOwnUrl, "  ");
-    expect([checked(), posted(), row()]).toEqual([[MADE], MADE, ["dot ok", "aiostreams.12312023.xyz"]]);
+    server(page, "own");
+    expect(row()).toEqual(["dot warn", page.init.i18n.otherAioServer]);
     page.type(ID.aioOwnUrl, "http://192.0.2.50:3000");
-    expect([checked(), posted(), row()]).toEqual([["own"], "own", ["dot warn", "192.0.2.50"]]);
+    expect(row()).toEqual(["dot warn", "192.0.2.50"]);
     expect([shown(page.el(ID.tmdbBox)), saveText(page)]).toEqual([true, page.init.i18n.saveAndCreate]);
-    page.type(ID.aioOwnUrl, "");
-    expect([checked(), row()]).toEqual([["own"], ["dot warn", page.init.i18n.otherAioServer]]);
     server(page, MADE);
-    page.type(ID.aioOwnUrl, "http://192.0.2.51");
-    expect([checked(), row()]).toEqual([["own"], ["dot warn", "192.0.2.51"]]);
+    expect([row(), posted()]).toEqual([["dot ok", "aiostreams.12312023.xyz"], "http://192.0.2.50:3000"]);
   });
 
   test("the config of the chosen server: link, login, password; none: the note; the copy result cleared", () => {

@@ -37,6 +37,8 @@ h2{font-size:22px;margin:2px 0 6px}
 .opt .r{flex:none;width:20px;height:20px;border:2px solid var(--mute);border-radius:50%}
 .ot{flex:1;min-width:0}
 .opt .t{font-weight:600;overflow-wrap:anywhere}
+.ownf{display:none}
+.own:checked~.ownf,.ownf.on{display:block}
 .ms{font-size:13px;color:var(--mute);text-align:right}
 .badge{margin-left:6px;padding:0 6px;font-size:11px;font-weight:400;color:var(--ok);border:1px solid currentColor;border-radius:999px;white-space:nowrap}
 .vh:checked+.opt,#wd:checked~* [for=wd],#wp:checked~* [for=wp],#wo:checked~* [for=wo]{border-color:var(--acc);background:var(--accbg)}
@@ -73,10 +75,8 @@ button.lnk{padding:12px 4px 0;font-size:15px;border:0;background:none}
 .btn.ghost{background:var(--surf);color:var(--ink)}
 .btn.danger{font-weight:500;background:none;border:1px solid var(--line);color:var(--err)}
 p.cfg{margin:0}
-details{margin:14px 0 0}
-summary{padding:8px 4px;color:var(--acc);cursor:pointer}
 details.srv{margin:10px 0 0;padding:4px 12px 12px;background:var(--surf);border:1px solid var(--line);border-radius:12px}
-details.srv>summary{color:var(--ink)}
+details.srv>summary{padding:8px 4px;color:var(--ink);cursor:pointer}
 .srv .f,.srv select{background:var(--bg)}
 form{display:flex;flex-direction:column;min-height:calc(100vh - 16px)}
 @supports (min-height:100svh){form{min-height:calc(100svh - 16px)}}

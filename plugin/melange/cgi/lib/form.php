@@ -173,11 +173,12 @@ function aio_cgi_servers($servers)
         '</button>';
 }
 
-// The screen "JacRed" (#voices): one of the built-in ones or the
-// own one (radio "jacred"), a card each with a box for "Сравнить скорость"
-// (span.ms data-jr: the id, "own"); the own one with its fields in
-// #jrownd, open when chosen or filled; "Проверить" there asks the own one.
-function aio_cgi_jacred($v)
+// The screen "JacRed" (#voices): one of the built-in ones or the own one
+// (radio "jacred"), a card each with a box for "Сравнить скорость" (span.ms
+// data-jr: the id, "own"); the own one last, its fields under it
+// (aio_cgi_ownf); "Проверить" there asks the own one. $bad: the fields of
+// the errors of a save.
+function aio_cgi_jacred($v, $bad = array())
 {
     // By the source: the script swaps the texts of data-made / data-own.
     $t = array(aio_cgi_l('JacRed ищет русские раздачи и подсказывает озвучки.',
@@ -205,16 +206,9 @@ function aio_cgi_jacred($v)
             ($id === AIO_JACRED_DEFAULT ? '<span class="badge">' . aio_cgi_l('у Melange', 'of Melange') . '</span>' : ''), '',
             '<span class="ms" data-jr="' . aio_cgi_h($id) . '"></span>');
     }
-    $own = $v['jacred'] === 'own' || trim($v['jo_url'] . $v['jo_key'], AIO_TRIM) !== '';
-    // A hint under the list, not when the default itself is chosen (the script follows the choice).
-    return $out . '</div><p class="hint" id="jrnote"' . ($v['jacred'] === AIO_JACRED_DEFAULT ? ' hidden' : '') . '>' .
-        aio_cgi_l('Не ответил — Melange спросит ' . AIO_JACRED_DEFAULT . '.', 'No answer - Melange will ask ' . AIO_JACRED_DEFAULT . '.') .
-        '</p><button type="button" id="jrsb" class="btn ghost">' . aio_cgi_l('Сравнить скорость', 'Compare speed') .
-        '</button><p class="hint c">' . aio_cgi_l('Время ответа и число раздач на трёх фильмах',
-        'Reply time and the number of releases on three films') . '</p><div id="jrsr" class="res" aria-live="polite"></div>' .
-        '<details id="jrownd"' . ($own ? ' open' : '') . '><summary>' . aio_cgi_l('Свой JacRed…', 'Own JacRed…') . '</summary>' .
-        '<div class="choice">' . aio_cgi_vradio('jrown', $f['jacred']['name'], 'own', $v['jacred'] === 'own') .
-        aio_cgi_card('jrown', aio_cgi_l('Свой JacRed', 'Own JacRed'), '', '<span class="ms" data-jr="own"></span>') . '</div>' .
+    $out .= aio_cgi_vradio('jrown', $f['jacred']['name'], 'own', $v['jacred'] === 'own', 'own') .
+        aio_cgi_card('jrown', aio_cgi_l('Свой JacRed', 'Own JacRed'), '', '<span class="ms" data-jr="own"></span>') .
+        aio_cgi_ownf(array($f['jo_url']['name'], $f['jo_key']['name']), $bad,
         aio_cgi_input($f['jo_url'], aio_cgi_l('Адрес', 'Address'), $v['jo_url'], 'http://192.168.1.10:9117',
             aio_cgi_chk('jcb', 'jcr')) .
         // The config made on a public server: it can't reach a home address (the script follows the choice);
@@ -223,7 +217,22 @@ function aio_cgi_jacred($v)
         aio_cgi_l('Адрес в домашней сети публичному серверу недоступен: нужен адрес из интернета',
         'A public server cannot reach a home network address: use an internet address') .
         '</p>' .
-        aio_cgi_input($f['jo_key'], aio_cgi_l('Ключ, если нужен', 'Key, if needed'), $v['jo_key'], '') . '</details>';
+        aio_cgi_input($f['jo_key'], aio_cgi_l('Ключ, если нужен', 'Key, if needed'), $v['jo_key'], ''));
+    // A hint under the list, not when the default itself is chosen (the script follows the choice).
+    return $out . '</div><p class="hint" id="jrnote"' . ($v['jacred'] === AIO_JACRED_DEFAULT ? ' hidden' : '') . '>' .
+        aio_cgi_l('Не ответил — Melange спросит ' . AIO_JACRED_DEFAULT . '.', 'No answer - Melange will ask ' . AIO_JACRED_DEFAULT . '.') .
+        '</p><button type="button" id="jrsb" class="btn ghost">' . aio_cgi_l('Сравнить скорость', 'Compare speed') .
+        '</button><p class="hint c">' . aio_cgi_l('Время ответа и число раздач на трёх фильмах',
+        'Reply time and the number of releases on three films') . '</p><div id="jrsr" class="res" aria-live="polite"></div>';
+}
+
+// The fields $html of the own one of a choice (0.44.0), after its card (its
+// radio of class own) in the list: the CSS shows them only while it is
+// chosen, or (class on) while an error of a save is on one of $names (of
+// $bad); without the CSS: always.
+function aio_cgi_ownf($names, $bad, $html)
+{
+    return '<div class="ownf' . (array_intersect($names, $bad) ? ' on' : '') . '">' . $html . '</div>';
 }
 
 // AIOStreams server => id of the JacRed that answers 403 to it (0.35.0);
@@ -450,13 +459,14 @@ function aio_cgi_src($v)
 // Торренты, #smade of class xm): the server melange makes the config on - a
 // card of the radio aio_server each (the host; "у Melange" of
 // AIO_AIO_SERVER_MELANGE; "без TMDB" of one without TMDB of its own; data-tmdb,
-// data-jr403, data-p2ptz for the script), another one in #asownd (its radio
-// "own" and its address; open when chosen or filled); the TMDB key under a
+// data-jr403, data-p2ptz for the script), the own one last (radio "own",
+// its address under it: aio_cgi_ownf); the TMDB key under a
 // server without TMDB of its own (another one: always); then the config of
 // the chosen server in the mode (#acfg) - its link, login and password,
 // "Сбросить к шаблону" - or "none yet"; the script shows the one of the
-// chosen server and mode from #init.confs (aio_cgi_aio_confs).
-function aio_cgi_cfg($v)
+// chosen server and mode from #init.confs (aio_cgi_aio_confs). $bad: the
+// fields of the errors of a save.
+function aio_cgi_cfg($v, $bad = array())
 {
     $f = aio_cgi_fields();
     $name = $f['aio_server']['name'];
@@ -473,14 +483,12 @@ function aio_cgi_cfg($v)
             aio_cgi_card("as$i", aio_cgi_h(aio_cgi_host($url)) . ($url === AIO_AIO_SERVER_MELANGE ? '<span class="badge">' .
             aio_cgi_l('у Melange', 'of Melange') . '</span>' : ''), $tmdb ? '' : aio_cgi_l('без TMDB', 'no TMDB'));
     }
-    $own = $v['aio_server'] === 'own';
     $sel = aio_cgi_aio_show(aio_cgi_aio_sel($v));
-    return $out . '</div><details id="asownd"' . ($own || trim($v['aio_own'], AIO_TRIM) !== '' ? ' open' : '') . '><summary>' .
-        aio_cgi_l('Другой сервер…', 'Another server…') . '</summary><div class="choice">' .
-        aio_cgi_vradio('asown', $name, 'own', $own, '', ' data-tmdb="0"') .
-        aio_cgi_card('asown', aio_cgi_l('Другой сервер', 'Another server'), '') . '</div>' .
-        aio_cgi_input($f['aio_own'], aio_cgi_l('Адрес сервера AIOStreams', 'AIOStreams server address'), $v['aio_own'],
-        'http://192.168.1.10:3000', aio_cgi_chk('aob', 'aor')) . '</details>' .
+    return $out . aio_cgi_vradio('asown', $name, 'own', $v['aio_server'] === 'own', 'own', ' data-tmdb="0"') .
+        aio_cgi_card('asown', aio_cgi_l('Свой сервер', 'Own server'), '') .
+        aio_cgi_ownf(array($f['aio_own']['name']), $bad, aio_cgi_input($f['aio_own'],
+        aio_cgi_l('Адрес сервера AIOStreams', 'AIOStreams server address'), $v['aio_own'], 'http://192.168.1.10:3000',
+        aio_cgi_chk('aob', 'aor'))) . '</div>' .
         '<div id="tmbox"><p class="hint" id="tmnote">' .
         aio_cgi_l('Без своего TMDB: без сверки названий, меньше раздач сериалов.',
         'The server has no TMDB of its own: titles are not matched, fewer series releases.') . '</p>' .
@@ -617,8 +625,10 @@ function aio_cgi_form($t, $v, $errors, $saved)
 {
     $scr = aio_cgi_screens();
     $msg = '';
+    $bad = array();
     foreach ($errors as $e)
     {
+        $bad[] = $e['field'];
         $to = aio_cgi_err_screen($e['field']);
         $msg .= '<p class="err">' . aio_cgi_h($e['msg']) . ($to !== '' ? ' <a href="#' . $to . '">' . $scr[$to] . ' ›</a>' : '') .
             '</p>';
@@ -635,8 +645,8 @@ function aio_cgi_form($t, $v, $errors, $saved)
         // Enter in a field without the script submits the first button: the save, not the reset.
         '<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>' . $radios .
         aio_cgi_screen('src', aio_cgi_src($v)) .
-        aio_cgi_screen('cfg', aio_cgi_cfg($v)) .
-        aio_cgi_screen('voices', aio_cgi_jacred($v)) .
+        aio_cgi_screen('cfg', aio_cgi_cfg($v, $bad)) .
+        aio_cgi_screen('voices', aio_cgi_jacred($v, $bad)) .
         aio_cgi_screen('torr', '<p class="sub xd">' . aio_cgi_l('Запасной путь для раздач не из кэша Debrid.',
             'A fallback for releases not cached in Debrid.') . '</p><p class="sub xp">' .
             aio_cgi_l('С ответом «Торренты» без него не посмотреть.', 'With "Torrents" nothing plays without it.') . '</p>' .

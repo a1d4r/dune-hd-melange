@@ -1,5 +1,6 @@
 // The marks of the errors of a save (marks.ts): the field or server block of each, the top one on its screen (the
-// address #<screen>, details around it open), in view and focused, a mark gone on editing or at the next save.
+// address #<screen>, details or own fields around it shown), in view and focused, a mark gone on editing or at the
+// next save.
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { CLS, ID } from "../src/dom";
@@ -33,6 +34,8 @@ describe("errors lead to the field", () => {
   // In the order of the page.
   const marked = (page: Page) => Array.from(page.form.querySelectorAll("." + CLS.bad)).map((el) => label(page, el));
   const focused = (page: Page) => (page.doc.activeElement ? label(page, page.doc.activeElement) : null);
+  // The fields of an own one around the field #id shown for an error (class on), whatever card is chosen.
+  const ownShown = (page: Page, id: string) => page.el(id).closest("." + CLS.ownFields)!.classList.contains(CLS.on);
   const KEY_ERROR = { msg: "Нужен ключ RD или TorBox", field: "rd_key" };
 
   test("the key: marked, brought to the middle of the screen, focused; the list under the button stays", async () => {
@@ -66,16 +69,19 @@ describe("errors lead to the field", () => {
     expect(marked(page)).toEqual(["jacred_own_url", "ts"]);
     expect(scrolls.map(([el]) => el)).toEqual(["jacred_own_url"]);
     expect(focused(page)).toBe("jacred_own_url");
-    // Its screen, "Own JacRed…" around it open.
-    expect([hash(), page.el<HTMLDetailsElement>("jrownd").open]).toEqual(["#voices", true]);
+    // Its screen, the fields of own JacRed shown whatever card is chosen.
+    expect([hash(), ownShown(page, ID.jacredOwnUrl)]).toEqual(["#voices", true]);
   });
 
-  test("the address of own AIOStreams in the closed details of another server: opened, on #cfg", async () => {
+  test("the address of own AIOStreams, another server chosen: its fields shown, on #cfg; a new save: as the card says", async () => {
     const page = open("filled");
-    expect(page.el<HTMLDetailsElement>("asownd").open).toBe(false);
+    expect(ownShown(page, ID.aioOwnUrl)).toBe(false);
     page.replies.push(json({ ok: false, errors: [{ msg: "AIOStreams", field: "aio_own_url" }] }));
     await save(page);
-    expect([hash(), page.el<HTMLDetailsElement>("asownd").open, focused(page)]).toEqual(["#cfg", true, "aio_own_url"]);
+    expect([hash(), ownShown(page, ID.aioOwnUrl), focused(page)]).toEqual(["#cfg", true, "aio_own_url"]);
+    page.replies.push(json({ ok: false, errors: [{ msg: "TS", field: "ts" }] }));
+    await save(page);
+    expect(ownShown(page, ID.aioOwnUrl)).toBe(false);
   });
 
   test("TorrServer in Torrents (moved to #src): the screen of where it is now", async () => {
