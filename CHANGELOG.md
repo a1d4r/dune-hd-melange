@@ -2,6 +2,11 @@
 
 **English version**
 
+## 0.45.0 — 21.10.2026
+- **TorrServer with a login and password.** The "TorrServer" screen of the settings page has **"Login"** and **"Password"** fields under the address (the password is hidden, the eye shows it); they also work with an empty address, for the TorrServe app on the Dune with "Local TorrServer with Authorization" on. The address may be typed as `login:password@host:port`: on saving the login and password go to their fields, and the address is stored without them. A login without a password or a password without a login is an error of the field. **"Check"** now also tells "TorrServer asks for a login and password" and "TorrServer did not accept the login or password"; the password is sent in the request body, not in the address of the page. "Watch via TorrServer" sends them to TorrServer; if they are missing or wrong, "Could not open via TorrServer" says so and points to the Melange settings → TorrServer. The password never goes to the log.
+- The MENU item **"Download in an app…"** is now **"Open in an app…"**: it is also the way to add a release to the list of TorrServe, which offers "Play", "Add & Play" and "Add" for a magnet link. "Watch via TorrServer" is different: it opens the Dune player with the playlist of episodes, Continue Watching and the next episode.
+- The **"Opening via TorrServer"** window shows what TorrServer is doing in words ("Getting info", "Preloading", "Working"…; "Waiting for the file list" when it does not say), the seconds, on the next line the peers and the connected seeders, and the download speed when there is any.
+
 ## 0.44.0 — 19.10.2026
 - "Torrents" got its own **"Where to look for releases"** on the "Where to get films" screen, apart from the Debrid one: **"Russian trackers only"** (JacRed only, a faster reply) or **"Everywhere"** (Torrentio, JacRed, TorrentsDB, Comet and StremThru Torz: more releases). On `aiostreams.kompotik.com` the server itself searches JacRed, on the other servers it is searched through Magnetio, as before.
 - **"Russian trackers only" is now the default for "Torrents"**: a new "Torrents" config gets JacRed only, until you choose another template yourself. Existing "Torrents" configs do not change: the choice shows their template ("Everywhere") until you choose another one, and saving them as they are keeps the default for new configs. As with Debrid, another template and "Save" reset the config after a question; the main screen shows the template: "Torrents · via TorrServer · Russian only".
@@ -95,6 +100,11 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.45.0 — 21.10.2026
+- **TorrServer с логином и паролем.** На экране «TorrServer» страницы настроек под адресом — поля **«Логин»** и **«Пароль»** (пароль скрыт, глаз показывает); работают и с пустым адресом — для приложения TorrServe на Дюне с включённым «Локальный TorrServer с авторизацией». Адрес можно вписать и как `логин:пароль@хост:порт`: при сохранении логин и пароль уйдут в свои поля, адрес сохранится без них. Логин без пароля или пароль без логина — ошибка поля. **«Проверить»** теперь говорит и «TorrServer просит логин и пароль», «TorrServer не принял логин или пароль»; пароль уходит в теле запроса, а не в адресе страницы. «Смотреть через TorrServer» передаёт их TorrServer; если их нет или они неверны — «Не открылось через TorrServer» скажет об этом и отправит в настройки Melange → TorrServer. Пароль в лог не попадает.
+- Пункт MENU **«Скачать в приложении…»** теперь **«Открыть в приложении…»**: через него раздачу и добавляют в список TorrServe — на magnet-ссылку оно предлагает «Играть», «Доб. и играть» и «Добавить». «Смотреть через TorrServer» — другое: плеер Дюны с плейлистом серий, «Продолжить просмотр» и следующей серией.
+- Окно **«Открываю через TorrServer»** показывает, что делает TorrServer, словами («Получение информации», «Предзагрузка», «Работает»…; «Жду список файлов», если он не говорит), секунды, строкой ниже — пиров и подключённых сидов, и скорость загрузки, когда она есть.
 
 ## 0.44.0 — 19.10.2026
 - У «Торрентов» — свой выбор **«Где искать раздачи»** на экране «Откуда брать фильмы», отдельно от Debrid: **«Только русские трекеры»** (только JacRed, ответ быстрее) или **«Везде»** (Torrentio, JacRed, TorrentsDB, Comet и StremThru Torz — больше раздач). На `aiostreams.kompotik.com` в JacRed ищет сам сервер, на других — через Magnetio, как раньше.
