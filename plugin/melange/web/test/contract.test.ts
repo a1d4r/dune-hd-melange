@@ -81,6 +81,11 @@ describe.each([...FIXTURES])("%s", (name) => {
     // The TorrServer field, once, on #torr (0.44.0: in every answer).
     expect(form.querySelectorAll("input[name=ts]").length).toBe(1);
     expect(doc.getElementById(ID.ts)!.closest("section")!.id).toBe("torr");
+    // Play or Add & Play (ts_save, 0.45.0): two radios "0", "1" with their cards in a group of #torr.
+    const saves = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=ts_save]"));
+    expect(saves.map((radio) => [radio.type, radio.value])).toEqual([["radio", "0"], ["radio", "1"]]);
+    for (const radio of saves)
+      expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("torr");
     // The bar of the save under the screens: its results, "Hide" of them (a button, not a submit), its button the save.
     expect(doc.querySelector("#" + ID.bar + " #" + ID.saveResult + "+ button#" + ID.hideResult + "[type=button][hidden] + * #" + ID.dirty + "+ button." + CLS.save)).not.toBeNull();
     expect(form.querySelectorAll(JACRED_RADIOS + "[type=radio]").length).toBe(form.querySelectorAll("input[name=" + NAME.jacred + "]").length);

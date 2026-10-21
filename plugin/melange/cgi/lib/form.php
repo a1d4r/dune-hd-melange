@@ -47,7 +47,9 @@ function aio_cgi_fields()
         'ts' => array('id' => 'ts', 'name' => 'ts', 'set' => 'ts_url', 'max' => 300, 'type' => 'plain', 'scr' => 'torr'),
         // Basic auth of TorrServer (0.45.0); also typed in the address as login:password@host.
         'ts_user' => array('id' => 'tsu', 'name' => 'ts_user', 'set' => 'ts_user', 'max' => 100, 'type' => 'plain', 'scr' => 'torr'),
-        'ts_pass' => array('id' => 'tsp', 'name' => 'ts_pass', 'set' => 'ts_pass', 'max' => 200, 'type' => 'sec', 'scr' => 'torr'));
+        'ts_pass' => array('id' => 'tsp', 'name' => 'ts_pass', 'set' => 'ts_pass', 'max' => 200, 'type' => 'sec', 'scr' => 'torr'),
+        // "Играть" or "Добавить и играть" (0.45.0): aio_cgi_ts_saves().
+        'ts_save' => array('id' => 'tss', 'name' => 'ts_save', 'set' => 'ts_save', 'max' => 0, 'type' => 'radio', 'scr' => 'torr'));
 }
 
 // The fields of a server on the form (s<n>_<field>), as aio_server_conf()
@@ -176,6 +178,35 @@ function aio_cgi_servers($servers)
     // Shown by the script, which hides the empty blocks; without JS all five are open to fill.
     return $out . '<button type="button" id="addsrv" class="chk" hidden>' . aio_cgi_l('Добавить сервер', 'Add a server') .
         '</button>';
+}
+
+// The answers of "Что делать с раздачей" of TorrServer (radio ts_save,
+// 0.45.0): its value => array(name, hint); "1" - the add keeps the release in
+// the list of TorrServer (ts_save of the settings), "0" - it forgets it.
+function aio_cgi_ts_saves()
+{
+    return array(
+        '0' => array(aio_cgi_l('Играть', 'Play'), aio_cgi_l('TorrServer забудет раздачу после просмотра.',
+            'TorrServer forgets the release after watching.')),
+        '1' => array(aio_cgi_l('Добавить и играть', 'Add & Play'), aio_cgi_l(
+            'Раздача останется в списке TorrServer, как «Доб. и играть» в TorrServe.',
+            'The release stays in the TorrServer list, as "Add & Play" in TorrServe.')));
+}
+
+// "Что делать с раздачей" on #torr: a card of the radio ts_save each (a value
+// of the form: '' or another one - none checked).
+function aio_cgi_ts_save($v)
+{
+    $f = aio_cgi_fields();
+    $out = '<p class="lbl">' . aio_cgi_l('Что делать с раздачей', 'What to do with a release') . '</p><div class="choice">';
+    $i = 0;
+    foreach (aio_cgi_ts_saves() as $val => $x)
+    {
+        $i++;
+        $out .= aio_cgi_vradio($f['ts_save']['id'] . $i, $f['ts_save']['name'], strval($val), $v['ts_save'] === strval($val)) .
+            aio_cgi_card($f['ts_save']['id'] . $i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
+    }
+    return $out . '</div>';
 }
 
 // The screen "JacRed" (#voices): one of the built-in ones or the own one
@@ -671,7 +702,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
             aio_cgi_input($f['ts_user'], aio_cgi_l('Логин', 'Login'), $v['ts_user'], '') .
             aio_cgi_input($f['ts_pass'], aio_cgi_l('Пароль', 'Password'), $v['ts_pass'],
                 aio_cgi_l('Если TorrServer просит вход. Можно и в адресе: логин:пароль@хост:порт',
-                'If TorrServer asks for them. Also in the address: login:password@host:port'))) .
+                'If TorrServer asks for them. Also in the address: login:password@host:port')) . aio_cgi_ts_save($v)) .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',

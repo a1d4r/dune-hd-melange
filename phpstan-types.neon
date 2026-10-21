@@ -31,6 +31,7 @@ parameters:
                 ts_url: string,
                 ts_user: string,
                 ts_pass: string,
+                ts_save: bool,
                 aio_confs: array<string, array<string, AioConf>>,
                 saved_once: bool
             }
@@ -45,6 +46,7 @@ parameters:
                 pw: list<string>,
                 ts: string,
                 ts_auth: string,
+                ts_save: bool,
                 aio: string,
                 own: bool,
                 hosts: array<string, string>

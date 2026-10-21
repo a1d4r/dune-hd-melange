@@ -7,7 +7,8 @@
 // Values of the form from the settings (aio_settings_read) or as posted
 // (aio_cgi_posted), by the keys of aio_cgi_fields() - strings (aio_tpl,
 // aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
-// settings; tpl_seen, tpl_p2p_seen only posted); tpl_new, tpl_p2p_new -
+// settings; tpl_seen, tpl_p2p_seen only posted; ts_save: '1' or '0' from
+// the settings, as posted); tpl_new, tpl_p2p_new -
 // aio_tpl, aio_tpl_p2p of the settings (for a new config);
 // mode_cur - aio_mode of the settings (one for all servers); servers -
 // lists of strings by aio_cgi_server_fields(); confs - aio_confs of the
@@ -24,6 +25,7 @@ function aio_cgi_values($s)
     $v['aio_tpl_p2p'] = '';
     $v['mode_cur'] = $v['aio_mode'];
     $v['aio_mode'] = '';
+    $v['ts_save'] = $s['ts_save'] ? '1' : '0';
     $v['servers'] = $s['servers'];
     $v['confs'] = $s['aio_confs'];
     return $v;
@@ -252,6 +254,13 @@ function aio_cgi_check_values($v)
     $bad = $ts[3];
     if ($bad)
         $errors[] = aio_cgi_err($bad[1], $f[$bad[0]]['name']);
+    // None (a form of 0.44 or older): the stored one.
+    $d[$set['ts_save']] = $v['ts_save'] === '' ? $v['cur'][$set['ts_save']] : $v['ts_save'] === '1';
+    if ($v['ts_save'] !== '' && !array_key_exists($v['ts_save'], aio_cgi_ts_saves()))
+    {
+        $errors[] = aio_cgi_err(aio_cgi_l('Что делать с раздачей: нет такого ответа', 'What to do with a release: no such answer'),
+            $f['ts_save']['name']);
+    }
     return array($d, $errors);
 }
 

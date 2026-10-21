@@ -190,6 +190,7 @@ describe("errors lead to the field", () => {
   test.each([
     ["watch", "wd", "#src"],
     ["jacred", "jrb2", "#voices"],
+    ["ts_save", "tss2", "#torr"],
   ])("radios %s: the cards of their group marked and in view on the screen, not focused; choosing one takes the mark off", async (name, other, screen) => {
     const page = open("p2p");
     const group = page.doc.querySelector("label[for=" + page.form.querySelector("input[name=" + name + "]")!.id + "]")!.closest(".choice") as HTMLElement;

@@ -390,14 +390,14 @@ function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false)
 
     list($mg, $n, $src) = aio_magnet($r);
     $req = json_encode(array('action' => 'add', 'link' => $mg, 'title' => aio_ep_name($st['movie'], $st['s'], $st['e']),
-        'poster' => $st['movie']['poster'], 'save_to_db' => false));
+        'poster' => $st['movie']['poster'], 'save_to_db' => Aio::$settings['ts_save']));
     $t = microtime(true);
     list($code, $body) = aio_ts_call("$base/torrents", $req, $err, 5, Aio::$settings['ts_auth']);
     $j = $err === '' && $code === 200 ? aio_ts_decode($body) : null;
     $files = aio_ts_files($j);
     // The magnet is not logged: a private tracker carries a passkey.
-    aio_log(sprintf('ts: add, %d trackers (%s): %s, %d files, %.2f s', $n, $src, $err !== '' ? $err : "HTTP $code",
-        count($files), microtime(true) - $t));
+    aio_log(sprintf('ts: add, save %d, %d trackers (%s): %s, %d files, %.2f s', Aio::$settings['ts_save'], $n, $src,
+        $err !== '' ? $err : "HTTP $code", count($files), microtime(true) - $t));
     if ($err === '' && $code === 401)
         return aio_ts_fail($lang, aio_ts_auth_err(), '', $lazy);
     if ($err !== '' || $code !== 200 || !$j)

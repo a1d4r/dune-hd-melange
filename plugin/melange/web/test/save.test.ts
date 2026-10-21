@@ -33,7 +33,7 @@ const FILLED: [string, string][] = [
   ["watch", "debrid"], ["rd_key", "RDTESTKEY00000000000000001"], ["tb_key", "tbtest-0000000000000000001"], ["aio_tpl", "addons"],
   ["aio_tpl_seen", "addons"], ["aio_tpl_p2p", "p2p_jacred"], ["aio_tpl_p2p_seen", "p2p_jacred"], ["manifest", ""], ["aio_server", MADE], ["aio_own_url", ""], ["tmdb_key", "TMDBTESTKEY000000000001"],
   ["jacred", "own"], ["jacred_own_url", "http://192.168.1.10:9117"], ["jacred_own_key", "testkey01"],
-  ["ts", "http://192.168.1.10:8090"], ["ts_user", "tsuser"], ["ts_pass", "ts p@ss&x"],
+  ["ts", "http://192.168.1.10:8090"], ["ts_user", "tsuser"], ["ts_pass", "ts p@ss&x"], ["ts_save", "1"],
   ...servers([["name", "qBittorrent"], ["url", "http://192.168.1.10:8080"], ["user", "admin"], ["pass", "test-pass"], ["category", "movies"]]),
 ];
 // Torrents: as the page came but the answer (0.44.0: the TorrServer field stays on #torr).
@@ -223,6 +223,29 @@ describe("a login and password in the TorrServer address (0.45.0)", () => {
     expect([ts(page), dirty(page)]).toEqual([["192.0.2.6", "user", "secret"], "1 изменение"]);
     page.type(ID.ts, "192.0.2.5");
     expect(dirty(page)).toBe("");
+  });
+});
+
+describe("Play or Add & Play of TorrServer (ts_save, 0.45.0)", () => {
+  const dirty = (page: Page) => (page.el(ID.bar).hidden ? null : page.el(ID.dirty).textContent);
+  const checked = (page: Page) => page.form.querySelector<HTMLInputElement>("input[name=ts_save]:checked")!.value;
+
+  test("the other one chosen: one change, posted, saved on the page - no change; the one shown back: none", async () => {
+    const page = open("filled");
+    expect([checked(page), dirty(page)]).toEqual(["1", null]);
+    page.choose("ts_save", "0");
+    expect(dirty(page)).toBe("1 изменение");
+    page.choose("ts_save", "1");
+    expect(dirty(page)).toBeNull();
+    page.choose("ts_save", "0");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
+    await save(page);
+    expect(pairs(page.calls[0]!.body).filter((p) => p[0] === "ts_save")).toEqual([["ts_save", "0"]]);
+    expect([checked(page), dirty(page)]).toEqual(["0", ""]);
+  });
+
+  test("a page without settings: Play chosen", () => {
+    expect(checked(open("empty"))).toBe("0");
   });
 });
 

@@ -646,7 +646,8 @@ function aio_settings_hosts($s)
 // whatever is chosen, 'tmdb_key',
 // 'servers' => list of aio_server_conf(), 'ts_url' => aio_ts_addr() or '',
 // 'ts_user', 'ts_pass' => aio_ts_login(), aio_ts_pass() (0.45.0; both set
-// or both '', else both ''),
+// or both '', else both ''), 'ts_save' => bool, "Добавить и играть": the
+// add of TorrServer keeps the release in its list (0.45.0; not a bool - false),
 // 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
 // 0.42 or older (one per server, base => config) is read into the cell of
 // its mode (aio_mode_of), written back so by the next save),
@@ -674,7 +675,7 @@ function aio_settings_read($dir, &$why = null)
     $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
-        'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '',
+        'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
         'aio_confs' => array(), 'saved_once' => false);
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
@@ -753,6 +754,8 @@ function aio_settings_read($dir, &$why = null)
     $tp = aio_ts_pass(isset($j['ts_pass']) ? $j['ts_pass'] : '');
     if (is_string($tu) && is_string($tp) && ($tu === '') === ($tp === ''))
         list($r['ts_user'], $r['ts_pass']) = array($tu, $tp);
+    if (isset($j['ts_save']) && is_bool($j['ts_save']))
+        $r['ts_save'] = $j['ts_save'];
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
         foreach ($j['aio_confs'] as $b => $cs)
