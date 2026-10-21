@@ -57,6 +57,11 @@ describe("the main screen", () => {
     // A login and password typed in the address (0.45.0): never on the main screen.
     page.type(ID.ts, "HTTP://user:p@ss@192.0.2.10:8090");
     expect(value("torr")).toEqual(["dot ok", "HTTP://192.0.2.10:8090"]);
+    // Nothing before the "@" or a "/" there: no login (as aio_ts_userinfo), the address as typed (a bad one).
+    for (const typed of ["@h", "http://@h", "http://u:p@h:8090/@x"]) {
+      page.type(ID.ts, typed);
+      expect(value("torr")).toEqual(["dot ok", typed]);
+    }
     page.type(ID.ts, "");
     expect(value("torr")).toEqual(["dot ok", t.tsDune]);
     // Own JacRed: the host of its address; none: warn.

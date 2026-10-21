@@ -209,7 +209,8 @@ function aio_ts_pass($s)
 
 // An address typed as [http://]login:password@host[:port] -> array(the
 // address without them, login, password) as typed (unchecked; no ':' - an
-// empty password); no '@' or nothing before it -> array($s, null, null). The
+// empty password); no '@', nothing before it or a '/' there (a path, not a
+// login: http://u:p@host/@x) -> array($s, null, null), a bad address. The
 // last '@' ends the password: a host has none.
 /**
  * @param string $s
@@ -222,6 +223,8 @@ function aio_ts_userinfo($s)
     if ($at === false || $at <= $pre)
         return array($s, null, null);
     $ui = substr($s, $pre, $at - $pre);
+    if (strpos($ui, '/') !== false)
+        return array($s, null, null);
     $c = strpos($ui, ':');
     return array(substr($s, 0, $pre) . (string) substr($s, $at + 1), $c === false ? $ui : substr($ui, 0, $c),
         $c === false ? '' : (string) substr($ui, $c + 1));

@@ -3,7 +3,7 @@
 import type { Aio } from "./aio";
 import type { Api, ConfHow, Save, SaveError } from "./api";
 import type { Bar, Values } from "./bar";
-import { byId, checkedValue, CLS, ID, NAME, type Page, query } from "./dom";
+import { byId, checkedValue, CLS, ID, NAME, type Page, query, trimmed, tsUserinfo } from "./dom";
 import type { Home } from "./home";
 import { failureText, type Texts } from "./i18n";
 import type { Lock } from "./lock";
@@ -72,6 +72,20 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     show(results(), "err", errors.map((error) => error.msg));
     marks.show(errors);
   }
+  // A login and password typed in the address are saved in their fields (aio_cgi_ts_parse): so on the page too, or
+  // a next save takes them from the address again, not the fields. posted -> the values saved.
+  function moveTsUserinfo(posted: Values): Values {
+    const [addr, user, pass] = tsUserinfo(trimmed(posted.ts ?? ""));
+    if (user === null || pass === null) return posted;
+    const field = (id: string) => byId<HTMLInputElement>(doc, id);
+    // Typed meanwhile: stays (a change).
+    if (field(ID.ts).value === posted.ts) {
+      field(ID.ts).value = addr;
+      field(ID.tsUser).value = user;
+      field(ID.tsPass).value = pass;
+    }
+    return { ...posted, ts: addr, ts_user: user, ts_pass: pass };
+  }
   // posted: the values of the form as the save posted them.
   function saved(answer: Extract<Save, { ok: true }>, posted: Values): void {
     aio.rememberTemplate();
@@ -82,7 +96,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     results().textContent = "";
     home.saved();
     // Staying on the page: what is saved is not a change any more; typed while it went still is.
-    bar.rebase(posted);
+    bar.rebase(moveTsUserinfo(posted));
     const savedLine = addLine(results(), "ok", texts.saved);
     for (const note of answer.notes) addLine(results(), note.level === "ok" ? "ok" : "warn", note.msg);
     if (answer.aio) syncConf(answer.aio, savedLine);

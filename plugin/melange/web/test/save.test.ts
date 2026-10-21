@@ -167,6 +167,55 @@ describe("saved", () => {
   });
 });
 
+describe("a login and password in the TorrServer address (0.45.0)", () => {
+  const dirty = (page: Page) => (page.el(ID.bar).hidden ? null : page.el(ID.dirty).textContent);
+  const ts = (page: Page) => [ID.ts, ID.tsUser, ID.tsPass].map((id) => page.el<HTMLInputElement>(id).value);
+  const STAY = json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] });
+
+  test("saved on the page: to their fields, the address without them, no change; a new password goes from its field", async () => {
+    const page = open("filled");
+    page.type(ID.ts, " HTTP://user:p@ss:w@rd@192.0.2.5:8090 ");
+    page.replies.push(STAY);
+    await save(page);
+    expect([ts(page), dirty(page)]).toEqual([["HTTP://192.0.2.5:8090", "user", "p@ss:w@rd"], ""]);
+    page.type(ID.tsPass, "secret");
+    expect(dirty(page)).toBe("1 изменение");
+    page.replies.push(STAY);
+    await save(page);
+    const posted = pairs(page.calls[1]!.body);
+    expect([["ts", "HTTP://192.0.2.5:8090"], ["ts_user", "user"], ["ts_pass", "secret"]].every((p) => posted.some((q) => q[0] === p[0] && q[1] === p[1]))).toBe(true);
+    expect(dirty(page)).toBe("");
+  });
+
+  test("none in it, a '/' before the last '@', a failed save: the fields as typed", async () => {
+    const page = open("filled");
+    page.type(ID.ts, "http://u:p@192.0.2.5:8090/@x");
+    page.replies.push(STAY);
+    await save(page);
+    expect(ts(page)).toEqual(["http://u:p@192.0.2.5:8090/@x", "tsuser", "ts p@ss&x"]);
+    page.type(ID.ts, "user:secret@192.0.2.5");
+    page.replies.push(json({ ok: false, errors: [{ msg: "Bad", field: null }] }));
+    await save(page);
+    expect(ts(page)).toEqual(["user:secret@192.0.2.5", "tsuser", "ts p@ss&x"]);
+  });
+
+  test("the address typed again while it went: stays as typed (a change), the saved ones the base", async () => {
+    const page = open("filled");
+    page.type(ID.ts, "user:secret@192.0.2.5");
+    const answer = later();
+    page.replies.push(answer.reply);
+    await save(page);
+    page.type(ID.ts, "192.0.2.6");
+    answer.resolve(STAY);
+    await flush();
+    expect([ts(page), dirty(page)]).toEqual([["192.0.2.6", "tsuser", "ts p@ss&x"], "3 изменения"]);
+    page.type(ID.ts, "192.0.2.5");
+    page.type(ID.tsUser, "user");
+    page.type(ID.tsPass, "secret");
+    expect(dirty(page)).toBe("");
+  });
+});
+
 describe("the config after the save (aio_sync)", () => {
   test("create: Creating… on the button and as a line, the result replaces it; the config shown with its template", async () => {
     const page = open("filled");

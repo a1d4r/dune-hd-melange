@@ -2,7 +2,7 @@
 // by the rules of PHP (aio_cgi_state, aio_cgi_rows in cgi/lib/home.php): the same values give the same page.
 
 import type { Aio } from "./aio";
-import { byId, checkedValue, DATA, hostOf, ID, NAME, type Page, type Row, SERVER_BLOCK, SERVER_FIELD, trimmed, VALUE, watchOf } from "./dom";
+import { byId, checkedValue, DATA, hostOf, ID, NAME, type Page, type Row, SERVER_BLOCK, SERVER_FIELD, trimmed, tsUserinfo, VALUE, watchOf } from "./dom";
 
 export interface Home {
   render(): void;
@@ -73,8 +73,8 @@ export function setupHome(page: Page, aio: Aio): Home {
     const jacred = checkedValue(form, NAME.jacred) || "",
       jr = jacred !== VALUE.own ? jacred : hostOf(byId<HTMLInputElement>(doc, ID.jacredOwnUrl).value);
     setRow("voices", jr === "" ? "warn" : "ok", jr !== "" ? jr : texts.ownJacred);
-    // Never the login and password typed in the address (login:password@host).
-    const ts = value(ID.ts).replace(/^(http:\/\/)?.*@/i, "$1");
+    // Never the login and password typed in the address (login:password@host): as aio_ts_userinfo (common.php).
+    const ts = tsUserinfo(value(ID.ts))[0];
     setRow("torr", watch === VALUE.p2p ? "ok" : "", (ts !== "" ? ts : texts.tsDune) + (watch === VALUE.debrid ? " · " + texts.tsSpare : ""));
     const names = servers();
     setRow("dl", names.length ? "ok" : "", names.length ? names.join(", ") : texts.noServers);

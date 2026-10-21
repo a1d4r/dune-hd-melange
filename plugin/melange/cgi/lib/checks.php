@@ -434,10 +434,10 @@ function aio_cgi_ts_check($base, $auth = '')
 }
 
 // a=ts_check by POST (0.45.0: the password is not in the URL): the
-// TorrServer of the posted ts, ts_user, ts_pass (aio_cgi_ts_of), nothing written.
+// TorrServer of the posted ts, ts_user, ts_pass (aio_cgi_ts_parse), nothing written.
 function aio_cgi_ts_check_post()
 {
-    list($a, $u, $p, $bad) = aio_cgi_ts_of(aio_cgi_param($_POST, 'ts'), aio_cgi_param($_POST, 'ts_user'),
+    list($a, $u, $p, $bad) = aio_cgi_ts_parse(aio_cgi_param($_POST, 'ts'), aio_cgi_param($_POST, 'ts_user'),
         aio_cgi_param($_POST, 'ts_pass'));
     if ($bad)
         aio_cgi_log('ts check: bad format of ' . $bad[0]);
