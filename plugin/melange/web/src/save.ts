@@ -75,16 +75,16 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
   // A login and password typed in the address are saved in their fields (aio_cgi_ts_parse): so on the page too, or
   // a next save takes them from the address again, not the fields. posted -> the values saved.
   function moveTsUserinfo(posted: Values): Values {
-    const [addr, user, pass] = tsUserinfo(trimmed(posted.ts ?? ""));
-    if (user === null || pass === null) return posted;
-    const field = (id: string) => byId<HTMLInputElement>(doc, id);
-    // Typed meanwhile: stays (a change).
-    if (field(ID.ts).value === posted.ts) {
-      field(ID.ts).value = addr;
-      field(ID.tsUser).value = user;
-      field(ID.tsPass).value = pass;
+    const [addr, typedUser, pass] = tsUserinfo(trimmed(posted.ts ?? ""));
+    if (typedUser === null || pass === null) return posted;
+    // The login stored trimmed (aio_ts_login).
+    const saved: Values = { ...posted, ts: addr, ts_user: trimmed(typedUser), ts_pass: pass };
+    // A field typed in meanwhile stays (a change).
+    for (const [id, name] of [[ID.ts, "ts"], [ID.tsUser, "ts_user"], [ID.tsPass, "ts_pass"]] as const) {
+      const field = byId<HTMLInputElement>(doc, id);
+      if (field.value === posted[name]) field.value = saved[name]!;
     }
-    return { ...posted, ts: addr, ts_user: user, ts_pass: pass };
+    return saved;
   }
   // posted: the values of the form as the save posted them.
   function saved(answer: Extract<Save, { ok: true }>, posted: Values): void {

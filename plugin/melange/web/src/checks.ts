@@ -34,10 +34,6 @@ export function bindCheck<T>(
   });
 }
 
-function okOrErr(check: Check): Shown {
-  return [check.ok ? "ok" : "err", [check.msg]];
-}
-
 function byLevel(check: Check): Shown {
   return [check.level === "warn" ? "warn" : check.ok ? "ok" : "err", [check.msg]];
 }
@@ -48,7 +44,7 @@ export function setupChecks(page: Page, api: Api, lock: Lock): void {
   function bind(buttonId: string, outId: string, run: () => Promise<Result<Check>>, render: (check: Check) => Shown): void {
     bindCheck(lock, page.texts, byId<HTMLButtonElement>(doc, buttonId), () => byId(doc, outId), run, render);
   }
-  bind(ID.tsCheck, ID.tsResult, () => api.tsCheck(value(ID.ts), value(ID.tsUser), value(ID.tsPass)), okOrErr);
+  bind(ID.tsCheck, ID.tsResult, () => api.tsCheck(value(ID.ts), value(ID.tsUser), value(ID.tsPass)), byLevel);
   bind(ID.manifestCheck, ID.manifestResult, () => api.aioCheck(value(ID.manifest)), byLevel);
   bind(ID.aioOwnCheck, ID.aioOwnResult, () => api.aioStatus(value(ID.aioOwnUrl)), byLevel);
   bind(ID.rdCheck, ID.rdResult, () => api.keyCheck("rd", value(ID.rdKey)), byLevel);

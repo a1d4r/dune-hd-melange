@@ -174,7 +174,7 @@ describe("a login and password in the TorrServer address (0.45.0)", () => {
 
   test("saved on the page: to their fields, the address without them, no change; a new password goes from its field", async () => {
     const page = open("filled");
-    page.type(ID.ts, " HTTP://user:p@ss:w@rd@192.0.2.5:8090 ");
+    page.type(ID.ts, " HTTP:// user :p@ss:w@rd@192.0.2.5:8090 ");
     page.replies.push(STAY);
     await save(page);
     expect([ts(page), dirty(page)]).toEqual([["HTTP://192.0.2.5:8090", "user", "p@ss:w@rd"], ""]);
@@ -199,7 +199,19 @@ describe("a login and password in the TorrServer address (0.45.0)", () => {
     expect(ts(page)).toEqual(["user:secret@192.0.2.5", "tsuser", "ts p@ss&x"]);
   });
 
-  test("the address typed again while it went: stays as typed (a change), the saved ones the base", async () => {
+  test("the login or password typed while it went: stays (a change), the rest moved", async () => {
+    const page = open("filled");
+    page.type(ID.ts, "user:secret@192.0.2.5");
+    const answer = later();
+    page.replies.push(answer.reply);
+    await save(page);
+    page.type(ID.tsPass, "other");
+    answer.resolve(STAY);
+    await flush();
+    expect([ts(page), dirty(page)]).toEqual([["192.0.2.5", "user", "other"], "1 изменение"]);
+  });
+
+  test("the address typed again while it went: stays as typed (a change), the login and password moved", async () => {
     const page = open("filled");
     page.type(ID.ts, "user:secret@192.0.2.5");
     const answer = later();
@@ -208,10 +220,8 @@ describe("a login and password in the TorrServer address (0.45.0)", () => {
     page.type(ID.ts, "192.0.2.6");
     answer.resolve(STAY);
     await flush();
-    expect([ts(page), dirty(page)]).toEqual([["192.0.2.6", "tsuser", "ts p@ss&x"], "3 изменения"]);
+    expect([ts(page), dirty(page)]).toEqual([["192.0.2.6", "user", "secret"], "1 изменение"]);
     page.type(ID.ts, "192.0.2.5");
-    page.type(ID.tsUser, "user");
-    page.type(ID.tsPass, "secret");
     expect(dirty(page)).toBe("");
   });
 });

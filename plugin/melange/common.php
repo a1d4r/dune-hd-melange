@@ -221,9 +221,9 @@ function aio_ts_auth($user, $pass)
 
 // An address typed as [http://]login:password@host[:port] -> array(the
 // address without them, login, password) as typed (unchecked; no ':' - an
-// empty password); no '@', nothing before it or a '/' there (a path, not a
-// login: http://u:p@host/@x) -> array($s, null, null), a bad address. The
-// last '@' ends the password: a host has none.
+// empty password); no '@', no login before it (:p@h) or a '/', '?', '#' there
+// (a path, not a login: http://u:p@host/@x) -> array($s, null, null), a bad
+// address. The last '@' ends the password: a host has none.
 /**
  * @param string $s
  * @return array{string, string|null, string|null}
@@ -235,11 +235,11 @@ function aio_ts_userinfo($s)
     if ($at === false || $at <= $pre)
         return array($s, null, null);
     $ui = substr($s, $pre, $at - $pre);
-    if (strpos($ui, '/') !== false)
-        return array($s, null, null);
     $c = strpos($ui, ':');
-    return array(substr($s, 0, $pre) . (string) substr($s, $at + 1), $c === false ? $ui : substr($ui, 0, $c),
-        $c === false ? '' : (string) substr($ui, $c + 1));
+    $u = $c === false ? $ui : substr($ui, 0, $c);
+    if (strpbrk($ui, '/?#') !== false || trim($u, AIO_TRIM) === '')
+        return array($s, null, null);
+    return array(substr($s, 0, $pre) . (string) substr($s, $at + 1), $u, $c === false ? '' : (string) substr($ui, $c + 1));
 }
 
 // Built-in JacRed of the settings page (0.34.0), in the order of the page:

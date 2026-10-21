@@ -195,15 +195,16 @@ export function watchOf(form: HTMLFormElement): string {
 export const trimmed = (value: string): string => value.replace(/^[ \t\r\n\x0B]+|[ \t\r\n\x0B]+$/g, "");
 
 // An address typed as [http://]login:password@host[:port] -> [the address without them, login, password] as typed
-// (no ":" - an empty password); no "@", nothing before it or a "/" there -> [s, null, null]. As aio_ts_userinfo
-// (common.php): the last "@" ends the password.
+// (no ":" - an empty password); no "@", no login before it or a "/", "?", "#" there -> [s, null, null] (a bad
+// address). As aio_ts_userinfo (common.php): the last "@" ends the password.
 export function tsUserinfo(s: string): [string, string | null, string | null] {
   const at = s.lastIndexOf("@"),
     pre = /^http:\/\//i.test(s) ? 7 : 0;
   const ui = s.slice(pre, at);
-  if (at <= pre || ui.indexOf("/") >= 0) return [s, null, null];
-  const c = ui.indexOf(":");
-  return [s.slice(0, pre) + s.slice(at + 1), c < 0 ? ui : ui.slice(0, c), c < 0 ? "" : ui.slice(c + 1)];
+  const c = ui.indexOf(":"),
+    user = c < 0 ? ui : ui.slice(0, c);
+  if (at <= pre || /[\/?#]/.test(ui) || trimmed(user) === "") return [s, null, null];
+  return [s.slice(0, pre) + s.slice(at + 1), user, c < 0 ? "" : ui.slice(c + 1)];
 }
 
 // The host of an address as parse_url() of PHP finds it ("" - none).

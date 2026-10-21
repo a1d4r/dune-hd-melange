@@ -20,7 +20,7 @@ interface Case {
 }
 
 const CASES: Case[] = [
-  { button: ID.tsCheck, out: ID.tsResult, input: ID.ts, value: "http://192.168.1.10:8090/a b", warn: false,
+  { button: ID.tsCheck, out: ID.tsResult, input: ID.ts, value: "http://192.168.1.10:8090/a b", warn: true,
     call: { method: "POST", url: TOKEN + "&a=ts_check&ajax=1",
       body: "ts=http%3A%2F%2F192.168.1.10%3A8090%2Fa%20b&ts_user=tsuser&ts_pass=ts%20p%40ss%26x", contentType: FORM } },
   { button: ID.manifestCheck, out: ID.manifestResult, input: ID.manifest, value: "http://192.168.1.10:3000/m.json?x=1&y", warn: true,
