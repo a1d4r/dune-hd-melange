@@ -102,6 +102,9 @@ function aio_cgi_save($dir, $t)
     $v['tpl_new'] = $cur['aio_tpl'];
     $v['tpl_p2p_new'] = $cur['aio_tpl_p2p'];
     $v['mode_cur'] = $cur['aio_mode'];
+    // None posted (a form of 0.44 or older): the stored one, saved and checked on a page back.
+    if ($v['ts_save'] === '')
+        $v['ts_save'] = aio_cgi_ts_save_of($cur['ts_save']);
     $v['ajax'] = $ajax;
     $v['reset'] = aio_cgi_param($_POST, 'aio_reset') === '1';
     $v['first'] = !$cur['saved_once'];
