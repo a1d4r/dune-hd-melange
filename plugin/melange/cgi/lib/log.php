@@ -1,6 +1,7 @@
 <?php
 // The settings page (cgi/settings.php): the log download - the header (Melange,
-// the servers, the device), melange.log and the tails of the shell logs, masked.
+// the servers, the device, the files), melange.log and the tails of the shell
+// logs, masked.
 
 // The log download: at most the last 3 MB of melange.log and 1 MB of each
 // shell log.
@@ -42,6 +43,23 @@ function aio_cgi_device()
         ($v['app_version'] !== '' ? ', app ' . $v['app_version'] : '') .
         ($v['platform_kind'] !== '' ? ', ' . $v['platform_kind'] : '') .
         ', FS_PREFIX ' . ((string) getenv('FS_PREFIX') !== '' ? 'set' : 'empty');
+}
+
+// "Files: data dir uid 1000 0755, settings.json uid 1000 0600, web_token
+// uid 1000 0600": the plugin (the owner of web_token) reads settings.json
+// only if it may. lstat: a symlink is "a symlink", none is "none".
+function aio_cgi_files($dir)
+{
+    $out = array();
+    clearstatcache();
+    foreach (array('data dir' => $dir, AIO_SETTINGS_FILE => "$dir/" . AIO_SETTINGS_FILE,
+        AIO_TOKEN_FILE => "$dir/" . AIO_TOKEN_FILE) as $k => $f)
+    {
+        $st = @lstat($f);
+        $out[] = "$k " . ($st === false ? 'none' : (($st['mode'] & 0170000) === 0120000 ? 'a symlink' :
+            sprintf('uid %d %04o', $st['uid'], $st['mode'] & 07777)));
+    }
+    return 'Files: ' . implode(', ', $out);
 }
 
 // A network URL of aio_cgi_mask_shell: scheme://host[:port], the user
@@ -163,7 +181,7 @@ function aio_cgi_log_lines($fp, $m, $shell)
     fclose($fp);
 }
 
-// A header (Melange, the servers, the device), then melange.log (its last
+// A header (Melange, the servers, the device, the files), then melange.log (its last
 // AIO_CGI_LOG_MAX bytes), every line through the mask again: PHP notices
 // reach the log past aio_log; then the tails of shell.log.old and shell.log
 // of the shell (php_server closed, crashes), masked more.
@@ -194,7 +212,7 @@ function aio_cgi_log_download($dir)
         'Servers: ' . count($s['servers']) . "\n" .
         // The own one never by its address.
         'TorrServer: ' . (isset($hosts[$s['ts_url']]) ? '<ts>' : AIO_TS_DEFAULT) . "\n" .
-        aio_cgi_device() . "\n";
+        aio_cgi_device() . "\n" . aio_cgi_files($dir) . "\n";
     $fp = aio_cgi_log_open(aio_cgi_log_path(), 'melange.log', AIO_CGI_LOG_MAX,
         "\n" . aio_cgi_l('Лог пуст: после перезагрузки Дюны он начинается заново',
         'The log is empty: it starts over when the Dune restarts') . "\n");

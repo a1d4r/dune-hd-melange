@@ -93,16 +93,21 @@ function aio_cgi_rand_hex($n)
 // --- Writing settings.json.
 
 // Umask 077, a fresh randomly
-// named temp file opened with 'x', lchown/lchgrp to the owner of the dir
+// named temp file opened with 'x', lchown/lchgrp to the owner of web_token
 // (l*: never through a symlink), rename over (replaces a symlink itself).
-// fopen 'x' follows a *dangling* symlink and creates its target (PHP 5.3.6
-// and 5.6), so the temp path is lstat-checked before and after fopen,
-// before any data goes in. -> '' or the reason (for the log).
+// web_token is made by php_server, the reader of settings.json (anew at each
+// QR, aio_setup_token): the owner of the dir may be another uid (a restored
+// backup, hypothesis). fopen 'x' follows a *dangling* symlink and creates its
+// target (PHP 5.3.6 and 5.6), so the temp path is lstat-checked before and
+// after fopen, before any data goes in. -> '' or the reason (for the log).
 function aio_cgi_write($dir, $data)
 {
     $part = "$dir/" . AIO_SETTINGS_FILE . '.' . aio_cgi_rand_hex(4) . '.part';
     clearstatcache();
-    $ds = lstat($dir);
+    // lstat: a symlink put there after aio_cgi_token_ok gives no owner of its target.
+    $ts = lstat("$dir/" . AIO_TOKEN_FILE);
+    if ($ts === false || ($ts['mode'] & 0170000) !== 0100000)
+        return 'no web_token to take the owner from';
     umask(077);
     if (file_exists($part) || is_link($part))
         return 'temp name taken';
@@ -125,14 +130,14 @@ function aio_cgi_write($dir, $data)
         // On the device root gives it to system; a CGI that is not root
         // (ATV, hypothesis) owns it already and may fail to chown.
         if (function_exists('lchown'))
-            lchown($part, $ds['uid']);
+            lchown($part, $ts['uid']);
         if (function_exists('lchgrp'))
-            lchgrp($part, $ds['gid']);
+            lchgrp($part, $ts['gid']);
         clearstatcache();
         $ps = lstat($part);
-        // A file the plugin (the owner of the dir) cannot read is worse than none.
-        if ($ps === false || $ps['uid'] !== $ds['uid'])
-            $why = 'owner differs from the owner of the dir';
+        // A file the plugin (the owner of web_token) cannot read is worse than none.
+        if ($ps === false || $ps['uid'] !== $ts['uid'])
+            $why = 'owner differs from the owner of web_token';
     }
     if ($why === '' && !rename($part, "$dir/" . AIO_SETTINGS_FILE))
         $why = 'rename failed';

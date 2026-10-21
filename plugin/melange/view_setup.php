@@ -81,7 +81,7 @@ function aio_setup_button($name, $caption, $action)
 function aio_setup_defs()
 {
     $dir = aio_data_dir();
-    $s = aio_settings_read($dir);
+    $s = aio_settings_plugin();
     $defs = array();
     $h = aio_setup_host(aio_settings_manifest($s));
     // "AIOStreams - own config" / "AIOStreams - Melange config": the host of
@@ -99,7 +99,7 @@ function aio_setup_defs()
 
 function aio_setup_folder_view()
 {
-    $s = aio_settings_read(aio_data_dir());
+    $s = aio_settings_plugin();
     aio_log('setup: screen, AIOStreams ' . ($s['source'] === 'own' ? 'own config' : ($s['aio_server'] === 'own' ?
         'made on another server' : 'made on a public one')) . (aio_settings_manifest($s) !== '' ? ', set' : ', not set') .
         ', JacRed ' . ($s['jacred'] === 'own' ? 'own' : $s['jacred']));
@@ -143,8 +143,15 @@ function aio_setup_token($renew)
     if (!$renew && is_file($f) && is_readable($f))
     {
         $t = trim((string) file_get_contents($f, false, null, 0, 64));
+        // Written anew, the same value: a new file is ours. The page gives
+        // settings.json to the owner of web_token, and a restored backup
+        // (chown -R, chmod -R 777) may have given the old one to another uid.
         if (aio_token_ok($t))
+        {
+            if (!aio_write_file($f, $t))
+                aio_log('setup: web_token not rewritten');
             return $t;
+        }
     }
     $t = aio_setup_rand_hex();
     if ($t === '')
@@ -283,7 +290,7 @@ function aio_setup_qr()
 // in the mode chosen, P2P or a Debrid key.
 function aio_setup_config_due()
 {
-    $s = aio_settings_read(aio_data_dir());
+    $s = aio_settings_plugin();
     return $s['source'] === 'made' && aio_settings_base($s) !== '' && !aio_settings_conf($s) &&
         ($s['aio_mode'] === AIO_MODE_P2P || $s['rd_key'] !== '' || $s['tb_key'] !== '');
 }

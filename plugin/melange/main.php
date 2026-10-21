@@ -86,6 +86,9 @@ class Aio
     // tests set it themselves. 0: aio_precheck takes its full timeout,
     // aio_jacred skips the request.
     public static $t0 = 0;
+    // Why settings.json was not read and the file then (aio_settings_plugin):
+    // a reason is logged once, not on every read.
+    public static $settings_why = '';
 }
 
 // --- Log: /tmp/run/melange.log (stdout of php_server).
@@ -213,6 +216,21 @@ function aio_data_dir()
     return isset(DuneSystem::$properties['data_dir_path']) ? strval(DuneSystem::$properties['data_dir_path']) : '';
 }
 
+// aio_settings_read of data_dir; why settings.json was not read goes to the
+// log when it or the file changes (the QR dialog reads it every 1.5 s).
+/**
+ * @return AioSettings
+ */
+function aio_settings_plugin()
+{
+    $s = aio_settings_read(aio_data_dir(), $why);
+    $key = $why !== '' ? $why . ' ' . aio_setup_sig() : '';
+    if ($key !== Aio::$settings_why && $why !== '')
+        aio_log("settings: settings.json $why");
+    Aio::$settings_why = $key;
+    return $s;
+}
+
 // Writes $data to $path atomically, 0600: a fresh file next to it, then rename.
 function aio_write_file($path, $data)
 {
@@ -236,7 +254,7 @@ function aio_write_file($path, $data)
  */
 function aio_settings_load()
 {
-    $s = aio_settings_read(aio_data_dir());
+    $s = aio_settings_plugin();
     Aio::$settings = array(
         // The stream URL is <base>/stream/...: the base keeps its trailing slash.
         'base' => aio_manifest_base(aio_settings_manifest($s)),

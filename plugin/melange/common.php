@@ -656,13 +656,18 @@ function aio_settings_hosts($s)
 // (aio_jacred_migrate); the plugin never writes it. Never through a symlink
 // (the page runs as root). 'saved_once' => the file has saved_at (the page saved
 // it, cgi/settings.php: the first run till then); never written back
-// (aio_cgi_store drops it).
+// (aio_cgi_store drops it). $why: why a settings.json there was not read
+// (aio_settings_unread, 'read failed', 'bad JSON'); '' when it was or there
+// is none - the caller logs it.
 /**
  * @param string $dir
+ * @param string|null $why
+ * @param-out string $why
  * @return AioSettings
  */
-function aio_settings_read($dir)
+function aio_settings_read($dir, &$why = null)
 {
+    $why = '';
     $servers = array_keys(aio_aio_servers());
     $tpls = aio_aio_tpls();
     $tpls_p2p = aio_aio_tpls_p2p();
@@ -673,12 +678,18 @@ function aio_settings_read($dir)
         'aio_confs' => array(), 'saved_once' => false);
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
-    if ($dir === '' || is_link($f) || !is_file($f) || !is_readable($f) || filesize($f) > AIO_SETTINGS_MAX)
+    if ($dir === '' || (!is_link($f) && !file_exists($f)))
+        return $r;
+    $why = aio_settings_unread($f);
+    if ($why !== '')
         return $r;
     $raw = file_get_contents($f, false, null, 0, AIO_SETTINGS_MAX);
     $j = json_decode((string) $raw, true);
     if (!is_array($j))
+    {
+        $why = $raw === false ? 'read failed' : 'bad JSON';
         return $r;
+    }
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
         $r['manifest_url'] = aio_manifest_url($j['manifest_url']);
@@ -755,6 +766,27 @@ function aio_settings_read($dir)
         }
     }
     return $r;
+}
+
+// Why the settings.json at $f is not read, '' if it is: not readable - with
+// its owner and mode and the uid of this process (the page writes it as
+// root and gives it away).
+/**
+ * @param string $f
+ * @return string
+ */
+function aio_settings_unread($f)
+{
+    if (is_link($f))
+        return 'a symlink';
+    if (!is_file($f))
+        return 'not a file';
+    if (!is_readable($f))
+        return sprintf('not readable (uid %d, gid %d, %04o; process uid %s)', fileowner($f), filegroup($f),
+            fileperms($f) & 07777, function_exists('posix_getuid') ? posix_getuid() : '?');
+    if (filesize($f) > AIO_SETTINGS_MAX)
+        return 'too big (' . filesize($f) . ' bytes)';
+    return '';
 }
 
 // Passwords of the servers to hide in the log (aio_mask_secrets).
