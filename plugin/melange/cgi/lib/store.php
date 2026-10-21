@@ -96,8 +96,9 @@ function aio_cgi_rand_hex($n)
 // named temp file opened with 'x', lchown/lchgrp to the owner of web_token
 // (l*: never through a symlink), rename over (replaces a symlink itself).
 // web_token is made by php_server, the reader of settings.json (anew at each
-// QR and when it cannot read settings.json, aio_token_rewrite): the owner of
-// the dir may be another uid (a restored backup, hypothesis). fopen 'x' follows a *dangling* symlink and creates its
+// QR, and when it cannot read settings.json or, with posix, web_token is of
+// another uid: aio_token_fix): the owner of the dir may be another uid (a
+// restored backup, hypothesis). fopen 'x' follows a *dangling* symlink and creates its
 // target (PHP 5.3.6 and 5.6), so the temp path is lstat-checked before and
 // after fopen, before any data goes in. -> '' or the reason (for the log).
 function aio_cgi_write($dir, $data)

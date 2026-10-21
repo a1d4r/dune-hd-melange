@@ -273,7 +273,8 @@ function aio_token_rewrite(&$ok = null)
 // web_token of another uid (with posix) or settings.json not readable
 // ($unread): web_token rewritten, so that the next save of the page - by a
 // bookmark too, with no QR shown - gives settings.json to php_server. Once
-// per file of web_token, done or not.
+// per file of web_token, done or not; a token it cannot read or not valid -
+// one line; none, a symlink or not a file - nothing.
 /**
  * @param bool $unread
  * @return void
@@ -288,8 +289,10 @@ function aio_token_fix($unread)
     $sig = fileinode($f) . ':' . $uid;
     if ($sig === Aio::$token_tried || (!$unread && (!function_exists('posix_geteuid') || $uid === posix_geteuid())))
         return;
-    aio_token_rewrite($ok);
+    $t = aio_token_rewrite($ok);
     clearstatcache();
+    if ($t === '' && !is_link($f) && is_file($f))
+        aio_log('setup: web_token ' . (is_readable($f) ? 'not valid' : 'not readable ' . aio_settings_owner($f)));
     Aio::$token_tried = is_file($f) ? fileinode($f) . ':' . fileowner($f) : $sig;
     if ($ok)
         aio_log('setup: web_token rewritten, owner uid ' . $uid . ' -> ' . fileowner($f));

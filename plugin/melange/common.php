@@ -690,11 +690,13 @@ function aio_settings_read($dir, &$why = null)
     $why = aio_settings_unread($f);
     if ($why !== '')
         return $r;
+    // @: quiet in the CGI; php_server's hd_error_handler ignores it and logs the warning.
     $raw = @file_get_contents($f, false, null, 0, AIO_SETTINGS_MAX);
     $j = json_decode((string) $raw, true);
     if (!is_array($j))
     {
-        // Readable by its mode yet not read: SELinux (hypothesis).
+        // is_readable is access(R_OK), SELinux included: open denied after it
+        // passed - a race or the SELinux open permission (hypothesis).
         $why = $raw === false ? 'read failed ' . aio_settings_owner($f) : 'bad JSON';
         return $r;
     }
