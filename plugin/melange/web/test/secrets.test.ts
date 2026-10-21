@@ -21,7 +21,7 @@ describe("no -webkit-text-security (Firefox)", () => {
     const page = open("filled", { before: () => css(false, asked) });
     expect(asked[0]).toBe("-webkit-text-security: disc");
     const fields = secrets(page);
-    expect(fields.length).toBe(11);
+    expect(fields.length).toBe(12);
     for (const field of fields)
       expect([field.id, field.type, field.getAttribute("autocomplete"), field.getAttribute("data-lpignore"), field.getAttribute("data-1p-ignore"),
         field.getAttribute("data-bwignore"), field.getAttribute("data-form-type")]).toEqual([field.id, "password", "new-password", "true", "true", "true", "other"]);

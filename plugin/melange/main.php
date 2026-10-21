@@ -53,12 +53,13 @@ class Aio
     // aio_jacred_own_confs(): the own JacRed, chosen or not, for the mask of the log;
     // 'servers' - aio_server_conf() list of "Download to server", 'pw' - their
     // passwords and the keys of the services. Hidden in the log. 'ts' - the
-    // TorrServer to use, http://host:port (aio_ts_base). 'aio' - the own
+    // TorrServer to use, http://host:port (aio_ts_base); 'ts_auth' - its
+    // "login:password" for Basic auth ('' none; the password hidden in the log). 'aio' - the own
     // AIOStreams server ('' none), "<aio>" in the log. 'own' - the own config
     // is chosen (source own). 'hosts' - aio_settings_hosts(), hidden in the log.
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
-        'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'aio' => '', 'own' => false, 'hosts' => array());
+        'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'aio' => '', 'own' => false, 'hosts' => array());
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -244,6 +245,7 @@ function aio_settings_load()
         'servers' => $s['servers'],
         'pw' => aio_settings_secrets($s),
         'ts' => aio_ts_base($s['ts_url']),
+        'ts_auth' => $s['ts_user'] !== '' ? $s['ts_user'] . ':' . $s['ts_pass'] : '',
         'aio' => $s['aio_own_url'],
         'own' => $s['source'] === 'own',
         'hosts' => aio_settings_hosts($s));

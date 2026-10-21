@@ -32,8 +32,11 @@
 //                      our fields, no GET. aio_confs written; JSON {ok, msg,
 //                      skip, base, mode, conf[, field]} (field: as of a save error);
 //   GET  ?t=<token>&a=log -> <FS_PREFIX>/tmp/run/melange.log masked, an attachment;
-//   GET  ?t=<token>&a=ts_check&ts=<address> -> GET <TorrServer>/echo, JSON
-//                      {ok, msg}, nothing written;
+//   POST ?t=<token>&a=ts_check&ajax=1 (ts, ts_user, ts_pass) -> GET
+//                      <TorrServer>/echo, then POST /settings with the login
+//                      (0.45.0: is one asked for, taken), JSON {ok, msg},
+//                      nothing written; GET ?t=<token>&a=ts_check&ts=<address>
+//                      (a tab of 0.44 or older) - the same with no login;
 //   POST ?t=<token>&a=srv_check (url, user, pass, category, tags) -> login,
 //                      app/version, categories, tags of that qBittorrent;
 //                      JSON {ok, msg, lines}, nothing written;
@@ -179,6 +182,8 @@ if ($method === 'POST' && aio_cgi_param($_GET, 'ajax') === '1')
     $a = aio_cgi_param($_GET, 'a');
     if ($a === 'srv_check')
         aio_cgi_srv_check_post();
+    if ($a === 'ts_check')
+        aio_cgi_ts_check_post();
     if ($a === 'aio_check')
         aio_cgi_aio_check_post();
     if ($a === 'jr_speed')

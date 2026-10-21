@@ -54,6 +54,9 @@ export const ID = {
   // The errors of "Compare speed" (its results go into the rows).
   jacredSpeed: "jrsr",
   ts: "ts",
+  // Login and password of TorrServer (0.45.0).
+  tsUser: "tsu",
+  tsPass: "tsp",
   tsCheck: "tsb",
   tsResult: "tsr",
   // The main screen: the question of the first run (none after it), the state (hidden on the first run).

@@ -101,10 +101,12 @@ function aio_cgi_rows($v)
             $names[] = $n !== '' ? $n : $u;
     }
     $host = aio_cgi_host($v['aio_server'] === 'own' ? $v['aio_own'] : $v['aio_server']);
+    // A form back: never the login and password typed in the address.
+    list($ts) = aio_ts_userinfo($v['ts']);
     return array('src' => array($dot, $src),
         'cfg' => array($w === 'own' ? '' : (aio_cgi_aio_sel($v) ? 'ok' : 'warn'), $host !== '' ? $host : $t['ownAioServer']),
         'voices' => array($jr === '' ? 'warn' : 'ok', $jr !== '' ? $jr : $t['ownJacred']),
-        'torr' => array($w === AIO_MODE_P2P ? 'ok' : '', ($v['ts'] !== '' ? $v['ts'] : $t['tsDune']) .
+        'torr' => array($w === AIO_MODE_P2P ? 'ok' : '', ($ts !== '' ? $ts : $t['tsDune']) .
             ($w === AIO_MODE_DEBRID ? ' · ' . $t['tsSpare'] : '')),
         'dl' => array($names ? 'ok' : '', $names ? implode(', ', $names) : $t['noServers']),
         'log' => array('', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));

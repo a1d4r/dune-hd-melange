@@ -148,7 +148,10 @@ export function createApi(base: string | null, hooks: ApiHooks) {
     });
   }
   return {
-    tsCheck: (ts: string) => call("GET", "&a=ts_check&ts=" + encodeURIComponent(ts), null, parseCheck),
+    // By POST: the password is not in the URL.
+    tsCheck: (ts: string, user: string, pass: string) =>
+      post("&a=ts_check&ajax=1", "ts=" + encodeURIComponent(ts) + "&ts_user=" + encodeURIComponent(user) +
+        "&ts_pass=" + encodeURIComponent(pass), parseCheck),
     aioCheck: (manifest: string) => post("&a=aio_check&ajax=1", "manifest=" + encodeURIComponent(manifest), parseCheck),
     aioStatus: (url: string) => post("&a=aio_status&ajax=1", "url=" + encodeURIComponent(url), parseCheck),
     keyCheck: (what: "rd" | "tb" | "tmdb", key: string) =>

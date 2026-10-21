@@ -181,6 +181,52 @@ function aio_ts_base($stored)
     return $stored !== '' ? $stored : AIO_TS_DEFAULT;
 }
 
+// Login of TorrServer (0.45.0, Basic auth of its --httpauth): trimmed, up to
+// 100 characters, no control characters and no ':' (Basic sends
+// "login:password") -> the login ('' for none) or null.
+/**
+ * @param mixed $s
+ * @return string|null
+ */
+function aio_ts_login($s)
+{
+    if (!is_string($s))
+        return null;
+    $s = trim($s, AIO_TRIM);
+    return preg_match('/^[^\x00-\x1F\x7F:]{0,100}\z/u', $s) ? $s : null;
+}
+
+// Password of TorrServer as typed (its spaces too): up to 200 characters, no
+// control characters -> the password ('' for none) or null.
+/**
+ * @param mixed $s
+ * @return string|null
+ */
+function aio_ts_pass($s)
+{
+    return is_string($s) && preg_match('/^[^\x00-\x1F\x7F]{0,200}\z/u', $s) ? $s : null;
+}
+
+// An address typed as [http://]login:password@host[:port] -> array(the
+// address without them, login, password) as typed (unchecked; no ':' - an
+// empty password); no '@' or nothing before it -> array($s, null, null). The
+// last '@' ends the password: a host has none.
+/**
+ * @param string $s
+ * @return array{string, string|null, string|null}
+ */
+function aio_ts_userinfo($s)
+{
+    $at = strrpos($s, '@');
+    $pre = preg_match('~^http://~i', $s) ? 7 : 0;
+    if ($at === false || $at <= $pre)
+        return array($s, null, null);
+    $ui = substr($s, $pre, $at - $pre);
+    $c = strpos($ui, ':');
+    return array(substr($s, 0, $pre) . (string) substr($s, $at + 1), $c === false ? $ui : substr($ui, 0, $c),
+        $c === false ? '' : (string) substr($ui, $c + 1));
+}
+
 // Built-in JacRed of the settings page (0.34.0), in the order of the page:
 // id (its host) => array(base, key). Public: neither is hidden in the log.
 // jacred.stream answers 403 to a "curl/*" User-Agent and to a wrong key;
@@ -520,7 +566,7 @@ function aio_jacred_list($s)
 }
 
 // The secrets of the settings besides the manifest and JacRed: server
-// passwords, keys of Real-Debrid, TorBox, TMDB, passwords of the configs
+// passwords, keys of Real-Debrid, TorBox, TMDB, the password of TorrServer, passwords of the configs
 // and the long segments of their manifests, as of the manifest in use
 // (aio_mask_secrets).
 /**
@@ -530,7 +576,7 @@ function aio_jacred_list($s)
 function aio_settings_secrets($s)
 {
     $pw = aio_server_secrets($s['servers']);
-    foreach (array('rd_key', 'tb_key', 'tmdb_key') as $k)
+    foreach (array('rd_key', 'tb_key', 'tmdb_key', 'ts_pass') as $k)
     {
         if ($s[$k] !== '')
             $pw[] = $s[$k];
@@ -584,6 +630,8 @@ function aio_settings_hosts($s)
 // there keeps its template; all three one for all servers); everything kept
 // whatever is chosen, 'tmdb_key',
 // 'servers' => list of aio_server_conf(), 'ts_url' => aio_ts_addr() or '',
+// 'ts_user', 'ts_pass' => aio_ts_login(), aio_ts_pass() (0.45.0; both set
+// or both '', else both ''),
 // 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
 // 0.42 or older (one per server, base => config) is read into the cell of
 // its mode (aio_mode_of), written back so by the next save),
@@ -606,7 +654,7 @@ function aio_settings_read($dir)
     $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
-        'servers' => array(), 'ts_url' => '',
+        'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '',
         'aio_confs' => array(), 'saved_once' => false);
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
@@ -665,6 +713,10 @@ function aio_settings_read($dir)
     }
     if (isset($j['ts_url']) && is_string(aio_ts_addr($j['ts_url'])))
         $r['ts_url'] = aio_ts_addr($j['ts_url']);
+    $tu = aio_ts_login(isset($j['ts_user']) ? $j['ts_user'] : '');
+    $tp = aio_ts_pass(isset($j['ts_pass']) ? $j['ts_pass'] : '');
+    if (is_string($tu) && is_string($tp) && ($tu === '') === ($tp === ''))
+        list($r['ts_user'], $r['ts_pass']) = array($tu, $tp);
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
         foreach ($j['aio_confs'] as $b => $cs)

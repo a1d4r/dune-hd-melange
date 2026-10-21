@@ -362,30 +362,51 @@ function aio_cgi_key_check_post()
 
 // --- The check of TorrServer ("Проверить").
 
-// GET <base>/echo -> array(true, its version) or array(false, the reason for
-// the page). No redirects, http only, 3 s at most.
-function aio_cgi_ts_check($base)
+// A request to TorrServer: GET ($post null) or POST of JSON, Basic auth by
+// $auth "login:password" ('' none) -> array(curl_exec gave a reply, HTTP
+// code, curl errno) or null (options refused); the body in $AIO_CGI_BODY.
+// No redirects, http only, 3 s at most.
+function aio_cgi_ts_req($url, $post = null, $auth = '')
 {
     global $AIO_CGI_BODY;
     $AIO_CGI_BODY = '';
-    $ch = curl_init("$base/echo");
-    $set = curl_setopt_array($ch, array(
+    $ch = curl_init($url);
+    $o = array(
         CURLOPT_WRITEFUNCTION => 'aio_cgi_body',
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTP,
         CURLOPT_CONNECTTIMEOUT => 1,
         CURLOPT_TIMEOUT => 3,
-        CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION));
-    if (!$set)
+        CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION);
+    if (!is_null($post))
+        $o += array(CURLOPT_POST => true, CURLOPT_POSTFIELDS => $post,
+            CURLOPT_HTTPHEADER => array('Expect:', 'Content-Type: application/json'));
+    if ($auth !== '')
+        $o += array(CURLOPT_HTTPAUTH => CURLAUTH_BASIC, CURLOPT_USERPWD => $auth);
+    if (!curl_setopt_array($ch, $o))
     {
         curl_close($ch);
+        return null;
+    }
+    $ok = curl_exec($ch);
+    $r = array($ok !== false, intval(curl_getinfo($ch, CURLINFO_HTTP_CODE)), curl_errno($ch));
+    curl_close($ch);
+    return $r;
+}
+
+// GET <base>/echo, then (0.45.0) POST <base>/settings {"action":"get"} with
+// Basic auth by $auth ("login:password", '' none): it asks for one ->
+// array(true, its version) or array(false, the reason for the page).
+function aio_cgi_ts_check($base, $auth = '')
+{
+    global $AIO_CGI_BODY;
+    $r = aio_cgi_ts_req("$base/echo");
+    if (!$r)
+    {
         aio_cgi_log('ts check: curl options refused');
         return array(false, aio_cgi_l('Не отвечает (curl не настроен)', 'No answer (curl not set up)'));
     }
-    $ok = curl_exec($ch);
-    $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
-    $errno = curl_errno($ch);
-    curl_close($ch);
+    list($ok, $code, $errno) = $r;
     $local = strpos($base, 'http://127.0.0.1:') === 0 || strpos($base, 'http://localhost:') === 0;
     aio_cgi_log('ts check: ' . ($ok === false ? "curl $errno" : "HTTP $code"));
     if ($ok === false && $errno === 7)
@@ -400,9 +421,28 @@ function aio_cgi_ts_check($base)
     if ($code !== 200)
         return array(false, sprintf(aio_cgi_l('Ответил HTTP %d — это не TorrServer?', 'It answered HTTP %d: not a TorrServer?'), $code));
     $v = trim(substr($AIO_CGI_BODY, 0, 64));
-    if (preg_match('/^MatriX\.[0-9A-Za-z.\-]{1,20}\z/', $v))
-        return array(true, sprintf(aio_cgi_l('TorrServer %s отвечает', 'TorrServer %s is responding'), $v));
-    return array(false, aio_cgi_l('Ответил не TorrServer MatriX (старый 1.1?)', 'Not a TorrServer MatriX (an old 1.1?)'));
+    if (!preg_match('/^MatriX\.[0-9A-Za-z.\-]{1,20}\z/', $v))
+        return array(false, aio_cgi_l('Ответил не TorrServer MatriX (старый 1.1?)', 'Not a TorrServer MatriX (an old 1.1?)'));
+    // /echo is open always; /settings (as /torrents of the plugin) asks for the login when TorrServer has one.
+    $r = aio_cgi_ts_req("$base/settings", '{"action":"get"}', $auth);
+    aio_cgi_log('ts check: settings ' . ($auth !== '' ? 'with' : 'without') . ' a login: ' .
+        (!$r ? 'curl options refused' : ($r[0] || $r[2] === 23 ? "HTTP {$r[1]}" : "curl {$r[2]}")));
+    if ($r && $r[1] === 401)
+        return array(false, $auth === '' ? aio_cgi_l('TorrServer просит логин и пароль', 'TorrServer asks for a login and password') :
+            aio_cgi_l('TorrServer не принял логин или пароль', 'TorrServer did not accept the login or password'));
+    return array(true, sprintf(aio_cgi_l('TorrServer %s отвечает', 'TorrServer %s is responding'), $v));
+}
+
+// a=ts_check by POST (0.45.0: the password is not in the URL): the
+// TorrServer of the posted ts, ts_user, ts_pass (aio_cgi_ts_of), nothing written.
+function aio_cgi_ts_check_post()
+{
+    list($a, $u, $p, $bad) = aio_cgi_ts_of(aio_cgi_param($_POST, 'ts'), aio_cgi_param($_POST, 'ts_user'),
+        aio_cgi_param($_POST, 'ts_pass'));
+    if ($bad)
+        aio_cgi_log('ts check: bad format of ' . $bad[0]);
+    $res = $bad ? array(false, $bad[1]) : aio_cgi_ts_check(aio_ts_base($a), $u !== '' ? "$u:$p" : '');
+    aio_cgi_json(200, array('ok' => $res[0], 'msg' => $res[1]));
 }
 
 // --- The check of a server of "Download to server" ("Проверить" of a block).

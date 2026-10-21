@@ -22,16 +22,18 @@ if (!function_exists('aio_ts_call'))
 {
     // GET ($post null) or POST of JSON $post to TorrServer -> array(HTTP
     // code, body); $err is set on a transport error. http only, no redirects;
-    // the errors of TorrServer have an empty body: the code tells.
+    // the errors of TorrServer have an empty body: the code tells. $auth:
+    // "login:password" for Basic auth (0.45.0), '' none.
     /**
      * @param string $url
      * @param string|null $post
      * @param string $err
      * @param-out string $err
      * @param int $total
+     * @param string $auth
      * @return array{int, string}
      */
-    function aio_ts_call($url, $post, &$err, $total = 2)
+    function aio_ts_call($url, $post, &$err, $total = 2, $auth = '')
     {
         $body = '';
         $over = false;
@@ -57,6 +59,11 @@ if (!function_exists('aio_ts_call'))
         {
             $opts[CURLOPT_POST] = true;
             $opts[CURLOPT_POSTFIELDS] = $post;
+        }
+        if ($auth !== '')
+        {
+            $opts[CURLOPT_HTTPAUTH] = CURLAUTH_BASIC;
+            $opts[CURLOPT_USERPWD] = $auth;
         }
         if (!curl_setopt_array($ch, $opts))
         {
@@ -335,6 +342,15 @@ function aio_ts_fail($lang, $key, $detail = '', $lazy = false)
         array('OK' => aio_close_and(null)));
 }
 
+// 401 of TorrServer: no login set -> it asks for one, else it refused ours.
+/**
+ * @return string
+ */
+function aio_ts_auth_err()
+{
+    return Aio::$settings['ts_auth'] === '' ? 'ts_err_auth' : 'ts_err_auth_bad';
+}
+
 // Row $i of list $st through TorrServer from position $pos (s); $from: rid of
 // the list screen under the player, '' for play_action; $lazy: a lazy
 // episode of the player (aio_next): no file of it -> aio_next_missing.
@@ -376,12 +392,14 @@ function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false)
     $req = json_encode(array('action' => 'add', 'link' => $mg, 'title' => aio_ep_name($st['movie'], $st['s'], $st['e']),
         'poster' => $st['movie']['poster'], 'save_to_db' => false));
     $t = microtime(true);
-    list($code, $body) = aio_ts_call("$base/torrents", $req, $err, 5);
+    list($code, $body) = aio_ts_call("$base/torrents", $req, $err, 5, Aio::$settings['ts_auth']);
     $j = $err === '' && $code === 200 ? aio_ts_decode($body) : null;
     $files = aio_ts_files($j);
     // The magnet is not logged: a private tracker carries a passkey.
     aio_log(sprintf('ts: add, %d trackers (%s): %s, %d files, %.2f s', $n, $src, $err !== '' ? $err : "HTTP $code",
         count($files), microtime(true) - $t));
+    if ($err === '' && $code === 401)
+        return aio_ts_fail($lang, aio_ts_auth_err(), '', $lazy);
     if ($err !== '' || $code !== 200 || !$j)
         return aio_ts_fail($lang, 'ts_err_add', $err !== '' ? $err : "HTTP $code", $lazy);
     if ($files)
@@ -461,7 +479,7 @@ function aio_ts_tick($in)
     $p['n'] = strval(intval($p['n']) + 1);
     $err = '';
     list($code, $body) = aio_ts_call(Aio::$settings['ts'] . '/torrents',
-        json_encode(array('action' => 'get', 'hash' => $r['hash'])), $err, 2);
+        json_encode(array('action' => 'get', 'hash' => $r['hash'])), $err, 2, Aio::$settings['ts_auth']);
     $j = $err === '' && $code === 200 ? aio_ts_decode($body) : null;
     $files = aio_ts_files($j);
     aio_log(sprintf('ts: tick %s, %d s: %s, stat %s, peers %s/%s, %d files', $p['n'], $sec,
@@ -470,6 +488,8 @@ function aio_ts_tick($in)
         is_array($j) && isset($j['total_peers']) ? json_encode($j['total_peers']) : '-', count($files)));
     if ($files)
         return aio_close_and(aio_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1'));
+    if ($err === '' && $code === 401)
+        return aio_close_and(aio_ts_fail($lang, aio_ts_auth_err(), '', $p['l'] === '1'));
     // 404: TorrServer has it neither in memory nor in its DB (closed).
     if ($err === '' && $code === 404)
         return aio_close_and(aio_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));

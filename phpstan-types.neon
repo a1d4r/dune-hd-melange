@@ -29,6 +29,8 @@ parameters:
                 tmdb_key: string,
                 servers: list<AioServer>,
                 ts_url: string,
+                ts_user: string,
+                ts_pass: string,
                 aio_confs: array<string, array<string, AioConf>>,
                 saved_once: bool
             }
@@ -42,6 +44,7 @@ parameters:
                 servers: list<AioServer>,
                 pw: list<string>,
                 ts: string,
+                ts_auth: string,
                 aio: string,
                 own: bool,
                 hosts: array<string, string>

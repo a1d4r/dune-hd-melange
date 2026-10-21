@@ -73,7 +73,8 @@ export function setupHome(page: Page, aio: Aio): Home {
     const jacred = checkedValue(form, NAME.jacred) || "",
       jr = jacred !== VALUE.own ? jacred : hostOf(byId<HTMLInputElement>(doc, ID.jacredOwnUrl).value);
     setRow("voices", jr === "" ? "warn" : "ok", jr !== "" ? jr : texts.ownJacred);
-    const ts = value(ID.ts);
+    // Never the login and password typed in the address (login:password@host).
+    const ts = value(ID.ts).replace(/^(http:\/\/)?.*@/i, "$1");
     setRow("torr", watch === VALUE.p2p ? "ok" : "", (ts !== "" ? ts : texts.tsDune) + (watch === VALUE.debrid ? " · " + texts.tsSpare : ""));
     const names = servers();
     setRow("dl", names.length ? "ok" : "", names.length ? names.join(", ") : texts.noServers);

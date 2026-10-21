@@ -54,6 +54,9 @@ describe("the main screen", () => {
     // The template of P2P (0.44.0): its short name.
     page.choose(NAME.templateP2p, "p2p");
     expect(value("src")).toEqual(["dot warn", t.modeP2p + " · " + t.viaTs + " · везде"]);
+    // A login and password typed in the address (0.45.0): never on the main screen.
+    page.type(ID.ts, "HTTP://user:p@ss@192.0.2.10:8090");
+    expect(value("torr")).toEqual(["dot ok", "HTTP://192.0.2.10:8090"]);
     page.type(ID.ts, "");
     expect(value("torr")).toEqual(["dot ok", t.tsDune]);
     // Own JacRed: the host of its address; none: warn.

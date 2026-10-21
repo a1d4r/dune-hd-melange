@@ -44,7 +44,7 @@ function aio_cgi_posted()
     $v = array('servers' => array(), 'confs' => array());
     // The own JacRed as typed: aio_jacred_own trims it.
     foreach ($f as $k => $x)
-        $v[$k] = $k === 'jo_url' || $k === 'jo_key' ? aio_cgi_param($_POST, $x['name']) :
+        $v[$k] = $k === 'jo_url' || $k === 'jo_key' || $k === 'ts_pass' ? aio_cgi_param($_POST, $x['name']) :
             trim(aio_cgi_param($_POST, $x['name']), AIO_TRIM);
     // The answer of 0.43.0 (watch): the source and the mode by it; the own
     // config keeps the stored mode. None (a form of 0.42 or older) or another
@@ -244,13 +244,41 @@ function aio_cgi_check_values($v)
                 'login, category and tags up to 100, password up to 200, no control characters'), $x['name']);
         }
     }
-    $d[$set['ts']] = aio_ts_addr($v['ts']);
-    if (!is_string($d[$set['ts']]))
-    {
-        $errors[] = aio_cgi_err(aio_cgi_l('TorrServer: нужен адрес вида http://хост:порт или хост:порт (без https и пути)',
-            'TorrServer: an address like http://host:port or host:port is needed (no https, no path)'), $f['ts']['name']);
-    }
+    // One by one: list() of PHP 5 assigns from the right, the keys would go in reverse.
+    $ts = aio_cgi_ts_of($v['ts'], $v['ts_user'], $v['ts_pass']);
+    $d[$set['ts']] = $ts[0];
+    $d[$set['ts_user']] = $ts[1];
+    $d[$set['ts_pass']] = $ts[2];
+    $bad = $ts[3];
+    if ($bad)
+        $errors[] = aio_cgi_err($bad[1], $f[$bad[0]]['name']);
     return array($d, $errors);
+}
+
+// TorrServer of the form (0.45.0): its address, login and password as
+// posted; a login and password in the address ([http://]login:password@host)
+// go to their fields, before those -> array(address (aio_ts_addr), login,
+// password, null) or array(null, '', '', array(the key of aio_cgi_fields()
+// of the error: the address for those in it, its text)).
+function aio_cgi_ts_of($ts, $user, $pass)
+{
+    list($addr, $u, $p) = aio_ts_userinfo(trim($ts, AIO_TRIM));
+    $in = !is_null($u);
+    $a = aio_ts_addr($addr);
+    $u = aio_ts_login($in ? $u : $user);
+    $p = aio_ts_pass($in ? $p : $pass);
+    $fu = $in ? 'ts' : 'ts_user';
+    $fp = $in ? 'ts' : 'ts_pass';
+    $bad = !is_string($a) ? array('ts', aio_cgi_l('TorrServer: нужен адрес вида http://хост:порт или хост:порт (без https и пути)',
+        'TorrServer: an address like http://host:port or host:port is needed (no https, no path)')) :
+        (is_null($u) ? array($fu, aio_cgi_l('TorrServer: логин — до 100 символов, без двоеточия и управляющих символов',
+        'TorrServer: login up to 100 characters, no colon or control characters')) :
+        (is_null($p) ? array($fp, aio_cgi_l('TorrServer: пароль — до 200 символов, без управляющих символов',
+        'TorrServer: password up to 200 characters, no control characters')) :
+        ($u === '' && $p !== '' ? array($fu, aio_cgi_l('TorrServer: к паролю нужен и логин', 'TorrServer: a password needs a login')) :
+        ($u !== '' && $p === '' ? array($fp, aio_cgi_l('TorrServer: к логину нужен и пароль', 'TorrServer: a login needs a password')) :
+        null))));
+    return $bad ? array(null, '', '', $bad) : array($a, $u, $p, null);
 }
 
 // The save resets the config on the server chosen in $d (the values checked)

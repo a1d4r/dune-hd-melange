@@ -44,7 +44,10 @@ function aio_cgi_fields()
         'jo_url' => array('id' => 'jou', 'name' => 'jacred_own_url', 'set' => 'jacred_own_url', 'max' => AIO_JACRED_URL_MAX,
             'type' => 'plain', 'scr' => 'voices'),
         'jo_key' => array('id' => 'jok', 'name' => 'jacred_own_key', 'set' => 'jacred_own_key', 'max' => 200, 'type' => 'sec', 'scr' => 'voices'),
-        'ts' => array('id' => 'ts', 'name' => 'ts', 'set' => 'ts_url', 'max' => 300, 'type' => 'plain', 'scr' => 'torr'));
+        'ts' => array('id' => 'ts', 'name' => 'ts', 'set' => 'ts_url', 'max' => 300, 'type' => 'plain', 'scr' => 'torr'),
+        // Basic auth of TorrServer (0.45.0); also typed in the address as login:password@host.
+        'ts_user' => array('id' => 'tsu', 'name' => 'ts_user', 'set' => 'ts_user', 'max' => 100, 'type' => 'plain', 'scr' => 'torr'),
+        'ts_pass' => array('id' => 'tsp', 'name' => 'ts_pass', 'set' => 'ts_pass', 'max' => 200, 'type' => 'sec', 'scr' => 'torr'));
 }
 
 // The fields of a server on the form (s<n>_<field>), as aio_server_conf()
@@ -664,7 +667,11 @@ function aio_cgi_form($t, $v, $errors, $saved)
             aio_cgi_input($f['ts'], aio_cgi_l('Адрес TorrServer', 'TorrServer address'), $v['ts'],
                 aio_cgi_l('Приложение на этой Дюне', 'The app on this Dune'), aio_cgi_chk('tsb', 'tsr')) .
             '<p class="hint">' . aio_cgi_l('Пусто — приложение TorrServe на Дюне; свой — http://хост:порт',
-            'Empty - the TorrServe app on the Dune; your own - http://host:port') . '</p>') .
+            'Empty - the TorrServe app on the Dune; your own - http://host:port') . '</p>' .
+            aio_cgi_input($f['ts_user'], aio_cgi_l('Логин', 'Login'), $v['ts_user'], '') .
+            aio_cgi_input($f['ts_pass'], aio_cgi_l('Пароль', 'Password'), $v['ts_pass'],
+                aio_cgi_l('Если TorrServer просит вход. Можно и в адресе: логин:пароль@хост:порт',
+                'If TorrServer asks for them. Also in the address: login:password@host:port'))) .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',

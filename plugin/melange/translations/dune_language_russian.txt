@@ -127,3 +127,5 @@ ts_err_gone = Списка файлов нет, TorrServer закрыл разд
 ts_err_timeout = За минуту нет списка файлов: у раздачи мало сидов
 ts_err_no_ep = В раздаче нет файла этой серии
 ts_err_no_video = В раздаче нет видео
+ts_err_auth = TorrServer просит логин и пароль: задайте их в настройках Melange → TorrServer
+ts_err_auth_bad = TorrServer не принял логин или пароль: проверьте их в настройках Melange → TorrServer
