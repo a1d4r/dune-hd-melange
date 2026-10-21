@@ -422,7 +422,30 @@ function aio_ts_wait_acts($p)
     return array(GUI_EVENT_TIMER => aio_input('ts_tick', $p));
 }
 
-// Controls of the waiting dialog: the release, seconds and peers, "Cancel".
+// stat_string of TorrServer -> the key of its words, as TorrServe says it.
+/**
+ * @return array<string, string>
+ */
+function aio_ts_stats()
+{
+    return array('torrent added' => 'ts_st_added', 'torrent getting info' => 'ts_st_info', 'torrent preload' => 'ts_st_preload',
+        'torrent working' => 'ts_st_working', 'torrent closed' => 'ts_st_closed', 'torrent in db' => 'ts_st_in_db');
+}
+
+// An int field of a TorrentStatus: none (omitempty) or not an int -> 0.
+/**
+ * @param array<mixed>|null $j
+ * @param string $k
+ * @return int
+ */
+function aio_ts_int($j, $k)
+{
+    return is_array($j) && isset($j[$k]) && is_int($j[$k]) ? $j[$k] : 0;
+}
+
+// Controls of the waiting dialog (0.45.0): the release; the status in words
+// (none: "waiting for the file list"), seconds, peers, connected seeders;
+// the download speed when over 50 B/s (as TorrServe); "Cancel".
 /**
  * @param AioState $st
  * @param AioRow $r
@@ -434,13 +457,25 @@ function aio_ts_wait_acts($p)
 function aio_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
 {
     $lang = $st['lang'];
-    $peers = is_array($j) && isset($j['active_peers']) && is_int($j['active_peers']) ? $j['active_peers'] : 0;
-    $all = is_array($j) && isset($j['total_peers']) && is_int($j['total_peers']) ? $j['total_peers'] : 0;
+    $stat = trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', aio_str($j, 'stat_string')));
+    $keys = aio_ts_stats();
+    $low = strtolower($stat);
+    $status = $stat === '' ? aio_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? aio_tr($lang, $keys[$low]) : aio_cut($stat, 30));
+    $speed = is_array($j) && isset($j['download_speed']) && (is_int($j['download_speed']) || is_float($j['download_speed'])) ?
+        floatval($j['download_speed']) : 0.0;
     $defs = array();
     foreach (aio_dialog_lines($r['label']) as $l)
         $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l));
     $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
-        str_replace(array('{sec}', '{peers}', '{all}'), array($sec, $peers, $all), aio_tr($lang, 'ts_wait_line'))));
+        str_replace(array('{status}', '{sec}'), array($status, $sec), aio_tr($lang, 'ts_wait_line'))));
+    $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{peers}', '{all}', '{seeds}'),
+        array(aio_ts_int($j, 'active_peers'), aio_ts_int($j, 'total_peers'), aio_ts_int($j, 'connected_seeders')),
+        aio_tr($lang, 'ts_wait_peers'))));
+    // Under 1 MB/s in KB/s, rounded up: a speed over 50 B/s is never "0".
+    if ($speed > 50)
+        $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace('{speed}', $speed >= 1048576 ?
+            number_format($speed / 1048576, 1, '.', '') . ' ' . aio_tr($lang, 'speed_mbs') :
+            number_format(ceil($speed / 1024), 0, '.', '') . ' ' . aio_tr($lang, 'speed_kbs'), aio_tr($lang, 'ts_wait_speed'))));
     $defs[] = aio_ctl('cancel', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => aio_tr($lang, 'ts_cancel'),
         GuiButtonDef::width => 300, GuiButtonDef::push_action => aio_input($lazy ? 'next_stop' : 'ts_cancel')));
     return $defs;
@@ -482,10 +517,11 @@ function aio_ts_tick($in)
         json_encode(array('action' => 'get', 'hash' => $r['hash'])), $err, 2, Aio::$settings['ts_auth']);
     $j = $err === '' && $code === 200 ? aio_ts_decode($body) : null;
     $files = aio_ts_files($j);
-    aio_log(sprintf('ts: tick %s, %d s: %s, stat %s, peers %s/%s, %d files', $p['n'], $sec,
+    aio_log(sprintf('ts: tick %s, %d s: %s, stat %s, peers %s/%s, seeders %s, %d files', $p['n'], $sec,
         $err !== '' ? $err : "HTTP $code", is_array($j) && isset($j['stat']) ? json_encode($j['stat']) : '-',
         is_array($j) && isset($j['active_peers']) ? json_encode($j['active_peers']) : '-',
-        is_array($j) && isset($j['total_peers']) ? json_encode($j['total_peers']) : '-', count($files)));
+        is_array($j) && isset($j['total_peers']) ? json_encode($j['total_peers']) : '-',
+        is_array($j) && isset($j['connected_seeders']) ? json_encode($j['connected_seeders']) : '-', count($files)));
     if ($files)
         return aio_close_and(aio_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1'));
     if ($err === '' && $code === 401)
