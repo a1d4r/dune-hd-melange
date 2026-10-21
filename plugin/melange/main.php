@@ -506,6 +506,24 @@ function aio_size_str($b, $lang)
     return number_format($b / 1048576.0, 0, '.', '') . ' ' . aio_tr($lang, 'size_mb');
 }
 
+// "1.5 МБ/с" of the download speed of TorrServer (B/s): under 1 MB/s in KB/s,
+// rounded up (over 50 B/s is never "0", as TorrServe); 50 B/s or less, over
+// 10 GB/s (nonsense), not a number (NAN, INF, a string) -> "—".
+/**
+ * @param mixed $bps
+ * @param string $lang
+ * @return string
+ */
+function aio_speed_str($bps, $lang)
+{
+    $b = is_int($bps) || is_float($bps) ? floatval($bps) : 0.0;
+    // PHP 5.3: NAN > 50 is true.
+    if (!is_finite($b) || $b <= 50 || $b > 10737418240.0)
+        return '—';
+    return $b >= 1048576 ? number_format($b / 1048576, 1, '.', '') . ' ' . aio_tr($lang, 'speed_mbs') :
+        number_format(ceil($b / 1024), 0, '.', '') . ' ' . aio_tr($lang, 'speed_kbs');
+}
+
 function aio_folder_view($media_url, $sel_state)
 {
     // "setup:<n>": the same screen redrawn by aio_setup_refresh.

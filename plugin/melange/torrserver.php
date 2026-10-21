@@ -445,7 +445,7 @@ function aio_ts_int($j, $k)
 
 // Controls of the waiting dialog (0.45.0): the release; the status in words
 // (none: "waiting for the file list"), seconds, peers, connected seeders;
-// the download speed when over 50 B/s (as TorrServe); "Cancel".
+// the download speed (aio_speed_str), always: the window keeps its height; "Cancel".
 /**
  * @param AioState $st
  * @param AioRow $r
@@ -461,8 +461,6 @@ function aio_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
     $keys = aio_ts_stats();
     $low = strtolower($stat);
     $status = $stat === '' ? aio_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? aio_tr($lang, $keys[$low]) : aio_cut($stat, 30));
-    $speed = is_array($j) && isset($j['download_speed']) && (is_int($j['download_speed']) || is_float($j['download_speed'])) ?
-        floatval($j['download_speed']) : 0.0;
     $defs = array();
     foreach (aio_dialog_lines($r['label']) as $l)
         $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l));
@@ -471,11 +469,8 @@ function aio_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
     $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{peers}', '{all}', '{seeds}'),
         array(aio_ts_int($j, 'active_peers'), aio_ts_int($j, 'total_peers'), aio_ts_int($j, 'connected_seeders')),
         aio_tr($lang, 'ts_wait_peers'))));
-    // Under 1 MB/s in KB/s, rounded up: a speed over 50 B/s is never "0".
-    if ($speed > 50)
-        $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace('{speed}', $speed >= 1048576 ?
-            number_format($speed / 1048576, 1, '.', '') . ' ' . aio_tr($lang, 'speed_mbs') :
-            number_format(ceil($speed / 1024), 0, '.', '') . ' ' . aio_tr($lang, 'speed_kbs'), aio_tr($lang, 'ts_wait_speed'))));
+    $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace('{speed}',
+        aio_speed_str(is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null, $lang), aio_tr($lang, 'ts_wait_speed'))));
     $defs[] = aio_ctl('cancel', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => aio_tr($lang, 'ts_cancel'),
         GuiButtonDef::width => 300, GuiButtonDef::push_action => aio_input($lazy ? 'next_stop' : 'ts_cancel')));
     return $defs;
