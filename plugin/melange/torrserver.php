@@ -1,6 +1,6 @@
 <?php
 // "Watch via TorrServer" (0.31.0): the magnet of a row to TorrServer MatriX
-// (POST /torrents add, save_to_db false), its file list awaited by a dialog
+// (POST /torrents add, save_to_db = ts_save), its file list awaited by a dialog
 // with a timer, then vod_play of /stream/<name>?link=<hash>&index=<id>&play:
 // the Dune player buffers a TorrServer stream itself. The episodes of the
 // pack go to the playlist as such URLs; the player switches them alone.
