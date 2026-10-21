@@ -81,7 +81,7 @@ function aio_setup_button($name, $caption, $action)
 function aio_setup_defs()
 {
     $dir = aio_data_dir();
-    $s = aio_settings_plugin();
+    $s = aio_settings_read_logged();
     $defs = array();
     $h = aio_setup_host(aio_settings_manifest($s));
     // "AIOStreams - own config" / "AIOStreams - Melange config": the host of
@@ -99,7 +99,7 @@ function aio_setup_defs()
 
 function aio_setup_folder_view()
 {
-    $s = aio_settings_plugin();
+    $s = aio_settings_read_logged();
     aio_log('setup: screen, AIOStreams ' . ($s['source'] === 'own' ? 'own config' : ($s['aio_server'] === 'own' ?
         'made on another server' : 'made on a public one')) . (aio_settings_manifest($s) !== '' ? ', set' : ', not set') .
         ', JacRed ' . ($s['jacred'] === 'own' ? 'own' : $s['jacred']));
@@ -109,16 +109,6 @@ function aio_setup_folder_view()
         PluginFolderView::data => array(
             PluginControlsFolderView::defs => aio_setup_defs(),
             PluginControlsFolderView::initial_sel_ndx => -1));
-}
-
-// 'ino:mtime:size' of settings.json, '' when there is none. The page renames
-// a new file over it: a new inode even within the same second.
-function aio_setup_sig()
-{
-    $f = aio_data_dir() . '/' . AIO_SETTINGS_FILE;
-    clearstatcache();
-    $s = aio_data_dir() !== '' && is_file($f) ? stat($f) : false;
-    return $s === false ? '' : $s['ino'] . ':' . $s['mtime'] . ':' . $s['size'];
 }
 
 // 32 hex of openssl or urandom; '' without them.
@@ -132,27 +122,15 @@ function aio_setup_rand_hex()
     return bin2hex($b);
 }
 
-// The token of the page: the one in data_dir, a new one when there is none
-// (or $renew). '' on failure.
+// The token of the page: the one in data_dir (aio_token_rewrite), a new one
+// when there is none (or $renew). '' on failure.
 function aio_setup_token($renew)
 {
-    $f = aio_data_dir() . '/' . AIO_TOKEN_FILE;
     if (aio_data_dir() === '')
         return '';
-    clearstatcache();
-    if (!$renew && is_file($f) && is_readable($f))
-    {
-        $t = trim((string) file_get_contents($f, false, null, 0, 64));
-        // Written anew, the same value: a new file is ours. The page gives
-        // settings.json to the owner of web_token, and a restored backup
-        // (chown -R, chmod -R 777) may have given the old one to another uid.
-        if (aio_token_ok($t))
-        {
-            if (!aio_write_file($f, $t))
-                aio_log('setup: web_token not rewritten');
-            return $t;
-        }
-    }
+    $t = $renew ? '' : aio_token_rewrite();
+    if ($t !== '')
+        return $t;
     $t = aio_setup_rand_hex();
     if ($t === '')
     {
@@ -161,7 +139,7 @@ function aio_setup_token($renew)
         return '';
     }
     aio_log('setup: ' . ($renew ? 'new link' : 'first link'));
-    return aio_write_file($f, $t) ? $t : '';
+    return aio_write_file(aio_data_dir() . '/' . AIO_TOKEN_FILE, $t) ? $t : '';
 }
 
 // IP of the Dune for the phone: the first non-loopback address of ifconfig,
@@ -226,8 +204,8 @@ function aio_setup_png_side($png)
 }
 
 // The QR dialog: the page address as a QR and as text; its timer waits for
-// a new settings.json.
-function aio_setup_qr()
+// a new settings.json. $renew: a new token first ("Change the link").
+function aio_setup_qr($renew = false)
 {
     $tmp = isset(DuneSystem::$properties['tmp_dir_path']) ? strval(DuneSystem::$properties['tmp_dir_path']) : '';
     if (aio_data_dir() === '' || !is_dir(aio_data_dir()))
@@ -235,7 +213,7 @@ function aio_setup_qr()
     $ip = aio_setup_ip();
     if ($ip === '')
         return aio_error('err_setup_ip');
-    $tok = aio_setup_token(false);
+    $tok = aio_setup_token($renew);
     if ($tok === '')
         return aio_error('err_setup_write');
     $url = aio_setup_url($ip, $tok);
@@ -264,7 +242,7 @@ function aio_setup_qr()
         $side = $qr['size'];
         aio_log(sprintf('setup: QR v%d, %d px, %d ms', $qr['version'], $side, (microtime(true) - $t) * 1000));
     }
-    AioSetup::$sig = aio_setup_sig();
+    AioSetup::$sig = aio_settings_sig();
     AioSetup::$wait = 0;
     // The shell cuts a long label in the middle: the address in two lines.
     $q = strpos($url, '?');
@@ -290,7 +268,7 @@ function aio_setup_qr()
 // in the mode chosen, P2P or a Debrid key.
 function aio_setup_config_due()
 {
-    $s = aio_settings_plugin();
+    $s = aio_settings_read_logged();
     return $s['source'] === 'made' && aio_settings_base($s) !== '' && !aio_settings_conf($s) &&
         ($s['aio_mode'] === AIO_MODE_P2P || $s['rd_key'] !== '' || $s['tb_key'] !== '');
 }
@@ -300,7 +278,7 @@ function aio_setup_config_due()
 // AIO_SETUP_WAIT_S after the last such save (the config failed).
 function aio_setup_tick()
 {
-    $sig = aio_setup_sig();
+    $sig = aio_settings_sig();
     // The clock gone back: over too, never an endless wait.
     $late = AioSetup::$wait > 0 && (time() - AioSetup::$wait >= AIO_SETUP_WAIT_S || time() < AioSetup::$wait);
     if (AioSetup::$sig === null)
@@ -364,6 +342,6 @@ function aio_setup_input($control)
     if ($control === 'setup_relink')
         return aio_setup_relink();
     if ($control === 'setup_relink_do')
-        return aio_setup_token(true) !== '' ? aio_setup_qr() : aio_error('err_setup_write');
+        return aio_setup_qr(true);
     return null;
 }

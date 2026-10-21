@@ -657,8 +657,8 @@ function aio_settings_hosts($s)
 // (the page runs as root). 'saved_once' => the file has saved_at (the page saved
 // it, cgi/settings.php: the first run till then); never written back
 // (aio_cgi_store drops it). $why: why a settings.json there was not read
-// (aio_settings_unread, 'read failed', 'bad JSON'); '' when it was or there
-// is none - the caller logs it.
+// (aio_settings_unread, 'read failed', 'bad JSON', 'data dir not
+// accessible'); '' when it was or there is none - the caller logs it.
 /**
  * @param string $dir
  * @param string|null $why
@@ -678,16 +678,24 @@ function aio_settings_read($dir, &$why = null)
         'aio_confs' => array(), 'saved_once' => false);
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
-    if ($dir === '' || (!is_link($f) && !file_exists($f)))
+    if ($dir === '')
         return $r;
+    if (!is_link($f) && !file_exists($f))
+    {
+        // None in a dir this process may enter: a new install, nothing to say.
+        if (file_exists($dir) && (!is_dir($dir) || !is_executable($dir)))
+            $why = 'data dir not accessible ' . aio_settings_owner($dir);
+        return $r;
+    }
     $why = aio_settings_unread($f);
     if ($why !== '')
         return $r;
-    $raw = file_get_contents($f, false, null, 0, AIO_SETTINGS_MAX);
+    $raw = @file_get_contents($f, false, null, 0, AIO_SETTINGS_MAX);
     $j = json_decode((string) $raw, true);
     if (!is_array($j))
     {
-        $why = $raw === false ? 'read failed' : 'bad JSON';
+        // Readable by its mode yet not read: SELinux (hypothesis).
+        $why = $raw === false ? 'read failed ' . aio_settings_owner($f) : 'bad JSON';
         return $r;
     }
     $r['saved_once'] = isset($j['saved_at']);
@@ -782,11 +790,21 @@ function aio_settings_unread($f)
     if (!is_file($f))
         return 'not a file';
     if (!is_readable($f))
-        return sprintf('not readable (uid %d, gid %d, %04o; process uid %s)', fileowner($f), filegroup($f),
-            fileperms($f) & 07777, function_exists('posix_getuid') ? posix_getuid() : '?');
+        return 'not readable ' . aio_settings_owner($f);
     if (filesize($f) > AIO_SETTINGS_MAX)
         return 'too big (' . filesize($f) . ' bytes)';
     return '';
+}
+
+// "(uid 1000, gid 1000, 0600; process uid 1000)" of an existing $f.
+/**
+ * @param string $f
+ * @return string
+ */
+function aio_settings_owner($f)
+{
+    return sprintf('(uid %d, gid %d, %04o; process uid %s)', fileowner($f), filegroup($f), fileperms($f) & 07777,
+        function_exists('posix_getuid') ? posix_getuid() : '?');
 }
 
 // Passwords of the servers to hide in the log (aio_mask_secrets).

@@ -86,9 +86,11 @@ class Aio
     // tests set it themselves. 0: aio_precheck takes its full timeout,
     // aio_jacred skips the request.
     public static $t0 = 0;
-    // Why settings.json was not read and the file then (aio_settings_plugin):
+    // Why settings.json was not read and the file then (aio_settings_read_logged):
     // a reason is logged once, not on every read.
-    public static $settings_why = '';
+    public static $settings_why_key = '';
+    // 'ino:uid' of web_token after aio_token_fix tried it: never again for that file.
+    public static $token_tried = '';
 }
 
 // --- Log: /tmp/run/melange.log (stdout of php_server).
@@ -216,19 +218,81 @@ function aio_data_dir()
     return isset(DuneSystem::$properties['data_dir_path']) ? strval(DuneSystem::$properties['data_dir_path']) : '';
 }
 
+// 'ino:mtime:size' of settings.json, '' when there is none. The page renames
+// a new file over it: a new inode even within the same second.
+function aio_settings_sig()
+{
+    $f = aio_data_dir() . '/' . AIO_SETTINGS_FILE;
+    clearstatcache();
+    $s = aio_data_dir() !== '' && is_file($f) ? stat($f) : false;
+    return $s === false ? '' : $s['ino'] . ':' . $s['mtime'] . ':' . $s['size'];
+}
+
 // aio_settings_read of data_dir; why settings.json was not read goes to the
 // log when it or the file changes (the QR dialog reads it every 1.5 s).
 /**
  * @return AioSettings
  */
-function aio_settings_plugin()
+function aio_settings_read_logged()
 {
     $s = aio_settings_read(aio_data_dir(), $why);
-    $key = $why !== '' ? $why . ' ' . aio_setup_sig() : '';
-    if ($key !== Aio::$settings_why && $why !== '')
+    $key = $why !== '' ? $why . ' ' . aio_settings_sig() : '';
+    if ($key !== Aio::$settings_why_key && $why !== '')
         aio_log("settings: settings.json $why");
-    Aio::$settings_why = $key;
+    Aio::$settings_why_key = $key;
+    aio_token_fix(strpos($why, 'not readable') === 0);
     return $s;
+}
+
+// The token in web_token, the file written anew with it: a new file is of
+// php_server, and the page gives settings.json to the owner of web_token (a
+// restored backup - chown -R, chmod -R 777 - may have given the old one to
+// another uid). '' when there is none or it is not valid: nothing written.
+// $ok: rewritten.
+/**
+ * @param bool|null $ok
+ * @param-out bool $ok
+ * @return string
+ */
+function aio_token_rewrite(&$ok = null)
+{
+    $ok = false;
+    $f = aio_data_dir() . '/' . AIO_TOKEN_FILE;
+    clearstatcache();
+    if (aio_data_dir() === '' || is_link($f) || !is_file($f) || !is_readable($f))
+        return '';
+    $t = trim((string) file_get_contents($f, false, null, 0, 64));
+    if (!aio_token_ok($t))
+        return '';
+    $ok = aio_write_file($f, $t);
+    if (!$ok)
+        aio_log('setup: web_token not rewritten');
+    return $t;
+}
+
+// web_token of another uid (with posix) or settings.json not readable
+// ($unread): web_token rewritten, so that the next save of the page - by a
+// bookmark too, with no QR shown - gives settings.json to php_server. Once
+// per file of web_token, done or not.
+/**
+ * @param bool $unread
+ * @return void
+ */
+function aio_token_fix($unread)
+{
+    $f = aio_data_dir() . '/' . AIO_TOKEN_FILE;
+    clearstatcache();
+    if (aio_data_dir() === '' || is_link($f) || !is_file($f))
+        return;
+    $uid = fileowner($f);
+    $sig = fileinode($f) . ':' . $uid;
+    if ($sig === Aio::$token_tried || (!$unread && (!function_exists('posix_geteuid') || $uid === posix_geteuid())))
+        return;
+    aio_token_rewrite($ok);
+    clearstatcache();
+    Aio::$token_tried = is_file($f) ? fileinode($f) . ':' . fileowner($f) : $sig;
+    if ($ok)
+        aio_log('setup: web_token rewritten, owner uid ' . $uid . ' -> ' . fileowner($f));
 }
 
 // Writes $data to $path atomically, 0600: a fresh file next to it, then rename.
@@ -254,7 +318,7 @@ function aio_write_file($path, $data)
  */
 function aio_settings_load()
 {
-    $s = aio_settings_plugin();
+    $s = aio_settings_read_logged();
     Aio::$settings = array(
         // The stream URL is <base>/stream/...: the base keeps its trailing slash.
         'base' => aio_manifest_base(aio_settings_manifest($s)),

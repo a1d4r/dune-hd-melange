@@ -94,7 +94,9 @@ function aio_cgi_save($dir, $t)
     }
     $v = aio_cgi_posted();
     // The configs are never in the form: kept as they are in the file.
-    $cur = aio_settings_read(aio_cgi_dir_ok($dir) ? $dir : '');
+    $cur = aio_settings_read(aio_cgi_dir_ok($dir) ? $dir : '', $why);
+    if ($why !== '')
+        aio_cgi_log("save: settings.json $why");
     $v['confs'] = $cur['aio_confs'];
     $v['cur'] = $cur;
     $v['tpl_new'] = $cur['aio_tpl'];
@@ -209,7 +211,9 @@ if ($method === 'GET' && aio_cgi_param($_GET, 'a') === 'log')
     aio_cgi_log_download($dir);
 if ($method === 'GET')
 {
-    $s = aio_settings_read($dir);
+    $s = aio_settings_read($dir, $why);
+    if ($why !== '')
+        aio_cgi_log("form: settings.json $why");
     $v = aio_cgi_values($s);
     $v['first'] = !$s['saved_once'];
     aio_cgi_send(200, 'text/html', aio_cgi_form($t, $v, array(), aio_cgi_param($_GET, 'saved') === '1'));
