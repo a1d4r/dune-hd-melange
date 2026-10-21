@@ -134,6 +134,23 @@ function aio_cgi_card($for, $title, $sub, $more = '')
         '</span>' . ($sub !== '' ? '<span class="v">' . $sub . '</span>' : '') . '</span>' . $more . '</label>';
 }
 
+// A simple choice (div.choice): a card of a radio of the row $f of
+// aio_cgi_fields() each (its id: that of the row and the number of the card),
+// by $opts value => array(title, hint[, data-short of the radio]); $sel: the
+// value checked.
+function aio_cgi_choice($f, $opts, $sel)
+{
+    $out = '<div class="choice">';
+    $i = 0;
+    foreach ($opts as $val => $x)
+    {
+        $i++;
+        $out .= aio_cgi_vradio($f['id'] . $i, $f['name'], $val, $val === $sel, '', isset($x[2]) ? ' data-short="' .
+            aio_cgi_h($x[2]) . '"' : '') . aio_cgi_card($f['id'] . $i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
+    }
+    return $out . '</div>';
+}
+
 // A link of a hint, opened without the address of the page (it has the token).
 function aio_cgi_link($url, $text)
 {
@@ -204,15 +221,8 @@ function aio_cgi_ts_save_of($on)
 function aio_cgi_ts_save($v)
 {
     $f = aio_cgi_fields();
-    $out = '<p class="lbl">' . aio_cgi_l('Что делать с раздачей', 'What to do with a release') . '</p><div class="choice">';
-    $i = 0;
-    foreach (aio_cgi_ts_saves() as $val => $x)
-    {
-        $i++;
-        $out .= aio_cgi_vradio($f['ts_save']['id'] . $i, $f['ts_save']['name'], $val, $v['ts_save'] === $val) .
-            aio_cgi_card($f['ts_save']['id'] . $i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
-    }
-    return $out . '</div>';
+    return '<p class="lbl">' . aio_cgi_l('Что делать с раздачей', 'What to do with a release') . '</p>' .
+        aio_cgi_choice($f['ts_save'], aio_cgi_ts_saves(), $v['ts_save']);
 }
 
 // The screen "JacRed" (#voices): one of the built-in ones or the own one
@@ -439,16 +449,8 @@ function aio_cgi_tpl($v, $m)
         $out .= '<p class="mark" data-mark="' . $mk . '" data-short="' . aio_cgi_h($x[2]) . '"' . ($mk === $sel ? '' : ' hidden') . '>' .
             '<span class="t">' . aio_cgi_h($x[0]) .
             '</span><span class="v">' . aio_cgi_h($x[1]) . '</span></p>';
-    $out .= '</div><div class="choice">';
-    $i = 0;
-    foreach ($tk['tpls'] as $t => $x)
-    {
-        $i++;
-        $out .= aio_cgi_vradio($id . $i, $f[$k]['name'], $t, $t === $sel, '', ' data-short="' . aio_cgi_h($x[2]) . '"') .
-            aio_cgi_card($id . $i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
-    }
-    return $out . '</div><input type="hidden" id="' . $f[$seen]['id'] . '" name="' . $f[$seen]['name'] .
-        '" value="' . aio_cgi_h($shown) . '">';
+    return $out . '</div>' . aio_cgi_choice($f[$k], $tk['tpls'], $sel) . '<input type="hidden" id="' . $f[$seen]['id'] .
+        '" name="' . $f[$seen]['name'] . '" value="' . aio_cgi_h($shown) . '">';
 }
 
 // The answers of "Откуда брать фильмы" (radio watch): id of the radio => value.
