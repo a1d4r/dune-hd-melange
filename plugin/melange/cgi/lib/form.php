@@ -181,16 +181,22 @@ function aio_cgi_servers($servers)
 }
 
 // The answers of "Что делать с раздачей" of TorrServer (radio ts_save,
-// 0.45.0): its value => array(name, hint); "1" - the add keeps the release in
-// the list of TorrServer (ts_save of the settings), "0" - it forgets it.
+// 0.45.0): its value => array(name, hint); "add" - the add keeps the release
+// in the list of TorrServer (ts_save of the settings), "play" - it forgets it.
 function aio_cgi_ts_saves()
 {
     return array(
-        '0' => array(aio_cgi_l('Играть', 'Play'), aio_cgi_l('TorrServer забудет раздачу после просмотра.',
+        'play' => array(aio_cgi_l('Играть', 'Play'), aio_cgi_l('TorrServer забудет раздачу после просмотра.',
             'TorrServer forgets the release after watching.')),
-        '1' => array(aio_cgi_l('Добавить и играть', 'Add & Play'), aio_cgi_l(
+        'add' => array(aio_cgi_l('Добавить и играть', 'Add & Play'), aio_cgi_l(
             'Раздача останется в списке TorrServer, как «Доб. и играть» в TorrServe.',
             'The release stays in the TorrServer list, as "Add & Play" in TorrServe.')));
+}
+
+// The answer of aio_cgi_ts_saves() of ts_save of the settings (a bool).
+function aio_cgi_ts_save_of($on)
+{
+    return $on ? 'add' : 'play';
 }
 
 // "Что делать с раздачей" on #torr: a card of the radio ts_save each (a value
@@ -203,7 +209,7 @@ function aio_cgi_ts_save($v)
     foreach (aio_cgi_ts_saves() as $val => $x)
     {
         $i++;
-        $out .= aio_cgi_vradio($f['ts_save']['id'] . $i, $f['ts_save']['name'], strval($val), $v['ts_save'] === strval($val)) .
+        $out .= aio_cgi_vradio($f['ts_save']['id'] . $i, $f['ts_save']['name'], $val, $v['ts_save'] === $val) .
             aio_cgi_card($f['ts_save']['id'] . $i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
     }
     return $out . '</div>';

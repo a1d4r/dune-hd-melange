@@ -33,7 +33,7 @@ const FILLED: [string, string][] = [
   ["watch", "debrid"], ["rd_key", "RDTESTKEY00000000000000001"], ["tb_key", "tbtest-0000000000000000001"], ["aio_tpl", "addons"],
   ["aio_tpl_seen", "addons"], ["aio_tpl_p2p", "p2p_jacred"], ["aio_tpl_p2p_seen", "p2p_jacred"], ["manifest", ""], ["aio_server", MADE], ["aio_own_url", ""], ["tmdb_key", "TMDBTESTKEY000000000001"],
   ["jacred", "own"], ["jacred_own_url", "http://192.168.1.10:9117"], ["jacred_own_key", "testkey01"],
-  ["ts", "http://192.168.1.10:8090"], ["ts_user", "tsuser"], ["ts_pass", "ts p@ss&x"], ["ts_save", "1"],
+  ["ts", "http://192.168.1.10:8090"], ["ts_user", "tsuser"], ["ts_pass", "ts p@ss&x"], ["ts_save", "add"],
   ...servers([["name", "qBittorrent"], ["url", "http://192.168.1.10:8080"], ["user", "admin"], ["pass", "test-pass"], ["category", "movies"]]),
 ];
 // Torrents: as the page came but the answer (0.44.0: the TorrServer field stays on #torr).
@@ -232,20 +232,20 @@ describe("Play or Add & Play of TorrServer (ts_save, 0.45.0)", () => {
 
   test("the other one chosen: one change, posted, saved on the page - no change; the one shown back: none", async () => {
     const page = open("filled");
-    expect([checked(page), dirty(page)]).toEqual(["1", null]);
-    page.choose("ts_save", "0");
+    expect([checked(page), dirty(page)]).toEqual(["add", null]);
+    page.choose("ts_save", "play");
     expect(dirty(page)).toBe("1 изменение");
-    page.choose("ts_save", "1");
+    page.choose("ts_save", "add");
     expect(dirty(page)).toBeNull();
-    page.choose("ts_save", "0");
+    page.choose("ts_save", "play");
     page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
     await save(page);
-    expect(pairs(page.calls[0]!.body).filter((p) => p[0] === "ts_save")).toEqual([["ts_save", "0"]]);
-    expect([checked(page), dirty(page)]).toEqual(["0", ""]);
+    expect(pairs(page.calls[0]!.body).filter((p) => p[0] === "ts_save")).toEqual([["ts_save", "play"]]);
+    expect([checked(page), dirty(page)]).toEqual(["play", ""]);
   });
 
   test("a page without settings: Play chosen", () => {
-    expect(checked(open("empty"))).toBe("0");
+    expect(checked(open("empty"))).toBe("play");
   });
 });
 
