@@ -34,9 +34,8 @@
 //   GET  ?t=<token>&a=log -> <FS_PREFIX>/tmp/run/melange.log masked, an attachment;
 //   POST ?t=<token>&a=ts_check&ajax=1 (ts, ts_user, ts_pass) -> GET
 //                      <TorrServer>/echo, then POST /settings with the login
-//                      (0.45.0: is one asked for, taken), JSON {ok, msg},
-//                      nothing written; GET ?t=<token>&a=ts_check&ts=<address>
-//                      (a tab of 0.44 or older) - the same with no login;
+//                      (0.45.0: is one asked for, taken), JSON {ok, msg[,
+//                      level]}, nothing written;
 //   POST ?t=<token>&a=srv_check (url, user, pass, category, tags) -> login,
 //                      app/version, categories, tags of that qBittorrent;
 //                      JSON {ok, msg, lines}, nothing written;
@@ -208,14 +207,6 @@ if ($method === 'POST')
     aio_cgi_save($dir, $t);
 if ($method === 'GET' && aio_cgi_param($_GET, 'a') === 'log')
     aio_cgi_log_download($dir);
-// "Проверить": the TorrServer of the field (or the default), nothing written.
-if ($method === 'GET' && aio_cgi_param($_GET, 'a') === 'ts_check')
-{
-    $ts = aio_ts_addr(aio_cgi_param($_GET, 'ts'));
-    $res = is_string($ts) ? aio_cgi_ts_check(aio_ts_base($ts)) :
-        array(false, aio_cgi_l('Нужен адрес вида http://хост:порт или хост:порт', 'An address like http://host:port or host:port is needed'));
-    aio_cgi_json(200, array('ok' => $res[0], 'msg' => $res[1]));
-}
 if ($method === 'GET')
 {
     $s = aio_settings_read($dir);

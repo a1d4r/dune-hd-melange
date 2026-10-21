@@ -395,8 +395,9 @@ function aio_cgi_ts_req($url, $post = null, $auth = '')
 }
 
 // GET <base>/echo, then (0.45.0) POST <base>/settings {"action":"get"} with
-// Basic auth by $auth ("login:password", '' none): it asks for one ->
-// array(true, its version) or array(false, the reason for the page).
+// Basic auth by $auth (aio_ts_auth, '' none): it asks for one ->
+// array(true, its version) or array(false, the reason for the page); /settings
+// not 200 (nor 401) or no answer there -> array(true, that, 'warn').
 function aio_cgi_ts_check($base, $auth = '')
 {
     global $AIO_CGI_BODY;
@@ -425,12 +426,15 @@ function aio_cgi_ts_check($base, $auth = '')
         return array(false, aio_cgi_l('Ответил не TorrServer MatriX (старый 1.1?)', 'Not a TorrServer MatriX (an old 1.1?)'));
     // /echo is open always; /settings (as /torrents of the plugin) asks for the login when TorrServer has one.
     $r = aio_cgi_ts_req("$base/settings", '{"action":"get"}', $auth);
-    aio_cgi_log('ts check: settings ' . ($auth !== '' ? 'with' : 'without') . ' a login: ' .
-        (!$r ? 'curl options refused' : ($r[0] || $r[2] === 23 ? "HTTP {$r[1]}" : "curl {$r[2]}")));
-    if ($r && $r[1] === 401)
+    $st = !$r ? null : ($r[0] || $r[2] === 23 ? "HTTP {$r[1]}" : "curl {$r[2]}");
+    aio_cgi_log('ts check: settings ' . ($auth !== '' ? 'with' : 'without') . ' a login: ' . (is_null($st) ? 'curl options refused' : $st));
+    if ($st === 'HTTP 401')
         return array(false, $auth === '' ? aio_cgi_l('TorrServer просит логин и пароль', 'TorrServer asks for a login and password') :
             aio_cgi_l('TorrServer не принял логин или пароль', 'TorrServer did not accept the login or password'));
-    return array(true, sprintf(aio_cgi_l('TorrServer %s отвечает', 'TorrServer %s is responding'), $v));
+    if ($st === 'HTTP 200')
+        return array(true, sprintf(aio_cgi_l('TorrServer %s отвечает', 'TorrServer %s is responding'), $v));
+    return array(true, sprintf(aio_cgi_l('TorrServer %s отвечает, но /settings: %s', 'TorrServer %s is responding, but /settings: %s'),
+        $v, is_null($st) ? aio_cgi_l('curl не настроен', 'curl not set up') : $st), 'warn');
 }
 
 // a=ts_check by POST (0.45.0: the password is not in the URL): the
@@ -441,8 +445,8 @@ function aio_cgi_ts_check_post()
         aio_cgi_param($_POST, 'ts_pass'));
     if ($bad)
         aio_cgi_log('ts check: bad format of ' . $bad[0]);
-    $res = $bad ? array(false, $bad[1]) : aio_cgi_ts_check(aio_ts_base($a), $u !== '' ? "$u:$p" : '');
-    aio_cgi_json(200, array('ok' => $res[0], 'msg' => $res[1]));
+    $res = $bad ? array(false, $bad[1]) : aio_cgi_ts_check(aio_ts_base($a), aio_ts_auth($u, $p));
+    aio_cgi_json(200, array('ok' => $res[0], 'msg' => $res[1]) + (isset($res[2]) ? array('level' => $res[2]) : array()));
 }
 
 // --- The check of a server of "Download to server" ("Проверить" of a block).

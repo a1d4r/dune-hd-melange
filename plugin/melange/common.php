@@ -207,6 +207,18 @@ function aio_ts_pass($s)
     return is_string($s) && preg_match('/^[^\x00-\x1F\x7F]{0,200}\z/u', $s) ? $s : null;
 }
 
+// Basic auth of TorrServer by a login and password checked (aio_ts_login,
+// aio_ts_pass): "login:password", '' for no login.
+/**
+ * @param string $user
+ * @param string $pass
+ * @return string
+ */
+function aio_ts_auth($user, $pass)
+{
+    return $user !== '' ? "$user:$pass" : '';
+}
+
 // An address typed as [http://]login:password@host[:port] -> array(the
 // address without them, login, password) as typed (unchecked; no ':' - an
 // empty password); no '@', nothing before it or a '/' there (a path, not a

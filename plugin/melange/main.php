@@ -245,7 +245,7 @@ function aio_settings_load()
         'servers' => $s['servers'],
         'pw' => aio_settings_secrets($s),
         'ts' => aio_ts_base($s['ts_url']),
-        'ts_auth' => $s['ts_user'] !== '' ? $s['ts_user'] . ':' . $s['ts_pass'] : '',
+        'ts_auth' => aio_ts_auth($s['ts_user'], $s['ts_pass']),
         'aio' => $s['aio_own_url'],
         'own' => $s['source'] === 'own',
         'hosts' => aio_settings_hosts($s));
