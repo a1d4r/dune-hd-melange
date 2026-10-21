@@ -206,8 +206,8 @@ function aio_cgi_ts_saves()
         'play' => array(aio_cgi_l('Играть', 'Play'), aio_cgi_l('TorrServer забудет раздачу после просмотра.',
             'TorrServer forgets the release after watching.')),
         'add' => array(aio_cgi_l('Добавить и играть', 'Add & Play'), aio_cgi_l(
-            'Раздача останется в списке TorrServer, как «Доб. и играть» в TorrServe.',
-            'The release stays in the TorrServer list, as "Add & Play" in TorrServe.')));
+            'Раздача останется в списке TorrServer.',
+            'The release stays in the TorrServer list.')));
 }
 
 // The answer of aio_cgi_ts_saves() of ts_save of the settings (a bool).
