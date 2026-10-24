@@ -18,7 +18,8 @@ function aio_cgi_h($s)
 // option; of the template choices aio_tpl, aio_tpl_p2p the id is the prefix
 // of those of their cards and #<id>h of their marks), hidden; scr - its
 // screen (aio_cgi_screens; of a radio, that of its cards), the link of an
-// error of it without the script (aio_cgi_err_screen).
+// error of it without the script (aio_cgi_err_screen); raw - posted as
+// typed, not trimmed (aio_cgi_posted).
 function aio_cgi_fields()
 {
     return array(
@@ -42,12 +43,14 @@ function aio_cgi_fields()
         'tmdb' => array('id' => 'tm', 'name' => 'tmdb_key', 'set' => 'tmdb_key', 'max' => 100, 'type' => 'sec', 'scr' => 'cfg'),
         'jacred' => array('id' => '', 'name' => 'jacred', 'set' => 'jacred', 'max' => 0, 'type' => 'radio', 'scr' => 'voices'),
         'jo_url' => array('id' => 'jou', 'name' => 'jacred_own_url', 'set' => 'jacred_own_url', 'max' => AIO_JACRED_URL_MAX,
-            'type' => 'plain', 'scr' => 'voices'),
-        'jo_key' => array('id' => 'jok', 'name' => 'jacred_own_key', 'set' => 'jacred_own_key', 'max' => 200, 'type' => 'sec', 'scr' => 'voices'),
+            'type' => 'plain', 'scr' => 'voices', 'raw' => true),
+        'jo_key' => array('id' => 'jok', 'name' => 'jacred_own_key', 'set' => 'jacred_own_key', 'max' => 200, 'type' => 'sec', 'scr' => 'voices',
+            'raw' => true),
         'ts' => array('id' => 'ts', 'name' => 'ts', 'set' => 'ts_url', 'max' => 300, 'type' => 'plain', 'scr' => 'torr'),
         // Basic auth of TorrServer (0.45.0); also typed in the address as login:password@host.
         'ts_user' => array('id' => 'tsu', 'name' => 'ts_user', 'set' => 'ts_user', 'max' => 100, 'type' => 'plain', 'scr' => 'torr'),
-        'ts_pass' => array('id' => 'tsp', 'name' => 'ts_pass', 'set' => 'ts_pass', 'max' => 200, 'type' => 'sec', 'scr' => 'torr'),
+        'ts_pass' => array('id' => 'tsp', 'name' => 'ts_pass', 'set' => 'ts_pass', 'max' => 200, 'type' => 'sec', 'scr' => 'torr',
+            'raw' => true),
         // "Играть" or "Добавить и играть" (0.45.0): aio_cgi_ts_saves().
         'ts_save' => array('id' => 'tss', 'name' => 'ts_save', 'set' => 'ts_save', 'max' => 0, 'type' => 'radio', 'scr' => 'torr'));
 }
@@ -341,13 +344,20 @@ function aio_cgi_mode_p2p()
     return aio_cgi_l('Торренты', 'Torrents');
 }
 
+// The base of the AIOStreams server $server (aio_server; 'own' - at $own,
+// aio_aio_own of it), the key of its configs in aio_confs ('' - none).
+function aio_cgi_aio_base($server, $own)
+{
+    return $server === 'own' ? aio_aio_own($own) : $server;
+}
+
 // The template the page shows in the mode $m for the server $server
 // (aio_server; 'own' - at $own) with the configs $confs (aio_confs), 0.40.0:
 // that of its config of the mode ('none' - not known yet), else $new
 // (aio_tpl or aio_tpl_p2p, for a new config).
 function aio_cgi_tpl_shown($m, $server, $own, $confs, $new)
 {
-    $b = $server === 'own' ? aio_aio_own($own) : $server;
+    $b = aio_cgi_aio_base($server, $own);
     if ($b === '' || !isset($confs[$b][$m]))
         return $new;
     return $confs[$b][$m]['tpl'] !== null ? $confs[$b][$m]['tpl'] : 'none';
@@ -364,7 +374,7 @@ function aio_cgi_mode_sel($v)
 // one) in the mode the page shows (aio_cgi_mode_sel), or null.
 function aio_cgi_aio_sel($v)
 {
-    $b = $v['aio_server'] === 'own' ? aio_aio_own($v['aio_own']) : $v['aio_server'];
+    $b = aio_cgi_aio_base($v['aio_server'], $v['aio_own']);
     $m = aio_cgi_mode_sel($v);
     return $b !== '' && isset($v['confs'][$b][$m]) ? $v['confs'][$b][$m] : null;
 }

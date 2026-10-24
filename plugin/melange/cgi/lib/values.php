@@ -45,10 +45,9 @@ function aio_cgi_posted()
 {
     $f = aio_cgi_fields();
     $v = array('servers' => array(), 'confs' => array());
-    // The own JacRed as typed: aio_jacred_own trims it.
+    // A raw one as typed (the own JacRed: aio_jacred_own trims it).
     foreach ($f as $k => $x)
-        $v[$k] = $k === 'jo_url' || $k === 'jo_key' || $k === 'ts_pass' ? aio_cgi_param($_POST, $x['name']) :
-            trim(aio_cgi_param($_POST, $x['name']), AIO_TRIM);
+        $v[$k] = isset($x['raw']) ? aio_cgi_param($_POST, $x['name']) : trim(aio_cgi_param($_POST, $x['name']), AIO_TRIM);
     // The answer of 0.43.0 (watch): the source and the mode by it; the own
     // config keeps the stored mode. None (a form of 0.42 or older) or another
     // one (an error, aio_cgi_check_values): source and aio_mode as posted.
@@ -191,7 +190,7 @@ function aio_cgi_check_values($v)
             'The template was changed in another tab: reload the page'), $f[$k]['name']);
     }
     // The mode Debrid and no key to make the config there (none of Debrid there yet).
-    $base = $d[$set['aio_server']] === 'own' ? $d[$set['aio_own']] : $d[$set['aio_server']];
+    $base = aio_settings_base($d);
     // The Debrid keys: only of the mode Debrid (else not sent; a wrong one: the stored one kept).
     $keys = array();
     foreach (array('rd', 'tb') as $what)

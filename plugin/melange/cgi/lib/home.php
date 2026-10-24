@@ -100,6 +100,7 @@ function aio_cgi_rows($v)
         if ($n . $u !== '')
             $names[] = $n !== '' ? $n : $u;
     }
+    // Not aio_cgi_aio_base: a form back shows the host of the own address as typed, a wrong one too.
     $host = aio_cgi_host($v['aio_server'] === 'own' ? $v['aio_own'] : $v['aio_server']);
     // A form back: never the login and password typed in the address.
     list($ts) = aio_ts_userinfo($v['ts']);
