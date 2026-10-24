@@ -1225,6 +1225,17 @@ function aio_voices_struct_text($v, $lang, $subs = true, $max = AIO_TEXT_MAX)
     return $max > 0 ? aio_cut($s, $max) : $s;
 }
 
+// The text of $v (aio_voices_struct_text) starts with the dub: "Дубляж: …"
+// or "Дубляж" alone (aio_gc_wrap_voices puts it on lines of its own).
+/**
+ * @param AioVoicesStruct $v
+ * @return bool
+ */
+function aio_voices_dub_first($v)
+{
+    return !empty($v['groups']['dub']) || in_array('dub', $v['types'], true);
+}
+
 // Voices of the names of a row and the name shown without JacRed's tails;
 // only for the rows listed (two parses a row).
 /**

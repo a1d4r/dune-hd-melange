@@ -552,22 +552,21 @@ function aio_info_col_file($r, $raw, $sd, $pf, $tt, $top)
 
 // What the middle column shows, for both of its layouts (aio_info_col_tracks):
 // the column with its head, the voices (their first group alone on its
-// lines: "Дубляж: …"), the label of the audio, its tracks wrapped in the room
-// of the column and their count.
+// lines: "Дубляж: …"; $vs: aio_row_voices_struct of $r), the label of the
+// audio, its tracks wrapped in the room of the column and their count.
 /**
  * @param AioRow $r
  * @param array<mixed> $pf
  * @param AioGcText $tt
  * @param int $top
+ * @param AioVoicesStruct $vs
  * @return AioInfoMid
  */
-function aio_info_mid($r, $pf, $tt, $top)
+function aio_info_mid($r, $pf, $tt, $top, $vs)
 {
     $lang = $tt['lang'];
     $c = aio_info_col(1, aio_tr($lang, 'info_col_tracks'), array(), $top);
-    $dub = aio_voices_words($lang);
-    $dub = $dub['dub'];
-    $v = aio_info_clean(aio_row_voices_text($r, $lang, false, 0));
+    $v = aio_info_clean(aio_voices_struct_text($vs, $lang, false, 0));
     list($audio, $na) = aio_info_audio($r, $pf);
     $alabel = $tt['audio'] . ($audio ? " ($na)" : '');
     if (!$audio)
@@ -576,8 +575,7 @@ function aio_info_mid($r, $pf, $tt, $top)
             AIO_INF_CW, 2);
         $na = count($audio);
     }
-    return array('col' => $c, 'voices' => $v,
-        'alone' => $v === $dub || strpos($v, "$dub:") === 0 || strpos($v, "$dub \xC2\xB7") === 0,
+    return array('col' => $c, 'voices' => $v, 'alone' => aio_voices_dub_first($vs),
         'alabel' => $alabel, 'audio' => aio_info_wrap_tracks($audio, aio_info_room($c, true)), 'n_audio' => $na);
 }
 
@@ -692,9 +690,10 @@ function aio_info_col_source($r, $sd, $pf, $tt, $top)
 /**
  * @param AioState $st
  * @param int $n
+ * @param AioVoicesStruct $vs
  * @return list<AioGcComp>
  */
-function aio_info_passport($st, $n)
+function aio_info_passport($st, $n, $vs)
 {
     $r = $st['rows'][$n];
     $tt = aio_gc_text(aio_gc_lang($st));
@@ -708,7 +707,7 @@ function aio_info_passport($st, $n)
     // A name of 3-4 lines moves the columns down.
     $top = AIO_INF_COLS_Y + max(0, count($name) - 2) * AIO_INF_LH;
     $s = aio_info_subs($r, $pf, $tt);
-    $m = aio_info_mid($r, $pf, $tt, $top);
+    $m = aio_info_mid($r, $pf, $tt, $top, $vs);
     $mid = aio_info_col_tracks($m, $tt, $s);
     $src = aio_info_col_source($r, $sd, $pf, $tt, $top);
     if ($s && $mid['hid'] > 0)
@@ -880,13 +879,14 @@ function aio_info_yaml(&$out, $lvl, $head, $v, $max, $depth = 0)
 
 // YAML lines of row $n: array(AIOStreams lines, Melange lines), each block
 // with its head; together at most AIO_INFO_LINES, the last of a cut block
-// says so.
+// says so. $vs: aio_row_voices_struct of the row.
 /**
  * @param AioState $st
  * @param int $n
+ * @param AioVoicesStruct $vs
  * @return array{list<array{int, string, string}>, list<array{int, string, string}>}
  */
-function aio_info_blocks($st, $n)
+function aio_info_blocks($st, $n, $vs)
 {
     $r = $st['rows'][$n];
     $lang = $st['lang'];
@@ -905,7 +905,7 @@ function aio_info_blocks($st, $n)
         $ok = aio_info_yaml($mel, 0, "$k:", $v, $max);
         // As the screens show the voices.
         if ($ok && $k === 'voices')
-            $ok = aio_info_yaml($mel, 0, 'voices_text:', aio_row_voices_text($r, $lang), $max);
+            $ok = aio_info_yaml($mel, 0, 'voices_text:', aio_voices_struct_text($vs, $lang), $max);
         if (!$ok)
         {
             $mel[$max - 1] = $cut;
@@ -937,7 +937,7 @@ function aio_info_ypage($lines)
 }
 
 // Children of every page: the passport, then the AIOStreams pages, then the
-// Melange ones.
+// Melange ones. The voices of the row are made once for both.
 /**
  * @param AioState $st
  * @param int $n
@@ -945,8 +945,9 @@ function aio_info_ypage($lines)
  */
 function aio_info_pages($st, $n)
 {
-    $pages = array(aio_info_passport($st, $n));
-    foreach (aio_info_blocks($st, $n) as $block)
+    $vs = aio_row_voices_struct($st['rows'][$n]);
+    $pages = array(aio_info_passport($st, $n, $vs));
+    foreach (aio_info_blocks($st, $n, $vs) as $block)
     {
         foreach (array_chunk($block, 3 * AIO_INF_YROWS) as $lines)
             $pages[] = aio_info_ypage($lines);

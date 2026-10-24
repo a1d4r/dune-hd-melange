@@ -763,8 +763,7 @@ function aio_gc_card($st, $sel)
     // Fields by priority, each up to 2 lines while room is left, the voices
     // up to AIO_GC_VOICES_LINES.
     // "Дубляж: …" of the voices first, on lines of its own.
-    $dub = aio_voices_words($tt['lang']);
-    $dub = $dub['dub'];
+    $vs = aio_row_voices_struct($r);
     $b = $r['badges'];
     $video = array($r['resolution'], aio_badge_text($b['vis']), $b['ai'] ? 'AI' : '', $r['quality'],
         implode(' ', $b['tags']));
@@ -772,7 +771,7 @@ function aio_gc_card($st, $sel)
         array('video', implode(' · ', array_filter($video, 'strlen'))),
         array('audio', $r['audio_full']),
         // Subtitles have a field of their own.
-        array('voices', aio_row_voices_text($r, $tt['lang'], false)),
+        array('voices', aio_voices_struct_text($vs, $tt['lang'], false)),
         array('subs', aio_cut(implode(', ', $r['subs']), AIO_TEXT_MAX)),
         array('langs', aio_cut(implode(', ', $r['langs']), AIO_TEXT_MAX)),
         $r['trackers'] ? array('trackers', aio_cut(implode(', ', $r['trackers']), AIO_TEXT_MAX)) :
@@ -788,8 +787,7 @@ function aio_gc_card($st, $sel)
             continue;
         $v = $v !== '' ? $v : "\xE2\x80\x94";
         if ($f[0] === 'voices')
-            $vl = aio_gc_wrap_voices($v, $px, $w - AIO_GC_VX, $max,
-                $v === $dub || strpos($v, "$dub:") === 0 || strpos($v, "$dub \xC2\xB7") === 0);
+            $vl = aio_gc_wrap_voices($v, $px, $w - AIO_GC_VX, $max, aio_voices_dub_first($vs));
         else
             $vl = $f[0] === 'video' || $f[0] === 'audio' ?
                 aio_gc_wrap_items($v, 30, $w - AIO_GC_VX, $max) : aio_gc_wrap($v, 30, $w - AIO_GC_VX, $max);
