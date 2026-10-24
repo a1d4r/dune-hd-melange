@@ -31,7 +31,7 @@ dir="${MELANGE_FLASHDATA:-$FS_PREFIX/flashdata}/plugins_data/$name/movie_supplie
 tmp="$dir/.$id.tmp"
 
 if mkdir -p "$dir" &&
-    printf '{"plugin":"%s","caption":"%%tr%%supplier_caption","langs":"any","supported_video_types":"video","bin":"sh %s/supplier.sh","playback_type":"stream_special","play_action":{"handler_string_id":"plugin_handle_user_input","plugin_name":"%s","params":{"handler_id":"aio","control_id":"play"}},"icon_url":"plugin_file://%%%s%%/icons/logo.png"}\n' \
+    printf '{"plugin":"%s","caption":"%%tr%%supplier_caption","common_caption":"%%ext%%Melange","langs":"any","supported_video_types":"video","bin":"sh %s/supplier.sh","playback_type":"stream_special","play_action":{"handler_string_id":"plugin_handle_user_input","plugin_name":"%s","params":{"handler_id":"aio","control_id":"play"}},"icon_url":"plugin_file://%%%s%%/icons/logo.png"}\n' \
         "$name" "$mydir" "$name" "$name" >"$tmp" &&
     mv -f "$tmp" "$dir/$id"; then
     echo "$name: supplier $id written"
