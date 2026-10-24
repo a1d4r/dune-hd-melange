@@ -1,8 +1,8 @@
 <?php
 // Shared by the plugin (php_server) and the settings page (cgi/settings.php,
 // php-cgi as root): the version, the files of data_dir, the rules for the
-// addresses and the mask of the log. Plain PHP 5.3: no firmware API, no
-// logging here.
+// addresses, the HTTP client of TorrServer and the mask of the log. Plain
+// PHP 5.3: no firmware API, no logging here.
 // Types in the PHPDoc (AioSettings and others): phpstan-types.neon of the repository.
 
 define('AIO_VERSION', '0.46.0');
@@ -240,6 +240,75 @@ function aio_ts_userinfo($s)
     if (strpbrk($ui, '/?#') !== false || trim($u, AIO_TRIM) === '')
         return array($s, null, null);
     return array(substr($s, 0, $pre) . (string) substr($s, $at + 1), $u, $c === false ? '' : (string) substr($ui, $c + 1));
+}
+
+// A bigger reply is not read (a pack of thousands of files is ~1 MB).
+define('AIO_TS_MAX_BYTES', 4194304);
+
+// Tests define their own aio_ts_call().
+if (!function_exists('aio_ts_call'))
+{
+    // GET ($post null) or POST of JSON $post to TorrServer -> array(HTTP
+    // code, body, curl errno: 0 none, also when its options are refused);
+    // $err is set on a transport error. http only, no redirects; the errors
+    // of TorrServer have an empty body: the code tells. $auth:
+    // "login:password" for Basic auth (0.45.0), '' none. The plugin and the
+    // check of the settings page.
+    /**
+     * @param string $url
+     * @param string|null $post
+     * @param string $err
+     * @param-out string $err
+     * @param int $total
+     * @param string $auth
+     * @return array{int, string, int}
+     */
+    function aio_ts_call($url, $post, &$err, $total = 2, $auth = '')
+    {
+        $body = '';
+        $over = false;
+        $ch = curl_init($url);
+        $opts = array(
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_CONNECTTIMEOUT => 1,
+            CURLOPT_TIMEOUT => $total,
+            CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION,
+            CURLOPT_HTTPHEADER => array('Expect:', 'Content-Type: application/json'),
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$over)
+            {
+                if (strlen($body) + strlen($chunk) > AIO_TS_MAX_BYTES)
+                {
+                    $over = true;
+                    return 0;
+                }
+                $body .= $chunk;
+                return strlen($chunk);
+            });
+        if (!is_null($post))
+        {
+            $opts[CURLOPT_POST] = true;
+            $opts[CURLOPT_POSTFIELDS] = $post;
+        }
+        if ($auth !== '')
+        {
+            $opts[CURLOPT_HTTPAUTH] = CURLAUTH_BASIC;
+            $opts[CURLOPT_USERPWD] = $auth;
+        }
+        if (!curl_setopt_array($ch, $opts))
+        {
+            curl_close($ch);
+            $err = 'curl options refused';
+            return array(0, '', 0);
+        }
+        $ok = curl_exec($ch);
+        $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+        $errno = curl_errno($ch);
+        $err = $over ? 'reply over ' . AIO_TS_MAX_BYTES . ' bytes' :
+            ($ok === false ? "curl $errno: " . curl_error($ch) : '');
+        curl_close($ch);
+        return array($code, $err !== '' ? '' : $body, $errno);
+    }
 }
 
 // Built-in JacRed of the settings page (0.34.0), in the order of the page:
