@@ -1012,27 +1012,11 @@ function aio_voices_name_extra($s)
     return $out;
 }
 
-// Voices of a row for the screens, by the audio tracks and the name:
-// "Дубляж: Bravo Records, Red Head Sound · LostFilm, Ю. Сербин, Кубик в Кубе ·
-// оригинал · субтитры" (aio_voices_struct_text). One person or studio is one
-// entry. $subs false: no "субтитры" (GComps has a field of its own). $max:
-// as aio_voices_struct_text.
-/**
- * @param AioRow $r
- * @param string $lang
- * @param bool $subs
- * @param int $max
- * @return string
- */
-function aio_row_voices_text($r, $lang, $subs = true, $max = AIO_TEXT_MAX)
-{
-    return aio_voices_struct_text(aio_row_voices_struct($r), $lang, $subs, $max);
-}
-
-// What aio_row_voices_text shows, in order: array('groups' => type => studios
-// (dub, mvo, dvo, avo; only with a track of a type and a studio), 'types' =>
-// types without studios, 'studios' => studios without a type, 'orig' => '' |
-// 'orig' | 'jap', 'subs' => bool of the name).
+// The voices of a row, in order (aio_voices_struct_text makes the text):
+// array('groups' => type => studios (dub, mvo, dvo, avo; only with a track of
+// a type and a studio), 'types' => types without studios, 'studios' =>
+// studios without a type, 'orig' => '' | 'orig' | 'jap', 'subs' => bool of
+// the name).
 /**
  * @param AioRow $r
  * @return AioVoicesStruct
