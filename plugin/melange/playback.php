@@ -956,7 +956,7 @@ function aio_release_pick($rows, $hash, $s, $e)
         $p['rows']++;
         if ($p['any'] < 0)
             $p['any'] = $i;
-        if ($r['url'] === '')
+        if (aio_is_p2p($r))
         {
             if ($p['p2p'] < 0)
                 $p['p2p'] = $i;

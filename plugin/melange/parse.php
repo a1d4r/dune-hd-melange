@@ -627,6 +627,16 @@ function aio_row($st, $series)
         'raw' => $st);
 }
 
+// A P2P row (url '', hash set): TorrServer plays it.
+/**
+ * @param AioRow $r
+ * @return bool
+ */
+function aio_is_p2p($r)
+{
+    return $r['url'] === '';
+}
+
 // streamData.sources of a patched AIOStreams build (upstream has no such
 // field; copies of one infoHash merged by its dedup): [{"addon":
 // "MediaFusion", "cached": ["realdebrid"]}, ...]. $own: streamData.addon, the

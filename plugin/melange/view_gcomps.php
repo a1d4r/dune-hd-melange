@@ -126,7 +126,7 @@ function aio_gc_status($r, $tt)
         return $r['service'] !== '' ? str_replace('{svc}', $r['service'], $tt['cached_in']) : $tt['cached'];
     if ($r['cached'] === false)
         return $tt['download'];
-    return $r['url'] === '' ? $tt['p2p'] : $tt['unknown'];
+    return aio_is_p2p($r) ? $tt['p2p'] : $tt['unknown'];
 }
 
 // --- Position.
@@ -258,7 +258,7 @@ function aio_gc_icon($cached)
  */
 function aio_gc_seeds($r)
 {
-    return $r['url'] === '' ? $r['seeders'] : null;
+    return aio_is_p2p($r) ? $r['seeders'] : null;
 }
 
 /**
@@ -1082,7 +1082,7 @@ function aio_gc_input($in)
         if ($in->control_id === 'gc_info')
             return aio_info_open($st, $sel);
         // A P2P stream (no URL, infoHash only): through TorrServer.
-        if ($st['rows'][$sel]['url'] === '')
+        if (aio_is_p2p($st['rows'][$sel]))
             return aio_ts_open(Aio::$state, $sel, 0, $st['rid']);
         $a = aio_play($st, $st['rows'][$sel], 0);
         if ($a[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
