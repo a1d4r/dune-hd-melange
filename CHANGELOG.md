@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.45.1 — 24.10.2026
+- Fixed: on the r25 firmware the "Melange NN%" item of "Play…" went on watching right away, as "Continue" does, instead of opening the list of releases.
+
 ## 0.45.0 — 21.10.2026
 - **TorrServer with a login and password.** The "TorrServer" screen of the settings page has **"Login"** and **"Password"** fields under the address (the password is hidden, the eye shows it); they also work with an empty address, for the TorrServe app on the Dune with "Local TorrServer with Authorization" on. The address may be typed as `login:password@host:port`: on saving the login and password go to their fields, and the address is stored without them. A login without a password or a password without a login is an error of the field. **"Check"** now also tells "TorrServer asks for a login and password" and "TorrServer did not accept the login or password"; the password is sent in the request body, not in the address of the page. "Watch via TorrServer" sends them to TorrServer; if they are missing or wrong, "Could not open via TorrServer" says so and points to the Melange settings → TorrServer. The password never goes to the log.
 - **"Play" or "Add & Play".** The "TorrServer" screen of the settings page has **"What to do with a release"** under the login and password: **"Play"** (the default, as before: TorrServer forgets the release after watching) or **"Add & Play"** (the release stays in the TorrServer list). It applies to every start via TorrServer: ENTER on a P2P release, MENU → "Watch via TorrServer", Continue Watching, the next episode in the player.
@@ -102,6 +105,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.45.1 — 24.10.2026
+- Исправлено: на прошивке r25 пункт «Melange NN%» в «Смотреть…» сразу продолжал просмотр, как «Продолжить», вместо списка раздач.
 
 ## 0.45.0 — 21.10.2026
 - **TorrServer с логином и паролем.** На экране «TorrServer» страницы настроек под адресом — поля **«Логин»** и **«Пароль»** (пароль скрыт, глаз показывает); работают и с пустым адресом — для приложения TorrServe на Дюне с включённым «Локальный TorrServer с авторизацией». Адрес можно вписать и как `логин:пароль@хост:порт`: при сохранении логин и пароль уйдут в свои поля, адрес сохранится без них. Логин без пароля или пароль без логина — ошибка поля. **«Проверить»** теперь говорит и «TorrServer просит логин и пароль», «TorrServer не принял логин или пароль»; пароль уходит в теле запроса, а не в адресе страницы. «Смотреть через TorrServer» передаёт их TorrServer; если их нет или они неверны — «Не открылось через TorrServer» скажет об этом и отправит в настройки Melange → TorrServer. Пароль в лог не попадает.

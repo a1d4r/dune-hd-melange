@@ -205,6 +205,13 @@ function aio_resume($in)
     if (!is_object($si) || !isset($si->wh_release) || !is_string($si->wh_release) ||
         !preg_match('/^[0-9a-f]{40}$/', $si->wh_release))
         return null;
+    // r25 shell attaches the history to our own button "Melange NN%" in the
+    // "Play..." dialog too: that one opens the list, as in r24.
+    if (isset($in->selected_control_id) && $in->selected_control_id === 'play_online')
+    {
+        aio_log('resume: supplier_info of the play_online button ignored -> list');
+        return null;
+    }
     return array(
         'hash' => $si->wh_release,
         's' => aio_int($si, 'wh_s', -1),
