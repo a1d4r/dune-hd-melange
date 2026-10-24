@@ -16,8 +16,9 @@ type State = "key" | "conf" | "man" | "ok";
 // A dot: ok, warn or none (grey).
 type Dot = "ok" | "warn" | "";
 
-// aio: "Save" creates a config (no config of the mode chosen on the server), the server chosen and its config.
-export function setupHome(page: Page, aio: Aio): Home {
+// aio: "Save" creates a config (no config of the mode chosen on the server), the server chosen and its config, the
+// short name of the template.
+export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "serverHost" | "templateShort">): Home {
   const { doc, form, texts } = page;
   const value = (id: string) => trimmed(byId<HTMLInputElement>(doc, id).value);
 

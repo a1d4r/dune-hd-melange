@@ -3,7 +3,7 @@
 
 import type { Sync } from "./api";
 import type { Confs, KnownConf } from "./confs";
-import { AIO_SERVER_RADIOS, byId, checkedValue, CLS, DATA, hostOf, ID, JACRED_RADIOS, NAME, type Page, query, trimmed, VALUE, watchOf } from "./dom";
+import { AIO_SERVER_RADIOS, byId, checkedRadio, checkedValue, CLS, DATA, hostOf, ID, JACRED_RADIOS, NAME, type Page, query, trimmed, VALUE, watchOf } from "./dom";
 import type { Lock } from "./lock";
 
 export interface Aio {
@@ -62,9 +62,8 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   const picked = (c: Choice) => checkedValue(form, c.name);
 
   // The radio of the server chosen (none: as a form back with another value came).
-  function selected(): HTMLInputElement | undefined {
-    for (let i = 0; i < servers.length; i++) if (servers[i]!.checked) return servers[i];
-    return undefined;
+  function selected(): HTMLInputElement | null {
+    return checkedRadio(form, NAME.aioServer);
   }
   function ownUrl(): string {
     return ownUrlField.value

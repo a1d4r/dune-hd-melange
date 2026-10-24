@@ -181,8 +181,12 @@ export function query<E extends Element = HTMLElement>(root: ParentNode, selecto
   return el;
 }
 
+export function checkedRadio(form: HTMLFormElement, name: string): HTMLInputElement | null {
+  return form.querySelector<HTMLInputElement>("input[name=" + name + "]:checked");
+}
+
 export function checkedValue(form: HTMLFormElement, name: string): string | null {
-  const el = form.querySelector<HTMLInputElement>("input[name=" + name + "]:checked");
+  const el = checkedRadio(form, name);
   return el ? el.value : null;
 }
 
