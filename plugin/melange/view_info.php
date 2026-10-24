@@ -515,10 +515,7 @@ function aio_info_col_file($r, $raw, $sd, $pf, $tt, $top)
         aio_info_field($c, $l['rate'], aio_gc_rate($r['rate'], $r['rate_approx'], $lang) .
             (isset($src[$r['rate_src']]) ? ' · ' . aio_tr($lang, $src[$r['rate_src']]) : ''), 2, false, true);
     }
-    // streamData.duration in ms, parsedFile.duration in s.
-    $dur = aio_num(aio_str($sd, 'duration')) / 1000;
-    if ($dur < 1)
-        $dur = aio_num(aio_str($pf, 'duration'));
+    $dur = aio_row_duration($r);
     aio_info_field($c, $l['duration'], $dur >= 1 ? aio_info_duration($dur) : '', 1);
     $video = implode(' · ', array_filter(array($r['resolution'], $r['quality'], aio_str($pf, 'encode')), 'strlen'));
     aio_info_field($c, $tt['video'], $video !== '' ? $video : "\xE2\x80\x94", 2, false, true);

@@ -127,6 +127,19 @@ function aio_arr($a, $k)
     return is_array($a) && isset($a[$k]) && is_array($a[$k]) ? $a[$k] : array();
 }
 
+// The duration of the file of row $r, s (0: unknown): streamData.duration
+// in ms (a second at least), else parsedFile.duration in s.
+/**
+ * @param AioRow $r
+ * @return float
+ */
+function aio_row_duration($r)
+{
+    $sd = aio_arr(aio_arr($r, 'raw'), 'streamData');
+    $ms = aio_num(aio_str($sd, 'duration'));
+    return $ms >= 1000 ? $ms / 1000 : aio_num(aio_str(aio_arr($sd, 'parsedFile'), 'duration'));
+}
+
 /**
  * @param mixed $obj
  * @param string $k

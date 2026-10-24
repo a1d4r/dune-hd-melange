@@ -15,6 +15,8 @@ require_once dirname(__FILE__) . '/jacred.php';
 require_once dirname(__FILE__) . '/history.php';
 // Playback, the episodes around it and the lazy ones.
 require_once dirname(__FILE__) . '/playback.php';
+// Markers of an episode: "Skip intro", "Next episode".
+require_once dirname(__FILE__) . '/segments.php';
 // "Download to server": qBittorrent WebAPI.
 require_once dirname(__FILE__) . '/server.php';
 // "Watch via TorrServer".

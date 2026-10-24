@@ -176,127 +176,28 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
 }
 
-// --- Markers of an episode: the player's "Skip intro" (intro, recap) and
-// "Next episode" with a countdown (closing credits; dropped by the player on
-// the last item of the playlist). Timecodes: GET /api/v1/segments of the
-// AIOStreams server of the streams (Melange's fork; other servers have no
-// such route: 404, no markers).
+// --- Time of the operation: handle_user_input and play_action have 60 s;
+// the requests before the player (the stream check, the markers of
+// segments.php) get what is left of this many seconds since Aio::$t0.
+define('AIO_OP_BUDGET', 55);
 
-// Seconds: the server of the streams has just answered, so the connection
-// is quick; a reply from its cache takes a fraction of a second. A slower
-// one leaves this episode without markers rather than delay the video.
-define('AIO_SEG_CONNECT', 2);
-define('AIO_SEG_TOTAL', 3);
-// A reply this big is not a list of three segments.
-define('AIO_SEG_MAX_BYTES', 65536);
-// A marker ending this far past the end of the file is of another release
-// (the same rule as the server's); a closer one is cut at the end.
-define('AIO_SEG_SLACK', 20);
-
-// The duration of the file of row $r, s (0: unknown): streamData.duration
-// in ms, else parsedFile.duration in s.
+// Seconds for a request of $what (a log prefix): what is left of the
+// operation, at most $cap (all of it outside an operation), whole -> that, or
+// 0 when it is under $min (logged: skipped).
 /**
- * @param AioRow $r
- * @return float
+ * @param int $cap
+ * @param int $min
+ * @param string $what
+ * @return int
  */
-function aio_row_duration($r)
+function aio_op_total($cap, $min, $what)
 {
-    $sd = aio_arr(aio_arr($r, 'raw'), 'streamData');
-    $ms = aio_num(aio_str($sd, 'duration'));
-    return $ms >= 1000 ? $ms / 1000 : aio_num(aio_str(aio_arr($sd, 'parsedFile'), 'duration'));
-}
-
-// Manifest base $base -> the root of its AIOStreams server (what is before
-// /stremio/), '' when the address has no /stremio/.
-/**
- * @param string $base
- * @return string
- */
-function aio_seg_root($base)
-{
-    return preg_match('~^(https?://[^/]+(?:/[^/]+)*?)/stremio/~', $base, $m) ? $m[1] : '';
-}
-
-// Body of /api/v1/segments, duration of the file $dur (s, 0: unknown) ->
-// markers for PluginVodSeriesInfo::markers, or null when the body is not
-// the reply of the route. Whole seconds: from rounded up, to down (a button
-// never covers the episode); 0 <= from < to; a type of no marker is skipped.
-/**
- * @param string $body
- * @param float $dur
- * @return list<array<string, int|string>>|null
- */
-function aio_seg_markers($body, $dur)
-{
-    $j = json_decode($body, true);
-    if (!is_array($j) || !isset($j['success']) || $j['success'] !== true || !isset($j['data']['segments']) ||
-        !is_array($j['data']['segments']))
-        return null;
-    $types = array('intro' => STREAM_MARKER_INTRO, 'recap' => STREAM_MARKER_RECAP,
-        'outro' => STREAM_MARKER_CLOSING_CREDITS);
-    $out = array();
-    foreach ($j['data']['segments'] as $sg)
-    {
-        if (!is_array($sg) || !isset($sg['type'], $sg['start'], $sg['end']) || !is_string($sg['type']) ||
-            !isset($types[$sg['type']]) || !(is_int($sg['start']) || is_float($sg['start'])) ||
-            !(is_int($sg['end']) || is_float($sg['end'])) || $sg['start'] < 0 || $sg['start'] >= $sg['end'] ||
-            $sg['end'] > 1e6)
-            continue;
-        $to = $sg['end'];
-        if ($dur > 0)
-        {
-            if ($to > $dur + AIO_SEG_SLACK)
-                continue;
-            $to = min($to, $dur);
-        }
-        $from = (int) ceil($sg['start']);
-        $to = (int) floor($to);
-        if ($from >= $to)
-            continue;
-        $out[] = array(StreamMarker::type => $types[$sg['type']], StreamMarker::from => $from, StreamMarker::to => $to);
-    }
-    return $out;
-}
-
-// Markers of episode $s/$e of IMDb id $imdb, the file $dur s long (0:
-// unknown, then not sent) from the server of the streams -> the list, array()
-// on any failure (logged).
-/**
- * @param string $imdb
- * @param int $s
- * @param int $e
- * @param float $dur
- * @return list<array<string, int|string>>
- */
-function aio_markers($imdb, $s, $e, $dur)
-{
-    // A firmware PHP API without markers (older models): nothing to ask for.
-    if (!class_exists('StreamMarker') || !defined('PluginVodSeriesInfo::markers'))
-        return array();
-    $root = aio_seg_root(Aio::$settings['base']);
-    if ($root === '' || !preg_match('/^tt[0-9]{1,10}$/D', $imdb))
-        return array();
-    $ep = sprintf('S%02dE%02d', $s, $e);
-    $left = Aio::$t0 > 0 ? AIO_OP_BUDGET - (microtime(true) - Aio::$t0) : AIO_SEG_TOTAL;
-    $total = (int) min(AIO_SEG_TOTAL, floor($left));
-    if ($total < 1)
-    {
-        aio_log(sprintf('markers: %s: skipped, the operation took %.1f s', $ep, AIO_OP_BUDGET - $left));
-        return array();
-    }
-    $sec = (int) round($dur);
-    $url = "$root/api/v1/segments?idType=imdbId&idValue=$imdb&season=$s&episode=$e" . ($sec > 0 ? "&duration=$sec" : '');
-    $t = microtime(true);
-    $err = '';
-    list($code, $body) = aio_http_get($url, $err, min(AIO_SEG_CONNECT, $total), $total, AIO_SEG_MAX_BYTES);
-    $t = microtime(true) - $t;
-    $mk = $err === '' && $code === 200 ? aio_seg_markers($body, $dur) : null;
-    $what = array();
-    foreach ($mk ? $mk : array() as $m)
-        $what[] = $m[StreamMarker::type] . ' ' . $m[StreamMarker::from] . '-' . $m[StreamMarker::to];
-    aio_log(sprintf('markers: %s, duration %s: %s, %s, %.2f s', $ep, $sec > 0 ? "$sec s" : 'unknown',
-        $err !== '' ? $err : "HTTP $code", $mk === null ? 'none' : ($what ? implode(', ', $what) : 'no segments'), $t));
-    return $mk ? $mk : array();
+    $left = Aio::$t0 > 0 ? AIO_OP_BUDGET - (microtime(true) - Aio::$t0) : $cap;
+    $total = (int) min($cap, floor($left));
+    if ($total >= $min)
+        return $total;
+    aio_log(sprintf('%s: skipped, the operation took %.1f s', $what, AIO_OP_BUDGET - $left));
+    return 0;
 }
 
 // --- Stream check before the player: one GET of the row's URL, no
@@ -311,9 +212,7 @@ function aio_markers($imdb, $s, $e, $dur)
 
 define('AIO_PRE_CONNECT', 5);
 define('AIO_PRE_TOTAL', 30);
-// handle_user_input and play_action have 60 s: the check gets what is left
-// of this many seconds of the operation, nothing below AIO_PRE_MIN.
-define('AIO_OP_BUDGET', 55);
+// The check gets what is left of AIO_OP_BUDGET, nothing below this.
 define('AIO_PRE_MIN', 3);
 // A longer Location is not taken for a stream URL.
 define('AIO_PRE_LOC_MAX', 4096);
@@ -408,13 +307,9 @@ function aio_pre_slate($query)
  */
 function aio_precheck($url)
 {
-    $left = Aio::$t0 > 0 ? AIO_OP_BUDGET - (microtime(true) - Aio::$t0) : AIO_PRE_TOTAL;
-    $total = (int) min(AIO_PRE_TOTAL, floor($left));
-    if ($total < AIO_PRE_MIN)
-    {
-        aio_log(sprintf('precheck: skipped, the operation took %.1f s', AIO_OP_BUDGET - $left));
+    $total = aio_op_total(AIO_PRE_TOTAL, AIO_PRE_MIN, 'precheck');
+    if ($total === 0)
         return array('class' => 'unclear', 'why' => 'no time');
-    }
     $t = microtime(true);
     $err = '';
     list($code, $loc, $type, $len) = aio_http_peek($url, $err, min(AIO_PRE_CONNECT, $total), $total);
