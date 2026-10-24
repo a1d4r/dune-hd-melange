@@ -183,7 +183,7 @@ function aio_cgi_check_values($v)
     $seen = $tk['seen'];
     $new = $v['cur'][$set[$k]];
     $shown = $d[$set['aio_server']] === 'own' && $d[$set['aio_own']] !== $v['cur'][$set['aio_own']] ? $new :
-        aio_cgi_tpl_shown($mode, $d[$set['aio_server']], $d[$set['aio_own']], $v['confs'], $new);
+        aio_cgi_tpl_shown($mode, aio_settings_base($d), $v['confs'], $new);
     if ($v[$seen] !== '' && ($v['ajax'] || aio_cgi_same_server($d, $v['cur'])) && $v[$seen] !== $shown)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Шаблон изменён в другой вкладке — обновите страницу',
@@ -312,7 +312,7 @@ function aio_cgi_resets($d, $confs, $v)
         return false;
     $tk = aio_cgi_tpl_keys($d['aio_mode']);
     $k = $tk['field'];
-    return $v[$k] !== '' && $v[$k] !== aio_cgi_tpl_shown($d['aio_mode'], $d['aio_server'], $d['aio_own_url'], $confs, '');
+    return $v[$k] !== '' && $v[$k] !== aio_cgi_tpl_shown($d['aio_mode'], $b, $confs, '');
 }
 
 // The server chosen in $d (settings.json) is the stored one of $cur: the

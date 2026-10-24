@@ -351,13 +351,12 @@ function aio_cgi_aio_base($server, $own)
     return $server === 'own' ? aio_aio_own($own) : $server;
 }
 
-// The template the page shows in the mode $m for the server $server
-// (aio_server; 'own' - at $own) with the configs $confs (aio_confs), 0.40.0:
-// that of its config of the mode ('none' - not known yet), else $new
+// The template the page shows in the mode $m for the server of the base $b
+// (aio_cgi_aio_base, aio_settings_base) with the configs $confs (aio_confs),
+// 0.40.0: that of its config of the mode ('none' - not known yet), else $new
 // (aio_tpl or aio_tpl_p2p, for a new config).
-function aio_cgi_tpl_shown($m, $server, $own, $confs, $new)
+function aio_cgi_tpl_shown($m, $b, $confs, $new)
 {
-    $b = aio_cgi_aio_base($server, $own);
     if ($b === '' || !isset($confs[$b][$m]))
         return $new;
     return $confs[$b][$m]['tpl'] !== null ? $confs[$b][$m]['tpl'] : 'none';
@@ -429,7 +428,7 @@ function aio_cgi_tpl_sel($v, $m)
     $tk = aio_cgi_tpl_keys($m);
     $k = $tk['field'];
     $new = $v[$tk['new']];
-    $shown = aio_cgi_tpl_shown($m, $v['aio_server'], $v['aio_own'], $v['confs'], $new);
+    $shown = aio_cgi_tpl_shown($m, aio_cgi_aio_base($v['aio_server'], $v['aio_own']), $v['confs'], $new);
     $all = $tk['tpls'] + aio_cgi_tpl_marks();
     return isset($tk['tpls'][$v[$k]]) ? $v[$k] : (isset($all[$shown]) ? $shown : $new);
 }
@@ -452,7 +451,7 @@ function aio_cgi_tpl($v, $m)
     $k = $tk['field'];
     $id = $f[$k]['id'];
     $seen = $tk['seen'];
-    $shown = aio_cgi_tpl_shown($m, $v['aio_server'], $v['aio_own'], $v['confs'], $v[$tk['new']]);
+    $shown = aio_cgi_tpl_shown($m, aio_cgi_aio_base($v['aio_server'], $v['aio_own']), $v['confs'], $v[$tk['new']]);
     $sel = aio_cgi_tpl_sel($v, $m);
     $out = '<p class="lbl">' . aio_cgi_l('Где искать раздачи', 'Where to look for releases') . '</p><div id="' . $id . 'h">';
     foreach (aio_cgi_tpl_marks() as $mk => $x)
