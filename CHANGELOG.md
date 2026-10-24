@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.46.0 — 24.10.2026
+- **"Skip intro" and "Next episode" in episodes.** The player shows "Skip intro" at the start of an episode (ENTER jumps to the end of the intro or the recap) and "Next episode" with a countdown over the credits (at zero the next episode starts). Melange asks the AIOStreams server the releases came from for the times, sending the length of the file when AIOStreams knows it. The buttons appear if the server supports this — the public server of Melange, `aiostreams.kompotik.com`; with other servers episodes play as before. Works on the r25 firmware. Via TorrServer only the episode you start gets the buttons: the other episodes of the same pack, which the player moves on to by itself, play without them.
+
 ## 0.45.1 — 24.10.2026
 - Fixed: on the r25 firmware the "Melange NN%" item of "Play…" went on watching right away, as "Continue" does, instead of opening the list of releases.
 - On the r25 firmware the "Continue" item of "Play…" reads "Continue: Melange" with a capital letter (was "melange"). The caption is updated when this version is installed.
@@ -106,6 +109,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.46.0 — 24.10.2026
+- **«Пропустить заставку» и «Следующий эпизод» в сериях.** В начале серии плеер показывает «Пропустить заставку» (ENTER — к концу заставки или пересказа прошлых серий), на титрах — «Следующий эпизод» с отсчётом (по нулю включается следующая серия). Время Melange спрашивает у сервера AIOStreams, с которого пришли раздачи, и передаёт длину файла, если AIOStreams её знает. Кнопки появляются, если сервер это умеет, — публичный сервер Melange `aiostreams.kompotik.com`; на других серверах серии играют как раньше. Работает на прошивке r25. Через TorrServer кнопки есть только у серии, которую вы запустили: другие серии той же раздачи, на которые плеер переходит сам, играют без них.
 
 ## 0.45.1 — 24.10.2026
 - Исправлено: на прошивке r25 пункт «Melange NN%» в «Смотреть…» сразу продолжал просмотр, как «Продолжить», вместо списка раздач.
