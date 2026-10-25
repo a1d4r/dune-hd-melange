@@ -3,7 +3,7 @@
 **English version**
 
 ## 0.46.1 — 25.10.2026
-- Release list: the bottom of the screen now also shows the keys **POP UP** (≡, the MENU key) — "Actions" (the menu of the release) and **INFO** — "Details" (the release details). The hints are in two rows and a little smaller: the first row has P+/P− "Scroll", ← → "Episodes" and the counter, the second one POP UP and INFO.
+- Release list: the hint row at the bottom of the screen now also shows the keys **POP UP** (≡, the MENU key) — "Actions" (the menu of the release) and **INFO** (i) — "Details" (the release details). The key hints are a little smaller, so they all fit in the row with the counter.
 
 ## 0.46.0 — 25.10.2026
 - **"Skip intro" and "Next episode" in episodes.** The player shows "Skip intro" at the start of an episode (ENTER jumps to the end of the intro or the recap) and "Next episode" with a countdown over the credits (at zero the next episode starts). Melange asks the AIOStreams server the releases came from for the times, sending the length of the file when AIOStreams knows it. The buttons appear if the server supports this — the public server of Melange, `aiostreams.kompotik.com`; with other servers episodes play as before. Works on the r25 firmware. Via TorrServer only the episode you start gets the buttons: the other episodes of the same pack, which the player moves on to by itself, play without them.
@@ -114,7 +114,7 @@ First public release. What it does:
 **Russian version**
 
 ## 0.46.1 — 25.10.2026
-- Список раздач: внизу экрана теперь есть и подсказки клавиш **POP UP** (≡, она же MENU) — «Действия» (меню раздачи) и **INFO** — «Сведения» (сведения о раздаче). Подсказки — в две строки и чуть мельче: в первой P+/P− «Прокрутка», ← → «Серии» и счётчик, во второй POP UP и INFO.
+- Список раздач: в строке подсказок внизу экрана теперь есть и клавиши **POP UP** (≡, она же MENU) — «Действия» (меню раздачи) и **INFO** (i) — «Сведения» (сведения о раздаче). Подсказки клавиш чуть мельче, чтобы все поместились в строку со счётчиком.
 
 ## 0.46.0 — 25.10.2026
 - **«Пропустить заставку» и «Следующий эпизод» в сериях.** В начале серии плеер показывает «Пропустить заставку» (ENTER — к концу заставки или пересказа прошлых серий), на титрах — «Следующий эпизод» с отсчётом (по нулю включается следующая серия). Время Melange спрашивает у сервера AIOStreams, с которого пришли раздачи, и передаёт длину файла, если AIOStreams её знает. Кнопки появляются, если сервер это умеет, — публичный сервер Melange `aiostreams.kompotik.com`; на других серверах серии играют как раньше. Работает на прошивке r25. Через TorrServer кнопки есть только у серии, которую вы запустили: другие серии той же раздачи, на которые плеер переходит сам, играют без них.
