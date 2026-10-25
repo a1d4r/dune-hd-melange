@@ -26,11 +26,17 @@ define('AIO_GC_LW', 1165);     // right edge at 1845 = 1920 - 75
 define('AIO_GC_LY', 130);      // 24 px under the title, no column heads
 define('AIO_GC_ROW_H', 64);
 define('AIO_GC_VIS', 13);      // visible rows: the list ends at y 962
-// The hint row of the list. Keys: the vendor ones (50 high) x 0.8, so their
-// widths at the callers are 91 and 42 (114 and 52 x 0.8). Labels 30 px and
-// the gap 10 to a label: chosen (vendor text 36, gap 12).
-define('AIO_GC_HINT_Y', 995);  // centred as the vendor row 990..1040
-define('AIO_GC_KEY_H', 40);
+// The hint row of the list: the keys at the vendor size, unscaled (scaled
+// down they blur on the device): P+/P- 114x50, POP UP and INFO 52x50. The
+// episode arrows (the vendor's bare chevron, nearly 50 high) at half size:
+// the chevron as high as the glyph on the POP UP plate. Labels 30 px in a box
+// of 40 centred on the keys, as on the device in 0.46.1; the gap 10 to a
+// label: chosen (vendor text 36, gap 12).
+define('AIO_GC_HINT_Y', 990);  // the vendor hint row 990..1040
+define('AIO_GC_KEY_H', 50);
+define('AIO_GC_LABEL_H', 40);
+define('AIO_GC_ARROW_W', 26);  // right_arrow.png 52x50 / 2
+define('AIO_GC_ARROW_H', 25);
 define('AIO_GC_HINT_PX', 30);
 define('AIO_GC_KEY_GAP', 10);   // key -> its label
 define('AIO_GC_HINT_GAP', 40);  // between hints (vendor HINTS_SMALL_HGAP)
@@ -828,7 +834,8 @@ function aio_gc_rate($bps, $approx, $lang)
         aio_tr($lang, 'rate_mbps');
 }
 
-// Children of 'counter' (under the list, at the right): "5 / 60".
+// Children of 'counter' (the hint row at the right, 300 x AIO_GC_KEY_H):
+// "5 / 60", placed as a hint label.
 /**
  * @param int $sel
  * @param int $n
@@ -836,30 +843,33 @@ function aio_gc_rate($bps, $approx, $lang)
  */
 function aio_gc_counter($sel, $n)
 {
-    return array(aio_gc_cut(null, aio_gc_at(300, AIO_GC_KEY_H, 0, 0), ($sel + 1) . " / $n", AIO_GC_HINT_PX,
-        AIO_GC_TEXT2, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
+    return array(aio_gc_cut(null, aio_gc_at(300, AIO_GC_LABEL_H, 0, (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2),
+        ($sel + 1) . " / $n", AIO_GC_HINT_PX, AIO_GC_TEXT2, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
 }
 
-// A hint at x of row y: key pictures $keys (url => width, 40 px high) side by
-// side, then label $text; returns the x of the next hint.
+// A hint at x of row y: key pictures $keys (url => width, $h high) side by
+// side, then label $text, both centred in the row of AIO_GC_KEY_H; returns
+// the x of the next hint.
 /**
  * @param list<AioGcComp> $d
  * @param int $x
  * @param int $y
  * @param array<string, int> $keys
  * @param string $text
+ * @param int $h
  * @return int
  */
-function aio_gc_hint(&$d, $x, $y, $keys, $text)
+function aio_gc_hint(&$d, $x, $y, $keys, $text, $h = AIO_GC_KEY_H)
 {
     foreach ($keys as $url => $w)
     {
-        $d[] = aio_gc_image(aio_gc_at($w, AIO_GC_KEY_H, $x, $y), $url);
+        $d[] = aio_gc_image(aio_gc_at($w, $h, $x, $y + intval((AIO_GC_KEY_H - $h) / 2)), $url);
         $x += $w;
     }
     $x += AIO_GC_KEY_GAP;
     $w = aio_gc_w($text, AIO_GC_HINT_PX);
-    $d[] = aio_gc_cut(null, aio_gc_at($w, AIO_GC_KEY_H, $x, $y), $text, AIO_GC_HINT_PX, AIO_GC_TEXT2);
+    $d[] = aio_gc_cut(null, aio_gc_at($w, AIO_GC_LABEL_H, $x, $y + (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $text,
+        AIO_GC_HINT_PX, AIO_GC_TEXT2);
     return $x + $w + AIO_GC_HINT_GAP;
 }
 
@@ -906,18 +916,18 @@ function aio_gc_window($st, $sel, $top)
         $d[] = aio_gc_rect(aio_gc_thumb_geom($top, $n), '#C0FFFFFF', 'thumb');
         // The vendor hint: the P+/P- key and its label (action_scroll of
         // shell_ext), as wide as the text: clear of the counter at the right.
-        $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/p_plus_p_minus.png' => 91),
+        $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/p_plus_p_minus.png' => 114),
             $tt['page']);
     }
     // An episode: the left and right keys go to the episode before and after.
     if ($st['e'] > 0)
-        $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/left_arrow.png' => 42,
-            'plugin_file://%shell_ext%/icons/right_arrow.png' => 42), $tt['flip']);
+        $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/left_arrow.png' => AIO_GC_ARROW_W,
+            'plugin_file://%shell_ext%/icons/right_arrow.png' => AIO_GC_ARROW_W), $tt['flip'], AIO_GC_ARROW_H);
     // The keys of aio_gc_folder_view: POP UP (the "≡" key of the remote, as
     // the vendor popup_icon_only.png) -> aio_gc_menu, INFO ("i") -> the details.
     $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y,
-        array('plugin_file://%shell_ext%/icons/popup_icon_only.png' => 42), $tt['actions']);
-    aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/info_key.png' => 42), $tt['details']);
+        array('plugin_file://%shell_ext%/icons/popup_icon_only.png' => 52), $tt['actions']);
+    aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/info_key.png' => 52), $tt['details']);
     $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT_Y),
         aio_gc_counter($sel, $n));
 
