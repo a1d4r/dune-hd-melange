@@ -6,10 +6,9 @@
 // subtitles, languages, trackers); on the right the list: cache icon (the
 // seeders of a P2P row), badges of kingsizew/badges (resolution, source,
 // picture, the best audio), size, language flags, trackers if room is left;
-// under it two hint rows: the P+/P- and <- -> hints with "1 / 60" at the
-// right, then POP UP "Actions" and INFO "Details". The plugin draws and
-// moves the selection itself with change_gcomps; the position travels in
-// sel_state {"sel":N,"top":T}.
+// under it one hint row: P+/P-, <- ->, POP UP "Actions", INFO "Details" and
+// "1 / 60" at the right. The plugin draws and moves the selection itself
+// with change_gcomps; the position travels in sel_state {"sel":N,"top":T}.
 // Shapes as proven on the device (04.10.2026).
 // Reads Aio (state, settings), writes the cursor keys of Aio::$state.
 // PHP 5.3.6, firmware API only.
@@ -27,15 +26,14 @@ define('AIO_GC_LW', 1165);     // right edge at 1845 = 1920 - 75
 define('AIO_GC_LY', 130);      // 24 px under the title, no column heads
 define('AIO_GC_ROW_H', 64);
 define('AIO_GC_VIS', 13);      // visible rows: the list ends at y 962
-// Two hint rows of the list. Keys: the vendor ones (50 high) x 0.8, so their
+// The hint row of the list. Keys: the vendor ones (50 high) x 0.8, so their
 // widths at the callers are 91 and 42 (114 and 52 x 0.8). Labels 30 px and
-// the gaps 10 and 60: chosen (vendor text 36, gaps 12 and 80).
-define('AIO_GC_HINT1_Y', 974);  // P+/P-, <- ->, "1 / 60"
-define('AIO_GC_HINT2_Y', 1024); // POP UP, INFO; its bottom 16 px above the screen's
+// the gap 10 to a label: chosen (vendor text 36, gap 12).
+define('AIO_GC_HINT_Y', 995);  // centred as the vendor row 990..1040
 define('AIO_GC_KEY_H', 40);
 define('AIO_GC_HINT_PX', 30);
 define('AIO_GC_KEY_GAP', 10);   // key -> its label
-define('AIO_GC_HINT_GAP', 60);  // between hints of a row
+define('AIO_GC_HINT_GAP', 40);  // between hints (vendor HINTS_SMALL_HGAP)
 define('AIO_GC_PAD', 16);      // row padding left and right
 define('AIO_GC_GAP', 16);      // between columns
 // "rutracker +3" (142 px by the estimate) with a margin; less room: no tracker
@@ -908,20 +906,20 @@ function aio_gc_window($st, $sel, $top)
         $d[] = aio_gc_rect(aio_gc_thumb_geom($top, $n), '#C0FFFFFF', 'thumb');
         // The vendor hint: the P+/P- key and its label (action_scroll of
         // shell_ext), as wide as the text: clear of the counter at the right.
-        $hx = aio_gc_hint($d, $hx, AIO_GC_HINT1_Y, array('plugin_file://%shell_ext%/icons/p_plus_p_minus.png' => 91),
+        $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/p_plus_p_minus.png' => 91),
             $tt['page']);
     }
     // An episode: the left and right keys go to the episode before and after.
     if ($st['e'] > 0)
-        aio_gc_hint($d, $hx, AIO_GC_HINT1_Y, array('plugin_file://img/left_arrow.png' => 42,
+        $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/left_arrow.png' => 42,
             'plugin_file://%shell_ext%/icons/right_arrow.png' => 42), $tt['flip']);
-    $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT1_Y),
-        aio_gc_counter($sel, $n));
     // The keys of aio_gc_folder_view: POP UP (the "≡" key of the remote, as
     // the vendor popup_icon_only.png) -> aio_gc_menu, INFO ("i") -> the details.
-    $hx = aio_gc_hint($d, AIO_GC_LX, AIO_GC_HINT2_Y,
+    $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y,
         array('plugin_file://%shell_ext%/icons/popup_icon_only.png' => 42), $tt['actions']);
-    aio_gc_hint($d, $hx, AIO_GC_HINT2_Y, array('plugin_file://img/info_key.png' => 42), $tt['details']);
+    aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/info_key.png' => 42), $tt['details']);
+    $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT_Y),
+        aio_gc_counter($sel, $n));
 
     $fanart = aio_img($mv['fanart']);
     // Same key set as vendor GCompsFactory::get_window_def().
