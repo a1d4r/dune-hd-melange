@@ -18,6 +18,7 @@ define('AIO_INF_CW', 563);      // three columns, 40 px apart
 define('AIO_INF_CGAP', 40);
 define('AIO_INF_Y', 116);       // the pages: under the title, down to y 962
 define('AIO_INF_H', 846);
+define('AIO_INF_HINT_Y', 990);  // the P+/P- hint and the counter, as the vendor hint row
 define('AIO_INF_COLS_Y', 84);   // page 1: the columns at y 200, under a name of 2 lines
 define('AIO_INF_HEAD_H', 40);   // page 1: column heads, 28 px
 define('AIO_INF_LH', 32);       // page 1: labels 24 px, values 26 px
@@ -1018,12 +1019,12 @@ function aio_info_window($st, $n, $pages, $page)
     $d[] = aio_gc_panel('iview', aio_gc_at(AIO_INF_W, AIO_INF_H, AIO_INF_X, AIO_INF_Y),
         array(aio_gc_panel('ipages', aio_info_pages_geom($page, count($pages)), $in, 0)), 0);
     // The vendor hint of P+/P- and "Страницы", the counter at the right.
-    $d[] = aio_gc_image(aio_gc_at(114, 50, AIO_INF_X, AIO_GC_HINT_Y),
+    $d[] = aio_gc_image(aio_gc_at(114, 50, AIO_INF_X, AIO_INF_HINT_Y),
         'plugin_file://%shell_ext%/icons/p_plus_p_minus.png');
     $hint = aio_tr($tt['lang'], 'info_pages');
-    $d[] = aio_gc_cut(null, aio_gc_at(aio_gc_w($hint, 36), 50, AIO_INF_X + 126, AIO_GC_HINT_Y), $hint, 36,
+    $d[] = aio_gc_cut(null, aio_gc_at(aio_gc_w($hint, 36), 50, AIO_INF_X + 126, AIO_INF_HINT_Y), $hint, 36,
         AIO_GC_TEXT2);
-    $d[] = aio_gc_panel('icount', aio_gc_at(300, 50, AIO_INF_X + AIO_INF_W - 300, AIO_GC_HINT_Y),
+    $d[] = aio_gc_panel('icount', aio_gc_at(300, 50, AIO_INF_X + AIO_INF_W - 300, AIO_INF_HINT_Y),
         aio_info_counter($page, count($pages)));
     $fanart = aio_img($mv['fanart']);
     // Same key set as vendor GCompsFactory::get_window_def().

@@ -27,7 +27,6 @@ define('AIO_GC_LW', 1165);     // right edge at 1845 = 1920 - 75
 define('AIO_GC_LY', 130);      // 24 px under the title, no column heads
 define('AIO_GC_ROW_H', 64);
 define('AIO_GC_VIS', 13);      // visible rows: the list ends at y 962
-define('AIO_GC_HINT_Y', 990);  // the hint row of the INFO screen (view_info), as the vendor one
 // Two hint rows of the list, the vendor ones (keys 50, text 36) scaled to 0.8.
 define('AIO_GC_HINT1_Y', 974);  // P+/P-, <- ->, "1 / 60"
 define('AIO_GC_HINT2_Y', 1024); // POP UP, INFO; its bottom 16 px above the screen's
