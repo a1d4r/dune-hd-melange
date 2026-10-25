@@ -6,7 +6,8 @@
 // subtitles, languages, trackers); on the right the list: cache icon (the
 // seeders of a P2P row), badges of kingsizew/badges (resolution, source,
 // picture, the best audio), size, language flags, trackers if room is left;
-// under it the P+/P- hint and "1 / 60". The plugin draws and moves the
+// under it two hint rows: the P+/P- and <- -> hints with "1 / 60" at the
+// right, then POP UP "Действия" and INFO "Сведения". The plugin draws and moves the
 // selection itself with change_gcomps; the position travels in sel_state
 // {"sel":N,"top":T}.
 // Shapes as proven on the device (04.10.2026).
@@ -26,8 +27,14 @@ define('AIO_GC_LW', 1165);     // right edge at 1845 = 1920 - 75
 define('AIO_GC_LY', 130);      // 24 px under the title, no column heads
 define('AIO_GC_ROW_H', 64);
 define('AIO_GC_VIS', 13);      // visible rows: the list ends at y 962
-define('AIO_GC_HINT_Y', 990);  // P+/P- key and "1 / 60", as the vendor hint row
-define('AIO_GC_HINT_GAP', 80);  // between hints of that row (vendor HINTS_HGAP)
+define('AIO_GC_HINT_Y', 990);  // the hint row of the INFO screen (view_info), as the vendor one
+// Two hint rows of the list, the vendor ones (keys 50, text 36) scaled to 0.8.
+define('AIO_GC_HINT1_Y', 974);  // P+/P-, <- ->, "1 / 60"
+define('AIO_GC_HINT2_Y', 1024); // POP UP, INFO; its bottom 16 px above the screen's
+define('AIO_GC_KEY_H', 40);
+define('AIO_GC_HINT_PX', 30);
+define('AIO_GC_KEY_GAP', 10);   // key -> its label
+define('AIO_GC_HINT_GAP', 60);  // between hints of a row (vendor HINTS_HGAP 80)
 define('AIO_GC_PAD', 16);      // row padding left and right
 define('AIO_GC_GAP', 16);      // between columns
 // "rutracker +3" (142 px by the estimate) with a margin; less room: no tracker
@@ -110,7 +117,8 @@ function aio_gc_text($lang)
         'voices' => aio_tr($lang, 'gc_voices'), 'subs' => aio_tr($lang, 'gc_subs'),
         'langs' => aio_tr($lang, 'gc_langs'), 'trackers' => aio_tr($lang, 'gc_trackers'),
         'addon' => aio_tr($lang, 'gc_addon'),
-        'flip' => aio_tr($lang, 'gc_flip'));
+        'flip' => aio_tr($lang, 'gc_flip'),
+        'actions' => aio_tr($lang, 'gc_actions'), 'details' => aio_tr($lang, 'gc_details'));
 }
 
 // The cache status of row $r: "В кэше <service>", "Нужно скачать", "P2P" (no
@@ -829,8 +837,31 @@ function aio_gc_rate($bps, $approx, $lang)
  */
 function aio_gc_counter($sel, $n)
 {
-    return array(aio_gc_cut(null, aio_gc_at(300, 50, 0, 0), ($sel + 1) . " / $n", 36, AIO_GC_TEXT2,
-        array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
+    return array(aio_gc_cut(null, aio_gc_at(300, AIO_GC_KEY_H, 0, 0), ($sel + 1) . " / $n", AIO_GC_HINT_PX,
+        AIO_GC_TEXT2, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
+}
+
+// A hint at x of row y: key pictures $keys (url => width, 40 px high) side by
+// side, then label $text; returns the x of the next hint.
+/**
+ * @param list<AioGcComp> $d
+ * @param int $x
+ * @param int $y
+ * @param array<string, int> $keys
+ * @param string $text
+ * @return int
+ */
+function aio_gc_hint(&$d, $x, $y, $keys, $text)
+{
+    foreach ($keys as $url => $w)
+    {
+        $d[] = aio_gc_image(aio_gc_at($w, AIO_GC_KEY_H, $x, $y), $url);
+        $x += $w;
+    }
+    $x += AIO_GC_KEY_GAP;
+    $w = aio_gc_w($text, AIO_GC_HINT_PX);
+    $d[] = aio_gc_cut(null, aio_gc_at($w, AIO_GC_KEY_H, $x, $y), $text, AIO_GC_HINT_PX, AIO_GC_TEXT2);
+    return $x + $w + AIO_GC_HINT_GAP;
 }
 
 /**
@@ -874,25 +905,22 @@ function aio_gc_window($st, $sel, $top)
         $d[] = aio_gc_rect(aio_gc_at(6, AIO_GC_VIS * AIO_GC_ROW_H, AIO_GC_LX + AIO_GC_LW + 10, AIO_GC_LY),
             '#30FFFFFF');
         $d[] = aio_gc_rect(aio_gc_thumb_geom($top, $n), '#C0FFFFFF', 'thumb');
-        // The vendor hint: the P+/P- key and its 36 px label (action_scroll of
+        // The vendor hint: the P+/P- key and its label (action_scroll of
         // shell_ext), as wide as the text: clear of the counter at the right.
-        $d[] = aio_gc_image(aio_gc_at(114, 50, AIO_GC_LX, AIO_GC_HINT_Y),
-            'plugin_file://%shell_ext%/icons/p_plus_p_minus.png');
-        $w = aio_gc_w($tt['page'], 36);
-        $d[] = aio_gc_cut(null, aio_gc_at($w, 50, AIO_GC_LX + 126, AIO_GC_HINT_Y), $tt['page'], 36, AIO_GC_TEXT2);
-        $hx = AIO_GC_LX + 126 + $w + AIO_GC_HINT_GAP;
+        $hx = aio_gc_hint($d, $hx, AIO_GC_HINT1_Y, array('plugin_file://%shell_ext%/icons/p_plus_p_minus.png' => 91),
+            $tt['page']);
     }
     // An episode: the left and right keys go to the episode before and after.
     if ($st['e'] > 0)
-    {
-        $d[] = aio_gc_image(aio_gc_at(52, 50, $hx, AIO_GC_HINT_Y), 'plugin_file://img/left_arrow.png');
-        $d[] = aio_gc_image(aio_gc_at(52, 50, $hx + 52, AIO_GC_HINT_Y),
-            'plugin_file://%shell_ext%/icons/right_arrow.png');
-        $d[] = aio_gc_cut(null, aio_gc_at(aio_gc_w($tt['flip'], 36), 50, $hx + 116, AIO_GC_HINT_Y), $tt['flip'], 36,
-            AIO_GC_TEXT2);
-    }
-    $d[] = aio_gc_panel('counter', aio_gc_at(300, 50, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT_Y),
+        aio_gc_hint($d, $hx, AIO_GC_HINT1_Y, array('plugin_file://img/left_arrow.png' => 42,
+            'plugin_file://%shell_ext%/icons/right_arrow.png' => 42), $tt['flip']);
+    $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT1_Y),
         aio_gc_counter($sel, $n));
+    // The keys of aio_gc_folder_view: POP UP (the "≡" key of the remote, as
+    // the vendor popup_icon_only.png) -> aio_gc_menu, INFO ("i") -> the details.
+    $hx = aio_gc_hint($d, AIO_GC_LX, AIO_GC_HINT2_Y,
+        array('plugin_file://%shell_ext%/icons/popup_icon_only.png' => 42), $tt['actions']);
+    aio_gc_hint($d, $hx, AIO_GC_HINT2_Y, array('plugin_file://img/info_key.png' => 42), $tt['details']);
 
     $fanart = aio_img($mv['fanart']);
     // Same key set as vendor GCompsFactory::get_window_def().

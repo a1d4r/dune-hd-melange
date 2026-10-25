@@ -170,7 +170,7 @@ parameters:
                 lang: string, page: string, pack: string, group: string, source: string,
                 cached: string, cached_in: string, download: string, unknown: string, p2p: string,
                 video: string, audio: string, voices: string, subs: string, langs: string,
-                trackers: string, addon: string, flip: string
+                trackers: string, addon: string, flip: string, actions: string, details: string
             }
         '''
         # Columns of the list (aio_gc_cols, view_gcomps.php): x and width;
