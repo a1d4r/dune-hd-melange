@@ -7,9 +7,9 @@
 // seeders of a P2P row), badges of kingsizew/badges (resolution, source,
 // picture, the best audio), size, language flags, trackers if room is left;
 // under it two hint rows: the P+/P- and <- -> hints with "1 / 60" at the
-// right, then POP UP "Действия" and INFO "Сведения". The plugin draws and moves the
-// selection itself with change_gcomps; the position travels in sel_state
-// {"sel":N,"top":T}.
+// right, then POP UP "Actions" and INFO "Details". The plugin draws and
+// moves the selection itself with change_gcomps; the position travels in
+// sel_state {"sel":N,"top":T}.
 // Shapes as proven on the device (04.10.2026).
 // Reads Aio (state, settings), writes the cursor keys of Aio::$state.
 // PHP 5.3.6, firmware API only.
@@ -27,13 +27,15 @@ define('AIO_GC_LW', 1165);     // right edge at 1845 = 1920 - 75
 define('AIO_GC_LY', 130);      // 24 px under the title, no column heads
 define('AIO_GC_ROW_H', 64);
 define('AIO_GC_VIS', 13);      // visible rows: the list ends at y 962
-// Two hint rows of the list, the vendor ones (keys 50, text 36) scaled to 0.8.
+// Two hint rows of the list. Keys: the vendor ones (50 high) x 0.8, so their
+// widths at the callers are 91 and 42 (114 and 52 x 0.8). Labels 30 px and
+// the gaps 10 and 60: chosen (vendor text 36, gaps 12 and 80).
 define('AIO_GC_HINT1_Y', 974);  // P+/P-, <- ->, "1 / 60"
 define('AIO_GC_HINT2_Y', 1024); // POP UP, INFO; its bottom 16 px above the screen's
 define('AIO_GC_KEY_H', 40);
 define('AIO_GC_HINT_PX', 30);
 define('AIO_GC_KEY_GAP', 10);   // key -> its label
-define('AIO_GC_HINT_GAP', 60);  // between hints of a row (vendor HINTS_HGAP 80)
+define('AIO_GC_HINT_GAP', 60);  // between hints of a row
 define('AIO_GC_PAD', 16);      // row padding left and right
 define('AIO_GC_GAP', 16);      // between columns
 // "rutracker +3" (142 px by the estimate) with a margin; less room: no tracker
