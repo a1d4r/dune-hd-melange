@@ -323,18 +323,17 @@ function aio_gc_lang($st)
     return $st['lang'] === 'ru' ? 'ru' : 'en';
 }
 
-// array(title with year, "S05E03 · 60 раздач").
+// array(title with year, "S05E03" of an episode, else ''). The number of
+// releases is in the counter under the list.
 /**
  * @param AioState $st
- * @param int $n
  * @return array{string, string}
  */
-function aio_gc_title($st, $n)
+function aio_gc_title($st)
 {
     $mv = $st['movie'];
     $title = $mv['title'] . (preg_match('/^[0-9]{4}$/', $mv['year']) ? " ({$mv['year']})" : '');
-    $ep = $st['e'] > 0 ? sprintf('S%02dE%02d · ', $st['s'], $st['e']) : '';
-    return array($title, "$ep$n " . aio_gc_plural(aio_gc_lang($st), $n, 'gc_streams'));
+    return array($title, $st['e'] > 0 ? sprintf('S%02dE%02d', $st['s'], $st['e']) : '');
 }
 
 // The word <$key>_one/_few/_many for $n: English 1 / else, Russian by the
@@ -894,12 +893,14 @@ function aio_gc_window($st, $sel, $top)
     $d[] = aio_gc_panel('card', aio_gc_at(AIO_GC_CW, AIO_GC_CARD_BOTTOM - AIO_GC_CY, AIO_GC_CX, AIO_GC_CY),
         aio_gc_card($st, $sel));
 
-    // Title cut alone; the episode and the count have their own label.
-    list($title, $count) = aio_gc_title($st, $n);
-    $cw = min(440, aio_gc_w($count, 36));
-    $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16 - $cw - 30, 66, AIO_GC_LX, 40), $title, 48, AIO_GC_TEXT);
-    $d[] = aio_gc_cut(null, aio_gc_at($cw, 50, AIO_GC_LX + AIO_GC_LW - 16 - $cw, 52), $count, 36, AIO_GC_TEXT2,
-        array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
+    // Title cut alone; an episode has its own label at the right.
+    list($title, $ep) = aio_gc_title($st);
+    $ew = $ep === '' ? 0 : aio_gc_w($ep, 36);
+    $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16 - ($ew > 0 ? $ew + 30 : 0), 66, AIO_GC_LX, 40), $title, 48,
+        AIO_GC_TEXT);
+    if ($ep !== '')
+        $d[] = aio_gc_cut(null, aio_gc_at($ew, 50, AIO_GC_LX + AIO_GC_LW - 16 - $ew, 52), $ep, 36, AIO_GC_TEXT2,
+            array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
 
     // Viewport: clipping panel 'list'; the inner panel 'rows' moves to scroll.
     $prog = isset($st['gc_prog']) ? $st['gc_prog'] : array();

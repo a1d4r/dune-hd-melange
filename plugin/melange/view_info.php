@@ -1005,7 +1005,7 @@ function aio_info_window($st, $n, $pages, $page)
     $tt = aio_gc_text(aio_gc_lang($st));
     $d = array(aio_gc_rect(aio_gc_at(1920, 1080, 0, 0), '#C0000000'));
     // The title as the list's; the episode and the row at the right.
-    list($title) = aio_gc_title($st, count($st['rows']));
+    list($title) = aio_gc_title($st);
     $count = ($st['e'] > 0 ? sprintf('S%02dE%02d · ', $st['s'], $st['e']) : '') .
         aio_tr($tt['lang'], 'info_stream') . ' ' . ($n + 1) . ' / ' . count($st['rows']);
     $cw = min(600, aio_gc_w($count, 36));
