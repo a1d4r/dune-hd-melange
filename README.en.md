@@ -82,7 +82,7 @@ If you change the password of your own config in AIOStreams, the config link cha
 
 ## How to watch
 1. Open a movie in the **Movies** catalog → **Play...** → **Melange**. For a series, choose an episode in the series card via **Seasons**, then **Melange** the same way.
-2. The release list opens. At the top: the title, season and episode, the number of releases. On the left: details of the selected release, including:
+2. The release list opens. At the top: the title, for an episode also the season and episode; at the bottom right, the number of the release under the cursor and of all releases ("5 / 60"). On the left: details of the selected release, including:
    - **"Cached in Real-Debrid"** (green): the release is already in your Debrid and starts at once; the service name is what AIOStreams sent;
    - **"Not cached"** (gray): the release is not in the Debrid cache;
    - **"unknown"**: AIOStreams did not say whether the release is cached;
