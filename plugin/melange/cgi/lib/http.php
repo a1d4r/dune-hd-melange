@@ -1,7 +1,7 @@
 <?php
 // The settings page (cgi/settings.php): the request and the reply - the
 // parameters, the language, the log line, the headers and the body of a
-// reply; curl - the body, headers, redirects and cookies of a request.
+// reply; curl - the one request of the page (aio_cgi_curl), redirects.
 
 define('AIO_CGI_MAX_BODY', 262144);
 define('AIO_CGI_CA', '/firmware/certs/ca-bundle.crt');
@@ -92,28 +92,6 @@ function aio_cgi_forbidden()
     aio_cgi_send(403, 'text/plain', "403 Forbidden\n");
 }
 
-$AIO_CGI_BODY = '';
-// The limit of aio_cgi_body; the JacRed check raises it.
-$AIO_CGI_MAX = AIO_CGI_MAX_BODY;
-function aio_cgi_body($ch, $data)
-{
-    global $AIO_CGI_BODY, $AIO_CGI_MAX;
-    // A different length aborts the transfer (curl 23).
-    if (strlen($AIO_CGI_BODY) + strlen($data) > $AIO_CGI_MAX)
-        return 0;
-    $AIO_CGI_BODY .= $data;
-    return strlen($data);
-}
-
-$AIO_CGI_LOCATION = '';
-function aio_cgi_head($ch, $line)
-{
-    global $AIO_CGI_LOCATION;
-    if (preg_match('/^Location:\s*(.*?)\s*$/i', $line, $m))
-        $AIO_CGI_LOCATION = $m[1];
-    return strlen($line);
-}
-
 // Location of a redirect -> the address it points to (relative to $base).
 function aio_cgi_location($base, $loc)
 {
@@ -127,58 +105,88 @@ function aio_cgi_location($base, $loc)
     return substr($base, 0, strrpos($base, '/') + 1) . $loc;
 }
 
-$AIO_CGI_COOKIES = array();
-function aio_cgi_srv_head($ch, $line)
+// The one curl request of the page, no redirects followed: $o - method
+// ('GET' by default; POST, PUT), body (of a POST or PUT), headers (the request
+// headers), connect, total (timeouts, s), max (the body read at most,
+// AIO_CGI_MAX_BODY by default), ua (User-Agent), gzip (any Content-Encoding)
+// -> array(errno: curl errno, 0 also when cut, -1 its options refused; code:
+// HTTP code; body; cut: over max (curl 23), the start is there; location:
+// Location of the reply; cookies: its Set-Cookie as "a=b; c=d"; error: the
+// text of curl).
+function aio_cgi_curl($url, $o)
 {
-    global $AIO_CGI_COOKIES;
-    if (preg_match('/^Set-Cookie:\s*([A-Za-z0-9_.\-]+=[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*)/i', $line, $m))
-        $AIO_CGI_COOKIES[] = $m[1];
-    return aio_cgi_head($ch, $line);
-}
-
-// One request of the check: POST of $fields (null: GET) with the cookies
-// $cookie (or the request headers $headers instead) -> array(curl errno or 0, HTTP code, body (256 KB at most),
-// cookies of the reply, the body cut at the limit). No redirects, 3 s to
-// connect, 8 s in all.
-function aio_cgi_srv_req($url, $fields, $cookie, $headers = null)
-{
-    global $AIO_CGI_BODY, $AIO_CGI_COOKIES, $AIO_CGI_LOCATION;
-    $AIO_CGI_BODY = '';
-    $AIO_CGI_COOKIES = array();
-    $AIO_CGI_LOCATION = '';
+    $o += array('method' => 'GET', 'body' => null, 'headers' => array(), 'max' => AIO_CGI_MAX_BODY, 'gzip' => false);
+    $max = $o['max'];
+    $body = '';
+    $loc = '';
+    $cookies = array();
     $opt = array(
-        CURLOPT_WRITEFUNCTION => 'aio_cgi_body',
-        CURLOPT_HEADERFUNCTION => 'aio_cgi_srv_head',
+        CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$body, $max)
+        {
+            // A different length aborts the transfer (curl 23).
+            if (strlen($body) + strlen($data) > $max)
+                return 0;
+            $body .= $data;
+            return strlen($data);
+        },
+        CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$loc, &$cookies)
+        {
+            if (preg_match('/^Location:\s*(.*?)\s*$/i', $line, $m))
+                $loc = $m[1];
+            if (preg_match('/^Set-Cookie:\s*([A-Za-z0-9_.\-]+=[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*)/i', $line, $m))
+                $cookies[] = $m[1];
+            return strlen($line);
+        },
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-        CURLOPT_CONNECTTIMEOUT => 3,
-        CURLOPT_TIMEOUT => 8,
+        CURLOPT_CONNECTTIMEOUT => $o['connect'],
+        CURLOPT_TIMEOUT => $o['total'],
+        // HTTPS works only with the firmware CA bundle.
         CURLOPT_CAINFO => AIO_CGI_CA,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        // As aio_http_post of the plugin: no Referer or Origin, no Expect.
-        CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION,
-        CURLOPT_HTTPHEADER => is_array($headers) ? $headers :
-            ($cookie !== '' ? array('Expect:', "Cookie: $cookie") : array('Expect:')));
-    if (is_array($fields))
-    {
+        CURLOPT_USERAGENT => $o['ua'],
+        CURLOPT_HTTPHEADER => $o['headers']);
+    if ($o['gzip'])
+        $opt[CURLOPT_ENCODING] = '';
+    if ($o['method'] === 'POST')
         $opt[CURLOPT_POST] = true;
-        $opt[CURLOPT_POSTFIELDS] = http_build_query($fields, '', '&');
-    }
+    elseif ($o['method'] !== 'GET')
+        $opt[CURLOPT_CUSTOMREQUEST] = $o['method'];
+    if ($o['method'] !== 'GET')
+        $opt[CURLOPT_POSTFIELDS] = $o['body'];
     $ch = curl_init($url);
     if (!curl_setopt_array($ch, $opt))
     {
         curl_close($ch);
-        return array(-1, 0, '', '', false);
+        return array('errno' => -1, 'code' => 0, 'body' => '', 'cut' => false, 'location' => '', 'cookies' => '',
+            'error' => 'curl options refused');
     }
     $ok = curl_exec($ch);
     $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
     $errno = curl_errno($ch);
+    $error = curl_error($ch);
     curl_close($ch);
-    // 23: cut by aio_cgi_body, the start is there.
     $cut = $ok === false && $errno === 23;
-    $errno = $ok === false && !$cut ? $errno : 0;
-    return array($errno, $code, $AIO_CGI_BODY, implode('; ', $AIO_CGI_COOKIES), $cut);
+    return array('errno' => $ok === false && !$cut ? $errno : 0, 'code' => $code, 'body' => $body, 'cut' => $cut,
+        'location' => $loc, 'cookies' => implode('; ', $cookies), 'error' => $error);
+}
+
+// One request of the checks of a server, a key, JacRed: POST of $fields
+// (null: GET) with the cookies $cookie (or the request headers $headers
+// instead), the body up to $max -> the reply of aio_cgi_curl. 3 s to connect,
+// 8 s in all.
+function aio_cgi_srv_req($url, $fields, $cookie, $headers = null, $max = AIO_CGI_MAX_BODY)
+{
+    // As aio_http_post of the plugin: no Referer or Origin, no Expect.
+    return aio_cgi_curl($url, array(
+        'method' => is_array($fields) ? 'POST' : 'GET',
+        'body' => is_array($fields) ? http_build_query($fields, '', '&') : null,
+        'headers' => is_array($headers) ? $headers : ($cookie !== '' ? array('Expect:', "Cookie: $cookie") : array('Expect:')),
+        'connect' => 3,
+        'total' => 8,
+        'max' => $max,
+        'ua' => 'Melange-Dune/' . AIO_VERSION));
 }
 
 // $what: the service at the address for "connection refused", '' for a client.

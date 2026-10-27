@@ -27,44 +27,26 @@ function aio_cgi_aio_api($base, $what)
 // (null: not JSON or over 1 MB)).
 function aio_cgi_aio_req($base, $method, $json, $auth, $what = 'user')
 {
-    global $AIO_CGI_BODY, $AIO_CGI_MAX;
-    $AIO_CGI_BODY = '';
-    $AIO_CGI_MAX = AIO_CGI_AIO_MAX;
     $h = array('Accept: application/json', 'Expect:');
     if ($json !== null)
         $h[] = 'Content-Type: application/json';
     if ($auth)
         $h[] = 'Authorization: Basic ' . base64_encode("$auth[0]:$auth[1]");
-    $opt = array(
-        CURLOPT_WRITEFUNCTION => 'aio_cgi_body',
-        CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-        CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_TIMEOUT => AIO_CGI_AIO_TIMEOUT,
-        CURLOPT_CAINFO => AIO_CGI_CA,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_ENCODING => '',
-        CURLOPT_USERAGENT => 'AIOStreams-DuneClient/' . AIO_VERSION,
-        CURLOPT_HTTPHEADER => $h);
-    if ($method !== 'GET')
-    {
-        $opt[CURLOPT_CUSTOMREQUEST] = $method;
-        $opt[CURLOPT_POSTFIELDS] = $json;
-    }
     // raw: the config itself, without the parent config the server merges
     // in (a PUT would bake it in); the web settings of AIOStreams ask so too.
-    $ch = curl_init(aio_cgi_aio_api($base, $what) . ($what === 'user' && $method === 'GET' ? '?raw=true' : ''));
-    $set = curl_setopt_array($ch, $opt);
-    $ok = $set ? curl_exec($ch) : false;
-    $code = $set ? intval(curl_getinfo($ch, CURLINFO_HTTP_CODE)) : 0;
-    $errno = $set ? curl_errno($ch) : -1;
-    curl_close($ch);
-    $AIO_CGI_MAX = AIO_CGI_MAX_BODY;
-    // 23: over 1 MB, cut by aio_cgi_body - not a reply of AIOStreams.
-    if ($ok === false && $errno !== 23)
-        return array($errno, 0, null);
-    return array(0, $code, $errno === 23 ? null : aio_conf_decode($AIO_CGI_BODY));
+    $r = aio_cgi_curl(aio_cgi_aio_api($base, $what) . ($what === 'user' && $method === 'GET' ? '?raw=true' : ''), array(
+        'method' => $method,
+        'body' => $json,
+        'headers' => $h,
+        'connect' => 5,
+        'total' => AIO_CGI_AIO_TIMEOUT,
+        'max' => AIO_CGI_AIO_MAX,
+        'ua' => 'AIOStreams-DuneClient/' . AIO_VERSION,
+        'gzip' => true));
+    if ($r['errno'])
+        return array($r['errno'], 0, null);
+    // Over 1 MB, cut: not a reply of AIOStreams.
+    return array(0, $r['code'], $r['cut'] ? null : aio_conf_decode($r['body']));
 }
 
 // A refused or failed request -> array(the reason for the page, the error

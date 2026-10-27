@@ -43,97 +43,79 @@ function aio_cgi_is_manifest($body)
     return false;
 }
 
-// GET manifest.json -> '' when it is a Stremio manifest, else the reason for the page.
+// GET manifest.json -> array('' when it is a Stremio manifest, else the
+// reason for the page; its body).
 // Redirects are followed here, not by curl: each address passes the rules of
 // the typed one (aio_manifest_url), so a server cannot send this root
 // request to http://127.0.0.1/cgi-bin/do?cmd=... of the Dune itself.
 function aio_cgi_check($url)
 {
-    global $AIO_CGI_LOCATION;
     $end = time() + 10;
     for ($hops = 0; ; $hops++)
     {
-        $why = aio_cgi_get($url, max(1, $end - time()));
+        list($why, $r) = aio_cgi_get($url, max(1, $end - time()));
         if ($why !== null)
-            return $why;
-        $next = aio_manifest_url(aio_cgi_location($url, $AIO_CGI_LOCATION));
+            return array($why, $r['body']);
+        $next = aio_manifest_url(aio_cgi_location($url, $r['location']));
         if ($next === '')
         {
             aio_cgi_log('manifest check: redirect to an address of the wrong form');
-            return aio_cgi_l('Сервер перенаправил на недопустимый адрес', 'The server redirected to an address that is not allowed');
+            return array(aio_cgi_l('Сервер перенаправил на недопустимый адрес', 'The server redirected to an address that is not allowed'), '');
         }
         if ($hops === 3)
         {
             aio_cgi_log('manifest check: too many redirects');
-            return aio_cgi_l('Слишком много перенаправлений', 'Too many redirects');
+            return array(aio_cgi_l('Слишком много перенаправлений', 'Too many redirects'), '');
         }
         $url = $next;
     }
 }
 
-// One GET of aio_cgi_check -> '' (a manifest), the reason, or null for a
-// redirect (its Location in $AIO_CGI_LOCATION).
+// One GET of aio_cgi_check -> array('' (a manifest), the reason, or null for
+// a redirect; the reply of aio_cgi_curl).
 function aio_cgi_get($url, $timeout)
 {
-    global $AIO_CGI_BODY, $AIO_CGI_LOCATION;
-    $AIO_CGI_BODY = '';
-    $AIO_CGI_LOCATION = '';
-    $http = CURLPROTO_HTTP | CURLPROTO_HTTPS;
-    $ch = curl_init($url);
-    $set = curl_setopt_array($ch, array(
-        CURLOPT_WRITEFUNCTION => 'aio_cgi_body',
-        CURLOPT_HEADERFUNCTION => 'aio_cgi_head',
-        CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_PROTOCOLS => $http,
-        CURLOPT_CONNECTTIMEOUT => min(5, $timeout),
-        CURLOPT_TIMEOUT => $timeout,
-        // HTTPS works only with the firmware CA bundle.
-        CURLOPT_CAINFO => AIO_CGI_CA,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_ENCODING => '',
+    $r = aio_cgi_curl($url, array(
         // As the plugin asks for streams.
-        CURLOPT_USERAGENT => 'AIOStreams-DuneClient/' . AIO_VERSION,
-        CURLOPT_HTTPHEADER => array('Accept: application/json')));
-    if (!$set)
+        'headers' => array('Accept: application/json'),
+        'connect' => min(5, $timeout),
+        'total' => $timeout,
+        'ua' => 'AIOStreams-DuneClient/' . AIO_VERSION,
+        'gzip' => true));
+    $code = $r['code'];
+    if ($r['errno'] === -1)
     {
-        curl_close($ch);
         aio_cgi_log('manifest check: curl options refused');
-        return aio_cgi_l('Сервер не отвечает (curl не настроен)', 'The server does not answer (curl not set up)');
+        return array(aio_cgi_l('Сервер не отвечает (curl не настроен)', 'The server does not answer (curl not set up)'), $r);
     }
-    $ok = curl_exec($ch);
-    $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
-    $errno = curl_errno($ch);
-    $err = curl_error($ch);
-    curl_close($ch);
-    // Aborted by aio_cgi_body: over 256 KB.
-    $big = $errno === 23;
-    if ($ok === false && !$big)
+    if ($r['errno'])
     {
         // The text of curl without the address.
         $host = (string) parse_url($url, PHP_URL_HOST);
-        $err = preg_replace('/[0-9]{1,3}(\.[0-9]{1,3}){3}/', '…', $host !== '' ? str_replace($host, '…', $err) : $err);
-        aio_cgi_log("manifest check: curl $errno");
-        return aio_cgi_l('Сервер не отвечает', 'The server does not answer') . " (curl $errno: $err)";
+        $err = preg_replace('/[0-9]{1,3}(\.[0-9]{1,3}){3}/', '…', $host !== '' ? str_replace($host, '…', $r['error']) :
+            $r['error']);
+        aio_cgi_log("manifest check: curl {$r['errno']}");
+        return array(aio_cgi_l('Сервер не отвечает', 'The server does not answer') . " (curl {$r['errno']}: $err)", $r);
     }
-    if (in_array($code, array(301, 302, 303, 307, 308), true) && $AIO_CGI_LOCATION !== '')
-        return null;
+    if (in_array($code, array(301, 302, 303, 307, 308), true) && $r['location'] !== '')
+        return array(null, $r);
     if ($code !== 200)
     {
         aio_cgi_log("manifest check: HTTP $code");
-        return "HTTP $code";
+        return array("HTTP $code", $r);
     }
-    if ($big)
+    // Cut by aio_cgi_curl: over 256 KB.
+    if ($r['cut'])
     {
         aio_cgi_log('manifest check: reply over 256 KB');
-        return aio_cgi_l('Ответ сервера больше 256 КБ — это не манифест AIOStreams', 'The reply is over 256 KB: not an AIOStreams manifest');
+        return array(aio_cgi_l('Ответ сервера больше 256 КБ — это не манифест AIOStreams', 'The reply is over 256 KB: not an AIOStreams manifest'), $r);
     }
-    if (!aio_cgi_is_manifest($AIO_CGI_BODY))
+    if (!aio_cgi_is_manifest($r['body']))
     {
         aio_cgi_log('manifest check: not a Stremio manifest');
-        return aio_cgi_l('Это не манифест Stremio', 'Not a Stremio manifest');
+        return array(aio_cgi_l('Это не манифест Stremio', 'Not a Stremio manifest'), $r);
     }
-    return '';
+    return array('', $r);
 }
 
 // The manifest just checked (aio_cgi_check returned '') -> "name vN" for the
@@ -155,7 +137,6 @@ function aio_cgi_manifest_label($body)
 // a=aio_check: the manifest of the posted field (not the stored one), nothing written.
 function aio_cgi_aio_check_post()
 {
-    global $AIO_CGI_BODY;
     $url = aio_manifest_url(aio_cgi_param($_POST, 'manifest'));
     if ($url === '')
     {
@@ -163,11 +144,11 @@ function aio_cgi_aio_check_post()
         aio_cgi_json(200, array('ok' => false,
             'msg' => aio_cgi_fmt_manifest()));
     }
-    $why = aio_cgi_check($url);
+    list($why, $body) = aio_cgi_check($url);
     if ($why !== '')
         aio_cgi_json(200, array('ok' => false, 'msg' => $why));
     aio_cgi_log('manifest check: ok');
-    $label = aio_cgi_manifest_label($AIO_CGI_BODY);
+    $label = aio_cgi_manifest_label($body);
     aio_cgi_json(200, array('ok' => true, 'msg' => aio_cgi_l('OK: манифест', 'OK: manifest') . ($label !== '' ? " $label" : '') .
         aio_cgi_l(', есть ресурс stream', ', with the stream resource')));
 }
@@ -189,44 +170,42 @@ function aio_cgi_jr_queries()
 // -> array(ok, the reason for the page or '', results, ms).
 function aio_cgi_jr_check($conf, $q)
 {
-    global $AIO_CGI_MAX, $AIO_CGI_LOCATION;
     $pq = '/api/v2.0/indexers/all/results?';
     foreach ($q as $k => $v)
         $pq .= "$k=" . rawurlencode($v) . '&';
     $pq = $conf['key_url'] !== '' ? $pq . 'apikey=' . $conf['key_url'] : rtrim($pq, '&');
     $url = $conf['base'] . $pq;
-    // As the plugin takes it (AIO_JR_MAX_BYTES).
-    $AIO_CGI_MAX = 4000000;
     $t = microtime(true);
     // Redirects as the plugin follows them (curl there), at most 3, 4 x 8 s in
     // all. Only the scheme, host, port and a path prefix may change: the same
     // search, never another request of this root CGI (IP Control of the Dune).
     for ($hops = 0; ; $hops++)
     {
-        list($e, $code, $body, , $cut) = aio_cgi_srv_req($url, null, '');
-        if ($e || !in_array($code, array(301, 302, 303, 307, 308), true) || $AIO_CGI_LOCATION === '')
+        // The body as the plugin takes it (AIO_JR_MAX_BYTES).
+        $r = aio_cgi_srv_req($url, null, '', null, 4000000);
+        $e = $r['errno'];
+        $code = $r['code'];
+        if ($e || !in_array($code, array(301, 302, 303, 307, 308), true) || $r['location'] === '')
             break;
-        $next = aio_cgi_location($url, $AIO_CGI_LOCATION);
+        $next = aio_cgi_location($url, $r['location']);
         $pre = substr($next, 0, -strlen($pq));
         if (substr($next, -strlen($pq)) !== $pq ||
             !preg_match('#^(?i)https?://[A-Za-z0-9.\-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~%!$&\'()*+,;=:@\-]+)*\z#', $pre))
         {
             aio_cgi_log('jacred check: redirect to an address of the wrong form');
-            $AIO_CGI_MAX = AIO_CGI_MAX_BODY;
             return array(false, aio_cgi_l('Сервер перенаправил на недопустимый адрес',
                 'The server redirected to an address that is not allowed'), 0, 0);
         }
         if ($hops === 3)
         {
             aio_cgi_log('jacred check: too many redirects');
-            $AIO_CGI_MAX = AIO_CGI_MAX_BODY;
             return array(false, aio_cgi_l('Слишком много перенаправлений', 'Too many redirects'), 0, 0);
         }
         $url = $next;
     }
     $ms = (int) round((microtime(true) - $t) * 1000);
-    $AIO_CGI_MAX = AIO_CGI_MAX_BODY;
-    $j = !$e && $code === 200 && !$cut ? json_decode($body, true) : null;
+    $cut = $r['cut'];
+    $j = !$e && $code === 200 && !$cut ? json_decode($r['body'], true) : null;
     $ok = is_array($j) && isset($j['Results']) && is_array($j['Results']);
     $n = $ok ? count($j['Results']) : 0;
     // Never the address or the key.
@@ -307,8 +286,9 @@ function aio_cgi_key_check($what, $key)
     else
         $r = aio_cgi_srv_req(aio_cgi_api_base('tmdb') . '/configuration?api_key=' . rawurlencode($key), null, '',
             array('Accept: application/json'));
-    list($e, $code, $body) = $r;
-    $j = !$e && $code === 200 ? json_decode($body, true) : null;
+    $e = $r['errno'];
+    $code = $r['code'];
+    $j = !$e && $code === 200 ? json_decode($r['body'], true) : null;
     $d = is_array($j) && isset($j['data']) && is_array($j['data']) ? $j['data'] : array();
     if ($e)
         $res = array('warn', sprintf(aio_cgi_l('%s: ключ не проверен — %s; сохранится как есть',
@@ -433,8 +413,11 @@ function aio_cgi_qbt_check($srv)
     $parts = array();
     if ($srv['user'] !== '')
     {
-        list($e, $code, $body, $cookie) = aio_cgi_srv_req("$api/auth/login",
-            array('username' => $srv['user'], 'password' => $srv['pass']), '');
+        $r = aio_cgi_srv_req("$api/auth/login", array('username' => $srv['user'], 'password' => $srv['pass']), '');
+        $e = $r['errno'];
+        $code = $r['code'];
+        $body = $r['body'];
+        $cookie = $r['cookies'];
         aio_cgi_log("server check: login: " . ($e ? "curl $e" : "HTTP $code") . ($cookie !== '' ? ', cookie' : ''));
         if ($e)
             return array(false, array(aio_cgi_srv_net($e)));
@@ -453,9 +436,11 @@ function aio_cgi_qbt_check($srv)
         if (trim($body) === 'Ok.' || $code === 204)
             $parts[] = aio_cgi_l('вход принят', 'logged in');
     }
-    list($e, $code, $body) = aio_cgi_srv_req("$api/app/version", null, $cookie);
+    $r = aio_cgi_srv_req("$api/app/version", null, $cookie);
+    $e = $r['errno'];
+    $code = $r['code'];
     aio_cgi_log("server check: version: " . ($e ? "curl $e" : "HTTP $code"));
-    $v = trim($body);
+    $v = trim($r['body']);
     $v = !$e && $code === 200 && preg_match('/^[^\x00-\x1F\x7F<>]{1,40}\z/u', $v) ? $v : '';
     if ($srv['user'] === '')
     {
@@ -477,8 +462,10 @@ function aio_cgi_qbt_check($srv)
     if ($srv['category'] !== '')
     {
         $c = $srv['category'];
-        list($e, $code, $body) = aio_cgi_srv_req("$api/torrents/categories", null, $cookie);
-        $j = !$e && $code === 200 ? json_decode($body, true) : null;
+        $r = aio_cgi_srv_req("$api/torrents/categories", null, $cookie);
+        $e = $r['errno'];
+        $code = $r['code'];
+        $j = !$e && $code === 200 ? json_decode($r['body'], true) : null;
         aio_cgi_log("server check: categories: " . ($e ? "curl $e" : "HTTP $code") . (is_array($j) ? ', JSON' : ''));
         if (!is_array($j))
             $parts[] = aio_cgi_l('категорию проверить не удалось', 'category not checked');
@@ -490,8 +477,10 @@ function aio_cgi_qbt_check($srv)
     }
     if ($srv['tags'] !== '')
     {
-        list($e, $code, $body) = aio_cgi_srv_req("$api/torrents/tags", null, $cookie);
-        $j = !$e && $code === 200 ? json_decode($body, true) : null;
+        $r = aio_cgi_srv_req("$api/torrents/tags", null, $cookie);
+        $e = $r['errno'];
+        $code = $r['code'];
+        $j = !$e && $code === 200 ? json_decode($r['body'], true) : null;
         aio_cgi_log("server check: tags: " . ($e ? "curl $e" : "HTTP $code") . (is_array($j) ? ', JSON' : ''));
         if (!is_array($j))
             $parts[] = aio_cgi_l('теги проверить не удалось', 'tags not checked');
