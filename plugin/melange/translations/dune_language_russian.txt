@@ -74,6 +74,7 @@ srv_err_timeout = Сервер не ответил вовремя — прове
 srv_dup = Уже есть в {srv}
 srv_err_forbidden = Сервер не пускает Дюну: добавьте её адрес в белый список Transmission (rpc-whitelist)
 srv_err_rejected = Клиент не принял раздачу
+srv_err_hostname = Transmission не принимает имя сервера: укажите IP или добавьте имя в rpc-host-whitelist
 setup_menu = Настройки
 setup_open = Настроить
 setup_close = Закрыть

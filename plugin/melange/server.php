@@ -144,10 +144,10 @@ function aio_qbt_add($srv, $magnet)
 }
 
 // The magnet to the Transmission server $srv -> '' (added) or array(error
-// key, detail); 'srv_dup': it has the torrent already. The first request goes
-// without a session id: 409 hands one, the request goes once more with it.
-// Neither the password, the Authorization nor the session id is logged.
-function aio_tr_add($srv, $magnet)
+// key, detail); 'srv_dup': it has the torrent already. aio_trm_call does
+// its session id handshake (409). Neither the password, the Authorization
+// nor the session id is logged.
+function aio_trm_add($srv, $magnet)
 {
     $a = array('filename' => $magnet);
     if ($srv['category'] !== '')
@@ -155,26 +155,14 @@ function aio_tr_add($srv, $magnet)
     // Transmission 3.x ignores labels without an error.
     if ($srv['tags'] !== '')
         $a['labels'] = explode(',', $srv['tags']);
-    $json = json_encode(array('method' => 'torrent-add', 'arguments' => $a));
-    $url = aio_tr_rpc($srv['url']);
-    $h = array('Content-Type: application/json');
-    if ($srv['user'] !== '')
-        $h[] = 'Authorization: Basic ' . base64_encode("{$srv['user']}:{$srv['pass']}");
-    $sid = '';
     $err = '';
-    while (true)
-    {
-        $t = microtime(true);
-        list($code, $body, , $got) = aio_http_post($url, $json, '', $err, AIO_SRV_CONNECT, AIO_SRV_TOTAL,
-            $sid !== '' ? array_merge($h, array("X-Transmission-Session-Id: $sid")) : $h);
-        aio_log(sprintf('server: rpc%s: %s, %.2f s', $sid !== '' ? ' with session id' : '',
-            $err !== '' ? $err : "HTTP $code", microtime(true) - $t));
-        if ($err !== '' || $code !== 409 || $got === '' || $sid !== '')
-            break;
-        $sid = $got;
-    }
+    $t = microtime(true);
+    list($code, $body, , $sid) = aio_trm_call($srv, json_encode(array('method' => 'torrent-add', 'arguments' => $a)), $err,
+        AIO_SRV_CONNECT, AIO_SRV_TOTAL);
+    aio_log(sprintf('server: rpc%s: %s, %.2f s', $sid ? ' with session id' : '', $err !== '' ? $err : "HTTP $code",
+        microtime(true) - $t));
     // Without a session id nothing is added: only the request with one may have been.
-    if (strpos($err, 'curl 28:') === 0 && $sid !== '')
+    if (strpos($err, 'curl 28:') === 0 && $sid)
         return array('srv_err_timeout', $err);
     if ($err !== '')
         return array('srv_err_net', $err);
@@ -184,6 +172,9 @@ function aio_tr_add($srv, $magnet)
     // Not in its rpc-whitelist.
     if ($code === 403)
         return array('srv_err_forbidden', 'HTTP 403');
+    // The host name of the address is not in its rpc-host-whitelist.
+    if ($code === 421)
+        return array('srv_err_hostname', 'HTTP 421');
     // Twice, or no id to retry with; its page quotes the id: not shown.
     if ($code === 409)
         return array('srv_err_reply', 'HTTP 409');
@@ -223,7 +214,7 @@ function aio_srv_push($in)
     $ok = array('OK' => aio_close_and(null));
     list($mg, $n, $src) = aio_magnet($row);
     aio_log("server: $tag, $n trackers ($src)");
-    $res = $srv['type'] === 'tr' ? aio_tr_add($srv, $mg) : aio_qbt_add($srv, $mg);
+    $res = $srv['type'] === 'tr' ? aio_trm_add($srv, $mg) : aio_qbt_add($srv, $mg);
     if ($res !== '' && $res[0] === 'srv_dup')
     {
         aio_log('server: there already');

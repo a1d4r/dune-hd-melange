@@ -100,6 +100,15 @@ function aio_server_caches()
     return array('torbox' => 'TorBox', 'realdebrid' => 'Real-Debrid');
 }
 
+// Clients of a server (0.47.0): its type => name for the settings page.
+/**
+ * @return array<string, string>
+ */
+function aio_server_types()
+{
+    return array('qbt' => 'qBittorrent / rdt-client', 'tr' => 'Transmission');
+}
+
 // A server as typed or stored: array of strings name, url, user, pass,
 // category, tags, cache, type -> the same keys checked, or null when the address does not
 // fit. url: http(s)://host[:port][/path], port 1-65535, stored without a
@@ -107,8 +116,8 @@ function aio_server_caches()
 // the host[:port] when empty; user, category, tags: up
 // to 100 printable characters, pass: up to 200; tags: comma-separated,
 // stored without spaces around each tag, empty ones and repeats; cache: a key of
-// aio_server_caches() or ''; type: 'tr' (Transmission, 0.47.0), else 'qbt'
-// (qBittorrent WebAPI: qBittorrent, rdt-client). No control bytes, UTF-8 only.
+// aio_server_caches() or ''; type: a key of aio_server_types() (0.47.0), else
+// 'qbt' (qBittorrent WebAPI: qBittorrent, rdt-client). No control bytes, UTF-8 only.
 /**
  * @param mixed $a
  * @return AioServer|null
@@ -148,26 +157,109 @@ function aio_server_conf($a)
     if (!isset($caches[$v['cache']]))
         $v['cache'] = '';
     // None (stored before 0.47.0) or unknown: qBittorrent, as it was.
-    $v['type'] = isset($a['type']) && $a['type'] === 'tr' ? 'tr' : 'qbt';
+    $types = aio_server_types();
+    $v['type'] = isset($a['type']) && is_string($a['type']) && isset($types[$a['type']]) ? $a['type'] : 'qbt';
     return $v;
 }
 
 // The Transmission RPC address of a stored server address: no path ->
-// /transmission/rpc; the web UI path copied from a browser
-// (.../transmission/web) -> .../transmission/rpc; any other path as typed (its
-// own rpc-url, a reverse proxy).
+// /transmission/rpc; .../transmission (its base) and the web UI path copied
+// from a browser (.../transmission/web) -> .../transmission/rpc; any other
+// path as typed (its own rpc-url, a reverse proxy).
 /**
  * @param string $url
  * @return string
  */
-function aio_tr_rpc($url)
+function aio_trm_rpc($url)
 {
     $path = (string) preg_replace('~^[a-z]+://[^/]*~', '', $url);
     if ($path === '')
         return "$url/transmission/rpc";
+    if (substr($path, -13) === '/transmission')
+        return "$url/rpc";
     if (substr($path, -17) === '/transmission/web')
         return substr($url, 0, -4) . '/rpc';
     return $url;
+}
+
+// Tests define their own aio_trm_call().
+if (!function_exists('aio_trm_call'))
+{
+    // POST of the JSON $json to the Transmission RPC of server $srv
+    // (aio_server_conf; aio_trm_rpc of its url), HTTP Basic when it has a
+    // login -> array(HTTP code, body (its first 64 KB), curl errno (0 none,
+    // -1 its options refused), whether that request went with a session
+    // id); $err is set on a transport error. Its CSRF: the first request goes
+    // without X-Transmission-Session-Id, a 409 handing one -> once more with
+    // it; a second 409 (or one without an id) is returned as is. http and
+    // https, no redirects, no "Expect: 100-continue". No log here: never the
+    // password, the Authorization or the session id there. The plugin and
+    // the check of the settings page.
+    /**
+     * @param AioServer $srv
+     * @param string $json
+     * @param string $err
+     * @param-out string $err
+     * @param int $connect
+     * @param int $total
+     * @return array{int, string, int, bool}
+     */
+    function aio_trm_call($srv, $json, &$err, $connect, $total)
+    {
+        $sid = '';
+        while (true)
+        {
+            $body = '';
+            $got = '';
+            $h = array('Expect:', 'Content-Type: application/json');
+            if ($sid !== '')
+                $h[] = "X-Transmission-Session-Id: $sid";
+            $opts = array(
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $json,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+                CURLOPT_CONNECTTIMEOUT => $connect,
+                CURLOPT_TIMEOUT => $total,
+                CURLOPT_CAINFO => '/firmware/certs/ca-bundle.crt',
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION,
+                CURLOPT_HTTPHEADER => $h,
+                CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$got)
+                {
+                    if (preg_match('/^X-Transmission-Session-Id:[ \t]*([\x21-\x7e]{1,200})[ \t\r\n]*$/i', $line, $m))
+                        $got = $m[1];
+                    return strlen($line);
+                },
+                CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body)
+                {
+                    if (strlen($body) < 65536)
+                        $body .= substr($chunk, 0, 65536 - strlen($body));
+                    return strlen($chunk);
+                });
+            if ($srv['user'] !== '')
+            {
+                $opts[CURLOPT_HTTPAUTH] = CURLAUTH_BASIC;
+                $opts[CURLOPT_USERPWD] = "{$srv['user']}:{$srv['pass']}";
+            }
+            $ch = curl_init(aio_trm_rpc($srv['url']));
+            if (!curl_setopt_array($ch, $opts))
+            {
+                curl_close($ch);
+                $err = 'curl options refused';
+                return array(0, '', -1, $sid !== '');
+            }
+            $ok = curl_exec($ch);
+            $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+            $errno = $ok === false ? curl_errno($ch) : 0;
+            $err = $ok === false ? "curl $errno: " . curl_error($ch) : '';
+            curl_close($ch);
+            if ($err !== '' || $code !== 409 || $got === '' || $sid !== '')
+                return array($code, $err !== '' ? '' : $body, $errno, $sid !== '');
+            $sid = $got;
+        }
+    }
 }
 
 // "Watch via TorrServer" (0.31.0): no address set -> the TorrServe app of this Dune.

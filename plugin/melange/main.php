@@ -410,22 +410,19 @@ if (!function_exists('aio_http_get'))
 // Tests define their own aio_http_post().
 if (!function_exists('aio_http_post'))
 {
-    // POST of the form $fields (a string: that body as is, Transmission's
-    // JSON) with the cookies $cookie ('' for none) or the request headers
-    // $headers instead -> array(HTTP code, body (its first 64 KB), cookies of
-    // the reply as "name=value; ...", X-Transmission-Session-Id of the reply
-    // or ''). $err is set on a transport error. No redirects, no Referer or
-    // Origin (qBittorrent checks them against its host), no
+    // POST of the form $fields with the cookies $cookie ('' for none) ->
+    // array(HTTP code, body (its first 64 KB), cookies of the reply as
+    // "name=value; ..."). $err is set on a transport error. No redirects, no
+    // Referer or Origin (qBittorrent checks them against its host), no
     // "Expect: 100-continue" (a long magnet).
-    function aio_http_post($url, $fields, $cookie, &$err, $connect = 3, $total = 15, $headers = null)
+    function aio_http_post($url, $fields, $cookie, &$err, $connect = 3, $total = 15)
     {
         $body = '';
         $cookies = array();
-        $sid = '';
         $ch = curl_init($url);
         $set = curl_setopt_array($ch, array(
             CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => is_string($fields) ? $fields : http_build_query($fields, '', '&'),
+            CURLOPT_POSTFIELDS => http_build_query($fields, '', '&'),
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_CONNECTTIMEOUT => $connect,
@@ -434,14 +431,11 @@ if (!function_exists('aio_http_post'))
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION,
-            CURLOPT_HTTPHEADER => array_merge(array('Expect:'), is_array($headers) ? $headers :
-                ($cookie !== '' ? array("Cookie: $cookie") : array())),
-            CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$cookies, &$sid)
+            CURLOPT_HTTPHEADER => $cookie !== '' ? array('Expect:', "Cookie: $cookie") : array('Expect:'),
+            CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$cookies)
             {
                 if (preg_match('/^Set-Cookie:\s*([A-Za-z0-9_.\-]+=[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*)/i', $line, $m))
                     $cookies[] = $m[1];
-                else if (preg_match('/^X-Transmission-Session-Id:[ \t]*([\x21-\x7e]{1,200})[ \t\r\n]*$/i', $line, $m))
-                    $sid = $m[1];
                 return strlen($line);
             },
             CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body)
@@ -454,13 +448,13 @@ if (!function_exists('aio_http_post'))
         {
             curl_close($ch);
             $err = 'curl options refused';
-            return array(0, '', '', '');
+            return array(0, '', '');
         }
         $ok = curl_exec($ch);
         $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
         $err = $ok === false ? 'curl ' . curl_errno($ch) . ': ' . curl_error($ch) : '';
         curl_close($ch);
-        return array($code, $err !== '' ? '' : $body, implode('; ', $cookies), $sid);
+        return array($code, $err !== '' ? '' : $body, implode('; ', $cookies));
     }
 }
 

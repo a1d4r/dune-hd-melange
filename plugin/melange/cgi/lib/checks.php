@@ -423,7 +423,7 @@ function aio_cgi_ts_check_post()
 // A server of aio_server_conf() -> array(ok, lines for the page): login,
 // app/version, the category and the tags. Never the password or the cookie
 // in the lines or the log.
-function aio_cgi_srv_check($srv)
+function aio_cgi_qbt_check($srv)
 {
     $api = $srv['url'] . '/api/v2';
     $cookie = '';
@@ -507,26 +507,16 @@ function aio_cgi_srv_check($srv)
 }
 
 // A Transmission server of aio_server_conf() (0.47.0) -> array(ok, lines for
-// the page): session-get through its session id handshake (409, once more
-// with the id): login, version; labels of a server before 4.0 (rpc-version
-// 17) are dropped by it. The folder is not checked. Never the password, the
-// Authorization or the session id in the lines or the log.
-function aio_cgi_tr_check($srv)
+// the page): session-get by aio_trm_call (its session id handshake): login,
+// version; labels of a server before 4.0 (rpc-version 17) are dropped by it.
+// The folder is not checked. Never the password, the Authorization or the
+// session id in the lines or the log.
+function aio_cgi_trm_check($srv)
 {
-    $h = array('Expect:', 'Content-Type: application/json');
-    if ($srv['user'] !== '')
-        $h[] = 'Authorization: Basic ' . base64_encode("{$srv['user']}:{$srv['pass']}");
-    $json = json_encode(array('method' => 'session-get', 'arguments' => array('fields' => array('version', 'rpc-version'))));
-    $sid = '';
-    while (true)
-    {
-        list($e, $code, $body, , , $got) = aio_cgi_srv_req(aio_tr_rpc($srv['url']), $json, '',
-            $sid !== '' ? array_merge($h, array("X-Transmission-Session-Id: $sid")) : $h);
-        aio_cgi_log('server check: rpc' . ($sid !== '' ? ' with session id' : '') . ': ' . ($e ? "curl $e" : "HTTP $code"));
-        if ($e || $code !== 409 || $got === '' || $sid !== '')
-            break;
-        $sid = $got;
-    }
+    $err = '';
+    list($code, $body, $e, $sid) = aio_trm_call($srv, json_encode(array('method' => 'session-get',
+        'arguments' => array('fields' => array('version', 'rpc-version')))), $err, 3, 8);
+    aio_cgi_log('server check: rpc' . ($sid ? ' with session id' : '') . ': ' . ($e ? "curl $e" : "HTTP $code"));
     if ($e)
         return array(false, array(aio_cgi_srv_net($e)));
     if ($code === 401)
@@ -536,6 +526,11 @@ function aio_cgi_tr_check($srv)
     if ($code === 403)
         return array(false, array(aio_cgi_l('Сервер не пускает Дюну: добавьте её адрес в белый список Transmission (rpc-whitelist)',
             'The server does not let the Dune in: add its address to the Transmission whitelist (rpc-whitelist)')));
+    // The host name of the address is not in its rpc-host-whitelist.
+    if ($code === 421)
+        return array(false, array(aio_cgi_l('Transmission не принимает имя сервера в адресе: укажите IP или добавьте имя в ' .
+            'rpc-host-whitelist', 'Transmission does not accept the server name of the address: use an IP or add the name to ' .
+            'rpc-host-whitelist')));
     $j = $code === 200 ? json_decode($body, true) : null;
     $a = is_array($j) && isset($j['result'], $j['arguments']) && $j['result'] === 'success' && is_array($j['arguments']) ?
         $j['arguments'] : array();
@@ -559,7 +554,7 @@ function aio_cgi_srv_check_post()
         $v[$k] = aio_cgi_param($_POST, $k);
     $srv = aio_server_conf($v);
     if ($srv)
-        list($ok, $lines) = $srv['type'] === 'tr' ? aio_cgi_tr_check($srv) : aio_cgi_srv_check($srv);
+        list($ok, $lines) = $srv['type'] === 'tr' ? aio_cgi_trm_check($srv) : aio_cgi_qbt_check($srv);
     else
     {
         aio_cgi_log('server check: bad format');

@@ -74,6 +74,7 @@ srv_err_timeout = The server did not answer in time — check the client
 srv_dup = Already in {srv}
 srv_err_forbidden = The server does not let the Dune in: add its address to the Transmission whitelist (rpc-whitelist)
 srv_err_rejected = The client did not accept the torrent
+srv_err_hostname = Transmission does not accept the server name: use an IP or add the name to rpc-host-whitelist
 setup_menu = Settings
 setup_open = Set up
 setup_close = Close

@@ -161,12 +161,6 @@ function aio_cgi_link($url, $text)
     return '<a href="' . aio_cgi_h($url) . '" target="_blank" rel="noopener noreferrer">' . aio_cgi_h($text) . '</a>';
 }
 
-// The clients of a server block (select s<n>_type, 0.47.0): type => name.
-function aio_cgi_srv_types()
-{
-    return array('qbt' => 'qBittorrent / rdt-client', 'tr' => 'Transmission');
-}
-
 // data-qbt / data-tr of $x = array(text for qBittorrent, for Transmission):
 // the script swaps them by the client chosen (of a label: its text, of an
 // input: its placeholder).
@@ -206,12 +200,14 @@ function aio_cgi_servers($servers)
             $f[$k] = aio_cgi_srv_field($n, $k);
         }
         $filled = $v['name'] . $v['url'] . $v['user'] . $v['pass'] . $v['category'] . $v['tags'] !== '';
-        $type = $v['type'] === 'tr' ? 'tr' : 'qbt';
+        // Its client (select s<n>_type, 0.47.0); none or unknown: qBittorrent, as aio_server_conf.
+        $types = aio_server_types();
+        $type = isset($types[$v['type']]) ? $v['type'] : 'qbt';
         $out .= '<details class="srv"' . ($filled ? ' open' : '') . '><summary>' . aio_cgi_l('Сервер', 'Server') . " $n" .
             ($v['name'] !== '' ? ': ' . aio_cgi_h($v['name']) : '') . '</summary>' .
             '<label for="' . $f['type']['id'] . '">' . aio_cgi_l('Клиент', 'Client') . '</label><select id="' .
             $f['type']['id'] . '" name="' . $f['type']['name'] . '">';
-        foreach (aio_cgi_srv_types() as $id => $name)
+        foreach ($types as $id => $name)
             $out .= '<option value="' . $id . '"' . ($type === $id ? ' selected' : '') . '>' . $name . '</option>';
         $out .= '</select>' .
             aio_cgi_input($f['name'], aio_cgi_l('Название', 'Name'), $v['name'], 'qBittorrent') .
