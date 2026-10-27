@@ -368,7 +368,7 @@ function aio_cgi_key_check_post()
 // not 200 (nor 401) or no answer there -> array(true, that, 'warn').
 function aio_cgi_ts_check($base, $auth = '')
 {
-    // aio_ts_call (common.php), 3 s at most a request; errno 0 with an error: its options refused.
+    // aio_ts_call (net.php), 3 s at most a request; errno 0 with an error: its options refused.
     $err = '';
     list($code, $body, $errno) = aio_ts_call("$base/echo", null, $err, 3);
     if ($err !== '' && !$errno)

@@ -53,6 +53,7 @@
 // download, after date_default_timezone_set('UTC').
 
 require dirname(dirname(__FILE__)) . '/common.php';
+require dirname(dirname(__FILE__)) . '/net.php';
 require dirname(__FILE__) . '/aio_conf.php';
 
 define('AIO_CGI_NAME', 'melange');

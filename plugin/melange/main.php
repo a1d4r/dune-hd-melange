@@ -7,6 +7,8 @@
 
 // AIO_VERSION and the rules for the addresses: shared with the settings page.
 require_once dirname(__FILE__) . '/common.php';
+// HTTP clients of TorrServer and Transmission: shared with the settings page.
+require_once dirname(__FILE__) . '/net.php';
 // Parsing of AIOStreams replies (no firmware API).
 require_once dirname(__FILE__) . '/parse.php';
 // Tracks of JacRed.
