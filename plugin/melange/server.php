@@ -74,7 +74,8 @@ function aio_srv_text($body)
     return aio_cut(trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', $body)), 60);
 }
 
-// The magnet to server $srv -> '' (added) or array(error key, detail).
+// The magnet to server $srv -> array(status, key, detail): 'added'; 'failed'
+// (an error key); 'maybe' (srv_err_timeout: it may be there).
 function aio_qbt_add($srv, $magnet)
 {
     $cookie = '';
@@ -88,17 +89,17 @@ function aio_qbt_add($srv, $magnet)
         aio_log(sprintf('server: login: %s, %s, %.2f s', $err !== '' ? $err : "HTTP $code",
             $cookie !== '' ? 'cookie' : 'no cookie', microtime(true) - $t));
         if ($err !== '')
-            return array('srv_err_net', $err);
+            return array('failed', 'srv_err_net', $err);
         // qBittorrent bans the IP for a while after failed logins.
         if ($code === 403)
-            return array('srv_err_banned', 'HTTP 403');
+            return array('failed', 'srv_err_banned', 'HTTP 403');
         // Before 5.2 (and rdt-client): 200 "Ok." / "Fails."; 5.2: 204 with the
         // cookie QBT_SID_<port> / 401. The cookies of the reply go back as they are.
         if ($code === 401 || trim($body) === 'Fails.')
-            return array('srv_err_login', '');
+            return array('failed', 'srv_err_login', '');
         // A web page (a wrong port, another service) is no login.
         if (($code !== 200 && !($code >= 200 && $code < 300 && trim($body) === '')) || substr(trim($body), 0, 1) === '<')
-            return array('srv_err_reply', trim("HTTP $code " . aio_srv_text($body)));
+            return array('failed', 'srv_err_reply', trim("HTTP $code " . aio_srv_text($body)));
     }
     $f = array('urls' => $magnet);
     if ($srv['category'] !== '')
@@ -114,39 +115,39 @@ function aio_qbt_add($srv, $magnet)
         microtime(true) - $t));
     // rdt-client holds the reply while the torrent is queued: it may be there.
     if (strpos($err, 'curl 28:') === 0)
-        return array('srv_err_timeout', $err);
+        return array('maybe', 'srv_err_timeout', $err);
     if ($err !== '')
-        return array('srv_err_net', $err);
+        return array('failed', 'srv_err_net', $err);
     if ($code === 401 || $code === 403)
-        return array('srv_err_login', "HTTP $code");
+        return array('failed', 'srv_err_login', "HTTP $code");
     // qBittorrent 5.x: 409 when nothing was added (the torrent is there
     // already), 202 when the add goes on in the background.
     if ($code === 415 || $code === 409)
-        return array('srv_err_refused', trim("HTTP $code $text"));
+        return array('failed', 'srv_err_refused', trim("HTTP $code $text"));
     if ($code < 200 || $code > 299)
-        return array('srv_err_reply', trim("HTTP $code $text"));
+        return array('failed', 'srv_err_reply', trim("HTTP $code $text"));
     // qBittorrent before 5.2: "Ok." / "Fails."; 5.2: JSON of counts; rdt-client:
     // an empty 200, "Fails." (maybe as a JSON string) when it gave up.
     $b = trim(trim($body), '"');
     if ($b === 'Fails.')
-        return array('srv_err_refused', 'Fails.');
+        return array('failed', 'srv_err_refused', 'Fails.');
     // A web page: a wrong port or another service, not an add.
     if (substr($b, 0, 1) === '<')
-        return array('srv_err_reply', trim("HTTP $code $text"));
+        return array('failed', 'srv_err_reply', trim("HTTP $code $text"));
     $j = json_decode($body, true);
     $fc = is_array($j) && isset($j['failure_count']) && is_numeric($j['failure_count']) ? intval($j['failure_count']) : -1;
     if ($fc > 0)
-        return array('srv_err_refused', "failure_count $fc");
+        return array('failed', 'srv_err_refused', "failure_count $fc");
     // Any other 2xx is taken as added: a 2xx is not a refusal.
     if ($b !== '' && $b !== 'Ok.' && $fc < 0)
         aio_log("server: HTTP $code, reply not understood, taken as added");
-    return '';
+    return array('added', '', '');
 }
 
-// The magnet to the Transmission server $srv -> '' (added) or array(error
-// key, detail); 'srv_dup': it has the torrent already. aio_trm_call does
-// its session id handshake (409). Neither the password, the Authorization
-// nor the session id is logged.
+// The magnet to the Transmission server $srv -> array(status, key, detail)
+// as aio_qbt_add; 'dup' (srv_dup): it has the torrent already. aio_trm_call
+// does its session id handshake (409). Neither the password, the
+// Authorization nor the session id is logged.
 function aio_trm_add($srv, $magnet)
 {
     $a = array('filename' => $magnet);
@@ -165,33 +166,33 @@ function aio_trm_add($srv, $magnet)
         $err !== '' ? $err : "HTTP $code", microtime(true) - $t));
     // Without a session id nothing is added: only the request with one may have been.
     if (strpos($err, 'curl 28:') === 0 && $rep['sid'])
-        return array('srv_err_timeout', $err);
+        return array('maybe', 'srv_err_timeout', $err);
     if ($err !== '')
-        return array('srv_err_net', $err);
+        return array('failed', 'srv_err_net', $err);
     $text = aio_srv_text($body);
     if ($code === 401)
-        return array('srv_err_login', '');
+        return array('failed', 'srv_err_login', '');
     // Not in its rpc-whitelist.
     if ($code === 403)
-        return array('srv_err_forbidden', 'HTTP 403');
+        return array('failed', 'srv_err_forbidden', 'HTTP 403');
     // The host name of the address is not in its rpc-host-whitelist.
     if ($code === 421)
-        return array('srv_err_hostname', 'HTTP 421');
+        return array('failed', 'srv_err_hostname', 'HTTP 421');
     // Twice, or no id to retry with; its page quotes the id: not shown.
     if ($code === 409)
-        return array('srv_err_reply', 'HTTP 409');
+        return array('failed', 'srv_err_reply', 'HTTP 409');
     $j = $code === 200 ? json_decode($body, true) : null;
     if (!is_array($j) || !isset($j['result']) || !is_string($j['result']))
-        return array('srv_err_reply', trim("HTTP $code $text"));
+        return array('failed', 'srv_err_reply', trim("HTTP $code $text"));
     // An error is in "result", not in the HTTP code.
     if ($j['result'] !== 'success')
-        return array('srv_err_rejected', aio_srv_text($j['result']));
+        return array('failed', 'srv_err_rejected', aio_srv_text($j['result']));
     $r = isset($j['arguments']) && is_array($j['arguments']) ? $j['arguments'] : array();
     if (isset($r['torrent-duplicate']))
-        return array('srv_dup', '');
+        return array('dup', 'srv_dup', '');
     if (!isset($r['torrent-added']))
         aio_log('server: success without torrent-added, taken as added');
-    return '';
+    return array('added', '', '');
 }
 
 // gc_push of row i to server k -> a dialog: added or why not.
@@ -216,18 +217,17 @@ function aio_srv_push($in)
     $ok = array('OK' => aio_close_and(null));
     list($mg, $n, $src) = aio_magnet($row);
     aio_log("server: $tag, $n trackers ($src)");
-    $res = $srv['type'] === 'tr' ? aio_trm_add($srv, $mg) : aio_qbt_add($srv, $mg);
-    if ($res !== '' && $res[0] === 'srv_dup')
+    list($status, $key, $detail) = $srv['type'] === 'tr' ? aio_trm_add($srv, $mg) : aio_qbt_add($srv, $mg);
+    if ($status === 'dup')
     {
         aio_log('server: there already');
-        return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, 'srv_dup')), array(), $ok);
+        return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, $key)), array(), $ok);
     }
-    if ($res !== '')
+    if ($status !== 'added')
     {
-        aio_log("server: not added: {$res[0]}" . ($res[1] !== '' ? " ({$res[1]})" : ''));
-        return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, $res[0] === 'srv_err_timeout' ? 'srv_maybe' :
-            'srv_failed')),
-            array_merge(aio_dialog_lines(aio_tr($lang, $res[0])), aio_dialog_lines($res[1])), $ok);
+        aio_log("server: not added: $key" . ($detail !== '' ? " ($detail)" : ''));
+        return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, $status === 'maybe' ? 'srv_maybe' : 'srv_failed')),
+            array_merge(aio_dialog_lines(aio_tr($lang, $key)), aio_dialog_lines($detail)), $ok);
     }
     aio_log('server: added');
     return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, 'srv_added')), array(), $ok);
