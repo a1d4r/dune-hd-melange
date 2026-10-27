@@ -30,24 +30,23 @@ if (!function_exists('aio_trm_call'))
 {
     // POST of the JSON $json to the Transmission RPC of server $srv
     // (aio_server_conf; aio_trm_rpc of its url), HTTP Basic when it has a
-    // login -> array(HTTP code, body (its first 64 KB), curl errno (0 none,
-    // -1 its options refused), whether that request went with a session
-    // id); $err is set on a transport error. Its CSRF: the first request goes
-    // without X-Transmission-Session-Id, a 409 handing one -> once more with
-    // it; a second 409 (or one without an id) is returned as is. http and
-    // https, no redirects, no "Expect: 100-continue". No log here: never the
-    // password, the Authorization or the session id there. The plugin and
-    // the check of the settings page.
+    // login -> array(code: HTTP code, body: its first 64 KB ('' on a
+    // transport error), err: the transport error ('' none), errno: curl errno
+    // (0 none, -1 its options refused), sid: whether that request went with a
+    // session id). Its CSRF: the first request goes without
+    // X-Transmission-Session-Id, a 409 handing one -> once more with it; a
+    // second 409 (or one without an id) is returned as is. http and https, no
+    // redirects, no "Expect: 100-continue". No log here: never the password,
+    // the Authorization or the session id there. The plugin and the check of
+    // the settings page.
     /**
      * @param AioServer $srv
      * @param string $json
-     * @param string $err
-     * @param-out string $err
      * @param int $connect
      * @param int $total
-     * @return array{int, string, int, bool}
+     * @return AioTrmReply
      */
-    function aio_trm_call($srv, $json, &$err, $connect, $total)
+    function aio_trm_call($srv, $json, $connect, $total)
     {
         $sid = '';
         while (true)
@@ -90,8 +89,8 @@ if (!function_exists('aio_trm_call'))
             if (!curl_setopt_array($ch, $opts))
             {
                 curl_close($ch);
-                $err = 'curl options refused';
-                return array(0, '', -1, $sid !== '');
+                return array('code' => 0, 'body' => '', 'err' => 'curl options refused', 'errno' => -1,
+                    'sid' => $sid !== '');
             }
             $ok = curl_exec($ch);
             $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
@@ -99,7 +98,8 @@ if (!function_exists('aio_trm_call'))
             $err = $ok === false ? "curl $errno: " . curl_error($ch) : '';
             curl_close($ch);
             if ($err !== '' || $code !== 409 || $got === '' || $sid !== '')
-                return array($code, $err !== '' ? '' : $body, $errno, $sid !== '');
+                return array('code' => $code, 'body' => $err !== '' ? '' : $body, 'err' => $err, 'errno' => $errno,
+                    'sid' => $sid !== '');
             $sid = $got;
         }
     }
@@ -111,22 +111,20 @@ define('AIO_TS_MAX_BYTES', 4194304);
 // Tests define their own aio_ts_call().
 if (!function_exists('aio_ts_call'))
 {
-    // GET ($post null) or POST of JSON $post to TorrServer -> array(HTTP
-    // code, body, curl errno: 0 none, also when its options are refused);
-    // $err is set on a transport error. http only, no redirects; the errors
-    // of TorrServer have an empty body: the code tells. $auth:
-    // "login:password" for Basic auth (0.45.0), '' none. The plugin and the
-    // check of the settings page.
+    // GET ($post null) or POST of JSON $post to TorrServer -> array(code:
+    // HTTP code, body ('' on a transport error), err: the transport error (''
+    // none), errno: curl errno, 0 none, also when its options are refused:
+    // err tells). http only, no redirects; the errors of TorrServer have an
+    // empty body: the code tells. $auth: "login:password" for Basic auth
+    // (0.45.0), '' none. The plugin and the check of the settings page.
     /**
      * @param string $url
      * @param string|null $post
-     * @param string $err
-     * @param-out string $err
      * @param int $total
      * @param string $auth
-     * @return array{int, string, int}
+     * @return AioTsReply
      */
-    function aio_ts_call($url, $post, &$err, $total = 2, $auth = '')
+    function aio_ts_call($url, $post, $total = 2, $auth = '')
     {
         $body = '';
         $over = false;
@@ -161,8 +159,7 @@ if (!function_exists('aio_ts_call'))
         if (!curl_setopt_array($ch, $opts))
         {
             curl_close($ch);
-            $err = 'curl options refused';
-            return array(0, '', 0);
+            return array('code' => 0, 'body' => '', 'err' => 'curl options refused', 'errno' => 0);
         }
         $ok = curl_exec($ch);
         $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
@@ -170,6 +167,6 @@ if (!function_exists('aio_ts_call'))
         $err = $over ? 'reply over ' . AIO_TS_MAX_BYTES . ' bytes' :
             ($ok === false ? "curl $errno: " . curl_error($ch) : '');
         curl_close($ch);
-        return array($code, $err !== '' ? '' : $body, $errno);
+        return array('code' => $code, 'body' => $err !== '' ? '' : $body, 'err' => $err, 'errno' => $errno);
     }
 }

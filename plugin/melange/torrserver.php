@@ -21,10 +21,10 @@ define('AIO_TS_TICKS', 60);
  */
 function aio_ts_alive()
 {
-    $err = '';
-    list($code, $body) = aio_ts_call(Aio::$settings['ts'] . '/echo', null, $err, 1);
-    $ok = $err === '' && $code === 200 && strpos($body, 'MatriX.') === 0;
-    aio_log('ts: ' . Aio::$settings['ts'] . ' echo: ' . ($ok ? 'MatriX' : ($err !== '' ? $err : "HTTP $code")));
+    $r = aio_ts_call(Aio::$settings['ts'] . '/echo', null, 1);
+    $ok = $r['err'] === '' && $r['code'] === 200 && strpos($r['body'], 'MatriX.') === 0;
+    aio_log('ts: ' . Aio::$settings['ts'] . ' echo: ' .
+        ($ok ? 'MatriX' : ($r['err'] !== '' ? $r['err'] : "HTTP {$r['code']}")));
     return $ok;
 }
 
@@ -306,12 +306,13 @@ function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false)
     $lang = $st['lang'];
     $base = Aio::$settings['ts'];
     $tag = aio_ep_tag($st) . ", row $i, hash {$r['hash']}";
-    $err = '';
     if (!$alive)
     {
         $t = microtime(true);
-        list($code, $body) = aio_ts_call("$base/echo", null, $err, 2);
-        $ver = $err === '' && $code === 200 ? aio_cut(trim($body), 40) : '';
+        $re = aio_ts_call("$base/echo", null, 2);
+        $err = $re['err'];
+        $code = $re['code'];
+        $ver = $err === '' && $code === 200 ? aio_cut(trim($re['body']), 40) : '';
         aio_log(sprintf('ts: %s: %s echo: %s, %.2f s', $tag, $base, $err !== '' ? $err : "HTTP $code \"$ver\"",
             microtime(true) - $t));
         if ($err !== '' || $code !== 200)
@@ -326,8 +327,10 @@ function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false)
     $req = json_encode(array('action' => 'add', 'link' => $mg, 'title' => aio_ep_name($st['movie'], $st['s'], $st['e']),
         'poster' => $st['movie']['poster'], 'save_to_db' => Aio::$settings['ts_save']));
     $t = microtime(true);
-    list($code, $body) = aio_ts_call("$base/torrents", $req, $err, 5, Aio::$settings['ts_auth']);
-    $j = $err === '' && $code === 200 ? aio_ts_decode($body) : null;
+    $ra = aio_ts_call("$base/torrents", $req, 5, Aio::$settings['ts_auth']);
+    $err = $ra['err'];
+    $code = $ra['code'];
+    $j = $err === '' && $code === 200 ? aio_ts_decode($ra['body']) : null;
     $files = aio_ts_files($j);
     // The magnet is not logged: a private tracker carries a passkey.
     aio_log(sprintf('ts: add, save %d, %d trackers (%s): %s, %d files, %.2f s', Aio::$settings['ts_save'], $n, $src,
@@ -441,10 +444,11 @@ function aio_ts_tick($in)
     $lang = $st['lang'];
     $sec = max(0, time() - intval($p['t']));
     $p['n'] = strval(intval($p['n']) + 1);
-    $err = '';
-    list($code, $body) = aio_ts_call(Aio::$settings['ts'] . '/torrents',
-        json_encode(array('action' => 'get', 'hash' => $r['hash'])), $err, 2, Aio::$settings['ts_auth']);
-    $j = $err === '' && $code === 200 ? aio_ts_decode($body) : null;
+    $rg = aio_ts_call(Aio::$settings['ts'] . '/torrents',
+        json_encode(array('action' => 'get', 'hash' => $r['hash'])), 2, Aio::$settings['ts_auth']);
+    $err = $rg['err'];
+    $code = $rg['code'];
+    $j = $err === '' && $code === 200 ? aio_ts_decode($rg['body']) : null;
     $files = aio_ts_files($j);
     aio_log(sprintf('ts: tick %s, %d s: %s, stat %s, peers %s/%s, seeders %s, %d files', $p['n'], $sec,
         $err !== '' ? $err : "HTTP $code", is_array($j) && isset($j['stat']) ? json_encode($j['stat']) : '-',

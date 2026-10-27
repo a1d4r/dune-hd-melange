@@ -7,6 +7,10 @@ parameters:
     typeAliases:
         # A server of "Download to server" (aio_server_conf, common.php).
         AioServer: 'array{name: string, url: string, user: string, pass: string, category: string, tags: string, cache: string, type: string}'
+        # A reply of TorrServer (aio_ts_call, net.php).
+        AioTsReply: 'array{code: int, body: string, err: string, errno: int}'
+        # A reply of the Transmission RPC (aio_trm_call, net.php).
+        AioTrmReply: 'array{code: int, body: string, err: string, errno: int, sid: bool}'
         # A config of AIOStreams made by the settings page (aio_aio_conf, common.php).
         AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null}'
         # A JacRed to ask (aio_jacred_conf, aio_jacred_builtin_conf, common.php).

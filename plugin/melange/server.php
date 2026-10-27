@@ -155,14 +155,16 @@ function aio_trm_add($srv, $magnet)
     // Transmission 3.x ignores labels without an error.
     if ($srv['tags'] !== '')
         $a['labels'] = explode(',', $srv['tags']);
-    $err = '';
     $t = microtime(true);
-    list($code, $body, , $sid) = aio_trm_call($srv, json_encode(array('method' => 'torrent-add', 'arguments' => $a)), $err,
-        AIO_SRV_CONNECT, AIO_SRV_TOTAL);
-    aio_log(sprintf('server: rpc%s: %s, %.2f s', $sid ? ' with session id' : '', $err !== '' ? $err : "HTTP $code",
-        microtime(true) - $t));
+    $rep = aio_trm_call($srv, json_encode(array('method' => 'torrent-add', 'arguments' => $a)), AIO_SRV_CONNECT,
+        AIO_SRV_TOTAL);
+    $err = $rep['err'];
+    $code = $rep['code'];
+    $body = $rep['body'];
+    aio_log(sprintf('server: rpc%s: %s, %.2f s', $rep['sid'] ? ' with session id' : '',
+        $err !== '' ? $err : "HTTP $code", microtime(true) - $t));
     // Without a session id nothing is added: only the request with one may have been.
-    if (strpos($err, 'curl 28:') === 0 && $sid)
+    if (strpos($err, 'curl 28:') === 0 && $rep['sid'])
         return array('srv_err_timeout', $err);
     if ($err !== '')
         return array('srv_err_net', $err);

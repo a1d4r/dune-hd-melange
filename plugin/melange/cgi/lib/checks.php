@@ -369,8 +369,10 @@ function aio_cgi_key_check_post()
 function aio_cgi_ts_check($base, $auth = '')
 {
     // aio_ts_call (net.php), 3 s at most a request; errno 0 with an error: its options refused.
-    $err = '';
-    list($code, $body, $errno) = aio_ts_call("$base/echo", null, $err, 3);
+    $r = aio_ts_call("$base/echo", null, 3);
+    $err = $r['err'];
+    $errno = $r['errno'];
+    $code = $r['code'];
     if ($err !== '' && !$errno)
     {
         aio_cgi_log('ts check: curl options refused');
@@ -390,12 +392,13 @@ function aio_cgi_ts_check($base, $auth = '')
         return array(false, aio_cgi_l('Не отвечает', 'No answer') . " (curl $errno)");
     if ($code !== 200)
         return array(false, sprintf(aio_cgi_l('Ответил HTTP %d — это не TorrServer?', 'It answered HTTP %d: not a TorrServer?'), $code));
-    $v = trim(substr($body, 0, 64));
+    $v = trim(substr($r['body'], 0, 64));
     if (!preg_match('/^MatriX\.[0-9A-Za-z.\-]{1,20}\z/', $v))
         return array(false, aio_cgi_l('Ответил не TorrServer MatriX (старый 1.1?)', 'Not a TorrServer MatriX (an old 1.1?)'));
     // /echo is open always; /settings (as /torrents of the plugin) asks for the login when TorrServer has one.
-    list($code, , $errno) = aio_ts_call("$base/settings", '{"action":"get"}', $err, 3, $auth);
-    $st = $err !== '' && !$errno ? null : ($err === '' || $errno === 23 ? "HTTP $code" : "curl $errno");
+    $r = aio_ts_call("$base/settings", '{"action":"get"}', 3, $auth);
+    $st = $r['err'] !== '' && !$r['errno'] ? null : ($r['err'] === '' || $r['errno'] === 23 ? "HTTP {$r['code']}" :
+        "curl {$r['errno']}");
     aio_cgi_log('ts check: settings ' . ($auth !== '' ? 'with' : 'without') . ' a login: ' . (is_null($st) ? 'curl options refused' : $st));
     if ($st === 'HTTP 401')
         return array(false, $auth === '' ? aio_cgi_l('TorrServer просит логин и пароль', 'TorrServer asks for a login and password') :
@@ -513,10 +516,11 @@ function aio_cgi_qbt_check($srv)
 // session id in the lines or the log.
 function aio_cgi_trm_check($srv)
 {
-    $err = '';
-    list($code, $body, $e, $sid) = aio_trm_call($srv, json_encode(array('method' => 'session-get',
-        'arguments' => array('fields' => array('version', 'rpc-version')))), $err, 3, 8);
-    aio_cgi_log('server check: rpc' . ($sid ? ' with session id' : '') . ': ' . ($e ? "curl $e" : "HTTP $code"));
+    $r = aio_trm_call($srv, json_encode(array('method' => 'session-get',
+        'arguments' => array('fields' => array('version', 'rpc-version')))), 3, 8);
+    $code = $r['code'];
+    $e = $r['errno'];
+    aio_cgi_log('server check: rpc' . ($r['sid'] ? ' with session id' : '') . ': ' . ($e ? "curl $e" : "HTTP $code"));
     if ($e)
         return array(false, array(aio_cgi_srv_net($e)));
     if ($code === 401)
@@ -531,7 +535,7 @@ function aio_cgi_trm_check($srv)
         return array(false, array(aio_cgi_l('Transmission не принимает имя сервера в адресе: укажите IP или добавьте имя в ' .
             'rpc-host-whitelist', 'Transmission does not accept the server name of the address: use an IP or add the name to ' .
             'rpc-host-whitelist')));
-    $j = $code === 200 ? json_decode($body, true) : null;
+    $j = $code === 200 ? json_decode($r['body'], true) : null;
     $a = is_array($j) && isset($j['result'], $j['arguments']) && $j['result'] === 'success' && is_array($j['arguments']) ?
         $j['arguments'] : array();
     // "4.1.3 (838877323f)" -> 4.1.3.
