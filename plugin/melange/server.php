@@ -1,47 +1,14 @@
 <?php
 // "Download to server" in MENU of the list (0.30.0): the magnet of the row
 // to a qBittorrent WebAPI server of the settings (qBittorrent, rdt-client):
-// POST /api/v2/auth/login, then /api/v2/torrents/add (category, tags). A hash goes to a
-// server once: data_dir/servers_added.txt keeps "<hash> <server url>" lines.
+// POST /api/v2/auth/login, then /api/v2/torrents/add (category, tags). Each push
+// sends; the client itself refuses a torrent it has already.
 // Reads Aio (state, settings). Functions are global; the require order is in
 // main.php.
 
-define('AIO_DONE_FILE', 'servers_added.txt');
-// The last lines of the file kept.
-define('AIO_DONE_MAX', 1000);
 // Each request: connect, whole (rdt-client with TorBox may be slow to add).
 define('AIO_SRV_CONNECT', 3);
 define('AIO_SRV_TOTAL', 15);
-
-// Lines of servers_added.txt, oldest first.
-function aio_done_read()
-{
-    $f = aio_data_dir() . '/' . AIO_DONE_FILE;
-    clearstatcache();
-    if (aio_data_dir() === '' || !is_file($f))
-        return array();
-    $out = array();
-    foreach (file($f, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $l)
-    {
-        if (preg_match('/^[0-9a-f]{40} \S+\z/', $l))
-            $out[] = $l;
-    }
-    return $out;
-}
-
-function aio_done_has($hash, $srv)
-{
-    return in_array("$hash {$srv['url']}", aio_done_read(), true);
-}
-
-// Adds the pair, keeps the last AIO_DONE_MAX; false when not written.
-function aio_done_add($hash, $srv)
-{
-    $lines = aio_done_read();
-    $lines[] = "$hash {$srv['url']}";
-    $lines = array_slice($lines, -AIO_DONE_MAX);
-    return aio_data_dir() !== '' && aio_write_file(aio_data_dir() . '/' . AIO_DONE_FILE, implode("\n", $lines) . "\n");
-}
 
 // Index of the server the cursor starts on: the one standing for the debrid
 // service the row is cached in, else the first with no service, else 0.
@@ -74,9 +41,7 @@ function aio_srv_row($in)
     return isset($st['rows'][$i]) && $st['rows'][$i]['hash'] !== '' ? $i : null;
 }
 
-// gc_srv (the MENU item) -> the popup menu of the servers; a server that has
-// the hash already says so in its caption (GuiMenuItemDef::marked shows
-// nothing in show_popup_menu, with an icon or without; device 08.10.2026).
+// gc_srv (the MENU item) -> the popup menu of the servers.
 function aio_srv_menu($in)
 {
     $i = aio_srv_row($in);
@@ -91,8 +56,7 @@ function aio_srv_menu($in)
     $items = array();
     foreach ($servers as $k => $s)
         $items[] = array(
-            GuiMenuItemDef::caption => $s['name'] .
-                (aio_done_has($row['hash'], $s) ? ' — ' . aio_tr($st['lang'], 'srv_mark') : ''),
+            GuiMenuItemDef::caption => $s['name'],
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/network.aai',
             GuiMenuItemDef::action => aio_gc_act('gc_push', $st['rid'], array('i' => strval($i), 'k' => strval($k))));
     return array(
@@ -177,7 +141,7 @@ function aio_qbt_add($srv, $magnet)
     return '';
 }
 
-// gc_push of row i to server k -> a dialog: added, added before, or why not.
+// gc_push of row i to server k -> a dialog: added or why not.
 function aio_srv_push($in)
 {
     $i = aio_srv_row($in);
@@ -197,11 +161,6 @@ function aio_srv_push($in)
         ($srv['category'] !== '' ? ", category {$srv['category']}" : '') .
         ($srv['tags'] !== '' ? ", tags {$srv['tags']}" : '');
     $ok = array('OK' => aio_close_and(null));
-    if (aio_done_has($row['hash'], $srv))
-    {
-        aio_log("server: $tag: added before");
-        return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, 'srv_again')), array(), $ok);
-    }
     list($mg, $n, $src) = aio_magnet($row);
     aio_log("server: $tag, $n trackers ($src)");
     $res = aio_qbt_add($srv, $mg);
@@ -212,7 +171,6 @@ function aio_srv_push($in)
             'srv_failed')),
             array_merge(aio_dialog_lines(aio_tr($lang, $res[0])), aio_dialog_lines($res[1])), $ok);
     }
-    $kept = aio_done_add($row['hash'], $srv);
-    aio_log('server: added' . ($kept ? '' : ', not kept in ' . AIO_DONE_FILE));
+    aio_log('server: added');
     return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, 'srv_added')), array(), $ok);
 }

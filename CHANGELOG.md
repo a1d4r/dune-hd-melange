@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.46.2 — 27.10.2026
+- "Download to server…": the same release can be sent to the same server again (for example, if you deleted it in the client). Before, Melange remembered what it had sent and said "Already added to <server>" without asking the server. The "already added" mark in the list of servers is gone too. If the client still has the release, qBittorrent does not take it twice: "Not added to <server>" says the client did not accept the torrent; rdt-client keeps the one it has.
+
 ## 0.46.1 — 25.10.2026
 - Release list: the hint row at the bottom of the screen now also shows the keys **POP UP** (≡, the MENU key) — "Actions" (the menu of the release) and **INFO** (i) — "Details" (the release details). The captions of the hints are a little smaller and the ← → arrows of an episode are as high as the ≡ sign, so everything fits in the row with the counter.
 - Release list: the number of releases is only in the counter at the bottom right ("5 / 60"); the title no longer shows "60 releases". An episode keeps "S02E07" at the right of the title.
@@ -113,6 +116,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.46.2 — 27.10.2026
+- «Скачать на сервер…»: ту же раздачу можно снова отправить на тот же сервер (например, если её удалили в клиенте). Раньше Melange запоминал, что отправил, и отвечал «Уже добавлено в <сервер>», не спрашивая сервер. Пометки «уже добавлено» в списке серверов тоже больше нет. Если раздача ещё есть в клиенте, qBittorrent второй раз её не возьмёт — «Не добавлено в <сервер>» скажет, что клиент не принял раздачу; rdt-client оставит ту, что у него уже есть.
 
 ## 0.46.1 — 25.10.2026
 - Список раздач: в строке подсказок внизу экрана теперь есть и клавиши **POP UP** (≡, она же MENU) — «Действия» (меню раздачи) и **INFO** (i) — «Сведения» (сведения о раздаче). Подписи подсказок чуть мельче, стрелки ← → у серии — высотой со значок ≡, чтобы всё поместилось в строку со счётчиком.
