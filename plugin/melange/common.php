@@ -86,7 +86,8 @@ function aio_jacred_builtin_conf($id)
         'key_url' => rawurlencode($b[$id][1]), 'builtin' => true) : null;
 }
 
-// "Download to server" (0.30.0): at most this many qBittorrent WebAPI servers.
+// "Download to server" (0.30.0): at most this many servers (qBittorrent WebAPI,
+// Transmission RPC since 0.47.0).
 define('AIO_SERVERS_MAX', 5);
 
 // Debrid services a server may stand for (its "cache"): id of
@@ -100,13 +101,14 @@ function aio_server_caches()
 }
 
 // A server as typed or stored: array of strings name, url, user, pass,
-// category, tags, cache -> the same keys checked, or null when the address does not
+// category, tags, cache, type -> the same keys checked, or null when the address does not
 // fit. url: http(s)://host[:port][/path], port 1-65535, stored without a
 // trailing slash, scheme and host in lower case; name: up to 40 characters,
 // the host[:port] when empty; user, category, tags: up
 // to 100 printable characters, pass: up to 200; tags: comma-separated,
 // stored without spaces around each tag, empty ones and repeats; cache: a key of
-// aio_server_caches() or ''. No control bytes, UTF-8 only.
+// aio_server_caches() or ''; type: 'tr' (Transmission, 0.47.0), else 'qbt'
+// (qBittorrent WebAPI: qBittorrent, rdt-client). No control bytes, UTF-8 only.
 /**
  * @param mixed $a
  * @return AioServer|null
@@ -145,7 +147,27 @@ function aio_server_conf($a)
     $caches = aio_server_caches();
     if (!isset($caches[$v['cache']]))
         $v['cache'] = '';
+    // None (stored before 0.47.0) or unknown: qBittorrent, as it was.
+    $v['type'] = isset($a['type']) && $a['type'] === 'tr' ? 'tr' : 'qbt';
     return $v;
+}
+
+// The Transmission RPC address of a stored server address: no path ->
+// /transmission/rpc; the web UI path copied from a browser
+// (.../transmission/web) -> .../transmission/rpc; any other path as typed (its
+// own rpc-url, a reverse proxy).
+/**
+ * @param string $url
+ * @return string
+ */
+function aio_tr_rpc($url)
+{
+    $path = (string) preg_replace('~^[a-z]+://[^/]*~', '', $url);
+    if ($path === '')
+        return "$url/transmission/rpc";
+    if (substr($path, -17) === '/transmission/web')
+        return substr($url, 0, -4) . '/rpc';
+    return $url;
 }
 
 // "Watch via TorrServer" (0.31.0): no address set -> the TorrServe app of this Dune.

@@ -3,7 +3,8 @@
 // to a qBittorrent WebAPI server of the settings (qBittorrent, rdt-client):
 // POST /api/v2/auth/login, then /api/v2/torrents/add (category, tags). Each push
 // sends: a torrent the client has already is refused by qBittorrent (Fails. /
-// 409), rdt-client returns the one it has (200).
+// 409), rdt-client returns the one it has (200). Transmission (0.47.0): JSON
+// RPC torrent-add, HTTP Basic, its session id handshake (409).
 // Reads Aio (state, settings). Functions are global; the require order is in
 // main.php.
 
@@ -142,6 +143,64 @@ function aio_qbt_add($srv, $magnet)
     return '';
 }
 
+// The magnet to the Transmission server $srv -> '' (added) or array(error
+// key, detail); 'srv_dup': it has the torrent already. The first request goes
+// without a session id: 409 hands one, the request goes once more with it.
+// Neither the password, the Authorization nor the session id is logged.
+function aio_tr_add($srv, $magnet)
+{
+    $a = array('filename' => $magnet);
+    if ($srv['category'] !== '')
+        $a['download-dir'] = $srv['category'];
+    // Transmission 3.x ignores labels without an error.
+    if ($srv['tags'] !== '')
+        $a['labels'] = explode(',', $srv['tags']);
+    $json = json_encode(array('method' => 'torrent-add', 'arguments' => $a));
+    $url = aio_tr_rpc($srv['url']);
+    $h = array('Content-Type: application/json');
+    if ($srv['user'] !== '')
+        $h[] = 'Authorization: Basic ' . base64_encode("{$srv['user']}:{$srv['pass']}");
+    $sid = '';
+    $err = '';
+    while (true)
+    {
+        $t = microtime(true);
+        list($code, $body, , $got) = aio_http_post($url, $json, '', $err, AIO_SRV_CONNECT, AIO_SRV_TOTAL,
+            $sid !== '' ? array_merge($h, array("X-Transmission-Session-Id: $sid")) : $h);
+        aio_log(sprintf('server: rpc%s: %s, %.2f s', $sid !== '' ? ' with session id' : '',
+            $err !== '' ? $err : "HTTP $code", microtime(true) - $t));
+        if ($err !== '' || $code !== 409 || $got === '' || $sid !== '')
+            break;
+        $sid = $got;
+    }
+    // Without a session id nothing is added: only the request with one may have been.
+    if (strpos($err, 'curl 28:') === 0 && $sid !== '')
+        return array('srv_err_timeout', $err);
+    if ($err !== '')
+        return array('srv_err_net', $err);
+    $text = aio_srv_text($body);
+    if ($code === 401)
+        return array('srv_err_login', '');
+    // Not in its rpc-whitelist.
+    if ($code === 403)
+        return array('srv_err_forbidden', 'HTTP 403');
+    // Twice, or no id to retry with; its page quotes the id: not shown.
+    if ($code === 409)
+        return array('srv_err_reply', 'HTTP 409');
+    $j = $code === 200 ? json_decode($body, true) : null;
+    if (!is_array($j) || !isset($j['result']) || !is_string($j['result']))
+        return array('srv_err_reply', trim("HTTP $code $text"));
+    // An error is in "result", not in the HTTP code.
+    if ($j['result'] !== 'success')
+        return array('srv_err_rejected', aio_srv_text($j['result']));
+    $r = isset($j['arguments']) && is_array($j['arguments']) ? $j['arguments'] : array();
+    if (isset($r['torrent-duplicate']))
+        return array('srv_dup', '');
+    if (!isset($r['torrent-added']))
+        aio_log('server: success without torrent-added, taken as added');
+    return '';
+}
+
 // gc_push of row i to server k -> a dialog: added or why not.
 function aio_srv_push($in)
 {
@@ -158,13 +217,18 @@ function aio_srv_push($in)
     $srv = $servers[$k];
     $lang = $st['lang'];
     // Not its address: the log is for others to read.
-    $tag = aio_ep_tag($st) . ", row $i, hash {$row['hash']}, server $k" .
+    $tag = aio_ep_tag($st) . ", row $i, hash {$row['hash']}, server $k" . ($srv['type'] === 'tr' ? ' (Transmission)' : '') .
         ($srv['category'] !== '' ? ", category {$srv['category']}" : '') .
         ($srv['tags'] !== '' ? ", tags {$srv['tags']}" : '');
     $ok = array('OK' => aio_close_and(null));
     list($mg, $n, $src) = aio_magnet($row);
     aio_log("server: $tag, $n trackers ($src)");
-    $res = aio_qbt_add($srv, $mg);
+    $res = $srv['type'] === 'tr' ? aio_tr_add($srv, $mg) : aio_qbt_add($srv, $mg);
+    if ($res !== '' && $res[0] === 'srv_dup')
+    {
+        aio_log('server: there already');
+        return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, 'srv_dup')), array(), $ok);
+    }
     if ($res !== '')
     {
         aio_log("server: not added: {$res[0]}" . ($res[1] !== '' ? " ({$res[1]})" : ''));
