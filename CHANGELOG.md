@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.47.0 — 27.10.2026
+- **Transmission in "Download to server…".** A server block of the settings page has a new first field, **"Client"**: "qBittorrent / rdt-client" (as before) or "Transmission". For Transmission, "Category" becomes **"Download folder on the server"** and "Tags" become **"Labels"**; both are optional. The address is that of its web UI: `http://host:9091` (the RPC path is added by Melange), one copied from the browser (`…/transmission/web`) or your own RPC path. **"Check"** logs in and shows "OK: logged in · version 4.1.3", or the reason: wrong login or password, the server does not let the Dune in (add its address to `rpc-whitelist`), not Transmission at this address. Transmission 3.x does not keep labels: "Check" says so. On the Dune a release Transmission already has gets **"Already in <server>"**. Servers saved before stay qBittorrent / rdt-client.
+
 ## 0.46.2 — 27.10.2026
 - "Download to server…": the same release can be sent to the same server again (for example, if you deleted it in the client). Before, Melange remembered what it had sent and said "Already added to <server>" without asking the server. The "already added" mark in the list of servers is gone too. If the client still has the release, qBittorrent does not take it twice: "Not added to <server>" says the client did not accept the torrent; rdt-client keeps the one it has.
 
@@ -116,6 +119,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.47.0 — 27.10.2026
+- **Transmission в «Скачать на сервер…».** У блока сервера на странице настроек новое первое поле **«Клиент»**: «qBittorrent / rdt-client» (как раньше) или «Transmission». У Transmission вместо «Категории» — **«Папка загрузки на сервере»**, вместо «Тегов» — **«Метки»**, оба необязательны. Адрес — веб-интерфейса: `http://хост:9091` (путь RPC Melange допишет сам), скопированный из браузера (`…/transmission/web`) или свой путь RPC. **«Проверить»** входит и показывает «OK: вход принят · версия 4.1.3» или причину: неверный логин или пароль, сервер не пускает Дюну (добавьте её адрес в `rpc-whitelist`), по адресу не Transmission. Transmission 3.x метки не хранит — «Проверить» об этом скажет. На Дюне раздача, которая в Transmission уже есть, — **«Уже есть в <сервер>»**. Сохранённые раньше серверы остаются qBittorrent / rdt-client.
 
 ## 0.46.2 — 27.10.2026
 - «Скачать на сервер…»: ту же раздачу можно снова отправить на тот же сервер (например, если её удалили в клиенте). Раньше Melange запоминал, что отправил, и отвечал «Уже добавлено в <сервер>», не спрашивая сервер. Пометки «уже добавлено» в списке серверов тоже больше нет. Если раздача ещё есть в клиенте, qBittorrent второй раз её не возьмёт — «Не добавлено в <сервер>» скажет, что клиент не принял раздачу; rdt-client оставит ту, что у него уже есть.
