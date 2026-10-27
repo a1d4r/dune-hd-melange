@@ -6,6 +6,8 @@
 // Types in the PHPDoc (AioSettings and others): phpstan-types.neon of the repository.
 
 define('AIO_VERSION', '0.47.0');
+// HTTPS works only with the firmware CA bundle (curl of the plugin and the page).
+define('AIO_CA_BUNDLE', '/firmware/certs/ca-bundle.crt');
 // In data_dir: written by the settings page only; the plugin only reads it.
 define('AIO_SETTINGS_FILE', 'settings.json');
 // In data_dir: the token of the settings page; written by the plugin only.

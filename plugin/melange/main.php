@@ -371,7 +371,7 @@ if (!function_exists('aio_http_get'))
             CURLOPT_CONNECTTIMEOUT => $connect,
             CURLOPT_TIMEOUT => $total,
             // HTTPS works only with the firmware CA bundle.
-            CURLOPT_CAINFO => '/firmware/certs/ca-bundle.crt',
+            CURLOPT_CAINFO => AIO_CA_BUNDLE,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_ENCODING => '',
@@ -429,7 +429,7 @@ if (!function_exists('aio_http_post'))
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_CONNECTTIMEOUT => $connect,
             CURLOPT_TIMEOUT => $total,
-            CURLOPT_CAINFO => '/firmware/certs/ca-bundle.crt',
+            CURLOPT_CAINFO => AIO_CA_BUNDLE,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION,
@@ -480,7 +480,7 @@ if (!function_exists('aio_http_peek'))
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_CONNECTTIMEOUT => $connect,
             CURLOPT_TIMEOUT => $total,
-            CURLOPT_CAINFO => '/firmware/certs/ca-bundle.crt',
+            CURLOPT_CAINFO => AIO_CA_BUNDLE,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             // The User-Agent of aio_fetch: the add-ons see the same client.

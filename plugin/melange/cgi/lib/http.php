@@ -4,7 +4,6 @@
 // reply; curl - the one request of the page (aio_cgi_curl), redirects.
 
 define('AIO_CGI_MAX_BODY', 262144);
-define('AIO_CGI_CA', '/firmware/certs/ca-bundle.crt');
 
 // The language of the page: 'ru' or 'en', by aio_cgi_lang() on the first
 // text (null: not yet).
@@ -107,15 +106,17 @@ function aio_cgi_location($base, $loc)
 
 // The one curl request of the page, no redirects followed: $o - method
 // ('GET' by default; POST, PUT), body (of a POST or PUT), headers (the request
-// headers), connect, total (timeouts, s), max (the body read at most,
-// AIO_CGI_MAX_BODY by default), ua (User-Agent), gzip (any Content-Encoding)
-// -> array(errno: curl errno, 0 also when cut, -1 its options refused; code:
+// headers), connect, total (timeouts, s; 3 and 8 by default), max (the body
+// read at most, AIO_CGI_MAX_BODY by default), ua (User-Agent,
+// Melange-Dune/<version> by default), gzip (any Content-Encoding) ->
+// array(errno: curl errno, 0 also when cut, -1 its options refused; code:
 // HTTP code; body; cut: over max (curl 23), the start is there; location:
 // Location of the reply; cookies: its Set-Cookie as "a=b; c=d"; error: the
 // text of curl).
 function aio_cgi_curl($url, $o)
 {
-    $o += array('method' => 'GET', 'body' => null, 'headers' => array(), 'max' => AIO_CGI_MAX_BODY, 'gzip' => false);
+    $o += array('method' => 'GET', 'body' => null, 'headers' => array(), 'connect' => 3, 'total' => 8,
+        'max' => AIO_CGI_MAX_BODY, 'ua' => 'Melange-Dune/' . AIO_VERSION, 'gzip' => false);
     $max = $o['max'];
     $body = '';
     $loc = '';
@@ -142,7 +143,7 @@ function aio_cgi_curl($url, $o)
         CURLOPT_CONNECTTIMEOUT => $o['connect'],
         CURLOPT_TIMEOUT => $o['total'],
         // HTTPS works only with the firmware CA bundle.
-        CURLOPT_CAINFO => AIO_CGI_CA,
+        CURLOPT_CAINFO => AIO_CA_BUNDLE,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
         CURLOPT_USERAGENT => $o['ua'],

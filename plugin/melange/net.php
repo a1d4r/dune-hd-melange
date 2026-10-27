@@ -2,7 +2,8 @@
 // HTTP clients shared by the plugin (php_server) and the settings page
 // (cgi/settings.php, php-cgi as root): TorrServer and the Transmission RPC.
 // Plain PHP 5.3: no firmware API, no logging here. Needs common.php
-// (AIO_VERSION); tests define their own aio_ts_call() and aio_trm_call().
+// (AIO_VERSION, AIO_CA_BUNDLE); tests define their own aio_ts_call() and
+// aio_trm_call().
 // Types in the PHPDoc (AioServer): phpstan-types.neon of the repository.
 
 // The Transmission RPC address of a stored server address: no path ->
@@ -63,7 +64,7 @@ if (!function_exists('aio_trm_call'))
                 CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
                 CURLOPT_CONNECTTIMEOUT => $connect,
                 CURLOPT_TIMEOUT => $total,
-                CURLOPT_CAINFO => '/firmware/certs/ca-bundle.crt',
+                CURLOPT_CAINFO => AIO_CA_BUNDLE,
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION,
@@ -113,10 +114,10 @@ if (!function_exists('aio_ts_call'))
 {
     // GET ($post null) or POST of JSON $post to TorrServer -> array(code:
     // HTTP code, body ('' on a transport error), err: the transport error (''
-    // none), errno: curl errno, 0 none, also when its options are refused:
-    // err tells). http only, no redirects; the errors of TorrServer have an
-    // empty body: the code tells. $auth: "login:password" for Basic auth
-    // (0.45.0), '' none. The plugin and the check of the settings page.
+    // none), errno: curl errno, 0 none, -1 its options refused). http only,
+    // no redirects; the errors of TorrServer have an empty body: the code
+    // tells. $auth: "login:password" for Basic auth (0.45.0), '' none. The
+    // plugin and the check of the settings page.
     /**
      * @param string $url
      * @param string|null $post
@@ -159,7 +160,7 @@ if (!function_exists('aio_ts_call'))
         if (!curl_setopt_array($ch, $opts))
         {
             curl_close($ch);
-            return array('code' => 0, 'body' => '', 'err' => 'curl options refused', 'errno' => 0);
+            return array('code' => 0, 'body' => '', 'err' => 'curl options refused', 'errno' => -1);
         }
         $ok = curl_exec($ch);
         $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
