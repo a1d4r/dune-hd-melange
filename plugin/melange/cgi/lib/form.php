@@ -111,13 +111,15 @@ function aio_cgi_field($id, $name, $label, $value, $hint, $max = 2100, $chk = ''
 }
 
 // A plain text field (no hiding); $max: the limit of aio_server_conf();
-// $name '' - read-only, not posted.
-function aio_cgi_plain($id, $name, $label, $value, $placeholder, $max = 300, $chk = '')
+// $name '' - read-only, not posted. $label_attrs, $input_attrs: more
+// attributes of the label and of the input, escaped (' data-x="…"').
+function aio_cgi_plain($id, $name, $label, $value, $placeholder, $max = 300, $chk = '', $label_attrs = '',
+    $input_attrs = '')
 {
     $chk = is_array($chk) ? $chk : array('', '');
-    return '<label for="' . $id . '">' . $label . '</label><div class="f">' .
+    return '<label for="' . $id . '"' . $label_attrs . '>' . $label . '</label><div class="f">' .
         '<input id="' . $id . '" ' . ($name !== '' ? 'name="' . $name . '"' : 'readonly') . ' type="text" value="' .
-        aio_cgi_h($value) . '" placeholder="' .
+        aio_cgi_h($value) . '"' . $input_attrs . ' placeholder="' .
         aio_cgi_h($placeholder) . '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" ' .
         'maxlength="' . $max . '">' . $chk[0] . '</div>' . $chk[1];
 }
@@ -175,10 +177,8 @@ function aio_cgi_srv_alt($x)
 function aio_cgi_srv_plain($f, $label, $value, $ph, $type)
 {
     $i = $type === 'tr' ? 1 : 0;
-    $h = aio_cgi_plain($f['id'], $f['name'], is_array($label) ? $label[$i] : $label, $value, $ph[$i], $f['max']);
-    if (is_array($label))
-        $h = str_replace('<label for="' . $f['id'] . '">', '<label for="' . $f['id'] . '"' . aio_cgi_srv_alt($label) . '>', $h);
-    return $ph[0] === $ph[1] ? $h : str_replace(' placeholder="', aio_cgi_srv_alt($ph) . ' placeholder="', $h);
+    return aio_cgi_plain($f['id'], $f['name'], is_array($label) ? $label[$i] : $label, $value, $ph[$i], $f['max'], '',
+        is_array($label) ? aio_cgi_srv_alt($label) : '', $ph[0] === $ph[1] ? '' : aio_cgi_srv_alt($ph));
 }
 
 // The servers of "Download to server": AIO_SERVERS_MAX blocks s<n>_<field>,
