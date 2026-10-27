@@ -106,6 +106,8 @@ export function setupServers(page: Page): Servers {
     const block = blocks[i]!;
     const type = serverFields(block).byKey.type;
     if (type) type.addEventListener("change", () => renderClient(block));
+    // A browser may restore the choice on Back or a reload: the texts follow it, not the server's.
+    renderClient(block);
     const button = page.doc.createElement("button");
     button.type = "button";
     button.className = CLS.check + " " + CLS.serverDup;

@@ -123,6 +123,16 @@ describe("Client of a block", () => {
     expect(texts(page, 1)).toEqual(QBT);
   });
 
+  test("a client restored by the browser before the script (Back, reload): its texts at load", () => {
+    const page = open("filled", {
+      before: (doc) => {
+        doc.querySelector<HTMLSelectElement>('[name="s1_type"]')!.value = "tr";
+      },
+    });
+    expect(texts(page, 1)).toEqual(TR);
+    expect(texts(page, 2)).toEqual(QBT);
+  });
+
   test("Duplicate of a Transmission block: the client and its texts in the copy", () => {
     const page = open("filled");
     page.type("s1_type", "tr");
