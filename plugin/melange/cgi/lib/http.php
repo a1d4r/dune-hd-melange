@@ -128,24 +128,30 @@ function aio_cgi_location($base, $loc)
 }
 
 $AIO_CGI_COOKIES = array();
+$AIO_CGI_TR_SID = '';
 function aio_cgi_srv_head($ch, $line)
 {
-    global $AIO_CGI_COOKIES;
+    global $AIO_CGI_COOKIES, $AIO_CGI_TR_SID;
     if (preg_match('/^Set-Cookie:\s*([A-Za-z0-9_.\-]+=[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*)/i', $line, $m))
         $AIO_CGI_COOKIES[] = $m[1];
+    elseif (preg_match('/^X-Transmission-Session-Id:[ \t]*([\x21-\x7e]{1,200})[ \t\r\n]*$/i', $line, $m))
+        $AIO_CGI_TR_SID = $m[1];
     return aio_cgi_head($ch, $line);
 }
 
-// One request of the check: POST of $fields (null: GET) with the cookies
-// $cookie (or the request headers $headers instead) -> array(curl errno or 0, HTTP code, body (256 KB at most),
-// cookies of the reply, the body cut at the limit). No redirects, 3 s to
+// One request of the check: POST of $fields (a string: that body as is,
+// Transmission's JSON; null: GET) with the cookies $cookie (or the request
+// headers $headers instead) -> array(curl errno or 0, HTTP code, body (256 KB
+// at most), cookies of the reply, the body cut at the limit,
+// X-Transmission-Session-Id of the reply or ''). No redirects, 3 s to
 // connect, 8 s in all.
 function aio_cgi_srv_req($url, $fields, $cookie, $headers = null)
 {
-    global $AIO_CGI_BODY, $AIO_CGI_COOKIES, $AIO_CGI_LOCATION;
+    global $AIO_CGI_BODY, $AIO_CGI_COOKIES, $AIO_CGI_LOCATION, $AIO_CGI_TR_SID;
     $AIO_CGI_BODY = '';
     $AIO_CGI_COOKIES = array();
     $AIO_CGI_LOCATION = '';
+    $AIO_CGI_TR_SID = '';
     $opt = array(
         CURLOPT_WRITEFUNCTION => 'aio_cgi_body',
         CURLOPT_HEADERFUNCTION => 'aio_cgi_srv_head',
@@ -160,16 +166,16 @@ function aio_cgi_srv_req($url, $fields, $cookie, $headers = null)
         CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION,
         CURLOPT_HTTPHEADER => is_array($headers) ? $headers :
             ($cookie !== '' ? array('Expect:', "Cookie: $cookie") : array('Expect:')));
-    if (is_array($fields))
+    if (!is_null($fields))
     {
         $opt[CURLOPT_POST] = true;
-        $opt[CURLOPT_POSTFIELDS] = http_build_query($fields, '', '&');
+        $opt[CURLOPT_POSTFIELDS] = is_string($fields) ? $fields : http_build_query($fields, '', '&');
     }
     $ch = curl_init($url);
     if (!curl_setopt_array($ch, $opt))
     {
         curl_close($ch);
-        return array(-1, 0, '', '', false);
+        return array(-1, 0, '', '', false, '');
     }
     $ok = curl_exec($ch);
     $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
@@ -178,7 +184,7 @@ function aio_cgi_srv_req($url, $fields, $cookie, $headers = null)
     // 23: cut by aio_cgi_body, the start is there.
     $cut = $ok === false && $errno === 23;
     $errno = $ok === false && !$cut ? $errno : 0;
-    return array($errno, $code, $AIO_CGI_BODY, implode('; ', $AIO_CGI_COOKIES), $cut);
+    return array($errno, $code, $AIO_CGI_BODY, implode('; ', $AIO_CGI_COOKIES), $cut, $AIO_CGI_TR_SID);
 }
 
 // $what: the service at the address for "connection refused", '' for a client.

@@ -175,9 +175,9 @@ describe.each([...FIXTURES])("%s", (name) => {
           keys.push(match[2]!);
         }
       });
-      expect(keys.sort()).toEqual(["cache", "category", "name", "pass", "tags", "url", "user"]);
+      expect(keys.sort()).toEqual(["cache", "category", "name", "pass", "tags", "type", "url", "user"]);
       const checked = keys.filter((key) => SERVER_CHECK_FIELD.test("s" + (i + 1) + "_" + key));
-      expect(checked.sort()).toEqual(["category", "pass", "tags", "url", "user"]);
+      expect(checked.sort()).toEqual(["category", "pass", "tags", "type", "url", "user"]);
       expect(block.querySelectorAll("button." + CLS.serverCheck).length).toBe(1);
       expect(block.querySelectorAll("." + CLS.serverResult).length).toBe(1);
       expect(block.querySelector("input[type=text]")!.getAttribute("name")).toBe("s" + (i + 1) + "_name");

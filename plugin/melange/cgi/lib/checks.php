@@ -506,15 +506,60 @@ function aio_cgi_srv_check($srv)
     return array(true, array_merge(array('OK: ' . implode(' · ', $parts)), $more));
 }
 
+// A Transmission server of aio_server_conf() (0.47.0) -> array(ok, lines for
+// the page): session-get through its session id handshake (409, once more
+// with the id): login, version; labels of a server before 4.0 (rpc-version
+// 17) are dropped by it. The folder is not checked. Never the password, the
+// Authorization or the session id in the lines or the log.
+function aio_cgi_tr_check($srv)
+{
+    $h = array('Expect:', 'Content-Type: application/json');
+    if ($srv['user'] !== '')
+        $h[] = 'Authorization: Basic ' . base64_encode("{$srv['user']}:{$srv['pass']}");
+    $json = json_encode(array('method' => 'session-get', 'arguments' => array('fields' => array('version', 'rpc-version'))));
+    $sid = '';
+    while (true)
+    {
+        list($e, $code, $body, , , $got) = aio_cgi_srv_req(aio_tr_rpc($srv['url']), $json, '',
+            $sid !== '' ? array_merge($h, array("X-Transmission-Session-Id: $sid")) : $h);
+        aio_cgi_log('server check: rpc' . ($sid !== '' ? ' with session id' : '') . ': ' . ($e ? "curl $e" : "HTTP $code"));
+        if ($e || $code !== 409 || $got === '' || $sid !== '')
+            break;
+        $sid = $got;
+    }
+    if ($e)
+        return array(false, array(aio_cgi_srv_net($e)));
+    if ($code === 401)
+        return array(false, array($srv['user'] === '' ? aio_cgi_l('Сервер требует вход: укажите логин и пароль',
+            'The server requires a login: fill in the login and password') : aio_cgi_l('Неверный логин или пароль',
+            'Wrong login or password')));
+    if ($code === 403)
+        return array(false, array(aio_cgi_l('Сервер не пускает Дюну: добавьте её адрес в белый список Transmission (rpc-whitelist)',
+            'The server does not let the Dune in: add its address to the Transmission whitelist (rpc-whitelist)')));
+    $j = $code === 200 ? json_decode($body, true) : null;
+    $a = is_array($j) && isset($j['result'], $j['arguments']) && $j['result'] === 'success' && is_array($j['arguments']) ?
+        $j['arguments'] : array();
+    // "4.1.3 (838877323f)" -> 4.1.3.
+    if (!isset($a['version']) || !is_string($a['version']) || !preg_match('/^[0-9][0-9A-Za-z.+\-]{0,19}/', $a['version'], $m))
+        return array(false, array(sprintf(aio_cgi_l('Ответ не похож на Transmission (HTTP %d) — проверьте адрес',
+            'The reply does not look like Transmission (HTTP %d): check the address'), $code)));
+    $more = array();
+    if ($srv['tags'] !== '' && isset($a['rpc-version']) && is_int($a['rpc-version']) && $a['rpc-version'] < 17)
+        $more[] = aio_cgi_l('Метки сохраняются с Transmission 4.0 — этот сервер их пропустит',
+            'Labels are kept since Transmission 4.0: this server will skip them');
+    return array(true, array_merge(array('OK: ' . ($srv['user'] !== '' ? aio_cgi_l('вход принят', 'logged in') :
+        aio_cgi_l('без входа', 'no login')) . ' · ' . aio_cgi_l('версия', 'version') . " $m[0]"), $more));
+}
+
 // a=srv_check: the server of the posted block, nothing written.
 function aio_cgi_srv_check_post()
 {
     $v = array();
-    foreach (array('url', 'user', 'pass', 'category', 'tags') as $k)
+    foreach (array('type', 'url', 'user', 'pass', 'category', 'tags') as $k)
         $v[$k] = aio_cgi_param($_POST, $k);
     $srv = aio_server_conf($v);
     if ($srv)
-        list($ok, $lines) = aio_cgi_srv_check($srv);
+        list($ok, $lines) = $srv['type'] === 'tr' ? aio_cgi_tr_check($srv) : aio_cgi_srv_check($srv);
     else
     {
         aio_cgi_log('server check: bad format');

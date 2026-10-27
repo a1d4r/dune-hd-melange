@@ -36,9 +36,10 @@
 //                      <TorrServer>/echo, then POST /settings with the login
 //                      (0.45.0: is one asked for, taken), JSON {ok, msg[,
 //                      level]}, nothing written;
-//   POST ?t=<token>&a=srv_check (url, user, pass, category, tags) -> login,
-//                      app/version, categories, tags of that qBittorrent;
-//                      JSON {ok, msg, lines}, nothing written;
+//   POST ?t=<token>&a=srv_check (type, url, user, pass, category, tags) ->
+//                      login, app/version, categories, tags of that
+//                      qBittorrent; type tr (0.47.0): session-get of that
+//                      Transmission; JSON {ok, msg, lines}, nothing written;
 //   POST ?t=<token>&a=aio_check&ajax=1 (manifest) -> GET of that manifest.json
 //                      (redirects by the rules), JSON {ok, msg}, nothing written;
 //   POST ?t=<token>&a=jr_speed&ajax=1 (b | url, key; q) -> search q of the

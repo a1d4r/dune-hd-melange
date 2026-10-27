@@ -123,6 +123,10 @@ export const DATA = {
   key: "data-k",
   // The state of #state and its lines: key, conf, man, ok.
   state: "data-st",
+  // Of a field of a server block by its client (s<n>_type: qbt, tr): of a label - its text, of an input - its
+  // placeholder.
+  qbt: "data-qbt",
+  tr: "data-tr",
 } as const;
 
 export const NAME = {
@@ -155,12 +159,12 @@ export const AIO_SERVER_RADIOS = "input[name=" + NAME.aioServer + "]";
 // The cards of a group of radios (label.opt[for] of each): an error of their name= marks it.
 export const RADIO_GROUP = ".choice";
 
-// A block of a qBittorrent server.
+// A block of a server (qBittorrent WebAPI or Transmission).
 export const SERVER_BLOCK = "details." + CLS.serverBlock;
 // s<n>_<key>: a field of server block n.
 export const SERVER_FIELD = /^s([1-9])_([a-z]+)$/;
 // The fields of a block posted by its "Check".
-export const SERVER_CHECK_FIELD = /^s[1-9]_(url|user|pass|category|tags)$/;
+export const SERVER_CHECK_FIELD = /^s[1-9]_(type|url|user|pass|category|tags)$/;
 
 // The page of the script: its document, the form and the texts.
 export interface Page {

@@ -99,8 +99,53 @@ describe("Duplicate", () => {
   });
 });
 
+describe("Client of a block", () => {
+  const labelOf = (page: Page, name: string) =>
+    page.doc.querySelector<HTMLLabelElement>('label[for="' + page.field(name).id + '"]')!.textContent;
+  const texts = (page: Page, blockNo: number) => [
+    labelOf(page, "s" + blockNo + "_category"),
+    labelOf(page, "s" + blockNo + "_tags"),
+    page.field("s" + blockNo + "_url").placeholder,
+  ];
+  const QBT = ["Категория (необязательно)", "Теги через запятую (необязательно)", "http://192.168.1.10:8080"];
+  const TR = ["Папка загрузки на сервере (необязательно)", "Метки через запятую (необязательно)", "http://192.168.1.10:9091"];
+
+  test("Transmission chosen: the labels of category and tags, the address placeholder; back to qBittorrent", () => {
+    const page = open("filled");
+    expect(value(page, "s1_type")).toBe("qbt");
+    expect(texts(page, 1)).toEqual(QBT);
+    page.type("s1_type", "tr");
+    expect(texts(page, 1)).toEqual(TR);
+    // The values typed stay: the same keys on the server.
+    expect([value(page, "s1_category"), value(page, "s1_url")]).toEqual(["movies", "http://192.168.1.10:8080"]);
+    expect(texts(page, 2)).toEqual(QBT);
+    page.type("s1_type", "qbt");
+    expect(texts(page, 1)).toEqual(QBT);
+  });
+
+  test("Duplicate of a Transmission block: the client and its texts in the copy", () => {
+    const page = open("filled");
+    page.type("s1_type", "tr");
+    dup(page, 1).click();
+    expect(value(page, "s2_type")).toBe("tr");
+    expect(texts(page, 2)).toEqual(TR);
+  });
+
+  test("Check of a Transmission block posts type=tr", async () => {
+    const page = open("filled");
+    page.type("s1_type", "tr");
+    page.replies.push(json({ ok: true, msg: "OK", lines: ["OK: вход принят · версия 4.1.3"] }));
+    blocks(page)[0]!.querySelector<HTMLButtonElement>("." + CLS.serverCheck)!.click();
+    await flush();
+    expect(page.calls[0]!.body).toBe(
+      "type=tr&url=http%3A%2F%2F192.168.1.10%3A8080&user=admin&pass=test-pass&category=movies&tags=",
+    );
+    expect(lines(result(page, 1))).toEqual([["ok", "OK: вход принят · версия 4.1.3"]]);
+  });
+});
+
 describe("Check of a block", () => {
-  test("POST srv_check with url, user, pass, category, tags of its block; disabled and Checking… while it goes", async () => {
+  test("POST srv_check with type, url, user, pass, category, tags of its block; disabled and Checking… while it goes", async () => {
     const page = open("filled");
     const button = blocks(page)[0]!.querySelector<HTMLButtonElement>("." + CLS.serverCheck)!;
     const answer = later();
@@ -112,7 +157,7 @@ describe("Check of a block", () => {
       {
         method: "POST",
         url: TOKEN + "&a=srv_check&ajax=1",
-        body: "url=http%3A%2F%2F192.168.1.10%3A8080&user=admin&pass=test-pass&category=movies&tags=x%20y%26z",
+        body: "type=qbt&url=http%3A%2F%2F192.168.1.10%3A8080&user=admin&pass=test-pass&category=movies&tags=x%20y%26z",
         contentType: "application/x-www-form-urlencoded",
       },
     ]);

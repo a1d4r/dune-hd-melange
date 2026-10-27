@@ -23,9 +23,9 @@ async function save(page: Page): Promise<void> {
 function servers(first: [string, string][]): [string, string][] {
   const out: [string, string][] = [];
   for (let n = 1; n <= 5; n++)
-    for (const key of ["name", "url", "user", "pass", "category", "tags", "cache"]) {
+    for (const key of ["type", "name", "url", "user", "pass", "category", "tags", "cache"]) {
       const given = n === 1 ? first.find(([k]) => k === key) : undefined;
-      out.push(["s" + n + "_" + key, given ? given[1] : ""]);
+      out.push(["s" + n + "_" + key, given ? given[1] : key === "type" ? "qbt" : ""]);
     }
   return out;
 }

@@ -1,8 +1,8 @@
-// The blocks of qBittorrent servers (details.srv): blank ones hidden, "Add", "Duplicate", "Check".
+// The blocks of servers (details.srv): blank ones hidden, "Add", "Duplicate", "Check"; the texts by the client.
 
 import type { Api } from "./api";
 import { bindCheck } from "./checks";
-import { byId, CLS, ID, type Page, query, SERVER_BLOCK, SERVER_CHECK_FIELD, SERVER_FIELD } from "./dom";
+import { byId, CLS, DATA, ID, type Page, query, SERVER_BLOCK, SERVER_CHECK_FIELD, SERVER_FIELD } from "./dom";
 import type { Lock } from "./lock";
 
 type Field = HTMLInputElement | HTMLSelectElement;
@@ -34,6 +34,19 @@ function isBlank(block: Element): boolean {
   const byKey = serverFields(block).byKey;
   for (const key in byKey) if (byKey[key]!.tagName === "INPUT" && byKey[key]!.value !== "") return false;
   return true;
+}
+
+// The labels and placeholders of a block by its client chosen (data-qbt / data-tr).
+function renderClient(block: Element): void {
+  const type = serverFields(block).byKey.type;
+  const attr = type && type.value === "tr" ? DATA.tr : DATA.qbt;
+  const swapped = block.querySelectorAll<HTMLElement>("[" + DATA.qbt + "]");
+  for (let i = 0; i < swapped.length; i++) {
+    const el = swapped[i]!,
+      text = el.getAttribute(attr) || "";
+    if (el.tagName === "INPUT") (el as HTMLInputElement).placeholder = text;
+    else el.textContent = text;
+  }
 }
 
 export function setupServers(page: Page): Servers {
@@ -71,6 +84,7 @@ export function setupServers(page: Page): Servers {
     let copyName = (name !== "" ? name : texts.server + " " + from.blockNo).slice(0, 40 - suffix.length);
     if (/[\ud800-\udbff]$/.test(copyName)) copyName = copyName.slice(0, -1);
     to.byKey.name!.value = copyName + suffix;
+    renderClient(target);
     query(target, "." + CLS.serverResult).textContent = "";
     reveal(target);
     // The fields filled by the script: an input of the form, as typed (the main screen and the bar follow).
@@ -90,6 +104,8 @@ export function setupServers(page: Page): Servers {
   });
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i]!;
+    const type = serverFields(block).byKey.type;
+    if (type) type.addEventListener("change", () => renderClient(block));
     const button = page.doc.createElement("button");
     button.type = "button";
     button.className = CLS.check + " " + CLS.serverDup;
@@ -108,7 +124,7 @@ export function setupServers(page: Page): Servers {
   };
 }
 
-// "Check" of a block: posts its url, user, pass, category, tags.
+// "Check" of a block: posts its type, url, user, pass, category, tags.
 export function setupServerChecks(page: Page, api: Api, lock: Lock): void {
   const blocks = page.form.querySelectorAll(SERVER_BLOCK);
   for (let i = 0; i < blocks.length; i++) {
@@ -116,7 +132,7 @@ export function setupServerChecks(page: Page, api: Api, lock: Lock): void {
       button = query<HTMLButtonElement>(block, "." + CLS.serverCheck);
     const fields = () => {
       const pairs: string[] = [];
-      const inputs = block.querySelectorAll<HTMLInputElement>("input");
+      const inputs = block.querySelectorAll<Field>("input,select");
       for (let k = 0; k < inputs.length; k++) {
         const match = SERVER_CHECK_FIELD.exec(inputs[k]!.name);
         if (match) pairs.push(match[1] + "=" + encodeURIComponent(inputs[k]!.value));

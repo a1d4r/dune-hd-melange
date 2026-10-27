@@ -61,6 +61,7 @@ function aio_cgi_fields()
 function aio_cgi_server_fields()
 {
     return array(
+        'type' => array('id' => 't', 'max' => 0, 'type' => 'select'),
         'name' => array('id' => 'n', 'max' => 40, 'type' => 'plain'),
         'url' => array('id' => 'u', 'max' => 300, 'type' => 'plain'),
         'user' => array('id' => 'l', 'max' => 100, 'type' => 'plain'),
@@ -160,6 +161,32 @@ function aio_cgi_link($url, $text)
     return '<a href="' . aio_cgi_h($url) . '" target="_blank" rel="noopener noreferrer">' . aio_cgi_h($text) . '</a>';
 }
 
+// The clients of a server block (select s<n>_type, 0.47.0): type => name.
+function aio_cgi_srv_types()
+{
+    return array('qbt' => 'qBittorrent / rdt-client', 'tr' => 'Transmission');
+}
+
+// data-qbt / data-tr of $x = array(text for qBittorrent, for Transmission):
+// the script swaps them by the client chosen (of a label: its text, of an
+// input: its placeholder).
+function aio_cgi_srv_alt($x)
+{
+    return ' data-qbt="' . aio_cgi_h($x[0]) . '" data-tr="' . aio_cgi_h($x[1]) . '"';
+}
+
+// A plain field of a server block whose label ($label; a string: the same for
+// both) and placeholder ($ph) depend on the client: array(qBittorrent,
+// Transmission), the one of $type shown.
+function aio_cgi_srv_plain($f, $label, $value, $ph, $type)
+{
+    $i = $type === 'tr' ? 1 : 0;
+    $h = aio_cgi_plain($f['id'], $f['name'], is_array($label) ? $label[$i] : $label, $value, $ph[$i], $f['max']);
+    if (is_array($label))
+        $h = str_replace('<label for="' . $f['id'] . '">', '<label for="' . $f['id'] . '"' . aio_cgi_srv_alt($label) . '>', $h);
+    return $ph[0] === $ph[1] ? $h : str_replace(' placeholder="', aio_cgi_srv_alt($ph) . ' placeholder="', $h);
+}
+
 // The servers of "Download to server": AIO_SERVERS_MAX blocks s<n>_<field>,
 // open when filled. "Дублировать" of a block is made by the script. $servers: lists of strings by aio_cgi_server_fields().
 function aio_cgi_servers($servers)
@@ -179,15 +206,25 @@ function aio_cgi_servers($servers)
             $f[$k] = aio_cgi_srv_field($n, $k);
         }
         $filled = $v['name'] . $v['url'] . $v['user'] . $v['pass'] . $v['category'] . $v['tags'] !== '';
+        $type = $v['type'] === 'tr' ? 'tr' : 'qbt';
         $out .= '<details class="srv"' . ($filled ? ' open' : '') . '><summary>' . aio_cgi_l('Сервер', 'Server') . " $n" .
             ($v['name'] !== '' ? ': ' . aio_cgi_h($v['name']) : '') . '</summary>' .
+            '<label for="' . $f['type']['id'] . '">' . aio_cgi_l('Клиент', 'Client') . '</label><select id="' .
+            $f['type']['id'] . '" name="' . $f['type']['name'] . '">';
+        foreach (aio_cgi_srv_types() as $id => $name)
+            $out .= '<option value="' . $id . '"' . ($type === $id ? ' selected' : '') . '>' . $name . '</option>';
+        $out .= '</select>' .
             aio_cgi_input($f['name'], aio_cgi_l('Название', 'Name'), $v['name'], 'qBittorrent') .
-            aio_cgi_input($f['url'], aio_cgi_l('Адрес', 'Address'), $v['url'], 'http://192.168.1.10:8080') .
+            aio_cgi_srv_plain($f['url'], aio_cgi_l('Адрес', 'Address'), $v['url'],
+                array('http://192.168.1.10:8080', 'http://192.168.1.10:9091'), $type) .
             aio_cgi_input($f['user'], aio_cgi_l('Логин', 'Login'), $v['user'], '') .
             aio_cgi_input($f['pass'], aio_cgi_l('Пароль', 'Password'), $v['pass'], '') .
-            aio_cgi_input($f['category'], aio_cgi_l('Категория (необязательно)', 'Category (optional)'), $v['category'], '') .
-            aio_cgi_input($f['tags'], aio_cgi_l('Теги через запятую (необязательно)', 'Tags, comma-separated (optional)'),
-                $v['tags'], '') .
+            aio_cgi_srv_plain($f['category'], array(aio_cgi_l('Категория (необязательно)', 'Category (optional)'),
+                aio_cgi_l('Папка загрузки на сервере (необязательно)', 'Download folder on the server (optional)')),
+                $v['category'], array('', ''), $type) .
+            aio_cgi_srv_plain($f['tags'], array(aio_cgi_l('Теги через запятую (необязательно)', 'Tags, comma-separated (optional)'),
+                aio_cgi_l('Метки через запятую (необязательно)', 'Labels, comma-separated (optional)')), $v['tags'], array('', ''),
+                $type) .
             '<label for="' . $f['cache']['id'] . '">' . aio_cgi_l('Для кэша', 'For the cache of') . '</label><select id="' .
             $f['cache']['id'] . '" name="' . $f['cache']['name'] . '">';
         foreach (array_merge(array('' => aio_cgi_l('Не из кэша', 'Not from a cache')), aio_server_caches()) as $id => $name)
