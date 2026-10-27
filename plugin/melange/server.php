@@ -2,7 +2,8 @@
 // "Download to server" in MENU of the list (0.30.0): the magnet of the row
 // to a qBittorrent WebAPI server of the settings (qBittorrent, rdt-client):
 // POST /api/v2/auth/login, then /api/v2/torrents/add (category, tags). Each push
-// sends; the client itself refuses a torrent it has already.
+// sends: a torrent the client has already is refused by qBittorrent (Fails. /
+// 409), rdt-client returns the one it has (200).
 // Reads Aio (state, settings). Functions are global; the require order is in
 // main.php.
 
@@ -135,7 +136,7 @@ function aio_qbt_add($srv, $magnet)
     $fc = is_array($j) && isset($j['failure_count']) && is_numeric($j['failure_count']) ? intval($j['failure_count']) : -1;
     if ($fc > 0)
         return array('srv_err_refused', "failure_count $fc");
-    // Any other 2xx is taken as added: sending again would only add it twice.
+    // Any other 2xx is taken as added: a 2xx is not a refusal.
     if ($b !== '' && $b !== 'Ok.' && $fc < 0)
         aio_log("server: HTTP $code, reply not understood, taken as added");
     return '';
