@@ -114,6 +114,7 @@ parameters:
                 poster: string,
                 fanart: string,
                 rate_imdb: string,
+                desc: string,
                 seasons: array<int, int>
             }
         '''

@@ -171,6 +171,8 @@ function aio_movie($in)
     $imdb = aio_str($m, 'imdb_id');
     $dune_id = aio_str($m, 'id');
     $title = aio_str($m, 'title');
+    // The annotation of the card, for INFO in the player; not a string -> none.
+    $desc = isset($m['description']) && is_string($m['description']) ? trim(aio_utf8($m['description'])) : '';
     return array(
         'series' => $series,
         'imdb' => preg_match('/^tt[0-9]{1,10}$/', $imdb) ? $imdb : '',
@@ -181,6 +183,7 @@ function aio_movie($in)
         'poster' => aio_str($m, 'poster_url'),
         'fanart' => aio_str($m, 'fanart_url'),
         'rate_imdb' => aio_str($m, 'rate_imdb'),
+        'desc' => $desc,
         'seasons' => aio_seasons($m));
 }
 

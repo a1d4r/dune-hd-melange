@@ -9,6 +9,8 @@
 // A season with more episodes (by season_numbers) plays as one episode: a
 // playlist item takes ~1.7 KB of memory (limit 128 MB).
 define('AIO_EPISODES_MAX', 500);
+// Characters of the annotation in INFO of the player, at most.
+define('AIO_INFO_DESC_MAX', 1500);
 
 // --- Playback.
 
@@ -22,6 +24,27 @@ define('AIO_EPISODES_MAX', 500);
 function aio_ep_name($mv, $s, $e)
 {
     return $mv['title'] . ($e > 0 ? sprintf(' S%02dE%02d', $s, $e) : '');
+}
+
+// description of vod_info, for INFO of the player (as Online movies): a line
+// of the release - video (resolution, picture), audio, size, voices, as the
+// card of the list says them, empty parts left out -, a blank line, the
+// annotation of the card (of a series: the series', movie_str has none of an
+// episode).
+/**
+ * @param AioRow $r
+ * @param string $desc
+ * @param string $lang
+ * @return string
+ */
+function aio_info_desc($r, $desc, $lang)
+{
+    $parts = array(trim($r['resolution'] . ' ' . aio_badge_text($r['badges']['vis'])), $r['audio_full'],
+        $r['size'] > 0 ? aio_size_str($r['size'], $lang) : '',
+        isset($r['voices']) ? aio_voices_struct_text(aio_row_voices_struct($r), $lang, false) : '');
+    $line = implode(' · ', array_filter(array_map('aio_clean', $parts), 'strlen'));
+    $desc = aio_cut($desc, AIO_INFO_DESC_MAX);
+    return $line !== '' && $desc !== '' ? "$line\n\n$desc" : $line . $desc;
 }
 
 // An episode of the playlist without a URL: the player asks for it with
@@ -146,11 +169,13 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     $info = array(
         PluginVodInfo::id => 'aio.' . ($mv['dune_id'] !== '' ? $mv['dune_id'] : $mv['imdb']),
         PluginVodInfo::name => $name,
+        // The second line of INFO: the release, as the card names it.
+        PluginVodInfo::sub_name => aio_clean($r['label']),
         PluginVodInfo::poster_url => $mv['poster'],
         PluginVodInfo::series => $series,
         PluginVodInfo::initial_series_ndx => count($series) > 1 ? $e - 1 : 0,
+        PluginVodInfo::description => aio_info_desc($r, $mv['desc'], $st['lang']),
         // The fields Online movies always sends (lib/vod/movie.php get_vod_info).
-        PluginVodInfo::description => '',
         PluginVodInfo::buffering_ms => 3000,
         PluginVodInfo::keep_playing_on_reenter => true,
         PluginVodInfo::skip_dummy_player_on_error => false);
@@ -833,7 +858,7 @@ function aio_movie_load($key)
     if (!$m || aio_str($m, 'dune_id') !== $key || !preg_match('/^tt[0-9]{1,10}$/', aio_str($m, 'imdb')))
         return null;
     $mv = array('series' => true, 'seasons' => array());
-    foreach (array('imdb', 'dune_id', 'title', 'native', 'year', 'poster', 'fanart', 'rate_imdb') as $f)
+    foreach (array('imdb', 'dune_id', 'title', 'native', 'year', 'poster', 'fanart', 'rate_imdb', 'desc') as $f)
         $mv[$f] = aio_str($m, $f);
     foreach (aio_arr($m, 'seasons') as $n => $c)
     {
