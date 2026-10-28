@@ -1,23 +1,49 @@
 <?php
-// TorrServer in the player (0.48.0): over the INFO panel of the player
-// (plugin_update_info_block, text_above: seen only while INFO is open) the
-// speeds, peers and seeders, loaded of the torrent ("get"), redrawn every
-// AIO_TSI_TICK_MS while TorrServer plays, no key. The timer of vod_info starts
-// it (aio_tsi_vod), each tick re-arms it with change_behaviour (the timer of
-// the player fires once). Its state is in the params of the timer action
-// (hash, language, error and first-tick flags), never in Aio: the list may be
-// gone under the player.
+// TorrServer in the player (0.48.0): the green key opens a window at the top
+// right, in the style of the INFO window of the player, with the numbers of
+// the torrent ("get": the name, speeds, peers and seeders, loaded), redrawn
+// every AIO_TSI_TICK_MS while it is open; green again closes it. update_osd
+// draws it, change_behaviour arms the next tick (the timer of the player fires
+// once). aio_tsi_vod gives vod_info its green. Its state is in the params of
+// the actions (hash, the release, language, error flag), never in Aio: the
+// list may be gone under the player.
 // Reads Aio::$settings. Functions are global; the require order is in main.php.
 // Types in the PHPDoc (AioTsiParams): phpstan-types.neon of the repository.
 
-define('AIO_TSI_TICK_MS', 2000);
-// The tick while TorrServer gives no numbers: a "get" of 2 s is not repeated so often.
+define('AIO_TSI_TICK_MS', 1000);
+// The tick while TorrServer gives no numbers: a "get" of 2 s is not repeated every second.
 define('AIO_TSI_TICK_ERR_MS', 5000);
-// operation_timeout of the tick, ms: the "get" takes 2 s at most.
+// operation_timeout of the actions, ms: the "get" takes 2 s at most.
 define('AIO_TSI_TIMEOUT', 5000);
+// The window on 1920x1080, its frame without the shadow: x 1150..1880, from
+// y 80 as the INFO window of the player. Its plate img/ts_info_bg.png is
+// drawn at its own size, AIO_TSI_BG_* (the frame plus the shadow, the
+// extents of the skin's osd_glass: 13 left, 9 top, 32 right, 29 bottom).
+define('AIO_TSI_X', 1150);
+define('AIO_TSI_Y', 80);
+define('AIO_TSI_BG_X', 1137);
+define('AIO_TSI_BG_Y', 71);
+define('AIO_TSI_BG_W', 775);
+define('AIO_TSI_BG_H', 266);
+// Rows of the SMALL font: the first at AIO_TSI_TOP, AIO_TSI_LH apart; the
+// labels at AIO_TSI_PAD, the values AIO_TSI_VAL right of them; "Seeders" in
+// the row of the peers AIO_TSI_SEEDS right of the values, its value
+// AIO_TSI_SEEDS_VAL further.
+define('AIO_TSI_ROWS', 5);
+define('AIO_TSI_TOP', 20);
+define('AIO_TSI_LH', 38);
+define('AIO_TSI_PAD', 30);
+define('AIO_TSI_VAL', 170);
+define('AIO_TSI_SEEDS', 200);
+define('AIO_TSI_SEEDS_VAL', 130);
+// Characters of the name of the release: the column of the values is ~500 px.
+define('AIO_TSI_NAME_MAX', 32);
+// Colours of the skin: the labels grey (a9a9a9), the values light.
+define('AIO_TSI_C_LABEL', '15');
+define('AIO_TSI_C_VALUE', '14');
 
-// The fields of vod_info for row $r ($ts: via TorrServer): the actions and the
-// first tick in AIO_TSI_TICK_MS; none (array()) unless TorrServer.
+// The fields of vod_info for row $r ($ts: via TorrServer): green opens the
+// window; none (array()) unless TorrServer. No timer until it opens.
 /**
  * @param AioRow $r
  * @param bool $ts
@@ -27,17 +53,58 @@ define('AIO_TSI_TIMEOUT', 5000);
 function aio_tsi_vod($r, $ts, $lang)
 {
     $p = aio_tsi_params($r, $ts, $lang);
-    if (!$p)
-        return array();
-    return array(
-        PluginVodInfo::actions => aio_tsi_acts($p),
-        PluginVodInfo::timer => array(GuiTimerDef::delay_ms => AIO_TSI_TICK_MS));
+    return $p ? array(PluginVodInfo::actions => aio_tsi_acts($p, false)) : array();
 }
 
-// Params of the ticks of vod_play of row $r ($ts: via TorrServer): 'h' the
-// infoHash, 'l' the language of the lines, 'e' "1" while an error is logged
-// (only the first one of a row goes to the log), 'f' "1" on the first tick
-// (logged). null: none (not TorrServer).
+// handle_user_input of our plugin from the player: no "Please wait" over the
+// video (no show_dialog_delay).
+/**
+ * @param string $control
+ * @param AioTsiParams $p
+ * @return AioAction
+ */
+function aio_tsi_input_act($control, $p)
+{
+    return array(
+        GuiAction::handler_string_id => PLUGIN_HANDLE_USER_INPUT_ACTION_ID,
+        GuiAction::caption => null,
+        GuiAction::plugin_name => AIO_PLUGIN,
+        GuiAction::data => array(PluginHandleUserInputActionData::operation_timeout => AIO_TSI_TIMEOUT),
+        // No empty values: the shell may drop them (aio_tsi_params_in reads them as empty).
+        GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => $control), array_diff($p, array(''))));
+}
+
+// The actions of the player: the window closed - green opens it; open - green
+// closes it, the timer redraws it.
+/**
+ * @param AioTsiParams $p
+ * @param bool $open
+ * @return array<string, AioAction>
+ */
+function aio_tsi_acts($p, $open)
+{
+    if (!$open)
+        return array(GUI_EVENT_KEY_B_GREEN => aio_tsi_input_act('tsi_open', $p));
+    return array(GUI_EVENT_KEY_B_GREEN => aio_tsi_input_act('tsi_close', $p),
+        GUI_EVENT_TIMER => aio_tsi_input_act('tsi_tick', $p));
+}
+
+// A name in one line of the window: no control characters or line breaks
+// (U+0085, U+2028, U+2029 too), cut to the column.
+/**
+ * @param string $s
+ * @return string
+ */
+function aio_tsi_name($s)
+{
+    return aio_cut(trim(strval(preg_replace('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]+/u', ' ', aio_utf8($s)))),
+        AIO_TSI_NAME_MAX);
+}
+
+// Params of the window of vod_play of row $r ($ts: via TorrServer): 'h' the
+// infoHash, 'n' the name of the release (when TorrServer names none), 'l' the
+// language of its words, 'e' "1" while an error is logged (only the first one
+// of a row goes to the log). null: no window (not TorrServer).
 /**
  * @param AioRow $r
  * @param bool $ts
@@ -48,23 +115,7 @@ function aio_tsi_params($r, $ts, $lang)
 {
     if (!$ts || !preg_match('/^[0-9a-f]{40}$/D', $r['hash']))
         return null;
-    return array('h' => $r['hash'], 'l' => $lang === 'ru' ? 'ru' : 'en', 'e' => '0', 'f' => '1');
-}
-
-// The actions of the player: the timer -> the tick (handle_user_input of our
-// plugin, no "Please wait" over the video: no show_dialog_delay).
-/**
- * @param AioTsiParams $p
- * @return array<string, AioAction>
- */
-function aio_tsi_acts($p)
-{
-    return array(GUI_EVENT_TIMER => array(
-        GuiAction::handler_string_id => PLUGIN_HANDLE_USER_INPUT_ACTION_ID,
-        GuiAction::caption => null,
-        GuiAction::plugin_name => AIO_PLUGIN,
-        GuiAction::data => array(PluginHandleUserInputActionData::operation_timeout => AIO_TSI_TIMEOUT),
-        GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => 'tsi_tick'), $p)));
+    return array('h' => $r['hash'], 'n' => aio_tsi_name($r['label']), 'l' => $lang === 'ru' ? 'ru' : 'en', 'e' => '0');
 }
 
 // Params of the input -> as aio_tsi_params made them, or null.
@@ -75,13 +126,18 @@ function aio_tsi_acts($p)
 function aio_tsi_params_in($in)
 {
     $p = array();
-    foreach (array('h' => '/^[0-9a-f]{40}$/D', 'l' => '/^(ru|en)$/D', 'e' => '/^[01]$/D', 'f' => '/^[01]$/D') as $k => $re)
+    // n may be absent (empty values are not sent): empty.
+    foreach (array('h' => '/^[0-9a-f]{40}$/D', 'n' => '/^.*$/sD', 'l' => '/^(ru|en)$/D', 'e' => '/^[01]$/D') as $k => $re)
     {
-        if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
+        $v = !isset($in->$k) && $k === 'n' ? '' : (isset($in->$k) ? $in->$k : null);
+        if (!is_string($v) || !preg_match($re, $v))
             return null;
-        $p[$k] = $in->$k;
+        $p[$k] = $v;
     }
-    return array('h' => $p['h'], 'l' => $p['l'], 'e' => $p['e'], 'f' => $p['f']);
+    if (!mb_check_encoding($p['n'], 'UTF-8') || mb_strlen($p['n'], 'UTF-8') > AIO_TSI_NAME_MAX + 3 ||
+        preg_match('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]/u', $p['n']))
+        return null;
+    return array('h' => $p['h'], 'n' => $p['n'], 'l' => $p['l'], 'e' => $p['e']);
 }
 
 // A count of a TorrentStatus: none -> 0, negative or not an int -> "—".
@@ -115,18 +171,20 @@ function aio_tsi_size($j, $k, $lang, $zero)
     return $zero && is_numeric($v) && (float) $v == 0 ? aio_size_str(0.0, $lang) : "\xE2\x80\x94";
 }
 
-// Lines of TorrServer over the INFO panel: the speeds, the peers and seeders,
-// the loaded size (the name of the release is sub_name of INFO); no numbers -
-// one line why: slow (curl timeout), no answer, no such torrent (404), a reply
-// not understood. $err: that for the log ('' none), without the address.
+// Rows of the window of TorrServer, each a list of (label, value) pairs: the
+// name of the torrent (none: of the release, $name), download, upload, peers
+// and seeders, loaded of the size. No numbers - one row of one value, why:
+// slow (curl timeout), no answer, no such torrent (404), a reply not
+// understood. $err: that for the log ('' none), without the address.
 /**
  * @param string $hash
+ * @param string $name
  * @param string $lang
  * @param string $err
  * @param-out string $err
- * @return list<string>
+ * @return list<list<array{string, string}>>
  */
-function aio_tsi_lines($hash, $lang, &$err)
+function aio_tsi_rows($hash, $name, $lang, &$err)
 {
     list($rg, $j) = aio_ts_get($hash);
     if (!$j)
@@ -137,65 +195,139 @@ function aio_tsi_lines($hash, $lang, &$err)
             $key = $rg['errno'] === 28 ? 'tsi_slow' : 'tsi_down';
         else
             $key = $rg['code'] === 404 ? 'tsi_gone' : 'tsi_bad';
-        return array(aio_tr($lang, $key));
+        return array(array(array('', aio_tr($lang, $key))));
     }
     $err = '';
+    $tn = aio_str($j, 'name') !== '' ? aio_str($j, 'name') : aio_str($j, 'title');
     return array(
-        str_replace(array('{down}', '{up}'), array(aio_speed_str(isset($j['download_speed']) ? $j['download_speed'] : null, $lang),
-            aio_speed_str(isset($j['upload_speed']) ? $j['upload_speed'] : null, $lang)), aio_tr($lang, 'tsi_speed')),
-        str_replace(array('{peers}', '{all}', '{seeds}'), array(aio_tsi_count($j, 'active_peers'),
-            aio_tsi_count($j, 'total_peers'), aio_tsi_count($j, 'connected_seeders')), aio_tr($lang, 'tsi_peers')),
-        str_replace(array('{got}', '{all}'), array(aio_tsi_size($j, 'loaded_size', $lang, true),
-            aio_tsi_size($j, 'torrent_size', $lang, false)), aio_tr($lang, 'tsi_loaded')));
+        array(array(aio_tr($lang, 'tsi_l_name'), $tn !== '' ? aio_tsi_name($tn) : $name)),
+        array(array(aio_tr($lang, 'tsi_l_down'), aio_speed_str(isset($j['download_speed']) ? $j['download_speed'] : null, $lang))),
+        array(array(aio_tr($lang, 'tsi_l_up'), aio_speed_str(isset($j['upload_speed']) ? $j['upload_speed'] : null, $lang))),
+        array(array(aio_tr($lang, 'tsi_l_peers'), aio_tsi_count($j, 'active_peers') . ' / ' . aio_tsi_count($j, 'total_peers')),
+            array(aio_tr($lang, 'tsi_l_seeds'), aio_tsi_count($j, 'connected_seeders'))),
+        array(array(aio_tr($lang, 'tsi_l_loaded'), str_replace(array('{got}', '{all}'),
+            array(aio_tsi_size($j, 'loaded_size', $lang, true), aio_tsi_size($j, 'torrent_size', $lang, false)),
+            aio_tr($lang, 'tsi_loaded')))));
 }
 
-// The text over the INFO panel ('' none), then the actions $acts and the
-// timer ($tick ms) armed again; no $acts: nothing armed.
+// The plate of the window: a path of the plugin, as other plugins draw in the
+// player (plugin_file:// there is not proven).
+/**
+ * @return string
+ */
+function aio_tsi_bg()
+{
+    $dir = isset(DuneSystem::$properties['install_dir_path']) ? strval(DuneSystem::$properties['install_dir_path']) :
+        dirname(__FILE__);
+    return rtrim($dir, '/') . '/img/ts_info_bg.png';
+}
+
 /**
  * @param string $text
- * @param array<string, AioAction>|null $acts
+ * @param int $x
+ * @param int $y
+ * @param string $color
+ * @return array<string, int|string|bool>
+ */
+function aio_tsi_text($text, $x, $y, $color)
+{
+    return array(
+        PluginOsdComponent::text => $text,
+        PluginOsdComponent::x => $x,
+        PluginOsdComponent::y => $y,
+        PluginOsdComponent::text_font_size => PLUGIN_FONT_SMALL,
+        PluginOsdComponent::text_color => $color,
+        PluginOsdComponent::text_halo => false);
+}
+
+// Components of the window: the plate, then per row its labels and values
+// (no label: the value from the column of the labels).
+/**
+ * @param list<list<array{string, string}>> $rows
+ * @return list<array<string, int|string|bool>>
+ */
+function aio_tsi_comps($rows)
+{
+    $c = array(array(
+        PluginOsdComponent::image_url => aio_tsi_bg(),
+        PluginOsdComponent::x => AIO_TSI_BG_X,
+        PluginOsdComponent::y => AIO_TSI_BG_Y,
+        PluginOsdComponent::image_width => AIO_TSI_BG_W,
+        PluginOsdComponent::image_height => AIO_TSI_BG_H));
+    foreach (array_slice($rows, 0, AIO_TSI_ROWS) as $i => $row)
+    {
+        $y = AIO_TSI_Y + AIO_TSI_TOP + $i * AIO_TSI_LH;
+        $x = AIO_TSI_X + AIO_TSI_PAD;
+        foreach ($row as $k => $pair)
+        {
+            if ($k > 0)
+                $x += AIO_TSI_VAL + AIO_TSI_SEEDS;
+            if ($pair[0] === '')
+            {
+                $c[] = aio_tsi_text($pair[1], $x, $y, AIO_TSI_C_VALUE);
+                continue;
+            }
+            $c[] = aio_tsi_text($pair[0], $x, $y, AIO_TSI_C_LABEL);
+            $c[] = aio_tsi_text($pair[1], $x + ($k > 0 ? AIO_TSI_SEEDS_VAL : AIO_TSI_VAL), $y, AIO_TSI_C_VALUE);
+        }
+    }
+    return $c;
+}
+
+// update_osd of $comps, then the actions $acts and the timer ($tick ms, 0 none).
+/**
+ * @param list<array<string, int|string|bool>> $comps
+ * @param array<string, AioAction> $acts
  * @param int $tick
  * @return AioAction
  */
-function aio_tsi_info_block($text, $acts, $tick)
+function aio_tsi_update($comps, $acts, $tick)
 {
-    // Grey, no halo, no offset: as the text of the panel itself (seen on r25).
-    $d = array(
-        PluginUpdateInfoBlockActionData::text_above => $text,
-        PluginUpdateInfoBlockActionData::text_color => '15',
-        PluginUpdateInfoBlockActionData::text_halo => false,
-        PluginUpdateInfoBlockActionData::text_y_offset => 0);
-    if (!is_null($acts))
-        $d[PluginUpdateInfoBlockActionData::post_action] = array(
-            GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
-            GuiAction::data => array(
-                ChangeBehaviourActionData::actions => $acts,
-                ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => $tick),
-                ChangeBehaviourActionData::post_action => null));
-    return array(GuiAction::handler_string_id => PLUGIN_UPDATE_INFO_BLOCK_ACTION_ID, GuiAction::data => $d);
+    return array(
+        GuiAction::handler_string_id => PLUGIN_UPDATE_OSD_ACTION_ID,
+        GuiAction::data => array(
+            PluginUpdateOsdActionData::components => $comps,
+            PluginUpdateOsdActionData::post_action => array(
+                GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
+                GuiAction::data => array(
+                    ChangeBehaviourActionData::actions => $acts,
+                    ChangeBehaviourActionData::timer => $tick > 0 ? array(GuiTimerDef::delay_ms => $tick) : null,
+                    ChangeBehaviourActionData::post_action => null))));
 }
 
-// tsi_tick: the lines of TorrServer over INFO, the next tick armed (in
-// AIO_TSI_TICK_ERR_MS after an error). Bad params: the text gone, nothing armed.
+// tsi_open, tsi_tick (the window drawn anew, the next tick armed: in
+// AIO_TSI_TICK_ERR_MS after an error), tsi_close (the window gone, green
+// opens it again, no timer). Bad params: no window, nothing armed.
 /**
  * @param stdClass $in
+ * @param string $control
  * @return AioAction
  */
-function aio_tsi_input($in)
+function aio_tsi_input($in, $control)
 {
     $p = aio_tsi_params_in($in);
     if (!$p)
     {
-        aio_log('tsi: tick with bad params');
-        return aio_tsi_info_block('', null, 0);
+        aio_log("tsi: $control with bad params");
+        return array(GuiAction::handler_string_id => PLUGIN_UPDATE_OSD_ACTION_ID,
+            GuiAction::data => array(PluginUpdateOsdActionData::components => array(),
+                PluginUpdateOsdActionData::post_action => null));
     }
-    if ($p['f'] === '1')
-        aio_log("tsi: first tick, TorrServer, hash={$p['h']}");
-    $p['f'] = '0';
+    if ($control === 'tsi_close')
+    {
+        aio_log('tsi: closed');
+        $p['e'] = '0';
+        return aio_tsi_update(array(), aio_tsi_acts($p, false), 0);
+    }
+    if ($control === 'tsi_open')
+    {
+        aio_log("tsi: open, TorrServer, hash={$p['h']}");
+        $p['e'] = '0';
+    }
     $err = '';
-    $lines = aio_tsi_lines($p['h'], $p['l'], $err);
+    $rows = aio_tsi_rows($p['h'], $p['n'], $p['l'], $err);
     if ($err !== '' && $p['e'] === '0')
         aio_log("tsi: $err");
     $p['e'] = $err !== '' ? '1' : '0';
-    return aio_tsi_info_block(implode("\n", $lines), aio_tsi_acts($p), $err !== '' ? AIO_TSI_TICK_ERR_MS : AIO_TSI_TICK_MS);
+    return aio_tsi_update(aio_tsi_comps($rows), aio_tsi_acts($p, true), $err !== '' ? AIO_TSI_TICK_ERR_MS : AIO_TSI_TICK_MS);
 }
