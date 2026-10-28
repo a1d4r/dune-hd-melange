@@ -184,9 +184,7 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     if ($pos > 0)
         $info[PluginVodInfo::initial_position_ms] = $pos * 1000;
     // Green: the window of the numbers (osd.php); no timer until it opens.
-    $osd = aio_osd_params($r, (bool) $ts, $st['lang']);
-    if ($osd)
-        $info[PluginVodInfo::actions] = aio_osd_acts($osd, false);
+    $info[PluginVodInfo::actions] = aio_osd_acts(aio_osd_params($r, (bool) $ts, $st['lang']), false);
     if ($linked)
     {
         $info[PluginVodInfo::recent_plugin] = 'shell_ext';

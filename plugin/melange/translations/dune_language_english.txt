@@ -145,3 +145,6 @@ osd_ts_speed = Download {down} · Upload {up}
 osd_ts_peers = Peers {peers} / {all} · Seeders {seeds}
 osd_ts_loaded = Loaded {got} of {all}
 osd_ts_down = TorrServer is not responding
+osd_deb_size = Size {size}
+osd_deb_rate = Bit rate {rate}
+osd_deb_buffering = Buffering…

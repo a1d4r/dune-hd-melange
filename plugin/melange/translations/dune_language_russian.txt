@@ -145,3 +145,6 @@ osd_ts_speed = Загрузка {down} · Отдача {up}
 osd_ts_peers = Пиры {peers} / {all} · Сиды {seeds}
 osd_ts_loaded = Загружено {got} из {all}
 osd_ts_down = TorrServer не отвечает
+osd_deb_size = Размер {size}
+osd_deb_rate = Битрейт {rate}
+osd_deb_buffering = Буферизация…
