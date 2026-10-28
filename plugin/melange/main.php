@@ -24,7 +24,7 @@ require_once dirname(__FILE__) . '/server.php';
 // "Watch via TorrServer".
 require_once dirname(__FILE__) . '/torrserver.php';
 // TorrServer in the player: its numbers over the INFO panel.
-require_once dirname(__FILE__) . '/osd.php';
+require_once dirname(__FILE__) . '/ts_info.php';
 // Rows of a list at most: our own cap, not only the AIOStreams config.
 define('AIO_MAX_ROWS', 100);
 // A bigger AIOStreams reply (decoded) is cut off while it loads: the tree of
@@ -876,8 +876,8 @@ function aio_handle_user_input($in)
         return aio_ts_menu($in);
     if ($control === 'ts_tick')
         return aio_ts_tick($in);
-    if ($control === 'osd_tick')
-        return aio_osd_input($in);
+    if ($control === 'tsi_tick')
+        return aio_tsi_input($in);
     if ($control === 'ts_cancel')
     {
         aio_log('ts: waiting cancelled');
