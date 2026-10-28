@@ -1,81 +1,24 @@
 <?php
-// The green key in the player (0.48.0), via TorrServer only: a window over
-// the video with the numbers of the torrent ("get": speeds, peers, loaded),
-// redrawn every second while it is open. update_osd draws it, change_behaviour
-// arms the next tick: the timer of the player fires once. Its state is in the
-// params of the actions (mode, hash, the release), never in Aio: the list may
-// be gone under the player. Reads Aio::$settings. Functions are global; the
-// require order is in main.php.
+// TorrServer in the player (0.48.0): over the INFO panel of the player
+// (plugin_update_info_block, text_above: seen only while INFO is open) the
+// speeds, peers and seeders, loaded of the torrent ("get"), redrawn every
+// AIO_OSD_TICK_MS while TorrServer plays, no key. The timer of vod_info starts
+// it, each tick re-arms it with change_behaviour (the timer of the player fires
+// once). Its state is in the params of the timer action (hash, language, error
+// and first-tick flags), never in Aio: the list may be gone under the player.
+// Reads Aio::$settings. Functions are global; the require order is in main.php.
 // Types in the PHPDoc (AioOsdParams): phpstan-types.neon of the repository.
 
-define('AIO_OSD_TICK_MS', 1000);
-// The tick while TorrServer gives no numbers: a "get" of 2 s is not repeated every second.
+define('AIO_OSD_TICK_MS', 2000);
+// The tick while TorrServer gives no numbers: a "get" of 2 s is not repeated so often.
 define('AIO_OSD_TICK_ERR_MS', 5000);
-// operation_timeout of the actions, ms: the "get" takes 2 s at most.
+// operation_timeout of the tick, ms: the "get" takes 2 s at most.
 define('AIO_OSD_TIMEOUT', 5000);
-// The window at the top centre of 1920x1080: its plate (img/osd_bg.png, the
-// same size) and up to AIO_OSD_LINES lines of the NORMAL font.
-define('AIO_OSD_X', 360);
-define('AIO_OSD_Y', 40);
-define('AIO_OSD_W', 1200);
-define('AIO_OSD_H', 250);
-define('AIO_OSD_PAD', 40);
-define('AIO_OSD_TOP', 25);
-define('AIO_OSD_LH', 50);
-define('AIO_OSD_LINES', 4);
-// Characters of the name of the release: a text is not clipped by the plate.
-define('AIO_OSD_NAME_MAX', 55);
 
-// handle_user_input of our plugin from the player: no "Please wait" over the
-// video (no show_dialog_delay).
-/**
- * @param string $control
- * @param AioOsdParams $p
- * @return AioAction
- */
-function aio_osd_input_act($control, $p)
-{
-    return array(
-        GuiAction::handler_string_id => PLUGIN_HANDLE_USER_INPUT_ACTION_ID,
-        GuiAction::caption => null,
-        GuiAction::plugin_name => AIO_PLUGIN,
-        GuiAction::data => array(PluginHandleUserInputActionData::operation_timeout => AIO_OSD_TIMEOUT),
-        // No empty values: the shell may drop them (aio_osd_params_in reads them as empty).
-        GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => $control), array_diff($p, array(''))));
-}
-
-// The actions of the player: the window closed - green opens it; open - green
-// closes it, the timer redraws it.
-/**
- * @param AioOsdParams $p
- * @param bool $open
- * @return array<string, AioAction>
- */
-function aio_osd_acts($p, $open)
-{
-    if (!$open)
-        return array(GUI_EVENT_KEY_B_GREEN => aio_osd_input_act('osd_open', $p));
-    return array(GUI_EVENT_KEY_B_GREEN => aio_osd_input_act('osd_close', $p),
-        GUI_EVENT_TIMER => aio_osd_input_act('osd_tick', $p));
-}
-
-// A name in one line of the window: no control characters or line breaks
-// (U+0085, U+2028, U+2029 too).
-/**
- * @param string $s
- * @return string
- */
-function aio_osd_name($s)
-{
-    return aio_cut(trim(strval(preg_replace('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]+/u', ' ', aio_utf8($s)))),
-        AIO_OSD_NAME_MAX);
-}
-
-// Params of the window of vod_play of row $r ($ts: via TorrServer): 'm' the
-// mode (ts: TorrServer), 'h' the infoHash, 'n' the name of the release (when
-// TorrServer names none), 'l' the language of its words, 'e' "1" while an
-// error is logged (only the first one of a row goes to the log). null: no
-// window (not TorrServer).
+// Params of the ticks of vod_play of row $r ($ts: via TorrServer): 'h' the
+// infoHash, 'l' the language of the lines, 'e' "1" while an error is logged
+// (only the first one of a row goes to the log), 'f' "1" on the first tick
+// (logged). null: none (not TorrServer).
 /**
  * @param AioRow $r
  * @param bool $ts
@@ -86,8 +29,23 @@ function aio_osd_params($r, $ts, $lang)
 {
     if (!$ts || !preg_match('/^[0-9a-f]{40}$/D', $r['hash']))
         return null;
-    return array('m' => 'ts', 'h' => $r['hash'], 'n' => aio_osd_name($r['label']), 'l' => $lang === 'ru' ? 'ru' : 'en',
-        'e' => '0');
+    return array('h' => $r['hash'], 'l' => $lang === 'ru' ? 'ru' : 'en', 'e' => '0', 'f' => '1');
+}
+
+// The actions of the player: the timer -> the tick (handle_user_input of our
+// plugin, no "Please wait" over the video: no show_dialog_delay).
+/**
+ * @param AioOsdParams $p
+ * @return array<string, AioAction>
+ */
+function aio_osd_acts($p)
+{
+    return array(GUI_EVENT_TIMER => array(
+        GuiAction::handler_string_id => PLUGIN_HANDLE_USER_INPUT_ACTION_ID,
+        GuiAction::caption => null,
+        GuiAction::plugin_name => AIO_PLUGIN,
+        GuiAction::data => array(PluginHandleUserInputActionData::operation_timeout => AIO_OSD_TIMEOUT),
+        GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => 'osd_tick'), $p)));
 }
 
 // Params of the input -> as aio_osd_params made them, or null.
@@ -98,19 +56,13 @@ function aio_osd_params($r, $ts, $lang)
 function aio_osd_params_in($in)
 {
     $p = array();
-    // n may be absent (empty values are not sent): empty.
-    foreach (array('m' => '/^ts$/D', 'h' => '/^[0-9a-f]{40}$/D', 'n' => '/^.*$/sD', 'l' => '/^(ru|en)$/D',
-        'e' => '/^[01]$/D') as $k => $re)
+    foreach (array('h' => '/^[0-9a-f]{40}$/D', 'l' => '/^(ru|en)$/D', 'e' => '/^[01]$/D', 'f' => '/^[01]$/D') as $k => $re)
     {
-        $v = !isset($in->$k) && $k === 'n' ? '' : (isset($in->$k) ? $in->$k : null);
-        if (!is_string($v) || !preg_match($re, $v))
+        if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
             return null;
-        $p[$k] = $v;
+        $p[$k] = $in->$k;
     }
-    if (!mb_check_encoding($p['n'], 'UTF-8') ||
-        mb_strlen($p['n'], 'UTF-8') > AIO_OSD_NAME_MAX + 3 || preg_match('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]/u', $p['n']))
-        return null;
-    return array('m' => $p['m'], 'h' => $p['h'], 'n' => $p['n'], 'l' => $p['l'], 'e' => $p['e']);
+    return array('h' => $p['h'], 'l' => $p['l'], 'e' => $p['e'], 'f' => $p['f']);
 }
 
 // A count of a TorrentStatus: none -> 0, negative or not an int -> "—".
@@ -143,19 +95,18 @@ function aio_osd_size($j, $k, $lang, $zero)
     return aio_size_str(aio_num($v), $lang);
 }
 
-// Lines of the window of TorrServer: the name of the torrent (none: of the
-// release, $name), the speeds, the peers and seeders, the loaded size; no
-// numbers - one line why: no answer, no such torrent (404), a reply not
-// understood. $err: that for the log ('' none), without the address.
+// Lines of TorrServer over the INFO panel: the speeds, the peers and seeders,
+// the loaded size (the name of the release is sub_name of INFO); no numbers -
+// one line why: no answer, no such torrent (404), a reply not understood.
+// $err: that for the log ('' none), without the address.
 /**
  * @param string $hash
- * @param string $name
  * @param string $lang
  * @param string $err
  * @param-out string $err
  * @return list<string>
  */
-function aio_osd_ts_lines($hash, $name, $lang, &$err)
+function aio_osd_ts_lines($hash, $lang, &$err)
 {
     list($rg, $j) = aio_ts_get($hash);
     if (!$j)
@@ -165,9 +116,7 @@ function aio_osd_ts_lines($hash, $name, $lang, &$err)
         return array(aio_tr($lang, $rg['err'] !== '' ? 'osd_ts_down' : ($rg['code'] === 404 ? 'osd_ts_gone' : 'osd_ts_bad')));
     }
     $err = '';
-    $tn = aio_str($j, 'name') !== '' ? aio_str($j, 'name') : aio_str($j, 'title');
     return array(
-        $tn !== '' ? aio_osd_name($tn) : $name,
         str_replace(array('{down}', '{up}'), array(aio_speed_str(isset($j['download_speed']) ? $j['download_speed'] : null, $lang),
             aio_speed_str(isset($j['upload_speed']) ? $j['upload_speed'] : null, $lang)), aio_tr($lang, 'osd_ts_speed')),
         str_replace(array('{peers}', '{all}', '{seeds}'), array(aio_osd_count($j, 'active_peers'),
@@ -176,96 +125,53 @@ function aio_osd_ts_lines($hash, $name, $lang, &$err)
             aio_osd_size($j, 'torrent_size', $lang, false)), aio_tr($lang, 'osd_ts_loaded')));
 }
 
-// The plate of the window: a path of the plugin, as other plugins draw in the
-// player (plugin_file:// there is not proven).
+// The text over the INFO panel ('' none), then the actions $acts and the
+// timer ($tick ms) armed again; no $acts: nothing armed.
 /**
- * @return string
- */
-function aio_osd_bg()
-{
-    $dir = isset(DuneSystem::$properties['install_dir_path']) ? strval(DuneSystem::$properties['install_dir_path']) :
-        dirname(__FILE__);
-    return rtrim($dir, '/') . '/img/osd_bg.png';
-}
-
-// Components of the window: the plate, then the lines.
-/**
- * @param list<string> $lines
- * @return list<array<string, int|string|bool>>
- */
-function aio_osd_comps($lines)
-{
-    $c = array(array(
-        PluginOsdComponent::image_url => aio_osd_bg(),
-        PluginOsdComponent::x => AIO_OSD_X,
-        PluginOsdComponent::y => AIO_OSD_Y,
-        PluginOsdComponent::image_width => AIO_OSD_W,
-        PluginOsdComponent::image_height => AIO_OSD_H));
-    foreach (array_slice($lines, 0, AIO_OSD_LINES) as $i => $l)
-        $c[] = array(
-            PluginOsdComponent::text => $l,
-            PluginOsdComponent::x => AIO_OSD_X + AIO_OSD_PAD,
-            PluginOsdComponent::y => AIO_OSD_Y + AIO_OSD_TOP + $i * AIO_OSD_LH,
-            PluginOsdComponent::text_font_size => PLUGIN_FONT_NORMAL,
-            PluginOsdComponent::text_color => '15',
-            PluginOsdComponent::text_halo => false);
-    return $c;
-}
-
-// update_osd of $comps, then the actions $acts and the timer ($tick ms, 0 none).
-/**
- * @param list<array<string, int|string|bool>> $comps
- * @param array<string, AioAction> $acts
+ * @param string $text
+ * @param array<string, AioAction>|null $acts
  * @param int $tick
  * @return AioAction
  */
-function aio_osd_update($comps, $acts, $tick)
+function aio_osd_update($text, $acts, $tick)
 {
-    return array(
-        GuiAction::handler_string_id => PLUGIN_UPDATE_OSD_ACTION_ID,
-        GuiAction::data => array(
-            PluginUpdateOsdActionData::components => $comps,
-            PluginUpdateOsdActionData::post_action => array(
-                GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
-                GuiAction::data => array(
-                    ChangeBehaviourActionData::actions => $acts,
-                    ChangeBehaviourActionData::timer => $tick > 0 ? array(GuiTimerDef::delay_ms => $tick) : null,
-                    ChangeBehaviourActionData::post_action => null))));
+    // Grey, no halo, no offset: as the text of the panel itself (seen on r25).
+    $d = array(
+        PluginUpdateInfoBlockActionData::text_above => $text,
+        PluginUpdateInfoBlockActionData::text_color => '15',
+        PluginUpdateInfoBlockActionData::text_halo => false,
+        PluginUpdateInfoBlockActionData::text_y_offset => 0);
+    if (!is_null($acts))
+        $d[PluginUpdateInfoBlockActionData::post_action] = array(
+            GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
+            GuiAction::data => array(
+                ChangeBehaviourActionData::actions => $acts,
+                ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => $tick),
+                ChangeBehaviourActionData::post_action => null));
+    return array(GuiAction::handler_string_id => PLUGIN_UPDATE_INFO_BLOCK_ACTION_ID, GuiAction::data => $d);
 }
 
-// osd_open, osd_tick (the window drawn anew, the next tick armed), osd_close
-// (the window gone, green opens it again, no timer). Bad params: no window,
-// nothing armed.
+// osd_tick: the lines of TorrServer over INFO, the next tick armed (in
+// AIO_OSD_TICK_ERR_MS after an error). Bad params: the text gone, nothing armed.
 /**
  * @param stdClass $in
- * @param string $control
  * @return AioAction
  */
-function aio_osd_input($in, $control)
+function aio_osd_input($in)
 {
     $p = aio_osd_params_in($in);
     if (!$p)
     {
-        aio_log("osd: $control with bad params");
-        return array(GuiAction::handler_string_id => PLUGIN_UPDATE_OSD_ACTION_ID,
-            GuiAction::data => array(PluginUpdateOsdActionData::components => array(),
-                PluginUpdateOsdActionData::post_action => null));
+        aio_log('osd: tick with bad params');
+        return aio_osd_update('', null, 0);
     }
-    if ($control === 'osd_close')
-    {
-        aio_log('osd: closed');
-        $p['e'] = '0';
-        return aio_osd_update(array(), aio_osd_acts($p, false), 0);
-    }
-    if ($control === 'osd_open')
-    {
-        aio_log("osd: open, TorrServer, hash={$p['h']}");
-        $p['e'] = '0';
-    }
+    if ($p['f'] === '1')
+        aio_log("osd: first tick, TorrServer, hash={$p['h']}");
+    $p['f'] = '0';
     $err = '';
-    $lines = aio_osd_ts_lines($p['h'], $p['n'], $p['l'], $err);
+    $lines = aio_osd_ts_lines($p['h'], $p['l'], $err);
     if ($err !== '' && $p['e'] === '0')
         aio_log("osd: $err");
     $p['e'] = $err !== '' ? '1' : '0';
-    return aio_osd_update(aio_osd_comps($lines), aio_osd_acts($p, true), $err !== '' ? AIO_OSD_TICK_ERR_MS : AIO_OSD_TICK_MS);
+    return aio_osd_update(implode("\n", $lines), aio_osd_acts($p), $err !== '' ? AIO_OSD_TICK_ERR_MS : AIO_OSD_TICK_MS);
 }

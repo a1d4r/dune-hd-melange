@@ -203,10 +203,13 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     // multiplies it by 1000 the same way).
     if ($pos > 0)
         $info[PluginVodInfo::initial_position_ms] = $pos * 1000;
-    // Green via TorrServer: the window of the numbers (osd.php); no timer until it opens.
+    // TorrServer: its numbers over the INFO panel (osd.php), the first tick in AIO_OSD_TICK_MS.
     $osd = aio_osd_params($r, (bool) $ts, $st['lang']);
     if ($osd)
-        $info[PluginVodInfo::actions] = aio_osd_acts($osd, false);
+    {
+        $info[PluginVodInfo::actions] = aio_osd_acts($osd);
+        $info[PluginVodInfo::timer] = array(GuiTimerDef::delay_ms => AIO_OSD_TICK_MS);
+    }
     if ($linked)
     {
         $info[PluginVodInfo::recent_plugin] = 'shell_ext';
