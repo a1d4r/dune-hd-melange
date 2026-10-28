@@ -106,7 +106,8 @@ function aio_ts_dirname($path)
 
 // Season and episode by the name of a file -> array(season or null, episode)
 // or null: S01E02, s1.e2, 1x02; else E02 / EP02 / "Серия 2" / "2 серия" /
-// " - 07" / "02. Title" (season unknown). Only to find a file in a known pack.
+// " - 07" (season unknown). Only to find a file in a known pack. The number
+// leading the name is aio_ts_ep_lead, the weakest (aio_ts_eps).
 /**
  * @param string $path
  * @return array{int|null, int}|null
@@ -121,28 +122,65 @@ function aio_ts_ep($path)
         preg_match('/(?<![\pL0-9])серия[ ._\-]*([0-9]{1,3})(?![0-9])/iu', $n, $m) ||
         preg_match('/(?<![0-9])([0-9]{1,3})[ ._\-]*серия/iu', $n, $m) ||
         // Anime: "[Group] Title - 07 [1080p].mkv", "Title - 07v2.mkv".
-        preg_match('/ - ([0-9]{1,3})(?:v[0-9])?(?=[ ._\[(]|$)/i', $n, $m) ||
-        // The number leading the name: "01. Title.mkv", "01.mkv" (not "2024.", "1080p.").
-        preg_match('/^([0-9]{1,3})(?=[ ._\-])/', $n, $m))
+        preg_match('/ - ([0-9]{1,3})(?:v[0-9])?(?=[ ._\[(]|$)/i', $n, $m))
         return array(null, intval($m[1]));
     return null;
 }
 
-// A folder of the path names season $s ("Season 1", "S01", "1 сезон").
+// The number leading the name: "01. Title.mkv", "01.mkv" (not "2024.",
+// "1080p.") -> array(null, episode) or null.
 /**
  * @param string $path
- * @param int $s
+ * @return array{null, int}|null
+ */
+function aio_ts_ep_lead($path)
+{
+    return preg_match('/^([0-9]{1,3})(?=[ ._\-])/', aio_ts_basename($path), $m) ? array(null, intval($m[1])) : null;
+}
+
+// Episodes of the videos of $files by aio_ts_ep; only when it knows none of
+// them, by aio_ts_ep_lead. -> array(key of $files => its aio_ts_ep, by the
+// leading number).
+/**
+ * @param list<AioTsFile> $files
+ * @return array{array<int, array{int|null, int}>, bool}
+ */
+function aio_ts_eps($files)
+{
+    $out = array();
+    foreach ($files as $k => $f)
+    {
+        if (aio_ts_video($f['path']) && ($ep = aio_ts_ep($f['path'])))
+            $out[$k] = $ep;
+    }
+    if ($out)
+        return array($out, false);
+    foreach ($files as $k => $f)
+    {
+        if (aio_ts_video($f['path']) && ($ep = aio_ts_ep_lead($f['path'])))
+            $out[$k] = $ep;
+    }
+    return array($out, true);
+}
+
+// A folder of the path names season $s ("Season 1", "S01", "1 сезон"); $s
+// null: any season.
+/**
+ * @param string $path
+ * @param int|null $s
  * @return bool
  */
 function aio_ts_dir_season($path, $s)
 {
+    $s = $s === null ? '[0-9]{1,3}' : $s;
     return preg_match('/(?<![a-z0-9])(?:s|season[ ._\-]?)0*' . $s . '(?![0-9])|(?<![0-9])0*' . $s .
         '[ ._\-]*сезон|сезон[ ._\-]*0*' . $s . '(?![0-9])/iu', aio_ts_dirname($path)) === 1;
 }
 
 // Files of episode $e of season $s among $files (video only): its season in
 // the name, else an unknown season with the season in the folder, else any
-// unknown season. -> keys of $files.
+// unknown season. By the leading number (aio_ts_eps): not in a folder of
+// another season, and the rest only from one folder. -> keys of $files.
 /**
  * @param list<AioTsFile> $files
  * @param int $s
@@ -151,22 +189,29 @@ function aio_ts_dir_season($path, $s)
  */
 function aio_ts_ep_files($files, $s, $e)
 {
+    list($all, $lead) = aio_ts_eps($files);
     $named = array();
     $dir = array();
     $any = array();
-    foreach ($files as $k => $f)
+    $dirs = array();
+    foreach ($all as $k => $ep)
     {
-        $ep = aio_ts_video($f['path']) ? aio_ts_ep($f['path']) : null;
-        if (!$ep || $ep[1] !== $e || ($ep[0] !== null && $ep[0] !== $s))
+        $path = $files[$k]['path'];
+        if ($ep[1] !== $e || ($ep[0] !== null && $ep[0] !== $s))
             continue;
         if ($ep[0] !== null)
             $named[] = $k;
-        else if (aio_ts_dir_season($f['path'], $s))
+        else if (aio_ts_dir_season($path, $s))
             $dir[] = $k;
-        else
+        else if (!$lead)
             $any[] = $k;
+        else if (!aio_ts_dir_season($path, null))
+        {
+            $any[] = $k;
+            $dirs[aio_ts_dirname($path)] = true;
+        }
     }
-    return $named ? $named : ($dir ? $dir : $any);
+    return $named ? $named : ($dir ? $dir : (count($dirs) > 1 ? array() : $any));
 }
 
 // The file of row $r in $files -> array(key of $files or -1, why). The one
@@ -254,12 +299,12 @@ function aio_ts_episodes($base, $hash, $files, $s, $e, $chosen, $max)
 {
     $dir = aio_ts_dirname($files[$chosen]['path']);
     $best = array();
-    foreach ($files as $k => $f)
+    list($all) = aio_ts_eps($files);
+    foreach ($all as $k => $ep)
     {
-        $ep = aio_ts_video($f['path']) ? aio_ts_ep($f['path']) : null;
-        if (!$ep || $ep[1] < 1 || $ep[1] > $max || $ep[1] === $e || ($ep[0] !== null && $ep[0] !== $s))
+        if ($ep[1] < 1 || $ep[1] > $max || $ep[1] === $e || ($ep[0] !== null && $ep[0] !== $s))
             continue;
-        $same = aio_ts_dirname($f['path']) === $dir;
+        $same = aio_ts_dirname($files[$k]['path']) === $dir;
         if ($ep[0] === null && !$same)
             continue;
         $rank = ($ep[0] !== null ? 2 : 0) + ($same ? 1 : 0);
