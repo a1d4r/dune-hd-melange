@@ -106,7 +106,7 @@ function aio_ts_dirname($path)
 
 // Season and episode by the name of a file -> array(season or null, episode)
 // or null: S01E02, s1.e2, 1x02; else E02 / EP02 / "Серия 2" / "2 серия" /
-// " - 07" (season unknown). Only to find a file in a known pack.
+// " - 07" / "02. Title" (season unknown). Only to find a file in a known pack.
 /**
  * @param string $path
  * @return array{int|null, int}|null
@@ -121,7 +121,9 @@ function aio_ts_ep($path)
         preg_match('/(?<![\pL0-9])серия[ ._\-]*([0-9]{1,3})(?![0-9])/iu', $n, $m) ||
         preg_match('/(?<![0-9])([0-9]{1,3})[ ._\-]*серия/iu', $n, $m) ||
         // Anime: "[Group] Title - 07 [1080p].mkv", "Title - 07v2.mkv".
-        preg_match('/ - ([0-9]{1,3})(?:v[0-9])?(?=[ ._\[(]|$)/i', $n, $m))
+        preg_match('/ - ([0-9]{1,3})(?:v[0-9])?(?=[ ._\[(]|$)/i', $n, $m) ||
+        // The number leading the name: "01. Title.mkv", "01.mkv" (not "2024.", "1080p.").
+        preg_match('/^([0-9]{1,3})(?=[ ._\-])/', $n, $m))
         return array(null, intval($m[1]));
     return null;
 }
