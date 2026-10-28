@@ -103,6 +103,7 @@ If you change the password of your own config in AIOStreams, the config link cha
    - From Continue Watching you go straight to the same release at the same spot, without the list: via Debrid if it is cached or if Debrid gives a file link at once, otherwise via TorrServer if it answers. If AIOStreams no longer sends the release or TorrServer does not answer, the list opens.
    - The "Melange [NN%]" button in the card opens the list; choose the same release and the player itself offers "Resume playback" or "Play from the beginning".
    - In a series card (not via Seasons) Melange opens the list for the episode where you stopped, or for the next one if that episode is finished. Without history, the first episode of the first season.
+6. **In the player.** **INFO** is the Dune's own panel: the poster, the title, the name of the release, a line about it (video, audio, size, voice-overs) and the description of the movie or series from its card. **The green key** opens a window at the top over the video, its numbers updated every second: via TorrServer the name of the torrent, the download and upload speeds, peers and seeders, how much of it is loaded; via Debrid the name and size of the release, the bit rate and "Buffering…" while the player buffers. The green key again closes the window.
 
 ## Log
 Open the settings page (a bookmark, or the QR code via **Set up from a phone**) → **"Download the log"**. The file `melange-<date>-<time>.log` is downloaded; times in it are UTC.
