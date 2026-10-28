@@ -1,12 +1,11 @@
 <?php
-// The green key in the player (0.48.0): a window over the video with the
-// numbers of what plays - TorrServer: the torrent ("get": speeds, peers,
-// loaded); Debrid: the release, the bit rate and buffering of the player
-// (ext_command.state) -, redrawn every second while it is open. update_osd
-// draws it, change_behaviour arms the next tick: the timer of the player
-// fires once. Its state is in the params of the actions (mode, hash, the
-// release), never in Aio: the list may be gone under the player. Reads
-// Aio::$settings. Functions are global; the require order is in main.php.
+// The green key in the player (0.48.0), via TorrServer only: a window over
+// the video with the numbers of the torrent ("get": speeds, peers, loaded),
+// redrawn every second while it is open. update_osd draws it, change_behaviour
+// arms the next tick: the timer of the player fires once. Its state is in the
+// params of the actions (mode, hash, the release), never in Aio: the list may
+// be gone under the player. Reads Aio::$settings. Functions are global; the
+// require order is in main.php.
 // Types in the PHPDoc (AioOsdParams): phpstan-types.neon of the repository.
 
 define('AIO_OSD_TICK_MS', 1000);
@@ -73,22 +72,22 @@ function aio_osd_name($s)
 }
 
 // Params of the window of vod_play of row $r ($ts: via TorrServer): 'm' the
-// mode, ts (TorrServer, by infoHash 'h') or deb (the URL of Debrid: size 'z'
-// in bytes of the release); 'n' the name of the release (of ts: when
-// TorrServer names none); 'l' the language of its words, 'e' "1" while an
-// error is logged (only the first one of a row goes to the log).
+// mode (ts: TorrServer), 'h' the infoHash, 'n' the name of the release (when
+// TorrServer names none), 'l' the language of its words, 'e' "1" while an
+// error is logged (only the first one of a row goes to the log). null: no
+// window (not TorrServer).
 /**
  * @param AioRow $r
  * @param bool $ts
  * @param string $lang
- * @return AioOsdParams
+ * @return AioOsdParams|null
  */
 function aio_osd_params($r, $ts, $lang)
 {
-    $ts = $ts && preg_match('/^[0-9a-f]{40}$/D', $r['hash']);
-    return array('m' => $ts ? 'ts' : 'deb', 'h' => $ts ? $r['hash'] : '',
-        'n' => aio_osd_name($r['label']),
-        'z' => $ts ? '0' : number_format($r['size'], 0, '.', ''), 'l' => $lang === 'ru' ? 'ru' : 'en', 'e' => '0');
+    if (!$ts || !preg_match('/^[0-9a-f]{40}$/D', $r['hash']))
+        return null;
+    return array('m' => 'ts', 'h' => $r['hash'], 'n' => aio_osd_name($r['label']), 'l' => $lang === 'ru' ? 'ru' : 'en',
+        'e' => '0');
 }
 
 // Params of the input -> as aio_osd_params made them, or null.
@@ -99,19 +98,19 @@ function aio_osd_params($r, $ts, $lang)
 function aio_osd_params_in($in)
 {
     $p = array();
-    // h, n, z may be absent (empty values are not sent): empty.
-    foreach (array('m' => '/^(ts|deb)$/D', 'h' => '/^([0-9a-f]{40})?$/D', 'n' => '/^.*$/sD',
-        'z' => '/^[0-9]{0,18}$/D', 'l' => '/^(ru|en)$/D', 'e' => '/^[01]$/D') as $k => $re)
+    // n may be absent (empty values are not sent): empty.
+    foreach (array('m' => '/^ts$/D', 'h' => '/^[0-9a-f]{40}$/D', 'n' => '/^.*$/sD', 'l' => '/^(ru|en)$/D',
+        'e' => '/^[01]$/D') as $k => $re)
     {
-        $v = !isset($in->$k) && ($k === 'h' || $k === 'n' || $k === 'z') ? '' : (isset($in->$k) ? $in->$k : null);
+        $v = !isset($in->$k) && $k === 'n' ? '' : (isset($in->$k) ? $in->$k : null);
         if (!is_string($v) || !preg_match($re, $v))
             return null;
         $p[$k] = $v;
     }
-    if (($p['m'] === 'ts') !== ($p['h'] !== '') || !mb_check_encoding($p['n'], 'UTF-8') ||
+    if (!mb_check_encoding($p['n'], 'UTF-8') ||
         mb_strlen($p['n'], 'UTF-8') > AIO_OSD_NAME_MAX + 3 || preg_match('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]/u', $p['n']))
         return null;
-    return array('m' => $p['m'], 'h' => $p['h'], 'n' => $p['n'], 'z' => $p['z'], 'l' => $p['l'], 'e' => $p['e']);
+    return array('m' => $p['m'], 'h' => $p['h'], 'n' => $p['n'], 'l' => $p['l'], 'e' => $p['e']);
 }
 
 // A count of a TorrentStatus: none -> 0, negative or not an int -> "—".
@@ -175,70 +174,6 @@ function aio_osd_ts_lines($hash, $name, $lang, &$err)
             aio_osd_count($j, 'total_peers'), aio_osd_count($j, 'connected_seeders')), aio_tr($lang, 'osd_ts_peers')),
         str_replace(array('{got}', '{all}'), array(aio_osd_size($j, 'loaded_size', $lang, true),
             aio_osd_size($j, 'torrent_size', $lang, false)), aio_tr($lang, 'osd_ts_loaded')));
-}
-
-// The player's file of its state: "key = value" lines; with an empty
-// FS_PREFIX (older models) /tmp/run.
-/**
- * @return string
- */
-function aio_osd_state_path()
-{
-    return strval(getenv('FS_PREFIX')) . '/tmp/run/ext_command.state';
-}
-
-// Values of keys $keys in ext_command.state (others, playback_url with its
-// token too, are never kept), null: no file.
-/**
- * @param list<string> $keys
- * @return array<string, string>|null
- */
-function aio_osd_state($keys)
-{
-    $f = aio_osd_state_path();
-    // php_server lives on: its stat cache would keep the file of another playback.
-    clearstatcache();
-    $s = is_file($f) && is_readable($f) ? file_get_contents($f, false, null, 0, 65536) : false;
-    if ($s === false)
-        return null;
-    $out = array();
-    foreach (explode("\n", $s) as $line)
-    {
-        if (preg_match('/^\s*([a-z_]+)\s*=\s*(.*?)\s*$/D', $line, $m) && in_array($m[1], $keys, true))
-            $out[$m[1]] = $m[2];
-    }
-    return $out;
-}
-
-// Lines of the window of Debrid: the name and size of the release, the bit
-// rate of the player (bit/s: hypothesis; over AIO_RATE_MAX not believed),
-// "Buffering..." while it buffers.
-// $err: why there is no bit rate ('' none).
-/**
- * @param AioOsdParams $p
- * @param string $err
- * @param-out string $err
- * @return list<string>
- */
-function aio_osd_deb_lines($p, &$err)
-{
-    $lang = $p['l'];
-    $st = aio_osd_state(array('playback_current_bitrate', 'playback_is_buffering'));
-    $bps = is_array($st) && isset($st['playback_current_bitrate']) && preg_match('/^[0-9]{1,12}$/D', $st['playback_current_bitrate']) ?
-        floatval($st['playback_current_bitrate']) : 0.0;
-    if ($bps > AIO_RATE_MAX)
-        $bps = 0.0;
-    $err = !is_array($st) ? 'ext_command.state: none' : (isset($st['playback_current_bitrate']) ? '' :
-        'ext_command.state: no playback_current_bitrate');
-    $size = floatval($p['z']);
-    $lines = array();
-    if ($p['n'] !== '')
-        $lines[] = $p['n'];
-    $lines[] = str_replace('{size}', $size > 0 ? aio_size_str($size, $lang) : "\xE2\x80\x94", aio_tr($lang, 'osd_deb_size'));
-    $lines[] = str_replace('{rate}', $bps > 0 ? aio_gc_rate($bps, false, $lang) : "\xE2\x80\x94", aio_tr($lang, 'osd_deb_rate'));
-    if (is_array($st) && isset($st['playback_is_buffering']) && $st['playback_is_buffering'] === '1')
-        $lines[] = aio_tr($lang, 'osd_deb_buffering');
-    return $lines;
 }
 
 // The plate of the window: a path of the plugin, as other plugins draw in the
@@ -324,14 +259,13 @@ function aio_osd_input($in, $control)
     }
     if ($control === 'osd_open')
     {
-        aio_log('osd: open, ' . ($p['m'] === 'ts' ? "TorrServer, hash={$p['h']}" : 'Debrid'));
+        aio_log("osd: open, TorrServer, hash={$p['h']}");
         $p['e'] = '0';
     }
     $err = '';
-    $ts = $p['m'] === 'ts';
-    $lines = $ts ? aio_osd_ts_lines($p['h'], $p['n'], $p['l'], $err) : aio_osd_deb_lines($p, $err);
+    $lines = aio_osd_ts_lines($p['h'], $p['n'], $p['l'], $err);
     if ($err !== '' && $p['e'] === '0')
         aio_log("osd: $err");
     $p['e'] = $err !== '' ? '1' : '0';
-    return aio_osd_update(aio_osd_comps($lines), aio_osd_acts($p, true), $ts && $err !== '' ? AIO_OSD_TICK_ERR_MS : AIO_OSD_TICK_MS);
+    return aio_osd_update(aio_osd_comps($lines), aio_osd_acts($p, true), $err !== '' ? AIO_OSD_TICK_ERR_MS : AIO_OSD_TICK_MS);
 }

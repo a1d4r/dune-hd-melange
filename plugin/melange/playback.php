@@ -26,6 +26,20 @@ function aio_ep_name($mv, $s, $e)
     return $mv['title'] . ($e > 0 ? sprintf(' S%02dE%02d', $s, $e) : '');
 }
 
+// The name of a playlist item: "S02E04" in a playlist of several (INFO shows
+// the title of vod_info above it), else as aio_ep_name.
+/**
+ * @param AioMovie $mv
+ * @param int $s
+ * @param int $e
+ * @param bool $list
+ * @return string
+ */
+function aio_ser_name($mv, $s, $e, $list)
+{
+    return $list ? sprintf('S%02dE%02d', $s, $e) : aio_ep_name($mv, $s, $e);
+}
+
 // description of vod_info, for INFO of the player (as Online movies): a line
 // of the release - video (resolution, picture), audio, size, voices, as the
 // card of the list says them, empty parts left out -, a blank line, the
@@ -49,34 +63,38 @@ function aio_info_desc($r, $desc, $lang)
 
 // An episode of the playlist without a URL: the player asks for it with
 // get_vod_stream_url (aio_lazy_action). No recent_uid: its own vod_play has it.
+// $list: in a playlist of several (aio_ser_name).
 /**
  * @param AioMovie $mv
  * @param int $s
  * @param int $e
  * @param string $hash
+ * @param bool $list
  * @return array<string, mixed>
  */
-function aio_lazy_series($mv, $s, $e, $hash)
+function aio_lazy_series($mv, $s, $e, $hash, $list)
 {
     return array(
-        PluginVodSeriesInfo::name => aio_ep_name($mv, $s, $e),
+        PluginVodSeriesInfo::name => aio_ser_name($mv, $s, $e, $list),
         PluginVodSeriesInfo::playback_url => "aio_next:{$mv['dune_id']}:$s:$e:$hash",
         PluginVodSeriesInfo::playback_url_is_stream_url => false);
 }
 
-// A playlist item of URL $url, linked to the card by $hash ('' - unlinked).
+// A playlist item of URL $url, linked to the card by $hash ('' - unlinked);
+// $list: in a playlist of several (aio_ser_name).
 /**
  * @param AioMovie $mv
  * @param int $s
  * @param int $e
  * @param string $url
  * @param string $hash
+ * @param bool $list
  * @return array<string, mixed>
  */
-function aio_vod_item($mv, $s, $e, $url, $hash)
+function aio_vod_item($mv, $s, $e, $url, $hash, $list)
 {
     $ser = array(
-        PluginVodSeriesInfo::name => aio_ep_name($mv, $s, $e),
+        PluginVodSeriesInfo::name => aio_ser_name($mv, $s, $e, $list),
         PluginVodSeriesInfo::playback_url => $url,
         PluginVodSeriesInfo::playback_url_is_stream_url => true);
     if ($hash === '')
@@ -123,7 +141,6 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     $mv = $st['movie'];
     $s = $st['s'];
     $e = $st['e'];
-    $name = aio_ep_name($mv, $s, $e);
     $url = $ts ? $ts['url'] : $r['url'];
     // A Debrid placeholder video (not cached, a limit), linked, would put
     // its progress on the card: it is not played at all. A redirect to the
@@ -145,7 +162,12 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
         }
     }
     $linked = $mv['dune_id'] !== '' && $r['hash'] !== '' && ($ts || $ready || $r['cached'] === true);
-    $ser = aio_vod_item($mv, $s, $e, $url, $linked ? $r['hash'] : '');
+    $seasons = $mv['seasons'];
+    $season = $linked && $e > 0 && isset($seasons[$s]) && $e <= $seasons[$s] && $seasons[$s] <= AIO_EPISODES_MAX &&
+        preg_match('/^[0-9a-f]{40}$/D', $r['hash']);
+    // A playlist of several: the title in vod_info, "SxxEyy" in its items.
+    $list = $season && ($seasons[$s] > 1 || isset($seasons[$s + 1]));
+    $ser = aio_vod_item($mv, $s, $e, $url, $linked ? $r['hash'] : '', $list);
     if ($e > 0)
     {
         $mk = aio_markers($mv['imdb'], $s, $e, aio_row_duration($r));
@@ -153,22 +175,20 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
             $ser[PluginVodSeriesInfo::markers] = $mk;
     }
     $series = array($ser);
-    $seasons = $mv['seasons'];
-    if ($linked && $e > 0 && isset($seasons[$s]) && $e <= $seasons[$s] && $seasons[$s] <= AIO_EPISODES_MAX &&
-        preg_match('/^[0-9a-f]{40}$/D', $r['hash']))
+    if ($season)
     {
         $series = array();
         for ($i = 1; $i <= $seasons[$s]; $i++)
             $series[] = $i === $e ? $ser : ($ts && isset($ts['eps'][$i]) ?
-                aio_vod_item($mv, $s, $i, $ts['eps'][$i], $r['hash']) : aio_lazy_series($mv, $s, $i, $r['hash']));
+                aio_vod_item($mv, $s, $i, $ts['eps'][$i], $r['hash'], $list) : aio_lazy_series($mv, $s, $i, $r['hash'], $list));
         if (isset($seasons[$s + 1]))
-            $series[] = aio_lazy_series($mv, $s + 1, 1, $r['hash']);
+            $series[] = aio_lazy_series($mv, $s + 1, 1, $r['hash'], $list);
         aio_movie_save($mv, $st['lang']);
     }
 
     $info = array(
         PluginVodInfo::id => 'aio.' . ($mv['dune_id'] !== '' ? $mv['dune_id'] : $mv['imdb']),
-        PluginVodInfo::name => $name,
+        PluginVodInfo::name => $list ? $mv['title'] : aio_ep_name($mv, $s, $e),
         // The second line of INFO: the release, as the card names it.
         PluginVodInfo::sub_name => aio_clean($r['label']),
         PluginVodInfo::poster_url => $mv['poster'],
@@ -183,8 +203,10 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     // multiplies it by 1000 the same way).
     if ($pos > 0)
         $info[PluginVodInfo::initial_position_ms] = $pos * 1000;
-    // Green: the window of the numbers (osd.php); no timer until it opens.
-    $info[PluginVodInfo::actions] = aio_osd_acts(aio_osd_params($r, (bool) $ts, $st['lang']), false);
+    // Green via TorrServer: the window of the numbers (osd.php); no timer until it opens.
+    $osd = aio_osd_params($r, (bool) $ts, $st['lang']);
+    if ($osd)
+        $info[PluginVodInfo::actions] = aio_osd_acts($osd, false);
     if ($linked)
     {
         $info[PluginVodInfo::recent_plugin] = 'shell_ext';

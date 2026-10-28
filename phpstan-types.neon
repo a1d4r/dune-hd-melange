@@ -162,7 +162,7 @@ parameters:
         # list screen under the player ('' none), the list state, its row.
         AioPlaying: 'array{from: string, st: AioState, sel: int}'
         # Params of the actions of the green key in the player (aio_osd_params, osd.php).
-        AioOsdParams: 'array{m: string, h: string, n: string, z: string, l: string, e: string}'
+        AioOsdParams: 'array{m: string, h: string, n: string, l: string, e: string}'
         # A stream request (aio_fetch, main.php).
         AioFetch: 'array{rows: list<AioRow>}|array{error: string, detail: string}'
         # Progress of the releases of a list (aio_wh_progress, history.php):
