@@ -141,3 +141,7 @@ ts_err_no_ep = The release has no file for this episode
 ts_err_no_video = The release has no video
 ts_err_auth = TorrServer asks for a login and password: set them in the Melange settings → TorrServer
 ts_err_auth_bad = TorrServer did not accept the login or password: check them in the Melange settings → TorrServer
+osd_ts_speed = Download {down} · Upload {up}
+osd_ts_peers = Peers {peers} / {all} · Seeders {seeds}
+osd_ts_loaded = Loaded {got} of {all}
+osd_ts_down = TorrServer is not responding

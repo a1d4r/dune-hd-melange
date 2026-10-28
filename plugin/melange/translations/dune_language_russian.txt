@@ -141,3 +141,7 @@ ts_err_no_ep = В раздаче нет файла этой серии
 ts_err_no_video = В раздаче нет видео
 ts_err_auth = TorrServer просит логин и пароль: задайте их в настройках Melange → TorrServer
 ts_err_auth_bad = TorrServer не принял логин или пароль: проверьте их в настройках Melange → TorrServer
+osd_ts_speed = Загрузка {down} · Отдача {up}
+osd_ts_peers = Пиры {peers} / {all} · Сиды {seeds}
+osd_ts_loaded = Загружено {got} из {all}
+osd_ts_down = TorrServer не отвечает
