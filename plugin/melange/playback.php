@@ -30,7 +30,7 @@ function aio_ep_name($mv, $s, $e)
 // of the release - video (resolution, picture), audio, size, voices, as the
 // card of the list says them, empty parts left out -, a blank line, the
 // annotation of the card (of a series: the series', movie_str has none of an
-// episode).
+// episode; cut by aio_movie), its line breaks "\n", no other control characters.
 /**
  * @param AioRow $r
  * @param string $desc
@@ -43,7 +43,7 @@ function aio_info_desc($r, $desc, $lang)
         $r['size'] > 0 ? aio_size_str($r['size'], $lang) : '',
         isset($r['voices']) ? aio_voices_struct_text(aio_row_voices_struct($r), $lang, false) : '');
     $line = implode(' · ', array_filter(array_map('aio_clean', $parts), 'strlen'));
-    $desc = aio_cut($desc, AIO_INFO_DESC_MAX);
+    $desc = trim(preg_replace('/[\x00-\x09\x0B-\x1F\x7F]+/', ' ', str_replace("\r\n", "\n", $desc)));
     return $line !== '' && $desc !== '' ? "$line\n\n$desc" : $line . $desc;
 }
 

@@ -42,6 +42,20 @@ function aio_ts_decode($body)
     return is_array($j) ? $j : null;
 }
 
+// "get" of torrent $hash from the TorrServer of the settings, 2 s ->
+// array(the reply, its TorrentStatus or null): the waiting dialog and the
+// window of the green key in the player (osd.php).
+/**
+ * @param string $hash
+ * @return array{AioTsReply, array<mixed>|null}
+ */
+function aio_ts_get($hash)
+{
+    $rg = aio_ts_call(Aio::$settings['ts'] . '/torrents', (string) json_encode(array('action' => 'get', 'hash' => $hash)), 2,
+        Aio::$settings['ts_auth']);
+    return array($rg, $rg['err'] === '' && $rg['code'] === 200 ? aio_ts_decode($rg['body']) : null);
+}
+
 // file_stats of a TorrentStatus -> list of array('id' => int, 'path' =>
 // string, 'size' => float), as TorrServer sorts them (ids from 1).
 /**
@@ -444,11 +458,9 @@ function aio_ts_tick($in)
     $lang = $st['lang'];
     $sec = max(0, time() - intval($p['t']));
     $p['n'] = strval(intval($p['n']) + 1);
-    $rg = aio_ts_call(Aio::$settings['ts'] . '/torrents',
-        json_encode(array('action' => 'get', 'hash' => $r['hash'])), 2, Aio::$settings['ts_auth']);
+    list($rg, $j) = aio_ts_get($r['hash']);
     $err = $rg['err'];
     $code = $rg['code'];
-    $j = $err === '' && $code === 200 ? aio_ts_decode($rg['body']) : null;
     $files = aio_ts_files($j);
     aio_log(sprintf('ts: tick %s, %d s: %s, stat %s, peers %s/%s, seeders %s, %d files', $p['n'], $sec,
         $err !== '' ? $err : "HTTP $code", is_array($j) && isset($j['stat']) ? json_encode($j['stat']) : '-',

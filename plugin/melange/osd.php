@@ -10,6 +10,8 @@
 // Types in the PHPDoc (AioOsdParams): phpstan-types.neon of the repository.
 
 define('AIO_OSD_TICK_MS', 1000);
+// The tick while TorrServer gives no numbers: a "get" of 2 s is not repeated every second.
+define('AIO_OSD_TICK_ERR_MS', 5000);
 // operation_timeout of the actions, ms: the "get" takes 2 s at most.
 define('AIO_OSD_TIMEOUT', 5000);
 // The window at the top centre of 1920x1080: its plate (img/osd_bg.png, the
@@ -39,7 +41,8 @@ function aio_osd_input_act($control, $p)
         GuiAction::caption => null,
         GuiAction::plugin_name => AIO_PLUGIN,
         GuiAction::data => array(PluginHandleUserInputActionData::operation_timeout => AIO_OSD_TIMEOUT),
-        GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => $control), $p));
+        // No empty values: the shell may drop them (aio_osd_params_in reads them as empty).
+        GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => $control), array_diff($p, array(''))));
 }
 
 // The actions of the player: the window closed - green opens it; open - green
@@ -57,20 +60,23 @@ function aio_osd_acts($p, $open)
         GUI_EVENT_TIMER => aio_osd_input_act('osd_tick', $p));
 }
 
-// A name in one line of the window.
+// A name in one line of the window: no control characters or line breaks
+// (U+0085, U+2028, U+2029 too).
 /**
  * @param string $s
  * @return string
  */
 function aio_osd_name($s)
 {
-    return aio_cut(trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', $s)), AIO_OSD_NAME_MAX);
+    return aio_cut(trim(strval(preg_replace('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]+/u', ' ', aio_utf8($s)))),
+        AIO_OSD_NAME_MAX);
 }
 
 // Params of the window of vod_play of row $r ($ts: via TorrServer): 'm' the
-// mode, ts (TorrServer, by infoHash 'h') or deb (the URL of Debrid: name 'n'
-// and size 'z' in bytes of the release); 'l' the language of its words, 'e'
-// "1" while an error is logged (only the first one of a row goes to the log).
+// mode, ts (TorrServer, by infoHash 'h') or deb (the URL of Debrid: size 'z'
+// in bytes of the release); 'n' the name of the release (of ts: when
+// TorrServer names none); 'l' the language of its words, 'e' "1" while an
+// error is logged (only the first one of a row goes to the log).
 /**
  * @param AioRow $r
  * @param bool $ts
@@ -81,7 +87,7 @@ function aio_osd_params($r, $ts, $lang)
 {
     $ts = $ts && preg_match('/^[0-9a-f]{40}$/D', $r['hash']);
     return array('m' => $ts ? 'ts' : 'deb', 'h' => $ts ? $r['hash'] : '',
-        'n' => $ts ? '' : aio_osd_name($r['label']),
+        'n' => aio_osd_name($r['label']),
         'z' => $ts ? '0' : number_format($r['size'], 0, '.', ''), 'l' => $lang === 'ru' ? 'ru' : 'en', 'e' => '0');
 }
 
@@ -93,51 +99,82 @@ function aio_osd_params($r, $ts, $lang)
 function aio_osd_params_in($in)
 {
     $p = array();
-    foreach (array('m' => '/^(ts|deb)$/D', 'h' => '/^([0-9a-f]{40})?$/D', 'n' => '/^[^\x00-\x1F\x7F]*$/D',
-        'z' => '/^[0-9]{1,15}$/D', 'l' => '/^(ru|en)$/D', 'e' => '/^[01]$/D') as $k => $re)
+    // h, n, z may be absent (empty values are not sent): empty.
+    foreach (array('m' => '/^(ts|deb)$/D', 'h' => '/^([0-9a-f]{40})?$/D', 'n' => '/^.*$/sD',
+        'z' => '/^[0-9]{0,18}$/D', 'l' => '/^(ru|en)$/D', 'e' => '/^[01]$/D') as $k => $re)
     {
-        if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
+        $v = !isset($in->$k) && ($k === 'h' || $k === 'n' || $k === 'z') ? '' : (isset($in->$k) ? $in->$k : null);
+        if (!is_string($v) || !preg_match($re, $v))
             return null;
-        $p[$k] = $in->$k;
+        $p[$k] = $v;
     }
     if (($p['m'] === 'ts') !== ($p['h'] !== '') || !mb_check_encoding($p['n'], 'UTF-8') ||
-        mb_strlen($p['n'], 'UTF-8') > AIO_OSD_NAME_MAX + 3)
+        mb_strlen($p['n'], 'UTF-8') > AIO_OSD_NAME_MAX + 3 || preg_match('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]/u', $p['n']))
         return null;
     return array('m' => $p['m'], 'h' => $p['h'], 'n' => $p['n'], 'z' => $p['z'], 'l' => $p['l'], 'e' => $p['e']);
 }
 
-// Lines of the window of TorrServer: the name of the torrent, the speeds, the
-// peers and seeders, the loaded size; no reply - one line. $err: why there are
-// no numbers ('' none), without the address.
+// A count of a TorrentStatus: none -> 0, negative or not an int -> "—".
+/**
+ * @param array<mixed> $j
+ * @param string $k
+ * @return string
+ */
+function aio_osd_count($j, $k)
+{
+    if (!isset($j[$k]))
+        return '0';
+    return is_int($j[$k]) && $j[$k] >= 0 ? strval($j[$k]) : "\xE2\x80\x94";
+}
+
+// A size of a TorrentStatus (quoted by aio_ts_decode when big): "—" when it
+// is none, not a number or negative; 0 too unless $zero.
+/**
+ * @param array<mixed> $j
+ * @param string $k
+ * @param string $lang
+ * @param bool $zero
+ * @return string
+ */
+function aio_osd_size($j, $k, $lang, $zero)
+{
+    $v = aio_str($j, $k);
+    if (!is_numeric($v) || (float) $v < 0 || ((float) $v == 0 && !$zero))
+        return "\xE2\x80\x94";
+    return aio_size_str(aio_num($v), $lang);
+}
+
+// Lines of the window of TorrServer: the name of the torrent (none: of the
+// release, $name), the speeds, the peers and seeders, the loaded size; no
+// numbers - one line why: no answer, no such torrent (404), a reply not
+// understood. $err: that for the log ('' none), without the address.
 /**
  * @param string $hash
+ * @param string $name
  * @param string $lang
  * @param string $err
  * @param-out string $err
  * @return list<string>
  */
-function aio_osd_ts_lines($hash, $lang, &$err)
+function aio_osd_ts_lines($hash, $name, $lang, &$err)
 {
-    $rg = aio_ts_call(Aio::$settings['ts'] . '/torrents', (string) json_encode(array('action' => 'get', 'hash' => $hash)), 2,
-        Aio::$settings['ts_auth']);
-    $j = $rg['err'] === '' && $rg['code'] === 200 ? aio_ts_decode($rg['body']) : null;
+    list($rg, $j) = aio_ts_get($hash);
     if (!$j)
     {
         // curl_error names the host: its number only.
         $err = 'TorrServer ' . ($rg['err'] !== '' ? "curl {$rg['errno']}" : ($rg['code'] === 200 ? 'bad reply' : "HTTP {$rg['code']}"));
-        return array(aio_tr($lang, 'osd_ts_down'));
+        return array(aio_tr($lang, $rg['err'] !== '' ? 'osd_ts_down' : ($rg['code'] === 404 ? 'osd_ts_gone' : 'osd_ts_bad')));
     }
     $err = '';
-    $name = aio_str($j, 'name') !== '' ? aio_str($j, 'name') : aio_str($j, 'title');
-    $all = aio_num(aio_str($j, 'torrent_size'));
+    $tn = aio_str($j, 'name') !== '' ? aio_str($j, 'name') : aio_str($j, 'title');
     return array(
-        aio_osd_name($name),
+        $tn !== '' ? aio_osd_name($tn) : $name,
         str_replace(array('{down}', '{up}'), array(aio_speed_str(isset($j['download_speed']) ? $j['download_speed'] : null, $lang),
             aio_speed_str(isset($j['upload_speed']) ? $j['upload_speed'] : null, $lang)), aio_tr($lang, 'osd_ts_speed')),
-        str_replace(array('{peers}', '{all}', '{seeds}'), array(strval(aio_ts_int($j, 'active_peers')),
-            strval(aio_ts_int($j, 'total_peers')), strval(aio_ts_int($j, 'connected_seeders'))), aio_tr($lang, 'osd_ts_peers')),
-        str_replace(array('{got}', '{all}'), array(aio_size_str(aio_num(aio_str($j, 'loaded_size')), $lang),
-            $all > 0 ? aio_size_str($all, $lang) : "\xE2\x80\x94"), aio_tr($lang, 'osd_ts_loaded')));
+        str_replace(array('{peers}', '{all}', '{seeds}'), array(aio_osd_count($j, 'active_peers'),
+            aio_osd_count($j, 'total_peers'), aio_osd_count($j, 'connected_seeders')), aio_tr($lang, 'osd_ts_peers')),
+        str_replace(array('{got}', '{all}'), array(aio_osd_size($j, 'loaded_size', $lang, true),
+            aio_osd_size($j, 'torrent_size', $lang, false)), aio_tr($lang, 'osd_ts_loaded')));
 }
 
 // The player's file of its state: "key = value" lines; with an empty
@@ -174,7 +211,8 @@ function aio_osd_state($keys)
 }
 
 // Lines of the window of Debrid: the name and size of the release, the bit
-// rate of the player (bit/s: hypothesis), "Buffering..." while it buffers.
+// rate of the player (bit/s: hypothesis; over AIO_RATE_MAX not believed),
+// "Buffering..." while it buffers.
 // $err: why there is no bit rate ('' none).
 /**
  * @param AioOsdParams $p
@@ -188,6 +226,8 @@ function aio_osd_deb_lines($p, &$err)
     $st = aio_osd_state(array('playback_current_bitrate', 'playback_is_buffering'));
     $bps = is_array($st) && isset($st['playback_current_bitrate']) && preg_match('/^[0-9]{1,12}$/D', $st['playback_current_bitrate']) ?
         floatval($st['playback_current_bitrate']) : 0.0;
+    if ($bps > AIO_RATE_MAX)
+        $bps = 0.0;
     $err = !is_array($st) ? 'ext_command.state: none' : (isset($st['playback_current_bitrate']) ? '' :
         'ext_command.state: no playback_current_bitrate');
     $size = floatval($p['z']);
@@ -201,6 +241,18 @@ function aio_osd_deb_lines($p, &$err)
     return $lines;
 }
 
+// The plate of the window: a path of the plugin, as other plugins draw in the
+// player (plugin_file:// there is not proven).
+/**
+ * @return string
+ */
+function aio_osd_bg()
+{
+    $dir = isset(DuneSystem::$properties['install_dir_path']) ? strval(DuneSystem::$properties['install_dir_path']) :
+        dirname(__FILE__);
+    return rtrim($dir, '/') . '/img/osd_bg.png';
+}
+
 // Components of the window: the plate, then the lines.
 /**
  * @param list<string> $lines
@@ -209,7 +261,7 @@ function aio_osd_deb_lines($p, &$err)
 function aio_osd_comps($lines)
 {
     $c = array(array(
-        PluginOsdComponent::image_url => 'plugin_file://%' . AIO_PLUGIN . '%/img/osd_bg.png',
+        PluginOsdComponent::image_url => aio_osd_bg(),
         PluginOsdComponent::x => AIO_OSD_X,
         PluginOsdComponent::y => AIO_OSD_Y,
         PluginOsdComponent::image_width => AIO_OSD_W,
@@ -276,9 +328,10 @@ function aio_osd_input($in, $control)
         $p['e'] = '0';
     }
     $err = '';
-    $lines = $p['m'] === 'ts' ? aio_osd_ts_lines($p['h'], $p['l'], $err) : aio_osd_deb_lines($p, $err);
+    $ts = $p['m'] === 'ts';
+    $lines = $ts ? aio_osd_ts_lines($p['h'], $p['n'], $p['l'], $err) : aio_osd_deb_lines($p, $err);
     if ($err !== '' && $p['e'] === '0')
         aio_log("osd: $err");
     $p['e'] = $err !== '' ? '1' : '0';
-    return aio_osd_update(aio_osd_comps($lines), aio_osd_acts($p, true), AIO_OSD_TICK_MS);
+    return aio_osd_update(aio_osd_comps($lines), aio_osd_acts($p, true), $ts && $err !== '' ? AIO_OSD_TICK_ERR_MS : AIO_OSD_TICK_MS);
 }

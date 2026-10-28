@@ -148,3 +148,5 @@ osd_ts_down = TorrServer не отвечает
 osd_deb_size = Размер {size}
 osd_deb_rate = Битрейт {rate}
 osd_deb_buffering = Буферизация…
+osd_ts_gone = Раздачи нет в TorrServer
+osd_ts_bad = Непонятный ответ TorrServer

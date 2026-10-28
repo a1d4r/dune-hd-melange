@@ -173,8 +173,10 @@ function aio_movie($in)
     $imdb = aio_str($m, 'imdb_id');
     $dune_id = aio_str($m, 'id');
     $title = aio_str($m, 'title');
-    // The annotation of the card, for INFO in the player; not a string -> none.
-    $desc = isset($m['description']) && is_string($m['description']) ? trim(aio_utf8($m['description'])) : '';
+    // The annotation of the card, for INFO in the player (cut: the card of
+    // lazy episodes goes to tmp_dir); not a string -> none.
+    $desc = isset($m['description']) && is_string($m['description']) ?
+        aio_cut(trim(aio_utf8($m['description'])), AIO_INFO_DESC_MAX) : '';
     return array(
         'series' => $series,
         'imdb' => preg_match('/^tt[0-9]{1,10}$/', $imdb) ? $imdb : '',
