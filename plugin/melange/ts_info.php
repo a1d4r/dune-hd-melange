@@ -32,7 +32,8 @@ define('AIO_TSI_TIMEOUT', 5000);
 // img/ts_info_bg_<rows>.png is drawn at its own size, AIO_TSI_BG_* (the frame
 // plus the shadow, the extents of the skin's osd_glass: 13 left, 9 top, 32
 // right, 29 bottom), one per count of rows (aio_tsi_bg_h): image_height is not
-// proven to stretch a PNG.
+// proven to stretch a PNG. The PNGs: plugins/melange_img.sh of the development
+// repository, its numbers repeat these.
 define('AIO_TSI_X', 1300);
 define('AIO_TSI_Y', 80);
 define('AIO_TSI_W', 580);
@@ -44,16 +45,21 @@ define('AIO_TSI_BG_H', 233);
 // Rows "Label: value" of the SMALL font in the grey of the INFO window, as
 // there (r25 screenshots 29.10.2026): the first at AIO_TSI_TOP, AIO_TSI_LH
 // apart, from AIO_TSI_PAD of the frame, as wide as it minus AIO_TSI_PAD on
-// both sides. AIO_TSI_ROWS: the rows with the name in one (an error: one row
-// on that plate); the name takes AIO_TSI_NAME_LINES at most. AIO_TSI_PX: SMALL
-// in px for aio_gc_w (the widths of the screenshots: 29, not 30).
+// both sides, AIO_TSI_BOTTOM below the last. AIO_TSI_ROWS: the rows with the
+// name in one (an error: one row on that plate); the name takes
+// AIO_TSI_NAME_LINES at most, AIO_TSI_ROWS_MAX in all. AIO_TSI_PX: SMALL in px
+// for aio_gc_w (the widths of the screenshots: 29, not 30).
 define('AIO_TSI_ROWS', 5);
 define('AIO_TSI_NAME_LINES', 3);
+define('AIO_TSI_ROWS_MAX', AIO_TSI_ROWS - 1 + AIO_TSI_NAME_LINES);
 define('AIO_TSI_TOP', 11);
+define('AIO_TSI_BOTTOM', 14);
 define('AIO_TSI_LH', 34);
 define('AIO_TSI_PAD', 20);
 define('AIO_TSI_PX', 29);
 define('AIO_TSI_COLOR', '15');
+// Characters of a name in the params at most: more than its rows hold.
+define('AIO_TSI_NAME_MAX', 300);
 
 // The fields of vod_info for row $r ($ts: via TorrServer): INFO opens the
 // window; none (array()) unless TorrServer. No timer until it opens.
@@ -173,7 +179,8 @@ function aio_tsi_text_w()
 
 // "Label: name" of the release in rows of the window (aio_gc_wrap: broken
 // after spaces and . _ - / , ) ], a long word by characters); more than
-// AIO_TSI_NAME_LINES: the last ends with "…".
+// AIO_TSI_NAME_LINES: the last ends with "…", no separator before it
+// ("HDR10+…", not "HDR10+.…").
 /**
  * @param string $name
  * @param string $lang
@@ -181,54 +188,23 @@ function aio_tsi_text_w()
  */
 function aio_tsi_name_rows($name, $lang)
 {
-    return aio_gc_wrap(aio_tr($lang, 'tsi_l_name') . ': ' . $name, AIO_TSI_PX, aio_tsi_text_w(), AIO_TSI_NAME_LINES);
+    $rows = aio_gc_wrap(aio_tr($lang, 'tsi_l_name') . ': ' . $name, AIO_TSI_PX, aio_tsi_text_w(), AIO_TSI_NAME_LINES);
+    $last = count($rows) - 1;
+    if ($last === AIO_TSI_NAME_LINES - 1)
+        $rows[$last] = strval(preg_replace('#[ ._/,-]+\x{2026}$#u', "\xE2\x80\xA6", $rows[$last]));
+    return $rows;
 }
 
-// Whether "Label: name" takes AIO_TSI_NAME_LINES rows at most, not cut.
-/**
- * @param string $name
- * @param string $lang
- * @return bool
- */
-function aio_tsi_name_fits($name, $lang)
-{
-    return count(aio_gc_wrap(aio_tr($lang, 'tsi_l_name') . ': ' . $name, AIO_TSI_PX, aio_tsi_text_w(),
-        AIO_TSI_NAME_LINES + 1)) <= AIO_TSI_NAME_LINES;
-}
-
-// A name for the window: no control characters or line breaks (U+0085,
-// U+2028, U+2029 too), cut with "…" where aio_tsi_name_rows cuts it, so that
-// "Label: name" of $lang fits its rows. A name it gave comes back as it is
-// (it fits): the params keep it and check it so.
+// A name for the params of the window: one line (no control characters or
+// line breaks, U+0085, U+2028, U+2029 too), AIO_TSI_NAME_MAX characters at
+// most; aio_tsi_name_rows cuts it to its rows.
 /**
  * @param string $s
- * @param string $lang
  * @return string
  */
-function aio_tsi_name($s, $lang)
+function aio_tsi_name($s)
 {
-    $s = aio_one_line($s);
-    if (aio_tsi_name_fits($s, $lang))
-        return $s;
-    // The rows are pieces of the text, the last one cut with "…": its end in the text.
-    $label = aio_tr($lang, 'tsi_l_name') . ': ';
-    $text = $label . $s;
-    $rows = aio_tsi_name_rows($s, $lang);
-    $last = count($rows) - 1;
-    $end = 0;
-    foreach ($rows as $i => $row)
-    {
-        $piece = $i === $last ? (string) substr($row, 0, -strlen("\xE2\x80\xA6")) : $row;
-        $at = $piece !== '' ? strpos($text, $piece, $end) : false;
-        if ($at !== false)
-            $end = $at + strlen($piece);
-    }
-    // No separator before "…" ("HDR10+…", not "HDR10+.…").
-    $cut = rtrim((string) substr($text, strlen($label), max(0, $end - strlen($label))), ' ._-');
-    // A shorter text may wrap otherwise ("5.1" whole again): shortened till it fits.
-    while ($cut !== '' && !aio_tsi_name_fits("$cut\xE2\x80\xA6", $lang))
-        $cut = rtrim(mb_substr($cut, 0, mb_strlen($cut, 'UTF-8') - 1, 'UTF-8'), ' ._-');
-    return "$cut\xE2\x80\xA6";
+    return rtrim(mb_substr(aio_one_line($s), 0, AIO_TSI_NAME_MAX, 'UTF-8'));
 }
 
 // Params of the window of vod_play of row $r ($ts: via TorrServer): 'h' the
@@ -246,7 +222,7 @@ function aio_tsi_params($r, $ts, $lang)
     if (!$ts || !preg_match('/^[0-9a-f]{40}$/D', $r['hash']))
         return null;
     $l = $lang === 'ru' ? 'ru' : 'en';
-    return array('h' => $r['hash'], 'n' => aio_tsi_name($r['label'], $l), 'l' => $l, 'e' => '0');
+    return array('h' => $r['hash'], 'n' => aio_tsi_name($r['label']), 'l' => $l, 'e' => '0');
 }
 
 // Params of the input -> as aio_tsi_params made them, or null.
@@ -265,8 +241,9 @@ function aio_tsi_params_in($in)
             return null;
         $p[$k] = $v;
     }
-    // A name as aio_tsi_name leaves it: UTF-8, one line, cut to its rows.
-    if (!mb_check_encoding($p['n'], 'UTF-8') || aio_tsi_name($p['n'], $p['l']) !== $p['n'])
+    // A name as aio_tsi_name leaves it: UTF-8, one line, AIO_TSI_NAME_MAX characters at most.
+    if (!mb_check_encoding($p['n'], 'UTF-8') || aio_one_line($p['n']) !== $p['n'] ||
+        mb_strlen($p['n'], 'UTF-8') > AIO_TSI_NAME_MAX)
         return null;
     return array('h' => $p['h'], 'n' => $p['n'], 'l' => $p['l'], 'e' => $p['e']);
 }
@@ -364,7 +341,7 @@ function aio_tsi_rows($hash, $name, $lang, &$err)
     $err = '';
     $tn = aio_str($j, 'name') !== '' ? aio_str($j, 'name') : aio_str($j, 'title');
     // Speeds: 0 is "0 KB/s" here (TorrServer gives 0 while the buffer ahead is full).
-    return aio_tsi_lines($lang, $tn !== '' ? aio_tsi_name($tn, $lang) : $name, array(
+    return aio_tsi_lines($lang, $tn !== '' ? aio_tsi_name($tn) : $name, array(
         'down' => aio_speed_str(isset($j['download_speed']) ? $j['download_speed'] : null, $lang, true),
         'up' => aio_speed_str(isset($j['upload_speed']) ? $j['upload_speed'] : null, $lang, true),
         'peers' => aio_tsi_count($j, 'active_peers'),
@@ -405,7 +382,7 @@ function aio_tsi_bg($n)
  */
 function aio_tsi_comps($rows)
 {
-    $rows = array_slice($rows, 0, AIO_TSI_ROWS - 1 + AIO_TSI_NAME_LINES);
+    $rows = array_slice($rows, 0, AIO_TSI_ROWS_MAX);
     $c = array(array(
         PluginOsdComponent::image_url => aio_tsi_bg(count($rows)),
         PluginOsdComponent::x => AIO_TSI_BG_X,
