@@ -189,9 +189,11 @@ function aio_tsi_text_w()
 function aio_tsi_name_rows($name, $lang)
 {
     $rows = aio_gc_wrap(aio_tr($lang, 'tsi_l_name') . ': ' . $name, AIO_TSI_PX, aio_tsi_text_w(), AIO_TSI_NAME_LINES);
-    $last = count($rows) - 1;
-    if ($last === AIO_TSI_NAME_LINES - 1)
-        $rows[$last] = strval(preg_replace('#[ ._/,-]+\x{2026}$#u', "\xE2\x80\xA6", $rows[$last]));
+    if (count($rows) === AIO_TSI_NAME_LINES)
+    {
+        $l = (string) array_pop($rows);
+        $rows[] = strval(preg_replace('#[ ._/,-]+\x{2026}$#u', "\xE2\x80\xA6", $l));
+    }
     return $rows;
 }
 
