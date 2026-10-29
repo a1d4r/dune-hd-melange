@@ -374,7 +374,7 @@ function aio_tsi_osd($comps, $post)
 
 // The actions $acts and the timer ($tick ms, 0 none).
 /**
- * @param array<string, AioAction> $acts
+ * @param array<string, AioAction>|stdClass $acts
  * @param int $tick
  * @return AioAction
  */
@@ -427,7 +427,8 @@ function aio_tsi_input($in, $control)
     if (!$p || ($control === 'tsi_close' && $key === ''))
     {
         aio_log("tsi: $control with bad params");
-        $drop = aio_tsi_behave(array(), 0);
+        // An empty map as {}: the firmware reads actions as an object, [] may be refused.
+        $drop = aio_tsi_behave(new stdClass(), 0);
         return aio_tsi_osd(array(), $key !== '' ? aio_tsi_default($key, $drop) : $drop);
     }
     if ($control === 'tsi_state')
