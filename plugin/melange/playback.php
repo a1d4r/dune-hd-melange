@@ -471,12 +471,11 @@ function aio_finish($in)
     $n = count($ns['rows']);
     $ns = aio_gc_put_cursor($ns, $sel);
     $ns['rows'] = aio_carry_tracks($ns['rows'], $st['rows']);
-    Aio::$state = $ns;
     // The playback goes on from the new screen: if the event came while the
     // player only switched episodes, the next ones still find their screen.
     aio_playing($ns['rid'], $ns, $sel);
     aio_log('finish: list ' . aio_ep_tag($st) . ', played ' . aio_ep_tag($ns) . " -> screen replaced, row $sel of $n");
-    return aio_replace_act("streams:{$ns['rid']}", aio_ep_name($ns['movie'], $ns['s'], $ns['e']));
+    return aio_list_replace($ns);
 }
 
 // The screen replaced by the one of $media_url: "Back" does not grow; a new
@@ -502,6 +501,19 @@ function aio_replace_act($media_url, $caption, $erase = 1)
             // GComps selects by its sel_state ('gc'), not by sel_id.
             PluginReplacePathActionData::sel_id => null,
             PluginReplacePathActionData::post_action => null));
+}
+
+// List $ns becomes the live one (Aio::$state), its screen "streams:<rid>"
+// replaces the list screen ($erase: as aio_replace_act).
+/**
+ * @param AioState $ns
+ * @param int $erase
+ * @return AioAction
+ */
+function aio_list_replace($ns, $erase = 1)
+{
+    Aio::$state = $ns;
+    return aio_replace_act("streams:{$ns['rid']}", aio_ep_name($ns['movie'], $ns['s'], $ns['e']), $erase);
 }
 
 // --- Episodes by the left and right keys of the list screen (0.13.0).
@@ -827,11 +839,10 @@ function aio_relist_screen($st, $s, $e, $cur, $tag, $log_old, $title, $erase)
         return aio_relist_dialog($title, $st['lang'], $r);
     }
     $ns = $r['st'];
-    Aio::$state = $ns;
     aio_log(sprintf('%s, screen replaced, %s rows, row %s (%s), %.2f s', $tag,
         ($log_old ? count($st['rows']) . ' -> ' : '') . count($ns['rows']), ($log_old ? "$cur -> " : '') . $r['sel'], $r['by'],
         microtime(true) - Aio::$t0));
-    return aio_replace_act("streams:{$ns['rid']}", aio_ep_name($ns['movie'], $ns['s'], $ns['e']), $erase);
+    return aio_list_replace($ns, $erase);
 }
 
 // --- Lazy episodes of the playlist (proven on the device 05.10.2026): the
@@ -986,7 +997,9 @@ function aio_has_ep($r, $s, $e)
 // The rows of release $hash in $rows (indexes, -1: none): 'deb' the row with a
 // URL, a cached one first, with episode $s/$e in its file ($e < 1: any);
 // 'p2p' the first P2P row (no URL); 'any' the first row; 'rows' rows of the
-// release, 'cached' of them cached with a URL. The check of a row not cached
+// release, 'cached' of them cached with a URL. First: in the order of
+// AIOStreams (ord), not of the sorted list, so that a sort never changes the
+// row (copies of a release from several add-ons). The check of a row not cached
 // (aio_deb_precheck) and TorrServer are the caller's (aio_play_action resume,
 // aio_next).
 /**
@@ -999,8 +1012,16 @@ function aio_has_ep($r, $s, $e)
 function aio_release_pick($rows, $hash, $s, $e)
 {
     $p = array('deb' => -1, 'p2p' => -1, 'any' => -1, 'rows' => 0, 'cached' => 0);
+    $ord = $pos = array();
     foreach ($rows as $i => $r)
     {
+        $ord[] = $r['ord'];
+        $pos[] = $i;
+    }
+    array_multisort($ord, SORT_ASC, $pos, SORT_ASC);
+    foreach ($pos as $i)
+    {
+        $r = $rows[$i];
         if ($r['hash'] !== $hash)
             continue;
         $p['rows']++;

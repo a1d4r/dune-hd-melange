@@ -320,11 +320,12 @@ function aio_token_fix($unread)
 }
 
 // Writes $data to $path atomically, 0600: a fresh file next to it, then rename.
+// $path a folder: false, no rename (its warning).
 function aio_write_file($path, $data)
 {
     // A name, not a secret: fopen 'x' fails rather than reuse an existing file.
     $tmp = $path . '.' . substr(md5(uniqid(mt_rand(), true)), 0, 8) . '.tmp';
-    $fp = is_dir(dirname($path)) ? fopen($tmp, 'x') : false;
+    $fp = is_dir(dirname($path)) && !is_dir($path) ? fopen($tmp, 'x') : false;
     if (!$fp)
         return false;
     $ok = chmod($tmp, 0600) && fwrite($fp, $data) === strlen($data);

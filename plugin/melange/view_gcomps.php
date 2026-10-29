@@ -8,8 +8,9 @@
 // picture, the best audio), size, language flags, trackers if room is left;
 // under it one hint row: P+/P-, <- ->, POP UP "Actions", INFO "Details" and
 // "1 / 60" at the right; in that row under the card the colour keys of the
-// sort, the current one selected. The plugin draws and moves the selection itself
-// with change_gcomps; the position travels in sel_state {"sel":N,"top":T}.
+// sort (a remote with them), the current one selected. The plugin draws and
+// moves the selection itself with change_gcomps; the position travels in
+// sel_state {"sel":N,"top":T}.
 // Shapes as proven on the device (04.10.2026).
 // Reads Aio (state, settings), writes the cursor keys of Aio::$state;
 // aio_gc_sort replaces it by the list sorted anew.
@@ -67,7 +68,9 @@ define('AIO_GC_NAME_LH', 32);
 define('AIO_GC_VOICES_LINES', 5);  // lines of the voices in the card, at most,
 define('AIO_GC_VOICES_PX', 26);    // 26 px text in 32 px lines (as the name): more studios a line
 define('AIO_GC_VOICES_LH', 32);
-define('AIO_GC_CARD_BOTTOM', 980);   // the card ends above this y on any data: the sort keys under it
+// The card ends above this y on any data: the sort keys under it; a remote
+// without colour keys: above the end of the hint row (aio_gc_card_bottom).
+define('AIO_GC_CARD_BOTTOM', AIO_GC_HINT_Y - 10);
 define('AIO_GC_LANGS_MAX', 3);     // language flags of a row, the rest as "+N"
 define('AIO_GC_STEPS', 5);     // change_gcomps animation steps (vendor default)
 
@@ -768,7 +771,7 @@ function aio_gc_card($st, $sel)
 
     // Under the poster's place even without a poster: the fields do not move.
     $y = AIO_GC_PH + 20;
-    $room = AIO_GC_CARD_BOTTOM - AIO_GC_CY - $y;
+    $room = aio_gc_card_bottom() - AIO_GC_CY - $y;
 
     // The name: always a block of 2 lines at 26 px, cut with "…", so that the
     // fields below stay in place from one release to the next.
@@ -884,6 +887,26 @@ function aio_gc_hint(&$d, $x, $y, $keys, $text, $h = AIO_GC_KEY_H)
     return $x + $w + AIO_GC_HINT_GAP;
 }
 
+// The remote has the colour keys, as the vendor screens check it
+// (dune_config.php of the firmware; an old one has none: the keys are there).
+// Without them no sort hint, the card down to the end of the hint row.
+/**
+ * @return bool
+ */
+function aio_gc_color_keys()
+{
+    return !function_exists('dune_config_with_color_buttons') || dune_config_with_color_buttons();
+}
+
+// The y above which the card ends (AIO_GC_CARD_BOTTOM, aio_gc_color_keys).
+/**
+ * @return int
+ */
+function aio_gc_card_bottom()
+{
+    return aio_gc_color_keys() ? AIO_GC_CARD_BOTTOM : AIO_GC_HINT_Y + AIO_GC_KEY_H;
+}
+
 // The colour keys of the sort in the order of the remote: key of
 // aio_sort_keys => array(event, the vendor key picture).
 /**
@@ -945,7 +968,7 @@ function aio_gc_window($st, $sel, $top)
     $poster = aio_img($mv['poster']);
     if ($poster !== '')
         $d[] = aio_gc_image(aio_gc_at(AIO_GC_PW, AIO_GC_PH, AIO_GC_CX, AIO_GC_CY), $poster, true);
-    $d[] = aio_gc_panel('card', aio_gc_at(AIO_GC_CW, AIO_GC_CARD_BOTTOM - AIO_GC_CY, AIO_GC_CX, AIO_GC_CY),
+    $d[] = aio_gc_panel('card', aio_gc_at(AIO_GC_CW, aio_gc_card_bottom() - AIO_GC_CY, AIO_GC_CX, AIO_GC_CY),
         aio_gc_card($st, $sel));
 
     // Title cut alone; an episode has its own label at the right.
@@ -986,8 +1009,9 @@ function aio_gc_window($st, $sel, $top)
     aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/info_key.png' => 52), $tt['details']);
     $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT_Y),
         aio_gc_counter($sel, $n));
-    $d[] = aio_gc_panel('sort', aio_gc_at(AIO_GC_CW, AIO_GC_KEY_H, AIO_GC_CX, AIO_GC_HINT_Y),
-        aio_gc_sort_hint($st, $tt));
+    if (aio_gc_color_keys())
+        $d[] = aio_gc_panel('sort', aio_gc_at(AIO_GC_CW, AIO_GC_KEY_H, AIO_GC_CX, AIO_GC_HINT_Y),
+            aio_gc_sort_hint($st, $tt));
 
     $fanart = aio_img($mv['fanart']);
     // Same key set as vendor GCompsFactory::get_window_def().
@@ -1126,13 +1150,11 @@ function aio_gc_sort($in)
     }
     if (!aio_sort_write($k))
         aio_log("sort: $k not saved, this list only");
-    $ns = $st;
-    $ns['rid'] = aio_rid();
-    $ns['rows'] = aio_rows_sort($st['rows'], $k);
-    $ns['sort'] = $k;
-    Aio::$state = aio_gc_put_cursor($ns, 0);
+    // aio_list_state sorts by the settings: the new key, saved or not.
+    Aio::$settings['sort'] = $k;
+    $ns = aio_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang']);
     aio_log("sort: {$st['sort']} -> $k, " . aio_ep_tag($st) . ', ' . count($st['rows']) . ' rows, screen replaced');
-    return aio_replace_act("streams:{$ns['rid']}", aio_ep_name($ns['movie'], $ns['s'], $ns['e']));
+    return aio_list_replace(aio_gc_put_cursor($ns, 0));
 }
 
 // gc_menu (MENU) of a live list -> the popup menu of the row under the cursor:

@@ -610,7 +610,10 @@ function aio_row($st, $series)
     $expr = isset($expr['name']) && is_string($expr['name']) ? trim(aio_utf8($expr['name'])) : '';
     if ($group === '')
         $group = $expr;
-    $age = isset($sd['age']) && !is_bool($sd['age']) && is_numeric($sd['age']) ? (float) $sd['age'] : -1.0;
+    // A number, or a string of plain decimal digits: not "0x1A", " 5", "1e3".
+    $age = isset($sd['age']) ? $sd['age'] : null;
+    $age = is_int($age) || is_float($age) || (is_string($age) && preg_match('/^\d+(\.\d+)?$/D', $age)) ?
+        (float) $age : -1.0;
     return array(
         'url' => $url,
         'hash' => $hash,
