@@ -151,4 +151,4 @@ tsi_loaded = {got} of {all}
 tsi_down = TorrServer is not responding
 tsi_slow = TorrServer is slow to respond
 tsi_gone = TorrServer does not have the release
-tsi_bad = TorrServer sent a reply Melange does not understand
+tsi_bad = TorrServer reply not understood

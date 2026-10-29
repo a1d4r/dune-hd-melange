@@ -7,7 +7,8 @@
 // once). aio_tsi_vod gives vod_info its green. Its state is in the params of
 // the actions (hash, the release, language, error flag), never in Aio: the
 // list may be gone under the player.
-// Reads Aio::$settings. Functions are global; the require order is in main.php.
+// Reads Aio::$settings; text widths: aio_gc_* (gcomps.php). Functions are
+// global; the require order is in main.php.
 // Types in the PHPDoc (AioTsiParams): phpstan-types.neon of the repository.
 
 define('AIO_TSI_TICK_MS', 1000);
@@ -16,31 +17,28 @@ define('AIO_TSI_TICK_ERR_MS', 5000);
 // operation_timeout of the actions, ms: the "get" takes 2 s at most.
 define('AIO_TSI_TIMEOUT', 5000);
 // The window on 1920x1080, its frame without the shadow: x 1150..1880, from
-// y 80 as the INFO window of the player. Its plate img/ts_info_bg.png is
-// drawn at its own size, AIO_TSI_BG_* (the frame plus the shadow, the
-// extents of the skin's osd_glass: 13 left, 9 top, 32 right, 29 bottom).
+// y 80 as the INFO window of the player (its border is seen from x 1145, as
+// that of the INFO window from 145). Its plate img/ts_info_bg.png is drawn at
+// its own size, AIO_TSI_BG_* (the frame plus the shadow, the extents of the
+// skin's osd_glass: 13 left, 9 top, 32 right, 29 bottom).
 define('AIO_TSI_X', 1150);
 define('AIO_TSI_Y', 80);
+define('AIO_TSI_W', 730);
 define('AIO_TSI_BG_X', 1137);
 define('AIO_TSI_BG_Y', 71);
 define('AIO_TSI_BG_W', 775);
-define('AIO_TSI_BG_H', 266);
-// Rows of the SMALL font: the first at AIO_TSI_TOP, AIO_TSI_LH apart; the
-// labels at AIO_TSI_PAD, the values AIO_TSI_VAL right of them; "Seeders" in
-// the row of the peers AIO_TSI_SEEDS right of the values, its value
-// AIO_TSI_SEEDS_VAL further.
+define('AIO_TSI_BG_H', 233);
+// Rows "Label: value" of the SMALL font in the grey of the INFO window, as
+// there (r25 screenshots 29.10.2026): the first at AIO_TSI_TOP, AIO_TSI_LH
+// apart, from AIO_TSI_PAD of the frame, as wide as it minus AIO_TSI_PAD on
+// both sides. AIO_TSI_PX: SMALL in px for aio_gc_w (the widths of the
+// screenshots: 29, not 30).
 define('AIO_TSI_ROWS', 5);
-define('AIO_TSI_TOP', 20);
-define('AIO_TSI_LH', 38);
-define('AIO_TSI_PAD', 30);
-define('AIO_TSI_VAL', 170);
-define('AIO_TSI_SEEDS', 200);
-define('AIO_TSI_SEEDS_VAL', 130);
-// Characters of the name of the release: the column of the values is ~500 px.
-define('AIO_TSI_NAME_MAX', 32);
-// Colours of the skin: the labels grey (a9a9a9), the values light.
-define('AIO_TSI_C_LABEL', '15');
-define('AIO_TSI_C_VALUE', '14');
+define('AIO_TSI_TOP', 11);
+define('AIO_TSI_LH', 34);
+define('AIO_TSI_PAD', 20);
+define('AIO_TSI_PX', 29);
+define('AIO_TSI_COLOR', '15');
 
 // The fields of vod_info for row $r ($ts: via TorrServer): green opens the
 // window; none (array()) unless TorrServer. No timer until it opens.
@@ -89,16 +87,27 @@ function aio_tsi_acts($p, $open)
         GUI_EVENT_TIMER => aio_tsi_input_act('tsi_tick', $p));
 }
 
+// Width of a row of the window, px.
+/**
+ * @return int
+ */
+function aio_tsi_text_w()
+{
+    return AIO_TSI_W - 2 * AIO_TSI_PAD;
+}
+
 // A name in one line of the window: no control characters or line breaks
-// (U+0085, U+2028, U+2029 too), cut to the column.
+// (U+0085, U+2028, U+2029 too), cut with "…" to the row after the label
+// "Release: " of $lang. A name it gave comes back as it is.
 /**
  * @param string $s
+ * @param string $lang
  * @return string
  */
-function aio_tsi_name($s)
+function aio_tsi_name($s, $lang)
 {
-    return aio_cut(trim(strval(preg_replace('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]+/u', ' ', aio_utf8($s)))),
-        AIO_TSI_NAME_MAX);
+    return aio_gc_cut_w(trim(strval(preg_replace('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]+/u', ' ', aio_utf8($s)))),
+        AIO_TSI_PX, aio_tsi_text_w() - aio_gc_w(aio_tr($lang, 'tsi_l_name') . ': ', AIO_TSI_PX));
 }
 
 // Params of the window of vod_play of row $r ($ts: via TorrServer): 'h' the
@@ -115,7 +124,8 @@ function aio_tsi_params($r, $ts, $lang)
 {
     if (!$ts || !preg_match('/^[0-9a-f]{40}$/D', $r['hash']))
         return null;
-    return array('h' => $r['hash'], 'n' => aio_tsi_name($r['label']), 'l' => $lang === 'ru' ? 'ru' : 'en', 'e' => '0');
+    $l = $lang === 'ru' ? 'ru' : 'en';
+    return array('h' => $r['hash'], 'n' => aio_tsi_name($r['label'], $l), 'l' => $l, 'e' => '0');
 }
 
 // Params of the input -> as aio_tsi_params made them, or null.
@@ -134,8 +144,8 @@ function aio_tsi_params_in($in)
             return null;
         $p[$k] = $v;
     }
-    if (!mb_check_encoding($p['n'], 'UTF-8') || mb_strlen($p['n'], 'UTF-8') > AIO_TSI_NAME_MAX + 3 ||
-        preg_match('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]/u', $p['n']))
+    // A name as aio_tsi_name leaves it: UTF-8, one line, cut to the row.
+    if (!mb_check_encoding($p['n'], 'UTF-8') || aio_tsi_name($p['n'], $p['l']) !== $p['n'])
         return null;
     return array('h' => $p['h'], 'n' => $p['n'], 'l' => $p['l'], 'e' => $p['e']);
 }
@@ -171,18 +181,18 @@ function aio_tsi_size($j, $k, $lang, $zero)
     return $zero && is_numeric($v) && (float) $v == 0 ? aio_size_str(0.0, $lang) : "\xE2\x80\x94";
 }
 
-// Rows of the window of TorrServer, each a list of (label, value) pairs: the
-// name of the torrent (none: of the release, $name), download, upload, peers
-// and seeders, loaded of the size. No numbers - one row of one value, why:
-// slow (curl timeout), no answer, no such torrent (404), a reply not
-// understood. $err: that for the log ('' none), without the address.
+// Rows "Label: value" of the window of TorrServer: the name of the torrent
+// (none: of the release, $name), download, upload, peers and seeders, loaded
+// of the size. No numbers - one row why: slow (curl timeout), no answer, no
+// such torrent (404), a reply not understood. $err: that for the log ('' none),
+// without the address.
 /**
  * @param string $hash
  * @param string $name
  * @param string $lang
  * @param string $err
  * @param-out string $err
- * @return list<list<array{string, string}>>
+ * @return list<string>
  */
 function aio_tsi_rows($hash, $name, $lang, &$err)
 {
@@ -195,19 +205,23 @@ function aio_tsi_rows($hash, $name, $lang, &$err)
             $key = $rg['errno'] === 28 ? 'tsi_slow' : 'tsi_down';
         else
             $key = $rg['code'] === 404 ? 'tsi_gone' : 'tsi_bad';
-        return array(array(array('', aio_tr($lang, $key))));
+        return array(aio_tr($lang, $key));
     }
     $err = '';
     $tn = aio_str($j, 'name') !== '' ? aio_str($j, 'name') : aio_str($j, 'title');
+    $l = array();
+    foreach (array('name', 'down', 'up', 'peers', 'seeds', 'loaded') as $k)
+        $l[$k] = aio_tr($lang, "tsi_l_$k") . ': ';
+    // Speeds: 0 is "0 KB/s" here (TorrServer gives 0 while the buffer ahead is full).
     return array(
-        array(array(aio_tr($lang, 'tsi_l_name'), $tn !== '' ? aio_tsi_name($tn) : $name)),
-        array(array(aio_tr($lang, 'tsi_l_down'), aio_speed_str(isset($j['download_speed']) ? $j['download_speed'] : null, $lang))),
-        array(array(aio_tr($lang, 'tsi_l_up'), aio_speed_str(isset($j['upload_speed']) ? $j['upload_speed'] : null, $lang))),
-        array(array(aio_tr($lang, 'tsi_l_peers'), aio_tsi_count($j, 'active_peers') . ' / ' . aio_tsi_count($j, 'total_peers')),
-            array(aio_tr($lang, 'tsi_l_seeds'), aio_tsi_count($j, 'connected_seeders'))),
-        array(array(aio_tr($lang, 'tsi_l_loaded'), str_replace(array('{got}', '{all}'),
+        $l['name'] . ($tn !== '' ? aio_tsi_name($tn, $lang) : $name),
+        $l['down'] . aio_speed_str(isset($j['download_speed']) ? $j['download_speed'] : null, $lang, true),
+        $l['up'] . aio_speed_str(isset($j['upload_speed']) ? $j['upload_speed'] : null, $lang, true),
+        $l['peers'] . aio_tsi_count($j, 'active_peers') . ' / ' . aio_tsi_count($j, 'total_peers') . " \xC2\xB7 " .
+            $l['seeds'] . aio_tsi_count($j, 'connected_seeders'),
+        $l['loaded'] . str_replace(array('{got}', '{all}'),
             array(aio_tsi_size($j, 'loaded_size', $lang, true), aio_tsi_size($j, 'torrent_size', $lang, false)),
-            aio_tr($lang, 'tsi_loaded')))));
+            aio_tr($lang, 'tsi_loaded')));
 }
 
 // The plate of the window: a path of the plugin, as other plugins draw in the
@@ -222,28 +236,9 @@ function aio_tsi_bg()
     return rtrim($dir, '/') . '/img/ts_info_bg.png';
 }
 
+// Components of the window: the plate, then a text per row, each cut to the row.
 /**
- * @param string $text
- * @param int $x
- * @param int $y
- * @param string $color
- * @return array<string, int|string|bool>
- */
-function aio_tsi_text($text, $x, $y, $color)
-{
-    return array(
-        PluginOsdComponent::text => $text,
-        PluginOsdComponent::x => $x,
-        PluginOsdComponent::y => $y,
-        PluginOsdComponent::text_font_size => PLUGIN_FONT_SMALL,
-        PluginOsdComponent::text_color => $color,
-        PluginOsdComponent::text_halo => false);
-}
-
-// Components of the window: the plate, then per row its labels and values
-// (no label: the value from the column of the labels).
-/**
- * @param list<list<array{string, string}>> $rows
+ * @param list<string> $rows
  * @return list<array<string, int|string|bool>>
  */
 function aio_tsi_comps($rows)
@@ -255,22 +250,13 @@ function aio_tsi_comps($rows)
         PluginOsdComponent::image_width => AIO_TSI_BG_W,
         PluginOsdComponent::image_height => AIO_TSI_BG_H));
     foreach (array_slice($rows, 0, AIO_TSI_ROWS) as $i => $row)
-    {
-        $y = AIO_TSI_Y + AIO_TSI_TOP + $i * AIO_TSI_LH;
-        $x = AIO_TSI_X + AIO_TSI_PAD;
-        foreach ($row as $k => $pair)
-        {
-            if ($k > 0)
-                $x += AIO_TSI_VAL + AIO_TSI_SEEDS;
-            if ($pair[0] === '')
-            {
-                $c[] = aio_tsi_text($pair[1], $x, $y, AIO_TSI_C_VALUE);
-                continue;
-            }
-            $c[] = aio_tsi_text($pair[0], $x, $y, AIO_TSI_C_LABEL);
-            $c[] = aio_tsi_text($pair[1], $x + ($k > 0 ? AIO_TSI_SEEDS_VAL : AIO_TSI_VAL), $y, AIO_TSI_C_VALUE);
-        }
-    }
+        $c[] = array(
+            PluginOsdComponent::text => aio_gc_cut_w($row, AIO_TSI_PX, aio_tsi_text_w()),
+            PluginOsdComponent::x => AIO_TSI_X + AIO_TSI_PAD,
+            PluginOsdComponent::y => AIO_TSI_Y + AIO_TSI_TOP + $i * AIO_TSI_LH,
+            PluginOsdComponent::text_font_size => PLUGIN_FONT_SMALL,
+            PluginOsdComponent::text_color => AIO_TSI_COLOR,
+            PluginOsdComponent::text_halo => false);
     return $c;
 }
 
