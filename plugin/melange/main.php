@@ -64,11 +64,11 @@ class Aio
     // 'ts_save' - save_to_db of its add (ts_save of the settings). 'aio' - the own
     // AIOStreams server ('' none), "<aio>" in the log. 'own' - the own config
     // is chosen (source own). 'hosts' - aio_settings_hosts(), hidden in the log.
-    // 'sort' - the sort of a new list (aio_sort_read).
+    // 'sort', 'sort_rev' - the sort of a new list and its direction (aio_sort_read).
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'aio' => '', 'own' => false,
-        'hosts' => array(), 'sort' => 'aio');
+        'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false);
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -344,6 +344,7 @@ function aio_write_file($path, $data)
 function aio_settings_load()
 {
     $s = aio_settings_read_logged();
+    list($sort, $rev) = aio_sort_read();
     Aio::$settings = array(
         // The stream URL is <base>/stream/...: the base keeps its trailing slash.
         'base' => aio_manifest_base(aio_settings_manifest($s)),
@@ -357,14 +358,16 @@ function aio_settings_load()
         'aio' => $s['aio_own_url'],
         'own' => $s['source'] === 'own',
         'hosts' => aio_settings_hosts($s),
-        'sort' => aio_sort_read());
+        'sort' => $sort,
+        'sort_rev' => $rev);
 }
 
 // The sort of the lists, chosen by a colour key of the list (aio_gc_sort):
-// data_dir/list_sort, not settings.json (the page writes that one). None or
-// not a key of aio_sort_keys: 'aio', the order of AIOStreams.
+// data_dir/list_sort, not settings.json (the page writes that one), "<key>"
+// or "<key>_rev" (reversed; 0.48.0 before the direction: the key only). None
+// or not a key of aio_sort_keys: 'aio', the order of AIOStreams.
 /**
- * @return string
+ * @return array{string, bool} the key, reversed
  */
 function aio_sort_read()
 {
@@ -372,16 +375,20 @@ function aio_sort_read()
     $k = '';
     if (aio_data_dir() !== '' && is_file($f))
         $k = trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM);
-    return in_array($k, aio_sort_keys(), true) ? $k : 'aio';
+    $rev = substr($k, -4) === '_rev';
+    if ($rev)
+        $k = substr($k, 0, -4);
+    return in_array($k, aio_sort_keys(), true) ? array($k, $rev) : array('aio', false);
 }
 
 /**
  * @param string $k
+ * @param bool $rev
  * @return bool
  */
-function aio_sort_write($k)
+function aio_sort_write($k, $rev)
 {
-    return aio_data_dir() !== '' && aio_write_file(aio_data_dir() . '/' . AIO_SORT_FILE, $k);
+    return aio_data_dir() !== '' && aio_write_file(aio_data_dir() . '/' . AIO_SORT_FILE, $rev ? "{$k}_rev" : $k);
 }
 
 // --- AIOStreams.
@@ -683,8 +690,8 @@ function aio_rid()
 }
 
 // State of a stream list (Aio::$state): its screen "streams:<rid>", the card,
-// season and episode (-1 for a movie), rows in the order of 'sort' (of the
-// settings: aio_rows_sort), the shell language of play_action.
+// season and episode (-1 for a movie), rows in the order of 'sort' and
+// 'sort_rev' (of the settings: aio_rows_sort), the shell language of play_action.
 // view_gcomps.php adds 'gc' - array(sel, top), the last cursor; 'gc_new' -
 // the first view of a replaced screen ignores the shell's sel_state; 'gc_prog'
 // - progress of the rows for their redraw. A screen replaced by a new list
@@ -696,8 +703,9 @@ function aio_rid()
 function aio_list_state($mv, $s, $e, $rows, $lang)
 {
     $sort = Aio::$settings['sort'];
-    return array('rid' => aio_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => aio_rows_sort($rows, $sort),
-        'lang' => $lang, 'sort' => $sort);
+    $rev = Aio::$settings['sort_rev'];
+    return array('rid' => aio_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => aio_rows_sort($rows, $sort, $rev),
+        'lang' => $lang, 'sort' => $sort, 'sort_rev' => $rev);
 }
 
 // --- play_action of the supplier.

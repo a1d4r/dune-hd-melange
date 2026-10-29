@@ -1127,9 +1127,10 @@ function aio_gc_folder_view($st, $sel_state)
 }
 
 // gc_sort (k: a key of aio_sort_keys) of a live list: its rows in that
-// order, the sort kept for new lists (aio_sort_write; not written: this list
-// only); the screen replaced as by aio_refresh (a new rid), the cursor on
-// the first row. The sort of the list already, a bad key, a list not live: nothing.
+// order, by default descending (aio_rows_sort); the key of the list's sort
+// again: the other way round. The sort kept for new lists (aio_sort_write;
+// not written: this list only); the screen replaced as by aio_refresh (a new
+// rid), the cursor on the first row. A bad key, a list not live: nothing.
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -1143,17 +1144,16 @@ function aio_gc_sort($in)
         aio_log('sort: not a live list or a bad key, nothing');
         return null;
     }
-    if ($k === $st['sort'])
-    {
-        aio_log("sort: $k already, nothing");
-        return null;
-    }
-    if (!aio_sort_write($k))
-        aio_log("sort: $k not saved, this list only");
-    // aio_list_state sorts by the settings: the new key, saved or not.
+    $rev = $k === $st['sort'] && !$st['sort_rev'];
+    $tag = $k . ($rev ? ' reversed' : '');
+    if (!aio_sort_write($k, $rev))
+        aio_log("sort: $tag not saved, this list only");
+    // aio_list_state sorts by the settings: the new sort, saved or not.
     Aio::$settings['sort'] = $k;
+    Aio::$settings['sort_rev'] = $rev;
     $ns = aio_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang']);
-    aio_log("sort: {$st['sort']} -> $k, " . aio_ep_tag($st) . ', ' . count($st['rows']) . ' rows, screen replaced');
+    aio_log("sort: {$st['sort']}" . ($st['sort_rev'] ? ' reversed' : '') . " -> $tag, " . aio_ep_tag($st) . ', ' .
+        count($st['rows']) . ' rows, screen replaced');
     return aio_list_replace(aio_gc_put_cursor($ns, 0));
 }
 

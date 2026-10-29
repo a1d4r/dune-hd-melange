@@ -54,7 +54,8 @@ parameters:
                 aio: string,
                 own: bool,
                 hosts: array<string, string>,
-                sort: string
+                sort: string,
+                sort_rev: bool
             }
         '''
         # Badges of a release (aio_badges, parse.php).
@@ -122,7 +123,7 @@ parameters:
             }
         '''
         # A stream list (Aio::$state, aio_list_state, main.php), rows in the order
-        # of sort (aio_sort_keys); gc (sel, top:
+        # of sort (aio_sort_keys), reversed by sort_rev; gc (sel, top:
         # the last cursor), gc_new, gc_prog: of view_gcomps.php.
         AioState: '''
             array{
@@ -133,6 +134,7 @@ parameters:
                 rows: list<AioRow>,
                 lang: string,
                 sort: string,
+                sort_rev: bool,
                 gc?: array{int, int},
                 gc_new?: bool,
                 gc_prog?: AioProgress

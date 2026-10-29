@@ -12,7 +12,7 @@ define('AIO_CA_BUNDLE', '/firmware/certs/ca-bundle.crt');
 define('AIO_SETTINGS_FILE', 'settings.json');
 // In data_dir: the token of the settings page; written by the plugin only.
 define('AIO_TOKEN_FILE', 'web_token');
-// In data_dir: the sort of the stream lists (a key of aio_sort_keys); written by the plugin only.
+// In data_dir: the sort of the stream lists (aio_sort_read); written by the plugin only.
 define('AIO_SORT_FILE', 'list_sort');
 define('AIO_URL_MAX', 2000);
 // A bigger settings.json is not read (a real one is below 5 KB).

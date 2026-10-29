@@ -686,17 +686,20 @@ function aio_rows_debrid($rows)
     return false;
 }
 
-// Rows in the order of sort $key, all descending: more seeders (a Debrid
-// list: the cached rows, then the rest), bigger, newer (smaller age); 'aio'
-// (or an unknown key) the order of the reply. Stable: equal values keep the
-// order of AIOStreams (ord); rows without the value (no seeders, size 0, no
-// age) go to the end in that order.
+// Rows in the order of sort $key, by default descending: more seeders (a
+// Debrid list: the cached rows, then the rest), bigger, newer (smaller age);
+// 'aio' (or an unknown key) the order of the reply. $rev: the other way, the
+// value only: fewer seeders (not cached first), smaller, older; 'aio' the
+// reply backwards. Stable either way: equal values keep the order of
+// AIOStreams (ord); rows without the value (no seeders, size 0, no age) go to
+// the end in that order.
 /**
  * @param list<AioRow> $rows
  * @param string $key
+ * @param bool $rev
  * @return list<AioRow>
  */
-function aio_rows_sort($rows, $key)
+function aio_rows_sort($rows, $key, $rev = false)
 {
     $deb = aio_rows_debrid($rows);
     $miss = $val = $ord = $pos = array();
@@ -709,14 +712,15 @@ function aio_rows_sort($rows, $key)
         else if ($key === 'date')
             $v = is_null($r['age']) ? null : -$r['age'];
         else
-            $v = 0;
+            $v = -$r['ord'];
         $miss[] = is_null($v) ? 1 : 0;
         $val[] = is_null($v) ? 0 : $v;
         $ord[] = $r['ord'];
         // Never equal: the rows themselves are not compared.
         $pos[] = $i;
     }
-    array_multisort($miss, SORT_ASC, $val, SORT_DESC, $ord, SORT_ASC, $pos, SORT_ASC, $rows);
+    $dir = $rev ? SORT_ASC : SORT_DESC;
+    array_multisort($miss, SORT_ASC, $val, $dir, $ord, SORT_ASC, $pos, SORT_ASC, $rows);
     return $rows;
 }
 
