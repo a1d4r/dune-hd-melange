@@ -6,11 +6,12 @@
 // subtitles, languages, trackers); on the right the list: cache icon (the
 // seeders of a P2P row), badges of kingsizew/badges (resolution, source,
 // picture, the best audio), size, language flags, trackers if room is left;
-// under it one hint row: P+/P-, <- ->, POP UP "Actions", INFO "Details" and
-// "1 / 60" at the right; in that row under the card the colour keys of the
-// sort (a remote with them), the current one selected. The plugin draws and
-// moves the selection itself with change_gcomps; the position travels in
-// sel_state {"sel":N,"top":T}.
+// between the title and the list the colour keys of the sort as tabs (a
+// remote with them), the current one bright and underlined, its direction a
+// triangle; under the list one hint row: P+/P-, <- ->, POP UP "Actions", INFO
+// "Details" and "1 / 60" at the right. The plugin draws and moves the
+// selection itself with change_gcomps; the position travels in sel_state
+// {"sel":N,"top":T}.
 // Shapes as proven on the device (04.10.2026).
 // Reads Aio (state, settings), writes the cursor keys of Aio::$state;
 // aio_gc_sort replaces it by the list sorted anew.
@@ -26,9 +27,9 @@ define('AIO_GC_PW', 288);      // poster, as the movie card
 define('AIO_GC_PH', 432);
 define('AIO_GC_LX', 680);      // list: 20 px after the card, as 445 -> 465 of the movie card
 define('AIO_GC_LW', 1165);     // right edge at 1845 = 1920 - 75
-define('AIO_GC_LY', 130);      // 24 px under the title, no column heads
+define('AIO_GC_LY', 194);      // under the sort tabs (12 px), no column heads
 define('AIO_GC_ROW_H', 64);
-define('AIO_GC_VIS', 13);      // visible rows: the list ends at y 962
+define('AIO_GC_VIS', 12);      // visible rows: the list ends at y 962
 // The hint row of the list: the keys at the vendor size, unscaled (scaled
 // down they blur on the device): P+/P- 114x50, POP UP and INFO 52x50. The
 // episode arrows (the vendor's bare chevron, nearly 50 high) at half size:
@@ -44,12 +45,16 @@ define('AIO_GC_ARROW_H', 25);
 define('AIO_GC_HINT_PX', 30);
 define('AIO_GC_KEY_GAP', 10);   // key -> its label
 define('AIO_GC_HINT_GAP', 40);  // between hints (vendor HINTS_SMALL_HGAP)
-// The colour keys of the sort under the card (aio_gc_sort_hint): at the vendor
-// size, labels and gaps smaller than the hints, so that four fit its width.
-define('AIO_GC_SORT_PX', 28);
-define('AIO_GC_SORT_KEY_GAP', 6);   // key -> its label
-define('AIO_GC_SORT_GAP', 16);      // between keys
-define('AIO_GC_SORT_PAD', 6);       // the selection of the current one around its key and label
+// The sort tabs (aio_gc_sort_tabs): the colour keys and labels as the hints,
+// in the row y 125..175 between the title (40..106) and the list; the line
+// under the current tab 4 px, 3 px under the keys. The direction: a
+// triangle of img/ (sort_down.png, sort_up.png: plugins/melange_img.sh),
+// its room kept at every tab, so that the tabs never move.
+define('AIO_GC_TABS_Y', 125);
+define('AIO_GC_TAB_LINE', 4);
+define('AIO_GC_SORT_ARROW_W', 18);
+define('AIO_GC_SORT_ARROW_H', 12);
+define('AIO_GC_SORT_ARROW_GAP', 10);    // label -> its triangle
 define('AIO_GC_PAD', 16);      // row padding left and right
 define('AIO_GC_GAP', 16);      // between columns
 // "rutracker +3" (142 px by the estimate) with a margin; less room: no tracker
@@ -68,9 +73,7 @@ define('AIO_GC_NAME_LH', 32);
 define('AIO_GC_VOICES_LINES', 5);  // lines of the voices in the card, at most,
 define('AIO_GC_VOICES_PX', 26);    // 26 px text in 32 px lines (as the name): more studios a line
 define('AIO_GC_VOICES_LH', 32);
-// The card ends above this y on any data: the sort keys under it; a remote
-// without colour keys: above the end of the hint row (aio_gc_card_bottom).
-define('AIO_GC_CARD_BOTTOM', AIO_GC_HINT_Y - 10);
+define('AIO_GC_CARD_BOTTOM', 1040);   // the card ends above this y on any data
 define('AIO_GC_LANGS_MAX', 3);     // language flags of a row, the rest as "+N"
 define('AIO_GC_STEPS', 5);     // change_gcomps animation steps (vendor default)
 
@@ -771,7 +774,7 @@ function aio_gc_card($st, $sel)
 
     // Under the poster's place even without a poster: the fields do not move.
     $y = AIO_GC_PH + 20;
-    $room = aio_gc_card_bottom() - AIO_GC_CY - $y;
+    $room = AIO_GC_CARD_BOTTOM - AIO_GC_CY - $y;
 
     // The name: always a block of 2 lines at 26 px, cut with "…", so that the
     // fields below stay in place from one release to the next.
@@ -889,22 +892,13 @@ function aio_gc_hint(&$d, $x, $y, $keys, $text, $h = AIO_GC_KEY_H)
 
 // The remote has the colour keys, as the vendor screens check it
 // (dune_config.php of the firmware; an old one has none: the keys are there).
-// Without them no sort hint, the card down to the end of the hint row.
+// Without them no sort tabs, the list where it is (their row empty).
 /**
  * @return bool
  */
 function aio_gc_color_keys()
 {
     return !function_exists('dune_config_with_color_buttons') || dune_config_with_color_buttons();
-}
-
-// The y above which the card ends (AIO_GC_CARD_BOTTOM, aio_gc_color_keys).
-/**
- * @return int
- */
-function aio_gc_card_bottom()
-{
-    return aio_gc_color_keys() ? AIO_GC_CARD_BOTTOM : AIO_GC_HINT_Y + AIO_GC_KEY_H;
 }
 
 // The colour keys of the sort in the order of the remote: key of
@@ -921,31 +915,39 @@ function aio_gc_sort_keys()
         'date' => array(GUI_EVENT_KEY_D_BLUE, $u . 'blue.png'));
 }
 
-// Children of 'sort' (the hint row under the card): each colour key and its
-// label, the green one "Cached" in a Debrid list (aio_rows_debrid); the sort
-// of the list selected as a row of the list, its label brighter.
+// Children of 'sort' (the tabs over the list): each colour key and its label,
+// the green one "Cached" in a Debrid list (aio_rows_debrid); the sort of the
+// list with a bright label, its direction (a triangle: down by default, up
+// reversed) and a line under the key to the triangle; the others dimmed.
 /**
  * @param AioState $st
  * @param AioGcText $tt
  * @return list<AioGcComp>
  */
-function aio_gc_sort_hint($st, $tt)
+function aio_gc_sort_tabs($st, $tt)
 {
     $d = array();
     $x = 0;
     foreach (aio_gc_sort_keys() as $k => $key)
     {
         $text = $tt[$k === 'seeds' && aio_rows_debrid($st['rows']) ? 'sort_cached' : "sort_$k"];
-        $w = aio_gc_w($text, AIO_GC_SORT_PX);
         $on = $k === $st['sort'];
-        if ($on)
-            $d[] = aio_gc_rect(aio_gc_at(AIO_GC_KEY_W + AIO_GC_SORT_KEY_GAP + $w + 2 * AIO_GC_SORT_PAD, AIO_GC_KEY_H,
-                $x - AIO_GC_SORT_PAD, 0), AIO_GC_SEL);
+        $x0 = $x;
         $d[] = aio_gc_image(aio_gc_at(AIO_GC_KEY_W, AIO_GC_KEY_H, $x, 0), $key[1]);
-        $x += AIO_GC_KEY_W + AIO_GC_SORT_KEY_GAP;
+        $x += AIO_GC_KEY_W + AIO_GC_KEY_GAP;
+        $w = aio_gc_w($text, AIO_GC_HINT_PX);
         $d[] = aio_gc_cut(null, aio_gc_at($w, AIO_GC_LABEL_H, $x, (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $text,
-            AIO_GC_SORT_PX, $on ? AIO_GC_TEXT : AIO_GC_TEXT2);
-        $x += $w + AIO_GC_SORT_GAP;
+            AIO_GC_HINT_PX, $on ? AIO_GC_TEXT : AIO_GC_TEXT2);
+        $x += $w + AIO_GC_SORT_ARROW_GAP;
+        if ($on)
+        {
+            $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x,
+                intval((AIO_GC_KEY_H - AIO_GC_SORT_ARROW_H) / 2)),
+                'plugin_file://img/' . ($st['sort_rev'] ? 'sort_up.png' : 'sort_down.png'));
+            $d[] = aio_gc_rect(aio_gc_at($x + AIO_GC_SORT_ARROW_W - $x0, AIO_GC_TAB_LINE, $x0, AIO_GC_KEY_H + 3),
+                AIO_GC_TEXT);
+        }
+        $x += AIO_GC_SORT_ARROW_W + AIO_GC_HINT_GAP;
     }
     return $d;
 }
@@ -968,7 +970,7 @@ function aio_gc_window($st, $sel, $top)
     $poster = aio_img($mv['poster']);
     if ($poster !== '')
         $d[] = aio_gc_image(aio_gc_at(AIO_GC_PW, AIO_GC_PH, AIO_GC_CX, AIO_GC_CY), $poster, true);
-    $d[] = aio_gc_panel('card', aio_gc_at(AIO_GC_CW, aio_gc_card_bottom() - AIO_GC_CY, AIO_GC_CX, AIO_GC_CY),
+    $d[] = aio_gc_panel('card', aio_gc_at(AIO_GC_CW, AIO_GC_CARD_BOTTOM - AIO_GC_CY, AIO_GC_CX, AIO_GC_CY),
         aio_gc_card($st, $sel));
 
     // Title cut alone; an episode has its own label at the right.
@@ -1010,8 +1012,8 @@ function aio_gc_window($st, $sel, $top)
     $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT_Y),
         aio_gc_counter($sel, $n));
     if (aio_gc_color_keys())
-        $d[] = aio_gc_panel('sort', aio_gc_at(AIO_GC_CW, AIO_GC_KEY_H, AIO_GC_CX, AIO_GC_HINT_Y),
-            aio_gc_sort_hint($st, $tt));
+        $d[] = aio_gc_panel('sort', aio_gc_at(AIO_GC_LW, AIO_GC_KEY_H + 3 + AIO_GC_TAB_LINE, AIO_GC_LX, AIO_GC_TABS_Y),
+            aio_gc_sort_tabs($st, $tt));
 
     $fanart = aio_img($mv['fanart']);
     // Same key set as vendor GCompsFactory::get_window_def().
