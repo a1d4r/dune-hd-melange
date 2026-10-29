@@ -1,12 +1,14 @@
 <?php
-// TorrServer in the player (0.48.0): the green key opens a window at the top
-// right, in the style of the INFO window of the player, with the numbers of
+// TorrServer in the player (0.48.0): INFO opens, next to the INFO window of
+// the player and in its style, a window at the top right with the numbers of
 // the torrent ("get": the name, speeds, peers and seeders, loaded), redrawn
-// every AIO_TSI_TICK_MS while it is open; green again closes it. update_osd
-// draws it, change_behaviour arms the next tick (the timer of the player fires
-// once). aio_tsi_vod gives vod_info its green. Its state is in the params of
-// the actions (hash, the release, language, error flag), never in Aio: the
-// list may be gone under the player.
+// every AIO_TSI_TICK_MS while it is open. The key goes on to the player
+// (run_default), so its INFO opens and closes as ever; the keys that close
+// that INFO (aio_tsi_close_keys) close ours too. update_osd draws it,
+// change_behaviour arms the next tick (the timer of the player fires once).
+// aio_tsi_vod gives vod_info its INFO. Its state is in the params of the
+// actions (hash, the release, language, error flag; the key of a close),
+// never in Aio: the list may be gone under the player.
 // Reads Aio::$settings; text widths: aio_gc_* (gcomps.php). Functions are
 // global; the require order is in main.php.
 // Types in the PHPDoc (AioTsiParams): phpstan-types.neon of the repository.
@@ -40,7 +42,7 @@ define('AIO_TSI_PAD', 20);
 define('AIO_TSI_PX', 29);
 define('AIO_TSI_COLOR', '15');
 
-// The fields of vod_info for row $r ($ts: via TorrServer): green opens the
+// The fields of vod_info for row $r ($ts: via TorrServer): INFO opens the
 // window; none (array()) unless TorrServer. No timer until it opens.
 /**
  * @param AioRow $r
@@ -55,13 +57,14 @@ function aio_tsi_vod($r, $ts, $lang)
 }
 
 // handle_user_input of our plugin from the player: no "Please wait" over the
-// video (no show_dialog_delay).
+// video (no show_dialog_delay). $key: 'k' of a close ('' none).
 /**
  * @param string $control
  * @param AioTsiParams $p
+ * @param string $key
  * @return AioAction
  */
-function aio_tsi_input_act($control, $p)
+function aio_tsi_input_act($control, $p, $key = '')
 {
     return array(
         GuiAction::handler_string_id => PLUGIN_HANDLE_USER_INPUT_ACTION_ID,
@@ -69,11 +72,31 @@ function aio_tsi_input_act($control, $p)
         GuiAction::plugin_name => AIO_PLUGIN,
         GuiAction::data => array(PluginHandleUserInputActionData::operation_timeout => AIO_TSI_TIMEOUT),
         // No empty values: the shell may drop them (aio_tsi_params_in reads them as empty).
-        GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => $control), array_diff($p, array(''))));
+        GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => $control), array_diff($p, array('')),
+            $key !== '' ? array('k' => $key) : array()));
 }
 
-// The actions of the player: the window closed - green opens it; open - green
-// closes it, the timer redraws it.
+// The keys that close the INFO window of the player while it is open (r25,
+// osd_probe 0.3.0; INFO first), those this firmware defines. The plugin does
+// not see whether that window is open: these close ours while it is.
+/**
+ * @return list<string>
+ */
+function aio_tsi_close_keys()
+{
+    $keys = array();
+    foreach (array('INFO', 'ENTER', 'LEFT', 'RIGHT', 'UP', 'DOWN', 'RETURN', 'POPUP_MENU', 'SUBTITLE', 'AUDIO', 'FWD',
+        'REW', 'STOP') as $n)
+    {
+        if (defined("GUI_EVENT_KEY_$n"))
+            $keys[] = strval(constant("GUI_EVENT_KEY_$n"));
+    }
+    return $keys;
+}
+
+// The actions of the player: the window closed - INFO opens it; open - each
+// of aio_tsi_close_keys closes it (then goes to the player), the timer
+// redraws it.
 /**
  * @param AioTsiParams $p
  * @param bool $open
@@ -82,9 +105,12 @@ function aio_tsi_input_act($control, $p)
 function aio_tsi_acts($p, $open)
 {
     if (!$open)
-        return array(GUI_EVENT_KEY_B_GREEN => aio_tsi_input_act('tsi_open', $p));
-    return array(GUI_EVENT_KEY_B_GREEN => aio_tsi_input_act('tsi_close', $p),
-        GUI_EVENT_TIMER => aio_tsi_input_act('tsi_tick', $p));
+        return array(GUI_EVENT_KEY_INFO => aio_tsi_input_act('tsi_open', $p));
+    $a = array();
+    foreach (aio_tsi_close_keys() as $key)
+        $a[$key] = aio_tsi_input_act('tsi_close', $p, $key);
+    $a[GUI_EVENT_TIMER] = aio_tsi_input_act('tsi_tick', $p);
+    return $a;
 }
 
 // Width of a row of the window, px.
@@ -260,30 +286,57 @@ function aio_tsi_comps($rows)
     return $c;
 }
 
-// update_osd of $comps, then the actions $acts and the timer ($tick ms, 0 none).
+// update_osd of $comps, then $post.
 /**
  * @param list<array<string, int|string|bool>> $comps
- * @param array<string, AioAction> $acts
- * @param int $tick
+ * @param AioAction|null $post
  * @return AioAction
  */
-function aio_tsi_update($comps, $acts, $tick)
+function aio_tsi_osd($comps, $post)
 {
     return array(
         GuiAction::handler_string_id => PLUGIN_UPDATE_OSD_ACTION_ID,
         GuiAction::data => array(
             PluginUpdateOsdActionData::components => $comps,
-            PluginUpdateOsdActionData::post_action => array(
-                GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
-                GuiAction::data => array(
-                    ChangeBehaviourActionData::actions => $acts,
-                    ChangeBehaviourActionData::timer => $tick > 0 ? array(GuiTimerDef::delay_ms => $tick) : null,
-                    ChangeBehaviourActionData::post_action => null))));
+            PluginUpdateOsdActionData::post_action => $post));
 }
 
-// tsi_open, tsi_tick (the window drawn anew, the next tick armed: in
-// AIO_TSI_TICK_ERR_MS after an error), tsi_close (the window gone, green
-// opens it again, no timer). Bad params: no window, nothing armed.
+// The actions $acts and the timer ($tick ms, 0 none).
+/**
+ * @param array<string, AioAction> $acts
+ * @param int $tick
+ * @return AioAction
+ */
+function aio_tsi_behave($acts, $tick)
+{
+    return array(
+        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
+        GuiAction::data => array(
+            ChangeBehaviourActionData::actions => $acts,
+            ChangeBehaviourActionData::timer => $tick > 0 ? array(GuiTimerDef::delay_ms => $tick) : null,
+            ChangeBehaviourActionData::post_action => null));
+}
+
+// What the player does with key $key itself (its INFO window), then $post.
+/**
+ * @param string $key
+ * @param AioAction|null $post
+ * @return AioAction
+ */
+function aio_tsi_default($key, $post)
+{
+    return array(
+        GuiAction::handler_string_id => RUN_DEFAULT_ACTION_ID,
+        GuiAction::data => array(
+            RunDefaultActionData::event => $key,
+            RunDefaultActionData::post_action => $post));
+}
+
+// tsi_open (INFO to the player, then the window, the next tick armed),
+// tsi_tick (the window drawn anew, the next tick armed: in AIO_TSI_TICK_ERR_MS
+// after an error), tsi_close (the window gone, the key of 'k' to the player,
+// INFO opens it again, no timer); as in osd_probe 0.2.1 on r25. Bad params: no
+// window, nothing armed; the key still goes to the player if known.
 /**
  * @param stdClass $in
  * @param string $control
@@ -291,19 +344,21 @@ function aio_tsi_update($comps, $acts, $tick)
  */
 function aio_tsi_input($in, $control)
 {
+    $keys = aio_tsi_close_keys();
+    // The key from the list, not from the params.
+    $n = $control !== 'tsi_close' ? false : array_search(isset($in->k) && is_string($in->k) ? $in->k : '', $keys, true);
+    $key = $control === 'tsi_open' ? GUI_EVENT_KEY_INFO : ($n !== false ? $keys[$n] : '');
     $p = aio_tsi_params_in($in);
-    if (!$p)
+    if (!$p || ($control === 'tsi_close' && $key === ''))
     {
         aio_log("tsi: $control with bad params");
-        return array(GuiAction::handler_string_id => PLUGIN_UPDATE_OSD_ACTION_ID,
-            GuiAction::data => array(PluginUpdateOsdActionData::components => array(),
-                PluginUpdateOsdActionData::post_action => null));
+        return aio_tsi_osd(array(), $key !== '' ? aio_tsi_default($key, null) : null);
     }
     if ($control === 'tsi_close')
     {
-        aio_log('tsi: closed');
+        aio_log("tsi: closed, $key");
         $p['e'] = '0';
-        return aio_tsi_update(array(), aio_tsi_acts($p, false), 0);
+        return aio_tsi_osd(array(), aio_tsi_default($key, aio_tsi_behave(aio_tsi_acts($p, false), 0)));
     }
     if ($control === 'tsi_open')
     {
@@ -315,5 +370,7 @@ function aio_tsi_input($in, $control)
     if ($err !== '' && $p['e'] === '0')
         aio_log("tsi: $err");
     $p['e'] = $err !== '' ? '1' : '0';
-    return aio_tsi_update(aio_tsi_comps($rows), aio_tsi_acts($p, true), $err !== '' ? AIO_TSI_TICK_ERR_MS : AIO_TSI_TICK_MS);
+    $a = aio_tsi_osd(aio_tsi_comps($rows),
+        aio_tsi_behave(aio_tsi_acts($p, true), $err !== '' ? AIO_TSI_TICK_ERR_MS : AIO_TSI_TICK_MS));
+    return $control === 'tsi_open' ? aio_tsi_default($key, $a) : $a;
 }

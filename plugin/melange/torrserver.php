@@ -44,7 +44,7 @@ function aio_ts_decode($body)
 
 // "get" of torrent $hash from the TorrServer of the settings, 2 s ->
 // array(the reply, its TorrentStatus or null): the waiting dialog and the
-// window of the green key in the player (ts_info.php).
+// window of TorrServer in the player (ts_info.php).
 /**
  * @param string $hash
  * @return array{AioTsReply, array<mixed>|null}
