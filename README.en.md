@@ -8,7 +8,7 @@ A Dune HD plugin that adds a **Melange** item to the **Play...** menu of a movie
 **Debrid (Real-Debrid or TorBox with a subscription) is optional.** With it, cached releases start at once; without it, the "Torrents" answer: Melange makes a config without a key, and releases play via TorrServer on the Dune. A ready AIOStreams config of your own works too (see "What you need").
 
 What it does:
-- a list of up to 100 releases in AIOStreams order: quality badges (resolution, source, HDR / Dolby Vision, audio), size, language flags, trackers; on the left, details of the selected release: whether it is cached, video, audio, voice-overs, subtitles, languages;
+- a list of up to 100 releases in AIOStreams order or, by the colour keys of the remote, by seeders (with Debrid: cached first), size, date: quality badges (resolution, source, HDR / Dolby Vision, audio), size, language flags, trackers; on the left, details of the selected release: whether it is cached, video, audio, voice-overs, subtitles, languages;
 - playback with the Dune history: the percentage on the "Melange [NN%]" button in the card, the movie or episode in the Continue Watching row, resume from where you stopped;
 - series: all episodes of a season play in a row in the player (P+ / P− and auto-advance) on the same release; flip episodes right in the list with ← / →;
 - playback via TorrServer, without Debrid (P2P releases) or for an uncached release, with the same history;

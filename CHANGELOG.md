@@ -5,6 +5,7 @@
 ## 0.48.0 — 28.10.2026
 - **INFO in the player** shows the name of the release under the title and, in the description, a line about the release (video, audio, size, voice-overs) and the description of the movie or series from the Dune card. A series in a season playlist has its title once, the episode as "S01E02".
 - **TorrServer window with INFO.** Playing via TorrServer, **INFO** shows, next to the Dune's own INFO window, a TorrServer window at the top right in the same style: the release, the download and upload speeds, peers and seeders, how much is loaded; updated every second. It closes together with INFO. If TorrServer gives no numbers, the window says why: not responding, slow to respond, it does not have the release.
+- **Sort of the release list by the colour keys** of the remote: **green** — by seeders (in a Debrid list: cached releases first), **yellow** — by size, **blue** — by date added (newest first), **red** — as AIOStreams sent it (the default). Releases with equal values keep the AIOStreams order; those without the value (no seeders, size or date) go to the end. The choice is remembered for all movies and series, after a restart, "Refresh" and ← / → too; after a change the cursor goes to the first release. The keys and the current sort are shown at the bottom under the release details, which got a little shorter for them.
 - Fixed: via TorrServer an episode is now found in releases whose files are named by a number at the start ("01. Title.mkv"). Before, such a release gave "The release has no file for this episode".
 
 ## 0.47.0 — 27.10.2026
@@ -128,6 +129,7 @@ First public release. What it does:
 ## 0.48.0 — 28.10.2026
 - **INFO в плеере** показывает под названием имя раздачи, а в описании — строку о раздаче (видео, звук, размер, озвучки) и описание фильма или сериала из карточки Дюны. У сериала с плейлистом сезона название — один раз, серия — «S01E02».
 - **Окно TorrServer вместе с INFO.** При просмотре через TorrServer **INFO** показывает рядом со штатным окном INFO справа вверху окно TorrServer в том же стиле: раздача, скорость загрузки и отдачи, пиры и сиды, сколько загружено; обновляется раз в секунду. Закрывается вместе с INFO. Если TorrServer не даёт цифр, окно скажет почему: не отвечает, отвечает медленно, раздачи в нём нет.
+- **Сортировка списка раздач цветными кнопками** пульта: **зелёная** — по сидам (в Debrid-списке — сначала раздачи в кэше), **жёлтая** — по размеру, **синяя** — по дате добавления (новые сверху), **красная** — как прислал AIOStreams (по умолчанию). Раздачи с равными значениями идут в порядке AIOStreams, без значения (нет сидов, размера, даты) — в конце. Выбор запоминается для всех фильмов и сериалов, в том числе после перезапуска, «Обновить» и ← / →; после смены курсор — на первой раздаче. Кнопки и текущая сортировка — внизу под подробностями раздачи, которые для этого стали чуть короче.
 - Исправлено: через TorrServer находится серия в раздачах, где файлы названы номером в начале («01. Название.mkv»). Раньше такая раздача давала «В раздаче нет файла этой серии».
 
 ## 0.47.0 — 27.10.2026
