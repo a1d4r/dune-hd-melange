@@ -71,7 +71,7 @@ function aio_srv_menu($in)
 // Text of a reply for the dialog and the log: printable, short.
 function aio_srv_text($body)
 {
-    return aio_cut(trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', $body)), 60);
+    return aio_cut(aio_one_line($body), 60);
 }
 
 // The magnet to server $srv -> array(status, key, detail): 'added'; 'failed'

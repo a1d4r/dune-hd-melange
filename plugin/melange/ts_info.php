@@ -4,16 +4,22 @@
 // the torrent ("get": the name, speeds, peers and seeders, loaded), redrawn
 // every AIO_TSI_TICK_MS while it is open. The key goes on to the player
 // (run_default), so its INFO opens and closes as ever; the keys that close
-// that INFO (aio_tsi_close_keys) close ours too. update_osd draws it,
-// change_behaviour arms the next tick (the timer of the player fires once).
-// aio_tsi_vod gives vod_info its INFO. Its state is in the params of the
-// actions (hash, the release, language, error flag; the key of a close),
-// never in Aio: the list may be gone under the player.
+// that INFO (aio_tsi_close_keys) close ours too, and so does a start of the
+// playback anew (aio_tsi_end_state). update_osd draws it, change_behaviour
+// arms the next tick (the timer of the player fires once).
+// The map of the player (actions and timer of vod_info) belongs to this file
+// whole: aio_tsi_vod gives vod_info its INFO, and each change_behaviour here
+// replaces the whole map - an action of the player put anywhere else is lost
+// at the first INFO. Its state is in the params of the actions (hash, the
+// release, language, error flag; the key of a close), never in Aio: the list
+// may be gone under the player.
 // Reads Aio::$settings; text widths: aio_gc_* (gcomps.php). Functions are
 // global; the require order is in main.php.
 // Types in the PHPDoc (AioTsiParams): phpstan-types.neon of the repository.
 
 define('AIO_TSI_TICK_MS', 1000);
+// The first tick after INFO: the window opens at once, its numbers come with it.
+define('AIO_TSI_TICK_FIRST_MS', 200);
 // The tick while TorrServer gives no numbers: a "get" of 2 s is not repeated every second.
 define('AIO_TSI_TICK_ERR_MS', 5000);
 // operation_timeout of the actions, ms: the "get" takes 2 s at most.
@@ -96,7 +102,7 @@ function aio_tsi_close_keys()
 
 // The actions of the player: the window closed - INFO opens it; open - each
 // of aio_tsi_close_keys closes it (then goes to the player), the timer
-// redraws it.
+// redraws it, a change of the playback state may close it.
 /**
  * @param AioTsiParams $p
  * @param bool $open
@@ -110,7 +116,43 @@ function aio_tsi_acts($p, $open)
     foreach (aio_tsi_close_keys() as $key)
         $a[$key] = aio_tsi_input_act('tsi_close', $p, $key);
     $a[GUI_EVENT_TIMER] = aio_tsi_input_act('tsi_tick', $p);
+    $a[GUI_EVENT_PLAYBACK_STATE_CHANGED] = aio_tsi_input_act('tsi_state', $p);
     return $a;
+}
+
+// The key for the player when closing key $key closes our window: RETURN as
+// INFO. With the INFO window of the player open both close it; were the two
+// windows out of step (that one gone without us), RETURN would stop the
+// playback, INFO only opens that window.
+/**
+ * @param string $key
+ * @return string
+ */
+function aio_tsi_default_key($key)
+{
+    return $key === GUI_EVENT_KEY_RETURN ? GUI_EVENT_KEY_INFO : $key;
+}
+
+// A state among the events of a playback_state_changed that closes the INFO
+// window of the player ('' none): initializing (the start at the position of
+// "Continue" after the buffering, r25 29.10.2026), deinitializing, stopped. Any
+// event of them, not only the last: that window opens again only through us.
+// A plain seek (seeking -> playing) keeps it (osd_probe 0.3.0).
+/**
+ * @param stdClass $in
+ * @return string
+ */
+function aio_tsi_end_state($in)
+{
+    $j = isset($in->plugin_playback_events) && is_string($in->plugin_playback_events) ?
+        json_decode($in->plugin_playback_events, true) : null;
+    $evs = is_array($j) && isset($j['events']) && is_array($j['events']) ? $j['events'] : array();
+    foreach ($evs as $e)
+    {
+        if (is_array($e) && isset($e['state']) && in_array($e['state'], array('initializing', 'deinitializing', 'stopped'), true))
+            return $e['state'];
+    }
+    return '';
 }
 
 // Width of a row of the window, px.
@@ -132,8 +174,7 @@ function aio_tsi_text_w()
  */
 function aio_tsi_name($s, $lang)
 {
-    return aio_gc_cut_w(trim(strval(preg_replace('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]+/u', ' ', aio_utf8($s)))),
-        AIO_TSI_PX, aio_tsi_text_w() - aio_gc_w(aio_tr($lang, 'tsi_l_name') . ': ', AIO_TSI_PX));
+    return aio_gc_cut_w(aio_one_line($s), AIO_TSI_PX, aio_tsi_text_w() - aio_gc_w(aio_tr($lang, 'tsi_l_name') . ': ', AIO_TSI_PX));
 }
 
 // Params of the window of vod_play of row $r ($ts: via TorrServer): 'h' the
@@ -207,6 +248,40 @@ function aio_tsi_size($j, $k, $lang, $zero)
     return $zero && is_numeric($v) && (float) $v == 0 ? aio_size_str(0.0, $lang) : "\xE2\x80\x94";
 }
 
+// Rows "Label: value" of the window: the name, then the values $v - download,
+// upload, peers of all and seeders, loaded of the size.
+/**
+ * @param string $lang
+ * @param string $name
+ * @param array{down: string, up: string, peers: string, all: string, seeds: string, got: string, size: string} $v
+ * @return list<string>
+ */
+function aio_tsi_lines($lang, $name, $v)
+{
+    $l = array();
+    foreach (array('name', 'down', 'up', 'peers', 'seeds', 'loaded') as $k)
+        $l[$k] = aio_tr($lang, "tsi_l_$k") . ': ';
+    return array(
+        $l['name'] . $name,
+        $l['down'] . $v['down'],
+        $l['up'] . $v['up'],
+        $l['peers'] . $v['peers'] . ' / ' . $v['all'] . " \xC2\xB7 " . $l['seeds'] . $v['seeds'],
+        $l['loaded'] . str_replace(array('{got}', '{all}'), array($v['got'], $v['size']), aio_tr($lang, 'tsi_loaded')));
+}
+
+// The rows of the window before its first numbers: the name of the release, "—".
+/**
+ * @param string $name
+ * @param string $lang
+ * @return list<string>
+ */
+function aio_tsi_rows_blank($name, $lang)
+{
+    $d = "\xE2\x80\x94";
+    return aio_tsi_lines($lang, $name, array('down' => $d, 'up' => $d, 'peers' => $d, 'all' => $d, 'seeds' => $d,
+        'got' => $d, 'size' => $d));
+}
+
 // Rows "Label: value" of the window of TorrServer: the name of the torrent
 // (none: of the release, $name), download, upload, peers and seeders, loaded
 // of the size. No numbers - one row why: slow (curl timeout), no answer, no
@@ -235,19 +310,15 @@ function aio_tsi_rows($hash, $name, $lang, &$err)
     }
     $err = '';
     $tn = aio_str($j, 'name') !== '' ? aio_str($j, 'name') : aio_str($j, 'title');
-    $l = array();
-    foreach (array('name', 'down', 'up', 'peers', 'seeds', 'loaded') as $k)
-        $l[$k] = aio_tr($lang, "tsi_l_$k") . ': ';
     // Speeds: 0 is "0 KB/s" here (TorrServer gives 0 while the buffer ahead is full).
-    return array(
-        $l['name'] . ($tn !== '' ? aio_tsi_name($tn, $lang) : $name),
-        $l['down'] . aio_speed_str(isset($j['download_speed']) ? $j['download_speed'] : null, $lang, true),
-        $l['up'] . aio_speed_str(isset($j['upload_speed']) ? $j['upload_speed'] : null, $lang, true),
-        $l['peers'] . aio_tsi_count($j, 'active_peers') . ' / ' . aio_tsi_count($j, 'total_peers') . " \xC2\xB7 " .
-            $l['seeds'] . aio_tsi_count($j, 'connected_seeders'),
-        $l['loaded'] . str_replace(array('{got}', '{all}'),
-            array(aio_tsi_size($j, 'loaded_size', $lang, true), aio_tsi_size($j, 'torrent_size', $lang, false)),
-            aio_tr($lang, 'tsi_loaded')));
+    return aio_tsi_lines($lang, $tn !== '' ? aio_tsi_name($tn, $lang) : $name, array(
+        'down' => aio_speed_str(isset($j['download_speed']) ? $j['download_speed'] : null, $lang, true),
+        'up' => aio_speed_str(isset($j['upload_speed']) ? $j['upload_speed'] : null, $lang, true),
+        'peers' => aio_tsi_count($j, 'active_peers'),
+        'all' => aio_tsi_count($j, 'total_peers'),
+        'seeds' => aio_tsi_count($j, 'connected_seeders'),
+        'got' => aio_tsi_size($j, 'loaded_size', $lang, true),
+        'size' => aio_tsi_size($j, 'torrent_size', $lang, false)));
 }
 
 // The plate of the window: a path of the plugin, as other plugins draw in the
@@ -332,31 +403,45 @@ function aio_tsi_default($key, $post)
             RunDefaultActionData::post_action => $post));
 }
 
-// tsi_open (INFO to the player, then the window, the next tick armed),
-// tsi_tick (the window drawn anew, the next tick armed: in AIO_TSI_TICK_ERR_MS
-// after an error), tsi_close (the window gone, the key of 'k' to the player,
-// INFO opens it again, no timer); as in osd_probe 0.2.1 on r25. Bad params: no
-// window, nothing armed; the key still goes to the player if known.
+// tsi_open (INFO to the player, then the window with the name of the release,
+// its numbers with the first tick in AIO_TSI_TICK_FIRST_MS: no "get" before
+// INFO), tsi_tick (the window drawn anew, the next tick armed: in
+// AIO_TSI_TICK_ERR_MS after an error), tsi_close (the window gone, the key of
+// 'k' to the player, INFO opens it again, no timer; as in osd_probe 0.2.1 on
+// r25), tsi_state (the playback started anew: the window gone, nothing to the
+// player; any other state - nothing). Bad params: no window, the key still to
+// the player if known, the map dropped (the player is its own till the end).
 /**
  * @param stdClass $in
  * @param string $control
- * @return AioAction
+ * @return AioAction|null
  */
 function aio_tsi_input($in, $control)
 {
     $keys = aio_tsi_close_keys();
     // The key from the list, not from the params.
     $n = $control !== 'tsi_close' ? false : array_search(isset($in->k) && is_string($in->k) ? $in->k : '', $keys, true);
-    $key = $control === 'tsi_open' ? GUI_EVENT_KEY_INFO : ($n !== false ? $keys[$n] : '');
+    $ck = $n !== false ? $keys[$n] : '';
+    $key = $control === 'tsi_open' ? GUI_EVENT_KEY_INFO : ($ck !== '' ? aio_tsi_default_key($ck) : '');
     $p = aio_tsi_params_in($in);
     if (!$p || ($control === 'tsi_close' && $key === ''))
     {
         aio_log("tsi: $control with bad params");
-        return aio_tsi_osd(array(), $key !== '' ? aio_tsi_default($key, null) : null);
+        $drop = aio_tsi_behave(array(), 0);
+        return aio_tsi_osd(array(), $key !== '' ? aio_tsi_default($key, $drop) : $drop);
+    }
+    if ($control === 'tsi_state')
+    {
+        $state = aio_tsi_end_state($in);
+        if ($state === '')
+            return null;
+        aio_log("tsi: closed by playback $state");
+        $p['e'] = '0';
+        return aio_tsi_osd(array(), aio_tsi_behave(aio_tsi_acts($p, false), 0));
     }
     if ($control === 'tsi_close')
     {
-        aio_log("tsi: closed, $key");
+        aio_log("tsi: closed, $ck");
         $p['e'] = '0';
         return aio_tsi_osd(array(), aio_tsi_default($key, aio_tsi_behave(aio_tsi_acts($p, false), 0)));
     }
@@ -364,13 +449,14 @@ function aio_tsi_input($in, $control)
     {
         aio_log("tsi: open, TorrServer, hash={$p['h']}");
         $p['e'] = '0';
+        return aio_tsi_default($key, aio_tsi_osd(aio_tsi_comps(aio_tsi_rows_blank($p['n'], $p['l'])),
+            aio_tsi_behave(aio_tsi_acts($p, true), AIO_TSI_TICK_FIRST_MS)));
     }
     $err = '';
     $rows = aio_tsi_rows($p['h'], $p['n'], $p['l'], $err);
     if ($err !== '' && $p['e'] === '0')
         aio_log("tsi: $err");
     $p['e'] = $err !== '' ? '1' : '0';
-    $a = aio_tsi_osd(aio_tsi_comps($rows),
+    return aio_tsi_osd(aio_tsi_comps($rows),
         aio_tsi_behave(aio_tsi_acts($p, true), $err !== '' ? AIO_TSI_TICK_ERR_MS : AIO_TSI_TICK_MS));
-    return $control === 'tsi_open' ? aio_tsi_default($key, $a) : $a;
 }

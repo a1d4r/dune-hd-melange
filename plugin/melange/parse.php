@@ -106,6 +106,17 @@ function aio_clean($s)
     return trim(str_replace('|', '/', preg_replace('/[\\r\\n\\t]+/', ' ', strval($s))));
 }
 
+// One line of any text: valid UTF-8, control characters and line breaks
+// (U+0085, U+2028, U+2029 too) as spaces, trimmed. Each caller cuts it its way.
+/**
+ * @param mixed $s
+ * @return string
+ */
+function aio_one_line($s)
+{
+    return trim(strval(preg_replace('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]+/u', ' ', aio_utf8($s))));
+}
+
 // A positive finite number from a JSON value (sizes come quoted), else 0.
 /**
  * @param mixed $v

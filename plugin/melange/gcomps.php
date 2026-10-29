@@ -1,8 +1,9 @@
 <?php
 // GComps primitives of the view_gcomps screens (the list, the details): text
 // widths by the firmware font, wrapping, the component builders, the key
-// action. Required by view_gcomps.php; view_info.php gets it through the
-// require order of main.php. Not self-contained: aio_gc_act puts the rid of
+// action. Required by view_gcomps.php; view_info.php and ts_info.php (the
+// window of TorrServer in the player) get it through the require order of
+// main.php. Not self-contained: aio_gc_act puts the rid of
 // the list and calls aio_input (main.php), aio_gc_ttf calls aio_clean
 // (parse.php). PHP 5.3.6, firmware API only.
 // Types in the PHPDoc (AioGcComp and others): phpstan-types.neon of the repository.

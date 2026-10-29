@@ -203,7 +203,9 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     // multiplies it by 1000 the same way).
     if ($pos > 0)
         $info[PluginVodInfo::initial_position_ms] = $pos * 1000;
-    // TorrServer: INFO opens the window of its numbers too (ts_info.php).
+    // TorrServer: INFO opens the window of its numbers too. The actions and the
+    // timer of the player belong to ts_info.php whole (its change_behaviour
+    // replaces the whole map): no other actions here.
     $info += aio_tsi_vod($r, (bool) $ts, $st['lang']);
     if ($linked)
     {

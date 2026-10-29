@@ -878,7 +878,7 @@ function aio_handle_user_input($in)
         return aio_ts_menu($in);
     if ($control === 'ts_tick')
         return aio_ts_tick($in);
-    if ($control === 'tsi_open' || $control === 'tsi_tick' || $control === 'tsi_close')
+    if (in_array($control, array('tsi_open', 'tsi_tick', 'tsi_close', 'tsi_state'), true))
         return aio_tsi_input($in, $control);
     if ($control === 'ts_cancel')
     {

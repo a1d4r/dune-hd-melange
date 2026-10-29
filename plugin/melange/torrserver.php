@@ -408,7 +408,7 @@ function aio_ts_int($j, $k)
 function aio_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
 {
     $lang = $st['lang'];
-    $stat = trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', aio_str($j, 'stat_string')));
+    $stat = aio_one_line(aio_str($j, 'stat_string'));
     $keys = aio_ts_stats();
     $low = strtolower($stat);
     $status = $stat === '' ? aio_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? aio_tr($lang, $keys[$low]) : aio_cut($stat, 30));
