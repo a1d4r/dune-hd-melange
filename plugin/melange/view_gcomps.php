@@ -52,6 +52,7 @@ define('AIO_GC_HINT_GAP', 40);  // between hints (vendor HINTS_SMALL_HGAP)
 // its room kept at every tab, so that the tabs never move.
 define('AIO_GC_TABS_Y', 125);
 define('AIO_GC_TAB_LINE', 4);
+define('AIO_GC_TAB_LINE_Y', AIO_GC_KEY_H + 3);
 define('AIO_GC_SORT_ARROW_W', 18);
 define('AIO_GC_SORT_ARROW_H', 12);
 define('AIO_GC_SORT_ARROW_GAP', 10);    // label -> its triangle
@@ -944,7 +945,7 @@ function aio_gc_sort_tabs($st, $tt)
             $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x,
                 intval((AIO_GC_KEY_H - AIO_GC_SORT_ARROW_H) / 2)),
                 'plugin_file://img/' . ($st['sort_rev'] ? 'sort_up.png' : 'sort_down.png'));
-            $d[] = aio_gc_rect(aio_gc_at($x + AIO_GC_SORT_ARROW_W - $x0, AIO_GC_TAB_LINE, $x0, AIO_GC_KEY_H + 3),
+            $d[] = aio_gc_rect(aio_gc_at($x + AIO_GC_SORT_ARROW_W - $x0, AIO_GC_TAB_LINE, $x0, AIO_GC_TAB_LINE_Y),
                 AIO_GC_TEXT);
         }
         $x += AIO_GC_SORT_ARROW_W + AIO_GC_HINT_GAP;
@@ -1012,7 +1013,7 @@ function aio_gc_window($st, $sel, $top)
     $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT_Y),
         aio_gc_counter($sel, $n));
     if (aio_gc_color_keys())
-        $d[] = aio_gc_panel('sort', aio_gc_at(AIO_GC_LW, AIO_GC_KEY_H + 3 + AIO_GC_TAB_LINE, AIO_GC_LX, AIO_GC_TABS_Y),
+        $d[] = aio_gc_panel('sort', aio_gc_at(AIO_GC_LW, AIO_GC_TAB_LINE_Y + AIO_GC_TAB_LINE, AIO_GC_LX, AIO_GC_TABS_Y),
             aio_gc_sort_tabs($st, $tt));
 
     $fanart = aio_img($mv['fanart']);
@@ -1128,6 +1129,17 @@ function aio_gc_folder_view($st, $sel_state)
             PluginGCompsFolderView::timer => null));
 }
 
+// A sort for the log: "size", "size reversed".
+/**
+ * @param string $k
+ * @param bool $rev
+ * @return string
+ */
+function aio_sort_tag($k, $rev)
+{
+    return $k . ($rev ? ' reversed' : '');
+}
+
 // gc_sort (k: a key of aio_sort_keys) of a live list: its rows in that
 // order, by default descending (aio_rows_sort); the key of the list's sort
 // again: the other way round. The sort kept for new lists (aio_sort_write;
@@ -1147,14 +1159,14 @@ function aio_gc_sort($in)
         return null;
     }
     $rev = $k === $st['sort'] && !$st['sort_rev'];
-    $tag = $k . ($rev ? ' reversed' : '');
+    $tag = aio_sort_tag($k, $rev);
     if (!aio_sort_write($k, $rev))
         aio_log("sort: $tag not saved, this list only");
     // aio_list_state sorts by the settings: the new sort, saved or not.
     Aio::$settings['sort'] = $k;
     Aio::$settings['sort_rev'] = $rev;
     $ns = aio_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang']);
-    aio_log("sort: {$st['sort']}" . ($st['sort_rev'] ? ' reversed' : '') . " -> $tag, " . aio_ep_tag($st) . ', ' .
+    aio_log('sort: ' . aio_sort_tag($st['sort'], $st['sort_rev']) . " -> $tag, " . aio_ep_tag($st) . ', ' .
         count($st['rows']) . ' rows, screen replaced');
     return aio_list_replace(aio_gc_put_cursor($ns, 0));
 }
