@@ -64,10 +64,11 @@ class Aio
     // 'ts_save' - save_to_db of its add (ts_save of the settings). 'aio' - the own
     // AIOStreams server ('' none), "<aio>" in the log. 'own' - the own config
     // is chosen (source own). 'hosts' - aio_settings_hosts(), hidden in the log.
+    // 'sort' - the sort of a new list (aio_sort_read).
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'aio' => '', 'own' => false,
-        'hosts' => array());
+        'hosts' => array(), 'sort' => 'aio');
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -354,7 +355,32 @@ function aio_settings_load()
         'ts_save' => $s['ts_save'],
         'aio' => $s['aio_own_url'],
         'own' => $s['source'] === 'own',
-        'hosts' => aio_settings_hosts($s));
+        'hosts' => aio_settings_hosts($s),
+        'sort' => aio_sort_read());
+}
+
+// The sort of the lists, chosen by a colour key of the list (aio_gc_sort):
+// data_dir/list_sort, not settings.json (the page writes that one). None or
+// not a key of aio_sort_keys: 'aio', the order of AIOStreams.
+/**
+ * @return string
+ */
+function aio_sort_read()
+{
+    $f = aio_data_dir() . '/' . AIO_SORT_FILE;
+    $k = '';
+    if (aio_data_dir() !== '' && is_file($f))
+        $k = trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM);
+    return in_array($k, aio_sort_keys(), true) ? $k : 'aio';
+}
+
+/**
+ * @param string $k
+ * @return bool
+ */
+function aio_sort_write($k)
+{
+    return aio_data_dir() !== '' && aio_write_file(aio_data_dir() . '/' . AIO_SORT_FILE, $k);
 }
 
 // --- AIOStreams.
@@ -656,7 +682,8 @@ function aio_rid()
 }
 
 // State of a stream list (Aio::$state): its screen "streams:<rid>", the card,
-// season and episode (-1 for a movie), rows, the shell language of play_action.
+// season and episode (-1 for a movie), rows in the order of 'sort' (of the
+// settings: aio_rows_sort), the shell language of play_action.
 // view_gcomps.php adds 'gc' - array(sel, top), the last cursor; 'gc_new' -
 // the first view of a replaced screen ignores the shell's sel_state; 'gc_prog'
 // - progress of the rows for their redraw. A screen replaced by a new list
@@ -667,7 +694,9 @@ function aio_rid()
  */
 function aio_list_state($mv, $s, $e, $rows, $lang)
 {
-    return array('rid' => aio_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => $rows, 'lang' => $lang);
+    $sort = Aio::$settings['sort'];
+    return array('rid' => aio_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => aio_rows_sort($rows, $sort),
+        'lang' => $lang, 'sort' => $sort);
 }
 
 // --- play_action of the supplier.
@@ -865,6 +894,8 @@ function aio_handle_user_input($in)
         return aio_flip($in);
     if ($control === 'gc_refresh')
         return aio_refresh($in);
+    if ($control === 'gc_sort')
+        return aio_gc_sort($in);
     if ($control === 'gc_choose')
         return aio_choose($in);
     if ($control === 'gc_chosen')

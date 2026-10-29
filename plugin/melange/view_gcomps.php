@@ -7,10 +7,12 @@
 // seeders of a P2P row), badges of kingsizew/badges (resolution, source,
 // picture, the best audio), size, language flags, trackers if room is left;
 // under it one hint row: P+/P-, <- ->, POP UP "Actions", INFO "Details" and
-// "1 / 60" at the right. The plugin draws and moves the selection itself
+// "1 / 60" at the right; in that row under the card the colour keys of the
+// sort, the current one selected. The plugin draws and moves the selection itself
 // with change_gcomps; the position travels in sel_state {"sel":N,"top":T}.
 // Shapes as proven on the device (04.10.2026).
-// Reads Aio (state, settings), writes the cursor keys of Aio::$state.
+// Reads Aio (state, settings), writes the cursor keys of Aio::$state;
+// aio_gc_sort replaces it by the list sorted anew.
 // PHP 5.3.6, firmware API only.
 // Types in the PHPDoc (AioGcComp and others): phpstan-types.neon of the repository.
 
@@ -34,12 +36,19 @@ define('AIO_GC_VIS', 13);      // visible rows: the list ends at y 962
 // label: chosen (vendor text 36, gap 12).
 define('AIO_GC_HINT_Y', 990);  // the vendor hint row 990..1040
 define('AIO_GC_KEY_H', 50);
+define('AIO_GC_KEY_W', 52);    // a vendor key of one button: the colour keys
 define('AIO_GC_LABEL_H', 40);
 define('AIO_GC_ARROW_W', 26);  // right_arrow.png 52x50 / 2
 define('AIO_GC_ARROW_H', 25);
 define('AIO_GC_HINT_PX', 30);
 define('AIO_GC_KEY_GAP', 10);   // key -> its label
 define('AIO_GC_HINT_GAP', 40);  // between hints (vendor HINTS_SMALL_HGAP)
+// The colour keys of the sort under the card (aio_gc_sort_hint): at the vendor
+// size, labels and gaps smaller than the hints, so that four fit its width.
+define('AIO_GC_SORT_PX', 28);
+define('AIO_GC_SORT_KEY_GAP', 6);   // key -> its label
+define('AIO_GC_SORT_GAP', 16);      // between keys
+define('AIO_GC_SORT_PAD', 6);       // the selection of the current one around its key and label
 define('AIO_GC_PAD', 16);      // row padding left and right
 define('AIO_GC_GAP', 16);      // between columns
 // "rutracker +3" (142 px by the estimate) with a margin; less room: no tracker
@@ -58,7 +67,7 @@ define('AIO_GC_NAME_LH', 32);
 define('AIO_GC_VOICES_LINES', 5);  // lines of the voices in the card, at most,
 define('AIO_GC_VOICES_PX', 26);    // 26 px text in 32 px lines (as the name): more studios a line
 define('AIO_GC_VOICES_LH', 32);
-define('AIO_GC_CARD_BOTTOM', 1040);   // the card ends above this y on any data
+define('AIO_GC_CARD_BOTTOM', 980);   // the card ends above this y on any data: the sort keys under it
 define('AIO_GC_LANGS_MAX', 3);     // language flags of a row, the rest as "+N"
 define('AIO_GC_STEPS', 5);     // change_gcomps animation steps (vendor default)
 
@@ -123,7 +132,10 @@ function aio_gc_text($lang)
         'langs' => aio_tr($lang, 'gc_langs'), 'trackers' => aio_tr($lang, 'gc_trackers'),
         'addon' => aio_tr($lang, 'gc_addon'),
         'flip' => aio_tr($lang, 'gc_flip'),
-        'actions' => aio_tr($lang, 'gc_actions'), 'details' => aio_tr($lang, 'gc_details'));
+        'actions' => aio_tr($lang, 'gc_actions'), 'details' => aio_tr($lang, 'gc_details'),
+        'sort_aio' => aio_tr($lang, 'gc_sort_aio'), 'sort_seeds' => aio_tr($lang, 'gc_sort_seeds'),
+        'sort_cached' => aio_tr($lang, 'gc_sort_cached'), 'sort_size' => aio_tr($lang, 'gc_sort_size'),
+        'sort_date' => aio_tr($lang, 'gc_sort_date'));
 }
 
 // The cache status of row $r: "В кэше <service>", "Нужно скачать", "P2P" (no
@@ -872,6 +884,49 @@ function aio_gc_hint(&$d, $x, $y, $keys, $text, $h = AIO_GC_KEY_H)
     return $x + $w + AIO_GC_HINT_GAP;
 }
 
+// The colour keys of the sort in the order of the remote: key of
+// aio_sort_keys => array(event, the vendor key picture).
+/**
+ * @return array<string, array{string, string}>
+ */
+function aio_gc_sort_keys()
+{
+    $u = 'plugin_file://%shell_ext%/icons/';
+    return array('aio' => array(GUI_EVENT_KEY_A_RED, $u . 'red.png'),
+        'seeds' => array(GUI_EVENT_KEY_B_GREEN, $u . 'green.png'),
+        'size' => array(GUI_EVENT_KEY_C_YELLOW, $u . 'yellow.png'),
+        'date' => array(GUI_EVENT_KEY_D_BLUE, $u . 'blue.png'));
+}
+
+// Children of 'sort' (the hint row under the card): each colour key and its
+// label, the green one "Cached" in a Debrid list (aio_rows_debrid); the sort
+// of the list selected as a row of the list, its label brighter.
+/**
+ * @param AioState $st
+ * @param AioGcText $tt
+ * @return list<AioGcComp>
+ */
+function aio_gc_sort_hint($st, $tt)
+{
+    $d = array();
+    $x = 0;
+    foreach (aio_gc_sort_keys() as $k => $key)
+    {
+        $text = $tt[$k === 'seeds' && aio_rows_debrid($st['rows']) ? 'sort_cached' : "sort_$k"];
+        $w = aio_gc_w($text, AIO_GC_SORT_PX);
+        $on = $k === $st['sort'];
+        if ($on)
+            $d[] = aio_gc_rect(aio_gc_at(AIO_GC_KEY_W + AIO_GC_SORT_KEY_GAP + $w + 2 * AIO_GC_SORT_PAD, AIO_GC_KEY_H,
+                $x - AIO_GC_SORT_PAD, 0), AIO_GC_SEL);
+        $d[] = aio_gc_image(aio_gc_at(AIO_GC_KEY_W, AIO_GC_KEY_H, $x, 0), $key[1]);
+        $x += AIO_GC_KEY_W + AIO_GC_SORT_KEY_GAP;
+        $d[] = aio_gc_cut(null, aio_gc_at($w, AIO_GC_LABEL_H, $x, (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $text,
+            AIO_GC_SORT_PX, $on ? AIO_GC_TEXT : AIO_GC_TEXT2);
+        $x += $w + AIO_GC_SORT_GAP;
+    }
+    return $d;
+}
+
 /**
  * @param AioState $st
  * @param int $sel
@@ -931,6 +986,8 @@ function aio_gc_window($st, $sel, $top)
     aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/info_key.png' => 52), $tt['details']);
     $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT_Y),
         aio_gc_counter($sel, $n));
+    $d[] = aio_gc_panel('sort', aio_gc_at(AIO_GC_CW, AIO_GC_KEY_H, AIO_GC_CX, AIO_GC_HINT_Y),
+        aio_gc_sort_hint($st, $tt));
 
     $fanart = aio_img($mv['fanart']);
     // Same key set as vendor GCompsFactory::get_window_def().
@@ -1030,6 +1087,9 @@ function aio_gc_folder_view($st, $sel_state)
         $acts[GUI_EVENT_KEY_LEFT] = aio_gc_act('gc_flip', $rid, array('d' => 'prev'));
         $acts[GUI_EVENT_KEY_RIGHT] = aio_gc_act('gc_flip', $rid, array('d' => 'next'));
     }
+    // The colour keys: the sort (aio_gc_sort).
+    foreach (aio_gc_sort_keys() as $k => $key)
+        $acts[$key[0]] = aio_gc_act('gc_sort', $rid, array('k' => $k));
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -1040,6 +1100,39 @@ function aio_gc_folder_view($st, $sel_state)
             PluginGCompsFolderView::sel_state => aio_gc_state($sel, $top),
             PluginGCompsFolderView::actions => $acts,
             PluginGCompsFolderView::timer => null));
+}
+
+// gc_sort (k: a key of aio_sort_keys) of a live list: its rows in that
+// order, the sort kept for new lists (aio_sort_write; not written: this list
+// only); the screen replaced as by aio_refresh (a new rid), the cursor on
+// the first row. The sort of the list already, a bad key, a list not live: nothing.
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
+function aio_gc_sort($in)
+{
+    $st = Aio::$state;
+    $k = isset($in->k) && is_string($in->k) ? $in->k : '';
+    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || !in_array($k, aio_sort_keys(), true))
+    {
+        aio_log('sort: not a live list or a bad key, nothing');
+        return null;
+    }
+    if ($k === $st['sort'])
+    {
+        aio_log("sort: $k already, nothing");
+        return null;
+    }
+    if (!aio_sort_write($k))
+        aio_log("sort: $k not saved, this list only");
+    $ns = $st;
+    $ns['rid'] = aio_rid();
+    $ns['rows'] = aio_rows_sort($st['rows'], $k);
+    $ns['sort'] = $k;
+    Aio::$state = aio_gc_put_cursor($ns, 0);
+    aio_log("sort: {$st['sort']} -> $k, " . aio_ep_tag($st) . ', ' . count($st['rows']) . ' rows, screen replaced');
+    return aio_replace_act("streams:{$ns['rid']}", aio_ep_name($ns['movie'], $ns['s'], $ns['e']));
 }
 
 // gc_menu (MENU) of a live list -> the popup menu of the row under the cursor:

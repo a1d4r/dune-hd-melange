@@ -53,7 +53,8 @@ parameters:
                 ts_save: bool,
                 aio: string,
                 own: bool,
-                hosts: array<string, string>
+                hosts: array<string, string>,
+                sort: string
             }
         '''
         # Badges of a release (aio_badges, parse.php).
@@ -120,7 +121,8 @@ parameters:
                 seasons: array<int, int>
             }
         '''
-        # A stream list (Aio::$state, aio_list_state, main.php); gc (sel, top:
+        # A stream list (Aio::$state, aio_list_state, main.php), rows in the order
+        # of sort (aio_sort_keys); gc (sel, top:
         # the last cursor), gc_new, gc_prog: of view_gcomps.php.
         AioState: '''
             array{
@@ -130,6 +132,7 @@ parameters:
                 e: int,
                 rows: list<AioRow>,
                 lang: string,
+                sort: string,
                 gc?: array{int, int},
                 gc_new?: bool,
                 gc_prog?: AioProgress
@@ -179,7 +182,8 @@ parameters:
                 lang: string, page: string, pack: string, group: string, source: string,
                 cached: string, cached_in: string, download: string, unknown: string, p2p: string,
                 video: string, audio: string, voices: string, subs: string, langs: string,
-                trackers: string, addon: string, flip: string, actions: string, details: string
+                trackers: string, addon: string, flip: string, actions: string, details: string,
+                sort_aio: string, sort_seeds: string, sort_cached: string, sort_size: string, sort_date: string
             }
         '''
         # Columns of the list (aio_gc_cols, view_gcomps.php): x and width;

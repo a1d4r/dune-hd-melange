@@ -762,12 +762,14 @@ function aio_relist($st, $s, $e, $hash)
     $rows = aio_carry_tracks($res['rows'], $st['rows']);
     if (AIO_JACRED)
         $rows = aio_jacred($rows, $mv, $s);
+    $ns = aio_list_state($mv, $s, $e, $rows, $st['lang']);
 
     // The release with the episode in its file, as aio_next: a release not
     // in the cache has its hash in every reply, even a pack of another season.
+    // Found in the rows as the list has them: sorted.
     $sel = -1;
     $by = 'no such release';
-    foreach ($rows as $i => $r)
+    foreach ($ns['rows'] as $i => $r)
     {
         if ($hash === '' || $r['hash'] !== $hash)
             continue;
@@ -784,8 +786,7 @@ function aio_relist($st, $s, $e, $hash)
         }
     }
     $sel = max(0, $sel);
-    $ns = aio_gc_put_cursor(aio_list_state($mv, $s, $e, $rows, $st['lang']), $sel);
-    return array('st' => $ns, 'sel' => $sel, 'by' => $by);
+    return array('st' => aio_gc_put_cursor($ns, $sel), 'sel' => $sel, 'by' => $by);
 }
 
 // The dialog of a failed aio_relist: the error, its detail, OK.
