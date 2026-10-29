@@ -24,24 +24,31 @@ define('AIO_TSI_TICK_FIRST_MS', 200);
 define('AIO_TSI_TICK_ERR_MS', 5000);
 // operation_timeout of the actions, ms: the "get" takes 2 s at most.
 define('AIO_TSI_TIMEOUT', 5000);
-// The window on 1920x1080, its frame without the shadow: x 1150..1880, from
-// y 80 as the INFO window of the player (its border is seen from x 1145, as
-// that of the INFO window from 145). Its plate img/ts_info_bg.png is drawn at
-// its own size, AIO_TSI_BG_* (the frame plus the shadow, the extents of the
-// skin's osd_glass: 13 left, 9 top, 32 right, 29 bottom).
-define('AIO_TSI_X', 1150);
+// The window on 1920x1080, its frame without the shadow: x 1300..1880, from
+// y 80 as the INFO window of the player (its border is seen from x 1295, as
+// that of the INFO window from 145). That window grows to the right with its
+// longest row (to x 1235 with a long audio track, r25 29.10.2026) and is drawn
+// over ours: ours is narrow, the name of the release wraps instead. Its plate
+// img/ts_info_bg_<rows>.png is drawn at its own size, AIO_TSI_BG_* (the frame
+// plus the shadow, the extents of the skin's osd_glass: 13 left, 9 top, 32
+// right, 29 bottom), one per count of rows (aio_tsi_bg_h): image_height is not
+// proven to stretch a PNG.
+define('AIO_TSI_X', 1300);
 define('AIO_TSI_Y', 80);
-define('AIO_TSI_W', 730);
-define('AIO_TSI_BG_X', 1137);
+define('AIO_TSI_W', 580);
+define('AIO_TSI_BG_X', 1287);
 define('AIO_TSI_BG_Y', 71);
-define('AIO_TSI_BG_W', 775);
+define('AIO_TSI_BG_W', 625);
+// The height of the plate of AIO_TSI_ROWS rows; each row more, AIO_TSI_LH more.
 define('AIO_TSI_BG_H', 233);
 // Rows "Label: value" of the SMALL font in the grey of the INFO window, as
 // there (r25 screenshots 29.10.2026): the first at AIO_TSI_TOP, AIO_TSI_LH
 // apart, from AIO_TSI_PAD of the frame, as wide as it minus AIO_TSI_PAD on
-// both sides. AIO_TSI_PX: SMALL in px for aio_gc_w (the widths of the
-// screenshots: 29, not 30).
+// both sides. AIO_TSI_ROWS: the rows with the name in one (an error: one row
+// on that plate); the name takes AIO_TSI_NAME_LINES at most. AIO_TSI_PX: SMALL
+// in px for aio_gc_w (the widths of the screenshots: 29, not 30).
 define('AIO_TSI_ROWS', 5);
+define('AIO_TSI_NAME_LINES', 3);
 define('AIO_TSI_TOP', 11);
 define('AIO_TSI_LH', 34);
 define('AIO_TSI_PAD', 20);
@@ -164,9 +171,35 @@ function aio_tsi_text_w()
     return AIO_TSI_W - 2 * AIO_TSI_PAD;
 }
 
-// A name in one line of the window: no control characters or line breaks
-// (U+0085, U+2028, U+2029 too), cut with "…" to the row after the label
-// "Release: " of $lang. A name it gave comes back as it is.
+// "Label: name" of the release in rows of the window (aio_gc_wrap: broken
+// after spaces and . _ - / , ) ], a long word by characters); more than
+// AIO_TSI_NAME_LINES: the last ends with "…".
+/**
+ * @param string $name
+ * @param string $lang
+ * @return list<string>
+ */
+function aio_tsi_name_rows($name, $lang)
+{
+    return aio_gc_wrap(aio_tr($lang, 'tsi_l_name') . ': ' . $name, AIO_TSI_PX, aio_tsi_text_w(), AIO_TSI_NAME_LINES);
+}
+
+// Whether "Label: name" takes AIO_TSI_NAME_LINES rows at most, not cut.
+/**
+ * @param string $name
+ * @param string $lang
+ * @return bool
+ */
+function aio_tsi_name_fits($name, $lang)
+{
+    return count(aio_gc_wrap(aio_tr($lang, 'tsi_l_name') . ': ' . $name, AIO_TSI_PX, aio_tsi_text_w(),
+        AIO_TSI_NAME_LINES + 1)) <= AIO_TSI_NAME_LINES;
+}
+
+// A name for the window: no control characters or line breaks (U+0085,
+// U+2028, U+2029 too), cut with "…" where aio_tsi_name_rows cuts it, so that
+// "Label: name" of $lang fits its rows. A name it gave comes back as it is
+// (it fits): the params keep it and check it so.
 /**
  * @param string $s
  * @param string $lang
@@ -174,7 +207,28 @@ function aio_tsi_text_w()
  */
 function aio_tsi_name($s, $lang)
 {
-    return aio_gc_cut_w(aio_one_line($s), AIO_TSI_PX, aio_tsi_text_w() - aio_gc_w(aio_tr($lang, 'tsi_l_name') . ': ', AIO_TSI_PX));
+    $s = aio_one_line($s);
+    if (aio_tsi_name_fits($s, $lang))
+        return $s;
+    // The rows are pieces of the text, the last one cut with "…": its end in the text.
+    $label = aio_tr($lang, 'tsi_l_name') . ': ';
+    $text = $label . $s;
+    $rows = aio_tsi_name_rows($s, $lang);
+    $last = count($rows) - 1;
+    $end = 0;
+    foreach ($rows as $i => $row)
+    {
+        $piece = $i === $last ? (string) substr($row, 0, -strlen("\xE2\x80\xA6")) : $row;
+        $at = $piece !== '' ? strpos($text, $piece, $end) : false;
+        if ($at !== false)
+            $end = $at + strlen($piece);
+    }
+    // No separator before "…" ("HDR10+…", not "HDR10+.…").
+    $cut = rtrim((string) substr($text, strlen($label), max(0, $end - strlen($label))), ' ._-');
+    // A shorter text may wrap otherwise ("5.1" whole again): shortened till it fits.
+    while ($cut !== '' && !aio_tsi_name_fits("$cut\xE2\x80\xA6", $lang))
+        $cut = rtrim(mb_substr($cut, 0, mb_strlen($cut, 'UTF-8') - 1, 'UTF-8'), ' ._-');
+    return "$cut\xE2\x80\xA6";
 }
 
 // Params of the window of vod_play of row $r ($ts: via TorrServer): 'h' the
@@ -211,7 +265,7 @@ function aio_tsi_params_in($in)
             return null;
         $p[$k] = $v;
     }
-    // A name as aio_tsi_name leaves it: UTF-8, one line, cut to the row.
+    // A name as aio_tsi_name leaves it: UTF-8, one line, cut to its rows.
     if (!mb_check_encoding($p['n'], 'UTF-8') || aio_tsi_name($p['n'], $p['l']) !== $p['n'])
         return null;
     return array('h' => $p['h'], 'n' => $p['n'], 'l' => $p['l'], 'e' => $p['e']);
@@ -248,8 +302,8 @@ function aio_tsi_size($j, $k, $lang, $zero)
     return $zero && is_numeric($v) && (float) $v == 0 ? aio_size_str(0.0, $lang) : "\xE2\x80\x94";
 }
 
-// Rows "Label: value" of the window: the name, then the values $v - download,
-// upload, peers of all and seeders, loaded of the size.
+// Rows "Label: value" of the window: the name (aio_tsi_name_rows), then the
+// values $v - download, upload, peers of all and seeders, loaded of the size.
 /**
  * @param string $lang
  * @param string $name
@@ -259,14 +313,13 @@ function aio_tsi_size($j, $k, $lang, $zero)
 function aio_tsi_lines($lang, $name, $v)
 {
     $l = array();
-    foreach (array('name', 'down', 'up', 'peers', 'seeds', 'loaded') as $k)
+    foreach (array('down', 'up', 'peers', 'seeds', 'loaded') as $k)
         $l[$k] = aio_tr($lang, "tsi_l_$k") . ': ';
-    return array(
-        $l['name'] . $name,
+    return array_merge(aio_tsi_name_rows($name, $lang), array(
         $l['down'] . $v['down'],
         $l['up'] . $v['up'],
         $l['peers'] . $v['peers'] . ' / ' . $v['all'] . " \xC2\xB7 " . $l['seeds'] . $v['seeds'],
-        $l['loaded'] . str_replace(array('{got}', '{all}'), array($v['got'], $v['size']), aio_tr($lang, 'tsi_loaded')));
+        $l['loaded'] . str_replace(array('{got}', '{all}'), array($v['got'], $v['size']), aio_tr($lang, 'tsi_loaded'))));
 }
 
 // The rows of the window before its first numbers: the name of the release, "—".
@@ -321,32 +374,45 @@ function aio_tsi_rows($hash, $name, $lang, &$err)
         'size' => aio_tsi_size($j, 'torrent_size', $lang, false)));
 }
 
-// The plate of the window: a path of the plugin, as other plugins draw in the
-// player (plugin_file:// there is not proven).
+// The height of the plate of $n rows (AIO_TSI_ROWS at least), px.
 /**
+ * @param int $n
+ * @return int
+ */
+function aio_tsi_bg_h($n)
+{
+    return AIO_TSI_BG_H + (max($n, AIO_TSI_ROWS) - AIO_TSI_ROWS) * AIO_TSI_LH;
+}
+
+// The plate of the window of $n rows (AIO_TSI_ROWS at least): a path of the
+// plugin, as other plugins draw in the player (plugin_file:// there is not proven).
+/**
+ * @param int $n
  * @return string
  */
-function aio_tsi_bg()
+function aio_tsi_bg($n)
 {
     $dir = isset(DuneSystem::$properties['install_dir_path']) ? strval(DuneSystem::$properties['install_dir_path']) :
         dirname(__FILE__);
-    return rtrim($dir, '/') . '/img/ts_info_bg.png';
+    return rtrim($dir, '/') . '/img/ts_info_bg_' . max($n, AIO_TSI_ROWS) . '.png';
 }
 
-// Components of the window: the plate, then a text per row, each cut to the row.
+// Components of the window: the plate as high as the rows, then a text per
+// row, each cut to the row.
 /**
  * @param list<string> $rows
  * @return list<array<string, int|string|bool>>
  */
 function aio_tsi_comps($rows)
 {
+    $rows = array_slice($rows, 0, AIO_TSI_ROWS - 1 + AIO_TSI_NAME_LINES);
     $c = array(array(
-        PluginOsdComponent::image_url => aio_tsi_bg(),
+        PluginOsdComponent::image_url => aio_tsi_bg(count($rows)),
         PluginOsdComponent::x => AIO_TSI_BG_X,
         PluginOsdComponent::y => AIO_TSI_BG_Y,
         PluginOsdComponent::image_width => AIO_TSI_BG_W,
-        PluginOsdComponent::image_height => AIO_TSI_BG_H));
-    foreach (array_slice($rows, 0, AIO_TSI_ROWS) as $i => $row)
+        PluginOsdComponent::image_height => aio_tsi_bg_h(count($rows))));
+    foreach ($rows as $i => $row)
         $c[] = array(
             PluginOsdComponent::text => aio_gc_cut_w($row, AIO_TSI_PX, aio_tsi_text_w()),
             PluginOsdComponent::x => AIO_TSI_X + AIO_TSI_PAD,
