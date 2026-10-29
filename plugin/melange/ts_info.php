@@ -58,8 +58,10 @@ define('AIO_TSI_LH', 34);
 define('AIO_TSI_PAD', 20);
 define('AIO_TSI_PX', 29);
 define('AIO_TSI_COLOR', '15');
-// Characters of a name in the params at most: more than its rows hold.
-define('AIO_TSI_NAME_MAX', 300);
+// Characters of a name in the params at most: more than its rows hold of
+// letters and dots (of "i", "." too); only a name of the narrowest glyphs
+// (commas, quotes, U+2044, zero-width ones) is cut here, without "…".
+define('AIO_TSI_NAME_MAX', 200);
 
 // The fields of vod_info for row $r ($ts: via TorrServer): INFO opens the
 // window; none (array()) unless TorrServer. No timer until it opens.
