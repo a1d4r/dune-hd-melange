@@ -468,6 +468,8 @@ function aio_service_name($id)
 //   cached       service.cached: true, false, or null when unknown (no service)
 //   seeders      streamData.torrent.seeders: an int >= 0, else null (unknown);
 //                the list shows it for a P2P row (url '')
+//   age          streamData.age: hours since the release was added, a float >= 0,
+//                else null (unknown); the sort by date (aio_rows_sort)
 //   service      service name for "Cached in ..."; '' when unknown (aio_service_name)
 //   resolution   parsedFile.resolution, else from the name ("2160p"); may be ''
 //   badges       aio_badges()
@@ -505,6 +507,8 @@ function aio_service_name($id)
 //   label        name of the release: the file of a movie, the folder of a season pack
 //   raw          the stream as it came, for the details screen (INFO); memory of
 //                php_server only, as the URL: never logged nor saved
+//   ord          place in the reply, from 0 (aio_fetch numbers the rows): the order of
+//                AIOStreams that every sort keeps for equal values (aio_rows_sort)
 /**
  * @param array<mixed> $st
  * @param bool $series
@@ -606,11 +610,13 @@ function aio_row($st, $series)
     $expr = isset($expr['name']) && is_string($expr['name']) ? trim(aio_utf8($expr['name'])) : '';
     if ($group === '')
         $group = $expr;
+    $age = isset($sd['age']) && !is_bool($sd['age']) && is_numeric($sd['age']) ? (float) $sd['age'] : -1.0;
     return array(
         'url' => $url,
         'hash' => $hash,
         'cached' => $cached,
         'seeders' => isset($tor['seeders']) && is_int($tor['seeders']) && $tor['seeders'] >= 0 ? $tor['seeders'] : null,
+        'age' => $age >= 0 && $age < 1e9 ? $age : null,
         'service' => aio_service_name(aio_str($svc, 'id')),
         'resolution' => $res,
         'badges' => aio_badges($pf, $res),
@@ -635,7 +641,8 @@ function aio_row($st, $series)
         'pf_episodes' => aio_ints(aio_arr($pf, 'episodes')),
         'names' => array($folder, $file),
         'label' => $label !== '' ? $label : aio_plain_name($name),
-        'raw' => $st);
+        'raw' => $st,
+        'ord' => 0);
 }
 
 // A P2P row (url '', hash set): TorrServer plays it.
@@ -646,6 +653,68 @@ function aio_row($st, $series)
 function aio_is_p2p($r)
 {
     return $r['url'] === '';
+}
+
+// --- Sort of the list by the colour keys (0.48.0).
+
+// Keys of the sort, the stored one too (aio_sort_read): the order of
+// AIOStreams, seeders (cached first in a Debrid list), size, date.
+/**
+ * @return list<string>
+ */
+function aio_sort_keys()
+{
+    return array('aio', 'seeds', 'size', 'date');
+}
+
+// A Debrid list: some row has a service (cached not null); its green key
+// sorts by the cache, not by seeders.
+/**
+ * @param list<AioRow> $rows
+ * @return bool
+ */
+function aio_rows_debrid($rows)
+{
+    foreach ($rows as $r)
+    {
+        if (!is_null($r['cached']))
+            return true;
+    }
+    return false;
+}
+
+// Rows in the order of sort $key, all descending: more seeders (a Debrid
+// list: the cached rows, then the rest), bigger, newer (smaller age); 'aio'
+// (or an unknown key) the order of the reply. Stable: equal values keep the
+// order of AIOStreams (ord); rows without the value (no seeders, size 0, no
+// age) go to the end in that order.
+/**
+ * @param list<AioRow> $rows
+ * @param string $key
+ * @return list<AioRow>
+ */
+function aio_rows_sort($rows, $key)
+{
+    $deb = aio_rows_debrid($rows);
+    $miss = $val = $ord = $pos = array();
+    foreach ($rows as $i => $r)
+    {
+        if ($key === 'seeds')
+            $v = $deb ? ($r['cached'] === true ? 1 : 0) : $r['seeders'];
+        else if ($key === 'size')
+            $v = $r['size'] > 0 ? $r['size'] : null;
+        else if ($key === 'date')
+            $v = is_null($r['age']) ? null : -$r['age'];
+        else
+            $v = 0;
+        $miss[] = is_null($v) ? 1 : 0;
+        $val[] = is_null($v) ? 0 : $v;
+        $ord[] = $r['ord'];
+        // Never equal: the rows themselves are not compared.
+        $pos[] = $i;
+    }
+    array_multisort($miss, SORT_ASC, $val, SORT_DESC, $ord, SORT_ASC, $pos, SORT_ASC, $rows);
+    return $rows;
 }
 
 // streamData.sources of a patched AIOStreams build (upstream has no such

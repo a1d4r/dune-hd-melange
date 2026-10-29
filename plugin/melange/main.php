@@ -592,7 +592,10 @@ function aio_fetch($base, $id, $series)
     {
         $r = is_array($st) ? aio_row($st, $series) : null;
         if ($r)
+        {
+            $r['ord'] = count($rows);
             $rows[] = aio_row_voices($r);
+        }
         if (count($rows) === AIO_MAX_ROWS)
             break;
     }

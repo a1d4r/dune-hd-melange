@@ -90,6 +90,7 @@ parameters:
                 rate_src: string,
                 quality: string,
                 size: float,
+                age: float|null,
                 langs: list<string>,
                 trackers: list<string>,
                 addon: string,
@@ -99,7 +100,8 @@ parameters:
                 names?: array{string, string},
                 voices?: AioVoices,
                 label: string,
-                raw: array<mixed>
+                raw: array<mixed>,
+                ord: int
             }
         '''
         # The card of play_action (aio_movie, main.php).
