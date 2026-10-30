@@ -137,6 +137,7 @@ ts_st_closed = Closed
 ts_st_in_db = In the database
 ts_cancel = Cancel
 ts_failed = Could not open via TorrServer
+ts_err_off = Torrents are disabled in the settings
 ts_err_down = TorrServer is not responding: install and start the TorrServe app on the Dune or check the address in the Melange settings
 ts_err_old = The reply is not from TorrServer MatriX
 ts_err_add = TorrServer did not accept the release

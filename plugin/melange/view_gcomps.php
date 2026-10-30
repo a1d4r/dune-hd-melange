@@ -1174,7 +1174,7 @@ function aio_gc_sort($in)
 // gc_menu (MENU) of a live list -> the popup menu of the row under the cursor:
 // "Refresh" (aio_refresh), an episode: "Choose episode" (aio_choose), a row
 // with infoHash: "Download in app" (aio_download) and, with a server in the
-// settings, "Download to server" (aio_srv_menu), "Settings". A screen of a
+// settings, "Download to server" (aio_srv_menu; these three not with "no torrents"), "Settings". A screen of a
 // lost list (replaced, php_server restarted): "Settings" only.
 /**
  * @param stdClass $in
@@ -1206,17 +1206,18 @@ function aio_gc_menu($in)
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'choose_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
             GuiMenuItemDef::action => aio_gc_act('gc_choose', $rid));
-    if ($st['rows'][$sel]['hash'] !== '')
+    $tor = $st['rows'][$sel]['hash'] !== '' && !Aio::$settings['no_torrents'];
+    if ($tor)
         $menu[] = array(
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'ts_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/torrents.aai',
             GuiMenuItemDef::action => aio_gc_act('gc_ts', $rid, array('i' => strval($sel))));
-    if ($st['rows'][$sel]['hash'] !== '')
+    if ($tor)
         $menu[] = array(
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'dl_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/torrent_file.aai',
             GuiMenuItemDef::action => aio_gc_act('gc_dl', $rid, array('i' => strval($sel))));
-    if ($st['rows'][$sel]['hash'] !== '' && Aio::$settings['servers'])
+    if ($tor && Aio::$settings['servers'])
         $menu[] = array(
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'srv_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/network_folder.aai',

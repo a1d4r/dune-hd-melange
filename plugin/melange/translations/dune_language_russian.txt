@@ -137,6 +137,7 @@ ts_st_closed = Закрыт
 ts_st_in_db = В базе
 ts_cancel = Отмена
 ts_failed = Не открылось через TorrServer
+ts_err_off = Торренты отключены в настройках
 ts_err_down = TorrServer не отвечает: установите и запустите на Дюне приложение TorrServe или проверьте адрес в настройках Melange
 ts_err_old = Ответил не TorrServer MatriX
 ts_err_add = TorrServer не принял раздачу

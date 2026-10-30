@@ -440,6 +440,20 @@ function aio_ts_fail($lang, $key, $detail = '', $lazy = false)
         array('OK' => aio_close_and(null)));
 }
 
+// "No torrents" and a row of a list opened before it was set: this dialog, nothing
+// sent anywhere. $lazy as in aio_ts_fail.
+/**
+ * @param string $lang
+ * @param bool $lazy
+ * @return AioAction
+ */
+function aio_torrents_off($lang, $lazy = false)
+{
+    aio_log('no torrents: -> dialog');
+    return aio_dialog(aio_tr($lang, 'ts_err_off'), array(), $lazy ?
+        array(aio_tr($lang, 'next_stop') => aio_input('next_stop')) : array('OK' => aio_close_and(null)));
+}
+
 // 401 of TorrServer: no login set -> it asks for one, else it refused ours.
 /**
  * @return string
@@ -468,6 +482,8 @@ function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false)
 {
     $r = $st['rows'][$i];
     $lang = $st['lang'];
+    if (Aio::$settings['no_torrents'])
+        return aio_torrents_off($lang, $lazy);
     $base = Aio::$settings['ts'];
     $tag = aio_ep_tag($st) . ", row $i, hash {$r['hash']}";
     if (!$alive)

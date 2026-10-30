@@ -728,6 +728,8 @@ function aio_download($in)
         aio_log('download: not a live list');
         return aio_error('err_list_expired');
     }
+    if (Aio::$settings['no_torrents'])
+        return aio_torrents_off($st['lang']);
     $i = isset($in->i) && is_string($in->i) && preg_match('/^[0-9]{1,3}$/D', $in->i) ? intval($in->i) : -1;
     if (!isset($st['rows'][$i]) || $st['rows'][$i]['hash'] === '')
     {

@@ -61,13 +61,14 @@ class Aio
     // passwords and the keys of the services. Hidden in the log. 'ts' - the
     // TorrServer to use, http://host:port (aio_ts_base); 'ts_auth' - its
     // "login:password" for Basic auth ('' none; the password hidden in the log);
-    // 'ts_save' - save_to_db of its add (ts_save of the settings). 'aio' - the own
+    // 'ts_save' - save_to_db of its add (ts_save of the settings). 'no_torrents' -
+    // aio_no_torrents(): no P2P rows, nothing sent to TorrServer, an app or a server. 'aio' - the own
     // AIOStreams server ('' none), "<aio>" in the log. 'own' - the own config
     // is chosen (source own). 'hosts' - aio_settings_hosts(), hidden in the log.
     // 'sort', 'sort_rev' - the sort of a new list and its direction (aio_sort_read).
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
-        'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'aio' => '', 'own' => false,
+        'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false);
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
@@ -355,6 +356,7 @@ function aio_settings_load()
         'ts' => aio_ts_base($s['ts_url']),
         'ts_auth' => aio_ts_auth($s['ts_user'], $s['ts_pass']),
         'ts_save' => $s['ts_save'],
+        'no_torrents' => aio_no_torrents($s),
         'aio' => $s['aio_own_url'],
         'own' => $s['source'] === 'own',
         'hosts' => aio_settings_hosts($s),
@@ -620,11 +622,18 @@ function aio_fetch($base, $id, $series)
     unset($body);
     if (!is_array($j) || !isset($j['streams']) || !is_array($j['streams']))
         return array('error' => 'err_bad_reply', 'detail' => '');
-    // The first AIO_MAX_ROWS playable streams: the rest is not looked at.
+    // The first AIO_MAX_ROWS playable streams: the rest is not looked at. No
+    // torrents: P2P rows hidden here, the one way of every list into the state.
     $rows = array();
+    $hidden = 0;
     foreach ($j['streams'] as $st)
     {
         $r = is_array($st) ? aio_row($st, $series) : null;
+        if ($r && Aio::$settings['no_torrents'] && aio_is_p2p($r))
+        {
+            $hidden++;
+            continue;
+        }
         if ($r)
         {
             $r['ord'] = count($rows);
@@ -633,8 +642,8 @@ function aio_fetch($base, $id, $series)
         if (count($rows) === AIO_MAX_ROWS)
             break;
     }
-    aio_log(sprintf('streams: %d, listed: %d, memory peak %.1f MB', count($j['streams']), count($rows),
-        memory_get_peak_usage() / 1048576));
+    aio_log(sprintf('streams: %d, listed: %d%s, memory peak %.1f MB', count($j['streams']), count($rows),
+        $hidden ? ", P2P hidden: $hidden" : '', memory_get_peak_usage() / 1048576));
     aio_log_error_streams($j['streams']);
     return $rows ? array('rows' => $rows) : array('error' => 'err_no_streams', 'detail' => '');
 }
@@ -772,15 +781,16 @@ function aio_play_action($in)
             return aio_play($st, $deb, $resume['pos'], null, false, $pre);
         // Not cached (watched via TorrServer, or gone from the cache) or P2P:
         // through TorrServer, only if it answers; else the list. A P2P row
-        // first, else any of the release.
+        // first, else any of the release. No torrents: the list, not a word to TorrServer.
         $ts = $pick['p2p'] >= 0 ? $pick['p2p'] : $pick['any'];
-        if ($ts >= 0 && aio_ts_alive())
+        $off = Aio::$settings['no_torrents'];
+        if ($ts >= 0 && !$off && aio_ts_alive())
         {
             aio_log("resume: release {$resume['hash']} not cached -> TorrServer");
             return aio_ts_open($st, $ts, $resume['pos'], '', false, true);
         }
-        aio_log("resume: release {$resume['hash']} " . ($ts < 0 ? 'not found' : 'not cached, TorrServer does not answer') .
-            ', showing the list');
+        aio_log("resume: release {$resume['hash']} " . ($ts < 0 ? 'not found' : ($off ? 'not cached, no torrents' :
+            'not cached, TorrServer does not answer')) . ', showing the list');
     }
     return aio_open_list($st);
 }
