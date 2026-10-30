@@ -777,8 +777,8 @@ function aio_cgi_form($t, $v, $errors, $saved)
         aio_cgi_screen('src', aio_cgi_src($v)) .
         aio_cgi_screen('cfg', aio_cgi_cfg($v, $bad)) .
         aio_cgi_screen('voices', aio_cgi_jacred($v, $bad)) .
-        aio_cgi_screen('torr', '<p class="sub xd">' . aio_cgi_l('Запасной путь для раздач не из кэша Debrid.',
-            'A fallback for releases not cached in Debrid.') . '</p><p class="sub xp">' .
+        aio_cgi_screen('torr', '<p class="sub xd">' . aio_cgi_l('Для раздач не из кэша Debrid: MENU → «Смотреть через TorrServer».',
+            'For releases not cached in Debrid: MENU → "Watch via TorrServer".') . '</p><p class="sub xp">' .
             aio_cgi_l('С ответом «Торренты» без него не посмотреть.', 'With "Torrents" nothing plays without it.') . '</p>' .
             '<p class="sub xo" id="tsown">' . aio_cgi_l('Торренты из вашего конфига играют через TorrServer.',
             'Torrents of your config play via TorrServer.') . '</p>' .

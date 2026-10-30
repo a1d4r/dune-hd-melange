@@ -10,7 +10,7 @@ function aio_cgi_home_texts()
     return array('watchOwn' => aio_cgi_l('Свой конфиг AIOStreams', 'Own AIOStreams config'),
         'needKey' => aio_cgi_l('нужен ключ', 'a key is needed'), 'needLink' => aio_cgi_l('нужна ссылка', 'a link is needed'),
         'viaTs' => aio_cgi_l('через TorrServer', 'via TorrServer'), 'tsDune' => aio_cgi_l('Приложение на Дюне', 'The app on the Dune'),
-        'tsSpare' => aio_cgi_l('запасной путь', 'fallback'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'),
+        'tsSpare' => aio_cgi_l('по выбору', 'by choice'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'),
         'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'), 'ownAioServer' => aio_cgi_l('свой сервер', 'own server'));
 }
 
