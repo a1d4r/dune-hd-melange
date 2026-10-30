@@ -341,19 +341,19 @@ function aio_ts_pick($files, $r, $s, $e)
     // has a file of this very episode, its season in the name (a reply of
     // another episode for this one); else it stays - absolute numbering of
     // anime ("- 13" or "S01E13" for S02E01, "- 01" is not S02E01). Its season
-    // only in the folder: the named file is left out from another folder (of
-    // another season), not from that one - a folder may name a range ("S01-S02")
-    // and its reply may number the files through.
+    // only in a folder, which may be the root ("S01-S02") with this "- 01" in
+    // Extras: the named file is left out only when its last folder names
+    // another season and not this one.
     $eps = $e > 0 ? aio_ts_ep_files($files, $s, $e) : array();
     $ep0 = $eps ? aio_ts_ep($files[$eps[0]]['path']) : null;
     if ($ep0 && $ep0[0] !== null)
         $by_name = array_values(array_intersect($by_name, $eps));
     else if ($eps && aio_ts_dir_season($files[$eps[0]]['path'], $s))
     {
-        $dir0 = aio_ts_dirname($files[$eps[0]]['path']);
         foreach ($by_name as $i => $k)
         {
-            if (!in_array($k, $eps) && aio_ts_dirname($files[$k]['path']) !== $dir0)
+            $d = aio_ts_basename(aio_ts_dirname($files[$k]['path'])) . '/';
+            if (aio_ts_dir_season($d, null) && !aio_ts_dir_season($d, $s))
                 unset($by_name[$i]);
         }
         $by_name = array_values($by_name);
