@@ -2,6 +2,10 @@
 
 **English version**
 
+## 0.48.1 — 30.10.2026
+- Fixed: via TorrServer an episode is now found in more releases: files named `s01ep01`, `S01E.01` or `S01 Episode 05`, and files with only a number in the name (`[Group] Title 05 [720p].mkv`). Before, such a release gave "The release has no file for this episode". If it is not clear which file is the episode, Melange still says so rather than opening another episode.
+- Voice-over names corrected in the release list: some were wrong or came in several spellings (for example, "ТЕТ", "А. Попов"), people with the same surname are told apart, and BD CEE and Paramount Pictures are no longer shown as voice-overs.
+
 ## 0.48.0 — 29.10.2026
 - **INFO in the player** shows the name of the release under the title and, in the description, a line about the release (video, audio, size, voice-overs) and the description of the movie or series from the Dune card. A series in a season playlist has its title once, the episode as "S01E02".
 - **TorrServer window with INFO.** Playing via TorrServer, **INFO** shows, next to the Dune's own INFO window, a TorrServer window at the top right in the same style: the release, the download and upload speeds, peers and seeders, how much is loaded; updated every second. It closes together with INFO. If TorrServer gives no numbers, the window says why: not responding, slow to respond, it does not have the release.
@@ -125,6 +129,10 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.48.1 — 30.10.2026
+- Исправлено: через TorrServer серия находится в большем числе раздач: файлы с именами `s01ep01`, `S01E.01` или `S01 Episode 05` и файлы, где в имени только номер (`[Group] Title 05 [720p].mkv`). Раньше такая раздача давала «В раздаче нет файла этой серии». Если непонятно, какой файл нужен, Melange по-прежнему так и скажет, а не откроет другую серию.
+- Исправлены имена озвучек в списке раздач: часть была с ошибками или в разных написаниях (например, «ТЕТ», «А. Попов»), однофамильцы различаются, BD CEE и Paramount Pictures больше не показываются как озвучки.
 
 ## 0.48.0 — 29.10.2026
 - **INFO в плеере** показывает под названием имя раздачи, а в описании — строку о раздаче (видео, звук, размер, озвучки) и описание фильма или сериала из карточки Дюны. У сериала с плейлистом сезона название — один раз, серия — «S01E02».
