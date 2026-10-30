@@ -264,7 +264,7 @@ function aio_cgi_ts_save($v)
         aio_cgi_choice($f['ts_save'], aio_cgi_ts_saves(), $v['ts_save']);
 }
 
-// The answers of the choice "Торренты" on #src (radio no_torrents, 0.49.0): its
+// The answers of the choice "Запуск торрентов" on #src (radio no_torrents, 0.49.0): its
 // value => array(name, hint); "off" - no_torrents of the settings.
 function aio_cgi_no_torrents()
 {
@@ -539,7 +539,7 @@ function aio_cgi_host($url)
 // radios (aio_cgi_form); none with "Торренты" (class xt), the value kept.
 function aio_cgi_no_torrents_cards()
 {
-    $out = '<div class="xt"><p class="lbl">' . aio_cgi_l('Торренты', 'Torrents') . '</p><div class="choice">';
+    $out = '<div class="xt"><p class="lbl">' . aio_cgi_l('Запуск торрентов', 'Running torrents') . '</p><div class="choice">';
     $i = 0;
     foreach (aio_cgi_no_torrents() as $x)
         $out .= aio_cgi_card('nt' . ++$i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
