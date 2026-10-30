@@ -253,7 +253,8 @@ function aio_ts_dir_season($path, $s)
 // the name, else an unknown season with the season in the folder, else any
 // unknown season. By a number with no mark (the last two of aio_ts_eps): not in
 // a folder of another season, and only from one folder; of several with the
-// season in the path ("S1-3/Season 1"), the one whose last folder names it.
+// season in the path ("S1-3/Season 1"), the one whose last folder names it,
+// none if the last folder of any names no season ("S01/Extras").
 // -> keys of $files.
 /**
  * @param list<AioTsFile> $files
@@ -300,6 +301,8 @@ function aio_ts_ep_files($files, $s, $e)
         foreach ($dir as $k)
         {
             $d = aio_ts_dirname($files[$k]['path']);
+            if (!aio_ts_dir_season(aio_ts_basename($d) . '/', null))
+                return array();
             if (aio_ts_dir_season(aio_ts_basename($d) . '/', $s))
             {
                 $last[] = $k;
