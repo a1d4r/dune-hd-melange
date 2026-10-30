@@ -30,7 +30,7 @@ function servers(first: [string, string][]): [string, string][] {
   return out;
 }
 const FILLED: [string, string][] = [
-  ["watch", "debrid"], ["rd_key", "RDTESTKEY00000000000000001"], ["tb_key", "tbtest-0000000000000000001"], ["aio_tpl", "addons"],
+  ["watch", "debrid"], ["no_torrents", "allow"], ["rd_key", "RDTESTKEY00000000000000001"], ["tb_key", "tbtest-0000000000000000001"], ["aio_tpl", "addons"],
   ["aio_tpl_seen", "addons"], ["aio_tpl_p2p", "p2p_jacred"], ["aio_tpl_p2p_seen", "p2p_jacred"], ["manifest", ""], ["aio_server", MADE], ["aio_own_url", ""], ["tmdb_key", "TMDBTESTKEY000000000001"],
   ["jacred", "own"], ["jacred_own_url", "http://192.168.1.10:9117"], ["jacred_own_key", "testkey01"],
   ["ts", "http://192.168.1.10:8090"], ["ts_user", "tsuser"], ["ts_pass", "ts p@ss&x"], ["ts_save", "add"],
@@ -223,6 +223,22 @@ describe("a login and password in the TorrServer address (0.45.0)", () => {
     expect([ts(page), dirty(page)]).toEqual([["192.0.2.6", "user", "secret"], "1 изменение"]);
     page.type(ID.ts, "192.0.2.5");
     expect(dirty(page)).toBe("");
+  });
+});
+
+describe("No torrents (no_torrents, 0.49.0)", () => {
+  test("the other one chosen: one change, posted once; TorrServer and the servers in the post as they were", async () => {
+    const page = open("filled");
+    expect(page.form.querySelector<HTMLInputElement>("input[name=no_torrents]:checked")!.value).toBe("allow");
+    page.choose("no_torrents", "off");
+    expect(page.el(ID.bar).hidden).toBe(false);
+    expect(page.el(ID.dirty).textContent).toBe("1 изменение");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
+    await save(page);
+    const posted = pairs(page.calls[0]!.body);
+    expect(posted.filter((p) => p[0] === "no_torrents")).toEqual([["no_torrents", "off"]]);
+    expect(posted.filter((p) => p[0] === "ts")).toEqual([["ts", "http://192.168.1.10:8090"]]);
+    expect(posted.filter((p) => p[0] === "s1_name")).toEqual([["s1_name", "qBittorrent"]]);
   });
 });
 

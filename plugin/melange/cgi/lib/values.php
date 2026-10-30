@@ -8,7 +8,8 @@
 // (aio_cgi_posted), by the keys of aio_cgi_fields() - strings (aio_tpl,
 // aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
 // settings; tpl_seen, tpl_p2p_seen only posted; ts_save: aio_cgi_ts_save_of()
-// of the settings, as posted - none: '', settings.php puts the stored one);
+// of the settings, no_torrents: aio_cgi_no_torrents_of(), as posted - none: '',
+// settings.php puts the stored one);
 // tpl_new, tpl_p2p_new -
 // aio_tpl, aio_tpl_p2p of the settings (for a new config);
 // mode_cur - aio_mode of the settings (one for all servers); servers -
@@ -27,6 +28,7 @@ function aio_cgi_values($s)
     $v['mode_cur'] = $v['aio_mode'];
     $v['aio_mode'] = '';
     $v['ts_save'] = aio_cgi_ts_save_of($s['ts_save']);
+    $v['no_torrents'] = aio_cgi_no_torrents_of($s['no_torrents']);
     $v['servers'] = $s['servers'];
     $v['confs'] = $s['aio_confs'];
     return $v;
@@ -228,6 +230,15 @@ function aio_cgi_check_values($v)
     {
         $errors[] = aio_cgi_err(aio_cgi_fmt_key('tmdb'), $f['tmdb']['name']);
     }
+    // None posted: the stored one already (settings.php).
+    $d[$set['no_torrents']] = $v['no_torrents'] === aio_cgi_no_torrents_of(true);
+    if (!array_key_exists($v['no_torrents'], aio_cgi_no_torrents()))
+    {
+        $errors[] = aio_cgi_err(aio_cgi_l('Торренты: нет такого ответа', 'Torrents: no such answer'), $f['no_torrents']['name']);
+    }
+    // In effect, TorrServer and the servers are hidden: a wrong value there is not
+    // in the way and not written, the stored one stays.
+    $off = aio_no_torrents($d);
     // An empty block is none.
     $d['servers'] = array();
     foreach ($v['servers'] as $i => $s)
@@ -237,6 +248,11 @@ function aio_cgi_check_values($v)
         $c = aio_server_conf($s);
         if ($c)
             $d['servers'][] = $c;
+        elseif ($off)
+        {
+            $d['servers'] = $v['cur']['servers'];
+            break;
+        }
         else
         {
             $x = aio_cgi_srv_field($i + 1, 'url');
@@ -252,16 +268,36 @@ function aio_cgi_check_values($v)
     $d[$set['ts_user']] = $ts[1];
     $d[$set['ts_pass']] = $ts[2];
     $bad = $ts[3];
-    if ($bad)
+    if ($bad && $off)
+    {
+        $d[$set['ts']] = $v['cur'][$set['ts']];
+        $d[$set['ts_user']] = $v['cur'][$set['ts_user']];
+        $d[$set['ts_pass']] = $v['cur'][$set['ts_pass']];
+    }
+    elseif ($bad)
         $errors[] = aio_cgi_err($bad[1], $f[$bad[0]]['name']);
     // None posted: the stored one already (settings.php).
     $d[$set['ts_save']] = $v['ts_save'] === aio_cgi_ts_save_of(true);
-    if (!array_key_exists($v['ts_save'], aio_cgi_ts_saves()))
+    if (!array_key_exists($v['ts_save'], aio_cgi_ts_saves()) && $off)
+        $d[$set['ts_save']] = $v['cur'][$set['ts_save']];
+    elseif (!array_key_exists($v['ts_save'], aio_cgi_ts_saves()))
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Что делать с раздачей: нет такого ответа', 'What to do with a release: no such answer'),
             $f['ts_save']['name']);
     }
     return array($d, $errors);
+}
+
+// The save (of $data, not a reset) only turns "Без торрентов": the config of
+// AIOStreams does not depend on it, no request. $cur: aio_settings_read().
+function aio_cgi_only_no_torrents($data, $cur)
+{
+    foreach ($cur as $k => $x)
+    {
+        if ($k !== 'no_torrents' && $k !== 'saved_once' && (!array_key_exists($k, $data) || $data[$k] !== $x))
+            return false;
+    }
+    return $data['no_torrents'] !== $cur['no_torrents'];
 }
 
 // TorrServer of the form (0.45.0): its address, login and password as

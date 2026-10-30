@@ -86,6 +86,14 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(saves.map((radio) => [radio.type, radio.value])).toEqual([["radio", "play"], ["radio", "add"]]);
     for (const radio of saves)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("torr");
+    // No torrents (0.49.0): two radios right in the form, before the screens (the CSS hides by them), their cards on
+    // #src, all hidden with "Торренты".
+    const offs = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=no_torrents]"));
+    expect(offs.map((radio) => [radio.type, radio.value, radio.parentElement === form])).toEqual([["radio", "allow", true], ["radio", "off", true]]);
+    for (const radio of offs) {
+      const card = doc.querySelector("label[for=" + radio.id + "]")!;
+      expect([card.closest("section")!.id, !!card.closest(".xt")]).toEqual(["src", true]);
+    }
     // The bar of the save under the screens: its results, "Hide" of them (a button, not a submit), its button the save.
     expect(doc.querySelector("#" + ID.bar + " #" + ID.saveResult + "+ button#" + ID.hideResult + "[type=button][hidden] + * #" + ID.dirty + "+ button." + CLS.save)).not.toBeNull();
     expect(form.querySelectorAll(JACRED_RADIOS + "[type=radio]").length).toBe(form.querySelectorAll("input[name=" + NAME.jacred + "]").length);

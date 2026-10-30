@@ -52,7 +52,10 @@ function aio_cgi_fields()
         'ts_pass' => array('id' => 'tsp', 'name' => 'ts_pass', 'set' => 'ts_pass', 'max' => 200, 'type' => 'sec', 'scr' => 'torr',
             'raw' => true),
         // "Играть" or "Добавить и играть" (0.45.0): aio_cgi_ts_saves().
-        'ts_save' => array('id' => 'tss', 'name' => 'ts_save', 'set' => 'ts_save', 'max' => 0, 'type' => 'radio', 'scr' => 'torr'));
+        'ts_save' => array('id' => 'tss', 'name' => 'ts_save', 'set' => 'ts_save', 'max' => 0, 'type' => 'radio', 'scr' => 'torr'),
+        // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
+        'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
+            'scr' => 'src'));
 }
 
 // The fields of a server on the form (s<n>_<field>), as aio_server_conf()
@@ -259,6 +262,24 @@ function aio_cgi_ts_save($v)
     $f = aio_cgi_fields();
     return '<p class="lbl">' . aio_cgi_l('Что делать с раздачей', 'What to do with a release') . '</p>' .
         aio_cgi_choice($f['ts_save'], aio_cgi_ts_saves(), $v['ts_save']);
+}
+
+// The answers of the choice "Торренты" on #src (radio no_torrents, 0.49.0): its
+// value => array(name, hint); "off" - no_torrents of the settings.
+function aio_cgi_no_torrents()
+{
+    return array(
+        'allow' => array(aio_cgi_l('Разрешить', 'Allow'), aio_cgi_l('Раздачи P2P, TorrServer и скачивание доступны.',
+            'P2P releases, TorrServer and downloads are available.')),
+        'off' => array(aio_cgi_l('Без торрентов', 'No torrents'), aio_cgi_l(
+            'Melange не запускает торренты: P2P скрыты, TorrServer и скачивание отключены.',
+            'Melange does not start torrents: P2P hidden, TorrServer and downloads disabled.')));
+}
+
+// The answer of aio_cgi_no_torrents() of no_torrents of the settings (a bool).
+function aio_cgi_no_torrents_of($on)
+{
+    return $on ? 'off' : 'allow';
 }
 
 // The screen "JacRed" (#voices): one of the built-in ones or the own one
@@ -514,9 +535,21 @@ function aio_cgi_host($url)
     return is_string($h) ? $h : '';
 }
 
+// The choice of "Без торрентов" under the fields of #src: the cards of its
+// radios (aio_cgi_form); none with "Торренты" (class xt), the value kept.
+function aio_cgi_no_torrents_cards()
+{
+    $out = '<div class="xt"><p class="lbl">' . aio_cgi_l('Торренты', 'Torrents') . '</p><div class="choice">';
+    $i = 0;
+    foreach (aio_cgi_no_torrents() as $x)
+        $out .= aio_cgi_card('nt' . ++$i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
+    return $out . '</div></div>';
+}
+
 // The screen "Откуда брать фильмы" (0.43.0): three cards of the radio watch
 // (aio_cgi_form), under them the fields of the answer shown by the CSS
-// (classes xd, xp, xo, xm - Debrid, Торренты, the own config, both made):
+// (classes xd, xp, xo, xm - Debrid, Торренты, the own config, both made; xt -
+// not Торренты, the choice of "Без торрентов"; xa - not with it):
 // Debrid - the keys (#dseg, #rdadd, #tbadd: by the script) and the template;
 // Торренты - the template of P2P and a link to TorrServer (its field is on
 // #torr only, 0.44.0); the own config - its manifest
@@ -544,8 +577,8 @@ function aio_cgi_src($v)
         aio_cgi_l('Где взять: Save & Install → Stremio → Direct Manifest URL.',
         'Get it at: Save & Install → Stremio → Direct Manifest URL.'), aio_cgi_chk('mb', 'mr')) .
         '<p class="hint">' . aio_cgi_l('Melange этот конфиг не меняет.', 'Melange does not change this config.') .
-        '</p><p class="hint">' . aio_cgi_l('Торренты из него играют через ', 'Torrents of it play via ') .
-        '<a href="#torr">TorrServer</a>.</p></div>';
+        '</p><p class="hint xa">' . aio_cgi_l('Торренты из него играют через ', 'Torrents of it play via ') .
+        '<a href="#torr">TorrServer</a>.</p></div>' . aio_cgi_no_torrents_cards();
 }
 
 // The screen "AIOStreams" (#cfg, 0.44.0; its fields: Debrid and
@@ -708,9 +741,10 @@ function aio_cgi_saved()
 
 // $v: aio_cgi_values() or aio_cgi_posted() (first: no saved_at yet, not
 // saved_once of aio_settings_read); $errors: of aio_cgi_err().
-// The page (0.43.0): the radios of watch, then the screens, #home last -
-// the CSS shows the one of the address (#src...), else #home, and the
-// fields of the answer chosen (without the script too); the bar of the
+// The page (0.43.0): the radios of watch and no_torrents, then the screens, #home
+// last - the CSS shows the one of the address (#src...), else #home, the fields
+// of the answer chosen and, with "Без торрентов" in effect, #home without the
+// lines of TorrServer and the servers (without the script too); the bar of the
 // save under them (#bar: the script shows it on a change, #dirty - their
 // number, #srx - "Скрыть" of the results of a save). Errors without the script: in #msg, each with a link to the
 // screen of its field, the field aria-invalid.
@@ -734,6 +768,9 @@ function aio_cgi_form($t, $v, $errors, $saved)
     $radios = '';
     foreach (aio_cgi_watches() as $id => $x)
         $radios .= aio_cgi_vradio($id, $f['watch']['name'], $x, $w === $x);
+    $i = 0;
+    foreach (array_keys(aio_cgi_no_torrents()) as $x)
+        $radios .= aio_cgi_vradio('nt' . ++$i, $f['no_torrents']['name'], $x, $v['no_torrents'] === $x);
     $form = '<form method="post" action="settings?t=' . aio_cgi_h($t) . '" autocomplete="off">' .
         // Enter in a field without the script submits the first button: the save, not the reset.
         '<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>' . $radios .

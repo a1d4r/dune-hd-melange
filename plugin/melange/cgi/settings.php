@@ -107,6 +107,8 @@ function aio_cgi_save($dir, $t)
     // None posted (a form of 0.44 or older): the stored one, saved and checked on a page back.
     if ($v['ts_save'] === '')
         $v['ts_save'] = aio_cgi_ts_save_of($cur['ts_save']);
+    if ($v['no_torrents'] === '')
+        $v['no_torrents'] = aio_cgi_no_torrents_of($cur['no_torrents']);
     $v['ajax'] = $ajax;
     $v['reset'] = aio_cgi_param($_POST, 'aio_reset') === '1';
     $v['first'] = !$cur['saved_once'];
@@ -161,14 +163,16 @@ function aio_cgi_save($dir, $t)
     // The config there (of the mode chosen) is reset to the template (0.40.0): aio_cgi_resets.
     $has = (bool) aio_settings_conf($data);
     $reset = aio_cgi_resets($data, $data['aio_confs'], $v);
+    $quiet = $has && !$reset && aio_cgi_only_no_torrents($data, $cur);
     // Only the checked token, as in the redirect below. aio: what a=aio_sync
     // is to do next ('' - nothing, the own address).
     if ($ajax)
         aio_cgi_json(200, array_merge(array('ok' => true, 'next' => 'settings?t=' . $t . '&saved=1',
-            'aio' => $data['source'] === 'own' ? '' : ($reset ? 'reset' : ($has ? 'update' : 'create'))),
+            'aio' => $data['source'] === 'own' || $quiet ? '' : ($reset ? 'reset' : ($has ? 'update' : 'create'))),
             $notes ? array('notes' => $notes) : array()));
     // Without the script: the config right here; its result is seen on the page (made or not).
-    aio_cgi_aio_sync($dir, $reset);
+    if (!$quiet)
+        aio_cgi_aio_sync($dir, $reset);
     // Post/Redirect/Get. Relative to this page; only the checked token, no
     // value of the request (and not the Host header).
     header('HTTP/1.0 303 See Other');
