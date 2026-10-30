@@ -1002,8 +1002,9 @@ function aio_has_ep($r, $s, $e)
 
 // The rows of release $hash in $rows (indexes, -1: none): 'deb' the row with a
 // URL, a cached one first, with episode $s/$e in its file ($e < 1: any);
-// 'p2p' the first P2P row (no URL); 'any' the first row; 'rows' rows of the
-// release, 'cached' of them cached with a URL. First: in the order of
+// 'p2p' the first P2P row (no URL); 'ts' the row for TorrServer: the first P2P
+// one, else the first; 'rows' rows of the release, 'cached' of them cached with
+// a URL. First: in the order of
 // AIOStreams (ord), not of the sorted list, so that a sort never changes the
 // row (copies of a release from several add-ons). The check of a row not cached
 // (aio_deb_precheck) and TorrServer are the caller's, by the mode (aio_play_action
@@ -1013,11 +1014,11 @@ function aio_has_ep($r, $s, $e)
  * @param string $hash
  * @param int $s
  * @param int $e
- * @return array{deb: int, p2p: int, any: int, rows: int, cached: int}
+ * @return array{deb: int, p2p: int, ts: int, rows: int, cached: int}
  */
 function aio_release_pick($rows, $hash, $s, $e)
 {
-    $p = array('deb' => -1, 'p2p' => -1, 'any' => -1, 'rows' => 0, 'cached' => 0);
+    $p = array('deb' => -1, 'p2p' => -1, 'ts' => -1, 'rows' => 0, 'cached' => 0);
     $ord = $pos = array();
     foreach ($rows as $i => $r)
     {
@@ -1031,12 +1032,12 @@ function aio_release_pick($rows, $hash, $s, $e)
         if ($r['hash'] !== $hash)
             continue;
         $p['rows']++;
-        if ($p['any'] < 0)
-            $p['any'] = $i;
+        if ($p['ts'] < 0)
+            $p['ts'] = $i;
         if (aio_is_p2p($r))
         {
             if ($p['p2p'] < 0)
-                $p['p2p'] = $i;
+                $p['ts'] = $p['p2p'] = $i;
             continue;
         }
         if ($r['cached'] === true)
@@ -1110,7 +1111,7 @@ function aio_next($in)
     $from = Aio::$playing ? Aio::$playing['from'] : '';
     if ($mode === 'ts')
     {
-        $ts = $p2p >= 0 ? $p2p : $pick['any'];
+        $ts = $pick['ts'];
         // Its own echo: a dialog under the player.
         return $ts >= 0 ? aio_ts_open($st, $ts, 0, $from, true) : aio_next_missing($st, $hash);
     }

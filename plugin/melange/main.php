@@ -779,7 +779,7 @@ function aio_play_action($in)
             $pre = aio_deb_precheck($deb);
             if ($pre['class'] !== 'stream')
             {
-                aio_log("resume: release {$resume['hash']} not cached, no stream from Debrid");
+                aio_log("$tag: not cached, no stream from Debrid");
                 $deb = null;
             }
         }
@@ -788,17 +788,15 @@ function aio_play_action($in)
         // Through TorrServer, only if it answers; else the list. Mode ts: a P2P
         // row first, else any of the release; no mode: a P2P row only; debrid:
         // none. No torrents: the list, not a word to TorrServer.
-        $ts = $mode !== 'debrid' ? $pick['p2p'] : -1;
-        if ($mode === 'ts' && $ts < 0)
-            $ts = $pick['any'];
+        $ts = $mode === 'ts' ? $pick['ts'] : ($mode === 'debrid' ? -1 : $pick['p2p']);
         $off = Aio::$settings['no_torrents'];
         if ($ts >= 0 && !$off && aio_ts_alive())
         {
             aio_log("$tag -> TorrServer");
             return aio_ts_open($st, $ts, $resume['pos'], '', false, true);
         }
-        aio_log("$tag: " . ($pick['rows'] === 0 ? 'not found' : ($ts < 0 ? 'no way in this mode' : ($off ? 'no torrents' :
-            'TorrServer does not answer'))) . ', showing the list');
+        aio_log("$tag: " . ($pick['rows'] === 0 ? 'not found' : ($off && $mode !== 'debrid' ? 'no torrents' :
+            ($ts < 0 ? 'no way in this mode' : 'TorrServer does not answer'))) . ', showing the list');
     }
     return aio_open_list($st);
 }
