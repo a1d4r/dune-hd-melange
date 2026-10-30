@@ -88,7 +88,7 @@ function aio_voices_word($low, $word)
 function aio_voices_parse($s, $tails = true)
 {
     // Bytes first: no regex on a huge string; aio_utf8 mends a cut letter.
-    $s = trim(aio_utf8(substr(strval($s), 0, AIO_VOICES_BYTES)));
+    $s = trim(aio_voices_nfc(aio_utf8(substr(strval($s), 0, AIO_VOICES_BYTES))));
     // JacRed's " | [A B].rus" ("Кирдин | Stalk" is one name): its voices by
     // substring of this name and of the duplicates it joined.
     $tail = '';
@@ -229,6 +229,18 @@ function aio_voices_parse($s, $tails = true)
     if ($tail !== '')
         $v = aio_voices_tail($v, implode(' ', $low), $tail, $unsafe);
     return $v;
+}
+
+// "й", "ё", "ї" written with a combining mark ("Яроцкии\xCC\x86"): the PHP of the
+// plugin has no Normalizer.
+/**
+ * @param string $s
+ * @return string
+ */
+function aio_voices_nfc($s)
+{
+    return str_replace(array("\xD0\xB8\xCC\x86", "\xD0\x98\xCC\x86", "\xD0\xB5\xCC\x88", "\xD0\x95\xCC\x88",
+        "\xD1\x96\xCC\x88", "\xD0\x86\xCC\x88"), array('й', 'Й', 'ё', 'Ё', 'ї', 'Ї'), $s);
 }
 
 // Tokens of a name -> array(word, low, join, seps, part, dep, lead, pipe), by
@@ -501,10 +513,8 @@ function aio_track_voice($title, $lang = '')
         foreach ($dict as $k => $name)
             $glued[str_replace(' ', '', $k)] = $name;
     }
-    // "й" and "ё" written with a combining mark ("Яроцкии\xCC\x86"); [b] tags,
-    // also with the brackets lost ("bBravo Records GeorgiaB").
-    $s = str_replace(array("\xD0\xB8\xCC\x86", "\xD0\x98\xCC\x86", "\xD0\xB5\xCC\x88", "\xD0\x95\xCC\x88"),
-        array('й', 'Й', 'ё', 'Ё'), aio_voices_clean($title));
+    // [b] tags, also with the brackets lost ("bBravo Records GeorgiaB").
+    $s = aio_voices_nfc(aio_voices_clean($title));
     $s = preg_replace('~\[/?[a-zA-Z]\]|(?<!\p{L})b(?=\p{Lu}\p{Ll})|(?<=\p{Ll})B(?!\p{L})~u', ' ', $s);
     // File names and track numbers: "X265-SpaceHD13.А.Гаврилов", "Rus.mka", "Track2", "18+".
     $s = preg_replace('/(?<![\p{L}\p{N}])(?:[xh]\.?26[45]|hevc|avc)(?:-[A-Za-z0-9]+)?|' .
@@ -807,14 +817,14 @@ function aio_voices_noise()
         'ray' => 1, 'bluray' => 1, 'web' => 1, 'dl' => 1, 'bdremux' => 1, 'remux' => 1, 'bdrip' => 1, 'webrip' => 1,
         'hdrip' => 1, 'источник' => 1, 'online' => 1, 'kb' => 1, 'кбит' => 1, 'кбитс' => 1, 'поздний' => 1,
         'ранний' => 1, 'old' => 1, 'без' => 1, 'цензуры' => 1, 'express' => 1, 'proper' => 1, 'prorer' => 1,
-        'repack' => 1, 'uhd' => 1, 'eur' => 1, 'fixed' => 1, 'cin' => 1, 'aka' => 1, 'surround' => 1,
+        'repack' => 1, 'uhd' => 1, 'eur' => 1, 'fixed' => 1, 'corrected' => 1, 'cin' => 1, 'aka' => 1, 'surround' => 1,
         'channels' => 1, 'channel' => 1, 'new' => 1, 'mov' => 1, 'ukranian' => 1,
         // Sources, encoders, trackers (release names checked 07.10.2026).
         'itunes' => 1, 'vhs' => 1, 'dvd' => 1, 'dvd9' => 1, 'dvd5' => 1, 'r5' => 1, 'censor' => 1, 'korsars' => 1,
         'rgb' => 1, 'miramax' => 1, 'rusatmos' => 1, 'atmos' => 1, 'atmosphere' => 1, 'dolby' => 1,
         'licence' => 1, 'stream' => 1, 'official' => 1, 'переиздание' => 1, 'lfe' => 1, 'abr' => 1, 'cbr' => 1,
         'qaac' => 1, 'mpeg' => 1, 'avg' => 1, 'fix' => 1, 'russia' => 1, 'ukraine' => 1, 'ver' => 1,
-        'delay' => 1, 'kbps' => 1, 'kbs' => 1, 'line' => 1, 'hdr' => 1, 'bdrus' => 1, 'kyberpunk' => 1,
+        'delay' => 1, 'kbps' => 1, 'kbs' => 1, 'line' => 1, 'hdr' => 1, 'bdrus' => 1,
         // Codes of languages, audio formats.
         'fra' => 1, 'fre' => 1, 'spa' => 1, 'ger' => 1, 'deu' => 1, 'ita' => 1, 'jpn' => 1, 'kor' => 1, 'chi' => 1,
         'zho' => 1, 'por' => 1, 'pol' => 1, 'tur' => 1, 'heb' => 1, 'ara' => 1, 'hin' => 1, 'swe' => 1,
@@ -882,7 +892,8 @@ function aio_voices_clean($s)
 
 // A part not in voices.php may be shown as written: three letters at least, no
 // file name, year, resolution, bit rate, letters of two scripts in a word, no
-// patronymic ("Юрий Владимирович" of "Сербин, Юрий Владимирович").
+// patronymic ("Юрий Владимирович" of "Сербин, Юрий Владимирович"), no common
+// phrase of voices.php inside ("USA Paramount Pictures", "Александр Котов и Марина Тарасова").
 /**
  * @param string $p
  * @return bool
@@ -890,8 +901,18 @@ function aio_voices_clean($s)
 function aio_voices_as_written($p)
 {
     static $first = null;
+    static $dict = null;
     if ($first === null)
+    {
         $first = aio_voices_first_names();
+        $dict = aio_voices_dict();
+    }
+    $w = explode(' ', aio_voices_key($p));
+    for ($i = count($w) - 1; $i > 0; $i--)
+    {
+        if (isset($dict["{$w[$i - 1]} {$w[$i]}"]) && $dict["{$w[$i - 1]} {$w[$i]}"] === '')
+            return false;
+    }
     if (preg_match('/^(?:(\p{Lu}\p{Ll}+)\s+)?\p{Lu}\p{Ll}+(?:ович|евич|ьич|овна|евна|ична)$/u', trim($p), $m) &&
         (!isset($m[1]) || isset($first[mb_strtolower(str_replace('ё', 'е', $m[1]), 'UTF-8')])))
         return false;
