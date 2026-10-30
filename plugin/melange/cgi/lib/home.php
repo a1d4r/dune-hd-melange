@@ -31,6 +31,7 @@ function aio_cgi_screens()
     return array('src' => aio_cgi_l('Откуда брать фильмы', 'Where to get films'),
         'voices' => 'JacRed', 'torr' => 'TorrServer',
         'dl' => aio_cgi_l('Скачивать на свой сервер', 'Download to your server'),
+        'run' => aio_cgi_l('Запуск торрентов', 'Running torrents'),
         'cfg' => 'AIOStreams', 'log' => aio_cgi_l('Лог', 'Log'));
 }
 
@@ -63,7 +64,8 @@ function aio_cgi_state($v)
 
 // The lines of the main screen: id of the screen => array(dot: ok, warn or
 // '' - grey, the value now). The server (#cfg, 0.44.0): its host (own
-// one without a host: ownAioServer), ok - a config of the mode there.
+// one without a host: ownAioServer), ok - a config of the mode there. #run:
+// both values, then the one of "Разрешить", the other of "Без торрентов".
 function aio_cgi_rows($v)
 {
     $t = aio_cgi_home_texts();
@@ -110,6 +112,7 @@ function aio_cgi_rows($v)
         'torr' => array($w === AIO_MODE_P2P ? 'ok' : '', ($ts !== '' ? $ts : $t['tsDune']) .
             ($w === AIO_MODE_DEBRID ? ' · ' . $t['tsSpare'] : '')),
         'dl' => array($names ? 'ok' : '', $names ? implode(', ', $names) : $t['noServers']),
+        'run' => array('', aio_cgi_l('Разрешён', 'Allowed'), aio_cgi_l('Выключен', 'Off')),
         'log' => array('', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));
 }
 
@@ -118,7 +121,8 @@ function aio_cgi_rows($v)
 // shows it instead after the first save); else the state (#state, its
 // data-st: aio_cgi_state, one <p data-st> shown); then the lines of the
 // screens (#r<id>: the dot #d<id>, the value #v<id>; the line of #cfg, the
-// server, right under that of #src - class xm: not for the own config).
+// server, right under that of #src - class xm: not for the own config; that
+// of #run - class xt: not for Торренты, its value by the CSS of the radios).
 function aio_cgi_home($v)
 {
     $scr = aio_cgi_screens();
@@ -144,15 +148,20 @@ function aio_cgi_home($v)
     $out .= '</div></div>';
     $rows = aio_cgi_rows($v);
     $groups = array(aio_cgi_l('Просмотр', 'Watching') => array('src', 'cfg', 'voices', 'torr'),
-        aio_cgi_l('Ещё', 'More') => array('dl', 'log'));
+        aio_cgi_l('Ещё', 'More') => array('dl', 'run', 'log'));
     foreach ($groups as $h => $ids)
     {
         $out .= '<h3 class="gh">' . $h . '</h3><div class="list">';
         foreach ($ids as $id)
-            $out .= '<a class="row' . ($id === 'cfg' ? ' xm' : '') . '" id="r' . $id . '" href="#' . $id . '"><span class="dot' .
+        {
+            $val = aio_cgi_h($rows[$id][1]);
+            if ($id === 'run')
+                $val = '<span class="xa">' . $val . '</span><span class="xn">' . aio_cgi_h($rows[$id][2]) . '</span>';
+            $out .= '<a class="row' . ($id === 'cfg' ? ' xm' : ($id === 'run' ? ' xt' : '')) . '" id="r' . $id . '" href="#' . $id . '"><span class="dot' .
                 ($rows[$id][0] !== '' ? ' ' . $rows[$id][0] : '') . '" id="d' . $id . '"></span><span class="rt"><span class="t">' .
-                $scr[$id] . '</span><span class="v" id="v' . $id . '">' . aio_cgi_h($rows[$id][1]) .
+                $scr[$id] . '</span><span class="v" id="v' . $id . '">' . $val .
                 '</span></span><span class="chev">›</span></a>';
+        }
         $out .= '</div>';
     }
     return $out;

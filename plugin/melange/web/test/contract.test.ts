@@ -1,11 +1,18 @@
 // The contract PHP <-> script: what dom.ts and i18n.ts name is on every page PHP makes (test/fixtures).
 
 import { afterEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "fs";
 import { AIO_SERVER_RADIOS, CLS, DATA, ID, JACRED_RADIOS, NAME, RADIO_GROUP, ROWS, SERVER_BLOCK, SERVER_CHECK_FIELD, SERVER_FIELD, VALUE } from "../src/dom";
 import { TEXT_KEYS, type Texts } from "../src/i18n";
 import { cleanup, FIXTURES, open } from "./harness";
 
 afterEach(cleanup);
+
+// The selectors of the rule of settings.css with this one, to ask the page itself what the CSS does.
+const CSS = readFileSync(import.meta.dir + "/../../cgi/settings.css", "utf8").split("\n");
+const cssRule = (selector: string): string[] => CSS.find((line) => line.includes(selector))!.replace(/\{.*/, "").split(",");
+const HIDES = cssRule("#nt2:checked~* .xa");
+const NO_TOP_LINE = cssRule(".row:first-child");
 
 // The texts with placeholders, as the script replaces them in order; the others have none.
 const PLACEHOLDERS: Partial<Record<keyof Texts, string[]>> = {
@@ -87,12 +94,12 @@ describe.each([...FIXTURES])("%s", (name) => {
     for (const radio of saves)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("torr");
     // No torrents (0.49.0): two radios right in the form, before the screens (the CSS hides by them), their cards on
-    // #src, all hidden with "Торренты".
+    // #run, all hidden with "Торренты".
     const offs = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=no_torrents]"));
     expect(offs.map((radio) => [radio.type, radio.value, radio.parentElement === form])).toEqual([["radio", "allow", true], ["radio", "off", true]]);
     for (const radio of offs) {
       const card = doc.querySelector("label[for=" + radio.id + "]")!;
-      expect([card.closest("section")!.id, !!card.closest(".xt")]).toEqual(["src", true]);
+      expect([card.closest("section")!.id, !!card.closest(".xt")]).toEqual(["run", true]);
     }
     // The bar of the save under the screens: its results, "Hide" of them (a button, not a submit), its button the save.
     expect(doc.querySelector("#" + ID.bar + " #" + ID.saveResult + "+ button#" + ID.hideResult + "[type=button][hidden] + * #" + ID.dirty + "+ button." + CLS.save)).not.toBeNull();
@@ -190,6 +197,34 @@ describe.each([...FIXTURES])("%s", (name) => {
       expect(block.querySelectorAll("." + CLS.serverResult).length).toBe(1);
       expect(block.querySelector("input[type=text]")!.getAttribute("name")).toBe("s" + (i + 1) + "_name");
     });
+  });
+
+  // The CSS, no script (0.49.0): #run stays with "Без торрентов" (else no way to turn it off), goes with "Торренты".
+  test.each([
+    ["wd", "nt1"],
+    ["wd", "nt2"],
+    ["wo", "nt1"],
+    ["wo", "nt2"],
+    ["wp", "nt1"],
+    ["wp", "nt2"],
+  ])("the lines of the main screen with %s and %s", (watch, answer) => {
+    const { doc } = open(name, { start: false });
+    doc.querySelector<HTMLInputElement>("#" + watch)!.checked = true;
+    doc.querySelector<HTMLInputElement>("#" + answer)!.checked = true;
+    const hidden = (el: Element) => HIDES.some((selector) => el.matches(selector));
+    const shown = (id: string) => !hidden(doc.getElementById(id)!);
+    const off = answer === "nt2" && watch !== "wp";
+    expect([shown("rrun"), shown("rtorr"), shown("rdl")]).toEqual([watch !== "wp", !off, !off]);
+    // One line between neighbours, none on top of a list, whichever lines are left.
+    doc.querySelectorAll("#home .list").forEach((list) => {
+      const rows = Array.from(list.children).filter((row) => !hidden(row));
+      expect(rows.map((row) => NO_TOP_LINE.some((selector) => row.matches(selector)))).toEqual(rows.map((_, i) => i === 0));
+    });
+    // The value of the line by the radio: "Разрешён" (.xa, hidden by the rule) or "Выключен" (.xn, shown by its own).
+    const allowed = doc.querySelector("#vrun .xa")!;
+    const offValue = doc.querySelector("#vrun .xn")!;
+    expect([allowed.textContent, offValue.textContent]).toEqual(["Разрешён", "Выключен"]);
+    expect([hidden(allowed), offValue.matches(cssRule("#nt2:checked~* .xn{")[0]!)]).toEqual([answer === "nt2", answer === "nt2"]);
   });
 
   test("the screens: each a section with a link back to #home, #home last, the bar after it", () => {
