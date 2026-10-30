@@ -142,8 +142,9 @@ function aio_ts_ep_lead($path)
 // The weakest: in each folder, the number right after the start common to the
 // names of its videos: "[Group] Title 01 [1080p].mkv". A folder gives none with
 // a letter before the number ("SP01"), a repeated number or a date in a name; a
-// file none with a separate number right after it ("5.1"). Folders with a season
-// in the path, if any; else the rest, none if a number is in two of them.
+// file none with a separate number right after it ("5.1"). If any folder of
+// videos has a season in the path, only such folders; else the rest, none if a
+// number is in two of them.
 // -> array(key of $files => array(null, episode)).
 /**
  * @param list<AioTsFile> $files
@@ -161,8 +162,11 @@ function aio_ts_eps_prefix($files)
     $other = array();
     $used = array();
     $twice = false;
+    $any_season = false;
     foreach ($dirs as $dir => $names)
     {
+        $in_season = aio_ts_dir_season("$dir/", null);
+        $any_season = $any_season || $in_season;
         if (count($names) < 2)
             continue;
         // The start common to all the names is that of the least and the greatest.
@@ -194,7 +198,7 @@ function aio_ts_eps_prefix($files)
                 $eps[$k] = array(null, $e);
             }
         }
-        if (aio_ts_dir_season("$dir/", null))
+        if ($in_season)
             $season += $eps;
         else
         {
@@ -203,7 +207,7 @@ function aio_ts_eps_prefix($files)
             $used += $seen;
         }
     }
-    return $season ? $season : ($twice ? array() : $other);
+    return $any_season ? $season : ($twice ? array() : $other);
 }
 
 // Episodes of the videos of $files by aio_ts_ep; only when it knows none of
@@ -248,7 +252,9 @@ function aio_ts_dir_season($path, $s)
 // Files of episode $e of season $s among $files (video only): its season in
 // the name, else an unknown season with the season in the folder, else any
 // unknown season. By a number with no mark (the last two of aio_ts_eps): not in
-// a folder of another season, and only from one folder. -> keys of $files.
+// a folder of another season, and only from one folder; of several with the
+// season in the path ("S1-3/Season 1"), the one whose last folder names it.
+// -> keys of $files.
 /**
  * @param list<AioTsFile> $files
  * @param int $s
@@ -286,7 +292,22 @@ function aio_ts_ep_files($files, $s, $e)
     if ($named)
         return $named;
     if ($dir)
-        return $weak && count($season_dirs) > 1 ? array() : $dir;
+    {
+        if (!$weak || count($season_dirs) < 2)
+            return $dir;
+        $last = array();
+        $last_dirs = array();
+        foreach ($dir as $k)
+        {
+            $d = aio_ts_dirname($files[$k]['path']);
+            if (aio_ts_dir_season(aio_ts_basename($d) . '/', $s))
+            {
+                $last[] = $k;
+                $last_dirs[$d] = true;
+            }
+        }
+        return count($last_dirs) === 1 ? $last : array();
+    }
     return count($dirs) > 1 ? array() : $any;
 }
 
