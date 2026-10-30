@@ -288,18 +288,6 @@ function aio_cgi_check_values($v)
     return array($d, $errors);
 }
 
-// The save (of $data, not a reset) only turns "Без торрентов": the config of
-// AIOStreams does not depend on it, no request. $cur: aio_settings_read().
-function aio_cgi_only_no_torrents($data, $cur)
-{
-    foreach ($cur as $k => $x)
-    {
-        if ($k !== 'no_torrents' && $k !== 'saved_once' && (!array_key_exists($k, $data) || $data[$k] !== $x))
-            return false;
-    }
-    return $data['no_torrents'] !== $cur['no_torrents'];
-}
-
 // TorrServer of the form (0.45.0): its address, login and password as
 // posted; a login and password in the address ([http://]login:password@host)
 // go to their fields, before those -> array(address (aio_ts_addr), login,

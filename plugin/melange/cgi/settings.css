@@ -17,7 +17,7 @@ h2{font-size:22px;margin:2px 0 6px}
 .back{display:inline-block;padding:8px 0;margin:0 0 4px;color:var(--acc);text-decoration:none}
 .list{background:var(--surf);border-radius:14px;overflow:hidden}
 .row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
-.row:first-child{border-top:0}
+.row:first-child,#wd:checked~#nt2:checked~#home #rlog,#wo:checked~#nt2:checked~#home #rlog{border-top:0}
 .rt{flex:1;min-width:0}
 .t{display:block;font-weight:500}
 .v{display:block;margin-top:2px;font-size:13px;color:var(--mute);overflow-wrap:anywhere}

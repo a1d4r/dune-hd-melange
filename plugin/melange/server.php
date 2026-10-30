@@ -54,8 +54,6 @@ function aio_srv_menu($in)
         return aio_error('err_list_expired');
     }
     $st = Aio::$state;
-    if (Aio::$settings['no_torrents'])
-        return aio_torrents_off($st['lang']);
     $row = $st['rows'][$i];
     $items = array();
     foreach ($servers as $k => $s)
