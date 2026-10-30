@@ -115,7 +115,8 @@ function aio_ts_dirname($path)
 function aio_ts_ep($path)
 {
     $n = aio_ts_basename($path);
-    if (preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?[ ._\-]?([0-9]{1,3})(?![0-9])/i', $n, $m) ||
+    if (preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?([0-9]{1,3})(?![0-9])/i', $n, $m) ||
+        preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?[ ._\-]([0-9]{2,3})(?![0-9a-z])/i', $n, $m) ||
         preg_match('/(?<![a-z0-9])([0-9]{1,2})x([0-9]{1,3})(?![0-9])/i', $n, $m))
         return array(intval($m[1]), intval($m[2]));
     if (preg_match('/(?<![a-z0-9])ep?(?:isode)?[ ._\-]?([0-9]{1,3})(?![0-9])/i', $n, $m) ||
