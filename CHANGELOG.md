@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.49.0 — 30.10.2026
+- **"No torrents" setting.** For those who watch only through Debrid or their own config: on the settings page, "Where to get films" → "Torrents" → **"No torrents"**. P2P releases are hidden from the list, the release menu has no "Watch via TorrServer", "Open in an app…" and "Download to server…", and "Continue watching" of a release gone from the Debrid cache opens the list instead of TorrServer. The "TorrServer" and "Download to your server" sections disappear from the settings page; their values are kept and come back when the setting is turned off. Debrid releases that are "not cached" stay in the list: the service downloads them, the Dune takes no part in the torrent. Off by default; not shown with the "Torrents" answer.
+
 ## 0.48.1 — 30.10.2026
 - Fixed: via TorrServer an episode is now found in more releases: files named `s01ep01`, `S01E.01` or `S01 Episode 05`, and files with only a number in the name (`[Group] Title 05 [720p].mkv`). Before, such a release gave "The release has no file for this episode". If it is not clear which file is the episode, Melange still says so rather than opening another episode.
 - Voice-over names corrected in the release list: some were wrong or came in several spellings (for example, "ТЕТ", "А. Попов"), people with the same surname are told apart, and BD CEE and Paramount Pictures are no longer shown as voice-overs.
@@ -129,6 +132,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.49.0 — 30.10.2026
+- **Настройка «Без торрентов».** Для тех, кто смотрит только через Debrid или свой конфиг: на странице настроек «Откуда брать фильмы» → «Торренты» → **«Без торрентов»**. Раздачи P2P скрыты из списка, в меню раздачи нет «Смотреть через TorrServer», «Открыть в приложении…» и «Скачать на сервер…», а «Продолжить просмотр» раздачи, выпавшей из кэша Debrid, открывает список, а не TorrServer. Разделы «TorrServer» и «Скачивать на свой сервер» исчезают со страницы настроек; их значения сохраняются и возвращаются, когда настройку выключают. Раздачи Debrid «не в кэше» остаются в списке: их качает сервис, Дюна в раздаче не участвует. По умолчанию выключена; при ответе «Торренты» не показывается.
 
 ## 0.48.1 — 30.10.2026
 - Исправлено: через TorrServer серия находится в большем числе раздач: файлы с именами `s01ep01`, `S01E.01` или `S01 Episode 05` и файлы, где в имени только номер (`[Group] Title 05 [720p].mkv`). Раньше такая раздача давала «В раздаче нет файла этой серии». Если непонятно, какой файл нужен, Melange по-прежнему так и скажет, а не откроет другую серию.
