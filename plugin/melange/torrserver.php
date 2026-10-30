@@ -337,13 +337,10 @@ function aio_ts_pick($files, $r, $s, $e)
         if ($name !== '' && aio_ts_video($f['path']) && strcasecmp(aio_ts_basename($f['path']), $name) == 0)
             $by_name[] = $k;
     }
-    // An episode: the file named by AIOStreams is left out only when the pack
-    // has a file of this very episode, its season in the name (a reply of
-    // another episode for this one); else it stays - absolute numbering of
-    // anime ("- 13" or "S01E13" for S02E01, "- 01" is not S02E01). Its season
-    // only in a folder, which may be the root ("S01-S02") with this "- 01" in
-    // Extras: the named file is left out only when its last folder names
-    // another season and not this one.
+    // An episode: the file named by AIOStreams is left out for a file of this
+    // episode with its season in the name, or in a folder when its own last
+    // folder names another season and is not above that file. The rest stay:
+    // absolute numbering ("- 13" for S02E01), a range of seasons in the root.
     $eps = $e > 0 ? aio_ts_ep_files($files, $s, $e) : array();
     $ep0 = $eps ? aio_ts_ep($files[$eps[0]]['path']) : null;
     if ($ep0 && $ep0[0] !== null)
@@ -353,7 +350,8 @@ function aio_ts_pick($files, $r, $s, $e)
         foreach ($by_name as $i => $k)
         {
             $d = aio_ts_basename(aio_ts_dirname($files[$k]['path'])) . '/';
-            if (aio_ts_dir_season($d, null) && !aio_ts_dir_season($d, $s))
+            if (aio_ts_dir_season($d, null) && !aio_ts_dir_season($d, $s) &&
+                strpos($files[$eps[0]]['path'], aio_ts_dirname($files[$k]['path']) . '/') !== 0)
                 unset($by_name[$i]);
         }
         $by_name = array_values($by_name);
