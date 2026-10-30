@@ -338,12 +338,12 @@ function aio_ts_pick($files, $r, $s, $e)
             $by_name[] = $k;
     }
     // An episode: the file named by AIOStreams is left out only when the pack
-    // has a file of this very episode, its season in the name (a reply of
-    // another episode for this one); else it stays - absolute numbering of
-    // anime ("- 13" or "S01E13" for S02E01, "- 01" is not S02E01).
+    // has a file of this very episode, its season in the name or the folder (a
+    // reply of another episode for this one); else it stays - absolute numbering
+    // of anime ("- 13" or "S01E13" for S02E01, "- 01" is not S02E01).
     $eps = $e > 0 ? aio_ts_ep_files($files, $s, $e) : array();
     $ep0 = $eps ? aio_ts_ep($files[$eps[0]]['path']) : null;
-    if ($ep0 && $ep0[0] !== null)
+    if (($ep0 && $ep0[0] !== null) || ($eps && aio_ts_dir_season($files[$eps[0]]['path'], $s)))
         $by_name = array_values(array_intersect($by_name, $eps));
     foreach ($by_name as $k)
     {
