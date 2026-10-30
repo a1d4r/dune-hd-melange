@@ -121,7 +121,7 @@ function aio_vod_item($mv, $s, $e, $url, $hash, $list)
 // vod_play linked to the Dune card: recent_uid (prefix = our supplier id)
 // gives [NN%] on the button, mdb_info the "Continue watching" row,
 // recent_plugin/recent_action_params bring "Continue" back to play_action
-// with wh_release in supplier_info. Without a dune id or infoHash: unlinked.
+// with wh_release and wh_mode in supplier_info. Without a dune id or infoHash: unlinked.
 // A linked episode plays in a playlist of its whole season (by season_numbers),
 // the others lazy, then E1 of the next season; P+/P- and the autoplay work.
 // $ts (TorrServer, torrserver.php): array('url' => stream URL, 'eps' =>
@@ -219,7 +219,8 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
             'sup_id' => AIO_SUP_ID,
             'movie_id' => $mv['dune_id'],
             'sup_data' => 'auto',
-            'wh_release' => $r['hash']);
+            'wh_release' => $r['hash'],
+            'wh_mode' => $mode);
     }
     aio_log('play: hash=' . ($r['hash'] !== '' ? $r['hash'] : '-') .
         " s=$s e=$e pos=$pos linked=" . ($linked ? 1 : 0) . ', playlist ' . count($series) . ($ts ? ', TorrServer' : ''));
@@ -1005,8 +1006,8 @@ function aio_has_ep($r, $s, $e)
 // release, 'cached' of them cached with a URL. First: in the order of
 // AIOStreams (ord), not of the sorted list, so that a sort never changes the
 // row (copies of a release from several add-ons). The check of a row not cached
-// (aio_deb_precheck) and TorrServer are the caller's (aio_play_action resume,
-// aio_next).
+// (aio_deb_precheck) and TorrServer are the caller's, by the mode (aio_play_action
+// resume, aio_next).
 /**
  * @param list<AioRow> $rows
  * @param string $hash

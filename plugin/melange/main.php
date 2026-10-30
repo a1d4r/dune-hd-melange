@@ -211,6 +211,7 @@ function aio_seasons($m)
 
 // "Continue watching" -> shell_ext play_recent -> our play_action with
 // supplier_info = {sup_data, wh_uid, wh_s, wh_e, wh_pos (seconds), wh_*}.
+// 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else.
 function aio_resume($in)
 {
     $si = isset($in->supplier_info) && is_string($in->supplier_info) ?
@@ -227,6 +228,7 @@ function aio_resume($in)
     }
     return array(
         'hash' => $si->wh_release,
+        'mode' => isset($si->wh_mode) && ($si->wh_mode === 'debrid' || $si->wh_mode === 'ts') ? $si->wh_mode : '',
         's' => aio_int($si, 'wh_s', -1),
         'e' => aio_int($si, 'wh_e', -1),
         'pos' => max(0, aio_int($si, 'wh_pos', 0)));
@@ -761,12 +763,16 @@ function aio_play_action($in)
 
     if ($resume)
     {
+        // The way it was started goes on, never the other way (mode); no mode
+        // (a record before 0.49.0): Debrid if it plays, else a P2P row.
         // Through Debrid: the row of the release with a URL, a cached one
         // first (aio_play checks it). One not cached only if the check finds
         // a stream: else maybe a placeholder, as before. Any episode in the
         // file: the reply is of the episode watched.
+        $mode = $resume['mode'];
+        $tag = "resume: release {$resume['hash']} mode=" . ($mode !== '' ? $mode : 'none');
         $pick = aio_release_pick($st['rows'], $resume['hash'], -1, -1);
-        $deb = $pick['deb'] >= 0 ? $st['rows'][$pick['deb']] : null;
+        $deb = $mode !== 'ts' && $pick['deb'] >= 0 ? $st['rows'][$pick['deb']] : null;
         $pre = null;
         if ($deb && $deb['cached'] !== true)
         {
@@ -779,18 +785,20 @@ function aio_play_action($in)
         }
         if ($deb)
             return aio_play($st, $deb, $resume['pos'], null, false, $pre);
-        // Not cached (watched via TorrServer, or gone from the cache) or P2P:
-        // through TorrServer, only if it answers; else the list. A P2P row
-        // first, else any of the release. No torrents: the list, not a word to TorrServer.
-        $ts = $pick['p2p'] >= 0 ? $pick['p2p'] : $pick['any'];
+        // Through TorrServer, only if it answers; else the list. Mode ts: a P2P
+        // row first, else any of the release; no mode: a P2P row only; debrid:
+        // none. No torrents: the list, not a word to TorrServer.
+        $ts = $mode !== 'debrid' ? $pick['p2p'] : -1;
+        if ($mode === 'ts' && $ts < 0)
+            $ts = $pick['any'];
         $off = Aio::$settings['no_torrents'];
         if ($ts >= 0 && !$off && aio_ts_alive())
         {
-            aio_log("resume: release {$resume['hash']} not cached -> TorrServer");
+            aio_log("$tag -> TorrServer");
             return aio_ts_open($st, $ts, $resume['pos'], '', false, true);
         }
-        aio_log("resume: release {$resume['hash']} " . ($ts < 0 ? 'not found' : ($off ? 'not cached, no torrents' :
-            'not cached, TorrServer does not answer')) . ', showing the list');
+        aio_log("$tag: " . ($pick['rows'] === 0 ? 'not found' : ($ts < 0 ? 'no way in this mode' : ($off ? 'no torrents' :
+            'TorrServer does not answer'))) . ', showing the list');
     }
     return aio_open_list($st);
 }
