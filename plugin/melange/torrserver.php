@@ -105,9 +105,9 @@ function aio_ts_dirname($path)
 }
 
 // Season and episode by the name of a file -> array(season or null, episode)
-// or null: S01E02, s1.e2, 1x02; else E02 / EP02 / "Серия 2" / "2 серия" /
-// " - 07" (season unknown). Only to find a file in a known pack. The number
-// leading the name is aio_ts_ep_lead, the weakest (aio_ts_eps).
+// or null: S01E02, s1.e2, s01ep02, S01E.02, 1x02; else E02 / EP02 / "Серия 2" /
+// "2 серия" / " - 07" (season unknown). Only to find a file in a known pack.
+// The number leading the name is aio_ts_ep_lead, the weakest (aio_ts_eps).
 /**
  * @param string $path
  * @return array{int|null, int}|null
@@ -115,7 +115,7 @@ function aio_ts_dirname($path)
 function aio_ts_ep($path)
 {
     $n = aio_ts_basename($path);
-    if (preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e([0-9]{1,3})(?![0-9])/i', $n, $m) ||
+    if (preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?[ ._\-]?([0-9]{1,3})(?![0-9])/i', $n, $m) ||
         preg_match('/(?<![a-z0-9])([0-9]{1,2})x([0-9]{1,3})(?![0-9])/i', $n, $m))
         return array(intval($m[1]), intval($m[2]));
     if (preg_match('/(?<![a-z0-9])ep?(?:isode)?[ ._\-]?([0-9]{1,3})(?![0-9])/i', $n, $m) ||
