@@ -331,7 +331,7 @@ function aio_voices_classes($word, $low, $join, $seps, $part)
     for ($i = 0; $i < $n; )
     {
         $key = $low[$i];
-        $hit = isset($dict[$key]) && (!isset($exact[$key]) || $exact[$key] === $word[$i]) ? $key : '';
+        $hit = isset($dict[$key]) && (!isset($exact[$key]) || isset($exact[$key][$word[$i]])) ? $key : '';
         // "НТВ+" ("+" is no word): its key "нтв плюс".
         if (isset($seps[$i]) && $seps[$i][0] === '+' && isset($dict["$key плюс"]))
             $hit = "$key плюс";
@@ -565,7 +565,7 @@ function aio_track_voice($title, $lang = '')
             $v['types'][] = $c[1];
         else if ($c && $c[0] === 'orig')
             $v['orig'] = true;
-        else if (!$c && (!isset($noise[$low]) || (isset($exact[$low]) && $exact[$low] === $parts[$i])))
+        else if (!$c && (!isset($noise[$low]) || isset($exact[$low][$parts[$i]])))
             continue;
         $parts[$i] = '|';
     }
@@ -605,7 +605,7 @@ function aio_track_voice($title, $lang = '')
         $g = str_replace(' ', '', $k);
         $pv = isset($own[$k]) ? array('studios' => array($own[$k])) : aio_voices_parse($p, false);
         // An exact key only as written: "HDR" is no "HDr" of HDRezka.
-        if (!$pv['studios'] && isset($glued[$g]) && $glued[$g] !== '' && (!isset($exact[$g]) || $exact[$g] === $p))
+        if (!$pv['studios'] && isset($glued[$g]) && $glued[$g] !== '' && (!isset($exact[$g]) || isset($exact[$g][$p])))
             $pv['studios'] = array($glued[$g]);
         if ($pv['studios'])
         {

@@ -407,15 +407,18 @@ function aio_voices_dict()
     return $d;
 }
 
-// Keys matched only as written.
+// Keys matched only as written: key -> its written forms.
 /**
- * @return array<string, string>
+ * @return array<string, array<string, true>>
  */
 function aio_voices_exact()
 {
     static $e = array(
-        'ams' => 'AMS', 'cpi' => 'CPI', 'deep' => 'DEEP', 'fox' => 'FOX', 'hdr' => 'HDr', 'htb' => 'HTB',
-        'jam' => 'JAM', 'lf' => 'LF', 'ns' => 'NS', 'opt' => 'OPT', 'srb' => 'SRb', 'tet' => 'TET',
-        'tvs' => 'TVS', 'сб' => 'СБ', 'тет' => 'ТЕТ');
+        'ams' => array('AMS' => true), 'cpi' => array('CPI' => true), 'deep' => array('DEEP' => true),
+        'fox' => array('FOX' => true), 'hdr' => array('HDr' => true), 'htb' => array('HTB' => true),
+        'jam' => array('JAM' => true), 'lf' => array('LF' => true), 'ns' => array('NS' => true),
+        'opt' => array('OPT' => true), 'srb' => array('SRb' => true), 'tet' => array('TET' => true),
+        'tvs' => array('TVS' => true), 'сб' => array('СБ' => true),
+        'тет' => array('ТЕТ' => true, 'ТеТ' => true));
     return $e;
 }
