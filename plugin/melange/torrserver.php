@@ -141,7 +141,9 @@ function aio_ts_ep_lead($path)
 
 // The weakest: in each folder, the number right after the start common to the
 // names of its videos: "[Group] Title 01 [1080p].mkv". A folder gives none with
-// a letter before the number ("SP01"), a repeated number or a date in a name.
+// a letter before the number ("SP01"), a repeated number or a date in a name; a
+// file none with a separate number right after it ("5.1"). Folders with a season
+// in the path, if any; else the rest, none if a number is in two of them.
 // -> array(key of $files => array(null, episode)).
 /**
  * @param list<AioTsFile> $files
@@ -155,11 +157,15 @@ function aio_ts_eps_prefix($files)
         if (aio_ts_video($f['path']))
             $dirs[aio_ts_dirname($f['path'])][$k] = aio_ts_basename($f['path']);
     }
-    $out = array();
-    foreach ($dirs as $names)
+    $season = array();
+    $other = array();
+    $used = array();
+    $twice = false;
+    foreach ($dirs as $dir => $names)
     {
         if (count($names) < 2)
             continue;
+        // The start common to all the names is that of the least and the greatest.
         $min = $max = reset($names);
         foreach ($names as $n)
         {
@@ -179,7 +185,7 @@ function aio_ts_eps_prefix($files)
             if (preg_match('/(?<![0-9])(?:(?:19|20)[0-9]{2}[ ._\-][0-9]{1,2}[ ._\-][0-9]{1,2}|' .
                 '[0-9]{1,2}[ ._\-][0-9]{1,2}[ ._\-](?:19|20)[0-9]{2})(?![0-9])/', $n))
                 continue 2;
-            if (preg_match('/^([0-9]{1,3})(?:v[0-9])?(?![0-9a-z])/i', substr($n, $start), $m))
+            if (preg_match('/^([0-9]{1,3})(?:v[0-9])?(?![0-9a-z])(?![ ._\-][0-9]{1,2}(?![0-9a-z]))/i', substr($n, $start), $m))
             {
                 $e = intval($m[1]);
                 if (isset($seen[$e]))
@@ -188,9 +194,16 @@ function aio_ts_eps_prefix($files)
                 $eps[$k] = array(null, $e);
             }
         }
-        $out += $eps;
+        if (aio_ts_dir_season("$dir/", null))
+            $season += $eps;
+        else
+        {
+            $other += $eps;
+            $twice = $twice || array_intersect_key($seen, $used);
+            $used += $seen;
+        }
     }
-    return $out;
+    return $season ? $season : ($twice ? array() : $other);
 }
 
 // Episodes of the videos of $files by aio_ts_ep; only when it knows none of
@@ -235,8 +248,7 @@ function aio_ts_dir_season($path, $s)
 // Files of episode $e of season $s among $files (video only): its season in
 // the name, else an unknown season with the season in the folder, else any
 // unknown season. By a number with no mark (the last two of aio_ts_eps): not in
-// a folder of another season, and the rest only from one folder. -> keys of
-// $files.
+// a folder of another season, and only from one folder. -> keys of $files.
 /**
  * @param list<AioTsFile> $files
  * @param int $s
@@ -245,11 +257,12 @@ function aio_ts_dir_season($path, $s)
  */
 function aio_ts_ep_files($files, $s, $e)
 {
-    list($all, $lead) = aio_ts_eps($files);
+    list($all, $weak) = aio_ts_eps($files);
     $named = array();
     $dir = array();
     $any = array();
     $dirs = array();
+    $season_dirs = array();
     foreach ($all as $k => $ep)
     {
         $path = $files[$k]['path'];
@@ -258,8 +271,11 @@ function aio_ts_ep_files($files, $s, $e)
         if ($ep[0] !== null)
             $named[] = $k;
         else if (aio_ts_dir_season($path, $s))
+        {
             $dir[] = $k;
-        else if (!$lead)
+            $season_dirs[aio_ts_dirname($path)] = true;
+        }
+        else if (!$weak)
             $any[] = $k;
         else if (!aio_ts_dir_season($path, null))
         {
@@ -267,7 +283,11 @@ function aio_ts_ep_files($files, $s, $e)
             $dirs[aio_ts_dirname($path)] = true;
         }
     }
-    return $named ? $named : ($dir ? $dir : (count($dirs) > 1 ? array() : $any));
+    if ($named)
+        return $named;
+    if ($dir)
+        return $weak && count($season_dirs) > 1 ? array() : $dir;
+    return count($dirs) > 1 ? array() : $any;
 }
 
 // The file of row $r in $files -> array(key of $files or -1, why). The one
@@ -340,7 +360,8 @@ function aio_ts_url($base, $hash, $f)
 // Episodes of season $s in the pack up to $max, besides $e (the file $chosen):
 // episode => URL. Each name parsed once (a pack may have thousands of files).
 // Its season in the name first, then a file of the folder of $chosen; an
-// unknown season counts only in that folder.
+// unknown season counts only in that folder. By a number with no mark, none
+// unless $chosen has number $e: AIOStreams may name another numbering.
 /**
  * @param string $base
  * @param string $hash
@@ -355,7 +376,9 @@ function aio_ts_episodes($base, $hash, $files, $s, $e, $chosen, $max)
 {
     $dir = aio_ts_dirname($files[$chosen]['path']);
     $best = array();
-    list($all) = aio_ts_eps($files);
+    list($all, $weak) = aio_ts_eps($files);
+    if ($weak && (!isset($all[$chosen]) || $all[$chosen][1] !== $e))
+        return array();
     foreach ($all as $k => $ep)
     {
         if ($ep[1] < 1 || $ep[1] > $max || $ep[1] === $e || ($ep[0] !== null && $ep[0] !== $s))
