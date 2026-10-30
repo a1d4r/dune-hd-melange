@@ -220,11 +220,11 @@ describe.each([...FIXTURES])("%s", (name) => {
       const rows = Array.from(list.children).filter((row) => !hidden(row));
       expect(rows.map((row) => NO_TOP_LINE.some((selector) => row.matches(selector)))).toEqual(rows.map((_, i) => i === 0));
     });
-    // The value of the line by the radio: "Разрешён" (.xa, hidden by the rule) or "Выключен" (.xn, shown by its own).
+    // The value of the line by the radio: "Разрешён" (.xa) or "Выключен" (.xn), the other one hidden.
     const allowed = doc.querySelector("#vrun .xa")!;
     const offValue = doc.querySelector("#vrun .xn")!;
     expect([allowed.textContent, offValue.textContent]).toEqual(["Разрешён", "Выключен"]);
-    expect([hidden(allowed), offValue.matches(cssRule("#nt2:checked~* .xn{")[0]!)]).toEqual([answer === "nt2", answer === "nt2"]);
+    expect([hidden(allowed), hidden(offValue)]).toEqual([answer === "nt2", answer === "nt1"]);
   });
 
   test("the screens: each a section with a link back to #home, #home last, the bar after it", () => {
