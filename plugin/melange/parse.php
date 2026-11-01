@@ -820,8 +820,11 @@ function aio_ints($a)
     return $res;
 }
 
-// "[TB⚡] JacRed 2160p" -> "JacRed 2160p": no bracket tags, no emoji (the
-// Dune font may lack them).
+// Emoji and other pictures, for a character class of a /u regex (the Dune font
+// may lack them).
+define('AIO_EMOJI', '\\x{2190}-\\x{2BFF}\\x{1F000}-\\x{1FFFF}\\x{FE0F}\\x{200D}');
+
+// "[TB⚡] JacRed 2160p" -> "JacRed 2160p": no bracket tags, no emoji.
 /**
  * @param string $name
  * @return string
@@ -829,7 +832,7 @@ function aio_ints($a)
 function aio_plain_name($name)
 {
     $name = preg_replace('/\\[[^\\]]*\\]/', ' ', $name);
-    $name = preg_replace('/[\\x{2190}-\\x{2BFF}\\x{1F000}-\\x{1FFFF}\\x{FE0F}\\x{200D}]/u', '', $name);
+    $name = preg_replace('/[' . AIO_EMOJI . ']/u', '', $name);
     return trim(preg_replace('/\\s+/u', ' ', strval($name)));
 }
 

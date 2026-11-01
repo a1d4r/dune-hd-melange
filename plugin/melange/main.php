@@ -637,17 +637,88 @@ if (!function_exists('aio_http_range'))
     }
 }
 
+// Reasons of a reply kept, at most: the memory of the Dune; the others only counted.
+define('AIO_ERRORS_MAX', 30);
+// Characters of a reason, its own ellipsis included: the shell cuts a longer
+// button of aio_errors_dialog at the right without one.
+define('AIO_ERROR_LINE', 48);
+
+// No reasons (AioErrors): 'lines' - different reasons, up to AIO_ERRORS_MAX;
+// 'more' - different ones past them.
+/**
+ * @return AioErrors
+ */
+function aio_no_errors()
+{
+    return array('lines' => array(), 'more' => 0);
+}
+
+// How many different reasons.
+/**
+ * @param AioErrors $errors
+ * @return int
+ */
+function aio_errors_total($errors)
+{
+    return count($errors['lines']) + $errors['more'];
+}
+
+// The reason of error stream $st (its streamData $sd), one line: "name: reason",
+// no icon in the name, masked before the cut (a URL or a UUID across it stays
+// hidden). No text at all is a reason too: "?".
+/**
+ * @param array<mixed> $st
+ * @param array<mixed> $sd
+ * @return string
+ */
+function aio_error_line($st, $sd)
+{
+    $e = aio_arr($sd, 'error');
+    $name = aio_str($e, 'title');
+    if ($name === '')
+        $name = aio_str($st, 'name');
+    $why = aio_str($e, 'description');
+    if ($why === '')
+        $why = aio_str($st, 'description');
+    // Only the icon: "[RD]" and "[TB]" tell two add-ons apart.
+    $name = trim(strval(preg_replace('/\\[\\s*[' . AIO_EMOJI . ']+\\s*\\]|[' . AIO_EMOJI . ']+/u', '', $name)));
+    $line = $name !== '' && $why !== '' && $name !== $why ? "$name: $why" : ($name !== '' ? $name : $why);
+    // Runs of control bytes and spaces, C1 controls too -> one space.
+    $line = trim(strval(aio_mask(strval(preg_replace('/(?:[\x00-\x20\x7F]|\xC2[\x80-\x9F])+/', ' ', $line)))));
+    // Not UTF-8 would break the JSON of the whole dialog.
+    if ($line === '' || !preg_match('//u', $line))
+        return '?';
+    return mb_strlen($line, 'UTF-8') > AIO_ERROR_LINE ?
+        rtrim(mb_substr($line, 0, AIO_ERROR_LINE - 1, 'UTF-8')) . '…' : $line;
+}
+
 // Error streams of the reply (streamData.type "error": a failed add-on, a bad
 // config): the text of the first 3 and the count in the log, masked before the
-// cut. -> the count.
+// cut. -> the reasons, no equal ones, in the order of the reply.
+/**
+ * @param array<mixed> $streams
+ * @return AioErrors
+ */
 function aio_error_streams($streams)
 {
     $n = 0;
+    $errors = aio_no_errors();
+    $seen = array();
     foreach ($streams as $st)
     {
         $sd = aio_arr($st, 'streamData');
         if (aio_str($sd, 'type') !== 'error')
             continue;
+        $line = aio_error_line($st, $sd);
+        $key = md5($line);
+        if (!isset($seen[$key]))
+        {
+            $seen[$key] = true;
+            if (count($errors['lines']) < AIO_ERRORS_MAX)
+                $errors['lines'][] = $line;
+            else
+                $errors['more']++;
+        }
         if (++$n > 3)
             continue;
         $e = aio_arr($sd, 'error');
@@ -663,14 +734,15 @@ function aio_error_streams($streams)
     }
     if ($n > 0)
         aio_log("error streams: $n");
-    return $n;
+    return $errors;
 }
 
 // Seconds of a stream request, at most.
 define('AIO_FETCH_TOTAL', 30);
 
-// -> array('rows' => list) or array('error' => key, 'detail' => text); 'error_streams':
-// error streams of the reply, with the rows and with err_no_streams.
+// -> array('rows' => list) or array('error' => key, 'detail' => text); 'errors':
+// the reasons of the error streams of the reply (aio_error_streams), with the
+// rows and with err_no_streams.
 /**
  * @param string $base
  * @param string $id
@@ -718,9 +790,9 @@ function aio_fetch($base, $id, $series)
     }
     aio_log(sprintf('streams: %d, listed: %d%s, memory peak %.1f MB', count($j['streams']), count($rows),
         $hidden ? ", P2P hidden: $hidden" : '', memory_get_peak_usage() / 1048576));
-    $error_streams = aio_error_streams($j['streams']);
-    return $rows ? array('rows' => $rows, 'error_streams' => $error_streams) :
-        array('error' => 'err_no_streams', 'detail' => '', 'error_streams' => $error_streams);
+    $errors = aio_error_streams($j['streams']);
+    return $rows ? array('rows' => $rows, 'errors' => $errors) :
+        array('error' => 'err_no_streams', 'detail' => '', 'errors' => $errors);
 }
 
 // --- The stream list screen.
@@ -775,7 +847,8 @@ function aio_rid()
 
 // State of a stream list (Aio::$state): its screen "streams:<rid>", the card,
 // season and episode (-1 for a movie), rows in the order of 'sort' and
-// 'sort_rev' (of the settings: aio_rows_sort), the shell language of play_action.
+// 'sort_rev' (of the settings: aio_rows_sort), the shell language of play_action,
+// 'errors': the reasons of the error streams of its reply (aio_error_streams).
 // view_gcomps.php adds 'gc' - array(sel, top), the last cursor; 'gc_new' -
 // the first view of a replaced screen ignores the shell's sel_state; 'gc_prog'
 // - progress of the rows for their redraw. A screen replaced by a new list
@@ -783,14 +856,15 @@ function aio_rid()
 // writer outside view_gcomps.php: aio_choose keeps 'gc' before it leaves.
 // aio_ts_pack_state adds 'pack_only' and 'pack_map': the one row, never shown.
 /**
+ * @param AioErrors $errors
  * @return AioState
  */
-function aio_list_state($mv, $s, $e, $rows, $lang)
+function aio_list_state($mv, $s, $e, $rows, $lang, $errors)
 {
     $sort = Aio::$settings['sort'];
     $rev = Aio::$settings['sort_rev'];
     return array('rid' => aio_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => aio_rows_sort($rows, $sort, $rev),
-        'lang' => $lang, 'sort' => $sort, 'sort_rev' => $rev);
+        'lang' => $lang, 'sort' => $sort, 'sort_rev' => $rev, 'errors' => $errors);
 }
 
 // --- play_action of the supplier.
@@ -832,7 +906,7 @@ function aio_play_action($in)
     if (isset($res['error']))
         return aio_error($res['error'], $res['detail']);
 
-    $st = aio_list_state($mv, $s, $e, $res['rows'], isset($in->lang) && is_string($in->lang) ? $in->lang : '');
+    $st = aio_list_state($mv, $s, $e, $res['rows'], isset($in->lang) && is_string($in->lang) ? $in->lang : '', $res['errors']);
     Aio::$state = $st;
 
     if ($resume)

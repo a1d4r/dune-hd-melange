@@ -126,6 +126,9 @@ parameters:
                 seasons: array<int, int>
             }
         '''
+        # Reasons of the error streams of a reply (aio_error_streams, main.php):
+        # different lines up to AIO_ERRORS_MAX, more: different ones past them.
+        AioErrors: 'array{lines: list<string>, more: int}'
         # A stream list (Aio::$state, aio_list_state, main.php), rows in the order
         # of sort (aio_sort_keys), reversed by sort_rev; gc (sel, top:
         # the last cursor), gc_new, gc_prog: of view_gcomps.php.
@@ -139,6 +142,7 @@ parameters:
                 lang: string,
                 sort: string,
                 sort_rev: bool,
+                errors: AioErrors,
                 gc?: array{int, int},
                 gc_new?: bool,
                 gc_prog?: AioProgress,
@@ -179,7 +183,7 @@ parameters:
         # Params of the window of TorrServer in the player (aio_tsi_params, ts_info.php).
         AioTsiParams: 'array{h: string, n: string, l: string, e: string}'
         # A stream request (aio_fetch, main.php).
-        AioFetch: 'array{rows: list<AioRow>, error_streams: int}|array{error: string, detail: string, error_streams?: int}'
+        AioFetch: 'array{rows: list<AioRow>, errors: AioErrors}|array{error: string, detail: string, errors?: AioErrors}'
         # Progress of the releases of a list (aio_wh_progress, history.php):
         # the tail of our uid of the history after "aio:<dune id>:<s>:<e>:" =>
         # share in (0, 1]. Our uids end in an infoHash (40 hex: a string key);

@@ -890,7 +890,7 @@ function aio_ts_pack_state($key, $s, $e, $hash)
     $saved = $p && $p['key'] === $key && $p['hash'] === $hash && isset($p['map'][$s][$e]) ? aio_movie_load($key) : null;
     if (!$saved)
         return null;
-    $st = aio_list_state($saved['movie'], $s, $e, array($p['row']), $saved['lang']);
+    $st = aio_list_state($saved['movie'], $s, $e, array($p['row']), $saved['lang'], aio_no_errors());
     $st['pack_only'] = true;
     $st['pack_map'] = $p['map'];
     return $st;
@@ -929,7 +929,7 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
     {
         aio_log("ts: {$by}, " . count($files) . ' files');
         if ($lazy)
-            return aio_next_missing($st, $r['hash']);
+            return aio_next_missing($st, $r['hash'], aio_no_errors());
         return aio_ts_fail($st['lang'], $st['e'] > 0 ? 'ts_err_no_ep' : 'ts_err_no_video');
     }
     if ($map === null)

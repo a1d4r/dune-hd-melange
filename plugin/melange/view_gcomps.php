@@ -1165,7 +1165,7 @@ function aio_gc_sort($in)
     // aio_list_state sorts by the settings: the new sort, saved or not.
     Aio::$settings['sort'] = $k;
     Aio::$settings['sort_rev'] = $rev;
-    $ns = aio_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang']);
+    $ns = aio_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang'], $st['errors']);
     aio_log('sort: ' . aio_sort_tag($st['sort'], $st['sort_rev']) . " -> $tag, " . aio_ep_tag($st) . ', ' .
         count($st['rows']) . ' rows, screen replaced');
     return aio_list_replace(aio_gc_put_cursor($ns, 0));

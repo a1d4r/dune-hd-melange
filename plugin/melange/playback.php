@@ -818,14 +818,15 @@ function aio_download($in)
 // The list of S$s E$e (-1 -1: the movie) of the card of $st anew, the request
 // of play_action. Tracks of the old list by hash first: JacRed then asks only
 // for the rest. Cursor on release $hash (an episode: with it in its file
-// first), else the first row. -> array('error' => key, 'detail' => text) of
-// aio_fetch or array('st' => new state, 'sel' => row, 'by' => why that row).
+// first), else the first row. -> array('error' => key, 'detail' => text,
+// maybe 'errors') of aio_fetch or array('st' => new state, 'sel' => row, 'by' =>
+// why that row).
 /**
  * @param AioState $st
  * @param int $s
  * @param int $e
  * @param string $hash
- * @return array{error: string, detail: string}|array{st: AioState, sel: int, by: string}
+ * @return array{error: string, detail: string, errors?: AioErrors}|array{st: AioState, sel: int, by: string}
  */
 function aio_relist($st, $s, $e, $hash)
 {
@@ -839,7 +840,7 @@ function aio_relist($st, $s, $e, $hash)
     $rows = aio_carry_tracks($res['rows'], $st['rows']);
     if (AIO_JACRED)
         $rows = aio_jacred($rows, $mv, $s);
-    $ns = aio_list_state($mv, $s, $e, $rows, $st['lang']);
+    $ns = aio_list_state($mv, $s, $e, $rows, $st['lang'], $res['errors']);
 
     // The release with the episode in its file, as aio_next: a release not
     // in the cache has its hash in every reply, even a pack of another season.
@@ -870,7 +871,7 @@ function aio_relist($st, $s, $e, $hash)
 /**
  * @param string $title
  * @param string $lang
- * @param array{error: string, detail: string} $res
+ * @param array{error: string, detail: string, errors?: AioErrors} $res
  * @return AioAction
  */
 function aio_relist_dialog($title, $lang, $res)
@@ -1024,29 +1025,29 @@ function aio_next_params($in)
 }
 
 // Streams of the episode -> array('st' => list state) or array('error' =>
-// key, 'detail' => text); 'lang' and 'error_streams' (aio_fetch, else 0) in both.
+// key, 'detail' => text); 'lang' and 'errors' (aio_fetch, else none) in both.
 /**
  * @param string $key
  * @param int $s
  * @param int $e
- * @return array{error: string, detail: string, lang: string, error_streams: int}|array{lang: string, st: AioState, error_streams: int}
+ * @return array{error: string, detail: string, lang: string, errors: AioErrors}|array{lang: string, st: AioState, errors: AioErrors}
  */
 function aio_next_fetch($key, $s, $e)
 {
     $saved = aio_movie_load($key);
     if (!$saved)
-        return array('error' => 'err_list_expired', 'detail' => '', 'lang' => '', 'error_streams' => 0);
+        return array('error' => 'err_list_expired', 'detail' => '', 'lang' => '', 'errors' => aio_no_errors());
     $mv = $saved['movie'];
     // Under the player: only the error with the way to the settings.
     if (Aio::$settings['base'] === '')
         return array('error' => Aio::$settings['own'] ? 'err_set_address_own' : 'err_set_address', 'detail' => '',
-            'lang' => $saved['lang'], 'error_streams' => 0);
+            'lang' => $saved['lang'], 'errors' => aio_no_errors());
     $res = aio_fetch(Aio::$settings['base'], "{$mv['imdb']}:$s:$e", true);
     if (isset($res['error']))
         return array('error' => $res['error'], 'detail' => $res['detail'], 'lang' => $saved['lang'],
-            'error_streams' => isset($res['error_streams']) ? $res['error_streams'] : 0);
-    return array('lang' => $saved['lang'], 'st' => aio_list_state($mv, $s, $e, $res['rows'], $saved['lang']),
-        'error_streams' => $res['error_streams']);
+            'errors' => isset($res['errors']) ? $res['errors'] : aio_no_errors());
+    return array('lang' => $saved['lang'], 'st' => aio_list_state($mv, $s, $e, $res['rows'], $saved['lang'], $res['errors']),
+        'errors' => $res['errors']);
 }
 
 // The file of the row has the episode. Seasons may be absent (not parsed).
@@ -1175,20 +1176,20 @@ function aio_next($in)
     for ($first = true; ; $first = false)
     {
         $res = aio_next_fetch($key, $s, $e);
-        $error_streams = $res['error_streams'];
+        $errors = $res['errors'];
         $pick = isset($res['error']) ? null : aio_release_pick($res['st']['rows'], $hash, $s, $e);
         $none = $pick ? $pick[$mode === 'ts' ? 'ts' : 'deb'] < 0 : $res['error'] === 'err_no_streams';
-        if (!$first || !$none || $error_streams < 1 || !aio_op_total($retry, $retry, "next: $ep: retry"))
+        if (!$first || !$none || !$errors['lines'] || !aio_op_total($retry, $retry, "next: $ep: retry"))
             break;
-        aio_log("next: $ep: the release not found, $error_streams add-ons failed, one more request");
+        aio_log("next: $ep: the release not found, " . aio_errors_total($errors) . ' add-ons failed, one more request');
         // Not two replies in the memory.
         unset($res, $pick);
     }
     if (isset($res['error']))
         return aio_next_failed($res['lang'] !== '' ? $res['lang'] : $lang, $ep,
-            $res['error'] === 'err_no_streams' && $error_streams > 0 ? 'err_sources_failed' : $res['error'], $res['detail']);
+            $res['error'] === 'err_no_streams' && $errors['lines'] ? 'err_sources_failed' : $res['error'], $res['detail']);
     if (!$none)
-        $error_streams = 0;
+        $errors = aio_no_errors();
     $st = $res['st'];
     $sel = $pick['deb'];
     $found = $sel >= 0 ? $st['rows'][$sel] : null;
@@ -1201,7 +1202,7 @@ function aio_next($in)
     {
         $ts = $pick['ts'];
         // Its own echo: a dialog under the player.
-        return $ts >= 0 ? aio_ts_open($st, $ts, 0, $from, true) : aio_next_missing($st, $hash, $error_streams);
+        return $ts >= 0 ? aio_ts_open($st, $ts, 0, $from, true) : aio_next_missing($st, $hash, $errors);
     }
     $pre = null;
     if ($found && $found['cached'] !== true)
@@ -1222,27 +1223,27 @@ function aio_next($in)
             aio_playing($from, $st, $sel);
         return $a;
     }
-    return aio_next_missing($st, $hash, $error_streams);
+    return aio_next_missing($st, $hash, $errors);
 }
 
 // The dialog "S2E3 is not in this release" over the stopped player of a lazy
 // episode of list state $st: "Choose a release" (its list; a state of one row,
 // aio_ts_pack_state, is no list: aio_next_pick asks for it) and "Stop".
-// $error_streams: add-ons failed in the reply without the release, the text says so.
+// $errors: of the reply without the release (else none), the text says so.
 /**
  * @param AioState $st
  * @param string $hash
- * @param int $error_streams
+ * @param AioErrors $errors
  * @return AioAction
  */
-function aio_next_missing($st, $hash, $error_streams = 0)
+function aio_next_missing($st, $hash, $errors)
 {
     Aio::$next = isset($st['pack_only']) ? null : $st;
     $ep = sprintf('S%02dE%02d', $st['s'], $st['e']);
-    aio_log($error_streams > 0 ? "next: -> dialog: $ep: $error_streams add-ons failed, the release not found" :
+    aio_log($errors['lines'] ? "next: -> dialog: $ep: " . aio_errors_total($errors) . ' add-ons failed, the release not found' :
         "next: -> dialog: $ep is not in this release");
     $lang = $st['lang'];
-    $title = $error_streams > 0 ? aio_tr($lang, 'next_sources_failed', $ep) : aio_tr($lang, 'next_no_episode', $ep);
+    $title = $errors['lines'] ? aio_tr($lang, 'next_sources_failed', $ep) : aio_tr($lang, 'next_no_episode', $ep);
     return aio_dialog($title, array(), array(
         aio_tr($lang, 'next_pick') => aio_input('next_pick', array('k' => $st['movie']['dune_id'], 's' => strval($st['s']),
             'e' => strval($st['e']), 'h' => $hash, 'rid' => $st['rid'])),
