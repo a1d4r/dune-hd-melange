@@ -877,9 +877,9 @@ function aio_relist($st, $s, $e, $hash)
  */
 function aio_relist_dialog($title, $lang, $res)
 {
-    $only = aio_errors_only($res);
+    $only = aio_errors_only_dialog($lang, $res);
     if ($only)
-        return aio_errors_dialog(aio_tr($lang, 'errors_title'), $lang, $only);
+        return $only;
     return aio_dialog($title, array_merge(aio_dialog_lines(aio_tr($lang, $res['error'])),
         aio_dialog_lines($res['detail'])),
         array('OK' => aio_close_and(null)));
@@ -1131,6 +1131,36 @@ function aio_deb_precheck($r)
 // check (AIO_PRE_MIN), or the echo and add of TorrServer (2 + 5 s).
 define('AIO_NEXT_AFTER_FETCH', 7);
 
+// The streams of a lazy episode and the release in them -> array(aio_next_fetch,
+// aio_release_pick or null on an error, no such release). Add-ons failed in the
+// reply and it has no such release: one more request at once (their outage may be
+// over), if the operation has the time for it.
+/**
+ * @param string $key
+ * @param int $s
+ * @param int $e
+ * @param string $hash
+ * @param string $mode
+ * @return array{0: array{error: string, detail: string, lang: string, errors: AioErrors}|array{lang: string, st: AioState, errors: AioErrors}, 1: array{deb: int, p2p: int, ts: int, rows: int, cached: int}|null, 2: bool}
+ */
+function aio_next_fetch_retry($key, $s, $e, $hash, $mode)
+{
+    $ep = sprintf('S%02dE%02d', $s, $e);
+    $retry = AIO_FETCH_TOTAL + AIO_NEXT_AFTER_FETCH;
+    for ($first = true; ; $first = false)
+    {
+        $res = aio_next_fetch($key, $s, $e);
+        $errors = $res['errors'];
+        $pick = isset($res['error']) ? null : aio_release_pick($res['st']['rows'], $hash, $s, $e);
+        $none = $pick ? $pick[$mode === 'ts' ? 'ts' : 'deb'] < 0 : $res['error'] === 'err_no_streams';
+        if (!$first || !$none || !$errors['lines'] || !aio_op_total($retry, $retry, "next: $ep: retry"))
+            return array($res, $pick, $none);
+        aio_log("next: $ep: the release not found, " . aio_errors_total($errors) . ' reasons, one more request');
+        // Not two replies in the memory.
+        unset($res, $pick);
+    }
+}
+
 // A lazy episode, the way its playlist was started (m), never the other way.
 // debrid: the same release (infoHash) with a URL and this episode in its file,
 // a cached row first -> vod_play of it (aio_play checks it: a placeholder gets
@@ -1141,8 +1171,6 @@ define('AIO_NEXT_AFTER_FETCH', 7);
 // of it, even cached -> through TorrServer, the file of the episode by the reply
 // (torrserver.php); no row or file: the same dialog. Not bingeGroup: one value for
 // many releases, a silent change of the voice.
-// Add-ons failed in the reply and it has no such release: one more request at
-// once (their outage may be over), if the operation has the time for it.
 /**
  * @param stdClass $in
  * @return AioAction
@@ -1177,19 +1205,8 @@ function aio_next($in)
         aio_log("next: $ep: the map of the last start, no request");
         return aio_ts_open($st, 0, 0, Aio::$playing ? Aio::$playing['from'] : '', true);
     }
-    $retry = AIO_FETCH_TOTAL + AIO_NEXT_AFTER_FETCH;
-    for ($first = true; ; $first = false)
-    {
-        $res = aio_next_fetch($key, $s, $e);
-        $errors = $res['errors'];
-        $pick = isset($res['error']) ? null : aio_release_pick($res['st']['rows'], $hash, $s, $e);
-        $none = $pick ? $pick[$mode === 'ts' ? 'ts' : 'deb'] < 0 : $res['error'] === 'err_no_streams';
-        if (!$first || !$none || !$errors['lines'] || !aio_op_total($retry, $retry, "next: $ep: retry"))
-            break;
-        aio_log("next: $ep: the release not found, " . aio_errors_total($errors) . ' add-ons failed, one more request');
-        // Not two replies in the memory.
-        unset($res, $pick);
-    }
+    list($res, $pick, $none) = aio_next_fetch_retry($key, $s, $e, $hash, $mode);
+    $errors = $res['errors'];
     if (isset($res['error']))
     {
         $lang = $res['lang'] !== '' ? $res['lang'] : $lang;
@@ -1197,6 +1214,7 @@ function aio_next($in)
             $res['detail'], aio_errors_labels($lang, $errors));
     }
     if (!$none)
+        // Release found, no stream: not the sources' fault.
         $errors = aio_no_errors();
     $st = $res['st'];
     $sel = $pick['deb'];
@@ -1248,7 +1266,7 @@ function aio_next_missing($st, $hash, $errors)
 {
     Aio::$next = isset($st['pack_only']) ? null : $st;
     $ep = sprintf('S%02dE%02d', $st['s'], $st['e']);
-    aio_log($errors['lines'] ? "next: -> dialog: $ep: " . aio_errors_total($errors) . ' add-ons failed, the release not found' :
+    aio_log($errors['lines'] ? "next: -> dialog: $ep: " . aio_errors_total($errors) . ' reasons, the release not found' :
         "next: -> dialog: $ep is not in this release");
     $lang = $st['lang'];
     $title = $errors['lines'] ? aio_tr($lang, 'next_sources_failed', $ep) : aio_tr($lang, 'next_no_episode', $ep);

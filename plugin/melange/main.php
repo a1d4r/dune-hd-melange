@@ -677,16 +677,18 @@ function aio_errors_shown($errors)
     return Aio::$settings['source_errors'] && $errors['lines'];
 }
 
-// A reply of error streams only, with the setting on -> its reasons, for
-// aio_errors_dialog instead of err_no_streams; else null. $res: the error of
-// aio_fetch, or another one without 'errors'.
+// A reply of error streams only, with the setting on -> the window of its reasons
+// instead of err_no_streams; else null. $res: the error of aio_fetch, or another
+// one without 'errors'.
 /**
+ * @param string $lang
  * @param array{error: string, detail: string, errors?: AioErrors} $res
- * @return AioErrors|null
+ * @return AioAction|null
  */
-function aio_errors_only($res)
+function aio_errors_only_dialog($lang, $res)
 {
-    return $res['error'] === 'err_no_streams' && isset($res['errors']) && aio_errors_shown($res['errors']) ? $res['errors'] : null;
+    return $res['error'] === 'err_no_streams' && isset($res['errors']) && aio_errors_shown($res['errors']) ?
+        aio_errors_dialog(aio_tr($lang, 'errors_title'), $lang, $res['errors']) : null;
 }
 
 // The first $max reasons, then "and N more" of the others (lines of plain text).
@@ -766,10 +768,9 @@ function aio_error_streams($streams)
         if (aio_str($sd, 'type') !== 'error')
             continue;
         $line = aio_error_line($st, $sd);
-        $key = md5($line);
-        if (!isset($seen[$key]))
+        if (!isset($seen[$line]))
         {
-            $seen[$key] = true;
+            $seen[$line] = true;
             if (count($errors['lines']) < AIO_ERRORS_MAX)
                 $errors['lines'][] = $line;
             else
@@ -955,16 +956,16 @@ function aio_play_action($in)
             list($s, $e) = aio_wh_episode($mv);
     }
 
+    $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
     if (Aio::$settings['base'] === '')
-        return aio_no_address(isset($in->lang) && is_string($in->lang) ? $in->lang : '');
+        return aio_no_address($lang);
 
     $res = aio_fetch(Aio::$settings['base'], $mv['imdb'] . ($mv['series'] ? ":$s:$e" : ''), $mv['series']);
-    $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
-    $only = isset($res['error']) ? aio_errors_only($res) : null;
+    $only = isset($res['error']) ? aio_errors_only_dialog($lang, $res) : null;
     if ($only)
     {
         aio_log('error: only error streams, their dialog');
-        return aio_errors_dialog(aio_tr($lang, 'errors_title'), $lang, $only);
+        return $only;
     }
     if (isset($res['error']))
         return aio_error($res['error'], $res['detail']);
