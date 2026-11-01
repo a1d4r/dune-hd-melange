@@ -4,7 +4,7 @@
 
 ## 0.49.1 — 01.11.2026
 - Fixed: the next episode could say "Episode is not in this release" when some sources failed to respond. Melange now asks once more; if the release is still not found, the window says that sources did not respond.
-- Fixed: in an episode not played before, **"Next episode"** could appear late, after the credits had begun, and "Skip intro" could be off too. The buttons now match the file of the episode.
+- Fixed: in an episode not played before, **"Next episode"** could appear late, after the credits had begun. It now appears on time.
 - **"Skip intro and credits" setting.** On the settings page, **"Advanced"**: **"On"** (the default): the skip buttons in the player, episodes may start a little slower; **"Off"**: no buttons, episodes start and switch faster. It replaces "Buttons in the episodes of a release"; "Instant switching" chosen there turns it off.
 
 ## 0.49.0 — 01.11.2026
@@ -145,7 +145,7 @@ First public release. What it does:
 
 ## 0.49.1 — 01.11.2026
 - Исправлено: следующая серия могла сказать «Серии нет в этой раздаче», когда часть источников не ответила. Теперь Melange спрашивает ещё раз; если раздача так и не нашлась, окно говорит, что источники не ответили.
-- Исправлено: в серии, которую ещё не запускали, кнопка **«Следующий эпизод»** могла появиться поздно, когда титры уже шли, а «Пропустить заставку» — не вовремя. Теперь кнопки совпадают с файлом серии.
+- Исправлено: в серии, которую ещё не запускали, кнопка **«Следующий эпизод»** могла появиться поздно, когда титры уже шли. Теперь она появляется вовремя.
 - **Настройка «Пропуск заставки и титров».** На странице настроек, **«Дополнительно»**: **«Включён»** (по умолчанию): кнопки пропуска в плеере, серии могут запускаться чуть медленнее; **«Выключен»**: кнопок нет, серии запускаются и переключаются быстрее. Заменяет «Кнопки в сериях раздачи»; выбранное там «Мгновенное переключение» её выключает.
 
 ## 0.49.0 — 01.11.2026
