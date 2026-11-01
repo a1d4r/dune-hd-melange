@@ -275,6 +275,9 @@ function aio_ts_one_season($dir)
     if (preg_match('/' . AIO_TS_SEASON_MARK . '[0-9]{1,3}' . $sep . '(?:s|season[ ._\-]?)?[0-9]{1,3}(?![0-9a-zа-я])|[0-9]{1,3}' . $sep .
         '[0-9]{1,3}[ ._\-]*сезон/iu', $dir))
         return null;
+    // The number before "Сезон 4" is of the title ("911 Сезон 4"), unless the one
+    // after counts something else ("2 сезон 720p", "2 сезон 5.1", "2 сезон 10 серий").
+    $dir = preg_replace('/(?<![0-9])[0-9]{1,3}(?=[ ._\-]*сезон[ ._\-]*[0-9]{1,3}(?![0-9\pL]|[.,][0-9](?![0-9])|[ ._\-]*(?:сез|сер|эп|част|бит|из(?!\pL)|bit|ep|part)))/iu', '', $dir);
     if (!preg_match_all('/' . aio_ts_season_re('([0-9]{1,3})') . '/iu', $dir, $m, PREG_SET_ORDER))
         return null;
     $found = array();
@@ -308,13 +311,24 @@ function aio_ts_pack_root($path)
 }
 
 // A folder of extras, not of episodes: "Season 2 Bonus", "Bonus/S2", "Доп. материалы".
+// Of the last folder that names a season, only what follows the mark: before it
+// is the title ("Секретные материалы. Сезон 2").
 /**
  * @param string $dir
  * @return bool
  */
 function aio_ts_extras($dir)
 {
-    return preg_match('/(?<![\pL0-9])(?:(?:extras?|bonus(?:es)?|specials?|featurettes?|deleted|samples?|допы?)(?!\pL)|бонус|дополн|спец|материал)/iu', $dir) === 1;
+    $parts = explode('/', $dir);
+    for ($i = count($parts) - 1; $i >= 0; $i--)
+    {
+        if (preg_match('/' . aio_ts_season_re('[0-9]{1,3}') . '/iu', $parts[$i], $m, PREG_OFFSET_CAPTURE))
+        {
+            $parts[$i] = strval(substr($parts[$i], $m[0][1] + strlen($m[0][0])));
+            break;
+        }
+    }
+    return preg_match('/(?<![\pL0-9])(?:(?:extras?|bonus(?:es)?|specials?|featurettes?|deleted|samples?|допы?|trailers?|interviews?|ncop|nced|creditless|behind|making)(?!\pL)|бонус|дополн|спец|материал|трейлер|интервью|ролик)/iu', implode('/', $parts)) === 1;
 }
 
 // The episodes of the other seasons of the pack, by the seasons of their files
