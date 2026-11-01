@@ -84,6 +84,7 @@ define('AIO_GC_DIM', '#FF808080');
 define('AIO_GC_SEL', '#D02850C0');
 define('AIO_GC_GREEN', '#FF34C759');
 define('AIO_GC_GREY', '#FF8E8E93');    // the "not cached" icon
+define('AIO_GC_AMBER', '#FFFFB340');   // the number of source errors over the list
 // Seeders of a P2P row in place of its "?" icon (aio_gc_seed_color). Bins as
 // the ranked expressions of the P2P template (cgi/aio_template_p2p.json):
 // 0-2, 3-9, 10-29, 30+, a bin starts at LOW, MID, HIGH; the template also
@@ -142,7 +143,7 @@ function aio_gc_text($lang)
         'actions' => aio_tr($lang, 'gc_actions'), 'details' => aio_tr($lang, 'gc_details'),
         'sort_aio' => aio_tr($lang, 'gc_sort_aio'), 'sort_seeds' => aio_tr($lang, 'gc_sort_seeds'),
         'sort_cached' => aio_tr($lang, 'gc_sort_cached'), 'sort_size' => aio_tr($lang, 'gc_sort_size'),
-        'sort_date' => aio_tr($lang, 'gc_sort_date'));
+        'sort_date' => aio_tr($lang, 'gc_sort_date'), 'errors' => aio_tr($lang, 'gc_errors'));
 }
 
 // The cache status of row $r: "В кэше <service>", "Нужно скачать", "P2P" (no
@@ -1015,6 +1016,15 @@ function aio_gc_window($st, $sel, $top)
     if (aio_gc_color_keys())
         $d[] = aio_gc_panel('sort', aio_gc_at(AIO_GC_LW, AIO_GC_TAB_LINE_Y + AIO_GC_TAB_LINE, AIO_GC_LX, AIO_GC_TABS_Y),
             aio_gc_sort_tabs($st, $tt));
+    // Outside the panel: a remote without the colour keys has it too.
+    if (aio_errors_shown($st['errors']))
+    {
+        $text = str_replace('{n}', strval(aio_errors_total($st['errors'])), $tt['errors']);
+        $w = aio_gc_w($text, AIO_GC_HINT_PX);
+        $d[] = aio_gc_cut(null, aio_gc_at($w, AIO_GC_LABEL_H, AIO_GC_LX + AIO_GC_LW - 16 - $w,
+            AIO_GC_TABS_Y + (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $text, AIO_GC_HINT_PX, AIO_GC_AMBER,
+            array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
+    }
 
     $fanart = aio_img($mv['fanart']);
     // Same key set as vendor GCompsFactory::get_window_def().
@@ -1174,7 +1184,8 @@ function aio_gc_sort($in)
 // gc_menu (MENU) of a live list -> the popup menu of the row under the cursor:
 // "Refresh" (aio_refresh), an episode: "Choose episode" (aio_choose), a row
 // with infoHash: "Download in app" (aio_download) and, with a server in the
-// settings, "Download to server" (aio_srv_menu; these three not with "no torrents"), "Settings". A screen of a
+// settings, "Download to server" (aio_srv_menu; these three not with "no torrents"), source errors of the
+// reply if shown (aio_gc_errors), "Settings". A screen of a
 // lost list (replaced, php_server restarted): "Settings" only.
 /**
  * @param stdClass $in
@@ -1222,10 +1233,31 @@ function aio_gc_menu($in)
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'srv_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/network_folder.aai',
             GuiMenuItemDef::action => aio_gc_act('gc_srv', $rid, array('i' => strval($sel))));
+    if (aio_errors_shown($st['errors']))
+        $menu[] = array(
+            GuiMenuItemDef::caption => aio_tr($st['lang'], 'errors_menu'),
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
+            GuiMenuItemDef::action => aio_gc_act('gc_errors', $rid));
     $menu[] = $setup;
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
         GuiAction::data => array(ShowPopupMenuActionData::menu_items => $menu));
+}
+
+// gc_errors (MENU "Source errors") of a live list -> the window of its reasons.
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
+function aio_gc_errors($in)
+{
+    $st = Aio::$state;
+    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
+    {
+        aio_log('source errors: not a live list');
+        return aio_error('err_list_expired');
+    }
+    return aio_errors_dialog(aio_tr($st['lang'], 'errors_menu'), $st['lang'], $st['errors']);
 }
 
 // gc_move -> change_gcomps (null at an edge); gc_pick -> playback; gc_info ->

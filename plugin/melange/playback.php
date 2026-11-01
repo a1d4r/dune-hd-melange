@@ -867,7 +867,8 @@ function aio_relist($st, $s, $e, $hash)
     return array('st' => aio_gc_put_cursor($ns, $sel), 'sel' => $sel, 'by' => $by);
 }
 
-// The dialog of a failed aio_relist: the error, its detail, OK.
+// The dialog of a failed aio_relist: the error, its detail, OK; a reply of error
+// streams only, with the setting on: their window instead.
 /**
  * @param string $title
  * @param string $lang
@@ -876,6 +877,8 @@ function aio_relist($st, $s, $e, $hash)
  */
 function aio_relist_dialog($title, $lang, $res)
 {
+    if (aio_errors_only($res))
+        return aio_errors_dialog(aio_tr($lang, 'errors_title'), $lang, $res['errors']);
     return aio_dialog($title, array_merge(aio_dialog_lines(aio_tr($lang, $res['error'])),
         aio_dialog_lines($res['detail'])),
         array('OK' => aio_close_and(null)));

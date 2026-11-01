@@ -665,6 +665,43 @@ function aio_errors_total($errors)
     return count($errors['lines']) + $errors['more'];
 }
 
+// The setting is on and the reply has reasons: they are shown.
+/**
+ * @param AioErrors $errors
+ * @return bool
+ */
+function aio_errors_shown($errors)
+{
+    return Aio::$settings['source_errors'] && $errors['lines'];
+}
+
+// A reply of error streams only, with the setting on: aio_errors_dialog instead
+// of err_no_streams. $res: the error of aio_fetch, or another one without 'errors'.
+/**
+ * @param array{error: string, detail: string, errors?: AioErrors} $res
+ * @return bool
+ */
+function aio_errors_only($res)
+{
+    return $res['error'] === 'err_no_streams' && isset($res['errors']) && aio_errors_shown($res['errors']);
+}
+
+// The first $max reasons, then "and N more" of the others (lines of plain text).
+/**
+ * @param string $lang
+ * @param AioErrors $errors
+ * @param int $max
+ * @return list<string>
+ */
+function aio_errors_rows($lang, $errors, $max)
+{
+    $rows = array_slice($errors['lines'], 0, $max);
+    $rest = aio_errors_total($errors) - count($rows);
+    if ($rest > 0)
+        $rows[] = str_replace('{n}', strval($rest), aio_tr($lang, 'errors_more'));
+    return $rows;
+}
+
 // The reason of error stream $st (its streamData $sd), one line: "name: reason",
 // no icon in the name, masked before the cut (a URL or a UUID across it stays
 // hidden). No text at all is a reason too: "?".
@@ -905,10 +942,16 @@ function aio_play_action($in)
         return aio_no_address(isset($in->lang) && is_string($in->lang) ? $in->lang : '');
 
     $res = aio_fetch(Aio::$settings['base'], $mv['imdb'] . ($mv['series'] ? ":$s:$e" : ''), $mv['series']);
+    $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
+    if (isset($res['error']) && aio_errors_only($res))
+    {
+        aio_log('error: only error streams, their dialog');
+        return aio_errors_dialog(aio_tr($lang, 'errors_title'), $lang, $res['errors']);
+    }
     if (isset($res['error']))
         return aio_error($res['error'], $res['detail']);
 
-    $st = aio_list_state($mv, $s, $e, $res['rows'], isset($in->lang) && is_string($in->lang) ? $in->lang : '', $res['errors']);
+    $st = aio_list_state($mv, $s, $e, $res['rows'], $lang, $res['errors']);
     Aio::$state = $st;
 
     if ($resume)
@@ -1038,6 +1081,35 @@ function aio_dialog_act($title, $defs, $more = array())
             ShowDialogActionData::preferred_width => 1100), $more));
 }
 
+// The window of the reasons: up to AIO_ERRORS_MAX + 1 rows do not fit a dialog of
+// labels (they get no focus, no key scrolls them), so left-aligned buttons of plain
+// look, as "C" of knowledge/platform/dialog-scroll.md: ENTER on a row, OK and
+// RETURN close it. A caption of smart_label is markup: without <text> the row is
+// empty, a bare "<" empties it too.
+/**
+ * @param string $title
+ * @param string $lang
+ * @param AioErrors $errors
+ * @return AioAction
+ */
+function aio_errors_dialog($title, $lang, $errors)
+{
+    $close = aio_close_and(null);
+    $defs = array();
+    foreach (aio_errors_rows($lang, $errors, AIO_ERRORS_MAX) as $i => $row)
+    {
+        $c = aio_ctl("row$i", GUI_CONTROL_BUTTON, array(
+            GuiButtonDef::caption => '<text>' . str_replace(array('&', '<', '>'), array('&amp;', '&lt;', '&gt;'), $row) . '</text>',
+            GuiButtonDef::width => 1000, GuiButtonDef::push_action => $close));
+        $c[GuiControlDef::params] = array('button_caption_centered' => 'no', 'button_style' => 'smart_label', 'button_height' => 44);
+        $defs[] = $c;
+    }
+    $defs[] = aio_ctl('ok', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => 'OK',
+        GuiButtonDef::width => 500, GuiButtonDef::push_action => $close));
+    return aio_dialog_act($title, $defs, array(ShowDialogActionData::max_height => 875,
+        ShowDialogActionData::params => array('page_size' => 11)));
+}
+
 function aio_ctl($name, $kind, $def, $title = null)
 {
     return array(GuiControlDef::name => $name, GuiControlDef::title => $title,
@@ -1077,6 +1149,8 @@ function aio_handle_user_input($in)
         return aio_chosen($in);
     if ($control === 'gc_menu')
         return aio_gc_menu($in);
+    if ($control === 'gc_errors')
+        return aio_gc_errors($in);
     if ($control === 'gc_dl')
         return aio_download($in);
     if ($control === 'gc_srv')

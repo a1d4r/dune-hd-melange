@@ -199,7 +199,7 @@ parameters:
                 cached: string, cached_in: string, download: string, unknown: string, p2p: string,
                 video: string, audio: string, voices: string, subs: string, langs: string,
                 trackers: string, addon: string, flip: string, actions: string, details: string,
-                sort_aio: string, sort_seeds: string, sort_cached: string, sort_size: string, sort_date: string
+                sort_aio: string, sort_seeds: string, sort_cached: string, sort_size: string, sort_date: string, errors: string
             }
         '''
         # Columns of the list (aio_gc_cols, view_gcomps.php): x and width;
