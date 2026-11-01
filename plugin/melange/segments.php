@@ -32,6 +32,13 @@ define('AIO_SEG_OUTRO_MIN', 600);
 define('AIO_MKV_CONNECT', 2);
 define('AIO_MKV_TOTAL', 3);
 define('AIO_MKV_MAX_BYTES', 65536);
+// EBML IDs of Matroska, with their length marks.
+define('AIO_MKV_ID_EBML', "\x1A\x45\xDF\xA3");
+define('AIO_MKV_ID_SEGMENT', "\x18\x53\x80\x67");
+define('AIO_MKV_ID_INFO', "\x15\x49\xA9\x66");
+define('AIO_MKV_ID_CLUSTER', "\x1F\x43\xB6\x75");
+define('AIO_MKV_ID_SCALE', "\x2A\xD7\xB1");
+define('AIO_MKV_ID_DURATION', "\x44\x89");
 
 // Manifest base $base -> the root of its AIOStreams server (what is before
 // /stremio/), '' when the address has no /stremio/.
@@ -180,7 +187,7 @@ function aio_mkv_info($b)
         if ($el[1] < 0 || $p + $el[1] > $n)
             return 0.0;
         $size = (int) $el[1];
-        if ($el[0] === "\x2A\xD7\xB1")
+        if ($el[0] === AIO_MKV_ID_SCALE)
         {
             // TimestampScale, an unsigned of 1..8 bytes.
             if ($size < 1 || $size > 8)
@@ -189,7 +196,7 @@ function aio_mkv_info($b)
             for ($i = 0; $i < $size; $i++)
                 $scale = $scale * 256 + ord($b[$p + $i]);
         }
-        else if ($el[0] === "\x44\x89")
+        else if ($el[0] === AIO_MKV_ID_DURATION)
         {
             if ($size !== 4 && $size !== 8)
                 return 0.0;
@@ -222,18 +229,18 @@ function aio_mkv_duration($b, &$why = null)
     $n = strlen($b);
     $p = 0;
     $el = aio_mkv_el($b, $p, $n);
-    if ($el === null || $el[0] !== "\x1A\x45\xDF\xA3" || $el[1] < 0 || $p + $el[1] > $n)
+    if ($el === null || $el[0] !== AIO_MKV_ID_EBML || $el[1] < 0 || $p + $el[1] > $n)
         return 0.0;
     $p += (int) $el[1];
     $el = aio_mkv_el($b, $p, $n);
-    if ($el === null || $el[0] !== "\x18\x53\x80\x67")
+    if ($el === null || $el[0] !== AIO_MKV_ID_SEGMENT)
         return 0.0;
     $why = 'no Info';
     // Its size may be unknown, and it is usually past the buffer.
     $end = $el[1] < 0 ? $n : (int) min($n, $p + $el[1]);
-    while (($el = aio_mkv_el($b, $p, $end)) !== null && $el[0] !== "\x1F\x43\xB6\x75" && $el[1] >= 0 && $p + $el[1] <= $end)
+    while (($el = aio_mkv_el($b, $p, $end)) !== null && $el[0] !== AIO_MKV_ID_CLUSTER && $el[1] >= 0 && $p + $el[1] <= $end)
     {
-        if ($el[0] === "\x15\x49\xA9\x66")
+        if ($el[0] === AIO_MKV_ID_INFO)
         {
             $why = 'no Duration';
             return aio_mkv_info((string) substr($b, $p, (int) $el[1]));
