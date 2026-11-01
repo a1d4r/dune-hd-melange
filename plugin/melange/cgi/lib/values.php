@@ -8,7 +8,8 @@
 // (aio_cgi_posted), by the keys of aio_cgi_fields() - strings (aio_tpl,
 // aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
 // settings; tpl_seen, tpl_p2p_seen only posted; ts_save: aio_cgi_ts_save_of()
-// of the settings, markers: aio_cgi_markers_of(), no_torrents:
+// of the settings, markers: aio_cgi_markers_of(), source_errors:
+// aio_cgi_source_errors_of(), no_torrents:
 // aio_cgi_no_torrents_of(), as posted - none: '',
 // settings.php puts the stored one);
 // tpl_new, tpl_p2p_new -
@@ -30,6 +31,7 @@ function aio_cgi_values($s)
     $v['aio_mode'] = '';
     $v['ts_save'] = aio_cgi_ts_save_of($s['ts_save']);
     $v['markers'] = aio_cgi_markers_of($s['markers']);
+    $v['source_errors'] = aio_cgi_source_errors_of($s['source_errors']);
     $v['no_torrents'] = aio_cgi_no_torrents_of($s['no_torrents']);
     $v['servers'] = $s['servers'];
     $v['confs'] = $s['aio_confs'];
@@ -292,6 +294,12 @@ function aio_cgi_check_values($v)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Пропуск заставки и титров: нет такого ответа', 'Skip intro and credits: no such answer'),
             $f['markers']['name']);
+    }
+    $d[$set['source_errors']] = $v['source_errors'] === aio_cgi_source_errors_of(true);
+    if (!array_key_exists($v['source_errors'], aio_cgi_source_errors()))
+    {
+        $errors[] = aio_cgi_err(aio_cgi_l('Ошибки источников: нет такого ответа', 'Source errors: no such answer'),
+            $f['source_errors']['name']);
     }
     return array($d, $errors);
 }

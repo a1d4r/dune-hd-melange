@@ -55,6 +55,8 @@ function aio_cgi_fields()
         'ts_save' => array('id' => 'tss', 'name' => 'ts_save', 'set' => 'ts_save', 'max' => 0, 'type' => 'radio', 'scr' => 'torr'),
         // "Пропуск заставки и титров" (0.49.1): aio_cgi_markers().
         'markers' => array('id' => 'mrk', 'name' => 'markers', 'set' => 'markers', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
+        // "Ошибки источников" (0.49.1): aio_cgi_source_errors().
+        'source_errors' => array('id' => 'ser', 'name' => 'source_errors', 'set' => 'source_errors', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
         // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
         'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'));
@@ -292,6 +294,33 @@ function aio_cgi_markers_block($v)
     $f = aio_cgi_fields();
     return '<p class="lbl">' . aio_cgi_l('Пропуск заставки и титров', 'Skip intro and credits') . '</p>' .
         aio_cgi_choice($f['markers'], aio_cgi_markers(), $v['markers']);
+}
+
+// The answers of "Ошибки источников" on the screen #adv (radio source_errors,
+// 0.49.1): its value => array(name, hint); "on" - source_errors of the settings.
+function aio_cgi_source_errors()
+{
+    return array(
+        'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
+            'Melange не показывает ошибки источников.',
+            'Melange does not show source errors.')),
+        'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
+            'Над списком раздач — число ошибок, причины — в меню «Действия».',
+            'The number of errors above the list of releases, the reasons in the "Actions" menu.')));
+}
+
+// The answer of aio_cgi_source_errors() of source_errors of the settings (a bool).
+function aio_cgi_source_errors_of($on)
+{
+    return $on ? 'on' : 'off';
+}
+
+// "Ошибки источников" on #adv (a value of the form: '' or another one - none checked).
+function aio_cgi_source_errors_block($v)
+{
+    $f = aio_cgi_fields();
+    return '<p class="lbl">' . aio_cgi_l('Ошибки источников', 'Source errors') . '</p>' .
+        aio_cgi_choice($f['source_errors'], aio_cgi_source_errors(), $v['source_errors']);
 }
 
 // The answers of "Запуск торрентов" on the screen #adv (radio no_torrents, 0.49.0): its
@@ -823,7 +852,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
                 'If TorrServer asks for them. Also in the address: login:password@host:port')) . aio_cgi_ts_save($v)) .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
-        aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v)) .
+        aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_source_errors_block($v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .
             '<a class="btn" href="settings?t=' . aio_cgi_h($t) . '&amp;a=log">' . aio_cgi_l('Скачать лог', 'Download the log') . '</a>') .

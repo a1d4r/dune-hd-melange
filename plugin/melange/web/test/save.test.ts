@@ -36,6 +36,7 @@ const FILLED: [string, string][] = [
   ["ts", "http://192.168.1.10:8090"], ["ts_user", "tsuser"], ["ts_pass", "ts p@ss&x"], ["ts_save", "add"],
   ...servers([["name", "qBittorrent"], ["url", "http://192.168.1.10:8080"], ["user", "admin"], ["pass", "test-pass"], ["category", "movies"]]),
   ["markers", "on"],
+  ["source_errors", "off"],
 ];
 // Torrents: as the page came but the answer (0.44.0: the TorrServer field stays on #torr).
 const P2P_BODY = encode([["watch", "p2p"], ...FILLED.slice(1)]);

@@ -62,14 +62,15 @@ class Aio
     // TorrServer to use, http://host:port (aio_ts_base); 'ts_auth' - its
     // "login:password" for Basic auth ('' none; the password hidden in the log);
     // 'ts_save' - save_to_db of its add (ts_save of the settings). 'markers' -
-    // the same of the settings: aio_markers, aio_play. 'no_torrents' -
+    // the same of the settings: aio_markers, aio_play. 'source_errors' - the same:
+    // aio_errors_shown. 'no_torrents' -
     // aio_no_torrents(): no P2P rows, nothing sent to TorrServer, an app or a server. 'aio' - the own
     // AIOStreams server ('' none), "<aio>" in the log. 'own' - the own config
     // is chosen (source own). 'hosts' - aio_settings_hosts(), hidden in the log.
     // 'sort', 'sort_rev' - the sort of a new list and its direction (aio_sort_read).
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
-        'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'no_torrents' => false, 'aio' => '', 'own' => false,
+        'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'source_errors' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false);
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
@@ -369,6 +370,7 @@ function aio_settings_load()
         'ts_auth' => aio_ts_auth($s['ts_user'], $s['ts_pass']),
         'ts_save' => $s['ts_save'],
         'markers' => $s['markers'],
+        'source_errors' => $s['source_errors'],
         'no_torrents' => aio_no_torrents($s),
         'aio' => $s['aio_own_url'],
         'own' => $s['source'] === 'own',

@@ -37,6 +37,7 @@ parameters:
                 ts_pass: string,
                 ts_save: bool,
                 markers: bool,
+                source_errors: bool,
                 no_torrents: bool,
                 aio_confs: array<string, array<string, AioConf>>,
                 saved_once: bool
@@ -54,6 +55,7 @@ parameters:
                 ts_auth: string,
                 ts_save: bool,
                 markers: bool,
+                source_errors: bool,
                 no_torrents: bool,
                 aio: string,
                 own: bool,

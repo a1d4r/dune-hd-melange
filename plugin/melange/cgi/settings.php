@@ -109,6 +109,8 @@ function aio_cgi_save($dir, $t)
         $v['ts_save'] = aio_cgi_ts_save_of($cur['ts_save']);
     if ($v['markers'] === '')
         $v['markers'] = aio_cgi_markers_of($cur['markers']);
+    if ($v['source_errors'] === '')
+        $v['source_errors'] = aio_cgi_source_errors_of($cur['source_errors']);
     if ($v['no_torrents'] === '')
         $v['no_torrents'] = aio_cgi_no_torrents_of($cur['no_torrents']);
     $v['ajax'] = $ajax;
