@@ -130,7 +130,7 @@ function aio_vod_item($mv, $s, $e, $url, $hash, $list)
 function aio_play_plan($seasons, $s, $others)
 {
     $all = $others;
-    $all[$s] = array_fill(1, $seasons[$s], '');
+    $all[$s] = array_flip(range(1, $seasons[$s]));
     ksort($all);
     $plan = array();
     foreach ($all as $q => $eps)

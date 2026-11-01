@@ -265,7 +265,7 @@ describe("Buttons in the episodes of a release (ts_markers, 0.49.0)", () => {
     expect(checked(open("empty"))).toBe("each");
   });
 
-  test("\"No torrents\" chosen: its block hidden, no change of it, posted as it was", async () => {
+  test("\"No torrents\" chosen: no change of it, posted as it was", async () => {
     const page = open("filled");
     page.choose("no_torrents", "off");
     expect(dirty(page)).toBe("1 изменение");

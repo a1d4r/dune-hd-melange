@@ -3,7 +3,8 @@
 // (POST /torrents add, save_to_db = ts_save), its file list awaited by a dialog
 // with a timer, then vod_play of /stream/<name>?link=<hash>&index=<id>&play:
 // the Dune player buffers a TorrServer stream itself. The episodes of the
-// pack go to the playlist as such URLs; the player switches them alone.
+// pack go to the playlist as such URLs, the player switching them alone, or
+// lazy, each with its markers (ts_markers of the settings, aio_play).
 // TorrServer drops a torrent nobody reads after its own timeout: no drop/rem.
 // Reads Aio (state, settings), writes Aio::$tswait, Aio::$ts_pack. Functions are global; the
 // require order is in main.php.
@@ -266,8 +267,9 @@ function aio_ts_one_season($dir)
     if (!preg_match_all('/' . $mark . '0*([0-9]{1,3})(?![0-9])|(?<![0-9])0*([0-9]{1,3})[ ._\-]*сезон/iu', $dir, $m, PREG_SET_ORDER))
         return null;
     $found = array();
+    // The group that matched is the last of the set.
     foreach ($m as $x)
-        $found[intval($x[1] !== '' ? $x[1] : $x[2])] = true;
+        $found[intval(end($x))] = true;
     return count($found) === 1 ? key($found) : null;
 }
 
@@ -837,7 +839,7 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
         ($st['e'] > 0 ? ', other episodes in the pack: ' . (count($eps) ? implode(' ', array_keys($eps)) : 'none') : ''));
     $others = array();
     Aio::$ts_pack = null;
-    $fs = $st['e'] > 0 && isset($all[$k]) && $all[$k][1] === $st['e'] ? aio_ts_file_season($files[$k]['path'], $all[$k]) : -1;
+    $fs = $st['e'] > 0 && isset($all[$k]) && $all[$k][1] === $st['e'] ? aio_ts_file_season($files[$k]['path'], $all[$k]) : false;
     $root = $fs === $st['s'] ? aio_ts_pack_root($files[$k]['path']) : null;
     if ($root !== null)
     {
