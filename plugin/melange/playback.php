@@ -877,8 +877,9 @@ function aio_relist($st, $s, $e, $hash)
  */
 function aio_relist_dialog($title, $lang, $res)
 {
-    if (aio_errors_only($res))
-        return aio_errors_dialog(aio_tr($lang, 'errors_title'), $lang, $res['errors']);
+    $only = aio_errors_only($res);
+    if ($only)
+        return aio_errors_dialog(aio_tr($lang, 'errors_title'), $lang, $only);
     return aio_dialog($title, array_merge(aio_dialog_lines(aio_tr($lang, $res['error'])),
         aio_dialog_lines($res['detail'])),
         array('OK' => aio_close_and(null)));
