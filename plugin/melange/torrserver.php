@@ -236,6 +236,19 @@ function aio_ts_eps($files)
     return array($out ? $out : aio_ts_eps_prefix($files), true);
 }
 
+// What starts a mark of a season before its number: "S", "Season ", "Сезон ".
+define('AIO_TS_SEASON_MARK', '(?:(?<![a-z0-9])(?:s|season[ ._\-]?)|сезон[ ._\-]*)');
+
+// The marks of a season numbered by the regex $n: "S01", "Season 1", "Сезон 1", "1 сезон".
+/**
+ * @param string $n
+ * @return string
+ */
+function aio_ts_season_re($n)
+{
+    return AIO_TS_SEASON_MARK . '0*' . $n . '(?![0-9])|(?<![0-9])0*' . $n . '[ ._\-]*сезон';
+}
+
 // A folder of the path names season $s ("Season 1", "S01", "1 сезон"); $s
 // null: any season.
 /**
@@ -245,26 +258,24 @@ function aio_ts_eps($files)
  */
 function aio_ts_dir_season($path, $s)
 {
-    $s = $s === null ? '[0-9]{1,3}' : $s;
-    return preg_match('/(?<![a-z0-9])(?:s|season[ ._\-]?)0*' . $s . '(?![0-9])|(?<![0-9])0*' . $s .
-        '[ ._\-]*сезон|сезон[ ._\-]*0*' . $s . '(?![0-9])/iu', aio_ts_dirname($path)) === 1;
+    return preg_match('/' . aio_ts_season_re($s === null ? '[0-9]{1,3}' : strval($s)) . '/iu', aio_ts_dirname($path)) === 1;
 }
 
 // The one season the folder name $dir names: "S2", "Season 2", "2 сезон",
 // "Show.S02.1080p" -> its number, else null: none ("Extras") or more than one
-// ("сезон 1-8", "S01-S08", "S1-3"). Unlike aio_ts_dir_season: one folder, no ranges.
+// ("сезон 1-8", "S01-S08", "S1-3", "Season 1 and 2"). Unlike aio_ts_dir_season:
+// one folder, no ranges.
 /**
  * @param string $dir
  * @return int|null
  */
 function aio_ts_one_season($dir)
 {
-    $mark = '(?:(?<![a-z0-9])(?:s|season[ ._\-]?)|сезон[ ._\-]*)';
-    $sep = '[ ._]*[\-–—,+&][ ._]*';
-    if (preg_match('/' . $mark . '[0-9]{1,3}' . $sep . '(?:s|season[ ._\-]?)?[0-9]{1,3}(?![0-9a-zа-я])|[0-9]{1,3}' . $sep .
+    $sep = '(?:[ ._]*[\-–—,+&][ ._]*|[ ._]+(?:and|и)[ ._]+)';
+    if (preg_match('/' . AIO_TS_SEASON_MARK . '[0-9]{1,3}' . $sep . '(?:s|season[ ._\-]?)?[0-9]{1,3}(?![0-9a-zа-я])|[0-9]{1,3}' . $sep .
         '[0-9]{1,3}[ ._\-]*сезон/iu', $dir))
         return null;
-    if (!preg_match_all('/' . $mark . '0*([0-9]{1,3})(?![0-9])|(?<![0-9])0*([0-9]{1,3})[ ._\-]*сезон/iu', $dir, $m, PREG_SET_ORDER))
+    if (!preg_match_all('/' . aio_ts_season_re('([0-9]{1,3})') . '/iu', $dir, $m, PREG_SET_ORDER))
         return null;
     $found = array();
     // The group that matched is the last of the set.
@@ -296,11 +307,23 @@ function aio_ts_pack_root($path)
     return aio_ts_one_season(aio_ts_basename($d)) !== null ? aio_ts_dirname($d) : $d;
 }
 
-// The episodes of the pack by the seasons of their files (aio_ts_file_season):
-// season => episode => key of $files, both ascending. Of several files of an
-// episode: under $root, then in the folder of the season or $root itself (not
-// "Extras"). A folder whose numbers do not start at 1 numbers across seasons
-// ("S2/11.mkv"): left out, unless it is season $s, the one played.
+// A folder of extras, not of episodes: "Season 2 Bonus", "Bonus/S2", "Доп. материалы".
+/**
+ * @param string $dir
+ * @return bool
+ */
+function aio_ts_extras($dir)
+{
+    return preg_match('/(?<![\pL0-9])(?:(?:extras?|bonus(?:es)?|specials?|featurettes?|deleted|samples?|допы?)(?!\pL)|бонус|дополн|спец|материал)/iu', $dir) === 1;
+}
+
+// The episodes of the other seasons of the pack, by the seasons of their files
+// (aio_ts_file_season), $s the one played: season => episode => key of $files,
+// both ascending. Folders of extras below $root: none. Of several files of an
+// episode: under $root, in the folder of the season or $root itself, right
+// beside the file played (a season folder of $root, "Bonus/S2" not), then with
+// more files of the season in the folder. A folder whose numbers do not start
+// at 1 numbers across seasons ("S2/11.mkv"): left out.
 /**
  * @param list<AioTsFile> $files
  * @param array<int, array{int|null, int}> $all
@@ -310,31 +333,40 @@ function aio_ts_pack_root($path)
  */
 function aio_ts_pack_map($files, $all, $root, $s)
 {
-    $best = array();
+    $in = array();
+    $count = array();
     $low = array();
     foreach ($all as $k => $ep)
     {
         $path = $files[$k]['path'];
         $q = aio_ts_file_season($path, $ep);
-        if ($q === null)
-            continue;
         $d = aio_ts_dirname($path);
-        $rank = ($root === '' || strpos($path, "$root/") === 0 ? 2 : 0) +
-            ($d === $root || aio_ts_one_season(aio_ts_basename($d)) === $q ? 1 : 0);
-        if (!isset($best[$q][$ep[1]]) || $rank > $best[$q][$ep[1]][0])
-            $best[$q][$ep[1]] = array($rank, $k);
+        if ($q === null || $q === $s || aio_ts_extras($root !== '' && strpos("$d/", "$root/") === 0 ? substr($d, strlen($root)) : $d))
+            continue;
+        $in[$q][$k] = $ep[1];
+        $count[$q][$d] = isset($count[$q][$d]) ? $count[$q][$d] + 1 : 1;
         if ($ep[0] === null && (!isset($low[$q]) || $ep[1] < $low[$q]))
             $low[$q] = $ep[1];
     }
-    ksort($best);
+    ksort($in);
     $out = array();
-    foreach ($best as $q => $eps)
+    foreach ($in as $q => $eps)
     {
-        if (isset($low[$q]) && $low[$q] > 1 && $q !== $s)
+        if (isset($low[$q]) && $low[$q] > 1)
             continue;
-        ksort($eps);
-        foreach ($eps as $n => $b)
-            $out[$q][$n] = $b[1];
+        $best = array();
+        foreach ($eps as $k => $n)
+        {
+            $d = aio_ts_dirname($files[$k]['path']);
+            $home = $d === $root || aio_ts_one_season(aio_ts_basename($d)) === $q;
+            $rank = ($root === '' || strpos("$d/", "$root/") === 0 ? 2 : 0) + ($home ? 1 : 0) +
+                ($home && ($d === $root || aio_ts_dirname($d) === $root) ? 1 : 0);
+            if (!isset($best[$n]) || $rank > $best[$n][0] || ($rank === $best[$n][0] && $count[$q][$d] > $best[$n][1]))
+                $best[$n] = array($rank, $count[$q][$d], $k);
+        }
+        ksort($best);
+        foreach ($best as $n => $b)
+            $out[$q][$n] = $b[2];
     }
     return $out;
 }
@@ -483,25 +515,24 @@ function aio_ts_url($base, $hash, $f)
 }
 
 // Episodes of season $s in the pack up to $max, besides $e (the file $chosen):
-// episode => URL. Each name parsed once (a pack may have thousands of files).
-// Its season in the name first, then a file of the folder of $chosen; an
-// unknown season counts only in that folder. By a number with no mark, none
-// unless $chosen has number $e: AIOStreams may name another numbering.
+// episode => key of $files. $parsed: aio_ts_eps of $files (a pack may have
+// thousands of files). Its season in the name first, then a file of the folder
+// of $chosen; an unknown season counts only in that folder. By a number with no
+// mark, none unless $chosen has number $e: AIOStreams may name another numbering.
 /**
- * @param string $base
- * @param string $hash
  * @param list<AioTsFile> $files
+ * @param array{array<int, array{int|null, int}>, bool} $parsed
  * @param int $s
  * @param int $e
  * @param int $chosen
  * @param int $max
- * @return array<int, string>
+ * @return array<int, int>
  */
-function aio_ts_episodes($base, $hash, $files, $s, $e, $chosen, $max)
+function aio_ts_episodes($files, $parsed, $s, $e, $chosen, $max)
 {
     $dir = aio_ts_dirname($files[$chosen]['path']);
     $best = array();
-    list($all, $weak) = aio_ts_eps($files);
+    list($all, $weak) = $parsed;
     if ($weak && (!isset($all[$chosen]) || $all[$chosen][1] !== $e))
         return array();
     foreach ($all as $k => $ep)
@@ -518,8 +549,88 @@ function aio_ts_episodes($base, $hash, $files, $s, $e, $chosen, $max)
     ksort($best);
     $out = array();
     foreach ($best as $i => $b)
-        $out[$i] = aio_ts_url($base, $hash, $files[$b[1]]);
+        $out[$i] = $b[1];
     return $out;
+}
+
+// The map of a start, file $k of row $r: season => episode => id of the file,
+// the one source of the files of the playlist. Season $st['s']: aio_ts_episodes,
+// the other seasons: aio_ts_pack_map, only if the file has the season asked for;
+// no season known: the season alone. Kept (Aio::$ts_pack) only if the file has the
+// number and that season, or no season at all: else a lazy episode asks AIOStreams.
+/**
+ * @param AioState $st
+ * @param AioRow $r
+ * @param list<AioTsFile> $files
+ * @param int $k
+ * @return array<int, array<int, int>>
+ */
+function aio_ts_map_start($st, $r, $files, $k)
+{
+    Aio::$ts_pack = null;
+    $s = $st['s'];
+    $e = $st['e'];
+    if ($e <= 0)
+        return array();
+    $seasons = $st['movie']['seasons'];
+    $parsed = aio_ts_eps($files);
+    $all = $parsed[0];
+    $map = array();
+    foreach (aio_ts_episodes($files, $parsed, $s, $e, $k, isset($seasons[$s]) ? min($seasons[$s], AIO_EPISODES_MAX) : 0) as $n => $f)
+        $map[$s][$n] = $files[$f]['id'];
+    if (!isset($all[$k]) || $all[$k][1] !== $e)
+        return $map;
+    $fs = aio_ts_file_season($files[$k]['path'], $all[$k]);
+    if ($fs !== null && $fs !== $s)
+        return $map;
+    $map[$s][$e] = $files[$k]['id'];
+    ksort($map[$s]);
+    if ($fs !== null)
+    {
+        foreach (aio_ts_pack_map($files, $all, aio_ts_pack_root($files[$k]['path']), $s) as $q => $m)
+        {
+            foreach ($m as $n => $f)
+            {
+                if (isset($seasons[$q]) && $n >= 1 && $n <= $seasons[$q])
+                    $map[$q][$n] = $files[$f]['id'];
+            }
+        }
+    }
+    Aio::$ts_pack = array('key' => $st['movie']['dune_id'], 'hash' => $r['hash'], 'row' => aio_ts_pack_row($r), 'map' => $map);
+    return $map;
+}
+
+// The URLs of $map, but for episode $e of season $s -> array(episode => URL of
+// season $s, season => episode => URL of the others), for aio_play.
+/**
+ * @param string $base
+ * @param string $hash
+ * @param list<AioTsFile> $files
+ * @param array<int, array<int, int>> $map
+ * @param int $s
+ * @param int $e
+ * @return array{array<int, string>, array<int, array<int, string>>}
+ */
+function aio_ts_map_urls($base, $hash, $files, $map, $s, $e)
+{
+    $byid = array();
+    foreach ($files as $f)
+        $byid[$f['id']] = $f;
+    $eps = array();
+    $others = array();
+    foreach ($map as $q => $m)
+    {
+        foreach ($m as $n => $id)
+        {
+            if (!isset($byid[$id]) || ($q === $s && $n === $e))
+                continue;
+            if ($q === $s)
+                $eps[$n] = aio_ts_url($base, $hash, $byid[$id]);
+            else
+                $others[$q][$n] = aio_ts_url($base, $hash, $byid[$id]);
+        }
+    }
+    return array($eps, $others);
 }
 
 // --- The chain.
@@ -755,8 +866,8 @@ function aio_ts_tick($in)
 }
 
 // The row of a start through TorrServer for its lazy episodes: without the name,
-// the size and the length of the file played, else aio_ts_pick takes that file
-// and aio_markers drops the markers past its end.
+// the size and the length of the file played, of another episode: aio_markers
+// would drop the markers past its end.
 /**
  * @param AioRow $r
  * @return AioRow
@@ -775,9 +886,8 @@ function aio_ts_pack_row($r)
     return $r;
 }
 
-// The list state of a lazy episode from the row of the last start, no AIOStreams:
-// of that card and release; if the pack names no season of its file (root null),
-// of its season only: "01.mkv" may not be E1 of the next one. No row -> null.
+// The list state of a lazy episode from the row and the map of the last start, no
+// AIOStreams: of that card and release, an episode of the map. Else null.
 /**
  * @param string $key
  * @param int $s
@@ -788,22 +898,19 @@ function aio_ts_pack_row($r)
 function aio_ts_pack_state($key, $s, $e, $hash)
 {
     $p = Aio::$ts_pack;
-    $saved = $p && $p['key'] === $key && $p['hash'] === $hash && ($p['root'] !== null || $p['s'] === $s) ? aio_movie_load($key) : null;
+    $saved = $p && $p['key'] === $key && $p['hash'] === $hash && isset($p['map'][$s][$e]) ? aio_movie_load($key) : null;
     if (!$saved)
         return null;
     $st = aio_list_state($saved['movie'], $s, $e, array($p['row']), $saved['lang']);
     $st['pack_only'] = true;
-    if ($p['root'] !== null)
-        $st['pack_root'] = $p['root'];
+    $st['pack_map'] = $p['map'];
     return $st;
 }
 
-// The file of the row among $files -> vod_play (the pack's episodes of the
-// season and, if the file has the number and the season asked for, of the other
-// seasons of season_numbers as ready URLs), or the dialog "no video" ($lazy: "not in this
-// release" of a lazy episode). The row of an episode from aio_ts_pack_state:
-// the file of the playlist, by aio_ts_pack_map. A file of the number asked
-// for: the row kept for the lazy episodes (aio_ts_pack_state).
+// The file of the row among $files -> vod_play (the files of its map as ready
+// URLs, aio_ts_map_start), or the dialog "no video" ($lazy: "not in this release"
+// of a lazy episode). A state of aio_ts_pack_state: the file and the playlist of
+// its map, the map stays; else the file by aio_ts_pick, a new map.
 /**
  * @param AioState $st
  * @param int $i
@@ -816,11 +923,16 @@ function aio_ts_pack_state($key, $s, $e, $hash)
 function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
 {
     $r = $st['rows'][$i];
-    list($all) = aio_ts_eps($files);
-    if (isset($st['pack_root']))
+    $map = isset($st['pack_map']) ? $st['pack_map'] : null;
+    if ($map !== null)
     {
-        $map = aio_ts_pack_map($files, $all, $st['pack_root'], $st['s']);
-        list($k, $by) = isset($map[$st['s']][$st['e']]) ? array($map[$st['s']][$st['e']], 'the pack') : array(-1, 'no file of the episode');
+        $k = -1;
+        foreach ($files as $n => $f)
+        {
+            if ($f['id'] === $map[$st['s']][$st['e']])
+                $k = $n;
+        }
+        $by = $k >= 0 ? 'the map' : 'no file of the map';
     }
     else
         list($k, $by) = aio_ts_pick($files, $r, $st['s'], $st['e']);
@@ -831,31 +943,14 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
             return aio_next_missing($st, $r['hash']);
         return aio_ts_fail($st['lang'], $st['e'] > 0 ? 'ts_err_no_ep' : 'ts_err_no_video');
     }
+    if ($map === null)
+        $map = aio_ts_map_start($st, $r, $files, $k);
     $base = Aio::$settings['ts'];
-    $seasons = $st['movie']['seasons'];
-    $eps = $st['e'] > 0 ? aio_ts_episodes($base, $r['hash'], $files, $st['s'], $st['e'], $k,
-        isset($seasons[$st['s']]) ? min($seasons[$st['s']], AIO_EPISODES_MAX) : 0) : array();
+    list($eps, $others) = aio_ts_map_urls($base, $r['hash'], $files, $map, $st['s'], $st['e']);
     aio_log("ts: file {$files[$k]['id']} of " . count($files) . " ($by): " . aio_cut($files[$k]['path'], 200) .
         ($st['e'] > 0 ? ', other episodes in the pack: ' . (count($eps) ? implode(' ', array_keys($eps)) : 'none') : ''));
-    $others = array();
-    Aio::$ts_pack = null;
-    $fs = $st['e'] > 0 && isset($all[$k]) && $all[$k][1] === $st['e'] ? aio_ts_file_season($files[$k]['path'], $all[$k]) : false;
-    $root = $fs === $st['s'] ? aio_ts_pack_root($files[$k]['path']) : null;
-    if ($root !== null)
-    {
-        foreach (aio_ts_pack_map($files, $all, $root, $st['s']) as $q => $m)
-        {
-            foreach ($m as $n => $f)
-            {
-                if ($q !== $st['s'] && isset($seasons[$q]) && $n >= 1 && $n <= $seasons[$q])
-                    $others[$q][$n] = aio_ts_url($base, $r['hash'], $files[$f]);
-            }
-        }
-        if ($others)
-            aio_log('ts: other seasons in the pack: ' . implode(' ', array_keys($others)));
-    }
-    if ($root !== null || $fs === null)
-        Aio::$ts_pack = array('key' => $st['movie']['dune_id'], 'hash' => $r['hash'], 'row' => aio_ts_pack_row($r), 'root' => $root, 's' => $st['s']);
+    if ($others)
+        aio_log('ts: other seasons in the pack: ' . implode(' ', array_keys($others)));
     aio_playing($from, $st, $i);
     return aio_play($st, $r, $pos, array('url' => aio_ts_url($base, $r['hash'], $files[$k]), 'eps' => $eps, 'others' => $others));
 }

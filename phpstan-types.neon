@@ -143,11 +143,11 @@ parameters:
                 gc_new?: bool,
                 gc_prog?: AioProgress,
                 pack_only?: bool,
-                pack_root?: string
+                pack_map?: array<int, array<int, int>>
             }
         '''
-        # The row of the last start through TorrServer (Aio::$ts_pack, torrserver.php).
-        AioTsPack: 'array{key: string, hash: string, row: AioRow, root: string|null, s: int}'
+        # The row and the map of the last start through TorrServer (Aio::$ts_pack, torrserver.php).
+        AioTsPack: 'array{key: string, hash: string, row: AioRow, map: array<int, array<int, int>>}'
         # Of the shell: a GuiAction (handler_string_id, data, params, ...),
         # its fields by the handler (aio_error, aio_input, main.php).
         AioAction: 'array<string, mixed>'

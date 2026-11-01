@@ -492,8 +492,9 @@ function aio_finish_act($rid)
 // by the list of that episode, cursor on the release: a new rid, so the old
 // screen, if the shell keeps it, only says "outdated". Same episode: the
 // shell keeps the screen and its cursor; only the progress bar of the
-// release played may change (aio_gc_bar_update). No request: the rows are those
-// of "next"; JacRed tracks of the old list go over by hash (one release).
+// release played may change (aio_gc_bar_update). The rows are those of "next", no
+// request; of a state of one row (aio_ts_pack_state), one request of that episode.
+// JacRed tracks of the old list go over by hash (one release).
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -1122,11 +1123,11 @@ function aio_deb_precheck($r)
 // a cached row first -> vod_play of it (aio_play checks it: a placeholder gets
 // its dialog). A row not cached plays only if the check finds a stream (the
 // CDN); else the dialog "not in this release".
-// ts: the row of the last start, no request (aio_ts_pack_state); else as a request
-// finds: a P2P row of the release, else any of it, even cached -> through
-// TorrServer, the file of the episode in the pack (torrserver.php); no row: the
-// same dialog. Not bingeGroup: one value for many releases, a silent change of
-// the voice.
+// ts: an episode of the map of the last start: its row and file, no request
+// (aio_ts_pack_state); else as a request finds: a P2P row of the release, else any
+// of it, even cached -> through TorrServer, the file of the episode by the reply
+// (torrserver.php); no row or file: the same dialog. Not bingeGroup: one value for
+// many releases, a silent change of the voice.
 /**
  * @param stdClass $in
  * @return AioAction
@@ -1158,7 +1159,7 @@ function aio_next($in)
     $st = $mode === 'ts' ? aio_ts_pack_state($key, $s, $e, $hash) : null;
     if ($st)
     {
-        aio_log("next: $ep: the row of the last start, no request");
+        aio_log("next: $ep: the map of the last start, no request");
         return aio_ts_open($st, 0, 0, Aio::$playing ? Aio::$playing['from'] : '', true);
     }
     $res = aio_next_fetch($key, $s, $e);
