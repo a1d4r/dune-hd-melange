@@ -262,9 +262,10 @@ function aio_ts_dir_season($path, $s)
 }
 
 // The one season the folder name $dir names: "S2", "Season 2", "2 сезон",
-// "Show.S02.1080p" -> its number, else null: none ("Extras") or more than one
-// ("сезон 1-8", "S01-S08", "S1-3", "Season 1 and 2"). Unlike aio_ts_dir_season:
-// one folder, no ranges.
+// "Show.S02.1080p" -> its number, else null: none ("Extras"), more than one
+// ("сезон 1-8", "S01-S08", "S1-3", "Season 1 and 2") or marks that differ, which
+// one is the season is unclear ("911 Сезон 4", "2 сезон 3 озвучки"). Unlike
+// aio_ts_dir_season: one folder, no ranges.
 /**
  * @param string $dir
  * @return int|null
@@ -275,10 +276,9 @@ function aio_ts_one_season($dir)
     if (preg_match('/' . AIO_TS_SEASON_MARK . '[0-9]{1,3}' . $sep . '(?:s|season[ ._\-]?)?[0-9]{1,3}(?![0-9a-zа-я])|[0-9]{1,3}' . $sep .
         '[0-9]{1,3}[ ._\-]*сезон/iu', $dir))
         return null;
-    // The number before "Сезон 4" is of the title ("911 Сезон 4"), unless the one
-    // after counts something else ("2 сезон 720p", "2 сезон 5.1", "2 сезон 10 серий").
-    $dir = preg_replace('/(?<![0-9])[0-9]{1,3}(?=[ ._\-]*сезон[ ._\-]*[0-9]{1,3}(?![0-9\pL]|[.,][0-9](?![0-9])|[ ._\-]*(?:сез|сер|эп|част|бит|из(?!\pL)|bit|ep|part)))/iu', '', $dir);
-    if (!preg_match_all('/' . aio_ts_season_re('([0-9]{1,3})') . '/iu', $dir, $m, PREG_SET_ORDER))
+    // Every mark, overlapping ones too ("911 Сезон 4": two), so a lookahead. A
+    // number with a letter after is no mark ("сезон 720p"), but "S02E01" is.
+    if (!preg_match_all('/(?=' . AIO_TS_SEASON_MARK . '0*([0-9]{1,3})(?![0-9]|(?!e[0-9])\pL)|(?<![0-9])([0-9]+)[ ._\-]*сезон(?!\pL))/iu', $dir, $m, PREG_SET_ORDER))
         return null;
     $found = array();
     // The group that matched is the last of the set.
@@ -310,30 +310,43 @@ function aio_ts_pack_root($path)
     return aio_ts_one_season(aio_ts_basename($d)) !== null ? aio_ts_dirname($d) : $d;
 }
 
-// A folder of extras, not of episodes: "Season 2 Bonus", "Bonus/S2", "Доп. материалы".
-// Of the last folder that names a season, only what follows the mark: before it
-// is the title ("Секретные материалы. Сезон 2").
+// What the folder name $dir has before its first mark of a season, null: no mark.
 /**
  * @param string $dir
+ * @return string|null
+ */
+function aio_ts_season_title($dir)
+{
+    return preg_match('/' . aio_ts_season_re('[0-9]{1,3}') . '/iu', $dir, $m, PREG_OFFSET_CAPTURE) ? strval(substr($dir, 0, $m[0][1])) : null;
+}
+
+// A folder of extras, not of episodes: "Season 2 Bonus", "Bonus/S2", "Bonus S2",
+// "Доп. материалы". $title (aio_ts_season_title) of the folder played is the name
+// of the show: in the last folder that names a season it does not count
+// ("Секретные материалы. Сезон 1" -> "Секретные материалы. Сезон 2").
+/**
+ * @param string $dir
+ * @param string $title
  * @return bool
  */
-function aio_ts_extras($dir)
+function aio_ts_extras($dir, $title)
 {
     $parts = explode('/', $dir);
     for ($i = count($parts) - 1; $i >= 0; $i--)
     {
-        if (preg_match('/' . aio_ts_season_re('[0-9]{1,3}') . '/iu', $parts[$i], $m, PREG_OFFSET_CAPTURE))
-        {
-            $parts[$i] = strval(substr($parts[$i], $m[0][1] + strlen($m[0][0])));
-            break;
-        }
+        $t = aio_ts_season_title($parts[$i]);
+        if ($t === null)
+            continue;
+        if (preg_match('/^' . preg_quote($t, '/') . '$/iu', $title))
+            $parts[$i] = substr($parts[$i], strlen($t));
+        break;
     }
     return preg_match('/(?<![\pL0-9])(?:(?:extras?|bonus(?:es)?|specials?|featurettes?|deleted|samples?|допы?|trailers?|interviews?|ncop|nced|creditless|behind|making)(?!\pL)|бонус|дополн|спец|материал|трейлер|интервью|ролик)/iu', implode('/', $parts)) === 1;
 }
 
 // The episodes of the other seasons of the pack, by the seasons of their files
 // (aio_ts_file_season), $s the one played: season => episode => key of $files,
-// both ascending. Folders of extras below $root: none. Of several files of an
+// both ascending. Folders of extras below $root ($title: aio_ts_extras): none. Of several files of an
 // episode: under $root, in the folder of the season or $root itself, right
 // beside the file played (a season folder of $root, "Bonus/S2" not), then with
 // more files of the season in the folder. A folder whose numbers do not start
@@ -343,9 +356,10 @@ function aio_ts_extras($dir)
  * @param array<int, array{int|null, int}> $all
  * @param string $root
  * @param int $s
+ * @param string $title
  * @return array<int, array<int, int>>
  */
-function aio_ts_pack_map($files, $all, $root, $s)
+function aio_ts_pack_map($files, $all, $root, $s, $title)
 {
     $in = array();
     $count = array();
@@ -355,7 +369,7 @@ function aio_ts_pack_map($files, $all, $root, $s)
         $path = $files[$k]['path'];
         $q = aio_ts_file_season($path, $ep);
         $d = aio_ts_dirname($path);
-        if ($q === null || $q === $s || aio_ts_extras($root !== '' && strpos("$d/", "$root/") === 0 ? substr($d, strlen($root)) : $d))
+        if ($q === null || $q === $s || aio_ts_extras($root !== '' && strpos("$d/", "$root/") === 0 ? substr($d, strlen($root)) : $d, $title))
             continue;
         $in[$q][$k] = $ep[1];
         $count[$q][$d] = isset($count[$q][$d]) ? $count[$q][$d] + 1 : 1;
@@ -601,7 +615,8 @@ function aio_ts_map_start($st, $r, $files, $k)
     ksort($map[$s]);
     if ($fs !== null)
     {
-        foreach (aio_ts_pack_map($files, $all, aio_ts_pack_root($files[$k]['path']), $s) as $q => $m)
+        $title = strval(aio_ts_season_title(aio_ts_basename(aio_ts_dirname($files[$k]['path']))));
+        foreach (aio_ts_pack_map($files, $all, aio_ts_pack_root($files[$k]['path']), $s, $title) as $q => $m)
         {
             foreach ($m as $n => $f)
             {
