@@ -3,9 +3,9 @@
 **English version**
 
 ## 0.49.1 — 01.11.2026
+- **"Skip intro and credits" setting.** On the settings page, **"Advanced"**: **"On"** (the default): the skip buttons in the player, episodes may start a little slower; **"Off"**: no buttons, episodes start and switch faster. Replaces the "Buttons in the episodes of a release" setting: if "Instant switching" was chosen there, turn the new setting off again.
+- Fixed: **"Next episode"** in episodes not played before appears on time more often, both via Debrid and via TorrServer: Melange reads the length from the MKV file.
 - Fixed: the next episode could say "Episode is not in this release" when some sources failed to respond. Melange now asks once more; if the release is still not found, the window says that sources did not respond.
-- Fixed: **"Next episode"** in episodes not played before appears on time more often: Melange reads the length from the MKV file.
-- **"Skip intro and credits" setting.** On the settings page, **"Advanced"**: **"On"** (the default): the skip buttons in the player, episodes may start a little slower; **"Off"**: no buttons, episodes start and switch faster.
 
 ## 0.49.0 — 01.11.2026
 - **"No torrents" setting.** For those who watch only through Debrid or their own config: on the settings page, **"Advanced"** (main screen, "More"), **"Running torrents"** (with Debrid or your own config chosen): **"No torrents"**. The line "Advanced" says "Torrents are off" while it is in effect. P2P releases are hidden from the list, the release menu has no "Watch via TorrServer", "Open in an app…" and "Download to server…", and "Continue watching" of a release started via TorrServer opens the list. The "TorrServer" and "Download to your server" sections disappear from the settings page; their values are kept and come back when the setting is turned off. Debrid releases that are "not cached" stay in the list: the Debrid service downloads them. Torrents are allowed by default. The setting is not shown with the "Torrents" answer.
@@ -144,9 +144,9 @@ First public release. What it does:
 **Russian version**
 
 ## 0.49.1 — 01.11.2026
+- **Настройка «Пропуск заставки и титров».** На странице настроек, **«Дополнительно»**: **«Включён»** (по умолчанию): кнопки пропуска в плеере, серии могут запускаться чуть медленнее; **«Выключен»**: кнопок нет, серии запускаются и переключаются быстрее. Заменяет настройку «Кнопки в сериях раздачи»: если там было выбрано «Мгновенное переключение», выключите новую настройку заново.
+- Исправлено: кнопка **«Следующий эпизод»** в сериях, которые ещё не запускали, чаще появляется вовремя и через Debrid, и через TorrServer: Melange читает длину из файла MKV.
 - Исправлено: следующая серия могла сказать «Серии нет в этой раздаче», когда часть источников не ответила. Теперь Melange спрашивает ещё раз; если раздача так и не нашлась, окно говорит, что источники не ответили.
-- Исправлено: кнопка **«Следующий эпизод»** в сериях, которые ещё не запускали, чаще появляется вовремя: Melange читает длину из файла MKV.
-- **Настройка «Пропуск заставки и титров».** На странице настроек, **«Дополнительно»**: **«Включён»** (по умолчанию): кнопки пропуска в плеере, серии могут запускаться чуть медленнее; **«Выключен»**: кнопок нет, серии запускаются и переключаются быстрее.
 
 ## 0.49.0 — 01.11.2026
 - **Настройка «Без торрентов».** Для тех, кто смотрит только через Debrid или свой конфиг: на странице настроек, **«Дополнительно»** (главный экран, «Ещё»), **«Запуск торрентов»** (при выбранном Debrid или своём конфиге): **«Без торрентов»**. Пока настройка действует, в строке «Дополнительно» — «Торренты выключены». Раздачи P2P скрыты из списка, в меню раздачи нет «Смотреть через TorrServer», «Открыть в приложении…» и «Скачать на сервер…», а «Продолжить просмотр» раздачи, включённой через TorrServer, открывает список. Разделы «TorrServer» и «Скачивать на свой сервер» исчезают со страницы настроек; их значения сохраняются и возвращаются, когда настройку выключают. Раздачи Debrid «не в кэше» остаются в списке: их качает сервис Debrid. По умолчанию торренты разрешены. При ответе «Торренты» настройка не показывается.
