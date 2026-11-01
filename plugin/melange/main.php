@@ -610,7 +610,7 @@ function aio_error_streams($streams)
 // Seconds of a stream request, at most.
 define('AIO_FETCH_TOTAL', 30);
 
-// -> array('rows' => list) or array('error' => key, 'detail' => text); 'err_streams':
+// -> array('rows' => list) or array('error' => key, 'detail' => text); 'error_streams':
 // error streams of the reply, with the rows and with err_no_streams.
 /**
  * @param string $base
@@ -659,9 +659,9 @@ function aio_fetch($base, $id, $series)
     }
     aio_log(sprintf('streams: %d, listed: %d%s, memory peak %.1f MB', count($j['streams']), count($rows),
         $hidden ? ", P2P hidden: $hidden" : '', memory_get_peak_usage() / 1048576));
-    $err_streams = aio_error_streams($j['streams']);
-    return $rows ? array('rows' => $rows, 'err_streams' => $err_streams) :
-        array('error' => 'err_no_streams', 'detail' => '', 'err_streams' => $err_streams);
+    $error_streams = aio_error_streams($j['streams']);
+    return $rows ? array('rows' => $rows, 'error_streams' => $error_streams) :
+        array('error' => 'err_no_streams', 'detail' => '', 'error_streams' => $error_streams);
 }
 
 // --- The stream list screen.
