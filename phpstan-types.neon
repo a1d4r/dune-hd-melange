@@ -179,7 +179,7 @@ parameters:
         # Params of the window of TorrServer in the player (aio_tsi_params, ts_info.php).
         AioTsiParams: 'array{h: string, n: string, l: string, e: string}'
         # A stream request (aio_fetch, main.php).
-        AioFetch: 'array{rows: list<AioRow>}|array{error: string, detail: string}'
+        AioFetch: 'array{rows: list<AioRow>, failed: int}|array{error: string, detail: string, failed?: int}'
         # Progress of the releases of a list (aio_wh_progress, history.php):
         # the tail of our uid of the history after "aio:<dune id>:<s>:<e>:" =>
         # share in (0, 1]. Our uids end in an infoHash (40 hex: a string key);

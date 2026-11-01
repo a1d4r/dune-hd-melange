@@ -1023,27 +1023,29 @@ function aio_next_params($in)
 }
 
 // Streams of the episode -> array('st' => list state) or array('error' =>
-// key, 'detail' => text); 'lang' in both.
+// key, 'detail' => text); 'lang' and 'failed' (aio_fetch, else 0) in both.
 /**
  * @param string $key
  * @param int $s
  * @param int $e
- * @return array{error: string, detail: string, lang: string}|array{lang: string, st: AioState}
+ * @return array{error: string, detail: string, lang: string, failed: int}|array{lang: string, st: AioState, failed: int}
  */
 function aio_next_fetch($key, $s, $e)
 {
     $saved = aio_movie_load($key);
     if (!$saved)
-        return array('error' => 'err_list_expired', 'detail' => '', 'lang' => '');
+        return array('error' => 'err_list_expired', 'detail' => '', 'lang' => '', 'failed' => 0);
     $mv = $saved['movie'];
     // Under the player: only the error with the way to the settings.
     if (Aio::$settings['base'] === '')
         return array('error' => Aio::$settings['own'] ? 'err_set_address_own' : 'err_set_address', 'detail' => '',
-            'lang' => $saved['lang']);
+            'lang' => $saved['lang'], 'failed' => 0);
     $res = aio_fetch(Aio::$settings['base'], "{$mv['imdb']}:$s:$e", true);
     if (isset($res['error']))
-        return array('error' => $res['error'], 'detail' => $res['detail'], 'lang' => $saved['lang']);
-    return array('lang' => $saved['lang'], 'st' => aio_list_state($mv, $s, $e, $res['rows'], $saved['lang']));
+        return array('error' => $res['error'], 'detail' => $res['detail'], 'lang' => $saved['lang'],
+            'failed' => isset($res['failed']) ? $res['failed'] : 0);
+    return array('lang' => $saved['lang'], 'st' => aio_list_state($mv, $s, $e, $res['rows'], $saved['lang']),
+        'failed' => $res['failed']);
 }
 
 // The file of the row has the episode. Seasons may be absent (not parsed).
@@ -1128,6 +1130,8 @@ function aio_deb_precheck($r)
 // of it, even cached -> through TorrServer, the file of the episode by the reply
 // (torrserver.php); no row or file: the same dialog. Not bingeGroup: one value for
 // many releases, a silent change of the voice.
+// Add-ons failed in the reply and it has no such release: one more request at
+// once (their outage may be over), if the operation has the time for it.
 /**
  * @param stdClass $in
  * @return AioAction
@@ -1162,11 +1166,21 @@ function aio_next($in)
         aio_log("next: $ep: the map of the last start, no request");
         return aio_ts_open($st, 0, 0, Aio::$playing ? Aio::$playing['from'] : '', true);
     }
-    $res = aio_next_fetch($key, $s, $e);
+    for ($first = true; ; $first = false)
+    {
+        $res = aio_next_fetch($key, $s, $e);
+        $failed = $res['failed'];
+        $pick = isset($res['error']) ? null : aio_release_pick($res['st']['rows'], $hash, $s, $e);
+        $none = $pick ? $pick[$mode === 'ts' ? 'ts' : 'deb'] < 0 : $res['error'] === 'err_no_streams';
+        if (!$first || !$none || $failed < 1 || !aio_op_total(30, 30, "next: $ep: retry"))
+            break;
+        aio_log("next: $ep: the release not found, $failed add-ons failed, one more request");
+        // Not two replies in the memory.
+        unset($res, $pick);
+    }
     if (isset($res['error']))
         return aio_next_failed($res['lang'] !== '' ? $res['lang'] : $lang, $ep, $res['error'], $res['detail']);
     $st = $res['st'];
-    $pick = aio_release_pick($st['rows'], $hash, $s, $e);
     $sel = $pick['deb'];
     $found = $sel >= 0 ? $st['rows'][$sel] : null;
     $p2p = $pick['p2p'];
@@ -1178,7 +1192,7 @@ function aio_next($in)
     {
         $ts = $pick['ts'];
         // Its own echo: a dialog under the player.
-        return $ts >= 0 ? aio_ts_open($st, $ts, 0, $from, true) : aio_next_missing($st, $hash);
+        return $ts >= 0 ? aio_ts_open($st, $ts, 0, $from, true) : aio_next_missing($st, $hash, $failed);
     }
     $pre = null;
     if ($found && $found['cached'] !== true)
@@ -1199,24 +1213,29 @@ function aio_next($in)
             aio_playing($from, $st, $sel);
         return $a;
     }
-    return aio_next_missing($st, $hash);
+    // A row of the release, no stream from Debrid: it is there, whatever failed.
+    return aio_next_missing($st, $hash, $sel < 0 ? $failed : 0);
 }
 
 // The dialog "S2E3 is not in this release" over the stopped player of a lazy
 // episode of list state $st: "Choose a release" (its list; a state of one row,
 // aio_ts_pack_state, is no list: aio_next_pick asks for it) and "Stop".
+// $failed: add-ons failed in the reply without the release, the text says so.
 /**
  * @param AioState $st
  * @param string $hash
+ * @param int $failed
  * @return AioAction
  */
-function aio_next_missing($st, $hash)
+function aio_next_missing($st, $hash, $failed = 0)
 {
     Aio::$next = isset($st['pack_only']) ? null : $st;
     $ep = sprintf('S%02dE%02d', $st['s'], $st['e']);
-    aio_log("next: -> dialog: $ep is not in this release");
+    aio_log($failed > 0 ? "next: -> dialog: $ep: $failed add-ons failed, the release not found" :
+        "next: -> dialog: $ep is not in this release");
     $lang = $st['lang'];
-    return aio_dialog(aio_tr($lang, 'next_no_episode', $ep), array(), array(
+    $title = $failed > 0 ? aio_tr($lang, 'next_sources_failed', $ep) : aio_tr($lang, 'next_no_episode', $ep);
+    return aio_dialog($title, array(), array(
         aio_tr($lang, 'next_pick') => aio_input('next_pick', array('k' => $st['movie']['dune_id'], 's' => strval($st['s']),
             'e' => strval($st['e']), 'h' => $hash, 'rid' => $st['rid'])),
         aio_tr($lang, 'next_stop') => aio_input('next_stop')));

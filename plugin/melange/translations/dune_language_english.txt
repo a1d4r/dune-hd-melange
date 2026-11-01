@@ -15,6 +15,7 @@ err_pre_infringing = Debrid blocked the release: copyright
 err_pre_limit = Debrid limit reached
 err_pre_placeholder = Debrid returned a placeholder video
 next_no_episode = Episode {ep} is not in this release
+next_sources_failed = Episode {ep}: some sources did not respond, the release was not found
 next_failed = Episode {ep} failed to load
 next_pick = Choose a release
 next_stop = Stop

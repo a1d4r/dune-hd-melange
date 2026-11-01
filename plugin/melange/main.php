@@ -580,6 +580,7 @@ if (!function_exists('aio_http_peek'))
 
 // Error streams of the reply (streamData.type "error": a failed add-on, a bad
 // config): the count and the text of the first 3, masked before the cut.
+// -> the count.
 function aio_log_error_streams($streams)
 {
     $n = 0;
@@ -603,9 +604,11 @@ function aio_log_error_streams($streams)
     }
     if ($n > 0)
         aio_log("error streams: $n");
+    return $n;
 }
 
-// -> array('rows' => list) or array('error' => key, 'detail' => text).
+// -> array('rows' => list) or array('error' => key, 'detail' => text); 'failed':
+// error streams of the reply, with the rows and with err_no_streams.
 /**
  * @param string $base
  * @param string $id
@@ -653,8 +656,9 @@ function aio_fetch($base, $id, $series)
     }
     aio_log(sprintf('streams: %d, listed: %d%s, memory peak %.1f MB', count($j['streams']), count($rows),
         $hidden ? ", P2P hidden: $hidden" : '', memory_get_peak_usage() / 1048576));
-    aio_log_error_streams($j['streams']);
-    return $rows ? array('rows' => $rows) : array('error' => 'err_no_streams', 'detail' => '');
+    $failed = aio_log_error_streams($j['streams']);
+    return $rows ? array('rows' => $rows, 'failed' => $failed) :
+        array('error' => 'err_no_streams', 'detail' => '', 'failed' => $failed);
 }
 
 // --- The stream list screen.
