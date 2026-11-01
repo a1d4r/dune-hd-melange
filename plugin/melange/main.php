@@ -641,6 +641,8 @@ if (!function_exists('aio_http_range'))
 
 // Reasons of a reply kept, at most: the memory of the Dune; the others only counted.
 define('AIO_ERRORS_MAX', 30);
+// Reasons in a dialog of a lazy episode, at most (aio_errors_labels).
+define('AIO_ERRORS_LABELS', 5);
 // Characters of a reason, its own ellipsis included: the shell cuts a longer
 // button of aio_errors_dialog at the right without one.
 define('AIO_ERROR_LINE', 48);
@@ -700,6 +702,18 @@ function aio_errors_rows($lang, $errors, $max)
     if ($rest > 0)
         $rows[] = str_replace('{n}', strval($rest), aio_tr($lang, 'errors_more'));
     return $rows;
+}
+
+// The reasons as labels of a dialog of a lazy episode, with the setting on: its
+// buttons stay in view.
+/**
+ * @param string $lang
+ * @param AioErrors $errors
+ * @return list<string>
+ */
+function aio_errors_labels($lang, $errors)
+{
+    return aio_errors_shown($errors) ? aio_errors_rows($lang, $errors, AIO_ERRORS_LABELS) : array();
 }
 
 // The reason of error stream $st (its streamData $sd), one line: "name: reason",

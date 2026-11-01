@@ -993,19 +993,20 @@ function aio_lazy_action($pb)
     return aio_input('next', array('k' => $m[1], 's' => $m[2], 'e' => $m[3], 'h' => $m[4], 'm' => $m[5]));
 }
 
-// "Episode SxEy did not load": the error and "Stop" only.
+// "Episode SxEy did not load": the error, $labels (aio_errors_labels) and "Stop" only.
 /**
  * @param string $lang
  * @param string $ep
  * @param string $key
  * @param string $detail
+ * @param list<string> $labels
  * @return AioAction
  */
-function aio_next_failed($lang, $ep, $key, $detail = '')
+function aio_next_failed($lang, $ep, $key, $detail = '', $labels = array())
 {
     aio_log("next: -> dialog: $key" . ($detail !== '' ? " ($detail)" : ''));
     return aio_dialog(aio_tr($lang, 'next_failed', $ep),
-        array_merge(aio_dialog_lines(aio_tr($lang, $key)), aio_dialog_lines($detail)),
+        array_merge(aio_dialog_lines(aio_tr($lang, $key)), aio_dialog_lines($detail), $labels),
         array(aio_tr($lang, 'next_stop') => aio_input('next_stop')));
 }
 
@@ -1189,8 +1190,11 @@ function aio_next($in)
         unset($res, $pick);
     }
     if (isset($res['error']))
-        return aio_next_failed($res['lang'] !== '' ? $res['lang'] : $lang, $ep,
-            $res['error'] === 'err_no_streams' && $errors['lines'] ? 'err_sources_failed' : $res['error'], $res['detail']);
+    {
+        $lang = $res['lang'] !== '' ? $res['lang'] : $lang;
+        return aio_next_failed($lang, $ep, $res['error'] === 'err_no_streams' && $errors['lines'] ? 'err_sources_failed' : $res['error'],
+            $res['detail'], aio_errors_labels($lang, $errors));
+    }
     if (!$none)
         $errors = aio_no_errors();
     $st = $res['st'];
@@ -1247,7 +1251,7 @@ function aio_next_missing($st, $hash, $errors)
         "next: -> dialog: $ep is not in this release");
     $lang = $st['lang'];
     $title = $errors['lines'] ? aio_tr($lang, 'next_sources_failed', $ep) : aio_tr($lang, 'next_no_episode', $ep);
-    return aio_dialog($title, array(), array(
+    return aio_dialog($title, aio_errors_labels($lang, $errors), array(
         aio_tr($lang, 'next_pick') => aio_input('next_pick', array('k' => $st['movie']['dune_id'], 's' => strval($st['s']),
             'e' => strval($st['e']), 'h' => $hash, 'rid' => $st['rid'])),
         aio_tr($lang, 'next_stop') => aio_input('next_stop')));
