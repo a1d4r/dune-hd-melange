@@ -101,6 +101,11 @@ describe.each([...FIXTURES])("%s", (name) => {
       const card = doc.querySelector("label[for=" + radio.id + "]")!;
       expect([card.closest("section")!.id, !!card.closest(".xt")]).toEqual(["adv", true]);
     }
+    // The buttons in the episodes of a release (ts_markers, 0.49.0): two radios "each", "fast" with their cards on #adv.
+    const marks = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=ts_markers]"));
+    expect(marks.map((radio) => [radio.type, radio.value])).toEqual([["radio", "each"], ["radio", "fast"]]);
+    for (const radio of marks)
+      expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("adv");
     // The bar of the save under the screens: its results, "Hide" of them (a button, not a submit), its button the save.
     expect(doc.querySelector("#" + ID.bar + " #" + ID.saveResult + "+ button#" + ID.hideResult + "[type=button][hidden] + * #" + ID.dirty + "+ button." + CLS.save)).not.toBeNull();
     expect(form.querySelectorAll(JACRED_RADIOS + "[type=radio]").length).toBe(form.querySelectorAll("input[name=" + NAME.jacred + "]").length);
@@ -225,6 +230,8 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect([doc.querySelectorAll("#vadv span").length, value.textContent, hidden(value)]).toEqual([1, "Торренты выключены", !off]);
     // "Запуск торрентов" on the screen: not with "Торренты".
     expect(hidden(doc.querySelector("#adv p.lbl")!)).toBe(watch === "wp");
+    // The buttons: not with it in effect; with "Торренты" it is not, the value there or not.
+    expect(hidden(doc.getElementById("tsmb")!)).toBe(off);
   });
 
   test("the screens: each a section with a link back to #home, #home last, the bar after it", () => {
