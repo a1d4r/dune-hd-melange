@@ -2,7 +2,7 @@
 
 **English version**
 
-## 0.49.0 — 30.10.2026
+## 0.49.0 — 01.11.2026
 - **"No torrents" setting.** For those who watch only through Debrid or their own config: on the settings page, **"Advanced"** (main screen, "More"), **"Running torrents"** (with Debrid or your own config chosen): **"No torrents"**. The line "Advanced" says "Torrents are off" while it is in effect. P2P releases are hidden from the list, the release menu has no "Watch via TorrServer", "Open in an app…" and "Download to server…", and "Continue watching" of a release started via TorrServer opens the list. The "TorrServer" and "Download to your server" sections disappear from the settings page; their values are kept and come back when the setting is turned off. Debrid releases that are "not cached" stay in the list: the Debrid service downloads them. Torrents are allowed by default. The setting is not shown with the "Torrents" answer.
 - **Debrid and TorrServer do not mix.** They are two separate ways of watching: the next episode and "Continue Watching" go the way you started the release. Started via Debrid, a release not cached shows a window or the list and does not go to TorrServer; started via TorrServer (a P2P release or MENU "Watch via TorrServer"), it stays on TorrServer even if the release is cached in Debrid. Another way is your choice: pick a release in the list or use the MENU.
 - **All the episodes of a release via TorrServer.** The player's list now has all the episodes of all the seasons in the release and starts from the one you chose, not just the current season and the first episode of the next one. If the season or the number of a file cannot be confirmed (numbering across seasons, everything in one folder), the list stays as it was: better short than with another episode.
@@ -138,7 +138,7 @@ First public release. What it does:
 
 **Russian version**
 
-## 0.49.0 — 30.10.2026
+## 0.49.0 — 01.11.2026
 - **Настройка «Без торрентов».** Для тех, кто смотрит только через Debrid или свой конфиг: на странице настроек, **«Дополнительно»** (главный экран, «Ещё»), **«Запуск торрентов»** (при выбранном Debrid или своём конфиге): **«Без торрентов»**. Пока настройка действует, в строке «Дополнительно» — «Торренты выключены». Раздачи P2P скрыты из списка, в меню раздачи нет «Смотреть через TorrServer», «Открыть в приложении…» и «Скачать на сервер…», а «Продолжить просмотр» раздачи, включённой через TorrServer, открывает список. Разделы «TorrServer» и «Скачивать на свой сервер» исчезают со страницы настроек; их значения сохраняются и возвращаются, когда настройку выключают. Раздачи Debrid «не в кэше» остаются в списке: их качает сервис Debrid. По умолчанию торренты разрешены. При ответе «Торренты» настройка не показывается.
 - **Debrid и TorrServer не смешиваются.** Это два разных способа смотреть: следующая серия и «Продолжить просмотр» идут тем же способом, каким включили раздачу. Включили через Debrid — раздача не из кэша покажет окно или список, а не уйдёт в TorrServer; включили через TorrServer (раздача P2P или MENU «Смотреть через TorrServer») — останется на TorrServer, даже если раздача есть в кэше Debrid. Другой способ — ваш выбор: раздача в списке или MENU.
 - **Все серии раздачи через TorrServer.** В списке плеера теперь все серии всех сезонов, которые есть в раздаче, старт — с выбранной, а не только текущий сезон и первая серия следующего. Если сезон или номер файла не подтверждаются (сквозная нумерация, всё в одной папке), список остаётся прежним: лучше короткий, чем с чужой серией.
