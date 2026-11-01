@@ -207,7 +207,7 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     $ser = aio_vod_item($mv, $s, $e, $url, $linked ? $r['hash'] : '', $list);
     if ($e > 0)
     {
-        $mk = aio_markers($mv['imdb'], $s, $e, aio_row_duration($r));
+        $mk = aio_markers($mv['imdb'], $s, $e, aio_row_duration($r), $ready ? $url : '');
         if ($mk)
             $ser[PluginVodSeriesInfo::markers] = $mk;
     }

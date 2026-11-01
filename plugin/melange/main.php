@@ -578,6 +578,55 @@ if (!function_exists('aio_http_peek'))
     }
 }
 
+// Tests define their own aio_http_range().
+if (!function_exists('aio_http_range'))
+{
+    // GET of the first $max bytes of a stream URL -> array(HTTP code, the body,
+    // its first $max bytes). A server without Range sends the whole file (200):
+    // the transfer stops at $max all the same. $err is set on a transport
+    // error, the body then ''. Not curl_multi_getcontent: php-cgi and php_server
+    // of r25 crash on it.
+    function aio_http_range($url, $max, &$err, $connect, $total)
+    {
+        $body = '';
+        $full = false;
+        $ch = curl_init($url);
+        $set = curl_setopt_array($ch, array(
+            CURLOPT_RANGE => '0-' . ($max - 1),
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_CONNECTTIMEOUT => $connect,
+            CURLOPT_TIMEOUT => $total,
+            CURLOPT_CAINFO => AIO_CA_BUNDLE,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            // The User-Agent of aio_http_peek.
+            CURLOPT_USERAGENT => 'AIOStreams-DuneClient/' . AIO_VERSION,
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$full, $max)
+            {
+                $body .= substr($chunk, 0, $max - strlen($body));
+                if (strlen($body) < $max)
+                    return strlen($chunk);
+                // A short count aborts the transfer: curl 23, not an error here.
+                $full = true;
+                return 0;
+            }));
+        if (!$set)
+        {
+            curl_close($ch);
+            $err = 'curl options refused';
+            return array(0, '');
+        }
+        $ok = curl_exec($ch);
+        $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+        $err = $ok === false && !$full ? 'curl ' . curl_errno($ch) . ': ' . curl_error($ch) : '';
+        curl_close($ch);
+        return $err !== '' ? array(0, '') : array($code, $body);
+    }
+}
+
 // Error streams of the reply (streamData.type "error": a failed add-on, a bad
 // config): the text of the first 3 and the count in the log, masked before the
 // cut. -> the count.
