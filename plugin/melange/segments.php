@@ -243,22 +243,23 @@ function aio_mkv_duration($b, &$why = null)
     return 0.0;
 }
 
-// The length of the file at stream URL $url from its first bytes, $ep for the
-// log -> s, 0.0 when it did not work: the video matters more than the length,
-// no dialog. Never the URL in the log: its tokens.
+// The length of the file at stream URL $url (Basic auth $auth, '' none) from
+// its first bytes, $ep for the log -> s, 0.0 when it did not work: the video
+// matters more than the length, no dialog. Never the URL in the log: its tokens.
 /**
  * @param string $url
  * @param string $ep
+ * @param string $auth
  * @return float
  */
-function aio_mkv_read($url, $ep)
+function aio_mkv_read($url, $ep, $auth)
 {
     $total = aio_op_total(AIO_MKV_TOTAL, 1, "mkv length: $ep");
     if ($total === 0)
         return 0.0;
     $t = microtime(true);
     $err = '';
-    list($code, $b) = aio_http_range($url, AIO_MKV_MAX_BYTES, $err, min(AIO_MKV_CONNECT, $total), $total);
+    list($code, $b) = aio_http_range($url, AIO_MKV_MAX_BYTES, $err, min(AIO_MKV_CONNECT, $total), $total, $auth);
     $t = microtime(true) - $t;
     $why = $err !== '' ? aio_cut(aio_mask($err), 120) : "HTTP $code";
     $sec = $err === '' && ($code === 200 || $code === 206) ? aio_mkv_duration($b, $why) : 0.0;
@@ -273,16 +274,17 @@ function aio_mkv_read($url, $ep)
 // unknown, then not sent) from the server of the streams -> the list, array()
 // on any failure (logged), or with the markers of the settings off: no request
 // at all. A length not in 1..AIO_SEG_DUR_MAX and a stream URL $stream ('': none
-// to read): the length comes from its head (aio_mkv_read).
+// to read; $auth: its Basic auth): the length comes from its head (aio_mkv_read).
 /**
  * @param string $imdb
  * @param int $s
  * @param int $e
  * @param float $dur
  * @param string $stream
+ * @param string $auth
  * @return list<array<string, int|string>>
  */
-function aio_markers($imdb, $s, $e, $dur, $stream)
+function aio_markers($imdb, $s, $e, $dur, $stream, $auth)
 {
     $ep = sprintf('S%02dE%02d', $s, $e);
     if (!Aio::$settings['markers'])
@@ -297,7 +299,7 @@ function aio_markers($imdb, $s, $e, $dur, $stream)
     if ($root === '' || !preg_match('/^tt[0-9]{1,10}$/D', $imdb))
         return array();
     if ($stream !== '' && !($dur >= 1 && $dur <= AIO_SEG_DUR_MAX))
-        $dur = aio_mkv_read($stream, $ep);
+        $dur = aio_mkv_read($stream, $ep, $auth);
     $total = aio_op_total(AIO_SEG_TOTAL, 1, "markers: $ep");
     if ($total === 0)
         return array();

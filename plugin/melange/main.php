@@ -583,15 +583,14 @@ if (!function_exists('aio_http_range'))
 {
     // GET of the first $max bytes of a stream URL -> array(HTTP code, the body,
     // its first $max bytes). A server without Range sends the whole file (200):
-    // the transfer stops at $max all the same. $err is set on a transport
-    // error, the body then ''. Not curl_multi_getcontent: php-cgi and php_server
-    // of r25 crash on it.
-    function aio_http_range($url, $max, &$err, $connect, $total)
+    // the transfer stops at $max all the same. $auth: "login:password" of Basic
+    // auth ('' none). $err is set on a transport error, the body then ''.
+    function aio_http_range($url, $max, &$err, $connect, $total, $auth = '')
     {
         $body = '';
         $full = false;
         $ch = curl_init($url);
-        $set = curl_setopt_array($ch, array(
+        $opts = array(
             CURLOPT_RANGE => '0-' . ($max - 1),
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => 3,
@@ -612,8 +611,13 @@ if (!function_exists('aio_http_range'))
                 // A short count aborts the transfer: curl 23, not an error here.
                 $full = true;
                 return 0;
-            }));
-        if (!$set)
+            });
+        if ($auth !== '')
+        {
+            $opts[CURLOPT_HTTPAUTH] = CURLAUTH_BASIC;
+            $opts[CURLOPT_USERPWD] = $auth;
+        }
+        if (!curl_setopt_array($ch, $opts))
         {
             curl_close($ch);
             $err = 'curl options refused';
