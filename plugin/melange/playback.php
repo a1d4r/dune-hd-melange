@@ -118,6 +118,31 @@ function aio_vod_item($mv, $s, $e, $url, $hash, $list)
     return $ser;
 }
 
+// What a playlist holds: season $s whole, the episodes of $others (season =>
+// episode => URL), seasons ascending; after a season, E1 of the next one of
+// season_numbers if it has none. -> list of array(season, episode).
+/**
+ * @param array<int, int> $seasons
+ * @param int $s
+ * @param array<int, array<int, string>> $others
+ * @return list<array{int, int}>
+ */
+function aio_play_plan($seasons, $s, $others)
+{
+    $all = $others;
+    $all[$s] = array_fill(1, $seasons[$s], '');
+    ksort($all);
+    $plan = array();
+    foreach ($all as $q => $eps)
+    {
+        foreach (array_keys($eps) as $i)
+            $plan[] = array($q, $i);
+        if (isset($seasons[$q + 1]) && !isset($all[$q + 1]))
+            $plan[] = array($q + 1, 1);
+    }
+    return $plan;
+}
+
 // vod_play linked to the Dune card: recent_uid (prefix = our supplier id)
 // gives [NN%] on the button, mdb_info the "Continue watching" row,
 // recent_plugin/recent_action_params bring "Continue" back to play_action
@@ -125,15 +150,16 @@ function aio_vod_item($mv, $s, $e, $url, $hash, $list)
 // A linked episode plays in a playlist of its whole season (by season_numbers),
 // the others lazy, then E1 of the next season; P+/P- and the autoplay work.
 // $ts (TorrServer, torrserver.php): array('url' => stream URL, 'eps' =>
-// episode => URL of the other episodes of the season in the pack); those go
-// to the playlist as they are, not lazy.
+// episode => URL of the other episodes of the season in the pack, 'others' =>
+// season => episode => URL of the other seasons in it); those go to the
+// playlist as they are, not lazy.
 // $lazy: a lazy episode under the player (aio_next), a placeholder gets its
 // dialog there. $pre: aio_precheck() of the row's URL already done.
 /**
  * @param AioState $st
  * @param AioRow $r
  * @param int $pos
- * @param array{url: string, eps: array<int, string>}|null $ts
+ * @param array{url: string, eps: array<int, string>, others: array<int, array<int, string>>}|null $ts
  * @param bool $lazy
  * @param AioPrecheck|null $pre
  * @return AioAction
@@ -168,8 +194,15 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     $seasons = $mv['seasons'];
     $season = $linked && $e > 0 && isset($seasons[$s]) && $e <= $seasons[$s] && $seasons[$s] <= AIO_EPISODES_MAX &&
         preg_match('/^[0-9a-f]{40}$/D', $r['hash']);
+    $others = $ts ? $ts['others'] : array();
+    $plan = $season ? aio_play_plan($seasons, $s, $others) : array();
+    if (count($plan) > AIO_EPISODES_MAX)
+    {
+        $others = array();
+        $plan = aio_play_plan($seasons, $s, $others);
+    }
     // A playlist of several: the title in vod_info, "SxxEyy" in its items.
-    $list = $season && ($seasons[$s] > 1 || isset($seasons[$s + 1]));
+    $list = count($plan) > 1;
     $ser = aio_vod_item($mv, $s, $e, $url, $linked ? $r['hash'] : '', $list);
     if ($e > 0)
     {
@@ -178,14 +211,20 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
             $ser[PluginVodSeriesInfo::markers] = $mk;
     }
     $series = array($ser);
+    $ndx = 0;
     if ($season)
     {
+        $urls = $others;
+        $urls[$s] = $ts ? $ts['eps'] : array();
         $series = array();
-        for ($i = 1; $i <= $seasons[$s]; $i++)
-            $series[] = $i === $e ? $ser : ($ts && isset($ts['eps'][$i]) ?
-                aio_vod_item($mv, $s, $i, $ts['eps'][$i], $r['hash'], $list) : aio_lazy_series($mv, $s, $i, $r['hash'], $list, $mode));
-        if (isset($seasons[$s + 1]))
-            $series[] = aio_lazy_series($mv, $s + 1, 1, $r['hash'], $list, $mode);
+        foreach ($plan as $n => $p)
+        {
+            list($q, $i) = $p;
+            if ($q === $s && $i === $e)
+                $ndx = $n;
+            $series[] = $q === $s && $i === $e ? $ser : (isset($urls[$q][$i]) ?
+                aio_vod_item($mv, $q, $i, $urls[$q][$i], $r['hash'], $list) : aio_lazy_series($mv, $q, $i, $r['hash'], $list, $mode));
+        }
         aio_movie_save($mv, $st['lang']);
     }
 
@@ -196,7 +235,7 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
         PluginVodInfo::sub_name => aio_clean($r['label']),
         PluginVodInfo::poster_url => $mv['poster'],
         PluginVodInfo::series => $series,
-        PluginVodInfo::initial_series_ndx => count($series) > 1 ? $e - 1 : 0,
+        PluginVodInfo::initial_series_ndx => $ndx,
         PluginVodInfo::description => aio_info_desc($r, $mv['desc'], $st['lang']),
         // The fields Online movies always sends (lib/vod/movie.php get_vod_info).
         PluginVodInfo::buffering_ms => 3000,
