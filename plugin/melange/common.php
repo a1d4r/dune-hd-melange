@@ -679,7 +679,7 @@ function aio_no_torrents($s)
 // add of TorrServer keeps the release in its list (0.45.0; not a bool - false),
 // 'markers' => bool, "Пропуск заставки и титров": the skip buttons in the player
 // (segments.php); off: none, and the episodes of a pack in the playlist are
-// ready URLs (0.49.1; not a bool - ts_markers of 0.49.0, then true),
+// ready URLs (0.49.1; not a bool - true),
 // 'no_torrents' => bool, "Без торрентов" (0.49.0; not a bool - false; what it
 // does: aio_no_torrents),
 // 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
@@ -790,11 +790,8 @@ function aio_settings_read($dir, &$why = null)
         list($r['ts_user'], $r['ts_pass']) = array($tu, $tp);
     if (isset($j['ts_save']) && is_bool($j['ts_save']))
         $r['ts_save'] = $j['ts_save'];
-    foreach (array('ts_markers', 'markers') as $k)
-    {
-        if (isset($j[$k]) && is_bool($j[$k]))
-            $r['markers'] = $j[$k];
-    }
+    if (isset($j['markers']) && is_bool($j['markers']))
+        $r['markers'] = $j['markers'];
     if (isset($j['no_torrents']) && is_bool($j['no_torrents']))
         $r['no_torrents'] = $j['no_torrents'];
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
