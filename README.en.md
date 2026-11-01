@@ -66,6 +66,7 @@ The page is in the Dune's language (Russian or English; if the Dune's language c
 8. **Advanced**: the line on the main screen has one value only, "Torrents are off", while "No torrents" is in effect.
    - **Running torrents** (with Debrid and your own config): **"Allow"** (the default) or **"No torrents"**: Melange does not start torrents. P2P releases are hidden, the release menu has no "Watch via TorrServer", "Open in an app…" and "Download to server…", and "Continue watching" of a release started via TorrServer opens the list. "TorrServer" and "Download to your server" leave the main settings screen, their values are kept. Debrid releases that are "not cached" stay: the service downloads them.
    - **Skip intro and credits**: **"On"** (the default): the "Skip intro" and "Next episode" buttons in the player, episodes may start a little slower; **"Off"**: no buttons, episodes start and switch faster. Turn it off if episodes take long to start.
+   - **Source errors**: **"Off"** (the default) or **"On"**: the number of errors above the list of releases, the reasons in **"Actions"** → **"Source errors"**. If there are errors and no releases, the window of the reasons opens instead of "AIOStreams found no streams". Failed sources simply add no releases to the list; with the setting off you don't see that.
 
 9. **Log**: **"Download the log"** (see "Log" below).
 
