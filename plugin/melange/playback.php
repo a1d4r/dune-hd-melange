@@ -516,6 +516,19 @@ function aio_finish($in)
         return aio_gc_bar_update($st, isset($pr[$p['sel']]) ? $pr[$p['sel']]['hash'] : '');
     }
     $sel = $p['sel'];
+    if (isset($ns['pack_only']))
+    {
+        $hash = $ns['rows'][$sel]['hash'];
+        $res = aio_next_fetch($ns['movie']['dune_id'], $ns['s'], $ns['e']);
+        if (isset($res['error']))
+        {
+            aio_log('finish: list ' . aio_ep_tag($st) . ', played ' . aio_ep_tag($ns) . " -> no list: {$res['error']} {$res['detail']}, screen kept");
+            return null;
+        }
+        $ns = $res['st'];
+        $pick = aio_release_pick($ns['rows'], $hash, -1, -1);
+        $sel = max($pick['ts'], 0);
+    }
     $n = count($ns['rows']);
     $ns = aio_gc_put_cursor($ns, $sel);
     $ns['rows'] = aio_carry_tracks($ns['rows'], $st['rows']);
@@ -1109,7 +1122,8 @@ function aio_deb_precheck($r)
 // a cached row first -> vod_play of it (aio_play checks it: a placeholder gets
 // its dialog). A row not cached plays only if the check finds a stream (the
 // CDN); else the dialog "not in this release".
-// ts: a P2P row of the release, else any of it, even cached -> through
+// ts: the row of the last start, no request (aio_ts_pack_state); else as a request
+// finds: a P2P row of the release, else any of it, even cached -> through
 // TorrServer, the file of the episode in the pack (torrserver.php); no row: the
 // same dialog. Not bingeGroup: one value for many releases, a silent change of
 // the voice.
@@ -1141,6 +1155,12 @@ function aio_next($in)
     // hidden from its reply, "not in this release" would hide the reason.
     if ($mode === 'ts' && Aio::$settings['no_torrents'])
         return aio_next_failed($lang, $ep, 'ts_err_off');
+    $st = $mode === 'ts' ? aio_ts_pack_state($key, $s, $e, $hash) : null;
+    if ($st)
+    {
+        aio_log("next: $ep: the row of the last start, no request");
+        return aio_ts_open($st, 0, 0, Aio::$playing ? Aio::$playing['from'] : '', true);
+    }
     $res = aio_next_fetch($key, $s, $e);
     if (isset($res['error']))
         return aio_next_failed($res['lang'] !== '' ? $res['lang'] : $lang, $ep, $res['error'], $res['detail']);
@@ -1182,7 +1202,8 @@ function aio_next($in)
 }
 
 // The dialog "S2E3 is not in this release" over the stopped player of a lazy
-// episode of list state $st: "Choose a release" (its list) and "Stop".
+// episode of list state $st: "Choose a release" (its list; a state of one row,
+// aio_ts_pack_state, is no list: aio_next_pick asks for it) and "Stop".
 /**
  * @param AioState $st
  * @param string $hash
@@ -1190,7 +1211,7 @@ function aio_next($in)
  */
 function aio_next_missing($st, $hash)
 {
-    Aio::$next = $st;
+    Aio::$next = isset($st['pack_only']) ? null : $st;
     $ep = sprintf('S%02dE%02d', $st['s'], $st['e']);
     aio_log("next: -> dialog: $ep is not in this release");
     $lang = $st['lang'];

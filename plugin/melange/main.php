@@ -90,6 +90,11 @@ class Aio
     // on screen (a lazy episode, aio_next): its timer finds it by rid.
     /** @var AioState|null */
     public static $tswait = null;
+    // The row of the last start through TorrServer: its lazy episodes go without
+    // AIOStreams (aio_ts_pack_state). Memory of php_server only: the magnet of a
+    // private tracker carries a passkey.
+    /** @var AioTsPack|null */
+    public static $ts_pack = null;
     // Start of the operation (microtime): set at the start of every
     // call_plugin and never reset (php_server keeps the last one). Its
     // readers - aio_precheck (time left to the stream check), aio_jacred
@@ -710,6 +715,7 @@ function aio_rid()
 // - progress of the rows for their redraw. A screen replaced by a new list
 // sets its cursor only by aio_gc_put_cursor, else 'gc_new' is lost. The one
 // writer outside view_gcomps.php: aio_choose keeps 'gc' before it leaves.
+// aio_ts_pack_state adds 'pack_only' and 'pack_root': the one row, never shown.
 /**
  * @return AioState
  */

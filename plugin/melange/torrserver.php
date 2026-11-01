@@ -5,7 +5,7 @@
 // the Dune player buffers a TorrServer stream itself. The episodes of the
 // pack go to the playlist as such URLs; the player switches them alone.
 // TorrServer drops a torrent nobody reads after its own timeout: no drop/rem.
-// Reads Aio (state, settings), writes Aio::$tswait. Functions are global; the
+// Reads Aio (state, settings), writes Aio::$tswait, Aio::$ts_pack. Functions are global; the
 // require order is in main.php.
 
 // Dialog ticks: every AIO_TS_TICK_MS a "get"; the file list awaited
@@ -752,10 +752,56 @@ function aio_ts_tick($in)
                     ResetControlsActionData::post_action => null))));
 }
 
+// The row of a start through TorrServer for its lazy episodes: without the name,
+// the size and the length of the file played, else aio_ts_pick takes that file
+// and aio_markers drops the markers past its end.
+/**
+ * @param AioRow $r
+ * @return AioRow
+ */
+function aio_ts_pack_row($r)
+{
+    $raw = $r['raw'];
+    $bh = aio_arr($raw, 'behaviorHints');
+    $sd = aio_arr($raw, 'streamData');
+    $pf = aio_arr($sd, 'parsedFile');
+    unset($bh['filename'], $bh['videoSize'], $sd['filename'], $sd['duration'], $pf['duration']);
+    $sd['parsedFile'] = $pf;
+    $raw['behaviorHints'] = $bh;
+    $raw['streamData'] = $sd;
+    $r['raw'] = $raw;
+    return $r;
+}
+
+// The list state of a lazy episode from the row of the last start, no AIOStreams:
+// of that card and release; if the pack names no season of its file (root null),
+// of its season only: "01.mkv" may not be E1 of the next one. No row -> null.
+/**
+ * @param string $key
+ * @param int $s
+ * @param int $e
+ * @param string $hash
+ * @return AioState|null
+ */
+function aio_ts_pack_state($key, $s, $e, $hash)
+{
+    $p = Aio::$ts_pack;
+    $saved = $p && $p['key'] === $key && $p['hash'] === $hash && ($p['root'] !== null || $p['s'] === $s) ? aio_movie_load($key) : null;
+    if (!$saved)
+        return null;
+    $st = aio_list_state($saved['movie'], $s, $e, array($p['row']), $saved['lang']);
+    $st['pack_only'] = true;
+    if ($p['root'] !== null)
+        $st['pack_root'] = $p['root'];
+    return $st;
+}
+
 // The file of the row among $files -> vod_play (the pack's episodes of the
 // season and, if the file has the number and the season asked for, of the other
 // seasons of season_numbers as ready URLs), or the dialog "no video" ($lazy: "not in this
-// release" of a lazy episode).
+// release" of a lazy episode). The row of an episode from aio_ts_pack_state:
+// the file of the playlist, by aio_ts_pack_map. A file of the number asked
+// for: the row kept for the lazy episodes (aio_ts_pack_state).
 /**
  * @param AioState $st
  * @param int $i
@@ -768,7 +814,14 @@ function aio_ts_tick($in)
 function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
 {
     $r = $st['rows'][$i];
-    list($k, $by) = aio_ts_pick($files, $r, $st['s'], $st['e']);
+    list($all) = aio_ts_eps($files);
+    if (isset($st['pack_root']))
+    {
+        $map = aio_ts_pack_map($files, $all, $st['pack_root'], $st['s']);
+        list($k, $by) = isset($map[$st['s']][$st['e']]) ? array($map[$st['s']][$st['e']], 'the pack') : array(-1, 'no file of the episode');
+    }
+    else
+        list($k, $by) = aio_ts_pick($files, $r, $st['s'], $st['e']);
     if ($k < 0)
     {
         aio_log("ts: {$by}, " . count($files) . ' files');
@@ -783,10 +836,12 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
     aio_log("ts: file {$files[$k]['id']} of " . count($files) . " ($by): " . aio_cut($files[$k]['path'], 200) .
         ($st['e'] > 0 ? ', other episodes in the pack: ' . (count($eps) ? implode(' ', array_keys($eps)) : 'none') : ''));
     $others = array();
-    list($all) = aio_ts_eps($files);
-    if ($st['e'] > 0 && isset($all[$k]) && $all[$k][1] === $st['e'] && aio_ts_file_season($files[$k]['path'], $all[$k]) === $st['s'])
+    Aio::$ts_pack = null;
+    $fs = $st['e'] > 0 && isset($all[$k]) && $all[$k][1] === $st['e'] ? aio_ts_file_season($files[$k]['path'], $all[$k]) : -1;
+    $root = $fs === $st['s'] ? aio_ts_pack_root($files[$k]['path']) : null;
+    if ($root !== null)
     {
-        foreach (aio_ts_pack_map($files, $all, aio_ts_pack_root($files[$k]['path']), $st['s']) as $q => $m)
+        foreach (aio_ts_pack_map($files, $all, $root, $st['s']) as $q => $m)
         {
             foreach ($m as $n => $f)
             {
@@ -797,6 +852,8 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
         if ($others)
             aio_log('ts: other seasons in the pack: ' . implode(' ', array_keys($others)));
     }
+    if ($root !== null || $fs === null)
+        Aio::$ts_pack = array('key' => $st['movie']['dune_id'], 'hash' => $r['hash'], 'row' => aio_ts_pack_row($r), 'root' => $root, 's' => $st['s']);
     aio_playing($from, $st, $i);
     return aio_play($st, $r, $pos, array('url' => aio_ts_url($base, $r['hash'], $files[$k]), 'eps' => $eps, 'others' => $others));
 }
