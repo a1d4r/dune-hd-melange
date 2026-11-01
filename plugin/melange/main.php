@@ -107,6 +107,10 @@ class Aio
     public static $settings_why_key = '';
     // 'ino:uid' of web_token after aio_token_fix tried it: never again for that file.
     public static $token_tried = '';
+    // The root of the server that answered 404 on /api/v1/segments (aio_markers):
+    // no more reads or requests for it. Memory of php_server only: after an
+    // update of the server the route is found without the user.
+    public static $seg_no_route = '';
 }
 
 // --- Log: /tmp/run/melange.log (stdout of php_server).

@@ -3,7 +3,7 @@
 // and "Next episode" with a countdown (closing credits; dropped by the player
 // on the last item of the playlist). Timecodes: GET /api/v1/segments of the
 // AIOStreams server of the streams (Melange's fork; other servers have no
-// such route: 404, no markers). aio_play (playback.php) asks for the episode
+// such route: 404, no markers, and no more asking: Aio::$seg_no_route). aio_play (playback.php) asks for the episode
 // that starts; a file of no known length is read first: the server's timecodes
 // are of the file only with its duration, else 10-20 s late on some releases.
 // Reads Aio::$settings; the time left of the operation: aio_op_total
@@ -272,9 +272,10 @@ function aio_mkv_read($url, $ep, $auth)
 
 // Markers of episode $s/$e of IMDb id $imdb, the file $dur s long (0:
 // unknown, then not sent) from the server of the streams -> the list, array()
-// on any failure (logged), or with the markers of the settings off: no request
-// at all. A length not in 1..AIO_SEG_DUR_MAX and a stream URL $stream ('': none
-// to read; $auth: its Basic auth): the length comes from its head (aio_mkv_read).
+// on any failure (logged), or with the markers of the settings off or a server
+// known to have no route: no request at all. A length not in 1..AIO_SEG_DUR_MAX
+// and a stream URL $stream ('': none to read; $auth: its Basic auth): the length
+// comes from its head (aio_mkv_read).
 /**
  * @param string $imdb
  * @param int $s
@@ -296,16 +297,14 @@ function aio_markers($imdb, $s, $e, $dur, $stream, $auth)
     if (!class_exists('StreamMarker') || !defined('PluginVodSeriesInfo::markers'))
         return array();
     $root = aio_seg_root(Aio::$settings['base']);
-    if ($root === '' || !preg_match('/^tt[0-9]{1,10}$/D', $imdb))
+    if ($root === '' || $root === Aio::$seg_no_route || !preg_match('/^tt[0-9]{1,10}$/D', $imdb))
         return array();
-    if ($stream !== '' && !($dur >= 1 && $dur <= AIO_SEG_DUR_MAX))
-        $dur = aio_mkv_read($stream, $ep, $auth);
+    if (!($dur >= 1 && $dur <= AIO_SEG_DUR_MAX))
+        $dur = $stream !== '' ? aio_mkv_read($stream, $ep, $auth) : 0.0;
     $total = aio_op_total(AIO_SEG_TOTAL, 1, "markers: $ep");
     if ($total === 0)
         return array();
-    $sec = $dur >= 1 && $dur <= AIO_SEG_DUR_MAX ? (int) round($dur) : 0;
-    if ($sec === 0)
-        $dur = 0.0;
+    $sec = (int) round($dur);
     $url = "$root/api/v1/segments?idType=imdbId&idValue=$imdb&season=$s&episode=$e" . ($sec > 0 ? "&duration=$sec" : '');
     $t = microtime(true);
     $err = '';
@@ -320,5 +319,10 @@ function aio_markers($imdb, $s, $e, $dur, $stream, $auth)
         $what[] = 'dropped ' . implode(', ', $drop);
     aio_log(sprintf('markers: %s, duration %s: %s, %s, %.2f s', $ep, $sec > 0 ? "$sec s" : 'unknown',
         $err !== '' ? $err : "HTTP $code", $mk === null ? 'none' : ($what ? implode(', ', $what) : 'no segments'), $t));
+    if ($err === '' && $code === 404)
+    {
+        Aio::$seg_no_route = $root;
+        aio_log('markers: no route on this server, not asked again');
+    }
     return $mk ? $mk : array();
 }
