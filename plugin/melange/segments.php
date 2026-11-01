@@ -271,8 +271,9 @@ function aio_mkv_read($url, $ep)
 
 // Markers of episode $s/$e of IMDb id $imdb, the file $dur s long (0:
 // unknown, then not sent) from the server of the streams -> the list, array()
-// on any failure (logged). A length not in 1..AIO_SEG_DUR_MAX and a stream URL
-// $stream ('': none to read): the length comes from its head (aio_mkv_read).
+// on any failure (logged), or with the markers of the settings off: no request
+// at all. A length not in 1..AIO_SEG_DUR_MAX and a stream URL $stream ('': none
+// to read): the length comes from its head (aio_mkv_read).
 /**
  * @param string $imdb
  * @param int $s
@@ -283,13 +284,18 @@ function aio_mkv_read($url, $ep)
  */
 function aio_markers($imdb, $s, $e, $dur, $stream)
 {
+    $ep = sprintf('S%02dE%02d', $s, $e);
+    if (!Aio::$settings['markers'])
+    {
+        aio_log("markers: $ep: off in the settings");
+        return array();
+    }
     // A firmware PHP API without markers (older models): nothing to ask for.
     if (!class_exists('StreamMarker') || !defined('PluginVodSeriesInfo::markers'))
         return array();
     $root = aio_seg_root(Aio::$settings['base']);
     if ($root === '' || !preg_match('/^tt[0-9]{1,10}$/D', $imdb))
         return array();
-    $ep = sprintf('S%02dE%02d', $s, $e);
     if ($stream !== '' && !($dur >= 1 && $dur <= AIO_SEG_DUR_MAX))
         $dur = aio_mkv_read($stream, $ep);
     $total = aio_op_total(AIO_SEG_TOTAL, 1, "markers: $ep");

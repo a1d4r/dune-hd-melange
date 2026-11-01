@@ -53,8 +53,8 @@ function aio_cgi_fields()
             'raw' => true),
         // "Играть" or "Добавить и играть" (0.45.0): aio_cgi_ts_saves().
         'ts_save' => array('id' => 'tss', 'name' => 'ts_save', 'set' => 'ts_save', 'max' => 0, 'type' => 'radio', 'scr' => 'torr'),
-        // "Кнопки в сериях раздачи" (0.49.0): aio_cgi_ts_markers().
-        'ts_markers' => array('id' => 'tsm', 'name' => 'ts_markers', 'set' => 'ts_markers', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
+        // "Пропуск заставки и титров" (0.49.1): aio_cgi_markers().
+        'markers' => array('id' => 'mrk', 'name' => 'markers', 'set' => 'markers', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
         // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
         'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'));
@@ -266,32 +266,32 @@ function aio_cgi_ts_save($v)
         aio_cgi_choice($f['ts_save'], aio_cgi_ts_saves(), $v['ts_save']);
 }
 
-// The answers of "Кнопки в сериях раздачи" on the screen #adv (radio ts_markers,
-// 0.49.0): its value => array(name, hint); "each" - ts_markers of the settings.
-function aio_cgi_ts_markers()
+// The answers of "Пропуск заставки и титров" on the screen #adv (radio markers,
+// 0.49.1): its value => array(name, hint); "on" - markers of the settings.
+function aio_cgi_markers()
 {
     return array(
-        'each' => array(aio_cgi_l('В каждой серии', 'In every episode'), aio_cgi_l(
-            'Кнопки пропуска в каждой серии. Перед серией — пауза в пару секунд.',
-            'Skip buttons in every episode. A pause of a couple of seconds before each.')),
-        'fast' => array(aio_cgi_l('Мгновенное переключение', 'Instant switching'), aio_cgi_l(
-            'Серии переключаются сразу, кнопки — только у серии, которую запустили.',
-            'Episodes switch at once, the buttons are only on the episode you started.')));
+        'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
+            'Кнопки пропуска в плеере. Серии могут запускаться чуть медленнее.',
+            'Skip buttons in the player. Episodes may start a little slower.')),
+        'off' => array(aio_cgi_l('Выключен', 'Off'), aio_cgi_l(
+            'Выключите, если серии долго запускаются.',
+            'Turn off if episodes take long to start.')));
 }
 
-// The answer of aio_cgi_ts_markers() of ts_markers of the settings (a bool).
-function aio_cgi_ts_markers_of($on)
+// The answer of aio_cgi_markers() of markers of the settings (a bool).
+function aio_cgi_markers_of($on)
 {
-    return $on ? 'each' : 'fast';
+    return $on ? 'on' : 'off';
 }
 
-// "Кнопки в сериях раздачи" on #adv (a value of the form: '' or another one -
-// none checked); #tsmb: hidden with "Без торрентов" in effect, the value kept.
-function aio_cgi_ts_markers_block($v)
+// "Пропуск заставки и титров" on #adv (a value of the form: '' or another one -
+// none checked).
+function aio_cgi_markers_block($v)
 {
     $f = aio_cgi_fields();
-    return '<div id="tsmb"><p class="lbl">' . aio_cgi_l('Кнопки в сериях раздачи', 'Buttons in the episodes of a release') . '</p>' .
-        aio_cgi_choice($f['ts_markers'], aio_cgi_ts_markers(), $v['ts_markers']) . '</div>';
+    return '<p class="lbl">' . aio_cgi_l('Пропуск заставки и титров', 'Skip intro and credits') . '</p>' .
+        aio_cgi_choice($f['markers'], aio_cgi_markers(), $v['markers']);
 }
 
 // The answers of "Запуск торрентов" on the screen #adv (radio no_torrents, 0.49.0): its
@@ -823,7 +823,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
                 'If TorrServer asks for them. Also in the address: login:password@host:port')) . aio_cgi_ts_save($v)) .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
-        aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_ts_markers_block($v)) .
+        aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .
             '<a class="btn" href="settings?t=' . aio_cgi_h($t) . '&amp;a=log">' . aio_cgi_l('Скачать лог', 'Download the log') . '</a>') .

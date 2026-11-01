@@ -107,8 +107,8 @@ function aio_cgi_save($dir, $t)
     // None posted (a form of 0.44 or older): the stored one, saved and checked on a page back.
     if ($v['ts_save'] === '')
         $v['ts_save'] = aio_cgi_ts_save_of($cur['ts_save']);
-    if ($v['ts_markers'] === '')
-        $v['ts_markers'] = aio_cgi_ts_markers_of($cur['ts_markers']);
+    if ($v['markers'] === '')
+        $v['markers'] = aio_cgi_markers_of($cur['markers']);
     if ($v['no_torrents'] === '')
         $v['no_torrents'] = aio_cgi_no_torrents_of($cur['no_torrents']);
     $v['ajax'] = $ajax;

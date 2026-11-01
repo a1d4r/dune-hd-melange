@@ -35,7 +35,7 @@ const FILLED: [string, string][] = [
   ["jacred", "own"], ["jacred_own_url", "http://192.168.1.10:9117"], ["jacred_own_key", "testkey01"],
   ["ts", "http://192.168.1.10:8090"], ["ts_user", "tsuser"], ["ts_pass", "ts p@ss&x"], ["ts_save", "add"],
   ...servers([["name", "qBittorrent"], ["url", "http://192.168.1.10:8080"], ["user", "admin"], ["pass", "test-pass"], ["category", "movies"]]),
-  ["ts_markers", "each"],
+  ["markers", "on"],
 ];
 // Torrents: as the page came but the answer (0.44.0: the TorrServer field stays on #torr).
 const P2P_BODY = encode([["watch", "p2p"], ...FILLED.slice(1)]);
@@ -243,26 +243,26 @@ describe("No torrents (no_torrents, 0.49.0)", () => {
   });
 });
 
-describe("Buttons in the episodes of a release (ts_markers, 0.49.0)", () => {
+describe("Skip intro and credits (markers, 0.49.1)", () => {
   const dirty = (page: Page) => (page.el(ID.bar).hidden ? null : page.el(ID.dirty).textContent);
-  const checked = (page: Page) => page.form.querySelector<HTMLInputElement>("input[name=ts_markers]:checked")!.value;
+  const checked = (page: Page) => page.form.querySelector<HTMLInputElement>("input[name=markers]:checked")!.value;
 
   test("the other one chosen: one change, posted; the one shown back: none", async () => {
     const page = open("filled");
-    expect([checked(page), dirty(page)]).toEqual(["each", null]);
-    page.choose("ts_markers", "fast");
+    expect([checked(page), dirty(page)]).toEqual(["on", null]);
+    page.choose("markers", "off");
     expect(dirty(page)).toBe("1 изменение");
-    page.choose("ts_markers", "each");
+    page.choose("markers", "on");
     expect(dirty(page)).toBeNull();
-    page.choose("ts_markers", "fast");
+    page.choose("markers", "off");
     page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
     await save(page);
-    expect(pairs(page.calls[0]!.body).filter((p) => p[0] === "ts_markers")).toEqual([["ts_markers", "fast"]]);
-    expect([checked(page), dirty(page)]).toEqual(["fast", ""]);
+    expect(pairs(page.calls[0]!.body).filter((p) => p[0] === "markers")).toEqual([["markers", "off"]]);
+    expect([checked(page), dirty(page)]).toEqual(["off", ""]);
   });
 
-  test("a page without settings: each chosen", () => {
-    expect(checked(open("empty"))).toBe("each");
+  test("a page without settings: on", () => {
+    expect(checked(open("empty"))).toBe("on");
   });
 
   test("\"No torrents\" chosen: no change of it, posted as it was", async () => {
@@ -271,7 +271,7 @@ describe("Buttons in the episodes of a release (ts_markers, 0.49.0)", () => {
     expect(dirty(page)).toBe("1 изменение");
     page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
     await save(page);
-    expect(pairs(page.calls[0]!.body).filter((p) => p[0] === "ts_markers")).toEqual([["ts_markers", "each"]]);
+    expect(pairs(page.calls[0]!.body).filter((p) => p[0] === "markers")).toEqual([["markers", "on"]]);
   });
 });
 

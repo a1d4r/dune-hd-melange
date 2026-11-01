@@ -4,7 +4,7 @@
 // with a timer, then vod_play of /stream/<name>?link=<hash>&index=<id>&play:
 // the Dune player buffers a TorrServer stream itself. The episodes of the
 // pack go to the playlist as such URLs, the player switching them alone, or
-// lazy, each with its markers (ts_markers of the settings, aio_play).
+// lazy, each with its markers (markers of the settings, aio_play).
 // TorrServer drops a torrent nobody reads after its own timeout: no drop/rem.
 // Reads Aio (state, settings), writes Aio::$tswait, Aio::$ts_pack. Functions are global; the
 // require order is in main.php.

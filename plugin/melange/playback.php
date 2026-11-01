@@ -151,9 +151,9 @@ function aio_play_plan($seasons, $s, $others)
 // the others lazy, then E1 of the next season; P+/P- and the autoplay work.
 // $ts (TorrServer, torrserver.php): array('url' => stream URL, 'eps' =>
 // episode => URL of the other episodes of the season in the pack, 'others' =>
-// season => episode => URL of the other seasons in it); with ts_markers off
-// those go to the playlist as they are, on - lazy: a vod_play of its own gives
-// each its markers (aio_next).
+// season => episode => URL of the other seasons in it); with the markers of
+// the settings off those go to the playlist as they are, on - lazy: a vod_play
+// of its own gives each its markers (aio_next).
 // $lazy: a lazy episode under the player (aio_next), a placeholder gets its
 // dialog there. $pre: aio_precheck() of the row's URL already done.
 /**
@@ -216,7 +216,7 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     if ($season)
     {
         $urls = array();
-        if ($ts && !Aio::$settings['ts_markers'])
+        if ($ts && !Aio::$settings['markers'])
         {
             $urls = $others;
             $urls[$s] = $ts['eps'];

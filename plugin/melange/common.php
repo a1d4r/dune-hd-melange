@@ -677,8 +677,9 @@ function aio_no_torrents($s)
 // 'ts_user', 'ts_pass' => aio_ts_login(), aio_ts_pass() (0.45.0; both set
 // or both '', else both ''), 'ts_save' => bool, "Добавить и играть": the
 // add of TorrServer keeps the release in its list (0.45.0; not a bool - false),
-// 'ts_markers' => bool, "Кнопки в сериях раздачи": the episodes of a pack in
-// the playlist are lazy, with the buttons, or ready URLs (0.49.0; not a bool - true),
+// 'markers' => bool, "Пропуск заставки и титров": the skip buttons in the player
+// (segments.php); off: none, and the episodes of a pack in the playlist are
+// ready URLs (0.49.1; not a bool - ts_markers of 0.49.0, then true),
 // 'no_torrents' => bool, "Без торрентов" (0.49.0; not a bool - false; what it
 // does: aio_no_torrents),
 // 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
@@ -709,7 +710,7 @@ function aio_settings_read($dir, &$why = null)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'ts_markers' => true, 'aio_confs' => array(), 'saved_once' => false);
+        'markers' => true, 'aio_confs' => array(), 'saved_once' => false);
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
     if ($dir === '')
@@ -789,8 +790,11 @@ function aio_settings_read($dir, &$why = null)
         list($r['ts_user'], $r['ts_pass']) = array($tu, $tp);
     if (isset($j['ts_save']) && is_bool($j['ts_save']))
         $r['ts_save'] = $j['ts_save'];
-    if (isset($j['ts_markers']) && is_bool($j['ts_markers']))
-        $r['ts_markers'] = $j['ts_markers'];
+    foreach (array('ts_markers', 'markers') as $k)
+    {
+        if (isset($j[$k]) && is_bool($j[$k]))
+            $r['markers'] = $j[$k];
+    }
     if (isset($j['no_torrents']) && is_bool($j['no_torrents']))
         $r['no_torrents'] = $j['no_torrents'];
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))

@@ -101,9 +101,9 @@ describe.each([...FIXTURES])("%s", (name) => {
       const card = doc.querySelector("label[for=" + radio.id + "]")!;
       expect([card.closest("section")!.id, !!card.closest(".xt")]).toEqual(["adv", true]);
     }
-    // The buttons in the episodes of a release (ts_markers, 0.49.0): two radios "each", "fast" with their cards on #adv.
-    const marks = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=ts_markers]"));
-    expect(marks.map((radio) => [radio.type, radio.value])).toEqual([["radio", "each"], ["radio", "fast"]]);
+    // Skip intro and credits (markers, 0.49.1): two radios "on", "off" with their cards on #adv.
+    const marks = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=markers]"));
+    expect(marks.map((radio) => [radio.type, radio.value])).toEqual([["radio", "on"], ["radio", "off"]]);
     for (const radio of marks)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("adv");
     // The bar of the save under the screens: its results, "Hide" of them (a button, not a submit), its button the save.
@@ -230,8 +230,8 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect([doc.querySelectorAll("#vadv span").length, value.textContent, hidden(value)]).toEqual([1, "Торренты выключены", !off]);
     // "Запуск торрентов" on the screen: not with "Торренты".
     expect(hidden(doc.querySelector("#adv p.lbl")!)).toBe(watch === "wp");
-    // The buttons: not with it in effect; with "Торренты" it is not, the value there or not.
-    expect(hidden(doc.getElementById("tsmb")!)).toBe(off);
+    // Skip intro and credits: whatever is chosen.
+    expect(hidden(doc.getElementById("mrk1")!.nextElementSibling!.closest(".choice")!)).toBe(false);
   });
 
   test("the screens: each a section with a link back to #home, #home last, the bar after it", () => {
