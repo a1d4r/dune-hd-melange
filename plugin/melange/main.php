@@ -579,9 +579,9 @@ if (!function_exists('aio_http_peek'))
 }
 
 // Error streams of the reply (streamData.type "error": a failed add-on, a bad
-// config): the count and the text of the first 3, masked before the cut.
-// -> the count.
-function aio_log_error_streams($streams)
+// config): the text of the first 3 and the count in the log, masked before the
+// cut. -> the count.
+function aio_error_streams($streams)
 {
     $n = 0;
     foreach ($streams as $st)
@@ -607,7 +607,10 @@ function aio_log_error_streams($streams)
     return $n;
 }
 
-// -> array('rows' => list) or array('error' => key, 'detail' => text); 'failed':
+// Seconds of a stream request, at most.
+define('AIO_FETCH_TOTAL', 30);
+
+// -> array('rows' => list) or array('error' => key, 'detail' => text); 'err_streams':
 // error streams of the reply, with the rows and with err_no_streams.
 /**
  * @param string $base
@@ -620,7 +623,7 @@ function aio_fetch($base, $id, $series)
     $url = $base . 'stream/' . ($series ? 'series' : 'movie') . "/$id.json";
     $t = microtime(true);
     $err = '';
-    list($code, $body) = aio_http_get($url, $err, 10, 30, AIO_MAX_BYTES);
+    list($code, $body) = aio_http_get($url, $err, 10, AIO_FETCH_TOTAL, AIO_MAX_BYTES);
     aio_log(sprintf('request %s: %s, %d bytes, %.2f s', $url,
         $err === AIO_HTTP_TOO_BIG ? 'reply over ' . AIO_MAX_BYTES . ' bytes' : ($err !== '' ? $err : "HTTP $code"),
         strlen($body), microtime(true) - $t));
@@ -656,9 +659,9 @@ function aio_fetch($base, $id, $series)
     }
     aio_log(sprintf('streams: %d, listed: %d%s, memory peak %.1f MB', count($j['streams']), count($rows),
         $hidden ? ", P2P hidden: $hidden" : '', memory_get_peak_usage() / 1048576));
-    $failed = aio_log_error_streams($j['streams']);
-    return $rows ? array('rows' => $rows, 'failed' => $failed) :
-        array('error' => 'err_no_streams', 'detail' => '', 'failed' => $failed);
+    $err_streams = aio_error_streams($j['streams']);
+    return $rows ? array('rows' => $rows, 'err_streams' => $err_streams) :
+        array('error' => 'err_no_streams', 'detail' => '', 'err_streams' => $err_streams);
 }
 
 // --- The stream list screen.

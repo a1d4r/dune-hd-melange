@@ -8,6 +8,7 @@ err_network = AIOStreams не отвечает
 err_http = AIOStreams вернул ошибку
 err_bad_reply = Непонятный ответ AIOStreams
 err_no_streams = AIOStreams не нашёл потоков
+err_sources_failed = Источники не ответили
 err_too_big = Слишком большой ответ: уменьшите лимит результатов в настройках AIOStreams
 err_list_expired = Список устарел, откройте его заново
 err_pre_downloading = Debrid ещё не скачал раздачу, попробуйте позже
