@@ -301,11 +301,12 @@ function aio_ts_file_season($path, $ep)
 // The episodes of the other seasons of the pack, by the seasons of their files
 // (aio_ts_file_season), $s the one played: season => episode => key of $files,
 // both ascending. Only from the folder of $played or a neighbour of it: the same
-// parent and the same name but for its numbers ("S1" -> "S2", "Сезон 1 (2011)" ->
-// "Сезон 2 (2012)"), so no extras, other shows or other copies. Of several files
-// of an episode: the folder that differs by the number of the season alone
-// ("Show.S01.720p" -> "Show.S02.720p"), else the first. A folder whose numbers do
-// not start at 1 numbers across seasons ("S2/11.mkv"): left out.
+// parent and the same name but for its numbers after the mark of a season, if any
+// ("S1" -> "S2", "Сезон 1 (2011)" -> "Сезон 2 (2012)", not "Show 2 S01" -> "Show 3 S02"),
+// so no extras, other shows or other copies. A season takes one kind of folder: its
+// own, else one that differs by the number of the season alone ("Show.S01.720p" ->
+// "Show.S02.720p"), else other neighbours; of several files of an episode, the first.
+// A folder whose numbers do not start at 1 numbers across seasons ("S2/11.mkv"): left out.
 /**
  * @param list<AioTsFile> $files
  * @param array<int, array{int|null, int}> $all
@@ -317,10 +318,11 @@ function aio_ts_pack_map($files, $all, $played, $s)
 {
     $home = aio_ts_dirname($played);
     $name = aio_ts_basename($home);
-    $like = '/^' . preg_replace('/[0-9]+/', '[0-9]+', preg_quote($name, '/')) . '$/iu';
+    $title = preg_match('/' . aio_ts_season_re('[0-9]{1,3}') . '/iu', $name, $m, PREG_OFFSET_CAPTURE) ? $m[0][1] : 0;
+    $like = '/^' . preg_quote(strval(substr($name, 0, $title)), '/') . preg_replace('/[0-9]+/', '[0-9]+', preg_quote(strval(substr($name, $title)), '/')) . '$/iu';
     preg_match_all('/[0-9]+/', $name, $nums);
     $out = array();
-    $exact = array();
+    $kinds = array();
     $low = array();
     foreach ($all as $k => $ep)
     {
@@ -330,16 +332,22 @@ function aio_ts_pack_map($files, $all, $played, $s)
         $base = aio_ts_basename($d);
         if ($q === null || $q === $s || ($d !== $home && ($home === '' || aio_ts_dirname($d) !== aio_ts_dirname($home) || !preg_match($like, $base))))
             continue;
+        preg_match_all('/[0-9]+/', $base, $m);
+        $diff = array_diff_assoc($m[0], $nums[0]);
+        $kind = $d === $home ? 2 : (count($diff) === 1 && intval(reset($diff)) === $q ? 1 : 0);
+        if (isset($kinds[$q]) && $kind < $kinds[$q])
+            continue;
+        if (!isset($kinds[$q]) || $kind > $kinds[$q])
+        {
+            $kinds[$q] = $kind;
+            $out[$q] = array();
+            unset($low[$q]);
+        }
         $n = $ep[1];
         if ($ep[0] === null && (!isset($low[$q]) || $n < $low[$q]))
             $low[$q] = $n;
-        preg_match_all('/[0-9]+/', $base, $m);
-        $diff = array_diff_assoc($m[0], $nums[0]);
-        $same = count($diff) === 1 && intval(reset($diff)) === $q;
-        if (!isset($out[$q][$n]) || ($same && !isset($exact[$q][$n])))
+        if (!isset($out[$q][$n]))
             $out[$q][$n] = $k;
-        if ($same)
-            $exact[$q][$n] = true;
     }
     foreach ($low as $q => $n)
     {
