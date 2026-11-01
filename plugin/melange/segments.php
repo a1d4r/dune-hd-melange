@@ -244,8 +244,9 @@ function aio_mkv_duration($b, &$why = null)
 }
 
 // The length of the file at stream URL $url (Basic auth $auth, '' none) from
-// its first bytes, $ep for the log -> s, 0.0 when it did not work: the video
-// matters more than the length, no dialog. Never the URL in the log: its tokens.
+// its first bytes, also those of a transfer ended by an error, $ep for the log
+// -> s, 0.0 when it did not work: the video matters more than the length, no
+// dialog. Never the URL in the log: its tokens.
 /**
  * @param string $url
  * @param string $ep
@@ -261,8 +262,10 @@ function aio_mkv_read($url, $ep, $auth)
     $err = '';
     list($code, $b) = aio_http_range($url, AIO_MKV_MAX_BYTES, $err, min(AIO_MKV_CONNECT, $total), $total, $auth);
     $t = microtime(true) - $t;
-    $why = $err !== '' ? aio_cut(aio_mask($err), 120) : "HTTP $code";
-    $sec = $err === '' && ($code === 200 || $code === 206) ? aio_mkv_duration($b, $why) : 0.0;
+    $why = "HTTP $code";
+    $sec = $code === 200 || $code === 206 ? aio_mkv_duration($b, $why) : 0.0;
+    if ($err !== '')
+        $why = aio_cut(aio_mask($err), 120);
     if ($sec > 0)
         aio_log(sprintf('mkv length: %s, %.1f s, %.2f s', $ep, $sec, $t));
     else

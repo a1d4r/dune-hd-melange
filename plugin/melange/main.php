@@ -588,7 +588,9 @@ if (!function_exists('aio_http_range'))
     // GET of the first $max bytes of a stream URL -> array(HTTP code, the body,
     // its first $max bytes). A server without Range sends the whole file (200):
     // the transfer stops at $max all the same. $auth: "login:password" of Basic
-    // auth ('' none). $err is set on a transport error, the body then ''.
+    // auth ('' none), no redirects then: curl sends it to another port of the
+    // host. $err is set on a transport error, the code and the bytes that came
+    // are returned all the same.
     function aio_http_range($url, $max, &$err, $connect, $total, $auth = '')
     {
         $body = '';
@@ -596,7 +598,7 @@ if (!function_exists('aio_http_range'))
         $ch = curl_init($url);
         $opts = array(
             CURLOPT_RANGE => '0-' . ($max - 1),
-            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_FOLLOWLOCATION => $auth === '',
             CURLOPT_MAXREDIRS => 3,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
@@ -631,7 +633,7 @@ if (!function_exists('aio_http_range'))
         $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
         $err = $ok === false && !$full ? 'curl ' . curl_errno($ch) . ': ' . curl_error($ch) : '';
         curl_close($ch);
-        return $err !== '' ? array(0, '') : array($code, $body);
+        return array($code, $body);
     }
 }
 
