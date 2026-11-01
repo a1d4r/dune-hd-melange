@@ -298,104 +298,57 @@ function aio_ts_file_season($path, $ep)
     return $ep[0] !== null ? $ep[0] : aio_ts_one_season(aio_ts_basename(aio_ts_dirname($path)));
 }
 
-// The folder above the seasons of file $path: copies of a pack ("1080p/S1",
-// "720p/S1") differ by it. The folder of the file if that names no season.
-/**
- * @param string $path
- * @return string
- */
-function aio_ts_pack_root($path)
-{
-    $d = aio_ts_dirname($path);
-    return aio_ts_one_season(aio_ts_basename($d)) !== null ? aio_ts_dirname($d) : $d;
-}
-
-// What the folder name $dir has before its first mark of a season, null: no mark.
-/**
- * @param string $dir
- * @return string|null
- */
-function aio_ts_season_title($dir)
-{
-    return preg_match('/' . aio_ts_season_re('[0-9]{1,3}') . '/iu', $dir, $m, PREG_OFFSET_CAPTURE) ? strval(substr($dir, 0, $m[0][1])) : null;
-}
-
-// A folder of extras, not of episodes: "Season 2 Bonus", "Bonus/S2", "Bonus S2",
-// "Доп. материалы". $title (aio_ts_season_title) of the folder played is the name
-// of the show: in the last folder that names a season it does not count
-// ("Секретные материалы. Сезон 1" -> "Секретные материалы. Сезон 2").
-/**
- * @param string $dir
- * @param string $title
- * @return bool
- */
-function aio_ts_extras($dir, $title)
-{
-    $parts = explode('/', $dir);
-    for ($i = count($parts) - 1; $i >= 0; $i--)
-    {
-        $t = aio_ts_season_title($parts[$i]);
-        if ($t === null)
-            continue;
-        if (preg_match('/^' . preg_quote($t, '/') . '$/iu', $title))
-            $parts[$i] = substr($parts[$i], strlen($t));
-        break;
-    }
-    return preg_match('/(?<![\pL0-9])(?:(?:extras?|bonus(?:es)?|specials?|featurettes?|deleted|samples?|допы?|trailers?|interviews?|ncop|nced|creditless|behind|making)(?!\pL)|бонус|дополн|спец|материал|трейлер|интервью|ролик)/iu', implode('/', $parts)) === 1;
-}
-
 // The episodes of the other seasons of the pack, by the seasons of their files
 // (aio_ts_file_season), $s the one played: season => episode => key of $files,
-// both ascending. Folders of extras below $root ($title: aio_ts_extras): none. Of several files of an
-// episode: under $root, in the folder of the season or $root itself, right
-// beside the file played (a season folder of $root, "Bonus/S2" not), then with
-// more files of the season in the folder. A folder whose numbers do not start
-// at 1 numbers across seasons ("S2/11.mkv"): left out.
+// both ascending. Only from the folder of $played or a neighbour of it: the same
+// parent and the same name but for its numbers ("S1" -> "S2", "Сезон 1 (2011)" ->
+// "Сезон 2 (2012)"), so no extras, other shows or other copies. Of several files
+// of an episode: the folder that differs by the number of the season alone
+// ("Show.S01.720p" -> "Show.S02.720p"), else the first. A folder whose numbers do
+// not start at 1 numbers across seasons ("S2/11.mkv"): left out.
 /**
  * @param list<AioTsFile> $files
  * @param array<int, array{int|null, int}> $all
- * @param string $root
+ * @param string $played
  * @param int $s
- * @param string $title
  * @return array<int, array<int, int>>
  */
-function aio_ts_pack_map($files, $all, $root, $s, $title)
+function aio_ts_pack_map($files, $all, $played, $s)
 {
-    $in = array();
-    $count = array();
+    $home = aio_ts_dirname($played);
+    $name = aio_ts_basename($home);
+    $like = '/^' . preg_replace('/[0-9]+/', '[0-9]+', preg_quote($name, '/')) . '$/iu';
+    preg_match_all('/[0-9]+/', $name, $nums);
+    $out = array();
+    $exact = array();
     $low = array();
     foreach ($all as $k => $ep)
     {
         $path = $files[$k]['path'];
         $q = aio_ts_file_season($path, $ep);
         $d = aio_ts_dirname($path);
-        if ($q === null || $q === $s || aio_ts_extras($root !== '' && strpos("$d/", "$root/") === 0 ? substr($d, strlen($root)) : $d, $title))
+        $base = aio_ts_basename($d);
+        if ($q === null || $q === $s || ($d !== $home && ($home === '' || aio_ts_dirname($d) !== aio_ts_dirname($home) || !preg_match($like, $base))))
             continue;
-        $in[$q][$k] = $ep[1];
-        $count[$q][$d] = isset($count[$q][$d]) ? $count[$q][$d] + 1 : 1;
-        if ($ep[0] === null && (!isset($low[$q]) || $ep[1] < $low[$q]))
-            $low[$q] = $ep[1];
+        $n = $ep[1];
+        if ($ep[0] === null && (!isset($low[$q]) || $n < $low[$q]))
+            $low[$q] = $n;
+        preg_match_all('/[0-9]+/', $base, $m);
+        $diff = array_diff_assoc($m[0], $nums[0]);
+        $same = count($diff) === 1 && intval(reset($diff)) === $q;
+        if (!isset($out[$q][$n]) || ($same && !isset($exact[$q][$n])))
+            $out[$q][$n] = $k;
+        if ($same)
+            $exact[$q][$n] = true;
     }
-    ksort($in);
-    $out = array();
-    foreach ($in as $q => $eps)
+    foreach ($low as $q => $n)
     {
-        if (isset($low[$q]) && $low[$q] > 1)
-            continue;
-        $best = array();
-        foreach ($eps as $k => $n)
-        {
-            $d = aio_ts_dirname($files[$k]['path']);
-            $home = $d === $root || aio_ts_one_season(aio_ts_basename($d)) === $q;
-            $rank = ($root === '' || strpos("$d/", "$root/") === 0 ? 2 : 0) + ($home ? 1 : 0) +
-                ($home && ($d === $root || aio_ts_dirname($d) === $root) ? 1 : 0);
-            if (!isset($best[$n]) || $rank > $best[$n][0] || ($rank === $best[$n][0] && $count[$q][$d] > $best[$n][1]))
-                $best[$n] = array($rank, $count[$q][$d], $k);
-        }
-        ksort($best);
-        foreach ($best as $n => $b)
-            $out[$q][$n] = $b[2];
+        if ($n > 1)
+            unset($out[$q]);
     }
+    ksort($out);
+    foreach (array_keys($out) as $q)
+        ksort($out[$q]);
     return $out;
 }
 
@@ -615,8 +568,7 @@ function aio_ts_map_start($st, $r, $files, $k)
     ksort($map[$s]);
     if ($fs !== null)
     {
-        $title = strval(aio_ts_season_title(aio_ts_basename(aio_ts_dirname($files[$k]['path']))));
-        foreach (aio_ts_pack_map($files, $all, aio_ts_pack_root($files[$k]['path']), $s, $title) as $q => $m)
+        foreach (aio_ts_pack_map($files, $all, $files[$k]['path'], $s) as $q => $m)
         {
             foreach ($m as $n => $f)
             {
