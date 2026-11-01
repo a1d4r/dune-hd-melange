@@ -737,8 +737,10 @@ function aio_error_line($st, $sd)
     // Only the icon: "[RD]" and "[TB]" tell two add-ons apart.
     $name = trim(strval(preg_replace('/\\[\\s*[' . AIO_EMOJI . ']+\\s*\\]|[' . AIO_EMOJI . ']+/u', '', $name)));
     $line = $name !== '' && $why !== '' && $name !== $why ? "$name: $why" : ($name !== '' ? $name : $why);
-    // Runs of control bytes and spaces, C1 controls too -> one space.
-    $line = trim(strval(aio_mask(strval(preg_replace('/(?:[\x00-\x20\x7F]|\xC2[\x80-\x9F])+/', ' ', $line)))));
+    // Runs of control bytes and spaces, C1 controls too -> one space. Two passes:
+    // a repeated group recurses in PCRE 8.11, a long run kills php_server.
+    $line = preg_replace('/[\x00-\x20\x7F]+/', ' ', strval(preg_replace('/\xC2[\x80-\x9F]/', ' ', $line)));
+    $line = trim(strval(aio_mask(strval($line))));
     // Not UTF-8 would break the JSON of the whole dialog.
     if ($line === '' || !preg_match('//u', $line))
         return '?';
