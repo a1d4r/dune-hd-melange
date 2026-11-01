@@ -94,12 +94,12 @@ describe.each([...FIXTURES])("%s", (name) => {
     for (const radio of saves)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("torr");
     // No torrents (0.49.0): two radios right in the form, before the screens (the CSS hides by them), their cards on
-    // #run, all hidden with "Торренты".
+    // #adv, all hidden with "Торренты".
     const offs = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=no_torrents]"));
     expect(offs.map((radio) => [radio.type, radio.value, radio.parentElement === form])).toEqual([["radio", "allow", true], ["radio", "off", true]]);
     for (const radio of offs) {
       const card = doc.querySelector("label[for=" + radio.id + "]")!;
-      expect([card.closest("section")!.id, !!card.closest(".xt")]).toEqual(["run", true]);
+      expect([card.closest("section")!.id, !!card.closest(".xt")]).toEqual(["adv", true]);
     }
     // The bar of the save under the screens: its results, "Hide" of them (a button, not a submit), its button the save.
     expect(doc.querySelector("#" + ID.bar + " #" + ID.saveResult + "+ button#" + ID.hideResult + "[type=button][hidden] + * #" + ID.dirty + "+ button." + CLS.save)).not.toBeNull();
@@ -199,7 +199,7 @@ describe.each([...FIXTURES])("%s", (name) => {
     });
   });
 
-  // The CSS, no script (0.49.0): #run stays with "Без торрентов" (else no way to turn it off), goes with "Торренты".
+  // The CSS, no script (0.49.0): #adv stays in every mode (else no way to turn "Без торрентов" off).
   test.each([
     ["wd", "nt1"],
     ["wd", "nt2"],
@@ -214,17 +214,17 @@ describe.each([...FIXTURES])("%s", (name) => {
     const hidden = (el: Element) => HIDES.some((selector) => el.matches(selector));
     const shown = (id: string) => !hidden(doc.getElementById(id)!);
     const off = answer === "nt2" && watch !== "wp";
-    expect([shown("rrun"), shown("rtorr"), shown("rdl")]).toEqual([watch !== "wp", !off, !off]);
+    expect([shown("radv"), shown("rtorr"), shown("rdl")]).toEqual([true, !off, !off]);
     // One line between neighbours, none on top of a list, whichever lines are left.
     doc.querySelectorAll("#home .list").forEach((list) => {
       const rows = Array.from(list.children).filter((row) => !hidden(row));
       expect(rows.map((row) => NO_TOP_LINE.some((selector) => row.matches(selector)))).toEqual(rows.map((_, i) => i === 0));
     });
-    // The value of the line by the radio: "Разрешён" (.xa) or "Выключен" (.xn), the other one hidden.
-    const allowed = doc.querySelector("#vrun .xa")!;
-    const offValue = doc.querySelector("#vrun .xn")!;
-    expect([allowed.textContent, offValue.textContent]).toEqual(["Разрешён", "Выключен"]);
-    expect([hidden(allowed), hidden(offValue)]).toEqual([answer === "nt2", answer === "nt1"]);
+    // The value of the line: only with "Без торрентов" in effect.
+    const value = doc.querySelector("#vadv span")!;
+    expect([doc.querySelectorAll("#vadv span").length, value.textContent, hidden(value)]).toEqual([1, "Торренты выключены", !off]);
+    // "Запуск торрентов" on the screen: not with "Торренты".
+    expect(hidden(doc.querySelector("#adv p.lbl")!)).toBe(watch === "wp");
   });
 
   test("the screens: each a section with a link back to #home, #home last, the bar after it", () => {

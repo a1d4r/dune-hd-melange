@@ -55,7 +55,7 @@ function aio_cgi_fields()
         'ts_save' => array('id' => 'tss', 'name' => 'ts_save', 'set' => 'ts_save', 'max' => 0, 'type' => 'radio', 'scr' => 'torr'),
         // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
         'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
-            'scr' => 'run'));
+            'scr' => 'adv'));
 }
 
 // The fields of a server on the form (s<n>_<field>), as aio_server_conf()
@@ -264,7 +264,7 @@ function aio_cgi_ts_save($v)
         aio_cgi_choice($f['ts_save'], aio_cgi_ts_saves(), $v['ts_save']);
 }
 
-// The answers of the screen "Запуск торрентов" #run (radio no_torrents, 0.49.0): its
+// The answers of "Запуск торрентов" on the screen #adv (radio no_torrents, 0.49.0): its
 // value => array(name, hint); "off" - no_torrents of the settings.
 function aio_cgi_no_torrents()
 {
@@ -535,12 +535,12 @@ function aio_cgi_host($url)
     return is_string($h) ? $h : '';
 }
 
-// The screen "Запуск торрентов" (#run), not on that of TorrServer: its line goes
+// "Запуск торрентов" on the screen #adv, not on that of TorrServer: its line goes
 // with "Без торрентов". The cards of its radios (aio_cgi_form); none with
 // "Торренты" (class xt), the value kept.
 function aio_cgi_no_torrents_cards()
 {
-    $out = '<div class="choice xt">';
+    $out = '<p class="lbl xt">' . aio_cgi_l('Запуск торрентов', 'Running torrents') . '</p><div class="choice xt">';
     $i = 0;
     foreach (aio_cgi_no_torrents() as $x)
         $out .= aio_cgi_card('nt' . ++$i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
@@ -550,7 +550,7 @@ function aio_cgi_no_torrents_cards()
 // The screen "Откуда брать фильмы" (0.43.0): three cards of the radio watch
 // (aio_cgi_form), under them the fields of the answer shown by the CSS
 // (classes xd, xp, xo, xm - Debrid, Торренты, the own config, both made; xt -
-// not Торренты, of "Без торрентов" (#run); xa - not with it, xn - only with it):
+// not Торренты, of "Без торрентов" (#adv); xa - not with it, xn - only with it):
 // Debrid - the keys (#dseg, #rdadd, #tbadd: by the script) and the template;
 // Торренты - the template of P2P and a link to TorrServer (its field is on
 // #torr only, 0.44.0); the own config - its manifest
@@ -793,7 +793,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
                 'If TorrServer asks for them. Also in the address: login:password@host:port')) . aio_cgi_ts_save($v)) .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
-        aio_cgi_screen('run', aio_cgi_no_torrents_cards()) .
+        aio_cgi_screen('adv', aio_cgi_no_torrents_cards()) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .
             '<a class="btn" href="settings?t=' . aio_cgi_h($t) . '&amp;a=log">' . aio_cgi_l('Скачать лог', 'Download the log') . '</a>') .

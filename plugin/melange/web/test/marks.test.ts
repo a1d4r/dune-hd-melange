@@ -100,13 +100,13 @@ describe("errors lead to the field", () => {
     expect([hash(), focused(page)]).toEqual(["#torr", "ts"]);
   });
 
-  test("the answer of no torrents: its cards marked on its screen #run, no focus", async () => {
+  test("the answer of no torrents: its cards marked on its screen #adv, no focus", async () => {
     const page = open("filled");
     const before = focused(page);
     page.replies.push(json({ ok: false, errors: [{ msg: "Торренты: нет такого ответа", field: "no_torrents" }] }));
     await save(page);
     const card = page.doc.querySelector('label[for="nt1"]')!;
-    expect([card.closest("." + CLS.bad) !== null, hash(), focused(page)]).toEqual([true, "#run", before]);
+    expect([card.closest("." + CLS.bad) !== null, hash(), focused(page)]).toEqual([true, "#adv", before]);
   });
 
   test("a server block (s3_url for any of its fields): the block marked, not the address; its screen, the block in view, no focus", async () => {
