@@ -272,8 +272,8 @@ function aio_cgi_ts_markers()
 {
     return array(
         'each' => array(aio_cgi_l('В каждой серии', 'In every episode'), aio_cgi_l(
-            '«Пропустить заставку» и «Следующий эпизод» в каждой серии. Перед серией — пауза в пару секунд.',
-            '"Skip intro" and "Next episode" in every episode. A pause of a couple of seconds before an episode.')),
+            'Кнопки пропуска в каждой серии. Перед серией — пауза в пару секунд.',
+            'Skip buttons in every episode. A pause of a couple of seconds before each.')),
         'fast' => array(aio_cgi_l('Мгновенное переключение', 'Instant switching'), aio_cgi_l(
             'Серии переключаются сразу, кнопки — только у серии, которую запустили.',
             'Episodes switch at once, the buttons are only on the episode you started.')));
