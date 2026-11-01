@@ -645,7 +645,10 @@ define('AIO_ERRORS_MAX', 30);
 define('AIO_ERRORS_LABELS', 5);
 // Characters of a reason, its own ellipsis included: the shell cuts a longer
 // button of aio_errors_dialog at the right without one.
-define('AIO_ERROR_LINE', 48);
+define('AIO_ERROR_LINE', 68);
+// The same in a label of a dialog of the usual width (aio_errors_labels): the shell
+// replaces the middle of a longer one with "...".
+define('AIO_ERROR_LABEL', 48);
 
 // No reasons (AioErrors): 'lines' - different reasons, up to AIO_ERRORS_MAX;
 // 'more' - different ones past them.
@@ -707,8 +710,19 @@ function aio_errors_rows($lang, $errors, $max)
     return $rows;
 }
 
+// $line, at most $max characters, its ellipsis included.
+/**
+ * @param string $line
+ * @param int $max
+ * @return string
+ */
+function aio_error_cut($line, $max)
+{
+    return mb_strlen($line, 'UTF-8') > $max ? rtrim(mb_substr($line, 0, $max - 1, 'UTF-8')) . '…' : $line;
+}
+
 // The reasons as labels of a dialog of a lazy episode, with the setting on: its
-// buttons stay in view.
+// buttons stay in view. Cut to the same text -> one.
 /**
  * @param string $lang
  * @param AioErrors $errors
@@ -716,7 +730,13 @@ function aio_errors_rows($lang, $errors, $max)
  */
 function aio_errors_labels($lang, $errors)
 {
-    return aio_errors_shown($errors) ? aio_errors_rows($lang, $errors, AIO_ERRORS_LABELS) : array();
+    if (!aio_errors_shown($errors))
+        return array();
+    $lines = array();
+    foreach ($errors['lines'] as $line)
+        $lines[] = aio_error_cut($line, AIO_ERROR_LABEL);
+    $errors['lines'] = array_values(array_unique($lines));
+    return aio_errors_rows($lang, $errors, AIO_ERRORS_LABELS);
 }
 
 // The reason of error stream $st (its streamData $sd), one line: "name: reason",
@@ -746,8 +766,7 @@ function aio_error_line($st, $sd)
     // Not UTF-8 would break the JSON of the whole dialog.
     if ($line === '' || !preg_match('//u', $line))
         return '?';
-    return mb_strlen($line, 'UTF-8') > AIO_ERROR_LINE ?
-        rtrim(mb_substr($line, 0, AIO_ERROR_LINE - 1, 'UTF-8')) . '…' : $line;
+    return aio_error_cut($line, AIO_ERROR_LINE);
 }
 
 // Error streams of the reply (streamData.type "error": a failed add-on, a bad
@@ -1119,14 +1138,14 @@ function aio_errors_dialog($title, $lang, $errors)
     {
         $c = aio_ctl("row$i", GUI_CONTROL_BUTTON, array(
             GuiButtonDef::caption => '<text>' . str_replace(array('&', '<', '>'), array('&amp;', '&lt;', '&gt;'), $row) . '</text>',
-            GuiButtonDef::width => 1000, GuiButtonDef::push_action => $close));
+            GuiButtonDef::width => 1450, GuiButtonDef::push_action => $close));
         $c[GuiControlDef::params] = array('button_caption_centered' => 'no', 'button_style' => 'smart_label', 'button_height' => 44);
         $defs[] = $c;
     }
     $defs[] = aio_ctl('ok', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => 'OK',
         GuiButtonDef::width => 500, GuiButtonDef::push_action => $close));
-    return aio_dialog_act($title, $defs, array(ShowDialogActionData::max_height => 875,
-        ShowDialogActionData::params => array('page_size' => 11)));
+    return aio_dialog_act($title, $defs, array(ShowDialogActionData::preferred_width => 1500,
+        ShowDialogActionData::max_height => 875, ShowDialogActionData::params => array('page_size' => 11)));
 }
 
 function aio_ctl($name, $kind, $def, $title = null)
