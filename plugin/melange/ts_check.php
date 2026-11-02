@@ -207,17 +207,7 @@ function aio_ts_check_tick($in)
             aio_ts_check_drop($p);
         $p['keep'] = '1';
     }
-    return array(
-        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
-        GuiAction::data => array(
-            ChangeBehaviourActionData::actions => aio_ts_check_acts($p, $out === ''),
-            ChangeBehaviourActionData::timer => $out === '' ? array(GuiTimerDef::delay_ms => AIO_TS_TICK_MS) : null,
-            ChangeBehaviourActionData::post_action => array(
-                GuiAction::handler_string_id => RESET_CONTROLS_ACTION_ID,
-                GuiAction::data => array(
-                    ResetControlsActionData::defs => aio_ts_check_defs($st, $r, $p, $out),
-                    ResetControlsActionData::initial_sel_ndx => -1,
-                    ResetControlsActionData::post_action => null))));
+    return aio_ts_dialog_redraw(aio_ts_check_acts($p, $out === ''), $out === '', aio_ts_check_defs($st, $r, $p, $out));
 }
 
 // "Close" and RETURN of the dialog: the release dropped, unless "keep"; with a verdict

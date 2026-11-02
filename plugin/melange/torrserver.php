@@ -824,6 +824,29 @@ function aio_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
     return $defs;
 }
 
+// A tick of a dialog of TorrServer: its keys and controls anew; $tick: the timer
+// again, else no timer.
+/**
+ * @param array<string, AioAction> $acts
+ * @param bool $tick
+ * @param list<array<string, mixed>> $defs
+ * @return AioAction
+ */
+function aio_ts_dialog_redraw($acts, $tick, $defs)
+{
+    return array(
+        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
+        GuiAction::data => array(
+            ChangeBehaviourActionData::actions => $acts,
+            ChangeBehaviourActionData::timer => $tick ? array(GuiTimerDef::delay_ms => AIO_TS_TICK_MS) : null,
+            ChangeBehaviourActionData::post_action => array(
+                GuiAction::handler_string_id => RESET_CONTROLS_ACTION_ID,
+                GuiAction::data => array(
+                    ResetControlsActionData::defs => $defs,
+                    ResetControlsActionData::initial_sel_ndx => -1,
+                    ResetControlsActionData::post_action => null))));
+}
+
 // Timer of the waiting dialog: "get" of the torrent; its files -> playback;
 // still none -> the timer again, the text redrawn; gone or too long -> error.
 /**
@@ -873,17 +896,7 @@ function aio_ts_tick($in)
         return aio_close_and(aio_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));
     if ($sec >= AIO_TS_WAIT || intval($p['n']) >= AIO_TS_TICKS)
         return aio_close_and(aio_ts_fail($lang, 'ts_err_timeout', $err !== '' ? $err : '', $p['l'] === '1'));
-    return array(
-        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
-        GuiAction::data => array(
-            ChangeBehaviourActionData::actions => aio_ts_wait_acts($p),
-            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => AIO_TS_TICK_MS),
-            ChangeBehaviourActionData::post_action => array(
-                GuiAction::handler_string_id => RESET_CONTROLS_ACTION_ID,
-                GuiAction::data => array(
-                    ResetControlsActionData::defs => aio_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1'),
-                    ResetControlsActionData::initial_sel_ndx => -1,
-                    ResetControlsActionData::post_action => null))));
+    return aio_ts_dialog_redraw(aio_ts_wait_acts($p), true, aio_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1'));
 }
 
 // The row of a start through TorrServer for its lazy episodes: without the name,
