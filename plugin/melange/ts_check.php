@@ -4,9 +4,10 @@
 // false writes nothing there; no title and poster, so a torrent already in memory
 // keeps its own). A dialog shows the live peers and connected seeders of a "get" a
 // second, ends with a verdict and stays until closed. The release is dropped at
-// the verdict or the close, not "rem": it may lie in the DB of TorrServer; and not
-// if another client had it in memory before the check ("keep"). A verdict stays on
-// the row ('check' of AioRow): a sort keeps the rows, "Refresh" makes new ones.
+// the verdict, the close or an error of its add, not "rem": it may lie in the DB of
+// TorrServer; and not if another client had it in memory before the check ("keep").
+// A verdict stays on the row ('check' of AioRow): a sort keeps the rows, "Refresh"
+// makes new ones.
 // The state of a check is in the params of the actions of its dialog: rid, i: the
 // row; h: its hash; keep: "1" no drop (the release of another client, or dropped
 // already); ticks: ticks so far; peers: peers of the last reply; seeds: most seeders
@@ -55,7 +56,11 @@ function aio_ts_check_menu($in)
     aio_log("ts check: {$r['hash']}, HTTP $code, foreign " . intval($foreign));
     list($fail, $j) = aio_ts_add($lang, $r, array(), false);
     if ($fail)
+    {
+        // The first "get" of a release in the DB may have started its loading.
+        aio_ts_check_drop(array('h' => $r['hash'], 'keep' => $foreign ? '1' : '0'));
         return $fail;
+    }
     $p = array('rid' => $st['rid'], 'i' => strval($i), 'h' => $r['hash'], 'keep' => $foreign ? '1' : '0', 'ticks' => '0',
         'peers' => strval(aio_ts_int($j, 'total_peers')), 'seeds' => strval(aio_ts_int($j, 'connected_seeders')), 'errs' => '0');
     // 1500: a line of 60 characters of the release fits it whole, at 1100 the
