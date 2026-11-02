@@ -5,12 +5,12 @@
 // keeps its own). A dialog shows the live peers and connected seeders of a "get" a
 // second, ends with a verdict and stays until closed. The release is dropped at
 // the verdict or the close, not "rem": it may lie in the DB of TorrServer; and not
-// if another client had it in memory before the check ("o"). A verdict stays on
+// if another client had it in memory before the check ("keep"). A verdict stays on
 // the row ('check' of AioRow): a sort keeps the rows, "Refresh" makes new ones.
 // The state of a check is in the params of the actions of its dialog: rid, i: the
-// row; h: its hash; o: "1" no drop (the release of another client, or dropped
-// already); n: ticks so far; m: peers of the last reply; s: most seeders so far;
-// e: errors in a row.
+// row; h: its hash; keep: "1" no drop (the release of another client, or dropped
+// already); ticks: ticks so far; peers: peers of the last reply; seeds: most seeders
+// so far; errs: errors in a row.
 // Reads Aio (state, settings), writes to Aio::$state only the verdict, on its row.
 // Requests to TorrServer: torrserver.php. Functions are global; the require order
 // is in main.php.
@@ -56,8 +56,8 @@ function aio_ts_check_menu($in)
     list($fail, $j) = aio_ts_add($lang, $r, array(), false);
     if ($fail)
         return $fail;
-    $p = array('rid' => $st['rid'], 'i' => strval($i), 'h' => $r['hash'], 'o' => $foreign ? '1' : '0', 'n' => '0',
-        'm' => strval(aio_ts_int($j, 'total_peers')), 's' => strval(aio_ts_int($j, 'connected_seeders')), 'e' => '0');
+    $p = array('rid' => $st['rid'], 'i' => strval($i), 'h' => $r['hash'], 'keep' => $foreign ? '1' : '0', 'ticks' => '0',
+        'peers' => strval(aio_ts_int($j, 'total_peers')), 'seeds' => strval(aio_ts_int($j, 'connected_seeders')), 'errs' => '0');
     // 1500: a line of 60 characters of the release fits it whole, at 1100 the
     // shell cuts its middle.
     return aio_dialog_act(aio_tr($lang, 'ts_check_title'), aio_ts_check_defs($st, $r, $p, ''), array(
@@ -108,9 +108,9 @@ function aio_ts_check_defs($st, $r, $p, $out)
     foreach (aio_dialog_lines($r['label']) as $l)
         $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l));
     $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
-        str_replace('{sec}', $p['n'], aio_tr($lang, $out === '' ? 'ts_check_line' : 'ts_check_done'))));
+        str_replace('{sec}', $p['ticks'], aio_tr($lang, $out === '' ? 'ts_check_line' : 'ts_check_done'))));
     $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
-        str_replace(array('{peers}', '{seeds}'), array($p['m'], $p['s']), aio_tr($lang, 'ts_check_peers'))));
+        str_replace(array('{peers}', '{seeds}'), array($p['peers'], $p['seeds']), aio_tr($lang, 'ts_check_peers'))));
     // A space: an empty label is not proven to keep its height.
     $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $out === '' ? ' ' : aio_tr($lang, $out)));
     $defs[] = aio_ctl('close', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => aio_tr($lang, 'ts_close'),
@@ -126,8 +126,8 @@ function aio_ts_check_defs($st, $r, $p, $out)
 function aio_ts_check_params($in)
 {
     $p = array();
-    foreach (array('rid' => '/^[0-9a-f]{12}$/D', 'i' => '/^[0-9]{1,3}$/D', 'h' => '/^[0-9a-f]{40}$/D', 'o' => '/^[01]$/D',
-        'n' => '/^[0-9]{1,4}$/D', 'm' => '/^[0-9]{1,7}$/D', 's' => '/^[0-9]{1,7}$/D', 'e' => '/^[0-9]{1,2}$/D') as $k => $re)
+    foreach (array('rid' => '/^[0-9a-f]{12}$/D', 'i' => '/^[0-9]{1,3}$/D', 'h' => '/^[0-9a-f]{40}$/D', 'keep' => '/^[01]$/D',
+        'ticks' => '/^[0-9]{1,4}$/D', 'peers' => '/^[0-9]{1,7}$/D', 'seeds' => '/^[0-9]{1,7}$/D', 'errs' => '/^[0-9]{1,2}$/D') as $k => $re)
     {
         if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
         {
@@ -139,14 +139,14 @@ function aio_ts_check_params($in)
     return $p;
 }
 
-// The release closed in TorrServer, unless "o". An error: in the log only.
+// The release closed in TorrServer, unless "keep". An error: in the log only.
 /**
  * @param array<string, string> $p
  * @return void
  */
 function aio_ts_check_drop($p)
 {
-    if ($p['o'] === '1')
+    if ($p['keep'] === '1')
         return;
     $r = aio_ts_call(Aio::$settings['ts'] . '/torrents', (string) json_encode(array('action' => 'drop', 'hash' => $p['h'])), 2,
         Aio::$settings['ts_auth']);
@@ -173,39 +173,39 @@ function aio_ts_check_tick($in)
         return aio_close_and(aio_error('err_list_expired'));
     }
     $r = $st['rows'][$i];
-    $p['n'] = strval(intval($p['n']) + 1);
+    $p['ticks'] = strval(intval($p['ticks']) + 1);
     list($rg, $j) = aio_ts_get($p['h']);
     $code = $rg['code'];
     $ok = $rg['err'] === '' && is_array($j);
     $gone = $ok && aio_ts_check_gone($j);
     if ($ok && !$gone)
     {
-        $p['m'] = strval(aio_ts_int($j, 'total_peers'));
-        $p['s'] = strval(max(intval($p['s']), aio_ts_int($j, 'connected_seeders')));
+        $p['peers'] = strval(aio_ts_int($j, 'total_peers'));
+        $p['seeds'] = strval(max(intval($p['seeds']), aio_ts_int($j, 'connected_seeders')));
     }
-    aio_log(sprintf('ts check: tick %s: %s, stat %s, peers %s, seeders %s', $p['n'], $rg['err'] !== '' ? $rg['err'] : "HTTP $code",
-        is_array($j) && isset($j['stat']) ? json_encode($j['stat']) : '-', $p['m'], $p['s']));
+    aio_log(sprintf('ts check: tick %s: %s, stat %s, peers %s, seeders %s', $p['ticks'], $rg['err'] !== '' ? $rg['err'] : "HTTP $code",
+        is_array($j) && isset($j['stat']) ? json_encode($j['stat']) : '-', $p['peers'], $p['seeds']));
     if ($rg['err'] === '' && $code === 401)
         return aio_close_and(aio_ts_fail($st['lang'], aio_ts_auth_err()));
-    $p['e'] = $ok ? '0' : strval(intval($p['e']) + 1);
+    $p['errs'] = $ok ? '0' : strval(intval($p['errs']) + 1);
     $out = '';
     if ($gone || ($rg['err'] === '' && $code === 404))
         $out = 'ts_check_gone';
-    else if (intval($p['e']) >= AIO_TS_CHECK_ERRS)
+    else if (intval($p['errs']) >= AIO_TS_CHECK_ERRS)
         $out = 'ts_check_no_reply';
-    else if (intval($p['n']) >= AIO_TS_CHECK_SEC)
+    else if (intval($p['ticks']) >= AIO_TS_CHECK_SEC)
     {
-        $out = intval($p['s']) >= 1 ? 'ts_check_alive' : (intval($p['m']) >= 1 ? 'ts_check_no_seeds' : 'ts_check_dead');
-        $st['rows'][$i]['check'] = array(intval($p['m']), intval($p['s']));
+        $out = intval($p['seeds']) >= 1 ? 'ts_check_alive' : (intval($p['peers']) >= 1 ? 'ts_check_no_seeds' : 'ts_check_dead');
+        $st['rows'][$i]['check'] = array(intval($p['peers']), intval($p['seeds']));
         Aio::$state = $st;
     }
     if ($out !== '')
     {
-        aio_log("ts check: {$p['h']}, foreign {$p['o']}, peers {$p['m']}, seeders {$p['s']}: $out");
+        aio_log("ts check: {$p['h']}, foreign {$p['keep']}, peers {$p['peers']}, seeders {$p['seeds']}: $out");
         // 404: nothing there to drop.
         if ($code !== 404)
             aio_ts_check_drop($p);
-        $p['o'] = '1';
+        $p['keep'] = '1';
     }
     return array(
         GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
@@ -220,7 +220,7 @@ function aio_ts_check_tick($in)
                     ResetControlsActionData::post_action => null))));
 }
 
-// "Close" and RETURN of the dialog: the release dropped, unless "o"; with a verdict
+// "Close" and RETURN of the dialog: the release dropped, unless "keep"; with a verdict
 // on the row, the card redrawn by our own input after the dialog: reset_controls
 // right in close_dialog_and_run does not redraw a screen (aio_setup_tick).
 /**
@@ -232,7 +232,7 @@ function aio_ts_check_close($in)
     $p = aio_ts_check_params($in);
     if (!$p)
         return aio_close_and(null);
-    aio_log("ts check: {$p['h']} closed at tick {$p['n']}");
+    aio_log("ts check: {$p['h']} closed at tick {$p['ticks']}");
     aio_ts_check_drop($p);
     $st = Aio::$state;
     $checked = $st && $st['rid'] === $p['rid'] && isset($st['rows'][intval($p['i'])]['check']);
