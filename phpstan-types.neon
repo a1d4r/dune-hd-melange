@@ -109,8 +109,7 @@ parameters:
                 voices?: AioVoices,
                 label: string,
                 raw: array<mixed>,
-                ord: int,
-                check?: array{int, int}
+                ord: int
             }
         '''
         # The card of play_action (aio_movie, main.php).

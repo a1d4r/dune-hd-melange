@@ -662,58 +662,6 @@ function aio_ts_auth_err()
     return Aio::$settings['ts_auth'] === '' ? 'ts_err_auth' : 'ts_err_auth_bad';
 }
 
-// "echo" of the TorrServer of the settings, 2 s, logged with $tag -> null when
-// MatriX answers, else the error dialog.
-/**
- * @param string $lang
- * @param string $tag
- * @param bool $lazy
- * @return AioAction|null
- */
-function aio_ts_echo_fail($lang, $tag, $lazy = false)
-{
-    $base = Aio::$settings['ts'];
-    $t = microtime(true);
-    $re = aio_ts_call("$base/echo", null, 2);
-    $err = $re['err'];
-    $code = $re['code'];
-    $ver = $err === '' && $code === 200 ? aio_cut(trim($re['body']), 40) : '';
-    aio_log(sprintf('ts: %s: %s echo: %s, %.2f s', $tag, $base, $err !== '' ? $err : "HTTP $code \"$ver\"",
-        microtime(true) - $t));
-    if ($err !== '' || $code !== 200)
-        return aio_ts_fail($lang, 'ts_err_down', $err !== '' ? $err : "HTTP $code", $lazy);
-    return strpos($ver, 'MatriX.') === 0 ? null : aio_ts_fail($lang, 'ts_err_old', $ver, $lazy);
-}
-
-// "add" of the magnet of row $r, $fields (title, poster) with it -> array(null,
-// its TorrentStatus) or array(the error dialog, null).
-/**
- * @param string $lang
- * @param AioRow $r
- * @param array<string, string> $fields
- * @param bool $save
- * @param bool $lazy
- * @return array{AioAction|null, array<mixed>|null}
- */
-function aio_ts_add($lang, $r, $fields, $save, $lazy = false)
-{
-    list($mg, $n, $src) = aio_magnet($r);
-    $req = json_encode(array_merge(array('action' => 'add', 'link' => $mg), $fields, array('save_to_db' => $save)));
-    $t = microtime(true);
-    $ra = aio_ts_call(Aio::$settings['ts'] . '/torrents', (string) $req, 5, Aio::$settings['ts_auth']);
-    $err = $ra['err'];
-    $code = $ra['code'];
-    $j = $err === '' && $code === 200 ? aio_ts_decode($ra['body']) : null;
-    // The magnet is not logged: a private tracker carries a passkey.
-    aio_log(sprintf('ts: add, save %d, %d trackers (%s): %s, %d files, %.2f s', $save, $n, $src,
-        $err !== '' ? $err : "HTTP $code", count(aio_ts_files($j)), microtime(true) - $t));
-    if ($err === '' && $code === 401)
-        return array(aio_ts_fail($lang, aio_ts_auth_err(), '', $lazy), null);
-    if ($err !== '' || $code !== 200 || !$j)
-        return array(aio_ts_fail($lang, 'ts_err_add', $err !== '' ? $err : "HTTP $code", $lazy), null);
-    return array(null, $j);
-}
-
 // Row $i of list $st through TorrServer from position $pos (s); $from: rid of
 // the list screen under the player, '' for play_action; $lazy: a lazy
 // episode of the player (aio_next): no file of it -> aio_next_missing.
@@ -735,21 +683,41 @@ function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false)
     $lang = $st['lang'];
     if (Aio::$settings['no_torrents'])
         return aio_torrents_off($lang);
+    $base = Aio::$settings['ts'];
     $tag = aio_ep_tag($st) . ", row $i, hash {$r['hash']}";
     if (!$alive)
     {
-        $fail = aio_ts_echo_fail($lang, $tag, $lazy);
-        if ($fail)
-            return $fail;
+        $t = microtime(true);
+        $re = aio_ts_call("$base/echo", null, 2);
+        $err = $re['err'];
+        $code = $re['code'];
+        $ver = $err === '' && $code === 200 ? aio_cut(trim($re['body']), 40) : '';
+        aio_log(sprintf('ts: %s: %s echo: %s, %.2f s', $tag, $base, $err !== '' ? $err : "HTTP $code \"$ver\"",
+            microtime(true) - $t));
+        if ($err !== '' || $code !== 200)
+            return aio_ts_fail($lang, 'ts_err_down', $err !== '' ? $err : "HTTP $code", $lazy);
+        if (strpos($ver, 'MatriX.') !== 0)
+            return aio_ts_fail($lang, 'ts_err_old', $ver, $lazy);
     }
     else
-        aio_log('ts: ' . $tag . ': ' . Aio::$settings['ts'] . ' answered just now');
+        aio_log("ts: $tag: $base answered just now");
 
-    list($fail, $j) = aio_ts_add($lang, $r, array('title' => aio_ep_name($st['movie'], $st['s'], $st['e']),
-        'poster' => $st['movie']['poster']), Aio::$settings['ts_save'], $lazy);
-    if ($fail)
-        return $fail;
+    list($mg, $n, $src) = aio_magnet($r);
+    $req = json_encode(array('action' => 'add', 'link' => $mg, 'title' => aio_ep_name($st['movie'], $st['s'], $st['e']),
+        'poster' => $st['movie']['poster'], 'save_to_db' => Aio::$settings['ts_save']));
+    $t = microtime(true);
+    $ra = aio_ts_call("$base/torrents", $req, 5, Aio::$settings['ts_auth']);
+    $err = $ra['err'];
+    $code = $ra['code'];
+    $j = $err === '' && $code === 200 ? aio_ts_decode($ra['body']) : null;
     $files = aio_ts_files($j);
+    // The magnet is not logged: a private tracker carries a passkey.
+    aio_log(sprintf('ts: add, save %d, %d trackers (%s): %s, %d files, %.2f s', Aio::$settings['ts_save'], $n, $src,
+        $err !== '' ? $err : "HTTP $code", count($files), microtime(true) - $t));
+    if ($err === '' && $code === 401)
+        return aio_ts_fail($lang, aio_ts_auth_err(), '', $lazy);
+    if ($err !== '' || $code !== 200 || !$j)
+        return aio_ts_fail($lang, 'ts_err_add', $err !== '' ? $err : "HTTP $code", $lazy);
     if ($files)
         return aio_ts_play($st, $i, $files, $pos, $from, $lazy);
     Aio::$tswait = $st;
@@ -824,29 +792,6 @@ function aio_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
     return $defs;
 }
 
-// A tick of a dialog of TorrServer: its keys and controls anew; $tick: the timer
-// again, else no timer.
-/**
- * @param array<string, AioAction> $acts
- * @param bool $tick
- * @param list<array<string, mixed>> $defs
- * @return AioAction
- */
-function aio_ts_dialog_redraw($acts, $tick, $defs)
-{
-    return array(
-        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
-        GuiAction::data => array(
-            ChangeBehaviourActionData::actions => $acts,
-            ChangeBehaviourActionData::timer => $tick ? array(GuiTimerDef::delay_ms => AIO_TS_TICK_MS) : null,
-            ChangeBehaviourActionData::post_action => array(
-                GuiAction::handler_string_id => RESET_CONTROLS_ACTION_ID,
-                GuiAction::data => array(
-                    ResetControlsActionData::defs => $defs,
-                    ResetControlsActionData::initial_sel_ndx => -1,
-                    ResetControlsActionData::post_action => null))));
-}
-
 // Timer of the waiting dialog: "get" of the torrent; its files -> playback;
 // still none -> the timer again, the text redrawn; gone or too long -> error.
 /**
@@ -896,7 +841,17 @@ function aio_ts_tick($in)
         return aio_close_and(aio_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));
     if ($sec >= AIO_TS_WAIT || intval($p['n']) >= AIO_TS_TICKS)
         return aio_close_and(aio_ts_fail($lang, 'ts_err_timeout', $err !== '' ? $err : '', $p['l'] === '1'));
-    return aio_ts_dialog_redraw(aio_ts_wait_acts($p), true, aio_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1'));
+    return array(
+        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
+        GuiAction::data => array(
+            ChangeBehaviourActionData::actions => aio_ts_wait_acts($p),
+            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => AIO_TS_TICK_MS),
+            ChangeBehaviourActionData::post_action => array(
+                GuiAction::handler_string_id => RESET_CONTROLS_ACTION_ID,
+                GuiAction::data => array(
+                    ResetControlsActionData::defs => aio_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1'),
+                    ResetControlsActionData::initial_sel_ndx => -1,
+                    ResetControlsActionData::post_action => null))));
 }
 
 // The row of a start through TorrServer for its lazy episodes: without the name,
@@ -989,20 +944,6 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
     return aio_play($st, $r, $pos, array('url' => aio_ts_url($base, $r['hash'], $files[$k]), 'eps' => $eps, 'others' => $others));
 }
 
-// The row of a menu item of a live list, with infoHash -> its index, else -1.
-/**
- * @param stdClass $in
- * @return int
- */
-function aio_ts_menu_row($in)
-{
-    $st = Aio::$state;
-    $i = isset($in->i) && is_string($in->i) && preg_match('/^[0-9]{1,3}$/D', $in->i) ? intval($in->i) : -1;
-    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || !isset($st['rows'][$i]) || $st['rows'][$i]['hash'] === '')
-        return -1;
-    return $i;
-}
-
 // gc_ts (MENU "Watch via TorrServer") of row i of a live list.
 /**
  * @param stdClass $in
@@ -1010,13 +951,12 @@ function aio_ts_menu_row($in)
  */
 function aio_ts_menu($in)
 {
-    $i = aio_ts_menu_row($in);
-    if ($i < 0)
+    $st = Aio::$state;
+    $i = isset($in->i) && is_string($in->i) && preg_match('/^[0-9]{1,3}$/D', $in->i) ? intval($in->i) : -1;
+    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || !isset($st['rows'][$i]) || $st['rows'][$i]['hash'] === '')
     {
         aio_log('ts: menu of no live row with infoHash');
         return aio_error('err_list_expired');
     }
-    /** @var AioState $st the row was found in it */
-    $st = Aio::$state;
     return aio_ts_open($st, $i, 0, $st['rid']);
 }

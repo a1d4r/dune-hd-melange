@@ -741,15 +741,6 @@ function aio_gc_card($st, $sel)
         $d[] = aio_gc_cut(null, aio_gc_at($sw, $lh, $sx, $y), $line, 30, $color);
         $y += $lh;
     }
-    // The verdict of "Check release" (aio_ts_check_tick), under the status.
-    if (isset($r['check']))
-    {
-        foreach (aio_gc_wrap(aio_gc_checked($r['check'], $tt['lang']), 30, $sw, 2, true) as $line)
-        {
-            $d[] = aio_gc_cut(null, aio_gc_at($sw, $lh, $sx, $y), $line, 30, AIO_GC_TEXT2);
-            $y += $lh;
-        }
-    }
     if ($r['group'] !== '')
     {
         $y += 16;
@@ -761,10 +752,9 @@ function aio_gc_card($st, $sel)
             $y += $lh;
         }
     }
-    // The platform of a WEB-DL: one line, so that it fits beside the poster in
-    // the worst case (two lines of status and of release: $y 336 here, room for
-    // it). With a verdict too there may be no room: then none.
-    if ($r['network'] !== '' && $y + 16 + 32 + $lh <= AIO_GC_PH)
+    // The platform of a WEB-DL: one line, so that it fits beside the poster
+    // in the worst case (two lines of status and of release).
+    if ($r['network'] !== '')
     {
         $y += 16;
         $d[] = aio_gc_cut(null, aio_gc_at($sw, 32, $sx, $y), $tt['source'], 26, AIO_GC_DIM);
@@ -846,18 +836,6 @@ function aio_gc_card($st, $sel)
         $room -= $y - $y0;
     }
     return $d;
-}
-
-// The verdict of a row in the card: "Проверено: 73 пира, 12 сидов".
-/**
- * @param array{int, int} $check
- * @param string $lang
- * @return string
- */
-function aio_gc_checked($check, $lang)
-{
-    return str_replace(array('{peers}', '{seeds}'), array($check[0] . ' ' . aio_gc_plural($lang, $check[0], 'gc_peers'),
-        $check[1] . ' ' . aio_gc_plural($lang, $check[1], 'gc_seeds')), aio_tr($lang, 'gc_checked'));
 }
 
 // Bit rate: "59 Мбит/с", "≈ 7.4 Mbps" (one decimal under 10).
@@ -1113,22 +1091,6 @@ function aio_gc_bar_update($st, $hash)
             ChangeGCompsActionData::sel_state => aio_gc_state($sel, $top)));
 }
 
-// The card of the row under the cursor drawn anew -> change_gcomps.
-/**
- * @param AioState $st
- * @return AioAction
- */
-function aio_gc_card_update($st)
-{
-    list($sel, $top) = aio_gc_pos($st, null);
-    return array(
-        GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID,
-        GuiAction::data => array(
-            ChangeGCompsActionData::change_defs => array(aio_gc_change('card', null, GCOMP_TRANSITION_NONE, aio_gc_card($st, $sel))),
-            ChangeGCompsActionData::num_steps => AIO_GC_STEPS,
-            ChangeGCompsActionData::sel_state => aio_gc_state($sel, $top)));
-}
-
 // get_folder_view of a live list ($st matches the media_url).
 /**
  * @param AioState $st
@@ -1221,8 +1183,8 @@ function aio_gc_sort($in)
 
 // gc_menu (MENU) of a live list -> the popup menu of the row under the cursor:
 // "Refresh" (aio_refresh), an episode: "Choose episode" (aio_choose), a row
-// with infoHash: "Check release" (aio_ts_check_menu), "Download in app" (aio_download) and, with a server in the
-// settings, "Download to server" (aio_srv_menu; these not with "no torrents"), source errors of the
+// with infoHash: "Download in app" (aio_download) and, with a server in the
+// settings, "Download to server" (aio_srv_menu; these three not with "no torrents"), source errors of the
 // reply if shown (aio_gc_errors), "Settings". A screen of a
 // lost list (replaced, php_server restarted): "Settings" only.
 /**
@@ -1261,11 +1223,6 @@ function aio_gc_menu($in)
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'ts_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/torrents.aai',
             GuiMenuItemDef::action => aio_gc_act('gc_ts', $rid, array('i' => strval($sel))));
-    if ($tor)
-        $menu[] = array(
-            GuiMenuItemDef::caption => aio_tr($st['lang'], 'ts_check_menu'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/network.aai',
-            GuiMenuItemDef::action => aio_gc_act('gc_check', $rid, array('i' => strval($sel))));
     if ($tor)
         $menu[] = array(
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'dl_menu'),
