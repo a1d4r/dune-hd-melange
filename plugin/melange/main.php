@@ -1199,6 +1199,14 @@ function aio_handle_user_input($in)
         return aio_ts_menu($in);
     if ($control === 'ts_tick')
         return aio_ts_tick($in);
+    if ($control === 'gc_check')
+        return aio_ts_check_menu($in);
+    if ($control === 'ts_check_tick')
+        return aio_ts_check_tick($in);
+    if ($control === 'ts_check_close')
+        return aio_ts_check_close($in);
+    if ($control === 'ts_check_card')
+        return aio_ts_check_card($in);
     if (in_array($control, array('tsi_open', 'tsi_tick', 'tsi_close', 'tsi_state'), true))
         return aio_tsi_input($in, $control);
     if ($control === 'ts_cancel')
