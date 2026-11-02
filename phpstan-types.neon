@@ -5,6 +5,18 @@
 # each key is in the comment of the function that makes the array.
 parameters:
     typeAliases:
+        # A row of the catalog (aio_cat_row, catalog.php).
+        AioCatRow: 'array{key: string, type: string, id: string, name: string, genre: string, home: bool, group: string}'
+        # A tile of a row (aio_cat_tile, catalog.php).
+        AioCatTile: 'array{id: string, imdb_id: string, _tmdbId: string, type: string, name: string, year: string, releaseInfo: string, imdbRating: string, description: string, genres: list<string>, poster: string, background: string}'
+        # A listing of a row (aio_cat_row_state, catalog.php).
+        AioCatState: 'array{row: AioCatRow, t0: int, skip: int, dry: int, end: string, seen: array<string, bool>}'
+        # A result of a listing or a search (aio_cat_more, catalog.php).
+        AioCatResult: 'array{tiles: list<AioCatTile>, reset: bool, end: bool, stale: bool, age: int, err: string}'
+        # The rows of the manifest (aio_cat_manifest, catalog.php).
+        AioCatRows: 'array{rows: list<AioCatRow>, stale: bool, age: int, err: string}'
+        # The copy of a page in the cache (aio_cat_page_cached, catalog.php).
+        AioCatCached: 'array{t: int, n: int, data: list<AioCatTile>}'
         # A server of "Download to server" (aio_server_conf, common.php).
         AioServer: 'array{name: string, url: string, user: string, pass: string, category: string, tags: string, cache: string, type: string}'
         # A reply of TorrServer (aio_ts_call, net.php).
