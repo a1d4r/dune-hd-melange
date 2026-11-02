@@ -7,9 +7,9 @@
 
 define('AIO_CAT_BASE', 'https://aiometadata.kompotik.com/stremio/');
 // The shared config of the instance: public, as the apikey of the own JacRed, and
-// read-only without its password. A placeholder for now: CI of this repository
-// refuses any other UUID.
-define('AIO_CAT_UUID', '00000000-0000-4000-8000-000000000000');
+// read-only without its password. CI of this repository
+// allows this one value.
+define('AIO_CAT_UUID', 'e3778c33-0d0e-4d2e-a4db-a817b2d506f4');
 
 // Timeouts of a request, s: a cold row of the server takes up to 4.5 s.
 define('AIO_CAT_CONNECT', 5);
