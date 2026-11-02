@@ -761,10 +761,10 @@ function aio_gc_card($st, $sel)
             $y += $lh;
         }
     }
-    // The platform of a WEB-DL: one line, so that it fits beside the poster
-    // in the worst case (two lines of status and of release). With a verdict too
-    // there may be no room: then none.
-    if ($r['network'] !== '' && (!isset($r['check']) || $y + 16 + 32 + $lh <= AIO_GC_PH))
+    // The platform of a WEB-DL: one line, so that it fits beside the poster in
+    // the worst case (two lines of status and of release: $y 336 here, room for
+    // it). With a verdict too there may be no room: then none.
+    if ($r['network'] !== '' && $y + 16 + 32 + $lh <= AIO_GC_PH)
     {
         $y += 16;
         $d[] = aio_gc_cut(null, aio_gc_at($sw, 32, $sx, $y), $tt['source'], 26, AIO_GC_DIM);
