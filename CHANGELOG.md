@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.51.0 — 03.11.2026
+- **English title in the catalog.** The info panel above the rows shows the English title of a movie or series in gray under its title, as the Dune's own catalog does: when the Dune's interface is not English and the English title differs from the one shown. Titles the catalog server has no English title for are shown as before.
+
 ## 0.50.0 — 03.11.2026
 - **Catalog of Melange.** **Apps → Melange** now opens a catalog: rows of movies and series (trending, new releases, Russian, anime and more), up to 20 posters in a row, and **"Show all"** at the end of a row for the whole row as a grid. Rows and posters come from the shared catalog server of Melange, `aiometadata.kompotik.com`; no keys are needed. Until AIOStreams is set up, the settings screen opens instead, as before.
 - **The settings** stay in **Setup → Apps → Melange**, in the menu of the Melange icon (MENU → **Settings**) and now also in MENU in the catalog → **Settings**.
@@ -153,6 +156,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.51.0 — 03.11.2026
+- **Английское название в каталоге.** В инфопанели над рядами под названием фильма или сериала серым — его английское название, как в каталоге Дюны: если интерфейс Дюны не английский и английское название отличается от показанного. Где у сервера каталога английского названия нет, панель как раньше.
 
 ## 0.50.0 — 03.11.2026
 - **Каталог Melange.** **«Приложения» → «Melange»** теперь открывает каталог: ряды фильмов и сериалов (тренды, новинки, российское, аниме и другие), в ряду до 20 постеров, в конце ряда **«Показать все»** — весь ряд сеткой. Ряды и постеры идут с общего сервера каталога Melange `aiometadata.kompotik.com`, ключи не нужны. Пока AIOStreams не настроен, вместо каталога, как раньше, открываются настройки.
