@@ -16,6 +16,8 @@ export const TEXT_KEYS = [
   "saved",
   // Instead of "saved" when the config after the save failed: only the settings on the Dune are saved.
   "savedOnDune",
+  // After "saved" when the rows of the catalog changed: the catalog takes them when it opens next.
+  "rowsLater",
   "saveAndCreate",
   "creating",
   "updating",

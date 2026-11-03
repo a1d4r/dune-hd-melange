@@ -142,6 +142,23 @@ describe("saved", () => {
     expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved], ["ok", "Fine"], ["warn", "Hm"], ["warn", "Other"]]);
   });
 
+  test("rows changed: their line after Saved, before the notes and the config", async () => {
+    const page = open("filled");
+    const t = page.init.i18n;
+    page.choose("aio_server", ATB);
+    page.replies.push(json({ ok: true, next: NEXT + "&rows=1", aio: "create", rows: true, notes: [{ level: "ok", msg: "Fine" }] }), HANG);
+    await save(page);
+    expect(t.rowsLater).toBeTruthy();
+    expect(lines(page.el(ID.saveResult))).toEqual([["ok", t.saved], ["ok", t.rowsLater], ["ok", "Fine"], ["hint", t.creating]]);
+  });
+
+  test.each([undefined, false, 1, "1"])("rows %p (not true): no line of the rows", async (rows) => {
+    const page = open("filled");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "", rows: rows, notes: [{ level: "ok", msg: "Fine" }] }));
+    await save(page);
+    expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved], ["ok", "Fine"]]);
+  });
+
   test("the template saved: the one for a new config and the one shown when there is no config", async () => {
     const page = open("filled");
     page.choose("aio_server", ATB);

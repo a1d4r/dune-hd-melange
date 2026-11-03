@@ -12,8 +12,8 @@ export type SaveNote = { level: string; msg: string };
 export type SaveError = { msg: string; field: string | null };
 // What the save does to the config of the chosen server next (aio_sync).
 export type ConfHow = "create" | "update" | "reset";
-// aio: "" - nothing (another value sent is taken as that).
-export type Save = { ok: true; next: string; aio: ConfHow | ""; notes: SaveNote[] } | { ok: false; errors: SaveError[] };
+// aio: "" - nothing (another value sent is taken as that). rows: the rows of the catalog changed.
+export type Save = { ok: true; next: string; aio: ConfHow | ""; rows: boolean; notes: SaveNote[] } | { ok: false; errors: SaveError[] };
 
 // A row of the catalog (a=cat_rows). ok false: no list at all; stale: the last good copy of it.
 export type CatRow = { key: string; name: string; group: string; home: boolean };
@@ -72,7 +72,13 @@ const isConfHow = (aio: unknown): aio is ConfHow => aio === "create" || aio === 
 
 function parseSave(json: Json): Save | null {
   if (json.ok === true && typeof json.next === "string")
-    return { ok: true, next: json.next, aio: isConfHow(json.aio) ? json.aio : "", notes: parseItems(json.notes, parseNote) };
+    return {
+      ok: true,
+      next: json.next,
+      aio: isConfHow(json.aio) ? json.aio : "",
+      rows: json.rows === true,
+      notes: parseItems(json.notes, parseNote),
+    };
   const errors = parseItems(json.errors, parseSaveError);
   return errors.length ? { ok: false, errors: errors } : null;
 }

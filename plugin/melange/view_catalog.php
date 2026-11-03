@@ -1231,7 +1231,9 @@ function aio_catv_input($in, $control)
             GuiAction::data => array(ShowPopupMenuActionData::menu_items => array(
                 array(
                     GuiMenuItemDef::caption => aio_tr($lang, 'cat_search'),
-                    GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
+                    // No magnifier in the firmware small_icons: our own in their style
+                    // (shell_ext puts plugin_file:// PNGs into menu items too).
+                    GuiMenuItemDef::icon_url => 'plugin_file://img/menu_search.png',
                     GuiMenuItemDef::action => aio_input('cat_search', array('from' => $from))),
                 array(
                     GuiMenuItemDef::caption => aio_tr($lang, 'setup_menu'),

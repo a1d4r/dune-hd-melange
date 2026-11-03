@@ -751,7 +751,8 @@ function aio_cgi_js($v)
         'copySuffix' => aio_cgi_l(' (копия)', ' (copy)'),
         'server' => aio_cgi_l('Сервер', 'Server'),
         'checking' => aio_cgi_l('Проверяю…', 'Checking…'), 'saving' => aio_cgi_l('Сохраняю…', 'Saving…'),
-        'save' => aio_cgi_saveb(), 'saved' => aio_cgi_saved(), 'saveAndCreate' => aio_cgi_savec(),
+        'save' => aio_cgi_saveb(), 'saved' => aio_cgi_saved(), 'rowsLater' => aio_cgi_rows_later(),
+        'saveAndCreate' => aio_cgi_savec(),
         'savedOnDune' => aio_cgi_l('Настройки Melange сохранены на Дюне.', 'Melange settings are saved on the Dune.'),
         'creating' => aio_cgi_l('Создаю конфиг…', 'Creating the config…'),
         'updating' => aio_cgi_l('Обновляю конфиг…', 'Updating the config…'),
@@ -847,9 +848,16 @@ function aio_cgi_saved()
     return aio_cgi_l('Сохранено. Дюна подхватит настройки сама.', 'Saved. The Dune picks up the settings automatically.');
 }
 
+// After "Saved" when the rows of the catalog changed (?rows=1, "rows" of the JSON of a save).
+function aio_cgi_rows_later()
+{
+    return aio_cgi_l('Ряды обновятся при следующем открытии каталога.', 'The rows change the next time the catalog opens.');
+}
+
 // $v: aio_cgi_values() or aio_cgi_posted() (first: no saved_at yet, not
 // saved_once of aio_settings_read); $errors: of aio_cgi_err(); $imported:
-// after the import of a file (a=import), its line in #msg.
+// after the import of a file (a=import), its line in #msg; $rows: with $saved,
+// the rows of the catalog changed (aio_cgi_rows_later).
 // The page (0.43.0): the radios of watch and no_torrents, then the screens, #home
 // last - the CSS shows the one of the address (#src...), else #home, the fields
 // of the answer chosen and, with "Без торрентов" in effect, #home without the
@@ -857,7 +865,7 @@ function aio_cgi_saved()
 // save under them (#bar: the script shows it on a change, #dirty - their
 // number, #srx - "Скрыть" of the results of a save). Errors without the script: in #msg, each with a link to the
 // screen of its field, the field aria-invalid.
-function aio_cgi_form($t, $v, $errors, $saved, $imported = false)
+function aio_cgi_form($t, $v, $errors, $saved, $imported = false, $rows = false)
 {
     $scr = aio_cgi_screens();
     $msg = '';
@@ -871,6 +879,8 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = false)
     }
     if ($saved)
         $msg .= '<p class="ok">' . aio_cgi_saved() . '</p>';
+    if ($saved && $rows)
+        $msg .= '<p class="ok">' . aio_cgi_rows_later() . '</p>';
     if ($imported)
         $msg .= '<p class="ok">' . aio_cgi_l('Настройки загружены из файла. Дюна подхватит их сама.',
             'Settings loaded from the file. The Dune picks them up automatically.') . '</p>';

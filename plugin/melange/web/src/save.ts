@@ -98,6 +98,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     // Staying on the page: what is saved is not a change any more; typed while it went still is.
     bar.rebase(moveTsUserinfo(posted));
     const savedLine = addLine(results(), "ok", texts.saved);
+    if (answer.rows) addLine(results(), "ok", texts.rowsLater);
     for (const note of answer.notes) addLine(results(), note.level === "ok" ? "ok" : "warn", note.msg);
     if (answer.aio) syncConf(answer.aio, savedLine);
   }

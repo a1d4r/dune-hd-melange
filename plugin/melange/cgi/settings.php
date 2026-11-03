@@ -181,18 +181,22 @@ function aio_cgi_save($dir, $t)
     // The config there (of the mode chosen) is reset to the template (0.40.0): aio_cgi_resets.
     $has = (bool) aio_settings_conf($data);
     $reset = aio_cgi_resets($data, $data['aio_confs'], $v);
+    // Other rows of the catalog, or their order: the catalog on the Dune takes them only
+    // when it opens next, the page says so (rows=1, "rows" of the JSON).
+    $rows = $data[$f['cat_rows']['set']] !== $cur['cat_rows'];
+    $next = 'settings?t=' . $t . '&saved=1' . ($rows ? '&rows=1' : '');
     // Only the checked token, as in the redirect below. aio: what a=aio_sync
     // is to do next ('' - nothing, the own address).
     if ($ajax)
-        aio_cgi_json(200, array_merge(array('ok' => true, 'next' => 'settings?t=' . $t . '&saved=1',
+        aio_cgi_json(200, array_merge(array('ok' => true, 'next' => $next,
             'aio' => $data['source'] === 'own' ? '' : ($reset ? 'reset' : ($has ? 'update' : 'create'))),
-            $notes ? array('notes' => $notes) : array()));
+            $rows ? array('rows' => true) : array(), $notes ? array('notes' => $notes) : array()));
     // Without the script: the config right here; its result is seen on the page (made or not).
     aio_cgi_aio_sync($dir, $reset);
     // Post/Redirect/Get. Relative to this page; only the checked token, no
     // value of the request (and not the Host header).
     header('HTTP/1.0 303 See Other');
-    header('Location: settings?t=' . $t . '&saved=1');
+    header('Location: ' . $next);
     aio_cgi_send(303, 'text/plain', "303 See Other\n");
 }
 
@@ -251,6 +255,6 @@ if ($method === 'GET')
     $v = aio_cgi_values($s);
     $v['first'] = !$s['saved_once'];
     aio_cgi_send(200, 'text/html', aio_cgi_form($t, $v, array(), aio_cgi_param($_GET, 'saved') === '1',
-        aio_cgi_param($_GET, 'imported') === '1'));
+        aio_cgi_param($_GET, 'imported') === '1', aio_cgi_param($_GET, 'rows') === '1'));
 }
 aio_cgi_send(405, 'text/plain', "405 Method Not Allowed\n");
