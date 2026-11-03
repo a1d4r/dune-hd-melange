@@ -36,7 +36,7 @@ define('AIO_CAT_STATE_TTL', 18000);
 // 400 files: ~80 pages of 100 KB (json_encode makes Cyrillic 6 bytes a letter),
 // the oldest go first.
 // Raise the version when what a copy holds changes (the keys of a tile): older copies are dropped.
-define('AIO_CAT_CACHE_V', 2);
+define('AIO_CAT_CACHE_V', 3);
 define('AIO_CAT_FRESH', 3600);
 define('AIO_CAT_KEEP', 2592000);
 define('AIO_CAT_CACHE_BYTES', 8388608);
@@ -333,8 +333,9 @@ function aio_cat_country($s)
 // else of the row, '' when neither says. year: 4 digits or ''. country: the English
 // name of the first one (aio_cat_country), '' for none. runtime: "1h38min" or "30min" (of an
 // episode for series). age: the Russian rating "16+" of app_extras.certifications.RU.
-// cast: the first names of app_extras.cast. Run again on what the cache holds (age,
-// cast: its own keys; a copy of before them: '' and none): the same result.
+// cast: the first names of app_extras.cast. englishTitle: the English name of the title
+// (a field of our patch of the server; none: ''), as name. Run again on what the cache
+// holds (age, cast: its own keys; a copy of before them: '' and none): the same result.
 /**
  * @param mixed $m
  * @param string $row_type
@@ -385,7 +386,8 @@ function aio_cat_tile($m, $row_type)
         'description' => aio_cut(aio_one_line(aio_str($m, 'description')), AIO_CAT_DESC_MAX), 'genres' => $genres,
         'poster' => aio_cat_img($m, 'poster'), 'background' => aio_cat_img($m, 'background'), 'country' => $country,
         'runtime' => preg_match('/^(?=[0-9])([0-9]{1,2}h)?([0-9]{1,3}min)?$/', $runtime) ? $runtime : '',
-        'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast);
+        'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast,
+        'englishTitle' => aio_cut(aio_one_line(aio_str($m, 'englishTitle')), AIO_CAT_NAME_MAX));
 }
 
 // Items of a page -> the tiles among them; what is not a tile is dropped.

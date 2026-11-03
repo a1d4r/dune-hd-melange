@@ -36,6 +36,10 @@ define('AIO_CATV_LINE_MIN_PX', 15);
 define('AIO_CATV_TITLE_COLOR', '#FFFFFFE0');
 define('AIO_CATV_TEXT_COLOR', '#FFAFAFA0');
 define('AIO_CATV_CAST_COLOR', '#FFFFFF40');
+// The English name under the title (info_ntitle of movie_helper.php): 36 px down to 20, 2 lines.
+define('AIO_CATV_SUB_PX', 36);
+define('AIO_CATV_SUB_MIN_PX', 20);
+define('AIO_CATV_SUB_COLOR', '#FF808080');
 define('AIO_CATV_DESC_CHARS', 360);
 // The TMDB size of a background; w780 if the shell runs short of memory.
 define('AIO_CATV_BG_SIZE', 'w1280');
@@ -1022,8 +1026,10 @@ function aio_catv_fit($text, $max, $min, $width)
 // The panel of the native catalog, on its coordinates (movie_helper.php, the same info_r):
 // the title, then lines 46 px high from y 199 in steps of 50, the description 7 px above
 // where the next line would be, as many lines as the rest of the panel holds, as the
-// native one counts them; no line for an empty field, the next ones go up. The native original title
-// under the title is not known here: the title takes its place, the bottom at y 186.
+// native one counts them; no line for an empty field, the next ones go up. The English name of the
+// tile under the title when the native one shows it (native_title of dunemdb_cache.php: the interface
+// not English, the name not the title): the title at y 20, the name at 144, the lines from 202
+// (20 + 120 + 7 + 55). Without it the title takes its place, the bottom at y 186, the lines stay.
 // "Show all": the name of the row and the caption of the tile. null without a tile or a row in memory (a stub, a message, a restart
 // of php_server). No label with an empty text: whether the shell takes one is not known.
 /**
@@ -1038,6 +1044,7 @@ function aio_catv_info($in)
     if ($t)
     {
         $name = $t['name'];
+        $sub = aio_catv_ui_lang() !== 'en' && $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
         $lines = array(array(implode(' | ', array_map('aio_clean', aio_catv_meta($t, aio_catv_ui_lang()))), AIO_CATV_TEXT_COLOR),
             array(aio_clean(implode(', ', $t['cast'])), AIO_CATV_CAST_COLOR));
         $desc = $t['description'];
@@ -1045,6 +1052,7 @@ function aio_catv_info($in)
     else if (isset(AioCat::$lists[$rid]))
     {
         $name = AioCat::$lists[$rid]['st']['row']['name'];
+        $sub = '';
         $lines = array(array(aio_clean(aio_tr(aio_catv_ui_lang(), 'cat_more')), AIO_CATV_TEXT_COLOR));
         $desc = '';
     }
@@ -1052,13 +1060,19 @@ function aio_catv_info($in)
         return null;
     $labels = array();
     $name = aio_clean($name);
+    // Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
+    $sub = implode(' ', aio_gc_wrap(aio_clean($sub), AIO_CATV_SUB_MIN_PX, AIO_CATV_TEXT_W, 2, true));
     if ($name !== '')
     {
         $fit = aio_catv_fit($name, AIO_CATV_TITLE_PX, AIO_CATV_TITLE_MIN_PX, AIO_CATV_PANE_W);
-        $labels[] = aio_catv_info_label($fit[1], $fit[0], AIO_CATV_TITLE_COLOR, AIO_CATV_PANE_W, 120, 66,
+        $labels[] = aio_catv_info_label($fit[1], $fit[0], AIO_CATV_TITLE_COLOR, AIO_CATV_PANE_W, 120, $sub !== '' ? 20 : 66,
             array(GCompTtfLabelDef::line_spacing => 0, GCompTtfLabelDef::valign => VALIGN_BOTTOM),
             GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
     }
+    if ($sub !== '')
+        $labels[] = aio_catv_info_label($sub, AIO_CATV_SUB_PX, AIO_CATV_SUB_COLOR, AIO_CATV_TEXT_W, 46, 144,
+            array(GCompTtfLabelDef::max_num_lines => 2, GCompTtfLabelDef::min_font_size => AIO_CATV_SUB_MIN_PX,
+                GCompTtfLabelDef::line_spacing => 0));
     $y = 202;
     foreach ($lines as $l)
     {
