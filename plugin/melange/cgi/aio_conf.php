@@ -5,7 +5,9 @@
 // settings of AIOStreams) is never touched. Configs are objects
 // (json_decode without assoc): an empty {} stays {}, never [] (Zod of the
 // server refuses [] for a record such as credentials). Plain PHP 5.3, no
-// firmware API, no request.
+// firmware API, no request of its own: aio_conf_create sends by the function
+// of its caller. Shared by the page (cgi/lib/aio_sync.php) and the quick
+// setup of the plugin (view_setup.php).
 
 // instanceIds of the JacRed presets of the templates (aio_conf_patch puts
 // the chosen JacRed in that of a template): Torznab of AIOStreams (Debrid;
@@ -314,4 +316,50 @@ function aio_conf_params($s, $conf, $tmdbs = null)
         'jr_key' => $jr[0]['key'], 'tmdb_key' => aio_tmdb_sent($base, $s['tmdb_key']),
         'tmdb_server' => $tmdbs !== null ? $tmdbs : !empty($servers[$base]), 'tmdb_prev' => $conf ? $conf['tmdb'] : null,
         'set' => $conf ? $conf['set'] : array());
+}
+
+// The error of a refused request of the API (the reply by aio_conf_decode) ->
+// array(its code of AIOStreams or '', its message: control bytes gone,
+// trimmed; '' when none or not UTF-8 - a lone surrogate of JSON). Never
+// logged.
+function aio_conf_err($j)
+{
+    $e = is_object($j) && isset($j->error) && is_object($j->error) ? $j->error : null;
+    $ec = $e && isset($e->code) && is_string($e->code) && preg_match('/^[A-Z0-9_]{1,40}\z/', $e->code) ? $e->code : '';
+    $msg = $e && isset($e->message) && is_string($e->message) ? trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', $e->message)) : '';
+    return array($ec, preg_match('//u', $msg) ? $msg : '');
+}
+
+// A reply of the API - array(curl errno, HTTP code, aio_conf_decode of the
+// body or null) - is a success of AIOStreams: 2xx, success true.
+function aio_conf_ok($r)
+{
+    return !$r[0] && $r[1] >= 200 && $r[1] < 300 && is_object($r[2]) && isset($r[2]->success) && $r[2]->success === true;
+}
+
+// A new config by the settings $s (aio_settings_read) on their server
+// (aio_settings_base) in their mode: the template aio_settings_tpl with our
+// fields (aio_conf_params; $tmdbs as there), POST /api/v1/user with the
+// password $pass (24 hex) by $req, the request of the caller: ($base,
+// $method, $json, $auth) -> a reply as aio_conf_ok takes it (the page:
+// aio_cgi_aio_req; the plugin: aio_quick_req). Nothing written. -> array(the
+// config for aio_confs[$base][aio_mode] (aio_aio_conf) or null, the reply;
+// null: no template, no request).
+function aio_conf_create($s, $tmdbs, $pass, $req)
+{
+    $base = aio_settings_base($s);
+    $id = aio_settings_tpl($s);
+    $tpl = aio_conf_template($id, $base);
+    $c = aio_conf_template($id, $base);
+    if (!$tpl || !$c)
+        return array(null, null);
+    list($tmdb, $set) = aio_conf_patch($c, $tpl, aio_conf_params($s, null, $tmdbs));
+    $r = call_user_func($req, $base, 'POST', aio_conf_encode((object) array('config' => $c, 'password' => $pass)), null);
+    $d = aio_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) ? $r[2]->data : null;
+    $uuid = $d && isset($d->uuid) && is_string($d->uuid) ? $d->uuid : '';
+    $enc = $d && isset($d->encryptedPassword) && is_string($d->encryptedPassword) &&
+        preg_match('/^[A-Za-z0-9._~%=+\-]{1,1500}\z/', $d->encryptedPassword) ? $d->encryptedPassword : '';
+    $new = $enc !== '' ? aio_aio_conf($base, array('uuid' => $uuid, 'pass' => $pass,
+        'manifest' => "$base/stremio/$uuid/$enc/manifest.json", 'tmdb' => $tmdb, 'set' => $set, 'tpl' => $id)) : null;
+    return array($new, $r);
 }

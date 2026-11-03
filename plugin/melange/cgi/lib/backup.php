@@ -29,7 +29,7 @@ function aio_cgi_export($dir)
         aio_cgi_send(404, 'text/plain', aio_cgi_l('Настроек ещё нет: сначала сохраните их.',
             'No settings yet: save them first.') . "\n");
     }
-    $json = aio_cgi_settings_json($s);
+    $json = aio_settings_json($s);
     if ($json === '')
     {
         aio_cgi_log('export: json_encode failed');
@@ -131,7 +131,7 @@ function aio_cgi_import_post($dir, $t)
         aio_cgi_log("import: settings.json $why");
     $s['aio_confs'] = aio_cgi_confs_merge($cur['aio_confs'], $s['aio_confs']);
     // The plugin reads no settings.json over AIO_SETTINGS_MAX.
-    if (strlen(aio_cgi_settings_json($s)) > AIO_SETTINGS_MAX)
+    if (strlen(aio_settings_json($s)) > AIO_SETTINGS_MAX)
         aio_cgi_import_failed(200, 'settings over ' . AIO_SETTINGS_MAX . ' bytes', $big);
     $why = aio_cgi_store($dir, $s);
     if ($why !== '')

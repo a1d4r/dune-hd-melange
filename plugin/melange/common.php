@@ -879,6 +879,23 @@ function aio_settings_unread($f)
     return '';
 }
 
+// The JSON of settings.json v AIO_SETTINGS_V of $data (keys of
+// aio_settings_read, its order; not saved_once: read only) with saved_at
+// now; '' if json_encode failed. Written by the page (aio_cgi_store), its
+// export (a=export) and the quick setup of the plugin (aio_settings_write).
+/**
+ * @param array<string, mixed> $data
+ * @return string
+ */
+function aio_settings_json($data)
+{
+    unset($data['saved_once']);
+    $data = array_merge(array('v' => AIO_SETTINGS_V), $data, array('saved_at' => time()));
+    $json = json_encode($data);
+    // PHP 5.3 turns a value that is not UTF-8 into null, not an error.
+    return is_string($json) && json_decode($json, true) === $data ? $json : '';
+}
+
 // "(uid 1000, gid 1000, 0600; process uid 1000)" of an existing $f.
 /**
  * @param string $f

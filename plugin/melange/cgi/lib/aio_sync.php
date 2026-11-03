@@ -56,13 +56,8 @@ function aio_cgi_aio_req($base, $method, $json, $auth, $what = 'user')
 function aio_cgi_aio_why($r, $host, $own = false)
 {
     list($e, $code, $j) = $r;
-    $ec = is_object($j) && isset($j->error) && is_object($j->error) && isset($j->error->code) &&
-        is_string($j->error->code) && preg_match('/^[A-Z0-9_]{1,40}\z/', $j->error->code) ? $j->error->code : '';
-    $msg = is_object($j) && isset($j->error) && is_object($j->error) && isset($j->error->message) &&
-        is_string($j->error->message) ? trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', $j->error->message)) : '';
-    // Not UTF-8 (a lone surrogate of JSON): the HTTP code instead.
-    if (!preg_match('//u', $msg))
-        $msg = '';
+    // Not UTF-8 (a lone surrogate of JSON): no message, the HTTP code instead.
+    list($ec, $msg) = aio_conf_err($j);
     // curl 60, 51: the certificate is not taken.
     if ($own && ($e === 60 || $e === 51))
         return array("$host: " . aio_cgi_l('сертификат сервера не принят (самоподписанный?) — попробуйте http://',
@@ -88,7 +83,7 @@ function aio_cgi_aio_why($r, $host, $own = false)
 function aio_cgi_aio_status($base)
 {
     $r = aio_cgi_aio_req($base, 'GET', null, null, 'status');
-    $d = aio_cgi_aio_ok($r) && isset($r[2]->data) && is_object($r[2]->data) ? $r[2]->data : null;
+    $d = aio_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) ? $r[2]->data : null;
     $v = $d && isset($d->version) && is_string($d->version) && preg_match('/^[0-9A-Za-z.+\-]{1,40}\z/', $d->version) ?
         $d->version : '';
     $t = $d && isset($d->settings->metadata->tmdb) && is_object($d->settings->metadata->tmdb) ? $d->settings->metadata->tmdb :
@@ -96,7 +91,7 @@ function aio_cgi_aio_status($base)
     aio_cgi_log('aio status: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]") . ($v !== '' ? ', AIOStreams' : ''));
     if ($v === '')
     {
-        if ($r[0] || !aio_cgi_aio_ok($r))
+        if ($r[0] || !aio_conf_ok($r))
         {
             list($why) = aio_cgi_aio_why($r, (string) parse_url($base, PHP_URL_HOST), true);
             return array(false, $why, false, !$r[0] && $r[1] === 429);
@@ -121,12 +116,6 @@ function aio_cgi_aio_status_post()
     aio_cgi_json(200, array('ok' => true, 'level' => $r[2] ? 'ok' : 'warn', 'msg' => "AIOStreams $r[1] · " . ($r[2] ?
         aio_cgi_l('свой TMDB есть', 'TMDB of its own') : aio_cgi_l('своего TMDB нет: сверка названий — только с ключом TMDB',
         'no TMDB of its own: titles are matched only with a TMDB key'))));
-}
-
-// The reply of a request is a success of AIOStreams: 2xx, success true.
-function aio_cgi_aio_ok($r)
-{
-    return !$r[0] && $r[1] >= 200 && $r[1] < 300 && is_object($r[2]) && isset($r[2]->success) && $r[2]->success === true;
 }
 
 // aio_confs[$base][$mode] of settings.json set to $c (null: forgotten; the
@@ -226,16 +215,8 @@ function aio_cgi_aio_sync($dir, $reset = false)
     }
     if (!$conf)
     {
-        $c = aio_conf_template($id, $base);
-        list($tmdb, $set) = aio_conf_patch($c, $tpl, aio_conf_params($s, null, $tmdbs));
-        $pass = aio_cgi_rand_hex(12);
-        $r = aio_cgi_aio_req($base, 'POST', aio_conf_encode((object) array('config' => $c, 'password' => $pass)), null);
-        $d = aio_cgi_aio_ok($r) && isset($r[2]->data) && is_object($r[2]->data) ? $r[2]->data : null;
-        $uuid = $d && isset($d->uuid) && is_string($d->uuid) ? $d->uuid : '';
-        $enc = $d && isset($d->encryptedPassword) && is_string($d->encryptedPassword) &&
-            preg_match('/^[A-Za-z0-9._~%=+\-]{1,1500}\z/', $d->encryptedPassword) ? $d->encryptedPassword : '';
-        $new = $enc !== '' ? aio_aio_conf($base, array('uuid' => $uuid, 'pass' => $pass,
-            'manifest' => "$base/stremio/$uuid/$enc/manifest.json", 'tmdb' => $tmdb, 'set' => $set, 'tpl' => $id)) : null;
+        // The template is there (checked above): a request always.
+        list($new, $r) = aio_conf_create($s, $tmdbs, aio_cgi_rand_hex(12), 'aio_cgi_aio_req');
         aio_cgi_log('aio sync: create: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]") . ($new ? ', made' : ''));
         if (!$new)
         {
@@ -265,7 +246,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     else
     {
         $r = aio_cgi_aio_req($base, 'GET', null, $auth);
-        $u = aio_cgi_aio_ok($r) && isset($r[2]->data) && is_object($r[2]->data) && isset($r[2]->data->userData) &&
+        $u = aio_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) && isset($r[2]->data->userData) &&
             is_object($r[2]->data->userData) ? $r[2]->data->userData : null;
         aio_cgi_log('aio sync: get: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]") . ($u ? ', config' : ''));
     }
@@ -297,7 +278,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
         $r = aio_cgi_aio_req($base, 'PUT', aio_conf_encode((object) array('config' => $u)), $auth);
         aio_cgi_log('aio sync: put: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]"));
     }
-    if (!$u || !aio_cgi_aio_ok($r))
+    if (!$u || !aio_conf_ok($r))
     {
         list($why, $ec) = aio_cgi_aio_why($r, $host, $choice === 'own');
         if ($ec !== '')
