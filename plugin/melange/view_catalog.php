@@ -266,7 +266,10 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
 {
     $row = $list['st']['row'];
     $rid = aio_catv_rid($row);
-    $title = $list['stale'] ? $row['name'] . ' (' . aio_tr($lang, 'cat_saved') . ')' : $row['name'];
+    $saved = aio_tr($lang, 'cat_saved');
+    // A row of a search has its number in brackets already.
+    $saved = strpos($row['id'], 'melange.search.') === 0 ? ", $saved" : " ($saved)";
+    $title = $list['stale'] ? $row['name'] . $saved : $row['name'];
     if ($items === null)
     {
         $items = array();
@@ -1024,9 +1027,7 @@ function aio_catv_search_run($q, $from)
     {
         $res = $found[$type];
         $failed = $failed || $res['err'] !== '';
-        // {n}: the tiles the row shows, not those behind "Show all".
-        $n = min(count($res['tiles']), AIO_CATV_ROW_TILES);
-        $row = aio_cat_row($type, "melange.search.$type", str_replace('{n}', strval($n), aio_tr($lang, $key)), '', false);
+        $row = aio_cat_row($type, "melange.search.$type", str_replace('{n}', strval(count($res['tiles'])), aio_tr($lang, $key)), '', false);
         if (!$row || !$res['tiles'])
             continue;
         $rid = aio_catv_rid($row);
