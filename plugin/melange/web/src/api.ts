@@ -19,6 +19,9 @@ export type Save = { ok: true; next: string; aio: ConfHow | ""; notes: SaveNote[
 export type CatRow = { key: string; name: string; group: string; home: boolean };
 export type CatRows = { ok: boolean; stale: boolean; rows: CatRow[] };
 
+// a=import: next - the page again (its values imported), msg - why nothing was written.
+export type Import = { ok: true; next: string } | { ok: false; msg: string };
+
 export type ServerConf = { cfg: string; login: string; pass: string; tpl: string | null };
 // mode: of the config (debrid, p2p: a config per mode on a server), null: none sent.
 export type Sync = {
@@ -72,6 +75,11 @@ function parseSave(json: Json): Save | null {
     return { ok: true, next: json.next, aio: isConfHow(json.aio) ? json.aio : "", notes: parseItems(json.notes, parseNote) };
   const errors = parseItems(json.errors, parseSaveError);
   return errors.length ? { ok: false, errors: errors } : null;
+}
+
+function parseImport(json: Json): Import | null {
+  if (json.ok === true && typeof json.next === "string") return { ok: true, next: json.next };
+  return json.ok === false ? { ok: false, msg: String(json.msg) } : null;
 }
 
 function parseCatRows(json: Json): CatRows | null {
@@ -173,6 +181,8 @@ export function createApi(base: string | null, hooks: ApiHooks) {
     catRows: () => post("&a=cat_rows&ajax=1", "", parseCatRows),
     save: (form: string) => save("&ajax=1", form, parseSave),
     aioSync: (reset: boolean) => save("&a=aio_sync&ajax=1", reset ? "reset=1" : "", parseSync, 60000),
+    // text: of the file as read; a write as a save is (no other save meanwhile).
+    importSettings: (text: string) => save("&a=import&ajax=1", "settings=" + encodeURIComponent(text), parseImport),
   };
 }
 

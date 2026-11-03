@@ -6,7 +6,8 @@ import { byId, checkedValue, DATA, hostOf, ID, NAME, type Page, type Row, SERVER
 
 export interface Home {
   render(): void;
-  // After a save that stays on the page: the first run is over, the state instead of its question.
+  // After a save that stays on the page: the first run is over, the state instead of its question, the backup's
+  // "Save to a file" instead of its line.
   saved(): void;
 }
 
@@ -87,6 +88,8 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
       const first = doc.getElementById(ID.first);
       if (first) first.hidden = true;
       byId(doc, ID.state).hidden = false;
+      byId(doc, ID.backupNone).hidden = true;
+      byId(doc, ID.backupExport).hidden = false;
     },
   };
 }

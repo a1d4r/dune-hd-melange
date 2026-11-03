@@ -62,7 +62,7 @@ function aio_cgi_log($msg)
 
 function aio_cgi_headers($code, $type)
 {
-    $reasons = array(303 => 'See Other', 403 => 'Forbidden', 405 => 'Method Not Allowed',
+    $reasons = array(303 => 'See Other', 403 => 'Forbidden', 404 => 'Not Found', 405 => 'Method Not Allowed',
         500 => 'Internal Server Error');
     // php-cgi turns it into a first-line "Status:", the only one busybox httpd reads.
     if (isset($reasons[$code]))

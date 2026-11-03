@@ -147,13 +147,21 @@ function aio_cgi_write($dir, $data)
     return $why;
 }
 
-// settings.json v 2 of $data (keys of aio_settings_read, its order; not
-// saved_once: read only) with saved_at now -> '' or the reason (for the log).
-function aio_cgi_store($dir, $data)
+// The JSON of settings.json v 2 of $data (keys of aio_settings_read, its
+// order; not saved_once: read only) with saved_at now; '' if json_encode
+// failed. Also the file of the export (a=export).
+function aio_cgi_settings_json($data)
 {
     unset($data['saved_once']);
     $data = array_merge(array('v' => 2), $data, array('saved_at' => time()));
     $json = json_encode($data);
     // PHP 5.3 turns a value that is not UTF-8 into null, not an error.
-    return is_string($json) && json_decode($json, true) === $data ? aio_cgi_write($dir, $json) : 'json_encode failed';
+    return is_string($json) && json_decode($json, true) === $data ? $json : '';
+}
+
+// settings.json of aio_cgi_settings_json -> '' or the reason (for the log).
+function aio_cgi_store($dir, $data)
+{
+    $json = aio_cgi_settings_json($data);
+    return $json !== '' ? aio_cgi_write($dir, $json) : 'json_encode failed';
 }

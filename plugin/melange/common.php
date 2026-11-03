@@ -705,14 +705,7 @@ function aio_no_torrents($s)
 function aio_settings_read($dir, &$why = null)
 {
     $why = '';
-    $servers = array_keys(aio_aio_servers());
-    $tpls = aio_aio_tpls();
-    $tpls_p2p = aio_aio_tpls_p2p();
-    $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
-        'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
-        'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
-        'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'source_errors' => false, 'cat_rows' => null, 'aio_confs' => array(), 'saved_once' => false);
+    $r = aio_settings_parse(array());
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
     if ($dir === '')
@@ -737,6 +730,26 @@ function aio_settings_read($dir, &$why = null)
         $why = $raw === false ? 'read failed ' . aio_settings_owner($f) : 'bad JSON';
         return $r;
     }
+    return aio_settings_parse($j);
+}
+
+// The settings of the decoded JSON of a settings.json (array() - the defaults)
+// by the rules of aio_settings_read; also a file imported by the page
+// (cgi/settings.php a=import).
+/**
+ * @param array<mixed> $j
+ * @return AioSettings
+ */
+function aio_settings_parse($j)
+{
+    $servers = array_keys(aio_aio_servers());
+    $tpls = aio_aio_tpls();
+    $tpls_p2p = aio_aio_tpls_p2p();
+    $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
+        'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
+        'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
+        'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
+        'markers' => true, 'source_errors' => false, 'cat_rows' => null, 'aio_confs' => array(), 'saved_once' => false);
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
         $r['manifest_url'] = aio_manifest_url($j['manifest_url']);

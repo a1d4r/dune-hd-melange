@@ -33,7 +33,7 @@ function aio_cgi_screens()
         'dl' => aio_cgi_l('Скачивать на свой сервер', 'Download to your server'),
         'adv' => aio_cgi_l('Дополнительно', 'Advanced'),
         'rows' => aio_cgi_l('Ряды каталога', 'Catalog rows'),
-        'cfg' => 'AIOStreams', 'log' => aio_cgi_l('Лог', 'Log'));
+        'cfg' => 'AIOStreams', 'bak' => aio_cgi_l('Резервная копия', 'Backup'), 'log' => aio_cgi_l('Лог', 'Log'));
 }
 
 // The screen of the field name= $field of an error (aio_cgi_err): its scr
@@ -115,6 +115,7 @@ function aio_cgi_rows($v)
         'dl' => array($names ? 'ok' : '', $names ? implode(', ', $names) : $t['noServers']),
         'adv' => array('', ''),
         'rows' => array('', aio_cgi_l('Какие показывать и в каком порядке', 'Which to show and in what order')),
+        'bak' => array('', aio_cgi_l('Настройки в файл и из файла', 'Settings to a file and back')),
         'log' => array('', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));
 }
 
@@ -150,7 +151,7 @@ function aio_cgi_home($v)
     $rows = aio_cgi_rows($v);
     $groups = array(aio_cgi_l('Просмотр', 'Watching') => array('src', 'cfg', 'voices', 'torr'),
         aio_cgi_l('Каталог', 'Catalog') => array('rows'),
-        aio_cgi_l('Ещё', 'More') => array('dl', 'adv', 'log'));
+        aio_cgi_l('Ещё', 'More') => array('dl', 'adv', 'bak', 'log'));
     foreach ($groups as $h => $ids)
     {
         $out .= '<h3 class="gh">' . $h . '</h3><div class="list">';

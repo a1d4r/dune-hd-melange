@@ -3,6 +3,7 @@
 
 import { setupAio } from "./aio";
 import { createApi, isObject } from "./api";
+import { setupBackup } from "./backup";
 import { setupBar } from "./bar";
 import { setupChecks } from "./checks";
 import { setupClipboard } from "./clipboard";
@@ -69,14 +70,15 @@ function setupForm(page: Page, init: Init): void {
   setupJacredSpeed(page, api, lock);
   setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, home, changed);
   setupRows(page, api, changed);
+  setupBackup(page, api, lock);
 }
 
-// saved=1 of the address after a save (the "Saved" line of PHP) dropped, the rest kept as it is: a reload does not
-// show it again. No history API: nothing.
+// saved=1 of the address after a save, imported=1 after an import (the line of PHP) dropped, the rest kept as it is: a
+// reload does not show it again. No history API: nothing.
 function dropSaved(): void {
   try {
     const params = location.search.slice(1).split("&");
-    const kept = params.filter((param) => param !== "saved=1");
+    const kept = params.filter((param) => param !== "saved=1" && param !== "imported=1");
     if (kept.length === params.length || typeof history.replaceState !== "function") return;
     history.replaceState(history.state, "", location.pathname + (kept.length ? "?" + kept.join("&") : "") + location.hash);
   } catch (e) {}

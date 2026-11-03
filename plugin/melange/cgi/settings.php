@@ -32,6 +32,13 @@
 //                      our fields, no GET. aio_confs written; JSON {ok, msg,
 //                      skip, base, mode, conf[, field]} (field: as of a save error);
 //   GET  ?t=<token>&a=log -> <FS_PREFIX>/tmp/run/melange.log masked, an attachment;
+//   GET  ?t=<token>&a=export -> settings.json as read (no web_token), an
+//                      attachment (0.50.0); none saved yet: 404, a text;
+//   POST ?t=<token>&a=import&ajax=1 (settings: the text of an exported file)
+//                      -> its settings by the rules of aio_settings_read written
+//                      whole, its aio_confs too; no key checked, no request out;
+//                      JSON {ok, next | msg} (lib/backup.php); GET
+//                      ?t=<token>&imported=1 - the form with "loaded from the file";
 //   POST ?t=<token>&a=ts_check&ajax=1 (ts, ts_user, ts_pass) -> GET
 //                      <TorrServer>/echo, then POST /settings with the login
 //                      (0.45.0: is one asked for, taken), JSON {ok, msg[,
@@ -69,6 +76,7 @@ require dirname(__FILE__) . '/lib/log.php';
 require dirname(__FILE__) . '/lib/form.php';
 require dirname(__FILE__) . '/lib/values.php';
 require dirname(__FILE__) . '/lib/home.php';
+require dirname(__FILE__) . '/lib/backup.php';
 
 // --- The save of the form.
 
@@ -211,6 +219,8 @@ if ($method === 'POST' && aio_cgi_param($_GET, 'ajax') === '1')
         aio_cgi_aio_sync_post($dir);
     if ($a === 'aio_status')
         aio_cgi_aio_status_post();
+    if ($a === 'import')
+        aio_cgi_import_post($dir, $t);
     if ($a === 'cat_rows')
     {
         require dirname(__FILE__) . '/lib/rows.php';
@@ -230,6 +240,8 @@ if ($method === 'POST')
     aio_cgi_save($dir, $t);
 if ($method === 'GET' && aio_cgi_param($_GET, 'a') === 'log')
     aio_cgi_log_download($dir);
+if ($method === 'GET' && aio_cgi_param($_GET, 'a') === 'export')
+    aio_cgi_export($dir);
 if ($method === 'GET')
 {
     $s = aio_settings_read($dir, $why);
@@ -237,6 +249,7 @@ if ($method === 'GET')
         aio_cgi_log("form: settings.json $why");
     $v = aio_cgi_values($s);
     $v['first'] = !$s['saved_once'];
-    aio_cgi_send(200, 'text/html', aio_cgi_form($t, $v, array(), aio_cgi_param($_GET, 'saved') === '1'));
+    aio_cgi_send(200, 'text/html', aio_cgi_form($t, $v, array(), aio_cgi_param($_GET, 'saved') === '1',
+        aio_cgi_param($_GET, 'imported') === '1'));
 }
 aio_cgi_send(405, 'text/plain', "405 Method Not Allowed\n");

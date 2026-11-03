@@ -797,7 +797,13 @@ function aio_cgi_js($v)
         'groupDecades' => aio_cgi_l('Декады', 'Decades'), 'groupYears' => aio_cgi_l('Годы', 'Years'),
         'groupStreaming' => aio_cgi_l('Стриминги', 'Streaming'), 'groupWorld' => aio_cgi_l('Страны', 'Countries'),
         'groupRuntime' => aio_cgi_l('Длительность', 'Runtime'), 'groupAnime' => aio_cgi_l('Аниме', 'Anime'),
-        'groupOther' => aio_cgi_l('Другое', 'Other')) +
+        'groupOther' => aio_cgi_l('Другое', 'Other'),
+        // The import of a file of the settings (lib/backup.php).
+        'importConfirm' => aio_cgi_l('Текущие настройки будут заменены настройками из файла. Продолжить?',
+            'The current settings will be replaced with those from the file. Continue?'),
+        'importing' => aio_cgi_l('Загружаю…', 'Loading…'),
+        'importTooBig' => aio_cgi_import_big(),
+        'importUnread' => aio_cgi_l('Файл не прочитался — выберите его ещё раз', 'The file could not be read: choose it again')) +
         // The lines of the main screen (aio_cgi_rows).
         aio_cgi_home_texts();
     $js = dirname(dirname(__FILE__)) . '/settings.js';
@@ -842,7 +848,8 @@ function aio_cgi_saved()
 }
 
 // $v: aio_cgi_values() or aio_cgi_posted() (first: no saved_at yet, not
-// saved_once of aio_settings_read); $errors: of aio_cgi_err().
+// saved_once of aio_settings_read); $errors: of aio_cgi_err(); $imported:
+// after the import of a file (a=import), its line in #msg.
 // The page (0.43.0): the radios of watch and no_torrents, then the screens, #home
 // last - the CSS shows the one of the address (#src...), else #home, the fields
 // of the answer chosen and, with "Без торрентов" in effect, #home without the
@@ -850,7 +857,7 @@ function aio_cgi_saved()
 // save under them (#bar: the script shows it on a change, #dirty - their
 // number, #srx - "Скрыть" of the results of a save). Errors without the script: in #msg, each with a link to the
 // screen of its field, the field aria-invalid.
-function aio_cgi_form($t, $v, $errors, $saved)
+function aio_cgi_form($t, $v, $errors, $saved, $imported = false)
 {
     $scr = aio_cgi_screens();
     $msg = '';
@@ -864,6 +871,9 @@ function aio_cgi_form($t, $v, $errors, $saved)
     }
     if ($saved)
         $msg .= '<p class="ok">' . aio_cgi_saved() . '</p>';
+    if ($imported)
+        $msg .= '<p class="ok">' . aio_cgi_l('Настройки загружены из файла. Дюна подхватит их сама.',
+            'Settings loaded from the file. The Dune picks them up automatically.') . '</p>';
     $title = aio_cgi_l('Melange — настройки', 'Melange settings');
     $f = aio_cgi_fields();
     $w = aio_cgi_watch($v);
@@ -896,6 +906,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
         aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_source_errors_block($v)) .
+        aio_cgi_screen('bak', aio_cgi_backup($t, $v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .
             '<a class="btn" href="settings?t=' . aio_cgi_h($t) . '&amp;a=log">' . aio_cgi_l('Скачать лог', 'Download the log') . '</a>') .
