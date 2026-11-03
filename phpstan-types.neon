@@ -17,6 +17,8 @@ parameters:
         AioCatRows: 'array{rows: list<AioCatRow>, stale: bool, age: int, err: string}'
         # The copy of a page in the cache (aio_cat_page_cached, catalog.php).
         AioCatCached: 'array{t: int, n: int, data: list<AioCatTile>}'
+        # A listing on the screen, tiles by their id (aio_catv_list, view_catalog.php).
+        AioCatList: 'array{st: AioCatState, tiles: array<int|string, AioCatTile>, stale: bool}'
         # A server of "Download to server" (aio_server_conf, common.php).
         AioServer: 'array{name: string, url: string, user: string, pass: string, category: string, tags: string, cache: string, type: string}'
         # A reply of TorrServer (aio_ts_call, net.php).

@@ -94,6 +94,8 @@ function aio_setup_defs()
         $defs[] = aio_setup_label(null, '%tr%err_setup_dir');
     $defs[] = aio_setup_button('phone', '%tr%setup_phone', aio_input('setup_qr'));
     $defs[] = aio_setup_button('relink', '%tr%setup_relink', aio_input('setup_relink'));
+    // TEMP: catalog entry until task 7
+    $defs[] = aio_setup_button('catalog', '%tr%setup_catalog', aio_catv_open_act('catalog', '%tr%setup_catalog'));
     return $defs;
 }
 

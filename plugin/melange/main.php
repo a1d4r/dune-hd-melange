@@ -46,6 +46,10 @@ require_once dirname(__FILE__) . '/voices_parse.php';
 require_once dirname(__FILE__) . '/view_gcomps.php';
 require_once dirname(__FILE__) . '/view_info.php';
 require_once dirname(__FILE__) . '/view_setup.php';
+// The catalog: client, ENTER on a tile, its screens.
+require_once dirname(__FILE__) . '/catalog.php';
+require_once dirname(__FILE__) . '/catalog_card.php';
+require_once dirname(__FILE__) . '/view_catalog.php';
 
 class Aio
 {
@@ -910,6 +914,8 @@ function aio_folder_view($media_url, $sel_state)
         return aio_setup_folder_view();
     if (strpos($media_url, 'info:') === 0)
         return aio_info_folder_view($media_url, $sel_state);
+    if (aio_catv_is_screen($media_url))
+        return aio_catv_folder_view($media_url, $sel_state);
     $st = Aio::$state;
     if ($st && $media_url === 'streams:' . $st['rid'])
         return aio_gc_folder_view($st, $sel_state);
@@ -1210,6 +1216,8 @@ function aio_handle_user_input($in)
     }
     if (is_string($control) && strpos($control, 'setup') === 0)
         return aio_setup_input($control);
+    if (is_string($control) && strpos($control, 'cat_') === 0)
+        return aio_catv_input($in, $control);
     if ($control === 'next_stop')
         return aio_close_and(array(
             GuiAction::handler_string_id => STOP_PLAYBACK_ACTION_ID,
@@ -1232,7 +1240,9 @@ class AioFw extends DunePluginFw
         if ($in && isset($ctx->op_type_code))
         {
             Aio::$t0 = microtime(true);
-            aio_settings_load();
+            // Every focus move on the rows: memory only.
+            if (!isset($in->control_id) || $in->control_id !== 'cat_info')
+                aio_settings_load();
             $op = $ctx->op_type_code;
             if ($op === PLUGIN_OP_GET_FOLDER_VIEW)
             {
@@ -1244,6 +1254,12 @@ class AioFw extends DunePluginFw
             {
                 $type = PLUGIN_OUT_DATA_GUI_ACTION;
                 $data = aio_handle_user_input($in);
+            }
+            else if ($op === PLUGIN_OP_GET_REGULAR_FOLDER_ITEMS)
+            {
+                $type = PLUGIN_OUT_DATA_PLUGIN_REGULAR_FOLDER_RANGE;
+                $data = aio_catv_range_op(isset($in->media_url) && is_string($in->media_url) ? $in->media_url : '',
+                    max(0, aio_int($in, 'from_ndx', 0)));
             }
             // Lazy episodes: media_url comes to get_vod_stream_url, the whole
             // input (playback_url) to get_vod_stream_info.
