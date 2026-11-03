@@ -1020,11 +1020,13 @@ function aio_catv_search_run($q, $from)
     $found = aio_cat_search($q);
     $rids = array();
     $failed = false;
-    foreach (array('movie' => 'cat_movies', 'series' => 'cat_series') as $type => $key)
+    foreach (array('movie' => 'cat_movies_n', 'series' => 'cat_series_n') as $type => $key)
     {
         $res = $found[$type];
         $failed = $failed || $res['err'] !== '';
-        $row = aio_cat_row($type, "melange.search.$type", aio_tr($lang, $key), '', false);
+        // {n}: the tiles the row shows, not those behind "Show all".
+        $n = min(count($res['tiles']), AIO_CATV_ROW_TILES);
+        $row = aio_cat_row($type, "melange.search.$type", str_replace('{n}', strval($n), aio_tr($lang, $key)), '', false);
         if (!$row || !$res['tiles'])
             continue;
         $rid = aio_catv_rid($row);

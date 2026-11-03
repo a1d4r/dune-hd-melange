@@ -92,7 +92,7 @@ If you change the password of your own config in AIOStreams, the config link cha
 
 **Rows.** The catalog shows rows of collections, up to 20 posters in a row; the last tile, **"Show all"**, opens the whole row as a grid that loads more as you scroll. At first there are 9 start rows (trending, new releases, Russian movies and series, "Топ Кинопоиска (неофициально)", that is "Kinopoisk Top (unofficial)", Netflix, anime; the row names are in Russian). To choose your own, open the settings page from a phone, the **"Catalog rows"** section: about 180 rows in groups (top, Russian, Russian services, genres, themes, studios, decades, years, streaming, countries, runtime, anime); a checkbox shows a row, **"Up"** / **"Down"** change the order. An empty set cannot be saved: the last row cannot be unchecked ("At least one row must stay: turn on another one first"). The rows are saved by "Save" together with the other settings, so set up where to get films first. If the settings were opened from the catalog (MENU → **Settings**) and saved while the QR code is open on the TV, Back shows the catalog with the new set; otherwise the new set shows the next time the catalog opens.
 
-**Search.** MENU → **"Search"** (or the search key, if your remote has one): type a title, and the results come as the rows "Movies" and "Series". If there is nothing, "Nothing found".
+**Search.** MENU → **"Search"** (or the search key, if your remote has one): type a title, and the results come as the rows "Movies (N)" and "Series (N)", N is the number of results in the row. If there is nothing, "Nothing found".
 
 **ENTER on a poster:**
 - the title has a card in the Dune **Movies** catalog: that card opens, **Play... → Melange**, with watch history, as in "How to watch";
