@@ -10,6 +10,9 @@ define('AIO_VERSION', '0.50.0');
 define('AIO_CA_BUNDLE', '/firmware/certs/ca-bundle.crt');
 // In data_dir: written by the settings page only; the plugin only reads it.
 define('AIO_SETTINGS_FILE', 'settings.json');
+// Its format: "v" of the file the page writes; a file of v 1 (0.33) is read
+// by the migration (aio_settings_parse), a newer one is refused by the import.
+define('AIO_SETTINGS_V', 2);
 // In data_dir: the token of the settings page; written by the plugin only.
 define('AIO_TOKEN_FILE', 'web_token');
 // In data_dir: the sort of the stream lists (aio_sort_read); written by the plugin only.
@@ -775,7 +778,7 @@ function aio_settings_parse($j)
         $r['aio_tpl'] = $j['aio_tpl'];
     if (isset($j['aio_tpl_p2p']) && aio_tpl_p2p($j['aio_tpl_p2p']))
         $r['aio_tpl_p2p'] = $j['aio_tpl_p2p'];
-    if (!isset($j['v']) || $j['v'] !== 2)
+    if (!isset($j['v']) || $j['v'] !== AIO_SETTINGS_V)
         list($r['jacred'], $r['jacred_own_url'], $r['jacred_own_key']) =
             aio_jacred_migrate(isset($j['jacred_url']) ? $j['jacred_url'] : '');
     else

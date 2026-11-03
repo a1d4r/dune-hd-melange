@@ -36,7 +36,8 @@
 //                      attachment (0.50.0); none saved yet: 404, a text;
 //   POST ?t=<token>&a=import&ajax=1 (settings: the text of an exported file)
 //                      -> its settings by the rules of aio_settings_read written
-//                      whole, its aio_confs too; no key checked, no request out;
+//                      whole, its aio_confs over those of this Dune; no key
+//                      checked, no request out;
 //                      JSON {ok, next | msg} (lib/backup.php); GET
 //                      ?t=<token>&imported=1 - the form with "loaded from the file";
 //   POST ?t=<token>&a=ts_check&ajax=1 (ts, ts_user, ts_pass) -> GET

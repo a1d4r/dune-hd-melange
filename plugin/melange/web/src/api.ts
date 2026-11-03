@@ -77,6 +77,9 @@ function parseSave(json: Json): Save | null {
   return errors.length ? { ok: false, errors: errors } : null;
 }
 
+// The body of a=import: as the page posts it, its length checked against data-max of the file input.
+export const importBody = (text: string): string => "settings=" + encodeURIComponent(text);
+
 function parseImport(json: Json): Import | null {
   if (json.ok === true && typeof json.next === "string") return { ok: true, next: json.next };
   return json.ok === false ? { ok: false, msg: String(json.msg) } : null;
@@ -181,8 +184,8 @@ export function createApi(base: string | null, hooks: ApiHooks) {
     catRows: () => post("&a=cat_rows&ajax=1", "", parseCatRows),
     save: (form: string) => save("&ajax=1", form, parseSave),
     aioSync: (reset: boolean) => save("&a=aio_sync&ajax=1", reset ? "reset=1" : "", parseSync, 60000),
-    // text: of the file as read; a write as a save is (no other save meanwhile).
-    importSettings: (text: string) => save("&a=import&ajax=1", "settings=" + encodeURIComponent(text), parseImport),
+    // body: importBody() of the file as read; a write as a save is (no other save meanwhile).
+    importSettings: (body: string) => save("&a=import&ajax=1", body, parseImport),
   };
 }
 

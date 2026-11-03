@@ -77,7 +77,8 @@ export const ID = {
   rowsChosen: "cro",
   rowsGroups: "crg",
   // The backup (#bak): "Save to a file" (a link, hidden on the first run), the line instead of it there, the box of
-  // "Load from a file" (hidden without the script), its button, the file input (data-max: the longest file), results.
+  // "Load from a file" (hidden without the script), its button, the file input (data-max: the longest body of the import),
+  // results.
   backupExport: "bkx",
   backupNone: "bkn",
   backupImport: "bki",
@@ -137,7 +138,7 @@ export const DATA = {
   mark: "data-mark",
   // A button of #dseg: rd, tb.
   key: "data-k",
-  // The file input of the backup: the longest file (bytes) the import takes.
+  // The file input of the backup: the longest body of the import (post_max_size of the page).
   max: "data-max",
   // The state of #state and its lines: key, conf, man, ok.
   state: "data-st",

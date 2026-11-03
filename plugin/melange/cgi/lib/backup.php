@@ -3,14 +3,16 @@
 // export of settings.json to a file (a=export) and the import of such a file
 // (a=import: its text posted by the script of the page, never $_FILES).
 
-// The longest text of a file the import takes (the page refuses a bigger file
-// before reading it): the body of a POST is dropped over post_max_size (32K,
-// cgi/php.ini) anyway; a settings.json is a few KB.
-define('AIO_CGI_IMPORT_MAX', 30720);
+// The longest body of the import (settings=<the text of the file, URL-encoded>):
+// post_max_size of cgi/php.ini (32K), over it php-cgi drops the body. The
+// page refuses a longer one before it goes (a file over it unread), the
+// field is checked here too. A real settings.json is a few KB (a heavy one:
+// 15 KB, a body of 20 KB).
+define('AIO_CGI_IMPORT_MAX', 32768);
 
 // The settings as aio_settings_read has them (checked fields only, no token:
 // web_token is a file of its own, of this Dune) in the form of settings.json
-// v 2, an attachment melange-settings-<UTC YYYYMMDD-HHMM>.json. None saved yet
+// v AIO_SETTINGS_V, an attachment melange-settings-<UTC YYYYMMDD-HHMM>.json. None saved yet
 // (the first run) or not read: a text error, no file.
 function aio_cgi_export($dir)
 {
@@ -46,7 +48,7 @@ function aio_cgi_export($dir)
 // it after the first save that stays on the page); "Загрузить из файла" - by
 // the script only (#bki hidden till then), the file input never posted (no
 // name) and only visually hidden (vh: a click() on a display:none one may be
-// ignored by older mobile browsers), data-max - the longest file it reads.
+// ignored by older mobile browsers), data-max - the longest body it posts.
 function aio_cgi_backup($t, $v)
 {
     $first = isset($v['first']) && $v['first'];
@@ -71,6 +73,16 @@ function aio_cgi_import_big()
     return aio_cgi_l('Файл слишком большой для файла настроек Melange', 'The file is too big for a Melange settings file');
 }
 
+// aio_confs (base => mode => config) of this Dune with those of a file over
+// them: the file wins for a base and mode it has, the rest stays.
+function aio_cgi_confs_merge($cur, $file)
+{
+    foreach ($file as $b => $cs)
+        foreach ($cs as $m => $c)
+            $cur[$b][$m] = $c;
+    return $cur;
+}
+
 // The import failed: JSON {ok: false, msg}, nothing written.
 function aio_cgi_import_failed($code, $why, $msg)
 {
@@ -79,12 +91,14 @@ function aio_cgi_import_failed($code, $why, $msg)
 }
 
 // POST a=import&ajax=1 (settings: the text of the file) -> the settings of
-// Melange in it (an object with v 1 or 2) through the rules of
-// aio_settings_read (aio_settings_parse: a wrong field as not set, a v 1 file
-// as v 2, other fields dropped), written whole as a save writes them, the
-// configs of AIOStreams (aio_confs) of the file with them: the configs are
-// on the servers already. No key checked, no request out. -> JSON {ok: true,
-// next} (the page again, its values) | {ok: false, msg}.
+// Melange in it (an object with v 1..AIO_SETTINGS_V; a newer v: its own
+// message) through the rules of aio_settings_read (aio_settings_parse: a
+// wrong field as not set, a v 1 file as v 2, other fields dropped), written
+// whole as a save writes them. The configs of AIOStreams (aio_confs): those
+// of this Dune, those of the file over them (aio_cgi_confs_merge): the
+// configs are on the servers already, an older file unlinks none. No key
+// checked, no request out. -> JSON {ok: true, next} (the page again, its
+// values) | {ok: false, msg}.
 function aio_cgi_import_post($dir, $t)
 {
     $len = isset($_SERVER['CONTENT_LENGTH']) ? intval($_SERVER['CONTENT_LENGTH']) : 0;
@@ -102,12 +116,20 @@ function aio_cgi_import_post($dir, $t)
     $j = json_decode($raw, true);
     if (!is_array($j))
         aio_cgi_import_failed(200, 'not JSON', $not);
-    if (!isset($j['v']) || ($j['v'] !== 1 && $j['v'] !== 2))
-        aio_cgi_import_failed(200, 'no v 1 or 2', $not);
+    $v = isset($j['v']) ? $j['v'] : null;
+    if (is_int($v) && $v > AIO_SETTINGS_V)
+        aio_cgi_import_failed(200, "v $v newer", aio_cgi_l('Файл от более новой версии Melange — обновите плагин',
+            'The file is from a newer version of Melange: update the plugin'));
+    if (!is_int($v) || $v < 1)
+        aio_cgi_import_failed(200, 'no v', $not);
     if (!aio_cgi_dir_ok($dir))
         aio_cgi_import_failed(500, 'no data dir', aio_cgi_l('Не загружено: нет папки плагина на Дюне',
             'Not loaded: the plugin data folder is missing on the Dune'));
     $s = aio_settings_parse($j);
+    $cur = aio_settings_read($dir, $why);
+    if ($why !== '')
+        aio_cgi_log("import: settings.json $why");
+    $s['aio_confs'] = aio_cgi_confs_merge($cur['aio_confs'], $s['aio_confs']);
     // The plugin reads no settings.json over AIO_SETTINGS_MAX.
     if (strlen(aio_cgi_settings_json($s)) > AIO_SETTINGS_MAX)
         aio_cgi_import_failed(200, 'settings over ' . AIO_SETTINGS_MAX . ' bytes', $big);

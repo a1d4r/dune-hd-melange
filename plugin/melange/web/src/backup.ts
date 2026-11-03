@@ -2,7 +2,7 @@
 // reads the file here (FileReader: no upload, $_FILES is not proven on the Dune), asks, posts its text (a=import) and
 // opens the page again with the values imported. No FileReader: the box stays hidden.
 
-import type { Api } from "./api";
+import { type Api, importBody } from "./api";
 import { byId, DATA, ID, type Page } from "./dom";
 import { failureText } from "./i18n";
 import type { Lock } from "./lock";
@@ -19,6 +19,12 @@ export function setupBackup(page: Page, api: Api, lock: Lock): void {
   lock.hold(button);
 
   function send(text: string): void {
+    const body = importBody(text);
+    // The limit is of the body (post_max_size of the Dune): over it, not sent.
+    if (max && body.length > max) {
+      show(results, "err", [texts.importTooBig]);
+      return;
+    }
     // A save may have started while the file was read.
     if (!lock.free(button) || !confirm(texts.importConfirm)) return;
     lock.run(button, true);
@@ -27,7 +33,7 @@ export function setupBackup(page: Page, api: Api, lock: Lock): void {
       lock.run(button, false);
       show(results, "err", [msg]);
     };
-    api.importSettings(text).then((result) => {
+    api.importSettings(body).then((result) => {
       if (result.kind !== "data") return fail(failureText(texts, result));
       const answer = result.data;
       if (!answer.ok) return fail(answer.msg);
@@ -45,7 +51,7 @@ export function setupBackup(page: Page, api: Api, lock: Lock): void {
     const file = input.files && input.files[0];
     if (!file) return;
     results.textContent = "";
-    // Too big: not read at all.
+    // Too big for any body (its encoding is never shorter): not read at all.
     if (max && file.size > max) {
       show(results, "err", [texts.importTooBig]);
       return;

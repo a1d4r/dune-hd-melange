@@ -145,6 +145,24 @@ describe("the import", () => {
     expect([results(page), page.confirms, page.calls]).toEqual([[["err", page.init.i18n.importTooBig]], [], []]);
   });
 
+  test("the limit is of the body posted (encoded): one at data-max goes, one over it is refused, not asked", async () => {
+    const page = opened();
+    page.confirmAnswer = true;
+    const max = Number(page.el(ID.backupFile).getAttribute("data-max"));
+    // Cyrillic: 6 characters of the body a letter (%D0%B6), 2 bytes of the file.
+    const text = (n: number) => '{"v":2,"x":"' + "ж".repeat(n) + "a".repeat((max - 9 - encodeURIComponent('{"v":2,"x":""}').length) % 6) + '"}';
+    let n = 0;
+    while (("settings=" + encodeURIComponent(text(n + 1))).length <= max) n++;
+    expect(("settings=" + encodeURIComponent(text(n))).length).toBe(max);
+    expect(file(text(n)).size).toBeLessThan(max / 2);
+    // Over: the file itself small enough to read.
+    await choose(page, file(text(n) + " "));
+    expect([results(page), page.confirms, page.calls]).toEqual([[["err", page.init.i18n.importTooBig]], [], []]);
+    page.replies.push(json({ ok: true, next: NEXT }));
+    await choose(page, file(text(n)));
+    expect([page.calls.length, page.calls[0]!.body!.length, page.replaced]).toEqual([1, max, [NEXT]]);
+  });
+
   test("a file the browser could not read: said so, nothing posted", async () => {
     const page = opened();
     await choose(page, { size: 10, text: "", fail: true });
