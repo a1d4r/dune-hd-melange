@@ -8,6 +8,10 @@
 // here only, new on "Change the link". Neither the token nor the page address
 // goes to the log. Reads Aio::$settings.
 
+// The config of AIOStreams the quick setup makes, its request (AIO_CONF_API_*):
+// shared with the settings page. Plain PHP, no firmware API.
+require_once dirname(__FILE__) . '/cgi/aio_conf.php';
+
 define('AIO_SETUP_TICK_MS', 1500);
 // Seconds the QR dialog waits after a save for the config the page makes
 // next (a=aio_sync: up to 2 requests of 20 s); a failed one writes nothing.
@@ -64,9 +68,10 @@ function aio_no_address($lang)
     aio_log("error: $key -> " . (AIO_NO_ADDR_DIALOG ? 'dialog' : 'settings screen'));
     if (!AIO_NO_ADDR_DIALOG)
         return aio_setup_open_act();
-    // The language of the card on to the quick setup: its dialogs say what next.
+    // The quick setup from a card: its dialog says what next, in the language of the card.
     return aio_dialog(aio_tr($lang, $key), array(), array(
-        aio_tr($lang, 'setup_quick') => aio_close_and(aio_input('setup_quick', array('lang' => $lang === 'ru' ? 'ru' : 'en'), 0)),
+        aio_tr($lang, 'setup_quick') => aio_close_and(aio_input('setup_quick',
+            array('card' => '1', 'lang' => $lang === 'ru' ? 'ru' : 'en'), 0)),
         aio_tr($lang, 'setup_open') => aio_close_and(aio_setup_open_act()),
         aio_tr($lang, 'setup_close') => aio_close_and(null)));
 }
@@ -419,14 +424,13 @@ function aio_quick_settings($s)
 }
 
 // "Quick setup: torrents" (0.51.0) of the settings screen ($p of
-// aio_setup_params) and of the window "No config" of play_action
-// ($p['lang']: of the card). TorrServer is asked first (aio_ts_alive): none is
-// no stop, the catalog and search work without it - said after. The settings
-// of aio_quick_settings; the config there in that mode made by aio_conf_create
-// (one there already: no request). settings.json is written only after it,
-// read again just before (as the page); a failure writes nothing. Then as
-// after a save of the page: the settings screen replaced (aio_setup_refresh);
-// in the window of the card - what to do next.
+// aio_setup_params) and of the window "No config" of play_action ($p['card'],
+// $p['lang']: the language of the card). TorrServer is asked first
+// (aio_ts_alive): none is no stop, the catalog and search work without it -
+// said after. The settings of aio_quick_settings; the config there in that
+// mode made by aio_conf_create (one there already: no request). settings.json
+// is written only after it, read again just before (as the page); a failure,
+// a file not read too, writes nothing. Then aio_quick_done.
 /**
  * @param array<string, string> $p
  * @return array<string, mixed>
@@ -441,7 +445,6 @@ function aio_setup_quick($p)
     if ($why !== '')
         return aio_error('err_quick_read');
     $ts = aio_ts_alive();
-    require_once dirname(__FILE__) . '/cgi/aio_conf.php';
     $conf = aio_settings_conf($s);
     if ($conf)
         aio_log('setup: quick: a config of P2P there, no request');
@@ -460,8 +463,14 @@ function aio_setup_quick($p)
         if (!$conf)
             return aio_quick_fail($r);
     }
-    // Read again: the page may have saved while the server answered.
-    $s = aio_quick_settings(aio_settings_read($dir));
+    // Read again: the page may have saved while the server answered; a file
+    // not read then is not overwritten with the defaults either.
+    $s = aio_quick_settings(aio_settings_read($dir, $why));
+    if ($why !== '')
+    {
+        aio_log("setup: quick: settings.json $why, not written");
+        return aio_error('err_quick_read');
+    }
     $s['aio_confs'][AIO_AIO_SERVER_MELANGE][AIO_MODE_P2P] = $conf;
     if (!aio_settings_write($s))
     {
@@ -471,8 +480,22 @@ function aio_setup_quick($p)
     aio_log('setup: quick: saved' . ($ts ? '' : ', TorrServer does not answer'));
     // The screen of the catalog under it is read by this operation too.
     aio_settings_load();
-    $card = isset($p['lang']);
-    $lang = $card ? $p['lang'] : aio_catv_lang();
+    return aio_quick_done($p, $ts);
+}
+
+// What the quick setup ($p of aio_setup_quick) shows when done; $ts:
+// TorrServer answered. The window of a card: set up, play again (TorrServe
+// first, if none). The settings screen: replaced at once (aio_setup_refresh);
+// no TorrServer - a dialog first, in the language of the Dune.
+/**
+ * @param array<string, string> $p
+ * @param bool $ts
+ * @return array<string, mixed>
+ */
+function aio_quick_done($p, $ts)
+{
+    $card = isset($p['card']);
+    $lang = $card && isset($p['lang']) ? $p['lang'] : aio_catv_lang();
     $lines = $ts ? array() : aio_dialog_lines(aio_tr($lang, 'quick_no_ts'));
     if ($card)
         return aio_dialog(aio_tr($lang, 'quick_done'), array_merge($lines, aio_dialog_lines(aio_tr($lang, 'quick_again'))),
@@ -502,7 +525,9 @@ function aio_setup_input($in, $control)
         if (aio_catv_in($in, $k) !== '')
             $p[$k] = aio_catv_in($in, $k);
     }
-    // The quick setup from the window of a card: its language.
+    // The quick setup from the window of a card: that, and its language.
+    if (aio_catv_in($in, 'card') === '1')
+        $p['card'] = '1';
     if (in_array(aio_catv_in($in, 'lang'), array('ru', 'en'), true))
         $p['lang'] = aio_catv_in($in, 'lang');
     if ($control === 'setup')
