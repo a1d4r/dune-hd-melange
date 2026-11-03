@@ -184,4 +184,3 @@ cat_outdated = Экран устарел: откройте каталог зан
 cat_row_loading = Загрузка
 cat_row_failed = Не загрузилось
 cat_row_empty = Пусто
-setup_catalog = Каталог

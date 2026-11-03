@@ -28,6 +28,8 @@ class AioSetup
     public static $sig = null;
     // time() of a save after which the page makes the config; 0: not waiting.
     public static $wait = 0;
+    // The settings screen shown last is the catalog of a first run (aio_folder_view).
+    public static $first = false;
 }
 
 function aio_setup_open_act()
@@ -94,13 +96,13 @@ function aio_setup_defs()
         $defs[] = aio_setup_label(null, '%tr%err_setup_dir');
     $defs[] = aio_setup_button('phone', '%tr%setup_phone', aio_input('setup_qr'));
     $defs[] = aio_setup_button('relink', '%tr%setup_relink', aio_input('setup_relink'));
-    // TEMP: catalog entry until task 7
-    $defs[] = aio_setup_button('catalog', '%tr%setup_catalog', aio_catv_open_act('catalog', '%tr%setup_catalog'));
     return $defs;
 }
 
-function aio_setup_folder_view()
+// $first: in place of the catalog, AIOStreams not set yet.
+function aio_setup_folder_view($first = false)
 {
+    AioSetup::$first = $first;
     $s = aio_settings_read_logged();
     aio_log('setup: screen, AIOStreams ' . ($s['source'] === 'own' ? 'own config' : ($s['aio_server'] === 'own' ?
         'made on another server' : 'made on a public one')) . (aio_settings_manifest($s) !== '' ? ', set' : ', not set') .
@@ -312,11 +314,21 @@ function aio_setup_tick()
             ChangeBehaviourActionData::timer => aio_setup_timer()));
 }
 
-// The settings screen replaced by a fresh one.
+// The settings screen replaced by a fresh one. The catalog under it is read again: its
+// rows may have changed, and Back does not ask for it. A first run: the catalog itself,
+// the settings until AIOStreams is set.
 function aio_setup_refresh()
 {
     aio_log('setup: screen redrawn');
-    return aio_replace_act('setup:' . substr(aio_rid(), 0, 8), '%tr%plugin_caption');
+    $id = substr(aio_rid(), 0, 8);
+    if (AioSetup::$first)
+        return aio_replace_act("catalog:$id", '%tr%plugin_caption');
+    return array(
+        GuiAction::handler_string_id => PLUGIN_INVALIDATE_FOLDERS_ACTION_ID,
+        GuiAction::data => array(
+            PluginInvalidateFoldersActionData::media_urls => array('catalog'),
+            PluginInvalidateFoldersActionData::post_action => aio_replace_act("setup:$id", '%tr%plugin_caption'),
+            PluginInvalidateFoldersActionData::all_except => false));
 }
 
 function aio_setup_relink()

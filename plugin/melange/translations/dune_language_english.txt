@@ -184,4 +184,3 @@ cat_outdated = This screen is outdated: open the catalog again
 cat_row_loading = Loading
 cat_row_failed = Did not load
 cat_row_empty = Empty
-setup_catalog = Catalog

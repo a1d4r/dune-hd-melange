@@ -29,7 +29,7 @@
     </entry_point>
     <entry_point>
       <parent_media_url>root://applications</parent_media_url>
-      <media_url>setup</media_url>
+      <media_url>catalog</media_url>
       <caption>%tr%plugin_caption</caption>
       <icon_url>plugin_file://icons/logo.png</icon_url>
       <ip_address_required>no</ip_address_required>
@@ -38,7 +38,7 @@
         <key_enter>
           <type>plugin_open_folder</type>
           <data>
-            <media_url>setup</media_url>
+            <media_url>catalog</media_url>
             <caption>%tr%plugin_caption</caption>
           </data>
         </key_enter>

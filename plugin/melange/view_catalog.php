@@ -184,20 +184,19 @@ function aio_catv_load_first($row, $limit)
 }
 
 // The rows $rows for a new screen, into AioCat::$lists. At once: listings in memory
-// still fresh, then the saved first pages of any age. In $limit s, one by one: of the
-// first $ask rows, those without a copy, then the old copies; on a failure of the
-// server no more requests. No tile: the row stays out of the lists.
+// still fresh, then the saved first pages of any age. In $limit s, one by one: the rows
+// without a copy, then the old copies; on a failure of the server no more requests. No
+// tile: the row stays out of the lists.
 /**
  * @param list<AioCatRow> $rows
- * @param int $ask
  * @param float $limit
  * @return void
  */
-function aio_catv_open($rows, $ask, $limit)
+function aio_catv_open($rows, $limit)
 {
     $none = array();
     $old = array();
-    foreach ($rows as $i => $row)
+    foreach ($rows as $row)
     {
         $rid = aio_catv_rid($row);
         if (isset(AioCat::$lists[$rid]) && aio_cat_state_fresh(AioCat::$lists[$rid]['st']))
@@ -206,9 +205,9 @@ function aio_catv_open($rows, $ask, $limit)
         $c = aio_cat_page_cached($row, 0);
         if ($c)
             AioCat::$lists[$rid] = aio_catv_list_copy($row, $c);
-        if (!$c && $i < $ask)
+        if (!$c)
             $none[$rid] = $row;
-        else if ($c && !aio_cat_is_fresh($c) && $i < $ask)
+        else if (!aio_cat_is_fresh($c))
             $old[$rid] = $row;
     }
     $start = microtime(true);
@@ -567,12 +566,10 @@ function aio_catv_message_view($key, $lang)
             PluginControlsFolderView::initial_sel_ndx => -1));
 }
 
-// The manifest does not hold the screen: a copy of any age goes, and the refresh is for
-// the next opening: in get_folder_rows if a row is flagged, else nothing would call it,
-// in the time left after the rows. No copy: one request. r25: the first row ready, or
-// the focus goes to the panel of headers; the others ready from the cache, else stubs.
-// An old copy but of the first is shown and flagged too, or nothing would ask for a row
-// with a copy for 30 days.
+// The manifest does not hold the screen: a copy of any age goes; no copy: one request.
+// r25: no request for the rows, one rule for all: a fresh copy ready, an old one flagged,
+// none: stubs; get_folder_rows asks for the flagged ones and refreshes an old manifest
+// in the time left. r24: the rows and the manifest load here, in AIO_CATV_OPEN_S.
 /**
  * @param string $media_url
  * @param mixed $sel_state
@@ -599,7 +596,6 @@ function aio_catv_main_view($media_url, $sel_state)
         return aio_catv_message_view('cat_no_rows', $lang);
     $loading = aio_catv_loading_flag();
     $defs = array();
-    $flagged = false;
     $shown = array();
     foreach ($rows as $row)
     {
@@ -607,27 +603,23 @@ function aio_catv_main_view($media_url, $sel_state)
             $shown[] = $row;
     }
     $left = AIO_CATV_OPEN_MAX_S - (microtime(true) - $start);
-    aio_catv_open($shown, $loading ? 1 : count($shown), $loading ? $left : min(AIO_CATV_OPEN_S, $left));
-    foreach ($shown as $i => $row)
+    aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S, $left));
+    foreach ($shown as $row)
     {
         $rid = aio_catv_rid($row);
         if (isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
         {
-            $flag = $i > 0 && !aio_cat_state_fresh(AioCat::$lists[$rid]['st']) ? $loading : 0;
+            $flag = aio_cat_state_fresh(AioCat::$lists[$rid]['st']) ? 0 : $loading;
             if ($flag)
                 AioCat::$on_screen[$rid] = AioCat::$lists[$rid]['tiles'];
             $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang, null, $flag));
-            $flagged = $flagged || $flag;
         }
         else if ($loading)
-        {
-            $defs = array_merge($defs, aio_catv_row_note($row, $lang, $i > 0 ? '' : (aio_catv_is_empty($rid) ? 'cat_row_empty' : 'cat_row_failed')));
-            $flagged = $flagged || $i > 0;
-        }
+            $defs = array_merge($defs, aio_catv_row_note($row, $lang, ''));
     }
-    AioCat::$manifest_old = $flagged && !$fresh;
+    AioCat::$manifest_old = $loading && !$fresh;
     $left = AIO_CATV_OPEN_S - (microtime(true) - $start);
-    if (!$flagged && !$fresh && $left >= 1 && !aio_catv_is_down())
+    if (!$loading && !$fresh && $left >= 1 && !aio_catv_is_down())
         aio_cat_manifest_fetch(intval($left));
     aio_log(sprintf('catalog: screen: %d rows of %d, %.0f ms', count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang);
@@ -878,8 +870,9 @@ function aio_catv_info_label($text, $size, $color, $y, $lines)
         GComponentDef::options => GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
 }
 
-// null without a tile in memory ("Show all", a stub, a message, a restart of php_server).
-// No label with an empty text: whether the shell takes one is not known.
+// "Show all": the name of the row and the caption of the tile (the language: a file, on
+// this tile only). null without a tile or a row in memory (a stub, a message, a restart
+// of php_server). No label with an empty text: whether the shell takes one is not known.
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -888,13 +881,18 @@ function aio_catv_info($in)
 {
     $id = aio_catv_in($in, 'item_id');
     $t = aio_catv_tile($id);
-    if (!$t)
+    $rid = strpos($id, 'more:') === 0 ? strval(substr($id, strlen('more:'))) : '';
+    if ($t)
+        $texts = array($t['name'], aio_catv_meta($t), $t['description']);
+    else if (isset(AioCat::$lists[$rid]))
+        $texts = array(AioCat::$lists[$rid]['st']['row']['name'], aio_tr(aio_catv_lang(), 'cat_more'), '');
+    else
         return null;
     $labels = array();
     foreach (array(
-        array(aio_error_cut($t['name'], AIO_CATV_NAME_CHARS), 52, '#FFFFFFE0', 30, 2),
-        array(aio_error_cut(aio_catv_meta($t), AIO_CATV_META_CHARS), 32, '#FFAFAFA0', 170, 1),
-        array(aio_error_cut($t['description'], AIO_CATV_DESC_CHARS), 28, '#FF808080', 225, 7)) as $l)
+        array(aio_error_cut($texts[0], AIO_CATV_NAME_CHARS), 52, '#FFFFFFE0', 30, 2),
+        array(aio_error_cut($texts[1], AIO_CATV_META_CHARS), 32, '#FFAFAFA0', 170, 1),
+        array(aio_error_cut($texts[2], AIO_CATV_DESC_CHARS), 28, '#FF808080', 225, 7)) as $l)
     {
         $text = aio_clean($l[0]);
         if ($text !== '')
@@ -915,7 +913,7 @@ function aio_catv_info($in)
             GCompVariantDef::props => array('alpha' => 64))));
     $info = array(
         PluginRowsInfo::info_defs => array($pane),
-        PluginRowsInfo::bg_url => aio_catv_background($t),
+        PluginRowsInfo::bg_url => $t ? aio_catv_background($t) : AIO_CATV_ICONS . 'bg0.jpg',
         PluginRowsInfo::nl_bg_url => null,
         PluginRowsInfo::mask_url => AIO_CATV_ICONS . 'mask.png',
         PluginRowsInfo::bg_poster_mode => false,
@@ -1051,11 +1049,19 @@ function aio_catv_input($in, $control)
     if ($control === 'cat_search_run')
         return aio_catv_search_run(aio_catv_in($in, 'cat_q'), $from);
     if ($control === 'cat_menu')
+    {
+        $lang = aio_catv_lang();
         return array(
             GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-            GuiAction::data => array(ShowPopupMenuActionData::menu_items => array(array(
-                GuiMenuItemDef::caption => aio_tr(aio_catv_lang(), 'cat_search'),
-                GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
-                GuiMenuItemDef::action => aio_input('cat_search', array('from' => $from))))));
+            GuiAction::data => array(ShowPopupMenuActionData::menu_items => array(
+                array(
+                    GuiMenuItemDef::caption => aio_tr($lang, 'cat_search'),
+                    GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
+                    GuiMenuItemDef::action => aio_input('cat_search', array('from' => $from))),
+                array(
+                    GuiMenuItemDef::caption => aio_tr($lang, 'setup_menu'),
+                    GuiMenuItemDef::icon_url => 'gui_skin://small_icons/setup.aai',
+                    GuiMenuItemDef::action => aio_setup_open_act()))));
+    }
     return null;
 }
