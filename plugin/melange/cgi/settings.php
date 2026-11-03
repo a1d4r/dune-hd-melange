@@ -184,6 +184,13 @@ function aio_cgi_save($dir, $t)
     // Other rows of the catalog, or their order: the catalog on the Dune takes them only
     // when it opens next, the page says so (rows=1, "rows" of the JSON).
     $rows = $data[$f['cat_rows']['set']] !== $cur['cat_rows'];
+    // Nothing chosen before, now the start rows as they are: the same screen. Without
+    // a copy of the manifest the start rows are not known: a change.
+    if ($rows && $cur['cat_rows'] === null)
+    {
+        require dirname(__FILE__) . '/lib/rows.php';
+        $rows = $data[$f['cat_rows']['set']] !== aio_cgi_cat_start($dir);
+    }
     $next = 'settings?t=' . $t . '&saved=1' . ($rows ? '&rows=1' : '');
     // Only the checked token, as in the redirect below. aio: what a=aio_sync
     // is to do next ('' - nothing, the own address).

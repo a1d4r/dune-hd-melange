@@ -108,6 +108,12 @@ describe("saved=1 of the address after a save", () => {
     expect([page.win.location.search, page.win.location.hash]).toEqual([SEARCH + "&x=%20a+b&y=1", "#aioh"]);
   });
 
+  test("rows=1 (the rows changed) dropped with saved=1", () => {
+    const { page, replaced } = openAt("&saved=1&rows=1#rows");
+    expect([page.win.location.search, page.win.location.hash]).toEqual([SEARCH, "#rows"]);
+    expect(replaced).toEqual([page.win.location.pathname + SEARCH + "#rows"]);
+  });
+
   test.each(["", "&saved=0", "&saved=12"])("no saved=1 (%p): replaceState not called", (query) => {
     const { page, replaced } = openAt(query);
     expect(replaced).toEqual([]);

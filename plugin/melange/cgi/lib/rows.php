@@ -1,7 +1,8 @@
 <?php
 // The settings page (cgi/settings.php): the rows of the catalog for its screen #rows.
 // Runs the client of the plugin (catalog.php) with what it takes of main.php, which
-// needs the firmware. Loaded only for this request. Only reads the cache: the
+// needs the firmware. Loaded only for this request (and for the start rows after a
+// save, aio_cgi_cat_start). Only reads the cache: the
 // manifest not fresh is asked again and not kept (aio_cat_cache_dir).
 
 define('AIO_CAT_READ_ONLY', true);
@@ -21,14 +22,35 @@ function aio_log($msg)
     aio_cgi_log($msg);
 }
 
-// As aio_http_get of main.php, for the log only the number of a curl error.
-function aio_http_get($url, &$err, $connect, $total, $max)
+// As aio_http_get of main.php ("curl <errno>:" as there, so catalog.php tells a timeout),
+// for the log only the number of a curl error.
+function aio_http_get($url, &$err, $connect, $total, $max, &$connected = null)
 {
     if (defined('AIO_CGI_TEST_API'))
         $url = str_replace(AIO_CAT_BASE, AIO_CGI_TEST_API . '/cat/', $url);
     $r = aio_cgi_curl($url, array('connect' => $connect, 'total' => $total, 'max' => $max, 'gzip' => true));
-    $err = $r['errno'] !== 0 ? 'curl ' . $r['errno'] : ($r['cut'] && $r['code'] === 200 ? AIO_HTTP_TOO_BIG : '');
+    $connected = $r['connected'];
+    $err = $r['errno'] !== 0 ? 'curl ' . $r['errno'] . ':' : ($r['cut'] && $r['code'] === 200 ? AIO_HTTP_TOO_BIG : '');
     return array($r['code'], $err !== '' || $r['cut'] ? '' : $r['body']);
+}
+
+// The keys of the start rows in the order of the saved manifest, as the catalog shows
+// them with nothing chosen (aio_cat_user_rows); null: no copy (or no such row). No request.
+/**
+ * @param string $dir
+ * @return list<string>|null
+ */
+function aio_cgi_cat_start($dir)
+{
+    $GLOBALS['AIO_CGI_DATA'] = $dir;
+    $c = aio_cat_manifest_copy();
+    $keys = array();
+    foreach ($c['rows'] as $r)
+    {
+        if ($r['home'])
+            $keys[] = $r['key'];
+    }
+    return $keys ? $keys : null;
 }
 
 // JSON {ok: there is a list, stale: it is the last good copy, rows}: of a row only

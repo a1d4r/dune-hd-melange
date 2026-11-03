@@ -112,7 +112,7 @@ function aio_cgi_location($base, $loc)
 // array(errno: curl errno, 0 also when cut, -1 its options refused; code:
 // HTTP code; body; cut: over max (curl 23), the start is there; location:
 // Location of the reply; cookies: its Set-Cookie as "a=b; c=d"; error: the
-// text of curl).
+// text of curl; connected: a connection was made).
 function aio_cgi_curl($url, $o)
 {
     $o += array('method' => 'GET', 'body' => null, 'headers' => array(), 'connect' => 3, 'total' => 8,
@@ -161,16 +161,18 @@ function aio_cgi_curl($url, $o)
     {
         curl_close($ch);
         return array('errno' => -1, 'code' => 0, 'body' => '', 'cut' => false, 'location' => '', 'cookies' => '',
-            'error' => 'curl options refused');
+            'error' => 'curl options refused', 'connected' => false);
     }
     $ok = curl_exec($ch);
     $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
     $errno = curl_errno($ch);
     $error = curl_error($ch);
+    // 0 until the TCP connection is made (PHP 5.3 has no CURLINFO_PRIMARY_IP).
+    $connected = curl_getinfo($ch, CURLINFO_CONNECT_TIME) > 0;
     curl_close($ch);
     $cut = $ok === false && $errno === 23;
     return array('errno' => $ok === false && !$cut ? $errno : 0, 'code' => $code, 'body' => $body, 'cut' => $cut,
-        'location' => $loc, 'cookies' => implode('; ', $cookies), 'error' => $error);
+        'location' => $loc, 'cookies' => implode('; ', $cookies), 'error' => $error, 'connected' => $connected);
 }
 
 // One request of the checks of a server, a key, JacRed: POST of $fields

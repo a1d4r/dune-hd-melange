@@ -421,8 +421,10 @@ if (!function_exists('aio_http_get'))
 {
     // -> array(HTTP code, body); $err is set on a transport error, to
     // AIO_HTTP_TOO_BIG (body '') when the decoded body passes $max bytes.
-    function aio_http_get($url, &$err, $connect = 10, $total = 30, $max = 0)
+    // $connected: a connection was made (a timeout before it is no slow reply).
+    function aio_http_get($url, &$err, $connect = 10, $total = 30, $max = 0, &$connected = null)
     {
+        $connected = false;
         $body = '';
         $over = false;
         $ch = curl_init($url);
@@ -463,6 +465,8 @@ if (!function_exists('aio_http_get'))
         }
         $ok = curl_exec($ch);
         $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+        // 0 until the TCP connection is made (PHP 5.3 has no CURLINFO_PRIMARY_IP).
+        $connected = curl_getinfo($ch, CURLINFO_CONNECT_TIME) > 0;
         // Over $max with an error status: that HTTP error, not "too big".
         if ($over)
             $err = $code === 200 ? AIO_HTTP_TOO_BIG : '';

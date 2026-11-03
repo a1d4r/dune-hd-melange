@@ -63,7 +63,8 @@ function aio_cat_url($path)
 }
 
 // One GET -> array(err: '' or why it failed, list: the JSON list in $field).
-// err: net (transport), timeout (curl 28), big (over the limit), rate (429), server (5xx),
+// err: net (transport; a timeout before a connection too: the server out of reach),
+// timeout (curl 28 once connected: a slow reply), big (over the limit), rate (429), server (5xx),
 // notfound (404), http (another status), bad (not the JSON expected). A failure
 // is never an empty list. $what: for the log, no URL and no reply there. $limit: s
 // the request may take at most, 0 for the usual timeouts.
@@ -78,15 +79,17 @@ function aio_cat_get($path, $what, $field, $limit = 0)
 {
     $t = microtime(true);
     $err = '';
+    $connected = true;
     $total = $limit > 0 ? min($limit, AIO_CAT_TOTAL) : AIO_CAT_TOTAL;
-    list($code, $body) = aio_http_get(aio_cat_url($path), $err, min(AIO_CAT_CONNECT, $total), $total, AIO_CAT_MAX_BYTES);
+    list($code, $body) = aio_http_get(aio_cat_url($path), $err, min(AIO_CAT_CONNECT, $total), $total, AIO_CAT_MAX_BYTES,
+        $connected);
     $size = strlen($body);
     $status = $err !== '' ? $err : "HTTP $code";
     $why = '';
     $list = array();
     if ($err === AIO_HTTP_TOO_BIG)
         $why = 'big';
-    else if (strpos($err, 'curl 28:') === 0)
+    else if (strpos($err, 'curl 28:') === 0 && $connected)
         $why = 'timeout';
     else if ($err !== '')
         $why = 'net';
