@@ -46,6 +46,7 @@ define('AIO_CAT_NAME_MAX', 200);
 define('AIO_CAT_DESC_MAX', 1200);
 define('AIO_CAT_URL_MAX', 1000);
 define('AIO_CAT_GENRES_MAX', 8);
+define('AIO_CAT_CAST_MAX', 3);
 define('AIO_CAT_QUERY_MAX', 100);
 
 // --- Requests.
@@ -297,10 +298,13 @@ function aio_cat_img($m, $k)
 
 // A tile of the server -> only what is needed (links with the UUID, app_extras,
 // logo and the rest are gone from here on), or null without an id or a name.
-// All values strings, genres a list. imdb_id and _tmdbId: also from the id itself,
+// All values strings, genres and cast lists. imdb_id and _tmdbId: also from the id itself,
 // '' for none (mal:...). type: of the tile (rows of anime hold movie and series),
-// else of the row, '' when neither says. year: 4 digits or ''. Run again on what
-// the cache holds: the same result.
+// else of the row, '' when neither says. year: 4 digits or ''. country: the first
+// one as the server names it ("Spain", "jpn"). runtime: "1h38min" or "30min" (of an
+// episode for series). age: the Russian rating "16+" of app_extras.certifications.RU.
+// cast: the first names of app_extras.cast. Run again on what the cache holds (age,
+// cast: its own keys; a copy of before them: '' and none): the same result.
 /**
  * @param mixed $m
  * @param string $row_type
@@ -332,10 +336,26 @@ function aio_cat_tile($m, $row_type)
         if ($g !== '' && count($genres) < AIO_CAT_GENRES_MAX)
             $genres[] = $g;
     }
+    $country = aio_str($m, 'country');
+    $first = explode(',', aio_one_line($country !== '' ? $country : aio_str(aio_arr($m, 'countries'), 0)));
+    $runtime = aio_str($m, 'runtime');
+    $extras = aio_arr($m, 'app_extras');
+    $age = aio_str(aio_arr($extras, 'certifications'), 'RU');
+    if (!isset($extras['certifications']))
+        $age = aio_str($m, 'age');
+    $cast = array();
+    foreach (isset($extras['cast']) ? aio_arr($extras, 'cast') : aio_arr($m, 'cast') as $c)
+    {
+        $c = aio_cut(aio_one_line(is_array($c) ? aio_str($c, 'name') : aio_str(array($c), 0)), 40);
+        if ($c !== '' && count($cast) < AIO_CAT_CAST_MAX)
+            $cast[] = $c;
+    }
     return array('id' => $id, 'imdb_id' => $imdb, '_tmdbId' => $tmdb, 'type' => $type, 'name' => $name, 'year' => $year,
         'imdbRating' => preg_match('/^[0-9]{1,2}(\.[0-9]+)?$/', $rating) ? $rating : '',
         'description' => aio_cut(aio_one_line(aio_str($m, 'description')), AIO_CAT_DESC_MAX), 'genres' => $genres,
-        'poster' => aio_cat_img($m, 'poster'), 'background' => aio_cat_img($m, 'background'));
+        'poster' => aio_cat_img($m, 'poster'), 'background' => aio_cat_img($m, 'background'), 'country' => aio_cut(trim($first[0]), 60),
+        'runtime' => preg_match('/^(?=[0-9])([0-9]{1,2}h)?([0-9]{1,3}min)?$/', $runtime) ? $runtime : '',
+        'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast);
 }
 
 // Items of a page -> the tiles among them; what is not a tile is dropped.

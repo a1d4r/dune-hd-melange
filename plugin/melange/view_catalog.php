@@ -22,11 +22,18 @@ define('AIO_CATV_GRID_S', 7.0);
 define('AIO_CATV_MIN_S', 0.3);
 define('AIO_CATV_ROW_TILES', 20);
 define('AIO_CATV_GRID_PORTION', 50);
-// The info panel. The lines end well above the title of the row at y = 600; longer
-// texts are cut here: names up to 197, descriptions up to 1096 characters were seen.
-define('AIO_CATV_NAME_CHARS', 54);
-define('AIO_CATV_META_CHARS', 55);
+// The info panel, as the native one (movie_helper.php of shell_ext, the same info_r):
+// a title of one line as large as fits 950 px, then lines of 30 px (down to 23 px to
+// fit 800 px), then the description. Names up to 197, descriptions up to 1096 characters
+// were seen. DESC_CHARS: of the text of an item of the grid.
+define('AIO_CATV_TITLE_PX', 120);
+define('AIO_CATV_TITLE_MIN_PX', 36);
+define('AIO_CATV_LINE_PX', 30);
+define('AIO_CATV_LINE_MIN_PX', 23);
+define('AIO_CATV_DESC_LINES', 4);
 define('AIO_CATV_DESC_CHARS', 360);
+// The TMDB size of a background; w780 if the shell runs short of memory.
+define('AIO_CATV_BG_SIZE', 'w1280');
 define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 
 class AioCat
@@ -51,6 +58,9 @@ class AioCat
     // throws away a reply cancelled by ENTER, while the listing has already moved on.
     /** @var array<string, array<int|string, AioCatTile>> */
     public static $on_screen = array();
+    // The language of the last screen of rows, for the info panel: it reads no file.
+    /** @var string */
+    public static $lang = 'en';
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -147,7 +157,7 @@ function aio_catv_poster($t)
  */
 function aio_catv_background($t)
 {
-    $u = aio_img(strval(preg_replace('~/t/p/[a-z0-9_]+/~', '/t/p/w780/', $t['background'])));
+    $u = aio_img(strval(preg_replace('~/t/p/[a-z0-9_]+/~', '/t/p/' . AIO_CATV_BG_SIZE . '/', $t['background'])));
     return $u !== '' ? $u : AIO_CATV_ICONS . 'bg0.jpg';
 }
 
@@ -593,6 +603,7 @@ function aio_catv_main_view($media_url, $sel_state)
     $start = microtime(true);
     AioCat::$on_screen = array();
     $lang = aio_catv_lang();
+    AioCat::$lang = $lang;
     $copy = aio_cat_manifest_copy();
     $rows = $copy['rows'];
     $fresh = aio_cat_is_fresh($copy);
@@ -651,6 +662,7 @@ function aio_catv_main_view($media_url, $sel_state)
 function aio_catv_results_view($id, $sel_state)
 {
     $lang = aio_catv_lang();
+    AioCat::$lang = $lang;
     $defs = array();
     foreach (AioCat::$search['id'] === $id ? AioCat::$search['rids'] : array() as $rid)
     {
@@ -682,32 +694,99 @@ function aio_catv_open_act($media_url, $caption)
 
 // --- A row in full: tiles of the listing in memory, then the next pages.
 
-// year, rating, genres of a tile: words of the server only, the panel reads no file.
+// A country of the server ("Spain", "United States of America", ISO-3 "jpn") as the
+// line shows it: in Russian only by the list, an unknown one goes; in English as it is,
+// an unknown code goes.
 /**
- * @param AioCatTile $t
+ * @param string $c
+ * @param string $lang
  * @return string
  */
-function aio_catv_meta($t)
+function aio_catv_country($c, $lang)
 {
+    static $iso = array('usa' => 'United States of America', 'gbr' => 'United Kingdom', 'fra' => 'France', 'deu' => 'Germany',
+        'esp' => 'Spain', 'ita' => 'Italy', 'jpn' => 'Japan', 'kor' => 'South Korea', 'chn' => 'China', 'ind' => 'India',
+        'can' => 'Canada', 'aus' => 'Australia', 'nzl' => 'New Zealand', 'rus' => 'Russia', 'bra' => 'Brazil', 'mex' => 'Mexico',
+        'bel' => 'Belgium', 'nld' => 'Netherlands', 'swe' => 'Sweden', 'nor' => 'Norway', 'dnk' => 'Denmark', 'fin' => 'Finland',
+        'irl' => 'Ireland', 'pol' => 'Poland', 'prt' => 'Portugal', 'aut' => 'Austria', 'che' => 'Switzerland', 'cze' => 'Czech Republic',
+        'hun' => 'Hungary', 'grc' => 'Greece', 'tur' => 'Turkey', 'isr' => 'Israel', 'arg' => 'Argentina', 'hkg' => 'Hong Kong',
+        'twn' => 'Taiwan', 'tha' => 'Thailand', 'idn' => 'Indonesia', 'phl' => 'Philippines', 'zaf' => 'South Africa',
+        'isl' => 'Iceland', 'ukr' => 'Ukraine', 'kaz' => 'Kazakhstan');
+    static $ru = array('united states of america' => 'США', 'united states' => 'США', 'united kingdom' => 'Великобритания',
+        'uk' => 'Великобритания', 'great britain' => 'Великобритания', 'france' => 'Франция', 'germany' => 'Германия',
+        'spain' => 'Испания', 'italy' => 'Италия', 'japan' => 'Япония', 'south korea' => 'Южная Корея', 'china' => 'Китай',
+        'india' => 'Индия', 'canada' => 'Канада', 'australia' => 'Австралия', 'new zealand' => 'Новая Зеландия',
+        'russia' => 'Россия', 'russian federation' => 'Россия', 'soviet union' => 'СССР', 'brazil' => 'Бразилия',
+        'mexico' => 'Мексика', 'belgium' => 'Бельгия', 'netherlands' => 'Нидерланды', 'sweden' => 'Швеция',
+        'norway' => 'Норвегия', 'denmark' => 'Дания', 'finland' => 'Финляндия', 'ireland' => 'Ирландия', 'poland' => 'Польша',
+        'portugal' => 'Португалия', 'austria' => 'Австрия', 'switzerland' => 'Швейцария', 'czech republic' => 'Чехия',
+        'czechia' => 'Чехия', 'hungary' => 'Венгрия', 'greece' => 'Греция', 'turkey' => 'Турция', 'israel' => 'Израиль',
+        'argentina' => 'Аргентина', 'chile' => 'Чили', 'colombia' => 'Колумбия', 'hong kong' => 'Гонконг',
+        'taiwan' => 'Тайвань', 'thailand' => 'Таиланд', 'indonesia' => 'Индонезия', 'philippines' => 'Филиппины',
+        'south africa' => 'ЮАР', 'iceland' => 'Исландия', 'ukraine' => 'Украина', 'kazakhstan' => 'Казахстан',
+        'belarus' => 'Беларусь', 'romania' => 'Румыния', 'bulgaria' => 'Болгария', 'serbia' => 'Сербия',
+        'croatia' => 'Хорватия', 'estonia' => 'Эстония', 'latvia' => 'Латвия', 'lithuania' => 'Литва', 'georgia' => 'Грузия',
+        'luxembourg' => 'Люксембург', 'iran' => 'Иран', 'egypt' => 'Египет', 'vietnam' => 'Вьетнам',
+        'malaysia' => 'Малайзия', 'singapore' => 'Сингапур', 'united arab emirates' => 'ОАЭ', 'morocco' => 'Марокко',
+        'peru' => 'Перу', 'cuba' => 'Куба');
+    $k = strtolower($c);
+    if (isset($iso[$k]))
+        $c = $iso[$k];
+    else if (preg_match('/^[a-z]{3}$/', $c))
+        return '';
+    if ($lang !== 'ru')
+        return $c;
+    $k = strtolower($c);
+    return isset($ru[$k]) ? $ru[$k] : '';
+}
+
+// "1h38min" of a tile -> "1ч 38м" or "1h 38m", "30min" -> "30м", "120min" -> "2ч"; '' for none.
+/**
+ * @param string $r
+ * @param string $lang
+ * @return string
+ */
+function aio_catv_runtime($r, $lang)
+{
+    if (!preg_match('/^(?:([0-9]+)h)?(?:([0-9]+)min)?$/', $r, $x))
+        return '';
+    $min = (isset($x[1]) ? intval($x[1]) * 60 : 0) + (isset($x[2]) ? intval($x[2]) : 0);
     $parts = array();
-    if ($t['year'] !== '')
-        $parts[] = $t['year'];
-    if ($t['imdbRating'] !== '')
-        $parts[] = 'IMDb ' . $t['imdbRating'];
-    if ($t['genres'])
-        $parts[] = implode(', ', array_slice($t['genres'], 0, 3));
-    return implode(' • ', $parts);
+    if ($min >= 60)
+        $parts[] = str_replace('{n}', strval(intval($min / 60)), aio_tr($lang, 'cat_len_h'));
+    if ($min % 60 > 0)
+        $parts[] = str_replace('{n}', strval($min % 60), aio_tr($lang, 'cat_len_m'));
+    return implode(' ', $parts);
+}
+
+// The parts of the line of a tile as the native one: year, country, 3 genres, age,
+// runtime, rating; words of the server only, the empty ones left out.
+/**
+ * @param AioCatTile $t
+ * @param string $lang
+ * @return list<string>
+ */
+function aio_catv_meta($t, $lang)
+{
+    $genres = array();
+    foreach (array_slice($t['genres'], 0, 3) as $g)
+        $genres[] = mb_strtoupper(mb_substr($g, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($g, 1, mb_strlen($g, 'UTF-8'), 'UTF-8');
+    $rating = (float) $t['imdbRating'];
+    $parts = array($t['year'], aio_catv_country($t['country'], $lang), implode(', ', $genres), $t['age'],
+        aio_catv_runtime($t['runtime'], $lang), $rating > 0 ? sprintf('%.1F', $rating) : '');
+    return array_values(array_filter($parts, 'strlen'));
 }
 
 /**
  * @param string $rid
  * @param AioCatTile $t
+ * @param string $lang
  * @return array<string, mixed>
  */
-function aio_catv_grid_item($rid, $t)
+function aio_catv_grid_item($rid, $t, $lang)
 {
     $icon = aio_catv_poster($t);
-    $text = implode(' • ', array_filter(array(aio_catv_meta($t), aio_error_cut($t['description'], AIO_CATV_DESC_CHARS)), 'strlen'));
+    $text = implode(' • ', array_filter(array(implode(' • ', aio_catv_meta($t, $lang)), aio_error_cut($t['description'], AIO_CATV_DESC_CHARS)), 'strlen'));
     return array(
         PluginRegularFolderItem::media_url => "$rid:{$t['id']}",
         PluginRegularFolderItem::caption => $t['name'],
@@ -789,8 +868,9 @@ function aio_catv_range($rid, $from)
                 break;
         }
         AioCat::$lists[$rid] = $list;
+        $lang = aio_catv_lang();
         foreach (array_slice($list['tiles'], $from, AIO_CATV_GRID_PORTION) as $t)
-            $items[] = aio_catv_grid_item($rid, $t);
+            $items[] = aio_catv_grid_item($rid, $t, $lang);
         $more = $items ? $list['st']['end'] === '' || count($list['tiles']) > $from + count($items) : $out_of_time;
     }
     return array(
@@ -862,32 +942,59 @@ function aio_catv_grid_view($rid)
 
 // --- The info panel: on every focus move, from memory only.
 
+// A label of the panel $w x $h at $y ($h -1: as high as its text). Options 0: as the
+// native lines and description (GCompsFactory::label), else as its title (label_v2).
 /**
  * @param string $text
  * @param int $size
  * @param string $color
+ * @param int $w
+ * @param int $h
  * @param int $y
- * @param int $lines
+ * @param array<string, mixed> $spec
+ * @param int $options
  * @return array<string, mixed>
  */
-function aio_catv_info_label($text, $size, $color, $y, $lines)
+function aio_catv_info_label($text, $size, $color, $w, $h, $y, $spec = array(), $options = 0)
 {
-    $spec = array(
-        GCompTtfLabelDef::text => $text,
-        GCompTtfLabelDef::font_size => $size,
-        GCompTtfLabelDef::text_color => $color);
-    if ($lines > 1)
-        $spec[GCompTtfLabelDef::max_num_lines] = $lines;
-    return array(
+    $spec[GCompTtfLabelDef::text] = $text;
+    $spec[GCompTtfLabelDef::font_size] = $size;
+    $spec[GCompTtfLabelDef::text_color] = $color;
+    $def = array(
         GComponentDef::geom_def => array(
-            GCompGeometryDef::w => 800,
-            GCompGeometryDef::h => -1,
+            GCompGeometryDef::w => $w,
+            GCompGeometryDef::h => $h,
             GCompGeometryDef::align_def => array(GCompAlignDef::x => 0, GCompAlignDef::y => $y)),
         GComponentDef::kind => GCOMPONENT_TTF_LABEL,
-        GComponentDef::specific_def => $spec,
-        GComponentDef::options => GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
+        GComponentDef::specific_def => $spec);
+    if ($options)
+        $def[GComponentDef::options] = $options;
+    return $def;
 }
 
+// The largest size from $max down to $min at which $text fits $width (font_w.php), and
+// $text, cut with "…" at $min when it does not fit even so.
+/**
+ * @param string $text
+ * @param int $max
+ * @param int $min
+ * @param int $width
+ * @return array{int, string}
+ */
+function aio_catv_fit($text, $max, $min, $width)
+{
+    $w = aio_gc_w($text, 100);
+    $px = max($min, min($max, $w > 0 ? intval($width * 100 / $w) + 1 : $max));
+    while ($px > $min && aio_gc_w($text, $px) > $width)
+        $px--;
+    return array($px, aio_gc_cut_w($text, $px, $width));
+}
+
+// The panel of the native catalog, on its coordinates (movie_helper.php, the same info_r):
+// the title, then lines 46 px high from y 199 in steps of 50, the description 7 px above
+// where the next line would be, 4 lines at most; no line for an empty field, the next
+// ones go up. The native original title
+// under the title is not known here: the title takes its place, the bottom at y 186.
 // "Show all": the name of the row and the caption of the tile (the language: a file, on
 // this tile only). null without a tile or a row in memory (a stub, a message, a restart
 // of php_server). No label with an empty text: whether the shell takes one is not known.
@@ -901,21 +1008,43 @@ function aio_catv_info($in)
     $t = aio_catv_tile($id);
     $rid = strpos($id, 'more:') === 0 ? strval(substr($id, strlen('more:'))) : '';
     if ($t)
-        $texts = array($t['name'], aio_catv_meta($t), $t['description']);
+    {
+        $name = $t['name'];
+        $lines = array(array(implode(' | ', array_map('aio_clean', aio_catv_meta($t, AioCat::$lang))), '#FFAFAFA0'),
+            array(aio_clean(implode(', ', $t['cast'])), '#FFFFFF40'));
+        $desc = $t['description'];
+    }
     else if (isset(AioCat::$lists[$rid]))
-        $texts = array(AioCat::$lists[$rid]['st']['row']['name'], aio_tr(aio_catv_lang(), 'cat_more'), '');
+    {
+        $name = AioCat::$lists[$rid]['st']['row']['name'];
+        $lines = array(array(aio_clean(aio_tr(aio_catv_lang(), 'cat_more')), '#FFAFAFA0'));
+        $desc = '';
+    }
     else
         return null;
     $labels = array();
-    foreach (array(
-        array(aio_error_cut($texts[0], AIO_CATV_NAME_CHARS), 52, '#FFFFFFE0', 30, 2),
-        array(aio_error_cut($texts[1], AIO_CATV_META_CHARS), 32, '#FFAFAFA0', 170, 1),
-        array(aio_error_cut($texts[2], AIO_CATV_DESC_CHARS), 28, '#FF808080', 225, 7)) as $l)
+    $name = aio_clean($name);
+    if ($name !== '')
     {
-        $text = aio_clean($l[0]);
-        if ($text !== '')
-            $labels[] = aio_catv_info_label($text, $l[1], $l[2], $l[3], $l[4]);
+        $fit = aio_catv_fit($name, AIO_CATV_TITLE_PX, AIO_CATV_TITLE_MIN_PX, 950);
+        $labels[] = aio_catv_info_label($fit[1], $fit[0], '#FFFFFFE0', 950, 120, 66,
+            array(GCompTtfLabelDef::line_spacing => 0, GCompTtfLabelDef::valign => VALIGN_BOTTOM),
+            GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
     }
+    $y = 202;
+    foreach ($lines as $l)
+    {
+        if ($l[0] === '')
+            continue;
+        $fit = aio_catv_fit($l[0], AIO_CATV_LINE_PX, AIO_CATV_LINE_MIN_PX, 800);
+        $labels[] = aio_catv_info_label($fit[1], $fit[0], $l[1], 800, 46, $y - 3);
+        $y += 50;
+    }
+    // Cut here to the lines, "…" on the last one; the shell, with a little more room, breaks them no sooner.
+    $desc = implode(' ', aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, 800, AIO_CATV_DESC_LINES, true));
+    if ($desc !== '')
+        $labels[] = aio_catv_info_label($desc, AIO_CATV_LINE_PX, '#FFAFAFA0', 800, -1, $y - 10,
+            array(GCompTtfLabelDef::max_num_lines => AIO_CATV_DESC_LINES, GCompTtfLabelDef::line_spacing => 5));
     $pane = array(
         GComponentDef::geom_def => array(
             GCompGeometryDef::w => 950,
