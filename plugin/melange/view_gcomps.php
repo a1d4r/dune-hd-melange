@@ -1212,7 +1212,8 @@ function aio_gc_menu($in)
         GuiMenuItemDef::caption => aio_tr($st['lang'], 'refresh_menu'),
         GuiMenuItemDef::icon_url => 'gui_skin://small_icons/upgrade.aai',
         GuiMenuItemDef::action => aio_gc_act('gc_refresh', $rid)));
-    if ($st['e'] > 0)
+    // Without a card: the choice would end in "illegal state" of the shell.
+    if ($st['e'] > 0 && $st['movie']['dune_id'] !== '')
         $menu[] = array(
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'choose_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
