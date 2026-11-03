@@ -96,6 +96,26 @@ function aio_setup_defs()
         $defs[] = aio_setup_label(null, '%tr%err_setup_dir');
     $defs[] = aio_setup_button('phone', '%tr%setup_phone', aio_input('setup_qr'));
     $defs[] = aio_setup_button('relink', '%tr%setup_relink', aio_input('setup_relink'));
+    return array_merge($defs, aio_setup_credits());
+}
+
+// Data sources of the catalog at the bottom, small (TMDB terms): its logo (img/tmdb.png,
+// 185x24, smaller than ours) as the QR picture - a path in <icon> of a smart label.
+function aio_setup_credits()
+{
+    $lang = aio_catv_lang();
+    $dir = isset(DuneSystem::$properties['install_dir_path']) ? strval(DuneSystem::$properties['install_dir_path']) :
+        dirname(__FILE__);
+    $defs = array(
+        aio_ctl('', GUI_CONTROL_VGAP, array(GuiVGapDef::vgap => 40)),
+        aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
+            '<icon width="185" height="24">' . rtrim($dir, '/') . '/img/tmdb.png</icon>')),
+        aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
+            '<text size="small" color="7">' . aio_tr($lang, 'setup_tmdb') . '</text>')),
+        aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
+            '<text size="small" color="7">' . aio_tr($lang, 'setup_justwatch') . '</text>')));
+    for ($i = 1; $i < 4; $i++)
+        $defs[$i][GuiControlDef::params] = array('smart' => 1);
     return $defs;
 }
 
