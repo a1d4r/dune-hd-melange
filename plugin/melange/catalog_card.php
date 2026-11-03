@@ -28,7 +28,7 @@ function aio_card_token()
     return is_file($f) ? trim(strval(file_get_contents($f))) : '';
 }
 
-// As the shell: the prefix of the API from its file (dunemdb_search_fix sets it).
+// As the shell: the prefix of the API from its file, if another plugin has set it.
 /**
  * @return string
  */
