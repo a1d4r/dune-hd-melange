@@ -802,6 +802,9 @@ function aio_cgi_js($v)
         // The import of a file of the settings (lib/backup.php).
         'importConfirm' => aio_cgi_l('Текущие настройки будут заменены настройками из файла. Продолжить?',
             'The current settings will be replaced with those from the file. Continue?'),
+        // The file holds another link of the page (web_token, 0.51.0).
+        'importConfirmLink' => aio_cgi_l('Текущие настройки будут заменены настройками из файла. Ссылка на эту страницу вернётся к сохранённой в файле. Продолжить?',
+            'The current settings will be replaced with those from the file. The link of this page will go back to the one saved in the file. Continue?'),
         'importing' => aio_cgi_l('Загружаю…', 'Loading…'),
         'importTooBig' => aio_cgi_import_big(),
         'importUnread' => aio_cgi_l('Файл не прочитался — выберите его ещё раз', 'The file could not be read: choose it again')) +
@@ -856,7 +859,8 @@ function aio_cgi_rows_later()
 
 // $v: aio_cgi_values() or aio_cgi_posted() (first: no saved_at yet, not
 // saved_once of aio_settings_read); $errors: of aio_cgi_err(); $imported:
-// after the import of a file (a=import), its line in #msg; $rows: with $saved,
+// after the import of a file (a=import), its line in #msg (2: and that the
+// link of the file was not written); $rows: with $saved,
 // the rows of the catalog changed (aio_cgi_rows_later).
 // The page (0.43.0): the radios of watch and no_torrents, then the screens, #home
 // last - the CSS shows the one of the address (#src...), else #home, the fields
@@ -865,7 +869,7 @@ function aio_cgi_rows_later()
 // save under them (#bar: the script shows it on a change, #dirty - their
 // number, #srx - "Скрыть" of the results of a save). Errors without the script: in #msg, each with a link to the
 // screen of its field, the field aria-invalid.
-function aio_cgi_form($t, $v, $errors, $saved, $imported = false, $rows = false)
+function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false)
 {
     $scr = aio_cgi_screens();
     $msg = '';
@@ -884,6 +888,9 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = false, $rows = false)
     if ($imported)
         $msg .= '<p class="ok">' . aio_cgi_l('Настройки загружены из файла. Дюна подхватит их сама.',
             'Settings loaded from the file. The Dune picks them up automatically.') . '</p>';
+    if ($imported === 2)
+        $msg .= '<p class="warn">' . aio_cgi_l('Ссылку на страницу из файла вернуть не удалось — она осталась прежней.',
+            'The link of the page from the file could not be restored: it stays as it was.') . '</p>';
     $title = aio_cgi_l('Melange — настройки', 'Melange settings');
     $f = aio_cgi_fields();
     $w = aio_cgi_watch($v);
