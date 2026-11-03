@@ -7,7 +7,6 @@
 
 // r24: seconds for rows at an opening, with the refresh of the manifest: what does not
 // make it stays hidden until the next one. A cold row takes up to 4.5 s, 6 rows 2.5 s.
-// r25: for the first row.
 define('AIO_CATV_OPEN_S', 3.0);
 // r25: one row of get_folder_rows, a key of the user waits for it; the stubs of a row.
 define('AIO_CATV_ROW_S', 5.0);
@@ -193,12 +192,14 @@ function aio_catv_is_down()
 
 // The first page of a row asked for anew: with tiles, into AioCat::$lists (of a copy
 // after a failure: stale), else what is there stays; an empty row is remembered.
+// $timeout_down false: a timeout is a slow row, not the server down.
 /**
  * @param AioCatRow $row
  * @param float $limit
+ * @param bool $timeout_down
  * @return AioCatResult
  */
-function aio_catv_load_first($row, $limit)
+function aio_catv_load_first($row, $limit, $timeout_down = true)
 {
     $rid = aio_catv_rid($row);
     $st = aio_cat_row_state($row);
@@ -207,7 +208,8 @@ function aio_catv_load_first($row, $limit)
         AioCat::$lists[$rid] = aio_catv_list($st, $res['tiles'], $res['stale']);
     else if ($res['end'] && $res['err'] === '')
         AioCat::$empty[$rid] = time();
-    AioCat::$down = in_array($res['err'], array('net', 'rate', 'server'), true) ? time() : 0;
+    $down = $timeout_down ? array('net', 'timeout', 'rate', 'server') : array('net', 'rate', 'server');
+    AioCat::$down = in_array($res['err'], $down, true) ? time() : 0;
     return $res;
 }
 
@@ -389,10 +391,34 @@ function aio_catv_row_note($row, $lang, $note)
     return aio_catv_row_defs($list, $lang, $items, aio_catv_loading_flag());
 }
 
-// The row $rid for the shell: from memory or the cache when it can be, so a repeat of a
-// call the shell cancelled (ENTER) is at once and the same; a new state every time, its
-// skip never moves on. Never flagged: such a row is not asked for again. The server down:
-// no request, what memory has is a saved copy. -> the row and, only for a saved copy, its
+// The row $row now, never flagged (such a row is not asked for again): from memory or the
+// cache when it can be, so a repeat of a call the shell cancelled (ENTER) is at once and
+// the same; a new state every time, its skip never moves on. Else asked in $limit s; the
+// server down: no request, what memory has is a saved copy. No tiles: one tile "empty" or
+// "did not load". -> its title and its row.
+/**
+ * @param AioCatRow $row
+ * @param string $lang
+ * @param float $limit
+ * @param bool $timeout_down
+ * @return array{array<string, mixed>, array<string, mixed>}
+ */
+function aio_catv_row_now($row, $lang, $limit, $timeout_down = true)
+{
+    $rid = aio_catv_rid($row);
+    $ready = isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'] && aio_cat_state_fresh(AioCat::$lists[$rid]['st']);
+    if (!$ready && !aio_catv_is_empty($rid) && !aio_catv_is_down())
+        aio_catv_load_first($row, $limit, $timeout_down);
+    if (isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
+    {
+        if (!aio_cat_state_fresh(AioCat::$lists[$rid]['st']))
+            AioCat::$lists[$rid]['stale'] = true;
+        return aio_catv_row_defs(AioCat::$lists[$rid], $lang);
+    }
+    return aio_catv_row_note($row, $lang, aio_catv_is_empty($rid) ? 'cat_row_empty' : 'cat_row_failed');
+}
+
+// The row $rid for the shell (aio_catv_row_now) -> the row and, only for a saved copy, its
 // title: the shell replaces any row of a reply by its id, and that is the only way the
 // title gets the mark.
 /**
@@ -410,18 +436,9 @@ function aio_catv_row_answer($rid, $lang)
         $defs = aio_catv_row_note($row, $lang, 'cat_row_failed');
         return array($defs[1]);
     }
-    $ready = isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'] && aio_cat_state_fresh(AioCat::$lists[$rid]['st']);
-    if (!$ready && !aio_catv_is_empty($rid) && !aio_catv_is_down())
-        aio_catv_load_first($row, AIO_CATV_ROW_S);
-    if (isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
-    {
-        if (!aio_cat_state_fresh(AioCat::$lists[$rid]['st']))
-            AioCat::$lists[$rid]['stale'] = true;
-        $defs = aio_catv_row_defs(AioCat::$lists[$rid], $lang);
-        return AioCat::$lists[$rid]['stale'] ? array($defs[1], $defs[0]) : array($defs[1]);
-    }
-    $defs = aio_catv_row_note($row, $lang, aio_catv_is_empty($rid) ? 'cat_row_empty' : 'cat_row_failed');
-    return array($defs[1]);
+    $defs = aio_catv_row_now($row, $lang, AIO_CATV_ROW_S);
+    $saved = isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'] && AioCat::$lists[$rid]['stale'];
+    return $saved ? array($defs[1], $defs[0]) : array($defs[1]);
 }
 
 // get_folder_rows: one row a call (a saved copy: and its title), the shell asks for the
@@ -607,8 +624,7 @@ function aio_catv_message_view($key, $lang)
 }
 
 // The manifest does not hold the screen: a copy of any age goes; no copy: one request.
-// r25: one request for the rows, the first one if not fresh, never flagged (a copy marked
-// saved or a tile "did not load" on a failure); the others: a fresh copy ready, an old one
+// r25: the first row now (aio_catv_row_now), the others: a fresh copy ready, an old one
 // flagged, none: stubs; get_folder_rows asks for the flagged ones and refreshes an old
 // manifest in the time left (none flagged: here, as r24). r24: the rows and the manifest
 // load here, in AIO_CATV_OPEN_S.
@@ -648,31 +664,23 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     $left = AIO_CATV_OPEN_MAX_S - (microtime(true) - $start);
     aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S, $left));
-    // r25: the first row is never flagged. The focus is on the headers and the selection
-    // in the first row: the shell redraws a row it replaces with the selection in it as
-    // active, over the rows under it (device, 0.50.0). It loads here, as on r24.
-    $first = $loading && $shown ? aio_catv_rid($shown[0]) : '';
-    if ($first !== '' && !(isset(AioCat::$lists[$first]) && aio_cat_state_fresh(AioCat::$lists[$first]['st'])) &&
-        !aio_catv_is_down())
-        aio_catv_load_first($shown[0], max(AIO_CATV_MIN_S, min(AIO_CATV_OPEN_S, AIO_CATV_OPEN_MAX_S - (microtime(true) - $start))));
-    foreach ($shown as $row)
+    foreach ($shown as $i => $row)
     {
         $rid = aio_catv_rid($row);
-        if (isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
+        // A flagged first row replaced under the focus on the headers covers the rows under it (device, 0.50.0).
+        if ($loading && $i === 0)
+        {
+            $limit = max(AIO_CATV_MIN_S, min(AIO_CATV_ROW_S, AIO_CATV_OPEN_MAX_S - (microtime(true) - $start)));
+            $defs = array_merge($defs, aio_catv_row_now($row, $lang, $limit, false));
+        }
+        else if (isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
         {
             $flag = aio_cat_state_fresh(AioCat::$lists[$rid]['st']) ? 0 : $loading;
-            if ($flag && $rid === $first)
-            {
-                AioCat::$lists[$rid]['stale'] = true;
-                $flag = 0;
-            }
             if ($flag)
                 AioCat::$on_screen[$rid] = AioCat::$lists[$rid]['tiles'];
             $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang, null, $flag));
             $asked = $asked || $flag;
         }
-        else if ($rid === $first)
-            $defs = array_merge($defs, aio_catv_row_note($row, $lang, aio_catv_is_empty($rid) ? 'cat_row_empty' : 'cat_row_failed'));
         else if ($loading)
         {
             $defs = array_merge($defs, aio_catv_row_note($row, $lang, ''));
