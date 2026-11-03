@@ -5,10 +5,10 @@
 body{font:16px/1.4 -apple-system,BlinkMacSystemFont,Roboto,"Segoe UI",sans-serif;margin:0;padding:16px 16px 0;background:var(--bg);color:var(--ink)}
 main{max-width:520px;margin:0 auto}
 a{color:var(--acc)}
-h1{font-size:26px;margin:4px 0 2px}
-h2{font-size:22px;margin:2px 0 6px}
+h1{font-size:26px;font-weight:600;margin:4px 0 2px}
+h2{font-size:22px;font-weight:600;margin:2px 0 6px}
 .sub{margin:0 0 12px;font-size:14px;color:var(--mute)}
-.gh{margin:22px 4px 8px;font-size:13px;font-weight:400;color:var(--mute)}
+.gh{margin:24px 4px 8px;font-size:13px;font-weight:400;color:var(--mute)}
 .scr{display:none;padding-bottom:12px}
 .scr:target,#home{display:block}
 .scr:target~#home{display:none}
@@ -16,7 +16,7 @@ h2{font-size:22px;margin:2px 0 6px}
 #wd:checked~* .xp,#wd:checked~* .xo,#wp:checked~* .xd,#wp:checked~* .xo,#wo:checked~* .xd,#wo:checked~* .xp,#wo:checked~* .xm,#wp:checked~* .xt,#nt2:checked~* .xa,#nt1:checked~* .xn,#wd:checked~#nt2:checked~#home #rtorr,#wd:checked~#nt2:checked~#home #rdl,#wo:checked~#nt2:checked~#home #rtorr,#wo:checked~#nt2:checked~#home #rdl{display:none}
 .back{display:inline-block;padding:8px 0;margin:0 0 4px;color:var(--acc);text-decoration:none}
 .list{background:var(--surf);border-radius:14px;overflow:hidden}
-.row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}
 .row:first-child,#wd:checked~#nt2:checked~#home #radv,#wo:checked~#nt2:checked~#home #radv{border-top:0}
 .rt{flex:1;min-width:0}
 .t{display:block;font-weight:500}
@@ -25,18 +25,20 @@ h2{font-size:22px;margin:2px 0 6px}
 .dot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--line)}
 .dot.ok{background:var(--ok)}
 .dot.warn{background:var(--warn)}
-.state{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;font-size:15px}
+#rrows .dot,#radv .dot,#rbak .dot,#rlog .dot{background:none}
+.state{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-radius:14px;font-size:15px}
 .state p{margin:0}
+.state b{font-weight:600}
 .state .dot{margin-top:6px}
 .state.ok{background:var(--okbg)}
 .state.ok .dot{background:var(--ok)}
 .state.warn{background:var(--warnbg)}
 .state.warn .dot{background:var(--warn)}
 .choice{display:grid;gap:8px;margin:10px 0 0}
-.opt{display:flex;gap:12px;align-items:center;margin:0;padding:12px 14px;background:var(--surf);border:1.5px solid var(--line);border-radius:14px;color:var(--ink);cursor:pointer}
+.opt{display:flex;gap:12px;align-items:center;margin:0;padding:12px 16px;background:var(--surf);border:1.5px solid var(--line);border-radius:14px;color:var(--ink);cursor:pointer}
 .opt .r{flex:none;width:20px;height:20px;border:2px solid var(--mute);border-radius:50%}
 .ot{flex:1;min-width:0}
-.opt .t{font-weight:600;overflow-wrap:anywhere}
+.opt .t{font-weight:500;overflow-wrap:anywhere}
 .ownf{display:none}
 .own:checked~.ownf,.ownf.open{display:block}
 .mark{margin:10px 4px 0;font-size:15px}
@@ -68,7 +70,7 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--line);borde
 .err{background:var(--errbg)}
 #msg .ok,.res .ok{background:var(--okbg)}
 .res .warn{background:var(--warnbg)}
-.seg{display:flex;gap:3px;margin:14px 0 0;padding:3px;background:var(--surf2);border-radius:10px}
+.seg{display:flex;gap:4px;margin:14px 0 0;padding:4px;background:var(--surf2);border-radius:10px}
 .seg button{flex:1;padding:9px 4px;font-size:15px;border:0;border-radius:8px;background:none;color:var(--mute)}
 .seg [aria-pressed=true]{background:var(--surf);color:var(--ink);font-weight:600}
 .lnk{color:var(--acc)}
@@ -82,7 +84,7 @@ details.srv>summary{padding:8px 4px;color:var(--ink);cursor:pointer}
 .srv .f,.srv select{background:var(--bg)}
 form{display:flex;flex-direction:column;min-height:calc(100vh - 16px)}
 @supports (min-height:100svh){form{min-height:calc(100svh - 16px)}}
-#bar{position:sticky;bottom:0;margin:auto -16px 0;padding:18px 16px 12px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(rgba(0,0,0,0),var(--bg) 40%)}
+#bar{position:sticky;bottom:0;margin:auto -16px 0;padding:16px 16px 12px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(rgba(0,0,0,0),var(--bg) 40%)}
 #sr{max-height:30vh;overflow-y:auto}
 #srx{display:block;margin-left:auto;padding:6px 4px 0;font-size:13px}
 .barrow{display:flex;align-items:center;gap:10px}
