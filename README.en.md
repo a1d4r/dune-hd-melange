@@ -40,9 +40,11 @@ Updates: since 0.36.0 the Dune itself checks GitHub Pages for a new Melange vers
 - the **Melange** icon in **Apps → Dune HD**: MENU → **Settings** (ENTER opens the catalog; until AIOStreams is set up, this same settings screen);
 - MENU in the catalog → **Settings**;
 - MENU on the release list screen → **Settings**;
-- if there is no config yet, choosing Melange in a card shows **"No AIOStreams config — open Melange settings"** (with your own config but no link: "The link to your AIOStreams config is not set") with the buttons **Set up** and **Close**; **Set up** opens the settings screen.
+- if there is no config yet, choosing Melange in a card shows **"No AIOStreams config — open Melange settings"** (with your own config but no link: "The link to your AIOStreams config is not set") with the buttons **Quick setup: torrents**, **Set up** and **Close**; **Set up** opens the settings screen.
 
-**The settings screen.** A line **"AIOStreams - Melange config"** or **"AIOStreams - own config"** with the server address or **"not set"**; a **JacRed** line with the chosen JacRed (your own one is shown by its host); the buttons **Set up from a phone** and **Change the link**.
+**The settings screen.** A line **"AIOStreams - Melange config"** or **"AIOStreams - own config"** with the server address or **"not set"**; a **JacRed** line with the chosen JacRed (your own one is shown by its host); the buttons **Set up from a phone** and **Change the link**. Until AIOStreams is set up, **Quick setup: torrents** is above them, and Change the link is not shown.
+
+**Quick setup with the remote (no phone).** **Quick setup: torrents** chooses the "Torrents" answer on the Melange server: Melange creates the AIOStreams config itself, no keys are needed. If TorrServer on the Dune answers, the catalog opens in place of the settings screen at once. If it does not, Melange is set up anyway and says so: the catalog and search work, and to watch, install and start the TorrServe app on the Dune. From the window in a card, press Play... again after the setup. If the server does not answer or refuses, the reason is shown and the settings stay as they were. Debrid, your own config and everything else are on the page from a phone, as before.
 
 1. Press **Set up from a phone**: a QR code appears, with the page address as text under it and the hint "You can bookmark this page".
 2. Scan the QR code with your phone: the **"Melange settings"** page opens.
