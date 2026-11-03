@@ -164,3 +164,7 @@ tsi_down = TorrServer не отвечает
 tsi_slow = TorrServer отвечает медленно
 tsi_gone = Раздачи нет в TorrServer
 tsi_bad = Непонятный ответ TorrServer
+err_card_no_source = Раздачи не найти: нет карточки Дюны и IMDb-id
+card_none_title = Без карточки Дюны
+card_no_history = История просмотра не сохранится
+card_show_list = Показать раздачи

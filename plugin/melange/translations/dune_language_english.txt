@@ -164,3 +164,7 @@ tsi_down = TorrServer is not responding
 tsi_slow = TorrServer is slow to respond
 tsi_gone = TorrServer does not have the release
 tsi_bad = TorrServer reply not understood
+err_card_no_source = Releases cannot be found: no Dune card and no IMDb ID
+card_none_title = Without a Dune card
+card_no_history = Watch history will not be saved
+card_show_list = Show releases
