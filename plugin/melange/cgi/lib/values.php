@@ -116,7 +116,7 @@ function aio_cgi_check_values($v)
     $set = array();
     foreach ($f as $k => $x)
         $set[$k] = $x['set'];
-    $d = array('v' => 2, $set['source'] => $v['source'], $set['manifest'] => aio_manifest_url($v['manifest']));
+    $d = array('v' => AIO_SETTINGS_V, $set['source'] => $v['source'], $set['manifest'] => aio_manifest_url($v['manifest']));
     if ($v['manifest'] !== '' && $d[$set['manifest']] === '')
     {
         if ($made)
