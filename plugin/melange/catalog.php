@@ -35,7 +35,8 @@ define('AIO_CAT_STATE_TTL', 18000);
 // copy: an older row is of little use, and TMDB allows 6 months at most. 8 MB,
 // 400 files: ~80 pages of 100 KB (json_encode makes Cyrillic 6 bytes a letter),
 // the oldest go first.
-define('AIO_CAT_CACHE_V', 1);
+// Raise the version when what a copy holds changes (the keys of a tile): older copies are dropped.
+define('AIO_CAT_CACHE_V', 2);
 define('AIO_CAT_FRESH', 3600);
 define('AIO_CAT_KEEP', 2592000);
 define('AIO_CAT_CACHE_BYTES', 8388608);
