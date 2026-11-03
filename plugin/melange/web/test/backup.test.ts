@@ -118,6 +118,55 @@ describe("the import", () => {
     expect(next.replaced).toEqual([NEXT]);
   });
 
+  // web_token of the file (0.51.0): another token of the page - the question says the link goes back to it, the page
+  // goes where PHP says (the link of the file once written); none, that of this page or not of the plugin - as before.
+  const OTHER = "fedcba9876543210fedcba9876543210";
+  const withToken = (token: unknown) => JSON.stringify({ ...JSON.parse(TEXT), web_token: token });
+
+  test("a file with another link of the page: asked so; written: the page by the link PHP gives", async () => {
+    const page = opened();
+    page.confirmAnswer = true;
+    page.replies.push(json({ ok: true, next: "settings?t=" + OTHER + "&imported=1" }));
+    const text = withToken(OTHER);
+    await choose(page, file(text));
+    expect(page.confirms).toEqual([page.init.i18n.importConfirmLink]);
+    expect(page.calls).toEqual([{ ...IMPORT, body: "settings=" + encodeURIComponent(text) }]);
+    expect(page.replaced).toEqual(["settings?t=" + OTHER + "&imported=1"]);
+  });
+
+  test("the link of the file not written (imported=2): the page by its own link, as PHP says", async () => {
+    const page = opened();
+    page.confirmAnswer = true;
+    page.replies.push(json({ ok: true, next: TOKEN + "&imported=2" }));
+    await choose(page, file(withToken(OTHER)));
+    expect(page.replaced).toEqual([TOKEN + "&imported=2"]);
+  });
+
+  test.each([
+    ["the link of this page", TOKEN.slice(TOKEN.indexOf("=") + 1)],
+    ["upper case", OTHER.toUpperCase()],
+    ["31 characters", OTHER.slice(1)],
+    ["33 characters", OTHER + "0"],
+    ["a newline after", OTHER + "\n"],
+    ["a UUID", "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b"],
+    ["a number", 123],
+    ["a list", [OTHER]],
+    ["null", null],
+  ])("web_token %s: the question as before", async (_name, token) => {
+    const page = opened();
+    await choose(page, file(withToken(token)));
+    expect(page.confirms).toEqual([page.init.i18n.importConfirm]);
+  });
+
+  test.each([["not JSON", "{" + JSON.stringify(OTHER)], ["a list", JSON.stringify([{ web_token: OTHER }])]])(
+    "%s: the question as before",
+    async (_name, text) => {
+      const page = opened();
+      await choose(page, file(text));
+      expect(page.confirms).toEqual([page.init.i18n.importConfirm]);
+    },
+  );
+
   test("refused: its reason, the button free again, Save too", async () => {
     const page = opened();
     page.confirmAnswer = true;

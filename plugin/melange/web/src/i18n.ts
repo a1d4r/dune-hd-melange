@@ -87,9 +87,10 @@ export const TEXT_KEYS = [
   "groupRuntime",
   "groupAnime",
   "groupOther",
-  // The import of a file of the settings (backup.ts): the question before it, while it goes, a file too big for one,
-  // a file the browser could not read.
+  // The import of a file of the settings (backup.ts): the question before it (a file with another link of the page:
+  // the second one), while it goes, a file too big for one, a file the browser could not read.
   "importConfirm",
+  "importConfirmLink",
   "importing",
   "importTooBig",
   "importUnread",

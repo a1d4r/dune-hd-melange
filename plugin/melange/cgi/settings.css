@@ -69,7 +69,7 @@ select{width:100%;padding:12px;font-size:16px;border:1px solid var(--line);borde
 #msg p{margin:0 0 10px}
 .err{background:var(--errbg)}
 #msg .ok,.res .ok{background:var(--okbg)}
-.res .warn{background:var(--warnbg)}
+#msg .warn,.res .warn{background:var(--warnbg)}
 .seg{display:flex;gap:4px;margin:14px 0 0;padding:4px;background:var(--surf2);border-radius:10px}
 .seg button{flex:1;padding:9px 4px;font-size:15px;border:0;border-radius:8px;background:none;color:var(--mute)}
 .seg [aria-pressed=true]{background:var(--surf);color:var(--ink);font-weight:600}

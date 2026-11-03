@@ -90,9 +90,11 @@ function aio_cgi_rand_hex($n)
     return bin2hex($b);
 }
 
-// --- Writing settings.json.
+// --- Writing settings.json and web_token.
 
-// Umask 077, a fresh randomly
+// $data as data_dir/$name (settings.json; web_token: the token of a backup
+// imported, lib/backup.php). Umask 077 (0600, as the plugin makes web_token;
+// another mode of the old one: aio_token_fix), a fresh randomly
 // named temp file opened with 'x', lchown/lchgrp to the owner of web_token
 // (l*: never through a symlink), rename over (replaces a symlink itself).
 // web_token is made by php_server, the reader of settings.json (anew at each
@@ -101,9 +103,9 @@ function aio_cgi_rand_hex($n)
 // restored backup, hypothesis). fopen 'x' follows a *dangling* symlink and creates its
 // target (PHP 5.3.6 and 5.6), so the temp path is lstat-checked before and
 // after fopen, before any data goes in. -> '' or the reason (for the log).
-function aio_cgi_write($dir, $data)
+function aio_cgi_write($dir, $data, $name = AIO_SETTINGS_FILE)
 {
-    $part = "$dir/" . AIO_SETTINGS_FILE . '.' . aio_cgi_rand_hex(4) . '.part';
+    $part = "$dir/$name." . aio_cgi_rand_hex(4) . '.part';
     clearstatcache();
     // lstat: a symlink put there after aio_cgi_token_ok gives no owner of its target.
     $ts = lstat("$dir/" . AIO_TOKEN_FILE);
@@ -140,7 +142,7 @@ function aio_cgi_write($dir, $data)
         if ($ps === false || $ps['uid'] !== $ts['uid'])
             $why = 'owner differs from the owner of web_token';
     }
-    if ($why === '' && !rename($part, "$dir/" . AIO_SETTINGS_FILE))
+    if ($why === '' && !rename($part, "$dir/$name"))
         $why = 'rename failed';
     if ($why !== '')
         unlink($part);

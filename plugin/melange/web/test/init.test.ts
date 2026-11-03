@@ -114,6 +114,11 @@ describe("saved=1 of the address after a save", () => {
     expect(replaced).toEqual([page.win.location.pathname + SEARCH + "#rows"]);
   });
 
+  test.each(["&imported=1", "&imported=2"])("%p (after an import) dropped too", (query) => {
+    const { page, replaced } = openAt(query);
+    expect([page.win.location.search, replaced]).toEqual([SEARCH, [page.win.location.pathname + SEARCH]]);
+  });
+
   test.each(["", "&saved=0", "&saved=12"])("no saved=1 (%p): replaceState not called", (query) => {
     const { page, replaced } = openAt(query);
     expect(replaced).toEqual([]);

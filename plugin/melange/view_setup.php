@@ -5,8 +5,9 @@
 // file by its timer. The one write of the plugin: "Quick setup: torrents"
 // (0.51.0, aio_setup_quick), as the page saves "Торренты". The token of the
 // page is permanent (a bookmark keeps working): data_dir/web_token, written
-// here only, new on "Change the link". Neither the token nor the page address
-// goes to the log. Reads Aio::$settings.
+// here (new on "Change the link") and by the import of a backup on the page
+// (its token back, 0.51.0); read anew at each QR, never kept in memory.
+// Neither the token nor the page address goes to the log. Reads Aio::$settings.
 
 // The config of AIOStreams the quick setup makes, its request (AIO_CONF_API_*):
 // shared with the settings page. Plain PHP, no firmware API.
