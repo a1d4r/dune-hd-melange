@@ -1027,9 +1027,9 @@ function aio_catv_fit($text, $max, $min, $width)
 // the title, then lines 46 px high from y 199 in steps of 50, the description 7 px above
 // where the next line would be, as many lines as the rest of the panel holds, as the
 // native one counts them; no line for an empty field, the next ones go up. The English name of the
-// tile under the title when the native one shows it (native_title of dunemdb_cache.php: the interface
-// not English, the name not the title): the title at y 20, the name at 144, the lines from 202
-// (20 + 120 + 7 + 55). Without it the title takes its place, the bottom at y 186, the lines stay.
+// tile under the title when it is not the title (native_title of dunemdb_cache.php: of a title not in
+// English, as those of the catalog are in any interface): the title at y 20, the name at 144, the
+// lines from 202 (20 + 120 + 7 + 55). Without it the title takes its place, the bottom at y 186.
 // "Show all": the name of the row and the caption of the tile. null without a tile or a row in memory (a stub, a message, a restart
 // of php_server). No label with an empty text: whether the shell takes one is not known.
 /**
@@ -1044,7 +1044,7 @@ function aio_catv_info($in)
     if ($t)
     {
         $name = $t['name'];
-        $sub = aio_catv_ui_lang() !== 'en' && $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
+        $sub = $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
         $lines = array(array(implode(' | ', array_map('aio_clean', aio_catv_meta($t, aio_catv_ui_lang()))), AIO_CATV_TEXT_COLOR),
             array(aio_clean(implode(', ', $t['cast'])), AIO_CATV_CAST_COLOR));
         $desc = $t['description'];
