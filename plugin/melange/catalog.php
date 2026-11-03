@@ -14,10 +14,6 @@ define('AIO_CAT_UUID', 'e3778c33-0d0e-4d2e-a4db-a817b2d506f4');
 // Timeouts of a request, s: a cold row of the server takes up to 4.5 s.
 define('AIO_CAT_CONNECT', 5);
 define('AIO_CAT_TOTAL', 15);
-// No next request after this many s of one aio_cat_more (repeats only): with
-// AIO_CAT_TOTAL it stays under the 60 s of handle_user_input.
-if (!defined('AIO_CAT_BUDGET'))
-    define('AIO_CAT_BUDGET', 25);
 // A bigger reply (decoded) is cut off while it loads: 3 times the largest seen
 // (344 KB). Over this many objects and lists it is not decoded: 1 MB of "{}," takes
 // more than the 128 MB of PHP in json_decode, a Fatal; a real page of 50 tiles has
@@ -28,10 +24,9 @@ define('AIO_CAT_MAX_NODES', 40000);
 define('AIO_CAT_PAGE_TILES', 200);
 
 // Listing of a row. skip of 1000 and more is a 404 of the server, so the row ends
-// there. Pages of repeats only in a row before it ends: 4 were seen. The state
-// lives 5 h: the cursor of the server lives 6 h, and a lost one silently loses tiles.
+// there. The state lives 5 h: the cursor of the server lives 6 h, and a lost one
+// silently loses tiles.
 define('AIO_CAT_SKIP_MAX', 1000);
-define('AIO_CAT_DRY_MAX', 6);
 define('AIO_CAT_STATE_TTL', 18000);
 
 // Cache in data_dir/catalog: a failure right after a reboot has it too, tmp_dir
@@ -233,8 +228,8 @@ function aio_cat_manifest_fetch($limit = 0)
 }
 
 // Rows of the catalog: from the cache for AIO_CAT_FRESH, else from the server; on
-// a failure the last good copy with stale and age (s) set, err tells why ('' none;
-// aio_cat_get). No copy either: no rows and err.
+// a failure the last good copy with stale set, err tells why ('' none; aio_cat_get).
+// No copy either: no rows and err.
 /**
  * @return AioCatRows
  */
@@ -242,11 +237,11 @@ function aio_cat_manifest()
 {
     $c = aio_cat_manifest_copy();
     if ($c['rows'] && aio_cat_is_fresh($c))
-        return array('rows' => $c['rows'], 'stale' => false, 'age' => 0, 'err' => '');
+        return array('rows' => $c['rows'], 'stale' => false, 'err' => '');
     $new = aio_cat_manifest_fetch();
     if ($new['rows'])
-        return array('rows' => $new['rows'], 'stale' => false, 'age' => 0, 'err' => '');
-    return array('rows' => $c['rows'], 'stale' => (bool) $c['rows'], 'age' => $c['rows'] ? max(0, time() - $c['t']) : 0, 'err' => $new['err']);
+        return array('rows' => $new['rows'], 'stale' => false, 'err' => '');
+    return array('rows' => $c['rows'], 'stale' => (bool) $c['rows'], 'err' => $new['err']);
 }
 
 // The rows for the screen by the choice of the user (Aio::$settings['cat_rows']).
@@ -326,9 +321,8 @@ function aio_cat_tile($m, $row_type)
     $type = aio_str($m, 'type');
     if ($type !== 'movie' && $type !== 'series')
         $type = $row_type === 'movie' || $row_type === 'series' ? $row_type : '';
-    $release = aio_cut(aio_one_line(aio_str($m, 'releaseInfo')), 40);
     $year = '';
-    if (preg_match('/^[0-9]{4}/', aio_str($m, 'year'), $x) || preg_match('/^[0-9]{4}/', $release, $x))
+    if (preg_match('/^[0-9]{4}/', aio_str($m, 'year'), $x) || preg_match('/^[0-9]{4}/', aio_str($m, 'releaseInfo'), $x))
         $year = $x[0];
     $rating = aio_str($m, 'imdbRating');
     $genres = array();
@@ -339,7 +333,7 @@ function aio_cat_tile($m, $row_type)
             $genres[] = $g;
     }
     return array('id' => $id, 'imdb_id' => $imdb, '_tmdbId' => $tmdb, 'type' => $type, 'name' => $name, 'year' => $year,
-        'releaseInfo' => $release, 'imdbRating' => preg_match('/^[0-9]{1,2}(\.[0-9]+)?$/', $rating) ? $rating : '',
+        'imdbRating' => preg_match('/^[0-9]{1,2}(\.[0-9]+)?$/', $rating) ? $rating : '',
         'description' => aio_cut(aio_one_line(aio_str($m, 'description')), AIO_CAT_DESC_MAX), 'genres' => $genres,
         'poster' => aio_cat_img($m, 'poster'), 'background' => aio_cat_img($m, 'background'));
 }
@@ -382,16 +376,56 @@ function aio_cat_page_path($row, $skip)
 }
 
 // The state of a new listing of row $row (aio_cat_manifest), the argument of
-// aio_cat_more. The caller keeps it where the tiles are: t0: when its first page
-// was got (0: none yet), skip: all tiles got, repeats too, dry: pages of repeats
-// only in a row, end: why it ended ('' not yet; empty, skip, dry), seen: ids.
+// aio_cat_more. The caller keeps it where the tiles are and changes it only by the
+// functions here: t0: when its first page was got (0: none yet), skip: all tiles got,
+// repeats too, end: why it ended ('' not yet; empty, skip, search), seen: ids.
 /**
  * @param AioCatRow $row
  * @return AioCatState
  */
 function aio_cat_row_state($row)
 {
-    return array('row' => $row, 't0' => 0, 'skip' => 0, 'dry' => 0, 'end' => '', 'seen' => array());
+    return array('row' => $row, 't0' => 0, 'skip' => 0, 'end' => '', 'seen' => array());
+}
+
+// A listing with nothing more to ask for: the results of a search.
+/**
+ * @param AioCatRow $row
+ * @return AioCatState
+ */
+function aio_cat_ended_state($row)
+{
+    $st = aio_cat_row_state($row);
+    $st['end'] = 'search';
+    return $st;
+}
+
+// A listing from the saved first page of a row (aio_cat_page_cached), as if just got.
+/**
+ * @param AioCatRow $row
+ * @param AioCatCached $c
+ * @return array{st: AioCatState, tiles: list<AioCatTile>}
+ */
+function aio_cat_state_of_copy($row, $c)
+{
+    $st = aio_cat_row_state($row);
+    $res = aio_cat_result();
+    $st['t0'] = $c['t'];
+    aio_cat_take($st, $res, $c['n'], $c['data']);
+    return array('st' => $st, 'tiles' => $res['tiles']);
+}
+
+// $tiles the caller keeps after a reset: they do not come as new again.
+/**
+ * @param AioCatState $st
+ * @param array<int|string, AioCatTile> $tiles
+ * @param-out AioCatState $st
+ * @return void
+ */
+function aio_cat_keep_seen(&$st, $tiles)
+{
+    foreach ($tiles as $t)
+        $st['seen'][$t['id']] = true;
 }
 
 /**
@@ -399,7 +433,7 @@ function aio_cat_row_state($row)
  */
 function aio_cat_result()
 {
-    return array('tiles' => array(), 'reset' => false, 'end' => false, 'stale' => false, 'age' => 0, 'err' => '');
+    return array('tiles' => array(), 'reset' => false, 'end' => false, 'stale' => false, 'err' => '');
 }
 
 // A page taken into the listing: new tiles to $res, skip counts all $n got, end set
@@ -425,11 +459,8 @@ function aio_cat_take(&$st, &$res, $n, $tiles)
         $new++;
     }
     $st['skip'] += $n;
-    $st['dry'] = $new > 0 ? 0 : $st['dry'] + 1;
     if ($st['skip'] >= AIO_CAT_SKIP_MAX)
         $st['end'] = 'skip';
-    else if ($st['dry'] >= AIO_CAT_DRY_MAX)
-        $st['end'] = 'dry';
     $res['end'] = $st['end'] !== '';
     return $new;
 }
@@ -460,26 +491,25 @@ function aio_cat_page_key($row, $skip)
 }
 
 // The next tiles of a row: at least one new unless it failed, ended or ran out of
-// AIO_CAT_BUDGET (then call again, the state goes on). Moves $st on.
+// $limit (then call again, the state goes on). Moves $st on.
 // -> tiles: the new ones (no repeats of this listing); reset: the listing began
 // anew after 5 h, the tiles replace those of the caller; end: nothing more to ask
 // for; err: why it failed ('' none; aio_cat_get, or empty: a first page came empty
-// though the row had tiles); stale, age (s): tiles from the last good copy. On a
-// failure the state stays for a retry, unless the copy moved it on: a failure is
-// never the end of a row. A short page or a page of repeats is not the end either.
-// $limit: s for this call instead of AIO_CAT_BUDGET, requests cut to what is left of it.
+// though the row had tiles); stale: tiles from the last good copy. On a failure the
+// state stays for a retry, unless the copy moved it on: a failure is never the end of
+// a row. A short page or a page of repeats is not the end either.
+// $limit: s for this call, no next request after it, requests cut to what is left of it.
 /**
  * @param AioCatState $st
  * @param float $limit
  * @param-out AioCatState $st
  * @return AioCatResult
  */
-function aio_cat_more(&$st, $limit = 0.0)
+function aio_cat_more(&$st, $limit)
 {
     $row = $st['row'];
     $res = aio_cat_result();
     $start = microtime(true);
-    $budget = $limit > 0 ? $limit : AIO_CAT_BUDGET;
     while (true)
     {
         $now = time();
@@ -497,7 +527,7 @@ function aio_cat_more(&$st, $limit = 0.0)
         else
         {
             // curl takes whole seconds.
-            $left = $limit > 0 ? max(1, intval(ceil($limit - (microtime(true) - $start)))) : 0;
+            $left = max(1, intval(ceil($limit - (microtime(true) - $start))));
             $g = aio_cat_get(aio_cat_page_path($row, $skip), "{$row['key']} skip=$skip", 'metas', $left);
             $tiles = aio_cat_tiles($g['list'], $row['type']);
             $page = array('err' => $g['err'], 'n' => count($g['list']), 't' => time(), 'tiles' => $tiles);
@@ -515,7 +545,6 @@ function aio_cat_more(&$st, $limit = 0.0)
             if (!$c)
                 return $res;
             $res['stale'] = true;
-            $res['age'] = max(0, $now - $c['t']);
             if ($st['skip'] === 0)
                 $st['t0'] = $c['t'];
             aio_cat_take($st, $res, $c['n'], $c['data']);
@@ -536,7 +565,7 @@ function aio_cat_more(&$st, $limit = 0.0)
         }
         // No new tiles and not the end: the next portion at once.
         if (aio_cat_take($st, $res, $page['n'], $page['tiles']) > 0 || $st['end'] !== '' ||
-            microtime(true) - $start >= $budget)
+            microtime(true) - $start >= $limit)
             return $res;
     }
 }
@@ -572,7 +601,6 @@ function aio_cat_search_type($type, $q)
         {
             $res['tiles'] = aio_cat_unique($old);
             $res['stale'] = true;
-            $res['age'] = max(0, time() - $c['t']);
         }
         return $res;
     }
@@ -657,7 +685,8 @@ function aio_cat_cache_path($key)
     return $dir === '' ? '' : "$dir/" . ($key === AIO_CAT_MANIFEST_KEY ? $key : md5($key)) . '.json';
 }
 
-// -> array(t: when saved, n: items of the reply, data) or null; a broken or expired file is removed.
+// -> array(t: when saved, n: items of the reply, data) or null; a broken or expired file
+// is removed, unless AIO_CAT_READ_ONLY.
 /**
  * @param string $key
  * @return array{t: int, n: int, data: array<mixed>}|null
@@ -671,19 +700,39 @@ function aio_cat_cache_read($key)
     if (is_array($c) && isset($c['v'], $c['t'], $c['n'], $c['data']) && $c['v'] === AIO_CAT_CACHE_V && is_int($c['t']) &&
         is_int($c['n']) && $c['n'] >= 1 && is_array($c['data']) && time() - $c['t'] < AIO_CAT_KEEP)
         return array('t' => $c['t'], 'n' => $c['n'], 'data' => $c['data']);
-    unlink($f);
+    if (!defined('AIO_CAT_READ_ONLY'))
+        unlink($f);
     return null;
 }
 
 // Saved less than AIO_CAT_FRESH ago. A saved time ahead of the clock (a clock not
 // set after a reboot) is not fresh, but still a last good copy.
 /**
+ * @param int $t
+ * @return bool
+ */
+function aio_cat_fresh_since($t)
+{
+    return time() >= $t && time() - $t < AIO_CAT_FRESH;
+}
+
+/**
  * @param array{t: int}|null $c
  * @return bool
  */
 function aio_cat_is_fresh($c)
 {
-    return $c !== null && time() >= $c['t'] && time() - $c['t'] < AIO_CAT_FRESH;
+    return $c !== null && aio_cat_fresh_since($c['t']);
+}
+
+// The first page of the listing was got less than AIO_CAT_FRESH ago.
+/**
+ * @param AioCatState $st
+ * @return bool
+ */
+function aio_cat_state_fresh($st)
+{
+    return aio_cat_fresh_since($st['t0']);
 }
 
 /**
