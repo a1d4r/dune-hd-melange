@@ -1,11 +1,12 @@
 <?php
 // Settings screen (media_url "setup", controls) and "Set up from a phone":
 // a QR with the address of the settings page (cgi/settings.php). The page
-// writes data_dir/settings.json, the plugin only reads it; the QR dialog
-// polls the file by its timer. The token of the page is permanent (a
-// bookmark keeps working): data_dir/web_token, written here only, new on
-// "Change the link". Neither the token nor the page address goes to the log.
-// Reads Aio::$settings.
+// writes data_dir/settings.json, the plugin reads it; the QR dialog polls the
+// file by its timer. The one write of the plugin: "Quick setup: torrents"
+// (0.51.0, aio_setup_quick), as the page saves "Торренты". The token of the
+// page is permanent (a bookmark keeps working): data_dir/web_token, written
+// here only, new on "Change the link". Neither the token nor the page address
+// goes to the log. Reads Aio::$settings.
 
 define('AIO_SETUP_TICK_MS', 1500);
 // Seconds the QR dialog waits after a save for the config the page makes
@@ -63,7 +64,9 @@ function aio_no_address($lang)
     aio_log("error: $key -> " . (AIO_NO_ADDR_DIALOG ? 'dialog' : 'settings screen'));
     if (!AIO_NO_ADDR_DIALOG)
         return aio_setup_open_act();
+    // The language of the card on to the quick setup: its dialogs say what next.
     return aio_dialog(aio_tr($lang, $key), array(), array(
+        aio_tr($lang, 'setup_quick') => aio_close_and(aio_input('setup_quick', array('lang' => $lang === 'ru' ? 'ru' : 'en'), 0)),
         aio_tr($lang, 'setup_open') => aio_close_and(aio_setup_open_act()),
         aio_tr($lang, 'setup_close') => aio_close_and(null)));
 }
@@ -107,8 +110,13 @@ function aio_setup_defs($p)
     $defs[] = aio_setup_label('JacRed', $jr !== '' ? $jr : '%tr%setup_not_set');
     if ($dir === '' || !is_dir($dir))
         $defs[] = aio_setup_label(null, '%tr%err_setup_dir');
+    // No AIOStreams yet: the quick setup first; no link of the page to change.
+    $none = aio_manifest_base(aio_settings_manifest($s)) === '';
+    if ($none)
+        $defs[] = aio_setup_button('quick', '%tr%setup_quick', aio_input('setup_quick', $p, 0));
     $defs[] = aio_setup_button('phone', '%tr%setup_phone', aio_input('setup_qr', $p));
-    $defs[] = aio_setup_button('relink', '%tr%setup_relink', aio_input('setup_relink', $p));
+    if (!$none)
+        $defs[] = aio_setup_button('relink', '%tr%setup_relink', aio_input('setup_relink', $p));
     return $defs;
 }
 
@@ -349,6 +357,135 @@ function aio_setup_refresh($p)
             PluginInvalidateFoldersActionData::all_except => false));
 }
 
+// The request of aio_conf_create for the quick setup, as the page sends it
+// (aio_cgi_aio_req): POST of $json to /api/v1/user of the server $base by
+// aio_http_json -> array(curl errno (-1: none known), HTTP code,
+// aio_conf_decode of the body; null: not JSON or over AIO_CONF_API_MAX). Only
+// a POST: $method and $auth are those of aio_conf_create (POST, none).
+/**
+ * @param string $base
+ * @param string $method
+ * @param string $json
+ * @param mixed $auth
+ * @return array{int, int, mixed}
+ */
+function aio_quick_req($base, $method, $json, $auth)
+{
+    list($code, $body) = aio_http_json("$base/api/v1/user", $json, $err, 5, AIO_CONF_API_TIMEOUT, AIO_CONF_API_MAX);
+    if ($err !== '' && $err !== AIO_HTTP_TOO_BIG)
+        return array(preg_match('/^curl ([0-9]+):/', $err, $m) ? intval($m[1]) : -1, 0, null);
+    return array(0, $code, $body !== '' ? aio_conf_decode($body) : null);
+}
+
+// The quick setup failed by the reply $r of aio_conf_create (null: no
+// template in the plugin) -> its error; the message of the server is shown,
+// never logged.
+/**
+ * @param array{int, int, mixed}|null $r
+ * @return array<string, mixed>
+ */
+function aio_quick_fail($r)
+{
+    if (!$r)
+        return aio_error('err_quick_server', 'no template in the plugin');
+    list($e, $code, $j) = $r;
+    list($ec, $msg) = aio_conf_err($j);
+    if ($ec !== '')
+        aio_log("setup: quick: $ec");
+    if ($e)
+        return aio_error('err_quick_net', $e > 0 ? "curl $e" : '');
+    if ($code === 429)
+        return aio_error('err_quick_limit');
+    if ($msg === '')
+        return aio_error('err_quick_server', "HTTP $code");
+    aio_log('error: err_quick_server (its message)');
+    return aio_error('err_quick_server', $msg, false, false);
+}
+
+// The mode "Торренты" on the server of Melange, as the page saves it (the
+// answer "Торренты" of "Где брать фильмы", the server of the list): the rest
+// of $s as it is (aio_tpl_p2p, its default p2p_jacred; the Debrid keys,
+// no_torrents - in this mode only kept).
+/**
+ * @param AioSettings $s
+ * @return AioSettings
+ */
+function aio_quick_settings($s)
+{
+    $s['source'] = 'made';
+    $s['aio_server'] = AIO_AIO_SERVER_MELANGE;
+    $s['aio_mode'] = AIO_MODE_P2P;
+    return $s;
+}
+
+// "Quick setup: torrents" (0.51.0) of the settings screen ($p of
+// aio_setup_params) and of the window "No config" of play_action
+// ($p['lang']: of the card). TorrServer is asked first (aio_ts_alive): none is
+// no stop, the catalog and search work without it - said after. The settings
+// of aio_quick_settings; the config there in that mode made by aio_conf_create
+// (one there already: no request). settings.json is written only after it,
+// read again just before (as the page); a failure writes nothing. Then as
+// after a save of the page: the settings screen replaced (aio_setup_refresh);
+// in the window of the card - what to do next.
+/**
+ * @param array<string, string> $p
+ * @return array<string, mixed>
+ */
+function aio_setup_quick($p)
+{
+    $dir = aio_data_dir();
+    if ($dir === '' || !is_dir($dir))
+        return aio_error('err_setup_dir');
+    // A file there not read (aio_settings_load logged why): not overwritten with the defaults.
+    $s = aio_quick_settings(aio_settings_read($dir, $why));
+    if ($why !== '')
+        return aio_error('err_quick_read');
+    $ts = aio_ts_alive();
+    require_once dirname(__FILE__) . '/cgi/aio_conf.php';
+    $conf = aio_settings_conf($s);
+    if ($conf)
+        aio_log('setup: quick: a config of P2P there, no request');
+    else
+    {
+        $pass = substr(aio_setup_rand_hex(), 0, 24);
+        if ($pass === '')
+        {
+            aio_log('setup: quick: no source of random bytes');
+            return aio_error('err_setup_write');
+        }
+        $t = microtime(true);
+        list($conf, $r) = aio_conf_create($s, null, $pass, 'aio_quick_req');
+        aio_log(sprintf('setup: quick: create: %s%s, %.2f s', !$r ? 'no template' : ($r[0] ? "curl $r[0]" : "HTTP $r[1]"),
+            $conf ? ', made' : '', microtime(true) - $t));
+        if (!$conf)
+            return aio_quick_fail($r);
+    }
+    // Read again: the page may have saved while the server answered.
+    $s = aio_quick_settings(aio_settings_read($dir));
+    $s['aio_confs'][AIO_AIO_SERVER_MELANGE][AIO_MODE_P2P] = $conf;
+    if (!aio_settings_write($s))
+    {
+        aio_log('setup: quick: settings.json not written');
+        return aio_error('err_quick_write');
+    }
+    aio_log('setup: quick: saved' . ($ts ? '' : ', TorrServer does not answer'));
+    // The screen of the catalog under it is read by this operation too.
+    aio_settings_load();
+    $card = isset($p['lang']);
+    $lang = $card ? $p['lang'] : aio_catv_lang();
+    $lines = $ts ? array() : aio_dialog_lines(aio_tr($lang, 'quick_no_ts'));
+    if ($card)
+        return aio_dialog(aio_tr($lang, 'quick_done'), array_merge($lines, aio_dialog_lines(aio_tr($lang, 'quick_again'))),
+            array('OK' => aio_close_and(null)));
+    if ($ts)
+        return aio_setup_refresh($p);
+    // OK or Back: the screen replaced after the dialog (as the QR dialog does).
+    $a = aio_dialog(aio_tr($lang, 'quick_done'), $lines, array('OK' => aio_close_and(aio_input('setup_refresh', $p))));
+    $a[GuiAction::data][ShowDialogActionData::close_by_return] = false;
+    $a[GuiAction::data][ShowDialogActionData::actions] = array(GUI_EVENT_KEY_RETURN => aio_input('setup_quick_ok', $p));
+    return $a;
+}
+
 function aio_setup_relink($p)
 {
     return aio_dialog('%tr%setup_relink', array('%tr%setup_relink_warn'), array(
@@ -365,6 +502,9 @@ function aio_setup_input($in, $control)
         if (aio_catv_in($in, $k) !== '')
             $p[$k] = aio_catv_in($in, $k);
     }
+    // The quick setup from the window of a card: its language.
+    if (in_array(aio_catv_in($in, 'lang'), array('ru', 'en'), true))
+        $p['lang'] = aio_catv_in($in, 'lang');
     if ($control === 'setup')
     {
         // The "Settings" item of the popup menu of the Applications icon.
@@ -381,5 +521,10 @@ function aio_setup_input($in, $control)
         return aio_setup_relink($p);
     if ($control === 'setup_relink_do')
         return aio_setup_qr($p, true);
+    if ($control === 'setup_quick')
+        return aio_setup_quick($p);
+    // Back in the dialog of the quick setup: closed, the screen replaced.
+    if ($control === 'setup_quick_ok')
+        return aio_close_and(aio_input('setup_refresh', $p));
     return null;
 }

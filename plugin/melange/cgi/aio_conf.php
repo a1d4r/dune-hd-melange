@@ -22,6 +22,11 @@ define('AIO_CONF_TEMPLATE_P2P', 'aio_template_p2p.json');
 define('AIO_CONF_MAGNETIO_URL', 'https://magnetio.peterdsp.dev');
 define('AIO_CONF_MAGNETIO_LIMIT', 100);
 
+// A reply of /api/v1/user: 1 MB at most; 20 s a request (POST and PUT took
+// about a second). The page and the quick setup of the plugin.
+define('AIO_CONF_API_MAX', 1048576);
+define('AIO_CONF_API_TIMEOUT', 20);
+
 // PHP on Dune is 32-bit and json_decode of 5.3 clamps big integers to
 // 2147483647: numbers of 10+ digits (sizes in bytes of the filters) pass
 // as strings with this mark ("\u0001big:" in JSON) and come back as they were.

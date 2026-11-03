@@ -354,6 +354,20 @@ function aio_write_file($path, $data)
     return $ok;
 }
 
+// settings.json of the settings $s (aio_settings_read) as the page writes
+// it (aio_settings_json: whole, saved_at now), by php_server: a fresh file of
+// its uid, 0600, renamed over (aio_write_file). The page reads it as root and
+// gives a file it writes to the owner of web_token, php_server too. -> success.
+/**
+ * @param AioSettings $s
+ * @return bool
+ */
+function aio_settings_write($s)
+{
+    $json = aio_settings_json($s);
+    return $json !== '' && aio_data_dir() !== '' && aio_write_file(aio_data_dir() . '/' . AIO_SETTINGS_FILE, $json);
+}
+
 // data_dir/settings.json, read at the start of every operation, before its
 // first log line (the values are masked there). Not cached: the page writes
 // it while php_server runs.
@@ -525,6 +539,56 @@ if (!function_exists('aio_http_post'))
         $err = $ok === false ? 'curl ' . curl_errno($ch) . ': ' . curl_error($ch) : '';
         curl_close($ch);
         return array($code, $err !== '' ? '' : $body, implode('; ', $cookies));
+    }
+}
+
+// Tests define their own aio_http_json().
+if (!function_exists('aio_http_json'))
+{
+    // POST of the JSON $json to an API of AIOStreams (the quick setup:
+    // /api/v1/user) -> array(HTTP code, body). $err is set on a transport
+    // error, to AIO_HTTP_TOO_BIG (body '') when the decoded body passes $max
+    // bytes. As the page sends it (cgi/lib/aio_sync.php): no redirects, no
+    // "Expect: 100-continue", the User-Agent of aio_fetch, gzip.
+    function aio_http_json($url, $json, &$err, $connect, $total, $max)
+    {
+        $body = '';
+        $over = false;
+        $ch = curl_init($url);
+        $set = curl_setopt_array($ch, array(
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_CONNECTTIMEOUT => $connect,
+            CURLOPT_TIMEOUT => $total,
+            CURLOPT_CAINFO => AIO_CA_BUNDLE,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_ENCODING => '',
+            CURLOPT_USERAGENT => 'AIOStreams-DuneClient/' . AIO_VERSION,
+            CURLOPT_HTTPHEADER => array('Accept: application/json', 'Content-Type: application/json', 'Expect:'),
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$over, $max)
+            {
+                if (strlen($body) + strlen($chunk) > $max)
+                {
+                    $over = true;
+                    return 0;
+                }
+                $body .= $chunk;
+                return strlen($chunk);
+            }));
+        if (!$set)
+        {
+            curl_close($ch);
+            $err = 'curl options refused';
+            return array(0, '');
+        }
+        $ok = curl_exec($ch);
+        $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+        $err = $over ? AIO_HTTP_TOO_BIG : ($ok === false ? 'curl ' . curl_errno($ch) . ': ' . curl_error($ch) : '');
+        curl_close($ch);
+        return array($code, $err !== '' ? '' : $body);
     }
 }
 
@@ -1086,8 +1150,9 @@ function aio_tr($lang, $key, $ep = '')
     return $ep !== '' ? str_replace('{ep}', $ep, $s) : trim(str_replace(array(' {ep}', '{ep}'), '', $s));
 }
 
-// handle_user_input of our plugin, 60 s; "Please wait" after AIO_DELAY_INPUT ms.
-function aio_input($control, $params = array())
+// handle_user_input of our plugin, 60 s; "Please wait" after $delay ms (0: at
+// once, a request to the internet for sure: the quick setup).
+function aio_input($control, $params = array(), $delay = AIO_DELAY_INPUT)
 {
     return array(
         GuiAction::handler_string_id => PLUGIN_HANDLE_USER_INPUT_ACTION_ID,
@@ -1095,7 +1160,7 @@ function aio_input($control, $params = array())
         GuiAction::plugin_name => AIO_PLUGIN,
         GuiAction::data => array(
             PluginHandleUserInputActionData::operation_timeout => 60000,
-            PluginHandleUserInputActionData::show_dialog_delay => AIO_DELAY_INPUT),
+            PluginHandleUserInputActionData::show_dialog_delay => $delay),
         GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => $control), $params));
 }
 

@@ -7,11 +7,6 @@
 // server by "Сохранить" (a=aio_sync of the script, or within the save
 // without JS). A config per server and mode (aio_mode), none is ever deleted.
 
-// The reply of /api/v1/user: 1 MB at most; 20 s each (POST and PUT took
-// about a second).
-define('AIO_CGI_AIO_MAX', 1048576);
-define('AIO_CGI_AIO_TIMEOUT', 20);
-
 // The API $what (user, status) of the server $base; with AIO_CGI_TEST_API
 // (tests) <stub>/aio/<host[:port]> instead of $base.
 function aio_cgi_aio_api($base, $what)
@@ -39,8 +34,8 @@ function aio_cgi_aio_req($base, $method, $json, $auth, $what = 'user')
         'body' => $json,
         'headers' => $h,
         'connect' => 5,
-        'total' => AIO_CGI_AIO_TIMEOUT,
-        'max' => AIO_CGI_AIO_MAX,
+        'total' => AIO_CONF_API_TIMEOUT,
+        'max' => AIO_CONF_API_MAX,
         'ua' => 'AIOStreams-DuneClient/' . AIO_VERSION,
         'gzip' => true));
     if ($r['errno'])
