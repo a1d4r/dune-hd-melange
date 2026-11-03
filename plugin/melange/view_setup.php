@@ -31,15 +31,17 @@ class AioSetup
 }
 
 // The settings screen; $from: the screen of the catalog it is opened over,
-// "setup::<from>", so a save reads that one again (aio_setup_refresh).
+// "setup::<from>", so a save reads that one again (aio_setup_refresh), and its
+// caption is "Settings" (the path is "Melange > Settings", not "Melange > Melange").
 function aio_setup_open_act($from = '')
 {
+    $cat = aio_catv_is_main($from);
     return array(
         GuiAction::handler_string_id => PLUGIN_OPEN_FOLDER_ACTION_ID,
         GuiAction::plugin_name => AIO_PLUGIN,
         GuiAction::data => array(
-            PluginOpenFolderActionData::media_url => aio_catv_is_main($from) ? "setup::$from" : 'setup',
-            PluginOpenFolderActionData::caption => '%tr%plugin_caption'));
+            PluginOpenFolderActionData::media_url => $cat ? "setup::$from" : 'setup',
+            PluginOpenFolderActionData::caption => $cat ? '%tr%setup_menu' : '%tr%plugin_caption'));
 }
 
 // Params of the inputs of the settings screen $url, nothing kept in memory (a restart
@@ -113,20 +115,27 @@ function aio_setup_defs($p)
 // Data sources of the catalog at the bottom, small (TMDB terms): its logo (img/tmdb.png,
 // 185x24, smaller than ours) as the QR picture - a path in <icon> of a smart label.
 // The text is translated here: %tr% is a whole public string (SDK), not a part of markup.
+// A smart label is one line, cut at the screen edge: the TMDB notice (all of it is
+// required) in two, split at the last space before its middle.
 function aio_setup_credits()
 {
     $lang = aio_catv_lang();
     $dir = isset(DuneSystem::$properties['install_dir_path']) ? strval(DuneSystem::$properties['install_dir_path']) :
         dirname(__FILE__);
+    $t = aio_tr($lang, 'setup_tmdb');
+    $q = strrpos(substr($t, 0, intval(strlen($t) / 2)), ' ');
+    $q = $q === false ? strlen($t) : $q;
     $defs = array(
         aio_ctl('', GUI_CONTROL_VGAP, array(GuiVGapDef::vgap => 40)),
         aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
             '<icon width="185" height="24">' . rtrim($dir, '/') . '/img/tmdb.png</icon>')),
         aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
-            '<text size="small" color="7">' . aio_tr($lang, 'setup_tmdb') . '</text>')),
+            '<text size="small" color="7">' . substr($t, 0, $q) . '</text>')),
+        aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
+            '<text size="small" color="7">' . ltrim(substr($t, $q)) . '</text>')),
         aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
             '<text size="small" color="7">' . aio_tr($lang, 'setup_justwatch') . '</text>')));
-    for ($i = 1; $i < 4; $i++)
+    for ($i = 1; $i < 5; $i++)
         $defs[$i][GuiControlDef::params] = array('smart' => 1);
     return $defs;
 }
@@ -364,7 +373,7 @@ function aio_setup_refresh($p)
         GuiAction::handler_string_id => PLUGIN_INVALIDATE_FOLDERS_ACTION_ID,
         GuiAction::data => array(
             PluginInvalidateFoldersActionData::media_urls => array($from),
-            PluginInvalidateFoldersActionData::post_action => aio_replace_act("setup:$id:$from", '%tr%plugin_caption'),
+            PluginInvalidateFoldersActionData::post_action => aio_replace_act("setup:$id:$from", '%tr%setup_menu'),
             PluginInvalidateFoldersActionData::all_except => false));
 }
 
