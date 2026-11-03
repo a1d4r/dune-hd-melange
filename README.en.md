@@ -42,7 +42,7 @@ Updates: since 0.36.0 the Dune itself checks GitHub Pages for a new Melange vers
 - MENU on the release list screen → **Settings**;
 - if there is no config yet, choosing Melange in a card shows **"No AIOStreams config — open Melange settings"** (with your own config but no link: "The link to your AIOStreams config is not set") with the buttons **Set up** and **Close**; **Set up** opens the settings screen.
 
-**The settings screen.** A line **"AIOStreams - Melange config"** or **"AIOStreams - own config"** with the server address or **"not set"**; a **JacRed** line with the chosen JacRed (your own one is shown by its host); the buttons **Set up from a phone** and **Change the link**. At the bottom, in small print, the TMDB logo and lines about the sources of the catalog data (TMDB, JustWatch).
+**The settings screen.** A line **"AIOStreams - Melange config"** or **"AIOStreams - own config"** with the server address or **"not set"**; a **JacRed** line with the chosen JacRed (your own one is shown by its host); the buttons **Set up from a phone** and **Change the link**.
 
 1. Press **Set up from a phone**: a QR code appears, with the page address as text under it and the hint "You can bookmark this page".
 2. Scan the QR code with your phone: the **"Melange settings"** page opens.
@@ -101,7 +101,7 @@ If you change the password of your own config in AIOStreams, the config link cha
 
 **The catalog server.** Rows and search come from the shared AIOMetadata server of Melange, `aiometadata.kompotik.com` (the author runs it for plugin users); no keys or sign-up are needed. Posters also come through the cache of this server. If the server does not answer, a row with a saved copy shows it marked "saved copy", and a row without one shows a "Did not load" tile (ENTER on it retries; on r24 firmware such a row is not shown). "The catalog did not load. Check the network and retry" with a **"Retry"** button comes only when there is nothing to show: no saved list of rows (as on the very first opening), and on r24 also when no row loaded.
 
-**Where the data comes from.** <img src="plugin/melange/img/tmdb.png" alt="TMDB" height="16"> Movies, series and posters come from [TMDB](https://www.themoviedb.org/). This product uses the TMDB API but is not endorsed or certified by TMDB. Rows by streaming service use data from [JustWatch](https://www.justwatch.com/). Thanks to the authors of the collections:
+**Where the data comes from.** Movies, series and posters come from [TMDB](https://www.themoviedb.org/); rows by streaming service use data from [JustWatch](https://www.justwatch.com/). Thanks to the authors of the collections:
 - the parameters of most rows (genres, themes, studios, decades, streaming, countries, runtime) come from the AIOMetadata template of [luckynumb3rs/stremio-perfect-setup](https://github.com/luckynumb3rs/stremio-perfect-setup); the Russian rows and new releases were put together for Melange;
 - "Топ Кинопоиска (неофициально)" (Kinopoisk Top, unofficial) is an unofficial mirror of the Kinopoisk Top 250, the public list by [lotist on Letterboxd](https://letterboxd.com/lotist/list/250/); it is not Kinopoisk's own rating, and the row has the first 200 movies;
 - the anime rows "on AniList" come from [AniList](https://anilist.co/);
@@ -164,4 +164,4 @@ Where to send it: open an Issue on GitHub, https://github.com/a1d4r/dune-hd-mela
 - The plugin interface is in Russian and English, following the Dune language; the name is "Melange" in both.
 
 ## License
-MIT, see the `LICENSE` file in the repository. Quality badges are from [github.com/kingsizew/badges](https://github.com/kingsizew/badges). The catalog data and the logo are TMDB's; the sources of the rows are in "Catalog".
+MIT, see the `LICENSE` file in the repository. Quality badges are from [github.com/kingsizew/badges](https://github.com/kingsizew/badges). The sources of the rows are in "Catalog".
