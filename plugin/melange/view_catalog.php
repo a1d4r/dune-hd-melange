@@ -7,6 +7,7 @@
 
 // r24: seconds for rows at an opening, with the refresh of the manifest: what does not
 // make it stays hidden until the next one. A cold row takes up to 4.5 s, 6 rows 2.5 s.
+// r25: for the first row.
 define('AIO_CATV_OPEN_S', 3.0);
 // r25: one row of get_folder_rows, a key of the user waits for it; the stubs of a row.
 define('AIO_CATV_ROW_S', 5.0);
@@ -606,10 +607,11 @@ function aio_catv_message_view($key, $lang)
 }
 
 // The manifest does not hold the screen: a copy of any age goes; no copy: one request.
-// r25: no request for the rows, one rule for all: a fresh copy ready, an old one flagged,
-// none: stubs; get_folder_rows asks for the flagged ones and refreshes an old manifest
-// in the time left (none flagged: here, as r24). r24: the rows and the manifest load
-// here, in AIO_CATV_OPEN_S.
+// r25: one request for the rows, the first one if not fresh, never flagged (a copy marked
+// saved or a tile "did not load" on a failure); the others: a fresh copy ready, an old one
+// flagged, none: stubs; get_folder_rows asks for the flagged ones and refreshes an old
+// manifest in the time left (none flagged: here, as r24). r24: the rows and the manifest
+// load here, in AIO_CATV_OPEN_S.
 /**
  * @param string $media_url
  * @param mixed $sel_state
@@ -646,17 +648,31 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     $left = AIO_CATV_OPEN_MAX_S - (microtime(true) - $start);
     aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S, $left));
+    // r25: the first row is never flagged. The focus is on the headers and the selection
+    // in the first row: the shell redraws a row it replaces with the selection in it as
+    // active, over the rows under it (device, 0.50.0). It loads here, as on r24.
+    $first = $loading && $shown ? aio_catv_rid($shown[0]) : '';
+    if ($first !== '' && !(isset(AioCat::$lists[$first]) && aio_cat_state_fresh(AioCat::$lists[$first]['st'])) &&
+        !aio_catv_is_down())
+        aio_catv_load_first($shown[0], max(AIO_CATV_MIN_S, min(AIO_CATV_OPEN_S, AIO_CATV_OPEN_MAX_S - (microtime(true) - $start))));
     foreach ($shown as $row)
     {
         $rid = aio_catv_rid($row);
         if (isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
         {
             $flag = aio_cat_state_fresh(AioCat::$lists[$rid]['st']) ? 0 : $loading;
+            if ($flag && $rid === $first)
+            {
+                AioCat::$lists[$rid]['stale'] = true;
+                $flag = 0;
+            }
             if ($flag)
                 AioCat::$on_screen[$rid] = AioCat::$lists[$rid]['tiles'];
             $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang, null, $flag));
             $asked = $asked || $flag;
         }
+        else if ($rid === $first)
+            $defs = array_merge($defs, aio_catv_row_note($row, $lang, aio_catv_is_empty($rid) ? 'cat_row_empty' : 'cat_row_failed'));
         else if ($loading)
         {
             $defs = array_merge($defs, aio_catv_row_note($row, $lang, ''));
