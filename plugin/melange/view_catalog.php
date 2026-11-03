@@ -27,6 +27,7 @@ define('AIO_CATV_GRID_PORTION', 50);
 // fit TEXT_W), then the description. Names up to 197, descriptions up to 1096 characters
 // were seen. DESC_CHARS: of the text of an item of the grid.
 define('AIO_CATV_PANE_W', 950);
+define('AIO_CATV_PANE_H', 560);
 define('AIO_CATV_TEXT_W', 800);
 define('AIO_CATV_TITLE_PX', 120);
 define('AIO_CATV_TITLE_MIN_PX', 36);
@@ -35,7 +36,6 @@ define('AIO_CATV_LINE_MIN_PX', 15);
 define('AIO_CATV_TITLE_COLOR', '#FFFFFFE0');
 define('AIO_CATV_TEXT_COLOR', '#FFAFAFA0');
 define('AIO_CATV_CAST_COLOR', '#FFFFFF40');
-define('AIO_CATV_DESC_LINES', 4);
 define('AIO_CATV_DESC_CHARS', 360);
 // The TMDB size of a background; w780 if the shell runs short of memory.
 define('AIO_CATV_BG_SIZE', 'w1280');
@@ -543,7 +543,7 @@ function aio_catv_rows_view($defs, $sel_state, $from)
         PluginRowsPane::screen_r => array('w' => 1920, 'h' => 1080, 'x' => 0, 'y' => 0),
         PluginRowsPane::screen_y2 => 600,
         PluginRowsPane::min_row_index_for_y2 => 0,
-        PluginRowsPane::info_r => array('w' => AIO_CATV_PANE_W, 'h' => 560, 'x' => 100, 'y' => 40),
+        PluginRowsPane::info_r => array('w' => AIO_CATV_PANE_W, 'h' => AIO_CATV_PANE_H, 'x' => 100, 'y' => 40),
         PluginRowsPane::vod_r => array('w' => 1280, 'h' => 720, 'x' => 640, 'y' => 0),
         PluginRowsPane::regular_item_params_templates => array('common' => array(
             PluginRegularItemParams::def => aio_catv_item_vars(200, 302, 0, 190, 285, 7, 10, '#FFAFAFA0'),
@@ -1021,8 +1021,8 @@ function aio_catv_fit($text, $max, $min, $width)
 
 // The panel of the native catalog, on its coordinates (movie_helper.php, the same info_r):
 // the title, then lines 46 px high from y 199 in steps of 50, the description 7 px above
-// where the next line would be, 4 lines at most; no line for an empty field, the next
-// ones go up. The native original title
+// where the next line would be, as many lines as the rest of the panel holds, as the
+// native one counts them; no line for an empty field, the next ones go up. The native original title
 // under the title is not known here: the title takes its place, the bottom at y 186.
 // "Show all": the name of the row and the caption of the tile. null without a tile or a row in memory (a stub, a message, a restart
 // of php_server). No label with an empty text: whether the shell takes one is not known.
@@ -1068,15 +1068,18 @@ function aio_catv_info($in)
         $labels[] = aio_catv_info_label($fit[1], $fit[0], $l[1], AIO_CATV_TEXT_W, 46, $y - 3);
         $y += 50;
     }
-    // Cut here to the lines, "…" on the last one; the shell, with a little more room, breaks them no sooner.
-    $desc = implode(' ', aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, AIO_CATV_DESC_LINES, true));
+    // Lines of 30 px 5 px apart; cut here to them, "…" on the last one; the shell, with a
+    // little more room, breaks them no sooner.
+    $y -= 10;
+    $n = intval((AIO_CATV_PANE_H - $y - AIO_CATV_LINE_PX) / (AIO_CATV_LINE_PX + 5));
+    $desc = implode(' ', aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, $n, true));
     if ($desc !== '')
-        $labels[] = aio_catv_info_label($desc, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR, AIO_CATV_TEXT_W, -1, $y - 10,
-            array(GCompTtfLabelDef::max_num_lines => AIO_CATV_DESC_LINES, GCompTtfLabelDef::line_spacing => 5));
+        $labels[] = aio_catv_info_label($desc, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR, AIO_CATV_TEXT_W, -1, $y,
+            array(GCompTtfLabelDef::max_num_lines => $n, GCompTtfLabelDef::line_spacing => 5));
     $pane = array(
         GComponentDef::geom_def => array(
             GCompGeometryDef::w => AIO_CATV_PANE_W,
-            GCompGeometryDef::h => 560,
+            GCompGeometryDef::h => AIO_CATV_PANE_H,
             GCompGeometryDef::align_def => array(GCompAlignDef::x => 0, GCompAlignDef::y => 0)),
         GComponentDef::kind => GCOMPONENT_PANEL,
         GComponentDef::id => 'info_pane',
