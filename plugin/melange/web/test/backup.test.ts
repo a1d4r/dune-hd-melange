@@ -148,7 +148,7 @@ describe("the import", () => {
     ["31 characters", OTHER.slice(1)],
     ["33 characters", OTHER + "0"],
     ["a newline after", OTHER + "\n"],
-    ["a UUID", "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b"],
+    ["a UUID", "00000000-0000-4000-8000-00000000000a"],
     ["a number", 123],
     ["a list", [OTHER]],
     ["null", null],
