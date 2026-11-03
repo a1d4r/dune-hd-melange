@@ -3,7 +3,7 @@
 [Русский](README.md) | **English**
 
 ## What it is
-A Dune HD plugin that adds a **Melange** item to the **Play...** menu of a movie or series card in the Dune **Movies** catalog. The item opens a list of releases from **your** AIOStreams config, and the chosen release plays in the Dune's built-in player.
+A Dune HD plugin that adds a **Melange** item to the **Play...** menu of a movie or series card in the Dune **Movies** catalog. The item opens a list of releases from **your** AIOStreams config, and the chosen release plays in the Dune's built-in player. Melange also has a catalog of its own: **Apps → Melange**, rows of movies and series and a search (see "Catalog").
 
 **Debrid (Real-Debrid or TorBox with a subscription) is optional.** With it, cached releases start at once; without it, the "Torrents" answer: Melange makes a config without a key, and releases play via TorrServer on the Dune. A ready AIOStreams config of your own works too (see "What you need").
 
@@ -13,6 +13,7 @@ What it does:
 - series: all episodes of a season play in a row in the player (P+ / P− and auto-advance) on the same release; flip episodes right in the list with ← / →;
 - playback via TorrServer, without Debrid (P2P releases) or, if chosen in the menu, for an uncached release, with the same history;
 - studio voice-overs from the release name and its tracks; optionally, tracks from JacRed;
+- a catalog of its own: rows of collections (trending, new releases, Russian, genres, streaming services and more; you choose which to show) and a search;
 - setup from a phone by a QR code; "Download the log" is there too.
 
 <img src="screenshots/film-list.jpg" alt="Release list of a movie with details of the selected release" width="49%"> <img src="screenshots/series-menu.jpg" alt="Series: release menu with TorrServer and download items" width="49%">
@@ -36,11 +37,12 @@ Updates: since 0.36.0 the Dune itself checks GitHub Pages for a new Melange vers
 ## First setup (by QR code)
 **Where to open the settings screen** (every way leads to the same screen):
 - **Setup → Apps → Melange**;
-- the **Melange** icon in **Apps → Dune HD**: ENTER opens the screen, and so does MENU → **Settings**;
+- the **Melange** icon in **Apps → Dune HD**: MENU → **Settings** (ENTER opens the catalog; until AIOStreams is set up, this same settings screen);
+- MENU in the catalog → **Settings**;
 - MENU on the release list screen → **Settings**;
 - if there is no config yet, choosing Melange in a card shows **"No AIOStreams config — open Melange settings"** (with your own config but no link: "The link to your AIOStreams config is not set") with the buttons **Set up** and **Close**; **Set up** opens the settings screen.
 
-**The settings screen.** A line **"AIOStreams - Melange config"** or **"AIOStreams - own config"** with the server address or **"not set"**; a **JacRed** line with the chosen JacRed (your own one is shown by its host); the buttons **Set up from a phone** and **Change the link**.
+**The settings screen.** A line **"AIOStreams - Melange config"** or **"AIOStreams - own config"** with the server address or **"not set"**; a **JacRed** line with the chosen JacRed (your own one is shown by its host); the buttons **Set up from a phone** and **Change the link**. At the bottom, in small print, the TMDB logo and lines about the sources of the catalog data (TMDB, JustWatch).
 
 1. Press **Set up from a phone**: a QR code appears, with the page address as text under it and the hint "You can bookmark this page".
 2. Scan the QR code with your phone: the **"Melange settings"** page opens.
@@ -84,6 +86,26 @@ The eye button next to a field shows the hidden value.
 **About the page link.** The link is permanent, so you can bookmark it on your phone. Anyone who knows the link can see and change the settings, so do not share it. The **Change the link** button (confirmation "Old bookmarks will stop working" → **Change**) gives a new link and a new QR code, and the old link stops working. If the Dune's network address has changed, the bookmark will not open; open the QR code again.
 
 If you change the password of your own config in AIOStreams, the config link changes; enter the new one on the same page.
+
+## Catalog
+**How to open it.** **Apps → Melange** opens the catalog. Until AIOStreams is set up, the settings screen opens instead (see "First setup"). The settings: **Setup → Apps → Melange**, the menu of the Melange icon (MENU → **Settings**) or MENU in the catalog → **Settings**.
+
+**Rows.** The catalog shows rows of collections, up to 20 posters in a row; the last tile, **"Show all"**, opens the whole row as a grid that loads more as you scroll. At first there are 9 start rows (trending, new releases, Russian movies and series, "Топ Кинопоиска (неофициально)", that is "Kinopoisk Top (unofficial)", Netflix, anime; the row names are in Russian). To choose your own, open the settings page from a phone, the **"Catalog rows"** section: about 180 rows in groups (top, Russian, Russian services, genres, themes, studios, decades, years, streaming, countries, runtime, anime); a checkbox shows a row, **"Up"** / **"Down"** change the order. An empty set cannot be saved: the last row cannot be unchecked ("At least one row must stay: turn on another one first"). The rows are saved by "Save" together with the other settings, so set up where to get films first. The new set shows when the catalog is opened again.
+
+**Search.** MENU → **"Search"** or the search key of the remote: type a title, and the results come as the rows "Movies" and "Series". If there is nothing, "Nothing found".
+
+**ENTER on a poster:**
+- the title has a card in the Dune **Movies** catalog: that card opens, **Play... → Melange**, with watch history, as in "How to watch";
+- no card, but an IMDb ID: the window "Without a Dune card: Watch history will not be saved", and **"Show releases"** opens the Melange release list at once; a series starts from the first episode of the first season. Such viewing gets no percentage on the button and no Continue Watching;
+- neither a card nor an IMDb ID: "Releases cannot be found: no Dune card and no IMDb ID".
+
+**The catalog server.** Rows and search come from the shared AIOMetadata server of Melange, `aiometadata.kompotik.com` (the author runs it for plugin users); no keys or sign-up are needed. Posters also come through the cache of this server. If the server does not answer, the catalog shows the last copy marked "saved copy", or "The catalog did not load. Check the network and retry" with a **"Retry"** button.
+
+**Where the data comes from.** <img src="plugin/melange/img/tmdb.png" alt="TMDB" height="16"> Movies, series and posters come from [TMDB](https://www.themoviedb.org/). This product uses the TMDB API but is not endorsed or certified by TMDB. Rows by streaming service use data from [JustWatch](https://www.justwatch.com/). Thanks to the authors of the collections:
+- the parameters of most rows (genres, themes, studios, decades, streaming, countries, runtime) come from the AIOMetadata template of [luckynumb3rs/stremio-perfect-setup](https://github.com/luckynumb3rs/stremio-perfect-setup); the Russian rows and new releases were put together for Melange;
+- "Топ Кинопоиска (неофициально)" (Kinopoisk Top, unofficial) is an unofficial mirror of the Kinopoisk Top 250, the public list by [lotist on Letterboxd](https://letterboxd.com/lotist/list/250/); it is not Kinopoisk's own rating, and the row has the first 200 movies;
+- the anime rows "on AniList" come from [AniList](https://anilist.co/);
+- the catalog server is [AIOMetadata](https://github.com/cedya77/aiometadata).
 
 ## How to watch
 1. Open a movie in the **Movies** catalog → **Play...** → **Melange**. For a series, choose an episode in the series card via **Seasons**, then **Melange** the same way.
@@ -136,10 +158,10 @@ Where to send it: open an Issue on GitHub, https://github.com/a1d4r/dune-hd-mela
 - **Real-Debrid and "Not cached"** (with your own config and with the Melange config; in Melange configs made before 0.42.0 such RD releases are hidden). Each start of such a release adds a torrent to your RD account. RD does not serve releases with `WEB-DL` in the name (instead of the movie you get a "File was removed…" placeholder or an error), and after several new releases in a row it refuses all additions for a while. Do not start such releases more than 1–2 times in a row; wait a few minutes.
 - Episodes play in a row only on the same release, and only if it is cached or Debrid gives a file link for the episode at once (via TorrServer, the episodes that are in the release). Melange does not try to switch to another release by itself; it shows a window with a choice.
 - No more than 100 releases are shown, the rest are dropped; a too large AIOStreams reply (over 6 MB) does not open.
-- Only movies and series with an IMDb ID in the Dune card.
+- Only movies and series with an IMDb ID: in the Dune card or, from the catalog, on the poster.
 - The settings page opens only from the home network, at the Dune's address.
 - **TorrServer:** speed and time to start depend on the seeders of the release. After an episode switched in the player (P+ / auto-advance), "Stop" returns to the release list of the first episode.
 - The plugin interface is in Russian and English, following the Dune language; the name is "Melange" in both.
 
 ## License
-MIT, see the `LICENSE` file in the repository. Quality badges are from [github.com/kingsizew/badges](https://github.com/kingsizew/badges).
+MIT, see the `LICENSE` file in the repository. Quality badges are from [github.com/kingsizew/badges](https://github.com/kingsizew/badges). The catalog data and the logo are TMDB's; the sources of the rows are in "Catalog".
