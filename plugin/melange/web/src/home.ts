@@ -14,7 +14,7 @@ export interface Home {
 // The state of aio_cgi_state: key - Debrid without a key, conf - no config of the mode on the server, man - own
 // config without its link, ok.
 type State = "key" | "conf" | "man" | "ok";
-// A dot: ok, warn or none (grey).
+// A dot: ok, warn or "" (grey); "none" (no dot) is PHP only, on lines JS never sets.
 type Dot = "ok" | "warn" | "";
 
 // aio: "Save" creates a config (no config of the mode chosen on the server), the server chosen and its config, the
