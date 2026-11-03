@@ -5,8 +5,9 @@
 ## 0.50.0 — 03.11.2026
 - **Catalog of Melange.** **Apps → Melange** now opens a catalog: rows of movies and series (trending, new releases, Russian, anime and more), up to 20 posters in a row, and **"Show all"** at the end of a row for the whole row as a grid. Rows and posters come from the shared catalog server of Melange, `aiometadata.kompotik.com`; no keys are needed. Until AIOStreams is set up, the settings screen opens instead, as before.
 - **The settings** stay in **Setup → Apps → Melange**, in the menu of the Melange icon (MENU → **Settings**) and now also in MENU in the catalog → **Settings**.
-- **Choose the rows.** On the settings page, the new **"Catalog rows"** section: about 180 rows in groups (genres, themes, studios, decades, streaming services, countries and more); turn rows on and off and change their order. At least one row must stay.
-- **Search.** MENU → **"Search"** in the catalog or the search key of the remote; the results come as the rows "Movies" and "Series".
+- **Choose the rows.** On the settings page, the new **"Catalog rows"** section: about 180 rows in groups (genres, themes, studios, decades, streaming services, countries and more); turn rows on and off and change their order. At least one row must stay. Saved from the settings opened in the catalog while the QR code is open, the new rows show on Back; otherwise at the next opening of the catalog.
+- If the catalog server does not answer, a row shows its saved copy (marked "saved copy") or a "Did not load" tile; "The catalog did not load" with **"Retry"** only when there is nothing to show.
+- **Search.** MENU → **"Search"** in the catalog (or the search key, if your remote has one); the results come as the rows "Movies" and "Series".
 - **ENTER on a poster** opens the Dune card of the title, and from there **Play... → Melange** as usual, with watch history. If the Dune has no card but the title has an IMDb ID, the Melange release list opens at once after the note "Watch history will not be saved"; with neither, a message says the releases cannot be found.
 - The catalog uses TMDB data: the settings screen shows the TMDB logo and the notice "This product uses the TMDB API but is not endorsed or certified by TMDB", and that the rows by streaming service use JustWatch data. The README lists the sources of the rows.
 
@@ -155,8 +156,9 @@ First public release. What it does:
 ## 0.50.0 — 03.11.2026
 - **Каталог Melange.** **«Приложения» → «Melange»** теперь открывает каталог: ряды фильмов и сериалов (тренды, новинки, российское, аниме и другие), в ряду до 20 постеров, в конце ряда **«Показать все»** — весь ряд сеткой. Ряды и постеры идут с общего сервера каталога Melange `aiometadata.kompotik.com`, ключи не нужны. Пока AIOStreams не настроен, вместо каталога, как раньше, открываются настройки.
 - **Настройки** — в **«Настройки» → «Приложения» → «Melange»**, в меню иконки Melange (MENU → **«Настройки»**) и теперь ещё в MENU каталога → **«Настройки»**.
-- **Выбор рядов.** На странице настроек новый раздел **«Ряды каталога»**: около 180 рядов по группам (жанры, темы, студии, декады, стриминговые сервисы, страны и другие); ряды можно включать, скрывать и переставлять. Хотя бы один ряд должен остаться.
-- **Поиск.** MENU → **«Поиск»** в каталоге или клавиша поиска на пульте; результаты — рядами «Фильмы» и «Сериалы».
+- **Выбор рядов.** На странице настроек новый раздел **«Ряды каталога»**: около 180 рядов по группам (жанры, темы, студии, декады, стриминговые сервисы, страны и другие); ряды можно включать, скрывать и переставлять. Хотя бы один ряд должен остаться. Сохранили в настройках, открытых из каталога, пока открыт QR-код, — новые ряды видны по Back; иначе — при следующем открытии каталога.
+- Сервер каталога не ответил — ряд покажет сохранённую копию (с пометкой «сохранённая копия») или плитку «Не загрузилось»; «Каталог не загрузился» с кнопкой **«Повторить»** — только когда показать нечего.
+- **Поиск.** MENU → **«Поиск»** в каталоге (или клавиша поиска, если она есть на пульте); результаты — рядами «Фильмы» и «Сериалы».
 - **ENTER на постере** открывает карточку Дюны, а из неё, как обычно, **«Смотреть…» → «Melange»** с историей просмотра. Если карточки у Дюны нет, но есть IMDb-id, список раздач Melange открывается сразу, после пометки «История просмотра не сохранится»; если нет ни того, ни другого — сообщение, что раздачи не найти.
 - Каталог использует данные TMDB: на экране настроек — логотип TMDB, фраза «Этот продукт использует API TMDB, но не одобрен и не сертифицирован TMDB» и то, что ряды по стриминговым сервисам — по данным JustWatch. Источники рядов — в README.
 
