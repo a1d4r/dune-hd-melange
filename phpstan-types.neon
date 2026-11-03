@@ -51,6 +51,7 @@ parameters:
                 markers: bool,
                 source_errors: bool,
                 no_torrents: bool,
+                cat_rows: list<string>|null,
                 aio_confs: array<string, array<string, AioConf>>,
                 saved_once: bool
             }
@@ -73,7 +74,8 @@ parameters:
                 own: bool,
                 hosts: array<string, string>,
                 sort: string,
-                sort_rev: bool
+                sort_rev: bool,
+                cat_rows: list<string>|null
             }
         '''
         # Badges of a release (aio_badges, parse.php).

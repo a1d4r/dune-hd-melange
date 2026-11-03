@@ -106,6 +106,9 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(marks.map((radio) => [radio.type, radio.value])).toEqual([["radio", "on"], ["radio", "off"]]);
     for (const radio of marks)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("adv");
+    // The rows of the catalog: one field on #rows, not of type hidden (the bar counts only others), nothing to read by eye.
+    const rowsField = form.querySelectorAll<HTMLInputElement>("input[name=cat_rows]");
+    expect(Array.from(rowsField).map((field) => [field.id, field.type, field.hidden, field.closest("section")!.id])).toEqual([[ID.rowsValue, "text", true, "rows"]]);
     // The bar of the save under the screens: its results, "Hide" of them (a button, not a submit), its button the save.
     expect(doc.querySelector("#" + ID.bar + " #" + ID.saveResult + "+ button#" + ID.hideResult + "[type=button][hidden] + * #" + ID.dirty + "+ button." + CLS.save)).not.toBeNull();
     expect(form.querySelectorAll(JACRED_RADIOS + "[type=radio]").length).toBe(form.querySelectorAll("input[name=" + NAME.jacred + "]").length);

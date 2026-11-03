@@ -68,10 +68,18 @@ export const ID = {
   saveResult: "sr",
   hideResult: "srx",
   message: "msg",
+  // The rows of the catalog: the choice as posted, the lines of the list's state, "Try again", the box of the list
+  // (hidden till it comes), the rows shown in their order, all rows by groups.
+  rowsValue: "crv",
+  rowsStatus: "crs",
+  rowsRetry: "crr",
+  rowsBox: "crb",
+  rowsChosen: "cro",
+  rowsGroups: "crg",
 } as const;
 
 // The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>; in the order of the page.
-export const ROWS = ["src", "cfg", "voices", "torr", "dl", "adv", "log"] as const;
+export const ROWS = ["src", "cfg", "voices", "torr", "rows", "dl", "adv", "log"] as const;
 export type Row = (typeof ROWS)[number];
 
 export const CLS = {

@@ -2,7 +2,7 @@
 // Client of the catalog: rows of the shared AIOMetadata instance (Stremio addon
 // protocol), its search, a cache on the device and the last good copy on a
 // failure. Data only, no screens. Needs parse.php and main.php (aio_http_get,
-// aio_log, aio_write_file, aio_data_dir).
+// aio_log, aio_write_file, aio_data_dir), on the settings page cgi/lib/rows.php.
 // Types in the PHPDoc (AioCatRow and others): phpstan-types.neon of the repository.
 
 define('AIO_CAT_BASE', 'https://aiometadata.kompotik.com/stremio/');
@@ -220,6 +220,42 @@ function aio_cat_manifest()
     // A manifest without rows is broken too.
     $err = $g['err'] !== '' ? $g['err'] : 'bad';
     return array('rows' => $rows, 'stale' => (bool) $rows, 'age' => $rows && $c ? max(0, time() - $c['t']) : 0, 'err' => $err);
+}
+
+// The rows for the screen by the choice of the user (Aio::$settings['cat_rows']).
+// Not a list: the start rows, in the order of the manifest. Else the chosen ones
+// in the order of the user; a key not in the manifest goes, a new row does not
+// come by itself. Nothing left: the start rows, never an empty screen.
+/**
+ * @param list<AioCatRow> $rows
+ * @param mixed $chosen
+ * @return list<AioCatRow>
+ */
+function aio_cat_user_rows($rows, $chosen)
+{
+    $out = array();
+    if (is_array($chosen))
+    {
+        $by = array();
+        foreach ($rows as $r)
+            $by[$r['key']] = $r;
+        foreach ($chosen as $k)
+        {
+            if (is_string($k) && isset($by[$k]))
+            {
+                $out[] = $by[$k];
+                unset($by[$k]);
+            }
+        }
+    }
+    if ($out)
+        return $out;
+    foreach ($rows as $r)
+    {
+        if ($r['home'])
+            $out[] = $r;
+    }
+    return $out;
 }
 
 // --- Tiles.
@@ -564,6 +600,10 @@ function aio_cat_cache_dir()
     if ($data === '' || !is_dir($data))
         return '';
     $dir = "$data/catalog";
+    // The settings page runs as root and only reads: a folder or a file of its own
+    // would lock out php_server.
+    if (defined('AIO_CAT_READ_ONLY'))
+        return !is_link($dir) && is_dir($dir) ? $dir : '';
     if (!is_dir($dir) && !mkdir($dir, 0700))
         return '';
     // Once a run: old files go even if nothing is ever written again.
@@ -623,7 +663,7 @@ function aio_cat_is_fresh($c)
 function aio_cat_cache_write($key, $n, $data)
 {
     $f = aio_cat_cache_path($key);
-    if ($f === '')
+    if ($f === '' || defined('AIO_CAT_READ_ONLY'))
         return;
     $json = json_encode(array('v' => AIO_CAT_CACHE_V, 't' => time(), 'n' => $n, 'data' => $data));
     // The trimmed fields do not hold it; should the server put it there, no copy on the disk.

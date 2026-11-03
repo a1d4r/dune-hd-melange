@@ -64,6 +64,27 @@ export const TEXT_KEYS = [
   "changeOne",
   "changeFew",
   "changeMany",
+  // The screen of the rows of the catalog: the state of the list, the last row can't go, its buttons.
+  "rowsLoading",
+  "rowsNoList",
+  "rowsStale",
+  "rowsLast",
+  "rowsUp",
+  "rowsDown",
+  // The names of the groups of rows (rows.ts).
+  "groupTop",
+  "groupRu",
+  "groupRuServices",
+  "groupGenres",
+  "groupTheme",
+  "groupStudios",
+  "groupDecades",
+  "groupYears",
+  "groupStreaming",
+  "groupWorld",
+  "groupRuntime",
+  "groupAnime",
+  "groupOther",
 ] as const;
 
 export type Texts = Record<(typeof TEXT_KEYS)[number], string>;

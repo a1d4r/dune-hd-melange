@@ -15,6 +15,10 @@ export type ConfHow = "create" | "update" | "reset";
 // aio: "" - nothing (another value sent is taken as that).
 export type Save = { ok: true; next: string; aio: ConfHow | ""; notes: SaveNote[] } | { ok: false; errors: SaveError[] };
 
+// A row of the catalog (a=cat_rows). ok false: no list at all; stale: the last good copy of it.
+export type CatRow = { key: string; name: string; group: string; home: boolean };
+export type CatRows = { ok: boolean; stale: boolean; rows: CatRow[] };
+
 export type ServerConf = { cfg: string; login: string; pass: string; tpl: string | null };
 // mode: of the config (debrid, p2p: a config per mode on a server), null: none sent.
 export type Sync = {
@@ -68,6 +72,12 @@ function parseSave(json: Json): Save | null {
     return { ok: true, next: json.next, aio: isConfHow(json.aio) ? json.aio : "", notes: parseItems(json.notes, parseNote) };
   const errors = parseItems(json.errors, parseSaveError);
   return errors.length ? { ok: false, errors: errors } : null;
+}
+
+function parseCatRows(json: Json): CatRows | null {
+  if (typeof json.ok !== "boolean") return null;
+  const parseRow = (row: Json): CatRow => ({ key: String(row.key), name: String(row.name), group: String(row.group), home: row.home === true });
+  return { ok: json.ok, stale: json.stale === true, rows: parseItems(json.rows, parseRow) };
 }
 
 function parseSync(json: Json): Sync | null {
@@ -160,6 +170,7 @@ export function createApi(base: string | null, hooks: ApiHooks) {
     srvCheck: (fields: string) => post("&a=srv_check&ajax=1", fields, parseSrvCheck),
     // target: b=<id> or b=&url=…&key=…; probe: 0..2.
     jrSpeed: (target: string, probe: number) => post("&a=jr_speed&ajax=1", target + "&q=" + probe, parseJrSpeed),
+    catRows: () => post("&a=cat_rows&ajax=1", "", parseCatRows),
     save: (form: string) => save("&ajax=1", form, parseSave),
     aioSync: (reset: boolean) => save("&a=aio_sync&ajax=1", reset ? "reset=1" : "", parseSync, 60000),
   };

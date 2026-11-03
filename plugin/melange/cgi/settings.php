@@ -46,7 +46,9 @@
 //                      check in that JacRed, JSON {ok, msg, n, ms}, nothing written;
 //                      a wrong address, key, id or q: also bad = "format" (no request);
 //   POST ?t=<token>&a=key_check&ajax=1 (what, key) -> the key checked with
-//                      Real-Debrid, TorBox or TMDB, JSON {ok, level, msg}, nothing written.
+//                      Real-Debrid, TorBox or TMDB, JSON {ok, level, msg}, nothing written;
+//   POST ?t=<token>&a=cat_rows&ajax=1 -> the rows of the catalog (lib/rows.php),
+//                      JSON {ok, stale, rows: [{key, name, group, home}]}, nothing written.
 // Input only goes through the rules of common.php; it never reaches exec,
 // a path or eval. stderr (dune_apk_cgi_err.log) gets reasons, never values.
 // PHP 5.3 syntax; php-cgi has no date.timezone: dates only in the log
@@ -113,6 +115,9 @@ function aio_cgi_save($dir, $t)
         $v['source_errors'] = aio_cgi_source_errors_of($cur['source_errors']);
     if ($v['no_torrents'] === '')
         $v['no_torrents'] = aio_cgi_no_torrents_of($cur['no_torrents']);
+    // '' is a choice here (none made), only no field at all means an older form.
+    if (!isset($_POST['cat_rows']))
+        $v['cat_rows'] = aio_cgi_cat_rows_of($cur['cat_rows']);
     $v['ajax'] = $ajax;
     $v['reset'] = aio_cgi_param($_POST, 'aio_reset') === '1';
     $v['first'] = !$cur['saved_once'];
@@ -206,6 +211,11 @@ if ($method === 'POST' && aio_cgi_param($_GET, 'ajax') === '1')
         aio_cgi_aio_sync_post($dir);
     if ($a === 'aio_status')
         aio_cgi_aio_status_post();
+    if ($a === 'cat_rows')
+    {
+        require dirname(__FILE__) . '/lib/rows.php';
+        aio_cgi_cat_rows_post($dir);
+    }
 }
 // Any other POST with an action is never a save: "Проверить" of a tab opened
 // before 0.31.1 posts the whole form with a=ts_check. 303 to the page, nothing written.

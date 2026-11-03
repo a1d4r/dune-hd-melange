@@ -32,6 +32,7 @@ function aio_cgi_screens()
         'voices' => 'JacRed', 'torr' => 'TorrServer',
         'dl' => aio_cgi_l('Скачивать на свой сервер', 'Download to your server'),
         'adv' => aio_cgi_l('Дополнительно', 'Advanced'),
+        'rows' => aio_cgi_l('Ряды каталога', 'Catalog rows'),
         'cfg' => 'AIOStreams', 'log' => aio_cgi_l('Лог', 'Log'));
 }
 
@@ -113,6 +114,7 @@ function aio_cgi_rows($v)
             ($w === AIO_MODE_DEBRID ? ' · ' . $t['tsSpare'] : '')),
         'dl' => array($names ? 'ok' : '', $names ? implode(', ', $names) : $t['noServers']),
         'adv' => array('', ''),
+        'rows' => array('', aio_cgi_l('Какие показывать и в каком порядке', 'Which to show and in what order')),
         'log' => array('', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));
 }
 
@@ -147,6 +149,7 @@ function aio_cgi_home($v)
     $out .= '</div></div>';
     $rows = aio_cgi_rows($v);
     $groups = array(aio_cgi_l('Просмотр', 'Watching') => array('src', 'cfg', 'voices', 'torr'),
+        aio_cgi_l('Каталог', 'Catalog') => array('rows'),
         aio_cgi_l('Ещё', 'More') => array('dl', 'adv', 'log'));
     foreach ($groups as $h => $ids)
     {

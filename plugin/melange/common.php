@@ -712,7 +712,7 @@ function aio_settings_read($dir, &$why = null)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'source_errors' => false, 'aio_confs' => array(), 'saved_once' => false);
+        'markers' => true, 'source_errors' => false, 'cat_rows' => null, 'aio_confs' => array(), 'saved_once' => false);
     $f = "$dir/" . AIO_SETTINGS_FILE;
     clearstatcache();
     if ($dir === '')
@@ -798,6 +798,8 @@ function aio_settings_read($dir, &$why = null)
         $r['source_errors'] = $j['source_errors'];
     if (isset($j['no_torrents']) && is_bool($j['no_torrents']))
         $r['no_torrents'] = $j['no_torrents'];
+    if (isset($j['cat_rows']))
+        $r['cat_rows'] = aio_cat_rows_ok($j['cat_rows']);
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
         foreach ($j['aio_confs'] as $b => $cs)
@@ -821,6 +823,24 @@ function aio_settings_read($dir, &$why = null)
         }
     }
     return $r;
+}
+
+// cat_rows of settings.json or the form -> the rows chosen: keys of rows (aio_cat_row
+// of catalog.php), in order, unique; what can not be a key goes. null: not a list,
+// or nothing left, as nothing chosen.
+/**
+ * @param mixed $v
+ * @return list<string>|null
+ */
+function aio_cat_rows_ok($v)
+{
+    $keys = array();
+    foreach (is_array($v) ? $v : array() as $k)
+    {
+        if (is_string($k) && preg_match('~^(?:movie|series|anime)/[\x21-\x7e]{1,200}\z~', $k))
+            $keys[$k] = true;
+    }
+    return $keys ? array_keys($keys) : null;
 }
 
 // Why the settings.json at $f is not read, '' if it is: not readable - with

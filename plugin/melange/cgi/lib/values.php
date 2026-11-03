@@ -33,6 +33,7 @@ function aio_cgi_values($s)
     $v['markers'] = aio_cgi_markers_of($s['markers']);
     $v['source_errors'] = aio_cgi_source_errors_of($s['source_errors']);
     $v['no_torrents'] = aio_cgi_no_torrents_of($s['no_torrents']);
+    $v['cat_rows'] = aio_cgi_cat_rows_of($s['cat_rows']);
     $v['servers'] = $s['servers'];
     $v['confs'] = $s['aio_confs'];
     return $v;
@@ -301,6 +302,7 @@ function aio_cgi_check_values($v)
         $errors[] = aio_cgi_err(aio_cgi_l('Ошибки источников: нет такого ответа', 'Source errors: no such answer'),
             $f['source_errors']['name']);
     }
+    $d[$set['cat_rows']] = aio_cat_rows_ok(explode(' ', $v['cat_rows']));
     return array($d, $errors);
 }
 

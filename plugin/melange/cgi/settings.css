@@ -90,3 +90,11 @@ form{display:flex;flex-direction:column;min-height:calc(100vh - 16px)}
 #dirty:empty{display:none}
 .save{flex:1;padding:14px;font-size:17px;font-weight:600;border:0;border-radius:12px;background:var(--acc);color:#fff}
 .dflt{position:absolute;left:-9999px;width:1px;height:1px}
+.cro{display:flex;align-items:center;gap:6px;padding-right:8px;border-top:1px solid var(--line)}
+.cro:first-child{border-top:0}
+.cro .chk{flex:none;width:40px;height:40px;margin:0;padding:0}
+.cr{display:flex;flex:1;align-items:center;gap:10px;min-width:0;margin:0;padding:12px 14px;font-size:15px;color:var(--ink)}
+.cr input{flex:none;width:20px;height:20px;margin:0}
+.cr span{flex:1;min-width:0;overflow-wrap:anywhere}
+details.crg{margin:8px 0 0;padding:4px 0;background:var(--surf);border:1px solid var(--line);border-radius:12px}
+details.crg>summary{padding:8px 14px;cursor:pointer}

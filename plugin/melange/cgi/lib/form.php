@@ -59,7 +59,9 @@ function aio_cgi_fields()
         'source_errors' => array('id' => 'ser', 'name' => 'source_errors', 'set' => 'source_errors', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
         // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
         'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
-            'scr' => 'adv'));
+            'scr' => 'adv'),
+        // The rows of the catalog chosen: aio_cgi_rows_screen.
+        'cat_rows' => array('id' => 'crv', 'name' => 'cat_rows', 'set' => 'cat_rows', 'max' => 0, 'type' => 'plain', 'scr' => 'rows'));
 }
 
 // The fields of a server on the form (s<n>_<field>), as aio_server_conf()
@@ -339,6 +341,30 @@ function aio_cgi_no_torrents()
 function aio_cgi_no_torrents_of($on)
 {
     return $on ? 'off' : 'allow';
+}
+
+// The value of the form of cat_rows of the settings (aio_cat_rows_ok): keys by spaces, none in a key.
+function aio_cgi_cat_rows_of($keys)
+{
+    return is_array($keys) ? implode(' ', $keys) : '';
+}
+
+// The screen of the rows of the catalog (#rows): the list comes by the script
+// (web/src/rows.ts), which keeps the choice in the field cat_rows, hidden but not of
+// type hidden: the bar of the save counts it. No script or no list: it posts what is stored.
+function aio_cgi_rows_screen($v)
+{
+    $f = aio_cgi_fields();
+    return '<p class="sub">' . aio_cgi_l('Какие ряды показывать в каталоге на Дюне и в каком порядке.',
+        'Which rows the catalog on the Dune shows, and in what order.') . '</p>' .
+        '<input type="text" id="' . $f['cat_rows']['id'] . '" name="' . $f['cat_rows']['name'] . '" value="' .
+        aio_cgi_h($v['cat_rows']) . '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" hidden>' .
+        '<div id="crs" class="res" aria-live="polite"><p class="hint">' .
+        aio_cgi_l('Список рядов не открылся: нужен браузер с поддержкой скриптов.',
+        'The list of rows did not open: a browser with scripts is needed.') . '</p></div>' .
+        '<button type="button" id="crr" class="chk" hidden>' . aio_cgi_l('Повторить', 'Try again') . '</button>' .
+        '<div id="crb" hidden><h3 class="gh">' . aio_cgi_l('Показывать', 'Shown') . '</h3><div id="cro" class="list"></div>' .
+        '<h3 class="gh">' . aio_cgi_l('Все ряды', 'All rows') . '</h3><div id="crg"></div></div>';
 }
 
 // The screen "JacRed" (#voices): one of the built-in ones or the own one
@@ -755,7 +781,23 @@ function aio_cgi_js($v)
         'no' => aio_cgi_l('нет', 'no'), 'seconds' => aio_cgi_l('с', 's'), 'stopped' => aio_cgi_l('прервано', 'stopped'),
         // The count of the changes by "Сохранить": the forms of 1, 2-4 and 5 (English: 1 and the rest).
         'changeOne' => aio_cgi_l('%d изменение', '%d change'), 'changeFew' => aio_cgi_l('%d изменения', '%d changes'),
-        'changeMany' => aio_cgi_l('%d изменений', '%d changes')) +
+        'changeMany' => aio_cgi_l('%d изменений', '%d changes'),
+        // The screen of the rows of the catalog.
+        'rowsLoading' => aio_cgi_l('Загружаю список рядов…', 'Loading the list of rows…'),
+        'rowsNoList' => aio_cgi_l('Сервер каталога не ответил, списка рядов нет. Сохранённый выбор не изменился.',
+            'The catalog server did not answer, there is no list of rows. The saved choice has not changed.'),
+        'rowsStale' => aio_cgi_l('Сервер каталога не ответил: список рядов из последней копии на Дюне.',
+            'The catalog server did not answer: the list of rows is the last copy on the Dune.'),
+        'rowsLast' => aio_cgi_l('Должен остаться хотя бы один ряд: сначала включите другой.',
+            'At least one row must stay: turn on another one first.'),
+        'rowsUp' => aio_cgi_l('Выше', 'Up'), 'rowsDown' => aio_cgi_l('Ниже', 'Down'),
+        'groupTop' => aio_cgi_l('Топы', 'Top'), 'groupRu' => aio_cgi_l('Российское', 'Russian'),
+        'groupRuServices' => aio_cgi_l('Российские сервисы', 'Russian services'), 'groupGenres' => aio_cgi_l('Жанры', 'Genres'),
+        'groupTheme' => aio_cgi_l('Темы', 'Themes'), 'groupStudios' => aio_cgi_l('Студии', 'Studios'),
+        'groupDecades' => aio_cgi_l('Декады', 'Decades'), 'groupYears' => aio_cgi_l('Годы', 'Years'),
+        'groupStreaming' => aio_cgi_l('Стриминги', 'Streaming'), 'groupWorld' => aio_cgi_l('Страны', 'Countries'),
+        'groupRuntime' => aio_cgi_l('Длительность', 'Runtime'), 'groupAnime' => aio_cgi_l('Аниме', 'Anime'),
+        'groupOther' => aio_cgi_l('Другое', 'Other')) +
         // The lines of the main screen (aio_cgi_rows).
         aio_cgi_home_texts();
     $js = dirname(dirname(__FILE__)) . '/settings.js';
@@ -850,6 +892,7 @@ function aio_cgi_form($t, $v, $errors, $saved)
             aio_cgi_input($f['ts_pass'], aio_cgi_l('Пароль', 'Password'), $v['ts_pass'],
                 aio_cgi_l('Если TorrServer просит вход. Можно и в адресе: логин:пароль@хост:порт',
                 'If TorrServer asks for them. Also in the address: login:password@host:port')) . aio_cgi_ts_save($v)) .
+        aio_cgi_screen('rows', aio_cgi_rows_screen($v)) .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
         aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_source_errors_block($v)) .

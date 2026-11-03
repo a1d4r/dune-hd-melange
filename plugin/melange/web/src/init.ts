@@ -14,6 +14,7 @@ import type { Texts } from "./i18n";
 import { setupJacredNote, setupJacredSpeed } from "./jacred";
 import { createLock } from "./lock";
 import { setupMarks } from "./marks";
+import { setupRows } from "./rows";
 import { setupSave } from "./save";
 import { bindEyes, maskSecrets } from "./secrets";
 import { setupServerChecks, setupServers } from "./servers";
@@ -67,6 +68,7 @@ function setupForm(page: Page, init: Init): void {
   setupServerChecks(page, api, lock);
   setupJacredSpeed(page, api, lock);
   setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, home, changed);
+  setupRows(page, api, changed);
 }
 
 // saved=1 of the address after a save (the "Saved" line of PHP) dropped, the rest kept as it is: a reload does not
