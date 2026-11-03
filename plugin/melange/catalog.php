@@ -296,12 +296,36 @@ function aio_cat_img($m, $k)
     return strlen($u) <= AIO_CAT_URL_MAX && preg_match('~^https?://\S+$~', $u) ? $u : '';
 }
 
+// The first country of the server ("Spain", "United States of America, Canada", ISO-3
+// "jpn" of anime, any case) -> its English name; an unknown code: ''.
+/**
+ * @param string $s
+ * @return string
+ */
+function aio_cat_country($s)
+{
+    static $iso = array('usa' => 'United States of America', 'gbr' => 'United Kingdom', 'fra' => 'France', 'deu' => 'Germany',
+        'esp' => 'Spain', 'ita' => 'Italy', 'jpn' => 'Japan', 'kor' => 'South Korea', 'chn' => 'China', 'ind' => 'India',
+        'can' => 'Canada', 'aus' => 'Australia', 'nzl' => 'New Zealand', 'rus' => 'Russia', 'bra' => 'Brazil', 'mex' => 'Mexico',
+        'bel' => 'Belgium', 'nld' => 'Netherlands', 'swe' => 'Sweden', 'nor' => 'Norway', 'dnk' => 'Denmark', 'fin' => 'Finland',
+        'irl' => 'Ireland', 'pol' => 'Poland', 'prt' => 'Portugal', 'aut' => 'Austria', 'che' => 'Switzerland', 'cze' => 'Czech Republic',
+        'hun' => 'Hungary', 'grc' => 'Greece', 'tur' => 'Turkey', 'isr' => 'Israel', 'arg' => 'Argentina', 'hkg' => 'Hong Kong',
+        'twn' => 'Taiwan', 'tha' => 'Thailand', 'idn' => 'Indonesia', 'phl' => 'Philippines', 'zaf' => 'South Africa',
+        'isl' => 'Iceland', 'ukr' => 'Ukraine', 'kaz' => 'Kazakhstan');
+    $first = explode(',', aio_one_line($s));
+    $c = aio_cut(trim($first[0]), 60);
+    if (!preg_match('/^[a-z]{3}$/i', $c))
+        return $c;
+    $k = strtolower($c);
+    return isset($iso[$k]) ? $iso[$k] : '';
+}
+
 // A tile of the server -> only what is needed (links with the UUID, app_extras,
 // logo and the rest are gone from here on), or null without an id or a name.
 // All values strings, genres and cast lists. imdb_id and _tmdbId: also from the id itself,
 // '' for none (mal:...). type: of the tile (rows of anime hold movie and series),
-// else of the row, '' when neither says. year: 4 digits or ''. country: the first
-// one as the server names it ("Spain", "jpn"). runtime: "1h38min" or "30min" (of an
+// else of the row, '' when neither says. year: 4 digits or ''. country: the English
+// name of the first one (aio_cat_country), '' for none. runtime: "1h38min" or "30min" (of an
 // episode for series). age: the Russian rating "16+" of app_extras.certifications.RU.
 // cast: the first names of app_extras.cast. Run again on what the cache holds (age,
 // cast: its own keys; a copy of before them: '' and none): the same result.
@@ -337,7 +361,7 @@ function aio_cat_tile($m, $row_type)
             $genres[] = $g;
     }
     $country = aio_str($m, 'country');
-    $first = explode(',', aio_one_line($country !== '' ? $country : aio_str(aio_arr($m, 'countries'), 0)));
+    $country = aio_cat_country($country !== '' ? $country : aio_str(aio_arr($m, 'countries'), 0));
     $runtime = aio_str($m, 'runtime');
     $extras = aio_arr($m, 'app_extras');
     $age = aio_str(aio_arr($extras, 'certifications'), 'RU');
@@ -353,7 +377,7 @@ function aio_cat_tile($m, $row_type)
     return array('id' => $id, 'imdb_id' => $imdb, '_tmdbId' => $tmdb, 'type' => $type, 'name' => $name, 'year' => $year,
         'imdbRating' => preg_match('/^[0-9]{1,2}(\.[0-9]+)?$/', $rating) ? $rating : '',
         'description' => aio_cut(aio_one_line(aio_str($m, 'description')), AIO_CAT_DESC_MAX), 'genres' => $genres,
-        'poster' => aio_cat_img($m, 'poster'), 'background' => aio_cat_img($m, 'background'), 'country' => aio_cut(trim($first[0]), 60),
+        'poster' => aio_cat_img($m, 'poster'), 'background' => aio_cat_img($m, 'background'), 'country' => $country,
         'runtime' => preg_match('/^(?=[0-9])([0-9]{1,2}h)?([0-9]{1,3}min)?$/', $runtime) ? $runtime : '',
         'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast);
 }
