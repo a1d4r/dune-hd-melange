@@ -181,4 +181,7 @@ cat_retry = Повторить
 cat_search_none = Ничего не найдено
 cat_search_failed = Поиск не удался: сервер не отвечает. Повторите позже
 cat_outdated = Экран устарел: откройте каталог заново
+cat_row_loading = Загрузка
+cat_row_failed = Не загрузилось
+cat_row_empty = Пусто
 setup_catalog = Каталог

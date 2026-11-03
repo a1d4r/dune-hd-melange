@@ -1261,6 +1261,12 @@ class AioFw extends DunePluginFw
                 $data = aio_catv_range_op(isset($in->media_url) && is_string($in->media_url) ? $in->media_url : '',
                     max(0, aio_int($in, 'from_ndx', 0)));
             }
+            // r25 only; the type a literal, the r24 API has no such constant.
+            else if (defined('PLUGIN_OP_GET_FOLDER_ROWS') && $op === PLUGIN_OP_GET_FOLDER_ROWS)
+            {
+                $type = 'plugin_folder_rows';
+                $data = aio_catv_rows_op($in);
+            }
             // Lazy episodes: media_url comes to get_vod_stream_url, the whole
             // input (playback_url) to get_vod_stream_info.
             else if ($op === PLUGIN_OP_GET_VOD_STREAM_URL || $op === PLUGIN_OP_GET_VOD_STREAM_INFO)

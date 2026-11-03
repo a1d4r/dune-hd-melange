@@ -7,7 +7,11 @@
 
 // Seconds for rows at an opening, with the refresh of the manifest: what does not
 // make it stays hidden until the next one. A cold row takes up to 4.5 s, 6 rows 2.5 s.
+// r25: only the first row is asked for here (aio_catv_main_view).
 define('AIO_CATV_OPEN_S', 3.0);
+// r25: one row of get_folder_rows, a key of the user waits for it; the stubs of a row.
+define('AIO_CATV_ROW_S', 5.0);
+define('AIO_CATV_STUBS', 9);
 // The first manifest and a portion of the grid. The timeout of these operations is
 // not known (10 s by the SDK): they stay under it.
 define('AIO_CATV_MANIFEST_S', 6);
@@ -32,6 +36,12 @@ class AioCat
     // The screen of the last search: its id, the rids of its rows.
     /** @var array{id: string, rids: list<string>} */
     public static $search = array('id' => '', 'rids' => array());
+    // r25: when a row came empty, by rid. It is hidden at the openings of the next hour.
+    /** @var array<string, int> */
+    public static $empty = array();
+    // r25: the copy of the manifest is old, get_folder_rows refreshes it.
+    /** @var bool */
+    public static $manifest_old = false;
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -135,31 +145,30 @@ function aio_catv_background($t)
 
 // The rows $rows for a new screen, into AioCat::$lists. At once: listings in memory
 // still fresh, then the saved first pages of any age. In the time left, one by one:
-// rows without a copy, then the old copies; on a failure of the server no more
-// requests. No tile: the row stays out of the lists and is hidden.
+// of the first $ask rows, those without a copy, then the old copies; on a failure of
+// the server no more requests. No tile: the row stays out of the lists.
 /**
  * @param list<AioCatRow> $rows
+ * @param int $ask
  * @return void
  */
-function aio_catv_open($rows)
+function aio_catv_open($rows, $ask)
 {
     $none = array();
     $old = array();
-    foreach ($rows as $row)
+    foreach ($rows as $i => $row)
     {
         $rid = aio_catv_rid($row);
         if (isset(AioCat::$lists[$rid]) && aio_cat_is_fresh(array('t' => AioCat::$lists[$rid]['st']['t0'])))
             continue;
         unset(AioCat::$lists[$rid]);
         $c = aio_cat_page_cached($row, 0);
-        if (!$c)
-            $none[$rid] = $row;
-        else
-        {
+        if ($c)
             AioCat::$lists[$rid] = aio_catv_list_copy($row, $c);
-            if (!aio_cat_is_fresh($c))
-                $old[$rid] = $row;
-        }
+        if (!$c && $i < $ask)
+            $none[$rid] = $row;
+        else if ($c && !aio_cat_is_fresh($c) && $i < $ask)
+            $old[$rid] = $row;
     }
     $start = microtime(true);
     $failed = false;
@@ -175,6 +184,8 @@ function aio_catv_open($rows)
             AioCat::$lists[$rid] = aio_catv_list($st, $res['tiles'], false);
             unset($old[$rid]);
         }
+        if ($res['end'] && !$res['tiles'] && $res['err'] === '')
+            AioCat::$empty[$rid] = time();
         $failed = $failed || $res['err'] !== '';
         if (in_array($res['err'], array('net', 'rate', 'server'), true))
             break;
@@ -208,23 +219,29 @@ function aio_catv_item($id, $caption, $icon)
         PluginRegularItem::caption => $caption);
 }
 
-// A row of the panel: its title and tiles, the first page and "Show all".
+// A row of the panel: its title and tiles, the first page and "Show all", or $items
+// instead of them. $options: of the row of tiles.
 /**
  * @param AioCatList $list
  * @param string $lang
+ * @param list<array<string, string>>|null $items
+ * @param int $options
  * @return array{array<string, mixed>, array<string, mixed>}
  */
-function aio_catv_row_defs($list, $lang)
+function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
 {
     $row = $list['st']['row'];
     $rid = aio_catv_rid($row);
     $title = $list['stale'] ? $row['name'] . ' (' . aio_tr($lang, 'cat_saved') . ')' : $row['name'];
-    $items = array();
-    foreach (array_slice($list['tiles'], 0, AIO_CATV_ROW_TILES) as $t)
-        $items[] = aio_catv_item("$rid:{$t['id']}", $t['name'], aio_catv_poster($t));
-    if ($list['st']['end'] === '' || count($list['tiles']) > AIO_CATV_ROW_TILES)
-        $items[] = aio_catv_item("more:$rid", aio_tr($lang, 'cat_more'), AIO_CATV_ICONS . 'more.png');
-    return array(
+    if ($items === null)
+    {
+        $items = array();
+        foreach (array_slice($list['tiles'], 0, AIO_CATV_ROW_TILES) as $t)
+            $items[] = aio_catv_item("$rid:{$t['id']}", $t['name'], aio_catv_poster($t));
+        if ($list['st']['end'] === '' || count($list['tiles']) > AIO_CATV_ROW_TILES)
+            $items[] = aio_catv_item("more:$rid", aio_tr($lang, 'cat_more'), AIO_CATV_ICONS . 'more.png');
+    }
+    $defs = array(
         array(
             PluginRow::type => PLUGIN_ROW_TYPE_TITLE,
             PluginRow::id => "title:$rid",
@@ -261,6 +278,115 @@ function aio_catv_row_defs($list, $lang)
                 PluginRegularRow::fade_icon_mix_alpha => 200,
                 PluginRegularRow::lite_fade_icon_mix_alpha => 128,
                 PluginRegularRow::fade_caption_color => '#FF808080')));
+    if ($options)
+        $defs[1][PluginRow::options] = $options;
+    return $defs;
+}
+
+// --- r25: rows the shell asks for (get_folder_rows).
+
+// The flag of a row to ask for; 0: r24, no such operation, the rows load at an opening.
+/**
+ * @return int
+ */
+function aio_catv_loading_flag()
+{
+    return defined('PLUGIN_OP_GET_FOLDER_ROWS') && defined('PLUGIN_ROW_OPT_LOADING') ? PLUGIN_ROW_OPT_LOADING : 0;
+}
+
+/**
+ * @param string $rid
+ * @return bool
+ */
+function aio_catv_is_empty($rid)
+{
+    return isset(AioCat::$empty[$rid]) && aio_cat_is_fresh(array('t' => AioCat::$empty[$rid]));
+}
+
+// A row without tiles of titles. $note '': stubs for the shell to ask for. Else one tile
+// with this message and no flag: a row hidden on the screen takes the focus away with it.
+/**
+ * @param AioCatRow $row
+ * @param string $lang
+ * @param string $note
+ * @return array{array<string, mixed>, array<string, mixed>}
+ */
+function aio_catv_row_note($row, $lang, $note)
+{
+    $rid = aio_catv_rid($row);
+    $list = aio_catv_list(aio_cat_row_state($row), array(), false);
+    if ($note !== '')
+        return aio_catv_row_defs($list, $lang, array(aio_catv_item($note === 'cat_row_empty' ? "empty:$rid" : "fail:$rid", aio_tr($lang, $note),
+            AIO_CATV_ICONS . 'no_movie_poster.png')));
+    $items = array();
+    for ($i = 0; $i < AIO_CATV_STUBS; $i++)
+        $items[] = aio_catv_item("stub:$rid:$i", aio_tr($lang, 'cat_row_loading'), AIO_CATV_ICONS . 'loading_movie_poster.png');
+    return aio_catv_row_defs($list, $lang, $items, aio_catv_loading_flag());
+}
+
+// The row $rid for the shell: from memory or the cache when it can be, so a repeat of a
+// call the shell cancelled (ENTER) is at once and the same; a new state every time, its
+// skip never moves on. Never flagged: such a row is not asked for again.
+/**
+ * @param string $rid
+ * @param string $lang
+ * @return array<string, mixed>
+ */
+function aio_catv_row_answer($rid, $lang)
+{
+    $row = isset(AioCat::$lists[$rid]) ? AioCat::$lists[$rid]['st']['row'] : aio_catv_row_by_rid($rid);
+    if (!$row)
+    {
+        aio_log('catalog: row: unknown id');
+        $row = array('key' => '', 'type' => 'movie', 'id' => '', 'name' => aio_tr($lang, 'cat_title'), 'genre' => '', 'home' => false, 'group' => '');
+        $defs = aio_catv_row_note($row, $lang, 'cat_row_failed');
+        return $defs[1];
+    }
+    if (isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'] && aio_cat_is_fresh(array('t' => AioCat::$lists[$rid]['st']['t0'])))
+        $defs = aio_catv_row_defs(AioCat::$lists[$rid], $lang);
+    else if (aio_catv_is_empty($rid))
+        $defs = aio_catv_row_note($row, $lang, 'cat_row_empty');
+    else
+    {
+        $st = aio_cat_row_state($row);
+        $res = aio_cat_more($st, AIO_CATV_ROW_S);
+        if ($res['tiles'])
+        {
+            AioCat::$lists[$rid] = aio_catv_list($st, $res['tiles'], $res['stale']);
+            $defs = aio_catv_row_defs(AioCat::$lists[$rid], $lang);
+        }
+        else if ($res['end'] && $res['err'] === '')
+        {
+            AioCat::$empty[$rid] = time();
+            $defs = aio_catv_row_note($row, $lang, 'cat_row_empty');
+        }
+        else
+            $defs = aio_catv_row_note($row, $lang, 'cat_row_failed');
+    }
+    return $defs[1];
+}
+
+// get_folder_rows: one row a call, the shell asks for the rest next. Always a row with
+// the id asked: on a reply without rows the shell asks again every ~1 ms. The refresh
+// of the manifest takes the time left of the call: an opening does not wait for it.
+/**
+ * @param stdClass $in
+ * @return array{rows: list<array<string, mixed>>}
+ */
+function aio_catv_rows_op($in)
+{
+    $start = microtime(true);
+    $ids = isset($in->row_ids) && is_array($in->row_ids) ? $in->row_ids : array();
+    $id = isset($ids[0]) && is_string($ids[0]) ? $ids[0] : 'items:';
+    $def = aio_catv_row_answer(strpos($id, 'items:') === 0 ? strval(substr($id, strlen('items:'))) : '', aio_catv_lang());
+    $def[PluginRow::id] = $id;
+    $left = AIO_CATV_ROW_S - (microtime(true) - $start);
+    if (AioCat::$manifest_old && $left >= 1)
+    {
+        AioCat::$manifest_old = false;
+        aio_cat_manifest_fetch(intval($left));
+    }
+    return array('rows' => array($def));
 }
 
 /**
@@ -289,7 +415,7 @@ function aio_catv_item_vars($w, $h, $dx, $iw, $ih, $idy, $cdy, $color)
 }
 
 // The actions of the rows. $from: 'results' on the results of a search, a new search
-// replaces them.
+// replaces them; else the address of the screen, for its "did not load" tile.
 /**
  * @param string $from
  * @return array<string, AioAction>
@@ -301,30 +427,25 @@ function aio_catv_actions($from)
     // As the sample proven on the device: no timeout and no dialog on a focus move.
     $info[GuiAction::data] = null;
     return array(
-        GUI_EVENT_KEY_ENTER => aio_input('cat_enter'),
+        GUI_EVENT_KEY_ENTER => aio_input('cat_enter', $p),
         GUI_EVENT_KEY_POPUP_MENU => aio_input('cat_menu', $p),
         GUI_EVENT_KEY_SEARCH => aio_input('cat_search', $p),
         GUI_EVENT_PLUGIN_ROWS_INFO_UPDATE => $info);
 }
 
-// The screen of rows of the listings $lists, none of them without tiles. The key set
-// of RowsFactory::pane r25, nulls too; row_dup_map: a literal, the r24 API has no such
-// constant.
+// The screen of the rows $defs. The key set of RowsFactory::pane r25, nulls too;
+// row_dup_map: a literal, the r24 API has no such constant.
 /**
- * @param list<AioCatList> $lists
+ * @param list<array<string, mixed>> $defs
  * @param mixed $sel_state
- * @param string $lang
  * @param string $from
  * @return array<string, mixed>
  */
-function aio_catv_rows_view($lists, $sel_state, $lang, $from)
+function aio_catv_rows_view($defs, $sel_state, $from)
 {
     $rows = array(array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 10, PluginRow::inactive_height => 10));
-    foreach ($lists as $list)
-    {
-        foreach (aio_catv_row_defs($list, $lang) as $def)
-            $rows[] = $def;
-    }
+    foreach ($defs as $def)
+        $rows[] = $def;
     $rows[] = array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 80, PluginRow::inactive_height => 80);
     $pane = array(
         PluginRowsPane::rows => $rows,
@@ -395,7 +516,7 @@ function aio_catv_folder_view($media_url, $sel_state)
         return aio_catv_grid_view(substr($media_url, strlen('cat_grid:')));
     if (strpos($media_url, 'cat_search:') === 0)
         return aio_catv_results_view(substr($media_url, strlen('cat_search:')), $sel_state);
-    return aio_catv_main_view($sel_state);
+    return aio_catv_main_view($media_url, $sel_state);
 }
 
 // A message instead of an empty screen, and a way to try again.
@@ -417,13 +538,17 @@ function aio_catv_message_view($key, $lang)
             PluginControlsFolderView::initial_sel_ndx => -1));
 }
 
-// The manifest does not hold the screen: a copy of any age goes, and the refresh waits
-// for the time left after the rows, for the next opening. No copy: one request.
+// The manifest does not hold the screen: a copy of any age goes, and the refresh is for
+// the next opening: r25 in get_folder_rows, r24 in the time left after the rows. No
+// copy: one request. r25: the first row ready, or the focus goes to the panel of
+// headers; the others ready from the cache, else stubs. An old copy but of the first is
+// shown and flagged too, or nothing would ask for a row with a copy for 30 days.
 /**
+ * @param string $media_url
  * @param mixed $sel_state
  * @return array<string, mixed>
  */
-function aio_catv_main_view($sel_state)
+function aio_catv_main_view($media_url, $sel_state)
 {
     $lang = aio_catv_lang();
     $copy = aio_cat_manifest_copy();
@@ -441,19 +566,32 @@ function aio_catv_main_view($sel_state)
     if (!$rows)
         return aio_catv_message_view('cat_no_rows', $lang);
     $start = microtime(true);
-    aio_catv_open($rows);
-    $lists = array();
+    $loading = aio_catv_loading_flag();
+    $defs = array();
+    $shown = array();
     foreach ($rows as $row)
     {
-        $rid = aio_catv_rid($row);
-        if (isset(AioCat::$lists[$rid]))
-            $lists[] = AioCat::$lists[$rid];
+        if (!$loading || !aio_catv_is_empty(aio_catv_rid($row)))
+            $shown[] = $row;
     }
+    aio_catv_open($shown, $loading ? 1 : count($shown));
+    foreach ($shown as $i => $row)
+    {
+        $rid = aio_catv_rid($row);
+        if (isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
+        {
+            $old = $i > 0 && !aio_cat_is_fresh(array('t' => AioCat::$lists[$rid]['st']['t0']));
+            $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang, null, $old ? $loading : 0));
+        }
+        else if ($loading)
+            $defs = array_merge($defs, aio_catv_row_note($row, $lang, $i > 0 ? '' : (aio_catv_is_empty($rid) ? 'cat_row_empty' : 'cat_row_failed')));
+    }
+    AioCat::$manifest_old = $loading && !$fresh;
     $left = AIO_CATV_OPEN_S - (microtime(true) - $start);
-    if (!$fresh && $left >= 1)
+    if (!$loading && !$fresh && $left >= 1)
         aio_cat_manifest_fetch(intval($left));
-    aio_log(sprintf('catalog: screen: %d rows of %d, %.0f ms', count($lists), count($rows), (microtime(true) - $start) * 1000));
-    return $lists ? aio_catv_rows_view($lists, $sel_state, $lang, 'catalog') : aio_catv_message_view('cat_unavailable', $lang);
+    aio_log(sprintf('catalog: screen: %d rows of %d, %.0f ms', count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
+    return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang);
 }
 
 /**
@@ -463,18 +601,19 @@ function aio_catv_main_view($sel_state)
  */
 function aio_catv_results_view($id, $sel_state)
 {
-    $lists = array();
+    $lang = aio_catv_lang();
+    $defs = array();
     foreach (AioCat::$search['id'] === $id ? AioCat::$search['rids'] : array() as $rid)
     {
         if (isset(AioCat::$lists[$rid]))
-            $lists[] = AioCat::$lists[$rid];
+            $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang));
     }
-    if (!$lists)
+    if (!$defs)
     {
         aio_log('catalog: search screen outdated');
         return aio_lines_view(array(aio_expired_item()));
     }
-    return aio_catv_rows_view($lists, $sel_state, aio_catv_lang(), 'results');
+    return aio_catv_rows_view($defs, $sel_state, 'results');
 }
 
 /**
@@ -696,7 +835,8 @@ function aio_catv_info_label($text, $size, $color, $y, $lines)
         GComponentDef::options => GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
 }
 
-// null without a tile in memory ("Show all", a restart of php_server).
+// null without a tile in memory ("Show all", a restart of php_server). A stub or a
+// message: an empty panel, not the text of the tile before.
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -705,6 +845,9 @@ function aio_catv_info($in)
 {
     $id = aio_catv_in($in, 'item_id');
     $t = aio_catv_tile($id);
+    if (!$t && preg_match('/^(stub|fail|empty):/', $id))
+        $t = array('id' => '', 'imdb_id' => '', '_tmdbId' => '', 'type' => '', 'name' => '', 'year' => '', 'releaseInfo' => '',
+            'imdbRating' => '', 'description' => '', 'genres' => array(), 'poster' => '', 'background' => '');
     if (!$t)
         return null;
     $labels = array(
@@ -746,7 +889,7 @@ function aio_catv_info($in)
 // ENTER on a tile: selected_item_id on the rows, selected_media_url on the grid.
 /**
  * @param stdClass $in
- * @return AioAction
+ * @return AioAction|null
  */
 function aio_catv_enter($in)
 {
@@ -759,6 +902,16 @@ function aio_catv_enter($in)
         return aio_catv_open_act("cat_grid:$rid", isset(AioCat::$lists[$rid]) ? AioCat::$lists[$rid]['st']['row']['name'] :
             aio_tr(aio_catv_lang(), 'cat_title'));
     }
+    if (strpos($id, 'stub:') === 0 || strpos($id, 'empty:') === 0)
+        return null;
+    // The opening tries again; the shell brings sel_state, the focus stays.
+    if (strpos($id, 'fail:') === 0)
+        return array(
+            GuiAction::handler_string_id => PLUGIN_INVALIDATE_FOLDERS_ACTION_ID,
+            GuiAction::data => array(
+                PluginInvalidateFoldersActionData::media_urls => array(aio_catv_in($in, 'from')),
+                PluginInvalidateFoldersActionData::post_action => null,
+                PluginInvalidateFoldersActionData::all_except => false));
     $t = aio_catv_tile($id);
     if (!$t)
     {
@@ -839,7 +992,10 @@ function aio_catv_input($in, $control)
     if ($control === 'cat_enter')
         return aio_catv_enter($in);
     if ($control === 'cat_retry')
+    {
+        AioCat::$empty = array();
         return aio_replace_act('catalog:' . substr(aio_rid(), 0, 8), aio_tr(aio_catv_lang(), 'cat_title'));
+    }
     if ($control === 'cat_search')
         return aio_catv_search_ask($from);
     if ($control === 'cat_search_apply')
