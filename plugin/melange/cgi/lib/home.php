@@ -63,10 +63,11 @@ function aio_cgi_state($v)
     return aio_cgi_aio_sel($v) ? 'ok' : 'conf';
 }
 
-// The lines of the main screen: id of the screen => array(dot: ok, warn or
-// '' - grey, the value now). The server (#cfg, 0.44.0): its host (own
-// one without a host: ownAioServer), ok - a config of the mode there. #adv:
-// its value only with "Без торрентов" in effect, by the CSS of the radios.
+// The lines of the main screen: id of the screen => array(dot: ok, warn,
+// '' - grey or none - no status, the value now). The server (#cfg, 0.44.0):
+// its host (own one without a host: ownAioServer), ok - a config of the mode
+// there. #adv: its value only with "Без торрентов" in effect, by the CSS of
+// the radios.
 function aio_cgi_rows($v)
 {
     $t = aio_cgi_home_texts();
@@ -113,10 +114,10 @@ function aio_cgi_rows($v)
         'torr' => array($w === AIO_MODE_P2P ? 'ok' : '', ($ts !== '' ? $ts : $t['tsDune']) .
             ($w === AIO_MODE_DEBRID ? ' · ' . $t['tsSpare'] : '')),
         'dl' => array($names ? 'ok' : '', $names ? implode(', ', $names) : $t['noServers']),
-        'adv' => array('', ''),
-        'rows' => array('', aio_cgi_l('Какие показывать и в каком порядке', 'Which to show and in what order')),
-        'bak' => array('', aio_cgi_l('Настройки в файл и из файла', 'Settings to a file and back')),
-        'log' => array('', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));
+        'adv' => array('none', ''),
+        'rows' => array('none', aio_cgi_l('Какие показывать и в каком порядке', 'Which to show and in what order')),
+        'bak' => array('none', aio_cgi_l('Настройки в файл и из файла', 'Settings to a file and back')),
+        'log' => array('none', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));
 }
 
 // The main screen (#home): the first run (no saved_at: $v['first']) - the

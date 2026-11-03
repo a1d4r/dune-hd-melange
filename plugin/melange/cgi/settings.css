@@ -5,8 +5,8 @@
 body{font:16px/1.4 -apple-system,BlinkMacSystemFont,Roboto,"Segoe UI",sans-serif;margin:0;padding:16px 16px 0;background:var(--bg);color:var(--ink)}
 main{max-width:520px;margin:0 auto}
 a{color:var(--acc)}
-h1{font-size:26px;font-weight:600;margin:4px 0 2px}
-h2{font-size:22px;font-weight:600;margin:2px 0 6px}
+h1{font-size:26px;font-weight:500;margin:4px 0 2px}
+h2{font-size:22px;font-weight:500;margin:2px 0 6px}
 .sub{margin:0 0 12px;font-size:14px;color:var(--mute)}
 .gh{margin:24px 4px 8px;font-size:13px;font-weight:400;color:var(--mute)}
 .scr{display:none;padding-bottom:12px}
@@ -25,10 +25,10 @@ h2{font-size:22px;font-weight:600;margin:2px 0 6px}
 .dot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--line)}
 .dot.ok{background:var(--ok)}
 .dot.warn{background:var(--warn)}
-#rrows .dot,#radv .dot,#rbak .dot,#rlog .dot{background:none}
+.dot.none{background:none}
 .state{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-radius:14px;font-size:15px}
 .state p{margin:0}
-.state b{font-weight:600}
+.state b{font-weight:500}
 .state .dot{margin-top:6px}
 .state.ok{background:var(--okbg)}
 .state.ok .dot{background:var(--ok)}
@@ -38,7 +38,7 @@ h2{font-size:22px;font-weight:600;margin:2px 0 6px}
 .opt{display:flex;gap:12px;align-items:center;margin:0;padding:12px 16px;background:var(--surf);border:1.5px solid var(--line);border-radius:14px;color:var(--ink);cursor:pointer}
 .opt .r{flex:none;width:20px;height:20px;border:2px solid var(--mute);border-radius:50%}
 .ot{flex:1;min-width:0}
-.opt .t{font-weight:500;overflow-wrap:anywhere}
+.opt .t{overflow-wrap:anywhere}
 .ownf{display:none}
 .own:checked~.ownf,.ownf.open{display:block}
 .mark{margin:10px 4px 0;font-size:15px}
@@ -95,8 +95,8 @@ form{display:flex;flex-direction:column;min-height:calc(100vh - 16px)}
 .cro{display:flex;align-items:center;gap:6px;padding-right:8px;border-top:1px solid var(--line)}
 .cro:first-child{border-top:0}
 .cro .chk{flex:none;width:40px;height:40px;margin:0;padding:0}
-.cr{display:flex;flex:1;align-items:center;gap:10px;min-width:0;margin:0;padding:12px 14px;font-size:15px;color:var(--ink)}
+.cr{display:flex;flex:1;align-items:center;gap:10px;min-width:0;margin:0;padding:12px 16px;font-size:15px;color:var(--ink)}
 .cr input{flex:none;width:20px;height:20px;margin:0}
 .cr span{flex:1;min-width:0;overflow-wrap:anywhere}
 details.crg{margin:8px 0 0;padding:4px 0;background:var(--surf);border:1px solid var(--line);border-radius:12px}
-details.crg>summary{padding:8px 14px;cursor:pointer}
+details.crg>summary{padding:8px 16px;cursor:pointer}
