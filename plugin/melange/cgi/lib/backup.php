@@ -56,8 +56,8 @@ function aio_cgi_backup($t, $v)
     $first = isset($v['first']) && $v['first'];
     return '<p class="sub">' . aio_cgi_l('Все настройки Melange в одном файле: перед переустановкой или для другой Дюны.',
         'All Melange settings in one file: before a reinstall or for another Dune.') . '</p>' .
-        '<p class="hint wn">' . aio_cgi_l('В файле ключи Debrid и пароли — храните его у себя, никому не пересылайте.',
-        'It holds Debrid keys and passwords: keep it to yourself, send it to no one.') . '</p>' .
+        '<p class="hint wn">' . aio_cgi_l('В файле ключи Debrid, пароли и ссылка на страницу — храните его у себя.',
+        'It holds Debrid keys, passwords and the page link: keep it to yourself.') . '</p>' .
         '<p class="hint" id="bkn"' . ($first ? '' : ' hidden') . '>' . aio_cgi_l('Настроек ещё нет: сначала сохраните их.',
         'No settings yet: save them first.') . '</p>' .
         '<a id="bkx" class="btn" href="settings?t=' . aio_cgi_h($t) . '&amp;a=export"' . ($first ? ' hidden' : '') . '>' .
@@ -100,7 +100,7 @@ function aio_cgi_import_failed($code, $why, $msg)
 // of this Dune, those of the file over them (aio_cgi_confs_merge): the
 // configs are on the servers already, an older file unlinks none. No key
 // checked, no request out. Then web_token of the file (aio_token_ok, another
-// one): written over that of this Dune, its owner and mode kept
+// one): written over that of this Dune, its owner kept, 0600
 // (aio_cgi_write), after settings.json - a failure in between leaves the
 // link as it was, the settings imported. -> JSON {ok: true, next} (the page
 // again, its values; by the token of the file if written, imported=2 if it

@@ -9,7 +9,7 @@ import { failureText } from "./i18n";
 import type { Lock } from "./lock";
 import { show } from "./ui";
 
-// The file holds a token of the page (as the plugin makes it) other than that of this one (action: settings?t=<token>):
+// The file holds a token of the page (the form of aio_token_ok, common.php) other than that of this one (action: settings?t=<token>):
 // the import writes it, the page goes to it.
 function otherLink(text: string, action: string | null): boolean {
   let json: unknown = null;

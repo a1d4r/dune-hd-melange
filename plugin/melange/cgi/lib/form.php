@@ -803,8 +803,8 @@ function aio_cgi_js($v)
         'importConfirm' => aio_cgi_l('Текущие настройки будут заменены настройками из файла. Продолжить?',
             'The current settings will be replaced with those from the file. Continue?'),
         // The file holds another link of the page (web_token, 0.51.0).
-        'importConfirmLink' => aio_cgi_l('Текущие настройки будут заменены настройками из файла. Ссылка на эту страницу вернётся к сохранённой в файле. Продолжить?',
-            'The current settings will be replaced with those from the file. The link of this page will go back to the one saved in the file. Continue?'),
+        'importConfirmLink' => aio_cgi_l('Текущие настройки будут заменены настройками из файла, ссылка на эту страницу — ссылкой из файла: текущая перестанет работать. Продолжить?',
+            'The current settings will be replaced with those from the file, the link of this page with the one from the file: the current link will stop working. Continue?'),
         'importing' => aio_cgi_l('Загружаю…', 'Loading…'),
         'importTooBig' => aio_cgi_import_big(),
         'importUnread' => aio_cgi_l('Файл не прочитался — выберите его ещё раз', 'The file could not be read: choose it again')) +
