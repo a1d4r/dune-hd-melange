@@ -68,18 +68,21 @@ function aio_cat_url($path)
 // One GET -> array(err: '' or why it failed, list: the JSON list in $field).
 // err: net (transport, timeout), big (over the limit), rate (429), server (5xx),
 // notfound (404), http (another status), bad (not the JSON expected). A failure
-// is never an empty list. $what: for the log, no URL and no reply there.
+// is never an empty list. $what: for the log, no URL and no reply there. $limit: s
+// the request may take at most, 0 for the usual timeouts.
 /**
  * @param string $path
  * @param string $what
  * @param string $field
+ * @param int $limit
  * @return array{err: string, list: array<mixed>}
  */
-function aio_cat_get($path, $what, $field)
+function aio_cat_get($path, $what, $field, $limit = 0)
 {
     $t = microtime(true);
     $err = '';
-    list($code, $body) = aio_http_get(aio_cat_url($path), $err, AIO_CAT_CONNECT, AIO_CAT_TOTAL, AIO_CAT_MAX_BYTES);
+    $total = $limit > 0 ? min($limit, AIO_CAT_TOTAL) : AIO_CAT_TOTAL;
+    list($code, $body) = aio_http_get(aio_cat_url($path), $err, min(AIO_CAT_CONNECT, $total), $total, AIO_CAT_MAX_BYTES);
     $size = strlen($body);
     $status = $err !== '' ? $err : "HTTP $code";
     $why = '';
@@ -191,13 +194,12 @@ function aio_cat_pick_rows($catalogs)
     return array_values($rows);
 }
 
-// Rows of the catalog: from the cache for AIO_CAT_FRESH, else from the server; on
-// a failure the last good copy with stale and age (s) set, err tells why ('' none;
-// aio_cat_get). No copy either: no rows and err.
+// The saved rows of any age within AIO_CAT_KEEP, no request -> rows, t: when saved
+// (0: no copy).
 /**
- * @return AioCatRows
+ * @return array{rows: list<AioCatRow>, t: int}
  */
-function aio_cat_manifest()
+function aio_cat_manifest_copy()
 {
     $c = aio_cat_cache_read(AIO_CAT_MANIFEST_KEY);
     $rows = array();
@@ -208,18 +210,43 @@ function aio_cat_manifest()
         if ($row)
             $rows[] = $row;
     }
-    if ($rows && aio_cat_is_fresh($c))
-        return array('rows' => $rows, 'stale' => false, 'age' => 0, 'err' => '');
-    $g = aio_cat_get('manifest.json', 'manifest', 'catalogs');
+    return array('rows' => $rows, 't' => $c ? $c['t'] : 0);
+}
+
+// The rows from the server, saved as the copy -> rows, err ('' none; aio_cat_get).
+// $limit: as of aio_cat_get.
+/**
+ * @param int $limit
+ * @return array{rows: list<AioCatRow>, err: string}
+ */
+function aio_cat_manifest_fetch($limit = 0)
+{
+    $g = aio_cat_get('manifest.json', 'manifest', 'catalogs', $limit);
     $new = aio_cat_pick_rows($g['list']);
     if ($new)
     {
         aio_cat_cache_write(AIO_CAT_MANIFEST_KEY, count($new), $new);
-        return array('rows' => $new, 'stale' => false, 'age' => 0, 'err' => '');
+        return array('rows' => $new, 'err' => '');
     }
     // A manifest without rows is broken too.
-    $err = $g['err'] !== '' ? $g['err'] : 'bad';
-    return array('rows' => $rows, 'stale' => (bool) $rows, 'age' => $rows && $c ? max(0, time() - $c['t']) : 0, 'err' => $err);
+    return array('rows' => array(), 'err' => $g['err'] !== '' ? $g['err'] : 'bad');
+}
+
+// Rows of the catalog: from the cache for AIO_CAT_FRESH, else from the server; on
+// a failure the last good copy with stale and age (s) set, err tells why ('' none;
+// aio_cat_get). No copy either: no rows and err.
+/**
+ * @return AioCatRows
+ */
+function aio_cat_manifest()
+{
+    $c = aio_cat_manifest_copy();
+    if ($c['rows'] && aio_cat_is_fresh($c))
+        return array('rows' => $c['rows'], 'stale' => false, 'age' => 0, 'err' => '');
+    $new = aio_cat_manifest_fetch();
+    if ($new['rows'])
+        return array('rows' => $new['rows'], 'stale' => false, 'age' => 0, 'err' => '');
+    return array('rows' => $c['rows'], 'stale' => (bool) $c['rows'], 'age' => $c['rows'] ? max(0, time() - $c['t']) : 0, 'err' => $new['err']);
 }
 
 // The rows for the screen by the choice of the user (Aio::$settings['cat_rows']).
@@ -440,16 +467,19 @@ function aio_cat_page_key($row, $skip)
 // though the row had tiles); stale, age (s): tiles from the last good copy. On a
 // failure the state stays for a retry, unless the copy moved it on: a failure is
 // never the end of a row. A short page or a page of repeats is not the end either.
+// $limit: s for this call instead of AIO_CAT_BUDGET, requests cut to what is left of it.
 /**
  * @param AioCatState $st
+ * @param float $limit
  * @param-out AioCatState $st
  * @return AioCatResult
  */
-function aio_cat_more(&$st)
+function aio_cat_more(&$st, $limit = 0.0)
 {
     $row = $st['row'];
     $res = aio_cat_result();
     $start = microtime(true);
+    $budget = $limit > 0 ? $limit : AIO_CAT_BUDGET;
     while (true)
     {
         $now = time();
@@ -466,7 +496,9 @@ function aio_cat_more(&$st)
             $page = array('err' => '', 'n' => $first['n'], 't' => $first['t'], 'tiles' => $first['data']);
         else
         {
-            $g = aio_cat_get(aio_cat_page_path($row, $skip), "{$row['key']} skip=$skip", 'metas');
+            // curl takes whole seconds.
+            $left = $limit > 0 ? max(1, intval(ceil($limit - (microtime(true) - $start)))) : 0;
+            $g = aio_cat_get(aio_cat_page_path($row, $skip), "{$row['key']} skip=$skip", 'metas', $left);
             $tiles = aio_cat_tiles($g['list'], $row['type']);
             $page = array('err' => $g['err'], 'n' => count($g['list']), 't' => time(), 'tiles' => $tiles);
             // Empty though the row had tiles: more likely a trouble of the server.
@@ -504,7 +536,7 @@ function aio_cat_more(&$st)
         }
         // No new tiles and not the end: the next portion at once.
         if (aio_cat_take($st, $res, $page['n'], $page['tiles']) > 0 || $st['end'] !== '' ||
-            microtime(true) - $start >= AIO_CAT_BUDGET)
+            microtime(true) - $start >= $budget)
             return $res;
     }
 }
