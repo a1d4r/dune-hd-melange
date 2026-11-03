@@ -909,13 +909,11 @@ function aio_speed_str($bps, $lang, $zero = false)
 
 function aio_folder_view($media_url, $sel_state)
 {
-    // "setup:<n>": the same screen redrawn by aio_setup_refresh.
-    if ($media_url === 'setup' || strpos($media_url, 'setup:') === 0)
-        return aio_setup_folder_view();
-    // A first run: the settings in place of the catalog until AIOStreams is set;
-    // "catalog:<n>": aio_setup_refresh, cat_retry.
-    if (Aio::$settings['base'] === '' && ($media_url === 'catalog' || strpos($media_url, 'catalog:') === 0))
-        return aio_setup_folder_view(true);
+    // "setup:<n>": the same screen redrawn by aio_setup_refresh; a first run: the
+    // settings in place of the catalog until AIOStreams is set.
+    if ($media_url === 'setup' || strpos($media_url, 'setup:') === 0 ||
+        (Aio::$settings['base'] === '' && aio_catv_is_main($media_url)))
+        return aio_setup_folder_view($media_url);
     if (strpos($media_url, 'info:') === 0)
         return aio_info_folder_view($media_url, $sel_state);
     if (aio_catv_is_screen($media_url))
@@ -1219,7 +1217,7 @@ function aio_handle_user_input($in)
         return aio_close_and(null);
     }
     if (is_string($control) && strpos($control, 'setup') === 0)
-        return aio_setup_input($control);
+        return aio_setup_input($in, $control);
     if (is_string($control) && strpos($control, 'cat_') === 0)
         return aio_catv_input($in, $control);
     if ($control === 'next_stop')

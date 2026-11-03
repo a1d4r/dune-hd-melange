@@ -28,18 +28,29 @@ class AioSetup
     public static $sig = null;
     // time() of a save after which the page makes the config; 0: not waiting.
     public static $wait = 0;
-    // The settings screen shown last is the catalog of a first run (aio_folder_view).
-    public static $first = false;
 }
 
-function aio_setup_open_act()
+// The settings screen; $from: the screen of the catalog it is opened over,
+// "setup::<from>", so a save reads that one again (aio_setup_refresh).
+function aio_setup_open_act($from = '')
 {
     return array(
         GuiAction::handler_string_id => PLUGIN_OPEN_FOLDER_ACTION_ID,
         GuiAction::plugin_name => AIO_PLUGIN,
         GuiAction::data => array(
-            PluginOpenFolderActionData::media_url => 'setup',
+            PluginOpenFolderActionData::media_url => aio_catv_is_main($from) ? "setup::$from" : 'setup',
             PluginOpenFolderActionData::caption => '%tr%plugin_caption'));
+}
+
+// Params of the inputs of the settings screen $url, nothing kept in memory (a restart
+// of php_server under the QR dialog): 'from' - the screen of the catalog to read again
+// after a save; 'first' - the screen is that catalog itself (a first run).
+function aio_setup_params($url)
+{
+    if (aio_catv_is_main($url))
+        return array('from' => $url, 'first' => '1');
+    $p = explode(':', $url, 3);
+    return isset($p[2]) && aio_catv_is_main($p[2]) ? array('from' => $p[2]) : array();
 }
 
 // play_action without a config: none made on the chosen server, or no link
@@ -80,7 +91,7 @@ function aio_setup_button($name, $caption, $action)
         GuiButtonDef::caption => $caption, GuiButtonDef::width => 600, GuiButtonDef::push_action => $action));
 }
 
-function aio_setup_defs()
+function aio_setup_defs($p)
 {
     $dir = aio_data_dir();
     $s = aio_settings_read_logged();
@@ -94,13 +105,14 @@ function aio_setup_defs()
     $defs[] = aio_setup_label('JacRed', $jr !== '' ? $jr : '%tr%setup_not_set');
     if ($dir === '' || !is_dir($dir))
         $defs[] = aio_setup_label(null, '%tr%err_setup_dir');
-    $defs[] = aio_setup_button('phone', '%tr%setup_phone', aio_input('setup_qr'));
-    $defs[] = aio_setup_button('relink', '%tr%setup_relink', aio_input('setup_relink'));
+    $defs[] = aio_setup_button('phone', '%tr%setup_phone', aio_input('setup_qr', $p));
+    $defs[] = aio_setup_button('relink', '%tr%setup_relink', aio_input('setup_relink', $p));
     return array_merge($defs, aio_setup_credits());
 }
 
 // Data sources of the catalog at the bottom, small (TMDB terms): its logo (img/tmdb.png,
 // 185x24, smaller than ours) as the QR picture - a path in <icon> of a smart label.
+// The text is translated here: %tr% is a whole public string (SDK), not a part of markup.
 function aio_setup_credits()
 {
     $lang = aio_catv_lang();
@@ -119,10 +131,9 @@ function aio_setup_credits()
     return $defs;
 }
 
-// $first: in place of the catalog, AIOStreams not set yet.
-function aio_setup_folder_view($first = false)
+// $url: "setup", "setup:<n>", "setup:<n>:<catalog>", or the catalog itself without AIOStreams.
+function aio_setup_folder_view($url)
 {
-    AioSetup::$first = $first;
     $s = aio_settings_read_logged();
     aio_log('setup: screen, AIOStreams ' . ($s['source'] === 'own' ? 'own config' : ($s['aio_server'] === 'own' ?
         'made on another server' : 'made on a public one')) . (aio_settings_manifest($s) !== '' ? ', set' : ', not set') .
@@ -131,7 +142,7 @@ function aio_setup_folder_view($first = false)
         PluginFolderView::view_kind => PLUGIN_FOLDER_VIEW_CONTROLS,
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::data => array(
-            PluginControlsFolderView::defs => aio_setup_defs(),
+            PluginControlsFolderView::defs => aio_setup_defs(aio_setup_params($url)),
             PluginControlsFolderView::initial_sel_ndx => -1));
 }
 
@@ -205,9 +216,10 @@ function aio_setup_url($ip, $tok)
     return "http://$host/cgi-bin/plugins/" . AIO_PLUGIN . "/settings?t=$tok";
 }
 
-function aio_setup_timer_acts()
+// $p: aio_setup_params of the screen, on to setup_refresh.
+function aio_setup_timer_acts($p)
 {
-    return array(GUI_EVENT_TIMER => aio_input('setup_tick'));
+    return array(GUI_EVENT_TIMER => aio_input('setup_tick', $p));
 }
 
 function aio_setup_timer()
@@ -229,7 +241,7 @@ function aio_setup_png_side($png)
 
 // The QR dialog: the page address as a QR and as text; its timer waits for
 // a new settings.json. $renew: a new token first ("Change the link").
-function aio_setup_qr($renew = false)
+function aio_setup_qr($p, $renew = false)
 {
     $tmp = isset(DuneSystem::$properties['tmp_dir_path']) ? strval(DuneSystem::$properties['tmp_dir_path']) : '';
     if (aio_data_dir() === '' || !is_dir(aio_data_dir()))
@@ -283,7 +295,7 @@ function aio_setup_qr($renew = false)
     $defs[0][GuiControlDef::params] = array('smart' => 1);
     return aio_dialog_act('%tr%setup_phone', $defs, array(
         ShowDialogActionData::preferred_width => 1500,
-        ShowDialogActionData::actions => aio_setup_timer_acts(),
+        ShowDialogActionData::actions => aio_setup_timer_acts($p),
         ShowDialogActionData::timer => aio_setup_timer()));
 }
 
@@ -300,7 +312,7 @@ function aio_setup_config_due()
 // Timer of the QR dialog: a new settings.json closes it and redraws the
 // screen; a save before the config is made - at the write with the config or
 // AIO_SETUP_WAIT_S after the last such save (the config failed).
-function aio_setup_tick()
+function aio_setup_tick($p)
 {
     $sig = aio_settings_sig();
     // The clock gone back: over too, never an endless wait.
@@ -325,42 +337,53 @@ function aio_setup_tick()
         // reset_controls right in close_dialog_and_run is run by the shell but
         // does not redraw the screen (device, 0.14.0): our own input after
         // the dialog, which replaces the screen (aio_setup_refresh).
-        return aio_close_and(aio_input('setup_refresh'));
+        return aio_close_and(aio_input('setup_refresh', $p));
     }
     return array(
         GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
         GuiAction::data => array(
-            ChangeBehaviourActionData::actions => aio_setup_timer_acts(),
+            ChangeBehaviourActionData::actions => aio_setup_timer_acts($p),
             ChangeBehaviourActionData::timer => aio_setup_timer()));
 }
 
-// The settings screen replaced by a fresh one. The catalog under it is read again: its
-// rows may have changed, and Back does not ask for it. A first run: the catalog itself,
-// the settings until AIOStreams is set.
-function aio_setup_refresh()
+// The settings screen replaced by a fresh one; $p of aio_setup_params. The catalog under
+// it ($p['from']) is read again: its rows may have changed, and Back does not ask for it
+// (the shell finds a screen by its exact media_url). A first run: the catalog itself, the
+// settings until AIOStreams is set; AIOStreams gone: the catalog under them shows the
+// settings too, so both go for one such screen, no settings over settings.
+function aio_setup_refresh($p)
 {
     aio_log('setup: screen redrawn');
     $id = substr(aio_rid(), 0, 8);
-    if (AioSetup::$first)
-        return aio_replace_act("catalog:$id", '%tr%plugin_caption');
+    $from = isset($p['from']) && aio_catv_is_main($p['from']) ? $p['from'] : '';
+    if ($from === '')
+        return aio_replace_act("setup:$id", '%tr%plugin_caption');
+    if (isset($p['first']) || Aio::$settings['base'] === '')
+        return aio_replace_act("catalog:$id", '%tr%plugin_caption', isset($p['first']) ? 1 : 2);
     return array(
         GuiAction::handler_string_id => PLUGIN_INVALIDATE_FOLDERS_ACTION_ID,
         GuiAction::data => array(
-            PluginInvalidateFoldersActionData::media_urls => array('catalog'),
-            PluginInvalidateFoldersActionData::post_action => aio_replace_act("setup:$id", '%tr%plugin_caption'),
+            PluginInvalidateFoldersActionData::media_urls => array($from),
+            PluginInvalidateFoldersActionData::post_action => aio_replace_act("setup:$id:$from", '%tr%plugin_caption'),
             PluginInvalidateFoldersActionData::all_except => false));
 }
 
-function aio_setup_relink()
+function aio_setup_relink($p)
 {
     return aio_dialog('%tr%setup_relink', array('%tr%setup_relink_warn'), array(
-        '%tr%setup_relink_ok' => aio_close_and(aio_input('setup_relink_do')),
+        '%tr%setup_relink_ok' => aio_close_and(aio_input('setup_relink_do', $p)),
         '%tr%setup_cancel' => aio_close_and(null)));
 }
 
 // handle_user_input of the settings: -> action or null.
-function aio_setup_input($control)
+function aio_setup_input($in, $control)
 {
+    $p = array();
+    foreach (array('from', 'first') as $k)
+    {
+        if (aio_catv_in($in, $k) !== '')
+            $p[$k] = aio_catv_in($in, $k);
+    }
     if ($control === 'setup')
     {
         // The "Settings" item of the popup menu of the Applications icon.
@@ -368,14 +391,14 @@ function aio_setup_input($control)
         return aio_setup_open_act();
     }
     if ($control === 'setup_qr')
-        return aio_setup_qr();
+        return aio_setup_qr($p);
     if ($control === 'setup_tick')
-        return aio_setup_tick();
+        return aio_setup_tick($p);
     if ($control === 'setup_refresh')
-        return aio_setup_refresh();
+        return aio_setup_refresh($p);
     if ($control === 'setup_relink')
-        return aio_setup_relink();
+        return aio_setup_relink($p);
     if ($control === 'setup_relink_do')
-        return aio_setup_qr(true);
+        return aio_setup_qr($p, true);
     return null;
 }

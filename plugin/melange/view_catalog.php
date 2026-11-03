@@ -523,14 +523,23 @@ function aio_catv_rows_view($defs, $sel_state, $from)
 
 // --- Screens.
 
+// The screen of the rows: "catalog", "catalog:<n>" of cat_retry and aio_setup_refresh.
+/**
+ * @param string $media_url
+ * @return bool
+ */
+function aio_catv_is_main($media_url)
+{
+    return $media_url === 'catalog' || strpos($media_url, 'catalog:') === 0;
+}
+
 /**
  * @param string $media_url
  * @return bool
  */
 function aio_catv_is_screen($media_url)
 {
-    return $media_url === 'catalog' || strpos($media_url, 'catalog:') === 0 || strpos($media_url, 'cat_grid:') === 0 ||
-        strpos($media_url, 'cat_search:') === 0;
+    return aio_catv_is_main($media_url) || strpos($media_url, 'cat_grid:') === 0 || strpos($media_url, 'cat_search:') === 0;
 }
 
 /**
@@ -569,7 +578,8 @@ function aio_catv_message_view($key, $lang)
 // The manifest does not hold the screen: a copy of any age goes; no copy: one request.
 // r25: no request for the rows, one rule for all: a fresh copy ready, an old one flagged,
 // none: stubs; get_folder_rows asks for the flagged ones and refreshes an old manifest
-// in the time left. r24: the rows and the manifest load here, in AIO_CATV_OPEN_S.
+// in the time left (none flagged: here, as r24). r24: the rows and the manifest load
+// here, in AIO_CATV_OPEN_S.
 /**
  * @param string $media_url
  * @param mixed $sel_state
@@ -596,6 +606,7 @@ function aio_catv_main_view($media_url, $sel_state)
         return aio_catv_message_view('cat_no_rows', $lang);
     $loading = aio_catv_loading_flag();
     $defs = array();
+    $asked = false;
     $shown = array();
     foreach ($rows as $row)
     {
@@ -613,13 +624,17 @@ function aio_catv_main_view($media_url, $sel_state)
             if ($flag)
                 AioCat::$on_screen[$rid] = AioCat::$lists[$rid]['tiles'];
             $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang, null, $flag));
+            $asked = $asked || $flag;
         }
         else if ($loading)
+        {
             $defs = array_merge($defs, aio_catv_row_note($row, $lang, ''));
+            $asked = true;
+        }
     }
-    AioCat::$manifest_old = $loading && !$fresh;
+    AioCat::$manifest_old = $asked && !$fresh;
     $left = AIO_CATV_OPEN_S - (microtime(true) - $start);
-    if (!$loading && !$fresh && $left >= 1 && !aio_catv_is_down())
+    if (!$asked && !$fresh && $left >= 1 && !aio_catv_is_down())
         aio_cat_manifest_fetch(intval($left));
     aio_log(sprintf('catalog: screen: %d rows of %d, %.0f ms', count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang);
@@ -1061,7 +1076,7 @@ function aio_catv_input($in, $control)
                 array(
                     GuiMenuItemDef::caption => aio_tr($lang, 'setup_menu'),
                     GuiMenuItemDef::icon_url => 'gui_skin://small_icons/setup.aai',
-                    GuiMenuItemDef::action => aio_setup_open_act()))));
+                    GuiMenuItemDef::action => aio_setup_open_act($from)))));
     }
     return null;
 }
