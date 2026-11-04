@@ -1,0 +1,45 @@
+# Catalog
+
+Melange's own catalog: rows of collections, search and where the data comes from. [← README](../README.en.md)
+
+## How to open
+
+**Apps → Melange** opens the catalog. While AIOStreams is not set up, the settings screen opens instead (see [Getting started](quick-start.en.md)).
+
+Settings from the catalog: MENU → **Settings**.
+
+<img src="../screenshots/catalog.jpg" alt="Melange catalog: names of the start rows on the left, rows of posters on the right" width="100%">
+
+## Rows
+
+The catalog has rows of collections with up to 20 posters each; the last tile, **Show all**, opens the whole row (up to 1000 posters, loaded as you scroll).
+
+**Start rows:** trending movies and series, new digital releases, this year's series, popular and top rated, and Kinopoisk top ("Топ Кинопоиска"). Row names come from the catalog server in Russian.
+
+### Your own set of rows
+
+On the settings page on your phone, in the **Catalog rows** section, there are about 180 rows in groups (top, Russian, Russian services, genres, themes, studios, decades, years, streaming, countries, runtime, anime): tick the ones you want and order them with **Up** / **Down**; at least one row must stay. Rows are saved together with the other settings, so set up where to get films first. The new set shows the next time the catalog opens.
+
+## Search
+
+MENU → **Search** (or the search key, if your remote has one). Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.
+
+<img src="../screenshots/search.jpg" alt="Search results in the Melange catalog: Movies and Series rows, a Show all tile at the end of a row" width="100%">
+
+## ENTER on a poster
+
+- If the title has a card in the Dune **Movies** catalog, that card opens: **Play...** → **Melange**, with watch history as usual.
+- If there is no card, Melange offers to open the release list right away (for a series, from the first episode), but without watch history: no percentage, no **Continue Watching**.
+- With neither a card nor an IMDb ID, releases cannot be found.
+
+## Catalog server
+
+Rows, search and posters come from Melange's shared AIOMetadata server `aiometadata.kompotik.com`; no keys or sign-up needed. If the server does not answer, the catalog shows saved copies of the rows, and a row without a copy can be reloaded.
+
+## Data sources
+
+Movies, series and posters come from [TMDB](https://www.themoviedb.org/), streaming service rows from [JustWatch](https://www.justwatch.com/) data. Thanks to the authors of the collections:
+- the parameters of most rows (genres, themes, studios, decades, streaming, countries, runtime) are from the AIOMetadata template [luckynumb3rs/stremio-perfect-setup](https://github.com/luckynumb3rs/stremio-perfect-setup); the Russian rows and new releases were put together for Melange;
+- Kinopoisk top is an unofficial mirror of the Kinopoisk Top 250, the public list by [lotist on Letterboxd](https://letterboxd.com/lotist/list/250/); it is not Kinopoisk's own rating, and the row has the first 200 movies;
+- the "on AniList" anime rows are from [AniList](https://anilist.co/);
+- the catalog server is [AIOMetadata](https://github.com/cedya77/aiometadata).
