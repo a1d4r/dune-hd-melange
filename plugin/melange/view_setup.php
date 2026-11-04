@@ -172,19 +172,34 @@ function aio_setup_token($renew)
     return aio_write_file(aio_data_dir() . '/' . AIO_TOKEN_FILE, $t) ? $t : '';
 }
 
-// IP of the Dune for the phone: the first non-loopback address of ifconfig,
-// else the source address of a UDP socket (connect sends nothing).
+// IP of the Dune for the phone, from ifconfig: eth0, else wlan0, else the
+// first other interface but loopback and VPNs (tun*, ppp*, wg*). busybox lists
+// interfaces by name, so on Wi-Fi a VPN tun0 comes before wlan0. Else the
+// source address of a UDP socket (connect sends nothing; may be a VPN's too).
 function aio_setup_ip()
 {
     $o = array();
     exec('ifconfig 2>/dev/null', $o);
-    if (preg_match_all('/inet addr: ?([0-9]{1,3}(?:\.[0-9]{1,3}){3})/', implode("\n", $o), $m))
+    $ips = array();
+    $if = '';
+    foreach ($o as $line)
     {
-        foreach ($m[1] as $ip)
-        {
-            if (strpos($ip, '127.') !== 0)
-                return $ip;
-        }
+        // A block starts with the interface name at the line start.
+        if (preg_match('/^([^\s:]+)/', $line, $m))
+            $if = $m[1];
+        if ($if !== '' && !isset($ips[$if]) &&
+            preg_match('/inet addr: ?([0-9]{1,3}(?:\.[0-9]{1,3}){3})/', $line, $m) && strpos($m[1], '127.') !== 0)
+            $ips[$if] = $m[1];
+    }
+    foreach (array('eth0', 'wlan0') as $if)
+    {
+        if (isset($ips[$if]))
+            return $ips[$if];
+    }
+    foreach ($ips as $if => $ip)
+    {
+        if (!preg_match('/^(tun|ppp|wg)/', $if))
+            return $ip;
     }
     $ip = '';
     if (function_exists('socket_create'))
