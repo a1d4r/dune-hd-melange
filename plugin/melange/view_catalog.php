@@ -30,6 +30,11 @@ define('AIO_CATV_ALL_ROWS', 112);
 // The tiles a call of get_folder_rows loads past the last row asked: the end on the border of
 // a row closes the rows past it in the same reply.
 define('AIO_CATV_ALL_AHEAD', 9);
+// The timer of a view with stubs: the focus run past the end onto a closed row is lost, the tick
+// once the end is known builds the view anew (catalog_probe y9, y9b).
+define('AIO_CATV_ALL_TICK_MS', 1500);
+// The searches kept in memory: Back to the results of an older one, its tiles and "Show all" work.
+define('AIO_CATV_SEARCHES', 3);
 // The info panel, as the native one (movie_helper.php of shell_ext, the same info_r):
 // a title of one line as large as fits PANE_W, then lines of 30 px (down to 15 px to
 // fit TEXT_W), then the description. Names up to 197, descriptions up to 1096 characters
@@ -59,9 +64,9 @@ class AioCat
     // only; after a restart the rows come from the cache, the panel stays empty.
     /** @var array<string, AioCatList> */
     public static $lists = array();
-    // The screen of the last search: its id, the rids of its rows.
-    /** @var array{id: string, rids: list<string>} */
-    public static $search = array('id' => '', 'rids' => array());
+    // The last AIO_CATV_SEARCHES searches, the oldest first: by its id, the rids of its rows.
+    /** @var array<string, list<string>> */
+    public static $searches = array();
     // r25: when a row came empty, by rid. It is hidden at the openings of the next hour.
     /** @var array<string, int> */
     public static $empty = array();
@@ -78,6 +83,15 @@ class AioCat
     // The language of the last screen of rows ('': not read yet), aio_catv_ui_lang.
     /** @var string */
     public static $lang = '';
+    // "Show all": by rid, a call of get_folder_rows failed; no request until the view anew.
+    /** @var array<string, bool> */
+    public static $all_failed = array();
+    // "Show all": by address, the last view has stubs (and the timer).
+    /** @var array<string, bool> */
+    public static $all_stubs = array();
+    // "Show all": the ticks of the timer so far, for the log.
+    /** @var int */
+    public static $all_ticks = 0;
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -122,7 +136,8 @@ function aio_catv_in($in, $k)
  */
 function aio_catv_rid($row)
 {
-    return substr(md5($row['key']), 0, 8);
+    // A row of a search: a rid of its own for every search (sid), the key is one for all.
+    return substr(md5($row['key'] . (isset($row['sid']) ? ':' . $row['sid'] : '')), 0, 8);
 }
 
 // A listing and all its tiles so far, by the id of a tile. stale: of a copy, a request failed.
@@ -315,8 +330,8 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
         $items = array();
         foreach (array_slice($list['tiles'], 0, AIO_CATV_ROW_TILES) as $t)
             $items[] = aio_catv_item("$rid:{$t['id']}", $t['name'], aio_catv_poster($t));
-        // Of a search: and the id of the search shown (aio_catv_results_view), as in cat_grid:.
-        $more = isset($row['q']) ? "more:$rid:" . AioCat::$search['id'] : "more:$rid";
+        // Of a search: and its id, as in cat_grid:.
+        $more = isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid";
         if ($list['st']['end'] === '' || count($list['tiles']) > AIO_CATV_ROW_TILES)
             $items[] = aio_catv_item($more, aio_tr($lang, 'cat_more'), AIO_CATV_ICONS . 'more.png');
     }
@@ -730,7 +745,7 @@ function aio_catv_results_view($id, $sel_state)
     $lang = aio_catv_lang();
     AioCat::$lang = $lang;
     $defs = array();
-    foreach (AioCat::$search['id'] === $id ? AioCat::$search['rids'] : array() as $rid)
+    foreach (isset(AioCat::$searches[$id]) ? AioCat::$searches[$id] : array() as $rid)
     {
         if (isset(AioCat::$lists[$rid]))
             $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang));
@@ -883,9 +898,9 @@ function aio_catv_add(&$list, $res)
 }
 
 // The listing of a screen "Show all" ("cat_grid:<rid>", of a search "cat_grid:<rid>:<id of
-// the search>"), or null. A search has one rid for every query, so a screen of an older one
-// gets nothing. $anew: a row of the manifest not in memory gets a new listing, from the first
-// page on; not for the rows of a screen already shown, the listing anew may differ.
+// the search>"), or null: a search no more in memory (AIO_CATV_SEARCHES) gets nothing. $anew:
+// a row of the manifest not in memory gets a new listing, from the first page on; not for the
+// rows of a screen already shown, the listing anew may differ.
 /**
  * @param string $url
  * @param bool $anew
@@ -897,7 +912,7 @@ function aio_catv_all_list($url, $anew)
     $rid = $p[0];
     $list = isset(AioCat::$lists[$rid]) ? AioCat::$lists[$rid] : null;
     if (count($p) === 2)
-        return $p[1] !== '' && $p[1] === AioCat::$search['id'] && in_array($rid, AioCat::$search['rids'], true) ? $list : null;
+        return isset(AioCat::$searches[$p[1]]) && in_array($rid, AioCat::$searches[$p[1]], true) ? $list : null;
     if (count($p) > 2 || ($list && isset($list['st']['row']['q'])))
         return null;
     if ($list || !$anew)
@@ -1088,8 +1103,26 @@ function aio_catv_all_stub($k)
         PluginRow::options => aio_catv_loading_flag() | (defined('PLUGIN_ROW_OPT_OPTIMIZE_INVISIBLE') ? PLUGIN_ROW_OPT_OPTIMIZE_INVISIBLE : 0));
 }
 
+// The actions of "Show all"; with stubs, the tick of the timer too (no dialog, as rows_info).
+/**
+ * @param string $url
+ * @param bool $stubs
+ * @return array<string, AioAction>
+ */
+function aio_catv_all_actions($url, $stubs)
+{
+    $actions = aio_catv_actions($url);
+    if ($stubs)
+    {
+        $tick = aio_input('cat_tick', array('from' => $url));
+        $tick[GuiAction::data] = null;
+        $actions[GUI_EVENT_TIMER] = $tick;
+    }
+    return $actions;
+}
+
 // The screen of the rows $rows: the pane of get_rows_pane of movie_list_screen.php r25, the
-// panel and the template of the catalog. $dup: row_dup_map, null without stubs.
+// panel and the template of the catalog. $dup: row_dup_map, null without stubs; with them the timer.
 /**
  * @param list<array<string, mixed>> $rows
  * @param array<string, array<string, mixed>>|null $dup
@@ -1132,16 +1165,16 @@ function aio_catv_all_pane($rows, $dup, $sel_state, $url)
         PluginFolderView::data => array(
             PluginRowsFolderView::pane => $pane,
             PluginRowsFolderView::sel_state => is_string($sel_state) && $sel_state !== '' ? $sel_state : null,
-            PluginRowsFolderView::actions => aio_catv_actions($url),
-            PluginRowsFolderView::timer => null));
+            PluginRowsFolderView::actions => aio_catv_all_actions($url, $dup !== null),
+            PluginRowsFolderView::timer => $dup !== null ? array(GuiTimerDef::delay_ms => AIO_CATV_ALL_TICK_MS) : null));
 }
 
 // The screen "Show all" (aio_catv_all_list). Its first row is never flagged (a flagged
 // first row covered the rows under it, 0.50.0) and never changes: the end not known, it is
 // filled to 9 tiles here, in AIO_CATV_GRID_S. The end known: its rows only, the last one
-// short. Else the full rows in memory, then stubs up to AIO_CATV_ALL_ROWS. No tile at all:
-// one tile "empty"; the first row not filled: its tiles and "did not load", ENTER on it opens
-// the screen anew.
+// short. Else the full rows in memory, then stubs up to AIO_CATV_ALL_ROWS, and the timer. No
+// tile at all: one tile "empty"; the first row not filled: its tiles and "did not load", ENTER
+// on it opens the screen anew. A failure of get_folder_rows is forgotten: its rows go on.
 /**
  * @param string $url
  * @param mixed $sel_state
@@ -1159,6 +1192,7 @@ function aio_catv_all_view($url, $sel_state)
         return aio_lines_view(array(aio_expired_item()));
     }
     $rid = aio_catv_rid($list['st']['row']);
+    unset(AioCat::$all_failed[$rid]);
     while (count($list['tiles']) < AIO_CATV_ALL_COLS && $list['st']['end'] === '')
     {
         $left = AIO_CATV_GRID_S - (microtime(true) - $start);
@@ -1199,6 +1233,10 @@ function aio_catv_all_view($url, $sel_state)
         // The shell puts the id of the dup row before the ids of its tiles: "row<k>.<j>".
         $dup = array('ld' => aio_catv_all_def('loading', $items, aio_catv_loading_flag()));
     }
+    if ($dup)
+        AioCat::$all_stubs[$url] = true;
+    else
+        unset(AioCat::$all_stubs[$url]);
     aio_log(sprintf('catalog: show all: %d tiles, %d rows%s, %.0f ms', $n, count($rows), $end ? ', the end' : '',
         (microtime(true) - $start) * 1000));
     return aio_catv_all_pane($rows, $dup, $sel_state, $url);
@@ -1208,10 +1246,11 @@ function aio_catv_all_view($url, $sel_state)
 // last short row and 0 tiles for every row past it, asked or not, in every reply (the shell
 // throws away a reply it cancelled; it does not draw a row of 0 tiles). Before that the next
 // pages, in AIO_CATV_ROW_S, up to the last row asked and AIO_CATV_ALL_AHEAD tiles more; the
-// listing goes to memory page by page, so a repeat of a cancelled call is at once. Nothing to
-// give yet: the rows asked as stubs again. Never an empty reply: the shell would ask again at
-// once. No listing (php_server restarted, an older search): 0 tiles from the first row asked on;
-// an id not of a row of the screen: 0 tiles with that id.
+// listing goes to memory page by page, so a repeat of a cancelled call is at once. No row asked
+// filled (a failure, out of time): "did not load" after the last tile and the rows past it closed
+// as at the end, in every reply until the view anew; no request till then. Never an empty
+// reply: the shell would ask again at once. No listing (php_server restarted, a search out of
+// memory): 0 tiles from the first row asked on; an id not of a row of the screen: 0 tiles with that id.
 /**
  * @param string $url
  * @param array<mixed> $ids
@@ -1245,7 +1284,9 @@ function aio_catv_all_rows($url, $ids)
         $cap = AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS;
         $want = $asked ? min($cap, AIO_CATV_ALL_COLS * (max($asked) + 1) + AIO_CATV_ALL_AHEAD) : 0;
         $was = count($list['tiles']);
-        while (count($list['tiles']) < $want && $list['st']['end'] === '')
+        $failed = isset(AioCat::$all_failed[$rid]);
+        $err = '';
+        while (!$failed && count($list['tiles']) < $want && $list['st']['end'] === '')
         {
             $left = AIO_CATV_ROW_S - (microtime(true) - $start);
             if ($left < AIO_CATV_MIN_S)
@@ -1253,7 +1294,8 @@ function aio_catv_all_rows($url, $ids)
             $res = aio_cat_more($list['st'], $left);
             aio_catv_add($list, $res);
             AioCat::$lists[$rid] = $list;
-            if ($res['err'] !== '')
+            $err = $res['err'];
+            if ($err !== '')
                 break;
         }
         $n = count($list['tiles']);
@@ -1264,17 +1306,24 @@ function aio_catv_all_rows($url, $ids)
             if ($end || AIO_CATV_ALL_COLS * ($k + 1) <= $n)
                 $out[] = aio_catv_all_row($rid, $k, $list);
         }
-        if (!$out)
+        if (!$end && !$failed && $asked && !$out)
         {
-            foreach ($asked as $k)
-                $out[] = aio_catv_all_stub($k);
+            $failed = true;
+            AioCat::$all_failed[$rid] = true;
+            aio_log(sprintf('catalog: show all: rows: failed (%s), %d tiles', $err !== '' ? $err : 'out of time', $n));
         }
-        if ($end)
+        if ($end || $failed)
         {
-            for ($k = intval($n / AIO_CATV_ALL_COLS); $k < AIO_CATV_ALL_ROWS; $k++)
+            $full = intval($n / AIO_CATV_ALL_COLS);
+            for ($k = $full; $k < AIO_CATV_ALL_ROWS; $k++)
             {
-                if (!in_array($k, $asked, true))
-                    $out[] = aio_catv_all_row($rid, $k, $list);
+                if (in_array($k, $asked, true) && $end)
+                    continue;
+                $row = aio_catv_all_row($rid, $k, $list);
+                if ($failed && $k === $full)
+                    $row[PluginRow::data][PluginRegularRow::items][] = aio_catv_item("fail:$rid", aio_tr(aio_catv_ui_lang(), 'cat_row_failed'),
+                        AIO_CATV_ICONS . 'no_movie_poster.png');
+                $out[] = $row;
             }
         }
         if ($n > $was)
@@ -1435,6 +1484,50 @@ function aio_catv_info($in)
 
 // --- Input.
 
+/**
+ * @param string $url
+ * @return AioAction
+ */
+function aio_catv_invalidate($url)
+{
+    return array(
+        GuiAction::handler_string_id => PLUGIN_INVALIDATE_FOLDERS_ACTION_ID,
+        GuiAction::data => array(
+            PluginInvalidateFoldersActionData::media_urls => array($url),
+            PluginInvalidateFoldersActionData::post_action => null,
+            PluginInvalidateFoldersActionData::all_except => false));
+}
+
+// The tick of the timer of "Show all" $url, memory only. The end known and the view of stubs:
+// the view anew, ceil(n/9) rows and no timer; the end not known: the timer again
+// (update_next_movie of main_entry_handler.php r25). No listing: no more ticks.
+/**
+ * @param string $url
+ * @return AioAction|null
+ */
+function aio_catv_all_tick($url)
+{
+    $n = ++AioCat::$all_ticks;
+    $list = aio_catv_all_list($url, false);
+    if (!$list || !isset(AioCat::$all_stubs[$url]))
+    {
+        aio_log("catalog: show all: tick #$n: " . ($list ? 'no stubs' : 'no listing') . ', null');
+        return null;
+    }
+    $tiles = count($list['tiles']);
+    if ($list['st']['end'] !== '' || $tiles >= AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS)
+    {
+        aio_log("catalog: show all: tick #$n: the end, $tiles tiles, invalidate");
+        return aio_catv_invalidate($url);
+    }
+    aio_log("catalog: show all: tick #$n: $tiles tiles, change_behaviour");
+    return array(
+        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
+        GuiAction::data => array(
+            ChangeBehaviourActionData::actions => aio_catv_all_actions($url, true),
+            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => AIO_CATV_ALL_TICK_MS)));
+}
+
 // ENTER on a tile: selected_item_id on the rows, selected_media_url on the grid.
 /**
  * @param stdClass $in
@@ -1459,12 +1552,7 @@ function aio_catv_enter($in)
     if (strpos($id, 'fail:') === 0)
     {
         AioCat::$down = 0;
-        return array(
-            GuiAction::handler_string_id => PLUGIN_INVALIDATE_FOLDERS_ACTION_ID,
-            GuiAction::data => array(
-                PluginInvalidateFoldersActionData::media_urls => array(aio_catv_in($in, 'from')),
-                PluginInvalidateFoldersActionData::post_action => null,
-                PluginInvalidateFoldersActionData::all_except => false));
+        return aio_catv_invalidate(aio_catv_in($in, 'from'));
     }
     $t = aio_catv_tile($id);
     if (!$t)
@@ -1511,6 +1599,7 @@ function aio_catv_search_run($q, $from)
     $lang = aio_catv_lang();
     // The no-break space at the end of cat_movies, cat_series is on purpose, in place of the number (the owner's choice); editors drop it as trailing whitespace: keep it.
     $found = aio_cat_search($q, array('movie' => aio_tr($lang, 'cat_movies'), 'series' => aio_tr($lang, 'cat_series')));
+    $sid = substr(aio_rid(), 0, 8);
     $rids = array();
     $failed = false;
     foreach ($found as $f)
@@ -1519,14 +1608,25 @@ function aio_catv_search_run($q, $from)
         $failed = $failed || $res['err'] !== '';
         if (!$res['tiles'])
             continue;
-        $rid = aio_catv_rid($f['st']['row']);
-        AioCat::$lists[$rid] = aio_catv_list($f['st'], $res['tiles'], $res['stale']);
+        $st = $f['st'];
+        $st['row']['sid'] = $sid;
+        $rid = aio_catv_rid($st['row']);
+        AioCat::$lists[$rid] = aio_catv_list($st, $res['tiles'], $res['stale']);
         $rids[] = $rid;
     }
     if (!$rids)
         return aio_error($failed ? 'cat_search_failed' : 'cat_search_none');
-    AioCat::$search = array('id' => substr(aio_rid(), 0, 8), 'rids' => $rids);
-    $url = 'cat_search:' . AioCat::$search['id'];
+    AioCat::$searches[$sid] = $rids;
+    // Not array_shift: an id of digits only is a key of int, it would renumber it.
+    while (count(AioCat::$searches) > AIO_CATV_SEARCHES)
+    {
+        reset(AioCat::$searches);
+        $old = key(AioCat::$searches);
+        foreach (AioCat::$searches[$old] as $r)
+            unset(AioCat::$lists[$r]);
+        unset(AioCat::$searches[$old]);
+    }
+    $url = "cat_search:$sid";
     $caption = aio_tr($lang, 'cat_results');
     return $from === 'results' ? aio_replace_act($url, $caption) : aio_catv_open_act($url, $caption);
 }
@@ -1543,6 +1643,8 @@ function aio_catv_input($in, $control)
         return aio_catv_info($in);
     if ($control === 'cat_enter')
         return aio_catv_enter($in);
+    if ($control === 'cat_tick')
+        return aio_catv_all_tick($from);
     if ($control === 'cat_retry')
     {
         AioCat::$empty = array();
