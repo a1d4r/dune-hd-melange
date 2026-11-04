@@ -27,8 +27,8 @@ define('AIO_CATV_GRID_PORTION', 50);
 // 1000 tiles of AIOMetadata; the shell can not add rows later.
 define('AIO_CATV_ALL_COLS', 9);
 define('AIO_CATV_ALL_ROWS', 112);
-// The tiles a call of get_folder_rows loads past the last row asked: the end on the border of
-// a row closes the rows past it in the same reply.
+// The tiles a call of get_folder_rows loads past the row after the first one asked: the end on
+// the border of a row closes the rows past it in the same reply.
 define('AIO_CATV_ALL_AHEAD', 9);
 // The timer of a view with stubs: the focus run past the end onto a closed row is lost, the tick
 // once the end is known builds the view anew (catalog_probe y9, y9b).
@@ -89,7 +89,7 @@ class AioCat
     // "Show all": by rid, the last view has stubs (and the timer).
     /** @var array<string, bool> */
     public static $all_stubs = array();
-    // "Show all": the ticks of the timer so far and what the last one gave, for the log.
+    // "Show all": the ticks of the timer of the last view with stubs and what the last one gave, for the log.
     /** @var int */
     public static $all_ticks = 0;
     /** @var string */
@@ -1278,7 +1278,12 @@ function aio_catv_all_view($url, $sel_state)
         $dup = array('ld' => aio_catv_all_def('loading', $items, aio_catv_loading_flag()));
     }
     if ($dup)
+    {
         AioCat::$all_stubs[$rid] = true;
+        // The ticks of this screen from #1 in the log.
+        AioCat::$all_ticks = 0;
+        AioCat::$all_tick_last = '';
+    }
     else
         unset(AioCat::$all_stubs[$rid]);
     aio_log(sprintf('catalog: show all: %d tiles, %d rows%s, %.0f ms', $n, count($rows), $end ? ', the end' : ($failed ? ', failed' : ''),
@@ -1289,7 +1294,9 @@ function aio_catv_all_view($url, $sel_state)
 // get_folder_rows of "Show all": the rows asked that are full; once the end is known also the
 // last short row and 0 tiles for every row past it, asked or not, in every reply (the shell
 // throws away a reply it cancelled; it does not draw a row of 0 tiles). Before that the next
-// pages, in AIO_CATV_ROW_S, up to the last row asked and AIO_CATV_ALL_AHEAD tiles more; the
+// pages, in AIO_CATV_ROW_S, up to the row after the first one asked and AIO_CATV_ALL_AHEAD tiles
+// more, not to the last one: the opening asks row1..row11 at once, the rest of them the shell
+// asks again by itself in a few ms, the screen below the first row is not empty for seconds. The
 // listing goes to memory page by page, so a repeat of a cancelled call is at once. No row asked
 // filled (a failure, out of time): "did not load" after the last tile and the rows past it closed
 // as at the end, in every reply until the view anew; no request till then. Never an empty
@@ -1326,7 +1333,7 @@ function aio_catv_all_rows($url, $ids)
     {
         $rid = aio_catv_rid($list['st']['row']);
         $cap = AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS;
-        $want = $asked ? min($cap, AIO_CATV_ALL_COLS * (max($asked) + 1) + AIO_CATV_ALL_AHEAD) : 0;
+        $want = $asked ? min($cap, AIO_CATV_ALL_COLS * (min($asked) + 2) + AIO_CATV_ALL_AHEAD) : 0;
         $was = count($list['tiles']);
         $failed = isset(AioCat::$all_failed[$rid]);
         $err = $failed ? '' : aio_catv_fill($list, $rid, $want, AIO_CATV_ROW_S, $start);
