@@ -4,6 +4,7 @@
 
 ## 0.52.0 — 04.11.2026
 - **Search in the catalog goes further.** The rows of a search now have **"Show all"** at the end: the grid loads the next results as you scroll, not only the first page. The rows are called "Movies" and "Series", without the number found.
+- Fixed: on a Dune connected by Wi-Fi with a VPN on (e.g. ByeByeDPI), the QR code and the address of the settings page showed the address of the VPN instead of the Dune's. Now they show the address of the Dune in the home network.
 
 ## 0.51.0 — 04.11.2026
 - **English title in the catalog.** The info panel above the rows shows the English title of a movie or series in gray under its title, as the Dune's own catalog does, when the English title differs from the one shown. Titles the catalog server has no English title for are shown as before.
@@ -164,6 +165,7 @@ First public release. What it does:
 
 ## 0.52.0 — 04.11.2026
 - **Поиск в каталоге листается дальше.** В конце рядов поиска теперь есть **«Показать все»**: сетка догружает следующие результаты при прокрутке, а не только первую страницу. Ряды называются «Фильмы» и «Сериалы», без числа найденного.
+- Исправлено: на Дюне, подключённой по Wi‑Fi, с включённым VPN (например, ByeByeDPI) QR-код и адрес страницы настроек показывали адрес VPN вместо адреса Дюны. Теперь — адрес Дюны в домашней сети.
 
 ## 0.51.0 — 04.11.2026
 - **Английское название в каталоге.** В инфопанели над рядами под названием фильма или сериала серым — его английское название, как в каталоге Дюны, если оно отличается от показанного. Где у сервера каталога английского названия нет, панель как раньше.
