@@ -300,10 +300,7 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
 {
     $row = $list['st']['row'];
     $rid = aio_catv_rid($row);
-    $saved = aio_tr($lang, 'cat_saved');
-    // A row of a search has its number in brackets already.
-    $saved = strpos($row['id'], 'melange.search.') === 0 ? ", $saved" : " ($saved)";
-    $title = $list['stale'] ? $row['name'] . $saved : $row['name'];
+    $title = $list['stale'] ? $row['name'] . ' (' . aio_tr($lang, 'cat_saved') . ')' : $row['name'];
     if ($items === null)
     {
         $items = array();
@@ -1194,18 +1191,17 @@ function aio_catv_search_run($q, $from)
     if (aio_one_line($q) === '')
         return null;
     $lang = aio_catv_lang();
-    $found = aio_cat_search($q);
+    $found = aio_cat_search($q, array('movie' => aio_tr($lang, 'cat_movies'), 'series' => aio_tr($lang, 'cat_series')));
     $rids = array();
     $failed = false;
-    foreach (array('movie' => 'cat_movies_n', 'series' => 'cat_series_n') as $type => $key)
+    foreach ($found as $f)
     {
-        $res = $found[$type];
+        $res = $f['res'];
         $failed = $failed || $res['err'] !== '';
-        $row = aio_cat_row($type, "melange.search.$type", str_replace('{n}', strval(count($res['tiles'])), aio_tr($lang, $key)), '', false);
-        if (!$row || !$res['tiles'])
+        if (!$res['tiles'])
             continue;
-        $rid = aio_catv_rid($row);
-        AioCat::$lists[$rid] = aio_catv_list(aio_cat_ended_state($row), $res['tiles'], $res['stale']);
+        $rid = aio_catv_rid($f['st']['row']);
+        AioCat::$lists[$rid] = aio_catv_list($f['st'], $res['tiles'], $res['stale']);
         $rids[] = $rid;
     }
     if (!$rids)

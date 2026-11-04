@@ -28,6 +28,10 @@ define('AIO_CAT_PAGE_TILES', 200);
 // silently loses tiles.
 define('AIO_CAT_SKIP_MAX', 1000);
 define('AIO_CAT_STATE_TTL', 18000);
+// skip of a search goes by pages: the server asks TMDB for page ceil(skip / 20) + 1 and
+// sends what of its 20 passed the filters, 0 to 20 tiles. skip by the tiles got would
+// ask for the same page again.
+define('AIO_CAT_SEARCH_PAGE', 20);
 
 // Cache in data_dir/catalog: a failure right after a reboot has it too, tmp_dir
 // (RAM) would not. Fresh for 1 h: the manifest and first pages are not asked
@@ -410,7 +414,8 @@ function aio_cat_tiles($items, $row_type)
 
 // --- Listing of a row.
 
-// The address of a page of a row: its genre if any, skip if not 0; values encoded.
+// The address of a page of a row: the query of a search, its genre if any, skip if not 0;
+// values encoded.
 /**
  * @param AioCatRow $row
  * @param int $skip
@@ -419,6 +424,8 @@ function aio_cat_tiles($items, $row_type)
 function aio_cat_page_path($row, $skip)
 {
     $extra = array();
+    if (isset($row['q']))
+        $extra[] = 'search=' . rawurlencode($row['q']);
     if ($row['genre'] !== '')
         $extra[] = 'genre=' . rawurlencode($row['genre']);
     if ($skip > 0)
@@ -430,7 +437,8 @@ function aio_cat_page_path($row, $skip)
 // The state of a new listing of row $row (aio_cat_manifest), the argument of
 // aio_cat_more. The caller keeps it where the tiles are and changes it only by the
 // functions here: t0: when its first page was got (0: none yet), skip: all tiles got,
-// repeats too, end: why it ended ('' not yet; empty, skip, search), seen: ids.
+// repeats too (of a search: AIO_CAT_SEARCH_PAGE a page), end: why it ended ('' not yet;
+// empty, skip), seen: ids.
 /**
  * @param AioCatRow $row
  * @return AioCatState
@@ -438,18 +446,6 @@ function aio_cat_page_path($row, $skip)
 function aio_cat_row_state($row)
 {
     return array('row' => $row, 't0' => 0, 'skip' => 0, 'end' => '', 'seen' => array());
-}
-
-// A listing with nothing more to ask for: the results of a search.
-/**
- * @param AioCatRow $row
- * @return AioCatState
- */
-function aio_cat_ended_state($row)
-{
-    $st = aio_cat_row_state($row);
-    $st['end'] = 'search';
-    return $st;
 }
 
 // A listing from the saved first page of a row (aio_cat_page_cached), as if just got.
@@ -510,7 +506,7 @@ function aio_cat_take(&$st, &$res, $n, $tiles)
         $res['tiles'][] = $t;
         $new++;
     }
-    $st['skip'] += $n;
+    $st['skip'] += isset($st['row']['q']) ? AIO_CAT_SEARCH_PAGE : $n;
     if ($st['skip'] >= AIO_CAT_SKIP_MAX)
         $st['end'] = 'skip';
     $res['end'] = $st['end'] !== '';
@@ -539,7 +535,7 @@ function aio_cat_page_cached($row, $skip)
  */
 function aio_cat_page_key($row, $skip)
 {
-    return "{$row['key']}|{$row['genre']}|$skip";
+    return isset($row['q']) ? "search|{$row['type']}|{$row['q']}|$skip" : "{$row['key']}|{$row['genre']}|$skip";
 }
 
 // The next tiles of a row: at least one new unless it failed, ended or ran out of
@@ -580,7 +576,8 @@ function aio_cat_more(&$st, $limit)
         {
             // curl takes whole seconds.
             $left = max(1, intval(ceil($limit - (microtime(true) - $start))));
-            $g = aio_cat_get(aio_cat_page_path($row, $skip), "{$row['key']} skip=$skip", 'metas', $left);
+            $what = isset($row['q']) ? "search {$row['type']}" : $row['key'];
+            $g = aio_cat_get(aio_cat_page_path($row, $skip), "$what skip=$skip", 'metas', $left);
             $tiles = aio_cat_tiles($g['list'], $row['type']);
             $page = array('err' => $g['err'], 'n' => count($g['list']), 't' => time(), 'tiles' => $tiles);
             // Empty though the row had tiles: more likely a trouble of the server.
@@ -624,78 +621,46 @@ function aio_cat_more(&$st, $limit)
 
 // --- Search.
 
-// Search of one type: one page, cached as the first page of a row, a failure gives
-// the last good copy. The query stays out of the log and the file names.
+// The row of a search by $q of $type, a listing of aio_cat_more as of other rows: its
+// pages are cached, a failure gives the last good copy. The query stays out of the log
+// (aio_cat_more) and the file names (aio_cat_cache_path).
 /**
  * @param string $type
  * @param string $q
- * @return AioCatResult
+ * @param string $name
+ * @return AioCatRow|null
  */
-function aio_cat_search_type($type, $q)
+function aio_cat_search_row($type, $q, $name)
 {
-    $key = "search|$type|$q";
-    $res = aio_cat_result();
-    $res['end'] = true;
-    $c = aio_cat_cache_read($key);
-    $old = $c ? aio_cat_tiles($c['data'], $type) : array();
-    if ($old && aio_cat_is_fresh($c))
-    {
-        $res['tiles'] = aio_cat_unique($old);
-        return $res;
-    }
-    $g = aio_cat_get("catalog/$type/search.$type/search=" . rawurlencode($q) . '.json', "search $type", 'metas');
-    if ($g['err'] !== '')
-    {
-        $res['err'] = $g['err'];
-        // A failure is not the end: a retry may find it.
-        $res['end'] = false;
-        if ($old)
-        {
-            $res['tiles'] = aio_cat_unique($old);
-            $res['stale'] = true;
-        }
-        return $res;
-    }
-    $tiles = aio_cat_tiles($g['list'], $type);
-    if ($tiles)
-        aio_cat_cache_write($key, count($g['list']), $tiles);
-    $res['tiles'] = aio_cat_unique($tiles);
-    return $res;
+    $row = aio_cat_row($type, "search.$type", $name, '', false);
+    if ($row)
+        $row['q'] = $q;
+    return $row;
 }
 
-// Without repeats by id.
-/**
- * @param list<AioCatTile> $tiles
- * @return list<AioCatTile>
- */
-function aio_cat_unique($tiles)
-{
-    $by = array();
-    foreach ($tiles as $t)
-    {
-        if (!isset($by[$t['id']]))
-            $by[$t['id']] = $t;
-    }
-    return array_values($by);
-}
-
-// Search by $q in movies and series, array(movie => result, series => result),
-// results as of aio_cat_more. Search of anime does not find Russian names, so
-// it is not asked. An empty query: nothing asked, nothing found.
+// Search by $q in movies and series: by type, its listing after the first page and the
+// result of it (aio_cat_more); $names: by type, the name of its row. Search of anime
+// does not find Russian names, so it is not asked. An empty query: nothing asked,
+// nothing found.
 /**
  * @param string $q
- * @return array{movie: AioCatResult, series: AioCatResult}
+ * @param array{movie: string, series: string} $names
+ * @return array<string, array{st: AioCatState, res: AioCatResult}>
  */
-function aio_cat_search($q)
+function aio_cat_search($q, $names)
 {
     $q = mb_substr(aio_one_line($q), 0, AIO_CAT_QUERY_MAX, 'UTF-8');
-    if ($q === '')
+    $found = array();
+    foreach ($q !== '' ? $names : array() as $type => $name)
     {
-        $none = aio_cat_result();
-        $none['end'] = true;
-        return array('movie' => $none, 'series' => $none);
+        $row = aio_cat_search_row($type, $q, $name);
+        if (!$row)
+            continue;
+        $st = aio_cat_row_state($row);
+        $res = aio_cat_more($st, AIO_CAT_TOTAL);
+        $found[$type] = array('st' => $st, 'res' => $res);
     }
-    return array('movie' => aio_cat_search_type('movie', $q), 'series' => aio_cat_search_type('series', $q));
+    return $found;
 }
 
 // --- Cache: <data_dir>/catalog/<md5 of the key>.json, no secrets in the names. Only
