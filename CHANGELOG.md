@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.52.0 — 04.11.2026
+- **Search in the catalog goes further.** The rows of a search now have **"Show all"** at the end: the grid loads the next results as you scroll, not only the first page. The rows are called "Movies" and "Series", without the number found.
+
 ## 0.51.0 — 04.11.2026
 - **English title in the catalog.** The info panel above the rows shows the English title of a movie or series in gray under its title, as the Dune's own catalog does, when the English title differs from the one shown. Titles the catalog server has no English title for are shown as before.
 - **Quick setup with the remote.** Until AIOStreams is set up, the settings screen and the window "No AIOStreams config" in a card have **"Quick setup: torrents"**: Melange chooses "Torrents" on the Melange server and creates the AIOStreams config itself, no phone and no keys needed. Then, as after "Save" on the page: settings opened from the catalog (the first run too) give way to the catalog, settings opened from Setup → Apps or via Set up in a card are updated; from the window in a card, press Play... again. If TorrServer does not answer, Melange is set up anyway and says that the catalog and search work and that the TorrServe app is needed to watch. If the server does not answer or refuses, the reason is shown and the settings stay as they were. Debrid is still set up on the page from a phone. **"Change the link"** is not shown until AIOStreams is set up.
@@ -158,6 +161,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.52.0 — 04.11.2026
+- **Поиск в каталоге листается дальше.** В конце рядов поиска теперь есть **«Показать все»**: сетка догружает следующие результаты при прокрутке, а не только первую страницу. Ряды называются «Фильмы» и «Сериалы», без числа найденного.
 
 ## 0.51.0 — 04.11.2026
 - **Английское название в каталоге.** В инфопанели над рядами под названием фильма или сериала серым — его английское название, как в каталоге Дюны, если оно отличается от показанного. Где у сервера каталога английского названия нет, панель как раньше.
