@@ -3,7 +3,9 @@
 **English version**
 
 ## 0.52.0 — 04.11.2026
-- **Search in the catalog goes further.** The rows of a search now have **"Show all"** at the end: the grid loads the next results as you scroll, not only the first page. The rows are called "Movies" and "Series", without the number found.
+- **Search in the catalog goes further.** The rows of a search now have **"Show all"** at the end: it loads the next results as you scroll, not only the first page. The rows are called "Movies" and "Series", without the number found.
+- **"Show all" as the Dune's own expanded row.** "Show all" at the end of a row of the catalog or of a search now opens the whole row as the Dune's own catalog does: 9 posters a row, the info panel with the background on top, the next posters loading as you scroll, up to 1000. On r24 firmware it is still a grid.
+- Fixed: after a new search, "Show all" of the previous search showed the posters of the new one.
 
 ## 0.51.0 — 04.11.2026
 - **English title in the catalog.** The info panel above the rows shows the English title of a movie or series in gray under its title, as the Dune's own catalog does, when the English title differs from the one shown. Titles the catalog server has no English title for are shown as before.
@@ -163,7 +165,9 @@ First public release. What it does:
 **Russian version**
 
 ## 0.52.0 — 04.11.2026
-- **Поиск в каталоге листается дальше.** В конце рядов поиска теперь есть **«Показать все»**: сетка догружает следующие результаты при прокрутке, а не только первую страницу. Ряды называются «Фильмы» и «Сериалы», без числа найденного.
+- **Поиск в каталоге листается дальше.** В конце рядов поиска теперь есть **«Показать все»**: оно догружает следующие результаты при прокрутке, а не только первую страницу. Ряды называются «Фильмы» и «Сериалы», без числа найденного.
+- **«Показать все» как раскрытый ряд Дюны.** «Показать все» в конце ряда каталога или поиска теперь открывает весь ряд, как родной каталог Дюны: по 9 постеров в ряд, сверху инфопанель с фоном, следующие постеры подгружаются при прокрутке, до 1000. На прошивке r24 — по-прежнему сетка.
+- Исправлено: после нового поиска «Показать все» прошлого поиска показывало постеры нового.
 
 ## 0.51.0 — 04.11.2026
 - **Английское название в каталоге.** В инфопанели над рядами под названием фильма или сериала серым — его английское название, как в каталоге Дюны, если оно отличается от показанного. Где у сервера каталога английского названия нет, панель как раньше.
