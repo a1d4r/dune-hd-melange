@@ -28,9 +28,12 @@ define('AIO_CAT_PAGE_TILES', 200);
 // silently loses tiles.
 define('AIO_CAT_SKIP_MAX', 1000);
 define('AIO_CAT_STATE_TTL', 18000);
-// skip of a search goes by pages: the server asks TMDB for page ceil(skip / 20) + 1 and
-// sends what of its 20 passed the filters, 0 to 20 tiles. skip by the tiles got would
-// ask for the same page again.
+// skip of a search goes by pages: the server asks its engine for page
+// ceil(skip / size) + 1 and sends what of it passed the filters, so skip by the tiles
+// got would ask for the same page again. 20 is the smallest page of the search engines
+// of the server (TMDB, Kitsu 20; MAL, TVDB 25; Trakt 30): with a bigger one a page
+// only comes twice (repeats are dropped), a step over the page would silently skip
+// results. Not fitted to the engine on purpose.
 define('AIO_CAT_SEARCH_PAGE', 20);
 
 // Cache in data_dir/catalog: a failure right after a reboot has it too, tmp_dir
@@ -138,7 +141,8 @@ function aio_cat_group($id)
 }
 
 // A row of the screen, or null when it can not be asked for. key: type and id
-// (names repeat between the types, an id too), name for the screen, genre: the
+// (names repeat between the types, an id too; of a search: search/<type>,
+// aio_cat_search_row), name for the screen, genre: the
 // value to send, '' for none, home: a start row, group: aio_cat_group.
 /**
  * @param mixed $type
@@ -484,8 +488,8 @@ function aio_cat_result()
     return array('tiles' => array(), 'reset' => false, 'end' => false, 'stale' => false, 'err' => '');
 }
 
-// A page taken into the listing: new tiles to $res, skip counts all $n got, end set
-// at its limits. -> the number of new tiles.
+// A page taken into the listing: new tiles to $res, skip counts all $n got (of a
+// search: AIO_CAT_SEARCH_PAGE a page), end set at its limits. -> the number of new tiles.
 /**
  * @param AioCatState $st
  * @param AioCatResult $res
@@ -576,14 +580,15 @@ function aio_cat_more(&$st, $limit)
         {
             // curl takes whole seconds.
             $left = max(1, intval(ceil($limit - (microtime(true) - $start))));
-            $what = isset($row['q']) ? "search {$row['type']}" : $row['key'];
-            $g = aio_cat_get(aio_cat_page_path($row, $skip), "$what skip=$skip", 'metas', $left);
+            $g = aio_cat_get(aio_cat_page_path($row, $skip), "{$row['key']} skip=$skip", 'metas', $left);
             $tiles = aio_cat_tiles($g['list'], $row['type']);
             $page = array('err' => $g['err'], 'n' => count($g['list']), 't' => time(), 'tiles' => $tiles);
             // Empty though the row had tiles: more likely a trouble of the server.
             if ($page['err'] === '' && $page['n'] === 0 && $first)
                 $page['err'] = 'empty';
-            if ($tiles)
+            // Of a search the first page only: its pages further on would push the
+            // copies of the first pages of rows out of AIO_CAT_CACHE_FILES.
+            if ($tiles && ($skip === 0 || !isset($row['q'])))
                 aio_cat_cache_write(aio_cat_page_key($row, $skip), $page['n'], $tiles);
         }
         if ($page['err'] !== '')
@@ -622,8 +627,9 @@ function aio_cat_more(&$st, $limit)
 // --- Search.
 
 // The row of a search by $q of $type, a listing of aio_cat_more as of other rows: its
-// pages are cached, a failure gives the last good copy. The query stays out of the log
-// (aio_cat_more) and the file names (aio_cat_cache_path).
+// first page is cached, a failure gives the last good copy. Its key is not that of the
+// catalog of the server (id: for its address). The query stays out of the key, so out
+// of the log (aio_cat_more), and out of the file names (aio_cat_cache_path).
 /**
  * @param string $type
  * @param string $q
@@ -634,7 +640,10 @@ function aio_cat_search_row($type, $q, $name)
 {
     $row = aio_cat_row($type, "search.$type", $name, '', false);
     if ($row)
+    {
+        $row['key'] = "search/$type";
         $row['q'] = $q;
+    }
     return $row;
 }
 

@@ -300,7 +300,8 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
 {
     $row = $list['st']['row'];
     $rid = aio_catv_rid($row);
-    $title = $list['stale'] ? $row['name'] . ' (' . aio_tr($lang, 'cat_saved') . ')' : $row['name'];
+    // The no-break space at the end of the name of a search row (cat_movies) not before the mark.
+    $title = $list['stale'] ? strval(preg_replace('/\x{00A0}$/u', '', $row['name'])) . ' (' . aio_tr($lang, 'cat_saved') . ')' : $row['name'];
     if ($items === null)
     {
         $items = array();
@@ -1191,6 +1192,7 @@ function aio_catv_search_run($q, $from)
     if (aio_one_line($q) === '')
         return null;
     $lang = aio_catv_lang();
+    // The no-break space at the end of cat_movies, cat_series is on purpose, in place of the number (the owner's choice); editors drop it as trailing whitespace: keep it.
     $found = aio_cat_search($q, array('movie' => aio_tr($lang, 'cat_movies'), 'series' => aio_tr($lang, 'cat_series')));
     $rids = array();
     $failed = false;
