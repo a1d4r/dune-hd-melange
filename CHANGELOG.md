@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.53.1 — 05.11.2026
+- **More in the card Melange creates.** The Dune card that Melange creates for a movie without one now has genres, countries, the age rating, the cast with roles and photos, directors and writers, as in the Dune's own cards. A card created before stays as it was: to update it, delete it in **My Collection → Collection Management → User data** and open the movie from the catalog again; the watch history is kept.
+
 ## 0.53.0 — 05.11.2026
 - **ENTER on the name of a row opens "Show all".** In the catalog and in search, ENTER on the name of a row in the panel of row names on the left now opens "Show all" of the row at once, as the Dune's own catalog does: no need to scroll to the end of the row. A short row without "Show all" works as before: ENTER moves into the row.
 - **A movie without a Dune card gets one.** A movie from the catalog that the Dune's database does not have now opens as a usual Dune card, with **Play...** and watch history.
@@ -169,6 +172,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.53.1 — 05.11.2026
+- **Больше в карточке, которую создаёт Melange.** В карточке Дюны, которую Melange создаёт для фильма без карточки, теперь есть жанры, страны, возрастной рейтинг, актёры с ролями и фото, режиссёры и сценаристы, как в родных карточках Дюны. Уже созданная карточка остаётся как была: чтобы она обновилась, удалите её в **Моя коллекция → Управление коллекцией → Пользовательские данные** и откройте фильм из каталога снова; история просмотра сохранится.
 
 ## 0.53.0 — 05.11.2026
 - **ENTER на названии ряда открывает «Показать все».** В каталоге и в поиске ENTER на названии ряда в панели названий слева теперь сразу открывает «Показать все» этого ряда, как в родном каталоге Дюны: листать до конца ряда не нужно. В коротком ряду без «Показать все» всё как раньше: ENTER переводит в ряд.
