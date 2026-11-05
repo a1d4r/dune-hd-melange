@@ -8,7 +8,7 @@ parameters:
         # A row of the catalog (aio_cat_row, catalog.php); q: the query of a search (aio_cat_search_row), sid: its id (aio_catv_search_run).
         AioCatRow: 'array{key: string, type: string, id: string, name: string, genre: string, home: bool, group: string, q?: string, sid?: string}'
         # A tile of a row (aio_cat_tile, catalog.php).
-        AioCatTile: 'array{id: string, imdb_id: string, _tmdbId: string, type: string, name: string, year: string, imdbRating: string, description: string, genres: list<string>, poster: string, background: string, country: string, runtime: string, age: string, cast: list<string>, englishTitle: string}'
+        AioCatTile: 'array{id: string, imdb_id: string, _tmdbId: string, type: string, name: string, year: string, imdbRating: string, description: string, genres: list<string>, poster: string, background: string, country: string, runtime: string, age: string, cast: list<string>, englishTitle: string, kpRating: string, kpVotes: int, kpId: string}'
         # A listing of a row (aio_cat_row_state, catalog.php).
         AioCatState: 'array{row: AioCatRow, t0: int, skip: int, end: string, seen: array<string, bool>}'
         # A result of a listing or a search (aio_cat_more, catalog.php).

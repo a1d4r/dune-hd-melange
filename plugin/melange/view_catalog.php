@@ -850,7 +850,8 @@ function aio_catv_runtime($r, $lang)
 }
 
 // The parts of the line of a tile as the native one: year, country, 2 genres, age,
-// runtime, rating; words of the server only, the empty ones left out.
+// runtime, ratings ("IMDb 7.3 · КП 7.7", each with its name); words of the server only,
+// the empty ones left out.
 /**
  * @param AioCatTile $t
  * @param string $lang
@@ -862,8 +863,13 @@ function aio_catv_meta($t, $lang)
     foreach (array_slice($t['genres'], 0, 2) as $g)
         $genres[] = mb_strtoupper(mb_substr($g, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($g, 1, mb_strlen($g, 'UTF-8'), 'UTF-8');
     $rating = (float) $t['imdbRating'];
+    $rates = array();
+    if ($rating > 0)
+        $rates[] = str_replace('{n}', sprintf('%.1F', $rating), aio_tr($lang, 'cat_rate_imdb'));
+    if ($t['kpRating'] !== '')
+        $rates[] = str_replace('{n}', $t['kpRating'], aio_tr($lang, 'cat_rate_kp'));
     $parts = array($t['year'], aio_catv_country($t['country'], $lang), implode(', ', $genres), $t['age'],
-        aio_catv_runtime($t['runtime'], $lang), $rating > 0 ? sprintf('%.1F', $rating) : '');
+        aio_catv_runtime($t['runtime'], $lang), implode(' · ', $rates));
     return array_values(array_filter($parts, 'strlen'));
 }
 

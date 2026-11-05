@@ -421,7 +421,7 @@ function aio_card_meta($imdb)
 // server said. None or a broken one, and $make (the server sure it has no card) for a
 // movie: written from the tile, the fields do_parse_movie_json reads; genres, countries,
 // the age and people from the meta of the catalog server (aio_card_meta), from the tile
-// when it fails (no people then). Empty fields are left out. -> its id, ''
+// when it fails (no people then); Kinopoisk from the tile. Empty fields are left out. -> its id, ''
 // if none. The id is of Melange alone (m-melange-), no card of the user is touched.
 // Uninstall leaves these files on purpose: they are the user's history, as the
 // history of the shell is.
@@ -455,10 +455,16 @@ function aio_card_local($tile, $make)
         'cdesc' => array('src' => 'manual', 'ctime' => $now, 'mtime' => $now));
     if ($tile['_tmdbId'] !== '')
         $r['sources']['TheMovieDB'] = $tile['_tmdbId'];
+    // Kinopoisk: of the tile alone, the meta has none; the shell does not show the
+    // rating, it goes to suppliers in movie_str, as the id.
+    if ($tile['kpId'] !== '')
+        $r['sources']['Kinopoisk'] = $tile['kpId'];
     if ($tile['year'] !== '')
         $r['year'] = intval($tile['year']);
     if ($tile['imdbRating'] !== '')
         $r['rate_imdb'] = $tile['imdbRating'];
+    if ($tile['kpRating'] !== '')
+        $r['rating'] = array('kp' => array('rating' => $tile['kpRating']));
     // duration of the card in minutes.
     $min = aio_cat_runtime_min($tile['runtime']);
     if ($min > 0)

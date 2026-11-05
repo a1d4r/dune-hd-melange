@@ -56,6 +56,8 @@ define('AIO_CAT_URL_MAX', 1000);
 define('AIO_CAT_GENRES_MAX', 8);
 define('AIO_CAT_CAST_MAX', 3);
 define('AIO_CAT_QUERY_MAX', 100);
+// The rating of Kinopoisk of fewer votes is not shown (the owner's choice).
+define('AIO_CAT_KP_VOTES_MIN', 1000);
 
 // --- Requests.
 
@@ -363,7 +365,9 @@ function aio_cat_runtime_min($r)
 // name of the first one (aio_cat_country), '' for none. runtime: "1h38min" or "30min" (of an
 // episode for series). age: the Russian rating "16+" of app_extras.certifications.RU.
 // cast: the first names of app_extras.cast. englishTitle: the English name of the title
-// (a field of our patch of the server; none: ''), as name. Run again on what the cache
+// (a field of our patch of the server; none: ''), as name. kpRating, kpVotes, kpId: of our
+// patch too: the rating "7.9" ('' for none, 0, over 10 or under AIO_CAT_KP_VOTES_MIN votes),
+// its votes (0 for none), the id of Kinopoisk (digits, '' for none). Run again on what the cache
 // holds (age, cast: its own keys; a copy of before them: '' and none): the same result.
 /**
  * @param mixed $m
@@ -389,6 +393,12 @@ function aio_cat_tile($m, $row_type)
     if (preg_match('/^[0-9]{4}/', aio_str($m, 'year'), $x) || preg_match('/^[0-9]{4}/', aio_str($m, 'releaseInfo'), $x))
         $year = $x[0];
     $rating = aio_str($m, 'imdbRating');
+    $kp = aio_str($m, 'kpRating');
+    $votes = aio_str($m, 'kpVotes');
+    $votes = preg_match('/^[0-9]{1,9}$/D', $votes) ? intval($votes) : 0;
+    $kp = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $kp) && (float) $kp > 0 && (float) $kp <= 10 &&
+        $votes >= AIO_CAT_KP_VOTES_MIN ? sprintf('%.1F', (float) $kp) : '';
+    $kp_id = aio_str($m, 'kpId');
     $genres = array();
     foreach (aio_arr($m, 'genres') as $g)
     {
@@ -416,7 +426,8 @@ function aio_cat_tile($m, $row_type)
         'poster' => aio_cat_img($m, 'poster'), 'background' => aio_cat_img($m, 'background'), 'country' => $country,
         'runtime' => preg_match('/^(?=[0-9])([0-9]{1,2}h)?([0-9]{1,3}min)?$/', $runtime) ? $runtime : '',
         'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast,
-        'englishTitle' => aio_cut(aio_one_line(aio_str($m, 'englishTitle')), AIO_CAT_NAME_MAX));
+        'englishTitle' => aio_cut(aio_one_line(aio_str($m, 'englishTitle')), AIO_CAT_NAME_MAX),
+        'kpRating' => $kp, 'kpVotes' => $votes, 'kpId' => preg_match('/^[0-9]{1,10}$/D', $kp_id) ? $kp_id : '');
 }
 
 // Items of a page -> the tiles among them; what is not a tile is dropped.

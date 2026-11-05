@@ -4,6 +4,7 @@
 
 ## 0.53.1 — 05.11.2026
 - **More in the card Melange creates.** The Dune card that Melange creates for a movie without one now has genres, countries, the age rating, the cast with roles and photos, directors and writers, as in the Dune's own cards. A card created before stays as it was: to update it, delete it in **My Collection → Collection Management → User data** and open the movie from the catalog again; the watch history is kept.
+- **Kinopoisk rating in the catalog.** The info panel above the rows now shows the Kinopoisk rating next to the IMDb one, each with its name: "IMDb 7.3 · KP 7.7". It is shown when the catalog server has it for the movie or series and it has at least 1000 votes. The card Melange creates for a movie now also holds the Kinopoisk ID and rating, as the Dune's own cards do (the card does not show this rating).
 
 ## 0.53.0 — 05.11.2026
 - **ENTER on the name of a row opens "Show all".** In the catalog and in search, ENTER on the name of a row in the panel of row names on the left now opens "Show all" of the row at once, as the Dune's own catalog does: no need to scroll to the end of the row. A short row without "Show all" works as before: ENTER moves into the row.
@@ -175,6 +176,7 @@ First public release. What it does:
 
 ## 0.53.1 — 05.11.2026
 - **Больше в карточке, которую создаёт Melange.** В карточке Дюны, которую Melange создаёт для фильма без карточки, теперь есть жанры, страны, возрастной рейтинг, актёры с ролями и фото, режиссёры и сценаристы, как в родных карточках Дюны. Уже созданная карточка остаётся как была: чтобы она обновилась, удалите её в **Моя коллекция → Управление коллекцией → Пользовательские данные** и откройте фильм из каталога снова; история просмотра сохранится.
+- **Рейтинг Кинопоиска в каталоге.** В инфопанели над рядами рядом с рейтингом IMDb теперь показывается рейтинг Кинопоиска, оба с подписью: «IMDb 7.3 · КП 7.7». Он есть, когда сервер каталога знает его для фильма или сериала и у него не меньше 1000 голосов. В карточке, которую Melange создаёт для фильма, теперь есть и id и рейтинг Кинопоиска, как в родных карточках Дюны (сам рейтинг карточка не показывает).
 
 ## 0.53.0 — 05.11.2026
 - **ENTER на названии ряда открывает «Показать все».** В каталоге и в поиске ENTER на названии ряда в панели названий слева теперь сразу открывает «Показать все» этого ряда, как в родном каталоге Дюны: листать до конца ряда не нужно. В коротком ряду без «Показать все» всё как раньше: ENTER переводит в ряд.
