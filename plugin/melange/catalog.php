@@ -74,15 +74,17 @@ function aio_cat_url($path)
 // timeout (curl 28 once connected: a slow reply), big (over the limit), rate (429), server (5xx),
 // notfound (404), http (another status), bad (not the JSON expected). A failure
 // is never an empty list. $what: for the log, no URL and no reply there. $limit: s
-// the request may take at most, 0 for the usual timeouts.
+// the request may take at most, 0 for the usual timeouts. $one: $field holds one
+// object (the meta of a title), not a list; null or a list there is bad.
 /**
  * @param string $path
  * @param string $what
  * @param string $field
  * @param int $limit
+ * @param bool $one
  * @return array{err: string, list: array<mixed>}
  */
-function aio_cat_get($path, $what, $field, $limit = 0)
+function aio_cat_get($path, $what, $field, $limit = 0, $one = false)
 {
     $t = microtime(true);
     $err = '';
@@ -112,7 +114,14 @@ function aio_cat_get($path, $what, $field, $limit = 0)
     {
         $j = substr_count($body, '{') + substr_count($body, '[') <= AIO_CAT_MAX_NODES ? json_decode($body, true) : null;
         // An array in PHP may be an object in JSON: only a list goes on.
-        if (is_array($j) && isset($j[$field]) && is_array($j[$field]) && (!$j[$field] || isset($j[$field][0]) || array_key_exists(0, $j[$field])))
+        // No ternary on the array: PHP 5.3 would copy it.
+        $ok = is_array($j) && isset($j[$field]) && is_array($j[$field]);
+        if ($ok)
+        {
+            $is_list = !$j[$field] || isset($j[$field][0]) || array_key_exists(0, $j[$field]);
+            $ok = $one ? $j[$field] && !$is_list : $is_list;
+        }
+        if ($ok)
             $list = $j[$field];
         else
             $why = 'bad';

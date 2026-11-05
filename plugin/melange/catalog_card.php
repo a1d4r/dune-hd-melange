@@ -19,6 +19,14 @@ define('AIO_CARD_YEAR_DIFF', 1);
 define('AIO_CARD_TTL_ID', 604800);
 // A day: new cards appear in days, none seen younger than a day (03.11.2026).
 define('AIO_CARD_TTL_NONE', 86400);
+// The meta of a movie asked of the catalog server once, when its local card is written:
+// 0.4 s seen (05.11.2026), "none" 1.8 s. ENTER waits for it; a failure leaves the card of the tile.
+define('AIO_CARD_META_TOTAL', 4);
+// People of the local card: the server gives up to 10 actors.
+define('AIO_CARD_ACTORS_MAX', 10);
+define('AIO_CARD_CREW_MAX', 5);
+define('AIO_CARD_TEXT_MAX', 60);
+define('AIO_CARD_LIST_MAX', 10);
 // Local cards of the shell (movies/custom_dunemdb.php): PHP of the Dune adds
 // FS_PREFIX to /flashdata itself. Tests may define it first.
 if (!defined('AIO_USER_CARD_DIR'))
@@ -203,10 +211,201 @@ function aio_card_open($id)
         GuiAction::params => array('handler_id' => 'entry', 'control_id' => 'file_movie', 'movie_id' => $id));
 }
 
+// Text for the local card: one line, cut, no < and > (the shell puts names into its
+// markup).
+/**
+ * @param mixed $s
+ * @return string
+ */
+function aio_card_text($s)
+{
+    return trim(str_replace(array('<', '>'), '', aio_cut(aio_one_line(aio_str(array($s), 0)), AIO_CARD_TEXT_MAX)));
+}
+
+// A country of the server (an English name, ISO-3 as aio_cat_country) -> its code of the
+// shell (known_country_codes.txt; the English names of its translations, those of TMDB),
+// shown in the language of the Dune; another: "_" and the name, which the shell shows in
+// lower case (parse_country_value); '' for none.
+/**
+ * @param mixed $c
+ * @return string
+ */
+function aio_card_country($c)
+{
+    static $iso = array(
+        'afghanistan' => 'af', 'albania' => 'al', 'algeria' => 'dz', 'andorra' => 'ad', 'angola' => 'ao',
+        'argentina' => 'ar', 'armenia' => 'am', 'australia' => 'au', 'austria' => 'at', 'azerbaijan' => 'az',
+        'bahamas' => 'bs', 'bahrain' => 'bh', 'bangladesh' => 'bd', 'barbados' => 'bb',
+        'belarus' => 'by', 'belgium' => 'be', 'belize' => 'bz', 'benin' => 'bj', 'bhutan' => 'bt', 'bolivia' => 'bo',
+        'bosnia and herzegovina' => 'ba', 'botswana' => 'bw', 'brazil' => 'br', 'brunei' => 'bn',
+        'brunei darussalam' => 'bn', 'bulgaria' => 'bg', 'burkina faso' => 'bf', 'burundi' => 'bi', 'cambodia' => 'kh',
+        'cameroon' => 'cm', 'canada' => 'ca', 'central african republic' => 'cf', 'chad' => 'td', 'chile' => 'cl',
+        'china' => 'cn', 'colombia' => 'co', 'congo' => 'cg', 'cook islands' => 'ck', 'costa rica' => 'cr',
+        'cote d\'ivoire' => 'ci', 'croatia' => 'hr', 'cuba' => 'cu', 'cyprus' => 'cy', 'czech republic' => 'cz',
+        'czechia' => 'cz', 'côte d\'ivoire' => 'ci', 'democratic republic of the congo' => 'cd', 'denmark' => 'dk',
+        'dominica' => 'dm', 'dominican republic' => 'do', 'dprk' => 'kp', 'ecuador' => 'ec', 'egypt' => 'eg',
+        'el salvador' => 'sv', 'england' => 'gb', 'equatorial guinea' => 'gq', 'eritrea' => 'er', 'estonia' => 'ee',
+        'ethiopia' => 'et', 'fiji' => 'fj', 'finland' => 'fi', 'france' => 'fr', 'gabon' => 'ga', 'gambia' => 'gm',
+        'georgia' => 'ge', 'germany' => 'de', 'ghana' => 'gh', 'great britain' => 'gb', 'greece' => 'gr',
+        'guadeloupe' => 'gp', 'guam' => 'gu', 'guatemala' => 'gt', 'guinea' => 'gn', 'guyana' => 'gy', 'haiti' => 'ht',
+        'holy see' => 'va', 'honduras' => 'hn', 'hong kong' => 'hk', 'hungary' => 'hu', 'iceland' => 'is', 'india' => 'in',
+        'indonesia' => 'id', 'iran' => 'ir', 'iraq' => 'iq', 'ireland' => 'ie', 'israel' => 'il', 'italy' => 'it',
+        'ivory coast' => 'ci', 'jamaica' => 'jm', 'japan' => 'jp', 'jordan' => 'jo', 'kazakhstan' => 'kz', 'kenya' => 'ke',
+        'korea' => 'kr', 'kuwait' => 'kw', 'kyrgyzstan' => 'kg', 'lao people\'s democratic republic' => 'la', 'laos' => 'la',
+        'latvia' => 'lv', 'lebanon' => 'lb', 'liberia' => 'lr', 'libya' => 'ly', 'libyan arab jamahiriya' => 'ly',
+        'liechtenstein' => 'li', 'lithuania' => 'lt', 'luxembourg' => 'lu', 'macedonia' => 'mk', 'madagascar' => 'mg',
+        'malawi' => 'mw', 'malaysia' => 'my', 'maldives' => 'mv', 'mali' => 'ml', 'malta' => 'mt', 'mauritania' => 'mr',
+        'mexico' => 'mx', 'moldova' => 'md', 'monaco' => 'mc', 'mongolia' => 'mn', 'montenegro' => 'me', 'morocco' => 'ma',
+        'mozambique' => 'mz', 'myanmar' => 'mm', 'namibia' => 'na', 'nepal' => 'np', 'netherlands' => 'nl',
+        'new zealand' => 'nz', 'nicaragua' => 'ni', 'niger' => 'ne', 'nigeria' => 'ng', 'north korea' => 'kp',
+        'north macedonia' => 'mk', 'norway' => 'no', 'oman' => 'om', 'pakistan' => 'pk', 'panama' => 'pa',
+        'papua new guinea' => 'pg', 'paraguay' => 'py', 'peru' => 'pe', 'philippines' => 'ph', 'poland' => 'pl',
+        'portugal' => 'pt', 'puerto rico' => 'pr', 'qatar' => 'qa', 'republic of korea' => 'kr', 'romania' => 'ro',
+        'russia' => 'ru', 'russian federation' => 'ru', 'rwanda' => 'rw', 'san marino' => 'sm', 'saudi arabia' => 'sa',
+        'senegal' => 'sn', 'serbia' => 'rs', 'sierra leone' => 'sl', 'singapore' => 'sg', 'slovakia' => 'sk',
+        'slovenia' => 'si', 'solomon islands' => 'sb', 'somalia' => 'so', 'south africa' => 'za', 'south korea' => 'kr',
+        'soviet union' => 'su', 'spain' => 'es', 'sri lanka' => 'lk', 'sudan' => 'sd', 'suriname' => 'sr', 'sweden' => 'se',
+        'switzerland' => 'ch', 'syria' => 'sy', 'syrian arab republic' => 'sy', 'taiwan' => 'tw', 'tajikistan' => 'tj',
+        'tanzania' => 'tz', 'thailand' => 'th', 'togo' => 'tg', 'trinidad and tobago' => 'tt', 'tunisia' => 'tn',
+        'turkey' => 'tr', 'turkmenistan' => 'tm', 'türkiye' => 'tr', 'uae' => 'ae', 'uganda' => 'ug', 'uk' => 'gb',
+        'ukraine' => 'ua', 'united arab emirates' => 'ae', 'united kingdom' => 'gb', 'united states' => 'us',
+        'united states of america' => 'us', 'uruguay' => 'uy', 'usa' => 'us', 'ussr' => 'su', 'uzbekistan' => 'uz',
+        'vatican' => 'va', 'venezuela' => 've', 'viet nam' => 'vn', 'vietnam' => 'vn', 'western sahara' => 'eh',
+        'yemen' => 'ye', 'zambia' => 'zm', 'zimbabwe' => 'zw');
+    $c = aio_cat_country(aio_card_text($c));
+    $k = strtolower($c);
+    return $c === '' ? '' : (isset($iso[$k]) ? $iso[$k] : '_' . $c);
+}
+
+// Genres of the server -> those of the card: the first letter capital (not in the list
+// of genres of the shell: shown as they are), no repeats.
+/**
+ * @param array<mixed> $list
+ * @return list<string>
+ */
+function aio_card_genres($list)
+{
+    $out = array();
+    foreach ($list as $g)
+    {
+        $g = aio_card_text($g);
+        $g = mb_strtoupper(mb_substr($g, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($g, 1, mb_strlen($g, 'UTF-8'), 'UTF-8');
+        if ($g !== '' && count($out) < AIO_CAT_GENRES_MAX && !in_array($g, $out, true))
+            $out[] = $g;
+    }
+    return $out;
+}
+
+// Countries of the server -> codes of the card (aio_card_country), no repeats.
+/**
+ * @param array<mixed> $list
+ * @return list<string>
+ */
+function aio_card_countries($list)
+{
+    $out = array();
+    foreach ($list as $c)
+    {
+        $c = aio_card_country($c);
+        if ($c !== '' && count($out) < AIO_CARD_LIST_MAX && !in_array($c, $out, true))
+            $out[] = $c;
+    }
+    return $out;
+}
+
+// People of the meta -> people of the card: actors of app_extras.cast (role: the
+// character, imgPhoto), directors and writers of app_extras.directors, writers, then
+// the names of director, writer not among them; AIO_CARD_ACTORS_MAX actors and
+// AIO_CARD_CREW_MAX of each crew at most, in the order of the server. type: 0 actor, 1
+// director, 2 writer. id: melange-tmdb-<id> or melange-tvdb-<id>, else melange-n-<md5 of
+// the name>: unique, no / or : (it names the file of the photo in the cache of the
+// shell). A person on the server of the Dune has another id: ENTER on one says the server
+// failed.
+/**
+ * @param array<mixed> $meta
+ * @return list<array<string, mixed>>
+ */
+function aio_card_people($meta)
+{
+    $extras = aio_arr($meta, 'app_extras');
+    $src = array(0 => aio_arr($extras, 'cast'), 1 => array_merge(aio_arr($extras, 'directors'), aio_arr($meta, 'director')),
+        2 => array_merge(aio_arr($extras, 'writers'), aio_arr($meta, 'writer')));
+    $out = array();
+    foreach ($src as $type => $list)
+    {
+        $names = array();
+        $ids = array();
+        foreach ($list as $p)
+        {
+            $name = aio_card_text(is_array($p) ? aio_str($p, 'name') : $p);
+            if ($name === '' || isset($names[$name]) || count($names) >= ($type === 0 ? AIO_CARD_ACTORS_MAX : AIO_CARD_CREW_MAX))
+                continue;
+            $id = 'melange-n-' . substr(md5($name), 0, 12);
+            if (preg_match('/^[0-9]{1,10}$/D', aio_str($p, 'tmdbId')))
+                $id = 'melange-tmdb-' . aio_str($p, 'tmdbId');
+            else if (preg_match('/^[0-9]{1,10}$/D', aio_str($p, 'tvdbId')))
+                $id = 'melange-tvdb-' . aio_str($p, 'tvdbId');
+            if (isset($ids[$id]))
+                continue;
+            $names[$name] = true;
+            $ids[$id] = true;
+            $e = array('id' => $id, 'type' => $type, 'name' => $name);
+            $role = $type === 0 ? aio_card_text(aio_str($p, 'character')) : '';
+            if ($role !== '')
+                $e['role'] = $role;
+            $photo = aio_cat_img($p, 'photo');
+            if ($photo !== '')
+                $e['imgPhoto'] = $photo;
+            $out[] = $e;
+        }
+    }
+    return $out;
+}
+
+// app_extras.certifications of the meta -> contentRatings of the card: the rating of
+// each country ("RU": "18+", "US": "R"), the shell takes that of the country of the
+// Dune or works one out of the rest.
+/**
+ * @param array<mixed> $meta
+ * @return array<string, string>
+ */
+function aio_card_ratings($meta)
+{
+    $out = array();
+    foreach (aio_arr(aio_arr($meta, 'app_extras'), 'certifications') as $k => $v)
+    {
+        $v = aio_card_text($v);
+        if (preg_match('/^[A-Z]{2}$/D', strval($k)) && $v !== '' && mb_strlen($v, 'UTF-8') <= 10 && count($out) < 100)
+            $out[strval($k)] = $v;
+    }
+    return $out;
+}
+
+// The meta of the movie of $imdb on the catalog server, null on any failure (logged by
+// aio_cat_get) or when it is of another title.
+/**
+ * @param string $imdb
+ * @return array<mixed>|null
+ */
+function aio_card_meta($imdb)
+{
+    $g = aio_cat_get("meta/movie/$imdb.json", "meta $imdb", 'meta', AIO_CARD_META_TOTAL, true);
+    $m = $g['list'];
+    if ($g['err'] !== '' || (aio_str($m, 'imdb_id') !== $imdb && aio_str($m, 'id') !== $imdb))
+    {
+        if ($g['err'] === '')
+            aio_log("card: meta $imdb of another title");
+        return null;
+    }
+    return $m;
+}
+
 // A tile with IMDb and no card of the server: the local card of the shell made from
 // it before, opened as it is (the user may have edited it in the shell), whatever the
 // server said. None or a broken one, and $make (the server sure it has no card) for a
-// movie: written from the tile, the fields do_parse_movie_json reads. -> its id, ''
+// movie: written from the tile, the fields do_parse_movie_json reads; genres, countries,
+// the age and people from the meta of the catalog server (aio_card_meta), from the tile
+// when it fails (no people then). Empty fields are left out. -> its id, ''
 // if none. The id is of Melange alone (m-melange-), no card of the user is touched.
 // Uninstall leaves these files on purpose: they are the user's history, as the
 // history of the shell is.
@@ -248,6 +447,24 @@ function aio_card_local($tile, $make)
     $min = aio_cat_runtime_min($tile['runtime']);
     if ($min > 0)
         $r['duration'] = $min;
+    // No folder: the card is not written, nothing to ask for.
+    $meta = is_dir(AIO_USER_CARD_DIR) ? aio_card_meta($tile['imdb_id']) : null;
+    $genres = aio_card_genres($meta ? aio_arr($meta, 'genres') : $tile['genres']);
+    if (!$genres && $meta)
+        $genres = aio_card_genres($tile['genres']);
+    $countries = $meta ? aio_arr($meta, 'countries') : array();
+    if ($meta && !$countries)
+        $countries = explode(',', aio_str($meta, 'country'));
+    $countries = aio_card_countries($countries ? $countries : array($tile['country']));
+    $ratings = $meta ? aio_card_ratings($meta) : array();
+    $age = isset($ratings['RU']) && preg_match('/^[0-9]{1,2}\+$/D', $ratings['RU']) ? $ratings['RU'] : $tile['age'];
+    $people = $meta ? aio_card_people($meta) : array();
+    foreach (array('genres' => $genres, 'countries' => $countries, 'rate_content' => $age, 'contentRatings' => $ratings,
+        'people' => $people) as $k => $v)
+    {
+        if ($v)
+            $r[$k] = $v;
+    }
     $data = json_encode(array('result' => $r));
     // Whole or nothing: a temp file in the folder, then rename. Its name starts with a
     // dot: the shell skips such files in the folder (fname_to_id).
