@@ -659,6 +659,16 @@ function aio_cat_search_row($type, $q, $name)
     return $row;
 }
 
+// A query as the search sends it: one line, at most AIO_CAT_QUERY_MAX characters.
+/**
+ * @param string $q
+ * @return string
+ */
+function aio_cat_query($q)
+{
+    return mb_substr(aio_one_line($q), 0, AIO_CAT_QUERY_MAX, 'UTF-8');
+}
+
 // Search by $q in movies and series: by type, its listing after the first page and the
 // result of it (aio_cat_more); $names: by type, the name of its row. Search of anime
 // does not find Russian names, so it is not asked. An empty query: nothing asked,
@@ -670,7 +680,7 @@ function aio_cat_search_row($type, $q, $name)
  */
 function aio_cat_search($q, $names)
 {
-    $q = mb_substr(aio_one_line($q), 0, AIO_CAT_QUERY_MAX, 'UTF-8');
+    $q = aio_cat_query($q);
     $found = array();
     foreach ($q !== '' ? $names : array() as $type => $name)
     {

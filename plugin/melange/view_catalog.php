@@ -94,6 +94,10 @@ class AioCat
     public static $all_ticks = 0;
     /** @var string */
     public static $all_tick_last = '';
+    // The query of the last search, cut as the search cuts it: the field of the next search
+    // starts with it. Memory of php_server only, as the query is in no log and no file.
+    /** @var string */
+    public static $last_q = '';
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -1646,7 +1650,8 @@ function aio_catv_search_drop($sid)
 }
 
 // The dialog of a search; the field goes to cat_search_apply and on as cat_q. The
-// query is in no action and no address: only in what the shell sends back.
+// query is in no action to run and no address: only in what the shell sends back
+// and in the field, which starts with the last one (AioCat::$last_q).
 /**
  * @param string $from
  * @return AioAction
@@ -1656,7 +1661,7 @@ function aio_catv_search_ask($from)
     $p = array('from' => $from);
     return aio_dialog_act(aio_tr(aio_catv_lang(), 'cat_search'), array(
         aio_ctl('cat_q', GUI_CONTROL_TEXT_FIELD, array(
-            GuiTextFieldDef::initial_value => '',
+            GuiTextFieldDef::initial_value => AioCat::$last_q,
             GuiTextFieldDef::numeric => 0,
             GuiTextFieldDef::password => 0,
             GuiTextFieldDef::has_osk => 1,
@@ -1676,8 +1681,10 @@ function aio_catv_search_ask($from)
  */
 function aio_catv_search_run($q, $from)
 {
-    if (aio_one_line($q) === '')
+    $q = aio_cat_query($q);
+    if ($q === '')
         return null;
+    AioCat::$last_q = $q;
     $lang = aio_catv_lang();
     // The no-break space at the end of cat_movies, cat_series is on purpose, in place of the number (the owner's choice); editors drop it as trailing whitespace: keep it.
     $found = aio_cat_search($q, array('movie' => aio_tr($lang, 'cat_movies'), 'series' => aio_tr($lang, 'cat_series')));

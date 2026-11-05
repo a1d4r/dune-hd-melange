@@ -5,6 +5,7 @@
 ## 0.53.0 — 05.11.2026
 - **ENTER on the name of a row opens "Show all".** In the catalog and in search, ENTER on the name of a row in the panel of row names on the left now opens "Show all" of the row at once, as the Dune's own catalog does: no need to scroll to the end of the row. A short row without "Show all" works as before: ENTER moves into the row.
 - **A movie without a Dune card gets one.** A movie from the catalog that the Dune's database does not have now opens as a usual Dune card, with **Play...** and watch history.
+- **Search remembers the last query.** The search field in the catalog now opens with the last query: fix a typo or add a word without typing it all again. The query is kept until the Dune restarts or Melange is updated.
 
 ## 0.52.0 — 04.11.2026
 - **Search in the catalog goes further.** The rows of a search now have **"Show all"** at the end: it loads the next results as you scroll, not only the first page. The rows are called "Movies" and "Series", without the number found.
@@ -172,6 +173,7 @@ First public release. What it does:
 ## 0.53.0 — 05.11.2026
 - **ENTER на названии ряда открывает «Показать все».** В каталоге и в поиске ENTER на названии ряда в панели названий слева теперь сразу открывает «Показать все» этого ряда, как в родном каталоге Дюны: листать до конца ряда не нужно. В коротком ряду без «Показать все» всё как раньше: ENTER переводит в ряд.
 - **Фильм без карточки Дюны получает свою.** Фильм из каталога, которого нет в базе Дюны, теперь открывается обычной карточкой Дюны со «Смотреть…» и историей просмотра.
+- **Поиск помнит последний запрос.** Поле поиска в каталоге теперь открывается с последним запросом: можно исправить опечатку или дописать слово, не набирая всё заново. Запрос хранится до перезапуска Дюны или обновления Melange.
 
 ## 0.52.0 — 04.11.2026
 - **Поиск в каталоге листается дальше.** В конце рядов поиска теперь есть **«Показать все»**: оно догружает следующие результаты при прокрутке, а не только первую страницу. Ряды называются «Фильмы» и «Сериалы», без числа найденного.
