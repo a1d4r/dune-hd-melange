@@ -1,8 +1,8 @@
 <?php
 // ENTER on a tile of the catalog: the native card of the Dune, its id found by
-// movieBySigns; without one, for a movie with IMDb, a local card of the shell made
-// from the tile; else the releases of Melange, no history kept; without an IMDb id
-// either a message. Needs catalog.php (its cache) and main.php. dune_auth
+// movieBySigns; the server sure it has none, for a movie with IMDb, a local card of
+// the shell made from the tile; else the releases of Melange, no history kept;
+// without an IMDb id either a message. Needs catalog.php (its cache) and main.php. dune_auth
 // is only in the address of a request: no log, dialog or file gets that address.
 // Types in the PHPDoc (AioCatTile, AioAction): phpstan-types.neon of the repository.
 
@@ -130,13 +130,15 @@ function aio_card_pick($tmdb, $imdb, $tile)
     return $best;
 }
 
-// The id of the card of the tile, '' for none. Only full answers go to the cache: a
-// failure says nothing about the card, and a card without the answer of the other
-// sign may not be the one to keep. With a refused or failed request the second is not
-// asked. Without dune_auth nothing is asked: the shell can not open a card either.
+// The card of the tile: id, '' for none; none: the server answered every sign and
+// no card fits (now or cached), not a failure, a refusal, no dune_auth or no sign.
+// Only full answers go to the cache: a failure says nothing about the card, and a
+// card without the answer of the other sign may not be the one to keep. With a
+// refused or failed request the second is not asked. Without dune_auth nothing is
+// asked: the shell can not open a card either.
 /**
  * @param AioCatTile $tile
- * @return string
+ * @return array{id: string, none: bool}
  */
 function aio_card_id($tile)
 {
@@ -144,7 +146,7 @@ function aio_card_id($tile)
     if ($token === '')
     {
         aio_log('card: no dune_auth');
-        return '';
+        return array('id' => '', 'none' => false);
     }
     $signs = array();
     // A TMDB id is of a movie or of a series: without the type it means nothing.
@@ -153,7 +155,7 @@ function aio_card_id($tile)
     if ($tile['imdb_id'] !== '')
         $signs['imdb'] = 'imdb:' . $tile['imdb_id'];
     if (!$signs)
-        return '';
+        return array('id' => '', 'none' => false);
     $key = "card|{$tile['type']}|{$tile['_tmdbId']}|{$tile['imdb_id']}|{$tile['year']}";
     $c = aio_cat_cache_read($key);
     if ($c)
@@ -163,7 +165,7 @@ function aio_card_id($tile)
         if (time() >= $c['t'] && time() - $c['t'] < ($id !== '' ? AIO_CARD_TTL_ID : AIO_CARD_TTL_NONE))
         {
             aio_log('card: cached ' . ($id !== '' ? $id : 'none'));
-            return $id;
+            return array('id' => $id, 'none' => $id === '');
         }
     }
     $cards = array('tmdb' => null, 'imdb' => null);
@@ -181,7 +183,7 @@ function aio_card_id($tile)
     $id = $card ? $card['id'] : '';
     if ($whole)
         aio_cat_cache_write($key, 1, array('id' => $id));
-    return $id;
+    return array('id' => $id, 'none' => $whole && $id === '');
 }
 
 // The handler of file_movie in r25 reads movie_id only: the card takes its type
@@ -201,18 +203,26 @@ function aio_card_open($id)
 }
 
 // A movie tile with IMDb and no card on the server: a local card of the shell from
-// the tile, the fields do_parse_movie_json reads. -> its id, '' if not written (a
-// series, no IMDb, no folder). Written anew each time: the tile is fresher, and the
-// id is of Melange alone (m-melange-), no card of the user is touched.
+// the tile, the fields do_parse_movie_json reads. -> its id, '' if none (a series,
+// no IMDb, no folder, not written). A file already there is opened as it is: the
+// user may have edited it in the shell. The id is of Melange alone (m-melange-), no
+// card of the user is touched. Uninstall leaves these files on purpose: they are
+// the user's history, as the history of the shell is.
 /**
  * @param AioCatTile $tile
  * @return string
  */
 function aio_card_local($tile)
 {
-    if ($tile['type'] !== 'movie' || $tile['imdb_id'] === '')
+    if ($tile['type'] !== 'movie' || !preg_match('/^tt[0-9]{1,10}$/D', $tile['imdb_id']))
         return '';
     $id = 'm-melange-' . $tile['imdb_id'];
+    $f = AIO_USER_CARD_DIR . "/$id.json";
+    if (is_file($f))
+    {
+        aio_log("card: local $id kept");
+        return $id;
+    }
     $now = time();
     $r = array('id' => $id, 'type' => 'movie', 'customType' => 'user',
         'title' => array('ru' => $tile['name'], 'en' => $tile['englishTitle'] !== '' ? $tile['englishTitle'] : $tile['name']),
@@ -230,8 +240,14 @@ function aio_card_local($tile)
     // runtime of the tile: "2h15min", "95min", "2h"; duration of the card in minutes.
     if ($tile['runtime'] !== '' && preg_match('/^(?:([0-9]+)h)?(?:([0-9]+)min)?$/D', $tile['runtime'], $x))
         $r['duration'] = intval(isset($x[1]) ? $x[1] : 0) * 60 + intval(isset($x[2]) ? $x[2] : 0);
-    $ok = is_dir(AIO_USER_CARD_DIR) &&
-        @file_put_contents(AIO_USER_CARD_DIR . "/$id.json", json_encode(array('result' => $r))) !== false;
+    $data = json_encode(array('result' => $r));
+    // Whole or nothing: a temp file in the folder, then rename. Its name starts with a
+    // dot: the shell skips such files in the folder (fname_to_id).
+    $tmp = AIO_USER_CARD_DIR . "/.$id.json." . getmypid();
+    $ok = is_string($data) && is_dir(AIO_USER_CARD_DIR) && @file_put_contents($tmp, $data) === strlen($data) &&
+        @rename($tmp, $f);
+    if (!$ok && file_exists($tmp))
+        @unlink($tmp);
     aio_log("card: local $id " . ($ok ? 'written' : 'not written'));
     return $ok ? $id : '';
 }
@@ -267,9 +283,8 @@ function aio_card_releases($tile, $lang)
  */
 function aio_card_enter($tile, $lang)
 {
-    $id = aio_card_id($tile);
-    if ($id === '')
-        $id = aio_card_local($tile);
+    $c = aio_card_id($tile);
+    $id = $c['none'] ? aio_card_local($tile) : $c['id'];
     if ($id !== '')
         return aio_card_open($id);
     return $tile['imdb_id'] !== '' ? aio_card_releases($tile, $lang) : aio_error('err_card_no_source');
