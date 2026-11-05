@@ -43,7 +43,8 @@ define('AIO_CAT_SEARCH_PAGE', 20);
 // 400 files: ~80 pages of 100 KB (json_encode makes Cyrillic 6 bytes a letter),
 // the oldest go first.
 // Raise the version when aio_cat_tile makes a wrong tile of an older copy, not for a new key alone: older copies are dropped.
-define('AIO_CAT_CACHE_V', 2);
+// 3: countries and people; a local card made from a copy without them would lack them for good.
+define('AIO_CAT_CACHE_V', 3);
 define('AIO_CAT_FRESH', 3600);
 define('AIO_CAT_KEEP', 2592000);
 define('AIO_CAT_CACHE_BYTES', 8388608);
@@ -55,6 +56,12 @@ define('AIO_CAT_DESC_MAX', 1200);
 define('AIO_CAT_URL_MAX', 1000);
 define('AIO_CAT_GENRES_MAX', 8);
 define('AIO_CAT_CAST_MAX', 3);
+// people of a tile for the local card of the shell (catalog_card.php): the server gives
+// up to 10 actors.
+define('AIO_CAT_ACTORS_MAX', 10);
+define('AIO_CAT_CREW_MAX', 5);
+define('AIO_CAT_PERSON_MAX', 60);
+define('AIO_CAT_COUNTRIES_MAX', 10);
 define('AIO_CAT_QUERY_MAX', 100);
 
 // --- Requests.
@@ -334,6 +341,73 @@ function aio_cat_country($s)
     return isset($iso[$k]) ? $iso[$k] : '';
 }
 
+// The countries of the server (countries, else the list of country), each as
+// aio_cat_country, no repeats, AIO_CAT_COUNTRIES_MAX at most; a copy of the cache: the same.
+/**
+ * @param mixed $m
+ * @return list<string>
+ */
+function aio_cat_countries($m)
+{
+    $list = aio_arr($m, 'countries');
+    if (!$list)
+        $list = explode(',', aio_str($m, 'country'));
+    $out = array();
+    foreach ($list as $c)
+    {
+        $c = aio_cat_country(aio_str(array($c), 0));
+        if ($c !== '' && count($out) < AIO_CAT_COUNTRIES_MAX && !in_array($c, $out, true))
+            $out[] = $c;
+    }
+    return $out;
+}
+
+// The people of the server: actors of app_extras.cast, directors and writers of
+// app_extras.directors, writers, then the names of director, writer not among them;
+// AIO_CAT_ACTORS_MAX actors, AIO_CAT_CREW_MAX of each crew at most, in the order of the
+// server. A copy of the cache (people): its people checked again. type: 0 actor, 1
+// director, 2 writer (people[].type of the card of the shell); role: the character of an
+// actor; photo: http(s) or ''; pid: tmdb-<id> or tvdb-<id>, '' for none.
+/**
+ * @param mixed $m
+ * @return list<AioCatPerson>
+ */
+function aio_cat_people($m)
+{
+    $copy = is_array($m) && isset($m['people']);
+    $extras = aio_arr($m, 'app_extras');
+    $src = $copy ? array(-1 => aio_arr($m, 'people')) : array(0 => aio_arr($extras, 'cast'),
+        1 => array_merge(aio_arr($extras, 'directors'), aio_arr($m, 'director')),
+        2 => array_merge(aio_arr($extras, 'writers'), aio_arr($m, 'writer')));
+    $out = array();
+    $seen = array();
+    $n = array(0, 0, 0);
+    foreach ($src as $kind => $list)
+    {
+        foreach ($list as $p)
+        {
+            $type = $kind;
+            if ($copy)
+                $type = is_array($p) && isset($p['type']) && is_int($p['type']) ? $p['type'] : -1;
+            $name = aio_cut(aio_one_line(is_array($p) ? aio_str($p, 'name') : aio_str(array($p), 0)), AIO_CAT_PERSON_MAX);
+            if ($type < 0 || $type > 2 || $name === '' || isset($seen["$type|$name"]) ||
+                $n[$type] >= ($type === 0 ? AIO_CAT_ACTORS_MAX : AIO_CAT_CREW_MAX))
+                continue;
+            $seen["$type|$name"] = true;
+            $n[$type]++;
+            $pid = $copy ? aio_str($p, 'pid') : '';
+            if (!$copy && preg_match('/^[0-9]{1,10}$/D', aio_str($p, 'tmdbId')))
+                $pid = 'tmdb-' . aio_str($p, 'tmdbId');
+            else if (!$copy && preg_match('/^[0-9]{1,10}$/D', aio_str($p, 'tvdbId')))
+                $pid = 'tvdb-' . aio_str($p, 'tvdbId');
+            $role = $type === 0 ? aio_cut(aio_one_line(aio_str($p, $copy ? 'role' : 'character')), AIO_CAT_PERSON_MAX) : '';
+            $out[] = array('type' => $type, 'name' => $name, 'role' => $role, 'photo' => aio_cat_img($p, 'photo'),
+                'pid' => preg_match('/^t[mv]db-[0-9]{1,10}$/D', $pid) ? $pid : '');
+        }
+    }
+    return $out;
+}
+
 // runtime of a tile ("1h38min", "30min", "2h") in minutes, 0 for none.
 /**
  * @param string $r
@@ -354,8 +428,10 @@ function aio_cat_runtime_min($r)
 // name of the first one (aio_cat_country), '' for none. runtime: "1h38min" or "30min" (of an
 // episode for series). age: the Russian rating "16+" of app_extras.certifications.RU.
 // cast: the first names of app_extras.cast. englishTitle: the English name of the title
-// (a field of our patch of the server; none: ''), as name. Run again on what the cache
-// holds (age, cast: its own keys; a copy of before them: '' and none): the same result.
+// (a field of our patch of the server; none: ''), as name. countries: all of them
+// (aio_cat_countries), people: actors and crew (aio_cat_people), for the local card of the
+// shell. Run again on what the cache holds (age, cast, people: its own keys; a copy of
+// before them: '' and none): the same result.
 /**
  * @param mixed $m
  * @param string $row_type
@@ -407,7 +483,8 @@ function aio_cat_tile($m, $row_type)
         'poster' => aio_cat_img($m, 'poster'), 'background' => aio_cat_img($m, 'background'), 'country' => $country,
         'runtime' => preg_match('/^(?=[0-9])([0-9]{1,2}h)?([0-9]{1,3}min)?$/', $runtime) ? $runtime : '',
         'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast,
-        'englishTitle' => aio_cut(aio_one_line(aio_str($m, 'englishTitle')), AIO_CAT_NAME_MAX));
+        'englishTitle' => aio_cut(aio_one_line(aio_str($m, 'englishTitle')), AIO_CAT_NAME_MAX),
+        'countries' => aio_cat_countries($m), 'people' => aio_cat_people($m));
 }
 
 // Items of a page -> the tiles among them; what is not a tile is dropped.
