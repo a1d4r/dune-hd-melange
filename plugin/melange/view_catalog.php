@@ -57,6 +57,9 @@ define('AIO_CATV_DESC_CHARS', 360);
 // The TMDB size of a background; w780 if the shell runs short of memory.
 define('AIO_CATV_BG_SIZE', 'w1280');
 define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
+// The id of the field "Search" over the rows of the main screen, its row and its button:
+// no ':' in it, so no tile and no info panel by it.
+define('AIO_CATV_SEARCH_ID', 'search');
 
 class AioCat
 {
@@ -583,8 +586,54 @@ function aio_catv_actions($from)
         GUI_EVENT_PLUGIN_ROWS_INFO_UPDATE => $info);
 }
 
+// The field "Search" of the main screen: a button of the shell in focus in a row of GComps,
+// as the empty row of movie_list_screen.php r25 and the buttons of home_tv; ENTER on it is
+// cat_enter with its id. The magnifier over the left of the button, as home_tv puts its icons.
+/**
+ * @param string $lang
+ * @return array<string, mixed>
+ */
+function aio_catv_search_row($lang)
+{
+    $caption = aio_tr($lang, 'cat_search');
+    $button = array(
+        GComponentDef::id => AIO_CATV_SEARCH_ID,
+        GComponentDef::geom_def => aio_gc_left_center(400, 54, 100),
+        GComponentDef::focusable_def => array(
+            GCompFocusableDef::sel_margins => null,
+            GCompFocusableDef::background_url => null),
+        GComponentDef::kind => GCOMPONENT_BUTTON,
+        GComponentDef::specific_def => array(
+            GCompButtonDef::caption => "    $caption",
+            GCompButtonDef::selected => false,
+            GCompButtonDef::caption_centered => true));
+    return array(
+        PluginRow::type => PLUGIN_ROW_TYPE_GCOMPS,
+        PluginRow::id => AIO_CATV_SEARCH_ID,
+        PluginRow::title => null,
+        PluginRow::ui_level => 0,
+        PluginRow::height => 90,
+        PluginRow::inactive_height => -1,
+        PluginRow::focusable => true,
+        PluginRow::data => array(
+            PluginGCompsRow::defs => array($button, aio_gc_image(aio_gc_left_center(40, 40, 120), 'plugin_file://img/menu_search.png')),
+            PluginGCompsRow::ui_state => array(
+                GCompUiStateDef::items => array(array(
+                    GCompItemDef::type => GCOMP_ITEM_BUTTON,
+                    GCompItemDef::id => AIO_CATV_SEARCH_ID,
+                    GCompItemDef::left_caption => null,
+                    GCompItemDef::caption => $caption)),
+                GCompUiStateDef::title => null,
+                GCompUiStateDef::bg_url => null,
+                GCompUiStateDef::poster_url => null,
+                GCompUiStateDef::view_params => null),
+            PluginGCompsRow::width => 1920));
+}
+
 // The screen of the rows $defs. The key set of RowsFactory::pane r25, nulls too;
-// row_dup_map: a literal, the r24 API has no such constant.
+// row_dup_map: a literal, the r24 API has no such constant. The main screen: the field
+// "Search" on top, laid out from the top as the native search screen (min_row_index_for_y2:
+// its first title), the focus at the opening on the first row, not on the field.
 /**
  * @param list<array<string, mixed>> $defs
  * @param mixed $sel_state
@@ -593,7 +642,10 @@ function aio_catv_actions($from)
  */
 function aio_catv_rows_view($defs, $sel_state, $from)
 {
+    $main = aio_catv_is_main($from);
     $rows = array(array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 10, PluginRow::inactive_height => 10));
+    if ($main)
+        $rows[] = aio_catv_search_row(aio_catv_lang());
     foreach ($defs as $def)
         $rows[] = $def;
     $rows[] = array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 80, PluginRow::inactive_height => 80);
@@ -601,7 +653,7 @@ function aio_catv_rows_view($defs, $sel_state, $from)
         PluginRowsPane::rows => $rows,
         'row_dup_map' => null,
         PluginRowsPane::bg => null,
-        PluginRowsPane::initial_focus_row_id => null,
+        PluginRowsPane::initial_focus_row_id => $main ? $defs[1][PluginRow::id] : null,
         PluginRowsPane::focus => array(
             GCompFocusDef::type => GCOMP_FOCUS_DEFAULT_CUT_IMAGE,
             GCompFocusDef::type2 => GCOMP_FOCUS_DEFAULT_RECT),
@@ -616,7 +668,7 @@ function aio_catv_rows_view($defs, $sel_state, $from)
         PluginRowsPane::vertical_focus_end_min_offset => 50,
         PluginRowsPane::screen_r => array('w' => 1920, 'h' => 1080, 'x' => 0, 'y' => 0),
         PluginRowsPane::screen_y2 => 600,
-        PluginRowsPane::min_row_index_for_y2 => 0,
+        PluginRowsPane::min_row_index_for_y2 => $main ? 2 : 0,
         PluginRowsPane::info_r => array('w' => AIO_CATV_PANE_W, 'h' => AIO_CATV_PANE_H, 'x' => 100, 'y' => 40),
         PluginRowsPane::vod_r => array('w' => 1280, 'h' => 720, 'x' => 640, 'y' => 0),
         PluginRowsPane::regular_item_params_templates => array('common' => aio_catv_item_tpl(array(3, 3, 3, 4))));
@@ -1611,6 +1663,10 @@ function aio_catv_enter($in)
     $id = aio_catv_in($in, 'selected_item_id');
     if ($id === '')
         $id = aio_catv_in($in, 'selected_media_url');
+    // The field "Search" (aio_catv_search_row): as MENU → "Search". By the row too: what
+    // the shell sends for a button of a row is not seen on the device.
+    if ($id === AIO_CATV_SEARCH_ID || aio_catv_in($in, 'selected_row_id') === AIO_CATV_SEARCH_ID)
+        return aio_catv_search_ask(aio_catv_in($in, 'from'));
     // "more:<rid>", of a search "more:<rid>:<id of the search>": an older search opens outdated.
     $url = aio_catv_more_url($id);
     if ($url !== '')

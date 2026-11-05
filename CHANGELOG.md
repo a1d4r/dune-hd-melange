@@ -2,6 +2,9 @@
 
 **English version**
 
+## Unreleased
+- **The "Search" field on top of the catalog.** The main screen of the catalog now has a **Search** field above the rows, as the Dune's own search screen: press UP from the first row and ENTER to open the search. Handy where the search key of the remote starts Google Assistant instead. MENU → **Search** and the search key work as before.
+
 ## 0.53.0 — 05.11.2026
 - **ENTER on the name of a row opens "Show all".** In the catalog and in search, ENTER on the name of a row in the panel of row names on the left now opens "Show all" of the row at once, as the Dune's own catalog does: no need to scroll to the end of the row. A short row without "Show all" works as before: ENTER moves into the row.
 - **A movie without a Dune card gets one.** A movie from the catalog that the Dune's database does not have now opens as a usual Dune card, with **Play...** and watch history.
@@ -169,6 +172,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## Не выпущено
+- **Поле «Поиск» сверху каталога.** На главном экране каталога над рядами теперь есть поле **«Поиск»**, как на родном экране поиска Дюны: с первого ряда кнопкой ВВЕРХ, затем ENTER — откроется поиск. Пригодится, если клавиша поиска на пульте запускает Google Ассистента. MENU → «Поиск» и клавиша поиска работают как раньше.
 
 ## 0.53.0 — 05.11.2026
 - **ENTER на названии ряда открывает «Показать все».** В каталоге и в поиске ENTER на названии ряда в панели названий слева теперь сразу открывает «Показать все» этого ряда, как в родном каталоге Дюны: листать до конца ряда не нужно. В коротком ряду без «Показать все» всё как раньше: ENTER переводит в ряд.
