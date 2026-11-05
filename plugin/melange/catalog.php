@@ -367,8 +367,10 @@ function aio_cat_runtime_min($r)
 // cast: the first names of app_extras.cast. englishTitle: the English name of the title
 // (a field of our patch of the server; none: ''), as name. kpRating, kpVotes, kpId: of our
 // patch too: the rating "7.9" ('' for none, 0, over 10 or under AIO_CAT_KP_VOTES_MIN votes),
-// its votes (0 for none), the id of Kinopoisk (digits, '' for none). Run again on what the cache
-// holds (age, cast: its own keys; a copy of before them: '' and none): the same result.
+// its votes (0 for none), the id of Kinopoisk (digits, '' for none). kpVotes is kept for the
+// threshold when a copy of the cache is parsed again (aio_cat_tiles): without it the rating goes.
+// Run again on what the cache holds (age, cast: its own keys; a copy of before them: '' and
+// none): the same result.
 /**
  * @param mixed $m
  * @param string $row_type
@@ -396,8 +398,11 @@ function aio_cat_tile($m, $row_type)
     $kp = aio_str($m, 'kpRating');
     $votes = aio_str($m, 'kpVotes');
     $votes = preg_match('/^[0-9]{1,9}$/D', $votes) ? intval($votes) : 0;
-    $kp = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $kp) && (float) $kp > 0 && (float) $kp <= 10 &&
-        $votes >= AIO_CAT_KP_VOTES_MIN ? sprintf('%.1F', (float) $kp) : '';
+    $kp = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $kp) && (float) $kp <= 10 && $votes >= AIO_CAT_KP_VOTES_MIN ?
+        sprintf('%.1F', (float) $kp) : '';
+    // "0.04" is "0.0": none.
+    if ((float) $kp <= 0)
+        $kp = '';
     $kp_id = aio_str($m, 'kpId');
     $genres = array();
     foreach (aio_arr($m, 'genres') as $g)
@@ -427,7 +432,7 @@ function aio_cat_tile($m, $row_type)
         'runtime' => preg_match('/^(?=[0-9])([0-9]{1,2}h)?([0-9]{1,3}min)?$/', $runtime) ? $runtime : '',
         'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast,
         'englishTitle' => aio_cut(aio_one_line(aio_str($m, 'englishTitle')), AIO_CAT_NAME_MAX),
-        'kpRating' => $kp, 'kpVotes' => $votes, 'kpId' => preg_match('/^[0-9]{1,10}$/D', $kp_id) ? $kp_id : '');
+        'kpRating' => $kp, 'kpVotes' => $votes, 'kpId' => preg_match('/^[1-9][0-9]{0,9}$/D', $kp_id) ? $kp_id : '');
 }
 
 // Items of a page -> the tiles among them; what is not a tile is dropped.
