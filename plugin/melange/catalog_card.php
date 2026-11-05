@@ -22,11 +22,17 @@ define('AIO_CARD_TTL_NONE', 86400);
 // The meta of a movie asked of the catalog server once, when its local card is written:
 // 0.4 s seen (05.11.2026), "none" 1.8 s. ENTER waits for it; a failure leaves the card of the tile.
 define('AIO_CARD_META_TOTAL', 4);
-// People of the local card: the server gives up to 10 actors.
+// Limits of the local card: the server gives up to 10 actors; genres as a tile
+// (AIO_CAT_GENRES_MAX); ratings: ~45 countries seen, each a short text ("TE+7", "K-12").
+// Of a list of the meta only the first AIO_CARD_SCAN_MAX items are looked at.
 define('AIO_CARD_ACTORS_MAX', 10);
 define('AIO_CARD_CREW_MAX', 5);
+define('AIO_CARD_GENRES_MAX', 8);
+define('AIO_CARD_COUNTRIES_MAX', 10);
+define('AIO_CARD_RATINGS_MAX', 100);
+define('AIO_CARD_RATING_LEN', 10);
 define('AIO_CARD_TEXT_MAX', 60);
-define('AIO_CARD_LIST_MAX', 10);
+define('AIO_CARD_SCAN_MAX', 200);
 // Local cards of the shell (movies/custom_dunemdb.php): PHP of the Dune adds
 // FS_PREFIX to /flashdata itself. Tests may define it first.
 if (!defined('AIO_USER_CARD_DIR'))
@@ -267,7 +273,7 @@ function aio_card_country($c)
         'soviet union' => 'su', 'spain' => 'es', 'sri lanka' => 'lk', 'sudan' => 'sd', 'suriname' => 'sr', 'sweden' => 'se',
         'switzerland' => 'ch', 'syria' => 'sy', 'syrian arab republic' => 'sy', 'taiwan' => 'tw', 'tajikistan' => 'tj',
         'tanzania' => 'tz', 'thailand' => 'th', 'togo' => 'tg', 'trinidad and tobago' => 'tt', 'tunisia' => 'tn',
-        'turkey' => 'tr', 'turkmenistan' => 'tm', 'türkiye' => 'tr', 'uae' => 'ae', 'uganda' => 'ug', 'uk' => 'gb',
+        'turkey' => 'tr', 'turkmenistan' => 'tm', 'türkiye' => 'tr', 'uganda' => 'ug', 'uk' => 'gb',
         'ukraine' => 'ua', 'united arab emirates' => 'ae', 'united kingdom' => 'gb', 'united states' => 'us',
         'united states of america' => 'us', 'uruguay' => 'uy', 'usa' => 'us', 'ussr' => 'su', 'uzbekistan' => 'uz',
         'vatican' => 'va', 'venezuela' => 've', 'viet nam' => 'vn', 'vietnam' => 'vn', 'western sahara' => 'eh',
@@ -286,12 +292,14 @@ function aio_card_country($c)
 function aio_card_genres($list)
 {
     $out = array();
-    foreach ($list as $g)
+    foreach (array_slice($list, 0, AIO_CARD_SCAN_MAX) as $g)
     {
         $g = aio_card_text($g);
         $g = mb_strtoupper(mb_substr($g, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($g, 1, mb_strlen($g, 'UTF-8'), 'UTF-8');
-        if ($g !== '' && count($out) < AIO_CAT_GENRES_MAX && !in_array($g, $out, true))
+        if ($g !== '' && !in_array($g, $out, true))
             $out[] = $g;
+        if (count($out) >= AIO_CARD_GENRES_MAX)
+            break;
     }
     return $out;
 }
@@ -304,11 +312,13 @@ function aio_card_genres($list)
 function aio_card_countries($list)
 {
     $out = array();
-    foreach ($list as $c)
+    foreach (array_slice($list, 0, AIO_CARD_SCAN_MAX) as $c)
     {
         $c = aio_card_country($c);
-        if ($c !== '' && count($out) < AIO_CARD_LIST_MAX && !in_array($c, $out, true))
+        if ($c !== '' && !in_array($c, $out, true))
             $out[] = $c;
+        if (count($out) >= AIO_CARD_COUNTRIES_MAX)
+            break;
     }
     return $out;
 }
@@ -328,8 +338,10 @@ function aio_card_countries($list)
 function aio_card_people($meta)
 {
     $extras = aio_arr($meta, 'app_extras');
-    $src = array(0 => aio_arr($extras, 'cast'), 1 => array_merge(aio_arr($extras, 'directors'), aio_arr($meta, 'director')),
-        2 => array_merge(aio_arr($extras, 'writers'), aio_arr($meta, 'writer')));
+    $n = AIO_CARD_SCAN_MAX;
+    $src = array(0 => array_slice(aio_arr($extras, 'cast'), 0, $n),
+        1 => array_merge(array_slice(aio_arr($extras, 'directors'), 0, $n), array_slice(aio_arr($meta, 'director'), 0, $n)),
+        2 => array_merge(array_slice(aio_arr($extras, 'writers'), 0, $n), array_slice(aio_arr($meta, 'writer'), 0, $n)));
     $out = array();
     foreach ($src as $type => $list)
     {
@@ -337,8 +349,10 @@ function aio_card_people($meta)
         $ids = array();
         foreach ($list as $p)
         {
+            if (count($names) >= ($type === 0 ? AIO_CARD_ACTORS_MAX : AIO_CARD_CREW_MAX))
+                break;
             $name = aio_card_text(is_array($p) ? aio_str($p, 'name') : $p);
-            if ($name === '' || isset($names[$name]) || count($names) >= ($type === 0 ? AIO_CARD_ACTORS_MAX : AIO_CARD_CREW_MAX))
+            if ($name === '' || isset($names[$name]))
                 continue;
             $id = 'melange-n-' . substr(md5($name), 0, 12);
             if (preg_match('/^[0-9]{1,10}$/D', aio_str($p, 'tmdbId')))
@@ -372,11 +386,13 @@ function aio_card_people($meta)
 function aio_card_ratings($meta)
 {
     $out = array();
-    foreach (aio_arr(aio_arr($meta, 'app_extras'), 'certifications') as $k => $v)
+    foreach (array_slice(aio_arr(aio_arr($meta, 'app_extras'), 'certifications'), 0, AIO_CARD_SCAN_MAX, true) as $k => $v)
     {
         $v = aio_card_text($v);
-        if (preg_match('/^[A-Z]{2}$/D', strval($k)) && $v !== '' && mb_strlen($v, 'UTF-8') <= 10 && count($out) < 100)
+        if (preg_match('/^[A-Z]{2}$/D', strval($k)) && $v !== '' && mb_strlen($v, 'UTF-8') <= AIO_CARD_RATING_LEN)
             $out[strval($k)] = $v;
+        if (count($out) >= AIO_CARD_RATINGS_MAX)
+            break;
     }
     return $out;
 }
@@ -452,10 +468,20 @@ function aio_card_local($tile, $make)
     $genres = aio_card_genres($meta ? aio_arr($meta, 'genres') : $tile['genres']);
     if (!$genres && $meta)
         $genres = aio_card_genres($tile['genres']);
-    $countries = $meta ? aio_arr($meta, 'countries') : array();
-    if ($meta && !$countries)
-        $countries = explode(',', aio_str($meta, 'country'));
-    $countries = aio_card_countries($countries ? $countries : array($tile['country']));
+    $countries = array();
+    if ($meta)
+    {
+        $list = aio_arr($meta, 'countries');
+        if (!$list)
+        {
+            // The rest of a long country in the last item is dropped.
+            $list = explode(',', aio_str($meta, 'country'), AIO_CARD_COUNTRIES_MAX + 1);
+            array_splice($list, AIO_CARD_COUNTRIES_MAX);
+        }
+        $countries = aio_card_countries($list);
+    }
+    if (!$countries)
+        $countries = aio_card_countries(array($tile['country']));
     $ratings = $meta ? aio_card_ratings($meta) : array();
     $age = isset($ratings['RU']) && preg_match('/^[0-9]{1,2}\+$/D', $ratings['RU']) ? $ratings['RU'] : $tile['age'];
     $people = $meta ? aio_card_people($meta) : array();

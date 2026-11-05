@@ -82,7 +82,7 @@ function aio_cat_url($path)
  * @param string $field
  * @param int $limit
  * @param bool $one
- * @return array{err: string, list: array<mixed>}
+ * @return array{err: string, list: array<mixed>} list: the object itself when $one
  */
 function aio_cat_get($path, $what, $field, $limit = 0, $one = false)
 {
@@ -127,7 +127,7 @@ function aio_cat_get($path, $what, $field, $limit = 0, $one = false)
             $why = 'bad';
     }
     unset($body, $j);
-    aio_log(sprintf('catalog: %s: %s, %d bytes, %d items, %.0f ms%s', $what, $status, $size, count($list),
+    aio_log(sprintf('catalog: %s: %s, %d bytes, %d items, %.0f ms%s', $what, $status, $size, $one ? ($list ? 1 : 0) : count($list),
         (microtime(true) - $t) * 1000, $why !== '' ? ", failed: $why" : ''));
     return array('err' => $why, 'list' => $list);
 }
