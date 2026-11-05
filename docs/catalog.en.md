@@ -22,7 +22,7 @@ On the settings page on your phone, in the **Catalog rows** section, there are a
 
 ## Search
 
-The **Search** field above the rows (UP from the first row, then ENTER), MENU → **Search**, or the search key, if your remote has one. Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.
+MENU → **Search** (or the search key, if your remote has one). Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.
 
 <img src="../screenshots/search.jpg" alt="Search results in the Melange catalog: Movies and Series rows, a Show all tile at the end of a row" width="100%">
 
