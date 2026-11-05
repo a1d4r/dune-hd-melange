@@ -203,52 +203,11 @@ function aio_card_open($id)
         GuiAction::params => array('handler_id' => 'entry', 'control_id' => 'file_movie', 'movie_id' => $id));
 }
 
-// Text of the tile for the local card: one line, no < and > (the shell puts names into
-// its markup).
-/**
- * @param string $s
- * @return string
- */
-function aio_card_text($s)
-{
-    return trim(str_replace(array('<', '>'), '', aio_one_line($s)));
-}
-
-// A country of a tile (aio_cat_countries: an English name) -> its code of the shell
-// (known_country_codes.txt), shown in the language of the Dune; another: "_" and the
-// name, shown as it is in lower case (parse_country_value).
-/**
- * @param string $c
- * @return string
- */
-function aio_card_country($c)
-{
-    static $iso = array('united states of america' => 'us', 'united states' => 'us', 'united kingdom' => 'gb', 'uk' => 'gb',
-        'great britain' => 'gb', 'france' => 'fr', 'germany' => 'de', 'spain' => 'es', 'italy' => 'it', 'japan' => 'jp',
-        'south korea' => 'kr', 'china' => 'cn', 'india' => 'in', 'canada' => 'ca', 'australia' => 'au', 'new zealand' => 'nz',
-        'russia' => 'ru', 'russian federation' => 'ru', 'soviet union' => 'su', 'brazil' => 'br', 'mexico' => 'mx',
-        'belgium' => 'be', 'netherlands' => 'nl', 'sweden' => 'se', 'norway' => 'no', 'denmark' => 'dk', 'finland' => 'fi',
-        'ireland' => 'ie', 'poland' => 'pl', 'portugal' => 'pt', 'austria' => 'at', 'switzerland' => 'ch',
-        'czech republic' => 'cz', 'czechia' => 'cz', 'hungary' => 'hu', 'greece' => 'gr', 'turkey' => 'tr', 'israel' => 'il',
-        'argentina' => 'ar', 'chile' => 'cl', 'colombia' => 'co', 'hong kong' => 'hk', 'taiwan' => 'tw', 'thailand' => 'th',
-        'indonesia' => 'id', 'philippines' => 'ph', 'south africa' => 'za', 'iceland' => 'is', 'ukraine' => 'ua',
-        'kazakhstan' => 'kz', 'belarus' => 'by', 'romania' => 'ro', 'bulgaria' => 'bg', 'serbia' => 'rs', 'croatia' => 'hr',
-        'estonia' => 'ee', 'latvia' => 'lv', 'lithuania' => 'lt', 'georgia' => 'ge', 'luxembourg' => 'lu', 'iran' => 'ir',
-        'egypt' => 'eg', 'vietnam' => 'vn', 'malaysia' => 'my', 'singapore' => 'sg', 'united arab emirates' => 'ae',
-        'morocco' => 'ma', 'peru' => 'pe', 'cuba' => 'cu');
-    $k = strtolower($c);
-    return isset($iso[$k]) ? $iso[$k] : '_' . $c;
-}
-
 // A tile with IMDb and no card of the server: the local card of the shell made from
 // it before, opened as it is (the user may have edited it in the shell), whatever the
 // server said. None or a broken one, and $make (the server sure it has no card) for a
 // movie: written from the tile, the fields do_parse_movie_json reads. -> its id, ''
 // if none. The id is of Melange alone (m-melange-), no card of the user is touched.
-// Genres as the server names them, the first letter capital (not in the list of genres of
-// the shell: shown as they are); people: id melange-tmdb-<id> (tvdb), else melange-n-<md5
-// of the name>; a person on the server of the Dune has another id, so ENTER on one there
-// says the server failed. Empty fields are left out.
 // Uninstall leaves these files on purpose: they are the user's history, as the
 // history of the shell is.
 /**
@@ -289,46 +248,6 @@ function aio_card_local($tile, $make)
     $min = aio_cat_runtime_min($tile['runtime']);
     if ($min > 0)
         $r['duration'] = $min;
-    $genres = array();
-    foreach ($tile['genres'] as $g)
-    {
-        $g = aio_card_text($g);
-        if ($g !== '')
-            $genres[] = mb_strtoupper(mb_substr($g, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($g, 1, mb_strlen($g, 'UTF-8'), 'UTF-8');
-    }
-    if ($genres)
-        $r['genres'] = array_values(array_unique($genres));
-    $countries = array();
-    foreach ($tile['countries'] as $c)
-    {
-        $c = aio_card_text($c);
-        if ($c !== '')
-            $countries[] = aio_card_country($c);
-    }
-    if ($countries)
-        $r['countries'] = array_values(array_unique($countries));
-    if ($tile['age'] !== '')
-        $r['rate_content'] = $tile['age'];
-    $people = array();
-    foreach ($tile['people'] as $p)
-    {
-        $name = aio_card_text($p['name']);
-        if ($name === '')
-            continue;
-        // The id names the file of the photo in the cache of the shell: no / or :.
-        $pid = 'melange-' . (preg_match('/^t[mv]db-[0-9]{1,10}$/D', $p['pid']) ? $p['pid'] : 'n-' . substr(md5($name), 0, 12));
-        if (isset($people["$pid|{$p['type']}"]))
-            continue;
-        $e = array('id' => $pid, 'type' => $p['type'], 'name' => $name);
-        $role = aio_card_text($p['role']);
-        if ($p['type'] === 0 && $role !== '')
-            $e['role'] = $role;
-        if ($p['photo'] !== '')
-            $e['imgPhoto'] = $p['photo'];
-        $people["$pid|{$p['type']}"] = $e;
-    }
-    if ($people)
-        $r['people'] = array_values($people);
     $data = json_encode(array('result' => $r));
     // Whole or nothing: a temp file in the folder, then rename. Its name starts with a
     // dot: the shell skips such files in the folder (fname_to_id).
