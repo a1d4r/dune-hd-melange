@@ -984,7 +984,7 @@ function aio_movie_load($key)
  */
 function aio_lazy_action($pb)
 {
-    if (!is_string($pb) || !preg_match('/^aio_next:([0-9a-f]{24}):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([0-9a-f]{40}):(debrid|ts)$/D',
+    if (!is_string($pb) || !preg_match('/^aio_next:(' . AIO_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([0-9a-f]{40}):(debrid|ts)$/D',
         $pb, $m))
     {
         aio_log('lazy: bad playback_url ' . (is_string($pb) ? aio_cut(aio_mask($pb), 100) : gettype($pb)));
@@ -1019,7 +1019,7 @@ function aio_next_failed($lang, $ep, $key, $detail = '', $labels = array())
 function aio_next_params($in)
 {
     $p = array();
-    foreach (array('k' => '/^[0-9a-f]{24}$/D', 's' => '/^[1-9][0-9]{0,3}$/D', 'e' => '/^[1-9][0-9]{0,4}$/D',
+    foreach (array('k' => '/^' . AIO_DUNE_ID . '$/D', 's' => '/^[1-9][0-9]{0,3}$/D', 'e' => '/^[1-9][0-9]{0,4}$/D',
         'h' => '/^[0-9a-f]{40}$/D') as $k => $re)
     {
         if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
@@ -1180,7 +1180,7 @@ function aio_next($in)
     // Language of the dialogs without a saved card: of the input, else of
     // the card by a valid key, else English (as aio_tr).
     $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
-    if ($lang === '' && isset($in->k) && is_string($in->k) && preg_match('/^[0-9a-f]{24}$/D', $in->k))
+    if ($lang === '' && isset($in->k) && is_string($in->k) && preg_match('/^' . AIO_DUNE_ID . '$/D', $in->k))
     {
         $saved = aio_movie_load($in->k);
         $lang = $saved ? $saved['lang'] : '';

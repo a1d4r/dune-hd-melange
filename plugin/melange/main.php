@@ -37,6 +37,10 @@ define('AIO_PLUGIN', 'melange');
 // Supplier id kept from the plugin's old name aiostreams: Dune's watch history
 // (recent_uid, sup_id of "Continue") refers to it.
 define('AIO_SUP_ID', 'aio');
+// Id of a Dune card in a regex: of the server (24 hex) or a local one of the shell
+// (custom_mdb/user_movie, "m-..."). No ':' or '/': it goes into recent_uid,
+// aio_next: and a file name.
+define('AIO_DUNE_ID', '(?:[0-9a-f]{24}|m-[A-Za-z0-9_-]{1,64})');
 // show_dialog_delay of our handle_user_input actions, ms, as the play_action of
 // Online movies.
 define('AIO_DELAY_INPUT', 10000);
@@ -198,7 +202,7 @@ function aio_movie($in)
     return array(
         'series' => $series,
         'imdb' => preg_match('/^tt[0-9]{1,10}$/', $imdb) ? $imdb : '',
-        'dune_id' => preg_match('/^[0-9a-f]{24}$/', $dune_id) ? $dune_id : '',
+        'dune_id' => preg_match('/^' . AIO_DUNE_ID . '$/D', $dune_id) ? $dune_id : '',
         'title' => $title !== '' ? $title : aio_str($m, 'native_title'),
         'native' => aio_str($m, 'native_title'),
         'year' => aio_str($m, 'year'),

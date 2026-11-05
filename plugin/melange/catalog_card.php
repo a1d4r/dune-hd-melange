@@ -1,7 +1,8 @@
 <?php
 // ENTER on a tile of the catalog: the native card of the Dune, its id found by
-// movieBySigns; without one the releases of Melange, no history kept; without an
-// IMDb id either a message. Needs catalog.php (its cache) and main.php. dune_auth
+// movieBySigns; without one, for a movie with IMDb, a local card of the shell made
+// from the tile; else the releases of Melange, no history kept; without an IMDb id
+// either a message. Needs catalog.php (its cache) and main.php. dune_auth
 // is only in the address of a request: no log, dialog or file gets that address.
 // Types in the PHPDoc (AioCatTile, AioAction): phpstan-types.neon of the repository.
 
@@ -17,6 +18,10 @@ define('AIO_CARD_YEAR_DIFF', 1);
 define('AIO_CARD_TTL_ID', 604800);
 // A day: new cards appear in days, none seen younger than a day (03.11.2026).
 define('AIO_CARD_TTL_NONE', 86400);
+// Local cards of the shell (movies/custom_dunemdb.php): PHP of the Dune adds
+// FS_PREFIX to /flashdata itself. Tests may define it first.
+if (!defined('AIO_USER_CARD_DIR'))
+    define('AIO_USER_CARD_DIR', '/flashdata/custom_mdb/user_movie');
 
 // The content of dune_auth.txt: "dune_auth=<value>", '' if there is none.
 /**
@@ -195,6 +200,42 @@ function aio_card_open($id)
         GuiAction::params => array('handler_id' => 'entry', 'control_id' => 'file_movie', 'movie_id' => $id));
 }
 
+// A movie tile with IMDb and no card on the server: a local card of the shell from
+// the tile, the fields do_parse_movie_json reads. -> its id, '' if not written (a
+// series, no IMDb, no folder). Written anew each time: the tile is fresher, and the
+// id is of Melange alone (m-melange-), no card of the user is touched.
+/**
+ * @param AioCatTile $tile
+ * @return string
+ */
+function aio_card_local($tile)
+{
+    if ($tile['type'] !== 'movie' || $tile['imdb_id'] === '')
+        return '';
+    $id = 'm-melange-' . $tile['imdb_id'];
+    $now = time();
+    $r = array('id' => $id, 'type' => 'movie', 'customType' => 'user',
+        'title' => array('ru' => $tile['name'], 'en' => $tile['englishTitle'] !== '' ? $tile['englishTitle'] : $tile['name']),
+        'description' => array('ru' => $tile['description'], 'en' => $tile['description']),
+        'imgPoster' => $tile['poster'], 'imgThumbnail' => $tile['poster'],
+        'imgBackdrops' => $tile['background'] !== '' ? array($tile['background']) : array(),
+        'sources' => array('IMDB' => $tile['imdb_id']),
+        'cdesc' => array('src' => 'manual', 'ctime' => $now, 'mtime' => $now));
+    if ($tile['_tmdbId'] !== '')
+        $r['sources']['TheMovieDB'] = $tile['_tmdbId'];
+    if ($tile['year'] !== '')
+        $r['year'] = intval($tile['year']);
+    if ($tile['imdbRating'] !== '')
+        $r['rate_imdb'] = $tile['imdbRating'];
+    // runtime of the tile: "2h15min", "95min", "2h"; duration of the card in minutes.
+    if ($tile['runtime'] !== '' && preg_match('/^(?:([0-9]+)h)?(?:([0-9]+)min)?$/D', $tile['runtime'], $x))
+        $r['duration'] = intval(isset($x[1]) ? $x[1] : 0) * 60 + intval(isset($x[2]) ? $x[2] : 0);
+    $ok = is_dir(AIO_USER_CARD_DIR) &&
+        @file_put_contents(AIO_USER_CARD_DIR . "/$id.json", json_encode(array('result' => $r))) !== false;
+    aio_log("card: local $id " . ($ok ? 'written' : 'not written'));
+    return $ok ? $id : '';
+}
+
 // The way of play_action, the movie made from the tile: no id of a card, so no
 // history (aio_play) and a series starts at S1E1. The list opens after a dialog that
 // says so; what aio_play_action says instead of a list goes as it is.
@@ -227,6 +268,8 @@ function aio_card_releases($tile, $lang)
 function aio_card_enter($tile, $lang)
 {
     $id = aio_card_id($tile);
+    if ($id === '')
+        $id = aio_card_local($tile);
     if ($id !== '')
         return aio_card_open($id);
     return $tile['imdb_id'] !== '' ? aio_card_releases($tile, $lang) : aio_error('err_card_no_source');
