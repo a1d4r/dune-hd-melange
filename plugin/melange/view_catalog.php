@@ -325,6 +325,7 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
 {
     $row = $list['st']['row'];
     $rid = aio_catv_rid($row);
+    $more = '';
     // The no-break space at the end of the name of a search row (cat_movies) not before the mark.
     $title = $list['stale'] ? strval(preg_replace('/\x{00A0}$/u', '', $row['name'])) . ' (' . aio_tr($lang, 'cat_saved') . ')' : $row['name'];
     if ($items === null)
@@ -332,10 +333,12 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
         $items = array();
         foreach (array_slice($list['tiles'], 0, AIO_CATV_ROW_TILES) as $t)
             $items[] = aio_catv_item("$rid:{$t['id']}", $t['name'], aio_catv_poster($t));
-        // Of a search: and its id, as in cat_grid:.
-        $more = isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid";
         if ($list['st']['end'] === '' || count($list['tiles']) > AIO_CATV_ROW_TILES)
+        {
+            // Of a search: and its id, as in cat_grid:.
+            $more = isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid";
             $items[] = aio_catv_item($more, aio_tr($lang, 'cat_more'), AIO_CATV_ICONS . 'more.png');
+        }
     }
     $defs = array(
         array(
@@ -376,6 +379,9 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
                 PluginRegularRow::fade_caption_color => '#FF808080')));
     if ($options)
         $defs[1][PluginRow::options] = $options;
+    // ENTER on the title of the row in the panel of titles: "Show all", as genre_rows_screen.php.
+    if ($more !== '')
+        $defs[1][PluginRow::show_all_action] = aio_input('cat_all', array('cat_more' => $more));
     return $defs;
 }
 
@@ -1582,6 +1588,17 @@ function aio_catv_all_tick($url)
     return $act;
 }
 
+// Opens the screen "Show all" $url (aio_catv_more_url), named after its row.
+/**
+ * @param string $url
+ * @return AioAction
+ */
+function aio_catv_all_open($url)
+{
+    $list = aio_catv_all_list($url, false);
+    return aio_catv_open_act($url, $list ? $list['st']['row']['name'] : aio_tr(aio_catv_lang(), 'cat_title'));
+}
+
 // ENTER on a tile: selected_item_id on the rows, selected_media_url on the grid.
 /**
  * @param stdClass $in
@@ -1595,10 +1612,7 @@ function aio_catv_enter($in)
     // "more:<rid>", of a search "more:<rid>:<id of the search>": an older search opens outdated.
     $url = aio_catv_more_url($id);
     if ($url !== '')
-    {
-        $list = aio_catv_all_list($url, false);
-        return aio_catv_open_act($url, $list ? $list['st']['row']['name'] : aio_tr(aio_catv_lang(), 'cat_title'));
-    }
+        return aio_catv_all_open($url);
     // A stub of "Show all": row<k>.<j>.
     if (strpos($id, 'stub:') === 0 || strpos($id, 'empty:') === 0 || preg_match('/^row[0-9]+\.[0-9]+$/D', $id))
         return null;
@@ -1714,6 +1728,12 @@ function aio_catv_input($in, $control)
         return aio_catv_info($in);
     if ($control === 'cat_enter')
         return aio_catv_enter($in);
+    // show_all_action of a row: cat_more is the id of its tile "Show all".
+    if ($control === 'cat_all')
+    {
+        $url = aio_catv_more_url(aio_catv_in($in, 'cat_more'));
+        return $url !== '' ? aio_catv_all_open($url) : null;
+    }
     if ($control === 'cat_tick')
         return aio_catv_all_tick($from);
     if ($control === 'cat_retry')
