@@ -836,9 +836,7 @@ function aio_catv_country($c, $lang)
  */
 function aio_catv_runtime($r, $lang)
 {
-    if (!preg_match('/^(?:([0-9]+)h)?(?:([0-9]+)min)?$/', $r, $x))
-        return '';
-    $min = (isset($x[1]) ? intval($x[1]) * 60 : 0) + (isset($x[2]) ? intval($x[2]) : 0);
+    $min = aio_cat_runtime_min($r);
     $parts = array();
     if ($min >= 60)
         $parts[] = str_replace('{n}', strval(intval($min / 60)), aio_tr($lang, 'cat_len_h'));

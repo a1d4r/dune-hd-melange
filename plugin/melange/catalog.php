@@ -334,6 +334,18 @@ function aio_cat_country($s)
     return isset($iso[$k]) ? $iso[$k] : '';
 }
 
+// runtime of a tile ("1h38min", "30min", "2h") in minutes, 0 for none.
+/**
+ * @param string $r
+ * @return int
+ */
+function aio_cat_runtime_min($r)
+{
+    if (!preg_match('/^(?:([0-9]+)h)?(?:([0-9]+)min)?$/', $r, $x))
+        return 0;
+    return (isset($x[1]) ? intval($x[1]) * 60 : 0) + (isset($x[2]) ? intval($x[2]) : 0);
+}
+
 // A tile of the server -> only what is needed (links with the UUID, app_extras,
 // logo and the rest are gone from here on), or null without an id or a name.
 // All values strings, genres and cast lists. imdb_id and _tmdbId: also from the id itself,

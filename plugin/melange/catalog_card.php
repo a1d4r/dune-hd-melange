@@ -1,9 +1,10 @@
 <?php
 // ENTER on a tile of the catalog: the native card of the Dune, its id found by
-// movieBySigns; the server sure it has none, for a movie with IMDb, a local card of
-// the shell made from the tile; else the releases of Melange, no history kept;
-// without an IMDb id either a message. Needs catalog.php (its cache) and main.php. dune_auth
-// is only in the address of a request: no log, dialog or file gets that address.
+// movieBySigns; without one, for a tile with IMDb, a local card of the shell (made
+// from a movie tile when the server is sure it has none); else the releases of
+// Melange, no history kept; without an IMDb id either a message. Needs catalog.php
+// (its cache) and main.php. dune_auth is only in the address of a request: no log,
+// dialog or file gets that address.
 // Types in the PHPDoc (AioCatTile, AioAction): phpstan-types.neon of the repository.
 
 define('AIO_CARD_API', 'http://dunemdb.dune-hd.com:5535/');
@@ -202,27 +203,33 @@ function aio_card_open($id)
         GuiAction::params => array('handler_id' => 'entry', 'control_id' => 'file_movie', 'movie_id' => $id));
 }
 
-// A movie tile with IMDb and no card on the server: a local card of the shell from
-// the tile, the fields do_parse_movie_json reads. -> its id, '' if none (a series,
-// no IMDb, no folder, not written). A file already there is opened as it is: the
-// user may have edited it in the shell. The id is of Melange alone (m-melange-), no
-// card of the user is touched. Uninstall leaves these files on purpose: they are
-// the user's history, as the history of the shell is.
+// A tile with IMDb and no card of the server: the local card of the shell made from
+// it before, opened as it is (the user may have edited it in the shell), whatever the
+// server said. None or a broken one, and $make (the server sure it has no card) for a
+// movie: written from the tile, the fields do_parse_movie_json reads. -> its id, ''
+// if none. The id is of Melange alone (m-melange-), no card of the user is touched.
+// Uninstall leaves these files on purpose: they are the user's history, as the
+// history of the shell is.
 /**
  * @param AioCatTile $tile
+ * @param bool $make
  * @return string
  */
-function aio_card_local($tile)
+function aio_card_local($tile, $make)
 {
-    if ($tile['type'] !== 'movie' || !preg_match('/^tt[0-9]{1,10}$/D', $tile['imdb_id']))
+    if (!preg_match('/^tt[0-9]{1,10}$/D', $tile['imdb_id']))
         return '';
     $id = 'm-melange-' . $tile['imdb_id'];
     $f = AIO_USER_CARD_DIR . "/$id.json";
-    if (is_file($f))
+    $j = is_file($f) ? json_decode(strval(@file_get_contents($f)), true) : null;
+    if (is_array($j) && isset($j['result']) && is_array($j['result']) && isset($j['result']['id']) &&
+        $j['result']['id'] === $id)
     {
         aio_log("card: local $id kept");
         return $id;
     }
+    if (!$make || $tile['type'] !== 'movie')
+        return '';
     $now = time();
     $r = array('id' => $id, 'type' => 'movie', 'customType' => 'user',
         'title' => array('ru' => $tile['name'], 'en' => $tile['englishTitle'] !== '' ? $tile['englishTitle'] : $tile['name']),
@@ -237,9 +244,10 @@ function aio_card_local($tile)
         $r['year'] = intval($tile['year']);
     if ($tile['imdbRating'] !== '')
         $r['rate_imdb'] = $tile['imdbRating'];
-    // runtime of the tile: "2h15min", "95min", "2h"; duration of the card in minutes.
-    if ($tile['runtime'] !== '' && preg_match('/^(?:([0-9]+)h)?(?:([0-9]+)min)?$/D', $tile['runtime'], $x))
-        $r['duration'] = intval(isset($x[1]) ? $x[1] : 0) * 60 + intval(isset($x[2]) ? $x[2] : 0);
+    // duration of the card in minutes.
+    $min = aio_cat_runtime_min($tile['runtime']);
+    if ($min > 0)
+        $r['duration'] = $min;
     $data = json_encode(array('result' => $r));
     // Whole or nothing: a temp file in the folder, then rename. Its name starts with a
     // dot: the shell skips such files in the folder (fname_to_id).
@@ -284,7 +292,7 @@ function aio_card_releases($tile, $lang)
 function aio_card_enter($tile, $lang)
 {
     $c = aio_card_id($tile);
-    $id = $c['none'] ? aio_card_local($tile) : $c['id'];
+    $id = $c['id'] !== '' ? $c['id'] : aio_card_local($tile, $c['none']);
     if ($id !== '')
         return aio_card_open($id);
     return $tile['imdb_id'] !== '' ? aio_card_releases($tile, $lang) : aio_error('err_card_no_source');

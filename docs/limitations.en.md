@@ -17,7 +17,7 @@ What Melange cannot do, or does with caveats. [← README](../README.en.md)
 ## Watch history
 
 - **Not cached** releases and releases with unknown status started via Debrid play with history only if Debrid gave the file link at once. Otherwise (for example, the stream goes through the AIOStreams proxy) they play **without history**: no percentage on the button, no **Continue Watching**. Via TorrServer, with history.
-- Series from the Melange catalog without a Dune card play without history. For such a movie Melange creates a Dune card itself: it shows in the Dune's user data and stays after Melange is removed. If the Dune card server did not answer at that moment, the movie opens without history: try again later.
+- Series from the Melange catalog without a Dune card play without history. For a movie without a Dune card Melange creates a Dune card itself: it shows in the Dune's user data and stays after Melange is removed. If the Dune card server did not answer at that moment, the movie opens without history: try again later.
 
 ## Debrid
 
