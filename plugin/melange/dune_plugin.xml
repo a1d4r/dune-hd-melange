@@ -75,6 +75,6 @@
     <required>no</required>
     <auto>yes</auto>
   </check_update>
-  <version>0.52.0</version>
-  <version_index>103</version_index>
+  <version>0.53.0</version>
+  <version_index>104</version_index>
 </dune_plugin>
