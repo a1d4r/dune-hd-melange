@@ -29,7 +29,7 @@ MENU → **Search** (or the search key, if your remote has one). Results come in
 ## ENTER on a poster
 
 - If the title has a card in the Dune **Movies** catalog, that card opens: **Play...** → **Melange**, with watch history as usual.
-- If there is no card, Melange offers to open the release list right away (for a series, from the first episode), but without watch history: no percentage, no **Continue Watching**.
+- If there is no card, for a movie Melange creates its own Dune card, and the rest is as usual: **Play...**, watch history. For a series Melange offers to open the release list right away, from the first episode, but without watch history: no percentage, no **Continue Watching**.
 - With neither a card nor an IMDb ID, releases cannot be found.
 
 ## Catalog server
