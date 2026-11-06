@@ -893,14 +893,15 @@ function aio_catv_meta($t, $lang)
     return array_values(array_filter($parts, 'strlen'));
 }
 
-// The second line of data of the panel: the genres, then the country. What does not fit TEXT_W
-// at DATA_MIN_PX goes: the country first, then the second genre; aio_catv_fit cuts the rest.
+// The second line of data of the panel, ready to show (unlike aio_catv_meta, the parts of the
+// first one): the genres, then the country, cleaned and fitted to TEXT_W. What does not fit at
+// DATA_MIN_PX goes: the country first, then the second genre; aio_catv_fit cuts the rest.
 /**
  * @param AioCatTile $t
  * @param string $lang
  * @return string
  */
-function aio_catv_kinds($t, $lang)
+function aio_catv_genre_line($t, $lang)
 {
     $g = array_map('aio_clean', aio_catv_genres($t));
     $c = aio_clean(aio_catv_country($t['country'], $lang));
@@ -1504,7 +1505,7 @@ function aio_catv_info($in)
         $sub = $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
         $lang = aio_catv_ui_lang();
         $lines = array(array(implode(' | ', array_map('aio_clean', aio_catv_meta($t, $lang))), AIO_CATV_TEXT_COLOR, AIO_CATV_DATA_MIN_PX),
-            array(aio_catv_kinds($t, $lang), AIO_CATV_TEXT_COLOR, AIO_CATV_DATA_MIN_PX),
+            array(aio_catv_genre_line($t, $lang), AIO_CATV_TEXT_COLOR, AIO_CATV_DATA_MIN_PX),
             array(aio_clean(implode(', ', $t['cast'])), AIO_CATV_CAST_COLOR, AIO_CATV_LINE_MIN_PX));
         $desc = $t['description'];
     }
