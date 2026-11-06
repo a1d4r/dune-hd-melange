@@ -369,7 +369,7 @@ function aio_setup_refresh($p)
     if ($from === '')
         return aio_replace_act("setup:$id", '%tr%plugin_caption');
     if (isset($p['first']) || Aio::$settings['base'] === '')
-        return aio_replace_act("catalog:$id", '%tr%plugin_caption', isset($p['first']) ? 1 : 2);
+        return aio_replace_act(aio_catv_main_url(aio_catv_tab($from), $id), '%tr%plugin_caption', isset($p['first']) ? 1 : 2);
     return array(
         GuiAction::handler_string_id => PLUGIN_INVALIDATE_FOLDERS_ACTION_ID,
         GuiAction::data => array(

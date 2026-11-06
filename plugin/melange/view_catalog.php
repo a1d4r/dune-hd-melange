@@ -759,9 +759,10 @@ function aio_catv_rows_view($defs, $sel_state, $from)
 
 // --- Screens.
 
-// The tab of a screen of the rows: 'movie' of "catalog", "catalog:<n>" (cat_retry,
-// aio_setup_refresh); the type of "cat_tab:<type>" (a switch of the tab) and of
-// "cat_tab:<type>:<n>" (cat_retry on it). '': not such a screen.
+// The tab of a screen of the rows (aio_catv_main_url): 'movie' of "catalog" (the entry),
+// "catalog:<n>" and "cat_tab:movie"; the type of "cat_tab:<type>", "cat_tab:<type>:<n>". '': not
+// such a screen. "catalog" and "cat_tab:movie" are the same screen, only the focus at the opening
+// differs: on the panel, on the tab.
 /**
  * @param string $media_url
  * @return string
@@ -771,6 +772,21 @@ function aio_catv_tab($media_url)
     if ($media_url === 'catalog' || strpos($media_url, 'catalog:') === 0)
         return 'movie';
     return preg_match('/^cat_tab:(movie|series)(?::|$)/', $media_url, $m) ? $m[1] : '';
+}
+
+// The address of the main screen of the tab $tab. No $n: "cat_tab:<type>", a switch of the tab,
+// the focus on it (aio_catv_main_view). $n, a new id of a screen (cat_retry, aio_setup_refresh):
+// "catalog:<n>" of the movies, "cat_tab:series:<n>", the focus where the shell puts it.
+/**
+ * @param string $tab
+ * @param string $n
+ * @return string
+ */
+function aio_catv_main_url($tab, $n = '')
+{
+    if ($n === '')
+        return "cat_tab:$tab";
+    return $tab === 'series' ? "cat_tab:series:$n" : "catalog:$n";
 }
 
 /**
@@ -790,6 +806,24 @@ function aio_catv_is_main($media_url)
 function aio_catv_row_tab($row)
 {
     return $row['type'] === 'movie' ? 'movie' : 'series';
+}
+
+// The rows of the tab $tab out of the rows of the manifest: the choice of the user
+// (aio_cat_user_rows), its order, only those of the tab.
+/**
+ * @param list<AioCatRow> $rows
+ * @param string $tab
+ * @return list<AioCatRow>
+ */
+function aio_catv_tab_rows($rows, $tab)
+{
+    $out = array();
+    foreach (aio_cat_user_rows($rows, Aio::$settings['cat_rows']) as $row)
+    {
+        if (aio_catv_row_tab($row) === $tab)
+            $out[] = $row;
+    }
+    return $out;
 }
 
 /**
@@ -854,7 +888,7 @@ function aio_catv_main_view($media_url, $sel_state)
     $tab = aio_catv_tab($media_url);
     // A switch of the tab (aio_catv_strip_enter): the shell brings no sel_state, the focus goes
     // to the tab pressed. Else none of ours: at an opening the focus is on the panel.
-    if ((!is_string($sel_state) || $sel_state === '') && strpos($media_url, 'cat_tab:') === 0)
+    if ((!is_string($sel_state) || $sel_state === '') && $media_url === aio_catv_main_url($tab))
         $sel_state = aio_catv_strip_sel("tab_$tab");
     $copy = aio_cat_manifest_copy();
     $rows = $copy['rows'];
@@ -867,22 +901,12 @@ function aio_catv_main_view($media_url, $sel_state)
         if (!$rows)
             return aio_catv_message_view('cat_unavailable', $lang, $media_url);
     }
-    $rows = aio_cat_user_rows($rows, Aio::$settings['cat_rows']);
+    $rows = aio_catv_tab_rows($rows, $tab);
     if (!$rows)
-        return aio_catv_message_view('cat_no_rows', $lang, $media_url);
-    $chosen = count($rows);
-    $mine = array();
-    foreach ($rows as $row)
     {
-        if (aio_catv_row_tab($row) === $tab)
-            $mine[] = $row;
+        aio_log("catalog: screen: $tab: no rows");
+        return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, 'cat_tab_empty'), $sel_state, $media_url);
     }
-    if (!$mine)
-    {
-        aio_log("catalog: screen: $tab: no rows of $chosen");
-        return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang), $sel_state, $media_url);
-    }
-    $rows = $mine;
     $loading = aio_catv_loading_flag();
     $defs = array();
     $asked = false;
@@ -891,6 +915,12 @@ function aio_catv_main_view($media_url, $sel_state)
     {
         if (!$loading || !aio_catv_is_empty(aio_catv_rid($row)))
             $shown[] = $row;
+    }
+    // r25: all the rows of the tab came empty within the hour: the strip stays, not "did not load".
+    if (!$shown)
+    {
+        aio_log("catalog: screen: $tab: all " . count($rows) . ' rows empty');
+        return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, 'cat_row_empty'), $sel_state, $media_url);
     }
     $left = AIO_CATV_OPEN_MAX_S - (microtime(true) - $start);
     aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S, $left));
@@ -925,19 +955,20 @@ function aio_catv_main_view($media_url, $sel_state)
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
 }
 
-// The tab $tab without a row chosen: under the strip one tile that says so (ENTER: nothing).
+// The tab $tab without a row to show: under the strip one tile with the text $note (ENTER: nothing).
 /**
  * @param string $tab
  * @param string $lang
+ * @param string $note
  * @return array{array<string, mixed>, array<string, mixed>}
  */
-function aio_catv_tab_empty($tab, $lang)
+function aio_catv_tab_empty($tab, $lang, $note)
 {
     $row = array('key' => "tab/$tab", 'type' => $tab, 'id' => 'tab', 'name' => aio_tr($lang, $tab === 'movie' ? 'cat_movies' : 'cat_series'),
         'genre' => '', 'home' => false, 'group' => '');
     $rid = aio_catv_rid($row);
     $list = aio_catv_list(aio_cat_row_state($row), array(), false);
-    return aio_catv_row_defs($list, $lang, array(aio_catv_item("empty:$rid", aio_tr($lang, 'cat_tab_empty'), AIO_CATV_ICONS . 'no_movie_poster.png')));
+    return aio_catv_row_defs($list, $lang, array(aio_catv_item("empty:$rid", aio_tr($lang, $note), AIO_CATV_ICONS . 'no_movie_poster.png')));
 }
 
 /**
@@ -1851,7 +1882,7 @@ function aio_catv_strip_enter($id, $from)
     $tab = strval(substr($id, strlen('tab_')));
     if (($tab !== 'movie' && $tab !== 'series') || !aio_catv_is_main($from) || $tab === aio_catv_tab($from))
         return null;
-    return aio_replace_act("cat_tab:$tab", '%tr%plugin_caption');
+    return aio_replace_act(aio_catv_main_url($tab), '%tr%plugin_caption');
 }
 
 // ENTER on a tile: selected_item_id on the rows, selected_media_url on the grid.
@@ -2000,8 +2031,8 @@ function aio_catv_input($in, $control)
     {
         AioCat::$empty = array();
         AioCat::$down = 0;
-        $n = substr(aio_rid(), 0, 8);
-        return aio_replace_act(aio_catv_tab($from) === 'series' ? "cat_tab:series:$n" : "catalog:$n", aio_tr(aio_catv_lang(), 'cat_title'));
+        $tab = aio_catv_tab($from);
+        return aio_replace_act(aio_catv_main_url($tab !== '' ? $tab : 'movie', substr(aio_rid(), 0, 8)), aio_tr(aio_catv_lang(), 'cat_title'));
     }
     if ($control === 'cat_search')
         return aio_catv_search_ask($from);
