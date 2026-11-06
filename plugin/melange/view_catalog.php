@@ -60,14 +60,14 @@ define('AIO_CATV_BG_SIZE', 'w1280');
 define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 // The strip on top of the main screen, as the native top menu: the tabs "Movies" and "Series"
 // (rows by their type), the icons of search and settings of the shell. The id of its row; the
-// ids of its parts are "tab_<x>", no ':' (an id with one is a tile). A part in focus ending right
-// of ~1688 scrolls the whole strip, so the focus frame of the gear ends at 1670, as proven.
+// ids of its parts are "tab_<x>", no ':' (an id with one is a tile). A part in focus far right
+// scrolls the whole strip: on the device a part at 1606-1670 did not (its frame on the part), one
+// at 1640-1704 did. So the gear ends at 1660 and its frame, with the margins, at 1670.
 define('AIO_CATV_STRIP', 'tabs');
-// The tabs as the native menu: text in caps, the open one brighter, a blue line under it. No
-// focused variant: it does nothing in a row of GComps, only the frame of the shell shows the focus.
+// The tabs as the native menu: text in caps, the open one brighter (the colours of the title and
+// the text of the panel, as the native ones), a blue line under it. No focused variant: it does
+// nothing in a row of GComps, only the frame of the shell shows the focus.
 define('AIO_CATV_TAB_PX', 38);
-define('AIO_CATV_TAB_OPEN', '#FFFFFFE0');
-define('AIO_CATV_TAB_COLOR', '#FFAFAFA0');
 define('AIO_CATV_UNDERLINE', '#FF3870FF');
 
 class AioCat
@@ -651,30 +651,17 @@ function aio_catv_strip_rows($tab, $lang)
                 GCompAlignDef::base_halign => HALIGN_RIGHT,
                 GCompAlignDef::base_valign => VALIGN_TOP,
                 GCompAlignDef::base_to_prev => true));
-        $def = aio_gc_ttf($id, $geom, $caption, AIO_CATV_TAB_PX, $type === $tab ? AIO_CATV_TAB_OPEN : AIO_CATV_TAB_COLOR);
+        $def = aio_gc_ttf($id, $geom, $caption, AIO_CATV_TAB_PX, $type === $tab ? AIO_CATV_TITLE_COLOR : AIO_CATV_TEXT_COLOR);
         $def[GComponentDef::focusable_def] = aio_catv_strip_focusable(array(16, 4, 16, 8));
         $defs[] = $def;
         $items[] = array(GCompItemDef::type => GCOMP_ITEM_REGULAR, GCompItemDef::id => $id,
             GCompItemDef::caption => $caption, GCompItemDef::icon_url => null);
     }
     // The line under the open tab: as wide as its word, 3 px under the baseline, inside the frame.
-    $defs[] = array(
-        GComponentDef::geom_def => array(
-            GCompGeometryDef::w => 0,
-            GCompGeometryDef::h => 4,
-            GCompGeometryDef::align_def => array(
-                GCompAlignDef::y => 36,
-                GCompAlignDef::use_base_width => true,
-                GCompAlignDef::halign => HALIGN_LEFT,
-                GCompAlignDef::valign => VALIGN_TOP,
-                GCompAlignDef::base_halign => HALIGN_LEFT,
-                GCompAlignDef::base_valign => VALIGN_TOP,
-                GCompAlignDef::base_id => "tab_$tab")),
-        GComponentDef::kind => GCOMPONENT_RECT,
-        GComponentDef::specific_def => array(GCompRectDef::color => AIO_CATV_UNDERLINE));
-    // The icons 75 apart as the native ones, their glyphs 48x48 at 8, 8 of the PNG; the frame of
-    // the gear ends at 1670. Grey #AAAAAA as the native ones: the magnifier is white at most
-    // (alpha 170), the gear #BBBBBB (alpha 232).
+    $defs[] = aio_gc_rect(aio_gc_geom(0, 4, aio_gc_align(0, 36, true, false, 0, 0, 0, 0, "tab_$tab")), AIO_CATV_UNDERLINE);
+    // The icons 75 apart as the native ones, their glyphs 48x48 at 8, 8 of the PNG; the gear
+    // ends at 1660, its frame at 1670. Grey #AAAAAA as the native ones: the magnifier is white at
+    // most (alpha 170), the gear #BBBBBB (alpha 232).
     foreach (array(array('search', 'cat_search', 'xxx4.png', 1521, 170), array('setup', 'setup_menu', 'xxx5.png', 1596, 232)) as $t)
     {
         $id = "tab_{$t[0]}";
