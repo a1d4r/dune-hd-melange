@@ -45,7 +45,7 @@ function aio_cgi_cat_start($dir)
     $GLOBALS['AIO_CGI_DATA'] = $dir;
     $c = aio_cat_manifest_copy();
     $keys = array();
-    foreach (array('movie', 'series') as $tab)
+    foreach (aio_cat_tabs() as $tab)
     {
         foreach (aio_cat_user_rows($c['rows'], null, $tab) as $r)
             $keys[] = $r['key'];

@@ -154,23 +154,26 @@ function aio_cat_group($id)
 // A row of the screen, or null when it can not be asked for. key: type and id
 // (names repeat between the types, an id too; of a search: search/<type>,
 // aio_cat_search_row), name for the screen (aio_cat_short_name), genre: the
-// value to send, '' for none, home: a start row, group: aio_cat_group.
+// value to send, '' for none, home: a start row, group: aio_cat_group. $short: false for a
+// name of the plugin (a search row), not one of the manifest.
 /**
  * @param mixed $type
  * @param mixed $id
  * @param string $name
  * @param string $genre
  * @param bool $home
+ * @param bool $short
  * @return AioCatRow|null
  */
-function aio_cat_row($type, $id, $name, $genre, $home)
+function aio_cat_row($type, $id, $name, $genre, $home, $short = true)
 {
     static $types = array('movie' => true, 'series' => true, 'anime' => true);
     if (!is_string($type) || !isset($types[$type]) || !is_string($id) || !preg_match('/^[\x21-\x7e]{1,200}$/', $id))
         return null;
     $row = array('key' => "$type/$id", 'type' => $type, 'id' => $id, 'name' => '', 'genre' => $genre,
         'home' => $home, 'group' => aio_cat_group($id));
-    $row['name'] = aio_cut(aio_cat_short_name(aio_one_line($name !== '' ? $name : $id), aio_cat_row_tab($row)), AIO_CAT_NAME_MAX);
+    $name = aio_one_line($name !== '' ? $name : $id);
+    $row['name'] = aio_cut($short ? aio_cat_short_name($name, aio_cat_row_tab($row)) : $name, AIO_CAT_NAME_MAX);
     return $row;
 }
 
@@ -185,9 +188,21 @@ function aio_cat_row_tab($row)
     return $row['type'] === 'movie' ? 'movie' : 'series';
 }
 
+// The tabs in their order: movies, then series. The settings page keeps the keys of
+// cat_rows in this order too (commit() of web/src/rows.ts): the start rows compare by it.
+/**
+ * @return list<string>
+ */
+function aio_cat_tabs()
+{
+    return array('movie', 'series');
+}
+
 // The name of a row without the type its tab ($tab: aio_cat_row_tab) already says:
 // "Боевик: фильмы" -> "Боевик", "Фильмы в тренде" -> "В тренде", "2025: фильмы" -> "2025 год".
-// Nothing left: the name as it is. A short name stays as it is (the copy of the manifest keeps them).
+// The first letter capital after a cut. Nothing left: the name as it is. A short name stays
+// as it is (the copy of the manifest keeps them). The words are of the shared config in
+// Russian: with another manifest the rule finds nothing and leaves the names.
 /**
  * @param string $name
  * @param string $tab
@@ -197,13 +212,12 @@ function aio_cat_short_name($name, $tab)
 {
     $w = $tab === 'movie' ? 'фильмы' : 'сериалы';
     $s = strval(preg_replace("/\\s*:\\s*$w\\z/iu", '', $name));
-    $rest = strval(preg_replace("/^$w\\s+/iu", '', $s));
-    if ($rest !== $s)
-        $rest = mb_strtoupper(mb_substr($rest, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($rest, 1, mb_strlen($rest, 'UTF-8'), 'UTF-8');
-    $rest = trim($rest);
+    $rest = trim(strval(preg_replace("/^$w\\s+/iu", '', $s)));
     if ($rest === '' || $rest === $name)
         return $name;
-    return preg_match('/^[0-9]{4}\z/', $rest) ? "$rest год" : $rest;
+    if (preg_match('/^[0-9]{4}\z/', $rest))
+        return "$rest год";
+    return mb_strtoupper(mb_substr($rest, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($rest, 1, mb_strlen($rest, 'UTF-8'), 'UTF-8');
 }
 
 // The only place that chooses rows from the catalogs of the manifest, in its order
@@ -709,7 +723,7 @@ function aio_cat_more(&$st, $limit)
  */
 function aio_cat_search_row($type, $q, $name)
 {
-    $row = aio_cat_row($type, "search.$type", $name, '', false);
+    $row = aio_cat_row($type, "search.$type", $name, '', false, false);
     if ($row)
     {
         $row['key'] = "search/$type";
