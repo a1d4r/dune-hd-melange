@@ -36,9 +36,9 @@ define('AIO_CATV_ALL_TICK_MS', 1500);
 // The searches kept in memory: Back to the results of an older one, its tiles and "Show all" work.
 define('AIO_CATV_SEARCHES', 3);
 // The info panel, as the native one (movie_helper.php of shell_ext, the same info_r):
-// a title of one line as large as fits PANE_W, then lines of 30 px (down to 15 px to
-// fit TEXT_W), then the description. Names up to 197, descriptions up to 1096 characters
-// were seen. DESC_CHARS: of the text of an item of the grid.
+// a title of one line as large as fits PANE_W, then lines of 30 px (to fit TEXT_W down to
+// 26 px the two lines of data, 15 px the cast), then the description. Names up to 197,
+// descriptions up to 1096 characters were seen. DESC_CHARS: of the text of an item of the grid.
 define('AIO_CATV_PANE_W', 950);
 define('AIO_CATV_PANE_H', 560);
 define('AIO_CATV_TEXT_W', 800);
@@ -46,6 +46,7 @@ define('AIO_CATV_TITLE_PX', 120);
 define('AIO_CATV_TITLE_MIN_PX', 36);
 define('AIO_CATV_LINE_PX', 30);
 define('AIO_CATV_LINE_MIN_PX', 15);
+define('AIO_CATV_DATA_MIN_PX', 26);
 define('AIO_CATV_TITLE_COLOR', '#FFFFFFE0');
 define('AIO_CATV_TEXT_COLOR', '#FFAFAFA0');
 define('AIO_CATV_CAST_COLOR', '#FFFFFF40');
@@ -849,9 +850,32 @@ function aio_catv_runtime($r, $lang)
     return implode(' ', $parts);
 }
 
-// The parts of the line of a tile as the native one: year, country, 2 genres, age,
-// runtime, ratings ("IMDb 7.3 · КП 7.7", each with its name); words of the server only,
-// the empty ones left out.
+// The genres of a tile as the lines show them: the compound genres of TMDB series short (the
+// server names them in Russian in any interface), with a capital, no repeat in another case,
+// the first 2.
+/**
+ * @param AioCatTile $t
+ * @return list<string>
+ */
+function aio_catv_genres($t)
+{
+    static $short = array('боевик и приключения' => 'боевик', 'нф и фэнтези' => 'фантастика', 'война и политика' => 'военный');
+    $out = array();
+    foreach ($t['genres'] as $g)
+    {
+        $k = mb_strtolower($g, 'UTF-8');
+        if (isset($short[$k]))
+            $g = $short[$k];
+        $g = mb_strtoupper(mb_substr($g, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($g, 1, mb_strlen($g, 'UTF-8'), 'UTF-8');
+        $k = mb_strtolower($g, 'UTF-8');
+        if (!isset($out[$k]))
+            $out[$k] = $g;
+    }
+    return array_slice(array_values($out), 0, 2);
+}
+
+// The parts of the first line of data of a tile: the ratings ("КП 7.7 · IMDb 7.3", each with
+// its name), year, runtime, age; words of the server only, the empty ones left out.
 /**
  * @param AioCatTile $t
  * @param string $lang
@@ -859,18 +883,35 @@ function aio_catv_runtime($r, $lang)
  */
 function aio_catv_meta($t, $lang)
 {
-    $genres = array();
-    foreach (array_slice($t['genres'], 0, 2) as $g)
-        $genres[] = mb_strtoupper(mb_substr($g, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($g, 1, mb_strlen($g, 'UTF-8'), 'UTF-8');
     $rating = (float) $t['imdbRating'];
     $rates = array();
-    if ($rating > 0)
-        $rates[] = str_replace('{n}', sprintf('%.1F', $rating), aio_tr($lang, 'cat_rate_imdb'));
     if ($t['kpRating'] !== '')
         $rates[] = str_replace('{n}', $t['kpRating'], aio_tr($lang, 'cat_rate_kp'));
-    $parts = array($t['year'], aio_catv_country($t['country'], $lang), implode(', ', $genres), $t['age'],
-        aio_catv_runtime($t['runtime'], $lang), implode(' · ', $rates));
+    if ($rating > 0)
+        $rates[] = str_replace('{n}', sprintf('%.1F', $rating), aio_tr($lang, 'cat_rate_imdb'));
+    $parts = array(implode(' · ', $rates), $t['year'], aio_catv_runtime($t['runtime'], $lang), $t['age']);
     return array_values(array_filter($parts, 'strlen'));
+}
+
+// The second line of data of the panel: the genres, then the country. What does not fit TEXT_W
+// at DATA_MIN_PX goes: the country first, then the second genre; aio_catv_fit cuts the rest.
+/**
+ * @param AioCatTile $t
+ * @param string $lang
+ * @return string
+ */
+function aio_catv_kinds($t, $lang)
+{
+    $g = array_map('aio_clean', aio_catv_genres($t));
+    $c = aio_clean(aio_catv_country($t['country'], $lang));
+    $line = '';
+    foreach (array(array($g, $c), array($g, ''), array(array_slice($g, 0, 1), '')) as $v)
+    {
+        $line = implode(' | ', array_filter(array(implode(', ', $v[0]), $v[1]), 'strlen'));
+        if (aio_gc_w($line, AIO_CATV_DATA_MIN_PX) <= AIO_CATV_TEXT_W)
+            break;
+    }
+    return $line;
 }
 
 /**
@@ -882,7 +923,9 @@ function aio_catv_meta($t, $lang)
 function aio_catv_grid_item($rid, $t, $lang)
 {
     $icon = aio_catv_poster($t);
-    $text = implode(' • ', array_filter(array(implode(' • ', aio_catv_meta($t, $lang)), aio_error_cut($t['description'], AIO_CATV_DESC_CHARS)), 'strlen'));
+    $parts = array_merge(aio_catv_meta($t, $lang), array(implode(', ', aio_catv_genres($t)), aio_catv_country($t['country'], $lang),
+        aio_error_cut($t['description'], AIO_CATV_DESC_CHARS)));
+    $text = implode(' • ', array_filter($parts, 'strlen'));
     return array(
         PluginRegularFolderItem::media_url => "$rid:{$t['id']}",
         PluginRegularFolderItem::caption => $t['name'],
@@ -1459,15 +1502,17 @@ function aio_catv_info($in)
     {
         $name = $t['name'];
         $sub = $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
-        $lines = array(array(implode(' | ', array_map('aio_clean', aio_catv_meta($t, aio_catv_ui_lang()))), AIO_CATV_TEXT_COLOR),
-            array(aio_clean(implode(', ', $t['cast'])), AIO_CATV_CAST_COLOR));
+        $lang = aio_catv_ui_lang();
+        $lines = array(array(implode(' | ', array_map('aio_clean', aio_catv_meta($t, $lang))), AIO_CATV_TEXT_COLOR, AIO_CATV_DATA_MIN_PX),
+            array(aio_catv_kinds($t, $lang), AIO_CATV_TEXT_COLOR, AIO_CATV_DATA_MIN_PX),
+            array(aio_clean(implode(', ', $t['cast'])), AIO_CATV_CAST_COLOR, AIO_CATV_LINE_MIN_PX));
         $desc = $t['description'];
     }
     else if ($more)
     {
         $name = $more['st']['row']['name'];
         $sub = '';
-        $lines = array(array(aio_clean(aio_tr(aio_catv_ui_lang(), 'cat_more')), AIO_CATV_TEXT_COLOR));
+        $lines = array(array(aio_clean(aio_tr(aio_catv_ui_lang(), 'cat_more')), AIO_CATV_TEXT_COLOR, AIO_CATV_LINE_MIN_PX));
         $desc = '';
     }
     else
@@ -1492,7 +1537,7 @@ function aio_catv_info($in)
     {
         if ($l[0] === '')
             continue;
-        $fit = aio_catv_fit($l[0], AIO_CATV_LINE_PX, AIO_CATV_LINE_MIN_PX, AIO_CATV_TEXT_W);
+        $fit = aio_catv_fit($l[0], AIO_CATV_LINE_PX, $l[2], AIO_CATV_TEXT_W);
         $labels[] = aio_catv_info_label($fit[1], $fit[0], $l[1], AIO_CATV_TEXT_W, 46, $y - 3);
         $y += 50;
     }
