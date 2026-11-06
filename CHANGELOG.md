@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.54.0 — 06.11.2026
+- **Movies and Series tabs in the catalog.** A strip on top of the catalog, as in the Dune's own menu: **MOVIES** and **SERIES** tabs and, on the right, the search and settings icons. The Movies tab shows the chosen rows of movies, the Series tab the rows of series and anime, in the order set on the settings page; the panel of row names on the left follows the tab. The catalog opens on Movies. The strip is above the rows: press UP from the first row. If none of the chosen rows suits a tab, the tab says so. MENU and the search key work as before.
+
 ## 0.53.1 — 05.11.2026
 - **More in the card Melange creates.** The Dune card that Melange creates for a movie without one now has genres, countries, the age rating, the cast with roles and photos, directors and writers, as in the Dune's own cards. A card created before stays as it was: to update it, delete it in **My Collection → Collection Management → User data** and open the movie from the catalog again; the watch history is kept.
 - **Kinopoisk rating and larger text in the catalog.** The info panel above the rows now shows the Kinopoisk rating before the IMDb one, each with its name: "KP 7.7 · IMDb 7.3". It is shown when the catalog server has it for the movie or series and it has at least 1000 votes. The data of a movie are now two lines of larger text: the ratings, year, runtime and age rating, then genres and the country. At most two genres are shown, the long genres of series shorter. The card Melange creates for a movie now also holds the Kinopoisk ID and rating, as the Dune's own cards do (the card does not show this rating).
@@ -173,6 +176,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.54.0 — 06.11.2026
+- **Вкладки «Фильмы» и «Сериалы» в каталоге.** Сверху каталога — полоса, как в родном меню Дюны: вкладки **ФИЛЬМЫ** и **СЕРИАЛЫ**, справа значки поиска и настроек. На вкладке «Фильмы» — выбранные ряды фильмов, на «Сериалах» — ряды сериалов и аниме, в порядке со страницы настроек; панель названий рядов слева — по вкладке. Каталог открывается на «Фильмах». Полоса — над рядами: кнопка ВВЕРХ с первого ряда. Если среди выбранных рядов нет подходящих для вкладки, она так и скажет. MENU и клавиша поиска работают как раньше.
 
 ## 0.53.1 — 05.11.2026
 - **Больше в карточке, которую создаёт Melange.** В карточке Дюны, которую Melange создаёт для фильма без карточки, теперь есть жанры, страны, возрастной рейтинг, актёры с ролями и фото, режиссёры и сценаристы, как в родных карточках Дюны. Уже созданная карточка остаётся как была: чтобы она обновилась, удалите её в **Моя коллекция → Управление коллекцией → Пользовательские данные** и откройте фильм из каталога снова; история просмотра сохранится.

@@ -6,7 +6,9 @@ Melange's own catalog: rows of collections, search and where the data comes from
 
 **Apps → Melange** opens the catalog. While AIOStreams is not set up, the settings screen opens instead (see [Getting started](quick-start.en.md)).
 
-Settings from the catalog: MENU → **Settings**.
+On top of the catalog is a strip: the **Movies** and **Series** tabs and, on the right, a magnifier (search) and a gear (settings); press UP from the first row to get there. The catalog opens on Movies.
+
+Settings from the catalog: the gear on the strip or MENU → **Settings**.
 
 <img src="../screenshots/catalog.jpg" alt="Melange catalog: names of the start rows on the left, rows of posters on the right" width="100%">
 
@@ -18,11 +20,11 @@ The catalog has rows of collections with up to 20 posters each; the last tile, *
 
 ### Your own set of rows
 
-On the settings page on your phone, in the **Catalog rows** section, there are about 180 rows in groups (top, Russian, Russian services, genres, themes, studios, decades, years, streaming, countries, runtime, anime): tick the ones you want and order them with **Up** / **Down**; at least one row must stay. Rows are saved together with the other settings, so set up where to get films first. The new set shows the next time the catalog opens.
+On the settings page on your phone, in the **Catalog rows** section, there are about 180 rows in groups (top, Russian, Russian services, genres, themes, studios, decades, years, streaming, countries, runtime, anime): tick the ones you want and order them with **Up** / **Down**; at least one row must stay. Rows of movies show on the Movies tab, rows of series and anime on Series. Rows are saved together with the other settings, so set up where to get films first. The new set shows the next time the catalog opens.
 
 ## Search
 
-MENU → **Search** (or the search key, if your remote has one). Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.
+The magnifier on the strip on top or MENU → **Search** (or the search key, if your remote has one). Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.
 
 <img src="../screenshots/search.jpg" alt="Search results in the Melange catalog: Movies and Series rows, a Show all tile at the end of a row" width="100%">
 

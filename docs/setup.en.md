@@ -18,7 +18,7 @@ The Melange settings screen on the Dune and the sections of the settings page on
 
 How to open it:
 - **Setup → Apps → Melange**;
-- MENU → **Settings** in the Melange catalog or in the release list;
+- the gear on the strip on top of the Melange catalog, MENU → **Settings** in the catalog or in the release list;
 - while AIOStreams is not set up: **Apps → Melange**, or **Set up** in the **No AIOStreams config** window on a card (it also has **Quick setup: torrents**).
 
 The screen has **Set up from a phone** (the QR code of the page), **Change the link** ([Page link](#page-link)) and, while AIOStreams is not set up, **Quick setup: torrents**.
