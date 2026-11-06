@@ -905,7 +905,7 @@ function aio_catv_main_view($media_url, $sel_state)
     if (!$rows)
     {
         aio_log("catalog: screen: $tab: no rows");
-        return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, 'cat_tab_empty'), $sel_state, $media_url);
+        return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, false), $sel_state, $media_url);
     }
     $loading = aio_catv_loading_flag();
     $defs = array();
@@ -920,7 +920,7 @@ function aio_catv_main_view($media_url, $sel_state)
     if (!$shown)
     {
         aio_log("catalog: screen: $tab: all " . count($rows) . ' rows empty');
-        return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, 'cat_row_empty'), $sel_state, $media_url);
+        return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, true), $sel_state, $media_url);
     }
     $left = AIO_CATV_OPEN_MAX_S - (microtime(true) - $start);
     aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S, $left));
@@ -955,20 +955,24 @@ function aio_catv_main_view($media_url, $sel_state)
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
 }
 
-// The tab $tab without a row to show: under the strip one tile with the text $note (ENTER: nothing).
+// The tab $tab without a row to show: under the strip one tile that says why. $retry: its rows
+// came empty (r25, hidden for an hour), "retry:<rid>", ENTER is "Retry"; else none of its type
+// is chosen, "empty:<rid>", ENTER: nothing (the settings, not a retry, help).
 /**
  * @param string $tab
  * @param string $lang
- * @param string $note
+ * @param bool $retry
  * @return array{array<string, mixed>, array<string, mixed>}
  */
-function aio_catv_tab_empty($tab, $lang, $note)
+function aio_catv_tab_empty($tab, $lang, $retry)
 {
     $row = array('key' => "tab/$tab", 'type' => $tab, 'id' => 'tab', 'name' => aio_tr($lang, $tab === 'movie' ? 'cat_movies' : 'cat_series'),
         'genre' => '', 'home' => false, 'group' => '');
     $rid = aio_catv_rid($row);
     $list = aio_catv_list(aio_cat_row_state($row), array(), false);
-    return aio_catv_row_defs($list, $lang, array(aio_catv_item("empty:$rid", aio_tr($lang, $note), AIO_CATV_ICONS . 'no_movie_poster.png')));
+    $item = $retry ? aio_catv_item("retry:$rid", aio_tr($lang, 'cat_tab_retry'), AIO_CATV_ICONS . 'no_movie_poster.png') :
+        aio_catv_item("empty:$rid", aio_tr($lang, 'cat_tab_empty'), AIO_CATV_ICONS . 'no_movie_poster.png');
+    return aio_catv_row_defs($list, $lang, array($item));
 }
 
 /**
@@ -1901,6 +1905,8 @@ function aio_catv_enter($in)
     $url = aio_catv_more_url($id);
     if ($url !== '')
         return aio_catv_all_open($url);
+    if (strpos($id, 'retry:') === 0)
+        return aio_catv_retry(aio_catv_in($in, 'from'));
     // A stub of "Show all": row<k>.<j>.
     if (strpos($id, 'stub:') === 0 || strpos($id, 'empty:') === 0 || preg_match('/^row[0-9]+\.[0-9]+$/D', $id))
         return null;
@@ -1919,6 +1925,19 @@ function aio_catv_enter($in)
         return aio_error('cat_outdated');
     }
     return aio_card_enter($t, aio_catv_lang());
+}
+
+// "Retry" of the main screen $from: rows asked anew, the screen of its tab by a new address.
+/**
+ * @param string $from
+ * @return AioAction
+ */
+function aio_catv_retry($from)
+{
+    AioCat::$empty = array();
+    AioCat::$down = 0;
+    $tab = aio_catv_tab($from);
+    return aio_replace_act(aio_catv_main_url($tab !== '' ? $tab : 'movie', substr(aio_rid(), 0, 8)), aio_tr(aio_catv_lang(), 'cat_title'));
 }
 
 // The search $sid out of memory, its listings and the flags of their screens with it.
@@ -2028,12 +2047,7 @@ function aio_catv_input($in, $control)
     if ($control === 'cat_tick')
         return aio_catv_all_tick($from);
     if ($control === 'cat_retry')
-    {
-        AioCat::$empty = array();
-        AioCat::$down = 0;
-        $tab = aio_catv_tab($from);
-        return aio_replace_act(aio_catv_main_url($tab !== '' ? $tab : 'movie', substr(aio_rid(), 0, 8)), aio_tr(aio_catv_lang(), 'cat_title'));
-    }
+        return aio_catv_retry($from);
     if ($control === 'cat_search')
         return aio_catv_search_ask($from);
     if ($control === 'cat_search_apply')

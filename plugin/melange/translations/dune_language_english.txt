@@ -200,3 +200,4 @@ cat_tab_menu = Menu
 cat_tab_movies = MOVIES
 cat_tab_series = SERIES
 cat_tab_empty = No rows. Choose them in the settings
+cat_tab_retry = Empty. Press OK to retry
