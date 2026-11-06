@@ -414,7 +414,8 @@ function aio_cgi_jacred($v, $bad = array())
         aio_cgi_input($f['jo_key'], aio_cgi_l('Ключ, если нужен', 'Key, if needed'), $v['jo_key'], ''));
     // A hint under the list, not when the default itself is chosen (the script follows the choice).
     return $out . '</div><p class="hint" id="jrnote"' . ($v['jacred'] === AIO_JACRED_DEFAULT ? ' hidden' : '') . '>' .
-        aio_cgi_l('Не ответил — Melange спросит ' . AIO_JACRED_DEFAULT . '.', 'No answer - Melange will ask ' . AIO_JACRED_DEFAULT . '.') .
+        aio_cgi_l('Не ответил — раздач не будет; озвучки Melange спросит у ' . AIO_JACRED_DEFAULT . '.',
+            'No answer - no releases; Melange asks ' . AIO_JACRED_DEFAULT . ' for voices.') .
         '</p><button type="button" id="jrsb" class="btn ghost">' . aio_cgi_l('Сравнить скорость', 'Compare speed') .
         '</button><p class="hint c">' . aio_cgi_l('Время ответа и число раздач на трёх фильмах',
         'Reply time and the number of releases on three films') . '</p><div id="jrsr" class="res" aria-live="polite"></div>';
