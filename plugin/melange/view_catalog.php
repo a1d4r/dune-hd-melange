@@ -60,10 +60,17 @@ define('AIO_CATV_BG_SIZE', 'w1280');
 define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 // The strip on top of the main screen, as the native top menu: the tabs "Movies" and "Series"
 // (rows by their type), the icons of search and settings of the shell. The id of its row; the
-// ids of its parts are "tab_<x>", no ':' (an id with one is a tile). Right of ~1700 the shell
-// scrolls the whole strip, so the icons end at 1670.
+// ids of its parts are "tab_<x>", no ':' (an id with one is a tile). A part in focus ending right
+// of ~1688 scrolls the whole strip, so the focus frame of the gear ends at 1670, as proven.
 define('AIO_CATV_STRIP', 'tabs');
-define('AIO_CATV_UNDERLINE', '#FF2D7DF0');
+// The tabs as the native menu: text in caps, the open one brighter, a blue line under it. No
+// focused variant: it does nothing in a row of GComps, only the frame of the shell shows the focus.
+define('AIO_CATV_TAB_PX', 38);
+define('AIO_CATV_TAB_OPEN', '#FFFFFFE0');
+define('AIO_CATV_TAB_COLOR', '#FFAFAFA0');
+define('AIO_CATV_UNDERLINE', '#FF3870FF');
+// The native icons are grey: their PNGs (white at most) at alpha 170 give the native #AAAAAA.
+define('AIO_CATV_ICON_ALPHA', 170);
 
 class AioCat
 {
@@ -601,11 +608,25 @@ function aio_catv_actions($from)
         GUI_EVENT_PLUGIN_ROWS_INFO_UPDATE => $info);
 }
 
+// The focusable_def of a part of the strip. $m: sel_margins, left, top, right, bottom; the frame of
+// the shell is a 5 px line across the edges of the part grown by them, with a glow of ~6 px.
+/**
+ * @param array{int, int, int, int} $m
+ * @return array<string, mixed>
+ */
+function aio_catv_strip_focusable($m)
+{
+    return array(
+        GCompFocusableDef::sel_margins => array(
+            PluginMargins::left => $m[0], PluginMargins::top => $m[1], PluginMargins::right => $m[2], PluginMargins::bottom => $m[3]),
+        GCompFocusableDef::background_url => null);
+}
+
 // The strip of the main screen of the tab $tab: its title row, a focusable row of GComps and a
 // gap. With the panel of titles on, a row without a title before the rows with one hangs the
-// screen, so the strip has a title and a group as a row of posters. Its parts: buttons of the
-// tabs, the active one underlined, and the icons of the shell, all focusable with the margins
-// of the vendor for the focus of the pane (DEFAULT_CUT_IMAGE + DEFAULT_RECT).
+// screen, so the strip has a title and a group as a row of posters. Its parts: the tabs as text,
+// the open one underlined, and the icons of the shell, all focusable; the margins of the frame
+// leave ~15 px at the sides of a word or a glyph and 7-9 px above and below.
 /**
  * @param string $tab
  * @param string $lang
@@ -613,57 +634,61 @@ function aio_catv_actions($from)
  */
 function aio_catv_strip_rows($tab, $lang)
 {
-    $focusable = array(
-        GCompFocusableDef::sel_margins => array(
-            PluginMargins::left => 0, PluginMargins::top => 2, PluginMargins::right => 0, PluginMargins::bottom => 10),
-        GCompFocusableDef::background_url => null);
     $defs = array();
     $items = array();
-    foreach (array(array('movie', 'cat_tab_movies', 128), array('series', 'cat_tab_series', 388)) as $t)
+    // A label of 38 px is 38 high, the caps from 6 down to the baseline at 33: the baseline at
+    // 45, the middle of the row. "Series" 46 px right of the box of "Movies", the words ~50
+    // apart as in the native menu, in any language.
+    foreach (array('movie' => 'cat_tab_movies', 'series' => 'cat_tab_series') as $type => $key)
     {
-        $id = "tab_{$t[0]}";
-        $caption = aio_tr($lang, $t[1]);
-        $defs[] = array(
-            GComponentDef::id => $id,
-            GComponentDef::geom_def => aio_gc_at(230, 60, $t[2], 15),
-            GComponentDef::focusable_def => $focusable,
-            GComponentDef::kind => GCOMPONENT_BUTTON,
-            GComponentDef::specific_def => array(
-                GCompButtonDef::caption => $caption,
-                GCompButtonDef::selected => false,
-                GCompButtonDef::caption_centered => true));
-        // The underline: as wide as the button, 8 px under it.
-        if ($t[0] === $tab)
-            $defs[] = array(
-                GComponentDef::geom_def => array(
-                    GCompGeometryDef::w => 0,
-                    GCompGeometryDef::h => 4,
-                    GCompGeometryDef::align_def => array(
-                        GCompAlignDef::y => 8,
-                        GCompAlignDef::use_base_width => true,
-                        GCompAlignDef::halign => HALIGN_LEFT,
-                        GCompAlignDef::valign => VALIGN_TOP,
-                        GCompAlignDef::base_halign => HALIGN_LEFT,
-                        GCompAlignDef::base_valign => VALIGN_BOTTOM,
-                        GCompAlignDef::base_to_prev => true)),
-                GComponentDef::kind => GCOMPONENT_RECT,
-                GComponentDef::specific_def => array(GCompRectDef::color => AIO_CATV_UNDERLINE));
-        $items[] = array(GCompItemDef::type => GCOMP_ITEM_BUTTON, GCompItemDef::id => $id,
-            GCompItemDef::left_caption => null, GCompItemDef::caption => $caption);
+        $id = "tab_$type";
+        $caption = aio_tr($lang, $key);
+        $geom = $type === 'movie' ? aio_gc_at(-1, -1, 128, 12) : array(
+            GCompGeometryDef::w => -1,
+            GCompGeometryDef::h => -1,
+            GCompGeometryDef::align_def => array(
+                GCompAlignDef::x => 46,
+                GCompAlignDef::halign => HALIGN_LEFT,
+                GCompAlignDef::valign => VALIGN_TOP,
+                GCompAlignDef::base_halign => HALIGN_RIGHT,
+                GCompAlignDef::base_valign => VALIGN_TOP,
+                GCompAlignDef::base_to_prev => true));
+        $def = aio_gc_ttf($id, $geom, $caption, AIO_CATV_TAB_PX, $type === $tab ? AIO_CATV_TAB_OPEN : AIO_CATV_TAB_COLOR);
+        $def[GComponentDef::focusable_def] = aio_catv_strip_focusable(array(16, 4, 16, 8));
+        $defs[] = $def;
+        $items[] = array(GCompItemDef::type => GCOMP_ITEM_REGULAR, GCompItemDef::id => $id,
+            GCompItemDef::caption => $caption, GCompItemDef::icon_url => null);
     }
-    foreach (array(array('search', 'cat_search', 'xxx4.png', 1480), array('setup', 'setup_menu', 'xxx5.png', 1606)) as $t)
+    // The line under the open tab: as wide as its word, 3 px under the baseline, inside the frame.
+    $defs[] = array(
+        GComponentDef::geom_def => array(
+            GCompGeometryDef::w => 0,
+            GCompGeometryDef::h => 4,
+            GCompGeometryDef::align_def => array(
+                GCompAlignDef::y => 36,
+                GCompAlignDef::use_base_width => true,
+                GCompAlignDef::halign => HALIGN_LEFT,
+                GCompAlignDef::valign => VALIGN_TOP,
+                GCompAlignDef::base_halign => HALIGN_LEFT,
+                GCompAlignDef::base_valign => VALIGN_TOP,
+                GCompAlignDef::base_id => "tab_$tab")),
+        GComponentDef::kind => GCOMPONENT_RECT,
+        GComponentDef::specific_def => array(GCompRectDef::color => AIO_CATV_UNDERLINE));
+    // The icons 75 apart as the native ones, their glyphs 48x48 at 8, 8 of the PNG, centred on the
+    // caps of the tabs; the frame of the gear ends at 1670.
+    foreach (array(array('search', 'cat_search', 'xxx4.png', 1521), array('setup', 'setup_menu', 'xxx5.png', 1596)) as $t)
     {
         $id = "tab_{$t[0]}";
         $defs[] = array(
             GComponentDef::id => $id,
-            GComponentDef::geom_def => aio_gc_at(64, 64, $t[3], 18),
-            GComponentDef::focusable_def => $focusable,
+            GComponentDef::geom_def => aio_gc_at(64, 64, $t[3], 0),
+            GComponentDef::focusable_def => aio_catv_strip_focusable(array(10, 2, 10, 3)),
             GComponentDef::kind => GCOMPONENT_IMAGE,
             GComponentDef::specific_def => array(
                 GCompImageDef::url => AIO_CATV_ICONS . $t[2],
                 GCompImageDef::keep_aspect_ratio => true,
                 GCompImageDef::upscale_enabled => false,
-                GCompImageDef::alpha => 255));
+                GCompImageDef::alpha => AIO_CATV_ICON_ALPHA));
         $items[] = array(GCompItemDef::type => GCOMP_ITEM_REGULAR, GCompItemDef::id => $id,
             GCompItemDef::caption => aio_tr($lang, $t[1]), GCompItemDef::icon_url => AIO_CATV_ICONS . $t[2]);
     }
