@@ -69,13 +69,15 @@ export const ID = {
   hideResult: "srx",
   message: "msg",
   // The rows of the catalog: the choice as posted, the lines of the list's state, "Try again", the box of the list
-  // (hidden till it comes), the rows shown in their order, all rows by groups.
+  // (hidden till it comes); of movies and of series: the rows shown in their order, all rows by groups.
   rowsValue: "crv",
   rowsStatus: "crs",
   rowsRetry: "crr",
   rowsBox: "crb",
-  rowsChosen: "cro",
-  rowsGroups: "crg",
+  rowsMovies: "crom",
+  rowsMovieGroups: "crgm",
+  rowsSeries: "cros",
+  rowsSeriesGroups: "crgs",
   // The backup (#bak): "Save to a file" (a link, hidden on the first run), the line instead of it there, the box of
   // "Load from a file" (hidden without the script), its button, the file input (data-max: the longest body of the import),
   // results.

@@ -66,11 +66,12 @@ export const TEXT_KEYS = [
   "changeOne",
   "changeFew",
   "changeMany",
-  // The screen of the rows of the catalog: the state of the list, the last row can't go, its buttons.
+  // The screen of the rows of the catalog: the state of the list, the last row of movies, of series can't go, its buttons.
   "rowsLoading",
   "rowsNoList",
   "rowsStale",
-  "rowsLast",
+  "rowsLastMovie",
+  "rowsLastSeries",
   "rowsUp",
   "rowsDown",
   // The names of the groups of rows (rows.ts).

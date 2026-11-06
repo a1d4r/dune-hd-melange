@@ -352,19 +352,22 @@ function aio_cgi_cat_rows_of($keys)
 // The screen of the rows of the catalog (#rows): the list comes by the script
 // (web/src/rows.ts), which keeps the choice in the field cat_rows, hidden but not of
 // type hidden: the bar of the save counts it. No script or no list: it posts what is stored.
+// Two parts, as the tabs of the catalog: movies, series (with anime).
 function aio_cgi_rows_screen($v)
 {
     $f = aio_cgi_fields();
-    return '<p class="sub">' . aio_cgi_l('Какие ряды показывать в каталоге на Дюне и в каком порядке.',
-        'Which rows the catalog on the Dune shows, and in what order.') . '</p>' .
+    return '<p class="sub">' . aio_cgi_l('Какие ряды показывать на вкладках каталога на Дюне и в каком порядке.',
+        'Which rows the tabs of the catalog on the Dune show, and in what order.') . '</p>' .
         '<input type="text" id="' . $f['cat_rows']['id'] . '" name="' . $f['cat_rows']['name'] . '" value="' .
         aio_cgi_h($v['cat_rows']) . '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" hidden>' .
         '<div id="crs" class="res" aria-live="polite"><p class="hint">' .
         aio_cgi_l('Список рядов не открылся: нужен браузер с поддержкой скриптов.',
         'The list of rows did not open: a browser with scripts is needed.') . '</p></div>' .
         '<button type="button" id="crr" class="chk" hidden>' . aio_cgi_l('Повторить', 'Try again') . '</button>' .
-        '<div id="crb" hidden><h3 class="gh">' . aio_cgi_l('Показывать', 'Shown') . '</h3><div id="cro" class="list"></div>' .
-        '<h3 class="gh">' . aio_cgi_l('Все ряды', 'All rows') . '</h3><div id="crg"></div></div>';
+        '<div id="crb" hidden><h3 class="gh">' . aio_cgi_l('Фильмы: показывать', 'Movies: shown') . '</h3><div id="crom" class="list"></div>' .
+        '<h3 class="gh">' . aio_cgi_l('Фильмы: все ряды', 'Movies: all rows') . '</h3><div id="crgm"></div>' .
+        '<h3 class="gh">' . aio_cgi_l('Сериалы: показывать', 'Series: shown') . '</h3><div id="cros" class="list"></div>' .
+        '<h3 class="gh">' . aio_cgi_l('Сериалы: все ряды', 'Series: all rows') . '</h3><div id="crgs"></div></div>';
 }
 
 // The screen "JacRed" (#voices): one of the built-in ones or the own one
@@ -790,8 +793,10 @@ function aio_cgi_js($v)
             'The catalog server did not answer, there is no list of rows. The saved choice has not changed.'),
         'rowsStale' => aio_cgi_l('Сервер каталога не ответил: список рядов из последней копии на Дюне.',
             'The catalog server did not answer: the list of rows is the last copy on the Dune.'),
-        'rowsLast' => aio_cgi_l('Должен остаться хотя бы один ряд: сначала включите другой.',
-            'At least one row must stay: turn on another one first.'),
+        'rowsLastMovie' => aio_cgi_l('Должен остаться хотя бы один ряд фильмов: сначала включите другой.',
+            'At least one row of movies must stay: turn on another one first.'),
+        'rowsLastSeries' => aio_cgi_l('Должен остаться хотя бы один ряд сериалов: сначала включите другой.',
+            'At least one row of series must stay: turn on another one first.'),
         'rowsUp' => aio_cgi_l('Выше', 'Up'), 'rowsDown' => aio_cgi_l('Ниже', 'Down'),
         'groupTop' => aio_cgi_l('Топы', 'Top'), 'groupRu' => aio_cgi_l('Российское', 'Russian'),
         'groupRuServices' => aio_cgi_l('Российские сервисы', 'Russian services'), 'groupGenres' => aio_cgi_l('Жанры', 'Genres'),

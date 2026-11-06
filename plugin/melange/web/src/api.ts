@@ -16,7 +16,8 @@ export type ConfHow = "create" | "update" | "reset";
 export type Save = { ok: true; next: string; aio: ConfHow | ""; rows: boolean; notes: SaveNote[] } | { ok: false; errors: SaveError[] };
 
 // A row of the catalog (a=cat_rows). ok false: no list at all; stale: the last good copy of it.
-export type CatRow = { key: string; name: string; group: string; home: boolean };
+// tab: its tab of the catalog (aio_cat_row_tab), anime on "series".
+export type CatRow = { key: string; name: string; group: string; home: boolean; tab: "movie" | "series" };
 export type CatRows = { ok: boolean; stale: boolean; rows: CatRow[] };
 
 // a=import: next - the page again (its values imported), msg - why nothing was written.
@@ -93,7 +94,13 @@ function parseImport(json: Json): Import | null {
 
 function parseCatRows(json: Json): CatRows | null {
   if (typeof json.ok !== "boolean") return null;
-  const parseRow = (row: Json): CatRow => ({ key: String(row.key), name: String(row.name), group: String(row.group), home: row.home === true });
+  const parseRow = (row: Json): CatRow => ({
+    key: String(row.key),
+    name: String(row.name),
+    group: String(row.group),
+    home: row.home === true,
+    tab: row.tab === "movie" ? "movie" : "series",
+  });
   return { ok: json.ok, stale: json.stale === true, rows: parseItems(json.rows, parseRow) };
 }
 
