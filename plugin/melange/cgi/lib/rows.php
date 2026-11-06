@@ -34,8 +34,8 @@ function aio_http_get($url, &$err, $connect, $total, $max, &$connected = null)
     return array($r['code'], $err !== '' || $r['cut'] ? '' : $r['body']);
 }
 
-// The keys of the start rows in the order of the saved manifest, as the catalog shows
-// them with nothing chosen (aio_cat_user_rows); null: no copy (or no such row). No request.
+// The keys of the start rows as the catalog shows them with nothing chosen (aio_cat_user_rows)
+// and the page posts them: of movies, then of series; null: no copy (or no such row). No request.
 /**
  * @param string $dir
  * @return list<string>|null
@@ -45,23 +45,24 @@ function aio_cgi_cat_start($dir)
     $GLOBALS['AIO_CGI_DATA'] = $dir;
     $c = aio_cat_manifest_copy();
     $keys = array();
-    foreach ($c['rows'] as $r)
+    foreach (array('movie', 'series') as $tab)
     {
-        if ($r['home'])
+        foreach (aio_cat_user_rows($c['rows'], null, $tab) as $r)
             $keys[] = $r['key'];
     }
     return $keys ? $keys : null;
 }
 
 // JSON {ok: there is a list, stale: it is the last good copy, rows}: of a row only
-// what the screen shows. The UUID of the catalog never goes out, should the server put it in a name.
+// what the screen shows, tab: its part of the screen (aio_cat_row_tab). The UUID of the
+// catalog never goes out, should the server put it in a name.
 function aio_cgi_cat_rows_post($dir)
 {
     $GLOBALS['AIO_CGI_DATA'] = $dir;
     $m = aio_cat_manifest();
     $rows = array();
     foreach ($m['rows'] as $r)
-        $rows[] = array('key' => $r['key'], 'name' => $r['name'], 'group' => $r['group'], 'home' => $r['home']);
+        $rows[] = array('key' => $r['key'], 'name' => $r['name'], 'group' => $r['group'], 'home' => $r['home'], 'tab' => aio_cat_row_tab($r));
     if (stripos(json_encode($rows), AIO_CAT_UUID) !== false)
     {
         aio_cgi_log('cat_rows: bad data');

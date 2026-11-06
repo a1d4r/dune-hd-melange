@@ -809,34 +809,6 @@ function aio_catv_is_main($media_url)
     return aio_catv_tab($media_url) !== '';
 }
 
-// The tab of a row: its type; anime (the AniList rows, their tiles are series) on "Series".
-/**
- * @param AioCatRow $row
- * @return string
- */
-function aio_catv_row_tab($row)
-{
-    return $row['type'] === 'movie' ? 'movie' : 'series';
-}
-
-// The rows of the tab $tab out of the rows of the manifest: the choice of the user
-// (aio_cat_user_rows), its order, only those of the tab.
-/**
- * @param list<AioCatRow> $rows
- * @param string $tab
- * @return list<AioCatRow>
- */
-function aio_catv_tab_rows($rows, $tab)
-{
-    $out = array();
-    foreach (aio_cat_user_rows($rows, Aio::$settings['cat_rows']) as $row)
-    {
-        if (aio_catv_row_tab($row) === $tab)
-            $out[] = $row;
-    }
-    return $out;
-}
-
 /**
  * @param string $media_url
  * @return bool
@@ -912,7 +884,7 @@ function aio_catv_main_view($media_url, $sel_state)
         if (!$rows)
             return aio_catv_message_view('cat_unavailable', $lang, $media_url);
     }
-    $rows = aio_catv_tab_rows($rows, $tab);
+    $rows = aio_cat_user_rows($rows, Aio::$settings['cat_rows'], $tab);
     if (!$rows)
     {
         aio_log("catalog: screen: $tab: no rows");
@@ -967,8 +939,9 @@ function aio_catv_main_view($media_url, $sel_state)
 }
 
 // The tab $tab without a row to show: under the strip one tile that says why. $retry: its rows
-// came empty (r25, hidden for an hour), "retry:<rid>", ENTER is "Retry"; else none of its type
-// is chosen, "empty:<rid>", ENTER: nothing (the settings, not a retry, help).
+// came empty (r25, hidden for an hour), "retry:<rid>", ENTER is "Retry"; else the manifest has
+// none of its type to show (none chosen and no start row of it, aio_cat_user_rows), "empty:<rid>",
+// ENTER: nothing.
 /**
  * @param string $tab
  * @param string $lang
