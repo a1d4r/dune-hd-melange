@@ -197,3 +197,7 @@ cat_outdated = Экран устарел: откройте каталог зан
 cat_row_loading = Загрузка
 cat_row_failed = Не загрузилось
 cat_row_empty = Пусто
+cat_tab_menu = Меню
+cat_tab_movies = ФИЛЬМЫ
+cat_tab_series = СЕРИАЛЫ
+cat_tab_empty = Нет рядов. Выберите их в настройках

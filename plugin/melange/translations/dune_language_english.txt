@@ -197,3 +197,7 @@ cat_outdated = This screen is outdated: open the catalog again
 cat_row_loading = Loading
 cat_row_failed = Did not load
 cat_row_empty = Empty
+cat_tab_menu = Menu
+cat_tab_movies = MOVIES
+cat_tab_series = SERIES
+cat_tab_empty = No rows. Choose them in the settings

@@ -58,6 +58,12 @@ define('AIO_CATV_DESC_CHARS', 360);
 // The TMDB size of a background; w780 if the shell runs short of memory.
 define('AIO_CATV_BG_SIZE', 'w1280');
 define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
+// The strip on top of the main screen, as the native top menu: the tabs "Movies" and "Series"
+// (rows by their type), the icons of search and settings of the shell. The id of its row; the
+// ids of its parts are "tab_<x>", no ':' (an id with one is a tile). Right of ~1700 the shell
+// scrolls the whole strip, so the icons end at 1670.
+define('AIO_CATV_STRIP', 'tabs');
+define('AIO_CATV_UNDERLINE', '#FF2D7DF0');
 
 class AioCat
 {
@@ -317,6 +323,33 @@ function aio_catv_item($id, $caption, $icon)
         PluginRegularItem::caption => $caption);
 }
 
+// The title over the row of group "row:$g".
+/**
+ * @param string $g
+ * @param string $caption
+ * @return array<string, mixed>
+ */
+function aio_catv_title_row($g, $caption)
+{
+    return array(
+        PluginRow::type => PLUGIN_ROW_TYPE_TITLE,
+        PluginRow::id => "title:$g",
+        PluginRow::group_id => "row:$g",
+        PluginRow::height => 55,
+        PluginRow::inactive_height => 0,
+        PluginRow::data => array(
+            PluginTitleRow::caption => $caption,
+            PluginTitleRow::color => '#FFFFFFE0',
+            PluginTitleRow::font_size => 30,
+            PluginTitleRow::left => 100,
+            PluginTitleRow::dy => 9,
+            PluginTitleRow::active_dy => 0,
+            PluginTitleRow::width => 1920,
+            PluginTitleRow::fade_enabled => true,
+            PluginTitleRow::fade_color => '#FF606060',
+            PluginTitleRow::lite_fade_color => '#FF808080'));
+}
+
 // A row of the panel: its title and tiles, the first page and "Show all", or $items
 // instead of them. $options: of the row of tiles.
 /**
@@ -346,23 +379,7 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
         }
     }
     $defs = array(
-        array(
-            PluginRow::type => PLUGIN_ROW_TYPE_TITLE,
-            PluginRow::id => "title:$rid",
-            PluginRow::group_id => "row:$rid",
-            PluginRow::height => 55,
-            PluginRow::inactive_height => 0,
-            PluginRow::data => array(
-                PluginTitleRow::caption => $title,
-                PluginTitleRow::color => '#FFFFFFE0',
-                PluginTitleRow::font_size => 30,
-                PluginTitleRow::left => 100,
-                PluginTitleRow::dy => 9,
-                PluginTitleRow::active_dy => 0,
-                PluginTitleRow::width => 1920,
-                PluginTitleRow::fade_enabled => true,
-                PluginTitleRow::fade_color => '#FF606060',
-                PluginTitleRow::lite_fade_color => '#FF808080')),
+        aio_catv_title_row($rid, $title),
         array(
             PluginRow::type => PLUGIN_ROW_TYPE_REGULAR,
             PluginRow::id => "items:$rid",
@@ -584,8 +601,110 @@ function aio_catv_actions($from)
         GUI_EVENT_PLUGIN_ROWS_INFO_UPDATE => $info);
 }
 
+// The strip of the main screen of the tab $tab: its title row, a focusable row of GComps and a
+// gap. With the panel of titles on, a row without a title before the rows with one hangs the
+// screen, so the strip has a title and a group as a row of posters. Its parts: buttons of the
+// tabs, the active one underlined, and the icons of the shell, all focusable with the margins
+// of the vendor for the focus of the pane (DEFAULT_CUT_IMAGE + DEFAULT_RECT).
+/**
+ * @param string $tab
+ * @param string $lang
+ * @return list<array<string, mixed>>
+ */
+function aio_catv_strip_rows($tab, $lang)
+{
+    $focusable = array(
+        GCompFocusableDef::sel_margins => array(
+            PluginMargins::left => 0, PluginMargins::top => 2, PluginMargins::right => 0, PluginMargins::bottom => 10),
+        GCompFocusableDef::background_url => null);
+    $defs = array();
+    $items = array();
+    foreach (array(array('movie', 'cat_tab_movies', 128), array('series', 'cat_tab_series', 388)) as $t)
+    {
+        $id = "tab_{$t[0]}";
+        $caption = aio_tr($lang, $t[1]);
+        $defs[] = array(
+            GComponentDef::id => $id,
+            GComponentDef::geom_def => aio_gc_at(230, 60, $t[2], 15),
+            GComponentDef::focusable_def => $focusable,
+            GComponentDef::kind => GCOMPONENT_BUTTON,
+            GComponentDef::specific_def => array(
+                GCompButtonDef::caption => $caption,
+                GCompButtonDef::selected => false,
+                GCompButtonDef::caption_centered => true));
+        // The underline: as wide as the button, 8 px under it.
+        if ($t[0] === $tab)
+            $defs[] = array(
+                GComponentDef::geom_def => array(
+                    GCompGeometryDef::w => 0,
+                    GCompGeometryDef::h => 4,
+                    GCompGeometryDef::align_def => array(
+                        GCompAlignDef::y => 8,
+                        GCompAlignDef::use_base_width => true,
+                        GCompAlignDef::halign => HALIGN_LEFT,
+                        GCompAlignDef::valign => VALIGN_TOP,
+                        GCompAlignDef::base_halign => HALIGN_LEFT,
+                        GCompAlignDef::base_valign => VALIGN_BOTTOM,
+                        GCompAlignDef::base_to_prev => true)),
+                GComponentDef::kind => GCOMPONENT_RECT,
+                GComponentDef::specific_def => array(GCompRectDef::color => AIO_CATV_UNDERLINE));
+        $items[] = array(GCompItemDef::type => GCOMP_ITEM_BUTTON, GCompItemDef::id => $id,
+            GCompItemDef::left_caption => null, GCompItemDef::caption => $caption);
+    }
+    foreach (array(array('search', 'cat_search', 'xxx4.png', 1480), array('setup', 'setup_menu', 'xxx5.png', 1606)) as $t)
+    {
+        $id = "tab_{$t[0]}";
+        $defs[] = array(
+            GComponentDef::id => $id,
+            GComponentDef::geom_def => aio_gc_at(64, 64, $t[3], 18),
+            GComponentDef::focusable_def => $focusable,
+            GComponentDef::kind => GCOMPONENT_IMAGE,
+            GComponentDef::specific_def => array(
+                GCompImageDef::url => AIO_CATV_ICONS . $t[2],
+                GCompImageDef::keep_aspect_ratio => true,
+                GCompImageDef::upscale_enabled => false,
+                GCompImageDef::alpha => 255));
+        $items[] = array(GCompItemDef::type => GCOMP_ITEM_REGULAR, GCompItemDef::id => $id,
+            GCompItemDef::caption => aio_tr($lang, $t[1]), GCompItemDef::icon_url => AIO_CATV_ICONS . $t[2]);
+    }
+    $title = aio_tr($lang, 'cat_tab_menu');
+    return array(
+        aio_catv_title_row(AIO_CATV_STRIP, $title),
+        array(
+            PluginRow::type => PLUGIN_ROW_TYPE_GCOMPS,
+            PluginRow::id => AIO_CATV_STRIP,
+            PluginRow::title => $title,
+            PluginRow::group_id => 'row:' . AIO_CATV_STRIP,
+            PluginRow::ui_level => 0,
+            PluginRow::height => 90,
+            PluginRow::inactive_height => 90,
+            PluginRow::focusable => true,
+            PluginRow::data => array(
+                PluginGCompsRow::defs => $defs,
+                PluginGCompsRow::ui_state => array(
+                    GCompUiStateDef::items => $items,
+                    GCompUiStateDef::title => null,
+                    GCompUiStateDef::bg_url => null,
+                    GCompUiStateDef::poster_url => null,
+                    GCompUiStateDef::view_params => null),
+                PluginGCompsRow::width => 1920)),
+        array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 20, PluginRow::inactive_height => 50));
+}
+
+// The focus on the part $id of the strip, as the shell takes it after a switch of the tab.
+/**
+ * @param string $id
+ * @return string
+ */
+function aio_catv_strip_sel($id)
+{
+    return "1\n0\nH0\n" . AIO_CATV_STRIP . "\n$id\npri:1\n$id\n1\n1\n";
+}
+
 // The screen of the rows $defs. The key set of RowsFactory::pane r25, nulls too;
-// row_dup_map: a literal, the r24 API has no such constant.
+// row_dup_map: a literal, the r24 API has no such constant. A main screen ($from): the strip
+// first, above min_row_index_for_y2 (laid out from the top, the rows right under it while it
+// has the focus; under it the rows as before, the focused one on screen_y2).
 /**
  * @param list<array<string, mixed>> $defs
  * @param mixed $sel_state
@@ -595,6 +714,11 @@ function aio_catv_actions($from)
 function aio_catv_rows_view($defs, $sel_state, $from)
 {
     $rows = array(array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 10, PluginRow::inactive_height => 10));
+    $tab = aio_catv_tab($from);
+    if ($tab !== '')
+        $rows = array_merge($rows, aio_catv_strip_rows($tab, aio_catv_ui_lang()));
+    // The first title of the rows.
+    $y2_index = $tab !== '' ? count($rows) : 0;
     foreach ($defs as $def)
         $rows[] = $def;
     $rows[] = array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 80, PluginRow::inactive_height => 80);
@@ -617,7 +741,7 @@ function aio_catv_rows_view($defs, $sel_state, $from)
         PluginRowsPane::vertical_focus_end_min_offset => 50,
         PluginRowsPane::screen_r => array('w' => 1920, 'h' => 1080, 'x' => 0, 'y' => 0),
         PluginRowsPane::screen_y2 => 600,
-        PluginRowsPane::min_row_index_for_y2 => 0,
+        PluginRowsPane::min_row_index_for_y2 => $y2_index,
         PluginRowsPane::info_r => array('w' => AIO_CATV_PANE_W, 'h' => AIO_CATV_PANE_H, 'x' => 100, 'y' => 40),
         PluginRowsPane::vod_r => array('w' => 1280, 'h' => 720, 'x' => 640, 'y' => 0),
         PluginRowsPane::regular_item_params_templates => array('common' => aio_catv_item_tpl(array(3, 3, 3, 4))));
@@ -635,14 +759,37 @@ function aio_catv_rows_view($defs, $sel_state, $from)
 
 // --- Screens.
 
-// The screen of the rows: "catalog", "catalog:<n>" of cat_retry and aio_setup_refresh.
+// The tab of a screen of the rows: 'movie' of "catalog", "catalog:<n>" (cat_retry,
+// aio_setup_refresh); the type of "cat_tab:<type>" (a switch of the tab) and of
+// "cat_tab:<type>:<n>" (cat_retry on it). '': not such a screen.
+/**
+ * @param string $media_url
+ * @return string
+ */
+function aio_catv_tab($media_url)
+{
+    if ($media_url === 'catalog' || strpos($media_url, 'catalog:') === 0)
+        return 'movie';
+    return preg_match('/^cat_tab:(movie|series)(?::|$)/', $media_url, $m) ? $m[1] : '';
+}
+
 /**
  * @param string $media_url
  * @return bool
  */
 function aio_catv_is_main($media_url)
 {
-    return $media_url === 'catalog' || strpos($media_url, 'catalog:') === 0;
+    return aio_catv_tab($media_url) !== '';
+}
+
+// The tab of a row: its type; anime (the AniList rows, their tiles are series) on "Series".
+/**
+ * @param AioCatRow $row
+ * @return string
+ */
+function aio_catv_row_tab($row)
+{
+    return $row['type'] === 'movie' ? 'movie' : 'series';
 }
 
 /**
@@ -668,13 +815,14 @@ function aio_catv_folder_view($media_url, $sel_state)
     return aio_catv_main_view($media_url, $sel_state);
 }
 
-// A message instead of an empty screen, and a way to try again.
+// A message instead of an empty screen $from, and a way to try again.
 /**
  * @param string $key
  * @param string $lang
+ * @param string $from
  * @return array<string, mixed>
  */
-function aio_catv_message_view($key, $lang)
+function aio_catv_message_view($key, $lang, $from)
 {
     aio_log("catalog: screen: $key");
     return array(
@@ -683,7 +831,7 @@ function aio_catv_message_view($key, $lang)
         PluginFolderView::data => array(
             PluginControlsFolderView::defs => array(
                 aio_setup_label(null, aio_tr($lang, $key)),
-                aio_setup_button('retry', aio_tr($lang, 'cat_retry'), aio_input('cat_retry'))),
+                aio_setup_button('retry', aio_tr($lang, 'cat_retry'), aio_input('cat_retry', array('from' => $from)))),
             PluginControlsFolderView::initial_sel_ndx => -1));
 }
 
@@ -691,7 +839,7 @@ function aio_catv_message_view($key, $lang)
 // r25: the first row now (aio_catv_row_now), the others: a fresh copy ready, an old one
 // flagged, none: stubs; get_folder_rows asks for the flagged ones and refreshes an old
 // manifest in the time left (none flagged: here, as r24). r24: the rows and the manifest
-// load here, in AIO_CATV_OPEN_S.
+// load here, in AIO_CATV_OPEN_S. Only the rows of the tab of $media_url, in the order of the user.
 /**
  * @param string $media_url
  * @param mixed $sel_state
@@ -703,6 +851,11 @@ function aio_catv_main_view($media_url, $sel_state)
     AioCat::$on_screen = array();
     $lang = aio_catv_lang();
     AioCat::$lang = $lang;
+    $tab = aio_catv_tab($media_url);
+    // A switch of the tab (aio_catv_strip_enter): the shell brings no sel_state, the focus goes
+    // to the tab pressed. Else none of ours: at an opening the focus is on the panel.
+    if ((!is_string($sel_state) || $sel_state === '') && strpos($media_url, 'cat_tab:') === 0)
+        $sel_state = aio_catv_strip_sel("tab_$tab");
     $copy = aio_cat_manifest_copy();
     $rows = $copy['rows'];
     $fresh = aio_cat_is_fresh($copy);
@@ -712,11 +865,24 @@ function aio_catv_main_view($media_url, $sel_state)
         $rows = $new['rows'];
         $fresh = true;
         if (!$rows)
-            return aio_catv_message_view('cat_unavailable', $lang);
+            return aio_catv_message_view('cat_unavailable', $lang, $media_url);
     }
     $rows = aio_cat_user_rows($rows, Aio::$settings['cat_rows']);
     if (!$rows)
-        return aio_catv_message_view('cat_no_rows', $lang);
+        return aio_catv_message_view('cat_no_rows', $lang, $media_url);
+    $chosen = count($rows);
+    $mine = array();
+    foreach ($rows as $row)
+    {
+        if (aio_catv_row_tab($row) === $tab)
+            $mine[] = $row;
+    }
+    if (!$mine)
+    {
+        aio_log("catalog: screen: $tab: no rows of $chosen");
+        return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang), $sel_state, $media_url);
+    }
+    $rows = $mine;
     $loading = aio_catv_loading_flag();
     $defs = array();
     $asked = false;
@@ -755,8 +921,23 @@ function aio_catv_main_view($media_url, $sel_state)
     $left = AIO_CATV_OPEN_S - (microtime(true) - $start);
     if (!$asked && !$fresh && $left >= 1 && !aio_catv_is_down())
         aio_cat_manifest_fetch(intval($left));
-    aio_log(sprintf('catalog: screen: %d rows of %d, %.0f ms', count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
-    return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang);
+    aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
+    return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
+}
+
+// The tab $tab without a row chosen: under the strip one tile that says so (ENTER: nothing).
+/**
+ * @param string $tab
+ * @param string $lang
+ * @return array{array<string, mixed>, array<string, mixed>}
+ */
+function aio_catv_tab_empty($tab, $lang)
+{
+    $row = array('key' => "tab/$tab", 'type' => $tab, 'id' => 'tab', 'name' => aio_tr($lang, $tab === 'movie' ? 'cat_movies' : 'cat_series'),
+        'genre' => '', 'home' => false, 'group' => '');
+    $rid = aio_catv_rid($row);
+    $list = aio_catv_list(aio_cat_row_state($row), array(), false);
+    return aio_catv_row_defs($list, $lang, array(aio_catv_item("empty:$rid", aio_tr($lang, 'cat_tab_empty'), AIO_CATV_ICONS . 'no_movie_poster.png')));
 }
 
 /**
@@ -1653,6 +1834,26 @@ function aio_catv_all_open($url)
     return aio_catv_open_act($url, $list ? $list['st']['row']['name'] : aio_tr(aio_catv_lang(), 'cat_title'));
 }
 
+// ENTER on the part $id of the strip of the main screen $from. A tab not active: the screen of its
+// type in place of this one (erase_count 1: Back does not grow), the active one: nothing. The
+// icons: as MENU, "Search" and "Settings".
+/**
+ * @param string $id
+ * @param string $from
+ * @return AioAction|null
+ */
+function aio_catv_strip_enter($id, $from)
+{
+    if ($id === 'tab_search')
+        return aio_catv_search_ask($from);
+    if ($id === 'tab_setup')
+        return aio_setup_open_act($from);
+    $tab = strval(substr($id, strlen('tab_')));
+    if (($tab !== 'movie' && $tab !== 'series') || !aio_catv_is_main($from) || $tab === aio_catv_tab($from))
+        return null;
+    return aio_replace_act("cat_tab:$tab", '%tr%plugin_caption');
+}
+
 // ENTER on a tile: selected_item_id on the rows, selected_media_url on the grid.
 /**
  * @param stdClass $in
@@ -1663,6 +1864,8 @@ function aio_catv_enter($in)
     $id = aio_catv_in($in, 'selected_item_id');
     if ($id === '')
         $id = aio_catv_in($in, 'selected_media_url');
+    if (aio_catv_in($in, 'selected_row_id') === AIO_CATV_STRIP || preg_match('/^tab_[a-z]+$/D', $id))
+        return aio_catv_strip_enter($id, aio_catv_in($in, 'from'));
     // "more:<rid>", of a search "more:<rid>:<id of the search>": an older search opens outdated.
     $url = aio_catv_more_url($id);
     if ($url !== '')
@@ -1797,7 +2000,8 @@ function aio_catv_input($in, $control)
     {
         AioCat::$empty = array();
         AioCat::$down = 0;
-        return aio_replace_act('catalog:' . substr(aio_rid(), 0, 8), aio_tr(aio_catv_lang(), 'cat_title'));
+        $n = substr(aio_rid(), 0, 8);
+        return aio_replace_act(aio_catv_tab($from) === 'series' ? "cat_tab:series:$n" : "catalog:$n", aio_tr(aio_catv_lang(), 'cat_title'));
     }
     if ($control === 'cat_search')
         return aio_catv_search_ask($from);
