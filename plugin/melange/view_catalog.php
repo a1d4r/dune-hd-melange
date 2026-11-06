@@ -69,8 +69,6 @@ define('AIO_CATV_TAB_PX', 38);
 define('AIO_CATV_TAB_OPEN', '#FFFFFFE0');
 define('AIO_CATV_TAB_COLOR', '#FFAFAFA0');
 define('AIO_CATV_UNDERLINE', '#FF3870FF');
-// The native icons are grey: their PNGs (white at most) at alpha 170 give the native #AAAAAA.
-define('AIO_CATV_ICON_ALPHA', 170);
 
 class AioCat
 {
@@ -637,13 +635,13 @@ function aio_catv_strip_rows($tab, $lang)
     $defs = array();
     $items = array();
     // A label of 38 px is 38 high, the caps from 6 down to the baseline at 33: the baseline at
-    // 45, the middle of the row. "Series" 46 px right of the box of "Movies", the words ~50
-    // apart as in the native menu, in any language.
+    // 83, ~150 of the screen as the native menu. "Series" 46 px right of the box of "Movies",
+    // the words ~50 apart as in the native menu, in any language.
     foreach (array('movie' => 'cat_tab_movies', 'series' => 'cat_tab_series') as $type => $key)
     {
         $id = "tab_$type";
         $caption = aio_tr($lang, $key);
-        $geom = $type === 'movie' ? aio_gc_at(-1, -1, 128, 12) : array(
+        $geom = $type === 'movie' ? aio_gc_at(-1, -1, 128, 50) : array(
             GCompGeometryDef::w => -1,
             GCompGeometryDef::h => -1,
             GCompGeometryDef::align_def => array(
@@ -674,21 +672,22 @@ function aio_catv_strip_rows($tab, $lang)
                 GCompAlignDef::base_id => "tab_$tab")),
         GComponentDef::kind => GCOMPONENT_RECT,
         GComponentDef::specific_def => array(GCompRectDef::color => AIO_CATV_UNDERLINE));
-    // The icons 75 apart as the native ones, their glyphs 48x48 at 8, 8 of the PNG, centred on the
-    // caps of the tabs; the frame of the gear ends at 1670.
-    foreach (array(array('search', 'cat_search', 'xxx4.png', 1521), array('setup', 'setup_menu', 'xxx5.png', 1596)) as $t)
+    // The icons 75 apart as the native ones, their glyphs 48x48 at 8, 8 of the PNG; the frame of
+    // the gear ends at 1670. Grey #AAAAAA as the native ones: the magnifier is white at most
+    // (alpha 170), the gear #BBBBBB (alpha 232).
+    foreach (array(array('search', 'cat_search', 'xxx4.png', 1521, 170), array('setup', 'setup_menu', 'xxx5.png', 1596, 232)) as $t)
     {
         $id = "tab_{$t[0]}";
         $defs[] = array(
             GComponentDef::id => $id,
-            GComponentDef::geom_def => aio_gc_at(64, 64, $t[3], 0),
+            GComponentDef::geom_def => aio_gc_at(64, 64, $t[3], 34),
             GComponentDef::focusable_def => aio_catv_strip_focusable(array(10, 2, 10, 3)),
             GComponentDef::kind => GCOMPONENT_IMAGE,
             GComponentDef::specific_def => array(
                 GCompImageDef::url => AIO_CATV_ICONS . $t[2],
                 GCompImageDef::keep_aspect_ratio => true,
                 GCompImageDef::upscale_enabled => false,
-                GCompImageDef::alpha => AIO_CATV_ICON_ALPHA));
+                GCompImageDef::alpha => $t[4]));
         $items[] = array(GCompItemDef::type => GCOMP_ITEM_REGULAR, GCompItemDef::id => $id,
             GCompItemDef::caption => aio_tr($lang, $t[1]), GCompItemDef::icon_url => AIO_CATV_ICONS . $t[2]);
     }
