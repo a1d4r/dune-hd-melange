@@ -1344,7 +1344,8 @@ class AioFw extends DunePluginFw
             }
             // Lazy episodes: media_url comes to get_vod_stream_url, the whole
             // input (playback_url) to get_vod_stream_info.
-            else if ($op === PLUGIN_OP_GET_VOD_STREAM_URL || $op === PLUGIN_OP_GET_VOD_STREAM_INFO)
+            else if ($op === PLUGIN_OP_GET_VOD_STREAM_URL ||
+                (defined('PLUGIN_OP_GET_VOD_STREAM_INFO') && $op === PLUGIN_OP_GET_VOD_STREAM_INFO))
             {
                 $a = $op === PLUGIN_OP_GET_VOD_STREAM_URL ? 'media_url' : 'playback_url';
                 $b = $op === PLUGIN_OP_GET_VOD_STREAM_URL ? 'playback_url' : 'media_url';

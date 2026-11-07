@@ -105,10 +105,13 @@ function aio_vod_item($mv, $s, $e, $url, $hash, $list)
     $mdb = array(
         FileMovieInfo::movie_id => $mv['dune_id'],
         FileMovieInfo::title => $mv['title'],
-        FileMovieInfo::icon_url => $mv['poster'],
-        // As ActionFactory::file_movie_info of Online movies.
-        FileMovieInfo::rate_imdb => $mv['rate_imdb'] !== '' ? $mv['rate_imdb'] : null,
-        FileMovieInfo::rate_content => null);
+        FileMovieInfo::icon_url => $mv['poster']);
+    // As ActionFactory::file_movie_info of Online movies. A firmware PHP API
+    // without the ratings (r22): not sent.
+    if (defined('FileMovieInfo::rate_imdb'))
+        $mdb[FileMovieInfo::rate_imdb] = $mv['rate_imdb'] !== '' ? $mv['rate_imdb'] : null;
+    if (defined('FileMovieInfo::rate_content'))
+        $mdb[FileMovieInfo::rate_content] = null;
     if ($e > 0)
     {
         $mdb[FileMovieInfo::s] = $s;
