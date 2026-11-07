@@ -1928,7 +1928,12 @@ function aio_catv_title_labels($name, $bottom, $logo = null)
     $img[GComponentDef::id] = 'logo';
     $img[GComponentDef::specific_def][GCompImageDef::keep_aspect_ratio] = false;
     $kids[] = $img;
-    return array(aio_gc_panel('title', aio_gc_at(AIO_CATV_TEXT_W, AIO_CATV_LOGO_H, 0, $bottom - AIO_CATV_LOGO_H), $kids, 0));
+    // A clipping panel: no GCOMP_OPT_NO_CLIP (aio_gc_panel with 0, its children typed as ours).
+    return array(array(
+        GComponentDef::id => 'title',
+        GComponentDef::geom_def => aio_gc_at(AIO_CATV_TEXT_W, AIO_CATV_LOGO_H, 0, $bottom - AIO_CATV_LOGO_H),
+        GComponentDef::kind => GCOMPONENT_PANEL,
+        GComponentDef::specific_def => array(GCompPanelDef::children => $kids)));
 }
 
 // The panel on the coordinates of the native one (movie_helper.php, the same info_r), 30 px lower,
