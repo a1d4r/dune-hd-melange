@@ -2,7 +2,7 @@
 
 **English version**
 
-## 0.54.0 — 06.11.2026
+## 0.54.0 — 07.11.2026
 - **Movies and Series tabs in the catalog.** A strip on top of the catalog, as in the Dune's own menu: **MOVIES** and **SERIES** tabs and, on the right, the search and settings icons. The Movies tab shows the chosen rows of movies, the Series tab the rows of series and anime, in the order set on the settings page; the panel of row names on the left follows the tab. The catalog opens on Movies. The strip is above the rows: press UP from the first row. If the rows chosen before have none for a tab (for example, only movies), the tab shows its start rows. MENU and the search key work as before.
 - **Rows of movies and of series apart on the settings page.** The **Catalog rows** section has a Movies | Series switch at the top, as the tabs of the catalog, and each part has its own rows, order and groups; at least one row must stay in each. Row names no longer repeat what the tab says: «Боевик» instead of «Боевик: фильмы», «В тренде» instead of «Фильмы в тренде», «2025 год» instead of «2025: фильмы»; on the tabs, in "Show all" and on the settings page.
 
@@ -178,7 +178,7 @@ First public release. What it does:
 
 **Russian version**
 
-## 0.54.0 — 06.11.2026
+## 0.54.0 — 07.11.2026
 - **Вкладки «Фильмы» и «Сериалы» в каталоге.** Сверху каталога — полоса, как в родном меню Дюны: вкладки **ФИЛЬМЫ** и **СЕРИАЛЫ**, справа значки поиска и настроек. На вкладке «Фильмы» — выбранные ряды фильмов, на «Сериалах» — ряды сериалов и аниме, в порядке со страницы настроек; панель названий рядов слева — по вкладке. Каталог открывается на «Фильмах». Полоса — над рядами: кнопка ВВЕРХ с первого ряда. Если в выбранных раньше рядах нет рядов для вкладки (например, только фильмы), на ней — стартовые ряды. MENU и клавиша поиска работают как раньше.
 - **Ряды фильмов и сериалов на странице настроек — порознь.** В разделе **«Ряды каталога»** вверху переключатель «Фильмы | Сериалы», как вкладки каталога, у каждой части свои ряды, порядок и группы; в каждой должен остаться хотя бы один ряд. Названия рядов больше не повторяют вкладку: «Боевик» вместо «Боевик: фильмы», «В тренде» вместо «Фильмы в тренде», «2025 год» вместо «2025: фильмы»; на вкладках, в «Показать все» и на странице настроек.
 
