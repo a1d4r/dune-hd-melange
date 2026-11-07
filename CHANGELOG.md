@@ -3,7 +3,7 @@
 **English version**
 
 ## 0.55.0 — 07.11.2026
-- **A clearer info panel in the catalog.** The title above the rows no longer jumps from huge to tiny from one movie to the next: a short title is large, a long one goes in two lines. The ratings stand out in white at the start of the line of facts, then the year, runtime and age rating in gray; a series is marked "TV series", its runtime is that of an episode. The parts of a line are separated by "·". The text sits a little lower, nearer the rows. The same in search results.
+- **A clearer info panel in the catalog.** The title above the rows no longer jumps from huge to tiny from one movie to the next: a short title is large, a long one goes in two lines. Where the catalog has a Russian logo of the movie, the logo is shown instead of the title (if it does not load, the title as text). The KP and IMDb ratings and the age rating are in outlined plates, the year and runtime in gray between them; a series is marked "TV series", its runtime is that of an episode. The cast line no longer shrinks: the names that do not fit are left out. The background is darker under the text, so it reads on a bright picture too. The text sits a little lower, nearer the rows. The same in search results.
 
 ## 0.54.1 — 07.11.2026
 - Fixed: on Dunes with r22 firmware (for example, Real Vision 4K Plus) a movie did not start: after choosing a release, "Application error".
@@ -185,7 +185,7 @@ First public release. What it does:
 **Russian version**
 
 ## 0.55.0 — 07.11.2026
-- **Инфопанель каталога понятнее.** Название над рядами больше не скачет от огромного к мелкому от фильма к фильму: короткое — крупно, длинное — в две строки. Рейтинги выделены белым в начале строки фактов, за ними серым год, длительность и возраст: «КП 8.7 · IMDb 7.8 · 2020 · 1 ч 53 мин · 18+». У сериала — «Сериал», длительность — серии. Части строки разделены «·»: «Комедия, криминал · Великобритания». Текст чуть ниже, ближе к рядам. В результатах поиска — так же.
+- **Инфопанель каталога понятнее.** Название над рядами больше не скачет от огромного к мелкому от фильма к фильму: короткое — крупно, длинное — в две строки. Если в каталоге есть русский логотип фильма, вместо названия — логотип (не загрузился — название текстом). Рейтинги КП и IMDb и возраст — в контурных плашках, между ними серым год и длительность; у сериала — «Сериал», длительность — серии. Строка актёров больше не мельчает: имена, которые не влезают, не показываются. Под текстом фон темнее — текст читается и на светлой картинке. Текст чуть ниже, ближе к рядам. В результатах поиска — так же.
 
 ## 0.54.1 — 07.11.2026
 - Исправлено: на Дюнах с прошивкой r22 (например, Real Vision 4K Plus) фильм не запускался: после выбора раздачи — «Ошибка приложения».
