@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import type { CatRow } from "../src/api";
-import { ID } from "../src/dom";
+import { DATA, ID } from "../src/dom";
 import { start } from "../src/init";
 import { chosenKeys } from "../src/rows";
 import { cleanup, flush, HANG, json, later, lines, NET, open, type Page, type Reply, TOKEN } from "./harness";
@@ -26,7 +26,7 @@ const ROWS: CatRow[] = [
   row("anime/d", "D", "other"),
 ];
 const LIST = json({ ok: true, stale: false, rows: ROWS });
-const PART = { movie: [ID.rowsMovies, ID.rowsMovieGroups], series: [ID.rowsSeries, ID.rowsSeriesGroups] } as const;
+const PART = { movie: [ID.rowsMovies, ID.rowsMovieGroups, ID.rowsMoviePart], series: [ID.rowsSeries, ID.rowsSeriesGroups, ID.rowsSeriesPart] } as const;
 type Tab = keyof typeof PART;
 
 // The page with the screen open and the reply to its request taken.
@@ -52,6 +52,10 @@ const groupCheck = (page: Page, name: string) =>
   Array.from(page.el(ID.rowsBox).querySelectorAll("details label"))
     .find((label) => label.querySelector("span")!.textContent === name)!
     .querySelector("input")!;
+// The button of a part in the switch; the parts by what is seen: [movie hidden, series hidden], the buttons pressed.
+const tabButton = (page: Page, tab: Tab) => page.el(ID.rowsSwitch).querySelector<HTMLButtonElement>("[" + DATA.key + "=" + tab + "]")!;
+const partsHidden = (page: Page) => [page.el(PART.movie[2]).hidden, page.el(PART.series[2]).hidden];
+const pressed = (page: Page) => [tabButton(page, "movie").getAttribute("aria-pressed"), tabButton(page, "series").getAttribute("aria-pressed")];
 function click(page: Page, check: HTMLInputElement): void {
   check.checked = !check.checked;
   check.dispatchEvent(new page.win.Event("change", { bubbles: true }) as unknown as Event);
@@ -185,6 +189,47 @@ describe("no list: said, the saved choice not touched", () => {
     page.form.dispatchEvent(new page.win.Event("submit", { cancelable: true }) as unknown as Event);
     await flush();
     expect(page.calls[1]!.body).toContain("cat_rows=movie%2Fc%20movie%2Fb&");
+  });
+});
+
+describe("the switch of the parts", () => {
+  test("Movies open first; a button shows its part, the other hidden; its count of rows shown", async () => {
+    const page = await opened(LIST);
+    expect(partsHidden(page)).toEqual([false, true]);
+    expect(pressed(page)).toEqual(["true", "false"]);
+    expect([tabButton(page, "movie").textContent, tabButton(page, "series").textContent]).toEqual(["Фильмы · 2", "Сериалы · 1"]);
+    tabButton(page, "series").click();
+    expect(partsHidden(page)).toEqual([true, false]);
+    expect(pressed(page)).toEqual(["false", "true"]);
+    tabButton(page, "movie").click();
+    expect(partsHidden(page)).toEqual([false, true]);
+    // A switch is no change.
+    expect(page.el(ID.dirty).textContent).toBe("");
+  });
+
+  test("the count follows a row on and off; the part stays as it was", async () => {
+    const page = await opened(LIST);
+    tabButton(page, "series").click();
+    click(page, groupCheck(page, "D"));
+    expect(tabButton(page, "series").textContent).toBe("Сериалы · 2");
+    click(page, groupCheck(page, "B"));
+    click(page, shownCheck(page, 0));
+    expect(tabButton(page, "movie").textContent).toBe("Фильмы · 2");
+    expect(partsHidden(page)).toEqual([true, false]);
+  });
+
+  test("the hidden part keeps its choice and order; the save posts both", async () => {
+    const page = await opened(LIST);
+    moves(page, 1)[0]!.click();
+    tabButton(page, "series").click();
+    click(page, groupCheck(page, "D"));
+    tabButton(page, "movie").click();
+    expect(shownRows(page)).toEqual(["C", "A"]);
+    expect(shownRows(page, "series")).toEqual(["A series", "D"]);
+    page.replies.push(json({ ok: true, next: "settings?saved=1", aio: "" }));
+    page.form.dispatchEvent(new page.win.Event("submit", { cancelable: true }) as unknown as Event);
+    await flush();
+    expect(page.calls[1]!.body).toContain("cat_rows=movie%2Fc%20movie%2Fa%20series%2Fa%20anime%2Fd&");
   });
 });
 

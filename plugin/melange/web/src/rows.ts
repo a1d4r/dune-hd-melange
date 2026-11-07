@@ -1,10 +1,10 @@
 // The screen of the rows of the catalog (#rows): the list comes from the Dune when the screen opens; two parts, as
-// the tabs of the catalog (CatRow.tab), each with its rows shown in their order and its groups; the rows shown go to
-// the field cat_rows, a save posts it. The field stays as it is until the user changes something:
+// the tabs of the catalog (CatRow.tab), each with its rows shown in their order and its groups, one shown by the
+// switch (Movies first, till the page is left); the rows shown go to the field cat_rows, a save posts it. The field stays as it is until the user changes something:
 // no list, or none of its rows left, and the saved choice is not touched.
 
 import type { Api, CatRow } from "./api";
-import { byId, ID, type Page } from "./dom";
+import { byId, DATA, ID, type Page } from "./dom";
 import { failureText, type Texts } from "./i18n";
 import { addLine, show } from "./ui";
 
@@ -47,10 +47,24 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     retry = byId(doc, ID.rowsRetry),
     box = byId(doc, ID.rowsBox),
     results = byId(doc, ID.saveResult);
-  // Of each part: the rows shown in their order, all its rows by groups, the text when its last row can't go.
-  const parts: Record<Tab, { shown: HTMLElement; groups: HTMLElement; last: keyof Texts }> = {
-    movie: { shown: byId(doc, ID.rowsMovies), groups: byId(doc, ID.rowsMovieGroups), last: "rowsLastMovie" },
-    series: { shown: byId(doc, ID.rowsSeries), groups: byId(doc, ID.rowsSeriesGroups), last: "rowsLastSeries" },
+  const switchButton = (tab: Tab) => byId(doc, ID.rowsSwitch).querySelector<HTMLButtonElement>("[" + DATA.key + "=" + tab + "]")!;
+  // Of each part: its box, its button in the switch, the rows shown in their order, all its rows by groups, the text
+  // when its last row can't go.
+  const parts: Record<Tab, { part: HTMLElement; button: HTMLButtonElement; shown: HTMLElement; groups: HTMLElement; last: keyof Texts }> = {
+    movie: {
+      part: byId(doc, ID.rowsMoviePart),
+      button: switchButton("movie"),
+      shown: byId(doc, ID.rowsMovies),
+      groups: byId(doc, ID.rowsMovieGroups),
+      last: "rowsLastMovie",
+    },
+    series: {
+      part: byId(doc, ID.rowsSeriesPart),
+      button: switchButton("series"),
+      shown: byId(doc, ID.rowsSeries),
+      groups: byId(doc, ID.rowsSeriesGroups),
+      last: "rowsLastSeries",
+    },
   };
   const names = new Map<string, string>(),
     tabs = new Map<string, Tab>(),
@@ -59,6 +73,8 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     titles: [HTMLElement, string, string[]][] = [];
   const chosen: Record<Tab, string[]> = { movie: [], series: [] };
   let state: "none" | "going" | "here" = "none",
+    // The part shown; the other one keeps its choice, only hidden.
+    current: Tab = "movie",
     // The line of rowsLast* under the save button, until a change.
     refused: HTMLElement | null = null;
   const isOn = (key: string) => chosen[tabs.get(key)!].includes(key);
@@ -93,7 +109,10 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
   function render(): void {
     for (const tab of TABS) {
       const list = chosen[tab],
-        shown = parts[tab].shown;
+        { part, button, shown } = parts[tab];
+      part.hidden = tab !== current;
+      button.setAttribute("aria-pressed", tab === current ? "true" : "false");
+      button.querySelector("span")!.textContent = " · " + list.length;
       shown.textContent = "";
       list.forEach((key, at) => {
         const line = doc.createElement("div");
@@ -183,6 +202,11 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
   const opened = () => {
     if (doc.location.hash === SCREEN) load();
   };
+  for (const tab of TABS)
+    parts[tab].button.addEventListener("click", () => {
+      current = tab;
+      render();
+    });
   retry.addEventListener("click", load);
   doc.defaultView!.addEventListener("hashchange", opened);
   opened();

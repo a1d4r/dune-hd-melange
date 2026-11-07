@@ -69,11 +69,15 @@ export const ID = {
   hideResult: "srx",
   message: "msg",
   // The rows of the catalog: the choice as posted, the lines of the list's state, "Try again", the box of the list
-  // (hidden till it comes); of movies and of series: the rows shown in their order, all rows by groups.
+  // (hidden till it comes), the switch of its parts (buttons by DATA.key: movie, series); of movies and of series:
+  // the part, the rows shown in their order, all rows by groups.
   rowsValue: "crv",
   rowsStatus: "crs",
   rowsRetry: "crr",
   rowsBox: "crb",
+  rowsSwitch: "crt",
+  rowsMoviePart: "crpm",
+  rowsSeriesPart: "crps",
   rowsMovies: "crom",
   rowsMovieGroups: "crgm",
   rowsSeries: "cros",
@@ -138,7 +142,7 @@ export const DATA = {
   short: "data-short",
   // A line of a mark of the template choice (the template of the config not a template to choose): its value.
   mark: "data-mark",
-  // A button of #dseg: rd, tb.
+  // A button of #dseg: rd, tb; of #crt: movie, series.
   key: "data-k",
   // The file input of the backup: the longest body of the import (post_max_size of the page).
   max: "data-max",

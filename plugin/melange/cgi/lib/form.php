@@ -352,7 +352,8 @@ function aio_cgi_cat_rows_of($keys)
 // The screen of the rows of the catalog (#rows): the list comes by the script
 // (web/src/rows.ts), which keeps the choice in the field cat_rows, hidden but not of
 // type hidden: the bar of the save counts it. No script or no list: it posts what is stored.
-// Two parts, as the tabs of the catalog: movies, series (with anime).
+// Two parts, as the tabs of the catalog: movies, series (with anime); the
+// switch #crt shows one (by the script, as #dseg), the count on its button.
 function aio_cgi_rows_screen($v)
 {
     $f = aio_cgi_fields();
@@ -364,10 +365,18 @@ function aio_cgi_rows_screen($v)
         aio_cgi_l('Список рядов не открылся: нужен браузер с поддержкой скриптов.',
         'The list of rows did not open: a browser with scripts is needed.') . '</p></div>' .
         '<button type="button" id="crr" class="chk" hidden>' . aio_cgi_l('Повторить', 'Try again') . '</button>' .
-        '<div id="crb" hidden><h3 class="gh">' . aio_cgi_l('Фильмы: показывать', 'Movies: shown') . '</h3><div id="crom" class="list"></div>' .
-        '<h3 class="gh">' . aio_cgi_l('Фильмы: все ряды', 'Movies: all rows') . '</h3><div id="crgm"></div>' .
-        '<h3 class="gh">' . aio_cgi_l('Сериалы: показывать', 'Series: shown') . '</h3><div id="cros" class="list"></div>' .
-        '<h3 class="gh">' . aio_cgi_l('Сериалы: все ряды', 'Series: all rows') . '</h3><div id="crgs"></div></div>';
+        '<div id="crb" hidden><div id="crt" class="seg" role="group" aria-label="' . aio_cgi_l('Вкладка', 'Tab') .
+        '"><button type="button" data-k="movie" aria-pressed="true">' . aio_cgi_l('Фильмы', 'Movies') . '<span></span></button>' .
+        '<button type="button" data-k="series" aria-pressed="false">' . aio_cgi_l('Сериалы', 'Series') . '<span></span></button></div>' .
+        aio_cgi_rows_part('crpm', 'crom', 'crgm', false) . aio_cgi_rows_part('crps', 'cros', 'crgs', true) . '</div>';
+}
+
+// A part of the screen of the rows: the rows shown in their order, all its rows by groups.
+function aio_cgi_rows_part($id, $shown, $groups, $hidden)
+{
+    return '<div id="' . $id . '"' . ($hidden ? ' hidden' : '') . '><h3 class="gh">' . aio_cgi_l('Показывать', 'Shown') .
+        '</h3><div id="' . $shown . '" class="list"></div><h3 class="gh">' . aio_cgi_l('Все ряды', 'All rows') .
+        '</h3><div id="' . $groups . '"></div></div>';
 }
 
 // The screen "JacRed" (#voices): one of the built-in ones or the own one
