@@ -398,6 +398,26 @@ function aio_gc_at($w, $h, $x, $y)
     return aio_gc_geom($w, $h, aio_gc_align($x, $y, false, false, 0, 0, 0, 0, null));
 }
 
+// Right of the component before it (base_to_prev), $x apart, the tops aligned, $y lower:
+// place_next_right_align_top of the vendor; the shell lays it by the real width of the one before.
+/**
+ * @param int $x
+ * @param int $y
+ * @return AioGcAlign
+ */
+function aio_gc_next_right($x, $y = 0)
+{
+    $a = array(GCompAlignDef::x => $x);
+    if ($y)
+        $a[GCompAlignDef::y] = $y;
+    return $a + array(
+        GCompAlignDef::halign => HALIGN_LEFT,
+        GCompAlignDef::valign => VALIGN_TOP,
+        GCompAlignDef::base_halign => HALIGN_RIGHT,
+        GCompAlignDef::base_valign => VALIGN_TOP,
+        GCompAlignDef::base_to_prev => true);
+}
+
 // Left edge at x, vertically centred in the parent.
 /**
  * @param int $w

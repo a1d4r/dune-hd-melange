@@ -3,7 +3,7 @@
 **English version**
 
 ## 0.55.0 — 07.11.2026
-- **A clearer info panel in the catalog.** The title above the rows no longer jumps from huge to tiny from one movie to the next: a short title is large, a long one goes in two lines instead of being cut. The ratings stand out in white at the start of the line of facts, then the year, runtime and age rating in gray; a series is marked "TV series", its runtime is that of an episode. Genres and the country follow on one line. The text sits a little lower, nearer the rows, and the description takes as many lines as fit. The same in search results.
+- **A clearer info panel in the catalog.** The title above the rows no longer jumps from huge to tiny from one movie to the next: a short title is large, a long one goes in two lines. The ratings stand out in white at the start of the line of facts, then the year, runtime and age rating in gray; a series is marked "TV series", its runtime is that of an episode. The parts of a line are separated by "·". The text sits a little lower, nearer the rows. The same in search results.
 
 ## 0.54.1 — 07.11.2026
 - Fixed: on Dunes with r22 firmware (for example, Real Vision 4K Plus) a movie did not start: after choosing a release, "Application error".
@@ -185,7 +185,7 @@ First public release. What it does:
 **Russian version**
 
 ## 0.55.0 — 07.11.2026
-- **Инфопанель каталога понятнее.** Название над рядами больше не скачет от огромного к мелкому от фильма к фильму: короткое — крупно, длинное — в две строки, а не обрезано. Рейтинги выделены белым в начале строки фактов, за ними серым год, длительность и возраст: «КП 8.7 · IMDb 7.8 · 2020 · 1 ч 53 мин · 18+». У сериала — «Сериал», длительность — серии. Жанры и страна — одной строкой: «Комедия, криминал · Великобритания». Текст чуть ниже, ближе к рядам, а описание занимает столько строк, сколько влезает. В результатах поиска — так же.
+- **Инфопанель каталога понятнее.** Название над рядами больше не скачет от огромного к мелкому от фильма к фильму: короткое — крупно, длинное — в две строки. Рейтинги выделены белым в начале строки фактов, за ними серым год, длительность и возраст: «КП 8.7 · IMDb 7.8 · 2020 · 1 ч 53 мин · 18+». У сериала — «Сериал», длительность — серии. Части строки разделены «·»: «Комедия, криминал · Великобритания». Текст чуть ниже, ближе к рядам. В результатах поиска — так же.
 
 ## 0.54.1 — 07.11.2026
 - Исправлено: на Дюнах с прошивкой r22 (например, Real Vision 4K Plus) фильм не запускался: после выбора раздачи — «Ошибка приложения».
