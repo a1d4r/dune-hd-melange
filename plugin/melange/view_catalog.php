@@ -47,9 +47,11 @@ define('AIO_CATV_TEXT_W', 800);
 define('AIO_CATV_TITLE_PX', 88);
 define('AIO_CATV_TITLE_MIN_PX', 60);
 define('AIO_CATV_TITLE2_PX', 48);
+define('AIO_CATV_TITLE_H', 120);
 define('AIO_CATV_TITLE_BOTTOM', 216);
 define('AIO_CATV_LINES_Y', 229);
 define('AIO_CATV_LINE_PX', 30);
+define('AIO_CATV_LINE_H', 46);
 define('AIO_CATV_DATA_MIN_PX', 26);
 define('AIO_CATV_TITLE_COLOR', '#FFFFFFE0');
 define('AIO_CATV_TEXT_COLOR', '#FFAFAFA0');
@@ -61,7 +63,7 @@ define('AIO_CATV_RATE_COLOR', AIO_CATV_TITLE_COLOR);
 // on the capitals of 30 px (their middle 27 px under the top of the label, device 07.11.2026). The
 // text over them by the shell: of a rating the name grey PLATE_PAD from the left, the number white
 // as far from the right (both in one, centred, if they do not fit so by font_w.php), the age centred.
-// Widths: "КП 8.9", "IMDb 9.5", "18+" at 30 px by font_w.php, PLATE_PAD a side (5 more the age).
+// Widths: "КП 8.9", "IMDb 9.5", "18+" at 30 px by font_w.php, PLATE_PAD a side (the age 10 a side).
 // Gaps: between plates, before the rest of the line (grey text), before the age.
 define('AIO_CATV_PLATE_H', 40);
 define('AIO_CATV_PLATE_DY', 7);
@@ -80,11 +82,10 @@ define('AIO_CATV_SUB_COLOR', '#FF808080');
 define('AIO_CATV_DESC_CHARS', 360);
 // The TMDB size of a background; w780 if the shell runs short of memory.
 define('AIO_CATV_BG_SIZE', 'w1280');
-// The logo of a title in place of its name (aio_catv_logo): of this TMDB size, at most as wide;
+// The logo of a title in place of its name (aio_catv_logo): of TMDB size w<LOGO_SIZE_W>, at most as wide;
 // shown by area, as logos of one weight: LOGO_AREA px at most in LOGO_W x LOGO_H, left, its bottom
 // at the bottom of the title. The fallback (aio_catv_title_labels) needs copies of it as wide as
 // TEXT_W, LOGO_COPIES at most; their alpha (not 0: whether 0 loads it is not known).
-define('AIO_CATV_LOGO_SIZE', 'w500');
 define('AIO_CATV_LOGO_SIZE_W', 500);
 define('AIO_CATV_LOGO_AREA', 50000);
 define('AIO_CATV_LOGO_W', 780);
@@ -262,7 +263,7 @@ function aio_catv_background($t)
 }
 
 // The logo of a tile in place of its name, or null: none (aio_cat_tile keeps only a Russian one with
-// its size), not of TMDB, too narrow for the fallback. url: at LOGO_SIZE; w, h: the size it is shown
+// its size), not of TMDB, too narrow for the fallback. url: at LOGO_SIZE_W; w, h: the size it is shown
 // at; copies: of the fallback, of LOGO_SIZE_W or the width of the original if narrower.
 /**
  * @param AioCatTile $t
@@ -273,7 +274,7 @@ function aio_catv_logo($t)
     if ($t['logo'] === '' || $t['logoW'] <= 0 || $t['logoH'] <= 0)
         return null;
     $n = 0;
-    $u = aio_img(strval(preg_replace('~/t/p/[a-z0-9_]+/~', '/t/p/' . AIO_CATV_LOGO_SIZE . '/', $t['logo'], 1, $n)));
+    $u = aio_img(strval(preg_replace('~/t/p/[a-z0-9_]+/~', '/t/p/w' . AIO_CATV_LOGO_SIZE_W . '/', $t['logo'], 1, $n)));
     $copies = (int) ceil(AIO_CATV_TEXT_W / min($t['logoW'], AIO_CATV_LOGO_SIZE_W));
     if (!$n || $u === '' || $copies > AIO_CATV_LOGO_COPIES)
         return null;
@@ -1808,7 +1809,7 @@ function aio_catv_fit($text, $max, $min, $width)
     return array($px, aio_gc_cut_w($text, $px, $width));
 }
 
-// A label of the line of facts at $y: 30 px, 46 high as the other lines, $align its place (x, y
+// A label of the line of facts at $y: 30 px, LINE_H high as the other lines, $align its place (x, y
 // set here when the align has no base).
 /**
  * @param string $text
@@ -1820,7 +1821,7 @@ function aio_catv_fit($text, $max, $min, $width)
  */
 function aio_catv_fact_label($text, $color, $w, $align, $halign = HALIGN_LEFT)
 {
-    $l = aio_catv_info_label(aio_clean($text), AIO_CATV_LINE_PX, $color, $w, 46, 0,
+    $l = aio_catv_info_label(aio_clean($text), AIO_CATV_LINE_PX, $color, $w, AIO_CATV_LINE_H, 0,
         $halign === HALIGN_LEFT ? array() : array(GCompTtfLabelDef::halign => $halign));
     $l[GComponentDef::geom_def][GCompGeometryDef::align_def] = $align;
     return $l;
@@ -1884,21 +1885,23 @@ function aio_catv_facts_labels($facts, $y)
     return $defs;
 }
 
-// The title, its box 120 high as the native one with the bottom at $bottom: a line as large as
+// The title, its box TITLE_H high as the native one with the bottom at $bottom: a line as large as
 // fits TEXT_W from TITLE_PX down to TITLE_MIN_PX; too long even so, 2 lines of TITLE2_PX, cut here
 // to them (the native box takes 2 lines of 45 px at least).
 // With a logo (aio_catv_logo) the logo, the name as text only if it does not load (the shell tells
 // the plugin nothing of it): in a clipping panel LOGO_H high, copies of the logo of their own size,
 // hidden, one right of the other, the name right of them, the logo on top. Loaded, the copies push
 // the name past the panel; not, or still loading, they are 0 wide and the name is in its place
-// (card_probe t8-t10 on the device, 07.11.2026).
+// (card_probe t8-t10 on the device, 07.11.2026). The ids of the panel and the logo are of the
+// tile $tid, as in the probe (logo_t8): another tile, another component.
 /**
  * @param string $name
  * @param int $bottom
  * @param array{url: string, w: int, h: int, copies: int}|null $logo
+ * @param string $tid
  * @return list<array<string, mixed>>
  */
-function aio_catv_title_labels($name, $bottom, $logo = null)
+function aio_catv_title_labels($name, $bottom, $logo = null, $tid = '')
 {
     $spec = array(GCompTtfLabelDef::line_spacing => 0, GCompTtfLabelDef::valign => VALIGN_BOTTOM);
     if (aio_gc_w($name, AIO_CATV_TITLE_MIN_PX) <= AIO_CATV_TEXT_W)
@@ -1908,29 +1911,31 @@ function aio_catv_title_labels($name, $bottom, $logo = null)
         $fit = array(AIO_CATV_TITLE2_PX, implode(' ', aio_gc_wrap($name, AIO_CATV_TITLE2_PX, AIO_CATV_TEXT_W, 2, true)));
         $spec[GCompTtfLabelDef::max_num_lines] = 2;
     }
-    $label = aio_catv_info_label($fit[1], $fit[0], AIO_CATV_TITLE_COLOR, AIO_CATV_TEXT_W, 120, $bottom - 120,
+    $label = aio_catv_info_label($fit[1], $fit[0], AIO_CATV_TITLE_COLOR, AIO_CATV_TEXT_W, AIO_CATV_TITLE_H, $bottom - AIO_CATV_TITLE_H,
         $spec, GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
     if (!$logo)
         return array($label);
     $kids = array();
+    // The first copy at the top of the title box (LOGO_H - TITLE_H): the name, right of the copies,
+    // top to top with them and TITLE_H high, then has its bottom at the bottom of the panel.
     for ($i = 0; $i < $logo['copies']; $i++)
     {
-        $c = aio_gc_image(aio_gc_geom(-1, -1, $i ? aio_gc_next_right(0) : aio_gc_align(0, AIO_CATV_LOGO_H - 120, false, false, 0, 0, 0, 0, null)),
-            $logo['url']);
-        $c[GComponentDef::specific_def][GCompImageDef::keep_aspect_ratio] = null;
-        $c[GComponentDef::specific_def][GCompImageDef::upscale_enabled] = null;
+        $c = aio_gc_image(aio_gc_geom(-1, -1, $i ? aio_gc_next_right(0) :
+            aio_gc_align(0, AIO_CATV_LOGO_H - AIO_CATV_TITLE_H, false, false, 0, 0, 0, 0, null)), $logo['url']);
+        unset($c[GComponentDef::specific_def][GCompImageDef::keep_aspect_ratio], $c[GComponentDef::specific_def][GCompImageDef::upscale_enabled]);
         $c[GComponentDef::specific_def][GCompImageDef::alpha] = AIO_CATV_LOGO_HIDDEN_ALPHA;
         $kids[] = $c;
     }
     $label[GComponentDef::geom_def][GCompGeometryDef::align_def] = aio_gc_next_right(0);
     $kids[] = $label;
     $img = aio_gc_image(aio_gc_at($logo['w'], $logo['h'], 0, AIO_CATV_LOGO_H - $logo['h']), $logo['url']);
-    $img[GComponentDef::id] = 'logo';
+    $key = strval(preg_replace('/[^A-Za-z0-9_]/', '_', $tid));
+    $img[GComponentDef::id] = "logo_$key";
     $img[GComponentDef::specific_def][GCompImageDef::keep_aspect_ratio] = false;
     $kids[] = $img;
     // A clipping panel: no GCOMP_OPT_NO_CLIP (aio_gc_panel with 0, its children typed as ours).
     return array(array(
-        GComponentDef::id => 'title',
+        GComponentDef::id => "title_$key",
         GComponentDef::geom_def => aio_gc_at(AIO_CATV_TEXT_W, AIO_CATV_LOGO_H, 0, $bottom - AIO_CATV_LOGO_H),
         GComponentDef::kind => GCOMPONENT_PANEL,
         GComponentDef::specific_def => array(GCompPanelDef::children => $kids)));
@@ -1940,7 +1945,7 @@ function aio_catv_title_labels($name, $bottom, $logo = null)
 // nearer the rows: the title or its logo (aio_catv_title_labels); the English name of the tile under it when it
 // is not the title (native_title of dunemdb_cache.php: of a title not in English, as those of the
 // catalog are in any interface), the title higher by its height. Then the facts, the genres and the
-// country, the cast: lines 46 px high from AIO_CATV_LINES_Y; the description 13 px under the last
+// country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the description 13 px under the last
 // one, as many lines as the rest of the panel holds, as the native one counts them. No line for an
 // empty field, the next ones go up.
 // "Show all": the name of the row and the caption of the tile. null without a tile or a row in memory (a stub, a message, a restart
@@ -1983,7 +1988,7 @@ function aio_catv_info($in)
     $sub = implode(' ', aio_gc_wrap(aio_clean($sub), AIO_CATV_SUB_MIN_PX, AIO_CATV_TEXT_W, 2, true));
     $bottom = AIO_CATV_TITLE_BOTTOM - ($sub !== '' ? AIO_CATV_SUB_H : 0);
     if ($name !== '')
-        $labels = aio_catv_title_labels($name, $bottom, $logo);
+        $labels = aio_catv_title_labels($name, $bottom, $logo, $id);
     if ($sub !== '')
         $labels[] = aio_catv_info_label($sub, AIO_CATV_SUB_PX, AIO_CATV_SUB_COLOR, AIO_CATV_TEXT_W, AIO_CATV_SUB_H, $bottom + 4,
             array(GCompTtfLabelDef::max_num_lines => 2, GCompTtfLabelDef::min_font_size => AIO_CATV_SUB_MIN_PX,
@@ -1992,15 +1997,15 @@ function aio_catv_info($in)
     if ($facts)
     {
         $labels = array_merge($labels, aio_catv_facts_labels($facts, $y));
-        $y += 46;
+        $y += AIO_CATV_LINE_H;
     }
     foreach ($lines as $l)
     {
         if ($l[0] === '')
             continue;
         $fit = aio_catv_fit($l[0], AIO_CATV_LINE_PX, $l[2], AIO_CATV_TEXT_W);
-        $labels[] = aio_catv_info_label($fit[1], $fit[0], $l[1], AIO_CATV_TEXT_W, 46, $y);
-        $y += 46;
+        $labels[] = aio_catv_info_label($fit[1], $fit[0], $l[1], AIO_CATV_TEXT_W, AIO_CATV_LINE_H, $y);
+        $y += AIO_CATV_LINE_H;
     }
     // Lines of 30 px 5 px apart; cut here to them, "…" on the last one; the shell, with a
     // little more room, breaks them no sooner.
