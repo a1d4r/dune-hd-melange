@@ -65,6 +65,10 @@ define('AIO_CATV_DESC_CHARS', 360);
 // The TMDB size of a background; w780 if the shell runs short of memory.
 define('AIO_CATV_BG_SIZE', 'w1280');
 define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
+// Our pictures of the panel, img/cat<N>_*.png: N goes up when they change, as the shell keeps a
+// picture by its URL even across a reinstall. The mask: of the shell, but darker to the right, so
+// the text column (TEXT_W) stays on the dark whatever the background.
+define('AIO_CATV_IMG', 'plugin_file://img/cat1_');
 // The strip on top of the main screen, as the native top menu: the tabs "Movies" and "Series"
 // (rows by their type), the icons of search and settings of the shell. The id of its row; the
 // ids of its parts are "tab_<x>", no ':' (an id with one is a tile). A part in focus far right
@@ -1895,7 +1899,7 @@ function aio_catv_info($in)
         PluginRowsInfo::info_defs => array($pane),
         PluginRowsInfo::bg_url => $t ? aio_catv_background($t) : AIO_CATV_ICONS . 'bg0.jpg',
         PluginRowsInfo::nl_bg_url => null,
-        PluginRowsInfo::mask_url => AIO_CATV_ICONS . 'mask.png',
+        PluginRowsInfo::mask_url => AIO_CATV_IMG . 'mask.png',
         PluginRowsInfo::bg_poster_mode => false,
         PluginRowsInfo::playback_urls => null,
         PluginRowsInfo::item_id => $id);
