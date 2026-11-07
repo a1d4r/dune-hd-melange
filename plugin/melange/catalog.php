@@ -406,7 +406,7 @@ function aio_cat_runtime_min($r)
 }
 
 // A tile of the server -> only what is needed (links with the UUID, app_extras,
-// logo and the rest are gone from here on), or null without an id or a name.
+// a logo not in Russian and the rest are gone from here on), or null without an id or a name.
 // All values strings, genres and cast lists. imdb_id and _tmdbId: also from the id itself,
 // '' for none (mal:...). type: of the tile (rows of anime hold movie and series),
 // else of the row, '' when neither says. year: 4 digits or ''. country: the English
@@ -417,6 +417,9 @@ function aio_cat_runtime_min($r)
 // patch too: the rating "7.9" ('' for none, 0, over 10 or under AIO_CAT_KP_VOTES_MIN votes),
 // its votes (0 for none), the id of Kinopoisk (digits, '' for none). kpVotes is kept for the
 // threshold when a copy of the cache is parsed again (aio_cat_tiles): without it the rating goes.
+// logo, logoLang, logoW, logoH: of our patch too, the logo of the title in place of its name: kept
+// only of "ru" with the size of the TMDB original (whole numbers), its address https, the plain
+// characters of a path, a PNG; else none ('', '', 0, 0): another language, null, no size.
 // Run again on what the cache holds (age, cast: its own keys; a copy of before them: '' and
 // none): the same result.
 /**
@@ -466,6 +469,11 @@ function aio_cat_tile($m, $row_type)
     $age = aio_str(aio_arr($extras, 'certifications'), 'RU');
     if (!isset($extras['certifications']))
         $age = aio_str($m, 'age');
+    $logo = aio_str($m, 'logo');
+    $lw = aio_str($m, 'logoW');
+    $lh = aio_str($m, 'logoH');
+    $ru = aio_str($m, 'logoLang') === 'ru' && preg_match('/^[1-9][0-9]{0,4}$/D', $lw) && preg_match('/^[1-9][0-9]{0,4}$/D', $lh) &&
+        strlen($logo) <= AIO_CAT_URL_MAX && preg_match('~^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[A-Za-z0-9._/%:+-]*\.png$~D', $logo);
     $cast = array();
     foreach (isset($extras['cast']) ? aio_arr($extras, 'cast') : aio_arr($m, 'cast') as $c)
     {
@@ -480,7 +488,8 @@ function aio_cat_tile($m, $row_type)
         'runtime' => preg_match('/^(?=[0-9])([0-9]{1,2}h)?([0-9]{1,3}min)?$/', $runtime) ? $runtime : '',
         'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast,
         'englishTitle' => aio_cut(aio_one_line(aio_str($m, 'englishTitle')), AIO_CAT_NAME_MAX),
-        'kpRating' => $kp, 'kpVotes' => $votes, 'kpId' => preg_match('/^[1-9][0-9]{0,9}$/D', $kp_id) ? $kp_id : '');
+        'kpRating' => $kp, 'kpVotes' => $votes, 'kpId' => preg_match('/^[1-9][0-9]{0,9}$/D', $kp_id) ? $kp_id : '',
+        'logo' => $ru ? $logo : '', 'logoLang' => $ru ? 'ru' : '', 'logoW' => $ru ? intval($lw) : 0, 'logoH' => $ru ? intval($lh) : 0);
 }
 
 // Items of a page -> the tiles among them; what is not a tile is dropped.
