@@ -35,21 +35,25 @@ define('AIO_CATV_ALL_AHEAD', 9);
 define('AIO_CATV_ALL_TICK_MS', 1500);
 // The searches kept in memory: Back to the results of an older one, its tiles and "Show all" work.
 define('AIO_CATV_SEARCHES', 3);
-// The info panel, as the native one (movie_helper.php of shell_ext, the same info_r):
-// a title of one line as large as fits PANE_W, then lines of 30 px (to fit TEXT_W down to
-// 26 px the two lines of data, 15 px the cast), then the description. Names up to 197,
-// descriptions up to 1096 characters were seen. DESC_CHARS: of the text of an item of the grid.
+// The info panel, on the info_r of the native one (movie_helper.php of shell_ext), its colours
+// and sizes of text: a title in TEXT_W, one line as large as fits from TITLE_PX down to
+// TITLE_MIN_PX, else 2 lines of TITLE2_PX; then lines of 30 px (to fit TEXT_W down to 26 px the
+// facts and the genres, 15 px the cast), then the description. Names up to 197, descriptions
+// up to 1096 characters were seen. DESC_CHARS: of the text of an item of the grid.
 define('AIO_CATV_PANE_W', 950);
 define('AIO_CATV_PANE_H', 560);
 define('AIO_CATV_TEXT_W', 800);
-define('AIO_CATV_TITLE_PX', 120);
-define('AIO_CATV_TITLE_MIN_PX', 36);
+define('AIO_CATV_TITLE_PX', 88);
+define('AIO_CATV_TITLE_MIN_PX', 60);
+define('AIO_CATV_TITLE2_PX', 48);
 define('AIO_CATV_LINE_PX', 30);
 define('AIO_CATV_LINE_MIN_PX', 15);
 define('AIO_CATV_DATA_MIN_PX', 26);
 define('AIO_CATV_TITLE_COLOR', '#FFFFFFE0');
 define('AIO_CATV_TEXT_COLOR', '#FFAFAFA0');
 define('AIO_CATV_CAST_COLOR', '#FFFFFF40');
+// The ratings in the line of facts: white as the title, the rest of it grey (aio_catv_facts).
+define('AIO_CATV_RATE_COLOR', AIO_CATV_TITLE_COLOR);
 // The English name under the title (info_ntitle of movie_helper.php): 36 px down to 20, 2 lines.
 define('AIO_CATV_SUB_PX', 36);
 define('AIO_CATV_SUB_MIN_PX', 20);
@@ -1074,14 +1078,13 @@ function aio_catv_genres($t)
     return array_slice(array_values($out), 0, 2);
 }
 
-// The parts of the first line of data of a tile: the ratings ("КП 7.7 · IMDb 7.3", each with
-// its name), year, runtime, age; words of the server only, the empty ones left out.
+// The ratings of a tile, each with its name: "КП 7.7", "IMDb 7.3"; none: an empty list.
 /**
  * @param AioCatTile $t
  * @param string $lang
  * @return list<string>
  */
-function aio_catv_meta($t, $lang)
+function aio_catv_rates($t, $lang)
 {
     $rating = (float) $t['imdbRating'];
     $rates = array();
@@ -1089,13 +1092,48 @@ function aio_catv_meta($t, $lang)
         $rates[] = str_replace('{n}', $t['kpRating'], aio_tr($lang, 'cat_rate_kp'));
     if ($rating > 0)
         $rates[] = str_replace('{n}', sprintf('%.1F', $rating), aio_tr($lang, 'cat_rate_imdb'));
-    $parts = array(implode(' · ', $rates), $t['year'], aio_catv_runtime($t['runtime'], $lang), $t['age']);
+    return $rates;
+}
+
+// The parts of the data of an item of the grid: the ratings ("КП 7.7 · IMDb 7.3"), year,
+// runtime, age; words of the server only, the empty ones left out.
+/**
+ * @param AioCatTile $t
+ * @param string $lang
+ * @return list<string>
+ */
+function aio_catv_meta($t, $lang)
+{
+    $parts = array(implode(' · ', aio_catv_rates($t, $lang)), $t['year'], aio_catv_runtime($t['runtime'], $lang), $t['age']);
     return array_values(array_filter($parts, 'strlen'));
 }
 
-// The second line of data of the panel, ready to show (unlike aio_catv_meta, the parts of the
-// first one): the genres, then the country, cleaned and fitted to TEXT_W. What does not fit at
-// DATA_MIN_PX goes: the country first, then the second genre; aio_catv_fit cuts the rest.
+// The line of facts of the panel in runs of a colour each: the ratings, then "Сериал" for a
+// series, year, runtime (of an episode for a series: no word for it), age; "·" between the
+// parts, empty ones left out, no run without a part. The colours and the runs are only here: a
+// rating of its own colour (KP by its value) is another run.
+/**
+ * @param AioCatTile $t
+ * @param string $lang
+ * @return list<array{string, string}>
+ */
+function aio_catv_facts($t, $lang)
+{
+    $runs = array();
+    $rates = aio_catv_rates($t, $lang);
+    if ($rates)
+        $runs[] = array(implode(' · ', $rates), AIO_CATV_RATE_COLOR);
+    $rest = array_filter(array($t['type'] === 'series' ? aio_tr($lang, 'cat_kind_series') : '', $t['year'],
+        aio_catv_runtime($t['runtime'], $lang), $t['age']), 'strlen');
+    if ($rest)
+        $runs[] = array(implode(' · ', $rest), AIO_CATV_TEXT_COLOR);
+    return $runs;
+}
+
+// The second line of data of the panel, ready to show (unlike aio_catv_facts, in runs): the
+// genres, the first with a capital, the second without, then the country, cleaned and fitted to
+// TEXT_W. What does not fit at DATA_MIN_PX goes: the country first, then the second genre;
+// aio_catv_fit cuts the rest.
 /**
  * @param AioCatTile $t
  * @param string $lang
@@ -1104,11 +1142,13 @@ function aio_catv_meta($t, $lang)
 function aio_catv_genre_line($t, $lang)
 {
     $g = array_map('aio_clean', aio_catv_genres($t));
+    foreach ($g as $i => $x)
+        $g[$i] = $i ? mb_strtolower($x, 'UTF-8') : $x;
     $c = aio_clean(aio_catv_country($t['country'], $lang));
     $line = '';
     foreach (array(array($g, $c), array($g, ''), array(array_slice($g, 0, 1), '')) as $v)
     {
-        $line = implode(' | ', array_filter(array(implode(', ', $v[0]), $v[1]), 'strlen'));
+        $line = implode(' · ', array_filter(array(implode(', ', $v[0]), $v[1]), 'strlen'));
         if (aio_gc_w($line, AIO_CATV_DATA_MIN_PX) <= AIO_CATV_TEXT_W)
             break;
     }
@@ -1680,13 +1720,56 @@ function aio_catv_fit($text, $max, $min, $width)
     return array($px, aio_gc_cut_w($text, $px, $width));
 }
 
-// The panel of the native catalog, on its coordinates (movie_helper.php, the same info_r):
-// the title, then lines 46 px high from y 199 in steps of 50, the description 7 px above
-// where the next line would be, as many lines as the rest of the panel holds, as the
-// native one counts them; no line for an empty field, the next ones go up. The English name of the
-// tile under the title when it is not the title (native_title of dunemdb_cache.php: of a title not in
-// English, as those of the catalog are in any interface): the title at y 20, the name at 144, the
-// lines from 202 (20 + 120 + 7 + 55). Without it the title takes its place, the bottom at y 186.
+// The line of facts at $y: a label a run of aio_catv_facts, each next to the one before
+// (place_next_right of the vendor, as the tabs of the strip), so the shell lays them by its own
+// font, a font of the user too; the next one starts with "·", a space apart. One size for all,
+// as their line fits TEXT_W from 30 px down to 26; what does not fit even so is cut at the end.
+// The runs as one label of one colour, if the shell does not take this: only here.
+/**
+ * @param list<array{string, string}> $runs
+ * @param int $y
+ * @return list<array<string, mixed>>
+ */
+function aio_catv_facts_labels($runs, $y)
+{
+    $texts = array();
+    foreach ($runs as $i => $r)
+        $texts[] = aio_clean(($i ? '· ' : '') . $r[0]);
+    $fit = aio_catv_fit(implode(' ', $texts), AIO_CATV_LINE_PX, AIO_CATV_DATA_MIN_PX, AIO_CATV_TEXT_W);
+    $px = $fit[0];
+    $gap = aio_gc_w(' ', $px);
+    $ell = aio_gc_w("\xE2\x80\xA6", $px);
+    $labels = array();
+    $room = AIO_CATV_TEXT_W;
+    foreach ($runs as $i => $r)
+    {
+        $room -= $i ? $gap : 0;
+        if ($room <= $ell)
+            break;
+        $text = aio_gc_cut_w($texts[$i], $px, $room);
+        $room -= aio_gc_w($text, $px);
+        $label = aio_catv_info_label($text, $px, $r[1], -1, 46, $y);
+        if ($i)
+            $label[GComponentDef::geom_def][GCompGeometryDef::align_def] = array(
+                GCompAlignDef::x => $gap,
+                GCompAlignDef::halign => HALIGN_LEFT,
+                GCompAlignDef::valign => VALIGN_TOP,
+                GCompAlignDef::base_halign => HALIGN_RIGHT,
+                GCompAlignDef::base_valign => VALIGN_TOP,
+                GCompAlignDef::base_to_prev => true);
+        $labels[] = $label;
+    }
+    return $labels;
+}
+
+// The panel on the coordinates of the native one (movie_helper.php, the same info_r), 30 px lower,
+// nearer the rows: the title, a line at most at y 50 (bottom 170), 2 lines of TITLE2_PX if too long;
+// the English name of the tile under it when it is not the title (native_title of dunemdb_cache.php:
+// of a title not in English, as those of the catalog are in any interface) at 174. Without it the
+// title takes its place, the bottom at y 216. Then the facts, the genres and the country, the cast:
+// lines 46 px high from y 229 in steps of 46; the description 16 px apart from them (the native one
+// overlaps 3 px of the last line), as many lines as the rest of the panel holds, as the native one
+// counts them. No line for an empty field, the next ones go up.
 // "Show all": the name of the row and the caption of the tile. null without a tile or a row in memory (a stub, a message, a restart
 // of php_server). No label with an empty text: whether the shell takes one is not known.
 /**
@@ -1704,8 +1787,8 @@ function aio_catv_info($in)
         $name = $t['name'];
         $sub = $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
         $lang = aio_catv_ui_lang();
-        $lines = array(array(implode(' | ', array_map('aio_clean', aio_catv_meta($t, $lang))), AIO_CATV_TEXT_COLOR, AIO_CATV_DATA_MIN_PX),
-            array(aio_catv_genre_line($t, $lang), AIO_CATV_TEXT_COLOR, AIO_CATV_DATA_MIN_PX),
+        $facts = aio_catv_facts($t, $lang);
+        $lines = array(array(aio_catv_genre_line($t, $lang), AIO_CATV_TEXT_COLOR, AIO_CATV_DATA_MIN_PX),
             array(aio_clean(implode(', ', $t['cast'])), AIO_CATV_CAST_COLOR, AIO_CATV_LINE_MIN_PX));
         $desc = $t['description'];
     }
@@ -1713,6 +1796,7 @@ function aio_catv_info($in)
     {
         $name = $more['st']['row']['name'];
         $sub = '';
+        $facts = array();
         $lines = array(array(aio_clean(aio_tr(aio_catv_ui_lang(), 'cat_more')), AIO_CATV_TEXT_COLOR, AIO_CATV_LINE_MIN_PX));
         $desc = '';
     }
@@ -1724,27 +1808,40 @@ function aio_catv_info($in)
     $sub = implode(' ', aio_gc_wrap(aio_clean($sub), AIO_CATV_SUB_MIN_PX, AIO_CATV_TEXT_W, 2, true));
     if ($name !== '')
     {
-        $fit = aio_catv_fit($name, AIO_CATV_TITLE_PX, AIO_CATV_TITLE_MIN_PX, AIO_CATV_PANE_W);
-        $labels[] = aio_catv_info_label($fit[1], $fit[0], AIO_CATV_TITLE_COLOR, AIO_CATV_PANE_W, 120, $sub !== '' ? 20 : 66,
-            array(GCompTtfLabelDef::line_spacing => 0, GCompTtfLabelDef::valign => VALIGN_BOTTOM),
-            GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
+        // A line as large as fits; at the least size too long: 2 lines of TITLE2_PX, cut here to
+        // them as the name below (the box of 120 as the native one, its 2 lines of 45 px at least).
+        $spec = array(GCompTtfLabelDef::line_spacing => 0, GCompTtfLabelDef::valign => VALIGN_BOTTOM);
+        if (aio_gc_w($name, AIO_CATV_TITLE_MIN_PX) <= AIO_CATV_TEXT_W)
+            $fit = aio_catv_fit($name, AIO_CATV_TITLE_PX, AIO_CATV_TITLE_MIN_PX, AIO_CATV_TEXT_W);
+        else
+        {
+            $fit = array(AIO_CATV_TITLE2_PX, implode(' ', aio_gc_wrap($name, AIO_CATV_TITLE2_PX, AIO_CATV_TEXT_W, 2, true)));
+            $spec[GCompTtfLabelDef::max_num_lines] = 2;
+        }
+        $labels[] = aio_catv_info_label($fit[1], $fit[0], AIO_CATV_TITLE_COLOR, AIO_CATV_TEXT_W, 120, $sub !== '' ? 50 : 96,
+            $spec, GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
     }
     if ($sub !== '')
-        $labels[] = aio_catv_info_label($sub, AIO_CATV_SUB_PX, AIO_CATV_SUB_COLOR, AIO_CATV_TEXT_W, 46, 144,
+        $labels[] = aio_catv_info_label($sub, AIO_CATV_SUB_PX, AIO_CATV_SUB_COLOR, AIO_CATV_TEXT_W, 46, 174,
             array(GCompTtfLabelDef::max_num_lines => 2, GCompTtfLabelDef::min_font_size => AIO_CATV_SUB_MIN_PX,
                 GCompTtfLabelDef::line_spacing => 0));
-    $y = 202;
+    $y = 232;
+    if ($facts)
+    {
+        $labels = array_merge($labels, aio_catv_facts_labels($facts, $y - 3));
+        $y += 46;
+    }
     foreach ($lines as $l)
     {
         if ($l[0] === '')
             continue;
         $fit = aio_catv_fit($l[0], AIO_CATV_LINE_PX, $l[2], AIO_CATV_TEXT_W);
         $labels[] = aio_catv_info_label($fit[1], $fit[0], $l[1], AIO_CATV_TEXT_W, 46, $y - 3);
-        $y += 50;
+        $y += 46;
     }
     // Lines of 30 px 5 px apart; cut here to them, "…" on the last one; the shell, with a
     // little more room, breaks them no sooner.
-    $y -= 10;
+    $y += 10;
     $n = intval((AIO_CATV_PANE_H - $y - AIO_CATV_LINE_PX) / (AIO_CATV_LINE_PX + 5));
     $desc = implode(' ', aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, $n, true));
     if ($desc !== '')
