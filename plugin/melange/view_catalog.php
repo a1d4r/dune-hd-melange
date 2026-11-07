@@ -38,8 +38,8 @@ define('AIO_CATV_SEARCHES', 3);
 // The info panel, on the info_r of the native one (movie_helper.php of shell_ext), its colours
 // and sizes of text: a title in TEXT_W, one line as large as fits from TITLE_PX down to
 // TITLE_MIN_PX, else 2 lines of TITLE2_PX, its bottom at TITLE_BOTTOM (SUB_H higher over the
-// English name); then lines of 30 px from LINES_Y (to fit TEXT_W down to 26 px the facts and the
-// genres; the cast loses names), then the description. Names up to 197, descriptions up to 1096
+// English name); then lines of 30 px from LINES_Y (to fit TEXT_W the genres down to 26 px, the cast
+// loses names), then the description. Names up to 197, descriptions up to 1096
 // characters were seen. DESC_CHARS: of the text of an item of the grid.
 define('AIO_CATV_PANE_W', 950);
 define('AIO_CATV_PANE_H', 560);
@@ -54,8 +54,24 @@ define('AIO_CATV_DATA_MIN_PX', 26);
 define('AIO_CATV_TITLE_COLOR', '#FFFFFFE0');
 define('AIO_CATV_TEXT_COLOR', '#FFAFAFA0');
 define('AIO_CATV_CAST_COLOR', '#FFFFFF40');
-// The ratings in the line of facts: white as the title, the rest of it grey (aio_catv_facts).
+// The numbers of the ratings in the line of facts: white as the title, the rest of it grey.
 define('AIO_CATV_RATE_COLOR', AIO_CATV_TITLE_COLOR);
+// The line of facts (aio_catv_facts_labels): the ratings and the Russian age marks in outlined
+// plates (img/cat1_kp.png ...), PLATE_H high, their tops PLATE_DY under the top of the line: centred
+// on the capitals of 30 px (their middle 27 px under the top of the label, device 07.11.2026). The
+// text over them by the shell: of a rating the name grey PLATE_PAD from the left, the number white
+// as far from the right (both in one, centred, if they do not fit so by font_w.php), the age centred.
+// Widths: "КП 8.9", "IMDb 9.5", "18+" at 30 px by font_w.php, PLATE_PAD a side (5 more the age).
+// Gaps: between plates, before the rest of the line (grey text), before the age.
+define('AIO_CATV_PLATE_H', 40);
+define('AIO_CATV_PLATE_DY', 7);
+define('AIO_CATV_PLATE_PAD', 12);
+define('AIO_CATV_KP_W', 117);
+define('AIO_CATV_IMDB_W', 153);
+define('AIO_CATV_AGE_W', 73);
+define('AIO_CATV_PLATE_GAP', 12);
+define('AIO_CATV_REST_GAP', 18);
+define('AIO_CATV_AGE_GAP', 16);
 // The English name under the title (info_ntitle of movie_helper.php): 36 px down to 20, 2 lines.
 define('AIO_CATV_SUB_PX', 36);
 define('AIO_CATV_SUB_H', 46);
@@ -1076,23 +1092,23 @@ function aio_catv_genres($t)
     return array_slice(array_values($out), 0, 2);
 }
 
-// The parts of the facts of a tile, of the panel and the grid alike: the ratings as array(name,
-// value) ("КП", "7.7"; "IMDb", "7.3"), KP first; the rest: "Сериал" for a series, year, runtime
+// The parts of the facts of a tile, of the panel and the grid alike: the ratings as array(kind,
+// name, value) ("kp", "КП", "7.7"; "imdb", "IMDb", "7.3"), KP first; the rest: "Сериал" for a series, year, runtime
 // (of an episode for a series: no word for it); the age ('' for none). Words of the server only,
 // the empty ones left out.
 /**
  * @param AioCatTile $t
  * @param string $lang
- * @return array{rates: list<array{string, string}>, rest: list<string>, age: string}
+ * @return array{rates: list<array{string, string, string}>, rest: list<string>, age: string}
  */
 function aio_catv_fact_parts($t, $lang)
 {
     $rates = array();
     if ($t['kpRating'] !== '')
-        $rates[] = array(aio_tr($lang, 'cat_rate_kp'), $t['kpRating']);
+        $rates[] = array('kp', aio_tr($lang, 'cat_rate_kp'), $t['kpRating']);
     $rating = (float) $t['imdbRating'];
     if ($rating > 0)
-        $rates[] = array(aio_tr($lang, 'cat_rate_imdb'), sprintf('%.1F', $rating));
+        $rates[] = array('imdb', aio_tr($lang, 'cat_rate_imdb'), sprintf('%.1F', $rating));
     $rest = array_filter(array($t['type'] === 'series' ? aio_tr($lang, 'cat_kind_series') : '', $t['year'],
         aio_catv_runtime($t['runtime'], $lang)), 'strlen');
     return array('rates' => $rates, 'rest' => array_values($rest), 'age' => $t['age']);
@@ -1100,36 +1116,42 @@ function aio_catv_fact_parts($t, $lang)
 
 // The facts as text, a part a string: "КП 7.7", "IMDb 7.3", "2020", "1 ч 53 мин", "18+".
 /**
- * @param array{rates: list<array{string, string}>, rest: list<string>, age: string} $parts
+ * @param array{rates: list<array{string, string, string}>, rest: list<string>, age: string} $parts
  * @return list<string>
  */
 function aio_catv_fact_texts($parts)
 {
     $out = array();
     foreach ($parts['rates'] as $r)
-        $out[] = "{$r[0]} {$r[1]}";
+        $out[] = "{$r[1]} {$r[2]}";
     return array_values(array_filter(array_merge($out, $parts['rest'], array($parts['age'])), 'strlen'));
 }
 
-// The line of facts of the panel in runs of a colour each: the ratings white, the rest grey,
-// "·" between the parts; a run after another starts with "· " (aio_catv_facts_labels puts a
-// space before it). No run without a part.
+// The line of facts of the panel as its parts in order, array(kind, text, value): a plate of a
+// rating ("kp" or "imdb", its name, its number), the rest as one text ("text": "Сериал · 2008 ·
+// 56 мин", "·" between), the age in a plate ("age", "18+") if a Russian mark, else at the end of
+// the text. No "·" next to a plate.
 /**
  * @param AioCatTile $t
  * @param string $lang
- * @return list<array{string, string}>
+ * @return list<array{string, string, string}>
  */
 function aio_catv_facts($t, $lang)
 {
-    $parts = aio_catv_fact_parts($t, $lang);
-    $rates = aio_catv_fact_texts(array('rates' => $parts['rates'], 'rest' => array(), 'age' => ''));
-    $rest = aio_catv_fact_texts(array('rates' => array(), 'rest' => $parts['rest'], 'age' => $parts['age']));
-    $runs = array();
-    if ($rates)
-        $runs[] = array(implode(' · ', $rates), AIO_CATV_RATE_COLOR);
+    static $ages = array('0+', '6+', '12+', '16+', '18+');
+    $p = aio_catv_fact_parts($t, $lang);
+    $out = array();
+    foreach ($p['rates'] as $r)
+        $out[] = $r;
+    $plate = in_array($p['age'], $ages, true);
+    $rest = $p['rest'];
+    if ($p['age'] !== '' && !$plate)
+        $rest[] = $p['age'];
     if ($rest)
-        $runs[] = array(($runs ? '· ' : '') . implode(' · ', $rest), AIO_CATV_TEXT_COLOR);
-    return $runs;
+        $out[] = array('text', implode(' · ', $rest), '');
+    if ($plate)
+        $out[] = array('age', $p['age'], '');
+    return $out;
 }
 
 // The genres and the country of a tile, of the panel and the grid alike: the genres of
@@ -1753,39 +1775,80 @@ function aio_catv_fit($text, $max, $min, $width)
     return array($px, aio_gc_cut_w($text, $px, $width));
 }
 
-// The line of facts at $y: a label a run of aio_catv_facts, each next to the one before, a space
-// apart (aio_gc_next_right), so the shell lays them by its own font, a font of the user too. One
-// size for all, as their line fits TEXT_W from 30 px down to 26; what does not fit even so is cut
-// at the end. The runs as one label of one colour, if the shell does not take this: only here.
+// A label of the line of facts at $y: 30 px, 46 high as the other lines, $align its place (x, y
+// set here when the align has no base).
 /**
- * @param list<array{string, string}> $runs
+ * @param string $text
+ * @param string $color
+ * @param int $w
+ * @param AioGcAlign $align
+ * @param int $halign
+ * @return array<string, mixed>
+ */
+function aio_catv_fact_label($text, $color, $w, $align, $halign = HALIGN_LEFT)
+{
+    $l = aio_catv_info_label(aio_clean($text), AIO_CATV_LINE_PX, $color, $w, 46, 0,
+        $halign === HALIGN_LEFT ? array() : array(GCompTtfLabelDef::halign => $halign));
+    $l[GComponentDef::geom_def][GCompGeometryDef::align_def] = $align;
+    return $l;
+}
+
+// The line of facts of aio_catv_facts at $y, all of it 30 px: the plates at their places, as their
+// widths are known; the text after them, cut with "…" to the room it has; the age plate after the
+// text right of it by the shell (aio_gc_next_right: the text is as wide as the font of the user
+// makes it), its label on it. The plates are pictures of their own size: the text in them, not
+// the plate, follows the font.
+/**
+ * @param list<array{string, string, string}> $facts
  * @param int $y
  * @return list<array<string, mixed>>
  */
-function aio_catv_facts_labels($runs, $y)
+function aio_catv_facts_labels($facts, $y)
 {
-    $texts = array();
-    foreach ($runs as $r)
-        $texts[] = aio_clean($r[0]);
-    $fit = aio_catv_fit(implode(' ', $texts), AIO_CATV_LINE_PX, AIO_CATV_DATA_MIN_PX, AIO_CATV_TEXT_W);
-    $px = $fit[0];
-    $gap = aio_gc_w(' ', $px);
-    $ell = aio_gc_w("\xE2\x80\xA6", $px);
-    $labels = array();
-    $room = AIO_CATV_TEXT_W;
-    foreach ($runs as $i => $r)
+    $w = array('kp' => AIO_CATV_KP_W, 'imdb' => AIO_CATV_IMDB_W, 'age' => AIO_CATV_AGE_W);
+    $last = end($facts);
+    $age_w = $last && $last[0] === 'age' ? AIO_CATV_AGE_GAP + AIO_CATV_AGE_W : 0;
+    $defs = array();
+    $x = 0;
+    $text = false;
+    foreach ($facts as $f)
     {
-        $room -= $i ? $gap : 0;
-        if ($room <= $ell)
-            break;
-        $text = aio_gc_cut_w($texts[$i], $px, $room);
-        $room -= aio_gc_w($text, $px);
-        $label = aio_catv_info_label($text, $px, $r[1], -1, 46, $y);
-        if ($i)
-            $label[GComponentDef::geom_def][GCompGeometryDef::align_def] = aio_gc_next_right($gap);
-        $labels[] = $label;
+        list($kind, $s, $value) = $f;
+        if ($kind === 'text')
+        {
+            $x += $x ? AIO_CATV_REST_GAP : 0;
+            $defs[] = aio_catv_fact_label(aio_gc_cut_w(aio_clean($s), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W - $x - $age_w),
+                AIO_CATV_TEXT_COLOR, -1, array(GCompAlignDef::x => $x, GCompAlignDef::y => $y));
+            $text = true;
+            continue;
+        }
+        $pw = $w[$kind];
+        $plate = AIO_CATV_IMG . "$kind.png";
+        if ($kind === 'age' && $text)
+        {
+            $defs[] = aio_gc_image(aio_gc_geom($pw, AIO_CATV_PLATE_H, aio_gc_next_right(AIO_CATV_AGE_GAP, AIO_CATV_PLATE_DY)), $plate);
+            $defs[] = aio_catv_fact_label($s, AIO_CATV_TEXT_COLOR, $pw, array(GCompAlignDef::y => -AIO_CATV_PLATE_DY,
+                GCompAlignDef::halign => HALIGN_LEFT, GCompAlignDef::valign => VALIGN_TOP, GCompAlignDef::base_halign => HALIGN_LEFT,
+                GCompAlignDef::base_valign => VALIGN_TOP, GCompAlignDef::base_to_prev => true), HALIGN_CENTER);
+            continue;
+        }
+        $x += $x ? ($kind === 'age' ? AIO_CATV_AGE_GAP : AIO_CATV_PLATE_GAP) : 0;
+        $defs[] = aio_gc_image(aio_gc_at($pw, AIO_CATV_PLATE_H, $x, $y + AIO_CATV_PLATE_DY), $plate);
+        $in = $pw - 2 * AIO_CATV_PLATE_PAD;
+        if ($kind === 'age')
+            $defs[] = aio_catv_fact_label($s, AIO_CATV_TEXT_COLOR, $pw, array(GCompAlignDef::x => $x, GCompAlignDef::y => $y), HALIGN_CENTER);
+        else if (aio_gc_w("$s $value", AIO_CATV_LINE_PX) <= $in)
+        {
+            $at = array(GCompAlignDef::x => $x + AIO_CATV_PLATE_PAD, GCompAlignDef::y => $y);
+            $defs[] = aio_catv_fact_label($s, AIO_CATV_TEXT_COLOR, $in, $at);
+            $defs[] = aio_catv_fact_label($value, AIO_CATV_RATE_COLOR, $in, $at, HALIGN_RIGHT);
+        }
+        else
+            $defs[] = aio_catv_fact_label(aio_gc_cut_w("$s $value", AIO_CATV_LINE_PX, $pw), AIO_CATV_RATE_COLOR, $pw,
+                array(GCompAlignDef::x => $x, GCompAlignDef::y => $y), HALIGN_CENTER);
+        $x += $pw;
     }
-    return $labels;
+    return $defs;
 }
 
 // The title, its box 120 high as the native one with the bottom at $bottom: a line as large as
