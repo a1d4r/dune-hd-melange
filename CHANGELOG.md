@@ -2,6 +2,10 @@
 
 **English version**
 
+## 0.55.1 — 08.11.2026
+- **Continue Watching goes on to the next episode.** If you watched an episode to the end, **Continue Watching** now starts the next one from the beginning, on the same release and the same way (Debrid or TorrServer), not the episode you have already seen. If the release does not have the next episode, its list opens to choose another release. After the last episode of the series, the list of the first one opens.
+- **The card button opens the list on your release.** The Melange button on the card of a series now opens the list with the cursor on the release you watched, not on the first row: of the same episode, or of the next one if you watched it to the end.
+
 ## 0.55.0 — 08.11.2026
 - **A clearer info panel in the catalog.** The title above the rows no longer jumps from huge to tiny from one movie to the next: a short title is large, a long one goes in two lines. Where the catalog has a Russian logo of the movie, the logo is shown instead of the title, and it comes together with the background: no title first and logo later. The logo is large, with no original title under it. While the background loads, or if there is none, the screen stays dark. The KP and IMDb ratings and the age rating are in outlined plates, the year and runtime in gray between them; a series is marked "TV series", its runtime is that of an episode. The cast line no longer shrinks: the names that do not fit are left out. The background is darker under the text, so it reads on a bright picture too. The text sits a little lower, nearer the rows. The same in search results.
 - **"Appearance" on the settings page** (the Catalog group): **"Film logo in place of the title"**, on by default. Turn it off if the catalog lags or the cards take long to load: the title is shown as text and the Dune needs half the memory. It takes effect the next time the catalog opens.
@@ -185,6 +189,10 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.55.1 — 08.11.2026
+- **«Продолжить просмотр» переходит к следующей серии.** Если серию досмотрели до конца, «Продолжить просмотр» теперь включает следующую с начала, на той же раздаче и тем же способом (Debrid или TorrServer), а не уже просмотренную. Если в раздаче следующей серии нет, откроется её список — выберите другую раздачу. После последней серии сериала откроется список первой.
+- **Кнопка в карточке открывает список на вашей раздаче.** Кнопка Melange в карточке сериала теперь открывает список с курсором на раздаче, которую вы смотрели, а не на первой строке: той же серии или следующей, если серию досмотрели.
 
 ## 0.55.0 — 08.11.2026
 - **Инфопанель каталога понятнее.** Название над рядами больше не скачет от огромного к мелкому от фильма к фильму: короткое — крупно, длинное — в две строки. Если в каталоге есть русский логотип фильма, вместо названия — логотип, и появляется он вместе с фоном: не сначала название, потом логотип. Логотип крупный, оригинального названия под ним нет. Пока фон грузится или если его нет, экран тёмный. Рейтинги КП и IMDb и возраст — в контурных плашках, между ними серым год и длительность; у сериала — «Сериал», длительность — серии. Строка актёров больше не мельчает: имена, которые не влезают, не показываются. Под текстом фон темнее — текст читается и на светлой картинке. Текст чуть ниже, ближе к рядам. В результатах поиска — так же.

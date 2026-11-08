@@ -113,8 +113,8 @@ At the start of an episode, the player offers to skip the intro or the recap, an
 
 A movie or episode started on a cached release or via TorrServer shows up in the Dune's **Continue Watching** row, and the card button reads **Melange [NN%]**.
 
-- **From Continue Watching**: straight to the same release from the same spot, the same way. If the release is no longer available, the list opens.
-- **The Melange [NN%] button** opens the list. Choose the same release, and the player offers to resume from the same spot.
+- **From Continue Watching**: straight to the same release from the same spot, the same way. If you watched the episode to the end, the next episode starts from the beginning, on the same release. If the release is no longer available, the list opens.
+- **The Melange [NN%] button** opens the list with the cursor on the same release. Press ENTER, and the player offers to resume from the same spot. If you watched the episode to the end, the list of the next episode opens, the cursor on the same release too.
 - When playback goes **without history**: see [Known limitations](limitations.en.md#watch-history).
 
 ## In the player

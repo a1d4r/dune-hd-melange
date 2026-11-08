@@ -146,6 +146,9 @@ parameters:
                 seasons: array<int, int>
             }
         '''
+        # "Continue watching" of play_action (aio_resume, main.php; next:
+        # aio_wh_resume_ep, history.php).
+        AioResume: 'array{hash: string, mode: string, s: int, e: int, pos: int, len: int, uid: string, next: bool}'
         # Reasons of the error streams of a reply (aio_error_streams, main.php):
         # different lines up to AIO_ERRORS_MAX, more: different ones past them.
         AioErrors: 'array{lines: list<string>, more: int}'

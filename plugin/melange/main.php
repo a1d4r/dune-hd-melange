@@ -231,8 +231,13 @@ function aio_seasons($m)
 }
 
 // "Continue watching" -> shell_ext play_recent -> our play_action with
-// supplier_info = {sup_data, wh_uid, wh_s, wh_e, wh_pos (seconds), wh_*}.
+// supplier_info = {sup_data, wh_uid, wh_s, wh_e, wh_pos, wh_len (seconds), wh_*}.
 // 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else.
+// 'len': 0 without wh_len (r22 not checked); 'next': of aio_wh_resume_ep.
+/**
+ * @param stdClass $in
+ * @return AioResume|null
+ */
 function aio_resume($in)
 {
     $si = isset($in->supplier_info) && is_string($in->supplier_info) ?
@@ -252,7 +257,10 @@ function aio_resume($in)
         'mode' => isset($si->wh_mode) && ($si->wh_mode === 'debrid' || $si->wh_mode === 'ts') ? $si->wh_mode : '',
         's' => aio_int($si, 'wh_s', -1),
         'e' => aio_int($si, 'wh_e', -1),
-        'pos' => max(0, aio_int($si, 'wh_pos', 0)));
+        'pos' => max(0, aio_int($si, 'wh_pos', 0)),
+        'len' => max(0, aio_int($si, 'wh_len', 0)),
+        'uid' => isset($si->wh_uid) && is_string($si->wh_uid) ? $si->wh_uid : '',
+        'next' => false);
 }
 
 // --- Settings.
@@ -1041,13 +1049,15 @@ function aio_play_action($in)
     $resume = aio_resume($in);
     $s = -1;
     $e = -1;
+    // The list opens with the cursor on this release (the one of the history).
+    $hash = '';
     if ($mv['series'])
     {
         // Back from "Continue watching" the shell sends season = episode = -1.
         if ($resume && $resume['s'] >= 1 && $resume['e'] >= 1)
         {
-            $s = $resume['s'];
-            $e = $resume['e'];
+            $hash = $resume['hash'];
+            list($resume, $s, $e) = aio_wh_resume_ep($mv, $resume);
         }
         else
         {
@@ -1056,7 +1066,7 @@ function aio_play_action($in)
         }
         // From the main card: season = episode = -1 and no supplier_info.
         if ($s < 1 || $e < 1)
-            list($s, $e) = aio_wh_episode($mv);
+            list($s, $e, $hash) = aio_wh_episode($mv);
     }
 
     $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
@@ -1074,6 +1084,12 @@ function aio_play_action($in)
         return aio_error($res['error'], $res['detail']);
 
     $st = aio_list_state($mv, $s, $e, $res['rows'], $lang, $res['errors']);
+    if (!$resume && $hash !== '')
+    {
+        list($sel, $by) = aio_release_row($st['rows'], $hash, $s, $e);
+        $st = aio_gc_put_cursor($st, $sel);
+        aio_log("list: cursor on row $sel of " . count($st['rows']) . ", $by");
+    }
     Aio::$state = $st;
 
     if ($resume)
@@ -1083,10 +1099,10 @@ function aio_play_action($in)
         // Through Debrid: the row of the release with a URL, a cached one
         // first (aio_play checks it). One not cached only if the check finds
         // a stream: else maybe a placeholder, as before. Any episode in the
-        // file: the reply is of the episode watched.
+        // file: the reply is of the episode watched; the next one: only with it.
         $mode = $resume['mode'];
         $tag = "resume: release {$resume['hash']} mode=" . ($mode !== '' ? $mode : 'none');
-        $pick = aio_release_pick($st['rows'], $resume['hash'], -1, -1);
+        $pick = aio_release_pick($st['rows'], $resume['hash'], $resume['next'] ? $s : -1, $resume['next'] ? $e : -1);
         $deb = $mode !== 'ts' && $pick['deb'] >= 0 ? $st['rows'][$pick['deb']] : null;
         $pre = null;
         if ($deb && $deb['cached'] !== true)

@@ -844,13 +844,26 @@ function aio_relist($st, $s, $e, $hash)
     if (AIO_JACRED)
         $rows = aio_jacred($rows, $mv, $s);
     $ns = aio_list_state($mv, $s, $e, $rows, $st['lang'], $res['errors']);
+    list($sel, $by) = aio_release_row($ns['rows'], $hash, $s, $e);
+    return array('st' => aio_gc_put_cursor($ns, $sel), 'sel' => $sel, 'by' => $by);
+}
 
-    // The release with the episode in its file, as aio_next: a release not
-    // in the cache has its hash in every reply, even a pack of another season.
-    // Found in the rows as the list has them: sorted.
+// The row of release $hash in $rows of S$s E$e: with the episode in its file
+// first, as aio_next (a release not in the cache has its hash in every reply,
+// even a pack of another season), else any of it, else the first row. Found
+// in the rows as the list has them: sorted. -> array(row, why that row)
+/**
+ * @param list<AioRow> $rows
+ * @param string $hash
+ * @param int $s
+ * @param int $e
+ * @return array{int, string}
+ */
+function aio_release_row($rows, $hash, $s, $e)
+{
     $sel = -1;
     $by = 'no such release';
-    foreach ($ns['rows'] as $i => $r)
+    foreach ($rows as $i => $r)
     {
         if ($hash === '' || $r['hash'] !== $hash)
             continue;
@@ -866,8 +879,7 @@ function aio_relist($st, $s, $e, $hash)
             $by = 'same release, episode not in its file';
         }
     }
-    $sel = max(0, $sel);
-    return array('st' => aio_gc_put_cursor($ns, $sel), 'sel' => $sel, 'by' => $by);
+    return array(max(0, $sel), $by);
 }
 
 // The dialog of a failed aio_relist: the error, its detail, OK; a reply of error

@@ -271,12 +271,50 @@ function aio_wh_marked($uid)
     return isset($set[$uid]);
 }
 
+// How a record of S/E was watched: 'by position' (aio_wh_full), 'marked' (uid
+// in watched_files.txt), '' not watched.
+/**
+ * @param float|int $pos
+ * @param float|int $len
+ * @param string $uid
+ * @return string
+ */
+function aio_wh_watched($pos, $len, $uid)
+{
+    return aio_wh_full($pos, $len) ? 'by position' : (aio_wh_marked($uid) ? 'marked' : '');
+}
+
+// The episode after the watched S$s E$e by season_numbers, as 0.9.0: the next
+// one of the season, else E1 of the nearest later season; the same one with
+// no data on season $s, S1E1 after the last one. -> array(s, e, next: a later
+// episode, why)
+/**
+ * @param array<int, int> $seasons
+ * @param int $s
+ * @param int $e
+ * @return array{int, int, bool, string}
+ */
+function aio_wh_next($seasons, $s, $e)
+{
+    if (!isset($seasons[$s]))
+        return array($s, $e, false, "watched, but season $s is not in season_numbers");
+    if ($e < $seasons[$s])
+        return array($s, $e + 1, true, "next after the watched S{$s}E{$e}");
+    foreach (array_keys($seasons) as $n)
+    {
+        if ($n > $s)
+            return array($n, 1, true, "next season after the watched last S{$s}E{$e}");
+    }
+    return array(1, 1, false, "the last episode S{$s}E{$e} is watched");
+}
+
 // Episode of a series opened from its main card (season = episode = -1):
 // the last one in the history, the next one once it is watched, S1E1 with
-// no record or after the last episode. -> array(s, e)
+// no record or after the last episode; the release of the record if it is
+// ours (uid "aio:<dune id>:<s>:<e>:<infoHash>"), else ''. -> array(s, e, hash)
 /**
  * @param AioMovie $mv
- * @return array{int, int}
+ * @return array{int, int, string}
  */
 function aio_wh_episode($mv)
 {
@@ -284,41 +322,56 @@ function aio_wh_episode($mv)
     if (!$w)
     {
         aio_log('episode: S1E1, no history record');
-        return array(1, 1);
+        return array(1, 1, '');
     }
     $e = intval($w->e);
     $s = isset($w->s) && is_numeric($w->s) && intval($w->s) >= 0 ? intval($w->s) : 1;
     $pos = isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1;
     $len = isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0;
     $uid = isset($w->uid) && is_string($w->uid) ? $w->uid : (isset($w->url) && is_string($w->url) ? $w->url : '');
-    $watched = aio_wh_full($pos, $len) ?
-        'by position' : (aio_wh_marked($uid) ? 'marked' : '');
+    $hash = preg_match('/^' . preg_quote(AIO_SUP_ID . ':' . $mv['dune_id'], '/') . ':-?[0-9]+:-?[0-9]+:([0-9a-f]{40})$/D',
+        $uid, $m) ? $m[1] : '';
+    $watched = aio_wh_watched($pos, $len, $uid);
     aio_log(sprintf('history: record S%dE%d pos=%d/%d watched=%s, %d seasons in season_numbers', $s, $e,
         $pos, $len, $watched !== '' ? $watched : 'no', count($mv['seasons'])));
     if ($watched === '')
     {
         aio_log("episode: S{$s}E{$e}, not watched");
-        return array($s, $e);
+        return array($s, $e, $hash);
     }
-    $seasons = $mv['seasons'];
-    if (!isset($seasons[$s]))
+    list($ns, $ne, , $why) = aio_wh_next($mv['seasons'], $s, $e);
+    aio_log("episode: S{$ns}E{$ne}, $why");
+    return array($ns, $ne, $hash);
+}
+
+// "Continue watching" of a series ($r of aio_resume): the episode recorded,
+// from its position; once it is watched (aio_wh_watched; no wh_len: only
+// marked) the next one (aio_wh_next) from 0, 'next' set: its release must have
+// it in its file. One log line, no uid. -> array($r of the episode to play or
+// null - watched, no later one: the list; s, e)
+/**
+ * @param AioMovie $mv
+ * @param AioResume $r
+ * @return array{AioResume|null, int, int}
+ */
+function aio_wh_resume_ep($mv, $r)
+{
+    $s = $r['s'];
+    $e = $r['e'];
+    $watched = aio_wh_watched($r['pos'], $r['len'], $r['uid']);
+    $tag = "resume: record S{$s}E{$e} pos={$r['pos']}/{$r['len']} watched=" . ($watched !== '' ? $watched : 'no');
+    if ($watched === '')
     {
-        aio_log("episode: S{$s}E{$e}, watched, but season $s is not in season_numbers");
-        return array($s, $e);
+        aio_log("$tag -> S{$s}E{$e}");
+        return array($r, $s, $e);
     }
-    if ($e < $seasons[$s])
-    {
-        aio_log('episode: S' . $s . 'E' . ($e + 1) . ", next after the watched S{$s}E{$e}");
-        return array($s, $e + 1);
-    }
-    foreach (array_keys($seasons) as $n)
-    {
-        if ($n > $s)
-        {
-            aio_log("episode: S{$n}E1, next season after the watched last S{$s}E{$e}");
-            return array($n, 1);
-        }
-    }
-    aio_log("episode: S1E1, the last episode S{$s}E{$e} is watched");
-    return array(1, 1);
+    list($ns, $ne, $next, $why) = aio_wh_next($mv['seasons'], $s, $e);
+    aio_log("$tag -> S{$ns}E{$ne}, $why" . ($next ? ', from 0' : ', its list'));
+    if (!$next)
+        return array(null, $ns, $ne);
+    $r['s'] = $ns;
+    $r['e'] = $ne;
+    $r['pos'] = 0;
+    $r['next'] = true;
+    return array($r, $ns, $ne);
 }
