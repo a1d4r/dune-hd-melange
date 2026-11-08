@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.54.2 — 08.11.2026
+- Fixed: in search results, "Show all" is now shown only when there are more results than fit in the row; a short list of results no longer has it.
+
 ## 0.54.1 — 07.11.2026
 - Fixed: on Dunes with r22 firmware (for example, Real Vision 4K Plus) a movie did not start: after choosing a release, "Application error".
 
@@ -180,6 +183,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.54.2 — 08.11.2026
+- Исправлено: в результатах поиска плитка «Показать все» теперь есть, только если результатов больше, чем помещается в ряд; у короткой выдачи её больше нет.
 
 ## 0.54.1 — 07.11.2026
 - Исправлено: на Дюнах с прошивкой r22 (например, Real Vision 4K Plus) фильм не запускался: после выбора раздачи — «Ошибка приложения».
