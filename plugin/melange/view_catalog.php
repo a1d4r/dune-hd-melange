@@ -50,6 +50,7 @@ define('AIO_CATV_TITLE_PX', 88);
 define('AIO_CATV_TITLE_MIN_PX', 60);
 define('AIO_CATV_TITLE2_PX', 48);
 define('AIO_CATV_TITLE_H', 120);
+// TITLE_BOTTOM: PANE_Y + 216 = 256 is the bottom of the logo of a card "n": baked into card/v1 (AIO_CATV_CARD).
 define('AIO_CATV_TITLE_BOTTOM', 216);
 define('AIO_CATV_LINES_Y', 229);
 define('AIO_CATV_LINE_PX', 30);
@@ -78,6 +79,7 @@ define('AIO_CATV_REST_GAP', 18);
 define('AIO_CATV_AGE_GAP', 16);
 // The English name under the title (info_ntitle of movie_helper.php): 36 px down to 20, 2 lines.
 define('AIO_CATV_SUB_PX', 36);
+// SUB_H: 256 - 46 = 210 is the bottom of the logo of a card "s": baked into card/v1 (AIO_CATV_CARD).
 define('AIO_CATV_SUB_H', 46);
 define('AIO_CATV_SUB_MIN_PX', 20);
 define('AIO_CATV_SUB_COLOR', '#FF808080');
@@ -87,16 +89,21 @@ define('AIO_CATV_BG_SIZE', 'w1280');
 // The panel: x of info_r. The strip of the row titles (the main screen) moves it to the right by 30,
 // to CARD_X, where the card background of the server has the logo (aio_catv_card); a screen
 // without the strip (search, "Show all") with the card background: info_r at CARD_X itself.
+// CARD_X (PANE_X + 30) is the left of the logo of a card, PANE_Y + TITLE_BOTTOM its bottom: baked into card/v1 (AIO_CATV_CARD).
 define('AIO_CATV_PANE_X', 100);
 define('AIO_CATV_CARD_X', 130);
+define('AIO_CATV_PANE_Y', 40);
 define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 // Our pictures of the panel, img/cat<N>_*: N goes up when they change, as the shell keeps a
 // picture by its URL even across a reinstall (plugins/melange_catalog_img.py of the kitchen). The
 // mask: of the shell, but darker to the right, so the text column (TEXT_W) stays on the dark
 // whatever the background; card0.jpg: the dark background of vod_r of the whole screen without a
-// card background (aio_catv_card).
+// card background (aio_catv_card). cat2_mask.png: baked into card/v1 (AIO_CATV_CARD).
 define('AIO_CATV_IMG', 'plugin_file://img/cat2_');
-// The card backgrounds of the server: <base>/<CARD>... (aio_catv_card).
+// The card backgrounds of the server: <base>/<CARD>... (aio_catv_card). Its layout - the logo at
+// CARD_X, its bottom at PANE_Y + TITLE_BOTTOM (256) or SUB_H higher (210), the mask cat2_mask.png -
+// is baked into card/v1 of the server (addon/lib/posterCache/card.ts of the fork of AIOMetadata):
+// a change = v2 in the path and in card.ts.
 define('AIO_CATV_CARD', 'poster-cache/card/v1/');
 // The strip on top of the main screen, as the native top menu: the tabs "Movies" and "Series"
 // (rows by their type), the icons of search and settings of the shell. The id of its row; the
@@ -338,7 +345,7 @@ function aio_catv_pane_r($titles)
 {
     $on = aio_catv_logo_on();
     return array('info_r' => array('w' => AIO_CATV_PANE_W, 'h' => AIO_CATV_PANE_H,
-            'x' => $on && !$titles ? AIO_CATV_CARD_X : AIO_CATV_PANE_X, 'y' => 40),
+            'x' => $on && !$titles ? AIO_CATV_CARD_X : AIO_CATV_PANE_X, 'y' => AIO_CATV_PANE_Y),
         'vod_r' => $on ? array('w' => 1920, 'h' => 1080, 'x' => 0, 'y' => 0) : array('w' => 1280, 'h' => 720, 'x' => 640, 'y' => 0));
 }
 
