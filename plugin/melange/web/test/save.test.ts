@@ -35,6 +35,7 @@ const FILLED: [string, string][] = [
   ["jacred", "own"], ["jacred_own_url", "http://192.168.1.10:9117"], ["jacred_own_key", "testkey01"],
   ["ts", "http://192.168.1.10:8090"], ["ts_user", "tsuser"], ["ts_pass", "ts p@ss&x"], ["ts_save", "add"],
   ["cat_rows", ""],
+  ["cat_logo", "on"],
   ...servers([["name", "qBittorrent"], ["url", "http://192.168.1.10:8080"], ["user", "admin"], ["pass", "test-pass"], ["category", "movies"]]),
   ["markers", "on"],
   ["source_errors", "off"],

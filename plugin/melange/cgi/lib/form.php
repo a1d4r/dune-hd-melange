@@ -60,6 +60,8 @@ function aio_cgi_fields()
         // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
         'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
+        // "Логотип фильма вместо названия" (0.55.0): aio_cgi_cat_logo().
+        'cat_logo' => array('id' => 'clg', 'name' => 'cat_logo', 'set' => 'cat_logo', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // The rows of the catalog chosen: aio_cgi_rows_screen.
         'cat_rows' => array('id' => 'crv', 'name' => 'cat_rows', 'set' => 'cat_rows', 'max' => 0, 'type' => 'plain', 'scr' => 'rows'));
 }
@@ -341,6 +343,36 @@ function aio_cgi_no_torrents()
 function aio_cgi_no_torrents_of($on)
 {
     return $on ? 'off' : 'allow';
+}
+
+// The answers of "Логотип фильма вместо названия" on the screen #look (radio
+// cat_logo, 0.55.0): its value => array(name, hint); "on" - cat_logo of the settings.
+function aio_cgi_cat_logo()
+{
+    return array(
+        'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
+            'Русский логотип в карточке над рядами, как в онлайн-кинотеатрах.',
+            'The Russian logo in the card above the rows, as in streaming services.')),
+        'off' => array(aio_cgi_l('Выключен', 'Off'), aio_cgi_l(
+            'Название текстом, памяти Дюны нужно вдвое меньше.',
+            'The title as text; the Dune needs half the memory.')));
+}
+
+// The answer of aio_cgi_cat_logo() of cat_logo of the settings (a bool).
+function aio_cgi_cat_logo_of($on)
+{
+    return $on ? 'on' : 'off';
+}
+
+// The screen #look (a value of the form: '' or another one - none checked).
+function aio_cgi_look_screen($v)
+{
+    $f = aio_cgi_fields();
+    return '<p class="sub">' . aio_cgi_l('Действует со следующего открытия каталога.', 'Takes effect the next time the catalog opens.') .
+        '</p><p class="lbl">' . aio_cgi_l('Логотип фильма вместо названия', 'Film logo in place of the title') . '</p>' .
+        aio_cgi_choice($f['cat_logo'], aio_cgi_cat_logo(), $v['cat_logo']) . '<p class="hint">' .
+        aio_cgi_l('Выключите, если каталог тормозит или карточки грузятся долго.',
+        'Turn off if the catalog lags or the cards take long to load.') . '</p>';
 }
 
 // The value of the form of cat_rows of the settings (aio_cat_rows_ok): keys by spaces, none in a key.
@@ -935,6 +967,7 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false)
                 aio_cgi_l('Если TorrServer просит вход. Можно и в адресе: логин:пароль@хост:порт',
                 'If TorrServer asks for them. Also in the address: login:password@host:port')) . aio_cgi_ts_save($v)) .
         aio_cgi_screen('rows', aio_cgi_rows_screen($v)) .
+        aio_cgi_screen('look', aio_cgi_look_screen($v)) .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
         aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_source_errors_block($v)) .

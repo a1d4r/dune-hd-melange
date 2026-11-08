@@ -80,6 +80,8 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
     setRow("torr", watch === VALUE.p2p ? "ok" : "", (ts !== "" ? ts : texts.tsDune) + (watch === VALUE.debrid ? " · " + texts.tsSpare : ""));
     const names = servers();
     setRow("dl", names.length ? "ok" : "", names.length ? names.join(", ") : texts.noServers);
+    // No dot: only the value (a wrong one as on, as PHP).
+    byId(doc, "vlook").textContent = checkedValue(form, NAME.catLogo) === VALUE.off ? texts.logoOff : texts.logoOn;
   }
   render();
   return {

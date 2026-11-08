@@ -11,7 +11,9 @@ function aio_cgi_home_texts()
         'needKey' => aio_cgi_l('нужен ключ', 'a key is needed'), 'needLink' => aio_cgi_l('нужна ссылка', 'a link is needed'),
         'viaTs' => aio_cgi_l('через TorrServer', 'via TorrServer'), 'tsDune' => aio_cgi_l('Приложение на Дюне', 'The app on the Dune'),
         'tsSpare' => aio_cgi_l('по выбору', 'by choice'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'),
-        'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'), 'ownAioServer' => aio_cgi_l('свой сервер', 'own server'));
+        'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'), 'ownAioServer' => aio_cgi_l('свой сервер', 'own server'),
+        'logoOn' => aio_cgi_l('Логотип вместо названия', 'Logo in place of the title'),
+        'logoOff' => aio_cgi_l('Название текстом', 'Title as text'));
 }
 
 // The three cards of the answers of "Откуда брать фильмы" (the radio watch):
@@ -33,6 +35,7 @@ function aio_cgi_screens()
         'dl' => aio_cgi_l('Скачивать на свой сервер', 'Download to your server'),
         'adv' => aio_cgi_l('Дополнительно', 'Advanced'),
         'rows' => aio_cgi_l('Ряды каталога', 'Catalog rows'),
+        'look' => aio_cgi_l('Внешний вид', 'Appearance'),
         'cfg' => 'AIOStreams', 'bak' => aio_cgi_l('Резервная копия', 'Backup'), 'log' => aio_cgi_l('Лог', 'Log'));
 }
 
@@ -116,6 +119,8 @@ function aio_cgi_rows($v)
         'dl' => array($names ? 'ok' : '', $names ? implode(', ', $names) : $t['noServers']),
         'adv' => array('none', ''),
         'rows' => array('none', aio_cgi_l('Какие показывать и в каком порядке', 'Which to show and in what order')),
+        // A form back with a wrong value: as on.
+        'look' => array('none', $v['cat_logo'] === aio_cgi_cat_logo_of(false) ? $t['logoOff'] : $t['logoOn']),
         'bak' => array('none', aio_cgi_l('Настройки в файл и из файла', 'Settings to a file and back')),
         'log' => array('none', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));
 }
@@ -151,7 +156,7 @@ function aio_cgi_home($v)
     $out .= '</div></div>';
     $rows = aio_cgi_rows($v);
     $groups = array(aio_cgi_l('Просмотр', 'Watching') => array('src', 'cfg', 'voices', 'torr'),
-        aio_cgi_l('Каталог', 'Catalog') => array('rows'),
+        aio_cgi_l('Каталог', 'Catalog') => array('rows', 'look'),
         aio_cgi_l('Ещё', 'More') => array('dl', 'adv', 'bak', 'log'));
     foreach ($groups as $h => $ids)
     {

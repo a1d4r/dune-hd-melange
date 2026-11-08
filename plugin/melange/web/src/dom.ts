@@ -94,7 +94,7 @@ export const ID = {
 } as const;
 
 // The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>; in the order of the page.
-export const ROWS = ["src", "cfg", "voices", "torr", "rows", "dl", "adv", "bak", "log"] as const;
+export const ROWS = ["src", "cfg", "voices", "torr", "rows", "look", "dl", "adv", "bak", "log"] as const;
 export type Row = (typeof ROWS)[number];
 
 export const CLS = {
@@ -163,6 +163,8 @@ export const NAME = {
   // The template of the configs of each mode (no radio checked: a mark shown, nothing posted).
   template: "aio_tpl",
   templateP2p: "aio_tpl_p2p",
+  // "Film logo in place of the title" (0.55.0): VALUE.on, VALUE.off.
+  catLogo: "cat_logo",
 } as const;
 
 // The values of the page the script compares with.
@@ -174,6 +176,9 @@ export const VALUE = {
   // The modes (the keys of #init.confs and #init.tplNew).
   debrid: "debrid",
   p2p: "p2p",
+  // The answers of the radios on and off.
+  on: "on",
+  off: "off",
 } as const;
 
 // The radios of the choice of JacRed.

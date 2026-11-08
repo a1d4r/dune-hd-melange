@@ -77,10 +77,11 @@ class Aio
     // is chosen (source own). 'hosts' - aio_settings_hosts(), hidden in the log.
     // 'sort', 'sort_rev' - the sort of a new list and its direction (aio_sort_read).
     // 'cat_rows' - the rows of the catalog chosen on the page, the argument of aio_cat_user_rows.
+    // 'cat_logo' - the same of the settings: aio_catv_card.
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'source_errors' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
-        'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null);
+        'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true);
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -400,7 +401,8 @@ function aio_settings_load()
         'hosts' => aio_settings_hosts($s),
         'sort' => $sort,
         'sort_rev' => $rev,
-        'cat_rows' => $s['cat_rows']);
+        'cat_rows' => $s['cat_rows'],
+        'cat_logo' => $s['cat_logo']);
 }
 
 // The sort of the lists, chosen by a colour key of the list (aio_gc_sort):

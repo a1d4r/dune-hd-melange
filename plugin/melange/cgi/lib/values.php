@@ -9,7 +9,7 @@
 // aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
 // settings; tpl_seen, tpl_p2p_seen only posted; ts_save: aio_cgi_ts_save_of()
 // of the settings, markers: aio_cgi_markers_of(), source_errors:
-// aio_cgi_source_errors_of(), no_torrents:
+// aio_cgi_source_errors_of(), cat_logo: aio_cgi_cat_logo_of(), no_torrents:
 // aio_cgi_no_torrents_of(), as posted - none: '',
 // settings.php puts the stored one);
 // tpl_new, tpl_p2p_new -
@@ -32,6 +32,7 @@ function aio_cgi_values($s)
     $v['ts_save'] = aio_cgi_ts_save_of($s['ts_save']);
     $v['markers'] = aio_cgi_markers_of($s['markers']);
     $v['source_errors'] = aio_cgi_source_errors_of($s['source_errors']);
+    $v['cat_logo'] = aio_cgi_cat_logo_of($s['cat_logo']);
     $v['no_torrents'] = aio_cgi_no_torrents_of($s['no_torrents']);
     $v['cat_rows'] = aio_cgi_cat_rows_of($s['cat_rows']);
     $v['servers'] = $s['servers'];
@@ -301,6 +302,12 @@ function aio_cgi_check_values($v)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Ошибки источников: нет такого ответа', 'Source errors: no such answer'),
             $f['source_errors']['name']);
+    }
+    $d[$set['cat_logo']] = $v['cat_logo'] === aio_cgi_cat_logo_of(true);
+    if (!array_key_exists($v['cat_logo'], aio_cgi_cat_logo()))
+    {
+        $errors[] = aio_cgi_err(aio_cgi_l('Логотип фильма вместо названия: нет такого ответа',
+            'Film logo in place of the title: no such answer'), $f['cat_logo']['name']);
     }
     $d[$set['cat_rows']] = aio_cat_rows_ok(explode(' ', $v['cat_rows']));
     return array($d, $errors);
