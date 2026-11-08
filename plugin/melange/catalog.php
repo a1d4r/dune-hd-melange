@@ -35,6 +35,14 @@ define('AIO_CAT_STATE_TTL', 18000);
 // only comes twice (repeats are dropped), a step over the page would silently skip
 // results. Not fitted to the engine on purpose.
 define('AIO_CAT_SEARCH_PAGE', 20);
+// A search gets this many tiles of a type, if there are: a row of the screen
+// (AIO_CATV_ROW_TILES of view_catalog.php) and one more, so its tile "Show all" is
+// there only when there is more. A short page is not the end, so one page is not enough.
+define('AIO_CAT_SEARCH_TILES', 21);
+// s from the start of a search after which no pages past the first are asked: a page
+// takes 0.2-1.9 s, the first pages keep AIO_CAT_TOTAL each, so the worst case of a
+// search stays that of its first pages alone.
+define('AIO_CAT_SEARCH_WAIT', 10);
 
 // Cache in data_dir/catalog: a failure right after a reboot has it too, tmp_dir
 // (RAM) would not. Fresh for 1 h: the manifest and first pages are not asked
@@ -742,18 +750,23 @@ function aio_cat_query($q)
     return mb_substr(aio_one_line($q), 0, AIO_CAT_QUERY_MAX, 'UTF-8');
 }
 
-// Search by $q in movies and series: by type, its listing after the first page and the
-// result of it (aio_cat_more); $names: by type, the name of its row. Search of anime
-// does not find Russian names, so it is not asked. An empty query: nothing asked,
-// nothing found.
+// Search by $q in movies and series: by type, its listing after the pages got and the
+// result of them (aio_cat_more): the first page, then pages further on until
+// AIO_CAT_SEARCH_TILES tiles or the end, while $wait s from the start of the search
+// last. None past a failure or the copy (stale) of the first page; a failure further
+// on: err, the tiles before it stay, not the end. $names: by type, the name of its
+// row. Search of anime does not find Russian names, so it is not asked. An empty
+// query: nothing asked, nothing found.
 /**
  * @param string $q
  * @param array{movie: string, series: string} $names
+ * @param float $wait
  * @return array<string, array{st: AioCatState, res: AioCatResult}>
  */
-function aio_cat_search($q, $names)
+function aio_cat_search($q, $names, $wait = AIO_CAT_SEARCH_WAIT)
 {
     $q = aio_cat_query($q);
+    $start = microtime(true);
     $found = array();
     foreach ($q !== '' ? $names : array() as $type => $name)
     {
@@ -762,6 +775,20 @@ function aio_cat_search($q, $names)
             continue;
         $st = aio_cat_row_state($row);
         $res = aio_cat_more($st, AIO_CAT_TOTAL);
+        while (!$res['stale'] && $res['err'] === '' && $st['end'] === '' && count($res['tiles']) < AIO_CAT_SEARCH_TILES)
+        {
+            $left = $wait - (microtime(true) - $start);
+            if ($left <= 0)
+                break;
+            $more = aio_cat_more($st, $left);
+            // The listing began anew (the clock jumped): its tiles are all there is.
+            if ($more['reset'])
+                $res['tiles'] = $more['tiles'];
+            else
+                $res['tiles'] = array_merge($res['tiles'], $more['tiles']);
+            $res['end'] = $more['end'];
+            $res['err'] = $more['err'];
+        }
         $found[$type] = array('st' => $st, 'res' => $res);
     }
     return $found;
