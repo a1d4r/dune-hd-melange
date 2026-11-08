@@ -53,6 +53,8 @@ define('AIO_CAT_MANIFEST_KEY', 'manifest');
 define('AIO_CAT_NAME_MAX', 200);
 define('AIO_CAT_DESC_MAX', 1200);
 define('AIO_CAT_URL_MAX', 1000);
+// A TMDB address in the URLs of the tiles (the logo, the fanart of the card backgrounds, aio_catv_card).
+define('AIO_CAT_TMDB', 'https://image\.tmdb\.org/t/p/[a-z0-9_]+/');
 define('AIO_CAT_GENRES_MAX', 8);
 define('AIO_CAT_CAST_MAX', 3);
 define('AIO_CAT_QUERY_MAX', 100);
@@ -417,9 +419,10 @@ function aio_cat_runtime_min($r)
 // patch too: the rating "7.9" ('' for none, 0, over 10 or under AIO_CAT_KP_VOTES_MIN votes),
 // its votes (0 for none), the id of Kinopoisk (digits, '' for none). kpVotes is kept for the
 // threshold when a copy of the cache is parsed again (aio_cat_tiles): without it the rating goes.
-// logo, logoLang, logoW, logoH: of our patch too, the logo of the title in place of its name: kept
-// only of "ru" with the size of the TMDB original (whole numbers), its address https, the plain
-// characters of a path, a PNG; else none ('', '', 0, 0): another language, null, no size.
+// logo, logoLang: of our patch too, the logo of the title in place of its name (the card background of
+// the server, aio_catv_card, sizes it): kept only of "ru", its address https, the plain characters of
+// a path, ending in a file of TMDB, PNG or SVG (the server takes an SVG as its PNG of TMDB); else none
+// ('', ''): another language, null, not of TMDB.
 // Run again on what the cache holds (age, cast: its own keys; a copy of before them: '' and
 // none): the same result.
 /**
@@ -470,10 +473,9 @@ function aio_cat_tile($m, $row_type)
     if (!isset($extras['certifications']))
         $age = aio_str($m, 'age');
     $logo = aio_str($m, 'logo');
-    $lw = aio_str($m, 'logoW');
-    $lh = aio_str($m, 'logoH');
-    $ru = aio_str($m, 'logoLang') === 'ru' && preg_match('/^[1-9][0-9]{0,4}$/D', $lw) && preg_match('/^[1-9][0-9]{0,4}$/D', $lh) &&
-        strlen($logo) <= AIO_CAT_URL_MAX && preg_match('~^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[A-Za-z0-9._/%:+-]*\.png$~D', $logo);
+    $ru = aio_str($m, 'logoLang') === 'ru' && strlen($logo) <= AIO_CAT_URL_MAX &&
+        preg_match('~^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[A-Za-z0-9._/%:+-]*$~D', $logo) &&
+        preg_match('~(^|/)' . AIO_CAT_TMDB . '[A-Za-z0-9]{10,40}\.(png|svg)$~D', $logo);
     $cast = array();
     foreach (isset($extras['cast']) ? aio_arr($extras, 'cast') : aio_arr($m, 'cast') as $c)
     {
@@ -489,7 +491,7 @@ function aio_cat_tile($m, $row_type)
         'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast,
         'englishTitle' => aio_cut(aio_one_line(aio_str($m, 'englishTitle')), AIO_CAT_NAME_MAX),
         'kpRating' => $kp, 'kpVotes' => $votes, 'kpId' => preg_match('/^[1-9][0-9]{0,9}$/D', $kp_id) ? $kp_id : '',
-        'logo' => $ru ? $logo : '', 'logoLang' => $ru ? 'ru' : '', 'logoW' => $ru ? intval($lw) : 0, 'logoH' => $ru ? intval($lh) : 0);
+        'logo' => $ru ? $logo : '', 'logoLang' => $ru ? 'ru' : '');
 }
 
 // Items of a page -> the tiles among them; what is not a tile is dropped.

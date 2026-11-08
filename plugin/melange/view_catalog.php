@@ -90,11 +90,14 @@ define('AIO_CATV_BG_SIZE', 'w1280');
 define('AIO_CATV_PANE_X', 100);
 define('AIO_CATV_CARD_X', 130);
 define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
-// Our pictures of the panel, img/cat<N>_*.png: N goes up when they change, as the shell keeps a
-// picture by its URL even across a reinstall. The mask: of the shell, but darker to the right, so
-// the text column (TEXT_W) stays on the dark whatever the background; mask_full: the same on
-// vod_r of the whole screen, at (640, 0), black around it.
+// Our pictures of the panel, img/cat<N>_*: N goes up when they change, as the shell keeps a
+// picture by its URL even across a reinstall (plugins/melange_catalog_img.py of the kitchen). The
+// mask: of the shell, but darker to the right, so the text column (TEXT_W) stays on the dark
+// whatever the background; card0.jpg: the dark background of vod_r of the whole screen without a
+// card background (aio_catv_card).
 define('AIO_CATV_IMG', 'plugin_file://img/cat2_');
+// The card backgrounds of the server: <base>/<CARD>... (aio_catv_card).
+define('AIO_CATV_CARD', 'poster-cache/card/v1/');
 // The strip on top of the main screen, as the native top menu: the tabs "Movies" and "Series"
 // (rows by their type), the icons of search and settings of the shell. The id of its row; the
 // ids of its parts are "tab_<x>", no ':' (an id with one is a tile). A part in focus far right
@@ -339,32 +342,34 @@ function aio_catv_pane_r($titles)
         'vod_r' => $on ? array('w' => 1920, 'h' => 1080, 'x' => 0, 'y' => 0) : array('w' => 1280, 'h' => 720, 'x' => 640, 'y' => 0));
 }
 
-// The background of the panel of tile $t (null: none, "Show all") and its mask, and whether it has the
-// logo in place of the title, in the mode $on of the id (aio_catv_id_mode). cat_logo off: the fanart (aio_catv_background) on the right under our
+// The background of the panel of tile $t (null: none, "Show all"), the one while it loads or if it
+// fails (nl_bg_url), its mask, and whether it has the logo in place of the title, in the mode $on of
+// the id (aio_catv_id_mode). cat_logo off: the fanart (aio_catv_background) on the right under our
 // mask. On: the card background of the server, the fanart, our mask and the logo in one picture of the
 // screen, so the panel comes with all of it at once (the shell switches the panel once the background
 // has loaded, its pictures load after: experiments/bg_probe of the kitchen). Of the cache of
 // backgrounds of the server only, <base>/poster-cache/background/<TMDB address>: the card is
-// <base>/poster-cache/card/v1/[<s|n>/<logo>/]<fanart>, TMDB file names; s: the English name under
-// the logo ($sub), n: none. The logo: the Russian one aio_cat_tile kept, of TMDB. No such fanart
-// (none, another server, not of TMDB) or no tile: bg0.jpg of the shell under mask_full.
+// <base>/AIO_CATV_CARD[<s|n>/<logo>/]<fanart>, TMDB file names; s: the English name under the
+// logo ($sub), n: none. The logo: the Russian one aio_cat_tile kept. No such fanart (none, another
+// server, not of TMDB) or no tile: our dark card0.jpg, no mask; the same while a card loads.
 /**
  * @param AioCatTile|null $t
  * @param bool $sub
  * @param bool $on
- * @return array{bg: string, mask: string|null, logo: bool}
+ * @return array{bg: string, nl: string|null, mask: string|null, logo: bool}
  */
 function aio_catv_card($t, $sub, $on)
 {
     if (!$on)
-        return array('bg' => $t ? aio_catv_background($t) : AIO_CATV_ICONS . 'bg0.jpg', 'mask' => AIO_CATV_IMG . 'mask.png', 'logo' => false);
-    $tmdb = 'https://image\.tmdb\.org/t/p/[a-z0-9_]+/';
-    if (!$t || !preg_match("~^(https?://[^\\s?#]+?)/poster-cache/background/$tmdb([A-Za-z0-9]{10,40}\\.jpg)$~D", $t['background'], $f))
-        return array('bg' => AIO_CATV_ICONS . 'bg0.jpg', 'mask' => AIO_CATV_IMG . 'mask_full.png', 'logo' => false);
-    $logo = preg_match("~(^|/)$tmdb([A-Za-z0-9]{10,40}\\.png)$~D", $t['logo'], $l) && $t['logoLang'] === 'ru' &&
-        $t['logoW'] > 0 && $t['logoH'] > 0 ? $l[2] : '';
+        return array('bg' => $t ? aio_catv_background($t) : AIO_CATV_ICONS . 'bg0.jpg', 'nl' => null, 'mask' => AIO_CATV_IMG . 'mask.png',
+            'logo' => false);
+    $none = AIO_CATV_IMG . 'card0.jpg';
+    if (!$t || !preg_match('~^(https?://[^\s?#]+?)/poster-cache/background/' . AIO_CAT_TMDB . '([A-Za-z0-9]{10,40}\.jpg)$~D',
+        $t['background'], $f))
+        return array('bg' => $none, 'nl' => $none, 'mask' => null, 'logo' => false);
+    $logo = $t['logo'] !== '' ? basename($t['logo']) : '';
     $path = $logo !== '' ? ($sub ? 's' : 'n') . "/$logo/$f[2]" : $f[2];
-    return array('bg' => aio_img("$f[1]/poster-cache/card/v1/$path"), 'mask' => null, 'logo' => $logo !== '');
+    return array('bg' => aio_img("$f[1]/" . AIO_CATV_CARD . $path), 'nl' => $none, 'mask' => null, 'logo' => $logo !== '');
 }
 
 // --- What to give at an opening.
@@ -2087,7 +2092,7 @@ function aio_catv_info($in)
     $info = array(
         PluginRowsInfo::info_defs => array($pane),
         PluginRowsInfo::bg_url => $card['bg'],
-        PluginRowsInfo::nl_bg_url => null,
+        PluginRowsInfo::nl_bg_url => $card['nl'],
         PluginRowsInfo::mask_url => $card['mask'],
         PluginRowsInfo::bg_poster_mode => false,
         PluginRowsInfo::playback_urls => null,
