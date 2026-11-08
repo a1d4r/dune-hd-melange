@@ -22,6 +22,10 @@ The catalog has rows of collections with up to 20 posters each; the last tile, *
 
 On the settings page on your phone, in the **Catalog rows** section, there are about 180 rows in two parts, switched at the top (Movies | Series), each in groups (top, Russian, Russian services, genres, themes, studios, decades, years, streaming, countries, runtime, anime): tick the ones you want and order them with **Up** / **Down**; at least one row must stay in each part. The parts are the tabs of the catalog: rows of movies show on the Movies tab, rows of series and anime on Series. Rows are saved together with the other settings, so set up where to get films first. The new set shows the next time the catalog opens.
 
+## Logo in place of the title
+
+Above the rows, a movie with a Russian logo shows the logo instead of its title, as streaming services do. If the catalog lags or the cards take long to load, turn it off on the settings page: **Appearance** → **Film logo in place of the title**. The title is then shown as text and the Dune needs half the memory; it takes effect the next time the catalog opens.
+
 ## Search
 
 The magnifier on the strip on top or MENU → **Search** (or the search key, if your remote has one). Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.

@@ -8,6 +8,7 @@ The Melange settings screen on the Dune and the sections of the settings page on
 - [JacRed](#jacred)
 - [TorrServer](#torrserver)
 - [Catalog rows](#catalog-rows)
+- [Appearance](#appearance)
 - [Download to your server](#download-to-your-server)
 - [Advanced](#advanced)
 - [Backup](#backup)
@@ -67,6 +68,10 @@ When you need it: always with **Torrents** and for P2P releases of your own conf
 ## Catalog rows
 
 Which rows the Melange catalog shows and in what order: see [Catalog](catalog.en.md#rows).
+
+## Appearance
+
+The film logo in place of the title above the rows of the catalog: see [Catalog](catalog.en.md#logo-in-place-of-the-title).
 
 ## Download to your server
 
