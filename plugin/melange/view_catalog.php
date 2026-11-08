@@ -35,6 +35,8 @@ define('AIO_CATV_ALL_AHEAD', 9);
 define('AIO_CATV_ALL_TICK_MS', 1500);
 // The searches kept in memory: Back to the results of an older one, its tiles and "Show all" work.
 define('AIO_CATV_SEARCHES', 3);
+// The screens of rows whose cat_logo of the opening is kept (aio_catv_logo_of).
+define('AIO_CATV_SCREENS', 16);
 // The info panel, on the info_r of the native one (movie_helper.php of shell_ext), its colours
 // and sizes of text: a title in TEXT_W, one line as large as fits from TITLE_PX down to
 // TITLE_MIN_PX, else 2 lines of TITLE2_PX, its bottom at TITLE_BOTTOM (SUB_H higher over the
@@ -145,10 +147,13 @@ class AioCat
     // starts with it. Memory of php_server only, as the query is in no log and no file.
     /** @var string */
     public static $last_q = '';
-    // cat_logo of the settings at the last opening of a screen of rows (null: none since a restart of
-    // php_server, the settings then): vod_r of the screen is by it, so the panel takes it too.
+    // cat_logo of the screen of rows built or asked for now (aio_catv_logo_of; null: none yet, the
+    // settings): its vod_r and the ids of its tiles are by it.
     /** @var bool|null */
     public static $logo = null;
+    // cat_logo of the last AIO_CATV_SCREENS screens of rows at their openings, by media_url.
+    /** @var array<string, bool> */
+    public static $logo_of = array();
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -224,6 +229,33 @@ function aio_catv_list_copy($row, $c)
     return aio_catv_list($copy['st'], $copy['tiles'], false);
 }
 
+// The mode of the panel of an id of a tile or of "Show all" of a screen of rows: "c:" before it,
+// cat_logo on (the card background, vod_r of the whole screen), "f:" off (the fanart on the right).
+// The shell keeps the reply of rows_info by the id of the tile even across an exit and a new opening
+// of the screen (device, r25): without the mode in the id a tile seen before a change of cat_logo
+// would get the panel of the other vod_r. -> the mode, the id without it. No mode (an id of a
+// screen before 0.55.0, the vod_r on the right): off.
+/**
+ * @param string $id
+ * @return array{bool, string}
+ */
+function aio_catv_id_mode($id)
+{
+    if (strpos($id, 'c:') === 0 || strpos($id, 'f:') === 0)
+        return array($id[0] === 'c', strval(substr($id, 2)));
+    return array(false, $id);
+}
+
+// $id of a tile or of "Show all" with the mode of the screen (aio_catv_id_mode).
+/**
+ * @param string $id
+ * @return string
+ */
+function aio_catv_tile_id($id)
+{
+    return (aio_catv_logo_on() ? 'c:' : 'f:') . $id;
+}
+
 // The tile of an id of the screen, memory only, or null.
 /**
  * @param string $id
@@ -231,6 +263,7 @@ function aio_catv_list_copy($row, $c)
  */
 function aio_catv_tile($id)
 {
+    list(, $id) = aio_catv_id_mode($id);
     $p = explode(':', $id, 2);
     if (count($p) !== 2)
         return null;
@@ -262,13 +295,34 @@ function aio_catv_background($t)
     return $u !== '' ? $u : AIO_CATV_ICONS . 'bg0.jpg';
 }
 
-// cat_logo ("Логотип фильма вместо названия" of the page) of the screen of rows on the screen.
+// cat_logo ("Логотип фильма вместо названия" of the page) of the screen of rows built or asked for now.
 /**
  * @return bool
  */
 function aio_catv_logo_on()
 {
     return AioCat::$logo !== null ? AioCat::$logo : Aio::$settings['cat_logo'];
+}
+
+// cat_logo of the screen of rows $url: at its opening ($open, aio_catv_folder_view) of the settings,
+// later (get_folder_rows: the rows of "Show all" as it scrolls) the same as then, so all its tiles
+// are of the mode of its vod_r. A screen not among the last AIO_CATV_SCREENS (php_server restarted):
+// the settings now.
+/**
+ * @param string $url
+ * @param bool $open
+ * @return void
+ */
+function aio_catv_logo_of($url, $open)
+{
+    if ($open || !isset(AioCat::$logo_of[$url]))
+    {
+        unset(AioCat::$logo_of[$url]);
+        AioCat::$logo_of[$url] = Aio::$settings['cat_logo'];
+        if (count(AioCat::$logo_of) > AIO_CATV_SCREENS)
+            array_shift(AioCat::$logo_of);
+    }
+    AioCat::$logo = AioCat::$logo_of[$url];
 }
 
 // cat_logo on: vod_r of the whole screen (the card background is of it), else on the right as the
@@ -286,7 +340,7 @@ function aio_catv_pane_r($titles)
 }
 
 // The background of the panel of tile $t (null: none, "Show all") and its mask, and whether it has the
-// logo in place of the title. cat_logo off: the fanart (aio_catv_background) on the right under our
+// logo in place of the title, in the mode $on of the id (aio_catv_id_mode). cat_logo off: the fanart (aio_catv_background) on the right under our
 // mask. On: the card background of the server, the fanart, our mask and the logo in one picture of the
 // screen, so the panel comes with all of it at once (the shell switches the panel once the background
 // has loaded, its pictures load after: experiments/bg_probe of the kitchen). Of the cache of
@@ -297,11 +351,12 @@ function aio_catv_pane_r($titles)
 /**
  * @param AioCatTile|null $t
  * @param bool $sub
+ * @param bool $on
  * @return array{bg: string, mask: string|null, logo: bool}
  */
-function aio_catv_card($t, $sub)
+function aio_catv_card($t, $sub, $on)
 {
-    if (!aio_catv_logo_on())
+    if (!$on)
         return array('bg' => $t ? aio_catv_background($t) : AIO_CATV_ICONS . 'bg0.jpg', 'mask' => AIO_CATV_IMG . 'mask.png', 'logo' => false);
     $tmdb = 'https://image\.tmdb\.org/t/p/[a-z0-9_]+/';
     if (!$t || !preg_match("~^(https?://[^\\s?#]+?)/poster-cache/background/$tmdb([A-Za-z0-9]{10,40}\\.jpg)$~D", $t['background'], $f))
@@ -464,11 +519,11 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
     {
         $items = array();
         foreach (array_slice($list['tiles'], 0, AIO_CATV_ROW_TILES) as $t)
-            $items[] = aio_catv_item("$rid:{$t['id']}", $t['name'], aio_catv_poster($t));
+            $items[] = aio_catv_item(aio_catv_tile_id("$rid:{$t['id']}"), $t['name'], aio_catv_poster($t));
         if ($list['st']['end'] === '' || count($list['tiles']) > AIO_CATV_ROW_TILES)
         {
             // Of a search: and its id, as in cat_grid:.
-            $more = isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid";
+            $more = aio_catv_tile_id(isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid");
             $items[] = aio_catv_item($more, aio_tr($lang, 'cat_more'), AIO_CATV_ICONS . 'more.png');
         }
     }
@@ -616,6 +671,7 @@ function aio_catv_rows_op($in)
     $start = microtime(true);
     $ids = isset($in->row_ids) && is_array($in->row_ids) ? $in->row_ids : array();
     $url = aio_catv_in($in, 'media_url');
+    aio_catv_logo_of($url, false);
     if (strpos($url, 'cat_grid:') === 0)
         return array('rows' => aio_catv_all_rows($url, $ids));
     $id = isset($ids[0]) && is_string($ids[0]) ? $ids[0] : 'items:';
@@ -813,7 +869,6 @@ function aio_catv_rows_view($defs, $sel_state, $from)
     foreach ($defs as $def)
         $rows[] = $def;
     $rows[] = array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 80, PluginRow::inactive_height => 80);
-    AioCat::$logo = Aio::$settings['cat_logo'];
     // The strip of the row titles: on the main screen; not in a search of one row (device), of two not known.
     $r = aio_catv_pane_r($tab !== '');
     $pane = array(
@@ -908,6 +963,7 @@ function aio_catv_is_screen($media_url)
  */
 function aio_catv_folder_view($media_url, $sel_state)
 {
+    aio_catv_logo_of($media_url, true);
     if (strpos($media_url, 'cat_grid:') === 0)
         return aio_catv_all_ok() ? aio_catv_all_view($media_url, $sel_state) : aio_catv_grid_view($media_url);
     if (strpos($media_url, 'cat_search:') === 0)
@@ -1288,7 +1344,7 @@ function aio_catv_grid_item($rid, $t, $lang)
         array(implode(', ', $g[0]), $g[1], aio_error_cut($t['description'], AIO_CATV_DESC_CHARS)));
     $text = implode(' · ', array_filter($parts, 'strlen'));
     return array(
-        PluginRegularFolderItem::media_url => "$rid:{$t['id']}",
+        PluginRegularFolderItem::media_url => aio_catv_tile_id("$rid:{$t['id']}"),
         PluginRegularFolderItem::caption => $t['name'],
         PluginRegularFolderItem::view_item_params => array(
             ViewItemParams::icon_path => $icon,
@@ -1363,6 +1419,7 @@ function aio_catv_fill(&$list, $rid, $want, $budget, $start)
  */
 function aio_catv_more_url($id)
 {
+    list(, $id) = aio_catv_id_mode($id);
     return strpos($id, 'more:') === 0 ? 'cat_grid:' . substr($id, strlen('more:')) : '';
 }
 
@@ -1549,7 +1606,7 @@ function aio_catv_all_row($rid, $k, $list)
 {
     $items = array();
     foreach (array_slice($list['tiles'], AIO_CATV_ALL_COLS * $k, AIO_CATV_ALL_COLS) as $t)
-        $items[] = aio_catv_item("$rid:{$t['id']}", $t['name'], aio_catv_poster($t));
+        $items[] = aio_catv_item(aio_catv_tile_id("$rid:{$t['id']}"), $t['name'], aio_catv_poster($t));
     return aio_catv_all_def("row$k", $items);
 }
 
@@ -1597,7 +1654,6 @@ function aio_catv_all_actions($url, $stubs)
 function aio_catv_all_pane($rows, $dup, $sel_state, $url)
 {
     array_unshift($rows, array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 20, PluginRow::id => 'top_vgap'));
-    AioCat::$logo = Aio::$settings['cat_logo'];
     $r = aio_catv_pane_r(false);
     $pane = array(
         PluginRowsPane::rows => $rows,
@@ -1985,7 +2041,8 @@ function aio_catv_info($in)
     // Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
     $sub = implode(' ', aio_gc_wrap(aio_clean($sub), AIO_CATV_SUB_MIN_PX, AIO_CATV_TEXT_W, 2, true));
     $bottom = AIO_CATV_TITLE_BOTTOM - ($sub !== '' ? AIO_CATV_SUB_H : 0);
-    $card = aio_catv_card($t, $sub !== '');
+    list($on) = aio_catv_id_mode($id);
+    $card = aio_catv_card($t, $sub !== '', $on);
     if ($name !== '' && !$card['logo'])
         $labels[] = aio_catv_title_label($name, $bottom);
     if ($sub !== '')
