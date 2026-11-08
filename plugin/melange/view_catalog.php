@@ -96,7 +96,7 @@ define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 // Our pictures of the panel, img/cat<N>_*.png: N goes up when they change, as the shell keeps a
 // picture by its URL even across a reinstall. The mask: of the shell, but darker to the right, so
 // the text column (TEXT_W) stays on the dark whatever the background.
-define('AIO_CATV_IMG', 'plugin_file://img/cat1_');
+define('AIO_CATV_IMG', 'plugin_file://img/cat2_');
 // The strip on top of the main screen, as the native top menu: the tabs "Movies" and "Series"
 // (rows by their type), the icons of search and settings of the shell. The id of its row; the
 // ids of its parts are "tab_<x>", no ':' (an id with one is a tile). A part in focus far right
