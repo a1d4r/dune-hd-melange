@@ -50,7 +50,7 @@ define('AIO_CATV_TITLE_PX', 88);
 define('AIO_CATV_TITLE_MIN_PX', 60);
 define('AIO_CATV_TITLE2_PX', 48);
 define('AIO_CATV_TITLE_H', 120);
-// TITLE_BOTTOM: PANE_Y + 216 = 256 is the bottom of the logo of a card "n": baked into card/v1 (AIO_CATV_CARD).
+// TITLE_BOTTOM: PANE_Y + 216 = 256 is the bottom of the logo of a card: baked into card/v1 (AIO_CATV_CARD).
 define('AIO_CATV_TITLE_BOTTOM', 216);
 define('AIO_CATV_LINES_Y', 229);
 define('AIO_CATV_LINE_PX', 30);
@@ -79,7 +79,7 @@ define('AIO_CATV_REST_GAP', 18);
 define('AIO_CATV_AGE_GAP', 16);
 // The English name under the title (info_ntitle of movie_helper.php): 36 px down to 20, 2 lines.
 define('AIO_CATV_SUB_PX', 36);
-// SUB_H: 256 - 46 = 210 is the bottom of the logo of a card "s": baked into card/v1 (AIO_CATV_CARD).
+// SUB_H: the height of the English name under a title of text.
 define('AIO_CATV_SUB_H', 46);
 define('AIO_CATV_SUB_MIN_PX', 20);
 define('AIO_CATV_SUB_COLOR', '#FF808080');
@@ -101,10 +101,10 @@ define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 // whatever the background; card0.jpg: the dark background of vod_r of the whole screen without a
 // card background (aio_catv_card). cat2_mask.png: baked into card/v1 (AIO_CATV_CARD).
 define('AIO_CATV_IMG', 'plugin_file://img/cat2_');
-// The card backgrounds of the server: <base>/<CARD>... (aio_catv_card). Its layout - the logo at
-// CARD_X, its bottom at PANE_Y + TITLE_BOTTOM (256) or SUB_H higher (210), the mask cat2_mask.png -
-// is baked into card/v1 of the server (addon/lib/posterCache/card.ts of the fork of AIOMetadata):
-// a change = v2 in the path and in card.ts.
+// The card backgrounds of the server: <base>/<CARD>... (aio_catv_card). Its layout - the logo up to
+// 780x200 at CARD_X, its bottom at PANE_Y + TITLE_BOTTOM (256), the mask cat2_mask.png - is baked
+// into card/v1 of the server (addon/lib/posterCache/card.ts of the fork of AIOMetadata): a change
+// after a release of the plugin = v2 in the path and in card.ts.
 define('AIO_CATV_CARD', 'poster-cache/card/v1/');
 // The strip on top of the main screen, as the native top menu: the tabs "Movies" and "Series"
 // (rows by their type), the icons of search and settings of the shell. The id of its row; the
@@ -357,16 +357,15 @@ function aio_catv_pane_r($titles)
 // screen, so the panel comes with all of it at once (the shell switches the panel once the background
 // has loaded, its pictures load after: experiments/bg_probe of the kitchen). Of the cache of
 // backgrounds of the server only, <base>/poster-cache/background/<TMDB address>: the card is
-// <base>/AIO_CATV_CARD[<s|n>/<logo>/]<fanart>, TMDB file names; s: the English name under the
-// logo ($sub), n: none. The logo: the Russian one aio_cat_tile kept. No such fanart (none, another
+// <base>/AIO_CATV_CARD[n/<logo>/]<fanart>, TMDB file names; n: no English name under the logo.
+// The logo: the Russian one aio_cat_tile kept. No such fanart (none, another
 // server, not of TMDB) or no tile: our dark card0.jpg, no mask; the same while a card loads.
 /**
  * @param AioCatTile|null $t
- * @param bool $sub
  * @param bool $on
  * @return array{bg: string, nl: string|null, mask: string|null, logo: bool}
  */
-function aio_catv_card($t, $sub, $on)
+function aio_catv_card($t, $on)
 {
     if (!$on)
         return array('bg' => $t ? aio_catv_background($t) : AIO_CATV_ICONS . 'bg0.jpg', 'nl' => null, 'mask' => AIO_CATV_IMG . 'mask.png',
@@ -376,7 +375,7 @@ function aio_catv_card($t, $sub, $on)
         $t['background'], $f))
         return array('bg' => $none, 'nl' => $none, 'mask' => null, 'logo' => false);
     $logo = $t['logo'] !== '' ? basename($t['logo']) : '';
-    $path = $logo !== '' ? ($sub ? 's' : 'n') . "/$logo/$f[2]" : $f[2];
+    $path = $logo !== '' ? "n/$logo/$f[2]" : $f[2];
     return array('bg' => aio_img("$f[1]/" . AIO_CATV_CARD . $path), 'nl' => $none, 'mask' => null, 'logo' => $logo !== '');
 }
 
@@ -2016,9 +2015,9 @@ function aio_catv_title_label($name, $bottom)
 
 // The panel on the coordinates of the native one (movie_helper.php, the same info_r), 30 px lower,
 // nearer the rows: the title (aio_catv_title_label), none when the background has the logo in its
-// place (aio_catv_card); the English name of the tile under it when it is not the title (native_title
-// of dunemdb_cache.php: of a title not in English, as those of the catalog are in any interface), the
-// title higher by its height. Then the facts, the genres and the
+// place (aio_catv_card); without the logo, the English name of the tile under the title when it is not
+// the title (native_title of dunemdb_cache.php: of a title not in English, as those of the catalog are
+// in any interface), the title higher by its height. Then the facts, the genres and the
 // country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the description 13 px under the last
 // one, as many lines as the rest of the panel holds, as the native one counts them. No line for an
 // empty field, the next ones go up.
@@ -2056,11 +2055,13 @@ function aio_catv_info($in)
         return null;
     $labels = array();
     $name = aio_clean($name);
+    list($on) = aio_catv_id_mode($id);
+    $card = aio_catv_card($t, $on);
+    if ($card['logo'])
+        $sub = '';
     // Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
     $sub = implode(' ', aio_gc_wrap(aio_clean($sub), AIO_CATV_SUB_MIN_PX, AIO_CATV_TEXT_W, 2, true));
     $bottom = AIO_CATV_TITLE_BOTTOM - ($sub !== '' ? AIO_CATV_SUB_H : 0);
-    list($on) = aio_catv_id_mode($id);
-    $card = aio_catv_card($t, $sub !== '', $on);
     if ($name !== '' && !$card['logo'])
         $labels[] = aio_catv_title_label($name, $bottom);
     if ($sub !== '')
