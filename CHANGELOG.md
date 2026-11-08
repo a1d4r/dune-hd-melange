@@ -2,7 +2,7 @@
 
 **English version**
 
-## 0.55.1 — 08.11.2026
+## 0.55.1 — 09.11.2026
 - **Continue Watching goes on to the next episode.** If you watched an episode to the end, **Continue Watching** now starts the next one from the beginning, on the same release and the same way (Debrid or TorrServer), not the episode you have already seen. If the release does not have the next episode, its list opens to choose another release. After the last episode of the series, the list of the first one opens.
 - **The card button opens the list on your release.** The Melange button on the card of a series now opens the list with the cursor on the release you watched, not on the first row: of the same episode, or of the next one if you watched it to the end.
 
@@ -190,7 +190,7 @@ First public release. What it does:
 
 **Russian version**
 
-## 0.55.1 — 08.11.2026
+## 0.55.1 — 09.11.2026
 - **«Продолжить просмотр» переходит к следующей серии.** Если серию досмотрели до конца, «Продолжить просмотр» теперь включает следующую с начала, на той же раздаче и тем же способом (Debrid или TorrServer), а не уже просмотренную. Если в раздаче следующей серии нет, откроется её список — выберите другую раздачу. После последней серии сериала откроется список первой.
 - **Кнопка в карточке открывает список на вашей раздаче.** Кнопка Melange в карточке сериала теперь открывает список с курсором на раздаче, которую вы смотрели, а не на первой строке: той же серии или следующей, если серию досмотрели.
 
