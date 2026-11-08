@@ -82,20 +82,16 @@ define('AIO_CATV_SUB_COLOR', '#FF808080');
 define('AIO_CATV_DESC_CHARS', 360);
 // The TMDB size of a background; w780 if the shell runs short of memory.
 define('AIO_CATV_BG_SIZE', 'w1280');
-// The logo of a title in place of its name (aio_catv_logo): of TMDB size w<LOGO_SIZE_W>, at most as wide;
-// shown by area, as logos of one weight: LOGO_AREA px at most in LOGO_W x LOGO_H, left, its bottom
-// at the bottom of the title. The fallback (aio_catv_title_labels) needs copies of it as wide as
-// TEXT_W, LOGO_COPIES at most; their alpha (not 0: whether 0 loads it is not known).
-define('AIO_CATV_LOGO_SIZE_W', 500);
-define('AIO_CATV_LOGO_AREA', 50000);
-define('AIO_CATV_LOGO_W', 780);
-define('AIO_CATV_LOGO_H', 150);
-define('AIO_CATV_LOGO_COPIES', 4);
-define('AIO_CATV_LOGO_HIDDEN_ALPHA', 1);
+// The panel: x of info_r. The strip of the row titles (the main screen) moves it to the right by 30,
+// to CARD_X, where the card background of the server has the logo (aio_catv_card); a screen
+// without the strip (search, "Show all") with the card background: info_r at CARD_X itself.
+define('AIO_CATV_PANE_X', 100);
+define('AIO_CATV_CARD_X', 130);
 define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 // Our pictures of the panel, img/cat<N>_*.png: N goes up when they change, as the shell keeps a
 // picture by its URL even across a reinstall. The mask: of the shell, but darker to the right, so
-// the text column (TEXT_W) stays on the dark whatever the background.
+// the text column (TEXT_W) stays on the dark whatever the background; mask_full: the same on
+// vod_r of the whole screen, at (640, 0), black around it.
 define('AIO_CATV_IMG', 'plugin_file://img/cat2_');
 // The strip on top of the main screen, as the native top menu: the tabs "Movies" and "Series"
 // (rows by their type), the icons of search and settings of the shell. The id of its row; the
@@ -149,6 +145,10 @@ class AioCat
     // starts with it. Memory of php_server only, as the query is in no log and no file.
     /** @var string */
     public static $last_q = '';
+    // cat_logo of the settings at the last opening of a screen of rows (null: none since a restart of
+    // php_server, the settings then): vod_r of the screen is by it, so the panel takes it too.
+    /** @var bool|null */
+    public static $logo = null;
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -262,26 +262,54 @@ function aio_catv_background($t)
     return $u !== '' ? $u : AIO_CATV_ICONS . 'bg0.jpg';
 }
 
-// The logo of a tile in place of its name, or null: none (aio_cat_tile keeps only a Russian one with
-// its size), not of TMDB, too narrow for the fallback. url: at LOGO_SIZE_W; w, h: the size it is shown
-// at; copies: of the fallback, of LOGO_SIZE_W or the width of the original if narrower.
+// cat_logo ("Логотип фильма вместо названия" of the page) of the screen of rows on the screen.
 /**
- * @param AioCatTile $t
- * @return array{url: string, w: int, h: int, copies: int}|null
+ * @return bool
  */
-function aio_catv_logo($t)
+function aio_catv_logo_on()
 {
-    if ($t['logo'] === '' || $t['logoW'] <= 0 || $t['logoH'] <= 0)
-        return null;
-    $n = 0;
-    $u = aio_img(strval(preg_replace('~/t/p/[a-z0-9_]+/~', '/t/p/w' . AIO_CATV_LOGO_SIZE_W . '/', $t['logo'], 1, $n)));
-    $copies = (int) ceil(AIO_CATV_TEXT_W / min($t['logoW'], AIO_CATV_LOGO_SIZE_W));
-    if (!$n || $u === '' || $copies > AIO_CATV_LOGO_COPIES)
-        return null;
-    $w = $t['logoW'];
-    $h = $t['logoH'];
-    $k = min(sqrt(AIO_CATV_LOGO_AREA / ($w * $h)), AIO_CATV_LOGO_W / $w, AIO_CATV_LOGO_H / $h);
-    return array('url' => $u, 'w' => max(1, (int) round($w * $k)), 'h' => max(1, (int) round($h * $k)), 'copies' => $copies);
+    return AioCat::$logo !== null ? AioCat::$logo : Aio::$settings['cat_logo'];
+}
+
+// cat_logo on: vod_r of the whole screen (the card background is of it), else on the right as the
+// native one. The panel at PANE_X, at CARD_X on a screen without the strip of the row titles ($titles).
+/**
+ * @param bool $titles
+ * @return array{info_r: array{w: int, h: int, x: int, y: int}, vod_r: array{w: int, h: int, x: int, y: int}}
+ */
+function aio_catv_pane_r($titles)
+{
+    $on = aio_catv_logo_on();
+    return array('info_r' => array('w' => AIO_CATV_PANE_W, 'h' => AIO_CATV_PANE_H,
+            'x' => $on && !$titles ? AIO_CATV_CARD_X : AIO_CATV_PANE_X, 'y' => 40),
+        'vod_r' => $on ? array('w' => 1920, 'h' => 1080, 'x' => 0, 'y' => 0) : array('w' => 1280, 'h' => 720, 'x' => 640, 'y' => 0));
+}
+
+// The background of the panel of tile $t (null: none, "Show all") and its mask, and whether it has the
+// logo in place of the title. cat_logo off: the fanart (aio_catv_background) on the right under our
+// mask. On: the card background of the server, the fanart, our mask and the logo in one picture of the
+// screen, so the panel comes with all of it at once (the shell switches the panel once the background
+// has loaded, its pictures load after: experiments/bg_probe of the kitchen). Of the cache of
+// backgrounds of the server only, <base>/poster-cache/background/<TMDB address>: the card is
+// <base>/poster-cache/card/v1/[<s|n>/<logo>/]<fanart>, TMDB file names; s: the English name under
+// the logo ($sub), n: none. The logo: the Russian one aio_cat_tile kept, of TMDB. No such fanart
+// (none, another server, not of TMDB) or no tile: bg0.jpg of the shell under mask_full.
+/**
+ * @param AioCatTile|null $t
+ * @param bool $sub
+ * @return array{bg: string, mask: string|null, logo: bool}
+ */
+function aio_catv_card($t, $sub)
+{
+    if (!aio_catv_logo_on())
+        return array('bg' => $t ? aio_catv_background($t) : AIO_CATV_ICONS . 'bg0.jpg', 'mask' => AIO_CATV_IMG . 'mask.png', 'logo' => false);
+    $tmdb = 'https://image\.tmdb\.org/t/p/[a-z0-9_]+/';
+    if (!$t || !preg_match("~^(https?://[^\\s?#]+?)/poster-cache/background/$tmdb([A-Za-z0-9]{10,40}\\.jpg)$~D", $t['background'], $f))
+        return array('bg' => AIO_CATV_ICONS . 'bg0.jpg', 'mask' => AIO_CATV_IMG . 'mask_full.png', 'logo' => false);
+    $logo = preg_match("~(^|/)$tmdb([A-Za-z0-9]{10,40}\\.png)$~D", $t['logo'], $l) && $t['logoLang'] === 'ru' &&
+        $t['logoW'] > 0 && $t['logoH'] > 0 ? $l[2] : '';
+    $path = $logo !== '' ? ($sub ? 's' : 'n') . "/$logo/$f[2]" : $f[2];
+    return array('bg' => aio_img("$f[1]/poster-cache/card/v1/$path"), 'mask' => null, 'logo' => $logo !== '');
 }
 
 // --- What to give at an opening.
@@ -785,6 +813,9 @@ function aio_catv_rows_view($defs, $sel_state, $from)
     foreach ($defs as $def)
         $rows[] = $def;
     $rows[] = array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 80, PluginRow::inactive_height => 80);
+    AioCat::$logo = Aio::$settings['cat_logo'];
+    // The strip of the row titles: on the main screen; not in a search of one row (device), of two not known.
+    $r = aio_catv_pane_r($tab !== '');
     $pane = array(
         PluginRowsPane::rows => $rows,
         'row_dup_map' => null,
@@ -805,8 +836,8 @@ function aio_catv_rows_view($defs, $sel_state, $from)
         PluginRowsPane::screen_r => array('w' => 1920, 'h' => 1080, 'x' => 0, 'y' => 0),
         PluginRowsPane::screen_y2 => 600,
         PluginRowsPane::min_row_index_for_y2 => $y2_index,
-        PluginRowsPane::info_r => array('w' => AIO_CATV_PANE_W, 'h' => AIO_CATV_PANE_H, 'x' => 100, 'y' => 40),
-        PluginRowsPane::vod_r => array('w' => 1280, 'h' => 720, 'x' => 640, 'y' => 0),
+        PluginRowsPane::info_r => $r['info_r'],
+        PluginRowsPane::vod_r => $r['vod_r'],
         PluginRowsPane::regular_item_params_templates => array('common' => aio_catv_item_tpl(array(3, 3, 3, 4))));
     return array(
         PluginFolderView::multiple_views_supported => false,
@@ -1566,6 +1597,8 @@ function aio_catv_all_actions($url, $stubs)
 function aio_catv_all_pane($rows, $dup, $sel_state, $url)
 {
     array_unshift($rows, array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 20, PluginRow::id => 'top_vgap'));
+    AioCat::$logo = Aio::$settings['cat_logo'];
+    $r = aio_catv_pane_r(false);
     $pane = array(
         PluginRowsPane::rows => $rows,
         'row_dup_map' => $dup,
@@ -1586,8 +1619,8 @@ function aio_catv_all_pane($rows, $dup, $sel_state, $url)
         PluginRowsPane::screen_r => array('w' => 1920, 'h' => 1080, 'x' => 0, 'y' => 0),
         PluginRowsPane::screen_y2 => 600,
         PluginRowsPane::min_row_index_for_y2 => 0,
-        PluginRowsPane::info_r => array('w' => AIO_CATV_PANE_W, 'h' => AIO_CATV_PANE_H, 'x' => 100, 'y' => 40),
-        PluginRowsPane::vod_r => array('w' => 1280, 'h' => 720, 'x' => 640, 'y' => 0),
+        PluginRowsPane::info_r => $r['info_r'],
+        PluginRowsPane::vod_r => $r['vod_r'],
         PluginRowsPane::up_arrow_dy => 0,
         PluginRowsPane::regular_item_params_templates => array('common' => aio_catv_item_tpl(array(8, 4, 4, 6))));
     return array(
@@ -1888,20 +1921,12 @@ function aio_catv_facts_labels($facts, $y)
 // The title, its box TITLE_H high as the native one with the bottom at $bottom: a line as large as
 // fits TEXT_W from TITLE_PX down to TITLE_MIN_PX; too long even so, 2 lines of TITLE2_PX, cut here
 // to them (the native box takes 2 lines of 45 px at least).
-// With a logo (aio_catv_logo) the logo, the name as text only if it does not load (the shell tells
-// the plugin nothing of it): in a clipping panel LOGO_H high, copies of the logo of their own size,
-// hidden, one right of the other, the name right of them, the logo on top. Loaded, the copies push
-// the name past the panel; not, or still loading, they are 0 wide and the name is in its place
-// (card_probe t8-t10 on the device, 07.11.2026). The ids of the panel and the logo are of the
-// tile $tid, as in the probe (logo_t8): another tile, another component.
 /**
  * @param string $name
  * @param int $bottom
- * @param array{url: string, w: int, h: int, copies: int}|null $logo
- * @param string $tid
- * @return list<array<string, mixed>>
+ * @return array<string, mixed>
  */
-function aio_catv_title_labels($name, $bottom, $logo = null, $tid = '')
+function aio_catv_title_label($name, $bottom)
 {
     $spec = array(GCompTtfLabelDef::line_spacing => 0, GCompTtfLabelDef::valign => VALIGN_BOTTOM);
     if (aio_gc_w($name, AIO_CATV_TITLE_MIN_PX) <= AIO_CATV_TEXT_W)
@@ -1911,40 +1936,15 @@ function aio_catv_title_labels($name, $bottom, $logo = null, $tid = '')
         $fit = array(AIO_CATV_TITLE2_PX, implode(' ', aio_gc_wrap($name, AIO_CATV_TITLE2_PX, AIO_CATV_TEXT_W, 2, true)));
         $spec[GCompTtfLabelDef::max_num_lines] = 2;
     }
-    $label = aio_catv_info_label($fit[1], $fit[0], AIO_CATV_TITLE_COLOR, AIO_CATV_TEXT_W, AIO_CATV_TITLE_H, $bottom - AIO_CATV_TITLE_H,
+    return aio_catv_info_label($fit[1], $fit[0], AIO_CATV_TITLE_COLOR, AIO_CATV_TEXT_W, AIO_CATV_TITLE_H, $bottom - AIO_CATV_TITLE_H,
         $spec, GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
-    if (!$logo)
-        return array($label);
-    $kids = array();
-    // The first copy at the top of the title box (LOGO_H - TITLE_H): the name, right of the copies,
-    // top to top with them and TITLE_H high, then has its bottom at the bottom of the panel.
-    for ($i = 0; $i < $logo['copies']; $i++)
-    {
-        $c = aio_gc_image(aio_gc_geom(-1, -1, $i ? aio_gc_next_right(0) :
-            aio_gc_align(0, AIO_CATV_LOGO_H - AIO_CATV_TITLE_H, false, false, 0, 0, 0, 0, null)), $logo['url']);
-        unset($c[GComponentDef::specific_def][GCompImageDef::keep_aspect_ratio], $c[GComponentDef::specific_def][GCompImageDef::upscale_enabled]);
-        $c[GComponentDef::specific_def][GCompImageDef::alpha] = AIO_CATV_LOGO_HIDDEN_ALPHA;
-        $kids[] = $c;
-    }
-    $label[GComponentDef::geom_def][GCompGeometryDef::align_def] = aio_gc_next_right(0);
-    $kids[] = $label;
-    $img = aio_gc_image(aio_gc_at($logo['w'], $logo['h'], 0, AIO_CATV_LOGO_H - $logo['h']), $logo['url']);
-    $key = strval(preg_replace('/[^A-Za-z0-9_]/', '_', $tid));
-    $img[GComponentDef::id] = "logo_$key";
-    $img[GComponentDef::specific_def][GCompImageDef::keep_aspect_ratio] = false;
-    $kids[] = $img;
-    // A clipping panel: no GCOMP_OPT_NO_CLIP (aio_gc_panel with 0, its children typed as ours).
-    return array(array(
-        GComponentDef::id => "title_$key",
-        GComponentDef::geom_def => aio_gc_at(AIO_CATV_TEXT_W, AIO_CATV_LOGO_H, 0, $bottom - AIO_CATV_LOGO_H),
-        GComponentDef::kind => GCOMPONENT_PANEL,
-        GComponentDef::specific_def => array(GCompPanelDef::children => $kids)));
 }
 
 // The panel on the coordinates of the native one (movie_helper.php, the same info_r), 30 px lower,
-// nearer the rows: the title or its logo (aio_catv_title_labels); the English name of the tile under it when it
-// is not the title (native_title of dunemdb_cache.php: of a title not in English, as those of the
-// catalog are in any interface), the title higher by its height. Then the facts, the genres and the
+// nearer the rows: the title (aio_catv_title_label), none when the background has the logo in its
+// place (aio_catv_card); the English name of the tile under it when it is not the title (native_title
+// of dunemdb_cache.php: of a title not in English, as those of the catalog are in any interface), the
+// title higher by its height. Then the facts, the genres and the
 // country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the description 13 px under the last
 // one, as many lines as the rest of the panel holds, as the native one counts them. No line for an
 // empty field, the next ones go up.
@@ -1969,7 +1969,6 @@ function aio_catv_info($in)
         $lines = array(array(aio_catv_genre_line($t, $lang), AIO_CATV_TEXT_COLOR, AIO_CATV_DATA_MIN_PX),
             array(aio_catv_cast_line($t), AIO_CATV_CAST_COLOR, AIO_CATV_LINE_PX));
         $desc = $t['description'];
-        $logo = aio_catv_logo($t);
     }
     else if ($more)
     {
@@ -1978,7 +1977,6 @@ function aio_catv_info($in)
         $facts = array();
         $lines = array(array(aio_clean(aio_tr(aio_catv_ui_lang(), 'cat_more')), AIO_CATV_TEXT_COLOR, AIO_CATV_LINE_PX));
         $desc = '';
-        $logo = null;
     }
     else
         return null;
@@ -1987,8 +1985,9 @@ function aio_catv_info($in)
     // Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
     $sub = implode(' ', aio_gc_wrap(aio_clean($sub), AIO_CATV_SUB_MIN_PX, AIO_CATV_TEXT_W, 2, true));
     $bottom = AIO_CATV_TITLE_BOTTOM - ($sub !== '' ? AIO_CATV_SUB_H : 0);
-    if ($name !== '')
-        $labels = aio_catv_title_labels($name, $bottom, $logo, $id);
+    $card = aio_catv_card($t, $sub !== '');
+    if ($name !== '' && !$card['logo'])
+        $labels[] = aio_catv_title_label($name, $bottom);
     if ($sub !== '')
         $labels[] = aio_catv_info_label($sub, AIO_CATV_SUB_PX, AIO_CATV_SUB_COLOR, AIO_CATV_TEXT_W, AIO_CATV_SUB_H, $bottom + 4,
             array(GCompTtfLabelDef::max_num_lines => 2, GCompTtfLabelDef::min_font_size => AIO_CATV_SUB_MIN_PX,
@@ -2030,9 +2029,9 @@ function aio_catv_info($in)
             GCompVariantDef::props => array('alpha' => 64))));
     $info = array(
         PluginRowsInfo::info_defs => array($pane),
-        PluginRowsInfo::bg_url => $t ? aio_catv_background($t) : AIO_CATV_ICONS . 'bg0.jpg',
+        PluginRowsInfo::bg_url => $card['bg'],
         PluginRowsInfo::nl_bg_url => null,
-        PluginRowsInfo::mask_url => AIO_CATV_IMG . 'mask.png',
+        PluginRowsInfo::mask_url => $card['mask'],
         PluginRowsInfo::bg_poster_mode => false,
         PluginRowsInfo::playback_urls => null,
         PluginRowsInfo::item_id => $id);
