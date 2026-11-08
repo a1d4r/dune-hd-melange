@@ -777,8 +777,9 @@ function aio_cat_search($q, $names, $wait = AIO_CAT_SEARCH_WAIT)
         $res = aio_cat_more($st, AIO_CAT_TOTAL);
         while (!$res['stale'] && $res['err'] === '' && $st['end'] === '' && count($res['tiles']) < AIO_CAT_SEARCH_TILES)
         {
+            // curl takes whole seconds: less than 1 s left would be a request cut to 1 s, likely a timeout.
             $left = $wait - (microtime(true) - $start);
-            if ($left <= 0)
+            if ($left < 1)
                 break;
             $more = aio_cat_more($st, $left);
             // The listing began anew (the clock jumped): its tiles are all there is.
