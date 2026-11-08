@@ -86,9 +86,10 @@ define('AIO_CATV_SUB_COLOR', '#FF808080');
 define('AIO_CATV_DESC_CHARS', 360);
 // The TMDB size of a background; w780 if the shell runs short of memory.
 define('AIO_CATV_BG_SIZE', 'w1280');
-// The panel: x of info_r. The strip of the row titles (the main screen) moves it to the right by 30,
-// to CARD_X, where the card background of the server has the logo (aio_catv_card); a screen
-// without the strip (search, "Show all") with the card background: info_r at CARD_X itself.
+// The panel: x of info_r. The strip of the row titles (the main screen, the results of a search of
+// two groups and more) moves it to the right by 30, to CARD_X, where the card background of the
+// server has the logo (aio_catv_card); a screen without the strip (a search of one group, "Show all")
+// with the card background: info_r at CARD_X itself.
 // CARD_X (PANE_X + 30) is the left of the logo of a card, PANE_Y + TITLE_BOTTOM its bottom: baked into card/v1 (AIO_CATV_CARD).
 define('AIO_CATV_PANE_X', 100);
 define('AIO_CATV_CARD_X', 130);
@@ -878,11 +879,16 @@ function aio_catv_rows_view($defs, $sel_state, $from)
         $rows = array_merge($rows, aio_catv_strip_rows($tab, aio_catv_ui_lang()));
     // The first title of the rows.
     $y2_index = $tab !== '' ? count($rows) : 0;
+    $groups = 0;
     foreach ($defs as $def)
+    {
         $rows[] = $def;
+        if ($def[PluginRow::type] === PLUGIN_ROW_TYPE_TITLE)
+            $groups++;
+    }
     $rows[] = array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 80, PluginRow::inactive_height => 80);
-    // The strip of the row titles: on the main screen; not in a search of one row (device), of two not known.
-    $r = aio_catv_pane_r($tab !== '');
+    // The strip of the row titles: on the main screen and in a search of two groups and more (device r25).
+    $r = aio_catv_pane_r($tab !== '' || $groups > 1);
     $pane = array(
         PluginRowsPane::rows => $rows,
         'row_dup_map' => null,
