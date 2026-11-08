@@ -2057,10 +2057,8 @@ function aio_catv_info($in)
     $name = aio_clean($name);
     list($on) = aio_catv_id_mode($id);
     $card = aio_catv_card($t, $on);
-    if ($card['logo'])
-        $sub = '';
-    // Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
-    $sub = implode(' ', aio_gc_wrap(aio_clean($sub), AIO_CATV_SUB_MIN_PX, AIO_CATV_TEXT_W, 2, true));
+    // None under the logo. Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
+    $sub = $card['logo'] ? '' : implode(' ', aio_gc_wrap(aio_clean($sub), AIO_CATV_SUB_MIN_PX, AIO_CATV_TEXT_W, 2, true));
     $bottom = AIO_CATV_TITLE_BOTTOM - ($sub !== '' ? AIO_CATV_SUB_H : 0);
     if ($name !== '' && !$card['logo'])
         $labels[] = aio_catv_title_label($name, $bottom);
