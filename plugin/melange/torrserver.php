@@ -668,6 +668,7 @@ function aio_ts_auth_err()
 // -> vod_play when the files are known at once, else the dialog that waits
 // for them (its state in Aio::$tswait when $st is not the list on screen); an
 // error dialog. $alive: aio_ts_alive() has just answered, no echo again.
+// $miss_list: "Continue" to the next episode, no file of it -> the list of $st.
 /**
  * @param AioState $st
  * @param int $i
@@ -675,9 +676,10 @@ function aio_ts_auth_err()
  * @param string $from
  * @param bool $lazy
  * @param bool $alive
+ * @param bool $miss_list
  * @return AioAction
  */
-function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false)
+function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_list = false)
 {
     $r = $st['rows'][$i];
     $lang = $st['lang'];
@@ -719,9 +721,11 @@ function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false)
     if ($err !== '' || $code !== 200 || !$j)
         return aio_ts_fail($lang, 'ts_err_add', $err !== '' ? $err : "HTTP $code", $lazy);
     if ($files)
-        return aio_ts_play($st, $i, $files, $pos, $from, $lazy);
+        return aio_ts_play($st, $i, $files, $pos, $from, $lazy, $miss_list);
     Aio::$tswait = $st;
-    $p = array('rid' => $st['rid'], 'i' => strval($i), 'pos' => strval($pos), 'f' => $from, 'l' => $lazy ? '1' : '0',
+    // l: 1 lazy, 2 $miss_list.
+    $p = array('rid' => $st['rid'], 'i' => strval($i), 'pos' => strval($pos), 'f' => $from,
+        'l' => $lazy ? '1' : ($miss_list ? '2' : '0'),
         't' => strval(time()), 'n' => '0');
     aio_log('ts: no files yet -> waiting dialog');
     return aio_dialog_act(aio_tr($lang, 'ts_wait'), aio_ts_wait_defs($st, $r, 0, $j, $lazy), array(
@@ -802,7 +806,7 @@ function aio_ts_tick($in)
 {
     $p = array();
     foreach (array('rid' => '/^[0-9a-f]{12}$/D', 'i' => '/^[0-9]{1,3}$/D', 'pos' => '/^[0-9]{1,7}$/D',
-        'f' => '/^([0-9a-f]{12})?$/D', 'l' => '/^[01]$/D', 't' => '/^[0-9]{1,12}$/D', 'n' => '/^[0-9]{1,4}$/D') as $k => $re)
+        'f' => '/^([0-9a-f]{12})?$/D', 'l' => '/^[012]$/D', 't' => '/^[0-9]{1,12}$/D', 'n' => '/^[0-9]{1,4}$/D') as $k => $re)
     {
         if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
         {
@@ -833,7 +837,7 @@ function aio_ts_tick($in)
         is_array($j) && isset($j['total_peers']) ? json_encode($j['total_peers']) : '-',
         is_array($j) && isset($j['connected_seeders']) ? json_encode($j['connected_seeders']) : '-', count($files)));
     if ($files)
-        return aio_close_and(aio_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1'));
+        return aio_close_and(aio_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1', $p['l'] === '2'));
     if ($err === '' && $code === 401)
         return aio_close_and(aio_ts_fail($lang, aio_ts_auth_err(), '', $p['l'] === '1'));
     // 404: TorrServer has it neither in memory nor in its DB (closed).
@@ -898,8 +902,9 @@ function aio_ts_pack_state($key, $s, $e, $hash)
 
 // The file of the row among $files -> vod_play (the files of its map as ready
 // URLs, aio_ts_map_start), or the dialog "no video" ($lazy: "not in this release"
-// of a lazy episode). A state of aio_ts_pack_state: the file and the playlist of
-// its map, the map stays; else the file by aio_ts_pick, a new map.
+// of a lazy episode; $miss_list: the list, as aio_ts_open). A state of
+// aio_ts_pack_state: the file and the playlist of its map, the map stays; else
+// the file by aio_ts_pick, a new map.
 /**
  * @param AioState $st
  * @param int $i
@@ -907,9 +912,10 @@ function aio_ts_pack_state($key, $s, $e, $hash)
  * @param int $pos
  * @param string $from
  * @param bool $lazy
+ * @param bool $miss_list
  * @return AioAction
  */
-function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
+function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false, $miss_list = false)
 {
     $r = $st['rows'][$i];
     $map = isset($st['pack_map']) ? $st['pack_map'] : null;
@@ -930,6 +936,8 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false)
         aio_log("ts: {$by}, " . count($files) . ' files');
         if ($lazy)
             return aio_next_missing($st, $r['hash'], aio_no_errors());
+        if ($miss_list)
+            return aio_open_list(aio_list_cursor($st, $r['hash']));
         return aio_ts_fail($st['lang'], $st['e'] > 0 ? 'ts_err_no_ep' : 'ts_err_no_video');
     }
     if ($map === null)

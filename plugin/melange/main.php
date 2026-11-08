@@ -233,7 +233,8 @@ function aio_seasons($m)
 // "Continue watching" -> shell_ext play_recent -> our play_action with
 // supplier_info = {sup_data, wh_uid, wh_s, wh_e, wh_pos, wh_len (seconds), wh_*}.
 // 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else.
-// 'len': 0 without wh_len (r22 not checked); 'next': of aio_wh_resume_ep.
+// 'len': 0 without wh_len; 'next': of aio_wh_resume_ep. r22 (240619_0210) sends
+// wh_len, but no wh_release or wh_mode: null there, the list.
 /**
  * @param stdClass $in
  * @return AioResume|null
@@ -1049,16 +1050,14 @@ function aio_play_action($in)
     $resume = aio_resume($in);
     $s = -1;
     $e = -1;
-    // The list opens with the cursor on this release (the one of the history).
-    $hash = '';
+    // A list opens with the cursor on this release (the one of the history).
+    $hash = $resume ? $resume['hash'] : '';
     if ($mv['series'])
     {
         // Back from "Continue watching" the shell sends season = episode = -1.
+        // $resume null after it: watched, no later episode - its list.
         if ($resume && $resume['s'] >= 1 && $resume['e'] >= 1)
-        {
-            $hash = $resume['hash'];
             list($resume, $s, $e) = aio_wh_resume_ep($mv, $resume);
-        }
         else
         {
             $s = aio_int($in, 'season', -1);
@@ -1084,12 +1083,6 @@ function aio_play_action($in)
         return aio_error($res['error'], $res['detail']);
 
     $st = aio_list_state($mv, $s, $e, $res['rows'], $lang, $res['errors']);
-    if (!$resume && $hash !== '')
-    {
-        list($sel, $by) = aio_release_row($st['rows'], $hash, $s, $e);
-        $st = aio_gc_put_cursor($st, $sel);
-        aio_log("list: cursor on row $sel of " . count($st['rows']) . ", $by");
-    }
     Aio::$state = $st;
 
     if ($resume)
@@ -1124,12 +1117,25 @@ function aio_play_action($in)
         if ($ts >= 0 && !$off && aio_ts_alive())
         {
             aio_log("$tag -> TorrServer");
-            return aio_ts_open($st, $ts, $resume['pos'], '', false, true);
+            return aio_ts_open($st, $ts, $resume['pos'], '', false, true, $resume['next']);
         }
         aio_log("$tag: " . ($pick['rows'] === 0 ? 'not found' : ($off && $mode !== 'debrid' ? 'no torrents' :
             ($ts < 0 ? 'no way in this mode' : 'TorrServer does not answer'))) . ', showing the list');
     }
-    return aio_open_list($st);
+    return aio_open_list($hash !== '' ? aio_list_cursor($st, $hash) : $st);
+}
+
+// List $st with the cursor on release $hash (aio_release_row), logged.
+/**
+ * @param AioState $st
+ * @param string $hash
+ * @return AioState
+ */
+function aio_list_cursor($st, $hash)
+{
+    list($sel, $by) = aio_release_row($st['rows'], $hash, $st['s'], $st['e']);
+    aio_log("list: cursor on row $sel of " . count($st['rows']) . ", $by");
+    return aio_gc_put_cursor($st, $sel);
 }
 
 // Opens the list of $st.

@@ -138,7 +138,7 @@ function aio_wh_ours($w, $prefix)
 
 // The latest record of each release of ours -> its share in $acc (uid =>
 // share, only a float each: there may be thousands). $arg: array(prefix,
-// aio_wh_marked_set()).
+// aio_wh_marked_set()). Watched: the same rule as aio_wh_watched.
 /**
  * @param mixed $w
  * @param array{string, array<int|string, true>} $arg
@@ -287,7 +287,7 @@ function aio_wh_watched($pos, $len, $uid)
 // The episode after the watched S$s E$e by season_numbers, as 0.9.0: the next
 // one of the season, else E1 of the nearest later season; the same one with
 // no data on season $s, S1E1 after the last one. -> array(s, e, next: a later
-// episode, why)
+// episode, why). Unlike aio_flip_ep (+1) on purpose: past episodes_count, the next season.
 /**
  * @param array<int, int> $seasons
  * @param int $s
@@ -345,9 +345,10 @@ function aio_wh_episode($mv)
 }
 
 // "Continue watching" of a series ($r of aio_resume): the episode recorded,
-// from its position; once it is watched (aio_wh_watched; no wh_len: only
-// marked) the next one (aio_wh_next) from 0, 'next' set: its release must have
-// it in its file. One log line, no uid. -> array($r of the episode to play or
+// from its position; once it is watched the next one (aio_wh_next) from 0,
+// 'next' set: its release must have it in its file. Watched: with wh_len by the
+// position only (r25 counts a mark only if newer than the record,
+// get_file_mark_time), without it by the mark only. One log line, no uid. -> array($r of the episode to play or
 // null - watched, no later one: the list; s, e)
 /**
  * @param AioMovie $mv
@@ -358,7 +359,8 @@ function aio_wh_resume_ep($mv, $r)
 {
     $s = $r['s'];
     $e = $r['e'];
-    $watched = aio_wh_watched($r['pos'], $r['len'], $r['uid']);
+    $watched = $r['len'] > 0 ? (aio_wh_full($r['pos'], $r['len']) ? 'by position' : '') :
+        (aio_wh_marked($r['uid']) ? 'marked' : '');
     $tag = "resume: record S{$s}E{$e} pos={$r['pos']}/{$r['len']} watched=" . ($watched !== '' ? $watched : 'no');
     if ($watched === '')
     {

@@ -27,5 +27,5 @@ What Melange cannot do, or does with caveats. [← README](../README.en.md)
 ## Series
 
 - The next episode plays only from the same release. If the release does not have it (for example, the season is over), Melange does not look for another release by itself: choose one in the list. Via Debrid, episodes play in a row only if the release is cached or Debrid gives the episode's file at once.
-- An episode counts as watched if you watched it almost to the end or marked it as watched on the Dune. Then **Continue Watching** starts the next episode, and after the last episode of the series the list of the first one opens.
+- **Continue Watching** counts an episode as watched if you watched it almost to the end: then it starts the next episode, and after the last episode of the series it opens the list of the first one. The card button also counts an episode marked as watched on the Dune.
 - If you switched episodes in the player via TorrServer, after Stop the list of the episode you started with opens.

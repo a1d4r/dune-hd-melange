@@ -588,7 +588,8 @@ function aio_list_replace($ns, $erase = 1)
 // as 0.9.0: the next one of the season, else E1 of the nearest later season;
 // the one before, else the last of the nearest earlier season. No playlist
 // here: no AIO_EPISODES_MAX. An episode past episodes_count (the card lags
-// behind a running series) only goes back. -> array(s, e) or null.
+// behind a running series) only goes back. -> array(s, e) or null. Unlike
+// aio_wh_next on purpose: nothing past episodes_count or after the last one.
 /**
  * @param array<int, int> $seasons
  * @param int $s
