@@ -6,6 +6,9 @@
 - **A clearer info panel in the catalog.** The title above the rows no longer jumps from huge to tiny from one movie to the next: a short title is large, a long one goes in two lines. Where the catalog has a Russian logo of the movie, the logo is shown instead of the title, and it comes together with the background: no title first and logo later. While the background loads, or if there is none, the screen stays dark. The KP and IMDb ratings and the age rating are in outlined plates, the year and runtime in gray between them; a series is marked "TV series", its runtime is that of an episode. The cast line no longer shrinks: the names that do not fit are left out. The background is darker under the text, so it reads on a bright picture too. The text sits a little lower, nearer the rows. The same in search results.
 - **"Appearance" on the settings page** (the Catalog group): **"Film logo in place of the title"**, on by default. Turn it off if the catalog lags or the cards take long to load: the title is shown as text and the Dune needs half the memory. It takes effect the next time the catalog opens.
 
+## 0.54.2 — 08.11.2026
+- Fixed: in search results, "Show all" is now shown only when there are more results than fit in the row; a short list of results no longer has it.
+
 ## 0.54.1 — 07.11.2026
 - Fixed: on Dunes with r22 firmware (for example, Real Vision 4K Plus) a movie did not start: after choosing a release, "Application error".
 
@@ -188,6 +191,9 @@ First public release. What it does:
 ## 0.55.0 — 07.11.2026
 - **Инфопанель каталога понятнее.** Название над рядами больше не скачет от огромного к мелкому от фильма к фильму: короткое — крупно, длинное — в две строки. Если в каталоге есть русский логотип фильма, вместо названия — логотип, и появляется он вместе с фоном: не сначала название, потом логотип. Пока фон грузится или если его нет, экран тёмный. Рейтинги КП и IMDb и возраст — в контурных плашках, между ними серым год и длительность; у сериала — «Сериал», длительность — серии. Строка актёров больше не мельчает: имена, которые не влезают, не показываются. Под текстом фон темнее — текст читается и на светлой картинке. Текст чуть ниже, ближе к рядам. В результатах поиска — так же.
 - **«Внешний вид» на странице настроек** (группа «Каталог»): **«Логотип фильма вместо названия»**, по умолчанию включён. Выключите, если каталог тормозит или карточки грузятся долго: название будет текстом, памяти Дюны нужно вдвое меньше. Действует со следующего открытия каталога.
+
+## 0.54.2 — 08.11.2026
+- Исправлено: в результатах поиска плитка «Показать все» теперь есть, только если результатов больше, чем помещается в ряд; у короткой выдачи её больше нет.
 
 ## 0.54.1 — 07.11.2026
 - Исправлено: на Дюнах с прошивкой r22 (например, Real Vision 4K Plus) фильм не запускался: после выбора раздачи — «Ошибка приложения».
