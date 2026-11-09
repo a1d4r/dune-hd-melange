@@ -3,7 +3,7 @@
 **English version**
 
 ## Unreleased
-- **Rows right in the catalog.** As in the Dune's own Movies: in the panel on the left, move to the name of a row, press MENU and choose **Configure List...**. A Dune window lists the rows of the current tab in the groups of the settings page: tick the ones you want, **Move** changes the order within a group, **Reset to Default Values** brings back the start rows. The catalog redraws as soon as the window closes; the settings page shows the same choice.
+- **Rows right in the catalog.** As in the Dune's own Movies: in the panel on the left, move to the name of a row, press MENU and choose **Configure List...**. A menu opens with **Row order** and the groups of the current tab, as on the settings page; each group shows how many of its rows are on, for example "Genres 3 of 14". **Row order** lists only the rows that are on: **Move** puts a row anywhere in the list, and unticking a row removes it. In the window of a group, tick the rows you want: new ones go to the end of the tab, and **Reset to Default Values** brings back the start rows of the group. At least one row must stay on the tab. The catalog redraws as soon as the window closes; the settings page shows the same choice.
 - The catalog MENU no longer has **Search** and **Settings**: use the magnifier and the gear on the strip on top. Search also opens with the search key, if your remote has one, and with the voice input button.
 
 ## 0.57.0
@@ -212,7 +212,7 @@ First public release. What it does:
 **Russian version**
 
 ## Не выпущено
-- **Ряды прямо в каталоге.** Как в «Фильмах» Дюны: в панели слева встаньте на название ряда, нажмите MENU и выберите «Настроить список...». В окне Дюны ряды текущей вкладки, по группам, как на странице настроек: отметьте нужные, «Переместить» меняет порядок внутри группы, «Сброс к значениям по умолчанию» возвращает стартовые ряды. Каталог перерисуется сразу после закрытия окна, а на странице настроек будет тот же выбор.
+- **Ряды прямо в каталоге.** Как в «Фильмах» Дюны: в панели слева встаньте на название ряда, нажмите MENU и выберите «Настроить список...». Откроется меню: «Порядок рядов» и группы текущей вкладки, как на странице настроек; у группы видно, сколько её рядов включено, например «Жанры 3 из 14». В «Порядке рядов» только включённые ряды: «Переместить» переставляет ряд по всему списку, снятая галка убирает ряд. В окне группы отметьте нужные ряды: новые встают в конец вкладки, «Сброс к значениям по умолчанию» возвращает стартовые ряды группы. На вкладке должен остаться хотя бы один ряд. Каталог перерисуется сразу после закрытия окна, а на странице настроек будет тот же выбор.
 - В MENU каталога больше нет «Поиска» и «Настроек»: для них есть лупа и шестерёнка на полосе сверху. Поиск открывается и клавишей поиска, если она есть на пульте, и кнопкой голосового ввода.
 
 ## 0.57.0
