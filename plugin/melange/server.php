@@ -13,16 +13,20 @@ define('AIO_SRV_CONNECT', 3);
 define('AIO_SRV_TOTAL', 15);
 
 // Index of the server the cursor starts on: the one standing for the debrid
-// service the row is cached in, else the first with no service, else 0.
+// service the row is cached in (a file cached on several: the copy to play
+// first, aio_row_services), else the first with no service, else 0.
 function aio_srv_default($servers, $row)
 {
     $caches = aio_server_caches();
     if ($row['cached'] === true)
     {
-        foreach ($servers as $k => $s)
+        foreach (aio_row_services($row) as $svc)
         {
-            if ($s['cache'] !== '' && $caches[$s['cache']] === $row['service'])
-                return $k;
+            foreach ($servers as $k => $s)
+            {
+                if ($svc !== '' && $s['cache'] !== '' && $caches[$s['cache']] === $svc)
+                    return $k;
+            }
         }
     }
     foreach ($servers as $k => $s)

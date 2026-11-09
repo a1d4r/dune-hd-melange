@@ -899,6 +899,13 @@ function aio_info_blocks($st, $n, $vs)
     {
         if ($k === 'raw')
             continue;
+        // The copies of a file cached on several services: their streams
+        // whole are too long; that of the copy on top is the AIOStreams block.
+        if ($k === 'copies')
+        {
+            foreach (array_keys($v) as $i)
+                unset($v[$i]['raw']);
+        }
         if (($k === 'size' || $k === 'pack') && $v > 0)
             $v = aio_size_str($v, $lang) . ' (' . aio_info_scalar($v) . ')';
         else if ($k === 'rate' && $v > 0)

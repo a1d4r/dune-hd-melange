@@ -146,8 +146,9 @@ function aio_gc_text($lang)
         'sort_date' => aio_tr($lang, 'gc_sort_date'), 'errors' => aio_tr($lang, 'gc_errors'));
 }
 
-// The cache status of row $r: "В кэше <service>", "Нужно скачать", "P2P" (no
-// URL: TorrServer plays it), "неизвестно".
+// The cache status of row $r: "В кэше <service>" (a file cached on several:
+// "В кэше Real-Debrid · TorBox", the copy to play first), "Нужно скачать",
+// "P2P" (no URL: TorrServer plays it), "неизвестно".
 /**
  * @param AioRow $r
  * @param AioGcText $tt
@@ -156,7 +157,10 @@ function aio_gc_text($lang)
 function aio_gc_status($r, $tt)
 {
     if ($r['cached'] === true)
-        return $r['service'] !== '' ? str_replace('{svc}', $r['service'], $tt['cached_in']) : $tt['cached'];
+    {
+        $svc = implode(' · ', array_filter(aio_row_services($r), 'strlen'));
+        return $svc !== '' ? str_replace('{svc}', $svc, $tt['cached_in']) : $tt['cached'];
+    }
     if ($r['cached'] === false)
         return $tt['download'];
     return aio_is_p2p($r) ? $tt['p2p'] : $tt['unknown'];

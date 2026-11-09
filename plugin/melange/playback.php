@@ -270,8 +270,11 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
             'wh_release' => $r['hash'],
             'wh_mode' => $mode);
     }
+    // A file cached on several services: which copy plays.
+    $copy = !$ts && isset($r['copies'], $r['copy']) ? sprintf(', copy %d of %d: %s', $r['copy'] + 1, count($r['copies']),
+        aio_row_svc($r)) : '';
     aio_log('play: hash=' . ($r['hash'] !== '' ? $r['hash'] : '-') .
-        " s=$s e=$e pos=$pos linked=" . ($linked ? 1 : 0) . ', playlist ' . count($series) . ($ts ? ', TorrServer' : ''));
+        " s=$s e=$e pos=$pos linked=" . ($linked ? 1 : 0) . ', playlist ' . count($series) . ($ts ? ', TorrServer' : '') . $copy);
     return array(
         GuiAction::handler_string_id => PLUGIN_VOD_PLAY_ACTION_ID,
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
