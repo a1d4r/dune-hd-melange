@@ -302,6 +302,11 @@ function aio_conf_patch($c, $tpl, $p)
         aio_conf_obj($c, 'titleMatching')->enabled = $now;
         aio_conf_obj($c, 'yearMatching')->enabled = $now;
     }
+    // 0.56.0: a copy of a cached file per service (one service: the same as
+    // single_result) - the old value of the template only, not one by hand.
+    if (isset($c->deduplicator) && is_object($c->deduplicator) && isset($c->deduplicator->cached) &&
+        $c->deduplicator->cached === 'single_result')
+        $c->deduplicator->cached = 'per_service';
     return array($now, $set);
 }
 

@@ -350,7 +350,7 @@
       "filename",
       "infoHash"
     ],
-    "cached": "single_result",
+    "cached": "per_service",
     "uncached": "single_result",
     "p2p": "single_result",
     "http": "disabled",
