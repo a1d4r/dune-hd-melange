@@ -100,6 +100,15 @@ class Aio
     // aio_finish replaces it with the list of the episode played last.
     /** @var AioPlaying|null */
     public static $playing = null;
+    // The dialog "<service> could not play the release" with "Via <the other
+    // one>" (aio_pre_failed), until its button (aio_pre_via) or another start.
+    /** @var AioAlt|null */
+    public static $alt = null;
+    // The service chosen by "Via <service>": the start and the next episodes of
+    // this release (lazy, the playlist, the autoplay) take its copy
+    // (aio_main_svc); a new start from a list or play_action - the main one again.
+    /** @var AioVia|null */
+    public static $via = null;
     // The list state of a TorrServer waiting dialog when it is not the list
     // on screen (a lazy episode, aio_next): its timer finds it by rid.
     /** @var AioState|null */
@@ -1067,6 +1076,8 @@ function aio_list_state($mv, $s, $e, $rows, $lang, $errors)
 function aio_play_action($in)
 {
     Aio::$playing = null;
+    Aio::$alt = null;
+    Aio::$via = null;
     aio_log_input($in);
 
     $mv = aio_movie($in);
@@ -1306,6 +1317,8 @@ function aio_handle_user_input($in)
         return aio_next($in);
     if ($control === 'next_pick')
         return aio_next_pick($in);
+    if ($control === 'pre_via')
+        return aio_pre_via($in);
     if ($control === 'finish')
         return aio_finish($in);
     if ($control === 'gc_flip')

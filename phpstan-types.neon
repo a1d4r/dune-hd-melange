@@ -205,6 +205,12 @@ parameters:
         # What plays (Aio::$playing, aio_playing, playback.php): rid of the
         # list screen under the player ('' none), the list state, its row.
         AioPlaying: 'array{from: string, st: AioState, sel: int}'
+        # The dialog of a copy refused by its Debrid with "Via <the other one>" (Aio::$alt,
+        # aio_pre_failed, playback.php): the list state of the start, its row, the
+        # position, under the player or not, the services refused on this start.
+        AioAlt: 'array{st: AioState, i: int, pos: int, lazy: bool, tried: list<string>}'
+        # The service chosen by "Via <service>" for this viewing (Aio::$via, aio_pre_via).
+        AioVia: 'array{k: string, hash: string, svc: string}'
         # Params of the window of TorrServer in the player (aio_tsi_params, ts_info.php).
         AioTsiParams: 'array{h: string, n: string, l: string, e: string}'
         # A stream request (aio_fetch, main.php).

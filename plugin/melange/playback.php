@@ -174,10 +174,10 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     $s = $st['s'];
     $e = $st['e'];
     // A file cached on several services: the copy is chosen now, the main
-    // service may have changed since the list (the page). With $pre the row
-    // is not cached: one copy.
+    // service may have changed since the list (the page), "Via <service>" may
+    // have been chosen. With $pre the row is not cached: one copy.
     if (!$ts && !$pre)
-        $r = aio_row_pick($r, Aio::$settings['debrid_main']);
+        $r = aio_row_pick($r, aio_main_svc($mv, $r));
     $url = $ts ? $ts['url'] : $r['url'];
     $mode = $ts ? 'ts' : 'debrid';
     // A Debrid placeholder video (not cached, a limit), linked, would put
@@ -191,8 +191,7 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
         if (!$pre)
             $pre = aio_precheck($url);
         if ($pre['class'] === 'placeholder')
-            return $lazy ? aio_next_failed($st['lang'], sprintf('S%02dE%02d', $s, $e), $pre['key'], $pre['detail']) :
-                aio_error($pre['key'], $pre['detail']);
+            return aio_pre_failed($st, $r, $pos, $lazy, $pre);
         if ($pre['class'] === 'stream')
         {
             $url = $pre['url'];
@@ -283,6 +282,115 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     return array(
         GuiAction::handler_string_id => PLUGIN_VOD_PLAY_ACTION_ID,
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
+}
+
+// The service whose copy row $r of card $mv plays: of "Via <service>" of this
+// release (Aio::$via), else the main Debrid of the settings.
+/**
+ * @param AioMovie $mv
+ * @param AioRow $r
+ * @return string
+ */
+function aio_main_svc($mv, $r)
+{
+    $v = Aio::$via;
+    return $v && $v['k'] === $mv['dune_id'] && $v['hash'] === $r['hash'] ? $v['svc'] : Aio::$settings['debrid_main'];
+}
+
+// A placeholder of the stream check $pre (class placeholder) of row $r of list
+// $st, started at $pos ($lazy: under the player). A row of one copy: the error
+// as before 0.56.0 (aio_error, aio_next_failed). A file cached on several services
+// (0.56.0): the service that refused names the dialog, its reason under it; a copy
+// of a service not refused on this start yet (Aio::$alt: the refused ones) - the
+// button "Via <it>" (aio_pre_via), the start kept in Aio::$alt till then. OK, under
+// the player "Stop", closes it.
+/**
+ * @param AioState $st
+ * @param AioRow $r
+ * @param int $pos
+ * @param bool $lazy
+ * @param array{class: 'placeholder', key: string, detail: string, note: string} $pre
+ * @return AioAction
+ */
+function aio_pre_failed($st, $r, $pos, $lazy, $pre)
+{
+    $lang = $st['lang'];
+    $ep = sprintf('S%02dE%02d', $st['s'], $st['e']);
+    $key = $pre['key'];
+    $detail = $pre['detail'];
+    if (!isset($r['copies'], $r['copy']))
+        return $lazy ? aio_next_failed($lang, $ep, $key, $detail) : aio_error($key, $detail);
+    $i = -1;
+    foreach ($st['rows'] as $n => $x)
+    {
+        if ($x['ord'] === $r['ord'])
+            $i = $n;
+    }
+    $svc = aio_row_svc($r);
+    $a = Aio::$alt;
+    $tried = $a && $a['st']['rid'] === $st['rid'] && $a['i'] === $i ? $a['tried'] : array();
+    if (!in_array($svc, $tried, true))
+        $tried[] = $svc;
+    $other = null;
+    foreach ($r['copies'] as $c)
+    {
+        if (!$other && $c['svc'] !== '' && !in_array($c['svc'], $tried, true))
+            $other = $c;
+    }
+    Aio::$alt = $other && $i >= 0 ? array('st' => $st, 'i' => $i, 'pos' => $pos, 'lazy' => $lazy, 'tried' => $tried) : null;
+    aio_log("error: $key" . ($detail !== '' ? " ($detail)" : '') . sprintf(', copy %d of %d: %s, row %d -> dialog, ',
+        $r['copy'] + 1, count($r['copies']), $svc, $i) . (Aio::$alt ? "via {$other['svc']} offered" : 'no other copy left'));
+    $name = str_replace('{svc}', $r['service'] !== '' ? $r['service'] : $svc, aio_tr($lang, 'pre_svc_failed'));
+    $lines = array_merge(aio_dialog_lines(aio_tr($lang, $key)), aio_dialog_lines($detail));
+    $buttons = array();
+    if (Aio::$alt)
+        $buttons[str_replace('{svc}', $other['service'] !== '' ? $other['service'] : $other['svc'], aio_tr($lang, 'pre_via'))] =
+            aio_input('pre_via', array('rid' => $st['rid'], 'i' => strval($i), 'svc' => $other['svc']));
+    if ($lazy)
+    {
+        $buttons[aio_tr($lang, 'next_stop')] = aio_input('next_stop');
+        return aio_dialog(aio_tr($lang, 'next_failed', $ep), array_merge(array($name), $lines), $buttons);
+    }
+    $buttons['OK'] = aio_close_and(null);
+    return aio_dialog($name, $lines, $buttons);
+}
+
+// "Via <service>" of the dialog of aio_pre_failed (rid, i: the row, svc: the
+// service of its copy): the start again on that copy (Aio::$via: the next
+// episodes of the release too). Not the start of Aio::$alt (another start
+// since, a php_server restart), a service refused already: "the list expired".
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
+function aio_pre_via($in)
+{
+    $a = Aio::$alt;
+    $svc = isset($in->svc) && is_string($in->svc) ? $in->svc : '';
+    $i = isset($in->i) && is_string($in->i) && preg_match('/^[0-9]{1,4}$/D', $in->i) ? intval($in->i) : -1;
+    $row = $a && isset($in->rid) && $in->rid === $a['st']['rid'] && $i === $a['i'] ? $a['st']['rows'][$i] : null;
+    $ok = false;
+    foreach ($row && isset($row['copies']) && !in_array($svc, $a['tried'], true) ? $row['copies'] : array() as $c)
+        $ok = $ok || $c['svc'] === $svc;
+    if (!$a || !$row || !$ok)
+    {
+        aio_log('via: not the dialog of the last start, nothing');
+        return aio_close_and(aio_error('err_list_expired'));
+    }
+    $st = $a['st'];
+    Aio::$via = array('k' => $st['movie']['dune_id'], 'hash' => $row['hash'], 'svc' => $svc);
+    aio_log(sprintf('via: %s, row %d: %s refused, %s chosen', aio_ep_tag($st), $i, implode(', ', $a['tried']), $svc));
+    $act = aio_play($st, $row, $a['pos'], null, $a['lazy']);
+    if ($act[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
+    {
+        Aio::$alt = null;
+        // As aio_next and the ENTER of the list (aio_gc_input) note it.
+        if ($a['lazy'])
+            aio_playing(Aio::$playing ? Aio::$playing['from'] : '', $st, $i);
+        else
+            aio_playing($st['rid'], Aio::$state && Aio::$state['rid'] === $st['rid'] ? Aio::$state : $st, $i);
+    }
+    return aio_close_and($act);
 }
 
 // --- Time of the operation: handle_user_input and play_action have 60 s;

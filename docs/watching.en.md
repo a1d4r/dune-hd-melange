@@ -92,6 +92,8 @@ MENU → **Download to server…** → choose the server: Melange adds the relea
 
 Before playing, Melange asks Debrid for a link to the file. If Debrid gives one, the movie plays with history, even if the release was **Not cached**. If the release is still downloading, a limit is reached or the release is blocked, Debrid serves a placeholder video instead of the movie; Melange recognizes it, does not start the player and shows the reason. The same if Debrid gives the release as one RAR or ZIP archive: the Dune cannot play it. If the release is downloading, try again later; otherwise choose another one.
 
+If the release is cached in both of your services, the window shows which service refused and has a **Play via TorBox** (or **Play via Real-Debrid**) button: the same release starts through the other service. The next episodes of this viewing go through it too; next time, through the [main one](sources.en.md#debrid) again. If the second one refuses too, its reason is shown.
+
 Start **Not cached** releases on Real-Debrid with care: see [Known limitations](limitations.en.md).
 
 ## Series: episode after episode
@@ -102,7 +104,7 @@ You can choose another episode without leaving the list: ← / → or MENU → *
 
 - **Via Debrid** (a cached release, or the file link came at once), the player plays the whole season in order on this release, with P+ / P− and autoplay; at the end of the season, the first episode of the next one, if the release has it.
 - **Via TorrServer**, the playlist has all episodes of all seasons in the release, starting from the selected one. If the episode numbers in the release cannot be recognized (absolute numbering, everything in one folder), the playlist is shorter: the current season and the first episode of the next.
-- The next episode plays **the same way** the release was started, even if another way is available.
+- The next episode plays **the same way** the release was started, even if another way is available; after a **Play via …** button, through the service chosen.
 - **The episode is not in the release:** Melange stops and offers to choose a release for this episode; it does not switch to another release by itself.
 - **After Stop** on another episode, its list opens on the same release (except for episodes switched in the player via TorrServer).
 

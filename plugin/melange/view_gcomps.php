@@ -1344,6 +1344,9 @@ function aio_gc_input($in)
         Aio::$state['gc'] = array($sel, $top);
         if ($in->control_id === 'gc_info')
             return aio_info_open($st, $sel);
+        // A new start: the main Debrid again, not one of "Via <service>" before.
+        Aio::$alt = null;
+        Aio::$via = null;
         // A P2P stream (no URL, infoHash only): through TorrServer.
         if (aio_is_p2p($st['rows'][$sel]))
             return aio_ts_open(Aio::$state, $sel, 0, $st['rid']);
