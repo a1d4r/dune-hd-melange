@@ -39,6 +39,7 @@ Choosing a template and saving means [resetting the config](#reset-to-the-templa
 - releases that are not cached show as **Not cached** (MediaFusion returns only cached ones);
 - 144p–576p, CAM / SCR / TS / TC, 3D and XviD / DivX are filtered out;
 - releases in Russian rank higher;
+- with both keys, a release cached in both services comes from each, and the list shows it as one row;
 - if the next episode has no cached releases, AIOStreams may add its release to Debrid in advance.
 
 ## Torrents
@@ -99,6 +100,6 @@ For experienced users who want to change the filters or sorting, or add other ad
 
 ## What Melange changes in the config
 
-On every save, Melange updates only its own parts of its config: the Debrid keys, the selected JacRed (removed, it comes back; turned off, it stays off) and the TMDB key. Your keys and other edits from the web settings stay; only a [reset to the template](#reset-to-the-template) erases them.
+On every save, Melange updates only its own parts of its config: the Debrid keys, the selected JacRed (removed, it comes back; turned off, it stays off), the TMDB key and a copy of a cached release from each service (Deduplicator → Cached: `per_service`, unless you changed it by hand). Your keys and other edits from the web settings stay; only a [reset to the template](#reset-to-the-template) erases them.
 
 If JacRed does not answer the AIOStreams server, there are fewer releases, and with the **Russian trackers only** template there are none.

@@ -30,7 +30,7 @@ A release line has quality badges, size, languages and trackers; on the left are
 
 | Status | What it means |
 |---|---|
-| **Cached in …** | the release is already in your Debrid and starts playing at once |
+| **Cached in …** | the release is already in your Debrid and starts playing at once; **Cached in Real-Debrid · TorBox**: in the cache of both your services, one row |
 | **Not cached** | it is not in the Debrid cache: Debrid may serve it at once, or may only start downloading it (see [Playing via Debrid](#playing-via-debrid)) |
 | **unknown** | AIOStreams did not say whether the release is cached |
 | **P2P · N seeders** | a release without Debrid, plays via TorrServer |
