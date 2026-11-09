@@ -13,10 +13,11 @@
  */
 function aio_catv_lcfg_groups()
 {
-    return array('top' => 'cat_group_top', 'ru' => 'cat_group_ru', 'ru-services' => 'cat_group_ru_services',
-        'genres' => 'cat_group_genres', 'theme' => 'cat_group_theme', 'studios' => 'cat_group_studios',
-        'decades' => 'cat_group_decades', 'years' => 'cat_group_years', 'streaming' => 'cat_group_streaming',
-        'world' => 'cat_group_world', 'runtime' => 'cat_group_runtime', 'anime' => 'cat_group_anime', 'other' => 'cat_group_other');
+    return array('top' => 'cat_group_top', 'fresh' => 'cat_group_fresh', 'ru' => 'cat_group_ru',
+        'ru-services' => 'cat_group_ru_services', 'genres' => 'cat_group_genres', 'theme' => 'cat_group_theme',
+        'studios' => 'cat_group_studios', 'decades' => 'cat_group_decades', 'years' => 'cat_group_years',
+        'streaming' => 'cat_group_streaming', 'world' => 'cat_group_world', 'runtime' => 'cat_group_runtime',
+        'anime' => 'cat_group_anime', 'other' => 'cat_group_other');
 }
 
 // The group of the row $r in the menu: its own, if one of aio_catv_lcfg_groups, else "other".

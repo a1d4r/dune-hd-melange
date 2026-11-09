@@ -216,6 +216,7 @@ cat_rows_no_dialog = The Dune firmware does not support this dialog
 cat_rows_not_saved = Rows not saved: settings file error on the Dune
 cat_rows_not_opened = Row settings did not open: write error on the Dune
 cat_group_top = Top
+cat_group_fresh = Fresh releases
 cat_group_ru = Russian
 cat_group_ru_services = Russian services
 cat_group_genres = Genres
