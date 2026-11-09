@@ -59,7 +59,7 @@ You can bookmark the page, but do not share the link with anyone.
 ## 5. Watch
 
 1. Pick a movie:
-   - **in the Melange catalog** (**Apps → Melange**): browse the rows of collections on the **Movies** and **Series** tabs or search with the magnifier on the strip on top (or MENU → **Search**). A poster → **ENTER** opens the movie card;
+   - **in the Melange catalog** (**Apps → Melange**): browse the rows of collections on the **Movies** and **Series** tabs or search with the magnifier on the strip on top. A poster → **ENTER** opens the movie card;
    - **or in the Dune Movies catalog**: open the movie card.
 2. On the card, press **Play...** → **Melange**.
 
