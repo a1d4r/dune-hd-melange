@@ -1350,7 +1350,7 @@ function aio_gc_input($in)
         // A P2P stream (no URL, infoHash only): through TorrServer.
         if (aio_is_p2p($st['rows'][$sel]))
             return aio_ts_open(Aio::$state, $sel, 0, $st['rid']);
-        $a = aio_play($st, $st['rows'][$sel], 0);
+        $a = aio_play($st, $st['rows'][$sel], 0, null, false, null, $st['rid']);
         if ($a[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
             aio_playing($st['rid'], Aio::$state, $sel);
         return $a;

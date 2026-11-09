@@ -158,7 +158,9 @@ function aio_play_plan($seasons, $s, $others)
 // the settings off those go to the playlist as they are, on - lazy: a vod_play
 // of its own gives each its markers (aio_next).
 // $lazy: a lazy episode under the player (aio_next), a placeholder gets its
-// dialog there. $pre: aio_precheck() of the row's URL already done.
+// dialog there. $pre: aio_precheck() of the row's URL already done. $from: rid
+// of the screen under the player the caller notes (aio_playing; '' none: "Continue"),
+// for the start by "Via <service>" of that dialog (aio_pre_failed).
 /**
  * @param AioState $st
  * @param AioRow $r
@@ -166,9 +168,10 @@ function aio_play_plan($seasons, $s, $others)
  * @param array{url: string, eps: array<int, string>, others: array<int, array<int, string>>}|null $ts
  * @param bool $lazy
  * @param AioPrecheck|null $pre
+ * @param string $from
  * @return AioAction
  */
-function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
+function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from = '')
 {
     $mv = $st['movie'];
     $s = $st['s'];
@@ -191,7 +194,7 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
         if (!$pre)
             $pre = aio_precheck($url);
         if ($pre['class'] === 'placeholder')
-            return aio_pre_failed($st, $r, $pos, $lazy, $pre);
+            return aio_pre_failed($st, $r, $pos, $lazy, $pre, $from);
         if ($pre['class'] === 'stream')
         {
             $url = $pre['url'];
@@ -306,7 +309,7 @@ function aio_main_svc($mv, $r)
 }
 
 // A placeholder of the stream check $pre (class placeholder) of row $r of list
-// $st, started at $pos ($lazy: under the player). A row of one copy: the error
+// $st, started at $pos ($lazy: under the player; $from: aio_play). A row of one copy: the error
 // as before 0.56.0 (aio_error, aio_next_failed). A file cached on several services
 // (0.56.0): the service that refused names the dialog, its reason under it; a copy
 // of a service not refused on this start yet (Aio::$alt: the refused ones) - the
@@ -318,9 +321,10 @@ function aio_main_svc($mv, $r)
  * @param int $pos
  * @param bool $lazy
  * @param array{class: 'placeholder', key: string, detail: string, note: string} $pre
+ * @param string $from
  * @return AioAction
  */
-function aio_pre_failed($st, $r, $pos, $lazy, $pre)
+function aio_pre_failed($st, $r, $pos, $lazy, $pre, $from)
 {
     $lang = $st['lang'];
     $ep = sprintf('S%02dE%02d', $st['s'], $st['e']);
@@ -345,7 +349,8 @@ function aio_pre_failed($st, $r, $pos, $lazy, $pre)
         if (!$other && $c['svc'] !== '' && !in_array($c['svc'], $tried, true))
             $other = $c;
     }
-    Aio::$alt = $other && $i >= 0 ? array('st' => $st, 'i' => $i, 'pos' => $pos, 'lazy' => $lazy, 'tried' => $tried) : null;
+    Aio::$alt = $other && $i >= 0 ? array('st' => $st, 'i' => $i, 'pos' => $pos, 'lazy' => $lazy, 'from' => $from,
+        'tried' => $tried) : null;
     aio_log("error: $key" . ($detail !== '' ? " ($detail)" : '') . sprintf(', copy %d of %d: %s, row %d -> dialog, ',
         $r['copy'] + 1, count($r['copies']), $svc, $i) . (Aio::$alt ? "via {$other['svc']} offered" : 'no other copy left'));
     $name = str_replace('{svc}', $r['service'] !== '' ? $r['service'] : $svc, aio_tr($lang, 'pre_svc_failed'));
@@ -365,7 +370,8 @@ function aio_pre_failed($st, $r, $pos, $lazy, $pre)
 
 // "Via <service>" of the dialog of aio_pre_failed (rid, i: the row, svc: the
 // service of its copy): the start again on that copy (Aio::$via: the next
-// episodes of the release too). Not the start of Aio::$alt (another start
+// episodes of the release too), noted as the caller of that start would
+// (aio_playing: 'from' of Aio::$alt). Not the start of Aio::$alt (another start
 // since, a php_server restart), a service refused already: "the list expired".
 /**
  * @param stdClass $in
@@ -388,15 +394,12 @@ function aio_pre_via($in)
     $st = $a['st'];
     Aio::$via = array('k' => $st['movie']['dune_id'], 'hash' => $row['hash'], 'svc' => $svc);
     aio_log(sprintf('via: %s, row %d: %s refused, %s chosen', aio_ep_tag($st), $i, implode(', ', $a['tried']), $svc));
-    $act = aio_play($st, $row, $a['pos'], null, $a['lazy']);
+    $act = aio_play($st, $row, $a['pos'], null, $a['lazy'], null, $a['from']);
     if ($act[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
     {
         Aio::$alt = null;
-        // As aio_next and the ENTER of the list (aio_gc_input) note it.
-        if ($a['lazy'])
-            aio_playing(Aio::$playing ? Aio::$playing['from'] : '', $st, $i);
-        else
-            aio_playing($st['rid'], Aio::$state && Aio::$state['rid'] === $st['rid'] ? Aio::$state : $st, $i);
+        // The list on screen, if it is that one: its cursor now.
+        aio_playing($a['from'], Aio::$state && Aio::$state['rid'] === $st['rid'] ? Aio::$state : $st, $i);
     }
     return aio_close_and($act);
 }
@@ -1386,7 +1389,7 @@ function aio_next($in)
     }
     if ($found)
     {
-        $a = aio_play($st, $found, 0, null, true, $pre);
+        $a = aio_play($st, $found, 0, null, true, $pre, $from);
         // A placeholder: the list under the player stays that of the episode played.
         if ($a[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
             aio_playing($from, $st, $sel);
