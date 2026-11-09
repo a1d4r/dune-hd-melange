@@ -167,6 +167,8 @@ export const NAME = {
   templateP2p: "aio_tpl_p2p",
   // "Film logo in place of the title" (0.55.0): VALUE.on, VALUE.off.
   catLogo: "cat_logo",
+  // "IMDb rating on posters": VALUE.on, VALUE.off.
+  catRating: "cat_rating",
 } as const;
 
 // The values of the page the script compares with.

@@ -25,15 +25,18 @@ describe("the main screen", () => {
     expect(home(open(name))).toEqual(php);
   });
 
-  test("the line of the appearance (0.55.0): the logo by default, the title as text when off, no dot", () => {
+  test("the line of the appearance (0.55.0): the logo by default, the title as text when off, then the rating; no dot", () => {
     const page = open("filled");
     const t = page.init.i18n;
     const value = () => [page.el("dlook").className, page.el("vlook").textContent];
-    expect([value(), t.logoOn, t.logoOff]).toEqual([["dot none", "Логотип вместо названия"], "Логотип вместо названия", "Название текстом"]);
+    expect([value(), t.logoOn, t.logoOff, t.ratingOn, t.ratingOff]).toEqual([["dot none", "Логотип вместо названия · рейтинг IMDb"],
+      "Логотип вместо названия", "Название текстом", "рейтинг IMDb", "без рейтинга"]);
     page.choose(NAME.catLogo, "off");
-    expect(value()).toEqual(["dot none", t.logoOff]);
+    expect(value()).toEqual(["dot none", t.logoOff + " · " + t.ratingOn]);
+    page.choose(NAME.catRating, "off");
+    expect(value()).toEqual(["dot none", t.logoOff + " · " + t.ratingOff]);
     page.choose(NAME.catLogo, "on");
-    expect(value()).toEqual(["dot none", t.logoOn]);
+    expect(value()).toEqual(["dot none", t.logoOn + " · " + t.ratingOff]);
   });
 
   test("follows the form: the answer, the keys, the link of own config, JacRed, TorrServer, the servers", () => {

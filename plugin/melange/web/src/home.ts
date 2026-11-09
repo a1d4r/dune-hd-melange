@@ -81,7 +81,8 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
     const names = servers();
     setRow("dl", names.length ? "ok" : "", names.length ? names.join(", ") : texts.noServers);
     // No dot: only the value (a wrong one as on, as PHP).
-    byId(doc, "vlook").textContent = checkedValue(form, NAME.catLogo) === VALUE.off ? texts.logoOff : texts.logoOn;
+    byId(doc, "vlook").textContent = (checkedValue(form, NAME.catLogo) === VALUE.off ? texts.logoOff : texts.logoOn) + " · " +
+      (checkedValue(form, NAME.catRating) === VALUE.off ? texts.ratingOff : texts.ratingOn);
   }
   render();
   return {

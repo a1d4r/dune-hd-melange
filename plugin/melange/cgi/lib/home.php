@@ -13,7 +13,8 @@ function aio_cgi_home_texts()
         'tsSpare' => aio_cgi_l('по выбору', 'by choice'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'),
         'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'), 'ownAioServer' => aio_cgi_l('свой сервер', 'own server'),
         'logoOn' => aio_cgi_l('Логотип вместо названия', 'Logo in place of the title'),
-        'logoOff' => aio_cgi_l('Название текстом', 'Title as text'));
+        'logoOff' => aio_cgi_l('Название текстом', 'Title as text'),
+        'ratingOn' => aio_cgi_l('рейтинг IMDb', 'IMDb rating'), 'ratingOff' => aio_cgi_l('без рейтинга', 'no rating'));
 }
 
 // The three cards of the answers of "Откуда брать фильмы" (the radio watch):
@@ -120,7 +121,8 @@ function aio_cgi_rows($v)
         'adv' => array('none', ''),
         'rows' => array('none', aio_cgi_l('Какие показывать и в каком порядке', 'Which to show and in what order')),
         // A form back with a wrong value: as on.
-        'look' => array('none', $v['cat_logo'] === aio_cgi_cat_logo_of(false) ? $t['logoOff'] : $t['logoOn']),
+        'look' => array('none', ($v['cat_logo'] === aio_cgi_cat_logo_of(false) ? $t['logoOff'] : $t['logoOn']) . ' · ' .
+            ($v['cat_rating'] === aio_cgi_cat_rating_of(false) ? $t['ratingOff'] : $t['ratingOn'])),
         'bak' => array('none', aio_cgi_l('Настройки в файл и из файла', 'Settings to a file and back')),
         'log' => array('none', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));
 }
