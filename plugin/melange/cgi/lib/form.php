@@ -375,12 +375,12 @@ function aio_cgi_cat_logo_of($on)
 function aio_cgi_cat_rating()
 {
     return array(
-        'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
-            'Цифра IMDb в углу постера в рядах каталога.',
-            'The IMDb number in the corner of a poster in the catalog rows.')),
         'off' => array(aio_cgi_l('Выключен', 'Off'), aio_cgi_l(
             'Постеры без цифр, рейтинги — в карточке над рядами.',
-            'Posters without numbers, the ratings in the card above the rows.')));
+            'Posters without numbers, the ratings in the card above the rows.')),
+        'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
+            'Цифра IMDb в углу постера в рядах каталога.',
+            'The IMDb number in the corner of a poster in the catalog rows.')));
 }
 
 // The answer of aio_cgi_cat_rating() of cat_rating of the settings (a bool).

@@ -29,14 +29,14 @@ describe("the main screen", () => {
     const page = open("filled");
     const t = page.init.i18n;
     const value = () => [page.el("dlook").className, page.el("vlook").textContent];
-    expect([value(), t.logoOn, t.logoOff, t.ratingOn, t.ratingOff]).toEqual([["dot none", "Логотип вместо названия · рейтинг IMDb"],
+    expect([value(), t.logoOn, t.logoOff, t.ratingOn, t.ratingOff]).toEqual([["dot none", "Логотип вместо названия · без рейтинга"],
       "Логотип вместо названия", "Название текстом", "рейтинг IMDb", "без рейтинга"]);
     page.choose(NAME.catLogo, "off");
-    expect(value()).toEqual(["dot none", t.logoOff + " · " + t.ratingOn]);
-    page.choose(NAME.catRating, "off");
     expect(value()).toEqual(["dot none", t.logoOff + " · " + t.ratingOff]);
+    page.choose(NAME.catRating, "on");
+    expect(value()).toEqual(["dot none", t.logoOff + " · " + t.ratingOn]);
     page.choose(NAME.catLogo, "on");
-    expect(value()).toEqual(["dot none", t.logoOn + " · " + t.ratingOff]);
+    expect(value()).toEqual(["dot none", t.logoOn + " · " + t.ratingOn]);
   });
 
   test("follows the form: the answer, the keys, the link of own config, JacRed, TorrServer, the servers", () => {

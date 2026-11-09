@@ -714,7 +714,7 @@ function aio_no_torrents($s)
 // 'source_errors' => bool, "Ошибки источников": the reasons of the error streams
 // on the list screen and in the dialogs (0.49.1; not a bool - false),
 // 'cat_rating' => bool, "Рейтинг IMDb на постерах": the IMDb rating in the corner of the
-// posters of the rows of the catalog (aio_catv_title_item; not a bool - true),
+// posters of the rows of the catalog (aio_catv_title_item; not a bool - false),
 // 'cat_logo' => bool, "Логотип фильма вместо названия": the card background of
 // the server with the logo in the panel of the catalog (aio_catv_card; 0.55.0;
 // not a bool - true),
@@ -785,7 +785,7 @@ function aio_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'source_errors' => false, 'cat_rating' => true, 'cat_logo' => true, 'cat_rows' => null, 'aio_confs' => array(), 'saved_once' => false);
+        'markers' => true, 'source_errors' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_rows' => null, 'aio_confs' => array(), 'saved_once' => false);
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
         $r['manifest_url'] = aio_manifest_url($j['manifest_url']);
