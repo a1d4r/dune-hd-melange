@@ -799,6 +799,30 @@ function aio_merge_same($a, $b)
     return $a['file'] !== '' && $a['file'] === $b['file'] && $a['size'] > 0 && $a['size'] == $b['size'] ? 'name' : '';
 }
 
+// Copy $k (aio_merge_key) is of the file of every copy of a group, $keys
+// (aio_merge_same of each): so an infoHash of it, where it has one, is that of
+// each copy with one (a copy of no infoHash joined by the name never takes
+// one of another infoHash in). -> 'hash' one of them by the infoHash, 'name'
+// all by the name and size, '' not of that file.
+/**
+ * @param list<AioMergeKey> $keys
+ * @param AioMergeKey $k
+ * @return string
+ */
+function aio_merge_group($keys, $k)
+{
+    $by = 'name';
+    foreach ($keys as $g)
+    {
+        $how = aio_merge_same($g, $k);
+        if ($how === '')
+            return '';
+        if ($how === 'hash')
+            $by = 'hash';
+    }
+    return $by;
+}
+
 // The state of aio_row_merge over one reply.
 /**
  * @return AioMerge
@@ -809,8 +833,8 @@ function aio_merge_start()
 }
 
 // Row $r (aio_row, before aio_row_voices) cached on a service, of the file of
-// an earlier row of $rows (the list aio_fetch makes) without a copy of that
-// service: a copy of it there (the copy first in the reply stays on top, the
+// every copy of an earlier row of $rows (aio_merge_group; the list aio_fetch
+// makes) without a copy of that service: a copy of it there (the copy first in the reply stays on top, the
 // list picks one: aio_list_state; the row without an infoHash gets that of the
 // copy) -> true. Else false: $r is the next row of $rows, the caller puts it
 // there; $mx (aio_merge_start) notes it. Not merged: not cached, P2P, a copy of the same service.
@@ -832,7 +856,7 @@ function aio_row_merge(&$rows, &$mx, $r)
     foreach ($cand as $gi)
     {
         $g = $mx['g'][$gi];
-        $by = in_array($k['svc'], $g['svcs'], true) ? '' : aio_merge_same($g['key'], $k);
+        $by = in_array($k['svc'], $g['svcs'], true) ? '' : aio_merge_group($g['keys'], $k);
         if ($by === '' || !isset($rows[$gi]))
             continue;
         $row = $rows[$gi];
@@ -846,6 +870,7 @@ function aio_row_merge(&$rows, &$mx, $r)
         }
         $rows[$gi] = aio_row_use($row, 0);
         $g['svcs'][] = $k['svc'];
+        $g['keys'][] = $k;
         $mx['g'][$gi] = $g;
         if ($by === 'hash')
             $mx['by_hash']++;
@@ -854,7 +879,7 @@ function aio_row_merge(&$rows, &$mx, $r)
         return true;
     }
     $gi = count($rows);
-    $mx['g'][$gi] = array('key' => $k, 'svcs' => array($k['svc']));
+    $mx['g'][$gi] = array('keys' => array($k), 'svcs' => array($k['svc']));
     if ($k['hash'] !== '')
         $mx['hash'][$k['hash']][] = $gi;
     if ($k['file'] !== '' && $k['size'] > 0)

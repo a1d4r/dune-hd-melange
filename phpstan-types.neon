@@ -100,7 +100,7 @@ parameters:
         AioMergeKey: 'array{svc: string, hash: string, file: string, idx: int, size: float}'
         # The state of aio_row_merge over a reply (aio_merge_start, parse.php):
         # the rows by index, the index of rows by infoHash and by file name and size.
-        AioMerge: 'array{g: array<int, array{key: AioMergeKey, svcs: list<string>}>, hash: array<string, list<int>>, name: array<string, list<int>>, by_hash: int, by_name: int}'
+        AioMerge: 'array{g: array<int, array{keys: list<AioMergeKey>, svcs: list<string>}>, hash: array<string, list<int>>, name: array<string, list<int>>, by_hash: int, by_name: int}'
         # A row of the stream list (aio_row, parse.php). names: until
         # aio_row_voices (voices_parse.php) puts voices in its place. copies,
         # copy: a file cached on several services (aio_row_merge, parse.php).
