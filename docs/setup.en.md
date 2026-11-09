@@ -71,7 +71,7 @@ Which rows the Melange catalog shows and in what order: see [Catalog](catalog.en
 
 ## Appearance
 
-The film logo in place of the title above the rows of the catalog: see [Catalog](catalog.en.md#logo-in-place-of-the-title).
+The film logo in place of the title above the rows of the catalog: see [Catalog](catalog.en.md#logo-in-place-of-the-title). The IMDb rating in the corner of the posters: see [Catalog](catalog.en.md#rows).
 
 ## Download to your server
 
