@@ -14,6 +14,7 @@ err_list_expired = Список устарел, откройте его зано
 err_pre_archive = Debrid отдал архив вместо видео — выберите другую раздачу
 err_pre_downloading = Debrid ещё не скачал раздачу, попробуйте позже
 err_pre_infringing = Debrid заблокировал раздачу: авторские права
+err_pre_no_file = Debrid не нашёл в раздаче файл этой серии — выберите другую
 err_pre_limit = Лимит Debrid
 err_pre_placeholder = Debrid вернул заглушку
 next_no_episode = Серии {ep} нет в этой раздаче
