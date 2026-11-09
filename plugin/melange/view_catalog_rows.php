@@ -276,9 +276,10 @@ function aio_catv_rows_edit($from, $sel)
 }
 
 // post_action of the dialog of the main screen $from, at every close; the shell has written its file
-// by then. Changed: the rows chosen there go to cat_rows in place of those of the tab, settings.json
-// read again and written as the quick setup does (aio_settings_write), the screen read again in place
-// (invalidate: the shell keeps the focus by sel_state). Anything else: nothing written.
+// by then; none: as an empty one, the defaults of the tab (list_utils.php r25: no file, no change
+// against checked_ids). Changed: the rows chosen there go to cat_rows in place of those of the tab,
+// settings.json read again and written as the quick setup does (aio_settings_write), the screen read
+// again in place (invalidate: the shell keeps the focus by sel_state). Anything else: nothing written.
 /**
  * @param stdClass $in
  * @param string $from
@@ -297,14 +298,17 @@ function aio_catv_rows_apply($in, $from)
     }
     $path = aio_catv_lcfg_path($tab);
     clearstatcache();
-    if (is_link($path) || !is_file($path) || filesize($path) > 65536)
+    $none = !is_link($path) && !file_exists($path);
+    if (!$none && (is_link($path) || !is_file($path) || filesize($path) > 65536))
     {
-        aio_log("catalog: rows: $tab: no file of the dialog, nothing changed");
+        aio_log("catalog: rows: $tab: the file of the dialog not a file or too big, nothing changed");
         return null;
     }
+    if ($none)
+        aio_log("catalog: rows: $tab: no file of the dialog, the defaults");
     $copy = aio_cat_manifest_copy();
     list($base) = aio_catv_lcfg_base($copy['rows'], $tab);
-    $keys = aio_catv_lcfg_parse(strval(file_get_contents($path)), $base);
+    $keys = aio_catv_lcfg_parse($none ? '' : strval(file_get_contents($path)), $base);
     if (!$keys)
     {
         aio_log("catalog: rows: $tab: none chosen in the file, nothing changed");
