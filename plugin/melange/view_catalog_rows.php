@@ -18,6 +18,17 @@ function aio_catv_lcfg_groups()
         'world' => 'cat_group_world', 'runtime' => 'cat_group_runtime', 'anime' => 'cat_group_anime', 'other' => 'cat_group_other');
 }
 
+// The group of the row $r in the dialog: its own, if one of aio_catv_lcfg_groups, else "other".
+/**
+ * @param AioCatRow $r
+ * @return string
+ */
+function aio_catv_lcfg_group($r)
+{
+    $groups = aio_catv_lcfg_groups();
+    return isset($groups[$r['group']]) ? $r['group'] : 'other';
+}
+
 // The config_id of the dialog of the tab $tab; bin/uninstall.sh removes their files.
 /**
  * @param string $tab
@@ -121,11 +132,10 @@ function aio_catv_lcfg_parse($text, $base)
             $state[$k] = $line[0] === '+';
     }
     // The new order within each group; no place in the file: after, as in $base.
-    $groups = aio_catv_lcfg_groups();
     $of = array();
     $n = count($rank);
     foreach ($base as $i => $r)
-        $of[isset($groups[$r['group']]) ? $r['group'] : 'other'][$r['key']] = isset($rank[$r['key']]) ? $rank[$r['key']] : $n + $i;
+        $of[aio_catv_lcfg_group($r)][$r['key']] = isset($rank[$r['key']]) ? $rank[$r['key']] : $n + $i;
     foreach ($of as $g => $pos)
     {
         asort($pos);
@@ -134,7 +144,7 @@ function aio_catv_lcfg_parse($text, $base)
     $keys = array();
     foreach ($base as $r)
     {
-        $k = array_shift($of[isset($groups[$r['group']]) ? $r['group'] : 'other']);
+        $k = array_shift($of[aio_catv_lcfg_group($r)]);
         if (isset($state[$k]) ? $state[$k] : $known[$k]['home'])
             $keys[] = $k;
     }
@@ -194,13 +204,13 @@ function aio_catv_menu($in, $from)
         if (aio_catv_rid($r) === $rid)
             $sel = $r['key'];
     }
-    $empty = array('key' => "tab/$tab", 'type' => $tab, 'id' => 'tab', 'name' => '', 'genre' => '', 'home' => false, 'group' => '');
-    if (!$base || ($sel === null && $rid !== aio_catv_rid($empty)))
+    $lang = aio_catv_lang();
+    if (!$base || ($sel === null && $rid !== aio_catv_rid(aio_catv_tab_empty_row($tab, $lang))))
         return null;
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
         GuiAction::data => array(ShowPopupMenuActionData::menu_items => array(array(
-            GuiMenuItemDef::caption => aio_tr(aio_catv_lang(), 'cat_rows_edit'),
+            GuiMenuItemDef::caption => aio_tr($lang, 'cat_rows_edit'),
             GuiMenuItemDef::action => aio_input('cat_rows_edit', array('from' => $from, 'sel' => strval($sel)))))));
 }
 
@@ -235,7 +245,7 @@ function aio_catv_rows_edit($from, $sel)
     {
         if (aio_cat_row_tab($r) !== $tab)
             continue;
-        $g = isset($names[$r['group']]) ? $r['group'] : 'other';
+        $g = aio_catv_lcfg_group($r);
         $used[$g] = true;
         $items[] = array(GuiItem::id => $r['key'], GuiItem::caption => $r['name'], GuiItem::group_id => $g);
         if ($r['home'])

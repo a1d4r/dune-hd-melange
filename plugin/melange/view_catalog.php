@@ -1170,6 +1170,18 @@ function aio_catv_main_view($media_url, $sel_state)
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
 }
 
+// The row of the tab $tab without a row to show (aio_catv_tab_empty; its header: aio_catv_menu).
+/**
+ * @param string $tab
+ * @param string $lang
+ * @return AioCatRow
+ */
+function aio_catv_tab_empty_row($tab, $lang)
+{
+    return array('key' => "tab/$tab", 'type' => $tab, 'id' => 'tab', 'name' => aio_tr($lang, $tab === 'movie' ? 'cat_movies' : 'cat_series'),
+        'genre' => '', 'home' => false, 'group' => '');
+}
+
 // The tab $tab without a row to show: under the strip one tile that says why. $retry: its rows
 // came empty (r25, hidden for an hour), "retry:<rid>", ENTER is "Retry"; else the manifest has
 // none of its type to show (none chosen and no start row of it, aio_cat_user_rows), "empty:<rid>",
@@ -1182,8 +1194,7 @@ function aio_catv_main_view($media_url, $sel_state)
  */
 function aio_catv_tab_empty($tab, $lang, $retry)
 {
-    $row = array('key' => "tab/$tab", 'type' => $tab, 'id' => 'tab', 'name' => aio_tr($lang, $tab === 'movie' ? 'cat_movies' : 'cat_series'),
-        'genre' => '', 'home' => false, 'group' => '');
+    $row = aio_catv_tab_empty_row($tab, $lang);
     $rid = aio_catv_rid($row);
     $list = aio_catv_list(aio_cat_row_state($row), array(), false);
     $item = $retry ? aio_catv_item("retry:$rid", aio_tr($lang, 'cat_tab_retry'), AIO_CATV_ICONS . 'no_movie_poster.png') :
