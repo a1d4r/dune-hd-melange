@@ -4,7 +4,7 @@
 
 ## 0.55.3
 - **A release packed in an archive no longer starts the player for nothing.** Real-Debrid sometimes gives a release as one RAR or ZIP archive instead of the video file; the player could not open it and closed with a general error. Now the player does not start, and Melange shows "Debrid gave an archive, not a video — pick another release". The same for the placeholder Torrentio sends for such a release: it used to show "Debrid returned a placeholder video".
-- The placeholder of AIOStreams for a TorBox limit now shows "Debrid limit reached", not "Debrid returned a placeholder video".
+- A Debrid limit placeholder now shows "Debrid limit reached", not "Debrid returned a placeholder video": the AIOStreams file for a TorBox limit and the ElfHosted titles "Debrid limit reached", "Proxy limit reached" and "Too many requests".
 - The "Still downloading" and "Still caching" placeholders of ElfHosted addons (for example, MediaFusion with Real-Debrid, AIOStreams) now show "Debrid has not downloaded the release yet, try again later", not "Debrid returned a placeholder video".
 
 ## 0.55.2 — 09.11.2026
@@ -200,7 +200,7 @@ First public release. What it does:
 
 ## 0.55.3
 - **Раздача в архиве больше не запускает плеер впустую.** Real-Debrid иногда отдаёт раздачу одним архивом RAR или ZIP вместо видеофайла: плеер не мог его открыть и закрывался общей ошибкой. Теперь плеер не запускается, а Melange показывает «Debrid отдал архив вместо видео — выберите другую раздачу». Так же — для заглушки, которую на такую раздачу присылает Torrentio: раньше было «Debrid вернул заглушку».
-- Заглушка AIOStreams при лимите TorBox теперь показывает «Лимит Debrid», а не «Debrid вернул заглушку».
+- Заглушка лимита Debrid теперь показывает «Лимит Debrid», а не «Debrid вернул заглушку»: файл AIOStreams при лимите TorBox и заголовки ElfHosted «Debrid limit reached», «Proxy limit reached» и «Too many requests».
 - Заглушки «Still downloading» и «Still caching» аддонов ElfHosted (например, MediaFusion с Real-Debrid, AIOStreams) теперь показывают «Debrid ещё не скачал раздачу, попробуйте позже», а не «Debrid вернул заглушку».
 
 ## 0.55.2 — 09.11.2026

@@ -406,8 +406,8 @@ function aio_pre_file($file)
 }
 
 // Query of a slate.elfhosted.com Location -> its placeholder: infringing when
-// title or body tell of a refusal as infringing / for legal reasons, downloading
-// when the title says "downloading" or "caching", else the general one with its title
+// title or body tell of a refusal as infringing / for legal reasons, else by
+// the title: a limit, downloading, else the general one with the title
 // (printable, no leading "%": not a %tr% key of the shell, cut). Not its query
 // in the note: sig and ts. Not parse_str: magic quotes.
 /**
@@ -428,15 +428,20 @@ function aio_pre_slate($query)
     if (!preg_match('//u', $title))
         $title = preg_replace('/[\x80-\xff]+/', '', $title);
     $title = aio_cut(rtrim(ltrim($title, '% ')), 100);
-    $note = 'slate: ' . ($title !== '' ? $title : '-');
+    // AIOStreams: "Debrid limit reached", "Proxy limit reached", "Too many
+    // requests"; MediaFusion "Still downloading", AIOStreams "Still caching"
+    // (not "download": AIOStreams "Download failed").
     if (stripos($why, 'infring') !== false || stripos($why, 'legal reason') !== false)
-        return array('class' => 'placeholder', 'key' => 'err_pre_infringing', 'detail' => '', 'note' => $note);
-    // MediaFusion "Still downloading", AIOStreams "Still caching"; not
-    // "download": AIOStreams "Download failed".
-    if (stripos($title, 'downloading') !== false || stripos($title, 'caching') !== false)
-        return array('class' => 'placeholder', 'key' => 'err_pre_downloading', 'detail' => '', 'note' => $note);
-    return array('class' => 'placeholder', 'key' => 'err_pre_placeholder', 'detail' => $title !== '' ? $title : 'slate',
-        'note' => $note);
+        $key = 'err_pre_infringing';
+    else if (stripos($title, 'limit reached') !== false || stripos($title, 'too many requests') !== false)
+        $key = 'err_pre_limit';
+    else if (stripos($title, 'downloading') !== false || stripos($title, 'caching') !== false)
+        $key = 'err_pre_downloading';
+    else
+        $key = 'err_pre_placeholder';
+    return array('class' => 'placeholder', 'key' => $key,
+        'detail' => $key === 'err_pre_placeholder' ? ($title !== '' ? $title : 'slate') : '',
+        'note' => 'slate: ' . ($title !== '' ? $title : '-'));
 }
 
 // The check of stream URL $url -> aio_pre_class(), logged.
