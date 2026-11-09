@@ -967,19 +967,23 @@ function aio_fetch($base, $id, $series)
     $mx = aio_merge_start();
     foreach ($j['streams'] as $st)
     {
-        $full = count($rows) === AIO_MAX_ROWS;
-        $k = $full && is_array($st) ? aio_merge_key($st) : null;
-        if ($full && (!$k || !aio_merge_find($mx, $k)))
+        if (count($rows) === AIO_MAX_ROWS)
+        {
+            $k = is_array($st) ? aio_merge_key($st) : null;
+            $r = $k && aio_merge_find($mx, $k) ? aio_row($st, $series) : null;
+            if ($r)
+                aio_row_merge($rows, $mx, $r);
             continue;
+        }
         $r = is_array($st) ? aio_row($st, $series) : null;
-        if ($r && !$full && Aio::$settings['no_torrents'] && aio_is_p2p($r))
+        if ($r && Aio::$settings['no_torrents'] && aio_is_p2p($r))
         {
             $hidden++;
             continue;
         }
-        if ($r && aio_row_merge($rows, $mx, $r, !$full))
+        if ($r && aio_row_merge($rows, $mx, $r))
             continue;
-        if ($r && !$full)
+        if ($r)
         {
             $r['ord'] = count($rows);
             $rows[] = aio_row_voices($r);

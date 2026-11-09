@@ -97,7 +97,7 @@ parameters:
         # A copy of a row on one Debrid service (aio_row_copy_of, parse.php).
         AioCopy: 'array{svc: string, service: string, url: string, addon: string, addons: list<AioAddon>, raw: array<mixed>}'
         # What aio_row_merge compares of a row (aio_merge_key, parse.php).
-        AioMergeKey: 'array{svc: string, hash: string, file: string, idx: int, size: float}'
+        AioMergeKey: 'array{svc: string, hash: string, file: string, idx: int, size: float, nk: string}'
         # The state of aio_row_merge over a reply (aio_merge_start, parse.php):
         # the rows by index, the index of rows by infoHash and by file name and size.
         AioMerge: 'array{g: array<int, array{keys: list<AioMergeKey>, svcs: list<string>}>, hash: array<string, list<int>>, name: array<string, list<int>>, by_hash: int, by_name: int}'

@@ -789,9 +789,13 @@ function aio_row_services($r)
     return $out;
 }
 
+// Copies of a file in one row at most (aio_merge_find): its merge is quadratic in them.
+define('AIO_MERGE_MAX', 8);
+
 // What the merge compares of stream $st of a reply (the raw of a row of
 // aio_row): the service, infoHash, the file (its name, its index in the
-// torrent: -1 unknown), the size; null for a stream never merged: not cached
+// torrent: -1 unknown), the size, nk - the key of the index by the name and
+// the size ('' no name or size); null for a stream never merged: not cached
 // (true), P2P (no http URL), no service. Of the stream: a stream past the
 // limit of the list is looked at so, before aio_row (aio_fetch).
 /**
@@ -807,8 +811,10 @@ function aio_merge_key($st)
         return null;
     $tor = aio_arr($sd, 'torrent');
     $idx = isset($tor['fileIdx']) ? $tor['fileIdx'] : (isset($st['fileIdx']) ? $st['fileIdx'] : null);
-    return array('svc' => $id, 'hash' => aio_st_hash($st), 'file' => aio_st_file($st),
-        'idx' => is_int($idx) && $idx >= 0 ? $idx : -1, 'size' => aio_num(aio_st_size($st)));
+    $file = aio_st_file($st);
+    $size = aio_num(aio_st_size($st));
+    return array('svc' => $id, 'hash' => aio_st_hash($st), 'file' => $file, 'idx' => is_int($idx) && $idx >= 0 ? $idx : -1,
+        'size' => $size, 'nk' => $file !== '' && $size > 0 ? $file . "\x00" . sprintf('%.0f', $size) : '');
 }
 
 // Copies $a, $b (aio_merge_key) are of one file: both with an infoHash - the
@@ -867,8 +873,8 @@ function aio_merge_start()
 }
 
 // The row of $mx (aio_merge_start) copy $k (aio_merge_key) joins: of the file
-// of each of its copies (aio_merge_group), none of the service of $k ->
-// array(its index, how: 'hash' or 'name'); null none.
+// of each of its copies (aio_merge_group), none of the service of $k, fewer
+// than AIO_MERGE_MAX copies -> array(its index, how: 'hash' or 'name'); null none.
 /**
  * @param AioMerge $mx
  * @param AioMergeKey $k
@@ -876,14 +882,14 @@ function aio_merge_start()
  */
 function aio_merge_find($mx, $k)
 {
-    $nk = $k['file'] . "\x00" . sprintf('%.0f', $k['size']);
     $cand = $k['hash'] !== '' && isset($mx['hash'][$k['hash']]) ? $mx['hash'][$k['hash']] : array();
-    if (isset($mx['name'][$nk]))
-        $cand = array_merge($cand, $mx['name'][$nk]);
+    if ($k['nk'] !== '' && isset($mx['name'][$k['nk']]))
+        $cand = array_merge($cand, $mx['name'][$k['nk']]);
     foreach ($cand as $gi)
     {
         $g = $mx['g'][$gi];
-        $by = in_array($k['svc'], $g['svcs'], true) ? '' : aio_merge_group($g['keys'], $k);
+        $by = count($g['keys']) >= AIO_MERGE_MAX || in_array($k['svc'], $g['svcs'], true) ? '' :
+            aio_merge_group($g['keys'], $k);
         if ($by !== '')
             return array($gi, $by);
     }
@@ -895,16 +901,15 @@ function aio_merge_find($mx, $k)
 // of it there (the copy first in the reply stays on top, the list picks one:
 // aio_list_state; the row without an infoHash gets that of the copy) -> true.
 // Else false: $r is the next row of $rows, the caller puts it there; $mx
-// (aio_merge_start) notes it, unless !$new (the list is full: no next row).
-// Not merged: not cached, P2P, a copy of the same service.
+// (aio_merge_start) notes it. Not merged: not cached, P2P, a copy of the same
+// service, a row of AIO_MERGE_MAX copies.
 /**
  * @param list<AioRow> $rows
  * @param AioMerge $mx
  * @param AioRow $r
- * @param bool $new
  * @return bool
  */
-function aio_row_merge(&$rows, &$mx, $r, $new = true)
+function aio_row_merge(&$rows, &$mx, $r)
 {
     $k = aio_merge_key($r['raw']);
     if (!$k)
@@ -927,20 +932,27 @@ function aio_row_merge(&$rows, &$mx, $r, $new = true)
         $g['svcs'][] = $k['svc'];
         $g['keys'][] = $k;
         $mx['g'][$gi] = $g;
+        // Full: out of the index, never a candidate again (a reply of many copies stays linear).
+        if (count($g['keys']) >= AIO_MERGE_MAX)
+        {
+            if ($row['hash'] !== '' && isset($mx['hash'][$row['hash']]))
+                $mx['hash'][$row['hash']] = array_values(array_diff($mx['hash'][$row['hash']], array($gi)));
+            $nk = $g['keys'][0]['nk'];
+            if ($nk !== '' && isset($mx['name'][$nk]))
+                $mx['name'][$nk] = array_values(array_diff($mx['name'][$nk], array($gi)));
+        }
         if ($by === 'hash')
             $mx['by_hash']++;
         else
             $mx['by_name']++;
         return true;
     }
-    if (!$new)
-        return false;
     $gi = count($rows);
     $mx['g'][$gi] = array('keys' => array($k), 'svcs' => array($k['svc']));
     if ($k['hash'] !== '')
         $mx['hash'][$k['hash']][] = $gi;
-    if ($k['file'] !== '' && $k['size'] > 0)
-        $mx['name'][$k['file'] . "\x00" . sprintf('%.0f', $k['size'])][] = $gi;
+    if ($k['nk'] !== '')
+        $mx['name'][$k['nk']][] = $gi;
     return false;
 }
 
