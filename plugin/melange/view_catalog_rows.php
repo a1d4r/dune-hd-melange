@@ -215,9 +215,9 @@ function aio_catv_menu($in, $from)
 }
 
 // The dialog of the rows of the tab of the main screen $from, the row $sel ('': none) selected. Its
-// file written from cat_rows first: a failure goes to the log, the dialog then shows its last state.
-// No close_item_params, dialog_params or params of items: r22 has none. No ALLOW_EMPTY: a tab is
-// never empty, as on the page.
+// file written from cat_rows first; not written: an error, no dialog (its close would write the last
+// state of the shell over cat_rows of the tab). No close_item_params, dialog_params or params of
+// items: r22 has none. No ALLOW_EMPTY: a tab is never empty, as on the page.
 /**
  * @param string $from
  * @param string $sel
@@ -235,7 +235,10 @@ function aio_catv_rows_edit($from, $sel)
     if (!$base)
         return aio_error('cat_outdated');
     if (!aio_write_file(aio_catv_lcfg_path($tab), aio_catv_lcfg_text($base, $on), 0644))
+    {
         aio_log("catalog: rows: $tab: the file of the dialog not written");
+        return aio_error('cat_rows_not_opened');
+    }
     $lang = aio_catv_lang();
     $names = aio_catv_lcfg_groups();
     $items = array();
