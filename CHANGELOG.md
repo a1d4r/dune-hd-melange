@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.57.0
+- **"Fresh releases" group.** On the settings page, in **Catalog rows**, right after Top, there is a new group of three rows. «Новинки в качестве» and «Новинки в 4K» are movies that recently got a release in good quality or in 4K, from the open list of KinoTrend. «Свежие серии с переводом» are series with a new episode out with Russian translation, from Kinou. The newest come first. These rows are not among the start rows: tick the ones you want.
+
 ## 0.56.0 — 09.11.2026
 - **One row for a release cached in both Real-Debrid and TorBox.** With both keys, a release cached in both services is now one row of the list, with the status "Cached in Real-Debrid and TorBox" (the second service on a line of its own); AIOStreams used to keep the copy of one service only. Releases without an infoHash (MediaFusion) are matched by the file name and size. To get the copies of both services, open the settings page and press **Save** once: Melange updates its AIOStreams config.
 - **Main Debrid.** With both keys, the settings page has **Main Debrid: Real-Debrid / TorBox**: a release cached in both plays from the main one. With none chosen, the copy that came first plays, as before. In the release list, MENU → **Main Debrid → TorBox** (or **→ Real-Debrid**) switches it at once; it is there when the list has releases cached in both.
@@ -202,6 +205,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.57.0
+- **Группа «Новинки с переводом».** На странице настроек в разделе **«Ряды каталога»**, сразу после «Топов», новая группа из трёх рядов. «Новинки в качестве» и «Новинки в 4K» — фильмы, у которых недавно вышла раздача в хорошем качестве или в 4K, по открытому списку KinoTrend. «Свежие серии с переводом» — сериалы, у которых вышла новая серия с русским переводом, по данным Киноу. Свежее — сверху. В стартовый набор эти ряды не входят: включите нужные флажком.
 
 ## 0.56.0 — 09.11.2026
 - **Одна строка на раздачу в кэше Real-Debrid и TorBox.** С двумя ключами раздача, которая есть в кэше обоих сервисов, теперь одна строка списка со статусом «В кэше Real-Debrid и TorBox» (второй сервис — отдельной строкой); раньше AIOStreams оставлял копию только одного сервиса. Раздачи без infoHash (MediaFusion) сводятся по имени файла и размеру. Чтобы появились копии обоих сервисов, откройте страницу настроек и один раз нажмите «Сохранить»: Melange обновит свой конфиг AIOStreams.

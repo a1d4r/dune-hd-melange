@@ -81,6 +81,7 @@ export const TEXT_KEYS = [
   "rowsGroupAll",
   // The names of the groups of rows (rows.ts).
   "groupTop",
+  "groupFresh",
   "groupRu",
   "groupRuServices",
   "groupGenres",

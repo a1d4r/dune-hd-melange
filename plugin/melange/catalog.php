@@ -158,6 +158,8 @@ function aio_cat_group($id)
         return $m[1];
     if (strpos($id, 'anilist.') === 0)
         return 'anime';
+    if (strpos($id, 'custom.fresh.') === 0)
+        return 'fresh';
     return $id === 'tmdb.trending' || $id === 'tmdb.top_rated' || strpos($id, 'letterboxd.') === 0 ? 'top' : 'other';
 }
 

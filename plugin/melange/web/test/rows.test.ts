@@ -122,6 +122,20 @@ describe("the list", () => {
     expect([groupCheck(page, "A").checked, groupCheck(page, "B").checked, groupCheck(page, "A series").checked]).toEqual([true, false, true]);
   });
 
+  test("the group of fresh releases: right after Top, in each part", async () => {
+    const rows = [
+      row("movie/g", "G", "genres"),
+      row("movie/f", "F", "fresh"),
+      row("movie/a", "A", "top", true),
+      row("series/f", "F series", "fresh"),
+      row("series/a", "A series", "top", true),
+    ];
+    const page = await opened(json({ ok: true, stale: false, rows }));
+    const { i18n } = page.init;
+    expect(groupTitles(page, "movie")).toEqual([i18n.groupTop + " · 1/1", i18n.groupFresh + " · 0/1", i18n.groupGenres + " · 0/1"]);
+    expect(groupTitles(page, "series")).toEqual([i18n.groupTop + " · 1/1", i18n.groupFresh + " · 0/1"]);
+  });
+
   test("the part of a row: its tab as the Dune sends it, not the key", async () => {
     const page = await opened(json({ ok: true, stale: false, rows: [row("movie/x", "X", "top", true, "series"), row("series/y", "Y", "top", true, "movie")] }));
     expect(shownRows(page, "movie")).toEqual(["Y"]);

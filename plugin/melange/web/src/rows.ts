@@ -11,6 +11,7 @@ import { addLine, show } from "./ui";
 // The groups of aio_cat_group (catalog.php), in the order of the screen; any other one goes to the last, "other".
 const GROUPS: readonly (readonly [string, keyof Texts])[] = [
   ["top", "groupTop"],
+  ["fresh", "groupFresh"],
   ["ru", "groupRu"],
   ["ru-services", "groupRuServices"],
   ["genres", "groupGenres"],

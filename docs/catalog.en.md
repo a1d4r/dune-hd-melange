@@ -20,7 +20,7 @@ The catalog has rows of collections with up to 20 posters each; the last tile, *
 
 ### Your own set of rows
 
-On the settings page on your phone, in the **Catalog rows** section, there are about 180 rows in two parts, switched at the top (Movies | Series), each in groups (top, Russian, Russian services, genres, themes, studios, decades, years, streaming, countries, runtime, anime): tick the ones you want (the checkbox in the title of a group turns all its rows on or off at once) and order them with **Up** / **Down**; at least one row must stay in each part. The parts are the tabs of the catalog: rows of movies show on the Movies tab, rows of series and anime on Series. Rows are saved together with the other settings, so set up where to get films first. The new set shows the next time the catalog opens.
+On the settings page on your phone, in the **Catalog rows** section, there are about 180 rows in two parts, switched at the top (Movies | Series), each in groups (top, fresh releases, Russian, Russian services, genres, themes, studios, decades, years, streaming, countries, runtime, anime): tick the ones you want (the checkbox in the title of a group turns all its rows on or off at once) and order them with **Up** / **Down**; at least one row must stay in each part. The parts are the tabs of the catalog: rows of movies show on the Movies tab, rows of series and anime on Series. Rows are saved together with the other settings, so set up where to get films first. The new set shows the next time the catalog opens.
 
 ## Logo in place of the title
 
@@ -47,5 +47,6 @@ Rows, search and posters come from Melange's shared AIOMetadata server `aiometad
 Movies, series and posters come from [TMDB](https://www.themoviedb.org/), streaming service rows from [JustWatch](https://www.justwatch.com/) data. Thanks to the authors of the collections:
 - the parameters of most rows (genres, themes, studios, decades, streaming, countries, runtime) are from the AIOMetadata template [luckynumb3rs/stremio-perfect-setup](https://github.com/luckynumb3rs/stremio-perfect-setup); the Russian rows and new releases were put together for Melange;
 - Kinopoisk top is an unofficial mirror of the Kinopoisk Top 250, the public list by [lotist on Letterboxd](https://letterboxd.com/lotist/list/250/); it is not Kinopoisk's own rating, and the row has the first 200 movies;
+- "Новинки в качестве" and "Новинки в 4K" follow the open list of [KinoTrend](https://kino-trend.ru/), "Свежие серии с переводом" follows [Kinou](https://kinou.ru/); a movie or series without an IMDb ID does not get into these rows;
 - the "on AniList" anime rows are from [AniList](https://anilist.co/);
 - the catalog server is [AIOMetadata](https://github.com/cedya77/aiometadata).
