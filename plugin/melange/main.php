@@ -364,16 +364,16 @@ function aio_token_fix($unread)
         aio_log('setup: web_token rewritten, owner uid ' . $uid . ' -> ' . fileowner($f));
 }
 
-// Writes $data to $path atomically, 0600: a fresh file next to it, then rename.
-// $path a folder: false, no rename (its warning).
-function aio_write_file($path, $data)
+// Writes $data to $path atomically, $mode (0600; 0644: a file the shell reads): a fresh file next
+// to it, then rename. $path a folder: false, no rename (its warning).
+function aio_write_file($path, $data, $mode = 0600)
 {
     // A name, not a secret: fopen 'x' fails rather than reuse an existing file.
     $tmp = $path . '.' . substr(md5(uniqid(mt_rand(), true)), 0, 8) . '.tmp';
     $fp = is_dir(dirname($path)) && !is_dir($path) ? fopen($tmp, 'x') : false;
     if (!$fp)
         return false;
-    $ok = chmod($tmp, 0600) && fwrite($fp, $data) === strlen($data);
+    $ok = chmod($tmp, $mode) && fwrite($fp, $data) === strlen($data);
     $ok = fclose($fp) && $ok && rename($tmp, $path);
     if (!$ok && is_file($tmp))
         unlink($tmp);
