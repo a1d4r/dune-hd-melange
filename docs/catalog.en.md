@@ -47,6 +47,7 @@ Rows, search and posters come from Melange's shared AIOMetadata server `aiometad
 Movies, series and posters come from [TMDB](https://www.themoviedb.org/), streaming service rows from [JustWatch](https://www.justwatch.com/) data. Thanks to the authors of the collections:
 - the parameters of most rows (genres, themes, studios, decades, streaming, countries, runtime) are from the AIOMetadata template [luckynumb3rs/stremio-perfect-setup](https://github.com/luckynumb3rs/stremio-perfect-setup); the Russian rows and new releases were put together for Melange;
 - Kinopoisk top is an unofficial mirror of the Kinopoisk Top 250, the public list by [lotist on Letterboxd](https://letterboxd.com/lotist/list/250/); it is not Kinopoisk's own rating, and the row has the first 200 movies;
-- "Новинки в качестве" and "Новинки в 4K" follow the open list of [KinoTrend](https://kino-trend.ru/), "Свежие серии с переводом" follows [Kinou](https://kinou.ru/); a movie or series without an IMDb ID does not get into these rows;
+- "Новинки в качестве" and "Новинки в 4K" follow the open list of [KinoTrend](https://kino-trend.ru/), "Свежие серии с переводом" follows [Kinou](https://kinou.ru/);
+- "Сезон целиком с переводом" follows the open list of SerialTrend: series that already have a release of a whole season with Russian voice-over; a movie or series without an IMDb ID does not get into the rows of the "Fresh releases" group;
 - the "on AniList" anime rows are from [AniList](https://anilist.co/);
 - the catalog server is [AIOMetadata](https://github.com/cedya77/aiometadata).
