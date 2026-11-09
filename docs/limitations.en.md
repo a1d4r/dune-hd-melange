@@ -22,7 +22,7 @@ What Melange cannot do, or does with caveats. [← README](../README.en.md)
 ## Debrid
 
 - **Real-Debrid and Not cached** (in your own config and in the Melange config). Each start of such a release adds a torrent to your RD account. RD does not serve releases with `WEB-DL` in the name (instead of the movie, a "File was removed…" placeholder or an error), and after several new releases in a row it temporarily refuses all additions. Do not start such releases more than 1–2 times in a row: wait a few minutes.
-- For releases from Comet, Melange does not know why Debrid refused (for example, copyright): it just shows that Debrid returned a placeholder.
+- For releases from Comet, Melange does not know why Debrid refused (for example, copyright): it just shows "Debrid didn't return the video — pick another release".
 
 ## Series
 

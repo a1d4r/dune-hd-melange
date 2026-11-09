@@ -515,27 +515,35 @@ function aio_pre_class($url, $code, $loc, $type, $len)
 function aio_pre_file($file)
 {
     $f = strtolower($file);
-    // Infringing: MediaFusion content_infringing.mp4, Torrentio
-    // failed_infringement_v3.mp4, StremThru 451.mp4, AIOStreams
-    // unavailable_for_legal_reasons.mp4. MediaFusion: torrent_not_downloaded.mp4.
-    // Torrentio: failed_rar_v3.mp4. AIOStreams: 429.mp4, the limit of TorBox.
+    // MediaFusion: content_infringing.mp4, Torrentio: failed_infringement_v3.mp4,
+    // StremThru: 451.mp4, AIOStreams: unavailable_for_legal_reasons.mp4.
     if (strpos($f, 'infring') !== false || strpos($f, 'legal') !== false || $f === '451.mp4')
         $key = 'err_pre_infringing';
+    // AIOStreams: downloading.mp4, MediaFusion: torrent_not_downloaded.mp4.
     else if (strpos($f, 'downloading') !== false || strpos($f, 'not_downloaded') !== false)
         $key = 'err_pre_downloading';
+    // Torrentio: failed_rar_v3.mp4.
     else if (strpos($f, 'failed_rar') !== false)
         $key = 'err_pre_archive';
+    // AIOStreams: no_matching_file.mp4.
+    else if (strpos($f, 'no_matching_file') !== false)
+        $key = 'err_pre_no_file';
+    // Torrentio: limits_exceeded_v2.mp4, StremThru: store_limit_exceeded.mp4,
+    // AIOStreams: 429.mp4 (the limit of TorBox).
+    else if (strpos($f, 'limit') !== false || $f === '429.mp4')
+        $key = 'err_pre_limit';
     else
-        $key = strpos($f, 'limit') !== false || $f === '429.mp4' ? 'err_pre_limit' : 'err_pre_placeholder';
+        $key = 'err_pre_placeholder';
     $name = aio_cut($file, 100);
     return array('class' => 'placeholder', 'key' => $key, 'detail' => $key === 'err_pre_placeholder' ? $name : '',
         'note' => $name);
 }
 
 // Query of a slate.elfhosted.com Location -> its placeholder: infringing when
-// title or body tell of a refusal as infringing / for legal reasons, else the
-// general one with its title (printable, no leading "%": not a %tr% key of the
-// shell, cut). Not its query in the note: sig and ts. Not parse_str: magic quotes.
+// title or body tell of a refusal as infringing / for legal reasons, else by
+// the title: a limit, downloading, else the general one with the title
+// (printable, no leading "%": not a %tr% key of the shell, cut). Not its query
+// in the note: sig and ts. Not parse_str: magic quotes.
 /**
  * @param string $query
  * @return array{class: 'placeholder', key: string, detail: string, note: string}
@@ -554,9 +562,20 @@ function aio_pre_slate($query)
     if (!preg_match('//u', $title))
         $title = preg_replace('/[\x80-\xff]+/', '', $title);
     $title = aio_cut(rtrim(ltrim($title, '% ')), 100);
-    $bad = stripos($why, 'infring') !== false || stripos($why, 'legal reason') !== false;
-    return array('class' => 'placeholder', 'key' => $bad ? 'err_pre_infringing' : 'err_pre_placeholder',
-        'detail' => $bad ? '' : ($title !== '' ? $title : 'slate'), 'note' => 'slate: ' . ($title !== '' ? $title : '-'));
+    // AIOStreams: "Debrid limit reached", "Proxy limit reached", "Too many
+    // requests"; MediaFusion "Still downloading", AIOStreams "Still caching"
+    // (not "download": AIOStreams "Download failed").
+    if (stripos($why, 'infring') !== false || stripos($why, 'legal reason') !== false)
+        $key = 'err_pre_infringing';
+    else if (stripos($title, 'limit reached') !== false || stripos($title, 'too many requests') !== false)
+        $key = 'err_pre_limit';
+    else if (stripos($title, 'downloading') !== false || stripos($title, 'caching') !== false)
+        $key = 'err_pre_downloading';
+    else
+        $key = 'err_pre_placeholder';
+    return array('class' => 'placeholder', 'key' => $key,
+        'detail' => $key === 'err_pre_placeholder' ? ($title !== '' ? $title : 'slate') : '',
+        'note' => 'slate: ' . ($title !== '' ? $title : '-'));
 }
 
 // The check of stream URL $url -> aio_pre_class(), logged.
