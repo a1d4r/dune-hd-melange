@@ -6,7 +6,7 @@
 - **A release packed in an archive no longer starts the player for nothing.** Real-Debrid sometimes gives a release as one RAR or ZIP archive instead of the video file; the player could not open it and closed with a general error. Now the player does not start, and Melange shows "Debrid gave an archive, not a video — pick another release". The same for the placeholder Torrentio sends for such a release: it used to show "Debrid returned a placeholder video".
 - A Debrid limit placeholder now shows "Debrid limit reached", not "Debrid returned a placeholder video": the AIOStreams file for a TorBox limit and the ElfHosted titles "Debrid limit reached", "Proxy limit reached" and "Too many requests".
 - The "Still downloading" and "Still caching" placeholders of ElfHosted addons (for example, MediaFusion with Real-Debrid, AIOStreams) now show "Debrid has not downloaded the release yet, try again later", not "Debrid returned a placeholder video".
-- The placeholder of the AIOStreams Debrid when the release has no file of the episode now shows "Debrid found no file for this episode in the release — pick another", not "Debrid returned a placeholder video" with the file name.
+- The placeholder of the AIOStreams Debrid when the release has no matching file now shows "Debrid found no matching file in the release — pick another", not "Debrid returned a placeholder video" with the file name.
 - The message for other Debrid placeholders now says "Debrid didn't return the video — pick another release" instead of "Debrid returned a placeholder video"; the second line (the file name or the title of the placeholder) is as before.
 
 ## 0.55.2 — 09.11.2026
@@ -204,7 +204,7 @@ First public release. What it does:
 - **Раздача в архиве больше не запускает плеер впустую.** Real-Debrid иногда отдаёт раздачу одним архивом RAR или ZIP вместо видеофайла: плеер не мог его открыть и закрывался общей ошибкой. Теперь плеер не запускается, а Melange показывает «Debrid отдал архив вместо видео — выберите другую раздачу». Так же — для заглушки, которую на такую раздачу присылает Torrentio: раньше было «Debrid вернул заглушку».
 - Заглушка лимита Debrid теперь показывает «Лимит Debrid», а не «Debrid вернул заглушку»: файл AIOStreams при лимите TorBox и заголовки ElfHosted «Debrid limit reached», «Proxy limit reached» и «Too many requests».
 - Заглушки «Still downloading» и «Still caching» аддонов ElfHosted (например, MediaFusion с Real-Debrid, AIOStreams) теперь показывают «Debrid ещё не скачал раздачу, попробуйте позже», а не «Debrid вернул заглушку».
-- Заглушка встроенного Debrid AIOStreams, когда в раздаче нет файла серии, теперь показывает «Debrid не нашёл в раздаче файл этой серии — выберите другую», а не «Debrid вернул заглушку» с именем файла.
+- Заглушка встроенного Debrid AIOStreams, когда в раздаче нет нужного файла, теперь показывает «Debrid не нашёл в раздаче нужный файл — выберите другую», а не «Debrid вернул заглушку» с именем файла.
 - Сообщение о прочих заглушках Debrid теперь «Debrid не отдал видео — выберите другую раздачу» вместо «Debrid вернул заглушку»; вторая строка (имя файла или заголовок заглушки) — как раньше.
 
 ## 0.55.2 — 09.11.2026

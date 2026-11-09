@@ -388,21 +388,25 @@ function aio_pre_class($url, $code, $loc, $type, $len)
 function aio_pre_file($file)
 {
     $f = strtolower($file);
-    // Infringing: MediaFusion content_infringing.mp4, Torrentio
-    // failed_infringement_v3.mp4, StremThru 451.mp4, AIOStreams
-    // unavailable_for_legal_reasons.mp4. MediaFusion: torrent_not_downloaded.mp4.
-    // Torrentio: failed_rar_v3.mp4. AIOStreams: 429.mp4, the limit of TorBox;
-    // no_matching_file.mp4, no file of the episode in the release.
+    // MediaFusion: content_infringing.mp4, Torrentio: failed_infringement_v3.mp4,
+    // StremThru: 451.mp4, AIOStreams: unavailable_for_legal_reasons.mp4.
     if (strpos($f, 'infring') !== false || strpos($f, 'legal') !== false || $f === '451.mp4')
         $key = 'err_pre_infringing';
+    // AIOStreams: downloading.mp4, MediaFusion: torrent_not_downloaded.mp4.
     else if (strpos($f, 'downloading') !== false || strpos($f, 'not_downloaded') !== false)
         $key = 'err_pre_downloading';
+    // Torrentio: failed_rar_v3.mp4.
     else if (strpos($f, 'failed_rar') !== false)
         $key = 'err_pre_archive';
+    // AIOStreams: no_matching_file.mp4.
     else if (strpos($f, 'no_matching_file') !== false)
         $key = 'err_pre_no_file';
+    // Torrentio: limits_exceeded_v2.mp4, StremThru: store_limit_exceeded.mp4,
+    // AIOStreams: 429.mp4 (the limit of TorBox).
+    else if (strpos($f, 'limit') !== false || $f === '429.mp4')
+        $key = 'err_pre_limit';
     else
-        $key = strpos($f, 'limit') !== false || $f === '429.mp4' ? 'err_pre_limit' : 'err_pre_placeholder';
+        $key = 'err_pre_placeholder';
     $name = aio_cut($file, 100);
     return array('class' => 'placeholder', 'key' => $key, 'detail' => $key === 'err_pre_placeholder' ? $name : '',
         'note' => $name);
