@@ -4,7 +4,7 @@
 
 ## 0.57.0
 - **"Fresh releases" group.** On the settings page, in **Catalog rows**, right after Top, there is a new group of four rows. «Новинки в качестве» and «Новинки в 4K» are movies that recently got a release in good quality or in 4K, from the open list of KinoTrend. «Свежие серии с переводом» are series with a new episode out with Russian translation, from Kinou. «Сезон целиком с переводом» are series that already have a release of a whole season with Russian voice-over, from the open list of SerialTrend. The newest come first. These rows are not among the start rows: tick the ones you want.
-- **IMDb rating on the catalog posters.** The posters in the catalog rows show the IMDb rating in the top left corner, so you see it without moving to the tile. Turn it off on the settings page: **Appearance** → **IMDb rating on posters**.
+- **IMDb rating on the catalog posters.** The posters in the catalog rows can show the IMDb rating in the top left corner, so you see it without moving to the tile. It is off by default; turn it on on the settings page: **Appearance** → **IMDb rating on posters**.
 
 ## 0.56.0 — 09.11.2026
 - **One row for a release cached in both Real-Debrid and TorBox.** With both keys, a release cached in both services is now one row of the list, with the status "Cached in Real-Debrid and TorBox" (the second service on a line of its own); AIOStreams used to keep the copy of one service only. Releases without an infoHash (MediaFusion) are matched by the file name and size. To get the copies of both services, open the settings page and press **Save** once: Melange updates its AIOStreams config.
@@ -209,7 +209,7 @@ First public release. What it does:
 
 ## 0.57.0
 - **Группа «Новинки с переводом».** На странице настроек в разделе **«Ряды каталога»**, сразу после «Топов», новая группа из четырёх рядов. «Новинки в качестве» и «Новинки в 4K» — фильмы, у которых недавно вышла раздача в хорошем качестве или в 4K, по открытому списку KinoTrend. «Свежие серии с переводом» — сериалы, у которых вышла новая серия с русским переводом, по данным Киноу. «Сезон целиком с переводом» — сериалы, у которых уже есть раздача целого сезона с русской озвучкой, по открытому списку СериалТренда. Свежее — сверху. В стартовый набор эти ряды не входят: включите нужные флажком.
-- **Рейтинг IMDb на постерах каталога.** На постерах в рядах каталога в левом верхнем углу теперь рейтинг IMDb: его видно, не наводя на плитку. Выключается на странице настроек: «Внешний вид» → «Рейтинг IMDb на постерах».
+- **Рейтинг IMDb на постерах каталога.** На постерах в рядах каталога в левом верхнем углу можно показывать рейтинг IMDb: его видно, не наводя на плитку. По умолчанию выключен, включается на странице настроек: «Внешний вид» → «Рейтинг IMDb на постерах».
 
 ## 0.56.0 — 09.11.2026
 - **Одна строка на раздачу в кэше Real-Debrid и TorBox.** С двумя ключами раздача, которая есть в кэше обоих сервисов, теперь одна строка списка со статусом «В кэше Real-Debrid и TorBox» (второй сервис — отдельной строкой); раньше AIOStreams оставлял копию только одного сервиса. Раздачи без infoHash (MediaFusion) сводятся по имени файла и размеру. Чтобы появились копии обоих сервисов, откройте страницу настроек и один раз нажмите «Сохранить»: Melange обновит свой конфиг AIOStreams.
