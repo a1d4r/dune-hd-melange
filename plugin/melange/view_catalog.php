@@ -173,6 +173,11 @@ class AioCat
     // cat_logo of the last AIO_CATV_SCREENS screens of rows at their openings, by media_url.
     /** @var array<string, bool> */
     public static $logo_of = array();
+    // The same of cat_rating (aio_catv_rating_on): a screen has the plates on all its tiles or on none.
+    /** @var bool|null */
+    public static $rating = null;
+    /** @var array<string, bool> */
+    public static $rating_of = array();
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -326,7 +331,7 @@ function aio_catv_logo_on()
 // cat_logo of the screen of rows $url: at its opening ($open, aio_catv_folder_view) of the settings,
 // later (get_folder_rows: the rows of "Show all" as it scrolls) the same as then, so all its tiles
 // are of the mode of its vod_r. A screen not among the last AIO_CATV_SCREENS (php_server restarted):
-// the settings now.
+// the settings now. cat_rating the same way, so the rows of a screen are all with the rating or without.
 /**
  * @param string $url
  * @param bool $open
@@ -340,8 +345,22 @@ function aio_catv_logo_of($url, $open)
         AioCat::$logo_of[$url] = Aio::$settings['cat_logo'];
         if (count(AioCat::$logo_of) > AIO_CATV_SCREENS)
             array_shift(AioCat::$logo_of);
+        unset(AioCat::$rating_of[$url]);
+        AioCat::$rating_of[$url] = Aio::$settings['cat_rating'];
+        if (count(AioCat::$rating_of) > AIO_CATV_SCREENS)
+            array_shift(AioCat::$rating_of);
     }
     AioCat::$logo = AioCat::$logo_of[$url];
+    AioCat::$rating = AioCat::$rating_of[$url];
+}
+
+// cat_rating ("Рейтинг IMDb на постерах" of the page) of the screen of rows built or asked for now.
+/**
+ * @return bool
+ */
+function aio_catv_rating_on()
+{
+    return AioCat::$rating !== null ? AioCat::$rating : Aio::$settings['cat_rating'];
 }
 
 // cat_logo on: vod_r of the whole screen (the card background is of it), else on the right as the
@@ -493,7 +512,7 @@ function aio_catv_item($id, $caption, $icon)
 }
 
 // The tile of a title in a row: its poster, the IMDb rating in the corner if it has one and
-// cat_rating ("Рейтинг IMDb на постерах" of the page) is on.
+// cat_rating of the screen is on (aio_catv_rating_on).
 /**
  * @param string $rid
  * @param AioCatTile $t
@@ -502,7 +521,7 @@ function aio_catv_item($id, $caption, $icon)
 function aio_catv_title_item($rid, $t)
 {
     $item = aio_catv_item(aio_catv_tile_id("$rid:{$t['id']}"), $t['name'], aio_catv_poster($t));
-    $stickers = Aio::$settings['cat_rating'] ? aio_catv_rate_stickers($t['imdbRating']) : array();
+    $stickers = aio_catv_rating_on() ? aio_catv_rate_stickers($t['imdbRating']) : array();
     if ($stickers)
         $item[PluginRegularItem::stickers] = $stickers;
     return $item;
@@ -524,11 +543,8 @@ function aio_catv_rate_stickers($rating)
         return array();
     if ($s === '10.0')
         $s = '10';
-    $w = 0;
-    foreach (str_split($s) as $c)
-        $w += aio_gc_glyph($c);
     $p = AIO_CATV_RATE_PAD;
-    $x = $p + intval(round((AIO_CATV_RATE_W - $w * AIO_CATV_RATE_PX / 1000) / 2));
+    $x = $p + intval(round((AIO_CATV_RATE_W - aio_gc_sum($s, AIO_CATV_RATE_PX)) / 2));
     return array(
         array(PluginRegularSticker::r => array('w' => AIO_CATV_RATE_W, 'h' => AIO_CATV_RATE_H, 'x' => $p, 'y' => $p),
             PluginRegularSticker::icon_url => AIO_CATV_RATE_PLATE),
