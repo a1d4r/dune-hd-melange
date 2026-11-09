@@ -285,7 +285,7 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
 }
 
 // The service whose copy row $r of card $mv plays: of "Via <service>" of this
-// release (Aio::$via), else the main Debrid of the settings.
+// release (Aio::$via) if the row has a copy of it, else the main Debrid of the settings.
 /**
  * @param AioMovie $mv
  * @param AioRow $r
@@ -294,7 +294,15 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
 function aio_main_svc($mv, $r)
 {
     $v = Aio::$via;
-    return $v && $v['k'] === $mv['dune_id'] && $v['hash'] === $r['hash'] ? $v['svc'] : Aio::$settings['debrid_main'];
+    if ($v && $v['k'] === $mv['dune_id'] && $v['hash'] === $r['hash'])
+    {
+        foreach (isset($r['copies']) ? $r['copies'] : array() as $c)
+        {
+            if ($c['svc'] === $v['svc'])
+                return $v['svc'];
+        }
+    }
+    return Aio::$settings['debrid_main'];
 }
 
 // A placeholder of the stream check $pre (class placeholder) of row $r of list
