@@ -407,7 +407,7 @@ function aio_pre_file($file)
 
 // Query of a slate.elfhosted.com Location -> its placeholder: infringing when
 // title or body tell of a refusal as infringing / for legal reasons, downloading
-// when the title says "downloading", else the general one with its title
+// when the title says "downloading" or "caching", else the general one with its title
 // (printable, no leading "%": not a %tr% key of the shell, cut). Not its query
 // in the note: sig and ts. Not parse_str: magic quotes.
 /**
@@ -431,8 +431,9 @@ function aio_pre_slate($query)
     $note = 'slate: ' . ($title !== '' ? $title : '-');
     if (stripos($why, 'infring') !== false || stripos($why, 'legal reason') !== false)
         return array('class' => 'placeholder', 'key' => 'err_pre_infringing', 'detail' => '', 'note' => $note);
-    // MediaFusion "Still downloading"; not "download": AIOStreams "Download failed".
-    if (stripos($title, 'downloading') !== false)
+    // MediaFusion "Still downloading", AIOStreams "Still caching"; not
+    // "download": AIOStreams "Download failed".
+    if (stripos($title, 'downloading') !== false || stripos($title, 'caching') !== false)
         return array('class' => 'placeholder', 'key' => 'err_pre_downloading', 'detail' => '', 'note' => $note);
     return array('class' => 'placeholder', 'key' => 'err_pre_placeholder', 'detail' => $title !== '' ? $title : 'slate',
         'note' => $note);
