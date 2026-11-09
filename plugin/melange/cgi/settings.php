@@ -176,6 +176,10 @@ function aio_cgi_save($dir, $t)
     // written them while the keys were checked.
     $cur = aio_settings_read($dir);
     $data['aio_confs'] = $cur['aio_confs'];
+    // The rows not changed on the page (posted as it came, cat_rows_was): the stored ones stay, the
+    // dialog of the rows on the Dune may have changed them since. No cat_rows_was: a form of before.
+    if (isset($_POST[$f['cat_rows_was']['name']]) && $v['cat_rows'] === $v['cat_rows_was'])
+        $data[$f['cat_rows']['set']] = $cur['cat_rows'];
     $why = aio_cgi_store($dir, $data);
     if ($why !== '')
     {

@@ -69,7 +69,9 @@ function aio_cgi_fields()
         // "Логотип фильма вместо названия" (0.55.0): aio_cgi_cat_logo().
         'cat_logo' => array('id' => 'clg', 'name' => 'cat_logo', 'set' => 'cat_logo', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // The rows of the catalog chosen: aio_cgi_rows_screen.
-        'cat_rows' => array('id' => 'crv', 'name' => 'cat_rows', 'set' => 'cat_rows', 'max' => 0, 'type' => 'plain', 'scr' => 'rows'));
+        'cat_rows' => array('id' => 'crv', 'name' => 'cat_rows', 'set' => 'cat_rows', 'max' => 0, 'type' => 'plain', 'scr' => 'rows'),
+        // cat_rows as the page came (as debrid_main_was): the save keeps the stored ones when it is posted back.
+        'cat_rows_was' => array('id' => 'crw', 'name' => 'cat_rows_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'rows'));
 }
 
 // The fields of a server on the form (s<n>_<field>), as aio_server_conf()
@@ -411,6 +413,8 @@ function aio_cgi_cat_rows_of($keys)
 // The screen of the rows of the catalog (#rows): the list comes by the script
 // (web/src/rows.ts), which keeps the choice in the field cat_rows, hidden but not of
 // type hidden: the bar of the save counts it. No script or no list: it posts what is stored.
+// cat_rows_was: the rows the page shows; the same posted back, the save keeps the stored ones
+// (the dialog of the rows on the Dune may have changed them since).
 // Two parts, as the tabs of the catalog: movies, series (with anime); the
 // switch #crt shows one (by the script, as #dseg), the count on its button.
 function aio_cgi_rows_screen($v)
@@ -420,6 +424,8 @@ function aio_cgi_rows_screen($v)
         'Which rows the tabs of the catalog on the Dune show, and in what order.') . '</p>' .
         '<input type="text" id="' . $f['cat_rows']['id'] . '" name="' . $f['cat_rows']['name'] . '" value="' .
         aio_cgi_h($v['cat_rows']) . '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" hidden>' .
+        '<input type="hidden" id="' . $f['cat_rows_was']['id'] . '" name="' . $f['cat_rows_was']['name'] . '" value="' .
+        aio_cgi_h($v['cat_rows_was']) . '">' .
         '<div id="crs" class="res" aria-live="polite"><p class="hint">' .
         aio_cgi_l('Список рядов не открылся: нужен браузер с поддержкой скриптов.',
         'The list of rows did not open: a browser with scripts is needed.') . '</p></div>' .

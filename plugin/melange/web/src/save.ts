@@ -97,6 +97,8 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     home.saved();
     // Staying on the page: what is saved is not a change any more; typed while it went still is.
     bar.rebase(moveTsUserinfo(posted));
+    // The rows posted are now those the page came with: posted back unchanged, the next save keeps the stored ones.
+    byId<HTMLInputElement>(doc, ID.rowsWas).value = posted.cat_rows ?? "";
     const savedLine = addLine(results(), "ok", texts.saved);
     if (answer.rows) addLine(results(), "ok", texts.rowsLater);
     for (const note of answer.notes) addLine(results(), note.level === "ok" ? "ok" : "warn", note.msg);

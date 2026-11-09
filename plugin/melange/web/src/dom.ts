@@ -72,8 +72,10 @@ export const ID = {
   message: "msg",
   // The rows of the catalog: the choice as posted, the lines of the list's state, "Try again", the box of the list
   // (hidden till it comes), the switch of its parts (buttons by DATA.key: movie, series); of movies and of series:
-  // the part, the rows shown in their order, all rows by groups.
+  // the part, the rows shown in their order, all rows by groups. rowsWas: the choice as the page came (or the last save
+  // that stayed on it); posted back the same, the save keeps the stored one (the dialog of the rows on the Dune).
   rowsValue: "crv",
+  rowsWas: "crw",
   rowsStatus: "crs",
   rowsRetry: "crr",
   rowsBox: "crb",

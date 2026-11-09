@@ -36,6 +36,7 @@ function aio_cgi_values($s)
     $v['cat_logo'] = aio_cgi_cat_logo_of($s['cat_logo']);
     $v['no_torrents'] = aio_cgi_no_torrents_of($s['no_torrents']);
     $v['cat_rows'] = aio_cgi_cat_rows_of($s['cat_rows']);
+    $v['cat_rows_was'] = $v['cat_rows'];
     $v['servers'] = $s['servers'];
     $v['confs'] = $s['aio_confs'];
     // Not of settings.json: the form takes them from data_dir/debrid_main (settings.php).

@@ -342,6 +342,58 @@ describe("the choice", () => {
   });
 });
 
+describe("the rows as the page came (cat_rows_was): the save keeps the stored ones when they are posted back", () => {
+  // The page with the choice stored in the field and as it came.
+  async function cameWith(stored: string): Promise<Page> {
+    const page = open("filled", {
+      before: (doc) => {
+        (doc.getElementById(ID.rowsValue) as HTMLInputElement).setAttribute("value", stored);
+        (doc.getElementById(ID.rowsWas) as HTMLInputElement).setAttribute("value", stored);
+      },
+    });
+    page.replies.push(LIST);
+    await go(page);
+    return page;
+  }
+  async function submit(page: Page): Promise<void> {
+    page.form.dispatchEvent(new page.win.Event("submit", { cancelable: true }) as unknown as Event);
+    await flush();
+  }
+  const was = (page: Page) => page.field("cat_rows_was").value;
+
+  test("untouched: both posted the same, right after the field; no change for the bar", async () => {
+    const page = await cameWith("movie/c movie/b");
+    expect(page.el(ID.dirty).textContent).toBe("");
+    page.replies.push(json({ ok: true, next: "settings?saved=1", aio: "" }));
+    await submit(page);
+    expect(page.calls[1]!.body).toContain("&cat_rows=movie%2Fc%20movie%2Fb&cat_rows_was=movie%2Fc%20movie%2Fb&");
+  });
+
+  test("changed: the new rows posted, the ones the page came with as they were", async () => {
+    const page = await cameWith("movie/c movie/b");
+    moves(page, 1)[0]!.click();
+    expect(page.el(ID.dirty).textContent).not.toBe("");
+    page.replies.push(json({ ok: true, next: "settings?saved=1", aio: "" }));
+    await submit(page);
+    expect(page.calls[1]!.body).toContain("&cat_rows=movie%2Fb%20movie%2Fc%20series%2Fa&cat_rows_was=movie%2Fc%20movie%2Fb&");
+  });
+
+  test("a save that stays: the rows posted are now the ones the page came with; a failed one: as they were", async () => {
+    const page = await cameWith("movie/c movie/b");
+    moves(page, 1)[0]!.click();
+    page.replies.push(json({ ok: false, errors: [{ msg: "No", field: null }] }));
+    await submit(page);
+    expect(was(page)).toBe("movie/c movie/b");
+    page.replies.push(json({ ok: true, next: "settings?saved=1", aio: "", notes: [{ level: "ok", msg: "x" }] }));
+    await submit(page);
+    expect([was(page), value(page), page.el(ID.dirty).textContent]).toEqual(["movie/b movie/c series/a", "movie/b movie/c series/a", ""]);
+    moves(page, 1)[0]!.click();
+    page.replies.push(json({ ok: true, next: "settings?saved=1", aio: "", notes: [{ level: "ok", msg: "x" }] }));
+    await submit(page);
+    expect(page.calls[3]!.body).toContain("&cat_rows=movie%2Fc%20movie%2Fb%20series%2Fa&cat_rows_was=movie%2Fb%20movie%2Fc%20series%2Fa&");
+  });
+});
+
 describe("the checkbox in the title of a group", () => {
   // The checkbox in the title of the n-th group of a part; of each group of movies: [checked, indeterminate].
   const groupAll = (page: Page, n: number, tab: Tab = "movie") => groups(page, tab)[n]!.querySelector<HTMLInputElement>("summary input")!;
