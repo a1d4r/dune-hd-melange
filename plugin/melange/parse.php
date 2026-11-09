@@ -521,9 +521,7 @@ function aio_row($st, $series)
     $url = aio_str($st, 'url');
     $sd = aio_arr($st, 'streamData');
     $tor = aio_arr($sd, 'torrent');
-    $hash = strtolower(aio_str($tor, 'infoHash') !== '' ? aio_str($tor, 'infoHash') : aio_str($st, 'infoHash'));
-    if (!preg_match('/^[0-9a-f]{40}$/D', $hash))
-        $hash = '';
+    $hash = aio_st_hash($st);
     if (!preg_match('~^https?://~', $url))
     {
         // P2P (AIOStreams: no url, infoHash and fileIdx): TorrServer plays it.
@@ -534,7 +532,6 @@ function aio_row($st, $series)
     if ($type === 'error' || $type === 'statistic')
         return null;
     $pf = aio_arr($sd, 'parsedFile');
-    $bh = aio_arr($st, 'behaviorHints');
     $svc = aio_arr($sd, 'service');
     $name = aio_str($st, 'name');   // "[TB⚡] JacRed 2160p"
 
@@ -544,7 +541,7 @@ function aio_row($st, $series)
     $res = aio_str($pf, 'resolution');
     if ($res === '' && preg_match('/\\b([0-9]{3,4}p|4k)\\b/i', $name, $m))
         $res = $m[1];
-    $size = aio_str($sd, 'size') !== '' ? aio_str($sd, 'size') : aio_str($bh, 'videoSize');
+    $size = aio_st_size($st);
     $tracks = aio_tracks($pf);
     $langs = array();
     foreach (aio_arr($pf, 'languages') as $l)
@@ -596,7 +593,7 @@ function aio_row($st, $series)
             $trackers[] = trim($tr);
     }
     // A movie file name tells the release best; a season pack - its folder.
-    $file = aio_str($sd, 'filename') !== '' ? aio_str($sd, 'filename') : aio_str($bh, 'filename');
+    $file = aio_st_file($st);
     $folder = aio_str($sd, 'folderName');
     $label = $series ? ($folder !== '' ? $folder : $file) : ($file !== '' ? $file : $folder);
     $group = aio_str($pf, 'releaseGroup');
@@ -658,6 +655,41 @@ function aio_row($st, $series)
 function aio_is_p2p($r)
 {
     return $r['url'] === '';
+}
+
+// infoHash of stream $st of a reply (of streamData.torrent, else its own:
+// P2P), lower case; '' none or not 40 hex digits.
+/**
+ * @param array<mixed> $st
+ * @return string
+ */
+function aio_st_hash($st)
+{
+    $tor = aio_arr(aio_arr($st, 'streamData'), 'torrent');
+    $hash = strtolower(aio_str($tor, 'infoHash') !== '' ? aio_str($tor, 'infoHash') : aio_str($st, 'infoHash'));
+    return preg_match('/^[0-9a-f]{40}$/D', $hash) ? $hash : '';
+}
+
+// The file name of stream $st (streamData, else behaviorHints), '' none.
+/**
+ * @param array<mixed> $st
+ * @return string
+ */
+function aio_st_file($st)
+{
+    $sd = aio_arr($st, 'streamData');
+    return aio_str($sd, 'filename') !== '' ? aio_str($sd, 'filename') : aio_str(aio_arr($st, 'behaviorHints'), 'filename');
+}
+
+// The size of the file of stream $st as it came (streamData, else behaviorHints.videoSize), '' none.
+/**
+ * @param array<mixed> $st
+ * @return string
+ */
+function aio_st_size($st)
+{
+    $sd = aio_arr($st, 'streamData');
+    return aio_str($sd, 'size') !== '' ? aio_str($sd, 'size') : aio_str(aio_arr($st, 'behaviorHints'), 'videoSize');
 }
 
 // --- One row of a file cached on several Debrid services (0.56.0).
@@ -757,24 +789,26 @@ function aio_row_services($r)
     return $out;
 }
 
-// What the merge compares of row $r (aio_row, its names not yet replaced by
-// voices): the service, infoHash, the file (its name, its index in the torrent:
-// -1 unknown), the size; null for a row never merged: not cached (true), P2P,
-// no service.
+// What the merge compares of stream $st of a reply (the raw of a row of
+// aio_row): the service, infoHash, the file (its name, its index in the
+// torrent: -1 unknown), the size; null for a stream never merged: not cached
+// (true), P2P (no http URL), no service. Of the stream: a stream past the
+// limit of the list is looked at so, before aio_row (aio_fetch).
 /**
- * @param AioRow $r
+ * @param array<mixed> $st
  * @return AioMergeKey|null
  */
-function aio_merge_key($r)
+function aio_merge_key($st)
 {
-    $svc = aio_row_svc($r);
-    if ($r['cached'] !== true || aio_is_p2p($r) || $svc === '')
+    $sd = aio_arr($st, 'streamData');
+    $svc = aio_arr($sd, 'service');
+    $id = aio_str($svc, 'id');
+    if (!isset($svc['cached']) || $svc['cached'] !== true || $id === '' || !preg_match('~^https?://~', aio_str($st, 'url')))
         return null;
-    $raw = $r['raw'];
-    $tor = aio_arr(aio_arr($raw, 'streamData'), 'torrent');
-    $idx = isset($tor['fileIdx']) ? $tor['fileIdx'] : (isset($raw['fileIdx']) ? $raw['fileIdx'] : null);
-    return array('svc' => $svc, 'hash' => $r['hash'], 'file' => isset($r['names']) ? $r['names'][1] : '',
-        'idx' => is_int($idx) && $idx >= 0 ? $idx : -1, 'size' => $r['size']);
+    $tor = aio_arr($sd, 'torrent');
+    $idx = isset($tor['fileIdx']) ? $tor['fileIdx'] : (isset($st['fileIdx']) ? $st['fileIdx'] : null);
+    return array('svc' => $id, 'hash' => aio_st_hash($st), 'file' => aio_st_file($st),
+        'idx' => is_int($idx) && $idx >= 0 ? $idx : -1, 'size' => aio_num(aio_st_size($st)));
 }
 
 // Copies $a, $b (aio_merge_key) are of one file: both with an infoHash - the
@@ -832,23 +866,16 @@ function aio_merge_start()
     return array('g' => array(), 'hash' => array(), 'name' => array(), 'by_hash' => 0, 'by_name' => 0);
 }
 
-// Row $r (aio_row, before aio_row_voices) cached on a service, of the file of
-// every copy of an earlier row of $rows (aio_merge_group; the list aio_fetch
-// makes) without a copy of that service: a copy of it there (the copy first in the reply stays on top, the
-// list picks one: aio_list_state; the row without an infoHash gets that of the
-// copy) -> true. Else false: $r is the next row of $rows, the caller puts it
-// there; $mx (aio_merge_start) notes it. Not merged: not cached, P2P, a copy of the same service.
+// The row of $mx (aio_merge_start) copy $k (aio_merge_key) joins: of the file
+// of each of its copies (aio_merge_group), none of the service of $k ->
+// array(its index, how: 'hash' or 'name'); null none.
 /**
- * @param list<AioRow> $rows
  * @param AioMerge $mx
- * @param AioRow $r
- * @return bool
+ * @param AioMergeKey $k
+ * @return array{int, string}|null
  */
-function aio_row_merge(&$rows, &$mx, $r)
+function aio_merge_find($mx, $k)
 {
-    $k = aio_merge_key($r);
-    if (!$k)
-        return false;
     $nk = $k['file'] . "\x00" . sprintf('%.0f', $k['size']);
     $cand = $k['hash'] !== '' && isset($mx['hash'][$k['hash']]) ? $mx['hash'][$k['hash']] : array();
     if (isset($mx['name'][$nk]))
@@ -857,8 +884,35 @@ function aio_row_merge(&$rows, &$mx, $r)
     {
         $g = $mx['g'][$gi];
         $by = in_array($k['svc'], $g['svcs'], true) ? '' : aio_merge_group($g['keys'], $k);
-        if ($by === '' || !isset($rows[$gi]))
-            continue;
+        if ($by !== '')
+            return array($gi, $by);
+    }
+    return null;
+}
+
+// Row $r (aio_row, before aio_row_voices) cached on a service, of the file of
+// an earlier row of $rows (aio_merge_find; the list aio_fetch makes): a copy
+// of it there (the copy first in the reply stays on top, the list picks one:
+// aio_list_state; the row without an infoHash gets that of the copy) -> true.
+// Else false: $r is the next row of $rows, the caller puts it there; $mx
+// (aio_merge_start) notes it, unless !$new (the list is full: no next row).
+// Not merged: not cached, P2P, a copy of the same service.
+/**
+ * @param list<AioRow> $rows
+ * @param AioMerge $mx
+ * @param AioRow $r
+ * @param bool $new
+ * @return bool
+ */
+function aio_row_merge(&$rows, &$mx, $r, $new = true)
+{
+    $k = aio_merge_key($r['raw']);
+    if (!$k)
+        return false;
+    $f = aio_merge_find($mx, $k);
+    if ($f && isset($rows[$f[0]]))
+    {
+        list($gi, $by) = $f;
         $row = $rows[$gi];
         if (!isset($row['copies']))
             $row['copies'] = array(aio_row_copy_of($row));
@@ -869,6 +923,7 @@ function aio_row_merge(&$rows, &$mx, $r)
             $mx['hash'][$k['hash']][] = $gi;
         }
         $rows[$gi] = aio_row_use($row, 0);
+        $g = $mx['g'][$gi];
         $g['svcs'][] = $k['svc'];
         $g['keys'][] = $k;
         $mx['g'][$gi] = $g;
@@ -878,12 +933,14 @@ function aio_row_merge(&$rows, &$mx, $r)
             $mx['by_name']++;
         return true;
     }
+    if (!$new)
+        return false;
     $gi = count($rows);
     $mx['g'][$gi] = array('keys' => array($k), 'svcs' => array($k['svc']));
     if ($k['hash'] !== '')
         $mx['hash'][$k['hash']][] = $gi;
     if ($k['file'] !== '' && $k['size'] > 0)
-        $mx['name'][$nk][] = $gi;
+        $mx['name'][$k['file'] . "\x00" . sprintf('%.0f', $k['size'])][] = $gi;
     return false;
 }
 

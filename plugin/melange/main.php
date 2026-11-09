@@ -957,30 +957,33 @@ function aio_fetch($base, $id, $series)
     unset($body);
     if (!is_array($j) || !isset($j['streams']) || !is_array($j['streams']))
         return array('error' => 'err_bad_reply', 'detail' => '');
-    // The first AIO_MAX_ROWS playable streams: the rest is not looked at. No
-    // torrents: P2P rows hidden here, the one way of every list into the state.
-    // A file cached on several services: one row (aio_row_merge), before the
-    // cut - the places freed go to the next streams.
+    // The first AIO_MAX_ROWS playable streams. No torrents: P2P rows hidden
+    // here, the one way of every list into the state. A file cached on several
+    // services: one row (aio_row_merge), before the cut - the places freed go
+    // to the next streams; after it a stream is made a row (aio_row) only to
+    // be a copy of one there (aio_merge_find), the rest is not looked at.
     $rows = array();
     $hidden = 0;
     $mx = aio_merge_start();
     foreach ($j['streams'] as $st)
     {
+        $full = count($rows) === AIO_MAX_ROWS;
+        $k = $full && is_array($st) ? aio_merge_key($st) : null;
+        if ($full && (!$k || !aio_merge_find($mx, $k)))
+            continue;
         $r = is_array($st) ? aio_row($st, $series) : null;
-        if ($r && Aio::$settings['no_torrents'] && aio_is_p2p($r))
+        if ($r && !$full && Aio::$settings['no_torrents'] && aio_is_p2p($r))
         {
             $hidden++;
             continue;
         }
-        if ($r && aio_row_merge($rows, $mx, $r))
+        if ($r && aio_row_merge($rows, $mx, $r, !$full))
             continue;
-        if ($r)
+        if ($r && !$full)
         {
             $r['ord'] = count($rows);
             $rows[] = aio_row_voices($r);
         }
-        if (count($rows) === AIO_MAX_ROWS)
-            break;
     }
     aio_log(sprintf('streams: %d, listed: %d%s, memory peak %.1f MB', count($j['streams']), count($rows),
         $hidden ? ", P2P hidden: $hidden" : '', memory_get_peak_usage() / 1048576));
