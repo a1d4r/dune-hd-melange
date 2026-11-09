@@ -2,6 +2,10 @@
 
 **English version**
 
+## 0.55.3
+- **A release packed in an archive no longer starts the player for nothing.** Real-Debrid sometimes gives a release as one RAR or ZIP archive instead of the video file; the player could not open it and closed with a general error. Now the player does not start, and Melange shows "Debrid returned the release as an archive, the player can't open it — pick another". The same for the placeholder Torrentio sends for such a release: it used to show "Debrid returned a placeholder video".
+- The placeholder of AIOStreams for a TorBox limit now shows "Debrid limit reached", not "Debrid returned a placeholder video".
+
 ## 0.55.2 — 09.11.2026
 - **All rows of a group at once.** On the settings page, in **Catalog rows**, each group has a checkbox in its title, left of the name: it turns on all the rows of the group (the new ones go to the end, in the order of the group) or, when all are on, turns them all off. It is checked when all the rows of the group are on, half-checked when some are. The group does not open on a tap on the checkbox, only on its name.
 
@@ -192,6 +196,10 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.55.3
+- **Раздача в архиве больше не запускает плеер впустую.** Real-Debrid иногда отдаёт раздачу одним архивом RAR или ZIP вместо видеофайла: плеер не мог его открыть и закрывался общей ошибкой. Теперь плеер не запускается, а Melange показывает «Debrid отдал раздачу архивом, Дюна его не проигрывает — выберите другую». Так же — для заглушки, которую на такую раздачу присылает Torrentio: раньше было «Debrid вернул заглушку».
+- Заглушка AIOStreams при лимите TorBox теперь показывает «Лимит Debrid», а не «Debrid вернул заглушку».
 
 ## 0.55.2 — 09.11.2026
 - **Все ряды группы сразу.** На странице настроек в разделе **«Ряды каталога»** в заголовке каждой группы, слева от названия, есть галка: она включает все ряды группы (новые встают в конец, в порядке группы) или, если включены все, снимает их. Галка отмечена, когда включены все ряды группы, и наполовину — когда часть. Нажатие на галку не раскрывает группу, раскрывает нажатие на название.

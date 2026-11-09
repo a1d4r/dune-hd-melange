@@ -89,7 +89,7 @@ MENU → **Download to server…** → choose the server: Melange adds the relea
 
 ## Playing via Debrid
 
-Before playing, Melange asks Debrid for a link to the file. If Debrid gives one, the movie plays with history, even if the release was **Not cached**. If the release is still downloading, a limit is reached or the release is blocked, Debrid serves a placeholder video instead of the movie; Melange recognizes it, does not start the player and shows the reason. If the release is downloading, try again later; otherwise choose another one.
+Before playing, Melange asks Debrid for a link to the file. If Debrid gives one, the movie plays with history, even if the release was **Not cached**. If the release is still downloading, a limit is reached or the release is blocked, Debrid serves a placeholder video instead of the movie; Melange recognizes it, does not start the player and shows the reason. The same if Debrid gives the release as one RAR or ZIP archive: the Dune cannot play it. If the release is downloading, try again later; otherwise choose another one.
 
 Start **Not cached** releases on Real-Debrid with care: see [Known limitations](limitations.en.md).
 
