@@ -69,7 +69,8 @@ export const TEXT_KEYS = [
   "changeOne",
   "changeFew",
   "changeMany",
-  // The screen of the rows of the catalog: the state of the list, the last row of movies, of series can't go, its buttons.
+  // The screen of the rows of the catalog: the state of the list, the last row of movies, of series can't go, its buttons,
+  // the checkbox of all the rows of a group.
   "rowsLoading",
   "rowsNoList",
   "rowsStale",
@@ -77,6 +78,7 @@ export const TEXT_KEYS = [
   "rowsLastSeries",
   "rowsUp",
   "rowsDown",
+  "rowsGroupAll",
   // The names of the groups of rows (rows.ts).
   "groupTop",
   "groupRu",

@@ -101,3 +101,4 @@ form{display:flex;flex-direction:column;min-height:calc(100vh - 16px)}
 .cr span{flex:1;min-width:0;overflow-wrap:anywhere}
 details.crg{margin:8px 0 0;padding:4px 0;background:var(--surf);border:1px solid var(--line);border-radius:12px}
 details.crg>summary{padding:8px 16px;cursor:pointer}
+details.crg>summary input{width:24px;height:24px;margin:0 8px 0 4px;vertical-align:middle}

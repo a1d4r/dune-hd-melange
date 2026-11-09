@@ -68,9 +68,9 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
   };
   const names = new Map<string, string>(),
     tabs = new Map<string, Tab>(),
-    // The checkbox of each row in its group, the title and rows of each group.
+    // The checkbox of each row in its group; of each group the text of its title, the checkbox of its title, its name and rows.
     boxes = new Map<string, HTMLInputElement>(),
-    titles: [HTMLElement, string, string[]][] = [];
+    titles: [Text, HTMLInputElement, string, string[]][] = [];
   const chosen: Record<Tab, string[]> = { movie: [], series: [] };
   let state: "none" | "going" | "here" = "none",
     // The part shown; the other one keeps its choice, only hidden.
@@ -122,7 +122,12 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       });
     }
     boxes.forEach((check, key) => (check.checked = isOn(key)));
-    for (const [title, name, keys] of titles) title.textContent = name + " · " + keys.filter(isOn).length + "/" + keys.length;
+    for (const [heading, all, name, keys] of titles) {
+      const on = keys.filter(isOn).length;
+      heading.textContent = name + " · " + on + "/" + keys.length;
+      all.checked = on === keys.length;
+      all.indeterminate = on > 0 && on < keys.length;
+    }
   }
   function commit(): void {
     if (refused) refused.remove();
@@ -136,14 +141,30 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     if (check.checked) chosen[tab].push(key);
     else if (chosen[tab].length > 1) chosen[tab] = chosen[tab].filter((one) => one !== key);
     else {
-      // Never an empty part: its last row stays, the bar under the screen says why.
       check.checked = true;
-      if (refused) refused.remove();
-      refused = addLine(results, "warn", texts[parts[tab].last]);
-      changed();
+      refuse(tab);
       return;
     }
     commit();
+  }
+  // The checkbox in the title of a group: the rows of the group not on go on, last in their part in the order of the
+  // group; all on, all go off.
+  function toggleGroup(keys: string[], check: HTMLInputElement): void {
+    const tab = tabs.get(keys[0]!)!;
+    if (!keys.every(isOn)) chosen[tab].push(...keys.filter((key) => !isOn(key)));
+    else if (chosen[tab].some((key) => !keys.includes(key))) chosen[tab] = chosen[tab].filter((key) => !keys.includes(key));
+    else {
+      check.checked = true;
+      refuse(tab);
+      return;
+    }
+    commit();
+  }
+  // Never an empty part: its last rows stay, the bar under the screen says why.
+  function refuse(tab: Tab): void {
+    if (refused) refused.remove();
+    refused = addLine(results, "warn", texts[parts[tab].last]);
+    changed();
   }
   function buildGroups(rows: CatRow[], groupsBox: HTMLElement): void {
     const of = new Map<string, CatRow[]>();
@@ -156,15 +177,24 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       const list = of.get(group);
       if (!list) continue;
       const details = doc.createElement("details"),
-        title = doc.createElement("summary");
+        title = doc.createElement("summary"),
+        all = doc.createElement("input"),
+        heading = doc.createTextNode(""),
+        keys = list.map((row) => row.key);
       details.className = "crg";
+      all.type = "checkbox";
+      all.setAttribute("aria-label", texts.rowsGroupAll);
+      // A click on a form control in the summary leaves the details as they are (Chrome, WebKit and Firefox:
+      // the activation is the control's); on the text it opens or closes them.
+      all.addEventListener("change", () => toggleGroup(keys, all));
+      title.append(all, heading);
       details.appendChild(title);
       for (const row of list) {
         const [label, check] = checkRow(row.key);
         boxes.set(row.key, check);
         details.appendChild(label);
       }
-      titles.push([title, texts[text], list.map((row) => row.key)]);
+      titles.push([heading, all, texts[text], keys]);
       groupsBox.appendChild(details);
     }
   }

@@ -327,3 +327,70 @@ describe("the choice", () => {
     expect(page.el(ID.dirty).textContent).toBe("");
   });
 });
+
+describe("the checkbox in the title of a group", () => {
+  // Of the n-th group of movies: [checked, indeterminate].
+  const groupAll = (page: Page, n: number) => groups(page)[n]!.querySelector<HTMLInputElement>("summary input")!;
+  const state = (page: Page) => groups(page).map((_group, n) => [groupAll(page, n).checked, groupAll(page, n).indeterminate]);
+
+  test("on: all the rows of the group on; some: indeterminate; none: off; it follows a row; its name for a screen reader", async () => {
+    const page = await opened(LIST);
+    expect(state(page)).toEqual([
+      [true, false],
+      [false, true],
+      [false, false],
+    ]);
+    click(page, groupCheck(page, "B"));
+    click(page, groupCheck(page, "New group"));
+    expect(state(page)).toEqual([
+      [true, false],
+      [true, false],
+      [true, false],
+    ]);
+    expect(groupAll(page, 0).getAttribute("aria-label")).toBe(page.init.i18n.rowsGroupAll);
+  });
+
+  test("not all on: the rest go on, last in the part in the order of the group; the group stays closed; the bar follows", async () => {
+    const page = await opened(LIST, "movie/a");
+    click(page, groupAll(page, 1));
+    expect(value(page)).toBe("movie/a movie/b movie/c series/a");
+    expect(shownRows(page)).toEqual(["A", "B", "C"]);
+    expect(groups(page)[1]!.querySelector("summary")!.textContent).toBe(page.init.i18n.groupGenres + " · 2/2");
+    expect(state(page)[1]).toEqual([true, false]);
+    // A browser does not open the details on a click on a control of the summary; happy-dom would on a click, so
+    // here only the change: the script itself does not open it.
+    expect(groups(page)[1]!.open).toBe(false);
+    expect(page.el(ID.dirty).textContent).not.toBe("");
+  });
+
+  test("some on: only the rest go on, after the rows chosen before", async () => {
+    const page = await opened(LIST, "movie/c movie/a");
+    click(page, groupAll(page, 1));
+    expect(value(page)).toBe("movie/c movie/a movie/b series/a");
+  });
+
+  test("all on: all go off, the other rows of the part stay in their order", async () => {
+    const page = await opened(LIST, "movie/b movie/a movie/c");
+    click(page, groupAll(page, 1));
+    expect(value(page)).toBe("movie/a series/a");
+    expect(shownRows(page)).toEqual(["A"]);
+    expect([groupCheck(page, "B").checked, groupCheck(page, "C").checked]).toEqual([false, false]);
+    expect(state(page)[1]).toEqual([false, false]);
+  });
+
+  test("all off would leave the part empty: nothing goes, the box on again, the text of the last row under the screen", async () => {
+    const page = await opened(LIST, "movie/b movie/c anime/d");
+    click(page, groupAll(page, 1));
+    expect(state(page)[1]).toEqual([true, false]);
+    expect(shownRows(page)).toEqual(["B", "C"]);
+    expect(value(page)).toBe("movie/b movie/c anime/d");
+    expect(lines(page.el(ID.saveResult))).toEqual([["warn", page.init.i18n.rowsLastMovie]]);
+    expect(page.el(ID.bar).hidden).toBe(false);
+    // The series: their own text.
+    const other = groups(page, "series")[1]!.querySelector<HTMLInputElement>("summary input")!;
+    click(page, other);
+    expect(other.checked).toBe(true);
+    expect(lines(page.el(ID.saveResult))).toEqual([["warn", page.init.i18n.rowsLastSeries]]);
+    expect(value(page)).toBe("movie/b movie/c anime/d");
+  });
+});

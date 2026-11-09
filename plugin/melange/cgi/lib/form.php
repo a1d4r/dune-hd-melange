@@ -839,6 +839,7 @@ function aio_cgi_js($v)
         'rowsLastSeries' => aio_cgi_l('Должен остаться хотя бы один ряд сериалов: сначала включите другой.',
             'At least one row of series must stay: turn on another one first.'),
         'rowsUp' => aio_cgi_l('Выше', 'Up'), 'rowsDown' => aio_cgi_l('Ниже', 'Down'),
+        'rowsGroupAll' => aio_cgi_l('Все ряды группы', 'All rows of the group'),
         'groupTop' => aio_cgi_l('Топы', 'Top'), 'groupRu' => aio_cgi_l('Российское', 'Russian'),
         'groupRuServices' => aio_cgi_l('Российские сервисы', 'Russian services'), 'groupGenres' => aio_cgi_l('Жанры', 'Genres'),
         'groupTheme' => aio_cgi_l('Темы', 'Themes'), 'groupStudios' => aio_cgi_l('Студии', 'Studios'),

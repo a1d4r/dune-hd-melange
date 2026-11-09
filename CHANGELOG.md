@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.55.2 — 09.11.2026
+- **All rows of a group at once.** On the settings page, in **Catalog rows**, each group has a checkbox in its title, left of the name: it turns on all the rows of the group (the new ones go to the end, in the order of the group) or, when all are on, turns them all off. It is checked when all the rows of the group are on, half-checked when some are. The group does not open on a tap on the checkbox, only on its name.
+
 ## 0.55.1 — 09.11.2026
 - **Continue Watching goes on to the next episode.** If you watched an episode to the end, **Continue Watching** now starts the next one from the beginning, on the same release and the same way (Debrid or TorrServer), not the episode you have already seen. If the release does not have the next episode, its list opens to choose another release. After the last episode of the series, the list of the first one opens.
 - **The card button opens the list on your release.** The Melange button on the card of a series now opens the list with the cursor on the release you watched, not on the first row: of the same episode, or of the next one if you watched it to the end.
@@ -189,6 +192,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.55.2 — 09.11.2026
+- **Все ряды группы сразу.** На странице настроек в разделе **«Ряды каталога»** в заголовке каждой группы, слева от названия, есть галка: она включает все ряды группы (новые встают в конец, в порядке группы) или, если включены все, снимает их. Галка отмечена, когда включены все ряды группы, и наполовину — когда часть. Нажатие на галку не раскрывает группу, раскрывает нажатие на название.
 
 ## 0.55.1 — 09.11.2026
 - **«Продолжить просмотр» переходит к следующей серии.** Если серию досмотрели до конца, «Продолжить просмотр» теперь включает следующую с начала, на той же раздаче и тем же способом (Debrid или TorrServer), а не уже просмотренную. Если в раздаче следующей серии нет, откроется её список — выберите другую раздачу. После последней серии сериала откроется список первой.
