@@ -492,7 +492,8 @@ function aio_catv_item($id, $caption, $icon)
         PluginRegularItem::caption => $caption);
 }
 
-// The tile of a title in a row: its poster, the IMDb rating in the corner if it has one.
+// The tile of a title in a row: its poster, the IMDb rating in the corner if it has one and
+// cat_rating ("Рейтинг IMDb на постерах" of the page) is on.
 /**
  * @param string $rid
  * @param AioCatTile $t
@@ -501,7 +502,7 @@ function aio_catv_item($id, $caption, $icon)
 function aio_catv_title_item($rid, $t)
 {
     $item = aio_catv_item(aio_catv_tile_id("$rid:{$t['id']}"), $t['name'], aio_catv_poster($t));
-    $stickers = aio_catv_rate_stickers($t['imdbRating']);
+    $stickers = Aio::$settings['cat_rating'] ? aio_catv_rate_stickers($t['imdbRating']) : array();
     if ($stickers)
         $item[PluginRegularItem::stickers] = $stickers;
     return $item;

@@ -64,6 +64,8 @@ function aio_cgi_fields()
         // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
         'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
+        // "Рейтинг IMDb на постерах": aio_cgi_cat_rating().
+        'cat_rating' => array('id' => 'rti', 'name' => 'cat_rating', 'set' => 'cat_rating', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // "Логотип фильма вместо названия" (0.55.0): aio_cgi_cat_logo().
         'cat_logo' => array('id' => 'clg', 'name' => 'cat_logo', 'set' => 'cat_logo', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // The rows of the catalog chosen: aio_cgi_rows_screen.
@@ -368,6 +370,25 @@ function aio_cgi_cat_logo_of($on)
     return $on ? 'on' : 'off';
 }
 
+// The answers of "Рейтинг IMDb на постерах" on the screen #look (radio cat_rating):
+// its value => array(name, hint); "on" - cat_rating of the settings.
+function aio_cgi_cat_rating()
+{
+    return array(
+        'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
+            'Цифра IMDb в углу постера в рядах каталога.',
+            'The IMDb number in the corner of a poster in the catalog rows.')),
+        'off' => array(aio_cgi_l('Выключен', 'Off'), aio_cgi_l(
+            'Постеры без цифр, рейтинги — в карточке над рядами.',
+            'Posters without numbers, the ratings in the card above the rows.')));
+}
+
+// The answer of aio_cgi_cat_rating() of cat_rating of the settings (a bool).
+function aio_cgi_cat_rating_of($on)
+{
+    return $on ? 'on' : 'off';
+}
+
 // The screen #look (a value of the form: '' or another one - none checked).
 function aio_cgi_look_screen($v)
 {
@@ -376,7 +397,9 @@ function aio_cgi_look_screen($v)
         '</p><p class="lbl">' . aio_cgi_l('Логотип фильма вместо названия', 'Film logo in place of the title') . '</p>' .
         aio_cgi_choice($f['cat_logo'], aio_cgi_cat_logo(), $v['cat_logo']) . '<p class="hint">' .
         aio_cgi_l('Выключите, если каталог тормозит или карточки грузятся долго.',
-        'Turn off if the catalog lags or the cards take long to load.') . '</p>';
+        'Turn off if the catalog lags or the cards take long to load.') . '</p><p class="lbl">' .
+        aio_cgi_l('Рейтинг IMDb на постерах', 'IMDb rating on posters') . '</p>' .
+        aio_cgi_choice($f['cat_rating'], aio_cgi_cat_rating(), $v['cat_rating']);
 }
 
 // The value of the form of cat_rows of the settings (aio_cat_rows_ok): keys by spaces, none in a key.

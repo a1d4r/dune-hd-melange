@@ -111,6 +111,11 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(logos.map((radio) => [radio.type, radio.value, radio.checked])).toEqual([["radio", "on", true], ["radio", "off", false]]);
     for (const radio of logos)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("look");
+    // IMDb rating on posters (cat_rating): two radios "on", "off" with their cards on #look.
+    const ratings = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=cat_rating]"));
+    expect(ratings.map((radio) => [radio.type, radio.value, radio.checked])).toEqual([["radio", "on", true], ["radio", "off", false]]);
+    for (const radio of ratings)
+      expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("look");
     // The rows of the catalog: one field on #rows, not of type hidden (the bar counts only others), nothing to read by eye.
     const rowsField = form.querySelectorAll<HTMLInputElement>("input[name=cat_rows]");
     expect(Array.from(rowsField).map((field) => [field.id, field.type, field.hidden, field.closest("section")!.id])).toEqual([[ID.rowsValue, "text", true, "rows"]]);

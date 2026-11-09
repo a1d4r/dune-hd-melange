@@ -124,6 +124,8 @@ function aio_cgi_save($dir, $t)
         $v['markers'] = aio_cgi_markers_of($cur['markers']);
     if ($v['source_errors'] === '')
         $v['source_errors'] = aio_cgi_source_errors_of($cur['source_errors']);
+    if ($v['cat_rating'] === '')
+        $v['cat_rating'] = aio_cgi_cat_rating_of($cur['cat_rating']);
     if ($v['cat_logo'] === '')
         $v['cat_logo'] = aio_cgi_cat_logo_of($cur['cat_logo']);
     if ($v['no_torrents'] === '')
