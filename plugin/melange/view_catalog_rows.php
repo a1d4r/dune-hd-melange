@@ -407,7 +407,7 @@ function aio_catv_rows_edit($from, $sel, $g)
 
 // post_action of the dialog $g (as aio_catv_rows_edit) of the main screen $from, at every close;
 // the shell has written its file by then; none: as an empty one (list_utils.php r25: no file, no
-// change against checked_ids). Changed: "Row order" gives the rows of the tab, a group changes its
+// change against checked_ids); there but not read: an error, nothing written. Changed: "Row order" gives the rows of the tab, a group changes its
 // rows in them (aio_catv_lcfg_group_apply); no row left on the tab: an error, nothing written. The
 // rows go to cat_rows in place of those of the tab, settings.json read again and written as the
 // quick setup does (aio_settings_write), the screen read again in place (invalidate: the shell keeps
@@ -441,7 +441,13 @@ function aio_catv_rows_apply($in, $from)
     }
     if ($none)
         aio_log("catalog: rows: $tab: $what: no file of the dialog, the defaults");
-    $text = $none ? '' : strval(file_get_contents($path));
+    $text = $none ? '' : @file_get_contents($path);
+    if ($text === false)
+    {
+        // Not as an empty one: that puts the rows of the dialog back to checked_ids.
+        aio_log("catalog: rows: $tab: $what: the file of the dialog not read, nothing changed");
+        return aio_error('cat_rows_not_saved');
+    }
     $copy = aio_cat_manifest_copy();
     $chosen = aio_catv_lcfg_chosen($copy['rows'], $tab);
     $base = $g === '' ? $chosen : aio_catv_lcfg_group_rows($copy['rows'], $tab, $g);
