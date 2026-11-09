@@ -101,6 +101,14 @@ define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 // whatever the background; card0.jpg: the dark background of vod_r of the whole screen without a
 // card background (aio_catv_card). cat2_mask.png: baked into card/v1 (AIO_CATV_CARD).
 define('AIO_CATV_IMG', 'plugin_file://img/cat2_');
+// The IMDb rating in the top left corner of a poster of a row (aio_catv_rate_stickers): a plate
+// RATE_W x RATE_H at (RATE_PAD, RATE_PAD) of the poster 190x285, 70 % black, the N of rate<N> goes
+// up when it changes, as of cat<N>; the number over it, sticker_text_size RATE_PX of the template.
+define('AIO_CATV_RATE_PLATE', 'plugin_file://img/rate1_plate.png');
+define('AIO_CATV_RATE_PAD', 8);
+define('AIO_CATV_RATE_W', 52);
+define('AIO_CATV_RATE_H', 32);
+define('AIO_CATV_RATE_PX', 25);
 // The card backgrounds of the server: <base>/<CARD>... (aio_catv_card). Its layout - the logo up to
 // 780x200 at CARD_X, its bottom at PANE_Y + TITLE_BOTTOM (256), the mask cat2_mask.png - is baked
 // into card/v1 of the server (addon/lib/posterCache/card.ts of the fork of AIOMetadata): a change
@@ -484,6 +492,49 @@ function aio_catv_item($id, $caption, $icon)
         PluginRegularItem::caption => $caption);
 }
 
+// The tile of a title in a row: its poster, the IMDb rating in the corner if it has one.
+/**
+ * @param string $rid
+ * @param AioCatTile $t
+ * @return array<string, mixed>
+ */
+function aio_catv_title_item($rid, $t)
+{
+    $item = aio_catv_item(aio_catv_tile_id("$rid:{$t['id']}"), $t['name'], aio_catv_poster($t));
+    $stickers = aio_catv_rate_stickers($t['imdbRating']);
+    if ($stickers)
+        $item[PluginRegularItem::stickers] = $stickers;
+    return $item;
+}
+
+// The plate and the number of an IMDb rating ("8.6", "10"), none for none. In pixels of the poster
+// 190x285, the shell scales them in focus. The shell puts the text at the left of its r and a pixel
+// over the middle of it: the r of the text is a pixel lower than the plate, its x centres the
+// number by font_w.php.
+/**
+ * @param string $rating
+ * @return list<array<string, mixed>>
+ */
+function aio_catv_rate_stickers($rating)
+{
+    // "0.04" is "0.0": none, as of kpRating.
+    $s = sprintf('%.1F', (float) $rating);
+    if ((float) $s <= 0)
+        return array();
+    if ($s === '10.0')
+        $s = '10';
+    $w = 0;
+    foreach (str_split($s) as $c)
+        $w += aio_gc_glyph($c);
+    $p = AIO_CATV_RATE_PAD;
+    $x = $p + intval(round((AIO_CATV_RATE_W - $w * AIO_CATV_RATE_PX / 1000) / 2));
+    return array(
+        array(PluginRegularSticker::r => array('w' => AIO_CATV_RATE_W, 'h' => AIO_CATV_RATE_H, 'x' => $p, 'y' => $p),
+            PluginRegularSticker::icon_url => AIO_CATV_RATE_PLATE),
+        array(PluginRegularSticker::r => array('w' => $p + AIO_CATV_RATE_W - $x, 'h' => AIO_CATV_RATE_H, 'x' => $x, 'y' => $p + 1),
+            PluginRegularSticker::text => $s));
+}
+
 // The title over the row of group "row:$g".
 /**
  * @param string $g
@@ -516,7 +567,7 @@ function aio_catv_title_row($g, $caption)
 /**
  * @param AioCatList $list
  * @param string $lang
- * @param list<array<string, string>>|null $items
+ * @param list<array<string, mixed>>|null $items
  * @param int $options
  * @return array{array<string, mixed>, array<string, mixed>}
  */
@@ -531,7 +582,7 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
     {
         $items = array();
         foreach (array_slice($list['tiles'], 0, AIO_CATV_ROW_TILES) as $t)
-            $items[] = aio_catv_item(aio_catv_tile_id("$rid:{$t['id']}"), $t['name'], aio_catv_poster($t));
+            $items[] = aio_catv_title_item($rid, $t);
         if ($list['st']['end'] === '' || count($list['tiles']) > AIO_CATV_ROW_TILES)
         {
             // Of a search: and its id, as in cat_grid:.
@@ -738,7 +789,7 @@ function aio_catv_item_tpl($m)
         PluginRegularItemParams::load_failed_url => AIO_CATV_ICONS . 'no_movie_poster.png',
         PluginRegularItemParams::caption_max_num_lines => 3,
         PluginRegularItemParams::caption_line_spacing => 3,
-        PluginRegularItemParams::sticker_text_size => 25,
+        PluginRegularItemParams::sticker_text_size => AIO_CATV_RATE_PX,
         PluginRegularItemParams::sel_margins => array(
             PluginMargins::left => $m[0], PluginMargins::top => $m[1],
             PluginMargins::right => $m[2], PluginMargins::bottom => $m[3]));
@@ -1585,7 +1636,7 @@ function aio_catv_all_ok()
 // A row as add_row of movie_list_screen.php r25 makes it: no title, one group.
 /**
  * @param string $id
- * @param list<array<string, string>> $items
+ * @param list<array<string, mixed>> $items
  * @param int $options
  * @return array<string, mixed>
  */
@@ -1623,7 +1674,7 @@ function aio_catv_all_row($rid, $k, $list)
 {
     $items = array();
     foreach (array_slice($list['tiles'], AIO_CATV_ALL_COLS * $k, AIO_CATV_ALL_COLS) as $t)
-        $items[] = aio_catv_item(aio_catv_tile_id("$rid:{$t['id']}"), $t['name'], aio_catv_poster($t));
+        $items[] = aio_catv_title_item($rid, $t);
     return aio_catv_all_def("row$k", $items);
 }
 
