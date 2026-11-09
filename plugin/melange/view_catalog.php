@@ -2465,8 +2465,10 @@ function aio_catv_input($in, $control)
         return aio_catv_search_run(aio_catv_in($in, 'cat_q'), $from);
     if ($control === 'cat_menu')
         return aio_catv_menu($in, $from);
+    if ($control === 'cat_rows_menu')
+        return aio_catv_rows_menu($from, aio_catv_in($in, 'sel'));
     if ($control === 'cat_rows_edit')
-        return aio_catv_rows_edit($from, aio_catv_in($in, 'sel'));
+        return aio_catv_rows_edit($from, aio_catv_in($in, 'sel'), aio_catv_in($in, 'g'));
     if ($control === 'cat_rows_apply')
         return aio_catv_rows_apply($in, $from);
     return null;
