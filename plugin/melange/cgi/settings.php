@@ -184,7 +184,7 @@ function aio_cgi_save($dir, $t)
     aio_cgi_log('save: ok');
     // "Основной Debrid": its own file, written only when another one than the page showed is posted.
     $dm = $v['debrid_main'];
-    if ($dm !== $v['debrid_main_was'] && array_key_exists($dm, aio_server_caches()))
+    if ($dm !== $v['debrid_main_was'] && array_key_exists($dm, aio_debrid_mains()))
     {
         $why = aio_cgi_write($dir, $dm, AIO_DEBRID_MAIN_FILE);
         aio_cgi_log('save: debrid_main ' . ($why !== '' ? $why : 'written'));

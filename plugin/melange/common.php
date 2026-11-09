@@ -111,8 +111,18 @@ function aio_server_caches()
     return array('torbox' => 'TorBox', 'realdebrid' => 'Real-Debrid');
 }
 
+// The services the main Debrid is one of (0.56.0; the setting of the page, MENU
+// of a list, data_dir/debrid_main): id of streamData.service of AIOStreams => name.
+/**
+ * @return array<string, string>
+ */
+function aio_debrid_mains()
+{
+    return array('realdebrid' => 'Real-Debrid', 'torbox' => 'TorBox');
+}
+
 // The main Debrid service (0.56.0): a file cached on both plays from it.
-// data_dir/debrid_main of directory $dir: an id of aio_server_caches(), else ''
+// data_dir/debrid_main of directory $dir: an id of aio_debrid_mains(), else ''
 // (none, unreadable, anything else): the copy first in the reply plays.
 /**
  * @param string $dir
@@ -122,7 +132,7 @@ function aio_debrid_main_read($dir)
 {
     $f = "$dir/" . AIO_DEBRID_MAIN_FILE;
     $v = $dir !== '' && is_file($f) ? trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM) : '';
-    return $v !== '' && array_key_exists($v, aio_server_caches()) ? $v : '';
+    return $v !== '' && array_key_exists($v, aio_debrid_mains()) ? $v : '';
 }
 
 // Clients of a server (0.47.0): its type => name for the settings page.

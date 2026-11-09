@@ -682,10 +682,13 @@ function aio_cgi_no_torrents_cards()
 }
 
 // The answers of "Основной Debrid" (radio debrid_main, 0.56.0): an id of
-// aio_server_caches() => array(name, hint).
+// aio_debrid_mains() => array(name, hint).
 function aio_cgi_debrid_mains()
 {
-    return array('realdebrid' => array('Real-Debrid', ''), 'torbox' => array('TorBox', ''));
+    $out = array();
+    foreach (aio_debrid_mains() as $id => $name)
+        $out[$id] = array($name, '');
+    return $out;
 }
 
 // "Основной Debrid" under the keys of #mdeb (#dmain): shown with both keys

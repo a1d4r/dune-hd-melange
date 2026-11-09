@@ -1186,7 +1186,7 @@ function aio_gc_sort($in)
 }
 
 // The main Debrid of list $st for its MENU (0.56.0): array(now, the other one)
-// of Real-Debrid and TorBox, by a row with copies of both; null - no such row,
+// of aio_debrid_mains, by a row with copies of both; null - no such row,
 // the choice changes nothing there. Now: of the settings, else the service first
 // in the reply of such a row (it plays).
 /**
@@ -1195,7 +1195,7 @@ function aio_gc_sort($in)
  */
 function aio_gc_main_pair($st)
 {
-    $pair = array('realdebrid', 'torbox');
+    $pair = array_keys(aio_debrid_mains());
     foreach ($st['rows'] as $r)
     {
         $svcs = array();
@@ -1207,12 +1207,12 @@ function aio_gc_main_pair($st)
         if (count(array_unique($svcs)) < 2)
             continue;
         $now = Aio::$settings['debrid_main'] !== '' ? Aio::$settings['debrid_main'] : $svcs[0];
-        return array($now, $now === 'torbox' ? 'realdebrid' : 'torbox');
+        return array($now, $now === $pair[0] ? $pair[1] : $pair[0]);
     }
     return null;
 }
 
-// gc_main (k: an id of aio_server_caches, MENU "Main Debrid -> <k>") of a live
+// gc_main (k: an id of aio_debrid_mains, MENU "Main Debrid -> <k>") of a live
 // list: k the main Debrid at once (aio_debrid_main_write; not written: this
 // list only), the copies of k on top, the screen replaced (a new rid), the
 // cursor kept. A bad id, a list not live: nothing.
@@ -1224,7 +1224,7 @@ function aio_gc_main($in)
 {
     $st = Aio::$state;
     $k = isset($in->k) && is_string($in->k) ? $in->k : '';
-    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || !array_key_exists($k, aio_server_caches()))
+    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || !array_key_exists($k, aio_debrid_mains()))
     {
         aio_log('debrid main: not a live list or a bad service, nothing');
         return null;
