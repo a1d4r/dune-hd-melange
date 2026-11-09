@@ -4,7 +4,7 @@
 
 ## Unreleased
 - **Rows right in the catalog.** As in the Dune's own Movies: in the panel on the left, move to the name of a row, press MENU and choose **Configure List...**. A Dune window lists the rows of the current tab in the groups of the settings page: tick the ones you want, **Move** changes the order within a group, **Reset to Default Values** brings back the start rows. The catalog redraws as soon as the window closes; the settings page shows the same choice.
-- The catalog MENU no longer has **Search** and **Settings**: use the magnifier and the gear on the strip on top, or the search key of the remote.
+- The catalog MENU no longer has **Search** and **Settings**: use the magnifier and the gear on the strip on top. Search also opens with the search key, if your remote has one, and with the voice input button.
 
 ## 0.57.0
 - **"Fresh releases" group.** On the settings page, in **Catalog rows**, right after Top, there is a new group of four rows. «Новинки в качестве» and «Новинки в 4K» are movies that recently got a release in good quality or in 4K, from the open list of KinoTrend. «Свежие серии с переводом» are series with a new episode out with Russian translation, from Kinou. «Сезон целиком с переводом» are series that already have a release of a whole season with Russian voice-over, from the open list of SerialTrend. The newest come first. These rows are not among the start rows: tick the ones you want.
@@ -213,7 +213,7 @@ First public release. What it does:
 
 ## Не выпущено
 - **Ряды прямо в каталоге.** Как в «Фильмах» Дюны: в панели слева встаньте на название ряда, нажмите MENU и выберите «Настроить список...». В окне Дюны ряды текущей вкладки, по группам, как на странице настроек: отметьте нужные, «Переместить» меняет порядок внутри группы, «Сброс к значениям по умолчанию» возвращает стартовые ряды. Каталог перерисуется сразу после закрытия окна, а на странице настроек будет тот же выбор.
-- В MENU каталога больше нет «Поиска» и «Настроек»: для них есть лупа и шестерёнка на полосе сверху, а для поиска ещё и клавиша поиска на пульте.
+- В MENU каталога больше нет «Поиска» и «Настроек»: для них есть лупа и шестерёнка на полосе сверху. Поиск открывается и клавишей поиска, если она есть на пульте, и кнопкой голосового ввода.
 
 ## 0.57.0
 - **Группа «Новинки с переводом».** На странице настроек в разделе **«Ряды каталога»**, сразу после «Топов», новая группа из четырёх рядов. «Новинки в качестве» и «Новинки в 4K» — фильмы, у которых недавно вышла раздача в хорошем качестве или в 4K, по открытому списку KinoTrend. «Свежие серии с переводом» — сериалы, у которых вышла новая серия с русским переводом, по данным Киноу. «Сезон целиком с переводом» — сериалы, у которых уже есть раздача целого сезона с русской озвучкой, по открытому списку СериалТренда. Свежее — сверху. В стартовый набор эти ряды не входят: включите нужные флажком.
