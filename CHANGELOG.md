@@ -7,6 +7,7 @@
 - A Debrid limit placeholder now shows "Debrid limit reached", not "Debrid returned a placeholder video": the AIOStreams file for a TorBox limit and the ElfHosted titles "Debrid limit reached", "Proxy limit reached" and "Too many requests".
 - The "Still downloading" and "Still caching" placeholders of ElfHosted addons (for example, MediaFusion with Real-Debrid, AIOStreams) now show "Debrid has not downloaded the release yet, try again later", not "Debrid returned a placeholder video".
 - The placeholder of the AIOStreams Debrid when the release has no file of the episode now shows "Debrid found no file for this episode in the release — pick another", not "Debrid returned a placeholder video" with the file name.
+- The message for other Debrid placeholders now says "Debrid didn't return the video — pick another release" instead of "Debrid returned a placeholder video"; the second line (the file name or the title of the placeholder) is as before.
 
 ## 0.55.2 — 09.11.2026
 - **All rows of a group at once.** On the settings page, in **Catalog rows**, each group has a checkbox in its title, left of the name: it turns on all the rows of the group (the new ones go to the end, in the order of the group) or, when all are on, turns them all off. It is checked when all the rows of the group are on, half-checked when some are. The group does not open on a tap on the checkbox, only on its name.
@@ -204,6 +205,7 @@ First public release. What it does:
 - Заглушка лимита Debrid теперь показывает «Лимит Debrid», а не «Debrid вернул заглушку»: файл AIOStreams при лимите TorBox и заголовки ElfHosted «Debrid limit reached», «Proxy limit reached» и «Too many requests».
 - Заглушки «Still downloading» и «Still caching» аддонов ElfHosted (например, MediaFusion с Real-Debrid, AIOStreams) теперь показывают «Debrid ещё не скачал раздачу, попробуйте позже», а не «Debrid вернул заглушку».
 - Заглушка встроенного Debrid AIOStreams, когда в раздаче нет файла серии, теперь показывает «Debrid не нашёл в раздаче файл этой серии — выберите другую», а не «Debrid вернул заглушку» с именем файла.
+- Сообщение о прочих заглушках Debrid теперь «Debrid не отдал видео — выберите другую раздачу» вместо «Debrid вернул заглушку»; вторая строка (имя файла или заголовок заглушки) — как раньше.
 
 ## 0.55.2 — 09.11.2026
 - **Все ряды группы сразу.** На странице настроек в разделе **«Ряды каталога»** в заголовке каждой группы, слева от названия, есть галка: она включает все ряды группы (новые встают в конец, в порядке группы) или, если включены все, снимает их. Галка отмечена, когда включены все ряды группы, и наполовину — когда часть. Нажатие на галку не раскрывает группу, раскрывает нажатие на название.
