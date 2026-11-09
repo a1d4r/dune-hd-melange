@@ -68,9 +68,9 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
   };
   const names = new Map<string, string>(),
     tabs = new Map<string, Tab>(),
-    // The checkbox of each row in its group; of each group the text of its title, the checkbox of its title, its name and rows.
+    // The checkbox of each row in its group; the title of each group: its text and checkbox.
     boxes = new Map<string, HTMLInputElement>(),
-    titles: [Text, HTMLInputElement, string, string[]][] = [];
+    titles: { heading: Text; all: HTMLInputElement; name: string; keys: string[] }[] = [];
   const chosen: Record<Tab, string[]> = { movie: [], series: [] };
   let state: "none" | "going" | "here" = "none",
     // The part shown; the other one keeps its choice, only hidden.
@@ -87,7 +87,7 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     label.className = "cr";
     check.type = "checkbox";
     check.checked = isOn(key);
-    check.addEventListener("change", () => toggle(key, check));
+    check.addEventListener("change", () => toggle([key], check));
     name.textContent = names.get(key)!;
     label.append(check, name);
     return [label, check];
@@ -122,7 +122,7 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       });
     }
     boxes.forEach((check, key) => (check.checked = isOn(key)));
-    for (const [heading, all, name, keys] of titles) {
+    for (const { heading, all, name, keys } of titles) {
       const on = keys.filter(isOn).length;
       heading.textContent = name + " · " + on + "/" + keys.length;
       all.checked = on === keys.length;
@@ -136,35 +136,21 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     render();
     changed();
   }
-  function toggle(key: string, check: HTMLInputElement): void {
-    const tab = tabs.get(key)!;
-    if (check.checked) chosen[tab].push(key);
-    else if (chosen[tab].length > 1) chosen[tab] = chosen[tab].filter((one) => one !== key);
-    else {
-      check.checked = true;
-      refuse(tab);
-      return;
-    }
-    commit();
-  }
-  // The checkbox in the title of a group: the rows of the group not on go on, last in their part in the order of the
-  // group; all on, all go off.
-  function toggleGroup(keys: string[], check: HTMLInputElement): void {
+  // The checkbox of a row or of a group (keys: its rows): the ones not on go on, last in their part in the order of
+  // keys; all on, all go off.
+  function toggle(keys: string[], check: HTMLInputElement): void {
     const tab = tabs.get(keys[0]!)!;
     if (!keys.every(isOn)) chosen[tab].push(...keys.filter((key) => !isOn(key)));
     else if (chosen[tab].some((key) => !keys.includes(key))) chosen[tab] = chosen[tab].filter((key) => !keys.includes(key));
     else {
+      // Never an empty part: its last rows stay, the bar under the screen says why.
       check.checked = true;
-      refuse(tab);
+      if (refused) refused.remove();
+      refused = addLine(results, "warn", texts[parts[tab].last]);
+      changed();
       return;
     }
     commit();
-  }
-  // Never an empty part: its last rows stay, the bar under the screen says why.
-  function refuse(tab: Tab): void {
-    if (refused) refused.remove();
-    refused = addLine(results, "warn", texts[parts[tab].last]);
-    changed();
   }
   function buildGroups(rows: CatRow[], groupsBox: HTMLElement): void {
     const of = new Map<string, CatRow[]>();
@@ -177,24 +163,24 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       const list = of.get(group);
       if (!list) continue;
       const details = doc.createElement("details"),
-        title = doc.createElement("summary"),
+        summary = doc.createElement("summary"),
         all = doc.createElement("input"),
         heading = doc.createTextNode(""),
         keys = list.map((row) => row.key);
       details.className = "crg";
       all.type = "checkbox";
-      all.setAttribute("aria-label", texts.rowsGroupAll);
+      all.setAttribute("aria-label", texts.rowsGroupAll + ": " + texts[text]);
       // A click on a form control in the summary leaves the details as they are (Chrome, WebKit and Firefox:
       // the activation is the control's); on the text it opens or closes them.
-      all.addEventListener("change", () => toggleGroup(keys, all));
-      title.append(all, heading);
-      details.appendChild(title);
+      all.addEventListener("change", () => toggle(keys, all));
+      summary.append(all, heading);
+      details.appendChild(summary);
       for (const row of list) {
         const [label, check] = checkRow(row.key);
         boxes.set(row.key, check);
         details.appendChild(label);
       }
-      titles.push([heading, all, texts[text], keys]);
+      titles.push({ heading, all, name: texts[text], keys });
       groupsBox.appendChild(details);
     }
   }

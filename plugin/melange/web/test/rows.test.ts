@@ -329,8 +329,8 @@ describe("the choice", () => {
 });
 
 describe("the checkbox in the title of a group", () => {
-  // Of the n-th group of movies: [checked, indeterminate].
-  const groupAll = (page: Page, n: number) => groups(page)[n]!.querySelector<HTMLInputElement>("summary input")!;
+  // The checkbox in the title of the n-th group of a part; of each group of movies: [checked, indeterminate].
+  const groupAll = (page: Page, n: number, tab: Tab = "movie") => groups(page, tab)[n]!.querySelector<HTMLInputElement>("summary input")!;
   const state = (page: Page) => groups(page).map((_group, n) => [groupAll(page, n).checked, groupAll(page, n).indeterminate]);
 
   test("on: all the rows of the group on; some: indeterminate; none: off; it follows a row; its name for a screen reader", async () => {
@@ -347,7 +347,7 @@ describe("the checkbox in the title of a group", () => {
       [true, false],
       [true, false],
     ]);
-    expect(groupAll(page, 0).getAttribute("aria-label")).toBe(page.init.i18n.rowsGroupAll);
+    expect(groupAll(page, 1).getAttribute("aria-label")).toBe(page.init.i18n.rowsGroupAll + ": " + page.init.i18n.groupGenres);
   });
 
   test("not all on: the rest go on, last in the part in the order of the group; the group stays closed; the bar follows", async () => {
@@ -387,9 +387,8 @@ describe("the checkbox in the title of a group", () => {
     expect(lines(page.el(ID.saveResult))).toEqual([["warn", page.init.i18n.rowsLastMovie]]);
     expect(page.el(ID.bar).hidden).toBe(false);
     // The series: their own text.
-    const other = groups(page, "series")[1]!.querySelector<HTMLInputElement>("summary input")!;
-    click(page, other);
-    expect(other.checked).toBe(true);
+    click(page, groupAll(page, 1, "series"));
+    expect(groupAll(page, 1, "series").checked).toBe(true);
     expect(lines(page.el(ID.saveResult))).toEqual([["warn", page.init.i18n.rowsLastSeries]]);
     expect(value(page)).toBe("movie/b movie/c anime/d");
   });
