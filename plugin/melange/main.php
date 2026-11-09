@@ -54,6 +54,7 @@ require_once dirname(__FILE__) . '/view_setup.php';
 require_once dirname(__FILE__) . '/catalog.php';
 require_once dirname(__FILE__) . '/catalog_card.php';
 require_once dirname(__FILE__) . '/view_catalog.php';
+require_once dirname(__FILE__) . '/view_catalog_rows.php';
 
 class Aio
 {
