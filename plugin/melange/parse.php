@@ -664,7 +664,7 @@ function aio_is_p2p($r)
 // The dedup of AIOStreams (cached: per_service) leaves a copy of the release
 // per service; aio_fetch makes them one row. Such a row keeps its copies in
 // 'copies' (aio_row_copy_of: the reply order) and the one in 'copy' on top:
-// url, service, addon, addons, raw of the row are those of that copy
+// the fields of aio_row_copy_of of the row are those of that copy
 // (aio_row_use). A row of one copy has neither key.
 
 // streamData.service.id of the stream of row $r, '' for none.
@@ -718,7 +718,7 @@ function aio_row_pick($r, $main)
     return isset($r['copies']) ? aio_row_use($r, aio_copy_pick($r['copies'], $main)) : $r;
 }
 
-// Row $r with copy $i of its copies on top.
+// Row $r with copy $i of its copies on top: its fields (aio_row_copy_of) but svc.
 /**
  * @param AioRow $r
  * @param int $i
@@ -728,12 +728,11 @@ function aio_row_use($r, $i)
 {
     if (!isset($r['copies'][$i]))
         return $r;
-    $c = $r['copies'][$i];
-    $r['url'] = $c['url'];
-    $r['service'] = $c['service'];
-    $r['addon'] = $c['addon'];
-    $r['addons'] = $c['addons'];
-    $r['raw'] = $c['raw'];
+    foreach ($r['copies'][$i] as $f => $v)
+    {
+        if ($f !== 'svc')
+            $r[$f] = $v;
+    }
     $r['copy'] = $i;
     return $r;
 }
