@@ -509,6 +509,8 @@ function aio_service_name($id)
 //                php_server only, as the URL: never logged nor saved
 //   ord          place in the reply, from 0 (aio_fetch numbers the rows): the order of
 //                AIOStreams that every sort keeps for equal values (aio_rows_sort)
+//   copies, copy a file cached on several services, one row (aio_row_merge): its
+//                copies (AioCopy) and the index of the one on top; none for one copy
 /**
  * @param array<mixed> $st
  * @param bool $series
@@ -656,6 +658,191 @@ function aio_row($st, $series)
 function aio_is_p2p($r)
 {
     return $r['url'] === '';
+}
+
+// --- One row of a file cached on several Debrid services (0.56.0).
+// The dedup of AIOStreams (cached: per_service) leaves a copy of the release
+// per service; aio_fetch makes them one row. Such a row keeps its copies in
+// 'copies' (aio_row_copy_of: the reply order) and the one in 'copy' on top:
+// url, service, addon, addons, raw of the row are those of that copy
+// (aio_row_use). A row of one copy has neither key.
+
+// streamData.service.id of the stream of row $r, '' for none.
+/**
+ * @param AioRow $r
+ * @return string
+ */
+function aio_row_svc($r)
+{
+    return aio_str(aio_arr(aio_arr($r['raw'], 'streamData'), 'service'), 'id');
+}
+
+// The copy of the fields of row $r on top: all that its start, the stream
+// check and the screens read of its service.
+/**
+ * @param AioRow $r
+ * @return AioCopy
+ */
+function aio_row_copy_of($r)
+{
+    return array('svc' => aio_row_svc($r), 'service' => $r['service'], 'url' => $r['url'], 'addon' => $r['addon'],
+        'addons' => $r['addons'], 'raw' => $r['raw']);
+}
+
+// Index of the copy to play of $copies (the reply order, all cached): the
+// one first in the reply.
+/**
+ * @param list<AioCopy> $copies
+ * @return int
+ */
+function aio_copy_pick($copies)
+{
+    return 0;
+}
+
+// Row $r with copy $i of its copies on top.
+/**
+ * @param AioRow $r
+ * @param int $i
+ * @return AioRow
+ */
+function aio_row_use($r, $i)
+{
+    if (!isset($r['copies'][$i]))
+        return $r;
+    $c = $r['copies'][$i];
+    $r['url'] = $c['url'];
+    $r['service'] = $c['service'];
+    $r['addon'] = $c['addon'];
+    $r['addons'] = $c['addons'];
+    $r['raw'] = $c['raw'];
+    $r['copy'] = $i;
+    return $r;
+}
+
+// Names of the services of row $r: of the copy on top, then of the others in
+// the reply order ('' unknown kept); a row of one copy: its service.
+/**
+ * @param AioRow $r
+ * @return list<string>
+ */
+function aio_row_services($r)
+{
+    $out = array($r['service']);
+    if (isset($r['copies'], $r['copy']))
+    {
+        foreach ($r['copies'] as $i => $c)
+        {
+            if ($i !== $r['copy'])
+                $out[] = $c['service'];
+        }
+    }
+    return $out;
+}
+
+// What the merge compares of row $r (aio_row, its names not yet replaced by
+// voices): the service, infoHash, the file (its name, its index in the torrent:
+// -1 unknown), the size; null for a row never merged: not cached (true), P2P,
+// no service.
+/**
+ * @param AioRow $r
+ * @return AioMergeKey|null
+ */
+function aio_merge_key($r)
+{
+    $svc = aio_row_svc($r);
+    if ($r['cached'] !== true || aio_is_p2p($r) || $svc === '')
+        return null;
+    $raw = $r['raw'];
+    $tor = aio_arr(aio_arr($raw, 'streamData'), 'torrent');
+    $idx = isset($tor['fileIdx']) ? $tor['fileIdx'] : (isset($raw['fileIdx']) ? $raw['fileIdx'] : null);
+    return array('svc' => $svc, 'hash' => $r['hash'], 'file' => isset($r['names']) ? $r['names'][1] : '',
+        'idx' => is_int($idx) && $idx >= 0 ? $idx : -1, 'size' => $r['size']);
+}
+
+// Copies $a, $b (aio_merge_key) are of one file: both with an infoHash - the
+// same one and the same file (the index and the name, each where both have
+// it, one of them at least); else (MediaFusion has no infoHash) the same
+// name of the file, as it is, and the size in bytes. -> how: 'hash', 'name',
+// '' not one file.
+/**
+ * @param AioMergeKey $a
+ * @param AioMergeKey $b
+ * @return string
+ */
+function aio_merge_same($a, $b)
+{
+    if ($a['hash'] !== '' && $b['hash'] !== '')
+    {
+        $idx = $a['idx'] >= 0 && $b['idx'] >= 0;
+        $name = $a['file'] !== '' && $b['file'] !== '';
+        return $a['hash'] === $b['hash'] && ($idx || $name) && (!$idx || $a['idx'] === $b['idx']) &&
+            (!$name || $a['file'] === $b['file']) ? 'hash' : '';
+    }
+    return $a['file'] !== '' && $a['file'] === $b['file'] && $a['size'] > 0 && $a['size'] == $b['size'] ? 'name' : '';
+}
+
+// The state of aio_row_merge over one reply.
+/**
+ * @return AioMerge
+ */
+function aio_merge_start()
+{
+    return array('g' => array(), 'hash' => array(), 'name' => array(), 'by_hash' => 0, 'by_name' => 0);
+}
+
+// Row $r (aio_row, before aio_row_voices) cached on a service, of the file of
+// an earlier row of $rows (the list aio_fetch makes) without a copy of that
+// service: a copy of it there (the copy to play on top, aio_copy_pick; the
+// row without an infoHash gets that of the copy) -> true. Else false: $r is
+// the next row of $rows, the caller puts it there; $mx (aio_merge_start)
+// notes it. Not merged: not cached, P2P, a copy of the same service.
+/**
+ * @param list<AioRow> $rows
+ * @param AioMerge $mx
+ * @param AioRow $r
+ * @return bool
+ */
+function aio_row_merge(&$rows, &$mx, $r)
+{
+    $k = aio_merge_key($r);
+    if (!$k)
+        return false;
+    $nk = $k['file'] . "\x00" . sprintf('%.0f', $k['size']);
+    $cand = $k['hash'] !== '' && isset($mx['hash'][$k['hash']]) ? $mx['hash'][$k['hash']] : array();
+    if (isset($mx['name'][$nk]))
+        $cand = array_merge($cand, $mx['name'][$nk]);
+    foreach ($cand as $gi)
+    {
+        $g = $mx['g'][$gi];
+        $by = in_array($k['svc'], $g['svcs'], true) ? '' : aio_merge_same($g['key'], $k);
+        if ($by === '' || !isset($rows[$gi]))
+            continue;
+        $row = $rows[$gi];
+        if (!isset($row['copies']))
+            $row['copies'] = array(aio_row_copy_of($row));
+        $row['copies'][] = aio_row_copy_of($r);
+        if ($row['hash'] === '' && $k['hash'] !== '')
+        {
+            $row['hash'] = $k['hash'];
+            $mx['hash'][$k['hash']][] = $gi;
+        }
+        $rows[$gi] = aio_row_use($row, aio_copy_pick($row['copies']));
+        $g['svcs'][] = $k['svc'];
+        $mx['g'][$gi] = $g;
+        if ($by === 'hash')
+            $mx['by_hash']++;
+        else
+            $mx['by_name']++;
+        return true;
+    }
+    $gi = count($rows);
+    $mx['g'][$gi] = array('key' => $k, 'svcs' => array($k['svc']));
+    if ($k['hash'] !== '')
+        $mx['hash'][$k['hash']][] = $gi;
+    if ($k['file'] !== '' && $k['size'] > 0)
+        $mx['name'][$nk][] = $gi;
+    return false;
 }
 
 // --- Sort of the list by the colour keys (0.48.0).

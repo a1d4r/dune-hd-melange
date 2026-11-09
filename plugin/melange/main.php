@@ -935,8 +935,11 @@ function aio_fetch($base, $id, $series)
         return array('error' => 'err_bad_reply', 'detail' => '');
     // The first AIO_MAX_ROWS playable streams: the rest is not looked at. No
     // torrents: P2P rows hidden here, the one way of every list into the state.
+    // A file cached on several services: one row (aio_row_merge), before the
+    // cut - the places freed go to the next streams.
     $rows = array();
     $hidden = 0;
+    $mx = aio_merge_start();
     foreach ($j['streams'] as $st)
     {
         $r = is_array($st) ? aio_row($st, $series) : null;
@@ -945,6 +948,8 @@ function aio_fetch($base, $id, $series)
             $hidden++;
             continue;
         }
+        if ($r && aio_row_merge($rows, $mx, $r))
+            continue;
         if ($r)
         {
             $r['ord'] = count($rows);
@@ -955,6 +960,9 @@ function aio_fetch($base, $id, $series)
     }
     aio_log(sprintf('streams: %d, listed: %d%s, memory peak %.1f MB', count($j['streams']), count($rows),
         $hidden ? ", P2P hidden: $hidden" : '', memory_get_peak_usage() / 1048576));
+    if ($mx['by_hash'] + $mx['by_name'] > 0)
+        aio_log(sprintf('merged copies of a file on another service: %d (by infoHash %d, by name and size %d)',
+            $mx['by_hash'] + $mx['by_name'], $mx['by_hash'], $mx['by_name']));
     $errors = aio_error_streams($j['streams']);
     return $rows ? array('rows' => $rows, 'errors' => $errors) :
         array('error' => 'err_no_streams', 'detail' => '', 'errors' => $errors);

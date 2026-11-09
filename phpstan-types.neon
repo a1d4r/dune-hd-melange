@@ -93,8 +93,16 @@ parameters:
         AioTsFile: 'array{id: int, path: string, size: float}'
         # An add-on that found the release (aio_addons, parse.php).
         AioAddon: 'array{addon: string, cached: bool}'
+        # A copy of a row on one Debrid service (aio_row_copy_of, parse.php).
+        AioCopy: 'array{svc: string, service: string, url: string, addon: string, addons: list<AioAddon>, raw: array<mixed>}'
+        # What aio_row_merge compares of a row (aio_merge_key, parse.php).
+        AioMergeKey: 'array{svc: string, hash: string, file: string, idx: int, size: float}'
+        # The state of aio_row_merge over a reply (aio_merge_start, parse.php):
+        # the rows by index, the index of rows by infoHash and by file name and size.
+        AioMerge: 'array{g: array<int, array{key: AioMergeKey, svcs: list<string>}>, hash: array<string, list<int>>, name: array<string, list<int>>, by_hash: int, by_name: int}'
         # A row of the stream list (aio_row, parse.php). names: until
-        # aio_row_voices (voices_parse.php) puts voices in its place.
+        # aio_row_voices (voices_parse.php) puts voices in its place. copies,
+        # copy: a file cached on several services (aio_row_merge, parse.php).
         AioRow: '''
             array{
                 url: string,
@@ -127,7 +135,9 @@ parameters:
                 voices?: AioVoices,
                 label: string,
                 raw: array<mixed>,
-                ord: int
+                ord: int,
+                copies?: list<AioCopy>,
+                copy?: int
             }
         '''
         # The card of play_action (aio_movie, main.php).
