@@ -124,6 +124,7 @@ gc_group = Group
 gc_source = Source
 gc_cached = Cached
 gc_cached_in = Cached in {svc}
+gc_cached_and = and {svc}
 gc_download = Not cached
 gc_peers = P2P
 gc_unknown = unknown

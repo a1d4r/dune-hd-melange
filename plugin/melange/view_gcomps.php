@@ -132,7 +132,7 @@ function aio_gc_text($lang)
     return array('lang' => $lang, 'page' => aio_tr($lang, 'gc_page'), 'pack' => aio_tr($lang, 'gc_pack'),
         'group' => aio_tr($lang, 'gc_group'), 'source' => aio_tr($lang, 'gc_source'),
         'cached' => aio_tr($lang, 'gc_cached'),
-        'cached_in' => aio_tr($lang, 'gc_cached_in'),
+        'cached_in' => aio_tr($lang, 'gc_cached_in'), 'cached_and' => aio_tr($lang, 'gc_cached_and'),
         'download' => aio_tr($lang, 'gc_download'), 'unknown' => aio_tr($lang, 'gc_unknown'),
         'p2p' => aio_tr($lang, 'gc_peers'),
         'video' => aio_tr($lang, 'gc_video'), 'audio' => aio_tr($lang, 'gc_audio'),
@@ -147,8 +147,9 @@ function aio_gc_text($lang)
 }
 
 // The cache status of row $r: "В кэше <service>" (a file cached on several:
-// "В кэше Real-Debrid · TorBox", the copy to play first), "Нужно скачать",
-// "P2P" (no URL: TorrServer plays it), "неизвестно".
+// "В кэше Real-Debrid\nи TorBox", the copy to play first, the others on a
+// line of their own - aio_gc_status_lines), "Нужно скачать", "P2P" (no URL:
+// TorrServer plays it), "неизвестно".
 /**
  * @param AioRow $r
  * @param AioGcText $tt
@@ -158,12 +159,38 @@ function aio_gc_status($r, $tt)
 {
     if ($r['cached'] === true)
     {
-        $svc = implode(' · ', array_filter(aio_row_services($r), 'strlen'));
-        return $svc !== '' ? str_replace('{svc}', $svc, $tt['cached_in']) : $tt['cached'];
+        $svc = array_values(array_filter(aio_row_services($r), 'strlen'));
+        if (!$svc)
+            return $tt['cached'];
+        $s = str_replace('{svc}', $svc[0], $tt['cached_in']);
+        return count($svc) > 1 ? $s . "\n" . str_replace('{svc}', implode(', ', array_slice($svc, 1)), $tt['cached_and']) : $s;
     }
     if ($r['cached'] === false)
         return $tt['download'];
     return aio_is_p2p($r) ? $tt['p2p'] : $tt['unknown'];
+}
+
+// Status $s of aio_gc_status in lines of at most $width: each of its lines
+// wrapped after spaces ("Real-Debrid" whole); more than $max: the last ends with "…".
+/**
+ * @param string $s
+ * @param int $px
+ * @param int $width
+ * @param int $max
+ * @return list<string>
+ */
+function aio_gc_status_lines($s, $px, $width, $max)
+{
+    $lines = array();
+    foreach (explode("\n", $s) as $part)
+        $lines = array_merge($lines, aio_gc_wrap($part, $px, $width, $max + 1, true));
+    if (count($lines) <= $max)
+        return $lines;
+    $lines = array_slice($lines, 0, $max);
+    $ell = "\xE2\x80\xA6";
+    $l = (string) array_pop($lines);
+    $lines[] = rtrim(mb_substr($l, 0, aio_gc_fit($l, $px, $width - aio_gc_w($ell, $px)), 'UTF-8'), ' ,') . $ell;
+    return $lines;
 }
 
 // --- Position.
@@ -740,7 +767,10 @@ function aio_gc_card($st, $sel)
     }
     $y += 8;
     list($status, $color) = aio_gc_card_status($r, $tt);
-    foreach (aio_gc_wrap($status, 30, $sw, 2, true) as $line)
+    // A file cached on several: up to 3 lines ("В кэше" / "Real-Debrid" /
+    // "и TorBox"), then the release group 1 line, so the worst case below holds.
+    $sl = aio_gc_status_lines($status, 30, $sw, strpos($status, "\n") === false ? 2 : 3);
+    foreach ($sl as $line)
     {
         $d[] = aio_gc_cut(null, aio_gc_at($sw, $lh, $sx, $y), $line, 30, $color);
         $y += $lh;
@@ -750,7 +780,7 @@ function aio_gc_card($st, $sel)
         $y += 16;
         $d[] = aio_gc_cut(null, aio_gc_at($sw, 32, $sx, $y), $tt['group'], 26, AIO_GC_DIM);
         $y += 32;
-        foreach (aio_gc_wrap(aio_clean($r['group']), 30, $sw, 2) as $line)
+        foreach (aio_gc_wrap(aio_clean($r['group']), 30, $sw, min(2, 4 - count($sl))) as $line)
         {
             $d[] = aio_gc_cut(null, aio_gc_at($sw, $lh, $sx, $y), $line, 30, AIO_GC_TEXT2);
             $y += $lh;

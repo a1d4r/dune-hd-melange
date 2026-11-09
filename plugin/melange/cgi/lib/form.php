@@ -702,8 +702,8 @@ function aio_cgi_debrid_main($v)
     return '<div id="dmain"' . ($v['rd'] !== '' && $v['tb'] !== '' ? '' : ' hidden') . '><p class="lbl">' .
         aio_cgi_l('Основной Debrid', 'Main Debrid') . '</p>' .
         aio_cgi_choice($f['debrid_main'], aio_cgi_debrid_mains(), $v['debrid_main']) . '<p class="hint">' .
-        aio_cgi_l('В кэше обоих — играет основной, другой предложим, если откажет.',
-        'Cached on both: the main one plays, the other is offered if it fails.') . '</p><input type="hidden" id="' .
+        aio_cgi_l('Через какой сервис запускать раздачу, если она в кэше у обоих',
+        'Which service plays a release cached on both') . '</p><input type="hidden" id="' .
         $f['debrid_main_was']['id'] . '" name="' . $f['debrid_main_was']['name'] . '" value="' . aio_cgi_h($v['debrid_main_was']) .
         '"></div>';
 }

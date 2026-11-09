@@ -124,6 +124,7 @@ gc_group = Релиз
 gc_source = Источник
 gc_cached = В кэше
 gc_cached_in = В кэше {svc}
+gc_cached_and = и {svc}
 gc_download = Нужно скачать
 gc_peers = P2P
 gc_unknown = неизвестно

@@ -226,7 +226,7 @@ parameters:
         AioGcText: '''
             array{
                 lang: string, page: string, pack: string, group: string, source: string,
-                cached: string, cached_in: string, download: string, unknown: string, p2p: string,
+                cached: string, cached_in: string, cached_and: string, download: string, unknown: string, p2p: string,
                 video: string, audio: string, voices: string, subs: string, langs: string,
                 trackers: string, addon: string, flip: string, actions: string, details: string,
                 sort_aio: string, sort_seeds: string, sort_cached: string, sort_size: string, sort_date: string, errors: string

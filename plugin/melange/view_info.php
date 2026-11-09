@@ -651,7 +651,7 @@ function aio_info_col_source($r, $sd, $pf, $tt, $top)
         array_merge($l, array($tt['trackers'], $tt['addon'], $tt['source'])), $top);
     // The cache status, as the card but without the seeders (own field below).
     $status = aio_gc_status($r, $tt);
-    aio_info_put($c, '', aio_gc_wrap($status, 26, AIO_INF_CW, 2, true), true, aio_gc_status_color($r['cached']));
+    aio_info_put($c, '', aio_gc_status_lines($status, 26, AIO_INF_CW, 2), true, aio_gc_status_color($r['cached']));
     if ($r['trackers'])
         aio_info_field($c, $tt['trackers'], aio_cut(implode(', ', $r['trackers']), AIO_TEXT_MAX), 2);
     // A line an add-on at most (no more than AIO_ADDONS_MAX), so none is cut;
