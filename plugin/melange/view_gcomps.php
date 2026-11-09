@@ -1213,9 +1213,10 @@ function aio_gc_main_pair($st)
 }
 
 // gc_main (k: an id of aio_debrid_mains, MENU "Main Debrid -> <k>") of a live
-// list: k the main Debrid at once (aio_debrid_main_write; not written: this
-// list only), the copies of k on top, the screen replaced (a new rid), the
-// cursor kept. A bad id, a list not live: nothing.
+// list: k the main Debrid at once (aio_debrid_main_write), the copies of k on
+// top, the screen replaced (a new rid), the cursor kept. Not written (the next
+// operation reads the file again: the old one would play), a bad id, a list
+// not live: nothing.
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -1230,11 +1231,14 @@ function aio_gc_main($in)
         return null;
     }
     $was = Aio::$settings['debrid_main'] !== '' ? Aio::$settings['debrid_main'] : 'first in the reply';
-    $saved = aio_debrid_main_write($k);
+    if (!aio_debrid_main_write($k))
+    {
+        aio_log("debrid main: $was -> $k not saved (a write error), nothing changed");
+        return null;
+    }
     Aio::$settings['debrid_main'] = $k;
     $ns = aio_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang'], $st['errors']);
-    aio_log("debrid main: $was -> $k" . ($saved ? '' : ', not saved: this list only') . ', ' . aio_ep_tag($st) .
-        ', screen replaced');
+    aio_log("debrid main: $was -> $k, " . aio_ep_tag($st) . ', screen replaced');
     return aio_list_replace(aio_gc_put_cursor($ns, isset($st['gc']) ? $st['gc'][0] : 0));
 }
 
