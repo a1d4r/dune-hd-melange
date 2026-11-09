@@ -171,7 +171,8 @@ function aio_gc_status($r, $tt)
 }
 
 // Status $s of aio_gc_status in lines of at most $width: each of its lines
-// wrapped after spaces ("Real-Debrid" whole); more than $max: the last ends with "…".
+// wrapped after spaces ("Real-Debrid" whole), no line ends with a comma;
+// more than $max: the last ends with "…".
 /**
  * @param string $s
  * @param int $px
@@ -183,7 +184,10 @@ function aio_gc_status_lines($s, $px, $width, $max)
 {
     $lines = array();
     foreach (explode("\n", $s) as $part)
-        $lines = array_merge($lines, aio_gc_wrap($part, $px, $width, $max + 1, true));
+    {
+        foreach (aio_gc_wrap($part, $px, $width, $max + 1, true) as $l)
+            $lines[] = rtrim($l, ' ,');
+    }
     if (count($lines) <= $max)
         return $lines;
     $lines = array_slice($lines, 0, $max);
@@ -767,9 +771,11 @@ function aio_gc_card($st, $sel)
     }
     $y += 8;
     list($status, $color) = aio_gc_card_status($r, $tt);
-    // A file cached on several: up to 3 lines ("В кэше" / "Real-Debrid" /
-    // "и TorBox"), then the release group 1 line, so the worst case below holds.
-    $sl = aio_gc_status_lines($status, 30, $sw, strpos($status, "\n") === false ? 2 : 3);
+    // Lines of the status and of the release group together, so that the
+    // worst case below holds: a file cached on several takes up to 3 ("В кэше" /
+    // "Real-Debrid" / "и TorBox"), then the release 1; else both 2.
+    $budget = 4;
+    $sl = aio_gc_status_lines($status, 30, $sw, 3);
     foreach ($sl as $line)
     {
         $d[] = aio_gc_cut(null, aio_gc_at($sw, $lh, $sx, $y), $line, 30, $color);
@@ -780,14 +786,14 @@ function aio_gc_card($st, $sel)
         $y += 16;
         $d[] = aio_gc_cut(null, aio_gc_at($sw, 32, $sx, $y), $tt['group'], 26, AIO_GC_DIM);
         $y += 32;
-        foreach (aio_gc_wrap(aio_clean($r['group']), 30, $sw, min(2, 4 - count($sl))) as $line)
+        foreach (aio_gc_wrap(aio_clean($r['group']), 30, $sw, min(2, $budget - count($sl))) as $line)
         {
             $d[] = aio_gc_cut(null, aio_gc_at($sw, $lh, $sx, $y), $line, 30, AIO_GC_TEXT2);
             $y += $lh;
         }
     }
     // The platform of a WEB-DL: one line, so that it fits beside the poster
-    // in the worst case (two lines of status and of release).
+    // in the worst case (status and release in $budget lines).
     if ($r['network'] !== '')
     {
         $y += 16;
