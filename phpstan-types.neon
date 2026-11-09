@@ -181,8 +181,8 @@ parameters:
         # The stream check of a URL, by its redirect (aio_pre_class,
         # aio_precheck, playback.php): the CDN, a placeholder (a video of the
         # add-on, the slate of ElfHosted, a small 200 video of Comet, an
-        # archive) with the key and detail of its message and a note for the
-        # log, else unclear.
+        # archive) with the key and detail of its message (detail only with
+        # err_pre_placeholder) and a note for the log, else unclear.
         AioPrecheck: '''
             array{class: 'stream', url: string, host: string}
             |array{class: 'placeholder', key: string, detail: string, note: string}

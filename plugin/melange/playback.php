@@ -362,12 +362,14 @@ function aio_pre_class($url, $code, $loc, $type, $len)
             return array('class' => 'unclear', 'why' => "HTTP $code, Location not http(s)");
         $host = strtolower($p['host']);
         $path = isset($p['path']) ? $p['path'] : '';
-        // Real-Debrid gives some releases as one archive, the player can't open it.
-        if ($host !== $self && preg_match('/\.(rar|zip)$/iD', urldecode($path), $m))
-            return array('class' => 'placeholder', 'key' => 'err_pre_archive', 'detail' => '',
-                'note' => 'archive .' . strtolower($m[1]) . " -> $host");
         if ($host !== $self)
+        {
+            // Real-Debrid gives some releases as one archive, the player can't open it.
+            if (preg_match('/\.(rar|zip)$/iD', urldecode($path), $m))
+                return array('class' => 'placeholder', 'key' => 'err_pre_archive', 'detail' => '',
+                    'note' => 'archive .' . strtolower($m[1]) . " -> $host");
             return array('class' => 'stream', 'url' => $loc, 'host' => $host);
+        }
     }
     else if (substr($loc, 0, 2) === '//')
         return array('class' => 'unclear', 'why' => "HTTP $code, Location not http(s)");
