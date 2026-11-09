@@ -170,6 +170,24 @@ describe("the keys of Debrid", () => {
     const tb = open("ownconf");
     expect(vis(tb)).toEqual({ seg: false, rd: false, tb: true, addRd: true, addTb: false, pressed: ["false", "true"] });
   });
+
+  test("Main Debrid: only with both keys filled, as they are typed", () => {
+    const main = (page: Page) => !page.el(ID.debridMain).hidden;
+    const page = open("filled");
+    expect(main(page)).toBe(true);
+    page.type(ID.tbKey, "");
+    expect(main(page)).toBe(false);
+    page.type(ID.tbKey, "TBKEY");
+    expect(main(page)).toBe(true);
+    cleanup();
+    const empty = open("empty");
+    expect(main(empty)).toBe(false);
+    empty.type(ID.rdKey, "RDKEY");
+    empty.el(ID.tbAdd).click();
+    expect(main(empty)).toBe(false);
+    empty.type(ID.tbKey, "TBKEY");
+    expect(main(empty)).toBe(true);
+  });
 });
 
 describe("the bar of the save", () => {

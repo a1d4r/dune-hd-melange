@@ -173,6 +173,11 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null)
     $mv = $st['movie'];
     $s = $st['s'];
     $e = $st['e'];
+    // A file cached on several services: the copy is chosen now, the main
+    // service may have changed since the list (the page). With $pre the row
+    // is not cached: one copy.
+    if (!$ts && !$pre)
+        $r = aio_row_pick($r, Aio::$settings['debrid_main']);
     $url = $ts ? $ts['url'] : $r['url'];
     $mode = $ts ? 'ts' : 'debrid';
     // A Debrid placeholder video (not cached, a limit), linked, would put

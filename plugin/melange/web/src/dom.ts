@@ -20,6 +20,8 @@ export const ID = {
   tbBox: "tbbox",
   rdAdd: "rdadd",
   tbAdd: "tbadd",
+  // "Main Debrid" (0.56.0): shown with both keys.
+  debridMain: "dmain",
   tmdbBox: "tmbox",
   tmdbNote: "tmnote",
   confNone: "anone",

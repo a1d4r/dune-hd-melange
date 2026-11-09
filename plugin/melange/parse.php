@@ -690,14 +690,32 @@ function aio_row_copy_of($r)
 }
 
 // Index of the copy to play of $copies (the reply order, all cached): the
-// one first in the reply.
+// first one of service $main (the main Debrid, aio_debrid_main_read), else
+// the one first in the reply.
 /**
  * @param list<AioCopy> $copies
+ * @param string $main
  * @return int
  */
-function aio_copy_pick($copies)
+function aio_copy_pick($copies, $main)
 {
+    foreach ($copies as $i => $c)
+    {
+        if ($main !== '' && $c['svc'] === $main)
+            return $i;
+    }
     return 0;
+}
+
+// Row $r with the copy of aio_copy_pick($main) on top; a row of one copy as it is.
+/**
+ * @param AioRow $r
+ * @param string $main
+ * @return AioRow
+ */
+function aio_row_pick($r, $main)
+{
+    return isset($r['copies']) ? aio_row_use($r, aio_copy_pick($r['copies'], $main)) : $r;
 }
 
 // Row $r with copy $i of its copies on top.
@@ -793,10 +811,10 @@ function aio_merge_start()
 
 // Row $r (aio_row, before aio_row_voices) cached on a service, of the file of
 // an earlier row of $rows (the list aio_fetch makes) without a copy of that
-// service: a copy of it there (the copy to play on top, aio_copy_pick; the
-// row without an infoHash gets that of the copy) -> true. Else false: $r is
-// the next row of $rows, the caller puts it there; $mx (aio_merge_start)
-// notes it. Not merged: not cached, P2P, a copy of the same service.
+// service: a copy of it there (the copy first in the reply stays on top, the
+// list picks one: aio_list_state; the row without an infoHash gets that of the
+// copy) -> true. Else false: $r is the next row of $rows, the caller puts it
+// there; $mx (aio_merge_start) notes it. Not merged: not cached, P2P, a copy of the same service.
 /**
  * @param list<AioRow> $rows
  * @param AioMerge $mx
@@ -827,7 +845,7 @@ function aio_row_merge(&$rows, &$mx, $r)
             $row['hash'] = $k['hash'];
             $mx['hash'][$k['hash']][] = $gi;
         }
-        $rows[$gi] = aio_row_use($row, aio_copy_pick($row['copies']));
+        $rows[$gi] = aio_row_use($row, 0);
         $g['svcs'][] = $k['svc'];
         $mx['g'][$gi] = $g;
         if ($by === 'hash')

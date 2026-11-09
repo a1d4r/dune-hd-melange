@@ -79,7 +79,8 @@ parameters:
                 sort: string,
                 sort_rev: bool,
                 cat_rows: list<string>|null,
-                cat_logo: bool
+                cat_logo: bool,
+                debrid_main: string
             }
         '''
         # Badges of a release (aio_badges, parse.php).

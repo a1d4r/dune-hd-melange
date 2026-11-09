@@ -37,6 +37,9 @@ function aio_cgi_values($s)
     $v['cat_rows'] = aio_cgi_cat_rows_of($s['cat_rows']);
     $v['servers'] = $s['servers'];
     $v['confs'] = $s['aio_confs'];
+    // Not of settings.json: the form takes them from data_dir/debrid_main (settings.php).
+    $v['debrid_main'] = '';
+    $v['debrid_main_was'] = '';
     return $v;
 }
 

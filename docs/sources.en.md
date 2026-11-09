@@ -26,6 +26,8 @@ When to choose it: you have a Real-Debrid or TorBox subscription. Releases cache
 
 **Keys** for Real-Debrid or TorBox, or both: the second one is added with the link under the first. Where to get them: [Getting started](quick-start.en.md#4b-debrid-from-your-phone).
 
+**Main Debrid** shows up once both keys are in. If a release is cached in both services, the copy of the main one plays; with none chosen, the one that came first. You can also change it in the release list: MENU → [**Main Debrid → …**](watching.en.md#the-actions-menu).
+
 **Where to look for releases** is the config template:
 
 | Template | Addons | When |

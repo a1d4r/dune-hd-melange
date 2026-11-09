@@ -62,6 +62,7 @@ The colored remote buttons: red keeps the AIOStreams order, green sorts by seede
 - **Refresh**: request the list again, for example if JacRed was slow to answer.
 - **Watch via TorrServer**, **Open in an app…**, **Download to server…**: see the sections below; they are missing for a release without a torrent hash (not every source provides one) and with the [**No torrents**](setup.en.md#advanced) setting.
 - **Source errors**: why sources sent no releases; present if turned on in the [settings](setup.en.md#advanced).
+- **Main Debrid → TorBox** (or **→ Real-Debrid**): make the other service the main one, so releases cached in both play through it. Present if the list has such releases. It works at once and is the same setting as [on the page](sources.en.md#debrid).
 
 ## Watch via TorrServer
 

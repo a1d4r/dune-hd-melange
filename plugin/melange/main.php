@@ -78,10 +78,13 @@ class Aio
     // 'sort', 'sort_rev' - the sort of a new list and its direction (aio_sort_read).
     // 'cat_rows' - the rows of the catalog chosen on the page, the argument of aio_cat_user_rows.
     // 'cat_logo' - the same of the settings: aio_catv_card.
+    // 'debrid_main' - the main Debrid service (aio_debrid_main_read): of a file cached on
+    // several, the copy of it plays (aio_list_state, aio_play); '' - the first in the reply.
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'source_errors' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
-        'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true);
+        'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true,
+        'debrid_main' => '');
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -411,7 +414,8 @@ function aio_settings_load()
         'sort' => $sort,
         'sort_rev' => $rev,
         'cat_rows' => $s['cat_rows'],
-        'cat_logo' => $s['cat_logo']);
+        'cat_logo' => $s['cat_logo'],
+        'debrid_main' => aio_debrid_main_read(aio_data_dir()));
 }
 
 // The sort of the lists, chosen by a colour key of the list (aio_gc_sort):
@@ -441,6 +445,17 @@ function aio_sort_read()
 function aio_sort_write($k, $rev)
 {
     return aio_data_dir() !== '' && aio_write_file(aio_data_dir() . '/' . AIO_SORT_FILE, $rev ? "{$k}_rev" : $k);
+}
+
+// data_dir/debrid_main (aio_debrid_main_read) of service $svc, by MENU of a list
+// (aio_gc_main); the page writes it too: the last write counts.
+/**
+ * @param string $svc
+ * @return bool
+ */
+function aio_debrid_main_write($svc)
+{
+    return aio_data_dir() !== '' && aio_write_file(aio_data_dir() . '/' . AIO_DEBRID_MAIN_FILE, $svc);
 }
 
 // --- AIOStreams.
@@ -1040,6 +1055,9 @@ function aio_list_state($mv, $s, $e, $rows, $lang, $errors)
 {
     $sort = Aio::$settings['sort'];
     $rev = Aio::$settings['sort_rev'];
+    // A file cached on several services: the copy of the main one on top (its status, INFO).
+    foreach ($rows as $i => $r)
+        $rows[$i] = aio_row_pick($r, Aio::$settings['debrid_main']);
     return array('rid' => aio_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => aio_rows_sort($rows, $sort, $rev),
         'lang' => $lang, 'sort' => $sort, 'sort_rev' => $rev, 'errors' => $errors);
 }
@@ -1296,6 +1314,8 @@ function aio_handle_user_input($in)
         return aio_refresh($in);
     if ($control === 'gc_sort')
         return aio_gc_sort($in);
+    if ($control === 'gc_main')
+        return aio_gc_main($in);
     if ($control === 'gc_choose')
         return aio_choose($in);
     if ($control === 'gc_chosen')

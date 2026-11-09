@@ -182,6 +182,13 @@ function aio_cgi_save($dir, $t)
             'Not saved: write error on the Dune'))), "500 Settings not saved\n");
     }
     aio_cgi_log('save: ok');
+    // "Основной Debrid": its own file, written only when another one than the page showed is posted.
+    $dm = $v['debrid_main'];
+    if ($dm !== $v['debrid_main_was'] && array_key_exists($dm, aio_server_caches()))
+    {
+        $why = aio_cgi_write($dir, $dm, AIO_DEBRID_MAIN_FILE);
+        aio_cgi_log('save: debrid_main ' . ($why !== '' ? $why : 'written'));
+    }
     // The config there (of the mode chosen) is reset to the template (0.40.0): aio_cgi_resets.
     $has = (bool) aio_settings_conf($data);
     $reset = aio_cgi_resets($data, $data['aio_confs'], $v);
@@ -264,6 +271,8 @@ if ($method === 'GET')
     if ($why !== '')
         aio_cgi_log("form: settings.json $why");
     $v = aio_cgi_values($s);
+    $v['debrid_main'] = aio_debrid_main_read($dir);
+    $v['debrid_main_was'] = $v['debrid_main'];
     $v['first'] = !$s['saved_once'];
     $imp = aio_cgi_param($_GET, 'imported');
     aio_cgi_send(200, 'text/html', aio_cgi_form($t, $v, array(), aio_cgi_param($_GET, 'saved') === '1',

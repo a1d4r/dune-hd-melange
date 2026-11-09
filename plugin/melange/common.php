@@ -18,6 +18,9 @@ define('AIO_SETTINGS_V', 2);
 define('AIO_TOKEN_FILE', 'web_token');
 // In data_dir: the sort of the stream lists (aio_sort_read); written by the plugin only.
 define('AIO_SORT_FILE', 'list_sort');
+// In data_dir: the main Debrid service (aio_debrid_main_read, 0.56.0); written by the
+// plugin (MENU of a list) and by the settings page, not in settings.json.
+define('AIO_DEBRID_MAIN_FILE', 'debrid_main');
 define('AIO_URL_MAX', 2000);
 // A bigger settings.json is not read (a real one is below 5 KB).
 define('AIO_SETTINGS_MAX', 65536);
@@ -106,6 +109,20 @@ define('AIO_SERVERS_MAX', 5);
 function aio_server_caches()
 {
     return array('torbox' => 'TorBox', 'realdebrid' => 'Real-Debrid');
+}
+
+// The main Debrid service (0.56.0): a file cached on both plays from it.
+// data_dir/debrid_main of directory $dir: an id of aio_server_caches(), else ''
+// (none, unreadable, anything else): the copy first in the reply plays.
+/**
+ * @param string $dir
+ * @return string
+ */
+function aio_debrid_main_read($dir)
+{
+    $f = "$dir/" . AIO_DEBRID_MAIN_FILE;
+    $v = $dir !== '' && is_file($f) ? trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM) : '';
+    return $v !== '' && array_key_exists($v, aio_server_caches()) ? $v : '';
 }
 
 // Clients of a server (0.47.0): its type => name for the settings page.

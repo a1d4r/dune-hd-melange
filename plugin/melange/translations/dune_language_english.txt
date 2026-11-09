@@ -65,6 +65,7 @@ errors_menu = Source errors
 errors_title = Sources returned errors
 errors_more = and {n} more
 choose_menu = Choose episode
+main_menu = Main Debrid → {svc}
 dl_menu = Open in an app…
 dl_no_app = No app to open magnet links
 srv_menu = Download to server…

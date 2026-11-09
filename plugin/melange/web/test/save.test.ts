@@ -30,7 +30,9 @@ function servers(first: [string, string][]): [string, string][] {
   return out;
 }
 const FILLED: [string, string][] = [
-  ["watch", "debrid"], ["no_torrents", "allow"], ["rd_key", "RDTESTKEY00000000000000001"], ["tb_key", "tbtest-0000000000000000001"], ["aio_tpl", "addons"],
+  ["watch", "debrid"], ["no_torrents", "allow"], ["rd_key", "RDTESTKEY00000000000000001"], ["tb_key", "tbtest-0000000000000000001"],
+  // "Main Debrid": none chosen, none posted; the one the page showed.
+  ["debrid_main_was", ""], ["aio_tpl", "addons"],
   ["aio_tpl_seen", "addons"], ["aio_tpl_p2p", "p2p_jacred"], ["aio_tpl_p2p_seen", "p2p_jacred"], ["manifest", ""], ["aio_server", MADE], ["aio_own_url", ""], ["tmdb_key", "TMDBTESTKEY000000000001"],
   ["jacred", "own"], ["jacred_own_url", "http://192.168.1.10:9117"], ["jacred_own_key", "testkey01"],
   ["ts", "http://192.168.1.10:8090"], ["ts_user", "tsuser"], ["ts_pass", "ts p@ss&x"], ["ts_save", "add"],

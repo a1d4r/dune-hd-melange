@@ -1185,8 +1185,62 @@ function aio_gc_sort($in)
     return aio_list_replace(aio_gc_put_cursor($ns, 0));
 }
 
+// The main Debrid of list $st for its MENU (0.56.0): array(now, the other one)
+// of Real-Debrid and TorBox, by a row with copies of both; null - no such row,
+// the choice changes nothing there. Now: of the settings, else the service first
+// in the reply of such a row (it plays).
+/**
+ * @param AioState $st
+ * @return array{string, string}|null
+ */
+function aio_gc_main_pair($st)
+{
+    $pair = array('realdebrid', 'torbox');
+    foreach ($st['rows'] as $r)
+    {
+        $svcs = array();
+        foreach (isset($r['copies']) ? $r['copies'] : array() as $c)
+        {
+            if (in_array($c['svc'], $pair, true))
+                $svcs[] = $c['svc'];
+        }
+        if (count(array_unique($svcs)) < 2)
+            continue;
+        $now = Aio::$settings['debrid_main'] !== '' ? Aio::$settings['debrid_main'] : $svcs[0];
+        return array($now, $now === 'torbox' ? 'realdebrid' : 'torbox');
+    }
+    return null;
+}
+
+// gc_main (k: an id of aio_server_caches, MENU "Main Debrid -> <k>") of a live
+// list: k the main Debrid at once (aio_debrid_main_write; not written: this
+// list only), the copies of k on top, the screen replaced (a new rid), the
+// cursor kept. A bad id, a list not live: nothing.
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
+function aio_gc_main($in)
+{
+    $st = Aio::$state;
+    $k = isset($in->k) && is_string($in->k) ? $in->k : '';
+    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || !array_key_exists($k, aio_server_caches()))
+    {
+        aio_log('debrid main: not a live list or a bad service, nothing');
+        return null;
+    }
+    $was = Aio::$settings['debrid_main'] !== '' ? Aio::$settings['debrid_main'] : 'first in the reply';
+    $saved = aio_debrid_main_write($k);
+    Aio::$settings['debrid_main'] = $k;
+    $ns = aio_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang'], $st['errors']);
+    aio_log("debrid main: $was -> $k" . ($saved ? '' : ', not saved: this list only') . ', ' . aio_ep_tag($st) .
+        ', screen replaced');
+    return aio_list_replace(aio_gc_put_cursor($ns, isset($st['gc']) ? $st['gc'][0] : 0));
+}
+
 // gc_menu (MENU) of a live list -> the popup menu of the row under the cursor:
-// "Refresh" (aio_refresh), an episode: "Choose episode" (aio_choose), a row
+// "Refresh" (aio_refresh), an episode: "Choose episode" (aio_choose), copies of
+// Real-Debrid and TorBox in the list: "Main Debrid -> <the other one>" (aio_gc_main), a row
 // with infoHash: "Download in app" (aio_download) and, with a server in the
 // settings, "Download to server" (aio_srv_menu; these three not with "no torrents"), source errors of the
 // reply if shown (aio_gc_errors), "Settings". A screen of a
@@ -1222,6 +1276,12 @@ function aio_gc_menu($in)
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'choose_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
             GuiMenuItemDef::action => aio_gc_act('gc_choose', $rid));
+    $main = aio_gc_main_pair($st);
+    if ($main)
+        $menu[] = array(
+            GuiMenuItemDef::caption => str_replace('{svc}', aio_service_name($main[1]), aio_tr($st['lang'], 'main_menu')),
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sync.aai',
+            GuiMenuItemDef::action => aio_gc_act('gc_main', $rid, array('k' => $main[1])));
     $tor = $st['rows'][$sel]['hash'] !== '' && !Aio::$settings['no_torrents'];
     if ($tor)
         $menu[] = array(

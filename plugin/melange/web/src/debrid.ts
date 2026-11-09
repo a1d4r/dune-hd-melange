@@ -1,5 +1,6 @@
 // The keys of Debrid: both empty - the switch Real-Debrid / TorBox (#dseg) and the field of one; one filled - its
-// field and "+ Add <the other>"; both filled (or the other one added) - both fields.
+// field and "+ Add <the other>"; both filled (or the other one added) - both fields; both filled - "Main Debrid" too
+// (#dmain, 0.56.0).
 
 import { byId, DATA, ID, type Page, trimmed } from "./dom";
 
@@ -13,6 +14,7 @@ type Key = "rd" | "tb";
 export function setupDebrid(page: Page): Debrid {
   const doc = page.doc;
   const switcher = byId(doc, ID.debridSwitch);
+  const main = byId(doc, ID.debridMain);
   const keys: Record<Key, { field: HTMLInputElement; box: HTMLElement; add: HTMLElement }> = {
     rd: { field: byId<HTMLInputElement>(doc, ID.rdKey), box: byId(doc, ID.rdBox), add: byId(doc, ID.rdAdd) },
     tb: { field: byId<HTMLInputElement>(doc, ID.tbKey), box: byId(doc, ID.tbBox), add: byId(doc, ID.tbAdd) },
@@ -31,6 +33,7 @@ export function setupDebrid(page: Page): Debrid {
     keys[other].box.hidden = !both;
     keys[current].add.hidden = true;
     keys[other].add.hidden = both || switching;
+    main.hidden = !both || !filled("rd") || !filled("tb");
     const buttons = switcher.querySelectorAll("button");
     for (let i = 0; i < buttons.length; i++)
       buttons[i]!.setAttribute("aria-pressed", buttons[i]!.getAttribute(DATA.key) === current ? "true" : "false");

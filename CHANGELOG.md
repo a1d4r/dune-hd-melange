@@ -4,6 +4,7 @@
 
 ## 0.56.0
 - **One row for a release cached in both Real-Debrid and TorBox.** With both keys, a release cached in both services is now one row of the list, with the status "Cached in Real-Debrid · TorBox"; AIOStreams used to keep the copy of one service only. Releases without an infoHash (MediaFusion) are matched by the file name and size. To get the copies of both services, open the settings page and press **Save** once: Melange updates its AIOStreams config.
+- **Main Debrid.** With both keys, the settings page has **Main Debrid: Real-Debrid / TorBox**: a release cached in both plays from the main one. With none chosen, the copy that came first plays, as before. In the release list, MENU → **Main Debrid → TorBox** (or **→ Real-Debrid**) switches it at once; it is there when the list has releases cached in both.
 
 ## 0.55.3
 - **A release packed in an archive no longer starts the player for nothing.** Real-Debrid sometimes gives a release as one RAR or ZIP archive instead of the video file; the player could not open it and closed with a general error. Now the player does not start, and Melange shows "Debrid gave an archive, not a video — pick another release". The same for the placeholder Torrentio sends for such a release: it used to show "Debrid returned a placeholder video".
@@ -202,6 +203,7 @@ First public release. What it does:
 
 ## 0.56.0
 - **Одна строка на раздачу в кэше Real-Debrid и TorBox.** С двумя ключами раздача, которая есть в кэше обоих сервисов, теперь одна строка списка со статусом «В кэше Real-Debrid · TorBox»; раньше AIOStreams оставлял копию только одного сервиса. Раздачи без infoHash (MediaFusion) сводятся по имени файла и размеру. Чтобы появились копии обоих сервисов, откройте страницу настроек и один раз нажмите «Сохранить»: Melange обновит свой конфиг AIOStreams.
+- **Основной Debrid.** С двумя ключами на странице настроек есть «Основной Debrid: Real-Debrid / TorBox»: раздача из кэша обоих играет через основной. Не выбран — играет копия, пришедшая первой, как раньше. В списке раздач MENU → «Основной Debrid → TorBox» (или «→ Real-Debrid») переключает его сразу; пункт есть, когда в списке есть раздачи из кэша обоих.
 
 ## 0.55.3
 - **Раздача в архиве больше не запускает плеер впустую.** Real-Debrid иногда отдаёт раздачу одним архивом RAR или ZIP вместо видеофайла: плеер не мог его открыть и закрывался общей ошибкой. Теперь плеер не запускается, а Melange показывает «Debrid отдал архив вместо видео — выберите другую раздачу». Так же — для заглушки, которую на такую раздачу присылает Torrentio: раньше было «Debrid вернул заглушку».

@@ -40,6 +40,10 @@ function aio_cgi_fields()
             'scr' => 'src'),
         'rd' => array('id' => 'rd', 'name' => 'rd_key', 'set' => 'rd_key', 'max' => 100, 'type' => 'sec', 'scr' => 'src'),
         'tb' => array('id' => 'tb', 'name' => 'tb_key', 'set' => 'tb_key', 'max' => 100, 'type' => 'sec', 'scr' => 'src'),
+        // "Основной Debrid" (0.56.0): data_dir/debrid_main, not settings.json (aio_cgi_debrid_main).
+        'debrid_main' => array('id' => 'dm', 'name' => 'debrid_main', 'set' => '', 'max' => 0, 'type' => 'radio', 'scr' => 'src'),
+        'debrid_main_was' => array('id' => 'dmw', 'name' => 'debrid_main_was', 'set' => '', 'max' => 0, 'type' => 'hidden',
+            'scr' => 'src'),
         'tmdb' => array('id' => 'tm', 'name' => 'tmdb_key', 'set' => 'tmdb_key', 'max' => 100, 'type' => 'sec', 'scr' => 'cfg'),
         'jacred' => array('id' => '', 'name' => 'jacred', 'set' => 'jacred', 'max' => 0, 'type' => 'radio', 'scr' => 'voices'),
         'jo_url' => array('id' => 'jou', 'name' => 'jacred_own_url', 'set' => 'jacred_own_url', 'max' => AIO_JACRED_URL_MAX,
@@ -677,6 +681,30 @@ function aio_cgi_no_torrents_cards()
     return $out . '</div>';
 }
 
+// The answers of "Основной Debrid" (radio debrid_main, 0.56.0): an id of
+// aio_server_caches() => array(name, hint).
+function aio_cgi_debrid_mains()
+{
+    return array('realdebrid' => array('Real-Debrid', ''), 'torbox' => array('TorBox', ''));
+}
+
+// "Основной Debrid" under the keys of #mdeb (#dmain): shown with both keys
+// saved (else hidden; the script shows it by the keys typed, debrid.ts). None
+// checked: none chosen, the copy first in the reply plays. debrid_main_was:
+// the one the page shows - the save writes data_dir/debrid_main only when
+// another one is posted (MENU of a list on the Dune may have changed it since).
+function aio_cgi_debrid_main($v)
+{
+    $f = aio_cgi_fields();
+    return '<div id="dmain"' . ($v['rd'] !== '' && $v['tb'] !== '' ? '' : ' hidden') . '><p class="lbl">' .
+        aio_cgi_l('Основной Debrid', 'Main Debrid') . '</p>' .
+        aio_cgi_choice($f['debrid_main'], aio_cgi_debrid_mains(), $v['debrid_main']) . '<p class="hint">' .
+        aio_cgi_l('В кэше обоих — играет основной, другой предложим, если откажет.',
+        'Cached on both: the main one plays, the other is offered if it fails.') . '</p><input type="hidden" id="' .
+        $f['debrid_main_was']['id'] . '" name="' . $f['debrid_main_was']['name'] . '" value="' . aio_cgi_h($v['debrid_main_was']) .
+        '"></div>';
+}
+
 // The screen "Откуда брать фильмы" (0.43.0): three cards of the radio watch
 // (aio_cgi_form), under them the fields of the answer shown by the CSS
 // (classes xd, xp, xo, xm - Debrid, Торренты, the own config, both made; xt -
@@ -699,7 +727,7 @@ function aio_cgi_src($v)
         aio_cgi_input($f['tb'], aio_cgi_l('Ключ TorBox', 'TorBox key'), $v['tb'], aio_cgi_l('Где взять: ', 'Get it at ') .
             aio_cgi_link('https://torbox.app/settings', 'torbox.app/settings'), aio_cgi_chk('tbb', 'tbr')) .
         '</div><button type="button" id="rdadd" class="lnk" hidden>' . aio_cgi_l('+ Добавить Real-Debrid', '+ Add Real-Debrid') .
-        '</button>' . aio_cgi_tpl($v, AIO_MODE_DEBRID) . '</div>' .
+        '</button>' . aio_cgi_debrid_main($v) . aio_cgi_tpl($v, AIO_MODE_DEBRID) . '</div>' .
         '<div id="mp2p" class="xp"><p class="hint">' . aio_cgi_l('Ключ не нужен: фильмы качаются с раздачи и играют через TorrServer.',
         'No key needed: films are fetched from the swarm and play via TorrServer.') . '</p>' . aio_cgi_tpl($v, AIO_MODE_P2P) .
         '<p class="hint" id="tslink"><a href="#torr">' . aio_cgi_l('Адрес TorrServer и проверка ›', 'TorrServer address and check ›') .
