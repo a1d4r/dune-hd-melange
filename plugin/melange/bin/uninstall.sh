@@ -8,5 +8,5 @@
 
 f=${MELANGE_TMP:-$FS_PREFIX/tmp}/movie_suppliers/aio
 grep -q '"plugin":"melange"' "$f" 2>/dev/null && rm -f "$f"
-rm -f "$FS_PREFIX/config/lcfg_melange_rows_movie.txt" "$FS_PREFIX/config/lcfg_melange_rows_series.txt"
+rm -f "$FS_PREFIX"/config/lcfg_melange_rows_*.txt
 exit 0
