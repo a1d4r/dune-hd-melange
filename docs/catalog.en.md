@@ -8,7 +8,7 @@ Melange's own catalog: rows of collections, search and where the data comes from
 
 On top of the catalog is a strip: the **Movies** and **Series** tabs and, on the right, a magnifier (search) and a gear (settings); press UP from the first row to get there. The catalog opens on Movies.
 
-Settings from the catalog: the gear on the strip.
+Settings from the catalog: the gear on the strip. MENU on a poster or in the panel on the left opens the same **Movies**, **Series**, **Search** and **Settings** as the strip, so you do not have to scroll up to it.
 
 <img src="../screenshots/catalog.jpg" alt="Melange catalog: names of the start rows on the left, rows of posters on the right" width="100%">
 
@@ -30,7 +30,7 @@ Above the rows, a movie with a Russian logo shows the logo instead of its title,
 
 ## Search
 
-The magnifier on the strip on top (or the search key, if your remote has one). Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.
+The magnifier on the strip on top or MENU → **Search** (or the search key, if your remote has one). Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.
 
 <img src="../screenshots/search.jpg" alt="Search results in the Melange catalog: Movies and Series rows, a Show all tile at the end of a row" width="100%">
 

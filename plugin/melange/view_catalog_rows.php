@@ -254,12 +254,12 @@ function aio_catv_rows_merge($chosen, $keys, $tab)
 }
 
 
-// POP UP of the screen $from. On the header of a row of a main screen (selected_header_id, in the
-// panel of the headers; genre_rows_screen.php r25): only "Configure list…", the menu of the rows of
-// its tab (aio_catv_rows_menu), that row selected; on the row "No rows" of the tab and on the header
-// of the strip ("H0": it has no header_id, aio_catv_strip_sel) too, no row selected. Else (a tile,
-// the results of a search, "Show all") nothing: the search and the settings are on the strip and
-// the search key.
+// POP UP of the screen $from. A main screen: the parts of the strip, as ENTER on them (cat_part), so
+// the strip is at hand anywhere. Above them, on the header of a row (selected_header_id, in the
+// panel of the headers; genre_rows_screen.php r25), "Configure list…" and a separator: the menu of
+// the rows of its tab (aio_catv_rows_menu), that row selected; on the row "No rows" of the tab and on
+// the header of the strip ("H0": it has no header_id, aio_catv_strip_sel) too, no row selected.
+// Else (the results of a search, "Show all") nothing.
 /**
  * @param stdClass $in
  * @param string $from
@@ -270,29 +270,42 @@ function aio_catv_menu($in, $from)
     $hid = aio_catv_in($in, 'selected_header_id');
     $tab = aio_catv_tab($from);
     aio_log("catalog: POP UP: header '" . aio_cut($hid, 100) . "'");
-    $strip = $hid === 'H0';
-    if ($tab === '' || (!$strip && strpos($hid, AIO_CATV_HEADER) !== 0))
+    if ($tab === '')
         return null;
-    $rid = $strip ? '' : strval(substr($hid, strlen(AIO_CATV_HEADER)));
-    $copy = aio_cat_manifest_copy();
-    $any = false;
-    $sel = null;
-    foreach ($copy['rows'] as $r)
-    {
-        if (aio_cat_row_tab($r) !== $tab)
-            continue;
-        $any = true;
-        if (aio_catv_rid($r) === $rid)
-            $sel = $r['key'];
-    }
     $lang = aio_catv_lang();
-    if (!$any || ($sel === null && !$strip && $rid !== aio_catv_rid(aio_catv_tab_empty_row($tab, $lang))))
-        return null;
+    $items = array();
+    $strip = $hid === 'H0';
+    if ($strip || strpos($hid, AIO_CATV_HEADER) === 0)
+    {
+        $rid = $strip ? '' : strval(substr($hid, strlen(AIO_CATV_HEADER)));
+        $copy = aio_cat_manifest_copy();
+        $any = false;
+        $sel = null;
+        foreach ($copy['rows'] as $r)
+        {
+            if (aio_cat_row_tab($r) !== $tab)
+                continue;
+            $any = true;
+            if (aio_catv_rid($r) === $rid)
+                $sel = $r['key'];
+        }
+        if ($any && ($sel !== null || $strip || $rid === aio_catv_rid(aio_catv_tab_empty_row($tab, $lang))))
+        {
+            $items[] = array(
+                GuiMenuItemDef::caption => aio_tr($lang, 'cat_rows_edit'),
+                GuiMenuItemDef::action => aio_input('cat_rows_menu', array('from' => $from, 'sel' => strval($sel))));
+            $items[] = array(GuiMenuItemDef::is_separator => true);
+        }
+    }
+    foreach (array('tab_movie' => 'cat_part_movies', 'tab_series' => 'cat_part_series', 'tab_search' => 'cat_search', 'tab_setup' => 'setup_menu') as $id => $key)
+    {
+        $items[] = array(
+            GuiMenuItemDef::caption => aio_tr($lang, $key),
+            GuiMenuItemDef::action => aio_input('cat_part', array('from' => $from, 'part' => $id)));
+    }
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => array(array(
-            GuiMenuItemDef::caption => aio_tr($lang, 'cat_rows_edit'),
-            GuiMenuItemDef::action => aio_input('cat_rows_menu', array('from' => $from, 'sel' => strval($sel)))))));
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
 }
 
 // "Configure list…" of the main screen $from, the row $sel ('': none) -> the second menu, as the

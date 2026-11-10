@@ -2279,21 +2279,23 @@ function aio_catv_all_open($url)
 }
 
 // ENTER on the part $id of the strip of the main screen $from. A tab not active: the screen of its
-// type in place of this one (erase_count 1: Back does not grow), the active one: nothing. The
-// icons: the dialog of a search and the settings screen.
+// type in place of this one (erase_count 1: Back does not grow), the active one: nothing; $up (its
+// item of POP UP, aio_catv_menu): the active one too, the focus up on it. The icons: the dialog of
+// a search and the settings screen.
 /**
  * @param string $id
  * @param string $from
+ * @param bool $up
  * @return AioAction|null
  */
-function aio_catv_strip_enter($id, $from)
+function aio_catv_strip_enter($id, $from, $up = false)
 {
     if ($id === 'tab_search')
         return aio_catv_search_ask($from);
     if ($id === 'tab_setup')
         return aio_setup_open_act($from);
     $tab = strval(substr($id, strlen('tab_')));
-    if (($tab !== 'movie' && $tab !== 'series') || !aio_catv_is_main($from) || $tab === aio_catv_tab($from))
+    if (($tab !== 'movie' && $tab !== 'series') || !aio_catv_is_main($from) || (!$up && $tab === aio_catv_tab($from)))
         return null;
     return aio_replace_act(aio_catv_main_url($tab), '%tr%plugin_caption');
 }
@@ -2465,6 +2467,8 @@ function aio_catv_input($in, $control)
         return aio_catv_search_run(aio_catv_in($in, 'cat_q'), $from);
     if ($control === 'cat_menu')
         return aio_catv_menu($in, $from);
+    if ($control === 'cat_part')
+        return aio_catv_strip_enter(aio_catv_in($in, 'part'), $from, true);
     if ($control === 'cat_rows_menu')
         return aio_catv_rows_menu($from, aio_catv_in($in, 'sel'));
     if ($control === 'cat_rows_edit')
