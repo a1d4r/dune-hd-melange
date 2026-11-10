@@ -288,6 +288,7 @@ function aio_catv_rows_menu_items($hid, $tab, $from, $lang)
     return array(
         array(
             GuiMenuItemDef::caption => aio_tr($lang, 'cat_rows_edit'),
+            GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'playlist_small.png',
             GuiMenuItemDef::action => aio_input('cat_rows_menu', array('from' => $from, 'sel' => strval($sel)))),
         array(GuiMenuItemDef::is_separator => true));
 }

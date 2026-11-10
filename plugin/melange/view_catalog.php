@@ -95,6 +95,9 @@ define('AIO_CATV_PANE_X', 100);
 define('AIO_CATV_CARD_X', 130);
 define('AIO_CATV_PANE_Y', 40);
 define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
+// The icons of the shell for the search and the setup: on the strip and in POP UP.
+define('AIO_CATV_ICON_SEARCH', 'xxx4.png');
+define('AIO_CATV_ICON_SETUP', 'xxx5.png');
 // Our pictures of the panel, img/cat<N>_*: N goes up when they change, as the shell keeps a
 // picture by its URL even across a reinstall (plugins/melange_catalog_img.py of the kitchen). The
 // mask: of the shell, but darker to the right, so the text column (TEXT_W) stays on the dark
@@ -890,7 +893,7 @@ function aio_catv_strip_rows($tab, $lang)
     // The icons 75 apart as the native ones, their glyphs 48x48 at 8, 8 of the PNG; the gear
     // ends at 1660, its frame at 1670. Grey #AAAAAA as the native ones: the magnifier is white at
     // most (alpha 170), the gear #BBBBBB (alpha 232).
-    foreach (array(array('search', 'cat_search', 'xxx4.png', 1521, 170), array('setup', 'setup_menu', 'xxx5.png', 1596, 232)) as $t)
+    foreach (array(array('search', 'cat_search', AIO_CATV_ICON_SEARCH, 1521, 170), array('setup', 'setup_menu', AIO_CATV_ICON_SETUP, 1596, 232)) as $t)
     {
         $id = "tab_{$t[0]}";
         $defs[] = array(
@@ -2305,8 +2308,9 @@ function aio_catv_strip_enter($id, $from, $up = false)
 }
 
 // POP UP of the screen $from. A main screen: the parts of the strip, as ENTER on them (cat_part), so
-// the strip is at hand anywhere; on a header above them "Configure list…" and a separator
-// (aio_catv_rows_menu_items). Else (the results of a search, "Show all") nothing.
+// the strip is at hand anywhere, with icons of the shell (the search and the setup as on the strip);
+// on a header above them "Configure list…" and a separator (aio_catv_rows_menu_items). Else (the
+// results of a search, "Show all") nothing.
 /**
  * @param stdClass $in
  * @param string $from
@@ -2322,10 +2326,14 @@ function aio_catv_menu($in, $from)
         return null;
     $lang = aio_catv_lang();
     $items = aio_catv_rows_menu_items($hid, $tab, $from, $lang);
-    foreach (array('tab_movie' => 'cat_part_movies', 'tab_series' => 'cat_part_series', 'tab_search' => 'cat_search', 'tab_setup' => 'setup_menu') as $id => $key)
+    $parts = array(
+        'tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png'),
+        'tab_search' => array('cat_search', AIO_CATV_ICON_SEARCH), 'tab_setup' => array('setup_menu', AIO_CATV_ICON_SETUP));
+    foreach ($parts as $id => $p)
     {
         $items[] = array(
-            GuiMenuItemDef::caption => aio_tr($lang, $key),
+            GuiMenuItemDef::caption => aio_tr($lang, $p[0]),
+            GuiMenuItemDef::icon_url => AIO_CATV_ICONS . $p[1],
             GuiMenuItemDef::action => aio_input('cat_part', array('from' => $from, 'part' => $id)));
     }
     return array(
