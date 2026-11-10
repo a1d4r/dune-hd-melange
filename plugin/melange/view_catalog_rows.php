@@ -256,9 +256,10 @@ function aio_catv_rows_merge($chosen, $keys, $tab)
 
 // POP UP of the screen $from. On the header of a row of a main screen (selected_header_id, in the
 // panel of the headers; genre_rows_screen.php r25): only "Configure list…", the menu of the rows of
-// its tab (aio_catv_rows_menu), that row selected; on the row "No rows" of the tab too, no row
-// selected. Else (a tile, the strip, the results of a search, "Show all") nothing: the search and
-// the settings are on the strip and the search key.
+// its tab (aio_catv_rows_menu), that row selected; on the row "No rows" of the tab and on the header
+// of the strip ("H0": it has no header_id, aio_catv_strip_sel) too, no row selected. Else (a tile,
+// the results of a search, "Show all") nothing: the search and the settings are on the strip and
+// the search key.
 /**
  * @param stdClass $in
  * @param string $from
@@ -269,9 +270,10 @@ function aio_catv_menu($in, $from)
     $hid = aio_catv_in($in, 'selected_header_id');
     $tab = aio_catv_tab($from);
     aio_log("catalog: POP UP: header '" . aio_cut($hid, 100) . "'");
-    if ($tab === '' || strpos($hid, AIO_CATV_HEADER) !== 0)
+    $strip = $hid === 'H0';
+    if ($tab === '' || (!$strip && strpos($hid, AIO_CATV_HEADER) !== 0))
         return null;
-    $rid = strval(substr($hid, strlen(AIO_CATV_HEADER)));
+    $rid = $strip ? '' : strval(substr($hid, strlen(AIO_CATV_HEADER)));
     $copy = aio_cat_manifest_copy();
     $any = false;
     $sel = null;
@@ -284,7 +286,7 @@ function aio_catv_menu($in, $from)
             $sel = $r['key'];
     }
     $lang = aio_catv_lang();
-    if (!$any || ($sel === null && $rid !== aio_catv_rid(aio_catv_tab_empty_row($tab, $lang))))
+    if (!$any || ($sel === null && !$strip && $rid !== aio_catv_rid(aio_catv_tab_empty_row($tab, $lang))))
         return null;
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
