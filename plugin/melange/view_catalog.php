@@ -124,6 +124,10 @@ define('AIO_CATV_STRIP', 'tabs');
 // one by their number, "H0" is the strip). POP UP on a header brings it as selected_header_id
 // (genre_rows_screen.php r25: header_id = the id of the list the dialog of the rows edits).
 define('AIO_CATV_HEADER', 'h:');
+// The header of the strip, as the shell names it: the strip has no header_id and is the first row
+// with a title, so "H0" (device r25: POP UP on "Menu" brings it, the sel_state of a switch of the
+// tab has it). A header_id of the strip would change both; the other rows all have AIO_CATV_HEADER.
+define('AIO_CATV_STRIP_HEADER', 'H0');
 // The tabs as the native menu: text in caps, the open one brighter (the colours of the title and
 // the text of the panel, as the native ones), a blue line under it. No focused variant: it does
 // nothing in a row of GComps, only the frame of the shell shows the focus.
@@ -933,7 +937,7 @@ function aio_catv_strip_rows($tab, $lang)
  */
 function aio_catv_strip_sel($id)
 {
-    return "1\n0\nH0\n" . AIO_CATV_STRIP . "\n$id\npri:1\n$id\n1\n1\n";
+    return "1\n0\n" . AIO_CATV_STRIP_HEADER . "\n" . AIO_CATV_STRIP . "\n$id\npri:1\n$id\n1\n1\n";
 }
 
 // The screen of the rows $defs. The key set of RowsFactory::pane r25, nulls too;
@@ -2298,6 +2302,35 @@ function aio_catv_strip_enter($id, $from, $up = false)
     if (($tab !== 'movie' && $tab !== 'series') || !aio_catv_is_main($from) || (!$up && $tab === aio_catv_tab($from)))
         return null;
     return aio_replace_act(aio_catv_main_url($tab), '%tr%plugin_caption');
+}
+
+// POP UP of the screen $from. A main screen: the parts of the strip, as ENTER on them (cat_part), so
+// the strip is at hand anywhere; on a header above them "Configure list…" and a separator
+// (aio_catv_rows_menu_items). Else (the results of a search, "Show all") nothing.
+/**
+ * @param stdClass $in
+ * @param string $from
+ * @return AioAction|null
+ */
+function aio_catv_menu($in, $from)
+{
+    $hid = aio_catv_in($in, 'selected_header_id');
+    $tab = aio_catv_tab($from);
+    aio_log("catalog: POP UP: header '" . aio_cut($hid, 100) . "', row '" . aio_cut(aio_catv_in($in, 'selected_row_id'), 100) .
+        "', item '" . aio_cut(aio_catv_in($in, 'selected_item_id'), 100) . "'");
+    if ($tab === '')
+        return null;
+    $lang = aio_catv_lang();
+    $items = aio_catv_rows_menu_items($hid, $tab, $from, $lang);
+    foreach (array('tab_movie' => 'cat_part_movies', 'tab_series' => 'cat_part_series', 'tab_search' => 'cat_search', 'tab_setup' => 'setup_menu') as $id => $key)
+    {
+        $items[] = array(
+            GuiMenuItemDef::caption => aio_tr($lang, $key),
+            GuiMenuItemDef::action => aio_input('cat_part', array('from' => $from, 'part' => $id)));
+    }
+    return array(
+        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
 }
 
 // ENTER on a tile: selected_item_id on the rows, selected_media_url on the grid.

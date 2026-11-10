@@ -30,7 +30,7 @@ Above the rows, a movie with a Russian logo shows the logo instead of its title,
 
 ## Search
 
-The magnifier on the strip on top or MENU → **Search** (or the search key, if your remote has one). Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.
+The magnifier on the strip on top, MENU → **Search** on the main screen of the catalog, or the search key, if your remote has one. Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.
 
 <img src="../screenshots/search.jpg" alt="Search results in the Melange catalog: Movies and Series rows, a Show all tile at the end of a row" width="100%">
 
