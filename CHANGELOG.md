@@ -2,11 +2,9 @@
 
 **English version**
 
-## Unreleased
+## 0.57.0 — 10.11.2026
 - **Rows right in the catalog.** As in the Dune's own Movies: in the panel on the left, move to the name of a row or to **Menu** at the top, press MENU and choose **Configure List...**. A menu opens with **Row order** and the groups of the current tab, as on the settings page; each group shows how many of its rows are on, for example "Genres 3 of 14". **Row order** lists only the rows that are on: **Move** puts a row anywhere in the list, and unticking a row removes it. In the window of a group, tick the rows you want: new ones go to the end of the tab, and **Reset to Default Values** brings back the start rows of the group. The order changes in **Row order** only: **Move** in the window of a group does not change it. At least one row must stay on the tab. The catalog redraws as soon as the window closes; the settings page shows the same choice.
 - MENU on a poster or in the panel on the left opens the same **Movies**, **Series**, **Search** and **Settings** as the strip on top, so you do not have to scroll up to it. On a row name and on **Menu**, they come under **Configure List...**. In search results and in **Show all**, MENU is empty: start a new search with the magnifier on the catalog strip. The search key, if your remote has one, and the voice input button open search on any catalog screen.
-
-## 0.57.0
 - **"Fresh releases" group.** On the settings page, in **Catalog rows**, right after Top, there is a new group of four rows. «Новинки в качестве» and «Новинки в 4K» are movies that recently got a release in good quality or in 4K, from the open list of KinoTrend. «Свежие серии с переводом» are series with a new episode out with Russian translation, from Kinou. «Сезон целиком с переводом» are series that already have a release of a whole season with Russian voice-over, from the open list of SerialTrend. The newest come first. These rows are not among the start rows: tick the ones you want.
 - **IMDb rating on the catalog posters.** The posters in the catalog rows can show the IMDb rating in the top left corner, so you see it without moving to the tile. It is off by default; turn it on on the settings page: **Appearance** → **IMDb rating on posters**.
 
@@ -211,11 +209,9 @@ First public release. What it does:
 
 **Russian version**
 
-## Не выпущено
+## 0.57.0 — 10.11.2026
 - **Ряды прямо в каталоге.** Как в «Фильмах» Дюны: в панели слева встаньте на название ряда или на «Меню» вверху, нажмите MENU и выберите «Настроить список...». Откроется меню: «Порядок рядов» и группы текущей вкладки, как на странице настроек; у группы видно, сколько её рядов включено, например «Жанры 3 из 14». В «Порядке рядов» только включённые ряды: «Переместить» переставляет ряд по всему списку, снятая галка убирает ряд. В окне группы отметьте нужные ряды: новые встают в конец вкладки, «Сброс к значениям по умолчанию» возвращает стартовые ряды группы. Порядок меняется только в «Порядке рядов»: «Переместить» в окне группы на него не влияет. На вкладке должен остаться хотя бы один ряд. Каталог перерисуется сразу после закрытия окна, а на странице настроек будет тот же выбор.
 - MENU на постере или в панели слева открывает те же «Фильмы», «Сериалы», «Поиск» и «Настройки», что на полосе сверху: листать до неё не нужно. На названии ряда и на «Меню» они идут под «Настроить список...». В результатах поиска и в «Показать все» MENU пустое: новый поиск оттуда — лупой на полосе каталога. Клавиша поиска, если она есть на пульте, и кнопка голосового ввода открывают поиск на любом экране каталога.
-
-## 0.57.0
 - **Группа «Новинки с переводом».** На странице настроек в разделе **«Ряды каталога»**, сразу после «Топов», новая группа из четырёх рядов. «Новинки в качестве» и «Новинки в 4K» — фильмы, у которых недавно вышла раздача в хорошем качестве или в 4K, по открытому списку KinoTrend. «Свежие серии с переводом» — сериалы, у которых вышла новая серия с русским переводом, по данным Киноу. «Сезон целиком с переводом» — сериалы, у которых уже есть раздача целого сезона с русской озвучкой, по открытому списку СериалТренда. Свежее — сверху. В стартовый набор эти ряды не входят: включите нужные флажком.
 - **Рейтинг IMDb на постерах каталога.** На постерах в рядах каталога в левом верхнем углу можно показывать рейтинг IMDb: его видно, не наводя на плитку. По умолчанию выключен, включается на странице настроек: «Внешний вид» → «Рейтинг IMDb на постерах».
 
