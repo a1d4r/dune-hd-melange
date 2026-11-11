@@ -27,6 +27,11 @@ define('AIO_SEG_DUR_MAX', 86400);
 // (an episode is 20 min or more, its credits near the end). A false one
 // would switch to the next episode in the middle of this one.
 define('AIO_SEG_OUTRO_MIN', 600);
+// Credits not matched to the file by the server (matchesFile not true: a
+// source that does not know the length, IntroDB) ending more than this many
+// seconds before the end of a file of known length are of a shorter release:
+// "Next episode" would count down and switch over the end of this one.
+define('AIO_SEG_OUTRO_TAIL', 60);
 // The head of the file for its length: seconds, as the markers, and at most
 // this many bytes (mkvmerge puts Info within the first 7 KB).
 define('AIO_MKV_CONNECT', 2);
@@ -59,14 +64,18 @@ function aio_seg_root($base)
 // $drop ("outro 10-60 (before half)"): a type of more than one is dropped
 // whole; intro and recap end by the half of a known length; the credits
 // start after the end of the intro and the recap kept, from the half of a
-// known length, from AIO_SEG_OUTRO_MIN s of an unknown one.
+// known length, from AIO_SEG_OUTRO_MIN s of an unknown one. A segment not
+// matched to the file by the server (matchesFile not true) is dropped first:
+// with $exact ("Только точные" of the settings) any one, else the credits of
+// it ending more than AIO_SEG_OUTRO_TAIL s before the end of a known length.
 /**
  * @param string $body
  * @param float $dur
  * @param list<string> $drop
+ * @param bool $exact
  * @return list<array<string, int|string>>|null
  */
-function aio_seg_markers($body, $dur, &$drop)
+function aio_seg_markers($body, $dur, &$drop, $exact = false)
 {
     $drop = array();
     $j = json_decode($body, true);
@@ -92,7 +101,15 @@ function aio_seg_markers($body, $dur, &$drop)
         }
         $from = (int) ceil($sg['start']);
         $to = (int) floor($to);
-        if ($from < $to)
+        if ($from >= $to)
+            continue;
+        $matched = isset($sg['matchesFile']) && $sg['matchesFile'] === true;
+        $tail = $dur - $sg['end'];
+        if (!$matched && $exact)
+            $drop[] = "{$sg['type']} $from-$to (not matched)";
+        else if (!$matched && $sg['type'] === 'outro' && $dur > 0 && $tail > AIO_SEG_OUTRO_TAIL)
+            $drop[] = sprintf('outro %d-%d (%d s before the end, not matched)', $from, $to, round($tail));
+        else
             $by[$sg['type']][] = array($from, $to);
     }
     $out = array();
@@ -281,7 +298,8 @@ function aio_mkv_read($url, $ep, $auth)
 }
 
 // Markers of episode $s/$e of IMDb id $imdb, the file $dur s long (0:
-// unknown, then not sent) from the server of the streams -> the list, array()
+// unknown, then not sent) from the server of the streams -> the list (with
+// markers_exact of the settings only those matched to the file), array()
 // on any failure (logged), or with the markers of the settings off or a server
 // known to have no route: no request at all. A length not in 1..AIO_SEG_DUR_MAX
 // and a stream URL $stream ('': none to read; $auth: its Basic auth): the length
@@ -321,7 +339,7 @@ function aio_markers($imdb, $s, $e, $dur, $stream, $auth)
     list($code, $body) = aio_http_get($url, $err, min(AIO_SEG_CONNECT, $total), $total, AIO_SEG_MAX_BYTES);
     $t = microtime(true) - $t;
     $drop = array();
-    $mk = $err === '' && $code === 200 ? aio_seg_markers($body, $dur, $drop) : null;
+    $mk = $err === '' && $code === 200 ? aio_seg_markers($body, $dur, $drop, Aio::$settings['markers_exact']) : null;
     $what = array();
     foreach ($mk ? $mk : array() as $m)
         $what[] = $m[StreamMarker::type] . ' ' . $m[StreamMarker::from] . '-' . $m[StreamMarker::to];

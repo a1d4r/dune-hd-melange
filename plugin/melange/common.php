@@ -711,6 +711,9 @@ function aio_no_torrents($s)
 // 'markers' => bool, "Пропуск заставки и титров": the skip buttons in the player
 // (segments.php); off: none, and the episodes of a pack in the playlist are
 // ready URLs (0.49.1; not a bool - true),
+// 'markers_exact' => bool, "Только точные" of it: only the markers the server
+// matched to the length of the file (aio_seg_markers); nothing with markers
+// off (not a bool - false),
 // 'source_errors' => bool, "Ошибки источников": the reasons of the error streams
 // on the list screen and in the dialogs (0.49.1; not a bool - false),
 // 'cat_rating' => bool, "Рейтинг IMDb на постерах": the IMDb rating in the corner of the
@@ -785,7 +788,7 @@ function aio_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'source_errors' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_rows' => null, 'aio_confs' => array(), 'saved_once' => false);
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_rows' => null, 'aio_confs' => array(), 'saved_once' => false);
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
         $r['manifest_url'] = aio_manifest_url($j['manifest_url']);
@@ -843,6 +846,8 @@ function aio_settings_parse($j)
         $r['ts_save'] = $j['ts_save'];
     if (isset($j['markers']) && is_bool($j['markers']))
         $r['markers'] = $j['markers'];
+    if (isset($j['markers_exact']) && is_bool($j['markers_exact']))
+        $r['markers_exact'] = $j['markers_exact'];
     if (isset($j['source_errors']) && is_bool($j['source_errors']))
         $r['source_errors'] = $j['source_errors'];
     if (isset($j['cat_rating']) && is_bool($j['cat_rating']))

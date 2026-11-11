@@ -284,6 +284,16 @@ describe("Skip intro and credits (markers, 0.49.1)", () => {
     expect([checked(page), dirty(page)]).toEqual(["off", ""]);
   });
 
+  test("\"Exact only\" chosen: one change, posted", async () => {
+    const page = open("filled");
+    page.choose("markers", "exact");
+    expect(dirty(page)).toBe("1 изменение");
+    page.replies.push(json({ ok: true, next: NEXT, aio: "", notes: [{ level: "ok", msg: "Fine" }] }));
+    await save(page);
+    expect(pairs(page.calls[0]!.body).filter((p) => p[0] === "markers")).toEqual([["markers", "exact"]]);
+    expect([checked(page), dirty(page)]).toEqual(["exact", ""]);
+  });
+
   test("a page without settings: on", () => {
     expect(checked(open("empty"))).toBe("on");
   });

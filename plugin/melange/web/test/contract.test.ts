@@ -101,9 +101,9 @@ describe.each([...FIXTURES])("%s", (name) => {
       const card = doc.querySelector("label[for=" + radio.id + "]")!;
       expect([card.closest("section")!.id, !!card.closest(".xt")]).toEqual(["adv", true]);
     }
-    // Skip intro and credits (markers, 0.49.1): two radios "on", "off" with their cards on #adv.
+    // Skip intro and credits (markers, 0.49.1): three radios "on", "exact", "off" with their cards on #adv.
     const marks = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=markers]"));
-    expect(marks.map((radio) => [radio.type, radio.value])).toEqual([["radio", "on"], ["radio", "off"]]);
+    expect(marks.map((radio) => [radio.type, radio.value])).toEqual([["radio", "on"], ["radio", "exact"], ["radio", "off"]]);
     for (const radio of marks)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("adv");
     // Film logo in place of the title (cat_logo, 0.55.0): two radios "on", "off" with their cards on #look.

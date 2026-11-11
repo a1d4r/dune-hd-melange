@@ -281,22 +281,26 @@ function aio_cgi_ts_save($v)
 }
 
 // The answers of "Пропуск заставки и титров" on the screen #adv (radio markers,
-// 0.49.1): its value => array(name, hint); "on" - markers of the settings.
+// 0.49.1): its value => array(name, hint); "on" - markers of the settings,
+// "exact" - also markers_exact.
 function aio_cgi_markers()
 {
     return array(
         'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
             'Кнопки пропуска в плеере. Серии могут запускаться чуть медленнее.',
             'Skip buttons in the player. Episodes may start a little slower.')),
+        'exact' => array(aio_cgi_l('Только точные', 'Exact only'), aio_cgi_l(
+            'Только метки, сверенные с длиной файла. Кнопок будет меньше.',
+            'Only marks matched to the file length. Fewer buttons.')),
         'off' => array(aio_cgi_l('Выключен', 'Off'), aio_cgi_l(
             'Выключите, если серии долго запускаются.',
             'Turn off if episodes take long to start.')));
 }
 
-// The answer of aio_cgi_markers() of markers of the settings (a bool).
-function aio_cgi_markers_of($on)
+// The answer of aio_cgi_markers() of markers and markers_exact of the settings (bools).
+function aio_cgi_markers_of($on, $exact)
 {
-    return $on ? 'on' : 'off';
+    return $on ? ($exact ? 'exact' : 'on') : 'off';
 }
 
 // "Пропуск заставки и титров" on #adv (a value of the form: '' or another one -

@@ -8,7 +8,7 @@
 // (aio_cgi_posted), by the keys of aio_cgi_fields() - strings (aio_tpl,
 // aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
 // settings; tpl_seen, tpl_p2p_seen only posted; ts_save: aio_cgi_ts_save_of()
-// of the settings, markers: aio_cgi_markers_of(), source_errors:
+// of the settings, markers: aio_cgi_markers_of() (of markers_exact too), source_errors:
 // aio_cgi_source_errors_of(), cat_rating: aio_cgi_cat_rating_of(), cat_logo: aio_cgi_cat_logo_of(), no_torrents:
 // aio_cgi_no_torrents_of(), as posted - none: '',
 // settings.php puts the stored one);
@@ -30,7 +30,7 @@ function aio_cgi_values($s)
     $v['mode_cur'] = $v['aio_mode'];
     $v['aio_mode'] = '';
     $v['ts_save'] = aio_cgi_ts_save_of($s['ts_save']);
-    $v['markers'] = aio_cgi_markers_of($s['markers']);
+    $v['markers'] = aio_cgi_markers_of($s['markers'], $s['markers_exact']);
     $v['source_errors'] = aio_cgi_source_errors_of($s['source_errors']);
     $v['cat_rating'] = aio_cgi_cat_rating_of($s['cat_rating']);
     $v['cat_logo'] = aio_cgi_cat_logo_of($s['cat_logo']);
@@ -296,7 +296,8 @@ function aio_cgi_check_values($v)
         $errors[] = aio_cgi_err(aio_cgi_l('Что делать с раздачей: нет такого ответа', 'What to do with a release: no such answer'),
             $f['ts_save']['name']);
     }
-    $d[$set['markers']] = $v['markers'] === aio_cgi_markers_of(true);
+    $d[$set['markers']] = $v['markers'] !== aio_cgi_markers_of(false, false);
+    $d['markers_exact'] = $v['markers'] === aio_cgi_markers_of(true, true);
     if (!array_key_exists($v['markers'], aio_cgi_markers()))
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Пропуск заставки и титров: нет такого ответа', 'Skip intro and credits: no such answer'),

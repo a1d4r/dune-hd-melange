@@ -121,7 +121,7 @@ function aio_cgi_save($dir, $t)
     if ($v['ts_save'] === '')
         $v['ts_save'] = aio_cgi_ts_save_of($cur['ts_save']);
     if ($v['markers'] === '')
-        $v['markers'] = aio_cgi_markers_of($cur['markers']);
+        $v['markers'] = aio_cgi_markers_of($cur['markers'], $cur['markers_exact']);
     if ($v['source_errors'] === '')
         $v['source_errors'] = aio_cgi_source_errors_of($cur['source_errors']);
     if ($v['cat_rating'] === '')
