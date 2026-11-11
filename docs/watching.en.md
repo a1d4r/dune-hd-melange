@@ -110,7 +110,7 @@ You can choose another episode without leaving the list: ← / → or MENU → *
 
 ## Skip Intro and Next Episode
 
-At the start of an episode, the player offers to skip the intro or the recap, and at the credits to start the next episode right away (when the countdown ends, it starts by itself). The buttons are there if the AIOStreams server can provide intro and credits times (Melange's public server `aiostreams.kompotik.com` can), and only in the player of r25 firmware. If episodes take long to start, turn them off: **Advanced** → [**Skip intro and credits**](setup.en.md#advanced).
+At the start of an episode, the player offers to skip the intro or the recap, and at the credits to start the next episode right away (when the countdown ends, it starts by itself). The buttons are there if the AIOStreams server can provide intro and credits times (Melange's public server `aiostreams.kompotik.com` can), and only in the player of r25 firmware. A credits time not matched to the file length may come from another edition of the episode. If such a mark ends more than a minute before the end of the file, there is no **Next Episode** button, and the episode plays to the end. The **Exact only** answer of **Skip intro and credits** keeps only the marks matched to the file length, for the intro too. If episodes take long to start, turn them off: **Advanced** → [**Skip intro and credits**](setup.en.md#advanced).
 
 ## Continue Watching
 

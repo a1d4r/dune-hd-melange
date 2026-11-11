@@ -91,7 +91,7 @@ Up to 5 servers: qBittorrent, rdt-client or Transmission. Each has a client, a n
 
 **Running torrents** (with Debrid and your own config). When you need it: you do not want the Dune to download torrents itself. **No torrents** hides P2P releases and the menu items that start a torrent on the Dune or hand it to another app or server; releases started via TorrServer open the list from **Continue Watching**. Debrid **Not cached** releases stay: the service downloads them.
 
-**Skip intro and credits.** On by default: the **Skip Intro** and **Next Episode** buttons in the player (see [Watching](watching.en.md#skip-intro-and-next-episode)). Turn it off if episodes take long to start: there will be no buttons, and episodes will start faster.
+**Skip intro and credits.** On by default: the **Skip Intro** and **Next Episode** buttons in the player (see [Watching](watching.en.md#skip-intro-and-next-episode)). **Exact only**: buttons only from the marks the server matched to the file length; there will be fewer of them, and none if the file length is unknown. Turn it off if episodes take long to start: there will be no buttons, and episodes will start faster.
 
 **Source errors.** When you need it: there are fewer releases than you expected and you want to know why. When on, the release list shows how many sources did not answer and why (MENU → **Source errors**).
 
