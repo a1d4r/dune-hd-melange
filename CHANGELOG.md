@@ -2,6 +2,9 @@
 
 **English version**
 
+## Unreleased
+- Fixed: on r24 firmware, with **Film logo in place of the title** on, the catalog showed its background squeezed into the right part of the screen, with the logo in the middle. On r24 and older the catalog now shows the background on the right and the title as text, as with the logo off. The logo needs r25: the setting stays as you chose it, and after a firmware update to r25 the logo shows by itself. The settings page says so under the setting.
+
 ## 0.57.0 — 10.11.2026
 - **Rows right in the catalog.** As in the Dune's own Movies: in the panel on the left, move to the name of a row or to **Menu** at the top, press MENU and choose **Configure List...**. A menu opens with **Row order** and the groups of the current tab, as on the settings page; each group shows how many of its rows are on, for example "Genres 3 of 14". **Row order** lists only the rows that are on: **Move** puts a row anywhere in the list, and unticking a row removes it. In the window of a group, tick the rows you want: new ones go to the end of the tab, and **Reset to Default Values** brings back the start rows of the group. The order changes in **Row order** only: **Move** in the window of a group does not change it. At least one row must stay on the tab. The catalog redraws as soon as the window closes; the settings page shows the same choice.
 - MENU on a poster or in the panel on the left opens the same **Movies**, **Series**, **Search** and **Settings** as the strip on top, so you do not have to scroll up to it. On a row name and on **Menu**, they come under **Configure List...**. In search results and in **Show all**, MENU is empty: start a new search with the magnifier on the catalog strip. The search key, if your remote has one, and the voice input button open search on any catalog screen.
@@ -208,6 +211,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## Не выпущено
+- Исправлено: на прошивке r24 с включённой настройкой «Логотип фильма вместо названия» фон каталога сжимался в правую часть экрана, а логотип оказывался посередине. Теперь на r24 и более старых прошивках каталог показывает фон справа и название текстом, как с выключенным логотипом. Логотип работает с прошивки r25: настройка остаётся, какой вы её выбрали, и после обновления Дюны до r25 логотип появится сам. На странице настроек об этом написано под пунктом.
 
 ## 0.57.0 — 10.11.2026
 - **Ряды прямо в каталоге.** Как в «Фильмах» Дюны: в панели слева встаньте на название ряда или на «Меню» вверху, нажмите MENU и выберите «Настроить список...». Откроется меню: «Порядок рядов» и группы текущей вкладки, как на странице настроек; у группы видно, сколько её рядов включено, например «Жанры 3 из 14». В «Порядке рядов» только включённые ряды: «Переместить» переставляет ряд по всему списку, снятая галка убирает ряд. В окне группы отметьте нужные ряды: новые встают в конец вкладки, «Сброс к значениям по умолчанию» возвращает стартовые ряды группы. Порядок меняется только в «Порядке рядов»: «Переместить» в окне группы на него не влияет. На вкладке должен остаться хотя бы один ряд. Каталог перерисуется сразу после закрытия окна, а на странице настроек будет тот же выбор.

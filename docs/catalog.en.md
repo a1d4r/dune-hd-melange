@@ -26,7 +26,7 @@ You can also set up the rows right in the catalog, as in the Dune's own Movies: 
 
 ## Logo in place of the title
 
-Above the rows, a movie with a Russian logo shows the logo instead of its title, as streaming services do. If the catalog lags or the cards take long to load, turn it off on the settings page: **Appearance** → **Film logo in place of the title**. The title is then shown as text and the Dune needs half the memory; it takes effect the next time the catalog opens.
+Above the rows, a movie with a Russian logo shows the logo instead of its title, as streaming services do. If the catalog lags or the cards take long to load, turn it off on the settings page: **Appearance** → **Film logo in place of the title**. The title is then shown as text and the Dune needs half the memory; it takes effect the next time the catalog opens. The logo needs firmware r25 or newer: on r24 and older the catalog shows the title as text whatever you choose.
 
 ## Search
 
