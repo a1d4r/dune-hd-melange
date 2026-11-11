@@ -2,7 +2,7 @@
 
 **English version**
 
-## Unreleased
+## 0.57.1 — 11.11.2026
 - Fixed: on r24 firmware, with **Film logo in place of the title** on, the catalog showed its background squeezed into the right part of the screen, with the logo in the middle. On r24 and older the catalog now shows the background on the right and the title as text, as with the logo off. The logo needs r25: the setting stays as you chose it, and after a firmware update to r25 the logo shows by itself. The settings page says so under the setting.
 
 ## 0.57.0 — 10.11.2026
@@ -212,7 +212,7 @@ First public release. What it does:
 
 **Russian version**
 
-## Не выпущено
+## 0.57.1 — 11.11.2026
 - Исправлено: на прошивке r24 с включённой настройкой «Логотип фильма вместо названия» фон каталога сжимался в правую часть экрана, а логотип оказывался посередине. Теперь на r24 и более старых прошивках каталог показывает фон справа и название текстом, как с выключенным логотипом. Логотип работает с прошивки r25: настройка остаётся, какой вы её выбрали, и после обновления Дюны до r25 логотип появится сам. На странице настроек об этом написано под пунктом.
 
 ## 0.57.0 — 10.11.2026
