@@ -1056,3 +1056,79 @@ function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
     }
     return $s;
 }
+
+// --- The firmware of the box.
+
+// The card of the catalog with the logo (cat_logo) needs r25 or newer: r24 puts the
+// background of the rows at 1280x720 at (640, 0) whatever PluginRowsPane::vod_r is,
+// so the card of the whole screen comes squeezed and on the right; r25 sizes it by vod_r.
+define('AIO_LOGO_FW_R', 25);
+
+class AioFirmware
+{
+    // r of the firmware (aio_fw_r): 0 unknown, null not read yet.
+    /** @var int|null */
+    public static $r = null;
+}
+
+// versions.txt of the shell (<FS_PREFIX>/tmp/run; an empty FS_PREFIX on older
+// models: /tmp/run), its first 4 KB, '' if none. Not through a symlink: the
+// settings page reads it as root.
+/**
+ * @return string
+ */
+function aio_versions_text()
+{
+    $f = getenv('FS_PREFIX') . '/tmp/run/versions.txt';
+    clearstatcache();
+    $fp = !is_link($f) && is_file($f) ? @fopen($f, 'rb') : false;
+    $t = $fp ? (string) fread($fp, 4096) : '';
+    if ($fp)
+        fclose($fp);
+    return $t;
+}
+
+// Field $k of versions.txt $t, '' if none. Not our file: safe characters only,
+// a sane length (substr of '' is false in PHP 5).
+/**
+ * @param string $t
+ * @param string $k
+ * @return string
+ */
+function aio_versions_field($t, $k)
+{
+    return preg_match('~^' . $k . '=([^\n]*)~m', $t, $m) ?
+        (string) substr(strval(preg_replace('~[^A-Za-z0-9._+\-]~', '', $m[1])), 0, 48) : '';
+}
+
+// r of a firmware_version: 260827_0003_r24 -> 24, the same of 1.0.1-1000-260724_0207_r24
+// (ATV); 0 of another form.
+/**
+ * @param string $v
+ * @return int
+ */
+function aio_fw_r_of($v)
+{
+    return preg_match('~_r([0-9]{1,4})$~D', $v, $m) ? intval($m[1]) : 0;
+}
+
+// r of the firmware of the box, versions.txt read once per process; 0 unknown.
+/**
+ * @return int
+ */
+function aio_fw_r()
+{
+    if (AioFirmware::$r === null)
+        AioFirmware::$r = aio_fw_r_of(aio_versions_field(aio_versions_text(), 'firmware_version'));
+    return AioFirmware::$r;
+}
+
+// The card with the logo works on this firmware for sure (AIO_LOGO_FW_R); r24, older or
+// unknown: the fanart on the right and the title as text, whatever cat_logo is.
+/**
+ * @return bool
+ */
+function aio_fw_logo()
+{
+    return aio_fw_r() >= AIO_LOGO_FW_R;
+}

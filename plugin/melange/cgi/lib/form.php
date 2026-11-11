@@ -391,15 +391,19 @@ function aio_cgi_cat_rating_of($on)
     return $on ? 'on' : 'off';
 }
 
-// The screen #look (a value of the form: '' or another one - none checked).
+// The screen #look (a value of the form: '' or another one - none checked). Under the logo:
+// on r24, older or an unknown firmware (aio_fw_logo) a warning that it needs r25, the catalog
+// shows the title as text whatever is chosen; else when to turn it off.
 function aio_cgi_look_screen($v)
 {
     $f = aio_cgi_fields();
     return '<p class="sub">' . aio_cgi_l('Действует со следующего открытия каталога.', 'Takes effect the next time the catalog opens.') .
         '</p><p class="lbl">' . aio_cgi_l('Логотип фильма вместо названия', 'Film logo in place of the title') . '</p>' .
-        aio_cgi_choice($f['cat_logo'], aio_cgi_cat_logo(), $v['cat_logo']) . '<p class="hint">' .
-        aio_cgi_l('Выключите, если каталог тормозит или карточки грузятся долго.',
-        'Turn off if the catalog lags or the cards take long to load.') . '</p><p class="lbl">' .
+        aio_cgi_choice($f['cat_logo'], aio_cgi_cat_logo(), $v['cat_logo']) .
+        (aio_fw_logo() ? '<p class="hint">' . aio_cgi_l('Выключите, если каталог тормозит или карточки грузятся долго.',
+        'Turn off if the catalog lags or the cards take long to load.') : '<p class="hint wn">' .
+        aio_cgi_l('Логотип работает с прошивки r25. На этой Дюне — название текстом.',
+        'The logo needs firmware r25 or newer; this Dune shows the title as text.')) . '</p><p class="lbl">' .
         aio_cgi_l('Рейтинг IMDb на постерах', 'IMDb rating on posters') . '</p>' .
         aio_cgi_choice($f['cat_rating'], aio_cgi_cat_rating(), $v['cat_rating']);
 }

@@ -78,7 +78,8 @@ class Aio
     // is chosen (source own). 'hosts' - aio_settings_hosts(), hidden in the log.
     // 'sort', 'sort_rev' - the sort of a new list and its direction (aio_sort_read).
     // 'cat_rows' - the rows of the catalog chosen on the page, the argument of aio_cat_user_rows.
-    // 'cat_logo' - the same of the settings: aio_catv_card. 'cat_rating' - the same: aio_catv_title_item.
+    // 'cat_logo' - the same of the settings, as stored (the catalog takes it with the firmware:
+    // aio_catv_logo_setting). 'cat_rating' - the same: aio_catv_title_item.
     // 'debrid_main' - the main Debrid service (aio_debrid_main_read): of a file cached on
     // several, the copy of it plays (aio_list_state, aio_play); '' - the first in the reply.
     /** @var AioOpSettings */

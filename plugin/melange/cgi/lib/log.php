@@ -21,23 +21,13 @@ function aio_cgi_log_path()
 }
 
 // "Device: <product>, firmware <v>, app <v>, <platform>, FS_PREFIX set|empty"
-// from versions.txt of the shell; no file -> "unknown", no field -> left out.
+// from versions.txt of the shell (aio_versions_text); no file -> "unknown", no field -> left out.
 function aio_cgi_device()
 {
-    $f = aio_cgi_run_path('versions.txt');
-    clearstatcache();
-    // Not through a symlink: this runs as root.
-    $fp = !is_link($f) && is_file($f) ? @fopen($f, 'rb') : false;
-    $t = $fp ? (string) fread($fp, 4096) : '';
-    if ($fp)
-        fclose($fp);
+    $t = aio_versions_text();
     $v = array();
     foreach (array('product', 'firmware_version', 'app_version', 'platform_kind') as $k)
-    {
-        // Not our file: safe characters only, a sane length (substr of '' is false in PHP 5).
-        $v[$k] = preg_match('~^' . $k . '=([^\n]*)~m', $t, $m) ?
-            (string) substr(preg_replace('~[^A-Za-z0-9._+\-]~', '', $m[1]), 0, 48) : '';
-    }
+        $v[$k] = aio_versions_field($t, $k);
     return 'Device: ' . ($v['product'] !== '' ? $v['product'] : 'unknown') .
         ($v['firmware_version'] !== '' ? ', firmware ' . $v['firmware_version'] : '') .
         ($v['app_version'] !== '' ? ', app ' . $v['app_version'] : '') .
