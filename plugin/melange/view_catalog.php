@@ -330,24 +330,25 @@ function aio_catv_background($t)
     return $u !== '' ? $u : AIO_CATV_ICONS . 'bg0.jpg';
 }
 
-// cat_logo ("Логотип фильма вместо названия" of the page) as the screens of rows take it: on
-// only on a firmware that places the card where it should (aio_fw_logo). Else, the setting
-// kept as it is, the fanart on the right and the title as text; after an update to r25 the logo comes.
+// cat_logo ("Логотип фильма вместо названия" of the page) in effect on the screens of rows: on
+// only where the shell sizes the background by vod_r (aio_fw_vod_r), as the card of the whole
+// screen needs. Else, the setting kept as it is, the fanart on the right and the title as text;
+// after an update to r25 the logo comes.
 /**
  * @return bool
  */
-function aio_catv_logo_setting()
+function aio_catv_logo_effective()
 {
-    return Aio::$settings['cat_logo'] && aio_fw_logo();
+    return Aio::$settings['cat_logo'] && aio_fw_vod_r();
 }
 
-// cat_logo (aio_catv_logo_setting) of the screen of rows built or asked for now.
+// cat_logo (aio_catv_logo_effective) of the screen of rows built or asked for now.
 /**
  * @return bool
  */
 function aio_catv_logo_on()
 {
-    return AioCat::$logo !== null ? AioCat::$logo : aio_catv_logo_setting();
+    return AioCat::$logo !== null ? AioCat::$logo : aio_catv_logo_effective();
 }
 
 // cat_logo of the screen of rows $url: at its opening ($open, aio_catv_folder_view) of the settings,
@@ -364,7 +365,7 @@ function aio_catv_logo_of($url, $open)
     if ($open || !isset(AioCat::$logo_of[$url]))
     {
         unset(AioCat::$logo_of[$url]);
-        AioCat::$logo_of[$url] = aio_catv_logo_setting();
+        AioCat::$logo_of[$url] = aio_catv_logo_effective();
         if (count(AioCat::$logo_of) > AIO_CATV_SCREENS)
             array_shift(AioCat::$logo_of);
         unset(AioCat::$rating_of[$url]);

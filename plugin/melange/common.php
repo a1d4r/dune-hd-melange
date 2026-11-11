@@ -1057,12 +1057,13 @@ function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
     return $s;
 }
 
-// --- The firmware of the box.
+// --- The firmware of the box. Its version only for what the API has no sign of; else
+// defined() / class_exists() of the API (PLUGIN_OP_GET_FOLDER_ROWS of AioFw, aio_catv_loading_flag,
+// aio_catv_all_ok, aio_markers).
 
-// The card of the catalog with the logo (cat_logo) needs r25 or newer: r24 puts the
-// background of the rows at 1280x720 at (640, 0) whatever PluginRowsPane::vod_r is,
-// so the card of the whole screen comes squeezed and on the right; r25 sizes it by vod_r.
-define('AIO_LOGO_FW_R', 25);
+// From r25 the shell sizes the background of the rows by PluginRowsPane::vod_r; r24 puts it
+// at 1280x720 at (640, 0) whatever vod_r is (the field is in the API of both).
+define('AIO_FW_VOD_R_R', 25);
 
 class AioFirmware
 {
@@ -1123,12 +1124,12 @@ function aio_fw_r()
     return AioFirmware::$r;
 }
 
-// The card with the logo works on this firmware for sure (AIO_LOGO_FW_R); r24, older or
-// unknown: the fanart on the right and the title as text, whatever cat_logo is.
+// The shell of the box sizes the background of the rows by vod_r for sure (AIO_FW_VOD_R_R):
+// false on r24, older or unknown.
 /**
  * @return bool
  */
-function aio_fw_logo()
+function aio_fw_vod_r()
 {
-    return aio_fw_r() >= AIO_LOGO_FW_R;
+    return aio_fw_r() >= AIO_FW_VOD_R_R;
 }
