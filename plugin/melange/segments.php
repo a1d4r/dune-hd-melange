@@ -108,7 +108,7 @@ function aio_seg_markers($body, $dur, &$drop, $exact = false)
         if (!$matched && $exact)
             $drop[] = "{$sg['type']} $from-$to (not matched)";
         else if (!$matched && $sg['type'] === 'outro' && $dur > 0 && $tail > AIO_SEG_OUTRO_TAIL)
-            $drop[] = sprintf('outro %d-%d (%d s before the end, not matched)', $from, $to, round($tail));
+            $drop[] = sprintf('outro %d-%d (%d s before the end, not matched)', $from, $to, ceil($tail));
         else
             $by[$sg['type']][] = array($from, $to);
     }
@@ -300,8 +300,8 @@ function aio_mkv_read($url, $ep, $auth)
 // Markers of episode $s/$e of IMDb id $imdb, the file $dur s long (0:
 // unknown, then not sent) from the server of the streams -> the list (with
 // markers_exact of the settings only those matched to the file), array()
-// on any failure (logged), or with the markers of the settings off or a server
-// known to have no route: no request at all. A length not in 1..AIO_SEG_DUR_MAX
+// on any failure (logged), or with the markers of the settings off, a server
+// known to have no route or markers_exact with no length: no request at all. A length not in 1..AIO_SEG_DUR_MAX
 // and a stream URL $stream ('': none to read; $auth: its Basic auth): the length
 // comes from its head (aio_mkv_read).
 /**
@@ -329,6 +329,13 @@ function aio_markers($imdb, $s, $e, $dur, $stream, $auth)
         return array();
     if (!($dur >= 1 && $dur <= AIO_SEG_DUR_MAX))
         $dur = $stream !== '' ? aio_mkv_read($stream, $ep, $auth) : 0.0;
+    // The server matches a segment to the file only by the duration sent: with
+    // markers_exact and no length every one would be dropped, not worth the wait.
+    if (Aio::$settings['markers_exact'] && !($dur > 0))
+    {
+        aio_log("markers: $ep, duration unknown: exact only, not asked");
+        return array();
+    }
     $total = aio_op_total(AIO_SEG_TOTAL, 1, "markers: $ep");
     if ($total === 0)
         return array();
