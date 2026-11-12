@@ -14,8 +14,9 @@ export type SaveError = { msg: string; field: string | null };
 export type ConfHow = "create" | "update" | "reset";
 // aio: "" - nothing (another value sent is taken as that). rows: the rows of the catalog changed. kept: the source
 // changed since the page came, the stored one kept (the page shows another one: next is loaded, after aio_sync).
-// reload: "Source profiles" turned on or off (next has the editor or none: loaded after aio_sync). prof: the profile of
-// the editor saved (aio_sync goes for it), profiles: the list then.
+// reload: "Source profiles" turned on or off (next has the editor or none: loaded after aio_sync). was: src_was of the
+// source the page shows now, another one than it posted ("" - none sent). prof: the profile of the editor saved
+// (aio_sync goes for it), profiles: the list then.
 export type Save =
   | {
       ok: true;
@@ -25,6 +26,7 @@ export type Save =
       notes: SaveNote[];
       kept: boolean;
       reload: boolean;
+      was: string;
       prof: SavedProfile | null;
       profiles: ProfileList | null;
     }
@@ -36,9 +38,9 @@ export type CatRow = { key: string; name: string; group: string; home: boolean; 
 export type CatRows = { ok: boolean; stale: boolean; rows: CatRow[] };
 
 // The source profiles (lib/profiles.php): each in order - its name, the line under it (kind, host, JacRed), the one in
-// use, its config made (ready); sel - the one of the page (an index, "new", "cur", "": none), max - the most there can be.
+// use, its config made (ready); max - the most there can be.
 export type Profile = { name: string; line: string; now: boolean; ready: boolean };
-export type ProfileList = { list: Profile[]; sel: string; max: number };
+export type ProfileList = { list: Profile[]; max: number };
 // a=profile_use, profile_del: profiles - those of the file (null: none sent, it was not read).
 export type ProfileAnswer = { ok: boolean; msg: string; profiles: ProfileList | null };
 // The profile of the editor a save saved: its place, its name, in use now.
@@ -48,7 +50,8 @@ export type SavedProfile = { i: number; name: string; now: boolean };
 export type Import = { ok: true; next: string } | { ok: false; msg: string };
 
 export type ServerConf = { cfg: string; login: string; pass: string; tpl: string | null };
-// mode: of the config (debrid, p2p: a config per mode on a server), null: none sent.
+// mode: of the config (debrid, p2p: a config per mode on a server), null: none sent. profiles: those of the file after it
+// (with "Source profiles" on), null: none sent.
 export type Sync = {
   ok: boolean;
   msg: string;
@@ -57,6 +60,7 @@ export type Sync = {
   mode: string | null;
   conf: ServerConf | null;
   field: SaveError["field"];
+  profiles: ProfileList | null;
 };
 
 // http: no answer of the endpoint (not JSON, not its shape) with this status; timeout (after seconds), net: no answer at all.
@@ -105,6 +109,7 @@ function parseSave(json: Json): Save | null {
       notes: parseItems(json.notes, parseNote),
       kept: json.kept === true,
       reload: json.reload === true,
+      was: typeof json.was === "string" ? json.was : "",
       prof: parseSaved(json.prof),
       profiles: parseProfiles(json.profiles),
     };
@@ -122,9 +127,9 @@ function parseImport(json: Json): Import | null {
 
 // #init.profiles and "profiles" of an answer; another shape: null.
 export function parseProfiles(value: unknown): ProfileList | null {
-  if (!isObject(value) || !Array.isArray(value.list) || typeof value.sel !== "string" || typeof value.max !== "number") return null;
+  if (!isObject(value) || !Array.isArray(value.list) || typeof value.max !== "number") return null;
   const parseProfile = (item: Json): Profile => ({ name: String(item.name), line: String(item.line), now: item.now === true, ready: item.ready === true });
-  return { list: parseItems(value.list, parseProfile), sel: value.sel, max: value.max };
+  return { list: parseItems(value.list, parseProfile), max: value.max };
 }
 
 function parseSaved(value: unknown): SavedProfile | null {
@@ -167,6 +172,7 @@ function parseSync(json: Json): Sync | null {
         }
       : null,
     field: typeof json.field === "string" ? json.field : null,
+    profiles: parseProfiles(json.profiles),
   };
 }
 

@@ -95,8 +95,8 @@ export const ID = {
   backupButton: "bkb",
   backupFile: "bkf",
   backupResult: "bkr",
-  // The source as the page came (or the last save that stayed on it): posted back the same, the save keeps the stored
-  // one (MENU of a list on the Dune may have switched the profile since). Its form: sourceWas().
+  // The source as the page came (or the last save that stayed on it: "was" of its answer): posted back the same, the
+  // save keeps the stored one (MENU of a list on the Dune may have switched the profile since).
   sourceWas: "sw",
 } as const;
 
@@ -286,11 +286,6 @@ export function tsUserinfo(s: string): [string, string | null, string | null] {
     user = c < 0 ? ui : ui.slice(0, c);
   if (at <= pre || /[\/?#]/.test(ui) || trimmed(user) === "") return [s, null, null];
   return [s.slice(0, pre) + s.slice(at + 1), user, c < 0 ? "" : ui.slice(c + 1)];
-}
-
-// src_was of the values a save posted (aio_cgi_src_key of PHP: it reads the own server and the link as it stores them).
-export function sourceWas(values: Record<string, string>): string {
-  return [values[NAME.watch] ?? "", values[NAME.aioServer] ?? "", trimmed(values[NAME.aioOwnUrl] ?? ""), trimmed(values[NAME.manifest] ?? "")].join(" ");
 }
 
 // The host of an address as parse_url() of PHP finds it ("" - none).

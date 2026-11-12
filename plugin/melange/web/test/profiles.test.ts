@@ -21,7 +21,7 @@ const LIST = [
   { name: "NAS", line: "Торренты · 192.0.2.10 · jacred.kompotik.com", now: false, ready: false },
   { name: OWN, line: "Свой конфиг · aio.example · jacred.kompotik.com", now: true, ready: true },
 ];
-const answer = (ok: boolean, msg: string, list: unknown[] = LIST) => json({ ok: ok, msg: msg, profiles: { list: list, sel: "", max: 8 } });
+const answer = (ok: boolean, msg: string, list: unknown[] = LIST) => json({ ok: ok, msg: msg, profiles: { list: list, max: 8 } });
 
 const rows = (page: Page) => Array.from(page.el(EDITOR.list).children) as HTMLElement[];
 // A row as seen: its title with the marks, the line under it, the link, the one of the page.
@@ -50,6 +50,24 @@ describe("the editor", () => {
     expect(hides.some((selector) => block.matches(selector))).toBe(false);
     page.choose(NAME.srcProfiles, "off");
     expect(hides.some((selector) => block.matches(selector))).toBe(true);
+  });
+
+  test("a new one: the line by the kind chosen (the CSS) - the own link makes no config on the server", () => {
+    const css = readFileSync(import.meta.dir + "/../../cgi/settings.css", "utf8").split("\n");
+    const hides = css.find((line) => line.includes("#nt2:checked~* .xa"))!.replace(/\{.*/, "").split(",");
+    const page = open("profnew", { start: false });
+    const shown = () =>
+      Array.from(page.doc.getElementById("pen")!.children)
+        .filter((span) => !hides.some((selector) => span.matches(selector)))
+        .map((span) => span.textContent);
+    // The fixture: a new one of the source in use, the own link.
+    expect(shown()).toEqual(["Новый профиль со своей ссылкой: конфиг на сервере не создаётся."]);
+    page.choose(NAME.watch, "p2p");
+    expect(shown()).toEqual(["Новый профиль: на сервере создастся свой конфиг."]);
+    page.choose(NAME.watch, "debrid");
+    expect(shown()).toEqual(["Новый профиль: на сервере создастся свой конфиг."]);
+    page.choose(NAME.watch, "own");
+    expect(shown()).toEqual(["Новый профиль со своей ссылкой: конфиг на сервере не создаётся."]);
   });
 
   test("the list: a link each to the page of the profile, the one of the page marked, now and no config; + New profile", () => {
@@ -176,7 +194,7 @@ describe("the save of the profile", () => {
     page.type(EDITOR.name, "Debrid & 2");
     const list = [...LIST, { name: "Debrid & 2", line: LIST[0]!.line, now: false, ready: false }];
     page.replies.push(json({ ok: true, next: TOKEN + "&p=3&saved=1", aio: "create", notes: [], prof: { i: 3, name: "Debrid & 2", now: false },
-      profiles: { list: list, sel: "3", max: 8 } }), sync());
+      profiles: { list: list, max: 8 } }), sync());
     await save(page);
     const body = page.calls[0]!.body!;
     expect([body.includes("&prof=new&"), body.includes("&prof_name=Debrid%20%26%202"), body.includes("&prof_was=&")]).toEqual([true, true, true]);
@@ -198,11 +216,38 @@ describe("the save of the profile", () => {
   test("kept by the profile (the page showed it in use, MENU switched since): the line, the page stays", async () => {
     const page = open("prof");
     page.replies.push(json({ ok: true, next: TOKEN + "&p=2&saved=1&kept=1", aio: "", kept: true, notes: [], prof: { i: 2, name: OWN, now: false },
-      profiles: { list: LIST.map((p) => ({ ...p, now: p.name === "Debrid" })), sel: "2", max: 8 } }));
+      profiles: { list: LIST.map((p) => ({ ...p, now: p.name === "Debrid" })), max: 8 } }));
     await save(page);
     expect([lines(page.el(ID.saveResult)), page.replaced, field(page, EDITOR.now)]).toEqual([
       [["ok", page.init.i18n.saved], ["warn", page.init.i18n.sourceKept]], [], ""]);
     expect(page.el(EDITOR.use).hidden).toBe(false);
+  });
+
+  test("after aio_sync: the list of its answer (its config made: ready), not that of the save", async () => {
+    const page = open("profnew");
+    page.type(EDITOR.name, "Debrid & 2");
+    const made = { name: "Debrid & 2", line: LIST[0]!.line, now: false, ready: false };
+    const after = later();
+    page.replies.push(json({ ok: true, next: TOKEN + "&p=3&saved=1", aio: "create", notes: [], prof: { i: 3, name: made.name, now: false },
+      profiles: { list: [...LIST, made], max: 8 } }), after.reply);
+    await save(page);
+    expect(seen(rows(page)[3]!)[0]).toEqual([made.name, page.init.i18n.profileNoConf]);
+    after.resolve(sync({ profiles: { list: [...LIST, { ...made, ready: true }], max: 8 } }));
+    await flush();
+    expect(seen(rows(page)[3]!)[0]).toEqual([made.name]);
+  });
+
+  test("was of the answer: src_was of the page (the next save compares with it); none - as it was", async () => {
+    const page = open("prof");
+    const before = field(page, ID.sourceWas);
+    page.replies.push(json({ ok: true, next: TOKEN + "&p=2&saved=1", aio: "", notes: [], prof: { i: 2, name: OWN, now: true } }));
+    await save(page);
+    expect(field(page, ID.sourceWas)).toBe(before);
+    page.type(EDITOR.name, OWN + " 2");
+    page.replies.push(json({ ok: true, next: TOKEN + "&p=2&saved=1", aio: "", notes: [], was: "own x  y 0123456789abcdef",
+      prof: { i: 2, name: OWN + " 2", now: true } }));
+    await save(page);
+    expect(field(page, ID.sourceWas)).toBe("own x  y 0123456789abcdef");
   });
 
   test("the setting turned on or off: next after aio_sync", async () => {

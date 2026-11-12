@@ -14,9 +14,10 @@
 //                      changed since the page came, the stored one kept - its line);
 //                      errors -> the form back (only without JS);
 //   POST ?t=<token>&ajax=1 -> the same save without the config, JSON {ok,
-//                      next, aio[, rows][, notes][, kept][, reload][, prof, profiles] | errors: [{msg, field}]}
+//                      next, aio[, rows][, notes][, kept][, reload][, was][, prof, profiles] | errors: [{msg, field}]}
 //                      to the script of the page (reload: "Профили источников" turned on or off - next
-//                      loaded after aio_sync; prof: the profile of the editor saved, {i, name, now})
+//                      loaded after aio_sync; was: src_was of the page now, when another one; prof: the
+//                      profile of the editor saved, {i, name, now})
 //                      (aio: create, update, reset (0.40.0: its button or
 //                      another template) or '' - what a=aio_sync is to do):
 //                      no page is ever an answer to a POST (a mobile browser
@@ -34,7 +35,8 @@
 //                      config -> GET ?raw=true, our fields, PUT (none if it has
 //                      no Debrid at all, mode Debrid); reset=1 -> PUT of the template with
 //                      our fields, no GET. aio_confs written; JSON {ok, msg,
-//                      skip, base, mode, conf[, field]} (field: as of a save error);
+//                      skip, base, mode, conf[, field][, profiles]} (field: as of a save error;
+//                      profiles: with "Профили источников" on, those of the file after it);
 //   GET  ?t=<token>&a=log -> <FS_PREFIX>/tmp/run/melange.log masked, an attachment;
 //   GET  ?t=<token>&a=export -> settings.json as read, with web_token (0.51.0), an
 //                      attachment (0.50.0); none saved yet: 404, a text;
@@ -130,8 +132,8 @@ function aio_cgi_save($dir, $t)
     // The editor of a source profile (lib/profiles.php): the fields of the source are of it, checked by its settings.
     $ed = aio_cgi_editor_posted($v, $cur);
     $view = $ed ? $ed['view'] : $cur;
-    $v['prof'] = aio_cgi_profiles_data($cur, $v['pf_sel']);
-    $v['pf_def'] = $v['pf_sel'] !== '' ? aio_cgi_profile_def($view) : '';
+    $v['prof'] = aio_cgi_profiles_data($cur);
+    $v['pf_def'] = aio_cgi_editor_def($v['pf_sel'], $view);
     $v['confs'] = $view['aio_confs'];
     $v['cur'] = $view;
     $v['tpl_new'] = $view['aio_tpl'];
@@ -158,30 +160,27 @@ function aio_cgi_save($dir, $t)
     $v['ajax'] = $ajax;
     $v['reset'] = aio_cgi_param($_POST, 'aio_reset') === '1';
     $v['first'] = !$cur['saved_once'];
-    // The source as the page came posted back (src_was; none: a form of before), the stored one another (MENU of a
-    // list switched the profile, another tab saved): the stored one stays (aio_cgi_src_kept).
-    $was = aio_cgi_src_was_of($v['src_was']);
-    $kept = isset($_POST[$f['src_was']['name']]) && $was === aio_cgi_src_was_posted($v) && $was !== aio_cgi_src_was_stored($cur);
+    // The page showed the source of the Dune (no editor, a new one of the source in use, the profile in use): posted back
+    // as the page came (src_was; none: a form of before), another one stored - changed on the Dune since (MENU of a list
+    // switched the profile, another tab saved: $moved); the page posts it as it came (not changed there) - the stored one
+    // stays ($src_kept: aio_cgi_src_kept, all the settings of the source of the file after the check).
+    $moved = (!$ed || $ed['sel'] === 'cur' || $v['pf_now'] === '1') && isset($_POST[$f['src_was']['name']]) &&
+        $v['src_was'] !== aio_cgi_src_was_stored($cur);
+    $src_kept = $moved && aio_cgi_src_was_part($v['src_was']) === aio_cgi_src_was_posted($v);
     // A profile: the one in use changed meanwhile - a new one of the source in use is not of it now; one of the profiles
     // in use then - it stays (another tab saved it).
-    if ($kept && $ed && $ed['sel'] === 'cur')
+    if ($src_kept && $ed && $ed['sel'] === 'cur')
         $ed['now'] = false;
-    elseif ($kept && $ed && $ed['now'])
+    elseif ($src_kept && $ed && $ed['now'])
         $ed = null;
-    if ($ed && $ed['err'] !== '')
-    {
-        aio_cgi_log('save: the profiles changed or full, nothing written');
-        $e = array(aio_cgi_err($ed['err'], $f['pf_name']['name']));
-        aio_cgi_failed($ajax, 200, $e, aio_cgi_form($t, $v, $e, false));
-    }
-    if ($kept && !$ed)
+    if ($src_kept && !$ed)
     {
         aio_cgi_log('save: the source changed since the page came, the stored one kept');
         $v = aio_cgi_src_kept($v, $cur);
     }
-    // The page showed the profile in use, it is not now (MENU of a list switched): saved to it, the source in use kept.
-    if ($ed && !$ed['now'])
-        $kept = $v['pf_now'] === '1';
+    // kept of the answer: the stored source kept; or the page showed the source of the Dune and it is another one now
+    // (MENU of a list switched), the profile of the page not in use - saved to it, the source of the Dune kept.
+    $kept = ($src_kept && !$ed) || ($moved && $ed && !$ed['now']);
     list($data, $errors) = aio_cgi_check_values($v);
     if ($errors)
     {
@@ -191,14 +190,14 @@ function aio_cgi_save($dir, $t)
         aio_cgi_log('save: bad format of ' . implode(', ', array_unique($bad)));
         aio_cgi_failed($ajax, 200, $errors, aio_cgi_form($t, $v, $errors, false));
     }
-    // The profile of the editor checked before the keys (no request for a save refused): again just before the write.
-    $why = $ed ? aio_cgi_editor_check($ed, $data, $cur, $t) : '';
-    if ($why !== '')
+    if ($src_kept && !$ed)
     {
-        aio_cgi_log('save: the profile refused, nothing written');
-        $e = array(aio_cgi_err($why, $f['pf_name']['name']));
-        aio_cgi_failed($ajax, 200, $e, aio_cgi_form($t, $v, $e, false));
+        foreach (aio_source_keys() as $k)
+            $data[$k] = $cur[$k];
     }
+    // The profile of the editor checked before the keys (no request for a save refused): again just before the write.
+    if ($ed)
+        aio_cgi_editor_check($ed, $data, $cur, $t, $v);
     if (!aio_cgi_dir_ok($dir))
     {
         aio_cgi_log('save: no data dir');
@@ -240,16 +239,11 @@ function aio_cgi_save($dir, $t)
     if (isset($_POST[$f['cat_rows_was']['name']]) && $v['cat_rows'] === $v['cat_rows_was'])
         $data[$f['cat_rows']['set']] = $cur['cat_rows'];
     $prof = null;
-    if ($ed)
+    if (!$ed)
+        $data = aio_cgi_profile_drift($data);
+    else
     {
-        list($with, $prof, $why) = aio_cgi_editor_save($ed, $data, $cur, $t);
-        if ($with === null)
-        {
-            aio_cgi_log('save: the profile refused, nothing written');
-            $e = array(aio_cgi_err($why, $f['pf_name']['name']));
-            aio_cgi_failed($ajax, 200, $e, aio_cgi_form($t, $v, $e, false));
-        }
-        $data = $with;
+        list($data, $prof) = aio_cgi_editor_check($ed, $data, $cur, $t, $v);
         aio_cgi_log('save: profile ' . (aio_profile_find($data, $prof['name']) + 1) . ($ed['now'] ? ', in use' : ', not in use') .
             ($ed['old'] ? '' : ', new'));
     }
@@ -285,19 +279,23 @@ function aio_cgi_save($dir, $t)
         $rows = $data[$f['cat_rows']['set']] !== aio_cgi_cat_start($dir);
     }
     // The editor: the page of the profile saved; "Профили источников" turned on or off: the page anew (the editor or none).
+    $was = aio_cgi_src_was_stored($src);
     $next = 'settings?t=' . $t . ($pk >= 0 ? "&p=$pk" : '') . '&saved=1' . ($rows ? '&rows=1' : '') . ($kept ? '&kept=1' : '');
     $reload = $on !== $cur['src_profiles'];
     // Only the checked token, as in the redirect below. aio: what a=aio_sync
     // is to do next ('' - nothing, the own address). kept: the page shows another source than
     // the stored one - the script loads next (after aio_sync).
+    // was: src_was of the source the page shows now (the one saved; of the profile of the editor saved: it), only
+    // another one than the page posted (none posted: a form of before, none).
     // prof: the profile of the editor saved - its index, name (a=aio_sync&prof), in use; profiles: the list now.
     if ($ajax)
         aio_cgi_json(200, array_merge(array('ok' => true, 'next' => $next,
             'aio' => $src['source'] === 'own' ? '' : ($reset ? 'reset' : ($has ? 'update' : 'create'))),
             $rows ? array('rows' => true) : array(), $notes ? array('notes' => $notes) : array(),
             $kept ? array('kept' => true) : array(), $reload ? array('reload' => true) : array(),
+            isset($_POST[$f['src_was']['name']]) && $was !== $v['src_was'] ? array('was' => $was) : array(),
             $prof ? array('prof' => array('i' => $pk, 'name' => $prof['name'], 'now' => $ed['now']),
-            'profiles' => aio_cgi_profiles_data($data, strval($pk))) : array()));
+            'profiles' => aio_cgi_profiles_data($data)) : array()));
     // Without the script: the config right here; its result is seen on the page (made or not).
     aio_cgi_aio_sync($dir, $reset, $prof ? $prof['name'] : '');
     // Post/Redirect/Get. Relative to this page; only the checked token, no

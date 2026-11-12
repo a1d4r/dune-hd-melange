@@ -13,7 +13,7 @@
 // aio_cgi_no_torrents_of(), src_profiles: aio_cgi_src_profiles_of(), as posted - none: '',
 // settings.php puts the stored one; src_was: aio_cgi_src_was_stored() of the settings, as posted;
 // pf_sel, pf_was, pf_now, pf_name - the editor of the profiles, '' (aio_cgi_editor_values puts it), as posted);
-// pf_def - the name of a new profile; prof - the profiles for the script (aio_cgi_profiles_data of the settings,
+// pf_def - the placeholder of the name (aio_cgi_editor_def); prof - the profiles for the script (aio_cgi_profiles_data of the settings,
 // of the file on a save: settings.php);
 // tpl_new, tpl_p2p_new -
 // aio_tpl, aio_tpl_p2p of the settings (for a new config);
@@ -43,7 +43,7 @@ function aio_cgi_values($s)
     // No editor of the profiles (aio_cgi_editor_values puts one).
     foreach (array('pf_sel', 'pf_was', 'pf_now', 'pf_name', 'pf_def') as $k)
         $v[$k] = '';
-    $v['prof'] = aio_cgi_profiles_data($s, '');
+    $v['prof'] = aio_cgi_profiles_data($s);
     $v['cat_rows'] = aio_cgi_cat_rows_of($s['cat_rows']);
     $v['cat_rows_was'] = $v['cat_rows'];
     $v['servers'] = $s['servers'];
@@ -103,7 +103,8 @@ function aio_cgi_posted()
 // The values posted $v with the source of the stored settings $cur (src_was posted back as the page came, the
 // stored source another one: settings.php): the answer, the mode, the server, the own server and the manifest
 // of the file; the templates too (none posted: the stored ones), the check of the one seen skipped - the page
-// showed those of the server it came with - and no reset by its button or another template.
+// showed those of the server it came with - and no reset by its button or another template. After the check the save
+// takes all the settings of the source of the file (aio_source_keys: the JacRed too).
 function aio_cgi_src_kept($v, $cur)
 {
     $own = $cur['source'] === 'own';
@@ -119,9 +120,9 @@ function aio_cgi_src_kept($v, $cur)
     return $v;
 }
 
-// src_was (0.58.0): the answer (watch), the AIOStreams server, the own server and the manifest by spaces (none is
-// in a right one); the last two as stored (a right one typed otherwise - "/" at the end, stremio:// - as the save
-// stores it), a wrong one as it is. The script makes it of the values a save posted, as typed (web/src/save.ts).
+// The source of the page as the save compares it with the values posted: the answer (watch), the AIOStreams server,
+// the own server and the manifest by spaces (none is in a right one); the last two as stored (a right one typed
+// otherwise - "/" at the end, stremio:// - as the save stores it), a wrong one as it is.
 function aio_cgi_src_key($watch, $server, $own, $manifest)
 {
     $o = aio_aio_own($own);
@@ -129,24 +130,29 @@ function aio_cgi_src_key($watch, $server, $own, $manifest)
     return implode(' ', array($watch, $server, $o !== '' ? $o : $own, $m !== '' ? $m : $manifest));
 }
 
-// src_was as posted, by aio_cgi_src_key (not of four parts: as it is).
-function aio_cgi_src_was_of($posted)
-{
-    $x = explode(' ', $posted);
-    return count($x) === 4 ? aio_cgi_src_key($x[0], $x[1], $x[2], $x[3]) : $posted;
-}
-
-// src_was of the values posted $v (aio_cgi_posted).
+// The source of the values posted $v (aio_cgi_posted) by aio_cgi_src_key.
 function aio_cgi_src_was_posted($v)
 {
     return aio_cgi_src_key($v['watch'], $v['aio_server'], $v['aio_own'], $v['manifest']);
 }
 
-// src_was of the settings $s (aio_settings_read).
+// src_was (0.58.0) of the settings $s (aio_settings_read; of a profile: aio_profile_view) - the source the page shows:
+// aio_cgi_src_key of it and a hash of all its settings (aio_source_keys: the templates and the JacRed too), by a space.
+// The page posts it back as it came (the script: as the answer of its save has it, "was"); the save tells by it the
+// source changed on the Dune (another one stored) and, by its first part, on the page (aio_cgi_src_was_part).
 function aio_cgi_src_was_stored($s)
 {
+    $all = array();
+    foreach (aio_source_keys() as $k)
+        $all[] = $s[$k];
     return aio_cgi_src_key($s['source'] === 'own' ? 'own' : $s['aio_mode'], $s['aio_server'], $s['aio_own_url'],
-        $s['manifest_url']);
+        $s['manifest_url']) . ' ' . substr(md5(json_encode($all)), 0, 16);
+}
+
+// The part of src_was $was to compare with aio_cgi_src_was_posted: the first four.
+function aio_cgi_src_was_part($was)
+{
+    return implode(' ', array_slice(explode(' ', $was), 0, 4));
 }
 
 // An error of the save: its text and the name= of the form field it is

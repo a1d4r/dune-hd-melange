@@ -6,7 +6,8 @@
 // line why (#ped) instead. "Make it current" (a=profile_use) and "Delete" (a=profile_del, asked first) - of a saved
 // profile only, the first not of the one in use; disabled while the form has something to save; done - the page of
 // it anew. After a save of the profile that stayed on the page: its place, name and "in use" of the answer in the
-// fields of the save (prof, prof_was, prof_now) and the address, the list of the answer.
+// fields of the save (prof, prof_was, prof_now) and the address, the list of the answer; after the config of the
+// server (aio_sync) - its list.
 
 import type { Api, ProfileList, SavedProfile } from "./api";
 import { parseProfiles } from "./api";
@@ -21,6 +22,8 @@ export interface Profiles {
   render(): void;
   // After a save of the profile of the page that stayed on it: the answer's place of it, its name, in use; the list.
   saved(prof: SavedProfile, list: ProfileList | null): void;
+  // The list of the file now (after aio_sync).
+  update(list: ProfileList): void;
 }
 
 // The page of profile p ("new": a new one) of the form's action (settings?t=<token>), on #src.
@@ -41,7 +44,7 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     was = byId<HTMLInputElement>(doc, EDITOR.was),
     now = byId<HTMLInputElement>(doc, EDITOR.now);
   const action = form.getAttribute("action") || "";
-  let profiles: ProfileList = parseProfiles(data) || { list: [], sel: "", max: 0 };
+  let profiles: ProfileList = parseProfiles(data) || { list: [], max: 0 };
   // The saved profile of the page (its place): -1 - a new one.
   const index = () => (/^[0-9]+$/.test(sel.value) ? Number(sel.value) : -1);
   const current = () => profiles.list[index()];
@@ -92,7 +95,7 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     lock.render();
   }
   // A request of "Make it current" or "Delete": done - the page of to (its place now), else the line why here.
-  function act(source: HTMLButtonElement, call: () => ReturnType<Api["profileUse"]>, to: (list: ProfileList | null) => string): void {
+  function act(source: HTMLButtonElement, call: () => ReturnType<Api["profileUse"]>, to: () => string): void {
     if (!lock.free(source)) return;
     lock.run(source, true);
     show(results, "hint", [texts.saving]);
@@ -100,14 +103,16 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
       lock.run(source, false);
       if (result.kind !== "data") return show(results, "err", [failureText(texts, result)]);
       const answer = result.data;
-      if (answer.ok) return location.replace(to(answer.profiles));
+      if (answer.ok) return location.replace(to());
       show(results, "err", [answer.msg]);
-      if (answer.profiles) {
-        profiles = { ...answer.profiles, sel: profiles.sel };
-        renderList();
-        render();
-      }
+      if (answer.profiles) update(answer.profiles);
     });
+  }
+
+  function update(list: ProfileList): void {
+    profiles = list;
+    renderList();
+    render();
   }
 
   for (const button of [use, del]) lock.hold(button, () => bar.pending());
@@ -125,6 +130,7 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
   render();
   return {
     render: render,
+    update: update,
     saved(prof: SavedProfile, list: ProfileList | null): void {
       sel.value = String(prof.i);
       was.value = prof.name;

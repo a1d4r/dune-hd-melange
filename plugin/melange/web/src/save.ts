@@ -3,7 +3,7 @@
 import type { Aio } from "./aio";
 import type { Api, ConfHow, Save, SaveError } from "./api";
 import type { Bar, Values } from "./bar";
-import { byId, checkedValue, CLS, ID, NAME, type Page, query, sourceWas, trimmed, tsUserinfo } from "./dom";
+import { byId, checkedValue, CLS, ID, NAME, type Page, query, trimmed, tsUserinfo } from "./dom";
 import type { Home } from "./home";
 import { failureText, type Texts } from "./i18n";
 import type { Lock } from "./lock";
@@ -59,6 +59,8 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
         else setLine(line, sync.ok ? "ok" : "err", sync.msg);
         // Its field marked as of a save error (no Debrid key, the own server).
         if (!sync.ok) marks.show([{ msg: sync.msg, field: sync.field }]);
+        // The profiles after it: a config made or forgotten (ready, now).
+        if (sync.profiles && profiles) profiles.update(sync.profiles);
       } else if (result.kind !== "http") setLine(line, "err", texts[failed]);
       else setLine(line, "err", failureText(texts, result));
       if (result.kind !== "data" || !result.data.ok) savedLine.textContent = texts.savedOnDune;
@@ -108,7 +110,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     // The rows posted are now those the page came with: posted back unchanged, the next save keeps the stored ones.
     byId<HTMLInputElement>(doc, ID.rowsWas).value = posted.cat_rows ?? "";
     // So the source: the next save keeps the stored one when it posts this one (MENU of a list may switch it).
-    byId<HTMLInputElement>(doc, ID.sourceWas).value = sourceWas(posted);
+    if (answer.was) byId<HTMLInputElement>(doc, ID.sourceWas).value = answer.was;
     const savedLine = addLine(results(), "ok", texts.saved);
     if (answer.rows) addLine(results(), "ok", texts.rowsLater);
     if (answer.kept) addLine(results(), "warn", texts.sourceKept);
