@@ -1,8 +1,9 @@
 // The source profiles (#pr, 0.58.0): the block by the script (by the CSS only with "Source profiles" on), the list
 // of #init, "Save the current one as a profile" (a=profile_add, disabled with a change not saved, the profiles full
 // or the source in use a profile), "Edit" -> a=profile_edit (the link of the one in use: the field of the own config
-// too) and "Cancel" (disabled while a request goes), "Delete" -> a=profile_del, Enter in their fields (and the submit
-// of the form from them: Enter of an IME), the list anew after a save that stayed; src_was after such a save.
+// too) and "Cancel" (disabled while a request goes), "Delete" -> a=profile_del, Enter in their fields (of the form
+// #prf: never the save; the save pressed with one focused is the save), the list anew after a save that stayed;
+// src_was after such a save.
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
@@ -33,11 +34,16 @@ const NONE_NOW = {
     el.textContent = JSON.stringify(init);
   },
 };
+// Enter in a field (of an IME too) as a browser takes it: the field focused, the implicit submission of its form owner -
+// of form= if given, else the form around it - by a click of its default button (the first submit one). happy-dom
+// has none of it, nor form= of a field inside another form.
 const enter = (page: Page, input: HTMLElement) => {
-  const event = new page.win.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }) as unknown as Event;
-  input.dispatchEvent(event);
-  return event.defaultPrevented;
+  input.focus();
+  const id = input.getAttribute("form");
+  const owner = id !== null ? page.doc.getElementById(id) : input.closest("form");
+  owner!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
 };
+const SAVED = json({ ok: true, next: "/x", notes: [], aio: null });
 
 const cards = (page: Page) => Array.from(page.el(ID.profileList).querySelectorAll<HTMLElement>("." + CLS.profile));
 // A card as seen: its title (with "now"), the lines under it.
@@ -180,58 +186,61 @@ describe("Save the current one as a profile: in use, Enter", () => {
     page.form.addEventListener("submit", () => submits++);
     page.type(ID.profileName, "Мой");
     page.replies.push(answer(true, "Профиль «Мой» сохранён"));
-    expect(enter(page, page.el(ID.profileName))).toBe(true);
+    enter(page, page.el(ID.profileName));
     await flush();
     expect([page.calls.map((call) => call.url), submits]).toEqual([[url("profile_add")], 0]);
   });
 
   test("Enter there while disabled (in use): nothing goes", async () => {
     const page = open("prof");
-    expect(enter(page, page.el(ID.profileName))).toBe(true);
+    enter(page, page.el(ID.profileName));
     await flush();
     expect(page.calls).toEqual([]);
   });
 });
 
-// The implicit submission of the form (Enter of an IME on Android: key "Unidentified", the keydown not caught).
-const imeSubmit = (page: Page, input: HTMLInputElement) => {
-  input.focus();
-  const key = new page.win.KeyboardEvent("keydown", { key: "Unidentified", bubbles: true, cancelable: true }) as unknown as Event;
-  input.dispatchEvent(key);
-  const submit = new page.win.Event("submit", { cancelable: true }) as unknown as Event;
-  page.form.dispatchEvent(submit);
-  return [key.defaultPrevented, submit.defaultPrevented];
-};
-
-describe("Enter of an IME: the submit of the form", () => {
-  test("from the name of a new one: a=profile_add, not the save", async () => {
-    const page = open("prof", NONE_NOW);
-    page.type(ID.profileName, "Мой");
-    page.replies.push(answer(true, "Профиль «Мой» сохранён"));
-    expect(imeSubmit(page, page.el<HTMLInputElement>(ID.profileName))).toEqual([false, true]);
-    await flush();
-    expect(page.calls.map((call) => call.url)).toEqual([url("profile_add")]);
+describe("the form #prf of the fields of the profiles", () => {
+  test("the fields of the profiles are of it (PHP and the script), no other field; it has only its default button", () => {
+    const page = open("prof");
+    expect(Array.from(page.doc.querySelectorAll("[form]")).map((el) => [el.id, el.getAttribute("form")]))
+      .toEqual(["pen0", "pen1", "pen2", "peu2", ID.profileName].map((id) => [id, ID.profileForm]));
+    expect(page.el(ID.profileForm).innerHTML).toBe('<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>');
   });
 
-  test("from the name or the link of a card: a=profile_edit of it, not the save", async () => {
+  test("Enter in another field: the save of the page", async () => {
+    const page = open("prof");
+    page.replies.push(SAVED);
+    enter(page, page.field<HTMLInputElement>(NAME.manifest));
+    await flush();
+    expect(page.calls.map((call) => call.url)).toEqual([TOKEN + "&ajax=1"]);
+  });
+
+  // Safari: a click of a button may leave the focus where it was.
+  test("the save pressed with a field of the profiles focused: the save of the page, no request of the profiles", async () => {
+    const page = open("prof", NONE_NOW);
+    const own = cards(page)[2]!;
+    await press(buttons(own)[1]!);
+    for (const field of [page.el<HTMLInputElement>(ID.profileName), own.querySelectorAll<HTMLInputElement>("input")[1]!]) {
+      page.type(field, "Мой");
+      field.focus();
+      page.replies.push(SAVED);
+      await press(page.form.querySelector<HTMLButtonElement>("." + CLS.save)!);
+    }
+    expect(page.calls.map((call) => call.url)).toEqual([TOKEN + "&ajax=1", TOKEN + "&ajax=1"]);
+  });
+
+  test("the fields of the profiles typed: not in the body of the save", async () => {
     const page = open("prof");
     const own = cards(page)[2]!;
     await press(buttons(own)[1]!);
     const [name, link] = Array.from(own.querySelectorAll<HTMLInputElement>("input"));
-    page.type(name!, "Другое");
-    page.replies.push(answer(true, "Профиль «Другое» сохранён"));
-    imeSubmit(page, link!);
-    await flush();
-    expect(page.calls).toEqual([{ ...POST, url: url("profile_edit"), body: "i=2&was=" + encodeURIComponent("Свой & <конфиг>") +
-      "&name=" + encodeURIComponent("Другое") + "&url=" + encodeURIComponent(LINK) }]);
-  });
-
-  test("from another field: the save of the form", async () => {
-    const page = open("prof");
-    page.replies.push(json({ ok: true, next: "/x", notes: [], aio: null }));
-    imeSubmit(page, page.field<HTMLInputElement>(NAME.manifest));
-    await flush();
-    expect(page.calls.map((call) => call.url)).toEqual([TOKEN + "&ajax=1"]);
+    page.type(ID.profileName, "Новый1");
+    page.type(name!, "Новый2");
+    page.type(link!, LINK2);
+    page.replies.push(SAVED);
+    await press(page.form.querySelector<HTMLButtonElement>("." + CLS.save)!);
+    const body = page.calls[0]!.body!;
+    expect([body.includes(encodeURIComponent("Новый")), body.includes(encodeURIComponent(LINK2))]).toEqual([false, false]);
   });
 });
 
@@ -272,10 +281,10 @@ describe("Edit and Delete", () => {
     await press(buttons(own)[1]!);
     const [name, link] = Array.from(own.querySelectorAll<HTMLInputElement>("input"));
     page.replies.push(answer(true, "Профиль не изменился"), answer(true, "Профиль не изменился"));
-    expect(enter(page, name!)).toBe(true);
+    enter(page, name!);
     await flush();
     await press(buttons(cards(page)[2]!)[1]!);
-    expect(enter(page, cards(page)[2]!.querySelectorAll<HTMLInputElement>("input")[1]!)).toBe(true);
+    enter(page, cards(page)[2]!.querySelectorAll<HTMLInputElement>("input")[1]!);
     await flush();
     expect([page.calls.map((call) => call.url), submits, link!.isConnected]).toEqual([[url("profile_edit"), url("profile_edit")], 0, false]);
   });

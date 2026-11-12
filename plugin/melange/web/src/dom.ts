@@ -101,7 +101,7 @@ export const ID = {
   // The source profiles (0.58.0, profiles.ts) at the bottom of #src: the block (shown by the script, by the CSS only
   // with "Source profiles" on), the list, the line of none, the name of a new one, "Save the current one as a
   // profile", the lines why it is disabled (a change not saved, the profiles full, the source in use a profile already),
-  // results.
+  // results; the form of their fields (form=, after the one of the page: Enter in them not the save).
   profiles: "pr",
   profileList: "prl",
   profilesNone: "pre",
@@ -111,6 +111,7 @@ export const ID = {
   profilesFull: "prx",
   profileInUse: "prw",
   profileResult: "prr",
+  profileForm: "prf",
 } as const;
 
 // The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>; in the order of the page.

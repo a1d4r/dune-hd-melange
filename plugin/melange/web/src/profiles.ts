@@ -6,8 +6,8 @@
 // The lines of an edit are in its card, the rest under the block. "Save the current one as a profile" (a=profile_add;
 // Enter in its name too) makes one of the saved source: disabled while the form has something to save (the bar), the
 // profiles are full or the source in use is a profile already, the line why under it. Each request is a write as a
-// save is: none goes while another one does ("Cancel" is disabled meanwhile too). Enter in a field of the profiles
-// never submits the form: an implicit submission from one (Enter of an IME) presses its button too (submitted).
+// save is: none goes while another one does ("Cancel" is disabled meanwhile too). The fields of the profiles are of the
+// form #prf (form=), not of the page: Enter in one submits that one, never the save - its button pressed instead.
 
 import { type Api, parseProfiles, type Profile, type ProfileAnswer, type ProfileList, type Result } from "./api";
 import type { Bar } from "./bar";
@@ -22,9 +22,6 @@ export interface Profiles {
   render(): void;
   // After a save that stayed on the page (and the config made there): "now" and "No config" anew (a=profiles).
   refresh(): void;
-  // The submit of the form with field focused: a field of the profiles - its button pressed, as by Enter (that of an
-  // IME on Android may come as key "Unidentified" or composing, then the implicit submission) -> true; else false.
-  submitted(field: Element | null): boolean;
 }
 
 // The fields of a request by the part of its errors (name, url).
@@ -47,7 +44,7 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
   const nowSaved = () => profiles.list.some((p) => p.now);
   block.hidden = false;
   lock.hold(add, () => bar.pending() || isFull() || nowSaved());
-  // The button of each field of the profiles: of Enter and of the implicit submission (submitted).
+  // The button of each field of the profiles: of Enter in it (the submit of #prf).
   const targets = new WeakMap<Element, HTMLButtonElement>();
 
   function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string): HTMLElementTagNameMap[K] {
@@ -61,13 +58,14 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     made.type = "button";
     return made;
   }
-  // A field of a card as aio_cgi_unposted makes one (no name=: not posted, not a change of the bar).
+  // A field of a card as aio_cgi_unposted makes one (no name=: not posted, not a change of the bar; of the form #prf).
   function field(id: string, label: string, value: string, max: number): [HTMLLabelElement, HTMLDivElement, HTMLInputElement] {
     const labelEl = el("label", "", label);
     labelEl.htmlFor = id;
     const box = el("div", "f");
     const input = el("input", "");
     input.id = id;
+    input.setAttribute("form", ID.profileForm);
     input.value = value;
     for (const [name, attr] of [["autocomplete", "off"], ["autocapitalize", "off"], ["autocorrect", "off"], ["spellcheck", "false"]])
       input.setAttribute(name!, attr!);
@@ -76,15 +74,6 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     return [labelEl, box, input];
   }
 
-  // Enter in a field of the profiles: its button (the implicit submission of the form would save the whole form).
-  function enterClicks(input: HTMLInputElement, target: HTMLButtonElement): void {
-    targets.set(input, target);
-    input.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" || event.isComposing) return;
-      event.preventDefault();
-      target.click();
-    });
-  }
   // The line of the card at i (none: results of the block).
   function cardOut(i: number): HTMLElement {
     const box = listBox.children[i];
@@ -186,7 +175,7 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     open.setAttribute("aria-expanded", "false");
     box.append(edit, open, del, out);
     held.push(save, del, open);
-    for (const input of Object.values(fields)) enterClicks(input, save);
+    for (const input of Object.values(fields)) targets.set(input, save);
     // "Edit" <-> "Cancel": closed, the fields as saved, no marks or lines of them.
     open.addEventListener("click", () => {
       edit.hidden = !edit.hidden;
@@ -231,7 +220,14 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     lock.render();
   }
 
-  enterClicks(nameField, add);
+  targets.set(nameField, add);
+  // Enter in a field of the profiles (of an IME too: any key, composing or not) - the implicit submission of #prf, its
+  // default button the submitter: the button of the field focused, nothing else submits #prf.
+  byId<HTMLFormElement>(doc, ID.profileForm).addEventListener("submit", (event) => {
+    event.preventDefault();
+    const target = doc.activeElement && targets.get(doc.activeElement);
+    if (target) target.click();
+  });
   add.addEventListener("click", () => {
     act(add, results, { name: nameField }, () => api.profileAdd(nameField.value), (answer) => {
       if (answer.ok) nameField.value = "";
@@ -241,12 +237,6 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
   render();
   return {
     render: render,
-    submitted(field: Element | null): boolean {
-      const target = field && targets.get(field);
-      if (!target) return false;
-      target.click();
-      return true;
-    },
     refresh(): void {
       // Off as saved: the block is hidden, a save turning it on comes first.
       if (checkedValue(page.form, NAME.srcProfiles) !== VALUE.on) return;

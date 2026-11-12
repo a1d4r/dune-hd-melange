@@ -258,10 +258,11 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(doc.getElementById(ID.message)!.nextElementSibling).toBe(form);
   });
 
-  test("the form: action settings?t=<token>, the reset is a submit of aio_reset", () => {
+  test("the form: action settings?t=<token>, the reset is a submit of aio_reset; after it #prf of the profiles, none nested", () => {
     const { form, doc } = open(name, { start: false });
     expect(form.getAttribute("action")).toMatch(/^settings\?t=[0-9a-f]{32}$/);
-    expect(doc.forms.length).toBe(1);
+    expect([Array.from(doc.forms).map((one) => one.id), form.nextElementSibling!.id, doc.querySelectorAll("form form").length])
+      .toEqual([["", ID.profileForm], ID.profileForm, 0]);
     const reset = doc.getElementById(ID.resetConf)!;
     expect([reset.getAttribute("type"), reset.getAttribute("name")]).toEqual(["submit", "aio_reset"]);
   });

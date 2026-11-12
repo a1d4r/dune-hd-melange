@@ -1034,8 +1034,9 @@ function aio_cgi_rows_later()
 // of the answer chosen and, with "Без торрентов" in effect, #home without the
 // lines of TorrServer and the servers (without the script too); the bar of the
 // save under them (#bar: the script shows it on a change, #dirty - their
-// number, #srx - "Скрыть" of the results of a save). Errors without the script: in #msg, each with a link to the
-// screen of its field, the field aria-invalid.
+// number, #srx - "Скрыть" of the results of a save); after the form #prf of the fields of the profiles
+// (aio_cgi_profiles_form). Errors without the script: in #msg, each with a link to the screen of its field, the field
+// aria-invalid.
 function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $kept = false)
 {
     $scr = aio_cgi_screens();
@@ -1106,7 +1107,7 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
         aio_cgi_l('Скрыть', 'Hide') . '</button><div class="barrow"><span id="dirty"></span>' .
         '<button type="submit" id="save" class="save">' . (aio_cgi_state($v) === 'conf' ? aio_cgi_savec() :
         aio_cgi_saveb()) .
-        '</button></div></div></form>';
+        '</button></div></div></form>' . aio_cgi_profiles_form();
     // The fields of the errors marked (a radio of watch or jacred: each one).
     foreach ($errors as $e)
         if ($e['field'] !== null)

@@ -38,12 +38,21 @@ function aio_cgi_profiles_full()
         'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX);
 }
 
-// A text field not posted (no name=, so not a change for the bar of the save either).
+// A text field of the profiles: not posted (no name=, so not a change for the bar of the save either), of the form
+// #prf (aio_cgi_profiles_form), not the one it is in.
 function aio_cgi_unposted($id, $label, $placeholder, $max)
 {
-    return '<label for="' . $id . '">' . $label . '</label><div class="f"><input id="' . $id . '" type="text" value="" placeholder="' .
+    return '<label for="' . $id . '">' . $label . '</label><div class="f"><input id="' . $id . '" form="prf" type="text" value="" placeholder="' .
         aio_cgi_h($placeholder) . '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="' .
         $max . '"></div>';
+}
+
+// The form of the fields of the profiles (form="prf"), after the one of the page: Enter in them submits it, not the
+// save (the script presses the button of the field instead). Its default button as the one of the page (.dflt: off
+// the screen, not hidden - a browser may submit no form by a button not shown).
+function aio_cgi_profiles_form()
+{
+    return '<form id="prf"><button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button></form>';
 }
 
 // The source profiles (0.58.0) at the bottom of #src: shown by the script (none without it) and by the CSS only
