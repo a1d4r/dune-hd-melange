@@ -652,7 +652,8 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
         $items = array();
         foreach (array_slice($list['tiles'], 0, AIO_CATV_ROW_TILES) as $t)
             $items[] = aio_catv_title_item($rid, $t);
-        if ($list['st']['end'] === '' || count($list['tiles']) > AIO_CATV_ROW_TILES)
+        // A search row: "Show all" past a row of its screen, so a long one is not scrolled through.
+        if ($list['st']['end'] === '' || count($list['tiles']) > (isset($row['q']) ? AIO_CATV_ALL_COLS : AIO_CATV_ROW_TILES))
         {
             // Of a search: and its id, as in cat_grid:.
             $more = aio_catv_tile_id(isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid");
@@ -2486,7 +2487,8 @@ function aio_catv_search_ask($from)
         array(ShowDialogActionData::preferred_width => 0));
 }
 
-// $q: no log, no address of a screen. Results: two rows, the empty ones hidden.
+// $q: no log, no address of a screen. Results: two rows, the empty ones hidden; one row:
+// its "Show all".
 /**
  * @param string $q
  * @param string $from
@@ -2529,8 +2531,9 @@ function aio_catv_search_run($q, $from)
         reset(AioCat::$searches);
         aio_catv_search_drop(strval(key(AioCat::$searches)));
     }
-    $url = "cat_search:$sid";
-    $caption = aio_tr($lang, 'cat_results');
+    // One type found: its "Show all" at once, named after its row, as aio_catv_all_open.
+    $url = count($rids) === 1 ? "cat_grid:{$rids[0]}:$sid" : "cat_search:$sid";
+    $caption = count($rids) === 1 ? AioCat::$lists[$rids[0]]['st']['row']['name'] : aio_tr($lang, 'cat_results');
     return $replace ? aio_replace_act($url, $caption) : aio_catv_open_act($url, $caption);
 }
 

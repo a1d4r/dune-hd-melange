@@ -30,7 +30,7 @@ Above the rows, a movie with a Russian logo shows the logo instead of its title,
 
 ## Search
 
-The magnifier on the strip on top, MENU → **Search** on the main screen of the catalog, or the search key, if your remote has one. Results come in the **Movies** and **Series** rows; **Show all** at the end of a row lists everything found.
+The magnifier on the strip on top, MENU → **Search** on the main screen of the catalog, or the search key, if your remote has one. Results come in the **Movies** and **Series** rows. If a row has more than 9 results, **Show all** at the end of it lists everything found, 9 posters a row. If only movies or only series are found, the results open that way at once. On r24 firmware both open as a grid.
 
 <img src="../screenshots/search.jpg" alt="Search results in the Melange catalog: Movies and Series rows, a Show all tile at the end of a row" width="100%">
 

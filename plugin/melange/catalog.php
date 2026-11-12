@@ -36,8 +36,8 @@ define('AIO_CAT_STATE_TTL', 18000);
 // results. Not fitted to the engine on purpose.
 define('AIO_CAT_SEARCH_PAGE', 20);
 // A search gets this many tiles of a type, if there are: a row of the screen
-// (AIO_CATV_ROW_TILES of view_catalog.php) and one more, so its tile "Show all" is
-// there only when there is more. A short page is not the end, so one page is not enough.
+// (AIO_CATV_ROW_TILES of view_catalog.php) and one more, so the row is full and it is
+// known whether there is more. A short page is not the end, so one page is not enough.
 define('AIO_CAT_SEARCH_TILES', 21);
 // s from the start of a search after which no pages past the first are asked: a page
 // takes 0.2-1.9 s, the first pages keep AIO_CAT_TOTAL each, so the worst case of a
