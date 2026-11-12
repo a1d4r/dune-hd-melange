@@ -12,8 +12,11 @@ export type SaveNote = { level: string; msg: string };
 export type SaveError = { msg: string; field: string | null };
 // What the save does to the config of the chosen server next (aio_sync).
 export type ConfHow = "create" | "update" | "reset";
-// aio: "" - nothing (another value sent is taken as that). rows: the rows of the catalog changed.
-export type Save = { ok: true; next: string; aio: ConfHow | ""; rows: boolean; notes: SaveNote[] } | { ok: false; errors: SaveError[] };
+// aio: "" - nothing (another value sent is taken as that). rows: the rows of the catalog changed. kept: the source
+// changed since the page came, the stored one kept (the page shows another one: next is loaded, after aio_sync).
+export type Save =
+  | { ok: true; next: string; aio: ConfHow | ""; rows: boolean; notes: SaveNote[]; kept: boolean }
+  | { ok: false; errors: SaveError[] };
 
 // A row of the catalog (a=cat_rows). ok false: no list at all; stale: the last good copy of it.
 // tab: its tab of the catalog (aio_cat_row_tab), anime on "series".
@@ -87,6 +90,7 @@ function parseSave(json: Json): Save | null {
       aio: isConfHow(json.aio) ? json.aio : "",
       rows: json.rows === true,
       notes: parseItems(json.notes, parseNote),
+      kept: json.kept === true,
     };
   const errors = parseItems(json.errors, parseSaveError);
   return errors.length ? { ok: false, errors: errors } : null;

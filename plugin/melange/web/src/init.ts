@@ -80,12 +80,13 @@ function setupForm(page: Page, init: Init): void {
   setupBackup(page, api, lock);
 }
 
-// saved=1 of the address after a save, with rows=1 when the rows changed, imported=1 or 2 after an import (the lines of PHP)
+// saved=1 of the address after a save, with rows=1 when the rows changed, kept=1 when the source changed since the page
+// came, imported=1 or 2 after an import (the lines of PHP)
 // dropped, the rest kept as it is: a reload does not show them again. No history API: nothing.
 function dropSaved(): void {
   try {
     const params = location.search.slice(1).split("&");
-    const kept = params.filter((param) => param !== "saved=1" && param !== "rows=1" && param !== "imported=1" && param !== "imported=2");
+    const kept = params.filter((param) => param !== "saved=1" && param !== "rows=1" && param !== "kept=1" && param !== "imported=1" && param !== "imported=2");
     if (kept.length === params.length || typeof history.replaceState !== "function") return;
     history.replaceState(history.state, "", location.pathname + (kept.length ? "?" + kept.join("&") : "") + location.hash);
   } catch (e) {}

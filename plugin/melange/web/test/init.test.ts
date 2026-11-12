@@ -114,6 +114,11 @@ describe("saved=1 of the address after a save", () => {
     expect(replaced).toEqual([page.win.location.pathname + SEARCH + "#rows"]);
   });
 
+  test("kept=1 (the source kept) dropped with saved=1", () => {
+    const { page } = openAt("&saved=1&kept=1#src");
+    expect([page.win.location.search, page.win.location.hash]).toEqual([SEARCH, "#src"]);
+  });
+
   test.each(["&imported=1", "&imported=2"])("%p (after an import) dropped too", (query) => {
     const { page, replaced } = openAt(query);
     expect([page.win.location.search, replaced]).toEqual([SEARCH, [page.win.location.pathname + SEARCH]]);

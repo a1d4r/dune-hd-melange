@@ -905,7 +905,7 @@ function aio_cgi_js($v)
         'server' => aio_cgi_l('Сервер', 'Server'),
         'checking' => aio_cgi_l('Проверяю…', 'Checking…'), 'saving' => aio_cgi_l('Сохраняю…', 'Saving…'),
         'save' => aio_cgi_saveb(), 'saved' => aio_cgi_saved(), 'rowsLater' => aio_cgi_rows_later(),
-        'saveAndCreate' => aio_cgi_savec(),
+        'sourceKept' => aio_cgi_src_kept_line(), 'saveAndCreate' => aio_cgi_savec(),
         'savedOnDune' => aio_cgi_l('Настройки Melange сохранены на Дюне.', 'Melange settings are saved on the Dune.'),
         'creating' => aio_cgi_l('Создаю конфиг…', 'Creating the config…'),
         'updating' => aio_cgi_l('Обновляю конфиг…', 'Updating the config…'),
@@ -1009,6 +1009,14 @@ function aio_cgi_saved()
     return aio_cgi_l('Сохранено. Дюна подхватит настройки сама.', 'Saved. The Dune picks up the settings automatically.');
 }
 
+// After "Saved" when the source changed since the page came, the stored one kept (?kept=1, "kept" of the JSON of a
+// save: settings.php).
+function aio_cgi_src_kept_line()
+{
+    return aio_cgi_l('Источник уже сменили на Дюне или в другой вкладке, оставлен новый.',
+        'The source was changed on the Dune or in another tab, so the new one stays.');
+}
+
 // After "Saved" when the rows of the catalog changed (?rows=1, "rows" of the JSON of a save).
 function aio_cgi_rows_later()
 {
@@ -1019,7 +1027,8 @@ function aio_cgi_rows_later()
 // saved_once of aio_settings_read); $errors: of aio_cgi_err(); $imported:
 // after the import of a file (a=import), its line in #msg (2: and that the
 // link of the file was not written); $rows: with $saved,
-// the rows of the catalog changed (aio_cgi_rows_later).
+// the rows of the catalog changed (aio_cgi_rows_later); $kept: with $saved, the source
+// changed since the page came (aio_cgi_src_kept_line).
 // The page (0.43.0): the radios of watch, no_torrents and src_profiles, then the screens, #home
 // last - the CSS shows the one of the address (#src...), else #home, the fields
 // of the answer chosen and, with "Без торрентов" in effect, #home without the
@@ -1027,7 +1036,7 @@ function aio_cgi_rows_later()
 // save under them (#bar: the script shows it on a change, #dirty - their
 // number, #srx - "Скрыть" of the results of a save). Errors without the script: in #msg, each with a link to the
 // screen of its field, the field aria-invalid.
-function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false)
+function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $kept = false)
 {
     $scr = aio_cgi_screens();
     $msg = '';
@@ -1043,6 +1052,8 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false)
         $msg .= '<p class="ok">' . aio_cgi_saved() . '</p>';
     if ($saved && $rows)
         $msg .= '<p class="ok">' . aio_cgi_rows_later() . '</p>';
+    if ($saved && $kept)
+        $msg .= '<p class="warn">' . aio_cgi_src_kept_line() . '</p>';
     if ($imported)
         $msg .= '<p class="ok">' . aio_cgi_l('Настройки загружены из файла. Дюна подхватит их сама.',
             'Settings loaded from the file. The Dune picks them up automatically.') . '</p>';

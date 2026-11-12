@@ -10,10 +10,11 @@
 //                      write settings.json v 2 (aio_confs and the profiles kept;
 //                      src_was posted back as the page came: the stored source) -> the
 //                      config of AIOStreams as a=aio_sync -> 303 to GET
-//                      ?t=<token>&saved=1 (a reload does not post again);
+//                      ?t=<token>&saved=1 (a reload does not post again; kept=1: the source
+//                      changed since the page came, the stored one kept - its line);
 //                      errors -> the form back (only without JS);
 //   POST ?t=<token>&ajax=1 -> the same save without the config, JSON {ok,
-//                      next, aio[, notes] | errors: [{msg, field}]} to the script of the page
+//                      next, aio[, rows][, notes][, kept] | errors: [{msg, field}]} to the script of the page
 //                      (aio: create, update, reset (0.40.0: its button or
 //                      another template) or '' - what a=aio_sync is to do):
 //                      no page is ever an answer to a POST (a mobile browser
@@ -149,7 +150,8 @@ function aio_cgi_save($dir, $t)
     // The source as the page came posted back (src_was; none: a form of before), the stored one another (MENU of a
     // list switched the profile, another tab saved): the stored one stays (aio_cgi_src_kept).
     $was = aio_cgi_src_was_of($v['src_was']);
-    if (isset($_POST[$f['src_was']['name']]) && $was === aio_cgi_src_was_posted($v) && $was !== aio_cgi_src_was_stored($cur))
+    $kept = isset($_POST[$f['src_was']['name']]) && $was === aio_cgi_src_was_posted($v) && $was !== aio_cgi_src_was_stored($cur);
+    if ($kept)
     {
         aio_cgi_log('save: the source changed since the page came, the stored one kept');
         $v = aio_cgi_src_kept($v, $cur);
@@ -231,13 +233,15 @@ function aio_cgi_save($dir, $t)
         require dirname(__FILE__) . '/lib/rows.php';
         $rows = $data[$f['cat_rows']['set']] !== aio_cgi_cat_start($dir);
     }
-    $next = 'settings?t=' . $t . '&saved=1' . ($rows ? '&rows=1' : '');
+    $next = 'settings?t=' . $t . '&saved=1' . ($rows ? '&rows=1' : '') . ($kept ? '&kept=1' : '');
     // Only the checked token, as in the redirect below. aio: what a=aio_sync
-    // is to do next ('' - nothing, the own address).
+    // is to do next ('' - nothing, the own address). kept: the page shows another source than
+    // the stored one - the script loads next (after aio_sync).
     if ($ajax)
         aio_cgi_json(200, array_merge(array('ok' => true, 'next' => $next,
             'aio' => $data['source'] === 'own' ? '' : ($reset ? 'reset' : ($has ? 'update' : 'create'))),
-            $rows ? array('rows' => true) : array(), $notes ? array('notes' => $notes) : array()));
+            $rows ? array('rows' => true) : array(), $notes ? array('notes' => $notes) : array(),
+            $kept ? array('kept' => true) : array()));
     // Without the script: the config right here; its result is seen on the page (made or not).
     aio_cgi_aio_sync($dir, $reset);
     // Post/Redirect/Get. Relative to this page; only the checked token, no
@@ -307,6 +311,7 @@ if ($method === 'GET')
     $v['first'] = !$s['saved_once'];
     $imp = aio_cgi_param($_GET, 'imported');
     aio_cgi_send(200, 'text/html', aio_cgi_form($t, $v, array(), aio_cgi_param($_GET, 'saved') === '1',
-        in_array($imp, array('1', '2'), true) ? intval($imp) : 0, aio_cgi_param($_GET, 'rows') === '1'));
+        in_array($imp, array('1', '2'), true) ? intval($imp) : 0, aio_cgi_param($_GET, 'rows') === '1',
+        aio_cgi_param($_GET, 'kept') === '1'));
 }
 aio_cgi_send(405, 'text/plain', "405 Method Not Allowed\n");

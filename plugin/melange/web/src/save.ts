@@ -43,8 +43,9 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
   const templates = [NAME.template, NAME.templateP2p];
 
   // The config of the chosen server after the save: its result replaces the "creating" line; failed, the line
-  // "Saved" (savedLine) says only the settings on the Dune are.
-  function syncConf(how: ConfHow, savedLine: HTMLElement): void {
+  // "Saved" (savedLine) says only the settings on the Dune are. next: the page to load once it answered (the source
+  // kept), null: none.
+  function syncConf(how: ConfHow, savedLine: HTMLElement, next: string | null): void {
     const [going, failed] = CONF_TEXTS[how];
     button.textContent = texts[going];
     const line = addLine(results(), "hint", button.textContent);
@@ -60,6 +61,10 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
       } else if (result.kind !== "http") setLine(line, "err", texts[failed]);
       else setLine(line, "err", failureText(texts, result));
       if (result.kind !== "data" || !result.data.ok) savedLine.textContent = texts.savedOnDune;
+      if (next !== null) {
+        location.replace(next);
+        return;
+      }
       const before = templates.map((name) => checkedValue(form, name));
       aio.render();
       // The template of the config found (a mark "none" no more) is no change either; the rest typed meanwhile is.
@@ -106,8 +111,11 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     byId<HTMLInputElement>(doc, ID.sourceWas).value = sourceWas(posted);
     const savedLine = addLine(results(), "ok", texts.saved);
     if (answer.rows) addLine(results(), "ok", texts.rowsLater);
+    if (answer.kept) addLine(results(), "warn", texts.sourceKept);
     for (const note of answer.notes) addLine(results(), note.level === "ok" ? "ok" : "warn", note.msg);
-    if (answer.aio) syncConf(answer.aio, savedLine);
+    // The source kept: the radios and src_was show the one posted - the page anew (its line by kept=1 of next).
+    if (answer.aio) syncConf(answer.aio, savedLine, answer.kept ? answer.next : null);
+    else if (answer.kept) location.replace(answer.next);
     else stayed();
   }
   function save(reset: boolean): void {

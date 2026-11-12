@@ -165,6 +165,27 @@ describe("saved", () => {
     expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved], ["ok", "Fine"]]);
   });
 
+  test("the source kept (changed since the page came): its line, the config, then next - not before the config answered", async () => {
+    const page = open("filled");
+    const t = page.init.i18n;
+    const sync = later();
+    page.replies.push(json({ ok: true, next: NEXT + "&kept=1", aio: "update", kept: true, notes: [{ level: "ok", msg: "Fine" }] }), sync.reply);
+    await save(page);
+    expect(t.sourceKept).toBeTruthy();
+    expect([lines(page.el(ID.saveResult)), page.replaced]).toEqual([[["ok", t.saved], ["warn", t.sourceKept], ["ok", "Fine"], ["hint", t.updating]], []]);
+    sync.resolve(json({ ok: false, msg: "Нет связи", skip: false, base: MADE, mode: "debrid", conf: null }));
+    await flush();
+    expect(page.replaced).toEqual([NEXT + "&kept=1"]);
+    expect(page.calls.map((call) => call.url)).toEqual([SAVE.url, SYNC.url]);
+  });
+
+  test.each([[true, ["&kept=1"]], [1, []], ["true", []]])("kept %p, no config: next at once only for true", async (kept, to) => {
+    const page = open("filled");
+    page.replies.push(json({ ok: true, next: NEXT + "&kept=1", aio: "", kept: kept, notes: [{ level: "ok", msg: "Fine" }] }));
+    await save(page);
+    expect(page.replaced).toEqual(to.map((query) => NEXT + query));
+  });
+
   test("the template saved: the one for a new config and the one shown when there is no config", async () => {
     const page = open("filled");
     page.choose("aio_server", ATB);

@@ -18,6 +18,8 @@ export const TEXT_KEYS = [
   "savedOnDune",
   // After "saved" when the rows of the catalog changed: the catalog takes them when it opens next.
   "rowsLater",
+  // After "saved" when the source changed since the page came (MENU on the Dune, another tab): the stored one kept.
+  "sourceKept",
   "saveAndCreate",
   "creating",
   "updating",
