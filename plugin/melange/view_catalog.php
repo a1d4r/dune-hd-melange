@@ -307,14 +307,19 @@ function aio_catv_tile_id($id)
 
 // The tile of an id of the screen, or null. From memory; no listing of its rid in memory (a restart
 // of php_server, a tile of a file the shell shows without PHP): aio_catv_list_restore. A listing in
-// memory without the tile: null, the copy is not newer than it.
+// memory without the tile: null, the copy is not newer than it. $tv: asked from the tab "TV", its
+// tiles as in its file first (aio_tv_tile): the listing in memory may have moved on since.
 /**
  * @param string $id
+ * @param bool $tv
  * @return AioCatTile|null
  */
-function aio_catv_tile($id)
+function aio_catv_tile($id, $tv = false)
 {
     list(, $id) = aio_catv_id_mode($id);
+    $t = $tv ? aio_tv_tile($id) : null;
+    if ($t)
+        return $t;
     $p = explode(':', $id, 2);
     if (count($p) !== 2)
         return null;
@@ -547,6 +552,7 @@ function aio_catv_open($rows, $limit)
             continue;
         unset(AioCat::$lists[$rid]);
         $c = aio_cat_page_cached($row, 0);
+        // Not "restored" (aio_catv_list_restore): this screen shows it.
         if ($c)
             AioCat::$lists[$rid] = aio_catv_list_copy($row, $c);
         if (!$c)
@@ -1273,26 +1279,29 @@ function aio_catv_main_view($media_url, $sel_state)
 // "TV"): the rows of the user (aio_cat_user_rows) of the saved manifest, each by its saved first page
 // of any age; a row without one is left out. No request, no flag, no mark "saved", no strip; the tiles
 // and the plates by the mode of the screen now (aio_catv_logo_of), the caller sets it. -> the defs of
-// the rows (aio_catv_row_defs, for aio_catv_rows_view) and their rids.
+// the rows (aio_catv_row_defs, for aio_catv_rows_view), their rids and their listings by rid.
 /**
  * @param string $tab
  * @param string $lang
- * @return array{defs: list<array<string, mixed>>, rids: list<string>}
+ * @return array{defs: list<array<string, mixed>>, rids: list<string>, lists: array<string, AioCatList>}
  */
 function aio_catv_tab_copy_defs($tab, $lang)
 {
     $copy = aio_cat_manifest_copy();
     $defs = array();
     $rids = array();
+    $lists = array();
     foreach (aio_cat_user_rows($copy['rows'], Aio::$settings['cat_rows'], $tab) as $row)
     {
         $c = aio_cat_page_cached($row, 0);
         if (!$c)
             continue;
-        $defs = array_merge($defs, aio_catv_row_defs(aio_catv_list_copy($row, $c), $lang));
-        $rids[] = aio_catv_rid($row);
+        $rid = aio_catv_rid($row);
+        $lists[$rid] = aio_catv_list_copy($row, $c);
+        $defs = array_merge($defs, aio_catv_row_defs($lists[$rid], $lang));
+        $rids[] = $rid;
     }
-    return array('defs' => $defs, 'rids' => $rids);
+    return array('defs' => $defs, 'rids' => $rids, 'lists' => $lists);
 }
 
 // The row of the tab $tab without a row to show (aio_catv_tab_empty; its header: aio_catv_menu).
@@ -2027,6 +2036,10 @@ function aio_catv_all_rows($url, $ids)
 {
     $start = microtime(true);
     $list = aio_catv_all_list($url, false);
+    // Restored from a copy older than AIO_CAT_STATE_TTL: aio_cat_more would begin it anew, its first page
+    // after the tiles on the screen, the titles again. As with no listing.
+    if ($list && !empty($list['restored']) && ($list['st']['t0'] > time() || time() - $list['st']['t0'] >= AIO_CAT_STATE_TTL))
+        $list = null;
     $asked = array();
     $bad = array();
     foreach ($ids as $id)
@@ -2253,7 +2266,7 @@ function aio_catv_title_label($name, $bottom)
 function aio_catv_info($in)
 {
     $id = aio_catv_in($in, 'item_id');
-    $t = aio_catv_tile($id);
+    $t = aio_catv_tile($id, aio_tv_is_key(aio_catv_in($in, 'folder_key')));
     $more_url = aio_catv_more_url($id);
     $more = $more_url !== '' ? aio_catv_all_list($more_url, false) : null;
     if ($t)
@@ -2499,7 +2512,7 @@ function aio_catv_enter($in)
         unset(AioCat::$all_failed[strval(substr($id, strlen('fail:')))]);
         return aio_catv_invalidate(aio_catv_in($in, 'from'));
     }
-    $t = aio_catv_tile($id);
+    $t = aio_catv_tile($id, aio_tv_is_from(aio_catv_in($in, 'from')));
     if (!$t)
     {
         aio_log('catalog: ENTER: no such tile in memory');
@@ -2641,7 +2654,7 @@ function aio_catv_input($in, $control)
     if ($control === 'cat_tick')
         return aio_catv_all_tick($from);
     if ($control === 'cat_retry')
-        return aio_catv_retry($from);
+        return aio_tv_is_from($from) ? null : aio_catv_retry($from);
     if ($control === 'cat_search')
         return aio_catv_search_ask($from);
     if ($control === 'cat_search_apply')

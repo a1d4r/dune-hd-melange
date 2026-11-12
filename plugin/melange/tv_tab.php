@@ -16,6 +16,8 @@ define('AIO_TV_EPF', 'tv');
 define('AIO_TV_FROM', 'tv:tv');
 // The timer: all its requests in this many s (show_dialog_delay of the manifest is 10 s).
 define('AIO_TV_TIMER_S', 7.0);
+// In data_dir: the tiles of tv.json by id without the mode (aio_tv_tile), written with it.
+define('AIO_TV_TILES_FILE', 'tv_tiles.json');
 
 class AioTv
 {
@@ -33,6 +35,11 @@ class AioTv
     // aio_settings_sig at the last operation (aio_tv_settings_seen); null: none since a start of php_server.
     /** @var string|null */
     public static $sig = null;
+    // The tiles of AIO_TV_TILES_FILE as read ($tiles_sig: 'ino:mtime:size' of the file then); null: not read.
+    /** @var array<string, AioCatTile>|null */
+    public static $tiles = null;
+    /** @var string */
+    public static $tiles_sig = '';
 }
 
 // The directories of the EPF: tmp of tmp_dir_path ('' without one); flash of the fixed base of the shell
@@ -172,14 +179,17 @@ function aio_tv_note_defs($id, $key, $lang)
 // is back after it: the grid of "Show all" asks for its next tiles without aio_catv_logo_of.
 /**
  * @param string $lang
+ * @param array<string, AioCatTile>|null $tiles
+ * @param-out array<string, AioCatTile> $tiles
  * @return array<string, mixed>
  */
-function aio_tv_view($lang)
+function aio_tv_view($lang, &$tiles = null)
 {
     $logo = AioCat::$logo;
     $rating = AioCat::$rating;
     AioCat::$logo = aio_catv_logo_effective();
     AioCat::$rating = Aio::$settings['cat_rating'];
+    $tiles = array();
     if (Aio::$settings['base'] === '')
         $defs = aio_tv_note_defs('tv:setup', 'tv_setup', $lang);
     else
@@ -187,6 +197,17 @@ function aio_tv_view($lang)
         $movies = aio_catv_tab_copy_defs('movie', $lang);
         $series = aio_catv_tab_copy_defs('series', $lang);
         $defs = array_merge($movies['defs'], $series['defs']);
+        $lists = $movies['lists'] + $series['lists'];
+        foreach ($defs as $def)
+        {
+            foreach (isset($def[PluginRow::data][PluginRegularRow::items]) ? $def[PluginRow::data][PluginRegularRow::items] : array() as $it)
+            {
+                list(, $id) = aio_catv_id_mode(strval($it[PluginRegularItem::id]));
+                $p = explode(':', $id, 2);
+                if (count($p) === 2 && isset($lists[$p[0]]['tiles'][$p[1]]))
+                    $tiles[$id] = $lists[$p[0]]['tiles'][$p[1]];
+            }
+        }
         if (!$defs)
             $defs = aio_tv_note_defs('tv:open', 'tv_open', $lang);
     }
@@ -198,15 +219,86 @@ function aio_tv_view($lang)
     return $view;
 }
 
-// The JSON of tv.json (aio_tv_view), '' when it can not be made.
+// The JSON of tv.json (aio_tv_view), '' when it can not be made; $tiles: its tiles.
 /**
  * @param string $lang
+ * @param array<string, AioCatTile>|null $tiles
+ * @param-out array<string, AioCatTile> $tiles
  * @return string
  */
-function aio_tv_json($lang)
+function aio_tv_json($lang, &$tiles = null)
 {
-    $json = json_encode(aio_tv_view($lang));
+    $json = json_encode(aio_tv_view($lang, $tiles));
     return is_string($json) ? $json : '';
+}
+
+// 'ino:mtime:size' of AIO_TV_TILES_FILE, '' when there is none.
+/**
+ * @return string
+ */
+function aio_tv_tiles_sig()
+{
+    $f = aio_data_dir() . '/' . AIO_TV_TILES_FILE;
+    clearstatcache();
+    $s = aio_data_dir() !== '' && is_file($f) ? stat($f) : false;
+    return $s === false ? '' : $s['ino'] . ':' . $s['mtime'] . ':' . $s['size'];
+}
+
+// The tiles of tv.json to AIO_TV_TILES_FILE, unless they are there already: 'same', 'new' or 'failed'.
+// Not in plugins_epfs: the shell reads that, and it is no copy of the catalog (data_dir/catalog prunes).
+/**
+ * @param array<string, AioCatTile> $tiles
+ * @return string
+ */
+function aio_tv_tiles_save($tiles)
+{
+    $f = aio_data_dir() . '/' . AIO_TV_TILES_FILE;
+    $json = json_encode((object) $tiles);
+    if (aio_data_dir() === '' || !is_string($json))
+        return 'failed';
+    clearstatcache();
+    if (is_file($f) && filesize($f) === strlen($json) && file_get_contents($f) === $json)
+        $res = 'same';
+    else
+        $res = aio_write_file($f, $json) ? 'new' : 'failed';
+    AioTv::$tiles = $tiles;
+    AioTv::$tiles_sig = aio_tv_tiles_sig();
+    return $res;
+}
+
+// The tile $id (without the mode, "<rid>:<id>") of tv.json as written (aio_tv_tiles_save): the tab "TV"
+// shows the file, while a screen of Melange may have got its rows anew since, without it. From memory,
+// read again when the file is another one (a restart of php_server: from the disk). null: not in it.
+/**
+ * @param string $id
+ * @return AioCatTile|null
+ */
+function aio_tv_tile($id)
+{
+    $sig = aio_tv_tiles_sig();
+    if (AioTv::$tiles === null || $sig !== AioTv::$tiles_sig)
+    {
+        $j = $sig === '' ? null : json_decode(strval(file_get_contents(aio_data_dir() . '/' . AIO_TV_TILES_FILE)), true);
+        AioTv::$tiles = is_array($j) ? $j : array();
+        AioTv::$tiles_sig = $sig;
+    }
+    $t = isset(AioTv::$tiles[$id]) ? AioTv::$tiles[$id] : null;
+    if (!is_array($t) || !isset($t['id']) || !is_string($t['id']))
+        return null;
+    // Of the file of aio_tv_tiles_save: the tiles of aio_cat_tiles, as they were.
+    /** @var AioCatTile $t */
+    return $t;
+}
+
+// folder_key of rows_info (the shell sends "<plugin>:<id of the EPF>") is of the EPF of the tab "TV",
+// not of a screen of Melange ("melange:<media_url>").
+/**
+ * @param string $key
+ * @return bool
+ */
+function aio_tv_is_key($key)
+{
+    return $key === AIO_PLUGIN . ':' . AIO_TV_EPF;
 }
 
 // $data to $path unless it is there already (the flash wears): 'same', 'new' or 'failed'.
@@ -277,15 +369,19 @@ function aio_tv_update($in)
     $lang = aio_tv_lang($in);
     // Not set back: the info panel of the tiles of the file (rows_info, aio_catv_ui_lang) speaks its language.
     AioCat::$lang = $lang;
-    $json = aio_tv_json($lang);
+    $json = aio_tv_json($lang, $tiles);
     if ($json === '')
     {
         aio_log("$what $lang: no JSON of the view, nothing written");
         return $status;
     }
-    $res = aio_tv_put("{$d['tmp']}/" . AIO_TV_EPF . '.json', $json) . '/' . aio_tv_put("{$d['flash']}/" . AIO_TV_EPF . '.json', $json);
+    $tmp = aio_tv_put("{$d['tmp']}/" . AIO_TV_EPF . '.json', $json);
+    $res = $tmp . '/' . aio_tv_put("{$d['flash']}/" . AIO_TV_EPF . '.json', $json);
     $ni = aio_tv_put("{$d['flash']}/" . AIO_TV_EPF . '.no_internet.json', $json);
-    aio_log(sprintf('%s %s: %s %d B, no_internet %s, %.0f ms', $what, $lang, $res, strlen($json), $ni, (microtime(true) - $t0) * 1000));
+    // The tiles of the file the shell reads first.
+    $ts = $tmp !== 'failed' ? aio_tv_tiles_save($tiles) : 'not written';
+    aio_log(sprintf('%s %s: %s %d B, no_internet %s, tiles %d %s, %.0f ms', $what, $lang, $res, strlen($json), $ni, count($tiles), $ts,
+        (microtime(true) - $t0) * 1000));
     return $status;
 }
 
@@ -402,6 +498,9 @@ function aio_tv_enter($in)
         return aio_tv_catalog_act();
     if ($id === 'tv:setup')
         return aio_setup_open_act();
+    // None in the file; on a screen of Melange they replace or redraw it, here there is none.
+    if (strpos($id, 'retry:') === 0 || strpos($id, 'fail:') === 0)
+        return null;
     $a = aio_catv_enter($in);
     // A tile of the file in no copy and not in memory: the file is old.
     if ($a === aio_error('cat_outdated', '', false, false))
