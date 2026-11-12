@@ -150,6 +150,10 @@ class AioCat
     // The last AIO_CATV_SEARCHES searches, the oldest first: by its id, the rids of its rows.
     /** @var array<string, list<string>> */
     public static $searches = array();
+    // The searches of them opened as "Show all" of their one row (aio_catv_search_run): that
+    // screen is their results.
+    /** @var array<string, bool> */
+    public static $at_once = array();
     // r25: when a row came empty, by rid. It is hidden at the openings of the next hour.
     /** @var array<string, int> */
     public static $empty = array();
@@ -652,7 +656,8 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
         $items = array();
         foreach (array_slice($list['tiles'], 0, AIO_CATV_ROW_TILES) as $t)
             $items[] = aio_catv_title_item($rid, $t);
-        if ($list['st']['end'] === '' || count($list['tiles']) > AIO_CATV_ROW_TILES)
+        // A search row: "Show all" past a row of its screen, so a long one is not scrolled through.
+        if ($list['st']['end'] === '' || count($list['tiles']) > (isset($row['q']) ? AIO_CATV_ALL_COLS : AIO_CATV_ROW_TILES))
         {
             // Of a search: and its id, as in cat_grid:.
             $more = aio_catv_tile_id(isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid");
@@ -2459,7 +2464,7 @@ function aio_catv_search_drop($sid)
         return;
     foreach (AioCat::$searches[$sid] as $r)
         unset(AioCat::$lists[$r], AioCat::$all_failed[$r], AioCat::$all_stubs[$r]);
-    unset(AioCat::$searches[$sid]);
+    unset(AioCat::$searches[$sid], AioCat::$at_once[$sid]);
 }
 
 // The dialog of a search; the field goes to cat_search_apply and on as cat_q. The
@@ -2486,7 +2491,8 @@ function aio_catv_search_ask($from)
         array(ShowDialogActionData::preferred_width => 0));
 }
 
-// $q: no log, no address of a screen. Results: two rows, the empty ones hidden.
+// $q: no log, no address of a screen. Results: two rows, the empty ones hidden; one row on
+// r25: its "Show all".
 /**
  * @param string $q
  * @param string $from
@@ -2504,6 +2510,7 @@ function aio_catv_search_run($q, $from)
     $sid = substr(aio_rid(), 0, 8);
     $rids = array();
     $failed = false;
+    $whole = false;
     foreach ($found as $f)
     {
         $res = $f['res'];
@@ -2515,22 +2522,33 @@ function aio_catv_search_run($q, $from)
         $rid = aio_catv_rid($st['row']);
         AioCat::$lists[$rid] = aio_catv_list($st, $res['tiles'], $res['stale']);
         $rids[] = $rid;
+        $whole = $res['err'] === '' && !$res['stale'];
     }
     if (!$rids)
         return aio_error($failed ? 'cat_search_failed' : 'cat_search_none');
     AioCat::$searches[$sid] = $rids;
-    // From the results of a search: they are replaced, that search holds no place.
-    $replace = strpos($from, 'results:') === 0;
+    // From the results of a search, its "Show all" opened at once too: they are replaced, that
+    // search holds no place. "Show all" of a search with the results under it: opened over it.
+    $old = strpos($from, 'results:') === 0 ? strval(substr($from, strlen('results:'))) : '';
+    if (preg_match('/^cat_grid:[^:]+:([^:]+)$/D', $from, $m) && isset(AioCat::$at_once[$m[1]]))
+        $old = $m[1];
+    $replace = $old !== '';
     if ($replace)
-        aio_catv_search_drop(strval(substr($from, strlen('results:'))));
+        aio_catv_search_drop($old);
     // Not array_shift: an id of digits only is a key of int, it would renumber it.
     while (count(AioCat::$searches) > AIO_CATV_SEARCHES)
     {
         reset(AioCat::$searches);
         aio_catv_search_drop(strval(key(AioCat::$searches)));
     }
-    $url = "cat_search:$sid";
-    $caption = aio_tr($lang, 'cat_results');
+    // One type found: its "Show all" at once, named after its row, as aio_catv_all_open. Only as
+    // the expanded row of r25: the grid of r24 has neither the search key nor the info panel. Not
+    // after a failure or of a saved copy: the results say so on the row and do not ask again.
+    $one = count($rids) === 1 && $whole && aio_catv_all_ok();
+    if ($one)
+        AioCat::$at_once[$sid] = true;
+    $url = $one ? "cat_grid:{$rids[0]}:$sid" : "cat_search:$sid";
+    $caption = $one ? AioCat::$lists[$rids[0]]['st']['row']['name'] : aio_tr($lang, 'cat_results');
     return $replace ? aio_replace_act($url, $caption) : aio_catv_open_act($url, $caption);
 }
 
