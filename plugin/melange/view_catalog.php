@@ -1500,8 +1500,17 @@ function aio_catv_fact_texts($parts)
  */
 function aio_catv_facts($t, $lang)
 {
+    return aio_catv_facts_of(aio_catv_fact_parts($t, $lang));
+}
+
+// The line of facts of aio_catv_facts of the parts of aio_catv_fact_parts (the own card adds its kind to the rest).
+/**
+ * @param array{rates: list<array{string, string, string}>, rest: list<string>, age: string} $p
+ * @return list<array{string, string, string}>
+ */
+function aio_catv_facts_of($p)
+{
     static $ages = array('0+', '6+', '12+', '16+', '18+');
-    $p = aio_catv_fact_parts($t, $lang);
     $out = array();
     foreach ($p['rates'] as $r)
         $out[] = $r;
@@ -1536,20 +1545,23 @@ function aio_catv_genre_parts($t, $lang)
 }
 
 // The second line of data of the panel: the genres, then the country, fitted to TEXT_W. What
-// does not fit at DATA_MIN_PX goes: the country first, then the second genre; aio_catv_fit
-// cuts the rest.
+// does not fit at DATA_MIN_PX goes: the countries but the first, then all of them, then the
+// second genre; aio_catv_fit cuts the rest. $countries: those of the own card (cleaned), else
+// the one of the tile.
 /**
  * @param AioCatTile $t
  * @param string $lang
+ * @param list<string>|null $countries
  * @return string
  */
-function aio_catv_genre_line($t, $lang)
+function aio_catv_genre_line($t, $lang, $countries = null)
 {
     list($g, $c) = aio_catv_genre_parts($t, $lang);
+    $cs = $countries !== null ? $countries : ($c !== '' ? array($c) : array());
     $line = '';
-    foreach (array(array($g, $c), array($g, ''), array(array_slice($g, 0, 1), '')) as $v)
+    foreach (array(array($g, $cs), array($g, array_slice($cs, 0, 1)), array($g, array()), array(array_slice($g, 0, 1), array())) as $v)
     {
-        $line = implode(' · ', array_filter(array(implode(', ', $v[0]), $v[1]), 'strlen'));
+        $line = implode(' · ', array_filter(array(implode(', ', $v[0]), implode(', ', $v[1])), 'strlen'));
         if (aio_gc_w($line, AIO_CATV_DATA_MIN_PX) <= AIO_CATV_TEXT_W)
             break;
     }

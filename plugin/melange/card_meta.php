@@ -223,6 +223,19 @@ function aio_cm_parse($m, $type, $id, $now)
         'seasons' => $eps['seasons'], 'season_numbers' => $eps['season_numbers']);
 }
 
+// The episodes of meta $m in all.
+/**
+ * @param AioCardMeta $m
+ * @return int
+ */
+function aio_cm_eps_count($m)
+{
+    $n = 0;
+    foreach ($m['seasons'] as $list)
+        $n += count($list);
+    return $n;
+}
+
 // The meta of tile $t for its card: from memory if parsed less than AIO_CM_TTL ago, else asked.
 // -> err: '' or why there is none: noid (nothing to ask by), the errors of aio_cat_get (net,
 // timeout, big, rate, server, notfound, http, bad), other (the meta of another title); meta: the
@@ -263,9 +276,7 @@ function aio_cm_get($t)
     }
     $m = aio_cm_parse($g['list'], $type, $id, $now);
     unset($g);
-    $eps = 0;
-    foreach ($m['seasons'] as $list)
-        $eps += count($list);
+    $eps = aio_cm_eps_count($m);
     aio_log(sprintf('card: meta %s: imdb %s, %d seasons, %d episodes, %d seasons out, %d actors, %d directors, %d writers',
         $key, $m['imdb'] !== '' ? $m['imdb'] : 'none', count($m['seasons']), $eps, count($m['season_numbers']),
         count($m['cast']), count($m['directors']), count($m['writers'])));
