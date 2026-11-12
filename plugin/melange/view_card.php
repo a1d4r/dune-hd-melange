@@ -7,12 +7,13 @@
 // hint "Cast and about" at the bottom. DOWN scrolls the page under the logo to the cast and the
 // details of the meta (card_meta.php), the rest of the screen darkened; DOWN again further while
 // there is more, UP back, at last to the button left. The plugin draws and moves the focus
-// itself with change_gcomps, as the list; the place travels in sel_state {"b":button,"p":stop}.
+// itself with change_gcomps, as the list; the place (aio_oc_pos) travels in sel_state.
 // ENTER on a tile does the network (aio_oc_enter); the screen is built from memory.
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_catalog.php, gcomps.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
-// Cards kept in memory by "<type>:<id>"; the oldest opened goes.
+// Cards kept in memory by "<type>:<id>", AIO_CM_KEEP_EPS episodes in all at most; the oldest
+// opened goes.
 define('AIO_OC_KEEP', 8);
 // The page: a clipping panel from the bottom of the logo (PANE_Y + TITLE_BOTTOM of the catalog,
 // baked into card/v1) down; the page in it in the coordinates of the first screen. DOWN: the first
@@ -68,7 +69,8 @@ define('AIO_OC_IMG', 'plugin_file://img/card1_');
 class AioOc
 {
     // Cards by "<type>:<id>": tile, meta (or null), imdb, dune (the id of the card of the Dune or
-    // of an old local one, '' for none), lang (of play_action), ui (of the texts), pos (b, p).
+    // of an old local one, '' for none), lang (of play_action), ui (of the texts), pos (the place,
+    // aio_oc_pos), n (episodes of the meta); nav (what the keys need of aio_oc_layout) once shown.
     // Memory of php_server only: after a restart the card is made from the meta anew.
     /** @var array<string, AioOcCard> */
     public static $cards = array();
@@ -113,9 +115,9 @@ function aio_oc_make($tile, $meta, $dune, $lang)
     $imdb = $tile['imdb_id'] !== '' ? $tile['imdb_id'] : ($meta ? $meta['imdb'] : '');
     $tile['imdb_id'] = $imdb;
     if ($dune === '')
-        $dune = aio_card_local($tile, false);
+        $dune = aio_card_local_find($tile);
     return array('tile' => $tile, 'meta' => $meta, 'imdb' => $imdb, 'dune' => $dune, 'lang' => $lang,
-        'ui' => aio_catv_ui_lang(), 'pos' => array(0, 0));
+        'ui' => aio_catv_ui_lang(), 'pos' => array('z' => 'btn', 'b' => 0, 'p' => 0), 'n' => $meta ? aio_cm_eps_count($meta) : 0);
 }
 
 /**
@@ -127,8 +129,15 @@ function aio_oc_keep($key, $card)
 {
     unset(AioOc::$cards[$key]);
     AioOc::$cards[$key] = $card;
-    while (count(AioOc::$cards) > AIO_OC_KEEP)
-        array_shift(AioOc::$cards);
+    $sum = 0;
+    foreach (AioOc::$cards as $c)
+        $sum += $c['n'];
+    // The card just kept stays, however many episodes it has.
+    while (count(AioOc::$cards) > 1 && (count(AioOc::$cards) > AIO_OC_KEEP || $sum > AIO_CM_KEEP_EPS))
+    {
+        $c = array_shift(AioOc::$cards);
+        $sum -= $c['n'];
+    }
 }
 
 // The card of "<type>:<id>" from memory; none there (php_server restarted): made from its meta
@@ -191,49 +200,18 @@ function aio_oc_countries($c)
     return $out;
 }
 
-// The facts of the panel of the catalog (aio_catv_facts) with the kind first: "Фильм · 2001 · 2 ч 32 мин".
+// The facts of the panel of the catalog with the kind first: "Фильм · 2001 · 2 ч 32 мин". A series
+// has it ("Сериал") in the parts already.
 /**
  * @param AioOcCard $c
  * @return list<array{string, string, string}>
  */
 function aio_oc_facts($c)
 {
-    $kind = aio_tr($c['ui'], 'card_kind_movie');
-    $out = array();
-    $done = false;
-    foreach (aio_catv_facts($c['tile'], $c['ui']) as $f)
-    {
-        if ($f[0] === 'age' && !$done)
-            $out[] = array('text', $kind, '');
-        if ($f[0] === 'text' || ($f[0] === 'age' && !$done))
-            $done = true;
-        if ($f[0] === 'text')
-            $f[1] = "$kind · {$f[1]}";
-        $out[] = $f;
-    }
-    if (!$done)
-        $out[] = array('text', $kind, '');
-    return $out;
-}
-
-// The genres of the tile and the countries, as aio_catv_genre_line fits them: what does not fit
-// at the least size goes, the countries but the first, then all of them, then the second genre.
-/**
- * @param AioOcCard $c
- * @return string
- */
-function aio_oc_genre_line($c)
-{
-    list($g) = aio_catv_genre_parts($c['tile'], $c['ui']);
-    $cs = aio_oc_countries($c);
-    $line = '';
-    foreach (array(array($g, $cs), array($g, array_slice($cs, 0, 1)), array($g, array()), array(array_slice($g, 0, 1), array())) as $v)
-    {
-        $line = implode(' · ', array_filter(array(implode(', ', $v[0]), implode(', ', $v[1])), 'strlen'));
-        if (aio_gc_w($line, AIO_CATV_DATA_MIN_PX) <= AIO_CATV_TEXT_W)
-            break;
-    }
-    return $line;
+    $p = aio_catv_fact_parts($c['tile'], $c['ui']);
+    if ($c['tile']['type'] !== 'series')
+        array_unshift($p['rest'], aio_tr($c['ui'], 'card_kind_movie'));
+    return aio_catv_facts_of($p);
 }
 
 // "Y-m-d" -> "16 ноября 2001"; a day after today (UTC): "Выходит 14.11.2026"; '' for none.
@@ -340,22 +318,21 @@ function aio_oc_label($x, $y, $w, $text, $px, $color, $spec = array())
 }
 
 // The first screen in the page: the lines of the panel (x of the catalog), the description to
-// DESC_BOTTOM, the buttons (focus on $b), the progress or a line, the hint.
+// DESC_BOTTOM, the buttons (focus on $b), under them aio_oc_under, the hint if DOWN shows something.
 /**
  * @param AioOcCard $c
- * @param list<array{string, string, bool}> $btns
+ * @param AioOcLayout $l
  * @param int $b
- * @param bool $down
  * @return list<array<string, mixed>>
  */
-function aio_oc_head($c, $btns, $b, $down)
+function aio_oc_head($c, $l, $b)
 {
     $x0 = AIO_CATV_CARD_X;
     // The line of facts in a panel at the x of the catalog: its labels are at x of the panel.
     $d = array(aio_gc_panel('facts', aio_gc_at(AIO_CATV_PANE_W, AIO_OC_GENRES_Y, $x0, 0),
         aio_catv_facts_labels(aio_oc_facts($c), AIO_OC_FACTS_Y)));
     $y = AIO_OC_GENRES_Y;
-    $genres = aio_oc_genre_line($c);
+    $genres = aio_catv_genre_line($c['tile'], $c['ui'], aio_oc_countries($c));
     if ($genres !== '')
     {
         $fit = aio_catv_fit($genres, AIO_CATV_LINE_PX, AIO_CATV_DATA_MIN_PX, AIO_CATV_TEXT_W);
@@ -382,7 +359,7 @@ function aio_oc_head($c, $btns, $b, $down)
 
     $x = $x0;
     $w0 = 0;
-    foreach ($btns as $i => $bt)
+    foreach ($l['btns'] as $i => $bt)
     {
         $w = aio_oc_btn_w($bt);
         $d[] = aio_gc_panel("b$i", aio_gc_at($w, AIO_OC_BTN_H, $x, AIO_OC_BTN_Y), aio_oc_btn_items($bt, $w, $i === $b));
@@ -390,9 +367,32 @@ function aio_oc_head($c, $btns, $b, $down)
             $w0 = $w;
         $x += $w + AIO_OC_BTN_GAP;
     }
-    // Under the buttons: no IMDb - nothing plays (the meta failed: it did not load, else it has
-    // none); no card of the Dune - no history; else the progress of the movie under "Watch", if
-    // begun, or "Watched" grey without the bar.
+    foreach (aio_oc_under($c, $l, $w0) as $u)
+        $d[] = $u;
+    if ($l['down'])
+    {
+        $hint = aio_tr($c['ui'], 'card_down_movie');
+        $hw = aio_gc_w($hint, AIO_CATV_LINE_PX);
+        $d[] = aio_oc_label($x0, AIO_OC_HINT_Y, $hw, $hint, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
+        $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x0 + $hw + 16, AIO_OC_HINT_Y + 16),
+            'plugin_file://img/sort_down.png');
+    }
+    return $d;
+}
+
+// Under the buttons ($w0: the width of the first): no IMDb - nothing plays (the meta failed: it
+// did not load, else it has none); no card of the Dune - no history; else the progress of the
+// movie (of the layout) under "Watch", if begun, or "Watched" grey without the bar.
+/**
+ * @param AioOcCard $c
+ * @param AioOcLayout $l
+ * @param int $w0
+ * @return list<array<string, mixed>>
+ */
+function aio_oc_under($c, $l, $w0)
+{
+    $x0 = AIO_CATV_CARD_X;
+    $d = array();
     $line = '';
     $color = AIO_CATV_TEXT_COLOR;
     if ($c['imdb'] === '')
@@ -401,7 +401,7 @@ function aio_oc_head($c, $btns, $b, $down)
         $line = aio_tr($c['ui'], 'card_no_history');
     else
     {
-        $wh = aio_wh_movie($c['dune']);
+        $wh = $l['wh'];
         $p = $wh ? aio_oc_progress_text($wh[0], $wh[1], $c['ui']) : '';
         if ($wh && aio_wh_full($wh[0], $wh[1]))
         {
@@ -420,14 +420,6 @@ function aio_oc_head($c, $btns, $b, $down)
     }
     if ($line !== '')
         $d[] = aio_oc_label($x0, AIO_OC_LINE_Y, AIO_CATV_TEXT_W, $line, 24, $color);
-    if ($down)
-    {
-        $hint = aio_tr($c['ui'], 'card_down_movie');
-        $hw = aio_gc_w($hint, AIO_CATV_LINE_PX);
-        $d[] = aio_oc_label($x0, AIO_OC_HINT_Y, $hw, $hint, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
-        $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x0 + $hw + 16, AIO_OC_HINT_Y + 16),
-            'plugin_file://img/sort_down.png');
-    }
     return $d;
 }
 
@@ -547,15 +539,18 @@ function aio_oc_stops($bottom)
     return $stops;
 }
 
-// The card laid out: its buttons, the components DOWN shows and the stops of the page.
+// The card laid out: its buttons, the stops of the page and its height (what the keys need,
+// AioOcNav), the components DOWN shows, the progress of the movie (aio_wh_movie, read here once
+// a request; only with an IMDb and a card of the Dune, the only case it shows).
 /**
  * @param AioOcCard $c
- * @return array{btns: list<array{string, string, bool}>, down: list<array<string, mixed>>, bottom: int, stops: list<int>}
+ * @return AioOcLayout
  */
 function aio_oc_layout($c)
 {
     list($down, $bottom) = aio_oc_down($c);
-    return array('btns' => aio_oc_buttons($c), 'down' => $down, 'bottom' => $bottom, 'stops' => aio_oc_stops($bottom));
+    return array('btns' => aio_oc_buttons($c), 'stops' => aio_oc_stops($bottom), 'h' => max(1080, $bottom + AIO_OC_OFF + 40),
+        'down' => $down, 'wh' => $c['imdb'] !== '' && $c['dune'] !== '' ? aio_wh_movie($c['dune']) : null);
 }
 
 // The page at shift $s inside the clip under the logo.
@@ -569,56 +564,128 @@ function aio_oc_page_geom($s, $h)
     return aio_gc_at(1920, $h, 0, -AIO_OC_VIEW_Y - $s);
 }
 
-// The darkening of a stop below the first: all but the logo (to x 930, its bottom at 270).
+// The darkening of zone $z: DOWN all but the logo (to x 930, its bottom at 270).
 /**
- * @param int $p
+ * @param string $z
  * @return list<AioGcComp>
  */
-function aio_oc_dim($p)
+function aio_oc_dim($z)
 {
-    if ($p === 0)
+    if ($z !== 'down')
         return array();
     return array(aio_gc_rect(aio_gc_at(1920, 810, 0, 270), AIO_OC_DIM), aio_gc_rect(aio_gc_at(990, 270, 930, 0), AIO_OC_DIM));
+}
+
+// --- The place of the focus.
+
+// A place on the card, AioOcPos, in AioOc::$cards and as sel_state alike: z the zone ("btn" the
+// buttons, "down" the page below them), b the button (kept in every zone: UP comes back to it),
+// p the stop of the page (0 in "btn"). A new zone or field is one more line in aio_oc_pos and
+// aio_oc_next.
+/**
+ * @param AioOcPos $pos
+ * @return string
+ */
+function aio_oc_state($pos)
+{
+    return json_encode(array('z' => $pos['z'], 'b' => $pos['b'], 'p' => $pos['p']));
+}
+
+// sel_state of the shell -> the place, each field checked alone: one missing or of a wrong type
+// is that of the last place of the card, a number out of the card is clamped (one button less
+// keeps the stop). {"b", "p"} of before the zone: the zone of its stop.
+/**
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @param mixed $raw
+ * @return AioOcPos
+ */
+function aio_oc_pos($c, $l, $raw)
+{
+    $j = is_string($raw) ? json_decode($raw, true) : null;
+    if (!is_array($j))
+        $j = array();
+    $last = $c['pos'];
+    if (isset($j['z']) && is_string($j['z']))
+        $z = $j['z'];
+    else if (isset($j['p']) && is_int($j['p']))
+        $z = $j['p'] > 0 ? 'down' : 'btn';
+    else
+        $z = $last['z'];
+    $b = isset($j['b']) && is_int($j['b']) ? $j['b'] : $last['b'];
+    $p = isset($j['p']) && is_int($j['p']) ? $j['p'] : $last['p'];
+    $stops = count($l['stops']);
+    if ($z !== 'down' || $stops < 2)
+        $z = 'btn';
+    return array('z' => $z, 'b' => max(0, min(count($l['btns']) - 1, $b)), 'p' => $z === 'btn' ? 0 : max(1, min($stops - 1, $p)));
+}
+
+// The place after arrow $d (left, right, up, down) from $pos; $pos itself at an edge. In "btn"
+// left and right move along the buttons, down to the first stop of the page; in "down" down and
+// up from stop to stop, up from the first back to "btn".
+/**
+ * @param AioOcNav $l
+ * @param AioOcPos $pos
+ * @param string $d
+ * @return AioOcPos
+ */
+function aio_oc_next($l, $pos, $d)
+{
+    $n = $pos;
+    if ($pos['z'] === 'btn')
+    {
+        if ($d === 'left' || $d === 'right')
+            $n['b'] = max(0, min(count($l['btns']) - 1, $pos['b'] + ($d === 'left' ? -1 : 1)));
+        else if ($d === 'down' && count($l['stops']) > 1)
+        {
+            $n['z'] = 'down';
+            $n['p'] = 1;
+        }
+    }
+    else if ($d === 'down')
+        $n['p'] = min(count($l['stops']) - 1, $pos['p'] + 1);
+    else if ($d === 'up')
+    {
+        $n['p'] = $pos['p'] - 1;
+        if ($n['p'] === 0)
+            $n['z'] = 'btn';
+    }
+    return $n;
+}
+
+// The change_defs from place $old to $new: the two buttons redrawn, the page moved, the
+// darkening on or off.
+/**
+ * @param AioOcNav $l
+ * @param AioOcPos $old
+ * @param AioOcPos $new
+ * @return list<AioGcChange>
+ */
+function aio_oc_changes($l, $old, $new)
+{
+    $ch = array();
+    if ($new['b'] !== $old['b'])
+    {
+        foreach (array($old['b'] => false, $new['b'] => true) as $i => $on)
+            $ch[] = aio_gc_change("b$i", null, GCOMP_TRANSITION_NONE,
+                aio_oc_btn_items($l['btns'][$i], aio_oc_btn_w($l['btns'][$i]), $on));
+    }
+    if ($new['p'] !== $old['p'])
+        $ch[] = aio_gc_change('page', aio_oc_page_geom($l['stops'][$new['p']], $l['h']), GCOMP_TRANSITION_DEFAULT);
+    if (($new['z'] === 'down') !== ($old['z'] === 'down'))
+        $ch[] = aio_gc_change('dim', null, GCOMP_TRANSITION_NONE, aio_oc_dim($new['z']));
+    return $ch;
 }
 
 // --- The screen.
 
 /**
- * @param int $b
- * @param int $p
- * @return string
- */
-function aio_oc_state($b, $p)
-{
-    return json_encode(array('b' => $b, 'p' => $p));
-}
-
-// sel_state of the shell -> array(button, stop); else the last place of the card; else the first button.
-/**
  * @param AioOcCard $c
- * @param array{btns: list<array{string, string, bool}>, down: list<array<string, mixed>>, bottom: int, stops: list<int>} $l
- * @param mixed $raw
- * @return array{int, int}
- */
-function aio_oc_pos($c, $l, $raw)
-{
-    foreach (array(is_string($raw) ? json_decode($raw) : null, (object) array('b' => $c['pos'][0], 'p' => $c['pos'][1])) as $j)
-    {
-        if (is_object($j) && isset($j->b, $j->p) && is_int($j->b) && is_int($j->p) && $j->b >= 0 &&
-            $j->b < max(1, count($l['btns'])) && $j->p >= 0 && $j->p < count($l['stops']))
-            return array($j->b, $j->p);
-    }
-    return array(0, 0);
-}
-
-/**
- * @param AioOcCard $c
- * @param array{btns: list<array{string, string, bool}>, down: list<array<string, mixed>>, bottom: int, stops: list<int>} $l
- * @param int $b
- * @param int $p
+ * @param AioOcLayout $l
+ * @param AioOcPos $pos
  * @return array<string, mixed>
  */
-function aio_oc_window($c, $l, $b, $p)
+function aio_oc_window($c, $l, $pos)
 {
     $t = $c['tile'];
     $card = aio_catv_card($t, true);
@@ -626,22 +693,17 @@ function aio_oc_window($c, $l, $b, $p)
     // The band under the buttons: a gradient, then dark to the bottom.
     $d[] = aio_gc_image(aio_gc_at(1920, 160, 0, 470), AIO_OC_IMG . 'band.png');
     $d[] = aio_gc_rect(aio_gc_at(1920, 450, 0, 630), AIO_OC_BAND);
-    $d[] = aio_gc_panel('dim', aio_gc_at(1920, 1080, 0, 0), aio_oc_dim($p));
+    $d[] = aio_gc_panel('dim', aio_gc_at(1920, 1080, 0, 0), aio_oc_dim($pos['z']));
     // Without the logo of the background: the title as in the panel of the catalog.
     if (!$card['logo'])
         $d[] = aio_gc_panel('title', aio_gc_at(AIO_CATV_PANE_W, AIO_OC_VIEW_Y, AIO_CATV_CARD_X, 0),
             array(aio_catv_title_label(aio_clean($t['name']), AIO_OC_VIEW_Y)));
-    $page = aio_oc_head($c, $l['btns'], $b, (bool) $l['down']);
-    foreach ($l['down'] as $x)
-    {
-        $x[GComponentDef::geom_def][GCompGeometryDef::align_def][GCompAlignDef::y] =
-            (isset($x[GComponentDef::geom_def][GCompGeometryDef::align_def][GCompAlignDef::y]) ?
-            $x[GComponentDef::geom_def][GCompGeometryDef::align_def][GCompAlignDef::y] : 0) + AIO_OC_OFF;
-        $page[] = $x;
-    }
-    $h = max(1080, $l['bottom'] + AIO_OC_OFF + 40);
+    $page = aio_oc_head($c, $l, $pos['b']);
+    // What DOWN shows, in a panel OFF lower: its own coordinates are those of the first stop.
+    if ($l['down'])
+        $page[] = aio_gc_panel('down', aio_gc_at(1920, $l['h'] - AIO_OC_OFF, 0, AIO_OC_OFF), $l['down']);
     $d[] = aio_gc_panel('view', aio_gc_at(1920, 1080 - AIO_OC_VIEW_Y, 0, AIO_OC_VIEW_Y),
-        array(aio_gc_panel('page', aio_oc_page_geom($l['stops'][$p], $h), $page, 0)), 0);
+        array(aio_gc_panel('page', aio_oc_page_geom($l['stops'][$pos['p']], $l['h']), $page, 0)), 0);
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
         GCompWindowDef::background_url => $card['bg'],
@@ -670,9 +732,10 @@ function aio_oc_folder_view($media_url, $sel_state)
     if (!$c)
         return aio_lines_view(array(aio_expired_item()));
     $l = aio_oc_layout($c);
-    list($b, $p) = aio_oc_pos($c, $l, $sel_state);
-    AioOc::$cards[$key]['pos'] = array($b, $p);
-    aio_log("card: own $key: screen, " . count($l['btns']) . ' buttons, ' . count($l['stops']) . " stops, at $b, $p");
+    $pos = aio_oc_pos($c, $l, $sel_state);
+    AioOc::$cards[$key]['pos'] = $pos;
+    AioOc::$cards[$key]['nav'] = array('btns' => $l['btns'], 'stops' => $l['stops'], 'h' => $l['h']);
+    aio_log("card: own $key: screen, " . count($l['btns']) . ' buttons, ' . count($l['stops']) . " stops, at {$pos['b']}, {$pos['p']}");
     $k = array('c' => $key);
     $acts = array(
         GUI_EVENT_KEY_LEFT => aio_input('card_move', $k + array('d' => 'left')),
@@ -687,8 +750,8 @@ function aio_oc_folder_view($media_url, $sel_state)
         PluginFolderView::folder_type => null,
         PluginFolderView::view_kind => PLUGIN_FOLDER_VIEW_GCOMPS,
         PluginFolderView::data => array(
-            PluginGCompsFolderView::window_def => aio_oc_window($c, $l, $b, $p),
-            PluginGCompsFolderView::sel_state => aio_oc_state($b, $p),
+            PluginGCompsFolderView::window_def => aio_oc_window($c, $l, $pos),
+            PluginGCompsFolderView::sel_state => aio_oc_state($pos),
             PluginGCompsFolderView::actions => $acts,
             PluginGCompsFolderView::timer => null));
 }
@@ -730,10 +793,10 @@ function aio_oc_menu($lang)
             GuiMenuItemDef::action => aio_setup_open_act()))));
 }
 
-// card_move (d: left, right, up, down), card_enter, card_menu of the card c. Left and right move
-// along the buttons, down and up from stop to stop of the page (up from the first one below:
-// back to the button left); change_gcomps, null at an edge. ENTER on a button: "Watch" - the list,
-// "Dune card" - the native card (file_movie); below the buttons nothing.
+// card_move (d: left, right, up, down), card_enter, card_menu of the card c. The arrows: the place
+// of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown (nav), else
+// laid out anew. ENTER on a button: "Watch" - the list, "Dune card" - the native card
+// (file_movie); below the buttons nothing.
 /**
  * @param stdClass $in
  * @param string $control
@@ -747,46 +810,25 @@ function aio_oc_input($in, $control)
         return aio_oc_menu($c ? $c['ui'] : aio_catv_ui_lang());
     if (!$c)
         return $control === 'card_enter' ? aio_error('cat_outdated') : null;
-    $l = aio_oc_layout($c);
-    list($b, $p) = aio_oc_pos($c, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
-    AioOc::$cards[$key]['pos'] = array($b, $p);
+    $l = isset($c['nav']) ? $c['nav'] : aio_oc_layout($c);
+    $pos = aio_oc_pos($c, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    AioOc::$cards[$key]['pos'] = $pos;
     if ($control === 'card_enter')
     {
-        if ($p !== 0 || !isset($l['btns'][$b]))
+        $b = $pos['b'];
+        if ($pos['z'] !== 'btn' || !isset($l['btns'][$b]))
             return null;
         aio_log("card: own $key: ENTER on {$l['btns'][$b][0]}");
         return $l['btns'][$b][0] === 'watch' ? aio_oc_watch($c) : aio_card_open($c['dune']);
     }
-    $d = aio_catv_in($in, 'd');
-    $nb = $b;
-    $np = $p;
-    if ($p === 0 && ($d === 'left' || $d === 'right'))
-        $nb = max(0, min(count($l['btns']) - 1, $b + ($d === 'left' ? -1 : 1)));
-    else if ($d === 'down')
-        $np = min(count($l['stops']) - 1, $p + 1);
-    else if ($d === 'up')
-        $np = max(0, $p - 1);
-    if ($nb === $b && $np === $p)
+    $new = aio_oc_next($l, $pos, aio_catv_in($in, 'd'));
+    if ($new === $pos)
         return null;
-    AioOc::$cards[$key]['pos'] = array($nb, $np);
-    $ch = array();
-    if ($nb !== $b)
-    {
-        foreach (array($b => false, $nb => true) as $i => $on)
-            $ch[] = aio_gc_change("b$i", null, GCOMP_TRANSITION_NONE,
-                aio_oc_btn_items($l['btns'][$i], aio_oc_btn_w($l['btns'][$i]), $on));
-    }
-    if ($np !== $p)
-    {
-        $ch[] = aio_gc_change('page', aio_oc_page_geom($l['stops'][$np], max(1080, $l['bottom'] + AIO_OC_OFF + 40)),
-            GCOMP_TRANSITION_DEFAULT);
-        if ($np === 0 || $p === 0)
-            $ch[] = aio_gc_change('dim', null, GCOMP_TRANSITION_NONE, aio_oc_dim($np));
-    }
+    AioOc::$cards[$key]['pos'] = $new;
     return array(
         GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID,
         GuiAction::data => array(
-            ChangeGCompsActionData::change_defs => $ch,
+            ChangeGCompsActionData::change_defs => aio_oc_changes($l, $pos, $new),
             ChangeGCompsActionData::num_steps => AIO_GC_STEPS,
-            ChangeGCompsActionData::sel_state => aio_oc_state($nb, $np)));
+            ChangeGCompsActionData::sel_state => aio_oc_state($new)));
 }

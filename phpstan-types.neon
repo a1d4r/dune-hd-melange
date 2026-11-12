@@ -370,7 +370,13 @@ parameters:
         # The meta of a title for its own card (aio_cm_parse, card_meta.php).
         AioCardMeta: 'array{type: string, id: string, imdb: string, tile: AioCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<AioCardActor>, directors: list<string>, writers: list<string>, seasons: array<int, list<AioCardEp>>, season_numbers: array<int, int>}'
         # A card of the own card screen in memory (AioOc::$cards, view_card.php).
-        AioOcCard: 'array{tile: AioCatTile, meta: AioCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: array{int, int}}'
+        AioOcCard: 'array{tile: AioCatTile, meta: AioCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: AioOcPos, n: int, nav?: AioOcNav}'
+        # A place of the focus on the own card, in AioOcCard and in sel_state (aio_oc_pos, view_card.php).
+        AioOcPos: 'array{z: string, b: int, p: int}'
+        # What the keys of the own card need of its layout (view_card.php).
+        AioOcNav: 'array{btns: list<array{string, string, bool}>, stops: list<int>, h: int}'
+        # The own card laid out (aio_oc_layout, view_card.php).
+        AioOcLayout: 'array{btns: list<array{string, string, bool}>, stops: list<int>, h: int, down: list<array<string, mixed>>, wh: array{float, float}|null}'
         # An actor of the own card (aio_cm_people, card_meta.php).
         AioCardActor: 'array{name: string, role: string, photo: string}'
         # An episode of the own card (aio_cm_eps, card_meta.php).
