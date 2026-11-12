@@ -2,6 +2,11 @@
 
 **English version**
 
+## Unreleased
+- **Source profiles: choose where films come from right in the release list.** For those who use both Debrid and torrents, or more than one AIOStreams server. Turn it on on the settings page: **Advanced** → **Source profiles** (off by default). Then save the sources you use as profiles on the "Where to get films" screen: a Melange config on any server (one of the list or your own, for example on a NAS) in Debrid or "Torrents" mode, or your own config link. You can have up to 8, each with its own name. In the release list, MENU → **Get films from → <name>** switches to the other profile when you have two; with three or more, **Get films from…** opens the list of profiles, with the current one marked "· now". The switch applies everywhere at once, as a change on the settings page would. Melange first asks the new source for releases of this film. If it answers, the list shows its releases, and the list can be empty if the source has none. If it does not answer or does not accept the link, nothing changes and a window says why. A profile on a server shows up in the menu once its config exists: the settings page creates it when you save with that server and mode. Keys, templates, JacRed, "No torrents" and "Main Debrid" are shared by all profiles.
+- "Download the log" now also hides the addresses of your own AIOStreams servers that are not in use and the links of all profiles, not only those of the current source.
+- If you go back to an older version, the first **Save** on its settings page deletes the profiles.
+
 ## 0.57.2 — 12.11.2026
 - Fixed: changes to the list of rows on the server now reach the catalog within 10 minutes instead of an hour, the next time you open it; on r25 firmware, from the opening after the one where Melange updated the list. Rows removed on the server disappear. New rows appear in **Configure List...** and on the settings page; if you chose your rows yourself, they are not added to the screen on their own. On r24 firmware the list of rows could stop updating altogether.
 
@@ -216,6 +221,11 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## Не выпущено
+- **Профили источников: откуда брать фильмы, можно выбрать прямо в списке раздач.** Для тех, у кого есть и Debrid, и торренты или несколько серверов AIOStreams. Включается на странице настроек: «Дополнительно» → «Профили источников», по умолчанию выключено. Затем сохраните нужные источники профилями на экране «Откуда брать фильмы»: конфиг Melange на любом сервере (из списка или своём, например на NAS) в режиме Debrid или «Торренты» либо свою ссылку на конфиг. Профилей — до 8, у каждого своё имя. В списке раздач MENU → **«Откуда брать → <имя>»** переключает на другой профиль, если их два; при трёх и больше **«Откуда брать…»** открывает список профилей, текущий помечен «· сейчас». Переключение действует сразу везде, как смена на странице настроек. Сначала Melange спрашивает у нового источника раздачи этого фильма. Ответил — в списке его раздачи, список может быть и пустым, если раздач нет. Не ответил или не принял ссылку — ничего не меняется, а в окне написано почему. Профиль на сервере появляется в меню, когда его конфиг уже есть: страница настроек создаёт его при «Сохранить» с этим сервером и режимом. Ключи, шаблоны, JacRed, «Без торрентов» и «Основной Debrid» общие для всех профилей.
+- «Скачать лог» теперь скрывает и адреса своих серверов AIOStreams, которые сейчас не выбраны, и ссылки всех профилей, а не только текущего источника.
+- Если вернуться на старую версию, первое «Сохранить» на её странице настроек удалит профили.
 
 ## 0.57.2 — 12.11.2026
 - Исправлено: изменения списка рядов на сервере теперь доходят до каталога не через час, а не позже чем через 10 минут, при следующем открытии; на прошивке r25 — с открытия после того, на котором Melange обновил список. Убранные на сервере ряды пропадают. Новые ряды появляются в «Настроить список...» и на странице настроек; если вы выбирали ряды сами, на экран они сами не добавятся. На прошивке r24 список рядов раньше мог не обновляться совсем.
