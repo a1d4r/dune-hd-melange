@@ -1,10 +1,12 @@
 // The source profiles (#pr, 0.58.0) at the bottom of "Where to get films", by the script only (the CSS shows the block
 // with "Source profiles" on). The list from #init.profiles, then from each answer of a=profile_*: a card each - its
 // name with "now" on the one in use, its kind and host, "No config" when its config is not on the Dune; "Edit" opens
-// its name (and the link of an own config) and "Save the profile" (a=profile_edit), "Delete" asks first
-// (a=profile_del). "Save the current one as a profile" (a=profile_add) makes one of the saved source: disabled while
-// the form has something to save (the bar) or the profiles are full, the line why under it. Each request is a write
-// as a save is: none goes while another one does.
+// its name (and the link of an own config) and "Save the profile" (a=profile_edit; Enter in them too), and is
+// "Cancel" then (closes them, the values as saved; "Delete" hidden till then); "Delete" asks first (a=profile_del).
+// The lines of an edit are in its card, the rest under the block. "Save the current one as a profile" (a=profile_add;
+// Enter in its name too) makes one of the saved source: disabled while the form has something to save (the bar), the
+// profiles are full or the source in use is a profile already, the line why under it. Each request is a write as a
+// save is: none goes while another one does. Enter in a field of the profiles never submits the form.
 
 import { type Api, parseProfiles, type Profile, type ProfileAnswer, type ProfileList, type Result } from "./api";
 import type { Bar } from "./bar";
@@ -34,11 +36,13 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     add = byId<HTMLButtonElement>(doc, ID.profileAdd),
     dirty = byId(doc, ID.profileDirty),
     full = byId(doc, ID.profilesFull),
+    inUse = byId(doc, ID.profileInUse),
     results = byId(doc, ID.profileResult);
   let profiles: ProfileList = parseProfiles(data) || { list: [], def: "", max: 0 };
   const isFull = () => profiles.list.length >= profiles.max;
+  const nowSaved = () => profiles.list.some((p) => p.now);
   block.hidden = false;
-  lock.hold(add, () => bar.pending() || isFull());
+  lock.hold(add, () => bar.pending() || isFull() || nowSaved());
 
   function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string): HTMLElementTagNameMap[K] {
     const made = doc.createElement(tag);
@@ -66,9 +70,26 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     return [labelEl, box, input];
   }
 
-  // A request of the button: out gets the result of an error about one of the fields (marked) or, with no field,
-  // results of the block; a list in the answer is shown anew.
-  function act(source: HTMLButtonElement, out: HTMLElement, fields: Fields, call: () => Promise<Result<ProfileAnswer>>, done?: (answer: ProfileAnswer) => void): void {
+  // Enter in a field of the profiles: its button (the implicit submission of the form would save the whole form).
+  function enterClicks(input: HTMLInputElement, target: HTMLButtonElement): void {
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.isComposing) return;
+      event.preventDefault();
+      target.click();
+    });
+  }
+  // The line of the card at i (none: results of the block).
+  function cardOut(i: number): HTMLElement {
+    const box = listBox.children[i];
+    return (box && box.querySelector<HTMLElement>("." + CLS.result)) || results;
+  }
+
+  // A request of the button: out gets "Saving" and the result of an error about one of the fields (marked); the
+  // rest goes to the card at, if given (no answer, refused with the same list, done), else to results of the block. A
+  // list in the answer is shown anew when the request went or it is another one (refused with the same: the fields
+  // typed stay).
+  function act(source: HTMLButtonElement, out: HTMLElement, fields: Fields, call: () => Promise<Result<ProfileAnswer>>,
+    done?: (answer: ProfileAnswer) => void, at?: number): void {
     if (!lock.free(source)) return;
     const pending = encodedOr(out, texts.badChars, call);
     if (!pending) return;
@@ -77,7 +98,10 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     show(out, "hint", [texts.saving]);
     pending.then((result) => {
       lock.run(source, false);
-      if (result.kind !== "data") return show(out, "err", [failureText(texts, result)]);
+      if (result.kind !== "data") {
+        if (at === undefined && out !== results) out.textContent = "";
+        return show(at !== undefined ? out : results, "err", [failureText(texts, result)]);
+      }
       const answer = result.data;
       const bad = !answer.ok && answer.part ? fields[answer.part] : undefined;
       if (bad && bad.isConnected) {
@@ -87,13 +111,17 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
         return;
       }
       if (done) done(answer);
-      if (out !== results) out.textContent = "";
-      if (answer.profiles) {
+      out.textContent = "";
+      const other = !!answer.profiles && JSON.stringify(answer.profiles) !== JSON.stringify(profiles);
+      if (answer.profiles && (answer.ok || other)) {
         profiles = answer.profiles;
         renderList();
       }
-      if (answer.msg) show(results, answer.ok ? "ok" : "err", [answer.msg]);
-      else results.textContent = "";
+      // Refused with another list (another tab): the card at may be another profile now.
+      const to = at !== undefined && (answer.ok || !other) ? cardOut(at) : results;
+      if (to !== results) results.textContent = "";
+      if (answer.msg) show(to, answer.ok ? "ok" : "err", [answer.msg]);
+      else to.textContent = "";
       render();
     });
   }
@@ -151,20 +179,28 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     open.setAttribute("aria-expanded", "false");
     box.append(edit, open, del, out);
     held.push(save, del);
+    for (const input of Object.values(fields)) enterClicks(input, save);
+    // "Edit" <-> "Cancel": closed, the fields as saved, no marks or lines of them.
     open.addEventListener("click", () => {
       edit.hidden = !edit.hidden;
+      open.textContent = edit.hidden ? texts.profileEdit : texts.profileCancel;
       open.setAttribute("aria-expanded", edit.hidden ? "false" : "true");
-      if (!edit.hidden) name.focus();
+      del.hidden = !edit.hidden;
+      if (!edit.hidden) return name.focus();
+      name.value = p.name;
+      if (fields.url && p.url !== null) fields.url.value = p.url;
+      for (const key in fields) fields[key]!.classList.remove(CLS.bad);
+      out.textContent = "";
     });
     save.addEventListener("click", () => {
       const url = fields.url ? fields.url.value : null;
       act(save, out, fields, () => api.profileEdit(i, p.name, name.value, url), (answer) => {
         if (answer.ok && answer.manifest && p.url !== null && answer.profiles && answer.profiles.list[i])
           linkInUse(p.url, answer.profiles.list[i]!.url || "");
-      });
+      }, i);
     });
     del.addEventListener("click", () => {
-      if (!lock.free(del) || !confirm(texts.profileDeleteConfirm.replace("%s", p.name))) return;
+      if (!lock.free(del) || !confirm(texts.profileDeleteConfirm.replace("%s", () => p.name))) return;
       act(del, out, {}, () => api.profileDel(i, p.name));
     });
     return box;
@@ -178,13 +214,17 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     none.hidden = profiles.list.length > 0;
     nameField.placeholder = profiles.def;
   }
+  // One line why "Save the current one" is disabled: the profiles full, then a change not saved, then the source in use.
   function render(): void {
-    const fullNow = isFull();
+    const fullNow = isFull(),
+      pending = bar.pending();
     full.hidden = !fullNow;
-    dirty.hidden = fullNow || !bar.pending();
+    dirty.hidden = fullNow || !pending;
+    inUse.hidden = fullNow || pending || !nowSaved();
     lock.render();
   }
 
+  enterClicks(nameField, add);
   add.addEventListener("click", () => {
     act(add, results, { name: nameField }, () => api.profileAdd(nameField.value), (answer) => {
       if (answer.ok) nameField.value = "";

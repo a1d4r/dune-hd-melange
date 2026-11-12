@@ -25,7 +25,8 @@ function aio_cgi_profile_texts()
         'profileNoConf' => sprintf(aio_cgi_l('Конфига нет: выберите этот сервер и режим, затем нажмите «%s».',
             'No config: choose this server and mode, then press "%s".'), aio_cgi_saveb()),
         'profileName' => aio_cgi_l('Название', 'Name'), 'profileLink' => aio_cgi_l('Ссылка на конфиг', 'Config link'),
-        'profileEdit' => aio_cgi_l('Изменить', 'Edit'), 'profileSave' => aio_cgi_l('Сохранить профиль', 'Save the profile'),
+        'profileEdit' => aio_cgi_l('Изменить', 'Edit'), 'profileCancel' => aio_cgi_l('Отмена', 'Cancel'),
+        'profileSave' => aio_cgi_l('Сохранить профиль', 'Save the profile'),
         'profileDelete' => aio_cgi_l('Удалить', 'Delete'),
         'profileDeleteConfirm' => aio_cgi_l('Удалить профиль «%s»?', 'Delete the profile "%s"?'));
 }
@@ -41,7 +42,7 @@ function aio_cgi_unposted($id, $label, $placeholder, $max)
 // The source profiles (0.58.0) at the bottom of #src: shown by the script (none without it) and by the CSS only
 // with "Профили источников" on (class xs). The list (#prl) by the script from #init.profiles; under it the line of
 // no profiles, "Название" and "Сохранить текущий как профиль" (a=profile_add), the lines why it is disabled: a
-// change not saved yet, the profiles full.
+// change not saved yet, the profiles full, the source in use a profile already.
 function aio_cgi_profiles_block()
 {
     return '<div id="pr" class="xs" hidden><h3 class="gh">' . aio_cgi_l('Профили источников', 'Source profiles') .
@@ -55,6 +56,8 @@ function aio_cgi_profiles_block()
         'Save the settings first, then the current source as a profile.') . '</p>' .
         '<p class="hint" id="prx" hidden>' . sprintf(aio_cgi_l('Профилей уже %d. Удалите лишний, чтобы добавить новый.',
         'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX) . '</p>' .
+        '<p class="hint" id="prw" hidden>' . aio_cgi_l('Текущий источник уже сохранён профилем, он отмечен «сейчас».',
+        'The current source is saved as a profile already: it is marked "now".') . '</p>' .
         '<div id="prr" class="res" aria-live="polite"></div></div>';
 }
 

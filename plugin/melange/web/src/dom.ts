@@ -100,7 +100,8 @@ export const ID = {
   sourceWas: "sw",
   // The source profiles (0.58.0, profiles.ts) at the bottom of #src: the block (shown by the script, by the CSS only
   // with "Source profiles" on), the list, the line of none, the name of a new one, "Save the current one as a
-  // profile", the lines why it is disabled (a change not saved, the profiles full), results.
+  // profile", the lines why it is disabled (a change not saved, the profiles full, the source in use a profile already),
+  // results.
   profiles: "pr",
   profileList: "prl",
   profilesNone: "pre",
@@ -108,6 +109,7 @@ export const ID = {
   profileAdd: "pra",
   profileDirty: "prd",
   profilesFull: "prx",
+  profileInUse: "prw",
   profileResult: "prr",
 } as const;
 

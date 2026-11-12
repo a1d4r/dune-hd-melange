@@ -1,7 +1,7 @@
 // The source profiles (#pr, 0.58.0): the block by the script (by the CSS only with "Source profiles" on), the list
-// of #init, "Save the current one as a profile" (a=profile_add, disabled with a change not saved or the profiles full),
-// "Edit" -> a=profile_edit (the link of the one in use: the field of the own config too), "Delete" -> a=profile_del,
-// the list anew after a save that stayed; src_was after such a save.
+// of #init, "Save the current one as a profile" (a=profile_add, disabled with a change not saved, the profiles full or the source in use a profile),
+// "Edit" -> a=profile_edit (the link of the one in use: the field of the own config too) and "Cancel", "Delete" ->
+// a=profile_del, Enter in their fields, the list anew after a save that stayed; src_was after such a save.
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
@@ -23,6 +23,20 @@ const LIST = [
 ];
 const answer = (ok: boolean, msg: string, list: unknown[] = LIST, more: Record<string, unknown> = {}) =>
   json({ ok: ok, msg: msg, profiles: { list: list, def: "Свой конфиг", max: 8 }, ...more });
+// prof.html with none of its profiles in use (the source saved is none of them).
+const NONE_NOW = {
+  before: (doc: Document) => {
+    const el = doc.getElementById(ID.init)!;
+    const init = JSON.parse(el.textContent || "");
+    for (const p of init.profiles.list) p.now = false;
+    el.textContent = JSON.stringify(init);
+  },
+};
+const enter = (page: Page, input: HTMLElement) => {
+  const event = new page.win.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }) as unknown as Event;
+  input.dispatchEvent(event);
+  return event.defaultPrevented;
+};
 
 const cards = (page: Page) => Array.from(page.el(ID.profileList).querySelectorAll<HTMLElement>("." + CLS.profile));
 // A card as seen: its title (with "now"), the lines under it.
@@ -98,7 +112,7 @@ describe("the list", () => {
 
 describe("Save the current one as a profile", () => {
   test("a change not saved: disabled, the line why; back as it came: enabled", () => {
-    const page = open("prof");
+    const page = open("prof", NONE_NOW);
     expect([add(page).disabled, page.el(ID.profileDirty).hidden]).toEqual([false, true]);
     page.type(ID.rdKey, "RDTESTKEY00000000000000009");
     expect([add(page).disabled, page.el(ID.profileDirty).hidden]).toEqual([true, false]);
@@ -107,7 +121,7 @@ describe("Save the current one as a profile", () => {
   });
 
   test("posts the name typed; added: the list anew, the field empty, the line ok", async () => {
-    const page = open("prof");
+    const page = open("prof", NONE_NOW);
     page.type(ID.profileName, "Мой & NAS");
     const more = [...LIST, { name: "Мой & NAS", line: "Свой конфиг · aio.example", now: false, ready: true, url: LINK2 }];
     page.replies.push(answer(true, "Профиль «Мой & NAS» сохранён", more));
@@ -117,7 +131,7 @@ describe("Save the current one as a profile", () => {
   });
 
   test("refused about the name: the line, the field marked, the list kept; no answer: the line why", async () => {
-    const page = open("prof");
+    const page = open("prof", NONE_NOW);
     page.type(ID.profileName, "Debrid");
     page.replies.push(answer(false, "Профиль «Debrid» уже есть — назовите иначе", LIST, { part: "name" }));
     await press(add(page));
@@ -129,16 +143,52 @@ describe("Save the current one as a profile", () => {
   });
 
   test("the profiles full: disabled, the line of the limit; one deleted: enabled again", async () => {
-    const page = open("prof");
+    const page = open("prof", NONE_NOW);
     const eight = Array.from({ length: 8 }, (_, i) => ({ name: "P" + i, line: "Debrid · h", now: false, ready: true }));
     page.replies.push(answer(true, "", eight));
     page.type(ID.profileName, "P7");
     await press(add(page));
-    expect([add(page).disabled, page.el(ID.profilesFull).hidden, page.el(ID.profileDirty).hidden]).toEqual([true, false, true]);
+    expect([add(page).disabled, page.el(ID.profilesFull).hidden, page.el(ID.profileDirty).hidden, page.el(ID.profileInUse).hidden])
+      .toEqual([true, false, true, true]);
     page.confirmAnswer = true;
     page.replies.push(answer(true, "Профиль «P0» удалён", eight.slice(1)));
     await press(buttons(cards(page)[0]!)[2]!);
     expect([add(page).disabled, page.el(ID.profilesFull).hidden, cards(page).length]).toEqual([false, true, 7]);
+  });
+});
+
+describe("Save the current one as a profile: in use, Enter", () => {
+  test("the source in use a profile already: disabled, its line; a change not saved: that line instead", () => {
+    const page = open("prof");
+    expect([add(page).disabled, page.el(ID.profileInUse).hidden, page.el(ID.profileDirty).hidden]).toEqual([true, false, true]);
+    page.type(ID.rdKey, "RDTESTKEY00000000000000009");
+    expect([add(page).disabled, page.el(ID.profileInUse).hidden, page.el(ID.profileDirty).hidden]).toEqual([true, true, false]);
+  });
+
+  test("the list anew with none in use (a save that stayed): enabled, no line", async () => {
+    const page = open("prof");
+    page.confirmAnswer = true;
+    page.replies.push(answer(true, "Профиль «Свой & <конфиг>» удалён", [LIST[0]!, LIST[1]!]));
+    await press(buttons(cards(page)[2]!)[2]!);
+    expect([add(page).disabled, page.el(ID.profileInUse).hidden]).toEqual([false, true]);
+  });
+
+  test("Enter in the name of a new one: a=profile_add, not the save of the form", async () => {
+    const page = open("prof", NONE_NOW);
+    let submits = 0;
+    page.form.addEventListener("submit", () => submits++);
+    page.type(ID.profileName, "Мой");
+    page.replies.push(answer(true, "Профиль «Мой» сохранён"));
+    expect(enter(page, page.el(ID.profileName))).toBe(true);
+    await flush();
+    expect([page.calls.map((call) => call.url), submits]).toEqual([[url("profile_add")], 0]);
+  });
+
+  test("Enter there while disabled (in use): nothing goes", async () => {
+    const page = open("prof");
+    expect(enter(page, page.el(ID.profileName))).toBe(true);
+    await flush();
+    expect(page.calls).toEqual([]);
   });
 });
 
@@ -151,8 +201,59 @@ describe("Edit and Delete", () => {
     page.replies.push(answer(true, "Профиль «RD» сохранён", [{ ...LIST[0]!, name: "RD" }, LIST[1]!, LIST[2]!]));
     await press(buttons(debrid)[0]!);
     expect(page.calls).toEqual([{ ...POST, url: url("profile_edit"), body: "i=0&was=Debrid&name=RD" }]);
-    expect([cards(page).map((card) => seen(card)[0]), results(page)]).toEqual([["RD", "NAS", "Свой & <конфиг>" + page.init.i18n.profileNow],
-      [["ok", "Профиль «RD» сохранён"]]]);
+    // The line in its card (closed, anew), none under the block.
+    expect([cards(page).map((card) => seen(card)[0]), lines(cards(page)[0]!.querySelector<HTMLElement>("." + CLS.result)!), results(page)])
+      .toEqual([["RD", "NAS", "Свой & <конфиг>" + page.init.i18n.profileNow], [["ok", "Профиль «RD» сохранён"]], []]);
+  });
+
+  test("Edit -> Cancel, Delete hidden; Cancel: closed, the values as saved, Delete back", async () => {
+    const page = open("prof");
+    const own = cards(page)[2]!;
+    const [, edit, del] = buttons(own);
+    await press(edit!);
+    expect([edit!.textContent, edit!.getAttribute("aria-expanded"), del!.hidden]).toEqual([page.init.i18n.profileCancel, "true", true]);
+    const [name, link] = Array.from(own.querySelectorAll<HTMLInputElement>("input"));
+    page.type(name!, "Другое");
+    page.type(link!, LINK2);
+    link!.classList.add(CLS.bad);
+    await press(edit!);
+    expect([edit!.textContent, edit!.getAttribute("aria-expanded"), del!.hidden, buttons(own)[0]!.closest("[hidden]") !== null,
+      name!.value, link!.value, link!.classList.contains(CLS.bad)]).toEqual([page.init.i18n.profileEdit, "false", false, true, "Свой & <конфиг>", LINK, false]);
+  });
+
+  test("Enter in the name or the link of a card: a=profile_edit of it, not the save of the form", async () => {
+    const page = open("prof");
+    let submits = 0;
+    page.form.addEventListener("submit", () => submits++);
+    const own = cards(page)[2]!;
+    await press(buttons(own)[1]!);
+    const [name, link] = Array.from(own.querySelectorAll<HTMLInputElement>("input"));
+    page.replies.push(answer(true, "Профиль не изменился"), answer(true, "Профиль не изменился"));
+    expect(enter(page, name!)).toBe(true);
+    await flush();
+    await press(buttons(cards(page)[2]!)[1]!);
+    expect(enter(page, cards(page)[2]!.querySelectorAll<HTMLInputElement>("input")[1]!)).toBe(true);
+    await flush();
+    expect([page.calls.map((call) => call.url), submits, link!.isConnected]).toEqual([[url("profile_edit"), url("profile_edit")], 0, false]);
+  });
+
+  test("an edit refused with the same list (no part): the line in the card, the card open, the values typed kept", async () => {
+    const page = open("prof");
+    const debrid = cards(page)[0]!;
+    await press(buttons(debrid)[1]!);
+    page.type(debrid.querySelector("input")!, "RD");
+    page.replies.push(answer(false, "Не сохранено: с этим профилем резервная копия будет слишком большой"));
+    await press(buttons(debrid)[0]!);
+    expect([debrid.isConnected, debrid.querySelector("input")!.value, lines(debrid.querySelector<HTMLElement>("." + CLS.result)!), results(page)])
+      .toEqual([true, "RD", [["err", "Не сохранено: с этим профилем резервная копия будет слишком большой"]], []]);
+  });
+
+  test("an edit refused with another list (another tab): the list anew, the line under the block", async () => {
+    const page = open("prof");
+    await press(buttons(cards(page)[0]!)[1]!);
+    page.replies.push(answer(false, "Профили изменились в другой вкладке: список обновлён", [LIST[1]!, LIST[2]!]));
+    await press(buttons(cards(page)[0]!)[0]!);
+    expect([cards(page).length, results(page)]).toEqual([2, [["err", "Профили изменились в другой вкладке: список обновлён"]]]);
   });
 
   test("a wrong link: the line in the card, the link marked; nothing else changed", async () => {
@@ -201,6 +302,16 @@ describe("Edit and Delete", () => {
     expect([cards(page).length, results(page)]).toEqual([2, [["ok", "Профиль «NAS» удалён"]]]);
   });
 
+  test("Delete of a name with $& (a pattern of replace): asked with the name as it is", async () => {
+    const page = open("prof", NONE_NOW);
+    page.type(ID.profileName, "a$&b$1");
+    page.replies.push(answer(true, "ok", [...LIST, { name: "a$&b$1", line: "Debrid · h", now: false, ready: true }]));
+    await press(add(page));
+    await press(buttons(cards(page)[3]!)[2]!);
+    expect(page.confirms).toEqual([page.init.i18n.profileDeleteConfirm.replace("%s", () => "a$&b$1")]);
+    expect(page.confirms[0]).toContain("«a$&b$1»");
+  });
+
   test("the profiles changed in another tab: the list of the file, the line", async () => {
     const page = open("prof");
     page.confirmAnswer = true;
@@ -210,7 +321,7 @@ describe("Edit and Delete", () => {
   });
 
   test("a request going: every button of the profiles and Save disabled; back: enabled", async () => {
-    const page = open("prof");
+    const page = open("prof", NONE_NOW);
     const reply = later();
     page.replies.push(reply.reply);
     page.confirmAnswer = true;
@@ -219,13 +330,13 @@ describe("Edit and Delete", () => {
     expect(all().filter((button) => button.textContent !== page.init.i18n.profileEdit).every((button) => button.disabled)).toBe(true);
     await press(buttons(cards(page)[1]!)[2]!);
     expect(page.calls.length).toBe(1);
-    reply.resolve(answer(true, "Профиль «Debrid» удалён", [LIST[1]!, LIST[2]!]));
+    reply.resolve(answer(true, "Профиль «Debrid» удалён", [LIST[1]!, { ...LIST[2]!, now: false }]));
     await flush();
     expect(all().some((button) => button.disabled)).toBe(false);
   });
 
   test("a 403: the profiles locked as the rest of the page", async () => {
-    const page = open("prof");
+    const page = open("prof", NONE_NOW);
     page.replies.push(json({}, 403));
     await press(add(page));
     expect([add(page).disabled, ...cards(page).flatMap(buttons).map((button) => button.disabled)].every(Boolean)).toBe(true);

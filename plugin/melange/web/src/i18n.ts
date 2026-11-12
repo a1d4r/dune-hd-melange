@@ -112,6 +112,7 @@ export const TEXT_KEYS = [
   "profileName",
   "profileLink",
   "profileEdit",
+  "profileCancel",
   "profileSave",
   "profileDelete",
   "profileDeleteConfirm",
