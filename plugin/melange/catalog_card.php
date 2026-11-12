@@ -420,25 +420,29 @@ function aio_card_meta($imdb)
     return $m;
 }
 
-// A tile with IMDb and no card of the server: the local card of the shell made from
-// it before, opened as it is (the user may have edited it in the shell), whatever the
-// server said. None or a broken one, and $make (the server sure it has no card) for a
-// movie: written from the tile, the fields do_parse_movie_json reads; genres, countries,
-// the age and people from the meta of the catalog server (aio_card_meta), from the tile
-// when it fails (no people then); Kinopoisk from the tile. Empty fields are left out. -> its id, ''
-// if none. The id is of Melange alone (m-melange-), no card of the user is touched.
-// Uninstall leaves these files on purpose: they are the user's history, as the
-// history of the shell is.
+// The id of the local card of a tile: m-melange-<IMDb>, of Melange alone, no card of the user
+// is touched; '' without a good IMDb.
 /**
  * @param AioCatTile $tile
- * @param bool $make
  * @return string
  */
-function aio_card_local($tile, $make)
+function aio_card_local_id($tile)
 {
-    if (!preg_match('/^tt[0-9]{1,10}$/D', $tile['imdb_id']))
+    return preg_match('/^tt[0-9]{1,10}$/D', $tile['imdb_id']) ? 'm-melange-' . $tile['imdb_id'] : '';
+}
+
+// A tile with IMDb and no card of the server: the local card of the shell made from it
+// before, opened as it is (the user may have edited it in the shell), whatever the server
+// said. -> its id, '' for none or a broken one.
+/**
+ * @param AioCatTile $tile
+ * @return string
+ */
+function aio_card_local_find($tile)
+{
+    $id = aio_card_local_id($tile);
+    if ($id === '')
         return '';
-    $id = 'm-melange-' . $tile['imdb_id'];
     $f = AIO_USER_CARD_DIR . "/$id.json";
     $j = is_file($f) ? json_decode(strval(@file_get_contents($f)), true) : null;
     if (is_array($j) && isset($j['result']) && is_array($j['result']) && isset($j['result']['id']) &&
@@ -447,8 +451,30 @@ function aio_card_local($tile, $make)
         aio_log("card: local $id kept");
         return $id;
     }
-    if (!$make || $tile['type'] !== 'movie')
+    return '';
+}
+
+// The way of 0.57.2 (goes with it): the local card of aio_card_local_find; none and $make (the
+// server sure it has no card) for a movie: written from the tile, the fields do_parse_movie_json
+// reads; genres, countries, the age and people from the meta of the catalog server
+// (aio_card_meta), from the tile when it fails (no people then); Kinopoisk from the tile. Empty
+// fields are left out. -> its id, '' if none. Uninstall leaves these files on purpose: they are
+// the user's history, as the history of the shell is.
+/**
+ * @param AioCatTile $tile
+ * @param bool $make
+ * @return string
+ */
+function aio_card_local($tile, $make)
+{
+    $id = aio_card_local_find($tile);
+    if ($id !== '' || !$make || $tile['type'] !== 'movie')
+        return $id;
+    // IMDb checked again where the file is written: a bad one makes no name.
+    $id = aio_card_local_id($tile);
+    if ($id === '')
         return '';
+    $f = AIO_USER_CARD_DIR . "/$id.json";
     $now = time();
     $r = array('id' => $id, 'type' => 'movie', 'customType' => 'user',
         'title' => array('ru' => $tile['name'], 'en' => $tile['englishTitle'] !== '' ? $tile['englishTitle'] : $tile['name']),
@@ -537,7 +563,8 @@ function aio_card_releases($tile, $lang)
 }
 
 // The action of ENTER on $tile (aio_cat_tile). $lang: ru or another, as of play_action. A movie
-// with IMDb or TMDB: the own card of Melange (view_card.php), no local card written; else as before.
+// with an id of the meta (aio_cm_id: IMDb or TMDB): the own card of Melange (view_card.php), no
+// local card written; else (a series for now) as before.
 /**
  * @param AioCatTile $tile
  * @param string $lang
@@ -545,7 +572,7 @@ function aio_card_releases($tile, $lang)
  */
 function aio_card_enter($tile, $lang)
 {
-    if ($tile['type'] === 'movie' && ($tile['imdb_id'] !== '' || $tile['_tmdbId'] !== ''))
+    if ($tile['type'] === 'movie' && aio_cm_id($tile) !== '')
         return aio_oc_enter($tile, $lang);
     $c = aio_card_id($tile);
     $id = $c['id'] !== '' ? $c['id'] : aio_card_local($tile, $c['none']);
