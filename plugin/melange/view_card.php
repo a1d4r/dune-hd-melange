@@ -260,8 +260,8 @@ function aio_oc_countries($c)
 }
 
 // The facts of the panel of the catalog with the kind first: "Фильм · 2001 · 2 ч 32 мин". A series
-// has it ("Сериал") in the parts already; its seasons of the meta instead of the length of an
-// episode: "Сериал · 2008 · 5 сезонов".
+// has it ("Сериал") in the parts already; its seasons of the meta with an episode out instead of
+// the length of an episode: "Сериал · 2008 · 5 сезонов".
 /**
  * @param AioOcCard $c
  * @return list<array{string, string, string}>
@@ -269,7 +269,18 @@ function aio_oc_countries($c)
 function aio_oc_facts($c)
 {
     $p = aio_catv_fact_parts($c['tile'], $c['ui']);
-    $n = $c['meta'] ? count($c['meta']['seasons']) : 0;
+    $n = 0;
+    foreach ($c['meta'] ? $c['meta']['seasons'] : array() as $s => $eps)
+    {
+        foreach ($eps as $ep)
+        {
+            if ($s > 0 && !$ep['soon'])
+            {
+                $n++;
+                break;
+            }
+        }
+    }
     if ($c['tile']['type'] !== 'series')
         array_unshift($p['rest'], aio_tr($c['ui'], 'card_kind_movie'));
     else if ($n > 0)
@@ -598,7 +609,7 @@ function aio_oc_under_ser($c, $x)
     if ($c['imdb'] !== '' && $c['dune'] !== '')
         return array();
     $line = aio_tr($c['ui'], $c['imdb'] === '' ? ($c['meta'] ? 'err_no_imdb' : 'cat_row_failed') : 'card_no_history');
-    return array(aio_oc_label($x, AIO_OC_BTN_Y_SER + (AIO_OC_BTN_H - 34) / 2, 1845 - $x, $line, 24, AIO_CATV_TEXT_COLOR));
+    return array(aio_oc_label($x, AIO_OC_BTN_Y_SER + (AIO_OC_BTN_H - 34) / 2, AIO_OC_HINT_R - $x, $line, 24, AIO_CATV_TEXT_COLOR));
 }
 
 // The hint of what DOWN shows: $text and the arrow down at ($x, $y) of the screen.
@@ -967,28 +978,39 @@ function aio_oc_tab_state($pos, $s)
     return $s !== $pos['s'] ? 0 : ($pos['z'] === 'pill' ? 2 : 1);
 }
 
+// The width of the count after the tabs $t, up to the right edge of the hint.
+/**
+ * @param AioOcTabs $t
+ * @return int
+ */
+function aio_oc_count_w($t)
+{
+    return AIO_OC_HINT_R - $t['x'] - $t['w'] - 24;
+}
+
 // After the tabs: "13 серий · 4 просмотрено" / "13 серий · все просмотрены" of season $s, by the
-// progress $prog.
+// progress $prog, cut to width $w with "…".
 /**
  * @param AioOcCard $c
  * @param array<string, array{float, float, bool}> $prog
  * @param int $s
+ * @param int $w
  * @return list<AioGcComp>
  */
-function aio_oc_count($c, $prog, $s)
+function aio_oc_count($c, $prog, $s, $w)
 {
     $eps = aio_oc_eps($c, $s);
     $n = count($eps);
-    $w = 0;
+    $k = 0;
     foreach ($eps as $ep)
     {
         $pr = aio_oc_prog($c, $prog, $ep);
-        $w += $pr && $pr[2] ? 1 : 0;
+        $k += $pr && $pr[2] ? 1 : 0;
     }
     $t = $n . ' ' . aio_gc_plural($c['ui'], $n, 'card_eps');
-    if ($w > 0)
-        $t .= ' · ' . ($w === $n ? aio_tr($c['ui'], 'card_eps_all') : str_replace('{n}', strval($w), aio_tr($c['ui'], 'card_eps_watched')));
-    return array(aio_gc_cut(null, aio_gc_left_center(600, 34, 0), $t, 24, AIO_GC_DIM));
+    if ($k > 0)
+        $t .= ' · ' . ($k === $n ? aio_tr($c['ui'], 'card_eps_all') : str_replace('{n}', strval($k), aio_tr($c['ui'], 'card_eps_watched')));
+    return array(aio_gc_cut(null, aio_gc_left_center($w, 34, 0), aio_gc_cut_w($t, 24, $w), 24, AIO_GC_DIM));
 }
 
 // The first still of the row at the left slot with the one at index $i in focus (in a season of
@@ -1194,8 +1216,8 @@ function aio_oc_series($c, $l, $pos)
         aio_gc_panel('tabh', aio_gc_at($t['x'] - $x0, AIO_OC_TAB_H, $x0, AIO_OC_TAB_Y), $head),
         aio_gc_panel('tabs', aio_gc_at($t['w'], AIO_OC_TAB_H, $t['x'], AIO_OC_TAB_Y),
             array(aio_gc_panel('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -aio_oc_tabs_shift($t, $pos['s']), 0), $tabs)), 0),
-        aio_gc_panel('cnt', aio_gc_at(1845 - $t['x'] - $t['w'] - 24, AIO_OC_TAB_H, $t['x'] + $t['w'] + 24, AIO_OC_TAB_Y),
-            aio_oc_count($c, $l['prog'], $pos['s'])),
+        aio_gc_panel('cnt', aio_gc_at(aio_oc_count_w($t), AIO_OC_TAB_H, $t['x'] + $t['w'] + 24, AIO_OC_TAB_Y),
+            aio_oc_count($c, $l['prog'], $pos['s'], aio_oc_count_w($t))),
         aio_gc_panel('row', aio_gc_at(1920, AIO_OC_ROW_H, 0, AIO_OC_ROW_Y),
             array(aio_gc_panel('eps', aio_oc_eps_geom($n, $off), aio_oc_ep_cards($c, $l['prog'], $pos['s'], $lo, $hi,
                 $pos['z'] === 'row' ? $i : -1))), 0),
@@ -1469,7 +1491,7 @@ function aio_oc_row_changes($c, $l, $old, $new)
         $sh = aio_oc_tabs_shift($t, $new['s']);
         if ($sh !== aio_oc_tabs_shift($t, $old['s']))
             $ch[] = aio_gc_change('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -$sh, 0), GCOMP_TRANSITION_DEFAULT);
-        $ch[] = aio_gc_change('cnt', null, GCOMP_TRANSITION_NONE, aio_oc_count($c, $l['prog'], $new['s']));
+        $ch[] = aio_gc_change('cnt', null, GCOMP_TRANSITION_NONE, aio_oc_count($c, $l['prog'], $new['s'], aio_oc_count_w($t)));
     }
     if ($new['s'] !== $old['s'] || $lo > $ohi || $hi < $olo)
     {
