@@ -2631,7 +2631,7 @@ function aio_catv_input($in, $control)
     if ($control === 'cat_info')
         return aio_catv_info($in);
     if ($control === 'cat_enter')
-        return aio_catv_enter($in);
+        return aio_tv_is_from($from) ? aio_tv_enter($in) : aio_catv_enter($in);
     // show_all_action of a row: cat_more is the id of its tile "Show all".
     if ($control === 'cat_all')
     {
@@ -2649,7 +2649,7 @@ function aio_catv_input($in, $control)
     if ($control === 'cat_search_run')
         return aio_catv_search_run(aio_catv_in($in, 'cat_q'), $from);
     if ($control === 'cat_menu')
-        return aio_catv_menu($in, $from);
+        return aio_tv_is_from($from) ? aio_tv_menu($in) : aio_catv_menu($in, $from);
     if ($control === 'cat_part')
         return aio_catv_strip_enter(aio_catv_in($in, 'part'), $from, true);
     if ($control === 'cat_rows_menu')

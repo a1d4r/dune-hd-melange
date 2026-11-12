@@ -91,6 +91,8 @@ function aio_tv_view($lang)
             $defs = aio_tv_note_defs('tv:open', 'tv_open', $lang);
     }
     $view = aio_catv_rows_view($defs, null, AIO_TV_FROM);
+    // No search key of the plugin on the main screen: POP UP has the search (aio_tv_menu).
+    unset($view[PluginFolderView::data][PluginRowsFolderView::actions][GUI_EVENT_KEY_SEARCH]);
     AioCat::$logo = $logo;
     AioCat::$rating = $rating;
     return $view;
@@ -158,4 +160,69 @@ function aio_tv_update($in)
     $ni = aio_tv_put("{$d['flash']}/" . AIO_TV_EPF . '.no_internet.json', $json);
     aio_log(sprintf('%s %s: %s %d B, no_internet %s, %.0f ms', $what, $lang, $res, strlen($json), $ni, (microtime(true) - $t0) * 1000));
     return $status;
+}
+
+// --- The actions of the EPF: from "tv:<id of the EPF>", the tiles of the catalog as on its screens.
+
+// $from of an action is the EPF of the tab "TV": no screen of Melange is under it, so none may be
+// replaced (aio_replace_act); a screen of Melange opens over the main screen.
+/**
+ * @param string $from
+ * @return bool
+ */
+function aio_tv_is_from($from)
+{
+    return preg_match('/^tv:[a-z]+$/D', $from) === 1;
+}
+
+// The catalog of Melange, its entry "catalog", over the main screen.
+/**
+ * @return AioAction
+ */
+function aio_tv_catalog_act()
+{
+    return aio_catv_open_act('catalog', '%tr%plugin_caption');
+}
+
+// ENTER in the EPF: "Open Melange" - the catalog, "Set up Melange" - the settings; any other tile as on
+// a screen of rows (aio_catv_enter: a title - its card, "Show all" - that screen of Melange).
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
+function aio_tv_enter($in)
+{
+    $id = aio_catv_in($in, 'selected_item_id');
+    if ($id === 'tv:open')
+        return aio_tv_catalog_act();
+    if ($id === 'tv:setup')
+        return aio_setup_open_act();
+    return aio_catv_enter($in);
+}
+
+// POP UP in the EPF, on any tile: the search (its results a screen of Melange), the catalog, the
+// settings. The search key is not the plugin's there: the main screen has its own (aio_tv_view).
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
+function aio_tv_menu($in)
+{
+    $from = aio_catv_in($in, 'from');
+    $lang = aio_catv_lang();
+    aio_log("tv: POP UP on '" . aio_cut(aio_catv_in($in, 'selected_item_id'), 100) . "'");
+    $items = array();
+    foreach (array(
+        array('cat_search', AIO_CATV_ICON_SEARCH, aio_input('cat_search', array('from' => $from))),
+        array('tv_open', 'movies_small.png', aio_tv_catalog_act()),
+        array('setup_menu', AIO_CATV_ICON_SETUP, aio_setup_open_act())) as $m)
+    {
+        $items[] = array(
+            GuiMenuItemDef::caption => aio_tr($lang, $m[0]),
+            GuiMenuItemDef::icon_url => AIO_CATV_ICONS . $m[1],
+            GuiMenuItemDef::action => $m[2]);
+    }
+    return array(
+        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
 }
