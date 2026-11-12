@@ -136,6 +136,9 @@ class Aio
     // no more reads or requests for it. Memory of php_server only: after an
     // update of the server the route is found without the user.
     public static $seg_no_route = '';
+    // The zlib function of AioQrPng (in libphp5 of r24 and r25, not known for
+    // older ones): aio_qr_file makes no picture without it. Tests name a missing one.
+    public static $zlib = 'gzcompress';
 }
 
 // --- Log: /tmp/run/melange.log (stdout of php_server).
@@ -380,6 +383,67 @@ function aio_write_file($path, $data, $mode = 0600)
     if (!$ok && is_file($tmp))
         unlink($tmp);
     return $ok;
+}
+
+// Side in px of a QR picture made by AioQrPng (square, IHDR width), 0 if
+// there is none or it is not ours.
+/**
+ * @param string $png
+ * @return int
+ */
+function aio_qr_png_side($png)
+{
+    clearstatcache();
+    $h = is_file($png) && !is_link($png) && is_readable($png) ? file_get_contents($png, false, null, 0, 24) : '';
+    if (strlen($h) !== 24 || substr($h, 0, 16) !== "\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR")
+        return 0;
+    $wh = unpack('Nw/Nh', substr($h, 16, 8));
+    return $wh['w'] === $wh['h'] && $wh['w'] > 0 && $wh['w'] <= 2000 ? $wh['w'] : 0;
+}
+
+// The QR picture of $text (AioQrPng::make with $scale, $max_side, $mask) in
+// tmp_dir, "<$group><$list><md5 of $text>.png": the shell caches pictures by
+// path, so another text gets another name. Made once, then taken from there.
+// The other <$group>*.png go, but those of the same $list ('' keeps none).
+// The log, as "$tag: QR ...", has no $text. array(path, side px); null when
+// it cannot be made or written.
+/**
+ * @param string $group
+ * @param string $list
+ * @param string $text
+ * @param int $scale
+ * @param int $max_side
+ * @param int $mask
+ * @param string $tag
+ * @return array{string, int}|null
+ */
+function aio_qr_file($group, $list, $text, $scale, $max_side, $mask, $tag)
+{
+    $tmp = isset(DuneSystem::$properties['tmp_dir_path']) ? rtrim(strval(DuneSystem::$properties['tmp_dir_path']), '/') : '';
+    if ($tmp === '' || !function_exists(Aio::$zlib) || (!is_dir($tmp) && !mkdir($tmp, 0755, true)))
+        return null;
+    $png = "$tmp/$group$list" . md5($text) . '.png';
+    foreach ((array) glob("$tmp/$group*.png") as $old)
+    {
+        if (is_string($old) && $old !== $png && ($list === '' || strpos(basename($old), $group . $list) !== 0))
+            unlink($old);
+    }
+    $side = aio_qr_png_side($png);
+    if ($side > 0)
+    {
+        aio_log("$tag: QR from tmp_dir");
+        return array($png, $side);
+    }
+    require_once dirname(__FILE__) . '/qrpng.php';
+    $t = microtime(true);
+    $qr = AioQrPng::make($text, $scale, 4, $max_side, $mask);
+    if (!aio_write_file($png, $qr['png']))
+    {
+        aio_log("$tag: QR not written to tmp_dir");
+        return null;
+    }
+    aio_log(sprintf('%s: QR v%d, %d px, %d ms', $tag, $qr['version'], $qr['size'], (microtime(true) - $t) * 1000));
+    return array($png, $qr['size']);
 }
 
 // settings.json of the settings $s (aio_settings_read) as the page writes

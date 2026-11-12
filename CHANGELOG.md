@@ -3,7 +3,7 @@
 **English version**
 
 ## Unreleased
-- **The release page on its tracker, in the release details.** INFO in the release list now shows the address of the release page in the **Origin** column, and the next page (P−) has it as a QR code: scan it with your phone camera to open the page. The address comes from the Melange server; other AIOStreams servers do not send it, and the screen stays as it was.
+- **The release page on its tracker, in the release details.** INFO in the release list now shows the address of the release page in the **Origin** column and, if the address is not too long, a QR code of it on the next page (P−): scan it with your phone camera to open the page. The address comes from the Melange server; other AIOStreams servers do not send it, and the screen stays as it was.
 - Fixed: a two-part film that the database lists as a miniseries (for example, «Берегите женщин») did not play via TorrServer when the release was one file without an episode number: Melange showed "The release has no file for this episode". Now it plays that file, and the second episode opens the same file.
 
 ## 0.57.2 — 12.11.2026
@@ -222,7 +222,7 @@ First public release. What it does:
 **Russian version**
 
 ## Не выпущено
-- **Страница раздачи на трекере в сведениях о раздаче.** INFO в списке раздач теперь показывает в колонке «Откуда» адрес страницы раздачи, а на следующей странице (P−) — QR-код этого адреса: наведите на него камеру телефона, чтобы открыть страницу. Адрес присылает сервер Melange; с другими серверами AIOStreams его нет, и экран остаётся прежним.
+- **Страница раздачи на трекере в сведениях о раздаче.** INFO в списке раздач теперь показывает в колонке «Откуда» адрес страницы раздачи, а если адрес не слишком длинный, то и QR-код на следующей странице (P−): наведите на него камеру телефона, чтобы открыть страницу. Адрес присылает сервер Melange; с другими серверами AIOStreams его нет, и экран остаётся прежним.
 - Исправлено: двухсерийный фильм, который в базе записан мини-сериалом (например, «Берегите женщин»), не включался через TorrServer, если в раздаче один файл без номера серии: Melange писал «В раздаче нет файла этой серии». Теперь он играет этот файл, и вторая серия включает тот же файл.
 
 ## 0.57.2 — 12.11.2026

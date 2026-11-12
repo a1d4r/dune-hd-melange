@@ -6,7 +6,7 @@
 // sent it, then the row as Melange computed it (without the stream). P+/P-
 // slide the pages with change_gcomps (as the list scrolls); the page travels
 // in sel_state {"page":N}. URLs are cut to the host: they carry tokens. The
-// page of the release on its tracker (row key 'page', streamData.infoUrl)
+// page of the release on its tracker (row key 'release_url', streamData.infoUrl)
 // is in the right column and, up to AIO_INF_QR_MAX bytes, a QR on page 2.
 // Reads Aio::$state.
 
@@ -641,7 +641,7 @@ function aio_info_addons($addons, $lang)
     return implode(' · ', $v);
 }
 
-// The right column; the page of the release in $pmax lines at most, fewer
+// The right column; the release page (release_url) in $pmax lines at most, fewer
 // when the hash would not fit whole then.
 /**
  * @param AioRow $r
@@ -656,7 +656,7 @@ function aio_info_col_source($r, $sd, $pf, $tt, $top, $pmax = 2)
 {
     $lang = $tt['lang'];
     $l = array();
-    foreach (array('seeders', 'age', 'expr', 'eps_file', 'eps_pack', 'type', 'addons', 'page_url') as $k)
+    foreach (array('seeders', 'age', 'expr', 'eps_file', 'eps_pack', 'type', 'addons', 'release_url') as $k)
         $l[$k] = aio_tr($lang, "info_$k");
     $c = aio_info_col(2, aio_tr($lang, 'info_col_source'),
         array_merge($l, array($tt['trackers'], $tt['addon'], $tt['source'])), $top);
@@ -666,8 +666,8 @@ function aio_info_col_source($r, $sd, $pf, $tt, $top, $pmax = 2)
     if ($r['trackers'])
         aio_info_field($c, $tt['trackers'], aio_cut(implode(', ', $r['trackers']), AIO_TEXT_MAX), 2);
     // Without the scheme: the QR page has it whole.
-    $page = $pmax > 0 ? preg_replace('~^https?://~i', '', $r['page']) : '';
-    aio_info_field($c, $l['page_url'], $page, $pmax);
+    $rel = $pmax > 0 ? preg_replace('~^https?://~i', '', $r['release_url']) : '';
+    aio_info_field($c, $l['release_url'], $rel, $pmax);
     // A line an add-on at most (no more than AIO_ADDONS_MAX), so none is cut;
     // the room of the column still limits it.
     if (!empty($r['addons']))
@@ -694,7 +694,7 @@ function aio_info_col_source($r, $sd, $pf, $tt, $top, $pmax = 2)
     foreach (array('private', 'freeleech') as $k)
         $type[] = isset($tor[$k]) && $tor[$k] === true ? $k : '';
     aio_info_field($c, $l['type'], implode(' · ', array_filter($type, 'strlen')), 1);
-    if ($page !== '' && aio_info_room($c, true) < count(aio_gc_wrap($r['hash'], 26, AIO_INF_CW, 2)))
+    if ($rel !== '' && aio_info_room($c, true) < count(aio_gc_wrap($r['hash'], 26, AIO_INF_CW, 2)))
         return aio_info_col_source($r, $sd, $pf, $tt, $top, $pmax - 1);
     aio_info_field($c, aio_tr($lang, 'info_hash'), $r['hash'], 2, true);
     return $c;
@@ -743,52 +743,21 @@ function aio_info_passport($st, $n, $vs)
 
 // --- The QR page: the page of the release on its tracker.
 
-// The QR picture of $url in tmp_dir, "iqr_<md5 of $url>.png" (the shell
-// caches pictures by path; the settings QR is "qr_*"): made once, the other
-// iqr_* removed. array(path, side px); null when it cannot be written.
+// Children of the QR page of address $url of a row of list $rid: the QR at
+// the left in the middle (its quiet zone white: light under the code on the
+// dark screen), at its right the head, the address whole and how to use it;
+// null without the picture. The picture: tmp_dir/iqr_<rid>_<md5>.png, mask 0,
+// not the best of 8 (the screen waits for it: v10 ~0.5 s more); those of the
+// other rows of the list stay (back to a row: not made again), of other lists go.
 /**
  * @param string $url
- * @return array{string, int}|null
- */
-function aio_info_qr_png($url)
-{
-    $tmp = isset(DuneSystem::$properties['tmp_dir_path']) ? rtrim(strval(DuneSystem::$properties['tmp_dir_path']), '/') : '';
-    // gzcompress (zlib, AioQrPng): in libphp5 of r24 and r25, not known for older ones.
-    if ($tmp === '' || !function_exists('gzcompress') || (!is_dir($tmp) && !mkdir($tmp, 0755, true)))
-        return null;
-    $png = "$tmp/iqr_" . md5($url) . '.png';
-    foreach ((array) glob("$tmp/iqr_*.png") as $old)
-    {
-        if (is_string($old) && $old !== $png)
-            unlink($old);
-    }
-    $side = aio_setup_png_side($png);
-    if ($side > 0)
-        return array($png, $side);
-    require_once dirname(__FILE__) . '/qrpng.php';
-    $t = microtime(true);
-    // Mask 0, not the best of 8: the screen waits for it (v10 ~0.5 s more).
-    $qr = AioQrPng::make($url, 1, 4, AIO_INF_QR_SIDE, 0);
-    if (!aio_write_file($png, $qr['png']))
-    {
-        aio_log('info: QR not written to tmp_dir');
-        return null;
-    }
-    aio_log(sprintf('info: QR v%d, %d px, %d ms', $qr['version'], $qr['size'], (microtime(true) - $t) * 1000));
-    return array($png, $qr['size']);
-}
-
-// Children of the QR page of address $url: the QR at the left in the middle
-// (its quiet zone white: light under the code on the dark screen), at its
-// right the head, the address whole and how to use it; null without the picture.
-/**
- * @param string $url
+ * @param string $rid
  * @param string $lang
  * @return list<AioGcComp>|null
  */
-function aio_info_qr_page($url, $lang)
+function aio_info_qr_page($url, $rid, $lang)
 {
-    $qr = aio_info_qr_png($url);
+    $qr = aio_qr_file('iqr_', $rid . '_', $url, 1, AIO_INF_QR_SIDE, 0, 'info');
     if (!$qr)
         return null;
     list($png, $side) = $qr;
@@ -1041,8 +1010,8 @@ function aio_info_pages($st, $n)
 {
     $vs = aio_row_voices_struct($st['rows'][$n]);
     $pages = array(aio_info_passport($st, $n, $vs));
-    $url = $st['rows'][$n]['page'];
-    $qr = $url !== '' && strlen($url) <= AIO_INF_QR_MAX ? aio_info_qr_page($url, aio_gc_lang($st)) : null;
+    $url = $st['rows'][$n]['release_url'];
+    $qr = $url !== '' && strlen($url) <= AIO_INF_QR_MAX ? aio_info_qr_page($url, $st['rid'], aio_gc_lang($st)) : null;
     if ($qr)
         $pages[] = $qr;
     foreach (aio_info_blocks($st, $n, $vs) as $block)

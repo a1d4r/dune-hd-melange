@@ -237,23 +237,10 @@ function aio_setup_timer()
     return array(GuiTimerDef::delay_ms => AIO_SETUP_TICK_MS);
 }
 
-// Side in px of a QR picture made by AioQrPng (square, IHDR width), 0 if
-// there is none or it is not ours.
-function aio_setup_png_side($png)
-{
-    clearstatcache();
-    $h = is_file($png) && !is_link($png) && is_readable($png) ? file_get_contents($png, false, null, 0, 24) : '';
-    if (strlen($h) !== 24 || substr($h, 0, 16) !== "\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR")
-        return 0;
-    $wh = unpack('Nw/Nh', substr($h, 16, 8));
-    return $wh['w'] === $wh['h'] && $wh['w'] > 0 && $wh['w'] <= 2000 ? $wh['w'] : 0;
-}
-
 // The QR dialog: the page address as a QR and as text; its timer waits for
 // a new settings.json. $renew: a new token first ("Change the link").
 function aio_setup_qr($p, $renew = false)
 {
-    $tmp = isset(DuneSystem::$properties['tmp_dir_path']) ? strval(DuneSystem::$properties['tmp_dir_path']) : '';
     if (aio_data_dir() === '' || !is_dir(aio_data_dir()))
         return aio_error('err_setup_dir');
     $ip = aio_setup_ip();
@@ -265,29 +252,11 @@ function aio_setup_qr($p, $renew = false)
     $url = aio_setup_url($ip, $tok);
 
     // One picture per address (token, IP, port), kept in tmp_dir: making it
-    // takes ~0.6 s on the device. The shell caches pictures by path, so a
-    // new address gets a new name; the old pictures go.
-    $png = rtrim($tmp, '/') . '/qr_' . substr(md5($url), 0, 8) . '.png';
-    if ($tmp === '' || (!is_dir($tmp) && !mkdir($tmp, 0755, true)))
+    // takes ~0.6 s on the device; the old pictures go.
+    $qr = aio_qr_file('qr_', '', $url, 8, 0, -1, 'setup');
+    if (!$qr)
         return aio_error('err_setup_write');
-    foreach ((array) glob(rtrim($tmp, '/') . '/qr_*.png') as $old)
-    {
-        if (is_string($old) && $old !== $png)
-            unlink($old);
-    }
-    $side = aio_setup_png_side($png);
-    if ($side > 0)
-        aio_log('setup: QR from tmp_dir');
-    else
-    {
-        require_once dirname(__FILE__) . '/qrpng.php';
-        $t = microtime(true);
-        $qr = AioQrPng::make($url, 8, 4);
-        if (!aio_write_file($png, $qr['png']))
-            return aio_error('err_setup_write');
-        $side = $qr['size'];
-        aio_log(sprintf('setup: QR v%d, %d px, %d ms', $qr['version'], $side, (microtime(true) - $t) * 1000));
-    }
+    list($png, $side) = $qr;
     AioSetup::$sig = aio_settings_sig();
     AioSetup::$wait = 0;
     // The shell cuts a long label in the middle: the address in two lines.

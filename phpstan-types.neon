@@ -134,7 +134,7 @@ parameters:
                 trackers: list<string>,
                 addon: string,
                 addons: list<AioAddon>,
-                page: string,
+                release_url: string,
                 pf_seasons: list<int>|null,
                 pf_episodes: list<int>,
                 names?: array{string, string},
