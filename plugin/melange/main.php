@@ -62,6 +62,7 @@ require_once dirname(__FILE__) . '/tv_tab.php';
 // The own card of a title: its meta, its screen.
 require_once dirname(__FILE__) . '/card_meta.php';
 require_once dirname(__FILE__) . '/view_card.php';
+require_once dirname(__FILE__) . '/view_card_series.php';
 
 class Aio
 {
