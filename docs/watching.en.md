@@ -49,7 +49,7 @@ The colored remote buttons: red keeps the AIOStreams order, green sorts by seede
 |---|---|
 | up / down, P+ / P− | through releases and pages |
 | ENTER | play |
-| INFO | release details: file, tracks, source; further with P+ / P−, everything AIOStreams sent (for troubleshooting) |
+| INFO | release details: file, tracks, source; with the Melange server, also the release page on its tracker (and a QR code for your phone if the address is short); further with P+ / P−, everything AIOStreams sent (for troubleshooting) |
 | ← / → (for an episode) | the list of the previous / next episode |
 | MENU (≡, POP UP) | the **Actions** menu |
 

@@ -5,7 +5,9 @@
 // the raw data as compact YAML in three columns: the stream as AIOStreams
 // sent it, then the row as Melange computed it (without the stream). P+/P-
 // slide the pages with change_gcomps (as the list scrolls); the page travels
-// in sel_state {"page":N}. URLs are cut to the host: they carry tokens.
+// in sel_state {"page":N}. URLs are cut to the host: they carry tokens. The
+// page of the release on its tracker (row key 'release_url', streamData.infoUrl)
+// is in the right column and, up to AIO_INF_QR_MAX bytes, a QR on page 2.
 // Reads Aio::$state.
 
 // YAML lines at most, both blocks (a huge reply stays bounded); the Melange
@@ -28,6 +30,12 @@ define('AIO_INF_TIND', 24);     // page 1: indent of the lines of a track after 
 define('AIO_INF_YLH', 30);      // YAML pages: 24 px lines
 define('AIO_INF_YROWS', 28);    // YAML pages: lines of a column
 define('AIO_INF_IND', 20);      // YAML pages: indent of a level
+// The QR page: bytes of the address at most: qrcode/qrcode.php makes versions
+// 1-10 only, 213 bytes at level M (QR_MAX_LENGTH); past them it fails with E_USER_ERROR.
+define('AIO_INF_QR_MAX', 213);
+define('AIO_INF_QR_SIDE', 520); // the QR page: side of the QR at most, px (a module of whole px)
+define('AIO_INF_QR_GAP', 60);   // the QR page: from the QR to the text
+define('AIO_INF_QR_LINES', 8);  // the QR page: lines of the address at most (30 px)
 
 // open_folder of the details screen of row $n of list $st.
 /**
@@ -633,19 +641,22 @@ function aio_info_addons($addons, $lang)
     return implode(' · ', $v);
 }
 
+// The right column; the release page (release_url) in $pmax lines at most, fewer
+// when the hash would not fit whole then.
 /**
  * @param AioRow $r
  * @param array<mixed> $sd
  * @param array<mixed> $pf
  * @param AioGcText $tt
  * @param int $top
+ * @param int $pmax
  * @return AioInfoCol
  */
-function aio_info_col_source($r, $sd, $pf, $tt, $top)
+function aio_info_col_source($r, $sd, $pf, $tt, $top, $pmax = 2)
 {
     $lang = $tt['lang'];
     $l = array();
-    foreach (array('seeders', 'age', 'expr', 'eps_file', 'eps_pack', 'type', 'addons') as $k)
+    foreach (array('seeders', 'age', 'expr', 'eps_file', 'eps_pack', 'type', 'addons', 'release_url') as $k)
         $l[$k] = aio_tr($lang, "info_$k");
     $c = aio_info_col(2, aio_tr($lang, 'info_col_source'),
         array_merge($l, array($tt['trackers'], $tt['addon'], $tt['source'])), $top);
@@ -654,6 +665,9 @@ function aio_info_col_source($r, $sd, $pf, $tt, $top)
     aio_info_put($c, '', aio_gc_status_lines($status, 26, AIO_INF_CW, 2), true, aio_gc_status_color($r['cached']));
     if ($r['trackers'])
         aio_info_field($c, $tt['trackers'], aio_cut(implode(', ', $r['trackers']), AIO_TEXT_MAX), 2);
+    // Without the scheme: the QR page has it whole.
+    $rel = $pmax > 0 ? preg_replace('~^https?://~i', '', $r['release_url']) : '';
+    aio_info_field($c, $l['release_url'], $rel, $pmax);
     // A line an add-on at most (no more than AIO_ADDONS_MAX), so none is cut;
     // the room of the column still limits it.
     if (!empty($r['addons']))
@@ -680,6 +694,8 @@ function aio_info_col_source($r, $sd, $pf, $tt, $top)
     foreach (array('private', 'freeleech') as $k)
         $type[] = isset($tor[$k]) && $tor[$k] === true ? $k : '';
     aio_info_field($c, $l['type'], implode(' · ', array_filter($type, 'strlen')), 1);
+    if ($rel !== '' && aio_info_room($c, true) < count(aio_gc_wrap($r['hash'], 26, AIO_INF_CW, 2)))
+        return aio_info_col_source($r, $sd, $pf, $tt, $top, $pmax - 1);
     aio_info_field($c, aio_tr($lang, 'info_hash'), $r['hash'], 2, true);
     return $c;
 }
@@ -723,6 +739,45 @@ function aio_info_passport($st, $n, $vs)
     }
     $file = aio_info_col_file($r, $raw, $sd, $pf, $tt, $top);
     return array_merge($d, $file['d'], $mid['d'], $src['d']);
+}
+
+// --- The QR page: the page of the release on its tracker.
+
+// Children of the QR page of address $url of a row of list $rid: the QR at
+// the left in the middle (its quiet zone white: light under the code on the
+// dark screen), at its right the head, the address whole and how to use it;
+// null without the picture. The picture: tmp_dir/iqr_<rid>_<md5>.png, mask 0,
+// not the best of 8 (the screen waits for it: v10 ~0.5 s more); those of the
+// other rows of the list stay (back to a row: not made again), of other lists go.
+/**
+ * @param string $url
+ * @param string $rid
+ * @param string $lang
+ * @return list<AioGcComp>|null
+ */
+function aio_info_qr_page($url, $rid, $lang)
+{
+    $qr = aio_qr_file('iqr_', $rid . '_', $url, 1, AIO_INF_QR_SIDE, 0, 'info');
+    if (!$qr)
+        return null;
+    list($png, $side) = $qr;
+    $y = intval((AIO_INF_H - $side) / 2);
+    // file:// and the absolute path, as the vendor's cached posters
+    // (shell_ext movies/movie_helper.php complete_mc_url).
+    $d = array(aio_gc_image(aio_gc_at($side, $side, 0, $y), "file://$png"));
+    $x = $side + AIO_INF_QR_GAP;
+    $w = AIO_INF_W - $x;
+    $head = aio_tr($lang, 'info_qr_title');
+    $d[] = aio_info_cut(aio_gc_at($w, 50, $x, $y), aio_gc_cut_w($head, 36, $w), 36, AIO_GC_TEXT);
+    $y += 66;
+    foreach (aio_gc_wrap($url, 30, $w, AIO_INF_QR_LINES) as $l)
+    {
+        $d[] = aio_info_cut(aio_gc_at($w, 40, $x, $y), $l, 30, AIO_GC_TEXT);
+        $y += 40;
+    }
+    $hint = aio_tr($lang, 'info_qr_hint');
+    $d[] = aio_info_cut(aio_gc_at($w, 40, $x, $y + 24), aio_gc_cut_w($hint, 30, $w), 30, AIO_GC_TEXT2);
+    return $d;
 }
 
 // --- YAML pages.
@@ -944,8 +999,8 @@ function aio_info_ypage($lines)
     return $d;
 }
 
-// Children of every page: the passport, then the AIOStreams pages, then the
-// Melange ones. The voices of the row are made once for both.
+// Children of every page: the passport, the QR page, then the AIOStreams
+// pages, then the Melange ones. The voices of the row are made once for both.
 /**
  * @param AioState $st
  * @param int $n
@@ -955,6 +1010,10 @@ function aio_info_pages($st, $n)
 {
     $vs = aio_row_voices_struct($st['rows'][$n]);
     $pages = array(aio_info_passport($st, $n, $vs));
+    $url = $st['rows'][$n]['release_url'];
+    $qr = $url !== '' && strlen($url) <= AIO_INF_QR_MAX ? aio_info_qr_page($url, $st['rid'], aio_gc_lang($st)) : null;
+    if ($qr)
+        $pages[] = $qr;
     foreach (aio_info_blocks($st, $n, $vs) as $block)
     {
         foreach (array_chunk($block, 3 * AIO_INF_YROWS) as $lines)

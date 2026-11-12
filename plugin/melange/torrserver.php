@@ -427,15 +427,18 @@ function aio_ts_ep_files($files, $s, $e)
 
 // The file of row $r in $files -> array(key of $files or -1, why). The one
 // AIOStreams chose: its name (behaviorHints.filename) and size (videoSize);
-// else an episode by the name of the file; else, for a movie, the biggest video.
+// else an episode by the name of the file; else, for a movie, the biggest video,
+// for an episode of a card of season 1 alone ($one_season), the only video if
+// it has no mark.
 /**
  * @param list<AioTsFile> $files
  * @param AioRow $r
  * @param int $s
  * @param int $e
+ * @param bool $one_season
  * @return array{int, string}
  */
-function aio_ts_pick($files, $r, $s, $e)
+function aio_ts_pick($files, $r, $s, $e, $one_season = false)
 {
     $raw = $r['raw'];
     $sd = aio_arr($raw, 'streamData');
@@ -478,7 +481,29 @@ function aio_ts_pick($files, $r, $s, $e)
     {
         if ($by_name)
             return array($by_name[0], 'name and episode');
-        return $eps ? array($eps[0], 'episode in the name') : array(-1, 'no file of the episode');
+        if ($eps)
+            return array($eps[0], 'episode in the name');
+        // A movie in one file that IMDb lists as a miniseries ($one_season, the
+        // card has season 1 alone): the only video of the release, with no mark
+        // of a season or an episode in its path, for every episode.
+        if ($one_season && $s === 1)
+        {
+            $n = 0;
+            $only = -1;
+            foreach ($files as $k => $f)
+            {
+                if (aio_ts_video($f['path']))
+                {
+                    $n++;
+                    $only = $k;
+                }
+            }
+            list($marked) = aio_ts_eps($files);
+            // The path with "/": aio_ts_dir_season reads its folders, so the name too.
+            if ($n === 1 && !isset($marked[$only]) && !aio_ts_dir_season($files[$only]['path'] . '/', null))
+                return array($only, 'the only video');
+        }
+        return array(-1, 'no file of the episode');
     }
     if ($by_name)
         return array($by_name[0], 'name, the first of ' . count($by_name));
@@ -930,7 +955,7 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false, $miss_list = f
         $by = $k >= 0 ? 'the map' : 'no file of the map';
     }
     else
-        list($k, $by) = aio_ts_pick($files, $r, $st['s'], $st['e']);
+        list($k, $by) = aio_ts_pick($files, $r, $st['s'], $st['e'], count($st['movie']['seasons']) === 1);
     if ($k < 0)
     {
         aio_log("ts: {$by}, " . count($files) . ' files');

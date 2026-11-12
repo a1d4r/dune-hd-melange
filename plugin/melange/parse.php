@@ -14,6 +14,8 @@ define('AIO_BADGE_PCM', true);
 // "cached" -, add-ons kept of them.
 define('AIO_ADDONS_SCAN', 30);
 define('AIO_ADDONS_MAX', 10);
+// Bytes of streamData.infoUrl at most (aio_release_url): a longer one is left out.
+define('AIO_RELEASE_URL_MAX', 2048);
 
 /**
  * @param string $s
@@ -500,6 +502,8 @@ function aio_service_name($id)
 //                characters; shown where there are no trackers
 //   addons       add-ons that found the same release (aio_addons, of streamData.sources):
 //                list of array('addon' => name, 'cached' => bool); empty for fewer than 2
+//   release_url  streamData.infoUrl: the page of the release on its tracker
+//                (aio_release_url; the Melange server sends it), '' for none
 //   pf_seasons   seasons in the file, null when not parsed; pf_episodes: its
 //                episodes (aio_has_ep)
 //   names        array(folder, file); aio_row_voices replaces it by 'voices'
@@ -638,6 +642,7 @@ function aio_row($st, $series)
         'trackers' => $trackers,
         'addon' => aio_cut(aio_str($sd, 'addon'), 60),
         'addons' => aio_addons(aio_arr($sd, 'sources'), aio_str($svc, 'id'), aio_str($sd, 'addon')),
+        'release_url' => aio_release_url(isset($sd['infoUrl']) ? $sd['infoUrl'] : null),
         'pf_seasons' => isset($pf['seasons']) && is_array($pf['seasons']) && $pf['seasons'] ?
             aio_ints($pf['seasons']) : null,
         'pf_episodes' => aio_ints(aio_arr($pf, 'episodes')),
@@ -645,6 +650,22 @@ function aio_row($st, $series)
         'label' => $label !== '' ? $label : aio_plain_name($name),
         'raw' => $st,
         'ord' => 0);
+}
+
+// streamData.infoUrl $v (the Melange server: <comments> of Torznab) as it
+// came, '' unless an http(s) URL (any case) of at most AIO_RELEASE_URL_MAX bytes
+// (a cut one is broken), of printable ASCII only, with a host and no user
+// part. Other servers check none of it; it is never logged.
+/**
+ * @param mixed $v
+ * @return string
+ */
+function aio_release_url($v)
+{
+    if (!is_string($v) || strlen($v) > AIO_RELEASE_URL_MAX || preg_match('/[^\x21-\x7E]/', $v) ||
+        !preg_match('~^https?://([^/?#]*)~i', $v, $m))
+        return '';
+    return preg_match('/^(?:[A-Za-z0-9._-]+|\[[0-9A-Fa-f:.]+\])(?::[0-9]{1,5})?$/D', $m[1]) ? $v : '';
 }
 
 // A P2P row (url '', hash set): TorrServer plays it.

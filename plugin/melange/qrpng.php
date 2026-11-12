@@ -8,10 +8,15 @@ require_once dirname(__FILE__) . '/qrcode/qrcode.php';
 class AioQrPng
 {
     // Returns array('png' => bytes, 'size' => px, 'modules' => n, 'version' => v).
-    public static function make($text, $scale = 8, $quiet = 4)
+    // $max_side > 0: the largest whole $scale whose side fits it (1 at least).
+    // $mask 0-7: that mask pattern, not the best of the 8 (getMinimumQRCode
+    // makes the matrix 9 times): a valid code, ~8 times faster.
+    public static function make($text, $scale = 8, $quiet = 4, $max_side = 0, $mask = -1)
     {
-        $qr = QRCode::getMinimumQRCode($text, QR_ERROR_CORRECT_LEVEL_M);
+        $qr = $mask < 0 ? QRCode::getMinimumQRCode($text, QR_ERROR_CORRECT_LEVEL_M) : self::masked($text, $mask);
         $n = $qr->getModuleCount();
+        if ($max_side > 0)
+            $scale = max(1, intval($max_side / ($n + 2 * $quiet)));
         $side = ($n + 2 * $quiet) * $scale;
 
         $white_row = "\0" . str_repeat("\xff", $side);
@@ -36,6 +41,26 @@ class AioQrPng
             . self::chunk('IEND', '');
         return array('png' => $png, 'size' => $side, 'modules' => $n,
             'version' => $qr->getTypeNumber());
+    }
+
+    // getMinimumQRCode of qrcode.php with the mask pattern $mask.
+    private static function masked($text, $mask)
+    {
+        $mode = QRUtil::getMode($text);
+        $qr = new QRCode();
+        $qr->setErrorCorrectLevel(QR_ERROR_CORRECT_LEVEL_M);
+        $qr->addData($text, $mode);
+        $length = $qr->getData(0)->getLength();
+        for ($t = 1; $t <= 40; $t++)
+        {
+            if ($length <= QRUtil::getMaxLength($t, $mode, QR_ERROR_CORRECT_LEVEL_M))
+            {
+                $qr->setTypeNumber($t);
+                break;
+            }
+        }
+        $qr->makeImpl(false, $mask);
+        return $qr;
     }
 
     private static function chunk($type, $data)
