@@ -731,7 +731,9 @@ define('AIO_PROFILE_NAME_MAX', 30);
 // (aio_aio_servers) or of an own one (aio_aio_own($base) === $base, as
 // aio_aio_conf), mode of aio_aio_modes(); or an own config array('name',
 // 'url') - url of aio_manifest_url. The name: 1-AIO_PROFILE_NAME_MAX
-// characters of UTF-8, trimmed, no control ones. Other keys are dropped.
+// characters of UTF-8, trimmed, no control ones (C0, C1) nor invisible ones of
+// format (U+200B-200F, U+202A-202E, U+2060-2069, U+FEFF: a name that looks like
+// another one). Other keys are dropped.
 /**
  * @param mixed $p
  * @return AioProfile|null
@@ -743,7 +745,8 @@ function aio_profile_ok($p)
     $name = trim($p['name'], AIO_TRIM);
     // Characters, not bytes; 0 of a name that is not UTF-8 (no mbstring in common.php).
     $n = intval(preg_match_all('/./su', $name, $m));
-    if ($n < 1 || $n > AIO_PROFILE_NAME_MAX || preg_match('/[\x00-\x1F\x7F]|\xC2[\x80-\x9F]/', $name))
+    if ($n < 1 || $n > AIO_PROFILE_NAME_MAX ||
+        preg_match('/[\x00-\x1F\x7F]|\xC2[\x80-\x9F]|\xE2\x80[\x8B-\x8F\xAA-\xAE]|\xE2\x81[\xA0-\xA9]|\xEF\xBB\xBF/', $name))
         return null;
     if (isset($p['url']))
     {

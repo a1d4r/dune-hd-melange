@@ -83,8 +83,8 @@ function aio_cgi_profile_checked($a, $s, $p, $k)
     $ok = aio_profile_ok($p);
     if (!$ok)
     {
-        aio_cgi_profile_failed($a, 'bad name', sprintf(aio_cgi_l('Название: от 1 до %d символов, без управляющих символов',
-            'Name: 1 to %d characters, no control characters'), AIO_PROFILE_NAME_MAX), $s, array('part' => 'name'));
+        aio_cgi_profile_failed($a, 'bad name', sprintf(aio_cgi_l('Название: от 1 до %d символов, без управляющих и невидимых',
+            'Name: 1 to %d characters, no control or invisible ones'), AIO_PROFILE_NAME_MAX), $s, array('part' => 'name'));
     }
     foreach ($s['profiles'] as $i => $x)
     {
