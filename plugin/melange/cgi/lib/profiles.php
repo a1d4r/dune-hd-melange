@@ -31,6 +31,13 @@ function aio_cgi_profile_texts()
         'profileDeleteConfirm' => aio_cgi_l('Удалить профиль «%s»?', 'Delete the profile "%s"?'));
 }
 
+// The line of the profiles full: under "Сохранить текущий как профиль" (#prx) and of a=profile_add refused.
+function aio_cgi_profiles_full()
+{
+    return sprintf(aio_cgi_l('Профилей уже %d. Удалите лишний, чтобы добавить новый.',
+        'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX);
+}
+
 // A text field not posted (no name=, so not a change for the bar of the save either).
 function aio_cgi_unposted($id, $label, $placeholder, $max)
 {
@@ -54,8 +61,7 @@ function aio_cgi_profiles_block()
         aio_cgi_l('Сохранить текущий как профиль', 'Save the current source as a profile') . '</button>' .
         '<p class="hint" id="prd" hidden>' . aio_cgi_l('Сначала сохраните настройки, потом текущий источник как профиль.',
         'Save the settings first, then the current source as a profile.') . '</p>' .
-        '<p class="hint" id="prx" hidden>' . sprintf(aio_cgi_l('Профилей уже %d. Удалите лишний, чтобы добавить новый.',
-        'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX) . '</p>' .
+        '<p class="hint" id="prx" hidden>' . aio_cgi_profiles_full() . '</p>' .
         '<p class="hint" id="prw" hidden>' . aio_cgi_l('Текущий источник уже сохранён профилем, он отмечен «сейчас».',
         'The current source is saved as a profile already: it is marked "now".') . '</p>' .
         '<div id="prr" class="res" aria-live="polite"></div></div>';
@@ -171,10 +177,7 @@ function aio_cgi_profile_post($dir, $a, $t)
             aio_cgi_profile_failed($a, 'no config', aio_cgi_l('Сначала сохраните: конфига ещё нет',
                 'Save first: there is no config yet'), $s);
         if (count($s['profiles']) >= AIO_PROFILES_MAX)
-        {
-            aio_cgi_profile_failed($a, 'full', sprintf(aio_cgi_l('Профилей уже %d. Удалите лишний, чтобы добавить новый.',
-                'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX), $s);
-        }
+            aio_cgi_profile_failed($a, 'full', aio_cgi_profiles_full(), $s);
         if (aio_profile_name($name) === '')
             $name = aio_cgi_profile_def($s);
         $p = aio_cgi_profile_checked($a, $s, array('name' => $name) + $target, -1);

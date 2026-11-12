@@ -75,12 +75,25 @@ function aio_gc_src_dialog($title, $lang, $res)
     return aio_dialog($title, $lines, array('OK' => aio_close_and(null)));
 }
 
+// Profile $k of the settings $s (aio_profile_find; -1: none) can be switched to: the setting
+// on, the profile there and ready.
+/**
+ * @param AioSettings $s
+ * @param int $k
+ * @return bool
+ */
+function aio_gc_src_usable($s, $k)
+{
+    return $s['src_profiles'] && $k >= 0 && aio_profile_ready($s, $s['profiles'][$k]);
+}
+
 // After the request to the source of profile $p (aio_gc_src): settings.json read again (the
 // page may have saved while the source answered), the profile applied and written,
-// Aio::$settings of it -> ''. Not written, Aio::$settings as it was -> the key of the
-// error: the file not read (err_quick_read), not written (err_setup_write); the page
-// changed meanwhile the profile (gone, another, not ready, the setting off) or the source
-// of the settings $s0 of the first read (src_changed).
+// Aio::$settings of it -> ''. Not written -> the key of the error, Aio::$settings not
+// touched (the one rollback, to the settings before the request, is in aio_gc_src): the
+// file not read (err_quick_read), not written (err_setup_write); the page changed meanwhile
+// the profile (gone, another, not ready, the setting off) or the source of the settings
+// $s0 of the first read (src_changed).
 /**
  * @param string $dir
  * @param AioSettings $s0
@@ -95,7 +108,7 @@ function aio_gc_src_commit($dir, $s0, $p, $tag)
     $err = array('', '');
     if ($why !== '')
         $err = array('err_quick_read', "settings.json $why");
-    elseif (!$s['src_profiles'] || $k < 0 || $s['profiles'][$k] !== $p || !aio_profile_ready($s, $p))
+    elseif (!aio_gc_src_usable($s, $k) || $s['profiles'][$k] !== $p)
         $err = array('src_changed', 'the profile changed meanwhile');
     else
     {
@@ -143,7 +156,7 @@ function aio_gc_src($in)
     $dir = aio_data_dir();
     $s = aio_settings_read($dir, $why);
     $k = aio_profile_find($s, $name);
-    if ($why !== '' || !$s['src_profiles'] || $k < 0 || !aio_profile_ready($s, $s['profiles'][$k]))
+    if ($why !== '' || !aio_gc_src_usable($s, $k))
     {
         // The menu was of the settings before: the page changed them since.
         aio_log('source: ' . ($why !== '' ? "settings.json $why" : 'no such profile ready') . ', ' .
