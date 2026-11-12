@@ -75,14 +75,57 @@ function aio_gc_src_dialog($title, $lang, $res)
     return aio_dialog($title, $lines, array('OK' => aio_close_and(null)));
 }
 
+// After the request to the source of profile $p (aio_gc_src): settings.json read again (the
+// page may have saved while the source answered), the profile applied and written,
+// Aio::$settings of it -> ''. Not written, Aio::$settings as it was -> the key of the
+// error: the file not read (err_quick_read), not written (err_setup_write); the page
+// changed meanwhile the profile (gone, another, not ready, the setting off) or the source
+// of the settings $s0 of the first read (src_changed).
+/**
+ * @param string $dir
+ * @param AioSettings $s0
+ * @param AioProfile $p
+ * @param string $tag
+ * @return string
+ */
+function aio_gc_src_commit($dir, $s0, $p, $tag)
+{
+    $s = aio_settings_read($dir, $why);
+    $k = aio_profile_find($s, $p['name']);
+    $err = array('', '');
+    if ($why !== '')
+        $err = array('err_quick_read', "settings.json $why");
+    elseif (!$s['src_profiles'] || $k < 0 || $s['profiles'][$k] !== $p || !aio_profile_ready($s, $p))
+        $err = array('src_changed', 'the profile changed meanwhile');
+    else
+    {
+        foreach (array('source', 'aio_server', 'aio_own_url', 'aio_mode', 'manifest_url') as $f)
+        {
+            if ($s[$f] !== $s0[$f])
+                $err = array('src_changed', 'the source changed meanwhile');
+        }
+    }
+    if ($err[0] === '')
+    {
+        $s = aio_profile_apply($s, $p);
+        if (aio_settings_write($s))
+        {
+            Aio::$settings = aio_op_settings($s);
+            return '';
+        }
+        $err = array('err_setup_write', 'settings.json not written');
+    }
+    aio_log("$tag: {$err[1]}, the source and the screen kept");
+    return $err[0];
+}
+
 // gc_src (n: the name of a profile, MENU "Откуда брать") of a live list: the list of its
 // movie or episode from the source of the profile first (aio_relist with the settings of
 // the profile). It answered, with no streams too (an empty list), but not with error
-// streams only (a link not taken): settings.json read again (the page may have saved
-// meanwhile), the profile applied and written, the screen replaced, the cursor on the
-// same release. An error: its dialog; not written: a dialog too - the source, the screen
-// and the state as they were. The profile in use, not ready, gone, a list not live:
-// nothing.
+// streams only (a link not taken): written (aio_gc_src_commit), the screen replaced, the
+// cursor on the same release. An error, not written: its dialog - the source, the screen
+// and the state as they were. The profile gone, not ready, the setting off, settings.json
+// not read: a dialog too, no request. The profile in use, a list not live: nothing.
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -91,18 +134,22 @@ function aio_gc_src($in)
 {
     $st = Aio::$state;
     $name = isset($in->n) && is_string($in->n) ? $in->n : '';
-    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
+    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || $name === '')
     {
-        aio_log('source: not a live list, nothing');
+        aio_log('source: not a live list or no name, nothing');
         return null;
     }
+    $title = str_replace('{name}', $name, aio_tr($st['lang'], 'src_failed'));
     $dir = aio_data_dir();
     $s = aio_settings_read($dir, $why);
     $k = aio_profile_find($s, $name);
     if ($why !== '' || !$s['src_profiles'] || $k < 0 || !aio_profile_ready($s, $s['profiles'][$k]))
     {
-        aio_log('source: ' . ($why !== '' ? "settings.json $why" : 'no such profile ready') . ', nothing');
-        return null;
+        // The menu was of the settings before: the page changed them since.
+        aio_log('source: ' . ($why !== '' ? "settings.json $why" : 'no such profile ready') . ', ' .
+            aio_ep_tag($st) . ', the source and the screen kept');
+        return aio_gc_src_dialog($title, $st['lang'], array('error' => $why !== '' ? 'err_quick_read' : 'src_changed',
+            'detail' => ''));
     }
     $now = aio_profile_now($s);
     $p = $s['profiles'][$k];
@@ -118,44 +165,32 @@ function aio_gc_src($in)
     // The request goes with the settings of the profile, the log masked by them too.
     Aio::$settings = aio_op_settings(aio_profile_apply($s, $p));
     $r = aio_relist($st, $st['s'], $st['e'], isset($st['rows'][$cur]) ? $st['rows'][$cur]['hash'] : '');
-    $title = str_replace('{name}', $p['name'], aio_tr($st['lang'], 'src_failed'));
     if (isset($r['error']))
     {
         $errors = isset($r['errors']) ? $r['errors'] : aio_no_errors();
-        if ($r['error'] !== 'err_no_streams' || $errors['lines'])
+        if ($r['error'] === 'err_no_streams' && !$errors['lines'])
+            $r = array('st' => aio_gc_put_cursor(aio_list_state($st['movie'], $st['s'], $st['e'], array(), $st['lang'],
+                $errors), 0), 'sel' => 0, 'by' => 'no streams');
+        else
         {
-            Aio::$settings = $old;
             aio_log(sprintf('%s failed: %s, %.2f s, the source and the screen kept', $tag,
                 $r['error'] === 'err_no_streams' ? 'error streams only' : $r['error'], microtime(true) - Aio::$t0));
             if ($r['error'] === 'err_no_streams')
                 $r['error'] = 'err_sources_failed';
-            return aio_gc_src_dialog($title, $st['lang'], $r);
         }
-        $r = array('st' => aio_gc_put_cursor(aio_list_state($st['movie'], $st['s'], $st['e'], array(), $st['lang'],
-            $errors), 0), 'sel' => 0, 'by' => 'no streams');
     }
-    // Read again: the page may have saved while the source answered; the profile there as it
-    // was, else nothing changes.
-    $s = aio_settings_read($dir, $why);
-    $k2 = aio_profile_find($s, $name);
-    if ($why !== '' || !$s['src_profiles'] || $k2 < 0 || $s['profiles'][$k2] !== $p)
+    if (!isset($r['error']))
     {
-        Aio::$settings = $old;
-        aio_log("$tag: " . ($why !== '' ? "settings.json $why" : 'the profile changed meanwhile') .
-            ', the source and the screen kept');
-        return aio_gc_src_dialog($title, $st['lang'], array('error' => $why !== '' ? 'err_quick_read' : 'src_changed',
-            'detail' => ''));
+        $e = aio_gc_src_commit($dir, $s, $p, $tag);
+        if ($e === '')
+        {
+            $ns = $r['st'];
+            aio_log(sprintf('%s, screen replaced, %d -> %d rows, row %d -> %d (%s), %.2f s', $tag, count($st['rows']),
+                count($ns['rows']), $cur, $r['sel'], $r['by'], microtime(true) - Aio::$t0));
+            return aio_list_replace($ns);
+        }
+        $r = array('error' => $e, 'detail' => '');
     }
-    $s = aio_profile_apply($s, $p);
-    if (!aio_settings_write($s))
-    {
-        Aio::$settings = $old;
-        aio_log("$tag: settings.json not written, the source and the screen kept");
-        return aio_gc_src_dialog($title, $st['lang'], array('error' => 'err_setup_write', 'detail' => ''));
-    }
-    Aio::$settings = aio_op_settings($s);
-    $ns = $r['st'];
-    aio_log(sprintf('%s, screen replaced, %d -> %d rows, row %d -> %d (%s), %.2f s', $tag, count($st['rows']),
-        count($ns['rows']), $cur, $r['sel'], $r['by'], microtime(true) - Aio::$t0));
-    return aio_list_replace($ns);
+    Aio::$settings = $old;
+    return aio_gc_src_dialog($title, $st['lang'], $r);
 }
