@@ -170,9 +170,8 @@ function aio_cgi_editor_line($v)
 
 // The editor of the save, by the posted $v (aio_cgi_posted: pf_sel, pf_was, pf_now, pf_name) and the stored settings
 // $cur -> null (no editor: none posted; a new one of the source in use without a name - the save of before) or
-// array(sel, old (the profile; null - a new one), name (as typed), now (it is in use in $cur, or the page showed it so
-// and it is the source in use but its config: forgotten by the server or not made - aio_profile_is would not have it;
-// a new one of the source in use - none in use is a profile), view (the settings as of it: aio_cgi_editor), err (why
+// array(sel, old (the profile; null - a new one), name (as typed), now (it is in use in $cur: aio_profile_is; a new one
+// of the source in use - none in use is a profile), view (the settings as of it: aio_cgi_editor), err (why
 // refused: the profile gone or renamed meanwhile, the profiles full; '' - none)).
 function aio_cgi_editor_posted($v, $cur)
 {
@@ -186,9 +185,7 @@ function aio_cgi_editor_posted($v, $cur)
         if (!isset($cur['profiles'][$k]) || $cur['profiles'][$k]['name'] !== $v['pf_was'])
             return array_merge($ed, array('err' => aio_cgi_profiles_changed()));
         $p = $cur['profiles'][$k];
-        $now = aio_profile_is($cur, $p) || ($v['pf_now'] === '1' && !isset($p['url']) && !$p['conf'] &&
-            aio_profile_same($cur, $p));
-        return array_merge($ed, array('old' => $p, 'now' => $now, 'view' => aio_profile_view($cur, $p)));
+        return array_merge($ed, array('old' => $p, 'now' => aio_profile_is($cur, $p), 'view' => aio_profile_view($cur, $p)));
     }
     if (count($cur['profiles']) >= AIO_PROFILES_MAX)
         return array_merge($ed, array('err' => aio_cgi_profiles_full()));

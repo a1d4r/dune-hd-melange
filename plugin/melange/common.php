@@ -1005,7 +1005,8 @@ function aio_profile_same($s, $p)
 }
 
 // Profile $p is the one in use in settings $s: its settings (aio_profile_same) and, of a config of Melange, its config
-// in the cell (the settings of another profile of that server and mode typed on the page are not it).
+// in the cell (the settings of another profile of that server and mode typed on the page are not it) or none of its
+// own yet (not made: a create failed - the source is still the profile; no other one has these settings).
 /**
  * @param AioSettings $s
  * @param AioProfile $p
@@ -1016,7 +1017,7 @@ function aio_profile_is($s, $p)
     if (!aio_profile_same($s, $p))
         return false;
     $c = isset($p['url']) ? null : aio_settings_conf($s);
-    return isset($p['url']) || ($c && $p['conf'] && $c['uuid'] === $p['conf']['uuid']);
+    return isset($p['url']) || !$p['conf'] || ($c && $c['uuid'] === $p['conf']['uuid']);
 }
 
 // Profile $p can be used: an own config, or a config of Melange with its config made (the plugin makes none; the page
