@@ -1062,6 +1062,75 @@ function aio_profile_now($s)
     return -1;
 }
 
+// A profile for the log (MENU of a list, the page): its number from 1 ("none" for -1) and kind, never its name or link
+// (the user typed them).
+/**
+ * @param int $i
+ * @param AioProfile|null $p
+ * @return string
+ */
+function aio_profile_tag($i, $p)
+{
+    if ($i < 0 || !$p)
+        return 'none';
+    return ($i + 1) . ' (' . (isset($p['url']) ? 'own' : "made {$p['mode']}") . ')';
+}
+
+// The name of a new profile among those of the settings $s: the word $w of its kind, with a number from 2 while taken.
+/**
+ * @param AioSettings $s
+ * @param string $w
+ * @return string
+ */
+function aio_profile_free_name($s, $w)
+{
+    $name = $w;
+    for ($n = 2; aio_profile_find($s, $name) >= 0 && $n <= AIO_PROFILES_MAX + 1; $n++)
+        $name = "$w $n";
+    return $name;
+}
+
+// Before profile $p (ready) is applied to the settings $s (aio_profile_apply: MENU of a list, "Сделать текущим" of the
+// page): the source in use of no profile (aio_profile_now) the switch would lose - a config of Melange whose config of
+// the cell no profile has (aio_profile_held) when $p puts its own there (the same server and mode), or an own config
+// whose link $p replaces by another one no profile has - saved as a profile at the end of them: its settings as they
+// are (aio_profile_of), the name - the word of its kind in $words ('debrid', 'p2p', 'own': in the language of the
+// caller) by aio_profile_free_name. Nothing lost (another server or mode: the cell stays; the source a profile; a
+// profile of these settings there) -> $s as it is. -> array(the settings, the index of the profile saved or -1,
+// 'src_full' - the profiles full: not to be applied; else '').
+/**
+ * @param AioSettings $s
+ * @param AioProfile $p
+ * @param array{debrid: string, p2p: string, own: string} $words
+ * @return array{0: AioSettings, 1: int, 2: string}
+ */
+function aio_profile_keep($s, $p, $words)
+{
+    $t = aio_profile_now($s) < 0 ? aio_profile_of($s) : null;
+    if (!$t)
+        return array($s, -1, '');
+    if (isset($t['url']))
+        $lost = isset($p['url']) && $p['url'] !== $t['url'];
+    else
+        $lost = !isset($p['url']) && $p['conf'] && $t['conf'] && $p['base'] === $t['base'] && $p['mode'] === $t['mode'] &&
+            !aio_profile_held($s, $t['conf']);
+    foreach ($lost ? $s['profiles'] : array() as $x)
+    {
+        if ((isset($t['url']) && isset($x['url']) && $x['url'] === $t['url']) || aio_profile_key($x) === aio_profile_key($t))
+            $lost = false;
+    }
+    if (!$lost)
+        return array($s, -1, '');
+    if (count($s['profiles']) >= AIO_PROFILES_MAX)
+        return array($s, -1, 'src_full');
+    $w = $words[isset($t['url']) ? 'own' : ($t['mode'] === AIO_MODE_P2P ? 'p2p' : 'debrid')];
+    $np = aio_profile_ok(array('name' => aio_profile_free_name($s, $w)) + $t, $s);
+    if (!$np)
+        return array($s, -1, '');
+    $s['profiles'][] = $np;
+    return array($s, count($s['profiles']) - 1, '');
+}
+
 // <data_dir>/settings.json -> array('source' => 'made' (melange makes the
 // config on aio_server) or 'own' (the own config of manifest_url),
 // 'manifest_url' => ..., 'rd_key', 'tb_key',

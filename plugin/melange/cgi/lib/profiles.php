@@ -6,7 +6,8 @@
 // #src (aio_cgi_editor_block), the data and texts of the script; the actions of the script, POST
 // ?t=<token>&a=<action>&ajax=1 (i: the index the page shows, was: its name there - another one in the file: nothing
 // written) -> JSON {ok, msg[, profiles]}:
-//   profile_use (i, was) -> profile i in use, as MENU of a list on the Dune does (no request: its config is there);
+//   profile_use (i, was) -> profile i in use, as MENU of a list on the Dune does (no request: its config is there; the
+//     source of no profile it would lose saved as a profile first, aio_profile_keep - the profiles full: refused);
 //   profile_del (i, was) -> profile i gone (its config stays on the server, the source in use stays).
 // Each one reads settings.json and writes it whole (aio_cgi_store). profiles: those of the file (none when it was not
 // read).
@@ -31,6 +32,14 @@ function aio_cgi_profiles_full()
         'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX);
 }
 
+// The line of "Сделать текущим" refused: the source in use of no profile is to be saved as one, the profiles full (as
+// src_full of the plugin).
+function aio_cgi_profiles_full_use()
+{
+    return sprintf(aio_cgi_l('Профилей уже %d: удалите лишний на странице настроек',
+        'There are %d profiles already: delete one on the settings page'), AIO_PROFILES_MAX);
+}
+
 // The line of a save refused by the profiles changed meanwhile (another tab).
 function aio_cgi_profiles_changed()
 {
@@ -45,16 +54,19 @@ function aio_cgi_profile_word($p)
     return $p['mode'] === AIO_MODE_P2P ? aio_cgi_mode_p2p() : 'Debrid';
 }
 
+// The words of the kinds of the profiles (aio_profile_keep): those of aio_cgi_profile_word.
+function aio_cgi_profile_words()
+{
+    return array('debrid' => aio_cgi_profile_word(array('mode' => AIO_MODE_DEBRID)),
+        'p2p' => aio_cgi_profile_word(array('mode' => AIO_MODE_P2P)), 'own' => aio_cgi_profile_word(array('url' => '')));
+}
+
 // The name of a new profile of the source of the settings $s (its profiles too): the word of its kind, with a number
-// from 2 while the name is taken.
+// from 2 while the name is taken (aio_profile_free_name).
 function aio_cgi_profile_def($s)
 {
     $target = aio_profile_of($s);
-    $w = aio_cgi_profile_word($target ? $target : array('mode' => $s['aio_mode']));
-    $name = $w;
-    for ($n = 2; aio_profile_find($s, $name) >= 0 && $n <= AIO_PROFILES_MAX + 1; $n++)
-        $name = "$w $n";
-    return $name;
+    return aio_profile_free_name($s, aio_cgi_profile_word($target ? $target : array('mode' => $s['aio_mode'])));
 }
 
 // The line of profile $p under its name: its kind, host (the page is in the home network: hosts are shown) and JacRed.
@@ -338,6 +350,11 @@ function aio_cgi_profile_post($dir, $a)
         if (!aio_profile_ready($p))
             aio_cgi_profile_failed($a, 'no config', sprintf(aio_cgi_l('Конфига профиля ещё нет: нажмите «%s»',
                 'The profile has no config yet: press "%s"'), aio_cgi_saveb()), $s);
+        list($s, $kept, $full) = aio_profile_keep($s, $p, aio_cgi_profile_words());
+        if ($full !== '')
+            aio_cgi_profile_failed($a, 'the profiles full, the previous source not saved', aio_cgi_profiles_full_use(), $s);
+        if ($kept >= 0)
+            aio_cgi_log("$a: saved previous as profile " . aio_profile_tag($kept, $s['profiles'][$kept]));
         $s = aio_profile_apply($s, $p);
         $msg = sprintf(aio_cgi_l('Профиль «%s» теперь текущий', 'Profile "%s" is in use now'), $p['name']);
     }
