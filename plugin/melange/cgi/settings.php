@@ -63,7 +63,7 @@
 //   POST ?t=<token>&a=profiles|profile_add|profile_edit|profile_del&ajax=1 -> the
 //                      source profiles (0.58.0, lib/profiles.php): the list, a new one of
 //                      the stored source, its name or link changed, one deleted; JSON {ok,
-//                      msg[, profiles, field, manifest]}, settings.json written whole.
+//                      msg[, profiles, part, manifest]}, settings.json written whole.
 // Input only goes through the rules of common.php; it never reaches exec,
 // a path or eval. stderr (dune_apk_cgi_err.log) gets reasons, never values.
 // PHP 5.3 syntax; php-cgi has no date.timezone: dates only in the log

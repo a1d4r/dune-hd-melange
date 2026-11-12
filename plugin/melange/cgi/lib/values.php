@@ -11,7 +11,7 @@
 // of the settings, markers: aio_cgi_markers_of() (of markers_exact too), source_errors:
 // aio_cgi_source_errors_of(), cat_rating: aio_cgi_cat_rating_of(), cat_logo: aio_cgi_cat_logo_of(), no_torrents:
 // aio_cgi_no_torrents_of(), src_profiles: aio_cgi_src_profiles_of(), as posted - none: '',
-// settings.php puts the stored one; src_was: aio_cgi_src_was() of the settings, as posted);
+// settings.php puts the stored one; src_was: aio_cgi_src_was_stored() of the settings, as posted);
 // prof - the profiles for the script (aio_cgi_profiles_data of the settings, of the file
 // on a save: settings.php);
 // tpl_new, tpl_p2p_new -
@@ -38,7 +38,7 @@ function aio_cgi_values($s)
     $v['cat_logo'] = aio_cgi_cat_logo_of($s['cat_logo']);
     $v['no_torrents'] = aio_cgi_no_torrents_of($s['no_torrents']);
     $v['src_profiles'] = aio_cgi_src_profiles_of($s['src_profiles']);
-    $v['src_was'] = aio_cgi_src_was($v);
+    $v['src_was'] = aio_cgi_src_was_stored($s);
     $v['prof'] = aio_cgi_profiles_data($s);
     $v['cat_rows'] = aio_cgi_cat_rows_of($s['cat_rows']);
     $v['cat_rows_was'] = $v['cat_rows'];
@@ -113,6 +113,36 @@ function aio_cgi_src_kept($v, $cur)
         $v[$k] = '';
     $v['reset'] = false;
     return $v;
+}
+
+// src_was (0.58.0): the answer (watch), the AIOStreams server, the own server and the manifest by spaces (none is
+// in a right one); the last two as stored (a right one typed otherwise - "/" at the end, stremio:// - as the save
+// stores it), a wrong one as it is. The script makes it of the values a save posted, as typed (web/src/save.ts).
+function aio_cgi_src_key($watch, $server, $own, $manifest)
+{
+    $o = aio_aio_own($own);
+    $m = aio_manifest_url($manifest);
+    return implode(' ', array($watch, $server, $o !== '' ? $o : $own, $m !== '' ? $m : $manifest));
+}
+
+// src_was as posted, by aio_cgi_src_key (not of four parts: as it is).
+function aio_cgi_src_was_of($posted)
+{
+    $x = explode(' ', $posted);
+    return count($x) === 4 ? aio_cgi_src_key($x[0], $x[1], $x[2], $x[3]) : $posted;
+}
+
+// src_was of the values posted $v (aio_cgi_posted).
+function aio_cgi_src_was_posted($v)
+{
+    return aio_cgi_src_key($v['watch'], $v['aio_server'], $v['aio_own'], $v['manifest']);
+}
+
+// src_was of the settings $s (aio_settings_read).
+function aio_cgi_src_was_stored($s)
+{
+    return aio_cgi_src_key($s['source'] === 'own' ? 'own' : $s['aio_mode'], $s['aio_server'], $s['aio_own_url'],
+        $s['manifest_url']);
 }
 
 // An error of the save: its text and the name= of the form field it is

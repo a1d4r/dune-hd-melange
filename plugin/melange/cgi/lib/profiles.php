@@ -1,6 +1,7 @@
 <?php
-// The settings page (cgi/settings.php): the source profiles (0.58.0) - their data for
-// the script (#init.profiles, the answers below) and the actions of the script, POST
+// The settings page (cgi/settings.php): the source profiles (0.58.0) - their block on #src
+// (aio_cgi_profiles_block) and the texts of the script, their data for the script
+// (#init.profiles, the answers below) and the actions of the script, POST
 // ?t=<token>&a=<action>&ajax=1 -> JSON {ok, msg[, profiles][, part][, manifest]}:
 //   profiles     -> the list, nothing written;
 //   profile_add  (name) -> the stored source (never the form: the page saves it
@@ -14,6 +15,46 @@
 // profiles of the file. profiles: those of the file (none when it was not read),
 // part: of the error - name, url (not a field of the form), manifest: true - the new link of the profile in use
 // is manifest_url too.
+
+// The texts of the profiles in the i18n of the script (aio_cgi_js: web/src/profiles.ts takes them by these keys).
+function aio_cgi_profile_texts()
+{
+    return array('profileNow' => aio_cgi_l('сейчас', 'now'),
+        'profileNoConf' => sprintf(aio_cgi_l('Конфига нет: выберите этот сервер и режим, затем нажмите «%s».',
+            'No config: choose this server and mode, then press "%s".'), aio_cgi_saveb()),
+        'profileName' => aio_cgi_l('Название', 'Name'), 'profileLink' => aio_cgi_l('Ссылка на конфиг', 'Config link'),
+        'profileEdit' => aio_cgi_l('Изменить', 'Edit'), 'profileSave' => aio_cgi_l('Сохранить профиль', 'Save the profile'),
+        'profileDelete' => aio_cgi_l('Удалить', 'Delete'),
+        'profileDeleteConfirm' => aio_cgi_l('Удалить профиль «%s»?', 'Delete the profile "%s"?'));
+}
+
+// A text field not posted (no name=, so not a change for the bar of the save either).
+function aio_cgi_unposted($id, $label, $placeholder, $max)
+{
+    return '<label for="' . $id . '">' . $label . '</label><div class="f"><input id="' . $id . '" type="text" value="" placeholder="' .
+        aio_cgi_h($placeholder) . '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="' .
+        $max . '"></div>';
+}
+
+// The source profiles (0.58.0) at the bottom of #src: shown by the script (none without it) and by the CSS only
+// with "Профили источников" on (class xs). The list (#prl) by the script from #init.profiles; under it the line of
+// no profiles, "Название" and "Сохранить текущий как профиль" (a=profile_add), the lines why it is disabled: a
+// change not saved yet, the profiles full.
+function aio_cgi_profiles_block()
+{
+    return '<div id="pr" class="xs" hidden><h3 class="gh">' . aio_cgi_l('Профили источников', 'Source profiles') .
+        '</h3><div id="prl"></div><p class="hint" id="pre" hidden>' .
+        aio_cgi_l('Профилей нет: сохраните хотя бы два, чтобы переключать их на Дюне.',
+        'No profiles: save at least two to switch between them on the Dune.') . '</p>' .
+        aio_cgi_unposted('prn', aio_cgi_l('Название', 'Name'), '', AIO_PROFILE_NAME_MAX) .
+        '<button type="button" id="pra" class="btn ghost">' .
+        aio_cgi_l('Сохранить текущий как профиль', 'Save the current source as a profile') . '</button>' .
+        '<p class="hint" id="prd" hidden>' . aio_cgi_l('Сначала сохраните настройки, потом текущий источник как профиль.',
+        'Save the settings first, then the current source as a profile.') . '</p>' .
+        '<p class="hint" id="prx" hidden>' . sprintf(aio_cgi_l('Профилей уже %d. Удалите лишний, чтобы добавить новый.',
+        'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX) . '</p>' .
+        '<div id="prr" class="res" aria-live="polite"></div></div>';
+}
 
 // The kind of profile $p in the words of the page: Debrid, Торренты, Свой конфиг.
 function aio_cgi_profile_word($p)
@@ -163,7 +204,7 @@ function aio_cgi_profile_post($dir, $a)
             // The one in use: its new link is the source now, as MENU of a list would set it.
             if (isset($p['url']) && $p['url'] !== $old['url'] && aio_profile_is($s, $old))
             {
-                $s['manifest_url'] = $p['url'];
+                $s = aio_profile_apply($s, $p);
                 $more['manifest'] = true;
             }
             $s['profiles'][$k] = $p;

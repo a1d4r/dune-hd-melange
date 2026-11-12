@@ -68,7 +68,7 @@ function aio_cgi_fields()
         // (the block of the profiles on #src).
         'src_profiles' => array('id' => 'spf', 'name' => 'src_profiles', 'set' => 'src_profiles', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
-        // The source as the page came (aio_cgi_src_was): posted back the same, the save keeps the stored one
+        // The source as the page came (aio_cgi_src_was_stored): posted back the same, the save keeps the stored one
         // (MENU of a list on the Dune may have switched the profile since).
         'src_was' => array('id' => 'sw', 'name' => 'src_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src',
             'raw' => true),
@@ -819,70 +819,6 @@ function aio_cgi_src($v)
         aio_cgi_h($v['src_was']) . '">';
 }
 
-// src_was (0.58.0): the answer (watch), the AIOStreams server, the own server and the manifest by spaces (none is
-// in a right one); the last two as stored (a right one typed otherwise - "/" at the end, stremio:// - as the save
-// stores it), a wrong one as it is. The script makes it of the values a save posted, as typed (web/src/save.ts).
-function aio_cgi_src_key($watch, $server, $own, $manifest)
-{
-    $o = aio_aio_own($own);
-    $m = aio_manifest_url($manifest);
-    return implode(' ', array($watch, $server, $o !== '' ? $o : $own, $m !== '' ? $m : $manifest));
-}
-
-// src_was of the values of the settings $v (aio_cgi_values): as the page shows them.
-function aio_cgi_src_was($v)
-{
-    return aio_cgi_src_key(aio_cgi_watch($v), $v['aio_server'], $v['aio_own'], $v['manifest']);
-}
-
-// src_was as posted, by aio_cgi_src_key (not of four parts: as it is).
-function aio_cgi_src_was_of($posted)
-{
-    $x = explode(' ', $posted);
-    return count($x) === 4 ? aio_cgi_src_key($x[0], $x[1], $x[2], $x[3]) : $posted;
-}
-
-// src_was of the values posted $v (aio_cgi_posted).
-function aio_cgi_src_was_posted($v)
-{
-    return aio_cgi_src_key($v['watch'], $v['aio_server'], $v['aio_own'], $v['manifest']);
-}
-
-// src_was of the settings $s (aio_settings_read).
-function aio_cgi_src_was_stored($s)
-{
-    return aio_cgi_src_key($s['source'] === 'own' ? 'own' : $s['aio_mode'], $s['aio_server'], $s['aio_own_url'],
-        $s['manifest_url']);
-}
-
-// A text field not posted (no name=, so not a change for the bar of the save either).
-function aio_cgi_unposted($id, $label, $placeholder, $max)
-{
-    return '<label for="' . $id . '">' . $label . '</label><div class="f"><input id="' . $id . '" type="text" value="" placeholder="' .
-        aio_cgi_h($placeholder) . '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="' .
-        $max . '"></div>';
-}
-
-// The source profiles (0.58.0) at the bottom of #src: shown by the script (none without it) and by the CSS only
-// with "Профили источников" on (class xs). The list (#prl) by the script from #init.profiles; under it the line of
-// no profiles, "Название" and "Сохранить текущий как профиль" (a=profile_add), the lines why it is disabled: a
-// change not saved yet, the profiles full.
-function aio_cgi_profiles_block()
-{
-    return '<div id="pr" class="xs" hidden><h3 class="gh">' . aio_cgi_l('Профили источников', 'Source profiles') .
-        '</h3><div id="prl"></div><p class="hint" id="pre" hidden>' .
-        aio_cgi_l('Профилей нет: сохраните хотя бы два, чтобы переключать их на Дюне.',
-        'No profiles: save at least two to switch between them on the Dune.') . '</p>' .
-        aio_cgi_unposted('prn', aio_cgi_l('Название', 'Name'), '', AIO_PROFILE_NAME_MAX) .
-        '<button type="button" id="pra" class="btn ghost">' .
-        aio_cgi_l('Сохранить текущий как профиль', 'Save the current source as a profile') . '</button>' .
-        '<p class="hint" id="prd" hidden>' . aio_cgi_l('Сначала сохраните настройки, потом текущий источник как профиль.',
-        'Save the settings first, then the current source as a profile.') . '</p>' .
-        '<p class="hint" id="prx" hidden>' . sprintf(aio_cgi_l('Профилей уже %d. Удалите лишний, чтобы добавить новый.',
-        'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX) . '</p>' .
-        '<div id="prr" class="res" aria-live="polite"></div></div>';
-}
-
 // The screen "AIOStreams" (#cfg, 0.44.0; its fields: Debrid and
 // Торренты, #smade of class xm): the server melange makes the config on - a
 // card of the radio aio_server each (the host; "у Melange" of
@@ -1028,17 +964,9 @@ function aio_cgi_js($v)
             'The current settings will be replaced with those from the file, the link of this page with the one from the file: the current link will stop working. Continue?'),
         'importing' => aio_cgi_l('Загружаю…', 'Loading…'),
         'importTooBig' => aio_cgi_import_big(),
-        'importUnread' => aio_cgi_l('Файл не прочитался — выберите его ещё раз', 'The file could not be read: choose it again'),
-        // The source profiles (lib/profiles.php, web/src/profiles.ts).
-        'profileNow' => aio_cgi_l('сейчас', 'now'),
-        'profileNoConf' => sprintf(aio_cgi_l('Конфига нет: выберите этот сервер и режим, затем нажмите «%s».',
-            'No config: choose this server and mode, then press "%s".'), aio_cgi_saveb()),
-        'profileName' => aio_cgi_l('Название', 'Name'), 'profileLink' => aio_cgi_l('Ссылка на конфиг', 'Config link'),
-        'profileEdit' => aio_cgi_l('Изменить', 'Edit'), 'profileSave' => aio_cgi_l('Сохранить профиль', 'Save the profile'),
-        'profileDelete' => aio_cgi_l('Удалить', 'Delete'),
-        'profileDeleteConfirm' => aio_cgi_l('Удалить профиль «%s»?', 'Delete the profile "%s"?')) +
-        // The lines of the main screen (aio_cgi_rows).
-        aio_cgi_home_texts();
+        'importUnread' => aio_cgi_l('Файл не прочитался — выберите его ещё раз', 'The file could not be read: choose it again')) +
+        // The lines of the main screen (aio_cgi_rows), the source profiles (lib/profiles.php).
+        aio_cgi_home_texts() + aio_cgi_profile_texts();
     $js = dirname(dirname(__FILE__)) . '/settings.js';
     $js = is_readable($js) ? file_get_contents($js) : false;
     if (!is_string($js))

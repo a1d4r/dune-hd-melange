@@ -8,7 +8,7 @@
 
 import { type Api, parseProfiles, type Profile, type ProfileAnswer, type ProfileList, type Result } from "./api";
 import type { Bar } from "./bar";
-import { byId, checkedValue, CLS, ID, NAME, type Page, query, VALUE } from "./dom";
+import { byId, checkedValue, CLS, ID, NAME, type Page, query, sourceWasLink, VALUE } from "./dom";
 import { failureText } from "./i18n";
 import type { Lock } from "./lock";
 import { bindEye, maskSecret } from "./secrets";
@@ -51,7 +51,7 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     made.type = "button";
     return made;
   }
-  // A field of a card as aio_cgi_plain makes one (no name=: not posted, not a change of the bar).
+  // A field of a card as aio_cgi_unposted makes one (no name=: not posted, not a change of the bar).
   function field(id: string, label: string, value: string, max: number): [HTMLLabelElement, HTMLDivElement, HTMLInputElement] {
     const labelEl = el("label", "", label);
     labelEl.htmlFor = id;
@@ -88,8 +88,8 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
       }
       if (done) done(answer);
       if (out !== results) out.textContent = "";
-      if (answer.list) {
-        profiles = answer.list;
+      if (answer.profiles) {
+        profiles = answer.profiles;
         renderList();
       }
       if (answer.msg) show(results, answer.ok ? "ok" : "err", [answer.msg]);
@@ -107,11 +107,7 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     manifest.value = url;
     bar.rebaseField(NAME.manifest);
     const was = byId<HTMLInputElement>(doc, ID.sourceWas);
-    const parts = was.value.split(" ");
-    if (parts.length === 4 && parts[3] === old) {
-      parts[3] = url;
-      was.value = parts.join(" ");
-    }
+    was.value = sourceWasLink(was.value, old, url);
     changed();
   }
 
@@ -163,8 +159,8 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     save.addEventListener("click", () => {
       const url = fields.url ? fields.url.value : null;
       act(save, out, fields, () => api.profileEdit(i, p.name, name.value, url), (answer) => {
-        if (answer.ok && answer.manifest && p.url !== null && answer.list && answer.list.list[i])
-          linkInUse(p.url, answer.list.list[i]!.url || "");
+        if (answer.ok && answer.manifest && p.url !== null && answer.profiles && answer.profiles.list[i])
+          linkInUse(p.url, answer.profiles.list[i]!.url || "");
       });
     });
     del.addEventListener("click", () => {
@@ -202,8 +198,8 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
       // Off as saved: the block is hidden, a save turning it on comes first.
       if (checkedValue(page.form, NAME.srcProfiles) !== VALUE.on) return;
       api.profiles().then((result) => {
-        if (result.kind !== "data" || !result.data.list) return;
-        profiles = result.data.list;
+        if (result.kind !== "data" || !result.data.profiles) return;
+        profiles = result.data.profiles;
         renderList();
         render();
       });

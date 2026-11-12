@@ -24,9 +24,9 @@ export type CatRows = { ok: boolean; stale: boolean; rows: CatRow[] };
 // its config there (ready), the link of an own config; def - the name of a new one, max - the most there can be.
 export type Profile = { name: string; line: string; now: boolean; ready: boolean; url: string | null };
 export type ProfileList = { list: Profile[]; def: string; max: number };
-// a=profile_*: list - those of the file (null: none sent, it was not read), part - the field of a profile the error
+// a=profile_*: profiles - those of the file (null: none sent, it was not read), part - the field of a profile the error
 // is about (name, url; not a field of the form), manifest - the new link of the profile in use is the source now.
-export type ProfileAnswer = { ok: boolean; msg: string; list: ProfileList | null; part: string | null; manifest: boolean };
+export type ProfileAnswer = { ok: boolean; msg: string; profiles: ProfileList | null; part: string | null; manifest: boolean };
 
 // a=import: next - the page again (its values imported), msg - why nothing was written.
 export type Import = { ok: true; next: string } | { ok: false; msg: string };
@@ -118,7 +118,7 @@ function parseProfileAnswer(json: Json): ProfileAnswer | null {
   return {
     ok: json.ok,
     msg: typeof json.msg === "string" ? json.msg : "",
-    list: parseProfiles(json.profiles),
+    profiles: parseProfiles(json.profiles),
     part: typeof json.part === "string" ? json.part : null,
     manifest: json.manifest === true,
   };

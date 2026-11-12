@@ -286,6 +286,15 @@ export function sourceWas(values: Record<string, string>): string {
   return [values[NAME.watch] ?? "", values[NAME.aioServer] ?? "", trimmed(values[NAME.aioOwnUrl] ?? ""), trimmed(values[NAME.manifest] ?? "")].join(" ");
 }
 
+// src_was with the link url in place of old (the link of the profile in use changed); another link there (another
+// source than the stored one already: the save takes the posted one) or not of four parts: as it is.
+export function sourceWasLink(was: string, old: string, url: string): string {
+  const parts = was.split(" ");
+  if (parts.length !== 4 || parts[3] !== old) return was;
+  parts[3] = url;
+  return parts.join(" ");
+}
+
 // The host of an address as parse_url() of PHP finds it ("" - none).
 export function hostOf(url: string): string {
   const found = /^[a-z][a-z0-9+.-]*:\/\/(?:[^\/?#@]*@)?(\[[^\]\/]*\]|[^\/:?#]*)/i.exec(url);
