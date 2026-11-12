@@ -780,9 +780,10 @@ function aio_profile_jacred($p)
 // UTF-8, trimmed (of NBSP too: aio_profile_name), no control ones (C0, C1) nor invisible ones (U+00AD, U+200B-200F,
 // U+2028-202E, U+2060-2069, U+3164, U+FEFF: a name that looks like another one). Other keys are dropped.
 // One without jacred is of before the editor (array('name', 'base', 'mode') or array('name', 'url')): the JacRed of
-// the settings $s, the template of the config of its cell in $s (aio_confs[base][mode]) when it is one of its mode,
-// else that of $s of the mode, the config of that cell (two profiles of before never had one cell: the target was
-// unique).
+// the settings $s; the template - of $s of the mode when it is of the source in use (source made, its server and mode:
+// the profile stays "now"), else that of the config of its cell in $s (aio_confs[base][mode]) when it is one of its
+// mode, else that of $s of the mode; the config of that cell (two profiles of before never had one cell: the target
+// was unique).
 /**
  * @param mixed $p
  * @param AioSettings $s
@@ -812,14 +813,11 @@ function aio_profile_ok($p, $s)
         return null;
     $mode = $p['mode'];
     $cell = isset($s['aio_confs'][$b][$mode]) ? $s['aio_confs'][$b][$mode] : null;
-    $tpl = $old ? ($cell ? $cell['tpl'] : null) : (isset($p['tpl']) ? $p['tpl'] : null);
+    $in_use = $s['source'] === 'made' && aio_settings_base($s) === $b && $s['aio_mode'] === $mode;
+    $tpl = $old ? ($cell && !$in_use ? $cell['tpl'] : null) : (isset($p['tpl']) ? $p['tpl'] : null);
     if (!($mode === AIO_MODE_P2P ? aio_tpl_p2p($tpl) : aio_tpl_debrid($tpl)))
         $tpl = $mode === AIO_MODE_P2P ? $s['aio_tpl_p2p'] : $s['aio_tpl'];
     $conf = $old ? $cell : (isset($p['conf']) ? aio_aio_conf($b, $p['conf']) : null);
-    // As aio_settings_parse: 0.35.0 stored no marks - the keys melange has now taken as its own (none of before).
-    if ($conf && $conf['set'] === null)
-        $conf['set'] = array_keys(array_filter(array('rd' => $s['rd_key'] !== '', 'tb' => $s['tb_key'] !== '',
-            'tmdb' => aio_tmdb_sent($b, $s['tmdb_key']) !== '')));
     return array('name' => $name, 'base' => $b, 'mode' => $mode, 'tpl' => (string) $tpl) + $jr + array('conf' => $conf);
 }
 
@@ -871,10 +869,59 @@ function aio_profiles_ok($list, $s)
     return $r;
 }
 
+// The keys of the settings of the source (aio_profile_apply sets them; the template of a profile is one of the two):
+// those MENU of a list and the page compare to see the source changed meanwhile.
+/**
+ * @return list<string>
+ */
+function aio_source_keys()
+{
+    return array('source', 'manifest_url', 'aio_server', 'aio_own_url', 'aio_mode', 'aio_tpl', 'aio_tpl_p2p', 'jacred',
+        'jacred_own_url', 'jacred_own_key');
+}
+
+// aio_confs[$base][$mode] of the settings $s set to $c (null: emptied; the config of the other mode stays).
+/**
+ * @param AioSettings $s
+ * @param string $base
+ * @param string $mode
+ * @param AioConf|null $c
+ * @return AioSettings
+ */
+function aio_settings_cell($s, $base, $mode, $c)
+{
+    if ($c)
+        $s['aio_confs'][$base][$mode] = $c;
+    else
+    {
+        unset($s['aio_confs'][$base][$mode]);
+        if (empty($s['aio_confs'][$base]))
+            unset($s['aio_confs'][$base]);
+    }
+    return $s;
+}
+
+// A profile of the settings $s has the config $c (its uuid): the config may leave its cell, the profile keeps it.
+/**
+ * @param AioSettings $s
+ * @param AioConf|null $c
+ * @return bool
+ */
+function aio_profile_held($s, $c)
+{
+    foreach ($c ? $s['profiles'] : array() as $p)
+    {
+        if (!isset($p['url']) && $p['conf'] && $p['conf']['uuid'] === $c['uuid'])
+            return true;
+    }
+    return false;
+}
+
 // Settings $s with profile $p in use (MENU of a list, "Сделать текущим" of the page): a config of Melange - source
 // made, the mode, the server (one of the list, else "own" with its address), the template of its mode, its config in
-// the cell of the server and mode (none: the cell emptied); an own config - source own and its link, the server, the
-// mode and the templates kept (only stored then); the JacRed of both.
+// the cell of the server and mode (none: the cell as it is - a config there no profile has is never lost); an own
+// config - source own and its link, the server, the mode and the templates kept (only stored then); the JacRed of
+// both.
 /**
  * @param AioSettings $s
  * @param AioProfile $p
@@ -898,15 +945,7 @@ function aio_profile_apply($s, $p)
         $s['aio_server'] = $p['base'];
     else
         list($s['aio_server'], $s['aio_own_url']) = array('own', $p['base']);
-    if ($p['conf'])
-        $s['aio_confs'][$p['base']][$p['mode']] = $p['conf'];
-    else
-    {
-        unset($s['aio_confs'][$p['base']][$p['mode']]);
-        if (empty($s['aio_confs'][$p['base']]))
-            unset($s['aio_confs'][$p['base']]);
-    }
-    return $s;
+    return $p['conf'] ? aio_settings_cell($s, $p['base'], $p['mode'], $p['conf']) : $s;
 }
 
 // The settings $s as the page shows profile $p (its editor): aio_profile_apply, the configs only that of the profile

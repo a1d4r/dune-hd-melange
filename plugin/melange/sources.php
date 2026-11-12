@@ -93,8 +93,7 @@ function aio_gc_src_usable($s, $k)
 // touched (the one rollback, to the settings before the request, is in aio_gc_src): the
 // file not read (err_quick_read), not written (err_setup_write); the page changed meanwhile
 // the profile (gone, another, not ready, the setting off) or the source of the settings
-// $s0 of the first read - the source, the server, the mode, the link, the templates, the JacRed
-// (src_changed).
+// $s0 of the first read (aio_source_keys: src_changed).
 /**
  * @param string $dir
  * @param AioSettings $s0
@@ -113,8 +112,7 @@ function aio_gc_src_commit($dir, $s0, $p, $tag)
         $err = array('src_changed', 'the profile changed meanwhile');
     else
     {
-        foreach (array('source', 'aio_server', 'aio_own_url', 'aio_mode', 'manifest_url', 'aio_tpl', 'aio_tpl_p2p', 'jacred',
-            'jacred_own_url', 'jacred_own_key') as $f)
+        foreach (aio_source_keys() as $f)
         {
             if ($s[$f] !== $s0[$f])
                 $err = array('src_changed', 'the source changed meanwhile');
