@@ -773,7 +773,7 @@ function aio_profiles_ok($list)
         $p = aio_profile_ok($p);
         if (!$p || count($r) === AIO_PROFILES_MAX)
             continue;
-        $to = isset($p['url']) ? 'url ' . $p['url'] : "made {$p['base']} {$p['mode']}";
+        $to = aio_profile_key($p);
         if (isset($seen['name ' . $p['name']]) || isset($seen[$to]))
             continue;
         $seen['name ' . $p['name']] = $seen[$to] = true;
@@ -808,6 +808,31 @@ function aio_profile_apply($s, $p)
     return $s;
 }
 
+// The target of profile $p (or of aio_profile_of) as one string: two profiles of the same one are one source
+// (aio_profiles_ok keeps the first, the page refuses the second).
+/**
+ * @param array{url: string}|array{base: string, mode: string} $p
+ * @return string
+ */
+function aio_profile_key($p)
+{
+    return isset($p['url']) ? 'url ' . $p['url'] : "made {$p['base']} {$p['mode']}";
+}
+
+// The target of a profile of the source of settings $s, without a name: array('url') of the own config,
+// array('base', 'mode') of a config of Melange; null - none (the own config without its link, no server).
+/**
+ * @param AioSettings $s
+ * @return array{url: string}|array{base: string, mode: string}|null
+ */
+function aio_profile_of($s)
+{
+    if ($s['source'] === 'own')
+        return $s['manifest_url'] !== '' ? array('url' => $s['manifest_url']) : null;
+    $b = aio_settings_base($s);
+    return $b !== '' ? array('base' => $b, 'mode' => $s['aio_mode']) : null;
+}
+
 // Settings $s are those of profile $p (what aio_profile_apply sets).
 /**
  * @param AioSettings $s
@@ -816,9 +841,8 @@ function aio_profile_apply($s, $p)
  */
 function aio_profile_is($s, $p)
 {
-    if (isset($p['url']))
-        return $s['source'] === 'own' && $s['manifest_url'] === $p['url'];
-    return $s['source'] === 'made' && aio_settings_base($s) === $p['base'] && $s['aio_mode'] === $p['mode'];
+    $t = aio_profile_of($s);
+    return $t !== null && aio_profile_key($t) === aio_profile_key($p);
 }
 
 // Profile $p can be used: an own config, or a config of Melange with its config
