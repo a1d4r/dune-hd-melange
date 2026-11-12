@@ -731,9 +731,9 @@ define('AIO_PROFILE_NAME_MAX', 30);
 // (aio_aio_servers) or of an own one (aio_aio_own($base) === $base, as
 // aio_aio_conf), mode of aio_aio_modes(); or an own config array('name',
 // 'url') - url of aio_manifest_url. The name: 1-AIO_PROFILE_NAME_MAX
-// characters of UTF-8, trimmed, no control ones (C0, C1) nor invisible ones of
-// format (U+200B-200F, U+202A-202E, U+2060-2069, U+FEFF: a name that looks like
-// another one). Other keys are dropped.
+// characters of UTF-8, trimmed (of NBSP too: aio_profile_name), no control ones
+// (C0, C1) nor invisible ones (U+00AD, U+200B-200F, U+2028-202E, U+2060-2069,
+// U+3164, U+FEFF: a name that looks like another one). Other keys are dropped.
 /**
  * @param mixed $p
  * @return AioProfile|null
@@ -742,11 +742,11 @@ function aio_profile_ok($p)
 {
     if (!is_array($p) || !isset($p['name']) || !is_string($p['name']) || isset($p['url']) === isset($p['base']))
         return null;
-    $name = trim($p['name'], AIO_TRIM);
+    $name = aio_profile_name($p['name']);
     // Characters, not bytes; 0 of a name that is not UTF-8 (no mbstring in common.php).
     $n = intval(preg_match_all('/./su', $name, $m));
     if ($n < 1 || $n > AIO_PROFILE_NAME_MAX ||
-        preg_match('/[\x00-\x1F\x7F]|\xC2[\x80-\x9F]|\xE2\x80[\x8B-\x8F\xAA-\xAE]|\xE2\x81[\xA0-\xA9]|\xEF\xBB\xBF/', $name))
+        preg_match('/[\x00-\x1F\x7F]|\xC2[\x80-\x9F\xAD]|\xE2\x80[\x8B-\x8F\xA8-\xAE]|\xE2\x81[\xA0-\xA9]|\xE3\x85\xA4|\xEF\xBB\xBF/', $name))
         return null;
     if (isset($p['url']))
     {
@@ -759,6 +759,16 @@ function aio_profile_ok($p)
         !in_array($p['mode'], aio_aio_modes(), true))
         return null;
     return array('name' => $name, 'base' => $b, 'mode' => $p['mode']);
+}
+
+// A name of a profile as typed, trimmed of AIO_TRIM and of NBSP (U+00A0) at both ends.
+/**
+ * @param string $name
+ * @return string
+ */
+function aio_profile_name($name)
+{
+    return (string) preg_replace('/^(?:[ \t\r\n\x0B]|\xC2\xA0)+|(?:[ \t\r\n\x0B]|\xC2\xA0)+\z/', '', $name);
 }
 
 // profiles of settings.json -> those of aio_profile_ok, in order, at most

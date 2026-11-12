@@ -170,7 +170,7 @@ function aio_cgi_profile_post($dir, $a)
             aio_cgi_profile_failed($a, 'full', sprintf(aio_cgi_l('Профилей уже %d. Удалите лишний, чтобы добавить новый.',
                 'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX), $s);
         }
-        if (trim($name, AIO_TRIM) === '')
+        if (aio_profile_name($name) === '')
             $name = aio_cgi_profile_def($s);
         $p = aio_cgi_profile_checked($a, $s, array('name' => $name) + $t, -1);
         $s['profiles'][] = $p;
