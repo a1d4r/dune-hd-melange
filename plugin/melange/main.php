@@ -57,6 +57,8 @@ require_once dirname(__FILE__) . '/catalog.php';
 require_once dirname(__FILE__) . '/catalog_card.php';
 require_once dirname(__FILE__) . '/view_catalog.php';
 require_once dirname(__FILE__) . '/view_catalog_rows.php';
+// The tab "TV" of the main screen.
+require_once dirname(__FILE__) . '/tv_tab.php';
 
 class Aio
 {
@@ -1418,6 +1420,8 @@ function aio_handle_user_input($in)
         return null;
     if ($control === 'play')
         return aio_play_action($in);
+    if ($control === 'tv_update')
+        return aio_tv_update($in);
     if ($control === 'gc_move' || $control === 'gc_pick' || $control === 'gc_info')
         return aio_gc_input($in);
     if ($control === 'info_page')

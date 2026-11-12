@@ -242,3 +242,5 @@ cat_group_world = Страны
 cat_group_runtime = Длительность
 cat_group_anime = Аниме
 cat_group_other = Другое
+tv_open = Открыть Melange
+tv_setup = Настроить Melange

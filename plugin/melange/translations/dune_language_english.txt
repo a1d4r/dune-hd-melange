@@ -242,3 +242,5 @@ cat_group_world = Countries
 cat_group_runtime = Runtime
 cat_group_anime = Anime
 cat_group_other = Other
+tv_open = Open Melange
+tv_setup = Set up Melange
