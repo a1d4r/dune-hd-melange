@@ -14,7 +14,8 @@
 // the place (aio_oc_pos: the zone, the button, the stop, the season and the episode) travels in
 // sel_state.
 // ENTER on a tile does the network (aio_oc_enter); the screen is built from memory.
-// Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_catalog.php, gcomps.php.
+// Needs main.php, catalog.php, catalog_card.php, card_meta.php, history.php, playback.php, view_catalog.php,
+// view_gcomps.php, gcomps.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // Cards kept in memory by "<type>:<id>", AIO_CM_KEEP_EPS episodes in all at most; the oldest
@@ -1130,8 +1131,23 @@ function aio_oc_ep_cards($c, $prog, $s, $lo, $hi, $focus)
     return $d;
 }
 
+// The line "did not load" of a series without the meta, its text at the x of the catalog, as a
+// tab in focus in zone $z of the tabs: ENTER asks again (aio_oc_retry).
+/**
+ * @param AioOcCard $c
+ * @param string $z
+ * @return AioGcComp
+ */
+function aio_oc_retry_panel($c, $z)
+{
+    $t = aio_tr($c['ui'], 'card_eps_failed');
+    $w = aio_gc_w($t, AIO_CATV_LINE_PX) + 2 * AIO_OC_TAB_PAD;
+    return aio_gc_panel('retry', aio_gc_at($w, AIO_OC_TAB_H, AIO_CATV_CARD_X - AIO_OC_TAB_PAD, AIO_OC_TAB_Y),
+        aio_oc_tab_items($t, $w, $z === 'pill' ? 2 : 0));
+}
+
 // The tabs, the row and the frame of a series at place $pos, in the page; no meta: the line "did
-// not load", ENTER to ask again (in focus at the zone of the tabs).
+// not load" (aio_oc_retry_panel).
 /**
  * @param AioOcCard $c
  * @param AioOcLayout $l
@@ -1143,12 +1159,7 @@ function aio_oc_series($c, $l, $pos)
     $x0 = AIO_CATV_CARD_X;
     $ui = $c['ui'];
     if (!$c['meta'])
-    {
-        $t = aio_tr($ui, 'card_eps_failed');
-        $w = aio_gc_w($t, AIO_CATV_LINE_PX) + 2 * AIO_OC_TAB_PAD;
-        return array(aio_gc_panel('retry', aio_gc_at($w, AIO_OC_TAB_H, $x0 - AIO_OC_TAB_PAD, AIO_OC_TAB_Y),
-            aio_oc_tab_items($t, $w, $pos['z'] === 'pill' ? 2 : 0)));
-    }
+        return array(aio_oc_retry_panel($c, $pos['z']));
     $t = $l['tabs'];
     if (!$t['list'])
         return array();
@@ -1302,48 +1313,78 @@ function aio_oc_pos($c, $l, $raw)
         'p' => $z === 'down' ? max(1, min(count($l['stops']) - 1, $p)) : 0, 's' => $s, 'e' => $e);
 }
 
-// The place after arrow $d (left, right, up, down) from $pos; $pos itself at an edge. In "btn"
-// left and right move along the buttons, down to the first stop of the page; in "down" down and
-// up from stop to stop, up from the first back to "btn".
+// The place after key $d (left, right, up, down, pgup, pgdn) from $pos; $pos itself at an edge.
+// Up and down go from zone to zone in the order of the layout (the buttons, the tabs, the row, the
+// page below), in "down" from stop to stop first, entering it at the first stop. Left and right:
+// along the buttons; along the tabs, the season of the tab shown in the row at once at its episode
+// (aio_oc_def_e); along the row; P+ and P- (pgup, pgdn) PAGE stills along the row.
 /**
+ * @param AioOcCard $c
  * @param AioOcNav $l
  * @param AioOcPos $pos
  * @param string $d
  * @return AioOcPos
  */
-function aio_oc_next($l, $pos, $d)
+function aio_oc_next($c, $l, $pos, $d)
 {
     $n = $pos;
-    if ($pos['z'] === 'btn')
+    $z = $pos['z'];
+    if ($d === 'up' || $d === 'down')
     {
-        if ($d === 'left' || $d === 'right')
-            $n['b'] = max(0, min(count($l['btns']) - 1, $pos['b'] + ($d === 'left' ? -1 : 1)));
-        else if ($d === 'down' && count($l['stops']) > 1)
+        if ($z === 'down' && ($d === 'down' || $pos['p'] > 1))
         {
-            $n['z'] = 'down';
-            $n['p'] = 1;
+            $n['p'] = $d === 'down' ? min(count($l['stops']) - 1, $pos['p'] + 1) : $pos['p'] - 1;
+            return $n;
+        }
+        $k = intval(array_search($z, $l['zones'], true)) + ($d === 'down' ? 1 : -1);
+        if ($k < 0 || $k >= count($l['zones']))
+            return $n;
+        $n['z'] = $l['zones'][$k];
+        $n['p'] = $n['z'] === 'down' ? 1 : 0;
+        return $n;
+    }
+    $steps = array('left' => -1, 'right' => 1, 'pgup' => -AIO_OC_PAGE, 'pgdn' => AIO_OC_PAGE);
+    if (!isset($steps[$d]))
+        return $n;
+    $step = $steps[$d];
+    $arrow = $step === -1 || $step === 1;
+    if ($z === 'btn' && $arrow)
+        $n['b'] = max(0, min(count($l['btns']) - 1, $pos['b'] + $step));
+    else if ($z === 'pill' && $arrow && $l['tabs']['list'])
+    {
+        $k = 0;
+        foreach ($l['tabs']['list'] as $i => $tab)
+        {
+            if ($tab[0] === $pos['s'])
+                $k = $i;
+        }
+        $tab = $l['tabs']['list'][max(0, min(count($l['tabs']['list']) - 1, $k + $step))];
+        if ($tab[0] !== $pos['s'])
+        {
+            $n['s'] = $tab[0];
+            $n['e'] = aio_oc_def_e($c, $l, $tab[0]);
         }
     }
-    else if ($d === 'down')
-        $n['p'] = min(count($l['stops']) - 1, $pos['p'] + 1);
-    else if ($d === 'up')
+    else if ($z === 'row')
     {
-        $n['p'] = $pos['p'] - 1;
-        if ($n['p'] === 0)
-            $n['z'] = 'btn';
+        $eps = aio_oc_eps($c, $pos['s']);
+        if ($eps)
+            $n['e'] = $eps[max(0, min(count($eps) - 1, aio_cm_ep_index($eps, $pos['e']) + $step))]['e'];
     }
     return $n;
 }
 
-// The change_defs from place $old to $new: the two buttons redrawn, the page and the bottom of
-// its clip moved, the darkening on or off, what the first screen alone shows off or on.
+// The change_defs from place $old to $new: the lit buttons redrawn, the tabs, the row and its frame
+// (aio_oc_row_changes) or the line "did not load", the page and the bottom of its clip moved, the
+// darkening on or off, what the first screen alone shows off or on.
 /**
+ * @param AioOcCard $c
  * @param AioOcNav $l
  * @param AioOcPos $old
  * @param AioOcPos $new
  * @return list<AioGcChange>
  */
-function aio_oc_changes($l, $old, $new)
+function aio_oc_changes($c, $l, $old, $new)
 {
     $ch = array();
     $ob = aio_oc_btn_lit($old);
@@ -1357,6 +1398,13 @@ function aio_oc_changes($l, $old, $new)
                     aio_oc_btn_items($l['btns'][$i], aio_oc_btn_w($l['btns'][$i]), $i === $nb));
         }
     }
+    if ($l['tabs']['list'])
+        $ch = array_merge($ch, aio_oc_row_changes($c, $l, $old, $new));
+    else if ($l['kind'] === 'series' && !$c['meta'] && ($old['z'] === 'pill') !== ($new['z'] === 'pill'))
+    {
+        $r = aio_oc_retry_panel($c, $new['z']);
+        $ch[] = aio_gc_change('retry', null, GCOMP_TRANSITION_NONE, $r[GComponentDef::specific_def][GCompPanelDef::children]);
+    }
     if ($new['p'] !== $old['p'])
     {
         $ch[] = aio_gc_change('view', aio_oc_view_geom($l['clips'][$new['p']]), GCOMP_TRANSITION_DEFAULT);
@@ -1367,6 +1415,91 @@ function aio_oc_changes($l, $old, $new)
         $ch[] = aio_gc_change('dim', null, GCOMP_TRANSITION_NONE, aio_oc_dim($new['z']));
         $ch[] = aio_gc_change('first', null, GCOMP_TRANSITION_NONE, $new['z'] === 'down' ? array() : $l['first']);
     }
+    return $ch;
+}
+
+// The changes of the tabs and the row of a series from $old to $new. Another season: its tabs
+// redrawn, the strip moved, the count, all the stills of the panel at once. The same season,
+// another episode: the panel moved (the stills it leaves in the first two slots: the frame moves),
+// the titles lit and dimmed; a long season (aio_oc_win): the stills out of the window dropped, the
+// new ones added beside it in the change that moves the panel (two changes of its geometry in one
+// call jump with no motion, hrow_probe). The frame shown in the zone of the row only.
+/**
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @param AioOcPos $old
+ * @param AioOcPos $new
+ * @return list<AioGcChange>
+ */
+function aio_oc_row_changes($c, $l, $old, $new)
+{
+    $ch = array();
+    $t = $l['tabs'];
+    foreach ($t['list'] as $k => $tab)
+    {
+        $st = aio_oc_tab_state($new, $tab[0]);
+        if ($st !== aio_oc_tab_state($old, $tab[0]))
+            $ch[] = aio_gc_change("t$k", null, GCOMP_TRANSITION_NONE, aio_oc_tab_items($tab[1], $tab[3], $st));
+    }
+    $eps = aio_oc_eps($c, $new['s']);
+    $n = count($eps);
+    $i = max(0, aio_cm_ep_index($eps, $new['e']));
+    $off = aio_oc_off($i, $n);
+    $lit = $new['z'] === 'row' ? $i : -1;
+    list($lo, $hi) = aio_oc_win($n, $off);
+    if ($new['s'] !== $old['s'])
+    {
+        $sh = aio_oc_tabs_shift($t, $new['s']);
+        if ($sh !== aio_oc_tabs_shift($t, $old['s']))
+            $ch[] = aio_gc_change('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -$sh, 0), GCOMP_TRANSITION_DEFAULT);
+        $ch[] = aio_gc_change('cnt', null, GCOMP_TRANSITION_NONE, aio_oc_count($c, $l['prog'], $new['s']));
+        $ch[] = aio_gc_change('eps', aio_oc_eps_geom($n, $off), GCOMP_TRANSITION_NONE,
+            aio_oc_ep_cards($c, $l['prog'], $new['s'], $lo, $hi, $lit));
+        $ch[] = aio_gc_change('frame', aio_oc_frame_geom($i - $off), GCOMP_TRANSITION_NONE);
+    }
+    else
+    {
+        $oi = max(0, aio_cm_ep_index($eps, $old['e']));
+        $ooff = aio_oc_off($oi, $n);
+        list($olo, $ohi) = aio_oc_win($n, $ooff);
+        for ($k = $olo; $k <= $ohi; $k++)
+        {
+            if ($k < $lo || $k > $hi)
+            {
+                $x = aio_gc_change("c$k", null, GCOMP_TRANSITION_NONE);
+                $x[ChangeGCompDef::remove] = true;
+                $ch[] = $x;
+            }
+        }
+        $add = array();
+        for ($k = $lo; $k <= $hi; $k++)
+        {
+            if ($k < $olo || $k > $ohi)
+                $add[] = aio_oc_ep_card($c, $l['prog'], $k, $eps[$k], $k === $lit);
+        }
+        if ($add || $off !== $ooff)
+        {
+            $x = aio_gc_change('eps', $off !== $ooff ? aio_oc_eps_geom($n, $off) : null, GCOMP_TRANSITION_DEFAULT, $add ? $add : null);
+            if ($add)
+            {
+                $x[ChangeGCompDef::children_merge_mode] = true;
+                $x[ChangeGCompDef::children_insert_after_id] = 'c' . (intval(substr($add[0][GComponentDef::id], 1)) - 1);
+            }
+            $ch[] = $x;
+        }
+        if ($i - $off !== $oi - $ooff)
+            $ch[] = aio_gc_change('frame', aio_oc_frame_geom($i - $off), GCOMP_TRANSITION_DEFAULT);
+        $olit = $old['z'] === 'row' ? $oi : -1;
+        // The titles of the stills kept in the panel; an added one is drawn lit or not already.
+        foreach ($lit !== $olit ? array($olit, $lit) : array() as $k)
+        {
+            if ($k >= max($lo, $olo) && $k <= min($hi, $ohi))
+                $ch[] = aio_gc_change("tt$k", null, GCOMP_TRANSITION_NONE,
+                    aio_oc_ep_titles($eps[$k], aio_oc_prog($c, $l['prog'], $eps[$k]), $k === $lit, $c['ui']));
+        }
+    }
+    if (($old['z'] === 'row') !== ($new['z'] === 'row'))
+        $ch[] = aio_gc_change('frame', null, GCOMP_TRANSITION_NONE, aio_oc_frame($new['z']));
     return $ch;
 }
 
@@ -1443,6 +1576,10 @@ function aio_oc_folder_view($media_url, $sel_state)
         GUI_EVENT_KEY_DOWN => aio_input('card_move', $k + array('d' => 'down')),
         GUI_EVENT_KEY_ENTER => aio_input('card_enter', $k),
         GUI_EVENT_KEY_POPUP_MENU => aio_input('card_menu', $k));
+    if ($l['tabs']['list'])
+        $acts += array(
+            GUI_EVENT_KEY_P_PLUS => aio_input('card_move', $k + array('d' => 'pgup')),
+            GUI_EVENT_KEY_P_MINUS => aio_input('card_move', $k + array('d' => 'pgdn')));
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -1462,7 +1599,8 @@ function aio_oc_folder_view($media_url, $sel_state)
 // (JacRed asks by it): the original title of the meta, else the English one of the tile. A series:
 // episode $e of season $q as asked (aio_cm_req_s), season_numbers of the meta (the episodes out,
 // aio_cm_eps) for the playlist of the season and the next episode; the cursor of the list on
-// release $hash of the history ('' none).
+// release $hash of the history ('' none). The list marked own: its MENU has no "Choose episode"
+// (choose_season_episode would give the seasons of the last native series, not of this card).
 /**
  * @param AioOcCard $c
  * @param int $q
@@ -1495,9 +1633,45 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
     }
     $in->lang = $c['lang'];
     $a = aio_play_action($in);
-    if ($hash !== '' && Aio::$state && $a[GuiAction::handler_string_id] === PLUGIN_OPEN_FOLDER_ACTION_ID)
+    if (!Aio::$state || $a[GuiAction::handler_string_id] !== PLUGIN_OPEN_FOLDER_ACTION_ID)
+        return $a;
+    Aio::$state['movie']['own'] = true;
+    if ($hash !== '')
         Aio::$state = aio_list_cursor(Aio::$state, $hash);
     return $a;
+}
+
+// ENTER on an episode not out yet: "Серия выйдет 16 ноября" (no date: "not out yet"), no streams asked.
+/**
+ * @param AioCardEp $ep
+ * @param string $lang
+ * @return AioAction
+ */
+function aio_oc_soon_msg($ep, $lang)
+{
+    $a = aio_error('card_ep_soon');
+    $a[GuiAction::data][PluginShowErrorActionData::title] = $ep['date'] !== '' ?
+        str_replace('{d}', aio_oc_day($ep['date'], $lang, false, false), aio_tr($lang, 'card_ep_soon')) : aio_tr($lang, 'card_ep_soon_nodate');
+    return $a;
+}
+
+// ENTER on "did not load" of series card $c ($key): the meta asked again; got - the card anew with
+// it, the screen replaced by it, the focus on the tabs; else the message.
+/**
+ * @param string $key
+ * @param AioOcCard $c
+ * @return AioAction
+ */
+function aio_oc_retry($key, $c)
+{
+    $g = aio_cm_get($c['tile']);
+    if (!$g['meta'])
+        return aio_error('cat_row_failed', $g['err']);
+    $card = aio_oc_make($c['tile'], $g['meta'], $c['dune'], $c['lang']);
+    $card['pos'] = array('z' => 'pill', 'b' => $c['pos']['b'], 'p' => 0, 's' => 0, 'e' => 0);
+    aio_oc_keep($key, $card);
+    aio_log("card: own $key: meta again, the screen anew");
+    return aio_replace_act("card:$key", $c['tile']['name']);
 }
 
 // MENU: "Settings", as on the list.
@@ -1515,10 +1689,12 @@ function aio_oc_menu($lang)
             GuiMenuItemDef::action => aio_setup_open_act()))));
 }
 
-// card_move (d: left, right, up, down), card_enter, card_menu of the card c. The arrows: the place
-// of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown (nav), else
-// laid out anew. ENTER on a button: "Watch" - the list, "Dune card" - the native card
-// (file_movie); below the buttons nothing.
+// card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu of the card c. The keys:
+// the place of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown
+// (nav), else laid out anew. ENTER on a button: "Watch" - the list of the episode offered, an
+// episode not out yet - the focus to it in the row, "Dune card" - the native card (file_movie);
+// on "did not load" - the meta again; on an episode - its list, one not out yet - the message;
+// below them nothing.
 /**
  * @param stdClass $in
  * @param string $control
@@ -1535,26 +1711,43 @@ function aio_oc_input($in, $control)
     $l = isset($c['nav']) ? $c['nav'] : aio_oc_layout($c);
     $pos = aio_oc_pos($c, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     AioOc::$cards[$key]['pos'] = $pos;
+    $new = $pos;
     if ($control === 'card_enter')
     {
         $b = $pos['b'];
+        $ep = $l['ep'];
+        if ($pos['z'] === 'pill' && !$c['meta'] && $l['kind'] === 'series')
+            return aio_oc_retry($key, $c);
+        if ($pos['z'] === 'row')
+        {
+            $x = aio_oc_ep($c, $pos['s'], $pos['e']);
+            aio_log("card: own $key: ENTER on S{$pos['s']}E{$pos['e']}" . ($x && $x['soon'] ? ', not out yet' : ''));
+            if (!$x || $x['soon'])
+                return $x ? aio_oc_soon_msg($x, $c['ui']) : null;
+            $q = aio_cm_req_s($c['meta'], $x['s']);
+            return aio_oc_watch($c, $q, $x['e'], $ep && $ep['q'] === $q && $ep['e'] === $x['e'] ? $ep['hash'] : '');
+        }
         if ($pos['z'] !== 'btn' || !isset($l['btns'][$b]))
             return null;
         $kind = $l['btns'][$b][0];
         aio_log("card: own $key: ENTER on $kind");
         if ($kind === 'dune')
             return aio_card_open($c['dune']);
-        $ep = $l['ep'];
-        return $kind !== 'watch' ? null : ($ep ? aio_oc_watch($c, $ep['q'], $ep['e'], $ep['hash']) : aio_oc_watch($c));
+        if ($kind === 'watch')
+            return $ep ? aio_oc_watch($c, $ep['q'], $ep['e'], $ep['hash']) : aio_oc_watch($c);
+        // Not out yet: the focus to it in the row.
+        $new = array('z' => 'row', 'b' => $b, 'p' => 0, 's' => $ep['s'], 'e' => $ep['e']);
     }
-    $new = aio_oc_next($l, $pos, aio_catv_in($in, 'd'));
+    else
+        $new = aio_oc_next($c, $l, $pos, aio_catv_in($in, 'd'));
     if ($new === $pos)
         return null;
     AioOc::$cards[$key]['pos'] = $new;
     return array(
         GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID,
         GuiAction::data => array(
-            ChangeGCompsActionData::change_defs => aio_oc_changes($l, $pos, $new),
-            ChangeGCompsActionData::num_steps => AIO_GC_STEPS,
+            ChangeGCompsActionData::change_defs => aio_oc_changes($c, $l, $pos, $new),
+            ChangeGCompsActionData::num_steps => $new['z'] === $pos['z'] && ($new['z'] === 'row' || $new['z'] === 'pill') ?
+                AIO_OC_ROW_STEPS : AIO_GC_STEPS,
             ChangeGCompsActionData::sel_state => aio_oc_state($new)));
 }

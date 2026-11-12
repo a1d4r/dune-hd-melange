@@ -151,7 +151,7 @@ parameters:
                 copy?: int
             }
         '''
-        # The card of play_action (aio_movie, main.php).
+        # The card of play_action (aio_movie, main.php); own: of a list opened from the own card (aio_oc_watch).
         AioMovie: '''
             array{
                 series: bool,
@@ -164,7 +164,8 @@ parameters:
                 fanart: string,
                 rate_imdb: string,
                 desc: string,
-                seasons: array<int, int>
+                seasons: array<int, int>,
+                own?: bool
             }
         '''
         # The episode to offer of a series by its history (aio_wh_pick, history.php).
