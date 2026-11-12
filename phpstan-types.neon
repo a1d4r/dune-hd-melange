@@ -29,8 +29,8 @@ parameters:
         AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null}'
         # A JacRed to ask (aio_jacred_conf, aio_jacred_builtin_conf, common.php).
         AioJacred: 'array{base: string, host: string, key: string, key_url: string, builtin?: bool}'
-        # A source profile (aio_profile_ok, common.php): a config of Melange or an own config.
-        AioProfile: 'array{name: string, base: string, mode: string}|array{name: string, url: string}'
+        # A source profile (aio_profile_ok, common.php): a config of Melange or an own config, each with its JacRed.
+        AioProfile: 'array{name: string, base: string, mode: string, tpl: string, jacred: string, jacred_own_url: string, jacred_own_key: string, conf: AioConf|null}|array{name: string, url: string, jacred: string, jacred_own_url: string, jacred_own_key: string}'
         # settings.json as read (aio_settings_read, common.php).
         AioSettings: '''
             array{

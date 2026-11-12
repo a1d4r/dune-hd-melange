@@ -84,7 +84,7 @@ function aio_gc_src_dialog($title, $lang, $res)
  */
 function aio_gc_src_usable($s, $k)
 {
-    return $s['src_profiles'] && $k >= 0 && aio_profile_ready($s, $s['profiles'][$k]);
+    return $s['src_profiles'] && $k >= 0 && aio_profile_ready($s['profiles'][$k]);
 }
 
 // After the request to the source of profile $p (aio_gc_src): settings.json read again (the
@@ -93,7 +93,8 @@ function aio_gc_src_usable($s, $k)
 // touched (the one rollback, to the settings before the request, is in aio_gc_src): the
 // file not read (err_quick_read), not written (err_setup_write); the page changed meanwhile
 // the profile (gone, another, not ready, the setting off) or the source of the settings
-// $s0 of the first read (src_changed).
+// $s0 of the first read - the source, the server, the mode, the link, the templates, the JacRed
+// (src_changed).
 /**
  * @param string $dir
  * @param AioSettings $s0
@@ -112,7 +113,8 @@ function aio_gc_src_commit($dir, $s0, $p, $tag)
         $err = array('src_changed', 'the profile changed meanwhile');
     else
     {
-        foreach (array('source', 'aio_server', 'aio_own_url', 'aio_mode', 'manifest_url') as $f)
+        foreach (array('source', 'aio_server', 'aio_own_url', 'aio_mode', 'manifest_url', 'aio_tpl', 'aio_tpl_p2p', 'jacred',
+            'jacred_own_url', 'jacred_own_key') as $f)
         {
             if ($s[$f] !== $s0[$f])
                 $err = array('src_changed', 'the source changed meanwhile');
@@ -134,7 +136,7 @@ function aio_gc_src_commit($dir, $s0, $p, $tag)
 
 // gc_src (n: the name of a profile, MENU "Откуда брать") of a live list: the list of its
 // movie or episode from the source of the profile first (aio_relist with the settings of
-// the profile). It answered, with no streams too (an empty list), but not with error
+// the profile, its JacRed too: the voices and tracks of JacRed are of the profile). It answered, with no streams too (an empty list), but not with error
 // streams only (a link not taken): written (aio_gc_src_commit), the screen replaced, the
 // cursor on the same release. An error, not written: its dialog - the source, the screen
 // and the state as they were. The profile gone, not ready, the setting off, settings.json

@@ -115,7 +115,7 @@ function aio_cgi_profiles_data($s)
     foreach ($s['profiles'] as $i => $p)
     {
         $x = array('name' => $p['name'], 'line' => aio_cgi_profile_line($p), 'now' => $i === $now,
-            'ready' => aio_profile_ready($s, $p));
+            'ready' => aio_profile_ready($p));
         if (isset($p['url']))
             $x['url'] = $p['url'];
         $list[] = $x;
@@ -141,7 +141,7 @@ function aio_cgi_profile_failed($a, $why, $msg, $s, $more = array())
 // profiles of $s (-1: a new one) -> the profile (aio_profile_ok) or the answer refused.
 function aio_cgi_profile_checked($a, $s, $p, $k)
 {
-    $ok = aio_profile_ok($p);
+    $ok = aio_profile_ok($p, $s);
     if (!$ok)
     {
         aio_cgi_profile_failed($a, 'bad name', sprintf(aio_cgi_l('Название: от 1 до %d символов, без управляющих и невидимых',
@@ -182,7 +182,7 @@ function aio_cgi_profile_post($dir, $a, $t)
     if ($a === 'profile_add')
     {
         $target = aio_profile_of($s);
-        if (!$target || !aio_profile_ready($s, $target))
+        if (!$target || !aio_profile_ready($target))
             aio_cgi_profile_failed($a, 'no config', aio_cgi_l('Сначала сохраните: конфига ещё нет',
                 'Save first: there is no config yet'), $s);
         if (count($s['profiles']) >= AIO_PROFILES_MAX)

@@ -458,7 +458,7 @@ function aio_profiles_menu($s)
     $r = array();
     foreach ($s['src_profiles'] ? $s['profiles'] : array() as $i => $p)
     {
-        if (aio_profile_ready($s, $p))
+        if (aio_profile_ready($p))
             $r[$i] = array('name' => $p['name'], 'now' => aio_profile_is($s, $p));
     }
     return $r;

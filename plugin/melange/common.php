@@ -599,17 +599,39 @@ function aio_jacred_migrate($url)
     return $own ? array('own', $own['url'], $own['key']) : array(AIO_JACRED_DEFAULT, '', '');
 }
 
-// The own JacRed of the settings, chosen or not, for the mask of the log:
-// array() or array(aio_jacred_conf() + 'builtin' => false).
+// The own JacRed of the address $url and the key $key (as aio_jacred_own() stores them; $url '' - none)
+// -> aio_jacred_conf() + 'builtin' => false, or null.
+/**
+ * @param string $url
+ * @param string $key
+ * @return AioJacred|null
+ */
+function aio_jacred_own_conf($url, $key)
+{
+    $c = $url !== '' ? aio_jacred_conf($url . ($key !== '' ? '/?apikey=' . $key : '')) : null;
+    return $c ? $c + array('builtin' => false) : null;
+}
+
+// The own JacRed of the settings and of the source profiles (0.58.0), chosen or not, for the mask of the log:
+// a list of aio_jacred_own_conf(), each once.
 /**
  * @param AioSettings $s
  * @return list<AioJacred>
  */
 function aio_jacred_own_confs($s)
 {
-    $c = $s['jacred_own_url'] !== '' ? aio_jacred_conf($s['jacred_own_url'] .
-        ($s['jacred_own_key'] !== '' ? '/?apikey=' . $s['jacred_own_key'] : '')) : null;
-    return $c ? array($c + array('builtin' => false)) : array();
+    $list = array();
+    $seen = array();
+    foreach (array_merge(array($s), $s['profiles']) as $x)
+    {
+        $c = aio_jacred_own_conf($x['jacred_own_url'], $x['jacred_own_key']);
+        if ($c && !isset($seen[$c['base'] . ' ' . $c['key']]))
+        {
+            $seen[$c['base'] . ' ' . $c['key']] = true;
+            $list[] = $c;
+        }
+    }
+    return $list;
 }
 
 // The JacRed to ask, in this order: the chosen one, then AIO_JACRED_DEFAULT
@@ -620,7 +642,8 @@ function aio_jacred_own_confs($s)
  */
 function aio_jacred_list($s)
 {
-    $list = $s['jacred'] === 'own' ? aio_jacred_own_confs($s) : array();
+    $own = $s['jacred'] === 'own' ? aio_jacred_own_conf($s['jacred_own_url'], $s['jacred_own_key']) : null;
+    $list = $own ? array($own) : array();
     foreach (array_unique(array($s['jacred'], AIO_JACRED_DEFAULT)) as $id)
     {
         $c = aio_jacred_builtin_conf($id);
@@ -633,8 +656,8 @@ function aio_jacred_list($s)
 // The secrets of the settings besides the manifest and JacRed: server
 // passwords, keys of Real-Debrid, TorBox, TMDB, the password of TorrServer, passwords of the configs
 // and the long segments of their manifests, as of the manifest in use
-// (aio_mask_secrets); so the long segments of the own config and of the own
-// configs of the profiles, in use or not (0.58.0).
+// (aio_mask_secrets); so the long segments of the own config, and of the own
+// configs and of the configs of the profiles, in use or not (0.58.0).
 /**
  * @param AioSettings $s
  * @return list<string>
@@ -660,6 +683,11 @@ function aio_settings_secrets($s)
     {
         if (isset($p['url']))
             $urls[] = $p['url'];
+        elseif ($p['conf'])
+        {
+            $pw[] = $p['conf']['pass'];
+            $urls[] = $p['conf']['manifest'];
+        }
     }
     foreach (array_unique($urls) as $url)
     {
@@ -726,19 +754,41 @@ define('AIO_PROFILES_MAX', 8);
 // Characters of the name of a profile, at most.
 define('AIO_PROFILE_NAME_MAX', 30);
 
-// A profile as stored -> the profile, or null when it does not fit: a config
-// of Melange array('name', 'base', 'mode') - base of a server of the list
-// (aio_aio_servers) or of an own one (aio_aio_own($base) === $base, as
-// aio_aio_conf), mode of aio_aio_modes(); or an own config array('name',
-// 'url') - url of aio_manifest_url. The name: 1-AIO_PROFILE_NAME_MAX
-// characters of UTF-8, trimmed (of NBSP too: aio_profile_name), no control ones
-// (C0, C1) nor invisible ones (U+00AD, U+200B-200F, U+2028-202E, U+2060-2069,
-// U+3164, U+FEFF: a name that looks like another one). Other keys are dropped.
+// The JacRed of a profile as stored (0.58.0, the editor of the page): 'jacred' - a key of aio_jacred_builtin() or
+// 'own' (only with a good own one), 'jacred_own_url', 'jacred_own_key' - aio_jacred_own() or both '' (kept when a
+// built-in one is chosen, as of the settings); a wrong choice - AIO_JACRED_DEFAULT, as aio_settings_parse.
+/**
+ * @param array<mixed> $p
+ * @return array{jacred: string, jacred_own_url: string, jacred_own_key: string}
+ */
+function aio_profile_jacred($p)
+{
+    $own = aio_jacred_own(array('url' => isset($p['jacred_own_url']) ? $p['jacred_own_url'] : '',
+        'key' => isset($p['jacred_own_key']) ? $p['jacred_own_key'] : ''));
+    $b = aio_jacred_builtin();
+    $id = isset($p['jacred']) && is_string($p['jacred']) && (isset($b[$p['jacred']]) || ($p['jacred'] === 'own' && $own)) ?
+        $p['jacred'] : AIO_JACRED_DEFAULT;
+    return array('jacred' => $id, 'jacred_own_url' => $own ? $own['url'] : '', 'jacred_own_key' => $own ? $own['key'] : '');
+}
+
+// A profile as stored -> the profile, or null when it does not fit. A profile is a set of the settings of the source
+// (0.58.0): a config of Melange array('name', 'base', 'mode', 'tpl', the JacRed of aio_profile_jacred, 'conf') - base
+// of a server of the list (aio_aio_servers) or of an own one (aio_aio_own($base) === $base, as aio_aio_conf), mode of
+// aio_aio_modes(), tpl - the template of a new config of its mode (aio_tpl_debrid, aio_tpl_p2p; a wrong one - the one
+// of the settings $s of the mode), conf - its own config on that server (aio_aio_conf; null - not made yet); or an own
+// config array('name', 'url', the JacRed) - url of aio_manifest_url. The name: 1-AIO_PROFILE_NAME_MAX characters of
+// UTF-8, trimmed (of NBSP too: aio_profile_name), no control ones (C0, C1) nor invisible ones (U+00AD, U+200B-200F,
+// U+2028-202E, U+2060-2069, U+3164, U+FEFF: a name that looks like another one). Other keys are dropped.
+// One without jacred is of before the editor (array('name', 'base', 'mode') or array('name', 'url')): the JacRed of
+// the settings $s, the template of the config of its cell in $s (aio_confs[base][mode]) when it is one of its mode,
+// else that of $s of the mode, the config of that cell (two profiles of before never had one cell: the target was
+// unique).
 /**
  * @param mixed $p
+ * @param AioSettings $s
  * @return AioProfile|null
  */
-function aio_profile_ok($p)
+function aio_profile_ok($p, $s)
 {
     if (!is_array($p) || !isset($p['name']) || !is_string($p['name']) || isset($p['url']) === isset($p['base']))
         return null;
@@ -748,17 +798,29 @@ function aio_profile_ok($p)
     if ($n < 1 || $n > AIO_PROFILE_NAME_MAX ||
         preg_match('/[\x00-\x1F\x7F]|\xC2[\x80-\x9F\xAD]|\xE2\x80[\x8B-\x8F\xA8-\xAE]|\xE2\x81[\xA0-\xA9]|\xE3\x85\xA4|\xEF\xBB\xBF/', $name))
         return null;
+    $old = !array_key_exists('jacred', $p);
+    $jr = aio_profile_jacred($old ? $s : $p);
     if (isset($p['url']))
     {
         $url = aio_manifest_url($p['url']);
-        return $url !== '' ? array('name' => $name, 'url' => $url) : null;
+        return $url !== '' ? array('name' => $name, 'url' => $url) + $jr : null;
     }
     $servers = aio_aio_servers();
     $b = is_string($p['base']) ? $p['base'] : '';
     if ((!isset($servers[$b]) && ($b === '' || aio_aio_own($b) !== $b)) || !isset($p['mode']) ||
         !in_array($p['mode'], aio_aio_modes(), true))
         return null;
-    return array('name' => $name, 'base' => $b, 'mode' => $p['mode']);
+    $mode = $p['mode'];
+    $cell = isset($s['aio_confs'][$b][$mode]) ? $s['aio_confs'][$b][$mode] : null;
+    $tpl = $old ? ($cell ? $cell['tpl'] : null) : (isset($p['tpl']) ? $p['tpl'] : null);
+    if (!($mode === AIO_MODE_P2P ? aio_tpl_p2p($tpl) : aio_tpl_debrid($tpl)))
+        $tpl = $mode === AIO_MODE_P2P ? $s['aio_tpl_p2p'] : $s['aio_tpl'];
+    $conf = $old ? $cell : (isset($p['conf']) ? aio_aio_conf($b, $p['conf']) : null);
+    // As aio_settings_parse: 0.35.0 stored no marks - the keys melange has now taken as its own (none of before).
+    if ($conf && $conf['set'] === null)
+        $conf['set'] = array_keys(array_filter(array('rd' => $s['rd_key'] !== '', 'tb' => $s['tb_key'] !== '',
+            'tmdb' => aio_tmdb_sent($b, $s['tmdb_key']) !== '')));
+    return array('name' => $name, 'base' => $b, 'mode' => $mode, 'tpl' => (string) $tpl) + $jr + array('conf' => $conf);
 }
 
 // A name of a profile as typed, trimmed of AIO_TRIM and of NBSP (U+00A0) at both ends; one over
@@ -784,19 +846,20 @@ function aio_profile_name($name)
     return $name;
 }
 
-// profiles of settings.json -> those of aio_profile_ok, in order, at most
-// AIO_PROFILES_MAX; one of a name or a target already there is dropped.
+// profiles of settings.json -> those of aio_profile_ok (the settings $s: of aio_settings_parse, aio_confs read), in
+// order, at most AIO_PROFILES_MAX; one of a name or a target (aio_profile_key) already there is dropped.
 /**
  * @param array<mixed> $list
+ * @param AioSettings $s
  * @return list<AioProfile>
  */
-function aio_profiles_ok($list)
+function aio_profiles_ok($list, $s)
 {
     $r = array();
     $seen = array();
     foreach ($list as $p)
     {
-        $p = aio_profile_ok($p);
+        $p = aio_profile_ok($p, $s);
         if (!$p || count($r) === AIO_PROFILES_MAX)
             continue;
         $to = aio_profile_key($p);
@@ -808,9 +871,10 @@ function aio_profiles_ok($list)
     return $r;
 }
 
-// Settings $s with profile $p in use: a config of Melange - source made, the
-// mode, the server (one of the list, else "own" with its address); an own
-// config - source own and its link, the rest kept (only stored then).
+// Settings $s with profile $p in use (MENU of a list, "Сделать текущим" of the page): a config of Melange - source
+// made, the mode, the server (one of the list, else "own" with its address), the template of its mode, its config in
+// the cell of the server and mode (none: the cell emptied); an own config - source own and its link, the server, the
+// mode and the templates kept (only stored then); the JacRed of both.
 /**
  * @param AioSettings $s
  * @param AioProfile $p
@@ -818,6 +882,8 @@ function aio_profiles_ok($list)
  */
 function aio_profile_apply($s, $p)
 {
+    foreach (array('jacred', 'jacred_own_url', 'jacred_own_key') as $k)
+        $s[$k] = $p[$k];
     if (isset($p['url']))
     {
         $s['source'] = 'own';
@@ -827,39 +893,80 @@ function aio_profile_apply($s, $p)
     $servers = aio_aio_servers();
     $s['source'] = 'made';
     $s['aio_mode'] = $p['mode'];
+    $s[$p['mode'] === AIO_MODE_P2P ? 'aio_tpl_p2p' : 'aio_tpl'] = $p['tpl'];
     if (isset($servers[$p['base']]))
         $s['aio_server'] = $p['base'];
     else
         list($s['aio_server'], $s['aio_own_url']) = array('own', $p['base']);
+    if ($p['conf'])
+        $s['aio_confs'][$p['base']][$p['mode']] = $p['conf'];
+    else
+    {
+        unset($s['aio_confs'][$p['base']][$p['mode']]);
+        if (empty($s['aio_confs'][$p['base']]))
+            unset($s['aio_confs'][$p['base']]);
+    }
     return $s;
 }
 
-// The target of profile $p (or of aio_profile_of) as one string: two profiles of the same one are one source
-// (aio_profiles_ok keeps the first, the page refuses the second).
+// The settings $s as the page shows profile $p (its editor): aio_profile_apply, the configs only that of the profile
+// (another server or mode of it is another config of its own, made by a save).
 /**
- * @param array{url: string}|array{base: string, mode: string} $p
+ * @param AioSettings $s
+ * @param AioProfile $p
+ * @return AioSettings
+ */
+function aio_profile_view($s, $p)
+{
+    $s = aio_profile_apply($s, $p);
+    $s['aio_confs'] = !isset($p['url']) && $p['conf'] ? array($p['base'] => array($p['mode'] => $p['conf'])) : array();
+    return $s;
+}
+
+// The target of profile $p (or of aio_profile_of) as one string, its settings without the name and the config: two
+// profiles of the same one are one source (aio_profiles_ok keeps the first, the page refuses the second). The JacRed
+// as it is used: the own address and key only of the own one chosen.
+/**
+ * @param array<string, mixed> $p
  * @return string
  */
 function aio_profile_key($p)
 {
-    return isset($p['url']) ? 'url ' . $p['url'] : "made {$p['base']} {$p['mode']}";
+    $jr = $p['jacred'] === 'own' ? "own {$p['jacred_own_url']} {$p['jacred_own_key']}" : strval($p['jacred']);
+    return isset($p['url']) ? "url {$p['url']} $jr" : "made {$p['base']} {$p['mode']} {$p['tpl']} $jr";
 }
 
-// The target of a profile of the source of settings $s, without a name: array('url') of the own config,
-// array('base', 'mode') of a config of Melange; null - none (the own config without its link, no server).
+// A profile of the source of settings $s, without a name: of the own config (url) or of a config of Melange (base,
+// mode, the template of the mode, conf - the config of its cell, null - none); with the JacRed of $s. null - none
+// (the own config without its link, no server).
 /**
  * @param AioSettings $s
- * @return array{url: string}|array{base: string, mode: string}|null
+ * @return array<string, mixed>|null
  */
 function aio_profile_of($s)
 {
+    $jr = array('jacred' => $s['jacred'], 'jacred_own_url' => $s['jacred_own_url'], 'jacred_own_key' => $s['jacred_own_key']);
     if ($s['source'] === 'own')
-        return $s['manifest_url'] !== '' ? array('url' => $s['manifest_url']) : null;
+        return $s['manifest_url'] !== '' ? array('url' => $s['manifest_url']) + $jr : null;
     $b = aio_settings_base($s);
-    return $b !== '' ? array('base' => $b, 'mode' => $s['aio_mode']) : null;
+    return $b !== '' ? array('base' => $b, 'mode' => $s['aio_mode'], 'tpl' => aio_settings_tpl($s)) + $jr +
+        array('conf' => aio_settings_conf($s)) : null;
 }
 
-// Settings $s are those of profile $p (what aio_profile_apply sets).
+// Settings $s are those of profile $p (what aio_profile_apply sets), its config aside.
+/**
+ * @param AioSettings $s
+ * @param AioProfile $p
+ * @return bool
+ */
+function aio_profile_same($s, $p)
+{
+    $t = aio_profile_of($s);
+    return $t !== null && aio_profile_key($t) === aio_profile_key($p);
+}
+
+// Profile $p is the one in use in settings $s: its settings (aio_profile_same) and, of a config of Melange, its config
+// in the cell (the settings of another profile of that server and mode typed on the page are not it).
 /**
  * @param AioSettings $s
  * @param AioProfile $p
@@ -867,20 +974,21 @@ function aio_profile_of($s)
  */
 function aio_profile_is($s, $p)
 {
-    $t = aio_profile_of($s);
-    return $t !== null && aio_profile_key($t) === aio_profile_key($p);
+    if (!aio_profile_same($s, $p))
+        return false;
+    $c = isset($p['url']) ? null : aio_settings_conf($s);
+    return isset($p['url']) || ($c && $p['conf'] && $c['uuid'] === $p['conf']['uuid']);
 }
 
-// Profile $p (or a target of aio_profile_of) can be used: an own config, or a config of Melange with its config
-// in aio_confs (the plugin makes none; the page does on "Save").
+// Profile $p can be used: an own config, or a config of Melange with its config made (the plugin makes none; the page
+// does on "Save").
 /**
- * @param AioSettings $s
- * @param array{url: string}|array{base: string, mode: string} $p
+ * @param AioProfile $p
  * @return bool
  */
-function aio_profile_ready($s, $p)
+function aio_profile_ready($p)
 {
-    return isset($p['url']) || isset($s['aio_confs'][$p['base']][$p['mode']]);
+    return isset($p['url']) || $p['conf'];
 }
 
 // The index of the profile named $name in the settings $s, -1 for none.
@@ -948,8 +1056,10 @@ function aio_profile_now($s)
 // 0.42 or older (one per server, base => config) is read into the cell of
 // its mode (aio_mode_of), written back so by the next save),
 // 'src_profiles' => bool, "Профили источников": the source profiles in MENU of a
-// list (0.58.0; not a bool - false), 'profiles' => list of aio_profile_ok(), at
-// most AIO_PROFILES_MAX, unique names and targets (the first one kept; kept with
+// list (0.58.0; not a bool - false), 'profiles' => list of aio_profile_ok() (each a set
+// of the settings of the source with its own config; one of before the editor of the page
+// takes the JacRed, the template and the config of the settings), at most
+// AIO_PROFILES_MAX, unique names and targets (the first one kept; kept with
 // src_profiles off too),
 // each checked by the rules above; absent or wrong -> as not set ('', the
 // default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
@@ -1086,8 +1196,6 @@ function aio_settings_parse($j)
         $r['cat_rows'] = aio_cat_rows_ok($j['cat_rows']);
     if (isset($j['src_profiles']) && is_bool($j['src_profiles']))
         $r['src_profiles'] = $j['src_profiles'];
-    if (isset($j['profiles']) && is_array($j['profiles']))
-        $r['profiles'] = aio_profiles_ok($j['profiles']);
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
         foreach ($j['aio_confs'] as $b => $cs)
@@ -1110,6 +1218,9 @@ function aio_settings_parse($j)
             }
         }
     }
+    // After aio_confs and the JacRed: a profile of before takes them (aio_profile_ok).
+    if (isset($j['profiles']) && is_array($j['profiles']))
+        $r['profiles'] = aio_profiles_ok($j['profiles'], $r);
     return $r;
 }
 
