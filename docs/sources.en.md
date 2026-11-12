@@ -7,6 +7,7 @@ Where Melange gets releases from: Debrid, torrents or your own config, choosing 
 - [Torrents](#torrents)
 - [Own AIOStreams config](#own-aiostreams-config)
 - [Switching between options](#switching-between-options)
+- [Source profiles](#source-profiles)
 - [AIOStreams server](#aiostreams-server)
 - [Tuning the config in AIOStreams](#tuning-the-config-in-aiostreams)
 - [What Melange changes in the config](#what-melange-changes-in-the-config)
@@ -75,6 +76,25 @@ When to choose it: you already have a tuned AIOStreams config (services, filters
 - Keys and configs of all three options are kept whatever you choose: switch away and back, and everything is in place.
 - Each server has one config for Debrid and one for **Torrents**. When you switch, Melange moves to the config of the new option (creating it if there is none), and the config of the previous one stays with all its edits.
 - If the config of the new option could not be created (server unavailable, limit), go back to the previous option: its config is intact.
+- To switch from the remote without opening the page, use [source profiles](#source-profiles).
+
+## Source profiles
+
+When you need it: you have both Debrid and torrents, or several AIOStreams servers (for example, your own on a NAS), and want to change the source from the remote, right in the release list. A profile is a saved source under a name you choose: a Melange config on any server in Debrid or **Torrents** mode, or your own config by its link.
+
+Off by default: turn it on in **Advanced** → [**Source profiles**](setup.en.md#advanced). The profiles block appears at the bottom of the **Where to get films** section.
+
+**Saving a profile.** Choose the source in **Where to get films** (and the server in **AIOStreams**) and press **Save** at the bottom of the page. Then type a name and press **Save the current source as a profile**; with no name, the profile is named after the kind of source, for example Debrid. Save your other sources the same way. You can have up to 8 profiles, and the names must differ. The button is disabled while the page has unsaved changes, the current source is already saved as a profile or there are 8 profiles already; the line under it says why.
+
+**The list of profiles.** The current source is marked "now". **Edit** changes the name, and for your own config the link too. The server and mode of a profile cannot be changed: delete it and save it again. "No config" means that no config has been created on this server in this mode yet, and the Dune menu does not show this profile. To create the config, choose this server and mode on the page and press **Save**.
+
+**On the Dune.** In the release list, MENU → [**Get films from → …**](watching.en.md#the-actions-menu) with the name of the profile when there is only one to switch to, or **Get films from…** with the list of profiles, the current one marked "· now". Melange first asks the new source for the releases of this film or episode. If the source answers, it becomes the source everywhere at once, as a change on the page would, and the list shows its releases; with none, the list is empty. If it does not answer or does not accept the link, the previous one stays, and a window says why.
+
+**Keep in mind:**
+- A source that is not saved as a profile cannot be brought back from the menu: save it as a profile before you switch.
+- Debrid keys, templates, JacRed, **No torrents** and **Main Debrid** are shared by all profiles. After changing a Debrid key, switch to each profile in turn, except your own configs, and press **Save** on the page: this way the new key gets into the config of every profile.
+- A page opened on your phone does not see switches made on the Dune: reload it after them. If you did not change the source on the old page and press **Save**, Melange keeps the source chosen on the Dune and says so.
+- [**Load from a file**](setup.en.md#backup) replaces the profiles entirely, like the other settings. If a profile shows "No config" after loading, create the config as described above.
 
 ## AIOStreams server
 

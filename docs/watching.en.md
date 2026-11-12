@@ -63,6 +63,7 @@ The colored remote buttons: red keeps the AIOStreams order, green sorts by seede
 - **Watch via TorrServer**, **Open in an app…**, **Download to server…**: see the sections below; they are missing for a release without a torrent hash (not every source provides one) and with the [**No torrents**](setup.en.md#advanced) setting.
 - **Source errors**: why sources sent no releases; present if turned on in the [settings](setup.en.md#advanced).
 - **Main Debrid → TorBox** (or **→ Real-Debrid**): make the other service the main one, so releases cached in both play through it. Present if the list has such releases. It works at once and is the same setting as [on the page](sources.en.md#debrid).
+- **Get films from → …** with the name of a profile, or **Get films from…** with a list: switch to another saved source (Debrid, **Torrents**, your own config or another AIOStreams server). The release list is requested from the new source at once; if it does not answer, the previous one stays. Present if [source profiles](sources.en.md#source-profiles) are on and at least one profile other than the current source is saved.
 
 ## Watch via TorrServer
 

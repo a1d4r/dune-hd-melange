@@ -95,6 +95,8 @@ Up to 5 servers: qBittorrent, rdt-client or Transmission. Each has a client, a n
 
 **Source errors.** When you need it: there are fewer releases than you expected and you want to know why. When on, the release list shows how many sources did not answer and why (MENU → **Source errors**).
 
+**Source profiles.** When you need it: you want to switch between Debrid, torrents, your own configs or AIOStreams servers from the remote. When on, a block at the bottom of **Where to get films** saves sources as profiles, and the release list gets MENU → **Get films from**. More in [Release sources](sources.en.md#source-profiles).
+
 ## Backup
 
 When you need it: before removing or reinstalling Melange, or to move the settings to another Dune.
@@ -103,7 +105,7 @@ When you need it: before removing or reinstalling Melange, or to move the settin
 
 Together with the settings come back the links to the AIOStreams configs already created (no new ones are created) and the settings page link: after loading, the page opens at the link from the file, so update your bookmark. When you move the settings, both Dunes use one AIOStreams config: edits to the config on one show on the other too.
 
-> **The file holds Debrid keys, passwords and the settings page link**: keep it to yourself and do not share it with anyone.
+> **The file holds Debrid keys, passwords, the links of your own configs (in profiles too) and the settings page link**: keep it to yourself and do not share it with anyone.
 
 ## Saving
 

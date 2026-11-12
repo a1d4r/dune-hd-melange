@@ -85,7 +85,7 @@ All messages and what to do about them: [Troubleshooting and the log](docs/troub
 
 - [Getting started](docs/quick-start.en.md): from installation to the first movie.
 - [Settings](docs/setup.en.md): the settings screen on the Dune and every section of the settings page on the phone.
-- [Release sources and the AIOStreams config](docs/sources.en.md): Debrid, torrents, your own config, AIOStreams servers, what Melange changes in the config.
+- [Release sources and the AIOStreams config](docs/sources.en.md): Debrid, torrents, your own config, AIOStreams servers, source profiles, what Melange changes in the config.
 - [Watching](docs/watching.en.md): the release list, sorting, series, TorrServer, history.
 - [Catalog](docs/catalog.en.md): rows of collections, search, data sources.
 - [Troubleshooting and the log](docs/troubleshooting.en.md): error messages, the log, where to report.
