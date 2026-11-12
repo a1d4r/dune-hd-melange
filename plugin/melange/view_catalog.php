@@ -144,7 +144,7 @@ define('AIO_CATV_UNDERLINE', '#FF3870FF');
 class AioCat
 {
     // Listings by rid: what the info panel and ENTER read. Memory of php_server
-    // only; after a restart the rows come from the cache, the panel stays empty.
+    // only; after a restart a tile asked for brings the saved first page of its row (aio_catv_tile).
     /** @var array<string, AioCatList> */
     public static $lists = array();
     // The last AIO_CATV_SEARCHES searches, the oldest first: by its id, the rids of its rows.
@@ -302,7 +302,10 @@ function aio_catv_tile_id($id)
     return (aio_catv_logo_on() ? 'c:' : 'f:') . $id;
 }
 
-// The tile of an id of the screen, memory only, or null.
+// The tile of an id of the screen, or null. From memory; no listing of its rid in memory (a restart
+// of php_server, a tile of a file the shell shows without PHP): the saved first page of its row of the
+// manifest, no request, and that listing goes to memory. A listing in memory without the tile: null,
+// the copy is not newer than it.
 /**
  * @param string $id
  * @return AioCatTile|null
@@ -315,7 +318,17 @@ function aio_catv_tile($id)
         return null;
     if (isset(AioCat::$lists[$p[0]]['tiles'][$p[1]]))
         return AioCat::$lists[$p[0]]['tiles'][$p[1]];
-    return isset(AioCat::$on_screen[$p[0]][$p[1]]) ? AioCat::$on_screen[$p[0]][$p[1]] : null;
+    if (isset(AioCat::$on_screen[$p[0]][$p[1]]))
+        return AioCat::$on_screen[$p[0]][$p[1]];
+    // A rid (aio_catv_rid), not "more", "stub" and the like: they read no manifest.
+    if (isset(AioCat::$lists[$p[0]]) || !preg_match('/^[0-9a-f]{8}$/D', $p[0]))
+        return null;
+    $row = aio_catv_row_by_rid($p[0]);
+    $c = $row ? aio_cat_page_cached($row, 0) : null;
+    if (!$row || !$c)
+        return null;
+    AioCat::$lists[$p[0]] = aio_catv_list_copy($row, $c);
+    return isset(AioCat::$lists[$p[0]]['tiles'][$p[1]]) ? AioCat::$lists[$p[0]]['tiles'][$p[1]] : null;
 }
 
 // --- Pictures: the size is in the address; a picture of another type or width is fine.
@@ -1236,6 +1249,31 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
+}
+
+// The rows of the tab $tab from the copies alone, for a file the shell shows without PHP (the tab
+// "TV"): the rows of the user (aio_cat_user_rows) of the saved manifest, each by its saved first page
+// of any age; a row without one is left out. No request, no flag, no mark "saved", no strip, memory
+// untouched. -> the defs of the rows (aio_catv_row_defs, for aio_catv_rows_view) and their rids.
+/**
+ * @param string $tab
+ * @param string $lang
+ * @return array{defs: list<array<string, mixed>>, rids: list<string>}
+ */
+function aio_catv_tab_copy_defs($tab, $lang)
+{
+    $copy = aio_cat_manifest_copy();
+    $defs = array();
+    $rids = array();
+    foreach (aio_cat_user_rows($copy['rows'], Aio::$settings['cat_rows'], $tab) as $row)
+    {
+        $c = aio_cat_page_cached($row, 0);
+        if (!$c)
+            continue;
+        $defs = array_merge($defs, aio_catv_row_defs(aio_catv_list_copy($row, $c), $lang));
+        $rids[] = aio_catv_rid($row);
+    }
+    return array('defs' => $defs, 'rids' => $rids);
 }
 
 // The row of the tab $tab without a row to show (aio_catv_tab_empty; its header: aio_catv_menu).
@@ -2176,8 +2214,8 @@ function aio_catv_title_label($name, $bottom)
 // country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the description 13 px under the last
 // one, as many lines as the rest of the panel holds, as the native one counts them. No line for an
 // empty field, the next ones go up.
-// "Show all": the name of the row and the caption of the tile. null without a tile or a row in memory (a stub, a message, a restart
-// of php_server). No label with an empty text: whether the shell takes one is not known.
+// "Show all": the name of the row and the caption of the tile. null without a tile (aio_catv_tile) or a row in memory (a stub, a message,
+// a restart of php_server). No label with an empty text: whether the shell takes one is not known.
 /**
  * @param stdClass $in
  * @return AioAction|null
