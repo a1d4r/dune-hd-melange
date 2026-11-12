@@ -1189,23 +1189,24 @@ function aio_token_ok($t)
 function aio_mask_host($s, $aio, $tag)
 {
     // Only as a whole host: not "aio" of "aio sync", not the start of
-    // "aiostreams.example" (a host "aiostreams").
+    // "aiostreams.example" (a host "aiostreams"). In any case: a host of a link
+    // is kept as typed (aio_manifest_url), its key in lower case (aio_aio_own).
     $end = '(?![A-Za-z0-9\\-]|\\.[A-Za-z0-9])';
     $hp = preg_replace('~^[^:]*://~', '', $aio);
     $h = preg_replace('~:[0-9]+\z~', '', $hp);
     $hq = preg_quote($h, '~');
     // Its own port only as a whole ("nas:30000" keeps ":30000").
     $pp = $hp !== $h ? '(?:' . preg_quote(substr($hp, strlen($h)), '~') . '(?![0-9]))?' : '(?::[0-9]+)?';
-    $s = preg_replace('~(?:' . preg_quote($aio, '~') . '|' . preg_quote(str_replace('/', '\\/', $aio), '~') . ')' . $end . '~',
+    $s = preg_replace('~(?:' . preg_quote($aio, '~') . '|' . preg_quote(str_replace('/', '\\/', $aio), '~') . ')' . $end . '~i',
         $tag, $s);
     // The host in a URL or after a user; else before a port; a dotted one
     // (an IP, a domain) also alone.
-    $s = preg_replace('~(?<=//|\\\\/\\\\/|@)' . $hq . $pp . $end . '~', $tag, $s);
-    $s = preg_replace('~(?<![A-Za-z0-9.\\-])' . $hq . (strpos($h, '.') !== false ? '' : '(?=:[0-9])') . $pp . $end . '~',
+    $s = preg_replace('~(?<=//|\\\\/\\\\/|@)' . $hq . $pp . $end . '~i', $tag, $s);
+    $s = preg_replace('~(?<![A-Za-z0-9.\\-])' . $hq . (strpos($h, '.') !== false ? '' : '(?=:[0-9])') . $pp . $end . '~i',
         $tag, $s);
     // Alone in curl errors: "resolve host: nas", "connect to nas port 3000",
     // "target host name 'nas'".
-    return preg_replace('~(?:(?<=host: |host |host name \')' . $hq . '|(?<![A-Za-z0-9.\\-])' . $hq . '(?= port [0-9]))' . $end . '~',
+    return preg_replace('~(?:(?<=host: |host |host name \')' . $hq . '|(?<![A-Za-z0-9.\\-])' . $hq . '(?= port [0-9]))' . $end . '~i',
         $tag, $s);
 }
 
