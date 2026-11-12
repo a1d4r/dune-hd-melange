@@ -3,8 +3,8 @@
 // TV -> Configure... -> Other application...), the tab shows its EPF, a ready view of rows in a
 // file the shell reads without PHP (embeddable_plugin_folders of the manifest, mapping tv -> tv.json).
 // Focus on a tile asks rows_info of Melange, ENTER opens a screen of Melange.
-// The file: <tmp_dir>/epfs/tv.json, read first by the shell, and plugins_epfs/melange/tv.json next to
-// plugins_data/melange, kept over a reboot, with tv.no_internet.json there. Written by the
+// The file: <tmp_dir>/epfs/tv.json, read first by the shell, and $FS_PREFIX/flashdata/plugins_epfs/melange/tv.json,
+// kept over a reboot, with tv.no_internet.json there. Written by the
 // update_action of the manifest (aio_tv_update) and only by it, from the copies on the device: the
 // rows of the tab "Movies", then those of "Series" (aio_catv_tab_copy_defs), no request.
 
@@ -12,16 +12,16 @@ define('AIO_TV_EPF', 'tv');
 // "from" of the actions of the EPF: no screen of Melange is under them.
 define('AIO_TV_FROM', 'tv:tv');
 
-// The directories of the EPF from the paths the shell gives (FS_PREFIX in them): '' without one.
+// The directories of the EPF: tmp of tmp_dir_path ('' without one); flash of the fixed base of the shell
+// (EPFS_BASE of its PHP, its loader of plugins), not of data_dir_path, which may be elsewhere (/persistfs):
+// FS_PREFIX in front, as in bin/uninstall.sh.
 /**
  * @return array{tmp: string, flash: string}
  */
 function aio_tv_dirs()
 {
     $tmp = isset(DuneSystem::$properties['tmp_dir_path']) ? rtrim(strval(DuneSystem::$properties['tmp_dir_path']), '/') : '';
-    $data = rtrim(aio_data_dir(), '/');
-    return array('tmp' => $tmp === '' ? '' : "$tmp/epfs",
-        'flash' => $data === '' ? '' : dirname(dirname($data)) . '/plugins_epfs/' . AIO_PLUGIN);
+    return array('tmp' => $tmp === '' ? '' : "$tmp/epfs", 'flash' => getenv('FS_PREFIX') . '/flashdata/plugins_epfs/' . AIO_PLUGIN);
 }
 
 // Melange is the TV application: the line "shell_ext:tv = melange" of epf_mapping.txt, which the
@@ -32,8 +32,8 @@ function aio_tv_dirs()
 function aio_tv_selected()
 {
     $d = aio_tv_dirs();
-    $f = $d['flash'] === '' ? '' : dirname($d['flash']) . '/epf_mapping.txt';
-    $text = $f !== '' && is_file($f) ? strval(file_get_contents($f, false, null, 0, 65536)) : '';
+    $f = dirname($d['flash']) . '/epf_mapping.txt';
+    $text = is_file($f) ? strval(file_get_contents($f, false, null, 0, 65536)) : '';
     return preg_match('/^[ \t]*shell_ext:tv[ \t]*=[ \t]*' . AIO_PLUGIN . '[ \t]*\r?$/m', $text) === 1;
 }
 
@@ -66,8 +66,9 @@ function aio_tv_note_defs($id, $key, $lang)
     return aio_catv_row_defs(aio_catv_list(aio_cat_row_state($row), array(), false), $lang, array($item));
 }
 
-// The view of tv.json: the rows of both tabs of the catalog from the copies, as the screen of rows
-// built now (aio_catv_logo_of: the mode of the tiles and the plates of the settings and the firmware).
+// The view of tv.json: the rows of both tabs of the catalog from the copies, as a screen of rows
+// opened now (the mode of the tiles and the plates of the settings and the firmware, as aio_catv_logo_of
+// gives, but not kept among its screens: the EPF would push out a screen of Melange).
 // AIOStreams not set: one tile "Set up Melange" ("tv:setup"), as the catalog opens the settings;
 // no row with a copy: one tile "Open Melange" ("tv:open"). The mode of the screen of rows before it
 // is back after it: the grid of "Show all" asks for its next tiles without aio_catv_logo_of.
@@ -79,7 +80,8 @@ function aio_tv_view($lang)
 {
     $logo = AioCat::$logo;
     $rating = AioCat::$rating;
-    aio_catv_logo_of(AIO_TV_FROM, true);
+    AioCat::$logo = aio_catv_logo_effective();
+    AioCat::$rating = Aio::$settings['cat_rating'];
     if (Aio::$settings['base'] === '')
         $defs = aio_tv_note_defs('tv:setup', 'tv_setup', $lang);
     else
@@ -138,9 +140,9 @@ function aio_tv_update($in)
     $what = 'tv: update' . ($boot !== '' ? " first_run_after_boot=$boot" : '') . ' interface_language=' .
         substr(strval(preg_replace('/[^A-Za-z_-]/', '', aio_catv_in($in, 'interface_language'))), 0, 20);
     $d = aio_tv_dirs();
-    if ($d['tmp'] === '' || $d['flash'] === '')
+    if ($d['tmp'] === '')
     {
-        aio_log("$what: no tmp_dir_path or data_dir_path, nothing written");
+        aio_log("$what: no tmp_dir_path, nothing written");
         return $status;
     }
     if (!aio_tv_selected())
@@ -149,6 +151,7 @@ function aio_tv_update($in)
         return $status;
     }
     $lang = aio_tv_lang($in);
+    // Not set back: the info panel of the tiles of the file (rows_info, aio_catv_ui_lang) speaks its language.
     AioCat::$lang = $lang;
     $json = json_encode(aio_tv_view($lang));
     if (!is_string($json))
