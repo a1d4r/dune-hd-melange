@@ -1457,7 +1457,7 @@ function aio_gc_src($in)
         Aio::$settings = $old;
         aio_log("$tag: " . ($why !== '' ? "settings.json $why" : 'the profile changed meanwhile') .
             ', the source and the screen kept');
-        return aio_gc_src_dialog($title, $st['lang'], array('error' => $why !== '' ? 'err_quick_read' : 'err_list_expired',
+        return aio_gc_src_dialog($title, $st['lang'], array('error' => $why !== '' ? 'err_quick_read' : 'src_changed',
             'detail' => ''));
     }
     $s = aio_profile_apply($s, $p);
