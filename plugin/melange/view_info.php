@@ -767,7 +767,8 @@ function aio_info_qr_png($url)
         return array($png, $side);
     require_once dirname(__FILE__) . '/qrpng.php';
     $t = microtime(true);
-    $qr = AioQrPng::make($url, 1, 4, AIO_INF_QR_SIDE);
+    // Mask 0, not the best of 8: the screen waits for it (v10 ~0.5 s more).
+    $qr = AioQrPng::make($url, 1, 4, AIO_INF_QR_SIDE, 0);
     if (!aio_write_file($png, $qr['png']))
     {
         aio_log('info: QR not written to tmp_dir');
