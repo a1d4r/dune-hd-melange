@@ -379,6 +379,21 @@ function aio_wh_after($eps, $s, $e)
     return array(1, 1, false, "the last episode S{$s}E{$e} is watched");
 }
 
+// Episode record $w -> array(s (1 for none or a negative one), e (1 for none), pos (-1 for none),
+// len (0 for none), uid (else url, else '')).
+/**
+ * @param stdClass $w
+ * @return array{int, int, float, float, string}
+ */
+function aio_wh_rec($w)
+{
+    return array(isset($w->s) && is_numeric($w->s) && intval($w->s) >= 0 ? intval($w->s) : 1,
+        isset($w->e) && is_numeric($w->e) ? intval($w->e) : 1,
+        isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1.0,
+        isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0.0,
+        isset($w->uid) && is_string($w->uid) ? $w->uid : (isset($w->url) && is_string($w->url) ? $w->url : ''));
+}
+
 // The episode to offer for the latest episode record $w of the series of card $dune_id
 // (aio_wh_last; null: none), no log: the recorded one while not watched, the next one by $eps
 // (aio_wh_after) once it is, S1E1 with no record or after the last episode. hash: the release
@@ -395,11 +410,7 @@ function aio_wh_pick($w, $dune_id, $eps)
 {
     if (!$w)
         return array('s' => 1, 'e' => 1, 'hash' => '', 'kind' => 'none', 'rec' => '', 'why' => 'no history record');
-    $e = isset($w->e) && is_numeric($w->e) ? intval($w->e) : 1;
-    $s = isset($w->s) && is_numeric($w->s) && intval($w->s) >= 0 ? intval($w->s) : 1;
-    $pos = isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1;
-    $len = isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0;
-    $uid = isset($w->uid) && is_string($w->uid) ? $w->uid : (isset($w->url) && is_string($w->url) ? $w->url : '');
+    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
     $hash = preg_match('/^' . preg_quote(AIO_SUP_ID . ':' . $dune_id, '/') . ':-?[0-9]+:-?[0-9]+:([0-9a-f]{40})$/D',
         $uid, $m) ? $m[1] : '';
     $watched = aio_wh_watched($pos, $len, $uid);
@@ -455,13 +466,10 @@ function aio_wh_series_visit($w, $arg, &$acc)
         return false;
     if (!isset($acc['last']))
         $acc['last'] = $w;
-    $s = isset($w->s) && is_numeric($w->s) && intval($w->s) >= 0 ? intval($w->s) : 1;
-    $k = $s . ':' . intval($w->e);
+    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
+    $k = "$s:$e";
     if (isset($acc[$k]))
         return false;
-    $pos = isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1.0;
-    $len = isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0.0;
-    $uid = isset($w->uid) && is_string($w->uid) ? $w->uid : (isset($w->url) && is_string($w->url) ? $w->url : '');
     $acc[$k] = array($pos, $len, aio_wh_full($pos, $len) || isset($arg[1][$uid]));
     return false;
 }
