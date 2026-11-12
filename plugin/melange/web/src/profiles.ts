@@ -2,10 +2,9 @@
 // profiles" on (the page is of one profile, ?p=<i>; its fields are those of the source, the save saves it), the CSS
 // shows it while that is on. Here: the list of the profiles from #init.profiles - a link each to the page of it
 // (?p=<i>#src), the one of the page marked (aria-current), "now" on the one in use, "no config"; "+ New profile"
-// (?p=new) while there are fewer than max. A link is not followed while the form has something to save (the bar): the
-// line why (#ped) instead. "Make it current" (a=profile_use) and "Delete" (a=profile_del, asked first) - of a saved
-// profile only, the first not of the one in use; disabled while the form has something to save; done - the page of
-// it anew. After a save of the profile that stayed on the page: its place, name and "in use" of the answer in the
+// (?p=new) while there are fewer than max; a link is followed always, the changes not saved are lost then. "Make it
+// current" (a=profile_use) and "Delete" (a=profile_del, asked first) - of a saved profile only, the first not of the
+// one in use; disabled while the form has something to save; done - the page of it anew. After a save of the profile that stayed on the page: its place, name and "in use" of the answer in the
 // fields of the save (prof, prof_was, prof_now) and the address, the list of the answer; after the config of the
 // server (aio_sync) - its list.
 
@@ -18,7 +17,7 @@ import type { Lock } from "./lock";
 import { show } from "./ui";
 
 export interface Profiles {
-  // After a change of the form: the buttons and the links follow the bar.
+  // After a change of the form: the buttons follow the bar.
   render(): void;
   // After a save of the profile of the page that stayed on it: the answer's place of it, its name, in use; the list.
   saved(prof: SavedProfile, list: ProfileList | null): void;
@@ -35,7 +34,6 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
   const box = doc.getElementById(EDITOR.block);
   if (!box) return null;
   const listBox = byId(doc, EDITOR.list),
-    why = byId(doc, EDITOR.dirty),
     buttons = byId(doc, EDITOR.buttons),
     use = byId<HTMLButtonElement>(doc, EDITOR.use),
     del = byId<HTMLButtonElement>(doc, EDITOR.del),
@@ -66,13 +64,6 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     text.appendChild(head);
     if (line) text.appendChild(el("span", CLS.value, line));
     link.append(text, el("span", CLS.chevron, "›"));
-    // Not with something to save: the page of another profile would lose it.
-    link.addEventListener("click", (event) => {
-      if (!bar.pending()) return;
-      event.preventDefault();
-      why.textContent = texts.profileDirty;
-      why.hidden = false;
-    });
     return link;
   }
   function renderList(): void {
@@ -91,7 +82,6 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     const p = current();
     buttons.hidden = !p;
     use.hidden = !p || p.now;
-    if (!bar.pending()) why.hidden = true;
     lock.render();
   }
   // A request of "Make it current" or "Delete": done - the page of to (its place now), else the line why here.

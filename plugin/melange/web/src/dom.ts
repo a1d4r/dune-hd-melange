@@ -101,13 +101,12 @@ export const ID = {
 } as const;
 
 // The editor of the source profiles (0.58.0, profiles.ts) at the top of #src: on a page PHP made with "Source profiles"
-// on only. The block, the list of the profiles (by the script), the line why a link of it is not followed, the name of
-// the profile (posted), the box of "Make it current" and "Delete", those two, their results; the profile of the save
-// as posted: its place (an index, new, cur), its name as the page came, 1 - in use then.
+// on only. The block, the list of the profiles (by the script), the name of the profile (posted), the box of "Make it
+// current" and "Delete", those two, their results; the profile of the save as posted: its place (an index, new, cur),
+// its name as the page came, 1 - in use then.
 export const EDITOR = {
   block: "pe",
   list: "pel",
-  dirty: "ped",
   name: "pfn",
   buttons: "peb",
   use: "peu",

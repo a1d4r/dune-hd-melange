@@ -18,8 +18,6 @@ function aio_cgi_profile_texts()
     return array('profileNow' => aio_cgi_l('сейчас', 'now'),
         'profileNoConf' => aio_cgi_l('конфига нет', 'no config'),
         'profileNew' => aio_cgi_l('+ Новый профиль', '+ New profile'),
-        'profileDirty' => aio_cgi_l('Есть несохранённые изменения: сохраните их или обновите страницу.',
-            'There are unsaved changes: save them or reload the page.'),
         'profilesFull' => aio_cgi_profiles_full(),
         'profileDeleteConfirm' => aio_cgi_l('Удалить профиль «%s»? Конфиг на сервере останется.',
             'Delete the profile "%s"? Its config on the server stays.'));
@@ -138,10 +136,10 @@ function aio_cgi_profiles_data($s)
 
 // The block of the editor at the top of #src (only with the editor: pf_sel of $v not '', aio_cgi_editor; by the CSS
 // only with "Профили источников" on, class xs): the list of the profiles (#pel, by the script: a link each, "+ Новый
-// профиль"), the line why it is not followed (#ped: a change not saved), "Название профиля" (prof_name: posted, a
-// change for the bar; of a new one of the source in use empty - no profile, the save of before), the line of the
-// profile (#pen), "Сделать текущим" and "Удалить" (#peb, by the script: profile_use, profile_del), their results; the
-// profile of the save - prof (pf_sel), prof_was (its name as the page came), prof_now (1: the page shows it in use).
+// профиль"), "Название профиля" (prof_name: posted, a change for the bar; of a new one of the source in use empty -
+// no profile, the save of before), the line of the profile (#pen), "Сделать текущим" and "Удалить" (#peb, by the
+// script: profile_use, profile_del), their results; the profile of the save - prof (pf_sel), prof_was (its name as
+// the page came), prof_now (1: the page shows it in use).
 function aio_cgi_editor_block($v)
 {
     if ($v['pf_sel'] === '')
@@ -162,7 +160,7 @@ function aio_cgi_editor_block($v)
     $hidden = '';
     foreach (array('pf_sel', 'pf_was', 'pf_now') as $k)
         $hidden .= '<input type="hidden" id="' . $f[$k]['id'] . '" name="' . $f[$k]['name'] . '" value="' . aio_cgi_h($v[$k]) . '">';
-    return '<div id="pe" class="xs"><div id="pel" class="list"></div><p class="hint wn" id="ped" hidden></p>' .
+    return '<div id="pe" class="xs"><div id="pel" class="list"></div>' .
         aio_cgi_input($f['pf_name'], aio_cgi_l('Название профиля', 'Profile name'), $v['pf_name'], $v['pf_def']) .
         '<p class="hint" id="pen">' . $line . '</p><div class="btns" id="peb" hidden><button type="button" id="peu" ' .
         'class="btn ghost">' . aio_cgi_l('Сделать текущим', 'Make it current') . '</button><button type="button" id="pex" ' .

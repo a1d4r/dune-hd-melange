@@ -1,8 +1,8 @@
 // The editor of the source profiles (#pe, 0.58.0): PHP makes it with "Source profiles" on (prof: the page of the one
 // in use, profd: of one not in use, profnew: of a new one), the CSS shows it while that is on. The list of #init - a
-// link each to the page of the profile, "+ New profile"; a link not followed while the form has something to save;
-// "Make it current" (a=profile_use), "Delete" (a=profile_del, asked first) - held then too; done: the page anew; a
-// save of the profile: its place, name and "in use" in the fields of the save, the list of the answer, aio_sync of it.
+// link each to the page of the profile, "+ New profile", followed even while the form has something to save; "Make it
+// current" (a=profile_use), "Delete" (a=profile_del, asked first) - held then; done: the page anew; a save of the
+// profile: its place, name and "in use" in the fields of the save, the list of the answer, aio_sync of it.
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
@@ -117,16 +117,27 @@ describe("the editor", () => {
 });
 
 describe("something to save", () => {
-  test("a link not followed, the line why; the buttons disabled; no change - followed again, the line gone", () => {
+  test("a link and + New profile followed (the changes lost); the buttons disabled; no change - enabled again", () => {
     const page = open("profd");
-    const link = rows(page)[1]!;
-    expect(follow(page, link)).toBe(true);
+    const links = rows(page);
     page.type(EDITOR.name, "Debrid 2");
-    expect(follow(page, link)).toBe(false);
-    expect([page.el(EDITOR.dirty).hidden, page.el(EDITOR.dirty).textContent]).toEqual([false, page.init.i18n.profileDirty]);
+    expect(page.el(ID.bar).hidden).toBe(false);
+    expect([follow(page, links[1]!), follow(page, links[3]!)]).toEqual([true, true]);
     expect([page.el<HTMLButtonElement>(EDITOR.use).disabled, page.el<HTMLButtonElement>(EDITOR.del).disabled]).toEqual([true, true]);
     page.type(EDITOR.name, "Debrid");
-    expect([follow(page, link), page.el(EDITOR.dirty).hidden, page.el<HTMLButtonElement>(EDITOR.use).disabled]).toEqual([true, true, false]);
+    expect(page.el<HTMLButtonElement>(EDITOR.use).disabled).toBe(false);
+  });
+
+  test("a new one with a config to create (no change, Save and create): the links followed", () => {
+    const page = open("profnew", {
+      before: (doc) => {
+        for (const radio of Array.from(doc.querySelectorAll<HTMLInputElement>("input[name=" + NAME.watch + "]")))
+          radio.toggleAttribute("checked", radio.value === "debrid");
+      },
+    });
+    expect([page.el(ID.bar).hidden, page.el(ID.dirty).textContent, page.doc.querySelector("." + CLS.save)!.textContent])
+      .toEqual([false, "", page.init.i18n.saveAndCreate]);
+    expect(rows(page).map((row) => follow(page, row))).toEqual([true, true, true, true]);
   });
 
   test("the name of the profile is a change of the bar", () => {
