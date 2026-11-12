@@ -1,13 +1,15 @@
 <?php
 // The own card of a movie as a view_gcomps screen "card:<type>:<id>", 1920x1080: the panel of the
-// catalog grown into a card. The card background of the server (aio_catv_card) with the logo, or
-// the dark one and the title as text; the lines of the panel of the catalog at its places (facts,
-// genres and countries, the director, the description), the buttons in a row ("Watch", "Dune
-// card") over a band of our own, under them the progress of the movie or why there is none; the
-// hint "Cast and about" at the bottom. DOWN scrolls the page under the logo to the cast and the
-// details of the meta (card_meta.php), the rest of the screen darkened; DOWN again further while
-// there is more, UP back, at last to the button left. The plugin draws and moves the focus
-// itself with change_gcomps, as the list; the place (aio_oc_pos) travels in sel_state.
+// catalog grown into a card (R1 of design-own-card.md). The card background of the server
+// (aio_catv_card) with the logo, or the dark one and the title as text; the lines of the panel of
+// the catalog at its places (facts, genres and countries, the director, the description), the
+// buttons in a row ("Watch", "Dune card") over a band of our own, under them the progress of the
+// movie or why there is none; at the bottom the cast of the meta (card_meta.php) and at its right
+// the hint "About the movie". DOWN scrolls the page under the logo: the cast up, "About the movie"
+// (the tagline, the whole description, the details) under it, the whole screen darkened, the logo
+// too; DOWN again further while there is more, UP back, at last to the button left. The plugin
+// draws and moves the focus itself with change_gcomps, as the list; the place (aio_oc_pos) travels
+// in sel_state.
 // ENTER on a tile does the network (aio_oc_enter); the screen is built from memory.
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_catalog.php, gcomps.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
@@ -16,37 +18,38 @@
 // opened goes.
 define('AIO_OC_KEEP', 8);
 // The page: a clipping panel from the bottom of the logo (PANE_Y + TITLE_BOTTOM of the catalog,
-// baked into card/v1) down; the page in it in the coordinates of the first screen. DOWN: the first
-// stop OFF lower (the cast at 290 of the screen, the hint at 1030 above the clip), the next ones
-// STEP further while the page goes on below SHOW_BOTTOM.
+// baked into card/v1) down to SHOW_BOTTOM; the page in it in the coordinates of the first screen.
+// DOWN: the first stop OFF lower (the cast at 290 of the screen, "About" under it; without the
+// cast further, "About" at its place), the next ones STEP further while the page goes on below
+// SHOW_BOTTOM. "About" lies at OFF + ABOUT_Y of the page, under the clip of the first screen.
 define('AIO_OC_VIEW_Y', 256);
-define('AIO_OC_OFF', 830);
+define('AIO_OC_OFF', 434);
 define('AIO_OC_STEP', 420);
-define('AIO_OC_SHOW_BOTTOM', 1040);
+define('AIO_OC_SHOW_BOTTOM', 1020);
 // The first screen (design-own-card.md, B): lines of the panel, the description in 30 px lines
 // DESC_LH apart from under the director (or the genres) down to DESC_BOTTOM; buttons BTN_H high
 // at BTN_Y, the text PAD from the edges (and the icon of "Watch" ICON_W more), GAP apart; CAP: the
 // rounded ends (PNG), a rect between them; the progress or a line under them at LINE_Y; the bar
-// BAR_H high BAR_DY under its top; the hint at HINT_Y.
+// BAR_H high BAR_DY under its top; the hint at the line of the cast, its right edge at HINT_R.
 define('AIO_OC_FACTS_Y', 269);
 define('AIO_OC_GENRES_Y', 315);
 define('AIO_OC_DIRECTOR_Y', 361);
 define('AIO_OC_DESC_LH', 42);
 define('AIO_OC_DESC_BOTTOM', 560);
-define('AIO_OC_BTN_Y', 596);
+define('AIO_OC_BTN_Y', 584);
 define('AIO_OC_BTN_H', 64);
 define('AIO_OC_BTN_PAD', 32);
 define('AIO_OC_ICON_W', 34);
 define('AIO_OC_BTN_GAP', 20);
 define('AIO_OC_CAP', 12);
-define('AIO_OC_LINE_Y', 670);
+define('AIO_OC_LINE_Y', 664);
 define('AIO_OC_BAR_H', 6);
 define('AIO_OC_BAR_DY', 9);
-define('AIO_OC_HINT_Y', 1030);
-// DOWN: the cast at CAST_Y of the screen, photos 120x152 (TMDB w276_and_h350_face, a half) STEP
-// apart, the name in 2 lines and the role in NAME_W; "About" at ABOUT_Y (CAST_Y without the
-// cast), the description in DESC2_W, the pairs of the details at DET_X in DET_W.
-define('AIO_OC_CAST_Y', 290);
+define('AIO_OC_HINT_R', 1845);
+// The cast at CAST_Y of the first screen, photos 120x152 (TMDB w276_and_h350_face, a half) STEP
+// apart, the name in 2 lines and the role in NAME_W. DOWN: "About" at ABOUT_Y of the screen at the
+// first stop with the cast, the description in DESC2_W, the pairs of the details at DET_X in DET_W.
+define('AIO_OC_CAST_Y', 724);
 define('AIO_OC_PHOTO_W', 120);
 define('AIO_OC_PHOTO_H', 152);
 define('AIO_OC_PHOTO_STEP', 172);
@@ -318,7 +321,7 @@ function aio_oc_label($x, $y, $w, $text, $px, $color, $spec = array())
 }
 
 // The first screen in the page: the lines of the panel (x of the catalog), the description to
-// DESC_BOTTOM, the buttons (focus on $b), under them aio_oc_under, the hint if DOWN shows something.
+// DESC_BOTTOM, the buttons (focus on $b).
 /**
  * @param AioOcCard $c
  * @param AioOcLayout $l
@@ -367,29 +370,19 @@ function aio_oc_head($c, $l, $b)
             $w0 = $w;
         $x += $w + AIO_OC_BTN_GAP;
     }
-    foreach (aio_oc_under($c, $l, $w0) as $u)
-        $d[] = $u;
-    if ($l['down'])
-    {
-        $hint = aio_tr($c['ui'], 'card_down_movie');
-        $hw = aio_gc_w($hint, AIO_CATV_LINE_PX);
-        $d[] = aio_oc_label($x0, AIO_OC_HINT_Y, $hw, $hint, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
-        $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x0 + $hw + 16, AIO_OC_HINT_Y + 16),
-            'plugin_file://img/sort_down.png');
-    }
     return $d;
 }
 
 // Under the buttons ($w0: the width of the first): no IMDb - nothing plays (the meta failed: it
-// did not load, else it has none); no card of the Dune - no history; else the progress of the
-// movie (of the layout) under "Watch", if begun, or "Watched" grey without the bar.
+// did not load, else it has none); no card of the Dune - no history; else the progress $wh of the
+// movie under "Watch", if begun, or "Watched" grey without the bar.
 /**
  * @param AioOcCard $c
- * @param AioOcLayout $l
+ * @param array{float, float}|null $wh
  * @param int $w0
  * @return list<array<string, mixed>>
  */
-function aio_oc_under($c, $l, $w0)
+function aio_oc_under($c, $wh, $w0)
 {
     $x0 = AIO_CATV_CARD_X;
     $d = array();
@@ -401,7 +394,6 @@ function aio_oc_under($c, $l, $w0)
         $line = aio_tr($c['ui'], 'card_no_history');
     else
     {
-        $wh = $l['wh'];
         $p = $wh ? aio_oc_progress_text($wh[0], $wh[1], $c['ui']) : '';
         if ($wh && aio_wh_full($wh[0], $wh[1]))
         {
@@ -423,9 +415,65 @@ function aio_oc_under($c, $l, $w0)
     return $d;
 }
 
-// What DOWN shows, in the coordinates of the screen at the first stop: the cast (photos, names
-// in 2 lines, the English roles grey; no photo: the initials), "About the movie": the tagline,
-// the whole description, at the right the details. -> array(components, their bottom); none: no stop.
+// The hint at the right of the line of the cast: "About the movie" and the arrow down, in the
+// coordinates of the page.
+/**
+ * @param string $lang
+ * @return list<array<string, mixed>>
+ */
+function aio_oc_hint($lang)
+{
+    $hint = aio_tr($lang, 'card_about_movie');
+    $hw = aio_gc_w($hint, AIO_CATV_LINE_PX);
+    $x = AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - 16 - $hw;
+    return array(aio_oc_label($x, AIO_OC_CAST_Y, $hw, $hint, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR),
+        aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x + $hw + 16, AIO_OC_CAST_Y + 16),
+            'plugin_file://img/sort_down.png'));
+}
+
+// The cast of the meta at the bottom of the first screen: photos, names in 2 lines, the English
+// roles grey; no photo: the initials. None: nothing.
+/**
+ * @param AioOcCard $c
+ * @return list<array<string, mixed>>
+ */
+function aio_oc_cast($c)
+{
+    $cast = $c['meta'] ? $c['meta']['cast'] : array();
+    $d = array();
+    if (!$cast)
+        return $d;
+    $x0 = AIO_CATV_CARD_X;
+    $d[] = aio_oc_label($x0, AIO_OC_CAST_Y, 800, aio_tr($c['ui'], 'card_cast'), AIO_CATV_LINE_PX, AIO_GC_TEXT);
+    $py = AIO_OC_CAST_Y + 46;
+    foreach ($cast as $i => $p)
+    {
+        $x = $x0 + $i * AIO_OC_PHOTO_STEP;
+        $d[] = aio_gc_rect(aio_gc_at(AIO_OC_PHOTO_W, AIO_OC_PHOTO_H, $x, $py), AIO_OC_NO_PHOTO);
+        if ($p['photo'] !== '')
+            $d[] = aio_gc_image(aio_gc_at(AIO_OC_PHOTO_W, AIO_OC_PHOTO_H, $x, $py), $p['photo']);
+        else
+        {
+            $ini = '';
+            foreach (array_slice(explode(' ', $p['name']), 0, 2) as $w)
+                $ini .= mb_substr($w, 0, 1, 'UTF-8');
+            $d[] = aio_oc_label($x, $py + 40, AIO_OC_PHOTO_W, $ini, 48, AIO_GC_DIM,
+                array(GCompTtfLabelDef::halign => HALIGN_CENTER));
+        }
+        $parts = explode(' ', $p['name'], 2);
+        foreach (array($parts[0], isset($parts[1]) ? $parts[1] : '', $p['role']) as $k => $s)
+        {
+            if ($s !== '')
+                $d[] = aio_oc_label($x, $py + 158 + 26 * $k, AIO_OC_NAME_W,
+                    aio_gc_cut_w(aio_clean($s), 24, AIO_OC_NAME_W), 24, $k < 2 ? AIO_GC_TEXT : AIO_GC_DIM);
+        }
+    }
+    return $d;
+}
+
+// What DOWN shows, in the coordinates of the screen at the first stop with the cast: "About the
+// movie": the tagline, the whole description, at the right the details. -> array(components,
+// their bottom); none: no stop.
 /**
  * @param AioOcCard $c
  * @return array{list<array<string, mixed>>, int}
@@ -436,36 +484,7 @@ function aio_oc_down($c)
     $lang = $c['ui'];
     $x0 = AIO_CATV_CARD_X;
     $d = array();
-    $y = AIO_OC_CAST_Y;
-    $cast = $m ? $m['cast'] : array();
-    if ($cast)
-    {
-        $d[] = aio_oc_label($x0, $y, 800, aio_tr($lang, 'card_cast'), AIO_CATV_LINE_PX, AIO_GC_TEXT);
-        $py = $y + 44;
-        foreach ($cast as $i => $p)
-        {
-            $x = $x0 + $i * AIO_OC_PHOTO_STEP;
-            $d[] = aio_gc_rect(aio_gc_at(AIO_OC_PHOTO_W, AIO_OC_PHOTO_H, $x, $py), AIO_OC_NO_PHOTO);
-            if ($p['photo'] !== '')
-                $d[] = aio_gc_image(aio_gc_at(AIO_OC_PHOTO_W, AIO_OC_PHOTO_H, $x, $py), $p['photo']);
-            else
-            {
-                $ini = '';
-                foreach (array_slice(explode(' ', $p['name']), 0, 2) as $w)
-                    $ini .= mb_substr($w, 0, 1, 'UTF-8');
-                $d[] = aio_oc_label($x, $py + 40, AIO_OC_PHOTO_W, $ini, 48, AIO_GC_DIM,
-                    array(GCompTtfLabelDef::halign => HALIGN_CENTER));
-            }
-            $parts = explode(' ', $p['name'], 2);
-            foreach (array($parts[0], isset($parts[1]) ? $parts[1] : '', $p['role']) as $k => $s)
-            {
-                if ($s !== '')
-                    $d[] = aio_oc_label($x, $py + 160 + 26 * $k, AIO_OC_NAME_W,
-                        aio_gc_cut_w(aio_clean($s), 24, AIO_OC_NAME_W), 24, $k < 2 ? AIO_GC_TEXT : AIO_GC_DIM);
-            }
-        }
-        $y = AIO_OC_ABOUT_Y;
-    }
+    $y = AIO_OC_ABOUT_Y;
     $desc = $m && $m['description'] !== '' ? $m['description'] : $c['tile']['description'];
     $rows = array();
     $name = $c['tile']['name'];
@@ -482,7 +501,7 @@ function aio_oc_down($c)
     $rows[] = array('card_countries', implode(', ', aio_oc_countries($c)));
     $tagline = $m ? $m['tagline'] : '';
     $bottom = $y;
-    $any = $desc !== '' || $tagline !== '' || $d;
+    $any = $desc !== '' || $tagline !== '';
     foreach ($rows as $r)
         $any = $any || $r[1] !== '';
     if (!$any)
@@ -519,19 +538,20 @@ function aio_oc_down($c)
     return array($d, max($bottom, $ry));
 }
 
-// The shifts of the page: 0 the first screen; with something below, OFF, then STEP further while
-// the page goes on below SHOW_BOTTOM, the last to its end.
+// The shifts of the page: 0 the first screen; with something below ($bottom of aio_oc_down),
+// $first, then STEP further while the page goes on below SHOW_BOTTOM, the last to its end.
 /**
  * @param int $bottom
+ * @param int $first
  * @return list<int>
  */
-function aio_oc_stops($bottom)
+function aio_oc_stops($bottom, $first)
 {
     if ($bottom <= 0)
         return array(0);
-    $stops = array(0, AIO_OC_OFF);
+    $stops = array(0, $first);
     $max = AIO_OC_OFF + max(0, $bottom - AIO_OC_SHOW_BOTTOM);
-    for ($s = AIO_OC_OFF; $s < $max; )
+    for ($s = $first; $s < $max; )
     {
         $s = min($s + AIO_OC_STEP, $max);
         $stops[] = $s;
@@ -539,9 +559,12 @@ function aio_oc_stops($bottom)
     return $stops;
 }
 
-// The card laid out: its buttons, the stops of the page and its height (what the keys need,
-// AioOcNav), the components DOWN shows, the progress of the movie (aio_wh_movie, read here once
-// a request; only with an IMDb and a card of the Dune, the only case it shows).
+// The card laid out: its buttons, the stops of the page and its height, what the first screen
+// alone shows (what the keys need, AioOcNav), the components DOWN shows. The first stop: the cast
+// at 290; without it "About" at its place, the page further by ABOUT_Y - 290. The first screen
+// alone: the line under the buttons with the progress of the movie (aio_wh_movie, read here once
+// a request; only with an IMDb and a card of the Dune, the only case it shows) - its foot would
+// peep under the logo at DOWN - and the hint, if DOWN shows something.
 /**
  * @param AioOcCard $c
  * @return AioOcLayout
@@ -549,8 +572,19 @@ function aio_oc_stops($bottom)
 function aio_oc_layout($c)
 {
     list($down, $bottom) = aio_oc_down($c);
-    return array('btns' => aio_oc_buttons($c), 'stops' => aio_oc_stops($bottom), 'h' => max(1080, $bottom + AIO_OC_OFF + 40),
-        'down' => $down, 'wh' => $c['imdb'] !== '' && $c['dune'] !== '' ? aio_wh_movie($c['dune']) : null);
+    $btns = aio_oc_buttons($c);
+    $first = AIO_OC_OFF;
+    if (!$c['meta'] || !$c['meta']['cast'])
+        $first += AIO_OC_ABOUT_Y - (AIO_OC_CAST_Y - AIO_OC_OFF);
+    $wh = $c['imdb'] !== '' && $c['dune'] !== '' ? aio_wh_movie($c['dune']) : null;
+    $only = aio_oc_under($c, $wh, $btns ? aio_oc_btn_w($btns[0]) : 0);
+    if ($down)
+    {
+        foreach (aio_oc_hint($c['ui']) as $x)
+            $only[] = $x;
+    }
+    return array('btns' => $btns, 'stops' => aio_oc_stops($bottom, $first), 'h' => max(1080, $bottom + AIO_OC_OFF + 40),
+        'first' => $only, 'down' => $down);
 }
 
 // The page at shift $s inside the clip under the logo.
@@ -564,16 +598,14 @@ function aio_oc_page_geom($s, $h)
     return aio_gc_at(1920, $h, 0, -AIO_OC_VIEW_Y - $s);
 }
 
-// The darkening of zone $z: DOWN all but the logo (to x 930, its bottom at 270).
+// The darkening of zone $z: DOWN the whole screen, the logo baked into the background too.
 /**
  * @param string $z
  * @return list<AioGcComp>
  */
 function aio_oc_dim($z)
 {
-    if ($z !== 'down')
-        return array();
-    return array(aio_gc_rect(aio_gc_at(1920, 810, 0, 270), AIO_OC_DIM), aio_gc_rect(aio_gc_at(990, 270, 930, 0), AIO_OC_DIM));
+    return $z === 'down' ? array(aio_gc_rect(aio_gc_at(1920, 1080, 0, 0), AIO_OC_DIM)) : array();
 }
 
 // --- The place of the focus.
@@ -654,7 +686,7 @@ function aio_oc_next($l, $pos, $d)
 }
 
 // The change_defs from place $old to $new: the two buttons redrawn, the page moved, the
-// darkening on or off.
+// darkening on or off, what the first screen alone shows off or on.
 /**
  * @param AioOcNav $l
  * @param AioOcPos $old
@@ -673,7 +705,10 @@ function aio_oc_changes($l, $old, $new)
     if ($new['p'] !== $old['p'])
         $ch[] = aio_gc_change('page', aio_oc_page_geom($l['stops'][$new['p']], $l['h']), GCOMP_TRANSITION_DEFAULT);
     if (($new['z'] === 'down') !== ($old['z'] === 'down'))
+    {
         $ch[] = aio_gc_change('dim', null, GCOMP_TRANSITION_NONE, aio_oc_dim($new['z']));
+        $ch[] = aio_gc_change('first', null, GCOMP_TRANSITION_NONE, $new['z'] === 'down' ? array() : $l['first']);
+    }
     return $ch;
 }
 
@@ -699,10 +734,13 @@ function aio_oc_window($c, $l, $pos)
         $d[] = aio_gc_panel('title', aio_gc_at(AIO_CATV_PANE_W, AIO_OC_VIEW_Y, AIO_CATV_CARD_X, 0),
             array(aio_catv_title_label(aio_clean($t['name']), AIO_OC_VIEW_Y)));
     $page = aio_oc_head($c, $l, $pos['b']);
-    // What DOWN shows, in a panel OFF lower: its own coordinates are those of the first stop.
+    foreach (aio_oc_cast($c) as $x)
+        $page[] = $x;
+    $page[] = aio_gc_panel('first', aio_gc_at(1920, 1080, 0, 0), $pos['z'] === 'down' ? array() : $l['first']);
+    // What DOWN shows, in a panel OFF lower: its own coordinates are those of the first stop with the cast.
     if ($l['down'])
         $page[] = aio_gc_panel('down', aio_gc_at(1920, $l['h'] - AIO_OC_OFF, 0, AIO_OC_OFF), $l['down']);
-    $d[] = aio_gc_panel('view', aio_gc_at(1920, 1080 - AIO_OC_VIEW_Y, 0, AIO_OC_VIEW_Y),
+    $d[] = aio_gc_panel('view', aio_gc_at(1920, AIO_OC_SHOW_BOTTOM - AIO_OC_VIEW_Y, 0, AIO_OC_VIEW_Y),
         array(aio_gc_panel('page', aio_oc_page_geom($l['stops'][$pos['p']], $l['h']), $page, 0)), 0);
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
@@ -734,7 +772,7 @@ function aio_oc_folder_view($media_url, $sel_state)
     $l = aio_oc_layout($c);
     $pos = aio_oc_pos($c, $l, $sel_state);
     AioOc::$cards[$key]['pos'] = $pos;
-    AioOc::$cards[$key]['nav'] = array('btns' => $l['btns'], 'stops' => $l['stops'], 'h' => $l['h']);
+    AioOc::$cards[$key]['nav'] = array('btns' => $l['btns'], 'stops' => $l['stops'], 'h' => $l['h'], 'first' => $l['first']);
     aio_log("card: own $key: screen, " . count($l['btns']) . ' buttons, ' . count($l['stops']) . " stops, at {$pos['b']}, {$pos['p']}");
     $k = array('c' => $key);
     $acts = array(

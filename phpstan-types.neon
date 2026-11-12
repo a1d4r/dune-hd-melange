@@ -374,9 +374,9 @@ parameters:
         # A place of the focus on the own card, in AioOcCard and in sel_state (aio_oc_pos, view_card.php).
         AioOcPos: 'array{z: string, b: int, p: int}'
         # What the keys of the own card need of its layout (view_card.php).
-        AioOcNav: 'array{btns: list<array{string, string, bool}>, stops: list<int>, h: int}'
+        AioOcNav: 'array{btns: list<array{string, string, bool}>, stops: list<int>, h: int, first: list<array<string, mixed>>}'
         # The own card laid out (aio_oc_layout, view_card.php).
-        AioOcLayout: 'array{btns: list<array{string, string, bool}>, stops: list<int>, h: int, down: list<array<string, mixed>>, wh: array{float, float}|null}'
+        AioOcLayout: 'array{btns: list<array{string, string, bool}>, stops: list<int>, h: int, first: list<array<string, mixed>>, down: list<array<string, mixed>>}'
         # An actor of the own card (aio_cm_people, card_meta.php).
         AioCardActor: 'array{name: string, role: string, photo: string}'
         # An episode of the own card (aio_cm_eps, card_meta.php).

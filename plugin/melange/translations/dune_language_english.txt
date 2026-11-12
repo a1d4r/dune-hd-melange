@@ -250,7 +250,6 @@ card_dune = Dune card
 card_director = Director
 card_progress = Watched {p}% · {t} left
 card_watched = Watched
-card_down_movie = Cast and about the movie
 card_cast = Cast
 card_about_movie = About the movie
 card_original = Original title
