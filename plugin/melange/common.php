@@ -1129,7 +1129,8 @@ function aio_profile_keep($s, $words)
         $p = $s['profiles'][$now];
         if (isset($p['url']) || $p['conf'] || !$c || $by >= 0)
             return array($s, -1, false, -1);
-        $s['profiles'][$now]['conf'] = $c;
+        $p['conf'] = $c;
+        $s['profiles'][$now] = $p;
         return array($s, $now, false, -1);
     }
     if (!$t || (!isset($t['url']) && !$c))
