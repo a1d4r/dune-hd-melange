@@ -80,6 +80,18 @@
         <control_id>tv_update</control_id>
       </params>
     </update_action>
+    <topmenu_timer_action>
+      <type>plugin_handle_user_input</type>
+      <data>
+        <show_dialog_delay>10000</show_dialog_delay>
+      </data>
+      <params>
+        <handler_id>aio</handler_id>
+        <control_id>tv_timer</control_id>
+      </params>
+    </topmenu_timer_action>
+    <topmenu_timer_delay>3600</topmenu_timer_delay>
+    <topmenu_timer_delay_after_refresh>30</topmenu_timer_delay_after_refresh>
     <mapping>
       <tv>tv</tv>
     </mapping>

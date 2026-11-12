@@ -7,10 +7,33 @@
 // kept over a reboot, with tv.no_internet.json there. Written by the
 // update_action of the manifest (aio_tv_update) and only by it, from the copies on the device: the
 // rows of the tab "Movies", then those of "Series" (aio_catv_tab_copy_defs), no request.
+// Fresh: the shell calls it again on the flag <tmp_dir>/update_epfs_if_needed_flag (aio_tv_flag), set
+// by the timer of the manifest (aio_tv_timer, once an hour: the old copies asked anew) and by Melange
+// when it saves a copy the file is built of (aio_tv_copy_saved) or reads a new settings.json.
 
 define('AIO_TV_EPF', 'tv');
 // "from" of the actions of the EPF: no screen of Melange is under them.
 define('AIO_TV_FROM', 'tv:tv');
+// The timer: all its requests in this many s (show_dialog_delay of the manifest is 10 s).
+define('AIO_TV_TIMER_S', 7.0);
+
+class AioTv
+{
+    // aio_tv_selected of the operation that started at Aio::$t0 ($selected_t0); null: not read yet.
+    /** @var bool|null */
+    public static $selected = null;
+    /** @var float */
+    public static $selected_t0 = -1.0;
+    // The flag set in the operation that started at Aio::$t0: not again in it.
+    /** @var float */
+    public static $flagged_t0 = -1.0;
+    // The timer asks its copies: no flag of each, it compares the file itself.
+    /** @var bool */
+    public static $quiet = false;
+    // aio_settings_sig at the last operation (aio_tv_settings_seen); null: none since a start of php_server.
+    /** @var string|null */
+    public static $sig = null;
+}
 
 // The directories of the EPF: tmp of tmp_dir_path ('' without one); flash of the fixed base of the shell
 // (EPFS_BASE of its PHP, its loader of plugins), not of data_dir_path, which may be elsewhere (/persistfs):
@@ -26,15 +49,90 @@ function aio_tv_dirs()
 
 // Melange is the TV application: the line "shell_ext:tv = melange" of epf_mapping.txt, which the
 // shell writes before it calls the update_action of the chosen plugin (device r25, tvtab_probe).
+// Read once an operation: each copy saved asks it (aio_tv_copy_saved).
 /**
  * @return bool
  */
 function aio_tv_selected()
 {
+    if (AioTv::$selected !== null && AioTv::$selected_t0 === Aio::$t0)
+        return AioTv::$selected;
     $d = aio_tv_dirs();
     $f = dirname($d['flash']) . '/epf_mapping.txt';
     $text = is_file($f) ? strval(file_get_contents($f, false, null, 0, 65536)) : '';
-    return preg_match('/^[ \t]*shell_ext:tv[ \t]*=[ \t]*' . AIO_PLUGIN . '[ \t]*\r?$/m', $text) === 1;
+    AioTv::$selected = preg_match('/^[ \t]*shell_ext:tv[ \t]*=[ \t]*' . AIO_PLUGIN . '[ \t]*\r?$/m', $text) === 1;
+    AioTv::$selected_t0 = Aio::$t0;
+    return AioTv::$selected;
+}
+
+// The flag for the shell to call the update_action again (aio_tv_update): <tmp_dir>/update_epfs_if_needed_flag
+// with time() + 10, as the shell writes it for its own EPF (movie_helper.php; Global TV writes it empty).
+// Only if Melange is the TV application, once an operation, never while the timer asks its copies.
+// Never from aio_tv_update: the shell would call it again and again.
+/**
+ * @param string $why
+ * @return void
+ */
+function aio_tv_flag($why)
+{
+    if (AioTv::$quiet || AioTv::$flagged_t0 === Aio::$t0 || !aio_tv_selected())
+        return;
+    $d = aio_tv_dirs();
+    if ($d['tmp'] === '' || !is_dir(dirname($d['tmp'])))
+        return;
+    AioTv::$flagged_t0 = Aio::$t0;
+    $ok = file_put_contents(dirname($d['tmp']) . '/update_epfs_if_needed_flag', strval(time() + 10)) !== false;
+    aio_log("tv: flag: $why" . ($ok ? '' : ', not written'));
+}
+
+// The rows the file is built of: of the tab "Movies", then of "Series" (as aio_catv_tab_copy_defs).
+/**
+ * @param list<AioCatRow> $rows
+ * @return list<AioCatRow>
+ */
+function aio_tv_rows($rows)
+{
+    return array_merge(aio_cat_user_rows($rows, Aio::$settings['cat_rows'], 'movie'),
+        aio_cat_user_rows($rows, Aio::$settings['cat_rows'], 'series'));
+}
+
+// aio_cat_cache_write saved the copy $key: the manifest or the first page of a row of the file - the flag.
+/**
+ * @param string $key
+ * @return void
+ */
+function aio_tv_copy_saved($key)
+{
+    if (AioTv::$quiet || !aio_tv_selected())
+        return;
+    $hit = $key === AIO_CAT_MANIFEST_KEY;
+    if (!$hit)
+    {
+        $copy = aio_cat_manifest_copy();
+        foreach (aio_tv_rows($copy['rows']) as $row)
+            $hit = $hit || aio_cat_page_key($row, 0) === $key;
+    }
+    if ($hit)
+        aio_tv_flag($key === AIO_CAT_MANIFEST_KEY ? 'the manifest saved' : 'a row saved');
+}
+
+// At the start of an operation (settings.json read): a new one (the settings page or Melange wrote it) -
+// the flag, its rows, plates or mode may be others. The settings page itself sets none: it runs as root,
+// a flag of root in tmp_dir may be one php_server can not write again. Not in tv_update (it reads them
+// anyway) nor in tv_timer (it compares the file); the first operation after a start of php_server only
+// remembers it, the timer finds a change made before.
+/**
+ * @param stdClass $in
+ * @return void
+ */
+function aio_tv_settings_seen($in)
+{
+    $sig = aio_settings_sig();
+    $was = AioTv::$sig;
+    AioTv::$sig = $sig;
+    $c = isset($in->control_id) ? $in->control_id : '';
+    if ($was !== null && $sig !== $was && $c !== 'tv_update' && $c !== 'tv_timer')
+        aio_tv_flag('settings.json changed');
 }
 
 // ru or en of interface_language the shell sends with the update_action ("russian" as in
@@ -100,6 +198,17 @@ function aio_tv_view($lang)
     return $view;
 }
 
+// The JSON of tv.json (aio_tv_view), '' when it can not be made.
+/**
+ * @param string $lang
+ * @return string
+ */
+function aio_tv_json($lang)
+{
+    $json = json_encode(aio_tv_view($lang));
+    return is_string($json) ? $json : '';
+}
+
 // $data to $path unless it is there already (the flash wears): 'same', 'new' or 'failed'.
 // Atomic (aio_write_file); what an interrupted write left in the directory goes.
 /**
@@ -120,6 +229,25 @@ function aio_tv_put($path, $data)
     return aio_write_file($path, $data, 0644) ? 'new' : 'failed';
 }
 
+// The answer to the update_action and the timer: done.
+/**
+ * @return AioAction
+ */
+function aio_tv_status()
+{
+    return array(GuiAction::handler_string_id => STATUS_ACTION_ID, GuiAction::data => array(StatusActionData::status => 0));
+}
+
+// interface_language as it came, to the log: its form is not proven.
+/**
+ * @param stdClass $in
+ * @return string
+ */
+function aio_tv_lang_log($in)
+{
+    return ' interface_language=' . substr(strval(preg_replace('/[^A-Za-z_-]/', '', aio_catv_in($in, 'interface_language'))), 0, 20);
+}
+
 // update_action of embeddable_plugin_folders (at a start of the shell, a wake, the choice of the TV
 // application): tv.json to both directories, tv.no_internet.json (the same rows: they need no
 // network) to the flash one, each only if it changed. Never the flag update_epfs_if_needed_flag here:
@@ -131,14 +259,10 @@ function aio_tv_put($path, $data)
 function aio_tv_update($in)
 {
     $t0 = microtime(true);
-    $status = array(
-        GuiAction::handler_string_id => STATUS_ACTION_ID,
-        GuiAction::data => array(StatusActionData::status => 0));
+    $status = aio_tv_status();
     $boot = isset($in->first_run_after_boot) && is_scalar($in->first_run_after_boot) ?
         substr(strval(preg_replace('/[^0-9A-Za-z]/', '', strval($in->first_run_after_boot))), 0, 8) : '';
-    // interface_language as it came, to the log: its form is not proven.
-    $what = 'tv: update' . ($boot !== '' ? " first_run_after_boot=$boot" : '') . ' interface_language=' .
-        substr(strval(preg_replace('/[^A-Za-z_-]/', '', aio_catv_in($in, 'interface_language'))), 0, 20);
+    $what = 'tv: update' . ($boot !== '' ? " first_run_after_boot=$boot" : '') . aio_tv_lang_log($in);
     $d = aio_tv_dirs();
     if ($d['tmp'] === '')
     {
@@ -153,8 +277,8 @@ function aio_tv_update($in)
     $lang = aio_tv_lang($in);
     // Not set back: the info panel of the tiles of the file (rows_info, aio_catv_ui_lang) speaks its language.
     AioCat::$lang = $lang;
-    $json = json_encode(aio_tv_view($lang));
-    if (!is_string($json))
+    $json = aio_tv_json($lang);
+    if ($json === '')
     {
         aio_log("$what $lang: no JSON of the view, nothing written");
         return $status;
@@ -163,6 +287,84 @@ function aio_tv_update($in)
     $ni = aio_tv_put("{$d['flash']}/" . AIO_TV_EPF . '.no_internet.json', $json);
     aio_log(sprintf('%s %s: %s %d B, no_internet %s, %.0f ms', $what, $lang, $res, strlen($json), $ni, (microtime(true) - $t0) * 1000));
     return $status;
+}
+
+// The timer: the copy of the manifest older than AIO_CAT_MANIFEST_FRESH asked anew, then the first pages
+// of the rows of the file without a copy or with one older than AIO_CAT_FRESH, the oldest first, one by
+// one in $limit s; after a failure of the server no more. Fresh copies are not asked: at most a request
+// a row an hour, however often the shell calls. No flag of each copy (AioTv::$quiet). -> for the log.
+/**
+ * @param float $limit
+ * @return string
+ */
+function aio_tv_refresh($limit)
+{
+    $start = microtime(true);
+    $down = array('net', 'timeout', 'rate', 'server');
+    AioTv::$quiet = true;
+    $copy = aio_cat_manifest_copy();
+    $rows = $copy['rows'];
+    $man = 'manifest fresh';
+    $err = '';
+    if (!aio_cat_manifest_recent($copy))
+    {
+        $m = aio_cat_manifest_fetch(max(1, intval(min(AIO_CATV_REFRESH_S, $limit))));
+        $rows = $m['rows'] ? $m['rows'] : $rows;
+        $err = $m['err'];
+        $man = 'manifest asked' . ($err !== '' ? " ($err)" : '');
+    }
+    $tv_rows = aio_tv_rows($rows);
+    $old = array();
+    foreach ($tv_rows as $i => $row)
+    {
+        $c = aio_cat_page_cached($row, 0);
+        if (!aio_cat_is_fresh($c))
+            $old[$i] = $c ? $c['t'] : 0;
+    }
+    asort($old);
+    $asked = 0;
+    foreach (array_keys($old) as $i)
+    {
+        $left = $limit - (microtime(true) - $start);
+        if (in_array($err, $down, true) || $left < AIO_CATV_MIN_S)
+            break;
+        $st = aio_cat_row_state($tv_rows[$i]);
+        $res = aio_cat_more($st, $left);
+        $err = $res['err'];
+        $asked++;
+    }
+    AioTv::$quiet = false;
+    return sprintf('%s, rows asked %d of %d old', $man, $asked, count($old));
+}
+
+// topmenu_timer_action of the manifest: the old copies asked anew (aio_tv_refresh, none without AIOStreams:
+// the file has one tile then), the file built and compared with tv.json of tmp_dir, the one the shell reads
+// first: another one - the flag, the shell calls the update_action, which writes it. Not the TV
+// application: nothing asked, nothing written.
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
+function aio_tv_timer($in)
+{
+    $t0 = microtime(true);
+    $what = 'tv: timer' . aio_tv_lang_log($in);
+    $d = aio_tv_dirs();
+    if ($d['tmp'] === '' || !aio_tv_selected())
+    {
+        aio_log("$what: " . ($d['tmp'] === '' ? 'no tmp_dir_path' : 'not the TV application') . ', nothing asked');
+        return aio_tv_status();
+    }
+    $asked = Aio::$settings['base'] === '' ? 'AIOStreams not set, nothing asked' : aio_tv_refresh(AIO_TV_TIMER_S);
+    $lang = aio_tv_lang($in);
+    $json = aio_tv_json($lang);
+    $f = "{$d['tmp']}/" . AIO_TV_EPF . '.json';
+    clearstatcache();
+    $changed = $json !== '' && (!is_file($f) || filesize($f) !== strlen($json) || file_get_contents($f) !== $json);
+    aio_log(sprintf('%s %s: %s; the file %s, %.0f ms', $what, $lang, $asked, $changed ? 'changed' : 'the same', (microtime(true) - $t0) * 1000));
+    if ($changed)
+        aio_tv_flag('the timer');
+    return aio_tv_status();
 }
 
 // --- The actions of the EPF: from "tv:<id of the EPF>", the tiles of the catalog as on its screens.
@@ -200,7 +402,11 @@ function aio_tv_enter($in)
         return aio_tv_catalog_act();
     if ($id === 'tv:setup')
         return aio_setup_open_act();
-    return aio_catv_enter($in);
+    $a = aio_catv_enter($in);
+    // A tile of the file in no copy and not in memory: the file is old.
+    if ($a === aio_error('cat_outdated', '', false, false))
+        aio_tv_flag('a tile of the file is outdated');
+    return $a;
 }
 
 // POP UP in the EPF, on any tile: the search (its results a screen of Melange), the catalog, the

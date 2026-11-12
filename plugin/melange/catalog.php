@@ -934,6 +934,9 @@ function aio_cat_cache_write($key, $n, $data)
         aio_log('catalog: not cached: write failed');
         return;
     }
+    // The tab "TV" of the main screen may be built of it (tv_tab.php; not loaded by the settings page).
+    if (function_exists('aio_tv_copy_saved'))
+        aio_tv_copy_saved($key);
     aio_cat_cache_prune(dirname($f));
 }
 

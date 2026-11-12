@@ -1422,6 +1422,8 @@ function aio_handle_user_input($in)
         return aio_play_action($in);
     if ($control === 'tv_update')
         return aio_tv_update($in);
+    if ($control === 'tv_timer')
+        return aio_tv_timer($in);
     if ($control === 'gc_move' || $control === 'gc_pick' || $control === 'gc_info')
         return aio_gc_input($in);
     if ($control === 'info_page')
@@ -1499,7 +1501,10 @@ class AioFw extends DunePluginFw
             Aio::$t0 = microtime(true);
             // Every focus move on the rows: memory only.
             if (!isset($in->control_id) || $in->control_id !== 'cat_info')
+            {
                 aio_settings_load();
+                aio_tv_settings_seen($in);
+            }
             $op = $ctx->op_type_code;
             if ($op === PLUGIN_OP_GET_FOLDER_VIEW)
             {
