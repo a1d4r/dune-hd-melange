@@ -19,8 +19,9 @@ define('AIO_CARD_YEAR_DIFF', 1);
 define('AIO_CARD_TTL_ID', 604800);
 // A day: new cards appear in days, none seen younger than a day (03.11.2026).
 define('AIO_CARD_TTL_NONE', 86400);
-// The meta of a movie asked of the catalog server once, when its local card is written:
-// 0.4 s seen (05.11.2026), "none" 1.8 s. ENTER waits for it; a failure leaves the card of the tile.
+// The meta of a movie asked of the catalog server: once when its local card is written, and
+// by the own card (card_meta.php). 0.4 s seen (05.11.2026), "none" 1.8 s. ENTER waits for it;
+// a failure leaves the card of the tile.
 define('AIO_CARD_META_TOTAL', 4);
 // Limits of the local card: the server gives up to 10 actors; genres as a tile
 // (AIO_CAT_GENRES_MAX); ratings: ~45 countries seen, each a short text ("TE+7", "K-12").

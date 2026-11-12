@@ -9,14 +9,15 @@
 // limit of the catalog and AIO_CARD_META_TOTAL.
 define('AIO_CM_SERIES_BYTES', 4194304);
 define('AIO_CM_SERIES_TOTAL', 10);
-// Titles kept in memory and for how long, s; the oldest written goes first.
+// Titles kept in memory, their episodes at most in all, and for how long, s; the oldest written
+// goes first. A title of more episodes is not kept.
 define('AIO_CM_KEEP', 8);
+define('AIO_CM_KEEP_EPS', 3000);
 define('AIO_CM_TTL', 3600);
 // Limits of the texts, characters; episodes of a title at most (One Piece: 1180).
 define('AIO_CM_DESC_MAX', 3000);
 define('AIO_CM_TAGLINE_MAX', 300);
 define('AIO_CM_EP_TITLE_MAX', 100);
-define('AIO_CM_EP_DESC_MAX', 500);
 define('AIO_CM_EPS_MAX', 3000);
 define('AIO_CM_LIST_MAX', 5);
 // The cache of pictures of the catalog server, next to its addon path.
@@ -25,7 +26,7 @@ define('AIO_CM_IMG', preg_replace('~stremio/$~', '', AIO_CAT_BASE) . 'poster-cac
 // Parsed metas by "<type>:<id>": memory of php_server only, gone with a restart.
 class AioCm
 {
-    /** @var array<string, array{t: int, m: AioCardMeta}> */
+    /** @var array<string, array{t: int, n: int, m: AioCardMeta}> n: episodes of m */
     public static $cache = array();
 }
 
@@ -45,7 +46,7 @@ function aio_cm_id($t)
 
 // A picture of the meta -> the address the Dune loads, '' for none. TMDB (blocked for many,
 // straight or already in the cache of the server) goes through the cache of the server in
-// class $class: background keeps the size and shape (a still 500x282, a face 276x350), w342/poster
+// class $class: background keeps the size and shape (a still 500x281, a face 276x350), w342/poster
 // fits a 2:3 poster. Another host stays as it is; a TMDB address of another form is dropped.
 /**
  * @param string $url
@@ -96,39 +97,33 @@ function aio_cm_names($list, $max)
     return $out;
 }
 
-// People of the meta: those of aio_card_people (type 0 actor, 1 director, 2 writer), then the
-// creators of a series (3; app_extras.creators, no key: none); photos through the cache.
+// People of the meta, as aio_card_people finds them: cast (AIO_CARD_ACTORS_MAX at most, the photo
+// through the cache), directors and writers by name. The creators of a series are not in 1.0.
 /**
  * @param array<mixed> $m
- * @return list<AioCardPerson>
+ * @return array{cast: list<AioCardActor>, directors: list<string>, writers: list<string>}
  */
 function aio_cm_people($m)
 {
-    $out = array();
+    $out = array('cast' => array(), 'directors' => array(), 'writers' => array());
     foreach (aio_card_people($m) as $p)
     {
-        $out[] = array('type' => intval($p['type']), 'name' => strval($p['name']),
-            'role' => isset($p['role']) ? strval($p['role']) : '',
-            'photo' => isset($p['imgPhoto']) ? aio_cm_img(strval($p['imgPhoto']), 'background') : '');
-    }
-    $names = array();
-    foreach (array_slice(aio_arr(aio_arr($m, 'app_extras'), 'creators'), 0, AIO_CARD_SCAN_MAX) as $p)
-    {
-        $name = aio_card_text(aio_str($p, 'name'));
-        if ($name === '' || isset($names[$name]))
-            continue;
-        $names[$name] = true;
-        $out[] = array('type' => 3, 'name' => $name, 'role' => '', 'photo' => aio_cm_img(aio_cat_img($p, 'photo'), 'background'));
-        if (count($names) >= AIO_CARD_CREW_MAX)
-            break;
+        $type = intval($p['type']);
+        if ($type === 0)
+            $out['cast'][] = array('name' => strval($p['name']), 'role' => isset($p['role']) ? strval($p['role']) : '',
+                'photo' => isset($p['imgPhoto']) ? aio_cm_img(strval($p['imgPhoto']), 'background') : '');
+        else
+            $out[$type === 1 ? 'directors' : 'writers'][] = strval($p['name']);
     }
     return $out;
 }
 
 // videos of the meta of a series -> seasons: season => its episodes by number, ascending, season 0
 // (specials) left out; season_numbers: season => the last episode out by $now (released, UTC), as
-// aio_seasons of play_action, seasons with no episode out left out. An episode not out (later or no
-// date) is there with soon and its date. Repeats of an episode and numbers not 1 and up are dropped;
+// aio_seasons of play_action: the episodes are 1..N there (the playlist, the next episode). So a
+// season whose E1 is not out is left out, numbered on from the last season too (One Piece: S2 is
+// E62-E77): no playlist and no next episode for it. An episode not out (later or no date) is there
+// with soon and its date. Repeats of an episode and numbers not 1 and up are dropped;
 // AIO_CM_EPS_MAX episodes at most, in the order of the server.
 /**
  * @param array<mixed> $videos
@@ -157,7 +152,6 @@ function aio_cm_eps($videos, $now)
         $by[$s][$e] = array('s' => $s, 'e' => $e,
             'title' => aio_cut(aio_one_line(aio_str($v, 'title')), AIO_CM_EP_TITLE_MAX), 'date' => $date,
             'img' => aio_cm_img(aio_str($v, 'thumbnail'), 'background'),
-            'desc' => aio_cut(aio_one_line(aio_str($v, 'overview')), AIO_CM_EP_DESC_MAX),
             'min' => aio_cat_runtime_min(aio_str($v, 'runtime')), 'soon' => $soon);
         $n++;
         if (!$soon && (!isset($last[$s]) || $e > $last[$s]))
@@ -170,6 +164,8 @@ function aio_cm_eps($videos, $now)
     {
         ksort($eps);
         $seasons[$s] = array_values($eps);
+        if (isset($last[$s]) && (!isset($eps[1]) || $eps[1]['soon']))
+            unset($last[$s]);
     }
     return array('seasons' => $seasons, 'season_numbers' => $last);
 }
@@ -211,6 +207,7 @@ function aio_cm_parse($m, $type, $id, $now)
         $countries = explode(',', aio_str($m, 'country'));
     $status = aio_str($m, 'status');
     list(, $released) = aio_cm_time(aio_str($m, 'released'));
+    $people = aio_cm_people($m);
     $eps = $type === 'series' ? aio_cm_eps(aio_arr($m, 'videos'), $now) : array('seasons' => array(), 'season_numbers' => array());
     return array('type' => $type, 'id' => $id, 'imdb' => $imdb,
         'description' => aio_cut(aio_one_line(aio_str($m, 'description')), AIO_CM_DESC_MAX),
@@ -218,7 +215,8 @@ function aio_cm_parse($m, $type, $id, $now)
         'studios' => aio_cm_names(aio_arr($m, 'studios'), AIO_CM_LIST_MAX),
         'networks' => aio_cm_names(aio_arr($m, 'networks'), AIO_CM_LIST_MAX),
         'status' => $status === 'Returning Series' ? 'on' : ($status === 'Ended' ? 'ended' : ''),
-        'countries' => aio_cm_names($countries, AIO_CARD_COUNTRIES_MAX), 'people' => aio_cm_people($m),
+        'countries' => aio_cm_names($countries, AIO_CARD_COUNTRIES_MAX), 'cast' => $people['cast'],
+        'directors' => $people['directors'], 'writers' => $people['writers'],
         'seasons' => $eps['seasons'], 'season_numbers' => $eps['season_numbers']);
 }
 
@@ -226,6 +224,7 @@ function aio_cm_parse($m, $type, $id, $now)
 // -> err: '' or why there is none: noid (nothing to ask by), the errors of aio_cat_get (net,
 // timeout, big, rate, server, notfound, http, bad), other (the meta of another title); meta: the
 // parsed one or null. Only a parsed meta is kept: a failure is asked again at the next opening.
+// Kept: AIO_CM_KEEP titles and AIO_CM_KEEP_EPS episodes in all at most, the oldest go.
 /**
  * @param AioCatTile $t
  * @return array{err: string, meta: AioCardMeta|null}
@@ -264,10 +263,19 @@ function aio_cm_get($t)
     $eps = 0;
     foreach ($m['seasons'] as $list)
         $eps += count($list);
-    aio_log(sprintf('card: meta %s: imdb %s, %d seasons, %d episodes, %d seasons out, %d people', $key,
-        $m['imdb'] !== '' ? $m['imdb'] : 'none', count($m['seasons']), $eps, count($m['season_numbers']), count($m['people'])));
-    AioCm::$cache[$key] = array('t' => $now, 'm' => $m);
-    while (count(AioCm::$cache) > AIO_CM_KEEP)
-        array_shift(AioCm::$cache);
+    aio_log(sprintf('card: meta %s: imdb %s, %d seasons, %d episodes, %d seasons out, %d actors, %d directors, %d writers',
+        $key, $m['imdb'] !== '' ? $m['imdb'] : 'none', count($m['seasons']), $eps, count($m['season_numbers']),
+        count($m['cast']), count($m['directors']), count($m['writers'])));
+    if ($eps > AIO_CM_KEEP_EPS)
+        return array('err' => '', 'meta' => $m);
+    AioCm::$cache[$key] = array('t' => $now, 'n' => $eps, 'm' => $m);
+    $sum = 0;
+    foreach (AioCm::$cache as $c)
+        $sum += $c['n'];
+    while (count(AioCm::$cache) > AIO_CM_KEEP || $sum > AIO_CM_KEEP_EPS)
+    {
+        $c = array_shift(AioCm::$cache);
+        $sum -= $c['n'];
+    }
     return array('err' => '', 'meta' => $m);
 }
