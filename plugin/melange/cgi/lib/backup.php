@@ -31,7 +31,7 @@ function aio_cgi_export($dir, $t)
         aio_cgi_send(404, 'text/plain', aio_cgi_l('Настроек ещё нет: сначала сохраните их.',
             'No settings yet: save them first.') . "\n");
     }
-    $json = aio_settings_json($s + array('web_token' => $t));
+    $json = aio_cgi_export_json($s, $t);
     if ($json === '')
     {
         aio_cgi_log('export: json_encode failed');
@@ -43,6 +43,19 @@ function aio_cgi_export($dir, $t)
     header('X-Content-Type-Options: nosniff');
     echo $json;
     exit(0);
+}
+
+// The text of the file of the export of the settings $s (aio_settings_read), with web_token $t ('': json_encode failed).
+function aio_cgi_export_json($s, $t)
+{
+    return aio_settings_json($s + array('web_token' => $t));
+}
+
+// The file of the export $json loads back: the body the page posts of it (importBody of web/src/api.ts, by
+// encodeURIComponent - rawurlencode is never shorter) is not over AIO_CGI_IMPORT_MAX.
+function aio_cgi_import_fits($json)
+{
+    return strlen('settings=' . rawurlencode($json)) <= AIO_CGI_IMPORT_MAX;
 }
 
 // The screen "Резервная копия" (#bak): "Сохранить в файл" - a link (works

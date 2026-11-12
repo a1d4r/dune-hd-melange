@@ -6,6 +6,8 @@
 //   profiles     -> the list, nothing written;
 //   profile_add  (name) -> the stored source (never the form: the page saves it
 //                first) as a new profile, its name or the word of its kind;
+//                add and edit: refused when the file of the export would not load
+//                back (aio_cgi_import_fits);
 //   profile_edit (i, was, name[, url]) -> the name of profile i, the link of an own
 //                config; the profile in use: the new link is manifest_url too;
 //   profile_del  (i, was) -> profile i gone.
@@ -144,8 +146,8 @@ function aio_cgi_profile_checked($a, $s, $p, $k)
     return $ok;
 }
 
-// POST a=profiles | profile_add | profile_edit | profile_del (ajax=1): as above.
-function aio_cgi_profile_post($dir, $a)
+// POST a=profiles | profile_add | profile_edit | profile_del (ajax=1): as above; $t: the token of the page (of the export).
+function aio_cgi_profile_post($dir, $a, $t)
 {
     $s = aio_settings_read(aio_cgi_dir_ok($dir) ? $dir : '', $why);
     if ($why !== '')
@@ -211,6 +213,10 @@ function aio_cgi_profile_post($dir, $a)
             $msg = sprintf(aio_cgi_l('Профиль «%s» сохранён', 'Profile "%s" saved'), $p['name']);
         }
     }
+    // A file of the export with the new profile or link loads back (a=import); a delete only makes it shorter.
+    if ($a !== 'profile_del' && !aio_cgi_import_fits(aio_cgi_export_json($s, $t)))
+        aio_cgi_profile_failed($a, 'the export over ' . AIO_CGI_IMPORT_MAX . ' bytes', aio_cgi_l('Не сохранено: с этим профилем резервная копия будет слишком большой',
+            'Not saved: with this profile the backup file would be too big'), aio_settings_read($dir));
     // The plugin reads no settings.json over AIO_SETTINGS_MAX.
     if (strlen(aio_settings_json($s)) > AIO_SETTINGS_MAX)
         aio_cgi_profile_failed($a, 'settings over ' . AIO_SETTINGS_MAX . ' bytes', aio_cgi_l('Не сохранено: настройки слишком большие',

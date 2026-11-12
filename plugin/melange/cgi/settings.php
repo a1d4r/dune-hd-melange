@@ -279,7 +279,7 @@ if ($method === 'POST' && aio_cgi_param($_GET, 'ajax') === '1')
         aio_cgi_cat_rows_post($dir);
     }
     if (in_array($a, array('profiles', 'profile_add', 'profile_edit', 'profile_del'), true))
-        aio_cgi_profile_post($dir, $a);
+        aio_cgi_profile_post($dir, $a, $t);
 }
 // Any other POST with an action is never a save: "Проверить" of a tab opened
 // before 0.31.1 posts the whole form with a=ts_check. 303 to the page, nothing written.
