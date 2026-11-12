@@ -1092,7 +1092,8 @@ function aio_rid()
 
 // State of a stream list (Aio::$state): its screen "streams:<rid>", the card,
 // season and episode (-1 for a movie), rows in the order of 'sort' and
-// 'sort_rev' (of the settings: aio_rows_sort), the shell language of play_action,
+// 'sort_rev' (of the settings: aio_rows_sort; none from 0.58.0: a source profile
+// with no streams, aio_gc_src), the shell language of play_action,
 // 'errors': the reasons of the error streams of its reply (aio_error_streams).
 // view_gcomps.php adds 'gc' - array(sel, top), the last cursor; 'gc_new' -
 // the first view of a replaced screen ignores the shell's sel_state; 'gc_prog'

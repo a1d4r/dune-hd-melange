@@ -173,7 +173,8 @@ parameters:
         # different lines up to AIO_ERRORS_MAX, more: different ones past them.
         AioErrors: 'array{lines: list<string>, more: int}'
         # A stream list (Aio::$state, aio_list_state, main.php), rows in the order
-        # of sort (aio_sort_keys), reversed by sort_rev; gc (sel, top:
+        # of sort (aio_sort_keys), reversed by sort_rev; rows may be empty from
+        # 0.58.0 (a source profile with no streams, aio_gc_src); gc (sel, top:
         # the last cursor), gc_new, gc_prog: of view_gcomps.php.
         AioState: '''
             array{
