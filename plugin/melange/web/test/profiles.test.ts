@@ -1,7 +1,8 @@
 // The source profiles (#pr, 0.58.0): the block by the script (by the CSS only with "Source profiles" on), the list
-// of #init, "Save the current one as a profile" (a=profile_add, disabled with a change not saved, the profiles full or the source in use a profile),
-// "Edit" -> a=profile_edit (the link of the one in use: the field of the own config too) and "Cancel", "Delete" ->
-// a=profile_del, Enter in their fields, the list anew after a save that stayed; src_was after such a save.
+// of #init, "Save the current one as a profile" (a=profile_add, disabled with a change not saved, the profiles full
+// or the source in use a profile), "Edit" -> a=profile_edit (the link of the one in use: the field of the own config
+// too) and "Cancel", "Delete" -> a=profile_del, Enter in their fields, the list anew after a save that stayed; src_was
+// after such a save.
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
