@@ -466,6 +466,7 @@ function aio_wh_series_visit($w, $arg, &$acc)
         return false;
     if (!isset($acc['last']))
         $acc['last'] = $w;
+    // e is a number of 1 or more here (aio_wh_match): aio_wh_rec's E1 for no e is not reached.
     list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
     $k = "$s:$e";
     if (isset($acc[$k]))

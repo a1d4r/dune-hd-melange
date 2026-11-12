@@ -1150,7 +1150,7 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
     $a = aio_play_action($in);
     if (!Aio::$state || $a[GuiAction::handler_string_id] !== PLUGIN_OPEN_FOLDER_ACTION_ID)
         return $a;
-    Aio::$state['movie']['own'] = true;
+    Aio::$state['movie']['own_card'] = true;
     if ($hash !== '')
         Aio::$state = aio_list_cursor(Aio::$state, $hash);
     return $a;

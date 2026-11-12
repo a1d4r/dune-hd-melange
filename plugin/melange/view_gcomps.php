@@ -1353,8 +1353,8 @@ function aio_gc_menu($in)
         GuiMenuItemDef::icon_url => 'gui_skin://small_icons/upgrade.aai',
         GuiMenuItemDef::action => aio_gc_act('gc_refresh', $rid)));
     // Without a card: the choice would end in "illegal state" of the shell.
-    // From the own card (own): the seasons of the last native series would come; chosen there.
-    if ($st['e'] > 0 && $st['movie']['dune_id'] !== '' && empty($st['movie']['own']))
+    // From the own card (own_card): the seasons of the last native series would come; chosen there.
+    if ($st['e'] > 0 && $st['movie']['dune_id'] !== '' && empty($st['movie']['own_card']))
         $menu[] = array(
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'choose_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
