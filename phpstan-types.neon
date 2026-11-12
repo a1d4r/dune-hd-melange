@@ -374,11 +374,15 @@ parameters:
         # A card of the own card screen in memory (AioOc::$cards, view_card.php).
         AioOcCard: 'array{tile: AioCatTile, meta: AioCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: AioOcPos, n: int, nav?: AioOcNav}'
         # A place of the focus on the own card, in AioOcCard and in sel_state (aio_oc_pos, view_card.php).
-        AioOcPos: 'array{z: string, b: int, p: int}'
+        AioOcPos: 'array{z: string, b: int, p: int, s: int, e: int}'
         # What the keys of the own card need of its layout (view_card.php).
-        AioOcNav: 'array{btns: list<array{string, string, bool}>, stops: list<int>, clips: list<int>, h: int, first: list<array<string, mixed>>}'
+        AioOcNav: 'array{kind: string, btns: list<array{string, string, bool}>, btn_y: int, stops: list<int>, clips: list<int>, h: int, off: int, zones: list<string>, tabs: AioOcTabs, ep: AioOcEp|null, prog: array<string, array{float, float, bool}>, first: list<array<string, mixed>>}'
         # The own card laid out (aio_oc_layout, view_card.php).
-        AioOcLayout: 'array{btns: list<array{string, string, bool}>, stops: list<int>, clips: list<int>, h: int, first: list<array<string, mixed>>, down: list<array<string, mixed>>}'
+        AioOcLayout: 'array{kind: string, btns: list<array{string, string, bool}>, btn_y: int, stops: list<int>, clips: list<int>, h: int, off: int, zones: list<string>, tabs: AioOcTabs, ep: AioOcEp|null, prog: array<string, array{float, float, bool}>, first: list<array<string, mixed>>, down: list<array<string, mixed>>}'
+        # The tabs of the seasons of a series card (aio_oc_tabs_layout, view_card.php).
+        AioOcTabs: 'array{list: list<array{int, string, int, int}>, x: int, w: int, all: int, word: int}'
+        # The episode a series card offers (aio_oc_pick, view_card.php).
+        AioOcEp: 'array{q: int, e: int, s: int, hash: string, kind: string}'
         # An actor of the own card (aio_cm_people, card_meta.php).
         AioCardActor: 'array{name: string, role: string, photo: string}'
         # An episode of the own card (aio_cm_eps, card_meta.php).

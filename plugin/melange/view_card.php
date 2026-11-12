@@ -7,9 +7,12 @@
 // movie or why there is none; at the bottom the cast of the meta (card_meta.php) and at its right
 // the hint "About the movie". DOWN scrolls the page under the logo: the cast up, "About the movie"
 // (the tagline, the whole description, the details) under it, the whole screen darkened, the logo
-// too; DOWN again further while there is more, UP back, at last to the button left. The plugin
-// draws and moves the focus itself with change_gcomps, as the list; the place (aio_oc_pos) travels
-// in sel_state.
+// too; DOWN again further while there is more, UP back, at last to the button left. A series (H1):
+// the buttons higher ("Continue SxEy" by the history), under them the tabs of the seasons and the
+// row of the episodes of the season shown, their progress by the history; the cast goes DOWN with
+// "About the series". The plugin draws and moves the focus itself with change_gcomps, as the list;
+// the place (aio_oc_pos: the zone, the button, the stop, the season and the episode) travels in
+// sel_state.
 // ENTER on a tile does the network (aio_oc_enter); the screen is built from memory.
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_catalog.php, gcomps.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
@@ -65,15 +68,60 @@ define('AIO_OC_DESC2_W', 960);
 define('AIO_OC_DESC2_LINES', 100);
 define('AIO_OC_DET_X', 1180);
 define('AIO_OC_DET_W', 665);
-// Colours of the design: buttons, the bar, no photo, the darkening of DOWN.
+// A series (H1 of design-own-card.md): the buttons at BTN_Y_SER, the description down to
+// DESC_BOTTOM_SER; "Серии" and the tabs of the seasons at TAB_Y, TAB_H high, the text TAB_PAD from
+// their edges, TAB_GAP apart, the rounded ends TAB_CAP (PNG); more than TABS_MAX seasons: numbers
+// after "Сезон"; tabs past TABS_R scroll. The row of episodes at ROW_Y: stills EP_W x EP_H, EP_STEP
+// apart from the x of the catalog, EP_VIS whole, the one before and after seen at the edges; the
+// frame of the focus FRAME wide around the still; P+/P- PAGE stills.
+define('AIO_OC_BTN_Y_SER', 512);
+define('AIO_OC_DESC_BOTTOM_SER', 504);
+define('AIO_OC_TAB_Y', 604);
+define('AIO_OC_TAB_H', 52);
+define('AIO_OC_TAB_PAD', 24);
+define('AIO_OC_TAB_GAP', 8);
+define('AIO_OC_TAB_CAP', 26);
+define('AIO_OC_TABS_MAX', 8);
+define('AIO_OC_TABS_R', 1500);
+define('AIO_OC_ROW_Y', 680);
+define('AIO_OC_EP_W', 384);
+define('AIO_OC_EP_H', 216);
+define('AIO_OC_EP_STEP', 408);
+define('AIO_OC_EP_VIS', 4);
+define('AIO_OC_ROW_H', 310);
+define('AIO_OC_FRAME', 6);
+define('AIO_OC_PAGE', 4);
+// A season of more than WIN_MIN episodes has in the panel only the stills on screen and WIN more
+// each side, added and dropped one by one as the row moves (as GCompList of the vendor). The probe
+// (experiments/hrow_probe, 12.11.2026): a season of 13-16 stills shows its stubs 0.1 s after the
+// key, one of 120 in 0.26 s (PHP 38 ms, 170 KB), its stills 0.56-0.9 s; so ~1.5 ms of the shell a
+// still: 40 keep the change of a season near 0.15 s and the stills in 0.5 s, a window of 21 the
+// same however long the season (One Piece: up to 197).
+define('AIO_OC_WIN_MIN', 40);
+define('AIO_OC_WIN', 8);
+// change_gcomps steps of the row and the tabs (the probe: 5 ~320 ms; repeats of a held key come
+// each 0.15-0.2 s and break it: to be tuned on the device).
+define('AIO_OC_ROW_STEPS', 5);
+// DOWN of a series: the first stop OFF_SER lower (the row above the clip, the cast at DOWN_Y); the
+// hint under the row at HINT_Y_SER from the x of the catalog.
+define('AIO_OC_OFF_SER', 740);
+define('AIO_OC_HINT_Y_SER', 1030);
+// Colours of the design: buttons, the bar, no photo, the darkening of DOWN, the frame of the focus,
+// the tab of the season shown (white 16 %), the plate of the mark "watched".
 define('AIO_OC_BTN_OFF', '#24FFFFFF');
 define('AIO_OC_BAR_REST', '#FF404040');
 define('AIO_OC_NO_PHOTO', '#FF262626');
 define('AIO_OC_DIM', '#C0000000');
 define('AIO_OC_BAND', '#D0000000');
+define('AIO_OC_FOCUS', '#FF2850C0');
+define('AIO_OC_TAB_ON', '#29FFFFFF');
+define('AIO_OC_MARK_BG', '#B0000000');
 // Our pictures: the ends of a button, off and focused, the icon of "Watch", the band over the
-// background from y 470 (1920x160, then a rect). card<N>: N goes up when they change, as cat<N>.
+// background from y 470 (1920x160, then a rect), the ends of a tab of a season (shown, focused).
+// card<N>: N goes up when they change, as cat<N>.
 define('AIO_OC_IMG', 'plugin_file://img/card1_');
+// Pictures of the shell: a still loading or not there (an episode not out yet), the mark "watched".
+define('AIO_OC_ICONS', 'plugin_file://%shell_ext%/icons/');
 
 class AioOc
 {
@@ -85,7 +133,7 @@ class AioOc
     public static $cards = array();
 }
 
-// ENTER on a movie tile with IMDb or TMDB (aio_card_enter): the id of the card of the Dune
+// ENTER on a tile of a movie or a series with IMDb or TMDB (aio_card_enter): the id of the card of the Dune
 // (aio_card_id; none: an old local card m-melange-..., none is written now), the meta (aio_cm_get;
 // a failure: the card of the tile), the IMDb of a tmdb: tile from it -> the card screen.
 /**
@@ -126,7 +174,8 @@ function aio_oc_make($tile, $meta, $dune, $lang)
     if ($dune === '')
         $dune = aio_card_local_find($tile);
     return array('tile' => $tile, 'meta' => $meta, 'imdb' => $imdb, 'dune' => $dune, 'lang' => $lang,
-        'ui' => aio_catv_ui_lang(), 'pos' => array('z' => 'btn', 'b' => 0, 'p' => 0), 'n' => $meta ? aio_cm_eps_count($meta) : 0);
+        'ui' => aio_catv_ui_lang(), 'pos' => array('z' => 'btn', 'b' => 0, 'p' => 0, 's' => 0, 'e' => 0),
+        'n' => $meta ? aio_cm_eps_count($meta) : 0);
 }
 
 /**
@@ -159,7 +208,7 @@ function aio_oc_get($key)
 {
     if (isset(AioOc::$cards[$key]))
         return AioOc::$cards[$key];
-    if (!preg_match('/^(movie):(tt[0-9]{1,10}|tmdb:([0-9]{1,10}))$/D', $key, $m))
+    if (!preg_match('/^(movie|series):(tt[0-9]{1,10}|tmdb:([0-9]{1,10}))$/D', $key, $m))
         return null;
     $t = aio_cat_tile(array('id' => $m[2], 'name' => 'x', 'type' => $m[1]), $m[1]);
     if (!$t)
@@ -210,7 +259,8 @@ function aio_oc_countries($c)
 }
 
 // The facts of the panel of the catalog with the kind first: "Фильм · 2001 · 2 ч 32 мин". A series
-// has it ("Сериал") in the parts already.
+// has it ("Сериал") in the parts already; its seasons of the meta instead of the length of an
+// episode: "Сериал · 2008 · 5 сезонов".
 /**
  * @param AioOcCard $c
  * @return list<array{string, string, string}>
@@ -218,9 +268,33 @@ function aio_oc_countries($c)
 function aio_oc_facts($c)
 {
     $p = aio_catv_fact_parts($c['tile'], $c['ui']);
+    $n = $c['meta'] ? count($c['meta']['seasons']) : 0;
     if ($c['tile']['type'] !== 'series')
         array_unshift($p['rest'], aio_tr($c['ui'], 'card_kind_movie'));
+    else if ($n > 0)
+    {
+        $len = aio_catv_runtime($c['tile']['runtime'], $c['ui']);
+        $p['rest'] = array_values(array_diff($p['rest'], array($len)));
+        $p['rest'][] = $n . ' ' . aio_gc_plural($c['ui'], $n, 'card_seasons');
+    }
     return aio_catv_facts_of($p);
+}
+
+// "Y-m-d" -> "16 ноября 2001" ($year false: "16 ноября"; $short: "16 ноя 2001"); '' for none.
+/**
+ * @param string $d
+ * @param string $lang
+ * @param bool $short
+ * @param bool $year
+ * @return string
+ */
+function aio_oc_day($d, $lang, $short = false, $year = true)
+{
+    if (!preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D', $d, $x))
+        return '';
+    $months = explode(',', aio_tr($lang, $short ? 'card_months_short' : 'card_months'));
+    $mon = isset($months[intval($x[2]) - 1]) ? $months[intval($x[2]) - 1] : $x[2];
+    return intval($x[3]) . " $mon" . ($year ? " $x[1]" : '');
 }
 
 // "Y-m-d" -> "16 ноября 2001"; a day after today (UTC): "Выходит 14.11.2026"; '' for none.
@@ -231,13 +305,9 @@ function aio_oc_facts($c)
  */
 function aio_oc_date($d, $lang)
 {
-    if (!preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D', $d, $x))
-        return '';
-    if ($d > gmdate('Y-m-d'))
+    if (preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D', $d, $x) && $d > gmdate('Y-m-d'))
         return str_replace('{d}', "$x[3].$x[2].$x[1]", aio_tr($lang, 'card_coming'));
-    $months = explode(',', aio_tr($lang, 'card_months'));
-    $mon = isset($months[intval($x[2]) - 1]) ? $months[intval($x[2]) - 1] : $x[2];
-    return intval($x[3]) . " $mon $x[1]";
+    return aio_oc_day($d, $lang);
 }
 
 // "Просмотрено 53 % · осталось 1 ч 12 мин" of a movie at $pos of $len s; '' when not begun or watched
@@ -257,20 +327,117 @@ function aio_oc_progress_text($pos, $len, $lang)
         aio_tr($lang, 'card_progress'));
 }
 
+// The line under the title of an episode: not out - "выйдет 16 ноября 2026" (no date: "ещё не
+// вышла"); begun - "осталось 29 мин из 48 мин"; else "6 апр 2009 · 48 мин" (what of it is known).
+/**
+ * @param AioCardEp $ep
+ * @param array{float, float, bool}|null $pr
+ * @param string $lang
+ * @return string
+ */
+function aio_oc_ep_line($ep, $pr, $lang)
+{
+    if ($ep['soon'])
+        return $ep['date'] !== '' ? str_replace('{d}', aio_oc_day($ep['date'], $lang), aio_tr($lang, 'card_ep_coming')) :
+            aio_tr($lang, 'card_ep_not_out');
+    if ($pr && $pr[0] > 0 && !$pr[2] && $pr[1] > 0)
+        return str_replace(array('{l}', '{t}'), array(aio_catv_runtime(intval(ceil(max(0, $pr[1] - $pr[0]) / 60)) . 'min', $lang),
+            aio_catv_runtime(intval(round($pr[1] / 60)) . 'min', $lang)), aio_tr($lang, 'card_ep_left'));
+    return implode(' · ', array_filter(array(aio_oc_day($ep['date'], $lang, true),
+        $ep['min'] > 0 ? aio_catv_runtime($ep['min'] . 'min', $lang) : ''), 'strlen'));
+}
+
+// --- The episodes.
+
+// The episodes of season $s of the meta of card $c, none without.
+/**
+ * @param AioOcCard $c
+ * @param int $s
+ * @return list<AioCardEp>
+ */
+function aio_oc_eps($c, $s)
+{
+    return $c['meta'] && isset($c['meta']['seasons'][$s]) ? $c['meta']['seasons'][$s] : array();
+}
+
+// The progress of episode $ep of card $c in history $prog (aio_wh_series: by the season it is asked
+// by, aio_cm_req_s), null for none.
+/**
+ * @param AioOcCard $c
+ * @param array<string, array{float, float, bool}> $prog
+ * @param AioCardEp $ep
+ * @return array{float, float, bool}|null
+ */
+function aio_oc_prog($c, $prog, $ep)
+{
+    $k = ($c['meta'] ? aio_cm_req_s($c['meta'], $ep['s']) : $ep['s']) . ':' . $ep['e'];
+    return isset($prog[$k]) ? $prog[$k] : null;
+}
+
+// The episode to offer of a series card (aio_wh_pick of its history by the episodes of the meta,
+// those not out too; without the meta as play_action without season_numbers): q, e - as asked, s - the
+// season of the meta (0: none has it); kind of aio_wh_pick. -> array(it, the progress of its
+// episodes, aio_wh_series).
+/**
+ * @param AioOcCard $c
+ * @return array{AioOcEp, array<string, array{float, float, bool}>}
+ */
+function aio_oc_pick($c)
+{
+    list($last, $prog) = $c['dune'] !== '' ? aio_wh_series($c['dune']) : array(null, array());
+    $m = $c['meta'];
+    $p = aio_wh_pick($last, $c['dune'], $m ? aio_cm_lists($m) : array());
+    $s = $m ? aio_cm_season_of($m, $p['s'], $p['e']) : 0;
+    aio_log('card: own series: ' . ($p['rec'] !== '' ? "{$p['rec']}, " : '') . "S{$p['s']}E{$p['e']}, {$p['why']}" .
+        ($m && $s !== $p['s'] ? ", season $s of the meta" : ''));
+    return array(array('q' => $p['s'], 'e' => $p['e'], 's' => $s, 'hash' => $p['hash'], 'kind' => $p['kind']), $prog);
+}
+
+// The episode $e of season $s of card $c, null for none.
+/**
+ * @param AioOcCard $c
+ * @param int $s
+ * @param int $e
+ * @return AioCardEp|null
+ */
+function aio_oc_ep($c, $s, $e)
+{
+    $eps = aio_oc_eps($c, $s);
+    $i = aio_cm_ep_index($eps, $e);
+    return $i >= 0 ? $eps[$i] : null;
+}
+
 // --- Layout.
 
 // The buttons: "Watch" with an IMDb, "Dune card" with a card of the Dune; array(kind, text, icon).
+// A series: "Continue SxEy" (a record in the history) or "Watch SxEy" of the episode to offer $ep;
+// one not out yet - "SxEy · выйдет 16.11" (kind soon: ENTER to it in the row).
 /**
  * @param AioOcCard $c
+ * @param AioOcEp|null $ep
  * @return list<array{string, string, bool}>
  */
-function aio_oc_buttons($c)
+function aio_oc_buttons($c, $ep)
 {
     $b = array();
-    if ($c['imdb'] !== '')
-        $b[] = array('watch', aio_tr($c['ui'], 'card_watch'), true);
+    $ui = $c['ui'];
+    if ($c['imdb'] !== '' && !$ep)
+        $b[] = array('watch', aio_tr($ui, 'card_watch'), true);
+    else if ($c['imdb'] !== '')
+    {
+        $name = 'S' . ($ep['s'] > 0 ? $ep['s'] : $ep['q']) . 'E' . $ep['e'];
+        $x = aio_oc_ep($c, $ep['s'], $ep['e']);
+        if ($x && $x['soon'])
+        {
+            $d = $x['date'] !== '' ? substr($x['date'], 8, 2) . '.' . substr($x['date'], 5, 2) : '';
+            $b[] = array('soon', str_replace('{d}', $d, aio_tr($ui, $d !== '' ? 'card_btn_soon' : 'card_btn_not_out', $name)), false);
+        }
+        else
+            $b[] = array('watch', aio_tr($ui, in_array($ep['kind'], array('record', 'next', 'same'), true) ? 'card_continue' : 'card_watch_ep',
+                $name), true);
+    }
     if ($c['dune'] !== '')
-        $b[] = array('dune', aio_tr($c['ui'], 'card_dune'), false);
+        $b[] = array('dune', aio_tr($ui, 'card_dune'), false);
     return $b;
 }
 
@@ -327,7 +494,7 @@ function aio_oc_label($x, $y, $w, $text, $px, $color, $spec = array())
 }
 
 // The first screen in the page: the lines of the panel (x of the catalog), the description to
-// DESC_BOTTOM, the buttons (focus on $b).
+// DESC_BOTTOM (a series: DESC_BOTTOM_SER), the buttons at the y of the layout (lit: $b).
 /**
  * @param AioOcCard $c
  * @param AioOcLayout $l
@@ -361,19 +528,16 @@ function aio_oc_head($c, $l, $b)
         $y += AIO_CATV_LINE_H;
     }
     $y += 14;
-    $n = max(0, intval((AIO_OC_DESC_BOTTOM - $y) / AIO_OC_DESC_LH));
+    $n = max(0, intval((($l['kind'] === 'series' ? AIO_OC_DESC_BOTTOM_SER : AIO_OC_DESC_BOTTOM) - $y) / AIO_OC_DESC_LH));
     $desc = $c['meta'] && $c['meta']['description'] !== '' ? $c['meta']['description'] : $c['tile']['description'];
     foreach (aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, $n, true) as $i => $line)
         $d[] = aio_oc_label($x0, $y + $i * AIO_OC_DESC_LH, AIO_CATV_TEXT_W, $line, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
 
     $x = $x0;
-    $w0 = 0;
     foreach ($l['btns'] as $i => $bt)
     {
         $w = aio_oc_btn_w($bt);
-        $d[] = aio_gc_panel("b$i", aio_gc_at($w, AIO_OC_BTN_H, $x, AIO_OC_BTN_Y), aio_oc_btn_items($bt, $w, $i === $b));
-        if ($i === 0)
-            $w0 = $w;
+        $d[] = aio_gc_panel("b$i", aio_gc_at($w, AIO_OC_BTN_H, $x, $l['btn_y']), aio_oc_btn_items($bt, $w, $i === $b));
         $x += $w + AIO_OC_BTN_GAP;
     }
     return $d;
@@ -421,37 +585,52 @@ function aio_oc_under($c, $wh, $w0)
     return $d;
 }
 
-// The hint at the right of the line of the cast: "About the movie" and the arrow down, in the
-// coordinates of the page.
+// A series without a card of the Dune or an IMDb: the line why, right of the buttons ($x: their
+// end), as high as their middle.
 /**
- * @param string $lang
+ * @param AioOcCard $c
+ * @param int $x
  * @return list<array<string, mixed>>
  */
-function aio_oc_hint($lang)
+function aio_oc_under_ser($c, $x)
 {
-    $hint = aio_tr($lang, 'card_about_movie');
-    $hw = aio_gc_w($hint, AIO_CATV_LINE_PX);
-    $x = AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - 16 - $hw;
-    return array(aio_oc_label($x, AIO_OC_CAST_Y, $hw, $hint, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR),
-        aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x + $hw + 16, AIO_OC_CAST_Y + 16),
+    if ($c['imdb'] !== '' && $c['dune'] !== '')
+        return array();
+    $line = aio_tr($c['ui'], $c['imdb'] === '' ? ($c['meta'] ? 'err_no_imdb' : 'cat_row_failed') : 'card_no_history');
+    return array(aio_oc_label($x, AIO_OC_BTN_Y_SER + (AIO_OC_BTN_H - 34) / 2, 1845 - $x, $line, 24, AIO_CATV_TEXT_COLOR));
+}
+
+// The hint of what DOWN shows: $text and the arrow down at ($x, $y) of the screen.
+/**
+ * @param string $text
+ * @param int $x
+ * @param int $y
+ * @return list<array<string, mixed>>
+ */
+function aio_oc_hint($text, $x, $y)
+{
+    $hw = aio_gc_w($text, AIO_CATV_LINE_PX);
+    return array(aio_oc_label($x, $y, $hw, $text, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR),
+        aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x + $hw + 16, $y + 16),
             'plugin_file://img/sort_down.png'));
 }
 
-// The cast of the meta at the bottom of the first screen: photos, names in 2 lines, the English
-// roles grey; no photo: the initials. None: nothing.
+// The cast of the meta at $y: photos, names in 2 lines, the English roles grey; no photo: the
+// initials. None: nothing.
 /**
  * @param AioOcCard $c
+ * @param int $y
  * @return list<array<string, mixed>>
  */
-function aio_oc_cast($c)
+function aio_oc_cast($c, $y)
 {
     $cast = $c['meta'] ? $c['meta']['cast'] : array();
     $d = array();
     if (!$cast)
         return $d;
     $x0 = AIO_CATV_CARD_X;
-    $d[] = aio_oc_label($x0, AIO_OC_CAST_Y, 800, aio_tr($c['ui'], 'card_cast'), AIO_CATV_LINE_PX, AIO_GC_TEXT);
-    $py = AIO_OC_CAST_Y + 46;
+    $d[] = aio_oc_label($x0, $y, 800, aio_tr($c['ui'], 'card_cast'), AIO_CATV_LINE_PX, AIO_GC_TEXT);
+    $py = $y + 46;
     foreach ($cast as $i => $p)
     {
         $x = $x0 + $i * AIO_OC_PHOTO_STEP;
@@ -478,8 +657,9 @@ function aio_oc_cast($c)
 }
 
 // What DOWN shows, in the coordinates of the screen at the first stop with the cast: "About the
-// movie": the tagline, the whole description, at the right the details. -> array(components,
-// the bands of their ink, aio_oc_band); none: no stop.
+// movie" (the series): the tagline, the whole description, at the right the details (a series:
+// the first episode, the status, the networks). -> array(components, the bands of their ink,
+// aio_oc_band); none: no stop.
 /**
  * @param AioOcCard $c
  * @return array{list<array<string, mixed>>, list<array{int, int}>}
@@ -494,15 +674,20 @@ function aio_oc_down($c)
     $desc = $m && $m['description'] !== '' ? $m['description'] : $c['tile']['description'];
     $rows = array();
     $name = $c['tile']['name'];
+    $series = $c['tile']['type'] === 'series';
     if ($m && $m['original'] !== '' && $m['original'] !== $name)
         $rows[] = array('card_original', $m['original']);
     if ($m)
-        $rows[] = array('card_released', aio_oc_date($m['released'], $lang));
+        $rows[] = array($series ? 'card_first_aired' : 'card_released', aio_oc_date($m['released'], $lang));
+    if ($m && $series)
+        $rows[] = array('card_status', $m['status'] !== '' ? aio_tr($lang, "card_status_{$m['status']}") : '');
     if ($m)
         $rows[] = array('card_director', implode(', ', $m['directors']));
     if ($m)
         $rows[] = array('card_writers', implode(', ', $m['writers']));
-    if ($m)
+    if ($m && $series && $m['networks'])
+        $rows[] = array('card_networks', implode(', ', $m['networks']));
+    else if ($m)
         $rows[] = array('card_studios', implode(', ', $m['studios']));
     $rows[] = array('card_countries', implode(', ', aio_oc_countries($c)));
     $tagline = $m ? $m['tagline'] : '';
@@ -511,7 +696,8 @@ function aio_oc_down($c)
         $any = $any || $r[1] !== '';
     if (!$any)
         return array(array(), array());
-    $d[] = aio_oc_label($x0, $y, 800, aio_tr($lang, 'card_about_movie'), AIO_CATV_LINE_PX, AIO_GC_TEXT);
+    $d[] = aio_oc_label($x0, $y, 800, aio_tr($lang, $series ? 'card_about_series' : 'card_about_movie'), AIO_CATV_LINE_PX,
+        AIO_GC_TEXT);
     $bands = array(aio_oc_band($y, AIO_CATV_LINE_PX));
     $ty = $y + 50;
     foreach (aio_gc_wrap(aio_clean($tagline), AIO_CATV_LINE_PX, AIO_OC_DESC2_W, 2, true) as $line)
@@ -588,24 +774,26 @@ function aio_oc_clear($bands, $y, $up)
 // on below the clip, the last ($max) its end at the bottom of the clip, MIN_STEP after the one
 // before at least. With the cast ($cast) the stop after $s1 puts "About" at the top of the clip:
 // the cast goes whole. The top of the clip at a stop and its bottom cut no line (aio_oc_clear):
-// a line cut at the top goes down whole, at the bottom it is not shown.
+// a line cut at the top goes down whole, at the bottom it is not shown. $off: the shift of the
+// stop of the coordinates of the bands (the layout).
 /**
  * @param list<array{int, int}> $bands
  * @param int $s1
  * @param bool $cast
+ * @param int $off
  * @return array{list<int>, list<int>}
  */
-function aio_oc_stops($bands, $s1, $cast)
+function aio_oc_stops($bands, $s1, $cast, $off)
 {
     $stops = array(0);
     // The top of the clip at stop $s in the coordinates of the bands: $s + $top.
-    $top = AIO_OC_VIEW_Y - AIO_OC_OFF;
+    $top = AIO_OC_VIEW_Y - $off;
     if ($bands)
     {
         $end = 0;
         foreach ($bands as $b)
             $end = max($end, $b[1]);
-        $max = AIO_OC_OFF + $end - AIO_OC_SHOW_BOTTOM;
+        $max = $off + $end - AIO_OC_SHOW_BOTTOM;
         $lo = $cast ? AIO_OC_ABOUT_Y - $top : 0;
         $stops[] = $s = $s1;
         while ($s < $max)
@@ -618,37 +806,375 @@ function aio_oc_stops($bands, $s1, $cast)
     }
     $clips = array();
     foreach ($stops as $s)
-        $clips[] = aio_oc_clear($bands, AIO_OC_SHOW_BOTTOM - AIO_OC_OFF + $s, true) + AIO_OC_OFF - $s;
+        $clips[] = aio_oc_clear($bands, AIO_OC_SHOW_BOTTOM - $off + $s, true) + $off - $s;
     return array($stops, $clips);
 }
 
-// The card laid out: its buttons, the stops of the page, the bottom of the clip at each and the
-// height of the page, what the first screen alone shows (what the keys need, AioOcNav), the
-// components DOWN shows. The first stop: the cast at DOWN_Y; without it "About" at its place, the
-// page further by ABOUT_Y - DOWN_Y. The first screen
-// alone: the line under the buttons with the progress of the movie (aio_wh_movie, read here once
-// a request; only with an IMDb and a card of the Dune, the only case it shows) - its foot would
-// peep under the logo at DOWN - and the hint, if DOWN shows something.
+// The card laid out: its kind, buttons and their y, the stops of the page, the bottom of the clip
+// at each and the height of the page, the shift of the coordinates of "down" (off), the zones of
+// the focus in the order of UP and DOWN, what the first screen alone shows (what the keys need,
+// AioOcNav), the components DOWN shows. The first stop: the cast at DOWN_Y; without it "About" at
+// its place, the page further by ABOUT_Y - DOWN_Y. The first screen alone: the line under the
+// buttons (a movie: its progress, aio_wh_movie, read here once a request; only with an IMDb and a
+// card of the Dune, the only case it shows) - its foot would peep under the logo at DOWN - and the
+// hint, if DOWN shows something. A series: the cast DOWN too, the history read once (aio_oc_pick):
+// the episode to offer and the progress of the episodes; the tabs of its seasons and the row, or
+// the line "did not load" without the meta.
 /**
  * @param AioOcCard $c
  * @return AioOcLayout
  */
 function aio_oc_layout($c)
 {
+    $series = $c['tile']['type'] === 'series';
     list($down, $bands) = aio_oc_down($c);
-    $btns = aio_oc_buttons($c);
     $cast = $c['meta'] && $c['meta']['cast'];
-    $s1 = $cast ? AIO_OC_OFF : AIO_OC_OFF + AIO_OC_ABOUT_Y - AIO_OC_DOWN_Y;
-    list($stops, $clips) = aio_oc_stops($bands, $s1, $cast);
-    $wh = $c['imdb'] !== '' && $c['dune'] !== '' ? aio_wh_movie($c['dune']) : null;
-    $only = aio_oc_under($c, $wh, $btns ? aio_oc_btn_w($btns[0]) : 0);
-    if ($down)
+    $off = $series ? AIO_OC_OFF_SER : AIO_OC_OFF;
+    $ep = null;
+    $prog = array();
+    if ($series)
     {
-        foreach (aio_oc_hint($c['ui']) as $x)
-            $only[] = $x;
+        list($ep, $prog) = aio_oc_pick($c);
+        if ($cast)
+        {
+            $down = array_merge(aio_oc_cast($c, AIO_OC_DOWN_Y), $down);
+            $bands[] = aio_oc_band(AIO_OC_DOWN_Y, AIO_CATV_LINE_PX);
+        }
     }
-    return array('btns' => $btns, 'stops' => $stops, 'clips' => $clips, 'h' => max(1080, $stops[count($stops) - 1] + AIO_OC_SHOW_BOTTOM),
-        'first' => $only, 'down' => $down);
+    $btns = aio_oc_buttons($c, $ep);
+    $s1 = $cast ? $off : $off + AIO_OC_ABOUT_Y - AIO_OC_DOWN_Y;
+    list($stops, $clips) = aio_oc_stops($bands, $s1, $cast, $off);
+    $tabs = $series && $c['meta'] ? aio_oc_tabs_layout($c) : array('list' => array(), 'x' => 0, 'w' => 0, 'all' => 0, 'word' => 0);
+    $zones = array('btn');
+    if ($series && (!$c['meta'] || $tabs['list']))
+        $zones[] = 'pill';
+    if ($tabs['list'])
+        $zones[] = 'row';
+    if (count($stops) > 1)
+        $zones[] = 'down';
+    if ($series)
+    {
+        $x = AIO_CATV_CARD_X;
+        foreach ($btns as $b)
+            $x += aio_oc_btn_w($b) + AIO_OC_BTN_GAP;
+        $only = aio_oc_under_ser($c, $x + 12);
+        if ($down)
+            $only = array_merge($only, aio_oc_hint(aio_tr($c['ui'], $cast ? 'card_cast_about_series' : 'card_about_series'),
+                AIO_CATV_CARD_X, AIO_OC_HINT_Y_SER));
+    }
+    else
+    {
+        $wh = $c['imdb'] !== '' && $c['dune'] !== '' ? aio_wh_movie($c['dune']) : null;
+        $only = aio_oc_under($c, $wh, $btns ? aio_oc_btn_w($btns[0]) : 0);
+        if ($down)
+        {
+            $hint = aio_tr($c['ui'], 'card_about_movie');
+            $only = array_merge($only, aio_oc_hint($hint,
+                AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - 16 - aio_gc_w($hint, AIO_CATV_LINE_PX), AIO_OC_CAST_Y));
+        }
+    }
+    return array('kind' => $series ? 'series' : 'movie', 'btns' => $btns, 'btn_y' => $series ? AIO_OC_BTN_Y_SER : AIO_OC_BTN_Y,
+        'stops' => $stops, 'clips' => $clips, 'h' => max(1080, $stops[count($stops) - 1] + AIO_OC_SHOW_BOTTOM), 'off' => $off,
+        'zones' => $zones, 'tabs' => $tabs, 'ep' => $ep, 'prog' => $prog, 'first' => $only, 'down' => $down);
+}
+
+// --- The seasons and the episodes of a series.
+
+// The tabs of the seasons of the meta of card $c: list - array(season, text, x, width) in the
+// strip, x - where it starts on the screen (after "Серии", and "Сезон" when there are more than
+// TABS_MAX: then the tabs are numbers), w - the width of its clip (up to TABS_R), all - the width
+// of the strip; word - x of "Сезон", 0 for none.
+/**
+ * @param AioOcCard $c
+ * @return AioOcTabs
+ */
+function aio_oc_tabs_layout($c)
+{
+    $ui = $c['ui'];
+    $seasons = array_keys($c['meta']['seasons']);
+    $x = AIO_CATV_CARD_X + aio_gc_w(aio_tr($ui, 'card_episodes'), AIO_CATV_LINE_PX) + 40;
+    $word = 0;
+    $nums = count($seasons) > AIO_OC_TABS_MAX;
+    if ($nums)
+    {
+        $word = $x;
+        $x += aio_gc_w(aio_tr($ui, 'card_season'), AIO_CATV_LINE_PX) + 16;
+    }
+    $list = array();
+    $tx = 0;
+    foreach ($seasons as $s)
+    {
+        $t = $nums ? strval($s) : str_replace('{n}', strval($s), aio_tr($ui, 'card_season_n'));
+        $w = aio_gc_w($t, AIO_CATV_LINE_PX) + 2 * AIO_OC_TAB_PAD;
+        $list[] = array($s, $t, $tx, $w);
+        $tx += $w + AIO_OC_TAB_GAP;
+    }
+    $all = $list ? $tx - AIO_OC_TAB_GAP : 0;
+    return array('list' => $list, 'x' => $x, 'w' => min($all, AIO_OC_TABS_R - $x), 'all' => $all, 'word' => $word);
+}
+
+// The shift of the strip of tabs $t with the tab of season $s in the middle of its clip, within
+// the strip; 0 when it all fits.
+/**
+ * @param AioOcTabs $t
+ * @param int $s
+ * @return int
+ */
+function aio_oc_tabs_shift($t, $s)
+{
+    if ($t['all'] <= $t['w'])
+        return 0;
+    foreach ($t['list'] as $tab)
+    {
+        if ($tab[0] === $s)
+            return max(0, min($t['all'] - $t['w'], $tab[2] + intval($tab[3] / 2) - intval($t['w'] / 2)));
+    }
+    return 0;
+}
+
+// The children of a tab (or of the line "did not load") of width $w: $state 0 - the text grey,
+// 1 - the season shown (white 16 %), 2 - in focus.
+/**
+ * @param string $text
+ * @param int $w
+ * @param int $state
+ * @return list<AioGcComp>
+ */
+function aio_oc_tab_items($text, $w, $state)
+{
+    $d = array();
+    if ($state > 0)
+    {
+        $on = $state === 2 ? 'on_' : '';
+        $d[] = aio_gc_image(aio_gc_at(AIO_OC_TAB_CAP, AIO_OC_TAB_H, 0, 0), AIO_OC_IMG . "tab_{$on}l.png");
+        $d[] = aio_gc_rect(aio_gc_at($w - 2 * AIO_OC_TAB_CAP, AIO_OC_TAB_H, AIO_OC_TAB_CAP, 0), $state === 2 ? AIO_GC_SEL : AIO_OC_TAB_ON);
+        $d[] = aio_gc_image(aio_gc_at(AIO_OC_TAB_CAP, AIO_OC_TAB_H, $w - AIO_OC_TAB_CAP, 0), AIO_OC_IMG . "tab_{$on}r.png");
+    }
+    $d[] = aio_gc_cut(null, aio_gc_left_center($w, 44, 0), $text, AIO_CATV_LINE_PX, $state > 0 ? AIO_GC_TEXT : AIO_GC_TEXT2,
+        array(GCompTtfLabelDef::halign => HALIGN_CENTER));
+    return $d;
+}
+
+// The state of the tab of season $s at place $pos (aio_oc_tab_items).
+/**
+ * @param AioOcPos $pos
+ * @param int $s
+ * @return int
+ */
+function aio_oc_tab_state($pos, $s)
+{
+    return $s !== $pos['s'] ? 0 : ($pos['z'] === 'pill' ? 2 : 1);
+}
+
+// After the tabs: "13 серий · 4 просмотрено" / "13 серий · все просмотрены" of season $s, by the
+// progress $prog.
+/**
+ * @param AioOcCard $c
+ * @param array<string, array{float, float, bool}> $prog
+ * @param int $s
+ * @return list<AioGcComp>
+ */
+function aio_oc_count($c, $prog, $s)
+{
+    $eps = aio_oc_eps($c, $s);
+    $n = count($eps);
+    $w = 0;
+    foreach ($eps as $ep)
+    {
+        $pr = aio_oc_prog($c, $prog, $ep);
+        $w += $pr && $pr[2] ? 1 : 0;
+    }
+    $t = $n . ' ' . aio_gc_plural($c['ui'], $n, 'card_eps');
+    if ($w > 0)
+        $t .= ' · ' . ($w === $n ? aio_tr($c['ui'], 'card_eps_all') : str_replace('{n}', strval($w), aio_tr($c['ui'], 'card_eps_watched')));
+    return array(aio_gc_cut(null, aio_gc_left_center(600, 34, 0), $t, 24, AIO_GC_DIM));
+}
+
+// The first still of the row at the left slot with the one at index $i in focus (in a season of
+// $n): the frame goes in the first two slots, then the row, the frame stays in the second; at the
+// end the frame again.
+/**
+ * @param int $i
+ * @param int $n
+ * @return int
+ */
+function aio_oc_off($i, $n)
+{
+    return max(0, min($i - 1, $n - AIO_OC_EP_VIS));
+}
+
+// The stills in the panel of a season of $n at shift $off: all; a long one (more than WIN_MIN)
+// those on screen and WIN each side. -> array(first, last).
+/**
+ * @param int $n
+ * @param int $off
+ * @return array{int, int}
+ */
+function aio_oc_win($n, $off)
+{
+    if ($n <= AIO_OC_WIN_MIN)
+        return array(0, $n - 1);
+    return array(max(0, $off - AIO_OC_WIN), min($n - 1, $off + AIO_OC_EP_VIS + AIO_OC_WIN));
+}
+
+// The panel of the stills of a season of $n with the one at $off at the left slot (x of the catalog).
+/**
+ * @param int $n
+ * @param int $off
+ * @return AioGcGeom
+ */
+function aio_oc_eps_geom($n, $off)
+{
+    return aio_gc_at($n * AIO_OC_EP_STEP, AIO_OC_ROW_H, AIO_CATV_CARD_X - $off * AIO_OC_EP_STEP, 0);
+}
+
+// The frame of the focus around slot $slot of the row, in the page.
+/**
+ * @param int $slot
+ * @return AioGcGeom
+ */
+function aio_oc_frame_geom($slot)
+{
+    $f = AIO_OC_FRAME;
+    return aio_gc_at(AIO_OC_EP_W + 2 * $f, AIO_OC_EP_H + 2 * $f, AIO_CATV_CARD_X + $slot * AIO_OC_EP_STEP - $f, AIO_OC_ROW_Y - $f);
+}
+
+// The frame of the focus: 4 rects, only in the zone of the row.
+/**
+ * @param string $z
+ * @return list<AioGcComp>
+ */
+function aio_oc_frame($z)
+{
+    if ($z !== 'row')
+        return array();
+    $f = AIO_OC_FRAME;
+    $w = AIO_OC_EP_W + 2 * $f;
+    $h = AIO_OC_EP_H + 2 * $f;
+    return array(aio_gc_rect(aio_gc_at($w, $f, 0, 0), AIO_OC_FOCUS), aio_gc_rect(aio_gc_at($w, $f, 0, $h - $f), AIO_OC_FOCUS),
+        aio_gc_rect(aio_gc_at($f, $h - 2 * $f, 0, $f), AIO_OC_FOCUS), aio_gc_rect(aio_gc_at($f, $h - 2 * $f, $w - $f, $f), AIO_OC_FOCUS));
+}
+
+// The title and the line under it of episode $ep: "5. Бой товара" 30 px (in focus white, else grey,
+// one not out yet dim) and aio_oc_ep_line 24 px dim.
+/**
+ * @param AioCardEp $ep
+ * @param array{float, float, bool}|null $pr
+ * @param bool $on
+ * @param string $lang
+ * @return list<AioGcComp>
+ */
+function aio_oc_ep_titles($ep, $pr, $on, $lang)
+{
+    $t = $ep['title'] !== '' ? "{$ep['e']}. {$ep['title']}" : strval($ep['e']);
+    return array(
+        aio_gc_cut(null, aio_gc_at(AIO_OC_EP_W, 40, 0, 0), aio_gc_cut_w(aio_clean($t), AIO_CATV_LINE_PX, AIO_OC_EP_W), AIO_CATV_LINE_PX,
+            $ep['soon'] ? AIO_GC_DIM : ($on ? AIO_GC_TEXT : AIO_GC_TEXT2)),
+        aio_gc_cut(null, aio_gc_at(AIO_OC_EP_W, 34, 0, 40), aio_oc_ep_line($ep, $pr, $lang), 24, AIO_GC_DIM));
+}
+
+// The still of episode $ep at index $i of its season: the frame of the server (loading: the
+// picture of the shell; not out yet or none: the empty one of the shell), the bar of the progress
+// at its foot if begun, the mark at the top right if watched; the titles under it ("tt<i>").
+/**
+ * @param AioOcCard $c
+ * @param array<string, array{float, float, bool}> $prog
+ * @param int $i
+ * @param AioCardEp $ep
+ * @param bool $on
+ * @return AioGcComp
+ */
+function aio_oc_ep_card($c, $prog, $i, $ep, $on)
+{
+    $pr = aio_oc_prog($c, $prog, $ep);
+    $img = aio_gc_image(aio_gc_at(AIO_OC_EP_W, AIO_OC_EP_H, 0, 0),
+        $ep['soon'] || $ep['img'] === '' ? AIO_OC_ICONS . 'loading_episode_image.png' : $ep['img']);
+    if (!$ep['soon'] && $ep['img'] !== '')
+    {
+        $img[GComponentDef::specific_def][GCompImageDef::not_loaded_url] = AIO_OC_ICONS . 'loading_episode_image.png';
+        $img[GComponentDef::specific_def][GCompImageDef::load_failed_url] = AIO_OC_ICONS . 'no_episode_image.png';
+    }
+    $d = array(aio_gc_rect(aio_gc_at(AIO_OC_EP_W, AIO_OC_EP_H, 0, 0), AIO_OC_NO_PHOTO), $img);
+    if ($pr && $pr[2])
+    {
+        $d[] = aio_gc_rect(aio_gc_at(44, 44, AIO_OC_EP_W - 52, 8), AIO_OC_MARK_BG);
+        $d[] = aio_gc_image(aio_gc_at(40, 30, AIO_OC_EP_W - 50, 15), AIO_OC_ICONS . 'watched_small.png');
+    }
+    else if ($pr && $pr[0] > 0 && $pr[1] > 0)
+    {
+        $y = AIO_OC_EP_H - AIO_OC_BAR_H;
+        $d[] = aio_gc_rect(aio_gc_at(AIO_OC_EP_W, AIO_OC_BAR_H, 0, $y), AIO_OC_BAR_REST);
+        $d[] = aio_gc_rect(aio_gc_at(max(AIO_GC_BAR_MIN, intval(round(AIO_OC_EP_W * min(1, $pr[0] / $pr[1])))), AIO_OC_BAR_H, 0, $y),
+            AIO_GC_TEXT);
+    }
+    $d[] = aio_gc_panel("tt$i", aio_gc_at(AIO_OC_EP_W, 74, 0, AIO_OC_EP_H + 12), aio_oc_ep_titles($ep, $pr, $on, $c['ui']));
+    return aio_gc_panel("c$i", aio_gc_at(AIO_OC_EP_W, AIO_OC_ROW_H, $i * AIO_OC_EP_STEP, 0), $d);
+}
+
+// The stills $lo..$hi of season $s, the one at $focus lit (-1: none).
+/**
+ * @param AioOcCard $c
+ * @param array<string, array{float, float, bool}> $prog
+ * @param int $s
+ * @param int $lo
+ * @param int $hi
+ * @param int $focus
+ * @return list<AioGcComp>
+ */
+function aio_oc_ep_cards($c, $prog, $s, $lo, $hi, $focus)
+{
+    $eps = aio_oc_eps($c, $s);
+    $d = array();
+    for ($i = $lo; $i <= $hi; $i++)
+        $d[] = aio_oc_ep_card($c, $prog, $i, $eps[$i], $i === $focus);
+    return $d;
+}
+
+// The tabs, the row and the frame of a series at place $pos, in the page; no meta: the line "did
+// not load", ENTER to ask again (in focus at the zone of the tabs).
+/**
+ * @param AioOcCard $c
+ * @param AioOcLayout $l
+ * @param AioOcPos $pos
+ * @return list<AioGcComp>
+ */
+function aio_oc_series($c, $l, $pos)
+{
+    $x0 = AIO_CATV_CARD_X;
+    $ui = $c['ui'];
+    if (!$c['meta'])
+    {
+        $t = aio_tr($ui, 'card_eps_failed');
+        $w = aio_gc_w($t, AIO_CATV_LINE_PX) + 2 * AIO_OC_TAB_PAD;
+        return array(aio_gc_panel('retry', aio_gc_at($w, AIO_OC_TAB_H, $x0 - AIO_OC_TAB_PAD, AIO_OC_TAB_Y),
+            aio_oc_tab_items($t, $w, $pos['z'] === 'pill' ? 2 : 0)));
+    }
+    $t = $l['tabs'];
+    if (!$t['list'])
+        return array();
+    $head = array(aio_gc_cut(null, aio_gc_left_center($t['x'] - $x0, 44, 0), aio_tr($ui, 'card_episodes'), AIO_CATV_LINE_PX, AIO_GC_TEXT));
+    if ($t['word'] > 0)
+        $head[] = aio_gc_cut(null, aio_gc_left_center($t['x'] - $t['word'], 44, $t['word'] - $x0), aio_tr($ui, 'card_season'),
+            AIO_CATV_LINE_PX, AIO_GC_TEXT2);
+    $tabs = array();
+    foreach ($t['list'] as $k => $tab)
+        $tabs[] = aio_gc_panel("t$k", aio_gc_at($tab[3], AIO_OC_TAB_H, $tab[2], 0), aio_oc_tab_items($tab[1], $tab[3],
+            aio_oc_tab_state($pos, $tab[0])));
+    $eps = aio_oc_eps($c, $pos['s']);
+    $n = count($eps);
+    $i = max(0, aio_cm_ep_index($eps, $pos['e']));
+    $off = aio_oc_off($i, $n);
+    list($lo, $hi) = aio_oc_win($n, $off);
+    return array(
+        aio_gc_panel('tabh', aio_gc_at($t['x'] - $x0, AIO_OC_TAB_H, $x0, AIO_OC_TAB_Y), $head),
+        aio_gc_panel('tabs', aio_gc_at($t['w'], AIO_OC_TAB_H, $t['x'], AIO_OC_TAB_Y),
+            array(aio_gc_panel('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -aio_oc_tabs_shift($t, $pos['s']), 0), $tabs)), 0),
+        aio_gc_panel('cnt', aio_gc_at(1845 - $t['x'] - $t['w'] - 24, AIO_OC_TAB_H, $t['x'] + $t['w'] + 24, AIO_OC_TAB_Y),
+            aio_oc_count($c, $l['prog'], $pos['s'])),
+        aio_gc_panel('row', aio_gc_at(1920, AIO_OC_ROW_H, 0, AIO_OC_ROW_Y),
+            array(aio_gc_panel('eps', aio_oc_eps_geom($n, $off), aio_oc_ep_cards($c, $l['prog'], $pos['s'], $lo, $hi,
+                $pos['z'] === 'row' ? $i : -1))), 0),
+        aio_gc_panel('frame', aio_oc_frame_geom($i - $off), aio_oc_frame($pos['z'])));
 }
 
 // The clip under the logo down to $bottom of the screen.
@@ -685,21 +1211,60 @@ function aio_oc_dim($z)
 // --- The place of the focus.
 
 // A place on the card, AioOcPos, in AioOc::$cards and as sel_state alike: z the zone ("btn" the
-// buttons, "down" the page below them), b the button (kept in every zone: UP comes back to it),
-// p the stop of the page (0 in "btn"). A new zone or field is one more line in aio_oc_pos and
-// aio_oc_next.
+// buttons, "pill" the tabs of the seasons, "row" the episodes, "down" the page below them), b the
+// button (kept in every zone: UP comes back to it), p the stop of the page (0 but in "down"), s
+// and e the season and the episode of the row of a series (0 for none, not in sel_state). A new
+// zone or field is one more line in aio_oc_pos and aio_oc_next.
 /**
  * @param AioOcPos $pos
  * @return string
  */
 function aio_oc_state($pos)
 {
-    return json_encode(array('z' => $pos['z'], 'b' => $pos['b'], 'p' => $pos['p']));
+    $j = array('z' => $pos['z'], 'b' => $pos['b'], 'p' => $pos['p']);
+    if ($pos['s'] > 0)
+        $j += array('s' => $pos['s'], 'e' => $pos['e']);
+    return json_encode($j);
+}
+
+// The button lit at place $pos: the one of the focus in the zones of the buttons and of the page
+// below (dark there), none in the zones of the series; -1 for none.
+/**
+ * @param AioOcPos $pos
+ * @return int
+ */
+function aio_oc_btn_lit($pos)
+{
+    return $pos['z'] === 'btn' || $pos['z'] === 'down' ? $pos['b'] : -1;
+}
+
+// The episode of season $s the row puts the focus on: the one to offer if of this season, else
+// the first not watched, else the first; 0 for no episodes.
+/**
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @param int $s
+ * @return int
+ */
+function aio_oc_def_e($c, $l, $s)
+{
+    $eps = aio_oc_eps($c, $s);
+    if ($l['ep'] && $l['ep']['s'] === $s && aio_cm_ep_index($eps, $l['ep']['e']) >= 0)
+        return $l['ep']['e'];
+    foreach ($eps as $ep)
+    {
+        $pr = aio_oc_prog($c, $l['prog'], $ep);
+        if (!$pr || !$pr[2])
+            return $ep['e'];
+    }
+    return $eps ? $eps[0]['e'] : 0;
 }
 
 // sel_state of the shell -> the place, each field checked alone: one missing or of a wrong type
 // is that of the last place of the card, a number out of the card is clamped (one button less
-// keeps the stop). {"b", "p"} of before the zone: the zone of its stop.
+// keeps the stop), a zone the card has not: the buttons. {"b", "p"} of before the zone: the zone of
+// its stop. A season not of the card: that of the episode to offer, else the first; an episode
+// not of the season: aio_oc_def_e.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -720,10 +1285,21 @@ function aio_oc_pos($c, $l, $raw)
         $z = $last['z'];
     $b = isset($j['b']) && is_int($j['b']) ? $j['b'] : $last['b'];
     $p = isset($j['p']) && is_int($j['p']) ? $j['p'] : $last['p'];
-    $stops = count($l['stops']);
-    if ($z !== 'down' || $stops < 2)
+    $s = isset($j['s']) && is_int($j['s']) ? $j['s'] : $last['s'];
+    $e = isset($j['e']) && is_int($j['e']) ? $j['e'] : $last['e'];
+    if (!in_array($z, $l['zones'], true))
         $z = 'btn';
-    return array('z' => $z, 'b' => max(0, min(count($l['btns']) - 1, $b)), 'p' => $z === 'btn' ? 0 : max(1, min($stops - 1, $p)));
+    if (!aio_oc_eps($c, $s))
+    {
+        $s = $l['ep'] && aio_oc_eps($c, $l['ep']['s']) ? $l['ep']['s'] : 0;
+        if ($s === 0 && $c['meta'] && $c['meta']['seasons'])
+            $s = key($c['meta']['seasons']);
+        $e = 0;
+    }
+    if (aio_cm_ep_index(aio_oc_eps($c, $s), $e) < 0)
+        $e = aio_oc_def_e($c, $l, $s);
+    return array('z' => $z, 'b' => max(0, min(count($l['btns']) - 1, $b)),
+        'p' => $z === 'down' ? max(1, min(count($l['stops']) - 1, $p)) : 0, 's' => $s, 'e' => $e);
 }
 
 // The place after arrow $d (left, right, up, down) from $pos; $pos itself at an edge. In "btn"
@@ -770,11 +1346,16 @@ function aio_oc_next($l, $pos, $d)
 function aio_oc_changes($l, $old, $new)
 {
     $ch = array();
-    if ($new['b'] !== $old['b'])
+    $ob = aio_oc_btn_lit($old);
+    $nb = aio_oc_btn_lit($new);
+    if ($nb !== $ob)
     {
-        foreach (array($old['b'] => false, $new['b'] => true) as $i => $on)
-            $ch[] = aio_gc_change("b$i", null, GCOMP_TRANSITION_NONE,
-                aio_oc_btn_items($l['btns'][$i], aio_oc_btn_w($l['btns'][$i]), $on));
+        foreach (array($ob, $nb) as $i)
+        {
+            if ($i >= 0)
+                $ch[] = aio_gc_change("b$i", null, GCOMP_TRANSITION_NONE,
+                    aio_oc_btn_items($l['btns'][$i], aio_oc_btn_w($l['btns'][$i]), $i === $nb));
+        }
     }
     if ($new['p'] !== $old['p'])
     {
@@ -810,15 +1391,15 @@ function aio_oc_window($c, $l, $pos)
     if (!$card['logo'])
         $d[] = aio_gc_panel('title', aio_gc_at(AIO_CATV_PANE_W, AIO_OC_VIEW_Y, AIO_CATV_CARD_X, 0),
             array(aio_catv_title_label(aio_clean($t['name']), AIO_OC_VIEW_Y)));
-    $page = aio_oc_head($c, $l, $pos['b']);
-    foreach (aio_oc_cast($c) as $x)
-        $page[] = $x;
-    $page[] = aio_gc_panel('first', aio_gc_at(1920, 1080, 0, 0), $pos['z'] === 'down' ? array() : $l['first']);
-    // What DOWN shows, in a panel OFF lower: its own coordinates are those of the first stop with the cast.
+    $page = array_merge(aio_oc_head($c, $l, aio_oc_btn_lit($pos)),
+        $l['kind'] === 'series' ? aio_oc_series($c, $l, $pos) : aio_oc_cast($c, AIO_OC_CAST_Y));
+    // What DOWN shows, in a panel off lower: its own coordinates are those of the first stop with the cast.
     if ($l['down'])
-        $page[] = aio_gc_panel('down', aio_gc_at(1920, $l['h'] - AIO_OC_OFF, 0, AIO_OC_OFF), $l['down']);
+        $page[] = aio_gc_panel('down', aio_gc_at(1920, $l['h'] - $l['off'], 0, $l['off']), $l['down']);
     $d[] = aio_gc_panel('view', aio_oc_view_geom($l['clips'][$pos['p']]),
         array(aio_gc_panel('page', aio_oc_page_geom($l['stops'][$pos['p']], $l['h']), $page, 0)), 0);
+    // What the first screen alone shows, over the clip: the hint of a series is under its bottom.
+    $d[] = aio_gc_panel('first', aio_gc_at(1920, 1080, 0, 0), $pos['z'] === 'down' ? array() : $l['first']);
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
         GCompWindowDef::background_url => $card['bg'],
@@ -849,9 +1430,11 @@ function aio_oc_folder_view($media_url, $sel_state)
     $l = aio_oc_layout($c);
     $pos = aio_oc_pos($c, $l, $sel_state);
     AioOc::$cards[$key]['pos'] = $pos;
-    AioOc::$cards[$key]['nav'] = array('btns' => $l['btns'], 'stops' => $l['stops'], 'clips' => $l['clips'], 'h' => $l['h'],
-        'first' => $l['first']);
-    aio_log("card: own $key: screen, " . count($l['btns']) . ' buttons, ' . count($l['stops']) . " stops, at {$pos['b']}, {$pos['p']}");
+    $nav = $l;
+    unset($nav['down']);
+    AioOc::$cards[$key]['nav'] = $nav;
+    aio_log("card: own $key: screen, " . count($l['btns']) . ' buttons, ' . count($l['stops']) . " stops, at {$pos['z']} " .
+        "{$pos['b']}, {$pos['p']}" . ($pos['s'] > 0 ? ", S{$pos['s']}E{$pos['e']}" : ''));
     $k = array('c' => $key);
     $acts = array(
         GUI_EVENT_KEY_LEFT => aio_input('card_move', $k + array('d' => 'left')),
@@ -876,22 +1459,45 @@ function aio_oc_folder_view($media_url, $sel_state)
 
 // "Watch": the list of Melange as play_action makes it of the card of the tile, the id of the card
 // of the Dune (or none: no history) in movie_str. native_title, as the card of the Dune gives it
-// (JacRed asks by it): the original title of the meta, else the English one of the tile.
+// (JacRed asks by it): the original title of the meta, else the English one of the tile. A series:
+// episode $e of season $q as asked (aio_cm_req_s), season_numbers of the meta (the episodes out,
+// aio_cm_eps) for the playlist of the season and the next episode; the cursor of the list on
+// release $hash of the history ('' none).
 /**
  * @param AioOcCard $c
+ * @param int $q
+ * @param int $e
+ * @param string $hash
  * @return AioAction
  */
-function aio_oc_watch($c)
+function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
 {
     $t = $c['tile'];
     $native = $c['meta'] && $c['meta']['original'] !== '' ? $c['meta']['original'] : $t['englishTitle'];
-    $in = new stdClass();
-    $in->movie_str = json_encode(array('id' => $c['dune'], 'imdb_id' => $c['imdb'], 'title' => $t['name'],
+    $mv = array('id' => $c['dune'], 'imdb_id' => $c['imdb'], 'title' => $t['name'],
         'native_title' => $native, 'year' => $t['year'], 'poster_url' => $t['poster'], 'fanart_url' => $t['background'],
-        'rate_imdb' => $t['imdbRating'], 'description' => $t['description']));
-    $in->series_type = 'single';
+        'rate_imdb' => $t['imdbRating'], 'description' => $t['description']);
+    $series = $t['type'] === 'series';
+    if ($series && $c['meta'])
+    {
+        $sn = array();
+        foreach ($c['meta']['season_numbers'] as $s => $n)
+            $sn[$s] = array('episodes_count' => $n);
+        $mv['season_numbers'] = $sn;
+    }
+    $in = new stdClass();
+    $in->movie_str = json_encode($mv);
+    $in->series_type = $series ? 'series' : 'single';
+    if ($series)
+    {
+        $in->season = $q;
+        $in->episode = $e;
+    }
     $in->lang = $c['lang'];
-    return aio_play_action($in);
+    $a = aio_play_action($in);
+    if ($hash !== '' && Aio::$state && $a[GuiAction::handler_string_id] === PLUGIN_OPEN_FOLDER_ACTION_ID)
+        Aio::$state = aio_list_cursor(Aio::$state, $hash);
+    return $a;
 }
 
 // MENU: "Settings", as on the list.
@@ -934,8 +1540,12 @@ function aio_oc_input($in, $control)
         $b = $pos['b'];
         if ($pos['z'] !== 'btn' || !isset($l['btns'][$b]))
             return null;
-        aio_log("card: own $key: ENTER on {$l['btns'][$b][0]}");
-        return $l['btns'][$b][0] === 'watch' ? aio_oc_watch($c) : aio_card_open($c['dune']);
+        $kind = $l['btns'][$b][0];
+        aio_log("card: own $key: ENTER on $kind");
+        if ($kind === 'dune')
+            return aio_card_open($c['dune']);
+        $ep = $l['ep'];
+        return $kind !== 'watch' ? null : ($ep ? aio_oc_watch($c, $ep['q'], $ep['e'], $ep['hash']) : aio_oc_watch($c));
     }
     $new = aio_oc_next($l, $pos, aio_catv_in($in, 'd'));
     if ($new === $pos)
