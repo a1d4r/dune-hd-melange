@@ -2506,6 +2506,7 @@ function aio_catv_search_run($q, $from)
     $sid = substr(aio_rid(), 0, 8);
     $rids = array();
     $failed = false;
+    $whole = false;
     foreach ($found as $f)
     {
         $res = $f['res'];
@@ -2517,6 +2518,7 @@ function aio_catv_search_run($q, $from)
         $rid = aio_catv_rid($st['row']);
         AioCat::$lists[$rid] = aio_catv_list($st, $res['tiles'], $res['stale']);
         $rids[] = $rid;
+        $whole = $res['err'] === '' && !$res['stale'];
     }
     if (!$rids)
         return aio_error($failed ? 'cat_search_failed' : 'cat_search_none');
@@ -2532,8 +2534,9 @@ function aio_catv_search_run($q, $from)
         aio_catv_search_drop(strval(key(AioCat::$searches)));
     }
     // One type found: its "Show all" at once, named after its row, as aio_catv_all_open. Only as
-    // the expanded row of r25: the grid of r24 has neither the search key nor the info panel.
-    $one = count($rids) === 1 && aio_catv_all_ok();
+    // the expanded row of r25: the grid of r24 has neither the search key nor the info panel. Not
+    // after a failure or of a saved copy: the results say so on the row and do not ask again.
+    $one = count($rids) === 1 && $whole && aio_catv_all_ok();
     $url = $one ? "cat_grid:{$rids[0]}:$sid" : "cat_search:$sid";
     $caption = $one ? AioCat::$lists[$rids[0]]['st']['row']['name'] : aio_tr($lang, 'cat_results');
     return $replace ? aio_replace_act($url, $caption) : aio_catv_open_act($url, $caption);
