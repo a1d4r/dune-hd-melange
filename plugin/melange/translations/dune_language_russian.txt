@@ -249,6 +249,7 @@ card_watch = Смотреть
 card_dune = Карточка Дюны
 card_director = Режиссёр
 card_progress = Просмотрено {p} % · осталось {t}
+card_watched = Просмотрено
 card_down_movie = В ролях и о фильме
 card_cast = В ролях
 card_about_movie = О фильме

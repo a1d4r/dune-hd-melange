@@ -390,18 +390,25 @@ function aio_oc_head($c, $btns, $b, $down)
             $w0 = $w;
         $x += $w + AIO_OC_BTN_GAP;
     }
-    // Under the buttons: no IMDb - nothing plays; no card of the Dune - no history; else the
-    // progress of the movie under "Watch", if begun.
+    // Under the buttons: no IMDb - nothing plays (the meta failed: it did not load, else it has
+    // none); no card of the Dune - no history; else the progress of the movie under "Watch", if
+    // begun, or "Watched" grey without the bar.
     $line = '';
+    $color = AIO_CATV_TEXT_COLOR;
     if ($c['imdb'] === '')
-        $line = aio_tr($c['ui'], 'err_no_imdb');
+        $line = aio_tr($c['ui'], $c['meta'] ? 'err_no_imdb' : 'cat_row_failed');
     else if ($c['dune'] === '')
         $line = aio_tr($c['ui'], 'card_no_history');
     else
     {
         $wh = aio_wh_movie($c['dune']);
         $p = $wh ? aio_oc_progress_text($wh[0], $wh[1], $c['ui']) : '';
-        if ($p !== '')
+        if ($wh && aio_wh_full($wh[0], $wh[1]))
+        {
+            $line = aio_tr($c['ui'], 'card_watched');
+            $color = AIO_GC_DIM;
+        }
+        else if ($p !== '')
         {
             $by = AIO_OC_LINE_Y + AIO_OC_BAR_DY;
             $fw = max(AIO_GC_BAR_MIN, intval(round($w0 * min(1, $wh[0] / $wh[1]))));
@@ -412,7 +419,7 @@ function aio_oc_head($c, $btns, $b, $down)
         }
     }
     if ($line !== '')
-        $d[] = aio_oc_label($x0, AIO_OC_LINE_Y, AIO_CATV_TEXT_W, $line, 24, AIO_CATV_TEXT_COLOR);
+        $d[] = aio_oc_label($x0, AIO_OC_LINE_Y, AIO_CATV_TEXT_W, $line, 24, $color);
     if ($down)
     {
         $hint = aio_tr($c['ui'], 'card_down_movie');
@@ -689,7 +696,8 @@ function aio_oc_folder_view($media_url, $sel_state)
 // --- Keys.
 
 // "Watch": the list of Melange as play_action makes it of the card of the tile, the id of the card
-// of the Dune (or none: no history) in movie_str.
+// of the Dune (or none: no history) in movie_str. native_title, as the card of the Dune gives it
+// (JacRed asks by it): the original title of the meta, else the English one of the tile.
 /**
  * @param AioOcCard $c
  * @return AioAction
@@ -697,10 +705,11 @@ function aio_oc_folder_view($media_url, $sel_state)
 function aio_oc_watch($c)
 {
     $t = $c['tile'];
+    $native = $c['meta'] && $c['meta']['original'] !== '' ? $c['meta']['original'] : $t['englishTitle'];
     $in = new stdClass();
-    $in->movie_str = json_encode(array('id' => $c['dune'], 'imdb_id' => $c['imdb'], 'title' => $t['name'], 'year' => $t['year'],
-        'poster_url' => $t['poster'], 'fanart_url' => $t['background'], 'rate_imdb' => $t['imdbRating'],
-        'description' => $t['description']));
+    $in->movie_str = json_encode(array('id' => $c['dune'], 'imdb_id' => $c['imdb'], 'title' => $t['name'],
+        'native_title' => $native, 'year' => $t['year'], 'poster_url' => $t['poster'], 'fanart_url' => $t['background'],
+        'rate_imdb' => $t['imdbRating'], 'description' => $t['description']));
     $in->series_type = 'single';
     $in->lang = $c['lang'];
     return aio_play_action($in);
