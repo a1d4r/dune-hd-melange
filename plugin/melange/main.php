@@ -295,14 +295,24 @@ function aio_data_dir()
     return isset(DuneSystem::$properties['data_dir_path']) ? strval(DuneSystem::$properties['data_dir_path']) : '';
 }
 
-// 'ino:mtime:size' of settings.json, '' when there is none. The page renames
-// a new file over it: a new inode even within the same second.
-function aio_settings_sig()
+// 'ino:mtime:size' of the file $name of data_dir, '' when there is none. A new file renamed
+// over it has a new inode even within the same second.
+/**
+ * @param string $name
+ * @return string
+ */
+function aio_file_sig($name)
 {
-    $f = aio_data_dir() . '/' . AIO_SETTINGS_FILE;
+    $f = aio_data_dir() . '/' . $name;
     clearstatcache();
     $s = aio_data_dir() !== '' && is_file($f) ? stat($f) : false;
     return $s === false ? '' : $s['ino'] . ':' . $s['mtime'] . ':' . $s['size'];
+}
+
+// aio_file_sig of settings.json: the page renames a new file over it.
+function aio_settings_sig()
+{
+    return aio_file_sig(AIO_SETTINGS_FILE);
 }
 
 // aio_settings_read of data_dir; why settings.json was not read goes to the

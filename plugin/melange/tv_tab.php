@@ -104,13 +104,15 @@ function aio_tv_rows($rows)
 }
 
 // aio_cat_cache_write saved the copy $key: the manifest or the first page of a row of the file - the flag.
+// The flag of this operation set already, a copy of no first page (a page further on, a card): no manifest read.
 /**
  * @param string $key
  * @return void
  */
 function aio_tv_copy_saved($key)
 {
-    if (AioTv::$quiet || !aio_tv_selected())
+    if (AioTv::$quiet || AioTv::$flagged_t0 === Aio::$t0 || ($key !== AIO_CAT_MANIFEST_KEY && substr($key, -2) !== '|0') ||
+        !aio_tv_selected())
         return;
     $hit = $key === AIO_CAT_MANIFEST_KEY;
     if (!$hit)
@@ -232,20 +234,21 @@ function aio_tv_json($lang, &$tiles = null)
     return is_string($json) ? $json : '';
 }
 
-// 'ino:mtime:size' of AIO_TV_TILES_FILE, '' when there is none.
+// The file $f holds $data already: not written again (the flash wears).
 /**
- * @return string
+ * @param string $f
+ * @param string $data
+ * @return bool
  */
-function aio_tv_tiles_sig()
+function aio_tv_same($f, $data)
 {
-    $f = aio_data_dir() . '/' . AIO_TV_TILES_FILE;
     clearstatcache();
-    $s = aio_data_dir() !== '' && is_file($f) ? stat($f) : false;
-    return $s === false ? '' : $s['ino'] . ':' . $s['mtime'] . ':' . $s['size'];
+    return is_file($f) && filesize($f) === strlen($data) && file_get_contents($f) === $data;
 }
 
 // The tiles of tv.json to AIO_TV_TILES_FILE, unless they are there already: 'same', 'new' or 'failed'.
 // Not in plugins_epfs: the shell reads that, and it is no copy of the catalog (data_dir/catalog prunes).
+// With the version of the copies: {"v": AIO_CAT_CACHE_V, "tiles": {"<rid>:<id>": tile}}.
 /**
  * @param array<string, AioCatTile> $tiles
  * @return string
@@ -253,45 +256,50 @@ function aio_tv_tiles_sig()
 function aio_tv_tiles_save($tiles)
 {
     $f = aio_data_dir() . '/' . AIO_TV_TILES_FILE;
-    $json = json_encode((object) $tiles);
+    $json = json_encode(array('v' => AIO_CAT_CACHE_V, 'tiles' => (object) $tiles));
     if (aio_data_dir() === '' || !is_string($json))
         return 'failed';
-    clearstatcache();
-    if (is_file($f) && filesize($f) === strlen($json) && file_get_contents($f) === $json)
+    if (aio_tv_same($f, $json))
         $res = 'same';
     else
         $res = aio_write_file($f, $json) ? 'new' : 'failed';
     AioTv::$tiles = $tiles;
-    AioTv::$tiles_sig = aio_tv_tiles_sig();
+    AioTv::$tiles_sig = aio_file_sig(AIO_TV_TILES_FILE);
     return $res;
 }
 
 // The tile $id (without the mode, "<rid>:<id>") of tv.json as written (aio_tv_tiles_save): the tab "TV"
 // shows the file, while a screen of Melange may have got its rows anew since, without it. From memory,
 // read again when the file is another one (a restart of php_server: from the disk). null: not in it.
+// As a copy of the catalog (aio_cat_cache_read, aio_cat_page_cached): of another AIO_CAT_CACHE_V none,
+// each tile made again by aio_cat_tile, so a key AioCatTile got since (an update of the zip) has its value.
 /**
  * @param string $id
  * @return AioCatTile|null
  */
 function aio_tv_tile($id)
 {
-    $sig = aio_tv_tiles_sig();
+    $sig = aio_file_sig(AIO_TV_TILES_FILE);
     if (AioTv::$tiles === null || $sig !== AioTv::$tiles_sig)
     {
         $j = $sig === '' ? null : json_decode(strval(file_get_contents(aio_data_dir() . '/' . AIO_TV_TILES_FILE)), true);
-        AioTv::$tiles = is_array($j) ? $j : array();
+        AioTv::$tiles = array();
+        if (is_array($j) && isset($j['v'], $j['tiles']) && $j['v'] === AIO_CAT_CACHE_V && is_array($j['tiles']))
+        {
+            foreach ($j['tiles'] as $k => $m)
+            {
+                $t = aio_cat_tile($m, aio_str($m, 'type'));
+                if ($t)
+                    AioTv::$tiles[strval($k)] = $t;
+            }
+        }
         AioTv::$tiles_sig = $sig;
     }
-    $t = isset(AioTv::$tiles[$id]) ? AioTv::$tiles[$id] : null;
-    if (!is_array($t) || !isset($t['id']) || !is_string($t['id']))
-        return null;
-    // Of the file of aio_tv_tiles_save: the tiles of aio_cat_tiles, as they were.
-    /** @var AioCatTile $t */
-    return $t;
+    return isset(AioTv::$tiles[$id]) ? AioTv::$tiles[$id] : null;
 }
 
 // folder_key of rows_info (the shell sends "<plugin>:<id of the EPF>") is of the EPF of the tab "TV",
-// not of a screen of Melange ("melange:<media_url>").
+// not of a screen of Melange ("melange:<media_url>", "melange:catalog"): so only its id, as aio_tv_is_from.
 /**
  * @param string $key
  * @return bool
@@ -311,8 +319,7 @@ function aio_tv_is_key($key)
 function aio_tv_put($path, $data)
 {
     $dir = dirname($path);
-    clearstatcache();
-    if (is_file($path) && filesize($path) === strlen($data) && file_get_contents($path) === $data)
+    if (aio_tv_same($path, $data))
         return 'same';
     if (!is_dir($dir) && !mkdir($dir, 0755, true))
         return 'failed';
@@ -454,9 +461,7 @@ function aio_tv_timer($in)
     $asked = Aio::$settings['base'] === '' ? 'AIOStreams not set, nothing asked' : aio_tv_refresh(AIO_TV_TIMER_S);
     $lang = aio_tv_lang($in);
     $json = aio_tv_json($lang);
-    $f = "{$d['tmp']}/" . AIO_TV_EPF . '.json';
-    clearstatcache();
-    $changed = $json !== '' && (!is_file($f) || filesize($f) !== strlen($json) || file_get_contents($f) !== $json);
+    $changed = $json !== '' && !aio_tv_same("{$d['tmp']}/" . AIO_TV_EPF . '.json', $json);
     aio_log(sprintf('%s %s: %s; the file %s, %.0f ms', $what, $lang, $asked, $changed ? 'changed' : 'the same', (microtime(true) - $t0) * 1000));
     if ($changed)
         aio_tv_flag('the timer');
@@ -465,15 +470,15 @@ function aio_tv_timer($in)
 
 // --- The actions of the EPF: from "tv:<id of the EPF>", the tiles of the catalog as on its screens.
 
-// $from of an action is the EPF of the tab "TV": no screen of Melange is under it, so none may be
-// replaced (aio_replace_act); a screen of Melange opens over the main screen.
+// $from of an action is the EPF of the tab "TV" (AIO_TV_FROM, as aio_tv_is_key): no screen of Melange is
+// under it, so none may be replaced (aio_replace_act); a screen of Melange opens over the main screen.
 /**
  * @param string $from
  * @return bool
  */
 function aio_tv_is_from($from)
 {
-    return preg_match('/^tv:[a-z]+$/D', $from) === 1;
+    return $from === AIO_TV_FROM;
 }
 
 // The catalog of Melange, its entry "catalog", over the main screen.

@@ -305,10 +305,13 @@ function aio_catv_tile_id($id)
     return (aio_catv_logo_on() ? 'c:' : 'f:') . $id;
 }
 
-// The tile of an id of the screen, or null. From memory; no listing of its rid in memory (a restart
-// of php_server, a tile of a file the shell shows without PHP): aio_catv_list_restore. A listing in
-// memory without the tile: null, the copy is not newer than it. $tv: asked from the tab "TV", its
-// tiles as in its file first (aio_tv_tile): the listing in memory may have moved on since.
+// The tile of an id of the screen, or null. Looked for in this order:
+// 1. $tv (asked from the tab "TV"): the tiles of its file (aio_tv_tile); the listing in memory may have moved on since.
+// 2. AioCat::$lists, "restored" ones too (aio_catv_list_restore); aio_catv_all_list begins the grid anew
+//    from one older than AIO_CAT_FRESH, aio_catv_all_rows goes on from none older than AIO_CAT_STATE_TTL.
+// 3. AioCat::$on_screen: r25, the flagged rows as the screen shows them; the old copy a grid began anew from.
+// 4. No listing of its rid in memory (a restart of php_server, a file the shell shows without PHP): the copy
+//    on the disk (aio_catv_list_restore). A listing in memory without the tile: null, the copy is not newer.
 /**
  * @param string $id
  * @param bool $tv
