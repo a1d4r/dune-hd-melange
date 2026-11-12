@@ -1018,6 +1018,23 @@ function aio_oc_win($n, $off)
     return array(max(0, $off - AIO_OC_WIN), min($n - 1, $off + AIO_OC_EP_VIS + AIO_OC_WIN));
 }
 
+// The row of a series at place $pos: array(the episodes of its season, the index of its episode
+// (0 for none), the shift aio_oc_off, the stills of the panel aio_oc_win).
+/**
+ * @param AioOcCard $c
+ * @param AioOcPos $pos
+ * @return array{list<AioCardEp>, int, int, int, int}
+ */
+function aio_oc_row($c, $pos)
+{
+    $eps = aio_oc_eps($c, $pos['s']);
+    $n = count($eps);
+    $i = max(0, aio_cm_ep_index($eps, $pos['e']));
+    $off = aio_oc_off($i, $n);
+    list($lo, $hi) = aio_oc_win($n, $off);
+    return array($eps, $i, $off, $lo, $hi);
+}
+
 // The panel of the stills of a season of $n with the one at $off at the left slot (x of the catalog).
 /**
  * @param int $n
@@ -1171,11 +1188,8 @@ function aio_oc_series($c, $l, $pos)
     foreach ($t['list'] as $k => $tab)
         $tabs[] = aio_gc_panel("t$k", aio_gc_at($tab[3], AIO_OC_TAB_H, $tab[2], 0), aio_oc_tab_items($tab[1], $tab[3],
             aio_oc_tab_state($pos, $tab[0])));
-    $eps = aio_oc_eps($c, $pos['s']);
+    list($eps, $i, $off, $lo, $hi) = aio_oc_row($c, $pos);
     $n = count($eps);
-    $i = max(0, aio_cm_ep_index($eps, $pos['e']));
-    $off = aio_oc_off($i, $n);
-    list($lo, $hi) = aio_oc_win($n, $off);
     return array(
         aio_gc_panel('tabh', aio_gc_at($t['x'] - $x0, AIO_OC_TAB_H, $x0, AIO_OC_TAB_Y), $head),
         aio_gc_panel('tabs', aio_gc_at($t['w'], AIO_OC_TAB_H, $t['x'], AIO_OC_TAB_Y),
@@ -1422,8 +1436,11 @@ function aio_oc_changes($c, $l, $old, $new)
 // redrawn, the strip moved, the count, all the stills of the panel at once. The same season,
 // another episode: the panel moved (the stills it leaves in the first two slots: the frame moves),
 // the titles lit and dimmed; a long season (aio_oc_win): the stills out of the window dropped, the
-// new ones added beside it in the change that moves the panel (two changes of its geometry in one
-// call jump with no motion, hrow_probe). The frame shown in the zone of the row only.
+// new ones added after one kept (the places are of the panel, the order of its children does not
+// matter) in the change that moves the panel; a window apart from the old one (ENTER on the
+// button of an episode not out yet): all its stills at once, as another season. One change of a
+// component a call (two of it jump with no motion, hrow_probe): the frame moved, shown in the zone
+// of the row only, in one.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -1441,27 +1458,27 @@ function aio_oc_row_changes($c, $l, $old, $new)
         if ($st !== aio_oc_tab_state($old, $tab[0]))
             $ch[] = aio_gc_change("t$k", null, GCOMP_TRANSITION_NONE, aio_oc_tab_items($tab[1], $tab[3], $st));
     }
-    $eps = aio_oc_eps($c, $new['s']);
+    list($eps, $i, $off, $lo, $hi) = aio_oc_row($c, $new);
+    list(, $oi, $ooff, $olo, $ohi) = aio_oc_row($c, $old);
     $n = count($eps);
-    $i = max(0, aio_cm_ep_index($eps, $new['e']));
-    $off = aio_oc_off($i, $n);
     $lit = $new['z'] === 'row' ? $i : -1;
-    list($lo, $hi) = aio_oc_win($n, $off);
+    $fg = null;
+    $ft = GCOMP_TRANSITION_NONE;
     if ($new['s'] !== $old['s'])
     {
         $sh = aio_oc_tabs_shift($t, $new['s']);
         if ($sh !== aio_oc_tabs_shift($t, $old['s']))
             $ch[] = aio_gc_change('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -$sh, 0), GCOMP_TRANSITION_DEFAULT);
         $ch[] = aio_gc_change('cnt', null, GCOMP_TRANSITION_NONE, aio_oc_count($c, $l['prog'], $new['s']));
+    }
+    if ($new['s'] !== $old['s'] || $lo > $ohi || $hi < $olo)
+    {
         $ch[] = aio_gc_change('eps', aio_oc_eps_geom($n, $off), GCOMP_TRANSITION_NONE,
             aio_oc_ep_cards($c, $l['prog'], $new['s'], $lo, $hi, $lit));
-        $ch[] = aio_gc_change('frame', aio_oc_frame_geom($i - $off), GCOMP_TRANSITION_NONE);
+        $fg = aio_oc_frame_geom($i - $off);
     }
     else
     {
-        $oi = max(0, aio_cm_ep_index($eps, $old['e']));
-        $ooff = aio_oc_off($oi, $n);
-        list($olo, $ohi) = aio_oc_win($n, $ooff);
         for ($k = $olo; $k <= $ohi; $k++)
         {
             if ($k < $lo || $k > $hi)
@@ -1483,12 +1500,15 @@ function aio_oc_row_changes($c, $l, $old, $new)
             if ($add)
             {
                 $x[ChangeGCompDef::children_merge_mode] = true;
-                $x[ChangeGCompDef::children_insert_after_id] = 'c' . (intval(substr($add[0][GComponentDef::id], 1)) - 1);
+                $x[ChangeGCompDef::children_insert_after_id] = 'c' . min($hi, $ohi);
             }
             $ch[] = $x;
         }
         if ($i - $off !== $oi - $ooff)
-            $ch[] = aio_gc_change('frame', aio_oc_frame_geom($i - $off), GCOMP_TRANSITION_DEFAULT);
+        {
+            $fg = aio_oc_frame_geom($i - $off);
+            $ft = GCOMP_TRANSITION_DEFAULT;
+        }
         $olit = $old['z'] === 'row' ? $oi : -1;
         // The titles of the stills kept in the panel; an added one is drawn lit or not already.
         foreach ($lit !== $olit ? array($olit, $lit) : array() as $k)
@@ -1498,8 +1518,10 @@ function aio_oc_row_changes($c, $l, $old, $new)
                     aio_oc_ep_titles($eps[$k], aio_oc_prog($c, $l['prog'], $eps[$k]), $k === $lit, $c['ui']));
         }
     }
-    if (($old['z'] === 'row') !== ($new['z'] === 'row'))
-        $ch[] = aio_gc_change('frame', null, GCOMP_TRANSITION_NONE, aio_oc_frame($new['z']));
+    // The frame shown or hidden jumps to its place.
+    $fz = ($old['z'] === 'row') !== ($new['z'] === 'row');
+    if ($fg || $fz)
+        $ch[] = aio_gc_change('frame', $fg, $fz ? GCOMP_TRANSITION_NONE : $ft, $fz ? aio_oc_frame($new['z']) : null);
     return $ch;
 }
 
