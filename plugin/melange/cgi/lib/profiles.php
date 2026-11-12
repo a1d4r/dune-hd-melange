@@ -193,7 +193,8 @@ function aio_cgi_source_keys()
 // refused). In use (now of $ed): $data with the config of the profile in the cell (aio_profile_apply), the profile -
 // the source of $data; else the settings of the source of $cur kept, the profile - the source of $data. Its config:
 // the old one while the server and mode are those of it; a new one of the source in use - the config of the cell when
-// no profile has it; else none (made by a=aio_sync&prof). The name and the target (aio_profile_key) unique, the
+// no profile has it; else none (made by a=aio_sync&prof). A new one without a name: the word of its kind
+// (aio_cgi_profile_def). The name and the target (aio_profile_key) unique, the
 // profiles at most AIO_PROFILES_MAX, the export with it loads back (aio_cgi_import_fits).
 function aio_cgi_editor_save($ed, $data, $cur, $t)
 {
@@ -217,7 +218,9 @@ function aio_cgi_editor_save($ed, $data, $cur, $t)
         }
         $p['conf'] = $o ? $conf : $cell;
     }
-    $p = aio_profile_ok(array('name' => $ed['name']) + $p, $cur);
+    // A new one without a name: the word of its kind (the hint of the field).
+    $name = $ed['sel'] === 'new' && aio_profile_name($ed['name']) === '' ? aio_cgi_profile_def($data) : $ed['name'];
+    $p = aio_profile_ok(array('name' => $name) + $p, $cur);
     if (!$p)
         return array(null, null, sprintf(aio_cgi_l('Название профиля: от 1 до %d символов, без управляющих и невидимых',
             'Profile name: 1 to %d characters, no control or invisible ones'), AIO_PROFILE_NAME_MAX));
