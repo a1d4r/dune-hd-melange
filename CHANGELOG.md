@@ -4,6 +4,7 @@
 
 ## Unreleased
 - **The release page on its tracker, in the release details.** INFO in the release list now shows the address of the release page in the **Origin** column, and the next page (P−) has it as a QR code: scan it with your phone camera to open the page. The address comes from the Melange server; other AIOStreams servers do not send it, and the screen stays as it was.
+- Fixed: a two-part film that the database lists as a miniseries (for example, «Берегите женщин») did not play via TorrServer when the release was one file without an episode number: Melange showed "The release has no file for this episode". Now it plays that file, and the second episode opens the same file.
 
 ## 0.57.2 — 12.11.2026
 - Fixed: changes to the list of rows on the server now reach the catalog within 10 minutes instead of an hour, the next time you open it; on r25 firmware, from the opening after the one where Melange updated the list. Rows removed on the server disappear. New rows appear in **Configure List...** and on the settings page; if you chose your rows yourself, they are not added to the screen on their own. On r24 firmware the list of rows could stop updating altogether.
@@ -222,6 +223,7 @@ First public release. What it does:
 
 ## Не выпущено
 - **Страница раздачи на трекере в сведениях о раздаче.** INFO в списке раздач теперь показывает в колонке «Откуда» адрес страницы раздачи, а на следующей странице (P−) — QR-код этого адреса: наведите на него камеру телефона, чтобы открыть страницу. Адрес присылает сервер Melange; с другими серверами AIOStreams его нет, и экран остаётся прежним.
+- Исправлено: двухсерийный фильм, который в базе записан мини-сериалом (например, «Берегите женщин»), не включался через TorrServer, если в раздаче один файл без номера серии: Melange писал «В раздаче нет файла этой серии». Теперь он играет этот файл, и вторая серия включает тот же файл.
 
 ## 0.57.2 — 12.11.2026
 - Исправлено: изменения списка рядов на сервере теперь доходят до каталога не через час, а не позже чем через 10 минут, при следующем открытии; на прошивке r25 — с открытия после того, на котором Melange обновил список. Убранные на сервере ряды пропадают. Новые ряды появляются в «Настроить список...» и на странице настроек; если вы выбирали ряды сами, на экран они сами не добавятся. На прошивке r24 список рядов раньше мог не обновляться совсем.
