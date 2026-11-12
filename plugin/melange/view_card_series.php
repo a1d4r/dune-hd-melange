@@ -88,18 +88,23 @@ function aio_oc_ep($c, $s, $e)
 // --- The seasons and the episodes of a series.
 
 // The tabs of the seasons of the meta of card $c: list - array(season, text, x, width) in the
-// strip, x - where it starts on the screen (after "Серии", and "Сезон" when there are more than
-// TABS_MAX: then the tabs are numbers), w - the width of its clip (up to TABS_R), all - the width
-// of the strip; word - x of "Сезон", 0 for none.
+// strip, x - where it starts on the screen (at the x of the catalog, after "Сезон" when there are
+// more than TABS_MAX: then the tabs are numbers; CHEV_SLOT further when not all fit, the slot of
+// the left chevron), w - the width of its clip at most (all of it when all fit), all - the width
+// of the strip, word - x of "Сезон", 0 for none, cx - x of the count: the widest of the seasons
+// (aio_oc_count_text, by the progress $prog) ends at HINT_R, the strip CNT_GAP before it and
+// CHEV_SLOT more for the right chevron when not all fit; one for the series, so nothing moves as
+// the season changes.
 /**
  * @param AioOcCard $c
+ * @param array<string, array{float, float, bool}> $prog
  * @return AioOcTabs
  */
-function aio_oc_tabs_layout($c)
+function aio_oc_tabs_layout($c, $prog)
 {
     $ui = $c['ui'];
     $seasons = array_keys($c['meta']['seasons']);
-    $x = AIO_CATV_CARD_X + aio_gc_w(aio_tr($ui, 'card_episodes'), AIO_CATV_LINE_PX) + 40;
+    $x = AIO_CATV_CARD_X;
     $word = 0;
     $nums = count($seasons) > AIO_OC_TABS_MAX;
     if ($nums)
@@ -109,19 +114,29 @@ function aio_oc_tabs_layout($c)
     }
     $list = array();
     $tx = 0;
+    $cw = 0;
     foreach ($seasons as $s)
     {
         $t = $nums ? strval($s) : str_replace('{n}', strval($s), aio_tr($ui, 'card_season_n'));
         $w = aio_gc_w($t, AIO_CATV_LINE_PX) + 2 * AIO_OC_TAB_PAD;
         $list[] = array($s, $t, $tx, $w);
         $tx += $w + AIO_OC_TAB_GAP;
+        $cw = max($cw, aio_gc_w(aio_oc_count_text($c, $prog, $s), 24));
     }
     $all = $list ? $tx - AIO_OC_TAB_GAP : 0;
-    return array('list' => $list, 'x' => $x, 'w' => min($all, AIO_OC_TABS_R - $x), 'all' => $all, 'word' => $word);
+    $cx = AIO_OC_HINT_R - $cw;
+    $w = $cx - AIO_OC_CNT_GAP - $x;
+    if ($all > $w)
+    {
+        $x += AIO_OC_CHEV_SLOT;
+        $w -= 2 * AIO_OC_CHEV_SLOT;
+    }
+    return array('list' => $list, 'x' => $x, 'w' => min($all, $w), 'all' => $all, 'word' => $word, 'cx' => $cx);
 }
 
-// The shift of the strip of tabs $t with the tab of season $s in the middle of its clip, within
-// the strip; 0 when it all fits.
+// The shift of the strip of tabs $t with the tab of season $s: in the middle of its clip within
+// the strip, then on to the start of a tab (the first at or after it): only whole tabs are seen
+// (aio_oc_tabs_end); 0 when it all fits.
 /**
  * @param AioOcTabs $t
  * @param int $s
@@ -131,12 +146,59 @@ function aio_oc_tabs_shift($t, $s)
 {
     if ($t['all'] <= $t['w'])
         return 0;
+    $sh = 0;
     foreach ($t['list'] as $tab)
     {
         if ($tab[0] === $s)
-            return max(0, min($t['all'] - $t['w'], $tab[2] + intval($tab[3] / 2) - intval($t['w'] / 2)));
+            $sh = max(0, min($t['all'] - $t['w'], $tab[2] + intval($tab[3] / 2) - intval($t['w'] / 2)));
     }
-    return 0;
+    foreach ($t['list'] as $tab)
+    {
+        if ($tab[2] >= $sh)
+            return $tab[2];
+    }
+    return $sh;
+}
+
+// The end in the strip of tabs $t of the last tab whole in its clip at shift $sh: the clip ends
+// there, no half of a number is seen ("1" of "16" reads as another season).
+/**
+ * @param AioOcTabs $t
+ * @param int $sh
+ * @return int
+ */
+function aio_oc_tabs_end($t, $sh)
+{
+    $end = $sh;
+    foreach ($t['list'] as $tab)
+    {
+        if ($tab[2] >= $sh && $tab[2] + $tab[3] <= $sh + $t['w'])
+            $end = $tab[2] + $tab[3];
+    }
+    return $end;
+}
+
+// The chevrons of the strip of tabs $t that does not fit, at shift $sh with its clip up to $end:
+// the left one in its slot while there are seasons left of the clip, the right one CHEV_GAP after
+// the clip while there are some right of it; grey, white with the focus on the tabs ($pill).
+// -> id => array(geom, children), the children none when it is not seen.
+/**
+ * @param AioOcTabs $t
+ * @param int $sh
+ * @param int $end
+ * @param bool $pill
+ * @return array<string, array{AioGcGeom, list<AioGcComp>}>
+ */
+function aio_oc_chevs($t, $sh, $end, $pill)
+{
+    $y = AIO_OC_TAB_Y + intval((AIO_OC_TAB_H - AIO_OC_CHEV_H) / 2);
+    $on = $pill ? 'on_' : '';
+    $out = array();
+    foreach (array('l' => array($t['x'] - AIO_OC_CHEV_GAP - AIO_OC_CHEV_W, $sh > 0),
+        'r' => array($t['x'] + $end - $sh + AIO_OC_CHEV_GAP, $end < $t['all'])) as $k => $v)
+        $out["ch$k"] = array(aio_gc_at(AIO_OC_CHEV_W, AIO_OC_CHEV_H, $v[0], $y), $v[1] ?
+            array(aio_gc_image(aio_gc_at(AIO_OC_CHEV_W, AIO_OC_CHEV_H, 0, 0), AIO_OC_IMG . "chev_{$on}$k.png")) : array());
+    return $out;
 }
 
 // The children of a tab (or of the line "did not load") of width $w: $state 0 - the text grey,
@@ -173,26 +235,15 @@ function aio_oc_tab_state($pos, $s)
     return $s !== $pos['s'] ? 0 : ($pos['z'] === 'pill' ? 2 : 1);
 }
 
-// The width of the count after the tabs $t, up to the right edge of the hint.
-/**
- * @param AioOcTabs $t
- * @return int
- */
-function aio_oc_count_w($t)
-{
-    return AIO_OC_HINT_R - $t['x'] - $t['w'] - 24;
-}
-
-// After the tabs: "13 серий · 4 просмотрено" / "13 серий · все просмотрены" of season $s, by the
-// progress $prog, cut to width $w with "…".
+// The count of season $s: "Сезон 2 · 13 серий", " · 4 просмотрено" / " · все просмотрены" more by
+// the progress $prog.
 /**
  * @param AioOcCard $c
  * @param array<string, array{float, float, bool}> $prog
  * @param int $s
- * @param int $w
- * @return list<AioGcComp>
+ * @return string
  */
-function aio_oc_count($c, $prog, $s, $w)
+function aio_oc_count_text($c, $prog, $s)
 {
     $eps = aio_oc_eps($c, $s);
     $n = count($eps);
@@ -202,10 +253,25 @@ function aio_oc_count($c, $prog, $s, $w)
         $pr = aio_oc_prog($c, $prog, $ep);
         $k += $pr && $pr[2] ? 1 : 0;
     }
-    $t = $n . ' ' . aio_gc_plural($c['ui'], $n, 'card_eps');
+    $t = str_replace(array('{s}', '{n}'), array(strval($s), $n . ' ' . aio_gc_plural($c['ui'], $n, 'card_eps')),
+        aio_tr($c['ui'], 'card_season_count'));
     if ($k > 0)
         $t .= ' · ' . ($k === $n ? aio_tr($c['ui'], 'card_eps_all') : str_replace('{n}', strval($k), aio_tr($c['ui'], 'card_eps_watched')));
-    return array(aio_gc_cut(null, aio_gc_left_center($w, 34, 0), aio_gc_cut_w($t, 24, $w), 24, AIO_GC_DIM));
+    return $t;
+}
+
+// The count of season $s at the right of the line of the tabs $t, in its panel from cx to HINT_R.
+/**
+ * @param AioOcCard $c
+ * @param array<string, array{float, float, bool}> $prog
+ * @param int $s
+ * @param AioOcTabs $t
+ * @return list<AioGcComp>
+ */
+function aio_oc_count($c, $prog, $s, $t)
+{
+    return array(aio_gc_cut(null, aio_gc_left_center(AIO_OC_HINT_R - $t['cx'], 34, 0), aio_oc_count_text($c, $prog, $s), 24,
+        AIO_GC_DIM, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
 }
 
 // The first still of the row at the left slot with the one at index $i in focus (in a season of
@@ -390,33 +456,39 @@ function aio_oc_retry_panel($c, $z)
  */
 function aio_oc_series($c, $l, $pos)
 {
-    $x0 = AIO_CATV_CARD_X;
     $ui = $c['ui'];
     if (!$c['meta'])
         return array(aio_oc_retry_panel($c, $pos['z']));
     $t = $l['tabs'];
     if (!$t['list'])
         return array();
-    $head = array(aio_gc_cut(null, aio_gc_left_center($t['x'] - $x0, 44, 0), aio_tr($ui, 'card_episodes'), AIO_CATV_LINE_PX, AIO_GC_TEXT));
+    $d = array();
     if ($t['word'] > 0)
-        $head[] = aio_gc_cut(null, aio_gc_left_center($t['x'] - $t['word'], 44, $t['word'] - $x0), aio_tr($ui, 'card_season'),
-            AIO_CATV_LINE_PX, AIO_GC_TEXT2);
+        $d[] = aio_gc_panel('tabh', aio_gc_at($t['x'] - $t['word'], AIO_OC_TAB_H, $t['word'], AIO_OC_TAB_Y),
+            array(aio_gc_cut(null, aio_gc_left_center($t['x'] - $t['word'], 44, 0), aio_tr($ui, 'card_season'), AIO_CATV_LINE_PX,
+                AIO_GC_TEXT2)));
     $tabs = array();
     foreach ($t['list'] as $k => $tab)
         $tabs[] = aio_gc_panel("t$k", aio_gc_at($tab[3], AIO_OC_TAB_H, $tab[2], 0), aio_oc_tab_items($tab[1], $tab[3],
             aio_oc_tab_state($pos, $tab[0])));
+    $sh = aio_oc_tabs_shift($t, $pos['s']);
+    $end = aio_oc_tabs_end($t, $sh);
+    $d[] = aio_gc_panel('tabs', aio_gc_at($end - $sh, AIO_OC_TAB_H, $t['x'], AIO_OC_TAB_Y),
+        array(aio_gc_panel('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -$sh, 0), $tabs)), 0);
+    if ($t['all'] > $t['w'])
+    {
+        foreach (aio_oc_chevs($t, $sh, $end, $pos['z'] === 'pill') as $id => $v)
+            $d[] = aio_gc_panel($id, $v[0], $v[1]);
+    }
+    $d[] = aio_gc_panel('cnt', aio_gc_at(AIO_OC_HINT_R - $t['cx'], AIO_OC_TAB_H, $t['cx'], AIO_OC_TAB_Y),
+        aio_oc_count($c, $l['prog'], $pos['s'], $t));
     list($eps, $i, $off, $lo, $hi) = aio_oc_row($c, $pos);
     $n = count($eps);
-    return array(
-        aio_gc_panel('tabh', aio_gc_at($t['x'] - $x0, AIO_OC_TAB_H, $x0, AIO_OC_TAB_Y), $head),
-        aio_gc_panel('tabs', aio_gc_at($t['w'], AIO_OC_TAB_H, $t['x'], AIO_OC_TAB_Y),
-            array(aio_gc_panel('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -aio_oc_tabs_shift($t, $pos['s']), 0), $tabs)), 0),
-        aio_gc_panel('cnt', aio_gc_at(aio_oc_count_w($t), AIO_OC_TAB_H, $t['x'] + $t['w'] + 24, AIO_OC_TAB_Y),
-            aio_oc_count($c, $l['prog'], $pos['s'], aio_oc_count_w($t))),
-        aio_gc_panel('row', aio_gc_at(1920, AIO_OC_ROW_H, 0, AIO_OC_ROW_Y),
-            array(aio_gc_panel('eps', aio_oc_eps_geom($n, $off), aio_oc_ep_cards($c, $l['prog'], $pos['s'], $lo, $hi,
-                $pos['z'] === 'row' ? $i : -1))), 0),
-        aio_gc_panel('frame', aio_oc_frame_geom($i - $off), aio_oc_frame($pos['z'])));
+    $d[] = aio_gc_panel('row', aio_gc_at(1920, AIO_OC_ROW_H, 0, AIO_OC_ROW_Y),
+        array(aio_gc_panel('eps', aio_oc_eps_geom($n, $off), aio_oc_ep_cards($c, $l['prog'], $pos['s'], $lo, $hi,
+            $pos['z'] === 'row' ? $i : -1))), 0);
+    $d[] = aio_gc_panel('frame', aio_oc_frame_geom($i - $off), aio_oc_frame($pos['z']));
+    return $d;
 }
 
 // --- The place of the focus.
@@ -444,7 +516,8 @@ function aio_oc_def_e($c, $l, $s)
 }
 
 // The changes of the tabs and the row of a series from $old to $new. Another season: its tabs
-// redrawn, the strip moved, the count, all the stills of the panel at once. The same season,
+// redrawn, the strip and its clip moved at once (a half tab would show in a motion), the count,
+// all the stills of the panel at once; the chevrons as the strip and the zone have them. The same season,
 // another episode: the panel moved (the stills it leaves in the first two slots: the frame moves),
 // the titles lit and dimmed; a long season (aio_oc_win): the stills out of the window dropped, the
 // new ones added after one kept (the places are of the panel, the order of its children does not
@@ -475,13 +548,25 @@ function aio_oc_row_changes($c, $l, $old, $new)
     $lit = $new['z'] === 'row' ? $i : -1;
     $fg = null;
     $ft = GCOMP_TRANSITION_NONE;
-    if ($new['s'] !== $old['s'])
+    $sh = aio_oc_tabs_shift($t, $new['s']);
+    $osh = aio_oc_tabs_shift($t, $old['s']);
+    if ($sh !== $osh)
     {
-        $sh = aio_oc_tabs_shift($t, $new['s']);
-        if ($sh !== aio_oc_tabs_shift($t, $old['s']))
-            $ch[] = aio_gc_change('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -$sh, 0), GCOMP_TRANSITION_DEFAULT);
-        $ch[] = aio_gc_change('cnt', null, GCOMP_TRANSITION_NONE, aio_oc_count($c, $l['prog'], $new['s'], aio_oc_count_w($t)));
+        $ch[] = aio_gc_change('tabs', aio_gc_at(aio_oc_tabs_end($t, $sh) - $sh, AIO_OC_TAB_H, $t['x'], AIO_OC_TAB_Y),
+            GCOMP_TRANSITION_NONE);
+        $ch[] = aio_gc_change('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -$sh, 0), GCOMP_TRANSITION_NONE);
     }
+    if ($t['all'] > $t['w'])
+    {
+        $och = aio_oc_chevs($t, $osh, aio_oc_tabs_end($t, $osh), $old['z'] === 'pill');
+        foreach (aio_oc_chevs($t, $sh, aio_oc_tabs_end($t, $sh), $new['z'] === 'pill') as $id => $v)
+        {
+            if ($v !== $och[$id])
+                $ch[] = aio_gc_change($id, $v[0], GCOMP_TRANSITION_NONE, $v[1]);
+        }
+    }
+    if ($new['s'] !== $old['s'])
+        $ch[] = aio_gc_change('cnt', null, GCOMP_TRANSITION_NONE, aio_oc_count($c, $l['prog'], $new['s'], $t));
     if ($new['s'] !== $old['s'] || $lo > $ohi || $hi < $olo)
     {
         $ch[] = aio_gc_change('eps', aio_oc_eps_geom($n, $off), GCOMP_TRANSITION_NONE,

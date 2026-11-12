@@ -51,30 +51,39 @@ define('AIO_OC_BTN_PAD', 32);
 define('AIO_OC_ICON_W', 34);
 define('AIO_OC_BTN_GAP', 20);
 define('AIO_OC_CAP', 12);
-define('AIO_OC_LINE_Y', 664);
+define('AIO_OC_LINE_Y', 660);
 define('AIO_OC_BAR_H', 6);
 define('AIO_OC_BAR_DY', 9);
 define('AIO_OC_HINT_R', 1845);
-// The cast at CAST_Y of the first screen, photos 120x152 (TMDB w276_and_h350_face, a half) STEP
-// apart, the name in 2 lines and the role in NAME_W. DOWN: "About" at ABOUT_Y of the screen at the
-// first stop with the cast, the description in DESC2_W, the pairs of the details at DET_X in DET_W.
-define('AIO_OC_CAST_Y', 724);
+// The cast at CAST_Y of the first screen, CAST_MAX at most, photos 120x152 (TMDB
+// w276_and_h350_face, a half) STEP apart, NAME_DY under their top the name in 2 lines and the role
+// in 2, NAME_W wide: the bottom of its text 312 under CAST_Y, SHOW_BOTTOM at the first screen of a
+// movie (design-own-card.md, "Итог 13.11.2026": R1 with the role in 2 lines, to be seen on the
+// device; back: CAST_Y 724, LINE_Y 664, STEP 172, NAME_W 160, NAME_DY 158, CAST_MAX 10). DOWN:
+// "About" at ABOUT_Y of the screen at the first stop with the cast, the description in DESC2_W,
+// the pairs of the details at DET_X (the 8th column of the cast) in DET_W, to the right edge.
+define('AIO_OC_CAST_Y', 708);
 define('AIO_OC_OFF', AIO_OC_CAST_Y - AIO_OC_DOWN_Y);
+define('AIO_OC_CAST_MAX', 9);
 define('AIO_OC_PHOTO_W', 120);
 define('AIO_OC_PHOTO_H', 152);
-define('AIO_OC_PHOTO_STEP', 172);
-define('AIO_OC_NAME_W', 160);
-define('AIO_OC_ABOUT_Y', 590);
+define('AIO_OC_PHOTO_STEP', 184);
+define('AIO_OC_NAME_W', 168);
+define('AIO_OC_NAME_DY', 154);
+define('AIO_OC_ABOUT_Y', 616);
 define('AIO_OC_DESC2_W', 960);
 define('AIO_OC_DESC2_LINES', 100);
-define('AIO_OC_DET_X', 1180);
-define('AIO_OC_DET_W', 665);
+define('AIO_OC_DET_X', 1418);
+define('AIO_OC_DET_W', 427);
 // A series (H1 of design-own-card.md): the buttons at BTN_Y_SER, the description down to
-// DESC_BOTTOM_SER; "Серии" and the tabs of the seasons at TAB_Y, TAB_H high, the text TAB_PAD from
-// their edges, TAB_GAP apart, the rounded ends TAB_CAP (PNG); more than TABS_MAX seasons: numbers
-// after "Сезон"; tabs past TABS_R scroll. The row of episodes at ROW_Y: stills EP_W x EP_H, EP_STEP
-// apart from the x of the catalog, EP_VIS whole, the one before and after seen at the edges; the
-// frame of the focus FRAME wide around the still; P+/P- PAGE stills.
+// DESC_BOTTOM_SER; the tabs of the seasons at TAB_Y, TAB_H high, the text TAB_PAD from their
+// edges, TAB_GAP apart, the rounded ends TAB_CAP (PNG); more than TABS_MAX seasons: numbers after
+// "Сезон". The count "Сезон 2 · 13 серий" at the right edge of the line, the strip CNT_GAP before
+// the widest; not all fitting: the strip scrolls by whole tabs, the chevrons CHEV_W x CHEV_H (PNG)
+// CHEV_GAP off its ends, in slots CHEV_SLOT wide (T2 of design-own-card.md, "Итог 13.11.2026").
+// The row of episodes at ROW_Y: stills EP_W x EP_H, EP_STEP apart from the x of the catalog,
+// EP_VIS whole, the one before and after seen at the edges; the frame of the focus FRAME wide
+// around the still; P+/P- PAGE stills.
 define('AIO_OC_BTN_Y_SER', 512);
 define('AIO_OC_DESC_BOTTOM_SER', 504);
 define('AIO_OC_TAB_Y', 604);
@@ -83,7 +92,11 @@ define('AIO_OC_TAB_PAD', 24);
 define('AIO_OC_TAB_GAP', 8);
 define('AIO_OC_TAB_CAP', 26);
 define('AIO_OC_TABS_MAX', 8);
-define('AIO_OC_TABS_R', 1500);
+define('AIO_OC_CNT_GAP', 40);
+define('AIO_OC_CHEV_SLOT', 28);
+define('AIO_OC_CHEV_W', 12);
+define('AIO_OC_CHEV_H', 22);
+define('AIO_OC_CHEV_GAP', 12);
 define('AIO_OC_ROW_Y', 680);
 define('AIO_OC_EP_W', 384);
 define('AIO_OC_EP_H', 216);
@@ -118,7 +131,8 @@ define('AIO_OC_FOCUS', '#FF2850C0');
 define('AIO_OC_TAB_ON', '#29FFFFFF');
 define('AIO_OC_MARK_BG', '#B0000000');
 // Our pictures: the ends of a button, off and focused, the icon of "Watch", the band over the
-// background from y 470 (1920x160, then a rect), the ends of a tab of a season (shown, focused).
+// background from y 470 (1920x160, then a rect), the ends of a tab of a season (shown, focused),
+// the chevrons of the strip of tabs (grey, white with the focus on the tabs).
 // card<N>: N goes up when they change, as cat<N>.
 define('AIO_OC_IMG', 'plugin_file://img/card1_');
 // Pictures of the shell: a still loading or not there (an episode not out yet), the mark "watched".
@@ -547,8 +561,8 @@ function aio_oc_hint($text, $x, $y)
             'plugin_file://img/sort_down.png'));
 }
 
-// The cast of the meta at $y: photos, names in 2 lines, the English roles grey; no photo: the
-// initials. None: nothing.
+// The cast of the meta at $y, CAST_MAX at most: photos, names in 2 lines, the English roles grey
+// in 2 (of a list "A / B" its first); no photo: the initials. None: nothing.
 /**
  * @param AioOcCard $c
  * @param int $y
@@ -563,7 +577,7 @@ function aio_oc_cast($c, $y)
     $x0 = AIO_CATV_CARD_X;
     $d[] = aio_oc_label($x0, $y, 800, aio_tr($c['ui'], 'card_cast'), AIO_CATV_LINE_PX, AIO_GC_TEXT);
     $py = $y + 46;
-    foreach ($cast as $i => $p)
+    foreach (array_slice($cast, 0, AIO_OC_CAST_MAX) as $i => $p)
     {
         $x = $x0 + $i * AIO_OC_PHOTO_STEP;
         $d[] = aio_gc_rect(aio_gc_at(AIO_OC_PHOTO_W, AIO_OC_PHOTO_H, $x, $py), AIO_OC_NO_PHOTO);
@@ -578,11 +592,14 @@ function aio_oc_cast($c, $y)
                 array(GCompTtfLabelDef::halign => HALIGN_CENTER));
         }
         $parts = explode(' ', $p['name'], 2);
-        foreach (array($parts[0], isset($parts[1]) ? $parts[1] : '', $p['role']) as $k => $s)
+        $roles = explode(' / ', $p['role'], 2);
+        $lines = array(aio_gc_cut_w(aio_clean($parts[0]), 24, AIO_OC_NAME_W),
+            isset($parts[1]) ? aio_gc_cut_w(aio_clean($parts[1]), 24, AIO_OC_NAME_W) : '');
+        $lines = array_merge($lines, aio_gc_wrap(aio_clean($roles[0]), 24, AIO_OC_NAME_W, 2, true));
+        foreach ($lines as $k => $s)
         {
             if ($s !== '')
-                $d[] = aio_oc_label($x, $py + 158 + 26 * $k, AIO_OC_NAME_W,
-                    aio_gc_cut_w(aio_clean($s), 24, AIO_OC_NAME_W), 24, $k < 2 ? AIO_GC_TEXT : AIO_GC_DIM);
+                $d[] = aio_oc_label($x, $py + AIO_OC_NAME_DY + 26 * $k, AIO_OC_NAME_W, $s, 24, $k < 2 ? AIO_GC_TEXT : AIO_GC_DIM);
         }
     }
     return $d;
@@ -776,7 +793,8 @@ function aio_oc_layout($c)
     $btns = aio_oc_buttons($c, $ep);
     $s1 = $cast ? $off : $off + AIO_OC_ABOUT_Y - AIO_OC_DOWN_Y;
     list($stops, $clips) = aio_oc_stops($bands, $s1, $cast, $off);
-    $tabs = $series && $c['meta'] ? aio_oc_tabs_layout($c) : array('list' => array(), 'x' => 0, 'w' => 0, 'all' => 0, 'word' => 0);
+    $tabs = $series && $c['meta'] ? aio_oc_tabs_layout($c, $prog)
+        : array('list' => array(), 'x' => 0, 'w' => 0, 'all' => 0, 'word' => 0, 'cx' => 0);
     $zones = array('btn');
     if ($series && (!$c['meta'] || $tabs['list']))
         $zones[] = 'pill';
