@@ -150,6 +150,10 @@ class AioCat
     // The last AIO_CATV_SEARCHES searches, the oldest first: by its id, the rids of its rows.
     /** @var array<string, list<string>> */
     public static $searches = array();
+    // The searches of them opened as "Show all" of their one row (aio_catv_search_run): that
+    // screen is their results.
+    /** @var array<string, bool> */
+    public static $at_once = array();
     // r25: when a row came empty, by rid. It is hidden at the openings of the next hour.
     /** @var array<string, int> */
     public static $empty = array();
@@ -2460,7 +2464,7 @@ function aio_catv_search_drop($sid)
         return;
     foreach (AioCat::$searches[$sid] as $r)
         unset(AioCat::$lists[$r], AioCat::$all_failed[$r], AioCat::$all_stubs[$r]);
-    unset(AioCat::$searches[$sid]);
+    unset(AioCat::$searches[$sid], AioCat::$at_once[$sid]);
 }
 
 // The dialog of a search; the field goes to cat_search_apply and on as cat_q. The
@@ -2523,10 +2527,14 @@ function aio_catv_search_run($q, $from)
     if (!$rids)
         return aio_error($failed ? 'cat_search_failed' : 'cat_search_none');
     AioCat::$searches[$sid] = $rids;
-    // From the results of a search: they are replaced, that search holds no place.
-    $replace = strpos($from, 'results:') === 0;
+    // From the results of a search, its "Show all" opened at once too: they are replaced, that
+    // search holds no place. "Show all" of a search with the results under it: opened over it.
+    $old = strpos($from, 'results:') === 0 ? strval(substr($from, strlen('results:'))) : '';
+    if (preg_match('/^cat_grid:[^:]+:([^:]+)$/D', $from, $m) && isset(AioCat::$at_once[$m[1]]))
+        $old = $m[1];
+    $replace = $old !== '';
     if ($replace)
-        aio_catv_search_drop(strval(substr($from, strlen('results:'))));
+        aio_catv_search_drop($old);
     // Not array_shift: an id of digits only is a key of int, it would renumber it.
     while (count(AioCat::$searches) > AIO_CATV_SEARCHES)
     {
@@ -2537,6 +2545,8 @@ function aio_catv_search_run($q, $from)
     // the expanded row of r25: the grid of r24 has neither the search key nor the info panel. Not
     // after a failure or of a saved copy: the results say so on the row and do not ask again.
     $one = count($rids) === 1 && $whole && aio_catv_all_ok();
+    if ($one)
+        AioCat::$at_once[$sid] = true;
     $url = $one ? "cat_grid:{$rids[0]}:$sid" : "cat_search:$sid";
     $caption = $one ? AioCat::$lists[$rids[0]]['st']['row']['name'] : aio_tr($lang, 'cat_results');
     return $replace ? aio_replace_act($url, $caption) : aio_catv_open_act($url, $caption);
