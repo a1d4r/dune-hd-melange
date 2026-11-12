@@ -8,8 +8,9 @@ import { setBusy, show } from "./ui";
 // by a check), nothing after an answer 403 (the token of the link is not the one of the Dune any more).
 export interface Lock extends ApiHooks {
   // Holds a button that may not go while a save goes: a check. Disabled while its request goes (run), while a save
-  // goes and after a 403. One taken off the page is let go.
-  hold(button: HTMLButtonElement): void;
+  // goes, after a 403 and while its off() says so (render() after that changed). One taken off the page is let go.
+  hold(button: HTMLButtonElement, off?: () => boolean): void;
+  render(): void;
   run(button: HTMLButtonElement, on: boolean): void;
   saving(): boolean;
   // A save goes or the link expired: no check or save starts.
@@ -28,24 +29,25 @@ export function createLock(page: Page): Lock {
   const { doc, form, texts } = page;
   const saveButton = query<HTMLButtonElement>(form, "." + CLS.save),
     resetButton = byId<HTMLButtonElement>(doc, ID.resetConf);
-  const held = new Set<HTMLButtonElement>(),
+  const held = new Map<HTMLButtonElement, (() => boolean) | null>(),
     running = new Set<HTMLButtonElement>();
   let saving = false,
     expired = false,
     saves = 0;
   function render(): void {
-    held.forEach((button) => {
+    held.forEach((off, button) => {
       if (!button.isConnected) held.delete(button);
-      else button.disabled = expired || saving || running.has(button);
+      else button.disabled = expired || saving || running.has(button) || (!!off && off());
     });
     saveButton.disabled = resetButton.disabled = expired || saving;
     setBusy(saveButton, saving);
   }
   return {
-    hold(button: HTMLButtonElement): void {
-      held.add(button);
+    hold(button: HTMLButtonElement, off?: () => boolean): void {
+      held.set(button, off || null);
       render();
     },
+    render: render,
     run(button: HTMLButtonElement, on: boolean): void {
       if (on) running.add(button);
       else running.delete(button);
@@ -56,7 +58,10 @@ export function createLock(page: Page): Lock {
     blocked: () => saving || expired,
     saves: () => saves,
     expired: () => expired,
-    free: (button: HTMLButtonElement) => !saving && !expired && !running.has(button),
+    free: (button: HTMLButtonElement) => {
+      const off = held.get(button);
+      return !saving && !expired && !running.has(button) && !(off && off());
+    },
     onSaving(on: boolean): void {
       if (on) saves++;
       saving = on;

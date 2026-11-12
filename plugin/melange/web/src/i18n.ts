@@ -103,6 +103,16 @@ export const TEXT_KEYS = [
   "importing",
   "importTooBig",
   "importUnread",
+  // The source profiles (profiles.ts): the mark of the one in use, the line of one without its config, the labels of
+  // its fields and buttons, the question before "Delete" (%s: its name).
+  "profileNow",
+  "profileNoConf",
+  "profileName",
+  "profileLink",
+  "profileEdit",
+  "profileSave",
+  "profileDelete",
+  "profileDeleteConfirm",
 ] as const;
 
 export type Texts = Record<(typeof TEXT_KEYS)[number], string>;

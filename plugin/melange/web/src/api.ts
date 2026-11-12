@@ -20,6 +20,14 @@ export type Save = { ok: true; next: string; aio: ConfHow | ""; rows: boolean; n
 export type CatRow = { key: string; name: string; group: string; home: boolean; tab: "movie" | "series" };
 export type CatRows = { ok: boolean; stale: boolean; rows: CatRow[] };
 
+// The source profiles (lib/profiles.php): each in order - its name, the line under it (kind and host), the one in use,
+// its config there (ready), the link of an own config; def - the name of a new one, max - the most there can be.
+export type Profile = { name: string; line: string; now: boolean; ready: boolean; url: string | null };
+export type ProfileList = { list: Profile[]; def: string; max: number };
+// a=profile_*: list - those of the file (null: none sent, it was not read), part - the field of a profile the error
+// is about (name, url; not a field of the form), manifest - the new link of the profile in use is the source now.
+export type ProfileAnswer = { ok: boolean; msg: string; list: ProfileList | null; part: string | null; manifest: boolean };
+
 // a=import: next - the page again (its values imported), msg - why nothing was written.
 export type Import = { ok: true; next: string } | { ok: false; msg: string };
 
@@ -90,6 +98,30 @@ export const importBody = (text: string): string => "settings=" + encodeURICompo
 function parseImport(json: Json): Import | null {
   if (json.ok === true && typeof json.next === "string") return { ok: true, next: json.next };
   return json.ok === false ? { ok: false, msg: String(json.msg) } : null;
+}
+
+// #init.profiles and "profiles" of an answer; another shape: null.
+export function parseProfiles(value: unknown): ProfileList | null {
+  if (!isObject(value) || !Array.isArray(value.list) || typeof value.def !== "string" || typeof value.max !== "number") return null;
+  const parseProfile = (item: Json): Profile => ({
+    name: String(item.name),
+    line: String(item.line),
+    now: item.now === true,
+    ready: item.ready === true,
+    url: typeof item.url === "string" ? item.url : null,
+  });
+  return { list: parseItems(value.list, parseProfile), def: value.def, max: value.max };
+}
+
+function parseProfileAnswer(json: Json): ProfileAnswer | null {
+  if (typeof json.ok !== "boolean") return null;
+  return {
+    ok: json.ok,
+    msg: typeof json.msg === "string" ? json.msg : "",
+    list: parseProfiles(json.profiles),
+    part: typeof json.part === "string" ? json.part : null,
+    manifest: json.manifest === true,
+  };
 }
 
 function parseCatRows(json: Json): CatRows | null {
@@ -199,6 +231,14 @@ export function createApi(base: string | null, hooks: ApiHooks) {
     aioSync: (reset: boolean) => save("&a=aio_sync&ajax=1", reset ? "reset=1" : "", parseSync, 60000),
     // body: importBody() of the file as read; a write as a save is (no other save meanwhile).
     importSettings: (body: string) => save("&a=import&ajax=1", body, parseImport),
+    // The source profiles: the list (nothing written); a new one of the saved source, one changed (i: its place,
+    // was: its name on the page; url: of an own config), one deleted - each a write as a save is.
+    profiles: () => post("&a=profiles&ajax=1", "", parseProfileAnswer),
+    profileAdd: (name: string) => save("&a=profile_add&ajax=1", "name=" + encodeURIComponent(name), parseProfileAnswer),
+    profileEdit: (i: number, was: string, name: string, url: string | null) =>
+      save("&a=profile_edit&ajax=1", "i=" + i + "&was=" + encodeURIComponent(was) + "&name=" + encodeURIComponent(name) +
+        (url !== null ? "&url=" + encodeURIComponent(url) : ""), parseProfileAnswer),
+    profileDel: (i: number, was: string) => save("&a=profile_del&ajax=1", "i=" + i + "&was=" + encodeURIComponent(was), parseProfileAnswer),
   };
 }
 

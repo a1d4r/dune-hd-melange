@@ -64,6 +64,14 @@ function aio_cgi_fields()
         // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
         'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
+        // "Профили источников" (0.58.0): aio_cgi_src_profiles(); its radios at the top of the form too, for the CSS
+        // (the block of the profiles on #src).
+        'src_profiles' => array('id' => 'spf', 'name' => 'src_profiles', 'set' => 'src_profiles', 'max' => 0, 'type' => 'radio',
+            'scr' => 'adv'),
+        // The source as the page came (aio_cgi_src_was): posted back the same, the save keeps the stored one
+        // (MENU of a list on the Dune may have switched the profile since).
+        'src_was' => array('id' => 'sw', 'name' => 'src_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src',
+            'raw' => true),
         // "Рейтинг IMDb на постерах": aio_cgi_cat_rating().
         'cat_rating' => array('id' => 'rti', 'name' => 'cat_rating', 'set' => 'cat_rating', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // "Логотип фильма вместо названия" (0.55.0): aio_cgi_cat_logo().
@@ -337,6 +345,35 @@ function aio_cgi_source_errors_block($v)
     $f = aio_cgi_fields();
     return '<p class="lbl">' . aio_cgi_l('Ошибки источников', 'Source errors') . '</p>' .
         aio_cgi_choice($f['source_errors'], aio_cgi_source_errors(), $v['source_errors']);
+}
+
+// The answers of "Профили источников" on the screen #adv (radio src_profiles, 0.58.0): its
+// value => array(name, hint); "on" - src_profiles of the settings.
+function aio_cgi_src_profiles()
+{
+    return array(
+        'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
+            'Источник выбирается только в «Откуда брать фильмы».',
+            'The source is chosen in "Where to get films" only.')),
+        'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
+            'MENU в списке раздач → «Откуда брать». Профили — в «Откуда брать фильмы».',
+            'Release list: MENU → "Get films from". Profiles are in "Where to get films".')));
+}
+
+// The answer of aio_cgi_src_profiles() of src_profiles of the settings (a bool).
+function aio_cgi_src_profiles_of($on)
+{
+    return $on ? 'on' : 'off';
+}
+
+// "Профили источников" on #adv: the cards of its radios (aio_cgi_form).
+function aio_cgi_src_profiles_cards()
+{
+    $out = '<p class="lbl">' . aio_cgi_l('Профили источников', 'Source profiles') . '</p><div class="choice">';
+    $i = 0;
+    foreach (aio_cgi_src_profiles() as $x)
+        $out .= aio_cgi_card('spf' . ++$i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
+    return $out . '</div>';
 }
 
 // The answers of "Запуск торрентов" on the screen #adv (radio no_torrents, 0.49.0): its
@@ -777,7 +814,73 @@ function aio_cgi_src($v)
         'Get it at: Save & Install → Stremio → Direct Manifest URL.'), aio_cgi_chk('mb', 'mr')) .
         '<p class="hint">' . aio_cgi_l('Melange этот конфиг не меняет.', 'Melange does not change this config.') .
         '</p><p class="hint xa">' . aio_cgi_l('Торренты из него играют через ', 'Torrents of it play via ') .
-        '<a href="#torr">TorrServer</a>.</p></div>';
+        '<a href="#torr">TorrServer</a>.</p></div>' . aio_cgi_profiles_block() .
+        '<input type="hidden" id="' . $f['src_was']['id'] . '" name="' . $f['src_was']['name'] . '" value="' .
+        aio_cgi_h($v['src_was']) . '">';
+}
+
+// src_was (0.58.0): the answer (watch), the AIOStreams server, the own server and the manifest by spaces (none is
+// in a right one); the last two as stored (a right one typed otherwise - "/" at the end, stremio:// - as the save
+// stores it), a wrong one as it is. The script makes it of the values a save posted, as typed (web/src/save.ts).
+function aio_cgi_src_key($watch, $server, $own, $manifest)
+{
+    $o = aio_aio_own($own);
+    $m = aio_manifest_url($manifest);
+    return implode(' ', array($watch, $server, $o !== '' ? $o : $own, $m !== '' ? $m : $manifest));
+}
+
+// src_was of the values of the settings $v (aio_cgi_values): as the page shows them.
+function aio_cgi_src_was($v)
+{
+    return aio_cgi_src_key(aio_cgi_watch($v), $v['aio_server'], $v['aio_own'], $v['manifest']);
+}
+
+// src_was as posted, by aio_cgi_src_key (not of four parts: as it is).
+function aio_cgi_src_was_of($posted)
+{
+    $x = explode(' ', $posted);
+    return count($x) === 4 ? aio_cgi_src_key($x[0], $x[1], $x[2], $x[3]) : $posted;
+}
+
+// src_was of the values posted $v (aio_cgi_posted).
+function aio_cgi_src_was_posted($v)
+{
+    return aio_cgi_src_key($v['watch'], $v['aio_server'], $v['aio_own'], $v['manifest']);
+}
+
+// src_was of the settings $s (aio_settings_read).
+function aio_cgi_src_was_stored($s)
+{
+    return aio_cgi_src_key($s['source'] === 'own' ? 'own' : $s['aio_mode'], $s['aio_server'], $s['aio_own_url'],
+        $s['manifest_url']);
+}
+
+// A text field not posted (no name=, so not a change for the bar of the save either).
+function aio_cgi_unposted($id, $label, $placeholder, $max)
+{
+    return '<label for="' . $id . '">' . $label . '</label><div class="f"><input id="' . $id . '" type="text" value="" placeholder="' .
+        aio_cgi_h($placeholder) . '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="' .
+        $max . '"></div>';
+}
+
+// The source profiles (0.58.0) at the bottom of #src: shown by the script (none without it) and by the CSS only
+// with "Профили источников" on (class xs). The list (#prl) by the script from #init.profiles; under it the line of
+// no profiles, "Название" and "Сохранить текущий как профиль" (a=profile_add), the lines why it is disabled: a
+// change not saved yet, the profiles full.
+function aio_cgi_profiles_block()
+{
+    return '<div id="pr" class="xs" hidden><h3 class="gh">' . aio_cgi_l('Профили источников', 'Source profiles') .
+        '</h3><div id="prl"></div><p class="hint" id="pre" hidden>' .
+        aio_cgi_l('Профилей нет: сохраните хотя бы два, чтобы переключать их на Дюне.',
+        'No profiles: save at least two to switch between them on the Dune.') . '</p>' .
+        aio_cgi_unposted('prn', aio_cgi_l('Название', 'Name'), '', AIO_PROFILE_NAME_MAX) .
+        '<button type="button" id="pra" class="btn ghost">' .
+        aio_cgi_l('Сохранить текущий как профиль', 'Save the current source as a profile') . '</button>' .
+        '<p class="hint" id="prd" hidden>' . aio_cgi_l('Сначала сохраните настройки, потом текущий источник как профиль.',
+        'Save the settings first, then the current source as a profile.') . '</p>' .
+        '<p class="hint" id="prx" hidden>' . sprintf(aio_cgi_l('Профилей уже %d. Удалите лишний, чтобы добавить новый.',
+        'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX) . '</p>' .
+        '<div id="prr" class="res" aria-live="polite"></div></div>';
 }
 
 // The screen "AIOStreams" (#cfg, 0.44.0; its fields: Debrid and
@@ -853,7 +956,8 @@ function aio_cgi_css()
 // the page stays the answer to a GET. No fetch -> the form posts as usual.
 // Messages go in by textContent; #init has the texts (i18n), the defaults,
 // the configs of the servers by mode (confs) and the template for a new
-// config of each mode (tplNew); the script is cgi/settings.js, built from web/ (none readable:
+// config of each mode (tplNew), the source profiles (profiles: aio_cgi_profiles_data); the script is
+// cgi/settings.js, built from web/ (none readable:
 // the page without it).
 function aio_cgi_js($v)
 {
@@ -924,7 +1028,15 @@ function aio_cgi_js($v)
             'The current settings will be replaced with those from the file, the link of this page with the one from the file: the current link will stop working. Continue?'),
         'importing' => aio_cgi_l('Загружаю…', 'Loading…'),
         'importTooBig' => aio_cgi_import_big(),
-        'importUnread' => aio_cgi_l('Файл не прочитался — выберите его ещё раз', 'The file could not be read: choose it again')) +
+        'importUnread' => aio_cgi_l('Файл не прочитался — выберите его ещё раз', 'The file could not be read: choose it again'),
+        // The source profiles (lib/profiles.php, web/src/profiles.ts).
+        'profileNow' => aio_cgi_l('сейчас', 'now'),
+        'profileNoConf' => sprintf(aio_cgi_l('Конфига нет: выберите этот сервер и режим, затем нажмите «%s».',
+            'No config: choose this server and mode, then press "%s".'), aio_cgi_saveb()),
+        'profileName' => aio_cgi_l('Название', 'Name'), 'profileLink' => aio_cgi_l('Ссылка на конфиг', 'Config link'),
+        'profileEdit' => aio_cgi_l('Изменить', 'Edit'), 'profileSave' => aio_cgi_l('Сохранить профиль', 'Save the profile'),
+        'profileDelete' => aio_cgi_l('Удалить', 'Delete'),
+        'profileDeleteConfirm' => aio_cgi_l('Удалить профиль «%s»?', 'Delete the profile "%s"?')) +
         // The lines of the main screen (aio_cgi_rows).
         aio_cgi_home_texts();
     $js = dirname(dirname(__FILE__)) . '/settings.js';
@@ -932,7 +1044,8 @@ function aio_cgi_js($v)
     if (!is_string($js))
         return '';
     $init = json_encode(array('i18n' => $t, 'jacredDefault' => AIO_JACRED_DEFAULT,
-        'tplNew' => array(AIO_MODE_DEBRID => $v['tpl_new'], AIO_MODE_P2P => $v['tpl_p2p_new']), 'confs' => aio_cgi_aio_confs($v)));
+        'tplNew' => array(AIO_MODE_DEBRID => $v['tpl_new'], AIO_MODE_P2P => $v['tpl_p2p_new']), 'confs' => aio_cgi_aio_confs($v),
+        'profiles' => $v['prof']));
     // JSON_HEX_TAG for "<" (PHP 5.3 has none): no "</script>" or "<!--" in the element; "<" is only in strings.
     return '<script type="application/json" id="init">' . str_replace('<', '\\u003c', $init) . '</script><script>' .
         $js . '</script>';
@@ -979,7 +1092,7 @@ function aio_cgi_rows_later()
 // after the import of a file (a=import), its line in #msg (2: and that the
 // link of the file was not written); $rows: with $saved,
 // the rows of the catalog changed (aio_cgi_rows_later).
-// The page (0.43.0): the radios of watch and no_torrents, then the screens, #home
+// The page (0.43.0): the radios of watch, no_torrents and src_profiles, then the screens, #home
 // last - the CSS shows the one of the address (#src...), else #home, the fields
 // of the answer chosen and, with "Без торрентов" in effect, #home without the
 // lines of TorrServer and the servers (without the script too); the bar of the
@@ -1017,6 +1130,9 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false)
     $i = 0;
     foreach (array_keys(aio_cgi_no_torrents()) as $x)
         $radios .= aio_cgi_vradio('nt' . ++$i, $f['no_torrents']['name'], $x, $v['no_torrents'] === $x);
+    $i = 0;
+    foreach (array_keys(aio_cgi_src_profiles()) as $x)
+        $radios .= aio_cgi_vradio('spf' . ++$i, $f['src_profiles']['name'], $x, $v['src_profiles'] === $x);
     $form = '<form method="post" action="settings?t=' . aio_cgi_h($t) . '" autocomplete="off">' .
         // Enter in a field without the script submits the first button: the save, not the reset.
         '<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>' . $radios .
@@ -1040,7 +1156,8 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false)
         aio_cgi_screen('look', aio_cgi_look_screen($v)) .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
-        aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_source_errors_block($v)) .
+        aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_source_errors_block($v) .
+            aio_cgi_src_profiles_cards()) .
         aio_cgi_screen('bak', aio_cgi_backup($t, $v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .

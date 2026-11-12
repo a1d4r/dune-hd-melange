@@ -22,10 +22,11 @@ const PLACEHOLDERS: Partial<Record<keyof Texts, string[]>> = {
   changeOne: ["%d"],
   changeFew: ["%d"],
   changeMany: ["%d"],
+  profileDeleteConfirm: ["%s"],
 };
 
-// Made by the script, not by PHP: "Duplicate", the "on" state of an eye, the mark of an error.
-const SCRIPT_CLASSES: string[] = [CLS.serverDup, CLS.on, CLS.bad];
+// Made by the script, not by PHP: "Duplicate", the "on" state of an eye, the mark of an error, a source profile.
+const SCRIPT_CLASSES: string[] = [CLS.serverDup, CLS.on, CLS.bad, CLS.profile, CLS.profileHead, CLS.profileDelete];
 // Made by PHP only on a page with errors of a save (#msg): the own fields with one shown.
 const ERROR_CLASSES: string[] = [CLS.ownOpen];
 

@@ -7,7 +7,8 @@
 //                      the Dune (aio_cgi_lang);
 //   POST ?t=<token> -> format (no request out) -> the keys given checked with
 //                      their services (a refused one: nothing written) ->
-//                      write settings.json v 2 (aio_confs kept) -> the
+//                      write settings.json v 2 (aio_confs and the profiles kept;
+//                      src_was posted back as the page came: the stored source) -> the
 //                      config of AIOStreams as a=aio_sync -> 303 to GET
 //                      ?t=<token>&saved=1 (a reload does not post again);
 //                      errors -> the form back (only without JS);
@@ -58,7 +59,11 @@
 //   POST ?t=<token>&a=key_check&ajax=1 (what, key) -> the key checked with
 //                      Real-Debrid, TorBox or TMDB, JSON {ok, level, msg}, nothing written;
 //   POST ?t=<token>&a=cat_rows&ajax=1 -> the rows of the catalog (lib/rows.php),
-//                      JSON {ok, stale, rows: [{key, name, group, home}]}, nothing written.
+//                      JSON {ok, stale, rows: [{key, name, group, home}]}, nothing written;
+//   POST ?t=<token>&a=profiles|profile_add|profile_edit|profile_del&ajax=1 -> the
+//                      source profiles (0.58.0, lib/profiles.php): the list, a new one of
+//                      the stored source, its name or link changed, one deleted; JSON {ok,
+//                      msg[, profiles, field, manifest]}, settings.json written whole.
 // Input only goes through the rules of common.php; it never reaches exec,
 // a path or eval. stderr (dune_apk_cgi_err.log) gets reasons, never values.
 // PHP 5.3 syntax; php-cgi has no date.timezone: dates only in the log
@@ -80,6 +85,7 @@ require dirname(__FILE__) . '/lib/form.php';
 require dirname(__FILE__) . '/lib/values.php';
 require dirname(__FILE__) . '/lib/home.php';
 require dirname(__FILE__) . '/lib/backup.php';
+require dirname(__FILE__) . '/lib/profiles.php';
 
 // --- The save of the form.
 
@@ -108,6 +114,7 @@ function aio_cgi_save($dir, $t)
         aio_cgi_failed($ajax, 200, $e, aio_cgi_form($t, aio_cgi_values(aio_settings_read('')), $e, false));
     }
     $v = aio_cgi_posted();
+    $f = aio_cgi_fields();
     // The configs are never in the form: kept as they are in the file.
     $cur = aio_settings_read(aio_cgi_dir_ok($dir) ? $dir : '', $why);
     if ($why !== '')
@@ -130,12 +137,23 @@ function aio_cgi_save($dir, $t)
         $v['cat_logo'] = aio_cgi_cat_logo_of($cur['cat_logo']);
     if ($v['no_torrents'] === '')
         $v['no_torrents'] = aio_cgi_no_torrents_of($cur['no_torrents']);
+    if ($v['src_profiles'] === '')
+        $v['src_profiles'] = aio_cgi_src_profiles_of($cur['src_profiles']);
+    $v['prof'] = aio_cgi_profiles_data($cur);
     // '' is a choice here (none made), only no field at all means an older form.
     if (!isset($_POST['cat_rows']))
         $v['cat_rows'] = aio_cgi_cat_rows_of($cur['cat_rows']);
     $v['ajax'] = $ajax;
     $v['reset'] = aio_cgi_param($_POST, 'aio_reset') === '1';
     $v['first'] = !$cur['saved_once'];
+    // The source as the page came posted back (src_was; none: a form of before), the stored one another (MENU of a
+    // list switched the profile, another tab saved): the stored one stays (aio_cgi_src_kept).
+    $was = aio_cgi_src_was_of($v['src_was']);
+    if (isset($_POST[$f['src_was']['name']]) && $was === aio_cgi_src_was_posted($v) && $was !== aio_cgi_src_was_stored($cur))
+    {
+        aio_cgi_log('save: the source changed since the page came, the stored one kept');
+        $v = aio_cgi_src_kept($v, $cur);
+    }
     list($data, $errors) = aio_cgi_check_values($v);
     if ($errors)
     {
@@ -152,7 +170,6 @@ function aio_cgi_save($dir, $t)
             'Not saved: the plugin data folder is missing on the Dune'))), "500 No data dir, nothing written\n");
     }
     $notes = array();
-    $f = aio_cgi_fields();
     foreach (array('rd', 'tb', 'tmdb') as $what)
     {
         $k = $f[$what]['set'];
@@ -175,9 +192,12 @@ function aio_cgi_save($dir, $t)
     // Read again just before the write: a=aio_sync of another tab may have
     // written them while the keys were checked.
     $cur = aio_settings_read($dir);
+    $on = $data['src_profiles'];
+    unset($data['src_profiles']);
     $data['aio_confs'] = $cur['aio_confs'];
-    // The source profiles (0.58.0) are not in the form: kept as they are in the file.
-    $data['src_profiles'] = $cur['src_profiles'];
+    // The source profiles (0.58.0): the setting as posted; the profiles are not in the form (a=profile_*, MENU of a
+    // list write them), kept as they are in the file. After aio_confs, as aio_settings_parse has them.
+    $data['src_profiles'] = $on;
     $data['profiles'] = $cur['profiles'];
     // The rows not changed on the page (posted as it came, cat_rows_was): the stored ones stay, the
     // dialog of the rows on the Dune may have changed them since. No cat_rows_was: a form of before.
@@ -258,6 +278,8 @@ if ($method === 'POST' && aio_cgi_param($_GET, 'ajax') === '1')
         require dirname(__FILE__) . '/lib/rows.php';
         aio_cgi_cat_rows_post($dir);
     }
+    if (in_array($a, array('profiles', 'profile_add', 'profile_edit', 'profile_del'), true))
+        aio_cgi_profile_post($dir, $a);
 }
 // Any other POST with an action is never a save: "Проверить" of a tab opened
 // before 0.31.1 posts the whole form with a=ts_check. 303 to the page, nothing written.

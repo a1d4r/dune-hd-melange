@@ -15,6 +15,7 @@ import type { Texts } from "./i18n";
 import { setupJacredNote, setupJacredSpeed } from "./jacred";
 import { createLock } from "./lock";
 import { setupMarks } from "./marks";
+import { type Profiles, setupProfiles } from "./profiles";
 import { setupRows } from "./rows";
 import { setupSave } from "./save";
 import { bindEyes, maskSecrets } from "./secrets";
@@ -22,12 +23,13 @@ import { setupServerChecks, setupServers } from "./servers";
 
 // Written by aio_cgi_js(). i18n and jacredDefault: always written, checked by isInit() (else #init is broken);
 // confs: {<mode>: {<value of a server option>: {cfg, login, pass, tpl, url?}}}, tplNew: the template for a new config;
-// both checked by createConfs().
+// both checked by createConfs(); profiles: the source profiles (parseProfiles).
 export interface Init {
   i18n: Texts;
   jacredDefault: string;
   tplNew?: unknown;
   confs?: unknown;
+  profiles?: unknown;
 }
 
 function isInit(json: unknown): json is Init {
@@ -55,10 +57,13 @@ function setupForm(page: Page, init: Init): void {
   setupJacredNote(page, init.jacredDefault);
   const home = setupHome(page, aio);
   const bar = setupBar(page, () => aio.creates() || aio.templateUnknown(), lock.saving);
+  // The source profiles: by the script only, with fetch.
+  let profiles: Profiles | null = null;
   // The main screen and the bar after any change: the handlers of the form, after those of its fields.
   const changed = () => {
     home.render();
     bar.render();
+    if (profiles) profiles.render();
   };
   page.form.addEventListener("input", changed);
   page.form.addEventListener("change", changed);
@@ -68,7 +73,9 @@ function setupForm(page: Page, init: Init): void {
   setupChecks(page, api, lock);
   setupServerChecks(page, api, lock);
   setupJacredSpeed(page, api, lock);
-  setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, home, changed);
+  profiles = setupProfiles(page, api, lock, bar, init.profiles, changed);
+  const shown = profiles;
+  setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, home, changed, () => shown.refresh());
   setupRows(page, api, changed);
   setupBackup(page, api, lock);
 }

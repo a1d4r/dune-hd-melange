@@ -3,7 +3,7 @@
 import type { Aio } from "./aio";
 import type { Api, ConfHow, Save, SaveError } from "./api";
 import type { Bar, Values } from "./bar";
-import { byId, checkedValue, CLS, ID, NAME, type Page, query, trimmed, tsUserinfo } from "./dom";
+import { byId, checkedValue, CLS, ID, NAME, type Page, query, sourceWas, trimmed, tsUserinfo } from "./dom";
 import type { Home } from "./home";
 import { failureText, type Texts } from "./i18n";
 import type { Lock } from "./lock";
@@ -33,8 +33,10 @@ const CONF_TEXTS: Record<ConfHow, readonly [keyof Texts, keyof Texts]> = {
   reset: ["resetting", "notReset"],
 };
 
-// changed: the main screen and the bar follow (a config made, the values saved).
-export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Marks, bar: Bar, home: Home, changed: () => void): void {
+// changed: the main screen and the bar follow (a config made, the values saved); stayed: a save stayed on the page,
+// its config (if any) answered.
+export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Marks, bar: Bar, home: Home, changed: () => void,
+  stayed: () => void): void {
   const { doc, form, texts } = page;
   const button = query<HTMLButtonElement>(form, "." + CLS.save);
   const results = () => byId(doc, ID.saveResult);
@@ -65,6 +67,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
         if (checkedValue(form, name) !== before[i]) bar.rebaseField(name);
       });
       changed();
+      stayed();
     });
   }
   // The list under the button stays; the fields of the errors marked.
@@ -99,10 +102,13 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     bar.rebase(moveTsUserinfo(posted));
     // The rows posted are now those the page came with: posted back unchanged, the next save keeps the stored ones.
     byId<HTMLInputElement>(doc, ID.rowsWas).value = posted.cat_rows ?? "";
+    // So the source: the next save keeps the stored one when it posts this one (MENU of a list may switch it).
+    byId<HTMLInputElement>(doc, ID.sourceWas).value = sourceWas(posted);
     const savedLine = addLine(results(), "ok", texts.saved);
     if (answer.rows) addLine(results(), "ok", texts.rowsLater);
     for (const note of answer.notes) addLine(results(), note.level === "ok" ? "ok" : "warn", note.msg);
     if (answer.aio) syncConf(answer.aio, savedLine);
+    else stayed();
   }
   function save(reset: boolean): void {
     const pairs = encodedOr(results(), texts.badChars, () => serialize(form));

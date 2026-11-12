@@ -10,8 +10,10 @@
 // settings; tpl_seen, tpl_p2p_seen only posted; ts_save: aio_cgi_ts_save_of()
 // of the settings, markers: aio_cgi_markers_of() (of markers_exact too), source_errors:
 // aio_cgi_source_errors_of(), cat_rating: aio_cgi_cat_rating_of(), cat_logo: aio_cgi_cat_logo_of(), no_torrents:
-// aio_cgi_no_torrents_of(), as posted - none: '',
-// settings.php puts the stored one);
+// aio_cgi_no_torrents_of(), src_profiles: aio_cgi_src_profiles_of(), as posted - none: '',
+// settings.php puts the stored one; src_was: aio_cgi_src_was() of the settings, as posted);
+// prof - the profiles for the script (aio_cgi_profiles_data of the settings, of the file
+// on a save: settings.php);
 // tpl_new, tpl_p2p_new -
 // aio_tpl, aio_tpl_p2p of the settings (for a new config);
 // mode_cur - aio_mode of the settings (one for all servers); servers -
@@ -35,6 +37,9 @@ function aio_cgi_values($s)
     $v['cat_rating'] = aio_cgi_cat_rating_of($s['cat_rating']);
     $v['cat_logo'] = aio_cgi_cat_logo_of($s['cat_logo']);
     $v['no_torrents'] = aio_cgi_no_torrents_of($s['no_torrents']);
+    $v['src_profiles'] = aio_cgi_src_profiles_of($s['src_profiles']);
+    $v['src_was'] = aio_cgi_src_was($v);
+    $v['prof'] = aio_cgi_profiles_data($s);
     $v['cat_rows'] = aio_cgi_cat_rows_of($s['cat_rows']);
     $v['cat_rows_was'] = $v['cat_rows'];
     $v['servers'] = $s['servers'];
@@ -88,6 +93,25 @@ function aio_cgi_posted()
         }
         $v['servers'][] = $s;
     }
+    return $v;
+}
+
+// The values posted $v with the source of the stored settings $cur (src_was posted back as the page came, the
+// stored source another one: settings.php): the answer, the mode, the server, the own server and the manifest
+// of the file; the templates too (none posted: the stored ones), the check of the one seen skipped - the page
+// showed those of the server it came with - and no reset by its button or another template.
+function aio_cgi_src_kept($v, $cur)
+{
+    $own = $cur['source'] === 'own';
+    $v['source'] = $cur['source'];
+    $v['watch'] = $own ? 'own' : $cur['aio_mode'];
+    $v['aio_mode'] = $own ? '' : $cur['aio_mode'];
+    $v['aio_server'] = $cur['aio_server'];
+    $v['aio_own'] = $cur['aio_own_url'];
+    $v['manifest'] = $cur['manifest_url'];
+    foreach (array('aio_tpl', 'aio_tpl_p2p', 'tpl_seen', 'tpl_p2p_seen') as $k)
+        $v[$k] = '';
+    $v['reset'] = false;
     return $v;
 }
 
@@ -320,6 +344,12 @@ function aio_cgi_check_values($v)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Логотип фильма вместо названия: нет такого ответа',
             'Film logo in place of the title: no such answer'), $f['cat_logo']['name']);
+    }
+    $d[$set['src_profiles']] = $v['src_profiles'] === aio_cgi_src_profiles_of(true);
+    if (!array_key_exists($v['src_profiles'], aio_cgi_src_profiles()))
+    {
+        $errors[] = aio_cgi_err(aio_cgi_l('Профили источников: нет такого ответа', 'Source profiles: no such answer'),
+            $f['src_profiles']['name']);
     }
     $d[$set['cat_rows']] = aio_cat_rows_ok(explode(' ', $v['cat_rows']));
     return array($d, $errors);

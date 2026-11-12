@@ -95,6 +95,20 @@ export const ID = {
   backupButton: "bkb",
   backupFile: "bkf",
   backupResult: "bkr",
+  // The source as the page came (or the last save that stayed on it): posted back the same, the save keeps the stored
+  // one (MENU of a list on the Dune may have switched the profile since). Its form: sourceWas().
+  sourceWas: "sw",
+  // The source profiles (0.58.0, profiles.ts) at the bottom of #src: the block (shown by the script, by the CSS only
+  // with "Source profiles" on), the list, the line of none, the name of a new one, "Save the current one as a
+  // profile", the lines why it is disabled (a change not saved, the profiles full), results.
+  profiles: "pr",
+  profileList: "prl",
+  profilesNone: "pre",
+  profileName: "prn",
+  profileAdd: "pra",
+  profileDirty: "prd",
+  profilesFull: "prx",
+  profileResult: "prr",
 } as const;
 
 // The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>; in the order of the page.
@@ -124,6 +138,17 @@ export const CLS = {
   screen: "scr",
   // A field or server block an error of the save is about (made by the script).
   bad: "bad",
+  // A mark after a title ("of Melange"; "now" of a source profile).
+  badge: "badge",
+  // A line under a title (of a card, a profile), the warning one.
+  value: "v",
+  warn: "wn",
+  // A source profile, its head (name, kind and host), its "Delete" (made by the script).
+  profile: "prof",
+  profileHead: "pt",
+  profileDelete: "prdel",
+  // A box of results (aria-live).
+  result: "res",
 } as const;
 
 // The data- attributes the page has for the script.
@@ -161,6 +186,11 @@ export const DATA = {
 export const NAME = {
   // "Where to get films": VALUE.debrid, VALUE.p2p (the configs melange makes, by their mode) or VALUE.own.
   watch: "watch",
+  // The own server of AIOStreams (its address), the link of the own config.
+  aioOwnUrl: "aio_own_url",
+  manifest: "manifest",
+  // "Source profiles" (0.58.0): VALUE.on, VALUE.off.
+  srcProfiles: "src_profiles",
   // The AIOStreams server: a URL of the list or VALUE.own (own one, its address in #ao).
   aioServer: "aio_server",
   jacred: "jacred",
@@ -249,6 +279,11 @@ export function tsUserinfo(s: string): [string, string | null, string | null] {
     user = c < 0 ? ui : ui.slice(0, c);
   if (at <= pre || /[\/?#]/.test(ui) || trimmed(user) === "") return [s, null, null];
   return [s.slice(0, pre) + s.slice(at + 1), user, c < 0 ? "" : ui.slice(c + 1)];
+}
+
+// src_was of the values a save posted (aio_cgi_src_key of PHP: it reads the own server and the link as it stores them).
+export function sourceWas(values: Record<string, string>): string {
+  return [values[NAME.watch] ?? "", values[NAME.aioServer] ?? "", trimmed(values[NAME.aioOwnUrl] ?? ""), trimmed(values[NAME.manifest] ?? "")].join(" ");
 }
 
 // The host of an address as parse_url() of PHP finds it ("" - none).

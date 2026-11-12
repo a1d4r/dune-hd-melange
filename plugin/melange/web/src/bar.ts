@@ -14,6 +14,8 @@ export interface Bar {
   rebase(saved: Values): void;
   // A field set by the script (the template found by aio_sync): its value now is no change.
   rebaseField(name: string): void;
+  // Something to save: a change, or a save wanted with none.
+  pending(): boolean;
 }
 
 export type Values = Record<string, string>;
@@ -48,10 +50,14 @@ export function setupBar(page: Page, wanted: () => boolean, saving: () => boolea
     lang = doc.documentElement.lang;
   let base = values(form);
 
-  function render(): void {
+  function changes(): number {
     const now = values(form);
     let count = 0;
     for (const name in now) if (now[name] !== base[name]) count++;
+    return count;
+  }
+  function render(): void {
+    const count = changes();
     dirty.textContent = count ? plural(texts, lang, count) : "";
     hide.hidden = !results.firstChild || saving();
     bar.hidden = !count && !wanted() && !saving() && !results.firstChild;
@@ -72,5 +78,6 @@ export function setupBar(page: Page, wanted: () => boolean, saving: () => boolea
       base[name] = values(form)[name]!;
       render();
     },
+    pending: () => changes() > 0 || wanted(),
   };
 }
