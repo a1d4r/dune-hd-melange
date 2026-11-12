@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.57.2 — 12.11.2026
+- Fixed: new and removed rows on the server now show in the catalog after you open it again, not an hour later. On r24 firmware the list of rows could stop updating altogether.
+
 ## 0.57.1 — 12.11.2026
 - Fixed: on r24 firmware, with **Film logo in place of the title** on, the catalog showed its background squeezed into the right part of the screen, with the logo in the middle. On r24 and older the catalog now shows the background on the right and the title as text, as with the logo off. The logo needs r25: the setting stays as you chose it, and after a firmware update to r25 the logo shows by itself. The settings page says so under the setting.
 - Fixed: **Next Episode** no longer starts before the credits when their time was taken from another edition of the episode. If the credits mark is not matched to the file length and ends more than a minute before the end of the file, there is no **Next Episode** button, and the episode plays to the end.
@@ -213,6 +216,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.57.2 — 12.11.2026
+- Исправлено: новые и убранные на сервере ряды теперь появляются и пропадают в каталоге, когда вы откроете его снова, а не через час. На прошивке r24 список рядов раньше мог не обновляться совсем.
 
 ## 0.57.1 — 12.11.2026
 - Исправлено: на прошивке r24 с включённой настройкой «Логотип фильма вместо названия» фон каталога сжимался в правую часть экрана, а логотип оказывался посередине. Теперь на r24 и более старых прошивках каталог показывает фон справа и название текстом, как с выключенным логотипом. Логотип работает с прошивки r25: настройка остаётся, какой вы её выбрали, и после обновления Дюны до r25 логотип появится сам. На странице настроек об этом написано под пунктом.

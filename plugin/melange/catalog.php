@@ -45,8 +45,9 @@ define('AIO_CAT_SEARCH_TILES', 21);
 define('AIO_CAT_SEARCH_WAIT', 10);
 
 // Cache in data_dir/catalog: a failure right after a reboot has it too, tmp_dir
-// (RAM) would not. Fresh for 1 h: the manifest and first pages are not asked
-// again (the server keeps rows for a day). Kept for 30 days as the last good
+// (RAM) would not. Fresh for 1 h: first pages are not asked again (the server
+// keeps rows for a day); the manifest is asked at every opening of the catalog
+// and by the settings page, its copy is for a failure. Kept for 30 days as the last good
 // copy: an older row is of little use, and TMDB allows 6 months at most. 8 MB,
 // 400 files: ~80 pages of 100 KB (json_encode makes Cyrillic 6 bytes a letter),
 // the oldest go first.
@@ -312,7 +313,7 @@ function aio_cat_manifest_fetch($limit = 0)
     return array('rows' => array(), 'err' => $g['err'] !== '' ? $g['err'] : 'bad');
 }
 
-// Rows of the catalog: from the cache for AIO_CAT_FRESH, else from the server; on
+// Rows of the catalog from the server, a copy of any age does not stop the request; on
 // a failure the last good copy with stale set, err tells why ('' none; aio_cat_get).
 // No copy either: no rows and err.
 /**
@@ -320,12 +321,10 @@ function aio_cat_manifest_fetch($limit = 0)
  */
 function aio_cat_manifest()
 {
-    $c = aio_cat_manifest_copy();
-    if ($c['rows'] && aio_cat_is_fresh($c))
-        return array('rows' => $c['rows'], 'stale' => false, 'err' => '');
     $new = aio_cat_manifest_fetch();
     if ($new['rows'])
         return array('rows' => $new['rows'], 'stale' => false, 'err' => '');
+    $c = aio_cat_manifest_copy();
     return array('rows' => $c['rows'], 'stale' => (bool) $c['rows'], 'err' => $new['err']);
 }
 
