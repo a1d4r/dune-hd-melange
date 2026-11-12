@@ -7,7 +7,7 @@
 // Enter in its name too) makes one of the saved source: disabled while the form has something to save (the bar), the
 // profiles are full or the source in use is a profile already, the line why under it. Each request is a write as a
 // save is: none goes while another one does ("Cancel" is disabled meanwhile too). Enter in a field of the profiles
-// never submits the form.
+// never submits the form: an implicit submission from one (Enter of an IME) presses its button too (submitted).
 
 import { type Api, parseProfiles, type Profile, type ProfileAnswer, type ProfileList, type Result } from "./api";
 import type { Bar } from "./bar";
@@ -22,6 +22,9 @@ export interface Profiles {
   render(): void;
   // After a save that stayed on the page (and the config made there): "now" and "No config" anew (a=profiles).
   refresh(): void;
+  // The submit of the form with field focused: a field of the profiles - its button pressed, as by Enter (that of an
+  // IME on Android may come as key "Unidentified" or composing, then the implicit submission) -> true; else false.
+  submitted(field: Element | null): boolean;
 }
 
 // The fields of a request by the part of its errors (name, url).
@@ -44,6 +47,8 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
   const nowSaved = () => profiles.list.some((p) => p.now);
   block.hidden = false;
   lock.hold(add, () => bar.pending() || isFull() || nowSaved());
+  // The button of each field of the profiles: of Enter and of the implicit submission (submitted).
+  const targets = new WeakMap<Element, HTMLButtonElement>();
 
   function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string): HTMLElementTagNameMap[K] {
     const made = doc.createElement(tag);
@@ -73,6 +78,7 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
 
   // Enter in a field of the profiles: its button (the implicit submission of the form would save the whole form).
   function enterClicks(input: HTMLInputElement, target: HTMLButtonElement): void {
+    targets.set(input, target);
     input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" || event.isComposing) return;
       event.preventDefault();
@@ -235,6 +241,12 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
   render();
   return {
     render: render,
+    submitted(field: Element | null): boolean {
+      const target = field && targets.get(field);
+      if (!target) return false;
+      target.click();
+      return true;
+    },
     refresh(): void {
       // Off as saved: the block is hidden, a save turning it on comes first.
       if (checkedValue(page.form, NAME.srcProfiles) !== VALUE.on) return;

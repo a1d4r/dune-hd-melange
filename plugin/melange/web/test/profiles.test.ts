@@ -1,8 +1,8 @@
 // The source profiles (#pr, 0.58.0): the block by the script (by the CSS only with "Source profiles" on), the list
 // of #init, "Save the current one as a profile" (a=profile_add, disabled with a change not saved, the profiles full
 // or the source in use a profile), "Edit" -> a=profile_edit (the link of the one in use: the field of the own config
-// too) and "Cancel" (disabled while a request goes), "Delete" -> a=profile_del, Enter in their fields, the list anew
-// after a save that stayed; src_was after such a save.
+// too) and "Cancel" (disabled while a request goes), "Delete" -> a=profile_del, Enter in their fields (and the submit
+// of the form from them: Enter of an IME), the list anew after a save that stayed; src_was after such a save.
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
@@ -190,6 +190,48 @@ describe("Save the current one as a profile: in use, Enter", () => {
     expect(enter(page, page.el(ID.profileName))).toBe(true);
     await flush();
     expect(page.calls).toEqual([]);
+  });
+});
+
+// The implicit submission of the form (Enter of an IME on Android: key "Unidentified", the keydown not caught).
+const imeSubmit = (page: Page, input: HTMLInputElement) => {
+  input.focus();
+  const key = new page.win.KeyboardEvent("keydown", { key: "Unidentified", bubbles: true, cancelable: true }) as unknown as Event;
+  input.dispatchEvent(key);
+  const submit = new page.win.Event("submit", { cancelable: true }) as unknown as Event;
+  page.form.dispatchEvent(submit);
+  return [key.defaultPrevented, submit.defaultPrevented];
+};
+
+describe("Enter of an IME: the submit of the form", () => {
+  test("from the name of a new one: a=profile_add, not the save", async () => {
+    const page = open("prof", NONE_NOW);
+    page.type(ID.profileName, "Мой");
+    page.replies.push(answer(true, "Профиль «Мой» сохранён"));
+    expect(imeSubmit(page, page.el<HTMLInputElement>(ID.profileName))).toEqual([false, true]);
+    await flush();
+    expect(page.calls.map((call) => call.url)).toEqual([url("profile_add")]);
+  });
+
+  test("from the name or the link of a card: a=profile_edit of it, not the save", async () => {
+    const page = open("prof");
+    const own = cards(page)[2]!;
+    await press(buttons(own)[1]!);
+    const [name, link] = Array.from(own.querySelectorAll<HTMLInputElement>("input"));
+    page.type(name!, "Другое");
+    page.replies.push(answer(true, "Профиль «Другое» сохранён"));
+    imeSubmit(page, link!);
+    await flush();
+    expect(page.calls).toEqual([{ ...POST, url: url("profile_edit"), body: "i=2&was=" + encodeURIComponent("Свой & <конфиг>") +
+      "&name=" + encodeURIComponent("Другое") + "&url=" + encodeURIComponent(LINK) }]);
+  });
+
+  test("from another field: the save of the form", async () => {
+    const page = open("prof");
+    page.replies.push(json({ ok: true, next: "/x", notes: [], aio: null }));
+    imeSubmit(page, page.field<HTMLInputElement>(NAME.manifest));
+    await flush();
+    expect(page.calls.map((call) => call.url)).toEqual([TOKEN + "&ajax=1"]);
   });
 });
 

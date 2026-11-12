@@ -75,7 +75,7 @@ function setupForm(page: Page, init: Init): void {
   setupJacredSpeed(page, api, lock);
   profiles = setupProfiles(page, api, lock, bar, init.profiles, changed);
   const shown = profiles;
-  setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, home, changed, () => shown.refresh());
+  setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, home, changed, () => shown.refresh(), shown);
   setupRows(page, api, changed);
   setupBackup(page, api, lock);
 }

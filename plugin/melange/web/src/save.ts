@@ -8,6 +8,7 @@ import type { Home } from "./home";
 import { failureText, type Texts } from "./i18n";
 import type { Lock } from "./lock";
 import type { Marks } from "./marks";
+import type { Profiles } from "./profiles";
 import { addLine, encodedOr, setLine, show } from "./ui";
 
 type Control = HTMLInputElement | HTMLSelectElement | HTMLButtonElement;
@@ -34,9 +35,9 @@ const CONF_TEXTS: Record<ConfHow, readonly [keyof Texts, keyof Texts]> = {
 };
 
 // changed: the main screen and the bar follow (a config made, the values saved); stayed: a save stayed on the page,
-// its config (if any) answered.
+// its config (if any) answered; profiles: a submit from a field of theirs is not a save (Profiles.submitted).
 export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Marks, bar: Bar, home: Home, changed: () => void,
-  stayed: () => void): void {
+  stayed: () => void, profiles: Pick<Profiles, "submitted">): void {
   const { doc, form, texts } = page;
   const button = query<HTMLButtonElement>(form, "." + CLS.save);
   const results = () => byId(doc, ID.saveResult);
@@ -138,6 +139,8 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    // Enter of an IME in a field of the profiles, not caught by its keydown: the button of the profile instead.
+    if (profiles.submitted(doc.activeElement)) return;
     if (lock.blocked()) return;
     // Another template with a config there: the save resets it, only asked.
     if (aio.resetPending()) {
