@@ -176,6 +176,9 @@ function aio_cgi_save($dir, $t)
     // written them while the keys were checked.
     $cur = aio_settings_read($dir);
     $data['aio_confs'] = $cur['aio_confs'];
+    // The source profiles (0.58.0) are not in the form: kept as they are in the file.
+    $data['src_profiles'] = $cur['src_profiles'];
+    $data['profiles'] = $cur['profiles'];
     // The rows not changed on the page (posted as it came, cat_rows_was): the stored ones stay, the
     // dialog of the rows on the Dune may have changed them since. No cat_rows_was: a form of before.
     if (isset($_POST[$f['cat_rows_was']['name']]) && $v['cat_rows'] === $v['cat_rows_was'])

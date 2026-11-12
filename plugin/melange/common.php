@@ -5,10 +5,11 @@
 // PHP 5.3: no firmware API, no logging here.
 // Types in the PHPDoc (AioSettings and others): phpstan-types.neon of the repository.
 
-define('AIO_VERSION', '0.57.2');
+define('AIO_VERSION', '0.58.0');
 // HTTPS works only with the firmware CA bundle (curl of the plugin and the page).
 define('AIO_CA_BUNDLE', '/firmware/certs/ca-bundle.crt');
-// In data_dir: written by the settings page only; the plugin only reads it.
+// In data_dir: written by the settings page and by the plugin (the quick setup, the rows of
+// the catalog, the source profiles of MENU of a list), whole each time (aio_settings_json).
 define('AIO_SETTINGS_FILE', 'settings.json');
 // Its format: "v" of the file the page writes; a file of v 1 (0.33) is read
 // by the migration (aio_settings_parse), a newer one is refused by the import.
@@ -632,7 +633,8 @@ function aio_jacred_list($s)
 // The secrets of the settings besides the manifest and JacRed: server
 // passwords, keys of Real-Debrid, TorBox, TMDB, the password of TorrServer, passwords of the configs
 // and the long segments of their manifests, as of the manifest in use
-// (aio_mask_secrets).
+// (aio_mask_secrets); so the long segments of the own config and of the own
+// configs of the profiles, in use or not (0.58.0).
 /**
  * @param AioSettings $s
  * @return list<string>
@@ -645,16 +647,26 @@ function aio_settings_secrets($s)
         if ($s[$k] !== '')
             $pw[] = $s[$k];
     }
+    $urls = $s['manifest_url'] !== '' ? array($s['manifest_url']) : array();
     foreach ($s['aio_confs'] as $cs)
     {
         foreach ($cs as $c)
         {
             $pw[] = $c['pass'];
-            foreach (explode('/', preg_replace('~^[^:]*://[^/]*~', '', aio_manifest_base($c['manifest']))) as $seg)
-            {
-                if (strlen($seg) >= AIO_MASK_SEGMENT)
-                    $pw[] = $seg;
-            }
+            $urls[] = $c['manifest'];
+        }
+    }
+    foreach ($s['profiles'] as $p)
+    {
+        if (isset($p['url']))
+            $urls[] = $p['url'];
+    }
+    foreach (array_unique($urls) as $url)
+    {
+        foreach (explode('/', preg_replace('~^[^:]*://[^/]*~', '', aio_manifest_base($url))) as $seg)
+        {
+            if (strlen($seg) >= AIO_MASK_SEGMENT && !in_array($seg, $pw, true))
+                $pw[] = $seg;
         }
     }
     return $pw;
@@ -662,7 +674,9 @@ function aio_settings_secrets($s)
 
 // Addresses of the settings to hide in the log, scheme://host[:port] =>
 // tag: the own TorrServer "<ts>" (not the default one on the Dune), the
-// servers of "Download to server" "<server>".
+// servers of "Download to server" "<server>", the own AIOStreams servers of the
+// configs and of the profiles and the hosts of the own configs of the profiles,
+// in use or not, "<aio>" (0.58.0; not the servers of the list: public).
 /**
  * @param AioSettings $s
  * @return array<string, string>
@@ -679,6 +693,19 @@ function aio_settings_hosts($s)
         if (!isset($h[$u]))
             $h[$u] = '<server>';
     }
+    $own = array_keys($s['aio_confs']);
+    foreach ($s['profiles'] as $p)
+    {
+        // The address of the host of an own config: as aio_aio_own makes it.
+        $own[] = isset($p['url']) ? aio_aio_own(strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $p['url']))) :
+            $p['base'];
+    }
+    $servers = aio_aio_servers();
+    foreach ($own as $u)
+    {
+        if ($u !== '' && !isset($servers[$u]) && !isset($h[$u]))
+            $h[$u] = '<aio>';
+    }
     return $h;
 }
 
@@ -691,6 +718,150 @@ function aio_settings_hosts($s)
 function aio_no_torrents($s)
 {
     return $s['no_torrents'] && !($s['source'] === 'made' && $s['aio_mode'] === AIO_MODE_P2P);
+}
+
+// --- Source profiles (0.58.0): the sources the user saved on the page, switched by MENU of a list.
+
+define('AIO_PROFILES_MAX', 8);
+// Characters of the name of a profile, at most.
+define('AIO_PROFILE_NAME_MAX', 30);
+
+// A profile as stored -> the profile, or null when it does not fit: a config
+// of Melange array('name', 'base', 'mode') - base of a server of the list
+// (aio_aio_servers) or of an own one (aio_aio_own($base) === $base, as
+// aio_aio_conf), mode of aio_aio_modes(); or an own config array('name',
+// 'url') - url of aio_manifest_url. The name: 1-AIO_PROFILE_NAME_MAX
+// characters of UTF-8, trimmed, no control ones. Other keys are dropped.
+/**
+ * @param mixed $p
+ * @return AioProfile|null
+ */
+function aio_profile_ok($p)
+{
+    if (!is_array($p) || !isset($p['name']) || !is_string($p['name']) || isset($p['url']) === isset($p['base']))
+        return null;
+    $name = trim($p['name'], AIO_TRIM);
+    // Characters, not bytes; 0 of a name that is not UTF-8 (no mbstring in common.php).
+    $n = intval(preg_match_all('/./su', $name, $m));
+    if ($n < 1 || $n > AIO_PROFILE_NAME_MAX || preg_match('/[\x00-\x1F\x7F]|\xC2[\x80-\x9F]/', $name))
+        return null;
+    if (isset($p['url']))
+    {
+        $url = aio_manifest_url($p['url']);
+        return $url !== '' ? array('name' => $name, 'url' => $url) : null;
+    }
+    $servers = aio_aio_servers();
+    $b = is_string($p['base']) ? $p['base'] : '';
+    if ((!isset($servers[$b]) && ($b === '' || aio_aio_own($b) !== $b)) || !isset($p['mode']) ||
+        !in_array($p['mode'], aio_aio_modes(), true))
+        return null;
+    return array('name' => $name, 'base' => $b, 'mode' => $p['mode']);
+}
+
+// profiles of settings.json -> those of aio_profile_ok, in order, at most
+// AIO_PROFILES_MAX; one of a name or a target already there is dropped.
+/**
+ * @param array<mixed> $list
+ * @return list<AioProfile>
+ */
+function aio_profiles_ok($list)
+{
+    $r = array();
+    $seen = array();
+    foreach ($list as $p)
+    {
+        $p = aio_profile_ok($p);
+        if (!$p || count($r) === AIO_PROFILES_MAX)
+            continue;
+        $to = isset($p['url']) ? 'url ' . $p['url'] : "made {$p['base']} {$p['mode']}";
+        if (isset($seen['name ' . $p['name']]) || isset($seen[$to]))
+            continue;
+        $seen['name ' . $p['name']] = $seen[$to] = true;
+        $r[] = $p;
+    }
+    return $r;
+}
+
+// Settings $s with profile $p in use: a config of Melange - source made, the
+// mode, the server (one of the list, else "own" with its address); an own
+// config - source own and its link, the rest kept (only stored then).
+/**
+ * @param AioSettings $s
+ * @param AioProfile $p
+ * @return AioSettings
+ */
+function aio_profile_apply($s, $p)
+{
+    if (isset($p['url']))
+    {
+        $s['source'] = 'own';
+        $s['manifest_url'] = $p['url'];
+        return $s;
+    }
+    $servers = aio_aio_servers();
+    $s['source'] = 'made';
+    $s['aio_mode'] = $p['mode'];
+    if (isset($servers[$p['base']]))
+        $s['aio_server'] = $p['base'];
+    else
+        list($s['aio_server'], $s['aio_own_url']) = array('own', $p['base']);
+    return $s;
+}
+
+// Settings $s are those of profile $p (what aio_profile_apply sets).
+/**
+ * @param AioSettings $s
+ * @param AioProfile $p
+ * @return bool
+ */
+function aio_profile_is($s, $p)
+{
+    if (isset($p['url']))
+        return $s['source'] === 'own' && $s['manifest_url'] === $p['url'];
+    return $s['source'] === 'made' && aio_settings_base($s) === $p['base'] && $s['aio_mode'] === $p['mode'];
+}
+
+// Profile $p can be used: an own config, or a config of Melange with its config
+// in aio_confs (the plugin makes none; the page does on "Save").
+/**
+ * @param AioSettings $s
+ * @param AioProfile $p
+ * @return bool
+ */
+function aio_profile_ready($s, $p)
+{
+    return isset($p['url']) || isset($s['aio_confs'][$p['base']][$p['mode']]);
+}
+
+// The index of the profile named $name in the settings $s, -1 for none.
+/**
+ * @param AioSettings $s
+ * @param string $name
+ * @return int
+ */
+function aio_profile_find($s, $name)
+{
+    foreach ($s['profiles'] as $i => $p)
+    {
+        if ($p['name'] === $name)
+            return $i;
+    }
+    return -1;
+}
+
+// The index of the profile of the settings $s in use (aio_profile_is), -1 for none.
+/**
+ * @param AioSettings $s
+ * @return int
+ */
+function aio_profile_now($s)
+{
+    foreach ($s['profiles'] as $i => $p)
+    {
+        if (aio_profile_is($s, $p))
+            return $i;
+    }
+    return -1;
 }
 
 // <data_dir>/settings.json -> array('source' => 'made' (melange makes the
@@ -726,6 +897,10 @@ function aio_no_torrents($s)
 // 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
 // 0.42 or older (one per server, base => config) is read into the cell of
 // its mode (aio_mode_of), written back so by the next save),
+// 'src_profiles' => bool, "Профили источников": the source profiles in MENU of a
+// list (0.58.0; not a bool - false), 'profiles' => list of aio_profile_ok(), at
+// most AIO_PROFILES_MAX, unique names and targets (the first one kept; kept with
+// src_profiles off too),
 // each checked by the rules above; absent or wrong -> as not set ('', the
 // default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
@@ -788,7 +963,8 @@ function aio_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_rows' => null, 'aio_confs' => array(), 'saved_once' => false);
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_rows' => null, 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
+        'saved_once' => false);
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
         $r['manifest_url'] = aio_manifest_url($j['manifest_url']);
@@ -858,6 +1034,10 @@ function aio_settings_parse($j)
         $r['no_torrents'] = $j['no_torrents'];
     if (isset($j['cat_rows']))
         $r['cat_rows'] = aio_cat_rows_ok($j['cat_rows']);
+    if (isset($j['src_profiles']) && is_bool($j['src_profiles']))
+        $r['src_profiles'] = $j['src_profiles'];
+    if (isset($j['profiles']) && is_array($j['profiles']))
+        $r['profiles'] = aio_profiles_ok($j['profiles']);
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
         foreach ($j['aio_confs'] as $b => $cs)

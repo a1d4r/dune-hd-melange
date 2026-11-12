@@ -29,6 +29,8 @@ parameters:
         AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null}'
         # A JacRed to ask (aio_jacred_conf, aio_jacred_builtin_conf, common.php).
         AioJacred: 'array{base: string, host: string, key: string, key_url: string, builtin?: bool}'
+        # A source profile (aio_profile_ok, common.php): a config of Melange or an own config.
+        AioProfile: 'array{name: string, base: string, mode: string}|array{name: string, url: string}'
         # settings.json as read (aio_settings_read, common.php).
         AioSettings: '''
             array{
@@ -58,6 +60,8 @@ parameters:
                 cat_rating: bool,
                 cat_rows: list<string>|null,
                 aio_confs: array<string, array<string, AioConf>>,
+                src_profiles: bool,
+                profiles: list<AioProfile>,
                 saved_once: bool
             }
         '''
@@ -84,7 +88,8 @@ parameters:
                 cat_rows: list<string>|null,
                 cat_logo: bool,
                 cat_rating: bool,
-                debrid_main: string
+                debrid_main: string,
+                profiles: array<int, array{name: string, now: bool}>
             }
         '''
         # Badges of a release (aio_badges, parse.php).
