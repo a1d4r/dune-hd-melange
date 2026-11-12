@@ -871,11 +871,11 @@ function aio_profile_is($s, $p)
     return $t !== null && aio_profile_key($t) === aio_profile_key($p);
 }
 
-// Profile $p can be used: an own config, or a config of Melange with its config
+// Profile $p (or a target of aio_profile_of) can be used: an own config, or a config of Melange with its config
 // in aio_confs (the plugin makes none; the page does on "Save").
 /**
  * @param AioSettings $s
- * @param AioProfile $p
+ * @param array{url: string}|array{base: string, mode: string} $p
  * @return bool
  */
 function aio_profile_ready($s, $p)
