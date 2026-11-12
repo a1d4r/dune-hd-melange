@@ -84,6 +84,8 @@ function aio_cgi_fields()
         'cat_rating' => array('id' => 'rti', 'name' => 'cat_rating', 'set' => 'cat_rating', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // "Логотип фильма вместо названия" (0.55.0): aio_cgi_cat_logo().
         'cat_logo' => array('id' => 'clg', 'name' => 'cat_logo', 'set' => 'cat_logo', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
+        // "Своя карточка" (0.59.0): aio_cgi_cat_card().
+        'cat_card' => array('id' => 'ocd', 'name' => 'cat_card', 'set' => 'cat_card', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // The rows of the catalog chosen: aio_cgi_rows_screen.
         'cat_rows' => array('id' => 'crv', 'name' => 'cat_rows', 'set' => 'cat_rows', 'max' => 0, 'type' => 'plain', 'scr' => 'rows'),
         // cat_rows as the page came (as debrid_main_was): the save keeps the stored ones when it is posted back.
@@ -421,6 +423,25 @@ function aio_cgi_cat_logo_of($on)
     return $on ? 'on' : 'off';
 }
 
+// The answers of "Своя карточка" on the screen #look (radio cat_card, 0.59.0): its value =>
+// array(name, hint); "on" - the own card in effect (aio_card_own).
+function aio_cgi_cat_card()
+{
+    return array(
+        'on' => array(aio_cgi_l('Включена', 'On'), aio_cgi_l(
+            'Карточка Melange с сезонами и сериями вместо карточки Дюны.',
+            'Melange card with seasons and episodes instead of the Dune card.')),
+        'off' => array(aio_cgi_l('Выключена', 'Off'), aio_cgi_l(
+            'Карточка Дюны, как в прежних версиях.',
+            'The Dune card, as in earlier versions.')));
+}
+
+// The answer of aio_cgi_cat_card() of cat_card of the settings (a bool, null - none chosen: by the firmware).
+function aio_cgi_cat_card_of($c)
+{
+    return aio_card_own($c) ? 'on' : 'off';
+}
+
 // The answers of "Рейтинг IMDb на постерах" on the screen #look (radio cat_rating):
 // its value => array(name, hint); "on" - cat_rating of the settings.
 function aio_cgi_cat_rating()
@@ -442,7 +463,8 @@ function aio_cgi_cat_rating_of($on)
 
 // The screen #look (a value of the form: '' or another one - none checked). Under the logo:
 // on r24, older or an unknown firmware (aio_fw_vod_r) a warning that it needs r25, the catalog
-// shows the title as text whatever is chosen; else when to turn it off.
+// shows the title as text whatever is chosen; else when to turn it off. Under the own card: on
+// r24, older or an unknown firmware (below AIO_FW_CARD_R) a warning that it is seen on r25 alone.
 function aio_cgi_look_screen($v)
 {
     $f = aio_cgi_fields();
@@ -454,7 +476,12 @@ function aio_cgi_look_screen($v)
         aio_cgi_l('Логотип работает с прошивки r25. На этой Дюне — название текстом.',
         'The logo needs firmware r25 or newer; this Dune shows the title as text.')) . '</p><p class="lbl">' .
         aio_cgi_l('Рейтинг IMDb на постерах', 'IMDb rating on posters') . '</p>' .
-        aio_cgi_choice($f['cat_rating'], aio_cgi_cat_rating(), $v['cat_rating']);
+        aio_cgi_choice($f['cat_rating'], aio_cgi_cat_rating(), $v['cat_rating']) .
+        '<p class="lbl">' . aio_cgi_l('Своя карточка', 'Own card') . '</p>' .
+        aio_cgi_choice($f['cat_card'], aio_cgi_cat_card(), $v['cat_card']) .
+        (aio_fw_r() >= AIO_FW_CARD_R ? '' : '<p class="hint wn">' . aio_cgi_l(
+        'Своя карточка проверена только на прошивке r25. Здесь по умолчанию выключена.',
+        'The own card is tested on firmware r25 only; off by default on this Dune.') . '</p>');
 }
 
 // The value of the form of cat_rows of the settings (aio_cat_rows_ok): keys by spaces, none in a key.

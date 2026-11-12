@@ -562,9 +562,9 @@ function aio_card_releases($tile, $lang)
         array(aio_tr($lang, 'card_show_list') => aio_close_and($act)));
 }
 
-// The action of ENTER on $tile (aio_cat_tile). $lang: ru or another, as of play_action. A movie
-// or a series with an id of the meta (aio_cm_id: IMDb or TMDB): the own card of Melange
-// (view_card.php), no local card written; else as before.
+// The action of ENTER on $tile (aio_cat_tile). $lang: ru or another, as of play_action. "Своя
+// карточка" on (cat_card), a movie or a series with an id of the meta (aio_cm_id: IMDb or TMDB):
+// the own card of Melange (view_card.php), no local card written; else the way of 0.58.0.
 /**
  * @param AioCatTile $tile
  * @param string $lang
@@ -572,7 +572,7 @@ function aio_card_releases($tile, $lang)
  */
 function aio_card_enter($tile, $lang)
 {
-    if (aio_cm_id($tile) !== '')
+    if (Aio::$settings['cat_card'] && aio_cm_id($tile) !== '')
         return aio_oc_enter($tile, $lang);
     $c = aio_card_id($tile);
     $id = $c['id'] !== '' ? $c['id'] : aio_card_local($tile, $c['none']);

@@ -126,6 +126,11 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(ratings.map((radio) => [radio.type, radio.value, radio.checked])).toEqual([["radio", "off", true], ["radio", "on", false]]);
     for (const radio of ratings)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("look");
+    // Own card (cat_card, 0.59.0): two radios "on" (by default on r25, the firmware of the fixtures), "off" with their cards on #look.
+    const cards = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=cat_card]"));
+    expect(cards.map((radio) => [radio.type, radio.value, radio.checked])).toEqual([["radio", "on", true], ["radio", "off", false]]);
+    for (const radio of cards)
+      expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("look");
     // The rows of the catalog: one field on #rows, not of type hidden (the bar counts only others), nothing to read by eye.
     const rowsField = form.querySelectorAll<HTMLInputElement>("input[name=cat_rows]");
     expect(Array.from(rowsField).map((field) => [field.id, field.type, field.hidden, field.closest("section")!.id])).toEqual([[ID.rowsValue, "text", true, "rows"]]);

@@ -9,8 +9,8 @@
 // aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
 // settings; tpl_seen, tpl_p2p_seen only posted; ts_save: aio_cgi_ts_save_of()
 // of the settings, markers: aio_cgi_markers_of() (of markers_exact too), source_errors:
-// aio_cgi_source_errors_of(), cat_rating: aio_cgi_cat_rating_of(), cat_logo: aio_cgi_cat_logo_of(), no_torrents:
-// aio_cgi_no_torrents_of(), src_profiles: aio_cgi_src_profiles_of(), as posted - none: '',
+// aio_cgi_source_errors_of(), cat_rating: aio_cgi_cat_rating_of(), cat_logo: aio_cgi_cat_logo_of(),
+// cat_card: aio_cgi_cat_card_of(), no_torrents: aio_cgi_no_torrents_of(), src_profiles: aio_cgi_src_profiles_of(), as posted - none: '',
 // settings.php puts the stored one; src_was: aio_cgi_src_was_stored() of the settings, as posted;
 // pf_sel, pf_was, pf_now, pf_name - the editor of the profiles, '' (aio_cgi_editor_values puts it), as posted);
 // pf_def - the placeholder of the name (aio_cgi_editor_def); prof - the profiles for the script (aio_cgi_profiles_data of the settings,
@@ -37,6 +37,7 @@ function aio_cgi_values($s)
     $v['source_errors'] = aio_cgi_source_errors_of($s['source_errors']);
     $v['cat_rating'] = aio_cgi_cat_rating_of($s['cat_rating']);
     $v['cat_logo'] = aio_cgi_cat_logo_of($s['cat_logo']);
+    $v['cat_card'] = aio_cgi_cat_card_of($s['cat_card']);
     $v['no_torrents'] = aio_cgi_no_torrents_of($s['no_torrents']);
     $v['src_profiles'] = aio_cgi_src_profiles_of($s['src_profiles']);
     $v['src_was'] = aio_cgi_src_was_stored($s);
@@ -385,6 +386,12 @@ function aio_cgi_check_values($v)
         $errors[] = aio_cgi_err(aio_cgi_l('Логотип фильма вместо названия: нет такого ответа',
             'Film logo in place of the title: no such answer'), $f['cat_logo']['name']);
     }
+    // None chosen in the file and the answer of the firmware posted (saved for another field): none still, the
+    // default goes on by the firmware (on after an update to r25).
+    $d[$set['cat_card']] = $v['cur'][$set['cat_card']] === null && $v['cat_card'] === aio_cgi_cat_card_of(null) ? null :
+        $v['cat_card'] === aio_cgi_cat_card_of(true);
+    if (!array_key_exists($v['cat_card'], aio_cgi_cat_card()))
+        $errors[] = aio_cgi_err(aio_cgi_l('Своя карточка: нет такого ответа', 'Own card: no such answer'), $f['cat_card']['name']);
     $d[$set['src_profiles']] = $v['src_profiles'] === aio_cgi_src_profiles_of(true);
     if (!array_key_exists($v['src_profiles'], aio_cgi_src_profiles()))
     {

@@ -150,6 +150,8 @@ function aio_cgi_save($dir, $t)
         $v['cat_rating'] = aio_cgi_cat_rating_of($cur['cat_rating']);
     if ($v['cat_logo'] === '')
         $v['cat_logo'] = aio_cgi_cat_logo_of($cur['cat_logo']);
+    if ($v['cat_card'] === '')
+        $v['cat_card'] = aio_cgi_cat_card_of($cur['cat_card']);
     if ($v['no_torrents'] === '')
         $v['no_torrents'] = aio_cgi_no_torrents_of($cur['no_torrents']);
     if ($v['src_profiles'] === '')

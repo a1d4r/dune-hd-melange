@@ -779,6 +779,9 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // 'cat_logo' => bool, "Логотип фильма вместо названия": the card background of
 // the server with the logo in the panel of the catalog (aio_catv_card; 0.55.0;
 // not a bool - true),
+// 'cat_card' => bool|null, "Своя карточка": ENTER on a tile of the catalog opens the own card
+// of Melange (aio_card_enter; 0.59.0); null - none chosen, by the firmware (aio_card_own; not a
+// bool - null),
 // 'no_torrents' => bool, "Без торрентов" (0.49.0; not a bool - false; what it
 // does: aio_no_torrents),
 // 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
@@ -852,7 +855,7 @@ function aio_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_rows' => null, 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
         'saved_once' => false);
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
@@ -919,6 +922,8 @@ function aio_settings_parse($j)
         $r['cat_rating'] = $j['cat_rating'];
     if (isset($j['cat_logo']) && is_bool($j['cat_logo']))
         $r['cat_logo'] = $j['cat_logo'];
+    if (isset($j['cat_card']) && is_bool($j['cat_card']))
+        $r['cat_card'] = $j['cat_card'];
     if (isset($j['no_torrents']) && is_bool($j['no_torrents']))
         $r['no_torrents'] = $j['no_torrents'];
     if (isset($j['cat_rows']))
@@ -1140,6 +1145,8 @@ function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
 // From r25 the shell sizes the background of the rows by PluginRowsPane::vod_r; r24 puts it
 // at 1280x720 at (640, 0) whatever vod_r is (the field is in the API of both).
 define('AIO_FW_VOD_R_R', 25);
+// The own card of Melange (view_card.php) is seen on r25 alone: on by default from it (aio_card_own).
+define('AIO_FW_CARD_R', 25);
 
 class AioFirmware
 {
@@ -1214,4 +1221,15 @@ function aio_fw_r()
 function aio_fw_vod_r()
 {
     return aio_fw_r() >= AIO_FW_VOD_R_R;
+}
+
+// "Своя карточка" in effect of cat_card of the settings: as chosen; none chosen (null) - on from
+// AIO_FW_CARD_R, off on r24, older or an unknown firmware (the card of the Dune there).
+/**
+ * @param bool|null $c
+ * @return bool
+ */
+function aio_card_own($c)
+{
+    return $c !== null ? $c : aio_fw_r() >= AIO_FW_CARD_R;
 }

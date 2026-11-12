@@ -204,6 +204,7 @@ describe("errors lead to the field", () => {
     ["source_errors", "ser2", "#adv"],
     ["cat_logo", "clg2", "#look"],
     ["cat_rating", "rti2", "#look"],
+    ["cat_card", "ocd2", "#look"],
   ])("radios %s: the cards of their group marked and in view on the screen, not focused; choosing one takes the mark off", async (name, other, screen) => {
     const page = open("p2p");
     const group = page.doc.querySelector("label[for=" + page.form.querySelector("input[name=" + name + "]")!.id + "]")!.closest(".choice") as HTMLElement;

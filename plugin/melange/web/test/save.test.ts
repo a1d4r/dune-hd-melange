@@ -41,6 +41,8 @@ const FILLED: [string, string][] = [
   ["cat_rows", ""], ["cat_rows_was", ""],
   ["cat_logo", "on"],
   ["cat_rating", "off"],
+  // "Own card" (0.59.0): the fixtures are of r25, on by default.
+  ["cat_card", "on"],
   ...servers([["name", "qBittorrent"], ["url", "http://192.168.1.10:8080"], ["user", "admin"], ["pass", "test-pass"], ["category", "movies"]]),
   ["markers", "on"],
   ["source_errors", "off"],

@@ -88,6 +88,7 @@ class Aio
     // 'sort', 'sort_rev' - the sort of a new list and its direction (aio_sort_read).
     // 'cat_rows' - the rows of the catalog chosen on the page, the argument of aio_cat_user_rows.
     // 'cat_logo' - the same of the settings, as stored. 'cat_rating' - the same: aio_catv_title_item.
+    // 'cat_card' - "Своя карточка" in effect (aio_card_own): aio_card_enter.
     // 'debrid_main' - the main Debrid service (aio_debrid_main_read): of a file cached on
     // several, the copy of it plays (aio_list_state, aio_play); '' - the first in the reply.
     // 'profiles' - the source profiles of MENU of a list (aio_profiles_menu; none with the
@@ -96,7 +97,7 @@ class Aio
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true,
-        'cat_rating' => false, 'debrid_main' => '', 'profiles' => array());
+        'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array());
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -522,6 +523,7 @@ function aio_op_settings($s)
         'cat_rows' => $s['cat_rows'],
         'cat_logo' => $s['cat_logo'],
         'cat_rating' => $s['cat_rating'],
+        'cat_card' => aio_card_own($s['cat_card']),
         'debrid_main' => aio_debrid_main_read(aio_data_dir()),
         'profiles' => aio_profiles_menu($s));
 }
