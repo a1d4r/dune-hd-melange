@@ -2487,8 +2487,8 @@ function aio_catv_search_ask($from)
         array(ShowDialogActionData::preferred_width => 0));
 }
 
-// $q: no log, no address of a screen. Results: two rows, the empty ones hidden; one row:
-// its "Show all".
+// $q: no log, no address of a screen. Results: two rows, the empty ones hidden; one row on
+// r25: its "Show all".
 /**
  * @param string $q
  * @param string $from
@@ -2531,9 +2531,11 @@ function aio_catv_search_run($q, $from)
         reset(AioCat::$searches);
         aio_catv_search_drop(strval(key(AioCat::$searches)));
     }
-    // One type found: its "Show all" at once, named after its row, as aio_catv_all_open.
-    $url = count($rids) === 1 ? "cat_grid:{$rids[0]}:$sid" : "cat_search:$sid";
-    $caption = count($rids) === 1 ? AioCat::$lists[$rids[0]]['st']['row']['name'] : aio_tr($lang, 'cat_results');
+    // One type found: its "Show all" at once, named after its row, as aio_catv_all_open. Only as
+    // the expanded row of r25: the grid of r24 has neither the search key nor the info panel.
+    $one = count($rids) === 1 && aio_catv_all_ok();
+    $url = $one ? "cat_grid:{$rids[0]}:$sid" : "cat_search:$sid";
+    $caption = $one ? AioCat::$lists[$rids[0]]['st']['row']['name'] : aio_tr($lang, 'cat_results');
     return $replace ? aio_replace_act($url, $caption) : aio_catv_open_act($url, $caption);
 }
 
