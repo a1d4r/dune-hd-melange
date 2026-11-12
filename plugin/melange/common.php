@@ -761,14 +761,27 @@ function aio_profile_ok($p)
     return array('name' => $name, 'base' => $b, 'mode' => $p['mode']);
 }
 
-// A name of a profile as typed, trimmed of AIO_TRIM and of NBSP (U+00A0) at both ends.
+// A name of a profile as typed, trimmed of AIO_TRIM and of NBSP (U+00A0) at both ends; one over
+// 4 * AIO_PROFILE_NAME_MAX bytes as it is (aio_profile_ok refuses it). By a loop: a regex of the ends
+// crashed PCRE on ~10K of spaces (a forged POST or import).
 /**
  * @param string $name
  * @return string
  */
 function aio_profile_name($name)
 {
-    return (string) preg_replace('/^(?:[ \t\r\n\x0B]|\xC2\xA0)+|(?:[ \t\r\n\x0B]|\xC2\xA0)+\z/', '', $name);
+    if (strlen($name) > 4 * AIO_PROFILE_NAME_MAX)
+        return $name;
+    do
+    {
+        $was = $name;
+        $name = trim($name, AIO_TRIM);
+        if (substr($name, 0, 2) === "\xC2\xA0")
+            $name = (string) substr($name, 2);
+        if (substr($name, -2) === "\xC2\xA0")
+            $name = (string) substr($name, 0, -2);
+    } while ($name !== $was);
+    return $name;
 }
 
 // profiles of settings.json -> those of aio_profile_ok, in order, at most
