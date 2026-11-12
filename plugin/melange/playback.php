@@ -1140,6 +1140,8 @@ function aio_movie_load($key)
             $mv['seasons'][intval($n)] = $c;
     }
     ksort($mv['seasons']);
+    if (isset($m['own']) && $m['own'] === true)
+        $mv['own'] = true;
     $r = array('movie' => $mv, 'lang' => aio_str($d, 'lang'));
     Aio::$movies[$key] = $r;
     return $r;
