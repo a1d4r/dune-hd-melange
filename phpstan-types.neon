@@ -368,7 +368,9 @@ parameters:
         # A side of brackets of a track title (aio_voices_side, voices_parse.php).
         AioVoicesSide: 'array{studios: list<string>, n: int, other: bool}'
         # The meta of a title for its own card (aio_cm_parse, card_meta.php).
-        AioCardMeta: 'array{type: string, id: string, imdb: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<AioCardActor>, directors: list<string>, writers: list<string>, seasons: array<int, list<AioCardEp>>, season_numbers: array<int, int>}'
+        AioCardMeta: 'array{type: string, id: string, imdb: string, tile: AioCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<AioCardActor>, directors: list<string>, writers: list<string>, seasons: array<int, list<AioCardEp>>, season_numbers: array<int, int>}'
+        # A card of the own card screen in memory (AioOc::$cards, view_card.php).
+        AioOcCard: 'array{tile: AioCatTile, meta: AioCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: array{int, int}}'
         # An actor of the own card (aio_cm_people, card_meta.php).
         AioCardActor: 'array{name: string, role: string, photo: string}'
         # An episode of the own card (aio_cm_eps, card_meta.php).

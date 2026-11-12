@@ -20,18 +20,18 @@ class AioWh
     public static $all = array();
 }
 
-// An episode record of the series that WatchHistory::do_update keeps.
+// A record of the card $dune_id that WatchHistory::do_update keeps: not deleted,
+// wh_item_is_suitable of the shell.
 /**
  * @param mixed $w
  * @param string $dune_id
  * @return bool
  * @phpstan-assert-if-true stdClass $w
  */
-function aio_wh_match($w, $dune_id)
+function aio_wh_of($w, $dune_id)
 {
     if (!is_object($w) || (isset($w->deleted) && $w->deleted == 1))
         return false;
-    // wh_item_is_suitable of the shell.
     if (!isset($w->action_plugin) || !isset($w->action_params))
     {
         $url = isset($w->url) && is_string($w->url) ? $w->url : '';
@@ -41,8 +41,19 @@ function aio_wh_match($w, $dune_id)
             (isset($w->show_in_recent) ? !$w->show_in_recent : $scheme === 'file'))
             return false;
     }
-    return isset($w->movie_id) && is_string($w->movie_id) && $w->movie_id === $dune_id &&
-        isset($w->e) && is_numeric($w->e) && intval($w->e) >= 1;
+    return isset($w->movie_id) && is_string($w->movie_id) && $w->movie_id === $dune_id;
+}
+
+// An episode record of the series that WatchHistory::do_update keeps.
+/**
+ * @param mixed $w
+ * @param string $dune_id
+ * @return bool
+ * @phpstan-assert-if-true stdClass $w
+ */
+function aio_wh_match($w, $dune_id)
+{
+    return aio_wh_of($w, $dune_id) && isset($w->e) && is_numeric($w->e) && intval($w->e) >= 1;
 }
 
 // Records of the NNNNNN.json files, the latest first (files from the last
@@ -191,6 +202,36 @@ function aio_wh_sig()
         $sig .= "$f:" . filesize("$dir/$f") . ":$t\n";
     }
     return $sig;
+}
+
+// The progress of the movie of card $dune_id: its latest record of any supplier or a local
+// file (no episode), as the native card shows it -> array(pos, len) in s, len > 0; null for none.
+/**
+ * @param string $dune_id
+ * @return array{float, float}|null
+ */
+function aio_wh_movie($dune_id)
+{
+    $found = aio_wh_find('history: movie', 'aio_wh_movie_visit', $dune_id);
+    if (!$found)
+        return null;
+    $w = $found[0];
+    $pos = isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : 0.0;
+    $len = isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0.0;
+    return $len > 0 ? array($pos, $len) : null;
+}
+
+/**
+ * @param mixed $w
+ * @param string $dune_id
+ * @param list<stdClass> $acc
+ * @return bool
+ */
+function aio_wh_movie_visit($w, $dune_id, &$acc)
+{
+    if (aio_wh_of($w, $dune_id) && !(isset($w->e) && is_numeric($w->e) && intval($w->e) >= 1))
+        $acc[] = $w;
+    return (bool)$acc;
 }
 
 // Our records (uid "aio:..."): uid => share of its latest record, 0 without

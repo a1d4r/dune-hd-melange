@@ -185,7 +185,9 @@ function aio_cm_same($m, $id)
 
 // The meta $m of a title of $type asked as $id -> what the card shows (AioCardMeta). imdb: $id,
 // or for tmdb:<n> the IMDb of the meta ('' for none). status: on (Returning Series), ended (Ended),
-// '' for another. released: "Y-m-d" (UTC). A series also seasons and season_numbers (aio_cm_eps).
+// '' for another. released: "Y-m-d" (UTC). original: originalTitle. tile: the meta as a tile of the
+// catalog (aio_cat_tile), the card of a title no row keeps (php_server restarted); null without a
+// name. A series also seasons and season_numbers (aio_cm_eps).
 /**
  * @param array<mixed> $m
  * @param string $type
@@ -209,7 +211,8 @@ function aio_cm_parse($m, $type, $id, $now)
     list(, $released) = aio_cm_time(aio_str($m, 'released'));
     $people = aio_cm_people($m);
     $eps = $type === 'series' ? aio_cm_eps(aio_arr($m, 'videos'), $now) : array('seasons' => array(), 'season_numbers' => array());
-    return array('type' => $type, 'id' => $id, 'imdb' => $imdb,
+    return array('type' => $type, 'id' => $id, 'imdb' => $imdb, 'tile' => aio_cat_tile($m, $type),
+        'original' => aio_cut(aio_one_line(aio_str($m, 'originalTitle')), AIO_CAT_NAME_MAX),
         'description' => aio_cut(aio_one_line(aio_str($m, 'description')), AIO_CM_DESC_MAX),
         'tagline' => aio_cut(aio_one_line(aio_str($m, 'tagline')), AIO_CM_TAGLINE_MAX), 'released' => $released,
         'studios' => aio_cm_names(aio_arr($m, 'studios'), AIO_CM_LIST_MAX),
