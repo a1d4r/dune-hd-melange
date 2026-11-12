@@ -1371,8 +1371,8 @@ function aio_handle_user_input($in)
         return aio_gc_sort($in);
     if ($control === 'gc_main')
         return aio_gc_main($in);
-    if ($control === 'gc_srcs')
-        return aio_gc_srcs($in);
+    if ($control === 'gc_src_menu')
+        return aio_gc_src_menu($in);
     if ($control === 'gc_src')
         return aio_gc_src($in);
     if ($control === 'gc_choose')

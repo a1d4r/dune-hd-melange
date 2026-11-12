@@ -1291,8 +1291,9 @@ function aio_gc_main($in)
 // (settings.json, src_profiles), MENU switches the source of all lists at once.
 
 // The MENU item of the source profiles of live list $st, or null: no ready profile but the
-// one in use (Aio::$settings['profiles']). Two ready, one of them in use: "Откуда брать →
-// <the other one>" (gc_src); else "Откуда брать…", the menu of all (gc_srcs).
+// one in use (Aio::$settings['profiles']). One ready but the one in use (two ready, one of
+// them in use; one ready, the source not a profile): "Откуда брать → <it>" (gc_src); else
+// "Откуда брать…", the menu of all (gc_src_menu).
 /**
  * @param AioState $st
  * @return array<string, mixed>|null
@@ -1301,33 +1302,30 @@ function aio_gc_src_item($st)
 {
     $ps = Aio::$settings['profiles'];
     $other = array();
-    $now = false;
     foreach ($ps as $p)
     {
-        if ($p['now'])
-            $now = true;
-        else
+        if (!$p['now'])
             $other[] = $p['name'];
     }
     if (!$other)
         return null;
-    $one = count($ps) === 2 && $now;
+    $one = count($other) === 1;
     return array(
         GuiMenuItemDef::caption => $one ? str_replace('{name}', $other[0], aio_tr($st['lang'], 'src_menu')) :
             aio_tr($st['lang'], 'src_list'),
         GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
         GuiMenuItemDef::action => $one ? aio_gc_act('gc_src', $st['rid'], array('n' => $other[0])) :
-            aio_gc_act('gc_srcs', $st['rid']));
+            aio_gc_act('gc_src_menu', $st['rid']));
 }
 
-// gc_srcs (MENU "Откуда брать…") of a live list -> the popup menu of the ready profiles in
+// gc_src_menu (MENU "Откуда брать…") of a live list -> the popup menu of the ready profiles in
 // their order, the one in use "<name> · сейчас" and selected (marked of the API draws
 // nothing in a popup menu on r24), else the first.
 /**
  * @param stdClass $in
  * @return AioAction|null
  */
-function aio_gc_srcs($in)
+function aio_gc_src_menu($in)
 {
     $st = Aio::$state;
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
