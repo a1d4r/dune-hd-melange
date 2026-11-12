@@ -167,6 +167,8 @@ parameters:
                 seasons: array<int, int>
             }
         '''
+        # The episode to offer of a series by its history (aio_wh_pick, history.php).
+        AioWhPick: 'array{s: int, e: int, hash: string, kind: string, rec: string, why: string}'
         # "Continue watching" of play_action (aio_resume, main.php; next:
         # aio_wh_resume_ep, history.php).
         AioResume: 'array{hash: string, mode: string, s: int, e: int, pos: int, len: int, uid: string, next: bool}'

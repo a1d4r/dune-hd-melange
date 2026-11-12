@@ -83,7 +83,9 @@ function aio_lazy_series($mv, $s, $e, $hash, $list, $mode)
 }
 
 // A playlist item of URL $url, linked to the card by $hash ('' - unlinked);
-// $list: in a playlist of several (aio_ser_name).
+// $list: in a playlist of several (aio_ser_name). Its recent_uid is read back
+// by history.php: aio_wh_pick (the release), aio_wh_progress, aio_wh_series
+// (the progress of the episodes on the own card).
 /**
  * @param AioMovie $mv
  * @param int $s

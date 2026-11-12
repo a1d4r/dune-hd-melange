@@ -223,6 +223,77 @@ function aio_cm_parse($m, $type, $id, $now)
         'seasons' => $eps['seasons'], 'season_numbers' => $eps['season_numbers']);
 }
 
+// The season the streams of season $s of meta $m are asked by: 1 for one numbered on from the
+// season before (its first episode past 1: One Piece S2 is E62-E77, asked as :1:62, the episode
+// as the absolute number), else $s. The history of such an episode is written so too.
+/**
+ * @param AioCardMeta $m
+ * @param int $s
+ * @return int
+ */
+function aio_cm_req_s($m, $s)
+{
+    return isset($m['seasons'][$s][0]) && $m['seasons'][$s][0]['e'] > 1 ? 1 : $s;
+}
+
+// The episodes of meta $m, those not out too, by the season they are asked by (aio_cm_req_s):
+// season => episode numbers, ascending (aio_wh_pick: the next one in this order).
+/**
+ * @param AioCardMeta $m
+ * @return array<int, list<int>>
+ */
+function aio_cm_lists($m)
+{
+    $out = array();
+    foreach ($m['seasons'] as $s => $eps)
+    {
+        $q = aio_cm_req_s($m, $s);
+        foreach ($eps as $ep)
+            $out[$q][] = $ep['e'];
+    }
+    foreach ($out as $q => $list)
+    {
+        sort($list);
+        $out[$q] = array_values(array_unique($list));
+    }
+    ksort($out);
+    return $out;
+}
+
+// Episode $e of season $q as asked (aio_cm_req_s) -> its season of meta $m: $q if it has it, else
+// the one numbered on from the season before that has it; 0 for none.
+/**
+ * @param AioCardMeta $m
+ * @param int $q
+ * @param int $e
+ * @return int
+ */
+function aio_cm_season_of($m, $q, $e)
+{
+    foreach ($m['seasons'] as $s => $eps)
+    {
+        if (($s === $q || ($q === 1 && aio_cm_req_s($m, $s) === 1)) && aio_cm_ep_index($eps, $e) >= 0)
+            return $s;
+    }
+    return 0;
+}
+
+// The index of episode $e in $eps (a season of the meta), -1 for none.
+/**
+ * @param list<AioCardEp> $eps
+ * @param int $e
+ * @return int
+ */
+function aio_cm_ep_index($eps, $e)
+{
+    foreach ($eps as $i => $ep)
+    {
+        if ($ep['e'] === $e)
+            return $i;
+    }
+    return -1;
+}
+
 // The episodes of meta $m in all.
 /**
  * @param AioCardMeta $m

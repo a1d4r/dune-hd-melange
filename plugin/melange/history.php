@@ -337,22 +337,82 @@ function aio_wh_watched($pos, $len, $uid)
  */
 function aio_wh_next($seasons, $s, $e)
 {
-    if (!isset($seasons[$s]))
+    return aio_wh_after(aio_wh_lists($seasons), $s, $e);
+}
+
+// season_numbers (season => episodes) -> season => its episodes 1..N.
+/**
+ * @param array<int, int> $seasons
+ * @return array<int, list<int>>
+ */
+function aio_wh_lists($seasons)
+{
+    $out = array();
+    foreach ($seasons as $s => $n)
+        $out[$s] = range(1, $n);
+    return $out;
+}
+
+// The episode after the watched S$s E$e by $eps (season => its episodes, ascending): the next
+// one of the season, else the first of the nearest later season; the same one with no data on
+// season $s, S1E1 after the last one. -> as aio_wh_next.
+/**
+ * @param array<int, list<int>> $eps
+ * @param int $s
+ * @param int $e
+ * @return array{int, int, bool, string}
+ */
+function aio_wh_after($eps, $s, $e)
+{
+    if (!isset($eps[$s]))
         return array($s, $e, false, "watched, but season $s is not in season_numbers");
-    if ($e < $seasons[$s])
-        return array($s, $e + 1, true, "next after the watched S{$s}E{$e}");
-    foreach (array_keys($seasons) as $n)
+    foreach ($eps[$s] as $n)
     {
-        if ($n > $s)
-            return array($n, 1, true, "next season after the watched last S{$s}E{$e}");
+        if ($n > $e)
+            return array($s, $n, true, "next after the watched S{$s}E{$e}");
+    }
+    foreach ($eps as $n => $list)
+    {
+        if ($n > $s && $list)
+            return array($n, $list[0], true, "next season after the watched last S{$s}E{$e}");
     }
     return array(1, 1, false, "the last episode S{$s}E{$e} is watched");
 }
 
-// Episode of a series opened from its main card (season = episode = -1):
-// the last one in the history, the next one once it is watched, S1E1 with
-// no record or after the last episode; the release of the record if it is
-// ours (uid "aio:<dune id>:<s>:<e>:<infoHash>"), else ''. -> array(s, e, hash)
+// The episode to offer for the latest episode record $w of the series of card $dune_id
+// (aio_wh_last; null: none), no log: the recorded one while not watched, the next one by $eps
+// (aio_wh_after) once it is, S1E1 with no record or after the last episode. hash: the release
+// of the record if it is ours (uid "aio:<dune id>:<s>:<e>:<infoHash>"), else ''; kind: none (no
+// record), record (not watched), next, same (watched, no data on its season), first (the last
+// one watched); rec: the record for the log, why: the choice for the log.
+/**
+ * @param stdClass|null $w
+ * @param string $dune_id
+ * @param array<int, list<int>> $eps
+ * @return AioWhPick
+ */
+function aio_wh_pick($w, $dune_id, $eps)
+{
+    if (!$w)
+        return array('s' => 1, 'e' => 1, 'hash' => '', 'kind' => 'none', 'rec' => '', 'why' => 'no history record');
+    $e = isset($w->e) && is_numeric($w->e) ? intval($w->e) : 1;
+    $s = isset($w->s) && is_numeric($w->s) && intval($w->s) >= 0 ? intval($w->s) : 1;
+    $pos = isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1;
+    $len = isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0;
+    $uid = isset($w->uid) && is_string($w->uid) ? $w->uid : (isset($w->url) && is_string($w->url) ? $w->url : '');
+    $hash = preg_match('/^' . preg_quote(AIO_SUP_ID . ':' . $dune_id, '/') . ':-?[0-9]+:-?[0-9]+:([0-9a-f]{40})$/D',
+        $uid, $m) ? $m[1] : '';
+    $watched = aio_wh_watched($pos, $len, $uid);
+    $rec = sprintf('record S%dE%d pos=%d/%d watched=%s', $s, $e, $pos, $len, $watched !== '' ? $watched : 'no');
+    if ($watched === '')
+        return array('s' => $s, 'e' => $e, 'hash' => $hash, 'kind' => 'record', 'rec' => $rec, 'why' => 'not watched');
+    list($ns, $ne, $next, $why) = aio_wh_after($eps, $s, $e);
+    return array('s' => $ns, 'e' => $ne, 'hash' => $hash, 'kind' => $next ? 'next' : (isset($eps[$s]) ? 'first' : 'same'),
+        'rec' => $rec, 'why' => $why);
+}
+
+// Episode of a series opened from its main card (season = episode = -1): aio_wh_pick of the
+// last record in the history by season_numbers, logged. -> array(s, e, hash)
 /**
  * @param AioMovie $mv
  * @return array{int, int, string}
@@ -360,29 +420,50 @@ function aio_wh_next($seasons, $s, $e)
 function aio_wh_episode($mv)
 {
     $w = $mv['dune_id'] !== '' ? aio_wh_last($mv['dune_id']) : null;
-    if (!$w)
-    {
-        aio_log('episode: S1E1, no history record');
-        return array(1, 1, '');
-    }
-    $e = intval($w->e);
+    $p = aio_wh_pick($w, $mv['dune_id'], aio_wh_lists($mv['seasons']));
+    if ($p['rec'] !== '')
+        aio_log("history: {$p['rec']}, " . count($mv['seasons']) . ' seasons in season_numbers');
+    aio_log("episode: S{$p['s']}E{$p['e']}, {$p['why']}");
+    return array($p['s'], $p['e'], $p['hash']);
+}
+
+// The progress of the episodes of the series of card $dune_id, read once a screen of its own
+// card: the latest record of each S/E of any supplier or a local file, as the native "Seasons"
+// show it -> array(the latest episode record of all (aio_wh_pick) or null, "s:e" => array(pos,
+// len, watched: aio_wh_watched)). Another reader of recent_uid besides aio_wh_progress.
+/**
+ * @param string $dune_id
+ * @return array{stdClass|null, array<string, array{float, float, bool}>}
+ */
+function aio_wh_series($dune_id)
+{
+    $acc = aio_wh_find('history: series', 'aio_wh_series_visit', array($dune_id, aio_wh_marked_set()));
+    $last = isset($acc['last']) ? $acc['last'] : null;
+    unset($acc['last']);
+    return array($last, $acc);
+}
+
+/**
+ * @param mixed $w
+ * @param array{string, array<int|string, true>} $arg
+ * @param array<string, mixed> $acc
+ * @return bool
+ */
+function aio_wh_series_visit($w, $arg, &$acc)
+{
+    if (!aio_wh_match($w, $arg[0]))
+        return false;
+    if (!isset($acc['last']))
+        $acc['last'] = $w;
     $s = isset($w->s) && is_numeric($w->s) && intval($w->s) >= 0 ? intval($w->s) : 1;
-    $pos = isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1;
-    $len = isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0;
+    $k = $s . ':' . intval($w->e);
+    if (isset($acc[$k]))
+        return false;
+    $pos = isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1.0;
+    $len = isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0.0;
     $uid = isset($w->uid) && is_string($w->uid) ? $w->uid : (isset($w->url) && is_string($w->url) ? $w->url : '');
-    $hash = preg_match('/^' . preg_quote(AIO_SUP_ID . ':' . $mv['dune_id'], '/') . ':-?[0-9]+:-?[0-9]+:([0-9a-f]{40})$/D',
-        $uid, $m) ? $m[1] : '';
-    $watched = aio_wh_watched($pos, $len, $uid);
-    aio_log(sprintf('history: record S%dE%d pos=%d/%d watched=%s, %d seasons in season_numbers', $s, $e,
-        $pos, $len, $watched !== '' ? $watched : 'no', count($mv['seasons'])));
-    if ($watched === '')
-    {
-        aio_log("episode: S{$s}E{$e}, not watched");
-        return array($s, $e, $hash);
-    }
-    list($ns, $ne, , $why) = aio_wh_next($mv['seasons'], $s, $e);
-    aio_log("episode: S{$ns}E{$ne}, $why");
-    return array($ns, $ne, $hash);
+    $acc[$k] = array($pos, $len, aio_wh_full($pos, $len) || isset($arg[1][$uid]));
+    return false;
 }
 
 // "Continue watching" of a series ($r of aio_resume): the episode recorded,
