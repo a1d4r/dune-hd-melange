@@ -21,6 +21,8 @@ require_once dirname(__FILE__) . '/playback.php';
 require_once dirname(__FILE__) . '/segments.php';
 // "Download to server": qBittorrent WebAPI.
 require_once dirname(__FILE__) . '/server.php';
+// "Откуда брать": the source profiles.
+require_once dirname(__FILE__) . '/sources.php';
 // "Watch via TorrServer".
 require_once dirname(__FILE__) . '/torrserver.php';
 // TorrServer in the player: the window of its numbers with INFO.
