@@ -80,21 +80,27 @@ When to choose it: you already have a tuned AIOStreams config (services, filters
 
 ## Source profiles
 
-When you need it: you have both Debrid and torrents, or several AIOStreams servers (for example, your own on a NAS), and want to change the source from the remote, right in the release list. A profile is a saved source under a name you choose: a Melange config on any server in Debrid or **Torrents** mode, or your own config by its link.
+When you need it: you have both Debrid and torrents, or several AIOStreams servers (for example, your own on a NAS), and want to change the source from the remote, right in the release list. A profile is a set of source settings under a name you choose: Debrid, **Torrents** or your own config, the AIOStreams server, the template and JacRed.
 
-Off by default: turn it on in **Advanced** → [**Source profiles**](setup.en.md#advanced). The profiles block appears at the bottom of the **Where to get films** section.
+Off by default: turn it on in **Advanced** → [**Source profiles**](setup.en.md#advanced). Then the **Where to get films** section becomes the profile editor.
 
-**Saving a profile.** Choose the source in **Where to get films** (and the server in **AIOStreams**) and press **Save** at the bottom of the page. Then type a name and press **Save the current source as a profile**; with no name, the profile is named after the kind of source, for example Debrid. Save your other sources the same way. You can have up to 8 profiles, and the names must differ. The button is disabled while the page has unsaved changes, the current source is already saved as a profile or there are 8 profiles already; the line under it says why.
+**The editor.** At the top is the list of profiles, the current one marked "now". Tap a profile to open it. Its source, template, AIOStreams server and JacRed are on this screen and on the **AIOStreams** and **JacRed** screens, which also say which profile is open. Debrid and TMDB keys, TorrServer, download servers and the other settings are shared by all profiles.
+- **Save** saves the open profile. If it is the current one, the changes take effect at once, as without profiles. If not, only the profile changes and the Dune keeps getting films from the current one; Melange creates or updates the profile's config on the server right away.
+- **Make it current** does the same as choosing the profile in the menu on the Dune.
+- **Delete** removes the profile; its config on the server stays.
+- **A new profile:** **+ New profile**, a name, the settings, **Save**. A new profile starts with the settings of the current source and gets a config of its own on the server, so one server and mode can have several profiles, for example with different JacRed. Two profiles can't have the same settings: change at least one.
+- If the current source is not saved as a profile (for example, you have just turned the setting on), the editor shows it. Type a name and press **Save**, and it becomes a profile. With no name, **Save** saves the settings as usual.
+- You can have up to 8 profiles, and the names must differ. While the page has unsaved changes, another profile won't open: save them first or reload the page.
+- "No config" on a profile means its config on the server has not been created yet, for example because the server did not answer. Open the profile and press **Save**. Without a config, the profile is not in the Dune menu.
 
-**The list of profiles.** The current source is marked "now". **Edit** changes the name, and for your own config the link too. The server and mode of a profile cannot be changed: delete it and save it again. "No config" means that no config has been created on this server in this mode yet, and the Dune menu does not show this profile. To create the config, choose this server and mode on the page and press **Save**.
-
-**On the Dune.** In the release list, MENU → [**Get films from → …**](watching.en.md#the-actions-menu) with the name of the profile when there is only one to switch to, or **Get films from…** with the list of profiles, the current one marked "· now". Melange first asks the new source for the releases of this film or episode. If the source answers, it becomes the source everywhere at once, as a change on the page would, and the list shows its releases; with none, the list is empty. If it does not answer or does not accept the link, the previous one stays, and a window says why.
+**On the Dune.** In the release list, MENU → [**Get films from → …**](watching.en.md#the-actions-menu) with the name of the profile when there is only one to switch to, or **Get films from…** with the list of profiles, the current one marked "· now". Melange first asks the new source for the releases of this film or episode. If the source answers, it becomes the source everywhere at once, as a change on the page would, and the list shows its releases; with none, the list is empty. If it does not answer or does not accept the link, the previous one stays, and a window says why. The JacRed of the profile comes along with the source, so it is the one that suggests voice-overs and tracks.
 
 **Keep in mind:**
 - A source that is not saved as a profile cannot be brought back from the menu: save it as a profile before you switch.
-- Debrid keys, templates, JacRed, **No torrents** and **Main Debrid** are shared by all profiles. After changing a Debrid key, switch to each profile in turn, except your own configs, and press **Save** on the page: this way the new key gets into the config of every profile.
-- A page opened on your phone does not see switches made on the Dune: reload it after them. If you did not change the source on the old page and press **Save**, Melange keeps the source chosen on the Dune and says so.
-- [**Load from a file**](setup.en.md#backup) replaces the profiles entirely, like the other settings. If a profile shows "No config" after loading, create the config as described above.
+- After changing a Debrid key, open each profile on the page, except your own configs, and press **Save**: this way the new key gets into the config of every profile.
+- A page opened on your phone does not see switches made on the Dune: reload it after them. If you save a profile on an old page after the Dune switched away from it, Melange saves the changes to the profile, keeps the source chosen on the Dune and says so.
+- [**Load from a file**](setup.en.md#backup) replaces the profiles entirely, like the other settings.
+- If you turn the setting off, the page is as it was without profiles. The profiles are kept and come back when you turn it on.
 
 ## AIOStreams server
 

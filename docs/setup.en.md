@@ -95,7 +95,7 @@ Up to 5 servers: qBittorrent, rdt-client or Transmission. Each has a client, a n
 
 **Source errors.** When you need it: there are fewer releases than you expected and you want to know why. When on, the release list shows how many sources did not answer and why (MENU → **Source errors**).
 
-**Source profiles.** When you need it: you want to switch between Debrid, torrents, your own configs or AIOStreams servers from the remote. When on, a block at the bottom of **Where to get films** saves sources as profiles, and the release list gets MENU → **Get films from**. More in [Release sources](sources.en.md#source-profiles).
+**Source profiles.** When you need it: you want to switch between Debrid, torrents, your own configs or AIOStreams servers from the remote. When on, **Where to get films** becomes the profile editor: each profile has its own source, server, template and JacRed. The release list gets MENU → **Get films from**. More in [Release sources](sources.en.md#source-profiles).
 
 ## Backup
 
