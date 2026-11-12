@@ -23,6 +23,9 @@ define('AIO_CARD_TTL_NONE', 86400);
 // by the own card (card_meta.php). 0.4 s seen (05.11.2026), "none" 1.8 s. ENTER waits for it;
 // a failure leaves the card of the tile.
 define('AIO_CARD_META_TOTAL', 4);
+// show_dialog_delay of ENTER on a tile, ms: the card waits for the network (the meta of a series
+// takes over a second cold), "Please wait" is due soon.
+define('AIO_CARD_DELAY', 1000);
 // Limits of the local card: the server gives up to 10 actors; genres as a tile
 // (AIO_CAT_GENRES_MAX); ratings: ~45 countries seen, each a short text ("TE+7", "K-12").
 // Of a list of the meta only the first AIO_CARD_SCAN_MAX items are looked at.
@@ -533,7 +536,8 @@ function aio_card_releases($tile, $lang)
         array(aio_tr($lang, 'card_show_list') => aio_close_and($act)));
 }
 
-// The action of ENTER on $tile (aio_cat_tile). $lang: ru or another, as of play_action.
+// The action of ENTER on $tile (aio_cat_tile). $lang: ru or another, as of play_action. A movie
+// with IMDb or TMDB: the own card of Melange (view_card.php), no local card written; else as before.
 /**
  * @param AioCatTile $tile
  * @param string $lang
@@ -541,6 +545,8 @@ function aio_card_releases($tile, $lang)
  */
 function aio_card_enter($tile, $lang)
 {
+    if ($tile['type'] === 'movie' && ($tile['imdb_id'] !== '' || $tile['_tmdbId'] !== ''))
+        return aio_oc_enter($tile, $lang);
     $c = aio_card_id($tile);
     $id = $c['id'] !== '' ? $c['id'] : aio_card_local($tile, $c['none']);
     if ($id !== '')
