@@ -1090,36 +1090,29 @@ function aio_profile_free_name($s, $w)
     return $name;
 }
 
-// Before profile $p (ready) is applied to the settings $s (aio_profile_apply: MENU of a list, "Сделать текущим" of the
-// page): the source in use of no profile (aio_profile_now) the switch would lose - a config of Melange whose config of
-// the cell no profile has (aio_profile_held) when $p puts its own there (the same server and mode), or an own config
-// whose link $p replaces by another one no profile has - saved as a profile at the end of them: its settings as they
-// are (aio_profile_of), the name - the word of its kind in $words ('debrid', 'p2p', 'own': in the language of the
-// caller) by aio_profile_free_name. Nothing lost (another server or mode: the cell stays; the source a profile; a
-// profile of these settings there) -> $s as it is. -> array(the settings, the index of the profile saved or -1,
-// 'src_full' - the profiles full: not to be applied; else '').
+// Before a profile is applied to the settings $s (aio_profile_apply: MENU of a list, "Сделать текущим" of the page): the
+// source in use of no profile (aio_profile_now) saved as a profile at the end of them, so MENU can bring it back: its
+// settings as they are (aio_profile_of), the name - the word of its kind in $words ('debrid', 'p2p', 'own': in the
+// language of the caller) by aio_profile_free_name. Not saved (-> $s as it is): the source a profile; none to save (an
+// own config without its link, a config of Melange without its config in the cell); a profile of these settings there
+// (its target: aio_profiles_ok would drop the second); its config that of another profile (aio_profile_held: other
+// settings typed - a config of a profile changes only with it). -> array(the settings, the index of the profile saved
+// or -1, 'src_full' - the profiles full: not to be applied; else '').
 /**
  * @param AioSettings $s
- * @param AioProfile $p
  * @param array{debrid: string, p2p: string, own: string} $words
  * @return array{0: AioSettings, 1: int, 2: string}
  */
-function aio_profile_keep($s, $p, $words)
+function aio_profile_keep($s, $words)
 {
     $t = aio_profile_now($s) < 0 ? aio_profile_of($s) : null;
-    if (!$t)
-        return array($s, -1, '');
-    if (isset($t['url']))
-        $lost = isset($p['url']) && $p['url'] !== $t['url'];
-    else
-        $lost = !isset($p['url']) && $p['conf'] && $t['conf'] && $p['base'] === $t['base'] && $p['mode'] === $t['mode'] &&
-            !aio_profile_held($s, $t['conf']);
-    foreach ($lost ? $s['profiles'] : array() as $x)
+    $keep = $t && (isset($t['url']) || ($t['conf'] && !aio_profile_held($s, $t['conf'])));
+    foreach ($keep ? $s['profiles'] : array() as $x)
     {
-        if ((isset($t['url']) && isset($x['url']) && $x['url'] === $t['url']) || aio_profile_key($x) === aio_profile_key($t))
-            $lost = false;
+        if (aio_profile_key($x) === aio_profile_key($t))
+            $keep = false;
     }
-    if (!$lost)
+    if (!$keep)
         return array($s, -1, '');
     if (count($s['profiles']) >= AIO_PROFILES_MAX)
         return array($s, -1, 'src_full');

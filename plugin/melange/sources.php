@@ -84,8 +84,8 @@ function aio_gc_src_words($lang)
 }
 
 // After the request to the source of profile $p (aio_gc_src): settings.json read again (the
-// page may have saved while the source answered), the source of no profile the switch would
-// lose saved as a profile (aio_profile_keep, the names of $words), the profile applied and
+// page may have saved while the source answered), the source in use of no profile saved as
+// a profile (aio_profile_keep, the names of $words), the profile applied and
 // written, Aio::$settings of it -> ''. Not written -> the key of the error, Aio::$settings not
 // touched (the one rollback, to the settings before the request, is in aio_gc_src): the
 // file not read (err_quick_read), not written (err_setup_write); the page changed meanwhile
@@ -120,7 +120,7 @@ function aio_gc_src_commit($dir, $s0, $p, $tag, $words)
     $kept = -1;
     if ($err[0] === '')
     {
-        list($s, $kept, $full) = aio_profile_keep($s, $p, $words);
+        list($s, $kept, $full) = aio_profile_keep($s, $words);
         if ($full !== '')
             $err = array($full, 'the profiles full, the previous source not saved');
     }
@@ -143,8 +143,8 @@ function aio_gc_src_commit($dir, $s0, $p, $tag, $words)
 // gc_src (n: the name of a profile, MENU "Откуда брать") of a live list: the list of its
 // movie or episode from the source of the profile first (aio_relist with the settings of
 // the profile, its JacRed too: the voices and tracks of JacRed are of the profile). It answered, with no streams too (an empty list), but not with error
-// streams only (a link not taken): written (aio_gc_src_commit; the source of no profile it would
-// lose saved as a profile first), the screen replaced, the cursor on the same release. An error, not written: its dialog - the source, the screen
+// streams only (a link not taken): written (aio_gc_src_commit; the source in use of no profile
+// saved as a profile first), the screen replaced, the cursor on the same release. An error, not written: its dialog - the source, the screen
 // and the state as they were. The profile gone, not ready, the setting off, settings.json
 // not read, the source to save with the profiles full: a dialog too, no request. The profile in use, a list not live: nothing.
 /**
@@ -183,7 +183,7 @@ function aio_gc_src($in)
     }
     // The source of no profile to save first, the profiles full: no request.
     $words = aio_gc_src_words($st['lang']);
-    list(, , $full) = aio_profile_keep($s, $p, $words);
+    list(, , $full) = aio_profile_keep($s, $words);
     if ($full !== '')
     {
         aio_log("$tag: the profiles full, the previous source not saved, the source and the screen kept");

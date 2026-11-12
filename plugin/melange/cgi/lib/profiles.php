@@ -7,7 +7,7 @@
 // ?t=<token>&a=<action>&ajax=1 (i: the index the page shows, was: its name there - another one in the file: nothing
 // written) -> JSON {ok, msg[, profiles]}:
 //   profile_use (i, was) -> profile i in use, as MENU of a list on the Dune does (no request: its config is there; the
-//     source of no profile it would lose saved as a profile first, aio_profile_keep - the profiles full: refused);
+//     source in use of no profile saved as a profile first, aio_profile_keep - the profiles full: refused);
 //   profile_del (i, was) -> profile i gone (its config stays on the server, the source in use stays).
 // Each one reads settings.json and writes it whole (aio_cgi_store). profiles: those of the file (none when it was not
 // read).
@@ -32,12 +32,11 @@ function aio_cgi_profiles_full()
         'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX);
 }
 
-// The line of "Сделать текущим" refused: the source in use of no profile is to be saved as one, the profiles full (as
-// src_full of the plugin).
+// The line of "Сделать текущим" refused: the source in use of no profile is to be saved as one, the profiles full.
 function aio_cgi_profiles_full_use()
 {
-    return sprintf(aio_cgi_l('Профилей уже %d: удалите лишний на странице настроек',
-        'There are %d profiles already: delete one on the settings page'), AIO_PROFILES_MAX);
+    return sprintf(aio_cgi_l('Профилей уже %d: удалите лишний, чтобы переключиться',
+        'There are %d profiles already: delete one to switch'), AIO_PROFILES_MAX);
 }
 
 // The line of a save refused by the profiles changed meanwhile (another tab).
@@ -350,7 +349,7 @@ function aio_cgi_profile_post($dir, $a)
         if (!aio_profile_ready($p))
             aio_cgi_profile_failed($a, 'no config', sprintf(aio_cgi_l('Конфига профиля ещё нет: нажмите «%s»',
                 'The profile has no config yet: press "%s"'), aio_cgi_saveb()), $s);
-        list($s, $kept, $full) = aio_profile_keep($s, $p, aio_cgi_profile_words());
+        list($s, $kept, $full) = aio_profile_keep($s, aio_cgi_profile_words());
         if ($full !== '')
             aio_cgi_profile_failed($a, 'the profiles full, the previous source not saved', aio_cgi_profiles_full_use(), $s);
         if ($kept >= 0)
