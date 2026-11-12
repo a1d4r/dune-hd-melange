@@ -427,7 +427,8 @@ function aio_ts_ep_files($files, $s, $e)
 
 // The file of row $r in $files -> array(key of $files or -1, why). The one
 // AIOStreams chose: its name (behaviorHints.filename) and size (videoSize);
-// else an episode by the name of the file; else, for a movie, the biggest video.
+// else an episode by the name of the file; else, for a movie, the biggest video,
+// for an episode of season 1, the only video if it has no mark.
 /**
  * @param list<AioTsFile> $files
  * @param AioRow $r
@@ -478,7 +479,25 @@ function aio_ts_pick($files, $r, $s, $e)
     {
         if ($by_name)
             return array($by_name[0], 'name and episode');
-        return $eps ? array($eps[0], 'episode in the name') : array(-1, 'no file of the episode');
+        if ($eps)
+            return array($eps[0], 'episode in the name');
+        // A movie in one file that IMDb lists as a miniseries of season 1: the
+        // only video of the release, with no mark of a season or an episode in
+        // its path, for every episode.
+        $n = 0;
+        $only = -1;
+        foreach ($files as $k => $f)
+        {
+            if (aio_ts_video($f['path']))
+            {
+                $n++;
+                $only = $k;
+            }
+        }
+        if ($s <= 1 && $n === 1 && !aio_ts_ep($files[$only]['path']) && !aio_ts_ep_lead($files[$only]['path']) &&
+            !aio_ts_dir_season($files[$only]['path'] . '/', null))
+            return array($only, 'the only video');
+        return array(-1, 'no file of the episode');
     }
     if ($by_name)
         return array($by_name[0], 'name, the first of ' . count($by_name));
