@@ -9,8 +9,6 @@
 // r24: seconds for rows at an opening, with the refresh of the manifest: what does not
 // make it stays hidden until the next one. A cold row takes up to 4.5 s, 6 rows 2.5 s.
 define('AIO_CATV_OPEN_S', 3.0);
-// r24: the refresh of the manifest first in an opening (~0.3 s, 5 KB in gzip), at most this many s of AIO_CATV_OPEN_S.
-define('AIO_CATV_REFRESH_S', 2);
 // r25: one row of get_folder_rows, a key of the user waits for it; the stubs of a row.
 define('AIO_CATV_ROW_S', 5.0);
 define('AIO_CATV_STUBS', 9);
@@ -19,8 +17,12 @@ define('AIO_CATV_DOWN_S', 30);
 // The timeout of get_folder_view and of a portion of the grid is not known (10 s by
 // the SDK): all of an opening, the first manifest in it, and a portion stay under it.
 define('AIO_CATV_OPEN_MAX_S', 7.0);
-define('AIO_CATV_MANIFEST_S', 5);
 define('AIO_CATV_GRID_S', 7.0);
+// The first manifest, no copy: the screen waits for it.
+define('AIO_CATV_MANIFEST_S', 5);
+// The refresh of a copy (~0.3 s, 5 KB in gzip): r24 first in an opening, within AIO_CATV_OPEN_S;
+// r25 at most this in get_folder_rows, keys and RETURN wait for php_server.
+define('AIO_CATV_REFRESH_S', 2);
 // Less than this left: no more requests.
 define('AIO_CATV_MIN_S', 0.3);
 define('AIO_CATV_ROW_TILES', 20);
@@ -151,9 +153,9 @@ class AioCat
     // r25: when a row came empty, by rid. It is hidden at the openings of the next hour.
     /** @var array<string, int> */
     public static $empty = array();
-    // r25: the manifest is to be refreshed in get_folder_rows, once an opening.
+    // r25: the manifest to refresh in get_folder_rows, once an opening.
     /** @var bool */
-    public static $manifest_old = false;
+    public static $manifest_due = false;
     // r25: when a request of a row failed for the server (net, rate, server), 0: it did not.
     /** @var int */
     public static $down = 0;
@@ -766,8 +768,8 @@ function aio_catv_row_answer($rid, $lang)
 
 // get_folder_rows: "Show all": aio_catv_all_rows. Else one row a call (a saved copy: and
 // its title), the shell asks for the rest next. Always a row with the id asked: on a reply without rows the shell asks again
-// every ~1 ms. The refresh of the manifest takes the time left of the call: an opening
-// does not wait for it.
+// every ~1 ms. The refresh of the manifest (AioCat::$manifest_due) takes the time left of the call,
+// AIO_CATV_REFRESH_S at most: an opening does not wait for it.
 /**
  * @param stdClass $in
  * @return array{rows: list<array<string, mixed>>}
@@ -787,10 +789,10 @@ function aio_catv_rows_op($in)
     $rows[0][PluginRow::id] = $id;
     $rows[0][PluginRow::header_id] = AIO_CATV_HEADER . $rid;
     $left = AIO_CATV_ROW_S - (microtime(true) - $start);
-    if (AioCat::$manifest_old && $left >= 1 && !aio_catv_is_down())
+    if (AioCat::$manifest_due && $left >= 1 && !aio_catv_is_down())
     {
-        AioCat::$manifest_old = false;
-        aio_cat_manifest_fetch(intval($left));
+        AioCat::$manifest_due = false;
+        aio_cat_manifest_fetch(min(intval($left), AIO_CATV_REFRESH_S));
     }
     return array('rows' => $rows);
 }
@@ -1105,12 +1107,11 @@ function aio_catv_message_view($key, $lang, $from)
             PluginControlsFolderView::initial_sel_ndx => -1));
 }
 
-// The manifest is asked anew at every opening; no copy: one request that holds the screen.
+// The manifest: a copy within AIO_CAT_MANIFEST_FRESH as it is; no copy: one request that holds the screen.
 // r25: the first row now (aio_catv_row_now), the others: a fresh copy ready, an old one
-// flagged, none: stubs; get_folder_rows asks for the flagged ones and refreshes the manifest
-// in the time left, for the next opening (none flagged: here, at the end). r24: the manifest
-// first (AIO_CATV_REFRESH_S; a failure: the copy), then the rows, all in AIO_CATV_OPEN_S.
+// flagged, none: stubs; get_folder_rows asks for the flagged ones. r24: the rows in AIO_CATV_OPEN_S.
 // Only the rows of the tab of $media_url, in the order of the user.
+// An older copy is refreshed: r24 first here (a failure: the copy); r25 in get_folder_rows, or here at the end with none flagged.
 /**
  * @param string $media_url
  * @param mixed $sel_state
@@ -1130,23 +1131,23 @@ function aio_catv_main_view($media_url, $sel_state)
     $loading = aio_catv_loading_flag();
     $copy = aio_cat_manifest_copy();
     $rows = $copy['rows'];
-    // The manifest asked in this opening. r24: AIO_CATV_OPEN_S for the rows counts from $rows_t0,
-    // after the first manifest (no copy), else from the start, the refresh within it.
-    $asked_manifest = false;
+    // No request of the manifest due: a recent copy, or asked in this opening. AIO_CATV_OPEN_S
+    // counts from $rows_t0: after the first manifest (no copy), else from the start, the refresh within it.
+    $manifest_done = aio_cat_manifest_recent($copy);
     $rows_t0 = $start;
     if (!$rows)
     {
         $new = aio_cat_manifest_fetch(AIO_CATV_MANIFEST_S);
         $rows = $new['rows'];
-        $asked_manifest = true;
+        $manifest_done = true;
         $rows_t0 = microtime(true);
         if (!$rows)
             return aio_catv_message_view('cat_unavailable', $lang, $media_url);
     }
-    else if (!$loading && !aio_catv_is_down())
+    else if (!$loading && !$manifest_done && !aio_catv_is_down())
     {
         $new = aio_cat_manifest_fetch(AIO_CATV_REFRESH_S);
-        $asked_manifest = true;
+        $manifest_done = true;
         if ($new['rows'])
             $rows = $new['rows'];
     }
@@ -1195,10 +1196,13 @@ function aio_catv_main_view($media_url, $sel_state)
             $asked = true;
         }
     }
-    AioCat::$manifest_old = $asked && !$asked_manifest;
-    $left = AIO_CATV_OPEN_S - (microtime(true) - $start);
-    if (!$asked && !$asked_manifest && $left >= 1 && !aio_catv_is_down())
-        aio_cat_manifest_fetch(intval($left));
+    if ($loading)
+    {
+        AioCat::$manifest_due = $asked && !$manifest_done;
+        $left = AIO_CATV_OPEN_S - (microtime(true) - $rows_t0);
+        if (!$asked && !$manifest_done && $left >= 1 && !aio_catv_is_down())
+            aio_cat_manifest_fetch(intval($left));
+    }
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
 }

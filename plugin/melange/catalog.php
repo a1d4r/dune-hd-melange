@@ -46,14 +46,16 @@ define('AIO_CAT_SEARCH_WAIT', 10);
 
 // Cache in data_dir/catalog: a failure right after a reboot has it too, tmp_dir
 // (RAM) would not. Fresh for 1 h: first pages are not asked again (the server
-// keeps rows for a day); the manifest is asked at every opening of the catalog
-// and by the settings page, its copy is for a failure. Kept for 30 days as the last good
+// keeps rows for a day). Kept for 30 days as the last good
 // copy: an older row is of little use, and TMDB allows 6 months at most. 8 MB,
 // 400 files: ~80 pages of 100 KB (json_encode makes Cyrillic 6 bytes a letter),
 // the oldest go first.
 // Raise the version when aio_cat_tile makes a wrong tile of an older copy, not for a new key alone: older copies are dropped.
 define('AIO_CAT_CACHE_V', 2);
 define('AIO_CAT_FRESH', 3600);
+// The copy of the manifest is not asked again for 10 min (aio_cat_manifest_recent): rows added or
+// removed on the server show within it, an opening or a switch of the tab does not wait ~1 s for it.
+define('AIO_CAT_MANIFEST_FRESH', 600);
 define('AIO_CAT_KEEP', 2592000);
 define('AIO_CAT_CACHE_BYTES', 8388608);
 define('AIO_CAT_CACHE_FILES', 400);
@@ -313,7 +315,18 @@ function aio_cat_manifest_fetch($limit = 0)
     return array('rows' => array(), 'err' => $g['err'] !== '' ? $g['err'] : 'bad');
 }
 
-// Rows of the catalog from the server, a copy of any age does not stop the request; on
+// The copy $c of aio_cat_manifest_copy has rows saved less than AIO_CAT_MANIFEST_FRESH ago:
+// no request for the manifest. A time ahead of the clock is not recent (aio_cat_fresh_since).
+/**
+ * @param array{rows: list<AioCatRow>, t: int} $c
+ * @return bool
+ */
+function aio_cat_manifest_recent($c)
+{
+    return $c['rows'] && time() >= $c['t'] && time() - $c['t'] < AIO_CAT_MANIFEST_FRESH;
+}
+
+// Rows of the catalog: from the cache for AIO_CAT_MANIFEST_FRESH, else from the server; on
 // a failure the last good copy with stale set, err tells why ('' none; aio_cat_get).
 // No copy either: no rows and err.
 /**
@@ -321,10 +334,12 @@ function aio_cat_manifest_fetch($limit = 0)
  */
 function aio_cat_manifest()
 {
+    $c = aio_cat_manifest_copy();
+    if (aio_cat_manifest_recent($c))
+        return array('rows' => $c['rows'], 'stale' => false, 'err' => '');
     $new = aio_cat_manifest_fetch();
     if ($new['rows'])
         return array('rows' => $new['rows'], 'stale' => false, 'err' => '');
-    $c = aio_cat_manifest_copy();
     return array('rows' => $c['rows'], 'stale' => (bool) $c['rows'], 'err' => $new['err']);
 }
 

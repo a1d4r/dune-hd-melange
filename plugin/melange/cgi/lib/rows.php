@@ -3,7 +3,7 @@
 // Runs the client of the plugin (catalog.php) with what it takes of main.php, which
 // needs the firmware. Loaded only for this request (and for the start rows after a
 // save, aio_cgi_cat_start). Only reads the cache: the
-// manifest is asked every time and not kept (aio_cat_cache_dir).
+// manifest older than AIO_CAT_MANIFEST_FRESH is asked again and not kept (aio_cat_cache_dir).
 
 define('AIO_CAT_READ_ONLY', true);
 define('AIO_HTTP_TOO_BIG', 'reply over the size limit');
