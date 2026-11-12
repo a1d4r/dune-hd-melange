@@ -7,7 +7,7 @@
 // ?t=<token>&a=<action>&ajax=1 (i: the index the page shows, was: its name there - another one in the file: nothing
 // written) -> JSON {ok, msg[, profiles]}:
 //   profile_use (i, was) -> profile i in use, as MENU of a list on the Dune does (no request: its config is there; the
-//     source in use of no profile saved as a profile first, aio_profile_keep - the profiles full: refused);
+//     source in use kept by a profile first, aio_profile_keep - the profiles full: refused);
 //   profile_del (i, was) -> profile i gone (its config stays on the server, the source in use stays).
 // Each one reads settings.json and writes it whole (aio_cgi_store). profiles: those of the file (none when it was not
 // read).
@@ -336,6 +336,7 @@ function aio_cgi_profile_post($dir, $a)
     if (!isset($s['profiles'][$k]) || $s['profiles'][$k]['name'] !== aio_cgi_param($_POST, 'was'))
         aio_cgi_profile_failed($a, 'no such profile', aio_cgi_profiles_changed(), $s);
     $p = $s['profiles'][$k];
+    $kept = -1;
     if ($a === 'profile_del')
     {
         array_splice($s['profiles'], $k, 1);
@@ -349,11 +350,11 @@ function aio_cgi_profile_post($dir, $a)
         if (!aio_profile_ready($p))
             aio_cgi_profile_failed($a, 'no config', sprintf(aio_cgi_l('Конфига профиля ещё нет: нажмите «%s»',
                 'The profile has no config yet: press "%s"'), aio_cgi_saveb()), $s);
-        list($s, $kept, $full) = aio_profile_keep($s, aio_cgi_profile_words());
-        if ($full !== '')
+        list($s, $kept, $full, $held) = aio_profile_keep($s, aio_cgi_profile_words());
+        if ($full)
             aio_cgi_profile_failed($a, 'the profiles full, the previous source not saved', aio_cgi_profiles_full_use(), $s);
-        if ($kept >= 0)
-            aio_cgi_log("$a: saved previous as profile " . aio_profile_tag($kept, $s['profiles'][$kept]));
+        if ($held >= 0)
+            aio_cgi_log("$a: previous not saved: its config is of profile " . aio_profile_tag($held, $s['profiles'][$held]));
         $s = aio_profile_apply($s, $p);
         $msg = sprintf(aio_cgi_l('Профиль «%s» теперь текущий', 'Profile "%s" is in use now'), $p['name']);
     }
@@ -361,6 +362,8 @@ function aio_cgi_profile_post($dir, $a)
     if ($why !== '')
         aio_cgi_profile_failed($a, $why, aio_cgi_l('Не сохранено: ошибка записи на Дюне', 'Not saved: write error on the Dune'),
             aio_settings_read($dir));
+    if ($kept >= 0)
+        aio_cgi_log("$a: saved previous as profile " . aio_profile_tag($kept, $s['profiles'][$kept]));
     aio_cgi_log("$a: ok");
     aio_cgi_profile_answer(true, $msg, $s);
 }
