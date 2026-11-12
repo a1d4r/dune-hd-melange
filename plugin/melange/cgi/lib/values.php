@@ -11,9 +11,10 @@
 // of the settings, markers: aio_cgi_markers_of() (of markers_exact too), source_errors:
 // aio_cgi_source_errors_of(), cat_rating: aio_cgi_cat_rating_of(), cat_logo: aio_cgi_cat_logo_of(), no_torrents:
 // aio_cgi_no_torrents_of(), src_profiles: aio_cgi_src_profiles_of(), as posted - none: '',
-// settings.php puts the stored one; src_was: aio_cgi_src_was_stored() of the settings, as posted);
-// prof - the profiles for the script (aio_cgi_profiles_data of the settings, of the file
-// on a save: settings.php);
+// settings.php puts the stored one; src_was: aio_cgi_src_was_stored() of the settings, as posted;
+// pf_sel, pf_was, pf_now, pf_name - the editor of the profiles, '' (aio_cgi_editor_values puts it), as posted);
+// pf_def - the name of a new profile; prof - the profiles for the script (aio_cgi_profiles_data of the settings,
+// of the file on a save: settings.php);
 // tpl_new, tpl_p2p_new -
 // aio_tpl, aio_tpl_p2p of the settings (for a new config);
 // mode_cur - aio_mode of the settings (one for all servers); servers -
@@ -39,7 +40,10 @@ function aio_cgi_values($s)
     $v['no_torrents'] = aio_cgi_no_torrents_of($s['no_torrents']);
     $v['src_profiles'] = aio_cgi_src_profiles_of($s['src_profiles']);
     $v['src_was'] = aio_cgi_src_was_stored($s);
-    $v['prof'] = aio_cgi_profiles_data($s);
+    // No editor of the profiles (aio_cgi_editor_values puts one).
+    foreach (array('pf_sel', 'pf_was', 'pf_now', 'pf_name', 'pf_def') as $k)
+        $v[$k] = '';
+    $v['prof'] = aio_cgi_profiles_data($s, '');
     $v['cat_rows'] = aio_cgi_cat_rows_of($s['cat_rows']);
     $v['cat_rows_was'] = $v['cat_rows'];
     $v['servers'] = $s['servers'];

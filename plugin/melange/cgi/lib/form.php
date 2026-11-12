@@ -72,6 +72,14 @@ function aio_cgi_fields()
         // (MENU of a list on the Dune may have switched the profile since).
         'src_was' => array('id' => 'sw', 'name' => 'src_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src',
             'raw' => true),
+        // The editor of the source profiles (0.58.0, lib/profiles.php): the profile the page shows (an index, new, cur),
+        // its name as the page came, 1 - in use then; its name as typed.
+        'pf_sel' => array('id' => 'pfs', 'name' => 'prof', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src'),
+        'pf_was' => array('id' => 'pfw', 'name' => 'prof_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src',
+            'raw' => true),
+        'pf_now' => array('id' => 'pfc', 'name' => 'prof_now', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src'),
+        'pf_name' => array('id' => 'pfn', 'name' => 'prof_name', 'set' => '', 'max' => AIO_PROFILE_NAME_MAX * 4, 'type' => 'plain',
+            'scr' => 'src', 'raw' => true),
         // "Рейтинг IMDb на постерах": aio_cgi_cat_rating().
         'cat_rating' => array('id' => 'rti', 'name' => 'cat_rating', 'set' => 'cat_rating', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // "Логотип фильма вместо названия" (0.55.0): aio_cgi_cat_logo().
@@ -506,7 +514,7 @@ function aio_cgi_jacred($v, $bad = array())
     // P2P on a server with Magnetio (not of aio_conf_p2p_torznab): Magnetio asks JacRed, not the server.
     $mg = aio_cgi_mode_sel($v) === AIO_MODE_P2P && !aio_conf_has_torznab($v['aio_server']);
     $jr403 = aio_cgi_jr403();
-    $out = '<p class="sub" id="jrp" data-made="' . aio_cgi_h($t[0]) . '" data-own="' . aio_cgi_h($t[1]) . '">' . $t[$k] . '</p>' .
+    $out = aio_cgi_editor_line($v) . '<p class="sub" id="jrp" data-made="' . aio_cgi_h($t[0]) . '" data-own="' . aio_cgi_h($t[1]) . '">' . $t[$k] . '</p>' .
         // The created config on a server jacred.stream refuses, jacred.stream chosen (the script follows both);
         // not when Magnetio asks.
         '<p class="hint wn" id="jr403"' . (!$k && !$mg && isset($jr403[$v['aio_server']]) &&
@@ -793,7 +801,7 @@ function aio_cgi_debrid_main($v)
 function aio_cgi_src($v)
 {
     $f = aio_cgi_fields();
-    return aio_cgi_watch_cards() .
+    return aio_cgi_editor_block($v) . aio_cgi_watch_cards() .
         '<div id="mdeb" class="xd"><div id="dseg" class="seg" role="group" aria-label="' . aio_cgi_l('Сервис', 'Service') .
         '" hidden><button type="button" data-k="rd" aria-pressed="true">Real-Debrid</button>' .
         '<button type="button" data-k="tb" aria-pressed="false">TorBox</button></div><div id="rdbox">' .
@@ -814,7 +822,7 @@ function aio_cgi_src($v)
         'Get it at: Save & Install → Stremio → Direct Manifest URL.'), aio_cgi_chk('mb', 'mr')) .
         '<p class="hint">' . aio_cgi_l('Melange этот конфиг не меняет.', 'Melange does not change this config.') .
         '</p><p class="hint xa">' . aio_cgi_l('Торренты из него играют через ', 'Torrents of it play via ') .
-        '<a href="#torr">TorrServer</a>.</p></div>' . aio_cgi_profiles_block() .
+        '<a href="#torr">TorrServer</a>.</p></div>' .
         '<input type="hidden" id="' . $f['src_was']['id'] . '" name="' . $f['src_was']['name'] . '" value="' .
         aio_cgi_h($v['src_was']) . '">';
 }
@@ -835,7 +843,8 @@ function aio_cgi_cfg($v, $bad = array())
     $f = aio_cgi_fields();
     $name = $f['aio_server']['name'];
     $jr403 = aio_cgi_jr403();
-    $out = '<p class="hint xo" id="cfgown">' . aio_cgi_l('Свой конфиг Melange не меняет.', 'Melange does not change your own config.') .
+    $out = aio_cgi_editor_line($v) . '<p class="hint xo" id="cfgown">' . aio_cgi_l('Свой конфиг Melange не меняет.',
+        'Melange does not change your own config.') .
         '</p><div id="smade" class="xm"><div class="choice">';
     $i = 0;
     foreach (aio_aio_servers() as $url => $tmdb)
@@ -1034,8 +1043,8 @@ function aio_cgi_rows_later()
 // of the answer chosen and, with "Без торрентов" in effect, #home without the
 // lines of TorrServer and the servers (without the script too); the bar of the
 // save under them (#bar: the script shows it on a change, #dirty - their
-// number, #srx - "Скрыть" of the results of a save); after the form #prf of the fields of the profiles
-// (aio_cgi_profiles_form). Errors without the script: in #msg, each with a link to the screen of its field, the field
+// number, #srx - "Скрыть" of the results of a save). With "Профили источников" on the page is the editor of a profile
+// (lib/profiles.php): its block on #src, its line on #cfg and #voices. Errors without the script: in #msg, each with a link to the screen of its field, the field
 // aria-invalid.
 function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $kept = false)
 {
@@ -1107,7 +1116,7 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
         aio_cgi_l('Скрыть', 'Hide') . '</button><div class="barrow"><span id="dirty"></span>' .
         '<button type="submit" id="save" class="save">' . (aio_cgi_state($v) === 'conf' ? aio_cgi_savec() :
         aio_cgi_saveb()) .
-        '</button></div></div></form>' . aio_cgi_profiles_form();
+        '</button></div></div></form>';
     // The fields of the errors marked (a radio of watch or jacred: each one).
     foreach ($errors as $e)
         if ($e['field'] !== null)

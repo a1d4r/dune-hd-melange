@@ -113,12 +113,9 @@ function aio_cgi_aio_status_post()
         'no TMDB of its own: titles are matched only with a TMDB key'))));
 }
 
-// aio_confs[$base][$mode] of settings.json set to $c (null: forgotten; the
-// config of the other mode stays), the rest as it is now in the file. -> ''
-// or the reason (for the log).
-function aio_cgi_aio_keep($dir, $base, $mode, $c)
+// aio_confs[$base][$mode] of the settings $s set to $c (null: forgotten; the config of the other mode stays).
+function aio_cgi_aio_cell($s, $base, $mode, $c)
 {
-    $s = aio_settings_read($dir);
     if ($c)
         $s['aio_confs'][$base][$mode] = $c;
     else
@@ -126,6 +123,37 @@ function aio_cgi_aio_keep($dir, $base, $mode, $c)
         unset($s['aio_confs'][$base][$mode]);
         if (empty($s['aio_confs'][$base]))
             unset($s['aio_confs'][$base]);
+    }
+    return $s;
+}
+
+// aio_confs[$base][$mode] of settings.json set to $c (null: forgotten), the rest as it is now in the file; a source
+// profile with the config there (its uuid) gets $c too. $prof (0.58.0): the name of the profile the config is of
+// (a=aio_sync&prof) - its config set to $c (the profile gone or of another server or mode now: nothing written), the
+// cell too when it has the old one, or none and the profile is the source in use (aio_profile_same: its config just
+// made). -> '' or the reason (for the log).
+function aio_cgi_aio_keep($dir, $base, $mode, $c, $prof = '')
+{
+    $s = aio_settings_read($dir);
+    $cell = isset($s['aio_confs'][$base][$mode]) ? $s['aio_confs'][$base][$mode] : null;
+    $k = $prof !== '' ? aio_profile_find($s, $prof) : -1;
+    if ($prof !== '')
+    {
+        $p = $k >= 0 ? $s['profiles'][$k] : null;
+        if (!$p || isset($p['url']) || $p['base'] !== $base || $p['mode'] !== $mode)
+            return 'the profile changed meanwhile, not kept';
+        $old = $p['conf'];
+        $s['profiles'][$k]['conf'] = $c;
+        if (($cell && $old && $cell['uuid'] === $old['uuid']) || (!$cell && aio_profile_same($s, $p)))
+            $s = aio_cgi_aio_cell($s, $base, $mode, $c);
+        return aio_cgi_store($dir, $s);
+    }
+    $s = aio_cgi_aio_cell($s, $base, $mode, $c);
+    foreach ($s['profiles'] as $i => $p)
+    {
+        if ($cell && !isset($p['url']) && $p['base'] === $base && $p['mode'] === $mode && $p['conf'] &&
+            $p['conf']['uuid'] === $cell['uuid'])
+            $s['profiles'][$i]['conf'] = $c;
     }
     return aio_cgi_store($dir, $s);
 }
@@ -139,7 +167,9 @@ function aio_cgi_aio_res($base, $mode)
 }
 
 // The config of the chosen server (of the list or the own one) in the mode
-// aio_mode by settings.json (that of the other mode is never touched): none
+// aio_mode by settings.json (that of the other mode is never touched); $prof (0.58.0):
+// of the source profile of that name - by the settings as of it (aio_profile_view: its
+// server, mode, template, JacRed; the keys of the settings), its own config: none
 // -> POST of the template (aio_settings_tpl: aio_tpl, or aio_tpl_p2p with no
 // Debrid key needed) with our fields;
 // there -> GET, its template by its presets stored (tpl), our fields of the
@@ -153,11 +183,19 @@ function aio_cgi_aio_res($base, $mode)
 // base - the choice (aio_server), mode, conf - aio_cgi_aio_show() of its
 // config now[, field - the name= of the field a failure is about: no Debrid
 // key, the own server not taken (not its 429: the address is right, wait)]).
-function aio_cgi_aio_sync($dir, $reset = false)
+function aio_cgi_aio_sync($dir, $reset = false, $prof = '')
 {
     set_time_limit(120);
     $s = aio_settings_read($dir);
     $f = aio_cgi_fields();
+    $k = $prof !== '' ? aio_profile_find($s, $prof) : -1;
+    if ($prof !== '' && $k < 0)
+    {
+        aio_cgi_log('aio sync: no such profile');
+        return array_merge(aio_cgi_aio_res('', ''), array('msg' => aio_cgi_profiles_changed()));
+    }
+    if ($k >= 0)
+        $s = aio_profile_view($s, $s['profiles'][$k]);
     $choice = $s['aio_server'];
     $base = aio_settings_base($s);
     $host = (string) parse_url($base, PHP_URL_HOST);
@@ -220,7 +258,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
                 aio_cgi_log("aio sync: $ec");
             return array_merge($res, array('msg' => $fail . $why));
         }
-        $w = aio_cgi_aio_keep($dir, $base, $mode, $new);
+        $w = aio_cgi_aio_keep($dir, $base, $mode, $new, $prof);
         if ($w !== '')
         {
             aio_cgi_log("aio sync: $w");
@@ -254,7 +292,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
         if ($t !== $conf['tpl'])
         {
             $conf['tpl'] = $t;
-            $w = aio_cgi_aio_keep($dir, $base, $mode, $conf);
+            $w = aio_cgi_aio_keep($dir, $base, $mode, $conf, $prof);
             if ($w !== '')
                 aio_cgi_log("aio sync: $w");
         }
@@ -283,7 +321,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
         // save makes a new one.
         if ($ec === 'USER_INVALID_DETAILS')
         {
-            $w = aio_cgi_aio_keep($dir, $base, $mode, null);
+            $w = aio_cgi_aio_keep($dir, $base, $mode, null, $prof);
             if ($w !== '')
                 aio_cgi_log("aio sync: $w");
             return array_merge($res, array('msg' => sprintf(aio_cgi_l(
@@ -298,7 +336,7 @@ function aio_cgi_aio_sync($dir, $reset = false)
     $conf['set'] = $set;
     if ($reset)
         $conf['tpl'] = $id;
-    $w = aio_cgi_aio_keep($dir, $base, $mode, $conf);
+    $w = aio_cgi_aio_keep($dir, $base, $mode, $conf, $prof);
     if ($w !== '')
         aio_cgi_log("aio sync: $w");
     return array_merge($res, array('ok' => true, 'msg' => $reset ? sprintf(aio_cgi_l(
@@ -308,12 +346,12 @@ function aio_cgi_aio_sync($dir, $reset = false)
         'conf' => aio_cgi_aio_show($conf)));
 }
 
-// a=aio_sync (reset=1: to the template): JSON {ok, msg, skip, base, mode (aio_mode: the config is of
-// it), conf: {cfg, login, pass, tpl} | null[, field]}.
+// a=aio_sync (reset=1: to the template; prof: of that source profile, 0.58.0): JSON {ok, msg, skip, base, mode
+// (aio_mode: the config is of it), conf: {cfg, login, pass, tpl} | null[, field]}.
 function aio_cgi_aio_sync_post($dir)
 {
     if (!aio_cgi_dir_ok($dir))
         aio_cgi_json(200, array_merge(aio_cgi_aio_res('', ''), array('msg' => aio_cgi_l('Нет папки плагина на Дюне',
             'The plugin data folder is missing on the Dune'))));
-    aio_cgi_json(200, aio_cgi_aio_sync($dir, aio_cgi_param($_POST, 'reset') === '1'));
+    aio_cgi_json(200, aio_cgi_aio_sync($dir, aio_cgi_param($_POST, 'reset') === '1', aio_cgi_param($_POST, 'prof')));
 }
