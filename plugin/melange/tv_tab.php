@@ -7,6 +7,9 @@
 // kept over a reboot, with tv.no_internet.json there. Written by the
 // update_action of the manifest (aio_tv_update) and only by it, from the copies on the device: the
 // rows of the tab "Movies", then those of "Series" (aio_catv_tab_copy_defs), no request.
+// The same for movie.json and series.json, the rows of one tab each: the sub-items "Movies" and "Series"
+// under "TV" (rows_menu_config.json of the flash directory, topmenu_enabled of the manifest); with them
+// "TV" shows the first sub-item, tv.json is shown without them (the switch data_dir/tv_sub_off).
 // The shell later moves the file of tmp_dir to the flash (the same bytes there: it only removes it;
 // code of the shell r25).
 // Fresh: the shell calls it again on the flag <tmp_dir>/update_epfs_if_needed_flag (aio_tv_flag), set
@@ -14,8 +17,12 @@
 // when it saves a copy the file is built of (aio_tv_copy_saved) or reads a new settings.json.
 
 define('AIO_TV_EPF', 'tv');
-// "from" of the actions of the EPF: no screen of Melange is under them.
+// "from" of the actions of tv.json ("tv:<id of the EPF>", aio_tv_is_from): no screen of Melange is under them.
 define('AIO_TV_FROM', 'tv:tv');
+// The sub-items under "TV" in the flash directory (aio_tv_menu_put), and the switch in data_dir that
+// removes them and keeps them away: a way back if the shell fails on them (the owner makes it by hand).
+define('AIO_TV_MENU_FILE', 'rows_menu_config.json');
+define('AIO_TV_SUB_OFF', 'tv_sub_off');
 // The timer: all its requests in this many s. php_server runs one call at a time: the info panel and
 // ENTER on "TV" wait for it.
 define('AIO_TV_TIMER_S', 3.0);
@@ -57,6 +64,16 @@ function aio_tv_dirs()
     return array('tmp' => $tmp === '' ? '' : "$tmp/epfs", 'flash' => getenv('FS_PREFIX') . '/flashdata/plugins_epfs/' . AIO_PLUGIN);
 }
 
+// The EPF of the tab "TV" by id, each with the tabs of the catalog it shows: tv.json both (the item
+// "TV" itself), movie.json and series.json one (its sub-items). Their tiles have the same ids.
+/**
+ * @return array<string, list<string>>
+ */
+function aio_tv_epfs()
+{
+    return array(AIO_TV_EPF => array('movie', 'series'), 'movie' => array('movie'), 'series' => array('series'));
+}
+
 // Melange is the TV application: the line "shell_ext:tv = melange" of epf_mapping.txt, which the
 // shell writes before it calls the update_action of the chosen plugin (device r25, tvtab_probe).
 // Read once an operation: each copy saved asks it (aio_tv_copy_saved).
@@ -95,7 +112,7 @@ function aio_tv_flag($why)
     aio_log("tv: flag: $why" . ($ok ? '' : ', not written'));
 }
 
-// The rows the file is built of: of the tab "Movies", then of "Series" (as aio_catv_tab_copy_defs).
+// The rows the files are built of: of the tab "Movies", then of "Series" (as aio_catv_tab_copy_defs).
 /**
  * @param list<AioCatRow> $rows
  * @return list<AioCatRow>
@@ -176,65 +193,82 @@ function aio_tv_note_defs($id, $key, $lang)
     return aio_catv_row_defs(aio_catv_list(aio_cat_row_state($row), array(), false), $lang, array($item));
 }
 
-// The view of tv.json: the rows of both tabs of the catalog from the copies, as a screen of rows
-// opened now (the mode of the tiles and the plates of the settings and the firmware, as aio_catv_logo_of
-// gives, but not kept among its screens: the EPF would push out a screen of Melange).
-// AIOStreams not set: one tile "Set up Melange" ("tv:setup"), as the catalog opens the settings;
-// no row with a copy: one tile "Open Melange" ("tv:open"). The mode of the screen of rows before it
-// is back after it: the grid of "Show all" asks for its next tiles without aio_catv_logo_of.
+// The views of the EPF (aio_tv_epfs) by id: the rows of their tabs of the catalog from the copies, as
+// a screen of rows opened now (the mode of the tiles and the plates of the settings and the firmware,
+// as aio_catv_logo_of gives, but not kept among its screens: the EPF would push out a screen of Melange).
+// Each tab built once. AIOStreams not set: one tile "Set up Melange" ("tv:setup"), as the catalog opens
+// the settings; no row of its tabs with a copy: one tile "Open Melange" ("tv:open"). The mode of the screen
+// of rows before it is back after it: the grid of "Show all" asks for its next tiles without aio_catv_logo_of.
 /**
  * @param string $lang
  * @param array<string, AioCatTile>|null $tiles
  * @param-out array<string, AioCatTile> $tiles
- * @return array<string, mixed>
+ * @return array<string, array<string, mixed>>
  */
-function aio_tv_view($lang, &$tiles = null)
+function aio_tv_views($lang, &$tiles = null)
 {
     $logo = AioCat::$logo;
     $rating = AioCat::$rating;
     AioCat::$logo = aio_catv_logo_effective();
     AioCat::$rating = Aio::$settings['cat_rating'];
     $tiles = array();
-    if (Aio::$settings['base'] === '')
-        $defs = aio_tv_note_defs('tv:setup', 'tv_setup', $lang);
-    else
+    $tabs = array();
+    if (Aio::$settings['base'] !== '')
     {
-        $movies = aio_catv_tab_copy_defs('movie', $lang);
-        $series = aio_catv_tab_copy_defs('series', $lang);
-        $defs = array_merge($movies['defs'], $series['defs']);
-        $lists = $movies['lists'] + $series['lists'];
-        foreach ($defs as $def)
+        foreach (array('movie', 'series') as $tab)
         {
-            foreach (isset($def[PluginRow::data][PluginRegularRow::items]) ? $def[PluginRow::data][PluginRegularRow::items] : array() as $it)
+            $tabs[$tab] = aio_catv_tab_copy_defs($tab, $lang);
+            $lists = $tabs[$tab]['lists'];
+            foreach ($tabs[$tab]['defs'] as $def)
             {
-                list(, $id) = aio_catv_id_mode(strval($it[PluginRegularItem::id]));
-                $p = explode(':', $id, 2);
-                if (count($p) === 2 && isset($lists[$p[0]]['tiles'][$p[1]]))
-                    $tiles[$id] = $lists[$p[0]]['tiles'][$p[1]];
+                foreach (isset($def[PluginRow::data][PluginRegularRow::items]) ? $def[PluginRow::data][PluginRegularRow::items] : array() as $it)
+                {
+                    list(, $id) = aio_catv_id_mode(strval($it[PluginRegularItem::id]));
+                    $p = explode(':', $id, 2);
+                    if (count($p) === 2 && isset($lists[$p[0]]['tiles'][$p[1]]))
+                        $tiles[$id] = $lists[$p[0]]['tiles'][$p[1]];
+                }
             }
         }
-        if (!$defs)
-            $defs = aio_tv_note_defs('tv:open', 'tv_open', $lang);
     }
-    $view = aio_catv_rows_view($defs, null, AIO_TV_FROM);
-    // No search key of the plugin on the main screen: POP UP has the search (aio_tv_menu).
-    unset($view[PluginFolderView::data][PluginRowsFolderView::actions][GUI_EVENT_KEY_SEARCH]);
+    $views = array();
+    foreach (aio_tv_epfs() as $epf => $of)
+    {
+        $defs = array();
+        foreach ($of as $tab)
+            $defs = isset($tabs[$tab]) ? array_merge($defs, $tabs[$tab]['defs']) : $defs;
+        if (Aio::$settings['base'] === '')
+            $defs = aio_tv_note_defs('tv:setup', 'tv_setup', $lang);
+        else if (!$defs)
+            $defs = aio_tv_note_defs('tv:open', 'tv_open', $lang);
+        $view = aio_catv_rows_view($defs, null, "tv:$epf");
+        // No search key of the plugin on the main screen: POP UP has the search (aio_tv_menu).
+        unset($view[PluginFolderView::data][PluginRowsFolderView::actions][GUI_EVENT_KEY_SEARCH]);
+        $views[$epf] = $view;
+    }
     AioCat::$logo = $logo;
     AioCat::$rating = $rating;
-    return $view;
+    return $views;
 }
 
-// The JSON of tv.json (aio_tv_view), '' when it can not be made; $tiles: its tiles.
+// The JSON of each EPF (aio_tv_views) by id; null when one can not be made. $tiles: their tiles.
 /**
  * @param string $lang
  * @param array<string, AioCatTile>|null $tiles
  * @param-out array<string, AioCatTile> $tiles
- * @return string
+ * @return array<string, string>|null
  */
-function aio_tv_json($lang, &$tiles = null)
+function aio_tv_jsons($lang, &$tiles = null)
 {
-    $json = json_encode(aio_tv_view($lang, $tiles));
-    return is_string($json) ? $json : '';
+    $out = array();
+    foreach (aio_tv_views($lang, $tiles) as $epf => $view)
+    {
+        $json = json_encode($view);
+        if (!is_string($json))
+            return null;
+        $out[$epf] = $json;
+    }
+    return $out;
 }
 
 // The file $f holds $data already: not written again (the flash wears).
@@ -249,7 +283,8 @@ function aio_tv_same($f, $data)
     return is_file($f) && filesize($f) === strlen($data) && file_get_contents($f) === $data;
 }
 
-// The tiles of tv.json to AIO_TV_TILES_FILE, unless they are there already: 'same', 'new' or 'failed'.
+// The tiles of the EPF to AIO_TV_TILES_FILE (one map: movie.json and series.json hold tiles of tv.json),
+// unless they are there already: 'same', 'new' or 'failed'.
 // Not in plugins_epfs: the shell reads that, and it is no copy of the catalog (data_dir/catalog prunes).
 // With the version of the copies: {"v": AIO_CAT_CACHE_V, "tiles": {"<rid>:<id>": tile}}.
 /**
@@ -301,15 +336,18 @@ function aio_tv_tile($id)
     return isset(AioTv::$tiles[$id]) ? AioTv::$tiles[$id] : null;
 }
 
-// folder_key of rows_info (the shell sends "<plugin>:<id of the EPF>") is of the EPF of the tab "TV",
-// not of a screen of Melange ("melange:<media_url>", "melange:catalog"): so only its id, as aio_tv_is_from.
+// folder_key of rows_info (the shell sends "<plugin>:<id of the EPF>") is of an EPF of the tab "TV",
+// not of a screen of Melange ("melange:<media_url>", "melange:catalog"): so only their ids (aio_tv_epfs),
+// no pattern, as aio_tv_is_from.
 /**
  * @param string $key
  * @return bool
  */
 function aio_tv_is_key($key)
 {
-    return $key === AIO_PLUGIN . ':' . AIO_TV_EPF;
+    $epfs = aio_tv_epfs();
+    $n = strlen(AIO_PLUGIN) + 1;
+    return substr($key, 0, $n) === AIO_PLUGIN . ':' && isset($epfs[strval(substr($key, $n))]);
 }
 
 // $data to $path unless it is there already (the flash wears): 'same', 'new' or 'failed'.
@@ -340,6 +378,77 @@ function aio_tv_status()
     return array(GuiAction::handler_string_id => STATUS_ACTION_ID, GuiAction::data => array(StatusActionData::status => 0));
 }
 
+// The JSON of rows_menu_config.json: the sub-items "Movies" and "Series" under "TV", the EPF of their tab
+// each, the captions of the tabs of the catalog. Only items of type plugin with our name and a non-empty
+// epf_id: an item of plugin_action_id alone next to one of epf_id crashed the shell r25 at every start
+// (knowledge base rows-menu c024-c030). '' when it can not be made.
+/**
+ * @param string $lang
+ * @return string
+ */
+function aio_tv_menu_json($lang)
+{
+    $items = array();
+    foreach (array('movie' => 'cat_movies', 'series' => 'cat_series') as $epf => $key)
+    {
+        $items[] = array(
+            'type' => 'plugin',
+            'name' => AIO_PLUGIN,
+            'epf_id' => $epf,
+            // Without the no-break space at the end of cat_movies, cat_series (of the search, aio_catv_search_run).
+            'caption' => trim(str_replace("\xc2\xa0", ' ', aio_tr($lang, $key))),
+            'small_icon_url' => 'plugin_file://%' . AIO_PLUGIN . "%/img/tv_sub_$epf.png",
+            'small_icon_width' => 100);
+    }
+    $json = json_encode(array('rows_menu_items' => $items));
+    return is_string($json) ? $json : '';
+}
+
+// rows_menu_config.json of the flash directory $flash, after movie.json and series.json there ($epfs:
+// written or the same): 'new', 'same', 'failed'; 'not written' when one of them failed. With the switch
+// AIO_TV_SUB_OFF in data_dir never written, removed: 'off', 'off, removed', 'off, not removed'.
+/**
+ * @param string $flash
+ * @param string $lang
+ * @param bool $epfs
+ * @return string
+ */
+function aio_tv_menu_put($flash, $lang, $epfs)
+{
+    $f = "$flash/" . AIO_TV_MENU_FILE;
+    clearstatcache();
+    if (aio_data_dir() !== '' && file_exists(aio_data_dir() . '/' . AIO_TV_SUB_OFF))
+        return !is_file($f) ? 'off' : (@unlink($f) ? 'off, removed' : 'off, not removed');
+    if (!$epfs)
+        return 'not written';
+    $json = aio_tv_menu_json($lang);
+    return $json === '' ? 'failed' : aio_tv_put($f, $json);
+}
+
+// The answer to the update_action that made, changed or removed rows_menu_config.json: the EPF read anew
+// (plugin_update_epf_mapping without epf_id, as reread_all_epfs of shell_ext: no mapping written), then
+// the top menu (plugin_update_rows_menu; reload_topmenu of the API of r24 and r25, not of r22), as the
+// probe on r25 did, after which the shell called no update_action. The next call finds the file the same
+// and answers status, so no loop even if one did.
+/**
+ * @return AioAction
+ */
+function aio_tv_reread()
+{
+    $menu = array(PluginUpdateRowsMenuActionData::post_action => null);
+    if (defined('PluginUpdateRowsMenuActionData::reload_topmenu'))
+        $menu[constant('PluginUpdateRowsMenuActionData::reload_topmenu')] = true;
+    return array(
+        GuiAction::handler_string_id => PLUGIN_UPDATE_EPF_MAPPING_ACTION_ID,
+        GuiAction::data => array(
+            PluginUpdateEpfMappingActionData::epf_id => null,
+            PluginUpdateEpfMappingActionData::mapped_plugin_name => null,
+            PluginUpdateEpfMappingActionData::sync_epfs => true,
+            PluginUpdateEpfMappingActionData::post_action => array(
+                GuiAction::handler_string_id => PLUGIN_UPDATE_ROWS_MENU_ACTION_ID,
+                GuiAction::data => $menu)));
+}
+
 // interface_language as it came, to the log: its form is not proven.
 /**
  * @param stdClass $in
@@ -351,9 +460,11 @@ function aio_tv_lang_log($in)
 }
 
 // update_action of embeddable_plugin_folders (at a start of the shell, a wake, the choice of the TV
-// application): tv.json to both directories, tv.no_internet.json (the same rows: they need no
-// network) to the flash one, each only if it changed. Never the flag update_epfs_if_needed_flag here:
-// the shell would call this again and again. Not the TV application: nothing written.
+// application): each EPF (aio_tv_epfs) to both directories, its .no_internet.json (the same rows: they
+// need no network) to the flash one, then rows_menu_config.json there (aio_tv_menu_put), each only if
+// it changed. Never the flag update_epfs_if_needed_flag here: the shell would call this again and again.
+// The answer status, or aio_tv_reread when rows_menu_config.json changed. Not the TV application:
+// nothing written.
 /**
  * @param stdClass $in
  * @return AioAction
@@ -379,33 +490,46 @@ function aio_tv_update($in)
     $lang = aio_tv_lang($in);
     // Not set back: the info panel of the tiles of the file (rows_info, aio_catv_ui_lang) speaks its language.
     AioCat::$lang = $lang;
-    $json = aio_tv_json($lang, $tiles);
-    if ($json === '')
+    $jsons = aio_tv_jsons($lang, $tiles);
+    if ($jsons === null)
     {
         aio_log("$what $lang: no JSON of the view, nothing written");
         return $status;
     }
-    $tmp = aio_tv_put("{$d['tmp']}/" . AIO_TV_EPF . '.json', $json);
-    $res = $tmp . '/' . aio_tv_put("{$d['flash']}/" . AIO_TV_EPF . '.json', $json);
-    $ni = aio_tv_put("{$d['flash']}/" . AIO_TV_EPF . '.no_internet.json', $json);
-    // The tiles of the file the shell reads first.
-    $ts = $tmp !== 'failed' ? aio_tv_tiles_save($tiles) : 'not written';
-    aio_log(sprintf('%s %s: %s %d B, no_internet %s, tiles %d %s, %.0f ms', $what, $lang, $res, strlen($json), $ni, count($tiles), $ts,
+    $out = array();
+    $tmp_tv = 'failed';
+    $subs = true;
+    foreach ($jsons as $epf => $json)
+    {
+        $tmp = aio_tv_put("{$d['tmp']}/$epf.json", $json);
+        $flash = aio_tv_put("{$d['flash']}/$epf.json", $json);
+        $ni = aio_tv_put("{$d['flash']}/$epf.no_internet.json", $json);
+        if ($epf === AIO_TV_EPF)
+            $tmp_tv = $tmp;
+        else
+            $subs = $subs && $flash !== 'failed';
+        $out[] = ($epf === AIO_TV_EPF ? '' : "$epf ") . "$tmp/$flash " . strlen($json) . " B, no_internet $ni";
+    }
+    $menu = aio_tv_menu_put($d['flash'], $lang, $subs);
+    // The tiles of the files the shell reads first.
+    $ts = $tmp_tv !== 'failed' ? aio_tv_tiles_save($tiles) : 'not written';
+    aio_log(sprintf('%s %s: %s, menu %s, tiles %d %s, %.0f ms', $what, $lang, implode(', ', $out), $menu, count($tiles), $ts,
         (microtime(true) - $t0) * 1000));
-    return $status;
+    return $menu === 'new' || $menu === 'off, removed' ? aio_tv_reread() : $status;
 }
 
-// The file the shell shows: of tmp_dir while it is there, else of the flash (aio_tv_dirs; the shell
-// moves the one of tmp_dir to the flash).
+// The file of the EPF $epf the shell shows: of tmp_dir while it is there, else of the flash (aio_tv_dirs;
+// the shell moves the one of tmp_dir to the flash).
 /**
+ * @param string $epf
  * @return string
  */
-function aio_tv_shown_file()
+function aio_tv_shown_file($epf)
 {
     $d = aio_tv_dirs();
-    $tmp = "{$d['tmp']}/" . AIO_TV_EPF . '.json';
+    $tmp = "{$d['tmp']}/$epf.json";
     clearstatcache();
-    return is_file($tmp) ? $tmp : "{$d['flash']}/" . AIO_TV_EPF . '.json';
+    return is_file($tmp) ? $tmp : "{$d['flash']}/$epf.json";
 }
 
 // The timer: the copy of the manifest older than AIO_CAT_FRESH asked anew (not AIO_CAT_MANIFEST_FRESH:
@@ -458,9 +582,9 @@ function aio_tv_refresh($limit)
 }
 
 // topmenu_timer_action of the manifest: the old copies asked anew (aio_tv_refresh, none without AIOStreams:
-// the file has one tile then), the file built and compared with the one the shell shows (aio_tv_shown_file;
-// not tv.json of tmp_dir alone: the shell takes it away, the timer would find it changed each time):
-// another one - the flag, the shell calls the update_action, which writes it. Not the TV application:
+// the files have one tile then), each EPF built and compared with the file the shell shows (aio_tv_shown_file;
+// not the one of tmp_dir alone: the shell takes it away, the timer would find it changed each time):
+// any one another - the flag, the shell calls the update_action, which writes them. Not the TV application:
 // nothing asked, nothing written.
 /**
  * @param stdClass $in
@@ -478,9 +602,14 @@ function aio_tv_timer($in)
     }
     $asked = Aio::$settings['base'] === '' ? 'AIOStreams not set, nothing asked' : aio_tv_refresh(AIO_TV_TIMER_S);
     $lang = aio_tv_lang($in);
-    $json = aio_tv_json($lang);
-    $changed = $json !== '' && !aio_tv_same(aio_tv_shown_file(), $json);
-    aio_log(sprintf('%s %s: %s; the file %s, %.0f ms', $what, $lang, $asked, $changed ? 'changed' : 'the same', (microtime(true) - $t0) * 1000));
+    $changed = array();
+    foreach (aio_tv_jsons($lang) ?: array() as $epf => $json)
+    {
+        if (!aio_tv_same(aio_tv_shown_file($epf), $json))
+            $changed[] = $epf;
+    }
+    aio_log(sprintf('%s %s: %s; the file %s, %.0f ms', $what, $lang, $asked,
+        $changed ? 'changed (' . implode(', ', $changed) . ')' : 'the same', (microtime(true) - $t0) * 1000));
     if ($changed)
         aio_tv_flag('the timer');
     return aio_tv_status();
@@ -488,15 +617,17 @@ function aio_tv_timer($in)
 
 // --- The actions of the EPF: from "tv:<id of the EPF>", the tiles of the catalog as on its screens.
 
-// $from of an action is the EPF of the tab "TV" (AIO_TV_FROM, as aio_tv_is_key): no screen of Melange is
-// under it, so none may be replaced (aio_replace_act); a screen of Melange opens over the main screen.
+// $from of an action is an EPF of the tab "TV" ("tv:<id>" of aio_tv_epfs, no pattern, as aio_tv_is_key):
+// no screen of Melange is under it, so none may be replaced (aio_replace_act); a screen of Melange opens
+// over the main screen.
 /**
  * @param string $from
  * @return bool
  */
 function aio_tv_is_from($from)
 {
-    return $from === AIO_TV_FROM;
+    $epfs = aio_tv_epfs();
+    return substr($from, 0, 3) === 'tv:' && isset($epfs[strval(substr($from, 3))]);
 }
 
 // The catalog of Melange, its entry "catalog", over the main screen.
@@ -532,7 +663,7 @@ function aio_tv_enter($in)
 }
 
 // POP UP in the EPF, on any tile: the search (its results a screen of Melange), the catalog, the
-// settings. The search key is not the plugin's there: the main screen has its own (aio_tv_view).
+// settings. The search key is not the plugin's there: the main screen has its own (aio_tv_views).
 /**
  * @param stdClass $in
  * @return AioAction

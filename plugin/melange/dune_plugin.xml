@@ -95,6 +95,7 @@
     <mapping>
       <tv>tv</tv>
     </mapping>
+    <topmenu_enabled>yes</topmenu_enabled>
   </embeddable_plugin_folders>
   <check_update>
     <schema>2</schema>
