@@ -223,9 +223,10 @@ function aio_cm_parse($m, $type, $id, $now)
         'seasons' => $eps['seasons'], 'season_numbers' => $eps['season_numbers']);
 }
 
-// The season the streams of season $s of meta $m are asked by: 1 for one numbered on from the
-// season before (its first episode past 1: One Piece S2 is E62-E77, asked as :1:62, the episode
-// as the absolute number), else $s. The history of such an episode is written so too.
+// The season the streams of season $s of meta $m are asked by: 1 for one numbered on from season 1
+// (its first episode the last of the season before + 1, and so each season back to 1: One Piece S2
+// is E62-E77 after E1-E61, asked as :1:62, the episode as the absolute number), else $s. The
+// history of such an episode is written so too.
 /**
  * @param AioCardMeta $m
  * @param int $s
@@ -233,7 +234,15 @@ function aio_cm_parse($m, $type, $id, $now)
  */
 function aio_cm_req_s($m, $s)
 {
-    return isset($m['seasons'][$s][0]) && $m['seasons'][$s][0]['e'] > 1 ? 1 : $s;
+    for ($t = $s; $t > 1; $t--)
+    {
+        if (!isset($m['seasons'][$t][0], $m['seasons'][$t - 1][0]))
+            return $s;
+        $prev = $m['seasons'][$t - 1];
+        if ($m['seasons'][$t][0]['e'] !== $prev[count($prev) - 1]['e'] + 1)
+            return $s;
+    }
+    return 1;
 }
 
 // The episodes of meta $m, those not out too, by the season they are asked by (aio_cm_req_s):
