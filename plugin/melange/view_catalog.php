@@ -144,7 +144,8 @@ define('AIO_CATV_UNDERLINE', '#FF3870FF');
 class AioCat
 {
     // Listings by rid: what the info panel and ENTER read. Memory of php_server
-    // only; after a restart a tile asked for brings the saved first page of its row (aio_catv_tile).
+    // only; after a restart a tile or "Show all" asked for brings the saved first page of its row
+    // (aio_catv_list_restore).
     /** @var array<string, AioCatList> */
     public static $lists = array();
     // The last AIO_CATV_SEARCHES searches, the oldest first: by its id, the rids of its rows.
@@ -167,7 +168,9 @@ class AioCat
     /** @var int */
     public static $down = 0;
     // r25: the tiles of the flagged rows as this screen shows them, by rid and id: the shell
-    // throws away a reply cancelled by ENTER, while the listing has already moved on.
+    // throws away a reply cancelled by ENTER, while the listing has already moved on. Also the
+    // tiles of an old copy the grid of "Show all" began anew from (aio_catv_all_list): they
+    // stay on the screen it was opened from.
     /** @var array<string, array<int|string, AioCatTile>> */
     public static $on_screen = array();
     // The language of the last screen of rows ('': not read yet), aio_catv_ui_lang.
@@ -303,9 +306,8 @@ function aio_catv_tile_id($id)
 }
 
 // The tile of an id of the screen, or null. From memory; no listing of its rid in memory (a restart
-// of php_server, a tile of a file the shell shows without PHP): the saved first page of its row of the
-// manifest, no request, and that listing goes to memory. A listing in memory without the tile: null,
-// the copy is not newer than it.
+// of php_server, a tile of a file the shell shows without PHP): aio_catv_list_restore. A listing in
+// memory without the tile: null, the copy is not newer than it.
 /**
  * @param string $id
  * @return AioCatTile|null
@@ -320,15 +322,30 @@ function aio_catv_tile($id)
         return AioCat::$lists[$p[0]]['tiles'][$p[1]];
     if (isset(AioCat::$on_screen[$p[0]][$p[1]]))
         return AioCat::$on_screen[$p[0]][$p[1]];
+    $list = isset(AioCat::$lists[$p[0]]) ? null : aio_catv_list_restore($p[0]);
+    return isset($list['tiles'][$p[1]]) ? $list['tiles'][$p[1]] : null;
+}
+
+// The listing of the row $rid of the saved manifest not in memory, from the saved first page of
+// any age, no request; it goes to memory marked "restored" (aio_catv_all_list). null: no such row
+// or no copy of it.
+/**
+ * @param string $rid
+ * @return AioCatList|null
+ */
+function aio_catv_list_restore($rid)
+{
     // A rid (aio_catv_rid), not "more", "stub" and the like: they read no manifest.
-    if (isset(AioCat::$lists[$p[0]]) || !preg_match('/^[0-9a-f]{8}$/D', $p[0]))
+    if (!preg_match('/^[0-9a-f]{8}$/D', $rid))
         return null;
-    $row = aio_catv_row_by_rid($p[0]);
+    $row = aio_catv_row_by_rid($rid);
     $c = $row ? aio_cat_page_cached($row, 0) : null;
     if (!$row || !$c)
         return null;
-    AioCat::$lists[$p[0]] = aio_catv_list_copy($row, $c);
-    return isset(AioCat::$lists[$p[0]]['tiles'][$p[1]]) ? AioCat::$lists[$p[0]]['tiles'][$p[1]] : null;
+    $list = aio_catv_list_copy($row, $c);
+    $list['restored'] = true;
+    AioCat::$lists[$rid] = $list;
+    return $list;
 }
 
 // --- Pictures: the size is in the address; a picture of another type or width is fine.
@@ -1204,6 +1221,7 @@ function aio_catv_main_view($media_url, $sel_state)
     $defs = array();
     $asked = false;
     $shown = array();
+    // The rows of a tab of the copies alone are made by aio_catv_tab_copy_defs too: a new filter (as aio_catv_is_empty) goes there as well.
     foreach ($rows as $row)
     {
         if (!$loading || !aio_catv_is_empty(aio_catv_rid($row)))
@@ -1253,8 +1271,9 @@ function aio_catv_main_view($media_url, $sel_state)
 
 // The rows of the tab $tab from the copies alone, for a file the shell shows without PHP (the tab
 // "TV"): the rows of the user (aio_cat_user_rows) of the saved manifest, each by its saved first page
-// of any age; a row without one is left out. No request, no flag, no mark "saved", no strip, memory
-// untouched. -> the defs of the rows (aio_catv_row_defs, for aio_catv_rows_view) and their rids.
+// of any age; a row without one is left out. No request, no flag, no mark "saved", no strip; the tiles
+// and the plates by the mode of the screen now (aio_catv_logo_of), the caller sets it. -> the defs of
+// the rows (aio_catv_row_defs, for aio_catv_rows_view) and their rids.
 /**
  * @param string $tab
  * @param string $lang
@@ -1635,8 +1654,11 @@ function aio_catv_more_url($id)
 
 // The listing of a screen "Show all" ("cat_grid:<rid>", of a search "cat_grid:<rid>:<id of
 // the search>"), or null: a search no more in memory (AIO_CATV_SEARCHES) gets nothing. $anew:
-// a row of the manifest not in memory gets a new listing, from the first page on; not for the
-// rows of a screen already shown, the listing anew may differ.
+// a row of the manifest not in memory gets a new listing, from the first page on, and so does a
+// listing restored from a copy older than AIO_CAT_FRESH (aio_catv_list_restore): a first page
+// hours old would begin the grid, the titles gone from a row of trends since then missing in it;
+// its tiles stay to the screen it came from (AioCat::$on_screen). Not $anew, for the rows of a
+// screen already shown (the listing anew may differ): the listing in memory, else restored.
 /**
  * @param string $url
  * @param bool $anew
@@ -1651,7 +1673,14 @@ function aio_catv_all_list($url, $anew)
         return isset(AioCat::$searches[$p[1]]) && in_array($rid, AioCat::$searches[$p[1]], true) ? $list : null;
     if (count($p) > 2 || ($list && isset($list['st']['row']['q'])))
         return null;
-    if ($list || !$anew)
+    if (!$anew)
+        return $list ? $list : aio_catv_list_restore($rid);
+    if ($list && !empty($list['restored']) && !aio_cat_state_fresh($list['st']))
+    {
+        AioCat::$on_screen[$rid] = $list['tiles'];
+        $list = null;
+    }
+    if ($list)
         return $list;
     $row = aio_catv_row_by_rid($rid);
     if (!$row)
@@ -1986,8 +2015,9 @@ function aio_catv_all_view($url, $sel_state)
 // listing goes to memory page by page, so a repeat of a cancelled call is at once. No row asked
 // filled (a failure, out of time): "did not load" after the last tile and the rows past it closed
 // as at the end, in every reply until the view anew; no request till then. Never an empty
-// reply: the shell would ask again at once. No listing (php_server restarted, a search out of
-// memory): 0 tiles from the first row asked on; an id not of a row of the screen: 0 tiles with that id.
+// reply: the shell would ask again at once. php_server restarted: the listing goes on from the copy
+// of the first page (aio_catv_all_list); no listing (no copy, a search out of memory): 0 tiles from
+// the first row asked on; an id not of a row of the screen: 0 tiles with that id.
 /**
  * @param string $url
  * @param array<mixed> $ids
@@ -2214,8 +2244,8 @@ function aio_catv_title_label($name, $bottom)
 // country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the description 13 px under the last
 // one, as many lines as the rest of the panel holds, as the native one counts them. No line for an
 // empty field, the next ones go up.
-// "Show all": the name of the row and the caption of the tile. null without a tile (aio_catv_tile) or a row in memory (a stub, a message,
-// a restart of php_server). No label with an empty text: whether the shell takes one is not known.
+// "Show all": the name of the row and the caption of the tile. null without a tile (aio_catv_tile) or a row in memory or a copy
+// (aio_catv_all_list: a stub, a message). No label with an empty text: whether the shell takes one is not known.
 /**
  * @param stdClass $in
  * @return AioAction|null
