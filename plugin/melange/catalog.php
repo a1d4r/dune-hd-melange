@@ -90,22 +90,24 @@ function aio_cat_url($path)
 // notfound (404), http (another status), bad (not the JSON expected). A failure
 // is never an empty list. $what: for the log, no URL and no reply there. $limit: s
 // the request may take at most, 0 for the usual timeouts. $one: $field holds one
-// object (the meta of a title), not a list; null or a list there is bad.
+// object (the meta of a title), not a list; null or a list there is bad. $max: bytes of the
+// decoded reply at most (big over it).
 /**
  * @param string $path
  * @param string $what
  * @param string $field
  * @param int $limit
  * @param bool $one
+ * @param int $max
  * @return array{err: string, list: array<mixed>} list: the object itself when $one
  */
-function aio_cat_get($path, $what, $field, $limit = 0, $one = false)
+function aio_cat_get($path, $what, $field, $limit = 0, $one = false, $max = AIO_CAT_MAX_BYTES)
 {
     $t = microtime(true);
     $err = '';
     $connected = true;
     $total = $limit > 0 ? min($limit, AIO_CAT_TOTAL) : AIO_CAT_TOTAL;
-    list($code, $body) = aio_http_get(aio_cat_url($path), $err, min(AIO_CAT_CONNECT, $total), $total, AIO_CAT_MAX_BYTES,
+    list($code, $body) = aio_http_get(aio_cat_url($path), $err, min(AIO_CAT_CONNECT, $total), $total, $max,
         $connected);
     $size = strlen($body);
     $status = $err !== '' ? $err : "HTTP $code";
