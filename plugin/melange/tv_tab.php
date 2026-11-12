@@ -7,15 +7,18 @@
 // kept over a reboot, with tv.no_internet.json there. Written by the
 // update_action of the manifest (aio_tv_update) and only by it, from the copies on the device: the
 // rows of the tab "Movies", then those of "Series" (aio_catv_tab_copy_defs), no request.
+// The shell later moves the file of tmp_dir to the flash (the same bytes there: it only removes it;
+// code of the shell r25).
 // Fresh: the shell calls it again on the flag <tmp_dir>/update_epfs_if_needed_flag (aio_tv_flag), set
-// by the timer of the manifest (aio_tv_timer, once an hour: the old copies asked anew) and by Melange
+// by the timer of the manifest (aio_tv_timer, every 10 min: the old copies asked anew) and by Melange
 // when it saves a copy the file is built of (aio_tv_copy_saved) or reads a new settings.json.
 
 define('AIO_TV_EPF', 'tv');
 // "from" of the actions of the EPF: no screen of Melange is under them.
 define('AIO_TV_FROM', 'tv:tv');
-// The timer: all its requests in this many s (show_dialog_delay of the manifest is 10 s).
-define('AIO_TV_TIMER_S', 7.0);
+// The timer: all its requests in this many s. php_server runs one call at a time: the info panel and
+// ENTER on "TV" wait for it.
+define('AIO_TV_TIMER_S', 3.0);
 // In data_dir: the tiles of tv.json by id without the mode (aio_tv_tile), written with it.
 define('AIO_TV_TILES_FILE', 'tv_tiles.json');
 
@@ -392,7 +395,21 @@ function aio_tv_update($in)
     return $status;
 }
 
-// The timer: the copy of the manifest older than AIO_CAT_MANIFEST_FRESH asked anew, then the first pages
+// The file the shell shows: of tmp_dir while it is there, else of the flash (aio_tv_dirs; the shell
+// moves the one of tmp_dir to the flash).
+/**
+ * @return string
+ */
+function aio_tv_shown_file()
+{
+    $d = aio_tv_dirs();
+    $tmp = "{$d['tmp']}/" . AIO_TV_EPF . '.json';
+    clearstatcache();
+    return is_file($tmp) ? $tmp : "{$d['flash']}/" . AIO_TV_EPF . '.json';
+}
+
+// The timer: the copy of the manifest older than AIO_CAT_FRESH asked anew (not AIO_CAT_MANIFEST_FRESH:
+// the timer comes every 10 min), then the first pages
 // of the rows of the file without a copy or with one older than AIO_CAT_FRESH, the oldest first, one by
 // one in $limit s; after a failure of the server no more. Fresh copies are not asked: at most a request
 // a row an hour, however often the shell calls. No flag of each copy (AioTv::$quiet). -> for the log.
@@ -409,7 +426,7 @@ function aio_tv_refresh($limit)
     $rows = $copy['rows'];
     $man = 'manifest fresh';
     $err = '';
-    if (!aio_cat_manifest_recent($copy))
+    if (!$copy['rows'] || !aio_cat_is_fresh($copy))
     {
         $m = aio_cat_manifest_fetch(max(1, intval(min(AIO_CATV_REFRESH_S, $limit))));
         $rows = $m['rows'] ? $m['rows'] : $rows;
@@ -441,9 +458,10 @@ function aio_tv_refresh($limit)
 }
 
 // topmenu_timer_action of the manifest: the old copies asked anew (aio_tv_refresh, none without AIOStreams:
-// the file has one tile then), the file built and compared with tv.json of tmp_dir, the one the shell reads
-// first: another one - the flag, the shell calls the update_action, which writes it. Not the TV
-// application: nothing asked, nothing written.
+// the file has one tile then), the file built and compared with the one the shell shows (aio_tv_shown_file;
+// not tv.json of tmp_dir alone: the shell takes it away, the timer would find it changed each time):
+// another one - the flag, the shell calls the update_action, which writes it. Not the TV application:
+// nothing asked, nothing written.
 /**
  * @param stdClass $in
  * @return AioAction
@@ -461,7 +479,7 @@ function aio_tv_timer($in)
     $asked = Aio::$settings['base'] === '' ? 'AIOStreams not set, nothing asked' : aio_tv_refresh(AIO_TV_TIMER_S);
     $lang = aio_tv_lang($in);
     $json = aio_tv_json($lang);
-    $changed = $json !== '' && !aio_tv_same("{$d['tmp']}/" . AIO_TV_EPF . '.json', $json);
+    $changed = $json !== '' && !aio_tv_same(aio_tv_shown_file(), $json);
     aio_log(sprintf('%s %s: %s; the file %s, %.0f ms', $what, $lang, $asked, $changed ? 'changed' : 'the same', (microtime(true) - $t0) * 1000));
     if ($changed)
         aio_tv_flag('the timer');

@@ -90,7 +90,7 @@
         <control_id>tv_timer</control_id>
       </params>
     </topmenu_timer_action>
-    <topmenu_timer_delay>3600</topmenu_timer_delay>
+    <topmenu_timer_delay>600</topmenu_timer_delay>
     <topmenu_timer_delay_after_refresh>30</topmenu_timer_delay_after_refresh>
     <mapping>
       <tv>tv</tv>
