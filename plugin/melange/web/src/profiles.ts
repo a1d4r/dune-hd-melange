@@ -6,7 +6,8 @@
 // The lines of an edit are in its card, the rest under the block. "Save the current one as a profile" (a=profile_add;
 // Enter in its name too) makes one of the saved source: disabled while the form has something to save (the bar), the
 // profiles are full or the source in use is a profile already, the line why under it. Each request is a write as a
-// save is: none goes while another one does. Enter in a field of the profiles never submits the form.
+// save is: none goes while another one does ("Cancel" is disabled meanwhile too). Enter in a field of the profiles
+// never submits the form.
 
 import { type Api, parseProfiles, type Profile, type ProfileAnswer, type ProfileList, type Result } from "./api";
 import type { Bar } from "./bar";
@@ -178,7 +179,7 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
       del = button(texts.profileDelete, CLS.check + " " + CLS.profileDelete);
     open.setAttribute("aria-expanded", "false");
     box.append(edit, open, del, out);
-    held.push(save, del);
+    held.push(save, del, open);
     for (const input of Object.values(fields)) enterClicks(input, save);
     // "Edit" <-> "Cancel": closed, the fields as saved, no marks or lines of them.
     open.addEventListener("click", () => {

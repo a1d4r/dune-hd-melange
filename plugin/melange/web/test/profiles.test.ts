@@ -1,8 +1,8 @@
 // The source profiles (#pr, 0.58.0): the block by the script (by the CSS only with "Source profiles" on), the list
 // of #init, "Save the current one as a profile" (a=profile_add, disabled with a change not saved, the profiles full
 // or the source in use a profile), "Edit" -> a=profile_edit (the link of the one in use: the field of the own config
-// too) and "Cancel", "Delete" -> a=profile_del, Enter in their fields, the list anew after a save that stayed; src_was
-// after such a save.
+// too) and "Cancel" (disabled while a request goes), "Delete" -> a=profile_del, Enter in their fields, the list anew
+// after a save that stayed; src_was after such a save.
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
@@ -321,19 +321,36 @@ describe("Edit and Delete", () => {
     expect([cards(page).length, results(page)]).toEqual([1, [["err", "Профили изменились в другой вкладке: список обновлён"]]]);
   });
 
-  test("a request going: every button of the profiles and Save disabled; back: enabled", async () => {
+  test("a request going: every button of the profiles (Edit too) and Save disabled; back: enabled", async () => {
     const page = open("prof", NONE_NOW);
     const reply = later();
     page.replies.push(reply.reply);
     page.confirmAnswer = true;
     await press(buttons(cards(page)[0]!)[2]!);
     const all = () => [add(page), ...cards(page).flatMap(buttons), page.form.querySelector<HTMLButtonElement>("." + CLS.save)!];
-    expect(all().filter((button) => button.textContent !== page.init.i18n.profileEdit).every((button) => button.disabled)).toBe(true);
+    expect(all().every((button) => button.disabled)).toBe(true);
     await press(buttons(cards(page)[1]!)[2]!);
     expect(page.calls.length).toBe(1);
     reply.resolve(answer(true, "Профиль «Debrid» удалён", [LIST[1]!, { ...LIST[2]!, now: false }]));
     await flush();
     expect(all().some((button) => button.disabled)).toBe(false);
+  });
+
+  test("Cancel while the Save of its card goes: disabled, the fields as typed; back: enabled", async () => {
+    const page = open("prof");
+    const debrid = cards(page)[0]!;
+    const [save, cancel] = buttons(debrid);
+    await press(cancel!);
+    const name = debrid.querySelector<HTMLInputElement>("input")!;
+    page.type(name, "RD");
+    const reply = later();
+    page.replies.push(reply.reply);
+    await press(save!);
+    await press(cancel!);
+    expect([cancel!.textContent, cancel!.disabled, save!.closest("[hidden]") !== null, name.value]).toEqual([page.init.i18n.profileCancel, true, false, "RD"]);
+    reply.resolve(answer(false, "Профиль «RD» уже есть, выберите другое название", LIST, { part: "name" }));
+    await flush();
+    expect([cancel!.disabled, name.value, name.classList.contains(CLS.bad)]).toEqual([false, "RD", true]);
   });
 
   test("a 403: the profiles locked as the rest of the page", async () => {
