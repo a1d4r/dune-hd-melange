@@ -86,6 +86,8 @@ function aio_cgi_fields()
         'cat_logo' => array('id' => 'clg', 'name' => 'cat_logo', 'set' => 'cat_logo', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // "Своя карточка" (0.59.0): aio_cgi_cat_card().
         'cat_card' => array('id' => 'ocd', 'name' => 'cat_card', 'set' => 'cat_card', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
+        // cat_card as the page came (a none chosen shown by the firmware of then): aio_cgi_check_values.
+        'cat_card_was' => array('id' => 'ocw', 'name' => 'cat_card_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'look'),
         // The rows of the catalog chosen: aio_cgi_rows_screen.
         'cat_rows' => array('id' => 'crv', 'name' => 'cat_rows', 'set' => 'cat_rows', 'max' => 0, 'type' => 'plain', 'scr' => 'rows'),
         // cat_rows as the page came (as debrid_main_was): the save keeps the stored ones when it is posted back.
@@ -463,8 +465,9 @@ function aio_cgi_cat_rating_of($on)
 
 // The screen #look (a value of the form: '' or another one - none checked). Under the logo:
 // on r24, older or an unknown firmware (aio_fw_vod_r) a warning that it needs r25, the catalog
-// shows the title as text whatever is chosen; else when to turn it off. Under the own card: on
-// r24, older or an unknown firmware (below AIO_FW_CARD_R) a warning that it is seen on r25 alone.
+// shows the title as text whatever is chosen; else when to turn it off. Under the own card: where
+// it is off when none is chosen (aio_card_own: r24, older or an unknown firmware) a warning that it
+// is seen on r25 alone.
 function aio_cgi_look_screen($v)
 {
     $f = aio_cgi_fields();
@@ -479,7 +482,9 @@ function aio_cgi_look_screen($v)
         aio_cgi_choice($f['cat_rating'], aio_cgi_cat_rating(), $v['cat_rating']) .
         '<p class="lbl">' . aio_cgi_l('Своя карточка', 'Own card') . '</p>' .
         aio_cgi_choice($f['cat_card'], aio_cgi_cat_card(), $v['cat_card']) .
-        (aio_fw_r() >= AIO_FW_CARD_R ? '' : '<p class="hint wn">' . aio_cgi_l(
+        '<input type="hidden" id="' . $f['cat_card_was']['id'] . '" name="' . $f['cat_card_was']['name'] . '" value="' .
+        aio_cgi_h($v['cat_card_was']) . '">' .
+        (aio_card_own(null) ? '' : '<p class="hint wn">' . aio_cgi_l(
         'Своя карточка проверена только на прошивке r25. Здесь по умолчанию выключена.',
         'The own card is tested on firmware r25 only; off by default on this Dune.') . '</p>');
 }

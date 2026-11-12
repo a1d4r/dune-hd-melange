@@ -23,8 +23,9 @@ define('AIO_CARD_TTL_NONE', 86400);
 // by the own card (card_meta.php). 0.4 s seen (05.11.2026), "none" 1.8 s. ENTER waits for it;
 // a failure leaves the card of the tile.
 define('AIO_CARD_META_TOTAL', 4);
-// show_dialog_delay of ENTER on a tile, ms: the card waits for the network (the meta of a series
-// takes over a second cold), "Please wait" is due soon.
+// show_dialog_delay of ENTER on a tile with the own card on (cat_card), ms: the card waits for the
+// network (the meta of a series takes over a second cold), "Please wait" is due soon; off:
+// AIO_DELAY_INPUT, as 0.58.0.
 define('AIO_CARD_DELAY', 1000);
 // Limits of the local card: the server gives up to 10 actors; genres as a tile
 // (AIO_CAT_GENRES_MAX); ratings: ~45 countries seen, each a short text ("TE+7", "K-12").

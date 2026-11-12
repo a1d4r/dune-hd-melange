@@ -925,7 +925,7 @@ function aio_catv_actions($from)
     // As the sample proven on the device: no timeout and no dialog on a focus move.
     $info[GuiAction::data] = null;
     return array(
-        GUI_EVENT_KEY_ENTER => aio_input('cat_enter', $p, AIO_CARD_DELAY),
+        GUI_EVENT_KEY_ENTER => aio_input('cat_enter', $p, Aio::$settings['cat_card'] ? AIO_CARD_DELAY : AIO_DELAY_INPUT),
         GUI_EVENT_KEY_POPUP_MENU => aio_input('cat_menu', $p),
         GUI_EVENT_KEY_SEARCH => aio_input('cat_search', $p),
         GUI_EVENT_PLUGIN_ROWS_INFO_UPDATE => $info);
