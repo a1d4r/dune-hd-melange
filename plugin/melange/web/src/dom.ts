@@ -98,20 +98,24 @@ export const ID = {
   // The source as the page came (or the last save that stayed on it): posted back the same, the save keeps the stored
   // one (MENU of a list on the Dune may have switched the profile since). Its form: sourceWas().
   sourceWas: "sw",
-  // The source profiles (0.58.0, profiles.ts) at the bottom of #src: the block (shown by the script, by the CSS only
-  // with "Source profiles" on), the list, the line of none, the name of a new one, "Save the current one as a
-  // profile", the lines why it is disabled (a change not saved, the profiles full, the source in use a profile already),
-  // results; the form of their fields (form=, after the one of the page: Enter in them not the save).
-  profiles: "pr",
-  profileList: "prl",
-  profilesNone: "pre",
-  profileName: "prn",
-  profileAdd: "pra",
-  profileDirty: "prd",
-  profilesFull: "prx",
-  profileInUse: "prw",
-  profileResult: "prr",
-  profileForm: "prf",
+} as const;
+
+// The editor of the source profiles (0.58.0, profiles.ts) at the top of #src: on a page PHP made with "Source profiles"
+// on only. The block, the list of the profiles (by the script), the line why a link of it is not followed, the name of
+// the profile (posted), the box of "Make it current" and "Delete", those two, their results; the profile of the save
+// as posted: its place (an index, new, cur), its name as the page came, 1 - in use then.
+export const EDITOR = {
+  block: "pe",
+  list: "pel",
+  dirty: "ped",
+  name: "pfn",
+  buttons: "peb",
+  use: "peu",
+  del: "pex",
+  result: "per",
+  sel: "pfs",
+  was: "pfw",
+  now: "pfc",
 } as const;
 
 // The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>; in the order of the page.
@@ -141,15 +145,15 @@ export const CLS = {
   screen: "scr",
   // A field or server block an error of the save is about (made by the script).
   bad: "bad",
-  // A mark after a title ("of Melange"; "now" of a source profile).
+  // A mark after a title ("of Melange"; "now", "no config" of a source profile).
   badge: "badge",
-  // A line under a title (of a card, a profile), the warning one.
+  // A line under a title (of a card, a profile), the warning one (also of a mark).
   value: "v",
   warn: "wn",
-  // A source profile, its head (name, kind and host), its "Delete" (made by the script).
-  profile: "prof",
-  profileHead: "pt",
-  profileDelete: "prdel",
+  // A row of a list (of the main screen; a source profile, made by the script), its text, its chevron.
+  row: "row",
+  rowText: "rt",
+  chevron: "chev",
   // A box of results (aria-live).
   result: "res",
 } as const;
@@ -287,15 +291,6 @@ export function tsUserinfo(s: string): [string, string | null, string | null] {
 // src_was of the values a save posted (aio_cgi_src_key of PHP: it reads the own server and the link as it stores them).
 export function sourceWas(values: Record<string, string>): string {
   return [values[NAME.watch] ?? "", values[NAME.aioServer] ?? "", trimmed(values[NAME.aioOwnUrl] ?? ""), trimmed(values[NAME.manifest] ?? "")].join(" ");
-}
-
-// src_was with the link url in place of old (the link of the profile in use changed); another link there (another
-// source than the stored one already: the save takes the posted one) or not of four parts: as it is.
-export function sourceWasLink(was: string, old: string, url: string): string {
-  const parts = was.split(" ");
-  if (parts.length !== 4 || parts[3] !== old) return was;
-  parts[3] = url;
-  return parts.join(" ");
 }
 
 // The host of an address as parse_url() of PHP finds it ("" - none).

@@ -1,438 +1,215 @@
-// The source profiles (#pr, 0.58.0): the block by the script (by the CSS only with "Source profiles" on), the list
-// of #init, "Save the current one as a profile" (a=profile_add, disabled with a change not saved, the profiles full
-// or the source in use a profile), "Edit" -> a=profile_edit (the link of the one in use: the field of the own config
-// too) and "Cancel" (disabled while a request goes), "Delete" -> a=profile_del, Enter in their fields (of the form
-// #prf: never the save; the save pressed with one focused is the save), the list anew after a save that stayed;
-// src_was after such a save.
+// The editor of the source profiles (#pe, 0.58.0): PHP makes it with "Source profiles" on (prof: the page of the one
+// in use, profd: of one not in use, profnew: of a new one), the CSS shows it while that is on. The list of #init - a
+// link each to the page of the profile, "+ New profile"; a link not followed while the form has something to save;
+// "Make it current" (a=profile_use), "Delete" (a=profile_del, asked first) - held then too; done: the page anew; a
+// save of the profile: its place, name and "in use" in the fields of the save, the list of the answer, aio_sync of it.
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
-import { CLS, ID, NAME } from "../src/dom";
-import { cleanup, flush, json, later, lines, NET, open, type Page, setGlobal, TOKEN } from "./harness";
+import { CLS, EDITOR, ID, NAME } from "../src/dom";
+import { cleanup, flush, json, later, lines, NET, open, type Page, TOKEN } from "./harness";
 
 afterEach(cleanup);
 
-const LINK = "https://aio.example/stremio/00000000-0000-4000-8000-000000000001/dGVzdA/manifest.json";
-const LINK2 = "https://aio.example/stremio/00000000-0000-4000-8000-000000000002/dGVzdA/manifest.json";
-const MADE = "https://aiostreams.12312023.xyz";
 const POST = { method: "POST", contentType: "application/x-www-form-urlencoded" };
 const url = (a: string) => TOKEN + "&a=" + a + "&ajax=1";
-// The list of prof.html, as PHP sends it.
+const pageOf = (p: string) => TOKEN + "&p=" + p + "#src";
+const OWN = "Свой & <конфиг>";
+// The list of the fixtures, as PHP sends it.
 const LIST = [
-  { name: "Debrid", line: "Debrid · " + MADE.slice(8), now: false, ready: true },
-  { name: "NAS", line: "Торренты · 192.0.2.10", now: false, ready: false },
-  { name: "Свой & <конфиг>", line: "Свой конфиг · aio.example", now: true, ready: true, url: LINK },
+  { name: "Debrid", line: "Debrid · aiostreams.12312023.xyz · jacred.kompotik.com", now: false, ready: true },
+  { name: "NAS", line: "Торренты · 192.0.2.10 · jacred.kompotik.com", now: false, ready: false },
+  { name: OWN, line: "Свой конфиг · aio.example · jacred.kompotik.com", now: true, ready: true },
 ];
-const answer = (ok: boolean, msg: string, list: unknown[] = LIST, more: Record<string, unknown> = {}) =>
-  json({ ok: ok, msg: msg, profiles: { list: list, def: "Свой конфиг", max: 8 }, ...more });
-// prof.html with none of its profiles in use (the source saved is none of them).
-const NONE_NOW = {
-  before: (doc: Document) => {
-    const el = doc.getElementById(ID.init)!;
-    const init = JSON.parse(el.textContent || "");
-    for (const p of init.profiles.list) p.now = false;
-    el.textContent = JSON.stringify(init);
-  },
-};
-// Enter in a field (of an IME too) as a browser takes it: the field focused, the implicit submission of its form owner -
-// of form= if given, else the form around it - by a click of its default button (the first submit one). happy-dom
-// has none of it, nor form= of a field inside another form.
-const enter = (page: Page, input: HTMLElement) => {
-  input.focus();
-  const id = input.getAttribute("form");
-  const owner = id !== null ? page.doc.getElementById(id) : input.closest("form");
-  owner!.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
-};
-const SAVED = json({ ok: true, next: "/x", notes: [], aio: null });
+const answer = (ok: boolean, msg: string, list: unknown[] = LIST) => json({ ok: ok, msg: msg, profiles: { list: list, sel: "", max: 8 } });
 
-const cards = (page: Page) => Array.from(page.el(ID.profileList).querySelectorAll<HTMLElement>("." + CLS.profile));
-// A card as seen: its title (with "now"), the lines under it.
-const seen = (card: HTMLElement) => Array.from(card.querySelectorAll("." + CLS.profileHead + " > span")).map((span) => span.textContent);
-const buttons = (card: HTMLElement) => Array.from(card.querySelectorAll<HTMLButtonElement>("button:not(.eye)"));
-const add = (page: Page) => page.el<HTMLButtonElement>(ID.profileAdd);
-const results = (page: Page) => lines(page.el(ID.profileResult));
-async function press(button: HTMLElement): Promise<void> {
-  button.click();
-  await flush();
-}
+const rows = (page: Page) => Array.from(page.el(EDITOR.list).children) as HTMLElement[];
+// A row as seen: its title with the marks, the line under it, the link, the one of the page.
+const seen = (row: HTMLElement) => [
+  Array.from(row.querySelectorAll("." + CLS.cardTitle + ", ." + CLS.cardTitle + " > span")).map((span) => span.childNodes[0]!.textContent),
+  (row.querySelector("." + CLS.rowText + " > ." + CLS.value) || { textContent: null }).textContent,
+  row.getAttribute("href"),
+  row.getAttribute("aria-current"),
+];
+const field = (page: Page, id: string) => page.el<HTMLInputElement>(id).value;
+// A click as a browser dispatches it -> false: the link is not followed (its default prevented).
+const follow = (page: Page, el: HTMLElement) => el.dispatchEvent(new page.win.MouseEvent("click", { bubbles: true, cancelable: true }) as unknown as Event);
 
-describe("the block", () => {
-  test("without the script: hidden; with it: shown on every page (the CSS hides it with the setting off)", () => {
-    expect(open("prof", { start: false }).el(ID.profiles).hidden).toBe(true);
-    cleanup();
-    expect(open("filled").el(ID.profiles).hidden).toBe(false);
-    cleanup();
-    // No fetch: nothing of it works, it stays hidden.
-    expect(open("prof", { before: () => setGlobal("fetch", undefined) }).el(ID.profiles).hidden).toBe(true);
+describe("the editor", () => {
+  test("none without the setting (a page of before): nothing of it, the script as before", () => {
+    const page = open("filled");
+    expect([page.doc.getElementById(EDITOR.block), page.doc.querySelector("[name=prof]")]).toEqual([null, null]);
   });
 
   test("the CSS: the block hidden by the radio of off, not by that of on", () => {
     const css = readFileSync(import.meta.dir + "/../../cgi/settings.css", "utf8").split("\n");
     const hides = css.find((line) => line.includes("#nt2:checked~* .xa"))!.replace(/\{.*/, "").split(",");
     const page = open("prof", { start: false });
-    const block = page.el(ID.profiles);
-    expect([page.field<HTMLInputElement>(NAME.srcProfiles).value, page.doc.querySelector<HTMLInputElement>("#spf2")!.checked]).toEqual(["off", true]);
+    const block = page.el(EDITOR.block);
+    expect(page.doc.querySelector<HTMLInputElement>("#spf2")!.checked).toBe(true);
     expect(hides.some((selector) => block.matches(selector))).toBe(false);
     page.choose(NAME.srcProfiles, "off");
     expect(hides.some((selector) => block.matches(selector))).toBe(true);
   });
 
-  test("no profiles: the line of none, no card; the name of a new one as the placeholder", () => {
-    const page = open("filled");
-    expect([cards(page).length, page.el(ID.profilesNone).hidden, page.el<HTMLInputElement>(ID.profileName).placeholder]).toEqual([0, false, "Debrid"]);
-  });
-});
-
-describe("the list", () => {
-  test("a card each in order: the name as text, now, kind and host, no config; Edit and Delete", () => {
+  test("the list: a link each to the page of the profile, the one of the page marked, now and no config; + New profile", () => {
     const page = open("prof");
-    expect(cards(page).map(seen)).toEqual([
-      ["Debrid", "Debrid · aiostreams.12312023.xyz"],
-      ["NAS", "Торренты · 192.0.2.10", page.init.i18n.profileNoConf],
-      ["Свой & <конфиг>" + page.init.i18n.profileNow, "Свой конфиг · aio.example"],
+    const t = page.init.i18n;
+    expect(rows(page).map(seen)).toEqual([
+      [["Debrid"], LIST[0]!.line, pageOf("0"), null],
+      [["NAS", t.profileNoConf], LIST[1]!.line, pageOf("1"), null],
+      [[OWN, t.profileNow], LIST[2]!.line, pageOf("2"), "page"],
+      [[t.profileNew], null, pageOf("new"), null],
     ]);
-    expect(page.el(ID.profileList).querySelectorAll("." + CLS.badge).length).toBe(1);
-    expect(page.el(ID.profilesNone).hidden).toBe(true);
-    expect(page.el<HTMLInputElement>(ID.profileName).placeholder).toBe("Свой конфиг");
-    // The edit fields hidden till Edit; Save of the profile in them.
-    expect(buttons(cards(page)[0]!).map((button) => [button.textContent, button.closest("[hidden]") !== null])).toEqual([
-      [page.init.i18n.profileSave, true], [page.init.i18n.profileEdit, false], [page.init.i18n.profileDelete, false]]);
+    // The name as text, never as markup.
+    expect(rows(page)[2]!.querySelector("." + CLS.cardTitle)!.innerHTML.startsWith("Свой &amp; &lt;конфиг&gt;")).toBe(true);
   });
 
-  test("Edit: the name, and the link of an own config only (masked, its own eye); nothing of them posted by a save", async () => {
+  test("the one in use: Delete, no Make it current; the fields of the save as PHP put them", () => {
     const page = open("prof");
-    const [debrid, , own] = cards(page);
-    await press(buttons(debrid!)[1]!);
-    expect([debrid!.querySelectorAll("input").length, debrid!.querySelector<HTMLInputElement>("input")!.value, buttons(debrid!)[1]!.getAttribute("aria-expanded")])
-      .toEqual([1, "Debrid", "true"]);
-    await press(buttons(own!)[1]!);
-    const link = own!.querySelectorAll<HTMLInputElement>("input")[1]!;
-    expect([link.value, link.classList.contains(CLS.secret)]).toEqual([LINK, true]);
-    await press(own!.querySelector<HTMLButtonElement>("." + CLS.eye)!);
-    expect(link.classList.contains(CLS.secret)).toBe(false);
-    expect(page.el(ID.profiles).querySelectorAll("[name]").length).toBe(0);
-    // A change of a field of a card is none of the form: the bar stays hidden.
-    page.type(link, LINK2);
+    expect([page.el(EDITOR.buttons).hidden, page.el(EDITOR.use).hidden, page.el(EDITOR.del).hidden]).toEqual([false, true, false]);
+    expect([field(page, EDITOR.sel), field(page, EDITOR.was), field(page, EDITOR.now), field(page, EDITOR.name)]).toEqual(["2", OWN, "1", OWN]);
+  });
+
+  test("one not in use (profd): both buttons; its row marked", () => {
+    const page = open("profd");
+    expect([page.el(EDITOR.use).hidden, page.el(EDITOR.del).hidden, rows(page).map((row) => row.getAttribute("aria-current"))])
+      .toEqual([false, false, ["page", null, null, null]]);
+    expect([field(page, EDITOR.sel), field(page, EDITOR.now)]).toEqual(["0", ""]);
+  });
+
+  test("a new one (profnew): no buttons, + New profile marked, no name", () => {
+    const page = open("profnew");
+    expect([page.el(EDITOR.buttons).hidden, rows(page).map((row) => row.getAttribute("aria-current")), field(page, EDITOR.name)])
+      .toEqual([true, [null, null, null, "page"], ""]);
+  });
+
+  test("the profiles full: no + New profile, the line of it", () => {
+    const page = open("prof", {
+      before: (doc) => {
+        const el = doc.getElementById(ID.init)!;
+        const init = JSON.parse(el.textContent || "");
+        init.profiles.max = 3;
+        el.textContent = JSON.stringify(init);
+      },
+    });
+    const last = rows(page)[3]!;
+    expect([rows(page).length, last.tagName, last.textContent]).toEqual([4, "P", page.init.i18n.profilesFull]);
+  });
+});
+
+describe("something to save", () => {
+  test("a link not followed, the line why; the buttons disabled; no change - followed again, the line gone", () => {
+    const page = open("profd");
+    const link = rows(page)[1]!;
+    expect(follow(page, link)).toBe(true);
+    page.type(EDITOR.name, "Debrid 2");
+    expect(follow(page, link)).toBe(false);
+    expect([page.el(EDITOR.dirty).hidden, page.el(EDITOR.dirty).textContent]).toEqual([false, page.init.i18n.profileDirty]);
+    expect([page.el<HTMLButtonElement>(EDITOR.use).disabled, page.el<HTMLButtonElement>(EDITOR.del).disabled]).toEqual([true, true]);
+    page.type(EDITOR.name, "Debrid");
+    expect([follow(page, link), page.el(EDITOR.dirty).hidden, page.el<HTMLButtonElement>(EDITOR.use).disabled]).toEqual([true, true, false]);
+  });
+
+  test("the name of the profile is a change of the bar", () => {
+    const page = open("profd");
     expect(page.el(ID.bar).hidden).toBe(true);
+    page.type(EDITOR.name, "Другое");
+    expect([page.el(ID.bar).hidden, page.el(ID.dirty).textContent]).toEqual([false, "1 изменение"]);
   });
 });
 
-describe("Save the current one as a profile", () => {
-  test("a change not saved: disabled, the line why; back as it came: enabled", () => {
-    const page = open("prof", NONE_NOW);
-    expect([add(page).disabled, page.el(ID.profileDirty).hidden]).toEqual([false, true]);
-    page.type(ID.rdKey, "RDTESTKEY00000000000000009");
-    expect([add(page).disabled, page.el(ID.profileDirty).hidden]).toEqual([true, false]);
-    page.type(ID.rdKey, "RDTESTKEY00000000000000001");
-    expect([add(page).disabled, page.el(ID.profileDirty).hidden]).toEqual([false, true]);
+describe("Make it current, Delete", () => {
+  test("Make it current -> a=profile_use of its place and name, done: its page anew", async () => {
+    const page = open("profd");
+    page.replies.push(answer(true, "Профиль «Debrid» теперь текущий"));
+    await page.click(EDITOR.use);
+    expect(page.calls).toEqual([{ ...POST, url: url("profile_use"), body: "i=0&was=Debrid" }]);
+    expect(page.replaced).toEqual([pageOf("0")]);
   });
 
-  test("posts the name typed; added: the list anew, the field empty, the line ok", async () => {
-    const page = open("prof", NONE_NOW);
-    page.type(ID.profileName, "Мой & NAS");
-    const more = [...LIST, { name: "Мой & NAS", line: "Свой конфиг · aio.example", now: false, ready: true, url: LINK2 }];
-    page.replies.push(answer(true, "Профиль «Мой & NAS» сохранён", more));
-    await press(add(page));
-    expect(page.calls).toEqual([{ ...POST, url: url("profile_add"), body: "name=" + encodeURIComponent("Мой & NAS") }]);
-    expect([cards(page).length, page.el<HTMLInputElement>(ID.profileName).value, results(page)]).toEqual([4, "", [["ok", "Профиль «Мой & NAS» сохранён"]]]);
+  test("refused: its line, the list of the answer, the page stays", async () => {
+    const page = open("profd");
+    const list = LIST.slice(1);
+    page.replies.push(answer(false, "Профили изменились в другой вкладке — обновите страницу", list));
+    await page.click(EDITOR.use);
+    expect([lines(page.el(EDITOR.result)), page.replaced, rows(page).length]).toEqual([
+      [["err", "Профили изменились в другой вкладке — обновите страницу"]], [], 3]);
   });
 
-  test("refused about the name: the line, the field marked, the list kept; no answer: the line why", async () => {
-    const page = open("prof", NONE_NOW);
-    page.type(ID.profileName, "Debrid");
-    page.replies.push(answer(false, "Профиль «Debrid» уже есть — назовите иначе", LIST, { part: "name" }));
-    await press(add(page));
-    expect([results(page), page.el(ID.profileName).classList.contains(CLS.bad), cards(page).length])
-      .toEqual([[["err", "Профиль «Debrid» уже есть — назовите иначе"]], true, 3]);
-    page.replies.push(NET);
-    await press(add(page));
-    expect([results(page), page.el(ID.profileName).classList.contains(CLS.bad)]).toEqual([[["err", page.init.i18n.noConnection]], false]);
+  test("no answer: the line of it; while it goes - held, Save too", async () => {
+    const page = open("profd");
+    const going = later();
+    page.replies.push(going.reply);
+    page.el(EDITOR.use).click();
+    await flush();
+    expect([page.el<HTMLButtonElement>(EDITOR.use).disabled, page.el<HTMLButtonElement>(EDITOR.del).disabled,
+      page.doc.querySelector<HTMLButtonElement>("." + CLS.save)!.disabled]).toEqual([true, true, true]);
+    going.resolve(NET);
+    await flush();
+    expect([lines(page.el(EDITOR.result)), page.el<HTMLButtonElement>(EDITOR.use).disabled]).toEqual([[["err", page.init.i18n.noConnection]], false]);
   });
 
-  test("the profiles full: disabled, the line of the limit; one deleted: enabled again", async () => {
-    const page = open("prof", NONE_NOW);
-    const eight = Array.from({ length: 8 }, (_, i) => ({ name: "P" + i, line: "Debrid · h", now: false, ready: true }));
-    page.replies.push(answer(true, "", eight));
-    page.type(ID.profileName, "P7");
-    await press(add(page));
-    expect([add(page).disabled, page.el(ID.profilesFull).hidden, page.el(ID.profileDirty).hidden, page.el(ID.profileInUse).hidden])
-      .toEqual([true, false, true, true]);
+  test("Delete: asked with its name ($& as it is); no - nothing; yes - a=profile_del, the page of the one in use", async () => {
+    const page = open("prof");
+    await page.click(EDITOR.del);
+    expect([page.confirms, page.calls]).toEqual([[page.init.i18n.profileDeleteConfirm.replace("%s", () => OWN)], []]);
     page.confirmAnswer = true;
-    page.replies.push(answer(true, "Профиль «P0» удалён", eight.slice(1)));
-    await press(buttons(cards(page)[0]!)[2]!);
-    expect([add(page).disabled, page.el(ID.profilesFull).hidden, cards(page).length]).toEqual([false, true, 7]);
+    page.replies.push(answer(true, "Профиль удалён", LIST.slice(0, 2)));
+    await page.click(EDITOR.del);
+    expect(page.calls).toEqual([{ ...POST, url: url("profile_del"), body: "i=2&was=" + encodeURIComponent(OWN) }]);
+    expect(page.replaced).toEqual([TOKEN + "#src"]);
   });
 });
 
-describe("Save the current one as a profile: in use, Enter", () => {
-  test("the source in use a profile already: disabled, its line; a change not saved: that line instead", () => {
-    const page = open("prof");
-    expect([add(page).disabled, page.el(ID.profileInUse).hidden, page.el(ID.profileDirty).hidden]).toEqual([true, false, true]);
-    page.type(ID.rdKey, "RDTESTKEY00000000000000009");
-    expect([add(page).disabled, page.el(ID.profileInUse).hidden, page.el(ID.profileDirty).hidden]).toEqual([true, true, false]);
-  });
-
-  test("the list anew with none in use (a save that stayed): enabled, no line", async () => {
-    const page = open("prof");
-    page.confirmAnswer = true;
-    page.replies.push(answer(true, "Профиль «Свой & <конфиг>» удалён", [LIST[0]!, LIST[1]!]));
-    await press(buttons(cards(page)[2]!)[2]!);
-    expect([add(page).disabled, page.el(ID.profileInUse).hidden]).toEqual([false, true]);
-  });
-
-  test("Enter in the name of a new one: a=profile_add, not the save of the form", async () => {
-    const page = open("prof", NONE_NOW);
-    let submits = 0;
-    page.form.addEventListener("submit", () => submits++);
-    page.type(ID.profileName, "Мой");
-    page.replies.push(answer(true, "Профиль «Мой» сохранён"));
-    enter(page, page.el(ID.profileName));
+describe("the save of the profile", () => {
+  const save = async (page: Page) => {
+    page.doc.querySelector<HTMLButtonElement>("." + CLS.save)!.click();
     await flush();
-    expect([page.calls.map((call) => call.url), submits]).toEqual([[url("profile_add")], 0]);
-  });
+  };
+  const sync = (more: Record<string, unknown> = {}) =>
+    json({ ok: true, msg: "Конфиг AIOStreams создан на aiostreams.12312023.xyz", skip: false, base: "https://aiostreams.12312023.xyz", mode: "debrid",
+      conf: null, ...more });
 
-  test("Enter there while disabled (in use): nothing goes", async () => {
-    const page = open("prof");
-    enter(page, page.el(ID.profileName));
-    await flush();
-    expect(page.calls).toEqual([]);
-  });
-});
-
-describe("the form #prf of the fields of the profiles", () => {
-  test("the fields of the profiles are of it (PHP and the script), no other field; it has only its default button", () => {
-    const page = open("prof");
-    expect(Array.from(page.doc.querySelectorAll("[form]")).map((el) => [el.id, el.getAttribute("form")]))
-      .toEqual(["pen0", "pen1", "pen2", "peu2", ID.profileName].map((id) => [id, ID.profileForm]));
-    expect(page.el(ID.profileForm).innerHTML).toBe('<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>');
-  });
-
-  test("Enter in another field: the save of the page", async () => {
-    const page = open("prof");
-    page.replies.push(SAVED);
-    enter(page, page.field<HTMLInputElement>(NAME.manifest));
-    await flush();
-    expect(page.calls.map((call) => call.url)).toEqual([TOKEN + "&ajax=1"]);
-  });
-
-  // Safari: a click of a button may leave the focus where it was.
-  test("the save pressed with a field of the profiles focused: the save of the page, no request of the profiles", async () => {
-    const page = open("prof", NONE_NOW);
-    const own = cards(page)[2]!;
-    await press(buttons(own)[1]!);
-    for (const field of [page.el<HTMLInputElement>(ID.profileName), own.querySelectorAll<HTMLInputElement>("input")[1]!]) {
-      page.type(field, "Мой");
-      field.focus();
-      page.replies.push(SAVED);
-      await press(page.form.querySelector<HTMLButtonElement>("." + CLS.save)!);
-    }
-    expect(page.calls.map((call) => call.url)).toEqual([TOKEN + "&ajax=1", TOKEN + "&ajax=1"]);
-  });
-
-  test("the fields of the profiles typed: not in the body of the save", async () => {
-    const page = open("prof");
-    const own = cards(page)[2]!;
-    await press(buttons(own)[1]!);
-    const [name, link] = Array.from(own.querySelectorAll<HTMLInputElement>("input"));
-    page.type(ID.profileName, "Новый1");
-    page.type(name!, "Новый2");
-    page.type(link!, LINK2);
-    page.replies.push(SAVED);
-    await press(page.form.querySelector<HTMLButtonElement>("." + CLS.save)!);
+  test("a new one: posted with prof=new and its name; then aio_sync of it (prof=<name>); its place in the fields, the list anew, the page stays", async () => {
+    const page = open("profnew");
+    page.type(EDITOR.name, "Debrid & 2");
+    const list = [...LIST, { name: "Debrid & 2", line: LIST[0]!.line, now: false, ready: false }];
+    page.replies.push(json({ ok: true, next: TOKEN + "&p=3&saved=1", aio: "create", notes: [], prof: { i: 3, name: "Debrid & 2", now: false },
+      profiles: { list: list, sel: "3", max: 8 } }), sync());
+    await save(page);
     const body = page.calls[0]!.body!;
-    expect([body.includes(encodeURIComponent("Новый")), body.includes(encodeURIComponent(LINK2))]).toEqual([false, false]);
-  });
-});
-
-describe("Edit and Delete", () => {
-  test("Save the profile: i, the name it had, the name typed (no url of a config of Melange); the list anew", async () => {
-    const page = open("prof");
-    const debrid = cards(page)[0]!;
-    await press(buttons(debrid)[1]!);
-    page.type(debrid.querySelector("input")!, "RD");
-    page.replies.push(answer(true, "Профиль «RD» сохранён", [{ ...LIST[0]!, name: "RD" }, LIST[1]!, LIST[2]!]));
-    await press(buttons(debrid)[0]!);
-    expect(page.calls).toEqual([{ ...POST, url: url("profile_edit"), body: "i=0&was=Debrid&name=RD" }]);
-    // The line in its card (closed, anew), none under the block.
-    expect([cards(page).map((card) => seen(card)[0]), lines(cards(page)[0]!.querySelector<HTMLElement>("." + CLS.result)!), results(page)])
-      .toEqual([["RD", "NAS", "Свой & <конфиг>" + page.init.i18n.profileNow], [["ok", "Профиль «RD» сохранён"]], []]);
+    expect([body.includes("&prof=new&"), body.includes("&prof_name=Debrid%20%26%202"), body.includes("&prof_was=&")]).toEqual([true, true, true]);
+    expect(page.calls[1]).toEqual({ ...POST, url: url("aio_sync"), body: "prof=" + encodeURIComponent("Debrid & 2") });
+    expect([field(page, EDITOR.sel), field(page, EDITOR.was), field(page, EDITOR.now), page.replaced]).toEqual(["3", "Debrid & 2", "", []]);
+    expect(rows(page).map((row) => row.getAttribute("aria-current"))).toEqual([null, null, null, "page", null]);
+    expect(page.el(EDITOR.buttons).hidden).toBe(false);
   });
 
-  test("Edit -> Cancel, Delete hidden; Cancel: closed, the values as saved, Delete back", async () => {
-    const page = open("prof");
-    const own = cards(page)[2]!;
-    const [, edit, del] = buttons(own);
-    await press(edit!);
-    expect([edit!.textContent, edit!.getAttribute("aria-expanded"), del!.hidden]).toEqual([page.init.i18n.profileCancel, "true", true]);
-    const [name, link] = Array.from(own.querySelectorAll<HTMLInputElement>("input"));
-    page.type(name!, "Другое");
-    page.type(link!, LINK2);
-    link!.classList.add(CLS.bad);
-    await press(edit!);
-    expect([edit!.textContent, edit!.getAttribute("aria-expanded"), del!.hidden, buttons(own)[0]!.closest("[hidden]") !== null,
-      name!.value, link!.value, link!.classList.contains(CLS.bad)]).toEqual([page.init.i18n.profileEdit, "false", false, true, "Свой & <конфиг>", LINK, false]);
-  });
-
-  test("Enter in the name or the link of a card: a=profile_edit of it, not the save of the form", async () => {
-    const page = open("prof");
-    let submits = 0;
-    page.form.addEventListener("submit", () => submits++);
-    const own = cards(page)[2]!;
-    await press(buttons(own)[1]!);
-    const [name, link] = Array.from(own.querySelectorAll<HTMLInputElement>("input"));
-    page.replies.push(answer(true, "Профиль не изменился"), answer(true, "Профиль не изменился"));
-    enter(page, name!);
-    await flush();
-    await press(buttons(cards(page)[2]!)[1]!);
-    enter(page, cards(page)[2]!.querySelectorAll<HTMLInputElement>("input")[1]!);
-    await flush();
-    expect([page.calls.map((call) => call.url), submits, link!.isConnected]).toEqual([[url("profile_edit"), url("profile_edit")], 0, false]);
-  });
-
-  test("an edit refused with the same list (no part): the line in the card, the card open, the values typed kept", async () => {
-    const page = open("prof");
-    const debrid = cards(page)[0]!;
-    await press(buttons(debrid)[1]!);
-    page.type(debrid.querySelector("input")!, "RD");
-    page.replies.push(answer(false, "Не сохранено: с этим профилем резервная копия будет слишком большой"));
-    await press(buttons(debrid)[0]!);
-    expect([debrid.isConnected, debrid.querySelector("input")!.value, lines(debrid.querySelector<HTMLElement>("." + CLS.result)!), results(page)])
-      .toEqual([true, "RD", [["err", "Не сохранено: с этим профилем резервная копия будет слишком большой"]], []]);
-  });
-
-  test("an edit refused with another list (another tab): the list anew, the line under the block", async () => {
-    const page = open("prof");
-    await press(buttons(cards(page)[0]!)[1]!);
-    page.replies.push(answer(false, "Профили изменились в другой вкладке: список обновлён", [LIST[1]!, LIST[2]!]));
-    await press(buttons(cards(page)[0]!)[0]!);
-    expect([cards(page).length, results(page)]).toEqual([2, [["err", "Профили изменились в другой вкладке: список обновлён"]]]);
-  });
-
-  test("a wrong link: the line in the card, the link marked; nothing else changed", async () => {
-    const page = open("prof");
-    const own = cards(page)[2]!;
-    await press(buttons(own)[1]!);
-    const link = own.querySelectorAll<HTMLInputElement>("input")[1]!;
-    page.type(link, "ftp://x");
-    page.replies.push(answer(false, "Нужен адрес вида https://…/manifest.json", LIST, { part: "url" }));
-    await press(buttons(own)[0]!);
-    expect(page.calls[0]!.body).toBe("i=2&was=" + encodeURIComponent("Свой & <конфиг>") + "&name=" + encodeURIComponent("Свой & <конфиг>") + "&url=ftp%3A%2F%2Fx");
-    expect([lines(own.querySelector<HTMLElement>("." + CLS.result)!), link.classList.contains(CLS.bad), results(page), link.isConnected])
-      .toEqual([[["err", "Нужен адрес вида https://…/manifest.json"]], true, [], true]);
-  });
-
-  test("the link of the one in use: the field of the own config and src_was take it, no change for the bar", async () => {
-    const page = open("prof");
-    const own = cards(page)[2]!;
-    await press(buttons(own)[1]!);
-    page.type(own.querySelectorAll<HTMLInputElement>("input")[1]!, LINK2);
-    page.replies.push(answer(true, "Профиль сохранён", [LIST[0]!, LIST[1]!, { ...LIST[2]!, url: LINK2 }], { manifest: true }));
-    await press(buttons(own)[0]!);
-    expect([page.field<HTMLInputElement>(NAME.manifest).value, page.el<HTMLInputElement>(ID.sourceWas).value, page.el(ID.bar).hidden])
-      .toEqual([LINK2, "own " + MADE + "  " + LINK2, true]);
-  });
-
-  test("the link of the one in use, its field changed on the page: that one stays (a change), src_was too", async () => {
-    const page = open("prof");
-    page.type(ID.manifest, LINK.replace("dGVzdA", "eA"));
-    const own = cards(page)[2]!;
-    await press(buttons(own)[1]!);
-    page.replies.push(answer(true, "Профиль сохранён", [LIST[0]!, LIST[1]!, { ...LIST[2]!, url: LINK2 }], { manifest: true }));
-    await press(buttons(own)[0]!);
-    expect([page.field<HTMLInputElement>(NAME.manifest).value, page.el<HTMLInputElement>(ID.sourceWas).value.endsWith(LINK)])
-      .toEqual([LINK.replace("dGVzdA", "eA"), true]);
-  });
-
-  test("Delete: asked with its name; no - nothing; yes - i and the name posted, the list anew", async () => {
-    const page = open("prof");
-    await press(buttons(cards(page)[1]!)[2]!);
-    expect([page.confirms, page.calls]).toEqual([[page.init.i18n.profileDeleteConfirm.replace("%s", "NAS")], []]);
+  test("the reset of its config: reset=1 and prof", async () => {
+    const page = open("profd");
+    page.replies.push(json({ ok: true, next: TOKEN + "&p=0&saved=1", aio: "reset", notes: [], prof: { i: 0, name: "Debrid", now: false } }),
+      sync());
     page.confirmAnswer = true;
-    page.replies.push(answer(true, "Профиль «NAS» удалён", [LIST[0]!, LIST[2]!]));
-    await press(buttons(cards(page)[1]!)[2]!);
-    expect(page.calls).toEqual([{ ...POST, url: url("profile_del"), body: "i=1&was=NAS" }]);
-    expect([cards(page).length, results(page)]).toEqual([2, [["ok", "Профиль «NAS» удалён"]]]);
+    await page.click(ID.resetConf);
+    expect(page.calls[1]).toEqual({ ...POST, url: url("aio_sync"), body: "reset=1&prof=Debrid" });
   });
 
-  test("Delete of a name with $& (a pattern of replace): asked with the name as it is", async () => {
-    const page = open("prof", NONE_NOW);
-    page.type(ID.profileName, "a$&b$1");
-    page.replies.push(answer(true, "ok", [...LIST, { name: "a$&b$1", line: "Debrid · h", now: false, ready: true }]));
-    await press(add(page));
-    await press(buttons(cards(page)[3]!)[2]!);
-    expect(page.confirms).toEqual([page.init.i18n.profileDeleteConfirm.replace("%s", () => "a$&b$1")]);
-    expect(page.confirms[0]).toContain("«a$&b$1»");
-  });
-
-  test("the profiles changed in another tab: the list of the file, the line", async () => {
+  test("kept by the profile (the page showed it in use, MENU switched since): the line, the page stays", async () => {
     const page = open("prof");
-    page.confirmAnswer = true;
-    page.replies.push(answer(false, "Профили изменились в другой вкладке: список обновлён", [LIST[2]!]));
-    await press(buttons(cards(page)[0]!)[2]!);
-    expect([cards(page).length, results(page)]).toEqual([1, [["err", "Профили изменились в другой вкладке: список обновлён"]]]);
+    page.replies.push(json({ ok: true, next: TOKEN + "&p=2&saved=1&kept=1", aio: "", kept: true, notes: [], prof: { i: 2, name: OWN, now: false },
+      profiles: { list: LIST.map((p) => ({ ...p, now: p.name === "Debrid" })), sel: "2", max: 8 } }));
+    await save(page);
+    expect([lines(page.el(ID.saveResult)), page.replaced, field(page, EDITOR.now)]).toEqual([
+      [["ok", page.init.i18n.saved], ["warn", page.init.i18n.sourceKept]], [], ""]);
+    expect(page.el(EDITOR.use).hidden).toBe(false);
   });
 
-  test("a request going: every button of the profiles (Edit too) and Save disabled; back: enabled", async () => {
-    const page = open("prof", NONE_NOW);
-    const reply = later();
-    page.replies.push(reply.reply);
-    page.confirmAnswer = true;
-    await press(buttons(cards(page)[0]!)[2]!);
-    const all = () => [add(page), ...cards(page).flatMap(buttons), page.form.querySelector<HTMLButtonElement>("." + CLS.save)!];
-    expect(all().every((button) => button.disabled)).toBe(true);
-    await press(buttons(cards(page)[1]!)[2]!);
-    expect(page.calls.length).toBe(1);
-    reply.resolve(answer(true, "Профиль «Debrid» удалён", [LIST[1]!, { ...LIST[2]!, now: false }]));
-    await flush();
-    expect(all().some((button) => button.disabled)).toBe(false);
-  });
-
-  test("Cancel while the Save of its card goes: disabled, the fields as typed; back: enabled", async () => {
+  test("the setting turned on or off: next after aio_sync", async () => {
     const page = open("prof");
-    const debrid = cards(page)[0]!;
-    const [save, cancel] = buttons(debrid);
-    await press(cancel!);
-    const name = debrid.querySelector<HTMLInputElement>("input")!;
-    page.type(name, "RD");
-    const reply = later();
-    page.replies.push(reply.reply);
-    await press(save!);
-    await press(cancel!);
-    expect([cancel!.textContent, cancel!.disabled, save!.closest("[hidden]") !== null, name.value]).toEqual([page.init.i18n.profileCancel, true, false, "RD"]);
-    reply.resolve(answer(false, "Профиль «RD» уже есть, выберите другое название", LIST, { part: "name" }));
-    await flush();
-    expect([cancel!.disabled, name.value, name.classList.contains(CLS.bad)]).toEqual([false, "RD", true]);
-  });
-
-  test("a 403: the profiles locked as the rest of the page", async () => {
-    const page = open("prof", NONE_NOW);
-    page.replies.push(json({}, 403));
-    await press(add(page));
-    expect([add(page).disabled, ...cards(page).flatMap(buttons).map((button) => button.disabled)].every(Boolean)).toBe(true);
-  });
-});
-
-describe("a save that stays on the page", () => {
-  const SYNC = { ok: true, msg: "Created", skip: false, base: MADE, mode: "p2p", conf: null };
-
-  test("src_was: of the values posted (the next save keeps the stored source when they come back)", async () => {
-    const page = open("filled");
-    page.choose(NAME.watch, "p2p");
-    page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "create", notes: [] }), json(SYNC));
-    await press(page.form.querySelector<HTMLButtonElement>("." + CLS.save)!);
-    expect(page.el<HTMLInputElement>(ID.sourceWas).value).toBe("p2p " + MADE + "  ");
-    // Off as saved: no list asked for.
-    expect(page.calls.map((call) => call.url)).toEqual([TOKEN + "&ajax=1", url("aio_sync")]);
-  });
-
-  test("the setting on: the list asked for after the config, shown anew", async () => {
-    const page = open("prof");
-    page.choose(NAME.watch, "debrid");
-    page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "update", notes: [] }), json({ ...SYNC, mode: "debrid" }),
-      answer(true, "", [{ ...LIST[0]!, now: true }, LIST[1]!, { ...LIST[2]!, now: false }]));
-    await press(page.form.querySelector<HTMLButtonElement>("." + CLS.save)!);
-    expect(page.calls.map((call) => call.url)).toEqual([TOKEN + "&ajax=1", url("aio_sync"), url("profiles")]);
-    expect(cards(page).map((card) => seen(card)[0])).toEqual(["Debrid" + page.init.i18n.profileNow, "NAS", "Свой & <конфиг>"]);
-    expect(results(page)).toEqual([]);
+    page.choose(NAME.srcProfiles, "off");
+    page.replies.push(json({ ok: true, next: TOKEN + "&saved=1", aio: "update", reload: true, notes: [], prof: { i: 2, name: OWN, now: true } }), sync());
+    await save(page);
+    expect(page.replaced).toEqual([TOKEN + "&saved=1"]);
   });
 });

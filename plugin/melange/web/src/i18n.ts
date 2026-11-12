@@ -105,16 +105,14 @@ export const TEXT_KEYS = [
   "importing",
   "importTooBig",
   "importUnread",
-  // The source profiles (profiles.ts): the mark of the one in use, the line of one without its config, the labels of
-  // its fields and buttons, the question before "Delete" (%s: its name).
+  // The source profiles (profiles.ts): the mark of the one in use, of one without its config, the link of a new one, the
+  // line why a link is not followed (something to save), the line instead of it (the profiles full), the question before
+  // "Delete" (%s: its name).
   "profileNow",
   "profileNoConf",
-  "profileName",
-  "profileLink",
-  "profileEdit",
-  "profileCancel",
-  "profileSave",
-  "profileDelete",
+  "profileNew",
+  "profileDirty",
+  "profilesFull",
   "profileDeleteConfirm",
 ] as const;
 

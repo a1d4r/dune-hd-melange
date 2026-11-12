@@ -23,7 +23,7 @@ import { setupServerChecks, setupServers } from "./servers";
 
 // Written by aio_cgi_js(). i18n and jacredDefault: always written, checked by isInit() (else #init is broken);
 // confs: {<mode>: {<value of a server option>: {cfg, login, pass, tpl, url?}}}, tplNew: the template for a new config;
-// both checked by createConfs(); profiles: the source profiles (parseProfiles).
+// both checked by createConfs(); profiles: the source profiles and the one of the page (parseProfiles).
 export interface Init {
   i18n: Texts;
   jacredDefault: string;
@@ -57,7 +57,7 @@ function setupForm(page: Page, init: Init): void {
   setupJacredNote(page, init.jacredDefault);
   const home = setupHome(page, aio);
   const bar = setupBar(page, () => aio.creates() || aio.templateUnknown(), lock.saving);
-  // The source profiles: by the script only, with fetch.
+  // The editor of the source profiles: by the script, with fetch.
   let profiles: Profiles | null = null;
   // The main screen and the bar after any change: the handlers of the form, after those of its fields.
   const changed = () => {
@@ -73,9 +73,8 @@ function setupForm(page: Page, init: Init): void {
   setupChecks(page, api, lock);
   setupServerChecks(page, api, lock);
   setupJacredSpeed(page, api, lock);
-  profiles = setupProfiles(page, api, lock, bar, init.profiles, changed);
-  const shown = profiles;
-  setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, home, changed, () => shown.refresh());
+  profiles = setupProfiles(page, api, lock, bar, init.profiles);
+  setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, home, changed, profiles);
   setupRows(page, api, changed);
   setupBackup(page, api, lock);
 }

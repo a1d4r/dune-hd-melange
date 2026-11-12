@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
-import { AIO_SERVER_RADIOS, CLS, DATA, ID, JACRED_RADIOS, NAME, RADIO_GROUP, ROWS, SERVER_BLOCK, SERVER_CHECK_FIELD, SERVER_FIELD, VALUE } from "../src/dom";
+import { AIO_SERVER_RADIOS, CLS, DATA, EDITOR, ID, JACRED_RADIOS, NAME, RADIO_GROUP, ROWS, SERVER_BLOCK, SERVER_CHECK_FIELD, SERVER_FIELD, VALUE } from "../src/dom";
 import { TEXT_KEYS, type Texts } from "../src/i18n";
 import { cleanup, FIXTURES, open } from "./harness";
 
@@ -25,8 +25,8 @@ const PLACEHOLDERS: Partial<Record<keyof Texts, string[]>> = {
   profileDeleteConfirm: ["%s"],
 };
 
-// Made by the script, not by PHP: "Duplicate", the "on" state of an eye, the mark of an error, a source profile.
-const SCRIPT_CLASSES: string[] = [CLS.serverDup, CLS.on, CLS.bad, CLS.profile, CLS.profileHead, CLS.profileDelete];
+// Made by the script, not by PHP: "Duplicate", the "on" state of an eye, the mark of an error.
+const SCRIPT_CLASSES: string[] = [CLS.serverDup, CLS.on, CLS.bad];
 // Made by PHP only on a page with errors of a save (#msg): the own fields with one shown.
 const ERROR_CLASSES: string[] = [CLS.ownOpen];
 
@@ -45,6 +45,15 @@ describe.each([...FIXTURES])("%s", (name) => {
   test("i18n placeholders: those the script replaces (i18n.ts, aio.ts), no others", () => {
     const { init } = open(name, { start: false });
     for (const key of TEXT_KEYS) expect([key, [...(init.i18n[key].match(/%[a-z]/g) || [])]]).toEqual([key, PLACEHOLDERS[key] || []]);
+  });
+
+  test("the editor of the source profiles: every id of EDITOR once on the pages of it (prof*), none on the others; in #src, its fields in the form", () => {
+    const { doc, form } = open(name, { start: false });
+    const editor = name.startsWith("prof");
+    for (const id of Object.values(EDITOR)) expect([id, doc.querySelectorAll("#" + id).length]).toEqual([id, editor ? 1 : 0]);
+    if (!editor) return;
+    expect(doc.getElementById(EDITOR.block)!.closest("section")!.id).toBe("src");
+    for (const id of [EDITOR.name, EDITOR.sel, EDITOR.was, EDITOR.now]) expect((doc.getElementById(id) as HTMLInputElement).form).toBe(form);
   });
 
   test("every id of ID, once (#first: on the first run only, #state hidden there); the line of each screen of ROWS", () => {
@@ -258,11 +267,10 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(doc.getElementById(ID.message)!.nextElementSibling).toBe(form);
   });
 
-  test("the form: action settings?t=<token>, the reset is a submit of aio_reset; after it #prf of the profiles, none nested", () => {
+  test("the form: action settings?t=<token>, the reset is a submit of aio_reset; one form", () => {
     const { form, doc } = open(name, { start: false });
     expect(form.getAttribute("action")).toMatch(/^settings\?t=[0-9a-f]{32}$/);
-    expect([Array.from(doc.forms).map((one) => one.id), form.nextElementSibling!.id, doc.querySelectorAll("form form").length])
-      .toEqual([["", ID.profileForm], ID.profileForm, 0]);
+    expect(doc.forms.length).toBe(1);
     const reset = doc.getElementById(ID.resetConf)!;
     expect([reset.getAttribute("type"), reset.getAttribute("name")]).toEqual(["submit", "aio_reset"]);
   });

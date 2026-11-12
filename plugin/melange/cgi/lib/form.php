@@ -78,7 +78,7 @@ function aio_cgi_fields()
         'pf_was' => array('id' => 'pfw', 'name' => 'prof_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src',
             'raw' => true),
         'pf_now' => array('id' => 'pfc', 'name' => 'prof_now', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src'),
-        'pf_name' => array('id' => 'pfn', 'name' => 'prof_name', 'set' => '', 'max' => AIO_PROFILE_NAME_MAX * 4, 'type' => 'plain',
+        'pf_name' => array('id' => 'pfn', 'name' => 'prof_name', 'set' => '', 'max' => AIO_PROFILE_NAME_MAX, 'type' => 'plain',
             'scr' => 'src', 'raw' => true),
         // "Рейтинг IMDb на постерах": aio_cgi_cat_rating().
         'cat_rating' => array('id' => 'rti', 'name' => 'cat_rating', 'set' => 'cat_rating', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),

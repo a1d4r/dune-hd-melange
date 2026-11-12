@@ -8,6 +8,7 @@ import type { Home } from "./home";
 import { failureText, type Texts } from "./i18n";
 import type { Lock } from "./lock";
 import type { Marks } from "./marks";
+import type { Profiles } from "./profiles";
 import { addLine, encodedOr, setLine, show } from "./ui";
 
 type Control = HTMLInputElement | HTMLSelectElement | HTMLButtonElement;
@@ -33,23 +34,23 @@ const CONF_TEXTS: Record<ConfHow, readonly [keyof Texts, keyof Texts]> = {
   reset: ["resetting", "notReset"],
 };
 
-// changed: the main screen and the bar follow (a config made, the values saved); stayed: a save stayed on the page,
-// its config (if any) answered.
+// changed: the main screen and the bar follow (a config made, the values saved); profiles: the editor of the source
+// profiles (null: none on the page) - a save of its profile stays on the page with it.
 export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Marks, bar: Bar, home: Home, changed: () => void,
-  stayed: () => void): void {
+  profiles: Profiles | null): void {
   const { doc, form, texts } = page;
   const button = query<HTMLButtonElement>(form, "." + CLS.save);
   const results = () => byId(doc, ID.saveResult);
   const templates = [NAME.template, NAME.templateP2p];
 
-  // The config of the chosen server after the save: its result replaces the "creating" line; failed, the line
-  // "Saved" (savedLine) says only the settings on the Dune are. next: the page to load once it answered (the source
-  // kept), null: none.
-  function syncConf(how: ConfHow, savedLine: HTMLElement, next: string | null): void {
+  // The config of the chosen server after the save (of the profile of the editor saved: prof, its name): its result
+  // replaces the "creating" line; failed, the line "Saved" (savedLine) says only the settings on the Dune are. next:
+  // the page to load once it answered (the source kept, the editor turned on or off), null: none.
+  function syncConf(how: ConfHow, savedLine: HTMLElement, next: string | null, prof: string | null): void {
     const [going, failed] = CONF_TEXTS[how];
     button.textContent = texts[going];
     const line = addLine(results(), "hint", button.textContent);
-    api.aioSync(how === "reset").then((result) => {
+    api.aioSync(how === "reset", prof).then((result) => {
       if (result.kind === "data") {
         const sync = result.data;
         aio.applySync(sync, how === "reset");
@@ -72,7 +73,6 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
         if (checkedValue(form, name) !== before[i]) bar.rebaseField(name);
       });
       changed();
-      stayed();
     });
   }
   // The list under the button stays; the fields of the errors marked.
@@ -97,7 +97,7 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
   // posted: the values of the form as the save posted them.
   function saved(answer: Extract<Save, { ok: true }>, posted: Values): void {
     aio.rememberTemplate();
-    if (!answer.notes.length && !answer.aio) {
+    if (!answer.notes.length && !answer.aio && !answer.prof) {
       location.replace(answer.next);
       return;
     }
@@ -113,10 +113,13 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     if (answer.rows) addLine(results(), "ok", texts.rowsLater);
     if (answer.kept) addLine(results(), "warn", texts.sourceKept);
     for (const note of answer.notes) addLine(results(), note.level === "ok" ? "ok" : "warn", note.msg);
-    // The source kept: the radios and src_was show the one posted - the page anew (its line by kept=1 of next).
-    if (answer.aio) syncConf(answer.aio, savedLine, answer.kept ? answer.next : null);
-    else if (answer.kept) location.replace(answer.next);
-    else stayed();
+    // The profile of the editor saved: the page stays of it (a new one has its place now).
+    if (answer.prof && profiles) profiles.saved(answer.prof, answer.profiles);
+    // The source kept (not by the profile of the editor: the page shows that one): the radios and src_was show the one
+    // posted - the page anew (its line by kept=1 of next); so the editor turned on or off.
+    const next = (answer.kept && !answer.prof) || answer.reload ? answer.next : null;
+    if (answer.aio) syncConf(answer.aio, savedLine, next, answer.prof ? answer.prof.name : null);
+    else if (next !== null) location.replace(next);
   }
   function save(reset: boolean): void {
     const pairs = encodedOr(results(), texts.badChars, () => serialize(form));
