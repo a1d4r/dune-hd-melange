@@ -348,11 +348,13 @@ function aio_cgi_profile_post($dir, $a)
         if (!aio_profile_ready($p))
             aio_cgi_profile_failed($a, 'no config', sprintf(aio_cgi_l('Конфига профиля ещё нет: нажмите «%s»',
                 'The profile has no config yet: press "%s"'), aio_cgi_saveb()), $s);
-        list($s, $kept, $full, $held) = aio_profile_keep($s, aio_cgi_profile_words());
+        list($s, $kept, $full, $held, $same) = aio_profile_keep($s, aio_cgi_profile_words());
         if ($full)
             aio_cgi_profile_failed($a, 'the profiles full, the previous source not saved', aio_cgi_profiles_full_use(), $s);
         if ($held >= 0)
             aio_cgi_log("$a: previous not saved: its config is of profile " . aio_profile_tag($held, $s['profiles'][$held]));
+        elseif ($same >= 0)
+            aio_cgi_log("$a: previous not saved: its settings are of profile " . aio_profile_tag($same, $s['profiles'][$same]));
         $s = aio_profile_apply($s, $p);
         $msg = sprintf(aio_cgi_l('Профиль «%s» теперь текущий', 'Profile "%s" is in use now'), $p['name']);
     }

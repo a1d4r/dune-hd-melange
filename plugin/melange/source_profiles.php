@@ -366,11 +366,12 @@ function aio_profile_free_name($s, $w)
 // a profile of these settings there (its target: aio_profiles_ok would drop the second); its config that of another
 // profile (aio_profile_holder: other settings typed - a config of a profile changes only with it). -> array(the settings,
 // the index of the profile that keeps the source now or -1, the profiles full: a source to save and no room - not to be
-// applied, the index of the profile whose config is in the cell of a source not saved or -1).
+// applied, the index of the profile whose config is in the cell of a source not saved or -1, the index of the profile
+// of these settings of a source not saved or -1).
 /**
  * @param AioSettings $s
  * @param array{debrid: string, p2p: string, own: string} $words
- * @return array{0: AioSettings, 1: int, 2: bool, 3: int}
+ * @return array{0: AioSettings, 1: int, 2: bool, 3: int, 4: int}
  */
 function aio_profile_keep($s, $words)
 {
@@ -382,26 +383,26 @@ function aio_profile_keep($s, $words)
     {
         $p = $s['profiles'][$now];
         if (isset($p['url']) || $p['conf'] || !$c || $by >= 0)
-            return array($s, -1, false, -1);
+            return array($s, -1, false, -1, -1);
         $p['conf'] = $c;
         $s['profiles'][$now] = $p;
-        return array($s, $now, false, -1);
+        return array($s, $now, false, -1, -1);
     }
     if (!$t || (!isset($t['url']) && !$c))
-        return array($s, -1, false, -1);
+        return array($s, -1, false, -1, -1);
     if ($by >= 0)
-        return array($s, -1, false, $by);
-    foreach ($s['profiles'] as $x)
+        return array($s, -1, false, $by, -1);
+    foreach ($s['profiles'] as $i => $x)
     {
         if (aio_profile_key($x) === aio_profile_key($t))
-            return array($s, -1, false, -1);
+            return array($s, -1, false, -1, $i);
     }
     if (count($s['profiles']) >= AIO_PROFILES_MAX)
-        return array($s, -1, true, -1);
+        return array($s, -1, true, -1, -1);
     $w = $words[isset($t['url']) ? 'own' : ($t['mode'] === AIO_MODE_P2P ? 'p2p' : 'debrid')];
     $np = aio_profile_ok(array('name' => aio_profile_free_name($s, $w)) + $t, $s);
     if (!$np)
-        return array($s, -1, false, -1);
+        return array($s, -1, false, -1, -1);
     $s['profiles'][] = $np;
-    return array($s, count($s['profiles']) - 1, false, -1);
+    return array($s, count($s['profiles']) - 1, false, -1, -1);
 }

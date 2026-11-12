@@ -85,8 +85,8 @@ function aio_gc_src_words($lang)
 
 // After the request to the source of profile $p (aio_gc_src): settings.json read again (the
 // page may have saved while the source answered), the source in use kept by a profile
-// (aio_profile_keep, the names of $words; its config that of another profile: not, a line
-// in the log), the profile applied and
+// (aio_profile_keep, the names of $words; its config or its settings those of another
+// profile: not, a line in the log), the profile applied and
 // written, Aio::$settings of it -> ''. Not written -> the key of the error, Aio::$settings not
 // touched (the one rollback, to the settings before the request, is in aio_gc_src): the
 // file not read (err_quick_read), not written (err_setup_write); the page changed meanwhile
@@ -121,11 +121,13 @@ function aio_gc_src_commit($dir, $s0, $p, $tag, $words)
     $kept = -1;
     if ($err[0] === '')
     {
-        list($s, $kept, $full, $held) = aio_profile_keep($s, $words);
+        list($s, $kept, $full, $held, $same) = aio_profile_keep($s, $words);
         if ($full)
             $err = array('src_full', 'the profiles full, the previous source not saved');
         elseif ($held >= 0)
             aio_log('source: previous not saved: its config is of profile ' . aio_profile_tag($held, $s['profiles'][$held]));
+        elseif ($same >= 0)
+            aio_log('source: previous not saved: its settings are of profile ' . aio_profile_tag($same, $s['profiles'][$same]));
     }
     if ($err[0] === '')
     {
