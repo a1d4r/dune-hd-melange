@@ -18,14 +18,19 @@
 // opened goes.
 define('AIO_OC_KEEP', 8);
 // The page: a clipping panel from the bottom of the logo (PANE_Y + TITLE_BOTTOM of the catalog,
-// baked into card/v1) down to SHOW_BOTTOM; the page in it in the coordinates of the first screen.
-// DOWN: the first stop OFF lower (the cast at 290 of the screen, "About" under it; without the
-// cast further, "About" at its place), the next ones STEP further while the page goes on below
-// SHOW_BOTTOM. "About" lies at OFF + ABOUT_Y of the page, under the clip of the first screen.
+// baked into card/v1) down to SHOW_BOTTOM, higher at a stop where it would cut a line; the page in
+// it in the coordinates of the first screen.
+// DOWN: the first stop OFF lower (the cast at DOWN_Y of the screen, "About" under it; without the
+// cast further, "About" at DOWN_Y), the next ones STEP further at most, MIN_STEP at least, while
+// the page goes on below the clip. "About" lies at OFF + ABOUT_Y of the page, under the clip of
+// the first screen. The ink of a label starts INK under its top at least (30 and 24 px, measured
+// on the device): an edge of the clip there cuts no line.
 define('AIO_OC_VIEW_Y', 256);
-define('AIO_OC_OFF', 434);
+define('AIO_OC_DOWN_Y', 290);
 define('AIO_OC_STEP', 420);
+define('AIO_OC_MIN_STEP', 40);
 define('AIO_OC_SHOW_BOTTOM', 1020);
+define('AIO_OC_INK', 10);
 // The first screen (design-own-card.md, B): lines of the panel, the description in 30 px lines
 // DESC_LH apart from under the director (or the genres) down to DESC_BOTTOM; buttons BTN_H high
 // at BTN_Y, the text PAD from the edges (and the icon of "Watch" ICON_W more), GAP apart; CAP: the
@@ -50,6 +55,7 @@ define('AIO_OC_HINT_R', 1845);
 // apart, the name in 2 lines and the role in NAME_W. DOWN: "About" at ABOUT_Y of the screen at the
 // first stop with the cast, the description in DESC2_W, the pairs of the details at DET_X in DET_W.
 define('AIO_OC_CAST_Y', 724);
+define('AIO_OC_OFF', AIO_OC_CAST_Y - AIO_OC_DOWN_Y);
 define('AIO_OC_PHOTO_W', 120);
 define('AIO_OC_PHOTO_H', 152);
 define('AIO_OC_PHOTO_STEP', 172);
@@ -473,10 +479,10 @@ function aio_oc_cast($c)
 
 // What DOWN shows, in the coordinates of the screen at the first stop with the cast: "About the
 // movie": the tagline, the whole description, at the right the details. -> array(components,
-// their bottom); none: no stop.
+// the bands of their ink, aio_oc_band); none: no stop.
 /**
  * @param AioOcCard $c
- * @return array{list<array<string, mixed>>, int}
+ * @return array{list<array<string, mixed>>, list<array{int, int}>}
  */
 function aio_oc_down($c)
 {
@@ -500,17 +506,18 @@ function aio_oc_down($c)
         $rows[] = array('card_studios', implode(', ', $m['studios']));
     $rows[] = array('card_countries', implode(', ', aio_oc_countries($c)));
     $tagline = $m ? $m['tagline'] : '';
-    $bottom = $y;
     $any = $desc !== '' || $tagline !== '';
     foreach ($rows as $r)
         $any = $any || $r[1] !== '';
     if (!$any)
-        return array(array(), 0);
+        return array(array(), array());
     $d[] = aio_oc_label($x0, $y, 800, aio_tr($lang, 'card_about_movie'), AIO_CATV_LINE_PX, AIO_GC_TEXT);
+    $bands = array(aio_oc_band($y, AIO_CATV_LINE_PX));
     $ty = $y + 50;
     foreach (aio_gc_wrap(aio_clean($tagline), AIO_CATV_LINE_PX, AIO_OC_DESC2_W, 2, true) as $line)
     {
         $d[] = aio_oc_label($x0, $ty, AIO_OC_DESC2_W, $line, AIO_CATV_LINE_PX, AIO_GC_DIM);
+        $bands[] = aio_oc_band($ty, AIO_CATV_LINE_PX);
         $ty += AIO_OC_DESC_LH;
     }
     if ($tagline !== '')
@@ -518,50 +525,107 @@ function aio_oc_down($c)
     foreach (aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, AIO_OC_DESC2_W, AIO_OC_DESC2_LINES, true) as $line)
     {
         $d[] = aio_oc_label($x0, $ty, AIO_OC_DESC2_W, $line, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
+        $bands[] = aio_oc_band($ty, AIO_CATV_LINE_PX);
         $ty += AIO_OC_DESC_LH;
     }
-    $bottom = max($bottom + 50, $ty);
     $ry = $y + 50;
     foreach ($rows as $r)
     {
         if ($r[1] === '')
             continue;
         $d[] = aio_oc_label(AIO_OC_DET_X, $ry, AIO_OC_DET_W, aio_tr($lang, $r[0]), 24, AIO_GC_DIM);
+        $bands[] = aio_oc_band($ry, 24);
         $ry += 30;
         foreach (aio_gc_wrap(aio_clean($r[1]), AIO_CATV_LINE_PX, AIO_OC_DET_W, 2, true) as $line)
         {
             $d[] = aio_oc_label(AIO_OC_DET_X, $ry, AIO_OC_DET_W, $line, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
+            $bands[] = aio_oc_band($ry, AIO_CATV_LINE_PX);
             $ry += 40;
         }
         $ry += 18;
     }
-    return array($d, max($bottom, $ry));
+    return array($d, $bands);
 }
 
-// The shifts of the page: 0 the first screen; with something below ($bottom of aio_oc_down),
-// $first, then STEP further while the page goes on below SHOW_BOTTOM, the last to its end.
+// The band of the ink of a label of aio_oc_label at $y: from INK under its top to its bottom.
 /**
- * @param int $bottom
- * @param int $first
- * @return list<int>
+ * @param int $y
+ * @param int $px
+ * @return array{int, int}
  */
-function aio_oc_stops($bottom, $first)
+function aio_oc_band($y, $px)
 {
-    if ($bottom <= 0)
-        return array(0);
-    $stops = array(0, $first);
-    $max = AIO_OC_OFF + max(0, $bottom - AIO_OC_SHOW_BOTTOM);
-    for ($s = $first; $s < $max; )
-    {
-        $s = min($s + AIO_OC_STEP, $max);
-        $stops[] = $s;
-    }
-    return $stops;
+    return array($y + AIO_OC_INK, $y + ($px === AIO_CATV_LINE_PX ? AIO_CATV_LINE_H : 34));
 }
 
-// The card laid out: its buttons, the stops of the page and its height, what the first screen
-// alone shows (what the keys need, AioOcNav), the components DOWN shows. The first stop: the cast
-// at 290; without it "About" at its place, the page further by ABOUT_Y - 290. The first screen
+// $y off the bands: up to the top of the one it cuts ($up) or down to its bottom, again while it
+// cuts one (of the other column) -> an edge of the clip that cuts no line.
+/**
+ * @param list<array{int, int}> $bands
+ * @param int $y
+ * @param bool $up
+ * @return int
+ */
+function aio_oc_clear($bands, $y, $up)
+{
+    do
+    {
+        $moved = false;
+        foreach ($bands as $b)
+        {
+            if ($b[0] < $y && $y < $b[1])
+            {
+                $y = $up ? $b[0] : $b[1];
+                $moved = true;
+            }
+        }
+    } while ($moved);
+    return $y;
+}
+
+// The shifts of the page and the bottom of the clip on the screen at each. 0 the first screen;
+// with something below ($bands of aio_oc_down), $s1, then STEP further at most while the page goes
+// on below the clip, the last ($max) its end at the bottom of the clip, MIN_STEP after the one
+// before at least. With the cast ($cast) the stop after $s1 puts "About" at the top of the clip:
+// the cast goes whole. The top of the clip at a stop and its bottom cut no line (aio_oc_clear):
+// a line cut at the top goes down whole, at the bottom it is not shown.
+/**
+ * @param list<array{int, int}> $bands
+ * @param int $s1
+ * @param bool $cast
+ * @return array{list<int>, list<int>}
+ */
+function aio_oc_stops($bands, $s1, $cast)
+{
+    $stops = array(0);
+    // The top of the clip at stop $s in the coordinates of the bands: $s + $top.
+    $top = AIO_OC_VIEW_Y - AIO_OC_OFF;
+    if ($bands)
+    {
+        $end = 0;
+        foreach ($bands as $b)
+            $end = max($end, $b[1]);
+        $max = AIO_OC_OFF + $end - AIO_OC_SHOW_BOTTOM;
+        $lo = $cast ? AIO_OC_ABOUT_Y - $top : 0;
+        $stops[] = $s = $s1;
+        while ($s < $max)
+        {
+            $n = $lo > $s ? $lo : max($s + AIO_OC_MIN_STEP, aio_oc_clear($bands, $s + AIO_OC_STEP + $top, true) - $top);
+            if ($n > $max - AIO_OC_MIN_STEP)
+                $n = max($lo, aio_oc_clear($bands, max($max, $s + AIO_OC_MIN_STEP) + $top, false) - $top);
+            $stops[] = $s = $n;
+        }
+    }
+    $clips = array();
+    foreach ($stops as $s)
+        $clips[] = aio_oc_clear($bands, AIO_OC_SHOW_BOTTOM - AIO_OC_OFF + $s, true) + AIO_OC_OFF - $s;
+    return array($stops, $clips);
+}
+
+// The card laid out: its buttons, the stops of the page, the bottom of the clip at each and the
+// height of the page, what the first screen alone shows (what the keys need, AioOcNav), the
+// components DOWN shows. The first stop: the cast at DOWN_Y; without it "About" at its place, the
+// page further by ABOUT_Y - DOWN_Y. The first screen
 // alone: the line under the buttons with the progress of the movie (aio_wh_movie, read here once
 // a request; only with an IMDb and a card of the Dune, the only case it shows) - its foot would
 // peep under the logo at DOWN - and the hint, if DOWN shows something.
@@ -571,11 +635,11 @@ function aio_oc_stops($bottom, $first)
  */
 function aio_oc_layout($c)
 {
-    list($down, $bottom) = aio_oc_down($c);
+    list($down, $bands) = aio_oc_down($c);
     $btns = aio_oc_buttons($c);
-    $first = AIO_OC_OFF;
-    if (!$c['meta'] || !$c['meta']['cast'])
-        $first += AIO_OC_ABOUT_Y - (AIO_OC_CAST_Y - AIO_OC_OFF);
+    $cast = $c['meta'] && $c['meta']['cast'];
+    $s1 = $cast ? AIO_OC_OFF : AIO_OC_OFF + AIO_OC_ABOUT_Y - AIO_OC_DOWN_Y;
+    list($stops, $clips) = aio_oc_stops($bands, $s1, $cast);
     $wh = $c['imdb'] !== '' && $c['dune'] !== '' ? aio_wh_movie($c['dune']) : null;
     $only = aio_oc_under($c, $wh, $btns ? aio_oc_btn_w($btns[0]) : 0);
     if ($down)
@@ -583,8 +647,18 @@ function aio_oc_layout($c)
         foreach (aio_oc_hint($c['ui']) as $x)
             $only[] = $x;
     }
-    return array('btns' => $btns, 'stops' => aio_oc_stops($bottom, $first), 'h' => max(1080, $bottom + AIO_OC_OFF + 40),
+    return array('btns' => $btns, 'stops' => $stops, 'clips' => $clips, 'h' => max(1080, $stops[count($stops) - 1] + AIO_OC_SHOW_BOTTOM),
         'first' => $only, 'down' => $down);
+}
+
+// The clip under the logo down to $bottom of the screen.
+/**
+ * @param int $bottom
+ * @return AioGcGeom
+ */
+function aio_oc_view_geom($bottom)
+{
+    return aio_gc_at(1920, $bottom - AIO_OC_VIEW_Y, 0, AIO_OC_VIEW_Y);
 }
 
 // The page at shift $s inside the clip under the logo.
@@ -685,8 +759,8 @@ function aio_oc_next($l, $pos, $d)
     return $n;
 }
 
-// The change_defs from place $old to $new: the two buttons redrawn, the page moved, the
-// darkening on or off, what the first screen alone shows off or on.
+// The change_defs from place $old to $new: the two buttons redrawn, the page and the bottom of
+// its clip moved, the darkening on or off, what the first screen alone shows off or on.
 /**
  * @param AioOcNav $l
  * @param AioOcPos $old
@@ -703,7 +777,10 @@ function aio_oc_changes($l, $old, $new)
                 aio_oc_btn_items($l['btns'][$i], aio_oc_btn_w($l['btns'][$i]), $on));
     }
     if ($new['p'] !== $old['p'])
+    {
+        $ch[] = aio_gc_change('view', aio_oc_view_geom($l['clips'][$new['p']]), GCOMP_TRANSITION_DEFAULT);
         $ch[] = aio_gc_change('page', aio_oc_page_geom($l['stops'][$new['p']], $l['h']), GCOMP_TRANSITION_DEFAULT);
+    }
     if (($new['z'] === 'down') !== ($old['z'] === 'down'))
     {
         $ch[] = aio_gc_change('dim', null, GCOMP_TRANSITION_NONE, aio_oc_dim($new['z']));
@@ -740,7 +817,7 @@ function aio_oc_window($c, $l, $pos)
     // What DOWN shows, in a panel OFF lower: its own coordinates are those of the first stop with the cast.
     if ($l['down'])
         $page[] = aio_gc_panel('down', aio_gc_at(1920, $l['h'] - AIO_OC_OFF, 0, AIO_OC_OFF), $l['down']);
-    $d[] = aio_gc_panel('view', aio_gc_at(1920, AIO_OC_SHOW_BOTTOM - AIO_OC_VIEW_Y, 0, AIO_OC_VIEW_Y),
+    $d[] = aio_gc_panel('view', aio_oc_view_geom($l['clips'][$pos['p']]),
         array(aio_gc_panel('page', aio_oc_page_geom($l['stops'][$pos['p']], $l['h']), $page, 0)), 0);
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
@@ -772,7 +849,8 @@ function aio_oc_folder_view($media_url, $sel_state)
     $l = aio_oc_layout($c);
     $pos = aio_oc_pos($c, $l, $sel_state);
     AioOc::$cards[$key]['pos'] = $pos;
-    AioOc::$cards[$key]['nav'] = array('btns' => $l['btns'], 'stops' => $l['stops'], 'h' => $l['h'], 'first' => $l['first']);
+    AioOc::$cards[$key]['nav'] = array('btns' => $l['btns'], 'stops' => $l['stops'], 'clips' => $l['clips'], 'h' => $l['h'],
+        'first' => $l['first']);
     aio_log("card: own $key: screen, " . count($l['btns']) . ' buttons, ' . count($l['stops']) . " stops, at {$pos['b']}, {$pos['p']}");
     $k = array('c' => $key);
     $acts = array(
