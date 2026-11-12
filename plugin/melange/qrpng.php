@@ -8,10 +8,13 @@ require_once dirname(__FILE__) . '/qrcode/qrcode.php';
 class AioQrPng
 {
     // Returns array('png' => bytes, 'size' => px, 'modules' => n, 'version' => v).
-    public static function make($text, $scale = 8, $quiet = 4)
+    // $max_side > 0: the largest whole $scale whose side fits it (1 at least).
+    public static function make($text, $scale = 8, $quiet = 4, $max_side = 0)
     {
         $qr = QRCode::getMinimumQRCode($text, QR_ERROR_CORRECT_LEVEL_M);
         $n = $qr->getModuleCount();
+        if ($max_side > 0)
+            $scale = max(1, intval($max_side / ($n + 2 * $quiet)));
         $side = ($n + 2 * $quiet) * $scale;
 
         $white_row = "\0" . str_repeat("\xff", $side);
