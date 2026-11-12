@@ -73,8 +73,8 @@ function aio_cgi_profile_word($p)
 // a number from 2 while the name is taken.
 function aio_cgi_profile_def($s)
 {
-    $t = aio_profile_of($s);
-    $w = aio_cgi_profile_word($t ? $t : array('mode' => $s['aio_mode']));
+    $target = aio_profile_of($s);
+    $w = aio_cgi_profile_word($target ? $target : array('mode' => $s['aio_mode']));
     $name = $w;
     for ($n = 2; aio_profile_find($s, $name) >= 0 && $n <= AIO_PROFILES_MAX + 1; $n++)
         $name = "$w $n";
@@ -166,8 +166,8 @@ function aio_cgi_profile_post($dir, $a, $t)
     $more = array();
     if ($a === 'profile_add')
     {
-        $t = aio_profile_of($s);
-        if (!$t || (!isset($t['url']) && !aio_settings_conf($s)))
+        $target = aio_profile_of($s);
+        if (!$target || !aio_profile_ready($s, $target))
             aio_cgi_profile_failed($a, 'no config', aio_cgi_l('Сначала сохраните: конфига ещё нет',
                 'Save first: there is no config yet'), $s);
         if (count($s['profiles']) >= AIO_PROFILES_MAX)
@@ -177,7 +177,7 @@ function aio_cgi_profile_post($dir, $a, $t)
         }
         if (aio_profile_name($name) === '')
             $name = aio_cgi_profile_def($s);
-        $p = aio_cgi_profile_checked($a, $s, array('name' => $name) + $t, -1);
+        $p = aio_cgi_profile_checked($a, $s, array('name' => $name) + $target, -1);
         $s['profiles'][] = $p;
         $msg = sprintf(aio_cgi_l('Профиль «%s» сохранён', 'Profile "%s" saved'), $p['name']);
     }
