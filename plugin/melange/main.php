@@ -82,11 +82,13 @@ class Aio
     // 'cat_logo' - the same of the settings, as stored. 'cat_rating' - the same: aio_catv_title_item.
     // 'debrid_main' - the main Debrid service (aio_debrid_main_read): of a file cached on
     // several, the copy of it plays (aio_list_state, aio_play); '' - the first in the reply.
+    // 'profiles' - the source profiles of MENU of a list (aio_profiles_menu; none with the
+    // setting off).
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true,
-        'cat_rating' => false, 'debrid_main' => '');
+        'cat_rating' => false, 'debrid_main' => '', 'profiles' => array());
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -404,9 +406,19 @@ function aio_settings_write($s)
  */
 function aio_settings_load()
 {
-    $s = aio_settings_read_logged();
+    Aio::$settings = aio_op_settings(aio_settings_read_logged());
+}
+
+// Aio::$settings of settings $s (aio_settings_read; a profile applied: aio_gc_src),
+// the sort and the main Debrid read from their files.
+/**
+ * @param AioSettings $s
+ * @return AioOpSettings
+ */
+function aio_op_settings($s)
+{
     list($sort, $rev) = aio_sort_read();
-    Aio::$settings = array(
+    return array(
         // The stream URL is <base>/stream/...: the base keeps its trailing slash.
         'base' => aio_manifest_base(aio_settings_manifest($s)),
         'jrs' => aio_jacred_list($s),
@@ -428,7 +440,26 @@ function aio_settings_load()
         'cat_rows' => $s['cat_rows'],
         'cat_logo' => $s['cat_logo'],
         'cat_rating' => $s['cat_rating'],
-        'debrid_main' => aio_debrid_main_read(aio_data_dir()));
+        'debrid_main' => aio_debrid_main_read(aio_data_dir()),
+        'profiles' => aio_profiles_menu($s));
+}
+
+// The source profiles of MENU of a list (0.58.0): with src_profiles on, those
+// ready (aio_profile_ready), by their index in profiles => array('name', 'now' -
+// the settings are of it, aio_profile_is). array() with the setting off.
+/**
+ * @param AioSettings $s
+ * @return array<int, array{name: string, now: bool}>
+ */
+function aio_profiles_menu($s)
+{
+    $r = array();
+    foreach ($s['src_profiles'] ? $s['profiles'] : array() as $i => $p)
+    {
+        if (aio_profile_ready($s, $p))
+            $r[$i] = array('name' => $p['name'], 'now' => aio_profile_is($s, $p));
+    }
+    return $r;
 }
 
 // The sort of the lists, chosen by a colour key of the list (aio_gc_sort):
@@ -1340,6 +1371,10 @@ function aio_handle_user_input($in)
         return aio_gc_sort($in);
     if ($control === 'gc_main')
         return aio_gc_main($in);
+    if ($control === 'gc_srcs')
+        return aio_gc_srcs($in);
+    if ($control === 'gc_src')
+        return aio_gc_src($in);
     if ($control === 'gc_choose')
         return aio_choose($in);
     if ($control === 'gc_chosen')

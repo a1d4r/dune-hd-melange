@@ -1067,7 +1067,8 @@ function aio_relist_dialog($title, $lang, $res)
  */
 function aio_relist_screen($st, $s, $e, $cur, $tag, $log_old, $title, $erase)
 {
-    $r = aio_relist($st, $s, $e, $st['rows'][$cur]['hash']);
+    // An empty list (aio_gc_src): no release to keep.
+    $r = aio_relist($st, $s, $e, isset($st['rows'][$cur]) ? $st['rows'][$cur]['hash'] : '');
     if (isset($r['error']))
     {
         aio_log(sprintf('%s failed: %s, %.2f s, the screen kept', $tag, $r['error'], microtime(true) - Aio::$t0));
