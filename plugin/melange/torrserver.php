@@ -655,8 +655,8 @@ function aio_ts_map_start($st, $r, $files, $k)
     $seasons = $st['movie']['seasons'];
     $parsed = aio_ts_eps($files);
     $all = $parsed[0];
-    $n = aio_cin_n($st['movie'], $s, $e);
-    if ($n > 0 && isset($all[$k]) && $all[$k][1] === $n && ($all[$k][0] === null || $all[$k][0] === 1))
+    $abs = aio_cin_n($st['movie']['cin'], $s, $e);
+    if ($abs > 0 && isset($all[$k]) && $all[$k][1] === $abs && ($all[$k][0] === null || $all[$k][0] === 1))
         return aio_ts_map_abs($st, $r, $files, $all, $k);
     $map = array();
     foreach (aio_ts_episodes($files, $parsed, $s, $e, $k, isset($seasons[$s]) ? min($seasons[$s], AIO_EPISODES_MAX) : 0) as $n => $f)
@@ -711,7 +711,7 @@ function aio_ts_map_abs($st, $r, $files, $all, $k)
     $map = array($s => array());
     for ($i = 1; $i <= $max; $i++)
     {
-        $a = isset($mv['cin']) ? aio_cin_abs($mv['cin'], $s, $i) : 0;
+        $a = aio_cin_abs($mv['cin'], $s, $i);
         if ($a > 0 && isset($by[$a]))
             $map[$s][$i] = $files[$by[$a]]['id'];
     }
@@ -1063,7 +1063,7 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false, $miss_list = f
     }
     else
         list($k, $by) = aio_ts_pick($files, $r, $st['s'], $st['e'], count($st['movie']['seasons']) === 1,
-            aio_cin_n($st['movie'], $st['s'], $st['e']));
+            aio_cin_n($st['movie']['cin'], $st['s'], $st['e']));
     if ($k < 0)
     {
         aio_log("ts: {$by}, " . count($files) . ' files');

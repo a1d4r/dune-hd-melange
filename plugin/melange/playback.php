@@ -35,7 +35,7 @@ function aio_ep_name($mv, $s, $e)
  */
 function aio_ep_code($mv, $s, $e)
 {
-    $n = aio_cin_n($mv, $s, $e);
+    $n = aio_cin_n($mv['cin'], $s, $e);
     return sprintf('S%02dE%02d', $s, $e) . ($n > 0 ? " ($n)" : '');
 }
 
@@ -1013,7 +1013,7 @@ function aio_relist($st, $s, $e, $hash)
     if (AIO_JACRED)
         $rows = aio_jacred($rows, $mv, $s);
     $ns = aio_list_state($mv, $s, $e, $rows, $st['lang'], $res['errors']);
-    list($sel, $by) = aio_release_row($ns['rows'], $hash, $s, $e, aio_cin_n($mv, $s, $e));
+    list($sel, $by) = aio_release_row($ns['rows'], $hash, $s, $e, aio_cin_n($mv['cin'], $s, $e));
     return array('st' => aio_gc_put_cursor($ns, $sel), 'sel' => $sel, 'by' => $by);
 }
 
@@ -1160,9 +1160,7 @@ function aio_movie_load($key)
     ksort($mv['seasons']);
     if (isset($m['own_card']) && $m['own_card'] === true)
         $mv['own_card'] = true;
-    $cin = aio_cin_runs(isset($m['cin']) ? $m['cin'] : null);
-    if ($cin)
-        $mv['cin'] = $cin;
+    $mv['cin'] = aio_cin_valid(isset($m['cin']) ? $m['cin'] : null);
     $r = array('movie' => $mv, 'lang' => aio_str($d, 'lang'));
     Aio::$movies[$key] = $r;
     return $r;
@@ -1353,7 +1351,7 @@ function aio_next_fetch_retry($key, $s, $e, $hash, $mode)
         $res = aio_next_fetch($key, $s, $e);
         $errors = $res['errors'];
         $pick = isset($res['error']) ? null : aio_release_pick($res['st']['rows'], $hash, $s, $e,
-            aio_cin_n($res['st']['movie'], $s, $e));
+            aio_cin_n($res['st']['movie']['cin'], $s, $e));
         $none = $pick ? $pick[$mode === 'ts' ? 'ts' : 'deb'] < 0 : $res['error'] === 'err_no_streams';
         if (!$first || !$none || !$errors['lines'] || !aio_op_total($retry, $retry, "next: $ep: retry"))
             return array($res, $pick, $none);

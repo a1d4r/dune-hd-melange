@@ -695,7 +695,8 @@ function aio_oc_mark($key, $c, $in)
     if (!$keys)
         return null;
     $recs = aio_wh_ours_eps($c['dune'], $keys, $c['meta']['cin']);
-    $ids = $w === 'off' && $x['abs'] > 0 && !($s === 1 && $x['abs'] === $e) ? array(aio_wh_mark_uid($c['dune'], 1, $x['abs'])) : array();
+    $abs = $w === 'off' ? aio_cin_n($c['meta']['cin'], $s, $e) : 0;
+    $ids = $abs > 0 ? array(aio_wh_mark_uid($c['dune'], 1, $abs)) : array();
     $nr = 0;
     foreach ($keys as $k)
     {

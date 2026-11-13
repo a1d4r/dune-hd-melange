@@ -259,8 +259,8 @@ function aio_wh_ours_all()
 // Progress of the releases of a list watched before (the movie or the
 // episode of $st): infoHash => share in (0, 1]. An episode of an anime numbered
 // on: its records as the own card wrote them before the numbering of Cinemeta
-// too ("1:923" of S21E32, aio_cin_n), the newer form first. No dune id: none,
-// the history is not read.
+// too ("1:923" of S21E32, aio_wh_se by the runs of the list), the newer form
+// first. No dune id: none, the history is not read.
 /**
  * @param AioState $st
  * @return AioProgress
@@ -270,18 +270,14 @@ function aio_wh_progress($st)
     $mv = $st['movie'];
     if ($mv['dune_id'] === '')
         return array();
-    $n = aio_cin_n($mv, $st['s'], $st['e']);
     $res = array();
-    $all = aio_wh_ours_all();
-    foreach ($n > 0 ? array($st['e'], $n) : array($st['e']) as $i => $e)
+    foreach (aio_wh_ours_all() as $uid => $share)
     {
-        $prefix = implode(':', array(AIO_SUP_ID, $mv['dune_id'], $i > 0 ? 1 : $st['s'], $e)) . ':';
-        $len = strlen($prefix);
-        foreach ($all as $uid => $share)
-        {
-            if ($share > 0 && strlen($uid) > $len && strncmp($uid, $prefix, $len) === 0 && !isset($res[substr($uid, $len)]))
-                $res[substr($uid, $len)] = $share;
-        }
+        $u = $share > 0 ? aio_wh_uid(strval($uid), $mv['dune_id']) : null;
+        if (!$u || aio_wh_se($mv['cin'], $u[0], $u[1]) !== array($st['s'], $st['e']))
+            continue;
+        if (!isset($res[$u[2]]) || ($u[0] === $st['s'] && $u[1] === $st['e']))
+            $res[$u[2]] = $share;
     }
     return $res;
 }
@@ -330,7 +326,7 @@ function aio_wh_uid($uid, $dune_id)
         substr($uid, $n), $m) ? array(intval($m[1]), intval($m[2]), $m[3]) : null;
 }
 
-// Season $s, episode $e of a record or a mark of an anime numbered on with runs $runs (aio_cin_runs) -> as the
+// Season $s, episode $e of a record or a mark of an anime numbered on with runs $runs (aio_cin_valid) -> as the
 // list and the own card have them now, by Cinemeta: the own card before it wrote S1E923 for S21E32 of One Piece
 // (an episode not of season 1 of Cinemeta: by its pair, aio_cin_pair); else as they are.
 /**
@@ -367,7 +363,7 @@ function aio_wh_mark_uid($dune_id, $q, $e)
  * @param list<array{int, int, int}> $runs
  * @return array<string, int>
  */
-function aio_wh_marks($dune_id, $set, $runs = array())
+function aio_wh_marks($dune_id, $set, $runs)
 {
     $out = array();
     foreach ($set as $uid => $ts)
@@ -483,7 +479,7 @@ function aio_wh_after($eps, $s, $e)
  * @param list<array{int, int, int}> $runs
  * @return array{int, int, float, float, string}
  */
-function aio_wh_rec($w, $runs = array())
+function aio_wh_rec($w, $runs)
 {
     list($s, $e) = aio_wh_se($runs, isset($w->s) && is_numeric($w->s) && intval($w->s) >= 0 ? intval($w->s) : 1,
         isset($w->e) && is_numeric($w->e) ? intval($w->e) : 1);
@@ -583,7 +579,7 @@ function aio_wh_pick($st, $dune_id, $eps)
  * @param list<array{int, int, int}> $runs
  * @return AioWhSeries
  */
-function aio_wh_native($dune_id, $eps, $last, $runs = array())
+function aio_wh_native($dune_id, $eps, $last, $runs)
 {
     $set = $dune_id !== '' ? aio_wh_marked_set() : array();
     $marks = aio_wh_marks($dune_id, $set, $runs);
@@ -622,7 +618,7 @@ function aio_wh_native($dune_id, $eps, $last, $runs = array())
  * @param list<array{int, int, int}> $runs
  * @return AioWhSeries
  */
-function aio_wh_alone($w, $dune_id, $set, $runs = array())
+function aio_wh_alone($w, $dune_id, $set, $runs)
 {
     $acc = array();
     if ($w)
@@ -640,7 +636,7 @@ function aio_wh_alone($w, $dune_id, $set, $runs = array())
 function aio_wh_episode($mv)
 {
     $eps = aio_wh_lists($mv['seasons']);
-    $p = aio_wh_pick(aio_wh_native($mv['dune_id'], $eps, true, isset($mv['cin']) ? $mv['cin'] : array()), $mv['dune_id'], $eps);
+    $p = aio_wh_pick(aio_wh_native($mv['dune_id'], $eps, true, $mv['cin']), $mv['dune_id'], $eps);
     if ($p['rec'] !== '')
         aio_log("history: {$p['rec']}, " . count($mv['seasons']) . ' seasons in season_numbers');
     aio_log("episode: S{$p['s']}E{$p['e']}, {$p['why']}");
@@ -662,7 +658,7 @@ function aio_wh_episode($mv)
  * @param list<array{int, int, int}> $runs
  * @return AioWhSeries
  */
-function aio_wh_series($dune_id, $set, $runs = array())
+function aio_wh_series($dune_id, $set, $runs)
 {
     $marks = aio_wh_marks($dune_id, $set, $runs);
     $acc = aio_wh_find('history: series', 'aio_wh_series_visit', array($dune_id, $set, $marks, $runs));
@@ -710,7 +706,7 @@ function aio_wh_series_visit($w, $arg, &$acc)
  * @param list<array{int, int, int}> $runs
  * @return array<string, list<string>>
  */
-function aio_wh_ours_eps($dune_id, $keys, $runs = array())
+function aio_wh_ours_eps($dune_id, $keys, $runs)
 {
     $acc = aio_wh_find('history: marks', 'aio_wh_ours_eps_visit', array($dune_id, array_flip($keys), $runs));
     $out = array();
@@ -754,7 +750,7 @@ function aio_wh_ours_eps_visit($w, $arg, &$acc)
  */
 function aio_wh_resume_ep($mv, $r)
 {
-    $runs = isset($mv['cin']) ? $mv['cin'] : array();
+    $runs = $mv['cin'];
     list($s, $e) = aio_wh_se($runs, $r['s'], $r['e']);
     if ($s !== $r['s'] || $e !== $r['e'])
         aio_log("resume: record S{$r['s']}E{$r['e']} of the own card before Cinemeta is S{$s}E{$e}");

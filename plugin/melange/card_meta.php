@@ -199,7 +199,7 @@ function aio_cm_eps($videos, $now)
         $by[$s][$e] = array('s' => $s, 'e' => $e,
             'title' => aio_cut(aio_one_line(aio_str($v, 'title')), AIO_CM_EP_TITLE_MAX), 'date' => $date,
             'img' => aio_cm_img(aio_str($v, 'thumbnail'), 'background'),
-            'min' => aio_cat_runtime_min(aio_str($v, 'runtime')), 'soon' => $soon, 'abs' => 0);
+            'min' => aio_cat_runtime_min(aio_str($v, 'runtime')), 'soon' => $soon);
         $n++;
     }
     $seasons = aio_cm_sorted($by);
@@ -495,7 +495,7 @@ function aio_cm_cin_eps($videos)
  * @param list<array{int, int, int|null}> $b
  * @return array<int, array{int, int}>
  */
-function aio_cm_cin_pair($a, $b)
+function aio_cm_cin_match($a, $b)
 {
     $map = array();
     $i = 0;
@@ -533,7 +533,7 @@ function aio_cm_cin_pair($a, $b)
     return $map;
 }
 
-// Episode $i of $a and $j of $b of aio_cm_cin_pair aired within AIO_CM_CIN_DAYS, or either with no date.
+// Episode $i of $a and $j of $b of aio_cm_cin_match aired within AIO_CM_CIN_DAYS, or either with no date.
 /**
  * @param list<array{int, int|null}> $a
  * @param list<array{int, int, int|null}> $b
@@ -546,7 +546,7 @@ function aio_cm_cin_near($a, $b, $i, $j)
     return $a[$i][1] === null || $b[$j][2] === null || abs($a[$i][1] - $b[$j][2]) <= AIO_CM_CIN_DAYS;
 }
 
-// Pairs $map (aio_cm_cin_pair) of the numbers of episodes $a (aio_cm_abs_eps) -> runs of them: list of
+// Pairs $map (aio_cm_cin_match) of the numbers of episodes $a (aio_cm_abs_eps) -> runs of them: list of
 // array(the first number, the season of Cinemeta, its episode), the next numbers the next episodes of
 // the season up to the next run; season 0: numbers of no pair. The numbers after the last pair go on in its
 // run (Cinemeta has no episode of the meta yet). The runs of One Piece: one a season of Cinemeta and one a
@@ -599,7 +599,7 @@ function aio_cm_cin($m)
     $b = aio_cm_cin_eps(aio_arr(aio_arr($j, 'meta'), 'videos'));
     unset($j);
     $a = aio_cm_abs_eps($m);
-    $map = $b ? aio_cm_cin_pair($a, $b) : array();
+    $map = $b ? aio_cm_cin_match($a, $b) : array();
     $why = '';
     if ($err !== '')
         $why = $err === AIO_HTTP_TOO_BIG ? 'big' : (preg_match('/^curl [0-9]+/', $err, $x) ? $x[0] : 'failed');
@@ -637,9 +637,9 @@ function aio_cm_cin_get($m)
 }
 
 // Meta $m of a series numbered on by the numbering of Cinemeta of runs $cin (aio_cm_cin; none: $m as it is),
-// as the native card of the Dune has it: the seasons of Cinemeta, s and e of an episode its pair (aio_cin_pair),
-// abs its number of the meta (923 of One Piece S21E32: its streams in an old pack, aio_ts_pick); season_numbers
-// anew (aio_cm_out), cin the runs. An episode of no pair (One Piece E590, a special of Cinemeta) is left out.
+// as the native card of the Dune has it: the seasons of Cinemeta, s and e of an episode its pair (aio_cin_pair;
+// its number of the meta by the runs, aio_cin_n: 923 of One Piece S21E32); season_numbers anew (aio_cm_out),
+// cin the runs. An episode of no pair (One Piece E590, a special of Cinemeta) is left out.
 /**
  * @param AioCardMeta $m
  * @param list<array{int, int, int}> $cin
@@ -659,7 +659,7 @@ function aio_cm_cin_renum($m, $cin)
             if (!$p || isset($by[$p[0]][$p[1]]))
                 $none++;
             else
-                $by[$p[0]][$p[1]] = array_merge($ep, array('s' => $p[0], 'e' => $p[1], 'abs' => $ep['e']));
+                $by[$p[0]][$p[1]] = array_merge($ep, array('s' => $p[0], 'e' => $p[1]));
         }
     }
     $m['seasons'] = aio_cm_sorted($by);
