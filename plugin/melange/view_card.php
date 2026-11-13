@@ -1736,7 +1736,8 @@ function aio_oc_folder_view($media_url, $sel_state)
 // of the Dune (or none: no history) in movie_str. native_title, as the card of the Dune gives it
 // (JacRed asks by it): the original title of the meta, else the English one of the tile. A series:
 // episode $e of season $q as asked (aio_cm_req_s), season_numbers of the meta (the episodes out,
-// aio_cm_eps) for the playlist of the season and the next episode; the cursor of the list on
+// aio_cm_eps) for the playlist of the season and the next episode, the runs of the numbering of
+// Cinemeta of an anime numbered on (aio_cin: the numbers of its episodes, aio_cin_n); the cursor of the list on
 // release $hash of the history ('' none). The list marked own: its MENU has no "Choose episode"
 // (choose_season_episode would give the seasons of the last native series, not of this card).
 /**
@@ -1760,6 +1761,8 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
         foreach ($c['meta']['season_numbers'] as $s => $n)
             $sn[$s] = array('episodes_count' => $n);
         $mv['season_numbers'] = $sn;
+        if ($c['meta']['cin'])
+            $mv['aio_cin'] = $c['meta']['cin'];
     }
     $in = new stdClass();
     $in->movie_str = json_encode($mv);

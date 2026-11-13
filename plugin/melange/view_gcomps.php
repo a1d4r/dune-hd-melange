@@ -388,7 +388,7 @@ function aio_gc_title($st)
 {
     $mv = $st['movie'];
     $title = $mv['title'] . (preg_match('/^[0-9]{4}$/', $mv['year']) ? " ({$mv['year']})" : '');
-    return array($title, $st['e'] > 0 ? sprintf('S%02dE%02d', $st['s'], $st['e']) : '');
+    return array($title, $st['e'] > 0 ? aio_ep_code($mv, $st['s'], $st['e']) : '');
 }
 
 // The word <$key>_one/_few/_many for $n: English 1 / else, Russian by the

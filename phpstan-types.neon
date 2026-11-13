@@ -153,7 +153,8 @@ parameters:
                 copy?: int
             }
         '''
-        # The card of play_action (aio_movie, main.php); own_card: of a list opened from the own card (aio_oc_watch).
+        # The card of play_action (aio_movie, main.php); own_card: of a list opened from the own card (aio_oc_watch); cin: the
+        # runs of the numbering of Cinemeta of its series numbered on (aio_cin_runs).
         AioMovie: '''
             array{
                 series: bool,
@@ -167,12 +168,14 @@ parameters:
                 rate_imdb: string,
                 desc: string,
                 seasons: array<int, int>,
-                own_card?: bool
+                own_card?: bool,
+                cin?: list<array{int, int, int}>
             }
         '''
         # The state of a series by its history (aio_wh_series, history.php): the latest
-        # episode record, "s:e" => array(pos, len, watched), the marks of the own card.
-        AioWhSeries: 'array{stdClass|null, array<string, array{float, float, bool}>, array<string, int>}'
+        # episode record, "s:e" => array(pos, len, watched), the marks of the own card, the runs of the
+        # numbering of Cinemeta its old records and marks are read by (aio_wh_se).
+        AioWhSeries: 'array{stdClass|null, array<string, array{float, float, bool}>, array<string, int>, list<array{int, int, int}>}'
         # The episode to offer of a series by its history (aio_wh_pick, history.php).
         AioWhPick: 'array{s: int, e: int, hash: string, kind: string, rec: string, why: string}'
         # "Continue watching" of play_action (aio_resume, main.php; next:
@@ -376,7 +379,7 @@ parameters:
         # A side of brackets of a track title (aio_voices_side, voices_parse.php).
         AioVoicesSide: 'array{studios: list<string>, n: int, other: bool}'
         # The meta of a title for its own card (aio_cm_parse, card_meta.php).
-        AioCardMeta: 'array{type: string, id: string, imdb: string, tile: AioCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<AioCardCredit>, directors: list<AioCardCredit>, writers: list<AioCardCredit>, creators: list<AioCardCredit>, collection: array{id: string, name: string}, seasons: array<int, list<AioCardEp>>, season_numbers: array<int, int>, trailer: bool}'
+        AioCardMeta: 'array{type: string, id: string, imdb: string, tile: AioCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<AioCardCredit>, directors: list<AioCardCredit>, writers: list<AioCardCredit>, creators: list<AioCardCredit>, collection: array{id: string, name: string}, seasons: array<int, list<AioCardEp>>, season_numbers: array<int, int>, trailer: bool, cin: list<array{int, int, int}>}'
         # A card of the own card screen in memory (AioOc::$cards, view_card.php).
         AioOcCard: 'array{tile: AioCatTile, meta: AioCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: AioOcPos, n: int, posters: AioCmPosters, nav?: AioOcNav}'
         # The rows of posters of an own card (aio_cm_posters, card_more.php): similar titles, the movies of a franchise; what is
@@ -406,5 +409,5 @@ parameters:
         AioPpPos: 'array{z: string, p: int, k: int}'
         # The page of a person laid out (aio_pp_layout, view_person.php).
         AioPpLayout: 'array{state: string, strip: AioOcStrip, bio: list<string>, pages: list<list<array{string, bool, int}>>}'
-        # An episode of the own card (aio_cm_eps, card_meta.php).
-        AioCardEp: 'array{s: int, e: int, title: string, date: string, img: string, min: int, soon: bool}'
+        # An episode of the own card (aio_cm_eps, card_meta.php); abs: its number of an anime numbered on (aio_cm_cin_renum), else 0.
+        AioCardEp: 'array{s: int, e: int, title: string, date: string, img: string, min: int, soon: bool, abs: int}'
