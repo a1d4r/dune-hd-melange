@@ -9,7 +9,8 @@
 // rows of the tab "Movies", then those of "Series" (aio_catv_tab_copy_defs), no request.
 // The same for movie.json and series.json, the rows of one tab each: the sub-items "Movies" and "Series"
 // under "TV" (rows_menu_config.json of the flash directory, topmenu_enabled of the manifest); with them
-// "TV" shows the first sub-item, tv.json is shown without them (the switch data_dir/tv_sub_off).
+// "TV" shows the first sub-item, tv.json is shown without them (the switch data_dir/tv_sub_off, a firmware
+// older than AIO_TV_SUB_MIN_R or unknown).
 // The shell later moves the file of tmp_dir to the flash (the same bytes there: it only removes it;
 // code of the shell r25).
 // Fresh: the shell calls it again on the flag <tmp_dir>/update_epfs_if_needed_flag (aio_tv_flag), set
@@ -23,6 +24,9 @@ define('AIO_TV_FROM_PREFIX', 'tv:');
 // removes them and keeps them away: a way back if the shell fails on them (the owner makes it by hand).
 define('AIO_TV_MENU_FILE', 'rows_menu_config.json');
 define('AIO_TV_SUB_OFF', 'tv_sub_off');
+// The sub-items work on r24 and r25 (seen on the device); older ones not tried, and a file the shell
+// does not take crashed it at every start: there and on an unknown firmware they are off, as by the switch.
+define('AIO_TV_SUB_MIN_R', 24);
 // The timer: all its requests in this many s (aio_tv_refresh: each given the whole seconds left, curl takes
 // whole ones, so none runs past it; none with less than 1 s left). Building and comparing the EPF come on
 // top, only in a tick with a new copy or other settings. php_server runs one call at a time: the info
@@ -136,12 +140,15 @@ function aio_tv_rows($rows)
     return $out;
 }
 
-// The switch AIO_TV_SUB_OFF is in data_dir.
+// The sub-items off: the switch AIO_TV_SUB_OFF is in data_dir, or the firmware is older than
+// AIO_TV_SUB_MIN_R or unknown.
 /**
  * @return bool
  */
 function aio_tv_sub_off()
 {
+    if (aio_fw_r() < AIO_TV_SUB_MIN_R)
+        return true;
     clearstatcache();
     return aio_data_dir() !== '' && file_exists(aio_data_dir() . '/' . AIO_TV_SUB_OFF);
 }
@@ -438,7 +445,8 @@ function aio_tv_menu_json($lang)
 
 // rows_menu_config.json of the flash directory $flash, after movie.json and series.json there ($epfs:
 // written or the same): 'new', 'same', 'failed'; 'not written' when one of them failed. With the switch
-// AIO_TV_SUB_OFF in data_dir never written, removed: 'off', 'off, removed', 'off, not removed'.
+// AIO_TV_SUB_OFF in data_dir never written, removed: 'off', 'off, removed', 'off, not removed'; 'off r22' and so on
+// when the firmware turns them off (aio_tv_sub_off).
 /**
  * @param string $flash
  * @param string $lang
@@ -449,7 +457,10 @@ function aio_tv_menu_put($flash, $lang, $epfs)
 {
     $f = "$flash/" . AIO_TV_MENU_FILE;
     if (aio_tv_sub_off())
-        return !is_file($f) ? 'off' : (@unlink($f) ? 'off, removed' : 'off, not removed');
+    {
+        $off = aio_fw_r() < AIO_TV_SUB_MIN_R ? 'off r' . aio_fw_r() : 'off';
+        return !is_file($f) ? $off : (@unlink($f) ? "$off, removed" : "$off, not removed");
+    }
     if (!$epfs)
         return 'not written';
     $json = aio_tv_menu_json($lang);
