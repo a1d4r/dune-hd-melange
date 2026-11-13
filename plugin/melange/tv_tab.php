@@ -57,6 +57,9 @@ class AioTv
     public static $tiles = null;
     /** @var string */
     public static $tiles_sig = '';
+    // aio_tv_code_sig of this php_server; null: not taken yet.
+    /** @var string|null */
+    public static $code_sig = null;
 }
 
 // The directories of the EPF: tmp of tmp_dir_path ('' without one); flash of the fixed base of the shell
@@ -541,15 +544,32 @@ function aio_tv_shown_same($epf, $data)
     return !is_file($tmp) && aio_tv_same("{$d['flash']}/$epf.json", $data);
 }
 
+// The build of the code this php_server runs: the latest mtime of the *.php of the plugin, taken once
+// (zip keeps the mtime of each file, a zip of the same AIO_VERSION has another one if any *.php changed).
+/**
+ * @return string
+ */
+function aio_tv_code_sig()
+{
+    if (AioTv::$code_sig === null)
+    {
+        $t = 0;
+        foreach (glob(dirname(__FILE__) . '/*.php') ?: array() as $f)
+            $t = max($t, intval(@filemtime($f)));
+        AioTv::$code_sig = strval($t);
+    }
+    return AioTv::$code_sig;
+}
+
 // What the EPF are built with besides the copies: settings.json (aio_settings_sig), the language, the
-// version of the plugin (another one may build them otherwise).
+// version and the build of the plugin (another one may build them otherwise).
 /**
  * @param string $lang
  * @return string
  */
 function aio_tv_timer_state($lang)
 {
-    return aio_settings_sig() . " $lang " . AIO_VERSION;
+    return aio_settings_sig() . " $lang " . AIO_VERSION . ' ' . aio_tv_code_sig();
 }
 
 // The timer: the copy of the manifest older than AIO_CAT_FRESH asked anew (not AIO_CAT_MANIFEST_FRESH:
@@ -626,6 +646,9 @@ function aio_tv_timer($in)
         aio_log("$what: " . ($d['tmp'] === '' ? 'no tmp_dir_path' : 'not the TV application') . ', nothing asked');
         return aio_tv_status();
     }
+    // Before the requests: Aio::$settings are of the start of the operation, the page may save meanwhile.
+    $lang = aio_tv_lang($in);
+    $state = aio_tv_timer_state($lang);
     $asked = 'AIOStreams not set, nothing asked';
     $new = 0;
     if (Aio::$settings['base'] !== '')
@@ -633,12 +656,10 @@ function aio_tv_timer($in)
         $asked = aio_tv_refresh(AIO_TV_TIMER_S);
         $new = AioTv::$new_copies;
     }
-    $lang = aio_tv_lang($in);
-    $state = aio_tv_timer_state($lang);
     $sf = aio_data_dir() . '/' . AIO_TV_TIMER_FILE;
     clearstatcache();
     $was = aio_data_dir() !== '' && is_file($sf) ? strval(file_get_contents($sf, false, null, 0, 1024)) : '';
-    $why = $new > 0 ? "new copies $new" : ($was === '' ? 'no state' : ($state !== $was ? 'settings changed' : ''));
+    $why = $new > 0 ? "new copies $new" : ($was === '' ? 'no state' : ($state !== $was ? 'state changed' : ''));
     if ($why === '')
     {
         aio_log(sprintf('%s %s: %s; nothing to do, %.0f ms', $what, $lang, $asked, (microtime(true) - $t0) * 1000));
