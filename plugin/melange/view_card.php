@@ -1388,8 +1388,8 @@ function aio_oc_dim($z)
 // and e the season and the episode of the row of a series (0 for none, not in sel_state), r the
 // item of each row by its id (AIO_OC_ROW_IDS; kept in every zone: a row comes back to it, LEFT and
 // RIGHT at its stop; kept for a row the layout has not now too). A new zone or field is one more
-// line in aio_oc_pos and aio_oc_next. In sel_state of "down" also rs: the ids of the rows of layout
-// $l by their stops ("s,c"; aio_oc_stop_of).
+// line in aio_oc_pos and aio_oc_next. In sel_state also rs: the ids of the rows of layout $l by their
+// stops ("s,c"; aio_oc_stop_of; aio_oc_input: a screen of other rows is drawn anew).
 /**
  * @param AioOcPos $pos
  * @param AioOcNav $l
@@ -1397,9 +1397,7 @@ function aio_oc_dim($z)
  */
 function aio_oc_state($pos, $l)
 {
-    $j = array('z' => $pos['z'], 'b' => $pos['b'], 'p' => $pos['p']);
-    if ($pos['z'] === 'down')
-        $j['rs'] = implode(',', $l['rows']);
+    $j = array('z' => $pos['z'], 'b' => $pos['b'], 'p' => $pos['p'], 'rs' => implode(',', $l['rows']));
     if ($pos['s'] > 0)
         $j += array('s' => $pos['s'], 'e' => $pos['e']);
     // An object even with no rows: {} as the card has them.
@@ -1868,7 +1866,10 @@ function aio_oc_menu($lang, $items = array())
 // episode not out yet - the focus to it in the row, "Dune card" - the native card (file_movie);
 // on "did not load" - the meta again; on an episode - its list, one not out yet - the message; on
 // a person of the cast - its page (aio_oc_person); on a poster - the own card of its title
-// (aio_oc_tile_enter); below them nothing.
+// (aio_oc_tile_enter); below them nothing. A move or ENTER on a screen of rows other than those of
+// the layout (rs of its sel_state; another screen of the card got the rows since): the screen anew
+// at its place (aio_oc_pos, aio_oc_stop_of), the key not done (its frame and ENTER by the rows it
+// shows); a sel_state of before rs: as it is.
 /**
  * @param stdClass $in
  * @param string $control
@@ -1885,12 +1886,20 @@ function aio_oc_input($in, $control)
     if ($control === 'card_mark')
         return aio_oc_mark($key, $c, $in);
     $l = isset($c['nav']) ? $c['nav'] : aio_oc_layout($c);
-    $pos = aio_oc_pos($c, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;
+    $pos = aio_oc_pos($c, $l, $raw);
     AioOc::$cards[$key]['pos'] = $pos;
     if ($control === 'card_load')
         return aio_oc_load($key, AioOc::$cards[$key], $l);
     if ($control === 'card_menu')
         return aio_oc_menu($c['ui'], aio_oc_mark_items($key, $c, $l['prog'], $pos));
+    $j = is_string($raw) ? json_decode($raw, true) : null;
+    $rs = implode(',', $l['rows']);
+    if (is_array($j) && isset($j['rs']) && is_string($j['rs']) && $j['rs'] !== $rs)
+    {
+        aio_log("card: own $key: $control on a screen of rows \"{$j['rs']}\", now \"$rs\": the screen anew");
+        return aio_replace_act("card:$key", $c['tile']['name']);
+    }
     $new = $pos;
     if ($control === 'card_enter')
     {
