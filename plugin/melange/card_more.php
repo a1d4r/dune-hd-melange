@@ -18,6 +18,10 @@ define('AIO_CM_EMPTY_TTL', 300);
 // arrows and shapes of U+2B00-U+2BFF (the star), the wavy dash U+3030, the selector of the emoji
 // form, the joiner.
 define('AIO_CM_EMOJI_RE', '/[\x{10000}-\x{10FFFF}\x{20E3}\x{2300}-\x{23FF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{3030}\x{FE0F}\x{200D}]/u');
+// The title of a section of a biography ("Главные награды: ..." of the server, its emoji out): of
+// AIO_CM_HEAD_MAX characters and AIO_CM_HEAD_WORDS words at most, a capital first, no digits or marks.
+define('AIO_CM_HEAD_MAX', 40);
+define('AIO_CM_HEAD_WORDS', 4);
 // The number of episodes of a work at most (One Piece: ~1150).
 define('AIO_CM_WORK_EPS_MAX', 99999);
 
@@ -89,7 +93,7 @@ function aio_cm_tile_is($t, $id)
     return $t['imdb_id'] === $id || ($t['_tmdbId'] !== '' && 'tmdb:' . $t['_tmdbId'] === $id);
 }
 
-// A biography of the server -> one line (aio_cm_bio_line). bio_en: it is in English (the server
+// A biography of the server -> one line (aio_cm_bio_line) and its paragraphs (pars, aio_cm_bio_pars). bio_en: it is in English (the server
 // gives it when TMDB has none in Russian): descriptionLang "en", or Latin letters and no Cyrillic.
 // The meta of a person asked as tmdb:$tmdb -> what the person screen shows (AioCmPerson). photo:
 // through the cache, as a poster. born, died: "Y-m-d", "Y-m", "Y" (aio_cm_person_date) or ''. place: of birth. known_for: the
@@ -108,6 +112,7 @@ function aio_cm_person_parse($m, $tmdb)
     $born = aio_cm_person_date(aio_str($m, 'birthday'));
     $died = aio_cm_person_date(aio_str($m, 'deathday'));
     $bio = aio_cut(aio_cm_bio_line(aio_str($m, 'description')), AIO_CM_DESC_MAX);
+    $pars = aio_cm_bio_pars(aio_str($m, 'description'));
     $works = array();
     $seen = array();
     foreach (array_slice(aio_arr($m, 'credits'), 0, AIO_CARD_SCAN_MAX) as $c)
@@ -128,7 +133,7 @@ function aio_cm_person_parse($m, $tmdb)
     }
     return array('id' => "tmdb:$tmdb", 'name' => aio_cut(aio_one_line(aio_str($m, 'name')), AIO_CAT_NAME_MAX),
         'photo' => aio_cm_img(aio_str($m, 'poster'), 'poster'), 'born' => $born, 'died' => $died,
-        'place' => aio_cut(aio_one_line(aio_str($m, 'birthPlace')), AIO_CM_PLACE_MAX), 'bio' => $bio,
+        'place' => aio_cut(aio_one_line(aio_str($m, 'birthPlace')), AIO_CM_PLACE_MAX), 'bio' => $bio, 'pars' => $pars,
         'bio_en' => aio_str($m, 'descriptionLang') === 'en' ||
             (preg_match('/[A-Za-z]/', $bio) === 1 && preg_match('/[\x{0400}-\x{04FF}]/u', $bio) === 0),
         'known_for' => aio_card_text(aio_str($m, 'knownFor')), 'works' => $works);
@@ -150,9 +155,26 @@ function aio_cm_person_date($s)
     return intval($x[2]) >= 1 && intval($x[2]) <= 12 ? "$x[1]-$x[2]" : '';
 }
 
-// A biography in paragraphs -> one line for the screen: the emoji out (AIO_CM_EMOJI_RE: the font
-// has none), the paragraphs joined, a dot after one that ends with no mark of its end (". ! ? … : ;",
-// a closing quote or bracket after it).
+// The paragraphs of a biography, each one line: the emoji out (AIO_CM_EMOJI_RE: the font has none),
+// the empty ones gone.
+/**
+ * @param string $s
+ * @return list<string>
+ */
+function aio_cm_bio_split($s)
+{
+    $out = array();
+    foreach (preg_split('/[\r\n\x{0085}\x{2028}\x{2029}]+/u', aio_utf8($s)) as $par)
+    {
+        $par = trim(strval(preg_replace('/ {2,}/', ' ', aio_one_line(preg_replace(AIO_CM_EMOJI_RE, '', $par)))));
+        if ($par !== '')
+            $out[] = $par;
+    }
+    return $out;
+}
+
+// A biography in paragraphs -> one line for the screen (aio_cm_bio_split): the paragraphs joined, a
+// dot after one that ends with no mark of its end (". ! ? … : ;", a closing quote or bracket after it).
 /**
  * @param string $s
  * @return string
@@ -160,14 +182,47 @@ function aio_cm_person_date($s)
 function aio_cm_bio_line($s)
 {
     $out = array();
-    foreach (preg_split('/[\r\n\x{0085}\x{2028}\x{2029}]+/u', aio_utf8($s)) as $par)
-    {
-        $par = trim(strval(preg_replace('/ {2,}/', ' ', aio_one_line(preg_replace(AIO_CM_EMOJI_RE, '', $par)))));
-        if ($par === '')
-            continue;
+    foreach (aio_cm_bio_split($s) as $par)
         $out[] = preg_match('/[.!?\x{2026}:;]["\x{00BB}\x{201D})\]]*$/u', $par) ? $par : "$par.";
-    }
     return implode(' ', $out);
+}
+
+// A biography in paragraphs (aio_cm_bio_split) -> array(the title of its section, its text) each,
+// AIO_CM_DESC_MAX characters in all at most. A paragraph that starts with a title and ":" ("Главные
+// награды: Эмми (2008) ...") is a section, the title without ":"; a paragraph of a title alone
+// ("Главные награды:") is the title of the paragraph after it. Others: no title ('').
+/**
+ * @param string $s
+ * @return list<array{string, string}>
+ */
+function aio_cm_bio_pars($s)
+{
+    $out = array();
+    $head = '';
+    $left = AIO_CM_DESC_MAX;
+    foreach (aio_cm_bio_split($s) as $par)
+    {
+        if ($left <= 0)
+            break;
+        $text = $par;
+        if (preg_match('/^(\p{Lu}[^.!?:;,()\[\]\x{00AB}\x{00BB}"0-9]{0,' . (AIO_CM_HEAD_MAX - 1) . '}):\s*(.*)$/Du', $par, $x) &&
+            count(explode(' ', trim($x[1]))) <= AIO_CM_HEAD_WORDS)
+        {
+            if ($head !== '')
+                $out[] = array($head, '');
+            $head = trim($x[1]);
+            $text = $x[2];
+        }
+        if ($text === '')
+            continue;
+        $text = aio_cut($text, $left);
+        $left -= mb_strlen($text, 'UTF-8');
+        $out[] = array($head, $text);
+        $head = '';
+    }
+    if ($head !== '')
+        $out[] = array($head, '');
+    return $out;
 }
 
 // The person of TMDB id $tmdb (digits, tmdb of AioCardCredit) for its screen, asked when ENTER opens

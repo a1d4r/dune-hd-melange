@@ -5,7 +5,7 @@
 // the name, the line of facts (the profession white, the dates and the place grey), 5 lines of the
 // biography; under them the works (a strip of view_card_row.php, posters as in the catalog, under
 // each its title and the role or the year). DOWN: the whole biography (when the 5 lines do not hold
-// it), page by page; UP back. ENTER on a work: its own card (aio_card_enter); Back: the card the
+// it) in paragraphs, the titles of its sections white, page by page; UP back. ENTER on a work: its own card (aio_card_enter); Back: the card the
 // person came from, at the same person (its sel_state).
 // The screen draws at once of what the row knew (the name, the photo, the profession) and, till the
 // person comes, stubs; its timer asks the server (aio_cm_person: AioCmMore keeps 3), then the
@@ -40,9 +40,11 @@ define('AIO_PP_BIO_LINES', 5);
 define('AIO_PP_WORKS_Y', 470);
 define('AIO_PP_CELL_H', 488);
 // DOWN: the whole biography a page lower, its title at BIO2_Y, PAGE_LINES lines of it a stop from
-// the x of the catalog to HINT_R; the hint of it at the foot of the first screen.
+// the x of the catalog to HINT_R, PAR_GAP more between its paragraphs (half a line); the hint of it
+// at the foot of the first screen.
 define('AIO_PP_BIO2_Y', 60);
 define('AIO_PP_PAGE_LINES', 20);
+define('AIO_PP_PAR_GAP', 21);
 define('AIO_PP_BIO2_MAX', 200);
 define('AIO_PP_HINT_Y', 1030);
 
@@ -242,12 +244,55 @@ function aio_pp_layout($e, $p)
     $st = $p ? 'ok' : ($e['err'] === 'none' ? 'none' : ($e['err'] === 'later' && $e['tries'] >= AIO_PP_TRIES ? 'failed' : 'wait'));
     $bio = $p ? $p['bio'] : '';
     $all = $bio !== '' ? aio_gc_wrap($bio, AIO_CATV_LINE_PX, AIO_OC_HINT_R - AIO_PP_TEXT_X, AIO_PP_BIO_LINES + 1, true) : array();
-    $pages = array();
-    if (count($all) > AIO_PP_BIO_LINES)
-        $pages = array_chunk(aio_gc_wrap($bio, AIO_CATV_LINE_PX, AIO_OC_HINT_R - AIO_CATV_CARD_X, AIO_PP_BIO2_MAX, true),
-            AIO_PP_PAGE_LINES);
+    $pages = $p && count($all) > AIO_PP_BIO_LINES ? aio_pp_bio_pages($p['pars']) : array();
     return array('state' => $st, 'strip' => aio_pp_strip($p ? count($p['works']) : 0),
         'bio' => aio_gc_wrap($bio, AIO_CATV_LINE_PX, AIO_OC_HINT_R - AIO_PP_TEXT_X, AIO_PP_BIO_LINES, true), 'pages' => $pages);
+}
+
+// The whole biography (paragraphs of aio_cm_bio_pars) by stops: array(the line, a title, its y in the
+// page) each, AIO_PP_BIO2_MAX lines in all at most (the last with "…"). A title white on a line of its
+// own, the text of its section under it; PAR_GAP before a paragraph but the first of a page; a title
+// goes to the next page with the first line of its text.
+/**
+ * @param list<array{string, string}> $pars
+ * @return list<list<array{string, bool, int}>>
+ */
+function aio_pp_bio_pages($pars)
+{
+    $w = AIO_OC_HINT_R - AIO_CATV_CARD_X;
+    $h = AIO_PP_PAGE_LINES * AIO_PP_BIO_LH;
+    $left = AIO_PP_BIO2_MAX;
+    $pages = array();
+    $page = array();
+    $y = 0;
+    foreach ($pars as $par)
+    {
+        $lines = array();
+        if ($par[0] !== '')
+            $lines[] = array($par[0], true);
+        foreach ($par[1] !== '' ? aio_gc_wrap($par[1], AIO_CATV_LINE_PX, $w, max(1, $left - count($lines)), true) : array() as $s)
+            $lines[] = array($s, false);
+        foreach ($lines as $i => $ln)
+        {
+            if ($left <= 0)
+                break 2;
+            $gap = $i === 0 && $page ? AIO_PP_PAR_GAP : 0;
+            $need = $gap + ($ln[1] && isset($lines[$i + 1]) ? 2 : 1) * AIO_PP_BIO_LH;
+            if ($page && $y + $need > $h)
+            {
+                $pages[] = $page;
+                $page = array();
+                $y = 0;
+                $gap = 0;
+            }
+            $page[] = array($ln[0], $ln[1], $y + $gap);
+            $y += $gap + AIO_PP_BIO_LH;
+            $left--;
+        }
+    }
+    if ($page)
+        $pages[] = $page;
+    return $pages;
 }
 
 // --- The place of the focus.
@@ -303,7 +348,7 @@ function aio_pp_work_titles($w, $kf, $on, $ui)
     return aio_oc_poster_titles($w['tile']['name'], aio_pp_work_lines($w, $kf, $ui), $on ? AIO_GC_TEXT : AIO_GC_TEXT2);
 }
 
-// The page of a stop of DOWN: "Биография" and its lines of page $i.
+// The page of a stop of DOWN: "Биография" and its lines of page $i (the titles of sections white).
 /**
  * @param AioPpLayout $l
  * @param int $p
@@ -315,9 +360,9 @@ function aio_pp_bio_page($l, $p, $ui)
     if (!isset($l['pages'][$p - 1]))
         return array();
     $d = array(aio_oc_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y, 800, aio_tr($ui, 'person_bio'), AIO_CATV_LINE_PX, AIO_GC_TEXT));
-    foreach ($l['pages'][$p - 1] as $i => $s)
-        $d[] = aio_oc_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y + 60 + $i * AIO_PP_BIO_LH, AIO_OC_HINT_R - AIO_CATV_CARD_X, $s,
-            AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
+    foreach ($l['pages'][$p - 1] as $s)
+        $d[] = aio_oc_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y + 60 + $s[2], AIO_OC_HINT_R - AIO_CATV_CARD_X, $s[0],
+            AIO_CATV_LINE_PX, $s[1] ? AIO_GC_TEXT : AIO_CATV_TEXT_COLOR);
     if (isset($l['pages'][$p]))
         $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, AIO_CATV_CARD_X, AIO_PP_HINT_Y + 16),
             'plugin_file://img/sort_down.png');

@@ -396,7 +396,7 @@ parameters:
         # A person of the own card: an actor, a director, a writer, a creator (aio_cm_people, card_meta.php).
         AioCardCredit: 'array{name: string, role: string, photo: string, tmdb: string}'
         # A person of the own card asked by ENTER (aio_cm_person_parse, card_more.php).
-        AioCmPerson: 'array{id: string, name: string, photo: string, born: string, died: string, place: string, bio: string, bio_en: bool, known_for: string, works: list<AioCmWork>}'
+        AioCmPerson: 'array{id: string, name: string, photo: string, born: string, died: string, place: string, bio: string, pars: list<array{string, string}>, bio_en: bool, known_for: string, works: list<AioCmWork>}'
         # A work of a person (aio_cm_person_parse, card_more.php).
         AioCmWork: 'array{tile: AioCatTile, role: string, types: list<string>, eps: int}'
         # A person of the page of a person in memory (AioPp::$people, view_person.php).
@@ -404,6 +404,6 @@ parameters:
         # A place of the focus on the page of a person, in AioPpEntry and in sel_state (aio_pp_pos, view_person.php).
         AioPpPos: 'array{z: string, p: int, k: int}'
         # The page of a person laid out (aio_pp_layout, view_person.php).
-        AioPpLayout: 'array{state: string, strip: AioOcStrip, bio: list<string>, pages: list<list<string>>}'
+        AioPpLayout: 'array{state: string, strip: AioOcStrip, bio: list<string>, pages: list<list<array{string, bool, int}>>}'
         # An episode of the own card (aio_cm_eps, card_meta.php).
         AioCardEp: 'array{s: int, e: int, title: string, date: string, img: string, min: int, soon: bool}'
