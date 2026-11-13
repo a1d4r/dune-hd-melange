@@ -73,14 +73,15 @@ define('AIO_OC_NAME_DY', 154);
 define('AIO_OC_ABOUT_Y', 616);
 define('AIO_OC_DESC2_W', 960);
 define('AIO_OC_DESC2_LINES', 100);
-define('AIO_OC_DET_X', 1418);
-define('AIO_OC_DET_W', 427);
+define('AIO_OC_DET_X', AIO_CATV_CARD_X + 7 * AIO_OC_PHOTO_STEP);
+define('AIO_OC_DET_W', AIO_OC_HINT_R - AIO_OC_DET_X);
 // A series (H1 of design-own-card.md): the buttons at BTN_Y_SER, the description down to
 // DESC_BOTTOM_SER; the tabs of the seasons at TAB_Y, TAB_H high, the text TAB_PAD from their
 // edges, TAB_GAP apart, the rounded ends TAB_CAP (PNG); more than TABS_MAX seasons: numbers after
-// "Сезон". The count "Сезон 2 · 13 серий" at the right edge of the line, the strip CNT_GAP before
-// the widest; not all fitting: the strip scrolls by whole tabs, the chevrons CHEV_W x CHEV_H (PNG)
-// CHEV_GAP off its ends, in slots CHEV_SLOT wide (T2 of design-own-card.md, "Итог 13.11.2026").
+// "Сезон". The count "Сезон 2 · 13 серий" in CNT_PX at the right edge of the line, the strip
+// CNT_GAP before the widest; not all fitting: the strip scrolls by whole tabs, the chevrons
+// CHEV_W x CHEV_H (PNG) CHEV_GAP off its ends, in slots CHEV_SLOT wide (T2 of design-own-card.md,
+// "Итог 13.11.2026").
 // The row of episodes at ROW_Y: stills EP_W x EP_H, EP_STEP apart from the x of the catalog,
 // EP_VIS whole, the one before and after seen at the edges; the frame of the focus FRAME wide
 // around the still; P+/P- PAGE stills.
@@ -93,10 +94,13 @@ define('AIO_OC_TAB_GAP', 8);
 define('AIO_OC_TAB_CAP', 26);
 define('AIO_OC_TABS_MAX', 8);
 define('AIO_OC_CNT_GAP', 40);
-define('AIO_OC_CHEV_SLOT', 28);
+define('AIO_OC_CNT_PX', 24);
 define('AIO_OC_CHEV_W', 12);
 define('AIO_OC_CHEV_H', 22);
 define('AIO_OC_CHEV_GAP', 12);
+// 4 more than the chevron and its gap: the left one 4 in from the x of the catalog, the right one
+// 4 more before CNT_GAP.
+define('AIO_OC_CHEV_SLOT', AIO_OC_CHEV_W + AIO_OC_CHEV_GAP + 4);
 define('AIO_OC_ROW_Y', 680);
 define('AIO_OC_EP_W', 384);
 define('AIO_OC_EP_H', 216);
@@ -562,7 +566,7 @@ function aio_oc_hint($text, $x, $y)
 }
 
 // The cast of the meta at $y, CAST_MAX at most: photos, names in 2 lines, the English roles grey
-// in 2 (of a list "A / B" its first); no photo: the initials. None: nothing.
+// in 2 (of a list "A / B" its first not empty); no photo: the initials. None: nothing.
 /**
  * @param AioOcCard $c
  * @param int $y
@@ -592,10 +596,15 @@ function aio_oc_cast($c, $y)
                 array(GCompTtfLabelDef::halign => HALIGN_CENTER));
         }
         $parts = explode(' ', $p['name'], 2);
-        $roles = explode(' / ', $p['role'], 2);
+        $role = '';
+        foreach (preg_split('~(?:^|\s)/(?:\s|$)~', $p['role']) as $r)
+        {
+            if (($role = aio_clean($r)) !== '')
+                break;
+        }
         $lines = array(aio_gc_cut_w(aio_clean($parts[0]), 24, AIO_OC_NAME_W),
             isset($parts[1]) ? aio_gc_cut_w(aio_clean($parts[1]), 24, AIO_OC_NAME_W) : '');
-        $lines = array_merge($lines, aio_gc_wrap(aio_clean($roles[0]), 24, AIO_OC_NAME_W, 2, true));
+        $lines = array_merge($lines, aio_gc_wrap($role, 24, AIO_OC_NAME_W, 2, true));
         foreach ($lines as $k => $s)
         {
             if ($s !== '')

@@ -121,7 +121,7 @@ function aio_oc_tabs_layout($c, $prog)
         $w = aio_gc_w($t, AIO_CATV_LINE_PX) + 2 * AIO_OC_TAB_PAD;
         $list[] = array($s, $t, $tx, $w);
         $tx += $w + AIO_OC_TAB_GAP;
-        $cw = max($cw, aio_gc_w(aio_oc_count_text($c, $prog, $s), 24));
+        $cw = max($cw, aio_gc_w(aio_oc_count_text($c, $prog, $s), AIO_OC_CNT_PX));
     }
     $all = $list ? $tx - AIO_OC_TAB_GAP : 0;
     $cx = AIO_OC_HINT_R - $cw;
@@ -176,6 +176,19 @@ function aio_oc_tabs_end($t, $sh)
             $end = $tab[2] + $tab[3];
     }
     return $end;
+}
+
+// The clip of the strip of tabs $t at shift $sh (up to aio_oc_tabs_end) on the screen and the
+// strip in it ('tabs' and 'tst').
+/**
+ * @param AioOcTabs $t
+ * @param int $sh
+ * @return array{AioGcGeom, AioGcGeom}
+ */
+function aio_oc_tabs_geoms($t, $sh)
+{
+    return array(aio_gc_at(aio_oc_tabs_end($t, $sh) - $sh, AIO_OC_TAB_H, $t['x'], AIO_OC_TAB_Y),
+        aio_gc_at($t['all'], AIO_OC_TAB_H, -$sh, 0));
 }
 
 // The chevrons of the strip of tabs $t that does not fit, at shift $sh with its clip up to $end:
@@ -270,8 +283,8 @@ function aio_oc_count_text($c, $prog, $s)
  */
 function aio_oc_count($c, $prog, $s, $t)
 {
-    return array(aio_gc_cut(null, aio_gc_left_center(AIO_OC_HINT_R - $t['cx'], 34, 0), aio_oc_count_text($c, $prog, $s), 24,
-        AIO_GC_DIM, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
+    return array(aio_gc_cut(null, aio_gc_left_center(AIO_OC_HINT_R - $t['cx'], 34, 0), aio_oc_count_text($c, $prog, $s),
+        AIO_OC_CNT_PX, AIO_GC_DIM, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
 }
 
 // The first still of the row at the left slot with the one at index $i in focus (in a season of
@@ -473,8 +486,8 @@ function aio_oc_series($c, $l, $pos)
             aio_oc_tab_state($pos, $tab[0])));
     $sh = aio_oc_tabs_shift($t, $pos['s']);
     $end = aio_oc_tabs_end($t, $sh);
-    $d[] = aio_gc_panel('tabs', aio_gc_at($end - $sh, AIO_OC_TAB_H, $t['x'], AIO_OC_TAB_Y),
-        array(aio_gc_panel('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -$sh, 0), $tabs)), 0);
+    list($clip, $strip) = aio_oc_tabs_geoms($t, $sh);
+    $d[] = aio_gc_panel('tabs', $clip, array(aio_gc_panel('tst', $strip, $tabs)), 0);
     if ($t['all'] > $t['w'])
     {
         foreach (aio_oc_chevs($t, $sh, $end, $pos['z'] === 'pill') as $id => $v)
@@ -552,9 +565,9 @@ function aio_oc_row_changes($c, $l, $old, $new)
     $osh = aio_oc_tabs_shift($t, $old['s']);
     if ($sh !== $osh)
     {
-        $ch[] = aio_gc_change('tabs', aio_gc_at(aio_oc_tabs_end($t, $sh) - $sh, AIO_OC_TAB_H, $t['x'], AIO_OC_TAB_Y),
-            GCOMP_TRANSITION_NONE);
-        $ch[] = aio_gc_change('tst', aio_gc_at($t['all'], AIO_OC_TAB_H, -$sh, 0), GCOMP_TRANSITION_NONE);
+        list($clip, $strip) = aio_oc_tabs_geoms($t, $sh);
+        $ch[] = aio_gc_change('tabs', $clip, GCOMP_TRANSITION_NONE);
+        $ch[] = aio_gc_change('tst', $strip, GCOMP_TRANSITION_NONE);
     }
     if ($t['all'] > $t['w'])
     {
