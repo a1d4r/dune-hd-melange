@@ -1464,22 +1464,25 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
     return $a;
 }
 
-// MENU: "Settings", as on the list.
+// MENU: $items (the marks of an episode, aio_oc_mark_items), then "Settings", as on the list.
 /**
  * @param string $lang
+ * @param list<array<string, mixed>> $items
  * @return AioAction
  */
-function aio_oc_menu($lang)
+function aio_oc_menu($lang, $items = array())
 {
+    $items[] = array(
+        GuiMenuItemDef::caption => aio_tr($lang, 'setup_menu'),
+        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/setup.aai',
+        GuiMenuItemDef::action => aio_setup_open_act());
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => array(array(
-            GuiMenuItemDef::caption => aio_tr($lang, 'setup_menu'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/setup.aai',
-            GuiMenuItemDef::action => aio_setup_open_act()))));
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
 }
 
-// card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu of the card c. The keys:
+// card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (aio_oc_mark) of
+// the card c. MENU: the marks of the episode in focus in the row, then "Settings". The keys:
 // the place of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown
 // (nav), else laid out anew. ENTER on a button: "Watch" - the list of the episode offered, an
 // episode not out yet - the focus to it in the row, "Dune card" - the native card (file_movie);
@@ -1494,13 +1497,17 @@ function aio_oc_input($in, $control)
 {
     $key = aio_catv_in($in, 'c');
     $c = aio_oc_get($key);
-    if ($control === 'card_menu')
-        return aio_oc_menu($c ? $c['ui'] : aio_catv_ui_lang());
+    if ($control === 'card_menu' && !$c)
+        return aio_oc_menu(aio_catv_ui_lang());
     if (!$c)
         return $control === 'card_enter' ? aio_error('cat_outdated') : null;
+    if ($control === 'card_mark')
+        return aio_oc_mark($key, $c, $in);
     $l = isset($c['nav']) ? $c['nav'] : aio_oc_layout($c);
     $pos = aio_oc_pos($c, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     AioOc::$cards[$key]['pos'] = $pos;
+    if ($control === 'card_menu')
+        return aio_oc_menu($c['ui'], aio_oc_mark_items($key, $c, $l['prog'], $pos));
     $new = $pos;
     if ($control === 'card_enter')
     {

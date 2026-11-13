@@ -52,19 +52,19 @@ function aio_oc_prog($c, $prog, $ep)
     return isset($prog[$k]) ? $prog[$k] : null;
 }
 
-// The episode to offer of a series card (aio_wh_pick of its history by the episodes of the meta,
-// those not out too; without the meta as play_action without season_numbers): q, e - as asked, s - the
-// season of the meta (0: none has it); kind of aio_wh_pick. -> array(it, the progress of its
-// episodes, aio_wh_series).
+// The episode to offer of a series card (aio_wh_pick of its history and its marks by the episodes
+// of the meta, those not out too; without the meta as play_action without season_numbers): q, e - as
+// asked, s - the season of the meta (0: none has it); kind of aio_wh_pick. -> array(it, the progress
+// of its episodes, aio_wh_series).
 /**
  * @param AioOcCard $c
  * @return array{AioOcEp, array<string, array{float, float, bool}>}
  */
 function aio_oc_pick($c)
 {
-    list($last, $prog) = $c['dune'] !== '' ? aio_wh_series($c['dune']) : array(null, array());
+    list($last, $prog, $marks) = $c['dune'] !== '' ? aio_wh_series($c['dune']) : array(null, array(), array());
     $m = $c['meta'];
-    $p = aio_wh_pick($last, $c['dune'], $m ? aio_cm_lists($m) : array());
+    $p = aio_wh_pick($last, $c['dune'], $m ? aio_cm_lists($m) : array(), $marks, $prog);
     $s = $m ? aio_cm_season_of($m, $p['s'], $p['e']) : 0;
     aio_log('card: own series: ' . ($p['rec'] !== '' ? "{$p['rec']}, " : '') . "S{$p['s']}E{$p['e']}, {$p['why']}" .
         ($m && $s !== $p['s'] ? ", season $s of the meta" : ''));
@@ -613,6 +613,131 @@ function aio_oc_soon_msg($ep, $lang)
     $a[GuiAction::data][PluginShowErrorActionData::title] = $ep['date'] !== '' ?
         str_replace('{d}', aio_oc_day($ep['date'], $lang, false, false), aio_tr($lang, 'card_ep_soon')) : aio_tr($lang, 'card_ep_soon_nodate');
     return $a;
+}
+
+// --- Marks "watched" (update_watched_marks of the shell, uids aio_wh_mark_uid).
+
+// The episodes out before episode $e of season $s of the meta of card $c, in its order (the
+// seasons from 1, the episodes ascending), as asked (aio_cm_req_s): list of "q:e", $max at most (0:
+// all).
+/**
+ * @param AioOcCard $c
+ * @param int $s
+ * @param int $e
+ * @param int $max
+ * @return list<string>
+ */
+function aio_oc_prev_eps($c, $s, $e, $max = 0)
+{
+    $out = array();
+    if (!$c['meta'])
+        return $out;
+    foreach ($c['meta']['seasons'] as $sn => $eps)
+    {
+        if ($sn > $s)
+            break;
+        if ($sn < 1)
+            continue;
+        $q = aio_cm_req_s($c['meta'], $sn);
+        foreach ($eps as $ep)
+        {
+            if ($sn === $s && $ep['e'] >= $e)
+                break;
+            if ($ep['soon'])
+                continue;
+            $out[] = "$q:{$ep['e']}";
+            if ($max > 0 && count($out) >= $max)
+                return $out;
+        }
+    }
+    return $out;
+}
+
+// The items of MENU of an episode of series card $c ($key) with the focus at $pos in the row and
+// the progress $prog of the screen, before "Settings": "Просмотрено" (not watched, out), "Не
+// просмотрено" (watched by a mark: by the position no mark takes it off), "Отметить предыдущие"
+// (an episode out before it). None elsewhere, without the meta or a card of the Dune (no history).
+/**
+ * @param string $key
+ * @param AioOcCard $c
+ * @param array<string, array{float, float, bool}> $prog
+ * @param AioOcPos $pos
+ * @return list<array<string, mixed>>
+ */
+function aio_oc_mark_items($key, $c, $prog, $pos)
+{
+    $x = $pos['z'] === 'row' && $c['dune'] !== '' && $c['meta'] ? aio_oc_ep($c, $pos['s'], $pos['e']) : null;
+    if (!$x)
+        return array();
+    $pr = aio_oc_prog($c, $prog, $x);
+    $w = '';
+    if (!$pr || !$pr[2])
+        $w = $x['soon'] ? '' : 'on';
+    else if (!aio_wh_full($pr[0], $pr[1]))
+        $w = 'off';
+    $out = array();
+    foreach (array($w, aio_oc_prev_eps($c, $pos['s'], $pos['e'], 1) ? 'prev' : '') as $k)
+    {
+        if ($k !== '')
+            $out[] = array(
+                GuiMenuItemDef::caption => aio_tr($c['ui'], "card_mark_$k"),
+                GuiMenuItemDef::icon_url => AIO_OC_ICONS . 'watched_small.png',
+                GuiMenuItemDef::action => aio_input('card_mark', array('c' => $key, 's' => strval($pos['s']),
+                    'e' => strval($pos['e']), 'w' => $k)));
+    }
+    return $out;
+}
+
+// card_mark of MENU of an episode (aio_oc_mark_items: s, e of the meta, w: on, off, prev) of series
+// card $c ($key) -> update_watched_marks: on/off the episode, prev the episodes out before it
+// (aio_oc_prev_eps), the mark of the own card (aio_wh_mark_uid) of each and the uids of the records
+// of our releases of it (aio_wh_ours_eps); then the card anew in place, the focus on the episode
+// (the shell has written watched_files.txt by then). Nothing for a bad input.
+/**
+ * @param string $key
+ * @param AioOcCard $c
+ * @param stdClass $in
+ * @return AioAction|null
+ */
+function aio_oc_mark($key, $c, $in)
+{
+    $w = aio_catv_in($in, 'w');
+    $s = aio_catv_in($in, 's');
+    $e = aio_catv_in($in, 'e');
+    if (!in_array($w, array('on', 'off', 'prev'), true) || !preg_match('/^[0-9]{1,5}$/D', $s) || !preg_match('/^[0-9]{1,5}$/D', $e) ||
+        $c['dune'] === '' || !$c['meta'])
+        return null;
+    $s = intval($s);
+    $e = intval($e);
+    if (!aio_oc_ep($c, $s, $e))
+        return null;
+    $keys = $w === 'prev' ? aio_oc_prev_eps($c, $s, $e) : array(aio_cm_req_s($c['meta'], $s) . ":$e");
+    if (!$keys)
+        return null;
+    $recs = aio_wh_ours_eps($c['dune'], $keys);
+    $ids = array();
+    $nr = 0;
+    foreach ($keys as $k)
+    {
+        list($q, $n) = explode(':', $k);
+        $ids[] = aio_wh_mark_uid($c['dune'], $q, intval($n));
+        if (isset($recs[$k]))
+        {
+            $nr += count($recs[$k]);
+            foreach ($recs[$k] as $u)
+                $ids[] = $u;
+        }
+    }
+    $pos = $c['pos'];
+    AioOc::$cards[$key]['pos'] = array('z' => 'row', 'b' => $pos['b'], 'p' => 0, 's' => $s, 'e' => $e, 'k' => $pos['k']);
+    aio_log("card: own $key: mark $w on S{$s}E{$e}: " . count($keys) . " episodes, $nr uids of records");
+    return array(
+        GuiAction::handler_string_id => UPDATE_WATCHED_MARKS_ACTION_ID,
+        GuiAction::data => array(
+            UpdateWatchedMarksActionData::item_ids => $ids,
+            UpdateWatchedMarksActionData::movie_ids => array(),
+            UpdateWatchedMarksActionData::watched => $w !== 'off',
+            UpdateWatchedMarksActionData::post_action => aio_replace_act("card:$key", $c['tile']['name'])));
 }
 
 // ENTER on "did not load" of series card $c ($key): the meta asked again; got - the card anew with
