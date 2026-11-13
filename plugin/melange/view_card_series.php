@@ -318,22 +318,25 @@ function aio_oc_row($c, $pos)
     return array($eps, $i, $off, $lo, $hi, $st);
 }
 
-// The title and the line under it of episode $ep: "5. Бой товара" 30 px (in focus white, else grey,
-// one not out yet dim) and aio_oc_ep_line 24 px dim.
+// The title and the line under it of episode $ep of card $c: "5. Бой товара", of an anime numbered on with its
+// number of the meta (aio_cin_n) "32 · 923. Бой товара", 30 px (in focus white, else grey, one not out yet dim;
+// a long title cut at the end with "…") and aio_oc_ep_line 24 px dim.
 /**
+ * @param AioOcCard $c
  * @param AioCardEp $ep
  * @param array{float, float, bool}|null $pr
  * @param bool $on
- * @param string $lang
  * @return list<AioGcComp>
  */
-function aio_oc_ep_titles($ep, $pr, $on, $lang)
+function aio_oc_ep_titles($c, $ep, $pr, $on)
 {
-    $t = $ep['title'] !== '' ? "{$ep['e']}. {$ep['title']}" : strval($ep['e']);
+    $abs = $c['meta'] ? aio_cin_n($c['meta']['cin'], $ep['s'], $ep['e']) : 0;
+    $n = $ep['e'] . ($abs > 0 ? " · $abs" : '');
+    $t = $ep['title'] !== '' ? "$n. {$ep['title']}" : $n;
     return array(
         aio_gc_cut(null, aio_gc_at(AIO_OC_EP_W, 40, 0, 0), aio_gc_cut_w(aio_clean($t), AIO_CATV_LINE_PX, AIO_OC_EP_W), AIO_CATV_LINE_PX,
             $ep['soon'] ? AIO_GC_DIM : ($on ? AIO_GC_TEXT : AIO_GC_TEXT2)),
-        aio_gc_cut(null, aio_gc_at(AIO_OC_EP_W, 34, 0, 40), aio_oc_ep_line($ep, $pr, $lang), 24, AIO_GC_DIM));
+        aio_gc_cut(null, aio_gc_at(AIO_OC_EP_W, 34, 0, 40), aio_oc_ep_line($ep, $pr, $c['ui']), 24, AIO_GC_DIM));
 }
 
 // The still of episode $ep at index $i of its season: the frame of the server (loading: the
@@ -370,7 +373,7 @@ function aio_oc_ep_card($c, $prog, $i, $ep, $on)
         $d[] = aio_gc_rect(aio_gc_at(max(AIO_GC_BAR_MIN, intval(round(AIO_OC_EP_W * min(1, $pr[0] / $pr[1])))), AIO_OC_BAR_H, 0, $y),
             AIO_GC_TEXT);
     }
-    $d[] = aio_gc_panel("tt$i", aio_gc_at(AIO_OC_EP_W, 74, 0, AIO_OC_EP_H + 12), aio_oc_ep_titles($ep, $pr, $on, $c['ui']));
+    $d[] = aio_gc_panel("tt$i", aio_gc_at(AIO_OC_EP_W, 74, 0, AIO_OC_EP_H + 12), aio_oc_ep_titles($c, $ep, $pr, $on));
     return aio_gc_panel("c$i", aio_gc_at(AIO_OC_EP_W, AIO_OC_ROW_H, $i * AIO_OC_EP_STEP, 0), $d);
 }
 
@@ -570,7 +573,7 @@ function aio_oc_row_changes($c, $l, $old, $new)
         {
             if ($k >= max($lo, $olo) && $k <= min($hi, $ohi))
                 $ch[] = aio_gc_change("tt$k", null, GCOMP_TRANSITION_NONE,
-                    aio_oc_ep_titles($eps[$k], aio_oc_prog($c, $l['prog'], $eps[$k]), $k === $lit, $c['ui']));
+                    aio_oc_ep_titles($c, $eps[$k], aio_oc_prog($c, $l['prog'], $eps[$k]), $k === $lit));
         }
     }
     // The frame shown or hidden jumps to its place.
