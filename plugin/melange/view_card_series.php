@@ -287,53 +287,35 @@ function aio_oc_win($n, $off)
     return array(max(0, $off - AIO_OC_WIN), min($n - 1, $off + AIO_OC_EP_VIS + AIO_OC_WIN));
 }
 
+// The strip of the stills of a season of $n ("e": "est", "efr"; the stills "c<i>", their titles
+// "tt<i>"): EP_STEP apart from the x of the catalog, EP_VIS whole, the frame in the first two
+// slots, then the row, the frame stays in the second; the frame round the still, in the page.
+/**
+ * @param int $n
+ * @return AioOcStrip
+ */
+function aio_oc_eps_strip($n)
+{
+    return array('n' => $n, 'nc' => 0, 'w' => AIO_OC_EP_W, 'h' => AIO_OC_EP_H, 'cw' => AIO_OC_EP_STEP, 'ch' => AIO_OC_ROW_H,
+        'step' => AIO_OC_EP_STEP, 'div' => 0, 'vis' => AIO_OC_EP_VIS, 'lead' => 1, 'x' => AIO_CATV_CARD_X, 'y' => AIO_OC_ROW_Y,
+        'id' => 'e');
+}
+
 // The row of a series at place $pos: array(the episodes of its season, the index of its episode
-// (0 for none), the first still at the left slot (aio_oc_off: the frame goes in the first two slots,
-// then the row, the frame stays in the second), the stills of the panel aio_oc_win).
+// (0 for none), the first still at the left slot (aio_oc_strip_at), the stills of the panel
+// aio_oc_win, the strip).
 /**
  * @param AioOcCard $c
  * @param AioOcPos $pos
- * @return array{list<AioCardEp>, int, int, int, int}
+ * @return array{list<AioCardEp>, int, int, int, int, AioOcStrip}
  */
 function aio_oc_row($c, $pos)
 {
     $eps = aio_oc_eps($c, $pos['s']);
-    $n = count($eps);
-    $i = max(0, aio_cm_ep_index($eps, $pos['e']));
-    $off = aio_oc_off($i, $n, AIO_OC_EP_VIS, 1);
-    list($lo, $hi) = aio_oc_win($n, $off);
-    return array($eps, $i, $off, $lo, $hi);
-}
-
-// The panel of the stills of a season of $n with the one at $off at the left slot (x of the catalog).
-/**
- * @param int $n
- * @param int $off
- * @return AioGcGeom
- */
-function aio_oc_eps_geom($n, $off)
-{
-    return aio_gc_at($n * AIO_OC_EP_STEP, AIO_OC_ROW_H, AIO_CATV_CARD_X - $off * AIO_OC_EP_STEP, 0);
-}
-
-// The frame of the focus around slot $slot of the row, in the page.
-/**
- * @param int $slot
- * @return AioGcGeom
- */
-function aio_oc_frame_geom($slot)
-{
-    return aio_oc_frame_at(AIO_CATV_CARD_X + $slot * AIO_OC_EP_STEP, AIO_OC_ROW_Y, AIO_OC_EP_W, AIO_OC_EP_H);
-}
-
-// The frame of the focus, only in the zone of the row.
-/**
- * @param string $z
- * @return list<AioGcComp>
- */
-function aio_oc_frame($z)
-{
-    return $z === 'row' ? aio_oc_frame_rects(AIO_OC_EP_W, AIO_OC_EP_H) : array();
+    $st = aio_oc_eps_strip(count($eps));
+    list($i, $off) = aio_oc_strip_at($st, aio_cm_ep_index($eps, $pos['e']));
+    list($lo, $hi) = aio_oc_win(count($eps), $off);
+    return array($eps, $i, $off, $lo, $hi, $st);
 }
 
 // The title and the line under it of episode $ep: "5. Бой товара" 30 px (in focus white, else grey,
@@ -462,12 +444,10 @@ function aio_oc_series($c, $l, $pos)
     }
     $d[] = aio_gc_panel('cnt', aio_gc_at(AIO_OC_HINT_R - $t['cx'], AIO_OC_TAB_H, $t['cx'], AIO_OC_TAB_Y),
         aio_oc_count($c, $pos['s'], $t));
-    list($eps, $i, $off, $lo, $hi) = aio_oc_row($c, $pos);
-    $n = count($eps);
+    list(, $i, , $lo, $hi, $st) = aio_oc_row($c, $pos);
     $d[] = aio_gc_panel('row', aio_gc_at(1920, AIO_OC_ROW_H, 0, AIO_OC_ROW_Y),
-        array(aio_gc_panel('eps', aio_oc_eps_geom($n, $off), aio_oc_ep_cards($c, $l['prog'], $pos['s'], $lo, $hi,
-            $pos['z'] === 'row' ? $i : -1))), 0);
-    $d[] = aio_gc_panel('frame', aio_oc_frame_geom($i - $off), aio_oc_frame($pos['z']));
+        array(aio_oc_strip_panel($st, $i, aio_oc_ep_cards($c, $l['prog'], $pos['s'], $lo, $hi, $pos['z'] === 'row' ? $i : -1))), 0);
+    $d[] = aio_oc_strip_frame($st, $i, $pos['z'] === 'row');
     return $d;
 }
 
@@ -522,9 +502,8 @@ function aio_oc_row_changes($c, $l, $old, $new)
         if ($st !== aio_oc_tab_state($old, $tab[0]))
             $ch[] = aio_gc_change("t$k", null, GCOMP_TRANSITION_NONE, aio_oc_tab_items($tab[1], $tab[3], $st));
     }
-    list($eps, $i, $off, $lo, $hi) = aio_oc_row($c, $new);
+    list($eps, $i, $off, $lo, $hi, $st) = aio_oc_row($c, $new);
     list(, $oi, $ooff, $olo, $ohi) = aio_oc_row($c, $old);
-    $n = count($eps);
     $lit = $new['z'] === 'row' ? $i : -1;
     $fg = null;
     $ft = GCOMP_TRANSITION_NONE;
@@ -549,9 +528,9 @@ function aio_oc_row_changes($c, $l, $old, $new)
         $ch[] = aio_gc_change('cnt', null, GCOMP_TRANSITION_NONE, aio_oc_count($c, $new['s'], $t));
     if ($new['s'] !== $old['s'] || $lo > $ohi || $hi < $olo)
     {
-        $ch[] = aio_gc_change('eps', aio_oc_eps_geom($n, $off), GCOMP_TRANSITION_NONE,
+        $ch[] = aio_gc_change('est', aio_oc_strip_geom($st, $off), GCOMP_TRANSITION_NONE,
             aio_oc_ep_cards($c, $l['prog'], $new['s'], $lo, $hi, $lit));
-        $fg = aio_oc_frame_geom($i - $off);
+        $fg = aio_oc_strip_frame_geom($st, $i, $off);
     }
     else
     {
@@ -572,7 +551,7 @@ function aio_oc_row_changes($c, $l, $old, $new)
         }
         if ($add || $off !== $ooff)
         {
-            $x = aio_gc_change('eps', $off !== $ooff ? aio_oc_eps_geom($n, $off) : null, GCOMP_TRANSITION_DEFAULT, $add ? $add : null);
+            $x = aio_gc_change('est', $off !== $ooff ? aio_oc_strip_geom($st, $off) : null, GCOMP_TRANSITION_DEFAULT, $add ? $add : null);
             if ($add)
             {
                 $x[ChangeGCompDef::children_merge_mode] = true;
@@ -582,7 +561,7 @@ function aio_oc_row_changes($c, $l, $old, $new)
         }
         if ($i - $off !== $oi - $ooff)
         {
-            $fg = aio_oc_frame_geom($i - $off);
+            $fg = aio_oc_strip_frame_geom($st, $i, $off);
             $ft = GCOMP_TRANSITION_DEFAULT;
         }
         $olit = $old['z'] === 'row' ? $oi : -1;
@@ -595,7 +574,7 @@ function aio_oc_row_changes($c, $l, $old, $new)
         }
     }
     // The frame shown or hidden jumps to its place.
-    return array_merge($ch, aio_oc_frame_change('frame', $fg, $ft === GCOMP_TRANSITION_DEFAULT, $old['z'] === 'row', $new['z'] === 'row',
+    return array_merge($ch, aio_oc_frame_change('efr', $fg, $ft === GCOMP_TRANSITION_DEFAULT, $old['z'] === 'row', $new['z'] === 'row',
         AIO_OC_EP_W, AIO_OC_EP_H));
 }
 
