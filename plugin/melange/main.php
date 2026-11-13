@@ -43,6 +43,8 @@ define('AIO_SUP_ID', 'aio');
 // (custom_mdb/user_movie, "m-..."). No ':' or '/': it goes into recent_uid,
 // aio_next: and a file name.
 define('AIO_DUNE_ID', '(?:[0-9a-f]{24}|m-[A-Za-z0-9_-]{1,64})');
+// Runs of the numbering of Cinemeta of a list at most (aio_cin_runs): One Piece has under 40.
+define('AIO_CIN_RUNS_MAX', 1000);
 // show_dialog_delay of our handle_user_input actions, ms, as the play_action of
 // Online movies.
 define('AIO_DELAY_INPUT', 10000);
@@ -231,7 +233,7 @@ function aio_movie($in)
     // lazy episodes goes to tmp_dir); not a string -> none.
     $desc = isset($m['description']) && is_string($m['description']) ?
         aio_cut(trim(aio_utf8($m['description'])), AIO_INFO_DESC_MAX) : '';
-    return array(
+    $mv = array(
         'series' => $series,
         'imdb' => preg_match('/^tt[0-9]{1,10}$/', $imdb) ? $imdb : '',
         'dune_id' => preg_match('/^' . AIO_DUNE_ID . '$/D', $dune_id) ? $dune_id : '',
@@ -243,6 +245,91 @@ function aio_movie($in)
         'rate_imdb' => aio_str($m, 'rate_imdb'),
         'desc' => $desc,
         'seasons' => aio_seasons($m));
+    $cin = aio_cin_runs(isset($m['aio_cin']) ? $m['aio_cin'] : null);
+    if ($cin)
+        $mv['cin'] = $cin;
+    return $mv;
+}
+
+// The runs of the numbering of Cinemeta of a list from the own card (aio_cin of movie_str, aio_oc_watch;
+// aio_cm_cin_runs): each array(the first number of episodes, ascending from 1; a season of Cinemeta,
+// 0 for numbers of no pair; its episode, 0 with season 0), AIO_CIN_RUNS_MAX at most; anything else: none.
+/**
+ * @param mixed $v
+ * @return list<array{int, int, int}>
+ */
+function aio_cin_runs($v)
+{
+    if (!is_array($v) || count($v) > AIO_CIN_RUNS_MAX)
+        return array();
+    $out = array();
+    $last = 0;
+    foreach ($v as $r)
+    {
+        if (!is_array($r) || count($r) !== 3 || !isset($r[0], $r[1], $r[2]) || !is_int($r[0]) || !is_int($r[1]) ||
+            !is_int($r[2]) || $r[0] <= $last || $r[1] < 0 || $r[1] > 9999 || $r[2] < 0 || $r[2] > 99999 ||
+            ($r[1] > 0) !== ($r[2] > 0))
+            return array();
+        $out[] = array($r[0], $r[1], $r[2]);
+        $last = $r[0];
+    }
+    return $out;
+}
+
+// Episode $e of season $s of list $mv -> array(season, episode) of Cinemeta, null: asked as it is. Only
+// season 1 of a list from the own card with the runs of a series numbered on (cin): by the run of $e.
+/**
+ * @param AioMovie $mv
+ * @param int $s
+ * @param int $e
+ * @return array{int, int}|null
+ */
+function aio_cin_ep($mv, $s, $e)
+{
+    if ($s !== 1 || !isset($mv['cin']))
+        return null;
+    $run = null;
+    foreach ($mv['cin'] as $r)
+    {
+        if ($r[0] > $e)
+            break;
+        $run = $r;
+    }
+    return $run && $run[1] > 0 ? array($run[1], $run[2] + $e - $run[0]) : null;
+}
+
+// The id of the streams of S$s E$e of $mv (a movie: its IMDb alone): "<imdb>:<s>:<e>", by the numbering of
+// Cinemeta when there is one (aio_cin_ep; logged). -> array(id, for aio_fetch: array(season, episode)
+// of Cinemeta and $e, or null).
+/**
+ * @param AioMovie $mv
+ * @param int $s
+ * @param int $e
+ * @return array{string, array{int, int, int}|null}
+ */
+function aio_stream_ask($mv, $s, $e)
+{
+    if (!$mv['series'])
+        return array($mv['imdb'], null);
+    $c = aio_cin_ep($mv, $s, $e);
+    if (!$c)
+        return array("{$mv['imdb']}:$s:$e", null);
+    aio_log(sprintf('cinemeta: S%02dE%02d asked as S%02dE%02d', $s, $e, $c[0], $c[1]));
+    return array("{$mv['imdb']}:{$c[0]}:{$c[1]}", array($c[0], $c[1], $e));
+}
+
+// Row $r of a reply asked by the numbering of Cinemeta ($cin of aio_stream_ask) has a wrong file of a pack:
+// no season in its name, the episode of Cinemeta there and not the number asked ("032" of a pack "1-130"
+// for S21E32, the 923rd episode of One Piece; AIOStreams counts a pack without a season so).
+/**
+ * @param AioRow $r
+ * @param array{int, int, int}|null $cin
+ * @return bool
+ */
+function aio_cin_wrong($r, $cin)
+{
+    return $cin !== null && $cin[1] !== $cin[2] && $r['pf_seasons'] === null &&
+        in_array($cin[1], $r['pf_episodes'], true) && !in_array($cin[2], $r['pf_episodes'], true);
 }
 
 // season_numbers of movie_str ({"1": {"episodes_count": 10, ...}, ...}, the
@@ -1053,14 +1140,16 @@ define('AIO_FETCH_TOTAL', 30);
 
 // -> array('rows' => list) or array('error' => key, 'detail' => text); 'errors':
 // the reasons of the error streams of the reply (aio_error_streams), with the
-// rows and with err_no_streams.
+// rows and with err_no_streams. Asked by the numbering of Cinemeta ($cin of
+// aio_stream_ask): the rows of a wrong file of a pack (aio_cin_wrong) left out.
 /**
  * @param string $base
  * @param string $id
  * @param bool $series
+ * @param array{int, int, int}|null $cin
  * @return AioFetch
  */
-function aio_fetch($base, $id, $series)
+function aio_fetch($base, $id, $series, $cin = null)
 {
     $url = $base . 'stream/' . ($series ? 'series' : 'movie') . "/$id.json";
     $t = microtime(true);
@@ -1086,6 +1175,7 @@ function aio_fetch($base, $id, $series)
     // be a copy of one there (aio_merge_find), the rest is not looked at.
     $rows = array();
     $hidden = 0;
+    $wrong = 0;
     $mx = aio_merge_start();
     foreach ($j['streams'] as $st)
     {
@@ -1093,11 +1183,16 @@ function aio_fetch($base, $id, $series)
         {
             $k = is_array($st) ? aio_merge_key($st) : null;
             $r = $k && aio_merge_find($mx, $k) ? aio_row($st, $series) : null;
-            if ($r)
+            if ($r && !aio_cin_wrong($r, $cin))
                 aio_row_merge($rows, $mx, $r);
             continue;
         }
         $r = is_array($st) ? aio_row($st, $series) : null;
+        if ($r && aio_cin_wrong($r, $cin))
+        {
+            $wrong++;
+            continue;
+        }
         if ($r && Aio::$settings['no_torrents'] && aio_is_p2p($r))
         {
             $hidden++;
@@ -1111,8 +1206,8 @@ function aio_fetch($base, $id, $series)
             $rows[] = aio_row_voices($r);
         }
     }
-    aio_log(sprintf('streams: %d, listed: %d%s, memory peak %.1f MB', count($j['streams']), count($rows),
-        $hidden ? ", P2P hidden: $hidden" : '', memory_get_peak_usage() / 1048576));
+    aio_log(sprintf('streams: %d, listed: %d%s%s, memory peak %.1f MB', count($j['streams']), count($rows),
+        $hidden ? ", P2P hidden: $hidden" : '', $wrong ? ", wrong files of packs: $wrong" : '', memory_get_peak_usage() / 1048576));
     if ($mx['by_hash'] + $mx['by_name'] > 0)
         aio_log(sprintf('merged copies of a file on another service: %d (by infoHash %d, by name and size %d)',
             $mx['by_hash'] + $mx['by_name'], $mx['by_hash'], $mx['by_name']));
@@ -1243,7 +1338,8 @@ function aio_play_action($in)
     if (Aio::$settings['base'] === '')
         return aio_no_address($lang);
 
-    $res = aio_fetch(Aio::$settings['base'], $mv['imdb'] . ($mv['series'] ? ":$s:$e" : ''), $mv['series']);
+    list($id, $cin) = aio_stream_ask($mv, $s, $e);
+    $res = aio_fetch(Aio::$settings['base'], $id, $mv['series'], $cin);
     $only = isset($res['error']) ? aio_errors_only_dialog($lang, $res) : null;
     if ($only)
     {

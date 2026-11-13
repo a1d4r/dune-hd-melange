@@ -153,7 +153,8 @@ parameters:
                 copy?: int
             }
         '''
-        # The card of play_action (aio_movie, main.php); own_card: of a list opened from the own card (aio_oc_watch).
+        # The card of play_action (aio_movie, main.php); own_card: of a list opened from the own card (aio_oc_watch); cin: the
+        # runs of the numbering of Cinemeta of its series numbered on (aio_cin_runs).
         AioMovie: '''
             array{
                 series: bool,
@@ -167,7 +168,8 @@ parameters:
                 rate_imdb: string,
                 desc: string,
                 seasons: array<int, int>,
-                own_card?: bool
+                own_card?: bool,
+                cin?: list<array{int, int, int}>
             }
         '''
         # The state of a series by its history (aio_wh_series, history.php): the latest
@@ -376,7 +378,7 @@ parameters:
         # A side of brackets of a track title (aio_voices_side, voices_parse.php).
         AioVoicesSide: 'array{studios: list<string>, n: int, other: bool}'
         # The meta of a title for its own card (aio_cm_parse, card_meta.php).
-        AioCardMeta: 'array{type: string, id: string, imdb: string, tile: AioCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<AioCardCredit>, directors: list<AioCardCredit>, writers: list<AioCardCredit>, creators: list<AioCardCredit>, collection: array{id: string, name: string}, seasons: array<int, list<AioCardEp>>, season_numbers: array<int, int>}'
+        AioCardMeta: 'array{type: string, id: string, imdb: string, tile: AioCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<AioCardCredit>, directors: list<AioCardCredit>, writers: list<AioCardCredit>, creators: list<AioCardCredit>, collection: array{id: string, name: string}, seasons: array<int, list<AioCardEp>>, season_numbers: array<int, int>, cin: list<array{int, int, int}>}'
         # A card of the own card screen in memory (AioOc::$cards, view_card.php).
         AioOcCard: 'array{tile: AioCatTile, meta: AioCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: AioOcPos, n: int, posters: AioCmPosters, nav?: AioOcNav}'
         # The rows of posters of an own card (aio_cm_posters, card_more.php): similar titles, the movies of a franchise; what is

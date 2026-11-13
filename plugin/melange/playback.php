@@ -987,9 +987,13 @@ function aio_relist($st, $s, $e, $hash)
 {
     $mv = $st['movie'];
     // From the list screen the player may be near: no detour to the settings.
-    $res = Aio::$settings['base'] === '' ?
-        array('error' => Aio::$settings['own'] ? 'err_set_address_own' : 'err_set_address', 'detail' => '') :
-        aio_fetch(Aio::$settings['base'], $mv['imdb'] . ($mv['series'] ? ":$s:$e" : ''), $mv['series']);
+    if (Aio::$settings['base'] === '')
+        $res = array('error' => Aio::$settings['own'] ? 'err_set_address_own' : 'err_set_address', 'detail' => '');
+    else
+    {
+        list($id, $cin) = aio_stream_ask($mv, $s, $e);
+        $res = aio_fetch(Aio::$settings['base'], $id, $mv['series'], $cin);
+    }
     if (isset($res['error']))
         return $res;
     $rows = aio_carry_tracks($res['rows'], $st['rows']);
@@ -1142,6 +1146,9 @@ function aio_movie_load($key)
     ksort($mv['seasons']);
     if (isset($m['own_card']) && $m['own_card'] === true)
         $mv['own_card'] = true;
+    $cin = aio_cin_runs(isset($m['cin']) ? $m['cin'] : null);
+    if ($cin)
+        $mv['cin'] = $cin;
     $r = array('movie' => $mv, 'lang' => aio_str($d, 'lang'));
     Aio::$movies[$key] = $r;
     return $r;
@@ -1217,7 +1224,8 @@ function aio_next_fetch($key, $s, $e)
     if (Aio::$settings['base'] === '')
         return array('error' => Aio::$settings['own'] ? 'err_set_address_own' : 'err_set_address', 'detail' => '',
             'lang' => $saved['lang'], 'errors' => aio_no_errors());
-    $res = aio_fetch(Aio::$settings['base'], "{$mv['imdb']}:$s:$e", true);
+    list($id, $cin) = aio_stream_ask($mv, $s, $e);
+    $res = aio_fetch(Aio::$settings['base'], $id, true, $cin);
     if (isset($res['error']))
         return array('error' => $res['error'], 'detail' => $res['detail'], 'lang' => $saved['lang'],
             'errors' => isset($res['errors']) ? $res['errors'] : aio_no_errors());
