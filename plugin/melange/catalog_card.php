@@ -67,13 +67,14 @@ function aio_card_api()
 }
 
 // One sign -> st: card, none (not found), refused (no dune_auth accepted), net
-// (transport), bad (anything else); card: id, year (0 if none), type, sup (suppliers)
+// (transport), bad (anything else); card: id, year (0 if none), type, sup (suppliers),
+// kp (its rating of Kinopoisk as aio_cat_kp: rating.kp of the short answer, often none)
 // or null. "Not found" and the refusal both come with code 0, only message tells.
 // lang: no text of the card is used, and ru is what the choice was measured on.
 /**
  * @param string $sign
  * @param string $token
- * @return array{st: string, card: array{id: string, year: int, type: string, sup: int}|null}
+ * @return array{st: string, card: array{id: string, year: int, type: string, sup: int, kp: string}|null}
  */
 function aio_card_ask($sign, $token)
 {
@@ -100,8 +101,10 @@ function aio_card_ask($sign, $token)
         if (intval(aio_str($j, 'code')) === 100 && preg_match('/^[0-9a-f]{24}$/D', $id))
         {
             $st = 'card';
+            $kp = aio_arr(aio_arr($r, 'rating'), 'kp');
             $card = array('id' => $id, 'year' => intval(aio_str($r, 'year')), 'type' => aio_str($r, 'type'),
-                'sup' => isset($r['suppliers']) && is_array($r['suppliers']) ? count($r['suppliers']) : 0);
+                'sup' => isset($r['suppliers']) && is_array($r['suppliers']) ? count($r['suppliers']) : 0,
+                'kp' => aio_cat_kp(aio_str($kp, 'rating'), intval(aio_str($kp, 'vote'))));
             $why = "$id year={$card['year']} type={$card['type']} sup={$card['sup']}";
         }
         else if ($msg === 'not found')
@@ -115,7 +118,7 @@ function aio_card_ask($sign, $token)
 
 // The type of the tile, not of the card: a card can have a wrong one.
 /**
- * @param array{id: string, year: int, type: string, sup: int} $c
+ * @param array{id: string, year: int, type: string, sup: int, kp: string} $c
  * @param bool $series
  * @return array{int, int, int}
  */
@@ -129,10 +132,10 @@ function aio_card_rank($c, $series)
 // checks nothing. Then more suppliers, a non-zero year, the type of the tile; a
 // tie goes to tmdb, the more reliable sign. -> the card or null.
 /**
- * @param array{id: string, year: int, type: string, sup: int}|null $tmdb
- * @param array{id: string, year: int, type: string, sup: int}|null $imdb
+ * @param array{id: string, year: int, type: string, sup: int, kp: string}|null $tmdb
+ * @param array{id: string, year: int, type: string, sup: int, kp: string}|null $imdb
  * @param AioCatTile $tile
- * @return array{id: string, year: int, type: string, sup: int}|null
+ * @return array{id: string, year: int, type: string, sup: int, kp: string}|null
  */
 function aio_card_pick($tmdb, $imdb, $tile)
 {
@@ -155,10 +158,11 @@ function aio_card_pick($tmdb, $imdb, $tile)
 // Only full answers go to the cache: a failure says nothing about the card, and a
 // card without the answer of the other sign may not be the one to keep. With a
 // refused or failed request the second is not asked. Without dune_auth nothing is
-// asked: the shell can not open a card either.
+// asked: the shell can not open a card either. kp: the rating of Kinopoisk of the card
+// when the server was asked now ('' for none), null when not (the cache, no sign, no dune_auth).
 /**
  * @param AioCatTile $tile
- * @return array{id: string, none: bool}
+ * @return array{id: string, none: bool, kp: string|null}
  */
 function aio_card_id($tile)
 {
@@ -166,7 +170,7 @@ function aio_card_id($tile)
     if ($token === '')
     {
         aio_log('card: no dune_auth');
-        return array('id' => '', 'none' => false);
+        return array('id' => '', 'none' => false, 'kp' => null);
     }
     $signs = array();
     // A TMDB id is of a movie or of a series: without the type it means nothing.
@@ -175,7 +179,7 @@ function aio_card_id($tile)
     if ($tile['imdb_id'] !== '')
         $signs['imdb'] = 'imdb:' . $tile['imdb_id'];
     if (!$signs)
-        return array('id' => '', 'none' => false);
+        return array('id' => '', 'none' => false, 'kp' => null);
     $key = "card|{$tile['type']}|{$tile['_tmdbId']}|{$tile['imdb_id']}|{$tile['year']}";
     $c = aio_cat_cache_read($key);
     if ($c)
@@ -185,7 +189,7 @@ function aio_card_id($tile)
         if (time() >= $c['t'] && time() - $c['t'] < ($id !== '' ? AIO_CARD_TTL_ID : AIO_CARD_TTL_NONE))
         {
             aio_log('card: cached ' . ($id !== '' ? $id : 'none'));
-            return array('id' => $id, 'none' => $id === '');
+            return array('id' => $id, 'none' => $id === '', 'kp' => null);
         }
     }
     $cards = array('tmdb' => null, 'imdb' => null);
@@ -203,7 +207,29 @@ function aio_card_id($tile)
     $id = $card ? $card['id'] : '';
     if ($whole)
         aio_cat_cache_write($key, 1, array('id' => $id));
-    return array('id' => $id, 'none' => $whole && $id === '');
+    return array('id' => $id, 'none' => $whole && $id === '', 'kp' => $card ? $card['kp'] : '');
+}
+
+// The rating of Kinopoisk of card $id of the Dune of $tile, asked now by one sign (TMDB, else
+// IMDb; aio_card_id got the id of its cache): '' for none, no answer or another card.
+/**
+ * @param AioCatTile $tile
+ * @param string $id
+ * @return string
+ */
+function aio_card_kp($tile, $id)
+{
+    $token = aio_card_token();
+    if ($token === '' || $id === '')
+        return '';
+    if ($tile['_tmdbId'] !== '' && $tile['type'] !== '')
+        $sign = ($tile['type'] === 'series' ? 'tmdbtv:' : 'tmdb:') . $tile['_tmdbId'];
+    else if ($tile['imdb_id'] !== '')
+        $sign = 'imdb:' . $tile['imdb_id'];
+    else
+        return '';
+    $a = aio_card_ask($sign, $token);
+    return $a['card'] && $a['card']['id'] === $id ? $a['card']['kp'] : '';
 }
 
 // The handler of file_movie in r25 reads movie_id only: the card takes its type

@@ -434,6 +434,21 @@ function aio_cat_runtime_min($r)
     return (isset($x[1]) ? intval($x[1]) * 60 : 0) + (isset($x[2]) ? intval($x[2]) : 0);
 }
 
+// A rating of Kinopoisk ("7.93") of $votes votes -> "7.9" as shown; '' for none, 0, over 10 or
+// under AIO_CAT_KP_VOTES_MIN votes.
+/**
+ * @param string $kp
+ * @param int $votes
+ * @return string
+ */
+function aio_cat_kp($kp, $votes)
+{
+    $kp = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $kp) && (float) $kp <= 10 && $votes >= AIO_CAT_KP_VOTES_MIN ?
+        sprintf('%.1F', (float) $kp) : '';
+    // "0.04" is "0.0": none.
+    return (float) $kp > 0 ? $kp : '';
+}
+
 // A tile of the server -> only what is needed (links with the UUID, app_extras,
 // a logo not in Russian and the rest are gone from here on), or null without an id or a name.
 // All values strings, genres and cast lists. imdb_id and _tmdbId: also from the id itself,
@@ -476,14 +491,9 @@ function aio_cat_tile($m, $row_type)
     if (preg_match('/^[0-9]{4}/', aio_str($m, 'year'), $x) || preg_match('/^[0-9]{4}/', aio_str($m, 'releaseInfo'), $x))
         $year = $x[0];
     $rating = aio_str($m, 'imdbRating');
-    $kp = aio_str($m, 'kpRating');
     $votes = aio_str($m, 'kpVotes');
     $votes = preg_match('/^[0-9]{1,9}$/D', $votes) ? intval($votes) : 0;
-    $kp = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $kp) && (float) $kp <= 10 && $votes >= AIO_CAT_KP_VOTES_MIN ?
-        sprintf('%.1F', (float) $kp) : '';
-    // "0.04" is "0.0": none.
-    if ((float) $kp <= 0)
-        $kp = '';
+    $kp = aio_cat_kp(aio_str($m, 'kpRating'), $votes);
     $kp_id = aio_str($m, 'kpId');
     $genres = array();
     foreach (aio_arr($m, 'genres') as $g)

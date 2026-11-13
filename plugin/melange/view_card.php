@@ -188,8 +188,8 @@ class AioOc
 
 // ENTER on a tile of a movie or a series with IMDb or TMDB (aio_card_enter): the id of the card of the Dune
 // (aio_card_id; none: an old local card m-melange-..., none is written now), the meta (aio_cm_get;
-// a failure: the card of the tile), the IMDb of a tmdb: tile from it, the rows of posters
-// (aio_oc_more) -> the card screen.
+// a failure: the card of the tile), the IMDb of a tmdb: tile from it, the tile filled (aio_oc_fill),
+// the rows of posters (aio_oc_more) -> the card screen.
 /**
  * @param AioCatTile $tile
  * @param string $lang
@@ -200,7 +200,7 @@ function aio_oc_enter($tile, $lang)
     $c = aio_card_id($tile);
     $g = aio_cm_get($tile);
     $key = $tile['type'] . ':' . aio_cm_id($tile);
-    $card = aio_oc_make($tile, $g['meta'], $c['id'], $lang, aio_oc_more($key, $tile, $g['meta']));
+    $card = aio_oc_make(aio_oc_fill($tile, $g['meta'], $c), $g['meta'], $c['id'], $lang, aio_oc_more($key, $tile, $g['meta']));
     aio_oc_keep($key, $card);
     aio_log("card: own $key: card " . ($card['dune'] !== '' ? $card['dune'] : 'none') . ', meta ' .
         ($g['err'] !== '' ? "failed ({$g['err']})" : 'ok') . ', imdb ' . ($card['imdb'] !== '' ? $card['imdb'] : 'none'));
@@ -210,6 +210,38 @@ function aio_oc_enter($tile, $lang)
         GuiAction::data => array(
             PluginOpenFolderActionData::media_url => "card:$key",
             PluginOpenFolderActionData::caption => $tile['name']));
+}
+
+// The tile of a card with what the header needs: a tile not of a row of the catalog (of the
+// works of a person: id, name, poster, year) has no rating, genres, length or logo. What it lacks
+// is taken of the tile of the meta (no rating of Kinopoisk, no age of Kino API there: the server
+// adds them to its rows and search only); the rating of Kinopoisk: of the card of this title in
+// memory (opened before, from a row of the catalog too), else of the card of the Dune $c
+// (aio_card_id; it came of its cache: asked now, aio_card_kp). The ids stay those of the tile.
+/**
+ * @param AioCatTile $tile
+ * @param AioCardMeta|null $meta
+ * @param array{id: string, none: bool, kp: string|null} $c
+ * @return AioCatTile
+ */
+function aio_oc_fill($tile, $meta, $c)
+{
+    static $keys = array('year', 'imdbRating', 'description', 'genres', 'poster', 'background', 'country', 'runtime', 'age',
+        'cast', 'englishTitle', 'kpRating', 'kpVotes', 'kpId', 'logo', 'logoLang');
+    $m = $meta ? $meta['tile'] : null;
+    foreach ($m ? $keys : array() as $k)
+    {
+        if (($tile[$k] === '' || $tile[$k] === array() || $tile[$k] === 0) && $m[$k] !== '' && $m[$k] !== array())
+            $tile[$k] = $m[$k];
+    }
+    $key = $tile['type'] . ':' . aio_cm_id($tile);
+    if ($tile['kpRating'] !== '' || $c['id'] === '')
+        return $tile;
+    if (isset(AioOc::$cards[$key]))
+        $tile['kpRating'] = AioOc::$cards[$key]['tile']['kpRating'];
+    else
+        $tile['kpRating'] = $c['kp'] !== null ? $c['kp'] : aio_card_kp($tile, $c['id']);
+    return $tile;
 }
 
 // A card of $tile: the IMDb of the tile or of the meta; no card of the Dune ($dune ''): the old
@@ -307,7 +339,7 @@ function aio_oc_keep($key, $card)
 }
 
 // The card of "<type>:<id>" from memory; none there (php_server restarted): made from its meta
-// anew (its tile, no rating of Kinopoisk), kept. null: a bad key, no meta.
+// anew (its tile, the rating of Kinopoisk of the card of the Dune), kept. null: a bad key, no meta.
 /**
  * @param string $key
  * @return AioOcCard|null
@@ -330,7 +362,7 @@ function aio_oc_get($key)
     $tile = $g['meta']['tile'];
     $tile['type'] = $m[1];
     $c = aio_card_id($tile);
-    $card = aio_oc_make($tile, $g['meta'], $c['id'], aio_catv_lang(), aio_oc_more($key, $tile, $g['meta']));
+    $card = aio_oc_make(aio_oc_fill($tile, $g['meta'], $c), $g['meta'], $c['id'], aio_catv_lang(), aio_oc_more($key, $tile, $g['meta']));
     aio_oc_keep($key, $card);
     aio_log("card: own $key made anew from its meta");
     return $card;
