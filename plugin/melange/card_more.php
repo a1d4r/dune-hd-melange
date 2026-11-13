@@ -22,8 +22,9 @@ define('AIO_CM_EMPTY_TTL', 300);
 // arrows and shapes of U+2B00-U+2BFF (the star), the wavy dash U+3030, the selector of the emoji
 // form, the joiner.
 define('AIO_CM_EMOJI_RE', '/[\x{10000}-\x{10FFFF}\x{20E3}\x{2300}-\x{23FF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{3030}\x{FE0F}\x{200D}]/u');
-// The title of a section of a biography ("Главные награды: ..." of the server, its emoji out): of
-// AIO_CM_HEAD_MAX characters and AIO_CM_HEAD_WORDS words at most, a capital first, no digits or marks.
+// The title of a section of a biography ("🏆Главные награды🏆: ..." of the server, its emoji out): of
+// AIO_CM_HEAD_MAX characters and AIO_CM_HEAD_WORDS words at most, a capital first, no digits, marks,
+// dashes or "…" (aio_cm_bio_pars).
 define('AIO_CM_HEAD_MAX', 40);
 define('AIO_CM_HEAD_WORDS', 4);
 // The number of episodes of a work at most (One Piece: ~1150).
@@ -186,20 +187,20 @@ function aio_cm_person_date($s)
     return intval($x[2]) >= 1 && intval($x[2]) <= 12 ? "$x[1]-$x[2]" : '';
 }
 
-// The paragraphs of a biography, each one line: the emoji out (AIO_CM_EMOJI_RE: the font has none),
-// the empty ones gone.
+// The paragraphs of a biography -> array(the paragraph as it came, it in one line with the emoji out
+// (AIO_CM_EMOJI_RE: the font has none)) each, the empty ones gone.
 /**
  * @param string $s
- * @return list<string>
+ * @return list<array{string, string}>
  */
 function aio_cm_bio_split($s)
 {
     $out = array();
-    foreach (preg_split('/[\r\n\x{0085}\x{2028}\x{2029}]+/u', aio_utf8($s)) as $par)
+    foreach (preg_split('/[\r\n\x{0085}\x{2028}\x{2029}]+/u', aio_utf8($s)) as $raw)
     {
-        $par = trim(strval(preg_replace('/ {2,}/', ' ', aio_one_line(preg_replace(AIO_CM_EMOJI_RE, '', $par)))));
+        $par = trim(strval(preg_replace('/ {2,}/', ' ', aio_one_line(preg_replace(AIO_CM_EMOJI_RE, '', $raw)))));
         if ($par !== '')
-            $out[] = $par;
+            $out[] = array($raw, $par);
     }
     return $out;
 }
@@ -213,15 +214,16 @@ function aio_cm_bio_split($s)
 function aio_cm_bio_line($s)
 {
     $out = array();
-    foreach (aio_cm_bio_split($s) as $par)
-        $out[] = preg_match('/[.!?\x{2026}:;]["\x{00BB}\x{201D})\]]*$/u', $par) ? $par : "$par.";
+    foreach (aio_cm_bio_split($s) as $x)
+        $out[] = preg_match('/[.!?\x{2026}:;]["\x{00BB}\x{201D})\]]*$/u', $x[1]) ? $x[1] : "$x[1].";
     return implode(' ', $out);
 }
 
 // A biography in paragraphs (aio_cm_bio_split) -> array(the title of its section, its text) each,
-// AIO_CM_DESC_MAX characters in all at most. A paragraph that starts with a title and ":" ("Главные
-// награды: Эмми (2008) ...") is a section, the title without ":"; a paragraph of a title alone
-// ("Главные награды:") is the title of the paragraph after it. Others: no title ('').
+// AIO_CM_DESC_MAX characters in all at most. A paragraph that starts with a title (AIO_CM_HEAD_MAX)
+// with an emoji, then ":" (the server: "🏆Главные награды🏆: Эмми (2008) ...") is a section, the
+// title without the emoji and ":"; a paragraph of a title alone ("Главные награды:") is the title of
+// the paragraph after it. Others: no title (''): "Он часто говорил: ...", "Brad Pitt: born 1963".
 /**
  * @param string $s
  * @return list<array{string, string}>
@@ -231,13 +233,15 @@ function aio_cm_bio_pars($s)
     $out = array();
     $head = '';
     $left = AIO_CM_DESC_MAX;
-    foreach (aio_cm_bio_split($s) as $par)
+    foreach (aio_cm_bio_split($s) as $y)
     {
         if ($left <= 0)
             break;
+        list($raw, $par) = $y;
         $text = $par;
-        if (preg_match('/^(\p{Lu}[^.!?:;,()\[\]\x{00AB}\x{00BB}"0-9]{0,' . (AIO_CM_HEAD_MAX - 1) . '}):\s*(.*)$/Du', $par, $x) &&
-            count(explode(' ', trim($x[1]))) <= AIO_CM_HEAD_WORDS)
+        if (preg_match('/^(\p{Lu}[^.!?:;,()\[\]\x{00AB}\x{00BB}"0-9\x{2010}-\x{2015}\x{2026}]{0,' . (AIO_CM_HEAD_MAX - 1) .
+            '}):\s*(.*)$/Du', $par, $x) && count(explode(' ', trim($x[1]))) <= AIO_CM_HEAD_WORDS &&
+            ($x[2] === '' || preg_match(AIO_CM_EMOJI_RE, strval(strstr($raw, ':', true)))))
         {
             if ($head !== '')
                 $out[] = array($head, '');
