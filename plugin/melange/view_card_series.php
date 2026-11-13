@@ -719,8 +719,8 @@ function aio_oc_mark($key, $c, $in)
 }
 
 // ENTER on "did not load" of series card $c ($key): the meta asked again; got - the card anew with
-// it and its rows of posters (aio_cm_posters), the screen replaced by it, the focus on the tabs; else
-// the message.
+// it (aio_oc_build: the tile filled of it, its rows of posters; the card of the Dune as it was, its
+// rating of Kinopoisk not asked), the screen replaced by it, the focus on the tabs; else the message.
 /**
  * @param string $key
  * @param AioOcCard $c
@@ -731,9 +731,8 @@ function aio_oc_retry($key, $c)
     $g = aio_cm_get($c['tile']);
     if (!$g['meta'])
         return aio_error('cat_row_failed', $g['err']);
-    $card = aio_oc_make($c['tile'], $g['meta'], $c['dune'], $c['lang'], aio_cm_posters($key, $c['tile'], $g['meta']));
-    $card['pos'] = array_merge($card['pos'], array('z' => 'pill', 'b' => $c['pos']['b']));
-    aio_oc_keep($key, $card);
+    $card = aio_oc_build($key, $c['tile'], $g['meta'], array('id' => $c['dune'], 'none' => false, 'kp' => ''), $c['lang']);
+    AioOc::$cards[$key]['pos'] = array_merge($card['pos'], array('z' => 'pill', 'b' => $c['pos']['b']));
     aio_log("card: own $key: meta again, the screen anew");
     return aio_replace_act("card:$key", $c['tile']['name']);
 }

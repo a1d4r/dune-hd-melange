@@ -159,7 +159,8 @@ function aio_card_pick($tmdb, $imdb, $tile)
 // card without the answer of the other sign may not be the one to keep. With a
 // refused or failed request the second is not asked. Without dune_auth nothing is
 // asked: the shell can not open a card either. kp: the rating of Kinopoisk of the card
-// when the server was asked now ('' for none), null when not (the cache, no sign, no dune_auth).
+// ('' for none), kept with the id in the cache; null when not known (a cache of before it, no sign,
+// no dune_auth).
 /**
  * @param AioCatTile $tile
  * @return array{id: string, none: bool, kp: string|null}
@@ -189,7 +190,8 @@ function aio_card_id($tile)
         if (time() >= $c['t'] && time() - $c['t'] < ($id !== '' ? AIO_CARD_TTL_ID : AIO_CARD_TTL_NONE))
         {
             aio_log('card: cached ' . ($id !== '' ? $id : 'none'));
-            return array('id' => $id, 'none' => $id === '', 'kp' => null);
+            return array('id' => $id, 'none' => $id === '',
+                'kp' => isset($c['data']['kp']) && is_string($c['data']['kp']) ? $c['data']['kp'] : null);
         }
     }
     $cards = array('tmdb' => null, 'imdb' => null);
@@ -205,9 +207,10 @@ function aio_card_id($tile)
     }
     $card = aio_card_pick($cards['tmdb'], $cards['imdb'], $tile);
     $id = $card ? $card['id'] : '';
+    $kp = $card ? $card['kp'] : '';
     if ($whole)
-        aio_cat_cache_write($key, 1, array('id' => $id));
-    return array('id' => $id, 'none' => $whole && $id === '', 'kp' => $card ? $card['kp'] : '');
+        aio_cat_cache_write($key, 1, array('id' => $id, 'kp' => $kp));
+    return array('id' => $id, 'none' => $whole && $id === '', 'kp' => $kp);
 }
 
 // The rating of Kinopoisk of card $id of the Dune of $tile, asked now by one sign (TMDB, else

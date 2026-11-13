@@ -210,10 +210,11 @@ function aio_oc_enter($tile, $lang)
 
 // The tile of a card with what the header needs: a tile not of a row of the catalog (of the
 // works of a person: id, name, poster, year) has no rating, genres, length or logo. What it lacks
-// is taken of the tile of the meta (no rating of Kinopoisk, no age of Kino API there: the server
-// adds them to its rows and search only); the rating of Kinopoisk: of the card of this title in
-// memory (opened before, from a row of the catalog too), else of the card of the Dune $c
-// (aio_card_id; it came of its cache: asked now, aio_card_kp). The ids stay those of the tile.
+// is taken of the tile of the card of this title in memory first (opened before, from a row of the
+// catalog too: its rating of Kinopoisk and votes), then of the tile of the meta (no rating of
+// Kinopoisk, no age of Kino API there: the server adds them to its rows and search only); no card
+// in memory: the rating of Kinopoisk of the card of the Dune $c (aio_card_id; not known of its
+// cache: asked now, aio_card_kp). The ids stay those of the tile, so do its fields not empty.
 /**
  * @param AioCatTile $tile
  * @param AioCardMeta|null $meta
@@ -224,18 +225,17 @@ function aio_oc_fill($tile, $meta, $c)
 {
     static $keys = array('year', 'imdbRating', 'description', 'genres', 'poster', 'background', 'country', 'runtime', 'age',
         'cast', 'englishTitle', 'kpRating', 'kpVotes', 'kpId', 'logo', 'logoLang');
-    $m = $meta ? $meta['tile'] : null;
-    foreach ($m ? $keys : array() as $k)
-    {
-        if (($tile[$k] === '' || $tile[$k] === array() || $tile[$k] === 0) && $m[$k] !== '' && $m[$k] !== array())
-            $tile[$k] = $m[$k];
-    }
     $key = $tile['type'] . ':' . aio_cm_id($tile);
-    if ($tile['kpRating'] !== '' || $c['id'] === '')
-        return $tile;
-    if (isset(AioOc::$cards[$key]))
-        $tile['kpRating'] = AioOc::$cards[$key]['tile']['kpRating'];
-    else
+    $was = isset(AioOc::$cards[$key]) ? AioOc::$cards[$key]['tile'] : null;
+    foreach (array($was, $meta ? $meta['tile'] : null) as $m)
+    {
+        foreach ($m ? $keys : array() as $k)
+        {
+            if (($tile[$k] === '' || $tile[$k] === array() || $tile[$k] === 0) && $m[$k] !== '' && $m[$k] !== array())
+                $tile[$k] = $m[$k];
+        }
+    }
+    if ($tile['kpRating'] === '' && $c['id'] !== '' && !$was)
         $tile['kpRating'] = $c['kp'] !== null ? $c['kp'] : aio_card_kp($tile, $c['id']);
     return $tile;
 }
