@@ -59,12 +59,13 @@ require_once dirname(__FILE__) . '/view_catalog.php';
 require_once dirname(__FILE__) . '/view_catalog_rows.php';
 // The tab "TV" of the main screen.
 require_once dirname(__FILE__) . '/tv_tab.php';
-// The own card of a title: its meta, its screen.
+// The own card of a title: its meta, its screen; the page of a person.
 require_once dirname(__FILE__) . '/card_meta.php';
 require_once dirname(__FILE__) . '/card_more.php';
 require_once dirname(__FILE__) . '/view_card.php';
 require_once dirname(__FILE__) . '/view_card_series.php';
 require_once dirname(__FILE__) . '/view_card_row.php';
+require_once dirname(__FILE__) . '/view_person.php';
 
 class Aio
 {
@@ -1163,6 +1164,8 @@ function aio_folder_view($media_url, $sel_state)
         return aio_catv_folder_view($media_url, $sel_state);
     if (strpos($media_url, 'card:') === 0)
         return aio_oc_folder_view($media_url, $sel_state);
+    if (strpos($media_url, 'person:') === 0)
+        return aio_pp_folder_view($media_url, $sel_state);
     $st = Aio::$state;
     if ($st && $media_url === 'streams:' . $st['rid'])
         return aio_gc_folder_view($st, $sel_state);
@@ -1446,6 +1449,8 @@ function aio_handle_user_input($in)
         return aio_tv_timer($in);
     if (is_string($control) && strpos($control, 'card_') === 0)
         return aio_oc_input($in, $control);
+    if (is_string($control) && strpos($control, 'person_') === 0)
+        return aio_pp_input($in, $control);
     if ($control === 'gc_move' || $control === 'gc_pick' || $control === 'gc_info')
         return aio_gc_input($in);
     if ($control === 'info_page')

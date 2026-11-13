@@ -10,7 +10,8 @@
 // too; DOWN again further while there is more, UP back, at last to the button left. A series (H1):
 // the buttons higher ("Continue SxEy" by the history), under them the tabs of the seasons and the
 // row of the episodes of the season shown, their progress by the history; the cast goes DOWN with
-// "About the series". At the stop of the cast LEFT and RIGHT go along it (the creators first).
+// "About the series". At the stop of the cast LEFT and RIGHT go along it (the creators first), ENTER
+// opens the page of the person (view_person.php).
 // The plugin draws and moves the focus itself with change_gcomps, as the list; the place
 // (aio_oc_pos: the zone, the button, the stop, the season and the episode, the item of each row)
 // travels in sel_state.
@@ -718,8 +719,24 @@ function aio_oc_cast_cell($i, $x, $p, $color)
     return aio_gc_panel("p$i", aio_gc_at(AIO_OC_NAME_W, AIO_OC_CAST_H, $x, 0), $d);
 }
 
+// The hint at the right of the title of the row ("chint"), the row in focus ($on) on person $p
+// with an id of TMDB: ENTER opens the page of the person.
+/**
+ * @param AioCardCredit|null $p
+ * @param bool $on
+ * @param string $lang
+ * @return list<AioGcComp>
+ */
+function aio_oc_cast_hint($p, $on, $lang)
+{
+    if (!$on || !$p || $p['tmdb'] === '')
+        return array();
+    return array(aio_oc_label(0, 6, AIO_OC_HINT_R - AIO_CATV_CARD_X, aio_tr($lang, 'card_cast_hint'), 24, AIO_GC_DIM,
+        array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
+}
+
 // The row "В ролях" of card $c at place $pos, at the y of its strip (the layout: the page of a
-// movie, "down" of a series): the title, the people of
+// movie, "down" of a series): the title and the hint (aio_oc_cast_hint), the people of
 // aio_oc_people in a clip from the left edge of the screen to the right one of the layout, HINT_R
 // ("cast": the one after the last whole peeks there), the strip moved as aio_oc_strip_at; the
 // frame of the focus (shown at the stop of the row). No people: nothing.
@@ -742,12 +759,15 @@ function aio_oc_cast($c, $l, $pos)
     foreach ($people as $i => $p)
         $cells[] = aio_oc_cast_cell($i, aio_oc_strip_x($s, $i), $p, aio_oc_name_color($on, $i === $k));
     return array(aio_oc_label(AIO_CATV_CARD_X, $y, 800, aio_tr($c['ui'], 'card_cast'), AIO_CATV_LINE_PX, AIO_GC_TEXT),
+        aio_gc_panel('chint', aio_gc_at(AIO_OC_HINT_R - AIO_CATV_CARD_X, AIO_CATV_LINE_H, AIO_CATV_CARD_X, $y),
+            aio_oc_cast_hint($people[$k], $on, $c['ui'])),
         aio_gc_panel('cast', aio_gc_at(AIO_OC_HINT_R, AIO_OC_CAST_H, 0, $s['y']), array(aio_oc_strip_panel($s, $k, $cells)), 0),
         aio_oc_strip_frame($s, $k, $on));
 }
 
 // The changes of the row from place $old to $new: the strip and the frame (aio_oc_strip_changes),
-// the names of the focus lit or dimmed (all of them as the row gets the focus or loses it).
+// the names of the focus lit or dimmed (all of them as the row gets the focus or loses it), the
+// hint.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -770,6 +790,9 @@ function aio_oc_cast_changes($c, $l, $old, $new)
         if ($color !== aio_oc_name_color($oon, $i === $ok))
             $ch[] = aio_gc_change("pn$i", null, GCOMP_TRANSITION_NONE, aio_oc_cast_names($p, $color));
     }
+    $hint = aio_oc_cast_hint($people[$k], $on, $c['ui']);
+    if ($hint !== aio_oc_cast_hint($people[$ok], $oon, $c['ui']))
+        $ch[] = aio_gc_change('chint', null, GCOMP_TRANSITION_NONE, $hint);
     return $ch;
 }
 
@@ -1372,6 +1395,25 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
     return $a;
 }
 
+// ENTER on person $k of the row of card $c ($key): with an id of TMDB its page (view_person.php)
+// with the profession the row shows (a creator's, else "Актёр"); without, nothing.
+/**
+ * @param string $key
+ * @param AioOcCard $c
+ * @param int $k
+ * @return AioAction|null
+ */
+function aio_oc_person($key, $c, $k)
+{
+    list($people, $nc) = aio_oc_people($c);
+    $p = isset($people[$k]) ? $people[$k] : null;
+    aio_log("card: own $key: ENTER on person $k" . ($p && $p['tmdb'] !== '' ? ", tmdb:{$p['tmdb']}" : ', no id of TMDB'));
+    if (!$p || $p['tmdb'] === '')
+        return null;
+    $job = $k < $nc ? $p['role'] : aio_tr($c['ui'], 'person_job_actor');
+    return aio_pp_open($p, $job, $c['lang'], $c['ui']);
+}
+
 // MENU: $items (the marks of an episode, aio_oc_mark_items), then "Settings", as on the list.
 /**
  * @param string $lang
@@ -1394,8 +1436,8 @@ function aio_oc_menu($lang, $items = array())
 // the place of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown
 // (nav), else laid out anew. ENTER on a button: "Watch" - the list of the episode offered, an
 // episode not out yet - the focus to it in the row, "Dune card" - the native card (file_movie);
-// on "did not load" - the meta again; on an episode - its list, one not out yet - the message;
-// below them (a person of the cast too) nothing.
+// on "did not load" - the meta again; on an episode - its list, one not out yet - the message; on
+// a person of the cast - its page (aio_oc_person); below them nothing.
 /**
  * @param stdClass $in
  * @param string $control
@@ -1423,6 +1465,8 @@ function aio_oc_input($in, $control)
         $ep = $l['ep'];
         if ($pos['z'] === 'pill' && !$c['meta'] && $l['kind'] === 'series')
             return aio_oc_retry($key, $c);
+        if (aio_oc_row_on($l, $pos) === 'c')
+            return aio_oc_person($key, $c, aio_oc_row_k($pos, 'c'));
         if ($pos['z'] === 'row')
         {
             $x = aio_oc_ep($c, $pos['s'], $pos['e']);

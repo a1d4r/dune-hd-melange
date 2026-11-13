@@ -13,6 +13,11 @@ define('AIO_CM_WORKS_MAX', 100);
 define('AIO_CM_PLACE_MAX', 200);
 // An empty row (no similar, no franchise on the server) is asked again sooner, s.
 define('AIO_CM_EMPTY_TTL', 300);
+// Characters the font of the firmware has no glyph for (emoji): out of the BMP, the symbols and
+// dingbats (U+2600-U+27BF), the star U+2B50, the selector of the emoji form, the joiner.
+define('AIO_CM_EMOJI_RE', '/[\x{10000}-\x{10FFFF}\x{2600}-\x{27BF}\x{2B50}\x{FE0F}\x{200D}]/u');
+// The number of episodes of a work at most (One Piece: ~1150).
+define('AIO_CM_WORK_EPS_MAX', 99999);
 
 // What an action asked: memory of php_server only, gone with a restart.
 class AioCmMore
@@ -82,14 +87,15 @@ function aio_cm_tile_is($t, $id)
     return $t['imdb_id'] === $id || ($t['_tmdbId'] !== '' && 'tmdb:' . $t['_tmdbId'] === $id);
 }
 
+// A biography of the server -> one line (aio_cm_bio_line). bio_en: it is in English (the server
+// gives it when TMDB has none in Russian): descriptionLang "en", or Latin letters and no Cyrillic.
 // The meta of a person asked as tmdb:$tmdb -> what the person screen shows (AioCmPerson). photo:
-// through the cache, as a poster. born, died: "Y-m-d" or ''. place: of birth. bio: the description,
-// as that of a title; bio_en: it is in English (the server gives it when TMDB has none in Russian):
-// it has Latin letters and no Cyrillic, whatever field the server marks it by. known_for: the
+// through the cache, as a poster. born, died: "Y-m-d" or ''. place: of birth. known_for: the
 // profession (knownFor of the server: Actor, Director; '' for none). works: the credits with an id
 // the own card opens (aio_cm_id), no repeats, in the order of the server, AIO_CM_WORKS_MAX at most:
-// tile (aio_cat_tile), role (role of the server: the character or the job, in English) and types
-// (personTypes: Actor, Director...), '' and none when the server gives none.
+// tile (aio_cat_tile), role (role of the server: up to two characters or jobs, the character first,
+// "Walter White, Director", in English), types (personTypes: Actor, Director...), '' and none when
+// the server gives none; eps: the episodes of a series (episodes), 0 for none.
 /**
  * @param array<mixed> $m
  * @param string $tmdb
@@ -99,7 +105,7 @@ function aio_cm_person_parse($m, $tmdb)
 {
     list(, $born) = aio_cm_time(aio_str($m, 'birthday'));
     list(, $died) = aio_cm_time(aio_str($m, 'deathday'));
-    $bio = aio_cut(aio_one_line(aio_str($m, 'description')), AIO_CM_DESC_MAX);
+    $bio = aio_cut(aio_cm_bio_line(aio_str($m, 'description')), AIO_CM_DESC_MAX);
     $works = array();
     $seen = array();
     foreach (array_slice(aio_arr($m, 'credits'), 0, AIO_CARD_SCAN_MAX) as $c)
@@ -113,14 +119,37 @@ function aio_cm_person_parse($m, $tmdb)
         if (aio_cm_id($t) === '' || isset($seen[$key]))
             continue;
         $seen[$key] = true;
+        $eps = isset($c['episodes']) && is_int($c['episodes']) ? $c['episodes'] : 0;
         $works[] = array('tile' => $t, 'role' => aio_card_text(aio_str($c, 'role')),
-            'types' => aio_cm_names(aio_arr($c, 'personTypes'), AIO_CM_LIST_MAX));
+            'types' => aio_cm_names(aio_arr($c, 'personTypes'), AIO_CM_LIST_MAX),
+            'eps' => $eps > 0 && $eps <= AIO_CM_WORK_EPS_MAX ? $eps : 0);
     }
     return array('id' => "tmdb:$tmdb", 'name' => aio_cut(aio_one_line(aio_str($m, 'name')), AIO_CAT_NAME_MAX),
         'photo' => aio_cm_img(aio_str($m, 'poster'), 'poster'), 'born' => $born, 'died' => $died,
         'place' => aio_cut(aio_one_line(aio_str($m, 'birthPlace')), AIO_CM_PLACE_MAX), 'bio' => $bio,
-        'bio_en' => preg_match('/[A-Za-z]/', $bio) === 1 && preg_match('/[\x{0400}-\x{04FF}]/u', $bio) === 0,
+        'bio_en' => aio_str($m, 'descriptionLang') === 'en' ||
+            (preg_match('/[A-Za-z]/', $bio) === 1 && preg_match('/[\x{0400}-\x{04FF}]/u', $bio) === 0),
         'known_for' => aio_card_text(aio_str($m, 'knownFor')), 'works' => $works);
+}
+
+// A biography in paragraphs -> one line for the screen: the emoji out (AIO_CM_EMOJI_RE: the font
+// has none), the paragraphs joined, a dot after one that ends with no mark of its end (". ! ? … : ;",
+// a closing quote or bracket after it).
+/**
+ * @param string $s
+ * @return string
+ */
+function aio_cm_bio_line($s)
+{
+    $out = array();
+    foreach (preg_split('/[\r\n\x{0085}\x{2028}\x{2029}]+/u', aio_utf8($s)) as $par)
+    {
+        $par = trim(strval(preg_replace('/ {2,}/', ' ', aio_one_line(preg_replace(AIO_CM_EMOJI_RE, '', $par)))));
+        if ($par === '')
+            continue;
+        $out[] = preg_match('/[.!?\x{2026}:;]["\x{00BB}\x{201D})\]]*$/u', $par) ? $par : "$par.";
+    }
+    return implode(' ', $out);
 }
 
 // The person of TMDB id $tmdb (digits, tmdb of AioCardCredit) for its screen, asked when ENTER opens
