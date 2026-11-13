@@ -6,8 +6,8 @@
 // moves them and the frame. Ids of a strip: its id (also its key in the place of a screen, AioOcPos
 // r) and "<id>st" (the strip), "<id>fr" (the frame); the cells of a row of posters
 // (aio_oc_poster_cell) "<id><i>" and their titles "<id>n<i>", so the rows of a screen do not
-// collide. The cast ("c") has its own: "p<i>", the names "pn<i>"; the episodes ("e") too: "c<i>",
-// the titles "tt<i>".
+// collide; the stubs of a row asked (aio_oc_poster_stub) have none. The cast ("c") has its own:
+// "p<i>", the names "pn<i>"; the episodes ("e") too: "c<i>", the titles "tt<i>".
 // AioOcStrip: n items, nc before the line (0 none); the item w x h (the frame goes round it), the
 // cell cw x ch (the strip ends cw after the x of the last); step apart, div more after the line;
 // vis whole on the screen, lead slots the frame goes before the strip moves; x the left slot on
@@ -261,6 +261,17 @@ function aio_oc_poster_titles($name, $lines, $color)
         $y += AIO_OC_CAP_LH;
     }
     return $d;
+}
+
+// A grey stub of a poster at $i of strip $s, while its row is asked (a card, a person).
+/**
+ * @param AioOcStrip $s
+ * @param int $i
+ * @return AioGcComp
+ */
+function aio_oc_poster_stub($s, $i)
+{
+    return aio_gc_rect(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, aio_oc_strip_x($s, $i), 0), AIO_OC_NO_PHOTO);
 }
 
 // The poster of tile $t at $i of strip $s ("<id><i>") as in the catalog (aio_catv_poster), $over

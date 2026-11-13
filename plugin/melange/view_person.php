@@ -424,7 +424,7 @@ function aio_pp_page($e, $p, $l, $pos)
     else if ($l['state'] === 'wait')
     {
         for ($i = 0; $i < AIO_OC_POSTER_VIS; $i++)
-            $cells[] = aio_gc_rect(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, $i * AIO_OC_POSTER_STEP, 0), AIO_OC_NO_PHOTO);
+            $cells[] = aio_oc_poster_stub($s, $i);
         $s = array_merge($s, array('n' => AIO_OC_POSTER_VIS));
     }
     if ($cells)

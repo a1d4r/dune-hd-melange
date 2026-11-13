@@ -379,8 +379,9 @@ parameters:
         AioCardMeta: 'array{type: string, id: string, imdb: string, tile: AioCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<AioCardCredit>, directors: list<AioCardCredit>, writers: list<AioCardCredit>, creators: list<AioCardCredit>, collection: array{id: string, name: string}, seasons: array<int, list<AioCardEp>>, season_numbers: array<int, int>}'
         # A card of the own card screen in memory (AioOc::$cards, view_card.php).
         AioOcCard: 'array{tile: AioCatTile, meta: AioCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: AioOcPos, n: int, posters: AioCmPosters, nav?: AioOcNav}'
-        # The rows of posters of an own card (aio_cm_posters, card_more.php): similar titles, the movies of a franchise.
-        AioCmPosters: 'array{sim: list<AioCatTile>, parts: list<AioCatTile>, cur: int, coll: string}'
+        # The rows of posters of an own card (aio_cm_posters, card_more.php): similar titles, the movies of a franchise; what is
+        # left to ask (wait), how each went (st), the time of the asks (ms).
+        AioCmPosters: 'array{sim: list<AioCatTile>, parts: list<AioCatTile>, cur: int, coll: string, wait: list<string>, st: array<string, string>, ms: int}'
         # A place of the focus on the own card, in AioOcCard and in sel_state (aio_oc_pos, view_card.php).
         AioOcPos: 'array{z: string, b: int, p: int, s: int, e: int, r: array<string, int>}'
         # What the keys of the own card need of its layout (view_card.php).

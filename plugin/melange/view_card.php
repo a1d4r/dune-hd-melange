@@ -17,8 +17,8 @@
 // The plugin draws and moves the focus itself with change_gcomps, as the list; the place
 // (aio_oc_pos: the zone, the button, the stop, the season and the episode, the item of each row)
 // travels in sel_state.
-// ENTER on a tile does the network (aio_oc_enter: the meta, the rows of posters); the screen is
-// built from memory.
+// ENTER on a tile does the network (aio_oc_enter: the meta; the rows of posters on r24); the screen
+// is built from memory; from r25 its timer asks the rows of posters (aio_oc_load).
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, card_more.php, history.php, playback.php, view_catalog.php,
 // view_gcomps.php, gcomps.php; the seasons and the episodes of a series: view_card_series.php; the
 // strip of a row and the frame of the focus: view_card_row.php.
@@ -91,13 +91,16 @@ define('AIO_OC_ABOUT_Y', 616);
 // the cast, the movies of a franchise, similar titles.
 define('AIO_OC_ROW_IDS', 'c,f,s');
 // The rows of posters (view_card_row.php; 2.0, stage 4 of design-own-card.md): similar titles and the
-// movies of a franchise (aio_cm_posters), asked as the card opens after its meta; one of PARTS_IN
+// movies of a franchise (aio_cm_posters); asked as the card opens after its meta on r24, from r25 by
+// the timer of the screen (TICK_MS after it is shown), one a tick, grey stubs in their place till
+// then (aio_oc_poster_rows: the row "w"); one of PARTS_IN
 // at most goes first in "Похожие" after a line (variant C), a longer one is a row of its own over it. A cell: the poster, its title in
 // 2 lines and the year under it (their boxes 462 under its top), TILE_CH high: at the stop of the
 // next row (its title at DOWN_Y) the bottom of the year at VIEW_Y, none of it under the logo; the
 // movie of the card darkened by THIS with "Этот фильм". The title of a row TITLE_W wide at most;
 // of the first row of a movie up to HINT_GAP before the hint of the first screen at its right.
 define('AIO_OC_PARTS_IN', 3);
+define('AIO_OC_TICK_MS', 100);
 define('AIO_OC_TILE_CH', 482);
 define('AIO_OC_THIS', '#90000000');
 define('AIO_OC_TITLE_W', 1180);
@@ -262,8 +265,9 @@ function aio_oc_make($tile, $meta, $dune, $lang, $posters)
 }
 
 // The card $key of $tile with meta $meta (or null), the card of the Dune $c (aio_card_id), $lang
-// of play_action: the tile filled (aio_oc_fill), the rows of posters asked (aio_cm_posters), made
-// (aio_oc_make) and kept (aio_oc_keep).
+// of play_action: the tile filled (aio_oc_fill), the rows of posters asked (aio_cm_posters: all of them
+// on r24, else those in memory, the rest by the timer of the screen), made (aio_oc_make) and kept
+// (aio_oc_keep).
 /**
  * @param string $key
  * @param AioCatTile $tile
@@ -274,7 +278,8 @@ function aio_oc_make($tile, $meta, $dune, $lang, $posters)
  */
 function aio_oc_build($key, $tile, $meta, $c, $lang)
 {
-    $card = aio_oc_make(aio_oc_fill($tile, $meta, $c), $meta, $c['id'], $lang, aio_cm_posters($key, $tile, $meta));
+    $card = aio_oc_make(aio_oc_fill($tile, $meta, $c), $meta, $c['id'], $lang,
+        aio_cm_posters($key, $tile, $meta, aio_fw_r() < AIO_FW_TIMER_R));
     aio_oc_keep($key, $card);
     return $card;
 }
@@ -832,7 +837,8 @@ function aio_oc_cast_hint($p, $on, $lang)
 // nc (before the line), cur (the index of the movie of the card, -1 for none), the title and what
 // goes grey after it. A franchise of PARTS_IN at most with similar titles: first in "s" "Части
 // франшизы и похожие" after a line; else its own row "f" ("Части франшизы · Дюна · 2 фильма")
-// and "s" "Похожие" under it.
+// and "s" "Похожие" under it. Some still asked (wait): the stubs "w" ("Похожие"; "Части франшизы и
+// похожие" while the franchise may go in it), under the long franchise if it came.
 /**
  * @param AioOcCard $c
  * @return array<string, array{tiles: list<AioCatTile>, nc: int, cur: int, title: string, rest: string}>
@@ -843,10 +849,11 @@ function aio_oc_poster_rows($c)
     $ui = $c['ui'];
     $np = count($m['parts']);
     $rows = array();
+    // The similar ones are asked last: none known while some are asked.
     if ($np > 0 && $m['sim'] && $np <= AIO_OC_PARTS_IN)
         return array('s' => array('tiles' => array_merge($m['parts'], $m['sim']), 'nc' => $np, 'cur' => $m['cur'],
             'title' => aio_tr($ui, 'card_parts_sim'), 'rest' => ''));
-    if ($np > 0)
+    if ($np > AIO_OC_PARTS_IN || ($np > 0 && !$m['wait']))
     {
         $n = $np . ' ' . aio_gc_plural($ui, $np, 'card_movies');
         $rows['f'] = array('tiles' => $m['parts'], 'nc' => 0, 'cur' => $m['cur'], 'title' => aio_tr($ui, 'card_parts'),
@@ -854,6 +861,12 @@ function aio_oc_poster_rows($c)
     }
     if ($m['sim'])
         $rows['s'] = array('tiles' => $m['sim'], 'nc' => 0, 'cur' => -1, 'title' => aio_tr($ui, 'card_sim'), 'rest' => '');
+    if ($m['wait'])
+    {
+        $sim = $m['wait'] === array('sim') && ($np === 0 || $np > AIO_OC_PARTS_IN);
+        $rows['w'] = array('tiles' => array(), 'nc' => 0, 'cur' => -1, 'title' => aio_tr($ui, $sim ? 'card_sim' : 'card_parts_sim'),
+            'rest' => '');
+    }
     return $rows;
 }
 
@@ -877,7 +890,7 @@ function aio_oc_row_items($c, $id)
 
 // The colour of the name of item $i of row $s, item $k in focus, the row in focus ($on): the cast
 // white, the row in focus grey but the one of the focus (aio_oc_name_color); a poster grey, white
-// in focus.
+// in focus; the stubs (no names) grey.
 /**
  * @param AioOcStrip $s
  * @param int $i
@@ -888,7 +901,7 @@ function aio_oc_row_items($c, $id)
 function aio_oc_row_color($s, $i, $k, $on)
 {
     if ($s['id'] !== 'c')
-        return $on && $i === $k ? AIO_GC_TEXT : AIO_GC_TEXT2;
+        return $on && $i === $k && $s['id'] !== 'w' ? AIO_GC_TEXT : AIO_GC_TEXT2;
     return aio_oc_name_color($on, $i === $k);
 }
 
@@ -937,7 +950,8 @@ function aio_oc_tile_titles($t, $color)
 }
 
 // Item $i of $items of row $s, its name in $color: a person (aio_oc_cast_cell); a poster
-// (aio_oc_poster_cell), the movie of the card ($cur) darkened, "Этот фильм" over it.
+// (aio_oc_poster_cell), the movie of the card ($cur) darkened, "Этот фильм" over it; a stub of the
+// row "w" (aio_oc_poster_stub).
 /**
  * @param AioOcStrip $s
  * @param list<mixed> $items
@@ -951,6 +965,8 @@ function aio_oc_row_cell($s, $items, $i, $color, $cur, $ui)
 {
     if ($s['id'] === 'c')
         return aio_oc_cast_cell($i, aio_oc_strip_x($s, $i), $items[$i], $color);
+    if ($s['id'] === 'w')
+        return aio_oc_poster_stub($s, $i);
     $over = array();
     if ($i === $cur)
         $over = array(aio_gc_rect(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, 0, 0), AIO_OC_THIS),
@@ -1245,7 +1261,7 @@ function aio_oc_layout($c)
     $list = array();
     $posters = aio_oc_poster_rows($c);
     foreach ($posters as $id => $r)
-        $list[] = aio_oc_poster_strip($id, count($r['tiles']), $r['nc'], 0, AIO_OC_TILE_CH);
+        $list[] = aio_oc_poster_strip($id, $id === 'w' ? AIO_OC_POSTER_VIS : count($r['tiles']), $r['nc'], 0, AIO_OC_TILE_CH);
     if ($cast)
         $list[] = aio_oc_cast_strip(count($people), $nc);
     list($rows, $strips, $about) = aio_oc_stack($list);
@@ -1291,7 +1307,7 @@ function aio_oc_layout($c)
         $only = aio_oc_under($c, $wh, $btns ? aio_oc_btn_w($btns[0]) : 0);
         if ($down || $posters)
         {
-            $k = isset($posters['s']) ? ($cast ? 'card_sim_cast_about_movie' : 'card_sim_about_movie') :
+            $k = isset($posters['s']) || isset($posters['w']) ? ($cast ? 'card_sim_cast_about_movie' : 'card_sim_about_movie') :
                 ($cast ? 'card_parts_cast_about_movie' : 'card_parts_about_movie');
             $hint = aio_tr($c['ui'], $posters ? $k : 'card_about_movie');
             $hx = AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - 16 - aio_gc_w($hint, AIO_CATV_LINE_PX);
@@ -1365,8 +1381,9 @@ function aio_oc_state($pos, $l)
 
 // Stop $p of a screen laid out with rows $was (their ids by the stops, rs of aio_oc_state) -> the
 // stop of the same place among $rows: a screen of the card shown before its rows of posters came
-// (aio_oc_enter made it anew, Back came to the old screen) stays at its row, at its stop of
-// "About" after the rows; a row gone: $p.
+// (aio_oc_enter made it anew, Back came to the old screen, its timer got them) stays at its row, at
+// its stop of "About" after the rows; the stubs (row "w"): the first row not among $was (came); a
+// row gone, the stubs with none: $p.
 /**
  * @param list<string> $was
  * @param array<int, string> $rows
@@ -1379,6 +1396,9 @@ function aio_oc_stop_of($was, $rows, $p)
         return $p;
     if ($p > count($was))
         return $p - count($was) + count($rows);
+    $came = $was[$p - 1] === 'w' ? array_diff($rows, $was) : array();
+    if ($came)
+        return intval(key($came));
     $q = array_search($was[$p - 1], $rows, true);
     return $q !== false ? intval($q) : $p;
 }
@@ -1460,7 +1480,7 @@ function aio_oc_pos($c, $l, $raw)
 // page below), in "down" from stop to stop first, entering it at the first stop. Left and right:
 // along the buttons; along the tabs, the season of the tab shown in the row at once at its episode
 // (aio_oc_def_e); along the row; P+ and P- (pgup, pgdn) PAGE stills along the row; at the stop of
-// a row (aio_oc_strip_on) along it.
+// a row (aio_oc_strip_on) along it, but the stubs.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -1514,7 +1534,7 @@ function aio_oc_next($c, $l, $pos, $d)
         if ($eps)
             $n['e'] = $eps[max(0, min(count($eps) - 1, aio_cm_ep_index($eps, $pos['e']) + $step))]['e'];
     }
-    else if ($arrow && ($id = aio_oc_strip_on($l, $pos)) !== '')
+    else if ($arrow && ($id = aio_oc_strip_on($l, $pos)) !== '' && $id !== 'w')
     {
         list($k) = aio_oc_strip_at($l['strips'][$id], aio_oc_strip_k($pos, $id) + $step);
         $n['r'][$id] = $k;
@@ -1630,7 +1650,8 @@ function aio_oc_rows_log($pos)
     return $out ? ', rows ' . implode(', ', $out) : '';
 }
 
-// get_folder_view of "card:<type>:<id>"; a card not in memory and not made anew: "outdated".
+// get_folder_view of "card:<type>:<id>"; a card not in memory and not made anew: "outdated". Rows of
+// posters still asked: the timer (aio_oc_load).
 /**
  * @param string $media_url
  * @param mixed $sel_state
@@ -1662,6 +1683,12 @@ function aio_oc_folder_view($media_url, $sel_state)
         $acts += array(
             GUI_EVENT_KEY_P_PLUS => aio_input('card_move', $k + array('d' => 'pgup')),
             GUI_EVENT_KEY_P_MINUS => aio_input('card_move', $k + array('d' => 'pgdn')));
+    $timer = null;
+    if ($c['posters']['wait'])
+    {
+        $acts[GUI_EVENT_TIMER] = aio_input('card_load', $k);
+        $timer = array(GuiTimerDef::delay_ms => AIO_OC_TICK_MS);
+    }
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -1671,7 +1698,7 @@ function aio_oc_folder_view($media_url, $sel_state)
             PluginGCompsFolderView::window_def => aio_oc_window($c, $l, $pos),
             PluginGCompsFolderView::sel_state => aio_oc_state($pos, $l),
             PluginGCompsFolderView::actions => $acts,
-            PluginGCompsFolderView::timer => null));
+            PluginGCompsFolderView::timer => $timer));
 }
 
 // --- Keys.
@@ -1763,6 +1790,31 @@ function aio_oc_tile_enter($key, $c, $id, $k)
     return $this_one ? null : aio_card_enter($t, $c['lang']);
 }
 
+// The timer of card $c ($key) shown with layout $l: the next of its rows of posters asked
+// (aio_cm_posters_step, ROW_LIMIT s), the screen anew with it at the same place (its sel_state none:
+// the place of the card), at the same row (aio_oc_stop_of): from the stubs to the first row that
+// came, with none to the row after them. Nothing to ask (the screen got it already): nothing.
+/**
+ * @param string $key
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @return AioAction|null
+ */
+function aio_oc_load($key, $c, $l)
+{
+    if (!$c['posters']['wait'])
+        return null;
+    $c['posters'] = aio_cm_posters_step($key, $c['tile'], $c['meta'], $c['posters'], AIO_CM_ROW_LIMIT, true);
+    if ($c['pos']['z'] === 'down')
+    {
+        $n = aio_oc_layout($c);
+        $c['pos']['p'] = aio_oc_stop_of(array_values($l['rows']), $n['rows'], $c['pos']['p']);
+    }
+    unset($c['nav']);
+    AioOc::$cards[$key] = $c;
+    return aio_replace_act("card:$key", $c['tile']['name']);
+}
+
 // MENU: $items (the marks of an episode, aio_oc_mark_items), then "Settings", as on the list.
 /**
  * @param string $lang
@@ -1780,9 +1832,9 @@ function aio_oc_menu($lang, $items = array())
         GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
 }
 
-// card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (aio_oc_mark) of
-// the card c. MENU: the marks of the episode in focus in the row, then "Settings". The keys:
-// the place of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown
+// card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (aio_oc_mark),
+// card_load (the timer, aio_oc_load) of the card c. MENU: the marks of the episode in focus in the
+// row, then "Settings". The keys: the place of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown
 // (nav), else laid out anew. ENTER on a button: "Watch" - the list of the episode offered, an
 // episode not out yet - the focus to it in the row, "Dune card" - the native card (file_movie);
 // on "did not load" - the meta again; on an episode - its list, one not out yet - the message; on
@@ -1806,6 +1858,8 @@ function aio_oc_input($in, $control)
     $l = isset($c['nav']) ? $c['nav'] : aio_oc_layout($c);
     $pos = aio_oc_pos($c, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     AioOc::$cards[$key]['pos'] = $pos;
+    if ($control === 'card_load')
+        return aio_oc_load($key, AioOc::$cards[$key], $l);
     if ($control === 'card_menu')
         return aio_oc_menu($c['ui'], aio_oc_mark_items($key, $c, $l['prog'], $pos));
     $new = $pos;

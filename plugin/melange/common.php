@@ -1147,6 +1147,9 @@ function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
 define('AIO_FW_VOD_R_R', 25);
 // The own card of Melange (view_card.php) is seen on r24 and r25: on by default from r24 (aio_card_own).
 define('AIO_FW_CARD_R', 24);
+// The rows of posters of the own card come by the timer of its screen from r25 (seen on the device
+// there; r24 by the code only): asked as the card opens before.
+define('AIO_FW_TIMER_R', 25);
 
 class AioFirmware
 {

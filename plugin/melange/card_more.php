@@ -14,9 +14,11 @@ define('AIO_CM_MORE_KEEP', 3);
 define('AIO_CM_ROWS_KEEP', 8);
 define('AIO_CM_WORKS_MAX', 100);
 define('AIO_CM_PLACE_MAX', 200);
-// An empty row (no similar, no franchise on the server) or a failure (no reply in time, an error) is
-// asked again sooner, s: with the server down an opening does not wait for it each time.
+// An empty row (no similar, no franchise on the server) or a failure (an error, 429) is asked again
+// sooner, s; no reply in time, the net, 5xx (the server may build the reply meanwhile) LATER_TTL s
+// later: with the server down an opening does not wait for it each time.
 define('AIO_CM_EMPTY_TTL', 300);
+define('AIO_CM_LATER_TTL', 30);
 // Characters the font of the firmware has no glyph for (emoji): out of the BMP, the keycap U+20E3,
 // the technical signs (U+2300-U+23FF: watches), the symbols and dingbats (U+2600-U+27BF), the
 // arrows and shapes of U+2B00-U+2BFF (the star), the wavy dash U+3030, the selector of the emoji
@@ -29,9 +31,11 @@ define('AIO_CM_HEAD_MAX', 40);
 define('AIO_CM_HEAD_WORDS', 4);
 // The number of episodes of a work at most (One Piece: ~1150).
 define('AIO_CM_WORK_EPS_MAX', 99999);
-// The rows of posters of an own card (aio_cm_posters): POSTERS_TOTAL s for both at most, PARTS_MAX
-// movies of a franchise at most.
+// The rows of posters of an own card (aio_cm_posters): asked as the card opens (r24), POSTERS_TOTAL s
+// for both at most; by the timer of the card, one a tick, ROW_LIMIT s each; PARTS_MAX movies of a
+// franchise at most.
 define('AIO_CM_POSTERS_TOTAL', 3);
+define('AIO_CM_ROW_LIMIT', 3);
 define('AIO_CM_PARTS_MAX', 40);
 
 // What an action asked: memory of php_server only, gone with a restart.
@@ -299,9 +303,9 @@ function aio_cm_person($tmdb, $limit)
 }
 
 // Tiles of a row of the server asked by an action: from memory if asked less than AIO_CM_TTL ago
-// (an empty row, a failure: AIO_CM_EMPTY_TTL), AIO_CM_ROWS_KEEP of a kind, else in $limit s at most,
-// parsed by $parse (aio_cat_tiles, aio_cm_parts_tiles), only those the own card opens (an id of
-// aio_cm_id: not mal:...), no repeats. -> err: '' or as aio_cm_person (none, later); tiles: none on
+// (an empty row, a failure: AIO_CM_EMPTY_TTL; no reply in time, the net, 5xx: AIO_CM_LATER_TTL),
+// AIO_CM_ROWS_KEEP of a kind, else in $limit s at most, parsed by $parse (aio_cat_tiles,
+// aio_cm_parts_tiles), only those the own card opens (an id of aio_cm_id: not mal:...), no repeats. -> err: '' or as aio_cm_person (none, later); tiles: none on
 // a failure, and none may be all there is.
 /**
  * @param string $kind
@@ -335,8 +339,9 @@ function aio_cm_more_row($kind, $key, $path, $limit, $type, $parse)
         }
     }
     $r = array('err' => $g['err'] !== '' ? aio_cm_err_kind($g['err']) : '', 'tiles' => $tiles);
+    $ttl = in_array($g['err'], array('timeout', 'net', 'server'), true) ? AIO_CM_LATER_TTL : AIO_CM_EMPTY_TTL;
     unset($g);
-    aio_cm_more_put($kind, $key, $r, $tiles ? AIO_CM_TTL : AIO_CM_EMPTY_TTL, AIO_CM_ROWS_KEEP);
+    aio_cm_more_put($kind, $key, $r, $tiles ? AIO_CM_TTL : $ttl, AIO_CM_ROWS_KEEP);
     return $r;
 }
 
@@ -404,56 +409,133 @@ function aio_cm_parts($coll, $ids, $limit)
     return array('err' => $r['err'], 'tiles' => $r['tiles'], 'current' => $cur);
 }
 
-// The rows of posters of the own card $key of $tile with meta $meta, asked after the meta,
-// POSTERS_TOTAL s for both at most (no meta: none, the server is not there): the movies of the
-// franchise of a movie (aio_cm_parts) first, PARTS_MAX at most, none of fewer than 2 (the movie
-// alone); then the similar titles (aio_cm_similar) if there is time left, without the movies of the
-// franchise and the title itself (any of its ids, aio_cm_title_ids). A failure, no reply in time: no
-// row. -> sim, parts, cur (the index
-// of the movie of the card among the parts, -1 for none), coll (the name of the franchise without
-// "(Коллекция)").
+// The rows of posters of the own card of $tile with meta $meta, none asked yet: wait - what to ask, in
+// order: the movies of the franchise of a movie (parts), then the similar titles (sim); nothing without
+// the meta (the server is not there) or an id. st: how each went, for the log (none: not asked); ms:
+// the time of the asks.
 /**
- * @param string $key
  * @param AioCatTile $tile
  * @param AioCardMeta|null $meta
  * @return AioCmPosters
  */
-function aio_cm_posters($key, $tile, $meta)
+function aio_cm_posters_new($tile, $meta)
 {
-    $out = array('sim' => array(), 'parts' => array(), 'cur' => -1, 'coll' => '');
-    $id = aio_cm_id($tile);
-    if (!$meta || $id === '')
-        return $out;
+    $wait = array();
+    if ($meta && aio_cm_id($tile) !== '')
+    {
+        if ($tile['type'] === 'movie' && $meta['collection']['id'] !== '')
+            $wait[] = 'parts';
+        $wait[] = 'sim';
+    }
+    return array('sim' => array(), 'parts' => array(), 'cur' => -1, 'coll' => '', 'wait' => $wait,
+        'st' => array('parts' => 'none', 'sim' => 'none'), 'ms' => 0);
+}
+
+// The first of wait of rows $p of $tile with meta $meta is in memory (AioCmMore: asked before, a
+// failure too): asking it takes no time.
+/**
+ * @param AioCatTile $tile
+ * @param AioCardMeta|null $meta
+ * @param AioCmPosters $p
+ * @return bool
+ */
+function aio_cm_posters_kept($tile, $meta, $p)
+{
+    if (!$p['wait'] || !$meta)
+        return false;
+    return $p['wait'][0] === 'parts' ? aio_cm_more_get('parts', $meta['collection']['id']) !== null :
+        aio_cm_more_get('similar', $tile['type'] . ':' . aio_cm_id($tile)) !== null;
+}
+
+// The first of wait of rows $p of the own card $key ($tile, meta $meta) asked, in $limit s at most:
+// the movies of the franchise (aio_cm_parts), PARTS_MAX at most, none of fewer than 2 (the movie
+// alone); the similar titles (aio_cm_similar) without the movies of the franchise and the title itself
+// (any of its ids, aio_cm_title_ids). A failure, no reply in time: no row. The last asked: the log of
+// both, by the timer of the card ($timer) or not.
+/**
+ * @param string $key
+ * @param AioCatTile $tile
+ * @param AioCardMeta|null $meta
+ * @param AioCmPosters $p
+ * @param int $limit
+ * @param bool $timer
+ * @return AioCmPosters
+ */
+function aio_cm_posters_step($key, $tile, $meta, $p, $limit, $timer)
+{
+    if (!$p['wait'] || !$meta)
+        return $p;
     $t = microtime(true);
     $ids = aio_cm_title_ids($tile, $meta);
-    $coll = $tile['type'] === 'movie' ? $meta['collection'] : array('id' => '', 'name' => '');
-    $pe = 'none';
-    if ($coll['id'] !== '')
+    if (array_shift($p['wait']) === 'parts')
     {
-        $p = aio_cm_parts($coll['id'], $ids, AIO_CM_POSTERS_TOTAL);
-        $pe = $p['err'] !== '' ? $p['err'] : 'ok';
-        if (count($p['tiles']) >= 2)
-            $out = array_merge($out, array('parts' => array_slice($p['tiles'], 0, AIO_CM_PARTS_MAX),
-                'cur' => $p['current'] < AIO_CM_PARTS_MAX ? $p['current'] : -1,
+        $coll = $meta['collection'];
+        $r = aio_cm_parts($coll['id'], $ids, $limit);
+        $p['st']['parts'] = $r['err'] !== '' ? $r['err'] : 'ok';
+        if (count($r['tiles']) >= 2)
+            $p = array_merge($p, array('parts' => array_slice($r['tiles'], 0, AIO_CM_PARTS_MAX),
+                'cur' => $r['current'] < AIO_CM_PARTS_MAX ? $r['current'] : -1,
                 'coll' => trim(strval(preg_replace('/\s*\((?:Коллекция|Collection)\)$/u', '', $coll['name'])))));
     }
-    // Whole seconds (aio_cat_get): the time left rounded, half a second more at most.
-    $left = intval(round(AIO_CM_POSTERS_TOTAL - (microtime(true) - $t)));
-    $se = 'skipped';
-    if ($left >= 1)
+    else
     {
-        $g = aio_cm_similar($tile['type'], $id, $left);
-        $se = $g['err'] !== '' ? $g['err'] : 'ok';
+        $g = aio_cm_similar($tile['type'], aio_cm_id($tile), $limit);
+        $p['st']['sim'] = $g['err'] !== '' ? $g['err'] : 'ok';
         $seen = array();
-        foreach ($out['parts'] as $x)
+        foreach ($p['parts'] as $x)
             $seen[$x['type'] . ':' . aio_cm_id($x)] = true;
         foreach ($g['tiles'] as $x)
         {
             if (!isset($seen[$x['type'] . ':' . aio_cm_id($x)]) && !aio_cm_tile_is($x, $ids))
-                $out['sim'][] = $x;
+                $p['sim'][] = $x;
         }
     }
-    aio_log(sprintf('card: own %s: similar %d (%s), franchise %d (%s), %.0f ms', $key, count($out['sim']), $se,
-        count($out['parts']), $pe, (microtime(true) - $t) * 1000));
-    return $out;
+    $p['ms'] += intval(round((microtime(true) - $t) * 1000));
+    if (!$p['wait'])
+        aio_cm_posters_log($key, $p, $timer);
+    return $p;
+}
+
+/**
+ * @param string $key
+ * @param AioCmPosters $p
+ * @param bool $timer
+ * @return void
+ */
+function aio_cm_posters_log($key, $p, $timer)
+{
+    aio_log(sprintf('card: own %s: similar %d (%s), franchise %d (%s), %d ms%s', $key, count($p['sim']), $p['st']['sim'],
+        count($p['parts']), $p['st']['parts'], $p['ms'], $timer ? ', timer' : ''));
+}
+
+// The rows of posters of the own card $key of $tile with meta $meta as it opens (aio_cm_posters_new):
+// $sync (no timer of the card, r24) - all asked, POSTERS_TOTAL s for both at most, the similar titles
+// not asked (skipped) with less than a second left; else those in memory only (aio_cm_posters_kept),
+// the rest left in wait for the timer of the card (aio_cm_posters_step).
+/**
+ * @param string $key
+ * @param AioCatTile $tile
+ * @param AioCardMeta|null $meta
+ * @param bool $sync
+ * @return AioCmPosters
+ */
+function aio_cm_posters($key, $tile, $meta, $sync)
+{
+    $p = aio_cm_posters_new($tile, $meta);
+    $t = microtime(true);
+    while ($p['wait'] && ($sync || aio_cm_posters_kept($tile, $meta, $p)))
+    {
+        // Whole seconds (aio_cat_get): the time left rounded, half a second more at most.
+        $left = $sync ? intval(round(AIO_CM_POSTERS_TOTAL - (microtime(true) - $t))) : AIO_CM_ROW_LIMIT;
+        if ($left < 1)
+        {
+            foreach ($p['wait'] as $k)
+                $p['st'][$k] = 'skipped';
+            $p['wait'] = array();
+            aio_cm_posters_log($key, $p, false);
+        }
+        else
+            $p = aio_cm_posters_step($key, $tile, $meta, $p, $left, false);
+    }
+    return $p;
 }
