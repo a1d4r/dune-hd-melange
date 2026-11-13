@@ -149,8 +149,26 @@ function aio_pp_age($born, $today)
     return $n >= 0 ? $n : -1;
 }
 
+// A date of a person (aio_cm_person_date): "7 марта 1956", the day unknown "март 1956", the year
+// alone "1956"; '' for none.
+/**
+ * @param string $d
+ * @param string $ui
+ * @return string
+ */
+function aio_pp_day($d, $ui)
+{
+    if (preg_match('/^([0-9]{4})-([0-9]{2})$/D', $d, $x))
+    {
+        $months = explode(',', aio_tr($ui, 'person_months'));
+        return (isset($months[intval($x[2]) - 1]) ? $months[intval($x[2]) - 1] : $x[2]) . " $x[1]";
+    }
+    return preg_match('/^[0-9]{4}$/D', $d) ? $d : aio_oc_day($d, $ui);
+}
+
 // The grey part of the facts: "7 марта 1956 (70 лет) — <the place>"; died: "19 августа 1969 — 28
-// октября 2023 — <the place>" (no age); what is not known left out with its dash.
+// октября 2023 — <the place>" (no age); a date in part (aio_pp_day): no age; died, born unknown:
+// "… — 28 октября 2023" (a date alone reads as the birth); what is not known left out with its dash.
 /**
  * @param AioCmPerson $p
  * @param string $ui
@@ -159,13 +177,16 @@ function aio_pp_age($born, $today)
 function aio_pp_facts($p, $ui)
 {
     $parts = array();
-    if (($b = aio_oc_day($p['born'], $ui)) !== '')
+    $d = aio_pp_day($p['died'], $ui);
+    if (($b = aio_pp_day($p['born'], $ui)) !== '')
     {
         $age = $p['died'] === '' ? aio_pp_age($p['born'], gmdate('Y-m-d')) : -1;
         $parts[] = $b . ($age >= 0 ? ' ' . str_replace(array('{n}', '{y}'), array(strval($age),
             aio_gc_plural($ui, $age, 'person_years')), aio_tr($ui, 'person_age')) : '');
     }
-    if (($d = aio_oc_day($p['died'], $ui)) !== '')
+    else if ($d !== '')
+        $parts[] = "\xE2\x80\xA6";
+    if ($d !== '')
         $parts[] = $d;
     if ($p['place'] !== '')
         $parts[] = $p['place'];
@@ -173,8 +194,9 @@ function aio_pp_facts($p, $ui)
 }
 
 // The lines under the title of work $w of a person of profession $kf (knownFor), 2 at most: its
-// role; none or the profession itself (a director's "Director"): the year; a series: "· 62 серии"
-// after it, or on the second line whole when the role takes both.
+// role; none, of brackets alone ("(voice)") or the profession itself (a director's "Director"):
+// the year; a series: "· 62 серии" whole (the number with its word) at the end of the last line of
+// the role, or "62 серии" on the second line when it does not fit there, the role then in one.
 /**
  * @param AioCmWork $w
  * @param string $kf
@@ -184,41 +206,19 @@ function aio_pp_facts($p, $ui)
 function aio_pp_work_lines($w, $kf, $ui)
 {
     $s = aio_clean($w['role']);
-    if ($s === '' || ($kf !== '' && strcasecmp($s, $kf) === 0))
+    if (preg_replace('~\([^()]*\)|[\s,;/]~', '', $s) === '' || ($kf !== '' && strcasecmp($s, $kf) === 0))
         $s = $w['tile']['year'];
     if ($w['eps'] <= 0)
         return aio_gc_wrap($s, 24, AIO_PP_POSTER_W, 2, true);
     $eps = $w['eps'] . ' ' . aio_gc_plural($ui, $w['eps'], 'card_eps');
     if ($s === '')
         return array($eps);
-    $all = aio_gc_wrap("$s · $eps", 24, AIO_PP_POSTER_W, 3, true);
+    $all = aio_gc_wrap($s, 24, AIO_PP_POSTER_W, 3, true);
+    $n = count($all);
+    if ($n >= 1 && $n <= 2 && aio_gc_w($all[$n - 1] . " · $eps", 24) <= AIO_PP_POSTER_W)
+        return array_merge(array_slice($all, 0, $n - 1), array($all[$n - 1] . " · $eps"));
     // "Walter White,…": no comma before the ellipsis.
-    return count($all) <= 2 ? $all : array(strval(preg_replace('/[\s,;]+(\x{2026})$/u', '$1', aio_gc_cut_w($s, 24, AIO_PP_POSTER_W))),
-        $eps);
-}
-
-// A label at ($x, $y) $w wide, as aio_oc_label of the card (30 px LINE_H high, the name NAME_H,
-// else 34).
-/**
- * @param int $x
- * @param int $y
- * @param int $w
- * @param string $text
- * @param int $px
- * @param string $color
- * @param array<string, mixed> $more
- * @return AioGcComp
- */
-function aio_pp_label($x, $y, $w, $text, $px, $color, $more = array())
-{
-    $more[GCompTtfLabelDef::text] = aio_clean($text);
-    $more[GCompTtfLabelDef::font_size] = $px;
-    $more[GCompTtfLabelDef::text_color] = $color;
-    $h = $px === AIO_CATV_LINE_PX ? AIO_CATV_LINE_H : ($px === AIO_PP_NAME_PX ? AIO_PP_NAME_H : 34);
-    return array(
-        GComponentDef::geom_def => aio_gc_at($w, $h, $x, $y),
-        GComponentDef::kind => GCOMPONENT_TTF_LABEL,
-        GComponentDef::specific_def => $more);
+    return array(strval(preg_replace('/[\s,;]+(\x{2026})$/u', '$1', aio_gc_cut_w($s, 24, AIO_PP_POSTER_W))), $eps);
 }
 
 // --- The layout.
@@ -306,10 +306,10 @@ function aio_pp_state($pos)
  */
 function aio_pp_work_titles($w, $kf, $on, $ui)
 {
-    $d = array(aio_pp_label(0, 0, AIO_PP_POSTER_W, aio_gc_cut_w(aio_clean($w['tile']['name']), 24, AIO_PP_POSTER_W), 24,
+    $d = array(aio_oc_label(0, 0, AIO_PP_POSTER_W, aio_gc_cut_w(aio_clean($w['tile']['name']), 24, AIO_PP_POSTER_W), 24,
         $on ? AIO_GC_TEXT : AIO_GC_TEXT2));
     foreach (aio_pp_work_lines($w, $kf, $ui) as $i => $s)
-        $d[] = aio_pp_label(0, 30 + 26 * $i, AIO_PP_POSTER_W, $s, 24, AIO_GC_DIM);
+        $d[] = aio_oc_label(0, 30 + 26 * $i, AIO_PP_POSTER_W, $s, 24, AIO_GC_DIM);
     return $d;
 }
 
@@ -343,9 +343,9 @@ function aio_pp_bio_page($l, $p, $ui)
 {
     if (!isset($l['pages'][$p - 1]))
         return array();
-    $d = array(aio_pp_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y, 800, aio_tr($ui, 'person_bio'), AIO_CATV_LINE_PX, AIO_GC_TEXT));
+    $d = array(aio_oc_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y, 800, aio_tr($ui, 'person_bio'), AIO_CATV_LINE_PX, AIO_GC_TEXT));
     foreach ($l['pages'][$p - 1] as $i => $s)
-        $d[] = aio_pp_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y + 60 + $i * AIO_PP_BIO_LH, AIO_OC_HINT_R - AIO_CATV_CARD_X, $s,
+        $d[] = aio_oc_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y + 60 + $i * AIO_PP_BIO_LH, AIO_OC_HINT_R - AIO_CATV_CARD_X, $s,
             AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
     if (isset($l['pages'][$p]))
         $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, AIO_CATV_CARD_X, AIO_PP_HINT_Y + 16),
@@ -371,7 +371,10 @@ function aio_pp_page($e, $p, $l, $pos)
     $d = array(aio_gc_rect(aio_gc_at(AIO_PP_PHOTO_W, AIO_PP_PHOTO_H, AIO_PP_PHOTO_X, AIO_PP_PHOTO_Y), AIO_OC_NO_PHOTO));
     if ($photo !== '')
         $d[] = aio_gc_image(aio_gc_at(AIO_PP_PHOTO_W, AIO_PP_PHOTO_H, AIO_PP_PHOTO_X, AIO_PP_PHOTO_Y), $photo);
-    $d[] = aio_pp_label($x, AIO_PP_NAME_Y, $w, aio_gc_cut_w(aio_clean($name), AIO_PP_NAME_PX, $w), AIO_PP_NAME_PX, AIO_GC_TEXT);
+    $nl = aio_oc_label($x, AIO_PP_NAME_Y, $w, aio_gc_cut_w(aio_clean($name), AIO_PP_NAME_PX, $w), AIO_PP_NAME_PX, AIO_GC_TEXT);
+    // The name of 72 px: its own height.
+    $nl[GComponentDef::geom_def][GCompGeometryDef::h] = AIO_PP_NAME_H;
+    $d[] = $nl;
     $kf = $p ? $p['known_for'] : '';
     $job = $kf !== '' ? aio_pp_job($kf, $ui) : $e['job'];
     $facts = $p ? aio_pp_facts($p, $ui) : '';
@@ -379,27 +382,27 @@ function aio_pp_page($e, $p, $l, $pos)
     if ($job !== '')
     {
         $jw = min($w, aio_gc_w($job, AIO_CATV_LINE_PX));
-        $d[] = aio_pp_label($x, AIO_PP_FACTS_Y, $jw, aio_gc_cut_w($job, AIO_CATV_LINE_PX, $w), AIO_CATV_LINE_PX, AIO_GC_TEXT);
+        $d[] = aio_oc_label($x, AIO_PP_FACTS_Y, $jw, aio_gc_cut_w($job, AIO_CATV_LINE_PX, $w), AIO_CATV_LINE_PX, AIO_GC_TEXT);
         $fx += $jw + aio_gc_w(' ', AIO_CATV_LINE_PX);
         if ($facts !== '')
             $facts = "— $facts";
     }
     if ($facts !== '' && $fx < AIO_OC_HINT_R)
-        $d[] = aio_pp_label($fx, AIO_PP_FACTS_Y, AIO_OC_HINT_R - $fx, aio_gc_cut_w($facts, AIO_CATV_LINE_PX, AIO_OC_HINT_R - $fx),
+        $d[] = aio_oc_label($fx, AIO_PP_FACTS_Y, AIO_OC_HINT_R - $fx, aio_gc_cut_w($facts, AIO_CATV_LINE_PX, AIO_OC_HINT_R - $fx),
             AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
     $lines = $l['state'] === 'ok' ? $l['bio'] : array(aio_tr($ui, $l['state'] === 'wait' && $e['err'] === 'later' ? 'person_later' :
         "person_{$l['state']}"));
     foreach ($lines as $i => $s)
-        $d[] = aio_pp_label($x, AIO_PP_BIO_Y + $i * AIO_PP_BIO_LH, $w, $s, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
+        $d[] = aio_oc_label($x, AIO_PP_BIO_Y + $i * AIO_PP_BIO_LH, $w, $s, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
     // The works: the title (the count grey after it), the strip in a clip to the right edge of the
     // screen, the frame; stubs while the person is asked.
     $title = aio_tr($ui, 'person_works');
-    $d[] = aio_pp_label(AIO_CATV_CARD_X, AIO_PP_WORKS_Y, aio_gc_w($title, AIO_CATV_LINE_PX), $title, AIO_CATV_LINE_PX, AIO_GC_TEXT);
+    $d[] = aio_oc_label(AIO_CATV_CARD_X, AIO_PP_WORKS_Y, aio_gc_w($title, AIO_CATV_LINE_PX), $title, AIO_CATV_LINE_PX, AIO_GC_TEXT);
     $s = $l['strip'];
     $cells = array();
     if ($p)
     {
-        $d[] = aio_pp_label(AIO_CATV_CARD_X + aio_gc_w($title . ' ', AIO_CATV_LINE_PX), AIO_PP_WORKS_Y, 300, '· ' . $s['n'],
+        $d[] = aio_oc_label(AIO_CATV_CARD_X + aio_gc_w($title . ' ', AIO_CATV_LINE_PX), AIO_PP_WORKS_Y, 300, '· ' . $s['n'],
             AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
         foreach ($p['works'] as $i => $wk)
             $cells[] = aio_pp_work_cell($i, $s, $wk, $kf, $i === $pos['k'], $ui);
@@ -414,15 +417,9 @@ function aio_pp_page($e, $p, $l, $pos)
         $d[] = aio_gc_panel('works', aio_gc_at(1920, AIO_PP_CELL_H, 0, $s['y']), array(aio_oc_strip_panel($s, $pos['k'], $cells)), 0);
     if ($p && $s['n'] > 0)
         $d[] = aio_oc_strip_frame($s, $pos['k'], true);
-    // The hint of DOWN, as aio_oc_hint of the card.
+    // The hint of DOWN.
     if ($l['pages'])
-    {
-        $hint = aio_tr($ui, 'person_bio_more');
-        $hw = aio_gc_w($hint, AIO_CATV_LINE_PX);
-        $d[] = aio_pp_label(AIO_CATV_CARD_X, AIO_PP_HINT_Y, $hw, $hint, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
-        $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, AIO_CATV_CARD_X + $hw + 16, AIO_PP_HINT_Y + 16),
-            'plugin_file://img/sort_down.png');
-    }
+        $d = array_merge($d, aio_oc_hint(aio_tr($ui, 'person_bio_more'), AIO_CATV_CARD_X, AIO_PP_HINT_Y));
     return $d;
 }
 
@@ -570,7 +567,10 @@ function aio_pp_changes($e, $p, $l, $old, $new)
 
 // person_move (d), person_enter, person_load (the timer), person_menu of person t. ENTER on a work:
 // its own card; on "did not load": asked again (the screen anew, its timer). The timer: the
-// person asked (aio_cm_person, AIO_CAT_TOTAL at most), the screen anew with it or its failure.
+// person asked (aio_cm_person, AIO_CAT_TOTAL at most), the screen anew with it or its failure. Any
+// key while the person is asked, or gone from AioCmMore with its screen open (AIO_CM_TTL past, Back
+// deeper than it keeps, the shell did not ask the view again): as the timer, the place of the
+// screen kept.
 /**
  * @param stdClass $in
  * @param string $control
@@ -584,11 +584,15 @@ function aio_pp_input($in, $control)
     if ($tmdb === '')
         return null;
     $e = aio_pp_entry($tmdb);
-    // ENTER while it is asked: as the timer (should it not come).
-    if ($control === 'person_load' || ($control === 'person_enter' && $e['err'] !== 'none' && $e['tries'] < AIO_PP_TRIES &&
-        aio_cm_more_get('person', "tmdb:$tmdb") === null))
+    /** @var AioCmPerson|null $p */
+    $p = aio_cm_more_get('person', "tmdb:$tmdb");
+    $l = aio_pp_layout($e, $p);
+    $pos = aio_pp_pos($e, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    $e['pos'] = $pos;
+    aio_pp_put($tmdb, $e);
+    if ($control === 'person_load' || $l['state'] === 'wait')
     {
-        if (aio_cm_more_get('person', "tmdb:$tmdb") === null)
+        if (!$p)
         {
             $r = aio_cm_person($tmdb, AIO_CAT_TOTAL);
             $e['tries'] = $r['err'] !== '' ? $e['tries'] + 1 : 0;
@@ -598,12 +602,6 @@ function aio_pp_input($in, $control)
         }
         return aio_replace_act("person:$tmdb", $e['name']);
     }
-    /** @var AioCmPerson|null $p */
-    $p = aio_cm_more_get('person', "tmdb:$tmdb");
-    $l = aio_pp_layout($e, $p);
-    $pos = aio_pp_pos($e, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
-    $e['pos'] = $pos;
-    aio_pp_put($tmdb, $e);
     if ($control === 'person_enter')
     {
         if ($l['state'] === 'failed')

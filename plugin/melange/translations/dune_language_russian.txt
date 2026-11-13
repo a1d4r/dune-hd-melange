@@ -211,6 +211,7 @@ person_later = Сервер собирает данные, подождите…
 person_failed = Сервер не ответил · ENTER — повторить
 person_none = Нет данных о персоне
 person_age = ({n} {y})
+person_months = январь,февраль,март,апрель,май,июнь,июль,август,сентябрь,октябрь,ноябрь,декабрь
 person_years_one = год
 person_years_few = года
 person_years_many = лет

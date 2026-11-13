@@ -211,6 +211,7 @@ person_later = The server is gathering the data, please wait…
 person_failed = The server did not reply · ENTER to retry
 person_none = No data on this person
 person_age = (age {n})
+person_months = January,February,March,April,May,June,July,August,September,October,November,December
 person_years_one = year
 person_years_few = years
 person_years_many = years

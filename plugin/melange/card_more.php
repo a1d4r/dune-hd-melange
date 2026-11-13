@@ -13,9 +13,11 @@ define('AIO_CM_WORKS_MAX', 100);
 define('AIO_CM_PLACE_MAX', 200);
 // An empty row (no similar, no franchise on the server) is asked again sooner, s.
 define('AIO_CM_EMPTY_TTL', 300);
-// Characters the font of the firmware has no glyph for (emoji): out of the BMP, the symbols and
-// dingbats (U+2600-U+27BF), the star U+2B50, the selector of the emoji form, the joiner.
-define('AIO_CM_EMOJI_RE', '/[\x{10000}-\x{10FFFF}\x{2600}-\x{27BF}\x{2B50}\x{FE0F}\x{200D}]/u');
+// Characters the font of the firmware has no glyph for (emoji): out of the BMP, the keycap U+20E3,
+// the technical signs (U+2300-U+23FF: watches), the symbols and dingbats (U+2600-U+27BF), the
+// arrows and shapes of U+2B00-U+2BFF (the star), the wavy dash U+3030, the selector of the emoji
+// form, the joiner.
+define('AIO_CM_EMOJI_RE', '/[\x{10000}-\x{10FFFF}\x{20E3}\x{2300}-\x{23FF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{3030}\x{FE0F}\x{200D}]/u');
 // The number of episodes of a work at most (One Piece: ~1150).
 define('AIO_CM_WORK_EPS_MAX', 99999);
 
@@ -90,7 +92,7 @@ function aio_cm_tile_is($t, $id)
 // A biography of the server -> one line (aio_cm_bio_line). bio_en: it is in English (the server
 // gives it when TMDB has none in Russian): descriptionLang "en", or Latin letters and no Cyrillic.
 // The meta of a person asked as tmdb:$tmdb -> what the person screen shows (AioCmPerson). photo:
-// through the cache, as a poster. born, died: "Y-m-d" or ''. place: of birth. known_for: the
+// through the cache, as a poster. born, died: "Y-m-d", "Y-m", "Y" (aio_cm_person_date) or ''. place: of birth. known_for: the
 // profession (knownFor of the server: Actor, Director; '' for none). works: the credits with an id
 // the own card opens (aio_cm_id), no repeats, in the order of the server, AIO_CM_WORKS_MAX at most:
 // tile (aio_cat_tile), role (role of the server: up to two characters or jobs, the character first,
@@ -103,8 +105,8 @@ function aio_cm_tile_is($t, $id)
  */
 function aio_cm_person_parse($m, $tmdb)
 {
-    list(, $born) = aio_cm_time(aio_str($m, 'birthday'));
-    list(, $died) = aio_cm_time(aio_str($m, 'deathday'));
+    $born = aio_cm_person_date(aio_str($m, 'birthday'));
+    $died = aio_cm_person_date(aio_str($m, 'deathday'));
     $bio = aio_cut(aio_cm_bio_line(aio_str($m, 'description')), AIO_CM_DESC_MAX);
     $works = array();
     $seen = array();
@@ -130,6 +132,22 @@ function aio_cm_person_parse($m, $tmdb)
         'bio_en' => aio_str($m, 'descriptionLang') === 'en' ||
             (preg_match('/[A-Za-z]/', $bio) === 1 && preg_match('/[\x{0400}-\x{04FF}]/u', $bio) === 0),
         'known_for' => aio_card_text(aio_str($m, 'knownFor')), 'works' => $works);
+}
+
+// A date of a person of the server -> "Y-m-d" (aio_cm_time); the day unknown "Y-m", the month too "Y";
+// '' for none or a wrong one.
+/**
+ * @param string $s
+ * @return string
+ */
+function aio_cm_person_date($s)
+{
+    list(, $d) = aio_cm_time($s);
+    if ($d !== '' || !preg_match('/^([0-9]{4})(?:-([0-9]{2}))?$/D', $s, $x) || intval($x[1]) < 1)
+        return $d;
+    if (!isset($x[2]))
+        return $x[1];
+    return intval($x[2]) >= 1 && intval($x[2]) <= 12 ? "$x[1]-$x[2]" : '';
 }
 
 // A biography in paragraphs -> one line for the screen: the emoji out (AIO_CM_EMOJI_RE: the font

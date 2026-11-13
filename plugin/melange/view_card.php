@@ -442,7 +442,7 @@ function aio_oc_btn_items($b, $w, $on)
  * @param int $px
  * @param string $color
  * @param array<string, mixed> $spec
- * @return array<string, mixed>
+ * @return AioGcComp
  */
 function aio_oc_label($x, $y, $w, $text, $px, $color, $spec = array())
 {
@@ -563,7 +563,7 @@ function aio_oc_under_ser($c, $x)
  * @param string $text
  * @param int $x
  * @param int $y
- * @return list<array<string, mixed>>
+ * @return list<AioGcComp>
  */
 function aio_oc_hint($text, $x, $y)
 {
@@ -641,24 +641,24 @@ function aio_oc_cast_strip($n, $nc, $y)
         'x' => AIO_CATV_CARD_X, 'y' => $y + 46, 'id' => 'c');
 }
 
-// The row in focus at place $pos: the one of its stop of the page (rows of the layout), '' for none.
+// The strip in focus at place $pos: the one of its stop of the page (rows of the layout), '' for none.
 /**
  * @param AioOcNav $l
  * @param AioOcPos $pos
  * @return string
  */
-function aio_oc_row_on($l, $pos)
+function aio_oc_strip_on($l, $pos)
 {
     return $pos['z'] === 'down' && isset($l['rows'][$pos['p']]) ? $l['rows'][$pos['p']] : '';
 }
 
-// The item of row $id at place $pos (its memory, aio_oc_pos), 0 for none.
+// The item of strip $id at place $pos (its memory, aio_oc_pos), 0 for none.
 /**
  * @param AioOcPos $pos
  * @param string $id
  * @return int
  */
-function aio_oc_row_k($pos, $id)
+function aio_oc_strip_k($pos, $id)
 {
     return isset($pos['r'][$id]) ? $pos['r'][$id] : 0;
 }
@@ -753,8 +753,8 @@ function aio_oc_cast($c, $l, $pos)
         return array();
     $s = $l['strips']['c'];
     $y = $s['y'] - 46;
-    $on = aio_oc_row_on($l, $pos) === 'c';
-    list($k) = aio_oc_strip_at($s, aio_oc_row_k($pos, 'c'));
+    $on = aio_oc_strip_on($l, $pos) === 'c';
+    list($k) = aio_oc_strip_at($s, aio_oc_strip_k($pos, 'c'));
     $cells = array();
     foreach ($people as $i => $p)
         $cells[] = aio_oc_cast_cell($i, aio_oc_strip_x($s, $i), $p, aio_oc_name_color($on, $i === $k));
@@ -779,10 +779,10 @@ function aio_oc_cast_changes($c, $l, $old, $new)
 {
     list($people) = aio_oc_people($c);
     $s = $l['strips']['c'];
-    $on = aio_oc_row_on($l, $new) === 'c';
-    $oon = aio_oc_row_on($l, $old) === 'c';
-    list($k) = aio_oc_strip_at($s, aio_oc_row_k($new, 'c'));
-    list($ok) = aio_oc_strip_at($s, aio_oc_row_k($old, 'c'));
+    $on = aio_oc_strip_on($l, $new) === 'c';
+    $oon = aio_oc_strip_on($l, $old) === 'c';
+    list($k) = aio_oc_strip_at($s, aio_oc_strip_k($new, 'c'));
+    list($ok) = aio_oc_strip_at($s, aio_oc_strip_k($old, 'c'));
     $ch = aio_oc_strip_changes($s, $ok, $k, $oon, $on);
     foreach ($people as $i => $p)
     {
@@ -1122,7 +1122,7 @@ function aio_oc_pos($c, $l, $raw)
     $r = array();
     foreach ($l['strips'] as $id => $st)
     {
-        $k = isset($src[$id]) && is_int($src[$id]) ? $src[$id] : aio_oc_row_k($last, $id);
+        $k = isset($src[$id]) && is_int($src[$id]) ? $src[$id] : aio_oc_strip_k($last, $id);
         $r[$id] = max(0, min($st['n'] - 1, $k));
     }
     if (!in_array($z, $l['zones'], true))
@@ -1146,7 +1146,7 @@ function aio_oc_pos($c, $l, $raw)
 // page below), in "down" from stop to stop first, entering it at the first stop. Left and right:
 // along the buttons; along the tabs, the season of the tab shown in the row at once at its episode
 // (aio_oc_def_e); along the row; P+ and P- (pgup, pgdn) PAGE stills along the row; at the stop of
-// a row (aio_oc_row_on) along it.
+// a row (aio_oc_strip_on) along it.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -1200,9 +1200,9 @@ function aio_oc_next($c, $l, $pos, $d)
         if ($eps)
             $n['e'] = $eps[max(0, min(count($eps) - 1, aio_cm_ep_index($eps, $pos['e']) + $step))]['e'];
     }
-    else if ($arrow && ($id = aio_oc_row_on($l, $pos)) !== '')
+    else if ($arrow && ($id = aio_oc_strip_on($l, $pos)) !== '')
     {
-        list($k) = aio_oc_strip_at($l['strips'][$id], aio_oc_row_k($pos, $id) + $step);
+        list($k) = aio_oc_strip_at($l['strips'][$id], aio_oc_strip_k($pos, $id) + $step);
         $n['r'][$id] = $k;
     }
     return $n;
@@ -1321,7 +1321,7 @@ function aio_oc_folder_view($media_url, $sel_state)
     AioOc::$cards[$key]['nav'] = $nav;
     aio_log("card: own $key: screen, " . count($l['btns']) . ' buttons, ' . count($l['stops']) . " stops, at {$pos['z']} " .
         "{$pos['b']}, {$pos['p']}" . ($pos['s'] > 0 ? ", S{$pos['s']}E{$pos['e']}" : '') .
-        (aio_oc_row_k($pos, 'c') > 0 ? ', person ' . aio_oc_row_k($pos, 'c') : ''));
+        (aio_oc_strip_k($pos, 'c') > 0 ? ', person ' . aio_oc_strip_k($pos, 'c') : ''));
     $k = array('c' => $key);
     $acts = array(
         GUI_EVENT_KEY_LEFT => aio_input('card_move', $k + array('d' => 'left')),
@@ -1465,8 +1465,8 @@ function aio_oc_input($in, $control)
         $ep = $l['ep'];
         if ($pos['z'] === 'pill' && !$c['meta'] && $l['kind'] === 'series')
             return aio_oc_retry($key, $c);
-        if (aio_oc_row_on($l, $pos) === 'c')
-            return aio_oc_person($key, $c, aio_oc_row_k($pos, 'c'));
+        if (aio_oc_strip_on($l, $pos) === 'c')
+            return aio_oc_person($key, $c, aio_oc_strip_k($pos, 'c'));
         if ($pos['z'] === 'row')
         {
             $x = aio_oc_ep($c, $pos['s'], $pos['e']);
