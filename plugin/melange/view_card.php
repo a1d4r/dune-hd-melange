@@ -214,10 +214,11 @@ function aio_oc_enter($tile, $lang)
 // The tile of a card with what the header needs: a tile not of a row of the catalog (of the
 // works of a person: id, name, poster, year) has no rating, genres, length or logo. What it lacks
 // is taken of the tile of the card of this title in memory first (opened before, from a row of the
-// catalog too: its rating of Kinopoisk and votes), then of the tile of the meta (no rating of
-// Kinopoisk, no age of Kino API there: the server adds them to its rows and search only); still no
-// rating: that of Kinopoisk of the card of the Dune $c (aio_card_id), not known of its cache: asked
-// now (aio_card_kp) with no card in memory. The ids stay those of the tile, so do its fields not empty.
+// catalog too: its rating of Kinopoisk and votes), then of the tile of the meta (since 13.11.2026 the
+// server puts the fields of Kino API there too, kpRating, kpVotes, kpId, the age in
+// app_extras.certifications.RU, aio_cat_tile; only if Kino API answered in time); still no rating:
+// the fallback, that of Kinopoisk of the card of the Dune $c (aio_card_id), not known of its cache:
+// asked now (aio_card_kp) with no card in memory. The ids stay those of the tile, so do its fields not empty.
 /**
  * @param AioCatTile $tile
  * @param AioCardMeta|null $meta
