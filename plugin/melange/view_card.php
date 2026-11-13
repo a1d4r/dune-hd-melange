@@ -215,9 +215,9 @@ function aio_oc_enter($tile, $lang)
 // works of a person: id, name, poster, year) has no rating, genres, length or logo. What it lacks
 // is taken of the tile of the card of this title in memory first (opened before, from a row of the
 // catalog too: its rating of Kinopoisk and votes), then of the tile of the meta (no rating of
-// Kinopoisk, no age of Kino API there: the server adds them to its rows and search only); no card
-// in memory: the rating of Kinopoisk of the card of the Dune $c (aio_card_id; not known of its
-// cache: asked now, aio_card_kp). The ids stay those of the tile, so do its fields not empty.
+// Kinopoisk, no age of Kino API there: the server adds them to its rows and search only); still no
+// rating: that of Kinopoisk of the card of the Dune $c (aio_card_id), not known of its cache: asked
+// now (aio_card_kp) with no card in memory. The ids stay those of the tile, so do its fields not empty.
 /**
  * @param AioCatTile $tile
  * @param AioCardMeta|null $meta
@@ -238,8 +238,13 @@ function aio_oc_fill($tile, $meta, $c)
                 $tile[$k] = $m[$k];
         }
     }
-    if ($tile['kpRating'] === '' && $c['id'] !== '' && !$was)
-        $tile['kpRating'] = $c['kp'] !== null ? $c['kp'] : aio_card_kp($tile, $c['id']);
+    if ($tile['kpRating'] === '' && $c['id'] !== '')
+    {
+        if ($c['kp'] !== null)
+            $tile['kpRating'] = $c['kp'];
+        else if (!$was)
+            $tile['kpRating'] = aio_card_kp($tile, $c['id']);
+    }
     return $tile;
 }
 
@@ -1005,8 +1010,24 @@ function aio_oc_row_hint($c, $s, $items, $k, $on)
     return $s['id'] === 'c' ? aio_oc_cast_hint($items[$k], $on, $c['ui']) : array();
 }
 
+// The title of row $id of card $c with layout $l (aio_oc_row_title, at the top of its panel): TITLE_W
+// at most; of the first row on the first screen ($first) tw of the layout, before the hint of what
+// DOWN shows - it is not in "down".
+/**
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @param string $id
+ * @param bool $first
+ * @return list<AioGcComp>
+ */
+function aio_oc_row_titles($c, $l, $id, $first)
+{
+    list($title, $rest) = aio_oc_row_head($c, $id);
+    return aio_oc_row_title(0, $title, $rest, $first && $l['rows'][1] === $id ? $l['tw'] : AIO_OC_TITLE_W);
+}
+
 // The rows of the layout of card $c at place $pos, each at the y of its strip in "down": the title
-// (aio_oc_row_title, TITLE_W at most, the first row tw of the layout) and the hint at its right (aio_oc_row_hint), the items
+// ("<id>head", aio_oc_row_titles) and the hint at its right (aio_oc_row_hint), the items
 // (aio_oc_row_items) in a clip ("<id>cl") from the left edge of the screen to HINT_R (the one
 // after the last whole peeks there; posters: to the right edge), the strip moved as
 // aio_oc_strip_at; the frame of the focus (shown at the stop of the row).
@@ -1030,8 +1051,7 @@ function aio_oc_rows($c, $l, $pos)
         $cells = array();
         for ($i = 0; $i < $s['n']; $i++)
             $cells[] = aio_oc_row_cell($s, $items, $i, aio_oc_row_color($s, $i, $k, $on), $cur, $c['ui']);
-        list($title, $rest) = aio_oc_row_head($c, $id);
-        $d = array_merge($d, aio_oc_row_title($y, $title, $rest, $l['rows'][1] === $id ? $l['tw'] : AIO_OC_TITLE_W));
+        $d[] = aio_gc_panel("{$id}head", aio_gc_at(1920, AIO_CATV_LINE_H, 0, $y), aio_oc_row_titles($c, $l, $id, $pos['z'] !== 'down'));
         $d[] = aio_gc_panel("{$id}hint", aio_gc_at(AIO_OC_HINT_R - AIO_CATV_CARD_X, AIO_CATV_LINE_H, AIO_CATV_CARD_X, $y),
             aio_oc_row_hint($c, $s, $items, $k, $on));
         $d[] = aio_gc_panel("{$id}cl", aio_gc_at($id === 'c' ? AIO_OC_HINT_R : 1920, $s['ch'], 0, $s['y']),
@@ -1043,7 +1063,7 @@ function aio_oc_rows($c, $l, $pos)
 
 // The changes of the rows from place $old to $new: the strip and the frame (aio_oc_strip_changes),
 // the names of the focus lit or dimmed (aio_oc_row_color: of the cast all of them as the row gets
-// the focus or loses it), the hint.
+// the focus or loses it), the hint; the titles anew as the first screen comes or goes (aio_oc_row_titles).
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -1071,6 +1091,13 @@ function aio_oc_rows_changes($c, $l, $old, $new)
         $hint = aio_oc_row_hint($c, $s, $items, $k, $on);
         if ($hint !== aio_oc_row_hint($c, $s, $items, $ok, $oon))
             $ch[] = aio_gc_change("{$id}hint", null, GCOMP_TRANSITION_NONE, $hint);
+        $first = $new['z'] !== 'down';
+        if ($first !== ($old['z'] !== 'down'))
+        {
+            $head = aio_oc_row_titles($c, $l, $id, $first);
+            if ($head !== aio_oc_row_titles($c, $l, $id, !$first))
+                $ch[] = aio_gc_change("{$id}head", null, GCOMP_TRANSITION_NONE, $head);
+        }
     }
     return $ch;
 }
