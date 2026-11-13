@@ -245,10 +245,53 @@ function aio_movie($in)
         'rate_imdb' => aio_str($m, 'rate_imdb'),
         'desc' => $desc,
         'seasons' => aio_seasons($m));
+    // Of the own card, else of its runs file (a card of the shell: its numbering is of Cinemeta, aio_cin_load).
     $cin = aio_cin_runs(isset($m['aio_cin']) ? $m['aio_cin'] : null);
+    if (!$cin && $series && $mv['imdb'] !== '')
+        $cin = aio_cin_load($mv['imdb']);
     if ($cin)
         $mv['cin'] = $cin;
     return $mv;
+}
+
+// The runs file of the series of IMDb $imdb in data_dir (aio_cin_save), '' without data_dir.
+/**
+ * @param string $imdb
+ * @return string
+ */
+function aio_cin_path($imdb)
+{
+    return aio_data_dir() !== '' && preg_match('/^tt[0-9]{1,10}$/D', $imdb) ? aio_data_dir() . "/cin_$imdb.json" : '';
+}
+
+// Runs $runs (aio_cin_runs) of the numbering of Cinemeta of an anime numbered on, IMDb $imdb, to its file in
+// data_dir (~1 KB; written again only when they change): the ways in of the native card and "Continue" read the
+// history and the list by them with no meta and no network (aio_movie: the numbers of the episodes, old records
+// "1:923" of the own card, aio_wh_se). Logged when written.
+/**
+ * @param string $imdb
+ * @param list<array{int, int, int}> $runs
+ * @return void
+ */
+function aio_cin_save($imdb, $runs)
+{
+    $path = aio_cin_path($imdb);
+    $data = json_encode($runs);
+    if ($path === '' || !$runs || (is_file($path) && file_get_contents($path) === $data))
+        return;
+    aio_log("cinemeta: runs of $imdb " . (aio_write_file($path, $data) ? 'saved' : 'not saved'));
+}
+
+// The runs of the series of IMDb $imdb from its file (aio_cin_save), none for none or a bad one.
+/**
+ * @param string $imdb
+ * @return list<array{int, int, int}>
+ */
+function aio_cin_load($imdb)
+{
+    $path = aio_cin_path($imdb);
+    $size = $path !== '' && is_file($path) ? filesize($path) : 0;
+    return $size > 0 && $size <= 65536 ? aio_cin_runs(json_decode(strval(file_get_contents($path)), true)) : array();
 }
 
 // The runs of the numbering of Cinemeta of a list from the own card (aio_cin of movie_str, aio_oc_watch;

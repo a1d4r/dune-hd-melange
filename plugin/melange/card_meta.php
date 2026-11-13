@@ -615,6 +615,23 @@ function aio_cm_cin($m)
     return $again ? null : $runs;
 }
 
+// aio_cm_cin of meta $m, its runs kept in their file (aio_cin_save); Cinemeta not reached: the runs of the file,
+// if any (logged), else null.
+/**
+ * @param AioCardMeta $m
+ * @return list<array{int, int, int}>|null
+ */
+function aio_cm_cin_get($m)
+{
+    $cin = aio_cm_cin($m);
+    if ($cin)
+        aio_cin_save($m['imdb'], $cin);
+    if ($cin !== null || $m['type'] !== 'series' || !($f = aio_cin_load($m['imdb'])))
+        return $cin;
+    aio_log("card: cinemeta {$m['imdb']}: the runs of its file");
+    return $f;
+}
+
 // Meta $m of a series numbered on by the numbering of Cinemeta of runs $cin (aio_cm_cin; none: $m as it is),
 // as the native card of the Dune has it: the seasons of Cinemeta, s and e of an episode its pair (aio_cin_pair),
 // abs its number of the meta (923 of One Piece S21E32: its streams in an old pack, aio_ts_pick); season_numbers
@@ -654,9 +671,9 @@ function aio_cm_cin_renum($m, $cin)
 // timeout, big, rate, server, notfound, http, bad), other (the meta of another title); meta: the
 // parsed one or null. Only a parsed meta is kept: a failure is asked again at the next opening.
 // Kept: AIO_CM_KEEP titles and AIO_CM_KEEP_EPS episodes in all at most, the oldest go. A series numbered on:
-// by the numbering of Cinemeta (aio_cm_cin, asked with the meta; aio_cm_cin_renum); none of it is kept so too
-// (numbered on, as season 1), but Cinemeta not reached: the meta kept, Cinemeta alone asked again with it from
-// memory after AIO_CM_CIN_AGAIN s (the meta of One Piece is 10 s and 4 MB at most, not asked again for it).
+// by the numbering of Cinemeta (aio_cm_cin_get, asked with the meta; aio_cm_cin_renum); none of it is kept so
+// too (numbered on, as season 1), but Cinemeta not reached: the meta kept, Cinemeta alone asked again with it
+// from memory after AIO_CM_CIN_AGAIN s (the meta of One Piece is 10 s and 4 MB at most, not asked again for it).
 /**
  * @param AioCatTile $t
  * @return array{err: string, meta: AioCardMeta|null}
@@ -678,7 +695,7 @@ function aio_cm_get($t)
             aio_log("card: meta $key cached");
             if ($c['cin_t'] > 0 && ($now < $c['cin_t'] || $now - $c['cin_t'] >= AIO_CM_CIN_AGAIN))
             {
-                $cin = aio_cm_cin($c['m']);
+                $cin = aio_cm_cin_get($c['m']);
                 AioCm::$cache[$key]['m'] = $c['m'] = aio_cm_cin_renum($c['m'], $cin !== null ? $cin : array());
                 AioCm::$cache[$key]['cin_t'] = $cin !== null ? 0 : $now;
             }
@@ -698,7 +715,7 @@ function aio_cm_get($t)
     }
     $m = aio_cm_parse($g['list'], $type, $id, $now);
     unset($g);
-    $cin = aio_cm_cin($m);
+    $cin = aio_cm_cin_get($m);
     $m = aio_cm_cin_renum($m, $cin !== null ? $cin : array());
     $eps = aio_cm_eps_count($m);
     aio_log(sprintf('card: meta %s: imdb %s, %d seasons, %d episodes, %d seasons out, %d actors, %d directors, %d writers, %d creators, collection %s',

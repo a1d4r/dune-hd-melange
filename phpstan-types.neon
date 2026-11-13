@@ -173,8 +173,9 @@ parameters:
             }
         '''
         # The state of a series by its history (aio_wh_series, history.php): the latest
-        # episode record, "s:e" => array(pos, len, watched), the marks of the own card.
-        AioWhSeries: 'array{stdClass|null, array<string, array{float, float, bool}>, array<string, int>}'
+        # episode record, "s:e" => array(pos, len, watched), the marks of the own card, the runs of the
+        # numbering of Cinemeta its old records and marks are read by (aio_wh_se).
+        AioWhSeries: 'array{stdClass|null, array<string, array{float, float, bool}>, array<string, int>, list<array{int, int, int}>}'
         # The episode to offer of a series by its history (aio_wh_pick, history.php).
         AioWhPick: 'array{s: int, e: int, hash: string, kind: string, rec: string, why: string}'
         # "Continue watching" of play_action (aio_resume, main.php; next:

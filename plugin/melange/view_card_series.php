@@ -61,8 +61,9 @@ function aio_oc_prog($c, $prog, $ep)
  */
 function aio_oc_pick($c)
 {
-    $st = $c['dune'] !== '' ? aio_wh_series($c['dune'], aio_wh_marked_set()) : array(null, array(), array());
     $m = $c['meta'];
+    $runs = $m ? $m['cin'] : array();
+    $st = $c['dune'] !== '' ? aio_wh_series($c['dune'], aio_wh_marked_set(), $runs) : array(null, array(), array(), $runs);
     $p = aio_wh_pick($st, $c['dune'], $m ? aio_cm_lists($m) : array());
     $s = $m ? aio_cm_season_of($m, $p['s'], $p['e']) : 0;
     aio_log('card: own series: ' . ($p['rec'] !== '' ? "{$p['rec']}, " : '') . "S{$p['s']}E{$p['e']}, {$p['why']}" .
@@ -667,8 +668,10 @@ function aio_oc_mark_items($key, $c, $prog, $pos)
 // card_mark of MENU of an episode (aio_oc_mark_items: s, e of the meta, w: on, off, prev) of series
 // card $c ($key) -> update_watched_marks: on/off the episode, prev the episodes out before it
 // (aio_oc_prev_eps), the mark of the own card (aio_wh_mark_uid) of each and the uids of the records
-// of our releases of it (aio_wh_ours_eps); then the card anew in place, the focus on the episode
-// (the shell has written watched_files.txt by then). Nothing for a bad input.
+// of our releases of it (aio_wh_ours_eps, both forms of an anime numbered on); off of an episode of an
+// anime numbered on its mark of before the numbering of Cinemeta too ("1:923" of S21E32: the history
+// reads both, aio_wh_marks); then the card anew in place, the focus on the episode (the shell has written
+// watched_files.txt by then). Nothing for a bad input.
 /**
  * @param string $key
  * @param AioOcCard $c
@@ -685,13 +688,14 @@ function aio_oc_mark($key, $c, $in)
         return null;
     $s = intval($s);
     $e = intval($e);
-    if (!aio_oc_ep($c, $s, $e))
+    $x = aio_oc_ep($c, $s, $e);
+    if (!$x)
         return null;
     $keys = $w === 'prev' ? aio_oc_prev_eps($c, $s, $e) : array(aio_cm_hkey($c['meta'], $s, $e));
     if (!$keys)
         return null;
-    $recs = aio_wh_ours_eps($c['dune'], $keys);
-    $ids = array();
+    $recs = aio_wh_ours_eps($c['dune'], $keys, $c['meta']['cin']);
+    $ids = $w === 'off' && $x['abs'] > 0 && !($s === 1 && $x['abs'] === $e) ? array(aio_wh_mark_uid($c['dune'], 1, $x['abs'])) : array();
     $nr = 0;
     foreach ($keys as $k)
     {
