@@ -389,8 +389,8 @@ function aio_cgi_check_values($v)
             'Film logo in place of the title: no such answer'), $f['cat_logo']['name']);
     }
     // None chosen in the file and the answer the page showed for it posted (saved for another field): none still, the
-    // default goes on by the firmware (on after an update to r25). Shown: as the page came (cat_card_was: a page of
-    // r24 open over the update shows "off"); a form without it - by the firmware now.
+    // default goes on by the firmware (on after an update to r24). Shown: as the page came (cat_card_was: a page of
+    // r22 open over the update shows "off"); a form without it - by the firmware now.
     $was = $v['cat_card_was'] !== '' ? $v['cat_card_was'] : aio_cgi_cat_card_of(null);
     $d[$set['cat_card']] = $v['cur'][$set['cat_card']] === null && $v['cat_card'] === $was ? null :
         $v['cat_card'] === aio_cgi_cat_card_of(true);

@@ -466,8 +466,8 @@ function aio_cgi_cat_rating_of($on)
 // The screen #look (a value of the form: '' or another one - none checked). Under the logo:
 // on r24, older or an unknown firmware (aio_fw_vod_r) a warning that it needs r25, the catalog
 // shows the title as text whatever is chosen; else when to turn it off. Under the own card: where
-// it is off when none is chosen (aio_card_own: r24, older or an unknown firmware) a warning that it
-// is seen on r25 alone.
+// it is off when none is chosen (aio_card_own: r22, older or an unknown firmware) a warning that it
+// is seen on r24 and r25 only.
 function aio_cgi_look_screen($v)
 {
     $f = aio_cgi_fields();
@@ -485,8 +485,8 @@ function aio_cgi_look_screen($v)
         '<input type="hidden" id="' . $f['cat_card_was']['id'] . '" name="' . $f['cat_card_was']['name'] . '" value="' .
         aio_cgi_h($v['cat_card_was']) . '">' .
         (aio_card_own(null) ? '' : '<p class="hint wn">' . aio_cgi_l(
-        'Своя карточка проверена только на прошивке r25. Здесь по умолчанию выключена.',
-        'The own card is tested on firmware r25 only; off by default on this Dune.') . '</p>');
+        'Своя карточка проверена на прошивках r24 и r25. Здесь по умолчанию выключена.',
+        'The own card is tested on firmware r24 and r25; off by default on this Dune.') . '</p>');
 }
 
 // The value of the form of cat_rows of the settings (aio_cat_rows_ok): keys by spaces, none in a key.

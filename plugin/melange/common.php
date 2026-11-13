@@ -1145,8 +1145,8 @@ function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
 // From r25 the shell sizes the background of the rows by PluginRowsPane::vod_r; r24 puts it
 // at 1280x720 at (640, 0) whatever vod_r is (the field is in the API of both).
 define('AIO_FW_VOD_R_R', 25);
-// The own card of Melange (view_card.php) is seen on r25 alone: on by default from it (aio_card_own).
-define('AIO_FW_CARD_R', 25);
+// The own card of Melange (view_card.php) is seen on r24 and r25: on by default from r24 (aio_card_own).
+define('AIO_FW_CARD_R', 24);
 
 class AioFirmware
 {
@@ -1224,7 +1224,7 @@ function aio_fw_vod_r()
 }
 
 // "Своя карточка" in effect of cat_card of the settings: as chosen; none chosen (null) - on from
-// AIO_FW_CARD_R, off on r24, older or an unknown firmware (the card of the Dune there).
+// AIO_FW_CARD_R, off on r22, older or an unknown firmware (the card of the Dune there).
 /**
  * @param bool|null $c
  * @return bool
