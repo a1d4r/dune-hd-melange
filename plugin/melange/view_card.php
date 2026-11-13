@@ -449,7 +449,8 @@ function aio_oc_progress_text($pos, $len, $lang)
 
 // --- Layout.
 
-// The buttons: "Watch" with an IMDb, "Dune card" with a card of the Dune; array(kind, text, icon).
+// The buttons: "Watch" with an IMDb, "Trailer" with one (card_trailer.php), "Dune card" with a card
+// of the Dune; array(kind, text, icon).
 // A series: "Continue SxEy" (a record in the history) or "Watch SxEy" of the episode to offer $ep;
 // one not out yet - "SxEy · выйдет 16.11" (kind soon: ENTER to it in the row).
 /**
@@ -476,6 +477,8 @@ function aio_oc_buttons($c, $ep)
             $b[] = array('watch', aio_tr($ui, in_array($ep['kind'], array('record', 'next', 'same'), true) ? 'card_continue' : 'card_watch_ep',
                 $name), true);
     }
+    if (aio_ct_has($c))
+        $b[] = array('trailer', aio_tr($ui, 'card_trailer'), false);
     if ($c['dune'] !== '')
         $b[] = array('dune', aio_tr($ui, 'card_dune'), false);
     return $b;
@@ -1882,6 +1885,8 @@ function aio_oc_input($in, $control)
         return $control === 'card_enter' ? aio_error('cat_outdated') : null;
     if ($control === 'card_mark')
         return aio_oc_mark($key, $c, $in);
+    if ($control === 'card_trailer')
+        return aio_ct_play($c);
     $l = isset($c['nav']) ? $c['nav'] : aio_oc_layout($c);
     $pos = aio_oc_pos($c, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     AioOc::$cards[$key]['pos'] = $pos;
@@ -1916,6 +1921,8 @@ function aio_oc_input($in, $control)
         aio_log("card: own $key: ENTER on $kind");
         if ($kind === 'dune')
             return aio_card_open($c['dune']);
+        if ($kind === 'trailer')
+            return aio_ct_enter($key);
         if ($kind === 'watch')
             return $ep ? aio_oc_watch($c, $ep['q'], $ep['e'], $ep['hash']) : aio_oc_watch($c);
         // Not out yet: the focus to it in the row.
