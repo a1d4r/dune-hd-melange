@@ -221,7 +221,8 @@ function aio_cm_same($m, $id)
 // '' for another. released: "Y-m-d" (UTC). original: originalTitle. tile: the meta as a tile of the
 // catalog (aio_cat_tile), the card of a title no row keeps (php_server restarted); null without a
 // name. collection: the franchise of a movie (belongsToCollection: tmdb.collection.<n>, its name),
-// id '' for none. A series also seasons and season_numbers (aio_cm_eps).
+// id '' for none. A series also seasons and season_numbers (aio_cm_eps). trailer: trailers[] not
+// empty (the button "Трейлер", card_trailer.php).
 /**
  * @param array<mixed> $m
  * @param string $type
@@ -258,7 +259,8 @@ function aio_cm_parse($m, $type, $id, $now)
         'status' => $status === 'Returning Series' ? 'on' : ($status === 'Ended' ? 'ended' : ''),
         'countries' => aio_cm_names($countries, AIO_CARD_COUNTRIES_MAX), 'cast' => $people['cast'],
         'directors' => $people['directors'], 'writers' => $people['writers'], 'creators' => $people['creators'],
-        'collection' => $coll, 'seasons' => $eps['seasons'], 'season_numbers' => $eps['season_numbers']);
+        'collection' => $coll, 'seasons' => $eps['seasons'], 'season_numbers' => $eps['season_numbers'],
+        'trailer' => count(aio_arr($m, 'trailers')) > 0);
 }
 
 // The season the streams of season $s of meta $m are asked by: 1 for one numbered on from season 1
