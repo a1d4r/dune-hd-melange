@@ -1735,7 +1735,7 @@ function aio_oc_folder_view($media_url, $sel_state)
 // (JacRed asks by it): the original title of the meta, else the English one of the tile. A series:
 // episode $e of season $q as asked (aio_cm_req_s), season_numbers of the meta (the episodes out,
 // aio_cm_eps) for the playlist of the season and the next episode, the runs of the numbering of
-// Cinemeta (aio_cin: the streams of season 1 asked by it, aio_stream_ask); the cursor of the list on
+// Cinemeta of an anime numbered on (aio_cin: the numbers of its episodes, aio_cin_n); the cursor of the list on
 // release $hash of the history ('' none). The list marked own: its MENU has no "Choose episode"
 // (choose_season_episode would give the seasons of the last native series, not of this card).
 /**

@@ -425,25 +425,69 @@ function aio_ts_ep_files($files, $s, $e)
     return count($dirs) > 1 ? array() : $any;
 }
 
+// Files $keys of $files (aio_ts_ep_files) of season $s for sure: the season in the
+// name, else as the one season of its own folder (aio_ts_one_season: "Season
+// 21/032.mkv", not "S01-S21/032.mkv" nor "1-21 сезон/032.mkv").
+/**
+ * @param list<AioTsFile> $files
+ * @param list<int> $keys
+ * @param int $s
+ * @return list<int>
+ */
+function aio_ts_ep_sure($files, $keys, $s)
+{
+    $out = array();
+    foreach ($keys as $k)
+    {
+        $p = $files[$k]['path'];
+        $ep = aio_ts_ep($p);
+        if (($ep && $ep[0] !== null ? $ep[0] : aio_ts_one_season(aio_ts_basename(aio_ts_dirname($p)))) === $s)
+            $out[] = $k;
+    }
+    return $out;
+}
+
+// The name of file $path, the one AIOStreams chose for S$s E$e of an anime
+// numbered on (its number of the meta $n), names no other episode: no episode in
+// it (aio_ts_ep, aio_ts_ep_lead), S$s E$e, or $n with no season or season 1. Not
+// "One Piece - 032.mkv" for S21E32, the 923rd.
+/**
+ * @param string $path
+ * @param int $s
+ * @param int $e
+ * @param int $n
+ * @return bool
+ */
+function aio_ts_name_ok($path, $s, $e, $n)
+{
+    $ep = aio_ts_ep($path);
+    if (!$ep)
+        $ep = aio_ts_ep_lead($path);
+    return !$ep || ($ep[0] === $s && $ep[1] === $e) || (($ep[0] === null || $ep[0] === 1) && $ep[1] === $n) ||
+        ($ep[0] === null && $ep[1] === $e && aio_ts_one_season(aio_ts_basename(aio_ts_dirname($path))) === $s);
+}
+
 // The file of row $r in $files -> array(key of $files or -1, why). The one
 // AIOStreams chose: its name (behaviorHints.filename) and size (videoSize);
 // else an episode by the name of the file; else, for a movie, the biggest video,
 // for an episode of a card of season 1 alone ($one_season), the only video if
-// it has no mark. No file of the episode by its number: by its pair of Cinemeta
-// $cin (aio_cin_ep; the reply asked by it, a pack of S21E32 for E923 of One
-// Piece), the season of Cinemeta in the name or the folder only: "032" of a pack
-// "1-130" is another episode (aio_cin_wrong). The number first: an old pack of
-// the absolute numbering ("1-990") finds the file as before.
+// it has no mark. An episode of an anime numbered on, its number of the meta $n
+// (aio_cin_n: 923 for S21E32 of One Piece): its season and episode only with the
+// season in the name or as the one season of its own folder (aio_ts_ep_sure:
+// "032" of a pack "1-130" or "1-21 сезон" is another episode, aio_cin_wrong),
+// else by that number in season 1 (an old pack of the absolute numbering
+// "1-990", "S01-S21/923.mkv"); the file named by AIOStreams only if its name has
+// no other episode (aio_ts_name_ok).
 /**
  * @param list<AioTsFile> $files
  * @param AioRow $r
  * @param int $s
  * @param int $e
  * @param bool $one_season
- * @param array{int, int}|null $cin
+ * @param int $n
  * @return array{int, string}
  */
-function aio_ts_pick($files, $r, $s, $e, $one_season = false, $cin = null)
+function aio_ts_pick($files, $r, $s, $e, $one_season = false, $n = 0)
 {
     $raw = $r['raw'];
     $sd = aio_arr($raw, 'streamData');
@@ -453,7 +497,8 @@ function aio_ts_pick($files, $r, $s, $e, $one_season = false, $cin = null)
     $by_name = array();
     foreach ($files as $k => $f)
     {
-        if ($name !== '' && aio_ts_video($f['path']) && strcasecmp(aio_ts_basename($f['path']), $name) == 0)
+        if ($name !== '' && aio_ts_video($f['path']) && strcasecmp(aio_ts_basename($f['path']), $name) == 0 &&
+            ($n < 1 || aio_ts_name_ok($f['path'], $s, $e, $n)))
             $by_name[] = $k;
     }
     // An episode: the file named by AIOStreams is left out for a file of this
@@ -462,12 +507,11 @@ function aio_ts_pick($files, $r, $s, $e, $one_season = false, $cin = null)
     // absolute numbering ("- 13" for S02E01), a range of seasons in the root.
     $eps = $e > 0 ? aio_ts_ep_files($files, $s, $e) : array();
     $q = $s;
-    if (!$eps && $e > 0 && $cin !== null)
+    if ($n > 0 && $e > 0)
     {
-        $c = aio_ts_ep_files($files, $cin[0], $cin[1]);
-        $c0 = $c ? aio_ts_ep($files[$c[0]]['path']) : null;
-        if (($c0 && $c0[0] !== null) || ($c && aio_ts_dir_season($files[$c[0]]['path'], $cin[0])))
-            list($eps, $q) = array($c, $cin[0]);
+        $eps = aio_ts_ep_sure($files, $eps, $s);
+        if (!$eps)
+            list($eps, $q) = array(aio_ts_ep_files($files, 1, $n), 1);
     }
     $ep0 = $eps ? aio_ts_ep($files[$eps[0]]['path']) : null;
     if ($ep0 && $ep0[0] !== null)
@@ -969,7 +1013,7 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false, $miss_list = f
     }
     else
         list($k, $by) = aio_ts_pick($files, $r, $st['s'], $st['e'], count($st['movie']['seasons']) === 1,
-            aio_cin_ep($st['movie'], $st['s'], $st['e']));
+            aio_cin_n($st['movie'], $st['s'], $st['e']));
     if ($k < 0)
     {
         aio_log("ts: {$by}, " . count($files) . ' files');

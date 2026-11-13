@@ -38,8 +38,7 @@ function aio_oc_eps($c, $s)
     return $c['meta'] && isset($c['meta']['seasons'][$s]) ? $c['meta']['seasons'][$s] : array();
 }
 
-// The progress of episode $ep of card $c in history $prog (aio_wh_series: by the season it is asked
-// by, aio_cm_req_s), null for none.
+// The progress of episode $ep of card $c in history $prog (aio_wh_series: by its key, aio_cm_hkey), null for none.
 /**
  * @param AioOcCard $c
  * @param array<string, array{float, float, bool}> $prog
@@ -48,7 +47,7 @@ function aio_oc_eps($c, $s)
  */
 function aio_oc_prog($c, $prog, $ep)
 {
-    $k = ($c['meta'] ? aio_cm_req_s($c['meta'], $ep['s']) : $ep['s']) . ':' . $ep['e'];
+    $k = $c['meta'] ? aio_cm_hkey($c['meta'], $ep['s'], $ep['e']) : "{$ep['s']}:{$ep['e']}";
     return isset($prog[$k]) ? $prog[$k] : null;
 }
 
@@ -597,8 +596,7 @@ function aio_oc_soon_msg($ep, $lang)
 // --- Marks "watched" (update_watched_marks of the shell, uids aio_wh_mark_uid).
 
 // The episodes out before episode $e of season $s of the meta of card $c, in its order (the
-// seasons from 1, the episodes ascending), as asked (aio_cm_req_s): list of "q:e", $max at most (0:
-// all).
+// seasons from 1, the episodes ascending), by their keys (aio_cm_hkey): list of "q:e", $max at most (0: all).
 /**
  * @param AioOcCard $c
  * @param int $s
@@ -617,14 +615,13 @@ function aio_oc_prev_eps($c, $s, $e, $max = 0)
             break;
         if ($sn < 1)
             continue;
-        $q = aio_cm_req_s($c['meta'], $sn);
         foreach ($eps as $ep)
         {
             if ($sn === $s && $ep['e'] >= $e)
                 break;
             if ($ep['soon'])
                 continue;
-            $out[] = "$q:{$ep['e']}";
+            $out[] = aio_cm_hkey($c['meta'], $sn, $ep['e']);
             if ($max > 0 && count($out) >= $max)
                 return $out;
         }
@@ -690,7 +687,7 @@ function aio_oc_mark($key, $c, $in)
     $e = intval($e);
     if (!aio_oc_ep($c, $s, $e))
         return null;
-    $keys = $w === 'prev' ? aio_oc_prev_eps($c, $s, $e) : array(aio_cm_req_s($c['meta'], $s) . ":$e");
+    $keys = $w === 'prev' ? aio_oc_prev_eps($c, $s, $e) : array(aio_cm_hkey($c['meta'], $s, $e));
     if (!$keys)
         return null;
     $recs = aio_wh_ours_eps($c['dune'], $keys);
