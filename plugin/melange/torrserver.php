@@ -126,7 +126,8 @@ function aio_ts_ep($path)
         preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?[ ._\-](?=[0-9]{2})(' . $x . ')(?![0-9a-z])/i', $n, $m) ||
         preg_match('/(?<![a-z0-9])([0-9]{1,2})x([0-9]{1,3})(?![0-9])/i', $n, $m))
         return array(intval($m[1]), intval($m[2]));
-    if (preg_match('/(?<![a-z0-9])ep?(?:isode)?[ ._\-]?(' . $x . ')(?![0-9])/i', $n, $m) ||
+    // Not a CRC of a release: "[E1234ABC]" is no episode 1234 ("E05v2" is the episode 5).
+    if (preg_match('/(?<![a-z0-9])ep?(?:isode)?[ ._\-]?(' . $x . ')(?:v[0-9])?(?![0-9a-z])/i', $n, $m) ||
         preg_match('/(?<![\pL0-9])серия[ ._\-]*(' . $x . ')(?![0-9])/iu', $n, $m) ||
         preg_match('/(?<![0-9])(' . $x . ')[ ._\-]*серия/iu', $n, $m) ||
         // Anime: "[Group] Title - 07 [1080p].mkv", "Title - 07v2.mkv".
