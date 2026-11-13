@@ -1011,7 +1011,7 @@ function aio_relist($st, $s, $e, $hash)
         return $res;
     $rows = aio_carry_tracks($res['rows'], $st['rows']);
     if (AIO_JACRED)
-        $rows = aio_jacred($rows, $mv, $s);
+        $rows = aio_jacred($rows, $mv, $s, $e);
     $ns = aio_list_state($mv, $s, $e, $rows, $st['lang'], $res['errors']);
     list($sel, $by) = aio_release_row($ns['rows'], $hash, $s, $e, aio_cin_n($mv['cin'], $s, $e));
     return array('st' => aio_gc_put_cursor($ns, $sel), 'sel' => $sel, 'by' => $by);

@@ -155,15 +155,18 @@ function aio_jacred_ask($conf, $path, $connect, $total)
 // Rows without audio tracks of their own get those of the same release
 // (infoHash) from ffprobe of a JacRed of the settings, and its subtitle
 // languages if they have none: one card search, after the AIOStreams reply,
-// in the chosen JacRed, else AIO_JACRED_DEFAULT (aio_jacred_list). Any failure leaves the rows
-// as they are. Aio::$t0: start of the operation.
+// in the chosen JacRed, else AIO_JACRED_DEFAULT (aio_jacred_list), by season $s of a series; an
+// episode $e of an anime numbered on with a number of its own (aio_cin_n) by none: its packs of the
+// numbers ("1-990 серии") have no season of Cinemeta, JacRed would leave them out. Any failure
+// leaves the rows as they are. Aio::$t0: start of the operation.
 /**
  * @param list<AioRow> $rows
  * @param AioMovie $mv
  * @param int $s
+ * @param int $e
  * @return list<AioRow>
  */
-function aio_jacred($rows, $mv, $s)
+function aio_jacred($rows, $mv, $s, $e)
 {
     $need = array();
     foreach ($rows as $r)
@@ -186,7 +189,7 @@ function aio_jacred($rows, $mv, $s)
     }
     $q = array('title' => $mv['title'], 'title_original' => $mv['native'],
         'year' => preg_match('/^[0-9]{4}$/', $mv['year']) ? $mv['year'] : '', 'is_serial' => $mv['series'] ? '2' : '1',
-        'season' => $mv['series'] ? strval($s) : '');
+        'season' => $mv['series'] && aio_cin_n($mv['cin'], $s, $e) === 0 ? strval($s) : '');
     $path = '/api/v2.0/indexers/all/results?';
     foreach ($q as $k => $v)
     {

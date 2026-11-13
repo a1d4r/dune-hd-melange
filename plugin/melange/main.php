@@ -1486,7 +1486,7 @@ function aio_open_list($st)
     Aio::$state = $st;
     if (AIO_JACRED)
     {
-        $st['rows'] = aio_jacred($st['rows'], $st['movie'], $st['s']);
+        $st['rows'] = aio_jacred($st['rows'], $st['movie'], $st['s'], $st['e']);
         Aio::$state = $st;
     }
 
