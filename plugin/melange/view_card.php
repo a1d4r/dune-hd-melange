@@ -1882,7 +1882,7 @@ function aio_oc_input($in, $control)
     if ($control === 'card_menu' && !$c)
         return aio_oc_menu(aio_catv_ui_lang());
     if (!$c)
-        return $control === 'card_enter' ? aio_error('cat_outdated') : null;
+        return in_array($control, array('card_enter', 'card_trailer'), true) ? aio_error('cat_outdated') : null;
     if ($control === 'card_mark')
         return aio_oc_mark($key, $c, $in);
     if ($control === 'card_trailer')
@@ -1926,7 +1926,10 @@ function aio_oc_input($in, $control)
         if ($kind === 'watch')
             return $ep ? aio_oc_watch($c, $ep['q'], $ep['e'], $ep['hash']) : aio_oc_watch($c);
         // Not out yet: the focus to it in the row.
-        $new = array_merge($pos, array('z' => 'row', 'p' => 0, 's' => $ep['s'], 'e' => $ep['e']));
+        if ($kind === 'soon')
+            $new = array_merge($pos, array('z' => 'row', 'p' => 0, 's' => $ep['s'], 'e' => $ep['e']));
+        else
+            return null;
     }
     else
         $new = aio_oc_next($c, $l, $pos, aio_catv_in($in, 'd'));

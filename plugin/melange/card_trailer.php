@@ -77,7 +77,7 @@ function aio_ct_play($c)
         aio_log("$tag: fail $err, $ms ms");
         return aio_ct_none($c);
     }
-    if ($code === 302 && strlen($loc) <= AIO_CT_LOC_MAX && preg_match('~^https?://[^/\s]+/[\x21-\x7e]*$~iD', $loc))
+    if ($code === 302 && strlen($loc) <= AIO_CT_LOC_MAX && preg_match('~^https?://[\x21-\x2e\x30-\x7b\x7d\x7e]+/[\x21-\x7b\x7d\x7e]*$~iD', $loc))
     {
         aio_log("$tag: 302 $ms ms");
         return aio_ct_vod($c, $loc);
@@ -98,7 +98,8 @@ function aio_ct_none($c)
     return $a;
 }
 
-// vod_play of $url full screen: the fields aio_play sends, none that links it to the card.
+// vod_play of $url full screen: the title, the poster and one stream URL from the start; no field that links it to
+// the card (no history, marks, markers, actions).
 /**
  * @param AioOcCard $c
  * @param string $url
