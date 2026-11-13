@@ -544,8 +544,9 @@ function aio_tv_shown_same($epf, $data)
     return !is_file($tmp) && aio_tv_same("{$d['flash']}/$epf.json", $data);
 }
 
-// The build of the code this php_server runs: the latest mtime of the *.php of the plugin, taken once
-// (zip keeps the mtime of each file, a zip of the same AIO_VERSION has another one if any *.php changed).
+// The build of the code this php_server runs: the latest mtime of the *.php of the plugin and of the
+// translations (the captions of the EPF, aio_tr), taken once (zip keeps the mtime of each file, a zip of
+// the same AIO_VERSION has another one if any of them changed).
 /**
  * @return string
  */
@@ -554,7 +555,9 @@ function aio_tv_code_sig()
     if (AioTv::$code_sig === null)
     {
         $t = 0;
-        foreach (glob(dirname(__FILE__) . '/*.php') ?: array() as $f)
+        $dir = dirname(__FILE__);
+        $files = array_merge(glob("$dir/*.php") ?: array(), glob("$dir/translations/dune_language_*.txt") ?: array());
+        foreach ($files as $f)
             $t = max($t, intval(@filemtime($f)));
         AioTv::$code_sig = strval($t);
     }
