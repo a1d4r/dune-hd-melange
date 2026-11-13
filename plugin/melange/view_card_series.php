@@ -273,19 +273,6 @@ function aio_oc_count($c, $s, $t)
         AIO_OC_CNT_PX, AIO_GC_DIM, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
 }
 
-// The first still of the row at the left slot with the one at index $i in focus (in a season of
-// $n): the frame goes in the first two slots, then the row, the frame stays in the second; at the
-// end the frame again.
-/**
- * @param int $i
- * @param int $n
- * @return int
- */
-function aio_oc_off($i, $n)
-{
-    return max(0, min($i - 1, $n - AIO_OC_EP_VIS));
-}
-
 // The stills in the panel of a season of $n at shift $off: all; a long one (more than WIN_MIN)
 // those on screen and WIN each side. -> array(first, last).
 /**
@@ -301,7 +288,8 @@ function aio_oc_win($n, $off)
 }
 
 // The row of a series at place $pos: array(the episodes of its season, the index of its episode
-// (0 for none), the shift aio_oc_off, the stills of the panel aio_oc_win).
+// (0 for none), the first still at the left slot (aio_oc_off: the frame goes in the first two slots,
+// then the row, the frame stays in the second), the stills of the panel aio_oc_win).
 /**
  * @param AioOcCard $c
  * @param AioOcPos $pos
@@ -312,7 +300,7 @@ function aio_oc_row($c, $pos)
     $eps = aio_oc_eps($c, $pos['s']);
     $n = count($eps);
     $i = max(0, aio_cm_ep_index($eps, $pos['e']));
-    $off = aio_oc_off($i, $n);
+    $off = aio_oc_off($i, $n, AIO_OC_EP_VIS, 1);
     list($lo, $hi) = aio_oc_win($n, $off);
     return array($eps, $i, $off, $lo, $hi);
 }
@@ -335,24 +323,17 @@ function aio_oc_eps_geom($n, $off)
  */
 function aio_oc_frame_geom($slot)
 {
-    $f = AIO_OC_FRAME;
-    return aio_gc_at(AIO_OC_EP_W + 2 * $f, AIO_OC_EP_H + 2 * $f, AIO_CATV_CARD_X + $slot * AIO_OC_EP_STEP - $f, AIO_OC_ROW_Y - $f);
+    return aio_oc_frame_at(AIO_CATV_CARD_X + $slot * AIO_OC_EP_STEP, AIO_OC_ROW_Y, AIO_OC_EP_W, AIO_OC_EP_H);
 }
 
-// The frame of the focus: 4 rects, only in the zone of the row.
+// The frame of the focus, only in the zone of the row.
 /**
  * @param string $z
  * @return list<AioGcComp>
  */
 function aio_oc_frame($z)
 {
-    if ($z !== 'row')
-        return array();
-    $f = AIO_OC_FRAME;
-    $w = AIO_OC_EP_W + 2 * $f;
-    $h = AIO_OC_EP_H + 2 * $f;
-    return array(aio_gc_rect(aio_gc_at($w, $f, 0, 0), AIO_OC_FOCUS), aio_gc_rect(aio_gc_at($w, $f, 0, $h - $f), AIO_OC_FOCUS),
-        aio_gc_rect(aio_gc_at($f, $h - 2 * $f, 0, $f), AIO_OC_FOCUS), aio_gc_rect(aio_gc_at($f, $h - 2 * $f, $w - $f, $f), AIO_OC_FOCUS));
+    return $z === 'row' ? aio_oc_frame_rects(AIO_OC_EP_W, AIO_OC_EP_H) : array();
 }
 
 // The title and the line under it of episode $ep: "5. Бой товара" 30 px (in focus white, else grey,
@@ -614,10 +595,8 @@ function aio_oc_row_changes($c, $l, $old, $new)
         }
     }
     // The frame shown or hidden jumps to its place.
-    $fz = ($old['z'] === 'row') !== ($new['z'] === 'row');
-    if ($fg || $fz)
-        $ch[] = aio_gc_change('frame', $fg, $fz ? GCOMP_TRANSITION_NONE : $ft, $fz ? aio_oc_frame($new['z']) : null);
-    return $ch;
+    return array_merge($ch, aio_oc_frame_change('frame', $fg, $ft === GCOMP_TRANSITION_DEFAULT, $old['z'] === 'row', $new['z'] === 'row',
+        AIO_OC_EP_W, AIO_OC_EP_H));
 }
 
 // --- Keys.
@@ -649,7 +628,7 @@ function aio_oc_retry($key, $c)
     if (!$g['meta'])
         return aio_error('cat_row_failed', $g['err']);
     $card = aio_oc_make($c['tile'], $g['meta'], $c['dune'], $c['lang']);
-    $card['pos'] = array('z' => 'pill', 'b' => $c['pos']['b'], 'p' => 0, 's' => 0, 'e' => 0);
+    $card['pos'] = array('z' => 'pill', 'b' => $c['pos']['b'], 'p' => 0, 's' => 0, 'e' => 0, 'k' => 0);
     aio_oc_keep($key, $card);
     aio_log("card: own $key: meta again, the screen anew");
     return aio_replace_act("card:$key", $c['tile']['name']);
