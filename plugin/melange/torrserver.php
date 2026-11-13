@@ -105,9 +105,14 @@ function aio_ts_dirname($path)
     return $p === false ? '' : substr($path, 0, $p);
 }
 
+// The number of an episode in the name of a file: up to 4 digits (One Piece - 1000), not a year 1900-2099, not
+// a resolution ("1080p", "2160i").
+define('AIO_TS_EP_N', '(?!(?:19|20)[0-9]{2}(?![0-9])|[0-9]{4}[pi])[0-9]{1,4}');
+
 // Season and episode by the name of a file -> array(season or null, episode)
 // or null: S01E02, s1.e2, s01ep02, S01E.02, 1x02; else E02 / EP02 / "Серия 2" /
-// "2 серия" / " - 07" (season unknown). Only to find a file in a known pack.
+// "2 серия" / " - 07" (season unknown); an episode up to 4 digits (AIO_TS_EP_N,
+// 1x02: 3). Only to find a file in a known pack.
 // The number leading the name is aio_ts_ep_lead, weaker (aio_ts_eps).
 /**
  * @param string $path
@@ -116,28 +121,29 @@ function aio_ts_dirname($path)
 function aio_ts_ep($path)
 {
     $n = aio_ts_basename($path);
-    if (preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?([0-9]{1,3})(?![0-9])/i', $n, $m) ||
-        preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?[ ._\-]([0-9]{2,3})(?![0-9a-z])/i', $n, $m) ||
+    $x = AIO_TS_EP_N;
+    if (preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?(' . $x . ')(?![0-9])/i', $n, $m) ||
+        preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?[ ._\-](?=[0-9]{2})(' . $x . ')(?![0-9a-z])/i', $n, $m) ||
         preg_match('/(?<![a-z0-9])([0-9]{1,2})x([0-9]{1,3})(?![0-9])/i', $n, $m))
         return array(intval($m[1]), intval($m[2]));
-    if (preg_match('/(?<![a-z0-9])ep?(?:isode)?[ ._\-]?([0-9]{1,3})(?![0-9])/i', $n, $m) ||
-        preg_match('/(?<![\pL0-9])серия[ ._\-]*([0-9]{1,3})(?![0-9])/iu', $n, $m) ||
-        preg_match('/(?<![0-9])([0-9]{1,3})[ ._\-]*серия/iu', $n, $m) ||
+    if (preg_match('/(?<![a-z0-9])ep?(?:isode)?[ ._\-]?(' . $x . ')(?![0-9])/i', $n, $m) ||
+        preg_match('/(?<![\pL0-9])серия[ ._\-]*(' . $x . ')(?![0-9])/iu', $n, $m) ||
+        preg_match('/(?<![0-9])(' . $x . ')[ ._\-]*серия/iu', $n, $m) ||
         // Anime: "[Group] Title - 07 [1080p].mkv", "Title - 07v2.mkv".
-        preg_match('/ - ([0-9]{1,3})(?:v[0-9])?(?=[ ._\[(]|$)/i', $n, $m))
+        preg_match('/ - (' . $x . ')(?:v[0-9])?(?=[ ._\[(]|$)/i', $n, $m))
         return array(null, intval($m[1]));
     return null;
 }
 
-// The number leading the name: "01. Title.mkv", "01.mkv" (not "2024.",
-// "1080p.") -> array(null, episode) or null.
+// The number leading the name: "01. Title.mkv", "01.mkv", "1000.mkv" (not
+// "2024.", "1080p.") -> array(null, episode) or null.
 /**
  * @param string $path
  * @return array{null, int}|null
  */
 function aio_ts_ep_lead($path)
 {
-    return preg_match('/^([0-9]{1,3})(?=[ ._\-])/', aio_ts_basename($path), $m) ? array(null, intval($m[1])) : null;
+    return preg_match('/^(' . AIO_TS_EP_N . ')(?=[ ._\-])/', aio_ts_basename($path), $m) ? array(null, intval($m[1])) : null;
 }
 
 // The weakest: in each folder, the number right after the start common to the
@@ -190,7 +196,7 @@ function aio_ts_eps_prefix($files)
             if (preg_match('/(?<![0-9])(?:(?:19|20)[0-9]{2}[ ._\-][0-9]{1,2}[ ._\-][0-9]{1,2}|' .
                 '[0-9]{1,2}[ ._\-][0-9]{1,2}[ ._\-](?:19|20)[0-9]{2})(?![0-9])/', $n))
                 continue 2;
-            if (preg_match('/^([0-9]{1,3})(?:v[0-9])?(?![0-9a-z])(?![ ._\-][0-9]{1,2}(?![0-9a-z]))/i', substr($n, $start), $m))
+            if (preg_match('/^(' . AIO_TS_EP_N . ')(?:v[0-9])?(?![0-9a-z])(?![ ._\-][0-9]{1,2}(?![0-9a-z]))/i', substr($n, $start), $m))
             {
                 $e = intval($m[1]);
                 if (isset($seen[$e]))
@@ -629,6 +635,8 @@ function aio_ts_episodes($files, $parsed, $s, $e, $chosen, $max)
 // the other seasons: aio_ts_pack_map, only if the file has the season asked for;
 // no season known: the season alone. Kept (Aio::$ts_pack) only if the file has the
 // number and that season, or no season at all: else a lazy episode asks AIOStreams.
+// The file of an anime numbered on by its number of the meta (aio_cin_n: "923"
+// for S21E32): aio_ts_map_abs.
 /**
  * @param AioState $st
  * @param AioRow $r
@@ -646,6 +654,9 @@ function aio_ts_map_start($st, $r, $files, $k)
     $seasons = $st['movie']['seasons'];
     $parsed = aio_ts_eps($files);
     $all = $parsed[0];
+    $n = aio_cin_n($st['movie'], $s, $e);
+    if ($n > 0 && isset($all[$k]) && $all[$k][1] === $n && ($all[$k][0] === null || $all[$k][0] === 1))
+        return aio_ts_map_abs($st, $r, $files, $all, $k);
     $map = array();
     foreach (aio_ts_episodes($files, $parsed, $s, $e, $k, isset($seasons[$s]) ? min($seasons[$s], AIO_EPISODES_MAX) : 0) as $n => $f)
         $map[$s][$n] = $files[$f]['id'];
@@ -668,6 +679,44 @@ function aio_ts_map_start($st, $r, $files, $k)
         }
     }
     Aio::$ts_pack = array('key' => $st['movie']['dune_id'], 'hash' => $r['hash'], 'row' => aio_ts_pack_row($r), 'map' => $map);
+    return $map;
+}
+
+// The map of a start of an anime numbered on, file $k of row $r with the number of the
+// meta of the episode (the 923rd of One Piece for S21E32 in a pack "1-990"): the
+// episodes of its season by their numbers (aio_cin_abs), the files of the folder of $k
+// with such a number and no season or season 1 ($all: aio_ts_eps), the first of
+// several; up to AIO_EPISODES_MAX. Kept (Aio::$ts_pack) for the lazy ones.
+/**
+ * @param AioState $st
+ * @param AioRow $r
+ * @param list<AioTsFile> $files
+ * @param array<int, array{int|null, int}> $all
+ * @param int $k
+ * @return array<int, array<int, int>>
+ */
+function aio_ts_map_abs($st, $r, $files, $all, $k)
+{
+    $s = $st['s'];
+    $mv = $st['movie'];
+    $dir = aio_ts_dirname($files[$k]['path']);
+    $by = array();
+    foreach ($all as $j => $ep)
+    {
+        if (($ep[0] === null || $ep[0] === 1) && !isset($by[$ep[1]]) && aio_ts_dirname($files[$j]['path']) === $dir)
+            $by[$ep[1]] = $j;
+    }
+    $max = isset($mv['seasons'][$s]) ? min($mv['seasons'][$s], AIO_EPISODES_MAX) : 0;
+    $map = array($s => array());
+    for ($i = 1; $i <= $max; $i++)
+    {
+        $a = isset($mv['cin']) ? aio_cin_abs($mv['cin'], $s, $i) : 0;
+        if ($a > 0 && isset($by[$a]))
+            $map[$s][$i] = $files[$by[$a]]['id'];
+    }
+    $map[$s][$st['e']] = $files[$k]['id'];
+    ksort($map[$s]);
+    Aio::$ts_pack = array('key' => $mv['dune_id'], 'hash' => $r['hash'], 'row' => aio_ts_pack_row($r), 'map' => $map);
     return $map;
 }
 
