@@ -1143,7 +1143,7 @@ define('AIO_FW_VOD_R_R', 25);
 
 class AioFirmware
 {
-    // r of the firmware (aio_fw_r): 0 unknown, null not read yet.
+    // r of the firmware (aio_fw_r): null not read yet or unknown (read again next time).
     /** @var int|null */
     public static $r = null;
 }
@@ -1189,14 +1189,20 @@ function aio_fw_r_of($v)
     return preg_match('~_r([0-9]{1,4})$~D', $v, $m) ? intval($m[1]) : 0;
 }
 
-// r of the firmware of the box, versions.txt read once per process; 0 unknown.
+// r of the firmware of the box, versions.txt read once per process; 0 unknown, not kept:
+// the shell may write the file after the first call.
 /**
  * @return int
  */
 function aio_fw_r()
 {
     if (AioFirmware::$r === null)
-        AioFirmware::$r = aio_fw_r_of(aio_versions_field(aio_versions_text(), 'firmware_version'));
+    {
+        $r = aio_fw_r_of(aio_versions_field(aio_versions_text(), 'firmware_version'));
+        if ($r === 0)
+            return 0;
+        AioFirmware::$r = $r;
+    }
     return AioFirmware::$r;
 }
 
