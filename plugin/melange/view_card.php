@@ -91,15 +91,12 @@ define('AIO_OC_ABOUT_Y', 616);
 // the cast, the movies of a franchise, similar titles.
 define('AIO_OC_ROW_IDS', 'c,f,s');
 // The rows of posters (view_card_row.php; 2.0, stage 4 of design-own-card.md): similar titles and the
-// movies of a franchise, asked as the card opens after its meta, MORE_TOTAL s for both at most;
-// PARTS_MAX movies of a franchise at most, one of PARTS_IN at most goes first in "Похожие" after
-// a line (variant C), a longer one is a row of its own over it. A cell: the poster, its title in
+// movies of a franchise (aio_cm_posters), asked as the card opens after its meta; one of PARTS_IN
+// at most goes first in "Похожие" after a line (variant C), a longer one is a row of its own over it. A cell: the poster, its title in
 // 2 lines and the year under it (their boxes 462 under its top), TILE_CH high: at the stop of the
 // next row (its title at DOWN_Y) the bottom of the year at VIEW_Y, none of it under the logo; the
 // movie of the card darkened by THIS with "Этот фильм". The title of a row TITLE_W wide at most:
 // the hint of the first screen at its right.
-define('AIO_OC_MORE_TOTAL', 3);
-define('AIO_OC_PARTS_MAX', 40);
 define('AIO_OC_PARTS_IN', 3);
 define('AIO_OC_TILE_CH', 482);
 define('AIO_OC_THIS', '#90000000');
@@ -179,8 +176,8 @@ class AioOc
 {
     // Cards by "<type>:<id>": tile, meta (or null), imdb, dune (the id of the card of the Dune or
     // of an old local one, '' for none), lang (of play_action), ui (of the texts), pos (the place,
-    // aio_oc_pos), n (episodes of the meta), more (the rows of posters, aio_oc_more); nav (what the
-    // keys need of aio_oc_layout) once shown.
+    // aio_oc_pos), n (episodes of the meta), posters (the rows of posters, aio_cm_posters); nav (what
+    // the keys need of aio_oc_layout) once shown.
     // Memory of php_server only: after a restart the card is made from the meta anew.
     /** @var array<string, AioOcCard> */
     public static $cards = array();
@@ -188,8 +185,7 @@ class AioOc
 
 // ENTER on a tile of a movie or a series with IMDb or TMDB (aio_card_enter): the id of the card of the Dune
 // (aio_card_id; none: an old local card m-melange-..., none is written now), the meta (aio_cm_get;
-// a failure: the card of the tile), the IMDb of a tmdb: tile from it, the tile filled (aio_oc_fill),
-// the rows of posters (aio_oc_more) -> the card screen.
+// a failure: the card of the tile), the card of them (aio_oc_build) -> the card screen.
 /**
  * @param AioCatTile $tile
  * @param string $lang
@@ -200,8 +196,7 @@ function aio_oc_enter($tile, $lang)
     $c = aio_card_id($tile);
     $g = aio_cm_get($tile);
     $key = $tile['type'] . ':' . aio_cm_id($tile);
-    $card = aio_oc_make(aio_oc_fill($tile, $g['meta'], $c), $g['meta'], $c['id'], $lang, aio_oc_more($key, $tile, $g['meta']));
-    aio_oc_keep($key, $card);
+    $card = aio_oc_build($key, $tile, $g['meta'], $c, $lang);
     aio_log("card: own $key: card " . ($card['dune'] !== '' ? $card['dune'] : 'none') . ', meta ' .
         ($g['err'] !== '' ? "failed ({$g['err']})" : 'ok') . ', imdb ' . ($card['imdb'] !== '' ? $card['imdb'] : 'none'));
     return array(
@@ -245,16 +240,16 @@ function aio_oc_fill($tile, $meta, $c)
 }
 
 // A card of $tile: the IMDb of the tile or of the meta; no card of the Dune ($dune ''): the old
-// local one if there is one; the rows of posters $more (aio_oc_more).
+// local one if there is one; the rows of posters $posters (aio_cm_posters).
 /**
  * @param AioCatTile $tile
  * @param AioCardMeta|null $meta
  * @param string $dune
  * @param string $lang
- * @param AioOcMore $more
+ * @param AioCmPosters $posters
  * @return AioOcCard
  */
-function aio_oc_make($tile, $meta, $dune, $lang, $more)
+function aio_oc_make($tile, $meta, $dune, $lang, $posters)
 {
     $imdb = $tile['imdb_id'] !== '' ? $tile['imdb_id'] : ($meta ? $meta['imdb'] : '');
     $tile['imdb_id'] = $imdb;
@@ -262,60 +257,25 @@ function aio_oc_make($tile, $meta, $dune, $lang, $more)
         $dune = aio_card_local_find($tile);
     return array('tile' => $tile, 'meta' => $meta, 'imdb' => $imdb, 'dune' => $dune, 'lang' => $lang,
         'ui' => aio_catv_ui_lang(), 'pos' => array('z' => 'btn', 'b' => 0, 'p' => 0, 's' => 0, 'e' => 0, 'r' => array()),
-        'n' => $meta ? aio_cm_eps_count($meta) : 0, 'more' => $more);
+        'n' => $meta ? aio_cm_eps_count($meta) : 0, 'posters' => $posters);
 }
 
-// The rows of posters of the card $key of $tile with meta $meta, asked after the meta, MORE_TOTAL
-// s for both at most (no meta: none, the server is not there): the movies of the franchise of a
-// movie (aio_cm_parts) first, PARTS_MAX at most, none of fewer than 2 (the movie alone); then the
-// similar titles (aio_cm_similar) if there is time left, without the movies of the franchise and
-// the title itself. A failure, no reply in time: no row. -> sim, parts, cur (the index of the
-// movie of the card among the parts, -1 for none), coll (the name of the franchise without
-// "(Коллекция)").
+// The card $key of $tile with meta $meta (or null), the card of the Dune $c (aio_card_id), $lang
+// of play_action: the tile filled (aio_oc_fill), the rows of posters asked (aio_cm_posters), made
+// (aio_oc_make) and kept (aio_oc_keep).
 /**
  * @param string $key
  * @param AioCatTile $tile
  * @param AioCardMeta|null $meta
- * @return AioOcMore
+ * @param array{id: string, none: bool, kp: string|null} $c
+ * @param string $lang
+ * @return AioOcCard
  */
-function aio_oc_more($key, $tile, $meta)
+function aio_oc_build($key, $tile, $meta, $c, $lang)
 {
-    $more = array('sim' => array(), 'parts' => array(), 'cur' => -1, 'coll' => '');
-    $id = aio_cm_id($tile);
-    if (!$meta || $id === '')
-        return $more;
-    $t = microtime(true);
-    $coll = $tile['type'] === 'movie' ? $meta['collection'] : array('id' => '', 'name' => '');
-    $pe = 'none';
-    if ($coll['id'] !== '')
-    {
-        $p = aio_cm_parts($coll['id'], $id, AIO_OC_MORE_TOTAL);
-        $pe = $p['err'] !== '' ? $p['err'] : 'ok';
-        if (count($p['tiles']) >= 2)
-            $more = array_merge($more, array('parts' => array_slice($p['tiles'], 0, AIO_OC_PARTS_MAX),
-                'cur' => $p['current'] < AIO_OC_PARTS_MAX ? $p['current'] : -1,
-                'coll' => trim(strval(preg_replace('/\s*\((?:Коллекция|Collection)\)$/u', '', $coll['name'])))));
-    }
-    // Whole seconds (aio_cat_get): the time left rounded, half a second more at most.
-    $left = intval(round(AIO_OC_MORE_TOTAL - (microtime(true) - $t)));
-    $se = 'skipped';
-    if ($left >= 1)
-    {
-        $g = aio_cm_similar($tile['type'], $id, $left);
-        $se = $g['err'] !== '' ? $g['err'] : 'ok';
-        $out = array();
-        foreach ($more['parts'] as $x)
-            $out[$x['type'] . ':' . aio_cm_id($x)] = true;
-        foreach ($g['tiles'] as $x)
-        {
-            if (!isset($out[$x['type'] . ':' . aio_cm_id($x)]) && !aio_cm_tile_is($x, $id) &&
-                ($meta['imdb'] === '' || $x['imdb_id'] !== $meta['imdb']))
-                $more['sim'][] = $x;
-        }
-    }
-    aio_log(sprintf('card: own %s: similar %d (%s), franchise %d (%s), %.0f ms', $key, count($more['sim']), $se,
-        count($more['parts']), $pe, (microtime(true) - $t) * 1000));
-    return $more;
+    $card = aio_oc_make(aio_oc_fill($tile, $meta, $c), $meta, $c['id'], $lang, aio_cm_posters($key, $tile, $meta));
+    aio_oc_keep($key, $card);
+    return $card;
 }
 
 /**
@@ -361,9 +321,7 @@ function aio_oc_get($key)
     }
     $tile = $g['meta']['tile'];
     $tile['type'] = $m[1];
-    $c = aio_card_id($tile);
-    $card = aio_oc_make(aio_oc_fill($tile, $g['meta'], $c), $g['meta'], $c['id'], aio_catv_lang(), aio_oc_more($key, $tile, $g['meta']));
-    aio_oc_keep($key, $card);
+    $card = aio_oc_build($key, $tile, $g['meta'], aio_card_id($tile), aio_catv_lang());
     aio_log("card: own $key made anew from its meta");
     return $card;
 }
@@ -821,7 +779,7 @@ function aio_oc_cast_names($p, $color)
     foreach (array($parts[0], isset($parts[1]) ? $parts[1] : '') as $k => $s)
     {
         if (($s = aio_gc_cut_w(aio_clean($s), 24, AIO_OC_NAME_W)) !== '')
-            $d[] = aio_oc_label(0, 26 * $k, AIO_OC_NAME_W, $s, 24, $color);
+            $d[] = aio_oc_label(0, AIO_OC_CAP_LH * $k, AIO_OC_NAME_W, $s, 24, $color);
     }
     return $d;
 }
@@ -849,7 +807,7 @@ function aio_oc_cast_cell($i, $x, $p, $color)
     }
     $d[] = aio_gc_panel("pn$i", aio_gc_at(AIO_OC_NAME_W, 60, 0, AIO_OC_NAME_DY), aio_oc_cast_names($p, $color));
     foreach (aio_gc_wrap($p['role'], 24, AIO_OC_NAME_W, 2, true) as $k => $s)
-        $d[] = aio_oc_label(0, AIO_OC_NAME_DY + 52 + 26 * $k, AIO_OC_NAME_W, $s, 24, AIO_GC_DIM);
+        $d[] = aio_oc_label(0, AIO_OC_NAME_DY + (2 + $k) * AIO_OC_CAP_LH, AIO_OC_NAME_W, $s, 24, AIO_GC_DIM);
     return aio_gc_panel("p$i", aio_gc_at(AIO_OC_NAME_W, AIO_OC_CAST_H, $x, 0), $d);
 }
 
@@ -869,7 +827,7 @@ function aio_oc_cast_hint($p, $on, $lang)
         array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
 }
 
-// The rows of posters of card $c (aio_oc_more) by their ids, in their order on the page: tiles,
+// The rows of posters of card $c (aio_cm_posters) by their ids, in their order on the page: tiles,
 // nc (before the line), cur (the index of the movie of the card, -1 for none), the title and what
 // goes grey after it. A franchise of PARTS_IN at most with similar titles: first in "s" "Части
 // франшизы и похожие" after a line; else its own row "f" ("Части франшизы · Дюна · 2 фильма")
@@ -880,7 +838,7 @@ function aio_oc_cast_hint($p, $on, $lang)
  */
 function aio_oc_poster_rows($c)
 {
-    $m = $c['more'];
+    $m = $c['posters'];
     $ui = $c['ui'];
     $np = count($m['parts']);
     $rows = array();
@@ -949,7 +907,8 @@ function aio_oc_row_head($c, $id)
 }
 
 // The bands of the ink of the lines under the items of row $s (aio_oc_band): the names and the
-// roles of the cast; the titles and the years of the posters (aio_oc_poster_titles).
+// roles of the cast (aio_oc_cast_cell), 4 lines; the titles of the posters in 1 or 2 lines and the
+// year under them (aio_oc_poster_titles).
 /**
  * @param AioOcStrip $s
  * @return list<array{int, int}>
@@ -958,7 +917,9 @@ function aio_oc_row_bands($s)
 {
     $b = array();
     $y = $s['id'] === 'c' ? $s['y'] + AIO_OC_NAME_DY : $s['y'] + AIO_OC_POSTER_H + AIO_OC_POSTER_CAP_DY;
-    foreach ($s['id'] === 'c' ? array(0, 26, 52, 78) : array(0, 26, 30, 56) as $dy)
+    $lh = AIO_OC_CAP_LH;
+    $gap = AIO_OC_CAP_GAP;
+    foreach ($s['id'] === 'c' ? array(0, $lh, 2 * $lh, 3 * $lh) : array(0, $lh, $lh + $gap, 2 * $lh + $gap) as $dy)
         $b[] = aio_oc_band($y + $dy, 24);
     return $b;
 }
@@ -1215,18 +1176,18 @@ function aio_oc_clear($bands, $y, $up)
 // row puts "About" at the top of the clip (the row goes whole), without rows "About" at DOWN_Y;
 // then STEP further at most while the page goes on below the clip, the last ($max) its end at the
 // bottom of the clip, MIN_STEP after the one before at least. The top of the clip at a stop and its
-// bottom cut no line (aio_oc_clear; $more: the lines of the rows too): a line cut at the top goes
+// bottom cut no line (aio_oc_clear; $rowbands: the lines of the rows too): a line cut at the top goes
 // down whole, at the bottom it is not shown. $off: the shift of the stop of the coordinates of the
 // bands ("down").
 /**
  * @param list<array{int, int}> $bands
- * @param list<array{int, int}> $more
+ * @param list<array{int, int}> $rowbands
  * @param list<int> $rows
  * @param int $about
  * @param int $off
  * @return array{list<int>, list<int>}
  */
-function aio_oc_stops($bands, $more, $rows, $about, $off)
+function aio_oc_stops($bands, $rowbands, $rows, $about, $off)
 {
     $stops = array(0);
     foreach ($rows as $y)
@@ -1251,7 +1212,7 @@ function aio_oc_stops($bands, $more, $rows, $about, $off)
             $stops[] = $s = $n;
         }
     }
-    $all = array_merge($bands, $more);
+    $all = array_merge($bands, $rowbands);
     $clips = array();
     foreach ($stops as $s)
         $clips[] = aio_oc_clear($all, AIO_OC_SHOW_BOTTOM - $off + $s, true) + $off - $s;
@@ -1289,18 +1250,18 @@ function aio_oc_layout($c)
     $about = max($about, AIO_OC_ABOUT_Y);
     list($down, $bands) = aio_oc_down($c, $about);
     $ys = array();
-    $more = array();
+    $rowbands = array();
     foreach ($strips as $st)
     {
         $ys[] = $st['y'] - AIO_OC_ROW_HEAD;
-        $more = array_merge($more, aio_oc_row_bands($st));
+        $rowbands = array_merge($rowbands, aio_oc_row_bands($st));
     }
     $ep = null;
     $prog = array();
     if ($series)
         list($ep, $prog) = aio_oc_pick($c);
     $btns = aio_oc_buttons($c, $ep);
-    list($stops, $clips) = aio_oc_stops($bands, $more, $ys, $about, $off);
+    list($stops, $clips) = aio_oc_stops($bands, $rowbands, $ys, $about, $off);
     $tabs = $series && $c['meta'] ? aio_oc_tabs_layout($c)
         : array('list' => array(), 'x' => 0, 'w' => 0, 'all' => 0, 'word' => 0, 'cx' => 0);
     $zones = array('btn');

@@ -22,13 +22,17 @@ define('AIO_OC_ROW_HEAD', 46);
 // POSTER_W x POSTER_H, STEP apart, VIS of them whole (the next one at the right edge of the screen:
 // 10 px of it cut), DIV more after the line; CAP_DY under it its title in 2 lines at most and the
 // lines under it (aio_oc_poster_titles), 24 px. The owner, 13.11.2026: the posters of 190x285 were
-// small, their titles cut.
+// small, their titles cut. The lines under the items of a row (the titles and years of the posters,
+// the names and roles of the cast): CAP_LH apart, the lines under a title CAP_GAP more apart from
+// it; the bands of their ink (aio_oc_row_bands) are of the same.
 define('AIO_OC_POSTER_W', 240);
 define('AIO_OC_POSTER_H', 360);
 define('AIO_OC_POSTER_STEP', 260);
 define('AIO_OC_POSTER_VIS', 6);
 define('AIO_OC_POSTER_DIV', 40);
 define('AIO_OC_POSTER_CAP_DY', 12);
+define('AIO_OC_CAP_LH', 26);
+define('AIO_OC_CAP_GAP', 4);
 
 // The first item of a row of $n at the left slot with the one at $i in focus, $vis of them whole
 // on the screen: the frame goes in the first $lead + 1 slots, then the row, the frame stays in slot
@@ -234,7 +238,7 @@ function aio_oc_poster_strip($id, $n, $nc, $y, $ch)
 }
 
 // The title of a poster ($name in $color, 2 lines at most, "…" at the end of the second) and the
-// lines under it, grey, 4 px more apart from it: their tops 0, 26 and 56, 82.
+// lines under it, grey, CAP_LH apart, CAP_GAP more apart from it: their tops 0, 26 and 56, 82.
 /**
  * @param string $name
  * @param list<string> $lines
@@ -248,13 +252,13 @@ function aio_oc_poster_titles($name, $lines, $color)
     foreach (aio_gc_wrap(aio_clean($name), 24, AIO_OC_POSTER_W, 2, true) as $s)
     {
         $d[] = aio_oc_label(0, $y, AIO_OC_POSTER_W, $s, 24, $color);
-        $y += 26;
+        $y += AIO_OC_CAP_LH;
     }
-    $y += 4;
+    $y += AIO_OC_CAP_GAP;
     foreach ($lines as $s)
     {
         $d[] = aio_oc_label(0, $y, AIO_OC_POSTER_W, $s, 24, AIO_GC_DIM);
-        $y += 26;
+        $y += AIO_OC_CAP_LH;
     }
     return $d;
 }

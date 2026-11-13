@@ -719,7 +719,7 @@ function aio_oc_mark($key, $c, $in)
 }
 
 // ENTER on "did not load" of series card $c ($key): the meta asked again; got - the card anew with
-// it and its rows of posters (aio_oc_more), the screen replaced by it, the focus on the tabs; else
+// it and its rows of posters (aio_cm_posters), the screen replaced by it, the focus on the tabs; else
 // the message.
 /**
  * @param string $key
@@ -731,7 +731,7 @@ function aio_oc_retry($key, $c)
     $g = aio_cm_get($c['tile']);
     if (!$g['meta'])
         return aio_error('cat_row_failed', $g['err']);
-    $card = aio_oc_make($c['tile'], $g['meta'], $c['dune'], $c['lang'], aio_oc_more($key, $c['tile'], $g['meta']));
+    $card = aio_oc_make($c['tile'], $g['meta'], $c['dune'], $c['lang'], aio_cm_posters($key, $c['tile'], $g['meta']));
     $card['pos'] = array_merge($card['pos'], array('z' => 'pill', 'b' => $c['pos']['b']));
     aio_oc_keep($key, $card);
     aio_log("card: own $key: meta again, the screen anew");

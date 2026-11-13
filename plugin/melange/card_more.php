@@ -1,8 +1,8 @@
 <?php
 // Data of the own card asked only by an action, kept apart from the cache of titles of card_meta.php:
 // a person (meta/person/tmdb:<id>.json), similar titles and the movies of a franchise (rows of the
-// server). No screens. Needs card_meta.php (its parsing and limits), catalog.php (aio_cat_get,
-// aio_cat_tile) and main.php (aio_log).
+// server; aio_cm_posters: both rows of an own card). No screens. Needs card_meta.php (its parsing
+// and limits), catalog.php (aio_cat_get, aio_cat_tile) and main.php (aio_log).
 // Types in the PHPDoc (AioCmPerson and others): phpstan-types.neon of the repository.
 
 // Asked only by an action (a person, similar titles, a franchise): AIO_CM_MORE_KEEP of each kept
@@ -24,6 +24,10 @@ define('AIO_CM_HEAD_MAX', 40);
 define('AIO_CM_HEAD_WORDS', 4);
 // The number of episodes of a work at most (One Piece: ~1150).
 define('AIO_CM_WORK_EPS_MAX', 99999);
+// The rows of posters of an own card (aio_cm_posters): POSTERS_TOTAL s for both at most, PARTS_MAX
+// movies of a franchise at most.
+define('AIO_CM_POSTERS_TOTAL', 3);
+define('AIO_CM_PARTS_MAX', 40);
 
 // What an action asked: memory of php_server only, gone with a restart.
 class AioCmMore
@@ -356,4 +360,57 @@ function aio_cm_parts($coll, $id, $limit)
         }
     }
     return array('err' => $r['err'], 'tiles' => $r['tiles'], 'current' => $cur);
+}
+
+// The rows of posters of the own card $key of $tile with meta $meta, asked after the meta,
+// POSTERS_TOTAL s for both at most (no meta: none, the server is not there): the movies of the
+// franchise of a movie (aio_cm_parts) first, PARTS_MAX at most, none of fewer than 2 (the movie
+// alone); then the similar titles (aio_cm_similar) if there is time left, without the movies of the
+// franchise and the title itself. A failure, no reply in time: no row. -> sim, parts, cur (the index
+// of the movie of the card among the parts, -1 for none), coll (the name of the franchise without
+// "(Коллекция)").
+/**
+ * @param string $key
+ * @param AioCatTile $tile
+ * @param AioCardMeta|null $meta
+ * @return AioCmPosters
+ */
+function aio_cm_posters($key, $tile, $meta)
+{
+    $out = array('sim' => array(), 'parts' => array(), 'cur' => -1, 'coll' => '');
+    $id = aio_cm_id($tile);
+    if (!$meta || $id === '')
+        return $out;
+    $t = microtime(true);
+    $coll = $tile['type'] === 'movie' ? $meta['collection'] : array('id' => '', 'name' => '');
+    $pe = 'none';
+    if ($coll['id'] !== '')
+    {
+        $p = aio_cm_parts($coll['id'], $id, AIO_CM_POSTERS_TOTAL);
+        $pe = $p['err'] !== '' ? $p['err'] : 'ok';
+        if (count($p['tiles']) >= 2)
+            $out = array_merge($out, array('parts' => array_slice($p['tiles'], 0, AIO_CM_PARTS_MAX),
+                'cur' => $p['current'] < AIO_CM_PARTS_MAX ? $p['current'] : -1,
+                'coll' => trim(strval(preg_replace('/\s*\((?:Коллекция|Collection)\)$/u', '', $coll['name'])))));
+    }
+    // Whole seconds (aio_cat_get): the time left rounded, half a second more at most.
+    $left = intval(round(AIO_CM_POSTERS_TOTAL - (microtime(true) - $t)));
+    $se = 'skipped';
+    if ($left >= 1)
+    {
+        $g = aio_cm_similar($tile['type'], $id, $left);
+        $se = $g['err'] !== '' ? $g['err'] : 'ok';
+        $seen = array();
+        foreach ($out['parts'] as $x)
+            $seen[$x['type'] . ':' . aio_cm_id($x)] = true;
+        foreach ($g['tiles'] as $x)
+        {
+            if (!isset($seen[$x['type'] . ':' . aio_cm_id($x)]) && !aio_cm_tile_is($x, $id) &&
+                ($meta['imdb'] === '' || $x['imdb_id'] !== $meta['imdb']))
+                $out['sim'][] = $x;
+        }
+    }
+    aio_log(sprintf('card: own %s: similar %d (%s), franchise %d (%s), %.0f ms', $key, count($out['sim']), $se,
+        count($out['parts']), $pe, (microtime(true) - $t) * 1000));
+    return $out;
 }
