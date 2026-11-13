@@ -23,8 +23,8 @@ define('AIO_PP_TICK_MS', 100);
 define('AIO_PP_RETRY_MS', 2000);
 // The photo, the name (72 px), the facts, the biography (BIO_LINES of 30 px BIO_LH apart up to
 // HINT_R); the works: the title at WORKS_Y, the posters of view_card_row.php under it, their cells
-// CELL_H high (2 lines of the title and 2 of the role under a poster: their bottom at 1004, over
-// the hint of DOWN at HINT_Y).
+// CELL_H high (2 lines of the focused title and 2 of the role under a poster: their bottom at
+// 1016); the hint of DOWN on the line of the title of the works.
 define('AIO_PP_PHOTO_X', 130);
 define('AIO_PP_PHOTO_Y', 60);
 define('AIO_PP_PHOTO_W', 276);
@@ -40,8 +40,8 @@ define('AIO_PP_BIO_LINES', 5);
 define('AIO_PP_WORKS_Y', 470);
 define('AIO_PP_CELL_H', 488);
 // DOWN: the whole biography a page lower, its title at BIO2_Y, PAGE_LINES lines of it a stop from
-// the x of the catalog to HINT_R, PAR_GAP more between its paragraphs (half a line); the hint of it
-// at the foot of the first screen.
+// the x of the catalog, DESC2_W wide, PAR_GAP more between its paragraphs (half a line); the arrow
+// of another page at HINT_Y.
 define('AIO_PP_BIO2_Y', 60);
 define('AIO_PP_PAGE_LINES', 20);
 define('AIO_PP_PAR_GAP', 21);
@@ -164,9 +164,9 @@ function aio_pp_day($d, $ui)
     return preg_match('/^[0-9]{4}$/D', $d) ? $d : aio_oc_day($d, $ui);
 }
 
-// The grey part of the facts: "7 марта 1956 (70 лет) — <the place>"; died: "19 августа 1969 — 28
-// октября 2023 — <the place>" (no age); a date in part (aio_pp_day): no age; died, born unknown:
-// "… — 28 октября 2023" (a date alone reads as the birth); what is not known left out with its dash.
+// The grey part of the facts: "7 марта 1956 (70 лет) · <the place>"; died: "19 августа 1969 — 28
+// октября 2023 · <the place>" (no age); a date in part (aio_pp_day): no age; died, born unknown:
+// "… — 28 октября 2023" (a date alone reads as the birth); what is not known left out.
 /**
  * @param AioCmPerson $p
  * @param string $ui
@@ -186,15 +186,14 @@ function aio_pp_facts($p, $ui)
         $parts[] = "\xE2\x80\xA6";
     if ($d !== '')
         $parts[] = $d;
-    if ($p['place'] !== '')
-        $parts[] = $p['place'];
-    return implode(' — ', $parts);
+    $dates = implode(' — ', $parts);
+    return $p['place'] !== '' ? ($dates !== '' ? "$dates · " : '') . $p['place'] : $dates;
 }
 
 // The lines under the title of work $w of a person of profession $kf (knownFor), 2 at most: its
 // role; none, of brackets alone ("(voice)") or the profession itself (a director's "Director"):
-// the year; a series: "· 62 серии" whole (the number with its word) at the end of the last line of
-// the role, or "62 серии" on the second line when it does not fit there, the role then in one.
+// the year; a series: "62 серии" whole (the number with its word) on a separate line, the role
+// then cut to one.
 /**
  * @param AioCmWork $w
  * @param string $kf
@@ -211,12 +210,7 @@ function aio_pp_work_lines($w, $kf, $ui)
     $eps = $w['eps'] . ' ' . aio_gc_plural($ui, $w['eps'], 'card_eps');
     if ($s === '')
         return array($eps);
-    $all = aio_gc_wrap($s, 24, AIO_OC_POSTER_W, 3, true);
-    $n = count($all);
-    if ($n >= 1 && $n <= 2 && aio_gc_w($all[$n - 1] . " · $eps", 24) <= AIO_OC_POSTER_W)
-        return array_merge(array_slice($all, 0, $n - 1), array($all[$n - 1] . " · $eps"));
-    // "Walter White,…": no comma before the ellipsis.
-    return array(strval(preg_replace('/[\s,;]+(\x{2026})$/u', '$1', aio_gc_cut_w($s, 24, AIO_OC_POSTER_W))), $eps);
+    return array(aio_gc_cut_w($s, 24, AIO_OC_POSTER_W), $eps);
 }
 
 // --- The layout.
@@ -259,7 +253,7 @@ function aio_pp_layout($e, $p)
  */
 function aio_pp_bio_pages($pars)
 {
-    $w = AIO_OC_HINT_R - AIO_CATV_CARD_X;
+    $w = AIO_OC_DESC2_W;
     $h = AIO_PP_PAGE_LINES * AIO_PP_BIO_LH;
     $left = AIO_PP_BIO2_MAX;
     $pages = array();
@@ -345,23 +339,24 @@ function aio_pp_state($pos)
  */
 function aio_pp_work_titles($w, $kf, $on, $ui)
 {
-    return aio_oc_poster_titles($w['tile']['name'], aio_pp_work_lines($w, $kf, $ui), $on ? AIO_GC_TEXT : AIO_GC_TEXT2);
+    return aio_oc_poster_titles($w['tile']['name'], aio_pp_work_lines($w, $kf, $ui), $on ? AIO_GC_TEXT : AIO_GC_TEXT2, $on);
 }
 
-// The page of a stop of DOWN: "Биография" and its lines of page $i (the titles of sections white).
+// The page of a stop of DOWN: "Биография · <name>" and its lines (the titles of sections white).
 /**
  * @param AioPpLayout $l
  * @param int $p
  * @param string $ui
+ * @param string $name
  * @return list<AioGcComp>
  */
-function aio_pp_bio_page($l, $p, $ui)
+function aio_pp_bio_page($l, $p, $ui, $name)
 {
     if (!isset($l['pages'][$p - 1]))
         return array();
-    $d = array(aio_oc_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y, 800, aio_tr($ui, 'person_bio'), AIO_CATV_LINE_PX, AIO_GC_TEXT));
+    $d = aio_oc_row_title(AIO_PP_BIO2_Y, aio_tr($ui, 'person_bio'), $name, AIO_OC_HINT_R - AIO_CATV_CARD_X);
     foreach ($l['pages'][$p - 1] as $s)
-        $d[] = aio_oc_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y + 60 + $s[2], AIO_OC_HINT_R - AIO_CATV_CARD_X, $s[0],
+        $d[] = aio_oc_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y + AIO_PP_BIO_LH + $s[2], AIO_OC_DESC2_W, $s[0],
             AIO_CATV_LINE_PX, $s[1] ? AIO_GC_TEXT : AIO_CATV_TEXT_COLOR);
     if (isset($l['pages'][$p]))
         $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, AIO_CATV_CARD_X, AIO_PP_HINT_Y + 16),
@@ -387,6 +382,13 @@ function aio_pp_page($e, $p, $l, $pos)
     $d = array(aio_gc_rect(aio_gc_at(AIO_PP_PHOTO_W, AIO_PP_PHOTO_H, AIO_PP_PHOTO_X, AIO_PP_PHOTO_Y), AIO_OC_NO_PHOTO));
     if ($photo !== '')
         $d[] = aio_gc_image(aio_gc_at(AIO_PP_PHOTO_W, AIO_PP_PHOTO_H, AIO_PP_PHOTO_X, AIO_PP_PHOTO_Y), $photo);
+    else
+    {
+        $ini = aio_oc_label(AIO_PP_PHOTO_X, AIO_PP_PHOTO_Y, AIO_PP_PHOTO_W, aio_oc_initials($name), 110, AIO_GC_DIM,
+            array(GCompTtfLabelDef::halign => HALIGN_CENTER, GCompTtfLabelDef::valign => VALIGN_CENTER));
+        $ini[GComponentDef::geom_def][GCompGeometryDef::h] = AIO_PP_PHOTO_H;
+        $d[] = $ini;
+    }
     $nl = aio_oc_label($x, AIO_PP_NAME_Y, $w, aio_gc_cut_w(aio_clean($name), AIO_PP_NAME_PX, $w), AIO_PP_NAME_PX, AIO_GC_TEXT);
     // The name of 72 px: its own height.
     $nl[GComponentDef::geom_def][GCompGeometryDef::h] = AIO_PP_NAME_H;
@@ -397,11 +399,11 @@ function aio_pp_page($e, $p, $l, $pos)
     $fx = $x;
     if ($job !== '')
     {
-        $jw = min($w, aio_gc_w($job, AIO_CATV_LINE_PX));
+        $jw = min($w, intval(aio_gc_sum($job, AIO_CATV_LINE_PX)));
         $d[] = aio_oc_label($x, AIO_PP_FACTS_Y, $jw, aio_gc_cut_w($job, AIO_CATV_LINE_PX, $w), AIO_CATV_LINE_PX, AIO_GC_TEXT);
-        $fx += $jw + aio_gc_w(' ', AIO_CATV_LINE_PX);
+        $fx += $jw + intval(aio_gc_sum(' ', AIO_CATV_LINE_PX));
         if ($facts !== '')
-            $facts = "— $facts";
+            $facts = "· $facts";
     }
     if ($facts !== '' && $fx < AIO_OC_HINT_R)
         $d[] = aio_oc_label($fx, AIO_PP_FACTS_Y, AIO_OC_HINT_R - $fx, aio_gc_cut_w($facts, AIO_CATV_LINE_PX, AIO_OC_HINT_R - $fx),
@@ -413,8 +415,15 @@ function aio_pp_page($e, $p, $l, $pos)
     // The works: the title (the count grey after it), the strip in a clip to the right edge of the
     // screen, the frame; stubs while the person is asked.
     $s = $l['strip'];
-    $d = array_merge($d, aio_oc_row_title(AIO_PP_WORKS_Y, aio_tr($ui, 'person_works'), $p ? strval($s['n']) : '',
-        AIO_OC_HINT_R - AIO_CATV_CARD_X));
+    $tw = AIO_OC_HINT_R - AIO_CATV_CARD_X;
+    if ($l['pages'])
+    {
+        $hint = aio_tr($ui, 'person_bio_more');
+        $hx = AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - 16 - intval(aio_gc_sum($hint, AIO_CATV_LINE_PX));
+        $d = array_merge($d, aio_oc_hint($hint, $hx, AIO_PP_WORKS_Y));
+        $tw = min($tw, $hx - AIO_OC_HINT_GAP - AIO_CATV_CARD_X);
+    }
+    $d = array_merge($d, aio_oc_row_title(AIO_PP_WORKS_Y, aio_tr($ui, 'person_works'), $p ? strval($s['n']) : '', $tw));
     $cells = array();
     if ($p)
     {
@@ -431,9 +440,6 @@ function aio_pp_page($e, $p, $l, $pos)
         $d[] = aio_gc_panel('works', aio_gc_at(1920, AIO_PP_CELL_H, 0, $s['y']), array(aio_oc_strip_panel($s, $pos['k'], $cells)), 0);
     if ($p && $s['n'] > 0)
         $d[] = aio_oc_strip_frame($s, $pos['k'], true);
-    // The hint of DOWN.
-    if ($l['pages'])
-        $d = array_merge($d, aio_oc_hint(aio_tr($ui, 'person_bio_more'), AIO_CATV_CARD_X, AIO_PP_HINT_Y));
     return $d;
 }
 
@@ -457,7 +463,7 @@ function aio_pp_page_geom($z)
 function aio_pp_window($e, $p, $l, $pos)
 {
     $page = aio_pp_page($e, $p, $l, $pos);
-    $page[] = aio_gc_panel('bio', aio_gc_at(1920, 1080, 0, 1080), aio_pp_bio_page($l, $pos['p'], $e['ui']));
+    $page[] = aio_gc_panel('bio', aio_gc_at(1920, 1080, 0, 1080), aio_pp_bio_page($l, $pos['p'], $e['ui'], $p ? $p['name'] : $e['name']));
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
         GCompWindowDef::background_url => null,
@@ -575,7 +581,7 @@ function aio_pp_changes($e, $p, $l, $old, $new)
     if ($new['z'] !== $old['z'])
         $ch[] = aio_gc_change('page', aio_pp_page_geom($new['z']), GCOMP_TRANSITION_DEFAULT);
     if ($new['p'] !== $old['p'] && $new['p'] > 0)
-        $ch[] = aio_gc_change('bio', null, GCOMP_TRANSITION_NONE, aio_pp_bio_page($l, $new['p'], $e['ui']));
+        $ch[] = aio_gc_change('bio', null, GCOMP_TRANSITION_NONE, aio_pp_bio_page($l, $new['p'], $e['ui'], $p['name']));
     return $ch;
 }
 

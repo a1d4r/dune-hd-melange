@@ -260,6 +260,7 @@ card_movies_few = фильма
 card_movies_many = фильмов
 card_this_movie = Этот фильм
 card_sim_cast_about_movie = Похожие, в ролях и о фильме
+card_cast_about_movie = В ролях и о фильме
 card_sim_about_movie = Похожие и о фильме
 card_parts_cast_about_movie = Части франшизы, в ролях и о фильме
 card_parts_about_movie = Части франшизы и о фильме

@@ -120,9 +120,9 @@ define('AIO_OC_DET_W', AIO_OC_HINT_R - AIO_OC_DET_X);
 // The row of episodes at ROW_Y: stills EP_W x EP_H, EP_STEP apart from the x of the catalog,
 // EP_VIS whole, the one before and after seen at the edges; the frame of the focus FRAME wide
 // around the still; P+/P- PAGE stills.
-define('AIO_OC_BTN_Y_SER', 512);
-define('AIO_OC_DESC_BOTTOM_SER', 504);
-define('AIO_OC_TAB_Y', 604);
+define('AIO_OC_BTN_Y_SER', 496);
+define('AIO_OC_DESC_BOTTOM_SER', 462);
+define('AIO_OC_TAB_Y', 588);
 define('AIO_OC_TAB_H', 52);
 define('AIO_OC_TAB_PAD', 24);
 define('AIO_OC_TAB_GAP', 8);
@@ -136,7 +136,7 @@ define('AIO_OC_CHEV_GAP', 12);
 // 4 more than the chevron and its gap: the left one 4 in from the x of the catalog, the right one
 // 4 more before CNT_GAP.
 define('AIO_OC_CHEV_SLOT', AIO_OC_CHEV_W + AIO_OC_CHEV_GAP + 4);
-define('AIO_OC_ROW_Y', 680);
+define('AIO_OC_ROW_Y', 664);
 define('AIO_OC_EP_W', 384);
 define('AIO_OC_EP_H', 216);
 define('AIO_OC_EP_STEP', 408);
@@ -157,8 +157,8 @@ define('AIO_OC_WIN', 8);
 define('AIO_OC_ROW_STEPS', 5);
 // DOWN of a series: the first stop OFF_SER lower (the row above the clip, the cast at DOWN_Y); the
 // hint under the row at HINT_Y_SER from the x of the catalog.
-define('AIO_OC_OFF_SER', 740);
-define('AIO_OC_HINT_Y_SER', 1030);
+define('AIO_OC_OFF_SER', 724);
+define('AIO_OC_HINT_Y_SER', 976);
 // Colours of the design: buttons, the bar, no photo, the darkening of DOWN, the frame of the focus,
 // the tab of the season shown (white 16 %), the plate of the mark "watched".
 define('AIO_OC_BTN_OFF', '#24FFFFFF');
@@ -556,17 +556,17 @@ function aio_oc_head($c, $l, $b)
     $genres = aio_catv_genre_line($c['tile'], $c['ui'], aio_oc_countries($c));
     if ($genres !== '')
     {
-        $fit = aio_catv_fit($genres, AIO_CATV_LINE_PX, AIO_CATV_DATA_MIN_PX, AIO_CATV_TEXT_W);
-        $d[] = aio_oc_label($x0, $y, AIO_CATV_TEXT_W, $fit[1], $fit[0], AIO_CATV_TEXT_COLOR);
+        foreach (aio_gc_wrap_items($genres, AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, 1) as $line)
+            $d[] = aio_oc_label($x0, $y, AIO_CATV_TEXT_W, $line, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
         $y += AIO_CATV_LINE_H;
     }
     $dirs = $c['meta'] ? aio_cm_names_of($c['meta']['directors']) : array();
     if ($dirs)
     {
         $label = aio_tr($c['ui'], 'card_director');
-        $lw = aio_gc_w($label, AIO_CATV_LINE_PX);
+        $lw = intval(aio_gc_sum($label, AIO_CATV_LINE_PX));
         $d[] = aio_oc_label($x0, $y, $lw, $label, AIO_CATV_LINE_PX, AIO_GC_DIM);
-        $gap = aio_gc_w(' ', AIO_CATV_LINE_PX);
+        $gap = intval(aio_gc_sum(' ', AIO_CATV_LINE_PX));
         $d[] = aio_oc_label($x0 + $lw + $gap, $y, AIO_CATV_TEXT_W - $lw - $gap,
             aio_gc_cut_w(aio_clean(implode(', ', $dirs)), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W - $lw - $gap),
             AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
@@ -654,9 +654,9 @@ function aio_oc_under_ser($c, $x)
  */
 function aio_oc_hint($text, $x, $y)
 {
-    $hw = aio_gc_w($text, AIO_CATV_LINE_PX);
+    $hw = intval(aio_gc_sum($text, AIO_CATV_LINE_PX));
     return array(aio_oc_label($x, $y, $hw, $text, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR),
-        aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x + $hw + 16, $y + 16),
+        aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x + $hw + 16, $y + 22),
             'plugin_file://img/sort_down.png'));
 }
 
@@ -892,10 +892,13 @@ function aio_oc_layout($c)
         $only = aio_oc_under($c, $wh, $btns ? aio_oc_btn_w($btns[0]) : 0);
         if ($down || $posters)
         {
-            $k = isset($posters['s']) || isset($posters['w']) ? ($cast ? 'card_sim_cast_about_movie' : 'card_sim_about_movie') :
-                ($cast ? 'card_parts_cast_about_movie' : 'card_parts_about_movie');
-            $hint = aio_tr($c['ui'], $posters ? $k : 'card_about_movie');
-            $hx = AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - 16 - aio_gc_w($hint, AIO_CATV_LINE_PX);
+            $below = array_slice($rows, 1);
+            $more_cast = in_array('c', $below, true);
+            $k = in_array('s', $below, true) || in_array('w', $below, true) ?
+                ($more_cast ? 'card_sim_cast_about_movie' : 'card_sim_about_movie') :
+                ($more_cast ? 'card_cast_about_movie' : 'card_about_movie');
+            $hint = aio_tr($c['ui'], $k);
+            $hx = AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - 16 - intval(aio_gc_sum($hint, AIO_CATV_LINE_PX));
             $only = array_merge($only, aio_oc_hint($hint, $hx, AIO_OC_CAST_Y));
             $tw = min($tw, $hx - AIO_OC_HINT_GAP - AIO_CATV_CARD_X);
         }

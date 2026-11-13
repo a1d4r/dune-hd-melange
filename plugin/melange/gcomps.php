@@ -126,7 +126,7 @@ function aio_gc_cut_w($s, $px, $width)
     if (aio_gc_w($s, $px) <= $width)
         return $s;
     $ell = "\xE2\x80\xA6";
-    return rtrim(mb_substr($s, 0, aio_gc_fit($s, $px, $width - aio_gc_w($ell, $px)), 'UTF-8')) . $ell;
+    return rtrim(mb_substr($s, 0, aio_gc_fit($s, $px, $width - aio_gc_w($ell, $px)), 'UTF-8'), " \t\n\r\0\x0B.,;:") . $ell;
 }
 
 // The byte after the word of $s from byte $p: after one of $brk (a dot not
@@ -227,7 +227,7 @@ function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
         $lines = array_slice($lines, 0, $max);
         $ell = "\xE2\x80\xA6";
         $l = (string) array_pop($lines);
-        $lines[] = rtrim(mb_substr($l, 0, aio_gc_fit($l, $px, $width - aio_gc_w($ell, $px)), 'UTF-8')) . $ell;
+        $lines[] = rtrim(mb_substr($l, 0, aio_gc_fit($l, $px, $width - aio_gc_w($ell, $px)), 'UTF-8'), " \t\n\r\0\x0B.,;:") . $ell;
     }
     return $lines;
 }

@@ -17,7 +17,7 @@
 // and gcomps.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
-define('AIO_OC_ROW_HEAD', 46);
+define('AIO_OC_ROW_HEAD', 58);
 // A poster of a row (the works of a person, similar titles, the movies of a franchise),
 // POSTER_W x POSTER_H, STEP apart, VIS of them whole (the next one at the right edge of the screen:
 // 10 px of it cut), DIV more after the line; CAP_DY under it its title in 2 lines at most and the
@@ -33,6 +33,19 @@ define('AIO_OC_POSTER_DIV', 40);
 define('AIO_OC_POSTER_CAP_DY', 12);
 define('AIO_OC_CAP_LH', 26);
 define('AIO_OC_CAP_GAP', 4);
+
+// The initials shared by the cast and the page of a person without a photo.
+/**
+ * @param string $name
+ * @return string
+ */
+function aio_oc_initials($name)
+{
+    $ini = '';
+    foreach (array_slice(explode(' ', aio_clean($name)), 0, 2) as $w)
+        $ini .= mb_substr($w, 0, 1, 'UTF-8');
+    return $ini;
+}
 
 // The first item of a row of $n at the left slot with the one at $i in focus, $vis of them whole
 // on the screen: the frame goes in the first $lead + 1 slots, then the row, the frame stays in slot
@@ -213,7 +226,7 @@ function aio_oc_row_title($y, $title, $rest, $w)
 {
     $tw = min($w, aio_gc_w($title, AIO_CATV_LINE_PX));
     $d = array(aio_oc_label(AIO_CATV_CARD_X, $y, $tw, aio_gc_cut_w($title, AIO_CATV_LINE_PX, $w), AIO_CATV_LINE_PX, AIO_GC_TEXT));
-    $x = aio_gc_w($title . ' ', AIO_CATV_LINE_PX);
+    $x = intval(aio_gc_sum($title . ' ', AIO_CATV_LINE_PX));
     if ($rest !== '' && $x < $w)
         $d[] = aio_oc_label(AIO_CATV_CARD_X + $x, $y, $w - $x, aio_gc_cut_w("· $rest", AIO_CATV_LINE_PX, $w - $x),
             AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
@@ -237,19 +250,20 @@ function aio_oc_poster_strip($id, $n, $nc, $y, $ch)
         'x' => AIO_CATV_CARD_X, 'y' => $y + AIO_OC_ROW_HEAD, 'id' => $id);
 }
 
-// The title of a poster ($name in $color, 2 lines at most, "…" at the end of the second) and the
-// lines under it, grey, CAP_LH apart, CAP_GAP more apart from it: their tops 0, 26 and 56, 82.
+// The title of a poster ($name in $color): one line, two in focus ($on), the last with "…" if
+// cut. The lines under it grey, CAP_LH apart, CAP_GAP more apart from the title.
 /**
  * @param string $name
  * @param list<string> $lines
  * @param string $color
+ * @param bool $on
  * @return list<AioGcComp>
  */
-function aio_oc_poster_titles($name, $lines, $color)
+function aio_oc_poster_titles($name, $lines, $color, $on)
 {
     $d = array();
     $y = 0;
-    foreach (aio_gc_wrap(aio_clean($name), 24, AIO_OC_POSTER_W, 2, true) as $s)
+    foreach (aio_gc_wrap(aio_clean($name), 24, AIO_OC_POSTER_W, $on ? 2 : 1, true) as $s)
     {
         $d[] = aio_oc_label(0, $y, AIO_OC_POSTER_W, $s, 24, $color);
         $y += AIO_OC_CAP_LH;
@@ -263,7 +277,7 @@ function aio_oc_poster_titles($name, $lines, $color)
     return $d;
 }
 
-// A grey stub of a poster at $i of strip $s, while its row is asked (a card, a person).
+// The shell's loading poster at $i of strip $s, while its row is asked (a card, a person).
 /**
  * @param AioOcStrip $s
  * @param int $i
@@ -271,7 +285,8 @@ function aio_oc_poster_titles($name, $lines, $color)
  */
 function aio_oc_poster_stub($s, $i)
 {
-    return aio_gc_rect(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, aio_oc_strip_x($s, $i), 0), AIO_OC_NO_PHOTO);
+    return aio_gc_image(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, aio_oc_strip_x($s, $i), 0),
+        'plugin_file://%shell_ext%/icons/loading_movie_poster.png');
 }
 
 // The poster of tile $t at $i of strip $s ("<id><i>") as in the catalog (aio_catv_poster), $over

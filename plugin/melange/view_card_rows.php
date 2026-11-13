@@ -163,12 +163,8 @@ function aio_oc_cast_cell($i, $x, $p, $color)
     if ($p['photo'] !== '')
         $d[] = aio_gc_image(aio_gc_at(AIO_OC_PHOTO_W, AIO_OC_PHOTO_H, 0, 0), $p['photo']);
     else
-    {
-        $ini = '';
-        foreach (array_slice(explode(' ', $p['name']), 0, 2) as $w)
-            $ini .= mb_substr($w, 0, 1, 'UTF-8');
-        $d[] = aio_oc_label(0, 40, AIO_OC_PHOTO_W, $ini, 48, AIO_GC_DIM, array(GCompTtfLabelDef::halign => HALIGN_CENTER));
-    }
+        $d[] = aio_oc_label(0, 40, AIO_OC_PHOTO_W, aio_oc_initials($p['name']), 48, AIO_GC_DIM,
+            array(GCompTtfLabelDef::halign => HALIGN_CENTER));
     $d[] = aio_gc_panel("pn$i", aio_gc_at(AIO_OC_NAME_W, 60, 0, AIO_OC_NAME_DY), aio_oc_cast_names($p, $color));
     foreach (aio_gc_wrap($p['role'], 24, AIO_OC_NAME_W, 2, true) as $k => $s)
         $d[] = aio_oc_label(0, AIO_OC_NAME_DY + (2 + $k) * AIO_OC_CAP_LH, AIO_OC_NAME_W, $s, 24, AIO_GC_DIM);
@@ -187,7 +183,7 @@ function aio_oc_cast_hint($p, $on, $lang)
 {
     if (!$on || !$p || $p['tmdb'] === '')
         return array();
-    return array(aio_oc_label(0, 6, AIO_OC_HINT_R - AIO_CATV_CARD_X, aio_tr($lang, 'card_cast_hint'), 24, AIO_GC_DIM,
+    return array(aio_oc_label(0, 6, AIO_OC_HINT_R - AIO_CATV_CARD_X, aio_tr($lang, 'card_cast_hint'), 24, AIO_CATV_TEXT_COLOR,
         array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
 }
 
@@ -195,8 +191,8 @@ function aio_oc_cast_hint($p, $on, $lang)
 // nc (before the line), cur (the index of the movie of the card, -1 for none), the title and what
 // goes grey after it. A franchise of PARTS_IN at most with similar titles: first in "s" "Части
 // франшизы и похожие" after a line; else its own row "f" ("Части франшизы · Дюна · 2 фильма")
-// and "s" "Похожие" under it. Some still asked (wait): the stubs "w" ("Похожие"; "Части франшизы и
-// похожие" while the franchise may go in it), under the long franchise if it came.
+// and "s" "Похожие" under it. Some still asked (wait): the stubs "w" ("Части франшизы" while its
+// parts may go in it, else "Похожие"), under the long franchise if it came.
 /**
  * @param AioOcCard $c
  * @return array<string, array{tiles: list<AioCatTile>, nc: int, cur: int, title: string, rest: string}>
@@ -222,8 +218,8 @@ function aio_oc_poster_rows($c)
         $rows['s'] = array('tiles' => $m['sim'], 'nc' => 0, 'cur' => -1, 'title' => aio_tr($ui, 'card_sim'), 'rest' => '');
     if ($m['wait'])
     {
-        $sim = $m['wait'] === array('sim') && !$short;
-        $rows['w'] = array('tiles' => array(), 'nc' => 0, 'cur' => -1, 'title' => aio_tr($ui, $sim ? 'card_sim' : 'card_parts_sim'),
+        $parts = $c['meta'] && $c['meta']['collection']['id'] !== '' && !isset($rows['f']);
+        $rows['w'] = array('tiles' => array(), 'nc' => 0, 'cur' => -1, 'title' => aio_tr($ui, $parts ? 'card_parts' : 'card_sim'),
             'rest' => '');
     }
     return $rows;
@@ -301,11 +297,12 @@ function aio_oc_row_bands($s)
 /**
  * @param AioCatTile $t
  * @param string $color
+ * @param bool $on
  * @return list<AioGcComp>
  */
-function aio_oc_tile_titles($t, $color)
+function aio_oc_tile_titles($t, $color, $on)
 {
-    return aio_oc_poster_titles($t['name'], $t['year'] !== '' ? array($t['year']) : array(), $color);
+    return aio_oc_poster_titles($t['name'], $t['year'] !== '' ? array($t['year']) : array(), $color, $on);
 }
 
 // Item $i of $items of row $s, its name in $color: a person (aio_oc_cast_cell); a poster
@@ -316,11 +313,12 @@ function aio_oc_tile_titles($t, $color)
  * @param list<mixed> $items
  * @param int $i
  * @param string $color
+ * @param bool $on
  * @param int $cur
  * @param string $ui
  * @return AioGcComp
  */
-function aio_oc_row_cell($s, $items, $i, $color, $cur, $ui)
+function aio_oc_row_cell($s, $items, $i, $color, $on, $cur, $ui)
 {
     if ($s['id'] === 'c')
         return aio_oc_cast_cell($i, aio_oc_strip_x($s, $i), $items[$i], $color);
@@ -331,7 +329,7 @@ function aio_oc_row_cell($s, $items, $i, $color, $cur, $ui)
         $over = array(aio_gc_rect(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, 0, 0), AIO_OC_THIS),
             aio_oc_label(0, intval((AIO_OC_POSTER_H - AIO_CATV_LINE_H) / 2), AIO_OC_POSTER_W, aio_tr($ui, 'card_this_movie'),
                 AIO_CATV_LINE_PX, AIO_GC_TEXT, array(GCompTtfLabelDef::halign => HALIGN_CENTER)));
-    return aio_oc_poster_cell($s, $i, $items[$i], aio_oc_tile_titles($items[$i], $color), $over);
+    return aio_oc_poster_cell($s, $i, $items[$i], aio_oc_tile_titles($items[$i], $color, $on), $over);
 }
 
 // The change of the name of item $i of $items of row $s to $color.
@@ -340,12 +338,13 @@ function aio_oc_row_cell($s, $items, $i, $color, $cur, $ui)
  * @param list<mixed> $items
  * @param int $i
  * @param string $color
+ * @param bool $on
  * @return AioGcChange
  */
-function aio_oc_row_name($s, $items, $i, $color)
+function aio_oc_row_name($s, $items, $i, $color, $on)
 {
     if ($s['id'] !== 'c')
-        return aio_gc_change("{$s['id']}n$i", null, GCOMP_TRANSITION_NONE, aio_oc_tile_titles($items[$i], $color));
+        return aio_gc_change("{$s['id']}n$i", null, GCOMP_TRANSITION_NONE, aio_oc_tile_titles($items[$i], $color, $on));
     return aio_gc_change("pn$i", null, GCOMP_TRANSITION_NONE, aio_oc_cast_names($items[$i], $color));
 }
 
@@ -382,8 +381,8 @@ function aio_oc_row_titles($c, $l, $id, $first)
 
 // The rows of the layout of card $c at place $pos, each at the y of its strip in "down": the title
 // ("<id>head", aio_oc_row_titles) and the hint at its right (aio_oc_row_hint), the items
-// (aio_oc_row_items) in a clip ("<id>cl") from the left edge of the screen to HINT_R (the one
-// after the last whole peeks there; posters: to the right edge), the strip moved as
+// (aio_oc_row_items) in a clip ("<id>cl") from the left edge of the screen to the right edge (the
+// one after the last whole peeks there), the strip moved as
 // aio_oc_strip_at; the frame of the focus (shown at the stop of the row).
 /**
  * @param AioOcCard $c
@@ -404,11 +403,11 @@ function aio_oc_rows($c, $l, $pos)
         $cur = isset($posters[$id]) ? $posters[$id]['cur'] : -1;
         $cells = array();
         for ($i = 0; $i < $s['n']; $i++)
-            $cells[] = aio_oc_row_cell($s, $items, $i, aio_oc_row_color($s, $i, $k, $on), $cur, $c['ui']);
+            $cells[] = aio_oc_row_cell($s, $items, $i, aio_oc_row_color($s, $i, $k, $on), $on && $i === $k, $cur, $c['ui']);
         $d[] = aio_gc_panel("{$id}head", aio_gc_at(1920, AIO_CATV_LINE_H, 0, $y), aio_oc_row_titles($c, $l, $id, $pos['z'] !== 'down'));
         $d[] = aio_gc_panel("{$id}hint", aio_gc_at(AIO_OC_HINT_R - AIO_CATV_CARD_X, AIO_CATV_LINE_H, AIO_CATV_CARD_X, $y),
             aio_oc_row_hint($c, $s, $items, $k, $on));
-        $d[] = aio_gc_panel("{$id}cl", aio_gc_at($id === 'c' ? AIO_OC_HINT_R : 1920, $s['ch'], 0, $s['y']),
+        $d[] = aio_gc_panel("{$id}cl", aio_gc_at(1920, $s['ch'], 0, $s['y']),
             array(aio_oc_strip_panel($s, $k, $cells)), 0);
         $d[] = aio_oc_strip_frame($s, $k, $on);
     }
@@ -440,7 +439,7 @@ function aio_oc_rows_changes($c, $l, $old, $new)
         {
             $color = aio_oc_row_color($s, $i, $k, $on);
             if ($color !== aio_oc_row_color($s, $i, $ok, $oon))
-                $ch[] = aio_oc_row_name($s, $items, $i, $color);
+                $ch[] = aio_oc_row_name($s, $items, $i, $color, $on && $i === $k);
         }
         $hint = aio_oc_row_hint($c, $s, $items, $k, $on);
         if ($hint !== aio_oc_row_hint($c, $s, $items, $ok, $oon))

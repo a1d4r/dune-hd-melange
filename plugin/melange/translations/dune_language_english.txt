@@ -260,6 +260,7 @@ card_movies_few = movies
 card_movies_many = movies
 card_this_movie = This movie
 card_sim_cast_about_movie = Similar, cast and about the movie
+card_cast_about_movie = Cast and about the movie
 card_sim_about_movie = Similar and about the movie
 card_parts_cast_about_movie = Franchise, cast and about the movie
 card_parts_about_movie = Franchise and about the movie
