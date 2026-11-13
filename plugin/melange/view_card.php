@@ -465,7 +465,7 @@ function aio_oc_head($c, $l, $b)
         $d[] = aio_oc_label($x0, $y, AIO_CATV_TEXT_W, $fit[1], $fit[0], AIO_CATV_TEXT_COLOR);
         $y += AIO_CATV_LINE_H;
     }
-    $dirs = $c['meta'] ? $c['meta']['directors'] : array();
+    $dirs = $c['meta'] ? aio_cm_names_of($c['meta']['directors']) : array();
     if ($dirs)
     {
         $label = aio_tr($c['ui'], 'card_director');
@@ -640,9 +640,9 @@ function aio_oc_down($c)
     if ($m && $series)
         $rows[] = array('card_status', $m['status'] !== '' ? aio_tr($lang, "card_status_{$m['status']}") : '');
     if ($m)
-        $rows[] = array('card_director', implode(', ', $m['directors']));
+        $rows[] = array('card_director', implode(', ', aio_cm_names_of($m['directors'])));
     if ($m)
-        $rows[] = array('card_writers', implode(', ', $m['writers']));
+        $rows[] = array('card_writers', implode(', ', aio_cm_names_of($m['writers'])));
     if ($m && $series && $m['networks'])
         $rows[] = array('card_networks', implode(', ', $m['networks']));
     else if ($m)

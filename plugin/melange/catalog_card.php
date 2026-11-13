@@ -330,7 +330,7 @@ function aio_card_countries($list)
 
 // People of the meta -> people of the card: actors of app_extras.cast (role: the
 // character, imgPhoto), directors and writers of app_extras.directors, writers, then
-// the names of director, writer not among them; AIO_CARD_ACTORS_MAX actors and
+// the names of director, writer not among them; $actors actors (the own card: more) and
 // AIO_CARD_CREW_MAX of each crew at most, in the order of the server. type: 0 actor, 1
 // director, 2 writer. id: melange-tmdb-<id> or melange-tvdb-<id>, else melange-n-<md5 of
 // the name>: unique, no / or : (it names the file of the photo in the cache of the
@@ -338,9 +338,10 @@ function aio_card_countries($list)
 // failed.
 /**
  * @param array<mixed> $meta
+ * @param int $actors
  * @return list<array<string, mixed>>
  */
-function aio_card_people($meta)
+function aio_card_people($meta, $actors = AIO_CARD_ACTORS_MAX)
 {
     $extras = aio_arr($meta, 'app_extras');
     $n = AIO_CARD_SCAN_MAX;
@@ -354,7 +355,7 @@ function aio_card_people($meta)
         $ids = array();
         foreach ($list as $p)
         {
-            if (count($names) >= ($type === 0 ? AIO_CARD_ACTORS_MAX : AIO_CARD_CREW_MAX))
+            if (count($names) >= ($type === 0 ? $actors : AIO_CARD_CREW_MAX))
                 break;
             $name = aio_card_text(is_array($p) ? aio_str($p, 'name') : $p);
             if ($name === '' || isset($names[$name]))

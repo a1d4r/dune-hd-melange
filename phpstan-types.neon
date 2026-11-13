@@ -373,7 +373,7 @@ parameters:
         # A side of brackets of a track title (aio_voices_side, voices_parse.php).
         AioVoicesSide: 'array{studios: list<string>, n: int, other: bool}'
         # The meta of a title for its own card (aio_cm_parse, card_meta.php).
-        AioCardMeta: 'array{type: string, id: string, imdb: string, tile: AioCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<AioCardActor>, directors: list<string>, writers: list<string>, seasons: array<int, list<AioCardEp>>, season_numbers: array<int, int>}'
+        AioCardMeta: 'array{type: string, id: string, imdb: string, tile: AioCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<AioCardActor>, directors: list<AioCardActor>, writers: list<AioCardActor>, creators: list<AioCardActor>, collection: array{id: string, name: string}, seasons: array<int, list<AioCardEp>>, season_numbers: array<int, int>}'
         # A card of the own card screen in memory (AioOc::$cards, view_card.php).
         AioOcCard: 'array{tile: AioCatTile, meta: AioCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: AioOcPos, n: int, nav?: AioOcNav}'
         # A place of the focus on the own card, in AioOcCard and in sel_state (aio_oc_pos, view_card.php).
@@ -386,7 +386,11 @@ parameters:
         AioOcTabs: 'array{list: list<array{int, string, int, int}>, x: int, w: int, all: int, word: int, cx: int}'
         # The episode a series card offers (aio_oc_pick, view_card_series.php).
         AioOcEp: 'array{q: int, e: int, s: int, hash: string, kind: string}'
-        # An actor of the own card (aio_cm_people, card_meta.php).
-        AioCardActor: 'array{name: string, role: string, photo: string}'
+        # A person of the own card: an actor, a director, a writer, a creator (aio_cm_people, card_meta.php).
+        AioCardActor: 'array{name: string, role: string, photo: string, tmdb: string}'
+        # A person of the own card asked by ENTER (aio_cm_person_parse, card_meta.php).
+        AioCmPerson: 'array{id: string, name: string, photo: string, born: string, died: string, place: string, bio: string, bio_en: bool, known_for: string, works: list<AioCmWork>}'
+        # A work of a person (aio_cm_person_parse, card_meta.php).
+        AioCmWork: 'array{tile: AioCatTile, role: string, types: list<string>}'
         # An episode of the own card (aio_cm_eps, card_meta.php).
         AioCardEp: 'array{s: int, e: int, title: string, date: string, img: string, min: int, soon: bool}'
