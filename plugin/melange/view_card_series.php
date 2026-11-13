@@ -728,8 +728,7 @@ function aio_oc_mark($key, $c, $in)
                 $ids[] = $u;
         }
     }
-    $pos = $c['pos'];
-    AioOc::$cards[$key]['pos'] = array('z' => 'row', 'b' => $pos['b'], 'p' => 0, 's' => $s, 'e' => $e, 'k' => $pos['k']);
+    AioOc::$cards[$key]['pos'] = array_merge($c['pos'], array('z' => 'row', 'p' => 0, 's' => $s, 'e' => $e));
     aio_log("card: own $key: mark $w on S{$s}E{$e}: " . count($keys) . " episodes, $nr uids of records");
     return array(
         GuiAction::handler_string_id => UPDATE_WATCHED_MARKS_ACTION_ID,
@@ -753,7 +752,7 @@ function aio_oc_retry($key, $c)
     if (!$g['meta'])
         return aio_error('cat_row_failed', $g['err']);
     $card = aio_oc_make($c['tile'], $g['meta'], $c['dune'], $c['lang']);
-    $card['pos'] = array('z' => 'pill', 'b' => $c['pos']['b'], 'p' => 0, 's' => 0, 'e' => 0, 'k' => 0);
+    $card['pos'] = array_merge($card['pos'], array('z' => 'pill', 'b' => $c['pos']['b']));
     aio_oc_keep($key, $card);
     aio_log("card: own $key: meta again, the screen anew");
     return aio_replace_act("card:$key", $c['tile']['name']);

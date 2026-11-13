@@ -752,10 +752,10 @@ function aio_oc_cast_cell($i, $x, $p, $color)
 }
 
 // The row "В ролях" of card $c at place $pos, at aio_oc_cast_y of its panel (the page of a movie,
-// "down" of a series): the title, the people of aio_oc_people in a clip from the left to the right
-// edge of the screen ("cast"), the strip ("cst") moved as aio_oc_cast_at, the line between the
-// creators and the actors in the middle of their gap; the frame of the focus ("cfr", shown by
-// aio_oc_cast_on). No people: nothing.
+// "down" of a series): the title, the people of aio_oc_people in a clip from the left edge of the
+// screen to the right one of the layout, HINT_R ("cast": the one after the last whole peeks there),
+// the strip ("cst") moved as aio_oc_cast_at, the line between the creators and the actors in the
+// middle of their gap; the frame of the focus ("cfr", shown by aio_oc_cast_on). No people: nothing.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -777,7 +777,7 @@ function aio_oc_cast($c, $l, $pos)
         $cells[] = aio_gc_rect(aio_gc_at(2, AIO_OC_PHOTO_H, aio_oc_cast_x($nc - 1, $nc) + AIO_OC_PHOTO_W +
             intval((AIO_OC_PHOTO_STEP + AIO_OC_CAST_DIV - AIO_OC_PHOTO_W) / 2) - 1, 0), AIO_GC_DIM);
     return array(aio_oc_label(AIO_CATV_CARD_X, $y, 800, aio_tr($c['ui'], 'card_cast'), AIO_CATV_LINE_PX, AIO_GC_TEXT),
-        aio_gc_panel('cast', aio_gc_at(1920, AIO_OC_CAST_H, 0, $y + 46),
+        aio_gc_panel('cast', aio_gc_at(AIO_OC_HINT_R, AIO_OC_CAST_H, 0, $y + 46),
             array(aio_gc_panel('cst', aio_oc_cast_geom(count($people), $nc, $off), $cells)), 0),
         aio_gc_panel('cfr', aio_oc_cast_frame_geom($l, $nc, $k, $off),
             $on ? aio_oc_frame_rects(AIO_OC_PHOTO_W, AIO_OC_PHOTO_H) : array()));
@@ -1141,8 +1141,8 @@ function aio_oc_dim($z)
 // buttons, "pill" the tabs of the seasons, "row" the episodes, "down" the page below them), b the
 // button (kept in every zone: UP comes back to it), p the stop of the page (0 but in "down"), s
 // and e the season and the episode of the row of a series (0 for none, not in sel_state), k the
-// person of the cast (kept in every zone, LEFT and RIGHT at its stop; 0 not in sel_state). A new
-// zone or field is one more line in aio_oc_pos and aio_oc_next.
+// person of the cast (kept in every zone, LEFT and RIGHT at its stop). A new zone or field is one
+// more line in aio_oc_pos and aio_oc_next.
 /**
  * @param AioOcPos $pos
  * @return string
@@ -1152,8 +1152,7 @@ function aio_oc_state($pos)
     $j = array('z' => $pos['z'], 'b' => $pos['b'], 'p' => $pos['p']);
     if ($pos['s'] > 0)
         $j += array('s' => $pos['s'], 'e' => $pos['e']);
-    if ($pos['k'] > 0)
-        $j['k'] = $pos['k'];
+    $j['k'] = $pos['k'];
     return json_encode($j);
 }
 
@@ -1172,8 +1171,8 @@ function aio_oc_btn_lit($pos)
 // is that of the last place of the card, a number out of the card is clamped (one button less
 // keeps the stop), a zone the card has not: the buttons. {"b", "p"} of before the zone: the zone of
 // its stop. A season not of the card: that of the episode to offer, else the first; an episode
-// not of the season: aio_oc_def_e. No person of the cast in a place with the zone: the first (0
-// is not in sel_state).
+// not of the season: aio_oc_def_e. A sel_state of before "k" (0 was not in it then): that of the
+// last place, 0 as the card was made anew after the restart of php_server.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -1196,7 +1195,7 @@ function aio_oc_pos($c, $l, $raw)
     $p = isset($j['p']) && is_int($j['p']) ? $j['p'] : $last['p'];
     $s = isset($j['s']) && is_int($j['s']) ? $j['s'] : $last['s'];
     $e = isset($j['e']) && is_int($j['e']) ? $j['e'] : $last['e'];
-    $k = isset($j['k']) && is_int($j['k']) ? $j['k'] : (isset($j['z']) && !isset($j['k']) ? 0 : $last['k']);
+    $k = isset($j['k']) && is_int($j['k']) ? $j['k'] : $last['k'];
     if (!in_array($z, $l['zones'], true))
         $z = 'btn';
     if (!aio_oc_eps($c, $s))
@@ -1533,7 +1532,7 @@ function aio_oc_input($in, $control)
         if ($kind === 'watch')
             return $ep ? aio_oc_watch($c, $ep['q'], $ep['e'], $ep['hash']) : aio_oc_watch($c);
         // Not out yet: the focus to it in the row.
-        $new = array('z' => 'row', 'b' => $b, 'p' => 0, 's' => $ep['s'], 'e' => $ep['e'], 'k' => $pos['k']);
+        $new = array_merge($pos, array('z' => 'row', 'p' => 0, 's' => $ep['s'], 'e' => $ep['e']));
     }
     else
         $new = aio_oc_next($c, $l, $pos, aio_catv_in($in, 'd'));
