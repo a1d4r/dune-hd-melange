@@ -44,7 +44,7 @@ The magnifier on the strip on top, MENU → **Search** on the main screen of the
 
 Melange catalog rows can show right on the Dune home screen, in the TV tab. Under it come two sub-items, Movies and Series, which are the catalog tabs; the TV item itself opens Movies. A focused tile shows the same info panel as in the catalog. ENTER opens the film card, RETURN brings you back to the same tile. **Show all** at the end of a row opens the whole row. POP UP on a tile offers **Search**, **Open Melange** and **Settings**. The TV button on the remote opens the Melange catalog.
 
-**How to turn it on.** You choose the tab app by hand: on the home screen, move to TV, press POP UP and choose «TV section Setup» → «Another application...» → Melange. The same choice is in «Settings → Applications → TV → Configure...». The sub-items appear at once.
+**How to turn it on.** You choose the tab app by hand: on the home screen, move to TV, press POP UP and choose «TV section Setup» → «Another application...» → Melange. The same choice is in «Settings → Applications → TV → Configure...». The sub-items appear at once. Firmware before r24 has no sub-items: the rows of both tabs show in the TV tab as one list ([limitations](limitations.en.md#devices)).
 
 **There is one slot.** If the TV tab showed channels from DUNE-HD.TV or another IPTV app, they leave the tab once you pick Melange. To get the channels back, choose DUNE-HD.TV in the same dialog (needs internet).
 

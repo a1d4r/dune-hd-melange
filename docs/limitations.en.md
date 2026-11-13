@@ -8,6 +8,7 @@ What Melange cannot do, or does with caveats. [← README](../README.en.md)
 - On r22, the **Continue Watching** row may not show movies from Melange: the firmware added that row for online movies in r24. Not tested.
 - The **Skip Intro** and **Next Episode** buttons are shown by the r25 firmware player.
 - The film logo in place of the title in the catalog needs r25 firmware; on r24 and older the catalog shows the title as text.
+- The Movies and Series sub-items under the TV tab need r24 firmware; on older firmware the rows of both tabs show in the TV tab as one list.
 - The plugin interface is in Russian and English, following the Dune's language; the name is "Melange" in both.
 
 ## Movies and the release list
