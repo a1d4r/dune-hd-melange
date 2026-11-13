@@ -257,10 +257,8 @@ function aio_wh_ours_all()
 }
 
 // Progress of the releases of a list watched before (the movie or the
-// episode of $st): infoHash => share in (0, 1]. An episode of an anime numbered
-// on: its records as the own card wrote them before the numbering of Cinemeta
-// too ("1:923" of S21E32, aio_wh_se by the runs of the list), the newer form
-// first. No dune id: none, the history is not read.
+// episode of $st): infoHash => share in (0, 1]. No dune id: none, the history
+// is not read.
 /**
  * @param AioState $st
  * @return AioProgress
@@ -274,9 +272,7 @@ function aio_wh_progress($st)
     foreach (aio_wh_ours_all() as $uid => $share)
     {
         $u = $share > 0 ? aio_wh_uid(strval($uid), $mv['dune_id']) : null;
-        if (!$u || aio_wh_se($mv['cin'], $u[0], $u[1]) !== array($st['s'], $st['e']))
-            continue;
-        if (!isset($res[$u[2]]) || ($u[0] === $st['s'] && $u[1] === $st['e']))
+        if ($u && $u[0] === $st['s'] && $u[1] === $st['e'])
             $res[$u[2]] = $share;
     }
     return $res;
@@ -326,21 +322,6 @@ function aio_wh_uid($uid, $dune_id)
         substr($uid, $n), $m) ? array(intval($m[1]), intval($m[2]), $m[3]) : null;
 }
 
-// Season $s, episode $e of a record or a mark of an anime numbered on with runs $runs (aio_cin_valid) -> as the
-// list and the own card have them now, by Cinemeta: the own card before it wrote S1E923 for S21E32 of One Piece
-// (an episode not of season 1 of Cinemeta: by its pair, aio_cin_pair); else as they are.
-/**
- * @param list<array{int, int, int}> $runs
- * @param int $s
- * @param int $e
- * @return array{int, int}
- */
-function aio_wh_se($runs, $s, $e)
-{
-    $p = $runs && $s === 1 && $e > 0 && aio_cin_abs($runs, 1, $e) === 0 ? aio_cin_pair($runs, $e) : null;
-    return $p ? $p : array($s, $e);
-}
-
 // The uid of the mark of episode $q:$e (the season as asked, aio_cm_req_s) of the series of card
 // $dune_id that the own card sets (update_watched_marks): "aio:<dune id>:<s>:<e>:m". No record has
 // it ("m" is no infoHash): it stays on every firmware until taken off.
@@ -356,24 +337,20 @@ function aio_wh_mark_uid($dune_id, $q, $e)
 }
 
 // The marks of the episodes of the series of card $dune_id in $set (aio_wh_marked_set) by their
-// uids aio_wh_mark_uid: "s:e" (aio_wh_se by runs $runs) => the time of the mark, the newest of both forms.
+// uids aio_wh_mark_uid: "s:e" => the time of the mark.
 /**
  * @param string $dune_id
  * @param array<int|string, int> $set
- * @param list<array{int, int, int}> $runs
  * @return array<string, int>
  */
-function aio_wh_marks($dune_id, $set, $runs)
+function aio_wh_marks($dune_id, $set)
 {
     $out = array();
     foreach ($set as $uid => $ts)
     {
         $u = aio_wh_uid(strval($uid), $dune_id);
-        if (!$u || $u[2] !== 'm' || $u[0] < 0 || $u[1] < 0)
-            continue;
-        $k = implode(':', aio_wh_se($runs, $u[0], $u[1]));
-        if (!isset($out[$k]) || $ts > $out[$k])
-            $out[$k] = $ts;
+        if ($u && $u[2] === 'm' && $u[0] >= 0 && $u[1] >= 0)
+            $out["{$u[0]}:{$u[1]}"] = $ts;
     }
     return $out;
 }
@@ -472,18 +449,16 @@ function aio_wh_after($eps, $s, $e)
     return array(1, 1, false, "the last episode S{$s}E{$e} is watched");
 }
 
-// Episode record $w -> array(s (1 for none or a negative one), e (1 for none); by runs $runs as now (aio_wh_se),
-// pos (-1 for none), len (0 for none), uid (else url, else '')).
+// Episode record $w -> array(s (1 for none or a negative one), e (1 for none), pos (-1 for none),
+// len (0 for none), uid (else url, else '')).
 /**
  * @param stdClass $w
- * @param list<array{int, int, int}> $runs
  * @return array{int, int, float, float, string}
  */
-function aio_wh_rec($w, $runs)
+function aio_wh_rec($w)
 {
-    list($s, $e) = aio_wh_se($runs, isset($w->s) && is_numeric($w->s) && intval($w->s) >= 0 ? intval($w->s) : 1,
-        isset($w->e) && is_numeric($w->e) ? intval($w->e) : 1);
-    return array($s, $e,
+    return array(isset($w->s) && is_numeric($w->s) && intval($w->s) >= 0 ? intval($w->s) : 1,
+        isset($w->e) && is_numeric($w->e) ? intval($w->e) : 1,
         isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1.0,
         isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0.0,
         isset($w->uid) && is_string($w->uid) ? $w->uid : (isset($w->url) && is_string($w->url) ? $w->url : ''));
@@ -550,7 +525,7 @@ function aio_wh_pick($st, $dune_id, $eps)
     if (!$w)
         return $mk ? array('s' => $mk[0], 'e' => $mk[1], 'hash' => '', 'kind' => $mk[2] ? 'next' : 'first', 'rec' => '',
             'why' => $mk[3]) : array('s' => 1, 'e' => 1, 'hash' => '', 'kind' => 'none', 'rec' => '', 'why' => 'no history record');
-    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w, $st[3]);
+    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
     $u = aio_wh_uid($uid, $dune_id);
     $hash = $u && preg_match('/^[0-9a-f]{40}$/D', $u[2]) ? $u[2] : '';
     $watched = isset($st[1]["$s:$e"]) && $st[1]["$s:$e"][2] ? (aio_wh_full($pos, $len) ? 'by position' : 'marked') : '';
@@ -567,26 +542,24 @@ function aio_wh_pick($st, $dune_id, $eps)
 
 // The state of the series of card $dune_id for the ways in of the native (aio_wh_episode,
 // aio_wh_resume_ep) by $eps (season_numbers of dunemdb, aio_wh_lists), watched_files.txt read
-// once, the old records and marks of an anime numbered on by its runs $runs (aio_wh_se): with marks
-// of the own card all of the history (aio_wh_series); without them, or when the last of them by order
-// is not in $eps (an anime numbered on by the own card with no runs file: its 1:70 against 8 episodes
-// of S1 of dunemdb), the latest record alone (aio_wh_alone; with no marks only if $last, else none and
-// the history not read): the record decides, as before the marks.
+// once: with marks of the own card all of the history (aio_wh_series); without them, or when the
+// last of them by order is not in $eps (an anime numbered on by the own card with no pairs: its 1:70
+// against 8 episodes of S1 of dunemdb), the latest record alone (aio_wh_alone; with no marks only if
+// $last, else none and the history not read): the record decides, as before the marks.
 /**
  * @param string $dune_id
  * @param array<int, list<int>> $eps
  * @param bool $last
- * @param list<array{int, int, int}> $runs
  * @return AioWhSeries
  */
-function aio_wh_native($dune_id, $eps, $last, $runs)
+function aio_wh_native($dune_id, $eps, $last)
 {
     $set = $dune_id !== '' ? aio_wh_marked_set() : array();
-    $marks = aio_wh_marks($dune_id, $set, $runs);
+    $marks = aio_wh_marks($dune_id, $set);
     $w = null;
     if ($marks)
     {
-        $st = aio_wh_series($dune_id, $set, $runs);
+        $st = aio_wh_series($dune_id, $set);
         $ls = -1;
         $le = -1;
         foreach (array_keys($marks) as $k)
@@ -605,26 +578,25 @@ function aio_wh_native($dune_id, $eps, $last, $runs)
     }
     else if ($last && $dune_id !== '')
         $w = aio_wh_last($dune_id);
-    return aio_wh_alone($w, $dune_id, $set, $runs);
+    return aio_wh_alone($w, $dune_id, $set);
 }
 
 // The state of the series of card $dune_id as aio_wh_series of its latest episode record $w alone
 // (null: none): the progress of its episode by its position and the mark of its uid in $set
-// (aio_wh_marked_set), no marks of the own card; runs $runs as aio_wh_series.
+// (aio_wh_marked_set), no marks of the own card.
 /**
  * @param stdClass|null $w
  * @param string $dune_id
  * @param array<int|string, int> $set
- * @param list<array{int, int, int}> $runs
  * @return AioWhSeries
  */
-function aio_wh_alone($w, $dune_id, $set, $runs)
+function aio_wh_alone($w, $dune_id, $set)
 {
     $acc = array();
     if ($w)
-        aio_wh_series_visit($w, array($dune_id, $set, array(), $runs), $acc);
+        aio_wh_series_visit($w, array($dune_id, $set, array()), $acc);
     unset($acc['last']);
-    return array($w, $acc, array(), $runs);
+    return array($w, $acc, array());
 }
 
 // Episode of a series opened from its main card (season = episode = -1): aio_wh_pick of the state
@@ -636,7 +608,7 @@ function aio_wh_alone($w, $dune_id, $set, $runs)
 function aio_wh_episode($mv)
 {
     $eps = aio_wh_lists($mv['seasons']);
-    $p = aio_wh_pick(aio_wh_native($mv['dune_id'], $eps, true, $mv['cin']), $mv['dune_id'], $eps);
+    $p = aio_wh_pick(aio_wh_native($mv['dune_id'], $eps, true), $mv['dune_id'], $eps);
     if ($p['rec'] !== '')
         aio_log("history: {$p['rec']}, " . count($mv['seasons']) . ' seasons in season_numbers');
     aio_log("episode: S{$p['s']}E{$p['e']}, {$p['why']}");
@@ -649,19 +621,16 @@ function aio_wh_episode($mv)
 // (aio_wh_pick) or null, "s:e" => array(pos, len, watched), the marks of the own card
 // (aio_wh_marks)). Watched: by position, its uid marked (aio_wh_mark_on the end of the record), or
 // the mark of the own card of its S/E made after the record ends; an episode with such a mark and
-// no record: array(-1, 0, true); the runs $runs of an anime numbered on (aio_wh_se: its records and marks
-// of the own card before the numbering of Cinemeta, "1:923", as "21:32"; the latest of both forms of an
-// episode counts). Another reader of recent_uid besides aio_wh_progress.
+// no record: array(-1, 0, true). Another reader of recent_uid besides aio_wh_progress.
 /**
  * @param string $dune_id
  * @param array<int|string, int> $set
- * @param list<array{int, int, int}> $runs
  * @return AioWhSeries
  */
-function aio_wh_series($dune_id, $set, $runs)
+function aio_wh_series($dune_id, $set)
 {
-    $marks = aio_wh_marks($dune_id, $set, $runs);
-    $acc = aio_wh_find('history: series', 'aio_wh_series_visit', array($dune_id, $set, $marks, $runs));
+    $marks = aio_wh_marks($dune_id, $set);
+    $acc = aio_wh_find('history: series', 'aio_wh_series_visit', array($dune_id, $set, $marks));
     $last = isset($acc['last']) ? $acc['last'] : null;
     unset($acc['last']);
     foreach ($marks as $k => $ts)
@@ -669,12 +638,12 @@ function aio_wh_series($dune_id, $set, $runs)
         if (!isset($acc[$k]))
             $acc[$k] = array(-1.0, 0.0, true);
     }
-    return array($last, $acc, $marks, $runs);
+    return array($last, $acc, $marks);
 }
 
 /**
  * @param mixed $w
- * @param array{string, array<int|string, int>, array<string, int>, list<array{int, int, int}>} $arg
+ * @param array{string, array<int|string, int>, array<string, int>} $arg
  * @param array<string, mixed> $acc
  * @return bool
  */
@@ -685,7 +654,7 @@ function aio_wh_series_visit($w, $arg, &$acc)
     if (!isset($acc['last']))
         $acc['last'] = $w;
     // e is a number of 1 or more here (aio_wh_match): aio_wh_rec's E1 for no e is not reached.
-    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w, $arg[3]);
+    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
     $k = "$s:$e";
     if (isset($acc[$k]))
         return false;
@@ -698,17 +667,15 @@ function aio_wh_series_visit($w, $arg, &$acc)
 
 // The uids of the records of our releases of the episodes $keys ("s:e" as asked) of the series of
 // card $dune_id, one pass over the history: "s:e" => list of uids (the marks of update_watched_marks
-// go on them too: the native "Seasons" show such an episode watched); the records of an anime numbered on
-// in both forms (aio_wh_se by its runs $runs).
+// go on them too: the native "Seasons" show such an episode watched).
 /**
  * @param string $dune_id
  * @param list<string> $keys
- * @param list<array{int, int, int}> $runs
  * @return array<string, list<string>>
  */
-function aio_wh_ours_eps($dune_id, $keys, $runs)
+function aio_wh_ours_eps($dune_id, $keys)
 {
-    $acc = aio_wh_find('history: marks', 'aio_wh_ours_eps_visit', array($dune_id, array_flip($keys), $runs));
+    $acc = aio_wh_find('history: marks', 'aio_wh_ours_eps_visit', array($dune_id, array_flip($keys)));
     $out = array();
     foreach ($acc as $k => $uids)
     {
@@ -720,17 +687,15 @@ function aio_wh_ours_eps($dune_id, $keys, $runs)
 
 /**
  * @param mixed $w
- * @param array{string, array<string, int>, list<array{int, int, int}>} $arg
+ * @param array{string, array<string, int>} $arg
  * @param array<string, array<string, true>> $acc
  * @return bool
  */
 function aio_wh_ours_eps_visit($w, $arg, &$acc)
 {
     $u = aio_wh_ours($w, AIO_SUP_ID . ':') ? aio_wh_uid($w->uid, $arg[0]) : null;
-    if (!$u || $u[2] === 'm' || $u[0] < 0 || $u[1] < 0)
-        return false;
-    $k = implode(':', aio_wh_se($arg[2], $u[0], $u[1]));
-    if (isset($arg[1][$k]))
+    $k = $u ? "{$u[0]}:{$u[1]}" : '';
+    if ($u && $u[2] !== 'm' && isset($arg[1][$k]))
         $acc[$k][$w->uid] = true;
     return false;
 }
@@ -750,15 +715,11 @@ function aio_wh_ours_eps_visit($w, $arg, &$acc)
  */
 function aio_wh_resume_ep($mv, $r)
 {
-    $runs = $mv['cin'];
-    list($s, $e) = aio_wh_se($runs, $r['s'], $r['e']);
-    if ($s !== $r['s'] || $e !== $r['e'])
-        aio_log("resume: record S{$r['s']}E{$r['e']} of the own card before Cinemeta is S{$s}E{$e}");
-    $r['s'] = $s;
-    $r['e'] = $e;
+    $s = $r['s'];
+    $e = $r['e'];
     $d = $mv['dune_id'];
     $eps = aio_wh_lists($mv['seasons']);
-    $mk = aio_wh_mark_next(aio_wh_native($d, $eps, false, $runs), $eps);
+    $mk = aio_wh_mark_next(aio_wh_native($d, $eps, false), $eps);
     if ($mk)
     {
         $same = $mk[0] === $s && $mk[1] === $e;

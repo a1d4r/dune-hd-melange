@@ -266,9 +266,9 @@ function aio_cin_path($imdb)
 }
 
 // Runs $runs (aio_cin_valid) of the numbering of Cinemeta of an anime numbered on, IMDb $imdb, to its file in
-// data_dir (~1 KB; written again only when they change): the ways in of the native card and "Continue" read the
-// history and the list by them with no meta and no network (aio_movie: the numbers of the episodes, old records
-// "1:923" of the own card, aio_wh_se). Logged when written.
+// data_dir (~1 KB; written again only when they change): the ways in of the native card and "Continue" number the
+// episodes of the list by them with no meta and no network (aio_movie: "S21E32 (923)", the file 923 of a pack).
+// Logged when written.
 /**
  * @param string $imdb
  * @param list<array{int, int, int}> $runs
