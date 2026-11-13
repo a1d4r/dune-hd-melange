@@ -1000,12 +1000,12 @@ function aio_relist($st, $s, $e, $hash)
     if (AIO_JACRED)
         $rows = aio_jacred($rows, $mv, $s);
     $ns = aio_list_state($mv, $s, $e, $rows, $st['lang'], $res['errors']);
-    list($sel, $by) = aio_release_row($ns['rows'], $hash, $s, $e);
+    list($sel, $by) = aio_release_row($ns['rows'], $hash, $s, $e, aio_cin_ep($mv, $s, $e));
     return array('st' => aio_gc_put_cursor($ns, $sel), 'sel' => $sel, 'by' => $by);
 }
 
 // The row of release $hash in $rows of S$s E$e: with the episode in its file
-// first, as aio_next (a release not in the cache has its hash in every reply,
+// first (or its pair of Cinemeta $cin, aio_has_ep), as aio_next (a release not in the cache has its hash in every reply,
 // even a pack of another season), else any of it, else the first row. Found
 // in the rows as the list has them: sorted. -> array(row, why that row)
 /**
@@ -1013,9 +1013,10 @@ function aio_relist($st, $s, $e, $hash)
  * @param string $hash
  * @param int $s
  * @param int $e
+ * @param array{int, int}|null $cin
  * @return array{int, string}
  */
-function aio_release_row($rows, $hash, $s, $e)
+function aio_release_row($rows, $hash, $s, $e, $cin = null)
 {
     $sel = -1;
     $by = 'no such release';
@@ -1023,7 +1024,7 @@ function aio_release_row($rows, $hash, $s, $e)
     {
         if ($hash === '' || $r['hash'] !== $hash)
             continue;
-        if ($e < 1 || aio_has_ep($r, $s, $e))
+        if ($e < 1 || aio_has_ep($r, $s, $e, $cin))
         {
             $sel = $i;
             $by = $e < 1 ? 'same release' : 'same release with the episode';
@@ -1233,20 +1234,27 @@ function aio_next_fetch($key, $s, $e)
         'errors' => $res['errors']);
 }
 
-// The file of the row has the episode. Seasons may be absent (not parsed).
+// The file of the row has the episode. Seasons may be absent (not parsed). Or it has the episode by the
+// numbering of Cinemeta $cin (aio_cin_ep: a reply asked by it names E924 of One Piece S21E33), its season
+// in the name only: a file with no season and that number is of another episode (aio_cin_wrong).
 /**
  * @param AioRow $r
  * @param int $s
  * @param int $e
+ * @param array{int, int}|null $cin
  * @return bool
  */
-function aio_has_ep($r, $s, $e)
+function aio_has_ep($r, $s, $e, $cin = null)
 {
+    if ($cin !== null && $r['pf_seasons'] !== null && in_array($cin[0], $r['pf_seasons'], true) &&
+        in_array($cin[1], $r['pf_episodes'], true))
+        return true;
     return in_array($e, $r['pf_episodes'], true) && ($r['pf_seasons'] === null || in_array($s, $r['pf_seasons'], true));
 }
 
 // The rows of release $hash in $rows (indexes, -1: none): 'deb' the row with a
-// URL, a cached one first, with episode $s/$e in its file ($e < 1: any);
+// URL, a cached one first, with episode $s/$e in its file ($e < 1: any; or its
+// pair of Cinemeta $cin, aio_has_ep);
 // 'p2p' the first P2P row (no URL); 'ts' the row for TorrServer: the first P2P
 // one, else the first; 'rows' rows of the release, 'cached' of them cached with
 // a URL. First: in the order of
@@ -1259,9 +1267,10 @@ function aio_has_ep($r, $s, $e)
  * @param string $hash
  * @param int $s
  * @param int $e
+ * @param array{int, int}|null $cin
  * @return array{deb: int, p2p: int, ts: int, rows: int, cached: int}
  */
-function aio_release_pick($rows, $hash, $s, $e)
+function aio_release_pick($rows, $hash, $s, $e, $cin = null)
 {
     $p = array('deb' => -1, 'p2p' => -1, 'ts' => -1, 'rows' => 0, 'cached' => 0);
     $ord = $pos = array();
@@ -1287,7 +1296,7 @@ function aio_release_pick($rows, $hash, $s, $e)
         }
         if ($r['cached'] === true)
             $p['cached']++;
-        if (($e < 1 || aio_has_ep($r, $s, $e)) &&
+        if (($e < 1 || aio_has_ep($r, $s, $e, $cin)) &&
             ($p['deb'] < 0 || ($r['cached'] === true && $rows[$p['deb']]['cached'] !== true)))
             $p['deb'] = $i;
     }
@@ -1329,7 +1338,8 @@ function aio_next_fetch_retry($key, $s, $e, $hash, $mode)
     {
         $res = aio_next_fetch($key, $s, $e);
         $errors = $res['errors'];
-        $pick = isset($res['error']) ? null : aio_release_pick($res['st']['rows'], $hash, $s, $e);
+        $pick = isset($res['error']) ? null : aio_release_pick($res['st']['rows'], $hash, $s, $e,
+            aio_cin_ep($res['st']['movie'], $s, $e));
         $none = $pick ? $pick[$mode === 'ts' ? 'ts' : 'deb'] < 0 : $res['error'] === 'err_no_streams';
         if (!$first || !$none || !$errors['lines'] || !aio_op_total($retry, $retry, "next: $ep: retry"))
             return array($res, $pick, $none);

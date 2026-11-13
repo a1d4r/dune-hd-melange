@@ -299,8 +299,8 @@ function aio_cin_ep($mv, $s, $e)
 }
 
 // The id of the streams of S$s E$e of $mv (a movie: its IMDb alone): "<imdb>:<s>:<e>", by the numbering of
-// Cinemeta when there is one (aio_cin_ep; logged). -> array(id, for aio_fetch: array(season, episode)
-// of Cinemeta and $e, or null).
+// Cinemeta when there is one (aio_cin_ep; logged). -> array(id, for aio_fetch: array($e, season, episode
+// of Cinemeta) as a run of aio_cin_runs, or null).
 /**
  * @param AioMovie $mv
  * @param int $s
@@ -315,7 +315,7 @@ function aio_stream_ask($mv, $s, $e)
     if (!$c)
         return array("{$mv['imdb']}:$s:$e", null);
     aio_log(sprintf('cinemeta: S%02dE%02d asked as S%02dE%02d', $s, $e, $c[0], $c[1]));
-    return array("{$mv['imdb']}:{$c[0]}:{$c[1]}", array($c[0], $c[1], $e));
+    return array("{$mv['imdb']}:{$c[0]}:{$c[1]}", array($e, $c[0], $c[1]));
 }
 
 // Row $r of a reply asked by the numbering of Cinemeta ($cin of aio_stream_ask) has a wrong file of a pack:
@@ -328,8 +328,8 @@ function aio_stream_ask($mv, $s, $e)
  */
 function aio_cin_wrong($r, $cin)
 {
-    return $cin !== null && $cin[1] !== $cin[2] && $r['pf_seasons'] === null &&
-        in_array($cin[1], $r['pf_episodes'], true) && !in_array($cin[2], $r['pf_episodes'], true);
+    return $cin !== null && $cin[2] !== $cin[0] && $r['pf_seasons'] === null &&
+        in_array($cin[2], $r['pf_episodes'], true) && !in_array($cin[0], $r['pf_episodes'], true);
 }
 
 // season_numbers of movie_str ({"1": {"episodes_count": 10, ...}, ...}, the
@@ -1362,7 +1362,8 @@ function aio_play_action($in)
         // file: the reply is of the episode watched; the next one: only with it.
         $mode = $resume['mode'];
         $tag = "resume: release {$resume['hash']} mode=" . ($mode !== '' ? $mode : 'none');
-        $pick = aio_release_pick($st['rows'], $resume['hash'], $resume['next'] ? $s : -1, $resume['next'] ? $e : -1);
+        $pick = $resume['next'] ? aio_release_pick($st['rows'], $resume['hash'], $s, $e, aio_cin_ep($mv, $s, $e)) :
+            aio_release_pick($st['rows'], $resume['hash'], -1, -1);
         $deb = $mode !== 'ts' && $pick['deb'] >= 0 ? $st['rows'][$pick['deb']] : null;
         $pre = null;
         if ($deb && $deb['cached'] !== true)
@@ -1400,7 +1401,7 @@ function aio_play_action($in)
  */
 function aio_list_cursor($st, $hash)
 {
-    list($sel, $by) = aio_release_row($st['rows'], $hash, $st['s'], $st['e']);
+    list($sel, $by) = aio_release_row($st['rows'], $hash, $st['s'], $st['e'], aio_cin_ep($st['movie'], $st['s'], $st['e']));
     aio_log("list: cursor on row $sel of " . count($st['rows']) . ", $by");
     return aio_gc_put_cursor($st, $sel);
 }

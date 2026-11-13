@@ -40,11 +40,14 @@ define('AIO_CM_CIN_DAYS', 2);
 define('AIO_CM_CIN_AHEAD', 3);
 // Episodes of the meta paired, a share of all at least: else the lists are not of one series, none used.
 define('AIO_CM_CIN_MIN', 0.9);
+// Cinemeta not reached (aio_cm_cin null): asked again with a meta from memory this many s after, at least.
+define('AIO_CM_CIN_AGAIN', 60);
 
 // Parsed metas by "<type>:<id>": memory of php_server only, gone with a restart.
 class AioCm
 {
-    /** @var array<string, array{t: int, n: int, m: AioCardMeta}> n: episodes of m */
+    /** @var array<string, array{t: int, n: int, m: AioCardMeta, cin_t: int}> n: episodes of m; cin_t: when Cinemeta was
+     * not reached (aio_cm_cin null), 0: it was */
     public static $cache = array();
 }
 
@@ -526,10 +529,11 @@ function aio_cm_cin_runs($a, $map)
 // Runs of the numbering of Cinemeta (aio_cm_cin_runs) of the episodes asked by season 1 of series meta $m:
 // its meta of Cinemeta asked when a season is numbered on from season 1 (aio_cm_numbered_on) and it has
 // an IMDb. None for another series, on a failure, when fewer than AIO_CM_CIN_MIN of the episodes are
-// paired. One line of the log.
+// paired; null when not reached (a curl error but the reply too big, HTTP 429 or 5xx): to be asked again.
+// One line of the log.
 /**
  * @param AioCardMeta $m
- * @return list<array{int, int, int}>
+ * @return list<array{int, int, int}>|null
  */
 function aio_cm_cin($m)
 {
@@ -557,9 +561,11 @@ function aio_cm_cin($m)
     else if (count($map) < AIO_CM_CIN_MIN * count($a))
         $why = 'too few pairs';
     $runs = $why === '' ? aio_cm_cin_runs($a, $map) : array();
+    $again = ($err !== '' && $err !== AIO_HTTP_TOO_BIG) || ($err === '' && ($code === 429 || $code >= 500));
     aio_log(sprintf('card: cinemeta %s: %d bytes, %d episodes, %d of %d paired, %d runs, %.0f ms%s', $m['imdb'], $size,
-        count($b), count($map), count($a), count($runs), (microtime(true) - $t) * 1000, $why !== '' ? ", none: $why" : ''));
-    return $runs;
+        count($b), count($map), count($a), count($runs), (microtime(true) - $t) * 1000,
+        $why !== '' ? ", none: $why" . ($again ? ', asked again' : '') : ''));
+    return $again ? null : $runs;
 }
 
 // The meta of tile $t for its card: from memory if parsed less than AIO_CM_TTL ago, else asked.
@@ -567,7 +573,9 @@ function aio_cm_cin($m)
 // timeout, big, rate, server, notfound, http, bad), other (the meta of another title); meta: the
 // parsed one or null. Only a parsed meta is kept: a failure is asked again at the next opening.
 // Kept: AIO_CM_KEEP titles and AIO_CM_KEEP_EPS episodes in all at most, the oldest go. A series: with the
-// numbering of Cinemeta (cin, aio_cm_cin), asked with the meta; a failure of it is kept so too (as season 1).
+// numbering of Cinemeta (cin, aio_cm_cin), asked with the meta; none of it is kept so too (as season 1),
+// but Cinemeta not reached: the meta kept, Cinemeta alone asked again with it from memory after
+// AIO_CM_CIN_AGAIN s (the meta of One Piece is 10 s and 4 MB at most, not asked again for it).
 /**
  * @param AioCatTile $t
  * @return array{err: string, meta: AioCardMeta|null}
@@ -587,6 +595,12 @@ function aio_cm_get($t)
         if ($now >= $c['t'] && $now - $c['t'] < AIO_CM_TTL)
         {
             aio_log("card: meta $key cached");
+            if ($c['cin_t'] > 0 && ($now < $c['cin_t'] || $now - $c['cin_t'] >= AIO_CM_CIN_AGAIN))
+            {
+                $cin = aio_cm_cin($c['m']);
+                AioCm::$cache[$key]['m']['cin'] = $c['m']['cin'] = $cin !== null ? $cin : array();
+                AioCm::$cache[$key]['cin_t'] = $cin !== null ? 0 : $now;
+            }
             return array('err' => '', 'meta' => $c['m']);
         }
         unset(AioCm::$cache[$key]);
@@ -603,7 +617,8 @@ function aio_cm_get($t)
     }
     $m = aio_cm_parse($g['list'], $type, $id, $now);
     unset($g);
-    $m['cin'] = aio_cm_cin($m);
+    $cin = aio_cm_cin($m);
+    $m['cin'] = $cin !== null ? $cin : array();
     $eps = aio_cm_eps_count($m);
     aio_log(sprintf('card: meta %s: imdb %s, %d seasons, %d episodes, %d seasons out, %d actors, %d directors, %d writers, %d creators, collection %s',
         $key, $m['imdb'] !== '' ? $m['imdb'] : 'none', count($m['seasons']), $eps, count($m['season_numbers']),
@@ -611,7 +626,7 @@ function aio_cm_get($t)
         $m['collection']['id'] !== '' ? $m['collection']['id'] : 'none'));
     if ($eps > AIO_CM_KEEP_EPS)
         return array('err' => '', 'meta' => $m);
-    AioCm::$cache[$key] = array('t' => $now, 'n' => $eps, 'm' => $m);
+    AioCm::$cache[$key] = array('t' => $now, 'n' => $eps, 'm' => $m, 'cin_t' => $cin !== null ? 0 : $now);
     $sum = 0;
     foreach (AioCm::$cache as $c)
         $sum += $c['n'];
