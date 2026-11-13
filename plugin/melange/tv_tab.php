@@ -23,11 +23,15 @@ define('AIO_TV_FROM', 'tv:tv');
 // removes them and keeps them away: a way back if the shell fails on them (the owner makes it by hand).
 define('AIO_TV_MENU_FILE', 'rows_menu_config.json');
 define('AIO_TV_SUB_OFF', 'tv_sub_off');
-// The timer: all its requests in this many s. php_server runs one call at a time: the info panel and
-// ENTER on "TV" wait for it.
+// The timer: all its requests in this many s (aio_tv_refresh: each given the whole seconds left, curl takes
+// whole ones, so none runs past it; none with less than 1 s left). Building and comparing the EPF come on
+// top, only in a tick with a new copy or other settings. php_server runs one call at a time: the info
+// panel and ENTER on "TV" wait for it.
 define('AIO_TV_TIMER_S', 3.0);
 // In data_dir: the tiles of tv.json by id without the mode (aio_tv_tile), written with it.
 define('AIO_TV_TILES_FILE', 'tv_tiles.json');
+// In data_dir: what the timer last built the EPF with (aio_tv_timer_state), kept over a restart of php_server.
+define('AIO_TV_TIMER_FILE', 'tv_timer_state');
 
 class AioTv
 {
@@ -42,6 +46,9 @@ class AioTv
     // The timer asks its copies: no flag of each, it compares the file itself.
     /** @var bool */
     public static $quiet = false;
+    // The copies the timer saved meanwhile (the manifest, first pages of rows of the file).
+    /** @var int */
+    public static $new_copies = 0;
     // aio_settings_sig at the last operation (aio_tv_settings_seen); null: none since a start of php_server.
     /** @var string|null */
     public static $sig = null;
@@ -125,14 +132,17 @@ function aio_tv_rows($rows)
 
 // aio_cat_cache_write saved the copy $key: the manifest or the first page of a row of the file - the flag.
 // The flag of this operation set already, a copy of no first page (a page further on, a card): no manifest read.
+// Saved by the timer (it asks only those): counted, no flag.
 /**
  * @param string $key
  * @return void
  */
 function aio_tv_copy_saved($key)
 {
-    if (AioTv::$quiet || AioTv::$flagged_t0 === Aio::$t0 || ($key !== AIO_CAT_MANIFEST_KEY && substr($key, -2) !== '|0') ||
-        !aio_tv_selected())
+    $first = $key === AIO_CAT_MANIFEST_KEY || substr($key, -2) === '|0';
+    if (AioTv::$quiet)
+        AioTv::$new_copies += $first ? 1 : 0;
+    if (AioTv::$quiet || AioTv::$flagged_t0 === Aio::$t0 || !$first || !aio_tv_selected())
         return;
     $hit = $key === AIO_CAT_MANIFEST_KEY;
     if (!$hit)
@@ -518,25 +528,42 @@ function aio_tv_update($in)
     return $menu === 'new' || $menu === 'off, removed' ? aio_tv_reread() : $status;
 }
 
-// The file of the EPF $epf the shell shows: of tmp_dir while it is there, else of the flash (aio_tv_dirs;
-// the shell moves the one of tmp_dir to the flash).
+// The file of the EPF $epf the shell shows holds $data: the one of tmp_dir while it is there, else the one
+// of the flash (aio_tv_dirs). The shell moves the one of tmp_dir to the flash (removes it, the same bytes
+// there) at any time: gone while read, the flash one is shown.
 /**
  * @param string $epf
- * @return string
+ * @param string $data
+ * @return bool
  */
-function aio_tv_shown_file($epf)
+function aio_tv_shown_same($epf, $data)
 {
     $d = aio_tv_dirs();
     $tmp = "{$d['tmp']}/$epf.json";
+    if (aio_tv_same($tmp, $data))
+        return true;
     clearstatcache();
-    return is_file($tmp) ? $tmp : "{$d['flash']}/$epf.json";
+    return !is_file($tmp) && aio_tv_same("{$d['flash']}/$epf.json", $data);
+}
+
+// What the EPF are built with besides the copies: settings.json (aio_settings_sig), the language, the
+// version of the plugin (another one may build them otherwise).
+/**
+ * @param string $lang
+ * @return string
+ */
+function aio_tv_timer_state($lang)
+{
+    return aio_settings_sig() . " $lang " . AIO_VERSION;
 }
 
 // The timer: the copy of the manifest older than AIO_CAT_FRESH asked anew (not AIO_CAT_MANIFEST_FRESH:
 // the timer comes every 10 min), then the first pages
 // of the rows of the file without a copy or with one older than AIO_CAT_FRESH, the oldest first, one by
 // one in $limit s; after a failure of the server no more. Fresh copies are not asked: at most a request
-// a row an hour, however often the shell calls. No flag of each copy (AioTv::$quiet). -> for the log.
+// a row an hour, however often the shell calls. No flag of each copy (AioTv::$quiet), they are counted
+// (AioTv::$new_copies). Each request gets the whole seconds left (curl takes whole ones: rounded up, the
+// last could run past $limit), none begins with less than 1 s. -> for the log.
 /**
  * @param float $limit
  * @return string
@@ -546,16 +573,18 @@ function aio_tv_refresh($limit)
     $start = microtime(true);
     $down = array('net', 'timeout', 'rate', 'server');
     AioTv::$quiet = true;
+    AioTv::$new_copies = 0;
     $copy = aio_cat_manifest_copy();
     $rows = $copy['rows'];
     $man = 'manifest fresh';
     $err = '';
     if (!$copy['rows'] || !aio_cat_is_fresh($copy))
     {
-        $m = aio_cat_manifest_fetch(max(1, intval(min(AIO_CATV_REFRESH_S, $limit))));
-        $rows = $m['rows'] ? $m['rows'] : $rows;
-        $err = $m['err'];
-        $man = 'manifest asked' . ($err !== '' ? " ($err)" : '');
+        $secs = intval(min(AIO_CATV_REFRESH_S, floor($limit)));
+        $m = $secs >= 1 ? aio_cat_manifest_fetch($secs) : null;
+        $rows = $m && $m['rows'] ? $m['rows'] : $rows;
+        $err = $m ? $m['err'] : '';
+        $man = $m ? 'manifest asked' . ($err !== '' ? " ($err)" : '') : 'manifest old, no time';
     }
     $tv_rows = aio_tv_rows($rows);
     $old = array();
@@ -569,11 +598,11 @@ function aio_tv_refresh($limit)
     $asked = 0;
     foreach (array_keys($old) as $i)
     {
-        $left = $limit - (microtime(true) - $start);
-        if (in_array($err, $down, true) || $left < AIO_CATV_MIN_S)
+        $secs = floor($limit - (microtime(true) - $start));
+        if (in_array($err, $down, true) || $secs < 1)
             break;
         $st = aio_cat_row_state($tv_rows[$i]);
-        $res = aio_cat_more($st, $left);
+        $res = aio_cat_more($st, $secs);
         $err = $res['err'];
         $asked++;
     }
@@ -582,10 +611,12 @@ function aio_tv_refresh($limit)
 }
 
 // topmenu_timer_action of the manifest: the old copies asked anew (aio_tv_refresh, none without AIOStreams:
-// the files have one tile then), each EPF built and compared with the file the shell shows (aio_tv_shown_file;
-// not the one of tmp_dir alone: the shell takes it away, the timer would find it changed each time):
-// any one another - the flag, the shell calls the update_action, which writes them. Not the TV application:
-// nothing asked, nothing written.
+// the files have one tile then). Only when one came new or aio_tv_timer_state is another than the one of
+// AIO_TV_TIMER_FILE (none there: another too) each EPF built and compared with the file the shell shows
+// (aio_tv_shown_same; not the one of tmp_dir alone: the shell takes it away, the timer would find it
+// changed each time): any one another - the flag, the shell calls the update_action, which writes them.
+// Else nothing built: most ticks ask nothing, php_server is not held up for it. The state written only
+// when another (the flash wears). Not the TV application: nothing asked, nothing written.
 /**
  * @param stdClass $in
  * @return AioAction
@@ -600,15 +631,34 @@ function aio_tv_timer($in)
         aio_log("$what: " . ($d['tmp'] === '' ? 'no tmp_dir_path' : 'not the TV application') . ', nothing asked');
         return aio_tv_status();
     }
-    $asked = Aio::$settings['base'] === '' ? 'AIOStreams not set, nothing asked' : aio_tv_refresh(AIO_TV_TIMER_S);
-    $lang = aio_tv_lang($in);
-    $changed = array();
-    foreach (aio_tv_jsons($lang) ?: array() as $epf => $json)
+    $asked = 'AIOStreams not set, nothing asked';
+    $new = 0;
+    if (Aio::$settings['base'] !== '')
     {
-        if (!aio_tv_same(aio_tv_shown_file($epf), $json))
+        $asked = aio_tv_refresh(AIO_TV_TIMER_S);
+        $new = AioTv::$new_copies;
+    }
+    $lang = aio_tv_lang($in);
+    $state = aio_tv_timer_state($lang);
+    $sf = aio_data_dir() . '/' . AIO_TV_TIMER_FILE;
+    clearstatcache();
+    $was = aio_data_dir() !== '' && is_file($sf) ? strval(file_get_contents($sf, false, null, 0, 1024)) : '';
+    $why = $new > 0 ? "new copies $new" : ($was === '' ? 'no state' : ($state !== $was ? 'settings changed' : ''));
+    if ($why === '')
+    {
+        aio_log(sprintf('%s %s: %s; nothing to do, %.0f ms', $what, $lang, $asked, (microtime(true) - $t0) * 1000));
+        return aio_tv_status();
+    }
+    $jsons = aio_tv_jsons($lang);
+    $changed = array();
+    foreach ($jsons ?: array() as $epf => $json)
+    {
+        if (!aio_tv_shown_same($epf, $json))
             $changed[] = $epf;
     }
-    aio_log(sprintf('%s %s: %s; the file %s, %.0f ms', $what, $lang, $asked,
+    if ($jsons !== null && $state !== $was && aio_data_dir() !== '')
+        aio_write_file($sf, $state);
+    aio_log(sprintf('%s %s: %s; %s, the file %s, %.0f ms', $what, $lang, $asked, $why,
         $changed ? 'changed (' . implode(', ', $changed) . ')' : 'the same', (microtime(true) - $t0) * 1000));
     if ($changed)
         aio_tv_flag('the timer');
