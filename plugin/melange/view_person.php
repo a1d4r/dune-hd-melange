@@ -89,7 +89,10 @@ function aio_pp_keep($tmdb, $e)
     unset(AioPp::$people[$tmdb]);
     AioPp::$people[$tmdb] = $e;
     while (count(AioPp::$people) > AIO_PP_KEEP)
-        array_shift(AioPp::$people);
+    {
+        reset(AioPp::$people);
+        unset(AioPp::$people[key(AioPp::$people)]);
+    }
 }
 
 // Person $tmdb in memory changed to $e, in its place of the order.
