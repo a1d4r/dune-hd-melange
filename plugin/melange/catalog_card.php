@@ -335,7 +335,7 @@ function aio_card_countries($list)
 // director, 2 writer. id: melange-tmdb-<id> or melange-tvdb-<id>, else melange-n-<md5 of
 // the name>: unique, no / or : (it names the file of the photo in the cache of the
 // shell). A person on the server of the Dune has another id: ENTER on one says the server
-// failed.
+// failed. card_meta.php gives creators here too, as app_extras.cast.
 /**
  * @param array<mixed> $meta
  * @param int $actors
