@@ -1,16 +1,34 @@
 <?php
 // A strip: a row of items under a frame of the focus, shared by the rows of the own card (the
-// episodes of a series, the cast) and of the page of a person (its works). The frame goes in the
-// first slots, then the strip moves under it; a line after the first nc items. A row draws its own
-// cells and the colours of their labels; the strip moves them and the frame. Ids of a strip: its
-// id (also its key in the place of a screen, AioOcPos r) and "st" (the strip), "fr" (the frame);
-// the cells of a row start with it too, so the rows of a page do not collide.
+// episodes of a series, the cast, similar titles, the movies of a franchise) and of the page of a
+// person (its works). The frame goes in the first slots, then the strip moves under it; a line
+// after the first nc items. A row draws its own cells and the colours of their labels; the strip
+// moves them and the frame. Ids of a strip: its id (also its key in the place of a screen, AioOcPos
+// r) and "<id>st" (the strip), "<id>fr" (the frame); the cells of a row of posters
+// (aio_oc_poster_cell) "<id><i>" and their titles "<id>n<i>", so the rows of a screen do not
+// collide. The cast ("c") has its own: "p<i>", the names "pn<i>"; the episodes ("e") too: "c<i>",
+// the titles "tt<i>".
 // AioOcStrip: n items, nc before the line (0 none); the item w x h (the frame goes round it), the
 // cell cw x ch (the strip ends cw after the x of the last); step apart, div more after the line;
 // vis whole on the screen, lead slots the frame goes before the strip moves; x the left slot on
 // the screen (the clip of the strip starts at 0), y the top of the item where the frame is drawn.
-// Needs view_card.php (AIO_OC_FRAME, AIO_OC_FOCUS) and gcomps.php.
+// The title of a row ROW_HEAD over the top of its items (aio_oc_row_title).
+// Needs view_card.php (AIO_OC_FRAME, AIO_OC_FOCUS, aio_oc_label), view_catalog.php (aio_catv_poster)
+// and gcomps.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
+
+define('AIO_OC_ROW_HEAD', 46);
+// A poster of a row (the works of a person, similar titles, the movies of a franchise),
+// POSTER_W x POSTER_H, STEP apart, VIS of them whole (the next one at the right edge of the screen:
+// 10 px of it cut), DIV more after the line; CAP_DY under it its title in 2 lines at most and the
+// lines under it (aio_oc_poster_titles), 24 px. The owner, 13.11.2026: the posters of 190x285 were
+// small, their titles cut.
+define('AIO_OC_POSTER_W', 240);
+define('AIO_OC_POSTER_H', 360);
+define('AIO_OC_POSTER_STEP', 260);
+define('AIO_OC_POSTER_VIS', 6);
+define('AIO_OC_POSTER_DIV', 40);
+define('AIO_OC_POSTER_CAP_DY', 12);
 
 // The first item of a row of $n at the left slot with the one at $i in focus, $vis of them whole
 // on the screen: the frame goes in the first $lead + 1 slots, then the row, the frame stays in slot
@@ -174,4 +192,88 @@ function aio_oc_frame_change($id, $geom, $smooth, $was, $is, $w, $h)
     if ($geom)
         return array(aio_gc_change($id, $geom, $smooth ? GCOMP_TRANSITION_DEFAULT : GCOMP_TRANSITION_NONE));
     return array();
+}
+
+// --- Rows of posters.
+
+// The title of a row at $y of its panel: $title white, then "· $rest" grey ('' none), cut to $w
+// from the x of the catalog.
+/**
+ * @param int $y
+ * @param string $title
+ * @param string $rest
+ * @param int $w
+ * @return list<AioGcComp>
+ */
+function aio_oc_row_title($y, $title, $rest, $w)
+{
+    $tw = min($w, aio_gc_w($title, AIO_CATV_LINE_PX));
+    $d = array(aio_oc_label(AIO_CATV_CARD_X, $y, $tw, aio_gc_cut_w($title, AIO_CATV_LINE_PX, $w), AIO_CATV_LINE_PX, AIO_GC_TEXT));
+    $x = aio_gc_w($title . ' ', AIO_CATV_LINE_PX);
+    if ($rest !== '' && $x < $w)
+        $d[] = aio_oc_label(AIO_CATV_CARD_X + $x, $y, $w - $x, aio_gc_cut_w("· $rest", AIO_CATV_LINE_PX, $w - $x),
+            AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
+    return $d;
+}
+
+// The strip of $n posters ($nc before the line) of a row "$id" with its title at $y of its panel,
+// cells $ch high (the poster and the lines under it).
+/**
+ * @param string $id
+ * @param int $n
+ * @param int $nc
+ * @param int $y
+ * @param int $ch
+ * @return AioOcStrip
+ */
+function aio_oc_poster_strip($id, $n, $nc, $y, $ch)
+{
+    return array('n' => $n, 'nc' => $nc, 'w' => AIO_OC_POSTER_W, 'h' => AIO_OC_POSTER_H, 'cw' => AIO_OC_POSTER_W, 'ch' => $ch,
+        'step' => AIO_OC_POSTER_STEP, 'div' => AIO_OC_POSTER_DIV, 'vis' => AIO_OC_POSTER_VIS, 'lead' => AIO_OC_POSTER_VIS - 2,
+        'x' => AIO_CATV_CARD_X, 'y' => $y + AIO_OC_ROW_HEAD, 'id' => $id);
+}
+
+// The title of a poster ($name in $color, 2 lines at most, "…" at the end of the second) and the
+// lines under it, grey, 4 px more apart from it: their tops 0, 26 and 56, 82.
+/**
+ * @param string $name
+ * @param list<string> $lines
+ * @param string $color
+ * @return list<AioGcComp>
+ */
+function aio_oc_poster_titles($name, $lines, $color)
+{
+    $d = array();
+    $y = 0;
+    foreach (aio_gc_wrap(aio_clean($name), 24, AIO_OC_POSTER_W, 2, true) as $s)
+    {
+        $d[] = aio_oc_label(0, $y, AIO_OC_POSTER_W, $s, 24, $color);
+        $y += 26;
+    }
+    $y += 4;
+    foreach ($lines as $s)
+    {
+        $d[] = aio_oc_label(0, $y, AIO_OC_POSTER_W, $s, 24, AIO_GC_DIM);
+        $y += 26;
+    }
+    return $d;
+}
+
+// The poster of tile $t at $i of strip $s ("<id><i>") as in the catalog (aio_catv_poster), $over
+// over it, its titles under it ("<id>n<i>", aio_oc_poster_titles).
+/**
+ * @param AioOcStrip $s
+ * @param int $i
+ * @param AioCatTile $t
+ * @param list<AioGcComp> $titles
+ * @param list<AioGcComp> $over
+ * @return AioGcComp
+ */
+function aio_oc_poster_cell($s, $i, $t, $titles, $over = array())
+{
+    $d = array_merge(array(aio_gc_rect(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, 0, 0), AIO_OC_NO_PHOTO),
+        aio_gc_image(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, 0, 0), aio_catv_poster($t), true)), $over);
+    $d[] = aio_gc_panel("{$s['id']}n$i", aio_gc_at(AIO_OC_POSTER_W, $s['ch'] - AIO_OC_POSTER_H - AIO_OC_POSTER_CAP_DY, 0,
+        AIO_OC_POSTER_H + AIO_OC_POSTER_CAP_DY), $titles);
+    return aio_gc_panel("{$s['id']}$i", aio_gc_at(AIO_OC_POSTER_W, $s['ch'], aio_oc_strip_x($s, $i), 0), $d);
 }

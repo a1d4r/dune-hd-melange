@@ -22,8 +22,9 @@ define('AIO_PP_TRIES', 2);
 define('AIO_PP_TICK_MS', 100);
 define('AIO_PP_RETRY_MS', 2000);
 // The photo, the name (72 px), the facts, the biography (BIO_LINES of 30 px BIO_LH apart up to
-// HINT_R); the works: the title at WORKS_Y, posters POSTER_W x POSTER_H STEP apart under it, VIS of
-// them whole (the next peeks at the edge), the title and 2 lines of the role CAP_DY under a poster.
+// HINT_R); the works: the title at WORKS_Y, the posters of view_card_row.php under it, their cells
+// CELL_H high (2 lines of the title and 2 of the role under a poster: their bottom at 1004, over
+// the hint of DOWN at HINT_Y).
 define('AIO_PP_PHOTO_X', 130);
 define('AIO_PP_PHOTO_Y', 60);
 define('AIO_PP_PHOTO_W', 276);
@@ -37,12 +38,7 @@ define('AIO_PP_BIO_Y', 222);
 define('AIO_PP_BIO_LH', 42);
 define('AIO_PP_BIO_LINES', 5);
 define('AIO_PP_WORKS_Y', 470);
-define('AIO_PP_POSTER_W', 190);
-define('AIO_PP_POSTER_H', 285);
-define('AIO_PP_STEP', 210);
-define('AIO_PP_VIS', 8);
-define('AIO_PP_CAP_DY', 12);
-define('AIO_PP_CELL_H', 400);
+define('AIO_PP_CELL_H', 488);
 // DOWN: the whole biography a page lower, its title at BIO2_Y, PAGE_LINES lines of it a stop from
 // the x of the catalog to HINT_R; the hint of it at the foot of the first screen.
 define('AIO_PP_BIO2_Y', 60);
@@ -209,16 +205,16 @@ function aio_pp_work_lines($w, $kf, $ui)
     if (preg_replace('~\([^()]*\)|[\s,;/]~', '', $s) === '' || ($kf !== '' && strcasecmp($s, $kf) === 0))
         $s = $w['tile']['year'];
     if ($w['eps'] <= 0)
-        return aio_gc_wrap($s, 24, AIO_PP_POSTER_W, 2, true);
+        return aio_gc_wrap($s, 24, AIO_OC_POSTER_W, 2, true);
     $eps = $w['eps'] . ' ' . aio_gc_plural($ui, $w['eps'], 'card_eps');
     if ($s === '')
         return array($eps);
-    $all = aio_gc_wrap($s, 24, AIO_PP_POSTER_W, 3, true);
+    $all = aio_gc_wrap($s, 24, AIO_OC_POSTER_W, 3, true);
     $n = count($all);
-    if ($n >= 1 && $n <= 2 && aio_gc_w($all[$n - 1] . " · $eps", 24) <= AIO_PP_POSTER_W)
+    if ($n >= 1 && $n <= 2 && aio_gc_w($all[$n - 1] . " · $eps", 24) <= AIO_OC_POSTER_W)
         return array_merge(array_slice($all, 0, $n - 1), array($all[$n - 1] . " · $eps"));
     // "Walter White,…": no comma before the ellipsis.
-    return array(strval(preg_replace('/[\s,;]+(\x{2026})$/u', '$1', aio_gc_cut_w($s, 24, AIO_PP_POSTER_W))), $eps);
+    return array(strval(preg_replace('/[\s,;]+(\x{2026})$/u', '$1', aio_gc_cut_w($s, 24, AIO_OC_POSTER_W))), $eps);
 }
 
 // --- The layout.
@@ -230,9 +226,7 @@ function aio_pp_work_lines($w, $kf, $ui)
  */
 function aio_pp_strip($n)
 {
-    return array('n' => $n, 'nc' => 0, 'w' => AIO_PP_POSTER_W, 'h' => AIO_PP_POSTER_H, 'cw' => AIO_PP_POSTER_W,
-        'ch' => AIO_PP_CELL_H, 'step' => AIO_PP_STEP, 'div' => 0, 'vis' => AIO_PP_VIS, 'lead' => AIO_PP_VIS - 2,
-        'x' => AIO_CATV_CARD_X, 'y' => AIO_PP_WORKS_Y + 46, 'id' => 'w');
+    return aio_oc_poster_strip('w', $n, 0, AIO_PP_WORKS_Y, AIO_PP_CELL_H);
 }
 
 // The screen of person $tmdb ($e in memory, $p the person or null): its state (ok; wait - asked by
@@ -306,30 +300,7 @@ function aio_pp_state($pos)
  */
 function aio_pp_work_titles($w, $kf, $on, $ui)
 {
-    $d = array(aio_oc_label(0, 0, AIO_PP_POSTER_W, aio_gc_cut_w(aio_clean($w['tile']['name']), 24, AIO_PP_POSTER_W), 24,
-        $on ? AIO_GC_TEXT : AIO_GC_TEXT2));
-    foreach (aio_pp_work_lines($w, $kf, $ui) as $i => $s)
-        $d[] = aio_oc_label(0, 30 + 26 * $i, AIO_PP_POSTER_W, $s, 24, AIO_GC_DIM);
-    return $d;
-}
-
-// Work $w at $i of the strip ("w<i>"): the poster as in the catalog (aio_catv_poster), the titles
-// under it ("wn<i>").
-/**
- * @param int $i
- * @param AioOcStrip $s
- * @param AioCmWork $w
- * @param string $kf
- * @param bool $on
- * @param string $ui
- * @return AioGcComp
- */
-function aio_pp_work_cell($i, $s, $w, $kf, $on, $ui)
-{
-    $d = array(aio_gc_rect(aio_gc_at(AIO_PP_POSTER_W, AIO_PP_POSTER_H, 0, 0), AIO_OC_NO_PHOTO),
-        aio_gc_image(aio_gc_at(AIO_PP_POSTER_W, AIO_PP_POSTER_H, 0, 0), aio_catv_poster($w['tile']), true),
-        aio_gc_panel("wn$i", aio_gc_at(AIO_PP_POSTER_W, 90, 0, AIO_PP_POSTER_H + AIO_PP_CAP_DY), aio_pp_work_titles($w, $kf, $on, $ui)));
-    return aio_gc_panel("w$i", aio_gc_at(AIO_PP_POSTER_W, AIO_PP_CELL_H, aio_oc_strip_x($s, $i), 0), $d);
+    return aio_oc_poster_titles($w['tile']['name'], aio_pp_work_lines($w, $kf, $ui), $on ? AIO_GC_TEXT : AIO_GC_TEXT2);
 }
 
 // The page of a stop of DOWN: "Биография" and its lines of page $i.
@@ -396,22 +367,20 @@ function aio_pp_page($e, $p, $l, $pos)
         $d[] = aio_oc_label($x, AIO_PP_BIO_Y + $i * AIO_PP_BIO_LH, $w, $s, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
     // The works: the title (the count grey after it), the strip in a clip to the right edge of the
     // screen, the frame; stubs while the person is asked.
-    $title = aio_tr($ui, 'person_works');
-    $d[] = aio_oc_label(AIO_CATV_CARD_X, AIO_PP_WORKS_Y, aio_gc_w($title, AIO_CATV_LINE_PX), $title, AIO_CATV_LINE_PX, AIO_GC_TEXT);
     $s = $l['strip'];
+    $d = array_merge($d, aio_oc_row_title(AIO_PP_WORKS_Y, aio_tr($ui, 'person_works'), $p ? strval($s['n']) : '',
+        AIO_OC_HINT_R - AIO_CATV_CARD_X));
     $cells = array();
     if ($p)
     {
-        $d[] = aio_oc_label(AIO_CATV_CARD_X + aio_gc_w($title . ' ', AIO_CATV_LINE_PX), AIO_PP_WORKS_Y, 300, '· ' . $s['n'],
-            AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
         foreach ($p['works'] as $i => $wk)
-            $cells[] = aio_pp_work_cell($i, $s, $wk, $kf, $i === $pos['k'], $ui);
+            $cells[] = aio_oc_poster_cell($s, $i, $wk['tile'], aio_pp_work_titles($wk, $kf, $i === $pos['k'], $ui));
     }
     else if ($l['state'] === 'wait')
     {
-        for ($i = 0; $i < AIO_PP_VIS; $i++)
-            $cells[] = aio_gc_rect(aio_gc_at(AIO_PP_POSTER_W, AIO_PP_POSTER_H, $i * AIO_PP_STEP, 0), AIO_OC_NO_PHOTO);
-        $s = array_merge($s, array('n' => AIO_PP_VIS));
+        for ($i = 0; $i < AIO_OC_POSTER_VIS; $i++)
+            $cells[] = aio_gc_rect(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, $i * AIO_OC_POSTER_STEP, 0), AIO_OC_NO_PHOTO);
+        $s = array_merge($s, array('n' => AIO_OC_POSTER_VIS));
     }
     if ($cells)
         $d[] = aio_gc_panel('works', aio_gc_at(1920, AIO_PP_CELL_H, 0, $s['y']), array(aio_oc_strip_panel($s, $pos['k'], $cells)), 0);

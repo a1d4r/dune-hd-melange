@@ -4,14 +4,15 @@
 // (aio_catv_card) with the logo, or the dark one and the title as text; the lines of the panel of
 // the catalog at its places (facts, genres and countries, the director, the description), the
 // buttons in a row ("Watch", "Dune card") over a band of our own, under them the progress of the
-// movie or why there is none; at the bottom the cast of the meta (card_meta.php) and at its right
-// the hint "About the movie". DOWN scrolls the page under the logo: the cast up, "About the movie"
-// (the tagline, the whole description, the details) under it, the whole screen darkened, the logo
-// too; DOWN again further while there is more, UP back, at last to the button left. A series (H1):
-// the buttons higher ("Continue SxEy" by the history), under them the tabs of the seasons and the
-// row of the episodes of the season shown, their progress by the history; the cast goes DOWN with
-// "About the series". At the stop of the cast LEFT and RIGHT go along it (the creators first), ENTER
-// opens the page of the person (view_person.php).
+// movie or why there is none; at the bottom the first of the rows (the cast of the meta,
+// card_meta.php) and at its right the hint "About the movie". DOWN scrolls the page under the logo:
+// the rows one by one under the logo, a stop each, then "About the movie" (the tagline, the whole
+// description, the details) under them, the whole screen darkened, the logo too; DOWN again
+// further while there is more, UP back, at last to the button left. A series (H1): the buttons
+// higher ("Continue SxEy" by the history), under them the tabs of the seasons and the row of the
+// episodes of the season shown, their progress by the history; the rows go DOWN with "About the
+// series". At the stop of a row LEFT and RIGHT go along it (the creators first), ENTER on a person
+// opens its page (view_person.php).
 // The plugin draws and moves the focus itself with change_gcomps, as the list; the place
 // (aio_oc_pos: the zone, the button, the stop, the season and the episode, the item of each row)
 // travels in sel_state.
@@ -27,10 +28,12 @@ define('AIO_OC_KEEP', 8);
 // The page: a clipping panel from the bottom of the logo (PANE_Y + TITLE_BOTTOM of the catalog,
 // baked into card/v1) down to SHOW_BOTTOM, higher at a stop where it would cut a line; the page in
 // it in the coordinates of the first screen.
-// DOWN: the first stop OFF lower (the cast at DOWN_Y of the screen, "About" under it; without the
-// cast further, "About" at DOWN_Y), the next ones STEP further at most, MIN_STEP at least, while
-// the page goes on below the clip. "About" lies at OFF + ABOUT_Y of the page, under the clip of
-// the first screen. The ink of a label starts INK under its top at least (30 and 24 px, measured
+// DOWN: the first stop OFF lower (the first row at DOWN_Y of the screen; without rows "About"
+// there), a stop for each row (the next at DOWN_Y), then "About" (aio_oc_stops) and the next ones
+// STEP further at most, MIN_STEP at least, while the page goes on below the clip. The rows lie in
+// "down", a panel OFF lower in the page, from DOWN_Y one under the other, ROW_GAP apart, "About"
+// under them (aio_oc_stack), ABOUT_Y at least: under the clip of the first screen but the first
+// row of a movie. The ink of a label starts INK under its top at least (30 and 24 px, measured
 // on the device): an edge of the clip there cuts no line.
 define('AIO_OC_VIEW_Y', 256);
 define('AIO_OC_DOWN_Y', 290);
@@ -58,15 +61,15 @@ define('AIO_OC_LINE_Y', 660);
 define('AIO_OC_BAR_H', 6);
 define('AIO_OC_BAR_DY', 9);
 define('AIO_OC_HINT_R', 1845);
-// The cast at CAST_Y of the first screen, CAST_MAX people at most (the creators first), photos
-// 120x152 (TMDB w276_and_h350_face, a half) STEP apart, DIV more after the creators, NAME_DY under
-// their top the name in 2 lines and the role in 2, NAME_W wide: the bottom of its text 312 under
-// CAST_Y (CAST_H under the photos), SHOW_BOTTOM at the first screen of a movie (design-own-card.md,
-// "Итог 13.11.2026": R1 with the role in 2 lines, to be seen on the device; back: CAST_Y 724,
-// LINE_Y 664, STEP 172, NAME_W 160, NAME_DY 158). CAST_VIS whole on the screen, the row scrolls
-// under the frame of the focus at the first stop. DOWN: "About" at ABOUT_Y of the screen at the
-// first stop with the cast, the description in DESC2_W, the pairs of the details at DET_X (the
-// 8th column of the cast) in DET_W, to the right edge.
+// The first row of a movie at CAST_Y of the first screen. The cast: CAST_MAX people at most (the
+// creators first), photos 120x152 (TMDB w276_and_h350_face, a half) STEP apart, DIV more after the
+// creators, NAME_DY under their top the name in 2 lines and the role in 2, NAME_W wide: the bottom
+// of its text 312 under its title (CAST_H under the photos), SHOW_BOTTOM at the first screen of a
+// movie (design-own-card.md, "Итог 13.11.2026": R1 with the role in 2 lines, to be seen on the
+// device; back: CAST_Y 724, LINE_Y 664, STEP 172, NAME_W 160, NAME_DY 158). CAST_VIS whole on the
+// screen, the row scrolls under the frame of the focus at its stop. "About": the description in
+// DESC2_W, the pairs of the details at DET_X (the 8th column of the cast) in DET_W, to the right
+// edge.
 define('AIO_OC_CAST_Y', 708);
 define('AIO_OC_OFF', AIO_OC_CAST_Y - AIO_OC_DOWN_Y);
 define('AIO_OC_CAST_MAX', 30);
@@ -78,7 +81,12 @@ define('AIO_OC_PHOTO_H', 152);
 define('AIO_OC_PHOTO_STEP', 184);
 define('AIO_OC_NAME_W', 168);
 define('AIO_OC_NAME_DY', 154);
+define('AIO_OC_ROW_GAP', 14);
+// "About" at ABOUT_Y of "down" at least: without rows it lies under the clip of the first screen
+// of a movie too (OFF + ABOUT_Y > SHOW_BOTTOM); with the cast alone it is there anyway.
 define('AIO_OC_ABOUT_Y', 616);
+// The ids of the rows of a card (their strips, the keys of r of the place): the cast.
+define('AIO_OC_ROW_IDS', 'c');
 define('AIO_OC_DESC2_W', 960);
 define('AIO_OC_DESC2_LINES', 100);
 define('AIO_OC_DET_X', AIO_CATV_CARD_X + 7 * AIO_OC_PHOTO_STEP);
@@ -625,20 +633,41 @@ function aio_oc_first_role($role)
     return '';
 }
 
-// The strip of the cast of $n people, $nc of them creators (a line after them), its title at $y
-// of its panel (the page of a movie, "down" of a series): photos PHOTO_STEP apart, the frame round
-// the photo; CAST_VIS whole, the frame up to the last but one, then the row. Id "c".
+// The strip of the cast of $n people, $nc of them creators (a line after them), its title at the
+// top of "down" (aio_oc_stack lays it): photos PHOTO_STEP apart, the frame round the photo;
+// CAST_VIS whole, the frame up to the last but one, then the row. Id "c".
 /**
  * @param int $n
  * @param int $nc
- * @param int $y
  * @return AioOcStrip
  */
-function aio_oc_cast_strip($n, $nc, $y)
+function aio_oc_cast_strip($n, $nc)
 {
     return array('n' => $n, 'nc' => $nc, 'w' => AIO_OC_PHOTO_W, 'h' => AIO_OC_PHOTO_H, 'cw' => AIO_OC_NAME_W, 'ch' => AIO_OC_CAST_H,
         'step' => AIO_OC_PHOTO_STEP, 'div' => AIO_OC_CAST_DIV, 'vis' => AIO_OC_CAST_VIS, 'lead' => AIO_OC_CAST_VIS - 2,
-        'x' => AIO_CATV_CARD_X, 'y' => $y + 46, 'id' => 'c');
+        'x' => AIO_CATV_CARD_X, 'y' => AIO_OC_DOWN_Y + AIO_OC_ROW_HEAD, 'id' => 'c');
+}
+
+// The strips of the rows ($strips, in their order) laid in "down" one under the other from DOWN_Y,
+// ROW_GAP apart, the title of each ROW_HEAD over its items. -> array(the rows by their stops (1..),
+// the strips by their ids, the y of what goes under them).
+/**
+ * @param list<AioOcStrip> $strips
+ * @return array{array<int, string>, array<string, AioOcStrip>, int}
+ */
+function aio_oc_stack($strips)
+{
+    $y = AIO_OC_DOWN_Y;
+    $rows = array();
+    $out = array();
+    foreach ($strips as $s)
+    {
+        $s['y'] = $y + AIO_OC_ROW_HEAD;
+        $rows[count($rows) + 1] = $s['id'];
+        $out[$s['id']] = $s;
+        $y = $s['y'] + $s['ch'] + AIO_OC_ROW_GAP;
+    }
+    return array($rows, $out, $y);
 }
 
 // The strip in focus at place $pos: the one of its stop of the page (rows of the layout), '' for none.
@@ -735,39 +764,134 @@ function aio_oc_cast_hint($p, $on, $lang)
         array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
 }
 
-// The row "В ролях" of card $c at place $pos, at the y of its strip (the layout: the page of a
-// movie, "down" of a series): the title and the hint (aio_oc_cast_hint), the people of
-// aio_oc_people in a clip from the left edge of the screen to the right one of the layout, HINT_R
-// ("cast": the one after the last whole peeks there), the strip moved as aio_oc_strip_at; the
-// frame of the focus (shown at the stop of the row). No people: nothing.
+// The items of row $id of card $c: the people of the cast ("c", aio_oc_people).
+/**
+ * @param AioOcCard $c
+ * @param string $id
+ * @return list<mixed>
+ */
+function aio_oc_row_items($c, $id)
+{
+    list($people) = aio_oc_people($c);
+    return $people;
+}
+
+// The colour of the name of item $i of row $s, item $k in focus, the row in focus ($on): the cast
+// white, the row in focus grey but the one of the focus (aio_oc_name_color).
+/**
+ * @param AioOcStrip $s
+ * @param int $i
+ * @param int $k
+ * @param bool $on
+ * @return string
+ */
+function aio_oc_row_color($s, $i, $k, $on)
+{
+    return aio_oc_name_color($on, $i === $k);
+}
+
+// The title of row $id of $n items of card $c and what goes grey after it ('' none): "В ролях".
+/**
+ * @param AioOcCard $c
+ * @param string $id
+ * @param int $n
+ * @return array{string, string}
+ */
+function aio_oc_row_head($c, $id, $n)
+{
+    return array(aio_tr($c['ui'], 'card_cast'), '');
+}
+
+// The bands of the ink of the lines under the items of row $s (aio_oc_band): the names and the
+// roles of the cast.
+/**
+ * @param AioOcStrip $s
+ * @return list<array{int, int}>
+ */
+function aio_oc_row_bands($s)
+{
+    $b = array();
+    for ($k = 0; $k < 4; $k++)
+        $b[] = aio_oc_band($s['y'] + AIO_OC_NAME_DY + 26 * $k, 24);
+    return $b;
+}
+
+// Item $i of $items of row $s, its name in $color: the cell (aio_oc_cast_cell).
+/**
+ * @param AioOcStrip $s
+ * @param list<mixed> $items
+ * @param int $i
+ * @param string $color
+ * @return AioGcComp
+ */
+function aio_oc_row_cell($s, $items, $i, $color)
+{
+    return aio_oc_cast_cell($i, aio_oc_strip_x($s, $i), $items[$i], $color);
+}
+
+// The change of the name of item $i of $items of row $s to $color.
+/**
+ * @param AioOcStrip $s
+ * @param list<mixed> $items
+ * @param int $i
+ * @param string $color
+ * @return AioGcChange
+ */
+function aio_oc_row_name($s, $items, $i, $color)
+{
+    return aio_gc_change("pn$i", null, GCOMP_TRANSITION_NONE, aio_oc_cast_names($items[$i], $color));
+}
+
+// The hint at the right of the title of row $s ("<id>hint"), item $k of $items in focus, the row
+// in focus ($on): of the cast aio_oc_cast_hint.
+/**
+ * @param AioOcCard $c
+ * @param AioOcStrip $s
+ * @param list<mixed> $items
+ * @param int $k
+ * @param bool $on
+ * @return list<AioGcComp>
+ */
+function aio_oc_row_hint($c, $s, $items, $k, $on)
+{
+    return aio_oc_cast_hint($items[$k], $on, $c['ui']);
+}
+
+// The rows of the layout of card $c at place $pos, each at the y of its strip in "down": the title
+// (aio_oc_row_title) and the hint at its right (aio_oc_row_hint), the items (aio_oc_row_items) in a
+// clip ("<id>cl") from the left edge of the screen to HINT_R (the one after the last whole peeks
+// there), the strip moved as aio_oc_strip_at; the frame of the focus (shown at the stop of the row).
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
  * @param AioOcPos $pos
  * @return list<array<string, mixed>>
  */
-function aio_oc_cast($c, $l, $pos)
+function aio_oc_rows($c, $l, $pos)
 {
-    list($people) = aio_oc_people($c);
-    if (!$people || !isset($l['strips']['c']))
-        return array();
-    $s = $l['strips']['c'];
-    $y = $s['y'] - 46;
-    $on = aio_oc_strip_on($l, $pos) === 'c';
-    list($k) = aio_oc_strip_at($s, aio_oc_strip_k($pos, 'c'));
-    $cells = array();
-    foreach ($people as $i => $p)
-        $cells[] = aio_oc_cast_cell($i, aio_oc_strip_x($s, $i), $p, aio_oc_name_color($on, $i === $k));
-    return array(aio_oc_label(AIO_CATV_CARD_X, $y, 800, aio_tr($c['ui'], 'card_cast'), AIO_CATV_LINE_PX, AIO_GC_TEXT),
-        aio_gc_panel('chint', aio_gc_at(AIO_OC_HINT_R - AIO_CATV_CARD_X, AIO_CATV_LINE_H, AIO_CATV_CARD_X, $y),
-            aio_oc_cast_hint($people[$k], $on, $c['ui'])),
-        aio_gc_panel('cast', aio_gc_at(AIO_OC_HINT_R, AIO_OC_CAST_H, 0, $s['y']), array(aio_oc_strip_panel($s, $k, $cells)), 0),
-        aio_oc_strip_frame($s, $k, $on));
+    $d = array();
+    foreach ($l['strips'] as $id => $s)
+    {
+        $items = aio_oc_row_items($c, $id);
+        $y = $s['y'] - AIO_OC_ROW_HEAD;
+        $on = aio_oc_strip_on($l, $pos) === $id;
+        list($k) = aio_oc_strip_at($s, aio_oc_strip_k($pos, $id));
+        $cells = array();
+        for ($i = 0; $i < $s['n']; $i++)
+            $cells[] = aio_oc_row_cell($s, $items, $i, aio_oc_row_color($s, $i, $k, $on));
+        list($title, $rest) = aio_oc_row_head($c, $id, count($items));
+        $d = array_merge($d, aio_oc_row_title($y, $title, $rest, AIO_OC_HINT_R - AIO_CATV_CARD_X));
+        $d[] = aio_gc_panel("{$id}hint", aio_gc_at(AIO_OC_HINT_R - AIO_CATV_CARD_X, AIO_CATV_LINE_H, AIO_CATV_CARD_X, $y),
+            aio_oc_row_hint($c, $s, $items, $k, $on));
+        $d[] = aio_gc_panel("{$id}cl", aio_gc_at(AIO_OC_HINT_R, $s['ch'], 0, $s['y']), array(aio_oc_strip_panel($s, $k, $cells)), 0);
+        $d[] = aio_oc_strip_frame($s, $k, $on);
+    }
+    return $d;
 }
 
-// The changes of the row from place $old to $new: the strip and the frame (aio_oc_strip_changes),
-// the names of the focus lit or dimmed (all of them as the row gets the focus or loses it), the
-// hint.
+// The changes of the rows from place $old to $new: the strip and the frame (aio_oc_strip_changes),
+// the names of the focus lit or dimmed (aio_oc_row_color: of the cast all of them as the row gets
+// the focus or loses it), the hint.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -775,42 +899,44 @@ function aio_oc_cast($c, $l, $pos)
  * @param AioOcPos $new
  * @return list<AioGcChange>
  */
-function aio_oc_cast_changes($c, $l, $old, $new)
+function aio_oc_rows_changes($c, $l, $old, $new)
 {
-    list($people) = aio_oc_people($c);
-    $s = $l['strips']['c'];
-    $on = aio_oc_strip_on($l, $new) === 'c';
-    $oon = aio_oc_strip_on($l, $old) === 'c';
-    list($k) = aio_oc_strip_at($s, aio_oc_strip_k($new, 'c'));
-    list($ok) = aio_oc_strip_at($s, aio_oc_strip_k($old, 'c'));
-    $ch = aio_oc_strip_changes($s, $ok, $k, $oon, $on);
-    foreach ($people as $i => $p)
+    $ch = array();
+    foreach ($l['strips'] as $id => $s)
     {
-        $color = aio_oc_name_color($on, $i === $k);
-        if ($color !== aio_oc_name_color($oon, $i === $ok))
-            $ch[] = aio_gc_change("pn$i", null, GCOMP_TRANSITION_NONE, aio_oc_cast_names($p, $color));
+        $items = aio_oc_row_items($c, $id);
+        $on = aio_oc_strip_on($l, $new) === $id;
+        $oon = aio_oc_strip_on($l, $old) === $id;
+        list($k) = aio_oc_strip_at($s, aio_oc_strip_k($new, $id));
+        list($ok) = aio_oc_strip_at($s, aio_oc_strip_k($old, $id));
+        $ch = array_merge($ch, aio_oc_strip_changes($s, $ok, $k, $oon, $on));
+        for ($i = 0; $i < $s['n']; $i++)
+        {
+            $color = aio_oc_row_color($s, $i, $k, $on);
+            if ($color !== aio_oc_row_color($s, $i, $ok, $oon))
+                $ch[] = aio_oc_row_name($s, $items, $i, $color);
+        }
+        $hint = aio_oc_row_hint($c, $s, $items, $k, $on);
+        if ($hint !== aio_oc_row_hint($c, $s, $items, $ok, $oon))
+            $ch[] = aio_gc_change("{$id}hint", null, GCOMP_TRANSITION_NONE, $hint);
     }
-    $hint = aio_oc_cast_hint($people[$k], $on, $c['ui']);
-    if ($hint !== aio_oc_cast_hint($people[$ok], $oon, $c['ui']))
-        $ch[] = aio_gc_change('chint', null, GCOMP_TRANSITION_NONE, $hint);
     return $ch;
 }
 
-// What DOWN shows, in the coordinates of the screen at the first stop with the cast: "About the
-// movie" (the series): the tagline, the whole description, at the right the details (a series:
-// the first episode, the status, the networks). -> array(components, the bands of their ink,
-// aio_oc_band); none: no stop.
+// "About the movie" (the series) at $y of "down", under the rows: the tagline, the whole
+// description, at the right the details (a series: the first episode, the status, the networks).
+// -> array(components, the bands of their ink, aio_oc_band); none: no stop.
 /**
  * @param AioOcCard $c
+ * @param int $y
  * @return array{list<array<string, mixed>>, list<array{int, int}>}
  */
-function aio_oc_down($c)
+function aio_oc_down($c, $y)
 {
     $m = $c['meta'];
     $lang = $c['ui'];
     $x0 = AIO_CATV_CARD_X;
     $d = array();
-    $y = AIO_OC_ABOUT_Y;
     $desc = $m && $m['description'] !== '' ? $m['description'] : $c['tile']['description'];
     $rows = array();
     $name = $c['tile']['name'];
@@ -910,22 +1036,27 @@ function aio_oc_clear($bands, $y, $up)
 }
 
 // The shifts of the page and the bottom of the clip on the screen at each. 0 the first screen;
-// with something below ($bands of aio_oc_down), $s1, then STEP further at most while the page goes
-// on below the clip, the last ($max) its end at the bottom of the clip, MIN_STEP after the one
-// before at least. With the cast ($cast) the stop after $s1 puts "About" at the top of the clip:
-// the cast goes whole. The top of the clip at a stop and its bottom cut no line (aio_oc_clear):
-// a line cut at the top goes down whole, at the bottom it is not shown. $off: the shift of the
-// stop of the coordinates of the bands (the layout).
+// a stop for each row of the layout ($rows: the y of their titles in "down"), its title at DOWN_Y;
+// with something below them ($bands of aio_oc_down, "About" at $about), the stop after the last
+// row puts "About" at the top of the clip (the row goes whole), without rows "About" at DOWN_Y;
+// then STEP further at most while the page goes on below the clip, the last ($max) its end at the
+// bottom of the clip, MIN_STEP after the one before at least. The top of the clip at a stop and its
+// bottom cut no line (aio_oc_clear; $more: the lines of the rows too): a line cut at the top goes
+// down whole, at the bottom it is not shown. $off: the shift of the stop of the coordinates of the
+// bands ("down").
 /**
  * @param list<array{int, int}> $bands
- * @param int $s1
- * @param bool $cast
+ * @param list<array{int, int}> $more
+ * @param list<int> $rows
+ * @param int $about
  * @param int $off
  * @return array{list<int>, list<int>}
  */
-function aio_oc_stops($bands, $s1, $cast, $off)
+function aio_oc_stops($bands, $more, $rows, $about, $off)
 {
     $stops = array(0);
+    foreach ($rows as $y)
+        $stops[] = $off + $y - AIO_OC_DOWN_Y;
     // The top of the clip at stop $s in the coordinates of the bands: $s + $top.
     $top = AIO_OC_VIEW_Y - $off;
     if ($bands)
@@ -934,8 +1065,10 @@ function aio_oc_stops($bands, $s1, $cast, $off)
         foreach ($bands as $b)
             $end = max($end, $b[1]);
         $max = $off + $end - AIO_OC_SHOW_BOTTOM;
-        $lo = $cast ? AIO_OC_ABOUT_Y - $top : 0;
-        $stops[] = $s = $s1;
+        $lo = $rows ? $about - $top : 0;
+        if (!$rows)
+            $stops[] = $off + $about - AIO_OC_DOWN_Y;
+        $s = $stops[count($stops) - 1];
         while ($s < $max)
         {
             $n = $lo > $s ? $lo : max($s + AIO_OC_MIN_STEP, aio_oc_clear($bands, $s + AIO_OC_STEP + $top, true) - $top);
@@ -944,22 +1077,21 @@ function aio_oc_stops($bands, $s1, $cast, $off)
             $stops[] = $s = $n;
         }
     }
+    $all = array_merge($bands, $more);
     $clips = array();
     foreach ($stops as $s)
-        $clips[] = aio_oc_clear($bands, AIO_OC_SHOW_BOTTOM - $off + $s, true) + $off - $s;
+        $clips[] = aio_oc_clear($all, AIO_OC_SHOW_BOTTOM - $off + $s, true) + $off - $s;
     return array($stops, $clips);
 }
 
 // The card laid out: its kind, buttons and their y, the stops of the page, the bottom of the clip
 // at each and the height of the page, the shift of the coordinates of "down" (off), the zones of
-// the focus in the order of UP and DOWN, the rows by their stops and their strips (the cast of
-// aio_oc_people: "c" at the first stop), what the first
-// screen alone shows (what the keys need, AioOcNav), the components of "About" DOWN shows (a
-// series: the cast over them, by the place, aio_oc_window). The first stop: the cast at DOWN_Y;
-// without it "About" at its place, the page further by ABOUT_Y - DOWN_Y. The first screen alone: the line under the
-// buttons (a movie: its progress, aio_wh_movie, read here once a request; only with an IMDb and a
+// the focus in the order of UP and DOWN, the rows by their stops and their strips (aio_oc_stack:
+// the cast of aio_oc_people, "c"), what the first screen alone shows (what the keys need,
+// AioOcNav), the components of "About" under the rows (the rows over them by the place,
+// aio_oc_window). The first screen alone: the line under the buttons (a movie: its progress, aio_wh_movie, read here once a request; only with an IMDb and a
 // card of the Dune, the only case it shows) - its foot would peep under the logo at DOWN - and the
-// hint, if DOWN shows something. A series: the cast DOWN too, the history read once (aio_oc_pick):
+// hint, if DOWN shows something. A series: the history read once (aio_oc_pick):
 // the episode to offer and the progress of the episodes; the tabs of its seasons and the row, or
 // the line "did not load" without the meta.
 /**
@@ -969,24 +1101,25 @@ function aio_oc_stops($bands, $s1, $cast, $off)
 function aio_oc_layout($c)
 {
     $series = $c['tile']['type'] === 'series';
-    list($down, $bands) = aio_oc_down($c);
     list($people, $nc) = aio_oc_people($c);
     $cast = count($people) > 0;
     $off = $series ? AIO_OC_OFF_SER : AIO_OC_OFF;
-    // The cast at the first stop: on the page of a movie at CAST_Y, in "down" of a series at DOWN_Y.
-    $rows = $cast ? array(1 => 'c') : array();
-    $strips = $cast ? array('c' => aio_oc_cast_strip(count($people), $nc, $series ? AIO_OC_DOWN_Y : AIO_OC_CAST_Y)) : array();
+    list($rows, $strips, $about) = aio_oc_stack($cast ? array(aio_oc_cast_strip(count($people), $nc)) : array());
+    $about = max($about, AIO_OC_ABOUT_Y);
+    list($down, $bands) = aio_oc_down($c, $about);
+    $ys = array();
+    $more = array();
+    foreach ($strips as $st)
+    {
+        $ys[] = $st['y'] - AIO_OC_ROW_HEAD;
+        $more = array_merge($more, aio_oc_row_bands($st));
+    }
     $ep = null;
     $prog = array();
     if ($series)
-    {
         list($ep, $prog) = aio_oc_pick($c);
-        if ($cast)
-            $bands[] = aio_oc_band(AIO_OC_DOWN_Y, AIO_CATV_LINE_PX);
-    }
     $btns = aio_oc_buttons($c, $ep);
-    $s1 = $cast ? $off : $off + AIO_OC_ABOUT_Y - AIO_OC_DOWN_Y;
-    list($stops, $clips) = aio_oc_stops($bands, $s1, $cast, $off);
+    list($stops, $clips) = aio_oc_stops($bands, $more, $ys, $about, $off);
     $tabs = $series && $c['meta'] ? aio_oc_tabs_layout($c)
         : array('list' => array(), 'x' => 0, 'w' => 0, 'all' => 0, 'word' => 0, 'cx' => 0);
     $zones = array('btn');
@@ -1060,9 +1193,9 @@ function aio_oc_dim($z)
 // buttons, "pill" the tabs of the seasons, "row" the episodes, "down" the page below them), b the
 // button (kept in every zone: UP comes back to it), p the stop of the page (0 but in "down"), s
 // and e the season and the episode of the row of a series (0 for none, not in sel_state), r the
-// item of each row of the layout by its id (the cast: "c"; kept in every zone: a row comes back to
-// it, LEFT and RIGHT at its stop). A new zone or field is one more line in aio_oc_pos and
-// aio_oc_next.
+// item of each row by its id (AIO_OC_ROW_IDS; kept in every zone: a row comes back to it, LEFT and
+// RIGHT at its stop; kept for a row the layout has not now too). A new zone or field is one more
+// line in aio_oc_pos and aio_oc_next.
 /**
  * @param AioOcPos $pos
  * @return string
@@ -1092,8 +1225,10 @@ function aio_oc_btn_lit($pos)
 // is that of the last place of the card, a number out of the card is clamped (one button less
 // keeps the stop), a zone the card has not: the buttons. {"b", "p"} of before the zone: the zone of
 // its stop. A season not of the card: that of the episode to offer, else the first; an episode
-// not of the season: aio_oc_def_e. r: each row of the layout, as a field (one not in r or of a
-// wrong type: that of the last place, else 0), clamped; others dropped. A sel_state of before r:
+// not of the season: aio_oc_def_e. r: each row of AIO_OC_ROW_IDS as a field (one not in r or of a
+// wrong type: that of the last place, else 0), clamped to its strip if the layout has it, else
+// kept (its row did not come now: its place for when it does), 0 at least; others dropped; in the
+// order of AIO_OC_ROW_IDS. A sel_state of before r:
 // its k the person of the cast (2.0, stage 2); of before k (0 was not in it then) that of the last
 // place, 0 as the card was made anew after the restart of php_server.
 /**
@@ -1120,10 +1255,13 @@ function aio_oc_pos($c, $l, $raw)
     $e = isset($j['e']) && is_int($j['e']) ? $j['e'] : $last['e'];
     $src = isset($j['r']) && is_array($j['r']) ? $j['r'] : (isset($j['k']) ? array('c' => $j['k']) : array());
     $r = array();
-    foreach ($l['strips'] as $id => $st)
+    foreach (explode(',', AIO_OC_ROW_IDS) as $id)
     {
-        $k = isset($src[$id]) && is_int($src[$id]) ? $src[$id] : aio_oc_strip_k($last, $id);
-        $r[$id] = max(0, min($st['n'] - 1, $k));
+        $k = isset($src[$id]) && is_int($src[$id]) ? $src[$id] : (isset($last['r'][$id]) ? $last['r'][$id] : null);
+        if (isset($l['strips'][$id]))
+            $r[$id] = max(0, min($l['strips'][$id]['n'] - 1, intval($k)));
+        else if ($k !== null)
+            $r[$id] = max(0, $k);
     }
     if (!in_array($z, $l['zones'], true))
         $z = 'btn';
@@ -1209,7 +1347,7 @@ function aio_oc_next($c, $l, $pos, $d)
 }
 
 // The change_defs from place $old to $new: the lit buttons redrawn, the tabs, the row and its frame
-// (aio_oc_row_changes) or the line "did not load", the cast (aio_oc_cast_changes), the page and the
+// (aio_oc_row_changes) or the line "did not load", the rows (aio_oc_rows_changes), the page and the
 // bottom of its clip moved, the darkening on or off, what the first screen alone shows off or on.
 /**
  * @param AioOcCard $c
@@ -1239,8 +1377,7 @@ function aio_oc_changes($c, $l, $old, $new)
         $r = aio_oc_retry_panel($c, $new['z']);
         $ch[] = aio_gc_change('retry', null, GCOMP_TRANSITION_NONE, $r[GComponentDef::specific_def][GCompPanelDef::children]);
     }
-    if (isset($l['strips']['c']))
-        $ch = array_merge($ch, aio_oc_cast_changes($c, $l, $old, $new));
+    $ch = array_merge($ch, aio_oc_rows_changes($c, $l, $old, $new));
     if ($new['p'] !== $old['p'])
     {
         $ch[] = aio_gc_change('view', aio_oc_view_geom($l['clips'][$new['p']]), GCOMP_TRANSITION_DEFAULT);
@@ -1276,10 +1413,10 @@ function aio_oc_window($c, $l, $pos)
         $d[] = aio_gc_panel('title', aio_gc_at(AIO_CATV_PANE_W, AIO_OC_VIEW_Y, AIO_CATV_CARD_X, 0),
             array(aio_catv_title_label(aio_clean($t['name']), AIO_OC_VIEW_Y)));
     $series = $l['kind'] === 'series';
-    $page = array_merge(aio_oc_head($c, $l, aio_oc_btn_lit($pos)), $series ? aio_oc_series($c, $l, $pos) : aio_oc_cast($c, $l, $pos));
-    // What DOWN shows, in a panel off lower: its own coordinates are those of the first stop with the
-    // cast (a series: the cast there too).
-    $down = $series ? array_merge(aio_oc_cast($c, $l, $pos), $l['down']) : $l['down'];
+    $page = array_merge(aio_oc_head($c, $l, aio_oc_btn_lit($pos)), $series ? aio_oc_series($c, $l, $pos) : array());
+    // The rows and "About", in a panel off lower: its own coordinates are those of the stop of the
+    // first row.
+    $down = array_merge(aio_oc_rows($c, $l, $pos), $l['down']);
     if ($down)
         $page[] = aio_gc_panel('down', aio_gc_at(1920, $l['h'] - $l['off'], 0, $l['off']), $down);
     $d[] = aio_gc_panel('view', aio_oc_view_geom($l['clips'][$pos['p']]),
@@ -1301,6 +1438,22 @@ function aio_oc_window($c, $l, $pos)
         GCompWindowDef::opaque_background => false);
 }
 
+// The items of the rows at place $pos for the log, those not the first: ", rows c 3, s 5"; '' none.
+/**
+ * @param AioOcPos $pos
+ * @return string
+ */
+function aio_oc_rows_log($pos)
+{
+    $out = array();
+    foreach ($pos['r'] as $id => $k)
+    {
+        if ($k > 0)
+            $out[] = "$id $k";
+    }
+    return $out ? ', rows ' . implode(', ', $out) : '';
+}
+
 // get_folder_view of "card:<type>:<id>"; a card not in memory and not made anew: "outdated".
 /**
  * @param string $media_url
@@ -1320,8 +1473,7 @@ function aio_oc_folder_view($media_url, $sel_state)
     unset($nav['down']);
     AioOc::$cards[$key]['nav'] = $nav;
     aio_log("card: own $key: screen, " . count($l['btns']) . ' buttons, ' . count($l['stops']) . " stops, at {$pos['z']} " .
-        "{$pos['b']}, {$pos['p']}" . ($pos['s'] > 0 ? ", S{$pos['s']}E{$pos['e']}" : '') .
-        (aio_oc_strip_k($pos, 'c') > 0 ? ', person ' . aio_oc_strip_k($pos, 'c') : ''));
+        "{$pos['b']}, {$pos['p']}" . ($pos['s'] > 0 ? ", S{$pos['s']}E{$pos['e']}" : '') . aio_oc_rows_log($pos));
     $k = array('c' => $key);
     $acts = array(
         GUI_EVENT_KEY_LEFT => aio_input('card_move', $k + array('d' => 'left')),
@@ -1465,7 +1617,8 @@ function aio_oc_input($in, $control)
         $ep = $l['ep'];
         if ($pos['z'] === 'pill' && !$c['meta'] && $l['kind'] === 'series')
             return aio_oc_retry($key, $c);
-        if (aio_oc_strip_on($l, $pos) === 'c')
+        $id = aio_oc_strip_on($l, $pos);
+        if ($id === 'c')
             return aio_oc_person($key, $c, aio_oc_strip_k($pos, 'c'));
         if ($pos['z'] === 'row')
         {
