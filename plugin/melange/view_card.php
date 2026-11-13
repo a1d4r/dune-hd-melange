@@ -802,7 +802,7 @@ function aio_oc_layout($c)
     $btns = aio_oc_buttons($c, $ep);
     $s1 = $cast ? $off : $off + AIO_OC_ABOUT_Y - AIO_OC_DOWN_Y;
     list($stops, $clips) = aio_oc_stops($bands, $s1, $cast, $off);
-    $tabs = $series && $c['meta'] ? aio_oc_tabs_layout($c, $prog)
+    $tabs = $series && $c['meta'] ? aio_oc_tabs_layout($c)
         : array('list' => array(), 'x' => 0, 'w' => 0, 'all' => 0, 'word' => 0, 'cx' => 0);
     $zones = array('btn');
     if ($series && (!$c['meta'] || $tabs['list']))
