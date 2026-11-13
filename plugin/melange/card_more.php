@@ -5,13 +5,17 @@
 // and limits), catalog.php (aio_cat_get, aio_cat_tile) and main.php (aio_log).
 // Types in the PHPDoc (AioCmPerson and others): phpstan-types.neon of the repository.
 
-// Asked only by an action (a person, similar titles, a franchise): AIO_CM_MORE_KEEP of each kept
-// for AIO_CM_TTL, not in the cache of titles. A person: up to 1 MB (Matthew Perry: 45 KB, 52 works),
-// AIO_CM_WORKS_MAX works at most, a place of birth of AIO_CM_PLACE_MAX characters.
+// Asked only by an action (a person, similar titles, a franchise): AIO_CM_MORE_KEEP persons and
+// AIO_CM_ROWS_KEEP rows of each kind (as AIO_OC_KEEP cards: the chain of "Похожие" and Back do not
+// ask again for the rows of a card seen) kept for AIO_CM_TTL, not in the cache of titles. A person:
+// up to 1 MB (Matthew Perry: 45 KB, 52 works), AIO_CM_WORKS_MAX works at most, a place of birth of
+// AIO_CM_PLACE_MAX characters.
 define('AIO_CM_MORE_KEEP', 3);
+define('AIO_CM_ROWS_KEEP', 8);
 define('AIO_CM_WORKS_MAX', 100);
 define('AIO_CM_PLACE_MAX', 200);
-// An empty row (no similar, no franchise on the server) is asked again sooner, s.
+// An empty row (no similar, no franchise on the server) or a failure (no reply in time, an error) is
+// asked again sooner, s: with the server down an opening does not wait for it each time.
 define('AIO_CM_EMPTY_TTL', 300);
 // Characters the font of the firmware has no glyph for (emoji): out of the BMP, the keycap U+20E3,
 // the technical signs (U+2300-U+23FF: watches), the symbols and dingbats (U+2600-U+27BF), the
@@ -58,20 +62,20 @@ function aio_cm_more_get($kind, $key)
     return null;
 }
 
-// Keeps $v of $kind as $key for $ttl s: AIO_CM_MORE_KEEP of a kind at most, the oldest written
-// goes first.
+// Keeps $v of $kind as $key for $ttl s: $keep of a kind at most, the oldest written goes first.
 /**
  * @param string $kind
  * @param string $key
  * @param mixed $v
  * @param int $ttl
+ * @param int $keep
  * @return void
  */
-function aio_cm_more_put($kind, $key, $v, $ttl = AIO_CM_TTL)
+function aio_cm_more_put($kind, $key, $v, $ttl = AIO_CM_TTL, $keep = AIO_CM_MORE_KEEP)
 {
     unset(AioCmMore::$cache[$kind][$key]);
     AioCmMore::$cache[$kind][$key] = array('t' => time(), 'ttl' => $ttl, 'v' => $v);
-    while (count(AioCmMore::$cache[$kind]) > AIO_CM_MORE_KEEP)
+    while (count(AioCmMore::$cache[$kind]) > $keep)
         array_shift(AioCmMore::$cache[$kind]);
 }
 
@@ -86,15 +90,38 @@ function aio_cm_err_kind($err)
     return in_array($err, array('timeout', 'net', 'rate', 'server'), true) ? 'later' : 'none';
 }
 
-// Tile $t is of the title asked as $id (its IMDb or tmdb:<n>).
+// Tile $t is of the title of $ids (its IMDb, tmdb:<n>; aio_cm_title_ids).
 /**
  * @param AioCatTile $t
- * @param string $id
+ * @param list<string> $ids
  * @return bool
  */
-function aio_cm_tile_is($t, $id)
+function aio_cm_tile_is($t, $ids)
 {
-    return $t['imdb_id'] === $id || ($t['_tmdbId'] !== '' && 'tmdb:' . $t['_tmdbId'] === $id);
+    return ($t['imdb_id'] !== '' && in_array($t['imdb_id'], $ids, true)) ||
+        ($t['_tmdbId'] !== '' && in_array('tmdb:' . $t['_tmdbId'], $ids, true));
+}
+
+// The ids of the title of $tile with meta $meta (or null): the IMDb and tmdb:<n> of the tile and of
+// the tile of the meta (a card opened by its IMDb knows its TMDB of the meta), no empty, no repeats.
+/**
+ * @param AioCatTile $tile
+ * @param AioCardMeta|null $meta
+ * @return list<string>
+ */
+function aio_cm_title_ids($tile, $meta)
+{
+    $ids = array();
+    foreach (array($tile, $meta && $meta['tile'] ? $meta['tile'] : null) as $t)
+    {
+        if ($t && $t['imdb_id'] !== '')
+            $ids[] = $t['imdb_id'];
+        if ($t && $t['_tmdbId'] !== '')
+            $ids[] = 'tmdb:' . $t['_tmdbId'];
+    }
+    if ($meta && $meta['imdb'] !== '')
+        $ids[] = $meta['imdb'];
+    return array_values(array_unique($ids));
 }
 
 // A biography of the server -> one line (aio_cm_bio_line) and its paragraphs (pars, aio_cm_bio_pars). bio_en: it is in English (the server
@@ -268,8 +295,10 @@ function aio_cm_person($tmdb, $limit)
 }
 
 // Tiles of a row of the server asked by an action: from memory if asked less than AIO_CM_TTL ago
-// (an empty row: AIO_CM_EMPTY_TTL), else in $limit s at most, parsed by $parse (aio_cat_tiles, aio_cm_parts_tiles). -> err: ''
-// or as aio_cm_person (none, later); tiles: none on a failure, and none may be all there is.
+// (an empty row, a failure: AIO_CM_EMPTY_TTL), AIO_CM_ROWS_KEEP of a kind, else in $limit s at most,
+// parsed by $parse (aio_cat_tiles, aio_cm_parts_tiles), only those the own card opens (an id of
+// aio_cm_id: not mal:...), no repeats. -> err: '' or as aio_cm_person (none, later); tiles: none on
+// a failure, and none may be all there is.
 /**
  * @param string $kind
  * @param string $key
@@ -281,21 +310,30 @@ function aio_cm_person($tmdb, $limit)
  */
 function aio_cm_more_row($kind, $key, $path, $limit, $type, $parse)
 {
-    /** @var list<AioCatTile>|null $tiles */
-    $tiles = aio_cm_more_get($kind, $key);
-    if ($tiles !== null)
+    /** @var array{err: string, tiles: list<AioCatTile>}|null $r */
+    $r = aio_cm_more_get($kind, $key);
+    if ($r !== null)
     {
-        aio_log("card: $kind $key cached");
-        return array('err' => '', 'tiles' => $tiles);
+        aio_log("card: $kind $key cached" . ($r['err'] !== '' ? " ({$r['err']})" : ''));
+        return $r;
     }
     $g = aio_cat_get($path, "$kind $key", 'metas', $limit);
-    if ($g['err'] !== '')
-        return array('err' => aio_cm_err_kind($g['err']), 'tiles' => array());
-    /** @var list<AioCatTile> $tiles */
-    $tiles = call_user_func($parse, $g['list'], $type);
+    $tiles = array();
+    if ($g['err'] === '')
+    {
+        $seen = array();
+        foreach (call_user_func($parse, $g['list'], $type) as $t)
+        {
+            $id = $t['type'] . ':' . aio_cm_id($t);
+            if (aio_cm_id($t) !== '' && !isset($seen[$id]))
+                $tiles[] = $t;
+            $seen[$id] = true;
+        }
+    }
+    $r = array('err' => $g['err'] !== '' ? aio_cm_err_kind($g['err']) : '', 'tiles' => $tiles);
     unset($g);
-    aio_cm_more_put($kind, $key, $tiles, $tiles ? AIO_CM_TTL : AIO_CM_EMPTY_TTL);
-    return array('err' => '', 'tiles' => $tiles);
+    aio_cm_more_put($kind, $key, $r, $tiles ? AIO_CM_TTL : AIO_CM_EMPTY_TTL, AIO_CM_ROWS_KEEP);
+    return $r;
 }
 
 // Items of a franchise (metas of its movies) -> tiles, as a row of the catalog, by the date out
@@ -338,14 +376,14 @@ function aio_cm_similar($type, $id, $limit)
 
 // The movies of franchise $coll (collection of AioCardMeta: tmdb.collection.<n>) by the date out,
 // asked by an action, in $limit s at most. -> as aio_cm_more_row; current: the index of the movie
-// asked as $id (its IMDb or tmdb:<n>) among the tiles, -1 for none. A wrong id: none.
+// of $ids (aio_cm_title_ids) among the tiles, -1 for none. A wrong id: none.
 /**
  * @param string $coll
- * @param string $id
+ * @param list<string> $ids
  * @param int $limit
  * @return array{err: string, tiles: list<AioCatTile>, current: int}
  */
-function aio_cm_parts($coll, $id, $limit)
+function aio_cm_parts($coll, $ids, $limit)
 {
     if (!preg_match(AIO_CM_COLL_RE, $coll))
         return array('err' => 'none', 'tiles' => array(), 'current' => -1);
@@ -353,7 +391,7 @@ function aio_cm_parts($coll, $id, $limit)
     $cur = -1;
     foreach ($r['tiles'] as $i => $t)
     {
-        if ($id !== '' && aio_cm_tile_is($t, $id))
+        if (aio_cm_tile_is($t, $ids))
         {
             $cur = $i;
             break;
@@ -366,7 +404,8 @@ function aio_cm_parts($coll, $id, $limit)
 // POSTERS_TOTAL s for both at most (no meta: none, the server is not there): the movies of the
 // franchise of a movie (aio_cm_parts) first, PARTS_MAX at most, none of fewer than 2 (the movie
 // alone); then the similar titles (aio_cm_similar) if there is time left, without the movies of the
-// franchise and the title itself. A failure, no reply in time: no row. -> sim, parts, cur (the index
+// franchise and the title itself (any of its ids, aio_cm_title_ids). A failure, no reply in time: no
+// row. -> sim, parts, cur (the index
 // of the movie of the card among the parts, -1 for none), coll (the name of the franchise without
 // "(Коллекция)").
 /**
@@ -382,11 +421,12 @@ function aio_cm_posters($key, $tile, $meta)
     if (!$meta || $id === '')
         return $out;
     $t = microtime(true);
+    $ids = aio_cm_title_ids($tile, $meta);
     $coll = $tile['type'] === 'movie' ? $meta['collection'] : array('id' => '', 'name' => '');
     $pe = 'none';
     if ($coll['id'] !== '')
     {
-        $p = aio_cm_parts($coll['id'], $id, AIO_CM_POSTERS_TOTAL);
+        $p = aio_cm_parts($coll['id'], $ids, AIO_CM_POSTERS_TOTAL);
         $pe = $p['err'] !== '' ? $p['err'] : 'ok';
         if (count($p['tiles']) >= 2)
             $out = array_merge($out, array('parts' => array_slice($p['tiles'], 0, AIO_CM_PARTS_MAX),
@@ -405,8 +445,7 @@ function aio_cm_posters($key, $tile, $meta)
             $seen[$x['type'] . ':' . aio_cm_id($x)] = true;
         foreach ($g['tiles'] as $x)
         {
-            if (!isset($seen[$x['type'] . ':' . aio_cm_id($x)]) && !aio_cm_tile_is($x, $id) &&
-                ($meta['imdb'] === '' || $x['imdb_id'] !== $meta['imdb']))
+            if (!isset($seen[$x['type'] . ':' . aio_cm_id($x)]) && !aio_cm_tile_is($x, $ids))
                 $out['sim'][] = $x;
         }
     }
