@@ -62,13 +62,13 @@ function aio_oc_prog($c, $prog, $ep)
  */
 function aio_oc_pick($c)
 {
-    list($last, $prog, $marks) = $c['dune'] !== '' ? aio_wh_series($c['dune']) : array(null, array(), array());
+    $st = $c['dune'] !== '' ? aio_wh_series($c['dune'], aio_wh_marked_set()) : array(null, array(), array());
     $m = $c['meta'];
-    $p = aio_wh_pick($last, $c['dune'], $m ? aio_cm_lists($m) : array(), $marks, $prog);
+    $p = aio_wh_pick($st, $c['dune'], $m ? aio_cm_lists($m) : array());
     $s = $m ? aio_cm_season_of($m, $p['s'], $p['e']) : 0;
     aio_log('card: own series: ' . ($p['rec'] !== '' ? "{$p['rec']}, " : '') . "S{$p['s']}E{$p['e']}, {$p['why']}" .
         ($m && $s !== $p['s'] ? ", season $s of the meta" : ''));
-    return array(array('q' => $p['s'], 'e' => $p['e'], 's' => $s, 'hash' => $p['hash'], 'kind' => $p['kind']), $prog);
+    return array(array('q' => $p['s'], 'e' => $p['e'], 's' => $s, 'hash' => $p['hash'], 'kind' => $p['kind']), $st[1]);
 }
 
 // The episode $e of season $s of card $c, null for none.

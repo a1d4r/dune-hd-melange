@@ -170,6 +170,9 @@ parameters:
                 own_card?: bool
             }
         '''
+        # The state of a series by its history (aio_wh_series, history.php): the latest
+        # episode record, "s:e" => array(pos, len, watched), the marks of the own card.
+        AioWhSeries: 'array{stdClass|null, array<string, array{float, float, bool}>, array<string, int>}'
         # The episode to offer of a series by its history (aio_wh_pick, history.php).
         AioWhPick: 'array{s: int, e: int, hash: string, kind: string, rec: string, why: string}'
         # "Continue watching" of play_action (aio_resume, main.php; next:

@@ -149,7 +149,7 @@ function aio_wh_ours($w, $prefix)
 
 // The latest record of each release of ours -> its share in $acc (uid =>
 // share, only a float each: there may be thousands). $arg: array(prefix,
-// aio_wh_marked_set()). Watched: by position or marked at any time.
+// aio_wh_marked_set()). Watched: by position or its uid marked (aio_wh_mark_on the end of the record).
 /**
  * @param mixed $w
  * @param array{string, array<int|string, int>} $arg
@@ -162,7 +162,8 @@ function aio_wh_ours_visit($w, $arg, &$acc)
         return false;
     $pos = isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1;
     $len = isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0;
-    $acc[$w->uid] = aio_wh_full($pos, $len) || isset($arg[1][$w->uid]) ? 1.0 :
+    $mark = isset($arg[1][$w->uid]) ? $arg[1][$w->uid] : 0;
+    $acc[$w->uid] = aio_wh_full($pos, $len) || aio_wh_mark_on($mark, aio_wh_end($w)) ? 1.0 :
         ($len > 0 && $pos > 0 ? min(1.0, $pos / $len) : 0.0);
     return false;
 }
@@ -356,8 +357,13 @@ function aio_wh_end($w)
     return intval($w->start) + (isset($w->watched) && is_numeric($w->watched) ? max(0, intval($w->watched)) : 0);
 }
 
-// A mark made at $ts (0: none) counts for a record that ends at $end: on r25 only if newer
-// (get_file_mark_time), on older firmware at any time.
+// A mark of the uid of a record made at $ts (0: none) counts for the record that ends at $end, as
+// the native: on r25 only if newer (get_file_mark_time), on older firmware at any time. Not by this
+// rule: a mark of the own card (aio_wh_mark_uid: no record has it, no native meaning) counts only if
+// newer than the record of its episode, on any firmware (aio_wh_series_visit); aio_wh_mark_next
+// takes only the marks of the own card made after the latest record of the series ("> its end");
+// the fallback of aio_wh_resume_ep counts the mark of the uid at any time without wh_len and none
+// with it (the position only).
 /**
  * @param int $ts
  * @param int $end
@@ -377,23 +383,6 @@ function aio_wh_marked($uid)
 {
     $set = $uid !== '' ? aio_wh_marked_set() : array();
     return isset($set[$uid]);
-}
-
-// How a record of S/E that ends at $end was watched: 'by position' (aio_wh_full), 'marked' (uid
-// in watched_files.txt, aio_wh_mark_on), '' not watched.
-/**
- * @param float|int $pos
- * @param float|int $len
- * @param string $uid
- * @param int $end
- * @return string
- */
-function aio_wh_watched($pos, $len, $uid, $end)
-{
-    if (aio_wh_full($pos, $len))
-        return 'by position';
-    $set = $uid !== '' ? aio_wh_marked_set() : array();
-    return aio_wh_mark_on(isset($set[$uid]) ? $set[$uid] : 0, $end) ? 'marked' : '';
 }
 
 // The episode after the watched S$s E$e by season_numbers, as 0.9.0: the next
@@ -465,19 +454,18 @@ function aio_wh_rec($w)
         isset($w->uid) && is_string($w->uid) ? $w->uid : (isset($w->url) && is_string($w->url) ? $w->url : ''));
 }
 
-// The episode after the marks of the series (aio_wh_marks, $marks) made after its latest episode
-// record $w ends (none: any): the first one not watched ($prog of aio_wh_series) after the last
-// of them by $eps (season => its episodes, ascending). -> array(s, e, a later one: false - all
-// watched after it, S1E1, why); null: no such mark, the record decides.
+// The episode after the marks of the own card in state $st of a series (aio_wh_series) made after
+// its latest episode record ends (none: any): the first one not watched (by the progress of $st)
+// after the last of them by $eps (season => its episodes, ascending). -> array(s, e, a later one:
+// false - all watched after it, S1E1, why); null: no such mark, the record decides.
 /**
- * @param stdClass|null $w
+ * @param AioWhSeries $st
  * @param array<int, list<int>> $eps
- * @param array<string, int> $marks
- * @param array<string, array{float, float, bool}> $prog
  * @return array{int, int, bool, string}|null
  */
-function aio_wh_mark_next($w, $eps, $marks, $prog)
+function aio_wh_mark_next($st, $eps)
 {
+    list($w, $prog, $marks) = $st;
     if (!$marks)
         return null;
     $end = $w ? aio_wh_end($w) : 0;
@@ -506,35 +494,35 @@ function aio_wh_mark_next($w, $eps, $marks, $prog)
     return array(1, 1, false, 'watched after the marked S' . str_replace(':', 'E', $last));
 }
 
-// The episode to offer for the latest episode record $w of the series of card $dune_id
-// (aio_wh_last; null: none), no log: marks made after it (aio_wh_mark_next of $marks, $prog of
-// aio_wh_series) first; else the recorded one while not watched, the next one by $eps
-// (aio_wh_after) once it is, S1E1 with no record or after the last episode. hash: the release
-// of the record if it is ours (uid "aio:<dune id>:<s>:<e>:<infoHash>") and its episode is
-// offered, else ''; kind: none (no record), record (not watched), next, same (watched, no data on
-// its season), first (the last one watched); rec: the record for the log, why: the choice for the log.
+// The episode to offer for state $st of the series of card $dune_id (aio_wh_series, aio_wh_native;
+// no latest episode record: none), no log: the marks of the own card made after the record
+// (aio_wh_mark_next) first; else the recorded one while not watched (by the progress of $st, as
+// the row shows it), the next one by $eps (aio_wh_after) once it is, S1E1 with no record or after
+// the last episode. hash: the release of the record if it is ours (uid "aio:<dune id>:<s>:<e>:<infoHash>"),
+// also with another episode offered (its list opens at that release), else ''; kind: none (no
+// record), record (not watched), next, same (watched, no data on its season), first (the last one
+// watched); rec: the record for the log, why: the choice for the log.
 /**
- * @param stdClass|null $w
+ * @param AioWhSeries $st
  * @param string $dune_id
  * @param array<int, list<int>> $eps
- * @param array<string, int> $marks
- * @param array<string, array{float, float, bool}> $prog
  * @return AioWhPick
  */
-function aio_wh_pick($w, $dune_id, $eps, $marks = array(), $prog = array())
+function aio_wh_pick($st, $dune_id, $eps)
 {
-    $mk = aio_wh_mark_next($w, $eps, $marks, $prog);
+    $w = $st[0];
+    $mk = aio_wh_mark_next($st, $eps);
     if (!$w)
         return $mk ? array('s' => $mk[0], 'e' => $mk[1], 'hash' => '', 'kind' => $mk[2] ? 'next' : 'first', 'rec' => '',
             'why' => $mk[3]) : array('s' => 1, 'e' => 1, 'hash' => '', 'kind' => 'none', 'rec' => '', 'why' => 'no history record');
     list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
     $hash = preg_match('/^' . preg_quote(AIO_SUP_ID . ':' . $dune_id, '/') . ':-?[0-9]+:-?[0-9]+:([0-9a-f]{40})$/D',
         $uid, $m) ? $m[1] : '';
-    $watched = aio_wh_watched($pos, $len, $uid, aio_wh_end($w));
+    $watched = isset($st[1]["$s:$e"]) && $st[1]["$s:$e"][2] ? (aio_wh_full($pos, $len) ? 'by position' : 'marked') : '';
     $rec = sprintf('record S%dE%d pos=%d/%d watched=%s', $s, $e, $pos, $len, $watched !== '' ? $watched : 'no');
     if ($mk)
-        return array('s' => $mk[0], 'e' => $mk[1], 'hash' => $mk[0] === $s && $mk[1] === $e ? $hash : '',
-            'kind' => $mk[2] ? 'next' : 'first', 'rec' => $rec, 'why' => $mk[3]);
+        return array('s' => $mk[0], 'e' => $mk[1], 'hash' => $hash, 'kind' => $mk[2] ? 'next' : 'first', 'rec' => $rec,
+            'why' => $mk[3]);
     if ($watched === '')
         return array('s' => $s, 'e' => $e, 'hash' => $hash, 'kind' => 'record', 'rec' => $rec, 'why' => 'not watched');
     list($ns, $ne, $next, $why) = aio_wh_after($eps, $s, $e);
@@ -542,42 +530,95 @@ function aio_wh_pick($w, $dune_id, $eps, $marks = array(), $prog = array())
         'rec' => $rec, 'why' => $why);
 }
 
-// Episode of a series opened from its main card (season = episode = -1): aio_wh_pick of the
-// last record in the history by season_numbers, logged; with marks of the own card
-// (aio_wh_marks) all of the history is read (aio_wh_series), as the own card does. -> array(s, e, hash)
+// The state of the series of card $dune_id for the ways in of the native (aio_wh_episode,
+// aio_wh_resume_ep) by $eps (season_numbers of dunemdb, aio_wh_lists), watched_files.txt read
+// once: with marks of the own card all of the history (aio_wh_series); without them, or when the
+// last of them by order is not in $eps (an anime numbered on by the own card: its 1:70 against 8
+// episodes of S1 of dunemdb), the latest record alone (aio_wh_alone; with no marks only if $last,
+// else none and the history not read): the record decides, as before the marks.
+/**
+ * @param string $dune_id
+ * @param array<int, list<int>> $eps
+ * @param bool $last
+ * @return AioWhSeries
+ */
+function aio_wh_native($dune_id, $eps, $last)
+{
+    $set = $dune_id !== '' ? aio_wh_marked_set() : array();
+    $marks = aio_wh_marks($dune_id, $set);
+    $w = null;
+    if ($marks)
+    {
+        $st = aio_wh_series($dune_id, $set);
+        $ls = -1;
+        $le = -1;
+        foreach (array_keys($marks) as $k)
+        {
+            list($a, $b) = explode(':', strval($k));
+            if (intval($a) > $ls || (intval($a) === $ls && intval($b) > $le))
+            {
+                $ls = intval($a);
+                $le = intval($b);
+            }
+        }
+        if (isset($eps[$ls]) && in_array($le, $eps[$ls], true))
+            return $st;
+        aio_log("history: the last mark S{$ls}E{$le} not in season_numbers, the record decides");
+        $w = $st[0];
+    }
+    else if ($last && $dune_id !== '')
+        $w = aio_wh_last($dune_id);
+    return aio_wh_alone($w, $dune_id, $set);
+}
+
+// The state of the series of card $dune_id as aio_wh_series of its latest episode record $w alone
+// (null: none): the progress of its episode by its position and the mark of its uid in $set
+// (aio_wh_marked_set), no marks of the own card.
+/**
+ * @param stdClass|null $w
+ * @param string $dune_id
+ * @param array<int|string, int> $set
+ * @return AioWhSeries
+ */
+function aio_wh_alone($w, $dune_id, $set)
+{
+    $acc = array();
+    if ($w)
+        aio_wh_series_visit($w, array($dune_id, $set, array()), $acc);
+    unset($acc['last']);
+    return array($w, $acc, array());
+}
+
+// Episode of a series opened from its main card (season = episode = -1): aio_wh_pick of the state
+// of the series for the ways in of the native (aio_wh_native) by season_numbers, logged. -> array(s, e, hash)
 /**
  * @param AioMovie $mv
  * @return array{int, int, string}
  */
 function aio_wh_episode($mv)
 {
-    $d = $mv['dune_id'];
-    $marks = $d !== '' ? aio_wh_marks($d, aio_wh_marked_set()) : array();
-    $prog = array();
-    if ($marks)
-        list($w, $prog, $marks) = aio_wh_series($d);
-    else
-        $w = $d !== '' ? aio_wh_last($d) : null;
-    $p = aio_wh_pick($w, $d, aio_wh_lists($mv['seasons']), $marks, $prog);
+    $eps = aio_wh_lists($mv['seasons']);
+    $p = aio_wh_pick(aio_wh_native($mv['dune_id'], $eps, true), $mv['dune_id'], $eps);
     if ($p['rec'] !== '')
         aio_log("history: {$p['rec']}, " . count($mv['seasons']) . ' seasons in season_numbers');
     aio_log("episode: S{$p['s']}E{$p['e']}, {$p['why']}");
     return array($p['s'], $p['e'], $p['hash']);
 }
 
-// The progress of the episodes of the series of card $dune_id, read once a screen of its own
-// card: the latest record of each S/E of any supplier or a local file, as the native "Seasons"
-// show it -> array(the latest episode record of all (aio_wh_pick) or null, "s:e" => array(pos,
-// len, watched), the marks of the own card (aio_wh_marks)). Watched: by position, or its uid or
-// the mark of the own card of its S/E marked (aio_wh_mark_on the end of the record); an episode
-// with such a mark and no record: array(-1, 0, true). Another reader of recent_uid besides aio_wh_progress.
+// The state of the series of card $dune_id, read once a screen of its own card, by $set
+// (aio_wh_marked_set): the progress of its episodes, the latest record of each S/E of any supplier
+// or a local file, as the native "Seasons" show it -> array(the latest episode record of all
+// (aio_wh_pick) or null, "s:e" => array(pos, len, watched), the marks of the own card
+// (aio_wh_marks)). Watched: by position, its uid marked (aio_wh_mark_on the end of the record), or
+// the mark of the own card of its S/E made after the record ends; an episode with such a mark and
+// no record: array(-1, 0, true). Another reader of recent_uid besides aio_wh_progress.
 /**
  * @param string $dune_id
- * @return array{stdClass|null, array<string, array{float, float, bool}>, array<string, int>}
+ * @param array<int|string, int> $set
+ * @return AioWhSeries
  */
-function aio_wh_series($dune_id)
+function aio_wh_series($dune_id, $set)
 {
-    $set = aio_wh_marked_set();
     $marks = aio_wh_marks($dune_id, $set);
     $acc = aio_wh_find('history: series', 'aio_wh_series_visit', array($dune_id, $set, $marks));
     $last = isset($acc['last']) ? $acc['last'] : null;
@@ -608,8 +649,9 @@ function aio_wh_series_visit($w, $arg, &$acc)
     if (isset($acc[$k]))
         return false;
     $end = aio_wh_end($w);
+    $mark = isset($arg[2][$k]) ? $arg[2][$k] : 0;
     $acc[$k] = array($pos, $len, aio_wh_full($pos, $len) || aio_wh_mark_on(isset($arg[1][$uid]) ? $arg[1][$uid] : 0, $end) ||
-        aio_wh_mark_on(isset($arg[2][$k]) ? $arg[2][$k] : 0, $end));
+        ($mark > 0 && $mark > $end));
     return false;
 }
 
@@ -651,10 +693,10 @@ function aio_wh_ours_eps_visit($w, $arg, &$acc)
 // from its position; once it is watched the next one (aio_wh_next) from 0,
 // 'next' set: its release must have it in its file. Watched: with wh_len by the
 // position only (r25 counts a mark only if newer than the record,
-// get_file_mark_time), without it by the mark only. Marks of the own card made after
-// the latest record of the series (aio_wh_mark_next): the episode they give, as the own card
-// offers it, from 0 the same way (from the position if it is the recorded one). One log line,
-// no uid. -> array($r of the episode to play or null - watched, no later one: the list; s, e)
+// get_file_mark_time), without it by the mark only, at any time. Marks of the own card made after
+// the latest record of the series (aio_wh_mark_next of aio_wh_native): the episode they give, as
+// the own card offers it, from 0 the same way (from the position if it is the recorded one). One
+// log line, no uid. -> array($r of the episode to play or null - watched, no later one: the list; s, e)
 /**
  * @param AioMovie $mv
  * @param AioResume $r
@@ -665,12 +707,8 @@ function aio_wh_resume_ep($mv, $r)
     $s = $r['s'];
     $e = $r['e'];
     $d = $mv['dune_id'];
-    $mk = null;
-    if ($d !== '' && aio_wh_marks($d, aio_wh_marked_set()))
-    {
-        list($w, $prog, $marks) = aio_wh_series($d);
-        $mk = aio_wh_mark_next($w, aio_wh_lists($mv['seasons']), $marks, $prog);
-    }
+    $eps = aio_wh_lists($mv['seasons']);
+    $mk = aio_wh_mark_next(aio_wh_native($d, $eps, false), $eps);
     if ($mk)
     {
         $same = $mk[0] === $s && $mk[1] === $e;
