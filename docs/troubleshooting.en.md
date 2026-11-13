@@ -24,6 +24,7 @@ Messages when starting a release are in [Watching](watching.en.md): [via Debrid]
 - **Episodes take long to start.** Turn off **Skip intro and credits** in the [Advanced](setup.en.md#advanced) section.
 - **The settings page bookmark does not open.** If the Dune's address on the network changed, open the QR code again: **Set up from a phone**. The page opens only from your home network.
 - **The link to your own config stopped working** after the config password was changed in AIOStreams: enter the new link.
+- **The TV tab is empty.** Most likely Melange was removed while it was chosen for the TV tab. On the home screen, move to «ТВ», press POP UP → «Настройка раздела ТВ» (TV section setup) and choose DUNE-HD.TV, or Melange again if you reinstalled it ([Melange in the TV tab](catalog.en.md#melange-in-the-tv-tab)).
 - **Real-Debrid refuses Not cached releases**: see [Known limitations](limitations.en.md).
 
 ## The log

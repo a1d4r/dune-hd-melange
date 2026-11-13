@@ -40,6 +40,18 @@ The magnifier on the strip on top, MENU → **Search** on the main screen of the
 - If there is no card, for a movie Melange creates its own Dune card, and the rest is as usual: **Play...**, watch history. For a series Melange offers to open the release list right away, from the first episode, but without watch history: no percentage, no **Continue Watching**.
 - With neither a card nor an IMDb ID, releases cannot be found.
 
+## Melange in the TV tab
+
+Melange catalog rows can show right on the Dune home screen, in the «ТВ» (TV) tab. Under it come two sub-items, «Фильмы» (Movies) and «Сериалы» (Series), which are the catalog tabs; the TV item itself opens Movies. A focused tile shows the same info panel as in the catalog. ENTER opens the film card, RETURN brings you back to the same tile, and **Show all** at the end of a row opens the whole row. POP UP on a tile offers **Search**, **Open Melange** and **Settings**. The TV button on the remote opens the Melange catalog.
+
+**How to turn it on.** Melange does not take the tab by itself; you choose it. On the home screen, move to «ТВ», press POP UP and choose «Настройка раздела ТВ» (TV section setup) → «Другое приложение…» (Other app…) → Melange. The same choice is in the Dune settings: «Настройки → Приложения → ТВ → Настроить…». The sub-items appear at once.
+
+**There is one slot.** If the TV tab showed channels from DUNE-HD.TV or another IPTV app, they leave the tab once you pick Melange. To get the channels back, choose DUNE-HD.TV in the same dialog (needs internet).
+
+The rows in the TV tab refresh by themselves, about once an hour. After the Dune restarts, they show at once, before Melange is even launched. While Melange is not set up (no source), the TV tab has a single **Set up Melange** tile.
+
+If you remove Melange while it is chosen for the TV tab, the tab goes empty. DUNE-HD.TV does not come back by itself: choose it again in TV section setup.
+
 ## Catalog server
 
 Rows, search and posters come from Melange's shared AIOMetadata server `aiometadata.kompotik.com`; no keys or sign-up needed. If the server does not answer, the catalog shows saved copies of the rows, and a row without a copy can be reloaded.
