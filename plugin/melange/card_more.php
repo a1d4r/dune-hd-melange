@@ -305,8 +305,8 @@ function aio_cm_person($tmdb, $limit)
 // Tiles of a row of the server asked by an action: from memory if asked less than AIO_CM_TTL ago
 // (an empty row, a failure: AIO_CM_EMPTY_TTL; no reply in time, the net, 5xx: AIO_CM_LATER_TTL),
 // AIO_CM_ROWS_KEEP of a kind, else in $limit s at most, parsed by $parse (aio_cat_tiles,
-// aio_cm_parts_tiles), only those the own card opens (an id of aio_cm_id: not mal:...), no repeats. -> err: '' or as aio_cm_person (none, later); tiles: none on
-// a failure, and none may be all there is.
+// aio_cm_parts_tiles), only those the own card opens (an id of aio_cm_id: not mal:...), no repeats.
+// -> err: '' or as aio_cm_person (none, later); tiles: none on a failure, and none may be all there is.
 /**
  * @param string $kind
  * @param string $key
@@ -377,10 +377,23 @@ function aio_cm_parts_tiles($items, $type)
  */
 function aio_cm_similar($type, $id, $limit)
 {
-    if (($type !== 'movie' && $type !== 'series') || !preg_match('/^(?:tt|tmdb:)[0-9]{1,10}$/D', $id))
+    $key = aio_cm_similar_key($type, $id);
+    if ($key === '')
         return array('err' => 'none', 'tiles' => array());
-    return aio_cm_more_row('similar', "$type:$id", "catalog/$type/aiom.similar/similar=$id.json", $limit, $type,
+    return aio_cm_more_row('similar', $key, "catalog/$type/aiom.similar/similar=$id.json", $limit, $type,
         'aio_cat_tiles');
+}
+
+// The key of the similar titles of the title of $type asked as $id in memory (AioCmMore) as
+// aio_cm_similar asks them: "<type>:<id>"; '' for a wrong type or id (none asked).
+/**
+ * @param string $type
+ * @param string $id
+ * @return string
+ */
+function aio_cm_similar_key($type, $id)
+{
+    return ($type === 'movie' || $type === 'series') && preg_match('/^(?:tt|tmdb:)[0-9]{1,10}$/D', $id) ? "$type:$id" : '';
 }
 
 // The movies of franchise $coll (collection of AioCardMeta: tmdb.collection.<n>) by the date out,
@@ -394,9 +407,10 @@ function aio_cm_similar($type, $id, $limit)
  */
 function aio_cm_parts($coll, $ids, $limit)
 {
-    if (!preg_match(AIO_CM_COLL_RE, $coll))
+    $key = aio_cm_parts_key($coll);
+    if ($key === '')
         return array('err' => 'none', 'tiles' => array(), 'current' => -1);
-    $r = aio_cm_more_row('parts', $coll, "catalog/movie/$coll.json", $limit, 'movie', 'aio_cm_parts_tiles');
+    $r = aio_cm_more_row('parts', $key, "catalog/movie/$key.json", $limit, 'movie', 'aio_cm_parts_tiles');
     $cur = -1;
     foreach ($r['tiles'] as $i => $t)
     {
@@ -409,10 +423,22 @@ function aio_cm_parts($coll, $ids, $limit)
     return array('err' => $r['err'], 'tiles' => $r['tiles'], 'current' => $cur);
 }
 
+// The key of the movies of franchise $coll in memory (AioCmMore) as aio_cm_parts asks them: $coll;
+// '' for a wrong id (none asked).
+/**
+ * @param string $coll
+ * @return string
+ */
+function aio_cm_parts_key($coll)
+{
+    return preg_match(AIO_CM_COLL_RE, $coll) ? $coll : '';
+}
+
 // The rows of posters of the own card of $tile with meta $meta, none asked yet: wait - what to ask, in
-// order: the movies of the franchise of a movie (parts), then the similar titles (sim); nothing without
-// the meta (the server is not there) or an id. st: how each went, for the log (none: not asked); ms:
-// the time of the asks.
+// order: the movies of the franchise of a movie (parts; its id right, aio_cm_parts_key), then the similar
+// titles (sim); nothing without the meta (the server is not there) or an id. st: how each went, for the
+// log (none: not asked); ms: the time of the asks.
+// The order parts, then sim matters: aio_oc_poster_rows knows no similar ones while some are asked.
 /**
  * @param AioCatTile $tile
  * @param AioCardMeta|null $meta
@@ -423,7 +449,7 @@ function aio_cm_posters_new($tile, $meta)
     $wait = array();
     if ($meta && aio_cm_id($tile) !== '')
     {
-        if ($tile['type'] === 'movie' && $meta['collection']['id'] !== '')
+        if ($tile['type'] === 'movie' && aio_cm_parts_key($meta['collection']['id']) !== '')
             $wait[] = 'parts';
         $wait[] = 'sim';
     }
@@ -432,7 +458,8 @@ function aio_cm_posters_new($tile, $meta)
 }
 
 // The first of wait of rows $p of $tile with meta $meta is in memory (AioCmMore: asked before, a
-// failure too): asking it takes no time.
+// failure too; by the key aio_cm_parts and aio_cm_similar ask it by) or has a wrong id (nothing to
+// wait for): asking it takes no time.
 /**
  * @param AioCatTile $tile
  * @param AioCardMeta|null $meta
@@ -443,8 +470,11 @@ function aio_cm_posters_kept($tile, $meta, $p)
 {
     if (!$p['wait'] || !$meta)
         return false;
-    return $p['wait'][0] === 'parts' ? aio_cm_more_get('parts', $meta['collection']['id']) !== null :
-        aio_cm_more_get('similar', $tile['type'] . ':' . aio_cm_id($tile)) !== null;
+    if ($p['wait'][0] === 'parts')
+        list($kind, $key) = array('parts', aio_cm_parts_key($meta['collection']['id']));
+    else
+        list($kind, $key) = array('similar', aio_cm_similar_key($tile['type'], aio_cm_id($tile)));
+    return $key === '' || aio_cm_more_get($kind, $key) !== null;
 }
 
 // The first of wait of rows $p of the own card $key ($tile, meta $meta) asked, in $limit s at most:

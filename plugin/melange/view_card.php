@@ -853,12 +853,13 @@ function aio_oc_poster_rows($c)
     $m = $c['posters'];
     $ui = $c['ui'];
     $np = count($m['parts']);
+    $short = $np > 0 && $np <= AIO_OC_PARTS_IN;
     $rows = array();
     // The similar ones are asked last: none known while some are asked.
-    if ($np > 0 && $m['sim'] && $np <= AIO_OC_PARTS_IN)
+    if ($short && $m['sim'])
         return array('s' => array('tiles' => array_merge($m['parts'], $m['sim']), 'nc' => $np, 'cur' => $m['cur'],
             'title' => aio_tr($ui, 'card_parts_sim'), 'rest' => ''));
-    if ($np > AIO_OC_PARTS_IN || ($np > 0 && !$m['wait']))
+    if ($np > 0 && (!$short || !$m['wait']))
     {
         $n = $np . ' ' . aio_gc_plural($ui, $np, 'card_movies');
         $rows['f'] = array('tiles' => $m['parts'], 'nc' => 0, 'cur' => $m['cur'], 'title' => aio_tr($ui, 'card_parts'),
@@ -868,7 +869,7 @@ function aio_oc_poster_rows($c)
         $rows['s'] = array('tiles' => $m['sim'], 'nc' => 0, 'cur' => -1, 'title' => aio_tr($ui, 'card_sim'), 'rest' => '');
     if ($m['wait'])
     {
-        $sim = $m['wait'] === array('sim') && ($np === 0 || $np > AIO_OC_PARTS_IN);
+        $sim = $m['wait'] === array('sim') && !$short;
         $rows['w'] = array('tiles' => array(), 'nc' => 0, 'cur' => -1, 'title' => aio_tr($ui, $sim ? 'card_sim' : 'card_parts_sim'),
             'rest' => '');
     }
@@ -1820,17 +1821,18 @@ function aio_oc_tile_enter($key, $c, $id, $k)
 // The timer of card $c ($key) shown with layout $l: the next of its rows of posters asked
 // (aio_cm_posters_step, ROW_LIMIT s), the screen anew with it at the same place (its sel_state none:
 // the place of the card), at the same row (aio_oc_stop_of): from the stubs to the first row that
-// came, with none to the row after them. Nothing to ask (the screen got it already): nothing.
+// came, with none to the row after them. Nothing to ask (a screen shown before the rows came to
+// another of the same card): no request, the screen anew all the same, its stubs gone, no timer.
 /**
  * @param string $key
  * @param AioOcCard $c
  * @param AioOcNav $l
- * @return AioAction|null
+ * @return AioAction
  */
 function aio_oc_load($key, $c, $l)
 {
     if (!$c['posters']['wait'])
-        return null;
+        return aio_replace_act("card:$key", $c['tile']['name']);
     $c['posters'] = aio_cm_posters_step($key, $c['tile'], $c['meta'], $c['posters'], AIO_CM_ROW_LIMIT, true);
     if ($c['pos']['z'] === 'down')
     {
