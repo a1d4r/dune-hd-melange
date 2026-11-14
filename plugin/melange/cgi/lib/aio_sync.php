@@ -138,6 +138,16 @@ function aio_cgi_aio_keep($dir, $base, $mode, $c, $prof = '')
     return aio_cgi_store($dir, $s);
 }
 
+// The config $uuid marked at AIO_CONF_SCHEMA in data_dir/aio_conf_mig (0.59.1): made or reset by the template now, or
+// changed with the migrations (aio_conf_migrate_apply). A failure only logged: the plugin asks the server once more.
+function aio_cgi_mig_mark($dir, $uuid)
+{
+    $w = aio_cgi_write($dir, aio_conf_mig_json(aio_conf_mig_read($dir), $uuid, AIO_CONF_SCHEMA, aio_settings_read($dir)),
+        AIO_CONF_MIG_FILE);
+    if ($w !== '')
+        aio_cgi_log("aio sync: migration mark: $w");
+}
+
 // The answer of a=aio_sync before its outcome (aio_cgi_aio_sync, the
 // failures of aio_cgi_aio_sync_post): of the choice $base (aio_server) in
 // the mode $mode, the keys in the order of the JSON.
@@ -152,11 +162,12 @@ function aio_cgi_aio_res($base, $mode)
 // server, mode, template, JacRed; the keys of the settings), its own config: none
 // -> POST of the template (aio_settings_tpl: aio_tpl, or aio_tpl_p2p with no
 // Debrid key needed) with our fields;
-// there -> GET, its template by its presets stored (tpl), our fields of the
-// mode, PUT;
+// there -> GET, its template by its presets stored (tpl), the migrations
+// after its mark (aio_conf_migrate_apply), our fields of the mode, PUT;
 // $reset (0.40.0) -> PUT of the template with our fields as for a new one,
 // no GET (manual edits lost; the login, password and manifest stay). The
 // own server: its TMDB by /status first.
+// A config made, reset or changed: marked at AIO_CONF_SCHEMA (aio_cgi_mig_mark).
 // The own config chosen -> nothing (skip). Mode Debrid: no config and no
 // Debrid key, or a reset without one -> no request.
 // -> the JSON of a=aio_sync: array(ok, msg - the line for the page, skip,
@@ -245,6 +256,7 @@ function aio_cgi_aio_sync($dir, $reset = false, $prof = '')
             return array_merge($res, array('msg' => aio_cgi_l('Конфиг создан, но не записан на Дюне — ошибка записи',
                 'The config was created but not saved on the Dune: write error')));
         }
+        aio_cgi_mig_mark($dir, $new['uuid']);
         return array_merge($res, array('ok' => true, 'msg' => sprintf(aio_cgi_l('Конфиг AIOStreams создан на %s',
             'The AIOStreams config was created on %s'), $host), 'conf' => aio_cgi_aio_show($new)));
     }
@@ -275,6 +287,13 @@ function aio_cgi_aio_sync($dir, $reset = false, $prof = '')
             $w = aio_cgi_aio_keep($dir, $base, $mode, $conf, $prof);
             if ($w !== '')
                 aio_cgi_log("aio sync: $w");
+        }
+        // The migrations not yet run on it (the plugin may not have asked for its streams since).
+        $from = aio_conf_mig_of(aio_conf_mig_read($dir), $conf['uuid']);
+        if ($from < AIO_CONF_SCHEMA)
+        {
+            $mig = aio_conf_migrate_apply($u, $from);
+            aio_cgi_log("aio sync: migrations $from -> " . AIO_CONF_SCHEMA . ($mig ? ': ' . implode(', ', $mig) : ''));
         }
         // P2P made with Magnetio before the server got Torznab (aio_conf_p2p_torznab):
         // Magnetio kept, Torznab only by a reset (either template of P2P: the same JacRed preset).
@@ -319,6 +338,8 @@ function aio_cgi_aio_sync($dir, $reset = false, $prof = '')
     $w = aio_cgi_aio_keep($dir, $base, $mode, $conf, $prof);
     if ($w !== '')
         aio_cgi_log("aio sync: $w");
+    // The template (a reset) or the migrations (above): at the schema now.
+    aio_cgi_mig_mark($dir, $conf['uuid']);
     return array_merge($res, array('ok' => true, 'msg' => $reset ? sprintf(aio_cgi_l(
         'Конфиг AIOStreams на %s сброшен к шаблону «%s»', 'The AIOStreams config on %s was reset to the template "%s"'),
         $host, aio_cgi_tpl_name($id)) :

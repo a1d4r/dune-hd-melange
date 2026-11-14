@@ -347,21 +347,26 @@ function aio_setup_refresh($p)
             PluginInvalidateFoldersActionData::all_except => false));
 }
 
-// The request of aio_conf_create for the quick setup, as the page sends it
-// (aio_cgi_aio_req): POST of $json to /api/v1/user of the server $base by
-// aio_http_json -> array(curl errno (-1: none known), HTTP code,
-// aio_conf_decode of the body; null: not JSON or over AIO_CONF_API_MAX). Only
-// a POST: $method and $auth are those of aio_conf_create (POST, none).
+// The request of aio_conf_create for the quick setup (and of aio_conf_migrate,
+// aio_mig_req), as the page sends it (aio_cgi_aio_req): $method (POST, PUT of
+// $json; GET with ?raw=true, $json null) to /api/v1/user of the server $base
+// with Basic auth of $auth (array(uuid, password), null none) by aio_http_json,
+// $connect and $total s -> array(curl errno (-1: none known), HTTP code,
+// aio_conf_decode of the body; null: not JSON or over AIO_CONF_API_MAX).
 /**
  * @param string $base
  * @param string $method
- * @param string $json
- * @param mixed $auth
+ * @param string|null $json
+ * @param array{string, string}|null $auth
+ * @param int $connect
+ * @param int $total
  * @return array{int, int, mixed}
  */
-function aio_quick_req($base, $method, $json, $auth)
+function aio_quick_req($base, $method, $json, $auth, $connect = 5, $total = AIO_CONF_API_TIMEOUT)
 {
-    list($code, $body) = aio_http_json("$base/api/v1/user", $json, $err, 5, AIO_CONF_API_TIMEOUT, AIO_CONF_API_MAX);
+    // raw: the config itself, without the parent config the server merges in (a PUT would bake it in).
+    list($code, $body) = aio_http_json("$base/api/v1/user" . ($method === 'GET' ? '?raw=true' : ''), $json, $err, $connect,
+        $total, AIO_CONF_API_MAX, $method, $auth);
     if ($err !== '' && $err !== AIO_HTTP_TOO_BIG)
         return array(preg_match('/^curl ([0-9]+):/', $err, $m) ? intval($m[1]) : -1, 0, null);
     return array(0, $code, $body !== '' ? aio_conf_decode($body) : null);
@@ -431,6 +436,7 @@ function aio_setup_quick($p)
         return aio_error('err_quick_read');
     $ts = aio_ts_alive();
     $conf = aio_settings_conf($s);
+    $made = !$conf;
     if ($conf)
         aio_log('setup: quick: a config of P2P there, no request');
     else
@@ -462,6 +468,9 @@ function aio_setup_quick($p)
         aio_log('setup: quick: settings.json not written');
         return aio_error('err_quick_write');
     }
+    // Made by the template now: no migration to run.
+    if ($made && !aio_mig_mark($conf['uuid'], $s))
+        aio_log('setup: quick: the migration mark not written');
     aio_log('setup: quick: saved' . ($ts ? '' : ', TorrServer does not answer'));
     // The screen of the catalog under it is read by this operation too.
     aio_settings_load();

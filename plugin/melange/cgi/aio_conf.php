@@ -302,12 +302,189 @@ function aio_conf_patch($c, $tpl, $p)
         aio_conf_obj($c, 'titleMatching')->enabled = $now;
         aio_conf_obj($c, 'yearMatching')->enabled = $now;
     }
-    // 0.56.0: a copy of a cached file per service (one service: the same as
-    // single_result) - the old value of the template only, not one by hand.
-    if (isset($c->deduplicator) && is_object($c->deduplicator) && isset($c->deduplicator->cached) &&
-        $c->deduplicator->cached === 'single_result')
-        $c->deduplicator->cached = 'per_service';
     return array($now, $set);
+}
+
+// --- Migrations (0.59.1): a change of the template applied once to a config
+// made before it - by the plugin before the streams of the config are asked
+// (aio_conf_migrate) and by "Сохранить" (aio_cgi_aio_sync, before
+// aio_conf_patch). The schema a config is at: data_dir/aio_conf_mig, not
+// settings.json (a write there moves saved_at; an import would bring old marks).
+define('AIO_CONF_SCHEMA', 1);
+define('AIO_CONF_MIG_FILE', 'aio_conf_mig');
+
+// The migrations by the schema each brings a config to: functions of userData
+// of GET, changed in place -> it changed. Each looks at the value itself, so a
+// second run changes nothing.
+/**
+ * @return array<int, string>
+ */
+function aio_conf_migrations()
+{
+    return array(1 => 'aio_conf_mig_dedup');
+}
+
+// 1 (0.56.0): a copy of a cached file per service (one service: the same as
+// single_result) - the old value of the template; after it single_result is
+// one set by hand.
+/**
+ * @param object $u
+ * @return bool
+ */
+function aio_conf_mig_dedup($u)
+{
+    if (!isset($u->deduplicator) || !is_object($u->deduplicator) || !isset($u->deduplicator->cached) ||
+        $u->deduplicator->cached !== 'single_result')
+        return false;
+    $u->deduplicator->cached = 'per_service';
+    return true;
+}
+
+// The migrations after the schema $from applied to $u in place -> the names of
+// those that changed it ('dedup' of aio_conf_mig_dedup), none: $u as it was.
+/**
+ * @param object $u
+ * @param int $from
+ * @return list<string>
+ */
+function aio_conf_migrate_apply($u, $from)
+{
+    $done = array();
+    foreach (aio_conf_migrations() as $n => $f)
+    {
+        if ($n > $from && call_user_func($f, $u))
+            $done[] = substr($f, strlen('aio_conf_mig_'));
+    }
+    return $done;
+}
+
+// The key of the config $uuid in data_dir/aio_conf_mig: the uuid is never written there.
+/**
+ * @param string $uuid
+ * @return string
+ */
+function aio_conf_mig_key($uuid)
+{
+    return substr(sha1($uuid), 0, 16);
+}
+
+// data_dir/aio_conf_mig of the directory $dir -> key (aio_conf_mig_key) =>
+// schema; none or unreadable: array() (every config at 0).
+/**
+ * @param string $dir
+ * @return array<int|string, int>
+ */
+function aio_conf_mig_read($dir)
+{
+    $f = "$dir/" . AIO_CONF_MIG_FILE;
+    $j = $dir !== '' && is_file($f) ? json_decode((string) file_get_contents($f, false, null, 0, 65536), true) : null;
+    $m = array();
+    foreach (is_array($j) ? $j : array() as $k => $v)
+    {
+        if (preg_match('/^[0-9a-f]{16}\z/', (string) $k) && is_int($v) && $v >= 0)
+            $m[$k] = $v;
+    }
+    return $m;
+}
+
+// The schema of the config $uuid by the marks $m (aio_conf_mig_read); 0: none
+// (made before 0.59.1, or the mark lost: its migrations run, they change nothing twice).
+/**
+ * @param array<int|string, int> $m
+ * @param string $uuid
+ * @return int
+ */
+function aio_conf_mig_of($m, $uuid)
+{
+    $k = aio_conf_mig_key($uuid);
+    return isset($m[$k]) ? $m[$k] : 0;
+}
+
+// The text of data_dir/aio_conf_mig: the marks $m with the config $uuid at the
+// schema $n; the marks of configs no longer in the settings $s (aio_settings_read:
+// the cells, the profiles) left out.
+/**
+ * @param array<int|string, int> $m
+ * @param string $uuid
+ * @param int $n
+ * @param AioSettings $s
+ * @return string
+ */
+function aio_conf_mig_json($m, $uuid, $n, $s)
+{
+    $keep = array(aio_conf_mig_key($uuid) => true);
+    foreach ($s['aio_confs'] as $cells)
+    {
+        foreach ($cells as $c)
+            $keep[aio_conf_mig_key($c['uuid'])] = true;
+    }
+    foreach ($s['profiles'] as $p)
+    {
+        if (!isset($p['url']) && $p['conf'])
+            $keep[aio_conf_mig_key($p['conf']['uuid'])] = true;
+    }
+    $m[aio_conf_mig_key($uuid)] = $n;
+    return json_encode(array_intersect_key($m, $keep));
+}
+
+// A reply of the API (as aio_conf_ok takes it) for the log: "HTTP 200" or
+// "curl 28", the error code of AIOStreams after it; never its message.
+/**
+ * @param array{int, int, mixed} $r
+ * @return string
+ */
+function aio_conf_mig_res($r)
+{
+    list($ec) = aio_conf_err($r[2]);
+    return ($r[0] ? "curl $r[0]" : "HTTP $r[1]") . ($ec !== '' ? " $ec" : '');
+}
+
+// A failed request of the migrations -> 'stop' (not until a reboot): a 4xx but
+// 429 - 401, 400 USER_INVALID_DETAILS of GET (the config gone there or its
+// password changed: "Сохранить" deals with it), 400 USER_INVALID_CONFIG of PUT;
+// else 'retry' (later): no connection, a timeout, 429, 5xx, a reply not of AIOStreams.
+/**
+ * @param array{int, int, mixed} $r
+ * @return string
+ */
+function aio_conf_mig_class($r)
+{
+    return !$r[0] && $r[1] >= 400 && $r[1] < 500 && $r[1] !== 429 ? 'stop' : 'retry';
+}
+
+// The migrations of the config $conf (AioConf) of the server $base in the mode
+// $mode, after the schema $from: GET ?raw=true by $req (the request of the
+// caller, as aio_conf_create takes it), aio_conf_migrate_apply, PUT only when
+// one of them changed the config (none of our other fields: the keys and
+// JacRed go by "Сохранить"). A config of Debrid with no Debrid service there:
+// no PUT (the server refuses it). -> array('done' (at AIO_CONF_SCHEMA now) |
+// 'retry' | 'stop' (aio_conf_mig_class), the line for the log: no login,
+// password or message of the server).
+/**
+ * @param string $base
+ * @param string $mode
+ * @param AioConf $conf
+ * @param int $from
+ * @param string $req
+ * @return array{string, string}
+ */
+function aio_conf_migrate($base, $mode, $conf, $from, $req)
+{
+    $auth = array($conf['uuid'], $conf['pass']);
+    $r = call_user_func($req, $base, 'GET', null, $auth);
+    $u = aio_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) && isset($r[2]->data->userData) &&
+        is_object($r[2]->data->userData) ? $r[2]->data->userData : null;
+    $line = 'get ' . aio_conf_mig_res($r);
+    if (!$u)
+        return array(aio_conf_mig_class($r), $line);
+    $done = aio_conf_migrate_apply($u, $from);
+    if (!$done)
+        return array('done', "$line, nothing to change");
+    $line .= ', ' . implode(', ', $done);
+    if ($mode !== AIO_MODE_P2P && !aio_conf_has_debrid($u))
+        return array('stop', "$line, no Debrid service there, not put");
+    $r = call_user_func($req, $base, 'PUT', aio_conf_encode((object) array('config' => $u)), $auth);
+    return array(aio_conf_ok($r) ? 'done' : aio_conf_mig_class($r), "$line, put " . aio_conf_mig_res($r));
 }
 
 // The fields of aio_conf_patch from the settings $s (aio_settings_read of

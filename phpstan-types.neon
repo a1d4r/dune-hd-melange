@@ -91,7 +91,8 @@ parameters:
                 cat_rating: bool,
                 cat_card: bool,
                 debrid_main: string,
-                profiles: array<int, array{name: string, now: bool}>
+                profiles: array<int, array{name: string, now: bool}>,
+                made: array{base: string, mode: string, conf: AioConf}|null
             }
         '''
         # Badges of a release (aio_badges, parse.php).

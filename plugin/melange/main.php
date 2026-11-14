@@ -99,12 +99,13 @@ class Aio
     // 'debrid_main' - the main Debrid service (aio_debrid_main_read): of a file cached on
     // several, the copy of it plays (aio_list_state, aio_play); '' - the first in the reply.
     // 'profiles' - the source profiles of MENU of a list (aio_profiles_menu; none with the
-    // setting off).
+    // setting off). 'made' - the config of Melange in use: array('base', 'mode', 'conf' - AioConf),
+    // null for none or the own one (the migrations of aio_mig_run).
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true,
-        'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array());
+        'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array(), 'made' => null);
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -666,6 +667,7 @@ function aio_settings_load()
 function aio_op_settings($s)
 {
     list($sort, $rev) = aio_sort_read();
+    $conf = $s['source'] === 'own' ? null : aio_settings_conf($s);
     return array(
         // The stream URL is <base>/stream/...: the base keeps its trailing slash.
         'base' => aio_manifest_base(aio_settings_manifest($s)),
@@ -690,7 +692,8 @@ function aio_op_settings($s)
         'cat_rating' => $s['cat_rating'],
         'cat_card' => aio_card_own($s['cat_card']),
         'debrid_main' => aio_debrid_main_read(aio_data_dir()),
-        'profiles' => aio_profiles_menu($s));
+        'profiles' => aio_profiles_menu($s),
+        'made' => $conf ? array('base' => aio_settings_base($s), 'mode' => $s['aio_mode'], 'conf' => $conf) : null);
 }
 
 // The source profiles of MENU of a list (0.58.0): with src_profiles on, those
@@ -868,19 +871,23 @@ if (!function_exists('aio_http_post'))
 // Tests define their own aio_http_json().
 if (!function_exists('aio_http_json'))
 {
-    // POST of the JSON $json to an API of AIOStreams (the quick setup:
-    // /api/v1/user) -> array(HTTP code, body). $err is set on a transport
-    // error, to AIO_HTTP_TOO_BIG (body '') when the decoded body passes $max
-    // bytes. As the page sends it (cgi/lib/aio_sync.php): no redirects, no
-    // "Expect: 100-continue", the User-Agent of aio_fetch, gzip.
-    function aio_http_json($url, $json, &$err, $connect, $total, $max)
+    // $method (POST, PUT with the JSON $json; GET, $json null) of an API of
+    // AIOStreams (/api/v1/user: the quick setup, the migrations of a config)
+    // with Basic auth of $auth (array(uuid, password), null none) -> array(HTTP
+    // code, body). $err is set on a transport error, to AIO_HTTP_TOO_BIG (body
+    // '') when the decoded body passes $max bytes. As the page sends it
+    // (cgi/lib/aio_sync.php): no redirects, no "Expect: 100-continue", the
+    // User-Agent of aio_fetch, gzip.
+    function aio_http_json($url, $json, &$err, $connect, $total, $max, $method = 'POST', $auth = null)
     {
         $body = '';
         $over = false;
-        $ch = curl_init($url);
-        $set = curl_setopt_array($ch, array(
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $json,
+        $h = array('Accept: application/json', 'Expect:');
+        if ($json !== null)
+            $h[] = 'Content-Type: application/json';
+        if ($auth)
+            $h[] = 'Authorization: Basic ' . base64_encode("$auth[0]:$auth[1]");
+        $opts = array(
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_CONNECTTIMEOUT => $connect,
@@ -890,7 +897,7 @@ if (!function_exists('aio_http_json'))
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_ENCODING => '',
             CURLOPT_USERAGENT => 'AIOStreams-DuneClient/' . AIO_VERSION,
-            CURLOPT_HTTPHEADER => array('Accept: application/json', 'Content-Type: application/json', 'Expect:'),
+            CURLOPT_HTTPHEADER => $h,
             CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$over, $max)
             {
                 if (strlen($body) + strlen($chunk) > $max)
@@ -900,8 +907,15 @@ if (!function_exists('aio_http_json'))
                 }
                 $body .= $chunk;
                 return strlen($chunk);
-            }));
-        if (!$set)
+            });
+        if ($method === 'POST')
+            $opts[CURLOPT_POST] = true;
+        elseif ($method !== 'GET')
+            $opts[CURLOPT_CUSTOMREQUEST] = $method;
+        if ($json !== null)
+            $opts[CURLOPT_POSTFIELDS] = $json;
+        $ch = curl_init($url);
+        if (!curl_setopt_array($ch, $opts))
         {
             curl_close($ch);
             $err = 'curl options refused';
@@ -1213,6 +1227,93 @@ function aio_error_streams($streams)
 // Seconds of a stream request, at most.
 define('AIO_FETCH_TOTAL', 30);
 
+// The migrations of a config before its streams (aio_mig_run): s to connect and in all, a request.
+define('AIO_MIG_CONNECT', 3);
+define('AIO_MIG_TOTAL', 6);
+// A failed try (no connection, 429, 5xx...): the next not before this many s, at most this many a boot.
+define('AIO_MIG_WAIT', 1800);
+define('AIO_MIG_TRIES', 3);
+// In tmp_dir (gone by a reboot or a reinstall): the failed tries, key (aio_conf_mig_key) =>
+// array(tries, time of the last, 'stop': not until a reboot).
+define('AIO_MIG_TRY_FILE', 'aio_conf_mig_try');
+
+// The request of aio_conf_migrate: aio_quick_req with the short timeouts of a card.
+/**
+ * @param string $base
+ * @param string $method
+ * @param string|null $json
+ * @param array{string, string}|null $auth
+ * @return array{int, int, mixed}
+ */
+function aio_mig_req($base, $method, $json, $auth)
+{
+    return aio_quick_req($base, $method, $json, $auth, AIO_MIG_CONNECT, AIO_MIG_TOTAL);
+}
+
+// The config $uuid marked at AIO_CONF_SCHEMA in data_dir/aio_conf_mig (the settings $s:
+// aio_conf_mig_json) -> written.
+/**
+ * @param string $uuid
+ * @param AioSettings $s
+ * @return bool
+ */
+function aio_mig_mark($uuid, $s)
+{
+    $dir = aio_data_dir();
+    return $dir !== '' && aio_write_file("$dir/" . AIO_CONF_MIG_FILE,
+        aio_conf_mig_json(aio_conf_mig_read($dir), $uuid, AIO_CONF_SCHEMA, $s));
+}
+
+// The migrations of the config of Melange in use (Aio::$settings['made'], 0.59.1) not
+// yet at AIO_CONF_SCHEMA, before its streams are asked: aio_conf_migrate, then the mark;
+// a failure is a line of the log only (the streams are asked as always), the next try
+// by AIO_MIG_WAIT, AIO_MIG_TRIES. No data_dir or tmp_dir: nothing.
+/**
+ * @return void
+ */
+function aio_mig_run()
+{
+    $m = Aio::$settings['made'];
+    $dir = aio_data_dir();
+    $tmp = isset(DuneSystem::$properties['tmp_dir_path']) ? rtrim(strval(DuneSystem::$properties['tmp_dir_path']), '/') : '';
+    if (!$m || $dir === '' || $tmp === '')
+        return;
+    $from = aio_conf_mig_of(aio_conf_mig_read($dir), $m['conf']['uuid']);
+    if ($from >= AIO_CONF_SCHEMA)
+        return;
+    $k = aio_conf_mig_key($m['conf']['uuid']);
+    $f = "$tmp/" . AIO_MIG_TRY_FILE;
+    $tries = is_file($f) ? json_decode((string) file_get_contents($f, false, null, 0, 65536), true) : null;
+    $tries = is_array($tries) ? $tries : array();
+    $x = isset($tries[$k]) && is_array($tries[$k]) ? $tries[$k] + array(0, 0, false) : array(0, 0, false);
+    // abs: the clock may be set after the try (the date of the firmware at a boot).
+    if ($x[2] === true || $x[0] >= AIO_MIG_TRIES || ($x[0] > 0 && abs(time() - $x[1]) < AIO_MIG_WAIT))
+        return;
+    $t = microtime(true);
+    list($class, $line) = aio_conf_migrate($m['base'], $m['mode'], $m['conf'], $from, 'aio_mig_req');
+    if ($class === 'done')
+    {
+        // The settings as they are now: the marks of configs gone from them are dropped.
+        $s = aio_settings_read($dir, $why);
+        if ($why !== '' || !aio_mig_mark($m['conf']['uuid'], $s))
+        {
+            $class = 'retry';
+            $line .= ', the mark not written';
+        }
+    }
+    if ($class !== 'done')
+    {
+        $tries[$k] = array($x[0] + 1, time(), $class === 'stop');
+        if (!is_dir($tmp))
+            mkdir($tmp, 0755, true);
+        aio_write_file($f, json_encode($tries));
+        $line .= $class === 'stop' || $x[0] + 1 >= AIO_MIG_TRIES ? ', no more tries until a reboot' :
+            ', next try in ' . (AIO_MIG_WAIT / 60) . ' min';
+    }
+    aio_log(sprintf('aio mig: %s %s: %d -> %d, %s, %.2f s', parse_url($m['base'], PHP_URL_HOST), $m['mode'], $from,
+        AIO_CONF_SCHEMA, $line, microtime(true) - $t));
+}
+
 // -> array('rows' => list) or array('error' => key, 'detail' => text); 'errors':
 // the reasons of the error streams of the reply (aio_error_streams), with the
 // rows and with err_no_streams. Asked by the numbering of Cinemeta ($cin of
@@ -1226,6 +1327,7 @@ define('AIO_FETCH_TOTAL', 30);
  */
 function aio_fetch($base, $id, $series, $cin = null)
 {
+    aio_mig_run();
     $url = $base . 'stream/' . ($series ? 'series' : 'movie') . "/$id.json";
     $t = microtime(true);
     $err = '';
