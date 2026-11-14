@@ -18,8 +18,9 @@
 
 4. Выберите сервер. Появится «Добавлено в <название>».
 
-   <!-- TODO скриншот: меню выбора сервера на Дюне -->
-   <!-- TODO скриншот: сообщение «Добавлено в qBittorrent» -->
+   <img src="../screenshots/download-server-pick.jpg" alt="Окно со списком серверов: qBittorrent, rdt-client TB, rdt-client RD, Transmission MacOS; фокус на «rdt-client TB»" width="100%">
+
+   <img src="../screenshots/download-server-added.jpg" alt="Сообщение «Добавлено в rdt-client TB» с кнопкой OK" width="100%">
 
 Если серверов несколько, в «Для кэша» укажите, какой брать для раздач из кэша Debrid (например, «Real-Debrid» у rdt-client), и Melange будет выделять его в меню.
 
