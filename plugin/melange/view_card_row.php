@@ -13,8 +13,8 @@
 // vis whole on the screen, lead slots the frame goes before the strip moves; x the left slot on
 // the screen (the clip of the strip starts at 0), y the top of the item where the frame is drawn.
 // The title of a row ROW_HEAD over the top of its items (aio_oc_row_title).
-// Needs view_card.php (AIO_OC_FRAME, AIO_OC_FOCUS, aio_oc_label), view_catalog.php (aio_catv_poster)
-// and gcomps.php.
+// Needs view_card.php (AIO_OC_FRAME, AIO_OC_FOCUS, AIO_OC_IMG, aio_oc_label), view_catalog.php
+// (aio_catv_poster, aio_catv_rate_text) and gcomps.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 define('AIO_OC_ROW_HEAD', 58);
@@ -33,6 +33,15 @@ define('AIO_OC_POSTER_DIV', 40);
 define('AIO_OC_POSTER_CAP_DY', 12);
 define('AIO_OC_CAP_LH', 26);
 define('AIO_OC_CAP_GAP', 4);
+// The IMDb rating in the top left corner of a poster of a row (aio_oc_rate_over): the plate of the
+// catalog (AIO_CATV_RATE_*, of its poster 190x285) scaled to POSTER_W x POSTER_H, RATE_W x RATE_H at
+// (RATE_PAD, RATE_PAD), img/card1_rate.png (70 % black, rounded); the number over it RATE_PX, centred
+// by the shell in a label RATE_TH high in the middle of the plate, as the text of a button.
+define('AIO_OC_RATE_PAD', 10);
+define('AIO_OC_RATE_W', 66);
+define('AIO_OC_RATE_H', 40);
+define('AIO_OC_RATE_PX', 32);
+define('AIO_OC_RATE_TH', 46);
 
 // The initials shared by the cast and the page of a person without a photo.
 /**
@@ -289,8 +298,26 @@ function aio_oc_poster_stub($s, $i)
         'plugin_file://%shell_ext%/icons/loading_movie_poster.png');
 }
 
-// The poster of tile $t at $i of strip $s ("<id><i>") as in the catalog (aio_catv_poster), $over
-// over it, its titles under it ("<id>n<i>", aio_oc_poster_titles).
+// The IMDb rating of a tile over its poster (aio_catv_rate_text), as on the posters of the catalog:
+// the plate and the number, 2 components; none without a rating or with cat_rating of the settings
+// off ("Рейтинг IMDb на постерах").
+/**
+ * @param string $rating
+ * @return list<AioGcComp>
+ */
+function aio_oc_rate_over($rating)
+{
+    $s = Aio::$settings['cat_rating'] ? aio_catv_rate_text($rating) : '';
+    if ($s === '')
+        return array();
+    $p = AIO_OC_RATE_PAD;
+    return array(aio_gc_image(aio_gc_at(AIO_OC_RATE_W, AIO_OC_RATE_H, $p, $p), AIO_OC_IMG . 'rate.png'),
+        aio_gc_ttf(null, aio_gc_at(AIO_OC_RATE_W, AIO_OC_RATE_TH, $p, $p + intval((AIO_OC_RATE_H - AIO_OC_RATE_TH) / 2)), $s,
+            AIO_OC_RATE_PX, AIO_GC_TEXT, array(GCompTtfLabelDef::halign => HALIGN_CENTER)));
+}
+
+// The poster of tile $t at $i of strip $s ("<id><i>") as in the catalog (aio_catv_poster), its IMDb
+// rating (aio_oc_rate_over) and $over over it, its titles under it ("<id>n<i>", aio_oc_poster_titles).
 /**
  * @param AioOcStrip $s
  * @param int $i
@@ -302,7 +329,8 @@ function aio_oc_poster_stub($s, $i)
 function aio_oc_poster_cell($s, $i, $t, $titles, $over = array())
 {
     $d = array_merge(array(aio_gc_rect(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, 0, 0), AIO_OC_NO_PHOTO),
-        aio_gc_image(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, 0, 0), aio_catv_poster($t), true)), $over);
+        aio_gc_image(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, 0, 0), aio_catv_poster($t), true)),
+        aio_oc_rate_over($t['imdbRating']), $over);
     $d[] = aio_gc_panel("{$s['id']}n$i", aio_gc_at(AIO_OC_POSTER_W, $s['ch'] - AIO_OC_POSTER_H - AIO_OC_POSTER_CAP_DY, 0,
         AIO_OC_POSTER_H + AIO_OC_POSTER_CAP_DY), $titles);
     return aio_gc_panel("{$s['id']}$i", aio_gc_at(AIO_OC_POSTER_W, $s['ch'], aio_oc_strip_x($s, $i), 0), $d);
