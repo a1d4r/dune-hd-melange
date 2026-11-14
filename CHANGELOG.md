@@ -2,6 +2,9 @@
 
 **English version**
 
+## Unreleased
+- Fixed: when TorBox keeps a release as one archive, Melange said "Debrid found no matching file in the release — pick another". Now it says "Debrid gave an archive, not a video — pick another release". It needs an AIOStreams server that sends the archive.mp4 placeholder for such releases; with other servers the message stays as before.
+
 ## 0.59.0 — 14.11.2026
 - **Melange in the TV tab of the home screen.** Melange catalog rows can show right on the Dune home screen, in the TV tab. Under it come the Movies and Series sub-items, which are the catalog tabs. POP UP on a tile offers **Search**, **Open Melange** and **Settings**; the TV button on the remote opens the Melange catalog. The rows refresh by themselves, about once an hour. To turn it on, move to TV on the home screen, press POP UP and choose «TV section Setup» → «Another application...» → Melange. There is one TV slot: the channels of DUNE-HD.TV or another IPTV app leave the tab, and you can bring them back in the same dialog. The sub-items need r24 firmware or newer. More in [Catalog](docs/catalog.en.md#melange-in-the-tv-tab).
 - **Melange's own card.** ENTER on a catalog poster opens a card of Melange: ratings, description, **Watch** or **Continue**, **Trailer** and **Dune card** for the old one. Below are the rows of franchise parts (movies only), similar titles and the cast; an actor opens a page with a biography and filmography. On by default on firmware r24 and newer; to turn it off, **Appearance** → **Own card** on the settings page. More in [Catalog](docs/catalog.en.md#melanges-own-card).
@@ -229,6 +232,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## Не выпущено
+- Исправлено: если TorBox хранит раздачу одним архивом, Melange писал «Debrid не нашёл в раздаче нужный файл — выберите другую». Теперь он пишет «Debrid отдал архив вместо видео — выберите другую раздачу». Нужен сервер AIOStreams, который на такие раздачи присылает заглушку archive.mp4; с другими серверами сообщение прежнее.
 
 ## 0.59.0 — 14.11.2026
 - **Melange во вкладке «ТВ» главного экрана.** Ряды каталога Melange можно вывести прямо на главный экран Дюны, во вкладку «ТВ». Под ней появятся подпункты «Фильмы» и «Сериалы», это вкладки каталога. POP UP на плитке открывает «Поиск», «Открыть Melange» и «Настройки», кнопка TV на пульте — каталог Melange. Ряды обновляются сами, примерно раз в час. Чтобы включить, на главном экране встаньте на «ТВ» и нажмите POP UP → «Настройка раздела ТВ» → «Другое приложение…» → Melange. Слот «ТВ» один: каналы DUNE-HD.TV или другого IPTV-приложения из вкладки уйдут, вернуть их можно в том же диалоге. Подпункты есть на прошивке r24 и новее. Подробнее — в [описании каталога](docs/catalog.md#melange-во-вкладке-тв).
