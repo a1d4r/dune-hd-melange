@@ -191,8 +191,9 @@ function aio_oc_cast_hint($p, $on, $lang)
 // nc (before the line), cur (the index of the movie of the card, -1 for none), the title and what
 // goes grey after it. A franchise of PARTS_IN at most with similar titles: first in "s" "Части
 // франшизы и похожие" after a line; else its own row "f" ("Части франшизы · Дюна · 2 фильма")
-// and "s" "Похожие" under it. Some still asked (wait): the stubs "w" ("Части франшизы" while its
-// parts may go in it, else "Похожие"), under the long franchise if it came.
+// and "s" "Похожие" under it. Some still asked (wait): the stubs "w" ("Части франшизы" while the
+// franchise is asked or its few parts may go in it; "Похожие" when it came with none or failed),
+// under the long franchise if it came.
 /**
  * @param AioOcCard $c
  * @return array<string, array{tiles: list<AioCatTile>, nc: int, cur: int, title: string, rest: string}>
@@ -218,7 +219,8 @@ function aio_oc_poster_rows($c)
         $rows['s'] = array('tiles' => $m['sim'], 'nc' => 0, 'cur' => -1, 'title' => aio_tr($ui, 'card_sim'), 'rest' => '');
     if ($m['wait'])
     {
-        $parts = $c['meta'] && $c['meta']['collection']['id'] !== '' && !isset($rows['f']);
+        $parts = $c['meta'] && $c['meta']['collection']['id'] !== '' && !isset($rows['f']) &&
+            ($np > 0 || $m['wait'][0] === 'parts');
         $rows['w'] = array('tiles' => array(), 'nc' => 0, 'cur' => -1, 'title' => aio_tr($ui, $parts ? 'card_parts' : 'card_sim'),
             'rest' => '');
     }
