@@ -23,7 +23,7 @@
         },
         "timeout": 15000,
         "mediaTypes": [],
-        "searchMode": "query",
+        "searchMode": "both",
         "seasonEpisodeStrategy": "dynamic",
         "paginate": false,
         "useMultipleInstances": false

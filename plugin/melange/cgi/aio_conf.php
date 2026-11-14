@@ -310,7 +310,7 @@ function aio_conf_patch($c, $tpl, $p)
 // (aio_conf_migrate) and by "Сохранить" (aio_cgi_aio_sync, before
 // aio_conf_patch). The schema a config is at: data_dir/aio_conf_mig, not
 // settings.json (a write there moves saved_at; an import would bring old marks).
-define('AIO_CONF_SCHEMA', 1);
+define('AIO_CONF_SCHEMA', 2);
 define('AIO_CONF_MIG_FILE', 'aio_conf_mig');
 
 // The migrations by the schema each brings a config to: functions of userData
@@ -321,7 +321,7 @@ define('AIO_CONF_MIG_FILE', 'aio_conf_mig');
  */
 function aio_conf_migrations()
 {
-    return array(1 => 'aio_conf_mig_dedup');
+    return array(1 => 'aio_conf_mig_dedup', 2 => 'aio_conf_mig_both');
 }
 
 // 1 (0.56.0): a copy of a cached file per service (one service: the same as
@@ -338,6 +338,29 @@ function aio_conf_mig_dedup($u)
         return false;
     $u->deduplicator->cached = 'per_service';
     return true;
+}
+
+// 2 (0.59.1): Torznab of JacRed (the preset melange) searches by the titles and
+// by IMDb (both) - query was the old value of the template; another one (auto,
+// both) is left as it is. Magnetio and the other presets: not touched.
+/**
+ * @param object $u
+ * @return bool
+ */
+function aio_conf_mig_both($u)
+{
+    $ch = false;
+    foreach (isset($u->presets) && is_array($u->presets) ? $u->presets : array() as $x)
+    {
+        if (is_object($x) && isset($x->instanceId, $x->type, $x->options) && $x->instanceId === AIO_CONF_PRESET &&
+            $x->type === 'torznab' && is_object($x->options) && isset($x->options->searchMode) &&
+            $x->options->searchMode === 'query')
+        {
+            $x->options->searchMode = 'both';
+            $ch = true;
+        }
+    }
+    return $ch;
 }
 
 // The migrations after the schema $from applied to $u in place -> the names of
