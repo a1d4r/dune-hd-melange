@@ -8,7 +8,7 @@
 // similar titles with the parts of a short one first, the cast of the meta, card_meta.php) and at
 // its right the hint "Похожие, в ролях и о фильме". DOWN scrolls the page under the logo:
 // the rows one by one under the logo, a stop each, then "About the movie" (the tagline, the whole
-// description, the details) under them, the whole screen darkened, the logo too; DOWN again
+// description, the details) under them, the background gone, the screen black; DOWN again
 // further while there is more, UP back, at last to the button left. A series (H1): the buttons
 // higher ("Continue SxEy" by the history), under them the tabs of the seasons and the row of the
 // episodes of the season shown, their progress by the history; the rows go DOWN with "About the
@@ -170,12 +170,11 @@ define('AIO_OC_ROW_STEPS', 5);
 define('AIO_OC_OFF_SER', 754);
 define('AIO_OC_HINT_X_SER', AIO_CATV_CARD_X + intval((3 * AIO_OC_EP_STEP + AIO_OC_EP_W - AIO_OC_MORE_W) / 2));
 define('AIO_OC_HINT_Y_SER', AIO_OC_SHOW_BOTTOM - AIO_OC_MORE_H);
-// Colours of the design: buttons, the bar, no photo, the darkening of DOWN, the frame of the focus,
+// Colours of the design: buttons, the bar, no photo, the frame of the focus,
 // the tab of the season shown (white 16 %), the plate of the mark "watched".
 define('AIO_OC_BTN_OFF', '#24FFFFFF');
 define('AIO_OC_BAR_REST', '#FF404040');
 define('AIO_OC_NO_PHOTO', '#FF262626');
-define('AIO_OC_DIM', '#C0000000');
 define('AIO_OC_FOCUS', '#FF2850C0');
 define('AIO_OC_TAB_ON', '#29FFFFFF');
 define('AIO_OC_MARK_BG', '#B0000000');
@@ -962,14 +961,28 @@ function aio_oc_page_geom($s, $h)
     return aio_gc_at(1920, $h, 0, -AIO_OC_VIEW_Y - $s);
 }
 
-// The darkening of zone $z: DOWN the whole screen, the logo baked into the background too.
+// The background of card $c in zone $z, the children of the panel "bg" under all: the card
+// background of the server with the logo baked in (aio_catv_card), card0 while it loads and when it
+// fails; without the logo the title as in the panel of the catalog over it. DOWN none, the window
+// black. A picture of the panel, not the background of the window: rows moving over a picture with
+// any layer above it are jerky, over black smooth (hrow 0.5.0).
 /**
+ * @param AioOcCard $c
  * @param string $z
  * @return list<AioGcComp>
  */
-function aio_oc_dim($z)
+function aio_oc_bg($c, $z)
 {
-    return $z === 'down' ? array(aio_gc_rect(aio_gc_at(1920, 1080, 0, 0), AIO_OC_DIM)) : array();
+    if ($z === 'down')
+        return array();
+    $card = aio_catv_card($c['tile'], true);
+    $img = aio_gc_image(aio_gc_at(1920, 1080, 0, 0), $card['bg']);
+    $img[GComponentDef::specific_def][GCompImageDef::not_loaded_url] = $card['nl'];
+    $img[GComponentDef::specific_def][GCompImageDef::load_failed_url] = $card['nl'];
+    if ($card['logo'])
+        return array($img);
+    return array($img, aio_gc_panel('title', aio_gc_at(AIO_CATV_PANE_W, AIO_OC_VIEW_Y, AIO_CATV_CARD_X, 0),
+        array(aio_catv_title_label(aio_clean($c['tile']['name']), AIO_OC_VIEW_Y))));
 }
 
 // --- The place of the focus.
@@ -1138,7 +1151,7 @@ function aio_oc_next($c, $l, $pos, $d)
 
 // The change_defs from place $old to $new: the lit buttons redrawn, the tabs, the row and its frame
 // (aio_oc_row_changes) or the line "did not load", the rows (aio_oc_rows_changes), the page and the
-// bottom of its clip moved, the darkening on or off, what the first screen alone shows off or on.
+// bottom of its clip moved, the background off or on, what the first screen alone shows off or on.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -1175,7 +1188,7 @@ function aio_oc_changes($c, $l, $old, $new)
     }
     if (($new['z'] === 'down') !== ($old['z'] === 'down'))
     {
-        $ch[] = aio_gc_change('dim', null, GCOMP_TRANSITION_NONE, aio_oc_dim($new['z']));
+        $ch[] = aio_gc_change('bg', null, GCOMP_TRANSITION_NONE, aio_oc_bg($c, $new['z']));
         $ch[] = aio_gc_change('first', null, GCOMP_TRANSITION_NONE, $new['z'] === 'down' ? array() : $l['first']);
     }
     return $ch;
@@ -1191,16 +1204,9 @@ function aio_oc_changes($c, $l, $old, $new)
  */
 function aio_oc_window($c, $l, $pos)
 {
-    $t = $c['tile'];
-    $card = aio_catv_card($t, true);
-    // No layer of half alpha over the background but the darkening of DOWN: over a picture they make
-    // the motion of the rows jerky (seen on the device); card/v1 is near black below the buttons itself.
+    // No layer over the background (aio_oc_bg): card/v1 is near black below the buttons itself.
     $d = array();
-    $d[] = aio_gc_panel('dim', aio_gc_at(1920, 1080, 0, 0), aio_oc_dim($pos['z']));
-    // Without the logo of the background: the title as in the panel of the catalog.
-    if (!$card['logo'])
-        $d[] = aio_gc_panel('title', aio_gc_at(AIO_CATV_PANE_W, AIO_OC_VIEW_Y, AIO_CATV_CARD_X, 0),
-            array(aio_catv_title_label(aio_clean($t['name']), AIO_OC_VIEW_Y)));
+    $d[] = aio_gc_panel('bg', aio_gc_at(1920, 1080, 0, 0), aio_oc_bg($c, $pos['z']));
     $series = $l['kind'] === 'series';
     $page = array_merge(aio_oc_head($c, $l, aio_oc_btn_lit($pos)), $series ? aio_oc_series($c, $l, $pos) : array());
     // The rows and "About", in a panel off lower: its own coordinates are those of the stop of the
@@ -1214,11 +1220,11 @@ function aio_oc_window($c, $l, $pos)
     $d[] = aio_gc_panel('first', aio_gc_at(1920, 1080, 0, 0), $pos['z'] === 'down' ? array() : $l['first']);
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
-        GCompWindowDef::background_url => $card['bg'],
+        GCompWindowDef::background_url => null,
         GCompWindowDef::async_loading_background => true,
         GCompWindowDef::comp_defs => $d,
         GCompWindowDef::ui_state => null,
-        GCompWindowDef::not_loaded_background_url => $card['nl'],
+        GCompWindowDef::not_loaded_background_url => null,
         GCompWindowDef::playback_bg_alpha => -1,
         GCompWindowDef::background_fit_def => array(
             ImageFitDef::base_halign_ratio => 0.5,
