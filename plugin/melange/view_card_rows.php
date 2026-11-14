@@ -171,22 +171,6 @@ function aio_oc_cast_cell($i, $x, $p, $color)
     return aio_gc_panel("p$i", aio_gc_at(AIO_OC_NAME_W, AIO_OC_CAST_H, $x, 0), $d);
 }
 
-// The hint at the right of the title of the row ("chint"), the row in focus ($on) on person $p
-// with an id of TMDB: ENTER opens the page of the person.
-/**
- * @param AioCardCredit|null $p
- * @param bool $on
- * @param string $lang
- * @return list<AioGcComp>
- */
-function aio_oc_cast_hint($p, $on, $lang)
-{
-    if (!$on || !$p || $p['tmdb'] === '')
-        return array();
-    return array(aio_oc_label(0, 6, AIO_OC_HINT_R - AIO_CATV_CARD_X, aio_tr($lang, 'card_cast_hint'), 24, AIO_CATV_TEXT_COLOR,
-        array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
-}
-
 // The rows of posters of card $c (aio_cm_posters) by their ids, in their order on the page: tiles,
 // nc (before the line), cur (the index of the movie of the card, -1 for none), the title and what
 // goes grey after it. A franchise of PARTS_IN at most with similar titles: first in "s" "Части
@@ -350,21 +334,6 @@ function aio_oc_row_name($s, $items, $i, $color, $on)
     return aio_gc_change("pn$i", null, GCOMP_TRANSITION_NONE, aio_oc_cast_names($items[$i], $color));
 }
 
-// The hint at the right of the title of row $s ("<id>hint"), item $k of $items in focus, the row
-// in focus ($on): of the cast aio_oc_cast_hint; none of a row of posters.
-/**
- * @param AioOcCard $c
- * @param AioOcStrip $s
- * @param list<mixed> $items
- * @param int $k
- * @param bool $on
- * @return list<AioGcComp>
- */
-function aio_oc_row_hint($c, $s, $items, $k, $on)
-{
-    return $s['id'] === 'c' ? aio_oc_cast_hint($items[$k], $on, $c['ui']) : array();
-}
-
 // The title of row $id of card $c with layout $l (aio_oc_row_title, at the top of its panel): TITLE_W
 // at most; of the first row on the first screen ($first) tw of the layout, before the hint of what
 // DOWN shows - it is not in "down".
@@ -382,7 +351,7 @@ function aio_oc_row_titles($c, $l, $id, $first)
 }
 
 // The rows of the layout of card $c at place $pos, each at the y of its strip in "down": the title
-// ("<id>head", aio_oc_row_titles) and the hint at its right (aio_oc_row_hint), the items
+// ("<id>head", aio_oc_row_titles), the items
 // (aio_oc_row_items) in a clip ("<id>cl") from the left edge of the screen to the right edge (the
 // one after the last whole peeks there), the strip moved as
 // aio_oc_strip_at; the frame of the focus (shown at the stop of the row).
@@ -407,8 +376,6 @@ function aio_oc_rows($c, $l, $pos)
         for ($i = 0; $i < $s['n']; $i++)
             $cells[] = aio_oc_row_cell($s, $items, $i, aio_oc_row_color($s, $i, $k, $on), $on && $i === $k, $cur, $c['ui']);
         $d[] = aio_gc_panel("{$id}head", aio_gc_at(1920, AIO_CATV_LINE_H, 0, $y), aio_oc_row_titles($c, $l, $id, $pos['z'] !== 'down'));
-        $d[] = aio_gc_panel("{$id}hint", aio_gc_at(AIO_OC_HINT_R - AIO_CATV_CARD_X, AIO_CATV_LINE_H, AIO_CATV_CARD_X, $y),
-            aio_oc_row_hint($c, $s, $items, $k, $on));
         $d[] = aio_gc_panel("{$id}cl", aio_gc_at(1920, $s['ch'], 0, $s['y']),
             array(aio_oc_strip_panel($s, $k, $cells)), 0);
         $d[] = aio_oc_strip_frame($s, $k, $on);
@@ -418,7 +385,7 @@ function aio_oc_rows($c, $l, $pos)
 
 // The changes of the rows from place $old to $new: the strip and the frame (aio_oc_strip_changes),
 // the names of the focus lit or dimmed (aio_oc_row_color: of the cast all of them as the row gets
-// the focus or loses it), the hint; the titles anew as the first screen comes or goes (aio_oc_row_titles).
+// the focus or loses it); the titles anew as the first screen comes or goes (aio_oc_row_titles).
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -443,9 +410,6 @@ function aio_oc_rows_changes($c, $l, $old, $new)
             if ($color !== aio_oc_row_color($s, $i, $ok, $oon))
                 $ch[] = aio_oc_row_name($s, $items, $i, $color, $on && $i === $k);
         }
-        $hint = aio_oc_row_hint($c, $s, $items, $k, $on);
-        if ($hint !== aio_oc_row_hint($c, $s, $items, $ok, $oon))
-            $ch[] = aio_gc_change("{$id}hint", null, GCOMP_TRANSITION_NONE, $hint);
         $first = $new['z'] !== 'down';
         if ($first !== ($old['z'] !== 'down'))
         {

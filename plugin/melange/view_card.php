@@ -66,6 +66,9 @@ define('AIO_OC_BAR_H', 6);
 define('AIO_OC_BAR_DY', 9);
 define('AIO_OC_HINT_R', 1845);
 define('AIO_OC_HINT_ARROW_DX', 16);
+// The arrow "more below" of the hints (card1_more_down.png, polish M1b): a grey open chevron down.
+define('AIO_OC_MORE_W', 30);
+define('AIO_OC_MORE_H', 14);
 // The first row of a movie at CAST_Y of the first screen. The cast: CAST_MAX people at most (the
 // creators first), photos 120x152 (TMDB w276_and_h350_face, a half) STEP apart, DIV more after the
 // creators, NAME_DY under their top the name in 2 lines and the role in 2, NAME_W wide: the bottom
@@ -114,14 +117,13 @@ define('AIO_OC_DET_X', AIO_CATV_CARD_X + 7 * AIO_OC_PHOTO_STEP);
 define('AIO_OC_DET_W', AIO_OC_HINT_R - AIO_OC_DET_X);
 // A series (H1 of design-own-card.md): the description DESC_GAP_SER under the genres (a movie: 14)
 // in lines DESC_LH_SER apart down to DESC_BOTTOM_SER, 3 under the genres; the buttons at BTN_Y_SER,
-// 35 px under its ink as at a movie; the tabs 14 under them, the row 14 under the tabs, the hint at
-// HINT_Y_SER, its ink ending 60 above the bottom of the screen (design-own-card-polish.md, owner
-// 13.11.2026: 3 lines). The tabs of the seasons at TAB_Y, TAB_H high, the text TAB_PAD from their
-// edges, TAB_GAP apart, the rounded ends TAB_CAP (PNG); more than TABS_MAX seasons: numbers after
-// "Сезон". The count "Сезон 2 · 13 серий" in CNT_PX at the right edge of the line, the strip
-// CNT_GAP before the widest; not all fitting: the strip scrolls by whole tabs, the chevrons
-// CHEV_W x CHEV_H (PNG) CHEV_GAP off its ends, in slots CHEV_SLOT wide (T2 of design-own-card.md,
-// "Итог 13.11.2026").
+// 35 px under its ink as at a movie; the tabs 28 under them, the row 24 under the tabs; under the row
+// only the arrow of DOWN (design-own-card-polish.md, owner 13.11.2026: 3 lines; 14.11.2026: no text).
+// The tabs of the seasons at TAB_Y, TAB_H high, the text TAB_PAD from their edges, TAB_GAP apart,
+// the rounded ends TAB_CAP (PNG); more than TABS_MAX seasons: numbers after "Сезон". The count
+// "Сезон 2 · 13 серий" in CNT_PX at the right edge of the line, the strip CNT_GAP before the widest;
+// not all fitting: the strip scrolls by whole tabs, the chevrons CHEV_W x CHEV_H (PNG) CHEV_GAP off
+// its ends, in slots CHEV_SLOT wide (T2 of design-own-card.md, "Итог 13.11.2026").
 // The row of episodes at ROW_Y: stills EP_W x EP_H, EP_STEP apart from the x of the catalog,
 // EP_VIS whole, the one before and after seen at the edges; the frame of the focus FRAME wide
 // around the still; P+/P- PAGE stills.
@@ -129,7 +131,7 @@ define('AIO_OC_BTN_Y_SER', 526);
 define('AIO_OC_DESC_GAP_SER', 6);
 define('AIO_OC_DESC_LH_SER', 40);
 define('AIO_OC_DESC_BOTTOM_SER', 491);
-define('AIO_OC_TAB_Y', 604);
+define('AIO_OC_TAB_Y', 618);
 define('AIO_OC_TAB_H', 52);
 define('AIO_OC_TAB_PAD', 24);
 define('AIO_OC_TAB_GAP', 8);
@@ -143,7 +145,7 @@ define('AIO_OC_CHEV_GAP', 12);
 // 4 more than the chevron and its gap: the left one 4 in from the x of the catalog, the right one
 // 4 more before CNT_GAP.
 define('AIO_OC_CHEV_SLOT', AIO_OC_CHEV_W + AIO_OC_CHEV_GAP + 4);
-define('AIO_OC_ROW_Y', 670);
+define('AIO_OC_ROW_Y', 694);
 define('AIO_OC_EP_W', 384);
 define('AIO_OC_EP_H', 216);
 define('AIO_OC_EP_STEP', 408);
@@ -163,9 +165,11 @@ define('AIO_OC_WIN', 8);
 // each 0.15-0.2 s and break it: to be tuned on the device).
 define('AIO_OC_ROW_STEPS', 5);
 // DOWN of a series: the first stop OFF_SER lower (the row above the clip, the cast at DOWN_Y); the
-// hint under the row at HINT_Y_SER from the x of the catalog.
-define('AIO_OC_OFF_SER', 730);
-define('AIO_OC_HINT_Y_SER', 976);
+// arrow of DOWN under the row at (HINT_X_SER, HINT_Y_SER): the middle of the 4 whole stills, its ink
+// ending at SHOW_BOTTOM.
+define('AIO_OC_OFF_SER', 754);
+define('AIO_OC_HINT_X_SER', AIO_CATV_CARD_X + intval((3 * AIO_OC_EP_STEP + AIO_OC_EP_W - AIO_OC_MORE_W) / 2));
+define('AIO_OC_HINT_Y_SER', AIO_OC_SHOW_BOTTOM - AIO_OC_MORE_H);
 // Colours of the design: buttons, the bar, no photo, the darkening of DOWN, the frame of the focus,
 // the tab of the season shown (white 16 %), the plate of the mark "watched".
 define('AIO_OC_BTN_OFF', '#24FFFFFF');
@@ -655,7 +659,18 @@ function aio_oc_under_ser($c, $x)
     return array(aio_oc_label($x, AIO_OC_BTN_Y_SER + (AIO_OC_BTN_H - 34) / 2, AIO_OC_HINT_R - $x, $line, 24, AIO_CATV_TEXT_COLOR));
 }
 
-// The hint of what DOWN shows: $text and the arrow down at ($x, $y) of the screen.
+// The arrow "more below" at ($x, $y).
+/**
+ * @param int $x
+ * @param int $y
+ * @return AioGcComp
+ */
+function aio_oc_more($x, $y)
+{
+    return aio_gc_image(aio_gc_at(AIO_OC_MORE_W, AIO_OC_MORE_H, $x, $y), AIO_OC_IMG . 'more_down.png');
+}
+
+// The hint of what DOWN shows: $text and the arrow down (aio_oc_more) at ($x, $y) of the screen.
 /**
  * @param string $text
  * @param int $x
@@ -666,8 +681,7 @@ function aio_oc_hint($text, $x, $y)
 {
     $hw = intval(aio_gc_sum($text, AIO_CATV_LINE_PX));
     return array(aio_oc_label($x, $y, $hw, $text, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR),
-        aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x + $hw + AIO_OC_HINT_ARROW_DX, $y + 22),
-            'plugin_file://img/sort_down.png'));
+        aio_oc_more($x + $hw + AIO_OC_HINT_ARROW_DX, $y + 21));
 }
 
 // The hint $text of aio_oc_hint at $y, its arrow ending at AIO_OC_HINT_R -> array(its components, the x of the text).
@@ -678,7 +692,7 @@ function aio_oc_hint($text, $x, $y)
  */
 function aio_oc_hint_right($text, $y)
 {
-    $hx = AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - AIO_OC_HINT_ARROW_DX - intval(aio_gc_sum($text, AIO_CATV_LINE_PX));
+    $hx = AIO_OC_HINT_R - AIO_OC_MORE_W - AIO_OC_HINT_ARROW_DX - intval(aio_gc_sum($text, AIO_CATV_LINE_PX));
     return array(aio_oc_hint($text, $hx, $y), $hx);
 }
 
@@ -903,10 +917,8 @@ function aio_oc_layout($c)
         foreach ($btns as $b)
             $x += aio_oc_btn_w($b) + AIO_OC_BTN_GAP;
         $only = aio_oc_under_ser($c, $x + 12);
-        $k = $posters ? ($cast ? 'card_sim_cast_about_series' : 'card_sim_about_series') :
-            ($cast ? 'card_cast_about_series' : 'card_about_series');
         if ($down || $cast || $posters)
-            $only = array_merge($only, aio_oc_hint(aio_tr($c['ui'], $k), AIO_CATV_CARD_X, AIO_OC_HINT_Y_SER));
+            $only[] = aio_oc_more(AIO_OC_HINT_X_SER, AIO_OC_HINT_Y_SER);
     }
     else
     {
@@ -1200,7 +1212,7 @@ function aio_oc_window($c, $l, $pos)
         $page[] = aio_gc_panel('down', aio_gc_at(1920, $l['h'] - $l['off'], 0, $l['off']), $down);
     $d[] = aio_gc_panel('view', aio_oc_view_geom($l['clips'][$pos['p']]),
         array(aio_gc_panel('page', aio_oc_page_geom($l['stops'][$pos['p']], $l['h']), $page, 0)), 0);
-    // What the first screen alone shows, over the clip: the hint of a series is under its bottom.
+    // What the first screen alone shows, over the clip: the arrow of a series is under its bottom.
     $d[] = aio_gc_panel('first', aio_gc_at(1920, 1080, 0, 0), $pos['z'] === 'down' ? array() : $l['first']);
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',

@@ -363,8 +363,7 @@ function aio_pp_bio_page($l, $p, $ui, $name)
         $d[] = aio_oc_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y + AIO_PP_BIO_LH + $s[2], AIO_OC_DESC2_W, $s[0],
             AIO_CATV_LINE_PX, $s[1] ? AIO_GC_TEXT : AIO_CATV_TEXT_COLOR);
     if (isset($l['pages'][$p]))
-        $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, AIO_CATV_CARD_X, AIO_PP_HINT_Y),
-            'plugin_file://img/sort_down.png');
+        $d[] = aio_oc_more(AIO_CATV_CARD_X, AIO_PP_HINT_Y);
     return $d;
 }
 
