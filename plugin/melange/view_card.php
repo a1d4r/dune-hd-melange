@@ -110,8 +110,11 @@ define('AIO_OC_DESC2_W', 960);
 define('AIO_OC_DESC2_LINES', 100);
 define('AIO_OC_DET_X', AIO_CATV_CARD_X + 7 * AIO_OC_PHOTO_STEP);
 define('AIO_OC_DET_W', AIO_OC_HINT_R - AIO_OC_DET_X);
-// A series (H1 of design-own-card.md): the buttons at BTN_Y_SER, the description down to
-// DESC_BOTTOM_SER; the tabs of the seasons at TAB_Y, TAB_H high, the text TAB_PAD from their
+// A series (H1 of design-own-card.md): the description DESC_GAP_SER under the genres (a movie: 14)
+// in lines DESC_LH_SER apart down to DESC_BOTTOM_SER, 3 under the genres; the buttons at BTN_Y_SER,
+// 35 px under its ink as at a movie; the tabs 14 under them, the row 14 under the tabs, the hint at
+// HINT_Y_SER, its ink ending 60 above the bottom of the screen (design-own-card-polish.md, owner
+// 13.11.2026: 3 lines). The tabs of the seasons at TAB_Y, TAB_H high, the text TAB_PAD from their
 // edges, TAB_GAP apart, the rounded ends TAB_CAP (PNG); more than TABS_MAX seasons: numbers after
 // "Сезон". The count "Сезон 2 · 13 серий" in CNT_PX at the right edge of the line, the strip
 // CNT_GAP before the widest; not all fitting: the strip scrolls by whole tabs, the chevrons
@@ -120,9 +123,11 @@ define('AIO_OC_DET_W', AIO_OC_HINT_R - AIO_OC_DET_X);
 // The row of episodes at ROW_Y: stills EP_W x EP_H, EP_STEP apart from the x of the catalog,
 // EP_VIS whole, the one before and after seen at the edges; the frame of the focus FRAME wide
 // around the still; P+/P- PAGE stills.
-define('AIO_OC_BTN_Y_SER', 496);
-define('AIO_OC_DESC_BOTTOM_SER', 462);
-define('AIO_OC_TAB_Y', 588);
+define('AIO_OC_BTN_Y_SER', 526);
+define('AIO_OC_DESC_GAP_SER', 6);
+define('AIO_OC_DESC_LH_SER', 40);
+define('AIO_OC_DESC_BOTTOM_SER', 491);
+define('AIO_OC_TAB_Y', 604);
 define('AIO_OC_TAB_H', 52);
 define('AIO_OC_TAB_PAD', 24);
 define('AIO_OC_TAB_GAP', 8);
@@ -136,7 +141,7 @@ define('AIO_OC_CHEV_GAP', 12);
 // 4 more than the chevron and its gap: the left one 4 in from the x of the catalog, the right one
 // 4 more before CNT_GAP.
 define('AIO_OC_CHEV_SLOT', AIO_OC_CHEV_W + AIO_OC_CHEV_GAP + 4);
-define('AIO_OC_ROW_Y', 664);
+define('AIO_OC_ROW_Y', 670);
 define('AIO_OC_EP_W', 384);
 define('AIO_OC_EP_H', 216);
 define('AIO_OC_EP_STEP', 408);
@@ -157,7 +162,7 @@ define('AIO_OC_WIN', 8);
 define('AIO_OC_ROW_STEPS', 5);
 // DOWN of a series: the first stop OFF_SER lower (the row above the clip, the cast at DOWN_Y); the
 // hint under the row at HINT_Y_SER from the x of the catalog.
-define('AIO_OC_OFF_SER', 724);
+define('AIO_OC_OFF_SER', 730);
 define('AIO_OC_HINT_Y_SER', 976);
 // Colours of the design: buttons, the bar, no photo, the darkening of DOWN, the frame of the focus,
 // the tab of the season shown (white 16 %), the plate of the mark "watched".
@@ -539,7 +544,8 @@ function aio_oc_label($x, $y, $w, $text, $px, $color, $spec = array())
 }
 
 // The first screen in the page: the lines of the panel (x of the catalog), the description to
-// DESC_BOTTOM (a series: DESC_BOTTOM_SER), the buttons at the y of the layout (lit: $b).
+// DESC_BOTTOM (a series: DESC_GAP_SER, DESC_LH_SER, DESC_BOTTOM_SER), the buttons at the y of the
+// layout (lit: $b).
 /**
  * @param AioOcCard $c
  * @param AioOcLayout $l
@@ -572,11 +578,13 @@ function aio_oc_head($c, $l, $b)
             AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
         $y += AIO_CATV_LINE_H;
     }
-    $y += 14;
-    $n = max(0, intval((($l['kind'] === 'series' ? AIO_OC_DESC_BOTTOM_SER : AIO_OC_DESC_BOTTOM) - $y) / AIO_OC_DESC_LH));
+    $ser = $l['kind'] === 'series';
+    $y += $ser ? AIO_OC_DESC_GAP_SER : 14;
+    $lh = $ser ? AIO_OC_DESC_LH_SER : AIO_OC_DESC_LH;
+    $n = max(0, intval((($ser ? AIO_OC_DESC_BOTTOM_SER : AIO_OC_DESC_BOTTOM) - $y) / $lh));
     $desc = $c['meta'] && $c['meta']['description'] !== '' ? $c['meta']['description'] : $c['tile']['description'];
     foreach (aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, $n, true) as $i => $line)
-        $d[] = aio_oc_label($x0, $y + $i * AIO_OC_DESC_LH, AIO_CATV_TEXT_W, $line, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
+        $d[] = aio_oc_label($x0, $y + $i * $lh, AIO_CATV_TEXT_W, $line, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
 
     $x = $x0;
     foreach ($l['btns'] as $i => $bt)
