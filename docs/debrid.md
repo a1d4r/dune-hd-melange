@@ -14,9 +14,9 @@
 
 3. Скопируйте ключ на сайте сервиса: Real-Debrid — https://real-debrid.com/apitoken, TorBox — https://torbox.app/settings.
 
-   <!-- TODO скриншот: real-debrid.com/apitoken, блок с ключом API и кнопкой копирования, ключ закрыт -->
+   <img src="../screenshots/debrid-site-rd.jpg" alt="Real-Debrid: блок «API Private Token» с ключом в поле" width="100%">
 
-   <!-- TODO скриншот: torbox.app/settings, блок API Key с кнопкой копирования, ключ закрыт -->
+   <img src="../screenshots/debrid-site-torbox.jpg" alt="TorBox: блок «API Key» с кнопкой «Copy API Key»" width="100%">
 
 4. Вставьте ключ в поле и нажмите «Проверить». Должна появиться зелёная строка «ключ верный, премиум».
 
