@@ -16,7 +16,7 @@ Melange — каталог фильмов и сериалов для Dune HD. В
 
    <img src="../screenshots/start-store-community.jpg" alt="Dune Store, «Приложения»: фокус на «Комьюнити приложения»" width="100%">
 
-   <!-- TODO скриншот: «Комьюнити приложения», фокус на Dune BackUp (за окном «Предупреждение»: «Игнорировать и продолжить» не нажимали) -->
+   <img src="../screenshots/start-store-dunebackup.jpg" alt="Dune Store, «Комьюнити приложения»: фокус на Dune BackUp" width="100%">
 
 2. Откройте Dune BackUp → «Коллекция плагинов для Dune HD».
 
