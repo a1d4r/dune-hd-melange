@@ -56,7 +56,7 @@ Melange — каталог фильмов и сериалов для Dune HD. В
 
 1. Откройте TorrServe. Если он попросит установить сервер — установите. В настройках TorrServe включите **«Запускать сервер при загрузке»** и ниже **«Запускать сервер от root»**.
 
-   <img src="../screenshots/start-torrserve-autostart.jpg" alt="Настройки TorrServe: «Запускать сервер при загрузке» включён, фокус на нём" width="100%">
+   <img src="../screenshots/start-torrserve-autostart.jpg" alt="Настройки TorrServe: включены «Запускать сервер при загрузке» и «Запускать сервер от root»" width="100%">
 
 2. Откройте **«Приложения»** → **«Melange»**.
 
