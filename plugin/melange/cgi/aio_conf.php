@@ -313,15 +313,15 @@ function aio_conf_patch($c, $tpl, $p)
 define('AIO_CONF_SCHEMA', 2);
 define('AIO_CONF_MIG_FILE', 'aio_conf_mig');
 
-// The migrations by the schema each brings a config to: functions of userData
-// of GET, changed in place -> it changed. Each looks at the value itself, so a
-// second run changes nothing.
+// The migrations by the schema each brings a config to: the names of the steps,
+// aio_conf_step_<name> - a function of userData of GET, changed in place -> it
+// changed. Each looks at the value itself, so a second run changes nothing.
 /**
  * @return array<int, string>
  */
 function aio_conf_migrations()
 {
-    return array(1 => 'aio_conf_mig_dedup', 2 => 'aio_conf_mig_both');
+    return array(1 => 'dedup', 2 => 'both');
 }
 
 // 1 (0.56.0): a copy of a cached file per service (one service: the same as
@@ -331,7 +331,7 @@ function aio_conf_migrations()
  * @param object $u
  * @return bool
  */
-function aio_conf_mig_dedup($u)
+function aio_conf_step_dedup($u)
 {
     if (!isset($u->deduplicator) || !is_object($u->deduplicator) || !isset($u->deduplicator->cached) ||
         $u->deduplicator->cached !== 'single_result')
@@ -347,7 +347,7 @@ function aio_conf_mig_dedup($u)
  * @param object $u
  * @return bool
  */
-function aio_conf_mig_both($u)
+function aio_conf_step_both($u)
 {
     $ch = false;
     foreach (isset($u->presets) && is_array($u->presets) ? $u->presets : array() as $x)
@@ -364,7 +364,7 @@ function aio_conf_mig_both($u)
 }
 
 // The migrations after the schema $from applied to $u in place -> the names of
-// those that changed it ('dedup' of aio_conf_mig_dedup), none: $u as it was.
+// those that changed it (as aio_conf_migrations names them), none: $u as it was.
 /**
  * @param object $u
  * @param int $from
@@ -373,10 +373,10 @@ function aio_conf_mig_both($u)
 function aio_conf_migrate_apply($u, $from)
 {
     $done = array();
-    foreach (aio_conf_migrations() as $n => $f)
+    foreach (aio_conf_migrations() as $n => $name)
     {
-        if ($n > $from && call_user_func($f, $u))
-            $done[] = substr($f, strlen('aio_conf_mig_'));
+        if ($n > $from && call_user_func('aio_conf_step_' . $name, $u))
+            $done[] = $name;
     }
     return $done;
 }
