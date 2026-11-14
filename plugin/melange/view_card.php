@@ -48,7 +48,8 @@ define('AIO_OC_INK', 10);
 // DESC_LH apart from under the director (or the genres) down to DESC_BOTTOM; buttons BTN_H high
 // at BTN_Y, the text PAD from the edges (and the icon of "Watch" ICON_W more), GAP apart; CAP: the
 // rounded ends (PNG), a rect between them; the progress or a line under them at LINE_Y; the bar
-// BAR_H high BAR_DY under its top; the hint at the line of the cast, its right edge at HINT_R.
+// BAR_H high BAR_DY under its top; the hint at the line of the cast, its right edge at HINT_R, its arrow
+// HINT_ARROW_DX after the text.
 define('AIO_OC_FACTS_Y', 269);
 define('AIO_OC_GENRES_Y', 315);
 define('AIO_OC_DIRECTOR_Y', 361);
@@ -64,6 +65,7 @@ define('AIO_OC_LINE_Y', 660);
 define('AIO_OC_BAR_H', 6);
 define('AIO_OC_BAR_DY', 9);
 define('AIO_OC_HINT_R', 1845);
+define('AIO_OC_HINT_ARROW_DX', 16);
 // The first row of a movie at CAST_Y of the first screen. The cast: CAST_MAX people at most (the
 // creators first), photos 120x152 (TMDB w276_and_h350_face, a half) STEP apart, DIV more after the
 // creators, NAME_DY under their top the name in 2 lines and the role in 2, NAME_W wide: the bottom
@@ -664,8 +666,20 @@ function aio_oc_hint($text, $x, $y)
 {
     $hw = intval(aio_gc_sum($text, AIO_CATV_LINE_PX));
     return array(aio_oc_label($x, $y, $hw, $text, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR),
-        aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x + $hw + 16, $y + 22),
+        aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x + $hw + AIO_OC_HINT_ARROW_DX, $y + 22),
             'plugin_file://img/sort_down.png'));
+}
+
+// The hint $text of aio_oc_hint at $y, its arrow ending at AIO_OC_HINT_R -> array(its components, the x of the text).
+/**
+ * @param string $text
+ * @param int $y
+ * @return array{list<AioGcComp>, int}
+ */
+function aio_oc_hint_right($text, $y)
+{
+    $hx = AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - AIO_OC_HINT_ARROW_DX - intval(aio_gc_sum($text, AIO_CATV_LINE_PX));
+    return array(aio_oc_hint($text, $hx, $y), $hx);
 }
 
 // "About the movie" (the series) at $y of "down", under the rows: the tagline, the whole
@@ -905,9 +919,8 @@ function aio_oc_layout($c)
             $k = in_array('s', $below, true) || in_array('w', $below, true) ?
                 ($more_cast ? 'card_sim_cast_about_movie' : 'card_sim_about_movie') :
                 ($more_cast ? 'card_cast_about_movie' : 'card_about_movie');
-            $hint = aio_tr($c['ui'], $k);
-            $hx = AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - 16 - intval(aio_gc_sum($hint, AIO_CATV_LINE_PX));
-            $only = array_merge($only, aio_oc_hint($hint, $hx, AIO_OC_CAST_Y));
+            list($hint, $hx) = aio_oc_hint_right(aio_tr($c['ui'], $k), AIO_OC_CAST_Y);
+            $only = array_merge($only, $hint);
             $tw = min($tw, $hx - AIO_OC_HINT_GAP - AIO_CATV_CARD_X);
         }
     }

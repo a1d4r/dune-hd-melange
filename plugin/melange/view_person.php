@@ -41,12 +41,13 @@ define('AIO_PP_WORKS_Y', 470);
 define('AIO_PP_CELL_H', 488);
 // DOWN: the whole biography a page lower, its title at BIO2_Y, PAGE_LINES lines of it a stop from
 // the x of the catalog, DESC2_W wide, PAR_GAP more between its paragraphs (half a line); the arrow
-// of another page at HINT_Y.
+// of another page at HINT_Y, above AIO_OC_SHOW_BOTTOM (overscan) and under the text (its last line at
+// 60 + 42 + 798 = 900 at most, AIO_CATV_LINE_H high).
 define('AIO_PP_BIO2_Y', 60);
 define('AIO_PP_PAGE_LINES', 20);
 define('AIO_PP_PAR_GAP', 21);
 define('AIO_PP_BIO2_MAX', 200);
-define('AIO_PP_HINT_Y', 1030);
+define('AIO_PP_HINT_Y', 998);
 
 class AioPp
 {
@@ -362,7 +363,7 @@ function aio_pp_bio_page($l, $p, $ui, $name)
         $d[] = aio_oc_label(AIO_CATV_CARD_X, AIO_PP_BIO2_Y + AIO_PP_BIO_LH + $s[2], AIO_OC_DESC2_W, $s[0],
             AIO_CATV_LINE_PX, $s[1] ? AIO_GC_TEXT : AIO_CATV_TEXT_COLOR);
     if (isset($l['pages'][$p]))
-        $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, AIO_CATV_CARD_X, AIO_PP_HINT_Y + 16),
+        $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, AIO_CATV_CARD_X, AIO_PP_HINT_Y),
             'plugin_file://img/sort_down.png');
     return $d;
 }
@@ -421,9 +422,8 @@ function aio_pp_page($e, $p, $l, $pos)
     $tw = AIO_OC_HINT_R - AIO_CATV_CARD_X;
     if ($l['pages'])
     {
-        $hint = aio_tr($ui, 'person_bio_more');
-        $hx = AIO_OC_HINT_R - AIO_GC_SORT_ARROW_W - 16 - intval(aio_gc_sum($hint, AIO_CATV_LINE_PX));
-        $d = array_merge($d, aio_oc_hint($hint, $hx, AIO_PP_WORKS_Y));
+        list($hint, $hx) = aio_oc_hint_right(aio_tr($ui, 'person_bio_more'), AIO_PP_WORKS_Y);
+        $d = array_merge($d, $hint);
         $tw = min($tw, $hx - AIO_OC_HINT_GAP - AIO_CATV_CARD_X);
     }
     $d = array_merge($d, aio_oc_row_title(AIO_PP_WORKS_Y, aio_tr($ui, 'person_works'), $p ? strval($s['n']) : '', $tw));
