@@ -17,7 +17,7 @@ Not sure which to choose? Start with torrents; you can add Debrid later.
 
 ## 1. Install TorrServe (torrents only)
 
-1. Download the **TorrServe** app, `TorrServe_MatriX.<version>.Client.apk` from https://github.com/YouROK/TorrServe/releases/latest (Assets), and install it on the Dune.
+1. Download the **TorrServe** app, `TorrServe_MatriX.145.Client.apk` from https://github.com/YouROK/TorrServe/releases/tag/MatriX.145.Client (Assets), and install it on the Dune.
 2. Open TorrServe. If it asks to install the server, install it.
 3. In the TorrServe settings, turn on **Start Server on Boot**.
 

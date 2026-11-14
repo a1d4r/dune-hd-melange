@@ -17,7 +17,7 @@ Melange превращает Дюну в онлайн-кинотеатр. Под
 
 ## 1. Поставьте TorrServe (только для торрентов)
 
-1. Скачайте приложение **TorrServe** — `TorrServe_MatriX.<версия>.Client.apk` с https://github.com/YouROK/TorrServe/releases/latest (Assets) — и установите на Дюну.
+1. Скачайте приложение **TorrServe** — `TorrServe_MatriX.145.Client.apk` с https://github.com/YouROK/TorrServe/releases/tag/MatriX.145.Client (Assets) — и установите на Дюну.
 2. Откройте TorrServe. Если он попросит установить сервер — установите.
 3. В настройках TorrServe включите **«Запускать сервер при загрузке»**.
 
