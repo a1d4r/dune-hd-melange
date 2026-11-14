@@ -3,7 +3,7 @@
 **English version**
 
 ## Unreleased
-- **More releases from JacRed.** Melange now searches JacRed by the title and by IMDb: «A.I. Artificial Intelligence», for example, had 6 releases and now has about 60. Configs made earlier update by themselves when you next play a film, so there is no need to press **Save**. Opening a film for the first time can take 1–2 s longer.
+- **More releases from JacRed.** Melange now searches JacRed by the title and by IMDb: «A.I. Artificial Intelligence», for example, had 6 releases and now has about 60. Configs made earlier update by themselves when you next play a film, so there is no need to press **Save**. Opening a film for the first time can take up to a second longer.
 - Fixed: when TorBox keeps a release as one archive, Melange said "Debrid found no matching file in the release — pick another". Now it says "Debrid gave an archive, not a video — pick another release". It needs an AIOStreams server that sends the archive_only.mp4 placeholder for such releases; with other servers the message stays as before.
 - Fixed: **Save** on the settings page changed Deduplicator → Cached of the Melange config back to `per_service`, even if you had set `single_result` by hand in the AIOStreams web settings. Melange updates its configs once in this version; if you set `single_result` by hand after that, it stays.
 
@@ -236,7 +236,7 @@ First public release. What it does:
 **Russian version**
 
 ## Не выпущено
-- **Больше раздач из JacRed.** Melange теперь ищет раздачи в JacRed и по названию, и по IMDb: у «Искусственного разума», например, было 6 раздач, стало около 60. Уже созданные конфиги обновятся сами при первом запуске фильма, нажимать «Сохранить» не нужно. Фильм, открытый впервые, может грузиться на 1–2 с дольше.
+- **Больше раздач из JacRed.** Melange теперь ищет раздачи в JacRed и по названию, и по IMDb: у «Искусственного разума», например, было 6 раздач, стало около 60. Уже созданные конфиги обновятся сами при первом запуске фильма, нажимать «Сохранить» не нужно. Фильм, открытый впервые, может грузиться до секунды дольше.
 - Исправлено: если TorBox хранит раздачу одним архивом, Melange писал «Debrid не нашёл в раздаче нужный файл — выберите другую». Теперь он пишет «Debrid отдал архив вместо видео — выберите другую раздачу». Нужен сервер AIOStreams, который на такие раздачи присылает заглушку archive_only.mp4; с другими серверами сообщение прежнее.
 - Исправлено: «Сохранить» на странице настроек меняло Deduplicator → Cached конфига Melange обратно на `per_service`, даже если вы сами выбрали `single_result` в веб-настройках AIOStreams. В этой версии Melange один раз обновит конфиг; если после этого выберете `single_result` вручную, он останется.
 
