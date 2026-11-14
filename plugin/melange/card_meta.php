@@ -2,8 +2,8 @@
 // Data of the own card of a title: the meta of the catalog server (meta/<movie|series>/<id>.json),
 // asked when the card opens, parsed to what the card shows and kept in the memory of php_server.
 // What is asked only by an action (a person, similar titles, a franchise): card_more.php. No screens. Needs catalog.php
-// (aio_cat_get), catalog_card.php (aio_card_people, limits) and main.php (aio_log, aio_cin_save). Not through
-// aio_catv_load_first: a 429 here must not stop the rows.
+// (aio_cat_get), catalog_card.php (aio_card_people, limits) and main.php (aio_log, aio_cin_save, aio_cin_load).
+// Not through aio_catv_load_first: a 429 here must not stop the rows.
 // Types in the PHPDoc (AioCardMeta and others): phpstan-types.neon of the repository.
 
 // A series: up to 4 MB (One Piece 1.1 MB, cold 9.5 s, 12.11.2026) in 10 s. A movie: the
@@ -15,6 +15,10 @@ define('AIO_CM_SERIES_TOTAL', 10);
 define('AIO_CM_KEEP', 8);
 define('AIO_CM_KEEP_EPS', 3000);
 define('AIO_CM_TTL', 3600);
+// A meta of a series without the pairs of Cinemeta (imdbPairs there and not true: Cinemeta did not answer in 3 s
+// or does not know the title) is kept for this long, s: once the server pairs it, the card and the history go by
+// the pairs and not by TMDB or an old runs file (aio_cm_parse).
+define('AIO_CM_TTL_NO_PAIRS', 60);
 // Limits of the texts, characters; episodes of a title at most (One Piece: 1180).
 define('AIO_CM_DESC_MAX', 3000);
 define('AIO_CM_TAGLINE_MAX', 300);
@@ -32,7 +36,7 @@ define('AIO_CM_IMG', preg_replace('~stremio/$~', '', AIO_CAT_BASE) . 'poster-cac
 // Parsed metas by "<type>:<id>": memory of php_server only, gone with a restart.
 class AioCm
 {
-    /** @var array<string, array{t: int, n: int, m: AioCardMeta}> n: episodes of m */
+    /** @var array<string, array{t: int, ttl: int, n: int, m: AioCardMeta}> n: episodes of m, ttl: kept for, s */
     public static $cache = array();
 }
 
@@ -160,7 +164,7 @@ function aio_cm_names_of($list)
 // episodes at most, in the order of the server. pairs: of each of them (season => episode =>
 // array(absoluteEpisode, imdbSeason, imdbEpisode)) its number by TMDB with no specials (0 for none) and its
 // pair of Cinemeta the server gives (aio_cm_pairs); 0, 0 for none (no such fields) and for one of season 0
-// (a special of Cinemeta: step 3).
+// (a special of Cinemeta: S0 is not shown).
 /**
  * @param array<mixed> $videos
  * @param int $now
@@ -259,8 +263,10 @@ function aio_cm_same($m, $id)
 // catalog (aio_cat_tile), the card of a title no row keeps (php_server restarted); null without a
 // name. collection: the franchise of a movie (belongsToCollection: tmdb.collection.<n>, its name),
 // id '' for none. A series also seasons and season_numbers (aio_cm_eps): by TMDB, or by the pairs of
-// Cinemeta (pairs: imdbPairs of the meta true, aio_cm_pairs; cin: the runs of an anime numbered on, none for
-// any other). trailer: trailers[] not empty (the button "Трейлер", card_trailer.php).
+// Cinemeta (by_cin: imdbPairs of the meta true, aio_cm_pairs; cin: the runs of an anime numbered on, none for
+// any other). With no pairs (imdbPairs not true) an anime numbered on by TMDB goes by the runs file of its
+// last opening with them (aio_cin_load: the pair of an episode by its number, aio_cin_pair), as with the pairs;
+// with no file by TMDB. trailer: trailers[] not empty (the button "Трейлер", card_trailer.php).
 /**
  * @param array<mixed> $m
  * @param string $type
@@ -299,23 +305,54 @@ function aio_cm_parse($m, $type, $id, $now)
         'countries' => aio_cm_names($countries, AIO_CARD_COUNTRIES_MAX), 'cast' => $people['cast'],
         'directors' => $people['directors'], 'writers' => $people['writers'], 'creators' => $people['creators'],
         'collection' => $coll, 'seasons' => $eps['seasons'], 'season_numbers' => $eps['season_numbers'],
-        'trailer' => count(aio_arr($m, 'trailers')) > 0, 'pairs' => false, 'cin' => array());
-    return $type === 'series' && isset($m['imdbPairs']) && $m['imdbPairs'] === true ? aio_cm_pairs($out, $eps['pairs']) : $out;
+        'trailer' => count(aio_arr($m, 'trailers')) > 0, 'by_cin' => false, 'cin' => array());
+    if ($type !== 'series')
+        return $out;
+    if (isset($m['imdbPairs']) && $m['imdbPairs'] === true)
+        return aio_cm_pairs($out, $eps['pairs'], 'pairs');
+    $runs = $imdb !== '' && aio_cm_numbered_on($out) ? aio_cin_load($imdb) : array();
+    return $runs ? aio_cm_pairs($out, aio_cm_run_pairs($out, $runs), 'runs file') : $out;
+}
+
+// The pairs of Cinemeta of the episodes of meta $m of an anime numbered on by TMDB (its episodes by their numbers
+// of the meta, One Piece S21E923) by runs $runs (aio_cin_load), as aio_cm_eps gives them: season => episode =>
+// array(its number, season, episode of Cinemeta by its run, aio_cin_pair; 0, 0 for none: a number of no pair or
+// before the first run). A number after the last of the runs goes on in it (aio_cm_cin_runs).
+/**
+ * @param AioCardMeta $m
+ * @param list<array{int, int, int}> $runs
+ * @return array<int, array<int, array{int, int, int}>>
+ */
+function aio_cm_run_pairs($m, $runs)
+{
+    $out = array();
+    foreach ($m['seasons'] as $s => $eps)
+    {
+        foreach ($eps as $ep)
+        {
+            $p = aio_cin_pair($runs, $ep['e']);
+            $out[$s][$ep['e']] = $p ? array($ep['e'], $p[0], $p[1]) : array($ep['e'], 0, 0);
+        }
+    }
+    return $out;
 }
 
 // Meta $m of a series by TMDB numbered by the pairs of Cinemeta $pairs of its episodes (aio_cm_eps: the server
 // paired them, imdbPairs), as the native card of the Dune has it and AIOStreams asks: the seasons of Cinemeta, s
 // and e of an episode its pair; an episode of no pair left out (One Piece E590, a special of Cinemeta; a new
-// one Cinemeta has not yet), season_numbers anew (aio_cm_out), pairs set. An anime numbered on by TMDB
+// one Cinemeta has not yet), season_numbers anew (aio_cm_out), by_cin set. An anime numbered on by TMDB
 // (aio_cm_numbered_on: One Piece S21E923) also cin: the runs of its numbers by the pairs (aio_cm_cin_runs; 923
-// of S21E32, absoluteEpisode). One line of the log.
+// of S21E32, absoluteEpisode). One line of the log, of $what: where the pairs are from.
 /**
  * @param AioCardMeta $m
  * @param array<int, array<int, array{int, int, int}>> $pairs
+ * @param string $what
  * @return AioCardMeta
  */
-function aio_cm_pairs($m, $pairs)
+function aio_cm_pairs($m, $pairs, $what)
 {
+    // Of the seasons of TMDB: before they and by_cin change (aio_cm_req_s with by_cin gives the season as it is).
+    $on = aio_cm_numbered_on($m);
     $by = array();
     $abs = array();
     $map = array();
@@ -338,17 +375,17 @@ function aio_cm_pairs($m, $pairs)
         }
     }
     ksort($abs);
-    $runs = $map && aio_cm_numbered_on($m) ? aio_cm_cin_runs(array_values($abs), $map) : array();
+    $runs = $map && $on ? aio_cm_cin_runs(array_values($abs), $map) : array();
     $m['seasons'] = aio_cm_sorted($by);
     $m['season_numbers'] = aio_cm_out($m['seasons']);
-    $m['pairs'] = true;
+    $m['by_cin'] = true;
     $m['cin'] = $runs;
-    aio_log(sprintf('card: pairs %s: %d seasons, %d out, %d episodes of no pair left out, %d runs', $m['id'],
+    aio_log(sprintf('card: %s %s: %d seasons, %d out, %d episodes of no pair left out, %d runs', $what, $m['id'],
         count($m['seasons']), count($m['season_numbers']), $none, count($runs)));
     return $m;
 }
 
-// The season the streams of season $s of meta $m are asked by: $s of the seasons of Cinemeta (pairs); by TMDB
+// The season the streams of season $s of meta $m are asked by: $s of the seasons of Cinemeta (by_cin); by TMDB
 // 1 for one numbered on from season 1 (its first episode the last of the season before + 1, and so each season
 // back to 1: One Piece S2 is E62-E77 after E1-E61, asked as :1:62, the episode as the absolute number), else
 // $s. The history of such an episode is written so too.
@@ -359,7 +396,7 @@ function aio_cm_pairs($m, $pairs)
  */
 function aio_cm_req_s($m, $s)
 {
-    if ($m['pairs'])
+    if ($m['by_cin'])
         return $s;
     for ($t = $s; $t > 1; $t--)
     {
@@ -373,7 +410,7 @@ function aio_cm_req_s($m, $s)
 }
 
 // The key of episode $e of season $s of meta $m in the history and the marks: "q:e", q the season it is asked
-// by (aio_cm_req_s; by the pairs of Cinemeta s, aio_cm_pairs).
+// by (aio_cm_req_s; by the seasons of Cinemeta s, by_cin of aio_cm_pairs).
 /**
  * @param AioCardMeta $m
  * @param int $s
@@ -504,7 +541,8 @@ function aio_cm_cin_runs($a, $map)
     return $out;
 }
 
-// The meta of tile $t for its card: from memory if parsed less than AIO_CM_TTL ago, else asked.
+// The meta of tile $t for its card: from memory if parsed less than AIO_CM_TTL ago (a series without the pairs
+// of Cinemeta: AIO_CM_TTL_NO_PAIRS), else asked.
 // -> err: '' or why there is none: noid (nothing to ask by), the errors of aio_cat_get (net,
 // timeout, big, rate, server, notfound, http, bad), other (the meta of another title); meta: the
 // parsed one or null. Only a parsed meta is kept: a failure is asked again at the next opening.
@@ -527,7 +565,7 @@ function aio_cm_get($t)
     {
         $c = AioCm::$cache[$key];
         // The clock going back is not trusted.
-        if ($now >= $c['t'] && $now - $c['t'] < AIO_CM_TTL)
+        if ($now >= $c['t'] && $now - $c['t'] < $c['ttl'])
         {
             aio_log("card: meta $key cached");
             return array('err' => '', 'meta' => $c['m']);
@@ -545,6 +583,8 @@ function aio_cm_get($t)
         return array('err' => 'other', 'meta' => null);
     }
     $m = aio_cm_parse($g['list'], $type, $id, $now);
+    $no = $series && isset($g['list']['imdbPairs']) && $g['list']['imdbPairs'] !== true;
+    $ttl = $no ? AIO_CM_TTL_NO_PAIRS : AIO_CM_TTL;
     unset($g);
     if ($m['cin'])
         aio_cin_save($m['imdb'], $m['cin']);
@@ -555,7 +595,7 @@ function aio_cm_get($t)
         $m['collection']['id'] !== '' ? $m['collection']['id'] : 'none'));
     if ($eps > AIO_CM_KEEP_EPS)
         return array('err' => '', 'meta' => $m);
-    AioCm::$cache[$key] = array('t' => $now, 'n' => $eps, 'm' => $m);
+    AioCm::$cache[$key] = array('t' => $now, 'ttl' => $ttl, 'n' => $eps, 'm' => $m);
     $sum = 0;
     foreach (AioCm::$cache as $c)
         $sum += $c['n'];
