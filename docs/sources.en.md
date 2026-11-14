@@ -128,6 +128,6 @@ For experienced users who want to change the filters or sorting, or add other ad
 
 ## What Melange changes in the config
 
-On every save, Melange updates only its own parts of its config: the Debrid keys, the selected JacRed (removed, it comes back; turned off, it stays off), the TMDB key and a copy of a cached release from each service (Deduplicator → Cached: `per_service`, unless you changed it by hand). Your keys and other edits from the web settings stay; only a [reset to the template](#reset-to-the-template) erases them.
+On every save, Melange updates only its own parts of its config: the Debrid keys, the selected JacRed (removed, it comes back; turned off, it stays off) and the TMDB key. After a plugin update, Melange adjusts its config by itself once, the first time you play a film, so you don't need to press **Save**. That is how, for example, it turns on a copy of a cached release from each service (Deduplicator → Cached: `per_service`): if you change it by hand later, Melange leaves your choice alone. Your keys and other edits from the web settings stay; only a [reset to the template](#reset-to-the-template) erases them.
 
 If JacRed does not answer the AIOStreams server, there are fewer releases, and with the **Russian trackers only** template there are none.
