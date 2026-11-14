@@ -176,13 +176,12 @@ define('AIO_OC_BTN_OFF', '#24FFFFFF');
 define('AIO_OC_BAR_REST', '#FF404040');
 define('AIO_OC_NO_PHOTO', '#FF262626');
 define('AIO_OC_DIM', '#C0000000');
-define('AIO_OC_BAND', '#D0000000');
 define('AIO_OC_FOCUS', '#FF2850C0');
 define('AIO_OC_TAB_ON', '#29FFFFFF');
 define('AIO_OC_MARK_BG', '#B0000000');
-// Our pictures: the ends of a button, off and focused, the icon of "Watch", the band over the
-// background from y 470 (1920x160, then a rect), the ends of a tab of a season (shown, focused),
-// the chevrons of the strip of tabs (grey, white with the focus on the tabs).
+// Our pictures: the ends of a button, off and focused, the icon of "Watch", the ends of a tab of a
+// season (shown, focused), the chevrons of the strip of tabs (grey, white with the focus on the
+// tabs).
 // card<N>: N goes up when they change, as cat<N>.
 define('AIO_OC_IMG', 'plugin_file://img/card1_');
 // Pictures of the shell: a still loading or not there (an episode not out yet), the mark "watched".
@@ -1194,10 +1193,9 @@ function aio_oc_window($c, $l, $pos)
 {
     $t = $c['tile'];
     $card = aio_catv_card($t, true);
+    // No layer of half alpha over the background but the darkening of DOWN: over a picture they make
+    // the motion of the rows jerky (seen on the device); card/v1 is near black below the buttons itself.
     $d = array();
-    // The band under the buttons: a gradient, then dark to the bottom.
-    $d[] = aio_gc_image(aio_gc_at(1920, 160, 0, 470), AIO_OC_IMG . 'band.png');
-    $d[] = aio_gc_rect(aio_gc_at(1920, 450, 0, 630), AIO_OC_BAND);
     $d[] = aio_gc_panel('dim', aio_gc_at(1920, 1080, 0, 0), aio_oc_dim($pos['z']));
     // Without the logo of the background: the title as in the panel of the catalog.
     if (!$card['logo'])
