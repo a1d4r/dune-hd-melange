@@ -10,7 +10,7 @@ On top of the catalog is a strip: the **Movies** and **Series** tabs and, on the
 
 Settings from the catalog: the gear on the strip. MENU on a poster or in the panel on the left opens the same **Movies**, **Series**, **Search** and **Settings** as the strip, so you do not have to scroll up to it.
 
-<img src="../screenshots/catalog.jpg" alt="Melange catalog: names of the start rows on the left, rows of posters on the right" width="100%">
+<img src="../screenshots/catalog.jpg" alt="Melange catalog: the Movies and Series tabs, magnifier and gear on top, rows of posters below" width="100%">
 
 ## Rows
 
