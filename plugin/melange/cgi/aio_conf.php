@@ -360,6 +360,8 @@ define('AIO_CONF_MIG_FILE', 'aio_conf_mig');
 // The migrations by the schema each brings a config to: the names of the steps,
 // aio_conf_step_<name> - a function of userData of GET, changed in place -> it
 // changed. Each looks at the value itself, so a second run changes nothing.
+// The plugin (aio_conf_migrate) does not update conf['tpl'] of settings.json: a step
+// that changes the set of presets gets its tpl only at "Сохранить".
 /**
  * @return array<int, string>
  */

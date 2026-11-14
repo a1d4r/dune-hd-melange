@@ -22,6 +22,8 @@ define('AIO_SORT_FILE', 'list_sort');
 // In data_dir: the main Debrid service (aio_debrid_main_read, 0.56.0); written by the
 // plugin (MENU of a list) and by the settings page, not in settings.json.
 define('AIO_DEBRID_MAIN_FILE', 'debrid_main');
+// In data_dir also aio_conf_mig: the schema of each config of Melange (AIO_CONF_MIG_FILE
+// of cgi/aio_conf.php, 0.59.1); written by the plugin and by the settings page.
 define('AIO_URL_MAX', 2000);
 // A bigger settings.json is not read (a real one is below 5 KB).
 define('AIO_SETTINGS_MAX', 65536);

@@ -1334,7 +1334,8 @@ function aio_mig_run()
         $line .= $class === 'stop' || $x[0] + 1 >= AIO_MIG_TRIES ? ', no more tries until a reboot' :
             ', next try in ' . (AIO_MIG_WAIT / 60) . ' min';
     }
-    aio_log(sprintf('aio mig: %s %s: %d -> %d, %s, %.2f s', parse_url($m['base'], PHP_URL_HOST), $m['mode'], $from,
+    // The base whole: an own server is the address of AIOStreams there and masked as one (aio_mask).
+    aio_log(sprintf('aio mig: %s %s: %d -> %d, %s, %.2f s', $m['base'], $m['mode'], $from,
         AIO_CONF_SCHEMA, $line, microtime(true) - $t));
 }
 

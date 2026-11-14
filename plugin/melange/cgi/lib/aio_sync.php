@@ -276,7 +276,15 @@ function aio_cgi_aio_sync($dir, $reset = false, $prof = '')
     }
     if ($u && !$reset)
     {
-        // As it is there, before our fields; stored even if the PUT fails.
+        // The migrations not yet run on it (the plugin may not have asked for its streams since).
+        $from = aio_conf_mig_of(aio_conf_mig_read($dir), $conf['uuid']);
+        if ($from < AIO_CONF_SCHEMA)
+        {
+            $mig = aio_conf_migrate_apply($u, $from);
+            aio_cgi_log("aio sync: migrations $from -> " . AIO_CONF_SCHEMA . ($mig ? ': ' . implode(', ', $mig) : ''));
+        }
+        // As it is there after the migrations (a step may change the presets), before our
+        // fields; stored even if the PUT fails.
         // The mode is that of its cell: a template of the other one is custom here.
         $t = aio_conf_tpl_of($u, $mode);
         aio_cgi_log("aio sync: template $t ($mode)");
@@ -286,13 +294,6 @@ function aio_cgi_aio_sync($dir, $reset = false, $prof = '')
             $w = aio_cgi_aio_keep($dir, $base, $mode, $conf, $prof);
             if ($w !== '')
                 aio_cgi_log("aio sync: $w");
-        }
-        // The migrations not yet run on it (the plugin may not have asked for its streams since).
-        $from = aio_conf_mig_of(aio_conf_mig_read($dir), $conf['uuid']);
-        if ($from < AIO_CONF_SCHEMA)
-        {
-            $mig = aio_conf_migrate_apply($u, $from);
-            aio_cgi_log("aio sync: migrations $from -> " . AIO_CONF_SCHEMA . ($mig ? ': ' . implode(', ', $mig) : ''));
         }
         // P2P made with Magnetio before the server got Torznab (aio_conf_p2p_torznab):
         // Magnetio kept, Torznab only by a reset (either template of P2P: the same JacRed preset).
