@@ -20,7 +20,7 @@
 
    <img src="../screenshots/film-list-p2p.jpg" alt="Список раздач: в первой колонке число сидов" width="100%">
 
-5. Через полминуты-минуту окно «Открываю через TorrServer» сменится плеером.
+5. Обычно секунд через 10 окно «Открываю через TorrServer» сменится плеером.
 
    <img src="../screenshots/torrserver-open.jpg" alt="Окно «Открываю через TorrServer»" width="100%">
 
