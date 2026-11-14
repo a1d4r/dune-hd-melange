@@ -22,17 +22,11 @@ function aio_cgi_aio_api($base, $what)
 // (null: not JSON or over 1 MB)).
 function aio_cgi_aio_req($base, $method, $json, $auth, $what = 'user')
 {
-    $h = array('Accept: application/json', 'Expect:');
-    if ($json !== null)
-        $h[] = 'Content-Type: application/json';
-    if ($auth)
-        $h[] = 'Authorization: Basic ' . base64_encode("$auth[0]:$auth[1]");
-    // raw: the config itself, without the parent config the server merges
-    // in (a PUT would bake it in); the web settings of AIOStreams ask so too.
-    $r = aio_cgi_curl(aio_cgi_aio_api($base, $what) . ($what === 'user' && $method === 'GET' ? '?raw=true' : ''), array(
+    $url = aio_cgi_aio_api($base, $what);
+    $r = aio_cgi_curl($what === 'user' ? aio_conf_user_url($url, $method) : $url, array(
         'method' => $method,
         'body' => $json,
-        'headers' => $h,
+        'headers' => aio_conf_api_headers($json, $auth),
         'connect' => 5,
         'total' => AIO_CONF_API_TIMEOUT,
         'max' => AIO_CONF_API_MAX,
@@ -277,8 +271,7 @@ function aio_cgi_aio_sync($dir, $reset = false, $prof = '')
     else
     {
         $r = aio_cgi_aio_req($base, 'GET', null, $auth);
-        $u = aio_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) && isset($r[2]->data->userData) &&
-            is_object($r[2]->data->userData) ? $r[2]->data->userData : null;
+        $u = aio_conf_user_data($r);
         aio_cgi_log('aio sync: get: ' . ($r[0] ? "curl $r[0]" : "HTTP $r[1]") . ($u ? ', config' : ''));
     }
     if ($u && !$reset)

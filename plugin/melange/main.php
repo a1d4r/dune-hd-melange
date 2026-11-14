@@ -9,6 +9,9 @@
 require_once dirname(__FILE__) . '/common.php';
 // HTTP clients of TorrServer and Transmission: shared with the settings page.
 require_once dirname(__FILE__) . '/net.php';
+// The config of AIOStreams and its API /api/v1/user (the migrations before the
+// streams, the quick setup): shared with the settings page; no firmware API.
+require_once dirname(__FILE__) . '/cgi/aio_conf.php';
 // Parsing of AIOStreams replies (no firmware API).
 require_once dirname(__FILE__) . '/parse.php';
 // Tracks of JacRed.
@@ -872,21 +875,17 @@ if (!function_exists('aio_http_post'))
 if (!function_exists('aio_http_json'))
 {
     // $method (POST, PUT with the JSON $json; GET, $json null) of an API of
-    // AIOStreams (/api/v1/user: the quick setup, the migrations of a config)
-    // with Basic auth of $auth (array(uuid, password), null none) -> array(HTTP
-    // code, body). $err is set on a transport error, to AIO_HTTP_TOO_BIG (body
-    // '') when the decoded body passes $max bytes. As the page sends it
-    // (cgi/lib/aio_sync.php): no redirects, no "Expect: 100-continue", the
-    // User-Agent of aio_fetch, gzip.
+    // AIOStreams (/api/v1/user by aio_user_req) with Basic auth of $auth
+    // (array(uuid, password), null none) -> array(HTTP code, body). $err is set
+    // on a transport error, to AIO_HTTP_TOO_BIG (body '') when the decoded body
+    // passes $max bytes. As the page sends it (cgi/lib/aio_sync.php): the
+    // headers of aio_conf_api_headers, no redirects, the User-Agent of
+    // aio_fetch, gzip.
     function aio_http_json($url, $json, &$err, $connect, $total, $max, $method = 'POST', $auth = null)
     {
         $body = '';
         $over = false;
-        $h = array('Accept: application/json', 'Expect:');
-        if ($json !== null)
-            $h[] = 'Content-Type: application/json';
-        if ($auth)
-            $h[] = 'Authorization: Basic ' . base64_encode("$auth[0]:$auth[1]");
+        $h = aio_conf_api_headers($json, $auth);
         $opts = array(
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
@@ -927,6 +926,31 @@ if (!function_exists('aio_http_json'))
         curl_close($ch);
         return array($code, $err !== '' ? '' : $body);
     }
+}
+
+// A request to /api/v1/user of the server $base as the page sends it
+// (aio_cgi_aio_req): $method (POST, PUT of $json; GET, $json null - its address
+// by aio_conf_user_url) with Basic auth of $auth (array(uuid, password), null
+// none) by aio_http_json, $connect and $total s -> array(curl errno (-1: none
+// known), HTTP code, aio_conf_decode of the body; null: not JSON or over
+// AIO_CONF_API_MAX). The request of aio_conf_create of the quick setup and
+// of aio_conf_migrate (aio_mig_req).
+/**
+ * @param string $base
+ * @param string $method
+ * @param string|null $json
+ * @param array{string, string}|null $auth
+ * @param int $connect
+ * @param int $total
+ * @return array{int, int, mixed}
+ */
+function aio_user_req($base, $method, $json, $auth, $connect = 5, $total = AIO_CONF_API_TIMEOUT)
+{
+    list($code, $body) = aio_http_json(aio_conf_user_url("$base/api/v1/user", $method), $json, $err, $connect, $total,
+        AIO_CONF_API_MAX, $method, $auth);
+    if ($err !== '' && $err !== AIO_HTTP_TOO_BIG)
+        return array(preg_match('/^curl ([0-9]+):/', $err, $m) ? intval($m[1]) : -1, 0, null);
+    return array(0, $code, $body !== '' ? aio_conf_decode($body) : null);
 }
 
 // Tests define their own aio_http_peek().
@@ -1237,7 +1261,7 @@ define('AIO_MIG_TRIES', 3);
 // array(tries, time of the last, 'stop': not until a reboot).
 define('AIO_MIG_TRY_FILE', 'aio_conf_mig_try');
 
-// The request of aio_conf_migrate: aio_quick_req with the short timeouts of a card.
+// The request of aio_conf_migrate: aio_user_req with the short timeouts of a card.
 /**
  * @param string $base
  * @param string $method
@@ -1247,7 +1271,7 @@ define('AIO_MIG_TRY_FILE', 'aio_conf_mig_try');
  */
 function aio_mig_req($base, $method, $json, $auth)
 {
-    return aio_quick_req($base, $method, $json, $auth, AIO_MIG_CONNECT, AIO_MIG_TOTAL);
+    return aio_user_req($base, $method, $json, $auth, AIO_MIG_CONNECT, AIO_MIG_TOTAL);
 }
 
 // The config $uuid marked at AIO_CONF_SCHEMA in data_dir/aio_conf_mig (the settings $s:

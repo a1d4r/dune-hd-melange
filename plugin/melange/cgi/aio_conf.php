@@ -6,8 +6,8 @@
 // (json_decode without assoc): an empty {} stays {}, never [] (Zod of the
 // server refuses [] for a record such as credentials). Plain PHP 5.3, no
 // firmware API, no request of its own: aio_conf_create sends by the function
-// of its caller. Shared by the page (cgi/lib/aio_sync.php) and the quick
-// setup of the plugin (view_setup.php).
+// of its caller. Shared by the page (cgi/lib/aio_sync.php) and the plugin
+// (main.php: the migrations; view_setup.php: the quick setup).
 
 // instanceIds of the JacRed presets of the templates (aio_conf_patch puts
 // the chosen JacRed in that of a template): Torznab of AIOStreams (Debrid;
@@ -26,6 +26,50 @@ define('AIO_CONF_MAGNETIO_LIMIT', 100);
 // about a second). The page and the quick setup of the plugin.
 define('AIO_CONF_API_MAX', 1048576);
 define('AIO_CONF_API_TIMEOUT', 20);
+
+// The headers of a request to the API of AIOStreams with the body $json (null:
+// none) and Basic auth of $auth (array(uuid, password), null none): JSON
+// back, no "Expect: 100-continue". The page and the plugin send the same.
+/**
+ * @param string|null $json
+ * @param array{string, string}|null $auth
+ * @return list<string>
+ */
+function aio_conf_api_headers($json, $auth)
+{
+    $h = array('Accept: application/json', 'Expect:');
+    if ($json !== null)
+        $h[] = 'Content-Type: application/json';
+    if ($auth)
+        $h[] = 'Authorization: Basic ' . base64_encode("$auth[0]:$auth[1]");
+    return $h;
+}
+
+// The address of a request $method to /api/v1/user at $url (that address as
+// the caller has it). GET with raw: the config itself, without the parent
+// config the server merges in - a PUT of what came back would bake it in; the
+// web settings of AIOStreams ask so too.
+/**
+ * @param string $url
+ * @param string $method
+ * @return string
+ */
+function aio_conf_user_url($url, $method)
+{
+    return $url . ($method === 'GET' ? '?raw=true' : '');
+}
+
+// userData of a reply of GET /api/v1/user (as aio_conf_ok takes it) -> the
+// config there; null: a failure or no config in it.
+/**
+ * @param array{int, int, mixed} $r
+ * @return object|null
+ */
+function aio_conf_user_data($r)
+{
+    return aio_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) && isset($r[2]->data->userData) &&
+        is_object($r[2]->data->userData) ? $r[2]->data->userData : null;
+}
 
 // PHP on Dune is 32-bit and json_decode of 5.3 clamps big integers to
 // 2147483647: numbers of 10+ digits (sizes in bytes of the filters) pass
@@ -495,8 +539,7 @@ function aio_conf_migrate($base, $mode, $conf, $from, $req)
 {
     $auth = array($conf['uuid'], $conf['pass']);
     $r = call_user_func($req, $base, 'GET', null, $auth);
-    $u = aio_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) && isset($r[2]->data->userData) &&
-        is_object($r[2]->data->userData) ? $r[2]->data->userData : null;
+    $u = aio_conf_user_data($r);
     $line = 'get ' . aio_conf_mig_res($r);
     if (!$u)
         return array(aio_conf_mig_class($r), $line);
@@ -552,7 +595,7 @@ function aio_conf_ok($r)
 // fields (aio_conf_params; $tmdbs as there), POST /api/v1/user with the
 // password $pass (24 hex) by $req, the request of the caller: ($base,
 // $method, $json, $auth) -> a reply as aio_conf_ok takes it (the page:
-// aio_cgi_aio_req; the plugin: aio_quick_req). Nothing written. -> array(the
+// aio_cgi_aio_req; the plugin: aio_user_req). Nothing written. -> array(the
 // config for aio_confs[$base][aio_mode] (aio_aio_conf) or null, the reply;
 // null: no template, no request).
 function aio_conf_create($s, $tmdbs, $pass, $req)

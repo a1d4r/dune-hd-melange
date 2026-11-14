@@ -9,8 +9,8 @@
 // (its token back, 0.51.0); read anew at each QR, never kept in memory.
 // Neither the token nor the page address goes to the log. Reads Aio::$settings.
 
-// The config of AIOStreams the quick setup makes, its request (AIO_CONF_API_*):
-// shared with the settings page. Plain PHP, no firmware API.
+// The config of AIOStreams the quick setup makes (aio_conf_create; its request:
+// aio_user_req of main.php): shared with the settings page. Plain PHP, no firmware API.
 require_once dirname(__FILE__) . '/cgi/aio_conf.php';
 
 define('AIO_SETUP_TICK_MS', 1500);
@@ -347,31 +347,6 @@ function aio_setup_refresh($p)
             PluginInvalidateFoldersActionData::all_except => false));
 }
 
-// The request of aio_conf_create for the quick setup (and of aio_conf_migrate,
-// aio_mig_req), as the page sends it (aio_cgi_aio_req): $method (POST, PUT of
-// $json; GET with ?raw=true, $json null) to /api/v1/user of the server $base
-// with Basic auth of $auth (array(uuid, password), null none) by aio_http_json,
-// $connect and $total s -> array(curl errno (-1: none known), HTTP code,
-// aio_conf_decode of the body; null: not JSON or over AIO_CONF_API_MAX).
-/**
- * @param string $base
- * @param string $method
- * @param string|null $json
- * @param array{string, string}|null $auth
- * @param int $connect
- * @param int $total
- * @return array{int, int, mixed}
- */
-function aio_quick_req($base, $method, $json, $auth, $connect = 5, $total = AIO_CONF_API_TIMEOUT)
-{
-    // raw: the config itself, without the parent config the server merges in (a PUT would bake it in).
-    list($code, $body) = aio_http_json("$base/api/v1/user" . ($method === 'GET' ? '?raw=true' : ''), $json, $err, $connect,
-        $total, AIO_CONF_API_MAX, $method, $auth);
-    if ($err !== '' && $err !== AIO_HTTP_TOO_BIG)
-        return array(preg_match('/^curl ([0-9]+):/', $err, $m) ? intval($m[1]) : -1, 0, null);
-    return array(0, $code, $body !== '' ? aio_conf_decode($body) : null);
-}
-
 // The quick setup failed by the reply $r of aio_conf_create (null: no
 // template in the plugin) -> its error; the message of the server is shown,
 // never logged.
@@ -448,7 +423,7 @@ function aio_setup_quick($p)
             return aio_error('err_setup_write');
         }
         $t = microtime(true);
-        list($conf, $r) = aio_conf_create($s, null, $pass, 'aio_quick_req');
+        list($conf, $r) = aio_conf_create($s, null, $pass, 'aio_user_req');
         aio_log(sprintf('setup: quick: create: %s%s, %.2f s', !$r ? 'no template' : ($r[0] ? "curl $r[0]" : "HTTP $r[1]"),
             $conf ? ', made' : '', microtime(true) - $t));
         if (!$conf)
