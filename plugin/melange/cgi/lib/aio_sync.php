@@ -140,10 +140,16 @@ function aio_cgi_aio_keep($dir, $base, $mode, $c, $prof = '')
 
 // The config $uuid marked at AIO_CONF_SCHEMA in data_dir/aio_conf_mig (0.59.1): made or reset by the template now, or
 // changed with the migrations (aio_conf_migrate_apply). A failure only logged: the plugin asks the server once more.
+// settings.json not read: no mark (the defaults have no configs, the marks of the others would be dropped).
 function aio_cgi_mig_mark($dir, $uuid)
 {
-    $w = aio_cgi_write($dir, aio_conf_mig_json(aio_conf_mig_read($dir), $uuid, AIO_CONF_SCHEMA, aio_settings_read($dir)),
-        AIO_CONF_MIG_FILE);
+    $s = aio_settings_read($dir, $why);
+    if ($why !== '')
+    {
+        aio_cgi_log("aio sync: migration mark: settings.json $why, not written");
+        return;
+    }
+    $w = aio_cgi_write($dir, aio_conf_mig_json(aio_conf_mig_read($dir), $uuid, AIO_CONF_SCHEMA, $s), AIO_CONF_MIG_FILE);
     if ($w !== '')
         aio_cgi_log("aio sync: migration mark: $w");
 }
