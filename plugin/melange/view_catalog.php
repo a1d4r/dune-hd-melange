@@ -622,9 +622,24 @@ function aio_catv_title_item($rid, $t)
     return $item;
 }
 
-// The plate and the number of an IMDb rating ("8.6", "10"), none for none. In pixels of the poster
-// 190x285, the shell scales them in focus. The shell puts the text at the left of its r and a pixel
-// over the middle of it: the r of the text is a pixel lower than the plate, its x centres the
+// The number of an IMDb rating on a poster ("8.6", "10"), '' for none; also of the rows of the own
+// card (aio_oc_rate_over).
+/**
+ * @param string $rating
+ * @return string
+ */
+function aio_catv_rate_text($rating)
+{
+    // "0.04" is "0.0": none, as of kpRating; over 10 ("99.99" is "100.0", wider than the plate) none too.
+    $s = sprintf('%.1F', (float) $rating);
+    if ((float) $s <= 0 || (float) $s > 10)
+        return '';
+    return $s === '10.0' ? '10' : $s;
+}
+
+// The plate and the number of an IMDb rating (aio_catv_rate_text), none for none. In pixels of the
+// poster 190x285, the shell scales them in focus. The shell puts the text at the left of its r and a
+// pixel over the middle of it: the r of the text is a pixel lower than the plate, its x centres the
 // number by font_w.php.
 /**
  * @param string $rating
@@ -632,12 +647,9 @@ function aio_catv_title_item($rid, $t)
  */
 function aio_catv_rate_stickers($rating)
 {
-    // "0.04" is "0.0": none, as of kpRating.
-    $s = sprintf('%.1F', (float) $rating);
-    if ((float) $s <= 0)
+    $s = aio_catv_rate_text($rating);
+    if ($s === '')
         return array();
-    if ($s === '10.0')
-        $s = '10';
     $p = AIO_CATV_RATE_PAD;
     $x = $p + intval(round((AIO_CATV_RATE_W - aio_gc_sum($s, AIO_CATV_RATE_PX)) / 2));
     return array(

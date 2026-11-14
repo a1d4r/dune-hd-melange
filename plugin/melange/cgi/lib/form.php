@@ -453,8 +453,8 @@ function aio_cgi_cat_rating()
             'Постеры без цифр, рейтинги — в карточке над рядами.',
             'Posters without numbers, the ratings in the card above the rows.')),
         'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
-            'Цифра IMDb в углу постера в рядах каталога.',
-            'The IMDb number in the corner of a poster in the catalog rows.')));
+            'Цифра IMDb в углу постера: в рядах каталога и в карточке.',
+            'The IMDb number in the corner of a poster: in the catalog rows and in the card.')));
 }
 
 // The answer of aio_cgi_cat_rating() of cat_rating of the settings (a bool).
