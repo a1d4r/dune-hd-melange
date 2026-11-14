@@ -38,7 +38,15 @@ The magnifier on the strip on top, MENU → **Search** on the main screen of the
 
 ENTER on a poster opens the Melange card. At the top are the logo or title, the Kinopoisk and IMDb ratings, the genres and the description, with the buttons **Watch** (**Continue** for a started title), **Trailer** and **Dune card** for the old card. Below, a movie has the rows of franchise parts (if it belongs to a collection), similar titles and the cast; a series has similar titles and the cast further DOWN. Creators and directors lead the cast. Posters in these rows show the IMDb rating if you turned it on for the catalog. An actor opens a page with a biography and filmography, and any film there opens its own card.
 
+<img src="../screenshots/own-card-film.jpg" alt="Melange card for The Dark Knight: logo, ratings, description and the Watch, Trailer and Dune card buttons" width="100%">
+
+<img src="../screenshots/own-card-rows.jpg" alt="Franchise parts and similar titles with IMDb ratings on the posters, and the cast row" width="100%">
+
 A series has its seasons and a row of episodes; MENU on an episode marks it as watched or not watched, and can mark all the previous ones too. Anime with absolute numbering, such as One Piece, is split into seasons as in the Dune card, and an episode also shows its overall number: "32 · 923". A movie or episode started in one card continues from the other: watch history is shared with the Dune card. The card does not show specials (season 0).
+
+<img src="../screenshots/own-card-series.jpg" alt="Melange card for Breaking Bad: season tabs and a row of episodes" width="100%">
+
+<img src="../screenshots/own-card-anime.jpg" alt="One Piece in the Melange card: a season 21 episode with its overall number "32 · 923"" width="100%">
 
 The own card is on by default on firmware r24 and newer. To turn it off, open the settings page: **Appearance** → **Own card**. ENTER then works as described below.
 
