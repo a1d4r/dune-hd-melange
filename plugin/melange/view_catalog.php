@@ -630,9 +630,9 @@ function aio_catv_title_item($rid, $t)
  */
 function aio_catv_rate_text($rating)
 {
-    // "0.04" is "0.0": none, as of kpRating.
+    // "0.04" is "0.0": none, as of kpRating; over 10 ("99.99" is "100.0", wider than the plate) none too.
     $s = sprintf('%.1F', (float) $rating);
-    if ((float) $s <= 0)
+    if ((float) $s <= 0 || (float) $s > 10)
         return '';
     return $s === '10.0' ? '10' : $s;
 }

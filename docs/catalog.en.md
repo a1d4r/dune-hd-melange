@@ -14,7 +14,7 @@ Settings from the catalog: the gear on the strip. MENU on a poster or in the pan
 
 ## Rows
 
-The catalog has rows of collections with up to 20 posters each; the last tile, **Show all**, opens the whole row (up to 1000 posters, loaded as you scroll). In the catalog rows, a poster can show the IMDb rating of the movie in its top left corner, if it has one: turn it on on the settings page, **Appearance** → **IMDb rating on posters**.
+The catalog has rows of collections with up to 20 posters each; the last tile, **Show all**, opens the whole row (up to 1000 posters, loaded as you scroll). In the catalog rows and in the rows of Melange's own card (similar titles, parts of a franchise, filmography), a poster can show the IMDb rating of the movie in its top left corner, if it has one: turn it on on the settings page, **Appearance** → **IMDb rating on posters**.
 
 **Start rows:** trending movies and series, new digital releases, this year's series, popular and top rated, and Kinopoisk top ("Топ Кинопоиска"). Row names come from the catalog server in Russian.
 
