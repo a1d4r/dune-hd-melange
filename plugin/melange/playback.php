@@ -537,8 +537,8 @@ function aio_pre_file($file)
     // AIOStreams: downloading.mp4, MediaFusion: torrent_not_downloaded.mp4.
     else if (strpos($f, 'downloading') !== false || strpos($f, 'not_downloaded') !== false)
         $key = 'err_pre_downloading';
-    // Torrentio: failed_rar_v3.mp4, AIOStreams: archive.mp4 (TorBox keeps the release as one archive).
-    else if (strpos($f, 'failed_rar') !== false || $f === 'archive.mp4')
+    // Torrentio: failed_rar_v3.mp4, AIOStreams: archive_only.mp4 (TorBox keeps the release as one archive).
+    else if (strpos($f, 'failed_rar') !== false || strpos($f, 'archive') === 0)
         $key = 'err_pre_archive';
     // AIOStreams: no_matching_file.mp4.
     else if (strpos($f, 'no_matching_file') !== false)
