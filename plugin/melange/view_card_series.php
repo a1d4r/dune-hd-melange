@@ -269,7 +269,7 @@ function aio_oc_count_text($c, $s)
 function aio_oc_count($c, $s, $t)
 {
     return array(aio_gc_cut(null, aio_gc_left_center(AIO_OC_HINT_R - $t['cx'], 34, 0), aio_oc_count_text($c, $s),
-        AIO_OC_CNT_PX, AIO_GC_DIM, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
+        AIO_OC_CNT_PX, AIO_GC_TEXT2, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
 }
 
 // The stills in the panel of a season of $n at shift $off: all; a long one (more than WIN_MIN)
