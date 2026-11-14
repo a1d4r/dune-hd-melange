@@ -298,8 +298,8 @@ function aio_cin_load($imdb)
 // The runs of the numbering of Cinemeta of a list from the own card (aio_cin of movie_str, aio_oc_watch;
 // aio_cm_cin_runs) checked: each array(the first number of episodes, ascending from 1; a season of Cinemeta,
 // 0 for numbers of no pair; its episode, 0 with season 0), AIO_CIN_RUNS_MAX at most; anything else: none.
-// Season 0 is "no pair", not the specials: S0 of Cinemeta is not in the runs (step 3 pairs them by the date
-// apart).
+// Season 0 is "no pair", not the specials: the server pairs S0 of Cinemeta, and the plugin keeps it out of the
+// runs (an episode paired with a special is a number of no pair, aio_cm_eps).
 /**
  * @param mixed $v
  * @return list<array{int, int, int}>
