@@ -64,6 +64,7 @@ The same path step by step, with screenshots: [Getting started](docs/quick-start
 ## How to watch
 
 - **Pick a movie** in the [Melange catalog](docs/catalog.en.md) (**Apps → Melange**: rows of collections and search) or in the Dune **Movies** catalog. On the card: **Play...** → **Melange**. For a series, first choose an episode via **Seasons**.
+- **Own card:** ENTER on a poster in the Melange catalog opens [a card](docs/catalog.en.md#melanges-own-card) with ratings, a trailer, seasons and episodes, similar titles and the cast.
 - **In the release list:** up / down moves through releases, P+ / P− through pages, ENTER plays, INFO shows release details, ← / → goes to the neighboring episode. The colored buttons change the order: Auto, Seeders (Cached with Debrid), Size, Date.
 - **Release status** on the left: **Cached in …** starts playing at once, **Not cached** means it is not in the Debrid cache, **P2P** plays via TorrServer.
 - **MENU** opens **Actions**: refresh the list, choose an episode, watch via TorrServer, open in another app, download to your server, settings.

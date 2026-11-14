@@ -34,7 +34,17 @@ The magnifier on the strip on top, MENU → **Search** on the main screen of the
 
 <img src="../screenshots/search.jpg" alt="Search results in the Melange catalog: Movies and Series rows, a Show all tile at the end of a row" width="100%">
 
+## Melange's own card
+
+ENTER on a poster opens the Melange card. At the top are the logo or title, the Kinopoisk and IMDb ratings, the genres and the description, with the buttons **Watch** (**Continue** for a started title), **Trailer** and **Dune card** for the old card. Below come the rows of franchise parts, similar titles and the cast, with creators and directors first. Posters in these rows show the IMDb rating if you turned it on for the catalog. An actor opens a page with a biography and filmography, and any film there opens its own card.
+
+A series has its seasons and a row of episodes; MENU on an episode marks it as watched. Anime with absolute numbering, such as One Piece, is split into seasons as in the Dune card, and an episode also shows its overall number: "32 · 923". Watch history is shared with the Dune card, so what you start in one continues in the other. The card does not show specials (season 0).
+
+The own card is on by default on firmware r24 and newer. To turn it off, open the settings page: **Appearance** → **Own card**. ENTER then works as described below.
+
 ## ENTER on a poster
+
+If the own card is off:
 
 - If the title has a card in the Dune **Movies** catalog, that card opens: **Play...** → **Melange**, with watch history as usual.
 - If there is no card, for a movie Melange creates its own Dune card, and the rest is as usual: **Play...**, watch history. For a series Melange offers to open the release list right away, from the first episode, but without watch history: no percentage, no **Continue Watching**.
