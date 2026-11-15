@@ -543,9 +543,11 @@ function aio_pg_info_words($text, $y)
 }
 
 // The line of the panel of badge $b at $y, 40 high: the bar (full when watched, none of it of the next episode), the
-// text, the tick of a watched one, then $tail (" · В моём списке", a title of "Мой список"; '' none). Too wide for the
-// column (AIO_CATV_TEXT_W): the bar shorter, down to AIO_PG_INFO_BAR_MIN, then the words smaller, as the lines over
-// it (aio_catv_fit), down to AIO_PG_INFO_MIN_PX, the tail cut with "…" to what is left.
+// text, the tick of a watched movie or a series watched whole (not of a watched episode, as on its tile: "S2 E7
+// просмотрена ✓" reads as the series watched when its next episode is not known), then $tail (" · В моём списке", a
+// title of "Мой список"; '' none). Too wide for the column (AIO_CATV_TEXT_W): the bar shorter, down to
+// AIO_PG_INFO_BAR_MIN, then the words smaller, as the lines over it (aio_catv_fit), down to AIO_PG_INFO_MIN_PX, the tail
+// cut with "…" to what is left.
 /**
  * @param AioPgBadge $b
  * @param int $y
@@ -556,7 +558,7 @@ function aio_pg_info_words($text, $y)
 function aio_pg_info_line($b, $y, $lang, $tail = '')
 {
     $text = aio_pg_info_text($b, $lang);
-    $tk = $b['watched'] || $b['all'] ? AIO_PG_INFO_TICK_W : 0;
+    $tk = $b['all'] || ($b['watched'] && $b['e'] < 0) ? AIO_PG_INFO_TICK_W : 0;
     $px = AIO_PG_INFO_PX;
     $w = max(AIO_PG_INFO_BAR_MIN, min(AIO_PG_INFO_BAR_W, AIO_CATV_TEXT_W - 40 - $tk - aio_pg_info_w($text, $tail, $px)));
     $room = AIO_CATV_TEXT_W - $w - 40 - $tk;
@@ -564,7 +566,7 @@ function aio_pg_info_line($b, $y, $lang, $tail = '')
         $px--;
     $text = aio_gc_cut_w($text, $px, $room);
     $tail = $tail !== '' ? aio_gc_cut_w($tail, $px, $room - aio_gc_w($text, $px)) : '';
-    $x1 = $tk ? $w : ($b['next'] ? 0 : intval(($w * min($b['pos'], $b['len']) + $b['len'] / 2) / $b['len']));
+    $x1 = $tk || $b['watched'] ? $w : ($b['next'] ? 0 : intval(($w * min($b['pos'], $b['len']) + $b['len'] / 2) / $b['len']));
     $by = $y + intval((AIO_PG_INFO_H - AIO_PG_INFO_BAR_H) / 2);
     $out = array();
     if ($x1 > 0)
