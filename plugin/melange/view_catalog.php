@@ -607,7 +607,8 @@ function aio_catv_item($id, $caption, $icon)
 }
 
 // The tile of a title in a row: its poster, the IMDb rating in the corner if it has one and
-// cat_rating of the screen is on (aio_catv_rating_on).
+// cat_rating of the screen is on (aio_catv_rating_on), the badges of the history at the bottom
+// (aio_pg_stickers; made now, never in the cache of the pages).
 /**
  * @param string $rid
  * @param AioCatTile $t
@@ -617,6 +618,9 @@ function aio_catv_title_item($rid, $t)
 {
     $item = aio_catv_item(aio_catv_tile_id("$rid:{$t['id']}"), $t['name'], aio_catv_poster($t));
     $stickers = aio_catv_rating_on() ? aio_catv_rate_stickers($t['imdbRating']) : array();
+    $b = aio_pg_tile_badge($t);
+    if ($b)
+        $stickers = array_merge($stickers, aio_pg_stickers($b));
     if ($stickers)
         $item[PluginRegularItem::stickers] = $stickers;
     return $item;
@@ -848,7 +852,8 @@ function aio_catv_row_answer($rid, $lang)
 }
 
 // get_folder_rows: "Show all": aio_catv_all_rows. Else one row a call (a saved copy: and
-// its title), the shell asks for the rest next. Always a row with the id asked: on a reply without rows the shell asks again
+// its title), the shell asks for the rest next; after the last flagged row of the screen the lazy pairs
+// (aio_pg_link_step). Always a row with the id asked: on a reply without rows the shell asks again
 // every ~1 ms. The refresh of the manifest (AioCat::$manifest_due) takes the time left of the call,
 // AIO_CATV_REFRESH_S at most: an opening does not wait for it.
 /**
@@ -874,6 +879,15 @@ function aio_catv_rows_op($in)
     {
         AioCat::$manifest_due = false;
         aio_catv_manifest_refresh(min(intval($left), AIO_CATV_REFRESH_S));
+    }
+    // The lazy pairs in the reply to the last flagged row of the screen: php_server answers one call at a
+    // time, a row asked after them would wait.
+    if (isset(AioPg::$pending[$rid]))
+    {
+        unset(AioPg::$pending[$rid]);
+        $left = AIO_CATV_ROW_S - (microtime(true) - $start);
+        if (!AioPg::$pending && $left >= 1)
+            aio_pg_link_step(min($left, AIO_PG_LINK_S));
     }
     return array('rows' => $rows);
 }
@@ -1249,6 +1263,9 @@ function aio_catv_main_view($media_url, $sel_state)
         aio_log("catalog: screen: $tab: all " . count($rows) . ' rows empty');
         return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, true), $sel_state, $media_url);
     }
+    // New cards of the history paired by the cards of the shell before the badges of the tiles.
+    aio_pg_shell_step();
+    AioPg::$pending = array();
     $now = microtime(true);
     aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S - ($now - $rows_t0), AIO_CATV_OPEN_MAX_S - ($now - $start)));
     if (!$loading)
@@ -1266,13 +1283,17 @@ function aio_catv_main_view($media_url, $sel_state)
         {
             $flag = aio_cat_state_fresh(AioCat::$lists[$rid]['st']) ? 0 : $loading;
             if ($flag)
+            {
                 AioCat::$on_screen[$rid] = AioCat::$lists[$rid]['tiles'];
+                AioPg::$pending[$rid] = true;
+            }
             $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang, null, $flag));
             $asked = $asked || $flag;
         }
         else if ($loading)
         {
             $defs = array_merge($defs, aio_catv_row_note($row, $lang, ''));
+            AioPg::$pending[$rid] = true;
             $asked = true;
         }
     }
@@ -1282,6 +1303,13 @@ function aio_catv_main_view($media_url, $sel_state)
         $left = AIO_CATV_OPEN_S - (microtime(true) - $rows_t0);
         if (!$asked && !$manifest_done && $left >= 1 && !aio_catv_is_down())
             aio_catv_manifest_refresh(intval($left));
+    }
+    else
+    {
+        // r24: the lazy pairs on the time left of the opening (r25: after the last row asked, aio_catv_rows_op).
+        $left = AIO_CATV_OPEN_S - (microtime(true) - $rows_t0);
+        if ($left >= 1)
+            aio_pg_link_step(min($left, AIO_PG_LINK_S));
     }
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
@@ -2299,9 +2327,9 @@ function aio_catv_title_label($name, $bottom)
 // place (aio_catv_card); without the logo, the English name of the tile under the title when it is not
 // the title (native_title of dunemdb_cache.php: of a title not in English, as those of the catalog are
 // in any interface), the title higher by its height. Then the facts, the genres and the
-// country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the description 13 px under the last
-// one, as many lines as the rest of the panel holds, as the native one counts them. No line for an
-// empty field, the next ones go up.
+// country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the line of the history of a card watched
+// or begun (aio_pg_info_line); the description 13 px under the last one, as many lines as the rest of
+// the panel holds, as the native one counts them. No line for an empty field, the next ones go up.
 // "Show all": the name of the row and the caption of the tile. null without a tile (aio_catv_tile) or a row in memory or a copy
 // (aio_catv_all_list: a stub, a message). No label with an empty text: whether the shell takes one is not known.
 /**
@@ -2360,6 +2388,14 @@ function aio_catv_info($in)
         $fit = aio_catv_fit($l[0], AIO_CATV_LINE_PX, $l[2], AIO_CATV_TEXT_W);
         $labels[] = aio_catv_info_label($fit[1], $fit[0], $l[1], AIO_CATV_TEXT_W, AIO_CATV_LINE_H, $y);
         $y += AIO_CATV_LINE_H;
+    }
+    // The line of the history (aio_pg_info_line): the description 13 px under it as under a line, one
+    // line of it fewer.
+    $b = $t ? aio_pg_tile_badge($t) : null;
+    if ($b)
+    {
+        $labels = array_merge($labels, aio_pg_info_line($b, $y, aio_catv_ui_lang()));
+        $y += AIO_PG_INFO_H;
     }
     // Lines of 30 px 5 px apart; cut here to them, "…" on the last one; the shell, with a
     // little more room, breaks them no sooner.

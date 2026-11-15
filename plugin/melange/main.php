@@ -18,6 +18,8 @@ require_once dirname(__FILE__) . '/parse.php';
 require_once dirname(__FILE__) . '/jacred.php';
 // Dune's watch history.
 require_once dirname(__FILE__) . '/history.php';
+// The state of the history for the badges of the catalog, the pairs card -> IMDb / TMDB.
+require_once dirname(__FILE__) . '/progress.php';
 // Playback, the episodes around it and the lazy ones.
 require_once dirname(__FILE__) . '/playback.php';
 // Markers of an episode: "Skip intro", "Next episode".
@@ -1557,6 +1559,7 @@ function aio_play_action($in)
     $mv = aio_movie($in);
     if (!$mv || $mv['imdb'] === '')
         return aio_error('err_no_imdb');
+    aio_pg_link_movie($mv);
 
     $resume = aio_resume($in);
     $s = -1;

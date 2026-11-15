@@ -20,8 +20,29 @@ class AioWh
     public static $all = array();
 }
 
-// A record of the card $dune_id that WatchHistory::do_update keeps: not deleted,
-// wh_item_is_suitable of the shell.
+// The card of a record that WatchHistory::do_update keeps: not deleted, wh_item_is_suitable of the
+// shell -> its movie_id, '' for none or another record.
+/**
+ * @param mixed $w
+ * @return string
+ */
+function aio_wh_kept($w)
+{
+    if (!is_object($w) || (isset($w->deleted) && $w->deleted == 1))
+        return '';
+    if (!isset($w->action_plugin) || !isset($w->action_params))
+    {
+        $url = isset($w->url) && is_string($w->url) ? $w->url : '';
+        $p = strpos($url, '://');
+        $scheme = $p ? substr($url, 0, $p) : '';
+        if ($scheme === '' || $scheme === 'tmpfs' ||
+            (isset($w->show_in_recent) ? !$w->show_in_recent : $scheme === 'file'))
+            return '';
+    }
+    return isset($w->movie_id) && is_string($w->movie_id) ? $w->movie_id : '';
+}
+
+// A record of the card $dune_id that WatchHistory::do_update keeps (aio_wh_kept).
 /**
  * @param mixed $w
  * @param string $dune_id
@@ -30,18 +51,7 @@ class AioWh
  */
 function aio_wh_of($w, $dune_id)
 {
-    if (!is_object($w) || (isset($w->deleted) && $w->deleted == 1))
-        return false;
-    if (!isset($w->action_plugin) || !isset($w->action_params))
-    {
-        $url = isset($w->url) && is_string($w->url) ? $w->url : '';
-        $p = strpos($url, '://');
-        $scheme = $p ? substr($url, 0, $p) : '';
-        if ($scheme === '' || $scheme === 'tmpfs' ||
-            (isset($w->show_in_recent) ? !$w->show_in_recent : $scheme === 'file'))
-            return false;
-    }
-    return isset($w->movie_id) && is_string($w->movie_id) && $w->movie_id === $dune_id;
+    return $dune_id !== '' && aio_wh_kept($w) === $dune_id;
 }
 
 // An episode record of the series that WatchHistory::do_update keeps.
@@ -179,8 +189,8 @@ function aio_wh_full($pos, $len)
     return $len > 0 && $pos >= 0 && $pos >= $len - 30 && round($pos * 100.0 / $len) >= 90;
 }
 
-// Names, sizes and times of the history files (NNNNNN.json and
-// watched_files.txt); null without the folder or while a file is younger than
+// Names, sizes and times of the history files (NNNNNN.json, watched_files.txt and
+// watched_movies.txt); null without the folder or while a file is younger than
 // 2 s (written again within the same second it would keep its signature).
 /**
  * @return string|null
@@ -195,7 +205,7 @@ function aio_wh_sig()
     $sig = '';
     foreach (scandir($dir) as $f)
     {
-        if ($f !== 'watched_files.txt' && !preg_match('/^[0-9]*\\.json$/', $f))
+        if ($f !== 'watched_files.txt' && $f !== 'watched_movies.txt' && !preg_match('/^[0-9]*\\.json$/', $f))
             continue;
         $t = filemtime("$dir/$f");
         if ($t === false || $t >= $now - 1)
@@ -280,13 +290,15 @@ function aio_wh_progress($st)
 
 // uids marked as watched in watched_files.txt, as load_ts_by_id_from_wh_file (r25): uid => the
 // time of the mark ("<ts>\t<uid>"; no tab: PHP_INT_MAX, the newest), a time of 0 or less skipped.
-// Read anew at every call: update_watched_marks writes the file before its post_action.
+// Read anew at every call: update_watched_marks writes the file before its post_action. $name
+// watched_movies.txt: the movie_ids of the cards marked so.
 /**
+ * @param string $name
  * @return array<int|string, int>
  */
-function aio_wh_marked_set()
+function aio_wh_marked_set($name = 'watched_files.txt')
 {
-    $path = AIO_WH_PATH . '/watched_files.txt';
+    $path = AIO_WH_PATH . "/$name";
     $set = array();
     if (!is_file($path) || !is_readable($path))
         return $set;
