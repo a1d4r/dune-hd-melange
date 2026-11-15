@@ -4,6 +4,8 @@ Melange — каталог фильмов и сериалов для Dune HD. В
 
 Поставим Melange и TorrServe (через него Дюна играет торренты) и откроем каталог.
 
+<img src="../screenshots/overview.png" alt="Схема: выбрали фильм в каталоге Melange, Melange ищет раздачи в торрентах, выбрали раздачу, фильм идёт в плеере Дюны через TorrServe или Debrid" width="100%">
+
 Нужно заранее: Dune HD на Android с прошивкой r22 или новее. Рекомендуется r25 (если доступна) или r24.
 
 Если у вас есть подписка Real-Debrid или TorBox, после установки Melange переходите к главе [Debrid](debrid.md): TorrServe тогда не обязателен.

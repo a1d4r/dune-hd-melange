@@ -17,6 +17,8 @@
 
 ## Устройства и прошивки
 
+<img src="../screenshots/limitations-firmware.png" alt="Матрица: что работает на прошивках r22, r24 и r25" width="100%">
+
 - Нужна Dune HD на Android с прошивкой r22 или новее.
 - **Не работает** на Дюнах на Sigma / Linux (Solo 4K, Duo 4K, Base 3D, TV-303D и старше): у них нет каталога «Фильмы» с пунктами «Смотреть…» и Android-приложений.
 - На моделях с 1 ГБ памяти (SmartBox 4K, SmartBox 4K Plus, Traveler, Neo 4K, 4K Neo, Neo 4K T2) работа не обещается.
