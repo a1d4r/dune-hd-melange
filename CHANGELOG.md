@@ -2,6 +2,9 @@
 
 **English version**
 
+## Unreleased
+- Fixed: the release list no longer shows the Comet row "Scraping in progress, please try again in a few seconds...", which had nothing to play. If no other releases are found, Melange shows the usual "AIOStreams found no streams".
+
 ## 0.60.0 — 15.11.2026
 - **More releases from JacRed.** Melange now searches JacRed by the title and by IMDb: «A.I. Artificial Intelligence», for example, had 6 releases and now has about 60. Configs made earlier update by themselves when you next play a film, so there is no need to press **Save**. Opening a film for the first time can take up to a second longer.
 - Fixed: when TorBox keeps a release as one archive, Melange said "Debrid found no matching file in the release — pick another". Now it says "Debrid gave an archive, not a video — pick another release". It needs an AIOStreams server that sends the archive_only.mp4 placeholder for such releases; with other servers the message stays as before.
@@ -237,6 +240,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## Не выпущено
+- Исправлено: в списке раздач больше не появляется строка Comet «Scraping in progress, please try again in a few seconds...», из которой нечего запустить. Если других раздач нет, Melange покажет обычное «AIOStreams не нашёл потоков».
 
 ## 0.60.0 — 15.11.2026
 - **Больше раздач из JacRed.** Melange теперь ищет раздачи в JacRed и по названию, и по IMDb: у «Искусственного разума», например, было 6 раздач, стало около 60. Уже созданные конфиги обновятся сами при первом запуске фильма, нажимать «Сохранить» не нужно. Фильм, открытый впервые, может грузиться до секунды дольше.

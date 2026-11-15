@@ -533,7 +533,11 @@ function aio_row($st, $series)
             return null;
     }
     $type = aio_str($sd, 'type');
-    if ($type === 'error' || $type === 'statistic')
+    // An http stream to the bare root of a site, no path nor query (Comet's
+    // "Scraping in progress" row): nothing to play there.
+    $u = $type === 'http' ? parse_url($url) : false;
+    if ($type === 'error' || $type === 'statistic' ||
+        (is_array($u) && (!isset($u['path']) || $u['path'] === '/') && !isset($u['query'])))
         return null;
     $pf = aio_arr($sd, 'parsedFile');
     $svc = aio_arr($sd, 'service');
