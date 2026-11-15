@@ -5,25 +5,22 @@
 // asks): nothing kept. Only another colour key and a pause break a run; other keys and inputs (arrows, ENTER,
 // cat_info) do not. A failure (network, status, reply) shows nothing, one log line.
 // The keys come as the input "egg" (aio_egg_acts in the actions of a screen) and, in a list, as its sort
-// (gc_sort): the list sorts on every key, the sort before the run is put back when it fires.
-// Needs main.php (aio_input, aio_log, aio_http_get, aio_sort_write), catalog_card.php (AIO_CARD_DELAY),
-// card_trailer.php (aio_ct_url_ok, aio_ct_clip), view_gcomps.php (aio_gc_sort_keys).
+// (gc_sort): the list sorts on every key, the sort before the run is put back when the video plays.
+// Needs main.php (aio_input, aio_log, aio_http_get, aio_sort_set), catalog_card.php (AIO_CARD_DELAY),
+// card_trailer.php (AIO_CT_CONNECT, AIO_CT_TOTAL, aio_ct_url_ok, aio_ct_clip), view_gcomps.php (aio_gc_sort_keys).
 
 // From the first key to the last, s.
 define('AIO_EGG_WINDOW', 3);
 // The videos on RuTube, tried in turn.
 define('AIO_EGG_IDS', 'c6cc4d620b1d4338901770a44b3e82f4 ac1caf5cbb710e9e7d9b7812762c9def');
 define('AIO_EGG_API', 'https://rutube.ru/api/play/options/');
-// s, each video.
-define('AIO_EGG_CONNECT', 5);
-define('AIO_EGG_TOTAL', 8);
 // The reply, bytes: ~140 KB (15.11.2026).
 define('AIO_EGG_MAX', 524288);
 
 class AioEgg
 {
     // The run so far: 'n' its keys matched (0 none), 'at' the time of its first key (microtime), 'sort' the sort
-    // of the live list at that key when it came from the list (gc_sort): array(key, reversed), else null.
+    // of new lists (the settings) at that key: array(key, reversed); null - none yet.
     /** @var array{n: int, at: float, sort: array{string, bool}|null} */
     public static $run = array('n' => 0, 'at' => 0.0, 'sort' => null);
 }
@@ -65,7 +62,7 @@ function aio_egg_press($ck, $now)
     $r = AioEgg::$run;
     if ($ck === $order[0])
         $n = 1;
-    else if ($r['n'] > 0 && $now >= $r['at'] && $now - $r['at'] <= AIO_EGG_WINDOW && $ck === $order[$r['n']])
+    else if (aio_egg_alive($r, $now) && $ck === $order[$r['n']])
         $n = $r['n'] + 1;
     else
         $n = 0;
@@ -73,6 +70,18 @@ function aio_egg_press($ck, $now)
     if ($n === 1)
         AioEgg::$run['at'] = $now;
     return $n;
+}
+
+// Run $r (AioEgg::$run) goes on at $now (microtime): begun, AIO_EGG_WINDOW s at most from its first key, the clock
+// not back.
+/**
+ * @param array{n: int, at: float, sort: array{string, bool}|null} $r
+ * @param float $now
+ * @return bool
+ */
+function aio_egg_alive($r, $now)
+{
+    return $r['n'] > 0 && $now >= $r['at'] && $now - $r['at'] <= AIO_EGG_WINDOW;
 }
 
 // The colour key of input $in of control $control: the name of aio_egg_keys, '' for none.
@@ -93,9 +102,8 @@ function aio_egg_color($in, $control)
     return is_string($ck) ? $ck : '';
 }
 
-// Every input of the plugin (aio_handle_user_input): a colour key goes to the run, at Aio::$t0; true - it is
-// complete. The first key in the live list keeps the sort of the list, the last puts it back for new lists
-// (data_dir/list_sort, the settings of the operation); the list on screen stays as it is.
+// A colour key of input $in of control $control goes to the run, at Aio::$t0; true - it is complete. A red key
+// keeps the sort of new lists (the settings), a red key again in a run keeps the one before the first.
 /**
  * @param stdClass $in
  * @param mixed $control
@@ -108,30 +116,36 @@ function aio_egg_key($in, $control)
         return false;
     $r = AioEgg::$run;
     $now = floatval(Aio::$t0);
-    $alive = $r['n'] > 0 && $now >= $r['at'] && $now - $r['at'] <= AIO_EGG_WINDOW;
+    $alive = aio_egg_alive($r, $now);
     $n = aio_egg_press($ck, $now);
-    // A red key again in a run: the sort before the first one.
     if ($n === 1 && !($alive && $r['sort'] !== null))
-    {
-        $st = Aio::$state;
-        AioEgg::$run['sort'] = $control === 'gc_sort' && $st && isset($in->rid) && $in->rid === $st['rid'] ?
-            array($st['sort'], $st['sort_rev']) : null;
-    }
-    if ($n !== 4)
-        return false;
-    $sort = $r['sort'];
-    AioEgg::$run['sort'] = null;
-    if ($sort !== null)
-    {
-        if (!aio_sort_write($sort[0], $sort[1]))
-            aio_log('egg: sort ' . aio_sort_tag($sort[0], $sort[1]) . ' not saved');
-        Aio::$settings['sort'] = $sort[0];
-        Aio::$settings['sort_rev'] = $sort[1];
-    }
-    return true;
+        AioEgg::$run['sort'] = array(Aio::$settings['sort'], Aio::$settings['sort_rev']);
+    return $n === 4;
 }
 
-// The video: the stream URL of the first of AIO_EGG_IDS that gives one -> vod_play; else null. One log line.
+// Every input of the plugin (aio_handle_user_input): a run of colour keys complete with it -> the video
+// (aio_egg_play), and the sort of new lists before the run put back (data_dir/list_sort, the settings of the
+// operation; the list on screen stays as it is); else null, nothing changed: in a list the key sorts as ever.
+/**
+ * @param stdClass $in
+ * @param mixed $control
+ * @return AioAction|null
+ */
+function aio_egg_input($in, $control)
+{
+    if (!aio_egg_key($in, $control))
+        return null;
+    $sort = AioEgg::$run['sort'];
+    AioEgg::$run['sort'] = null;
+    $v = aio_egg_play();
+    if ($v !== null && $sort !== null && $sort !== array(Aio::$settings['sort'], Aio::$settings['sort_rev']) &&
+        !aio_sort_set($sort[0], $sort[1]))
+        aio_log('egg: sort ' . aio_sort_tag($sort[0], $sort[1]) . ' not saved');
+    return $v;
+}
+
+// The video: the stream URL of the first of AIO_EGG_IDS that gives one -> vod_play; else null. A transport error
+// (no network, a timeout) ends the tries. One log line.
 /**
  * @return AioAction|null
  */
@@ -143,7 +157,7 @@ function aio_egg_play()
         $url = AIO_EGG_API . $id . '/?no_404=true&referer=https%3A%2F%2Frutube.ru';
         $err = '';
         $t = microtime(true);
-        list($code, $body) = aio_http_get($url, $err, AIO_EGG_CONNECT, AIO_EGG_TOTAL, AIO_EGG_MAX);
+        list($code, $body) = aio_http_get($url, $err, AIO_CT_CONNECT, AIO_CT_TOTAL, AIO_EGG_MAX);
         $ms = intval(round((microtime(true) - $t) * 1000));
         $j = $err === '' && $code === 200 ? json_decode($body, true) : null;
         $vb = is_array($j) && isset($j['video_balancer']) && is_array($j['video_balancer']) ? $j['video_balancer'] : array();
@@ -155,6 +169,8 @@ function aio_egg_play()
         }
         $fails[] = "$id: " . ($err !== '' ? $err : ($code !== 200 ? strval($code) : (is_array($j) ? 'no https m3u8' : 'not JSON'))) .
             " $ms ms";
+        if ($err !== '')
+            break;
     }
     aio_log('egg: fail, ' . implode(', ', $fails));
     return null;

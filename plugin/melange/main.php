@@ -748,6 +748,20 @@ function aio_sort_write($k, $rev)
     return aio_data_dir() !== '' && aio_write_file(aio_data_dir() . '/' . AIO_SORT_FILE, $rev ? "{$k}_rev" : $k);
 }
 
+// The sort of new lists: key $k (aio_sort_keys), reversed $rev - kept (aio_sort_write) and in the settings of the
+// operation, saved or not; false - not saved (the caller logs it).
+/**
+ * @param string $k
+ * @param bool $rev
+ * @return bool
+ */
+function aio_sort_set($k, $rev)
+{
+    Aio::$settings['sort'] = $k;
+    Aio::$settings['sort_rev'] = $rev;
+    return aio_sort_write($k, $rev);
+}
+
 // data_dir/debrid_main (aio_debrid_main_read) of service $svc, by MENU of a list
 // (aio_gc_main); the page writes it too: the last write counts.
 /**
@@ -1742,9 +1756,11 @@ function aio_handle_user_input($in)
     $control = isset($in->control_id) ? $in->control_id : null;
     if ($handler !== 'aio')
         return null;
-    // The colour keys of every screen, before the screen's own work (egg.php).
-    if (aio_egg_key($in, $control))
-        return aio_egg_play();
+    // The colour keys of every screen, before the screen's own work (egg.php): a run of them plays the video and
+    // puts back the sort of new lists from before the run; else (RuTube failed too) the key goes on, in a list it sorts.
+    $egg = aio_egg_input($in, $control);
+    if ($egg !== null)
+        return $egg;
     if ($control === 'egg')
         return null;
     if ($control === 'play')

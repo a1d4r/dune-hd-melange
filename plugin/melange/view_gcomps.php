@@ -1201,7 +1201,7 @@ function aio_sort_tag($k, $rev)
 
 // gc_sort (k: a key of aio_sort_keys) of a live list: its rows in that
 // order, by default descending (aio_rows_sort); the key of the list's sort
-// again: the other way round. The sort kept for new lists (aio_sort_write;
+// again: the other way round. The sort kept for new lists (aio_sort_set;
 // not written: this list only); the screen replaced as by aio_refresh (a new
 // rid), the cursor on the first row. A bad key, a list not live: nothing.
 /**
@@ -1219,11 +1219,9 @@ function aio_gc_sort($in)
     }
     $rev = $k === $st['sort'] && !$st['sort_rev'];
     $tag = aio_sort_tag($k, $rev);
-    if (!aio_sort_write($k, $rev))
-        aio_log("sort: $tag not saved, this list only");
     // aio_list_state sorts by the settings: the new sort, saved or not.
-    Aio::$settings['sort'] = $k;
-    Aio::$settings['sort_rev'] = $rev;
+    if (!aio_sort_set($k, $rev))
+        aio_log("sort: $tag not saved, this list only");
     $ns = aio_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang'], $st['errors']);
     aio_log('sort: ' . aio_sort_tag($st['sort'], $st['sort_rev']) . " -> $tag, " . aio_ep_tag($st) . ', ' .
         count($st['rows']) . ' rows, screen replaced');
