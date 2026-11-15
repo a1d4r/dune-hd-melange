@@ -37,6 +37,8 @@ define('AIO_PG_TICK_MS', 2500);
 define('AIO_PG_ROWS_QUIET_S', 0.5);
 // A reply of the API this small is decoded whole when its code is not before "result".
 define('AIO_PG_HEAD_MAX', 65536);
+// Episodes of a season the pairs and their parse take at most.
+define('AIO_PG_EPS_MAX', 5000);
 
 class AioPgLinks
 {
@@ -232,7 +234,70 @@ function aio_pg_link_clean($l)
         ksort($seasons);
         $out['seasons'] = $seasons;
     }
+    // The episodes not out by the source ("s:e" => the date, '' for none): only with the seasons.
+    $soon = array();
+    foreach ($seasons && isset($l['soon']) && is_array($l['soon']) ? $l['soon'] : array() as $k => $d)
+    {
+        if (preg_match('/^[0-9]{1,5}:[0-9]{1,5}$/D', strval($k)) && is_string($d) && ($d === '' ||
+            preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/D', $d)))
+            $soon[strval($k)] = $d;
+    }
+    if ($soon)
+        $out['soon'] = $soon;
     return $out;
+}
+
+// The episodes of the pair $l out by today (UTC; an episode of its soon with no date or a later one is not
+// out), season => list ascending (aio_wh_pick), seasons of no episode out left out; none without seasons. The
+// season $s of a record whose episode $e is past the episodes of the season (an anime numbered on: One Piece S2
+// asked as S1 E62, aio_cm_req_s): the episodes of $s and the seasons after it numbered on in it, as the own card
+// asks them, when $e is within them.
+/**
+ * @param AioPgLink|null $l
+ * @param int $s
+ * @param int $e
+ * @return array<int, list<int>>
+ */
+function aio_pg_eps($l, $s = -1, $e = -1)
+{
+    if (!$l || !isset($l['seasons']))
+        return array();
+    $today = gmdate('Y-m-d');
+    $soon = isset($l['soon']) ? $l['soon'] : array();
+    $eps = array();
+    foreach ($l['seasons'] as $n => $count)
+    {
+        $list = array();
+        for ($x = 1; $x <= min($count, AIO_PG_EPS_MAX); $x++)
+        {
+            $d = isset($soon["$n:$x"]) ? $soon["$n:$x"] : null;
+            if ($d === null || ($d !== '' && $d <= $today))
+                $list[] = $x;
+        }
+        if ($list)
+            $eps[$n] = $list;
+    }
+    if (!isset($eps[$s]) || $e <= $eps[$s][count($eps[$s]) - 1])
+        return $eps;
+    $on = array();
+    $off = 0;
+    foreach ($l['seasons'] as $n => $count)
+    {
+        if ($n < $s)
+            continue;
+        foreach (isset($eps[$n]) ? $eps[$n] : array() as $x)
+            $on[] = $off + $x;
+        $off += $count;
+    }
+    if ($e > $off)
+        return $eps;
+    foreach (array_keys($eps) as $n)
+    {
+        if ($n > $s)
+            unset($eps[$n]);
+    }
+    $eps[$s] = $on;
+    return $eps;
 }
 
 // AioPgLinks::$rev of AioPgLinks::$links: "imdb:tt..", "tmdb:N", "tmdbtv:N" => the movie_ids with it (two cards of
@@ -436,7 +501,68 @@ function aio_pg_parse_card($text, &$found = false)
             }
         }
     }
-    return aio_pg_link_clean($l);
+    return aio_pg_link_clean(array_merge($l, aio_pg_parse_seasons($text)));
+}
+
+// A string of the raw text of a card ($m[0], $m[1] ':' of a key) -> it, a key or a date "YYYY-MM-DD"; else "".
+/**
+ * @param array<int, string> $m
+ * @return string
+ */
+function aio_pg_strip_str($m)
+{
+    return $m[1] === ':' || preg_match('/^"[0-9]{4}-[0-9]{2}-[0-9]{2}"$/D', $m[0]) ? $m[0] : '""';
+}
+
+// The seasons of a card of the dunemdb API in its raw text (aio_pg_parse_card): the first "seasons" of episodes in no
+// list, its strings but the keys and the dates cut out (the titles and descriptions are most of it, may hold
+// brackets) and only that decoded -> seasons (season => its last episode by number, season 0 left out, as
+// season_numbers of the shell) and soon (aio_pg_link_clean: "s:e" => premiered, '' for none, of those not out
+// today, UTC); none for none.
+/**
+ * @param string $text
+ * @return array{seasons?: array<int, int>, soon?: array<string, string>}
+ */
+function aio_pg_parse_seasons($text)
+{
+    if (!preg_match_all('/"seasons":\[\{"number":/', $text, $m, PREG_OFFSET_CAPTURE))
+        return array();
+    $offs = array();
+    foreach ($m[0] as $one)
+        $offs[] = intval($one[1]);
+    $at = -1;
+    foreach (aio_pg_out_of_lists($text, $offs, true) as $o => $top)
+    {
+        if ($top)
+            $at = $o;
+    }
+    if ($at < 0)
+        return array();
+    $tail = preg_replace_callback('/"[^"\\\\]*+(?:\\\\.[^"\\\\]*+)*+"(:?)/', 'aio_pg_strip_str',
+        substr($text, $at + strlen('"seasons":')));
+    if (!is_string($tail) || !preg_match('/\[(?:[^\[\]]++|(?R))*+\]/A', $tail, $arr))
+        return array();
+    $list = json_decode($arr[0], true);
+    $today = gmdate('Y-m-d');
+    $seasons = array();
+    $soon = array();
+    foreach (is_array($list) ? $list : array() as $sn)
+    {
+        $n = isset($sn['number']) && is_int($sn['number']) ? $sn['number'] : 0;
+        if ($n < 1 || !isset($sn['episodes']) || !is_array($sn['episodes']))
+            continue;
+        foreach ($sn['episodes'] as $ep)
+        {
+            $e = isset($ep['number']) && is_int($ep['number']) ? $ep['number'] : 0;
+            if ($e < 1 || $e > AIO_PG_EPS_MAX)
+                continue;
+            $seasons[$n] = max(isset($seasons[$n]) ? $seasons[$n] : 0, $e);
+            $d = isset($ep['premiered']) && is_string($ep['premiered']) ? $ep['premiered'] : '';
+            if ($d === '' || $d > $today)
+                $soon["$n:$e"] = $d;
+        }
+    }
+    return $seasons ? array('seasons' => $seasons, 'soon' => $soon) : array();
 }
 
 // The code and the message (lower case) of a reply of the dunemdb API, of the fields before its "result"

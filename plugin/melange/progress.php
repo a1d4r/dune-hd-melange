@@ -243,9 +243,10 @@ function aio_pg_begun($pos, $len)
 /**
  * @param AioPgEntry $ent
  * @param bool $series
+ * @param string $mid
  * @return AioPgBadge|null
  */
-function aio_pg_badge($ent, $series = false)
+function aio_pg_badge($ent, $series = false, $mid = '')
 {
     $st = $ent['series'];
     $p = $ent['ep'];
@@ -254,24 +255,24 @@ function aio_pg_badge($ent, $series = false)
     $b = null;
     $mk = $st ? aio_wh_mark_last($st[2], $p ? aio_wh_end($p['w']) : 0) : null;
     if ($mk)
-        $b = array('pos' => 0.0, 'len' => 0.0, 'watched' => true, 's' => $mk[0], 'e' => $mk[1], 'all' => false);
+        $b = array('pos' => 0.0, 'len' => 0.0, 'watched' => true, 's' => $mk[0], 'e' => $mk[1], 'all' => false, 'next' => false);
     else if ($p && ($series || $ep))
     {
         list($s, $e, $pos, $len) = aio_wh_rec($p['w']);
-        $b = array('pos' => max(0.0, $pos), 'len' => $len, 'watched' => $p['seen'], 's' => $s, 'e' => $e, 'all' => false);
+        $b = array('pos' => max(0.0, $pos), 'len' => $len, 'watched' => $p['seen'], 's' => $s, 'e' => $e, 'all' => false, 'next' => false);
     }
     else if ($w && !$ep && !$series)
     {
         list(, , $pos, $len) = aio_wh_rec($w);
         if ($ent['seen'] || aio_pg_begun($pos, $len))
-            $b = array('pos' => max(0.0, $pos), 'len' => $len, 'watched' => $ent['seen'], 's' => -1, 'e' => -1, 'all' => false);
+            $b = array('pos' => max(0.0, $pos), 'len' => $len, 'watched' => $ent['seen'], 's' => -1, 'e' => -1, 'all' => false, 'next' => false);
     }
     if (!$ent['movie_mark'])
         return $b;
     $all = $series || $st || $ep;
     $ep_b = $all && $b && $b['e'] >= 0;
     return array('pos' => 0.0, 'len' => 0.0, 'watched' => true, 's' => $ep_b ? $b['s'] : -1, 'e' => $ep_b ? $b['e'] : -1,
-        'all' => $all);
+        'all' => $all, 'next' => false);
 }
 
 // The badge of the card of tile $t of the catalog: of the first of its cards (aio_pg_tile_cards) in the

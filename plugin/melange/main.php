@@ -65,6 +65,7 @@ require_once dirname(__FILE__) . '/catalog.php';
 require_once dirname(__FILE__) . '/catalog_card.php';
 require_once dirname(__FILE__) . '/view_catalog.php';
 require_once dirname(__FILE__) . '/view_catalog_rows.php';
+require_once dirname(__FILE__) . '/continue.php';
 // The tab "TV" of the main screen.
 require_once dirname(__FILE__) . '/tv_tab.php';
 // The own card of a title: its meta, its screen; the page of a person.

@@ -307,6 +307,7 @@ function aio_catv_tile_id($id)
 
 // The tile of an id of the screen, or null. Looked for in this order:
 // 1. $tv (asked from the tab "TV"): the tiles of its file (aio_tv_tile); the listing in memory may have moved on since.
+//    A tile of the row "Continue" ("continue:<movie_id>"): of the history and the pairs (aio_cp_tile), not of a listing.
 // 2. AioCat::$lists, "restored" ones too (aio_catv_list_restore); aio_catv_all_list begins the grid anew
 //    from one older than AIO_CAT_FRESH, aio_catv_all_rows goes on from none older than AIO_CAT_STATE_TTL.
 // 3. AioCat::$on_screen: r25, the flagged rows as the screen shows them; the old copy a grid began anew from.
@@ -326,6 +327,8 @@ function aio_catv_tile($id, $tv = false)
     $p = explode(':', $id, 2);
     if (count($p) !== 2)
         return null;
+    if ($p[0] === AIO_CP_RID)
+        return aio_cp_mid_of($id) !== '' ? aio_cp_tile($p[1]) : null;
     if (isset(AioCat::$lists[$p[0]]['tiles'][$p[1]]))
         return AioCat::$lists[$p[0]]['tiles'][$p[1]];
     if (isset(AioCat::$on_screen[$p[0]][$p[1]]))
@@ -1264,6 +1267,8 @@ function aio_catv_main_view($media_url, $sel_state)
         return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, true), $sel_state, $media_url);
     }
     aio_pg_screen_start();
+    // The row "Continue" first, of the history: ready at once.
+    $defs = aio_cp_row_defs($tab, $lang);
     $now = microtime(true);
     $net = aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S - ($now - $rows_t0), AIO_CATV_OPEN_MAX_S - ($now - $start)));
     if (!$loading)
@@ -1271,8 +1276,9 @@ function aio_catv_main_view($media_url, $sel_state)
     foreach ($shown as $i => $row)
     {
         $rid = aio_catv_rid($row);
-        // A flagged first row replaced under the focus on the headers covers the rows under it (device, 0.50.0).
-        if ($loading && $i === 0)
+        // A flagged first row replaced under the focus on the headers covers the rows under it (device, 0.50.0). After
+        // the row "Continue" the first row of the server is flagged as the others (the focus is not on it; O3).
+        if ($loading && $i === 0 && count($defs) === 0)
         {
             $limit = max(AIO_CATV_MIN_S, min(AIO_CATV_ROW_S, AIO_CATV_OPEN_MAX_S - (microtime(true) - $start)));
             $defs = array_merge($defs, aio_catv_row_now($row, $lang, $limit, false));
@@ -2394,7 +2400,8 @@ function aio_catv_info($in)
     }
     // The line of the history (aio_pg_info_line): the description 13 px under it as under a line, one
     // line of it fewer.
-    $b = $t ? aio_pg_tile_badge($t) : null;
+    $mid = aio_cp_mid_of($id);
+    $b = $t ? ($mid !== '' ? aio_cp_badge($mid, $t['type']) : aio_pg_tile_badge($t)) : null;
     if ($b)
     {
         $labels = array_merge($labels, aio_pg_info_line($b, $y, aio_catv_ui_lang()));
@@ -2596,6 +2603,10 @@ function aio_catv_enter($in)
         unset(AioCat::$all_failed[strval(substr($id, strlen('fail:')))]);
         return aio_catv_invalidate(aio_catv_in($in, 'from'));
     }
+    // A tile of the row "Continue": by its card of the Dune.
+    $mid = aio_cp_mid_of($id);
+    if ($mid !== '')
+        return aio_cp_enter($mid, aio_catv_lang());
     $t = aio_catv_tile($id, aio_tv_is_from(aio_catv_in($in, 'from')));
     if (!$t)
     {
