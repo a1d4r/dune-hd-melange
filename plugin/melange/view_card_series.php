@@ -680,8 +680,8 @@ function aio_oc_prev_eps($c, $s, $e, $max = 0)
 }
 
 // The items of MENU of an episode of series card $c ($key) with the focus at $pos in the row and
-// the progress $prog of the screen, before "Settings": "Просмотрено" (not watched, out), "Не
-// просмотрено" (watched by a mark: by the position no mark takes it off), "Отметить предыдущие"
+// the progress $prog of the screen, before "Settings": "Отметить просмотренной" (not watched, out),
+// "Снять отметку" (watched by a mark: by the position no mark takes it off), "Отметить предыдущие"
 // (an episode out before it). None elsewhere, without the meta or a card of the Dune (no history).
 /**
  * @param string $key

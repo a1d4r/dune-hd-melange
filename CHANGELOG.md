@@ -4,6 +4,7 @@
 
 ## Unreleased
 - Fixed: the release list no longer shows the Comet row "Scraping in progress, please try again in a few seconds...", which had nothing to play. If no other releases are found, Melange shows the usual "AIOStreams found no streams".
+- Fixed: in the own card of a series, MENU on an episode now says **Mark as watched** and **Mark as unwatched**. The old **Watched** next to the check mark looked as if the episode had already been watched.
 
 ## 0.60.0 — 15.11.2026
 - **More releases from JacRed.** Melange now searches JacRed by the title and by IMDb: «A.I. Artificial Intelligence», for example, had 6 releases and now has about 60. Configs made earlier update by themselves when you next play a film, so there is no need to press **Save**. Opening a film for the first time can take up to a second longer.
@@ -243,6 +244,7 @@ First public release. What it does:
 
 ## Не выпущено
 - Исправлено: в списке раздач больше не появляется строка Comet «Scraping in progress, please try again in a few seconds...», из которой нечего запустить. Если других раздач нет, Melange покажет обычное «AIOStreams не нашёл потоков».
+- Исправлено: в своей карточке сериала MENU на серии теперь предлагает «Отметить просмотренной» и «Снять отметку». Раньше пункт «Просмотрено» с галочкой выглядел так, будто серия уже просмотрена.
 
 ## 0.60.0 — 15.11.2026
 - **Больше раздач из JacRed.** Melange теперь ищет раздачи в JacRed и по названию, и по IMDb: у «Искусственного разума», например, было 6 раздач, стало около 60. Уже созданные конфиги обновятся сами при первом запуске фильма, нажимать «Сохранить» не нужно. Фильм, открытый впервые, может грузиться до секунды дольше.
