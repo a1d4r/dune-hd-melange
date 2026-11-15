@@ -33,8 +33,10 @@ require_once dirname(__FILE__) . '/sources.php';
 require_once dirname(__FILE__) . '/torrserver.php';
 // The client of Lampac ("Онлайн"): no firmware API.
 require_once dirname(__FILE__) . '/lampac.php';
-// "Онлайн" on the Dune: the search window, the online list, its start, "Continue".
+// "Онлайн" on the Dune: the search window, the online list.
 require_once dirname(__FILE__) . '/view_online.php';
+// "Онлайн": its start, "Continue", play_action of a card with it.
+require_once dirname(__FILE__) . '/online_play.php';
 // TorrServer in the player: the window of its numbers with INFO.
 require_once dirname(__FILE__) . '/ts_info.php';
 // Rows of a list at most: our own cap, not only the AIOStreams config.
@@ -1790,7 +1792,7 @@ function aio_play_action($in)
     if (!$mv || $mv['imdb'] === '')
         return aio_error('err_no_imdb');
     aio_pg_link_movie($mv);
-    // "Онлайн" (view_online.php): its "Continue", a title marked so, no AIOStreams.
+    // "Онлайн" (online_play.php): its "Continue", a title marked so, no AIOStreams.
     $lp = aio_lpv_play_action($in, $mv, isset($in->lang) && is_string($in->lang) ? $in->lang : '');
     if ($lp)
         return $lp;
@@ -1828,7 +1830,7 @@ function aio_play_action($in)
         aio_log('error: only error streams, their dialog');
         return $only;
     }
-    // No releases at all: "Искать онлайн" (view_online.php).
+    // No releases at all: "Искать онлайн" (online_play.php).
     $none = isset($res['error']) ? aio_lpv_no_releases($mv, $s, $e, $lang, $res) : null;
     if ($none)
         return $none;
