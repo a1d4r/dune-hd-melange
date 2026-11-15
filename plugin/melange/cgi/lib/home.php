@@ -188,20 +188,21 @@ function aio_cgi_build_date()
 }
 
 // A line of the blocks of aio_cgi_about: $val on the right; with $url a link in a new tab, without the
-// address of the page (it has the token).
-function aio_cgi_about_row($title, $val = '', $url = '')
+// address of the page (it has the token); $cls more classes of the line.
+function aio_cgi_about_row($title, $val = '', $url = '', $cls = '')
 {
+    $c = $cls !== '' ? 'row ' . $cls : 'row';
     $in = '<span class="dot none"></span><span class="rt"><span class="t">' . aio_cgi_h($title) . '</span></span>' .
         ($val !== '' ? '<span class="rv">' . aio_cgi_h($val) . '</span>' : '');
-    return $url === '' ? '<div class="row">' . $in . '</div>' : '<a class="row" href="' . aio_cgi_h($url) .
+    return $url === '' ? '<div class="' . $c . '">' . $in . '</div>' : '<a class="' . $c . '" href="' . aio_cgi_h($url) .
         '" target="_blank" rel="noopener noreferrer">' . $in . '<span class="chev">›</span></a>';
 }
 
 // "О Melange" and "Поддержать автора" at the bottom of the main screen (0.60.2): the version, the date
 // of the build (none: no line), firmware_version of versions.txt whole (260827_0003_r24: the builds of one r
 // differ in a report of a problem), the host of the server of the own config (the line "Откуда брать фильмы" does
-// not show it; no link: no line), the channel; the donations and the referral links of Debrid. The other servers,
-// JacRed and Debrid are in the lines above: not repeated.
+// not show it; no link: no line; xo: hidden as another answer is chosen), the channel; the donations and the
+// referral links of Debrid. The other servers, JacRed and Debrid are in the lines above: not repeated.
 function aio_cgi_about($v)
 {
     $aio = aio_cgi_watch($v) === 'own' ? aio_cgi_host($v['manifest']) : '';
@@ -211,7 +212,7 @@ function aio_cgi_about($v)
         aio_cgi_about_row(aio_cgi_l('Версия', 'Version'), AIO_VERSION) .
         ($date !== '' ? aio_cgi_about_row(aio_cgi_l('Сборка', 'Built'), $date) : '') .
         aio_cgi_about_row(aio_cgi_l('Прошивка Дюны', 'Dune firmware'), $fw !== '' ? $fw : aio_cgi_l('не определена', 'unknown')) .
-        ($aio !== '' ? aio_cgi_about_row('AIOStreams', $aio) : '') .
+        ($aio !== '' ? aio_cgi_about_row('AIOStreams', $aio, '', 'xo') : '') .
         aio_cgi_about_row(aio_cgi_l('Telegram-канал автора', 'The author\'s Telegram channel'), '', 'https://t.me/arrakis_vibecode') .
         '</div><h3 class="gh">' . aio_cgi_l('Поддержать автора', 'Support the author') . '</h3><div class="list">' .
         aio_cgi_about_row(aio_cgi_l('Т-Банк', 'T-Bank'), '', 'https://t.tb.ru/pm_short/1vlgJXv58ZY') .
