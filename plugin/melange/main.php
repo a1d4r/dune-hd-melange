@@ -1898,8 +1898,9 @@ class AioFw extends DunePluginFw
             if ($op === PLUGIN_OP_GET_FOLDER_VIEW)
             {
                 $type = PLUGIN_OUT_DATA_PLUGIN_FOLDER_VIEW;
-                $data = aio_folder_view(isset($in->media_url) && is_string($in->media_url) ?
-                    $in->media_url : '', isset($in->sel_state) ? $in->sel_state : null);
+                $url = isset($in->media_url) && is_string($in->media_url) ? $in->media_url : '';
+                // Every screen of Melange: the keys Fav 2 and Fav 1 to "Мой список" and "Продолжить" (view_my_list.php).
+                $data = aio_mlv_keys(aio_folder_view($url, isset($in->sel_state) ? $in->sel_state : null), $url);
             }
             else if ($op === PLUGIN_OP_HANDLE_USER_INPUT)
             {

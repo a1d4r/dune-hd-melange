@@ -28,7 +28,9 @@ function aio_dl_targets()
         'person' => array('fn' => 'aio_dl_person', 'id' => array('tmdb'), 'need' => array(), 'may' => array(), 'se' => false),
         'search' => array('fn' => 'aio_dl_search', 'id' => array(), 'need' => array('q'), 'may' => array(), 'se' => false),
         'tab' => array('fn' => 'aio_dl_tab', 'id' => array(), 'need' => array('tab'), 'may' => array(), 'se' => false),
-        'row' => array('fn' => 'aio_dl_row', 'id' => array(), 'need' => array('tab', 'n'), 'may' => array(), 'se' => false));
+        'row' => array('fn' => 'aio_dl_row', 'id' => array(), 'need' => array('tab', 'n'), 'may' => array(), 'se' => false),
+        'mylist' => array('fn' => 'aio_dl_mylist', 'id' => array(), 'need' => array(), 'may' => array(), 'se' => false),
+        'continue' => array('fn' => 'aio_dl_continue', 'id' => array(), 'need' => array(), 'may' => array(), 'se' => false));
 }
 
 // The fields of $in of a link (the others not read) -> array(why it is wrong: "<field>" (off its pattern), "<field>:
@@ -229,6 +231,25 @@ function aio_dl_search($q)
 function aio_dl_tab($q)
 {
     return aio_catv_open_act(aio_catv_main_url($q['tab']), '%tr%plugin_caption');
+}
+
+// to=mylist, to=continue: the screens "Мой список" and "Продолжить" (view_my_list.php), as Fav 2 and Fav 1 open them.
+/**
+ * @param AioDlLink $q
+ * @return AioAction|null
+ */
+function aio_dl_mylist($q)
+{
+    return aio_mlv_open('list', '');
+}
+
+/**
+ * @param AioDlLink $q
+ * @return AioAction|null
+ */
+function aio_dl_continue($q)
+{
+    return aio_mlv_open('continue', '');
 }
 
 // to=row: "Show all" (aio_catv_all_open) of row n of tab $q['tab'], counted as the main screen shows them: the row

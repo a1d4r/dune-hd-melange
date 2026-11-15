@@ -111,6 +111,8 @@ define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 // The icons of the shell for the search and the setup: on the strip and in POP UP.
 define('AIO_CATV_ICON_SEARCH', 'xxx4.png');
 define('AIO_CATV_ICON_SETUP', 'xxx5.png');
+// "Мой список" (view_mylist.php): the heart of the shell, on the strip left of the search and in POP UP.
+define('AIO_CATV_ICON_MYLIST', 'xxx3.png');
 // Our pictures of the panel, img/cat<N>_*: N goes up when they change, as the shell keeps a
 // picture by its URL even across a reinstall (plugins/melange_catalog_img.py of the kitchen). The
 // mask: of the shell, but darker to the right, so the text column (TEXT_W) stays on the dark
@@ -324,7 +326,8 @@ function aio_catv_tile_id($id)
 
 // The tile of an id of the screen, or null. Looked for in this order:
 // 1. $tv (asked from the tab "TV"): the tiles of its file (aio_tv_tile); the listing in memory may have moved on since.
-//    A tile of the row "Continue" ("continue:<movie_id>"): of the history and the pairs (aio_cp_tile), not of a listing.
+//    A tile of the row "Continue" ("continue:<movie_id>"): of the history and the pairs (aio_cp_tile), not of a listing;
+//    of the screen "Мой список" ("mylist:<key>"): of its entry (aio_mlv_tile).
 // 2. AioCat::$lists, "restored" ones too (aio_catv_list_restore); aio_catv_all_list begins the grid anew
 //    from one older than AIO_CAT_FRESH, aio_catv_all_rows goes on from none older than AIO_CAT_STATE_TTL.
 // 3. AioCat::$on_screen: r25, the flagged rows as the screen shows them; the old copy a grid began anew from.
@@ -346,6 +349,8 @@ function aio_catv_tile($id, $tv = false)
         return null;
     if ($p[0] === AIO_CP_RID)
         return aio_cp_mid_of($id) !== '' ? aio_cp_tile($p[1]) : null;
+    if ($p[0] === AIO_ML_RID)
+        return aio_mlv_tile($p[1]);
     if (isset(AioCat::$lists[$p[0]]['tiles'][$p[1]]))
         return AioCat::$lists[$p[0]]['tiles'][$p[1]];
     if (isset(AioCat::$on_screen[$p[0]][$p[1]]))
@@ -1025,8 +1030,9 @@ function aio_catv_strip_rows($tab, $lang)
     $defs[] = aio_gc_rect(aio_gc_geom(0, 4, aio_gc_align(0, 36, true, false, 0, 0, 0, 0, "tab_$tab")), AIO_CATV_UNDERLINE);
     // The icons 75 apart as the native ones, their glyphs 48x48 at 8, 8 of the PNG; the gear
     // ends at 1660, its frame at 1670. Grey #AAAAAA as the native ones: the magnifier is white at
-    // most (alpha 170), the gear #BBBBBB (alpha 232).
-    foreach (array(array('search', 'cat_search', AIO_CATV_ICON_SEARCH, 1521, 170), array('setup', 'setup_menu', AIO_CATV_ICON_SETUP, 1596, 232)) as $t)
+    // most (alpha 170), the gear and the heart #BBBBBB (alpha 232).
+    foreach (array(array('mylist', 'ml_title', AIO_CATV_ICON_MYLIST, 1446, 232), array('search', 'cat_search', AIO_CATV_ICON_SEARCH, 1521, 170),
+        array('setup', 'setup_menu', AIO_CATV_ICON_SETUP, 1596, 232)) as $t)
     {
         $id = "tab_{$t[0]}";
         $defs[] = array(
@@ -1200,7 +1206,8 @@ function aio_catv_screen_of($from)
  */
 function aio_catv_is_screen($media_url)
 {
-    return aio_catv_is_main($media_url) || strpos($media_url, 'cat_grid:') === 0 || strpos($media_url, 'cat_search:') === 0;
+    return aio_catv_is_main($media_url) || strpos($media_url, 'cat_grid:') === 0 || strpos($media_url, 'cat_search:') === 0 ||
+        aio_mlv_is_screen($media_url);
 }
 
 /**
@@ -1215,6 +1222,8 @@ function aio_catv_folder_view($media_url, $sel_state)
         return aio_catv_all_ok() ? aio_catv_all_view($media_url, $sel_state) : aio_catv_grid_view($media_url);
     if (strpos($media_url, 'cat_search:') === 0)
         return aio_catv_results_view(substr($media_url, strlen('cat_search:')), $sel_state);
+    if (aio_mlv_is_screen($media_url))
+        return aio_mlv_view($media_url, $sel_state);
     return aio_catv_main_view($media_url, $sel_state);
 }
 
@@ -1870,6 +1879,18 @@ function aio_catv_grid_view($url)
         aio_log('catalog: grid: nothing to show');
         return aio_lines_view(array(aio_expired_item()));
     }
+    return aio_catv_grid_pane($range, array(GUI_EVENT_KEY_ENTER => aio_input('cat_enter')) + aio_egg_acts());
+}
+
+// The grid of r24 of the items of $range (aio_catv_range), its actions $actions: "Show all", "Мой список" and
+// "Продолжить" of Fav 1 (view_mylist.php).
+/**
+ * @param array<string, mixed> $range
+ * @param array<string, AioAction> $actions
+ * @return array<string, mixed>
+ */
+function aio_catv_grid_pane($range, $actions)
+{
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::view_kind => PLUGIN_FOLDER_VIEW_REGULAR,
@@ -1902,7 +1923,7 @@ function aio_catv_grid_view($url)
             PluginRegularFolderView::load_failed_view_item_params => array(
                 ViewItemParams::icon_path => AIO_CATV_ICONS . 'no_movie_poster.png'),
             PluginRegularFolderView::async_icon_loading => true,
-            PluginRegularFolderView::actions => array(GUI_EVENT_KEY_ENTER => aio_input('cat_enter')) + aio_egg_acts(),
+            PluginRegularFolderView::actions => $actions,
             PluginRegularFolderView::initial_range => $range));
 }
 
@@ -2414,6 +2435,15 @@ function aio_catv_info($in)
         $lines = array(array(aio_clean(aio_tr(aio_catv_ui_lang(), 'cat_more')), AIO_CATV_TEXT_COLOR, AIO_CATV_LINE_PX));
         $desc = '';
     }
+    // The hint of an empty "Мой список": its name and what it is for (the tile has the short words).
+    else if (aio_mlv_is_hint($id))
+    {
+        $name = aio_tr(aio_catv_ui_lang(), 'ml_title');
+        $sub = '';
+        $facts = array();
+        $lines = array();
+        $desc = aio_tr(aio_catv_ui_lang(), 'ml_hint');
+    }
     else
         return null;
     $labels = array();
@@ -2516,7 +2546,17 @@ function aio_catv_invalidate($url)
             PluginInvalidateFoldersActionData::all_except => false));
 }
 
-// The main screens of rows opened (AioCat::$mains) invalidated first, then $post: the row "Continue" and the badges of
+// The screens of the history and the list opened, invalidated after the player, a mark, a change of the list: the main
+// screens of rows (AioCat::$mains), then "Мой список" and "Продолжить" of Fav 1 (AioMlv::$opened).
+/**
+ * @return list<string>
+ */
+function aio_catv_mains_urls()
+{
+    return array_merge(AioCat::$mains, array_keys(AioMlv::$opened));
+}
+
+// The screens opened (aio_catv_mains_urls) invalidated first, then $post: the row "Continue" and the badges of
 // the history anew when the shell is back on one (O2: whether a screen under the card is built again, the focus kept,
 // is not proven); none opened: $post as it is. Only on r25: on r24 a screen of rows lower in the stack built again may
 // go to the network for 3-7 s (not checked there). $why: for the log.
@@ -2527,16 +2567,17 @@ function aio_catv_invalidate($url)
  */
 function aio_catv_mains_anew($post, $why)
 {
-    if (!AioCat::$mains)
+    $urls = aio_catv_mains_urls();
+    if (!$urls)
         return $post;
     if (aio_fw_r() < 25)
     {
         aio_log("catalog: no invalidate $why: r" . aio_fw_r());
         return $post;
     }
-    aio_log("catalog: invalidate $why: " . implode(', ', AioCat::$mains));
-    $a = aio_catv_invalidate(AioCat::$mains[0]);
-    $a[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = AioCat::$mains;
+    aio_log("catalog: invalidate $why: " . implode(', ', $urls));
+    $a = aio_catv_invalidate($urls[0]);
+    $a[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = $urls;
     $a[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $post;
     return $a;
 }
@@ -2652,7 +2693,7 @@ function aio_catv_all_tick($url)
             $act = array(
                 GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
                 GuiAction::data => array(
-                    ChangeBehaviourActionData::actions => aio_catv_all_actions($url, true),
+                    ChangeBehaviourActionData::actions => aio_catv_all_actions($url, true) + aio_mlv_key_acts($url),
                     ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => AIO_CATV_ALL_TICK_MS)));
         }
     }
@@ -2689,6 +2730,8 @@ function aio_catv_strip_enter($id, $from, $up = false)
         return aio_catv_search_ask($from);
     if ($id === 'tab_setup')
         return aio_setup_open_act($from);
+    if ($id === 'tab_mylist')
+        return aio_mlv_open('list', $from);
     $tab = strval(substr($id, strlen('tab_')));
     if (($tab !== 'movie' && $tab !== 'series') || !aio_catv_is_main($from) || (!$up && $tab === aio_catv_tab($from)))
         return null;
@@ -2712,10 +2755,16 @@ function aio_catv_menu($in, $from)
     aio_log("catalog: POP UP: header '" . aio_cut($hid, 100) . "', row '" . aio_cut(aio_catv_in($in, 'selected_row_id'), 100) .
         "', item '" . aio_cut(aio_catv_in($in, 'selected_item_id'), 100) . "'");
     $lang = aio_catv_lang();
-    // On a tile (no header in focus): its items first (aio_catv_tile_menu), then those of the screen.
-    $items = $hid === '' ? aio_catv_tile_menu(aio_catv_in($in, 'selected_item_id'), $from, $lang) : array();
+    // On a tile (no header in focus): its items first (aio_catv_tile_menu), then those of the screen. The grid of r24
+    // ("Мой список", "Продолжить") brings the tile as selected_media_url.
+    $item = aio_catv_in($in, 'selected_item_id');
+    if ($item === '')
+        $item = aio_catv_in($in, 'selected_media_url');
+    $items = $hid === '' ? aio_catv_tile_menu($item, $from, $lang) : array();
     if ($tab === '')
     {
+        // "Мой список": "Добавить из «Избранного» Дюны" after the items of a tile, on the hint alone.
+        $items = aio_catv_menu_join($items, aio_mlv_menu_items($from, $lang));
         return $items ? array(
             GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
             GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items)) : null;
@@ -2724,7 +2773,8 @@ function aio_catv_menu($in, $from)
     $screen = aio_catv_rows_menu_items($hid, $tab, $from, $lang);
     $parts = array(
         'tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png'),
-        'tab_search' => array('cat_search', AIO_CATV_ICON_SEARCH), 'tab_setup' => array('setup_menu', AIO_CATV_ICON_SETUP));
+        'tab_mylist' => array('ml_title', AIO_CATV_ICON_MYLIST), 'tab_search' => array('cat_search', AIO_CATV_ICON_SEARCH),
+        'tab_setup' => array('setup_menu', AIO_CATV_ICON_SETUP));
     foreach ($parts as $id => $p)
     {
         $screen[] = array(
@@ -2756,7 +2806,7 @@ function aio_catv_enter($in)
     if (strpos($id, 'retry:') === 0)
         return aio_catv_retry(aio_catv_in($in, 'from'));
     // A stub of "Show all": row<k>.<j>.
-    if (strpos($id, 'stub:') === 0 || strpos($id, 'empty:') === 0 || preg_match('/^row[0-9]+\.[0-9]+$/D', $id))
+    if (strpos($id, 'stub:') === 0 || strpos($id, 'empty:') === 0 || aio_mlv_is_hint($id) || preg_match('/^row[0-9]+\.[0-9]+$/D', $id))
         return null;
     // The opening tries again, and the rows after it too; the shell brings sel_state, the focus stays.
     // "Show all" goes on from the same place.
@@ -2770,6 +2820,10 @@ function aio_catv_enter($in)
     $mid = aio_cp_mid_of($id);
     if ($mid !== '')
         return aio_cp_enter($mid, aio_catv_lang());
+    // A tile of "Мой список": by its card of the Dune when the entry knows it.
+    $ml = aio_mlv_enter($id, aio_catv_lang());
+    if ($ml)
+        return $ml;
     $t = aio_catv_tile($id, aio_tv_is_from(aio_catv_in($in, 'from')));
     if (!$t)
     {
@@ -2941,5 +2995,9 @@ function aio_catv_input($in, $control)
         return aio_cp_mark($in);
     if ($control === 'cat_ml')
         return aio_ml_menu_act($in);
+    if ($control === 'cat_fav')
+        return aio_mlv_open(aio_catv_in($in, 'w'), $from);
+    if ($control === 'cat_ml_import')
+        return aio_mlv_import($from);
     return null;
 }

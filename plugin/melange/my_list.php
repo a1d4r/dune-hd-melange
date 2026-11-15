@@ -511,6 +511,47 @@ function aio_ml_add($t, $dune = '')
     return $why;
 }
 
+// Tiles $add (array(tile, its card of the Dune) each) at the end of the list in their order, at one write (the import of
+// the Favorites of the Dune: the list as it was stays first). One in the list already (aio_ml_same) or of a card of the
+// Dune in it, a repeat among them, one without IMDb or TMDB: not added. The backup would not load back with the next one
+// (AIO_ML_COPY_MAX): those before it added, why 'full'. -> array(why: '', 'full', 'locked', 'write' - none added; how many
+// were added).
+/**
+ * @param list<array{AioCatTile, string}> $add
+ * @return array{string, int}
+ */
+function aio_ml_append($add)
+{
+    $list = aio_ml_list();
+    $n = 0;
+    $why = '';
+    $now = time();
+    foreach ($add as $a)
+    {
+        $e = aio_ml_entry($a[0], $a[1], $now);
+        if (!$e)
+            continue;
+        foreach ($list as $x)
+        {
+            if (aio_ml_same($x, $e) || ($e['dune_id'] !== '' && $x['dune_id'] === $e['dune_id']))
+                continue 2;
+        }
+        $list[] = $e;
+        if (aio_ml_copy_size($list) > AIO_ML_COPY_MAX)
+        {
+            array_pop($list);
+            aio_log("my list: {$e['key']} not added, the backup would be over " . AIO_ML_COPY_MAX . ' bytes');
+            $why = 'full';
+            break;
+        }
+        $n++;
+    }
+    if (!$n)
+        return array($why, 0);
+    $w = aio_ml_save($list);
+    return $w !== '' ? array($w, 0) : array($why, $n);
+}
+
 // The title of key $key out of the list. -> '' (taken out, or not there), 'locked', 'write' (aio_ml_save).
 /**
  * @param string $key

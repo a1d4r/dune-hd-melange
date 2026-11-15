@@ -72,14 +72,15 @@ function aio_cp_item($mid, $ent)
     return array('type' => 'series', 'end' => $ent['end'], 'w' => $w, 's' => $b['s'], 'e' => $b['e'], 'b' => $b);
 }
 
-// The cards of the row of the types $types (movie, series), the latest records first, AIO_CATV_ROW_TILES at most (the
-// cards after them not looked at), none taken off it with no record ending later (aio_cp_hidden): movie_id =>
-// aio_cp_item.
+// The cards of the row of the types $types (movie, series), the latest records first, $max at most (the cards after them
+// not looked at; the screen "Продолжить" of Fav 1: all of them, view_mylist.php), none taken off it with no record
+// ending later (aio_cp_hidden): movie_id => aio_cp_item.
 /**
  * @param list<string> $types
+ * @param int $max
  * @return array<string, array{type: string, end: int, w: stdClass, s: int, e: int, b: AioPgBadge|null}>
  */
-function aio_cp_items($types)
+function aio_cp_items($types, $max = AIO_CATV_ROW_TILES)
 {
     $idx = aio_pg_index();
     $ends = array();
@@ -95,7 +96,7 @@ function aio_cp_items($types)
         if ($it && in_array($it['type'], $types, true))
         {
             $res[$mid] = $it;
-            if (count($res) >= AIO_CATV_ROW_TILES)
+            if (count($res) >= $max)
                 break;
         }
     }
@@ -220,24 +221,26 @@ function aio_cp_badge($mid, $type)
     return isset($idx[$mid]) ? aio_pg_badge($idx[$mid], $type === 'series', $mid) : null;
 }
 
-// The row of the types $types ($tab: 'movie', 'series', '' both) for a screen of rows: its title and tiles (the title
-// and the poster of the record, the plate of the rating of a tile of a row in memory or of the meta kept, the badge),
-// no "Show all", no flag; none when it is empty. $tiles: its tiles by "continue:<movie_id>" (the file of the tab "TV").
-// Its tiles of a pair with neither: AioCpm::$miss, in its order (the lazy meta, aio_cpm_step).
+// The tiles of the row of the types $types, $max at most (aio_cp_items): the title and the poster of the record, the
+// plate of the rating of a tile of a row in memory or of the meta kept, the badge; $tiles: their tiles by
+// "continue:<movie_id>"; $miss: those of a pair with neither, in their order (array(type, IMDb, TMDB): the lazy meta,
+// AioCpm::$miss).
 /**
- * @param string $tab
- * @param string $lang
+ * @param list<string> $types
+ * @param int $max
  * @param array<string, AioCatTile>|null $tiles
  * @param-out array<string, AioCatTile> $tiles
+ * @param list<array{string, string, string}>|null $miss
+ * @param-out list<array{string, string, string}> $miss
  * @return list<array<string, mixed>>
  */
-function aio_cp_row_defs($tab, $lang, &$tiles = null)
+function aio_cp_tile_items($types, $max, &$tiles = null, &$miss = null)
 {
     $tiles = array();
     $items = array();
     $map = null;
-    AioCpm::$miss = array();
-    foreach (aio_cp_items($tab === '' ? array('movie', 'series') : array($tab)) as $mid => $it)
+    $miss = array();
+    foreach (aio_cp_items($types, $max) as $mid => $it)
     {
         if ($map === null)
             $map = aio_cp_tile_map();
@@ -245,7 +248,7 @@ function aio_cp_row_defs($tab, $lang, &$tiles = null)
         if (!$t)
             continue;
         if ($from === 'record' && ($t['imdb_id'] !== '' || $t['_tmdbId'] !== ''))
-            AioCpm::$miss[] = array($t['type'], $t['imdb_id'], $t['_tmdbId']);
+            $miss[] = array($t['type'], $t['imdb_id'], $t['_tmdbId']);
         $id = AIO_CP_RID . ":$mid";
         $tiles[$id] = $t;
         $item = aio_catv_item(aio_catv_tile_id($id), isset($it['w']->title) ? aio_clean($it['w']->title) : $t['name'],
@@ -257,6 +260,23 @@ function aio_cp_row_defs($tab, $lang, &$tiles = null)
             $item[PluginRegularItem::stickers] = $stickers;
         $items[] = $item;
     }
+    return $items;
+}
+
+// The row of the types $types ($tab: 'movie', 'series', '' both) for a screen of rows: its title and tiles
+// (aio_cp_tile_items), no "Show all", no flag; none when it is empty. $tiles: its tiles by "continue:<movie_id>" (the
+// file of the tab "TV"). Its tiles of a pair with neither: AioCpm::$miss, in its order (the lazy meta, aio_cpm_step).
+/**
+ * @param string $tab
+ * @param string $lang
+ * @param array<string, AioCatTile>|null $tiles
+ * @param-out array<string, AioCatTile> $tiles
+ * @return list<array<string, mixed>>
+ */
+function aio_cp_row_defs($tab, $lang, &$tiles = null)
+{
+    $items = aio_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), AIO_CATV_ROW_TILES, $tiles, $miss);
+    AioCpm::$miss = $miss;
     if (!$items)
         return array();
     $row = array('key' => AIO_CP_RID, 'type' => $tab !== '' ? $tab : 'movie', 'id' => AIO_CP_RID,
