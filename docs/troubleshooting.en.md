@@ -75,7 +75,7 @@ On the Dune, when opening a movie:
 | "This title has no IMDb ID", "Releases cannot be found: no Dune card and no IMDb ID" | without an IMDb ID Melange cannot find the movie ([Known limitations](limitations.en.md)) |
 | "The list is outdated, open it again", "This screen is outdated: open the catalog again" | open the movie or the catalog again |
 
-To look into an error, move to a release and press **INFO**: after the release details, P+ / P− show everything the server sent.
+To look into an error, move to a release and press **INFO**: after the release details, P+ / P− show everything the server sent. If your remote has no colour buttons or INFO, turn on "Remote without colour buttons" ([Advanced](advanced-options.en.md)).
 
 ## No releases or few
 

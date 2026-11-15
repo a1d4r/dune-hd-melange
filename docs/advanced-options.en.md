@@ -1,6 +1,6 @@
 # Advanced
 
-Choose whether Melange starts torrents, shows skip-intro buttons and reports source errors. If your remote has no colour buttons, you can also move sorting and release details into the menu here. [← Contents](README.en.md)
+Choose whether Melange starts torrents, shows skip-intro buttons and reports source errors. If your remote has no colour buttons, you can also add sorting and release details to the menu here. [← Contents](README.en.md)
 
 1. On the settings page ([Settings page on a phone](phone-page.en.md)), open "Advanced".
 
@@ -20,7 +20,9 @@ Choose whether Melange starts torrents, shows skip-intro buttons and reports sou
 
    <img src="../screenshots/advanced-errors.jpg" alt="Source errors window: JacRed and MediaFusion did not answer in time" width="100%">
 
-5. "Remote without colour buttons": turn it on if your remote has no colour buttons or INFO. The **POP UP** menu of the release list then starts with "Release details" and "Sort". Choosing the current sort again reverses the order.
+5. "Remote without colour buttons": turn it on if your remote has no colour buttons or INFO. Then the **POP UP** menu of the release list starts with "Release details" and "Sort". Choosing the current sort again reverses the order.
+
+   <img src="../screenshots/advanced-remote-menu.jpg" alt="Release list for Avatar: The Last Airbender (2026): the menu is open, focus on Release details, then Sort: Auto, Refresh, Get films from..., Watch via TorrServer, Open in an app..., Download to server..., Settings" width="100%">
 
 6. "Source profiles" are described in [Source profiles](profiles.en.md). Press "Save".
 
