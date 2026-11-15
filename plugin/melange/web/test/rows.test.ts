@@ -4,7 +4,8 @@ import { afterEach, describe, expect, jest, test } from "bun:test";
 import type { CatRow } from "../src/api";
 import { DATA, ID } from "../src/dom";
 import { start } from "../src/init";
-import { chosenKeys } from "../src/rows";
+import { readFileSync } from "fs";
+import { byGroups, chosenKeys } from "../src/rows";
 import { cleanup, flush, HANG, json, later, lines, NET, open, type Page, type Reply, TOKEN } from "./harness";
 
 afterEach(cleanup);
@@ -61,9 +62,19 @@ function click(page: Page, check: HTMLInputElement): void {
   check.dispatchEvent(new page.win.Event("change", { bubbles: true }) as unknown as Event);
 }
 
+// The cases of the rule of the groups, the same for aio_cat_by_groups (melange_catalog_test.php of the tests of the plugin).
+const GROUP_CASES: { name: string; rows: [string, string][]; want: string[] }[] = JSON.parse(readFileSync(import.meta.dir + "/groups.json", "utf8"));
+
+describe("the rule of the groups, as aio_cat_by_groups (groups.json)", () => {
+  test.each(GROUP_CASES.map((c) => [c.name, c] as const))("%s", (_name, c) => {
+    expect(byGroups(c.rows.map(([key, group]) => ({ key, group })))).toEqual(c.want);
+  });
+});
+
 describe("the rule of the choice, as aio_cat_user_rows: by the tab", () => {
   test.each([
     ["nothing chosen: the start rows of the tab in the order of the list", "", ["movie/a", "movie/c"], ["series/a"]],
+    ["a choice with the groups mixed: each group where its first row is", "movie/b movie/a movie/c", ["movie/b", "movie/c", "movie/a"], ["series/a"]],
     ["the order of the user; none of the tab: its start rows (a choice of before 0.54.0)", "movie/c movie/b", ["movie/c", "movie/b"], ["series/a"]],
     ["a key gone from the list goes, a new row does not come; anime with the series", "movie/gone anime/d", ["movie/a", "movie/c"], ["anime/d"]],
     ["a repeat once", "movie/b movie/b", ["movie/b"], ["series/a"]],
@@ -72,6 +83,11 @@ describe("the rule of the choice, as aio_cat_user_rows: by the tab", () => {
   ])("%s", (_name, stored, movie, series) => {
     expect(chosenKeys(ROWS, stored, "movie")).toEqual(movie);
     expect(chosenKeys(ROWS, stored, "series")).toEqual(series);
+  });
+
+  test("the start rows: the rows of a group together too", () => {
+    const rows = [row("movie/t1", "T1", "top", true), row("movie/g1", "G1", "genres", true), row("movie/t2", "T2", "top", true), row("movie/x", "X", "genres")];
+    expect(chosenKeys(rows, "", "movie")).toEqual(["movie/t1", "movie/t2", "movie/g1"]);
   });
 });
 

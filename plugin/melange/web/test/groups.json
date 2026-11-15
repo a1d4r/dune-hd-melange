@@ -1,0 +1,8 @@
+[
+  { "name": "nothing", "rows": [], "want": [] },
+  { "name": "together already: as they are", "rows": [["movie/a", "top"], ["movie/b", "top"], ["movie/c", "genres"]], "want": ["movie/a", "movie/b", "movie/c"] },
+  { "name": "mixed: a group where its first row is, its rows in their order", "rows": [["movie/a", "top"], ["movie/b", "genres"], ["movie/c", "top"], ["movie/d", "genres"]], "want": ["movie/a", "movie/c", "movie/b", "movie/d"] },
+  { "name": "the groups by their first row, not by the order of the screen", "rows": [["movie/g1", "genres"], ["movie/t1", "top"], ["movie/g2", "genres"]], "want": ["movie/g1", "movie/g2", "movie/t1"] },
+  { "name": "three groups, each twice", "rows": [["series/a", "top"], ["series/b", "genres"], ["anime/c", "anime"], ["series/d", "genres"], ["series/e", "top"], ["anime/f", "anime"]], "want": ["series/a", "series/e", "series/b", "series/d", "anime/c", "anime/f"] },
+  { "name": "groups new to the plugin are other, one group with it", "rows": [["movie/x", "something-new"], ["movie/y", "top"], ["movie/o", "other"], ["movie/z", "another-new"]], "want": ["movie/x", "movie/o", "movie/z", "movie/y"] }
+]

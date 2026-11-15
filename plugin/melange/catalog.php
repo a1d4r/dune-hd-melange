@@ -169,6 +169,44 @@ function aio_cat_group($id)
     return $id === 'tmdb.trending' || $id === 'tmdb.top_rated' || strpos($id, 'letterboxd.') === 0 ? 'top' : 'other';
 }
 
+// The groups of the screens in their order: GROUPS of web/src/rows.ts, the menu of the rows
+// (aio_catv_lcfg_groups). A group of aio_cat_group not here is "other" there.
+/**
+ * @return list<string>
+ */
+function aio_cat_groups()
+{
+    return array('top', 'fresh', 'ru', 'ru-services', 'genres', 'theme', 'studios', 'decades', 'years',
+        'streaming', 'world', 'runtime', 'anime', 'other');
+}
+
+// The group of the row $r on the screens: its own (aio_cat_group), if one of aio_cat_groups, else "other".
+/**
+ * @param array{group: string} $r
+ * @return string
+ */
+function aio_cat_block($r)
+{
+    return in_array($r['group'], aio_cat_groups(), true) ? $r['group'] : 'other';
+}
+
+// The rows $rows with those of a group (aio_cat_block) together: the groups in the order of
+// their first row, the rows of each in their order. The same rule as byGroups of web/src/rows.ts.
+/**
+ * @param list<AioCatRow> $rows
+ * @return list<AioCatRow>
+ */
+function aio_cat_by_groups($rows)
+{
+    $blocks = array();
+    foreach ($rows as $r)
+        $blocks[aio_cat_block($r)][] = $r;
+    $out = array();
+    foreach ($blocks as $b)
+        $out = array_merge($out, $b);
+    return $out;
+}
+
 // A row of the screen, or null when it can not be asked for. key: type and id
 // (names repeat between the types, an id too; of a search: search/<type>,
 // aio_cat_search_row), name for the screen (aio_cat_short_name), genre: the
@@ -350,6 +388,7 @@ function aio_cat_manifest()
 // the chosen ones of the tab in the order of the user; a key not in the manifest goes, a new row
 // does not come by itself. None of the tab (not a list, nothing chosen, a choice of before 0.54.0
 // with only movies): the start rows of the tab, in the order of the manifest, never an empty tab.
+// Either way the rows of a group together (aio_cat_by_groups): a choice made before may mix them.
 /**
  * @param list<AioCatRow> $rows
  * @param mixed $chosen
@@ -374,13 +413,13 @@ function aio_cat_user_rows($rows, $chosen, $tab)
         }
     }
     if ($out)
-        return $out;
+        return aio_cat_by_groups($out);
     foreach ($by as $r)
     {
         if ($r['home'])
             $out[] = $r;
     }
-    return $out;
+    return aio_cat_by_groups($out);
 }
 
 // --- Tiles.

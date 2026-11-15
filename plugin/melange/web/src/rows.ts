@@ -32,12 +32,28 @@ type Tab = CatRow["tab"];
 // The parts of the screen, as the tabs of the catalog; in the field the keys of movies go first.
 const TABS: readonly Tab[] = ["movie", "series"];
 
-// As aio_cat_user_rows (catalog.php): the keys of the choice of the tab still in the list, else its start rows.
+const KNOWN = new Set(GROUPS.map(([group]) => group));
+// As aio_cat_block (catalog.php): the group of a row on the screen, one not of GROUPS "other".
+export const groupOf = (row: Pick<CatRow, "group">): string => (KNOWN.has(row.group) ? row.group : "other");
+
+// As aio_cat_by_groups (catalog.php): the keys of the rows with those of a group together, the groups in the order
+// of their first row, the rows of each in their order.
+export function byGroups(rows: readonly Pick<CatRow, "key" | "group">[]): string[] {
+  const blocks = new Map<string, string[]>();
+  for (const row of rows) {
+    const group = groupOf(row);
+    blocks.set(group, [...(blocks.get(group) || []), row.key]);
+  }
+  return ([] as string[]).concat(...blocks.values());
+}
+
+// As aio_cat_user_rows (catalog.php): the keys of the choice of the tab still in the list, else its start rows; the
+// rows of a group together either way.
 export function chosenKeys(rows: CatRow[], value: string, tab: Tab): string[] {
   const of = rows.filter((row) => row.tab === tab);
-  const known = new Set(of.map((row) => row.key));
-  const chosen = [...new Set(value.split(SEPARATOR))].filter((key) => known.has(key));
-  return chosen.length ? chosen : of.filter((row) => row.home).map((row) => row.key);
+  const by = new Map(of.map((row) => [row.key, row]));
+  const chosen = [...new Set(value.split(SEPARATOR))].filter((key) => by.has(key)).map((key) => by.get(key)!);
+  return byGroups(chosen.length ? chosen : of.filter((row) => row.home));
 }
 
 // changed: the bar follows (a move is no change event of the form).
