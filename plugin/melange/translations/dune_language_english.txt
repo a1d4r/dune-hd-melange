@@ -389,6 +389,7 @@ lp_why_method = an unknown method
 lp_why_headers = turn on streamproxy of the balancer in init.conf
 lp_why_serial = a series, not supported yet
 lp_why_no_season = no such season
+lp_why_no_episode = no such episode
 lp_why_no_link = no link
 lp_why_long = the link is too long, choose another source
 lp_why_long_variant = a link in the playlist is too long, choose another source
