@@ -1009,13 +1009,23 @@ function aio_lpv_go($st)
 
 // lp_back ("Откуда брать… → Раздачи", or the profile in use, of the online list $st): the mark
 // taken off, the releases back - those asked before as they were, else asked now (an error:
-// its dialog, the online list kept).
+// its dialog, the online list kept). Of the releases with the yellow line (a marked title,
+// nothing online): the mark taken off, the releases stay, the line gone.
 /**
  * @param AioState $st
  * @return AioAction|null
  */
 function aio_lpv_back($st)
 {
+    if (empty($st['lp_on']) && !empty($st['lp_note']))
+    {
+        aio_lpv_mark_set($st['movie'], false);
+        $ns = $st;
+        $ns['rid'] = aio_rid();
+        unset($ns['lp_note']);
+        aio_log('lampac: the releases chosen over the yellow line, the mark off');
+        return aio_list_replace($ns);
+    }
     if (empty($st['lp_on']))
         return null;
     aio_lpv_mark_set($st['movie'], false);
@@ -1129,8 +1139,9 @@ function aio_lpv_failed($lang, $r, $why, $detail)
 // vod_play of link $url of row $r of card $mv (balancer path $path) from $pos s, linked to the
 // card when it has a dune id (spec §7): recent_uid aio:<dune id>:-1:-1:<key of the row>, as a
 // release of a movie; recent_action_params wh_release = the key, wh_mode lampac, wh_lb the
-// path of the balancer, wh_lv the voice ("Continue": aio_lpv_resume). The title marked with the
-// row: the next list puts it first. On r24 through pf_check (aio_pf_check of call_plugin).
+// path of the balancer, wh_lv the voice ("Continue": aio_lpv_resume). The mark of a title marked
+// "online" takes the row: the next list puts it first (only "Онлайн" and "Искать онлайн" mark a
+// title, spec §8). On r24 through pf_check (aio_pf_check of call_plugin).
 /**
  * @param AioMovie $mv
  * @param string $lang
@@ -1171,7 +1182,7 @@ function aio_lpv_vod($mv, $lang, $r, $path, $url, $pos)
             'wh_lb' => $path,
             'wh_lv' => $r['voice']);
     }
-    if ($path !== '')
+    if ($path !== '' && aio_lpv_mark($mv))
         aio_lpv_mark_set($mv, true, $path, $r['voice']);
     aio_log("play: lampac {$r['key']} pos=$pos linked=" . ($linked ? 1 : 0));
     return array(
@@ -1249,12 +1260,13 @@ function aio_lpv_resume($mv, $r, $lang)
     aio_log("resume: lampac {$r['path']}: $why -> the search");
     $st = aio_list_state($mv, -1, -1, array(), $lang, aio_no_errors());
     $st['lp_only'] = true;
-    return aio_lpv_search_open($st, 'open', array('mark' => true, 'bal' => $r['path']));
+    return aio_lpv_search_open($st, 'open', array('bal' => $r['path']));
 }
 
 // play_action $in of card $mv with "Онлайн" (aio_lpv_on): "Continue" of an online record; no
 // AIOStreams - the search at once; a title marked "online" - the search, its releases if
-// nothing comes. null: the releases as before.
+// nothing comes, but "Continue" of a record of AIOStreams (aio_resume) goes on as before.
+// null: the releases as before.
 /**
  * @param stdClass $in
  * @param AioMovie $mv
@@ -1273,6 +1285,11 @@ function aio_lpv_play_action($in, $mv, $lang)
     $mark = $aio ? aio_lpv_mark($mv) : null;
     if ($aio && !$mark)
         return null;
+    if ($aio && aio_resume($in))
+    {
+        aio_log('lampac: the title is marked online, "Continue" of a release -> the releases');
+        return null;
+    }
     aio_log('lampac: ' . ($aio ? 'the title is marked online' : 'no AIOStreams') . ' -> the search');
     $st = aio_list_state($mv, -1, -1, array(), $lang, aio_no_errors());
     $st['lp_only'] = true;

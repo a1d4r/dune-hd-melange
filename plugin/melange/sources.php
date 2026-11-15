@@ -187,8 +187,9 @@ function aio_gc_src($in)
     $p = $s['profiles'][$k];
     $tag = 'source: profile ' . aio_profile_tag($now, $now < 0 ? null : $s['profiles'][$now]) . ' -> ' .
         aio_profile_tag($k, $p) . ', ' . aio_ep_tag($st);
-    // The profile in use from the online list: its releases back (view_online.php).
-    if ($k === $now && !empty($st['lp_on']))
+    // The profile in use from the online list: its releases back; from the releases with the
+    // yellow line: the mark off (view_online.php).
+    if ($k === $now && (!empty($st['lp_on']) || !empty($st['lp_note'])))
         return aio_lpv_back($st);
     if ($k === $now)
     {
