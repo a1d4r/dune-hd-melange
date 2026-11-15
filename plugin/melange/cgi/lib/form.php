@@ -993,7 +993,7 @@ function aio_cgi_js($v)
         'groupRu' => aio_cgi_l('Российское', 'Russian'),
         'groupRuServices' => aio_cgi_l('Российские сервисы', 'Russian services'), 'groupGenres' => aio_cgi_l('Жанры', 'Genres'),
         'groupTheme' => aio_cgi_l('Темы', 'Themes'), 'groupStudios' => aio_cgi_l('Студии', 'Studios'),
-        'groupDecades' => aio_cgi_l('Декады', 'Decades'), 'groupYears' => aio_cgi_l('Годы', 'Years'),
+        'groupDecades' => aio_cgi_l('Десятилетия', 'Decades'), 'groupYears' => aio_cgi_l('Годы', 'Years'),
         'groupStreaming' => aio_cgi_l('Стриминги', 'Streaming'), 'groupWorld' => aio_cgi_l('Страны', 'Countries'),
         'groupRuntime' => aio_cgi_l('Длительность', 'Runtime'), 'groupAnime' => aio_cgi_l('Аниме', 'Anime'),
         'groupOther' => aio_cgi_l('Другое', 'Other'),
