@@ -84,8 +84,8 @@ function aio_pg_screen_built($left, $net)
 
 // r25: the main screen of rows $url is made: the step goes to the tick of its timer (AIO_PG_TICK_MS, once), after
 // the rows of the window of the shell (get_folder_rows), as php_server answers one call at a time. A timer only
-// with a card to ask (aio_pg_link_queue) and no pause; a line of the log when a pause holds it. Back to the screen
-// with no get_folder_view: no timer, no step. -> the timer is set.
+// with a card to ask (aio_pg_link_queue), no pause and dune_auth; a line of the log when a pause or no dune_auth
+// holds it. Back to the screen with no get_folder_view: no timer, no step. -> the timer is set.
 /**
  * @param string $url
  * @return bool
@@ -100,12 +100,18 @@ function aio_pg_tick_set($url)
         aio_log(sprintf('link: no timer: a pause of the requests, %d s left', $pause));
         return false;
     }
+    if (aio_card_token() === '')
+    {
+        aio_log('link: no timer: no dune_auth');
+        return false;
+    }
     AioPgLinks::$tick_url = $url;
     return true;
 }
 
-// r25: the tick of the timer of the main screen $url: the step (aio_pg_link_step) once, on the time of a step. A
-// tick of another screen or a second one: no step. A line of the log either way.
+// r25: the tick of the timer of the main screen $url: the step (aio_pg_link_step) once, of one request (a key
+// pressed now waits for it, ~0.5 s), its timeout as of a step. A tick of another screen or a second one: no step.
+// A line of the log either way.
 /**
  * @param string $url
  * @return void
@@ -592,8 +598,8 @@ function aio_pg_link_queue()
 }
 
 // The lazy pairs: the cards of aio_pg_link_queue, up to AIO_PG_LINK_N requests in $limit s (the second one only
-// with AIO_PG_LINK_NEXT_S left). None in a pause (aio_pg_paused) or with no dune_auth. One line of the log of a
-// step that asked; of a $tick (aio_pg_tick) always. -> how many were asked.
+// with AIO_PG_LINK_NEXT_S left; a $tick, aio_pg_tick: one). None in a pause (aio_pg_paused) or with no dune_auth.
+// One line of the log of a step that asked; of a $tick always. -> how many were asked.
 /**
  * @param float $limit
  * @param bool $tick
@@ -607,7 +613,7 @@ function aio_pg_link_step($limit, $tick = false)
     foreach (aio_pg_paused() ? array() : aio_pg_link_queue() as $mid)
     {
         $left = $limit - (microtime(true) - $t);
-        if ($n >= AIO_PG_LINK_N || $left < ($n ? AIO_PG_LINK_NEXT_S : 1))
+        if ($n >= ($tick ? 1 : AIO_PG_LINK_N) || $left < ($n ? AIO_PG_LINK_NEXT_S : 1))
             break;
         if ($n === 0 && aio_pg_token() === '')
             break;
