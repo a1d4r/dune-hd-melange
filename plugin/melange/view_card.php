@@ -509,7 +509,7 @@ function aio_oc_progress_text($pos, $len, $lang)
 
 // --- Layout.
 
-// The buttons: "Watch" with an IMDb, "Trailer" with one (card_trailer.php), "+ Мой список" / "✓ В моём списке" (the
+// The buttons: "Watch" with an IMDb, "Trailer" with one (card_trailer.php), "♡ В избранное" / "✓ В избранном" ("Мой список" of the code) (the
 // list now, aio_ml_in); array(kind, text, its icon - the picture AIO_OC_IMG<icon>_icon.png, '' none, the least
 // width: the button of the list as wide as the longer of its two texts, design-my-list.md, A: ENTER changes it in
 // place, nothing moves; 0 for the others). "Dune card" is in MENU (aio_oc_dune_items), owner 15.11.2026.
@@ -544,10 +544,10 @@ function aio_oc_buttons($c, $ep)
     if (aio_ml_key($c['tile']) !== '')
     {
         $w = 0;
-        foreach (array(array('ml_add_btn', 'plus'), array('ml_in', 'tick')) as $v)
+        foreach (array(array('ml_add_btn', 'heart'), array('ml_in', 'tick')) as $v)
             $w = max($w, aio_oc_btn_w(array('list', aio_tr($ui, $v[0]), $v[1], 0)));
         $in = aio_ml_in($c['tile'], $c['dune']) !== '';
-        $b[] = array('list', aio_tr($ui, $in ? 'ml_in' : 'ml_add_btn'), $in ? 'tick' : 'plus', $w);
+        $b[] = array('list', aio_tr($ui, $in ? 'ml_in' : 'ml_add_btn'), $in ? 'tick' : 'heart', $w);
     }
     return $b;
 }
@@ -1566,7 +1566,7 @@ function aio_oc_dune_items($c)
 }
 
 // ENTER on the button of the list (aio_oc_buttons, kind list) of card $c ($key) at place $pos of layout $l: the title
-// into the list or out of it by the button as it is drawn ("+": in; the list changed on another screen since - what
+// into the list or out of it by the button as it is drawn ("♡": in; the list changed on another screen since - what
 // the button says, not the reverse of the file), aio_ml_set (the card of the Dune of the card); the button redrawn in
 // place with the focus on it, its width the same (the layout shown, nav, gets the new button), after the screens of the
 // list anew (aio_ml_changed: the line of the info panel of the tiles under the card); not written: the message
@@ -1580,7 +1580,7 @@ function aio_oc_dune_items($c)
  */
 function aio_oc_list($key, $c, $l, $pos)
 {
-    $on = isset($l['btns'][$pos['b']]) && $l['btns'][$pos['b']][2] === 'plus';
+    $on = isset($l['btns'][$pos['b']]) && $l['btns'][$pos['b']][2] === 'heart';
     $why = aio_ml_set($c['tile'], $c['dune'], $on);
     if ($why !== '')
         return aio_ml_err($why);

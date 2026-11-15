@@ -95,7 +95,7 @@ function aio_cgi_backup($t, $v)
     $first = isset($v['first']) && $v['first'];
     return '<p class="sub">' . aio_cgi_l('Все настройки Melange в одном файле: перед переустановкой или для другой Дюны.',
         'All Melange settings in one file: before a reinstall or for another Dune.') . '</p>' .
-        '<p class="hint">' . aio_cgi_l('Копия сохраняет и «Мой список».', 'The backup includes My List too.') . '</p>' .
+        '<p class="hint">' . aio_cgi_l('Копия сохраняет и «Избранное».', 'The backup includes Favorites too.') . '</p>' .
         '<p class="hint wn">' . aio_cgi_l('В файле ключи Debrid, пароли и ссылка на страницу — храните его у себя.',
         'It holds Debrid keys, passwords and the page link: keep it to yourself.') . '</p>' .
         '<p class="hint" id="bkn"' . ($first ? '' : ' hidden') . '>' . aio_cgi_l('Настроек ещё нет: сначала сохраните их.',
