@@ -11,6 +11,10 @@ define('AIO_PG_SIG_S', 1.0);
 // Begun: this many s or % of it watched, as the row "Continue".
 define('AIO_PG_BEGUN_S', 120);
 define('AIO_PG_BEGUN_PCT', 2);
+// A record of a video shorter than this many s (a trailer, a clip of 30 s under the id of the card) is not of the state
+// (aio_pg_visit): no tile of "Continue", no badge, no line of the panel by it (decision of the owner 16.11.2026); of no
+// length (0, none) it is. The own card and the marks do not go by it.
+define('AIO_PG_SHORT_S', 600);
 // The badges, in px of the poster 190x285 of a row (movies/movie_helper.php r25, add_movie_ritem;
 // the plate of "S1 E3" a tab of the bar, P-B of the designer, decision of the owner 15.11.2026): the bar at the
 // bottom, the line over it, the tick over the bar right.
@@ -79,7 +83,8 @@ function aio_pg_slim($w)
 // The records of the history, the latest first, into $acc by movie_id: the latest record of any kind
 // (w, with its end and whether it is watched by itself), the state of a series of its episode records
 // as aio_wh_series_visit makes it, the latest episode record watched or begun (ep: the record, seen:
-// watched, aio_wh_ep_watched; null: none). $arg: array(aio_wh_marked_set(), the marks of the own card by movie_id).
+// watched, aio_wh_ep_watched; null: none). A record of a video under AIO_PG_SHORT_S is passed over, as if none.
+// $arg: array(aio_wh_marked_set(), the marks of the own card by movie_id).
 /**
  * @param mixed $w
  * @param array{array<int|string, int>, array<string, array<string, int>>} $arg
@@ -90,6 +95,9 @@ function aio_pg_visit($w, $arg, &$acc)
 {
     $mid = aio_wh_kept($w);
     if ($mid === '' || !($w instanceof stdClass))
+        return false;
+    list(, , , $len) = aio_wh_rec($w);
+    if ($len > 0 && $len < AIO_PG_SHORT_S)
         return false;
     if (!isset($acc[$mid]))
     {
