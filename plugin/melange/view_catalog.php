@@ -2561,20 +2561,25 @@ function aio_catv_mains_urls()
 // The screens opened (aio_catv_mains_urls) invalidated first, then $post: the row "Continue" and the badges of
 // the history anew when the shell is back on one (O2: whether a screen under the card is built again, the focus kept,
 // is not proven); none opened: $post as it is. Only on r25: on r24 a screen of rows lower in the stack built again may
-// go to the network for 3-7 s (not checked there). $why: for the log.
+// go to the network for 3-7 s (not checked there). $also ('' none): a screen invalidated too, after them, on r24 too
+// (the screen of a change of "Мой список", aio_ml_changed). $why: for the log.
 /**
  * @param AioAction|null $post
  * @param string $why
+ * @param string $also
  * @return AioAction|null
  */
-function aio_catv_mains_anew($post, $why)
+function aio_catv_mains_anew($post, $why, $also = '')
 {
-    $urls = aio_catv_mains_urls();
+    $mains = aio_catv_mains_urls();
+    $urls = aio_fw_r() >= 25 ? $mains : array();
+    if ($also !== '')
+        $urls[] = $also;
+    $urls = array_values(array_unique($urls));
     if (!$urls)
-        return $post;
-    if (aio_fw_r() < 25)
     {
-        aio_log("catalog: no invalidate $why: r" . aio_fw_r());
+        if ($mains)
+            aio_log("catalog: no invalidate $why: r" . aio_fw_r());
         return $post;
     }
     aio_log("catalog: invalidate $why: " . implode(', ', $urls));

@@ -97,10 +97,10 @@ function aio_ml_menu_items($id, $from, $lang)
 }
 
 // After a change of the list on screen $from ('': none to build again, the own card; aio_catv_screen_of), then $post:
-// the screens that show the list built again by one invalidate - $from and, on r25, the main screens of the catalog and
-// these two opened (aio_catv_mains_urls, as aio_catv_mains_anew: the shell keeps rows_info by the id of a tile, the line
-// of the info panel " · В моём списке" would stay old after Back), the tab "TV" built anew (aio_tv_flag). None of them:
-// $post. The one effect of every change of the list (POP UP, the button of the own card, the import).
+// the screens that show the list built again by one invalidate (aio_catv_mains_anew) - on r25 the main screens of the
+// catalog and these two opened (the shell keeps rows_info by the id of a tile, the line of the info panel " · В моём
+// списке" would stay old after Back), and $from on r24 too; the tab "TV" built anew (aio_tv_flag). None of them: $post.
+// The one effect of every change of the list (POP UP, the button of the own card, the import).
 /**
  * @param string $from
  * @param AioAction|null $post
@@ -110,18 +110,7 @@ function aio_ml_menu_items($id, $from, $lang)
 function aio_ml_changed($from, $post, $why)
 {
     aio_tv_flag($why);
-    $urls = aio_fw_r() >= 25 ? aio_catv_mains_urls() : array();
-    $url = aio_catv_screen_of($from);
-    if ($url !== '')
-        $urls[] = $url;
-    $urls = array_values(array_unique($urls));
-    if (!$urls)
-        return $post;
-    aio_log("my list: invalidate $why: " . implode(', ', $urls));
-    $a = aio_catv_invalidate($urls[0]);
-    $a[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = $urls;
-    $a[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $post;
-    return $a;
+    return aio_catv_mains_anew($post, $why, aio_catv_screen_of($from));
 }
 
 // cat_ml of POP UP (aio_ml_menu_items; w add, del) of tile $in->item of screen $in->from: the title into the list or out
