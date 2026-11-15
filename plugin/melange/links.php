@@ -173,8 +173,9 @@ function aio_pg_tick($url)
 
 // The pairs movie_id => imdb, tmdb (of a movie), tmdbtv (of a series), type (movie, series, ''), seasons
 // (season_numbers: season => episodes), soon, src (meta: the seasons are of the meta of the own card, aio_pg_link_meta),
-// on (1: of the meta of an anime numbered on, aio_cm_numbered_on); or none (the time it was found there is no pair:
-// for good) or fail (the time of a failed request: asked again after AIO_PG_FAIL_S). Read once from data_dir.
+// on (1: of the meta of an anime numbered on, aio_cm_numbered_on), sq (a series with no seasons: the time a request
+// for them gave none, asked again after AIO_PG_FAIL_S, aio_pg_link_queue); or none (the time it was found there is no
+// pair: for good) or fail (the time of a failed request: asked again after AIO_PG_FAIL_S). Read once from data_dir.
 /**
  * @return array<string, AioPgLink>
  */
@@ -251,7 +252,21 @@ function aio_pg_link_clean($l)
         if (isset($l['on']) && $l['on'] === 1)
             $out['on'] = 1;
     }
+    if (!$seasons && isset($l['sq']) && is_int($l['sq']))
+        $out['sq'] = $l['sq'];
     return $out;
+}
+
+// The pair $l is of a series (its type, or a TMDB of a series) with no seasons: the next episode and "all watched" of its
+// badge want them (aio_pg_wanted).
+/**
+ * @param AioPgLink|null $l
+ * @return bool
+ */
+function aio_pg_no_seasons($l)
+{
+    return $l && !isset($l['none']) && !isset($l['fail']) && !isset($l['seasons']) &&
+        ((isset($l['type']) && $l['type'] === 'series') || isset($l['tmdbtv']));
 }
 
 // The episodes of the pair $l out by today (UTC; an episode of its soon with no date or a later one is not
@@ -417,6 +432,8 @@ function aio_pg_link_put($mid, $l, $save = true, $undated = false)
     }
     if ($pair && $old_pair && $dated && !isset($l['soon']))
         unset($new['soon']);
+    if (isset($new['seasons']))
+        unset($new['sq']);
     if ($new == $old)
         return false;
     $links[$mid] = $new;
@@ -726,27 +743,28 @@ function aio_pg_shell_pair($mid)
     return aio_pg_parse_card(strval(file_get_contents($path)));
 }
 
-// The cards of the history with no pair (a failed request too), their records ending the latest first ->
-// movie_id => end.
+// The cards of the history a card of the dunemdb API is wanted for, their records ending the latest first: with no
+// pair (a failed request too), or a pair of a series with no seasons (aio_pg_no_seasons: of ENTER, of a version before
+// the seasons) with an episode record. -> movie_id => end.
 /**
  * @return array<string, int>
  */
-function aio_pg_unlinked()
+function aio_pg_wanted()
 {
     $links = aio_pg_links();
     $out = array();
     foreach (aio_pg_index() as $mid => $ent)
     {
-        if (!isset($links[$mid]) || isset($links[$mid]['fail']))
+        $l = isset($links[$mid]) ? $links[$mid] : null;
+        if (!$l || isset($l['fail']) || ($ent['series'] && $ent['series'][0] && aio_pg_no_seasons($l)))
             $out[strval($mid)] = $ent['end'];
     }
     arsort($out);
     return $out;
 }
 
-// The cards of the history with no pair from the cards of the shell, the latest first, in AIO_PG_SHELL_MS
-// (one card at least), each once while php_server runs; the pairs written once. A line of the log only when
-// one was read.
+// The cards of aio_pg_wanted from the cards of the shell, the latest first, in AIO_PG_SHELL_MS (one card at least),
+// each once while php_server runs; the pairs written once. A line of the log only when one was read.
 /**
  * @return void
  */
@@ -755,7 +773,7 @@ function aio_pg_shell_step()
     $t = microtime(true);
     $read = 0;
     $found = 0;
-    foreach (aio_pg_unlinked() as $mid => $end)
+    foreach (aio_pg_wanted() as $mid => $end)
     {
         if (isset(AioPgLinks::$shell_seen[$mid]))
             continue;
@@ -788,7 +806,9 @@ function aio_pg_token()
 }
 
 // The pair of $mid now: the card of the shell (not looked at yet), else movie/<id> of the dunemdb API with
-// dune_auth, as the shell opens its card (dunemdb_api.php api_movie), in $total s (whole s; under 1 none).
+// dune_auth, as the shell opens its card (dunemdb_api.php api_movie), in $total s (whole s; under 1 none). A pair of
+// a series with no seasons (aio_pg_no_seasons): the card for them, of the shell only with them; none in the reply -
+// sq, the time (the pair is not touched by none or fail).
 // Kept: a pair; none (code 100 with no ids in the sources of the card, or the message "not found", as
 // aio_card_ask); fail (no dune_auth, transport, "sources" not found by the parse, another answer: asked again
 // after AIO_PG_FAIL_S). No connection, a timeout or 5xx: no request in
@@ -801,11 +821,14 @@ function aio_pg_token()
  */
 function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
 {
+    $links = aio_pg_links();
+    $need = aio_pg_no_seasons(isset($links[$mid]) ? $links[$mid] : null);
     $l = isset(AioPgLinks::$shell_seen[$mid]) ? null : aio_pg_shell_pair($mid);
     if ($l)
     {
         aio_pg_link_put($mid, $l);
-        return array('st' => 'pair', 'link' => $l);
+        if (!$need || isset($l['seasons']))
+            return array('st' => 'pair', 'link' => $l);
     }
     if (!preg_match('/^[0-9a-f]{24}$/D', $mid))
         return array('st' => 'none', 'link' => null);
@@ -836,9 +859,17 @@ function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
     // Only the number of curl: its text may hold the address.
     $why = $err !== '' ? (preg_match('/^curl [0-9]+/', $err, $e) ? $e[0] : ($err === AIO_HTTP_TOO_BIG ? 'too big' : 'failed')) :
         "HTTP $code";
-    aio_log(sprintf('link: movie/%s %d B, %.0f ms, %s, %s%s', $mid, strlen($body), (microtime(true) - $t) * 1000, $why, $st,
-        $down ? ', pause' : ''));
-    aio_pg_link_put($mid, $st === 'pair' ? $l : array($st => time()));
+    $got = $st === 'pair' && isset($l['seasons']);
+    aio_log(sprintf('link: movie/%s %d B, %.0f ms, %s, %s%s%s', $mid, strlen($body), (microtime(true) - $t) * 1000, $why, $st,
+        $need ? ($got ? ', seasons' : ', no seasons') : '', $down ? ', pause' : ''));
+    aio_pg_link_put($mid, $st === 'pair' ? $l : array($st => time()), !$need || $got);
+    if ($need && !$got)
+    {
+        $links = aio_pg_links();
+        $links[$mid]['sq'] = time();
+        AioPgLinks::$links = $links;
+        aio_pg_links_save();
+    }
     return array('st' => $st, 'link' => $l);
 }
 
@@ -853,8 +884,9 @@ function aio_pg_paused()
     return $left > 0 && $left <= AIO_PG_PAUSE_S ? $left : 0;
 }
 
-// The cards a step asks for (aio_pg_link_step): with no pair, the latest first, records that ended within
-// AIO_PG_LINK_AGE_S, a failure older than AIO_PG_FAIL_S, ids of the Dune. -> movie_ids.
+// The cards a step asks for (aio_pg_link_step): of aio_pg_wanted, the latest first, records that ended within
+// AIO_PG_LINK_AGE_S, a failure older than AIO_PG_FAIL_S (sq of a series with no seasons too), ids of the Dune.
+// -> movie_ids.
 /**
  * @return list<string>
  */
@@ -863,12 +895,13 @@ function aio_pg_link_queue()
     $now = time();
     $links = aio_pg_links();
     $out = array();
-    foreach (aio_pg_unlinked() as $mid => $end)
+    foreach (aio_pg_wanted() as $mid => $end)
     {
         $mid = strval($mid);
         if ($end <= 0 || $now - $end > AIO_PG_LINK_AGE_S || !preg_match('/^[0-9a-f]{24}$/D', $mid))
             continue;
-        if (isset($links[$mid]['fail']) && $now - $links[$mid]['fail'] >= 0 && $now - $links[$mid]['fail'] < AIO_PG_FAIL_S)
+        $t = isset($links[$mid]['fail']) ? $links[$mid]['fail'] : (isset($links[$mid]['sq']) ? $links[$mid]['sq'] : null);
+        if ($t !== null && $now - $t >= 0 && $now - $t < AIO_PG_FAIL_S)
             continue;
         $out[] = $mid;
     }
