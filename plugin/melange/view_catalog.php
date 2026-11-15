@@ -2470,22 +2470,33 @@ function aio_catv_invalidate($url)
             PluginInvalidateFoldersActionData::all_except => false));
 }
 
-// Back from the player (aio_finish), the action $post of the list of streams: the main screens of rows opened (AioCat::$mains)
-// invalidated first, the row "Continue" and the badges of the history anew when the shell is back on one (O2: whether
-// a screen under the card is built again, the focus kept, is not proven); none opened: $post as it is.
+// The main screens of rows opened (AioCat::$mains) invalidated first, then $post: the row "Continue" and the badges of
+// the history anew when the shell is back on one (O2: whether a screen under the card is built again, the focus kept,
+// is not proven); none opened: $post as it is. $why: for the log.
+/**
+ * @param AioAction|null $post
+ * @param string $why
+ * @return AioAction|null
+ */
+function aio_catv_mains_anew($post, $why)
+{
+    if (!AioCat::$mains)
+        return $post;
+    aio_log("catalog: invalidate $why: " . implode(', ', AioCat::$mains));
+    $a = aio_catv_invalidate(AioCat::$mains[0]);
+    $a[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = AioCat::$mains;
+    $a[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $post;
+    return $a;
+}
+
+// Back from the player (aio_finish), the action $post of the list of streams: aio_catv_mains_anew.
 /**
  * @param AioAction|null $post
  * @return AioAction|null
  */
 function aio_catv_after_player($post)
 {
-    if (!AioCat::$mains)
-        return $post;
-    aio_log('catalog: invalidate after the player: ' . implode(', ', AioCat::$mains));
-    $a = aio_catv_invalidate(AioCat::$mains[0]);
-    $a[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = AioCat::$mains;
-    $a[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $post;
-    return $a;
+    return aio_catv_mains_anew($post, 'after the player');
 }
 
 // The tick of the timer of "Show all" $url, memory only. The view of stubs and the end known or

@@ -280,6 +280,7 @@ cp_row_continue = Continue Watching
 cp_hide = Remove from Continue Watching
 cp_mark_on = Mark as watched
 cp_err_link = Could not open the title: no connection. Try again later
+cp_err_mark = Could not mark: no connection. Try again later
 cat_title = Catalog
 cat_more = Show all
 cat_len_h = {n}h

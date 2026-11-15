@@ -726,11 +726,10 @@ function aio_oc_mark_items($key, $c, $prog, $pos)
 }
 
 // card_mark of MENU of an episode (aio_oc_mark_items: s, e of the meta, w: on, off, prev) of series
-// card $c ($key) -> update_watched_marks: on/off the episode, prev the episodes out before it
-// (aio_oc_prev_eps), the mark of the own card (aio_wh_mark_uid) of each and the uids of the records
-// of our releases of it (aio_wh_ours_eps); then the card anew in place, the focus on the episode
-// (the shell has written watched_files.txt by then); the badges of the catalog read the history anew
-// (aio_pg_stale). Nothing for a bad input.
+// card $c ($key) -> update_watched_marks (aio_pg_mark_act): on/off the episode, prev the episodes out before it
+// (aio_oc_prev_eps), the mark of the own card of each and the uids of the records of our releases of it
+// (aio_wh_mark_ids); then aio_oc_mark_post, the focus on the episode (the shell has written watched_files.txt by
+// then). Nothing for a bad input.
 /**
  * @param string $key
  * @param AioOcCard $c
@@ -752,30 +751,11 @@ function aio_oc_mark($key, $c, $in)
     $keys = $w === 'prev' ? aio_oc_prev_eps($c, $s, $e) : array(aio_cm_hkey($c['meta'], $s, $e));
     if (!$keys)
         return null;
-    $recs = aio_wh_ours_eps($c['dune'], $keys);
-    $ids = array();
-    $nr = 0;
-    foreach ($keys as $k)
-    {
-        list($q, $n) = explode(':', $k);
-        $ids[] = aio_wh_mark_uid($c['dune'], $q, intval($n));
-        if (isset($recs[$k]))
-        {
-            $nr += count($recs[$k]);
-            foreach ($recs[$k] as $u)
-                $ids[] = $u;
-        }
-    }
+    $ids = aio_wh_mark_ids($c['dune'], $keys);
     AioOc::$cards[$key]['pos'] = array_merge($c['pos'], array('z' => 'row', 'p' => 0, 's' => $s, 'e' => $e));
-    aio_log("card: own $key: mark $w on S{$s}E{$e}: " . count($keys) . " episodes, $nr uids of records");
-    aio_pg_stale();
-    return array(
-        GuiAction::handler_string_id => UPDATE_WATCHED_MARKS_ACTION_ID,
-        GuiAction::data => array(
-            UpdateWatchedMarksActionData::item_ids => $ids,
-            UpdateWatchedMarksActionData::movie_ids => array(),
-            UpdateWatchedMarksActionData::watched => $w !== 'off',
-            UpdateWatchedMarksActionData::post_action => aio_replace_act("card:$key", $c['tile']['name'])));
+    aio_log("card: own $key: mark $w on S{$s}E{$e}: " . count($keys) . ' episodes, ' . (count($ids) - count($keys)) .
+        ' uids of records');
+    return aio_pg_mark_act($ids, array(), $w !== 'off', aio_oc_mark_post($key, $c));
 }
 
 // ENTER on "did not load" of series card $c ($key): the meta asked again; got - the card anew with

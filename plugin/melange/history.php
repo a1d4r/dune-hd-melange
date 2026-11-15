@@ -752,6 +752,46 @@ function aio_wh_ours_eps_visit($w, $arg, &$acc)
     return false;
 }
 
+// The uids update_watched_marks marks for episodes $keys ("q:e" as asked, aio_cm_hkey) of the series of card $dune_id:
+// the mark of the own card of each (aio_wh_mark_uid), then the uids of the records of our releases of it
+// (aio_wh_ours_eps), in the order of $keys.
+/**
+ * @param string $dune_id
+ * @param list<string> $keys
+ * @return list<string>
+ */
+function aio_wh_mark_ids($dune_id, $keys)
+{
+    $recs = aio_wh_ours_eps($dune_id, $keys);
+    $ids = array();
+    foreach ($keys as $k)
+    {
+        list($q, $n) = explode(':', $k);
+        $ids[] = aio_wh_mark_uid($dune_id, $q, intval($n));
+        foreach (isset($recs[$k]) ? $recs[$k] : array() as $u)
+            $ids[] = $u;
+    }
+    return $ids;
+}
+
+// The uids of card $dune_id marked in watched_files.txt (aio_wh_marked_set): the marks of the own card and of the
+// records of our releases ("aio:<dune id>:..."), as they are; no request, the history not read.
+/**
+ * @param string $dune_id
+ * @return list<string>
+ */
+function aio_wh_marked_of($dune_id)
+{
+    $p = AIO_SUP_ID . ":$dune_id:";
+    $out = array();
+    foreach (aio_wh_marked_set() as $uid => $ts)
+    {
+        if ($dune_id !== '' && strncmp(strval($uid), $p, strlen($p)) === 0)
+            $out[] = strval($uid);
+    }
+    return $out;
+}
+
 // "Continue watching" of a series ($r of aio_resume): the episode recorded,
 // from its position; once it is watched the next one (aio_wh_next) from 0,
 // 'next' set: its release must have it in its file. Watched: with wh_len by the

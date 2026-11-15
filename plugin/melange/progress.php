@@ -216,6 +216,70 @@ function aio_pg_stale()
     AioPg::$sig_t = 0.0;
 }
 
+// --- Marks "watched" (update_watched_marks of the shell): the row "Continue", POP UP of a tile, MENU of the own card.
+
+// What a mark of card $mid of the type $type would do, of the state of the history only (no request): 'on' (not
+// watched), 'off' (watched by a mark: a movie marked in watched_movies.txt or by the mark of its record; a series
+// watched whole by its badge, aio_pg_badge: all its episodes out, or marked in watched_movies.txt with no list of
+// them), '' (a movie watched by its position: no mark takes it off, as an episode of the own card).
+/**
+ * @param string $mid
+ * @param string $type
+ * @return string
+ */
+function aio_pg_mark_kind($mid, $type)
+{
+    $idx = aio_pg_index();
+    $ent = $mid !== '' && isset($idx[$mid]) ? $idx[$mid] : null;
+    if (!$ent)
+        return 'on';
+    if ($type === 'series')
+    {
+        $b = aio_pg_badge($ent, true, $mid);
+        return $b && $b['all'] ? 'off' : 'on';
+    }
+    if ($ent['movie_mark'])
+        return 'off';
+    if (!$ent['seen'])
+        return 'on';
+    list(, , $pos, $len) = aio_wh_rec($ent['w'] ? $ent['w'] : new stdClass());
+    return aio_wh_full($pos, $len) ? '' : 'off';
+}
+
+// The uids "Снять отметку" of the movie of card $mid takes off with its movie_ids: of its latest record (aio_pg_index)
+// if marked.
+/**
+ * @param string $mid
+ * @return list<string>
+ */
+function aio_wh_movie_off_ids($mid)
+{
+    $idx = aio_pg_index();
+    $rec = isset($idx[$mid]['w']) ? aio_wh_rec($idx[$mid]['w']) : null;
+    return $rec && $rec[4] !== '' && aio_wh_marked($rec[4]) ? array($rec[4]) : array();
+}
+
+// update_watched_marks of uids $ids and cards $movie_ids, watched $on, then $post; the badges read the history anew
+// (aio_pg_stale: the shell writes the files before $post).
+/**
+ * @param list<string> $ids
+ * @param list<string> $movie_ids
+ * @param bool $on
+ * @param AioAction|null $post
+ * @return AioAction
+ */
+function aio_pg_mark_act($ids, $movie_ids, $on, $post)
+{
+    aio_pg_stale();
+    return array(
+        GuiAction::handler_string_id => UPDATE_WATCHED_MARKS_ACTION_ID,
+        GuiAction::data => array(
+            UpdateWatchedMarksActionData::item_ids => $ids,
+            UpdateWatchedMarksActionData::movie_ids => $movie_ids,
+            UpdateWatchedMarksActionData::watched => $on,
+            UpdateWatchedMarksActionData::post_action => $post));
+}
+
 // Begun by the row "Continue": AIO_PG_BEGUN_S or AIO_PG_BEGUN_PCT of $len watched.
 /**
  * @param float $pos
@@ -235,7 +299,9 @@ function aio_pg_begun($pos, $len)
 // for a tile of a series whatever the latest record (a file or a trailer with no S/E); none such: a tile of a
 // series none, else the latest record with no S/E as of a movie, watched (by itself) or begun (aio_pg_begun). An
 // episode watched, $mid (the card) given: the next one by the pair (aio_pg_badge_next). The card marked in
-// watched_movies.txt: watched; a series (episodes in the history, or $series: the tile is one) - all of it, no episode.
+// watched_movies.txt: watched; a series (episodes in the history, or $series: the tile is one) - all of it, no episode,
+// unless its episodes watched and the list of them (the pair) give the next one (a season out after the mark: "all
+// out watched", decision of the owner; the mark is the way only with no list of them).
 // -> pos, len (s, 0: none), watched (the movie or the episode), s and e (-1: none), all (a series watched whole: all its
 // episodes out or marked whole), next (s, e: the episode after the watched one); null: none.
 /**
@@ -265,10 +331,11 @@ function aio_pg_badge($ent, $series = false, $mid = '')
         if ($ent['seen'] || aio_pg_begun($pos, $len))
             $b = array('pos' => max(0.0, $pos), 'len' => $len, 'watched' => $ent['seen'], 's' => -1, 'e' => -1, 'all' => false, 'next' => false);
     }
-    if ($ent['movie_mark'])
+    $nb = $b && $mid !== '' && $st && $b['e'] >= 0 && $b['watched'] ? aio_pg_badge_next($b, $st, $mid) : $b;
+    if ($ent['movie_mark'] && !($nb && $nb['next']))
         return array('pos' => 0.0, 'len' => 0.0, 'watched' => true, 's' => -1, 'e' => -1, 'all' => $series || $st || $ep,
             'next' => false);
-    return $b && $mid !== '' && $st && $b['e'] >= 0 && $b['watched'] ? aio_pg_badge_next($b, $st, $mid) : $b;
+    return $nb;
 }
 
 // The badge $b of a watched episode of the series of card $mid of state $st (AioWhSeries) by the episodes of its pair

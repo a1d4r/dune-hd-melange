@@ -315,7 +315,7 @@ function aio_cp_hide($mid)
 // --- POP UP of a tile of the catalog and the tab "TV".
 
 // The card of the Dune of tile $t now: of its id of the row "Continue" ($mid), else by the pairs (aio_pg_tile_card),
-// else asked (aio_card_id, as ENTER: the pair kept). -> array(movie_id, '' none; why none: cp_err_link - no answer,
+// else asked (aio_card_id, as ENTER: the pair kept). -> array(movie_id, '' none; why none: cp_err_mark - no answer,
 // card_none_title - the Dune has no card of it).
 /**
  * @param AioCatTile $t
@@ -330,32 +330,12 @@ function aio_cp_card_of($t, $mid)
     if ($mid !== '')
         return array($mid, '');
     $c = aio_card_id($t);
-    return array($c['id'], $c['id'] !== '' ? '' : ($c['none'] ? 'card_none_title' : 'cp_err_link'));
-}
-
-// What a mark of card $mid of the type $type would do: 'on' (not watched), 'off' (watched by a mark: a movie or a
-// series marked in watched_movies.txt, a movie by the mark of its record), '' (a movie watched by its position: no
-// mark takes it off, as an episode of the own card).
-/**
- * @param string $mid
- * @param string $type
- * @return string
- */
-function aio_cp_mark_kind($mid, $type)
-{
-    $idx = aio_pg_index();
-    $ent = $mid !== '' && isset($idx[$mid]) ? $idx[$mid] : null;
-    if (!$ent || $ent['movie_mark'])
-        return $ent ? 'off' : 'on';
-    if ($type === 'series' || !$ent['seen'])
-        return 'on';
-    list(, , $pos, $len) = aio_wh_rec($ent['w'] ? $ent['w'] : new stdClass());
-    return aio_wh_full($pos, $len) ? '' : 'off';
+    return array($c['id'], $c['id'] !== '' ? '' : ($c['none'] ? 'card_none_title' : 'cp_err_mark'));
 }
 
 // The items of POP UP of tile $id of screen $from (a main screen of the catalog, an EPF of "TV"), first, before a
 // separator: on the row "Continue" "Убрать из «Продолжить»", then "Отметить просмотренным" / "Снять отметку"
-// (aio_cp_mark_kind; the card not known yet: "Отметить", asked at it). None but on a tile of a title.
+// (aio_pg_mark_kind; the card not known yet: "Отметить", asked at it). None but on a tile of a title.
 /**
  * @param string $id
  * @param string $from
@@ -374,7 +354,7 @@ function aio_cp_menu_items($id, $from, $lang)
         $items[] = array(GuiMenuItemDef::caption => aio_tr($lang, 'cp_hide'), GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'cancel_small.png',
             GuiMenuItemDef::action => aio_input('cat_hide', $p));
     $card = $mid !== '' ? $mid : aio_pg_tile_card($t, aio_pg_index());
-    $w = aio_cp_mark_kind($card, $t['type']);
+    $w = aio_pg_mark_kind($card, $t['type']);
     if ($w !== '')
         $items[] = array(GuiMenuItemDef::caption => aio_tr($lang, $w === 'on' ? 'cp_mark_on' : 'card_mark_off'),
             GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'watched_small.png',
@@ -413,11 +393,13 @@ function aio_cp_hide_act($in)
 }
 
 // "Отметить просмотренным" / "Снять отметку" ($in->w on, off) of tile $in->item of screen $in->from: the card of the
-// Dune (aio_cp_card_of: a request as ENTER without a pair), then update_watched_marks: a movie - movie_ids, off also
-// the uid of its latest record if marked; a series - the whole of it (the owner): movie_ids and the marks of the own
-// card of every episode out (the meta asked now, aio_cm_get, and aio_cm_eps_before) with the uids of the records of
-// our releases of them (aio_wh_ours_eps), as "Отметить предыдущие" of the own card. The badges read the history
-// anew (aio_pg_stale), post_action: aio_cp_after. No card, no meta: the message.
+// Dune (aio_cp_card_of: a request as ENTER without a pair), then update_watched_marks (aio_pg_mark_act): a movie -
+// movie_ids, off also the uid of its latest record if marked (aio_wh_movie_off_ids); a series on - the whole of it (the
+// owner): movie_ids and the marks of the own card of every episode out (the meta asked now, aio_cm_get, and
+// aio_cm_eps_before) with the uids of the records of our releases of them (aio_wh_mark_ids), as "Отметить предыдущие"
+// of the own card; a tile of the row with no pair ("dune:<movie_id>") gets it first (aio_pg_link_now, as ENTER); a
+// series off - movie_ids and every uid of the card marked (aio_wh_marked_of: no request, no meta). post_action:
+// aio_cp_after. No card, no pair, no meta: the message cp_err_mark (the reason in the log).
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -430,39 +412,36 @@ function aio_cp_mark($in)
     $t = $w === 'on' || $w === 'off' ? aio_catv_tile($id, aio_tv_is_from($from)) : null;
     if (!$t)
         return $w === 'on' || $w === 'off' ? aio_error('cat_outdated') : null;
-    list($mid, $err) = aio_cp_card_of($t, aio_cp_mid_of($id));
+    $cp = aio_cp_mid_of($id);
+    list($mid, $err) = aio_cp_card_of($t, $cp);
     if ($mid === '')
         return aio_error($err);
     $ids = array();
-    if ($t['type'] === 'series')
+    if ($t['type'] === 'series' && $w === 'off')
+        $ids = aio_wh_marked_of($mid);
+    else if ($t['type'] === 'series')
     {
+        $links = aio_pg_links();
+        if ($cp !== '' && (!isset($links[$mid]) || isset($links[$mid]['fail'])))
+        {
+            $r = aio_pg_link_now($mid, AIO_PG_LINK_S);
+            aio_log("continue: mark: the pair asked: {$r['st']}");
+            $t = $r['st'] === 'fail' ? null : aio_cp_tile($mid);
+            if (!$t)
+                return aio_error('cp_err_mark');
+        }
+        if (aio_cm_id($t) === '')
+            return aio_error('err_no_imdb');
         $g = aio_cm_get($t);
         if (!$g['meta'])
-            return aio_error('cp_err_link', $g['err']);
-        $keys = aio_cm_eps_before($g['meta'], PHP_INT_MAX, 0);
-        $recs = aio_wh_ours_eps($mid, $keys);
-        foreach ($keys as $k)
         {
-            list($q, $n) = explode(':', $k);
-            $ids[] = aio_wh_mark_uid($mid, $q, intval($n));
-            foreach (isset($recs[$k]) ? $recs[$k] : array() as $u)
-                $ids[] = $u;
+            aio_log("continue: mark: no meta ({$g['err']})");
+            return aio_error('cp_err_mark');
         }
+        $ids = aio_wh_mark_ids($mid, aio_cm_eps_before($g['meta'], PHP_INT_MAX, 0));
     }
     else if ($w === 'off')
-    {
-        $idx = aio_pg_index();
-        $rec = isset($idx[$mid]['w']) ? aio_wh_rec($idx[$mid]['w']) : null;
-        if ($rec && $rec[4] !== '' && aio_wh_marked($rec[4]))
-            $ids[] = $rec[4];
-    }
+        $ids = aio_wh_movie_off_ids($mid);
     aio_log("continue: mark $w of $mid ({$t['type']}): " . count($ids) . ' uids');
-    aio_pg_stale();
-    return array(
-        GuiAction::handler_string_id => UPDATE_WATCHED_MARKS_ACTION_ID,
-        GuiAction::data => array(
-            UpdateWatchedMarksActionData::item_ids => $ids,
-            UpdateWatchedMarksActionData::movie_ids => array($mid),
-            UpdateWatchedMarksActionData::watched => $w === 'on',
-            UpdateWatchedMarksActionData::post_action => aio_cp_after($from, "a mark $w")));
+    return aio_pg_mark_act($ids, array($mid), $w === 'on', aio_cp_after($from, "a mark $w"));
 }
