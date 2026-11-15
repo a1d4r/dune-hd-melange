@@ -2,7 +2,7 @@
 
 **English version**
 
-## Unreleased
+## 0.60.1 — 15.11.2026
 - Fixed: the release list no longer shows the Comet row "Scraping in progress, please try again in a few seconds...", which had nothing to play. If no other releases are found, Melange shows the usual "AIOStreams found no streams".
 - Fixed: in the own card of a series, MENU on an episode now says **Mark as watched** and **Mark as unwatched**. The old **Watched** next to the check mark looked as if the episode had already been watched.
 - Fixed: on r24 firmware, starting a film or an episode from Melange sometimes threw you out to the Dune home screen, and the player did not open.
@@ -243,7 +243,7 @@ First public release. What it does:
 
 **Russian version**
 
-## Не выпущено
+## 0.60.1 — 15.11.2026
 - Исправлено: в списке раздач больше не появляется строка Comet «Scraping in progress, please try again in a few seconds...», из которой нечего запустить. Если других раздач нет, Melange покажет обычное «AIOStreams не нашёл потоков».
 - Исправлено: в своей карточке сериала MENU на серии теперь предлагает «Отметить просмотренной» и «Снять отметку». Раньше пункт «Просмотрено» с галочкой выглядел так, будто серия уже просмотрена.
 - Исправлено: на прошивке r24 запуск фильма или серии из Melange иногда выкидывал на главный экран Дюны, плеер не открывался.
