@@ -38,6 +38,8 @@ fi
 
 version=$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' "$manifest")
 out="$root/dist/dune_plugin_${name}_$version.zip"
+# The date of this build, shown on the settings page (cgi/lib/home.php); not in git.
+date -u +%Y-%m-%d >"$src/build_date.txt"
 mkdir -p "$root/dist"
 rm -f "$out"
 # Own settings and addresses never go into the zip; nor the source of the

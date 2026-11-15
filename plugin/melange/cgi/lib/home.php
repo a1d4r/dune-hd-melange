@@ -175,7 +175,49 @@ function aio_cgi_home($v)
         }
         $out .= '</div>';
     }
-    return $out;
+    return $out . aio_cgi_about();
+}
+
+// The date of the build of the plugin: build.sh writes build_date.txt (YYYY-MM-DD) next to
+// dune_plugin.xml, a checkout has none; as the page shows it, '' for none or another text.
+function aio_cgi_build_date()
+{
+    $f = dirname(dirname(dirname(__FILE__))) . '/build_date.txt';
+    $d = is_file($f) ? trim((string) @file_get_contents($f)) : '';
+    return preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})\z/', $d, $m) ? aio_cgi_l("$m[3].$m[2].$m[1]", $d) : '';
+}
+
+// A line of the blocks of aio_cgi_about: $val on the right; with $url a link in a new tab, without the
+// address of the page (it has the token).
+function aio_cgi_about_row($title, $val = '', $url = '')
+{
+    $in = '<span class="dot none"></span><span class="rt"><span class="t">' . aio_cgi_h($title) . '</span></span>' .
+        ($val !== '' ? '<span class="rv">' . aio_cgi_h($val) . '</span>' : '');
+    return $url === '' ? '<div class="row">' . $in . '</div>' : '<a class="row" href="' . aio_cgi_h($url) .
+        '" target="_blank" rel="noopener noreferrer">' . $in . '<span class="chev">›</span></a>';
+}
+
+// "О Melange" and "Поддержать автора" at the bottom of the main screen (0.60.2): the version, the date
+// of the build (none: no line), the r of the firmware, the channel; the donations and the referral
+// links of Debrid. AIOStreams, JacRed and Debrid are in the lines above: not repeated.
+function aio_cgi_about()
+{
+    $date = aio_cgi_build_date();
+    $r = aio_fw_r();
+    return '<h3 class="gh">' . aio_cgi_l('О Melange', 'About Melange') . '</h3><div class="list">' .
+        aio_cgi_about_row(aio_cgi_l('Версия', 'Version'), AIO_VERSION) .
+        ($date !== '' ? aio_cgi_about_row(aio_cgi_l('Сборка', 'Built'), $date) : '') .
+        aio_cgi_about_row(aio_cgi_l('Прошивка Дюны', 'Dune firmware'), $r > 0 ? "r$r" : aio_cgi_l('не определена', 'unknown')) .
+        aio_cgi_about_row(aio_cgi_l('Telegram-канал автора', 'The author\'s Telegram channel'), '', 'https://t.me/arrakis_vibecode') .
+        '</div><h3 class="gh">' . aio_cgi_l('Поддержать автора', 'Support the author') . '</h3><div class="list">' .
+        aio_cgi_about_row(aio_cgi_l('Донат через Т-Банк', 'Donate via T-Bank'), '', 'https://t.tb.ru/pm_short/1vlgJXv58ZY') .
+        aio_cgi_about_row(aio_cgi_l('Донат через ЮMoney', 'Donate via YooMoney'), '',
+            'https://yoomoney.ru/fundraise/1LATTUJ81C4.261103') .
+        aio_cgi_about_row(aio_cgi_l('Подписка Real-Debrid', 'Real-Debrid subscription'), '', 'https://real-debrid.com/?id=20188550') .
+        aio_cgi_about_row(aio_cgi_l('Подписка TorBox', 'TorBox subscription'), '',
+            'https://torbox.app/subscription?referral=2339fa70-a03e-41f0-a414-9c96f0791bb1') .
+        '</div><p class="hint">' . aio_cgi_l('Оформите подписку Debrid по ссылке автора, так вы поддержите Melange.',
+        'Subscribing to Debrid via the author\'s link supports Melange.') . '</p>';
 }
 
 // A screen of the page: shown by :target (the CSS), back to #home.
