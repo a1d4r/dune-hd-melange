@@ -201,8 +201,9 @@ function aio_mlv_entry($key)
     return null;
 }
 
-// The tile of the entry of key $key for the info panel, ENTER and POP UP: a tile of a row in memory of its IMDb, else
-// of its TMDB of its type (it has a description), else the tile of the entry (aio_ml_tile); null for no such entry.
+// The tile of the entry of key $key for the info panel, ENTER and POP UP: as of the row "Continue" (aio_cp_best_tile: a
+// tile of a row in memory, else of the meta kept; no request for an entry not of the history), else the tile of the
+// entry (aio_ml_tile); null for no such entry.
 /**
  * @param string $key
  * @return AioCatTile|null
@@ -213,7 +214,7 @@ function aio_mlv_tile($key)
     if (!$e)
         return null;
     $t = aio_ml_tile($e);
-    $m = aio_cp_tile_find($t['type'], $t['imdb_id'], $t['_tmdbId']);
+    $m = aio_cp_best_tile($t['type'], $t['imdb_id'], $t['_tmdbId']);
     return $m ? $m : $t;
 }
 

@@ -167,11 +167,32 @@ function aio_cp_tile_find($type, $imdb, $tmdb)
     return $by_tmdb;
 }
 
-// The tile of card $mid of the history for the info panel and ENTER: a tile of a row in memory ($map, aio_cp_tile_map;
-// null: aio_cp_tile_find) of its IMDb, else of its TMDB of its type, of the pair (it has a description), else the tile
-// of its meta kept (aio_cpm_tile, cp_meta.php: asked lazily, or of the own card), else one of the pair and the latest
-// record (title, poster); no pair: of the record alone, id "dune:<movie_id>", no ids (ENTER asks the pair,
-// aio_cp_enter). null: no record. $rec: the tile is of the pair and the record alone.
+// The best tile of no request of a title of type $type with IMDb $imdb, else TMDB $tmdb ('': none): a tile of a row in
+// memory ($map, aio_cp_tile_map; null: aio_cp_tile_find; it has a description), else the tile of its meta kept
+// (aio_cpm_tile, cp_meta.php: asked lazily, or of the own card); null: neither (the caller has a tile of its own record:
+// of the history, of "Мой список", of the Favorites of the Dune).
+/**
+ * @param string $type
+ * @param string $imdb
+ * @param string $tmdb
+ * @param array<string, AioCatTile>|null $map
+ * @return AioCatTile|null
+ */
+function aio_cp_best_tile($type, $imdb, $tmdb, $map = null)
+{
+    if ($map === null)
+        $t = aio_cp_tile_find($type, $imdb, $tmdb);
+    else if ($imdb !== '' && isset($map["$type|imdb:$imdb"]))
+        $t = $map["$type|imdb:$imdb"];
+    else
+        $t = $tmdb !== '' && isset($map["$type|tmdb:$tmdb"]) ? $map["$type|tmdb:$tmdb"] : null;
+    return $t ? $t : aio_cpm_tile($type, $imdb, $tmdb);
+}
+
+// The tile of card $mid of the history for the info panel and ENTER: the best tile of its pair (aio_cp_best_tile: of a
+// row in memory, else of the meta kept), else one of the pair and the latest record (title, poster); no pair: of the
+// record alone, id "dune:<movie_id>", no ids (ENTER asks the pair, aio_cp_enter). null: no record. $rec: the tile is of
+// the pair and the record alone.
 /**
  * @param string $mid
  * @param array<string, AioCatTile>|null $map
@@ -192,14 +213,7 @@ function aio_cp_tile($mid, $map = null, &$rec = false)
     $type = isset($l['type']) ? $l['type'] : ($ent['series'] ? 'series' : 'movie');
     $imdb = isset($l['imdb']) ? $l['imdb'] : '';
     $tmdb = $type === 'series' ? (isset($l['tmdbtv']) ? $l['tmdbtv'] : '') : (isset($l['tmdb']) ? $l['tmdb'] : '');
-    if ($map === null)
-        $t = aio_cp_tile_find($type, $imdb, $tmdb);
-    else if ($imdb !== '' && isset($map["$type|imdb:$imdb"]))
-        $t = $map["$type|imdb:$imdb"];
-    else
-        $t = $tmdb !== '' && isset($map["$type|tmdb:$tmdb"]) ? $map["$type|tmdb:$tmdb"] : null;
-    if (!$t)
-        $t = aio_cpm_tile($type, $imdb, $tmdb);
+    $t = aio_cp_best_tile($type, $imdb, $tmdb, $map);
     if ($t)
         return $t;
     $rec = true;
