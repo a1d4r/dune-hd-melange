@@ -193,6 +193,8 @@ parameters:
         AioPgBadge: 'array{pos: float, len: float, watched: bool, s: int, e: int, all: bool, next: bool}'
         # A pair of a card of the Dune (aio_pg_links, links.php): its ids, or none / fail with a time.
         AioPgLink: 'array{imdb?: string, tmdb?: string, tmdbtv?: string, type?: string, seasons?: array<int, int>, soon?: array<string, string>, src?: string, on?: int, sq?: int, none?: int, fail?: int}'
+        # The meta of a tile of the row "Continue" kept (aio_cpm_read, cp_meta.php): when written, its tile (null: a failure).
+        AioCpmEntry: 'array{t: int, tile: AioCatTile|null}'
         # "Continue watching" of play_action (aio_resume, main.php; next:
         # aio_wh_resume_ep, history.php).
         AioResume: 'array{hash: string, mode: string, s: int, e: int, pos: int, len: int, uid: string, next: bool}'

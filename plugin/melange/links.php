@@ -1,7 +1,8 @@
 <?php
 // The pairs card of the Dune (movie_id) -> IMDb / TMDB for the badges of the history (progress.php): kept in a
 // file of data_dir; found by play_action, ENTER, the cards the shell keeps and, lazily, a request of the card
-// to the dunemdb API: r24 in an opening of the catalog, r25 at the tick of the timer of its screen (aio_pg_tick).
+// to the dunemdb API: r24 in an opening of the catalog, r25 at the tick of the timer of its screen (aio_pg_tick); the
+// lazy meta of the row "Continue" after them (cp_meta.php, aio_cpm_step).
 // Needs progress.php (aio_pg_index), main.php (aio_log, aio_write_file, aio_data_dir, aio_http_get,
 // AIO_DUNE_ID, AIO_HTTP_TOO_BIG), parse.php (aio_str), catalog.php (AIO_CAT_MAX_BYTES), catalog_card.php
 // (aio_card_token, aio_card_api).
@@ -94,7 +95,8 @@ function aio_pg_rows_answered()
 }
 
 // r24: the screen is made, $left s of its opening left, $net: rows of it went to the server in it (old or no
-// copies). The lazy pairs now, only with $net: an opening of rows of memory or the cache stays at once.
+// copies). The lazy pairs now, then the lazy meta of the row "Continue" (aio_cpm_step) in what is left of the time
+// of the step, only with $net: an opening of rows of memory or the cache stays at once.
 /**
  * @param float $left
  * @param bool $net
@@ -102,15 +104,19 @@ function aio_pg_rows_answered()
  */
 function aio_pg_screen_built($left, $net)
 {
-    if ($net && $left >= 1)
-        aio_pg_link_step(min($left, AIO_PG_LINK_S));
+    if (!$net || $left < 1)
+        return;
+    $t = microtime(true);
+    $limit = min($left, AIO_PG_LINK_S);
+    $n = aio_pg_link_step($limit);
+    aio_cpm_step($limit - (microtime(true) - $t), AIO_CPM_N - $n);
 }
 
 // r25: the main screen of rows $url is made: the step goes to the tick of its timer (AIO_PG_TICK_MS, once), after
-// the rows of the window of the shell (get_folder_rows), as php_server answers one call at a time. A timer only
-// with a card to ask (aio_pg_link_queue), no pause and dune_auth; a line of the log when a pause holds it, of no
-// dune_auth once till it comes (AioPgLinks::$no_auth, as aio_pg_token). Back to the screen with no
-// get_folder_view: no timer, no step. -> the timer is set.
+// the rows of the window of the shell (get_folder_rows), as php_server answers one call at a time. A timer with a
+// meta of the row "Continue" to ask (aio_cpm_wanted), else only with a card to ask (aio_pg_link_queue), no pause and
+// dune_auth; a line of the log when a pause holds it, of no dune_auth once till it comes (AioPgLinks::$no_auth, as
+// aio_pg_token). Back to the screen with no get_folder_view: no timer, no step. -> the timer is set.
 /**
  * @param string $url
  * @return bool
@@ -118,6 +124,11 @@ function aio_pg_screen_built($left, $net)
 function aio_pg_tick_set($url)
 {
     AioPgLinks::$screen = $url;
+    if (aio_cpm_wanted())
+    {
+        AioPgLinks::$tick_url = $url;
+        return true;
+    }
     if (!aio_pg_link_queue())
         return false;
     $pause = aio_pg_paused();
@@ -137,10 +148,11 @@ function aio_pg_tick_set($url)
 }
 
 // r25: the tick of the timer of the main screen $url: the step (aio_pg_link_step) once, of one request (a key
-// pressed now waits for it, ~0.5 s), its timeout as of a step. No step: within AIO_PG_ROWS_QUIET_S of a reply of
-// get_folder_rows (the rows of a cold opening wait for php_server; the step of the opening is lost), a second tick
-// of the screen, a tick of another or an old one, a tick with no screen since the start of php_server. A line of
-// the log of each, in its own words.
+// pressed now waits for it, ~0.5 s), its timeout as of a step; then the lazy meta of the row "Continue"
+// (aio_cpm_step) in what is left of that time, AIO_CPM_N requests of the tick at most. No step: within
+// AIO_PG_ROWS_QUIET_S of a reply of get_folder_rows (the rows of a cold opening wait for php_server; the step of the
+// opening is lost), a second tick of the screen, a tick of another or an old one, a tick with no screen since the start
+// of php_server. A line of the log of each, in its own words.
 /**
  * @param string $url
  * @return void
@@ -166,7 +178,9 @@ function aio_pg_tick($url)
         return;
     }
     AioPgLinks::$ticked = true;
-    aio_pg_link_step(AIO_PG_LINK_S, true);
+    $t = microtime(true);
+    $n = aio_pg_link_step(AIO_PG_LINK_S, true);
+    aio_cpm_step(AIO_PG_LINK_S - (microtime(true) - $t), AIO_CPM_N - $n, true);
 }
 
 // --- The pairs.

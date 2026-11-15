@@ -66,6 +66,7 @@ require_once dirname(__FILE__) . '/catalog_card.php';
 require_once dirname(__FILE__) . '/view_catalog.php';
 require_once dirname(__FILE__) . '/view_catalog_rows.php';
 require_once dirname(__FILE__) . '/continue.php';
+require_once dirname(__FILE__) . '/cp_meta.php';
 // "Мой список": its file, POP UP of a tile.
 require_once dirname(__FILE__) . '/my_list.php';
 // The tab "TV" of the main screen.

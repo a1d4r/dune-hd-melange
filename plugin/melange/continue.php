@@ -6,7 +6,7 @@
 // Needs progress.php, links.php, history.php, main.php (aio_tr, aio_log, aio_error, aio_data_dir, aio_file_sig,
 // aio_write_file, AIO_SUP_ID), catalog.php (aio_cat_tile, aio_cat_row_state), catalog_card.php (aio_card_open,
 // aio_card_id), card_meta.php (aio_cm_id, aio_cm_get), view_card_series.php (aio_cm_eps_before), view_catalog.php
-// (aio_catv_*), view_card.php (aio_oc_enter).
+// (aio_catv_*), view_card.php (aio_oc_enter), cp_meta.php (aio_cpm_tile, AioCpm).
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The rid of the row: its tiles are "continue:<movie_id>" (aio_catv_tile), its rows "items:continue", "title:continue".
@@ -167,16 +167,20 @@ function aio_cp_tile_find($type, $imdb, $tmdb)
 }
 
 // The tile of card $mid of the history for the info panel and ENTER: a tile of a row in memory ($map, aio_cp_tile_map;
-// null: aio_cp_tile_find) of its IMDb, else of its TMDB of its type, of the pair (it has a description), else one of the
-// pair and the latest record (title, poster); no pair: of the record alone, id "dune:<movie_id>", no ids (ENTER asks
-// the pair, aio_cp_enter). null: no record.
+// null: aio_cp_tile_find) of its IMDb, else of its TMDB of its type, of the pair (it has a description), else the tile
+// of its meta kept (aio_cpm_tile, cp_meta.php: asked lazily, or of the own card), else one of the pair and the latest
+// record (title, poster); no pair: of the record alone, id "dune:<movie_id>", no ids (ENTER asks the pair,
+// aio_cp_enter). null: no record. $from: row, meta, record (of the pair and the record), none (no record).
 /**
  * @param string $mid
  * @param array<string, AioCatTile>|null $map
+ * @param string $from
+ * @param-out string $from
  * @return AioCatTile|null
  */
-function aio_cp_tile($mid, $map = null)
+function aio_cp_tile($mid, $map = null, &$from = '')
 {
+    $from = 'none';
     $idx = aio_pg_index();
     $ent = isset($idx[$mid]) ? $idx[$mid] : null;
     $w = $ent ? ($ent['series'] && $ent['series'][0] ? $ent['series'][0] : $ent['w']) : null;
@@ -193,8 +197,12 @@ function aio_cp_tile($mid, $map = null)
         $t = $map["$type|imdb:$imdb"];
     else
         $t = $tmdb !== '' && isset($map["$type|tmdb:$tmdb"]) ? $map["$type|tmdb:$tmdb"] : null;
+    $from = $t ? 'row' : 'meta';
+    if (!$t)
+        $t = aio_cpm_tile($type, $imdb, $tmdb);
     if ($t)
         return $t;
+    $from = 'record';
     $id = $imdb !== '' ? $imdb : ($tmdb !== '' ? "tmdb:$tmdb" : "dune:$mid");
     return aio_cat_tile(array('id' => $id, 'name' => isset($w->title) ? $w->title : '-', 'type' => $type, 'imdb_id' => $imdb,
         '_tmdbId' => $tmdb, 'poster' => isset($w->icon) ? $w->icon : ''), $type);
@@ -213,8 +221,9 @@ function aio_cp_badge($mid, $type)
 }
 
 // The row of the types $types ($tab: 'movie', 'series', '' both) for a screen of rows: its title and tiles (the title
-// and the poster of the record, the plate of the rating of a tile of a row in memory, the badge), no "Show all", no
-// flag; none when it is empty. $tiles: its tiles by "continue:<movie_id>" (the file of the tab "TV").
+// and the poster of the record, the plate of the rating of a tile of a row in memory or of the meta kept, the badge),
+// no "Show all", no flag; none when it is empty. $tiles: its tiles by "continue:<movie_id>" (the file of the tab "TV").
+// Its tiles of a pair with neither: AioCpm::$miss, in its order (the lazy meta, aio_cpm_step).
 /**
  * @param string $tab
  * @param string $lang
@@ -227,13 +236,16 @@ function aio_cp_row_defs($tab, $lang, &$tiles = null)
     $tiles = array();
     $items = array();
     $map = null;
+    AioCpm::$miss = array();
     foreach (aio_cp_items($tab === '' ? array('movie', 'series') : array($tab)) as $mid => $it)
     {
         if ($map === null)
             $map = aio_cp_tile_map();
-        $t = aio_cp_tile($mid, $map);
+        $t = aio_cp_tile($mid, $map, $from);
         if (!$t)
             continue;
+        if ($from === 'record' && ($t['imdb_id'] !== '' || $t['_tmdbId'] !== ''))
+            AioCpm::$miss[] = array($t['type'], $t['imdb_id'], $t['_tmdbId']);
         $id = AIO_CP_RID . ":$mid";
         $tiles[$id] = $t;
         $item = aio_catv_item(aio_catv_tile_id($id), isset($it['w']->title) ? aio_clean($it['w']->title) : $t['name'],
