@@ -1,7 +1,7 @@
 <?php
 // The pairs card of the Dune (movie_id) -> IMDb / TMDB for the badges of the history (progress.php): kept in a
 // file of data_dir; found by play_action, ENTER, the cards the shell keeps and, lazily, a request of the card
-// to the dunemdb API; when an opening of the catalog asks for them (aio_pg_screen_start and the rest).
+// to the dunemdb API: r24 in an opening of the catalog, r25 at the tick of the timer of its screen (aio_pg_tick).
 // Needs progress.php (aio_pg_index), main.php (aio_log, aio_write_file, aio_data_dir, aio_http_get,
 // AIO_DUNE_ID, AIO_HTTP_TOO_BIG), parse.php (aio_str), catalog.php (AIO_CAT_MAX_BYTES), catalog_card.php
 // (aio_card_token, aio_card_api).
@@ -29,10 +29,9 @@ define('AIO_PG_LINK_N', 2);
 define('AIO_PG_LINK_S', 3.0);
 define('AIO_PG_LINK_NEXT_S', 1.5);
 define('AIO_PG_LINK_CONNECT', 2);
-// r25: a get_folder_rows of the opening comes this soon after the reply to the one before it (the shell asks
-// the rows of its window one packet after another, ~2-35 ms apart: probe catalog_probe on r25); a later
-// one is of a key, the opening is over. A guess for the rows of the catalog: the line of the log says it.
-define('AIO_PG_CHAIN_S', 0.3);
+// r25: the one tick of the timer of the main screen of rows (aio_pg_tick_set) this long after its opening: the
+// rows of the window of the shell are asked by then, the step does not hold them.
+define('AIO_PG_TICK_MS', 2500);
 // A reply of the API this small is decoded whole when its code is not before "result".
 define('AIO_PG_HEAD_MAX', 65536);
 
@@ -52,58 +51,26 @@ class AioPgLinks
     // The last step found no dune_auth (logged once).
     /** @var bool */
     public static $no_auth = false;
-    // The screen of rows opened last: its flagged rows not answered yet (aio_pg_row_asked), how many were
-    // flagged; its get_folder_rows calls, when the last one was answered (microtime; 0: none yet), the longest
-    // pause before one of them, s; whether its lazy step is over (asked, or the time of it past).
-    /** @var array<string, bool> */
-    public static $asked = array();
-    /** @var int */
-    public static $flagged = 0;
-    /** @var int */
-    public static $calls = 0;
-    /** @var float */
-    public static $last_t = 0.0;
-    /** @var float */
-    public static $gap = 0.0;
-    /** @var bool */
-    public static $linked = false;
+    // r25: the main screen of rows whose timer is set for the lazy step (aio_pg_tick_set); '': none, or its tick came.
+    /** @var string */
+    public static $tick_url = '';
 }
 
 // --- When to link: an opening of the rows of the catalog.
 
 // A screen of rows of the catalog opens: new cards of the history paired by the cards of the shell (before the
-// badges of its tiles), its rows not flagged yet.
+// badges of its tiles); the timer of the screen before it is no more for the step.
 /**
  * @return void
  */
 function aio_pg_screen_start()
 {
-    if (!AioPgLinks::$linked && AioPgLinks::$calls > 0)
-        aio_pg_rows_say('no step');
     aio_pg_shell_step();
-    AioPgLinks::$asked = array();
-    AioPgLinks::$flagged = 0;
-    AioPgLinks::$calls = 0;
-    AioPgLinks::$last_t = 0.0;
-    AioPgLinks::$gap = 0.0;
-    AioPgLinks::$linked = false;
+    AioPgLinks::$tick_url = '';
 }
 
-// Row $rid of the screen goes flagged: the shell asks for it by get_folder_rows (r25).
-/**
- * @param string $rid
- * @return void
- */
-function aio_pg_row_asked($rid)
-{
-    if (!isset(AioPgLinks::$asked[$rid]))
-        AioPgLinks::$flagged++;
-    AioPgLinks::$asked[$rid] = true;
-}
-
-// The screen is made, $left s of its opening left, $net: rows of it went to the server in it (r24, old or no
-// copies). With no row flagged (r24; r25 with all of them fresh) the lazy pairs now, only with $net: an opening
-// of rows of memory or the cache stays at once. Flagged rows: in the reply to a row (aio_pg_row_done).
+// r24: the screen is made, $left s of its opening left, $net: rows of it went to the server in it (old or no
+// copies). The lazy pairs now, only with $net: an opening of rows of memory or the cache stays at once.
 /**
  * @param float $left
  * @param bool $net
@@ -111,59 +78,47 @@ function aio_pg_row_asked($rid)
  */
 function aio_pg_screen_built($left, $net)
 {
-    if (AioPgLinks::$asked || AioPgLinks::$linked || !$net)
-        return;
-    AioPgLinks::$linked = true;
-    if ($left >= 1)
+    if ($net && $left >= 1)
         aio_pg_link_step(min($left, AIO_PG_LINK_S));
 }
 
-// get_folder_rows answered row $rid in a call that came at $start (microtime), $left s of it left. r25: the
-// shell asks for the flagged rows of its window by packets, one right after the reply to the one before (a
-// reply has one row, the rest of a packet is asked again), then one row a key down (probe catalog_probe,
-// 03.11.2026). The lazy pairs once a screen, in the reply that leaves no flagged row of it not answered, all
-// of its calls in a run (AIO_PG_CHAIN_S apart): no row waits for them. A call after a longer pause (a key) ends
-// the opening with no step (php_server answers one call at a time, the key would wait); so does a flagged
-// row the shell does not ask for (out of its window): the line of the log at the next opening.
+// r25: the main screen of rows $url is made: the step goes to the tick of its timer (AIO_PG_TICK_MS, once), after
+// the rows of the window of the shell (get_folder_rows), as php_server answers one call at a time. A timer only
+// with a card to ask (aio_pg_link_queue) and no pause; a line of the log when a pause holds it. Back to the screen
+// with no get_folder_view: no timer, no step. -> the timer is set.
 /**
- * @param string $rid
- * @param float $start
- * @param float $left
+ * @param string $url
+ * @return bool
+ */
+function aio_pg_tick_set($url)
+{
+    if (!aio_pg_link_queue())
+        return false;
+    $pause = aio_pg_paused();
+    if ($pause)
+    {
+        aio_log(sprintf('link: no timer: a pause of the requests, %d s left', $pause));
+        return false;
+    }
+    AioPgLinks::$tick_url = $url;
+    return true;
+}
+
+// r25: the tick of the timer of the main screen $url: the step (aio_pg_link_step) once, on the time of a step. A
+// tick of another screen or a second one: no step. A line of the log either way.
+/**
+ * @param string $url
  * @return void
  */
-function aio_pg_row_done($rid, $start, $left)
+function aio_pg_tick($url)
 {
-    if (AioPgLinks::$linked || !AioPgLinks::$flagged)
-        return;
-    $gap = AioPgLinks::$last_t > 0 ? $start - AioPgLinks::$last_t : 0.0;
-    AioPgLinks::$last_t = microtime(true);
-    if ($gap > AIO_PG_CHAIN_S)
+    if ($url === '' || AioPgLinks::$tick_url !== $url)
     {
-        AioPgLinks::$linked = true;
-        aio_pg_rows_say(sprintf('a pause of %.0f ms: no step', $gap * 1000));
+        aio_log('link: tick: no step, the step was');
         return;
     }
-    AioPgLinks::$calls++;
-    AioPgLinks::$gap = max(AioPgLinks::$gap, $gap);
-    unset(AioPgLinks::$asked[$rid]);
-    if (AioPgLinks::$asked)
-        return;
-    AioPgLinks::$linked = true;
-    aio_pg_rows_say($left >= 1 ? 'the step' : 'no time: no step');
-    if ($left >= 1)
-        aio_pg_link_step(min($left, AIO_PG_LINK_S));
-}
-
-// One line of the log of the get_folder_rows calls of the opening of a screen: how many, the flagged rows
-// answered of all, the longest pause between them, then $what.
-/**
- * @param string $what
- * @return void
- */
-function aio_pg_rows_say($what)
-{
-    aio_log(sprintf('link: rows of the opening: %d calls, %d of %d flagged answered, pauses up to %.0f ms; %s', AioPgLinks::$calls,
-        AioPgLinks::$flagged - count(AioPgLinks::$asked), AioPgLinks::$flagged, AioPgLinks::$gap * 1000, $what));
+    AioPgLinks::$tick_url = '';
+    aio_pg_link_step(AIO_PG_LINK_S, true);
 }
 
 // --- The pairs.
@@ -603,32 +558,57 @@ function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
     return array('st' => $st, 'link' => $l);
 }
 
-// The lazy pairs of an opening: the cards of the history with no pair, the latest first, records that
-// ended within AIO_PG_LINK_AGE_S, a failure older than AIO_PG_FAIL_S; up to AIO_PG_LINK_N requests in
-// $limit s (the second one only with AIO_PG_LINK_NEXT_S left). None in a pause (aio_pg_link_now) or with
-// no dune_auth. One line of the log of a step that asked. -> how many were asked.
+// s of the pause of the requests left (aio_pg_link_now: no connection, 5xx); 0: none. A pause ending past
+// AIO_PG_PAUSE_S from now (the clock set back) is none.
 /**
- * @param float $limit
  * @return int
  */
-function aio_pg_link_step($limit)
+function aio_pg_paused()
 {
-    $t = microtime(true);
+    $left = AioPgLinks::$pause - time();
+    return $left > 0 && $left <= AIO_PG_PAUSE_S ? $left : 0;
+}
+
+// The cards a step asks for (aio_pg_link_step): with no pair, the latest first, records that ended within
+// AIO_PG_LINK_AGE_S, a failure older than AIO_PG_FAIL_S, ids of the Dune. -> movie_ids.
+/**
+ * @return list<string>
+ */
+function aio_pg_link_queue()
+{
     $now = time();
-    if ($now < AioPgLinks::$pause && AioPgLinks::$pause - $now <= AIO_PG_PAUSE_S)
-        return 0;
     $links = aio_pg_links();
-    $n = 0;
-    $got = 0;
+    $out = array();
     foreach (aio_pg_unlinked() as $mid => $end)
     {
-        $left = $limit - (microtime(true) - $t);
-        if ($n >= AIO_PG_LINK_N || $left < ($n ? AIO_PG_LINK_NEXT_S : 1))
-            break;
+        $mid = strval($mid);
         if ($end <= 0 || $now - $end > AIO_PG_LINK_AGE_S || !preg_match('/^[0-9a-f]{24}$/D', $mid))
             continue;
         if (isset($links[$mid]['fail']) && $now - $links[$mid]['fail'] >= 0 && $now - $links[$mid]['fail'] < AIO_PG_FAIL_S)
             continue;
+        $out[] = $mid;
+    }
+    return $out;
+}
+
+// The lazy pairs: the cards of aio_pg_link_queue, up to AIO_PG_LINK_N requests in $limit s (the second one only
+// with AIO_PG_LINK_NEXT_S left). None in a pause (aio_pg_paused) or with no dune_auth. One line of the log of a
+// step that asked; of a $tick (aio_pg_tick) always. -> how many were asked.
+/**
+ * @param float $limit
+ * @param bool $tick
+ * @return int
+ */
+function aio_pg_link_step($limit, $tick = false)
+{
+    $t = microtime(true);
+    $n = 0;
+    $got = 0;
+    foreach (aio_pg_paused() ? array() : aio_pg_link_queue() as $mid)
+    {
+        $left = $limit - (microtime(true) - $t);
+        if ($n >= AIO_PG_LINK_N || $left < ($n ? AIO_PG_LINK_NEXT_S : 1))
+            break;
         if ($n === 0 && aio_pg_token() === '')
             break;
         $pause = AioPgLinks::$pause;
@@ -638,7 +618,7 @@ function aio_pg_link_step($limit)
         if (AioPgLinks::$pause !== $pause)
             break;
     }
-    if ($n)
-        aio_log(sprintf('link: step: %d asked, %d pairs, %.0f ms', $n, $got, (microtime(true) - $t) * 1000));
+    if ($n || $tick)
+        aio_log(sprintf('link: %s: %d asked, %d pairs, %.0f ms', $tick ? 'tick' : 'step', $n, $got, (microtime(true) - $t) * 1000));
     return $n;
 }

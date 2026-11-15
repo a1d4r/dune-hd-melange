@@ -855,7 +855,7 @@ function aio_catv_row_answer($rid, $lang)
 }
 
 // get_folder_rows: "Show all": aio_catv_all_rows. Else one row a call (a saved copy: and
-// its title), the shell asks for the rest next; the lazy pairs after it when it is time (aio_pg_row_done).
+// its title), the shell asks for the rest next.
 // Always a row with the id asked: on a reply without rows the shell asks again
 // every ~1 ms. The refresh of the manifest (AioCat::$manifest_due) takes the time left of the call,
 // AIO_CATV_REFRESH_S at most: an opening does not wait for it.
@@ -883,7 +883,6 @@ function aio_catv_rows_op($in)
         AioCat::$manifest_due = false;
         aio_catv_manifest_refresh(min(intval($left), AIO_CATV_REFRESH_S));
     }
-    aio_pg_row_done($rid, $start, AIO_CATV_ROW_S - (microtime(true) - $start));
     return array('rows' => $rows);
 }
 
@@ -1057,9 +1056,10 @@ function aio_catv_strip_sel($id)
  * @param list<array<string, mixed>> $defs
  * @param mixed $sel_state
  * @param string $from
+ * @param bool $tick
  * @return array<string, mixed>
  */
-function aio_catv_rows_view($defs, $sel_state, $from)
+function aio_catv_rows_view($defs, $sel_state, $from, $tick = false)
 {
     $rows = array(array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 10, PluginRow::inactive_height => 10));
     $tab = aio_catv_tab($from);
@@ -1108,8 +1108,8 @@ function aio_catv_rows_view($defs, $sel_state, $from)
         PluginFolderView::data => array(
             PluginRowsFolderView::pane => $pane,
             PluginRowsFolderView::sel_state => is_string($sel_state) && $sel_state !== '' ? $sel_state : null,
-            PluginRowsFolderView::actions => aio_catv_actions($from),
-            PluginRowsFolderView::timer => null));
+            PluginRowsFolderView::actions => aio_catv_actions($from) + ($tick ? array(GUI_EVENT_TIMER => aio_catv_tick($from)) : array()),
+            PluginRowsFolderView::timer => $tick ? array(GuiTimerDef::delay_ms => AIO_PG_TICK_MS) : null));
 }
 
 // --- Screens.
@@ -1278,7 +1278,6 @@ function aio_catv_main_view($media_url, $sel_state)
             if ($flag)
             {
                 AioCat::$on_screen[$rid] = AioCat::$lists[$rid]['tiles'];
-                aio_pg_row_asked($rid);
             }
             $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang, null, $flag));
             $asked = $asked || $flag;
@@ -1286,7 +1285,6 @@ function aio_catv_main_view($media_url, $sel_state)
         else if ($loading)
         {
             $defs = array_merge($defs, aio_catv_row_note($row, $lang, ''));
-            aio_pg_row_asked($rid);
             $asked = true;
         }
     }
@@ -1297,10 +1295,13 @@ function aio_catv_main_view($media_url, $sel_state)
         if (!$asked && !$manifest_done && $left >= 1 && !aio_catv_is_down())
             aio_catv_manifest_refresh(intval($left));
     }
-    // The lazy pairs on the time left of the opening, with no row flagged (else aio_catv_rows_op).
-    aio_pg_screen_built(AIO_CATV_OPEN_S - (microtime(true) - $rows_t0), $net);
+    // The lazy pairs: r24 on the time left of the opening; r25 at the tick of the timer of the screen (aio_pg_tick_set).
+    if (!$loading)
+        aio_pg_screen_built(AIO_CATV_OPEN_S - (microtime(true) - $rows_t0), $net);
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
-    return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
+    if (!$defs)
+        return aio_catv_message_view('cat_unavailable', $lang, $media_url);
+    return aio_catv_rows_view($defs, $sel_state, $media_url, $loading && aio_pg_tick_set($media_url));
 }
 
 // The rows of the tab $rows (aio_cat_user_rows) the main screen shows (aio_catv_main_view; the link of a row,
@@ -1933,7 +1934,20 @@ function aio_catv_all_stub($k)
         PluginRow::options => aio_catv_loading_flag() | (defined('PLUGIN_ROW_OPT_OPTIMIZE_INVISIBLE') ? PLUGIN_ROW_OPT_OPTIMIZE_INVISIBLE : 0));
 }
 
-// The actions of "Show all"; with stubs, the tick of the timer too (no dialog, as rows_info).
+// The tick of the timer of the screen $url: of "Show all" (aio_catv_all_tick), of the main screen (aio_pg_tick).
+// No dialog, as rows_info.
+/**
+ * @param string $url
+ * @return AioAction
+ */
+function aio_catv_tick($url)
+{
+    $tick = aio_input('cat_tick', array('from' => $url));
+    $tick[GuiAction::data] = null;
+    return $tick;
+}
+
+// The actions of "Show all"; with stubs, the tick of the timer too.
 /**
  * @param string $url
  * @param bool $stubs
@@ -1943,11 +1957,7 @@ function aio_catv_all_actions($url, $stubs)
 {
     $actions = aio_catv_actions($url);
     if ($stubs)
-    {
-        $tick = aio_input('cat_tick', array('from' => $url));
-        $tick[GuiAction::data] = null;
-        $actions[GUI_EVENT_TIMER] = $tick;
-    }
+        $actions[GUI_EVENT_TIMER] = aio_catv_tick($url);
     return $actions;
 }
 
@@ -2719,6 +2729,12 @@ function aio_catv_input($in, $control)
     {
         $url = aio_catv_more_url(aio_catv_in($in, 'cat_more'));
         return $url !== '' ? aio_catv_all_open($url) : null;
+    }
+    // The tick of the timer of the main screen: the lazy step, nothing in the reply.
+    if ($control === 'cat_tick' && aio_catv_is_main($from))
+    {
+        aio_pg_tick($from);
+        return null;
     }
     if ($control === 'cat_tick')
         return aio_catv_all_tick($from);

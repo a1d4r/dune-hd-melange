@@ -231,9 +231,10 @@ function aio_pg_begun($pos, $len)
 
 // What the badges and the line of the panel show of the state $ent of a card, as add_movie_ritem of
 // movie_helper.php r25 for a card not of "My collection": marks of the own card made after the latest episode
-// record watched or begun ends - the last of them by S/E watched (aio_wh_mark_last); a series (its latest
-// record an episode): that episode record (ep), watched or begun, the episodes under the threshold passed
-// over; a movie: the latest record, watched (by itself) or begun (aio_pg_begun). The card marked in
+// record watched or begun ends - the last of them by S/E watched (aio_wh_mark_last); a series: the latest
+// episode record watched or begun (ep), the episodes under the threshold passed over, whatever the latest record
+// of the card (a file or a trailer with no S/E too); none such: the latest record with no S/E as of a movie,
+// watched (by itself) or begun (aio_pg_begun). The card marked in
 // watched_movies.txt: watched; a series (episodes in the history, or $series: the tile is one) - all of it,
 // its episode as above. -> pos, len (s, 0: none), watched (the movie or the episode), s and e (-1: none),
 // all (a series watched whole); null: none.
@@ -252,7 +253,7 @@ function aio_pg_badge($ent, $series = false)
     $mk = $st ? aio_wh_mark_last($st[2], $p ? aio_wh_end($p['w']) : 0) : null;
     if ($mk)
         $b = array('pos' => 0.0, 'len' => 0.0, 'watched' => true, 's' => $mk[0], 'e' => $mk[1], 'all' => false);
-    else if ($ep && $p)
+    else if ($p)
     {
         list($s, $e, $pos, $len) = aio_wh_rec($p['w']);
         $b = array('pos' => max(0.0, $pos), 'len' => $len, 'watched' => $p['seen'], 's' => $s, 'e' => $e, 'all' => false);
