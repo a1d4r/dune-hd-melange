@@ -826,7 +826,7 @@ define('AIO_MERGE_MAX', 8);
 // Sizes of one file the add-ons of two services give (aio_merge_size): at
 // most this times apart, or GiB told as GB (MediaFusion), within 1 %.
 define('AIO_MERGE_SIZE', 1.05);
-define('AIO_MERGE_GIB', 1073741824 / 1e9);
+define('AIO_MERGE_GIB_GB', 1073741824 / 1e9);
 
 // What the merge compares of stream $st of a reply (the raw of a row of
 // aio_row; $series: of an episode): the service, infoHash, the file (its
@@ -872,15 +872,15 @@ function aio_merge_size($a, $b)
     if ($a <= 0 || $b <= 0)
         return false;
     $r = max($a, $b) / min($a, $b);
-    return $r <= AIO_MERGE_SIZE || abs($r / AIO_MERGE_GIB - 1) <= 0.01;
+    return $r <= AIO_MERGE_SIZE || abs($r / AIO_MERGE_GIB_GB - 1) <= 0.01;
 }
 
 // Copies $a, $b (aio_merge_key) are of one file: both with an infoHash - the
 // same one and the same file (the index and the name in letters and digits,
-// each where both have it, one of them at least), or one of them whole of
-// the size of the other (aio_merge_size); else (MediaFusion has no infoHash)
-// the same name of the file, as it is, and the size in bytes. -> how: 'hash',
-// 'name', '' not one file.
+// as it is where one has none of them; each where both have it, one of them
+// at least), or one of them whole of the size of the other (aio_merge_size);
+// else (MediaFusion has no infoHash) the same name of the file, as it is, and
+// the size in bytes. -> how: 'hash', 'name', '' not one file.
 /**
  * @param AioMergeKey $a
  * @param AioMergeKey $b
@@ -894,7 +894,9 @@ function aio_merge_same($a, $b)
             return '';
         $idx = $a['idx'] >= 0 && $b['idx'] >= 0;
         $name = $a['file'] !== '' && $b['file'] !== '';
-        if (($idx || $name) && (!$idx || $a['idx'] === $b['idx']) && (!$name || $a['norm'] === $b['norm']))
+        $norm = $a['norm'] !== '' && $b['norm'] !== '';
+        if (($idx || $name) && (!$idx || $a['idx'] === $b['idx']) &&
+            (!$name || ($norm ? $a['norm'] === $b['norm'] : $a['file'] === $b['file'])))
             return 'hash';
         return ($a['whole'] || $b['whole']) && aio_merge_size($a['size'], $b['size']) ? 'hash' : '';
     }
