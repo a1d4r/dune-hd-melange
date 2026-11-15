@@ -786,24 +786,26 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
     $out['left'] = count($sources) - $out['next'];
     aio_lp_log(sprintf('replies: %d rows of %d sources, %d not asked, similar: %d, serial: %d%s, %.2f s',
         count($out['rows']), $out['asked'], $out['left'], $out['similar'], $out['serial'],
-        $out['why'] ? '; skipped: ' . aio_lp_why_log($out['why']) : '', aio_lp_now() - $t0), $base);
+        $out['why'] ? '; skipped: ' . aio_lp_why_log($out['why'], $base) : '', aio_lp_now() - $t0), $base);
     return $out;
 }
 
 // Reasons $why (AioLpWhy) for the log, by code and detail in their order: "down (curl 28: ...):
-// spectre, mirage; http (403): vkmovie". Each reason counted, none lost: a detail cut to 100
-// characters, 10 codes with details and 20 balancers in all at most, the rest as "+N" (the screen
-// shows no detail: the log is where it is).
+// spectre, mirage; http (403): vkmovie". Each reason counted, none lost: a detail masked
+// (aio_lp_mask of Lampac $base: a cut host is not known to it) and cut to 100 characters, 10 codes
+// with details and 20 balancers in all at most, the rest as "+N" (the screen shows no detail: the
+// log is where it is).
 /**
  * @param list<AioLpWhy> $why
+ * @param string $base
  * @return string
  */
-function aio_lp_why_log($why)
+function aio_lp_why_log($why, $base)
 {
     $by = array();
     foreach ($why as $w)
     {
-        $d = $w['detail'];
+        $d = aio_lp_mask($w['detail'], $base);
         if (mb_strlen($d, 'UTF-8') > 100)
             $d = mb_substr($d, 0, 100, 'UTF-8') . '...';
         $by[$w['why'] . ($d !== '' ? " ($d)" : '')][] = $w['path'] !== '' ? $w['path'] : $w['src'];
