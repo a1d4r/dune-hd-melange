@@ -80,8 +80,10 @@ export const TEXT_KEYS = [
   "rowsStale",
   "rowsLastMovie",
   "rowsLastSeries",
+  "rowsTop",
   "rowsUp",
   "rowsDown",
+  "rowsBottom",
   "rowsGroupAll",
   // The names of the groups of rows (rows.ts).
   "groupTop",

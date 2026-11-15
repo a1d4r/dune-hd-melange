@@ -1,5 +1,6 @@
 // The screen of the rows of the catalog (#rows): the list comes from the Dune when the screen opens; two parts, as
-// the tabs of the catalog (CatRow.tab), each with its rows shown in their order and its groups, one shown by the
+// the tabs of the catalog (CatRow.tab), each with its rows shown by groups (a group moves among the groups, a row
+// within its group) and all its groups, one shown by the
 // switch (Movies first, till the page is left); the rows shown go to the field cat_rows, a save posts it. The field stays as it is until the user changes something:
 // no list, or none of its rows left, and the saved choice is not touched.
 
@@ -56,6 +57,15 @@ export function chosenKeys(rows: CatRow[], value: string, tab: Tab): string[] {
   return byGroups(chosen.length ? chosen : of.filter((row) => row.home));
 }
 
+// The four moves of the screen: to the first place, one up, one down, to the last; the path of its icon (24×24).
+const MOVES: readonly (readonly [keyof Texts, string])[] = [
+  ["rowsTop", "M5 4h14M12 20V8M6 14l6-6 6 6"],
+  ["rowsUp", "M12 19V5M5 12l7-7 7 7"],
+  ["rowsDown", "M12 5v14M5 12l7 7 7-7"],
+  ["rowsBottom", "M5 20h14M12 4v12M6 10l6 6 6-6"],
+];
+const SVG = "http://www.w3.org/2000/svg";
+
 // changed: the bar follows (a move is no change event of the form).
 export function setupRows(page: Page, api: Api, changed: () => void): void {
   const { doc, texts } = page;
@@ -65,7 +75,7 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     box = byId(doc, ID.rowsBox),
     results = byId(doc, ID.saveResult);
   const switchButton = (tab: Tab) => byId(doc, ID.rowsSwitch).querySelector<HTMLButtonElement>("[" + DATA.key + "=" + tab + "]")!;
-  // Of each part: its box, its button in the switch, the rows shown in their order, all its rows by groups, the text
+  // Of each part: its box, its button in the switch, the rows shown by groups, all its rows by groups, the text
   // when its last row can't go.
   const parts: Record<Tab, { part: HTMLElement; button: HTMLButtonElement; shown: HTMLElement; groups: HTMLElement; last: keyof Texts }> = {
     movie: {
@@ -83,19 +93,30 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       last: "rowsLastSeries",
     },
   };
-  const names = new Map<string, string>(),
-    tabs = new Map<string, Tab>(),
+  const groupText = new Map<string, keyof Texts>(GROUPS);
+  const rowOf = new Map<string, CatRow>(),
     // The checkbox of each row in its group; the title of each group: its text and checkbox.
     boxes = new Map<string, HTMLInputElement>(),
     titles: { heading: Text; all: HTMLInputElement; name: string; keys: string[] }[] = [];
+  // The rows shown of each part, those of a group together (byGroups).
   const chosen: Record<Tab, string[]> = { movie: [], series: [] };
   let state: "none" | "going" | "here" = "none",
     // The part shown; the other one keeps its choice, only hidden.
     current: Tab = "movie",
     // The line of rowsLast* under the save button, until a change.
     refused: HTMLElement | null = null;
-  const isOn = (key: string) => chosen[tabs.get(key)!].includes(key);
+  const isOn = (key: string) => chosen[rowOf.get(key)!.tab].includes(key);
+  const nameOf = (group: string) => texts[groupText.get(group)!];
 
+  // The rows shown of the part by groups, in their order: [group, its keys].
+  function blocks(tab: Tab): [string, string[]][] {
+    const of = new Map<string, string[]>();
+    for (const key of chosen[tab]) {
+      const group = groupOf(rowOf.get(key)!);
+      of.set(group, [...(of.get(group) || []), key]);
+    }
+    return [...of];
+  }
   // A row with its checkbox, in the list or a group.
   function checkRow(key: string): [HTMLLabelElement, HTMLInputElement] {
     const label = doc.createElement("label"),
@@ -105,37 +126,58 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     check.type = "checkbox";
     check.checked = isOn(key);
     check.addEventListener("change", () => toggle([key], check));
-    name.textContent = names.get(key)!;
+    name.textContent = rowOf.get(key)!.name;
     label.append(check, name);
     return [label, check];
   }
-  function moveButton(list: string[], key: string, text: string, step: number, at: number): HTMLButtonElement {
-    const button = doc.createElement("button");
-    button.type = "button";
-    button.className = "chk";
-    button.textContent = step < 0 ? "↑" : "↓";
-    button.setAttribute("aria-label", text);
-    button.disabled = at + step < 0 || at + step >= list.length;
-    button.addEventListener("click", () => {
-      list.splice(at, 1);
-      list.splice(at + step, 0, key);
-      commit();
+  // The four buttons of the item at of the list (a group among the groups of the part, a row in its group), what is
+  // moved named for a screen reader; done: the list moved. One that would not move it is off.
+  function moveButtons<T>(list: T[], at: number, name: string, done: () => void): HTMLButtonElement[] {
+    return MOVES.map(([text, path], n) => {
+      const to = [0, at - 1, at + 1, list.length - 1][n]!,
+        button = doc.createElement("button"),
+        icon = doc.createElementNS(SVG, "svg"),
+        line = doc.createElementNS(SVG, "path");
+      button.type = "button";
+      button.className = "chk";
+      button.setAttribute("aria-label", texts[text] + ": " + name);
+      button.disabled = to === at || to < 0 || to >= list.length;
+      for (const [k, v] of [["viewBox", "0 0 24 24"], ["width", "20"], ["height", "20"], ["fill", "none"], ["stroke", "currentColor"], ["stroke-width", "2"], ["aria-hidden", "true"]])
+        icon.setAttribute(k!, v!);
+      line.setAttribute("d", path);
+      icon.appendChild(line);
+      button.appendChild(icon);
+      button.addEventListener("click", () => {
+        list.splice(to, 0, list.splice(at, 1)[0]!);
+        done();
+        commit();
+      });
+      return button;
     });
-    return button;
   }
   function render(): void {
     for (const tab of TABS) {
-      const list = chosen[tab],
-        { part, button, shown } = parts[tab];
+      const { part, button, shown } = parts[tab],
+        all = blocks(tab);
+      // A move puts the groups back in the order of the screen.
+      const put = () => (chosen[tab] = ([] as string[]).concat(...all.map(([, keys]) => keys)));
       part.hidden = tab !== current;
       button.setAttribute("aria-pressed", tab === current ? "true" : "false");
-      button.querySelector("span")!.textContent = " · " + list.length;
+      button.querySelector("span")!.textContent = " · " + chosen[tab].length;
       shown.textContent = "";
-      list.forEach((key, at) => {
-        const line = doc.createElement("div");
-        line.className = "cro";
-        line.append(checkRow(key)[0], moveButton(list, key, texts.rowsUp, -1, at), moveButton(list, key, texts.rowsDown, 1, at));
-        shown.appendChild(line);
+      all.forEach(([group, keys], at) => {
+        const head = doc.createElement("div"),
+          name = doc.createElement("span");
+        head.className = "crh";
+        name.textContent = nameOf(group);
+        head.append(name, ...moveButtons(all, at, nameOf(group), put));
+        shown.appendChild(head);
+        keys.forEach((key, n) => {
+          const line = doc.createElement("div");
+          line.className = "cro";
+          line.append(checkRow(key)[0], ...moveButtons(keys, n, rowOf.get(key)!.name, put));
+          shown.appendChild(line);
+        });
       });
     }
     boxes.forEach((check, key) => (check.checked = isOn(key)));
@@ -153,11 +195,11 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     render();
     changed();
   }
-  // The checkbox of a row or of a group (keys: its rows): the ones not on go on, last in their part in the order of
-  // keys; all on, all go off.
+  // The checkbox of a row or of a group (keys: its rows): the ones not on go on, last in their group in the order of
+  // keys, a group not shown last in the part; all on, all go off.
   function toggle(keys: string[], check: HTMLInputElement): void {
-    const tab = tabs.get(keys[0]!)!;
-    if (!keys.every(isOn)) chosen[tab].push(...keys.filter((key) => !isOn(key)));
+    const tab = rowOf.get(keys[0]!)!.tab;
+    if (!keys.every(isOn)) chosen[tab] = byGroups([...chosen[tab], ...keys.filter((key) => !isOn(key))].map((key) => rowOf.get(key)!));
     else if (chosen[tab].some((key) => !keys.includes(key))) chosen[tab] = chosen[tab].filter((key) => !keys.includes(key));
     else {
       // Never an empty part: its last rows stay, the bar under the screen says why.
@@ -171,9 +213,8 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
   }
   function buildGroups(rows: CatRow[], groupsBox: HTMLElement): void {
     const of = new Map<string, CatRow[]>();
-    const known = new Set(GROUPS.map(([group]) => group));
     for (const row of rows) {
-      const group = known.has(row.group) ? row.group : "other";
+      const group = groupOf(row);
       of.set(group, [...(of.get(group) || []), row]);
     }
     for (const [group, text] of GROUPS) {
@@ -215,10 +256,7 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       }
       state = "here";
       const { rows, stale } = result.data;
-      for (const row of rows) {
-        names.set(row.key, row.name);
-        tabs.set(row.key, row.tab);
-      }
+      for (const row of rows) rowOf.set(row.key, row);
       if (stale) show(status, "warn", [texts.rowsStale]);
       else status.textContent = "";
       for (const tab of TABS) {

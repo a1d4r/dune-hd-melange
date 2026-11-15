@@ -27,6 +27,20 @@ const ROWS: CatRow[] = [
   row("anime/d", "D", "other"),
 ];
 const LIST = json({ ok: true, stale: false, rows: ROWS });
+// Movies of three groups, to move.
+const GLIST = json({
+  ok: true,
+  stale: false,
+  rows: [
+    row("movie/t1", "T1", "top", true),
+    row("movie/t2", "T2", "top"),
+    row("movie/g1", "G1", "genres"),
+    row("movie/g2", "G2", "genres"),
+    row("movie/g3", "G3", "genres"),
+    row("movie/o1", "O1", "other"),
+    row("series/a", "A series", "top", true),
+  ],
+});
 const PART = { movie: [ID.rowsMovies, ID.rowsMovieGroups, ID.rowsMoviePart], series: [ID.rowsSeries, ID.rowsSeriesGroups, ID.rowsSeriesPart] } as const;
 type Tab = keyof typeof PART;
 
@@ -43,10 +57,20 @@ async function go(page: Page): Promise<void> {
   await flush();
 }
 const value = (page: Page) => page.field("cat_rows").value;
-const shownRows = (page: Page, tab: Tab = "movie") =>
-  Array.from(page.el(PART[tab][0]).children).map((line) => line.querySelector("span")!.textContent);
-const shownCheck = (page: Page, n: number, tab: Tab = "movie") => page.el(PART[tab][0]).children[n]!.querySelector<HTMLInputElement>("input")!;
-const moves = (page: Page, n: number, tab: Tab = "movie") => page.el(PART[tab][0]).children[n]!.querySelectorAll("button");
+// The rows shown of a part (.cro, under the titles of their groups, .crh); the four buttons of the n-th: to the top, up,
+// down, to the bottom.
+const lineOf = (page: Page, n: number, tab: Tab) => page.el(PART[tab][0]).querySelectorAll(".cro")[n]!;
+const shownRows = (page: Page, tab: Tab = "movie") => Array.from(page.el(PART[tab][0]).querySelectorAll(".cro span")).map((name) => name.textContent);
+const shownCheck = (page: Page, n: number, tab: Tab = "movie") => lineOf(page, n, tab).querySelector<HTMLInputElement>("input")!;
+const moves = (page: Page, n: number, tab: Tab = "movie") => lineOf(page, n, tab).querySelectorAll("button");
+// The titles of the groups shown of a part, the buttons of the n-th.
+const heads = (page: Page, tab: Tab = "movie") => Array.from(page.el(PART[tab][0]).querySelectorAll(".crh span")).map((name) => name.textContent);
+const headMoves = (page: Page, n: number, tab: Tab = "movie") => page.el(PART[tab][0]).querySelectorAll(".crh")[n]!.querySelectorAll("button");
+const off = (buttons: NodeListOf<HTMLButtonElement>) => Array.from(buttons).map((button) => button.disabled);
+const TOP = 0,
+  UP = 1,
+  DOWN = 2,
+  BOTTOM = 3;
 const groups = (page: Page, tab: Tab = "movie") => Array.from(page.el(PART[tab][1]).querySelectorAll("details"));
 const groupTitles = (page: Page, tab: Tab) => groups(page, tab).map((group) => group.querySelector("summary")!.textContent);
 const groupCheck = (page: Page, name: string) =>
@@ -250,7 +274,7 @@ describe("the switch of the parts", () => {
 
   test("the hidden part keeps its choice and order; the save posts both", async () => {
     const page = await opened(LIST);
-    moves(page, 1)[0]!.click();
+    headMoves(page, 1)[UP]!.click();
     tabButton(page, "series").click();
     click(page, groupCheck(page, "D"));
     tabButton(page, "movie").click();
@@ -294,18 +318,92 @@ describe("the choice", () => {
     expect(value(page)).toBe("movie/b series/a");
   });
 
-  test("moved up and down within its part; the first can't go up, the last can't go down; the bar follows a move", async () => {
-    const page = await opened(LIST);
-    expect([moves(page, 0)[0]!.disabled, moves(page, 0)[1]!.disabled, moves(page, 1)[0]!.disabled, moves(page, 1)[1]!.disabled]).toEqual([true, false, false, true]);
-    expect([moves(page, 0, "series")[0]!.disabled, moves(page, 0, "series")[1]!.disabled]).toEqual([true, true]);
-    moves(page, 1)[0]!.click();
-    expect(shownRows(page)).toEqual(["C", "A"]);
-    expect(value(page)).toBe("movie/c movie/a series/a");
+  test("the rows shown by groups, each under its title, in the order of the part", async () => {
+    const page = await opened(LIST, "movie/c movie/new movie/a movie/b");
+    const { i18n } = page.init;
+    expect(heads(page)).toEqual([i18n.groupGenres, i18n.groupOther, i18n.groupTop]);
+    expect(shownRows(page)).toEqual(["C", "B", "New group", "A"]);
+    expect(Array.from(page.el(ID.rowsMovies).children).map((line) => line.className)).toEqual(["crh", "cro", "cro", "crh", "cro", "crh", "cro"]);
+    // The field as it came till a change.
+    expect(value(page)).toBe("movie/c movie/new movie/a movie/b");
+  });
+
+  test("a row moves within its group only: to the top, up, down, to the bottom; the ones at the ends off; the bar follows", async () => {
+    const page = await opened(GLIST, "movie/t1 movie/g1 movie/g2 movie/g3 movie/t2");
+    expect(shownRows(page)).toEqual(["T1", "T2", "G1", "G2", "G3"]);
+    expect([off(moves(page, 0)), off(moves(page, 1)), off(moves(page, 2)), off(moves(page, 3)), off(moves(page, 4))]).toEqual([
+      [true, true, false, false],
+      [false, false, true, true],
+      [true, true, false, false],
+      [false, false, false, false],
+      [false, false, true, true],
+    ]);
+    moves(page, 3)[UP]!.click();
+    expect(shownRows(page)).toEqual(["T1", "T2", "G2", "G1", "G3"]);
+    expect(value(page)).toBe("movie/t1 movie/t2 movie/g2 movie/g1 movie/g3 series/a");
     expect(page.el(ID.dirty).textContent).not.toBe("");
-    moves(page, 0)[1]!.click();
-    expect(shownRows(page)).toEqual(["A", "C"]);
-    expect(moves(page, 0)[0]!.getAttribute("aria-label")).toBe(page.init.i18n.rowsUp);
-    expect(moves(page, 0)[1]!.getAttribute("aria-label")).toBe(page.init.i18n.rowsDown);
+    moves(page, 2)[BOTTOM]!.click();
+    expect(shownRows(page)).toEqual(["T1", "T2", "G1", "G3", "G2"]);
+    moves(page, 4)[TOP]!.click();
+    expect(shownRows(page)).toEqual(["T1", "T2", "G2", "G1", "G3"]);
+    moves(page, 2)[DOWN]!.click();
+    moves(page, 0)[DOWN]!.click();
+    expect(shownRows(page)).toEqual(["T2", "T1", "G1", "G2", "G3"]);
+    expect(value(page)).toBe("movie/t2 movie/t1 movie/g1 movie/g2 movie/g3 series/a");
+  });
+
+  test("a group moves among the groups with its rows: to the top, up, down, to the bottom; the ones at the ends off", async () => {
+    const page = await opened(GLIST, "movie/t1 movie/g1 movie/o1 movie/t2");
+    const { i18n } = page.init;
+    expect(heads(page)).toEqual([i18n.groupTop, i18n.groupGenres, i18n.groupOther]);
+    expect([off(headMoves(page, 0)), off(headMoves(page, 1)), off(headMoves(page, 2))]).toEqual([
+      [true, true, false, false],
+      [false, false, false, false],
+      [false, false, true, true],
+    ]);
+    headMoves(page, 2)[TOP]!.click();
+    expect(heads(page)).toEqual([i18n.groupOther, i18n.groupTop, i18n.groupGenres]);
+    expect(value(page)).toBe("movie/o1 movie/t1 movie/t2 movie/g1 series/a");
+    headMoves(page, 0)[BOTTOM]!.click();
+    expect(value(page)).toBe("movie/t1 movie/t2 movie/g1 movie/o1 series/a");
+    headMoves(page, 0)[DOWN]!.click();
+    expect(value(page)).toBe("movie/g1 movie/t1 movie/t2 movie/o1 series/a");
+    headMoves(page, 2)[UP]!.click();
+    expect(value(page)).toBe("movie/g1 movie/o1 movie/t1 movie/t2 series/a");
+    expect(page.el(ID.dirty).textContent).not.toBe("");
+  });
+
+  test("one group: its buttons all off; one row in its group: its buttons all off", async () => {
+    const page = await opened(GLIST, "movie/g1");
+    expect([off(headMoves(page, 0)), off(moves(page, 0))]).toEqual([
+      [true, true, true, true],
+      [true, true, true, true],
+    ]);
+  });
+
+  test("the buttons for a screen reader: the move and what moves, an icon each", async () => {
+    const page = await opened(GLIST, "movie/t1 movie/g1");
+    const { i18n } = page.init;
+    const labels = (buttons: NodeListOf<HTMLButtonElement>) => Array.from(buttons).map((button) => button.getAttribute("aria-label"));
+    expect(labels(headMoves(page, 1))).toEqual([i18n.rowsTop, i18n.rowsUp, i18n.rowsDown, i18n.rowsBottom].map((text) => text + ": " + i18n.groupGenres));
+    expect(labels(moves(page, 0))).toEqual([i18n.rowsTop, i18n.rowsUp, i18n.rowsDown, i18n.rowsBottom].map((text) => text + ": T1"));
+    expect(Array.from(moves(page, 0)).every((button) => button.textContent === "" && button.querySelector("svg[aria-hidden=true] path") !== null)).toBe(true);
+  });
+
+  test("a row turned on: last in its group; the first of a group not shown: its group last in the part", async () => {
+    const page = await opened(GLIST, "movie/g1 movie/t1");
+    click(page, groupCheck(page, "G3"));
+    expect(value(page)).toBe("movie/g1 movie/g3 movie/t1 series/a");
+    click(page, groupCheck(page, "O1"));
+    expect(value(page)).toBe("movie/g1 movie/g3 movie/t1 movie/o1 series/a");
+    expect(heads(page)).toEqual([page.init.i18n.groupGenres, page.init.i18n.groupTop, page.init.i18n.groupOther]);
+  });
+
+  test("the last row of a group off: its group goes", async () => {
+    const page = await opened(GLIST, "movie/g1 movie/t1");
+    click(page, shownCheck(page, 0));
+    expect(heads(page)).toEqual([page.init.i18n.groupTop]);
+    expect(value(page)).toBe("movie/t1 series/a");
   });
 
   test("the last row of a part can't go: stays on, its text under the screen; the next change takes the text away", async () => {
@@ -343,13 +441,13 @@ describe("the choice", () => {
     const page = await opened(LIST, "series/a movie/c anime/d movie/a");
     expect(shownRows(page)).toEqual(["C", "A"]);
     expect(shownRows(page, "series")).toEqual(["A series", "D"]);
-    moves(page, 1, "series")[0]!.click();
+    headMoves(page, 1, "series")[UP]!.click();
     expect(value(page)).toBe("movie/c movie/a anime/d series/a");
   });
 
   test("the chosen ones saved by the form: the keys by spaces, in order; a save that stays leaves no change", async () => {
     const page = await opened(LIST);
-    moves(page, 1)[0]!.click();
+    headMoves(page, 1)[UP]!.click();
     page.replies.push(json({ ok: true, next: "settings?saved=1", aio: "update", notes: [{ level: "ok", msg: "x" }] }), json({ ok: true, msg: "ok", skip: true }));
     page.form.dispatchEvent(new page.win.Event("submit", { cancelable: true }) as unknown as Event);
     await flush();
@@ -387,7 +485,7 @@ describe("the rows as the page came (cat_rows_was): the save keeps the stored on
 
   test("changed: the new rows posted, the ones the page came with as they were", async () => {
     const page = await cameWith("movie/c movie/b");
-    moves(page, 1)[0]!.click();
+    moves(page, 1)[UP]!.click();
     expect(page.el(ID.dirty).textContent).not.toBe("");
     page.replies.push(json({ ok: true, next: "settings?saved=1", aio: "" }));
     await submit(page);
@@ -396,14 +494,14 @@ describe("the rows as the page came (cat_rows_was): the save keeps the stored on
 
   test("a save that stays: the rows posted are now the ones the page came with; a failed one: as they were", async () => {
     const page = await cameWith("movie/c movie/b");
-    moves(page, 1)[0]!.click();
+    moves(page, 1)[UP]!.click();
     page.replies.push(json({ ok: false, errors: [{ msg: "No", field: null }] }));
     await submit(page);
     expect(was(page)).toBe("movie/c movie/b");
     page.replies.push(json({ ok: true, next: "settings?saved=1", aio: "", notes: [{ level: "ok", msg: "x" }] }));
     await submit(page);
     expect([was(page), value(page), page.el(ID.dirty).textContent]).toEqual(["movie/b movie/c series/a", "movie/b movie/c series/a", ""]);
-    moves(page, 1)[0]!.click();
+    moves(page, 1)[UP]!.click();
     page.replies.push(json({ ok: true, next: "settings?saved=1", aio: "", notes: [{ level: "ok", msg: "x" }] }));
     await submit(page);
     expect(page.calls[3]!.body).toContain("&cat_rows=movie%2Fc%20movie%2Fb%20series%2Fa&cat_rows_was=movie%2Fb%20movie%2Fc%20series%2Fa&");
@@ -432,7 +530,7 @@ describe("the checkbox in the title of a group", () => {
     expect(groupAll(page, 1).getAttribute("aria-label")).toBe(page.init.i18n.rowsGroupAll + ": " + page.init.i18n.groupGenres);
   });
 
-  test("not all on: the rest go on, last in the part in the order of the group; the group stays closed; the bar follows", async () => {
+  test("not all on: the rest go on, a group not shown last in the part, in the order of the group; the group stays closed; the bar follows", async () => {
     const page = await opened(LIST, "movie/a");
     click(page, groupAll(page, 1));
     expect(value(page)).toBe("movie/a movie/b movie/c series/a");
@@ -445,10 +543,10 @@ describe("the checkbox in the title of a group", () => {
     expect(page.el(ID.dirty).textContent).not.toBe("");
   });
 
-  test("some on: only the rest go on, after the rows chosen before", async () => {
+  test("some on: only the rest go on, after the rows of the group chosen before", async () => {
     const page = await opened(LIST, "movie/c movie/a");
     click(page, groupAll(page, 1));
-    expect(value(page)).toBe("movie/c movie/a movie/b series/a");
+    expect(value(page)).toBe("movie/c movie/b movie/a series/a");
   });
 
   test("all on: all go off, the other rows of the part stay in their order", async () => {
