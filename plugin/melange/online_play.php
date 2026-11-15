@@ -87,7 +87,8 @@ function aio_lpv_vod($mv, $lang, $r, $url, $pos)
         PluginVodInfo::poster_url => $mv['poster'],
         PluginVodInfo::series => array($ser),
         PluginVodInfo::initial_series_ndx => 0,
-        PluginVodInfo::description => $mv['desc'],
+        // No annotation of the card in INFO, as aio_play.
+        PluginVodInfo::description => '',
         PluginVodInfo::buffering_ms => 3000,
         PluginVodInfo::keep_playing_on_reenter => true,
         PluginVodInfo::skip_dummy_player_on_error => false);

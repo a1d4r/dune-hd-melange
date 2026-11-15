@@ -9,9 +9,6 @@
 // A season with more episodes (by season_numbers) plays as one episode: a
 // playlist item takes ~1.7 KB of memory (limit 128 MB).
 define('AIO_EPISODES_MAX', 500);
-// Characters of the annotation of the card kept in AioMovie (desc), at most:
-// the card of lazy episodes goes to tmp_dir.
-define('AIO_INFO_DESC_MAX', 1500);
 
 // --- Playback.
 
@@ -1215,7 +1212,7 @@ function aio_movie_load($key)
     if (!$m || aio_str($m, 'dune_id') !== $key || !preg_match('/^tt[0-9]{1,10}$/', aio_str($m, 'imdb')))
         return null;
     $mv = array('series' => true, 'seasons' => array());
-    foreach (array('imdb', 'dune_id', 'title', 'native', 'year', 'poster', 'fanart', 'rate_imdb', 'desc') as $f)
+    foreach (array('imdb', 'dune_id', 'title', 'native', 'year', 'poster', 'fanart', 'rate_imdb') as $f)
         $mv[$f] = aio_str($m, $f);
     foreach (aio_arr($m, 'seasons') as $n => $c)
     {

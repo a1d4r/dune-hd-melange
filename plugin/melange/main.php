@@ -253,10 +253,6 @@ function aio_movie($in)
     $imdb = aio_str($m, 'imdb_id');
     $dune_id = aio_str($m, 'id');
     $title = aio_str($m, 'title');
-    // The annotation of the card (cut: the card of lazy episodes goes to
-    // tmp_dir); not a string -> none. INFO of the player does not show it.
-    $desc = isset($m['description']) && is_string($m['description']) ?
-        aio_cut(trim(aio_utf8($m['description'])), AIO_INFO_DESC_MAX) : '';
     $mv = array(
         'series' => $series,
         'imdb' => preg_match('/^tt[0-9]{1,10}$/', $imdb) ? $imdb : '',
@@ -267,7 +263,6 @@ function aio_movie($in)
         'poster' => aio_str($m, 'poster_url'),
         'fanart' => aio_str($m, 'fanart_url'),
         'rate_imdb' => aio_str($m, 'rate_imdb'),
-        'desc' => $desc,
         'seasons' => aio_seasons($m));
     // Of the own card, else of its runs file (a card of the shell: its numbering is of Cinemeta, aio_cin_load).
     $cin = aio_cin_valid(isset($m['aio_cin']) ? $m['aio_cin'] : null);

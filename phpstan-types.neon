@@ -206,7 +206,6 @@ parameters:
                 poster: string,
                 fanart: string,
                 rate_imdb: string,
-                desc: string,
                 seasons: array<int, int>,
                 own_card?: bool,
                 cin: list<array{int, int, int}>,
