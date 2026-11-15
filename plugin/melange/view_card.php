@@ -675,14 +675,16 @@ function aio_oc_head_lines($c, $l)
 
 // Under the buttons ($w0: the width of the first): no IMDb - nothing plays (the meta failed: it
 // did not load, else it has none); no card of the Dune - no history; else the progress $wh of the
-// movie under "Watch", if begun, or "Watched" grey without the bar.
+// movie under "Watch", if begun, or "Watched" grey without the bar (watched by its position or $marked: by a mark,
+// aio_cp_mark_kind).
 /**
  * @param AioOcCard $c
  * @param array{float, float}|null $wh
  * @param int $w0
+ * @param bool $marked
  * @return list<array<string, mixed>>
  */
-function aio_oc_under($c, $wh, $w0)
+function aio_oc_under($c, $wh, $w0, $marked = false)
 {
     $x0 = AIO_CATV_CARD_X;
     $d = array();
@@ -695,7 +697,7 @@ function aio_oc_under($c, $wh, $w0)
     else
     {
         $p = $wh ? aio_oc_progress_text($wh[0], $wh[1], $c['ui']) : '';
-        if ($wh && aio_wh_full($wh[0], $wh[1]))
+        if ($marked || ($wh && aio_wh_full($wh[0], $wh[1])))
         {
             $line = aio_tr($c['ui'], 'card_watched');
             $color = AIO_GC_DIM;
@@ -998,7 +1000,7 @@ function aio_oc_layout($c)
     else
     {
         $wh = $c['imdb'] !== '' && $c['dune'] !== '' ? aio_wh_movie($c['dune']) : null;
-        $only = aio_oc_under($c, $wh, $btns ? aio_oc_btn_w($btns[0]) : 0);
+        $only = aio_oc_under($c, $wh, $btns ? aio_oc_btn_w($btns[0]) : 0, $c['dune'] !== '' && aio_cp_mark_kind($c['dune'], 'movie') === 'off');
         if ($down || $posters)
         {
             $below = array_slice($rows, 1);
@@ -1465,7 +1467,55 @@ function aio_oc_ep_watch($c, $x, $ep)
     return aio_oc_watch($c, $q, $x['e'], $ep && $ep['q'] === $q && $ep['e'] === $x['e'] ? $ep['hash'] : '');
 }
 
-// MENU: $items (the marks of an episode, aio_oc_mark_items), then "Settings", as on the list.
+// MENU of a movie of card $c ($key) with a card of the Dune: "Отметить просмотренным" / "Снять отметку" (aio_cp_mark_kind;
+// none when watched by its position), card_mark with w mon / moff (aio_oc_mark_movie).
+/**
+ * @param string $key
+ * @param AioOcCard $c
+ * @return list<array<string, mixed>>
+ */
+function aio_oc_movie_mark_items($key, $c)
+{
+    $w = $c['tile']['type'] === 'movie' && $c['dune'] !== '' ? aio_cp_mark_kind($c['dune'], 'movie') : '';
+    if ($w === '')
+        return array();
+    return array(array(
+        GuiMenuItemDef::caption => aio_tr($c['ui'], $w === 'on' ? 'cp_mark_on' : 'card_mark_off'),
+        GuiMenuItemDef::icon_url => AIO_OC_ICONS . 'watched_small.png',
+        GuiMenuItemDef::action => aio_input('card_mark', array('c' => $key, 'w' => "m$w"))));
+}
+
+// card_mark of MENU of a movie (aio_oc_movie_mark_items, $on: mon) of card $c ($key) -> update_watched_marks of its
+// card of the Dune (movie_ids; off also the uid of its latest record if marked), then the card anew in place (its
+// line under the buttons); the badges read the history anew (aio_pg_stale).
+/**
+ * @param string $key
+ * @param AioOcCard $c
+ * @param bool $on
+ * @return AioAction|null
+ */
+function aio_oc_mark_movie($key, $c, $on)
+{
+    if ($c['tile']['type'] !== 'movie' || $c['dune'] === '')
+        return null;
+    $ids = array();
+    $idx = aio_pg_index();
+    $rec = !$on && isset($idx[$c['dune']]['w']) ? aio_wh_rec($idx[$c['dune']]['w']) : null;
+    if ($rec && $rec[4] !== '' && aio_wh_marked($rec[4]))
+        $ids[] = $rec[4];
+    aio_log("card: own $key: mark " . ($on ? 'on' : 'off') . ' of the movie, ' . count($ids) . ' uids');
+    aio_pg_stale();
+    return array(
+        GuiAction::handler_string_id => UPDATE_WATCHED_MARKS_ACTION_ID,
+        GuiAction::data => array(
+            UpdateWatchedMarksActionData::item_ids => $ids,
+            UpdateWatchedMarksActionData::movie_ids => array($c['dune']),
+            UpdateWatchedMarksActionData::watched => $on,
+            UpdateWatchedMarksActionData::post_action => aio_replace_act("card:$key", $c['tile']['name'])));
+}
+
+// MENU: $items (the marks of an episode, aio_oc_mark_items; of a movie, aio_oc_movie_mark_items), then "Settings", as on
+// the list.
 /**
  * @param string $lang
  * @param list<array<string, mixed>> $items
@@ -1484,7 +1534,7 @@ function aio_oc_menu($lang, $items = array())
 
 // card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (aio_oc_mark),
 // card_load (the timer, aio_oc_load) of the card c. MENU: the marks of the episode in focus in the
-// row, then "Settings". The keys: the place of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown
+// row (of a movie: its mark, aio_oc_movie_mark_items), then "Settings". The keys: the place of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown
 // (nav), else laid out anew. ENTER on a button: "Watch" - the list of the episode offered, an
 // episode not out yet - the focus to it in the row, "Dune card" - the native card (file_movie);
 // on "did not load" - the meta again; on an episode - its list, one not out yet - the message; on
@@ -1507,7 +1557,10 @@ function aio_oc_input($in, $control)
     if (!$c)
         return in_array($control, array('card_enter', 'card_trailer'), true) ? aio_error('cat_outdated') : null;
     if ($control === 'card_mark')
-        return aio_oc_mark($key, $c, $in);
+    {
+        $w = aio_catv_in($in, 'w');
+        return $w === 'mon' || $w === 'moff' ? aio_oc_mark_movie($key, $c, $w === 'mon') : aio_oc_mark($key, $c, $in);
+    }
     if ($control === 'card_trailer')
         return aio_ct_play($c);
     $l = isset($c['nav']) ? $c['nav'] : aio_oc_layout($c);
@@ -1517,7 +1570,8 @@ function aio_oc_input($in, $control)
     if ($control === 'card_load')
         return aio_oc_load($key, AioOc::$cards[$key], $l);
     if ($control === 'card_menu')
-        return aio_oc_menu($c['ui'], aio_oc_mark_items($key, $c, $l['prog'], $pos));
+        return aio_oc_menu($c['ui'], $l['kind'] === 'movie' ? aio_oc_movie_mark_items($key, $c) :
+            aio_oc_mark_items($key, $c, $l['prog'], $pos));
     $j = is_string($raw) ? json_decode($raw, true) : null;
     $rs = implode(',', $l['rows']);
     if (is_array($j) && isset($j['rs']) && is_string($j['rs']) && $j['rs'] !== $rs)

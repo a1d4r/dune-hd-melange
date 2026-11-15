@@ -347,7 +347,7 @@ function aio_cp_mark_kind($mid, $type)
     $ent = $mid !== '' && isset($idx[$mid]) ? $idx[$mid] : null;
     if (!$ent || $ent['movie_mark'])
         return $ent ? 'off' : 'on';
-    if ($type === 'series' || $ent['series'] || !$ent['seen'])
+    if ($type === 'series' || !$ent['seen'])
         return 'on';
     list(, , $pos, $len) = aio_wh_rec($ent['w'] ? $ent['w'] : new stdClass());
     return aio_wh_full($pos, $len) ? '' : 'off';
