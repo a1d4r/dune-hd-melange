@@ -63,8 +63,8 @@ function aio_lpv_link($base, $r, $deadline)
 
 // vod_play of link $url of row $r of card $mv from $pos s, linked to the
 // card when it has a dune id (spec §7): recent_uid aio:<dune id>:-1:-1:<key of the row>, as a
-// release of a movie; recent_action_params wh_release = the key (the path of the balancer in it),
-// wh_mode lampac, wh_lv the voice ("Continue": aio_lpv_resume). The mark of a title marked
+// release of a movie; recent_action_params wh_release = the key (the path of the balancer and the
+// hex of the voice in it), wh_mode lampac ("Continue": aio_lpv_resume). The mark of a title marked
 // "online" takes the row: the next list puts it first (only "Онлайн" and "Искать онлайн" mark a
 // title, spec §8). On r24 through pf_check (aio_pf_check of call_plugin).
 /**
@@ -103,8 +103,7 @@ function aio_lpv_vod($mv, $lang, $r, $url, $pos)
             'movie_id' => $mv['dune_id'],
             'sup_data' => 'auto',
             'wh_release' => $r['key'],
-            'wh_mode' => 'lampac',
-            'wh_lv' => $r['voice']);
+            'wh_mode' => 'lampac');
     }
     if ($path !== '' && aio_lpv_mark($mv))
         aio_lpv_mark_set($mv, true, $path, $r['voice']);
@@ -117,12 +116,12 @@ function aio_lpv_vod($mv, $lang, $r, $url, $pos)
 // --- play_action: "Continue", the title marked "online", no AIOStreams, no releases.
 
 // "Continue" of an online record of play_action $in (supplier_info: wh_mode lampac, wh_release a
-// key of aio_lp_key, the path of the balancer in it, wh_lv the voice) -> array(path, hex of the
-// voice, voice, pos), null for another. The button "Melange NN%" of r25 (play_online): null, the
-// list as aio_resume.
+// key of aio_lp_key, the path of the balancer and the hex of the voice in it; wh_lv of an old
+// record not read) -> array(path, hex of the voice, pos), null for another. The button "Melange
+// NN%" of r25 (play_online): null, the list as aio_resume.
 /**
  * @param stdClass $in
- * @return array{path: string, hex: string, voice: string, pos: int}|null
+ * @return array{path: string, hex: string, pos: int}|null
  */
 function aio_lpv_resume_in($in)
 {
@@ -132,9 +131,7 @@ function aio_lpv_resume_in($in)
     $k = aio_lp_key_parse($si->wh_release);
     if (!$k || $k[0] === '' || (isset($in->selected_control_id) && $in->selected_control_id === 'play_online'))
         return null;
-    return array('path' => $k[0], 'hex' => $k[1],
-        'voice' => isset($si->wh_lv) && is_string($si->wh_lv) ? aio_lp_text($si->wh_lv) : '',
-        'pos' => max(0, aio_int($si, 'wh_pos', 0)));
+    return array('path' => $k[0], 'hex' => $k[1], 'pos' => max(0, aio_int($si, 'wh_pos', 0)));
 }
 
 // "Continue" $r of card $mv (spec §7): the balancer alone (/lite/<path> on the Lampac of the
@@ -143,7 +140,7 @@ function aio_lpv_resume_in($in)
 // cursor on that balancer, the yellow line "<it> больше не отдаёт эту озвучку".
 /**
  * @param AioMovie $mv
- * @param array{path: string, hex: string, voice: string, pos: int} $r
+ * @param array{path: string, hex: string, pos: int} $r
  * @param string $lang
  * @return AioAction
  */
