@@ -5,7 +5,7 @@
 // PHP 5.3: no firmware API, no logging here.
 // Types in the PHPDoc (AioSettings and others): phpstan-types.neon of the repository.
 
-define('AIO_VERSION', '0.60.2');
+define('AIO_VERSION', '0.61.0');
 // HTTPS works only with the firmware CA bundle (curl of the plugin and the page).
 define('AIO_CA_BUNDLE', '/firmware/certs/ca-bundle.crt');
 // In data_dir: written by the settings page and by the plugin (the quick setup, the rows of
@@ -777,7 +777,7 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // 'source_errors' => bool, "Ошибки источников": the reasons of the error streams
 // on the list screen and in the dialogs (0.49.1; not a bool - false),
 // 'no_color_keys' => bool, "Пульт без цветных кнопок": the sort and the details of a release
-// in MENU of the list too (aio_gc_keys_in_menu; 0.60.2; not a bool - false),
+// in MENU of the list too (aio_gc_keys_in_menu; 0.61.0; not a bool - false),
 // 'cat_rating' => bool, "Рейтинг IMDb на постерах": the IMDb rating in the corner of the
 // posters of the rows of the catalog (aio_catv_title_item; not a bool - false),
 // 'cat_logo' => bool, "Логотип фильма вместо названия": the card background of

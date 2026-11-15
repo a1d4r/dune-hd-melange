@@ -61,7 +61,7 @@ function aio_cgi_fields()
         'markers' => array('id' => 'mrk', 'name' => 'markers', 'set' => 'markers', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
         // "Ошибки источников" (0.49.1): aio_cgi_source_errors().
         'source_errors' => array('id' => 'ser', 'name' => 'source_errors', 'set' => 'source_errors', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
-        // "Пульт без цветных кнопок" (0.60.2): aio_cgi_no_color_keys().
+        // "Пульт без цветных кнопок" (0.61.0): aio_cgi_no_color_keys().
         'no_color_keys' => array('id' => 'nck', 'name' => 'no_color_keys', 'set' => 'no_color_keys', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
         // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
@@ -363,7 +363,7 @@ function aio_cgi_source_errors_block($v)
 }
 
 // The answers of "Пульт без цветных кнопок" on the screen #adv (radio no_color_keys,
-// 0.60.2): its value => array(name, hint); "on" - no_color_keys of the settings.
+// 0.61.0): its value => array(name, hint); "on" - no_color_keys of the settings.
 function aio_cgi_no_color_keys()
 {
     return array(

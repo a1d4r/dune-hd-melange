@@ -200,7 +200,7 @@ function aio_cgi_about_row($title, $val = '', $url = '', $cls = '')
         '" target="_blank" rel="noopener noreferrer">' . $in . '<span class="chev">›</span></a>';
 }
 
-// The screen "О Melange" (0.60.2; its line on the main screen, in "Ещё": the version): the version, the date
+// The screen "О Melange" (0.61.0; its line on the main screen, in "Ещё": the version): the version, the date
 // of the build (none: no line), firmware_version of versions.txt whole (260827_0003_r24: the builds of one r
 // differ in a report of a problem), the host of the server of the own config (the line "Откуда брать фильмы" does
 // not show it; no link: no line; xo: hidden as another answer is chosen), the channel; the donations and the

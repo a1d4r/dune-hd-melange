@@ -1240,7 +1240,7 @@ function aio_gc_sort($in)
     return aio_list_replace(aio_gc_put_cursor($ns, 0));
 }
 
-// The sort and the details of a release in MENU of a list too (0.60.2): "Пульт без цветных кнопок" of the
+// The sort and the details of a release in MENU of a list too (0.61.0): "Пульт без цветных кнопок" of the
 // settings, or a remote the firmware knows is without the colour keys (no sort tabs then).
 /**
  * @return bool
