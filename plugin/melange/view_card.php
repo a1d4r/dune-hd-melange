@@ -77,6 +77,10 @@ define('AIO_OC_BAR_H', 6);
 define('AIO_OC_BAR_DY', 9);
 define('AIO_OC_HINT_R', 1845);
 define('AIO_OC_HINT_ARROW_DX', 16);
+// The icons of the button of the list (aio_oc_buttons, AIO_OC_IMG <icon>_icon.png): the title not in the list ("♡ В
+// избранное": ENTER adds it, aio_oc_list), in it ("✓ В избранном": ENTER takes it out).
+define('AIO_OC_ML_ADD', 'heart');
+define('AIO_OC_ML_IN', 'tick');
 // The arrow "more below" of the hints (card1_more_down.png, polish M1b): a grey open chevron down.
 define('AIO_OC_MORE_W', 30);
 define('AIO_OC_MORE_H', 14);
@@ -544,10 +548,10 @@ function aio_oc_buttons($c, $ep)
     if (aio_ml_key($c['tile']) !== '')
     {
         $w = 0;
-        foreach (array(array('ml_add_btn', 'heart'), array('ml_in', 'tick')) as $v)
+        foreach (array(array('ml_add_btn', AIO_OC_ML_ADD), array('ml_in', AIO_OC_ML_IN)) as $v)
             $w = max($w, aio_oc_btn_w(array('list', aio_tr($ui, $v[0]), $v[1], 0)));
         $in = aio_ml_in($c['tile'], $c['dune']) !== '';
-        $b[] = array('list', aio_tr($ui, $in ? 'ml_in' : 'ml_add_btn'), $in ? 'tick' : 'heart', $w);
+        $b[] = array('list', aio_tr($ui, $in ? 'ml_in' : 'ml_add_btn'), $in ? AIO_OC_ML_IN : AIO_OC_ML_ADD, $w);
     }
     return $b;
 }
@@ -1580,7 +1584,7 @@ function aio_oc_dune_items($c)
  */
 function aio_oc_list($key, $c, $l, $pos)
 {
-    $on = isset($l['btns'][$pos['b']]) && $l['btns'][$pos['b']][2] === 'heart';
+    $on = isset($l['btns'][$pos['b']]) && $l['btns'][$pos['b']][2] === AIO_OC_ML_ADD;
     $why = aio_ml_set($c['tile'], $c['dune'], $on);
     if ($why !== '')
         return aio_ml_err($why);
