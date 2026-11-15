@@ -1378,12 +1378,12 @@ function aio_fetch($base, $id, $series, $cin = null)
     $rows = array();
     $hidden = 0;
     $wrong = 0;
-    $mx = aio_merge_start();
+    $mx = aio_merge_start($series);
     foreach ($j['streams'] as $st)
     {
         if (count($rows) === AIO_MAX_ROWS)
         {
-            $k = is_array($st) ? aio_merge_key($st) : null;
+            $k = is_array($st) ? aio_merge_key($st, $series) : null;
             $r = $k && aio_merge_find($mx, $k) ? aio_row($st, $series) : null;
             if ($r && !aio_cin_wrong($r, $cin))
                 aio_row_merge($rows, $mx, $r);

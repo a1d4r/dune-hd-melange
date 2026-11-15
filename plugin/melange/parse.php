@@ -713,6 +713,16 @@ function aio_st_size($st)
     return aio_str($sd, 'size') !== '' ? aio_str($sd, 'size') : aio_str(aio_arr($st, 'behaviorHints'), 'videoSize');
 }
 
+// Path $path names a video file, by its extension (files of TorrServer, aio_merge_key).
+/**
+ * @param string $path
+ * @return bool
+ */
+function aio_ts_video($path)
+{
+    return preg_match('/\.(mkv|mp4|m4v|avi|mov|wmv|ts|m2ts|mts|mpg|mpeg|vob|webm|flv|divx)$/iD', $path) === 1;
+}
+
 // --- One row of a file cached on several Debrid services (0.56.0).
 // The dedup of AIOStreams (cached: per_service) leaves a copy of the release
 // per service; aio_fetch makes them one row. Such a row keeps its copies in
@@ -813,17 +823,26 @@ function aio_row_services($r)
 // Copies of a file in one row at most (aio_merge_find): its merge is quadratic in them.
 define('AIO_MERGE_MAX', 8);
 
+// Sizes of one file the add-ons of two services give (aio_merge_size): at
+// most this times apart, or GiB told as GB (MediaFusion), within 1 %.
+define('AIO_MERGE_SIZE', 1.05);
+define('AIO_MERGE_GIB', 1073741824 / 1e9);
+
 // What the merge compares of stream $st of a reply (the raw of a row of
-// aio_row): the service, infoHash, the file (its name, its index in the
+// aio_row; $series: of an episode): the service, infoHash, the file (its
+// name, norm - the name in letters and digits, lower case; its index in the
 // torrent: -1 unknown), the size, nk - the key of the index by the name and
-// the size ('' no name or size); null for a stream never merged: not cached
-// (true), P2P (no http URL), no service. Of the stream: a stream past the
-// limit of the list is looked at so, before aio_row (aio_fetch).
+// the size ('' no name or size), whole - a copy of a movie named after the
+// release (no index, a name of no video: the size is of the release, of one
+// file mostly); null for a stream never merged: not cached (true), P2P (no
+// http URL), no service. Of the stream: a stream past the limit of the list
+// is looked at so, before aio_row (aio_fetch).
 /**
  * @param array<mixed> $st
+ * @param bool $series
  * @return AioMergeKey|null
  */
-function aio_merge_key($st)
+function aio_merge_key($st, $series)
 {
     $sd = aio_arr($st, 'streamData');
     $svc = aio_arr($sd, 'service');
@@ -832,17 +851,36 @@ function aio_merge_key($st)
         return null;
     $tor = aio_arr($sd, 'torrent');
     $idx = isset($tor['fileIdx']) ? $tor['fileIdx'] : (isset($st['fileIdx']) ? $st['fileIdx'] : null);
+    $idx = is_int($idx) && $idx >= 0 ? $idx : -1;
     $file = aio_st_file($st);
     $size = aio_num(aio_st_size($st));
-    return array('svc' => $id, 'hash' => aio_st_hash($st), 'file' => $file, 'idx' => is_int($idx) && $idx >= 0 ? $idx : -1,
-        'size' => $size, 'nk' => $file !== '' && $size > 0 ? $file . "\x00" . sprintf('%.0f', $size) : '');
+    $norm = preg_replace('/[^\p{L}\p{N}]+/u', '', $file);
+    return array('svc' => $id, 'hash' => aio_st_hash($st), 'file' => $file,
+        'norm' => is_string($norm) ? mb_strtolower($norm, 'UTF-8') : $file, 'idx' => $idx,
+        'size' => $size, 'nk' => $file !== '' && $size > 0 ? $file . "\x00" . sprintf('%.0f', $size) : '',
+        'whole' => !$series && $idx < 0 && $file !== '' && !aio_ts_video($file));
+}
+
+// Sizes $a, $b (bytes, 0 unknown) are of one file (AIO_MERGE_SIZE).
+/**
+ * @param float $a
+ * @param float $b
+ * @return bool
+ */
+function aio_merge_size($a, $b)
+{
+    if ($a <= 0 || $b <= 0)
+        return false;
+    $r = max($a, $b) / min($a, $b);
+    return $r <= AIO_MERGE_SIZE || abs($r / AIO_MERGE_GIB - 1) <= 0.01;
 }
 
 // Copies $a, $b (aio_merge_key) are of one file: both with an infoHash - the
-// same one and the same file (the index and the name, each where both have
-// it, one of them at least); else (MediaFusion has no infoHash) the same
-// name of the file, as it is, and the size in bytes. -> how: 'hash', 'name',
-// '' not one file.
+// same one and the same file (the index and the name in letters and digits,
+// each where both have it, one of them at least), or one of them whole of
+// the size of the other (aio_merge_size); else (MediaFusion has no infoHash)
+// the same name of the file, as it is, and the size in bytes. -> how: 'hash',
+// 'name', '' not one file.
 /**
  * @param AioMergeKey $a
  * @param AioMergeKey $b
@@ -852,10 +890,13 @@ function aio_merge_same($a, $b)
 {
     if ($a['hash'] !== '' && $b['hash'] !== '')
     {
+        if ($a['hash'] !== $b['hash'])
+            return '';
         $idx = $a['idx'] >= 0 && $b['idx'] >= 0;
         $name = $a['file'] !== '' && $b['file'] !== '';
-        return $a['hash'] === $b['hash'] && ($idx || $name) && (!$idx || $a['idx'] === $b['idx']) &&
-            (!$name || $a['file'] === $b['file']) ? 'hash' : '';
+        if (($idx || $name) && (!$idx || $a['idx'] === $b['idx']) && (!$name || $a['norm'] === $b['norm']))
+            return 'hash';
+        return ($a['whole'] || $b['whole']) && aio_merge_size($a['size'], $b['size']) ? 'hash' : '';
     }
     return $a['file'] !== '' && $a['file'] === $b['file'] && $a['size'] > 0 && $a['size'] == $b['size'] ? 'name' : '';
 }
@@ -884,13 +925,14 @@ function aio_merge_group($keys, $k)
     return $by;
 }
 
-// The state of aio_row_merge over one reply.
+// The state of aio_row_merge over one reply, of an episode: $series.
 /**
+ * @param bool $series
  * @return AioMerge
  */
-function aio_merge_start()
+function aio_merge_start($series)
 {
-    return array('g' => array(), 'hash' => array(), 'name' => array(), 'by_hash' => 0, 'by_name' => 0);
+    return array('g' => array(), 'hash' => array(), 'name' => array(), 'by_hash' => 0, 'by_name' => 0, 'series' => $series);
 }
 
 // The row of $mx (aio_merge_start) copy $k (aio_merge_key) joins: of the file
@@ -932,7 +974,7 @@ function aio_merge_find($mx, $k)
  */
 function aio_row_merge(&$rows, &$mx, $r)
 {
-    $k = aio_merge_key($r['raw']);
+    $k = aio_merge_key($r['raw'], $mx['series']);
     if (!$k)
         return false;
     $f = aio_merge_find($mx, $k);

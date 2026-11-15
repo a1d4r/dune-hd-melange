@@ -78,15 +78,6 @@ function aio_ts_files($j)
 
 /**
  * @param string $path
- * @return bool
- */
-function aio_ts_video($path)
-{
-    return preg_match('/\.(mkv|mp4|m4v|avi|mov|wmv|ts|m2ts|mts|mpg|mpeg|vob|webm|flv|divx)$/iD', $path) === 1;
-}
-
-/**
- * @param string $path
  * @return string
  */
 function aio_ts_basename($path)
