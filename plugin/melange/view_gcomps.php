@@ -1097,7 +1097,7 @@ function aio_gc_window($st, $sel, $top)
             AIO_GC_TABS_Y + (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $text, AIO_GC_HINT_PX, AIO_GC_AMBER,
             array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
     }
-    list($from) = aio_lpv_tabs_right($st, $right, AIO_GC_TABS_Y, $right - AIO_GC_LX - $tabs_end);
+    list($from) = aio_src_tabs_right($st, $right, AIO_GC_TABS_Y, $right - AIO_GC_LX - $tabs_end);
     $d = array_merge($d, $from);
 
     $fanart = aio_img($mv['fanart']);

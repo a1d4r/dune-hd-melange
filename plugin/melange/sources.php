@@ -2,7 +2,8 @@
 // "Откуда брать" in MENU of the list (0.58.0): the source profiles the user saved on the
 // settings page (settings.json, src_profiles). The menu of them, and the switch: the
 // request to the source of the profile first, then settings.json read again and
-// written, the screen replaced. The item of MENU: aio_gc_src_item, view_gcomps.php.
+// written, the screen replaced. The item of MENU: aio_gc_src_item, view_gcomps.php. The line
+// "Откуда: <source>" over the lists: aio_src_tabs_right.
 // Reads and writes Aio (state, settings). Functions are global; the require order is
 // in main.php.
 
@@ -243,4 +244,62 @@ function aio_gc_src($in)
     }
     Aio::$settings = $old;
     return aio_gc_src_dialog($title, $st['lang'], $r);
+}
+
+// --- The line "Откуда: <source>" over the lists (the releases and the online list, view_online.php).
+
+// Sources of the lists of card $mv: the releases (the profiles ready, else the settings, if
+// AIOStreams is set), and "Онлайн".
+/**
+ * @param AioMovie $mv
+ * @return int
+ */
+function aio_src_sources_n($mv)
+{
+    return (Aio::$settings['base'] !== '' ? max(1, count(Aio::$settings['profiles'])) : 0) + (aio_lpv_on($mv) ? 1 : 0);
+}
+
+// The name of the source of list $st for "Откуда: …": "Онлайн", the profile in use, else "Раздачи".
+/**
+ * @param AioState $st
+ * @return string
+ */
+function aio_src_from_name($st)
+{
+    if (!empty($st['lp_on']))
+        return aio_tr($st['lang'], 'lp_online');
+    foreach (Aio::$settings['profiles'] as $p)
+    {
+        if ($p['now'])
+            return $p['name'];
+    }
+    return aio_tr($st['lang'], 'lp_releases');
+}
+
+// Children of "Откуда: <source>" right-aligned to x $right of the row of the tabs of list $st,
+// with two sources or more (spec §5.1), in $room px at most (the tabs left of it; less than the
+// word and a few letters: none). -> array(children, their width; 0 none).
+/**
+ * @param AioState $st
+ * @param int $right
+ * @param int $y
+ * @param int $room
+ * @return array{list<AioGcComp>, int}
+ */
+function aio_src_tabs_right($st, $right, $y, $room)
+{
+    if (aio_src_sources_n($st['movie']) < 2)
+        return array(array(), 0);
+    $lang = aio_gc_lang($st);
+    $h = AIO_GC_LABEL_H;
+    $y += intval((AIO_GC_KEY_H - $h) / 2);
+    $lead = aio_tr($lang, 'lp_from') . ' ';
+    $lw = aio_gc_w($lead, AIO_GC_HINT_PX);
+    if ($room - $lw < 80)
+        return array(array(), 0);
+    $name = aio_gc_cut_w(aio_src_from_name($st), AIO_GC_HINT_PX, min(300, $room - $lw));
+    $nw = aio_gc_w($name, AIO_GC_HINT_PX);
+    return array(array(
+        aio_gc_cut(null, aio_gc_at($lw, $h, $right - $nw - $lw, $y), $lead, AIO_GC_HINT_PX, AIO_GC_DIM),
+        aio_gc_cut(null, aio_gc_at($nw, $h, $right - $nw, $y), $name, AIO_GC_HINT_PX, AIO_GC_TEXT2)), $nw + $lw);
 }

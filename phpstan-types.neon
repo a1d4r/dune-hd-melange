@@ -40,7 +40,7 @@ parameters:
         # A reason of a source of Lampac (aio_lp_why, lampac.php).
         AioLpWhy: 'array{src: string, bal: string, why: string, detail: string}'
         # A row of a reply of a balancer (aio_lp_movie, lampac.php).
-        AioLpRow: 'array{bal: string, src: string, voice: string, quality: string, method: string, url: string, stream: string, qual: array<string, string>, subs: int, key: string}'
+        AioLpRow: 'array{bal: string, path: string, src: string, voice: string, quality: string, method: string, url: string, stream: string, qual: array<string, string>, subs: int, key: string}'
         # A reply of a balancer (aio_lp_reply, lampac.php).
         AioLpParsed: 'array{kind: string, rows: list<AioLpRow>, why: list<AioLpWhy>}'
         # The replies of the sources (aio_lp_replies, lampac.php).
@@ -54,9 +54,10 @@ parameters:
         # the number left, the start of the search (aio_lp_now), the yellow line; the cursor as AioState's.
         AioLpView: 'array{title: AioLpTitle, q: string, sources: list<AioLpSource>, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: AioProgress}'
         # The search window between its ticks (AioLpv::$run, aio_lpv_search_open, view_online.php).
-        AioLpRun: 'array{sid: string, st: AioState, how: string, mark: bool, back: bool, bal: string, phase: string, search: AioLpSearch|null, sources: list<AioLpSource>, q: string, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, t: float, t1: float, title: AioLpTitle}'
+        # The view of the search so far in v, the start of the replies t1, more: the rows before "Ещё N" (-1: a new search).
+        AioLpRun: 'array{sid: string, st: AioState, how: string, mark: bool, back: bool, path: string, phase: string, search: AioLpSearch|null, v: AioLpView, t1: float, more: int}'
         # The mark "online" of a title (data_dir/lampac_choice.json, view_online.php): the path of the balancer and the voice of the last start.
-        AioLpMark: 'array{online: bool, bal: string, voice: string, ts: int}'
+        AioLpMark: 'array{online: bool, path: string, voice: string, ts: int}'
         # A config of AIOStreams made by the settings page (aio_aio_conf, common.php).
         AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null}'
         # A JacRed to ask (aio_jacred_conf, aio_jacred_builtin_conf, common.php).

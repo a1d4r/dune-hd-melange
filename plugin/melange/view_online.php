@@ -113,9 +113,9 @@ function aio_lpv_marks_read()
     foreach (is_array($j) ? $j : array() as $k => $m)
     {
         if (is_string($k) && preg_match('/^(?:' . AIO_DUNE_ID . '|tt[0-9]{1,10})\z/', $k) && is_array($m) &&
-            isset($m['online'], $m['bal'], $m['voice'], $m['ts']) && is_bool($m['online']) && is_string($m['bal']) &&
+            isset($m['online'], $m['path'], $m['voice'], $m['ts']) && is_bool($m['online']) && is_string($m['path']) &&
             is_string($m['voice']) && is_int($m['ts']))
-            $out[$k] = array('online' => $m['online'], 'bal' => $m['bal'], 'voice' => $m['voice'], 'ts' => $m['ts']);
+            $out[$k] = array('online' => $m['online'], 'path' => $m['path'], 'voice' => $m['voice'], 'ts' => $m['ts']);
     }
     return $out;
 }
@@ -132,16 +132,16 @@ function aio_lpv_mark($mv)
     return $k !== '' && isset($all[$k]) && $all[$k]['online'] ? $all[$k] : null;
 }
 
-// Card $mv marked "online" with balancer path $bal and voice $voice of the last start ('': as
+// Card $mv marked "online" with balancer path $path and voice $voice of the last start (null: as
 // it was), or the mark taken off ($on false). The newest AIO_LPV_MARKS_MAX kept.
 /**
  * @param AioMovie $mv
  * @param bool $on
- * @param string|null $bal
+ * @param string|null $path
  * @param string|null $voice
  * @return void
  */
-function aio_lpv_mark_set($mv, $on, $bal = null, $voice = null)
+function aio_lpv_mark_set($mv, $on, $path = null, $voice = null)
 {
     $f = aio_lpv_marks_path();
     $k = aio_lpv_key($mv);
@@ -150,10 +150,10 @@ function aio_lpv_mark_set($mv, $on, $bal = null, $voice = null)
     $all = aio_lpv_marks_read();
     if (!$on && !isset($all[$k]))
         return;
-    $old = isset($all[$k]) ? $all[$k] : array('online' => true, 'bal' => '', 'voice' => '', 'ts' => 0);
+    $old = isset($all[$k]) ? $all[$k] : array('online' => true, 'path' => '', 'voice' => '', 'ts' => 0);
     unset($all[$k]);
     if ($on)
-        $all[$k] = array('online' => true, 'bal' => $bal !== null ? $bal : $old['bal'],
+        $all[$k] = array('online' => true, 'path' => $path !== null ? $path : $old['path'],
             'voice' => $voice !== null ? $voice : $old['voice'], 'ts' => time());
     uasort($all, function ($a, $b)
     {
@@ -199,18 +199,7 @@ function aio_lpv_why($lang, $why, $detail)
     return str_replace('{d}', aio_cut(aio_one_line($detail), 80), $s);
 }
 
-// --- The sources of "Откуда брать…" and the line "Откуда: …".
-
-// Sources of the lists of card $mv: the releases (the profiles ready, else the settings, if
-// AIOStreams is set), and "Онлайн".
-/**
- * @param AioMovie $mv
- * @return int
- */
-function aio_lpv_sources_n($mv)
-{
-    return (Aio::$settings['base'] !== '' ? max(1, count(Aio::$settings['profiles'])) : 0) + (aio_lpv_on($mv) ? 1 : 0);
-}
+// --- "Онлайн" in "Откуда брать…" (the line "Откуда: …": aio_src_tabs_right, sources.php).
 
 // "Онлайн" goes into "Откуда брать…" of list $st: the releases are there to go back to.
 /**
@@ -252,51 +241,6 @@ function aio_lpv_src_items($st, $items, $sel)
         GuiMenuItemDef::icon_url => 'gui_skin://small_icons/web_browser.aai',
         GuiMenuItemDef::action => aio_gc_act('lp_go', $st['rid']));
     return array($items, $sel);
-}
-
-// The name of the source of list $st for "Откуда: …": "Онлайн", the profile in use, else "Раздачи".
-/**
- * @param AioState $st
- * @return string
- */
-function aio_lpv_from_name($st)
-{
-    if (!empty($st['lp_on']))
-        return aio_tr($st['lang'], 'lp_online');
-    foreach (Aio::$settings['profiles'] as $p)
-    {
-        if ($p['now'])
-            return $p['name'];
-    }
-    return aio_tr($st['lang'], 'lp_releases');
-}
-
-// Children of "Откуда: <source>" right-aligned to x $right of the row of the tabs of list $st,
-// with two sources or more (spec §5.1), in $room px at most (the tabs left of it; less than the
-// word and a few letters: none). -> array(children, their width; 0 none).
-/**
- * @param AioState $st
- * @param int $right
- * @param int $y
- * @param int $room
- * @return array{list<AioGcComp>, int}
- */
-function aio_lpv_tabs_right($st, $right, $y, $room)
-{
-    if (aio_lpv_sources_n($st['movie']) < 2)
-        return array(array(), 0);
-    $lang = aio_gc_lang($st);
-    $h = AIO_GC_LABEL_H;
-    $y += intval((AIO_GC_KEY_H - $h) / 2);
-    $lead = aio_tr($lang, 'lp_from') . ' ';
-    $lw = aio_gc_w($lead, AIO_GC_HINT_PX);
-    if ($room - $lw < 80)
-        return array(array(), 0);
-    $name = aio_gc_cut_w(aio_lpv_from_name($st), AIO_GC_HINT_PX, min(300, $room - $lw));
-    $nw = aio_gc_w($name, AIO_GC_HINT_PX);
-    return array(array(
-        aio_gc_cut(null, aio_gc_at($lw, $h, $right - $nw - $lw, $y), $lead, AIO_GC_HINT_PX, AIO_GC_DIM),
-        aio_gc_cut(null, aio_gc_at($nw, $h, $right - $nw, $y), $name, AIO_GC_HINT_PX, AIO_GC_TEXT2)), $nw + $lw);
 }
 
 // Children of the yellow line of the releases of list $st (lp_note: "Онлайн не отвечает —
@@ -488,7 +432,7 @@ function aio_lpv_window($st, $sel, $top)
         aio_gc_counter($sel, $n));
     // No tabs: the yellow line of the view at the left of their row, "Откуда: Онлайн" at the right.
     $right = AIO_GC_LX + AIO_GC_LW - 16;
-    list($from, $fw) = aio_lpv_tabs_right($st, $right, AIO_GC_TABS_Y, 360);
+    list($from, $fw) = aio_src_tabs_right($st, $right, AIO_GC_TABS_Y, 360);
     $d = array_merge($d, $from);
     if ($v['note'] !== '')
         $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16 - ($fw > 0 ? $fw + 40 : 0), AIO_GC_LABEL_H, AIO_GC_LX,
@@ -538,15 +482,13 @@ function aio_lpv_folder_view($st, $sel_state)
     Aio::$state['lp']['gc'] = array($sel, $top);
     $st['lp']['gc_prog'] = Aio::$state['lp']['gc_prog'] = aio_wh_progress($st);
     $rid = $st['rid'];
-    $fin = aio_gc_act('lp_finish', $rid);
-    $fin[GuiAction::flags] = GUI_ACTION_FLAG_SKIP_ON_PLAY_RESTART;
     $acts = array(
         GUI_EVENT_KEY_UP => aio_gc_act('lp_move', $rid, array('d' => 'up')),
         GUI_EVENT_KEY_DOWN => aio_gc_act('lp_move', $rid, array('d' => 'down')),
         GUI_EVENT_KEY_P_PLUS => aio_gc_act('lp_move', $rid, array('d' => 'pgup')),
         GUI_EVENT_KEY_P_MINUS => aio_gc_act('lp_move', $rid, array('d' => 'pgdn')),
         GUI_EVENT_KEY_ENTER => aio_gc_act('lp_pick', $rid),
-        GUI_EVENT_MENU_PLAYBACK_FINISH => $fin,
+        GUI_EVENT_MENU_PLAYBACK_FINISH => aio_finish_act($rid),
         GUI_EVENT_KEY_POPUP_MENU => aio_gc_act('lp_menu', $rid));
     return array(
         PluginFolderView::multiple_views_supported => false,
@@ -598,7 +540,7 @@ function aio_lpv_move($in, $st)
             ChangeGCompsActionData::sel_state => aio_gc_state($nsel, $ntop)));
 }
 
-// lp_finish (back from the player): the bars of the rows whose share changed, else nothing.
+// Back from the player (aio_finish): the bars of the rows whose share changed, else nothing.
 /**
  * @param AioState $st
  * @return AioAction|null
@@ -698,31 +640,33 @@ function aio_lpv_errors_of($st)
 // A new window of the search of list $st (rows may be none) as $how: 'open' - over a card
 // (play_action), its screen opened; 'replace' - over a list screen, replaced. $opt: mark (the
 // title marked "online" when there is a list), back (nothing online: the releases with the
-// yellow line), bal (the path of a balancer: the cursor on it, the yellow line "<it> больше не
-// отдаёт эту озвучку"), more (the replies of the view of $st from its next, no search).
+// yellow line), path (the path of a balancer: the cursor on it, the yellow line "<it> больше не
+// отдаёт эту озвучку"), more (the replies of the view of $st from its next, no search; the
+// cursor on the first new row).
 /**
  * @param AioState $st
  * @param string $how
- * @param array{mark?: bool, back?: bool, bal?: string, more?: bool} $opt
+ * @param array{mark?: bool, back?: bool, path?: string, more?: bool} $opt
  * @return AioAction
  */
 function aio_lpv_search_open($st, $how, $opt = array())
 {
     $sid = aio_rid();
-    $run = array('sid' => $sid, 'st' => $st, 'how' => $how, 'mark' => !empty($opt['mark']), 'back' => !empty($opt['back']),
-        'bal' => isset($opt['bal']) ? $opt['bal'] : '', 'phase' => 'start', 'search' => null, 'sources' => array(),
-        'q' => '', 'hidden' => array('show' => 0, 'rch' => 0, 'bad' => 0), 'rows' => array(), 'why' => array(),
-        'next' => 0, 't' => aio_lp_now(), 't1' => 0.0, 'title' => aio_lpv_title($st['movie']));
-    if (!empty($opt['more']) && isset($st['lp']))
+    $more = !empty($opt['more']) && isset($st['lp']);
+    $v = array('title' => aio_lpv_title($st['movie']), 'q' => '', 'sources' => array(),
+        'hidden' => array('show' => 0, 'rch' => 0, 'bad' => 0), 'rows' => array(), 'why' => array(), 'next' => 0,
+        'left' => 0, 't' => aio_lp_now(), 'note' => '');
+    if ($more)
     {
         $v = $st['lp'];
-        $run = array_merge($run, array('phase' => 'replies', 'sources' => $v['sources'], 'q' => $v['q'],
-            'hidden' => $v['hidden'], 'rows' => $v['rows'], 'why' => $v['why'], 'next' => $v['next'], 't' => $v['t'],
-            't1' => aio_lp_now(), 'title' => $v['title']));
+        unset($v['gc'], $v['gc_new'], $v['gc_prog']);
     }
+    $run = array('sid' => $sid, 'st' => $st, 'how' => $how, 'mark' => !empty($opt['mark']), 'back' => !empty($opt['back']),
+        'path' => isset($opt['path']) ? $opt['path'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null,
+        'v' => $v, 't1' => $more ? aio_lp_now() : 0.0, 'more' => $more ? count($v['rows']) : -1);
     AioLpv::$run = $run;
     aio_log("lampac: window $sid, " . aio_ep_tag($st) . ", $how, phase {$run['phase']}" . ($run['mark'] ? ', mark' : '') .
-        ($run['back'] ? ', back' : '') . ($run['bal'] !== '' ? ", balancer {$run['bal']}" : ''));
+        ($run['back'] ? ', back' : '') . ($run['path'] !== '' ? ", balancer {$run['path']}" : ''));
     return aio_dialog_act(aio_tr($st['lang'], 'lp_search'), aio_lpv_search_defs($run), array(
         ShowDialogActionData::actions => array(GUI_EVENT_TIMER => aio_input('lp_tick', array('sid' => $sid), 30000)),
         ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => AIO_LPV_TICK_MS)));
@@ -737,10 +681,11 @@ function aio_lpv_search_open($st, $how, $opt = array())
 function aio_lpv_search_defs($run)
 {
     $lang = $run['st']['lang'];
-    $n = count($run['sources']);
+    $v = $run['v'];
+    $n = count($v['sources']);
     $l1 = aio_lpv_tr($lang, 'lp_search_found', array('n' => $n));
-    $l2 = $run['phase'] === 'replies' ? aio_lpv_tr($lang, 'lp_search_asking', array('k' => $run['next'], 'n' => $n,
-        'r' => count($run['rows']))) : aio_tr($lang, 'lp_search_wait');
+    $l2 = $run['phase'] === 'replies' ? aio_lpv_tr($lang, 'lp_search_asking', array('k' => $v['next'], 'n' => $n,
+        'r' => count($v['rows']))) : aio_tr($lang, 'lp_search_wait');
     return array(
         aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l1)),
         aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l2)),
@@ -748,9 +693,10 @@ function aio_lpv_search_defs($run)
             GuiButtonDef::width => 300, GuiButtonDef::push_action => aio_input('lp_cancel', array('sid' => $run['sid'])))));
 }
 
-// lp_tick of the window $in->sid: one step of its run - the start (/externalids, events), a
-// /lifeevents, the replies of a few balancers - then the window redrawn and its timer again,
-// or closed with the result (aio_lpv_result).
+// lp_tick of the window $in->sid: one step of its run - /externalids, the start of the search
+// (events), a /lifeevents (or the one events without life: up to AIO_LP_SEARCH_MAX s), the
+// replies of a few balancers - then the window redrawn and its timer again, or closed with the
+// result (aio_lpv_result).
 /**
  * @param stdClass $in
  * @return AioAction
@@ -769,32 +715,38 @@ function aio_lpv_tick($in)
         AioLpv::$run = null;
         return aio_close_and(aio_lpv_down($run, 'down', 'no address'));
     }
-    if ($run['phase'] === 'start')
+    if ($run['phase'] === 'ids')
     {
-        list($run['title']) = aio_lp_externalids($base, $run['title']);
-        $run['search'] = aio_lp_search_start($base, $run['title']);
+        list($run['v']['title']) = aio_lp_externalids($base, $run['v']['title']);
+        $run['phase'] = 'start';
+    }
+    else if ($run['phase'] === 'start')
+    {
+        $run['search'] = aio_lp_search_start($base, $run['v']['title']);
         $run['phase'] = 'search';
     }
     else if ($run['phase'] === 'search' && $run['search'])
         $run['search'] = aio_lp_search_step($run['search']);
     else if ($run['phase'] === 'replies')
     {
+        $v = $run['v'];
         $left = AIO_LP_REPLIES_MAX - (aio_lp_now() - $run['t1']);
-        if ($left >= AIO_LP_REPLY_MIN && $run['next'] < count($run['sources']))
+        if ($left >= AIO_LP_REPLY_MIN && $v['next'] < count($v['sources']))
         {
-            $rr = aio_lp_replies($base, $run['sources'], $run['q'], $run['next'], min(AIO_LPV_TICK_MAX, $left));
-            $run['rows'] = array_slice(array_merge($run['rows'], $rr['rows']), 0, AIO_LP_ROWS_MAX);
-            $run['why'] = array_merge($run['why'], $rr['why']);
-            $run['next'] = $rr['next'];
+            $rr = aio_lp_replies($base, $v['sources'], $v['q'], $v['next'], min(AIO_LPV_TICK_MAX, $left));
+            $v['rows'] = array_slice(array_merge($v['rows'], $rr['rows']), 0, AIO_LP_ROWS_MAX);
+            $v['why'] = array_merge($v['why'], $rr['why']);
+            $v['next'] = $rr['next'];
+            $run['v'] = $v;
         }
-        if ($run['next'] >= count($run['sources']) || AIO_LP_REPLIES_MAX - (aio_lp_now() - $run['t1']) < AIO_LP_REPLY_MIN)
+        if ($v['next'] >= count($v['sources']) || AIO_LP_REPLIES_MAX - (aio_lp_now() - $run['t1']) < AIO_LP_REPLY_MIN)
             $run['phase'] = 'done';
     }
     $s = $run['search'];
     if ($run['phase'] === 'search' && $s)
     {
-        $run['sources'] = $s['sources'];
-        $run['hidden'] = $s['hidden'];
+        $run['v']['sources'] = $s['sources'];
+        $run['v']['hidden'] = $s['hidden'];
         if ($s['done'])
         {
             if (!$s['sources'] && $s['err'] !== '' && $s['err'] !== 'accsdb')
@@ -803,9 +755,9 @@ function aio_lpv_tick($in)
                 return aio_close_and(aio_lpv_down($run, $s['err'], $s['detail']));
             }
             if ($s['err'] === 'accsdb')
-                $run['why'][] = array('src' => '', 'bal' => '', 'why' => 'accsdb', 'detail' => $s['detail']);
-            $run['q'] = $s['q'];
-            $run['t'] = $s['t0'];
+                $run['v']['why'][] = array('src' => '', 'bal' => '', 'why' => 'accsdb', 'detail' => $s['detail']);
+            $run['v']['q'] = $s['q'];
+            $run['v']['t'] = $s['t0'];
             $run['phase'] = $s['sources'] ? 'replies' : 'done';
             $run['t1'] = aio_lp_now();
         }
@@ -849,10 +801,10 @@ function aio_lpv_down($run, $why, $detail)
         array(aio_tr($lang, 'lp_close') => aio_close_and(null)));
 }
 
-// The end of run $run: the online list (the remembered row of the title first, then the
-// order of Lampac; the cursor on the balancer of the run), its screen opened or the list
-// screen replaced; nothing at all - the window "Онлайн для «…» не нашлось" (a marked title
-// with releases: those with the yellow line).
+// The end of run $run: the online list (of a new search the remembered row of the title first,
+// then the order of Lampac; the cursor on the balancer of the run, after "Ещё N" on the first new
+// row), its screen opened or the list screen replaced; nothing at all - the window "Онлайн для
+// «…» не нашлось" (a marked title with releases: those with the yellow line).
 /**
  * @param AioLpRun $run
  * @return AioAction
@@ -862,15 +814,16 @@ function aio_lpv_result($run)
     $st = $run['st'];
     $mv = $st['movie'];
     $lang = $st['lang'];
-    $left = count($run['sources']) - $run['next'];
-    $tag = "lampac: window {$run['sid']}: " . count($run['sources']) . ' sources, ' . count($run['rows']) . " rows, $left left";
-    if (!$run['rows'] && $left <= 0)
+    $v = $run['v'];
+    $left = count($v['sources']) - $v['next'];
+    $tag = "lampac: window {$run['sid']}: " . count($v['sources']) . ' sources, ' . count($v['rows']) . " rows, $left left";
+    if (!$v['rows'] && $left <= 0)
     {
         aio_log("$tag -> " . ($run['back'] ? 'the releases' : 'nothing online'));
         if ($run['back'])
             return aio_lpv_releases($st, aio_tr($lang, 'lp_note_empty'));
         $lines = array();
-        foreach ($run['why'] as $w)
+        foreach ($v['why'] as $w)
         {
             if ($w['why'] === 'accsdb' && $w['detail'] !== '')
                 $lines = array_merge($lines, aio_dialog_lines($w['detail']));
@@ -878,13 +831,12 @@ function aio_lpv_result($run)
         return aio_dialog(aio_lpv_tr($lang, 'lp_none', array('title' => $mv['title'])), array_slice($lines, 0, 2),
             array(aio_tr($lang, 'lp_close') => aio_close_and(null)));
     }
-    $mark = aio_lpv_mark($mv);
-    $rows = $run['rows'];
+    $mark = $run['more'] < 0 ? aio_lpv_mark($mv) : null;
+    $rows = $v['rows'];
     $first = -1;
     foreach ($rows as $i => $r)
     {
-        if ($mark && $mark['bal'] !== '' && aio_lpv_path($run['sources'], $r['bal']) === $mark['bal'] &&
-            $r['voice'] === $mark['voice'])
+        if ($mark && $mark['path'] !== '' && $r['path'] === $mark['path'] && $r['voice'] === $mark['voice'])
         {
             $first = $i;
             break;
@@ -892,19 +844,19 @@ function aio_lpv_result($run)
     }
     if ($first > 0)
         $rows = array_merge(array($rows[$first]), array_slice($rows, 0, $first), array_slice($rows, $first + 1));
-    $sel = 0;
+    $sel = max(0, $run['more']);
     $note = '';
-    if ($run['bal'] !== '')
+    if ($run['path'] !== '')
     {
-        $label = ucfirst($run['bal']);
-        foreach ($run['sources'] as $src)
+        $label = ucfirst($run['path']);
+        foreach ($v['sources'] as $src)
         {
-            if (aio_lp_path($src['url']) === $run['bal'])
+            if (aio_lp_path($src['url']) === $run['path'])
                 $label = $src['label'];
         }
         foreach ($rows as $i => $r)
         {
-            if (aio_lpv_path($run['sources'], $r['bal']) === $run['bal'])
+            if ($r['path'] === $run['path'])
             {
                 $sel = $i;
                 break;
@@ -912,9 +864,10 @@ function aio_lpv_result($run)
         }
         $note = aio_lpv_tr($lang, 'lp_note_gone', array('src' => $label));
     }
-    $v = array('title' => $run['title'], 'q' => $run['q'], 'sources' => $run['sources'], 'hidden' => $run['hidden'],
-        'rows' => $rows, 'why' => $run['why'], 'next' => $run['next'], 'left' => max(0, $left), 't' => $run['t'],
-        'note' => $note);
+    $v['rows'] = $rows;
+    $v['left'] = max(0, $left);
+    $v['note'] = $note;
+    $sel = min($sel, aio_lpv_n($v) - 1);
     $v['gc'] = aio_gc_cursor($sel, aio_lpv_n($v));
     $v['gc_new'] = true;
     $ns = $st;
@@ -928,22 +881,6 @@ function aio_lpv_result($run)
     if ($run['how'] === 'open')
         return aio_lpv_open($ns);
     return aio_list_replace($ns);
-}
-
-// The path of the balancer $bal (a key of aio_lp_bal) among sources $sources, '' none.
-/**
- * @param list<AioLpSource> $sources
- * @param string $bal
- * @return string
- */
-function aio_lpv_path($sources, $bal)
-{
-    foreach ($sources as $s)
-    {
-        if ($s['bal'] === $bal)
-            return aio_lp_path($s['url']);
-    }
-    return '';
 }
 
 // List $ns the live one, its screen opened (over a card).
@@ -1083,12 +1020,11 @@ function aio_lpv_pick($in, $st)
         return $v['left'] > 0 ? aio_lpv_search_open($st, 'replace', array('more' => true)) : null;
     $r = $v['rows'][$sel];
     $left = Aio::$t0 > 0 ? AIO_OP_BUDGET - (microtime(true) - Aio::$t0) : AIO_OP_BUDGET;
-    $path = aio_lpv_path($v['sources'], $r['bal']);
     aio_log("lampac: row $sel of " . count($v['rows']) . ": {$r['bal']}, {$r['method']}");
     $l = aio_lpv_link(Aio::$settings['lp'], $r, aio_lp_now() + $left);
     if ($l['err'] !== '')
         return aio_lpv_failed($st['lang'], $r, $l['err'], $l['detail']);
-    return aio_lpv_vod($st['movie'], $st['lang'], $r, $path, $l['url'], 0);
+    return aio_lpv_vod($st['movie'], $st['lang'], $r, $l['url'], 0);
 }
 
 // The link of row $r to play by deadline $deadline (aio_lp_now): "call" of a row of the method
@@ -1136,7 +1072,7 @@ function aio_lpv_failed($lang, $r, $why, $detail)
         $detail)), array('OK' => aio_close_and(null)));
 }
 
-// vod_play of link $url of row $r of card $mv (balancer path $path) from $pos s, linked to the
+// vod_play of link $url of row $r of card $mv from $pos s, linked to the
 // card when it has a dune id (spec §7): recent_uid aio:<dune id>:-1:-1:<key of the row>, as a
 // release of a movie; recent_action_params wh_release = the key, wh_mode lampac, wh_lb the
 // path of the balancer, wh_lv the voice ("Continue": aio_lpv_resume). The mark of a title marked
@@ -1146,13 +1082,13 @@ function aio_lpv_failed($lang, $r, $why, $detail)
  * @param AioMovie $mv
  * @param string $lang
  * @param AioLpRow $r
- * @param string $path
  * @param string $url
  * @param int $pos
  * @return AioAction
  */
-function aio_lpv_vod($mv, $lang, $r, $path, $url, $pos)
+function aio_lpv_vod($mv, $lang, $r, $url, $pos)
 {
+    $path = $r['path'];
     $linked = $mv['dune_id'] !== '';
     $ser = aio_vod_item($mv, -1, -1, $url, $linked ? $r['key'] : '', false);
     $info = array(
@@ -1252,7 +1188,7 @@ function aio_lpv_resume($mv, $r, $lang)
             if ($l['err'] === '')
             {
                 aio_log("resume: lampac {$r['path']}, pos {$r['pos']}");
-                return aio_lpv_vod($mv, $lang, $row, $r['path'], $l['url'], $r['pos']);
+                return aio_lpv_vod($mv, $lang, $row, $l['url'], $r['pos']);
             }
             $why = "no link ({$l['err']})";
         }
@@ -1260,7 +1196,7 @@ function aio_lpv_resume($mv, $r, $lang)
     aio_log("resume: lampac {$r['path']}: $why -> the search");
     $st = aio_list_state($mv, -1, -1, array(), $lang, aio_no_errors());
     $st['lp_only'] = true;
-    return aio_lpv_search_open($st, 'open', array('bal' => $r['path']));
+    return aio_lpv_search_open($st, 'open', array('path' => $r['path']));
 }
 
 // play_action $in of card $mv with "Онлайн" (aio_lpv_on): "Continue" of an online record; no
@@ -1341,7 +1277,7 @@ function aio_lpv_input($in, $control)
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
     {
         aio_log("lampac: $control of no live list");
-        return $control === 'lp_move' || $control === 'lp_finish' ? null : aio_error('err_list_expired');
+        return $control === 'lp_move' ? null : aio_error('err_list_expired');
     }
     if ($control === 'lp_find')
         return aio_lpv_on($st['movie']) ? aio_lpv_search_open($st, 'open', array('mark' => true)) : null;
@@ -1365,7 +1301,5 @@ function aio_lpv_input($in, $control)
         return aio_errors_dialog(aio_tr($st['lang'], 'errors_menu'), $st['lang'], aio_lpv_errors_of($st));
     if ($control === 'lp_refresh')
         return aio_lpv_refresh($st);
-    if ($control === 'lp_finish')
-        return aio_lpv_finish($st);
     return null;
 }

@@ -732,6 +732,9 @@ function aio_finish($in)
 function aio_finish_list($in)
 {
     $st = Aio::$state;
+    // The online list (view_online.php): the bars of its rows.
+    if ($st && !empty($st['lp_on']) && isset($st['lp'], $in->rid) && $in->rid === $st['rid'])
+        return aio_lpv_finish($st);
     $p = Aio::$playing;
     $rid = isset($in->rid) && is_string($in->rid) ? $in->rid : '';
     if (!$st || $rid !== $st['rid'] || !$p || $p['from'] !== $rid)

@@ -676,7 +676,8 @@ function aio_lp_quals($q)
 // The reply ($code, $body) of the balancer of source $src -> array(kind: movie
 // (rows), serial (a series: not in this version, a reason), similar (Lampac
 // found several titles: skipped, counted), skip (nothing to play, reasons);
-// rows; why). A row (AioLpRow): bal, src (its label), voice (translate,
+// rows; why). A row (AioLpRow): bal, path (aio_lp_path of the link of $src:
+// "Continue" and the mark ask it again), src (its label), voice (translate,
 // else voice_name, else ''), quality (maxquality, else the quality of the
 // list), method (play: url plays; call: url gives the link, aio_lp_call),
 // url (by "quality" when empty), stream (the link of "call" that plays at
@@ -755,8 +756,8 @@ function aio_lp_movie($src, $data, $base = '')
             if ($voice === '')
                 $voice = aio_lp_text(aio_lp_str($x, 'voice_name'));
             $q = aio_lp_text(aio_lp_str($x, 'maxquality'));
-            $rows[] = array('bal' => $src['bal'], 'src' => $src['label'], 'voice' => $voice,
-                'quality' => $q !== '' ? $q : $src['q'], 'method' => $method, 'url' => $url,
+            $rows[] = array('bal' => $src['bal'], 'path' => aio_lp_path($src['url']), 'src' => $src['label'],
+                'voice' => $voice, 'quality' => $q !== '' ? $q : $src['q'], 'method' => $method, 'url' => $url,
                 'stream' => aio_lp_link_ok(isset($x['stream']) ? $x['stream'] : null), 'qual' => $qual,
                 'subs' => isset($x['subtitles']) && is_array($x['subtitles']) ? count($x['subtitles']) : 0,
                 'key' => aio_lp_key($src['bal'], $voice));
