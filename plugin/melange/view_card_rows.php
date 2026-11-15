@@ -1,7 +1,8 @@
 <?php
 // The rows of the own card (view_card.php) at the bottom of its first screen and in "down": the
 // cast and the rows of posters (similar titles, the movies of a franchise, aio_cm_posters) - their
-// items, their strips laid one under the other, drawn and changed as the focus moves; the stop of
+// items, their strips laid one under the other, drawn and changed as the focus moves; over a row
+// of posters at its stop the header of the poster in focus (aio_oc_ri); the stop of
 // the same row on a screen laid out anew (aio_oc_stop_of); ENTER on a person or a poster; the timer
 // asking the rows of posters (aio_oc_load).
 // Needs view_card.php (the card, its layout and place), view_card_row.php (the strip, its cells),
@@ -383,9 +384,55 @@ function aio_oc_rows($c, $l, $pos)
     return $d;
 }
 
+// The poster in focus at place $pos: array(the id of its row, its index) at the stop of a row of posters, null at
+// another place and on the stubs.
+/**
+ * @param AioOcNav $l
+ * @param AioOcPos $pos
+ * @return array{string, int}|null
+ */
+function aio_oc_ri_of($l, $pos)
+{
+    $id = aio_oc_strip_on($l, $pos);
+    if ($id === '' || $id === 'c' || $id === 'w')
+        return null;
+    list($k) = aio_oc_strip_at($l['strips'][$id], aio_oc_strip_k($pos, $id));
+    return array($id, $k);
+}
+
+// The header of the poster in focus at place $pos (aio_oc_ri_of), the children of the panel "ri" over the clip: its
+// title, the line of facts of the panel of the catalog (what the tile has: "Похожие" give no KP, length, age), its
+// description in RI_LINES lines, "…" on the last; none for no poster in focus.
+/**
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @param AioOcPos $pos
+ * @return list<AioGcComp>
+ */
+function aio_oc_ri($c, $l, $pos)
+{
+    $at = aio_oc_ri_of($l, $pos);
+    $items = $at ? aio_oc_row_items($c, $at[0]) : array();
+    if (!$at || !isset($items[$at[1]]))
+        return array();
+    $t = $items[$at[1]];
+    $x0 = AIO_CATV_CARD_X;
+    $d = array(aio_gc_cut(null, aio_gc_at(AIO_OC_TITLE_W, 66, $x0, AIO_OC_RI_TITLE_Y),
+        aio_gc_cut_w(aio_clean($t['name']), AIO_CATV_TITLE2_PX, AIO_OC_TITLE_W), AIO_CATV_TITLE2_PX, AIO_CATV_TITLE_COLOR));
+    $facts = aio_catv_facts($t, $c['ui']);
+    if ($facts)
+        $d[] = aio_gc_panel('rif', aio_gc_at(AIO_CATV_PANE_W, AIO_OC_RI_DESC_Y, $x0, 0),
+            aio_catv_facts_labels($facts, AIO_OC_RI_FACTS_Y));
+    foreach (aio_gc_wrap(aio_clean($t['description']), AIO_CATV_LINE_PX, AIO_OC_TITLE_W, AIO_OC_RI_LINES, true) as $i => $line)
+        $d[] = aio_oc_label($x0, AIO_OC_RI_DESC_Y + $i * AIO_OC_DESC_LH, AIO_OC_TITLE_W, $line, AIO_CATV_LINE_PX,
+            AIO_CATV_TEXT_COLOR);
+    return $d;
+}
+
 // The changes of the rows from place $old to $new: the strip and the frame (aio_oc_strip_changes),
 // the names of the focus lit or dimmed (aio_oc_row_color: of the cast all of them as the row gets
-// the focus or loses it); the titles anew as the first screen comes or goes (aio_oc_row_titles).
+// the focus or loses it); the titles anew as the first screen comes or goes (aio_oc_row_titles); the header of
+// the poster in focus anew as it changes (aio_oc_ri), in the same call as the strip moves.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -418,6 +465,8 @@ function aio_oc_rows_changes($c, $l, $old, $new)
                 $ch[] = aio_gc_change("{$id}head", null, GCOMP_TRANSITION_NONE, $head);
         }
     }
+    if (aio_oc_ri_of($l, $new) !== aio_oc_ri_of($l, $old))
+        $ch[] = aio_gc_change('ri', null, GCOMP_TRANSITION_NONE, aio_oc_ri($c, $l, $new));
     return $ch;
 }
 

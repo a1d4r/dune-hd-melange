@@ -12,8 +12,9 @@
 // further while there is more, UP back, at last to the button left. A series (H1): the buttons
 // higher ("Continue SxEy" by the history), under them the tabs of the seasons and the row of the
 // episodes of the season shown, their progress by the history; the rows go DOWN with "About the
-// series". At the stop of a row LEFT and RIGHT go along it (the creators first), ENTER on a person
-// opens its page (view_person.php), on a poster the own card of its title.
+// series". At the stop of a row LEFT and RIGHT go along it (the creators first), over a row of posters
+// the header of the poster in focus; ENTER on a person opens its page (view_person.php), on a poster
+// the own card of its title.
 // The plugin draws and moves the focus itself with change_gcomps, as the list; the place
 // (aio_oc_pos: the zone, the button, the stop, the season and the episode, the item of each row)
 // travels in sel_state.
@@ -40,6 +41,15 @@ define('AIO_OC_KEEP', 8);
 // on the device): an edge of the clip there cuts no line.
 define('AIO_OC_VIEW_Y', 256);
 define('AIO_OC_DOWN_Y', 290);
+// The stop of a row of posters (design-own-card-row-info.md, A): its title RI_Y, the top of the clip INK over it (the
+// year of the row above goes under it); over the clip, on the black, the header of the poster in focus (aio_oc_ri): its
+// title 48 px at RI_TITLE_Y, the line of facts of the catalog at RI_FACTS_Y, the description from RI_DESC_Y in
+// RI_LINES lines DESC_LH apart at most, TITLE_W wide. Its room is the same with no description: the row does not move.
+define('AIO_OC_RI_Y', 362);
+define('AIO_OC_RI_TITLE_Y', 36);
+define('AIO_OC_RI_FACTS_Y', 114);
+define('AIO_OC_RI_DESC_Y', 166);
+define('AIO_OC_RI_LINES', 4);
 define('AIO_OC_STEP', 420);
 define('AIO_OC_MIN_STEP', 40);
 define('AIO_OC_SHOW_BOTTOM', 1020);
@@ -807,7 +817,7 @@ function aio_oc_clear($bands, $y, $up)
 }
 
 // The shifts of the page and the bottom of the clip on the screen at each. 0 the first screen;
-// a stop for each row of the layout ($rows: the y of their titles in "down"), its title at DOWN_Y;
+// a stop for each row of the layout ($rows: the y of their titles in "down" and on the screen at their stops);
 // with something below them ($bands of aio_oc_down, "About" at $about), the stop after the last
 // row puts "About" at the top of the clip (the row goes whole), without rows "About" at DOWN_Y;
 // then STEP further at most while the page goes on below the clip, the last ($max) its end at the
@@ -818,7 +828,7 @@ function aio_oc_clear($bands, $y, $up)
 /**
  * @param list<array{int, int}> $bands
  * @param list<array{int, int}> $rowbands
- * @param list<int> $rows
+ * @param list<array{int, int}> $rows
  * @param int $about
  * @param int $off
  * @return array{list<int>, list<int>}
@@ -826,8 +836,8 @@ function aio_oc_clear($bands, $y, $up)
 function aio_oc_stops($bands, $rowbands, $rows, $about, $off)
 {
     $stops = array(0);
-    foreach ($rows as $y)
-        $stops[] = $off + $y - AIO_OC_DOWN_Y;
+    foreach ($rows as $r)
+        $stops[] = $off + $r[0] - $r[1];
     // The top of the clip at stop $s in the coordinates of the bands: $s + $top.
     $top = AIO_OC_VIEW_Y - $off;
     if ($bands)
@@ -856,7 +866,7 @@ function aio_oc_stops($bands, $rowbands, $rows, $about, $off)
 }
 
 // The card laid out: its kind, buttons and their y, the stops of the page, the bottom of the clip
-// at each and the height of the page, the shift of the coordinates of "down" (off), the zones of
+// at each and its top (VIEW_Y; at the stop of a row of posters INK over its title, RI_Y) and the height of the page, the shift of the coordinates of "down" (off), the zones of
 // the focus in the order of UP and DOWN, the rows by their stops and their strips (aio_oc_stack:
 // the rows of posters of aio_oc_poster_rows, then the cast of aio_oc_people, "c"; a movie: the
 // first of them under the buttons), the width of the title of the first row (tw: before the hint
@@ -888,9 +898,9 @@ function aio_oc_layout($c)
     list($down, $bands) = aio_oc_down($c, $about);
     $ys = array();
     $rowbands = array();
-    foreach ($strips as $st)
+    foreach ($strips as $id => $st)
     {
-        $ys[] = $st['y'] - AIO_OC_ROW_HEAD;
+        $ys[] = array($st['y'] - AIO_OC_ROW_HEAD, $id === 'c' ? AIO_OC_DOWN_Y : AIO_OC_RI_Y);
         $rowbands = array_merge($rowbands, aio_oc_row_bands($st));
     }
     $ep = null;
@@ -899,6 +909,9 @@ function aio_oc_layout($c)
         list($ep, $prog) = aio_oc_pick($c);
     $btns = aio_oc_buttons($c, $ep);
     list($stops, $clips) = aio_oc_stops($bands, $rowbands, $ys, $about, $off);
+    $tops = array();
+    foreach (array_keys($stops) as $p)
+        $tops[] = isset($rows[$p]) && $rows[$p] !== 'c' ? AIO_OC_RI_Y - AIO_OC_INK : AIO_OC_VIEW_Y;
     $tw = AIO_OC_TITLE_W;
     $tabs = $series && $c['meta'] ? aio_oc_tabs_layout($c)
         : array('list' => array(), 'x' => 0, 'w' => 0, 'all' => 0, 'word' => 0, 'cx' => 0);
@@ -935,30 +948,33 @@ function aio_oc_layout($c)
         }
     }
     return array('kind' => $series ? 'series' : 'movie', 'btns' => $btns, 'btn_y' => $series ? AIO_OC_BTN_Y_SER : AIO_OC_BTN_Y,
-        'stops' => $stops, 'clips' => $clips, 'h' => max(1080, $stops[count($stops) - 1] + AIO_OC_SHOW_BOTTOM), 'off' => $off,
+        'stops' => $stops, 'clips' => $clips, 'tops' => $tops, 'h' => max(1080, $stops[count($stops) - 1] + AIO_OC_SHOW_BOTTOM), 'off' => $off,
         'zones' => $zones, 'tabs' => $tabs, 'ep' => $ep, 'prog' => $prog, 'rows' => $rows, 'strips' => $strips, 'tw' => $tw,
         'first' => $only, 'down' => $down);
 }
 
-// The clip under the logo down to $bottom of the screen.
+// The clip of the page from $top of the screen (under the logo; at the stop of a row of posters under the header of
+// the poster in focus) down to $bottom.
 /**
+ * @param int $top
  * @param int $bottom
  * @return AioGcGeom
  */
-function aio_oc_view_geom($bottom)
+function aio_oc_view_geom($top, $bottom)
 {
-    return aio_gc_at(1920, $bottom - AIO_OC_VIEW_Y, 0, AIO_OC_VIEW_Y);
+    return aio_gc_at(1920, $bottom - $top, 0, $top);
 }
 
-// The page at shift $s inside the clip under the logo.
+// The page at shift $s inside the clip from $top.
 /**
  * @param int $s
  * @param int $h
+ * @param int $top
  * @return AioGcGeom
  */
-function aio_oc_page_geom($s, $h)
+function aio_oc_page_geom($s, $h, $top)
 {
-    return aio_gc_at(1920, $h, 0, -AIO_OC_VIEW_Y - $s);
+    return aio_gc_at(1920, $h, 0, -$top - $s);
 }
 
 // The background of card $c in zone $z, the children of the panel "bg" under all: the card
@@ -1183,8 +1199,9 @@ function aio_oc_changes($c, $l, $old, $new)
     $ch = array_merge($ch, aio_oc_rows_changes($c, $l, $old, $new));
     if ($new['p'] !== $old['p'])
     {
-        $ch[] = aio_gc_change('view', aio_oc_view_geom($l['clips'][$new['p']]), GCOMP_TRANSITION_DEFAULT);
-        $ch[] = aio_gc_change('page', aio_oc_page_geom($l['stops'][$new['p']], $l['h']), GCOMP_TRANSITION_DEFAULT);
+        $p = $new['p'];
+        $ch[] = aio_gc_change('view', aio_oc_view_geom($l['tops'][$p], $l['clips'][$p]), GCOMP_TRANSITION_DEFAULT);
+        $ch[] = aio_gc_change('page', aio_oc_page_geom($l['stops'][$p], $l['h'], $l['tops'][$p]), GCOMP_TRANSITION_DEFAULT);
     }
     if (($new['z'] === 'down') !== ($old['z'] === 'down'))
     {
@@ -1214,10 +1231,12 @@ function aio_oc_window($c, $l, $pos)
     $down = array_merge(aio_oc_rows($c, $l, $pos), $l['down']);
     if ($down)
         $page[] = aio_gc_panel('down', aio_gc_at(1920, $l['h'] - $l['off'], 0, $l['off']), $down);
-    $d[] = aio_gc_panel('view', aio_oc_view_geom($l['clips'][$pos['p']]),
-        array(aio_gc_panel('page', aio_oc_page_geom($l['stops'][$pos['p']], $l['h']), $page, 0)), 0);
+    $p = $pos['p'];
+    $d[] = aio_gc_panel('view', aio_oc_view_geom($l['tops'][$p], $l['clips'][$p]),
+        array(aio_gc_panel('page', aio_oc_page_geom($l['stops'][$p], $l['h'], $l['tops'][$p]), $page, 0)), 0);
     // What the first screen alone shows, over the clip: the arrow of a series is under its bottom.
     $d[] = aio_gc_panel('first', aio_gc_at(1920, 1080, 0, 0), $pos['z'] === 'down' ? array() : $l['first']);
+    $d[] = aio_gc_panel('ri', aio_gc_at(1920, AIO_OC_RI_Y - AIO_OC_INK, 0, 0), aio_oc_ri($c, $l, $pos));
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
         GCompWindowDef::background_url => null,
