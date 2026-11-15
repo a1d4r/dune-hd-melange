@@ -256,14 +256,9 @@ function aio_mlv_cells($url)
         return array();
     if ($sc[0] === AIO_MLV_LIST)
         return aio_mlv_list_cells(aio_mlv_types($sc[1]), $max);
-    $out = array();
-    $tiles = array();
-    $items = aio_cp_tile_items(aio_mlv_types($sc[1]), $max, $tiles, $miss);
+    $cells = aio_cp_tile_items(aio_mlv_types($sc[1]), $max, $miss);
     AioCpm::$more = array_slice($miss, 0, AIO_CPM_MORE);
-    $tiles = array_values($tiles);
-    foreach ($items as $i => $item)
-        $out[] = array('item' => $item, 'tile' => $tiles[$i]);
-    return $out;
+    return array_values($cells);
 }
 
 // The tile alone of an empty screen $url: the hint of "Мой список" (its picture by the language), "Пусто" of

@@ -171,17 +171,17 @@ function aio_cp_tile_find($type, $imdb, $tmdb)
 // null: aio_cp_tile_find) of its IMDb, else of its TMDB of its type, of the pair (it has a description), else the tile
 // of its meta kept (aio_cpm_tile, cp_meta.php: asked lazily, or of the own card), else one of the pair and the latest
 // record (title, poster); no pair: of the record alone, id "dune:<movie_id>", no ids (ENTER asks the pair,
-// aio_cp_enter). null: no record. $from: row, meta, record (of the pair and the record), none (no record).
+// aio_cp_enter). null: no record. $rec: the tile is of the pair and the record alone.
 /**
  * @param string $mid
  * @param array<string, AioCatTile>|null $map
- * @param string $from
- * @param-out string $from
+ * @param bool $rec
+ * @param-out bool $rec
  * @return AioCatTile|null
  */
-function aio_cp_tile($mid, $map = null, &$from = '')
+function aio_cp_tile($mid, $map = null, &$rec = false)
 {
-    $from = 'none';
+    $rec = false;
     $idx = aio_pg_index();
     $ent = isset($idx[$mid]) ? $idx[$mid] : null;
     $w = $ent ? ($ent['series'] && $ent['series'][0] ? $ent['series'][0] : $ent['w']) : null;
@@ -198,12 +198,11 @@ function aio_cp_tile($mid, $map = null, &$from = '')
         $t = $map["$type|imdb:$imdb"];
     else
         $t = $tmdb !== '' && isset($map["$type|tmdb:$tmdb"]) ? $map["$type|tmdb:$tmdb"] : null;
-    $from = $t ? 'row' : 'meta';
     if (!$t)
         $t = aio_cpm_tile($type, $imdb, $tmdb);
     if ($t)
         return $t;
-    $from = 'record';
+    $rec = true;
     $id = $imdb !== '' ? $imdb : ($tmdb !== '' ? "tmdb:$tmdb" : "dune:$mid");
     return aio_cat_tile(array('id' => $id, 'name' => isset($w->title) ? $w->title : '-', 'type' => $type, 'imdb_id' => $imdb,
         '_tmdbId' => $tmdb, 'poster' => isset($w->icon) ? $w->icon : ''), $type);
@@ -221,36 +220,32 @@ function aio_cp_badge($mid, $type)
     return isset($idx[$mid]) ? aio_pg_badge($idx[$mid], $type === 'series', $mid) : null;
 }
 
-// The tiles of the row of the types $types, $max at most (aio_cp_items): the title and the poster of the record, the
-// plate of the rating of a tile of a row in memory or of the meta kept, the badge; $tiles: their tiles by
-// "continue:<movie_id>"; $miss: those of a pair with neither, in their order (array(type, IMDb, TMDB): the lazy meta,
-// AioCpm::$miss).
+// The cells of the row of the types $types, $max at most (aio_cp_items), by "continue:<movie_id>": the item (the title
+// and the poster of the record, the plate of the rating of a tile of a row in memory or of the meta kept, the badge)
+// and its tile; $miss: those of a pair with neither, in their order (array(type, IMDb, TMDB): the lazy meta,
+// AioCpm::$miss and AioCpm::$more).
 /**
  * @param list<string> $types
  * @param int $max
- * @param array<string, AioCatTile>|null $tiles
- * @param-out array<string, AioCatTile> $tiles
  * @param list<array{string, string, string}>|null $miss
  * @param-out list<array{string, string, string}> $miss
- * @return list<array<string, mixed>>
+ * @return array<string, array{item: array<string, mixed>, tile: AioCatTile}>
  */
-function aio_cp_tile_items($types, $max, &$tiles = null, &$miss = null)
+function aio_cp_tile_items($types, $max, &$miss = null)
 {
-    $tiles = array();
-    $items = array();
+    $out = array();
     $map = null;
     $miss = array();
     foreach (aio_cp_items($types, $max) as $mid => $it)
     {
         if ($map === null)
             $map = aio_cp_tile_map();
-        $t = aio_cp_tile($mid, $map, $from);
+        $t = aio_cp_tile($mid, $map, $rec);
         if (!$t)
             continue;
-        if ($from === 'record' && ($t['imdb_id'] !== '' || $t['_tmdbId'] !== ''))
+        if ($rec && ($t['imdb_id'] !== '' || $t['_tmdbId'] !== ''))
             $miss[] = array($t['type'], $t['imdb_id'], $t['_tmdbId']);
         $id = AIO_CP_RID . ":$mid";
-        $tiles[$id] = $t;
         $item = aio_catv_item(aio_catv_tile_id($id), isset($it['w']->title) ? aio_clean($it['w']->title) : $t['name'],
             aio_img(isset($it['w']->icon) && is_string($it['w']->icon) ? $it['w']->icon : ''));
         $stickers = aio_catv_rating_on() ? aio_catv_rate_stickers($t['imdbRating']) : array();
@@ -258,9 +253,9 @@ function aio_cp_tile_items($types, $max, &$tiles = null, &$miss = null)
             $stickers = array_merge($stickers, aio_pg_stickers($it['b']));
         if ($stickers)
             $item[PluginRegularItem::stickers] = $stickers;
-        $items[] = $item;
+        $out[$id] = array('item' => $item, 'tile' => $t);
     }
-    return $items;
+    return $out;
 }
 
 // The row of the types $types ($tab: 'movie', 'series', '' both) for a screen of rows: its title and tiles
@@ -279,7 +274,13 @@ function aio_cp_tile_items($types, $max, &$tiles = null, &$miss = null)
  */
 function aio_cp_row_defs($tab, $lang, &$tiles = null, &$miss = null)
 {
-    $items = aio_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), AIO_CATV_ROW_TILES, $tiles, $miss);
+    $tiles = array();
+    $items = array();
+    foreach (aio_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), AIO_CATV_ROW_TILES, $miss) as $id => $c)
+    {
+        $items[] = $c['item'];
+        $tiles[$id] = $c['tile'];
+    }
     if (!$items)
         return array();
     $row = array('key' => AIO_CP_RID, 'type' => $tab !== '' ? $tab : 'movie', 'id' => AIO_CP_RID,
