@@ -14,7 +14,7 @@ Melange — каталог фильмов и сериалов для Dune HD. В
 
 ## Через Dune BackUp
 
-1. Если Dune BackUp ещё не установлен, поставьте его: Dune Store → «Приложения» → «Комьюнити приложения» → «Игнорировать и продолжить» → «Dune BackUp».
+1. Если Dune BackUp ещё не установлен, поставьте его: Dune Store → «Приложения» → «Комьюнити приложения» → «Игнорировать и продолжить», встаньте на «Dune BackUp», нажмите **ENTER** и установите приложение.
 
    <img src="../screenshots/start-store-community.jpg" alt="Dune Store, «Приложения»: фокус на «Комьюнити приложения»" width="100%">
 
@@ -24,7 +24,7 @@ Melange — каталог фильмов и сериалов для Dune HD. В
 
    <img src="../screenshots/start-dunebackup-menu.jpg" alt="Dune BackUp: фокус на «Коллекция плагинов для Dune HD»" width="100%">
 
-3. В списке «Плагин», в разделе «--- Фильмы ---», выберите «Melange» и нажмите «Установить плагин». Если Melange уже стоит, на вопрос «Заменить приложение?» ответьте «Да».
+3. Встаньте на поле «Плагин» и нажмите **ENTER**: откроется список. В разделе «--- Фильмы ---» выберите «Melange» и нажмите «Установить плагин». Если Melange уже стоит, на вопрос «Заменить приложение?» ответьте «Да».
 
    <img src="../screenshots/start-dunebackup.jpg" alt="Dune BackUp, «Коллекция плагинов»: раздел «--- Фильмы ---», фокус на «Melange»" width="100%">
 
@@ -32,7 +32,7 @@ Melange — каталог фильмов и сериалов для Dune HD. В
 
    <img src="../screenshots/start-update.jpg" alt="«Обновление приложения»: Melange 0.57.0 → 0.59.0, фокус на «Обновить»" width="100%">
 
-5. TorrServe ставится там же: Dune BackUp → «Коллекция приложений Android» → «Приложение» → верхний «TorrServe MatriX» в разделе «--- Для Торрентов ---» → «Установить приложение».
+5. TorrServe ставится там же: Dune BackUp → «Коллекция приложений Android» → «Приложение» → верхний «TorrServe MatriX» в разделе «--- Для Торрентов ---» → «Установить приложение». Подойдёт любая версия MatriX.
 
    <img src="../screenshots/start-android-torrserve.jpg" alt="«Коллекция приложений Android», список «Приложение»: раздел «--- Для Торрентов ---», фокус на «TorrServe MatriX 140»" width="100%">
 
@@ -40,11 +40,11 @@ Melange — каталог фильмов и сериалов для Dune HD. В
 
 ## Вручную
 
-1. Скачайте `dune_plugin_melange_<версия>.zip` последнего релиза (раздел Assets): https://github.com/a1d4r/dune-hd-melange/releases. Для TorrServe скачайте `TorrServe_MatriX.145.Client.apk` (раздел Assets): https://github.com/YouROK/TorrServe/releases/tag/MatriX.145.Client.
+1. Скачайте `dune_plugin_melange_<версия>.zip` последнего релиза (раздел Assets): https://github.com/a1d4r/dune-hd-melange/releases. Для TorrServe скачайте `TorrServe_MatriX.145.Client.apk` (раздел Assets): https://github.com/YouROK/TorrServe/releases/tag/MatriX.145.Client. Подойдёт любая версия MatriX.
 
 2. Скопируйте оба файла на Дюну любым способом: с телефона через Send Files, по сети или флешкой. Zip не распаковывайте.
 
-3. На Дюне откройте **«Файлы»**, встаньте на zip и нажмите **ENTER**.
+3. На Дюне откройте **«Файлы»**, найдите zip в той папке, куда его скопировали, встаньте на него и нажмите **ENTER**.
 
    <img src="../screenshots/start-files-zip.jpg" alt="«Файлы» → «Встроенная память»: фокус на dune_plugin_melange_0.59.0.zip" width="100%">
 
@@ -56,7 +56,7 @@ Melange — каталог фильмов и сериалов для Dune HD. В
 
 ## Первая настройка
 
-1. Откройте TorrServe. Если он попросит установить сервер — установите. В настройках TorrServe включите **«Запускать сервер при загрузке»** и ниже **«Запускать сервер от root»**.
+1. Откройте TorrServe: «Приложения» → вкладка ANDROID → TorrServe. Если он попросит установить сервер — установите. В настройках TorrServe включите **«Запускать сервер при загрузке»** и ниже **«Запускать сервер от root»**.
 
    <img src="../screenshots/start-torrserve-autostart.jpg" alt="Настройки TorrServe: включены «Запускать сервер при загрузке» и «Запускать сервер от root»" width="100%">
 
@@ -74,7 +74,7 @@ Melange — каталог фильмов и сериалов для Dune HD. В
 
    <img src="../screenshots/catalog.jpg" alt="Каталог Melange: сверху вкладки «Фильмы» и «Сериалы», лупа и шестерёнка, ниже ряды подборок" width="100%">
 
-   Если появилось «TorrServer не отвечает», откройте TorrServe и проверьте шаг 1.
+   Если появилось «TorrServer не отвечает», откройте TorrServe (он запустит сервер), потом снова Melange. Не помогло — проверьте шаг 1.
 
 Новые версии Melange Дюна предложит сама.
 

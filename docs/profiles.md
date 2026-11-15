@@ -18,6 +18,8 @@
 
    <img src="../screenshots/profiles-menu.jpg" alt="Список раздач «Дюна: Часть вторая», открыто меню, фокус на «Откуда брать…»" width="100%">
 
+   В окне будут названия ваших профилей.
+
    <img src="../screenshots/profiles-pick.jpg" alt="Окно со списком профилей, фокус на «Debrid (Melange) · сейчас»" width="100%">
 
 ## Если не получилось

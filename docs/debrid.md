@@ -12,7 +12,7 @@
 
    <img src="../screenshots/debrid-start.jpg" alt="«Откуда брать фильмы»: выбран «Debrid», под ним кнопка «Начать»" width="300">
 
-3. Скопируйте ключ на сайте сервиса: Real-Debrid — https://real-debrid.com/apitoken, TorBox — https://torbox.app/settings.
+3. Откройте сайт сервиса на телефоне, войдите в аккаунт и скопируйте ключ: Real-Debrid — https://real-debrid.com/apitoken, TorBox — https://torbox.app/settings.
 
    <img src="../screenshots/debrid-site-rd.jpg" alt="Real-Debrid: блок «API Private Token» с ключом в поле" width="100%">
 
@@ -30,7 +30,7 @@
 
    <img src="../screenshots/debrid-where.jpg" alt="«Где искать раздачи»: выбрано «Везде», внизу кнопка «Сохранить и создать конфиг»" width="300">
 
-   Появится «Всё готово к просмотру», окно с QR-кодом на Дюне закроется само.
+   Появится «Всё готово к просмотру», окно с QR-кодом на Дюне закроется само, и откроется каталог Melange.
 
    <img src="../screenshots/debrid-ready.jpg" alt="Главный экран страницы: зелёная строка «Всё готово к просмотру»" width="300">
 
