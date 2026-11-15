@@ -68,12 +68,12 @@ function aio_cgi_export_list($dir, $json)
     $list = aio_ml_read_file("$dir/" . AIO_ML_FILE, $why, $dropped);
     if ($list === null)
         aio_cgi_log('export: ' . AIO_ML_FILE . " $why, not in the file");
-    $c = $list !== null && file_exists("$dir/" . AIO_ML_FILE) ? json_encode(aio_ml_copy($list)) : false;
-    if (!is_string($c))
+    $c = $list !== null && file_exists("$dir/" . AIO_ML_FILE) ? aio_ml_copy_part($list) : '';
+    if ($c === '')
         return $json;
     aio_cgi_log('export: my list, ' . count($list) . ' titles');
     // $json is an object: the field goes before its last "}".
-    return substr($json, 0, -1) . ',"' . AIO_ML_COPY_FIELD . '":' . $c . '}';
+    return substr($json, 0, -1) . $c . '}';
 }
 
 // The settings of the file of the export $json (aio_cgi_export_json, no list) load back: the body the page posts of
@@ -140,8 +140,11 @@ function aio_cgi_import_failed($code, $why, $msg)
 // (aio_ml_from_copy; a title not good dropped; a copy of a later Melange: the
 // message of a newer file, another value: not a file of Melange) written over
 // that of this Dune (aio_cgi_write, by rename: php_server reads it anew by
-// aio_file_sig), before the settings: its failure leaves both as they were;
-// no field (a file of before 0.61.0): the list of this Dune stays. The
+// aio_file_sig), before the settings: its failure leaves both as they were,
+// a failure of the settings puts the list of this Dune back (none: the file
+// removed); a list whose file php_server would not read (AIO_ML_FILE_MAX): the
+// message, nothing written; no field (a file of before 0.61.0): the list of
+// this Dune stays. The
 // configs of AIOStreams (aio_confs): those of this Dune, those of the file
 // over them (aio_cgi_confs_merge): the
 // configs are on the servers already, an older file unlinks none. No key
@@ -195,9 +198,19 @@ function aio_cgi_import_post($dir, $t)
     // The plugin reads no settings.json over AIO_SETTINGS_MAX.
     if (strlen(aio_settings_json($s)) > AIO_SETTINGS_MAX)
         aio_cgi_import_failed(200, 'settings over ' . AIO_SETTINGS_MAX . ' bytes', $big);
+    $old = false;
     if ($list !== null)
     {
         $data = aio_ml_json($list);
+        if (strlen($data) > AIO_ML_FILE_MAX)
+            aio_cgi_import_failed(200, 'my list: the file over ' . AIO_ML_FILE_MAX . ' bytes', $big);
+        $path = "$dir/" . AIO_ML_FILE;
+        clearstatcache();
+        // The list of this Dune, for a failure of the settings: its text, null - no file.
+        $old = is_file($path) && !is_link($path) ? @file_get_contents($path) : (file_exists($path) || is_link($path) ? false : null);
+        if ($old === false)
+            aio_cgi_import_failed(500, 'my list: the file of this Dune not readable', aio_cgi_l('Не загружено: ошибка записи на Дюне',
+                'Not loaded: write error on the Dune'));
         $why = $data !== '' ? aio_cgi_write($dir, $data, AIO_ML_FILE) : 'json_encode failed';
         if ($why !== '')
             aio_cgi_import_failed(500, "my list: $why", aio_cgi_l('Не загружено: ошибка записи на Дюне', 'Not loaded: write error on the Dune'));
@@ -205,7 +218,14 @@ function aio_cgi_import_post($dir, $t)
     }
     $why = aio_cgi_store($dir, $s);
     if ($why !== '')
+    {
+        if ($old !== false)
+        {
+            $back = $old === null ? (@unlink("$dir/" . AIO_ML_FILE) ? '' : 'unlink failed') : aio_cgi_write($dir, $old, AIO_ML_FILE);
+            aio_cgi_log('import: my list of this Dune ' . ($back === '' ? 'put back' : "not put back: $back"));
+        }
         aio_cgi_import_failed(500, $why, aio_cgi_l('Не загружено: ошибка записи на Дюне', 'Not loaded: write error on the Dune'));
+    }
     aio_cgi_log('import: ok');
     $ft = isset($j['web_token']) ? $j['web_token'] : null;
     $done = 1;
