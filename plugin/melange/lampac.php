@@ -796,13 +796,46 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
         $out['why'] = array_merge($out['why'], $p['why']);
     }
     $out['left'] = count($sources) - $out['next'];
-    $why = array();
-    foreach ($out['why'] as $w)
-        $why[] = "{$w['bal']} {$w['why']}" . ($w['detail'] !== '' ? " ({$w['detail']})" : '');
     aio_lp_log(sprintf('replies: %d rows of %d sources, %d not asked, similar: %d, serial: %d%s, %.2f s',
         count($out['rows']), $out['asked'], $out['left'], $out['similar'], $out['serial'],
-        $why ? '; skipped: ' . implode(', ', array_slice($why, 0, 20)) : '', aio_lp_now() - $t0), $base);
+        $out['why'] ? '; skipped: ' . aio_lp_why_log($out['why']) : '', aio_lp_now() - $t0), $base);
     return $out;
+}
+
+// Reasons $why (AioLpWhy) for the log, by code and detail in their order: "down (curl 28: ...):
+// spectre, mirage; http (403): vkmovie". Each reason counted, none lost: a detail cut to 100
+// characters, 10 codes with details and 20 balancers in all at most, the rest as "+N" (the screen
+// shows no detail: the log is where it is).
+/**
+ * @param list<AioLpWhy> $why
+ * @return string
+ */
+function aio_lp_why_log($why)
+{
+    $by = array();
+    foreach ($why as $w)
+    {
+        $d = $w['detail'];
+        if (mb_strlen($d, 'UTF-8') > 100)
+            $d = mb_substr($d, 0, 100, 'UTF-8') . '...';
+        $by[$w['why'] . ($d !== '' ? " ($d)" : '')][] = $w['bal'] !== '' ? $w['bal'] : $w['src'];
+    }
+    $out = array();
+    $names = 0;
+    $rest = 0;
+    foreach ($by as $k => $bals)
+    {
+        if (count($out) >= 10)
+        {
+            $rest += count($bals);
+            continue;
+        }
+        $n = max(0, min(count($bals), 20 - $names));
+        $names += $n;
+        $out[] = "$k: " . implode(', ', array_slice($bals, 0, $n)) . ($n < count($bals) ? ($n > 0 ? ' ' : '') . '+' .
+            (count($bals) - $n) : '');
+    }
+    return implode('; ', $out) . ($rest > 0 ? "; +$rest more" : '');
 }
 
 // --- "call" and the link.
