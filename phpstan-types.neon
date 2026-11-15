@@ -49,6 +49,12 @@ parameters:
         AioLpLink: 'array{url: string, qual: array<string, string>, err: string, detail: string, tries: int}'
         # The check of a link (aio_lp_check, lampac.php).
         AioLpCheck: 'array{class: string, url: string, why: string, detail: string, hls: bool, no_seek: bool}'
+        # A voice of a season of a balancer (aio_lp_season, lampac.php): its name, the link of the season in it.
+        AioLpVoice: 'array{name: string, url: string, active: bool}'
+        # An episode of a season of a balancer (aio_lp_season, lampac.php; s -1: none in the reply).
+        AioLpEp: 'array{s: int, e: int, name: string, method: string, url: string, stream: string, qual: array<string, string>, subs: int, why: string, detail: string}'
+        # A season of a balancer (aio_lp_season_reply, lampac.php).
+        AioLpSeason: 'array{url: string, voices: list<AioLpVoice>, eps: list<AioLpEp>, quality: string, why: string, detail: string}'
         # The online list of a list state (AioState lp, view_online.php): the title asked, the sources of the
         # search, the hidden, the rows (the remembered one first), the reasons, the next source not asked and
         # the number left, the start of the search (aio_lp_now), the yellow line; the cursor as AioState's.

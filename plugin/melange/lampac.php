@@ -16,8 +16,8 @@
 //   its format (of events, a balancer, "call"); accsdb - the provider asks to log in (detail: its msg); rch -
 //   "only through the Lampa app"; empty - nothing found ({}, no data);
 //   type - unknown type (detail); method - unknown method (detail); headers -
-//   "turn on streamproxy of the balancer in init.conf"; serial - a series, not
-//   in this version; no_link - no link in the reply; long - "the link is too
+//   "turn on streamproxy of the balancer in init.conf"; serial - a series asked
+//   without a season; no_season - no such season at the balancer; no_link - no link in the reply; long - "the link is too
 //   long for Lampac, choose another source"; long_variant - the same inside a
 //   playlist; not_hls - a playlist without #EXTM3U; html - a web page instead
 //   of a video.
@@ -60,6 +60,8 @@ define('AIO_LP_KEY_PATH_MAX', 24);
 // Sources of a search and rows of a reply kept, at most.
 define('AIO_LP_SOURCES_MAX', 60);
 define('AIO_LP_ROWS_MAX', 60);
+// Episodes of a season of a balancer kept, at most (a long anime has some hundreds).
+define('AIO_LP_EPS_MAX', 2000);
 
 // Tests define their own aio_lp_now() and aio_lp_wait(): the clock of the
 // budgets and the pause before a repeat.
@@ -694,6 +696,39 @@ function aio_lp_reply($src, $code, $body, $base = '')
     return $out;
 }
 
+// Item $x of data[] of a reply (a movie or an episode) of source $src on Lampac $base: what it plays
+// -> array(method: play or call, url ('' with a reason; of call one link, else mirrors), stream,
+// qual, subs (its subtitles), why: '' or the reason it is not played (method, long, no_link,
+// headers: aio_lp_reply), detail).
+/**
+ * @param AioLpSource $src
+ * @param array<mixed> $x
+ * @param string $base
+ * @return array{method: string, url: string, stream: string, qual: array<string, string>, subs: int, why: string, detail: string}
+ */
+function aio_lp_item($src, $x, $base = '')
+{
+    $method = aio_lp_str($x, 'method');
+    $qual = aio_lp_quals(isset($x['quality']) ? $x['quality'] : null);
+    $raw = isset($x['url']) ? $x['url'] : null;
+    $url = $method === 'call' ? aio_lp_link1($raw) : aio_lp_link_ok($raw);
+    if ($url === '' && $qual)
+        $url = $method === 'call' ? aio_lp_link1(reset($qual)) : reset($qual);
+    $why = array('', '');
+    if ($method !== 'play' && $method !== 'call')
+        $why = array('method', aio_lp_text($method));
+    else if ($url === '' && aio_lp_too_long($raw) !== '')
+        $why = array('long', aio_lp_too_long($raw));
+    else if ($url === '')
+        $why = array('no_link', '');
+    else if (!empty($x['headers']) && !aio_lp_on_lampac($url, $src, $base))
+        $why = array('headers', '');
+    return array('method' => $method, 'url' => $why[0] === '' ? $url : '',
+        'stream' => aio_lp_link_ok(isset($x['stream']) ? $x['stream'] : null), 'qual' => $qual,
+        'subs' => isset($x['subtitles']) && is_array($x['subtitles']) ? count($x['subtitles']) : 0,
+        'why' => $why[0], 'detail' => $why[1]);
+}
+
 // Items $data of a reply "movie" of source $src on Lampac $base -> aio_lp_reply.
 /**
  * @param AioLpSource $src
@@ -711,20 +746,9 @@ function aio_lp_movie($src, $data, $base = '')
     {
         if (!is_array($x))
             continue;
-        $method = aio_lp_str($x, 'method');
-        $qual = aio_lp_quals(isset($x['quality']) ? $x['quality'] : null);
-        $raw = isset($x['url']) ? $x['url'] : null;
-        $url = $method === 'call' ? aio_lp_link1($raw) : aio_lp_link_ok($raw);
-        if ($url === '' && $qual)
-            $url = $method === 'call' ? aio_lp_link1(reset($qual)) : reset($qual);
-        if ($method !== 'play' && $method !== 'call')
-            $why[] = aio_lp_why($src, 'method', aio_lp_text($method));
-        else if ($url === '' && aio_lp_too_long($raw) !== '')
-            $why[] = aio_lp_why($src, 'long', aio_lp_too_long($raw));
-        else if ($url === '')
-            $why[] = aio_lp_why($src, 'no_link');
-        else if (!empty($x['headers']) && !aio_lp_on_lampac($url, $src, $base))
-            $why[] = aio_lp_why($src, 'headers');
+        $it = aio_lp_item($src, $x, $base);
+        if ($it['why'] !== '')
+            $why[] = aio_lp_why($src, $it['why'], $it['detail']);
         else if (count($rows) < AIO_LP_ROWS_MAX)
         {
             $voice = aio_lp_text(aio_lp_str($x, 'translate'));
@@ -739,9 +763,8 @@ function aio_lp_movie($src, $data, $base = '')
                 $mute[$q] = $n + 1;
             }
             $rows[] = array('path' => $src['path'], 'src' => $src['label'],
-                'voice' => $voice, 'quality' => $q, 'method' => $method, 'url' => $url,
-                'stream' => aio_lp_link_ok(isset($x['stream']) ? $x['stream'] : null), 'qual' => $qual,
-                'subs' => isset($x['subtitles']) && is_array($x['subtitles']) ? count($x['subtitles']) : 0,
+                'voice' => $voice, 'quality' => $q, 'method' => $it['method'], 'url' => $it['url'],
+                'stream' => $it['stream'], 'qual' => $it['qual'], 'subs' => $it['subs'],
                 'key' => aio_lp_key($src['path'], $voice, $q, $n));
         }
     }
@@ -840,6 +863,204 @@ function aio_lp_why_log($why, $base)
             (count($bals) - $n) : '');
     }
     return implode('; ', $out) . ($rest > 0 ? "; +$rest more" : '');
+}
+
+// --- Serials (spec §5.2, §5.3): a season of a balancer, its voices and episodes.
+
+// A number of a season or an episode of a reply: an int 0-99999 or its digits, -1 for another value.
+/**
+ * @param mixed $v
+ * @return int
+ */
+function aio_lp_num($v)
+{
+    if (is_int($v))
+        return $v >= 0 && $v <= 99999 ? $v : -1;
+    return is_string($v) && preg_match('/^[0-9]{1,5}\z/', $v) ? intval($v) : -1;
+}
+
+// The link of season $s in reply $j of a balancer without s (type season: data[] of {method link,
+// id, url, name "1 сезон"}): the item of id $s, else the first of a name "<s> ..."; '' for none.
+// Lampac gives a season by this link only: AniDub has its page (u=) in it, Filmix its postid, the
+// title query with &s=N alone gets 503 from AniDub (research/lampac-serial-2026-11-16.md).
+/**
+ * @param array<mixed> $j
+ * @param int $s
+ * @return string
+ */
+function aio_lp_season_link($j, $s)
+{
+    $by_name = '';
+    foreach (isset($j['data']) && is_array($j['data']) ? $j['data'] : array() as $x)
+    {
+        if (!is_array($x))
+            continue;
+        $u = strlen(aio_lp_str($x, 'url')) <= AIO_LP_LINK_MAX ? aio_lp_link1(aio_lp_str($x, 'url')) : '';
+        if ($u === '')
+            continue;
+        if (aio_lp_num(isset($x['id']) ? $x['id'] : null) === $s)
+            return $u;
+        if ($by_name === '' && preg_match('/^\s*([0-9]{1,5})(?:\s|\z)/u', aio_lp_text(aio_lp_str($x, 'name')), $m) &&
+            intval($m[1]) === $s)
+            $by_name = $u;
+    }
+    return $by_name;
+}
+
+// Reply $j of a season (type episode) of source $src on Lampac $base, asked by link $url ->
+// AioLpSeason: url ($url), voices (voice[]: name (aio_lp_text), url (its season), active; a voice
+// without a name or a link, or of a name twice, left out; AIO_LP_ROWS_MAX at most), eps (data[]:
+// AioLpEp - s and e (aio_lp_num; -1 s none), name, what aio_lp_item gives; an item of no number e
+// or of e twice left out, AIO_LP_EPS_MAX at most, in the order of the reply), quality (maxquality
+// of the reply, else the quality of the list), why and detail '' (aio_lp_season_reply sets them).
+/**
+ * @param AioLpSource $src
+ * @param array<mixed> $j
+ * @param string $url
+ * @param string $base
+ * @return AioLpSeason
+ */
+function aio_lp_season($src, $j, $url, $base = '')
+{
+    $q = aio_lp_text(aio_lp_str($j, 'maxquality'));
+    $out = array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $q !== '' ? $q : $src['q'],
+        'why' => '', 'detail' => '');
+    $names = array();
+    foreach (isset($j['voice']) && is_array($j['voice']) ? $j['voice'] : array() as $v)
+    {
+        if (!is_array($v) || count($out['voices']) >= AIO_LP_ROWS_MAX)
+            continue;
+        $name = aio_lp_text(aio_lp_str($v, 'name'));
+        $u = strlen(aio_lp_str($v, 'url')) <= AIO_LP_LINK_MAX ? aio_lp_link1(aio_lp_str($v, 'url')) : '';
+        if ($name === '' || $u === '' || isset($names[$name]))
+            continue;
+        $names[$name] = true;
+        $out['voices'][] = array('name' => $name, 'url' => $u, 'active' => !empty($v['active']));
+    }
+    $seen = array();
+    foreach (isset($j['data']) && is_array($j['data']) ? $j['data'] : array() as $x)
+    {
+        if (count($out['eps']) >= AIO_LP_EPS_MAX)
+            break;
+        $e = is_array($x) ? aio_lp_num(isset($x['e']) ? $x['e'] : null) : -1;
+        if ($e < 0 || isset($seen[$e]))
+            continue;
+        $seen[$e] = true;
+        $out['eps'][] = array('s' => aio_lp_num(isset($x['s']) ? $x['s'] : null), 'e' => $e,
+            'name' => aio_lp_text(aio_lp_str($x, 'name'))) + aio_lp_item($src, $x, $base);
+    }
+    return $out;
+}
+
+// The reply ($code, $body) of season link $url of source $src -> AioLpSeason, why '' or the reason
+// (of aio_lp_reply: rch, accsdb, http, not_lampac, empty; type - not an episode list (detail: its
+// kind); no_season - a list of seasons again, or episodes of another season $s when $s > 0).
+/**
+ * @param AioLpSource $src
+ * @param int $code
+ * @param string $body
+ * @param string $url
+ * @param string $base
+ * @param int $s
+ * @return AioLpSeason
+ */
+function aio_lp_season_reply($src, $code, $body, $url, $base = '', $s = 0)
+{
+    $p = aio_lp_reply($src, $code, $body, $base);
+    $j = aio_lp_json($body);
+    $out = array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'], 'why' => '',
+        'detail' => '');
+    if ($p['kind'] !== 'serial' || !is_array($j))
+        list($out['why'], $out['detail']) = $p['kind'] === 'skip' && $p['why'] ?
+            array($p['why'][0]['why'], $p['why'][0]['detail']) : array('type', $p['kind']);
+    else
+        $out = aio_lp_season_of($src, $j, $url, $base, $s);
+    return $out;
+}
+
+// Reply $j of source $src, a list of seasons or an episode list (aio_lp_season), with why: no_season
+// (a list of seasons; episodes all of another season than $s > 0, detail: "s <theirs>"), empty (no
+// episode nor voice).
+/**
+ * @param AioLpSource $src
+ * @param array<mixed> $j
+ * @param string $url
+ * @param string $base
+ * @param int $s
+ * @return AioLpSeason
+ */
+function aio_lp_season_of($src, $j, $url, $base, $s)
+{
+    if (!isset($j['type']) || $j['type'] !== 'episode')
+        return array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'],
+            'why' => 'no_season', 'detail' => strval($s));
+    $out = aio_lp_season($src, $j, $url, $base);
+    $other = 0;
+    foreach ($out['eps'] as $x)
+        $other += $s > 0 && $x['s'] >= 0 && $x['s'] !== $s ? 1 : 0;
+    if (!$out['eps'] && !$out['voices'])
+        $out['why'] = 'empty';
+    else if ($out['eps'] && $other === count($out['eps']))
+        $out = array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $out['quality'],
+            'why' => 'no_season', 'detail' => "s {$out['eps'][0]['s']}");
+    return $out;
+}
+
+// Season link $url of source $src (aio_lp_season_link, a link of voice[]) on Lampac $base, asked
+// in up to $total s (AIO_LP_REPLY_MAX at most) -> aio_lp_season_reply; down when no answer.
+/**
+ * @param string $base
+ * @param AioLpSource $src
+ * @param string $url
+ * @param int|float $total
+ * @param int $s
+ * @return AioLpSeason
+ */
+function aio_lp_season_get($base, $src, $url, $total = AIO_LP_REPLY_MAX, $s = 0)
+{
+    $t0 = aio_lp_now();
+    $each = (int) min(AIO_LP_REPLY_MAX, floor($total));
+    if (!preg_match('/[?&]rjson=/i', $url))
+        $url = aio_lp_url($url, 'rjson=true');
+    if ($each < AIO_LP_REPLY_MIN)
+        $out = array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'], 'why' => 'down',
+            'detail' => 'no time');
+    else
+    {
+        $r = aio_lp_get($url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
+        $out = $r['err'] !== '' ? array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'],
+            'why' => 'down', 'detail' => $r['err']) : aio_lp_season_reply($src, $r['code'], $r['body'], $url, $base, $s);
+    }
+    aio_lp_log(sprintf('season: %s, %d voices, %d episodes%s, %.2f s', $src['path'], count($out['voices']),
+        count($out['eps']), $out['why'] !== '' ? ", {$out['why']}" . ($out['detail'] !== '' ? " ({$out['detail']})" : '') : '',
+        aio_lp_now() - $t0), $base);
+    return $out;
+}
+
+// Season $s of source $src from reply $j of its balancer without s (asked by link $url): of a
+// list of seasons (type season) - its link (aio_lp_season_link) asked in up to $total s, no
+// such season - no_season; episodes at once (type episode) - those, if of season $s. -> AioLpSeason.
+/**
+ * @param string $base
+ * @param AioLpSource $src
+ * @param array<mixed> $j
+ * @param string $url
+ * @param int $s
+ * @param int|float $total
+ * @return AioLpSeason
+ */
+function aio_lp_serial($base, $src, $j, $url, $s, $total = AIO_LP_REPLY_MAX)
+{
+    if (isset($j['type']) && $j['type'] === 'episode')
+        return aio_lp_season_of($src, $j, $url, $base, $s);
+    $link = isset($j['type']) && $j['type'] === 'season' ? aio_lp_season_link($j, $s) : '';
+    if ($link === '')
+    {
+        aio_lp_log("season: {$src['path']}, no season $s", $base);
+        return array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'],
+            'why' => 'no_season', 'detail' => strval($s));
+    }
+    return aio_lp_season_get($base, $src, $link, $total, $s);
 }
 
 // --- "call" and the link.
