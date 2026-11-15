@@ -25,14 +25,19 @@ function aio_gc_src_menu($in)
     $sel = 0;
     foreach (Aio::$settings['profiles'] as $p)
     {
-        if ($p['now'])
+        // The online list: no profile "сейчас" (view_online.php).
+        $now = $p['now'] && empty($st['lp_on']);
+        if ($now)
             $sel = count($items);
         $items[] = array(
-            GuiMenuItemDef::caption => $p['now'] ? str_replace('{name}', $p['name'], aio_tr($st['lang'], 'src_now')) :
+            GuiMenuItemDef::caption => $now ? str_replace('{name}', $p['name'], aio_tr($st['lang'], 'src_now')) :
                 $p['name'],
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
             GuiMenuItemDef::action => aio_gc_act('gc_src', $st['rid'], array('n' => $p['name'])));
     }
+    // "Онлайн" under a separator; no profile: "Раздачи" with it.
+    if (aio_lpv_in_menu($st))
+        list($items, $sel) = aio_lpv_src_items($st, $items, $sel);
     if (!$items)
     {
         aio_log('source: no profile ready, nothing');
@@ -182,6 +187,9 @@ function aio_gc_src($in)
     $p = $s['profiles'][$k];
     $tag = 'source: profile ' . aio_profile_tag($now, $now < 0 ? null : $s['profiles'][$now]) . ' -> ' .
         aio_profile_tag($k, $p) . ', ' . aio_ep_tag($st);
+    // The profile in use from the online list: its releases back (view_online.php).
+    if ($k === $now && !empty($st['lp_on']))
+        return aio_lpv_back($st);
     if ($k === $now)
     {
         aio_log("$tag: in use, nothing");
@@ -195,7 +203,8 @@ function aio_gc_src($in)
         aio_log("$tag: the profiles full, the previous source not saved, the source and the screen kept");
         return aio_gc_src_dialog($title, $st['lang'], array('error' => 'src_full', 'detail' => ''));
     }
-    list($cur) = aio_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    // The online list: the cursor of the releases, not of its rows.
+    list($cur) = aio_gc_pos($st, isset($in->parent_sel_state) && empty($st['lp_on']) ? $in->parent_sel_state : null);
     $old = Aio::$settings;
     // The request goes with the settings of the profile, the log masked by them too.
     Aio::$settings = aio_op_settings(aio_profile_apply($s, $p));
@@ -221,6 +230,9 @@ function aio_gc_src($in)
         $e = aio_gc_src_commit($dir, $s, $p, $tag, $words);
         if ($e === '')
         {
+            // A profile chosen: the title is not "online" any more.
+            if (aio_lpv_on($st['movie']))
+                aio_lpv_mark_set($st['movie'], false);
             $ns = $r['st'];
             aio_log(sprintf('%s, screen replaced, %d -> %d rows, row %d -> %d (%s), %.2f s', $tag, count($st['rows']),
                 count($ns['rows']), $cur, $r['sel'], $r['by'], microtime(true) - Aio::$t0));

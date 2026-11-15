@@ -975,13 +975,16 @@ function aio_gc_sort_word($st, $k)
 // Children of 'sort' (the tabs over the list): each colour key and its label,
 // the green one "Cached" in a Debrid list (aio_rows_debrid); the sort of the
 // list with a bright label, its direction (a triangle: down by default, up
-// reversed) and a line under the key to the triangle; the others dimmed.
+// reversed) and a line under the key to the triangle; the others dimmed. $end: their width,
+// the gap after the last one included.
 /**
  * @param AioState $st
  * @param AioGcText $tt
+ * @param int|null $end
+ * @param-out int $end
  * @return list<AioGcComp>
  */
-function aio_gc_sort_tabs($st, $tt)
+function aio_gc_sort_tabs($st, $tt, &$end = null)
 {
     $d = array();
     $x = 0;
@@ -1006,6 +1009,7 @@ function aio_gc_sort_tabs($st, $tt)
         }
         $x += AIO_GC_SORT_ARROW_W + AIO_GC_HINT_GAP;
     }
+    $end = $x;
     return $d;
 }
 
@@ -1030,11 +1034,14 @@ function aio_gc_window($st, $sel, $top)
     $d[] = aio_gc_panel('card', aio_gc_at(AIO_GC_CW, AIO_GC_CARD_BOTTOM - AIO_GC_CY, AIO_GC_CX, AIO_GC_CY),
         aio_gc_card($st, $sel));
 
-    // Title cut alone; an episode has its own label at the right.
+    // Title cut alone; an episode has its own label at the right, the yellow line of "Онлайн"
+    // too (view_online.php).
     list($title, $ep) = aio_gc_title($st);
     $ew = $ep === '' ? 0 : aio_gc_w($ep, 36);
-    $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16 - ($ew > 0 ? $ew + 30 : 0), 66, AIO_GC_LX, 40), $title, 48,
-        AIO_GC_TEXT);
+    list($note, $nw) = aio_lpv_note($st, AIO_GC_LX + AIO_GC_LW - 16);
+    $d = array_merge($d, $note);
+    $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16 - ($ew > 0 ? $ew + 30 : 0) - ($nw > 0 ? $nw + 30 : 0), 66, AIO_GC_LX, 40),
+        $title, 48, AIO_GC_TEXT);
     if ($ep !== '')
         $d[] = aio_gc_cut(null, aio_gc_at($ew, 50, AIO_GC_LX + AIO_GC_LW - 16 - $ew, 52), $ep, 36, AIO_GC_TEXT2,
             array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
@@ -1074,18 +1081,24 @@ function aio_gc_window($st, $sel, $top)
     aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/info_key.png' => 52), $tt['details']);
     $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT_Y),
         aio_gc_counter($sel, $n));
+    $tabs_end = 0;
     if (aio_gc_color_keys())
         $d[] = aio_gc_panel('sort', aio_gc_at(AIO_GC_LW, AIO_GC_TAB_LINE_Y + AIO_GC_TAB_LINE, AIO_GC_LX, AIO_GC_TABS_Y),
-            aio_gc_sort_tabs($st, $tt));
-    // Outside the panel: a remote without the colour keys has it too.
+            aio_gc_sort_tabs($st, $tt, $tabs_end));
+    // Outside the panel: a remote without the colour keys has it too. Left of it "Откуда: …"
+    // in the room the tabs leave (view_online.php).
+    $right = AIO_GC_LX + AIO_GC_LW - 16;
     if (aio_errors_shown($st['errors']))
     {
         $text = str_replace('{n}', strval(aio_errors_total($st['errors'])), $tt['errors']);
         $w = aio_gc_w($text, AIO_GC_HINT_PX);
+        $right -= $w + AIO_GC_HINT_GAP;
         $d[] = aio_gc_cut(null, aio_gc_at($w, AIO_GC_LABEL_H, AIO_GC_LX + AIO_GC_LW - 16 - $w,
             AIO_GC_TABS_Y + (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $text, AIO_GC_HINT_PX, AIO_GC_AMBER,
             array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
     }
+    list($from) = aio_lpv_tabs_right($st, $right, AIO_GC_TABS_Y, $right - AIO_GC_LX - $tabs_end);
+    $d = array_merge($d, $from);
 
     $fanart = aio_img($mv['fanart']);
     // Same key set as vendor GCompsFactory::get_window_def().
@@ -1359,6 +1372,12 @@ function aio_gc_main($in)
  */
 function aio_gc_src_item($st)
 {
+    // "Онлайн" (view_online.php): always the menu, it is one of the sources.
+    if (aio_lpv_in_menu($st))
+        return array(
+            GuiMenuItemDef::caption => aio_tr($st['lang'], 'src_list'),
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
+            GuiMenuItemDef::action => aio_gc_act('gc_src_menu', $st['rid']));
     $ps = Aio::$settings['profiles'];
     $other = array();
     foreach ($ps as $p)

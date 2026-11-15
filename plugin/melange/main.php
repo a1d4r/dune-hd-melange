@@ -33,6 +33,8 @@ require_once dirname(__FILE__) . '/sources.php';
 require_once dirname(__FILE__) . '/torrserver.php';
 // The client of Lampac ("Онлайн"): no firmware API.
 require_once dirname(__FILE__) . '/lampac.php';
+// "Онлайн" on the Dune: the search window, the online list, its start, "Continue".
+require_once dirname(__FILE__) . '/view_online.php';
 // TorrServer in the player: the window of its numbers with INFO.
 require_once dirname(__FILE__) . '/ts_info.php';
 // Rows of a list at most: our own cap, not only the AIOStreams config.
@@ -116,12 +118,13 @@ class Aio
     // several, the copy of it plays (aio_list_state, aio_play); '' - the first in the reply.
     // 'profiles' - the source profiles of MENU of a list (aio_profiles_menu; none with the
     // setting off). 'made' - the config of Melange in use: array('base', 'mode', 'conf' - AioConf),
-    // null for none or the own one (the migrations of aio_mig_run).
+    // null for none or the own one (the migrations of aio_mig_run). 'lp' - the Lampac of "Онлайн"
+    // (aio_lp_base, view_online.php), '' off; its host "<lampac>" in the log ('hosts').
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true,
-        'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array(), 'made' => null);
+        'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array(), 'made' => null, 'lp' => '');
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -709,6 +712,10 @@ function aio_op_settings($s)
 {
     list($sort, $rev) = aio_sort_read();
     $conf = $s['source'] === 'own' ? null : aio_settings_conf($s);
+    $lp = aio_lp_base($s);
+    $hosts = aio_settings_hosts($s);
+    if ($lp !== '')
+        $hosts[strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $lp))] = '<lampac>';
     return array(
         // The stream URL is <base>/stream/...: the base keeps its trailing slash.
         'base' => aio_manifest_base(aio_settings_manifest($s)),
@@ -726,7 +733,7 @@ function aio_op_settings($s)
         'no_torrents' => aio_no_torrents($s),
         'aio' => $s['aio_own_url'],
         'own' => $s['source'] === 'own',
-        'hosts' => aio_settings_hosts($s),
+        'hosts' => $hosts,
         'sort' => $sort,
         'sort_rev' => $rev,
         'cat_rows' => $s['cat_rows'],
@@ -735,7 +742,8 @@ function aio_op_settings($s)
         'cat_card' => aio_card_own($s['cat_card']),
         'debrid_main' => aio_debrid_main_read(aio_data_dir()),
         'profiles' => aio_profiles_menu($s),
-        'made' => $conf ? array('base' => aio_settings_base($s), 'mode' => $s['aio_mode'], 'conf' => $conf) : null);
+        'made' => $conf ? array('base' => aio_settings_base($s), 'mode' => $s['aio_mode'], 'conf' => $conf) : null,
+        'lp' => $lp);
 }
 
 // The source profiles of MENU of a list (0.58.0): with src_profiles on, those
@@ -1733,7 +1741,7 @@ function aio_folder_view($media_url, $sel_state)
         return aio_pp_folder_view($media_url, $sel_state);
     $st = Aio::$state;
     if ($st && $media_url === 'streams:' . $st['rid'])
-        return aio_gc_folder_view($st, $sel_state);
+        return !empty($st['lp_on']) && isset($st['lp']) ? aio_lpv_folder_view($st, $sel_state) : aio_gc_folder_view($st, $sel_state);
     aio_log('folder view: list outdated');
     return aio_lines_view(array(aio_expired_item()));
 }
@@ -1755,6 +1763,7 @@ function aio_rid()
 // sets its cursor only by aio_gc_put_cursor, else 'gc_new' is lost. The one
 // writer outside view_gcomps.php: aio_choose keeps 'gc' before it leaves.
 // aio_ts_pack_state adds 'pack_only' and 'pack_map': the one row, never shown.
+// view_online.php adds 'lp' (the online list), 'lp_on', 'lp_only', 'lp_note'.
 /**
  * @param AioErrors $errors
  * @return AioState
@@ -1783,6 +1792,10 @@ function aio_play_action($in)
     if (!$mv || $mv['imdb'] === '')
         return aio_error('err_no_imdb');
     aio_pg_link_movie($mv);
+    // "Онлайн" (view_online.php): its "Continue", a title marked so, no AIOStreams.
+    $lp = aio_lpv_play_action($in, $mv, isset($in->lang) && is_string($in->lang) ? $in->lang : '');
+    if ($lp)
+        return $lp;
 
     $resume = aio_resume($in);
     $s = -1;
@@ -1817,6 +1830,10 @@ function aio_play_action($in)
         aio_log('error: only error streams, their dialog');
         return $only;
     }
+    // No releases at all: "Искать онлайн" (view_online.php).
+    $none = isset($res['error']) ? aio_lpv_no_releases($mv, $s, $e, $lang, $res) : null;
+    if ($none)
+        return $none;
     if (isset($res['error']))
         return aio_error($res['error'], $res['detail']);
 
@@ -2052,6 +2069,8 @@ function aio_handle_user_input($in)
         return aio_gc_main($in);
     if ($control === 'gc_sort_menu')
         return aio_gc_sort_menu($in);
+    if (is_string($control) && strpos($control, 'lp_') === 0)
+        return aio_lpv_input($in, $control);
     if ($control === 'gc_src_menu')
         return aio_gc_src_menu($in);
     if ($control === 'gc_src')

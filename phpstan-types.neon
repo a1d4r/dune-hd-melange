@@ -49,6 +49,14 @@ parameters:
         AioLpLink: 'array{url: string, qual: array<string, string>, err: string, detail: string, tries: int}'
         # The check of a link (aio_lp_check, lampac.php).
         AioLpCheck: 'array{class: string, url: string, why: string, detail: string, hls: bool, no_seek: bool}'
+        # The online list of a list state (AioState lp, view_online.php): the title asked, the sources of the
+        # search, the hidden, the rows (the remembered one first), the reasons, the next source not asked and
+        # the number left, the start of the search (aio_lp_now), the yellow line; the cursor as AioState's.
+        AioLpView: 'array{title: AioLpTitle, q: string, sources: list<AioLpSource>, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: AioProgress}'
+        # The search window between its ticks (AioLpv::$run, aio_lpv_search_open, view_online.php).
+        AioLpRun: 'array{sid: string, st: AioState, how: string, mark: bool, back: bool, bal: string, phase: string, search: AioLpSearch|null, sources: list<AioLpSource>, q: string, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, t: float, t1: float, title: AioLpTitle}'
+        # The mark "online" of a title (data_dir/lampac_choice.json, view_online.php): the path of the balancer and the voice of the last start.
+        AioLpMark: 'array{online: bool, bal: string, voice: string, ts: int}'
         # A config of AIOStreams made by the settings page (aio_aio_conf, common.php).
         AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null}'
         # A JacRed to ask (aio_jacred_conf, aio_jacred_builtin_conf, common.php).
@@ -85,6 +93,7 @@ parameters:
                 cat_card: bool|null,
                 cat_rating: bool,
                 cat_rows: list<string>|null,
+                lampac_url?: string,
                 aio_confs: array<string, array<string, AioConf>>,
                 src_profiles: bool,
                 profiles: list<AioProfile>,
@@ -118,7 +127,8 @@ parameters:
                 cat_card: bool,
                 debrid_main: string,
                 profiles: array<int, array{name: string, now: bool}>,
-                made: array{base: string, mode: string, conf: AioConf}|null
+                made: array{base: string, mode: string, conf: AioConf}|null,
+                lp: string
             }
         '''
         # Badges of a release (aio_badges, parse.php).
@@ -240,7 +250,11 @@ parameters:
                 gc_new?: bool,
                 gc_prog?: AioProgress,
                 pack_only?: bool,
-                pack_map?: array<int, array<int, int>>
+                pack_map?: array<int, array<int, int>>,
+                lp?: AioLpView,
+                lp_on?: bool,
+                lp_only?: bool,
+                lp_note?: string
             }
         '''
         # The row and the map of the last start through TorrServer (Aio::$ts_pack, torrserver.php).
