@@ -104,6 +104,6 @@
     <required>no</required>
     <auto>yes</auto>
   </check_update>
-  <version>0.59.1</version>
+  <version>0.60.0</version>
   <version_index>119</version_index>
 </dune_plugin>

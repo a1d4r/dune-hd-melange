@@ -349,7 +349,7 @@ function aio_conf_patch($c, $tpl, $p)
     return array($now, $set);
 }
 
-// --- Migrations (0.59.1): a change of the template applied once to a config
+// --- Migrations (0.60.0): a change of the template applied once to a config
 // made before it - by the plugin before the streams of the config are asked
 // (aio_conf_migrate) and by "Сохранить" (aio_cgi_aio_sync, before
 // aio_conf_patch). The schema a config is at: data_dir/aio_conf_mig, not
@@ -386,7 +386,7 @@ function aio_conf_step_dedup($u)
     return true;
 }
 
-// 2 (0.59.1): Torznab of JacRed (the preset melange) searches by the titles and
+// 2 (0.60.0): Torznab of JacRed (the preset melange) searches by the titles and
 // by IMDb (both) - query was the old value of the template; another one (auto,
 // both) is left as it is. Magnetio and the other presets: not touched.
 /**
@@ -457,7 +457,7 @@ function aio_conf_mig_read($dir)
 }
 
 // The schema of the config $uuid by the marks $m (aio_conf_mig_read); 0: none
-// (made before 0.59.1, or the mark lost: its migrations run, they change nothing twice).
+// (made before 0.60.0, or the mark lost: its migrations run, they change nothing twice).
 /**
  * @param array<int|string, int> $m
  * @param string $uuid

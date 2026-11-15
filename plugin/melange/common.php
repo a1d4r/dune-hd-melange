@@ -5,7 +5,7 @@
 // PHP 5.3: no firmware API, no logging here.
 // Types in the PHPDoc (AioSettings and others): phpstan-types.neon of the repository.
 
-define('AIO_VERSION', '0.59.1');
+define('AIO_VERSION', '0.60.0');
 // HTTPS works only with the firmware CA bundle (curl of the plugin and the page).
 define('AIO_CA_BUNDLE', '/firmware/certs/ca-bundle.crt');
 // In data_dir: written by the settings page and by the plugin (the quick setup, the rows of
@@ -23,7 +23,7 @@ define('AIO_SORT_FILE', 'list_sort');
 // plugin (MENU of a list) and by the settings page, not in settings.json.
 define('AIO_DEBRID_MAIN_FILE', 'debrid_main');
 // In data_dir also aio_conf_mig: the schema of each config of Melange (AIO_CONF_MIG_FILE
-// of cgi/aio_conf.php, 0.59.1); written by the plugin and by the settings page.
+// of cgi/aio_conf.php, 0.60.0); written by the plugin and by the settings page.
 define('AIO_URL_MAX', 2000);
 // A bigger settings.json is not read (a real one is below 5 KB).
 define('AIO_SETTINGS_MAX', 65536);

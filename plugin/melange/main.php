@@ -1304,7 +1304,7 @@ function aio_mig_mark($uuid, $s)
         aio_conf_mig_json(aio_conf_mig_read($dir), $uuid, AIO_CONF_SCHEMA, $s));
 }
 
-// The migrations of the config of Melange in use (Aio::$settings['made'], 0.59.1) not
+// The migrations of the config of Melange in use (Aio::$settings['made'], 0.60.0) not
 // yet at AIO_CONF_SCHEMA, before its streams are asked: aio_conf_migrate, then the mark;
 // a failure is a line of the log only (the streams are asked as always), the next try
 // by AIO_MIG_WAIT, AIO_MIG_TRIES. No data_dir or tmp_dir: nothing.
