@@ -21,7 +21,7 @@ What it does:
 
 ## Requirements
 
-- **A Dune HD on Android with firmware r22 or newer.**
+- **A Dune HD on Android with firmware r24 or r25.**
 - **Does not work** on Sigma / Linux Dunes (Solo 4K, Duo 4K, Base 3D, TV-303D and older): they have no **Movies** catalog with **Play...** items and no Android apps. On models with 1 GB of memory (SmartBox 4K, SmartBox 4K Plus, Traveler, Neo 4K, 4K Neo, Neo 4K T2) it is not guaranteed to work.
 - **A phone on the same home network** as the Dune, for the settings page.
 - **A source of releases**, one of three options:
@@ -35,7 +35,7 @@ What it does:
 | AIOStreams config | created by Melange | created by Melange | yours, Melange only reads it |
 | Where releases are searched | JacRed, Torrentio, MediaFusion, Comet, StremThru Torz | by default only JacRed (Russian trackers); the **Everywhere** template adds Torrentio, TorrentsDB, Comet, StremThru Torz | as you set it up |
 
-An own config without Debrid (P2P releases) also plays via TorrServer. More on the options and on what Melange does with the config: [Release sources](docs/sources.en.md).
+An own config without Debrid (P2P releases) also plays via TorrServer. More on the options and on what Melange does with the config: [Release sources](docs/aiostreams.en.md).
 
 JacRed needs no setup: the default is `jacred.kompotik.com`, Melange's JacRed.
 
@@ -47,7 +47,7 @@ JacRed needs no setup: the default is `jacred.kompotik.com`, Melange's JacRed.
 
 **Updates.** The Dune checks for a new Melange version on GitHub Pages by itself, after a reboot and when you enter **Setup → Apps → Melange**, and offers to install it. If no update arrives, install the new zip over the old one the same way. Settings and the settings page link are kept.
 
-**Uninstall** from the Dune's plugin list. The plugin's settings are erased with it; to keep them, save a [backup](docs/setup.en.md#backup) first.
+**Uninstall** from the Dune's plugin list. The plugin's settings are erased with it; to keep them, save a [backup](docs/backup.en.md) first.
 
 ## Quick start
 
@@ -59,18 +59,18 @@ JacRed needs no setup: the default is `jacred.kompotik.com`, Melange's JacRed.
 6. Open a movie in the Dune **Movies** catalog → **Play...** → **Melange**.
 7. Pick a release and press ENTER.
 
-The same path step by step, with screenshots: [Getting started](docs/quick-start.en.md).
+The same path step by step, with screenshots: [Quick start](docs/start.en.md).
 
 ## How to watch
 
-- **Pick a movie** in the [Melange catalog](docs/catalog.en.md) (**Apps → Melange**: rows of collections and search) or in the Dune **Movies** catalog. On the card: **Play...** → **Melange**. For a series, first choose an episode via **Seasons**.
-- **Own card:** ENTER on a poster in the Melange catalog opens [a card](docs/catalog.en.md#melanges-own-card) with ratings, a trailer, seasons and episodes, similar titles and the cast.
+- **Pick a movie** in the [Melange catalog](docs/watch.en.md) (**Apps → Melange**: rows of collections and search) or in the Dune **Movies** catalog. On the card: **Play...** → **Melange**. For a series, first choose an episode via **Seasons**.
+- **Own card:** ENTER on a poster in the Melange catalog opens [a card](docs/appearance.en.md) with ratings, a trailer, seasons and episodes, similar titles and the cast.
 - **In the release list:** up / down moves through releases, P+ / P− through pages, ENTER plays, INFO shows release details, ← / → goes to the neighboring episode. The colored buttons change the order: Auto, Seeders (Cached with Debrid), Size, Date.
 - **Release status** on the left: **Cached in …** starts playing at once, **Not cached** means it is not in the Debrid cache, **P2P** plays via TorrServer.
-- **MENU** opens **Actions**: refresh the list, choose an episode, watch via TorrServer, open in another app, download to your server, settings.
+- **POP UP** opens the actions menu: refresh the list, choose an episode, watch via TorrServer, open in another app, download to your server, settings.
 - **Continue watching:** a started movie or episode shows up in the Dune's **Continue Watching** row and opens on the same release from the same spot.
 
-Everything about the list, series, TorrServer and history: [Watching](docs/watching.en.md).
+Everything about the list, series, TorrServer and history: [Watching](docs/watch.en.md).
 
 ## Troubleshooting
 
@@ -84,14 +84,35 @@ All messages and what to do about them: [Troubleshooting and the log](docs/troub
 
 ## Documentation
 
-- [Getting started](docs/quick-start.en.md): from installation to the first movie.
-- [Settings](docs/setup.en.md): the settings screen on the Dune and every section of the settings page on the phone.
-- [Release sources and the AIOStreams config](docs/sources.en.md): Debrid, torrents, your own config, AIOStreams servers, source profiles, what Melange changes in the config.
-- [Watching](docs/watching.en.md): the release list, sorting, series, TorrServer, history.
-- [Catalog](docs/catalog.en.md): rows of collections, search, data sources.
-- [Troubleshooting and the log](docs/troubleshooting.en.md): error messages, the log, where to report.
+[Guide contents](docs/README.en.md):
+
+- [Quick start](docs/start.en.md)
+- [Watching](docs/watch.en.md)
+- [Your own catalog rows](docs/catalog-rows.en.md)
+- [Settings page on a phone](docs/phone-page.en.md)
+- [Debrid](docs/debrid.en.md)
+- [Torrents and TorrServer](docs/torrserver.en.md)
+- [JacRed](docs/jacred.en.md)
+- [Source profiles](docs/profiles.en.md)
+- [Your own torrent client](docs/download-server.en.md)
+- [Appearance](docs/appearance.en.md)
+- [Melange in the TV tab](docs/tv-tab.en.md)
+- [Advanced](docs/advanced-options.en.md)
+- [Backup](docs/backup.en.md)
+- [AIOStreams and your own config](docs/aiostreams.en.md)
+- [Troubleshooting](docs/troubleshooting.en.md)
 - [Known limitations](docs/limitations.en.md)
+
+## Data sources
+
+Movies, series and posters come from [TMDB](https://www.themoviedb.org/), streaming service rows from [JustWatch](https://www.justwatch.com/) data. Thanks to the authors of the collections:
+- the parameters of most rows (genres, themes, studios, decades, streaming, countries, runtime) are from the AIOMetadata template [luckynumb3rs/stremio-perfect-setup](https://github.com/luckynumb3rs/stremio-perfect-setup); the Russian rows and new releases were put together for Melange;
+- Kinopoisk top is an unofficial mirror of the Kinopoisk Top 250, the public list by [lotist on Letterboxd](https://letterboxd.com/lotist/list/250/); it is not Kinopoisk's own rating, and the row has the first 200 movies;
+- "Новинки в качестве" and "Новинки в 4K" follow the open list of [KinoTrend](https://kino-trend.ru/), "Свежие серии с переводом" follows [Kinou](https://kinou.ru/);
+- "Сезон целиком с переводом" follows the open list of SerialTrend: series that already have a release of a whole season with Russian voice-over; a movie or series without an IMDb ID does not get into the rows of the "Fresh releases" group;
+- the "on AniList" anime rows are from [AniList](https://anilist.co/);
+- the catalog server is [AIOMetadata](https://github.com/cedya77/aiometadata).
 
 ## License
 
-MIT, see the `LICENSE` file in the repository. Quality badges are from [github.com/kingsizew/badges](https://github.com/kingsizew/badges). Sources of the catalog rows: [Catalog](docs/catalog.en.md#data-sources).
+MIT, see the `LICENSE` file in the repository. Quality badges are from [github.com/kingsizew/badges](https://github.com/kingsizew/badges).

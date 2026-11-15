@@ -1,0 +1,31 @@
+# Advanced
+
+Choose whether Melange starts torrents, shows skip-intro buttons and reports source errors. [← Contents](README.en.md)
+
+1. On the settings page ([Settings page on a phone](phone-page.en.md)), open "Advanced".
+
+   <img src="../screenshots/advanced-screen.jpg" alt="Advanced screen: Running torrents, Skip intro and credits, Source errors, Source profiles" width="300">
+
+2. "Running torrents": leave "Allow". Choose "No torrents" if you do not need torrents on the Dune at all ([Known limitations](limitations.en.md)).
+
+3. "Skip intro and credits" (r25): leave it "On" (the default). The player gets a "Skip intro" button. If episodes take long to start, choose "Off".
+
+   <img src="../screenshots/advanced-skip.jpg" alt="Dune player: Skip intro button at the bottom left" width="100%">
+
+   The button appears at the start of an episode, at the bottom left.
+
+4. "Source errors": turn it on if there are few releases or none. The number of errors appears above the release list; **POP UP** → "Source errors" shows the reasons.
+
+   <img src="../screenshots/advanced-errors-menu.jpg" alt="Release list for Resident Evil: Errors: 2 at the top right, the menu is open, focus on Source errors" width="100%">
+
+   <img src="../screenshots/advanced-errors.jpg" alt="Source errors window: JacRed and MediaFusion did not answer in time" width="100%">
+
+5. "Source profiles" are described in [Source profiles](profiles.en.md). Press "Save".
+
+   <img src="../screenshots/phone-saved.jpg" alt="A green line at the top of the page: Saved. The Dune picks up the settings automatically." width="300">
+
+## If it did not work
+
+- Still few releases: see [Known limitations](limitations.en.md).
+
+Next: [Backup](backup.en.md) · [Contents](README.en.md)
