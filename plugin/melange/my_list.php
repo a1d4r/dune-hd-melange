@@ -275,7 +275,8 @@ function aio_ml_broken($why)
 // englishTitle, year, poster, background, imdb_id, _tmdbId, kpId, dune_id, added] and, of a title with a rating,
 // [imdbRating, kpRating, kpVotes] after them (a Melange of before them reads the 11 alone), a picture as [<its part in
 // dirs>, <the rest>] or ''}. No key (aio_ml_key makes it again) and no names of fields: 200 titles take ~80 KB of the
-// body of the import, not ~180 KB of the form of the file.
+// body of the import, not ~180 KB of the form of the file. A picture with auth= (of @Movies of the Favorites of the
+// Dune, aio_ml_fav_read: the outside IP of this Dune) is '': the file of the export leaves the Dune.
 /**
  * @param list<AioMlEntry> $list
  * @return array{v: int, dirs: list<string>, items: list<array<int, mixed>>}
@@ -291,7 +292,7 @@ function aio_ml_copy($list)
         {
             $u = $e[$k];
             $p = strrpos($u, '/');
-            if ($u === '' || $p === false)
+            if ($u === '' || $p === false || preg_match('~[?&]auth=~', $u))
             {
                 $pics[] = '';
                 continue;
@@ -721,8 +722,9 @@ function aio_ml_fav_movies($dir, $lcfg)
 // plugin_launcher://{name=shell_ext}{action_id=file_movie}{movie_id=<id>}{series=0|1} - each, the folder @Movies of
 // r25 in its place: its movies (aio_ml_fav_movies). Persons, folders of the network, apps, other plugins: skipped; a
 // movie twice: the first. -> {dune_id, type (movie, series; '' - not known: an item of before {series}), name, year
-// ('' for an item), poster (an address; of @Movies with auth= of dunemdb: not for a log or a file), file (the picture
-// on the Dune; '' none)}. No request, nothing written.
+// ('' for an item), poster (an address; of @Movies with auth= of dunemdb - the outside IP of this Dune: kept in
+// AIO_ML_FILE as it is, the data of this Dune; masked in the log, aio_mask; not in the copy of the backup, aio_ml_copy),
+// file (the picture on the Dune; '' none)}. No request, nothing written.
 /**
  * @param list<string> $dirs
  * @param string $lcfg

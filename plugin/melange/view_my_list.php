@@ -523,10 +523,10 @@ function aio_mlv_fav_pair($mid, $left, &$asked)
     return $r['link'];
 }
 
-// The tile of movie $f of the Favorites (aio_ml_fav_read) by its pair $l: a tile of a row in memory of its IMDb or TMDB
-// (the pictures and the ratings of the catalog), else of the Favorites (its name, year, poster; a name of an item of the
-// root "Name (2008)": the year of it). The type of the pair, else of the Favorites, else by its TMDB. null: no IMDb and
-// no TMDB.
+// The tile of movie $f of the Favorites (aio_ml_fav_read) by its pair $l: the best tile of its IMDb or TMDB
+// (aio_cp_best_tile: of a row in memory, else of the meta kept - the pictures and the ratings of the catalog, not the
+// poster of dunemdb with auth=), else of the Favorites (its name, year, poster; a name of an item of the root "Name
+// (2008)": the year of it). The type of the pair, else of the Favorites, else by its TMDB. null: no IMDb and no TMDB.
 /**
  * @param AioMlFav $f
  * @param AioPgLink $l
@@ -541,7 +541,7 @@ function aio_mlv_fav_tile($f, $l)
     $tmdb = isset($l[$k]) ? $l[$k] : '';
     if ($imdb === '' && $tmdb === '')
         return null;
-    $m = aio_cp_tile_find($type, $imdb, $tmdb);
+    $m = aio_cp_best_tile($type, $imdb, $tmdb);
     if ($m)
         return $m;
     $name = $f['name'];
