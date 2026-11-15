@@ -303,7 +303,7 @@ function aio_oc_make($tile, $meta, $dune, $lang, $posters)
 // The card $key of $tile with meta $meta (or null), the card of the Dune $c (aio_card_id), $lang
 // of play_action: the tile filled (aio_oc_fill), the rows of posters asked (aio_cm_posters: all of them
 // on r24, else those in memory, the rest by the timer of the screen), made (aio_oc_make) and kept
-// (aio_oc_keep).
+// (aio_oc_keep). A series with a card of the Dune: its episodes of the meta to the pair (aio_pg_link_meta).
 /**
  * @param string $key
  * @param AioCatTile $tile
@@ -317,6 +317,8 @@ function aio_oc_build($key, $tile, $meta, $c, $lang)
     $card = aio_oc_make(aio_oc_fill($tile, $meta, $c), $meta, $c['id'], $lang,
         aio_cm_posters($key, $tile, $meta, aio_fw_r() < AIO_FW_TIMER_R));
     aio_oc_keep($key, $card);
+    if ($meta && $c['id'] !== '' && $tile['type'] === 'series')
+        aio_pg_link_meta($c['id'], $meta);
     return $card;
 }
 

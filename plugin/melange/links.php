@@ -334,8 +334,11 @@ function aio_pg_links_save()
 }
 
 // The pair of movie_id $mid set to $l (aio_pg_link_clean): the fields of a pair it has not kept; a pair
-// over none or fail; none or fail only over none or fail. Written (aio_pg_links_save) only on a change and
-// with $save; else the caller writes them once. No log line: the caller says what it found. -> it changed.
+// over none or fail; none or fail only over none or fail. Over a pair: the seasons the larger number of episodes of
+// each (season_numbers of play_action count the episodes not out yet and number an anime by its seasons, the own
+// card on in one), soon replaced only by a source of dates ($l has it, even empty: the card of the shell, the meta).
+// Written (aio_pg_links_save) only on a change and with $save; else the caller writes them once. No log line: the
+// caller says what it found. -> it changed.
 /**
  * @param string $mid
  * @param mixed $l
@@ -344,6 +347,7 @@ function aio_pg_links_save()
  */
 function aio_pg_link_put($mid, $l, $save = true)
 {
+    $dated = is_array($l) && array_key_exists('soon', $l);
     $l = aio_pg_link_clean($l);
     if (!$l || !preg_match('/^' . AIO_DUNE_ID . '$/D', $mid))
         return false;
@@ -354,6 +358,16 @@ function aio_pg_link_put($mid, $l, $save = true)
     if ($old_pair && !$pair)
         return false;
     $new = $pair && $old_pair ? array_merge($old, array_filter($l)) : $l;
+    if ($pair && $old_pair && isset($old['seasons'], $l['seasons']))
+    {
+        $seasons = $old['seasons'];
+        foreach ($l['seasons'] as $n => $count)
+            $seasons[$n] = max(isset($seasons[$n]) ? $seasons[$n] : 0, $count);
+        ksort($seasons);
+        $new['seasons'] = $seasons;
+    }
+    if ($pair && $old_pair && $dated && !isset($l['soon']))
+        unset($new['soon']);
     if ($new == $old)
         return false;
     $links[$mid] = $new;
@@ -375,6 +389,39 @@ function aio_pg_link_movie($mv)
     if ($mv['dune_id'] !== '' && $mv['imdb'] !== '' && aio_pg_link_put($mv['dune_id'], array('imdb' => $mv['imdb'],
         'type' => $mv['series'] ? 'series' : 'movie', 'seasons' => $mv['seasons'])))
         aio_log('progress: a pair of play_action');
+}
+
+// The episodes of the series of card $id of the own card by its meta $m, as it offers them (aio_cm_lists: by the season
+// asked, an anime numbered on in one), the date of those not out (aio_cm_hkey => date, '' none): its episodes now in the
+// row "Continue" and the badges. A season numbered not 1 and up: none of them.
+/**
+ * @param string $id
+ * @param AioCardMeta $m
+ * @return void
+ */
+function aio_pg_link_meta($id, $m)
+{
+    $seasons = array();
+    foreach (aio_cm_lists($m) as $q => $list)
+    {
+        if ($q < 1)
+            continue;
+        if ($list !== range(1, count($list)))
+            return;
+        $seasons[$q] = count($list);
+    }
+    $soon = array();
+    foreach ($m['seasons'] as $s => $eps)
+    {
+        foreach ($eps as $ep)
+        {
+            if ($ep['soon'])
+                $soon[aio_cm_hkey($m, $s, $ep['e'])] = $ep['date'];
+        }
+    }
+    if ($seasons && $m['imdb'] !== '' && aio_pg_link_put($id, array('imdb' => $m['imdb'], 'type' => 'series', 'seasons' => $seasons,
+        'soon' => $soon)))
+        aio_log('progress: the episodes of the meta');
 }
 
 // The pair of the card $id found for tile $t (aio_card_id): its IMDb, its TMDB by its type.
