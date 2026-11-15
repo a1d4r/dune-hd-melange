@@ -43,6 +43,10 @@ define('AIO_LP_CALL_PAUSE', 1000000);
 define('AIO_LP_MAX_BYTES', 1048576);
 // A longer link is refused by Kestrel of Lampac (414): not played.
 define('AIO_LP_LINK_MAX', 8000);
+// Mirrors of a link (" or ") kept at most; a longer value of a link of a reply is
+// not parsed (long).
+define('AIO_LP_MIRRORS_MAX', 5);
+define('AIO_LP_LINKS_MAX', AIO_LP_MIRRORS_MAX * (AIO_LP_LINK_MAX + 4));
 // The check of a link: seconds of all its mirrors and of each; bytes of the
 // head of a playlist (Collaps: 14 audio groups of ~1.4 KB before the first
 // variant).
@@ -137,8 +141,9 @@ function aio_lp_version($body)
 
 // --- The log.
 
-// $s with the address $base of Lampac as "<lampac>", the links of its proxy and
-// the tokens of the balancers hidden.
+// $s with the address $base of Lampac as "<lampac>" (of an address with a path
+// its scheme://host[:port] and its host alone too: curl errors name the host), the
+// links of its proxy and the tokens of the balancers hidden.
 /**
  * @param string $s
  * @param string $base
@@ -147,7 +152,12 @@ function aio_lp_version($body)
 function aio_lp_mask($s, $base)
 {
     if ($base !== '')
+    {
         $s = aio_mask_host($s, $base, '<lampac>');
+        $o = (string) preg_replace('~^([a-z]+://[^/]+).*\z~is', '$1', $base);
+        if ($o !== $base)
+            $s = aio_mask_host($s, $o, '<lampac>');
+    }
     $s = preg_replace('~/proxy/[^\s"\'?&#]+~', '/proxy/***', $s);
     return preg_replace('~\b((?:token[a-z_]*|id_file|uid|account_email|memkey)=)[^\s"\'&#]+~i', '$1***', $s);
 }
@@ -298,15 +308,78 @@ function aio_lp_bal($s)
     return is_string($s) ? (string) substr((string) preg_replace('/[^a-z0-9_]+/', '', strtolower($s)), 0, AIO_LP_BAL_MAX) : '';
 }
 
-// A link of a reply: http(s), no spaces or control characters (" or " joins
-// mirrors: aio_lp_links), else ''.
+// One link: http(s), no spaces or control characters, else ''.
+/**
+ * @param mixed $u
+ * @return string
+ */
+function aio_lp_link1($u)
+{
+    return is_string($u) && preg_match('~^https?://[^\x00-\x20\x7F]+\z~i', $u) ? $u : '';
+}
+
+// A link of a reply to play: its mirrors (aio_lp_links) joined by " or " again,
+// '' for none or a value over AIO_LP_LINKS_MAX bytes.
 /**
  * @param mixed $u
  * @return string
  */
 function aio_lp_link_ok($u)
 {
-    return is_string($u) && preg_match('~^https?://[^\x00-\x20\x7F]+\z~i', $u) ? $u : '';
+    return is_string($u) && strlen($u) <= AIO_LP_LINKS_MAX ? implode(' or ', aio_lp_links($u)) : '';
+}
+
+// A value of a link of a reply over AIO_LP_LINKS_MAX bytes: its length (the
+// reason long), '' for another one.
+/**
+ * @param mixed $u
+ * @return string
+ */
+function aio_lp_too_long($u)
+{
+    return is_string($u) && strlen($u) > AIO_LP_LINKS_MAX ? strval(strlen($u)) : '';
+}
+
+// "host:port" (lower case, the port of the scheme when none) of a link, '' for
+// none (a user in it too).
+/**
+ * @param string $url
+ * @return string
+ */
+function aio_lp_hostport($url)
+{
+    if (!preg_match('~^(https?)://([^/?#@:]+)(?::([0-9]{1,5}))?(?:[/?#]|\z)~i', $url, $m))
+        return '';
+    // Groups not matched at the end are not in $m (PHP 5.3).
+    list(, $scheme, $host, $port) = array_pad($m, 4, '');
+    return strtolower($host) . ':' . ($port !== '' ? intval($port) : (strtolower($scheme) === 'https' ? 443 : 80));
+}
+
+// All mirrors of link $url go to Lampac: its address $base (of the settings) or
+// the host of source $src (events gives links of its own host). Only there the
+// headers of a row are sent (its /proxy/ fetches with them).
+/**
+ * @param string $url
+ * @param AioLpSource $src
+ * @param string $base
+ * @return bool
+ */
+function aio_lp_on_lampac($url, $src, $base)
+{
+    $own = array();
+    foreach (array($base, $src['url']) as $b)
+    {
+        $h = aio_lp_hostport($b);
+        if ($h !== '')
+            $own[$h] = true;
+    }
+    $links = aio_lp_links($url);
+    foreach ($links as $u)
+    {
+        if (!isset($own[aio_lp_hostport($u)]))
+            return false;
+    }
+    return (bool) $links;
 }
 
 // Item $o of the list of events -> its source, or the reason it is hidden:
@@ -327,8 +400,8 @@ function aio_lp_source($o, $pos)
         return 'show';
     if (isset($o['rch']) && $o['rch'] === true)
         return 'rch';
-    $url = aio_lp_link_ok(isset($o['url']) ? $o['url'] : null);
-    if ($url === '' || strlen($url) > AIO_LP_LINK_MAX)
+    $url = isset($o['url']) && is_string($o['url']) && strlen($o['url']) <= AIO_LP_LINK_MAX ? aio_lp_link1($o['url']) : '';
+    if ($url === '')
         return 'bad';
     $bal = aio_lp_bal(isset($o['balanser']) ? $o['balanser'] : '');
     if ($bal === '')
@@ -608,15 +681,18 @@ function aio_lp_quals($q)
 // list), method (play: url plays; call: url gives the link, aio_lp_call),
 // url (by "quality" when empty), stream (the link of "call" that plays at
 // once, '' none), qual (quality => link), subs (subtitles of the item), key
-// (aio_lp_key). An item with headers and a link not through /proxy/ of
-// Lampac is a reason, not a row: the player sends no headers.
+// (aio_lp_key). url, stream and qual may be mirrors (" or "); the link of a
+// row of call is one. An item with headers and a link not to Lampac
+// (aio_lp_on_lampac: $base, the host of $src) is a reason, not a row: the
+// player sends no headers.
 /**
  * @param AioLpSource $src
  * @param int $code
  * @param string $body
+ * @param string $base
  * @return AioLpParsed
  */
-function aio_lp_reply($src, $code, $body)
+function aio_lp_reply($src, $code, $body, $base = '')
 {
     $out = array('kind' => 'skip', 'rows' => array(), 'why' => array());
     $j = aio_lp_json($body);
@@ -640,17 +716,18 @@ function aio_lp_reply($src, $code, $body)
     else if ($j['type'] !== 'movie')
         $out['why'][] = aio_lp_why($src, 'type', aio_lp_text(is_string($j['type']) ? $j['type'] : gettype($j['type'])));
     else
-        $out = aio_lp_movie($src, $j['data']);
+        $out = aio_lp_movie($src, $j['data'], $base);
     return $out;
 }
 
-// Items $data of a reply "movie" of source $src -> aio_lp_reply.
+// Items $data of a reply "movie" of source $src on Lampac $base -> aio_lp_reply.
 /**
  * @param AioLpSource $src
  * @param array<mixed> $data
+ * @param string $base
  * @return AioLpParsed
  */
-function aio_lp_movie($src, $data)
+function aio_lp_movie($src, $data, $base = '')
 {
     $rows = array();
     $why = array();
@@ -660,14 +737,17 @@ function aio_lp_movie($src, $data)
             continue;
         $method = aio_lp_str($x, 'method');
         $qual = aio_lp_quals(isset($x['quality']) ? $x['quality'] : null);
-        $url = aio_lp_link_ok(isset($x['url']) ? $x['url'] : null);
+        $raw = isset($x['url']) ? $x['url'] : null;
+        $url = $method === 'call' ? aio_lp_link1($raw) : aio_lp_link_ok($raw);
         if ($url === '' && $qual)
-            $url = reset($qual);
+            $url = $method === 'call' ? aio_lp_link1(reset($qual)) : reset($qual);
         if ($method !== 'play' && $method !== 'call')
             $why[] = aio_lp_why($src, 'method', aio_lp_text($method));
+        else if ($url === '' && aio_lp_too_long($raw) !== '')
+            $why[] = aio_lp_why($src, 'long', aio_lp_too_long($raw));
         else if ($url === '')
             $why[] = aio_lp_why($src, 'no_link');
-        else if (!empty($x['headers']) && !preg_match('~^https?://[^?#]*/proxy/~i', $url))
+        else if (!empty($x['headers']) && !aio_lp_on_lampac($url, $src, $base))
             $why[] = aio_lp_why($src, 'headers');
         else if (count($rows) < AIO_LP_ROWS_MAX)
         {
@@ -726,7 +806,7 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
             $out['why'][] = aio_lp_why($src, 'down', $r['err']);
             continue;
         }
-        $p = aio_lp_reply($src, $r['code'], $r['body']);
+        $p = aio_lp_reply($src, $r['code'], $r['body'], $base);
         if ($p['kind'] === 'similar')
             $out['similar']++;
         else if ($p['kind'] === 'serial')
@@ -791,10 +871,14 @@ function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL
         else
         {
             $out['qual'] = aio_lp_quals(isset($j['quality']) ? $j['quality'] : null);
-            $out['url'] = aio_lp_link_ok(isset($j['url']) ? $j['url'] : null);
+            $raw = isset($j['url']) ? $j['url'] : null;
+            $out['url'] = aio_lp_link_ok($raw);
             if ($out['url'] === '' && $out['qual'])
                 $out['url'] = reset($out['qual']);
-            list($out['err'], $out['detail']) = $out['url'] !== '' ? array('', '') : array('no_link', '');
+            if ($out['url'] === '' && aio_lp_too_long($raw) !== '')
+                list($out['err'], $out['detail'], $again) = array('long', aio_lp_too_long($raw), false);
+            else
+                list($out['err'], $out['detail']) = $out['url'] !== '' ? array('', '') : array('no_link', '');
         }
         if ($out['err'] === '' || !$again || $r['hit'] || $out['tries'] > 1)
             break;
@@ -807,7 +891,8 @@ function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL
     return $out;
 }
 
-// The mirrors of a link: its parts joined by " or ", in order, those that are links.
+// The mirrors of a link: its parts joined by " or ", in order, those that are
+// links, the first AIO_LP_MIRRORS_MAX parts only.
 /**
  * @param string $url
  * @return list<string>
@@ -815,9 +900,9 @@ function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL
 function aio_lp_links($url)
 {
     $out = array();
-    foreach (explode(' or ', $url) as $u)
+    foreach (array_slice(explode(' or ', $url, AIO_LP_MIRRORS_MAX + 1), 0, AIO_LP_MIRRORS_MAX) as $u)
     {
-        $u = aio_lp_link_ok(trim($u));
+        $u = aio_lp_link1(trim($u));
         if ($u !== '')
             $out[] = $u;
     }
@@ -887,7 +972,7 @@ function aio_lp_head_class($url, $code, $body, $hls)
 // master playlist not longer either; a file: Range 0-0, 206, or 200 with
 // no_seek. -> aio_lp_head_class of the mirror that plays; else of the first
 // unclear one (no answer: the caller may play it, as aio_precheck), else of
-// the first one. $total s for all.
+// the first one. $total s for all: with no time left the rest is not tried.
 /**
  * @param string $base
  * @param string $url
@@ -903,12 +988,16 @@ function aio_lp_check($base, $url, $total = AIO_LP_CHECK_MAX)
     foreach ($links as $i => $u)
     {
         $left = (int) floor($total - (aio_lp_now() - $t0));
+        $stop = false;
         if (strlen($u) > AIO_LP_LINK_MAX)
             $c = array('class' => 'bad', 'url' => $u, 'why' => 'long', 'detail' => strval(strlen($u)), 'hls' => false,
                 'no_seek' => false);
         else if ($left < AIO_LP_REPLY_MIN)
+        {
             $c = array('class' => 'unclear', 'url' => $u, 'why' => 'down', 'detail' => 'no time', 'hls' => false,
                 'no_seek' => false);
+            $stop = true;
+        }
         else
         {
             $each = min(AIO_LP_CHECK_EACH, $left);
@@ -935,6 +1024,8 @@ function aio_lp_check($base, $url, $total = AIO_LP_CHECK_MAX)
             $unclear = $c;
         if ($first === null)
             $first = $c;
+        if ($stop)
+            break;
     }
     if ($unclear !== null)
         return $unclear;
