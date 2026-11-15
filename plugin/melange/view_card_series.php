@@ -718,7 +718,8 @@ function aio_oc_mark_items($key, $c, $prog, $pos)
 // card $c ($key) -> update_watched_marks: on/off the episode, prev the episodes out before it
 // (aio_oc_prev_eps), the mark of the own card (aio_wh_mark_uid) of each and the uids of the records
 // of our releases of it (aio_wh_ours_eps); then the card anew in place, the focus on the episode
-// (the shell has written watched_files.txt by then). Nothing for a bad input.
+// (the shell has written watched_files.txt by then); the badges of the catalog read the history anew
+// (aio_pg_stale). Nothing for a bad input.
 /**
  * @param string $key
  * @param AioOcCard $c
@@ -756,6 +757,7 @@ function aio_oc_mark($key, $c, $in)
     }
     AioOc::$cards[$key]['pos'] = array_merge($c['pos'], array('z' => 'row', 'p' => 0, 's' => $s, 'e' => $e));
     aio_log("card: own $key: mark $w on S{$s}E{$e}: " . count($keys) . " episodes, $nr uids of records");
+    aio_pg_stale();
     return array(
         GuiAction::handler_string_id => UPDATE_WATCHED_MARKS_ACTION_ID,
         GuiAction::data => array(

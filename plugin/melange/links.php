@@ -29,6 +29,10 @@ define('AIO_PG_LINK_N', 2);
 define('AIO_PG_LINK_S', 3.0);
 define('AIO_PG_LINK_NEXT_S', 1.5);
 define('AIO_PG_LINK_CONNECT', 2);
+// r25: a get_folder_rows of the opening comes this soon after the reply to the one before it (the shell asks
+// the rows of its window one packet after another, ~2-35 ms apart: probe catalog_probe on r25); a later
+// one is of a key, the opening is over. A guess for the rows of the catalog: the line of the log says it.
+define('AIO_PG_CHAIN_S', 0.3);
 // A reply of the API this small is decoded whole when its code is not before "result".
 define('AIO_PG_HEAD_MAX', 65536);
 
@@ -48,12 +52,19 @@ class AioPgLinks
     // The last step found no dune_auth (logged once).
     /** @var bool */
     public static $no_auth = false;
-    // The screen of rows opened last: its flagged rows (aio_pg_row_asked); the rows of the first get_folder_rows
-    // of it not answered yet (null: none came yet); whether its lazy pairs were asked.
+    // The screen of rows opened last: its flagged rows not answered yet (aio_pg_row_asked), how many were
+    // flagged; its get_folder_rows calls, when the last one was answered (microtime; 0: none yet), the longest
+    // pause before one of them, s; whether its lazy step is over (asked, or the time of it past).
     /** @var array<string, bool> */
     public static $asked = array();
-    /** @var array<string, bool>|null */
-    public static $batch = null;
+    /** @var int */
+    public static $flagged = 0;
+    /** @var int */
+    public static $calls = 0;
+    /** @var float */
+    public static $last_t = 0.0;
+    /** @var float */
+    public static $gap = 0.0;
     /** @var bool */
     public static $linked = false;
 }
@@ -67,9 +78,14 @@ class AioPgLinks
  */
 function aio_pg_screen_start()
 {
+    if (!AioPgLinks::$linked && AioPgLinks::$calls > 0)
+        aio_pg_rows_say('no step');
     aio_pg_shell_step();
     AioPgLinks::$asked = array();
-    AioPgLinks::$batch = null;
+    AioPgLinks::$flagged = 0;
+    AioPgLinks::$calls = 0;
+    AioPgLinks::$last_t = 0.0;
+    AioPgLinks::$gap = 0.0;
     AioPgLinks::$linked = false;
 }
 
@@ -80,6 +96,8 @@ function aio_pg_screen_start()
  */
 function aio_pg_row_asked($rid)
 {
+    if (!isset(AioPgLinks::$asked[$rid]))
+        AioPgLinks::$flagged++;
     AioPgLinks::$asked[$rid] = true;
 }
 
@@ -100,37 +118,52 @@ function aio_pg_screen_built($left, $net)
         aio_pg_link_step(min($left, AIO_PG_LINK_S));
 }
 
-// get_folder_rows answered row $rid of the rows $rids it asked for, $left s of the call left. r25: the shell
-// asks for the flagged rows of an opening in one call (those on the screen and some under them), takes one row
-// a reply and asks for the rest again; then one row a key down. The lazy pairs once a screen: in the reply
-// to the last row of its first call, never to a row of a later one (php_server answers one call at a time, a
-// key would wait).
+// get_folder_rows answered row $rid in a call that came at $start (microtime), $left s of it left. r25: the
+// shell asks for the flagged rows of its window by packets, one right after the reply to the one before (a
+// reply has one row, the rest of a packet is asked again), then one row a key down (probe catalog_probe,
+// 03.11.2026). The lazy pairs once a screen, in the reply that leaves no flagged row of it not answered, all
+// of its calls in a run (AIO_PG_CHAIN_S apart): no row waits for them. A call after a longer pause (a key) ends
+// the opening with no step (php_server answers one call at a time, the key would wait); so does a flagged
+// row the shell does not ask for (out of its window): the line of the log at the next opening.
 /**
- * @param list<string> $rids
  * @param string $rid
+ * @param float $start
  * @param float $left
  * @return void
  */
-function aio_pg_row_done($rids, $rid, $left)
+function aio_pg_row_done($rid, $start, $left)
 {
-    if (AioPgLinks::$linked || !isset(AioPgLinks::$asked[$rid]))
+    if (AioPgLinks::$linked || !AioPgLinks::$flagged)
         return;
-    if (AioPgLinks::$batch === null)
+    $gap = AioPgLinks::$last_t > 0 ? $start - AioPgLinks::$last_t : 0.0;
+    AioPgLinks::$last_t = microtime(true);
+    if ($gap > AIO_PG_CHAIN_S)
     {
-        AioPgLinks::$batch = array();
-        foreach ($rids as $r)
-        {
-            if (isset(AioPgLinks::$asked[$r]))
-                AioPgLinks::$batch[$r] = true;
-        }
-        aio_log(sprintf('link: the first call of the screen: %d rows, %d flagged', count($rids), count(AioPgLinks::$asked)));
+        AioPgLinks::$linked = true;
+        aio_pg_rows_say(sprintf('a pause of %.0f ms: no step', $gap * 1000));
+        return;
     }
-    unset(AioPgLinks::$batch[$rid]);
-    if (AioPgLinks::$batch)
+    AioPgLinks::$calls++;
+    AioPgLinks::$gap = max(AioPgLinks::$gap, $gap);
+    unset(AioPgLinks::$asked[$rid]);
+    if (AioPgLinks::$asked)
         return;
     AioPgLinks::$linked = true;
+    aio_pg_rows_say($left >= 1 ? 'the step' : 'no time: no step');
     if ($left >= 1)
         aio_pg_link_step(min($left, AIO_PG_LINK_S));
+}
+
+// One line of the log of the get_folder_rows calls of the opening of a screen: how many, the flagged rows
+// answered of all, the longest pause between them, then $what.
+/**
+ * @param string $what
+ * @return void
+ */
+function aio_pg_rows_say($what)
+{
+    aio_log(sprintf('link: rows of the opening: %d calls, %d of %d flagged answered, pauses up to %.0f ms; %s', AioPgLinks::$calls,
+        AioPgLinks::$flagged - count(AioPgLinks::$asked), AioPgLinks::$flagged, AioPgLinks::$gap * 1000, $what));
 }
 
 // --- The pairs.
@@ -236,7 +269,7 @@ function aio_pg_links_save()
 
 // The pair of movie_id $mid set to $l (aio_pg_link_clean): the fields of a pair it has not kept; a pair
 // over none or fail; none or fail only over none or fail. Written (aio_pg_links_save) only on a change and
-// with $save; else the caller writes them once. -> it changed.
+// with $save; else the caller writes them once. No log line: the caller says what it found. -> it changed.
 /**
  * @param string $mid
  * @param mixed $l
@@ -260,7 +293,6 @@ function aio_pg_link_put($mid, $l, $save = true)
     $links[$mid] = $new;
     AioPgLinks::$links = $links;
     aio_pg_rev_build();
-    aio_log("progress: pair of $mid " . ($pair ? 'ids' : (isset($l['none']) ? 'none' : 'fail')));
     if ($save)
         aio_pg_links_save();
     return true;
@@ -274,9 +306,9 @@ function aio_pg_link_put($mid, $l, $save = true)
  */
 function aio_pg_link_movie($mv)
 {
-    if ($mv['dune_id'] !== '' && $mv['imdb'] !== '')
-        aio_pg_link_put($mv['dune_id'], array('imdb' => $mv['imdb'], 'type' => $mv['series'] ? 'series' : 'movie',
-            'seasons' => $mv['seasons']));
+    if ($mv['dune_id'] !== '' && $mv['imdb'] !== '' && aio_pg_link_put($mv['dune_id'], array('imdb' => $mv['imdb'],
+        'type' => $mv['series'] ? 'series' : 'movie', 'seasons' => $mv['seasons'])))
+        aio_log('progress: a pair of play_action');
 }
 
 // The pair of the card $id found for tile $t (aio_card_id): its IMDb, its TMDB by its type.
@@ -290,11 +322,12 @@ function aio_pg_link_tile($id, $t)
     $l = array('imdb' => $t['imdb_id'], 'type' => $t['type']);
     if ($t['_tmdbId'] !== '' && ($t['type'] === 'movie' || $t['type'] === 'series'))
         $l[$t['type'] === 'series' ? 'tmdbtv' : 'tmdb'] = $t['_tmdbId'];
-    if ($id !== '')
-        aio_pg_link_put($id, $l);
+    if ($id !== '' && aio_pg_link_put($id, $l))
+        aio_log('progress: a pair of ENTER');
 }
 
-// The movie_ids of the card of tile $t by the pairs: of its IMDb, then of its TMDB of its type.
+// The movie_ids of the card of tile $t by the pairs: of its IMDb, then of its TMDB of its type. A tile of no
+// type (a row of anime) has no TMDB key: the numbers of movies and series of TMDB are not the same ids.
 /**
  * @param AioCatTile $t
  * @return list<string>
@@ -303,7 +336,7 @@ function aio_pg_tile_cards($t)
 {
     aio_pg_links();
     $keys = array('imdb:' . $t['imdb_id']);
-    if ($t['_tmdbId'] !== '')
+    if ($t['_tmdbId'] !== '' && ($t['type'] === 'movie' || $t['type'] === 'series'))
         $keys[] = ($t['type'] === 'series' ? 'tmdbtv:' : 'tmdb:') . $t['_tmdbId'];
     $out = array();
     foreach ($keys as $k)
@@ -573,7 +606,7 @@ function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
 // The lazy pairs of an opening: the cards of the history with no pair, the latest first, records that
 // ended within AIO_PG_LINK_AGE_S, a failure older than AIO_PG_FAIL_S; up to AIO_PG_LINK_N requests in
 // $limit s (the second one only with AIO_PG_LINK_NEXT_S left). None in a pause (aio_pg_link_now) or with
-// no dune_auth. -> how many were asked.
+// no dune_auth. One line of the log of a step that asked. -> how many were asked.
 /**
  * @param float $limit
  * @return int
@@ -586,6 +619,7 @@ function aio_pg_link_step($limit)
         return 0;
     $links = aio_pg_links();
     $n = 0;
+    $got = 0;
     foreach (aio_pg_unlinked() as $mid => $end)
     {
         $left = $limit - (microtime(true) - $t);
@@ -598,10 +632,13 @@ function aio_pg_link_step($limit)
         if ($n === 0 && aio_pg_token() === '')
             break;
         $pause = AioPgLinks::$pause;
-        aio_pg_link_now($mid, $left);
+        $r = aio_pg_link_now($mid, $left);
         $n++;
+        $got += $r['st'] === 'pair' ? 1 : 0;
         if (AioPgLinks::$pause !== $pause)
             break;
     }
+    if ($n)
+        aio_log(sprintf('link: step: %d asked, %d pairs, %.0f ms', $n, $got, (microtime(true) - $t) * 1000));
     return $n;
 }

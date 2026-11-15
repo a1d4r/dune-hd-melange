@@ -273,6 +273,7 @@ card_mark_on = Mark as watched
 card_mark_off = Mark as unwatched
 card_mark_prev = Mark previous
 cp_watched = Watched
+cp_ep_watched = %s watched
 cp_left = %s left
 cat_title = Catalog
 cat_more = Show all

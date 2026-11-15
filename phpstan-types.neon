@@ -184,9 +184,9 @@ parameters:
         # The episode to offer of a series by its history (aio_wh_pick, history.php).
         AioWhPick: 'array{s: int, e: int, hash: string, kind: string, rec: string, why: string}'
         # The state of a card of the history (aio_pg_index, progress.php).
-        AioPgEntry: 'array{w: stdClass|null, end: int, seen: bool, movie_mark: bool, series: AioWhSeries|null}'
+        AioPgEntry: 'array{w: stdClass|null, end: int, seen: bool, movie_mark: bool, series: AioWhSeries|null, ep: array{w: stdClass, seen: bool}|null}'
         # What the badges show of it (aio_pg_badge, progress.php).
-        AioPgBadge: 'array{pos: float, len: float, watched: bool, s: int, e: int}'
+        AioPgBadge: 'array{pos: float, len: float, watched: bool, s: int, e: int, all: bool}'
         # A pair of a card of the Dune (aio_pg_links, links.php): its ids, or none / fail with a time.
         AioPgLink: 'array{imdb?: string, tmdb?: string, tmdbtv?: string, type?: string, seasons?: array<int, int>, none?: int, fail?: int}'
         # "Continue watching" of play_action (aio_resume, main.php; next:

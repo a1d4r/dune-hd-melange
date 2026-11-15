@@ -693,15 +693,28 @@ function aio_wh_series_visit($w, $arg, &$acc)
     if (!isset($acc['last']))
         $acc['last'] = $w;
     // e is a number of 1 or more here (aio_wh_match): aio_wh_rec's E1 for no e is not reached.
-    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
+    list($s, $e, $pos, $len) = aio_wh_rec($w);
     $k = "$s:$e";
     if (isset($acc[$k]))
         return false;
-    $end = aio_wh_end($w);
-    $mark = isset($arg[2][$k]) ? $arg[2][$k] : 0;
-    $acc[$k] = array($pos, $len, aio_wh_full($pos, $len) || aio_wh_mark_on(isset($arg[1][$uid]) ? $arg[1][$uid] : 0, $end) ||
-        ($mark > 0 && $mark > $end));
+    $acc[$k] = array($pos, $len, aio_wh_ep_watched($w, $arg[1], $arg[2]));
     return false;
+}
+
+// Episode record $w watched: by its position, its uid marked in $set (aio_wh_marked_set, aio_wh_mark_on) or
+// its episode marked by the own card ($marks of aio_wh_marks) after the record ended.
+/**
+ * @param stdClass $w
+ * @param array<int|string, int> $set
+ * @param array<string, int> $marks
+ * @return bool
+ */
+function aio_wh_ep_watched($w, $set, $marks)
+{
+    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
+    $end = aio_wh_end($w);
+    $mark = isset($marks["$s:$e"]) ? $marks["$s:$e"] : 0;
+    return aio_wh_full($pos, $len) || aio_wh_mark_on(isset($set[$uid]) ? $set[$uid] : 0, $end) || ($mark > 0 && $mark > $end);
 }
 
 // The uids of the records of our releases of the episodes $keys ("s:e" as asked) of the series of

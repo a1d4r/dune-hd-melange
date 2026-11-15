@@ -883,13 +883,7 @@ function aio_catv_rows_op($in)
         AioCat::$manifest_due = false;
         aio_catv_manifest_refresh(min(intval($left), AIO_CATV_REFRESH_S));
     }
-    $rids = array();
-    foreach ($ids as $i)
-    {
-        if (is_string($i) && strpos($i, 'items:') === 0)
-            $rids[] = strval(substr($i, strlen('items:')));
-    }
-    aio_pg_row_done($rids, $rid, AIO_CATV_ROW_S - (microtime(true) - $start));
+    aio_pg_row_done($rid, $start, AIO_CATV_ROW_S - (microtime(true) - $start));
     return array('rows' => $rows);
 }
 

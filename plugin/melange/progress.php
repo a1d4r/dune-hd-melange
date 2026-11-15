@@ -26,6 +26,8 @@ define('AIO_PG_TICK_OLD', 'plugin_file://%shell_ext%/icons/watched_small.png');
 define('AIO_PG_EP_DARK', '#B4000000');
 define('AIO_PG_EP_H', 32);
 define('AIO_PG_EP_PAD', 8);
+// The plate of a long "S21 E1087" ends this far from the tick at least, else it goes over it.
+define('AIO_PG_EP_GAP', 4);
 // The line of the info panel (do_get_info_children of movie_helper.php r25): 40 high, the bar
 // 324x6, the text 40 px right of it, the tick 20 px right of the text.
 define('AIO_PG_INFO_H', 40);
@@ -71,7 +73,8 @@ function aio_pg_slim($w)
 
 // The records of the history, the latest first, into $acc by movie_id: the latest record of any kind
 // (w, with its end and whether it is watched by itself), the state of a series of its episode records
-// as aio_wh_series_visit makes it. $arg: array(aio_wh_marked_set(), the marks of the own card by movie_id).
+// as aio_wh_series_visit makes it, the latest episode record watched or begun (ep: the record, seen:
+// watched, aio_wh_ep_watched; null: none). $arg: array(aio_wh_marked_set(), the marks of the own card by movie_id).
 /**
  * @param mixed $w
  * @param array{array<int|string, int>, array<string, array<string, int>>} $arg
@@ -89,7 +92,7 @@ function aio_pg_visit($w, $arg, &$acc)
         $end = aio_wh_end($w);
         $mark = isset($arg[0][$uid]) ? $arg[0][$uid] : 0;
         $acc[$mid] = array('w' => aio_pg_slim($w), 'end' => $end,
-            'seen' => aio_wh_full($pos, $len) || aio_wh_mark_on($mark, $end), 'st' => array());
+            'seen' => aio_wh_full($pos, $len) || aio_wh_mark_on($mark, $end), 'st' => array(), 'ep' => null);
     }
     $marks = isset($arg[1][$mid]) ? $arg[1][$mid] : array();
     if (isset($w->e) && is_numeric($w->e) && intval($w->e) >= 1)
@@ -100,6 +103,15 @@ function aio_pg_visit($w, $arg, &$acc)
         if (!$had && isset($st['last']))
             $st['last'] = aio_pg_slim($st['last']);
         $acc[$mid]['st'] = $st;
+        // An episode under the threshold, not watched, is passed over (15 s of the next one after a
+        // watched one: the badge of the watched one).
+        if ($acc[$mid]['ep'] === null)
+        {
+            list(, , $pos, $len) = aio_wh_rec($w);
+            $seen = aio_wh_ep_watched($w, $arg[0], $marks);
+            if ($seen || aio_pg_begun($pos, $len))
+                $acc[$mid]['ep'] = array('w' => aio_pg_slim($w), 'seen' => $seen);
+        }
     }
     return false;
 }
@@ -140,7 +152,8 @@ function aio_pg_say($what, $line)
 // local file, null: none), end (of it), seen (it watched: by position or its uid marked, aio_wh_mark_on),
 // movie_mark (the card marked in watched_movies.txt: watched at any time, as watch_history.php r24 and r25
 // read it), series (AioWhSeries of its episode records and the marks of the own card, as aio_wh_series; null:
-// no episode record and no mark).
+// no episode record and no mark), ep (the latest episode record watched or begun and whether it is watched,
+// aio_pg_visit; null: none).
 /**
  * @return array<string, AioPgEntry>
  */
@@ -170,13 +183,13 @@ function aio_pg_index()
         $last = isset($st['last']) && $st['last'] instanceof stdClass ? $st['last'] : null;
         unset($st['last']);
         $idx[strval($mid)] = array('w' => $a['w'], 'end' => $a['end'], 'seen' => $a['seen'], 'movie_mark' => false,
-            'series' => $last ? array($last, $st, isset($own[$mid]) ? $own[$mid] : array()) : null);
+            'series' => $last ? array($last, $st, isset($own[$mid]) ? $own[$mid] : array()) : null, 'ep' => $a['ep']);
     }
     // The marks of the own card with no record of their series, as aio_wh_series.
     foreach ($own as $mid => $marks)
     {
         if (!isset($idx[$mid]))
-            $idx[$mid] = array('w' => null, 'end' => 0, 'seen' => false, 'movie_mark' => false, 'series' => null);
+            $idx[$mid] = array('w' => null, 'end' => 0, 'seen' => false, 'movie_mark' => false, 'series' => null, 'ep' => null);
         $st = $idx[$mid]['series'] ? $idx[$mid]['series'] : array(null, array(), $marks);
         $st[1] = aio_wh_series_fill($st[1], $marks);
         $idx[$mid]['series'] = $st;
@@ -185,7 +198,7 @@ function aio_pg_index()
     {
         $mid = strval($mid);
         if (!isset($idx[$mid]))
-            $idx[$mid] = array('w' => null, 'end' => 0, 'seen' => false, 'movie_mark' => true, 'series' => null);
+            $idx[$mid] = array('w' => null, 'end' => 0, 'seen' => false, 'movie_mark' => true, 'series' => null, 'ep' => null);
         else
             $idx[$mid]['movie_mark'] = true;
     }
@@ -217,31 +230,45 @@ function aio_pg_begun($pos, $len)
 }
 
 // What the badges and the line of the panel show of the state $ent of a card, as add_movie_ritem of
-// movie_helper.php r25 for a card not of "My collection": the card marked in watched_movies.txt - watched,
-// no episode; marks of the own card made after the latest episode record ends - the last of them by S/E
-// watched (aio_wh_mark_last); else the latest record: watched (by itself, or its episode by the state of the
-// series), or begun (aio_pg_begun). -> pos, len (s, 0: none), watched, s and e (-1: a movie); null: none.
+// movie_helper.php r25 for a card not of "My collection": marks of the own card made after the latest episode
+// record watched or begun ends - the last of them by S/E watched (aio_wh_mark_last); a series (its latest
+// record an episode): that episode record (ep), watched or begun, the episodes under the threshold passed
+// over; a movie: the latest record, watched (by itself) or begun (aio_pg_begun). The card marked in
+// watched_movies.txt: watched; a series (episodes in the history, or $series: the tile is one) - all of it,
+// its episode as above. -> pos, len (s, 0: none), watched (the movie or the episode), s and e (-1: none),
+// all (a series watched whole); null: none.
 /**
  * @param AioPgEntry $ent
+ * @param bool $series
  * @return AioPgBadge|null
  */
-function aio_pg_badge($ent)
+function aio_pg_badge($ent, $series = false)
 {
-    if ($ent['movie_mark'])
-        return array('pos' => 0.0, 'len' => 0.0, 'watched' => true, 's' => -1, 'e' => -1);
     $st = $ent['series'];
-    $mk = $st ? aio_wh_mark_last($st[2], $st[0] ? aio_wh_end($st[0]) : 0) : null;
-    if ($mk)
-        return array('pos' => 0.0, 'len' => 0.0, 'watched' => true, 's' => $mk[0], 'e' => $mk[1]);
+    $p = $ent['ep'];
     $w = $ent['w'];
-    if (!$w)
-        return null;
-    list($s, $e, $pos, $len) = aio_wh_rec($w);
-    $ep = isset($w->e) && is_numeric($w->e) && intval($w->e) >= 1;
-    $watched = $ent['seen'] || ($ep && $st && isset($st[1]["$s:$e"]) && $st[1]["$s:$e"][2]);
-    if (!$watched && !aio_pg_begun($pos, $len))
-        return null;
-    return array('pos' => max(0.0, $pos), 'len' => $len, 'watched' => $watched, 's' => $ep ? $s : -1, 'e' => $ep ? $e : -1);
+    $ep = $w && isset($w->e) && is_numeric($w->e) && intval($w->e) >= 1;
+    $b = null;
+    $mk = $st ? aio_wh_mark_last($st[2], $p ? aio_wh_end($p['w']) : 0) : null;
+    if ($mk)
+        $b = array('pos' => 0.0, 'len' => 0.0, 'watched' => true, 's' => $mk[0], 'e' => $mk[1], 'all' => false);
+    else if ($ep && $p)
+    {
+        list($s, $e, $pos, $len) = aio_wh_rec($p['w']);
+        $b = array('pos' => max(0.0, $pos), 'len' => $len, 'watched' => $p['seen'], 's' => $s, 'e' => $e, 'all' => false);
+    }
+    else if ($w && !$ep)
+    {
+        list(, , $pos, $len) = aio_wh_rec($w);
+        if ($ent['seen'] || aio_pg_begun($pos, $len))
+            $b = array('pos' => max(0.0, $pos), 'len' => $len, 'watched' => $ent['seen'], 's' => -1, 'e' => -1, 'all' => false);
+    }
+    if (!$ent['movie_mark'])
+        return $b;
+    $all = $series || $st || $ep;
+    $ep_b = $all && $b && $b['e'] >= 0;
+    return array('pos' => 0.0, 'len' => 0.0, 'watched' => true, 's' => $ep_b ? $b['s'] : -1, 'e' => $ep_b ? $b['e'] : -1,
+        'all' => $all);
 }
 
 // The badge of the card of tile $t of the catalog: of the first of its cards (aio_pg_tile_cards) in the
@@ -256,7 +283,7 @@ function aio_pg_tile_badge($t)
     if (!$idx)
         return null;
     $mid = aio_pg_tile_card($t, $idx);
-    return $mid !== '' && isset($idx[$mid]) ? aio_pg_badge($idx[$mid]) : null;
+    return $mid !== '' && isset($idx[$mid]) ? aio_pg_badge($idx[$mid], $t['type'] === 'series') : null;
 }
 
 // The card of tile $t: the first of its cards by the pairs (aio_pg_tile_cards) in the state $idx (aio_pg_index),
@@ -292,9 +319,10 @@ function aio_pg_r($x, $y, $w, $h)
 }
 
 // The stickers of badge $b on a poster of a row, after the rating: "S1 E3" of a series on a plate as wide
-// as the text (at x of the rating, 3 px over the line of the bar), the tick of a watched one, the bar
-// (full when watched) with the black line over it. A watched episode has no bar: "watched up to S1 E10"
-// stays true when a new season comes out (decision of the owner).
+// as the text (at x of the rating, 3 px over the line of the bar; over the tick when it would reach it), the
+// tick of a watched movie or a series watched whole, the bar (full when watched) with the black line over it.
+// A series has no full bar, a watched episode no bar and no tick: "S1 E10" stays true when a new season comes
+// out (decisions of the owner).
 /**
  * @param AioPgBadge $b
  * @return list<array<string, mixed>>
@@ -303,6 +331,9 @@ function aio_pg_stickers($b)
 {
     $out = array();
     $bar = AIO_PG_H - AIO_PG_BAR_H;
+    $series = $b['e'] >= 0 || $b['all'];
+    $tick = $series ? $b['all'] : $b['watched'];
+    $tx = AIO_PG_W - 53;
     if ($b['e'] >= 0)
     {
         $text = "S{$b['s']} E{$b['e']}";
@@ -310,18 +341,20 @@ function aio_pg_stickers($b)
         $x = AIO_CATV_RATE_PAD;
         $w = $tw + 2 * AIO_PG_EP_PAD;
         $y = $bar - 1 - 3 - AIO_PG_EP_H;
+        if ($tick && $x + $w > $tx - AIO_PG_EP_GAP)
+            $y -= AIO_PG_EP_H + AIO_PG_EP_GAP;
         $out[] = array(PluginRegularSticker::r => aio_pg_r($x, $y, $w, AIO_PG_EP_H), PluginRegularSticker::color => AIO_PG_EP_DARK);
         // The shell puts the text at the left of its r and a pixel over the middle (aio_catv_rate_stickers).
         $out[] = array(PluginRegularSticker::r => aio_pg_r($x + AIO_PG_EP_PAD, $y + 1, $w - AIO_PG_EP_PAD, AIO_PG_EP_H),
             PluginRegularSticker::text => $text);
     }
-    if ($b['watched'])
+    if ($tick)
     {
         $r = aio_fw_r();
-        $out[] = array(PluginRegularSticker::r => aio_pg_r(AIO_PG_W - 53, $bar - 36, 41, 31),
+        $out[] = array(PluginRegularSticker::r => aio_pg_r($tx, $bar - 36, 41, 31),
             PluginRegularSticker::icon_url => $r > 0 && $r < 25 ? AIO_PG_TICK_OLD : AIO_PG_TICK);
     }
-    if ($b['watched'] && $b['e'] >= 0)
+    if ($series && ($b['watched'] || $b['all']))
         return $out;
     $x1 = $b['watched'] ? AIO_PG_W : intval((AIO_PG_W * min($b['pos'], $b['len']) + $b['len'] / 2) / $b['len']);
     if ($x1 > 0)
@@ -333,8 +366,8 @@ function aio_pg_stickers($b)
     return $out;
 }
 
-// The text of the line of the panel of badge $b: "Просмотрено" or "Осталось H:MM" (the minutes up), ", S1 E3"
-// of an episode.
+// The text of the line of the panel of badge $b: "Просмотрено" (a movie, a series watched whole), "S1 E10
+// просмотрена" (an episode), or "Осталось H:MM" (the minutes up) with ", S1 E3" of an episode.
 /**
  * @param AioPgBadge $b
  * @param string $lang
@@ -342,19 +375,20 @@ function aio_pg_stickers($b)
  */
 function aio_pg_info_text($b, $lang)
 {
+    $ep = "S{$b['s']} E{$b['e']}";
+    if ($b['all'] || ($b['watched'] && $b['e'] < 0))
+        return aio_tr($lang, 'cp_watched');
     if ($b['watched'])
-        $s = aio_tr($lang, 'cp_watched');
-    else
-    {
-        // Minutes up: 45 s left is "0:01".
-        $min = intval(ceil(max(0.0, $b['len'] - min($b['pos'], $b['len'])) / 60));
-        $s = sprintf(aio_tr($lang, 'cp_left'), sprintf('%d:%02d', intval($min / 60), $min % 60));
-    }
+        return sprintf(aio_tr($lang, 'cp_ep_watched'), $ep);
+    // Minutes up: 45 s left is "0:01".
+    $min = intval(ceil(max(0.0, $b['len'] - min($b['pos'], $b['len'])) / 60));
+    $s = sprintf(aio_tr($lang, 'cp_left'), sprintf('%d:%02d', intval($min / 60), $min % 60));
     // A no-break space after the comma, as the native line.
-    return $b['e'] >= 0 ? "$s,\xC2\xA0S{$b['s']} E{$b['e']}" : $s;
+    return $b['e'] >= 0 ? "$s,\xC2\xA0$ep" : $s;
 }
 
-// The line of the panel of badge $b at $y, 40 high: the bar, the text, the tick of a watched one.
+// The line of the panel of badge $b at $y, 40 high: the bar (full when watched), the text, the tick of a
+// watched one.
 /**
  * @param AioPgBadge $b
  * @param int $y
@@ -364,7 +398,7 @@ function aio_pg_info_text($b, $lang)
 function aio_pg_info_line($b, $y, $lang)
 {
     $w = AIO_PG_INFO_BAR_W;
-    $x1 = $b['watched'] ? $w : intval(($w * min($b['pos'], $b['len']) + $b['len'] / 2) / $b['len']);
+    $x1 = $b['watched'] || $b['all'] ? $w : intval(($w * min($b['pos'], $b['len']) + $b['len'] / 2) / $b['len']);
     $by = $y + intval((AIO_PG_INFO_H - AIO_PG_INFO_BAR_H) / 2);
     $out = array();
     if ($x1 > 0)
@@ -375,7 +409,7 @@ function aio_pg_info_line($b, $y, $lang)
         array(GCompTtfLabelDef::valign => VALIGN_CENTER));
     $l[GComponentDef::geom_def][GCompGeometryDef::align_def][GCompAlignDef::x] = $w + 40;
     $out[] = $l;
-    if ($b['watched'])
+    if ($b['watched'] || $b['all'])
         $out[] = aio_gc_image(aio_gc_geom(40, 30, aio_gc_next_right(20, 8)), AIO_PG_INFO_TICK);
     return $out;
 }
