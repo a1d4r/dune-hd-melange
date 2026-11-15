@@ -1392,12 +1392,35 @@ function aio_oc_folder_view($media_url, $sel_state)
 
 // --- Keys.
 
+// The titles of the episodes of meta $m for the player (aio_ser_name): "<season>:<episode>" as the list asks them
+// (aio_cm_hkey, as the history) => the title, the episodes of no title (a stub of the server too, aio_cm_ep_title) left
+// out. All the seasons: the lazy episodes go on into the next one (aio_next).
+/**
+ * @param AioCardMeta $m
+ * @return array<string, string>
+ */
+function aio_oc_titles($m)
+{
+    $out = array();
+    foreach ($m['seasons'] as $s => $eps)
+    {
+        $q = aio_cm_req_s($m, $s);
+        foreach ($eps as $ep)
+        {
+            if ($ep['title'] !== '')
+                $out["$q:{$ep['e']}"] = $ep['title'];
+        }
+    }
+    return $out;
+}
+
 // "Watch": the list of Melange as play_action makes it of the card of the tile, the id of the card
 // of the Dune (or none: no history) in movie_str. native_title, as the card of the Dune gives it
 // (JacRed asks by it): the original title of the meta, else the English one of the tile. A series:
 // episode $e of season $q as asked (aio_cm_req_s), season_numbers of the meta (the episodes out,
 // aio_cm_eps) for the playlist of the season and the next episode, the runs of the numbering of
-// Cinemeta of an anime numbered on (aio_cin: the numbers of its episodes, aio_cin_n); the cursor of the list on
+// Cinemeta of an anime numbered on (aio_cin: the numbers of its episodes, aio_cin_n), the titles of the episodes
+// (aio_titles, aio_oc_titles); the cursor of the list on
 // release $hash of the history ('' none). The list marked own: its MENU has no "Choose episode"
 // (choose_season_episode would give the seasons of the last native series, not of this card).
 /**
@@ -1423,6 +1446,9 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
         $mv['season_numbers'] = $sn;
         if ($c['meta']['cin'])
             $mv['aio_cin'] = $c['meta']['cin'];
+        $titles = aio_oc_titles($c['meta']);
+        if ($titles)
+            $mv['aio_titles'] = $titles;
     }
     $in = new stdClass();
     $in->movie_str = json_encode($mv);
