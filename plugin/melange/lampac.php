@@ -1048,7 +1048,7 @@ function aio_lp_check($base, $url, $total = AIO_LP_CHECK_MAX)
 // AIO_LP_BAL_MAX: "lp--<hex>", no balancer to ask. No voice: the 8 hex of
 // quality $q and $n, the number of the row among those of the balancer without a
 // voice of that quality (three Phantom rows without one: three keys, the same at
-// the next reply).
+// the next reply). A row of a movie only: an episode takes aio_lp_season_key.
 /**
  * @param string $path
  * @param string $voice
@@ -1063,7 +1063,27 @@ function aio_lp_key($path, $voice, $q = '', $n = 0)
     return "lp-$p-" . substr(md5($v !== '' ? $v : "\n" . trim($q) . "\n$n"), 0, 8);
 }
 
-// A key of aio_lp_key -> array(path of the balancer, '' none; 8 hex), null for another one.
+// The key of an episode of a serial (spec §7): as aio_lp_key, the 8 hex of $voice, the name of the
+// voice of the season (aio_lp_text of the name of the item of voice[] the episodes of the reply are
+// of, the active one), not "translate" of the episode; '' for a serial without voices: md5("").
+// One key for each episode of that voice of the season (no $q, no number of a row): the next
+// episode (lampac_next:) and "Continue" take the hex of the key (aio_lp_key_parse) and find the
+// voice again among voice[] of the season by aio_lp_season_key of each name, e.g.
+// aio:<dune_id>:1:3:lp-phantom-5f2a91c0; no link or t=<id> of the voice in the key. A voice of the
+// same name in a movie: the same hex.
+/**
+ * @param string $path
+ * @param string $voice
+ * @return string
+ */
+function aio_lp_season_key($path, $voice)
+{
+    $p = strlen($path) <= AIO_LP_BAL_MAX && aio_lp_path("/lite/$path") === $path ? $path : '';
+    return "lp-$p-" . substr(md5(trim($voice)), 0, 8);
+}
+
+// A key of aio_lp_key or aio_lp_season_key -> array(path of the balancer, '' none; 8 hex), null for
+// another one.
 /**
  * @param mixed $key
  * @return array{string, string}|null
