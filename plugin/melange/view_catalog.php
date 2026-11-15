@@ -41,6 +41,8 @@ define('AIO_CATV_ALL_TICK_MS', 1500);
 define('AIO_CATV_SEARCHES', 3);
 // The screens of rows whose cat_logo of the opening is kept (aio_catv_logo_of).
 define('AIO_CATV_SCREENS', 16);
+// The main screens of rows the catalog keeps the addresses of (AioCat::$mains): of the two tabs and a new address.
+define('AIO_CATV_MAINS', 4);
 // The info panel, on the info_r of the native one (movie_helper.php of shell_ext), its colours
 // and sizes of text: a title in TEXT_W, one line as large as fits from TITLE_PX down to
 // TITLE_MIN_PX, else 2 lines of TITLE2_PX, its bottom at TITLE_BOTTOM (SUB_H higher over the
@@ -203,6 +205,10 @@ class AioCat
     public static $rating = null;
     /** @var array<string, bool> */
     public static $rating_of = array();
+    // The main screens of rows opened last (their media_url, AIO_CATV_MAINS at most, the latest last): invalidated
+    // back from the player (aio_catv_after_player).
+    /** @var list<string> */
+    public static $mains = array();
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -1220,6 +1226,9 @@ function aio_catv_main_view($media_url, $sel_state)
 {
     $start = microtime(true);
     AioCat::$on_screen = array();
+    AioCat::$mains = array_values(array_diff(AioCat::$mains, array($media_url)));
+    AioCat::$mains[] = $media_url;
+    AioCat::$mains = array_slice(AioCat::$mains, -AIO_CATV_MAINS);
     $lang = aio_catv_lang();
     AioCat::$lang = $lang;
     $tab = aio_catv_tab($media_url);
@@ -2459,6 +2468,24 @@ function aio_catv_invalidate($url)
             PluginInvalidateFoldersActionData::media_urls => array($url),
             PluginInvalidateFoldersActionData::post_action => null,
             PluginInvalidateFoldersActionData::all_except => false));
+}
+
+// Back from the player (aio_finish), the action $post of the list of streams: the main screens of rows opened (AioCat::$mains)
+// invalidated first, the row "Continue" and the badges of the history anew when the shell is back on one (O2: whether
+// a screen under the card is built again, the focus kept, is not proven); none opened: $post as it is.
+/**
+ * @param AioAction|null $post
+ * @return AioAction|null
+ */
+function aio_catv_after_player($post)
+{
+    if (!AioCat::$mains)
+        return $post;
+    aio_log('catalog: invalidate after the player: ' . implode(', ', AioCat::$mains));
+    $a = aio_catv_invalidate(AioCat::$mains[0]);
+    $a[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = AioCat::$mains;
+    $a[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $post;
+    return $a;
 }
 
 // The tick of the timer of "Show all" $url, memory only. The view of stubs and the end known or
