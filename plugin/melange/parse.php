@@ -878,9 +878,12 @@ function aio_merge_size($a, $b)
 // Copies $a, $b (aio_merge_key) are of one file: both with an infoHash - the
 // same one and the same file (the index and the name in letters and digits,
 // as it is where one has none of them; each where both have it, one of them
-// at least), or one of them whole of the size of the other (aio_merge_size);
-// else (MediaFusion has no infoHash) the same name of the file, as it is, and
-// the size in bytes. -> how: 'hash', 'name', '' not one file.
+// at least; other indexes with the same name and size in bytes: the add-ons
+// of services number the files of a torrent each in its own way - not of a
+// .vob, VTS_01_1.VOB of each disc of a DVD is often of one size), or one of
+// them whole of the size of the other (aio_merge_size); else (MediaFusion has
+// no infoHash) the same name of the file, as it is, and the size in bytes.
+// -> how: 'hash', 'name', '' not one file.
 /**
  * @param AioMergeKey $a
  * @param AioMergeKey $b
@@ -895,8 +898,9 @@ function aio_merge_same($a, $b)
         $idx = $a['idx'] >= 0 && $b['idx'] >= 0;
         $name = $a['file'] !== '' && $b['file'] !== '';
         $norm = $a['norm'] !== '' && $b['norm'] !== '';
-        if (($idx || $name) && (!$idx || $a['idx'] === $b['idx']) &&
-            (!$name || ($norm ? $a['norm'] === $b['norm'] : $a['file'] === $b['file'])))
+        $idx_ok = !$idx || $a['idx'] === $b['idx'] ||
+            ($name && $a['size'] > 0 && $a['size'] == $b['size'] && substr($a['norm'], -3) !== 'vob');
+        if (($idx || $name) && $idx_ok && (!$name || ($norm ? $a['norm'] === $b['norm'] : $a['file'] === $b['file'])))
             return 'hash';
         return ($a['whole'] || $b['whole']) && aio_merge_size($a['size'], $b['size']) ? 'hash' : '';
     }
