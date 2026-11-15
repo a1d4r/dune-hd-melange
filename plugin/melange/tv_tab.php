@@ -769,7 +769,7 @@ function aio_tv_menu($in)
     aio_log("tv: POP UP on '" . aio_cut(aio_catv_in($in, 'selected_item_id'), 100) . "'");
     // On a tile (no header in focus), as aio_catv_menu.
     $tile = aio_catv_in($in, 'selected_header_id') === '' ? aio_catv_in($in, 'selected_item_id') : '';
-    $items = $tile !== '' ? aio_catv_menu_join(aio_catv_tile_menu($tile, $from, $lang), aio_mlv_menu_items($tile, $from, $lang)) : array();
+    $items = $tile !== '' ? aio_catv_tile_menu($tile, $from, $lang) : array();
     $screen = array();
     foreach (array(
         array('cat_search', AIO_CATV_ICON_SEARCH, aio_input('cat_search', array('from' => $from))),

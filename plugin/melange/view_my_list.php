@@ -460,7 +460,7 @@ function aio_mlv_open($w, $from)
 
 // --- The import of the Favorites of the Dune.
 
-// The items of POP UP of tile $id of screen $from (after those of a tile: aio_catv_menu, aio_tv_menu): on the screen
+// The items of POP UP of tile $id of screen $from (after those of a tile: aio_catv_tile_menu): on the screen
 // "Мой список" (of a type too) and on a tile of the row "Мой список" "Добавить из «Избранного» Дюны"; none on another.
 /**
  * @param string $id

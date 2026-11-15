@@ -2605,8 +2605,9 @@ function aio_catv_after_player($post)
 
 // The items of POP UP of tile $id of screen $from (a main screen of the catalog, "Show all", the results of a search, an
 // EPF of "TV"): those of the row "Continue" and the marks (aio_cp_menu_items), then that of "Мой список"
-// (aio_ml_menu_items); a separator after them is for the caller, when items of the screen follow. A tile aio_catv_tile
-// has not (a hint of "My list") is for each part to tell.
+// (aio_ml_menu_items), then a separator and the import of the Favorites of the Dune (aio_mlv_menu_items: on the screen
+// "Мой список" and its row); a separator after them is for the caller, when items of the screen follow. A tile
+// aio_catv_tile has not (the hint of "Мой список", '' - none in focus) is for each part to tell.
 /**
  * @param string $id
  * @param string $from
@@ -2615,7 +2616,8 @@ function aio_catv_after_player($post)
  */
 function aio_catv_tile_menu($id, $from, $lang)
 {
-    return array_merge(aio_cp_menu_items($id, $from, $lang), aio_ml_menu_items($id, $from, $lang));
+    return aio_catv_menu_join(array_merge(aio_cp_menu_items($id, $from, $lang), aio_ml_menu_items($id, $from, $lang)),
+        aio_mlv_menu_items($id, $from, $lang));
 }
 
 // $a, then a separator and $b; no separator when one of them is empty.
@@ -2767,14 +2769,10 @@ function aio_catv_menu($in, $from)
     $item = aio_catv_in($in, 'selected_item_id');
     if ($item === '')
         $item = aio_catv_in($in, 'selected_media_url');
-    $items = $hid === '' ? aio_catv_tile_menu($item, $from, $lang) : array();
-    // A tile of the row "Мой список" of a main screen: the import too, as on its screen.
-    if ($tab !== '' && $hid === '')
-        $items = aio_catv_menu_join($items, aio_mlv_menu_items($item, $from, $lang));
+    // A header in focus: no tile (on the screen "Мой список" the import still).
+    $items = aio_catv_tile_menu($hid === '' ? $item : '', $from, $lang);
     if ($tab === '')
     {
-        // "Мой список": "Добавить из «Избранного» Дюны" after the items of a tile, on the hint alone.
-        $items = aio_catv_menu_join($items, aio_mlv_menu_items($item, $from, $lang));
         return $items ? array(
             GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
             GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items)) : null;
