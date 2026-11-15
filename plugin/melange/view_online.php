@@ -318,16 +318,7 @@ function aio_lpv_row_items($v, $i, $c, $on, $lang)
     $d[] = aio_gc_cut(null, aio_gc_left_center(max(40, AIO_GC_LW - AIO_GC_PAD - $c[2]), 44, $c[2]),
         $r['voice'] !== '' ? $r['voice'] : "\xE2\x80\x94", 30, $hi);
     $prog = isset($v['gc_prog']) ? $v['gc_prog'] : array();
-    $share = isset($prog[$r['key']]) ? $prog[$r['key']] : 0;
-    if ($share > 0)
-    {
-        $fw = max(AIO_GC_BAR_MIN, intval(round($w * min(1, $share))));
-        $y = AIO_GC_ROW_H - AIO_GC_BAR_H;
-        $d[] = aio_gc_rect(aio_gc_at($fw, AIO_GC_BAR_H, AIO_GC_PAD, $y), AIO_GC_BAR_DONE);
-        if ($fw < $w)
-            $d[] = aio_gc_rect(aio_gc_at($w - $fw, AIO_GC_BAR_H, AIO_GC_PAD + $fw, $y), AIO_GC_BAR_REST);
-    }
-    return $d;
+    return array_merge($d, aio_gc_bar(isset($prog[$r['key']]) ? $prog[$r['key']] : 0));
 }
 
 // Children of 'card' of row $sel of view $v: beside the poster the balancer and "до 2160p";
@@ -418,20 +409,7 @@ function aio_lpv_window($st, $sel, $top)
     if ($v['note'] !== '')
         $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16 - ($fw > 0 ? $fw + 40 : 0), AIO_GC_LABEL_H, AIO_GC_LX,
             AIO_GC_TABS_Y + (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $v['note'], AIO_GC_HINT_PX, AIO_GC_AMBER);
-    $fanart = aio_img($mv['fanart']);
-    return array(
-        GCompWindowDef::background_color => 'rgb(0,0,0)',
-        GCompWindowDef::background_url => $fanart !== '' ? $fanart : null,
-        GCompWindowDef::async_loading_background => true,
-        GCompWindowDef::comp_defs => $d,
-        GCompWindowDef::ui_state => null,
-        GCompWindowDef::not_loaded_background_url => null,
-        GCompWindowDef::playback_bg_alpha => -1,
-        GCompWindowDef::background_fit_def => array(
-            ImageFitDef::base_halign_ratio => 0.62,
-            ImageFitDef::base_valign_ratio => 0.5),
-        GCompWindowDef::small_state_text => null,
-        GCompWindowDef::opaque_background => false);
+    return aio_gc_window_def($d, $mv['fanart']);
 }
 
 // The cursor of view $v: of the shell's sel_state $raw, else its last one. -> array(sel, top).
@@ -442,11 +420,7 @@ function aio_lpv_window($st, $sel, $top)
  */
 function aio_lpv_pos($v, $raw)
 {
-    $n = aio_lpv_n($v);
-    $p = aio_gc_parse($raw, $n);
-    if (!$p && isset($v['gc']))
-        $p = aio_gc_parse(aio_gc_state($v['gc'][0], $v['gc'][1]), $n);
-    return $p ? $p : array(0, 0);
+    return aio_gc_pos_in($raw, aio_lpv_n($v), isset($v['gc']) ? $v['gc'] : null);
 }
 
 // get_folder_view of the online list of $st (lp_on).
@@ -491,8 +465,8 @@ function aio_lpv_folder_view($st, $sel_state)
  */
 function aio_lpv_move($in, $st)
 {
-    $key = isset($in->d) && is_string($in->d) ? $in->d : '';
-    if (!in_array($key, array('up', 'down', 'pgup', 'pgdn'), true))
+    $key = aio_gc_key($in);
+    if ($key === null)
         return null;
     $v = $st['lp'];
     $n = aio_lpv_n($v);
@@ -501,24 +475,14 @@ function aio_lpv_move($in, $st)
     Aio::$state['lp']['gc'] = array($nsel, $ntop);
     if ($nsel === $sel)
         return null;
-    $ch = array(aio_gc_change('sel', aio_gc_row_geom($nsel), GCOMP_TRANSITION_DEFAULT));
-    if ($ntop !== $top)
-    {
-        $ch[] = aio_gc_change('rows', aio_gc_rows_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
-        $ch[] = aio_gc_change('thumb', aio_gc_thumb_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
-    }
+    $ch = aio_gc_cursor_changes($top, $nsel, $ntop, $n);
     $lang = aio_gc_lang($st);
     $c = aio_lpv_cols($v['rows']);
     $ch[] = aio_gc_change("r$sel", null, GCOMP_TRANSITION_NONE, aio_lpv_row_items($v, $sel, $c, false, $lang));
     $ch[] = aio_gc_change("r$nsel", null, GCOMP_TRANSITION_NONE, aio_lpv_row_items($v, $nsel, $c, true, $lang));
     $ch[] = aio_gc_change('card', null, GCOMP_TRANSITION_NONE, aio_lpv_card($st, $v, $nsel));
     $ch[] = aio_gc_change('counter', null, GCOMP_TRANSITION_NONE, aio_gc_counter($nsel, $n));
-    return array(
-        GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID,
-        GuiAction::data => array(
-            ChangeGCompsActionData::change_defs => $ch,
-            ChangeGCompsActionData::num_steps => AIO_GC_STEPS,
-            ChangeGCompsActionData::sel_state => aio_gc_state($nsel, $ntop)));
+    return aio_gc_changes_act($ch, $nsel, $ntop);
 }
 
 // Back from the player (aio_finish): the bars of the rows whose share changed, else nothing.
@@ -545,12 +509,7 @@ function aio_lpv_finish($st)
     aio_log('lampac: finish, ' . count($ch) . ' rows redrawn');
     if (!$ch)
         return null;
-    return array(
-        GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID,
-        GuiAction::data => array(
-            ChangeGCompsActionData::change_defs => $ch,
-            ChangeGCompsActionData::num_steps => AIO_GC_STEPS,
-            ChangeGCompsActionData::sel_state => aio_gc_state($sel, $top)));
+    return aio_gc_changes_act($ch, $sel, $top);
 }
 
 // --- MENU of the online list (A4): "Обновить", "Откуда брать…", "Ошибки источников", "Настройки".

@@ -226,6 +226,22 @@ function aio_gc_parse($s, $n)
     return array($j->sel, $j->top);
 }
 
+// The cursor of a list of $n rows: of the shell's sel_state $raw, else its last one $gc (null
+// none), else the first row (aio_gc_pos, aio_lpv_pos). -> array(sel, top).
+/**
+ * @param mixed $raw
+ * @param int $n
+ * @param array{int, int}|null $gc
+ * @return array{int, int}
+ */
+function aio_gc_pos_in($raw, $n, $gc)
+{
+    $p = aio_gc_parse($raw, $n);
+    if (!$p && $gc)
+        $p = aio_gc_parse(aio_gc_state($gc[0], $gc[1]), $n);
+    return $p ? $p : array(0, 0);
+}
+
 // From the shell's sel_state; else the last known position of this list.
 /**
  * @param AioState $st
@@ -234,11 +250,7 @@ function aio_gc_parse($s, $n)
  */
 function aio_gc_pos($st, $raw)
 {
-    $n = count($st['rows']);
-    $p = aio_gc_parse($raw, $n);
-    if (!$p && isset($st['gc']))
-        $p = aio_gc_parse(aio_gc_state($st['gc'][0], $st['gc'][1]), $n);
-    return $p ? $p : array(0, 0);
+    return aio_gc_pos_in($raw, count($st['rows']), isset($st['gc']) ? $st['gc'] : null);
 }
 
 // Position of a list put in with row $sel of $n selected: the row in the
@@ -286,6 +298,37 @@ function aio_gc_step($sel, $top, $n, $key)
     else if ($nsel >= $ntop + AIO_GC_VIS)
         $ntop = $nsel - AIO_GC_VIS + 1;
     return array($nsel, $ntop);
+}
+
+// The key of a move of input $in (its 'd' of aio_gc_act: up, down, pgup, pgdn), null another.
+/**
+ * @param stdClass $in
+ * @return 'up'|'down'|'pgup'|'pgdn'|null
+ */
+function aio_gc_key($in)
+{
+    $key = isset($in->d) && is_string($in->d) ? $in->d : '';
+    return in_array($key, array('up', 'down', 'pgup', 'pgdn'), true) ? $key : null;
+}
+
+// Changes of a list of $n rows whose cursor went to row $nsel, first row on screen from $top to
+// $ntop: the highlight, the rows and the scroll thumb when the page moved.
+/**
+ * @param int $top
+ * @param int $nsel
+ * @param int $ntop
+ * @param int $n
+ * @return list<AioGcChange>
+ */
+function aio_gc_cursor_changes($top, $nsel, $ntop, $n)
+{
+    $ch = array(aio_gc_change('sel', aio_gc_row_geom($nsel), GCOMP_TRANSITION_DEFAULT));
+    if ($ntop !== $top)
+    {
+        $ch[] = aio_gc_change('rows', aio_gc_rows_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
+        $ch[] = aio_gc_change('thumb', aio_gc_thumb_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
+    }
+    return $ch;
 }
 
 // --- Row data.
@@ -635,6 +678,25 @@ function aio_gc_card_status($r, $tt)
 // Children of row panel "r$i". The row in focus is brighter, as in the
 // shell's own lists: its texts TEXT, the add-on TEXT2; the others TEXT2, DIM.
 // A release watched before ($share > 0): a progress bar at the row bottom.
+// The bar of share $share (0 none) watched under a row of a list (aio_gc_row_items,
+// aio_lpv_row_items).
+/**
+ * @param float|int $share
+ * @return list<AioGcComp>
+ */
+function aio_gc_bar($share)
+{
+    if ($share <= 0)
+        return array();
+    $w = AIO_GC_LW - 2 * AIO_GC_PAD;
+    $fw = max(AIO_GC_BAR_MIN, intval(round($w * min(1, $share))));
+    $y = AIO_GC_ROW_H - AIO_GC_BAR_H;
+    $d = array(aio_gc_rect(aio_gc_at($fw, AIO_GC_BAR_H, AIO_GC_PAD, $y), AIO_GC_BAR_DONE));
+    if ($fw < $w)
+        $d[] = aio_gc_rect(aio_gc_at($w - $fw, AIO_GC_BAR_H, AIO_GC_PAD + $fw, $y), AIO_GC_BAR_REST);
+    return $d;
+}
+
 /**
  * @param AioRow $r
  * @param AioGcText $tt
@@ -690,16 +752,7 @@ function aio_gc_row_items($r, $tt, $c, $on, $share = 0)
         $d[] = aio_gc_cut(null, aio_gc_left_center($cw, 40, $c['tracker'][0]), $txt, 24,
             $r['expr'] !== '' || $r['trackers'] ? $hi : ($on ? AIO_GC_TEXT2 : AIO_GC_DIM));
     }
-    if ($share > 0)
-    {
-        $w = AIO_GC_LW - 2 * AIO_GC_PAD;
-        $fw = max(AIO_GC_BAR_MIN, intval(round($w * min(1, $share))));
-        $y = AIO_GC_ROW_H - AIO_GC_BAR_H;
-        $d[] = aio_gc_rect(aio_gc_at($fw, AIO_GC_BAR_H, AIO_GC_PAD, $y), AIO_GC_BAR_DONE);
-        if ($fw < $w)
-            $d[] = aio_gc_rect(aio_gc_at($w - $fw, AIO_GC_BAR_H, AIO_GC_PAD + $fw, $y), AIO_GC_BAR_REST);
-    }
-    return $d;
+    return array_merge($d, aio_gc_bar($share));
 }
 
 /**
@@ -1100,7 +1153,19 @@ function aio_gc_window($st, $sel, $top)
     list($from) = aio_src_tabs_right($st, $right, AIO_GC_TABS_Y, $right - AIO_GC_LX - $tabs_end);
     $d = array_merge($d, $from);
 
-    $fanart = aio_img($mv['fanart']);
+    return aio_gc_window_def($d, $mv['fanart']);
+}
+
+// The window of children $d over fanart $fanart of a card (aio_img; none: black) of a list
+// screen (aio_gc_window, aio_lpv_window).
+/**
+ * @param list<AioGcComp> $d
+ * @param string $fanart
+ * @return array<string, mixed>
+ */
+function aio_gc_window_def($d, $fanart)
+{
+    $fanart = aio_img($fanart);
     // Same key set as vendor GCompsFactory::get_window_def().
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
@@ -1115,6 +1180,23 @@ function aio_gc_window($st, $sel, $top)
             ImageFitDef::base_valign_ratio => 0.5),
         GCompWindowDef::small_state_text => null,
         GCompWindowDef::opaque_background => false);
+}
+
+// change_gcomps of changes $ch of a list screen, its cursor then row $sel, $top first on screen.
+/**
+ * @param list<AioGcChange> $ch
+ * @param int $sel
+ * @param int $top
+ * @return AioAction
+ */
+function aio_gc_changes_act($ch, $sel, $top)
+{
+    return array(
+        GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID,
+        GuiAction::data => array(
+            ChangeGCompsActionData::change_defs => $ch,
+            ChangeGCompsActionData::num_steps => AIO_GC_STEPS,
+            ChangeGCompsActionData::sel_state => aio_gc_state($sel, $top)));
 }
 
 // --- Entry points from main.php.
@@ -1157,12 +1239,7 @@ function aio_gc_bar_update($st, $hash)
     foreach ($rows as $i)
         $ch[] = aio_gc_change("r$i", null, GCOMP_TRANSITION_NONE,
             aio_gc_row_items($st['rows'][$i], $tt, $cols, $i === $sel, $now));
-    return array(
-        GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID,
-        GuiAction::data => array(
-            ChangeGCompsActionData::change_defs => $ch,
-            ChangeGCompsActionData::num_steps => AIO_GC_STEPS,
-            ChangeGCompsActionData::sel_state => aio_gc_state($sel, $top)));
+    return aio_gc_changes_act($ch, $sel, $top);
 }
 
 // get_folder_view of a live list ($st matches the media_url).
@@ -1550,8 +1627,8 @@ function aio_gc_input($in)
         return $a;
     }
 
-    $key = isset($in->d) && is_string($in->d) ? $in->d : '';
-    if (!$live || !in_array($key, array('up', 'down', 'pgup', 'pgdn'), true))
+    $key = aio_gc_key($in);
+    if (!$live || $key === null)
         return null;
     $n = count($st['rows']);
     list($sel, $top) = aio_gc_pos($st, $raw);
@@ -1560,12 +1637,7 @@ function aio_gc_input($in)
     if ($nsel === $sel)
         return null;
 
-    $ch = array(aio_gc_change('sel', aio_gc_row_geom($nsel), GCOMP_TRANSITION_DEFAULT));
-    if ($ntop !== $top)
-    {
-        $ch[] = aio_gc_change('rows', aio_gc_rows_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
-        $ch[] = aio_gc_change('thumb', aio_gc_thumb_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
-    }
+    $ch = aio_gc_cursor_changes($top, $nsel, $ntop, $n);
     // The focus brightness moves with the row.
     $tt = aio_gc_text(aio_gc_lang($st));
     $cols = aio_gc_cols($st['rows'], $tt);
@@ -1576,10 +1648,5 @@ function aio_gc_input($in)
         aio_gc_row_items($st['rows'][$nsel], $tt, $cols, true, aio_gc_share($prog, $st['rows'][$nsel])));
     $ch[] = aio_gc_change('card', null, GCOMP_TRANSITION_NONE, aio_gc_card($st, $nsel));
     $ch[] = aio_gc_change('counter', null, GCOMP_TRANSITION_NONE, aio_gc_counter($nsel, $n));
-    return array(
-        GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID,
-        GuiAction::data => array(
-            ChangeGCompsActionData::change_defs => $ch,
-            ChangeGCompsActionData::num_steps => AIO_GC_STEPS,
-            ChangeGCompsActionData::sel_state => aio_gc_state($nsel, $ntop)));
+    return aio_gc_changes_act($ch, $nsel, $ntop);
 }
