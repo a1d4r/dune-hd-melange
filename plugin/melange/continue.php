@@ -265,19 +265,21 @@ function aio_cp_tile_items($types, $max, &$tiles = null, &$miss = null)
 
 // The row of the types $types ($tab: 'movie', 'series', '' both) for a screen of rows: its title and tiles
 // (aio_cp_tile_items), no "Show all" tile (ENTER on its title: the screen of all of them of its type), no flag; none
-// when it is empty. $tiles: its tiles by "continue:<movie_id>" (the file of the tab "TV"). Its tiles of a pair with
-// neither: AioCpm::$miss, in its order (the lazy meta, aio_cpm_step).
+// when it is empty. $tiles: its tiles by "continue:<movie_id>" (the file of the tab "TV"); $miss: those of a pair with
+// neither, in its order (the lazy meta of a main screen, AioCpm::$miss: aio_catv_main_view puts them there, the tab
+// "TV" not).
 /**
  * @param string $tab
  * @param string $lang
  * @param array<string, AioCatTile>|null $tiles
  * @param-out array<string, AioCatTile> $tiles
+ * @param list<array{string, string, string}>|null $miss
+ * @param-out list<array{string, string, string}> $miss
  * @return list<array<string, mixed>>
  */
-function aio_cp_row_defs($tab, $lang, &$tiles = null)
+function aio_cp_row_defs($tab, $lang, &$tiles = null, &$miss = null)
 {
     $items = aio_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), AIO_CATV_ROW_TILES, $tiles, $miss);
-    AioCpm::$miss = $miss;
     if (!$items)
         return array();
     $row = array('key' => AIO_CP_RID, 'type' => $tab !== '' ? $tab : 'movie', 'id' => AIO_CP_RID,

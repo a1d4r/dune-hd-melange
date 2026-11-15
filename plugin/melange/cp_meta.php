@@ -39,8 +39,8 @@ class AioCpm
     public static $cache = null;
     /** @var string */
     public static $sig = '';
-    // The tiles of the row built last (aio_cp_row_defs) with no tile of a row in memory and none here, in its order:
-    // array(type, IMDb, TMDB); for the step.
+    // The tiles of the row of the main screen built last (aio_catv_main_view, aio_cp_row_defs) with no tile of a row
+    // in memory and none here, in its order: array(type, IMDb, TMDB); for the step. Not of the tab "TV".
     /** @var list<array{string, string, string}> */
     public static $miss = array();
     // The same of the screen "Продолжить" built last (view_my_list.php), its first AIO_CPM_MORE: asked after those of
