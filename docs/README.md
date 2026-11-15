@@ -32,5 +32,4 @@ Melange — каталог фильмов и сериалов для Dune HD. В
 
 **Связь**
 
-- Вопросы и обсуждение — Telegram-канал https://t.me/arrakis_vibecode
 - Ошибка — Issue с логом: https://github.com/a1d4r/dune-hd-melange/issues

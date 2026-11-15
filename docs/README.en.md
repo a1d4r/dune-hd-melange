@@ -32,5 +32,4 @@ Melange is a movie and series catalog for Dune HD. Pick a movie, and Melange fin
 
 **Contact**
 
-- Questions and discussion: Telegram channel https://t.me/arrakis_vibecode
 - Bugs: open an Issue with a log: https://github.com/a1d4r/dune-hd-melange/issues

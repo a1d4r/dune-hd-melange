@@ -189,7 +189,6 @@ Before sending, look the file over: it has the titles of the movies and episodes
 
 ## Where to write
 
-- Questions and discussion: Telegram channel https://t.me/arrakis_vibecode
 - Bugs: open an Issue on GitHub: https://github.com/a1d4r/dune-hd-melange/issues. Describe what you did and what went wrong, and attach the log.
 
 Next: [Known limitations](limitations.en.md) · [Contents](README.en.md)

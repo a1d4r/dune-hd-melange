@@ -80,4 +80,4 @@ The Dune offers new Melange versions by itself.
 
 Next: [Watching](watch.en.md) · [Contents](README.en.md)
 
-Questions and discussion: Telegram channel https://t.me/arrakis_vibecode; bugs: Issues at https://github.com/a1d4r/dune-hd-melange/issues
+Bugs: Issues at https://github.com/a1d4r/dune-hd-melange/issues
