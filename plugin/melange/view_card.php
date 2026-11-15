@@ -44,7 +44,8 @@ define('AIO_OC_DOWN_Y', 290);
 // The stop of a row of posters (design-own-card-row-info.md, A): its title RI_Y, the top of the clip INK over it (the
 // year of the row above goes under it); over the clip, on the black, the header of the poster in focus (aio_oc_ri): its
 // title 48 px at RI_TITLE_Y, the line of facts of the catalog at RI_FACTS_Y, the description from RI_DESC_Y in
-// RI_LINES lines DESC_LH apart at most, TITLE_W wide. Its room is the same with no description: the row does not move.
+// RI_LINES lines DESC_LH apart at most, TITLE_W wide. Its room is the same with no description: the row does not move;
+// the stubs "w" of a row asked keep it, empty.
 define('AIO_OC_RI_Y', 362);
 define('AIO_OC_RI_TITLE_Y', 36);
 define('AIO_OC_RI_FACTS_Y', 114);
@@ -849,28 +850,35 @@ function aio_oc_clear($bands, $y, $up)
     return $y;
 }
 
-// The shifts of the page and the bottom of the clip on the screen at each. 0 the first screen;
-// a stop for each row of the layout ($rows: the y of their titles in "down" and on the screen at their stops);
+// The shifts of the page, the bottom of the clip on the screen and its top at each. 0 the first screen;
+// a stop for each of $strips (aio_oc_stack), its title at DOWN_Y, the top of the clip VIEW_Y; a row of posters (the
+// stubs too) at RI_Y, the top INK over it, the header of its poster in focus over the clip;
 // with something below them ($bands of aio_oc_down, "About" at $about), the stop after the last
 // row puts "About" at the top of the clip (the row goes whole), without rows "About" at DOWN_Y;
 // then STEP further at most while the page goes on below the clip, the last ($max) its end at the
 // bottom of the clip, MIN_STEP after the one before at least. The top of the clip at a stop and its
-// bottom cut no line (aio_oc_clear; $rowbands: the lines of the rows too): a line cut at the top goes
+// bottom cut no line (aio_oc_clear; the lines of the rows too, aio_oc_row_bands): a line cut at the top goes
 // down whole, at the bottom it is not shown. $off: the shift of the stop of the coordinates of the
 // bands ("down").
 /**
  * @param list<array{int, int}> $bands
- * @param list<array{int, int}> $rowbands
- * @param list<array{int, int}> $rows
+ * @param array<string, AioOcStrip> $strips
  * @param int $about
  * @param int $off
- * @return array{list<int>, list<int>}
+ * @return array{list<int>, list<int>, list<int>}
  */
-function aio_oc_stops($bands, $rowbands, $rows, $about, $off)
+function aio_oc_stops($bands, $strips, $about, $off)
 {
     $stops = array(0);
-    foreach ($rows as $r)
-        $stops[] = $off + $r[0] - $r[1];
+    $tops = array(AIO_OC_VIEW_Y);
+    $rowbands = array();
+    foreach ($strips as $id => $st)
+    {
+        $at = $id === 'c' ? AIO_OC_DOWN_Y : AIO_OC_RI_Y;
+        $stops[] = $off + $st['y'] - AIO_OC_ROW_HEAD - $at;
+        $tops[] = $id === 'c' ? AIO_OC_VIEW_Y : AIO_OC_RI_Y - AIO_OC_INK;
+        $rowbands = array_merge($rowbands, aio_oc_row_bands($st));
+    }
     // The top of the clip at stop $s in the coordinates of the bands: $s + $top.
     $top = AIO_OC_VIEW_Y - $off;
     if ($bands)
@@ -879,9 +887,12 @@ function aio_oc_stops($bands, $rowbands, $rows, $about, $off)
         foreach ($bands as $b)
             $end = max($end, $b[1]);
         $max = $off + $end - AIO_OC_SHOW_BOTTOM;
-        $lo = $rows ? $about - $top : 0;
-        if (!$rows)
+        $lo = $strips ? $about - $top : 0;
+        if (!$strips)
+        {
             $stops[] = $off + $about - AIO_OC_DOWN_Y;
+            $tops[] = AIO_OC_VIEW_Y;
+        }
         $s = $stops[count($stops) - 1];
         while ($s < $max)
         {
@@ -889,13 +900,14 @@ function aio_oc_stops($bands, $rowbands, $rows, $about, $off)
             if ($n > $max - AIO_OC_MIN_STEP)
                 $n = max($lo, aio_oc_clear($bands, max($max, $s + AIO_OC_MIN_STEP) + $top, false) - $top);
             $stops[] = $s = $n;
+            $tops[] = AIO_OC_VIEW_Y;
         }
     }
     $all = array_merge($bands, $rowbands);
     $clips = array();
     foreach ($stops as $s)
         $clips[] = aio_oc_clear($all, AIO_OC_SHOW_BOTTOM - $off + $s, true) + $off - $s;
-    return array($stops, $clips);
+    return array($stops, $clips, $tops);
 }
 
 // The card laid out: its kind, buttons and their y, the stops of the page, the bottom of the clip
@@ -929,22 +941,12 @@ function aio_oc_layout($c)
     list($rows, $strips, $about) = aio_oc_stack($list);
     $about = max($about, AIO_OC_ABOUT_Y);
     list($down, $bands) = aio_oc_down($c, $about);
-    $ys = array();
-    $rowbands = array();
-    foreach ($strips as $id => $st)
-    {
-        $ys[] = array($st['y'] - AIO_OC_ROW_HEAD, $id === 'c' ? AIO_OC_DOWN_Y : AIO_OC_RI_Y);
-        $rowbands = array_merge($rowbands, aio_oc_row_bands($st));
-    }
     $ep = null;
     $prog = array();
     if ($series)
         list($ep, $prog) = aio_oc_pick($c);
     $btns = aio_oc_buttons($c, $ep);
-    list($stops, $clips) = aio_oc_stops($bands, $rowbands, $ys, $about, $off);
-    $tops = array();
-    foreach (array_keys($stops) as $p)
-        $tops[] = isset($rows[$p]) && $rows[$p] !== 'c' ? AIO_OC_RI_Y - AIO_OC_INK : AIO_OC_VIEW_Y;
+    list($stops, $clips, $tops) = aio_oc_stops($bands, $strips, $about, $off);
     $tw = AIO_OC_TITLE_W;
     $tabs = $series && $c['meta'] ? aio_oc_tabs_layout($c)
         : array('list' => array(), 'x' => 0, 'w' => 0, 'all' => 0, 'word' => 0, 'cx' => 0);
@@ -986,28 +988,18 @@ function aio_oc_layout($c)
         'first' => $only, 'down' => $down);
 }
 
-// The clip of the page from $top of the screen (under the logo; at the stop of a row of posters under the header of
-// the poster in focus) down to $bottom.
+// The clip of the page at stop $p of layout $l, from its top (under the logo; at the stop of a row of posters under
+// the header of the poster in focus) down to its bottom, and the page in it at the shift of the stop:
+// array(the clip, the page).
 /**
- * @param int $top
- * @param int $bottom
- * @return AioGcGeom
+ * @param AioOcNav $l
+ * @param int $p
+ * @return array{AioGcGeom, AioGcGeom}
  */
-function aio_oc_view_geom($top, $bottom)
+function aio_oc_clip_geoms($l, $p)
 {
-    return aio_gc_at(1920, $bottom - $top, 0, $top);
-}
-
-// The page at shift $s inside the clip from $top.
-/**
- * @param int $s
- * @param int $h
- * @param int $top
- * @return AioGcGeom
- */
-function aio_oc_page_geom($s, $h, $top)
-{
-    return aio_gc_at(1920, $h, 0, -$top - $s);
+    $top = $l['tops'][$p];
+    return array(aio_gc_at(1920, $l['clips'][$p] - $top, 0, $top), aio_gc_at(1920, $l['h'], 0, -$top - $l['stops'][$p]));
 }
 
 // The background of card $c in zone $z, the children of the panel "bg" under all: the card
@@ -1198,8 +1190,28 @@ function aio_oc_next($c, $l, $pos, $d)
     return $n;
 }
 
+// The changes of the headers that follow the focus from place $old to $new, in the same call as the row moves: the
+// head of a series with the episode in focus (aio_oc_hd, H3), the header of the poster in focus over a row of posters
+// (aio_oc_ri).
+/**
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @param AioOcPos $old
+ * @param AioOcPos $new
+ * @return list<AioGcChange>
+ */
+function aio_oc_head_changes($c, $l, $old, $new)
+{
+    $ch = array();
+    if (aio_oc_ep_on($c, $new) !== aio_oc_ep_on($c, $old))
+        $ch[] = aio_gc_change('hd', null, GCOMP_TRANSITION_NONE, aio_oc_hd($c, $l, $new));
+    if (aio_oc_ri_of($l, $new) !== aio_oc_ri_of($l, $old))
+        $ch[] = aio_gc_change('ri', null, GCOMP_TRANSITION_NONE, aio_oc_ri($c, $l, $new));
+    return $ch;
+}
+
 // The change_defs from place $old to $new: the lit buttons redrawn, the tabs, the row and its frame
-// (aio_oc_row_changes) or the line "did not load", the head of a series (aio_oc_hd), the rows (aio_oc_rows_changes), the page and the
+// (aio_oc_row_changes) or the line "did not load", the headers (aio_oc_head_changes), the rows (aio_oc_rows_changes), the page and the
 // bottom of its clip moved, the background off or on, what the first screen alone shows off or on.
 /**
  * @param AioOcCard $c
@@ -1229,15 +1241,12 @@ function aio_oc_changes($c, $l, $old, $new)
         $r = aio_oc_retry_panel($c, $new['z']);
         $ch[] = aio_gc_change('retry', null, GCOMP_TRANSITION_NONE, $r[GComponentDef::specific_def][GCompPanelDef::children]);
     }
-    // The head of the episode in focus with the row (H3), in the same call as the row moves.
-    if (aio_oc_ep_on($c, $new) !== aio_oc_ep_on($c, $old))
-        $ch[] = aio_gc_change('hd', null, GCOMP_TRANSITION_NONE, aio_oc_hd($c, $l, $new));
-    $ch = array_merge($ch, aio_oc_rows_changes($c, $l, $old, $new));
+    $ch = array_merge($ch, aio_oc_head_changes($c, $l, $old, $new), aio_oc_rows_changes($c, $l, $old, $new));
     if ($new['p'] !== $old['p'])
     {
-        $p = $new['p'];
-        $ch[] = aio_gc_change('view', aio_oc_view_geom($l['tops'][$p], $l['clips'][$p]), GCOMP_TRANSITION_DEFAULT);
-        $ch[] = aio_gc_change('page', aio_oc_page_geom($l['stops'][$p], $l['h'], $l['tops'][$p]), GCOMP_TRANSITION_DEFAULT);
+        list($view, $page) = aio_oc_clip_geoms($l, $new['p']);
+        $ch[] = aio_gc_change('view', $view, GCOMP_TRANSITION_DEFAULT);
+        $ch[] = aio_gc_change('page', $page, GCOMP_TRANSITION_DEFAULT);
     }
     if (($new['z'] === 'down') !== ($old['z'] === 'down'))
     {
@@ -1267,9 +1276,8 @@ function aio_oc_window($c, $l, $pos)
     $down = array_merge(aio_oc_rows($c, $l, $pos), $l['down']);
     if ($down)
         $page[] = aio_gc_panel('down', aio_gc_at(1920, $l['h'] - $l['off'], 0, $l['off']), $down);
-    $p = $pos['p'];
-    $d[] = aio_gc_panel('view', aio_oc_view_geom($l['tops'][$p], $l['clips'][$p]),
-        array(aio_gc_panel('page', aio_oc_page_geom($l['stops'][$p], $l['h'], $l['tops'][$p]), $page, 0)), 0);
+    list($view, $pg) = aio_oc_clip_geoms($l, $pos['p']);
+    $d[] = aio_gc_panel('view', $view, array(aio_gc_panel('page', $pg, $page, 0)), 0);
     // What the first screen alone shows, over the clip: the arrow of a series is under its bottom.
     $d[] = aio_gc_panel('first', aio_gc_at(1920, 1080, 0, 0), $pos['z'] === 'down' ? array() : $l['first']);
     $d[] = aio_gc_panel('ri', aio_gc_at(1920, AIO_OC_RI_Y - AIO_OC_INK, 0, 0), aio_oc_ri($c, $l, $pos));

@@ -401,8 +401,9 @@ function aio_oc_ri_of($l, $pos)
 }
 
 // The header of the poster in focus at place $pos (aio_oc_ri_of), the children of the panel "ri" over the clip: its
-// title, the line of facts of the panel of the catalog (what the tile has: "Похожие" give no KP, length, age), its
-// description in RI_LINES lines, "…" on the last; none for no poster in focus.
+// title (none without), the line of facts of the panel of the catalog (what the tile has: "Похожие" give no KP,
+// length, age), its description in RI_LINES lines, "…" on the last; under them black over the clip (as the clip
+// moves down to the stop the page goes under it); none for no poster in focus.
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -417,8 +418,11 @@ function aio_oc_ri($c, $l, $pos)
         return array();
     $t = $items[$at[1]];
     $x0 = AIO_CATV_CARD_X;
-    $d = array(aio_gc_cut(null, aio_gc_at(AIO_OC_TITLE_W, 66, $x0, AIO_OC_RI_TITLE_Y),
-        aio_gc_cut_w(aio_clean($t['name']), AIO_CATV_TITLE2_PX, AIO_OC_TITLE_W), AIO_CATV_TITLE2_PX, AIO_CATV_TITLE_COLOR));
+    $d = array(aio_gc_rect(aio_gc_at(1920, AIO_OC_RI_Y - AIO_OC_INK, 0, 0), '#FF000000'));
+    $name = aio_clean($t['name']);
+    if ($name !== '')
+        $d[] = aio_gc_cut(null, aio_gc_at(AIO_OC_TITLE_W, 66, $x0, AIO_OC_RI_TITLE_Y),
+            aio_gc_cut_w($name, AIO_CATV_TITLE2_PX, AIO_OC_TITLE_W), AIO_CATV_TITLE2_PX, AIO_CATV_TITLE_COLOR);
     $facts = aio_catv_facts($t, $c['ui']);
     if ($facts)
         $d[] = aio_gc_panel('rif', aio_gc_at(AIO_CATV_PANE_W, AIO_OC_RI_DESC_Y, $x0, 0),
@@ -431,8 +435,7 @@ function aio_oc_ri($c, $l, $pos)
 
 // The changes of the rows from place $old to $new: the strip and the frame (aio_oc_strip_changes),
 // the names of the focus lit or dimmed (aio_oc_row_color: of the cast all of them as the row gets
-// the focus or loses it); the titles anew as the first screen comes or goes (aio_oc_row_titles); the header of
-// the poster in focus anew as it changes (aio_oc_ri), in the same call as the strip moves.
+// the focus or loses it); the titles anew as the first screen comes or goes (aio_oc_row_titles).
 /**
  * @param AioOcCard $c
  * @param AioOcNav $l
@@ -465,8 +468,6 @@ function aio_oc_rows_changes($c, $l, $old, $new)
                 $ch[] = aio_gc_change("{$id}head", null, GCOMP_TRANSITION_NONE, $head);
         }
     }
-    if (aio_oc_ri_of($l, $new) !== aio_oc_ri_of($l, $old))
-        $ch[] = aio_gc_change('ri', null, GCOMP_TRANSITION_NONE, aio_oc_ri($c, $l, $new));
     return $ch;
 }
 

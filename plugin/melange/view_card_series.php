@@ -8,14 +8,16 @@
 // --- The episodes.
 
 // The line under the title of an episode: not out - "выйдет 16 ноября 2026" (no date: "ещё не
-// вышла"); begun - "осталось 29 мин из 48 мин"; else "6 апр 2009 · 48 мин" (what of it is known).
+// вышла"); begun - "осталось 29 мин из 48 мин"; else "6 апр 2009 · 48 мин" (what of it is known; not $short:
+// "6 апреля 2009").
 /**
  * @param AioCardEp $ep
  * @param array{float, float, bool}|null $pr
  * @param string $lang
+ * @param bool $short
  * @return string
  */
-function aio_oc_ep_line($ep, $pr, $lang)
+function aio_oc_ep_line($ep, $pr, $lang, $short = true)
 {
     if ($ep['soon'])
         return $ep['date'] !== '' ? str_replace('{d}', aio_oc_day($ep['date'], $lang), aio_tr($lang, 'card_ep_coming')) :
@@ -23,7 +25,7 @@ function aio_oc_ep_line($ep, $pr, $lang)
     if ($pr && $pr[0] > 0 && !$pr[2] && $pr[1] > 0)
         return str_replace(array('{l}', '{t}'), array(aio_catv_runtime(intval(ceil(max(0, $pr[1] - $pr[0]) / 60)) . 'min', $lang),
             aio_catv_runtime(intval(round($pr[1] / 60)) . 'min', $lang)), aio_tr($lang, 'card_ep_left'));
-    return implode(' · ', array_filter(array(aio_oc_day($ep['date'], $lang, true),
+    return implode(' · ', array_filter(array(aio_oc_day($ep['date'], $lang, $short),
         $ep['min'] > 0 ? aio_catv_runtime($ep['min'] . 'min', $lang) : ''), 'strlen'));
 }
 
@@ -84,7 +86,8 @@ function aio_oc_ep($c, $s, $e)
     return $i >= 0 ? $eps[$i] : null;
 }
 
-// The episode in focus in the row of a series at place $pos, null at another place.
+// The episode of the head of a series at place $pos (H3): the one in focus in the row, kept in "down" below it (the
+// head is above the clip there: DOWN and UP do not redraw it); null at the buttons and the tabs.
 /**
  * @param AioOcCard $c
  * @param AioOcPos $pos
@@ -92,7 +95,7 @@ function aio_oc_ep($c, $s, $e)
  */
 function aio_oc_ep_on($c, $pos)
 {
-    return $pos['z'] === 'row' ? aio_oc_ep($c, $pos['s'], $pos['e']) : null;
+    return $pos['z'] === 'row' || $pos['z'] === 'down' ? aio_oc_ep($c, $pos['s'], $pos['e']) : null;
 }
 
 // The head of a series with the focus on episode $ep in the row (H3), under the logo: its title 48 px (none without),
@@ -112,8 +115,7 @@ function aio_oc_ep_head($c, $ep)
         $d[] = aio_gc_cut(null, aio_gc_at(AIO_CATV_TEXT_W, 66, $x0, AIO_OC_EP_TITLE_Y),
             aio_gc_cut_w(aio_clean($ep['title']), AIO_CATV_TITLE2_PX, AIO_CATV_TEXT_W), AIO_CATV_TITLE2_PX, AIO_CATV_TITLE_COLOR);
     $name = "S{$ep['s']}E{$ep['e']}";
-    $when = $ep['soon'] ? aio_oc_ep_line($ep, null, $ui) : implode(' · ', array_filter(array(aio_oc_day($ep['date'], $ui),
-        $ep['min'] > 0 ? aio_catv_runtime($ep['min'] . 'min', $ui) : ''), 'strlen'));
+    $when = aio_oc_ep_line($ep, null, $ui, false);
     $nw = intval(aio_gc_sum($name, AIO_CATV_LINE_PX));
     $d[] = aio_oc_label($x0, AIO_OC_EP_FACTS_Y, $nw, $name, AIO_CATV_LINE_PX, AIO_CATV_TITLE_COLOR);
     if ($when !== '')
