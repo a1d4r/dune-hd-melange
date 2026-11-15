@@ -367,6 +367,30 @@ function aio_wh_marks($dune_id, $set)
     return $out;
 }
 
+// The last by order (season, then episode) of the marks of the own card $marks (aio_wh_marks) made after $end
+// (the end of the latest record of the series; 0: any) -> array(s, e), null for none. Not the newest by time:
+// "Mark previous" gives many episodes one time.
+/**
+ * @param array<string, int> $marks
+ * @param int $end
+ * @return array{int, int}|null
+ */
+function aio_wh_mark_last($marks, $end)
+{
+    $last = null;
+    foreach ($marks as $k => $ts)
+    {
+        if ($ts <= $end)
+            continue;
+        $p = explode(':', strval($k));
+        $s = intval($p[0]);
+        $e = isset($p[1]) ? intval($p[1]) : 0;
+        if (!$last || $s > $last[0] || ($s === $last[0] && $e > $last[1]))
+            $last = array($s, $e);
+    }
+    return $last;
+}
+
 // When record $w ends, as watch_history.php r25 counts it: start + watched; 0 without start.
 /**
  * @param stdClass $w
@@ -569,20 +593,11 @@ function aio_wh_native($dune_id, $eps, $last)
     $set = $dune_id !== '' ? aio_wh_marked_set() : array();
     $marks = aio_wh_marks($dune_id, $set);
     $w = null;
-    if ($marks)
+    $mk = aio_wh_mark_last($marks, 0);
+    if ($mk)
     {
         $st = aio_wh_series($dune_id, $set);
-        $ls = -1;
-        $le = -1;
-        foreach (array_keys($marks) as $k)
-        {
-            list($a, $b) = explode(':', strval($k));
-            if (intval($a) > $ls || (intval($a) === $ls && intval($b) > $le))
-            {
-                $ls = intval($a);
-                $le = intval($b);
-            }
-        }
+        list($ls, $le) = $mk;
         if (isset($eps[$ls]) && in_array($le, $eps[$ls], true))
             return $st;
         aio_log("history: the last mark S{$ls}E{$le} not in season_numbers, the record decides");
@@ -645,12 +660,24 @@ function aio_wh_series($dune_id, $set)
     $acc = aio_wh_find('history: series', 'aio_wh_series_visit', array($dune_id, $set, $marks));
     $last = isset($acc['last']) ? $acc['last'] : null;
     unset($acc['last']);
+    return array($last, aio_wh_series_fill($acc, $marks), $marks);
+}
+
+// The progress $prog of the episodes of a series (aio_wh_series) with the episodes of the marks of the own card
+// $marks that have no record: array(-1, 0, true).
+/**
+ * @param array<string, array{float, float, bool}> $prog
+ * @param array<string, int> $marks
+ * @return array<string, array{float, float, bool}>
+ */
+function aio_wh_series_fill($prog, $marks)
+{
     foreach ($marks as $k => $ts)
     {
-        if (!isset($acc[$k]))
-            $acc[$k] = array(-1.0, 0.0, true);
+        if (!isset($prog[$k]))
+            $prog[$k] = array(-1.0, 0.0, true);
     }
-    return array($last, $acc, $marks);
+    return $prog;
 }
 
 /**

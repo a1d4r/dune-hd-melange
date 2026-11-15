@@ -852,8 +852,8 @@ function aio_catv_row_answer($rid, $lang)
 }
 
 // get_folder_rows: "Show all": aio_catv_all_rows. Else one row a call (a saved copy: and
-// its title), the shell asks for the rest next; after the last flagged row of the screen the lazy pairs
-// (aio_pg_link_step). Always a row with the id asked: on a reply without rows the shell asks again
+// its title), the shell asks for the rest next; the lazy pairs after it when it is time (aio_pg_row_done).
+// Always a row with the id asked: on a reply without rows the shell asks again
 // every ~1 ms. The refresh of the manifest (AioCat::$manifest_due) takes the time left of the call,
 // AIO_CATV_REFRESH_S at most: an opening does not wait for it.
 /**
@@ -880,15 +880,13 @@ function aio_catv_rows_op($in)
         AioCat::$manifest_due = false;
         aio_catv_manifest_refresh(min(intval($left), AIO_CATV_REFRESH_S));
     }
-    // The lazy pairs in the reply to the last flagged row of the screen: php_server answers one call at a
-    // time, a row asked after them would wait.
-    if (isset(AioPg::$pending[$rid]))
+    $rids = array();
+    foreach ($ids as $i)
     {
-        unset(AioPg::$pending[$rid]);
-        $left = AIO_CATV_ROW_S - (microtime(true) - $start);
-        if (!AioPg::$pending && $left >= 1)
-            aio_pg_link_step(min($left, AIO_PG_LINK_S));
+        if (is_string($i) && strpos($i, 'items:') === 0)
+            $rids[] = strval(substr($i, strlen('items:')));
     }
+    aio_pg_row_done($rids, $rid, AIO_CATV_ROW_S - (microtime(true) - $start));
     return array('rows' => $rows);
 }
 
@@ -1263,9 +1261,7 @@ function aio_catv_main_view($media_url, $sel_state)
         aio_log("catalog: screen: $tab: all " . count($rows) . ' rows empty');
         return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, true), $sel_state, $media_url);
     }
-    // New cards of the history paired by the cards of the shell before the badges of the tiles.
-    aio_pg_shell_step();
-    AioPg::$pending = array();
+    aio_pg_screen_start();
     $now = microtime(true);
     aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S - ($now - $rows_t0), AIO_CATV_OPEN_MAX_S - ($now - $start)));
     if (!$loading)
@@ -1285,7 +1281,7 @@ function aio_catv_main_view($media_url, $sel_state)
             if ($flag)
             {
                 AioCat::$on_screen[$rid] = AioCat::$lists[$rid]['tiles'];
-                AioPg::$pending[$rid] = true;
+                aio_pg_row_asked($rid);
             }
             $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang, null, $flag));
             $asked = $asked || $flag;
@@ -1293,7 +1289,7 @@ function aio_catv_main_view($media_url, $sel_state)
         else if ($loading)
         {
             $defs = array_merge($defs, aio_catv_row_note($row, $lang, ''));
-            AioPg::$pending[$rid] = true;
+            aio_pg_row_asked($rid);
             $asked = true;
         }
     }
@@ -1304,13 +1300,8 @@ function aio_catv_main_view($media_url, $sel_state)
         if (!$asked && !$manifest_done && $left >= 1 && !aio_catv_is_down())
             aio_catv_manifest_refresh(intval($left));
     }
-    else
-    {
-        // r24: the lazy pairs on the time left of the opening (r25: after the last row asked, aio_catv_rows_op).
-        $left = AIO_CATV_OPEN_S - (microtime(true) - $rows_t0);
-        if ($left >= 1)
-            aio_pg_link_step(min($left, AIO_PG_LINK_S));
-    }
+    // The lazy pairs on the time left of the opening, with no row flagged (else aio_catv_rows_op).
+    aio_pg_screen_built(AIO_CATV_OPEN_S - (microtime(true) - $rows_t0));
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
 }
