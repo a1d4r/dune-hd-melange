@@ -221,7 +221,8 @@ function aio_pg_stale()
 // What a mark of card $mid of the type $type would do, of the state of the history only (no request): 'on' (not
 // watched), 'off' (watched by a mark: a movie marked in watched_movies.txt or by the mark of its record; a series
 // watched whole by its badge, aio_pg_badge: all its episodes out, or marked in watched_movies.txt with no list of
-// them), '' (a movie watched by its position: no mark takes it off, as an episode of the own card).
+// them, and marked: in watched_movies.txt or a uid of it in watched_files.txt, aio_wh_marked_of), '' (a movie or a
+// series watched by its position, no mark: no mark takes it off, as an episode of the own card).
 /**
  * @param string $mid
  * @param string $type
@@ -236,7 +237,9 @@ function aio_pg_mark_kind($mid, $type)
     if ($type === 'series')
     {
         $b = aio_pg_badge($ent, true, $mid);
-        return $b && $b['all'] ? 'off' : 'on';
+        if (!$b || !$b['all'])
+            return 'on';
+        return $ent['movie_mark'] || aio_wh_marked_of($mid) ? 'off' : '';
     }
     if ($ent['movie_mark'])
         return 'off';
@@ -300,8 +303,9 @@ function aio_pg_begun($pos, $len)
 // series none, else the latest record with no S/E as of a movie, watched (by itself) or begun (aio_pg_begun). An
 // episode watched, $mid (the card) given: the next one by the pair (aio_pg_badge_next). The card marked in
 // watched_movies.txt: watched; a series (episodes in the history, or $series: the tile is one) - all of it, no episode,
-// unless its episodes watched and the list of them (the pair) give the next one (a season out after the mark: "all
-// out watched", decision of the owner; the mark is the way only with no list of them).
+// unless its episodes watched and the list of them (the pair) give the next one and it is over the mark
+// (aio_pg_mark_over: a season out after the mark, "all out watched", decision of the owner; the mark is the way only
+// with no list of them).
 // -> pos, len (s, 0: none), watched (the movie or the episode), s and e (-1: none), all (a series watched whole: all its
 // episodes out or marked whole), next (s, e: the episode after the watched one); null: none.
 /**
@@ -332,7 +336,7 @@ function aio_pg_badge($ent, $series = false, $mid = '')
             $b = array('pos' => max(0.0, $pos), 'len' => $len, 'watched' => $ent['seen'], 's' => -1, 'e' => -1, 'all' => false, 'next' => false);
     }
     $nb = $b && $mid !== '' && $st && $b['e'] >= 0 && $b['watched'] ? aio_pg_badge_next($b, $st, $mid) : $b;
-    if ($ent['movie_mark'] && !($nb && $nb['next']))
+    if ($ent['movie_mark'] && !($nb && $nb['next'] && aio_pg_mark_over($nb, $st, $mid)))
         return array('pos' => 0.0, 'len' => 0.0, 'watched' => true, 's' => -1, 'e' => -1, 'all' => $series || $st || $ep,
             'next' => false);
     return $nb;
@@ -360,6 +364,36 @@ function aio_pg_badge_next($b, $st, $mid)
     if ($p['kind'] !== 'next' && $p['kind'] !== 'record')
         return $b;
     return array('pos' => 0.0, 'len' => 0.0, 'watched' => false, 's' => $p['s'], 'e' => $p['e'], 'all' => false, 'next' => true);
+}
+
+// The next episode of badge $nb (aio_pg_badge_next) of the series of card $mid of state $st takes the place of the mark of
+// the card in watched_movies.txt: not if it is watched by $st (its record or a mark of the own card: S1 E1 watched again,
+// S1 E2 marked - the series stays watched), nor if it is S<n> E1 of a season with no episode in $st by a pair with no
+// dates (no src, no soon: season_numbers of play_action count the episodes not out yet - a season announced; better a
+// new season missed than the tick lost for good, as "Отметить" marks only those of the meta out).
+/**
+ * @param AioPgBadge $nb
+ * @param AioWhSeries $st
+ * @param string $mid
+ * @return bool
+ */
+function aio_pg_mark_over($nb, $st, $mid)
+{
+    $s = $nb['s'];
+    if (isset($st[1]["$s:{$nb['e']}"]) && $st[1]["$s:{$nb['e']}"][2])
+        return false;
+    if ($nb['e'] !== 1)
+        return true;
+    $links = aio_pg_links();
+    $l = isset($links[$mid]) ? $links[$mid] : array();
+    if (isset($l['src']) || !empty($l['soon']))
+        return true;
+    foreach (array_keys($st[1]) as $k)
+    {
+        if (intval($k) === $s)
+            return true;
+    }
+    return false;
 }
 
 // The badge of the card of tile $t of the catalog: of the first of its cards (aio_pg_tile_cards) in the

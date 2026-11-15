@@ -248,6 +248,8 @@ function aio_dl_row($q)
         return null;
     }
     $n = intval($q['n']);
+    // n is of the rows of the screen, not of the manifest: with "Continue" on the tab the same row of the catalog is
+    // one further (#2 of the manifest: n=3), without it - back.
     $cp = aio_cp_items(array($q['tab'])) ? 1 : 0;
     if ($cp && $n === 1)
     {

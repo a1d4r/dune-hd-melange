@@ -43,6 +43,9 @@ define('AIO_CATV_SEARCHES', 3);
 define('AIO_CATV_SCREENS', 16);
 // The main screens of rows the catalog keeps the addresses of (AioCat::$mains): of the two tabs and a new address.
 define('AIO_CATV_MAINS', 4);
+// A main screen built this many s at most after the player that invalidated it (AioCat::$inv_t) logs the time since; later
+// it is not of that operation (the shell built it when the user came back to it).
+define('AIO_CATV_INV_LOG_S', 10);
 // The info panel, on the info_r of the native one (movie_helper.php of shell_ext), its colours
 // and sizes of text: a title in TEXT_W, one line as large as fits from TITLE_PX down to
 // TITLE_MIN_PX, else 2 lines of TITLE2_PX, its bottom at TITLE_BOTTOM (SUB_H higher over the
@@ -210,7 +213,7 @@ class AioCat
     /** @var list<string> */
     public static $mains = array();
     // r25: when the operation back from the player that invalidated them began (Aio::$t0, aio_catv_after_player): the
-    // first of them built again logs the time since (O2); 0: none.
+    // first of them built again within AIO_CATV_INV_LOG_S logs the time since (O2); 0: none.
     /** @var float */
     public static $inv_t = 0.0;
 }
@@ -1328,8 +1331,9 @@ function aio_catv_main_view($media_url, $sel_state)
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
     if (AioCat::$inv_t > 0)
     {
-        aio_log(sprintf('catalog: screen: %s: anew after the player, %.0f ms since its finish', $media_url,
-            (microtime(true) - AioCat::$inv_t) * 1000));
+        $since = microtime(true) - AioCat::$inv_t;
+        if ($since >= 0 && $since <= AIO_CATV_INV_LOG_S)
+            aio_log(sprintf('catalog: screen: %s: anew after the player, %.0f ms since its finish', $media_url, $since * 1000));
         AioCat::$inv_t = 0.0;
     }
     if (!$defs)

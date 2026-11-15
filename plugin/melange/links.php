@@ -344,7 +344,8 @@ function aio_pg_links_save()
 // over none or fail; none or fail only over none or fail. Over a pair the seasons: of the meta (src) replace those of
 // the pair whole, soon and on with them (the records of Melange are numbered by the own card: the Dune may have S1 of
 // 20 where Cinemeta has S1 and S2 of 10); those of play_action and the card of the shell (numbered by the Dune) do
-// not touch those of the meta, else the larger number of episodes of each (season_numbers of play_action count the
+// not touch those of the meta but add the seasons after its last one (not to an anime numbered on: on), else the
+// larger number of episodes of each (season_numbers of play_action count the
 // episodes not out yet). soon replaced only by a source of dates ($l has it, even empty: the card of the shell, the
 // meta). A pair of before src (the seasons of the meta mixed in by the larger) is of the meta again at the next
 // one. Written (aio_pg_links_save) only on a change and with $save; else the caller writes them once. No log line:
@@ -375,6 +376,14 @@ function aio_pg_link_put($mid, $l, $save = true)
             unset($new[$k]);
             if (isset($old[$k]))
                 $new[$k] = $old[$k];
+        }
+        // A season of the Dune after the last one of the meta (out after the own card was last opened): added, not to
+        // an anime numbered on (its seasons are not those of the Dune).
+        $last = isset($old['seasons']) && $old['seasons'] ? max(array_keys($old['seasons'])) : 0;
+        foreach (isset($old['on']) ? array() : $l['seasons'] as $n => $count)
+        {
+            if ($n > $last)
+                $new['seasons'][$n] = $count;
         }
         $dated = false;
     }

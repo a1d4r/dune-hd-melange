@@ -406,7 +406,7 @@ function aio_cp_hide_act($in)
 // Dune (aio_cp_card_of: a request as ENTER without a pair), then update_watched_marks (aio_pg_mark_act): a movie -
 // movie_ids, off also the uid of its latest record if marked (aio_wh_movie_off_ids); a series on - the whole of it (the
 // owner): movie_ids and the marks of the own card of every episode out (the meta asked now, aio_cm_get, and
-// aio_cm_eps_before) with the uids of the records of our releases of them (aio_wh_mark_ids), as "Отметить предыдущие"
+// aio_cm_eps_before; its episodes to the pair, aio_pg_link_meta: the dates of those not out) with the uids of the records of our releases of them (aio_wh_mark_ids), as "Отметить предыдущие"
 // of the own card; a tile of the row with no pair ("dune:<movie_id>") gets it first (aio_pg_link_now, as ENTER); a
 // series off - movie_ids and every uid of the card marked (aio_wh_marked_of: no request, no meta). post_action:
 // aio_catv_tile_after. No card, no pair, no meta: the message cp_err_mark (the reason in the log).
@@ -448,6 +448,7 @@ function aio_cp_mark($in)
             aio_log("continue: mark: no meta ({$g['err']})");
             return aio_error('cp_err_mark');
         }
+        aio_pg_link_meta($mid, $g['meta']);
         $ids = aio_wh_mark_ids($mid, aio_cm_eps_before($g['meta'], PHP_INT_MAX, 0));
     }
     else if ($w === 'off')
