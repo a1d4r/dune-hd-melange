@@ -1,10 +1,10 @@
 # Advanced
 
-Choose whether Melange starts torrents, shows skip-intro buttons and reports source errors. [← Contents](README.en.md)
+Choose whether Melange starts torrents, shows skip-intro buttons and reports source errors. If your remote has no colour buttons, you can also move sorting and release details into the menu here. [← Contents](README.en.md)
 
 1. On the settings page ([Settings page on a phone](phone-page.en.md)), open "Advanced".
 
-   <img src="../screenshots/advanced-screen.jpg" alt="Advanced screen: Running torrents, Skip intro and credits, Source errors, Source profiles" width="300">
+   <img src="../screenshots/advanced-screen.jpg" alt="Advanced screen: Running torrents, Skip intro and credits, Source errors, Remote without colour buttons, Source profiles" width="300">
 
 2. "Running torrents": leave "Allow". Choose "No torrents" if you do not need torrents on the Dune at all ([Known limitations](limitations.en.md)).
 
