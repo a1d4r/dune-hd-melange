@@ -656,10 +656,21 @@ function aio_oc_soon_msg($ep, $lang)
  */
 function aio_oc_prev_eps($c, $s, $e, $max = 0)
 {
+    return $c['meta'] ? aio_cm_eps_before($c['meta'], $s, $e, $max) : array();
+}
+
+// The episodes out before episode $e of season $s of meta $m (all of them: PHP_INT_MAX, 0), as aio_oc_prev_eps.
+/**
+ * @param AioCardMeta $m
+ * @param int $s
+ * @param int $e
+ * @param int $max
+ * @return list<string>
+ */
+function aio_cm_eps_before($m, $s, $e, $max = 0)
+{
     $out = array();
-    if (!$c['meta'])
-        return $out;
-    foreach ($c['meta']['seasons'] as $sn => $eps)
+    foreach ($m['seasons'] as $sn => $eps)
     {
         if ($sn > $s)
             break;
@@ -671,7 +682,7 @@ function aio_oc_prev_eps($c, $s, $e, $max = 0)
                 break;
             if ($ep['soon'])
                 continue;
-            $out[] = aio_cm_hkey($c['meta'], $sn, $ep['e']);
+            $out[] = aio_cm_hkey($m, $sn, $ep['e']);
             if ($max > 0 && count($out) >= $max)
                 return $out;
         }

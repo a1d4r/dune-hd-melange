@@ -752,8 +752,9 @@ function aio_tv_enter($in)
     return $a;
 }
 
-// POP UP in the EPF, on any tile: the search (its results a screen of Melange), the catalog, the
-// settings. The search key is not the plugin's there: the main screen has its own (aio_tv_views).
+// POP UP in the EPF, on any tile: the items of a tile of a title first (aio_cp_menu_items), then the search
+// (its results a screen of Melange), the catalog, the settings. The search key is not the plugin's there: the main
+// screen has its own (aio_tv_views).
 /**
  * @param stdClass $in
  * @return AioAction
@@ -763,7 +764,8 @@ function aio_tv_menu($in)
     $from = aio_catv_in($in, 'from');
     $lang = aio_catv_lang();
     aio_log("tv: POP UP on '" . aio_cut(aio_catv_in($in, 'selected_item_id'), 100) . "'");
-    $items = array();
+    // On a tile (no header in focus), as aio_catv_menu.
+    $items = aio_catv_in($in, 'selected_header_id') === '' ? aio_cp_menu_items(aio_catv_in($in, 'selected_item_id'), $from, $lang) : array();
     foreach (array(
         array('cat_search', AIO_CATV_ICON_SEARCH, aio_input('cat_search', array('from' => $from))),
         array('tv_open', 'movies_small.png', aio_tv_catalog_act()),

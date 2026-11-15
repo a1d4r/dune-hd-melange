@@ -2542,8 +2542,8 @@ function aio_catv_strip_enter($id, $from, $up = false)
 
 // POP UP of the screen $from. A main screen: the parts of the strip, as ENTER on them (cat_part), so
 // the strip is at hand anywhere, with icons of the shell (the search and the setup as on the strip);
-// on a header above them "Configure list…" and a separator (aio_catv_rows_menu_items). Else (the
-// results of a search, "Show all") nothing.
+// on a header above them "Configure list…" and a separator (aio_catv_rows_menu_items), on a tile of a
+// title its items and a separator (aio_cp_menu_items). Else (the results of a search, "Show all") nothing.
 /**
  * @param stdClass $in
  * @param string $from
@@ -2558,7 +2558,9 @@ function aio_catv_menu($in, $from)
     if ($tab === '')
         return null;
     $lang = aio_catv_lang();
-    $items = aio_catv_rows_menu_items($hid, $tab, $from, $lang);
+    // On a tile (no header in focus): its items first (aio_cp_menu_items), then those of the screen.
+    $items = $hid === '' ? aio_cp_menu_items(aio_catv_in($in, 'selected_item_id'), $from, $lang) : array();
+    $items = array_merge($items, aio_catv_rows_menu_items($hid, $tab, $from, $lang));
     $parts = array(
         'tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png'),
         'tab_search' => array('cat_search', AIO_CATV_ICON_SEARCH), 'tab_setup' => array('setup_menu', AIO_CATV_ICON_SETUP));
@@ -2772,5 +2774,9 @@ function aio_catv_input($in, $control)
         return aio_catv_rows_edit($from, aio_catv_in($in, 'sel'), aio_catv_in($in, 'g'));
     if ($control === 'cat_rows_apply')
         return aio_catv_rows_apply($in, $from);
+    if ($control === 'cat_hide')
+        return aio_cp_hide_act($in);
+    if ($control === 'cat_mark')
+        return aio_cp_mark($in);
     return null;
 }
