@@ -180,7 +180,9 @@ function aio_lpv_tr($lang, $key, $sub = array())
     return $s;
 }
 
-// The words of reason $why (AioLpWhy codes, lampac.php) with its detail, the address masked.
+// The words of reason $why (AioLpWhy codes, lampac.php), the address masked. The detail only where
+// the text has {d} and it is short for people (http: the code, accsdb: the message of the
+// provider); a curl error, an unknown type or method - only in the log (aio_lp_call, aio_lp_replies).
 /**
  * @param string $lang
  * @param string $why
