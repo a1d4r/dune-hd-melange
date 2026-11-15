@@ -19,6 +19,8 @@
 //   "turn on streamproxy of the balancer in init.conf"; serial - a series asked
 //   without a season; no_season - no such season at the balancer; no_episode -
 //   no such episode in the voice (detail: the episodes there are);
+//   no_episodes - the voice has no episode of the season; movie - a movie in
+//   the list of a serial (aio_lp_replies of a season);
 //   season_list - "call" of an episode gave a list, not its link; other_episode -
 //   it gave another episode (aio_lp_call_ep); no_voice - the voice of a key of
 //   the history is not in the season; bad_key - not a key of a balancer
@@ -67,6 +69,10 @@ define('AIO_LP_SOURCES_MAX', 60);
 define('AIO_LP_ROWS_MAX', 60);
 // Episodes of a season of a balancer kept, at most (a long anime has some hundreds).
 define('AIO_LP_EPS_MAX', 2000);
+// Characters of the episodes there are (aio_lp_ranges), its "…" included: "нет S12E10, есть " and
+// they fit a label of a dialog (AIO_ERROR_LABEL of main.php, 48), with the name of a balancer a
+// line of the window of the reasons (AIO_ERROR_LINE, 68).
+define('AIO_LP_RANGES_LEN', 30);
 
 // Tests define their own aio_lp_now() and aio_lp_wait(): the clock of the
 // budgets and the pause before a repeat.
@@ -789,8 +795,8 @@ function aio_lp_movie($src, $data, $base = '')
 // the first source not asked, left: sources not asked (the screen says "N
 // more"), similar, serial: sources that answered so, asked). Season $s > 0 of
 // a serial: a balancer of a series gives its season (aio_lp_serial: one more
-// request, by the link of the season) and its rows a voice (aio_lp_season_rows);
-// $s 0: a series is the reason serial, as of a movie.
+// request, by the link of the season) and its rows a voice (aio_lp_season_rows), a
+// movie the reason movie; $s 0: a series is the reason serial, as of a movie.
 /**
  * @param string $base
  * @param list<AioLpSource> $sources
@@ -822,6 +828,8 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
             continue;
         }
         $p = aio_lp_reply($src, $r['code'], $r['body'], $base);
+        if ($p['kind'] === 'movie' && $s > 0)
+            $p = array('kind' => 'skip', 'rows' => array(), 'why' => array(aio_lp_why($src, 'movie')));
         if ($p['kind'] === 'serial' && $s > 0)
         {
             $sea = aio_lp_serial($base, $src, (array) aio_lp_json($r['body']), $url, $s,
@@ -924,10 +932,10 @@ function aio_lp_season_link($j, $s)
 }
 
 // Reply $j of a season (type episode) of source $src on Lampac $base, asked by link $url ->
-// AioLpSeason: url ($url), voices (voice[]: name (aio_lp_text), url (its season), active; a voice
-// without a name or a link, or of a name twice, left out; AIO_LP_ROWS_MAX at most), eps (data[]:
-// AioLpEp - s and e (aio_lp_num; -1 s none), name, what aio_lp_item gives; an item of no number e
-// or of e twice left out, AIO_LP_EPS_MAX at most, in the order of the reply), quality (maxquality
+// AioLpSeason: url ($url), voices (voice[]: name (aio_lp_text), url (its season), active (true
+// strictly, of the first such alone); a voice without a name or a link, or of a name twice, left
+// out; AIO_LP_ROWS_MAX at most), eps (data[]: AioLpEp - s and e (aio_lp_num; -1 s none), name,
+// what aio_lp_item gives; an item of no number e or of s and e twice left out, AIO_LP_EPS_MAX at most, in the order of the reply), quality (maxquality
 // of the reply, else the quality of the list), why and detail '' (aio_lp_season_reply sets them).
 /**
  * @param AioLpSource $src
@@ -942,6 +950,7 @@ function aio_lp_season($src, $j, $url, $base = '')
     $out = array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $q !== '' ? $q : $src['q'],
         'why' => '', 'detail' => '');
     $names = array();
+    $active = false;
     foreach (isset($j['voice']) && is_array($j['voice']) ? $j['voice'] : array() as $v)
     {
         if (!is_array($v) || count($out['voices']) >= AIO_LP_ROWS_MAX)
@@ -951,7 +960,9 @@ function aio_lp_season($src, $j, $url, $base = '')
         if ($name === '' || $u === '' || isset($names[$name]))
             continue;
         $names[$name] = true;
-        $out['voices'][] = array('name' => $name, 'url' => $u, 'active' => !empty($v['active']));
+        $on = !$active && isset($v['active']) && $v['active'] === true;
+        $active = $active || $on;
+        $out['voices'][] = array('name' => $name, 'url' => $u, 'active' => $on);
     }
     $seen = array();
     foreach (isset($j['data']) && is_array($j['data']) ? $j['data'] : array() as $x)
@@ -959,10 +970,11 @@ function aio_lp_season($src, $j, $url, $base = '')
         if (count($out['eps']) >= AIO_LP_EPS_MAX)
             break;
         $e = is_array($x) ? aio_lp_num(isset($x['e']) ? $x['e'] : null) : -1;
-        if ($e < 0 || isset($seen[$e]))
+        $es = is_array($x) ? aio_lp_num(isset($x['s']) ? $x['s'] : null) : -1;
+        if ($e < 0 || isset($seen["$es:$e"]))
             continue;
-        $seen[$e] = true;
-        $out['eps'][] = array('s' => aio_lp_num(isset($x['s']) ? $x['s'] : null), 'e' => $e,
+        $seen["$es:$e"] = true;
+        $out['eps'][] = array('s' => $es, 'e' => $e,
             'name' => aio_lp_text(aio_lp_str($x, 'name'))) + aio_lp_item($src, $x, $base);
     }
     return $out;
@@ -1082,7 +1094,7 @@ function aio_lp_serial($base, $src, $j, $url, $s, $total = AIO_LP_REPLY_MAX)
 // The rows of the online list of season $sea of source $src (spec §5.2): one a voice of voice[],
 // the active first, then in the order of Lampac; a balancer without voices (Collaps, AniDub) - one,
 // voice ''. A row (AioLpRow) of method "season": url is the link of the season in that voice (of
-// the active one $sea['url'], the link asked), no stream, qual or subs, quality of the season, key
+// the active one, the first alone, $sea['url'], the link asked), no stream, qual or subs, quality of the season, key
 // aio_lp_season_key (one for each episode of the voice). Its episode by ENTER: the season of url
 // (aio_lp_season_get), aio_lp_episode, aio_lp_ep_row.
 /**
@@ -1097,10 +1109,11 @@ function aio_lp_season_rows($src, $sea)
     $rest = array();
     foreach ($voices as $v)
     {
+        $on = $v['active'] === true && !$first;
         $row = array('path' => $src['path'], 'src' => $src['label'], 'voice' => $v['name'], 'quality' => $sea['quality'],
-            'method' => 'season', 'url' => $v['active'] ? $sea['url'] : $v['url'], 'stream' => '', 'qual' => array(),
+            'method' => 'season', 'url' => $on ? $sea['url'] : $v['url'], 'stream' => '', 'qual' => array(),
             'subs' => 0, 'key' => aio_lp_season_key($src['path'], $v['name']));
-        if ($v['active'] && !$first)
+        if ($on)
             $first[] = $row;
         else
             $rest[] = $row;
@@ -1110,7 +1123,7 @@ function aio_lp_season_rows($src, $sea)
 
 // Episode $e of season $s (0: any) in season $sea of a voice (aio_lp_season_reply) -> array(ep: the
 // episode (AioLpEp) or null; why: '' or no_episode (none of that number: detail "<e>, have <its
-// numbers>"), or the reason of the episode (aio_lp_item: method, long, no_link, headers); detail;
+// numbers>"), no_episodes (no episode of the season at all: detail "<e>"), or the reason of the episode (aio_lp_item: method, long, no_link, headers); detail;
 // have: the numbers of the episodes of the season there are, in order, for the screen "нет S1E9,
 // есть 1–7" (aio_lp_ranges)). An episode of another season in the reply is not one of $s.
 /**
@@ -1132,6 +1145,8 @@ function aio_lp_episode($sea, $s, $e)
             $hit = $x;
     }
     sort($have);
+    if (!$have)
+        return array('ep' => null, 'why' => 'no_episodes', 'detail' => strval($e), 'have' => $have);
     if ($hit === null)
         return array('ep' => null, 'why' => 'no_episode', 'detail' => "$e, have " . aio_lp_ranges($have), 'have' => $have);
     if ($hit['why'] !== '')
@@ -1139,15 +1154,16 @@ function aio_lp_episode($sea, $s, $e)
     return array('ep' => $hit, 'why' => '', 'detail' => '', 'have' => $have);
 }
 
-// Numbers $n (in order) as ranges: "1–7, 9, 11–12" (an en dash); '' for none; after $max ranges "…".
+// Numbers $n (in order) as ranges: "1–7, 9, 11–12" (an en dash); '' for none; up to $len
+// characters: the ranges that fit, then "…" (", …" after them).
 /**
  * @param list<int> $n
- * @param int $max
+ * @param int $len
  * @return string
  */
-function aio_lp_ranges($n, $max = 10)
+function aio_lp_ranges($n, $len = AIO_LP_RANGES_LEN)
 {
-    $out = array();
+    $out = '';
     $i = 0;
     $c = count($n);
     while ($i < $c)
@@ -1155,15 +1171,13 @@ function aio_lp_ranges($n, $max = 10)
         $j = $i;
         while ($j + 1 < $c && $n[$j + 1] <= $n[$j] + 1)
             $j++;
-        if (count($out) >= $max)
-        {
-            $out[] = '…';
-            break;
-        }
-        $out[] = $n[$i] === $n[$j] ? strval($n[$i]) : "{$n[$i]}\xE2\x80\x93{$n[$j]}";
+        $one = ($out !== '' ? ', ' : '') . ($n[$i] === $n[$j] ? strval($n[$i]) : "{$n[$i]}\xE2\x80\x93{$n[$j]}");
+        if (mb_strlen($out . $one . ($j + 1 < $c ? ', …' : ''), 'UTF-8') > $len)
+            return $out . ($out !== '' ? ', …' : '…');
+        $out .= $one;
         $i = $j + 1;
     }
-    return implode(', ', $out);
+    return $out;
 }
 
 // Row $row of a voice of a season (aio_lp_season_rows) as the row of its episode $ep: what it plays
