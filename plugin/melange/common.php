@@ -1152,6 +1152,10 @@ define('AIO_FW_CARD_R', 24);
 // The rows of posters of the own card come by the timer of its screen from r25 (seen on the device
 // there; r24 by the code only): asked as the card opens before.
 define('AIO_FW_TIMER_R', 25);
+// The shell of r24 checks Dune Extra as a plugin starts its player and quits if the built-in pf_check
+// has not run in its session yet (the card of the Dune runs it before a supplier): Melange runs it
+// first there (aio_pf_check). r25 has no such check; r22 not looked at.
+define('AIO_FW_PF_CHECK_R', 24);
 
 class AioFirmware
 {

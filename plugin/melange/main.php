@@ -1867,7 +1867,7 @@ class AioFw extends DunePluginFw
             else if ($op === PLUGIN_OP_HANDLE_USER_INPUT)
             {
                 $type = PLUGIN_OUT_DATA_GUI_ACTION;
-                $data = aio_handle_user_input($in);
+                $data = aio_pf_check(aio_handle_user_input($in));
             }
             else if ($op === PLUGIN_OP_GET_REGULAR_FOLDER_ITEMS)
             {

@@ -302,6 +302,45 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
 }
 
+// Reply $a of handle_user_input as it goes to the shell: on r24 (AIO_FW_PF_CHECK_R) every
+// plugin_vod_play in it (at the top, the post_action of close_dialog_and_run, a button of a dialog)
+// runs after the built-in pf_check, as the card of the Dune does before a supplier (movie_screen.php
+// of shell_ext r24): plugin_name ours, no error_action. Else $a as it is. Here and not in
+// aio_play/aio_ct_clip: their callers look at the vod_play itself.
+/**
+ * @param mixed $a
+ * @return mixed
+ */
+function aio_pf_check($a)
+{
+    return is_array($a) && aio_fw_r() === AIO_FW_PF_CHECK_R ? aio_pf_wrap($a) : $a;
+}
+
+/**
+ * @param array<mixed> $a
+ * @return array<mixed>
+ */
+function aio_pf_wrap($a)
+{
+    if (isset($a[GuiAction::handler_string_id]) && $a[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
+    {
+        aio_log('play: pf_check (r24)');
+        return array(
+            GuiAction::handler_string_id => RUN_BUILTIN_ACTION_ID,
+            GuiAction::data => array(
+                RunBuiltinActionData::builtin_action_id => 'pf_check',
+                RunBuiltinActionData::params => array('plugin_name' => AIO_PLUGIN),
+                RunBuiltinActionData::post_action => $a,
+                RunBuiltinActionData::error_action => null));
+    }
+    foreach ($a as $k => $v)
+    {
+        if (is_array($v))
+            $a[$k] = aio_pf_wrap($v);
+    }
+    return $a;
+}
+
 // The service whose copy row $r of card $mv plays: of "Via <service>" of this
 // release (Aio::$via) if the row has a copy of it, else the main Debrid of the settings.
 /**
