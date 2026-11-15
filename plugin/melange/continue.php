@@ -350,7 +350,19 @@ function aio_cp_hide($mid)
 
 // --- POP UP of a tile of the catalog and the tab "TV".
 
-// The card of the Dune of tile $t now: of its id of the row "Continue" ($mid), else by the pairs (aio_pg_tile_card),
+// The card of the Dune of tile $t known with no request: of its id of the row "Continue" ($mid; '' another tile), else by
+// the pairs (aio_pg_tile_card); '' for none. The one rule of "the card of a title" of POP UP (the marks, "Мой список").
+/**
+ * @param AioCatTile $t
+ * @param string $mid
+ * @return string
+ */
+function aio_cp_card_known($t, $mid)
+{
+    return $mid !== '' ? $mid : aio_pg_tile_card($t, aio_pg_index());
+}
+
+// The card of the Dune of tile $t now: known (aio_cp_card_known: of its id of the row "Continue" $mid, by the pairs),
 // else asked (aio_card_id, as ENTER: the pair kept). -> array(movie_id, '' none; why none: cp_err_mark - no answer,
 // card_none_title - the Dune has no card of it).
 /**
@@ -360,9 +372,7 @@ function aio_cp_hide($mid)
  */
 function aio_cp_card_of($t, $mid)
 {
-    if ($mid !== '')
-        return array($mid, '');
-    $mid = aio_pg_tile_card($t, aio_pg_index());
+    $mid = aio_cp_card_known($t, $mid);
     if ($mid !== '')
         return array($mid, '');
     $c = aio_card_id($t);
@@ -390,8 +400,7 @@ function aio_cp_menu_items($id, $from, $lang)
     if ($mid !== '')
         $items[] = array(GuiMenuItemDef::caption => aio_tr($lang, 'cp_hide'), GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'cancel_small.png',
             GuiMenuItemDef::action => aio_input('cat_hide', $p));
-    $card = $mid !== '' ? $mid : aio_pg_tile_card($t, aio_pg_index());
-    $w = aio_pg_mark_kind($card, $t['type']);
+    $w = aio_pg_mark_kind(aio_cp_card_known($t, $mid), $t['type']);
     if ($w !== '')
         $items[] = array(GuiMenuItemDef::caption => aio_tr($lang, $w === 'on' ? 'cp_mark_on' : 'card_mark_off'),
             GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'watched_small.png',
@@ -428,13 +437,13 @@ function aio_cp_hide_act($in)
  */
 function aio_cp_mark($in)
 {
-    $id = aio_catv_in($in, 'item');
-    $from = aio_catv_in($in, 'from');
-    $w = aio_catv_in($in, 'w');
-    $t = $w === 'on' || $w === 'off' ? aio_catv_tile($id, aio_tv_is_from($from)) : null;
+    $a = aio_catv_tile_act($in, array('on', 'off'));
+    $t = $a['t'];
     if (!$t)
-        return $w === 'on' || $w === 'off' ? aio_error('cat_outdated') : null;
-    $cp = aio_cp_mid_of($id);
+        return $a['err'];
+    $from = $a['from'];
+    $w = $a['w'];
+    $cp = aio_cp_mid_of($a['id']);
     list($mid, $err) = aio_cp_card_of($t, $cp);
     if ($mid === '')
         return aio_error($err);

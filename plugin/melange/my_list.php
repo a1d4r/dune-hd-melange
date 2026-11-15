@@ -5,7 +5,7 @@
 // (cgi/lib/backup.php) carries it in a short form (aio_ml_copy). The Favorites of the Dune are only read
 // (aio_ml_fav_read), for an import by an action of the user. The functions of a file, an entry and the copy take what
 // they need and log nothing: the settings page has them too (no main.php or parse.php there). Those of php_server
-// need main.php (aio_data_dir, aio_file_sig, aio_write_file, aio_log).
+// need main.php (aio_data_dir, aio_file_sig, aio_write_file, aio_log). The actions of the screens: view_my_list.php.
 
 define('AIO_ML_FILE', 'my_list.json');
 // The version of the file: {"v": 1, "items": [<entry>...]}.
@@ -359,15 +359,27 @@ function aio_ml_from_copy($c, &$why, &$dropped)
     return aio_ml_items($list, $dropped);
 }
 
-// What list $list adds to the body of an import (,"my_list":<the copy> in the file, URL-encoded as the page posts it:
-// rawurlencode is never shorter than encodeURIComponent).
+// List $list as it goes into the text of the file of the export, after its other fields: ',"my_list":<the copy>'
+// (aio_ml_copy); '' if json_encode failed.
+/**
+ * @param list<AioMlEntry> $list
+ * @return string
+ */
+function aio_ml_copy_part($list)
+{
+    $c = json_encode(aio_ml_copy($list));
+    return is_string($c) ? ',"' . AIO_ML_COPY_FIELD . '":' . $c : '';
+}
+
+// What list $list adds to the body of an import (aio_ml_copy_part, URL-encoded as the page posts it: rawurlencode is
+// never shorter than encodeURIComponent).
 /**
  * @param list<AioMlEntry> $list
  * @return int
  */
 function aio_ml_copy_size($list)
 {
-    return strlen(rawurlencode(',"' . AIO_ML_COPY_FIELD . '":' . json_encode(aio_ml_copy($list))));
+    return strlen(rawurlencode(aio_ml_copy_part($list)));
 }
 
 // --- The list in php_server.
@@ -454,8 +466,9 @@ function aio_ml_has($key)
 }
 
 // Tile $t at the start of the list, $dune: the id of its card of the Dune ('' - none or not known). One in the list
-// already (aio_ml_same) stays in its place; its dune_id not known, it is set to $dune. -> '' (added, or there), 'no id' (no IMDb or
-// TMDB, no name), 'full' (the backup would not load back with it: AIO_ML_COPY_MAX), 'locked', 'write' (aio_ml_save).
+// already (aio_ml_in: of its IMDb or TMDB, or of the card $dune) stays in its place; its dune_id not known, it is set to
+// $dune. -> '' (added, or there), 'no id' (no IMDb or TMDB), 'no name', 'full' (the backup would not load back with it, or
+// with the dune_id: AIO_ML_COPY_MAX), 'locked', 'write' (aio_ml_save).
 /**
  * @param AioCatTile $t
  * @param string $dune
@@ -467,16 +480,23 @@ function aio_ml_add($t, $dune = '')
     $e = aio_ml_entry($t, $dune, time());
     if (!$e)
     {
-        aio_log("my list: {$t['type']}:" . ($t['imdb_id'] !== '' ? $t['imdb_id'] : $t['_tmdbId']) . ' not added, no id or name');
-        return 'no id';
+        $why = aio_ml_key($t) === '' ? 'no id' : 'no name';
+        aio_log("my list: {$t['type']}:" . ($t['imdb_id'] !== '' ? $t['imdb_id'] : $t['_tmdbId']) . " not added, $why");
+        return $why;
     }
-    foreach ($list as $i => $x)
+    $key = aio_ml_in($e, $e['dune_id']);
+    foreach ($key !== '' ? $list : array() as $i => $x)
     {
-        if (!aio_ml_same($x, $e))
+        if ($x['key'] !== $key)
             continue;
         if ($x['dune_id'] !== '' || $e['dune_id'] === '')
             return '';
         $list[$i]['dune_id'] = $e['dune_id'];
+        if (aio_ml_copy_size($list) > AIO_ML_COPY_MAX)
+        {
+            aio_log("my list: the card of the Dune of $key not kept, the backup would be over " . AIO_ML_COPY_MAX . ' bytes');
+            return 'full';
+        }
         return aio_ml_save($list);
     }
     array_unshift($list, $e);
@@ -543,77 +563,6 @@ function aio_ml_in($t, $dune = '')
     }
     $e = aio_ml_find_dune($dune);
     return $e ? $e['key'] : '';
-}
-
-// --- The actions of the screens (php_server: also view_catalog.php, continue.php).
-
-// Title $t into the list ($on; aio_ml_add) or out of it (aio_ml_del of aio_ml_in), $dune: the id of its card of the
-// Dune ('' - none or not known). -> '' or why not, as they give it.
-/**
- * @param AioCatTile $t
- * @param string $dune
- * @param bool $on
- * @return string
- */
-function aio_ml_set($t, $dune, $on)
-{
-    if ($on)
-        return aio_ml_add($t, $dune);
-    $key = aio_ml_in($t, $dune);
-    return $key !== '' ? aio_ml_del($key) : '';
-}
-
-// The message of why $why of aio_ml_set ('' none: null): the list full, its file of a later Melange or not readable,
-// not written.
-/**
- * @param string $why
- * @return AioAction|null
- */
-function aio_ml_err($why)
-{
-    $keys = array('full' => 'ml_err_full', 'locked' => 'ml_err_locked', 'write' => 'ml_err_write', 'no id' => 'err_no_imdb');
-    return $why === '' ? null : aio_error(isset($keys[$why]) ? $keys[$why] : 'ml_err_write', $why);
-}
-
-// The item of POP UP of tile $id of screen $from (aio_catv_tile_menu): "Добавить в «Мой список»" / "Убрать из «Моего
-// списка»" by the list now (aio_ml_in; of the row "Continue" by its card of the Dune too). None but on a tile of a
-// title with IMDb or TMDB (aio_catv_tile).
-/**
- * @param string $id
- * @param string $from
- * @param string $lang
- * @return list<array<string, mixed>>
- */
-function aio_ml_menu_items($id, $from, $lang)
-{
-    $t = aio_catv_tile($id, aio_tv_is_from($from));
-    if (!$t || aio_ml_key($t) === '')
-        return array();
-    $in = aio_ml_in($t, aio_cp_mid_of($id)) !== '';
-    return array(array(
-        GuiMenuItemDef::caption => aio_tr($lang, $in ? 'ml_del' : 'ml_add'),
-        GuiMenuItemDef::icon_url => AIO_CATV_ICONS . ($in ? 'cancel_small.png' : 'favorites_small.png'),
-        GuiMenuItemDef::action => aio_input('cat_ml', array('from' => $from, 'item' => $id, 'w' => $in ? 'del' : 'add'))));
-}
-
-// cat_ml of POP UP (aio_ml_menu_items; w add, del) of tile $in->item of screen $in->from: the title into the list or out
-// of it (aio_ml_set; its card of the Dune of the row "Continue" or of the pairs, no request), then the screen anew
-// (aio_catv_tile_after: the line of the info panel); not written: the message (aio_ml_err), the list as it was.
-/**
- * @param stdClass $in
- * @return AioAction|null
- */
-function aio_ml_menu_act($in)
-{
-    $id = aio_catv_in($in, 'item');
-    $from = aio_catv_in($in, 'from');
-    $w = aio_catv_in($in, 'w');
-    $t = $w === 'add' || $w === 'del' ? aio_catv_tile($id, aio_tv_is_from($from)) : null;
-    if (!$t)
-        return $w === 'add' || $w === 'del' ? aio_error('cat_outdated') : null;
-    $mid = aio_cp_mid_of($id);
-    $why = aio_ml_set($t, $mid !== '' ? $mid : aio_pg_tile_card($t, aio_pg_index()), $w === 'add');
-    return $why !== '' ? aio_ml_err($why) : aio_catv_tile_after($from, "my list $w");
 }
 
 // --- The Favorites of the Dune, read only.

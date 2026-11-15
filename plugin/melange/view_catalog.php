@@ -1181,6 +1181,19 @@ function aio_catv_is_main($media_url)
     return aio_catv_tab($media_url) !== '';
 }
 
+// The address of the screen of $from of the actions of a screen of rows (aio_catv_actions): of the results of a search
+// "results:<id>" "cat_search:<id>", of an EPF of "TV" none (''), else $from itself.
+/**
+ * @param string $from
+ * @return string
+ */
+function aio_catv_screen_of($from)
+{
+    if (strpos($from, 'results:') === 0)
+        return 'cat_search:' . substr($from, strlen('results:'));
+    return aio_tv_is_from($from) ? '' : $from;
+}
+
 /**
  * @param string $media_url
  * @return bool
@@ -2543,9 +2556,9 @@ function aio_catv_after_player($post)
 }
 
 // The items of POP UP of tile $id of screen $from (a main screen of the catalog, "Show all", the results of a search, an
-// EPF of "TV"), first, before a separator: those of the row "Continue" and the marks (aio_cp_menu_items), then that of
-// "Мой список" (aio_ml_menu_items). A tile aio_catv_tile has not (a hint of "My list") is for each part to tell. None
-// of them: no separator.
+// EPF of "TV"): those of the row "Continue" and the marks (aio_cp_menu_items), then that of "Мой список"
+// (aio_ml_menu_items); a separator after them is for the caller, when items of the screen follow. A tile aio_catv_tile
+// has not (a hint of "My list") is for each part to tell.
 /**
  * @param string $id
  * @param string $from
@@ -2554,15 +2567,43 @@ function aio_catv_after_player($post)
  */
 function aio_catv_tile_menu($id, $from, $lang)
 {
-    $items = array_merge(aio_cp_menu_items($id, $from, $lang), aio_ml_menu_items($id, $from, $lang));
-    if ($items)
-        $items[] = array(GuiMenuItemDef::is_separator => true);
-    return $items;
+    return array_merge(aio_cp_menu_items($id, $from, $lang), aio_ml_menu_items($id, $from, $lang));
 }
 
-// After an action of POP UP of a tile (aio_catv_tile_menu) on screen $from: the screen anew (invalidate: the row
-// "Continue" and the badges of the history now, O2; of the results of a search "results:<id>" its address
-// "cat_search:<id>"), the tab "TV" built anew (aio_tv_flag; its EPF are no screen to invalidate, null).
+// $a, then a separator and $b; no separator when one of them is empty.
+/**
+ * @param list<array<string, mixed>> $a
+ * @param list<array<string, mixed>> $b
+ * @return list<array<string, mixed>>
+ */
+function aio_catv_menu_join($a, $b)
+{
+    if ($a && $b)
+        $a[] = array(GuiMenuItemDef::is_separator => true);
+    return array_merge($a, $b);
+}
+
+// The input of an action of POP UP of a tile ($in: item, from, w of aio_catv_tile_menu): its tile (aio_catv_tile; of
+// the file of "TV" there). -> id, from, w, t: the tile, null with err: cat_outdated (no such tile now), null (w not of
+// $ws).
+/**
+ * @param stdClass $in
+ * @param list<string> $ws
+ * @return array{id: string, from: string, w: string, t: AioCatTile|null, err: AioAction|null}
+ */
+function aio_catv_tile_act($in, $ws)
+{
+    $id = aio_catv_in($in, 'item');
+    $from = aio_catv_in($in, 'from');
+    $w = aio_catv_in($in, 'w');
+    $ok = in_array($w, $ws, true);
+    $t = $ok ? aio_catv_tile($id, aio_tv_is_from($from)) : null;
+    return array('id' => $id, 'from' => $from, 'w' => $w, 't' => $t, 'err' => $ok && !$t ? aio_error('cat_outdated') : null);
+}
+
+// After an action of POP UP of a tile (aio_catv_tile_menu) on screen $from: the screen anew (invalidate of
+// aio_catv_screen_of: the row "Continue" and the badges of the history now, O2), the tab "TV" built anew (aio_tv_flag;
+// its EPF are no screen to invalidate, null).
 /**
  * @param string $from
  * @param string $why
@@ -2571,9 +2612,8 @@ function aio_catv_tile_menu($id, $from, $lang)
 function aio_catv_tile_after($from, $why)
 {
     aio_tv_flag($why);
-    if (strpos($from, 'results:') === 0)
-        $from = 'cat_search:' . substr($from, strlen('results:'));
-    return aio_tv_is_from($from) ? null : aio_catv_invalidate($from);
+    $url = aio_catv_screen_of($from);
+    return $url !== '' ? aio_catv_invalidate($url) : null;
 }
 
 // The tick of the timer of "Show all" $url, memory only. The view of stubs and the end known or
@@ -2676,25 +2716,25 @@ function aio_catv_menu($in, $from)
     $items = $hid === '' ? aio_catv_tile_menu(aio_catv_in($in, 'selected_item_id'), $from, $lang) : array();
     if ($tab === '')
     {
-        array_pop($items);
         return $items ? array(
             GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
             GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items)) : null;
     }
-    $items = array_merge($items, aio_catv_rows_menu_items($hid, $tab, $from, $lang));
+    // On a header "Configure list…" and its separator (aio_catv_rows_menu_items), then the parts of the strip.
+    $screen = aio_catv_rows_menu_items($hid, $tab, $from, $lang);
     $parts = array(
         'tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png'),
         'tab_search' => array('cat_search', AIO_CATV_ICON_SEARCH), 'tab_setup' => array('setup_menu', AIO_CATV_ICON_SETUP));
     foreach ($parts as $id => $p)
     {
-        $items[] = array(
+        $screen[] = array(
             GuiMenuItemDef::caption => aio_tr($lang, $p[0]),
             GuiMenuItemDef::icon_url => AIO_CATV_ICONS . $p[1],
             GuiMenuItemDef::action => aio_input('cat_part', array('from' => $from, 'part' => $id)));
     }
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => aio_catv_menu_join($items, $screen)));
 }
 
 // ENTER on a tile: selected_item_id on the rows, selected_media_url on the grid.

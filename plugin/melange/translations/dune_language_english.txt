@@ -288,6 +288,7 @@ ml_del = Remove from My List
 ml_err_full = My List is full: remove titles you no longer need
 ml_err_locked = Can't change My List: a newer Melange saved its file, or the file can't be read. Update Melange
 ml_err_write = Couldn't save My List: Melange couldn't write the file. Try again
+ml_err_name = Couldn't add to My List: the title has no name yet. Try again later
 cat_title = Catalog
 cat_more = Show all
 cat_len_h = {n}h

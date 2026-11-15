@@ -766,17 +766,18 @@ function aio_tv_menu($in)
     aio_log("tv: POP UP on '" . aio_cut(aio_catv_in($in, 'selected_item_id'), 100) . "'");
     // On a tile (no header in focus), as aio_catv_menu.
     $items = aio_catv_in($in, 'selected_header_id') === '' ? aio_catv_tile_menu(aio_catv_in($in, 'selected_item_id'), $from, $lang) : array();
+    $screen = array();
     foreach (array(
         array('cat_search', AIO_CATV_ICON_SEARCH, aio_input('cat_search', array('from' => $from))),
         array('tv_open', 'movies_small.png', aio_tv_catalog_act()),
         array('setup_menu', AIO_CATV_ICON_SETUP, aio_setup_open_act())) as $m)
     {
-        $items[] = array(
+        $screen[] = array(
             GuiMenuItemDef::caption => aio_tr($lang, $m[0]),
             GuiMenuItemDef::icon_url => AIO_CATV_ICONS . $m[1],
             GuiMenuItemDef::action => $m[2]);
     }
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => aio_catv_menu_join($items, $screen)));
 }

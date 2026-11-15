@@ -67,8 +67,9 @@ require_once dirname(__FILE__) . '/view_catalog.php';
 require_once dirname(__FILE__) . '/view_catalog_rows.php';
 require_once dirname(__FILE__) . '/continue.php';
 require_once dirname(__FILE__) . '/cp_meta.php';
-// "Мой список": its file, POP UP of a tile.
+// "Мой список": its file; its actions on the screens.
 require_once dirname(__FILE__) . '/my_list.php';
+require_once dirname(__FILE__) . '/view_my_list.php';
 // The tab "TV" of the main screen.
 require_once dirname(__FILE__) . '/tv_tab.php';
 // The own card of a title: its meta, its screen; the page of a person.
