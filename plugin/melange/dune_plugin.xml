@@ -68,6 +68,15 @@
       </data>
     </uninstall>
   </global_actions>
+  <public_actions>
+    <action id="open">
+      <type>plugin_handle_user_input</type>
+      <params>
+        <handler_id>aio</handler_id>
+        <control_id>open</control_id>
+      </params>
+    </action>
+  </public_actions>
   <embeddable_plugin_folders>
     <enabled>yes</enabled>
     <update_action>

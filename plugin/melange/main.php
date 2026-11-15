@@ -73,6 +73,7 @@ require_once dirname(__FILE__) . '/view_card_series.php';
 require_once dirname(__FILE__) . '/view_card_row.php';
 require_once dirname(__FILE__) . '/view_card_rows.php';
 require_once dirname(__FILE__) . '/view_person.php';
+require_once dirname(__FILE__) . '/deep_link.php';
 // The colour keys in a row.
 require_once dirname(__FILE__) . '/egg.php';
 
@@ -1773,6 +1774,8 @@ function aio_handle_user_input($in)
         return aio_oc_input($in, $control);
     if (is_string($control) && strpos($control, 'person_') === 0)
         return aio_pp_input($in, $control);
+    if ($control === 'open')
+        return aio_dl_open($in);
     if ($control === 'gc_move' || $control === 'gc_pick' || $control === 'gc_info')
         return aio_gc_input($in);
     if ($control === 'info_page')
