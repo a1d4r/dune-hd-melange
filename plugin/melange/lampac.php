@@ -51,9 +51,12 @@ define('AIO_LP_LINKS_MAX', AIO_LP_MIRRORS_MAX * (AIO_LP_LINK_MAX + 4));
 define('AIO_LP_CHECK_MAX', 12);
 define('AIO_LP_CHECK_EACH', 6);
 define('AIO_LP_HLS_HEAD', 65536);
-// Characters of a name of a source or a voice kept, of the path of a balancer in the key.
+// Characters of a name of a source or a voice kept.
 define('AIO_LP_NAME_MAX', 100);
-define('AIO_LP_BAL_MAX', 24);
+// The characters of the path of a balancer (aio_lp_path_ok, the key of the history).
+define('AIO_LP_PATH_CHARS', 'A-Za-z0-9_\-');
+// Characters of the path of a balancer in the key of the history at most (aio_lp_key).
+define('AIO_LP_KEY_PATH_MAX', 24);
 // Sources of a search and rows of a reply kept, at most.
 define('AIO_LP_SOURCES_MAX', 60);
 define('AIO_LP_ROWS_MAX', 60);
@@ -386,7 +389,18 @@ function aio_lp_path($url)
 {
     $path = (string) parse_url($url, PHP_URL_PATH);
     $b = basename($path);
-    return preg_match('/^[A-Za-z0-9_\-]{1,' . AIO_LP_NAME_MAX . '}\z/', $b) ? $b : '';
+    return aio_lp_path_ok($b, AIO_LP_NAME_MAX) ? $b : '';
+}
+
+// $p is a path of a balancer of 1 to $max characters of AIO_LP_PATH_CHARS.
+/**
+ * @param string $p
+ * @param int $max
+ * @return bool
+ */
+function aio_lp_path_ok($p, $max)
+{
+    return preg_match('/^[' . AIO_LP_PATH_CHARS . ']{1,' . $max . '}\z/', $p) === 1;
 }
 
 // A source of balancer path $path (aio_lp_path) on Lampac $base, as events
@@ -399,7 +413,7 @@ function aio_lp_path($url)
  */
 function aio_lp_source_of($base, $path)
 {
-    if ($base === '' || aio_lp_path("/lite/$path") !== $path || $path === '')
+    if ($base === '' || !aio_lp_path_ok($path, AIO_LP_NAME_MAX))
         return null;
     return array('name' => $path, 'label' => ucfirst($path), 'q' => '', 'url' => "$base/lite/$path", 'path' => $path,
         'index' => 0, 'pos' => 0);
@@ -1045,7 +1059,7 @@ function aio_lp_check($base, $url, $total = AIO_LP_CHECK_MAX)
 // "balanser" of events): no ':', may have '-', the hex is the last 8 after the
 // last '-'. Never "m" nor a number; the same for the same balancer and voice (no
 // link or token of Lampac in it: those expire). A bad path or one longer than
-// AIO_LP_BAL_MAX: "lp--<hex>", no balancer to ask. No voice: the 8 hex of
+// AIO_LP_KEY_PATH_MAX: "lp--<hex>", no balancer to ask. No voice: the 8 hex of
 // quality $q and $n, the number of the row among those of the balancer without a
 // voice of that quality (three Phantom rows without one: three keys, the same at
 // the next reply). A row of a movie only: an episode takes aio_lp_season_key.
@@ -1058,7 +1072,7 @@ function aio_lp_check($base, $url, $total = AIO_LP_CHECK_MAX)
  */
 function aio_lp_key($path, $voice, $q = '', $n = 0)
 {
-    $p = strlen($path) <= AIO_LP_BAL_MAX && aio_lp_path("/lite/$path") === $path ? $path : '';
+    $p = aio_lp_path_ok($path, AIO_LP_KEY_PATH_MAX) ? $path : '';
     $v = trim($voice);
     return "lp-$p-" . substr(md5($v !== '' ? $v : "\n" . trim($q) . "\n$n"), 0, 8);
 }
@@ -1078,7 +1092,7 @@ function aio_lp_key($path, $voice, $q = '', $n = 0)
  */
 function aio_lp_season_key($path, $voice)
 {
-    $p = strlen($path) <= AIO_LP_BAL_MAX && aio_lp_path("/lite/$path") === $path ? $path : '';
+    $p = aio_lp_path_ok($path, AIO_LP_KEY_PATH_MAX) ? $path : '';
     return "lp-$p-" . substr(md5(trim($voice)), 0, 8);
 }
 
@@ -1090,7 +1104,8 @@ function aio_lp_season_key($path, $voice)
  */
 function aio_lp_key_parse($key)
 {
-    if (!is_string($key) || !preg_match('/^lp-([A-Za-z0-9_\-]{0,' . AIO_LP_BAL_MAX . '})-([0-9a-f]{8})\z/', $key, $m))
+    if (!is_string($key) || !preg_match('/^lp-([' . AIO_LP_PATH_CHARS . ']{0,' . AIO_LP_KEY_PATH_MAX . '})-([0-9a-f]{8})\z/',
+        $key, $m))
         return null;
     return array($m[1], $m[2]);
 }
