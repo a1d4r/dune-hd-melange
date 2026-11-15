@@ -175,7 +175,7 @@ function aio_cgi_home($v)
         }
         $out .= '</div>';
     }
-    return $out . aio_cgi_about();
+    return $out . aio_cgi_about($v);
 }
 
 // The date of the build of the plugin: build.sh writes build_date.txt (YYYY-MM-DD) next to
@@ -199,20 +199,23 @@ function aio_cgi_about_row($title, $val = '', $url = '')
 
 // "О Melange" and "Поддержать автора" at the bottom of the main screen (0.60.2): the version, the date
 // of the build (none: no line), firmware_version of versions.txt whole (260827_0003_r24: the builds of one r
-// differ in a report of a problem), the channel; the donations and the referral links of Debrid. AIOStreams,
+// differ in a report of a problem), the host of the server of the own config (the line "Откуда брать фильмы" does
+// not show it; no link: no line), the channel; the donations and the referral links of Debrid. The other servers,
 // JacRed and Debrid are in the lines above: not repeated.
-function aio_cgi_about()
+function aio_cgi_about($v)
 {
+    $aio = aio_cgi_watch($v) === 'own' ? aio_cgi_host($v['manifest']) : '';
     $date = aio_cgi_build_date();
     $fw = (string) substr(aio_versions_field(aio_versions_text(), 'firmware_version'), 0, 40);
     return '<h3 class="gh">' . aio_cgi_l('О Melange', 'About Melange') . '</h3><div class="list">' .
         aio_cgi_about_row(aio_cgi_l('Версия', 'Version'), AIO_VERSION) .
         ($date !== '' ? aio_cgi_about_row(aio_cgi_l('Сборка', 'Built'), $date) : '') .
         aio_cgi_about_row(aio_cgi_l('Прошивка Дюны', 'Dune firmware'), $fw !== '' ? $fw : aio_cgi_l('не определена', 'unknown')) .
+        ($aio !== '' ? aio_cgi_about_row('AIOStreams', $aio) : '') .
         aio_cgi_about_row(aio_cgi_l('Telegram-канал автора', 'The author\'s Telegram channel'), '', 'https://t.me/arrakis_vibecode') .
         '</div><h3 class="gh">' . aio_cgi_l('Поддержать автора', 'Support the author') . '</h3><div class="list">' .
-        aio_cgi_about_row(aio_cgi_l('Донат через Т-Банк', 'Donate via T-Bank'), '', 'https://t.tb.ru/pm_short/1vlgJXv58ZY') .
-        aio_cgi_about_row(aio_cgi_l('Донат через ЮMoney', 'Donate via YooMoney'), '',
+        aio_cgi_about_row(aio_cgi_l('Т-Банк', 'T-Bank'), '', 'https://t.tb.ru/pm_short/1vlgJXv58ZY') .
+        aio_cgi_about_row(aio_cgi_l('ЮMoney', 'YooMoney'), '',
             'https://yoomoney.ru/fundraise/1LATTUJ81C4.261103') .
         aio_cgi_about_row(aio_cgi_l('Подписка Real-Debrid', 'Real-Debrid subscription'), '', 'https://real-debrid.com/?id=20188550') .
         aio_cgi_about_row(aio_cgi_l('Подписка TorBox', 'TorBox subscription'), '',
