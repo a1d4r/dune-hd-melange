@@ -14,8 +14,10 @@
 // The shell later moves the file of tmp_dir to the flash (the same bytes there: it only removes it;
 // code of the shell r25).
 // Fresh: the shell calls it again on the flag <tmp_dir>/update_epfs_if_needed_flag (aio_tv_flag), set
-// by the timer of the manifest (aio_tv_timer, every 10 min: the old copies asked anew) and by Melange
-// when it saves a copy the file is built of (aio_tv_copy_saved) or reads a new settings.json.
+// by the timer of the manifest (aio_tv_timer, every 10 min: the old copies asked anew, the history changed)
+// and by Melange when it saves a copy the file is built of (aio_tv_copy_saved), reads a new settings.json or
+// is back from the player (aio_finish). The row "Continue" (continue.php) first in each, of its types; its
+// badges and those of the tiles are of the history when the file is built.
 
 define('AIO_TV_EPF', 'tv');
 // "from" of the actions of each EPF: this and its id (aio_tv_is_from): no screen of Melange is under them.
@@ -226,7 +228,8 @@ function aio_tv_note_defs($id, $key, $lang)
     return aio_catv_row_defs(aio_catv_list(aio_cat_row_state($row), array(), false), $lang, array($item));
 }
 
-// The views of the EPF (aio_tv_epfs) by id: the rows of their tabs of the catalog from the copies, as
+// The views of the EPF (aio_tv_epfs) by id: the row "Continue" of their tabs (aio_cp_row_defs: of both on tv.json),
+// then the rows of their tabs of the catalog from the copies, as
 // a screen of rows opened now (the mode of the tiles and the plates of the settings and the firmware,
 // as aio_catv_logo_of gives, but not kept among its screens: the EPF would push out a screen of Melange).
 // Each tab built once. AIOStreams not set: one tile "Set up Melange" ("tv:setup"), as the catalog opens
@@ -273,7 +276,9 @@ function aio_tv_views($lang, &$tiles = null)
     {
         if ($off && $epf !== AIO_TV_EPF)
             continue;
-        $defs = array();
+        $cp_tiles = array();
+        $defs = Aio::$settings['base'] !== '' ? aio_cp_row_defs(count($of) === 1 ? $of[0] : '', $lang, $cp_tiles) : array();
+        $tiles = array_merge($tiles, $cp_tiles);
         foreach ($of as $tab)
             $defs = isset($tabs[$tab]) ? array_merge($defs, $tabs[$tab]['defs']) : $defs;
         if (Aio::$settings['base'] === '')
@@ -579,14 +584,15 @@ function aio_tv_code_sig()
 }
 
 // What the EPF are built with besides the copies: settings.json (aio_settings_sig), the language, the
-// version and the build of the plugin (another one may build them otherwise).
+// version and the build of the plugin (another one may build them otherwise), the history (aio_wh_sig: the row
+// "Continue" and the badges; a file of it written within 2 s: none, the next tick builds them again).
 /**
  * @param string $lang
  * @return string
  */
 function aio_tv_timer_state($lang)
 {
-    return aio_settings_sig() . " $lang " . AIO_VERSION . ' ' . aio_tv_code_sig();
+    return aio_settings_sig() . " $lang " . AIO_VERSION . ' ' . aio_tv_code_sig() . ' ' . md5(strval(aio_wh_sig()));
 }
 
 // The timer: the copy of the manifest older than AIO_CAT_FRESH asked anew (not AIO_CAT_MANIFEST_FRESH:
