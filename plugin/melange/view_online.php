@@ -1044,7 +1044,10 @@ function aio_lpv_link($base, $r, $deadline)
     {
         $total = (int) min(AIO_LP_CALL_MAX, floor($deadline - aio_lp_now() - AIO_LPV_CHECK_MIN));
         if ($total < AIO_LP_REPLY_MIN)
-            return array('url' => '', 'err' => 'down', 'detail' => 'no time');
+        {
+            aio_log('lampac: call: no time left');
+            return array('url' => '', 'err' => 'down', 'detail' => '');
+        }
         $c = aio_lp_call($base, $url, $total);
         if ($c['err'] !== '')
             return array('url' => '', 'err' => $c['err'], 'detail' => $c['detail']);

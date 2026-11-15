@@ -732,6 +732,8 @@ function aio_lp_movie($src, $data, $base = '')
 {
     $rows = array();
     $why = array();
+    // The rows without a voice so far by their quality: their keys (aio_lp_key).
+    $mute = array();
     foreach ($data as $x)
     {
         if (!is_array($x))
@@ -756,11 +758,18 @@ function aio_lp_movie($src, $data, $base = '')
             if ($voice === '')
                 $voice = aio_lp_text(aio_lp_str($x, 'voice_name'));
             $q = aio_lp_text(aio_lp_str($x, 'maxquality'));
+            $q = $q !== '' ? $q : $src['q'];
+            $n = 0;
+            if (trim($voice) === '')
+            {
+                $n = isset($mute[$q]) ? $mute[$q] : 0;
+                $mute[$q] = $n + 1;
+            }
             $rows[] = array('bal' => $src['bal'], 'path' => aio_lp_path($src['url']), 'src' => $src['label'],
-                'voice' => $voice, 'quality' => $q !== '' ? $q : $src['q'], 'method' => $method, 'url' => $url,
+                'voice' => $voice, 'quality' => $q, 'method' => $method, 'url' => $url,
                 'stream' => aio_lp_link_ok(isset($x['stream']) ? $x['stream'] : null), 'qual' => $qual,
                 'subs' => isset($x['subtitles']) && is_array($x['subtitles']) ? count($x['subtitles']) : 0,
-                'key' => aio_lp_key($src['bal'], $voice));
+                'key' => aio_lp_key($src['bal'], $voice, $q, $n));
         }
     }
     // The same reason of several items of a source: once.
@@ -1039,16 +1048,21 @@ function aio_lp_check($base, $url, $total = AIO_LP_CHECK_MAX)
 // The key of a row in the uid of the watch history ("aio:<dune_id>:<s>:<e>:<key>"):
 // "lp-<balancer>-<8 hex of the voice>", e.g. lp-phantom-5f2a91c0. No ':', never
 // "m" nor a number; the same for the same balancer and voice (no link or token
-// of Lampac in it: those expire).
+// of Lampac in it: those expire). No voice: the 8 hex of quality $q and $n, the
+// number of the row among those of the balancer without a voice of that quality
+// (three Phantom rows without one: three keys, the same at the next reply).
 /**
  * @param string $bal
  * @param string $voice
+ * @param string $q
+ * @param int $n
  * @return string
  */
-function aio_lp_key($bal, $voice)
+function aio_lp_key($bal, $voice, $q = '', $n = 0)
 {
     $b = aio_lp_bal($bal);
-    return 'lp-' . ($b !== '' ? $b : 'x') . '-' . substr(md5(trim($voice)), 0, 8);
+    $v = trim($voice);
+    return 'lp-' . ($b !== '' ? $b : 'x') . '-' . substr(md5($v !== '' ? $v : "\n" . trim($q) . "\n$n"), 0, 8);
 }
 
 // A key of aio_lp_key -> array(balancer, 8 hex), null for another one.
@@ -1063,7 +1077,8 @@ function aio_lp_key_parse($key)
     return array($m[1], $m[2]);
 }
 
-// Row $row is of voice hex $hex (of aio_lp_key_parse): "Continue" finds its voice again.
+// Row $row is of voice hex $hex (of aio_lp_key_parse): "Continue" finds its voice (or its row
+// without one) again.
 /**
  * @param AioLpRow $row
  * @param string $hex
@@ -1071,5 +1086,6 @@ function aio_lp_key_parse($key)
  */
 function aio_lp_voice_is($row, $hex)
 {
-    return substr(md5(trim($row['voice'])), 0, 8) === $hex;
+    $k = aio_lp_key_parse($row['key']);
+    return $k !== null && $k[1] === $hex;
 }
