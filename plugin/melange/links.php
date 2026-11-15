@@ -32,6 +32,9 @@ define('AIO_PG_LINK_CONNECT', 2);
 // r25: the one tick of the timer of the main screen of rows (aio_pg_tick_set) this long after its opening: the
 // rows of the window of the shell are asked by then, the step does not hold them.
 define('AIO_PG_TICK_MS', 2500);
+// r25: a tick this soon after a reply of get_folder_rows comes between the rows of a cold opening (the window of
+// the shell still loading, longer than AIO_PG_TICK_MS): no step of that opening.
+define('AIO_PG_ROWS_QUIET_S', 0.5);
 // A reply of the API this small is decoded whole when its code is not before "result".
 define('AIO_PG_HEAD_MAX', 65536);
 
@@ -54,6 +57,14 @@ class AioPgLinks
     // r25: the main screen of rows whose timer is set for the lazy step (aio_pg_tick_set); '': none, or its tick came.
     /** @var string */
     public static $tick_url = '';
+    // r25: the main screen of rows opened last ('': none since the start of php_server) and whether its tick made the
+    // step; when get_folder_rows last answered (microtime; 0: never). For aio_pg_tick.
+    /** @var string */
+    public static $screen = '';
+    /** @var bool */
+    public static $ticked = false;
+    /** @var float */
+    public static $rows_t = 0.0;
 }
 
 // --- When to link: an opening of the rows of the catalog.
@@ -67,6 +78,17 @@ function aio_pg_screen_start()
 {
     aio_pg_shell_step();
     AioPgLinks::$tick_url = '';
+    AioPgLinks::$screen = '';
+    AioPgLinks::$ticked = false;
+}
+
+// r25: get_folder_rows answers now (aio_pg_tick: rows still loading).
+/**
+ * @return void
+ */
+function aio_pg_rows_answered()
+{
+    AioPgLinks::$rows_t = microtime(true);
 }
 
 // r24: the screen is made, $left s of its opening left, $net: rows of it went to the server in it (old or no
@@ -84,14 +106,16 @@ function aio_pg_screen_built($left, $net)
 
 // r25: the main screen of rows $url is made: the step goes to the tick of its timer (AIO_PG_TICK_MS, once), after
 // the rows of the window of the shell (get_folder_rows), as php_server answers one call at a time. A timer only
-// with a card to ask (aio_pg_link_queue), no pause and dune_auth; a line of the log when a pause or no dune_auth
-// holds it. Back to the screen with no get_folder_view: no timer, no step. -> the timer is set.
+// with a card to ask (aio_pg_link_queue), no pause and dune_auth; a line of the log when a pause holds it, of no
+// dune_auth once till it comes (AioPgLinks::$no_auth, as aio_pg_token). Back to the screen with no
+// get_folder_view: no timer, no step. -> the timer is set.
 /**
  * @param string $url
  * @return bool
  */
 function aio_pg_tick_set($url)
 {
+    AioPgLinks::$screen = $url;
     if (!aio_pg_link_queue())
         return false;
     $pause = aio_pg_paused();
@@ -100,18 +124,21 @@ function aio_pg_tick_set($url)
         aio_log(sprintf('link: no timer: a pause of the requests, %d s left', $pause));
         return false;
     }
-    if (aio_card_token() === '')
-    {
+    $no_auth = aio_card_token() === '';
+    if ($no_auth && !AioPgLinks::$no_auth)
         aio_log('link: no timer: no dune_auth');
+    AioPgLinks::$no_auth = $no_auth;
+    if ($no_auth)
         return false;
-    }
     AioPgLinks::$tick_url = $url;
     return true;
 }
 
 // r25: the tick of the timer of the main screen $url: the step (aio_pg_link_step) once, of one request (a key
-// pressed now waits for it, ~0.5 s), its timeout as of a step. A tick of another screen or a second one: no step.
-// A line of the log either way.
+// pressed now waits for it, ~0.5 s), its timeout as of a step. No step: within AIO_PG_ROWS_QUIET_S of a reply of
+// get_folder_rows (the rows of a cold opening wait for php_server; the step of the opening is lost), a second tick
+// of the screen, a tick of another or an old one, a tick with no screen since the start of php_server. A line of
+// the log of each, in its own words.
 /**
  * @param string $url
  * @return void
@@ -120,10 +147,23 @@ function aio_pg_tick($url)
 {
     if ($url === '' || AioPgLinks::$tick_url !== $url)
     {
-        aio_log('link: tick: no step, the step was');
+        if (AioPgLinks::$screen === '')
+            $why = 'no screen since the start of php_server';
+        else if ($url !== AioPgLinks::$screen)
+            $why = 'a tick of another or an old screen';
+        else
+            $why = AioPgLinks::$ticked ? 'the step was on this screen' : 'no timer on this screen';
+        aio_log("link: tick: no step, $why");
         return;
     }
     AioPgLinks::$tick_url = '';
+    $ago = microtime(true) - AioPgLinks::$rows_t;
+    if (AioPgLinks::$rows_t > 0 && $ago >= 0 && $ago < AIO_PG_ROWS_QUIET_S)
+    {
+        aio_log('link: tick: no step, rows are loading');
+        return;
+    }
+    AioPgLinks::$ticked = true;
     aio_pg_link_step(AIO_PG_LINK_S, true);
 }
 

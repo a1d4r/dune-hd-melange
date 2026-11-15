@@ -870,7 +870,11 @@ function aio_catv_rows_op($in)
     $url = aio_catv_in($in, 'media_url');
     aio_catv_logo_of($url, false);
     if (strpos($url, 'cat_grid:') === 0)
-        return array('rows' => aio_catv_all_rows($url, $ids));
+    {
+        $all = aio_catv_all_rows($url, $ids);
+        aio_pg_rows_answered();
+        return array('rows' => $all);
+    }
     $id = isset($ids[0]) && is_string($ids[0]) ? $ids[0] : 'items:';
     $rid = strpos($id, 'items:') === 0 ? strval(substr($id, strlen('items:'))) : '';
     $rows = aio_catv_row_answer($rid, aio_catv_lang());
@@ -883,6 +887,7 @@ function aio_catv_rows_op($in)
         AioCat::$manifest_due = false;
         aio_catv_manifest_refresh(min(intval($left), AIO_CATV_REFRESH_S));
     }
+    aio_pg_rows_answered();
     return array('rows' => $rows);
 }
 
