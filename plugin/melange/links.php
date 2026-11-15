@@ -343,20 +343,22 @@ function aio_pg_links_save()
 // The pair of movie_id $mid set to $l (aio_pg_link_clean): the fields of a pair it has not kept; a pair
 // over none or fail; none or fail only over none or fail. Over a pair the seasons: of the meta (src) replace those of
 // the pair whole, soon and on with them (the records of Melange are numbered by the own card: the Dune may have S1 of
-// 20 where Cinemeta has S1 and S2 of 10); those of play_action and the card of the shell (numbered by the Dune) do
-// not touch those of the meta but add the seasons after its last one (not to an anime numbered on: on), else the
-// larger number of episodes of each (season_numbers of play_action count the
-// episodes not out yet). soon replaced only by a source of dates ($l has it, even empty: the card of the shell, the
-// meta). A pair of before src (the seasons of the meta mixed in by the larger) is of the meta again at the next
-// one. Written (aio_pg_links_save) only on a change and with $save; else the caller writes them once. No log line:
-// the caller says what it found. -> it changed.
+// 20 where Cinemeta has S1 and S2 of 10); those of the card of the shell (numbered by the Dune) do not touch those of
+// the meta but add the seasons after its last one with their soon (not to an anime numbered on: on; not when a season
+// of the meta has fewer episodes by the Dune: numbered otherwise, Cinemeta S1 of 50 where the Dune has S1 and S2 of
+// 25), those of $undated (season_numbers of play_action: no dates, the episodes not out counted) none (seen after the
+// own card is opened); else the larger number of episodes of each. soon replaced only by a source of dates ($l has
+// it, even empty: the card of the shell, the meta). A pair of before src (the seasons of the meta mixed in by the
+// larger) is of the meta again at the next one. Written (aio_pg_links_save) only on a change and with $save; else
+// the caller writes them once. No log line: the caller says what it found. -> it changed.
 /**
  * @param string $mid
  * @param mixed $l
  * @param bool $save
+ * @param bool $undated
  * @return bool
  */
-function aio_pg_link_put($mid, $l, $save = true)
+function aio_pg_link_put($mid, $l, $save = true, $undated = false)
 {
     $dated = is_array($l) && array_key_exists('soon', $l);
     $l = aio_pg_link_clean($l);
@@ -377,13 +379,26 @@ function aio_pg_link_put($mid, $l, $save = true)
             if (isset($old[$k]))
                 $new[$k] = $old[$k];
         }
-        // A season of the Dune after the last one of the meta (out after the own card was last opened): added, not to
-        // an anime numbered on (its seasons are not those of the Dune).
-        $last = isset($old['seasons']) && $old['seasons'] ? max(array_keys($old['seasons'])) : 0;
-        foreach (isset($old['on']) ? array() : $l['seasons'] as $n => $count)
+        // A season of the Dune after the last one of the meta (out after the own card was last opened): added with the
+        // dates of its episodes not out; not to an anime numbered on (its seasons are not those of the Dune), nor when
+        // a season of the meta has fewer episodes by the Dune (numbered otherwise), nor by a source of no dates.
+        $add = !isset($old['on']) && !$undated;
+        $last = 0;
+        foreach (isset($old['seasons']) ? $old['seasons'] : array() as $n => $count)
+        {
+            $last = max($last, $n);
+            if (!isset($l['seasons'][$n]) || $l['seasons'][$n] < $count)
+                $add = false;
+        }
+        foreach ($add ? $l['seasons'] : array() as $n => $count)
         {
             if ($n > $last)
                 $new['seasons'][$n] = $count;
+        }
+        foreach ($add && isset($l['soon']) ? $l['soon'] : array() as $k => $d)
+        {
+            if (intval($k) > $last)
+                $new['soon'][$k] = $d;
         }
         $dated = false;
     }
@@ -413,7 +428,7 @@ function aio_pg_link_put($mid, $l, $save = true)
 }
 
 // The pair of the card of play_action: movie_str of the Dune (aio_movie) has its id, IMDb, the type
-// and season_numbers.
+// and season_numbers (no dates: not added to a pair of the meta, aio_pg_link_put).
 /**
  * @param AioMovie $mv
  * @return void
@@ -421,7 +436,7 @@ function aio_pg_link_put($mid, $l, $save = true)
 function aio_pg_link_movie($mv)
 {
     if ($mv['dune_id'] !== '' && $mv['imdb'] !== '' && aio_pg_link_put($mv['dune_id'], array('imdb' => $mv['imdb'],
-        'type' => $mv['series'] ? 'series' : 'movie', 'seasons' => $mv['seasons'])))
+        'type' => $mv['series'] ? 'series' : 'movie', 'seasons' => $mv['seasons']), true, true))
         aio_log('progress: a pair of play_action');
 }
 
