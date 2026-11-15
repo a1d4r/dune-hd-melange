@@ -491,7 +491,8 @@ function aio_ml_add($t, $dune = '')
             continue;
         if ($x['dune_id'] !== '' || $e['dune_id'] === '')
             return '';
-        $list[$i]['dune_id'] = $e['dune_id'];
+        $x['dune_id'] = $e['dune_id'];
+        $list[$i] = $x;
         if (aio_ml_copy_size($list) > AIO_ML_COPY_MAX)
         {
             aio_log("my list: the card of the Dune of $key not kept, the backup would be over " . AIO_ML_COPY_MAX . ' bytes');
