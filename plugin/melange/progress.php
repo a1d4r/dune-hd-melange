@@ -3,8 +3,8 @@
 // the tiles of the catalog and the tab "TV" and the line of the info panel. Read only of the history
 // (history.php has the rules); the pairs card -> IMDb / TMDB of the tiles: links.php. Needs history.php,
 // links.php (aio_pg_tile_cards), main.php (aio_log, aio_tr, AIO_SUP_ID, AIO_DUNE_ID), common.php (aio_fw_r), gcomps.php
-// (aio_gc_sum, aio_gc_rect, aio_gc_at, aio_gc_image, aio_gc_geom, aio_gc_next_right), view_catalog.php
-// (aio_catv_info_label, AIO_CATV_RATE_PX, AIO_CATV_RATE_PAD, AIO_CATV_TEXT_COLOR).
+// (aio_gc_sum, aio_gc_w, aio_gc_cut_w, aio_gc_rect, aio_gc_at, aio_gc_image, aio_gc_geom, aio_gc_next_right), view_catalog.php
+// (aio_catv_info_label, AIO_CATV_RATE_PX, AIO_CATV_TEXT_COLOR, AIO_CATV_TEXT_W).
 
 // The state is checked against the files once a second at most: r25 asks ~28 rows a screen.
 define('AIO_PG_SIG_S', 1.0);
@@ -12,8 +12,8 @@ define('AIO_PG_SIG_S', 1.0);
 define('AIO_PG_BEGUN_S', 120);
 define('AIO_PG_BEGUN_PCT', 2);
 // The badges, in px of the poster 190x285 of a row (movies/movie_helper.php r25, add_movie_ritem;
-// the plate of "S1 E3" as the rating, probe O1 on r25): the bar at the bottom, the line over it,
-// the tick over the bar right.
+// the plate of "S1 E3" a tab of the bar, P-B of the designer, decision of the owner 15.11.2026): the bar at the
+// bottom, the line over it, the tick over the bar right.
 define('AIO_PG_W', 190);
 define('AIO_PG_H', 285);
 define('AIO_PG_BAR_H', 8);
@@ -23,17 +23,24 @@ define('AIO_PG_BAR_LINE', '#FF000000');
 define('AIO_PG_TICK', 'plugin_file://%shell_ext%/icons/watched_poster.png');
 // r24 and older have no watched_poster.png: the small tick of the same look.
 define('AIO_PG_TICK_OLD', 'plugin_file://%shell_ext%/icons/watched_small.png');
-define('AIO_PG_EP_DARK', '#B4000000');
+define('AIO_PG_EP_DARK', '#E6000000');
 define('AIO_PG_EP_H', 32);
 define('AIO_PG_EP_PAD', 8);
 // The line of the info panel (do_get_info_children of movie_helper.php r25): 40 high, the bar
-// 324x6, the text 40 px right of it, the tick 20 px right of the text.
+// 324x6, the text 40 px right of it, the tick 20 px right of the text; the bar gives way to the words
+// down to BAR_MIN, then the words go down to MIN_PX. Its middle GAP px under the middle of the last
+// line of the description (the native one on the frame of the owner, V2b of the designer).
 define('AIO_PG_INFO_H', 40);
 define('AIO_PG_INFO_BAR_W', 324);
+define('AIO_PG_INFO_BAR_MIN', 160);
 define('AIO_PG_INFO_BAR_H', 6);
 define('AIO_PG_INFO_ON', '#FFE0E0FF');
 define('AIO_PG_INFO_PX', 24);
+define('AIO_PG_INFO_MIN_PX', 20);
+define('AIO_PG_INFO_GAP', 47);
 define('AIO_PG_INFO_TICK', 'plugin_file://%shell_ext%/icons/watched_small.png');
+// The tick: 40 wide, 20 px right of the text.
+define('AIO_PG_INFO_TICK_W', 60);
 
 class AioPg
 {
@@ -443,10 +450,11 @@ function aio_pg_r($x, $y, $w, $h)
     return array('w' => $w, 'h' => $h, 'x' => $x, 'y' => $y);
 }
 
-// The stickers of badge $b on a poster of a row, after the rating: "S1 E3" of an episode on a plate as wide as the text
-// (at x of the rating, 3 px over the line of the bar), the tick of a watched movie or a series watched whole, the bar
-// (full when watched) with the black line over it. A watched episode (no list of the episodes to tell the next one) and
-// the next one have no bar and no tick: "S1 E10" stays true when a new season comes out (decisions of the owner).
+// The stickers of badge $b on a poster of a row, after the rating: "S1 E3" of an episode on a plate as wide as the text,
+// a tab of the bar (P-B): from the left edge, its bottom on the line of the bar, on the bottom edge with no bar; the tick
+// of a watched movie or a series watched whole, the bar (full when watched) with the black line over it. A watched
+// episode (no list of the episodes to tell the next one) and the next one have no bar and no tick: "S1 E10" stays true
+// when a new season comes out (decisions of the owner).
 /**
  * @param AioPgBadge $b
  * @return list<array<string, mixed>>
@@ -460,12 +468,11 @@ function aio_pg_stickers($b)
     {
         $text = "S{$b['s']} E{$b['e']}";
         $tw = intval(aio_gc_sum($text, AIO_CATV_RATE_PX));
-        $x = AIO_CATV_RATE_PAD;
         $w = $tw + 2 * AIO_PG_EP_PAD;
-        $y = $bar - 1 - 3 - AIO_PG_EP_H;
-        $out[] = array(PluginRegularSticker::r => aio_pg_r($x, $y, $w, AIO_PG_EP_H), PluginRegularSticker::color => AIO_PG_EP_DARK);
+        $y = ($b['watched'] || $b['next'] ? AIO_PG_H : $bar - 1) - AIO_PG_EP_H;
+        $out[] = array(PluginRegularSticker::r => aio_pg_r(0, $y, $w, AIO_PG_EP_H), PluginRegularSticker::color => AIO_PG_EP_DARK);
         // The shell puts the text at the left of its r and a pixel over the middle (aio_catv_rate_stickers).
-        $out[] = array(PluginRegularSticker::r => aio_pg_r($x + AIO_PG_EP_PAD, $y + 1, $w - AIO_PG_EP_PAD, AIO_PG_EP_H),
+        $out[] = array(PluginRegularSticker::r => aio_pg_r(AIO_PG_EP_PAD, $y + 1, $w - AIO_PG_EP_PAD, AIO_PG_EP_H),
             PluginRegularSticker::text => $text);
     }
     if ($b['all'] || ($b['watched'] && !$ep))
@@ -510,29 +517,60 @@ function aio_pg_info_text($b, $lang)
     return $b['e'] >= 0 ? "$s,\xC2\xA0$ep" : $s;
 }
 
+// The width of the text $text and the tail $tail of the line of the panel at $px, as the two labels they may be.
+/**
+ * @param string $text
+ * @param string $tail
+ * @param int $px
+ * @return int
+ */
+function aio_pg_info_w($text, $tail, $px)
+{
+    return aio_gc_w($text, $px) + ($tail !== '' ? aio_gc_w($tail, $px) : 0);
+}
+
 // The line of the panel of badge $b at $y, 40 high: the bar (full when watched, none of it of the next episode), the
-// text, the tick of a watched one.
+// text, the tick of a watched one, then $tail (" · В моём списке" of stage 3; '' none). Too wide for the column
+// (AIO_CATV_TEXT_W): the bar shorter, down to AIO_PG_INFO_BAR_MIN, then the words smaller, as the lines over it
+// (aio_catv_fit), down to AIO_PG_INFO_MIN_PX, the tail cut with "…" to what is left.
 /**
  * @param AioPgBadge $b
  * @param int $y
  * @param string $lang
+ * @param string $tail
  * @return list<array<string, mixed>>
  */
-function aio_pg_info_line($b, $y, $lang)
+function aio_pg_info_line($b, $y, $lang, $tail = '')
 {
-    $w = AIO_PG_INFO_BAR_W;
-    $x1 = $b['watched'] || $b['all'] ? $w : ($b['next'] ? 0 : intval(($w * min($b['pos'], $b['len']) + $b['len'] / 2) / $b['len']));
+    $text = aio_pg_info_text($b, $lang);
+    $tk = $b['watched'] || $b['all'] ? AIO_PG_INFO_TICK_W : 0;
+    $px = AIO_PG_INFO_PX;
+    $w = max(AIO_PG_INFO_BAR_MIN, min(AIO_PG_INFO_BAR_W, AIO_CATV_TEXT_W - 40 - $tk - aio_pg_info_w($text, $tail, $px)));
+    $room = AIO_CATV_TEXT_W - $w - 40 - $tk;
+    while ($px > AIO_PG_INFO_MIN_PX && aio_pg_info_w($text, $tail, $px) > $room)
+        $px--;
+    $text = aio_gc_cut_w($text, $px, $room);
+    $tail = $tail !== '' ? aio_gc_cut_w($tail, $px, $room - aio_gc_w($text, $px)) : '';
+    $x1 = $tk ? $w : ($b['next'] ? 0 : intval(($w * min($b['pos'], $b['len']) + $b['len'] / 2) / $b['len']));
     $by = $y + intval((AIO_PG_INFO_H - AIO_PG_INFO_BAR_H) / 2);
     $out = array();
     if ($x1 > 0)
         $out[] = aio_gc_rect(aio_gc_at($x1, AIO_PG_INFO_BAR_H, 0, $by), AIO_PG_INFO_ON);
     if ($x1 < $w)
         $out[] = aio_gc_rect(aio_gc_at($w - $x1, AIO_PG_INFO_BAR_H, $x1, $by), AIO_PG_BAR_OFF);
-    $l = aio_catv_info_label(aio_pg_info_text($b, $lang), AIO_PG_INFO_PX, AIO_CATV_TEXT_COLOR, -1, AIO_PG_INFO_H, $y - 3,
-        array(GCompTtfLabelDef::valign => VALIGN_CENTER));
+    $spec = array(GCompTtfLabelDef::valign => VALIGN_CENTER);
+    $l = aio_catv_info_label($tk ? $text : $text . $tail, $px, AIO_CATV_TEXT_COLOR, -1, AIO_PG_INFO_H, $y - 3, $spec);
     $l[GComponentDef::geom_def][GCompGeometryDef::align_def][GCompAlignDef::x] = $w + 40;
     $out[] = $l;
-    if ($b['watched'] || $b['all'])
-        $out[] = aio_gc_image(aio_gc_geom(40, 30, aio_gc_next_right(20, 8)), AIO_PG_INFO_TICK);
+    if (!$tk)
+        return $out;
+    $out[] = aio_gc_image(aio_gc_geom(40, 30, aio_gc_next_right(20, 8)), AIO_PG_INFO_TICK);
+    if ($tail !== '')
+    {
+        // Right of the tick, at the top of the text.
+        $l = aio_catv_info_label($tail, $px, AIO_CATV_TEXT_COLOR, -1, AIO_PG_INFO_H, 0, $spec);
+        $l[GComponentDef::geom_def][GCompGeometryDef::align_def] = aio_gc_next_right(0, -8);
+        $out[] = $l;
+    }
     return $out;
 }

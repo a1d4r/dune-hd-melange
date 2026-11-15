@@ -65,6 +65,10 @@ define('AIO_CATV_LINES_Y', 229);
 define('AIO_CATV_LINE_PX', 30);
 define('AIO_CATV_LINE_H', 46);
 define('AIO_CATV_DATA_MIN_PX', 26);
+// The description with the line of the history under it (aio_catv_info): this many lines under all the lines of the
+// panel; the middle of the capitals of its line DESC_MID px under the top of the line (the mock of the designer).
+define('AIO_CATV_DESC_HIST', 3);
+define('AIO_CATV_DESC_MID', 32);
 define('AIO_CATV_TITLE_COLOR', '#FFFFFFE0');
 define('AIO_CATV_TEXT_COLOR', '#FFAFAFA0');
 define('AIO_CATV_CAST_COLOR', '#FFFFFF40');
@@ -2362,9 +2366,10 @@ function aio_catv_title_label($name, $bottom)
 // place (aio_catv_card); without the logo, the English name of the tile under the title when it is not
 // the title (native_title of dunemdb_cache.php: of a title not in English, as those of the catalog are
 // in any interface), the title higher by its height. Then the facts, the genres and the
-// country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the line of the history of a card watched
-// or begun (aio_pg_info_line); the description 13 px under the last one, as many lines as the rest of
-// the panel holds, as the native one counts them. No line for an empty field, the next ones go up.
+// country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the description 13 px under the last one, as many lines
+// as the rest of the panel holds, as the native one counts them; the line of the history of a card watched or begun
+// (aio_pg_info_line) under it at one place, the description the lines over it. No line for an empty field, the next
+// ones go up.
 // "Show all": the name of the row and the caption of the tile. null without a tile (aio_catv_tile) or a row in memory or a copy
 // (aio_catv_all_list: a stub, a message). No label with an empty text: whether the shell takes one is not known.
 /**
@@ -2424,23 +2429,30 @@ function aio_catv_info($in)
         $labels[] = aio_catv_info_label($fit[1], $fit[0], $l[1], AIO_CATV_TEXT_W, AIO_CATV_LINE_H, $y);
         $y += AIO_CATV_LINE_H;
     }
-    // The line of the history (aio_pg_info_line): the description 13 px under it as under a line, one
-    // line of it fewer.
-    $mid = aio_cp_mid_of($id);
-    $b = $t ? ($mid !== '' ? aio_cp_badge($mid, $t['type']) : aio_pg_tile_badge($t)) : null;
-    if ($b)
-    {
-        $labels = array_merge($labels, aio_pg_info_line($b, $y, aio_catv_ui_lang()));
-        $y += AIO_PG_INFO_H;
-    }
-    // Lines of 30 px 5 px apart; cut here to them, "…" on the last one; the shell, with a
+    // Lines of 30 px 5 px apart, 13 px under the last line; cut here to them, "…" on the last one; the shell, with a
     // little more room, breaks them no sooner.
     $y += 13;
-    $n = intval((AIO_CATV_PANE_H - $y - AIO_CATV_LINE_PX) / (AIO_CATV_LINE_PX + 5));
+    $step = AIO_CATV_LINE_PX + 5;
+    $n = intval((AIO_CATV_PANE_H - $y - AIO_CATV_LINE_PX) / $step);
+    // The line of the history (aio_pg_info_line), V2b of the designer: under the description, as the native one, at one
+    // place whatever the length of the description and the lines over it: its middle AIO_PG_INFO_GAP under the middle of
+    // the last line of a description of AIO_CATV_DESC_HIST lines under all the lines of the panel (facts, genres, cast);
+    // the description as many lines as are over it.
+    $mid = aio_cp_mid_of($id);
+    $b = $t ? ($mid !== '' ? aio_cp_badge($mid, $t['type']) : aio_pg_tile_badge($t)) : null;
+    $hist = array();
+    if ($b)
+    {
+        // The top of the last line of such a description.
+        $last = AIO_CATV_LINES_Y + 3 * AIO_CATV_LINE_H + 13 + (AIO_CATV_DESC_HIST - 1) * $step;
+        $n = min($n, intval(($last - $y) / $step) + 1);
+        $hist = aio_pg_info_line($b, $last + AIO_CATV_DESC_MID + AIO_PG_INFO_GAP - intval(AIO_PG_INFO_H / 2), aio_catv_ui_lang());
+    }
     $desc = implode(' ', aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, $n, true));
     if ($desc !== '')
         $labels[] = aio_catv_info_label($desc, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR, AIO_CATV_TEXT_W, -1, $y,
             array(GCompTtfLabelDef::max_num_lines => $n, GCompTtfLabelDef::line_spacing => 5));
+    $labels = array_merge($labels, $hist);
     $pane = array(
         GComponentDef::geom_def => array(
             GCompGeometryDef::w => AIO_CATV_PANE_W,
