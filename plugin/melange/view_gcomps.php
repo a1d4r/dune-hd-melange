@@ -378,7 +378,7 @@ function aio_gc_lang($st)
     return $st['lang'] === 'ru' ? 'ru' : 'en';
 }
 
-// array(title with year, "S05E03" of an episode, else ''). The number of
+// array(title with year, "S5 E3" of an episode (aio_ep_code), else ''). The number of
 // releases is in the counter under the list.
 /**
  * @param AioState $st

@@ -156,7 +156,8 @@ parameters:
             }
         '''
         # The card of play_action (aio_movie, main.php); own_card: of a list opened from the own card (aio_oc_watch); cin: the
-        # runs of the numbering of Cinemeta of its series numbered on (aio_cin_valid), none for any other.
+        # runs of the numbering of Cinemeta of its series numbered on (aio_cin_valid), none for any other; titles: of the
+        # episodes of a list from the own card, "s:e" => title (aio_titles_valid).
         AioMovie: '''
             array{
                 series: bool,
@@ -171,7 +172,8 @@ parameters:
                 desc: string,
                 seasons: array<int, int>,
                 own_card?: bool,
-                cin: list<array{int, int, int}>
+                cin: list<array{int, int, int}>,
+                titles?: array<string, string>
             }
         '''
         # The state of a series by its history (aio_wh_series, history.php): the latest

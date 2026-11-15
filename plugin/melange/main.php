@@ -238,8 +238,8 @@ function aio_movie($in)
     $imdb = aio_str($m, 'imdb_id');
     $dune_id = aio_str($m, 'id');
     $title = aio_str($m, 'title');
-    // The annotation of the card, for INFO in the player (cut: the card of
-    // lazy episodes goes to tmp_dir); not a string -> none.
+    // The annotation of the card (cut: the card of lazy episodes goes to
+    // tmp_dir); not a string -> none. INFO of the player does not show it.
     $desc = isset($m['description']) && is_string($m['description']) ?
         aio_cut(trim(aio_utf8($m['description'])), AIO_INFO_DESC_MAX) : '';
     $mv = array(
@@ -259,6 +259,10 @@ function aio_movie($in)
     if (!$cin && $series && $mv['imdb'] !== '')
         $cin = aio_cin_load($mv['imdb']);
     $mv['cin'] = $cin;
+    // Of the own card only: the titles of its episodes (aio_ser_name).
+    $titles = aio_titles_valid(isset($m['aio_titles']) ? $m['aio_titles'] : null);
+    if ($titles)
+        $mv['titles'] = $titles;
     return $mv;
 }
 
@@ -325,6 +329,27 @@ function aio_cin_valid($v)
             return array();
         $out[] = array($r[0], $r[1], $r[2]);
         $last = $r[0];
+    }
+    return $out;
+}
+
+// The titles of the episodes of a list from the own card (aio_titles of movie_str, aio_oc_watch) checked:
+// "<season>:<episode>" as the list asks them => one line, not empty, AIO_CM_EPS_MAX at most; anything else
+// left out.
+/**
+ * @param mixed $v
+ * @return array<string, string>
+ */
+function aio_titles_valid($v)
+{
+    $out = array();
+    if (!is_array($v) || count($v) > AIO_CM_EPS_MAX)
+        return $out;
+    foreach ($v as $k => $t)
+    {
+        $t = is_string($t) ? aio_one_line($t) : '';
+        if ($t !== '' && preg_match('/^[1-9][0-9]{0,3}:[1-9][0-9]{0,4}$/D', strval($k)))
+            $out[strval($k)] = $t;
     }
     return $out;
 }
