@@ -56,9 +56,37 @@ function aio_ml_menu_items($id, $from, $lang)
         GuiMenuItemDef::action => aio_input('cat_ml', array('from' => $from, 'item' => $id, 'w' => $in ? 'del' : 'add'))));
 }
 
+// After a change of the list on screen $from ('': none to build again, the own card; aio_catv_screen_of), then $post:
+// the screens that show the list built again by one invalidate - $from and, on r25, the main screens of the catalog
+// opened (AioCat::$mains, as aio_catv_mains_anew: the shell keeps rows_info by the id of a tile, the line of the info
+// panel " · В моём списке" would stay old after Back), the tab "TV" built anew (aio_tv_flag). None of them: $post. The one
+// effect of every change of the list (POP UP, the button of the own card).
+/**
+ * @param string $from
+ * @param AioAction|null $post
+ * @param string $why
+ * @return AioAction|null
+ */
+function aio_ml_changed($from, $post, $why)
+{
+    aio_tv_flag($why);
+    $urls = aio_fw_r() >= 25 ? AioCat::$mains : array();
+    $url = aio_catv_screen_of($from);
+    if ($url !== '')
+        $urls[] = $url;
+    $urls = array_values(array_unique($urls));
+    if (!$urls)
+        return $post;
+    aio_log("my list: invalidate $why: " . implode(', ', $urls));
+    $a = aio_catv_invalidate($urls[0]);
+    $a[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = $urls;
+    $a[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $post;
+    return $a;
+}
+
 // cat_ml of POP UP (aio_ml_menu_items; w add, del) of tile $in->item of screen $in->from: the title into the list or out
-// of it (aio_ml_set; its card of the Dune known, aio_cp_card_known, no request), then the screen anew
-// (aio_catv_tile_after: the line of the info panel); not written: the message (aio_ml_err), the list as it was.
+// of it (aio_ml_set; its card of the Dune known, aio_cp_card_known, no request), then the screens anew (aio_ml_changed:
+// the line of the info panel); not written: the message (aio_ml_err), the list as it was.
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -70,5 +98,5 @@ function aio_ml_menu_act($in)
     if (!$t)
         return $a['err'];
     $why = aio_ml_set($t, aio_cp_card_known($t, aio_cp_mid_of($a['id'])), $a['w'] === 'add');
-    return $why !== '' ? aio_ml_err($why) : aio_catv_tile_after($a['from'], "my list {$a['w']}");
+    return $why !== '' ? aio_ml_err($why) : aio_ml_changed($a['from'], null, "my list {$a['w']}");
 }

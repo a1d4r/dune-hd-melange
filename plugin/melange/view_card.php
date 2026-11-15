@@ -1565,10 +1565,12 @@ function aio_oc_dune_items($c)
         GuiMenuItemDef::action => aio_card_open($c['dune'])));
 }
 
-// ENTER on the button of the list (aio_oc_buttons, kind list) of card $c ($key) at place $pos: the title into the list
-// or out of it (aio_ml_set: the card of the Dune of the card), the button redrawn in place with the focus on it, its
-// width the same (the layout shown, nav, gets the new button); not written: the message (aio_ml_err), the button as it
-// was.
+// ENTER on the button of the list (aio_oc_buttons, kind list) of card $c ($key) at place $pos of layout $l: the title
+// into the list or out of it by the button as it is drawn ("+": in; the list changed on another screen since - what
+// the button says, not the reverse of the file), aio_ml_set (the card of the Dune of the card); the button redrawn in
+// place with the focus on it, its width the same (the layout shown, nav, gets the new button), after the screens of the
+// list anew (aio_ml_changed: the line of the info panel of the tiles under the card); not written: the message
+// (aio_ml_err), the button as it was.
 /**
  * @param string $key
  * @param AioOcCard $c
@@ -1578,7 +1580,7 @@ function aio_oc_dune_items($c)
  */
 function aio_oc_list($key, $c, $l, $pos)
 {
-    $on = aio_ml_in($c['tile'], $c['dune']) === '';
+    $on = isset($l['btns'][$pos['b']]) && $l['btns'][$pos['b']][2] === 'plus';
     $why = aio_ml_set($c['tile'], $c['dune'], $on);
     if ($why !== '')
         return aio_ml_err($why);
@@ -1588,13 +1590,13 @@ function aio_oc_list($key, $c, $l, $pos)
         return aio_replace_act("card:$key", $c['tile']['name']);
     if (isset(AioOc::$cards[$key]['nav']))
         AioOc::$cards[$key]['nav']['btns'][$i] = $btns[$i];
-    return array(
+    return aio_ml_changed('', array(
         GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID,
         GuiAction::data => array(
             ChangeGCompsActionData::change_defs => array(aio_gc_change("b$i", null, GCOMP_TRANSITION_NONE,
                 aio_oc_btn_items($btns[$i], aio_oc_btn_w($btns[$i]), true))),
             ChangeGCompsActionData::num_steps => AIO_GC_STEPS,
-            ChangeGCompsActionData::sel_state => aio_oc_state($pos, $l)));
+            ChangeGCompsActionData::sel_state => aio_oc_state($pos, $l))), 'my list of the own card');
 }
 
 // card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (aio_oc_mark), card_mark_movie,
