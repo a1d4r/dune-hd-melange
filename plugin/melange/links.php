@@ -83,15 +83,17 @@ function aio_pg_row_asked($rid)
     AioPgLinks::$asked[$rid] = true;
 }
 
-// The screen is made, $left s of its opening left: with no row flagged (r24; r25 with all of them fresh) the
-// lazy pairs now; else in the reply to a row (aio_pg_row_done).
+// The screen is made, $left s of its opening left, $net: rows of it went to the server in it (r24, old or no
+// copies). With no row flagged (r24; r25 with all of them fresh) the lazy pairs now, only with $net: an opening
+// of rows of memory or the cache stays at once. Flagged rows: in the reply to a row (aio_pg_row_done).
 /**
  * @param float $left
+ * @param bool $net
  * @return void
  */
-function aio_pg_screen_built($left)
+function aio_pg_screen_built($left, $net)
 {
-    if (AioPgLinks::$asked || AioPgLinks::$linked)
+    if (AioPgLinks::$asked || AioPgLinks::$linked || !$net)
         return;
     AioPgLinks::$linked = true;
     if ($left >= 1)
@@ -121,6 +123,7 @@ function aio_pg_row_done($rids, $rid, $left)
             if (isset(AioPgLinks::$asked[$r]))
                 AioPgLinks::$batch[$r] = true;
         }
+        aio_log(sprintf('link: the first call of the screen: %d rows, %d flagged', count($rids), count(AioPgLinks::$asked)));
     }
     unset(AioPgLinks::$batch[$rid]);
     if (AioPgLinks::$batch)
@@ -313,24 +316,33 @@ function aio_pg_tile_cards($t)
 
 // --- The cards of the dunemdb API.
 
-// The offsets $offs (ascending) of $text that are in no list ("[...]": people, suppliers, recommendations): the
-// brackets before them balanced -> offset => bool.
+// The offsets $offs (ascending, each at a key: out of any string) of $text that are in no list ("[...]": people,
+// suppliers, recommendations): the brackets before them balanced, those of strings not counted (a title of
+// a trailer "...HD] | ..."); with $first up to the first such one. -> offset => bool; false when a piece can not
+// be read.
 /**
  * @param string $text
  * @param list<int> $offs
+ * @param bool $first
  * @return array<int, bool>
  */
-function aio_pg_out_of_lists($text, $offs)
+function aio_pg_out_of_lists($text, $offs, $first = false)
 {
     $out = array();
     $at = 0;
     $depth = 0;
     foreach ($offs as $o)
     {
-        if ($o > $at)
-            $depth += substr_count($text, '[', $at, $o - $at) - substr_count($text, ']', $at, $o - $at);
+        if ($o > $at && $depth !== null)
+        {
+            // A piece from a key to a key: its strings out, in step.
+            $seg = preg_replace('/"[^"\\\\]*+(?:\\\\.[^"\\\\]*+)*+"/', '', substr($text, $at, $o - $at));
+            $depth = is_string($seg) ? $depth + substr_count($seg, '[') - substr_count($seg, ']') : null;
+        }
         $at = max($at, $o);
         $out[$o] = $depth === 0;
+        if ($first && $out[$o])
+            break;
     }
     return $out;
 }
@@ -338,14 +350,16 @@ function aio_pg_out_of_lists($text, $offs)
 // The ids of a card of the dunemdb API in its raw text (a reply of movie/<id>, a card of the shell): the
 // last "sources" with "auxSources" after it in no list (not of a person, a supplier, a recommendation), as
 // the shell reads them (dunemdb_cache.php: sources first, then auxSources; either may be an empty []), the
-// type by the first "type" of a title in no list. No json_decode of the ~400 KB. -> the pair
-// (aio_pg_link_clean), null for none.
+// type by the first "type" of a title in no list. No json_decode of the ~400 KB. $found: such sources were
+// found (with no ids in them: the card has none). -> the pair (aio_pg_link_clean), null for none.
 /**
  * @param string $text
+ * @param bool $found
  * @return AioPgLink|null
  */
-function aio_pg_parse_card($text)
+function aio_pg_parse_card($text, &$found = false)
 {
+    $found = false;
     $obj = '(\{[^{}]*+\}|\[\])';
     if (!preg_match_all('/(?<!"type":\d,)(?<!"type":\d\d,)"sources":' . $obj . ',"auxSources":' . $obj . '/', $text, $m,
         PREG_SET_ORDER | PREG_OFFSET_CAPTURE))
@@ -362,6 +376,7 @@ function aio_pg_parse_card($text)
     }
     if (!$last)
         return null;
+    $found = true;
     $ids = array('imdb' => 'IMDB', 'tmdb' => 'TheMovieDB', 'tmdbtv' => 'TheMovieDBTV');
     $l = array();
     foreach ($ids as $k => $src)
@@ -377,10 +392,10 @@ function aio_pg_parse_card($text)
         $offs = array();
         foreach ($t as $one)
             $offs[] = intval($one[0][1]);
-        $top = aio_pg_out_of_lists($text, $offs);
+        $top = aio_pg_out_of_lists($text, $offs, true);
         foreach ($t as $one)
         {
-            if ($top[intval($one[0][1])])
+            if (!empty($top[intval($one[0][1])]))
             {
                 $l['type'] = $one[1][0] === 'series' ? 'series' : 'movie';
                 break;
@@ -501,9 +516,10 @@ function aio_pg_token()
 }
 
 // The pair of $mid now: the card of the shell (not looked at yet), else movie/<id> of the dunemdb API with
-// dune_auth, as the shell opens its card (dunemdb_api.php api_movie), in $total s. Kept: a pair; none (code
-// 100 with no ids in the card, or the message "not found", as aio_card_ask); fail (no dune_auth, transport,
-// another answer: asked again after AIO_PG_FAIL_S). No connection, a timeout or 5xx: no request in
+// dune_auth, as the shell opens its card (dunemdb_api.php api_movie), in $total s (whole s; under 1 none).
+// Kept: a pair; none (code 100 with no ids in the sources of the card, or the message "not found", as
+// aio_card_ask); fail (no dune_auth, transport, "sources" not found by the parse, another answer: asked again
+// after AIO_PG_FAIL_S). No connection, a timeout or 5xx: no request in
 // AIO_PG_PAUSE_S (aio_pg_link_step). One log line with the size and the time, no token. -> st: pair, none,
 // fail; link: the pair or null.
 /**
@@ -521,19 +537,26 @@ function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
     }
     if (!preg_match('/^[0-9a-f]{24}$/D', $mid))
         return array('st' => 'none', 'link' => null);
+    // The request in what is left, whole seconds of curl: under 1 s none.
+    if ($total < 1)
+        return array('st' => 'fail', 'link' => null);
     $token = aio_pg_token();
     if ($token === '')
         return array('st' => 'fail', 'link' => null);
     $t = microtime(true);
     $err = '';
     list($code, $body) = aio_http_get(aio_card_api() . "movie/$mid?movieAnswerType=full_with_recommendations&lang=ru&$token",
-        $err, AIO_PG_LINK_CONNECT, max(1, intval(ceil($total))), AIO_CAT_MAX_BYTES);
+        $err, min(AIO_PG_LINK_CONNECT, intval(floor($total))), intval(floor($total)), AIO_CAT_MAX_BYTES);
     $st = 'fail';
     if ($err === '' && $code === 200)
     {
         list($api, $msg) = aio_pg_api_head($body);
-        $l = $api === 100 ? aio_pg_parse_card($body) : null;
+        $found = false;
+        $l = $api === 100 ? aio_pg_parse_card($body, $found) : null;
         $st = $l ? 'pair' : ($api === 100 || $msg === 'not found' ? 'none' : 'fail');
+        // "sources" the parse did not find (a format not known): not "no pair" for good.
+        if ($st === 'none' && $api === 100 && !$found && strpos($body, '"sources":') !== false)
+            $st = 'fail';
     }
     $down = ($err !== '' && $err !== AIO_HTTP_TOO_BIG) || ($err === '' && $code >= 500 && $code < 600);
     if ($down)

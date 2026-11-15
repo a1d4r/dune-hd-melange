@@ -538,14 +538,15 @@ function aio_catv_load_first($row, $limit, $timeout_down = true)
 // The rows $rows for a new screen, into AioCat::$lists. At once: listings in memory
 // still fresh, then the saved first pages of any age. In $limit s, one by one: the rows
 // without a copy, then the old copies; on a failure of the server no more requests. No
-// tile: the row stays out of the lists.
+// tile: the row stays out of the lists. -> a row was asked of the server.
 /**
  * @param list<AioCatRow> $rows
  * @param float $limit
- * @return void
+ * @return bool
  */
 function aio_catv_open($rows, $limit)
 {
+    $net = false;
     $none = array();
     $old = array();
     foreach ($rows as $row)
@@ -571,6 +572,7 @@ function aio_catv_open($rows, $limit)
         if ($left < AIO_CATV_MIN_S)
             break;
         $res = aio_catv_load_first($row, $left);
+        $net = true;
         if ($res['tiles'] && !$res['stale'])
             unset($old[$rid]);
         $failed = $failed || $res['err'] !== '';
@@ -586,6 +588,7 @@ function aio_catv_open($rows, $limit)
             AioCat::$lists[$rid] = $list;
         }
     }
+    return $net;
 }
 
 // --- Building of a row, by its data.
@@ -1263,7 +1266,7 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     aio_pg_screen_start();
     $now = microtime(true);
-    aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S - ($now - $rows_t0), AIO_CATV_OPEN_MAX_S - ($now - $start)));
+    $net = aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S - ($now - $rows_t0), AIO_CATV_OPEN_MAX_S - ($now - $start)));
     if (!$loading)
         $shown = aio_catv_shown_rows($shown, $loading);
     foreach ($shown as $i => $row)
@@ -1301,7 +1304,7 @@ function aio_catv_main_view($media_url, $sel_state)
             aio_catv_manifest_refresh(intval($left));
     }
     // The lazy pairs on the time left of the opening, with no row flagged (else aio_catv_rows_op).
-    aio_pg_screen_built(AIO_CATV_OPEN_S - (microtime(true) - $rows_t0));
+    aio_pg_screen_built(AIO_CATV_OPEN_S - (microtime(true) - $rows_t0), $net);
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
 }
