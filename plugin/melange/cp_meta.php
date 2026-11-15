@@ -22,6 +22,9 @@ define('AIO_CPM_PAUSE_S', 1800);
 // Requests of a step at most, those of the pairs in it counted; the second one only with AIO_CPM_NEXT_S left.
 define('AIO_CPM_N', 2);
 define('AIO_CPM_NEXT_S', 1.5);
+// The tiles of the screen "Продолжить" asked after those of the row, at most: with the 20 of the row within AIO_CPM_MAX,
+// so the step does not push out of the file what it asked for the row.
+define('AIO_CPM_MORE', 40);
 
 class AioCpm
 {
@@ -34,6 +37,10 @@ class AioCpm
     // array(type, IMDb, TMDB); for the step.
     /** @var list<array{string, string, string}> */
     public static $miss = array();
+    // The same of the screen "Продолжить" built last (view_my_list.php), its first AIO_CPM_MORE: asked after those of
+    // the row; a row built again keeps them.
+    /** @var list<array{string, string, string}> */
+    public static $more = array();
     // No request before this time; 0: none.
     /** @var int */
     public static $pause = 0;
@@ -158,8 +165,8 @@ function aio_cpm_paused()
     return $left > 0 && $left <= AIO_CPM_PAUSE_S ? $left : 0;
 }
 
-// The titles of AioCpm::$miss to ask, in its order: none kept, no failure within AIO_CPM_FAIL_S. -> keys => array(type,
-// IMDb, TMDB).
+// The titles of AioCpm::$miss, then of AioCpm::$more, to ask, in their order: none kept, no failure within AIO_CPM_FAIL_S.
+// -> keys => array(type, IMDb, TMDB).
 /**
  * @return array<string, array{string, string, string}>
  */
@@ -168,7 +175,7 @@ function aio_cpm_queue()
     $c = aio_cpm_read();
     $now = time();
     $out = array();
-    foreach (AioCpm::$miss as $m)
+    foreach (array_merge(AioCpm::$miss, AioCpm::$more) as $m)
     {
         $key = aio_cpm_key($m[0], $m[1], $m[2]);
         $e = $key !== '' && isset($c[$key]) ? $c[$key] : null;

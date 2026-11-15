@@ -9,10 +9,10 @@
 // (aio_mlv_keys; the player has no folder view). An empty "Мой список": the hint tile, its POP UP the import of the
 // Favorites of the Dune (aio_mlv_import). The file, the copy of the backup and the reading of the Favorites are of
 // my_list.php (the settings page has it alone).
-// Needs my_list.php, view_catalog.php (aio_catv_*), continue.php, links.php (aio_pg_links, aio_pg_link_now,
-// aio_pg_paused), progress.php, catalog.php (aio_cat_tile), catalog_card.php (aio_card_enter, aio_card_open,
-// AIO_CARD_DELAY), view_card.php (aio_oc_enter), card_meta.php (aio_cm_id), tv_tab.php (aio_tv_flag, aio_tv_is_from),
-// playback.php (aio_replace_act), main.php (aio_tr, aio_input, aio_error, aio_dialog).
+// Needs my_list.php, view_catalog.php (aio_catv_*), continue.php, cp_meta.php (AioCpm::$more), links.php (aio_pg_links,
+// aio_pg_link_now, aio_pg_paused), progress.php, catalog.php (aio_cat_tile), catalog_card.php (aio_card_enter,
+// aio_card_open, AIO_CARD_DELAY), view_card.php (aio_oc_enter), card_meta.php (aio_cm_id), tv_tab.php (aio_tv_flag,
+// aio_tv_is_from), playback.php (aio_replace_act), main.php (aio_tr, aio_input, aio_error, aio_dialog).
 // PHP 5.3.6, firmware API only.
 
 // The rid of the tiles of "Мой список": "mylist:<the key of the entry>" (aio_catv_tile).
@@ -243,7 +243,7 @@ function aio_mlv_list_cells($types, $max)
 
 // The tiles of screen $url (aio_mlv_screen): the items of a row and their tiles (for the grid of r24). "Мой список": its
 // entries (aio_mlv_list_cells); "Продолжить": the cards of the row "Continue", the latest first; of its type, both on
-// a screen of all.
+// a screen of all; the first of its tiles with no meta to the lazy meta after those of the row (AioCpm::$more).
 /**
  * @param string $url
  * @return list<array{item: array<string, mixed>, tile: AioCatTile}>
@@ -258,7 +258,8 @@ function aio_mlv_cells($url)
         return aio_mlv_list_cells(aio_mlv_types($sc[1]), $max);
     $out = array();
     $tiles = array();
-    $items = aio_cp_tile_items(aio_mlv_types($sc[1]), $max, $tiles);
+    $items = aio_cp_tile_items(aio_mlv_types($sc[1]), $max, $tiles, $miss);
+    AioCpm::$more = array_slice($miss, 0, AIO_CPM_MORE);
     $tiles = array_values($tiles);
     foreach ($items as $i => $item)
         $out[] = array('item' => $item, 'tile' => $tiles[$i]);
