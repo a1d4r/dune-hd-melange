@@ -10,15 +10,16 @@ Keep the collections you need in the catalog and put them in order. [← Content
 
 2. Choose a group, for example "Genres".
 
-   <img src="../screenshots/rows-groups.jpg" alt="Menu: Row order and groups with N of M, focus on Genres 16 of 18" width="100%">
+   <img src="../screenshots/rows-groups.jpg" alt="Menu: Group order and groups with N of M, focus on Genres 16 of 18" width="100%">
 
-3. Tick the rows you want to see: **ENTER** sets and clears (x). New ones go to the end of the tab.
+3. Tick the rows you want to see: **ENTER** sets and clears (x). New ones go to the end of the group.
+   The order of the rows in the group is set here too: move to a row and press **▶** ("Move"). Put the row in its new place with the arrows and press **▶** ("Apply").
 
    <img src="../screenshots/rows-group-genres.jpg" alt="Genres window: ticked rows with (x), focus on the unticked Western" width="100%">
 
-4. To change the order, open "Row order", move to a row and press **▶** ("Move"). Put the row in its new place with the arrows and press **▶** ("Apply").
+4. To rearrange the groups, open "Group order" and move a group the same way. Clear the (x) of a group to remove all its rows.
 
-   <img src="../screenshots/rows-move.jpg" alt="Row order: the Action row is selected for moving, Apply and Cancel at the bottom" width="100%">
+   <img src="../screenshots/rows-move.jpg" alt="Group order: the Genres group is selected for moving, Apply and Cancel at the bottom" width="100%">
 
 5. Close the window with "Close" at the top of the list, and the catalog shows the new set at once.
 
@@ -38,10 +39,10 @@ Series rows are set up the same way, on the "Series" tab.
 
    <img src="../screenshots/rows-phone-group.jpg" alt="The Genres group is open, Comedy and Science fiction are ticked" width="300">
 
-4. Arrange the rows with the arrows and press "Save".
+4. Use the buttons next to a group name to move groups, and the buttons next to a row to move it within its group. Press "Save".
    The new set appears the next time you open the catalog.
 
-   <img src="../screenshots/rows-phone-order.jpg" alt="Shown: ticked rows with up and down arrows, Save at the bottom" width="300">
+   <img src="../screenshots/rows-phone-order.jpg" alt="Shown: rows by groups, groups and rows with To the top, Up, Down and To the bottom buttons, Save at the bottom" width="300">
 
 ## If it didn't work
 
