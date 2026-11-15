@@ -3,7 +3,7 @@
 // catalog grown into a card (R1 of design-own-card.md). The card background of the server
 // (aio_catv_card) with the logo, or the dark one and the title as text; the lines of the panel of
 // the catalog at its places (facts, genres and countries, the director, the description), the
-// buttons in a row ("Watch", "Dune card") over a band of our own, under them the progress of the
+// buttons in a row ("Watch", "Trailer", "My list") over a band of our own, under them the progress of the
 // movie or why there is none; at the bottom the first of the rows (the movies of a long franchise,
 // similar titles with the parts of a short one first, the cast of the meta, card_meta.php) and at
 // its right the hint "Похожие, в ролях и о фильме". DOWN scrolls the page under the logo:
@@ -509,21 +509,23 @@ function aio_oc_progress_text($pos, $len, $lang)
 
 // --- Layout.
 
-// The buttons: "Watch" with an IMDb, "Trailer" with one (card_trailer.php), "Dune card" with a card
-// of the Dune; array(kind, text, icon).
+// The buttons: "Watch" with an IMDb, "Trailer" with one (card_trailer.php), "+ Мой список" / "✓ В моём списке" (the
+// list now, aio_ml_in); array(kind, text, its icon - the picture AIO_OC_IMG<icon>_icon.png, '' none, the least
+// width: the button of the list as wide as the longer of its two texts, design-my-list.md, A: ENTER changes it in
+// place, nothing moves; 0 for the others). "Dune card" is in MENU (aio_oc_dune_items), owner 15.11.2026.
 // A series: "Continue SxEy" (a record in the history) or "Watch SxEy" of the episode to offer $ep;
 // one not out yet - "SxEy · выйдет 16.11" (kind soon: ENTER to it in the row).
 /**
  * @param AioOcCard $c
  * @param AioOcEp|null $ep
- * @return list<array{string, string, bool}>
+ * @return list<array{string, string, string, int}>
  */
 function aio_oc_buttons($c, $ep)
 {
     $b = array();
     $ui = $c['ui'];
     if ($c['imdb'] !== '' && !$ep)
-        $b[] = array('watch', aio_tr($ui, 'card_watch'), true);
+        $b[] = array('watch', aio_tr($ui, 'card_watch'), 'play', 0);
     else if ($c['imdb'] !== '')
     {
         $name = aio_se($ep['s'] > 0 ? $ep['s'] : $ep['q'], $ep['e']);
@@ -531,31 +533,39 @@ function aio_oc_buttons($c, $ep)
         if ($x && $x['soon'])
         {
             $d = $x['date'] !== '' ? substr($x['date'], 8, 2) . '.' . substr($x['date'], 5, 2) : '';
-            $b[] = array('soon', str_replace('{d}', $d, aio_tr($ui, $d !== '' ? 'card_btn_soon' : 'card_btn_not_out', $name)), false);
+            $b[] = array('soon', str_replace('{d}', $d, aio_tr($ui, $d !== '' ? 'card_btn_soon' : 'card_btn_not_out', $name)), '', 0);
         }
         else
             $b[] = array('watch', aio_tr($ui, in_array($ep['kind'], array('record', 'next', 'same'), true) ? 'card_continue' : 'card_watch_ep',
-                $name), true);
+                $name), 'play', 0);
     }
     if (aio_ct_has($c))
-        $b[] = array('trailer', aio_tr($ui, 'card_trailer'), false);
-    if ($c['dune'] !== '')
-        $b[] = array('dune', aio_tr($ui, 'card_dune'), false);
+        $b[] = array('trailer', aio_tr($ui, 'card_trailer'), '', 0);
+    if (aio_ml_key($c['tile']) !== '')
+    {
+        $w = 0;
+        foreach (array(array('ml_add_btn', 'plus'), array('ml_in', 'tick')) as $v)
+            $w = max($w, aio_oc_btn_w(array('list', aio_tr($ui, $v[0]), $v[1], 0)));
+        $in = aio_ml_in($c['tile'], $c['dune']) !== '';
+        $b[] = array('list', aio_tr($ui, $in ? 'ml_in' : 'ml_add_btn'), $in ? 'tick' : 'plus', $w);
+    }
     return $b;
 }
 
+// The width of button $b: its text, the edges and the icon, its least width at least.
 /**
- * @param array{string, string, bool} $b
+ * @param array{string, string, string, int} $b
  * @return int
  */
 function aio_oc_btn_w($b)
 {
-    return aio_gc_w($b[1], AIO_CATV_LINE_PX) + 2 * AIO_OC_BTN_PAD + ($b[2] ? AIO_OC_ICON_W : 0);
+    return max($b[3], aio_gc_w($b[1], AIO_CATV_LINE_PX) + 2 * AIO_OC_BTN_PAD + ($b[2] !== '' ? AIO_OC_ICON_W : 0));
 }
 
-// The children of button $b of width $w: the ends of PNG, a rect between them, the icon and the text.
+// The children of button $b of width $w: the ends of PNG, a rect between them, the icon and the text in the middle as
+// one (a button wider than them: the button of the list).
 /**
- * @param array{string, string, bool} $b
+ * @param array{string, string, string, int} $b
  * @param int $w
  * @param bool $on
  * @return list<AioGcComp>
@@ -567,13 +577,15 @@ function aio_oc_btn_items($b, $w, $on)
         aio_gc_image(aio_gc_at(AIO_OC_CAP, AIO_OC_BTN_H, 0, 0), AIO_OC_IMG . "pill_{$s}l.png"),
         aio_gc_rect(aio_gc_at($w - 2 * AIO_OC_CAP, AIO_OC_BTN_H, AIO_OC_CAP, 0), $on ? AIO_GC_SEL : AIO_OC_BTN_OFF),
         aio_gc_image(aio_gc_at(AIO_OC_CAP, AIO_OC_BTN_H, $w - AIO_OC_CAP, 0), AIO_OC_IMG . "pill_{$s}r.png"));
-    $x = AIO_OC_BTN_PAD;
-    if ($b[2])
+    $tw = aio_gc_w($b[1], AIO_CATV_LINE_PX);
+    $icon = $b[2] !== '' ? AIO_OC_ICON_W : 0;
+    $x = max(AIO_OC_BTN_PAD, intval(($w - $icon - $tw) / 2));
+    if ($icon)
     {
-        $d[] = aio_gc_image(aio_gc_left_center(20, 24, $x), AIO_OC_IMG . "play_{$s}icon.png");
-        $x += AIO_OC_ICON_W;
+        $d[] = aio_gc_image(aio_gc_left_center(20, 24, $x), AIO_OC_IMG . "{$b[2]}_{$s}icon.png");
+        $x += $icon;
     }
-    $d[] = aio_gc_cut(null, aio_gc_left_center($w - $x - AIO_OC_BTN_PAD, 44, $x), $b[1], AIO_CATV_LINE_PX,
+    $d[] = aio_gc_cut(null, aio_gc_left_center(min($tw, $w - $x - AIO_OC_BTN_PAD), 44, $x), $b[1], AIO_CATV_LINE_PX,
         $on ? AIO_GC_TEXT : AIO_GC_TEXT2, array(GCompTtfLabelDef::halign => HALIGN_CENTER));
     return $d;
 }
@@ -1519,8 +1531,8 @@ function aio_oc_mark_post($key, $c)
     return aio_catv_mains_anew(aio_replace_act("card:$key", $c['tile']['name']), 'after a mark of the own card');
 }
 
-// MENU: $items (the marks of an episode, aio_oc_mark_items; of a movie, aio_oc_movie_mark_items), then "Settings", as on
-// the list.
+// MENU: $items (the marks of an episode, aio_oc_mark_items; of a movie, aio_oc_movie_mark_items; "Карточка Дюны",
+// aio_oc_dune_items), then "Settings", as on the list.
 /**
  * @param string $lang
  * @param list<array<string, mixed>> $items
@@ -1537,11 +1549,59 @@ function aio_oc_menu($lang, $items = array())
         GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
 }
 
+// "Карточка Дюны" of MENU of card $c with a card of the Dune (or an old local one): the native card (file_movie); none
+// without one.
+/**
+ * @param AioOcCard $c
+ * @return list<array<string, mixed>>
+ */
+function aio_oc_dune_items($c)
+{
+    if ($c['dune'] === '')
+        return array();
+    return array(array(
+        GuiMenuItemDef::caption => aio_tr($c['ui'], 'card_dune'),
+        GuiMenuItemDef::icon_url => AIO_OC_ICONS . 'movies_small.png',
+        GuiMenuItemDef::action => aio_card_open($c['dune'])));
+}
+
+// ENTER on the button of the list (aio_oc_buttons, kind list) of card $c ($key) at place $pos: the title into the list
+// or out of it (aio_ml_set: the card of the Dune of the card), the button redrawn in place with the focus on it, its
+// width the same (the layout shown, nav, gets the new button); not written: the message (aio_ml_err), the button as it
+// was.
+/**
+ * @param string $key
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @param AioOcPos $pos
+ * @return AioAction|null
+ */
+function aio_oc_list($key, $c, $l, $pos)
+{
+    $on = aio_ml_in($c['tile'], $c['dune']) === '';
+    $why = aio_ml_set($c['tile'], $c['dune'], $on);
+    if ($why !== '')
+        return aio_ml_err($why);
+    $i = $pos['b'];
+    $btns = aio_oc_buttons($c, $l['ep']);
+    if (!isset($btns[$i]) || $btns[$i][0] !== 'list')
+        return aio_replace_act("card:$key", $c['tile']['name']);
+    if (isset(AioOc::$cards[$key]['nav']))
+        AioOc::$cards[$key]['nav']['btns'][$i] = $btns[$i];
+    return array(
+        GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID,
+        GuiAction::data => array(
+            ChangeGCompsActionData::change_defs => array(aio_gc_change("b$i", null, GCOMP_TRANSITION_NONE,
+                aio_oc_btn_items($btns[$i], aio_oc_btn_w($btns[$i]), true))),
+            ChangeGCompsActionData::num_steps => AIO_GC_STEPS,
+            ChangeGCompsActionData::sel_state => aio_oc_state($pos, $l)));
+}
+
 // card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (aio_oc_mark), card_mark_movie,
 // card_load (the timer, aio_oc_load) of the card c. MENU: the marks of the episode in focus in the
-// row (of a movie: its mark, aio_oc_movie_mark_items), then "Settings". The keys: the place of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown
+// row (of a movie: its mark, aio_oc_movie_mark_items), "Карточка Дюны" (aio_oc_dune_items), then "Settings". The keys: the place of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown
 // (nav), else laid out anew. ENTER on a button: "Watch" - the list of the episode offered, an
-// episode not out yet - the focus to it in the row, "Dune card" - the native card (file_movie);
+// episode not out yet - the focus to it in the row, the button of the list - into it or out (aio_oc_list);
 // on "did not load" - the meta again; on an episode - its list, one not out yet - the message; on
 // a person of the cast - its page (aio_oc_person); on a poster - the own card of its title
 // (aio_oc_tile_enter); below them nothing. A move or ENTER on a screen of rows other than those of
@@ -1577,8 +1637,8 @@ function aio_oc_input($in, $control)
     if ($control === 'card_load')
         return aio_oc_load($key, AioOc::$cards[$key], $l);
     if ($control === 'card_menu')
-        return aio_oc_menu($c['ui'], $l['kind'] === 'movie' ? aio_oc_movie_mark_items($key, $c) :
-            aio_oc_mark_items($key, $c, $l['prog'], $pos));
+        return aio_oc_menu($c['ui'], array_merge($l['kind'] === 'movie' ? aio_oc_movie_mark_items($key, $c) :
+            aio_oc_mark_items($key, $c, $l['prog'], $pos), aio_oc_dune_items($c)));
     $j = is_string($raw) ? json_decode($raw, true) : null;
     $rs = implode(',', $l['rows']);
     if (is_array($j) && isset($j['rs']) && is_string($j['rs']) && $j['rs'] !== $rs)
@@ -1608,8 +1668,8 @@ function aio_oc_input($in, $control)
             return null;
         $kind = $l['btns'][$b][0];
         aio_log("card: own $key: ENTER on $kind");
-        if ($kind === 'dune')
-            return aio_card_open($c['dune']);
+        if ($kind === 'list')
+            return aio_oc_list($key, $c, $l, $pos);
         if ($kind === 'trailer')
             return aio_ct_enter($key);
         if ($kind === 'watch')
