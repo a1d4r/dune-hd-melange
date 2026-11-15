@@ -233,6 +233,36 @@ function aio_ts_base($stored)
     return $stored !== '' ? $stored : AIO_TS_DEFAULT;
 }
 
+// A stored address of Lampac ("Онлайн") longer than this is not one.
+define('AIO_LP_URL_MAX', 300);
+
+// The address of Lampac as typed or stored: [http(s)://]host[:port][/path][/]
+// -> 'scheme://host[:port][/path]' (http when no scheme; scheme and host in
+// lower case, no trailing '/'), '' for empty (off), null when it does not fit
+// (another scheme, a user, a query, a fragment, a bad port).
+/**
+ * @param mixed $s
+ * @return string|null
+ */
+function aio_lp_addr($s)
+{
+    if (!is_string($s))
+        return null;
+    $s = trim($s, AIO_TRIM);
+    if ($s === '')
+        return '';
+    if (strlen($s) > AIO_LP_URL_MAX ||
+        !preg_match('~^(?:(https?)://)?([A-Za-z0-9](?:[A-Za-z0-9.\-]*[A-Za-z0-9])?)(?::([0-9]{1,5}))?((?:/[A-Za-z0-9._\~\-]+)*)/?\z~i',
+        $s, $m))
+        return null;
+    // Groups not matched at the end are not in $m (PHP 5.3).
+    list(, $scheme, $host, $port, $path) = array_pad($m, 5, '');
+    if ($port !== '' && (intval($port) < 1 || intval($port) > 65535))
+        return null;
+    return ($scheme !== '' ? strtolower($scheme) : 'http') . '://' . strtolower($host) .
+        ($port !== '' ? ':' . intval($port) : '') . $path;
+}
+
 // Login of TorrServer (0.45.0, Basic auth of its --httpauth): trimmed, up to
 // 100 characters, no control characters and no ':' (Basic sends
 // "login:password") -> the login ('' for none) or null.
@@ -706,7 +736,8 @@ function aio_settings_secrets($s)
 // tag: the own TorrServer "<ts>" (not the default one on the Dune), the
 // servers of "Download to server" "<server>", the own AIOStreams servers of the
 // configs and of the profiles and the hosts of the own configs of the profiles,
-// in use or not, "<aio>" (0.58.0; not the servers of the list: public).
+// in use or not, "<aio>" (0.58.0; not the servers of the list: public), Lampac
+// ("Онлайн") "<lampac>", its scheme://host[:port].
 /**
  * @param AioSettings $s
  * @return array<string, string>
@@ -736,6 +767,8 @@ function aio_settings_hosts($s)
         if ($u !== '' && !isset($servers[$u]) && !isset($h[$u]))
             $h[$u] = '<aio>';
     }
+    if ($s['lampac_url'] !== '')
+        $h[strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $s['lampac_url']))] = '<lampac>';
     return $h;
 }
 
@@ -796,8 +829,8 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // of the settings of the source with its own config; one of before the editor of the page
 // takes the JacRed, the template and the config of the settings), at most
 // AIO_PROFILES_MAX, unique names and targets (the first one kept; kept with
-// src_profiles off too), 'lampac_url' => the address of Lampac ("Онлайн") as
-// stored, a string (the page saves it by aio_lp_addr, the plugin checks it: aio_lp_base; '' - off),
+// src_profiles off too), 'lampac_url' => the address of Lampac ("Онлайн"),
+// aio_lp_addr() or '' (off),
 // each checked by the rules above; absent or wrong -> as not set ('', the
 // default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
@@ -937,9 +970,8 @@ function aio_settings_parse($j)
         $r['cat_rows'] = aio_cat_rows_ok($j['cat_rows']);
     if (isset($j['src_profiles']) && is_bool($j['src_profiles']))
         $r['src_profiles'] = $j['src_profiles'];
-    // Kept as typed: the plugin takes it by aio_lp_base (lampac.php), a bad one as none.
-    if (isset($j['lampac_url']) && is_string($j['lampac_url']))
-        $r['lampac_url'] = $j['lampac_url'];
+    if (isset($j['lampac_url']) && is_string(aio_lp_addr($j['lampac_url'])))
+        $r['lampac_url'] = aio_lp_addr($j['lampac_url']);
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
         foreach ($j['aio_confs'] as $b => $cs)

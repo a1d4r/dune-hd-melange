@@ -714,8 +714,6 @@ function aio_op_settings($s)
     $conf = $s['source'] === 'own' ? null : aio_settings_conf($s);
     $lp = aio_lp_base($s);
     $hosts = aio_settings_hosts($s);
-    if ($lp !== '')
-        $hosts[strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $lp))] = '<lampac>';
     return array(
         // The stream URL is <base>/stream/...: the base keeps its trailing slash.
         'base' => aio_manifest_base(aio_settings_manifest($s)),

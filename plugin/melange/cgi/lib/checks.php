@@ -416,7 +416,10 @@ function aio_cgi_lp_title()
         'original_title' => 'Interstellar', 'year' => '2014', 'serial' => 0, 'original_language' => 'en'));
 }
 
-// "Не отвечает" of a transport error: its curl errno (an error of lampac.php without one: 0).
+// Seconds of a step of the search of the check at least.
+define('AIO_CGI_LP_TICK', 0.5);
+
+// "Не отвечает" of a transport error: its curl errno (of /version; of the search, an error of lampac.php: 0).
 function aio_cgi_lp_down($errno)
 {
     return array(false, aio_cgi_l('Lampac не отвечает', 'Lampac is not responding') . ($errno > 0 ? " (curl $errno)" : ''));
@@ -438,12 +441,20 @@ function aio_cgi_lp_check($base)
         return aio_cgi_lp_down($r['errno']);
     $st = aio_lp_search_start($base, aio_cgi_lp_title());
     while (!$st['done'])
+    {
+        $t = aio_lp_now();
         $st = aio_lp_search_step($st);
+        // A /lifeevents of ready:false at once: a step at most every AIO_CGI_LP_TICK s, not a busy loop of the Dune
+        // and of requests to that Lampac (the window of the Dune ticks by its timer).
+        $left = AIO_CGI_LP_TICK - (aio_lp_now() - $t);
+        if (!$st['done'] && $left > 0)
+            aio_lp_wait((int) ceil($left * 1000000));
+    }
     $n = count($st['sources']);
     $why = $st['err'];
     aio_cgi_log("lampac check: $n sources" . ($why !== '' ? ", $why" : '') . ($st['capped'] ? ', out of time' : ''));
     if (!$n && $why === 'down')
-        return aio_cgi_lp_down(preg_match('/^curl ([0-9]+)/', $st['detail'], $m) ? intval($m[1]) : 0);
+        return aio_cgi_lp_down(0);
     if (!$n && $why === 'forbidden')
         return array(false, aio_cgi_l('Доступ закрыт (403) — проверьте WAF в init.conf',
             'Access denied (403): check WAF in init.conf'));

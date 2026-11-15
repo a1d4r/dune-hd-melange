@@ -22,8 +22,6 @@
 //   playlist; not_hls - a playlist without #EXTM3U; html - a web page instead
 //   of a video.
 
-// A stored address longer than this is not one.
-define('AIO_LP_URL_MAX', 300);
 // Seconds of a connection to Lampac: a hung one is as one not answering.
 define('AIO_LP_CONNECT', 2);
 // Seconds of one call of a tick (events with life, /lifeevents, /externalids):
@@ -86,33 +84,6 @@ if (!function_exists('aio_lp_wait'))
 }
 
 // --- The address.
-
-// The address of Lampac as typed or stored: [http(s)://]host[:port][/path][/]
-// -> 'scheme://host[:port][/path]' (http when no scheme; scheme and host in
-// lower case, no trailing '/'), '' for empty (off), null when it does not fit
-// (another scheme, a user, a query, a fragment, a bad port).
-/**
- * @param mixed $s
- * @return string|null
- */
-function aio_lp_addr($s)
-{
-    if (!is_string($s))
-        return null;
-    $s = trim($s, AIO_TRIM);
-    if ($s === '')
-        return '';
-    if (strlen($s) > AIO_LP_URL_MAX ||
-        !preg_match('~^(?:(https?)://)?([A-Za-z0-9](?:[A-Za-z0-9.\-]*[A-Za-z0-9])?)(?::([0-9]{1,5}))?((?:/[A-Za-z0-9._\~\-]+)*)/?\z~i',
-        $s, $m))
-        return null;
-    // Groups not matched at the end are not in $m (PHP 5.3).
-    list(, $scheme, $host, $port, $path) = array_pad($m, 5, '');
-    if ($port !== '' && (intval($port) < 1 || intval($port) > 65535))
-        return null;
-    return ($scheme !== '' ? strtolower($scheme) : 'http') . '://' . strtolower($host) .
-        ($port !== '' ? ':' . intval($port) : '') . $path;
-}
 
 // The Lampac of settings $s (lampac_url of settings.json): '' when off or not
 // an address.

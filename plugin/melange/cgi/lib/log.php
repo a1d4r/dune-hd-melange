@@ -87,7 +87,7 @@ function aio_cgi_mask_shell($s)
             ':(?:\\\\?/){2}(?:[^\s/\\\\?#@\'"]*+@)?(\[[0-9A-Fa-f:.]*\]|<[a-z]+>|[A-Za-z0-9.\-_\~%]*)(:[0-9]*)?' .
             '((?:\\\\?/|[?#])[^\s\'"]*)?~i', 'aio_cgi_mask_url'),
         // An address of aio_mask_secrets ("<aio>/path") as a URL; "<manifest>/" keeps its path (no secret left).
-        array('~(<(?:aio|ts|server|jacred)>(?::[0-9]+)?)(?:\\\\?/|[?#])[^\s\'"]*~', '$1/…'),
+        array('~(<(?:aio|ts|server|jacred|lampac)>(?::[0-9]+)?)(?:\\\\?/|[?#])[^\s\'"]*~', '$1/…'),
         // Not a time ("16:04:43"): 8 groups or "::"; IPv4-mapped too. A digit in
         // it: not a C++ name of hex letters ("DB::add", "Face::Bad"). At most 7
         // groups by "::": an unbounded group repeat overflows the PCRE stack.

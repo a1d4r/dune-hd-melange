@@ -163,7 +163,7 @@ function aio_cgi_save($dir, $t)
     if ($v['src_profiles'] === '')
         $v['src_profiles'] = aio_cgi_src_profiles_of($cur['src_profiles']);
     if (!isset($_POST[$f['lampac']['name']]))
-        $v['lampac'] = aio_lp_base($cur);
+        $v['lampac'] = $cur['lampac_url'];
     // '' is a choice here (none made), only no field at all means an older form.
     if (!isset($_POST['cat_rows']))
         $v['cat_rows'] = aio_cgi_cat_rows_of($cur['cat_rows']);
