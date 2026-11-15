@@ -63,8 +63,8 @@ function aio_lpv_link($base, $r, $deadline)
 
 // vod_play of link $url of row $r of card $mv from $pos s, linked to the
 // card when it has a dune id (spec §7): recent_uid aio:<dune id>:-1:-1:<key of the row>, as a
-// release of a movie; recent_action_params wh_release = the key, wh_mode lampac, wh_lb the
-// path of the balancer, wh_lv the voice ("Continue": aio_lpv_resume). The mark of a title marked
+// release of a movie; recent_action_params wh_release = the key (the path of the balancer in it),
+// wh_mode lampac, wh_lv the voice ("Continue": aio_lpv_resume). The mark of a title marked
 // "online" takes the row: the next list puts it first (only "Онлайн" and "Искать онлайн" mark a
 // title, spec §8). On r24 through pf_check (aio_pf_check of call_plugin).
 /**
@@ -104,7 +104,6 @@ function aio_lpv_vod($mv, $lang, $r, $url, $pos)
             'sup_data' => 'auto',
             'wh_release' => $r['key'],
             'wh_mode' => 'lampac',
-            'wh_lb' => $path,
             'wh_lv' => $r['voice']);
     }
     if ($path !== '' && aio_lpv_mark($mv))
@@ -118,7 +117,7 @@ function aio_lpv_vod($mv, $lang, $r, $url, $pos)
 // --- play_action: "Continue", the title marked "online", no AIOStreams, no releases.
 
 // "Continue" of an online record of play_action $in (supplier_info: wh_mode lampac, wh_release a
-// key of aio_lp_key, wh_lb the path of the balancer, wh_lv the voice) -> array(path, hex of the
+// key of aio_lp_key, the path of the balancer in it, wh_lv the voice) -> array(path, hex of the
 // voice, voice, pos), null for another. The button "Melange NN%" of r25 (play_online): null, the
 // list as aio_resume.
 /**
@@ -128,14 +127,12 @@ function aio_lpv_vod($mv, $lang, $r, $url, $pos)
 function aio_lpv_resume_in($in)
 {
     $si = isset($in->supplier_info) && is_string($in->supplier_info) ? json_decode($in->supplier_info) : null;
-    if (!is_object($si) || !isset($si->wh_mode, $si->wh_release, $si->wh_lb) || $si->wh_mode !== 'lampac' ||
-        !is_string($si->wh_lb))
+    if (!is_object($si) || !isset($si->wh_mode, $si->wh_release) || $si->wh_mode !== 'lampac')
         return null;
     $k = aio_lp_key_parse($si->wh_release);
-    if (!$k || aio_lp_path("/lite/{$si->wh_lb}") !== $si->wh_lb || $si->wh_lb === '' ||
-        (isset($in->selected_control_id) && $in->selected_control_id === 'play_online'))
+    if (!$k || $k[0] === '' || (isset($in->selected_control_id) && $in->selected_control_id === 'play_online'))
         return null;
-    return array('path' => $si->wh_lb, 'hex' => $k[1],
+    return array('path' => $k[0], 'hex' => $k[1],
         'voice' => isset($si->wh_lv) && is_string($si->wh_lv) ? aio_lp_text($si->wh_lv) : '',
         'pos' => max(0, aio_int($si, 'wh_pos', 0)));
 }

@@ -51,7 +51,7 @@ define('AIO_LP_LINKS_MAX', AIO_LP_MIRRORS_MAX * (AIO_LP_LINK_MAX + 4));
 define('AIO_LP_CHECK_MAX', 12);
 define('AIO_LP_CHECK_EACH', 6);
 define('AIO_LP_HLS_HEAD', 65536);
-// Characters of a name of a source or a voice kept, of a balancer in the key.
+// Characters of a name of a source or a voice kept, of the path of a balancer in the key.
 define('AIO_LP_NAME_MAX', 100);
 define('AIO_LP_BAL_MAX', 24);
 // Sources of a search and rows of a reply kept, at most.
@@ -269,16 +269,6 @@ function aio_lp_externalids($base, $p)
 
 // --- The search of the sources.
 
-// A balancer as a key: [a-z0-9_] of its name in lower case, cut; '' for none.
-/**
- * @param mixed $s
- * @return string
- */
-function aio_lp_bal($s)
-{
-    return is_string($s) ? (string) substr((string) preg_replace('/[^a-z0-9_]+/', '', strtolower($s)), 0, AIO_LP_BAL_MAX) : '';
-}
-
 // One link: http(s), no spaces or control characters, else ''.
 /**
  * @param mixed $u
@@ -374,17 +364,15 @@ function aio_lp_source($o, $pos)
     $url = isset($o['url']) && is_string($o['url']) && strlen($o['url']) <= AIO_LP_LINK_MAX ? aio_lp_link1($o['url']) : '';
     if ($url === '')
         return 'bad';
-    $bal = aio_lp_bal(isset($o['balanser']) ? $o['balanser'] : '');
-    if ($bal === '')
-        $bal = aio_lp_bal((string) preg_replace('~[?#].*\z~', '', basename($url)));
+    $path = aio_lp_path($url);
     $name = aio_lp_text(isset($o['name']) ? $o['name'] : '');
     $q = '';
     if (preg_match('/^(.*\S)\s+[~\-]\s+([0-9]{3,4}p|[0-9]K)\z/u', $name, $m))
         list($label, $q) = array($m[1], $m[2]);
     else
         $label = $name;
-    return array('name' => $name !== '' ? $name : $bal, 'label' => $label !== '' ? $label : $bal, 'q' => $q,
-        'url' => $url, 'bal' => $bal, 'index' => isset($o['index']) && is_int($o['index']) ? $o['index'] : 0,
+    return array('name' => $name !== '' ? $name : $path, 'label' => $label !== '' ? $label : $path, 'q' => $q,
+        'url' => $url, 'path' => $path, 'index' => isset($o['index']) && is_int($o['index']) ? $o['index'] : 0,
         'pos' => $pos);
 }
 
@@ -413,7 +401,7 @@ function aio_lp_source_of($base, $path)
 {
     if ($base === '' || aio_lp_path("/lite/$path") !== $path || $path === '')
         return null;
-    return array('name' => $path, 'label' => ucfirst($path), 'q' => '', 'url' => "$base/lite/$path", 'bal' => aio_lp_bal($path),
+    return array('name' => $path, 'label' => ucfirst($path), 'q' => '', 'url' => "$base/lite/$path", 'path' => $path,
         'index' => 0, 'pos' => 0);
 }
 
@@ -479,7 +467,7 @@ function aio_lp_events_why($r, $j)
 // step: base, q (the query of the title), mode (life: /lifeevents next; plain:
 // one events without life next, Lampac has no life mode; done), memkey, seen
 // (items of /lifeevents had), t0 (its start, aio_lp_now), sources (by index;
-// AioLpSource: name, label, q, url, bal, index, pos), gone (items hidden:
+// AioLpSource: name, label, q, url, path (aio_lp_path of url), index, pos), gone (items hidden:
 // a key => show, rch or bad), hidden (their counts by reason), tasks and pending (of the last /lifeevents), done, capped (the
 // time of the search ran out), err and detail (a reason, '' none: the search
 // failed only if no source came). One search at a time: two events at once
@@ -624,7 +612,7 @@ function aio_lp_str($x, $k)
  */
 function aio_lp_why($src, $why, $detail = '')
 {
-    return array('src' => $src['label'], 'bal' => $src['bal'], 'why' => $why, 'detail' => $detail);
+    return array('src' => $src['label'], 'path' => $src['path'], 'why' => $why, 'detail' => $detail);
 }
 
 // The quality links of an item: "2160p" => link, in its order.
@@ -647,9 +635,9 @@ function aio_lp_quals($q)
 // The reply ($code, $body) of the balancer of source $src -> array(kind: movie
 // (rows), serial (a series: not in this version, a reason), similar (Lampac
 // found several titles: skipped, counted), skip (nothing to play, reasons);
-// rows; why). A row (AioLpRow): bal, path (aio_lp_path of the link of $src:
-// "Continue" and the mark ask it again), src (its label), voice (translate,
-// else voice_name, else ''), quality (maxquality, else the quality of the
+// rows; why). A row (AioLpRow): path (aio_lp_path of the link of $src:
+// "Continue" and the mark ask it again; the key has it), src (its label), voice
+// (translate, else voice_name, else ''), quality (maxquality, else the quality of the
 // list), method (play: url plays; call: url gives the link, aio_lp_call),
 // url (by "quality" when empty), stream (the link of "call" that plays at
 // once, '' none), qual (quality => link), subs (subtitles of the item), key
@@ -736,11 +724,11 @@ function aio_lp_movie($src, $data, $base = '')
                 $n = isset($mute[$q]) ? $mute[$q] : 0;
                 $mute[$q] = $n + 1;
             }
-            $rows[] = array('bal' => $src['bal'], 'path' => aio_lp_path($src['url']), 'src' => $src['label'],
+            $rows[] = array('path' => $src['path'], 'src' => $src['label'],
                 'voice' => $voice, 'quality' => $q, 'method' => $method, 'url' => $url,
                 'stream' => aio_lp_link_ok(isset($x['stream']) ? $x['stream'] : null), 'qual' => $qual,
                 'subs' => isset($x['subtitles']) && is_array($x['subtitles']) ? count($x['subtitles']) : 0,
-                'key' => aio_lp_key($src['bal'], $voice, $q, $n));
+                'key' => aio_lp_key($src['path'], $voice, $q, $n));
         }
     }
     // The same reason of several items of a source: once.
@@ -818,7 +806,7 @@ function aio_lp_why_log($why)
         $d = $w['detail'];
         if (mb_strlen($d, 'UTF-8') > 100)
             $d = mb_substr($d, 0, 100, 'UTF-8') . '...';
-        $by[$w['why'] . ($d !== '' ? " ($d)" : '')][] = $w['bal'] !== '' ? $w['bal'] : $w['src'];
+        $by[$w['why'] . ($d !== '' ? " ($d)" : '')][] = $w['path'] !== '' ? $w['path'] : $w['src'];
     }
     $out = array();
     $names = 0;
@@ -1050,33 +1038,37 @@ function aio_lp_check($base, $url, $total = AIO_LP_CHECK_MAX)
 // --- The watch history.
 
 // The key of a row in the uid of the watch history ("aio:<dune_id>:<s>:<e>:<key>"):
-// "lp-<balancer>-<8 hex of the voice>", e.g. lp-phantom-5f2a91c0. No ':', never
-// "m" nor a number; the same for the same balancer and voice (no link or token
-// of Lampac in it: those expire). No voice: the 8 hex of quality $q and $n, the
-// number of the row among those of the balancer without a voice of that quality
-// (three Phantom rows without one: three keys, the same at the next reply).
+// "lp-<path>-<8 hex of the voice>", e.g. lp-phantom-5f2a91c0, the path of the
+// balancer as aio_lp_path ("Continue" and the mark ask it again; not the field
+// "balanser" of events): no ':', may have '-', the hex is the last 8 after the
+// last '-'. Never "m" nor a number; the same for the same balancer and voice (no
+// link or token of Lampac in it: those expire). A bad path or one longer than
+// AIO_LP_BAL_MAX: "lp--<hex>", no balancer to ask. No voice: the 8 hex of
+// quality $q and $n, the number of the row among those of the balancer without a
+// voice of that quality (three Phantom rows without one: three keys, the same at
+// the next reply).
 /**
- * @param string $bal
+ * @param string $path
  * @param string $voice
  * @param string $q
  * @param int $n
  * @return string
  */
-function aio_lp_key($bal, $voice, $q = '', $n = 0)
+function aio_lp_key($path, $voice, $q = '', $n = 0)
 {
-    $b = aio_lp_bal($bal);
+    $p = strlen($path) <= AIO_LP_BAL_MAX && aio_lp_path("/lite/$path") === $path ? $path : '';
     $v = trim($voice);
-    return 'lp-' . ($b !== '' ? $b : 'x') . '-' . substr(md5($v !== '' ? $v : "\n" . trim($q) . "\n$n"), 0, 8);
+    return "lp-$p-" . substr(md5($v !== '' ? $v : "\n" . trim($q) . "\n$n"), 0, 8);
 }
 
-// A key of aio_lp_key -> array(balancer, 8 hex), null for another one.
+// A key of aio_lp_key -> array(path of the balancer, '' none; 8 hex), null for another one.
 /**
  * @param mixed $key
  * @return array{string, string}|null
  */
 function aio_lp_key_parse($key)
 {
-    if (!is_string($key) || !preg_match('/^lp-([a-z0-9_]{1,' . AIO_LP_BAL_MAX . '})-([0-9a-f]{8})\z/', $key, $m))
+    if (!is_string($key) || !preg_match('/^lp-([A-Za-z0-9_\-]{0,' . AIO_LP_BAL_MAX . '})-([0-9a-f]{8})\z/', $key, $m))
         return null;
     return array($m[1], $m[2]);
 }

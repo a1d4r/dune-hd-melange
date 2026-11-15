@@ -34,13 +34,13 @@ parameters:
         # The parameters of a title for Lampac (aio_lp_title, lampac.php).
         AioLpTitle: 'array{id: string, imdb_id: string, kinopoisk_id: string, title: string, original_title: string, serial: string, year: string, original_language: string, source: string}'
         # A source of a search of Lampac (aio_lp_source, lampac.php).
-        AioLpSource: 'array{name: string, label: string, q: string, url: string, bal: string, index: int, pos: int}'
+        AioLpSource: 'array{name: string, label: string, q: string, url: string, path: string, index: int, pos: int}'
         # A search of Lampac between the ticks (aio_lp_search_start, lampac.php).
         AioLpSearch: 'array{base: string, q: string, mode: string, memkey: string, seen: int, t0: float, sources: list<AioLpSource>, gone: array<string, string>, hidden: array{show: int, rch: int, bad: int}, tasks: int, pending: int, done: bool, capped: bool, err: string, detail: string}'
         # A reason of a source of Lampac (aio_lp_why, lampac.php).
-        AioLpWhy: 'array{src: string, bal: string, why: string, detail: string}'
+        AioLpWhy: 'array{src: string, path: string, why: string, detail: string}'
         # A row of a reply of a balancer (aio_lp_movie, lampac.php).
-        AioLpRow: 'array{bal: string, path: string, src: string, voice: string, quality: string, method: string, url: string, stream: string, qual: array<string, string>, subs: int, key: string}'
+        AioLpRow: 'array{path: string, src: string, voice: string, quality: string, method: string, url: string, stream: string, qual: array<string, string>, subs: int, key: string}'
         # A reply of a balancer (aio_lp_reply, lampac.php).
         AioLpParsed: 'array{kind: string, rows: list<AioLpRow>, why: list<AioLpWhy>}'
         # The replies of the sources (aio_lp_replies, lampac.php).

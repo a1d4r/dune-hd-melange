@@ -313,7 +313,7 @@ function aio_lpv_row_items($v, $i, $c, $on, $lang)
     $b = aio_lpv_badge($r['quality']);
     if ($b !== '')
         $d = aio_gc_plates(array($b), AIO_GC_PAD);
-    $same = $i > 0 && $v['rows'][$i - 1]['bal'] === $r['bal'];
+    $same = $i > 0 && $v['rows'][$i - 1]['path'] === $r['path'];
     $d[] = aio_gc_cut(null, aio_gc_left_center($c[1], 44, $c[0]), $r['src'], 30, $same && !$on ? AIO_GC_DIM : $hi);
     $d[] = aio_gc_cut(null, aio_gc_left_center(max(40, AIO_GC_LW - AIO_GC_PAD - $c[2]), 44, $c[2]),
         $r['voice'] !== '' ? $r['voice'] : "\xE2\x80\x94", 30, $hi);
@@ -565,7 +565,7 @@ function aio_lpv_errors_of($st)
             $rch++;
             continue;
         }
-        $lines[] = ($w['src'] !== '' ? $w['src'] : $w['bal']) . ': ' . aio_lpv_why($lang, $w['why'], $w['detail']);
+        $lines[] = ($w['src'] !== '' ? $w['src'] : $w['path']) . ': ' . aio_lpv_why($lang, $w['why'], $w['detail']);
     }
     $lines = array_values(array_unique($lines));
     if ($rch > 0)
@@ -695,7 +695,7 @@ function aio_lpv_tick($in)
                 return aio_close_and(aio_lpv_down($run, $s['err'], $s['detail']));
             }
             if ($s['err'] === 'accsdb')
-                $run['v']['why'][] = array('src' => '', 'bal' => '', 'why' => 'accsdb', 'detail' => $s['detail']);
+                $run['v']['why'][] = array('src' => '', 'path' => '', 'why' => 'accsdb', 'detail' => $s['detail']);
             $run['v']['q'] = $s['q'];
             $run['v']['t'] = $s['t0'];
             $run['phase'] = $s['sources'] ? 'replies' : 'done';
@@ -791,7 +791,7 @@ function aio_lpv_result($run)
         $label = ucfirst($run['path']);
         foreach ($v['sources'] as $src)
         {
-            if (aio_lp_path($src['url']) === $run['path'])
+            if ($src['path'] === $run['path'])
                 $label = $src['label'];
         }
         foreach ($rows as $i => $r)
@@ -960,7 +960,7 @@ function aio_lpv_pick($in, $st)
         return $v['left'] > 0 ? aio_lpv_search_open($st, 'replace', array('more' => true)) : null;
     $r = $v['rows'][$sel];
     $left = Aio::$t0 > 0 ? AIO_OP_BUDGET - (microtime(true) - Aio::$t0) : AIO_OP_BUDGET;
-    aio_log("lampac: row $sel of " . count($v['rows']) . ": {$r['bal']}, {$r['method']}");
+    aio_log("lampac: row $sel of " . count($v['rows']) . ": {$r['path']}, {$r['method']}");
     $l = aio_lpv_link(Aio::$settings['lp'], $r, aio_lp_now() + $left);
     if ($l['err'] !== '')
         return aio_lpv_failed($st['lang'], $r, $l['err'], $l['detail']);
@@ -977,7 +977,7 @@ function aio_lpv_pick($in, $st)
  */
 function aio_lpv_failed($lang, $r, $why, $detail)
 {
-    aio_log("lampac: {$r['bal']}: no link to play ($why)");
+    aio_log("lampac: {$r['path']}: no link to play ($why)");
     return aio_dialog(aio_lpv_tr($lang, 'lp_failed', array('src' => $r['src'])), aio_dialog_lines(aio_lpv_why($lang, $why,
         $detail)), array('OK' => aio_close_and(null)));
 }
