@@ -228,8 +228,8 @@ function aio_tv_note_defs($id, $key, $lang)
     return aio_catv_row_defs(aio_catv_list(aio_cat_row_state($row), array(), false), $lang, array($item));
 }
 
-// The views of the EPF (aio_tv_epfs) by id: the row "Continue" of their tabs (aio_cp_row_defs: of both on tv.json),
-// then the rows of their tabs of the catalog from the copies, as
+// The views of the EPF (aio_tv_epfs) by id: the rows "Continue" and "Мой список" of their tabs (aio_cp_row_defs,
+// aio_ml_row_defs: of both on tv.json), then the rows of their tabs of the catalog from the copies, as
 // a screen of rows opened now (the mode of the tiles and the plates of the settings and the firmware,
 // as aio_catv_logo_of gives, but not kept among its screens: the EPF would push out a screen of Melange).
 // Each tab built once. AIOStreams not set: one tile "Set up Melange" ("tv:setup"), as the catalog opens
@@ -277,8 +277,11 @@ function aio_tv_views($lang, &$tiles = null)
         if ($off && $epf !== AIO_TV_EPF)
             continue;
         $cp_tiles = array();
-        $defs = Aio::$settings['base'] !== '' ? aio_cp_row_defs(count($of) === 1 ? $of[0] : '', $lang, $cp_tiles) : array();
-        $tiles = array_merge($tiles, $cp_tiles);
+        $ml_tiles = array();
+        $one = count($of) === 1 ? $of[0] : '';
+        $defs = Aio::$settings['base'] !== '' ? array_merge(aio_cp_row_defs($one, $lang, $cp_tiles), aio_ml_row_defs($one, $lang, $ml_tiles)) :
+            array();
+        $tiles = array_merge($tiles, $cp_tiles, $ml_tiles);
         foreach ($of as $tab)
             $defs = isset($tabs[$tab]) ? array_merge($defs, $tabs[$tab]['defs']) : $defs;
         if (Aio::$settings['base'] === '')
@@ -765,7 +768,8 @@ function aio_tv_menu($in)
     $lang = aio_catv_lang();
     aio_log("tv: POP UP on '" . aio_cut(aio_catv_in($in, 'selected_item_id'), 100) . "'");
     // On a tile (no header in focus), as aio_catv_menu.
-    $items = aio_catv_in($in, 'selected_header_id') === '' ? aio_catv_tile_menu(aio_catv_in($in, 'selected_item_id'), $from, $lang) : array();
+    $tile = aio_catv_in($in, 'selected_header_id') === '' ? aio_catv_in($in, 'selected_item_id') : '';
+    $items = $tile !== '' ? aio_catv_menu_join(aio_catv_tile_menu($tile, $from, $lang), aio_mlv_menu_items($tile, $from, $lang)) : array();
     $screen = array();
     foreach (array(
         array('cat_search', AIO_CATV_ICON_SEARCH, aio_input('cat_search', array('from' => $from))),

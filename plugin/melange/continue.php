@@ -264,8 +264,9 @@ function aio_cp_tile_items($types, $max, &$tiles = null, &$miss = null)
 }
 
 // The row of the types $types ($tab: 'movie', 'series', '' both) for a screen of rows: its title and tiles
-// (aio_cp_tile_items), no "Show all", no flag; none when it is empty. $tiles: its tiles by "continue:<movie_id>" (the
-// file of the tab "TV"). Its tiles of a pair with neither: AioCpm::$miss, in its order (the lazy meta, aio_cpm_step).
+// (aio_cp_tile_items), no "Show all" tile (ENTER on its title: the screen of all of them of its type), no flag; none
+// when it is empty. $tiles: its tiles by "continue:<movie_id>" (the file of the tab "TV"). Its tiles of a pair with
+// neither: AioCpm::$miss, in its order (the lazy meta, aio_cpm_step).
 /**
  * @param string $tab
  * @param string $lang
@@ -282,6 +283,8 @@ function aio_cp_row_defs($tab, $lang, &$tiles = null)
     $row = array('key' => AIO_CP_RID, 'type' => $tab !== '' ? $tab : 'movie', 'id' => AIO_CP_RID,
         'name' => aio_tr($lang, 'cp_row_continue'), 'genre' => '', 'home' => false, 'group' => '');
     $defs = aio_catv_row_defs(aio_catv_list(aio_cat_row_state($row), array(), false), $lang, $items, 0, AIO_CP_RID);
+    // ENTER on its title: all the cards of its type ("Продолжить" of view_my_list.php), as "Show all" of a row.
+    $defs[1][PluginRow::show_all_action] = aio_catv_open_act(AIO_MLV_CONT . ($tab !== '' ? ":$tab" : ''), $row['name']);
     aio_log(sprintf('continue: %s: %d tiles', $tab !== '' ? $tab : 'all', count($items)));
     return $defs;
 }

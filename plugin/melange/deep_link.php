@@ -253,8 +253,9 @@ function aio_dl_continue($q)
 }
 
 // to=row: "Show all" (aio_catv_all_open) of row n of tab $q['tab'], counted as the main screen shows them: the row
-// "Continue" first when it has tiles of the tab (aio_cp_items; it has no "Show all": "open: bad", null), then the rows of
-// the user of the saved manifest (aio_cat_user_rows: those turned off not there) it shows (aio_catv_shown_rows: on r24
+// "Continue" first when it has tiles of the tab (aio_cp_items), then "Мой список" when the list has titles of it - the
+// screens of all of them of the tab (aio_mlv_open of ENTER on their title), then the rows of the user of the saved
+// manifest (aio_cat_user_rows: those turned off not there) it shows (aio_catv_shown_rows: on r24
 // those with tiles in memory, as the last opening of the tab got them). No saved manifest, no such row: null, logged.
 /**
  * @param AioDlLink $q
@@ -269,14 +270,20 @@ function aio_dl_row($q)
         return null;
     }
     $n = intval($q['n']);
-    // n is of the rows of the screen, not of the manifest: with "Continue" on the tab the same row of the catalog is
-    // one further (#2 of the manifest: n=3), without it - back.
-    $cp = aio_cp_items(array($q['tab'])) ? 1 : 0;
-    if ($cp && $n === 1)
+    // n is of the rows of the screen, not of the manifest: with "Continue" and "Мой список" on the tab the same row of
+    // the catalog is one or two further, without them - back.
+    $local = array();
+    if (aio_cp_items(array($q['tab']), 1))
+        $local[] = AIO_MLV_CONT;
+    if (aio_mlv_list_cells(array($q['tab']), 1))
+        $local[] = AIO_MLV_LIST;
+    if (isset($local[$n - 1]))
     {
-        aio_log("open: bad n: row {$q['tab']} #1 is \"Continue\", no \"Show all\"");
-        return null;
+        $url = $local[$n - 1] . ':' . $q['tab'];
+        aio_log("open: row {$q['tab']} #$n: $url");
+        return aio_catv_open_act($url, aio_tr(aio_catv_lang(), $local[$n - 1] === AIO_MLV_LIST ? 'ml_title' : 'cp_row_continue'));
     }
+    $cp = count($local);
     $rows = aio_catv_shown_rows(aio_cat_user_rows($copy['rows'], Aio::$settings['cat_rows'], $q['tab']), aio_catv_loading_flag());
     if (!isset($rows[$n - 1 - $cp]))
     {

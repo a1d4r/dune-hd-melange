@@ -17,7 +17,8 @@
 
 // The rid of the tiles of "Мой список": "mylist:<the key of the entry>" (aio_catv_tile).
 define('AIO_ML_RID', 'mylist');
-// The screens.
+// The screens of all the titles (the heart, Fav 2 and Fav 1); of one type (ENTER on the title of the row of a tab) the
+// address and ":movie" or ":series".
 define('AIO_MLV_LIST', 'cat_mylist');
 define('AIO_MLV_CONT', 'cat_continue');
 // The id of the hint tile of an empty "Мой список" (no tile of a title: aio_catv_tile has none of it).
@@ -142,13 +143,36 @@ function aio_ml_menu_act($in)
 
 // --- The screens.
 
+// Screen $url of these two -> array(AIO_MLV_LIST or AIO_MLV_CONT, its type: 'movie', 'series', '' - both); null for
+// another.
+/**
+ * @param string $url
+ * @return array{string, string}|null
+ */
+function aio_mlv_screen($url)
+{
+    if (!preg_match('/^(' . AIO_MLV_LIST . '|' . AIO_MLV_CONT . ')(?::(movie|series))?$/D', $url, $m))
+        return null;
+    return array($m[1], isset($m[2]) ? $m[2] : '');
+}
+
 /**
  * @param string $url
  * @return bool
  */
 function aio_mlv_is_screen($url)
 {
-    return $url === AIO_MLV_LIST || $url === AIO_MLV_CONT;
+    return aio_mlv_screen($url) !== null;
+}
+
+// The types of type $type ('' both).
+/**
+ * @param string $type
+ * @return list<string>
+ */
+function aio_mlv_types($type)
+{
+    return $type === '' ? array('movie', 'series') : array($type);
 }
 
 // $id (with the mode of the screen or without) is of the hint tile.
@@ -193,29 +217,48 @@ function aio_mlv_tile($key)
     return $m ? $m : $t;
 }
 
-// The tiles of screen $url: the items of a row (id, caption, poster, stickers: the rating of the entry or of the
-// record, the badges of the history) and their tiles (for the grid of r24). "Мой список": its entries, the newest
-// first; "Продолжить": the cards of the row "Continue" of both types, the latest first.
+// The tiles of "Мой список" of the types $types, $max at most: the items of a row (id "mylist:<key>", caption, the
+// poster of the entry, stickers: the rating of the entry, the badges of the history) and their tiles; the newest first.
+/**
+ * @param list<string> $types
+ * @param int $max
+ * @return list<array{item: array<string, mixed>, tile: AioCatTile}>
+ */
+function aio_mlv_list_cells($types, $max)
+{
+    $out = array();
+    foreach (aio_ml_list() as $e)
+    {
+        if (!in_array($e['type'], $types, true))
+            continue;
+        if (count($out) >= $max)
+            break;
+        $t = aio_ml_tile($e);
+        // The id of the tile is the key of the entry: a movie and a series of one number of TMDB are two.
+        $t['id'] = $e['key'];
+        $out[] = array('item' => aio_catv_title_item(AIO_ML_RID, $t), 'tile' => $t);
+    }
+    return $out;
+}
+
+// The tiles of screen $url (aio_mlv_screen): the items of a row and their tiles (for the grid of r24). "Мой список": its
+// entries (aio_mlv_list_cells); "Продолжить": the cards of the row "Continue", the latest first; of its type, both on
+// a screen of all.
 /**
  * @param string $url
  * @return list<array{item: array<string, mixed>, tile: AioCatTile}>
  */
 function aio_mlv_cells($url)
 {
+    $sc = aio_mlv_screen($url);
+    $max = AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS;
+    if (!$sc)
+        return array();
+    if ($sc[0] === AIO_MLV_LIST)
+        return aio_mlv_list_cells(aio_mlv_types($sc[1]), $max);
     $out = array();
-    if ($url === AIO_MLV_LIST)
-    {
-        foreach (aio_ml_list() as $e)
-        {
-            $t = aio_ml_tile($e);
-            // The id of the tile is the key of the entry: a movie and a series of one number of TMDB are two.
-            $t['id'] = $e['key'];
-            $out[] = array('item' => aio_catv_title_item(AIO_ML_RID, $t), 'tile' => $t);
-        }
-        return $out;
-    }
     $tiles = array();
-    $items = aio_cp_tile_items(array('movie', 'series'), AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS, $tiles);
+    $items = aio_cp_tile_items(aio_mlv_types($sc[1]), $max, $tiles);
     $tiles = array_values($tiles);
     foreach ($items as $i => $item)
         $out[] = array('item' => $item, 'tile' => $tiles[$i]);
@@ -231,7 +274,8 @@ function aio_mlv_cells($url)
  */
 function aio_mlv_empty_item($url, $lang)
 {
-    if ($url !== AIO_MLV_LIST)
+    $sc = aio_mlv_screen($url);
+    if (!$sc || $sc[0] !== AIO_MLV_LIST)
         return aio_catv_note_item(AIO_CP_RID, 'cat_row_empty', $lang);
     return aio_catv_item(aio_catv_tile_id(AIO_MLV_HINT), aio_tr($lang, 'ml_title'), AIO_MLV_HINT_IMG . ($lang === 'ru' ? 'ru' : 'en') . '.png');
 }
@@ -275,8 +319,10 @@ function aio_mlv_view($url, $sel_state)
     AioCat::$lang = $lang;
     AioMlv::$opened[$url] = true;
     $cells = aio_mlv_cells($url);
-    $what = $url === AIO_MLV_LIST ? 'my list' : 'continue';
-    aio_log(sprintf('%s: screen: %d tiles, %.0f ms', $what, count($cells), (microtime(true) - $start) * 1000));
+    $sc = aio_mlv_screen($url);
+    $list = $sc && $sc[0] === AIO_MLV_LIST;
+    aio_log(sprintf('%s: screen%s: %d tiles, %.0f ms', $list ? 'my list' : 'continue', $sc && $sc[1] !== '' ? " of {$sc[1]}" : '',
+        count($cells), (microtime(true) - $start) * 1000));
     $items = array();
     foreach ($cells as $c)
         $items[] = $c['item'];
@@ -290,7 +336,7 @@ function aio_mlv_view($url, $sel_state)
         return aio_catv_all_pane($rows, null, $sel_state, $url);
     }
     $grid = array();
-    $info = $url === AIO_MLV_LIST ? aio_tr($lang, 'ml_hint') : aio_tr($lang, 'cat_row_empty');
+    $info = $list ? aio_tr($lang, 'ml_hint') : aio_tr($lang, 'cat_row_empty');
     foreach ($items as $i => $item)
         $grid[] = aio_mlv_grid_item($item, isset($cells[$i]) ? $cells[$i]['tile'] : null, $info, $lang);
     $p = array('from' => $url);
@@ -333,6 +379,40 @@ function aio_mlv_enter($id, $lang)
     return aio_card_open($e['dune_id']);
 }
 
+// --- The row "Мой список" of the main screens.
+
+// The row "Мой список" of the types of tab $tab ('movie', 'series'; '' both: tv.json of "TV") for a screen of rows,
+// second after "Continue": its title and the first AIO_CATV_ROW_TILES titles of the list of them (aio_mlv_list_cells:
+// the newest first, the entry alone, no request), no "Show all" tile, no flag; ENTER on its title the screen of its type
+// (aio_mlv_screen). None when the list has none of them (the empty screen with the hint is of the heart and Fav 2). $tiles:
+// its tiles by "mylist:<key>" (the file of the tab "TV").
+/**
+ * @param string $tab
+ * @param string $lang
+ * @param array<string, AioCatTile>|null $tiles
+ * @param-out array<string, AioCatTile> $tiles
+ * @return list<array<string, mixed>>
+ */
+function aio_ml_row_defs($tab, $lang, &$tiles = null)
+{
+    $tiles = array();
+    $items = array();
+    foreach (aio_mlv_list_cells(aio_mlv_types($tab), AIO_CATV_ROW_TILES) as $c)
+    {
+        $items[] = $c['item'];
+        $tiles[AIO_ML_RID . ':' . $c['tile']['id']] = $c['tile'];
+    }
+    if (!$items)
+        return array();
+    $name = aio_tr($lang, 'ml_title');
+    $row = array('key' => AIO_ML_RID, 'type' => $tab !== '' ? $tab : 'movie', 'id' => AIO_ML_RID, 'name' => $name, 'genre' => '',
+        'home' => false, 'group' => '');
+    $defs = aio_catv_row_defs(aio_catv_list(aio_cat_row_state($row), array(), false), $lang, $items, 0, AIO_ML_RID);
+    $defs[1][PluginRow::show_all_action] = aio_catv_open_act(AIO_MLV_LIST . ($tab !== '' ? ":$tab" : ''), $name);
+    aio_log(sprintf('my list: row %s: %d tiles', $tab !== '' ? $tab : 'all', count($items)));
+    return $defs;
+}
+
 // --- The ways to the screens.
 
 // The keys Fav 2 and Fav 1 of screen $from.
@@ -368,9 +448,9 @@ function aio_mlv_keys($view, $media_url)
     return $view;
 }
 
-// The screen of $w ('list': "Мой список", 'continue': "Продолжить"; another: null) from screen $from: on it already -
-// nothing; from the other one of them - in its place (Back goes where it went from that one: no stack of the two);
-// else over $from.
+// The screen of $w ('list': "Мой список", 'continue': "Продолжить"; another: null) of all the titles from screen $from:
+// on it already - nothing; from one of these screens (of a type too) - in its place (Back goes where it went from that
+// one: no stack of them); else over $from.
 /**
  * @param string $w
  * @param string $from
@@ -394,16 +474,19 @@ function aio_mlv_open($w, $from)
 
 // --- The import of the Favorites of the Dune.
 
-// The items of POP UP of screen $from (after those of a tile, aio_catv_menu): on "Мой список" "Добавить из «Избранного»
-// Дюны"; none on another.
+// The items of POP UP of tile $id of screen $from (after those of a tile: aio_catv_menu, aio_tv_menu): on the screen
+// "Мой список" (of a type too) and on a tile of the row "Мой список" "Добавить из «Избранного» Дюны"; none on another.
 /**
+ * @param string $id
  * @param string $from
  * @param string $lang
  * @return list<array<string, mixed>>
  */
-function aio_mlv_menu_items($from, $lang)
+function aio_mlv_menu_items($id, $from, $lang)
 {
-    if ($from !== AIO_MLV_LIST)
+    $sc = aio_mlv_screen($from);
+    list(, $x) = aio_catv_id_mode($id);
+    if (!($sc && $sc[0] === AIO_MLV_LIST) && strpos($x, AIO_ML_RID . ':') !== 0)
         return array();
     return array(array(
         GuiMenuItemDef::caption => aio_tr($lang, 'ml_import'),

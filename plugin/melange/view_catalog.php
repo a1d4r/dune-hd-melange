@@ -1312,8 +1312,8 @@ function aio_catv_main_view($media_url, $sel_state)
         return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, true), $sel_state, $media_url);
     }
     aio_pg_screen_start();
-    // The row "Continue" first, of the history: ready at once.
-    $defs = aio_cp_row_defs($tab, $lang);
+    // The row "Continue" first, of the history, then "Мой список" of the tab: ready at once.
+    $defs = array_merge(aio_cp_row_defs($tab, $lang), aio_ml_row_defs($tab, $lang));
     $now = microtime(true);
     $net = aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S - ($now - $rows_t0), AIO_CATV_OPEN_MAX_S - ($now - $start)));
     if (!$loading)
@@ -2761,10 +2761,13 @@ function aio_catv_menu($in, $from)
     if ($item === '')
         $item = aio_catv_in($in, 'selected_media_url');
     $items = $hid === '' ? aio_catv_tile_menu($item, $from, $lang) : array();
+    // A tile of the row "Мой список" of a main screen: the import too, as on its screen.
+    if ($tab !== '' && $hid === '')
+        $items = aio_catv_menu_join($items, aio_mlv_menu_items($item, $from, $lang));
     if ($tab === '')
     {
         // "Мой список": "Добавить из «Избранного» Дюны" after the items of a tile, on the hint alone.
-        $items = aio_catv_menu_join($items, aio_mlv_menu_items($from, $lang));
+        $items = aio_catv_menu_join($items, aio_mlv_menu_items($item, $from, $lang));
         return $items ? array(
             GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
             GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items)) : null;
