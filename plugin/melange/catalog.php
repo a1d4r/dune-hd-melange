@@ -166,7 +166,7 @@ function aio_cat_group($id)
         return 'anime';
     if (strpos($id, 'custom.fresh.') === 0)
         return 'fresh';
-    return $id === 'tmdb.trending' || $id === 'tmdb.top_rated' || strpos($id, 'letterboxd.') === 0 ? 'top' : 'other';
+    return $id === 'tmdb.trending' || $id === 'tmdb.top' || $id === 'tmdb.top_rated' || strpos($id, 'letterboxd.') === 0 ? 'top' : 'other';
 }
 
 // The groups of the screens in their order: GROUPS of web/src/rows.ts, the menu of the rows
@@ -190,19 +190,29 @@ function aio_cat_block($r)
     return in_array($r['group'], aio_cat_groups(), true) ? $r['group'] : 'other';
 }
 
-// The rows $rows with those of a group (aio_cat_block) together: the groups in the order of
-// their first row, the rows of each in their order. The same rule as byGroups of web/src/rows.ts.
+// The rows $rows by groups (aio_cat_block): group => its rows, the groups in the order of their
+// first row, the rows of each in their order. The same rule as blocksOf of web/src/rows.ts.
+/**
+ * @param list<AioCatRow> $rows
+ * @return array<string, list<AioCatRow>>
+ */
+function aio_cat_blocks($rows)
+{
+    $out = array();
+    foreach ($rows as $r)
+        $out[aio_cat_block($r)][] = $r;
+    return $out;
+}
+
+// The rows $rows with those of a group together (aio_cat_blocks, one after another).
 /**
  * @param list<AioCatRow> $rows
  * @return list<AioCatRow>
  */
 function aio_cat_by_groups($rows)
 {
-    $blocks = array();
-    foreach ($rows as $r)
-        $blocks[aio_cat_block($r)][] = $r;
     $out = array();
-    foreach ($blocks as $b)
+    foreach (aio_cat_blocks($rows) as $b)
         $out = array_merge($out, $b);
     return $out;
 }

@@ -20,16 +20,6 @@ function aio_catv_lcfg_groups()
     return $out;
 }
 
-// The group of the row $r in the menu (aio_cat_block).
-/**
- * @param AioCatRow $r
- * @return string
- */
-function aio_catv_lcfg_group($r)
-{
-    return aio_cat_block($r);
-}
-
 // The config_id of the dialog of the tab $tab: of its order of groups ($g ''), else of its group $g;
 // bin/uninstall.sh removes their files.
 /**
@@ -77,7 +67,7 @@ function aio_catv_lcfg_group_rows($rows, $tab, $g)
     $out = array();
     foreach ($rows as $r)
     {
-        if (aio_cat_row_tab($r) === $tab && aio_catv_lcfg_group($r) === $g)
+        if (aio_cat_row_tab($r) === $tab && aio_cat_block($r) === $g)
             $out[] = $r;
     }
     return $out;
@@ -96,24 +86,12 @@ function aio_catv_lcfg_keys($rows)
     return $out;
 }
 
-// The chosen rows $chosen (aio_catv_lcfg_chosen) by groups: group => its keys, the groups and the
-// keys in their order.
-/**
- * @param list<AioCatRow> $chosen
- * @return array<string, list<string>>
- */
-function aio_catv_lcfg_blocks($chosen)
-{
-    $out = array();
-    foreach ($chosen as $r)
-        $out[aio_catv_lcfg_group($r)][] = $r['key'];
-    return $out;
-}
-
-// The dialog $g of the tab $tab of the manifest $rows ('': "Group order", else the group $g) ->
-// ids: its items, in the order of all_items (what "Reset to defaults" gives back); checked: its
-// checked_ids, id => checked, every id; on: the ids chosen now (id => true); order: the ids in
-// the order shown now, as the file after "---"; chosen: the chosen rows of the tab.
+// The dialog $g of the tab $tab of the manifest $rows ('': "Group order", else the group $g), its
+// captions in the language $lang -> ids: its items, in the order of all_items (what "Reset to
+// defaults" gives back); captions: id => caption; checked: its checked_ids, id => checked, every
+// id; on: the ids chosen now (id => true); order: the ids in the order shown now, as the file after
+// "---"; item: a row of the tab => its item (to select the row of the header); blocks: the chosen
+// rows of the tab by groups, group => keys (aio_cat_blocks).
 // "Group order": the groups with chosen rows, all_items in the order of the page (aio_cat_groups),
 // all checked, the order theirs on the tab. A group: its rows in the order of the manifest,
 // checked_ids its start rows (showInHome); shown: its chosen rows in their order, then the others
@@ -123,43 +101,50 @@ function aio_catv_lcfg_blocks($chosen)
  * @param list<AioCatRow> $rows
  * @param string $tab
  * @param string $g
- * @return array{ids: list<string>, checked: array<string, bool>, on: array<string, true>, order: list<string>, chosen: list<AioCatRow>}
+ * @param string $lang
+ * @return array{ids: list<string>, captions: array<string, string>, checked: array<string, bool>, on: array<string, true>, order: list<string>, item: array<string, string>, blocks: array<string, list<string>>}
  */
-function aio_catv_lcfg_dialog($rows, $tab, $g)
+function aio_catv_lcfg_dialog($rows, $tab, $g, $lang)
 {
-    $chosen = aio_catv_lcfg_chosen($rows, $tab);
-    $blocks = aio_catv_lcfg_blocks($chosen);
-    $ids = array();
-    $checked = array();
-    $on = array();
-    $order = array();
+    $blocks = array();
+    foreach (aio_cat_blocks(aio_catv_lcfg_chosen($rows, $tab)) as $b => $rs)
+        $blocks[$b] = array_keys(aio_catv_lcfg_keys($rs));
+    $names = aio_catv_lcfg_groups();
+    $d = array('ids' => array(), 'captions' => array(), 'checked' => array(), 'on' => array(), 'order' => array(), 'item' => array(),
+        'blocks' => $blocks);
     if ($g === '')
     {
         foreach (aio_cat_groups() as $b)
         {
             if (!isset($blocks[$b]))
                 continue;
-            $ids[] = $b;
-            $checked[$b] = true;
-            $on[$b] = true;
+            $d['ids'][] = $b;
+            $d['captions'][$b] = aio_tr($lang, $names[$b]);
+            $d['checked'][$b] = true;
+            $d['on'][$b] = true;
         }
         foreach (array_keys($blocks) as $b)
-            $order[] = strval($b);
-    }
-    else
-    {
-        $order = isset($blocks[$g]) ? $blocks[$g] : array();
-        foreach ($order as $k)
-            $on[$k] = true;
-        foreach (aio_catv_lcfg_group_rows($rows, $tab, $g) as $r)
+            $d['order'][] = strval($b);
+        foreach ($rows as $r)
         {
-            $ids[] = $r['key'];
-            $checked[$r['key']] = $r['home'];
-            if (!isset($on[$r['key']]))
-                $order[] = $r['key'];
+            if (aio_cat_row_tab($r) === $tab)
+                $d['item'][$r['key']] = aio_cat_block($r);
         }
+        return $d;
     }
-    return array('ids' => $ids, 'checked' => $checked, 'on' => $on, 'order' => $order, 'chosen' => $chosen);
+    $d['order'] = isset($blocks[$g]) ? $blocks[$g] : array();
+    foreach ($d['order'] as $k)
+        $d['on'][$k] = true;
+    foreach (aio_catv_lcfg_group_rows($rows, $tab, $g) as $r)
+    {
+        $d['ids'][] = $r['key'];
+        $d['captions'][$r['key']] = $r['name'];
+        $d['checked'][$r['key']] = $r['home'];
+        $d['item'][$r['key']] = $r['key'];
+        if (!isset($d['on'][$r['key']]))
+            $d['order'][] = $r['key'];
+    }
+    return $d;
 }
 
 // The text of the file of a dialog over its items $ids, those chosen $on (id => true), the order
@@ -180,13 +165,14 @@ function aio_catv_lcfg_text($ids, $on, $order)
 
 // The file $text of a dialog over its items $ids, its checked_ids $checked (aio_catv_lcfg_dialog)
 // -> the state of every item: by its line (the last line of an item wins), an item with no line
-// as $checked; the place of an item in the order after "---" (its first line). Lines not of an
-// item go.
+// as $checked; the place of an item in the order after "---" (its first line); whether there is
+// "---" (the shell writes it after "Move" only); the count of the lines "+" and "-" of items.
+// Lines not of an item go.
 /**
  * @param string $text
  * @param list<string> $ids
  * @param array<string, bool> $checked
- * @return array{array<string, bool>, array<string, int>}
+ * @return array{array<string, bool>, array<string, int>, bool, int, int}
  */
 function aio_catv_lcfg_read($text, $ids, $checked)
 {
@@ -194,6 +180,8 @@ function aio_catv_lcfg_read($text, $ids, $checked)
     $state = $checked;
     $rank = array();
     $in_order = false;
+    $plus = 0;
+    $minus = 0;
     foreach (explode("\n", $text) as $line)
     {
         $line = trim($line);
@@ -212,23 +200,32 @@ function aio_catv_lcfg_read($text, $ids, $checked)
         }
         $k = strval(substr($line, 1));
         if (($line[0] === '+' || $line[0] === '-') && isset($known[$k]))
+        {
             $state[$k] = $line[0] === '+';
+            $plus += $line[0] === '+' ? 1 : 0;
+            $minus += $line[0] === '-' ? 1 : 0;
+        }
     }
-    return array($state, $rank);
+    return array($state, $rank, $in_order, $plus, $minus);
 }
 
-// The items checked after a dialog over $ids, its checked_ids $checked: in the order of the file,
-// an item with no place there after, in the order of $ids (so with no order, as after "Reset to
-// defaults", the order of all_items). -> ids; none checked: null.
+// The items checked after a dialog over $ids, its checked_ids $checked, the order shown when it
+// opened $shown: in the order of the file after "---"; no "---" but lines "+"/"-" (checks, no
+// "Move"), in the order of $shown; neither ("Reset to defaults", no file), in the order of $ids
+// (all_items). An item with no place in that order after, in the order of $ids. -> ids; none
+// checked: null.
 /**
  * @param string $text
  * @param list<string> $ids
  * @param array<string, bool> $checked
+ * @param list<string> $shown
  * @return list<string>|null
  */
-function aio_catv_lcfg_order($text, $ids, $checked)
+function aio_catv_lcfg_order($text, $ids, $checked, $shown)
 {
-    list($state, $rank) = aio_catv_lcfg_read($text, $ids, $checked);
+    list($state, $rank, $has_order, $plus, $minus) = aio_catv_lcfg_read($text, $ids, $checked);
+    if (!$has_order && $plus + $minus > 0)
+        $rank = array_flip($shown);
     $pos = array();
     $n = count($rank);
     foreach ($ids as $i => $id)
@@ -244,7 +241,7 @@ function aio_catv_lcfg_order($text, $ids, $checked)
 }
 
 // The keys of the tab after "Group order": the rows of the groups $groups (aio_catv_lcfg_order) in
-// their order, each its rows of $blocks (aio_catv_lcfg_blocks) in their order; a group not there
+// their order, each its rows of $blocks (aio_catv_lcfg_dialog) in their order; a group not there
 // goes with its rows.
 /**
  * @param list<string> $groups
@@ -352,7 +349,6 @@ function aio_catv_rows_menu_items($hid, $tab, $from, $lang)
         array(GuiMenuItemDef::is_separator => true));
 }
 
-
 // "Configure list…" of the main screen $from, the row $sel ('': none) -> the second menu, as the
 // MENU item "Download to server" (aio_srv_menu): "Group order" (with chosen rows of the tab), a
 // separator, the groups of the tab in the order of the page with "N of M" (chosen, all of the tab);
@@ -376,7 +372,7 @@ function aio_catv_rows_menu($from, $sel)
     {
         if (aio_cat_row_tab($r) !== $tab)
             continue;
-        $g = aio_catv_lcfg_group($r);
+        $g = aio_cat_block($r);
         $all[$g] = isset($all[$g]) ? $all[$g] + 1 : 1;
         $n[$g] = (isset($n[$g]) ? $n[$g] : 0) + (isset($on[$r['key']]) ? 1 : 0);
     }
@@ -428,7 +424,8 @@ function aio_catv_rows_edit($from, $sel, $g)
     if (!class_exists('EditListConfigActionData') || !defined('EDIT_LIST_CONFIG_ACTION_ID'))
         return aio_error('cat_rows_no_dialog');
     $copy = aio_cat_manifest_copy();
-    $d = aio_catv_lcfg_dialog($copy['rows'], $tab, $g);
+    $lang = aio_catv_lang();
+    $d = aio_catv_lcfg_dialog($copy['rows'], $tab, $g, $lang);
     if (!$d['ids'])
         return aio_error('cat_outdated');
     $what = $g === '' ? 'order' : "group $g";
@@ -437,18 +434,10 @@ function aio_catv_rows_edit($from, $sel, $g)
         aio_log("catalog: rows: $tab: $what: the file of the dialog not written");
         return aio_error('cat_rows_not_opened');
     }
-    $lang = aio_catv_lang();
-    $caption = array();
-    foreach ($copy['rows'] as $r)
-    {
-        if ($g !== '')
-            $caption[$r['key']] = $r['name'];
-        elseif ($r['key'] === $sel)
-            $sel = aio_catv_lcfg_group($r);
-    }
     $items = array();
     foreach ($d['ids'] as $id)
-        $items[] = array(GuiItem::id => $id, GuiItem::caption => $g === '' ? aio_tr($lang, $names[$id]) : $caption[$id]);
+        $items[] = array(GuiItem::id => $id, GuiItem::caption => $d['captions'][$id]);
+    $sel = isset($d['item'][$sel]) ? $d['item'][$sel] : '';
     $checked = array_keys(array_filter($d['checked']));
     $data = array(
         EditListConfigActionData::config_id => aio_catv_lcfg_id($tab, $g),
@@ -511,8 +500,10 @@ function aio_catv_rows_apply($in, $from)
         return aio_error('cat_rows_not_saved');
     }
     $copy = aio_cat_manifest_copy();
-    $d = aio_catv_lcfg_dialog($copy['rows'], $tab, $g);
-    $got = aio_catv_lcfg_order($text, $d['ids'], $d['checked']);
+    $d = aio_catv_lcfg_dialog($copy['rows'], $tab, $g, aio_catv_lang());
+    list(, , $has_order, $plus, $minus) = aio_catv_lcfg_read($text, $d['ids'], $d['checked']);
+    aio_log("catalog: rows: $tab: $what: the file: " . ($has_order ? 'an order' : 'no order') . ", $plus on, $minus off");
+    $got = aio_catv_lcfg_order($text, $d['ids'], $d['checked'], $d['order']);
     if ($g === '')
     {
         if (!$got)
@@ -520,11 +511,11 @@ function aio_catv_rows_apply($in, $from)
             aio_log("catalog: rows: $tab: $what: none chosen in the file, nothing changed");
             return null;
         }
-        $keys = aio_catv_lcfg_groups_apply($got, aio_catv_lcfg_blocks($d['chosen']));
+        $keys = aio_catv_lcfg_groups_apply($got, $d['blocks']);
     }
     else
     {
-        $keys = aio_catv_lcfg_group_apply(array_keys(aio_catv_lcfg_keys($d['chosen'])), $d['ids'], $got ? $got : array());
+        $keys = aio_catv_lcfg_group_apply(aio_catv_lcfg_groups_apply(array_keys($d['blocks']), $d['blocks']), $d['ids'], $got ? $got : array());
         if (!$keys)
         {
             aio_log("catalog: rows: $tab: $what: no row left on the tab, nothing changed");

@@ -37,15 +37,20 @@ const KNOWN = new Set(GROUPS.map(([group]) => group));
 // As aio_cat_block (catalog.php): the group of a row on the screen, one not of GROUPS "other".
 export const groupOf = (row: Pick<CatRow, "group">): string => (KNOWN.has(row.group) ? row.group : "other");
 
-// As aio_cat_by_groups (catalog.php): the keys of the rows with those of a group together, the groups in the order
-// of their first row, the rows of each in their order.
-export function byGroups(rows: readonly Pick<CatRow, "key" | "group">[]): string[] {
-  const blocks = new Map<string, string[]>();
+// As aio_cat_blocks (catalog.php): the rows by groups (groupOf), group => its rows, the groups in the order of their
+// first row, the rows of each in their order.
+export function blocksOf<T extends Pick<CatRow, "group">>(rows: readonly T[]): Map<string, T[]> {
+  const blocks = new Map<string, T[]>();
   for (const row of rows) {
     const group = groupOf(row);
-    blocks.set(group, [...(blocks.get(group) || []), row.key]);
+    blocks.set(group, [...(blocks.get(group) || []), row]);
   }
-  return ([] as string[]).concat(...blocks.values());
+  return blocks;
+}
+
+// As aio_cat_by_groups (catalog.php): the keys of the rows with those of a group together (blocksOf).
+export function byGroups(rows: readonly Pick<CatRow, "key" | "group">[]): string[] {
+  return ([] as string[]).concat(...[...blocksOf(rows).values()].map((block) => block.map((row) => row.key)));
 }
 
 // As aio_cat_user_rows (catalog.php): the keys of the choice of the tab still in the list, else its start rows; the
@@ -57,12 +62,13 @@ export function chosenKeys(rows: CatRow[], value: string, tab: Tab): string[] {
   return byGroups(chosen.length ? chosen : of.filter((row) => row.home));
 }
 
-// The four moves of the screen: to the first place, one up, one down, to the last; the path of its icon (24×24).
-const MOVES: readonly (readonly [keyof Texts, string])[] = [
-  ["rowsTop", "M5 4h14M12 20V8M6 14l6-6 6 6"],
-  ["rowsUp", "M12 19V5M5 12l7-7 7 7"],
-  ["rowsDown", "M12 5v14M5 12l7 7 7-7"],
-  ["rowsBottom", "M5 20h14M12 4v12M6 10l6 6 6-6"],
+// The four moves of the screen: to the first place, one up, one down, to the last; the path of its icon (24×24); the
+// place it moves an item at in a list of n.
+const MOVES: readonly (readonly [keyof Texts, string, (at: number, n: number) => number])[] = [
+  ["rowsTop", "M5 4h14M12 20V8M6 14l6-6 6 6", () => 0],
+  ["rowsUp", "M12 19V5M5 12l7-7 7 7", (at) => at - 1],
+  ["rowsDown", "M12 5v14M5 12l7 7 7-7", (at) => at + 1],
+  ["rowsBottom", "M5 20h14M12 4v12M6 10l6 6 6-6", (_at, n) => n - 1],
 ];
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -110,12 +116,7 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
 
   // The rows shown of the part by groups, in their order: [group, its keys].
   function blocks(tab: Tab): [string, string[]][] {
-    const of = new Map<string, string[]>();
-    for (const key of chosen[tab]) {
-      const group = groupOf(rowOf.get(key)!);
-      of.set(group, [...(of.get(group) || []), key]);
-    }
-    return [...of];
+    return [...blocksOf(chosen[tab].map((key) => rowOf.get(key)!))].map(([group, rows]) => [group, rows.map((row) => row.key)]);
   }
   // A row with its checkbox, in the list or a group.
   function checkRow(key: string): [HTMLLabelElement, HTMLInputElement] {
@@ -133,8 +134,8 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
   // The four buttons of the item at of the list (a group among the groups of the part, a row in its group), what is
   // moved named for a screen reader; done: the list moved. One that would not move it is off.
   function moveButtons<T>(list: T[], at: number, name: string, done: () => void): HTMLButtonElement[] {
-    return MOVES.map(([text, path], n) => {
-      const to = [0, at - 1, at + 1, list.length - 1][n]!,
+    return MOVES.map(([text, path, place]) => {
+      const to = place(at, list.length),
         button = doc.createElement("button"),
         icon = doc.createElementNS(SVG, "svg"),
         line = doc.createElementNS(SVG, "path");
@@ -172,6 +173,7 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
         name.textContent = nameOf(group);
         head.append(name, ...moveButtons(all, at, nameOf(group), put));
         shown.appendChild(head);
+        // The moves of a row splice keys itself, the array in all: put() reads the move from there (a copy would lose it).
         keys.forEach((key, n) => {
           const line = doc.createElement("div");
           line.className = "cro";
@@ -212,11 +214,7 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     commit();
   }
   function buildGroups(rows: CatRow[], groupsBox: HTMLElement): void {
-    const of = new Map<string, CatRow[]>();
-    for (const row of rows) {
-      const group = groupOf(row);
-      of.set(group, [...(of.get(group) || []), row]);
-    }
+    const of = blocksOf(rows);
     for (const [group, text] of GROUPS) {
       const list = of.get(group);
       if (!list) continue;
