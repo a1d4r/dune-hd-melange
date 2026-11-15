@@ -416,7 +416,8 @@ function aio_mlv_key_acts($from)
 // Folder view $view of screen $media_url (aio_folder_view: every screen of Melange - the catalog, "Show all", a search,
 // the own card, a person, the list of streams, the details, the settings, these two) with the keys Fav 2 and Fav 1 in
 // its actions, the actions of the screen kept. A file of the tab "TV" is no such view: the keys stay with the shell
-// there, as the colour keys (tv_tab.php).
+// there, as the colour keys (tv_tab.php). A new change_behaviour with actions on a screen of the catalog replaces its
+// actions whole and loses the Fav keys: add aio_mlv_key_acts to them (as aio_catv_all_tick does).
 /**
  * @param mixed $view
  * @param string $media_url

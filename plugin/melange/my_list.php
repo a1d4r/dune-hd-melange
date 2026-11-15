@@ -6,6 +6,9 @@
 // (aio_ml_fav_read), for an import by an action of the user. The functions of a file, an entry and the copy take what
 // they need and log nothing: the settings page has them too (no main.php or parse.php there). Those of php_server
 // need main.php (aio_data_dir, aio_file_sig, aio_write_file, aio_log). The actions of the screens: view_my_list.php.
+// Names: "Мой список" of the code (aio_ml_*, aio_mlv_*, my_list.json, the keys ml_* of the translations) is "Избранное"
+// / Favorites on the screen; aio_ml_fav_* and "the Favorites" in the comments of the reading of the shell are the
+// Favorites of the Dune ("Избранное" of its main screen); cat_fav is of the keys Fav 1 / Fav 2 of the remote.
 
 define('AIO_ML_FILE', 'my_list.json');
 // The version of the file: {"v": 1, "items": [<entry>...]}.
@@ -723,8 +726,8 @@ function aio_ml_fav_movies($dir, $lcfg)
 // r25 in its place: its movies (aio_ml_fav_movies). Persons, folders of the network, apps, other plugins: skipped; a
 // movie twice: the first. -> {dune_id, type (movie, series; '' - not known: an item of before {series}), name, year
 // ('' for an item), poster (an address; of @Movies with auth= of dunemdb - the outside IP of this Dune: kept in
-// AIO_ML_FILE as it is, the data of this Dune; masked in the log, aio_mask; not in the copy of the backup, aio_ml_copy),
-// file (the picture on the Dune; '' none)}. No request, nothing written.
+// AIO_ML_FILE as it is, the data of this Dune; masked in the log, aio_mask; not in the copy of the backup,
+// aio_ml_copy), file (the picture on the Dune; '' none)}. No request, nothing written.
 /**
  * @param list<string> $dirs
  * @param string $lcfg

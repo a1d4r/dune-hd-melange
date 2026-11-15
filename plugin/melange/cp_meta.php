@@ -206,8 +206,8 @@ function aio_cpm_wanted()
 
 // The lazy meta: the titles of aio_cpm_queue no row in memory has now (aio_cp_tile_map), up to $n requests in $limit s
 // (each with AIO_CPM_MIN_S left, its timeout the s left), each kept (a failure of the title too). No connection, 429 or
-// 5xx: a pause, the title not kept; a timeout the same, the second of the title kept failed (AIO_CPM_FAIL_S); no more of
-// the step. One line of the log of a step that asked; of a $tick always. -> how many were asked.
+// 5xx: a pause, the title not kept; a timeout the same, the second of the title kept failed (AIO_CPM_FAIL_S); no more
+// of the step. One line of the log of a step that asked; of a $tick always. -> how many were asked.
 /**
  * @param float $limit
  * @param int $n

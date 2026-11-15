@@ -111,7 +111,7 @@ define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 // The icons of the shell for the search and the setup: on the strip and in POP UP.
 define('AIO_CATV_ICON_SEARCH', 'xxx4.png');
 define('AIO_CATV_ICON_SETUP', 'xxx5.png');
-// "Мой список" (view_mylist.php): the heart of the shell, on the strip left of the search and in POP UP.
+// "Мой список" (view_my_list.php): the heart of the shell, on the strip left of the search and in POP UP.
 define('AIO_CATV_ICON_MYLIST', 'xxx3.png');
 // Our pictures of the panel, img/cat<N>_*: N goes up when they change, as the shell keeps a
 // picture by its URL even across a reinstall (plugins/melange_catalog_img.py of the kitchen). The
@@ -1885,7 +1885,7 @@ function aio_catv_grid_view($url)
 }
 
 // The grid of r24 of the items of $range (aio_catv_range), its actions $actions: "Show all", "Мой список" and
-// "Продолжить" of Fav 1 (view_mylist.php).
+// "Продолжить" of Fav 1 (view_my_list.php).
 /**
  * @param array<string, mixed> $range
  * @param array<string, AioAction> $actions

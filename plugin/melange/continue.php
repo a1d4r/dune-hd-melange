@@ -73,7 +73,7 @@ function aio_cp_item($mid, $ent)
 }
 
 // The cards of the row of the types $types (movie, series), the latest records first, $max at most (the cards after them
-// not looked at; the screen "Продолжить" of Fav 1: all of them, view_mylist.php), none taken off it with no record
+// not looked at; the screen "Продолжить" of Fav 1: all of them, view_my_list.php), none taken off it with no record
 // ending later (aio_cp_hidden): movie_id => aio_cp_item.
 /**
  * @param list<string> $types
@@ -169,8 +169,8 @@ function aio_cp_tile_find($type, $imdb, $tmdb)
 
 // The best tile of no request of a title of type $type with IMDb $imdb, else TMDB $tmdb ('': none): a tile of a row in
 // memory ($map, aio_cp_tile_map; null: aio_cp_tile_find; it has a description), else the tile of its meta kept
-// (aio_cpm_tile, cp_meta.php: asked lazily, or of the own card); null: neither (the caller has a tile of its own record:
-// of the history, of "Мой список", of the Favorites of the Dune).
+// (aio_cpm_tile, cp_meta.php: asked lazily, or of the own card); null: neither (the caller has a tile of its own
+// record: of the history, of "Мой список", of the Favorites of the Dune).
 /**
  * @param string $type
  * @param string $imdb
@@ -290,7 +290,8 @@ function aio_cp_row_defs($tab, $lang, &$tiles = null, &$miss = null)
 {
     $tiles = array();
     $items = array();
-    foreach (aio_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), AIO_CATV_ROW_TILES, $miss) as $id => $c)
+    $cells = aio_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), AIO_CATV_ROW_TILES, $miss);
+    foreach ($cells as $id => $c)
     {
         $items[] = $c['item'];
         $tiles[$id] = $c['tile'];
