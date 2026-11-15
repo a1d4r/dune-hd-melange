@@ -94,7 +94,7 @@ class Aio
     // 'ts_save' - save_to_db of its add (ts_save of the settings). 'markers' -
     // the same of the settings: aio_markers, aio_play. 'markers_exact' - the same:
     // aio_markers. 'source_errors' - the same:
-    // aio_errors_shown. 'no_color_keys' - the same: aio_gc_menu_keys. 'no_torrents' -
+    // aio_errors_shown. 'no_color_keys' - the same: aio_gc_keys_in_menu. 'no_torrents' -
     // aio_no_torrents(): no P2P rows, nothing sent to TorrServer, an app or a server. 'aio' - the own
     // AIOStreams server ('' none), "<aio>" in the log. 'own' - the own config
     // is chosen (source own). 'hosts' - aio_settings_hosts(), hidden in the log.

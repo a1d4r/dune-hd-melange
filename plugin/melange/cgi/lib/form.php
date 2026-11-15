@@ -1169,7 +1169,8 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
         aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_source_errors_block($v) .
-            aio_cgi_no_color_keys_block($v) .            aio_cgi_src_profiles_cards()) .
+            aio_cgi_no_color_keys_block($v) .
+            aio_cgi_src_profiles_cards()) .
         aio_cgi_screen('bak', aio_cgi_backup($t, $v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .

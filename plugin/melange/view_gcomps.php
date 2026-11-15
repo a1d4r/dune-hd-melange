@@ -1245,7 +1245,7 @@ function aio_gc_sort($in)
 /**
  * @return bool
  */
-function aio_gc_menu_keys()
+function aio_gc_keys_in_menu()
 {
     return Aio::$settings['no_color_keys'] || !aio_gc_color_keys();
 }
@@ -1378,7 +1378,7 @@ function aio_gc_src_item($st)
 }
 
 // gc_menu (MENU) of a live list -> the popup menu of the row under the cursor:
-// with aio_gc_menu_keys "Release details" of the row (as INFO; none in an empty list) and "Sort: <sort>"
+// with aio_gc_keys_in_menu "Release details" of the row (as INFO; none in an empty list) and "Sort: <sort>"
 // (aio_gc_sort_menu) first; "Refresh" (aio_refresh), an episode: "Choose episode" (aio_choose), copies of
 // Real-Debrid and TorBox in the list: "Main Debrid -> <the other one>" (aio_gc_main), the
 // source profiles: "Get films from" (aio_gc_src_item), a row
@@ -1408,7 +1408,7 @@ function aio_gc_menu($in)
     Aio::$state['gc'] = array($sel, $top);
     $rid = $st['rid'];
     $menu = array();
-    if (aio_gc_menu_keys())
+    if (aio_gc_keys_in_menu())
     {
         if ($st['rows'])
             $menu[] = array(
