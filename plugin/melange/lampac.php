@@ -898,7 +898,7 @@ function aio_lp_num($v)
 // The link of season $s in reply $j of a balancer without s (type season: data[] of {method link,
 // id, url, name "1 сезон"}): the item of id $s, else the first of a name "<s> ..."; '' for none.
 // Lampac gives a season by this link only: AniDub has its page (u=) in it, Filmix its postid, the
-// title query with &s=N alone gets 503 from AniDub (research/lampac-serial-2026-11-16.md).
+// title query with &s=N alone gets 503 from AniDub (Lampac 1.90.1, 16.11.2026).
 /**
  * @param array<mixed> $j
  * @param int $s
