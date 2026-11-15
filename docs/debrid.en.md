@@ -4,6 +4,8 @@ Connect Real-Debrid or TorBox so that movies start right away, with no wait for 
 
 You need: a Real-Debrid or TorBox subscription and a phone on the same network as the Dune.
 
+No subscription yet? Get one through the author's link to support Melange: [Real-Debrid](https://real-debrid.com/?id=20188550), [TorBox](https://torbox.app/subscription?referral=2339fa70-a03e-41f0-a414-9c96f0791bb1).
+
 1. In the Melange catalog, open the plugin settings (the gear on the bar at the top) and choose "Set up from a phone". Scan the QR code with your phone. On the first Melange launch, press "Set up from a phone" on the settings screen (not "Quick setup: torrents"). More about the page: [Settings page on a phone](phone-page.en.md).
 
    <img src="../screenshots/setup-qr.jpg" alt="Set up from a phone window with a QR code" width="100%">

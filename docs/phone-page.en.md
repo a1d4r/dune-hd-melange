@@ -12,6 +12,8 @@ You need: a phone on the same home network as the Dune.
 
    The green line suggests the path through the Dune **Movies** catalog. The Melange catalog in "Apps" works the same way.
 
+   Under **More**, **About Melange** shows the plugin version, build date and Dune firmware. Include them when you report a problem.
+
    <img src="../screenshots/phone-home.jpg" alt="Home screen of the page: green line All set to watch, below it the Watching section with Where to get films, AIOStreams, JacRed, TorrServer" width="300">
 
    <img src="../screenshots/phone-page-map-en.png" alt="Page map: home screen sections in the Watching, Catalog and More groups, and the guide chapter for each" width="100%">

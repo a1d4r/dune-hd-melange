@@ -118,7 +118,7 @@ export const EDITOR = {
 } as const;
 
 // The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>; in the order of the page.
-export const ROWS = ["src", "cfg", "voices", "torr", "rows", "look", "dl", "adv", "bak", "log"] as const;
+export const ROWS = ["src", "cfg", "voices", "torr", "rows", "look", "dl", "adv", "bak", "log", "about"] as const;
 export type Row = (typeof ROWS)[number];
 
 export const CLS = {

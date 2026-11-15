@@ -4,6 +4,7 @@
 
 ## 0.60.2
 - **Catalog rows ordered by groups.** The rows of one group now always stay together, on the settings page and on the Dune. On the page, the rows of a tab are listed by group: the buttons next to a group name move the whole group, and the buttons next to a row move it within its group, including to the top or the bottom. On the Dune, **Configure List...** now has **Group order** instead of **Row order**: move groups there, or clear the (x) of a group to hide all its rows. The window of a group also sets the order of its rows. A row you turn on goes to the end of its group. The «Популярное» (Popular) row is now in the Top group. If you have not set up your rows, the default ones are ordered by groups too, so on the «Сериалы» (Series) tab the «Этот год» (This year) row now comes after «Популярное» (Popular) and «Лучшие по рейтингу» (Top rated). If your rows were mixed between groups, Melange groups them after the update: each group takes the place of its first row.
+- **About Melange on the settings page.** The main screen of the settings page now has an **About Melange** item under **More**. It shows the Melange version, build date and Dune firmware, with a link to the author's Telegram channel. Below is **Support the author**: donations via T-Bank and YooMoney, and the author's Real-Debrid and TorBox links for those about to subscribe.
 - Fixed: in the catalog row settings, the Russian name of the «Декады» group is now «Десятилетия». In English it stays Decades.
 
 ## 0.60.1 — 15.11.2026
@@ -249,6 +250,7 @@ First public release. What it does:
 
 ## 0.60.2
 - **Ряды каталога по группам.** Ряды одной группы теперь всегда стоят подряд, и на странице настроек, и на Дюне. На странице ряды вкладки идут по группам: кнопки у названия группы двигают всю группу, кнопки у ряда двигают его внутри группы, в том числе в начало и в конец. На Дюне в «Настроить список...» вместо «Порядок рядов» теперь «Порядок групп»: там группы переставляются, а если снять с группы (x), скроются все её ряды. В окне группы задаётся и порядок её рядов. Включённый ряд встаёт в конец своей группы. Ряд «Популярное» теперь в группе «Топы». Ряды по умолчанию, если вы их не настраивали, тоже идут по группам, поэтому на вкладке «Сериалы» ряд «Этот год» теперь стоит после «Популярного» и «Лучших по рейтингу». Если ряды разных групп были перемешаны, после обновления Melange соберёт их по группам: каждая группа встанет на место своего первого ряда.
+- **«О Melange» на странице настроек.** На главном экране страницы настроек в группе «Ещё» появился пункт «О Melange». В нём версия Melange, дата сборки и прошивка Дюны, там же ссылка на Telegram-канал автора. Ниже блок «Поддержать автора»: донат через Т-Банк и ЮMoney и ссылки автора на Real-Debrid и TorBox для тех, кто собирается оформить подписку.
 - Исправлено: в настройках рядов каталога группа «Декады» теперь называется «Десятилетия».
 
 ## 0.60.1 — 15.11.2026

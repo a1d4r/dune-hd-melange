@@ -2,3 +2,4 @@ dist/
 .DS_Store
 node_modules/
 *_url.txt
+plugin/melange/build_date.txt
