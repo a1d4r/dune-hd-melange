@@ -822,7 +822,7 @@ function aio_pg_token()
 // The pair of $mid now: the card of the shell (not looked at yet), else movie/<id> of the dunemdb API with
 // dune_auth, as the shell opens its card (dunemdb_api.php api_movie), in $total s (whole s; under 1 none). A pair of
 // a series with no seasons (aio_pg_no_seasons): the card for them, of the shell only with them; none in the reply -
-// sq, the time (the pair is not touched by none or fail).
+// sq, the time (the pair is not touched by none or fail); a new pair of a series with none in the reply - sq too.
 // Kept: a pair; none (code 100 with no ids in the sources of the card, or the message "not found", as
 // aio_card_ask); fail (no dune_auth, transport, "sources" not found by the parse, another answer: asked again
 // after AIO_PG_FAIL_S). No connection, a timeout or 5xx: no request in
@@ -874,10 +874,12 @@ function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
     $why = $err !== '' ? (preg_match('/^curl [0-9]+/', $err, $e) ? $e[0] : ($err === AIO_HTTP_TOO_BIG ? 'too big' : 'failed')) :
         "HTTP $code";
     $got = $st === 'pair' && isset($l['seasons']);
+    // No seasons of a series: asked for them, or a new pair of a series with none (not asked again at the next tick).
+    $sq = !$got && ($need || ($st === 'pair' && aio_pg_no_seasons($l)));
     aio_log(sprintf('link: movie/%s %d B, %.0f ms, %s, %s%s%s', $mid, strlen($body), (microtime(true) - $t) * 1000, $why, $st,
-        $need ? ($got ? ', seasons' : ', no seasons') : '', $down ? ', pause' : ''));
-    aio_pg_link_put($mid, $st === 'pair' ? $l : array($st => time()), !$need || $got);
-    if ($need && !$got)
+        $sq ? ', no seasons' : ($got && $need ? ', seasons' : ''), $down ? ', pause' : ''));
+    aio_pg_link_put($mid, $st === 'pair' ? $l : array($st => time()), !$sq);
+    if ($sq)
     {
         $links = aio_pg_links();
         $links[$mid]['sq'] = time();
