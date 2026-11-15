@@ -13,7 +13,7 @@
 // errors" by the screen of the plugin, its text by the code:
 //   down - no answer (detail: the curl error); http - HTTP detail; forbidden -
 //   403 of events ("check WAF in init.conf"); not_lampac - not JSON or not
-//   its format; accsdb - the provider asks to log in (detail: its msg); rch -
+//   its format (of events, a balancer, "call"); accsdb - the provider asks to log in (detail: its msg); rch -
 //   "only through the Lampa app"; empty - nothing found ({}, no data);
 //   type - unknown type (detail); method - unknown method (detail); headers -
 //   "turn on streamproxy of the balancer in init.conf"; serial - a series, not
@@ -250,9 +250,9 @@ function aio_lp_json($body)
     return is_array($j) ? $j : null;
 }
 
-// The ids the title lacks (no KinoPoisk or IMDb id, a TMDB one known) by
-// /externalids of Lampac $base: without the KinoPoisk id the balancers find
-// almost nothing. -> array(the parameters, '' or the reason of a failure: its
+// The ids the title lacks (no KinoPoisk or IMDb id, a TMDB or an IMDb one
+// known: Lampac 1.90.1 takes either) by /externalids of Lampac $base: without
+// the KinoPoisk id the balancers find almost nothing. -> array(the parameters, '' or the reason of a failure: its
 // ids stay as they were). An id it sends is taken only where there is none.
 /**
  * @param string $base
@@ -261,10 +261,11 @@ function aio_lp_json($body)
  */
 function aio_lp_externalids($base, $p)
 {
-    if ($p['id'] === '' || ($p['kinopoisk_id'] !== '' && $p['imdb_id'] !== ''))
+    if (($p['id'] === '' && $p['imdb_id'] === '') || ($p['kinopoisk_id'] !== '' && $p['imdb_id'] !== ''))
         return array($p, '');
     $t = aio_lp_now();
-    $r = aio_lp_get("$base/externalids?" . aio_lp_query(array('id' => $p['id'], 'serial' => $p['serial'])),
+    $ask = $p['id'] !== '' ? array('id' => $p['id']) : array('imdb_id' => $p['imdb_id']);
+    $r = aio_lp_get("$base/externalids?" . aio_lp_query($ask + array('serial' => $p['serial'])),
         AIO_LP_CONNECT, AIO_LP_STEP, 65536);
     $j = $r['err'] === '' && $r['code'] === 200 ? aio_lp_json($r['body']) : null;
     if ($j === null)
@@ -341,6 +342,35 @@ function aio_lp_source($o, $pos)
     return array('name' => $name !== '' ? $name : $bal, 'label' => $label !== '' ? $label : $bal, 'q' => $q,
         'url' => $url, 'bal' => $bal, 'index' => isset($o['index']) && is_int($o['index']) ? $o['index'] : 0,
         'pos' => $pos);
+}
+
+// The path of a balancer in the link of its source ("phantom" of
+// http://host/lite/phantom): what "Continue" asks again without events, '' for none.
+/**
+ * @param string $url
+ * @return string
+ */
+function aio_lp_path($url)
+{
+    $path = (string) parse_url($url, PHP_URL_PATH);
+    $b = basename($path);
+    return preg_match('/^[A-Za-z0-9_\-]{1,' . AIO_LP_NAME_MAX . '}\z/', $b) ? $b : '';
+}
+
+// A source of balancer path $path (aio_lp_path) on Lampac $base, as events
+// would give it (its label the path with a capital: events gives the name):
+// "Continue" asks it alone. null for a bad path.
+/**
+ * @param string $base
+ * @param string $path
+ * @return AioLpSource|null
+ */
+function aio_lp_source_of($base, $path)
+{
+    if ($base === '' || aio_lp_path("/lite/$path") !== $path || $path === '')
+        return null;
+    return array('name' => $path, 'label' => ucfirst($path), 'q' => '', 'url' => "$base/lite/$path", 'bal' => aio_lp_bal($path),
+        'index' => 0, 'pos' => 0);
 }
 
 // Items $list of events, added to the sources $have of the search, $gone its
@@ -597,7 +627,7 @@ function aio_lp_reply($src, $code, $body)
     else if ($code !== 200)
         $out['why'][] = aio_lp_why($src, 'http', strval($code));
     else if ($j === null)
-        $out['why'][] = aio_lp_why($src, 'not_json');
+        $out['why'][] = aio_lp_why($src, 'not_lampac');
     else if (!$j || !isset($j['type']) || !isset($j['data']) || !is_array($j['data']) || !$j['data'])
         $out['why'][] = aio_lp_why($src, 'empty');
     else if ($j['type'] === 'similar')
@@ -662,8 +692,8 @@ function aio_lp_movie($src, $data)
 }
 
 // The replies of sources $sources (of a search) from the $from-th, in turn,
-// for title $p (its query aio_lp_query): up to AIO_LP_REPLIES_MAX s in all,
-// AIO_LP_REPLY_MAX each (Lampac has them in its cache after events: 0.01-0.23
+// for title $p (its query aio_lp_query): up to $total s in all (a tick of a
+// window asks a part, from the next of the one before), AIO_LP_REPLY_MAX each (Lampac has them in its cache after events: 0.01-0.23
 // s). -> array(rows (AioLpRow, by source), why (AioLpWhy), next: the index of
 // the first source not asked, left: sources not asked (the screen says "N
 // more"), similar, serial: sources that answered so, asked).
@@ -672,21 +702,22 @@ function aio_lp_movie($src, $data)
  * @param list<AioLpSource> $sources
  * @param string $q
  * @param int $from
+ * @param int|float $total
  * @return AioLpReplies
  */
-function aio_lp_replies($base, $sources, $q, $from = 0)
+function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_MAX)
 {
     $t0 = aio_lp_now();
     $out = array('rows' => array(), 'why' => array(), 'next' => $from, 'left' => 0, 'similar' => 0, 'serial' => 0,
         'asked' => 0);
     for ($i = $from; $i < count($sources); $i++)
     {
-        $left = AIO_LP_REPLIES_MAX - (aio_lp_now() - $t0);
+        $left = $total - (aio_lp_now() - $t0);
         if ($left < AIO_LP_REPLY_MIN)
             break;
         $src = $sources[$i];
-        $total = (int) min(AIO_LP_REPLY_MAX, floor($left));
-        $r = aio_lp_get(aio_lp_url($src['url'], 'rjson=true&' . $q), min(AIO_LP_CONNECT, $total), $total,
+        $each = (int) min(AIO_LP_REPLY_MAX, floor($left));
+        $r = aio_lp_get(aio_lp_url($src['url'], 'rjson=true&' . $q), min(AIO_LP_CONNECT, $each), $each,
             AIO_LP_MAX_BYTES);
         $out['asked']++;
         $out['next'] = $i + 1;
@@ -718,7 +749,7 @@ function aio_lp_replies($base, $sources, $q, $from = 0)
 // "call" of row link $url (a row of method call; by ENTER only): its reply
 // {"method":"play","url":...} -> array(url: the link ('' on a failure), qual:
 // quality => link, err: '' or the reason (AioLpWhy codes: down, http, rch,
-// accsdb, not_json, no_link, method), detail, tries). A failure, an empty
+// accsdb, not_lampac, no_link, method), detail, tries). A failure, an empty
 // link or HTTP 416 (Filmix answers it every other time) -> one more try after
 // $pause us; not when the failure came from the cache of Lampac
 // (X-Invoke-Cache: HIT: it keeps errors) nor for rch and accsdb. $total s for
@@ -754,7 +785,7 @@ function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL
         else if ($r['code'] !== 200)
             list($out['err'], $out['detail']) = array('http', strval($r['code']));
         else if ($j === null)
-            list($out['err'], $out['detail']) = array('not_json', '');
+            list($out['err'], $out['detail']) = array('not_lampac', 'not JSON');
         else if (aio_lp_str($j, 'method') !== '' && aio_lp_str($j, 'method') !== 'play')
             list($out['err'], $out['detail'], $again) = array('method', aio_lp_text(aio_lp_str($j, 'method')), false);
         else
