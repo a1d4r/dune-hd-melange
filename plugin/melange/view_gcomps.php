@@ -675,9 +675,6 @@ function aio_gc_card_status($r, $tt)
     return array("$status · $n " . aio_gc_plural($tt['lang'], $n, 'gc_seeds'), aio_gc_seed_color($n, true));
 }
 
-// Children of row panel "r$i". The row in focus is brighter, as in the
-// shell's own lists: its texts TEXT, the add-on TEXT2; the others TEXT2, DIM.
-// A release watched before ($share > 0): a progress bar at the row bottom.
 // The bar of share $share (0 none) watched under a row of a list (aio_gc_row_items,
 // aio_lpv_row_items).
 /**
@@ -697,6 +694,9 @@ function aio_gc_bar($share)
     return $d;
 }
 
+// Children of row panel "r$i". The row in focus is brighter, as in the
+// shell's own lists: its texts TEXT, the add-on TEXT2; the others TEXT2, DIM.
+// A release watched before ($share > 0): a progress bar at the row bottom.
 /**
  * @param AioRow $r
  * @param AioGcText $tt
