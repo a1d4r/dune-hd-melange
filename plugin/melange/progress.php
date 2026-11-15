@@ -529,10 +529,23 @@ function aio_pg_info_w($text, $tail, $px)
     return aio_gc_w($text, $px) + ($tail !== '' ? aio_gc_w($tail, $px) : 0);
 }
 
+// The line of the panel at $y, 40 high, of words $text alone (a title of "Мой список" with no history), as the text of
+// aio_pg_info_line with no bar: at the left edge of the column, cut with "…" to it.
+/**
+ * @param string $text
+ * @param int $y
+ * @return list<array<string, mixed>>
+ */
+function aio_pg_info_words($text, $y)
+{
+    return array(aio_catv_info_label(aio_gc_cut_w($text, AIO_PG_INFO_PX, AIO_CATV_TEXT_W), AIO_PG_INFO_PX, AIO_CATV_TEXT_COLOR, -1,
+        AIO_PG_INFO_H, $y - 3, array(GCompTtfLabelDef::valign => VALIGN_CENTER)));
+}
+
 // The line of the panel of badge $b at $y, 40 high: the bar (full when watched, none of it of the next episode), the
-// text, the tick of a watched one, then $tail (" · В моём списке" of stage 3; '' none). Too wide for the column
-// (AIO_CATV_TEXT_W): the bar shorter, down to AIO_PG_INFO_BAR_MIN, then the words smaller, as the lines over it
-// (aio_catv_fit), down to AIO_PG_INFO_MIN_PX, the tail cut with "…" to what is left.
+// text, the tick of a watched one, then $tail (" · В моём списке", a title of "Мой список"; '' none). Too wide for the
+// column (AIO_CATV_TEXT_W): the bar shorter, down to AIO_PG_INFO_BAR_MIN, then the words smaller, as the lines over
+// it (aio_catv_fit), down to AIO_PG_INFO_MIN_PX, the tail cut with "…" to what is left.
 /**
  * @param AioPgBadge $b
  * @param int $y

@@ -2368,8 +2368,9 @@ function aio_catv_title_label($name, $bottom)
 // in any interface), the title higher by its height. Then the facts, the genres and the
 // country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the description 13 px under the last one, as many lines
 // as the rest of the panel holds, as the native one counts them; the line of the history of a card watched or begun
-// (aio_pg_info_line) under it at one place, the description the lines over it. No line for an empty field, the next
-// ones go up.
+// (aio_pg_info_line; a title of "Мой список" with " · В моём списке" at its end, one not watched with these words
+// alone, aio_pg_info_words) under it at one place, the description the lines over it. No line for an empty field, the
+// next ones go up.
 // "Show all": the name of the row and the caption of the tile. null without a tile (aio_catv_tile) or a row in memory or a copy
 // (aio_catv_all_list: a stub, a message). No label with an empty text: whether the shell takes one is not known.
 /**
@@ -2438,15 +2439,18 @@ function aio_catv_info($in)
     // place whatever the length of the description and the lines over it: its middle AIO_PG_INFO_GAP under the middle of
     // the last line of a description of AIO_CATV_DESC_HIST lines under all the lines of the panel (facts, genres, cast);
     // the description as many lines as are over it.
+    // A title of "Мой список": " · В моём списке" after it; in the list with no history the words alone there.
     $mid = aio_cp_mid_of($id);
     $b = $t ? ($mid !== '' ? aio_cp_badge($mid, $t['type']) : aio_pg_tile_badge($t)) : null;
+    $ml = $t && aio_ml_in($t, $mid) !== '' ? aio_tr(aio_catv_ui_lang(), 'ml_in') : '';
     $hist = array();
-    if ($b)
+    if ($b || $ml !== '')
     {
         // The top of the last line of such a description.
         $last = AIO_CATV_LINES_Y + 3 * AIO_CATV_LINE_H + 13 + (AIO_CATV_DESC_HIST - 1) * $step;
         $n = min($n, intval(($last - $y) / $step) + 1);
-        $hist = aio_pg_info_line($b, $last + AIO_CATV_DESC_MID + AIO_PG_INFO_GAP - intval(AIO_PG_INFO_H / 2), aio_catv_ui_lang());
+        $hy = $last + AIO_CATV_DESC_MID + AIO_PG_INFO_GAP - intval(AIO_PG_INFO_H / 2);
+        $hist = $b ? aio_pg_info_line($b, $hy, aio_catv_ui_lang(), $ml !== '' ? " · $ml" : '') : aio_pg_info_words($ml, $hy);
     }
     $desc = implode(' ', aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, $n, true));
     if ($desc !== '')
@@ -2538,9 +2542,10 @@ function aio_catv_after_player($post)
     return $a;
 }
 
-// The items of POP UP of tile $id of screen $from (a main screen of the catalog, an EPF of "TV"), first, before a
-// separator: those of the row "Continue" and the marks (aio_cp_menu_items), then those of "My list" (stage 3: none
-// yet). A tile aio_catv_tile has not (a hint of "My list") is for each part to tell. None of them: no separator.
+// The items of POP UP of tile $id of screen $from (a main screen of the catalog, "Show all", the results of a search, an
+// EPF of "TV"), first, before a separator: those of the row "Continue" and the marks (aio_cp_menu_items), then that of
+// "Мой список" (aio_ml_menu_items). A tile aio_catv_tile has not (a hint of "My list") is for each part to tell. None
+// of them: no separator.
 /**
  * @param string $id
  * @param string $from
@@ -2549,16 +2554,15 @@ function aio_catv_after_player($post)
  */
 function aio_catv_tile_menu($id, $from, $lang)
 {
-    $items = aio_cp_menu_items($id, $from, $lang);
-    // Stage 3: the items of "My list" here.
+    $items = array_merge(aio_cp_menu_items($id, $from, $lang), aio_ml_menu_items($id, $from, $lang));
     if ($items)
         $items[] = array(GuiMenuItemDef::is_separator => true);
     return $items;
 }
 
 // After an action of POP UP of a tile (aio_catv_tile_menu) on screen $from: the screen anew (invalidate: the row
-// "Continue" and the badges of the history now, O2), the tab "TV" built anew (aio_tv_flag; its EPF are no screen to
-// invalidate, null).
+// "Continue" and the badges of the history now, O2; of the results of a search "results:<id>" its address
+// "cat_search:<id>"), the tab "TV" built anew (aio_tv_flag; its EPF are no screen to invalidate, null).
 /**
  * @param string $from
  * @param string $why
@@ -2567,6 +2571,8 @@ function aio_catv_tile_menu($id, $from, $lang)
 function aio_catv_tile_after($from, $why)
 {
     aio_tv_flag($why);
+    if (strpos($from, 'results:') === 0)
+        $from = 'cat_search:' . substr($from, strlen('results:'));
     return aio_tv_is_from($from) ? null : aio_catv_invalidate($from);
 }
 
@@ -2652,7 +2658,8 @@ function aio_catv_strip_enter($id, $from, $up = false)
 // POP UP of the screen $from. A main screen: the parts of the strip, as ENTER on them (cat_part), so
 // the strip is at hand anywhere, with icons of the shell (the search and the setup as on the strip);
 // on a header above them "Configure list…" and a separator (aio_catv_rows_menu_items), on a tile of a
-// title its items and a separator (aio_catv_tile_menu). Else (the results of a search, "Show all") nothing.
+// title its items and a separator (aio_catv_tile_menu). Else (the results of a search, "Show all") the items of a tile
+// alone, no separator; none: nothing.
 /**
  * @param stdClass $in
  * @param string $from
@@ -2664,11 +2671,16 @@ function aio_catv_menu($in, $from)
     $tab = aio_catv_tab($from);
     aio_log("catalog: POP UP: header '" . aio_cut($hid, 100) . "', row '" . aio_cut(aio_catv_in($in, 'selected_row_id'), 100) .
         "', item '" . aio_cut(aio_catv_in($in, 'selected_item_id'), 100) . "'");
-    if ($tab === '')
-        return null;
     $lang = aio_catv_lang();
     // On a tile (no header in focus): its items first (aio_catv_tile_menu), then those of the screen.
     $items = $hid === '' ? aio_catv_tile_menu(aio_catv_in($in, 'selected_item_id'), $from, $lang) : array();
+    if ($tab === '')
+    {
+        array_pop($items);
+        return $items ? array(
+            GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
+            GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items)) : null;
+    }
     $items = array_merge($items, aio_catv_rows_menu_items($hid, $tab, $from, $lang));
     $parts = array(
         'tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png'),
@@ -2887,5 +2899,7 @@ function aio_catv_input($in, $control)
         return aio_cp_hide_act($in);
     if ($control === 'cat_mark')
         return aio_cp_mark($in);
+    if ($control === 'cat_ml')
+        return aio_ml_menu_act($in);
     return null;
 }

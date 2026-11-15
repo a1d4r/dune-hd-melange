@@ -17,6 +17,9 @@ define('AIO_ML_NAME_MAX', 200);
 define('AIO_ML_URL_MAX', 1000);
 // An id of a card of the Dune, as AIO_DUNE_ID (main.php): 24 hex, or a local card m-...
 define('AIO_ML_DUNE_ID', '(?:[0-9a-f]{24}|m-[A-Za-z0-9_-]{1,64})');
+// A rating of IMDb or Kinopoisk of a tile ("8.7", aio_cat_tile), its votes of Kinopoisk at most.
+define('AIO_ML_RATE', '/^[0-9]{1,2}(\\.[0-9]{1,3})?$/D');
+define('AIO_ML_VOTES_MAX', 999999999);
 // The short form of the backup (aio_ml_copy), its field in the file of the export and its version.
 define('AIO_ML_COPY_FIELD', 'my_list');
 define('AIO_ML_COPY_V', 1);
@@ -65,6 +68,19 @@ function aio_ml_key($t)
     return $t['_tmdbId'] !== '' ? $t['type'] . ':tmdb:' . $t['_tmdbId'] : '';
 }
 
+// Title $a and title $b (entries or tiles) are one: of one type, the same IMDb or the same TMDB (one added of a tile of
+// TMDB alone, its own card knows its IMDb of the meta).
+/**
+ * @param array{type: string, imdb_id: string, _tmdbId: string} $a
+ * @param array{type: string, imdb_id: string, _tmdbId: string} $b
+ * @return bool
+ */
+function aio_ml_same($a, $b)
+{
+    return $a['type'] === $b['type'] && (($a['imdb_id'] !== '' && $a['imdb_id'] === $b['imdb_id']) ||
+        ($a['_tmdbId'] !== '' && $a['_tmdbId'] === $b['_tmdbId']));
+}
+
 // A string of one line, at most $max characters; '' for another value or broken UTF-8.
 /**
  * @param mixed $v
@@ -91,7 +107,8 @@ function aio_ml_url($v)
 }
 
 // An entry as stored, of the file, the copy or a tile -> its good fields with the key, null for one without a key or a
-// name. A field that is not good is '' (added: 0).
+// name. A field that is not good is '' (added, kpVotes: 0); so is one an entry has not (the ratings of an entry of
+// before them).
 /**
  * @param mixed $e
  * @return AioMlEntry|null
@@ -101,7 +118,7 @@ function aio_ml_clean($e)
     if (!is_array($e))
         return null;
     $s = array();
-    foreach (array('type', 'year', 'imdb_id', '_tmdbId', 'kpId', 'dune_id') as $k)
+    foreach (array('type', 'year', 'imdb_id', '_tmdbId', 'kpId', 'imdbRating', 'kpRating', 'dune_id') as $k)
         $s[$k] = isset($e[$k]) && is_string($e[$k]) ? $e[$k] : '';
     $out = array('key' => '', 'type' => $s['type'] === 'movie' || $s['type'] === 'series' ? $s['type'] : '',
         'name' => aio_ml_text(isset($e['name']) ? $e['name'] : '', AIO_ML_NAME_MAX),
@@ -112,6 +129,10 @@ function aio_ml_clean($e)
         'imdb_id' => preg_match('/^tt[0-9]{1,10}$/D', $s['imdb_id']) ? $s['imdb_id'] : '',
         '_tmdbId' => preg_match('/^[0-9]{1,10}$/D', $s['_tmdbId']) ? $s['_tmdbId'] : '',
         'kpId' => preg_match('/^[1-9][0-9]{0,9}$/D', $s['kpId']) ? $s['kpId'] : '',
+        'imdbRating' => preg_match(AIO_ML_RATE, $s['imdbRating']) ? $s['imdbRating'] : '',
+        'kpRating' => preg_match(AIO_ML_RATE, $s['kpRating']) ? $s['kpRating'] : '',
+        'kpVotes' => isset($e['kpVotes']) && is_int($e['kpVotes']) && $e['kpVotes'] >= 0 && $e['kpVotes'] <= AIO_ML_VOTES_MAX ?
+            $e['kpVotes'] : 0,
         'dune_id' => preg_match('/^' . AIO_ML_DUNE_ID . '$/D', $s['dune_id']) ? $s['dune_id'] : '',
         'added' => isset($e['added']) && is_int($e['added']) && $e['added'] > 0 ? $e['added'] : 0);
     $out['key'] = aio_ml_key($out);
@@ -119,7 +140,8 @@ function aio_ml_clean($e)
 }
 
 // The entry of tile $t (aio_cat_tile), added at $now, $dune: the id of its card of the Dune ('' - none or not known);
-// null for a tile without IMDb or TMDB.
+// its ratings as the tile has them now (the sticker of a tile of the list, aio_ml_tile; '' none); null for a tile
+// without IMDb or TMDB.
 /**
  * @param AioCatTile $t
  * @param string $dune
@@ -130,11 +152,12 @@ function aio_ml_entry($t, $dune, $now)
 {
     return aio_ml_clean(array('type' => $t['type'], 'name' => $t['name'], 'englishTitle' => $t['englishTitle'],
         'year' => $t['year'], 'poster' => $t['poster'], 'background' => $t['background'], 'imdb_id' => $t['imdb_id'],
-        '_tmdbId' => $t['_tmdbId'], 'kpId' => $t['kpId'], 'dune_id' => $dune, 'added' => $now));
+        '_tmdbId' => $t['_tmdbId'], 'kpId' => $t['kpId'], 'imdbRating' => $t['imdbRating'], 'kpRating' => $t['kpRating'],
+        'kpVotes' => $t['kpVotes'], 'dune_id' => $dune, 'added' => $now));
 }
 
-// The tile of entry $e for a row and the own card (aio_oc_enter): what the entry has, the rest empty (the own card
-// takes it from its meta).
+// The tile of entry $e for a row and the own card (aio_oc_enter): what the entry has (its ratings too: kpVotes kept, a
+// copy of the tile parsed again by aio_cat_tile keeps kpRating), the rest empty (the own card takes it from its meta).
 /**
  * @param AioMlEntry $e
  * @return AioCatTile
@@ -142,9 +165,10 @@ function aio_ml_entry($t, $dune, $now)
 function aio_ml_tile($e)
 {
     return array('id' => $e['imdb_id'] !== '' ? $e['imdb_id'] : 'tmdb:' . $e['_tmdbId'], 'imdb_id' => $e['imdb_id'],
-        '_tmdbId' => $e['_tmdbId'], 'type' => $e['type'], 'name' => $e['name'], 'year' => $e['year'], 'imdbRating' => '',
+        '_tmdbId' => $e['_tmdbId'], 'type' => $e['type'], 'name' => $e['name'], 'year' => $e['year'], 'imdbRating' => $e['imdbRating'],
         'description' => '', 'genres' => array(), 'poster' => $e['poster'], 'background' => $e['background'], 'country' => '',
-        'runtime' => '', 'age' => '', 'cast' => array(), 'englishTitle' => $e['englishTitle'], 'kpRating' => '', 'kpVotes' => 0,
+        'runtime' => '', 'age' => '', 'cast' => array(), 'englishTitle' => $e['englishTitle'], 'kpRating' => $e['kpRating'],
+        'kpVotes' => $e['kpVotes'],
         'kpId' => $e['kpId'], 'logo' => '', 'logoLang' => '');
 }
 
@@ -248,9 +272,10 @@ function aio_ml_broken($why)
 
 // List $list in the short form of the backup (the field AIO_ML_COPY_FIELD of the file of the export): {v, dirs: the
 // parts of the addresses of the pictures up to their last "/", each once, items: a title each, [type, name,
-// englishTitle, year, poster, background, imdb_id, _tmdbId, kpId, dune_id, added], a picture as [<its part in dirs>,
-// <the rest>] or ''}. No key (aio_ml_key makes it again) and no names of fields: 200 titles take ~80 KB of the body of
-// the import, not ~180 KB of the form of the file.
+// englishTitle, year, poster, background, imdb_id, _tmdbId, kpId, dune_id, added] and, of a title with a rating,
+// [imdbRating, kpRating, kpVotes] after them (a Melange of before them reads the 11 alone), a picture as [<its part in
+// dirs>, <the rest>] or ''}. No key (aio_ml_key makes it again) and no names of fields: 200 titles take ~80 KB of the
+// body of the import, not ~180 KB of the form of the file.
 /**
  * @param list<AioMlEntry> $list
  * @return array{v: int, dirs: list<string>, items: list<array<int, mixed>>}
@@ -276,8 +301,11 @@ function aio_ml_copy($list)
                 $dirs[$d] = count($dirs);
             $pics[] = array($dirs[$d], strval(substr($u, $p + 1)));
         }
-        $items[] = array($e['type'], $e['name'], $e['englishTitle'], $e['year'], $pics[0], $pics[1], $e['imdb_id'],
+        $x = array($e['type'], $e['name'], $e['englishTitle'], $e['year'], $pics[0], $pics[1], $e['imdb_id'],
             $e['_tmdbId'], $e['kpId'], $e['dune_id'], $e['added']);
+        if ($e['imdbRating'] !== '' || $e['kpRating'] !== '')
+            array_push($x, $e['imdbRating'], $e['kpRating'], $e['kpVotes']);
+        $items[] = $x;
     }
     return array('v' => AIO_ML_COPY_V, 'dirs' => array_map('strval', array_keys($dirs)), 'items' => $items);
 }
@@ -309,7 +337,7 @@ function aio_ml_from_copy($c, &$why, &$dropped)
     $list = array();
     foreach ($c['items'] as $x)
     {
-        // Fields after these (of a later form of v 1): not read.
+        // The ratings after them, if all three are there; fields after these (of a later form of v 1): not read.
         if (!is_array($x) || count($x) < 11 || array_keys(array_slice($x, 0, 11, true)) !== range(0, 10))
         {
             $list[] = null;
@@ -325,6 +353,8 @@ function aio_ml_from_copy($c, &$why, &$dropped)
         $list[] = array('type' => $x[0], 'name' => $x[1], 'englishTitle' => $x[2], 'year' => $x[3], 'poster' => $pics[0],
             'background' => $pics[1], 'imdb_id' => $x[6], '_tmdbId' => $x[7], 'kpId' => $x[8], 'dune_id' => $x[9],
             'added' => $x[10]);
+        if (count($x) >= 14 && array_keys(array_slice($x, 11, 3, true)) === range(11, 13))
+            $list[count($list) - 1] += array('imdbRating' => $x[11], 'kpRating' => $x[12], 'kpVotes' => $x[13]);
     }
     return aio_ml_items($list, $dropped);
 }
@@ -424,7 +454,7 @@ function aio_ml_has($key)
 }
 
 // Tile $t at the start of the list, $dune: the id of its card of the Dune ('' - none or not known). One in the list
-// already stays in its place; its dune_id not known, it is set to $dune. -> '' (added, or there), 'no id' (no IMDb or
+// already (aio_ml_same) stays in its place; its dune_id not known, it is set to $dune. -> '' (added, or there), 'no id' (no IMDb or
 // TMDB, no name), 'full' (the backup would not load back with it: AIO_ML_COPY_MAX), 'locked', 'write' (aio_ml_save).
 /**
  * @param AioCatTile $t
@@ -442,7 +472,7 @@ function aio_ml_add($t, $dune = '')
     }
     foreach ($list as $i => $x)
     {
-        if ($x['key'] !== $e['key'])
+        if (!aio_ml_same($x, $e))
             continue;
         if ($x['dune_id'] !== '' || $e['dune_id'] === '')
             return '';
@@ -495,6 +525,95 @@ function aio_ml_find_dune($dune)
             return $e;
     }
     return null;
+}
+
+// The key of the entry of title $t in the list (aio_ml_same), else of the one of its card of the Dune $dune ('' not
+// known); '' for none.
+/**
+ * @param array{type: string, imdb_id: string, _tmdbId: string} $t
+ * @param string $dune
+ * @return string
+ */
+function aio_ml_in($t, $dune = '')
+{
+    foreach (aio_ml_list() as $e)
+    {
+        if (aio_ml_same($e, $t))
+            return $e['key'];
+    }
+    $e = aio_ml_find_dune($dune);
+    return $e ? $e['key'] : '';
+}
+
+// --- The actions of the screens (php_server: also view_catalog.php, continue.php).
+
+// Title $t into the list ($on; aio_ml_add) or out of it (aio_ml_del of aio_ml_in), $dune: the id of its card of the
+// Dune ('' - none or not known). -> '' or why not, as they give it.
+/**
+ * @param AioCatTile $t
+ * @param string $dune
+ * @param bool $on
+ * @return string
+ */
+function aio_ml_set($t, $dune, $on)
+{
+    if ($on)
+        return aio_ml_add($t, $dune);
+    $key = aio_ml_in($t, $dune);
+    return $key !== '' ? aio_ml_del($key) : '';
+}
+
+// The message of why $why of aio_ml_set ('' none: null): the list full, its file of a later Melange or not readable,
+// not written.
+/**
+ * @param string $why
+ * @return AioAction|null
+ */
+function aio_ml_err($why)
+{
+    $keys = array('full' => 'ml_err_full', 'locked' => 'ml_err_locked', 'write' => 'ml_err_write', 'no id' => 'err_no_imdb');
+    return $why === '' ? null : aio_error(isset($keys[$why]) ? $keys[$why] : 'ml_err_write', $why);
+}
+
+// The item of POP UP of tile $id of screen $from (aio_catv_tile_menu): "Добавить в «Мой список»" / "Убрать из «Моего
+// списка»" by the list now (aio_ml_in; of the row "Continue" by its card of the Dune too). None but on a tile of a
+// title with IMDb or TMDB (aio_catv_tile).
+/**
+ * @param string $id
+ * @param string $from
+ * @param string $lang
+ * @return list<array<string, mixed>>
+ */
+function aio_ml_menu_items($id, $from, $lang)
+{
+    $t = aio_catv_tile($id, aio_tv_is_from($from));
+    if (!$t || aio_ml_key($t) === '')
+        return array();
+    $in = aio_ml_in($t, aio_cp_mid_of($id)) !== '';
+    return array(array(
+        GuiMenuItemDef::caption => aio_tr($lang, $in ? 'ml_del' : 'ml_add'),
+        GuiMenuItemDef::icon_url => AIO_CATV_ICONS . ($in ? 'cancel_small.png' : 'favorites_small.png'),
+        GuiMenuItemDef::action => aio_input('cat_ml', array('from' => $from, 'item' => $id, 'w' => $in ? 'del' : 'add'))));
+}
+
+// cat_ml of POP UP (aio_ml_menu_items; w add, del) of tile $in->item of screen $in->from: the title into the list or out
+// of it (aio_ml_set; its card of the Dune of the row "Continue" or of the pairs, no request), then the screen anew
+// (aio_catv_tile_after: the line of the info panel); not written: the message (aio_ml_err), the list as it was.
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
+function aio_ml_menu_act($in)
+{
+    $id = aio_catv_in($in, 'item');
+    $from = aio_catv_in($in, 'from');
+    $w = aio_catv_in($in, 'w');
+    $t = $w === 'add' || $w === 'del' ? aio_catv_tile($id, aio_tv_is_from($from)) : null;
+    if (!$t)
+        return $w === 'add' || $w === 'del' ? aio_error('cat_outdated') : null;
+    $mid = aio_cp_mid_of($id);
+    $why = aio_ml_set($t, $mid !== '' ? $mid : aio_pg_tile_card($t, aio_pg_index()), $w === 'add');
+    return $why !== '' ? aio_ml_err($why) : aio_catv_tile_after($from, "my list $w");
 }
 
 // --- The Favorites of the Dune, read only.

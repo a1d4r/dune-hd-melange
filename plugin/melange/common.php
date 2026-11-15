@@ -1131,6 +1131,8 @@ function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
     foreach ($hosts as $u => $tag)
         $s = aio_mask_host($s, $u, $tag);
     $s = preg_replace('~(\\\\?/(?:playback|torz)\\\\?/)[^/\\\\\\s"?#&]+~', '$1***', $s);
+    // A picture of dunemdb (the Favorites of the Dune, "Мой список"): auth=<the outside IP>-<a hash>.
+    $s = preg_replace('~([?&]auth=)[^&\\s"\\\\]+~', '$1***', $s);
     // Base64 of JSON: it starts with the encoding of '{"'.
     $s = preg_replace('~ey[J][A-Za-z0-9_\\-+=%]+~', '***', $s);
     $s = preg_replace('~[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}~i',

@@ -10,7 +10,7 @@ parameters:
         # A tile of a row (aio_cat_tile, catalog.php).
         AioCatTile: 'array{id: string, imdb_id: string, _tmdbId: string, type: string, name: string, year: string, imdbRating: string, description: string, genres: list<string>, poster: string, background: string, country: string, runtime: string, age: string, cast: list<string>, englishTitle: string, kpRating: string, kpVotes: int, kpId: string, logo: string, logoLang: string}'
         # An entry of "Мой список" (aio_ml_clean, my_list.php): key - type:<IMDb | tmdb:<id>>; dune_id '' - not known; added - unix time.
-        AioMlEntry: 'array{key: string, type: string, name: string, englishTitle: string, year: string, poster: string, background: string, imdb_id: string, _tmdbId: string, kpId: string, dune_id: string, added: int}'
+        AioMlEntry: 'array{key: string, type: string, name: string, englishTitle: string, year: string, poster: string, background: string, imdb_id: string, _tmdbId: string, kpId: string, imdbRating: string, kpRating: string, kpVotes: int, dune_id: string, added: int}'
         # A movie of the Favorites of the Dune (aio_ml_fav_read, my_list.php).
         AioMlFav: 'array{dune_id: string, type: string, name: string, year: string, poster: string, file: string}'
         # A listing of a row (aio_cat_row_state, catalog.php).
