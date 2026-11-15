@@ -23,6 +23,8 @@ define('AIO_CM_TTL_NO_PAIRS', 60);
 define('AIO_CM_DESC_MAX', 3000);
 define('AIO_CM_TAGLINE_MAX', 300);
 define('AIO_CM_EP_TITLE_MAX', 100);
+// The description of an episode: its 3 lines of the head of the card take ~200 at most.
+define('AIO_CM_EP_DESC_MAX', 400);
 define('AIO_CM_EPS_MAX', 3000);
 define('AIO_CM_LIST_MAX', 5);
 // Actors of the own card at most: the server gives up to 30 (aggregate_credits of a series, since
@@ -192,7 +194,8 @@ function aio_cm_eps($videos, $now)
         $by[$s][$e] = array('s' => $s, 'e' => $e,
             'title' => aio_cut(aio_one_line(aio_str($v, 'title')), AIO_CM_EP_TITLE_MAX), 'date' => $date,
             'img' => aio_cm_img(aio_str($v, 'thumbnail'), 'background'),
-            'min' => aio_cat_runtime_min(aio_str($v, 'runtime')), 'soon' => $soon);
+            'min' => aio_cat_runtime_min(aio_str($v, 'runtime')), 'soon' => $soon,
+            'desc' => aio_cut(aio_one_line(aio_str($v, 'overview')), AIO_CM_EP_DESC_MAX));
         $ps = aio_str($v, 'imdbSeason');
         $pe = aio_str($v, 'imdbEpisode');
         $abs = aio_str($v, 'absoluteEpisode');

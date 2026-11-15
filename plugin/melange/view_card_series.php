@@ -1,5 +1,5 @@
 <?php
-// The seasons and the episodes of a series on the own card (H1 of design-own-card.md): the episode
+// The seasons and the episodes of a series on the own card (H3 of design-own-card.md): the episode
 // to offer and the progress of the episodes by the history, the tabs of the seasons, the row of
 // the stills and its window, their changes by the keys. Split out of view_card.php (its constants
 // and the rest of the screen there).
@@ -82,6 +82,51 @@ function aio_oc_ep($c, $s, $e)
     $eps = aio_oc_eps($c, $s);
     $i = aio_cm_ep_index($eps, $e);
     return $i >= 0 ? $eps[$i] : null;
+}
+
+// The episode in focus in the row of a series at place $pos, null at another place.
+/**
+ * @param AioOcCard $c
+ * @param AioOcPos $pos
+ * @return AioCardEp|null
+ */
+function aio_oc_ep_on($c, $pos)
+{
+    return $pos['z'] === 'row' ? aio_oc_ep($c, $pos['s'], $pos['e']) : null;
+}
+
+// The head of a series with the focus on episode $ep in the row (H3), under the logo: its title 48 px (none without),
+// "S1E2" white and "· 28 января 2008 · 49 мин" grey after it (not out yet: "· выйдет 16 ноября 2026", no
+// description), its description in EP_LINES lines, "…" on the last; TEXT_W wide.
+/**
+ * @param AioOcCard $c
+ * @param AioCardEp $ep
+ * @return list<AioGcComp>
+ */
+function aio_oc_ep_head($c, $ep)
+{
+    $ui = $c['ui'];
+    $x0 = AIO_CATV_CARD_X;
+    $d = array();
+    if ($ep['title'] !== '')
+        $d[] = aio_gc_cut(null, aio_gc_at(AIO_CATV_TEXT_W, 66, $x0, AIO_OC_EP_TITLE_Y),
+            aio_gc_cut_w(aio_clean($ep['title']), AIO_CATV_TITLE2_PX, AIO_CATV_TEXT_W), AIO_CATV_TITLE2_PX, AIO_CATV_TITLE_COLOR);
+    $name = "S{$ep['s']}E{$ep['e']}";
+    $when = $ep['soon'] ? aio_oc_ep_line($ep, null, $ui) : implode(' · ', array_filter(array(aio_oc_day($ep['date'], $ui),
+        $ep['min'] > 0 ? aio_catv_runtime($ep['min'] . 'min', $ui) : ''), 'strlen'));
+    $nw = intval(aio_gc_sum($name, AIO_CATV_LINE_PX));
+    $d[] = aio_oc_label($x0, AIO_OC_EP_FACTS_Y, $nw, $name, AIO_CATV_LINE_PX, AIO_CATV_TITLE_COLOR);
+    if ($when !== '')
+    {
+        $x = $x0 + $nw + intval(aio_gc_sum(' ', AIO_CATV_LINE_PX));
+        $d[] = aio_oc_label($x, AIO_OC_EP_FACTS_Y, AIO_CATV_TEXT_W - $x + $x0,
+            aio_gc_cut_w("· $when", AIO_CATV_LINE_PX, AIO_CATV_TEXT_W - $x + $x0), AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
+    }
+    foreach ($ep['soon'] ? array() : aio_gc_wrap(aio_clean($ep['desc']), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, AIO_OC_EP_LINES, true)
+        as $i => $line)
+        $d[] = aio_oc_label($x0, AIO_OC_EP_DESC_Y + $i * AIO_OC_DESC_LH_SER, AIO_CATV_TEXT_W, $line, AIO_CATV_LINE_PX,
+            AIO_CATV_TEXT_COLOR);
+    return $d;
 }
 
 // --- The seasons and the episodes of a series.

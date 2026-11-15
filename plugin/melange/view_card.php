@@ -9,7 +9,7 @@
 // its right the hint "Похожие, в ролях и о фильме". DOWN scrolls the page under the logo:
 // the rows one by one under the logo, a stop each, then "About the movie" (the tagline, the whole
 // description, the details) under them, the background gone, the screen black; DOWN again
-// further while there is more, UP back, at last to the button left. A series (H1): the buttons
+// further while there is more, UP back, at last to the button left. A series (H3): the buttons
 // higher ("Continue SxEy" by the history), under them the tabs of the seasons and the row of the
 // episodes of the season shown, their progress by the history; the rows go DOWN with "About the
 // series". At the stop of a row LEFT and RIGHT go along it (the creators first), over a row of posters
@@ -125,7 +125,7 @@ define('AIO_OC_DESC2_W', 960);
 define('AIO_OC_DESC2_LINES', 100);
 define('AIO_OC_DET_X', AIO_CATV_CARD_X + 7 * AIO_OC_PHOTO_STEP);
 define('AIO_OC_DET_W', AIO_OC_HINT_R - AIO_OC_DET_X);
-// A series (H1 of design-own-card.md): the description DESC_GAP_SER under the genres (a movie: 14)
+// A series (H3 of design-own-card.md): the description DESC_GAP_SER under the genres (a movie: 14)
 // in lines DESC_LH_SER apart down to DESC_BOTTOM_SER, 3 under the genres; the buttons at BTN_Y_SER,
 // 35 px under its ink as at a movie; the tabs 28 under them, the row 24 under the tabs; under the row
 // only the arrow of DOWN (design-own-card-polish.md, owner 13.11.2026: 3 lines; 14.11.2026: no text).
@@ -137,6 +137,13 @@ define('AIO_OC_DET_W', AIO_OC_HINT_R - AIO_OC_DET_X);
 // The row of episodes at ROW_Y: stills EP_W x EP_H, EP_STEP apart from the x of the catalog,
 // EP_VIS whole, the one before and after seen at the edges; the frame of the focus FRAME wide
 // around the still; P+/P- PAGE stills.
+// H3 of design-own-card.md (owner 15.11.2026): with the focus in the row of episodes the head under the logo is of
+// the episode in focus (aio_oc_ep_head): its title 48 px at EP_TITLE_Y, "S1E2 · <date> · <length>" at EP_FACTS_Y, its
+// description from EP_DESC_Y in EP_LINES lines DESC_LH_SER apart; the buttons, the tabs and the row do not move.
+define('AIO_OC_EP_TITLE_Y', 252);
+define('AIO_OC_EP_FACTS_Y', 324);
+define('AIO_OC_EP_DESC_Y', 372);
+define('AIO_OC_EP_LINES', 3);
 define('AIO_OC_BTN_Y_SER', 526);
 define('AIO_OC_DESC_GAP_SER', 6);
 define('AIO_OC_DESC_LH_SER', 40);
@@ -557,16 +564,50 @@ function aio_oc_label($x, $y, $w, $text, $px, $color, $spec = array())
     return $l;
 }
 
-// The first screen in the page: the lines of the panel (x of the catalog), the description to
-// DESC_BOTTOM (a series: DESC_GAP_SER, DESC_LH_SER, DESC_BOTTOM_SER), the buttons at the y of the
-// layout (lit: $b).
+// The first screen in the page at place $pos: the head in its panel "hd" (aio_oc_hd), the buttons at the y of the
+// layout (lit: aio_oc_btn_lit).
 /**
  * @param AioOcCard $c
  * @param AioOcLayout $l
- * @param int $b
+ * @param AioOcPos $pos
  * @return list<array<string, mixed>>
  */
-function aio_oc_head($c, $l, $b)
+function aio_oc_head($c, $l, $pos)
+{
+    $b = aio_oc_btn_lit($pos);
+    $d = array(aio_gc_panel('hd', aio_gc_at(1920, $l['btn_y'], 0, 0), aio_oc_hd($c, $l, $pos)));
+    $x = AIO_CATV_CARD_X;
+    foreach ($l['btns'] as $i => $bt)
+    {
+        $w = aio_oc_btn_w($bt);
+        $d[] = aio_gc_panel("b$i", aio_gc_at($w, AIO_OC_BTN_H, $x, $l['btn_y']), aio_oc_btn_items($bt, $w, $i === $b));
+        $x += $w + AIO_OC_BTN_GAP;
+    }
+    return $d;
+}
+
+// The head of the first screen at place $pos, the children of the panel "hd": of a series with the focus in the row of
+// episodes the episode in focus (aio_oc_ep_head), else the lines of the card (aio_oc_head_lines).
+/**
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @param AioOcPos $pos
+ * @return list<array<string, mixed>>
+ */
+function aio_oc_hd($c, $l, $pos)
+{
+    $ep = aio_oc_ep_on($c, $pos);
+    return $ep ? aio_oc_ep_head($c, $ep) : aio_oc_head_lines($c, $l);
+}
+
+// The lines of the panel (x of the catalog), the description to DESC_BOTTOM (a series: DESC_GAP_SER, DESC_LH_SER,
+// DESC_BOTTOM_SER).
+/**
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @return list<array<string, mixed>>
+ */
+function aio_oc_head_lines($c, $l)
 {
     $x0 = AIO_CATV_CARD_X;
     // The line of facts in a panel at the x of the catalog: its labels are at x of the panel.
@@ -599,14 +640,6 @@ function aio_oc_head($c, $l, $b)
     $desc = $c['meta'] && $c['meta']['description'] !== '' ? $c['meta']['description'] : $c['tile']['description'];
     foreach (aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, $n, true) as $i => $line)
         $d[] = aio_oc_label($x0, $y + $i * $lh, AIO_CATV_TEXT_W, $line, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
-
-    $x = $x0;
-    foreach ($l['btns'] as $i => $bt)
-    {
-        $w = aio_oc_btn_w($bt);
-        $d[] = aio_gc_panel("b$i", aio_gc_at($w, AIO_OC_BTN_H, $x, $l['btn_y']), aio_oc_btn_items($bt, $w, $i === $b));
-        $x += $w + AIO_OC_BTN_GAP;
-    }
     return $d;
 }
 
@@ -1166,7 +1199,7 @@ function aio_oc_next($c, $l, $pos, $d)
 }
 
 // The change_defs from place $old to $new: the lit buttons redrawn, the tabs, the row and its frame
-// (aio_oc_row_changes) or the line "did not load", the rows (aio_oc_rows_changes), the page and the
+// (aio_oc_row_changes) or the line "did not load", the head of a series (aio_oc_hd), the rows (aio_oc_rows_changes), the page and the
 // bottom of its clip moved, the background off or on, what the first screen alone shows off or on.
 /**
  * @param AioOcCard $c
@@ -1196,6 +1229,9 @@ function aio_oc_changes($c, $l, $old, $new)
         $r = aio_oc_retry_panel($c, $new['z']);
         $ch[] = aio_gc_change('retry', null, GCOMP_TRANSITION_NONE, $r[GComponentDef::specific_def][GCompPanelDef::children]);
     }
+    // The head of the episode in focus with the row (H3), in the same call as the row moves.
+    if (aio_oc_ep_on($c, $new) !== aio_oc_ep_on($c, $old))
+        $ch[] = aio_gc_change('hd', null, GCOMP_TRANSITION_NONE, aio_oc_hd($c, $l, $new));
     $ch = array_merge($ch, aio_oc_rows_changes($c, $l, $old, $new));
     if ($new['p'] !== $old['p'])
     {
@@ -1225,7 +1261,7 @@ function aio_oc_window($c, $l, $pos)
     $d = array();
     $d[] = aio_gc_panel('bg', aio_gc_at(1920, 1080, 0, 0), aio_oc_bg($c, $pos['z']));
     $series = $l['kind'] === 'series';
-    $page = array_merge(aio_oc_head($c, $l, aio_oc_btn_lit($pos)), $series ? aio_oc_series($c, $l, $pos) : array());
+    $page = array_merge(aio_oc_head($c, $l, $pos), $series ? aio_oc_series($c, $l, $pos) : array());
     // The rows and "About", in a panel off lower: its own coordinates are those of the stop of the
     // first row.
     $down = array_merge(aio_oc_rows($c, $l, $pos), $l['down']);
