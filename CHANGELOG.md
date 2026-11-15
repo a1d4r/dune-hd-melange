@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.60.2
+- Fixed: in the catalog row settings, the Russian name of the «Декады» group is now «Десятилетия». In English it stays Decades.
+
 ## 0.60.1 — 15.11.2026
 - Fixed: the release list no longer shows the Comet row "Scraping in progress, please try again in a few seconds...", which had nothing to play. If no other releases are found, Melange shows the usual "AIOStreams found no streams".
 - Fixed: in the own card of a series, MENU on an episode now says **Mark as watched** and **Mark as unwatched**. The old **Watched** next to the check mark looked as if the episode had already been watched.
@@ -242,6 +245,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.60.2
+- Исправлено: в настройках рядов каталога группа «Декады» теперь называется «Десятилетия».
 
 ## 0.60.1 — 15.11.2026
 - Исправлено: в списке раздач больше не появляется строка Comet «Scraping in progress, please try again in a few seconds...», из которой нечего запустить. Если других раздач нет, Melange покажет обычное «AIOStreams не нашёл потоков».
