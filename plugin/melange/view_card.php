@@ -350,20 +350,47 @@ function aio_oc_get($key)
         return AioOc::$cards[$key];
     if (!preg_match('/^(movie|series):(tt[0-9]{1,10}|tmdb:([0-9]{1,10}))$/D', $key, $m))
         return null;
-    $t = aio_cat_tile(array('id' => $m[2], 'name' => 'x', 'type' => $m[1]), $m[1]);
-    if (!$t)
-        return null;
-    $g = aio_cm_get($t);
-    if (!$g['meta'] || !$g['meta']['tile'])
+    $t = aio_oc_id_tile($m[1], $m[2]);
+    $r = $t ? aio_oc_of_meta($key, $t) : null;
+    if (!$r || !$r['card'])
     {
         aio_log("card: own $key not in memory, no meta: outdated");
         return null;
     }
-    $tile = $g['meta']['tile'];
-    $tile['type'] = $m[1];
-    $card = aio_oc_build($key, $tile, $g['meta'], aio_card_id($tile), aio_catv_lang());
     aio_log("card: own $key made anew from its meta");
-    return $card;
+    return $r['card'];
+}
+
+// The tile of id $id of the meta (tt..., tmdb:<n>, aio_cm_id) of type $type alone, no name; null for a wrong id.
+/**
+ * @param string $type
+ * @param string $id
+ * @return AioCatTile|null
+ */
+function aio_oc_id_tile($type, $id)
+{
+    $t = aio_cat_tile(array('id' => $id, 'name' => '-', 'type' => $type), $type);
+    if ($t)
+        $t['name'] = '';
+    return $t;
+}
+
+// Card $key of tile $t made of its meta (aio_cm_get) with no tile of a row (a restart of php_server, a link,
+// aio_dl_card_of): the tile of the meta, of the type of $t, the card of the Dune by it (aio_card_id), kept
+// (aio_oc_build). -> card: null with no meta (or no tile in it); err: why ('' none, aio_cm_get, "tile").
+/**
+ * @param string $key
+ * @param AioCatTile $t
+ * @return array{card: AioOcCard|null, err: string}
+ */
+function aio_oc_of_meta($key, $t)
+{
+    $g = aio_cm_get($t);
+    if (!$g['meta'] || !$g['meta']['tile'])
+        return array('card' => null, 'err' => $g['err'] !== '' ? $g['err'] : 'tile');
+    $tile = $g['meta']['tile'];
+    $tile['type'] = $t['type'];
+    return array('card' => aio_oc_build($key, $tile, $g['meta'], aio_card_id($tile), aio_catv_lang()), 'err' => '');
 }
 
 // --- Texts.
@@ -1415,6 +1442,23 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
     return $a;
 }
 
+// ENTER on episode $x of the meta of card $c (the row; the link of streams, aio_dl_streams), $ep the episode the card
+// offers (aio_oc_pick; null none): its list (aio_oc_watch: the season asked by aio_cm_req_s, the cursor on the release
+// of the history of $ep when it is this episode); one not out yet: the message (aio_oc_soon_msg).
+/**
+ * @param AioOcCard $c
+ * @param AioCardEp $x
+ * @param AioOcEp|null $ep
+ * @return AioAction
+ */
+function aio_oc_ep_watch($c, $x, $ep)
+{
+    if ($x['soon'])
+        return aio_oc_soon_msg($x, $c['ui']);
+    $q = $c['meta'] ? aio_cm_req_s($c['meta'], $x['s']) : $x['s'];
+    return aio_oc_watch($c, $q, $x['e'], $ep && $ep['q'] === $q && $ep['e'] === $x['e'] ? $ep['hash'] : '');
+}
+
 // MENU: $items (the marks of an episode, aio_oc_mark_items), then "Settings", as on the list.
 /**
  * @param string $lang
@@ -1491,10 +1535,7 @@ function aio_oc_input($in, $control)
         {
             $x = aio_oc_ep($c, $pos['s'], $pos['e']);
             aio_log("card: own $key: ENTER on S{$pos['s']}E{$pos['e']}" . ($x && $x['soon'] ? ', not out yet' : ''));
-            if (!$x || $x['soon'])
-                return $x ? aio_oc_soon_msg($x, $c['ui']) : null;
-            $q = aio_cm_req_s($c['meta'], $x['s']);
-            return aio_oc_watch($c, $q, $x['e'], $ep && $ep['q'] === $q && $ep['e'] === $x['e'] ? $ep['hash'] : '');
+            return $x ? aio_oc_ep_watch($c, $x, $ep) : null;
         }
         if ($pos['z'] !== 'btn' || !isset($l['btns'][$b]))
             return null;

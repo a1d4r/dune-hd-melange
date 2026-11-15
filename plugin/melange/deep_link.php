@@ -44,7 +44,7 @@ function aio_dl_parse($in)
         'tmdb' => '/^[0-9]{1,9}$/D', 's' => '/^[0-9]{1,9}$/D', 'e' => '/^[0-9]{1,9}$/D', 'tab' => '/^(movie|series)$/D',
         'n' => '/^[1-9][0-9]{0,8}$/D',
         'q' => '/^[^\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]{1,' . AIO_CAT_QUERY_MAX . '}$/uD');
-    $q = array('to' => '', 'type' => '', 'imdb' => '', 'tmdb' => '', 's' => '', 'e' => '', 'tab' => '', 'n' => '', 'q' => '');
+    $q = array_fill_keys(array_keys($re), '');
     foreach ($re as $k => $p)
     {
         if (!isset($in->$k))
@@ -103,43 +103,30 @@ function aio_dl_open($in)
     return call_user_func($all[$q['to']]['fn'], $q);
 }
 
-// The tile of the ids of link $q alone, no name (the id of the meta, aio_cm_id: the IMDb, else tmdb:<n>).
-/**
- * @param AioDlLink $q
- * @return AioCatTile|null
- */
-function aio_dl_tile($q)
-{
-    $t = aio_cat_tile(array('id' => $q['imdb'] !== '' ? $q['imdb'] : "tmdb:{$q['tmdb']}", 'name' => '-',
-        'type' => $q['type']), $q['type']);
-    if ($t)
-        $t['name'] = '';
-    return $t;
-}
-
-// The own card of link $q, kept, as ENTER on a tile makes it (aio_oc_enter) but of the ids alone: the meta first
-// (aio_cm_get) and its tile in place of the tile of the ids (the name, the year, the pictures: a tile of a row has
-// them), the type of the link; then the card of the Dune (aio_card_id, by the year of the meta too) -> array(the key
-// "<type>:<id of the link>", the card). A failed meta: the card of the ids, no name, as one of a tile whose meta failed.
+// The own card of link $q, kept, of the ids alone: made of the meta (aio_oc_of_meta: its tile, the card of the Dune
+// by it), as ENTER on a tile makes it (aio_oc_enter). No meta: the card in memory if there is one (another screen of
+// it may be under this one: not to lose its name), else the card of the ids, no name, as of a tile whose meta failed.
+// -> array(the key "<type>:<id of the link>", the card).
 /**
  * @param AioDlLink $q
  * @return array{string, AioOcCard}|null
  */
 function aio_dl_card_of($q)
 {
-    $tile = aio_dl_tile($q);
+    $tile = aio_oc_id_tile($q['type'], $q['imdb'] !== '' ? $q['imdb'] : "tmdb:{$q['tmdb']}");
     if (!$tile)
         return null;
     $key = $q['type'] . ':' . aio_cm_id($tile);
-    $g = aio_cm_get($tile);
-    if ($g['meta'] && $g['meta']['tile'])
-    {
-        $tile = $g['meta']['tile'];
-        $tile['type'] = $q['type'];
-    }
-    $card = aio_oc_build($key, $tile, $g['meta'], aio_card_id($tile), aio_catv_lang());
+    $r = aio_oc_of_meta($key, $tile);
+    $card = $r['card'];
+    $was = !$card && isset(AioOc::$cards[$key]);
+    if ($was)
+        $card = AioOc::$cards[$key];
+    if (!$card)
+        $card = aio_oc_build($key, $tile, null, aio_card_id($tile), aio_catv_lang());
     aio_log("open: own $key: card " . ($card['dune'] !== '' ? $card['dune'] : 'none') . ', meta ' .
-        ($g['err'] !== '' ? "failed ({$g['err']})" : 'ok') . ', imdb ' . ($card['imdb'] !== '' ? $card['imdb'] : 'none'));
+        ($r['err'] !== '' ? "failed ({$r['err']})" . ($was ? ', the card in memory' : '') : 'ok') . ', imdb ' .
+        ($card['imdb'] !== '' ? $card['imdb'] : 'none'));
     return array($key, $card);
 }
 
@@ -163,9 +150,8 @@ function aio_dl_card($q)
 }
 
 // to=streams: the list of the card of the link, as "Watch" of the card opens it (a movie) or ENTER on episode e of
-// season s of the meta (a series: the season asked by aio_cm_req_s, the cursor on the release of the history when it
-// is of this episode, aio_oc_pick); not in the meta, or no meta: asked as s, e. Only the list: play_action gets no
-// selected_control_id, so no resume starts a player (aio_resume).
+// season s of the meta (a series, aio_oc_ep_watch: one not out yet - its message); not in the meta, or no meta:
+// asked as s, e. Only the list: play_action gets no selected_control_id, so no resume starts a player (aio_resume).
 /**
  * @param AioDlLink $q
  * @return AioAction|null
@@ -181,11 +167,10 @@ function aio_dl_streams($q)
     $s = intval($q['s']);
     $e = intval($q['e']);
     $x = aio_oc_ep($c, $s, $e);
-    if (!$x || !$c['meta'])
+    if (!$x)
         return aio_oc_watch($c, $s, $e);
-    $qs = aio_cm_req_s($c['meta'], $x['s']);
     list($ep) = aio_oc_pick($c);
-    return aio_oc_watch($c, $qs, $x['e'], $ep['q'] === $qs && $ep['e'] === $x['e'] ? $ep['hash'] : '');
+    return aio_oc_ep_watch($c, $x, $ep);
 }
 
 // to=dune_card: the card of the Dune of the IMDb of the link (aio_card_id; the type, if given, picks of two cards),
@@ -196,7 +181,7 @@ function aio_dl_streams($q)
  */
 function aio_dl_dune_card($q)
 {
-    $tile = aio_dl_tile($q);
+    $tile = aio_oc_id_tile($q['type'], $q['imdb']);
     if (!$tile)
         return null;
     $c = aio_card_id($tile);
@@ -247,8 +232,8 @@ function aio_dl_tab($q)
 }
 
 // to=row: "Show all" (aio_catv_all_open) of row n of tab $q['tab'], counted as the main screen shows them: the rows of
-// the user of the saved manifest (aio_cat_user_rows: those turned off not there), on r25 without those come empty
-// within the hour (aio_catv_main_view hides them). No saved manifest, no such row: null, logged.
+// the user of the saved manifest (aio_cat_user_rows: those turned off not there) it shows (aio_catv_shown_rows: on r24
+// those with tiles in memory, as the last opening of the tab got them). No saved manifest, no such row: null, logged.
 /**
  * @param AioDlLink $q
  * @return AioAction|null
@@ -262,19 +247,13 @@ function aio_dl_row($q)
         return null;
     }
     $n = intval($q['n']);
-    $i = 0;
-    $loading = aio_catv_loading_flag();
-    foreach (aio_cat_user_rows($copy['rows'], Aio::$settings['cat_rows'], $q['tab']) as $row)
+    $rows = aio_catv_shown_rows(aio_cat_user_rows($copy['rows'], Aio::$settings['cat_rows'], $q['tab']), aio_catv_loading_flag());
+    if (!isset($rows[$n - 1]))
     {
-        $rid = aio_catv_rid($row);
-        if ($loading && aio_catv_is_empty($rid))
-            continue;
-        if (++$i === $n)
-        {
-            aio_log("open: row {$q['tab']} #$n: $rid");
-            return aio_catv_all_open("cat_grid:$rid");
-        }
+        aio_log("open: row {$q['tab']} #$n: none, " . count($rows) . ' rows on the tab');
+        return null;
     }
-    aio_log("open: row {$q['tab']} #$n: none, $i rows on the tab");
-    return null;
+    $rid = aio_catv_rid($rows[$n - 1]);
+    aio_log("open: row {$q['tab']} #$n: $rid");
+    return aio_catv_all_open("cat_grid:$rid");
 }

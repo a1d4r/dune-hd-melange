@@ -1241,13 +1241,8 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     $defs = array();
     $asked = false;
-    $shown = array();
-    // The rows of a tab of the copies alone are made by aio_catv_tab_copy_defs too: a new filter (as aio_catv_is_empty) goes there as well.
-    foreach ($rows as $row)
-    {
-        if (!$loading || !aio_catv_is_empty(aio_catv_rid($row)))
-            $shown[] = $row;
-    }
+    // The rows shown: aio_catv_shown_rows, on r25 now, on r24 after the opening got their tiles.
+    $shown = $loading ? aio_catv_shown_rows($rows, $loading) : $rows;
     // r25: all the rows of the tab came empty within the hour: the strip stays, not "did not load".
     if (!$shown)
     {
@@ -1256,6 +1251,8 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     $now = microtime(true);
     aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S - ($now - $rows_t0), AIO_CATV_OPEN_MAX_S - ($now - $start)));
+    if (!$loading)
+        $shown = aio_catv_shown_rows($shown, $loading);
     foreach ($shown as $i => $row)
     {
         $rid = aio_catv_rid($row);
@@ -1288,6 +1285,27 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
     return $defs ? aio_catv_rows_view($defs, $sel_state, $media_url) : aio_catv_message_view('cat_unavailable', $lang, $media_url);
+}
+
+// The rows of the tab $rows (aio_cat_user_rows) the main screen shows (aio_catv_main_view; the link of a row,
+// aio_dl_row): r25 ($loading) all but those come empty within the hour (aio_catv_is_empty), before the opening; r24
+// those with tiles in memory, after the opening (aio_catv_open) got them. A new filter goes here, and to the rows of a
+// tab of the copies alone as well (aio_catv_tab_copy_defs).
+/**
+ * @param list<AioCatRow> $rows
+ * @param int $loading
+ * @return list<AioCatRow>
+ */
+function aio_catv_shown_rows($rows, $loading)
+{
+    $out = array();
+    foreach ($rows as $row)
+    {
+        $rid = aio_catv_rid($row);
+        if ($loading ? !aio_catv_is_empty($rid) : isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
+            $out[] = $row;
+    }
+    return $out;
 }
 
 // The rows of the tab $tab from the copies alone, for a file the shell shows without PHP (the tab
