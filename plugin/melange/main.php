@@ -1867,7 +1867,11 @@ class AioFw extends DunePluginFw
             else if ($op === PLUGIN_OP_HANDLE_USER_INPUT)
             {
                 $type = PLUGIN_OUT_DATA_GUI_ACTION;
-                $data = aio_pf_check(aio_handle_user_input($in));
+                $data = aio_handle_user_input($in);
+                // Not "next", a lazy episode under the player (aio_lazy_action): the player is on, pf_check
+                // passed with its first start in this session, run_builtin from there not seen on the device.
+                if (!isset($in->control_id) || $in->control_id !== 'next')
+                    $data = aio_pf_check($data);
             }
             else if ($op === PLUGIN_OP_GET_REGULAR_FOLDER_ITEMS)
             {

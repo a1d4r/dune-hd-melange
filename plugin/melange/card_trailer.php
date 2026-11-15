@@ -123,6 +123,7 @@ function aio_ct_vod($c, $url)
 
 // vod_play of $url full screen: vod id $id, the title $name, $sub under it, the poster $poster ('' none) and one
 // stream URL from the start; no field that links it to a card (no history, marks, markers, actions). Also egg.php.
+// To the shell only as a reply of handle_user_input: on r24 aio_pf_check wraps it (main.php call_plugin).
 /**
  * @param string $id
  * @param string $name

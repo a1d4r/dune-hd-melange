@@ -176,6 +176,7 @@ function aio_play_plan($seasons, $s, $others)
 // dialog there. $pre: aio_precheck() of the row's URL already done. $from: rid
 // of the screen under the player the caller notes (aio_playing; '' none: "Continue"),
 // for the start by "Via <service>" of that dialog (aio_pre_failed).
+// To the shell only as a reply of handle_user_input: on r24 aio_pf_check wraps it (main.php call_plugin).
 /**
  * @param AioState $st
  * @param AioRow $r
