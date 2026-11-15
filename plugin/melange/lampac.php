@@ -18,7 +18,9 @@
 //   type - unknown type (detail); method - unknown method (detail); headers -
 //   "turn on streamproxy of the balancer in init.conf"; serial - a series asked
 //   without a season; no_season - no such season at the balancer; no_episode -
-//   no such episode in the voice (detail: the episodes there are); no_link - no link in the reply; long - "the link is too
+//   no such episode in the voice (detail: the episodes there are);
+//   season_list - "call" of an episode gave a list, not its link; other_episode -
+//   it gave another episode (aio_lp_call_ep); no_link - no link in the reply; long - "the link is too
 //   long for Lampac, choose another source"; long_variant - the same inside a
 //   playlist; not_hls - a playlist without #EXTM3U; html - a web page instead
 //   of a video.
@@ -1182,22 +1184,54 @@ function aio_lp_ep_row($row, $ep)
 
 // --- "call" and the link.
 
+// Reply $j of "call" of episode $e of season $s (spec §5.3 p. 4: Phantom in the player of Lampa
+// played E1 for E2, VeoVeo always S1E1) -> array(why: '' or season_list (a list of episodes, not
+// one link: data[] of more than one item, playlist[], type episode or season) or other_episode (e
+// or s of the reply, or "(N серия)" at the end of its title, of another episode; detail: which),
+// detail). Lampac 1.90.1 sends none of these in a reply of "call" (Phantom, HDVB, VideoHUB,
+// AniDub, 16.11.2026): only a plain case is caught, the episode in the stream is not seen.
+/**
+ * @param array<mixed> $j
+ * @param int $s
+ * @param int $e
+ * @return array{string, string}
+ */
+function aio_lp_call_ep($j, $s, $e)
+{
+    $type = aio_lp_str($j, 'type');
+    if ((isset($j['data']) && is_array($j['data']) && count($j['data']) > 1) ||
+        (isset($j['playlist']) && is_array($j['playlist'])) || $type === 'episode' || $type === 'season')
+        return array('season_list', $type !== '' ? $type : (isset($j['playlist']) ? 'playlist' : 'data'));
+    $je = aio_lp_num(isset($j['e']) ? $j['e'] : null);
+    $js = aio_lp_num(isset($j['s']) ? $j['s'] : null);
+    if ($je >= 0 && $je !== $e)
+        return array('other_episode', "e $je");
+    if ($s > 0 && $js > 0 && $js !== $s)
+        return array('other_episode', "s $js");
+    if (preg_match('/\(([0-9]{1,5}) серия\)\s*\z/u', aio_lp_text(aio_lp_str($j, 'title')), $m) && intval($m[1]) !== $e)
+        return array('other_episode', "title {$m[1]}");
+    return array('', '');
+}
+
 // "call" of row link $url (a row of method call; by ENTER only): its reply
 // {"method":"play","url":...} -> array(url: the link ('' on a failure), qual:
 // quality => link, err: '' or the reason (AioLpWhy codes: down, http, rch,
-// accsdb, not_lampac, no_link, method), detail, tries). A failure, an empty
+// accsdb, not_lampac, no_link, method; of an episode $e > 0 of season $s also
+// season_list and other_episode, aio_lp_call_ep), detail, tries). A failure, an empty
 // link or HTTP 416 (Filmix answers it every other time) -> one more try after
 // $pause us; not when the failure came from the cache of Lampac
-// (X-Invoke-Cache: HIT: it keeps errors) nor for rch and accsdb. $total s for
-// both tries.
+// (X-Invoke-Cache: HIT: it keeps errors) nor for rch, accsdb and another
+// episode. $total s for both tries.
 /**
  * @param string $base
  * @param string $url
  * @param int $total
  * @param int $pause
+ * @param int $s
+ * @param int $e
  * @return AioLpLink
  */
-function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL_PAUSE)
+function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL_PAUSE, $s = 0, $e = 0)
 {
     $t0 = aio_lp_now();
     if (!preg_match('/[?&]rjson=/i', $url))
@@ -1211,6 +1245,7 @@ function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL
         $out['tries']++;
         $r = aio_lp_get($url, min(AIO_LP_CONNECT, $left), $left, AIO_LP_MAX_BYTES);
         $j = $r['err'] === '' ? aio_lp_json($r['body']) : null;
+        $ep = $e > 0 && is_array($j) ? aio_lp_call_ep($j, $s, $e) : array('', '');
         $again = true;
         if ($r['err'] !== '')
             list($out['err'], $out['detail']) = array('down', $r['err']);
@@ -1222,6 +1257,8 @@ function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL
             list($out['err'], $out['detail']) = array('http', strval($r['code']));
         else if ($j === null)
             list($out['err'], $out['detail']) = array('not_lampac', 'not JSON');
+        else if ($ep[0] !== '')
+            list($out['err'], $out['detail'], $again) = array($ep[0], $ep[1], false);
         else if (aio_lp_str($j, 'method') !== '' && aio_lp_str($j, 'method') !== 'play')
             list($out['err'], $out['detail'], $again) = array('method', aio_lp_text(aio_lp_str($j, 'method')), false);
         else
