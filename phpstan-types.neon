@@ -29,6 +29,26 @@ parameters:
         AioTsReply: 'array{code: int, body: string, err: string, errno: int}'
         # A reply of the Transmission RPC (aio_trm_call, net.php).
         AioTrmReply: 'array{code: int, body: string, err: string, errno: int, sid: bool}'
+        # A reply of Lampac (aio_lp_get, net.php).
+        AioLpReply: 'array{code: int, body: string, err: string, errno: int, hit: bool}'
+        # The parameters of a title for Lampac (aio_lp_title, lampac.php).
+        AioLpTitle: 'array{id: string, imdb_id: string, kinopoisk_id: string, title: string, original_title: string, serial: string, year: string, original_language: string, source: string}'
+        # A source of a search of Lampac (aio_lp_source, lampac.php).
+        AioLpSource: 'array{name: string, label: string, q: string, url: string, bal: string, index: int, pos: int}'
+        # A search of Lampac between the ticks (aio_lp_search_start, lampac.php).
+        AioLpSearch: 'array{base: string, q: string, mode: string, memkey: string, seen: int, t0: float, sources: list<AioLpSource>, gone: array<string, string>, hidden: array{show: int, rch: int, bad: int}, tasks: int, pending: int, done: bool, capped: bool, err: string, detail: string}'
+        # A reason of a source of Lampac (aio_lp_why, lampac.php).
+        AioLpWhy: 'array{src: string, bal: string, why: string, detail: string}'
+        # A row of a reply of a balancer (aio_lp_movie, lampac.php).
+        AioLpRow: 'array{bal: string, src: string, voice: string, quality: string, method: string, url: string, stream: string, qual: array<string, string>, subs: int, key: string}'
+        # A reply of a balancer (aio_lp_reply, lampac.php).
+        AioLpParsed: 'array{kind: string, rows: list<AioLpRow>, why: list<AioLpWhy>}'
+        # The replies of the sources (aio_lp_replies, lampac.php).
+        AioLpReplies: 'array{rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, similar: int, serial: int, asked: int}'
+        # The link of "call" (aio_lp_call, lampac.php).
+        AioLpLink: 'array{url: string, qual: array<string, string>, err: string, detail: string, tries: int}'
+        # The check of a link (aio_lp_check, lampac.php).
+        AioLpCheck: 'array{class: string, url: string, why: string, detail: string, hls: bool, no_seek: bool}'
         # A config of AIOStreams made by the settings page (aio_aio_conf, common.php).
         AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null}'
         # A JacRed to ask (aio_jacred_conf, aio_jacred_builtin_conf, common.php).

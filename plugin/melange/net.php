@@ -1,9 +1,9 @@
 <?php
 // HTTP clients shared by the plugin (php_server) and the settings page
-// (cgi/settings.php, php-cgi as root): TorrServer and the Transmission RPC.
-// Plain PHP 5.3: no firmware API, no logging here. Needs common.php
-// (AIO_VERSION, AIO_CA_BUNDLE); tests define their own aio_ts_call() and
-// aio_trm_call().
+// (cgi/settings.php, php-cgi as root): TorrServer, the Transmission RPC and
+// Lampac. Plain PHP 5.3: no firmware API, no logging here. Needs common.php
+// (AIO_VERSION, AIO_CA_BUNDLE); tests define their own aio_ts_call(),
+// aio_trm_call() and aio_lp_get().
 // Types in the PHPDoc (AioServer): phpstan-types.neon of the repository.
 
 // The Transmission RPC address of a stored server address: no path ->
@@ -169,5 +169,79 @@ if (!function_exists('aio_ts_call'))
             ($ok === false ? "curl $errno: " . curl_error($ch) : '');
         curl_close($ch);
         return array('code' => $code, 'body' => $err !== '' ? '' : $body, 'err' => $err, 'errno' => $errno);
+    }
+}
+
+// err of aio_lp_get for a reply over its $max bytes.
+define('AIO_LP_TOO_BIG', 'reply over the size limit');
+
+// Tests define their own aio_lp_get().
+if (!function_exists('aio_lp_get'))
+{
+    // GET of an API of Lampac (lampac.php) -> array(code: HTTP code, body:
+    // the body ('' on a transport error or over $max bytes), err: the
+    // transport error ('' none; AIO_LP_TOO_BIG over $max), errno: curl errno
+    // (0 none, -1 its options refused), hit: the reply came with
+    // "X-Invoke-Cache: HIT" (Lampac keeps errors too: no point asking again)).
+    // http and https, no redirects (an address of the page: its /version
+    // without type sends to another site), gzip. No log here: the address
+    // and the tokens of a link never go there. The plugin and the check of
+    // the settings page.
+    /**
+     * @param string $url
+     * @param int $connect
+     * @param int $total
+     * @param int $max
+     * @return AioLpReply
+     */
+    function aio_lp_get($url, $connect, $total, $max)
+    {
+        $body = '';
+        $over = false;
+        $hit = false;
+        $ch = curl_init($url);
+        $opts = array(
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_CONNECTTIMEOUT => $connect,
+            CURLOPT_TIMEOUT => $total,
+            CURLOPT_CAINFO => AIO_CA_BUNDLE,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_ENCODING => '',
+            CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION,
+            CURLOPT_HTTPHEADER => array('Accept: application/json'),
+            CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$hit)
+            {
+                // A status line starts a response (also after "100 Continue").
+                if (preg_match('~^HTTP/\S+\s+[0-9]{3}~', $line))
+                    $hit = false;
+                else if (preg_match('/^X-Invoke-Cache:[ \t]*HIT[ \t\r\n]*$/i', $line))
+                    $hit = true;
+                return strlen($line);
+            },
+            // Not RETURNTRANSFER (curl_multi_getcontent of r25): a short count aborts the transfer.
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$over, $max)
+            {
+                if (strlen($body) + strlen($chunk) > $max)
+                {
+                    $over = true;
+                    return 0;
+                }
+                $body .= $chunk;
+                return strlen($chunk);
+            });
+        if (!curl_setopt_array($ch, $opts))
+        {
+            curl_close($ch);
+            return array('code' => 0, 'body' => '', 'err' => 'curl options refused', 'errno' => -1, 'hit' => false);
+        }
+        $ok = curl_exec($ch);
+        $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+        $errno = $over ? 0 : curl_errno($ch);
+        $err = $over ? AIO_LP_TOO_BIG : ($ok === false ? "curl $errno: " . curl_error($ch) : '');
+        curl_close($ch);
+        return array('code' => $code, 'body' => $err !== '' ? '' : $body, 'err' => $err, 'errno' => $errno,
+            'hit' => $hit);
     }
 }

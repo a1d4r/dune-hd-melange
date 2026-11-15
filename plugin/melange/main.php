@@ -31,6 +31,8 @@ require_once dirname(__FILE__) . '/server.php';
 require_once dirname(__FILE__) . '/sources.php';
 // "Watch via TorrServer".
 require_once dirname(__FILE__) . '/torrserver.php';
+// The client of Lampac ("Онлайн"): no firmware API.
+require_once dirname(__FILE__) . '/lampac.php';
 // TorrServer in the player: the window of its numbers with INFO.
 require_once dirname(__FILE__) . '/ts_info.php';
 // Rows of a list at most: our own cap, not only the AIOStreams config.
