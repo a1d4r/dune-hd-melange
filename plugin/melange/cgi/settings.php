@@ -52,6 +52,9 @@
 //                      <TorrServer>/echo, then POST /settings with the login
 //                      (0.45.0: is one asked for, taken), JSON {ok, msg[,
 //                      level]}, nothing written;
+//   POST ?t=<token>&a=lp_check&ajax=1 (lampac_url) -> /version?type=build, then
+//                      the search of a film to its end (lampac.php) in that Lampac,
+//                      JSON {ok, msg, level}, nothing written;
 //   POST ?t=<token>&a=srv_check (type, url, user, pass, category, tags) ->
 //                      login, app/version, categories, tags of that
 //                      qBittorrent; type tr (0.47.0): session-get of that
@@ -81,6 +84,7 @@
 
 require dirname(dirname(__FILE__)) . '/common.php';
 require dirname(dirname(__FILE__)) . '/net.php';
+require dirname(dirname(__FILE__)) . '/lampac.php';
 require dirname(__FILE__) . '/aio_conf.php';
 
 define('AIO_CGI_NAME', 'melange');
@@ -158,6 +162,8 @@ function aio_cgi_save($dir, $t)
         $v['no_torrents'] = aio_cgi_no_torrents_of($cur['no_torrents']);
     if ($v['src_profiles'] === '')
         $v['src_profiles'] = aio_cgi_src_profiles_of($cur['src_profiles']);
+    if (!isset($_POST[$f['lampac']['name']]))
+        $v['lampac'] = aio_lp_base($cur);
     // '' is a choice here (none made), only no field at all means an older form.
     if (!isset($_POST['cat_rows']))
         $v['cat_rows'] = aio_cgi_cat_rows_of($cur['cat_rows']);
@@ -323,6 +329,8 @@ if ($method === 'POST' && aio_cgi_param($_GET, 'ajax') === '1')
         aio_cgi_srv_check_post();
     if ($a === 'ts_check')
         aio_cgi_ts_check_post();
+    if ($a === 'lp_check')
+        aio_cgi_lp_check_post();
     if ($a === 'aio_check')
         aio_cgi_aio_check_post();
     if ($a === 'jr_speed')

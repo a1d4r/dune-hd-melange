@@ -411,6 +411,11 @@ function aio_cgi_check_values($v)
             $f['src_profiles']['name']);
     }
     $d[$set['cat_rows']] = aio_cat_rows_ok(explode(' ', $v['cat_rows']));
+    // "Адрес Lampac": '' - off; none posted - the stored one already (settings.php).
+    $lp = aio_lp_addr($v['lampac']);
+    $d[$set['lampac']] = is_string($lp) ? $lp : '';
+    if (!is_string($lp))
+        $errors[] = aio_cgi_err(aio_cgi_fmt_lampac(), $f['lampac']['name']);
     return array($d, $errors);
 }
 

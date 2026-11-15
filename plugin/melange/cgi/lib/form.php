@@ -71,6 +71,9 @@ function aio_cgi_fields()
         // (the block of the profiles on #src).
         'src_profiles' => array('id' => 'spf', 'name' => 'src_profiles', 'set' => 'src_profiles', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
+        // "Адрес Lampac" ("Онлайн", lampac.php): aio_cgi_lampac_block.
+        'lampac' => array('id' => 'lp', 'name' => 'lampac_url', 'set' => 'lampac_url', 'max' => AIO_LP_URL_MAX, 'type' => 'plain',
+            'scr' => 'adv'),
         // The source as the page came (aio_cgi_src_was_stored): posted back the same, the save keeps the stored one
         // (MENU of a list on the Dune may have switched the profile since).
         'src_was' => array('id' => 'sw', 'name' => 'src_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src',
@@ -416,6 +419,17 @@ function aio_cgi_src_profiles_cards()
     foreach (aio_cgi_src_profiles() as $x)
         $out .= aio_cgi_card('spf' . ++$i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
     return $out . '</div>';
+}
+
+// "Онлайн" (Lampac) on #adv: the address of Lampac with "Проверить" (a=lp_check), '' - off. One label, no heading over
+// it (on #adv both look the same): "Онлайн" is the item of the Dune it turns on.
+function aio_cgi_lampac_block($v)
+{
+    $f = aio_cgi_fields();
+    return aio_cgi_input($f['lampac'], aio_cgi_l('Онлайн: адрес Lampac', 'Online: Lampac address'), $v['lampac'],
+        aio_cgi_l('Выключено', 'Off'), aio_cgi_chk('lpb', 'lpr')) .
+        '<p class="hint">' . aio_cgi_l('Пусто — выключено. Сервер Lampac: http://хост:порт', 'Empty: off. Lampac server: http://host:port') .
+        '</p>';
 }
 
 // The answers of "Запуск торрентов" on the screen #adv (radio no_torrents, 0.49.0): its
@@ -1170,7 +1184,7 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
         aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_source_errors_block($v) .
             aio_cgi_no_color_keys_block($v) .
-            aio_cgi_src_profiles_cards()) .
+            aio_cgi_src_profiles_cards() . aio_cgi_lampac_block($v)) .
         aio_cgi_screen('bak', aio_cgi_backup($t, $v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .

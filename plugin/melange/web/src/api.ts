@@ -237,6 +237,7 @@ export function createApi(base: string | null, hooks: ApiHooks) {
     tsCheck: (ts: string, user: string, pass: string) =>
       post("&a=ts_check&ajax=1", "ts=" + encodeURIComponent(ts) + "&ts_user=" + encodeURIComponent(user) +
         "&ts_pass=" + encodeURIComponent(pass), parseCheck),
+    lampacCheck: (url: string) => post("&a=lp_check&ajax=1", "lampac_url=" + encodeURIComponent(url), parseCheck),
     aioCheck: (manifest: string) => post("&a=aio_check&ajax=1", "manifest=" + encodeURIComponent(manifest), parseCheck),
     aioStatus: (url: string) => post("&a=aio_status&ajax=1", "url=" + encodeURIComponent(url), parseCheck),
     keyCheck: (what: "rd" | "tb" | "tmdb", key: string) =>

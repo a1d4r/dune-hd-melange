@@ -1,7 +1,7 @@
 <?php
 // The settings page (cgi/settings.php): "Проверить" - the manifest of
-// AIOStreams, JacRed, the keys of Real-Debrid, TorBox, TMDB, TorrServer, a
-// qBittorrent server; the format hints of their fields. Nothing written.
+// AIOStreams, JacRed, the keys of Real-Debrid, TorBox, TMDB, TorrServer, Lampac,
+// a qBittorrent server; the format hints of their fields. Nothing written.
 
 function aio_cgi_fmt_manifest()
 {
@@ -13,6 +13,12 @@ function aio_cgi_fmt_jacred()
 {
     return aio_cgi_l('нужен адрес вида http(s)://хост[:порт]; ключ — 8–200 символов без пробелов, & и #',
         'an address like http(s)://host[:port] is needed; the key - 8-200 characters without spaces, & and #');
+}
+
+function aio_cgi_fmt_lampac()
+{
+    return aio_cgi_l('Lampac: нужен адрес вида http://хост:порт или https://хост',
+        'Lampac: use an address like http://host:port or https://host');
 }
 
 function aio_cgi_fmt_key($what)
@@ -399,6 +405,71 @@ function aio_cgi_ts_check_post()
         aio_cgi_log('ts check: bad format of ' . $bad[0]);
     $res = $bad ? array(false, $bad[1]) : aio_cgi_ts_check(aio_ts_base($a), aio_ts_auth($u, $p));
     aio_cgi_json(200, array('ok' => $res[0], 'msg' => $res[1]) + (isset($res[2]) ? array('level' => $res[2]) : array()));
+}
+
+// --- The check of Lampac ("Проверить" of "Адрес Lampac", #adv).
+
+// The film of the check: one every Lampac with a balancer finds, its ids known (no /externalids).
+function aio_cgi_lp_title()
+{
+    return aio_lp_title(array('tmdb' => '157336', 'imdb' => 'tt0816692', 'kp' => '258687', 'title' => 'Интерстеллар',
+        'original_title' => 'Interstellar', 'year' => '2014', 'serial' => 0, 'original_language' => 'en'));
+}
+
+// "Не отвечает" of a transport error: its curl errno (an error of lampac.php without one: 0).
+function aio_cgi_lp_down($errno)
+{
+    return array(false, aio_cgi_l('Lampac не отвечает', 'Lampac is not responding') . ($errno > 0 ? " (curl $errno)" : ''));
+}
+
+// Lampac $base (aio_lp_addr, not '') -> array(ok, the line for the page, level): GET /version?type=build first (no
+// answer: "Не отвечает" at once, no search), then the search of aio_cgi_lp_title to its end (AIO_LP_SEARCH_MAX s, as on
+// the Dune). Its sources (balancers that found the film) - ok, none - warn; no source and a reason - its line. Never the
+// address in the log.
+function aio_cgi_lp_check($base)
+{
+    $r = aio_lp_get("$base/version?type=build", AIO_LP_CONNECT, AIO_LP_STEP, 65536);
+    $ver = $r['err'] === '' && $r['code'] === 200 ? aio_lp_version($r['body']) : '';
+    aio_cgi_log('lampac check: version ' . ($r['err'] !== '' ? ($r['errno'] > 0 ? "curl {$r['errno']}" : 'too big') :
+        "HTTP {$r['code']}") . ($ver !== '' ? ", $ver" : ''));
+    if ($r['errno'] === -1)
+        return array(false, aio_cgi_l('Lampac не отвечает (curl не настроен)', 'Lampac is not responding (curl not set up)'));
+    if ($r['err'] !== '' && $r['err'] !== AIO_LP_TOO_BIG)
+        return aio_cgi_lp_down($r['errno']);
+    $st = aio_lp_search_start($base, aio_cgi_lp_title());
+    while (!$st['done'])
+        $st = aio_lp_search_step($st);
+    $n = count($st['sources']);
+    $why = $st['err'];
+    aio_cgi_log("lampac check: $n sources" . ($why !== '' ? ", $why" : '') . ($st['capped'] ? ', out of time' : ''));
+    if (!$n && $why === 'down')
+        return aio_cgi_lp_down(preg_match('/^curl ([0-9]+)/', $st['detail'], $m) ? intval($m[1]) : 0);
+    if (!$n && $why === 'forbidden')
+        return array(false, aio_cgi_l('Доступ закрыт (403) — проверьте WAF в init.conf',
+            'Access denied (403): check WAF in init.conf'));
+    if (!$n && $why === 'accsdb')
+        return array(false, aio_cgi_l('Lampac просит вход, а Melange входить не умеет',
+            'Lampac asks for a login, and Melange cannot log in'));
+    if (!$n && $why === 'http')
+        return array(false, sprintf(aio_cgi_l('Ответил HTTP %s — это не Lampac?', 'It answered HTTP %s: not a Lampac?'),
+            $st['detail']));
+    if (!$n && $why !== '')
+        return array(false, aio_cgi_l('Это не Lampac', 'Not a Lampac server'));
+    $msg = sprintf(aio_cgi_l('Lampac%s отвечает, источников: %d', 'Lampac%s is responding, sources: %d'),
+        $ver !== '' ? " $ver" : '', $n);
+    return $n ? array(true, $msg, 'ok') : array(true, $msg, 'warn');
+}
+
+// a=lp_check: the Lampac of the posted lampac_url (not the stored one), nothing written. -> JSON {ok, msg, level}.
+function aio_cgi_lp_check_post()
+{
+    $f = aio_cgi_fields();
+    $a = aio_lp_addr(aio_cgi_param($_POST, $f['lampac']['name']));
+    if (!is_string($a))
+        aio_cgi_log('lampac check: bad format');
+    $res = !is_string($a) ? array(false, aio_cgi_fmt_lampac(), 'err') : ($a === '' ? array(false,
+        aio_cgi_l('Впишите адрес Lampac', 'Enter the Lampac address'), 'err') : aio_cgi_lp_check($a));
+    aio_cgi_json(200, array('ok' => $res[0], 'msg' => $res[1], 'level' => isset($res[2]) ? $res[2] : 'err'));
 }
 
 // --- The check of a server of "Download to server" ("Проверить" of a block).

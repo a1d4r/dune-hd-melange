@@ -61,6 +61,10 @@ export const ID = {
   tsPass: "tsp",
   tsCheck: "tsb",
   tsResult: "tsr",
+  // "Lampac address" ("Online") on #adv, its check.
+  lampacUrl: "lp",
+  lampacCheck: "lpb",
+  lampacResult: "lpr",
   // The main screen: the question of the first run (none after it), the state (hidden on the first run).
   first: "first",
   state: "state",

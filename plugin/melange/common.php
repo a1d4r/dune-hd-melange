@@ -797,7 +797,7 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // takes the JacRed, the template and the config of the settings), at most
 // AIO_PROFILES_MAX, unique names and targets (the first one kept; kept with
 // src_profiles off too), 'lampac_url' => the address of Lampac ("Онлайн") as
-// stored, only when the file has one (the plugin checks it: aio_lp_base; none, '' - off),
+// stored, a string (the page saves it by aio_lp_addr, the plugin checks it: aio_lp_base; '' - off),
 // each checked by the rules above; absent or wrong -> as not set ('', the
 // default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
@@ -860,7 +860,7 @@ function aio_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'lampac_url' => '', 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
         'saved_once' => false);
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))

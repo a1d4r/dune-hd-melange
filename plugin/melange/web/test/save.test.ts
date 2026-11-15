@@ -47,6 +47,7 @@ const FILLED: [string, string][] = [
   ["markers", "on"],
   ["source_errors", "off"],
   ["no_color_keys", "off"],
+  ["lampac_url", "http://lampac.example:9118"],
 ];
 // Torrents: as the page came but the answer (0.44.0: the TorrServer field stays on #torr).
 const P2P_BODY = encode([["watch", "p2p"], ...FILLED.slice(1)]);

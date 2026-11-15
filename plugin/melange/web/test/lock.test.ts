@@ -15,7 +15,7 @@ const speed = json({ ok: true, msg: "", n: 1, ms: 1000 });
 const saveButton = (page: Page) => page.form.querySelector<HTMLButtonElement>("." + CLS.save)!;
 // Every button of a request but the save ones: the checks, JacRed, the checks of the server blocks.
 const checkButtons = (page: Page) => [
-  ...[ID.tsCheck, ID.manifestCheck, ID.aioOwnCheck, ID.rdCheck, ID.tbCheck, ID.tmdbCheck, ID.jacredCheck, ID.jacredCompare].map(
+  ...[ID.tsCheck, ID.lampacCheck, ID.manifestCheck, ID.aioOwnCheck, ID.rdCheck, ID.tbCheck, ID.tmdbCheck, ID.jacredCheck, ID.jacredCompare].map(
     (id) => page.el<HTMLButtonElement>(id),
   ),
   ...Array.from(page.form.querySelectorAll<HTMLButtonElement>("." + CLS.serverCheck)),
@@ -97,12 +97,12 @@ describe("while a save goes", () => {
   test("every check disabled and a click starts nothing; Save and Reset disabled, Save aria-busy; all back after it", async () => {
     const page = open("filled");
     const buttons = checkButtons(page);
-    expect(buttons.length).toBe(13);
+    expect(buttons.length).toBe(14);
     const answer = later();
     page.replies.push(answer.reply);
     saveButton(page).click();
     await flush();
-    expect(disabled(buttons)).toEqual(all(13, true));
+    expect(disabled(buttons)).toEqual(all(14, true));
     expect([saveButton(page).disabled, page.el<HTMLButtonElement>(ID.resetConf).disabled]).toEqual([true, true]);
     expect(saveButton(page).getAttribute("aria-busy")).toBe("true");
     for (const button of buttons) button.click();
@@ -110,7 +110,7 @@ describe("while a save goes", () => {
     expect(page.calls.map((call) => call.url)).toEqual([SAVE_URL]);
     answer.resolve(json({ ok: false, errors: [{ msg: "Bad", field: null }] }));
     await flush();
-    expect(disabled(buttons)).toEqual(all(13, false));
+    expect(disabled(buttons)).toEqual(all(14, false));
     expect([saveButton(page).disabled, saveButton(page).getAttribute("aria-busy")]).toEqual([false, null]);
   });
 
@@ -135,10 +135,10 @@ describe("while a save goes", () => {
     saveButton(page).click();
     await flush();
     expect(page.calls.length).toBe(2);
-    expect(disabled(checkButtons(page))).toEqual(all(13, true));
+    expect(disabled(checkButtons(page))).toEqual(all(14, true));
     sync.resolve(json({ ok: true, msg: "Updated", skip: false, base: null, mode: "debrid", conf: null }));
     await flush();
-    expect(disabled(checkButtons(page))).toEqual(all(13, false));
+    expect(disabled(checkButtons(page))).toEqual(all(14, false));
   });
 
   test("a check that went before: its result comes, its button back only after the save", async () => {
