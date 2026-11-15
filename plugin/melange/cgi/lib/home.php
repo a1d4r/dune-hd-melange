@@ -37,7 +37,8 @@ function aio_cgi_screens()
         'adv' => aio_cgi_l('Дополнительно', 'Advanced'),
         'rows' => aio_cgi_l('Ряды каталога', 'Catalog rows'),
         'look' => aio_cgi_l('Внешний вид', 'Appearance'),
-        'cfg' => 'AIOStreams', 'bak' => aio_cgi_l('Резервная копия', 'Backup'), 'log' => aio_cgi_l('Лог', 'Log'));
+        'cfg' => 'AIOStreams', 'bak' => aio_cgi_l('Резервная копия', 'Backup'), 'log' => aio_cgi_l('Лог', 'Log'),
+        'about' => aio_cgi_l('О Melange', 'About Melange'));
 }
 
 // The screen of the field name= $field of an error (aio_cgi_err): its scr
@@ -124,7 +125,8 @@ function aio_cgi_rows($v)
         'look' => array('none', ($v['cat_logo'] === aio_cgi_cat_logo_of(false) ? $t['logoOff'] : $t['logoOn']) . ' · ' .
             ($v['cat_rating'] === aio_cgi_cat_rating_of(false) ? $t['ratingOff'] : $t['ratingOn'])),
         'bak' => array('none', aio_cgi_l('Настройки в файл и из файла', 'Settings to a file and back')),
-        'log' => array('none', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')));
+        'log' => array('none', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')),
+        'about' => array('none', AIO_VERSION . ' · ' . aio_cgi_l('поддержать автора', 'support the author')));
 }
 
 // The main screen (#home): the first run (no saved_at: $v['first']) - the
@@ -159,7 +161,7 @@ function aio_cgi_home($v)
     $rows = aio_cgi_rows($v);
     $groups = array(aio_cgi_l('Просмотр', 'Watching') => array('src', 'cfg', 'voices', 'torr'),
         aio_cgi_l('Каталог', 'Catalog') => array('rows', 'look'),
-        aio_cgi_l('Ещё', 'More') => array('dl', 'adv', 'bak', 'log'));
+        aio_cgi_l('Ещё', 'More') => array('dl', 'adv', 'bak', 'log', 'about'));
     foreach ($groups as $h => $ids)
     {
         $out .= '<h3 class="gh">' . $h . '</h3><div class="list">';
@@ -175,7 +177,7 @@ function aio_cgi_home($v)
         }
         $out .= '</div>';
     }
-    return $out . aio_cgi_about($v);
+    return $out;
 }
 
 // The date of the build of the plugin: build.sh writes build_date.txt (YYYY-MM-DD) next to
@@ -198,17 +200,17 @@ function aio_cgi_about_row($title, $val = '', $url = '', $cls = '')
         '" target="_blank" rel="noopener noreferrer">' . $in . '<span class="chev">›</span></a>';
 }
 
-// "О Melange" and "Поддержать автора" at the bottom of the main screen (0.60.2): the version, the date
+// The screen "О Melange" (0.60.2; its line on the main screen, in "Ещё": the version): the version, the date
 // of the build (none: no line), firmware_version of versions.txt whole (260827_0003_r24: the builds of one r
 // differ in a report of a problem), the host of the server of the own config (the line "Откуда брать фильмы" does
 // not show it; no link: no line; xo: hidden as another answer is chosen), the channel; the donations and the
-// referral links of Debrid. The other servers, JacRed and Debrid are in the lines above: not repeated.
+// referral links of Debrid. The other servers, JacRed and Debrid are on the main screen: not repeated.
 function aio_cgi_about($v)
 {
     $aio = aio_cgi_watch($v) === 'own' ? aio_cgi_host($v['manifest']) : '';
     $date = aio_cgi_build_date();
     $fw = (string) substr(aio_versions_field(aio_versions_text(), 'firmware_version'), 0, 40);
-    return '<h3 class="gh">' . aio_cgi_l('О Melange', 'About Melange') . '</h3><div class="list">' .
+    return '<div class="list">' .
         aio_cgi_about_row(aio_cgi_l('Версия', 'Version'), AIO_VERSION) .
         ($date !== '' ? aio_cgi_about_row(aio_cgi_l('Сборка', 'Built'), $date) : '') .
         aio_cgi_about_row(aio_cgi_l('Прошивка Дюны', 'Dune firmware'), $fw !== '' ? $fw : aio_cgi_l('не определена', 'unknown')) .
