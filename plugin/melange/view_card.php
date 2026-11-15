@@ -139,7 +139,7 @@ define('AIO_OC_DET_W', AIO_OC_HINT_R - AIO_OC_DET_X);
 // EP_VIS whole, the one before and after seen at the edges; the frame of the focus FRAME wide
 // around the still; P+/P- PAGE stills.
 // H3 of design-own-card.md (owner 15.11.2026): with the focus in the row of episodes the head under the logo is of
-// the episode in focus (aio_oc_ep_head): its title 48 px at EP_TITLE_Y, "S1E2 · <date> · <length>" at EP_FACTS_Y, its
+// the episode in focus (aio_oc_ep_head): its title 48 px at EP_TITLE_Y, "S1 E2 · <date> · <length>" at EP_FACTS_Y, its
 // description from EP_DESC_Y in EP_LINES lines DESC_LH_SER apart; the buttons, the tabs and the row do not move.
 define('AIO_OC_EP_TITLE_Y', 252);
 define('AIO_OC_EP_FACTS_Y', 324);
@@ -522,7 +522,7 @@ function aio_oc_buttons($c, $ep)
         $b[] = array('watch', aio_tr($ui, 'card_watch'), true);
     else if ($c['imdb'] !== '')
     {
-        $name = 'S' . ($ep['s'] > 0 ? $ep['s'] : $ep['q']) . 'E' . $ep['e'];
+        $name = aio_se($ep['s'] > 0 ? $ep['s'] : $ep['q'], $ep['e']);
         $x = aio_oc_ep($c, $ep['s'], $ep['e']);
         if ($x && $x['soon'])
         {
@@ -1392,35 +1392,13 @@ function aio_oc_folder_view($media_url, $sel_state)
 
 // --- Keys.
 
-// The titles of the episodes of meta $m for the player (aio_ser_name): "<season>:<episode>" as the list asks them
-// (aio_cm_hkey, as the history) => the title, the episodes of no title (a stub of the server too, aio_cm_ep_title) left
-// out. All the seasons: the lazy episodes go on into the next one (aio_next).
-/**
- * @param AioCardMeta $m
- * @return array<string, string>
- */
-function aio_oc_titles($m)
-{
-    $out = array();
-    foreach ($m['seasons'] as $s => $eps)
-    {
-        $q = aio_cm_req_s($m, $s);
-        foreach ($eps as $ep)
-        {
-            if ($ep['title'] !== '')
-                $out["$q:{$ep['e']}"] = $ep['title'];
-        }
-    }
-    return $out;
-}
-
 // "Watch": the list of Melange as play_action makes it of the card of the tile, the id of the card
 // of the Dune (or none: no history) in movie_str. native_title, as the card of the Dune gives it
 // (JacRed asks by it): the original title of the meta, else the English one of the tile. A series:
 // episode $e of season $q as asked (aio_cm_req_s), season_numbers of the meta (the episodes out,
 // aio_cm_eps) for the playlist of the season and the next episode, the runs of the numbering of
 // Cinemeta of an anime numbered on (aio_cin: the numbers of its episodes, aio_cin_n), the titles of the episodes
-// (aio_titles, aio_oc_titles); the cursor of the list on
+// (aio_titles, aio_cm_titles); the cursor of the list on
 // release $hash of the history ('' none). The list marked own: its MENU has no "Choose episode"
 // (choose_season_episode would give the seasons of the last native series, not of this card).
 /**
@@ -1446,7 +1424,7 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
         $mv['season_numbers'] = $sn;
         if ($c['meta']['cin'])
             $mv['aio_cin'] = $c['meta']['cin'];
-        $titles = aio_oc_titles($c['meta']);
+        $titles = aio_cm_titles($c['meta']);
         if ($titles)
             $mv['aio_titles'] = $titles;
     }

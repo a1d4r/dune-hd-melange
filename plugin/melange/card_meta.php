@@ -165,8 +165,9 @@ function aio_cm_names_of($list)
  */
 function aio_cm_ep_title($t)
 {
-    $t = aio_one_line($t);
-    return preg_match('/^(Эпизод|Episode)\s+[0-9]+$/Diu', $t) ? '' : aio_cut($t, AIO_CM_EP_TITLE_MAX);
+    // A no-break space (U+00A0) too: trim does not take it.
+    $t = strval(preg_replace('/^[\s\x{00A0}]+|[\s\x{00A0}]+$/Du', '', aio_one_line($t)));
+    return preg_match('/^(Эпизод|Episode)[\s\x{00A0}]+[0-9]+$/Diu', $t) ? '' : aio_cut($t, AIO_CM_EP_TITLE_MAX);
 }
 
 // videos of the meta of a series -> seasons: season => its episodes by number, ascending, season 0
@@ -458,6 +459,27 @@ function aio_cm_lists($m)
         $out[$q] = array_values(array_unique($list));
     }
     ksort($out);
+    return $out;
+}
+
+// The titles of the episodes of meta $m for the player (aio_ser_name): the key of an episode as the list asks it
+// (aio_cm_hkey, as the history) => its title, the episodes of no title (a stub of the server too, aio_cm_ep_title) left
+// out. All the seasons: the lazy episodes go on into the next one (aio_next).
+/**
+ * @param AioCardMeta $m
+ * @return array<string, string>
+ */
+function aio_cm_titles($m)
+{
+    $out = array();
+    foreach ($m['seasons'] as $s => $eps)
+    {
+        foreach ($eps as $ep)
+        {
+            if ($ep['title'] !== '')
+                $out[aio_cm_hkey($m, $s, $ep['e'])] = $ep['title'];
+        }
+    }
     return $out;
 }
 

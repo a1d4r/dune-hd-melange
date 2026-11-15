@@ -26,7 +26,7 @@ function aio_se($s, $e)
     return "S$s E$e";
 }
 
-// "Title S2 E4" for an episode, the title for a movie.
+// "Title · S2 E4" for an episode, the title for a movie.
 /**
  * @param AioMovie $mv
  * @param int $s
@@ -35,7 +35,7 @@ function aio_se($s, $e)
  */
 function aio_ep_name($mv, $s, $e)
 {
-    return $mv['title'] . ($e > 0 ? ' ' . aio_ep_code($mv, $s, $e) : '');
+    return $mv['title'] . ($e > 0 ? ' · ' . aio_ep_code($mv, $s, $e) : '');
 }
 
 // "S2 E4" of an episode; of an anime numbered on with its number of the meta (aio_cin_n): "S21 E32 (923)".
@@ -52,9 +52,9 @@ function aio_ep_code($mv, $s, $e)
 }
 
 // The name of a playlist item: "S2 E4 · Зелёный свет" in a playlist of several
-// (INFO shows the title of vod_info above it), "Во все тяжкие · S2 E4 · Зелёный
-// свет" alone; the title of the episode only of a list of the own card
-// (titles), "S2 E4" without it. A movie: its title.
+// (INFO shows the title of vod_info above it), alone aio_ep_name and the title:
+// "Во все тяжкие · S2 E4 · Зелёный свет"; the title of the episode only of a
+// list of the own card (titles), none without it. A movie: its title.
 /**
  * @param AioMovie $mv
  * @param int $s
@@ -64,12 +64,8 @@ function aio_ep_code($mv, $s, $e)
  */
 function aio_ser_name($mv, $s, $e, $list)
 {
-    if ($e <= 0)
-        return $mv['title'];
-    $name = aio_ep_code($mv, $s, $e);
-    if (isset($mv['titles']["$s:$e"]))
-        $name .= ' · ' . $mv['titles']["$s:$e"];
-    return $list ? $name : "{$mv['title']} · $name";
+    $t = $e > 0 && isset($mv['titles']["$s:$e"]) ? ' · ' . $mv['titles']["$s:$e"] : '';
+    return ($list && $e > 0 ? aio_ep_code($mv, $s, $e) : aio_ep_name($mv, $s, $e)) . $t;
 }
 
 // description of vod_info, for INFO of the player (as Online movies): a line
@@ -396,7 +392,7 @@ function aio_main_svc($mv, $r)
 function aio_pre_failed($st, $r, $pos, $lazy, $pre, $from)
 {
     $lang = $st['lang'];
-    $ep = sprintf('S%02dE%02d', $st['s'], $st['e']);
+    $ep = aio_se($st['s'], $st['e']);
     $key = $pre['key'];
     $detail = $pre['detail'];
     if (!isset($r['copies'], $r['copy']))
@@ -880,7 +876,7 @@ function aio_flip($in)
     list($cur) = aio_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     $ep = sprintf('S%02dE%02d', $s, $e);
     return aio_relist_screen($st, $s, $e, $cur, 'flip: ' . aio_ep_tag($st) . " -> $ep", false,
-        aio_tr($st['lang'], 'next_failed', $ep), 1);
+        aio_tr($st['lang'], 'next_failed', aio_se($s, $e)), 1);
 }
 
 // gc_refresh (MENU "Refresh") of a live list, a movie or an episode: the same
@@ -991,7 +987,7 @@ function aio_chosen($in)
     list($cur) = aio_gc_pos($st, null);
     $ep = sprintf('S%02dE%02d', $s, $e);
     return aio_relist_screen($st, $s, $e, $cur, 'pick: ' . aio_ep_tag($st) . " -> $ep (manually $how)", false,
-        aio_tr($st['lang'], 'next_failed', $ep), 3);
+        aio_tr($st['lang'], 'next_failed', aio_se($s, $e)), 3);
 }
 
 // --- "Download in app" in MENU of the list (0.29.0): the magnet of the row
@@ -1455,7 +1451,7 @@ function aio_next($in)
     // "No torrents" set during the playback. Before the request: P2P rows are
     // hidden from its reply, "not in this release" would hide the reason.
     if ($mode === 'ts' && Aio::$settings['no_torrents'])
-        return aio_next_failed($lang, $ep, 'ts_err_off');
+        return aio_next_failed($lang, aio_se($s, $e), 'ts_err_off');
     $st = $mode === 'ts' ? aio_ts_pack_state($key, $s, $e, $hash) : null;
     if ($st)
     {
@@ -1467,7 +1463,7 @@ function aio_next($in)
     if (isset($res['error']))
     {
         $lang = $res['lang'] !== '' ? $res['lang'] : $lang;
-        return aio_next_failed($lang, $ep, $res['error'] === 'err_no_streams' && $errors['lines'] ? 'err_sources_failed' : $res['error'],
+        return aio_next_failed($lang, aio_se($s, $e), $res['error'] === 'err_no_streams' && $errors['lines'] ? 'err_sources_failed' : $res['error'],
             $res['detail'], aio_errors_labels($lang, $errors));
     }
     if (!$none)
@@ -1509,7 +1505,7 @@ function aio_next($in)
     return aio_next_missing($st, $hash, $errors);
 }
 
-// The dialog "S2E3 is not in this release" over the stopped player of a lazy
+// The dialog "S2 E3 is not in this release" over the stopped player of a lazy
 // episode of list state $st: "Choose a release" (its list; a state of one row,
 // aio_ts_pack_state, is no list: aio_next_pick asks for it) and "Stop".
 // $errors: of the reply without the release (else none), the text says so.
@@ -1526,7 +1522,8 @@ function aio_next_missing($st, $hash, $errors)
     aio_log($errors['lines'] ? "next: -> dialog: $ep: " . aio_errors_total($errors) . ' reasons, the release not found' :
         "next: -> dialog: $ep is not in this release");
     $lang = $st['lang'];
-    $title = $errors['lines'] ? aio_tr($lang, 'next_sources_failed', $ep) : aio_tr($lang, 'next_no_episode', $ep);
+    $se = aio_se($st['s'], $st['e']);
+    $title = $errors['lines'] ? aio_tr($lang, 'next_sources_failed', $se) : aio_tr($lang, 'next_no_episode', $se);
     return aio_dialog($title, aio_errors_labels($lang, $errors), array(
         aio_tr($lang, 'next_pick') => aio_input('next_pick', array('k' => $st['movie']['dune_id'], 's' => strval($st['s']),
             'e' => strval($st['e']), 'h' => $hash, 'rid' => $st['rid'])),

@@ -139,7 +139,7 @@ function aio_info_ranges($a)
     return implode(', ', $out);
 }
 
-// "S05E03" of one episode, else "S1–5 · E1–62"; '' without numbers.
+// "S5 E3" of one episode (aio_se), else "S1–5 · E1–62"; '' without numbers.
 /**
  * @param list<int> $seasons
  * @param list<int> $episodes
@@ -148,7 +148,7 @@ function aio_info_ranges($a)
 function aio_info_eps($seasons, $episodes)
 {
     if (count($seasons) === 1 && count($episodes) === 1)
-        return sprintf('S%02dE%02d', $seasons[0], $episodes[0]);
+        return aio_se($seasons[0], $episodes[0]);
     $p = array();
     if ($seasons)
         $p[] = 'S' . aio_info_ranges($seasons);

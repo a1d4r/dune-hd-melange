@@ -99,7 +99,7 @@ function aio_oc_ep_on($c, $pos)
 }
 
 // The head of a series with the focus on episode $ep in the row (H3), under the logo: its title 48 px (none without),
-// "S1E2" white and "· 28 января 2008 · 49 мин" grey after it (not out yet: "· выйдет 16 ноября 2026", no
+// "S1 E2" (aio_se) white and "· 28 января 2008 · 49 мин" grey after it (not out yet: "· выйдет 16 ноября 2026", no
 // description), its description in EP_LINES lines, "…" on the last; TEXT_W wide.
 /**
  * @param AioOcCard $c
@@ -114,7 +114,7 @@ function aio_oc_ep_head($c, $ep)
     if ($ep['title'] !== '')
         $d[] = aio_gc_cut(null, aio_gc_at(AIO_CATV_TEXT_W, 66, $x0, AIO_OC_EP_TITLE_Y),
             aio_gc_cut_w(aio_clean($ep['title']), AIO_CATV_TITLE2_PX, AIO_CATV_TEXT_W), AIO_CATV_TITLE2_PX, AIO_CATV_TITLE_COLOR);
-    $name = "S{$ep['s']}E{$ep['e']}";
+    $name = aio_se($ep['s'], $ep['e']);
     $when = aio_oc_ep_line($ep, null, $ui, false);
     $nw = intval(aio_gc_sum($name, AIO_CATV_LINE_PX));
     $d[] = aio_oc_label($x0, AIO_OC_EP_FACTS_Y, $nw, $name, AIO_CATV_LINE_PX, AIO_CATV_TITLE_COLOR);
