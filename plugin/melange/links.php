@@ -172,8 +172,9 @@ function aio_pg_tick($url)
 // --- The pairs.
 
 // The pairs movie_id => imdb, tmdb (of a movie), tmdbtv (of a series), type (movie, series, ''), seasons
-// (season_numbers: season => episodes); or none (the time it was found there is no pair: for good) or fail
-// (the time of a failed request: asked again after AIO_PG_FAIL_S). Read once from data_dir.
+// (season_numbers: season => episodes), soon, src (meta: the seasons are of the meta of the own card, aio_pg_link_meta),
+// on (1: of the meta of an anime numbered on, aio_cm_numbered_on); or none (the time it was found there is no pair:
+// for good) or fail (the time of a failed request: asked again after AIO_PG_FAIL_S). Read once from data_dir.
 /**
  * @return array<string, AioPgLink>
  */
@@ -244,14 +245,20 @@ function aio_pg_link_clean($l)
     }
     if ($soon)
         $out['soon'] = $soon;
+    if ($seasons && aio_str($l, 'src') === 'meta')
+    {
+        $out['src'] = 'meta';
+        if (isset($l['on']) && $l['on'] === 1)
+            $out['on'] = 1;
+    }
     return $out;
 }
 
 // The episodes of the pair $l out by today (UTC; an episode of its soon with no date or a later one is not
 // out), season => list ascending (aio_wh_pick), seasons of no episode out left out; none without seasons. The
 // season $s of a record whose episode $e is past the episodes of the season (an anime numbered on: One Piece S2
-// asked as S1 E62, aio_cm_req_s): the episodes of $s and the seasons after it numbered on in it, as the own card
-// asks them, when $e is within them.
+// asked as S1 E62, aio_cm_req_s), or season 1 of a pair of on: the episodes of $s and the seasons after it
+// numbered on in it, as the own card asks them; $e past them all (the pair is behind): none, the record as it is.
 /**
  * @param AioPgLink|null $l
  * @param int $s
@@ -277,7 +284,7 @@ function aio_pg_eps($l, $s = -1, $e = -1)
         if ($list)
             $eps[$n] = $list;
     }
-    if (!isset($eps[$s]) || $e <= $eps[$s][count($eps[$s]) - 1])
+    if (!isset($eps[$s]) || ($e <= $eps[$s][count($eps[$s]) - 1] && !($s === 1 && isset($l['on']))))
         return $eps;
     $on = array();
     $off = 0;
@@ -290,7 +297,7 @@ function aio_pg_eps($l, $s = -1, $e = -1)
         $off += $count;
     }
     if ($e > $off)
-        return $eps;
+        return array();
     foreach (array_keys($eps) as $n)
     {
         if ($n > $s)
@@ -334,11 +341,14 @@ function aio_pg_links_save()
 }
 
 // The pair of movie_id $mid set to $l (aio_pg_link_clean): the fields of a pair it has not kept; a pair
-// over none or fail; none or fail only over none or fail. Over a pair: the seasons the larger number of episodes of
-// each (season_numbers of play_action count the episodes not out yet and number an anime by its seasons, the own
-// card on in one), soon replaced only by a source of dates ($l has it, even empty: the card of the shell, the meta).
-// Written (aio_pg_links_save) only on a change and with $save; else the caller writes them once. No log line: the
-// caller says what it found. -> it changed.
+// over none or fail; none or fail only over none or fail. Over a pair the seasons: of the meta (src) replace those of
+// the pair whole, soon and on with them (the records of Melange are numbered by the own card: the Dune may have S1 of
+// 20 where Cinemeta has S1 and S2 of 10); those of play_action and the card of the shell (numbered by the Dune) do
+// not touch those of the meta, else the larger number of episodes of each (season_numbers of play_action count the
+// episodes not out yet). soon replaced only by a source of dates ($l has it, even empty: the card of the shell, the
+// meta). A pair of before src (the seasons of the meta mixed in by the larger) is of the meta again at the next
+// one. Written (aio_pg_links_save) only on a change and with $save; else the caller writes them once. No log line:
+// the caller says what it found. -> it changed.
 /**
  * @param string $mid
  * @param mixed $l
@@ -358,7 +368,22 @@ function aio_pg_link_put($mid, $l, $save = true)
     if ($old_pair && !$pair)
         return false;
     $new = $pair && $old_pair ? array_merge($old, array_filter($l)) : $l;
-    if ($pair && $old_pair && isset($old['seasons'], $l['seasons']))
+    if ($pair && $old_pair && isset($l['seasons']) && isset($old['src']) && !isset($l['src']))
+    {
+        foreach (array('seasons', 'soon', 'on') as $k)
+        {
+            unset($new[$k]);
+            if (isset($old[$k]))
+                $new[$k] = $old[$k];
+        }
+        $dated = false;
+    }
+    else if ($pair && $old_pair && isset($l['src']))
+    {
+        if (!isset($l['on']))
+            unset($new['on']);
+    }
+    else if ($pair && $old_pair && isset($old['seasons'], $l['seasons']))
     {
         $seasons = $old['seasons'];
         foreach ($l['seasons'] as $n => $count)
@@ -391,9 +416,12 @@ function aio_pg_link_movie($mv)
         aio_log('progress: a pair of play_action');
 }
 
-// The episodes of the series of card $id of the own card by its meta $m, as it offers them (aio_cm_lists: by the season
-// asked, an anime numbered on in one), the date of those not out (aio_cm_hkey => date, '' none): its episodes now in the
-// row "Continue" and the badges. A season numbered not 1 and up: none of them.
+// The episodes of the series of card $id of the own card by its meta $m to the pair (src meta: over the seasons of the
+// Dune, aio_pg_link_put): its episodes now in the row "Continue" and the badges. Each season its number of episodes,
+// "s:e" of those not out => the date ('' none). An anime numbered on whole (aio_cm_numbered_on: One Piece S2 E62-E77,
+// asked as S1 E62): the episodes of each season by their place in it, on (aio_pg_eps numbers them on in season 1, as
+// the own card asks them). None: a season asked by another number but not all of them, a season numbered not 1 and up
+// (numbered on: not on from the season before).
 /**
  * @param string $id
  * @param AioCardMeta $m
@@ -401,27 +429,35 @@ function aio_pg_link_movie($mv)
  */
 function aio_pg_link_meta($id, $m)
 {
+    $on = aio_cm_numbered_on($m);
     $seasons = array();
-    foreach (aio_cm_lists($m) as $q => $list)
-    {
-        if ($q < 1)
-            continue;
-        if ($list !== range(1, count($list)))
-            return;
-        $seasons[$q] = count($list);
-    }
     $soon = array();
+    $first = 1;
     foreach ($m['seasons'] as $s => $eps)
     {
+        if ($s < 1 || !$eps)
+            continue;
+        if (!$on && aio_cm_req_s($m, $s) !== $s)
+            return;
+        $list = array();
         foreach ($eps as $ep)
+            $list[] = $ep['e'];
+        $from = $on ? $first : 1;
+        if ($list !== range($from, $from + count($list) - 1))
+            return;
+        $first = $from + count($list);
+        $seasons[$s] = count($list);
+        foreach ($eps as $i => $ep)
         {
             if ($ep['soon'])
-                $soon[aio_cm_hkey($m, $s, $ep['e'])] = $ep['date'];
+                $soon["$s:" . ($i + 1)] = $ep['date'];
         }
     }
-    if ($seasons && $m['imdb'] !== '' && aio_pg_link_put($id, array('imdb' => $m['imdb'], 'type' => 'series', 'seasons' => $seasons,
-        'soon' => $soon)))
-        aio_log('progress: the episodes of the meta');
+    $l = array('imdb' => $m['imdb'], 'type' => 'series', 'seasons' => $seasons, 'soon' => $soon, 'src' => 'meta');
+    if ($on)
+        $l['on'] = 1;
+    if ($seasons && $m['imdb'] !== '' && aio_pg_link_put($id, $l))
+        aio_log('progress: the episodes of the meta' . ($on ? ', numbered on' : ''));
 }
 
 // The pair of the card $id found for tile $t (aio_card_id): its IMDb, its TMDB by its type.
@@ -588,7 +624,12 @@ function aio_pg_parse_seasons($text)
     $tail = preg_replace_callback('/"[^"\\\\]*+(?:\\\\.[^"\\\\]*+)*+"(:?)/', 'aio_pg_strip_str',
         substr($text, $at + strlen('"seasons":')));
     if (!is_string($tail) || !preg_match('/\[(?:[^\[\]]++|(?R))*+\]/A', $tail, $arr))
+    {
+        // pcre.backtrack_limit of PHP 5.3.6 is 100000: a card of 5 seasons of 300 episodes is past it.
+        if (preg_last_error() !== PREG_NO_ERROR)
+            aio_log(sprintf('link: the seasons of a card not read, preg error %d, %d B', preg_last_error(), strlen($text)));
         return array();
+    }
     $list = json_decode($arr[0], true);
     $today = gmdate('Y-m-d');
     $seasons = array();
