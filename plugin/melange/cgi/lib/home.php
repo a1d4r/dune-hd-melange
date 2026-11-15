@@ -223,8 +223,7 @@ function aio_cgi_about($v)
         aio_cgi_about_row(aio_cgi_l('Подписка Real-Debrid', 'Real-Debrid subscription'), '', 'https://real-debrid.com/?id=20188550') .
         aio_cgi_about_row(aio_cgi_l('Подписка TorBox', 'TorBox subscription'), '',
             'https://torbox.app/subscription?referral=2339fa70-a03e-41f0-a414-9c96f0791bb1') .
-        '</div><p class="hint">' . aio_cgi_l('Оформите подписку Debrid по ссылке автора, так вы поддержите Melange.',
-        'Subscribing to Debrid via the author\'s link supports Melange.') . '</p>';
+        '</div>';
 }
 
 // A screen of the page: shown by :target (the CSS), back to #home.
