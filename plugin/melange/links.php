@@ -149,7 +149,8 @@ function aio_pg_tick_set($url)
 
 // r25: the tick of the timer of the main screen $url: the step (aio_pg_link_step) once, of one request (a key
 // pressed now waits for it, ~0.5 s), its timeout as of a step; then the lazy meta of the row "Continue"
-// (aio_cpm_step) in what is left of that time, AIO_CPM_N requests of the tick at most. No step: within
+// (aio_cpm_step) in what is left of AIO_CPM_TICK_S from the start of the tick, AIO_CPM_N requests of the tick at
+// most. No step: within
 // AIO_PG_ROWS_QUIET_S of a reply of get_folder_rows (the rows of a cold opening wait for php_server; the step of the
 // opening is lost), a second tick of the screen, a tick of another or an old one, a tick with no screen since the start
 // of php_server. A line of the log of each, in its own words.
@@ -180,7 +181,7 @@ function aio_pg_tick($url)
     AioPgLinks::$ticked = true;
     $t = microtime(true);
     $n = aio_pg_link_step(AIO_PG_LINK_S, true);
-    aio_cpm_step(AIO_PG_LINK_S - (microtime(true) - $t), AIO_CPM_N - $n, true);
+    aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $n, true);
 }
 
 // --- The pairs.

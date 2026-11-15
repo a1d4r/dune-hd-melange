@@ -15,13 +15,19 @@ define('AIO_CPM_FILE', 'cp_meta.json');
 // row has 20 tiles of a type at most.
 define('AIO_CPM_MAX', 60);
 define('AIO_CPM_MAX_BYTES', 262144);
-// A failure is asked again after this many s; no connection, a timeout, 429 or 5xx: no request for AIO_CPM_PAUSE_S
-// (memory of php_server).
+// A failure of a title (big, 404, not its meta) is asked again after this many s. No connection, 429 or 5xx: the
+// server, not the title - no request for AIO_CPM_PAUSE_S (memory of php_server), the title not kept; a timeout the
+// same, a second one of the title in a php_server kept as its failure (a meta too slow for the step; big too: the own
+// card asks AIO_CM_SERIES_BYTES in AIO_CM_SERIES_TOTAL s and keeps its tile here).
 define('AIO_CPM_FAIL_S', 86400);
 define('AIO_CPM_PAUSE_S', 1800);
-// Requests of a step at most, those of the pairs in it counted; the second one only with AIO_CPM_NEXT_S left.
+// Requests of a step at most, those of the pairs in it counted; one starts with AIO_CPM_MIN_S left at least, its
+// timeout the whole s left (no more than them).
 define('AIO_CPM_N', 2);
-define('AIO_CPM_NEXT_S', 1.5);
+define('AIO_CPM_MIN_S', 1.0);
+// r25: the tick (aio_pg_tick, links.php) - the pair and the meta - within this many s from its start, typically (a
+// key pressed waits for it); a pair alone may take its AIO_PG_LINK_S.
+define('AIO_CPM_TICK_S', 1.5);
 // The tiles of the screen "Продолжить" asked after those of the row, at most: with the 20 of the row within AIO_CPM_MAX,
 // so the step does not push out of the file what it asked for the row.
 define('AIO_CPM_MORE', 40);
@@ -44,6 +50,9 @@ class AioCpm
     // No request before this time; 0: none.
     /** @var int */
     public static $pause = 0;
+    // The titles whose request timed out once since the start of php_server (the next one kept as a failure).
+    /** @var array<string, bool> */
+    public static $slow = array();
 }
 
 // The key of a title of type $type with IMDb $imdb, else TMDB $tmdb ('' none), as aio_cm_id; '' for none.
@@ -196,8 +205,9 @@ function aio_cpm_wanted()
 }
 
 // The lazy meta: the titles of aio_cpm_queue no row in memory has now (aio_cp_tile_map), up to $n requests in $limit s
-// (the second one only with AIO_CPM_NEXT_S left), each kept (a failure too). No connection, a timeout, 429 or 5xx: a
-// pause, no more of the step. One line of the log of a step that asked; of a $tick always. -> how many were asked.
+// (each with AIO_CPM_MIN_S left, its timeout the s left), each kept (a failure of the title too). No connection, 429 or
+// 5xx: a pause, the title not kept; a timeout the same, the second of the title kept failed (AIO_CPM_FAIL_S); no more of
+// the step. One line of the log of a step that asked; of a $tick always. -> how many were asked.
 /**
  * @param float $limit
  * @param int $n
@@ -217,7 +227,7 @@ function aio_cpm_step($limit, $n, $tick = false)
         if (($imdb !== '' && isset($map["$type|imdb:$imdb"])) || ($tmdb !== '' && isset($map["$type|tmdb:$tmdb"])))
             continue;
         $left = $limit - (microtime(true) - $t);
-        if ($asked >= $n || $left < ($asked ? AIO_CPM_NEXT_S : 1))
+        if ($asked >= $n || $left < AIO_CPM_MIN_S)
             break;
         $id = substr($key, strlen($type) + 1);
         $g = aio_cat_get("meta/$type/$id.json", "meta $key", 'meta', intval(floor($left)), true);
@@ -225,9 +235,15 @@ function aio_cpm_step($limit, $n, $tick = false)
         $tile = $g['err'] === '' && aio_cm_same($g['list'], $id) ? aio_cat_tile($g['list'], $type) : null;
         if ($tile)
             $tile['type'] = $type;
-        aio_cpm_put($key, $tile);
+        $pause = in_array($g['err'], array('net', 'timeout', 'rate', 'server'), true);
+        // The first timeout of the title: asked again after the pause.
+        $again = $g['err'] === 'timeout' && !isset(AioCpm::$slow[$key]);
+        if ($again)
+            AioCpm::$slow[$key] = true;
+        else if (!$pause || $g['err'] === 'timeout')
+            aio_cpm_put($key, $tile);
         $got += $tile ? 1 : 0;
-        if (in_array($g['err'], array('net', 'timeout', 'rate', 'server'), true))
+        if ($pause)
         {
             AioCpm::$pause = time() + AIO_CPM_PAUSE_S;
             break;
