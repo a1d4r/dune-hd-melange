@@ -1277,7 +1277,7 @@ function aio_oc_folder_view($media_url, $sel_state)
         GUI_EVENT_KEY_UP => aio_input('card_move', $k + array('d' => 'up')),
         GUI_EVENT_KEY_DOWN => aio_input('card_move', $k + array('d' => 'down')),
         GUI_EVENT_KEY_ENTER => aio_input('card_enter', $k),
-        GUI_EVENT_KEY_POPUP_MENU => aio_input('card_menu', $k));
+        GUI_EVENT_KEY_POPUP_MENU => aio_input('card_menu', $k)) + aio_egg_acts();
     if ($l['tabs']['list'])
         $acts += array(
             GUI_EVENT_KEY_P_PLUS => aio_input('card_move', $k + array('d' => 'pgup')),

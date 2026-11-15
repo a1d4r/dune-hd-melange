@@ -73,6 +73,8 @@ require_once dirname(__FILE__) . '/view_card_series.php';
 require_once dirname(__FILE__) . '/view_card_row.php';
 require_once dirname(__FILE__) . '/view_card_rows.php';
 require_once dirname(__FILE__) . '/view_person.php';
+// The colour keys in a row.
+require_once dirname(__FILE__) . '/egg.php';
 
 class Aio
 {
@@ -1739,6 +1741,11 @@ function aio_handle_user_input($in)
     $handler = isset($in->handler_id) ? $in->handler_id : null;
     $control = isset($in->control_id) ? $in->control_id : null;
     if ($handler !== 'aio')
+        return null;
+    // The colour keys of every screen, before the screen's own work (egg.php).
+    if (aio_egg_key($in, $control))
+        return aio_egg_play();
+    if ($control === 'egg')
         return null;
     if ($control === 'play')
         return aio_play_action($in);

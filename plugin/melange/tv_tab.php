@@ -281,8 +281,11 @@ function aio_tv_views($lang, &$tiles = null)
         else if (!$defs)
             $defs = aio_tv_note_defs('tv:open', 'tv_open', $lang);
         $view = aio_catv_rows_view($defs, null, AIO_TV_FROM_PREFIX . $epf);
-        // No search key of the plugin on the main screen: POP UP has the search (aio_tv_menu).
+        // No search key of the plugin on the main screen: POP UP has the search (aio_tv_menu). Nor the colour
+        // keys: they stay with the main screen.
         unset($view[PluginFolderView::data][PluginRowsFolderView::actions][GUI_EVENT_KEY_SEARCH]);
+        foreach (aio_egg_keys() as $ev)
+            unset($view[PluginFolderView::data][PluginRowsFolderView::actions][$ev]);
         $views[$epf] = $view;
     }
     AioCat::$logo = $logo;

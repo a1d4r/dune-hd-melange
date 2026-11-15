@@ -77,13 +77,24 @@ function aio_ct_play($c)
         aio_log("$tag: fail $err, $ms ms");
         return aio_ct_none($c);
     }
-    if ($code === 302 && strlen($loc) <= AIO_CT_LOC_MAX && preg_match('~^https?://[\x21-\x2e\x30-\x7b\x7d\x7e]+/[\x21-\x7b\x7d\x7e]*$~iD', $loc))
+    if ($code === 302 && aio_ct_url_ok($loc))
     {
         aio_log("$tag: 302 $ms ms");
         return aio_ct_vod($c, $loc);
     }
     aio_log($code === 302 ? "$tag: fail 302 without a URL, $ms ms" : "$tag: $code $ms ms");
     return aio_ct_none($c);
+}
+
+// $url fits as a stream URL of a reply: http(s), a host and a path, no space, control character or '|',
+// at most AIO_CT_LOC_MAX bytes. Also egg.php.
+/**
+ * @param string $url
+ * @return bool
+ */
+function aio_ct_url_ok($url)
+{
+    return strlen($url) <= AIO_CT_LOC_MAX && preg_match('~^https?://[\x21-\x2e\x30-\x7b\x7d\x7e]+/[\x21-\x7b\x7d\x7e]*$~iD', $url) === 1;
 }
 
 // "Трейлер не нашёлся", with OK.
@@ -98,8 +109,7 @@ function aio_ct_none($c)
     return $a;
 }
 
-// vod_play of $url full screen: the title, the poster and one stream URL from the start; no field that links it to
-// the card (no history, marks, markers, actions).
+// vod_play of the trailer of card $c at $url (aio_ct_clip).
 /**
  * @param AioOcCard $c
  * @param string $url
@@ -108,13 +118,28 @@ function aio_ct_none($c)
 function aio_ct_vod($c, $url)
 {
     $t = $c['tile'];
+    return aio_ct_clip('aio.trailer.' . aio_cm_id($t), $t['name'], aio_tr($c['ui'], 'card_trailer'), $t['poster'], $url);
+}
+
+// vod_play of $url full screen: vod id $id, the title $name, $sub under it, the poster $poster ('' none) and one
+// stream URL from the start; no field that links it to a card (no history, marks, markers, actions). Also egg.php.
+/**
+ * @param string $id
+ * @param string $name
+ * @param string $sub
+ * @param string $poster
+ * @param string $url
+ * @return AioAction
+ */
+function aio_ct_clip($id, $name, $sub, $poster, $url)
+{
     $info = array(
-        PluginVodInfo::id => 'aio.trailer.' . aio_cm_id($t),
-        PluginVodInfo::name => $t['name'],
-        PluginVodInfo::sub_name => aio_tr($c['ui'], 'card_trailer'),
-        PluginVodInfo::poster_url => $t['poster'],
+        PluginVodInfo::id => $id,
+        PluginVodInfo::name => $name,
+        PluginVodInfo::sub_name => $sub,
+        PluginVodInfo::poster_url => $poster,
         PluginVodInfo::series => array(array(
-            PluginVodSeriesInfo::name => $t['name'],
+            PluginVodSeriesInfo::name => $name,
             PluginVodSeriesInfo::playback_url => $url,
             PluginVodSeriesInfo::playback_url_is_stream_url => true)),
         PluginVodInfo::initial_series_ndx => 0,

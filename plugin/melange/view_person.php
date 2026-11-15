@@ -519,7 +519,7 @@ function aio_pp_folder_view($media_url, $sel_state)
         GUI_EVENT_KEY_UP => aio_input('person_move', $k + array('d' => 'up')),
         GUI_EVENT_KEY_DOWN => aio_input('person_move', $k + array('d' => 'down')),
         GUI_EVENT_KEY_ENTER => aio_input('person_enter', $k),
-        GUI_EVENT_KEY_POPUP_MENU => aio_input('person_menu', $k));
+        GUI_EVENT_KEY_POPUP_MENU => aio_input('person_menu', $k)) + aio_egg_acts();
     $timer = null;
     if ($l['state'] === 'wait')
     {

@@ -940,7 +940,7 @@ function aio_catv_actions($from)
         GUI_EVENT_KEY_ENTER => aio_input('cat_enter', $p, Aio::$settings['cat_card'] ? AIO_CARD_DELAY : AIO_DELAY_INPUT),
         GUI_EVENT_KEY_POPUP_MENU => aio_input('cat_menu', $p),
         GUI_EVENT_KEY_SEARCH => aio_input('cat_search', $p),
-        GUI_EVENT_PLUGIN_ROWS_INFO_UPDATE => $info);
+        GUI_EVENT_PLUGIN_ROWS_INFO_UPDATE => $info) + aio_egg_acts();
 }
 
 // The focusable_def of a part of the strip. $m: sel_margins, left, top, right, bottom; the frame of
@@ -1813,7 +1813,7 @@ function aio_catv_grid_view($url)
             PluginRegularFolderView::load_failed_view_item_params => array(
                 ViewItemParams::icon_path => AIO_CATV_ICONS . 'no_movie_poster.png'),
             PluginRegularFolderView::async_icon_loading => true,
-            PluginRegularFolderView::actions => array(GUI_EVENT_KEY_ENTER => aio_input('cat_enter')),
+            PluginRegularFolderView::actions => array(GUI_EVENT_KEY_ENTER => aio_input('cat_enter')) + aio_egg_acts(),
             PluginRegularFolderView::initial_range => $range));
 }
 

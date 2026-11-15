@@ -1135,7 +1135,7 @@ function aio_info_folder_view($media_url, $sel_state = null)
             PluginGCompsFolderView::sel_state => json_encode(array('page' => $page)),
             PluginGCompsFolderView::actions => array(
                 GUI_EVENT_KEY_P_PLUS => aio_input('info_page', array('d' => 'prev', 'pages' => $np)),
-                GUI_EVENT_KEY_P_MINUS => aio_input('info_page', array('d' => 'next', 'pages' => $np))),
+                GUI_EVENT_KEY_P_MINUS => aio_input('info_page', array('d' => 'next', 'pages' => $np))) + aio_egg_acts(),
             PluginGCompsFolderView::timer => null));
 }
 
