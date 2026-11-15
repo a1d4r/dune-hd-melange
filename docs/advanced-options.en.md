@@ -20,7 +20,9 @@ Choose whether Melange starts torrents, shows skip-intro buttons and reports sou
 
    <img src="../screenshots/advanced-errors.jpg" alt="Source errors window: JacRed and MediaFusion did not answer in time" width="100%">
 
-5. "Source profiles" are described in [Source profiles](profiles.en.md). Press "Save".
+5. "Remote without colour buttons": turn it on if your remote has no colour buttons or INFO. The **POP UP** menu of the release list then starts with "Release details" and "Sort". Choosing the current sort again reverses the order.
+
+6. "Source profiles" are described in [Source profiles](profiles.en.md). Press "Save".
 
    <img src="../screenshots/phone-saved.jpg" alt="A green line at the top of the page: Saved. The Dune picks up the settings automatically." width="300">
 

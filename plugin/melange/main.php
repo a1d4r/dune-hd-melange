@@ -94,7 +94,7 @@ class Aio
     // 'ts_save' - save_to_db of its add (ts_save of the settings). 'markers' -
     // the same of the settings: aio_markers, aio_play. 'markers_exact' - the same:
     // aio_markers. 'source_errors' - the same:
-    // aio_errors_shown. 'no_torrents' -
+    // aio_errors_shown. 'no_color_keys' - the same: aio_gc_menu_keys. 'no_torrents' -
     // aio_no_torrents(): no P2P rows, nothing sent to TorrServer, an app or a server. 'aio' - the own
     // AIOStreams server ('' none), "<aio>" in the log. 'own' - the own config
     // is chosen (source own). 'hosts' - aio_settings_hosts(), hidden in the log.
@@ -109,7 +109,7 @@ class Aio
     // null for none or the own one (the migrations of aio_mig_run).
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
-        'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
+        'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true,
         'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array(), 'made' => null);
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
@@ -712,6 +712,7 @@ function aio_op_settings($s)
         'markers' => $s['markers'],
         'markers_exact' => $s['markers_exact'],
         'source_errors' => $s['source_errors'],
+        'no_color_keys' => $s['no_color_keys'],
         'no_torrents' => aio_no_torrents($s),
         'aio' => $s['aio_own_url'],
         'own' => $s['source'] === 'own',
@@ -1821,6 +1822,8 @@ function aio_handle_user_input($in)
         return aio_gc_sort($in);
     if ($control === 'gc_main')
         return aio_gc_main($in);
+    if ($control === 'gc_sort_menu')
+        return aio_gc_sort_menu($in);
     if ($control === 'gc_src_menu')
         return aio_gc_src_menu($in);
     if ($control === 'gc_src')

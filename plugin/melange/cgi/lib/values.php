@@ -9,7 +9,8 @@
 // aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
 // settings; tpl_seen, tpl_p2p_seen only posted; ts_save: aio_cgi_ts_save_of()
 // of the settings, markers: aio_cgi_markers_of() (of markers_exact too), source_errors:
-// aio_cgi_source_errors_of(), cat_rating: aio_cgi_cat_rating_of(), cat_logo: aio_cgi_cat_logo_of(),
+// aio_cgi_source_errors_of(), no_color_keys: aio_cgi_no_color_keys_of(), cat_rating: aio_cgi_cat_rating_of(),
+// cat_logo: aio_cgi_cat_logo_of(),
 // cat_card: aio_cgi_cat_card_of(), no_torrents: aio_cgi_no_torrents_of(), src_profiles: aio_cgi_src_profiles_of(), as posted - none: '',
 // settings.php puts the stored one; cat_card_was: cat_card of the settings, as posted ('' none);
 // src_was: aio_cgi_src_was_stored() of the settings, as posted;
@@ -36,6 +37,7 @@ function aio_cgi_values($s)
     $v['ts_save'] = aio_cgi_ts_save_of($s['ts_save']);
     $v['markers'] = aio_cgi_markers_of($s['markers'], $s['markers_exact']);
     $v['source_errors'] = aio_cgi_source_errors_of($s['source_errors']);
+    $v['no_color_keys'] = aio_cgi_no_color_keys_of($s['no_color_keys']);
     $v['cat_rating'] = aio_cgi_cat_rating_of($s['cat_rating']);
     $v['cat_logo'] = aio_cgi_cat_logo_of($s['cat_logo']);
     $v['cat_card'] = aio_cgi_cat_card_of($s['cat_card']);
@@ -375,6 +377,12 @@ function aio_cgi_check_values($v)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Ошибки источников: нет такого ответа', 'Source errors: no such answer'),
             $f['source_errors']['name']);
+    }
+    $d[$set['no_color_keys']] = $v['no_color_keys'] === aio_cgi_no_color_keys_of(true);
+    if (!array_key_exists($v['no_color_keys'], aio_cgi_no_color_keys()))
+    {
+        $errors[] = aio_cgi_err(aio_cgi_l('Пульт без цветных кнопок: нет такого ответа',
+            'Remote without colour buttons: no such answer'), $f['no_color_keys']['name']);
     }
     $d[$set['cat_rating']] = $v['cat_rating'] === aio_cgi_cat_rating_of(true);
     if (!array_key_exists($v['cat_rating'], aio_cgi_cat_rating()))

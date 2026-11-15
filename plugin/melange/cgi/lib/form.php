@@ -61,6 +61,9 @@ function aio_cgi_fields()
         'markers' => array('id' => 'mrk', 'name' => 'markers', 'set' => 'markers', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
         // "Ошибки источников" (0.49.1): aio_cgi_source_errors().
         'source_errors' => array('id' => 'ser', 'name' => 'source_errors', 'set' => 'source_errors', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
+        // "Пульт без цветных кнопок" (0.60.2): aio_cgi_no_color_keys().
+        'no_color_keys' => array('id' => 'nck', 'name' => 'no_color_keys', 'set' => 'no_color_keys', 'max' => 0, 'type' => 'radio',
+            'scr' => 'adv'),
         // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
         'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
@@ -357,6 +360,33 @@ function aio_cgi_source_errors_block($v)
     $f = aio_cgi_fields();
     return '<p class="lbl">' . aio_cgi_l('Ошибки источников', 'Source errors') . '</p>' .
         aio_cgi_choice($f['source_errors'], aio_cgi_source_errors(), $v['source_errors']);
+}
+
+// The answers of "Пульт без цветных кнопок" on the screen #adv (radio no_color_keys,
+// 0.60.2): its value => array(name, hint); "on" - no_color_keys of the settings.
+function aio_cgi_no_color_keys()
+{
+    return array(
+        'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
+            'Сортировка цветными кнопками, сведения кнопкой INFO.',
+            'Sort with the colour buttons, details with the INFO button.')),
+        'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
+            'В меню «Действия» списка раздач появятся «Сведения» и «Сортировка».',
+            'The "Actions" menu of the list of releases gets "Details" and "Sort".')));
+}
+
+// The answer of aio_cgi_no_color_keys() of no_color_keys of the settings (a bool).
+function aio_cgi_no_color_keys_of($on)
+{
+    return $on ? 'on' : 'off';
+}
+
+// "Пульт без цветных кнопок" on #adv (a value of the form: '' or another one - none checked).
+function aio_cgi_no_color_keys_block($v)
+{
+    $f = aio_cgi_fields();
+    return '<p class="lbl">' . aio_cgi_l('Пульт без цветных кнопок', 'Remote without colour buttons') . '</p>' .
+        aio_cgi_choice($f['no_color_keys'], aio_cgi_no_color_keys(), $v['no_color_keys']);
 }
 
 // The answers of "Профили источников" on the screen #adv (radio src_profiles, 0.58.0): its
@@ -1139,7 +1169,7 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
         aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_source_errors_block($v) .
-            aio_cgi_src_profiles_cards()) .
+            aio_cgi_no_color_keys_block($v) .            aio_cgi_src_profiles_cards()) .
         aio_cgi_screen('bak', aio_cgi_backup($t, $v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .

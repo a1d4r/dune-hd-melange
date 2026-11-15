@@ -202,6 +202,7 @@ describe("errors lead to the field", () => {
     ["ts_save", "tss2", "#torr"],
     ["markers", "mrk2", "#adv"],
     ["source_errors", "ser2", "#adv"],
+    ["no_color_keys", "nck2", "#adv"],
     ["cat_logo", "clg2", "#look"],
     ["cat_rating", "rti2", "#look"],
     ["cat_card", "ocd2", "#look"],

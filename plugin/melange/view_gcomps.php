@@ -960,6 +960,18 @@ function aio_gc_sort_keys()
         'date' => array(GUI_EVENT_KEY_D_BLUE, $u . 'blue.png'));
 }
 
+// The key of aio_gc_text of the label of sort $k (a key of aio_sort_keys) of list $st: "sort_cached" of the
+// green one in a Debrid list (aio_rows_debrid), else "sort_<k>".
+/**
+ * @param AioState $st
+ * @param string $k
+ * @return string
+ */
+function aio_gc_sort_word($st, $k)
+{
+    return $k === 'seeds' && aio_rows_debrid($st['rows']) ? 'sort_cached' : "sort_$k";
+}
+
 // Children of 'sort' (the tabs over the list): each colour key and its label,
 // the green one "Cached" in a Debrid list (aio_rows_debrid); the sort of the
 // list with a bright label, its direction (a triangle: down by default, up
@@ -975,7 +987,7 @@ function aio_gc_sort_tabs($st, $tt)
     $x = 0;
     foreach (aio_gc_sort_keys() as $k => $key)
     {
-        $text = $tt[$k === 'seeds' && aio_rows_debrid($st['rows']) ? 'sort_cached' : "sort_$k"];
+        $text = $tt[aio_gc_sort_word($st, $k)];
         $on = $k === $st['sort'];
         $x0 = $x;
         $d[] = aio_gc_image(aio_gc_at(AIO_GC_KEY_W, AIO_GC_KEY_H, $x, 0), $key[1]);
@@ -1228,6 +1240,54 @@ function aio_gc_sort($in)
     return aio_list_replace(aio_gc_put_cursor($ns, 0));
 }
 
+// The sort and the details of a release in MENU of a list too (0.60.2): "Пульт без цветных кнопок" of the
+// settings, or a remote the firmware knows is without the colour keys (no sort tabs then).
+/**
+ * @return bool
+ */
+function aio_gc_menu_keys()
+{
+    return Aio::$settings['no_color_keys'] || !aio_gc_color_keys();
+}
+
+// gc_sort_menu (MENU "Сортировка: <sort>", aio_gc_menu) of a live list -> the popup menu of the sorts in
+// the order of the colour keys, each gc_sort as its key (the sort of the list again: the other way round);
+// the sort of the list "<label> · сейчас" (reversed: "…, в обратном порядке") and selected.
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
+function aio_gc_sort_menu($in)
+{
+    $st = Aio::$state;
+    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
+    {
+        aio_log('sort: menu of no live list');
+        return aio_error('err_list_expired');
+    }
+    $tt = aio_gc_text(aio_gc_lang($st));
+    $items = array();
+    $sel = 0;
+    foreach (aio_sort_keys() as $k)
+    {
+        $text = $tt[aio_gc_sort_word($st, $k)];
+        if ($k === $st['sort'])
+        {
+            $sel = count($items);
+            $text = str_replace('{name}', $text, aio_tr($st['lang'], $st['sort_rev'] ? 'sort_now_rev' : 'sort_now'));
+        }
+        $items[] = array(
+            GuiMenuItemDef::caption => $text,
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
+            GuiMenuItemDef::action => aio_gc_act('gc_sort', $st['rid'], array('k' => $k)));
+    }
+    return array(
+        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
+        GuiAction::data => array(
+            ShowPopupMenuActionData::menu_items => $items,
+            ShowPopupMenuActionData::selected_menu_item_index => $sel));
+}
+
 // The main Debrid of list $st for its MENU (0.56.0): array(now, the other one)
 // of aio_debrid_mains, by a row with copies of both; null - no such row,
 // the choice changes nothing there. Now: of the settings, else the service first
@@ -1318,7 +1378,8 @@ function aio_gc_src_item($st)
 }
 
 // gc_menu (MENU) of a live list -> the popup menu of the row under the cursor:
-// "Refresh" (aio_refresh), an episode: "Choose episode" (aio_choose), copies of
+// with aio_gc_menu_keys "Release details" of the row (as INFO; none in an empty list) and "Sort: <sort>"
+// (aio_gc_sort_menu) first; "Refresh" (aio_refresh), an episode: "Choose episode" (aio_choose), copies of
 // Real-Debrid and TorBox in the list: "Main Debrid -> <the other one>" (aio_gc_main), the
 // source profiles: "Get films from" (aio_gc_src_item), a row
 // with infoHash: "Download in app" (aio_download) and, with a server in the
@@ -1346,10 +1407,25 @@ function aio_gc_menu($in)
     list($sel, $top) = aio_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     Aio::$state['gc'] = array($sel, $top);
     $rid = $st['rid'];
-    $menu = array(array(
+    $menu = array();
+    if (aio_gc_menu_keys())
+    {
+        if ($st['rows'])
+            $menu[] = array(
+                GuiMenuItemDef::caption => aio_tr($st['lang'], 'info_menu'),
+                GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
+                GuiMenuItemDef::action => aio_gc_act('gc_info', $rid, array('i' => strval($sel))));
+        $tt = aio_gc_text(aio_gc_lang($st));
+        $menu[] = array(
+            GuiMenuItemDef::caption => str_replace('{name}', $tt[aio_gc_sort_word($st, $st['sort'])],
+                aio_tr($st['lang'], 'sort_menu')),
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
+            GuiMenuItemDef::action => aio_gc_act('gc_sort_menu', $rid));
+    }
+    $menu[] = array(
         GuiMenuItemDef::caption => aio_tr($st['lang'], 'refresh_menu'),
         GuiMenuItemDef::icon_url => 'gui_skin://small_icons/upgrade.aai',
-        GuiMenuItemDef::action => aio_gc_act('gc_refresh', $rid)));
+        GuiMenuItemDef::action => aio_gc_act('gc_refresh', $rid));
     // Without a card: the choice would end in "illegal state" of the shell.
     // From the own card (own_card): the seasons of the last native series would come; chosen there.
     if ($st['e'] > 0 && $st['movie']['dune_id'] !== '' && empty($st['movie']['own_card']))
@@ -1410,7 +1486,8 @@ function aio_gc_errors($in)
 }
 
 // gc_move -> change_gcomps (null at an edge); gc_pick -> playback; gc_info ->
-// the details screen (back on this one, aio_gc_pos finds the row in 'gc').
+// the details screen (back on this one, aio_gc_pos finds the row in 'gc'); from MENU
+// (aio_gc_menu) gc_info has the row in 'i', a row not in the list: outdated.
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -1428,6 +1505,17 @@ function aio_gc_input($in)
         if (!$st['rows'])
             return null;
         list($sel, $top) = aio_gc_pos($st, $raw);
+        if ($in->control_id === 'gc_info' && isset($in->i))
+        {
+            $i = is_string($in->i) && preg_match('/^[0-9]{1,3}$/D', $in->i) ? intval($in->i) : -1;
+            if (!isset($st['rows'][$i]))
+            {
+                aio_log('info: menu of no live row');
+                return aio_error('err_list_expired');
+            }
+            if ($i !== $sel)
+                list($sel, $top) = aio_gc_cursor($i, count($st['rows']));
+        }
         Aio::$state['gc'] = array($sel, $top);
         if ($in->control_id === 'gc_info')
             return aio_info_open($st, $sel);

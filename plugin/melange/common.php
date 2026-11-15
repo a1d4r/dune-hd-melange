@@ -776,6 +776,8 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // off (not a bool - false),
 // 'source_errors' => bool, "Ошибки источников": the reasons of the error streams
 // on the list screen and in the dialogs (0.49.1; not a bool - false),
+// 'no_color_keys' => bool, "Пульт без цветных кнопок": the sort and the details of a release
+// in MENU of the list too (aio_gc_menu_keys; 0.60.2; not a bool - false),
 // 'cat_rating' => bool, "Рейтинг IMDb на постерах": the IMDb rating in the corner of the
 // posters of the rows of the catalog (aio_catv_title_item; not a bool - false),
 // 'cat_logo' => bool, "Логотип фильма вместо названия": the card background of
@@ -857,7 +859,7 @@ function aio_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
         'saved_once' => false);
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
@@ -920,6 +922,8 @@ function aio_settings_parse($j)
         $r['markers_exact'] = $j['markers_exact'];
     if (isset($j['source_errors']) && is_bool($j['source_errors']))
         $r['source_errors'] = $j['source_errors'];
+    if (isset($j['no_color_keys']) && is_bool($j['no_color_keys']))
+        $r['no_color_keys'] = $j['no_color_keys'];
     if (isset($j['cat_rating']) && is_bool($j['cat_rating']))
         $r['cat_rating'] = $j['cat_rating'];
     if (isset($j['cat_logo']) && is_bool($j['cat_logo']))

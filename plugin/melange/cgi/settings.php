@@ -146,6 +146,8 @@ function aio_cgi_save($dir, $t)
         $v['markers'] = aio_cgi_markers_of($cur['markers'], $cur['markers_exact']);
     if ($v['source_errors'] === '')
         $v['source_errors'] = aio_cgi_source_errors_of($cur['source_errors']);
+    if ($v['no_color_keys'] === '')
+        $v['no_color_keys'] = aio_cgi_no_color_keys_of($cur['no_color_keys']);
     if ($v['cat_rating'] === '')
         $v['cat_rating'] = aio_cgi_cat_rating_of($cur['cat_rating']);
     if ($v['cat_logo'] === '')
