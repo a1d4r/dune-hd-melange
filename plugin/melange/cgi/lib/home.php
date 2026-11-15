@@ -198,16 +198,17 @@ function aio_cgi_about_row($title, $val = '', $url = '')
 }
 
 // "О Melange" and "Поддержать автора" at the bottom of the main screen (0.60.2): the version, the date
-// of the build (none: no line), the r of the firmware, the channel; the donations and the referral
-// links of Debrid. AIOStreams, JacRed and Debrid are in the lines above: not repeated.
+// of the build (none: no line), firmware_version of versions.txt whole (260827_0003_r24: the builds of one r
+// differ in a report of a problem), the channel; the donations and the referral links of Debrid. AIOStreams,
+// JacRed and Debrid are in the lines above: not repeated.
 function aio_cgi_about()
 {
     $date = aio_cgi_build_date();
-    $r = aio_fw_r();
+    $fw = (string) substr(aio_versions_field(aio_versions_text(), 'firmware_version'), 0, 40);
     return '<h3 class="gh">' . aio_cgi_l('О Melange', 'About Melange') . '</h3><div class="list">' .
         aio_cgi_about_row(aio_cgi_l('Версия', 'Version'), AIO_VERSION) .
         ($date !== '' ? aio_cgi_about_row(aio_cgi_l('Сборка', 'Built'), $date) : '') .
-        aio_cgi_about_row(aio_cgi_l('Прошивка Дюны', 'Dune firmware'), $r > 0 ? "r$r" : aio_cgi_l('не определена', 'unknown')) .
+        aio_cgi_about_row(aio_cgi_l('Прошивка Дюны', 'Dune firmware'), $fw !== '' ? $fw : aio_cgi_l('не определена', 'unknown')) .
         aio_cgi_about_row(aio_cgi_l('Telegram-канал автора', 'The author\'s Telegram channel'), '', 'https://t.me/arrakis_vibecode') .
         '</div><h3 class="gh">' . aio_cgi_l('Поддержать автора', 'Support the author') . '</h3><div class="list">' .
         aio_cgi_about_row(aio_cgi_l('Донат через Т-Банк', 'Donate via T-Bank'), '', 'https://t.tb.ru/pm_short/1vlgJXv58ZY') .

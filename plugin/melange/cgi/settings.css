@@ -22,7 +22,7 @@ h2{font-size:22px;font-weight:500;margin:2px 0 6px}
 .t{display:block;font-weight:500}
 .v{display:block;margin-top:2px;font-size:13px;color:var(--mute);overflow-wrap:anywhere}
 .chev{color:var(--mute);font-size:20px}
-.rv{flex:none;color:var(--mute)}
+.rv{flex:none;max-width:60%;color:var(--mute);text-align:right;overflow-wrap:anywhere}
 .dot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--line)}
 .dot.ok{background:var(--ok)}
 .dot.warn{background:var(--warn)}
