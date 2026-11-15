@@ -206,9 +206,13 @@ class AioCat
     /** @var array<string, bool> */
     public static $rating_of = array();
     // The main screens of rows opened last (their media_url, AIO_CATV_MAINS at most, the latest last): invalidated
-    // back from the player (aio_catv_after_player).
+    // back from the player and after a mark of the own card (aio_catv_mains_anew).
     /** @var list<string> */
     public static $mains = array();
+    // r25: when the operation back from the player that invalidated them began (Aio::$t0, aio_catv_after_player): the
+    // first of them built again logs the time since (O2); 0: none.
+    /** @var float */
+    public static $inv_t = 0.0;
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -703,18 +707,21 @@ function aio_catv_title_row($g, $caption)
 }
 
 // A row of the panel: its title and tiles, the first page and "Show all", or $items
-// instead of them. $options: of the row of tiles.
+// instead of them. $options: of the row of tiles. $rid: the rid of its ids ('': of the row, aio_catv_rid; a row of
+// our own, "Continue": its own).
 /**
  * @param AioCatList $list
  * @param string $lang
  * @param list<array<string, mixed>>|null $items
  * @param int $options
+ * @param string $rid
  * @return array{array<string, mixed>, array<string, mixed>}
  */
-function aio_catv_row_defs($list, $lang, $items = null, $options = 0)
+function aio_catv_row_defs($list, $lang, $items = null, $options = 0, $rid = '')
 {
     $row = $list['st']['row'];
-    $rid = aio_catv_rid($row);
+    if ($rid === '')
+        $rid = aio_catv_rid($row);
     $more = '';
     // The no-break space at the end of the name of a search row (cat_movies) not before the mark.
     $title = $list['stale'] ? strval(preg_replace('/\x{00A0}$/u', '', $row['name'])) . ' (' . aio_tr($lang, 'cat_saved') . ')' : $row['name'];
@@ -1319,6 +1326,12 @@ function aio_catv_main_view($media_url, $sel_state)
     if (!$loading)
         aio_pg_screen_built(AIO_CATV_OPEN_S - (microtime(true) - $rows_t0), $net);
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000));
+    if (AioCat::$inv_t > 0)
+    {
+        aio_log(sprintf('catalog: screen: %s: anew after the player, %.0f ms since its finish', $media_url,
+            (microtime(true) - AioCat::$inv_t) * 1000));
+        AioCat::$inv_t = 0.0;
+    }
     if (!$defs)
         return aio_catv_message_view('cat_unavailable', $lang, $media_url);
     return aio_catv_rows_view($defs, $sel_state, $media_url, $loading && aio_pg_tick_set($media_url));
@@ -2472,7 +2485,8 @@ function aio_catv_invalidate($url)
 
 // The main screens of rows opened (AioCat::$mains) invalidated first, then $post: the row "Continue" and the badges of
 // the history anew when the shell is back on one (O2: whether a screen under the card is built again, the focus kept,
-// is not proven); none opened: $post as it is. $why: for the log.
+// is not proven); none opened: $post as it is. Only on r25: on r24 a screen of rows lower in the stack built again may
+// go to the network for 3-7 s (not checked there). $why: for the log.
 /**
  * @param AioAction|null $post
  * @param string $why
@@ -2482,6 +2496,11 @@ function aio_catv_mains_anew($post, $why)
 {
     if (!AioCat::$mains)
         return $post;
+    if (aio_fw_r() < 25)
+    {
+        aio_log("catalog: no invalidate $why: r" . aio_fw_r());
+        return $post;
+    }
     aio_log("catalog: invalidate $why: " . implode(', ', AioCat::$mains));
     $a = aio_catv_invalidate(AioCat::$mains[0]);
     $a[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = AioCat::$mains;
@@ -2489,14 +2508,50 @@ function aio_catv_mains_anew($post, $why)
     return $a;
 }
 
-// Back from the player (aio_finish), the action $post of the list of streams: aio_catv_mains_anew.
+// Back from the player (aio_finish), the action $post of the list of streams: aio_catv_mains_anew; invalidated, the time
+// of the operation for the log of the screen built again (AioCat::$inv_t).
 /**
  * @param AioAction|null $post
  * @return AioAction|null
  */
 function aio_catv_after_player($post)
 {
-    return aio_catv_mains_anew($post, 'after the player');
+    $a = aio_catv_mains_anew($post, 'after the player');
+    if ($a !== $post)
+        AioCat::$inv_t = Aio::$t0 > 0 ? floatval(Aio::$t0) : microtime(true);
+    return $a;
+}
+
+// The items of POP UP of tile $id of screen $from (a main screen of the catalog, an EPF of "TV"), first, before a
+// separator: those of the row "Continue" and the marks (aio_cp_menu_items), then those of "My list" (stage 3: none
+// yet). A tile aio_catv_tile has not (a hint of "My list") is for each part to tell. None of them: no separator.
+/**
+ * @param string $id
+ * @param string $from
+ * @param string $lang
+ * @return list<array<string, mixed>>
+ */
+function aio_catv_tile_menu($id, $from, $lang)
+{
+    $items = aio_cp_menu_items($id, $from, $lang);
+    // Stage 3: the items of "My list" here.
+    if ($items)
+        $items[] = array(GuiMenuItemDef::is_separator => true);
+    return $items;
+}
+
+// After an action of POP UP of a tile (aio_catv_tile_menu) on screen $from: the screen anew (invalidate: the row
+// "Continue" and the badges of the history now, O2), the tab "TV" built anew (aio_tv_flag; its EPF are no screen to
+// invalidate, null).
+/**
+ * @param string $from
+ * @param string $why
+ * @return AioAction|null
+ */
+function aio_catv_tile_after($from, $why)
+{
+    aio_tv_flag($why);
+    return aio_tv_is_from($from) ? null : aio_catv_invalidate($from);
 }
 
 // The tick of the timer of "Show all" $url, memory only. The view of stubs and the end known or
@@ -2581,7 +2636,7 @@ function aio_catv_strip_enter($id, $from, $up = false)
 // POP UP of the screen $from. A main screen: the parts of the strip, as ENTER on them (cat_part), so
 // the strip is at hand anywhere, with icons of the shell (the search and the setup as on the strip);
 // on a header above them "Configure list…" and a separator (aio_catv_rows_menu_items), on a tile of a
-// title its items and a separator (aio_cp_menu_items). Else (the results of a search, "Show all") nothing.
+// title its items and a separator (aio_catv_tile_menu). Else (the results of a search, "Show all") nothing.
 /**
  * @param stdClass $in
  * @param string $from
@@ -2596,8 +2651,8 @@ function aio_catv_menu($in, $from)
     if ($tab === '')
         return null;
     $lang = aio_catv_lang();
-    // On a tile (no header in focus): its items first (aio_cp_menu_items), then those of the screen.
-    $items = $hid === '' ? aio_cp_menu_items(aio_catv_in($in, 'selected_item_id'), $from, $lang) : array();
+    // On a tile (no header in focus): its items first (aio_catv_tile_menu), then those of the screen.
+    $items = $hid === '' ? aio_catv_tile_menu(aio_catv_in($in, 'selected_item_id'), $from, $lang) : array();
     $items = array_merge($items, aio_catv_rows_menu_items($hid, $tab, $from, $lang));
     $parts = array(
         'tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png'),

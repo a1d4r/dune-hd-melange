@@ -2,9 +2,11 @@
 // The row "Continue" (Продолжить) first on the screens of rows of the catalog and the tab "TV": the titles of the
 // history of Melange begun and not watched, a series at its next episode, of the state of the history (progress.php)
 // with no request; its tiles by movie_id, ENTER the own card (the pair of links.php, asked once when none).
+// The keys of the translations of it are "cp_..." (catalog progress); "cp" in the names of its code is "Continue".
 // Needs progress.php, links.php, history.php, main.php (aio_tr, aio_log, aio_error, aio_data_dir, aio_file_sig,
-// aio_write_file, AIO_SUP_ID), catalog.php (aio_cat_tile, aio_cat_row_state), catalog_card.php (aio_card_open),
-// card_meta.php (aio_cm_id), view_catalog.php (aio_catv_*), view_card.php (aio_oc_enter).
+// aio_write_file, AIO_SUP_ID), catalog.php (aio_cat_tile, aio_cat_row_state), catalog_card.php (aio_card_open,
+// aio_card_id), card_meta.php (aio_cm_id, aio_cm_get), view_card_series.php (aio_cm_eps_before), view_catalog.php
+// (aio_catv_*), view_card.php (aio_oc_enter).
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The rid of the row: its tiles are "continue:<movie_id>" (aio_catv_tile), its rows "items:continue", "title:continue".
@@ -247,12 +249,7 @@ function aio_cp_row_defs($tab, $lang, &$tiles = null)
         return array();
     $row = array('key' => AIO_CP_RID, 'type' => $tab !== '' ? $tab : 'movie', 'id' => AIO_CP_RID,
         'name' => aio_tr($lang, 'cp_row_continue'), 'genre' => '', 'home' => false, 'group' => '');
-    $defs = aio_catv_row_defs(aio_catv_list(aio_cat_row_state($row), array(), false), $lang, $items);
-    $defs[0][PluginRow::id] = 'title:' . AIO_CP_RID;
-    $defs[0][PluginRow::group_id] = 'row:' . AIO_CP_RID;
-    $defs[1][PluginRow::id] = 'items:' . AIO_CP_RID;
-    $defs[1][PluginRow::group_id] = 'row:' . AIO_CP_RID;
-    $defs[1][PluginRow::header_id] = AIO_CATV_HEADER . AIO_CP_RID;
+    $defs = aio_catv_row_defs(aio_catv_list(aio_cat_row_state($row), array(), false), $lang, $items, 0, AIO_CP_RID);
     aio_log(sprintf('continue: %s: %d tiles', $tab !== '' ? $tab : 'all', count($items)));
     return $defs;
 }
@@ -360,9 +357,10 @@ function aio_cp_card_of($t, $mid)
     return array($c['id'], $c['id'] !== '' ? '' : ($c['none'] ? 'card_none_title' : 'cp_err_mark'));
 }
 
-// The items of POP UP of tile $id of screen $from (a main screen of the catalog, an EPF of "TV"), first, before a
-// separator: on the row "Continue" "Убрать из «Продолжить»", then "Отметить просмотренным" / "Снять отметку"
-// (aio_pg_mark_kind; the card not known yet: "Отметить", asked at it). None but on a tile of a title.
+// The items of POP UP of tile $id of screen $from (a main screen of the catalog, an EPF of "TV") of the row "Continue"
+// and the marks (aio_catv_tile_menu puts them first): on the row "Continue" "Убрать из «Продолжить»", then "Отметить
+// просмотренным" / "Снять отметку" (aio_pg_mark_kind; the card not known yet: "Отметить", asked at it). None but on a
+// tile of a title (aio_catv_tile).
 /**
  * @param string $id
  * @param string $from
@@ -386,22 +384,7 @@ function aio_cp_menu_items($id, $from, $lang)
         $items[] = array(GuiMenuItemDef::caption => aio_tr($lang, $w === 'on' ? 'cp_mark_on' : 'card_mark_off'),
             GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'watched_small.png',
             GuiMenuItemDef::action => aio_input('cat_mark', $p + array('w' => $w), AIO_CARD_DELAY));
-    if ($items)
-        $items[] = array(GuiMenuItemDef::is_separator => true);
     return $items;
-}
-
-// After an action of POP UP on screen $from: the screen anew (invalidate: the row and the badges of the history now,
-// O2), the tab "TV" built anew (aio_tv_flag; its EPF are no screen to invalidate, null).
-/**
- * @param string $from
- * @param string $why
- * @return AioAction|null
- */
-function aio_cp_after($from, $why)
-{
-    aio_tv_flag($why);
-    return aio_tv_is_from($from) ? null : aio_catv_invalidate($from);
 }
 
 // "Убрать из «Продолжить»" of tile $in->item of screen $in->from: off the row (aio_cp_hide), the screen anew.
@@ -416,7 +399,7 @@ function aio_cp_hide_act($in)
         return null;
     $ok = aio_cp_hide($mid);
     aio_log("continue: $mid off the row" . ($ok ? '' : ', not written'));
-    return aio_cp_after(aio_catv_in($in, 'from'), 'off the row "Continue"');
+    return aio_catv_tile_after(aio_catv_in($in, 'from'), 'off the row "Continue"');
 }
 
 // "Отметить просмотренным" / "Снять отметку" ($in->w on, off) of tile $in->item of screen $in->from: the card of the
@@ -426,7 +409,7 @@ function aio_cp_hide_act($in)
 // aio_cm_eps_before) with the uids of the records of our releases of them (aio_wh_mark_ids), as "Отметить предыдущие"
 // of the own card; a tile of the row with no pair ("dune:<movie_id>") gets it first (aio_pg_link_now, as ENTER); a
 // series off - movie_ids and every uid of the card marked (aio_wh_marked_of: no request, no meta). post_action:
-// aio_cp_after. No card, no pair, no meta: the message cp_err_mark (the reason in the log).
+// aio_catv_tile_after. No card, no pair, no meta: the message cp_err_mark (the reason in the log).
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -470,5 +453,5 @@ function aio_cp_mark($in)
     else if ($w === 'off')
         $ids = aio_wh_movie_off_ids($mid);
     aio_log("continue: mark $w of $mid ({$t['type']}): " . count($ids) . ' uids');
-    return aio_pg_mark_act($ids, array($mid), $w === 'on', aio_cp_after($from, "a mark $w"));
+    return aio_pg_mark_act($ids, array($mid), $w === 'on', aio_catv_tile_after($from, "a mark $w"));
 }

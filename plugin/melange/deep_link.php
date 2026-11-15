@@ -9,7 +9,7 @@
 // pattern, a field the target does not take, one it lacks: a line of the log, no screen. Each call: a line of the log
 // with the target and the ids.
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_card.php, view_card_series.php, view_catalog.php,
-// view_person.php.
+// view_person.php, continue.php (aio_cp_items).
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The targets: fn - the handler of the link; id - the fields of an id it takes, exactly one of them given (none: no
@@ -231,7 +231,8 @@ function aio_dl_tab($q)
     return aio_catv_open_act(aio_catv_main_url($q['tab']), '%tr%plugin_caption');
 }
 
-// to=row: "Show all" (aio_catv_all_open) of row n of tab $q['tab'], counted as the main screen shows them: the rows of
+// to=row: "Show all" (aio_catv_all_open) of row n of tab $q['tab'], counted as the main screen shows them: the row
+// "Continue" first when it has tiles of the tab (aio_cp_items; it has no "Show all": "open: bad", null), then the rows of
 // the user of the saved manifest (aio_cat_user_rows: those turned off not there) it shows (aio_catv_shown_rows: on r24
 // those with tiles in memory, as the last opening of the tab got them). No saved manifest, no such row: null, logged.
 /**
@@ -247,13 +248,19 @@ function aio_dl_row($q)
         return null;
     }
     $n = intval($q['n']);
-    $rows = aio_catv_shown_rows(aio_cat_user_rows($copy['rows'], Aio::$settings['cat_rows'], $q['tab']), aio_catv_loading_flag());
-    if (!isset($rows[$n - 1]))
+    $cp = aio_cp_items(array($q['tab'])) ? 1 : 0;
+    if ($cp && $n === 1)
     {
-        aio_log("open: row {$q['tab']} #$n: none, " . count($rows) . ' rows on the tab');
+        aio_log("open: bad n: row {$q['tab']} #1 is \"Continue\", no \"Show all\"");
         return null;
     }
-    $rid = aio_catv_rid($rows[$n - 1]);
+    $rows = aio_catv_shown_rows(aio_cat_user_rows($copy['rows'], Aio::$settings['cat_rows'], $q['tab']), aio_catv_loading_flag());
+    if (!isset($rows[$n - 1 - $cp]))
+    {
+        aio_log("open: row {$q['tab']} #$n: none, " . (count($rows) + $cp) . ' rows on the tab');
+        return null;
+    }
+    $rid = aio_catv_rid($rows[$n - 1 - $cp]);
     aio_log("open: row {$q['tab']} #$n: $rid");
     return aio_catv_all_open("cat_grid:$rid");
 }
