@@ -36,66 +36,67 @@ function aio_cp_ours($w)
 }
 
 // The card $mid of the state $ent (aio_pg_index) in the row, null for none: a movie (no episode in the history, the
-// pair not of a series) by its latest record, of Melange, begun (aio_pg_begun) and not watched; a series by its latest
-// episode record, of Melange, one of its episodes watched or begun (ep, or a mark of the own card after it), at the
-// episode the own card offers (aio_wh_pick by the episodes of the pair out today, aio_pg_eps; none: the episode of the
-// record), none when all of them out are watched. Marked in watched_movies.txt: none. -> type, end (of the latest
-// record, the order of the row), w (the record: the title, the poster), s, e (-1 of a movie).
+// pair not of a series) by its latest record, of Melange, begun (aio_pg_begun) and not watched, not marked in
+// watched_movies.txt; a series by its latest episode record of Melange and its badge (aio_pg_badge: the episode the
+// own card offers after the one watched, by the episodes of the pair out today; begun; watched with no list of them),
+// none when all of them out are watched (all) or no episode is watched or begun. -> type, end (of the latest record, the
+// order of the row), w (the record: the title, the poster), s, e (of the badge; -1 of a movie), b (the badge the row
+// draws).
 /**
  * @param string $mid
  * @param AioPgEntry $ent
- * @return array{type: string, end: int, w: stdClass, s: int, e: int}|null
+ * @return array{type: string, end: int, w: stdClass, s: int, e: int, b: AioPgBadge|null}|null
  */
 function aio_cp_item($mid, $ent)
 {
-    if ($ent['movie_mark'])
-        return null;
     $links = aio_pg_links();
     $l = isset($links[$mid]) ? $links[$mid] : null;
     $st = $ent['series'];
     if ($st === null && !($l && isset($l['type']) && $l['type'] === 'series'))
     {
         $w = $ent['w'];
-        if (!aio_cp_ours($w) || $ent['seen'])
+        if ($ent['movie_mark'] || !aio_cp_ours($w) || $ent['seen'])
             return null;
         list(, , $pos, $len) = aio_wh_rec($w);
-        return aio_pg_begun($pos, $len) ? array('type' => 'movie', 'end' => $ent['end'], 'w' => $w, 's' => -1, 'e' => -1) : null;
+        return aio_pg_begun($pos, $len) ? array('type' => 'movie', 'end' => $ent['end'], 'w' => $w, 's' => -1, 'e' => -1,
+            'b' => aio_pg_badge($ent, false, $mid)) : null;
     }
     $w = $st ? $st[0] : null;
-    if (!$w || !aio_cp_ours($w) || (!$ent['ep'] && !aio_wh_mark_last($st[2], aio_wh_end($w))))
+    if (!$w || !aio_cp_ours($w))
         return null;
-    list($s, $e) = aio_wh_rec($w);
-    $p = aio_wh_pick($st, $mid, aio_pg_eps($l, $s, $e));
-    if ($p['kind'] === 'first')
+    $b = aio_pg_badge($ent, true, $mid);
+    if (!$b || $b['all'] || $b['e'] < 0)
         return null;
-    return array('type' => 'series', 'end' => $ent['end'], 'w' => $w, 's' => $p['s'], 'e' => $p['e']);
+    return array('type' => 'series', 'end' => $ent['end'], 'w' => $w, 's' => $b['s'], 'e' => $b['e'], 'b' => $b);
 }
 
-// The cards of the row of the types $types (movie, series), the latest records first, AIO_CATV_ROW_TILES at most, none
-// taken off it with no record ending later (aio_cp_hidden): movie_id => aio_cp_item.
+// The cards of the row of the types $types (movie, series), the latest records first, AIO_CATV_ROW_TILES at most (the
+// cards after them not looked at), none taken off it with no record ending later (aio_cp_hidden): movie_id =>
+// aio_cp_item.
 /**
  * @param list<string> $types
- * @return array<string, array{type: string, end: int, w: stdClass, s: int, e: int}>
+ * @return array<string, array{type: string, end: int, w: stdClass, s: int, e: int, b: AioPgBadge|null}>
  */
 function aio_cp_items($types)
 {
-    $out = array();
+    $idx = aio_pg_index();
     $ends = array();
+    foreach ($idx as $mid => $ent)
+        $ends[strval($mid)] = $ent['end'];
+    arsort($ends);
     $hidden = aio_cp_hidden();
-    foreach (aio_pg_index() as $mid => $ent)
+    $res = array();
+    foreach ($ends as $mid => $end)
     {
         $mid = strval($mid);
-        $it = isset($hidden[$mid]) && $ent['end'] <= $hidden[$mid] ? null : aio_cp_item($mid, $ent);
+        $it = isset($hidden[$mid]) && $end <= $hidden[$mid] ? null : aio_cp_item($mid, $idx[$mid]);
         if ($it && in_array($it['type'], $types, true))
         {
-            $out[$mid] = $it;
-            $ends[$mid] = $it['end'];
+            $res[$mid] = $it;
+            if (count($res) >= AIO_CATV_ROW_TILES)
+                break;
         }
     }
-    arsort($ends);
-    $res = array();
-    foreach (array_slice(array_keys($ends), 0, AIO_CATV_ROW_TILES) as $mid)
-        $res[strval($mid)] = $out[$mid];
     return $res;
 }
 
@@ -116,7 +117,7 @@ function aio_cp_mid_of($id)
 }
 
 // The tiles of the rows in memory (AioCat::$lists) by "<type>|imdb:<IMDb>" and "<type>|tmdb:<TMDB>", the first one of
-// each.
+// each: for the tiles of the whole row (aio_cp_row_defs).
 /**
  * @return array<string, AioCatTile>
  */
@@ -137,10 +138,36 @@ function aio_cp_tile_map()
     return $out;
 }
 
+// The first tile of the rows in memory of type $type and IMDb $imdb, else of TMDB $tmdb ('': none), as aio_cp_tile_map
+// gives it, of one pass (a tile of the info panel or POP UP: no map of thousands of tiles); null for none.
+/**
+ * @param string $type
+ * @param string $imdb
+ * @param string $tmdb
+ * @return AioCatTile|null
+ */
+function aio_cp_tile_find($type, $imdb, $tmdb)
+{
+    $by_tmdb = null;
+    foreach (AioCat::$lists as $list)
+    {
+        foreach ($list['tiles'] as $t)
+        {
+            if ($t['type'] !== $type)
+                continue;
+            if ($imdb !== '' && $t['imdb_id'] === $imdb)
+                return $t;
+            if (!$by_tmdb && $tmdb !== '' && $t['_tmdbId'] === $tmdb)
+                $by_tmdb = $t;
+        }
+    }
+    return $by_tmdb;
+}
+
 // The tile of card $mid of the history for the info panel and ENTER: a tile of a row in memory ($map, aio_cp_tile_map;
-// null: made now) of its IMDb, else of its TMDB of its type, of the pair (it has a description), else one of the pair
-// and the latest record (title, poster); no pair: of the record alone, id "dune:<movie_id>", no ids (ENTER asks the
-// pair, aio_cp_enter). null: no record.
+// null: aio_cp_tile_find) of its IMDb, else of its TMDB of its type, of the pair (it has a description), else one of the
+// pair and the latest record (title, poster); no pair: of the record alone, id "dune:<movie_id>", no ids (ENTER asks
+// the pair, aio_cp_enter). null: no record.
 /**
  * @param string $mid
  * @param array<string, AioCatTile>|null $map
@@ -159,12 +186,13 @@ function aio_cp_tile($mid, $map = null)
     $imdb = isset($l['imdb']) ? $l['imdb'] : '';
     $tmdb = $type === 'series' ? (isset($l['tmdbtv']) ? $l['tmdbtv'] : '') : (isset($l['tmdb']) ? $l['tmdb'] : '');
     if ($map === null)
-        $map = aio_cp_tile_map();
-    foreach (array('imdb' => $imdb, 'tmdb' => $tmdb) as $k => $v)
-    {
-        if ($v !== '' && isset($map["$type|$k:$v"]))
-            return $map["$type|$k:$v"];
-    }
+        $t = aio_cp_tile_find($type, $imdb, $tmdb);
+    else if ($imdb !== '' && isset($map["$type|imdb:$imdb"]))
+        $t = $map["$type|imdb:$imdb"];
+    else
+        $t = $tmdb !== '' && isset($map["$type|tmdb:$tmdb"]) ? $map["$type|tmdb:$tmdb"] : null;
+    if ($t)
+        return $t;
     $id = $imdb !== '' ? $imdb : ($tmdb !== '' ? "tmdb:$tmdb" : "dune:$mid");
     return aio_cat_tile(array('id' => $id, 'name' => isset($w->title) ? $w->title : '-', 'type' => $type, 'imdb_id' => $imdb,
         '_tmdbId' => $tmdb, 'poster' => isset($w->icon) ? $w->icon : ''), $type);
@@ -209,9 +237,8 @@ function aio_cp_row_defs($tab, $lang, &$tiles = null)
         $item = aio_catv_item(aio_catv_tile_id($id), isset($it['w']->title) ? aio_clean($it['w']->title) : $t['name'],
             aio_img(isset($it['w']->icon) && is_string($it['w']->icon) ? $it['w']->icon : ''));
         $stickers = aio_catv_rating_on() ? aio_catv_rate_stickers($t['imdbRating']) : array();
-        $b = aio_cp_badge($mid, $it['type']);
-        if ($b)
-            $stickers = array_merge($stickers, aio_pg_stickers($b));
+        if ($it['b'])
+            $stickers = array_merge($stickers, aio_pg_stickers($it['b']));
         if ($stickers)
             $item[PluginRegularItem::stickers] = $stickers;
         $items[] = $item;
@@ -230,10 +257,10 @@ function aio_cp_row_defs($tab, $lang, &$tiles = null)
     return $defs;
 }
 
-// ENTER on the tile of card $mid of the row: the own card (aio_oc_enter, the card of the Dune known), "Своя карточка"
-// off: the card of the Dune. No pair: one request of it now (aio_pg_link_now, kept for good); failed (no connection,
-// no dune_auth) - the message cp_err_link; the card has no IMDb and no TMDB - err_no_imdb. No record of it: the screen
-// is old.
+// ENTER on the tile of card $mid of the row: "Своя карточка" off - the card of the Dune at once (no pair needed); else
+// the own card (aio_oc_enter, the card of the Dune known, its rating of Kinopoisk not: asked as of a card not in
+// memory). No pair: one request of it now (aio_pg_link_now, kept for good); failed (no connection, no dune_auth) - the
+// message cp_err_link; the card has no IMDb and no TMDB - err_no_imdb. No record of it: the screen is old.
 /**
  * @param string $mid
  * @param string $lang
@@ -241,6 +268,8 @@ function aio_cp_row_defs($tab, $lang, &$tiles = null)
  */
 function aio_cp_enter($mid, $lang)
 {
+    if (!Aio::$settings['cat_card'])
+        return aio_card_open($mid);
     $links = aio_pg_links();
     $l = isset($links[$mid]) ? $links[$mid] : null;
     if (!$l || isset($l['fail']))
@@ -258,8 +287,6 @@ function aio_cp_enter($mid, $lang)
     }
     if (aio_cm_id($t) === '')
         return aio_error('err_no_imdb');
-    if (!Aio::$settings['cat_card'])
-        return aio_card_open($mid);
     return aio_oc_enter($t, $lang, $mid);
 }
 

@@ -217,8 +217,8 @@ class AioOc
 
 // ENTER on a tile of a movie or a series with IMDb or TMDB (aio_card_enter): the id of the card of the Dune
 // (aio_card_id; none: an old local card m-melange-..., none is written now; $dune: known, of the row "Continue",
-// no request, no rating of Kinopoisk of it), the meta (aio_cm_get; a failure: the card of the tile), the card of
-// them (aio_oc_build) -> the card screen.
+// no request of it, its rating of Kinopoisk not known: aio_oc_fill asks it), the meta (aio_cm_get; a failure: the
+// card of the tile), the card of them (aio_oc_build) -> the card screen.
 /**
  * @param AioCatTile $tile
  * @param string $lang
@@ -227,7 +227,7 @@ class AioOc
  */
 function aio_oc_enter($tile, $lang, $dune = '')
 {
-    $c = $dune !== '' ? array('id' => $dune, 'none' => false, 'kp' => '') : aio_card_id($tile);
+    $c = $dune !== '' ? array('id' => $dune, 'none' => false, 'kp' => null) : aio_card_id($tile);
     $g = aio_cm_get($tile);
     $key = $tile['type'] . ':' . aio_cm_id($tile);
     $card = aio_oc_build($key, $tile, $g['meta'], $c, $lang);
