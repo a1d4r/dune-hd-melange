@@ -9,7 +9,7 @@
 // "Продолжить") of the remote on every screen of Melange (aio_mlv_keys; the player has no folder view). An empty
 // "Мой список": the hint tile, its POP UP the import of the Favorites of the Dune (aio_mlv_import). The file, the
 // copy of the backup and the reading of the Favorites are of my_list.php (the settings page has it alone).
-// Needs my_list.php, view_catalog.php (aio_catv_*), continue.php, cp_meta.php (AioCpm::$more), links.php (aio_pg_links,
+// Needs my_list.php, view_catalog.php (aio_catv_*), continue.php, cp_meta.php (AioCpm, aio_cpm_*), links.php (aio_pg_links,
 // aio_pg_link_now, aio_pg_paused), progress.php, catalog.php (aio_cat_tile), catalog_card.php (aio_card_enter,
 // aio_card_open, AIO_CARD_DELAY), view_card.php (aio_oc_enter), card_meta.php (aio_cm_id), tv_tab.php (aio_tv_flag,
 // aio_tv_is_from), playback.php (aio_replace_act), main.php (aio_tr, aio_input, aio_error, aio_dialog).
@@ -31,10 +31,16 @@ define('AIO_MLV_HINT_IMG', 'plugin_file://img/ml1_hint_');
 // ROWS when the actions of the screen have them, and the shell opens neither its history nor its Favorites then.
 define('AIO_MLV_KEY_LIST', 'key_favorites');
 define('AIO_MLV_KEY_CONT', 'key_dune');
-// The import: requests of the pairs at most, s of them at most (handle_user_input: 60 s; one is AIO_PG_LINK_S at most);
-// the ones left not added this time, counted in the message (a repeat goes on).
-define('AIO_MLV_IMPORT_N', 10);
-define('AIO_MLV_IMPORT_S', 30.0);
+// The import: the shell waits for it (operation_timeout of its item of POP UP, aio_mlv_import_s) AIO_MLV_IMPORT_T0_S
+// and AIO_MLV_IMPORT_PER_S a title of the Favorites not in the list (its pair and its meta: ~0.6 and 0.2-1.9 s,
+// AIO_PG_LINK_S and AIO_CPM_FILL_S at most), AIO_MLV_IMPORT_MAX_S at most (php_server answers nothing else meanwhile:
+// more is a hang to the user; ~180 titles of requests, the cards of the shell and the pairs kept ask none); the import
+// itself AIO_MLV_IMPORT_TAIL_S less (the files written and the answer after it). The ones not paired in it not added,
+// counted in the message (a repeat goes on); the meta of one not asked in it lazily (aio_cpm_step).
+define('AIO_MLV_IMPORT_T0_S', 60);
+define('AIO_MLV_IMPORT_PER_S', 3);
+define('AIO_MLV_IMPORT_MAX_S', 600);
+define('AIO_MLV_IMPORT_TAIL_S', 15);
 
 class AioMlv
 {
@@ -46,8 +52,9 @@ class AioMlv
 
 // --- The title into the list or out of it.
 
-// Title $t into the list ($on; aio_ml_add) or out of it (aio_ml_del of aio_ml_in), $dune: the id of its card of the
-// Dune ('' - none or not known). -> '' or why not, as they give it.
+// Title $t into the list ($on; aio_ml_add: its tile in memory to the meta kept, aio_cpm_of_add) or out of it (aio_ml_del
+// of aio_ml_in; its meta kept stays till pushed out), $dune: the id of its card of the Dune ('' - none or not known).
+// -> '' or why not, as they give it.
 /**
  * @param AioCatTile $t
  * @param string $dune
@@ -57,7 +64,12 @@ class AioMlv
 function aio_ml_set($t, $dune, $on)
 {
     if ($on)
-        return aio_ml_add($t, $dune);
+    {
+        $why = aio_ml_add($t, $dune);
+        if ($why === '')
+            aio_cpm_of_add($t);
+        return $why;
+    }
     $key = aio_ml_in($t, $dune);
     return $key !== '' ? aio_ml_del($key) : '';
 }
@@ -208,32 +220,51 @@ function aio_mlv_tile($key)
 }
 
 // The tiles of "Мой список" of the types $types, $max at most: the items of a row (id "mylist:<key>", caption, the
-// poster of the entry, stickers: the rating of the entry, the badges of the history) and their tiles; the newest first.
+// poster of the entry, stickers: the rating of the best tile, else of the entry, the badges of the history) and their
+// tiles, the best (aio_cp_best_tile: of a row in memory, else of the meta kept) else of the entry; the newest first.
+// $miss: those with no best tile, in their order (array(type, IMDb, TMDB): the lazy meta, AioCpm::$fav and $more).
 /**
  * @param list<string> $types
  * @param int $max
+ * @param list<array{string, string, string}>|null $miss
+ * @param-out list<array{string, string, string}> $miss
  * @return list<array{item: array<string, mixed>, tile: AioCatTile}>
  */
-function aio_mlv_list_cells($types, $max)
+function aio_mlv_list_cells($types, $max, &$miss = null)
 {
     $out = array();
+    $miss = array();
+    $map = null;
     foreach (aio_ml_list() as $e)
     {
         if (!in_array($e['type'], $types, true))
             continue;
         if (count($out) >= $max)
             break;
+        if ($map === null)
+            $map = aio_cp_tile_map();
         $t = aio_ml_tile($e);
+        $m = aio_cp_best_tile($t['type'], $t['imdb_id'], $t['_tmdbId'], $map);
+        if (!$m)
+            $miss[] = array($t['type'], $t['imdb_id'], $t['_tmdbId']);
+        else if ($m['imdbRating'] !== '')
+            $t['imdbRating'] = $m['imdbRating'];
         // The id of the tile is the key of the entry: a movie and a series of one number of TMDB are two.
         $t['id'] = $e['key'];
-        $out[] = array('item' => aio_catv_title_item(AIO_ML_RID, $t), 'tile' => $t);
+        $item = aio_catv_title_item(AIO_ML_RID, $t);
+        if ($m)
+        {
+            $t = $m;
+            $t['id'] = $e['key'];
+        }
+        $out[] = array('item' => $item, 'tile' => $t);
     }
     return $out;
 }
 
 // The tiles of screen $url (aio_mlv_screen): the items of a row and their tiles (for the grid of r24). "Мой список": its
 // entries (aio_mlv_list_cells); "Продолжить": the cards of the row "Continue", the latest first; of its type, both on
-// a screen of all; the first of its tiles with no meta to the lazy meta after those of the row (AioCpm::$more).
+// a screen of all; the first of its tiles with no meta to the lazy meta after those of the rows (AioCpm::$more).
 /**
  * @param string $url
  * @return list<array{item: array<string, mixed>, tile: AioCatTile}>
@@ -245,10 +276,11 @@ function aio_mlv_cells($url)
     if (!$sc)
         return array();
     if ($sc[0] === AIO_MLV_LIST)
-        return aio_mlv_list_cells(aio_mlv_types($sc[1]), $max);
-    $cells = aio_cp_tile_items(aio_mlv_types($sc[1]), $max, $miss);
+        $cells = aio_mlv_list_cells(aio_mlv_types($sc[1]), $max, $miss);
+    else
+        $cells = array_values(aio_cp_tile_items(aio_mlv_types($sc[1]), $max, $miss));
     AioCpm::$more = array_slice($miss, 0, AIO_CPM_MORE);
-    return array_values($cells);
+    return $cells;
 }
 
 // The tile alone of an empty screen $url: the hint of "Мой список" (its picture by the language), "Пусто" of
@@ -369,21 +401,24 @@ function aio_mlv_enter($id, $lang)
 
 // The row "Мой список" of the types of tab $tab ('movie', 'series'; '' both: tv.json of "TV") for a screen of rows,
 // second after "Continue": its title and the first AIO_CATV_ROW_TILES titles of the list of them (aio_mlv_list_cells:
-// the newest first, the entry alone, no request), no "Show all" tile, no flag; ENTER on its title the screen of its type
+// the newest first, the entry and its best tile, no request), no "Show all" tile, no flag; ENTER on its title the screen of its type
 // (aio_mlv_screen). None when the list has none of them (the empty screen with the hint is of the heart and Fav 2). $tiles:
-// its tiles by "mylist:<key>" (the file of the tab "TV").
+// its tiles by "mylist:<key>" (the file of the tab "TV"); $miss: those with no meta (the lazy meta of a main screen,
+// AioCpm::$fav: aio_catv_main_view puts them there).
 /**
  * @param string $tab
  * @param string $lang
  * @param array<string, AioCatTile>|null $tiles
  * @param-out array<string, AioCatTile> $tiles
+ * @param list<array{string, string, string}>|null $miss
+ * @param-out list<array{string, string, string}> $miss
  * @return list<array<string, mixed>>
  */
-function aio_ml_row_defs($tab, $lang, &$tiles = null)
+function aio_ml_row_defs($tab, $lang, &$tiles = null, &$miss = null)
 {
     $tiles = array();
     $items = array();
-    foreach (aio_mlv_list_cells(aio_mlv_types($tab), AIO_CATV_ROW_TILES) as $c)
+    foreach (aio_mlv_list_cells(aio_mlv_types($tab), AIO_CATV_ROW_TILES, $miss) as $c)
     {
         $items[] = $c['item'];
         $tiles[AIO_ML_RID . ':' . $c['tile']['id']] = $c['tile'];
@@ -462,7 +497,9 @@ function aio_mlv_open($w, $from)
 // --- The import of the Favorites of the Dune.
 
 // The items of POP UP of tile $id of screen $from (after those of a tile: aio_catv_tile_menu): on the screen
-// "Мой список" (of a type too) and on a tile of the row "Мой список" "Добавить из «Избранного» Дюны"; none on another.
+// "Мой список" (of a type too) and on a tile of the row "Мой список" "Добавить из «Избранного» Дюны", the shell waiting
+// for it by the titles of the Favorites not in the list (aio_mlv_import_s), the import that less AIO_MLV_IMPORT_TAIL_S
+// (its param s); none on another.
 /**
  * @param string $id
  * @param string $from
@@ -475,16 +512,55 @@ function aio_mlv_menu_items($id, $from, $lang)
     list(, $x) = aio_catv_id_mode($id);
     if (!($sc && $sc[0] === AIO_MLV_LIST) && strpos($x, AIO_ML_RID . ':') !== 0)
         return array();
+    $s = aio_mlv_import_s(aio_mlv_fav_new());
     return array(array(
         GuiMenuItemDef::caption => aio_tr($lang, 'ml_import'),
         GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'favorites_small.png',
-        GuiMenuItemDef::action => aio_input('cat_ml_import', array('from' => $from), AIO_CARD_DELAY)));
+        GuiMenuItemDef::action => aio_input('cat_ml_import', array('from' => $from, 's' => strval($s - AIO_MLV_IMPORT_TAIL_S)),
+            AIO_CARD_DELAY, $s * 1000)));
+}
+
+// s the shell waits for an import of $n titles of the Favorites not in the list: AIO_MLV_IMPORT_T0_S and
+// AIO_MLV_IMPORT_PER_S each, AIO_MLV_IMPORT_MAX_S at most.
+/**
+ * @param int $n
+ * @return int
+ */
+function aio_mlv_import_s($n)
+{
+    return min(AIO_MLV_IMPORT_MAX_S, AIO_MLV_IMPORT_T0_S + AIO_MLV_IMPORT_PER_S * max(0, $n));
+}
+
+// The movies of the Favorites of the Dune (aio_ml_fav_read) of no card of the Dune of the list: how many.
+/**
+ * @return int
+ */
+function aio_mlv_fav_new()
+{
+    $there = array();
+    foreach (aio_ml_list() as $e)
+        $there[$e['dune_id']] = true;
+    $n = 0;
+    foreach (aio_ml_fav_read() as $f)
+        $n += isset($there[$f['dune_id']]) ? 0 : 1;
+    return $n;
+}
+
+// The s of the import of param $s (aio_mlv_menu_items): 1 to AIO_MLV_IMPORT_MAX_S less AIO_MLV_IMPORT_TAIL_S; another
+// (none: an older item) AIO_MLV_IMPORT_T0_S less it.
+/**
+ * @param string $s
+ * @return float
+ */
+function aio_mlv_import_budget($s)
+{
+    $max = AIO_MLV_IMPORT_MAX_S - AIO_MLV_IMPORT_TAIL_S;
+    return preg_match('/^[1-9][0-9]{0,3}$/D', $s) ? (float) min($max, intval($s)) : (float) (AIO_MLV_IMPORT_T0_S - AIO_MLV_IMPORT_TAIL_S);
 }
 
 // The pair of card $mid of the Dune (links.php) now: kept, else of the card of the shell (aio_pg_shell_pair, kept), else
-// asked (aio_pg_link_now, in $left s, AIO_PG_LINK_S at most; none in a pause of the requests, none past
-// AIO_MLV_IMPORT_N of them). null: none ("no pair" kept for good, a failure, no time or requests left); $asked: one
-// more when asked.
+// asked (aio_pg_link_now, in $left s, AIO_PG_LINK_S at most; none in a pause of the requests, none with under 1 s
+// left). null: none ("no pair" kept for good, a failure, no time left); $asked: one more when asked.
 /**
  * @param string $mid
  * @param float $left
@@ -506,7 +582,7 @@ function aio_mlv_fav_pair($mid, $left, &$asked)
         aio_pg_link_put($mid, $l);
         return $l;
     }
-    if ($left < 1 || $asked >= AIO_MLV_IMPORT_N || aio_pg_paused())
+    if ($left < 1 || aio_pg_paused())
         return null;
     $asked++;
     $r = aio_pg_link_now($mid, min(AIO_PG_LINK_S, $left));
@@ -514,16 +590,17 @@ function aio_mlv_fav_pair($mid, $left, &$asked)
 }
 
 // The tile of movie $f of the Favorites (aio_ml_fav_read) by its pair $l: the best tile of its IMDb or TMDB
-// (aio_cp_best_tile: of a row in memory, else of the meta kept - the pictures and the ratings of the catalog, not the
-// poster of dunemdb with auth=), else of the Favorites (its name, year, poster - its address, else its picture on the
-// Dune: a root item has no address; a name of an item of the root "Name (2008)": the year of it). The type of the pair,
-// else of the Favorites, else by its TMDB. null: no IMDb and no TMDB.
+// (aio_cp_best_tile, $map: aio_cp_tile_map of the caller; of a row in memory, else of the meta kept - the pictures and
+// the ratings of the catalog, not the poster of dunemdb with auth=), else of the Favorites (its name, year, poster -
+// its address, else its picture on the Dune: a root item has no address; a name of an item of the root "Name (2008)":
+// the year of it). The type of the pair, else of the Favorites, else by its TMDB. null: no IMDb and no TMDB.
 /**
  * @param AioMlFav $f
  * @param AioPgLink $l
+ * @param array<string, AioCatTile>|null $map
  * @return AioCatTile|null
  */
-function aio_mlv_fav_tile($f, $l)
+function aio_mlv_fav_tile($f, $l, $map = null)
 {
     $type = isset($l['type']) && ($l['type'] === 'movie' || $l['type'] === 'series') ? $l['type'] :
         ($f['type'] !== '' ? $f['type'] : (isset($l['tmdbtv']) ? 'series' : 'movie'));
@@ -532,7 +609,7 @@ function aio_mlv_fav_tile($f, $l)
     $tmdb = isset($l[$k]) ? $l[$k] : '';
     if ($imdb === '' && $tmdb === '')
         return null;
-    $m = aio_cp_best_tile($type, $imdb, $tmdb);
+    $m = aio_cp_best_tile($type, $imdb, $tmdb, $map);
     if ($m)
         return $m;
     $name = $f['name'];
@@ -553,20 +630,25 @@ function aio_mlv_fav_tile($f, $l)
 // "Добавить из «Избранного» Дюны" of screen $from: the movies and series of the shell in the Favorites of the Dune
 // (aio_ml_fav_read, read only) not in the list (by their card of the Dune and by IMDb or TMDB) to the end of it in
 // their order (aio_ml_append), nothing taken out; IMDb and TMDB by the pairs first, then the card of the shell or a
-// request (aio_mlv_fav_pair: AIO_MLV_IMPORT_N in AIO_MLV_IMPORT_S at most). One without them: not added, counted (a
-// repeat of the import goes on with them). Then the screens of the list anew (aio_ml_changed: the list, not the hint)
-// and the message: "Добавлено из «Избранного»: N" (with the ones not added; the list full), "В «Избранном» Дюны
-// нет нового", or why the file was not written (aio_ml_err). One line of the log, no address.
+// request (aio_mlv_fav_pair), all in $budget s (aio_mlv_import_budget). One without them: not added, counted (a repeat
+// of the import goes on with them). Then the meta of the ones added in what is left of it, at once (aio_cpm_fill: the
+// tile of a row in memory, else a request; not asked, no answer: lazily). Then the screens of the list anew
+// (aio_ml_changed: the list, not the hint) and the message: "Добавлено из «Избранного»: N" (with the ones not added;
+// the list full), "В «Избранном» Дюны нет нового", or why the file was not written (aio_ml_err). One line of the log,
+// no address.
 /**
  * @param string $from
- * @param float $budget
+ * @param float|null $budget
  * @return AioAction|null
  */
-function aio_mlv_import($from, $budget = AIO_MLV_IMPORT_S)
+function aio_mlv_import($from, $budget = null)
 {
     $t0 = microtime(true);
+    if ($budget === null)
+        $budget = aio_mlv_import_budget('');
     $lang = aio_catv_lang();
     $favs = aio_ml_fav_read();
+    $map = aio_cp_tile_map();
     $add = array();
     $there = 0;
     $skip = 0;
@@ -579,7 +661,7 @@ function aio_mlv_import($from, $budget = AIO_MLV_IMPORT_S)
             continue;
         }
         $l = aio_mlv_fav_pair($f['dune_id'], $budget - (microtime(true) - $t0), $asked);
-        $t = $l ? aio_mlv_fav_tile($f, $l) : null;
+        $t = $l ? aio_mlv_fav_tile($f, $l, $map) : null;
         if ($t && aio_ml_in($t) !== '')
             $there++;
         else if ($t)
@@ -588,8 +670,16 @@ function aio_mlv_import($from, $budget = AIO_MLV_IMPORT_S)
             $skip++;
     }
     list($why, $n) = aio_ml_append($add);
-    aio_log(sprintf('my list: import: %d in the Favorites, %d there, %d asked, %d added, %d not%s, %.0f ms', count($favs), $there,
-        $asked, $n, $skip, $why !== '' ? ", $why" : '', (microtime(true) - $t0) * 1000));
+    $tiles = array();
+    foreach ($n ? $add : array() as $a)
+    {
+        // The list full: the ones added only.
+        if ($why === '' || aio_ml_in($a[0]) !== '')
+            $tiles[] = $a[0];
+    }
+    list($metas, $got) = aio_cpm_fill($tiles, $budget - (microtime(true) - $t0), $map);
+    aio_log(sprintf('my list: import: %d in the Favorites, %d there, %d asked, %d added, %d not%s, meta %d asked, %d got, %.0f ms',
+        count($favs), $there, $asked, $n, $skip, $why !== '' ? ", $why" : '', $metas, $got, (microtime(true) - $t0) * 1000));
     if ($n === 0 && $why !== '' && $why !== 'full')
         return aio_ml_err($why);
     $lines = array();

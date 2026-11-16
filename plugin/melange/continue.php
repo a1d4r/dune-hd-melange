@@ -189,6 +189,23 @@ function aio_cp_best_tile($type, $imdb, $tmdb, $map = null)
     return $t ? $t : aio_cpm_tile($type, $imdb, $tmdb);
 }
 
+// The type, IMDb and TMDB ('' none) of card $mid of the history by its pair (links.php); no type in it: a series if
+// $series (the card has episodes), else a movie.
+/**
+ * @param string $mid
+ * @param bool $series
+ * @return array{string, string, string}
+ */
+function aio_cp_ids($mid, $series)
+{
+    $links = aio_pg_links();
+    $l = isset($links[$mid]) ? $links[$mid] : array();
+    $type = isset($l['type']) ? $l['type'] : ($series ? 'series' : 'movie');
+    $imdb = isset($l['imdb']) ? $l['imdb'] : '';
+    $tmdb = $type === 'series' ? (isset($l['tmdbtv']) ? $l['tmdbtv'] : '') : (isset($l['tmdb']) ? $l['tmdb'] : '');
+    return array($type, $imdb, $tmdb);
+}
+
 // The tile of card $mid of the history for the info panel and ENTER: the best tile of its pair (aio_cp_best_tile: of a
 // row in memory, else of the meta kept), else one of the pair and the latest record (title, poster); no pair: of the
 // record alone, id "dune:<movie_id>", no ids (ENTER asks the pair, aio_cp_enter). null: no record. $rec: the tile is of
@@ -208,11 +225,7 @@ function aio_cp_tile($mid, $map = null, &$rec = false)
     $w = $ent ? ($ent['series'] && $ent['series'][0] ? $ent['series'][0] : $ent['w']) : null;
     if (!$w)
         return null;
-    $links = aio_pg_links();
-    $l = isset($links[$mid]) ? $links[$mid] : array();
-    $type = isset($l['type']) ? $l['type'] : ($ent['series'] ? 'series' : 'movie');
-    $imdb = isset($l['imdb']) ? $l['imdb'] : '';
-    $tmdb = $type === 'series' ? (isset($l['tmdbtv']) ? $l['tmdbtv'] : '') : (isset($l['tmdb']) ? $l['tmdb'] : '');
+    list($type, $imdb, $tmdb) = aio_cp_ids($mid, $ent['series'] ? true : false);
     $t = aio_cp_best_tile($type, $imdb, $tmdb, $map);
     if ($t)
         return $t;

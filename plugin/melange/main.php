@@ -1706,16 +1706,17 @@ function aio_tr($lang, $key, $ep = '')
     return $ep !== '' ? str_replace('{ep}', $ep, $s) : trim(str_replace(array(' {ep}', '{ep}'), '', $s));
 }
 
-// handle_user_input of our plugin, 60 s; "Please wait" after $delay ms (0: at
-// once, a request to the internet for sure: the quick setup).
-function aio_input($control, $params = array(), $delay = AIO_DELAY_INPUT)
+// handle_user_input of our plugin, the shell waiting $timeout ms for it (60 s;
+// more: the import of the Favorites of the Dune); "Please wait" after $delay
+// ms (0: at once, a request to the internet for sure: the quick setup).
+function aio_input($control, $params = array(), $delay = AIO_DELAY_INPUT, $timeout = 60000)
 {
     return array(
         GuiAction::handler_string_id => PLUGIN_HANDLE_USER_INPUT_ACTION_ID,
         GuiAction::caption => null,
         GuiAction::plugin_name => AIO_PLUGIN,
         GuiAction::data => array(
-            PluginHandleUserInputActionData::operation_timeout => 60000,
+            PluginHandleUserInputActionData::operation_timeout => $timeout,
             PluginHandleUserInputActionData::show_dialog_delay => $delay),
         GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => $control), $params));
 }
