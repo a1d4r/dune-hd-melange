@@ -346,6 +346,9 @@ function aio_lpv_srcs_apply($in, $st)
     $ns = $st;
     $ns['rid'] = aio_rid();
     $ns['lp'] = aio_lpv_flt_keep($v, $st);
+    // No row left (the sources of the rows off, those on gave none): the yellow line how to turn them on.
+    if (!$ns['lp']['rows'] && !empty($ns['lp']['off']))
+        $ns['lp']['note'] = aio_lpv_tr($st['lang'], 'lp_note_off', array('n' => count($ns['lp']['off'])));
     $ns['lp']['gc'] = aio_lpv_put(aio_lpv_lines($ns['lp']), isset($map[$row]) ? $map[$row] : 0);
     $ns['lp']['gc_new'] = true;
     // The search over the rows of before: closed with no list (Cancel, no answer), this list of the new choice instead.

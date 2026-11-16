@@ -1306,7 +1306,7 @@ function aio_lpv_close_act($sid)
 // asked in it; the cursor of a new search on the remembered row of the title, on the balancer of the run,
 // after "Ещё N" on the first new row), its screen opened or the list screen replaced; nothing at all - the window "Онлайн для
 // «…» не нашлось" (a marked title with releases: those with the yellow line). All the sources found turned off in
-// "Источники…": the list of no row all the same, with the yellow line of it - MENU there turns them on.
+// "Источники…" (not back): the list of no row all the same, with the yellow line of it - MENU there turns them on.
 /**
  * @param AioLpRun $run
  * @return AioAction
@@ -1318,7 +1318,8 @@ function aio_lpv_result($run)
     $lang = $st['lang'];
     $v = $run['v'];
     $left = count($v['sources']) - $v['next'];
-    $off = !$v['sources'] && !empty($v['off']) ? count($v['off']) : 0;
+    // A marked title with releases (back): those with the yellow line of nothing online, as before.
+    $off = !$v['sources'] && !empty($v['off']) && !$run['back'] ? count($v['off']) : 0;
     $tag = "lampac: window {$run['sid']}: " . count($v['sources']) . ' sources, ' . count($v['rows']) . " rows, $left left" .
         ($off > 0 ? ", all $off found off" : '');
     if (!$v['rows'] && $left <= 0 && $off === 0)
