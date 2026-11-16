@@ -272,6 +272,10 @@ function aio_tv_views($lang, &$tiles = null)
     }
     $views = array();
     $off = aio_tv_sub_off();
+    // The meta of the tiles of the rows "Continue" and "Мой список" of no request (aio_cpm_build): kept, of the rows in
+    // memory or on the disk.
+    if (Aio::$settings['base'] !== '')
+        aio_cpm_build('', 0.0);
     foreach ($epfs as $epf => $of)
     {
         if ($off && $epf !== AIO_TV_EPF)

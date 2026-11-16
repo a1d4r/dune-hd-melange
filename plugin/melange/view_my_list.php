@@ -204,7 +204,7 @@ function aio_mlv_entry($key)
 }
 
 // The tile of the entry of key $key for the info panel, ENTER and POP UP: as of the row "Continue" (aio_cp_best_tile: a
-// tile of a row in memory, else of the meta kept; no request for an entry not of the history), else the tile of the
+// the meta kept, else a tile of a row in memory; no request for an entry not of the history), else the tile of the
 // entry (aio_ml_tile); null for no such entry.
 /**
  * @param string $key
@@ -222,7 +222,7 @@ function aio_mlv_tile($key)
 
 // The tiles of "Мой список" of the types $types, $max at most: the items of a row (id "mylist:<key>", caption, the
 // poster of the entry, stickers: the rating of the best tile, else of the entry, the badges of the history) and their
-// tiles, the best (aio_cp_best_tile: of a row in memory, else of the meta kept) else of the entry; the newest first.
+// tiles, the best (aio_cp_best_tile: of the meta kept, else of a row in memory) else of the entry; the newest first.
 // $miss: those with no best tile, in their order (array(type, IMDb, TMDB): the lazy meta, AioCpm::$ml and $more).
 /**
  * @param list<string> $types
@@ -653,7 +653,7 @@ function aio_mlv_fav_ask($mids, $budget, $t0, &$pairs, &$asked)
 }
 
 // The tile of movie $f of the Favorites (aio_ml_fav_read) by its pair $l: the best tile of its IMDb or TMDB
-// (aio_cp_best_tile, $map: aio_cp_tile_map of the caller; of a row in memory, else of the meta kept - the pictures and
+// (aio_cp_best_tile, $map: aio_cp_tile_map of the caller; of the meta kept, else of a row in memory - the pictures and
 // the ratings of the catalog, not the poster of dunemdb with auth=), else of the Favorites (its name, year, poster -
 // its address, else its picture on the Dune: a root item has no address; a name of an item of the root "Name (2008)":
 // the year of it). The type of the pair, else of the Favorites, else by its TMDB. null: no IMDb and no TMDB.

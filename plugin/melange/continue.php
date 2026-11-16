@@ -54,7 +54,7 @@ function aio_cp_item($mid, $ent)
     $links = aio_pg_links();
     $l = isset($links[$mid]) ? $links[$mid] : null;
     $st = $ent['series'];
-    if ($st === null && !($l && isset($l['type']) && $l['type'] === 'series'))
+    if ($st === null && aio_cp_pair_type($l, false) !== 'series')
     {
         $w = $ent['w'];
         if ($ent['movie_mark'] || !aio_cp_ours($w) || $ent['seen'])
@@ -167,10 +167,27 @@ function aio_cp_tile_find($type, $imdb, $tmdb)
     return $by_tmdb;
 }
 
-// The best tile of no request of a title of type $type with IMDb $imdb, else TMDB $tmdb ('': none): a tile of a row in
-// memory ($map, aio_cp_tile_map; null: aio_cp_tile_find; it has a description), else the tile of its meta kept
-// (aio_cpm_tile, cp_meta.php: asked lazily, or of the own card); null: neither (the caller has a tile of its own
-// record: of the history, of "Мой список", of the Favorites of the Dune).
+// The tile of map $map (aio_cp_tile_map) of a title of type $type with IMDb $imdb, else TMDB $tmdb ('': none); null for
+// none.
+/**
+ * @param array<string, AioCatTile> $map
+ * @param string $type
+ * @param string $imdb
+ * @param string $tmdb
+ * @return AioCatTile|null
+ */
+function aio_cp_map_tile($map, $type, $imdb, $tmdb)
+{
+    if ($imdb !== '' && isset($map["$type|imdb:$imdb"]))
+        return $map["$type|imdb:$imdb"];
+    return $tmdb !== '' && isset($map["$type|tmdb:$tmdb"]) ? $map["$type|tmdb:$tmdb"] : null;
+}
+
+// The best tile of no request of a title of type $type with IMDb $imdb, else TMDB $tmdb ('': none): the tile of its
+// meta kept (aio_cpm_tile, cp_meta.php: of a row in memory or on the disk when a row "Continue" or "Мой список" was
+// built, aio_cpm_build; asked; of the own card), else a tile of a row in memory ($map, aio_cp_map_tile; null:
+// aio_cp_tile_find); null: neither (the caller has a tile of its own record: of the history, of "Мой список", of the
+// Favorites of the Dune).
 /**
  * @param string $type
  * @param string $imdb
@@ -180,17 +197,43 @@ function aio_cp_tile_find($type, $imdb, $tmdb)
  */
 function aio_cp_best_tile($type, $imdb, $tmdb, $map = null)
 {
-    if ($map === null)
-        $t = aio_cp_tile_find($type, $imdb, $tmdb);
-    else if ($imdb !== '' && isset($map["$type|imdb:$imdb"]))
-        $t = $map["$type|imdb:$imdb"];
-    else
-        $t = $tmdb !== '' && isset($map["$type|tmdb:$tmdb"]) ? $map["$type|tmdb:$tmdb"] : null;
-    return $t ? $t : aio_cpm_tile($type, $imdb, $tmdb);
+    $t = aio_cpm_tile($type, $imdb, $tmdb);
+    if ($t)
+        return $t;
+    return $map === null ? aio_cp_tile_find($type, $imdb, $tmdb) : aio_cp_map_tile($map, $type, $imdb, $tmdb);
 }
 
-// The type, IMDb and TMDB ('' none) of card $mid of the history by its pair (links.php); no type in it: a series if
-// $series (the card has episodes), else a movie.
+// The type of a card of the history by its pair $l (null: none): its type, else a series by a TMDB of a series alone
+// (tmdbtv, no tmdb: the TMDB numbers of movies and series are not the same ids), else a series if $series (the card has
+// episode records), else a movie.
+/**
+ * @param AioPgLink|array{}|null $l
+ * @param bool $series
+ * @return string
+ */
+function aio_cp_pair_type($l, $series)
+{
+    if (isset($l['type']))
+        return $l['type'];
+    if (isset($l['tmdbtv']) && !isset($l['tmdb']))
+        return 'series';
+    return $series ? 'series' : 'movie';
+}
+
+// The IMDb of a local card of Melange ("m-melange-<IMDb>", aio_card_local_id: of a movie alone, no card of the Dune, no
+// pair ever: the dunemdb API has no such card) $mid, '' for another card.
+/**
+ * @param string $mid
+ * @return string
+ */
+function aio_cp_local_imdb($mid)
+{
+    return preg_match('/^m-melange-(tt[0-9]{1,10})$/D', $mid, $m) ? $m[1] : '';
+}
+
+// The type, IMDb and TMDB ('' none) of card $mid of the history by its pair (links.php), its type by aio_cp_pair_type
+// ($series: the card has episodes); a local card of Melange with no pair: a movie of the IMDb of its id
+// (aio_cp_local_imdb).
 /**
  * @param string $mid
  * @param bool $series
@@ -200,14 +243,17 @@ function aio_cp_ids($mid, $series)
 {
     $links = aio_pg_links();
     $l = isset($links[$mid]) ? $links[$mid] : array();
-    $type = isset($l['type']) ? $l['type'] : ($series ? 'series' : 'movie');
+    $local = isset($l['imdb']) ? '' : aio_cp_local_imdb($mid);
+    if ($local !== '')
+        return array('movie', $local, '');
+    $type = aio_cp_pair_type($l, $series);
     $imdb = isset($l['imdb']) ? $l['imdb'] : '';
     $tmdb = $type === 'series' ? (isset($l['tmdbtv']) ? $l['tmdbtv'] : '') : (isset($l['tmdb']) ? $l['tmdb'] : '');
     return array($type, $imdb, $tmdb);
 }
 
-// The tile of card $mid of the history for the info panel and ENTER: the best tile of its pair (aio_cp_best_tile: of a
-// row in memory, else of the meta kept), else one of the pair and the latest record (title, poster); no pair: of the
+// The tile of card $mid of the history for the info panel and ENTER: the best tile of its pair (aio_cp_best_tile: of the
+// meta kept, else of a row in memory), else one of the pair and the latest record (title, poster); no pair: of the
 // record alone, id "dune:<movie_id>", no ids (ENTER asks the pair, aio_cp_enter). null: no record. $rec: the tile is of
 // the pair and the record alone.
 /**
@@ -248,7 +294,7 @@ function aio_cp_badge($mid, $type)
 }
 
 // The cells of the row of the types $types, $max at most (aio_cp_items), by "continue:<movie_id>": the item (the title
-// and the poster of the record, the plate of the rating of a tile of a row in memory or of the meta kept, the badge)
+// and the poster of the record, the plate of the rating of the meta kept or of a tile of a row in memory, the badge)
 // and its tile; $miss: those of a pair with neither, in their order (array(type, IMDb, TMDB): the lazy meta,
 // AioCpm::$miss and AioCpm::$more).
 /**

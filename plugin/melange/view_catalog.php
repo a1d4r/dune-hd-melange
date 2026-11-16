@@ -1335,8 +1335,10 @@ function aio_catv_main_view($media_url, $sel_state)
         return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, true), $sel_state, $media_url);
     }
     aio_pg_screen_start();
-    // The row "Continue" first, of the history, then "Мой список" of the tab: ready at once. Their tiles with no meta are
-    // for the lazy meta of this screen (aio_cpm_step), those of "Continue" first.
+    // The row "Continue" first, of the history, then "Мой список" of the tab: ready at once, the meta of their tiles
+    // first (aio_cpm_build: kept, of the rows in memory or on the disk, else asked in AIO_CPM_BUILD_S). Their tiles with
+    // no meta still are for the lazy meta of this screen (aio_cpm_step), those of "Continue" first.
+    aio_cpm_build($tab, AIO_CPM_BUILD_S);
     $defs = array_merge(aio_cp_row_defs($tab, $lang, $cp_tiles, $miss), aio_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss));
     AioCpm::$miss = $miss;
     AioCpm::$ml = $ml_miss;
