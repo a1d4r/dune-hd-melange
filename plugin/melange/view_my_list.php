@@ -83,6 +83,11 @@ class AioMlv
     public static $anew = '';
     /** @var float */
     public static $anew_t = 0.0;
+    // The screen of the last tick that invalidated ('': none; at AioMlv::$anew_t, kept after its view anew; an input of
+    // the user ends it, aio_mlv_input): the views of the other screens within AIO_MLV_ANEW_S of it are of that
+    // invalidate (aio_mlv_inv).
+    /** @var string */
+    public static $inv = '';
 }
 
 // --- The title into the list or out of it.
@@ -443,6 +448,10 @@ function aio_mlv_view($url, $sel_state)
     $sc = aio_mlv_screen($url);
     $list = $sc && $sc[0] === AIO_MLV_LIST;
     $rows_ok = aio_catv_all_ok();
+    // Another screen than the one of a tick, within AIO_MLV_ANEW_S of its invalidate (the shell builds the screens of the
+    // stack again): the state of the timer of that screen kept as it is, no timer of this one.
+    $inv = aio_mlv_inv();
+    $keep = $inv !== '' && $inv !== $url ? aio_mlv_state() : null;
     $ago = microtime(true) - AioMlv::$anew_t;
     $anew = AioMlv::$anew === $url && $ago >= 0 && $ago < AIO_MLV_ANEW_S;
     AioMlv::$anew = '';
@@ -460,12 +469,16 @@ function aio_mlv_view($url, $sel_state)
     if ($put)
         aio_cpm_put_all($put, $renew);
     $cells = aio_mlv_cells($url);
-    $ms = $rows_ok ? aio_mlv_tick_set($url) : 0;
-    $no = AioMlv::$ticks >= AIO_MLV_TICK_MAX ? 'limit' : aio_mlv_why($url);
-    $why = $rows_ok ? ($ms ? ", timer in $ms ms" : ", no timer: $no") : '';
+    $ms = $rows_ok && $keep === null ? aio_mlv_tick_set($url) : 0;
+    $why = '';
+    if ($rows_ok)
+        $why = $ms ? ", timer in $ms ms" : ', no timer: ' . ($keep !== null ? "under $inv" :
+            (AioMlv::$ticks >= AIO_MLV_TICK_MAX ? 'limit' : aio_mlv_why()));
     aio_log(sprintf('%s: screen%s%s: %d tiles, %d of rows in memory, %d of rows on the disk%s, %d with no meta, %.0f ms%s',
         $list ? 'my list' : 'continue', $sc && $sc[1] !== '' ? " of {$sc[1]}" : '', $anew ? ' anew' : '', count($cells), $mem,
         $disk, $net, count(AioMlv::$miss), (microtime(true) - $start) * 1000, $why));
+    if ($keep !== null)
+        aio_mlv_restore($keep);
     $items = array();
     foreach ($cells as $c)
         $items[] = $c['item'];
@@ -493,16 +506,76 @@ function aio_mlv_view($url, $sel_state)
             GUI_EVENT_KEY_POPUP_MENU => aio_input('cat_menu', $p)) + aio_egg_acts());
 }
 
-// r25: why a tick of screen $url would ask nothing (aio_pg_tick_why of its tiles with no meta, AioMlv::$miss; on
-// "Продолжить" the cards of them with no pair, AioMlv::$cards) -> '' or why not.
+// r25: why a tick of the screen of the view last built would ask nothing (aio_pg_tick_why of its tiles with no meta,
+// AioMlv::$miss, and the cards of them with no pair, AioMlv::$cards: none on "Мой список") -> '' or why not.
 /**
- * @param string $url
  * @return string
  */
-function aio_mlv_why($url)
+function aio_mlv_why()
 {
-    $sc = aio_mlv_screen($url);
-    return aio_pg_tick_why(AioMlv::$miss, $sc !== null && $sc[0] === AIO_MLV_CONT ? AioMlv::$cards : array());
+    return aio_pg_tick_why(AioMlv::$miss, AioMlv::$cards);
+}
+
+// r25: the screen of the last tick that invalidated (AioMlv::$inv) within AIO_MLV_ANEW_S of it, else ''.
+/**
+ * @return string
+ */
+function aio_mlv_inv()
+{
+    $ago = microtime(true) - AioMlv::$anew_t;
+    return AioMlv::$inv !== '' && $ago >= 0 && $ago < AIO_MLV_ANEW_S ? AioMlv::$inv : '';
+}
+
+// r25: a main screen of rows built now is built again by the tick of a screen of Fav over it (aio_mlv_inv), whose
+// timer lives (its view anew to come, or set again by it) -> that screen, '' none (an opening: as it is).
+/**
+ * @return string
+ */
+function aio_mlv_under()
+{
+    $inv = aio_mlv_inv();
+    return $inv !== '' && (AioMlv::$anew === $inv || AioMlv::$tick_url === $inv) ? $inv : '';
+}
+
+// r25: input $control of the handler of Melange (aio_handle_user_input): one of the user (not a timer, *_tick, *_load,
+// nor the info panel of the focus, cat_info, of a view built again too) ends the window of the invalidate of a tick
+// (AioMlv::$inv): a screen asked after it is an opening (ENTER, the keys Fav, POP UP) as before.
+/**
+ * @param mixed $control
+ * @return void
+ */
+function aio_mlv_input($control)
+{
+    if (AioMlv::$inv === '' || !is_string($control) || in_array($control, array('cat_info', 'tsi_state', 'tv_timer'), true) ||
+        preg_match('/_(tick|load)$/D', $control))
+        return;
+    AioMlv::$inv = '';
+}
+
+// The state of the timer of a screen (aio_mlv_view of another one within the window of its invalidate keeps it): the
+// timer, the ticks, the queues, its view anew, its titles held of the file of the meta, the lazy meta of a main screen.
+/**
+ * @return AioMlvState
+ */
+function aio_mlv_state()
+{
+    return array(AioMlv::$tick_url, AioMlv::$ticks, AioMlv::$miss, AioMlv::$cards, AioMlv::$anew, AioCpm::$hold, AioCpm::$more);
+}
+
+// The state $s of aio_mlv_state back.
+/**
+ * @param AioMlvState $s
+ * @return void
+ */
+function aio_mlv_restore($s)
+{
+    AioMlv::$tick_url = $s[0];
+    AioMlv::$ticks = $s[1];
+    AioMlv::$miss = $s[2];
+    AioMlv::$cards = $s[3];
+    AioMlv::$anew = $s[4];
+    AioCpm::$hold = $s[5];
+    AioCpm::$more = $s[6];
 }
 
 // r25: ms till the next tick of a screen: AIO_MLV_TICK_FIRST_MS at least, AIO_CPM_STEP_PAR requests in their share of
@@ -525,7 +598,7 @@ function aio_mlv_tick_ms()
  */
 function aio_mlv_tick_set($url)
 {
-    $ok = AioMlv::$ticks < AIO_MLV_TICK_MAX && aio_mlv_why($url) === '';
+    $ok = AioMlv::$ticks < AIO_MLV_TICK_MAX && aio_mlv_why() === '';
     AioMlv::$tick_url = $ok ? $url : '';
     return $ok ? aio_mlv_tick_ms() : 0;
 }
@@ -533,14 +606,16 @@ function aio_mlv_tick_set($url)
 // A screen of Melange $url is asked of get_folder_view (aio_folder_view): another than the one of the timer - no more
 // ticks of it, nor a view anew of its tick. Not a main screen of rows built again (AioCat::$mains: invalidated with the
 // screen by its tick, the shell may build it first; else the view anew of the screen was an opening, its count of the
-// ticks 0 again and the limit gone).
+// ticks 0 again and the limit gone), nor another screen within AIO_MLV_ANEW_S of the invalidate of a tick (aio_mlv_inv:
+// the shell may build the screens of the stack again, a screen of Fav lower in it would take the timer).
 /**
  * @param string $url
  * @return void
  */
 function aio_mlv_view_asked($url)
 {
-    if (in_array($url, AioCat::$mains, true))
+    $inv = aio_mlv_inv();
+    if (in_array($url, AioCat::$mains, true) || ($inv !== '' && $inv !== $url))
         return;
     if (AioMlv::$anew !== '' && AioMlv::$anew !== $url)
         AioMlv::$anew = '';
@@ -556,7 +631,8 @@ function aio_mlv_view_asked($url)
 // the pairs of its cards with none (aio_pg_link_step of AioMlv::$cards; one got: the tiles of no meta again), then the
 // meta of its tiles with no meta (aio_cpm_step of AioMlv::$miss, its order: the first tiles first) in what is left.
 // Some got: the view anew with the main screens of the catalog (aio_catv_mains_anew, the screen first, no post_action;
-// the row "Continue" with the rating after Back; the view sets the timer again itself, the focus by sel_state). None
+// the row "Continue" with the rating after Back; the view sets the timer again itself, the focus by sel_state; not the
+// other screens of Fav opened, AioMlv::$inv: the window of the invalidate). None
 // got, more to ask: the timer again (aio_catv_all_again, aio_mlv_tick_ms); else nothing. Not the tick of the timer set
 // (another screen, an old one): nothing. A line of the log of each.
 /**
@@ -566,8 +642,7 @@ function aio_mlv_view_asked($url)
 function aio_mlv_tick($url)
 {
     $sc = aio_mlv_screen($url);
-    $cont = $sc !== null && $sc[0] === AIO_MLV_CONT;
-    $who = $cont ? 'continue' : 'my list';
+    $who = $sc !== null && $sc[0] === AIO_MLV_CONT ? 'continue' : 'my list';
     if (AioMlv::$tick_url !== $url)
     {
         aio_log("$who: screen: tick: no step, " . (AioMlv::$tick_url === '' ? 'no timer on it' : 'a tick of another screen'));
@@ -578,22 +653,24 @@ function aio_mlv_tick($url)
     $t = microtime(true);
     $rounds = 0;
     $pairs = 0;
-    if ($cont && AioMlv::$cards)
+    if (AioMlv::$cards)
         aio_pg_link_step(min(AIO_PG_LINK_S, AIO_CPM_TICK_S), true, $rounds, $pairs, AioMlv::$cards);
     // A card paired: its tile has ids now, its meta to ask (the tiles of no meta again, AioMlv::$miss).
     if ($pairs)
         aio_mlv_cells($url);
     $got = aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $rounds, true, AioMlv::$miss);
     AioMlv::$tick_t = microtime(true);
-    $why = $n >= AIO_MLV_TICK_MAX ? 'limit' : aio_mlv_why($url);
-    $left = count(aio_cpm_todo(AioMlv::$miss)) + ($cont ? count(aio_pg_link_queue(AioMlv::$cards)) : 0);
+    $why = $n >= AIO_MLV_TICK_MAX ? 'limit' : aio_mlv_why();
+    $left = count(aio_cpm_todo(AioMlv::$miss)) + (AioMlv::$cards ? count(aio_pg_link_queue(AioMlv::$cards)) : 0);
     $act = null;
     if ($pairs + $got > 0)
     {
         AioMlv::$anew = $url;
+        AioMlv::$inv = $url;
         AioMlv::$anew_t = microtime(true);
-        $act = aio_catv_mains_anew(null, "after a tick of $url", $url);
-        $what = aio_fw_r() >= 25 && AioCat::$mains ? 'invalidate with the main screens' : 'invalidate';
+        $act = aio_catv_mains_anew(null, "after a tick of $url", $url, false);
+        $urls = $act ? $act[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] : array();
+        $what = count($urls) > 1 ? 'invalidate with the main screens' : 'invalidate';
         $what .= $why !== '' ? ", no more: $why" : '';
     }
     else if ($why === '')
