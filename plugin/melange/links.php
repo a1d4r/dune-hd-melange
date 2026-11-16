@@ -97,16 +97,16 @@ function aio_pg_screen_start()
 }
 
 // r25: a screen of Melange $url is asked of get_folder_view (aio_folder_view): another than the main screen of the
-// timer - no more ticks of it (a tick under that screen would hold php_server), a line. Not within the window of the
-// invalidate of a tick of a screen of Fav (aio_mlv_inv: the shell builds the screens of the stack again, the main one
-// under it with its timer; its ticks wait for those of that screen, AIO_PG_FAV_QUIET_S).
+// timer - no more ticks of it (a tick under that screen would hold php_server), a line. Not a screen the tick of a
+// screen of Fav invalidated, within the window of it (aio_mlv_inv: the shell builds them again, the main one under it
+// with its timer; its ticks wait for those of that screen, AIO_PG_FAV_QUIET_S).
 /**
  * @param string $url
  * @return void
  */
 function aio_pg_view_asked($url)
 {
-    if (AioPgLinks::$tick_url === '' || $url === AioPgLinks::$tick_url || aio_mlv_inv() !== '')
+    if (AioPgLinks::$tick_url === '' || $url === AioPgLinks::$tick_url || aio_mlv_inv($url) !== '')
         return;
     AioPgLinks::$tick_url = '';
     AioPgLinks::$stop = 'the screen left';

@@ -195,8 +195,6 @@ parameters:
         AioPgLink: 'array{imdb?: string, tmdb?: string, tmdbtv?: string, type?: string, seasons?: array<int, int>, soon?: array<string, string>, src?: string, on?: int, sq?: int, none?: int, fail?: int}'
         # The meta of a tile of the row "Continue" kept (aio_cpm_read, cp_meta.php): when written, its tile (null: a failure).
         AioCpmEntry: 'array{t: int, tile: AioCatTile|null}'
-        # The state of the timer of a screen of Fav (aio_mlv_state, view_my_list.php): the timer, the ticks, the queues, its view anew, the titles held, the lazy meta of a main screen.
-        AioMlvState: 'array{tick_url: string, ticks: int, miss: list<array{string, string, string}>, cards: list<string>, anew: string, hold: array<string, bool>, more: list<array{string, string, string}>}'
         # "Continue watching" of play_action (aio_resume, main.php; next:
         # aio_wh_resume_ep, history.php).
         AioResume: 'array{hash: string, mode: string, s: int, e: int, pos: int, len: int, uid: string, next: bool}'

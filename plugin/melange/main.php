@@ -1712,8 +1712,8 @@ function aio_speed_str($bps, $lang, $zero = false)
 function aio_folder_view($media_url, $sel_state)
 {
     // One timer lives, of a main screen or of a Fav screen: a view of another stops it (aio_mlv_view_asked: not a main
-    // one). Within the window of the invalidate of a tick of a screen of Fav (aio_mlv_inv) none stops: the main screen
-    // under it keeps its own, its ticks wait for those of that screen (aio_pg_tick).
+    // one). Within the window of the invalidate of a tick of a screen of Fav (aio_mlv_inv) a screen it invalidated stops
+    // none: the main screen under it keeps its own, its ticks wait for those of that screen (aio_pg_tick).
     aio_pg_view_asked($media_url);
     aio_mlv_view_asked($media_url);
     // "setup:<n>": the same screen redrawn by aio_setup_refresh; a first run: the

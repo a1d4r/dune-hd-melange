@@ -1346,7 +1346,7 @@ function aio_catv_main_view($media_url, $sel_state)
     // are for the lazy meta of this screen (aio_cpm_step), those of "Continue" first. Built again by the tick of a
     // screen of Fav over it (aio_mlv_under): none asked, the ticks of that screen ask; its own timer still (after Back the
     // lazy step goes on), its ticks wait for those of that screen (aio_pg_tick, AIO_PG_FAV_QUIET_S).
-    $under = aio_mlv_under();
+    $under = aio_mlv_under($media_url);
     aio_cpm_build($tab, $under !== '' ? 0.0 : ($loading ? AIO_CPM_BUILD_S :
         max(0.0, min(AIO_CPM_BUILD_S, AIO_CATV_OPEN_S - (microtime(true) - $rows_t0) - AIO_CATV_OPEN_ROW_S))));
     $defs = array_merge(aio_cp_row_defs($tab, $lang, $cp_tiles, $miss), aio_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss));
