@@ -1997,17 +1997,29 @@ function aio_errors_dialog($title, $lang, $errors)
     $close = aio_close_and(null);
     $defs = array();
     foreach (aio_errors_rows($lang, $errors, AIO_ERRORS_MAX) as $i => $row)
-    {
-        $c = aio_ctl("row$i", GUI_CONTROL_BUTTON, array(
-            GuiButtonDef::caption => '<text>' . str_replace(array('&', '<', '>'), array('&amp;', '&lt;', '&gt;'), $row) . '</text>',
-            GuiButtonDef::width => 1450, GuiButtonDef::push_action => $close));
-        $c[GuiControlDef::params] = array('button_caption_centered' => 'no', 'button_style' => 'smart_label', 'button_height' => 44);
-        $defs[] = $c;
-    }
+        $defs[] = aio_row_button("row$i", $row, 1450, $close);
     $defs[] = aio_ctl('ok', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => 'OK',
         GuiButtonDef::width => 500, GuiButtonDef::push_action => $close));
     return aio_dialog_act($title, $defs, array(ShowDialogActionData::preferred_width => 1500,
         ShowDialogActionData::max_height => 875, ShowDialogActionData::params => array('page_size' => 11)));
+}
+
+// A row of a long dialog (aio_errors_dialog, the filter of the online list): a button of plain
+// look, its text left-aligned, $text escaped for its markup.
+/**
+ * @param string $name
+ * @param string $text
+ * @param int $width
+ * @param AioAction $act
+ * @return array<string, mixed>
+ */
+function aio_row_button($name, $text, $width, $act)
+{
+    $c = aio_ctl($name, GUI_CONTROL_BUTTON, array(
+        GuiButtonDef::caption => '<text>' . str_replace(array('&', '<', '>'), array('&amp;', '&lt;', '&gt;'), $text) . '</text>',
+        GuiButtonDef::width => $width, GuiButtonDef::push_action => $act));
+    $c[GuiControlDef::params] = array('button_caption_centered' => 'no', 'button_style' => 'smart_label', 'button_height' => 44);
+    return $c;
 }
 
 function aio_ctl($name, $kind, $def, $title = null)

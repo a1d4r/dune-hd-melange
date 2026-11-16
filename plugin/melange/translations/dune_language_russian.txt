@@ -373,6 +373,7 @@ lp_note_gone = {src} больше не отдаёт эту озвучку
 lp_flt_tab = Озвучка: {name}
 lp_flt_menu = Озвучка: {name}…
 lp_flt_any = все
+lp_flt_title = Озвучка
 lp_flt_all = Все озвучки
 lp_flt_item = {name} · {n} {sources}
 lp_flt_gone = В {se} нет {voice} — показаны все

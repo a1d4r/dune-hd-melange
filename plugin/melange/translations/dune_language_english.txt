@@ -373,6 +373,7 @@ lp_note_gone = {src} does not give this voice any more
 lp_flt_tab = Voice: {name}
 lp_flt_menu = Voice: {name}…
 lp_flt_any = all
+lp_flt_title = Voice
 lp_flt_all = All voices
 lp_flt_item = {name} · {n} {sources}
 lp_flt_gone = No {voice} in {se} — showing all
