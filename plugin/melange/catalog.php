@@ -75,14 +75,28 @@ define('AIO_CAT_KP_VOTES_MIN', 1000);
 class AioCatCopies
 {
     // The index of the copies of the rows on the disk (aio_cat_cache_index): each file (aio_cat_cache_dir) as it was
-    // when its keys were read ("mtime:size"), its keys ("<type>|imdb:<IMDb>", "<type>|tmdb:<TMDB>"), and the file of
-    // each key (of the newest file). Memory of php_server.
+    // when its keys were read ("mtime:size") and its mtime, its keys ("<type>|imdb:<IMDb>", "<type>|tmdb:<TMDB>"), and
+    // the file of each key (of the newest file). Memory of php_server.
     /** @var array<string, string> */
     public static $sig = array();
+    /** @var array<string, int> */
+    public static $mtime = array();
     /** @var array<string, list<string>> */
     public static $keys = array();
     /** @var array<string, string> */
     public static $map = array();
+
+    // The index forgotten (a new php_server).
+    /**
+     * @return void
+     */
+    public static function reset()
+    {
+        self::$sig = array();
+        self::$mtime = array();
+        self::$keys = array();
+        self::$map = array();
+    }
 }
 
 // --- Requests.
@@ -1203,6 +1217,7 @@ function aio_cat_cache_index()
             $map[$k] = $f;
     }
     AioCatCopies::$sig = $sigs;
+    AioCatCopies::$mtime = $times;
     AioCatCopies::$keys = $keys;
     AioCatCopies::$map = $map;
     return $map;
@@ -1228,8 +1243,7 @@ function aio_cat_cache_tiles($want)
             if ($v === '' || !isset($idx["$type|$by:$v"]))
                 continue;
             $f = $idx["$type|$by:$v"];
-            $sig = explode(':', AioCatCopies::$sig[$f]);
-            if (intval($sig[0]) > $since)
+            if (AioCatCopies::$mtime[$f] > $since)
                 $files[$f][strval($key)] = array($type, $by === 'imdb' ? 'imdb_id' : '_tmdbId', $v);
             break;
         }
