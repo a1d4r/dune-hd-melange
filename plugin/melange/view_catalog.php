@@ -2675,21 +2675,6 @@ function aio_catv_tile_act($in, $ws)
     return array('id' => $id, 'from' => $from, 'w' => $w, 't' => $t, 'err' => $ok && !$t ? aio_error('cat_outdated') : null);
 }
 
-// After an action of POP UP of a tile (aio_catv_tile_menu) on screen $from: the screen anew (invalidate of
-// aio_catv_screen_of: the row "Continue" and the badges of the history now, O2), the tab "TV" built anew (aio_tv_flag;
-// its EPF are no screen to invalidate, null).
-/**
- * @param string $from
- * @param string $why
- * @return AioAction|null
- */
-function aio_catv_tile_after($from, $why)
-{
-    aio_tv_flag($why);
-    $url = aio_catv_screen_of($from);
-    return $url !== '' ? aio_catv_invalidate($url) : null;
-}
-
 // The tick of the timer of "Show all" $url, memory only. The view of stubs and the end known or
 // a failure (its tail closed, the focus on a stub lost): the view anew without stubs and timer;
 // else the timer again (update_next_movie of main_entry_handler.php r25). No listing or stubs:
