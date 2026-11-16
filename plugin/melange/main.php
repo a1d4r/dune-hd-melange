@@ -1347,11 +1347,9 @@ if (!function_exists('aio_http_range'))
 define('AIO_ERRORS_MAX', 30);
 // Reasons in a dialog of a lazy episode, at most (aio_errors_labels).
 define('AIO_ERRORS_LABELS', 5);
-// Characters of a reason, its own ellipsis included: the shell cuts a longer
-// button of aio_errors_dialog at the right without one.
-define('AIO_ERROR_LINE', 68);
-// The same in a label of a dialog of the usual width (aio_errors_labels): the shell
-// replaces the middle of a longer one with "...".
+// Characters of a reason in a label of a dialog of the usual width (aio_errors_labels), its own
+// ellipsis included (a row of the window: AIO_ROW_LINE): the shell replaces the middle of a
+// longer one with "...".
 define('AIO_ERROR_LABEL', 48);
 
 // No reasons (AioErrors): 'lines' - different reasons, up to AIO_ERRORS_MAX;
@@ -1470,7 +1468,7 @@ function aio_error_line($st, $sd)
     // Not UTF-8 would break the JSON of the whole dialog.
     if ($line === '' || !preg_match('//u', $line))
         return '?';
-    return aio_error_cut($line, AIO_ERROR_LINE);
+    return aio_error_cut($line, AIO_ROW_LINE);
 }
 
 // Error streams of the reply (streamData.type "error": a failed add-on, a bad
@@ -1997,27 +1995,50 @@ function aio_errors_dialog($title, $lang, $errors)
     $close = aio_close_and(null);
     $defs = array();
     foreach (aio_errors_rows($lang, $errors, AIO_ERRORS_MAX) as $i => $row)
-        $defs[] = aio_row_button("row$i", $row, 1450, $close);
+        $defs[] = aio_row_button("row$i", $row, $close);
     $defs[] = aio_ctl('ok', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => 'OK',
         GuiButtonDef::width => 500, GuiButtonDef::push_action => $close));
-    return aio_dialog_act($title, $defs, array(ShowDialogActionData::preferred_width => 1500,
-        ShowDialogActionData::max_height => 875, ShowDialogActionData::params => array('page_size' => 11)));
+    return aio_rows_dialog($title, $defs);
 }
 
-// A row of a long dialog (aio_errors_dialog, the filter of the online list): a button of plain
-// look, its text left-aligned, $text escaped for its markup.
+// Characters of a row of a window of rows (aio_rows_dialog: the reasons, the voices of the online list), its own
+// ellipsis included: the shell cuts a longer button at the right without one. A button AIO_ROW_WIDTH wide shows ~75
+// of a voice (19 px a character, experiments/long_menu_probe F); 68 leaves room for wide capitals, the end of a row
+// (" · сейчас") stays.
+define('AIO_ROW_LINE', 68);
+// The width of a row of a window of rows, px.
+define('AIO_ROW_WIDTH', 1450);
+
+// A window of rows $defs (aio_row_button; a button OK after them, maybe) with title $title: 1500 px wide, scrolled
+// (max_height, P+/P- by 11 rows), the cursor on row $sel (null: the shell's, the first).
+/**
+ * @param string $title
+ * @param list<array<string, mixed>> $defs
+ * @param int|null $sel
+ * @return AioAction
+ */
+function aio_rows_dialog($title, $defs, $sel = null)
+{
+    $more = array(ShowDialogActionData::preferred_width => 1500, ShowDialogActionData::max_height => 875);
+    if ($sel !== null)
+        $more[ShowDialogActionData::initial_sel_ndx] = $sel;
+    $more[ShowDialogActionData::params] = array('page_size' => 11);
+    return aio_dialog_act($title, $defs, $more);
+}
+
+// A row of a window of rows (aio_rows_dialog): a button AIO_ROW_WIDTH wide of plain look, its text left-aligned,
+// $text escaped for its markup.
 /**
  * @param string $name
  * @param string $text
- * @param int $width
  * @param AioAction $act
  * @return array<string, mixed>
  */
-function aio_row_button($name, $text, $width, $act)
+function aio_row_button($name, $text, $act)
 {
     $c = aio_ctl($name, GUI_CONTROL_BUTTON, array(
         GuiButtonDef::caption => '<text>' . str_replace(array('&', '<', '>'), array('&amp;', '&lt;', '&gt;'), $text) . '</text>',
-        GuiButtonDef::width => $width, GuiButtonDef::push_action => $act));
+        GuiButtonDef::width => AIO_ROW_WIDTH, GuiButtonDef::push_action => $act));
     $c[GuiControlDef::params] = array('button_caption_centered' => 'no', 'button_style' => 'smart_label', 'button_height' => 44);
     return $c;
 }

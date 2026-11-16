@@ -74,7 +74,7 @@ define('AIO_LP_TRACKS_MAX', 30);
 define('AIO_LP_EPS_MAX', 2000);
 // Characters of the episodes there are (aio_lp_ranges), its "…" included: "нет S12E10, есть " and
 // they fit a label of a dialog (AIO_ERROR_LABEL of main.php, 48), with the name of a balancer a
-// line of the window of the reasons (AIO_ERROR_LINE, 68).
+// line of the window of the reasons (AIO_ROW_LINE, 68).
 define('AIO_LP_RANGES_LEN', 30);
 // The User-Agent of "Представляться приложением Lampa": the web Lampa sends that of its browser.
 define('AIO_LP_UA',
@@ -933,6 +933,9 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
                 min(AIO_LP_REPLY_MAX, $total - (aio_lp_now() - $t0)));
             $p['rows'] = $sea['why'] === '' ? aio_lp_season_rows($src, $sea) : array();
             $p['why'] = $sea['why'] === '' ? array() : array(aio_lp_why($src, $sea['why'], $sea['detail']));
+            // The stub of Filmix among the voices of the season: the other voices rows, it the reason.
+            if ($sea['why'] === '' && !empty($sea['blocked']))
+                $p['why'][] = aio_lp_why($src, 'blocked');
         }
         if ($p['kind'] === 'similar')
             $out['similar']++;
@@ -1031,7 +1034,8 @@ function aio_lp_season_link($j, $s)
 // Reply $j of a season (type episode) of source $src on Lampac $base, asked by link $url ->
 // AioLpSeason: url ($url), voices (voice[]: name (aio_lp_text), url (its season), active (true
 // strictly, of the first such alone); a voice without a name or a link, or of a name twice, left
-// out; AIO_LP_ROWS_MAX at most), eps (data[]: AioLpEp - s and e (aio_lp_num; -1 s none), name,
+// out; AIO_LP_ROWS_MAX at most; the stub of Filmix (aio_lp_blocked by its name) left out, blocked
+// true), eps (data[]: AioLpEp - s and e (aio_lp_num; -1 s none), name,
 // what aio_lp_item gives; an item of no number e or of s and e twice left out, AIO_LP_EPS_MAX at most, in the order of the reply), quality (maxquality
 // of the reply, else the best of the quality of its episodes (Vibix), else the quality of the source), why and
 // detail '' (aio_lp_season_reply sets them); no voice[]: tracks - by the number of an episode the names of its
@@ -1055,6 +1059,11 @@ function aio_lp_season($src, $j, $url, $base = '')
         if (!is_array($v) || count($out['voices']) >= AIO_LP_ROWS_MAX)
             continue;
         $name = aio_lp_text(aio_lp_str($v, 'name'));
+        if (aio_lp_blocked(array('voice_name' => $name)))
+        {
+            $out['blocked'] = true;
+            continue;
+        }
         $u = strlen(aio_lp_str($v, 'url')) <= AIO_LP_LINK_MAX ? aio_lp_link1(aio_lp_str($v, 'url')) : '';
         if ($name === '' || $u === '' || isset($names[$name]))
             continue;
@@ -1177,8 +1186,8 @@ function aio_lp_parsed_why($p)
 }
 
 // Reply $j of source $src, a list of seasons or an episode list (aio_lp_season), with why: no_season
-// (a list of seasons; episodes all of another season than $s > 0, detail: "s <theirs>"), empty (no
-// episode nor voice).
+// (a list of seasons; episodes all of another season than $s > 0, detail: "s <theirs>"), blocked (its
+// voices all the stub of Filmix, aio_lp_blocked), empty (no episode nor voice).
 /**
  * @param AioLpSource $src
  * @param array<mixed> $j
@@ -1195,7 +1204,9 @@ function aio_lp_season_of($src, $j, $url, $base, $s)
     $other = 0;
     foreach ($out['eps'] as $x)
         $other += $s > 0 && $x['s'] >= 0 && $x['s'] !== $s ? 1 : 0;
-    if (!$out['eps'] && !$out['voices'])
+    if (!$out['voices'] && !empty($out['blocked']))
+        $out = aio_lp_season_no($src, $url, 'blocked', '');
+    else if (!$out['eps'] && !$out['voices'])
         $out['why'] = 'empty';
     else if ($out['eps'] && $other === count($out['eps']))
         $out = aio_lp_season_no($src, $url, 'no_season', "s {$out['eps'][0]['s']}");

@@ -27,10 +27,6 @@ define('AIO_LPV_SRC_W', 320);
 define('AIO_LPV_INDENT', 48);
 // The line over a block of rows of a balancer.
 define('AIO_LPV_LINE', '#40FFFFFF');
-// Characters of a row of the window of the filter (aio_lpv_flt_menu), its ellipsis included: a button
-// 1450 px wide shows ~75 of a voice (19 px a character, experiments/long_menu_probe F); a title of VK
-// Видео of 60 with " · 1 источник" whole.
-define('AIO_LPV_FLT_LINE', 74);
 
 class AioLpv
 {
@@ -471,7 +467,7 @@ function aio_lpv_flt_tab($v, $lang)
 // voices (aio_lpv_voices) "LostFilm · 8 источников", each lp_flt; the one of the filter "· сейчас", the cursor on it. A
 // window of buttons, not a popup menu: a popup of 18 and more items goes off the screen and does not scroll
 // (experiments/long_menu_probe, r25). The shell cuts a long button at the right with no ellipsis: the name is cut to
-// AIO_LPV_FLT_LINE characters of the row with its own.
+// AIO_ROW_LINE characters of the row with its own.
 /**
  * @param AioState $st
  * @return AioAction
@@ -488,16 +484,14 @@ function aio_lpv_flt_menu($st)
     foreach ($rows as $i => $r)
     {
         $t = aio_lpv_flt_row($lang, $r[0], $r[1], $r[2]);
-        $over = mb_strlen($t, 'UTF-8') - AIO_LPV_FLT_LINE;
+        $over = mb_strlen($t, 'UTF-8') - AIO_ROW_LINE;
         if ($over > 0)
             $t = aio_lpv_flt_row($lang, aio_error_cut($r[0], max(1, mb_strlen($r[0], 'UTF-8') - $over)), $r[1], $r[2]);
         if ($r[2])
             $sel = $i;
-        $defs[] = aio_row_button("flt$i", $t, 1450, aio_close_and(aio_gc_act('lp_flt', $st['rid'], array('i' => strval($i)))));
+        $defs[] = aio_row_button("flt$i", $t, aio_close_and(aio_gc_act('lp_flt', $st['rid'], array('i' => strval($i)))));
     }
-    return aio_dialog_act(aio_tr($lang, 'lp_flt_title'), $defs, array(ShowDialogActionData::preferred_width => 1500,
-        ShowDialogActionData::max_height => 875, ShowDialogActionData::initial_sel_ndx => $sel,
-        ShowDialogActionData::params => array('page_size' => 11)));
+    return aio_rows_dialog(aio_tr($lang, 'lp_flt_title'), $defs, $sel);
 }
 
 // A row of the window of the filter: voice $name of $n balancers ("LostFilm · 8 источников"; $n < 0: $name alone),
