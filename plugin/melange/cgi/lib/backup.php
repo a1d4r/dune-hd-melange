@@ -2,7 +2,7 @@
 // The settings page (cgi/settings.php): the backup of the settings - the
 // export of settings.json to a file (a=export) and the import of such a file
 // (a=import: its text posted by the script of the page, never $_FILES).
-// "Мой список" (0.61.0) goes with them: the field my_list of the file
+// "Мой список" (0.62.0) goes with them: the field my_list of the file
 // (aio_ml_copy of my_list.php), written to its file of data_dir on an import.
 
 require_once dirname(dirname(dirname(__FILE__))) . '/my_list.php';
@@ -143,7 +143,7 @@ function aio_cgi_import_failed($code, $why, $msg)
 // aio_file_sig), before the settings: its failure leaves both as they were,
 // a failure of the settings puts the list of this Dune back (none: the file
 // removed); a list whose file php_server would not read (AIO_ML_FILE_MAX): the
-// message, nothing written; no field (a file of before 0.61.0): the list of
+// message, nothing written; no field (a file of before 0.62.0): the list of
 // this Dune stays. The
 // configs of AIOStreams (aio_confs): those of this Dune, those of the file
 // over them (aio_cgi_confs_merge): the

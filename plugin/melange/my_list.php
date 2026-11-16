@@ -1,5 +1,5 @@
 <?php
-// "Мой список" (My List, 0.61.0): the titles the user keeps in Melange, one JSON file of data_dir in the order of the
+// "Мой список" (My List, 0.62.0): the titles the user keeps in Melange, one JSON file of data_dir in the order of the
 // row - the newest first, never reordered. In the memory of php_server, read anew when the file changes (aio_file_sig:
 // the settings page writes it, by rename, on an import of a backup). The backup of the settings page
 // (cgi/lib/backup.php) carries it in a short form (aio_ml_copy). The Favorites of the Dune are only read

@@ -1,5 +1,5 @@
 <?php
-// "Мой список" (0.61.0) on the screens of php_server: the title into the list or out of it, its messages, POP UP of a
+// "Мой список" (0.62.0) on the screens of php_server: the title into the list or out of it, its messages, POP UP of a
 // tile of the catalog and of the tab "TV", the one effect of a change (aio_ml_changed); the screens "Мой список" and
 // "Продолжить" (Continue Watching), each as "Show all" of a row of the catalog (view_catalog.php: on r25 rows of
 // AIO_CATV_ALL_COLS with the info panel, on r24 the grid), of memory and data_dir alone, no request: "Мой список" the
