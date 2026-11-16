@@ -271,18 +271,18 @@ function aio_lpv_note($st, $right)
  */
 function aio_lpv_badge($q)
 {
-    if (preg_match('/^([0-9])K\z/i', $q, $m))
-        return $m[1] === '4' ? '4k' : '';
-    $p = preg_match('/^([0-9]{3,4})p\z/i', $q, $m) ? intval($m[1]) : 0;
-    $id = $p >= 2160 ? '4k' : ($p > 0 ? "{$p}p" : '');
+    // 8K (4320p): no badge.
+    $p = aio_lp_q_num($q);
+    $id = $p === 2160 ? '4k' : ($p > 0 ? "{$p}p" : '');
     return isset(AioGc::$badge_w[$id]) ? $id : '';
 }
 
 // --- The filter by a voice (the red key, "Озвучка: …" of MENU): the rows of one voice of all balancers.
 
 // The key of voice $name for the filter: its studios (aio_track_voice, by aio_voices_same: "Кубик в кубе" and
-// "Кубик в Кубе" one), else its types ("Дубляж [1080, Rus]" and "Дублированный" one), else the original, else the
-// name itself; a Ukrainian one apart.
+// "Кубик в Кубе" one), else a dub ("Дубляж [1080, Rus]" and "Дублированный" one; other types by the name:
+// "Профессиональный многоголосый" is no "Любительский многоголосый"), else the original, else the name itself; a
+// Ukrainian one apart (not by its subtitles: "Оригинал (укр. субтитры)" is the original).
 /**
  * @param string $name
  * @return string
@@ -293,7 +293,7 @@ function aio_lpv_voice_key($name)
     if (isset($memo[$name]))
         return $memo[$name];
     $t = aio_track_voice($name);
-    $ua = preg_match('/укр|ukr|україн/iu', $name) ? ':ua' : '';
+    $ua = preg_match('/укр|ukr|україн/iu', preg_replace('/\S*\s*(?:суб|sub)\S*/iu', ' ', $name)) ? ':ua' : '';
     if ($t && $t['studios'])
     {
         $ks = array();
@@ -302,8 +302,8 @@ function aio_lpv_voice_key($name)
         sort($ks);
         $k = 's:' . implode('|', $ks) . $ua;
     }
-    else if ($t && $t['types'])
-        $k = 't:' . implode('|', $t['types']) . $ua;
+    else if ($t && $t['types'] === array('dub'))
+        $k = 't:dub' . $ua;
     else if ($t && $t['orig'])
         $k = 'o' . $ua;
     else
@@ -370,7 +370,7 @@ function aio_lpv_shown($v)
     foreach ($v['rows'] as $i => $r)
     {
         $vs = isset($v['flt']) ? aio_lpv_row_voices($r) : array();
-        if (!isset($v['flt']) || isset($vs[$v['flt'][0]]))
+        if (!isset($v['flt']) || isset($vs[$v['flt']['k']]))
             $out[] = $i;
     }
     return $out;
@@ -390,9 +390,26 @@ function aio_lpv_voice_text($v, $r, $lang)
     if ($r['voice'] !== '' || count($tr) === 1)
         return $r['voice'] !== '' ? $r['voice'] : $tr[0];
     $vs = $tr && isset($v['flt']) ? aio_lpv_row_voices($r) : array();
-    if (isset($v['flt'], $vs[$v['flt'][0]]))
-        return aio_lpv_tr($lang, 'lp_track_one', array('name' => $vs[$v['flt'][0]]));
+    if (isset($v['flt'], $vs[$v['flt']['k']]))
+        return aio_lpv_tr($lang, 'lp_track_one', array('name' => $vs[$v['flt']['k']]));
     return $tr ? aio_lpv_tr($lang, 'lp_tracks', array('n' => count($tr))) : "\xE2\x80\x94";
+}
+
+// View $v with the tracks of its rows (Collaps: tracks_by, aio_lp_season_rows) of episode $e, none of an episode
+// not there.
+/**
+ * @param AioLpView $v
+ * @param int $e
+ * @return AioLpView
+ */
+function aio_lpv_ep_tracks($v, $e)
+{
+    foreach ($v['rows'] as $i => $r)
+    {
+        if (isset($r['tracks_by']))
+            $v['rows'][$i]['tracks'] = isset($r['tracks_by'][$e]) ? $r['tracks_by'][$e] : array();
+    }
+    return $v;
 }
 
 // View $v of list $st with its filter when a row has the voice; else none, the yellow line "В S1 E5 нет LostFilm —
@@ -407,7 +424,7 @@ function aio_lpv_flt_keep($v, $st)
     if (!isset($v['flt']) || aio_lpv_shown($v))
         return $v;
     $v['note'] = aio_lpv_tr($st['lang'], $st['e'] > 0 ? 'lp_flt_gone' : 'lp_flt_gone_movie',
-        array('se' => "S{$st['s']} E{$st['e']}", 'voice' => $v['flt'][1]));
+        array('se' => "S{$st['s']} E{$st['e']}", 'voice' => $v['flt']['name']));
     aio_log('lampac: no voice of the filter in ' . aio_ep_tag($st) . ', all shown');
     unset($v['flt']);
     return $v;
@@ -431,7 +448,7 @@ function aio_lpv_flt_tab($v, $lang)
         $x = AIO_GC_KEY_W + AIO_GC_KEY_GAP;
     }
     $on = isset($v['flt']);
-    $t = aio_lpv_tr($lang, 'lp_flt_tab', array('name' => $on ? aio_gc_cut_w($v['flt'][1], AIO_GC_HINT_PX, 360) :
+    $t = aio_lpv_tr($lang, 'lp_flt_tab', array('name' => $on ? aio_gc_cut_w($v['flt']['name'], AIO_GC_HINT_PX, 360) :
         aio_tr($lang, 'lp_flt_any')));
     $w = aio_gc_w($t, AIO_GC_HINT_PX);
     $d[] = aio_gc_cut(null, aio_gc_at($w, AIO_GC_LABEL_H, $x, (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $t, AIO_GC_HINT_PX,
@@ -454,7 +471,7 @@ function aio_lpv_flt_tab($v, $lang)
 function aio_lpv_flt_menu($st)
 {
     $lang = aio_gc_lang($st);
-    $now = isset($st['lp']['flt']) ? $st['lp']['flt'][0] : '';
+    $now = isset($st['lp']['flt']) ? $st['lp']['flt']['k'] : '';
     $all = aio_tr($lang, 'lp_flt_all');
     $items = array(array(
         GuiMenuItemDef::caption => $now === '' ? aio_lpv_tr($lang, 'src_now', array('name' => $all)) : $all,
@@ -501,7 +518,7 @@ function aio_lpv_flt($in, $st)
     $ns['rid'] = aio_rid();
     unset($ns['lp']['flt']);
     if ($i > 0)
-        $ns['lp']['flt'] = array($g[$i - 1]['k'], $g[$i - 1]['name']);
+        $ns['lp']['flt'] = array('k' => $g[$i - 1]['k'], 'name' => $g[$i - 1]['name']);
     $ns['lp']['note'] = '';
     $L = aio_lpv_lines($ns['lp']);
     $j = aio_lpv_line_at($L, $row);
@@ -542,7 +559,8 @@ function aio_lpv_lines($v)
         for ($j = $a; $j < $b; $j++)
         {
             $q = $v['rows'][$ids[$j]]['quality'];
-            $out[] = array('k' => $b - $a > 1 ? 'row' : 'one', 'i' => $ids[$j], 'n' => 0, 'q' => $b - $a > 1 && $q === $best ? '' : $q);
+            $same = $q === $best || (aio_lp_q_num($q) > 0 && aio_lp_q_num($q) === aio_lp_q_num($best));
+            $out[] = array('k' => $b - $a > 1 ? 'row' : 'one', 'i' => $ids[$j], 'n' => 0, 'q' => $b - $a > 1 && $same ? '' : $q);
         }
     }
     if ($v['left'] > 0)
@@ -729,20 +747,20 @@ function aio_lpv_row_items($v, $L, $j, $c, $on, $top, $lang)
     return array_merge($d, aio_gc_bar(isset($prog[$r['key']]) ? $prog[$r['key']] : 0));
 }
 
-// Children of 'card' of row $sel of view $v: beside the poster the balancer and "до 2160p";
+// Children of 'card' of row $i (of the list, not of the screen) of view $v: beside the poster the balancer and "до 2160p";
 // under it the voice, the quality ("до 2160p", else "источник не сообщает"), the subtitles that do not
 // go to the player, "Через: Lampac из настроек". The row "Ещё N" and none: no card.
 /**
  * @param AioState $st
  * @param AioLpView $v
- * @param int $sel
+ * @param int $i
  * @return list<AioGcComp>
  */
-function aio_lpv_card($st, $v, $sel)
+function aio_lpv_card($st, $v, $i)
 {
-    if (!isset($v['rows'][$sel]))
+    if (!isset($v['rows'][$i]))
         return array();
-    $r = $v['rows'][$sel];
+    $r = $v['rows'][$i];
     $lang = aio_gc_lang($st);
     $w = AIO_GC_CW;
     $sx = aio_img($st['movie']['poster']) !== '' ? AIO_GC_PW + 20 : 0;
@@ -973,7 +991,7 @@ function aio_lpv_menu($st)
     if (aio_gc_keys_in_menu())
         $menu[] = array(
             GuiMenuItemDef::caption => aio_lpv_tr($lang, 'lp_flt_menu', array('name' => isset($st['lp']['flt']) ?
-                $st['lp']['flt'][1] : aio_tr($lang, 'lp_flt_any'))),
+                $st['lp']['flt']['name'] : aio_tr($lang, 'lp_flt_any'))),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
             GuiMenuItemDef::action => aio_gc_act('lp_flt_menu', $rid));
     $menu[] = array(
@@ -1285,7 +1303,7 @@ function aio_lpv_result($run)
     $v['rows'] = $rows;
     $v['left'] = max(0, $left);
     $v['note'] = $note;
-    $v = aio_lpv_flt_keep($v, $st);
+    $v = aio_lpv_flt_keep(aio_lpv_ep_tracks($v, $st['e']), $st);
     $v['gc'] = aio_lpv_put(aio_lpv_lines($v), $sel);
     $v['gc_new'] = true;
     $ns = $st;
@@ -1295,7 +1313,7 @@ function aio_lpv_result($run)
     unset($ns['lp_note']);
     if ($run['mark'])
         aio_lpv_mark_set($mv, true);
-    aio_log("$tag -> the list, row $sel" . ($first > 0 ? ", the remembered row $first first" : ''));
+    aio_log("$tag -> the list, the cursor on row $sel of the list" . ($first > 0 ? ", the remembered row $first first" : ''));
     if ($run['how'] === 'open')
         return aio_lpv_open($ns);
     return aio_list_replace($ns, $run['how'] === 'chosen' ? 3 : 1);
@@ -1356,6 +1374,8 @@ function aio_lpv_go($st)
         $ns = $st;
         $ns['rid'] = aio_rid();
         $ns['lp_on'] = true;
+        // Its own cursor, not the sel_state of the releases it replaces.
+        $ns['lp']['gc_new'] = true;
         aio_log('lampac: the online list again, ' . count($ns['lp']['rows']) . ' rows, no request');
         return aio_list_replace($ns);
     }
@@ -1389,6 +1409,8 @@ function aio_lpv_back($st)
         $ns = $st;
         $ns['rid'] = aio_rid();
         unset($ns['lp_on']);
+        // Their own cursor, not the sel_state of the online list.
+        $ns['gc_new'] = true;
         aio_log('lampac: back to the releases, ' . count($ns['rows']) . ' rows, no request');
         return aio_list_replace($ns);
     }
@@ -1531,7 +1553,8 @@ function aio_lpv_failed($lang, $r, $why, $detail)
 // --- The episodes of the online list: the left and right keys, "Выбрать серию".
 
 // List $st as of episode $e of season $s, its rows the same (of the season): a new rid, the cursor
-// kept; the releases, of another episode, asked anew when chosen (lp_only).
+// kept (on its row when the lines change: the tracks of Collaps of the episode, the filter gone); the
+// releases, of another episode, asked anew when chosen (lp_only).
 /**
  * @param AioState $st
  * @param int $s
@@ -1547,9 +1570,16 @@ function aio_lpv_ep_state($st, $s, $e)
     $ns['rows'] = array();
     $ns['errors'] = aio_no_errors();
     $ns['lp_only'] = true;
+    // The same season: the tracks of the episode (Collaps), the filter of them (aio_lpv_flt_keep).
+    if ($s === $st['s'])
+        $ns['lp'] = aio_lpv_flt_keep(aio_lpv_ep_tracks($st['lp'], $e), $ns);
     if (isset($st['lp']['gc']))
     {
-        $ns['lp']['gc'] = $st['lp']['gc'];
+        // Other lines: the cursor on its row.
+        $L = aio_lpv_lines($st['lp']);
+        $nl = aio_lpv_lines($ns['lp']);
+        $row = aio_lpv_row_of($L, $st['lp']['gc'][0]);
+        $ns['lp']['gc'] = $nl === $L ? $st['lp']['gc'] : aio_lpv_put($nl, $row < 0 ? count($st['lp']['rows']) : $row);
         $ns['lp']['gc_new'] = true;
     }
     return $ns;
