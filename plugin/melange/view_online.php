@@ -278,7 +278,240 @@ function aio_lpv_badge($q)
     return isset(AioGc::$badge_w[$id]) ? $id : '';
 }
 
-// Lines of the online list of view $v on screen: the rows of a balancer in a run of 2 and more after
+// --- The filter by a voice (the red key, "Озвучка: …" of MENU): the rows of one voice of all balancers.
+
+// The key of voice $name for the filter: its studios (aio_track_voice, by aio_voices_same: "Кубик в кубе" and
+// "Кубик в Кубе" one), else its types ("Дубляж [1080, Rus]" and "Дублированный" one), else the original, else the
+// name itself; a Ukrainian one apart.
+/**
+ * @param string $name
+ * @return string
+ */
+function aio_lpv_voice_key($name)
+{
+    static $memo = array();
+    if (isset($memo[$name]))
+        return $memo[$name];
+    $t = aio_track_voice($name);
+    $ua = preg_match('/укр|ukr|україн/iu', $name) ? ':ua' : '';
+    if ($t && $t['studios'])
+    {
+        $ks = array();
+        foreach ($t['studios'] as $x)
+            $ks[] = aio_voices_same($x);
+        sort($ks);
+        $k = 's:' . implode('|', $ks) . $ua;
+    }
+    else if ($t && $t['types'])
+        $k = 't:' . implode('|', $t['types']) . $ua;
+    else if ($t && $t['orig'])
+        $k = 'o' . $ua;
+    else
+        $k = 'n:' . aio_voices_key($name);
+    if (count($memo) >= 1000)
+        $memo = array();
+    return $memo[$name] = $k;
+}
+
+// The voices of row $r by their key (aio_lpv_voice_key) -> name: its voice, else its tracks (Collaps).
+/**
+ * @param AioLpRow $r
+ * @return array<string, string>
+ */
+function aio_lpv_row_voices($r)
+{
+    $out = array();
+    foreach ($r['voice'] !== '' ? array($r['voice']) : (isset($r['tracks']) ? $r['tracks'] : array()) as $name)
+    {
+        $k = aio_lpv_voice_key($name);
+        if (!isset($out[$k]))
+            $out[$k] = $name;
+    }
+    return $out;
+}
+
+// The voices of the rows of view $v for the menu of the filter: k (the key), name (of the first row, a dub of no
+// studio "Дубляж"), n (its balancers); by n, else in the order of Lampac.
+/**
+ * @param AioLpView $v
+ * @param string $lang
+ * @return list<array{k: string, name: string, n: int}>
+ */
+function aio_lpv_voices($v, $lang)
+{
+    $g = array();
+    foreach ($v['rows'] as $r)
+    {
+        foreach (aio_lpv_row_voices($r) as $k => $name)
+        {
+            if (!isset($g[$k]))
+                $g[$k] = array('k' => $k, 'name' => $k === 't:dub' ? aio_tr($lang, 'voices_dub') : $name, 'p' => array(), 'at' => count($g));
+            $g[$k]['p'][$r['path']] = true;
+        }
+    }
+    usort($g, function ($a, $b)
+    {
+        return count($a['p']) !== count($b['p']) ? count($b['p']) - count($a['p']) : $a['at'] - $b['at'];
+    });
+    $out = array();
+    foreach ($g as $x)
+        $out[] = array('k' => $x['k'], 'name' => $x['name'], 'n' => count($x['p']));
+    return $out;
+}
+
+// The rows of view $v the screen shows: of the voice of its filter, else all.
+/**
+ * @param AioLpView $v
+ * @return list<int>
+ */
+function aio_lpv_shown($v)
+{
+    $out = array();
+    foreach ($v['rows'] as $i => $r)
+    {
+        $vs = isset($v['flt']) ? aio_lpv_row_voices($r) : array();
+        if (!isset($v['flt']) || isset($vs[$v['flt'][0]]))
+            $out[] = $i;
+    }
+    return $out;
+}
+
+// The voice of row $r of view $v on screen: its voice; of tracks (Collaps) the one track, the one of the filter
+// ("LostFilm — дорожкой в плеере"), else "Дорожками в плеере · 7"; none "—".
+/**
+ * @param AioLpView $v
+ * @param AioLpRow $r
+ * @param string $lang
+ * @return string
+ */
+function aio_lpv_voice_text($v, $r, $lang)
+{
+    $tr = isset($r['tracks']) ? $r['tracks'] : array();
+    if ($r['voice'] !== '' || count($tr) === 1)
+        return $r['voice'] !== '' ? $r['voice'] : $tr[0];
+    $vs = $tr && isset($v['flt']) ? aio_lpv_row_voices($r) : array();
+    if (isset($v['flt'], $vs[$v['flt'][0]]))
+        return aio_lpv_tr($lang, 'lp_track_one', array('name' => $vs[$v['flt'][0]]));
+    return $tr ? aio_lpv_tr($lang, 'lp_tracks', array('n' => count($tr))) : "\xE2\x80\x94";
+}
+
+// View $v of list $st with its filter when a row has the voice; else none, the yellow line "В S1 E5 нет LostFilm —
+// показаны все".
+/**
+ * @param AioLpView $v
+ * @param AioState $st
+ * @return AioLpView
+ */
+function aio_lpv_flt_keep($v, $st)
+{
+    if (!isset($v['flt']) || aio_lpv_shown($v))
+        return $v;
+    $v['note'] = aio_lpv_tr($st['lang'], $st['e'] > 0 ? 'lp_flt_gone' : 'lp_flt_gone_movie',
+        array('se' => "S{$st['s']} E{$st['e']}", 'voice' => $v['flt'][1]));
+    aio_log('lampac: no voice of the filter in ' . aio_ep_tag($st) . ', all shown');
+    unset($v['flt']);
+    return $v;
+}
+
+// Children of the tab of the filter (where the releases have their sort tabs): the red key (not on a remote the
+// firmware knows is without it), "Озвучка: все", or "Озвучка: LostFilm" bright with a line under it, the triangle.
+// -> array(children, their width with the gap after).
+/**
+ * @param AioLpView $v
+ * @param string $lang
+ * @return array{list<AioGcComp>, int}
+ */
+function aio_lpv_flt_tab($v, $lang)
+{
+    $d = array();
+    $x = 0;
+    if (aio_gc_color_keys())
+    {
+        $d[] = aio_gc_image(aio_gc_at(AIO_GC_KEY_W, AIO_GC_KEY_H, 0, 0), 'plugin_file://%shell_ext%/icons/red.png');
+        $x = AIO_GC_KEY_W + AIO_GC_KEY_GAP;
+    }
+    $on = isset($v['flt']);
+    $t = aio_lpv_tr($lang, 'lp_flt_tab', array('name' => $on ? aio_gc_cut_w($v['flt'][1], AIO_GC_HINT_PX, 360) :
+        aio_tr($lang, 'lp_flt_any')));
+    $w = aio_gc_w($t, AIO_GC_HINT_PX);
+    $d[] = aio_gc_cut(null, aio_gc_at($w, AIO_GC_LABEL_H, $x, (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $t, AIO_GC_HINT_PX,
+        $on ? AIO_GC_TEXT : AIO_GC_TEXT2);
+    $x += $w + AIO_GC_SORT_ARROW_GAP;
+    $d[] = aio_gc_image(aio_gc_at(AIO_GC_SORT_ARROW_W, AIO_GC_SORT_ARROW_H, $x, intval((AIO_GC_KEY_H - AIO_GC_SORT_ARROW_H) / 2)),
+        'plugin_file://img/sort_down.png');
+    $x += AIO_GC_SORT_ARROW_W;
+    if ($on)
+        $d[] = aio_gc_rect(aio_gc_at($x, AIO_GC_TAB_LINE, 0, AIO_GC_TAB_LINE_Y), AIO_GC_TEXT);
+    return array($d, $x + AIO_GC_HINT_GAP);
+}
+
+// lp_flt_menu (the red key, MENU "Озвучка: …") of the online list $st: the popup menu "Все озвучки", then the voices
+// (aio_lpv_voices) "LostFilm · 8 источников", each lp_flt; the one of the filter "· сейчас" and selected.
+/**
+ * @param AioState $st
+ * @return AioAction
+ */
+function aio_lpv_flt_menu($st)
+{
+    $lang = aio_gc_lang($st);
+    $now = isset($st['lp']['flt']) ? $st['lp']['flt'][0] : '';
+    $all = aio_tr($lang, 'lp_flt_all');
+    $items = array(array(
+        GuiMenuItemDef::caption => $now === '' ? aio_lpv_tr($lang, 'src_now', array('name' => $all)) : $all,
+        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
+        GuiMenuItemDef::action => aio_gc_act('lp_flt', $st['rid'], array('i' => '0'))));
+    $sel = 0;
+    foreach (aio_lpv_voices($st['lp'], $lang) as $j => $g)
+    {
+        $t = aio_lpv_tr($lang, 'lp_flt_item', array('name' => $g['name'], 'n' => $g['n'],
+            'sources' => aio_gc_plural($lang, $g['n'], 'lp_sources')));
+        if ($g['k'] === $now)
+        {
+            $sel = $j + 1;
+            $t = aio_lpv_tr($lang, 'src_now', array('name' => $t));
+        }
+        $items[] = array(
+            GuiMenuItemDef::caption => $t,
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
+            GuiMenuItemDef::action => aio_gc_act('lp_flt', $st['rid'], array('i' => strval($j + 1))));
+    }
+    return array(
+        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
+        GuiAction::data => array(
+            ShowPopupMenuActionData::menu_items => $items,
+            ShowPopupMenuActionData::selected_menu_item_index => $sel));
+}
+
+// lp_flt (i: 0 all, else the voice of aio_lpv_voices from 1) of the online list $st: the rows of that voice, the screen
+// replaced (a new rid), the yellow line gone; the cursor on its row when shown, else the first. A bad i: nothing.
+/**
+ * @param stdClass $in
+ * @param AioState $st
+ * @return AioAction|null
+ */
+function aio_lpv_flt($in, $st)
+{
+    $g = aio_lpv_voices($st['lp'], aio_gc_lang($st));
+    $i = isset($in->i) && is_string($in->i) && preg_match('/^[0-9]{1,3}\z/', $in->i) ? intval($in->i) : -1;
+    if ($i < 0 || $i > count($g))
+        return null;
+    list($sel) = aio_lpv_pos($st['lp'], null);
+    $row = aio_lpv_row_of(aio_lpv_lines($st['lp']), $sel);
+    $ns = $st;
+    $ns['rid'] = aio_rid();
+    unset($ns['lp']['flt']);
+    if ($i > 0)
+        $ns['lp']['flt'] = array($g[$i - 1]['k'], $g[$i - 1]['name']);
+    $ns['lp']['note'] = '';
+    $L = aio_lpv_lines($ns['lp']);
+    $j = aio_lpv_line_at($L, $row);
+    $ns['lp']['gc'] = aio_lpv_put($L, aio_lpv_row_of($L, $j) === $row ? $row : 0);
+    $ns['lp']['gc_new'] = true;
+    aio_log('lampac: filter ' . ($i > 0 ? $g[$i - 1]['k'] : 'off') . ', ' . count(aio_lpv_shown($ns['lp'])) . ' rows shown');
+    return aio_list_replace($ns);
+}
+
+// Lines of the online list of view $v on screen (the rows of its filter, aio_lpv_shown): the rows of a balancer in a run of 2 and more after
 // a header line of it (the cursor skips it), a row alone as one line; "Ещё N источников" last. A line:
 // k (head; row: under a header; one: alone; more), i (the row; of a head its first; of more the number
 // of rows), n (of a head the rows under it), q (the quality it shows: of a head the best of its rows, of
@@ -289,7 +522,7 @@ function aio_lpv_badge($q)
  */
 function aio_lpv_lines($v)
 {
-    $ids = array_keys($v['rows']);
+    $ids = aio_lpv_shown($v);
     $out = array();
     $c = count($ids);
     for ($a = 0; $a < $c; $a = $b)
@@ -491,7 +724,7 @@ function aio_lpv_row_items($v, $L, $j, $c, $on, $top, $lang)
     if ($l['k'] === 'row' && $j === $top)
         $vx = max($vx, $c[0] + $sw + 30);
     $d[] = aio_gc_cut(null, aio_gc_left_center(max(40, AIO_GC_LW - AIO_GC_PAD - $qw - $vx), 44, $vx),
-        $r['voice'] !== '' ? $r['voice'] : "\xE2\x80\x94", 30, $hi);
+        aio_lpv_voice_text($v, $r, $lang), 30, $hi);
     $prog = isset($v['gc_prog']) ? $v['gc_prog'] : array();
     return array_merge($d, aio_gc_bar(isset($prog[$r['key']]) ? $prog[$r['key']] : 0));
 }
@@ -519,7 +752,7 @@ function aio_lpv_card($st, $v, $sel)
         $d[] = aio_gc_cut(null, aio_gc_at($sw, 36, $sx, 64), aio_lpv_tr($lang, 'lp_side_q', array('q' => $r['quality'])),
             30, AIO_GC_TEXT2);
     $y = AIO_GC_PH + 20;
-    $fields = array(array('lp_card_voice', $r['voice'] !== '' ? $r['voice'] : "\xE2\x80\x94"));
+    $fields = array(array('lp_card_voice', aio_lpv_voice_text($v, $r, $lang)));
     $fields[] = array('lp_card_quality', $r['quality'] !== '' ? aio_lpv_tr($lang, 'lp_side_q', array('q' => $r['quality'])) :
         aio_tr($lang, 'lp_card_q_none'));
     if ($r['subs'] > 0)
@@ -537,8 +770,8 @@ function aio_lpv_card($st, $v, $sel)
 
 // The window of the online list of $st (its view 'lp'), line $sel selected, $top the first
 // on screen (aio_lpv_lines): the frame of aio_gc_window (the background, the poster, the title, the hints,
-// the counter), no tabs; on their row the yellow line of the view at the left and
-// "Откуда: Онлайн" at the right.
+// the counter); on the row of the tabs the tab of the filter (aio_lpv_flt_tab), the yellow line of the view
+// after it, "Откуда: Онлайн" at the right.
 /**
  * @param AioState $st
  * @param int $sel
@@ -586,13 +819,15 @@ function aio_lpv_window($st, $sel, $top)
     aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/popup_icon_only.png' => 52), $tt['actions']);
     $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT_Y),
         aio_lpv_counter($L, $sel));
-    // No tabs: the yellow line of the view at the left of their row, "Откуда: Онлайн" at the right.
+    // On the row of the tabs: the tab of the filter, the yellow line of the view after it, "Откуда: Онлайн" at the right.
     $right = AIO_GC_LX + AIO_GC_LW - 16;
     list($from, $fw) = aio_src_tabs_right($st, $right, AIO_GC_TABS_Y, 360);
     $d = array_merge($d, $from);
+    list($tab, $tw) = aio_lpv_flt_tab($v, $lang);
+    $d[] = aio_gc_panel('flt', aio_gc_at(AIO_GC_LW, AIO_GC_TAB_LINE_Y + AIO_GC_TAB_LINE, AIO_GC_LX, AIO_GC_TABS_Y), $tab);
     if ($v['note'] !== '')
-        $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16 - ($fw > 0 ? $fw + 40 : 0), AIO_GC_LABEL_H, AIO_GC_LX,
-            AIO_GC_TABS_Y + (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $v['note'], AIO_GC_HINT_PX, AIO_GC_AMBER);
+        $d[] = aio_gc_cut(null, aio_gc_at(max(100, AIO_GC_LW - 16 - ($fw > 0 ? $fw + 40 : 0) - $tw), AIO_GC_LABEL_H,
+            AIO_GC_LX + $tw, AIO_GC_TABS_Y + (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $v['note'], AIO_GC_HINT_PX, AIO_GC_AMBER);
     return aio_gc_window_def($d, $mv['fanart']);
 }
 
@@ -631,7 +866,8 @@ function aio_lpv_folder_view($st, $sel_state)
         GUI_EVENT_KEY_P_MINUS => aio_gc_act('lp_move', $rid, array('d' => 'pgdn')),
         GUI_EVENT_KEY_ENTER => aio_gc_act('lp_pick', $rid),
         GUI_EVENT_MENU_PLAYBACK_FINISH => aio_finish_act($rid),
-        GUI_EVENT_KEY_POPUP_MENU => aio_gc_act('lp_menu', $rid));
+        GUI_EVENT_KEY_POPUP_MENU => aio_gc_act('lp_menu', $rid),
+        GUI_EVENT_KEY_A_RED => aio_gc_act('lp_flt_menu', $rid));
     // An episode: left and right flip the episodes of the season (aio_lpv_flip).
     if ($st['e'] > 0)
     {
@@ -722,8 +958,8 @@ function aio_lpv_finish($st)
     return aio_gc_changes_act($ch, $sel, $top);
 }
 
-// --- MENU of the online list (A4): "Обновить", "Выбрать серию" (an episode), "Откуда брать…",
-// "Ошибки источников", "Настройки".
+// --- MENU of the online list (A4): "Озвучка: …" (aio_gc_keys_in_menu: the red key), "Обновить", "Выбрать серию"
+// (an episode), "Откуда брать…", "Ошибки источников", "Настройки".
 
 /**
  * @param AioState $st
@@ -733,10 +969,17 @@ function aio_lpv_menu($st)
 {
     $lang = $st['lang'];
     $rid = $st['rid'];
-    $menu = array(array(
+    $menu = array();
+    if (aio_gc_keys_in_menu())
+        $menu[] = array(
+            GuiMenuItemDef::caption => aio_lpv_tr($lang, 'lp_flt_menu', array('name' => isset($st['lp']['flt']) ?
+                $st['lp']['flt'][1] : aio_tr($lang, 'lp_flt_any'))),
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
+            GuiMenuItemDef::action => aio_gc_act('lp_flt_menu', $rid));
+    $menu[] = array(
         GuiMenuItemDef::caption => aio_tr($lang, 'refresh_menu'),
         GuiMenuItemDef::icon_url => 'gui_skin://small_icons/upgrade.aai',
-        GuiMenuItemDef::action => aio_gc_act('lp_refresh', $rid)));
+        GuiMenuItemDef::action => aio_gc_act('lp_refresh', $rid));
     // As the releases (aio_gc_menu): with a card of the Dune only.
     if ($st['e'] > 0 && $st['movie']['dune_id'] !== '' && empty($st['movie']['own_card']))
         $menu[] = array(
@@ -819,6 +1062,8 @@ function aio_lpv_search_open($st, $how, $opt = array())
         $v = $st['lp'];
         unset($v['gc'], $v['gc_new'], $v['gc_prog']);
     }
+    else if (isset($st['lp']['flt']))
+        $v['flt'] = $st['lp']['flt'];
     $run = array('sid' => $sid, 'st' => $st, 'how' => $how, 'mark' => !empty($opt['mark']), 'back' => !empty($opt['back']),
         'path' => isset($opt['path']) ? $opt['path'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null,
         'v' => $v, 't1' => $more ? aio_lp_now() : 0.0, 'more' => $more ? count($v['rows']) : -1);
@@ -1040,6 +1285,7 @@ function aio_lpv_result($run)
     $v['rows'] = $rows;
     $v['left'] = max(0, $left);
     $v['note'] = $note;
+    $v = aio_lpv_flt_keep($v, $st);
     $v['gc'] = aio_lpv_put(aio_lpv_lines($v), $sel);
     $v['gc_new'] = true;
     $ns = $st;
@@ -1402,12 +1648,14 @@ function aio_lpv_input($in, $control)
         return aio_lpv_move($in, $st);
     if ($control === 'lp_pick')
         return aio_lpv_pick($in, $st);
-    if ($control === 'lp_menu')
+    if ($control === 'lp_menu' || $control === 'lp_flt_menu')
     {
         list($sel, $top) = aio_lpv_pos($st['lp'], isset($in->parent_sel_state) ? $in->parent_sel_state : null);
         Aio::$state['lp']['gc'] = array($sel, $top);
-        return aio_lpv_menu($st);
+        return $control === 'lp_menu' ? aio_lpv_menu($st) : aio_lpv_flt_menu($st);
     }
+    if ($control === 'lp_flt')
+        return aio_lpv_flt($in, Aio::$state);
     if ($control === 'lp_flip')
         return aio_lpv_flip($in, $st);
     if ($control === 'lp_choose')
