@@ -499,7 +499,8 @@ function aio_mlv_open($w, $from)
 
 // The items of POP UP of tile $id of screen $from (after those of a tile: aio_catv_tile_menu): on the screen
 // "Мой список" (of a type too) and on a tile of the row "Мой список" "Добавить из «Избранного» Дюны" (its first input,
-// aio_mlv_import_ask; the Favorites not read for the menu); none on another.
+// aio_mlv_import_ask; the Favorites not read for the menu); on the screen "Продолжить" (of a type too; any tile, "Пусто"
+// too) "Вернуть убранные (N)" when N of all types are off the row (aio_cp_hidden_n, aio_cp_unhide_act); none on another.
 /**
  * @param string $id
  * @param string $from
@@ -509,6 +510,14 @@ function aio_mlv_open($w, $from)
 function aio_mlv_menu_items($id, $from, $lang)
 {
     $sc = aio_mlv_screen($from);
+    if ($sc && $sc[0] === AIO_MLV_CONT)
+    {
+        $n = aio_cp_hidden_n();
+        return $n ? array(array(
+            GuiMenuItemDef::caption => sprintf(aio_tr($lang, 'cp_unhide'), $n),
+            GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'recent_small.png',
+            GuiMenuItemDef::action => aio_input('cat_unhide', array('from' => $from)))) : array();
+    }
     list(, $x) = aio_catv_id_mode($id);
     if (!($sc && $sc[0] === AIO_MLV_LIST) && strpos($x, AIO_ML_RID . ':') !== 0)
         return array();

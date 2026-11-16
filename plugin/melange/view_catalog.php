@@ -3025,6 +3025,8 @@ function aio_catv_input($in, $control)
         return aio_catv_rows_apply($in, $from);
     if ($control === 'cat_hide')
         return aio_cp_hide_act($in);
+    if ($control === 'cat_unhide')
+        return aio_cp_unhide_act($from);
     if ($control === 'cat_mark')
         return aio_cp_mark($in);
     if ($control === 'cat_ml')
