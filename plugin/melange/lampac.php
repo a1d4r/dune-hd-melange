@@ -143,8 +143,8 @@ function aio_lp_version($body)
 // Link $url as it goes to Lampac $base (AioLp::$auth): to the host:port of $base token= and, as
 // Lampa, uid= added when the link has none (Lampac 1.90.1 takes them only from the query and puts
 // them in no link of a row, a season, a voice or "call"), the User-Agent of Lampa; to another host
-// as it is. The link to play stays as it came: only a check of it goes so. -> array(the link, the
-// User-Agent: '' that of Melange).
+// as it is. Not the link to play nor its check (aio_lp_check): those go as the player asks them. ->
+// array(the link, the User-Agent: '' that of Melange).
 /**
  * @param string $url
  * @param string $base
@@ -1684,14 +1684,12 @@ function aio_lp_check($base, $url, $total = AIO_LP_CHECK_MAX)
             $each = min(AIO_LP_CHECK_EACH, $left);
             $hls = (bool) preg_match('~\.m3u8?(?:[?#]|\z)~i', $u);
             $err = '';
-            list($su, $ua) = aio_lp_send($u, $base);
-            list($code, $body) = aio_http_range($su, $hls ? AIO_LP_HLS_HEAD : 1, $err, min(AIO_LP_CONNECT, $each), $each, '',
-                $ua);
+            list($code, $body) = aio_http_range($u, $hls ? AIO_LP_HLS_HEAD : 1, $err, min(AIO_LP_CONNECT, $each), $each);
             // A file of "#": a playlist after all (a link without .m3u8, a redirect to one).
             if (!$hls && $err === '' && $body === '#')
             {
                 $hls = true;
-                list($code, $body) = aio_http_range($su, AIO_LP_HLS_HEAD, $err, min(AIO_LP_CONNECT, $each), $each, '', $ua);
+                list($code, $body) = aio_http_range($u, AIO_LP_HLS_HEAD, $err, min(AIO_LP_CONNECT, $each), $each);
             }
             if ($err !== '' && $code === 0)
                 $c = array('class' => 'unclear', 'url' => $u, 'why' => 'down', 'detail' => $err, 'hls' => $hls,

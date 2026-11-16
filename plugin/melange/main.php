@@ -1319,9 +1319,9 @@ if (!function_exists('aio_http_range'))
     // its first $max bytes). A server without Range sends the whole file (200):
     // the transfer stops at $max all the same. $auth: "login:password" of Basic
     // auth ('' none), no redirects then: curl sends it to another port of the
-    // host. $ua: the User-Agent ('' that of aio_http_peek). $err is set on a
-    // transport error, the code and the bytes that came are returned all the same.
-    function aio_http_range($url, $max, &$err, $connect, $total, $auth = '', $ua = '')
+    // host. $err is set on a transport error, the code and the bytes that came
+    // are returned all the same.
+    function aio_http_range($url, $max, &$err, $connect, $total, $auth = '')
     {
         $body = '';
         $full = false;
@@ -1338,7 +1338,7 @@ if (!function_exists('aio_http_range'))
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             // The User-Agent of aio_http_peek.
-            CURLOPT_USERAGENT => $ua !== '' ? $ua : 'AIOStreams-DuneClient/' . AIO_VERSION,
+            CURLOPT_USERAGENT => 'AIOStreams-DuneClient/' . AIO_VERSION,
             CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$full, $max)
             {
                 $body .= substr($chunk, 0, $max - strlen($body));
