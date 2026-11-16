@@ -100,7 +100,8 @@ class AioCpm
     /** @var string */
     public static $sig = '';
     // The tiles of the row of the main screen built last (aio_catv_main_view, aio_cp_row_defs) with no tile of a row
-    // in memory and none here, in its order: array(type, IMDb, TMDB); for the step. Not of the tab "TV".
+    // in memory and none here, in its order: array(type, IMDb, TMDB); for the step; again after a tick of it paired
+    // cards (aio_pg_tick). Not of the tab "TV".
     /** @var list<array{string, string, string}> */
     public static $miss = array();
     // The same of the row "Мой список" (our list, not the Favorites of the Dune) of that screen (aio_ml_row_defs): asked

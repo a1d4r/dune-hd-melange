@@ -1339,15 +1339,20 @@ function aio_catv_main_view($media_url, $sel_state)
         aio_log("catalog: screen: $tab: all " . count($rows) . ' rows empty');
         return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, true), $sel_state, $media_url);
     }
-    aio_pg_screen_start();
+    // Built again by a tick of its own that got meta (aio_pg_anew): no opening - its ticks go on (aio_pg_tick_set).
+    $anew = aio_pg_anew($media_url);
+    AioPgLinks::$anew = '';
+    if (!$anew)
+        aio_pg_screen_start();
     // The row "Continue" first, of the history, then "Мой список" of the tab: ready at once, the meta of their tiles
     // first (aio_cpm_build: kept, of the rows in memory or on the disk, else asked in AIO_CPM_BUILD_S; r24 in what is
     // left of AIO_CATV_OPEN_S but AIO_CATV_OPEN_ROW_S, under AIO_CPM_MIN_S none asked). Their tiles with no meta still
     // are for the lazy meta of this screen (aio_cpm_step), those of "Continue" first. Built again by the tick of a
     // screen of Fav over it (aio_mlv_under): none asked, the ticks of that screen ask; its own timer still (after Back the
-    // lazy step goes on), its ticks wait for those of that screen (aio_pg_tick, AIO_PG_FAV_QUIET_S).
+    // lazy step goes on), its ticks wait for those of that screen (aio_pg_tick, AIO_PG_FAV_QUIET_S). Built again by its
+    // own tick: none asked either, its next ticks ask.
     $under = aio_mlv_under($media_url);
-    aio_cpm_build($tab, $under !== '' ? 0.0 : ($loading ? AIO_CPM_BUILD_S :
+    aio_cpm_build($tab, $under !== '' || $anew ? 0.0 : ($loading ? AIO_CPM_BUILD_S :
         max(0.0, min(AIO_CPM_BUILD_S, AIO_CATV_OPEN_S - (microtime(true) - $rows_t0) - AIO_CATV_OPEN_ROW_S))));
     $defs = array_merge(aio_cp_row_defs($tab, $lang, $cp_tiles, $miss), aio_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss));
     AioCpm::$miss = $miss;
@@ -1403,7 +1408,7 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     if (!$defs)
         return aio_catv_message_view('cat_unavailable', $lang, $media_url);
-    return aio_catv_rows_view($defs, $sel_state, $media_url, $loading && aio_pg_tick_set($media_url));
+    return aio_catv_rows_view($defs, $sel_state, $media_url, $loading && aio_pg_tick_set($media_url, $anew));
 }
 
 // The rows of the tab $rows (aio_cat_user_rows) the main screen shows (aio_catv_main_view; the link of a row,
@@ -3027,10 +3032,14 @@ function aio_catv_input($in, $control)
         $url = aio_catv_more_url(aio_catv_in($in, 'cat_more'));
         return $url !== '' ? aio_catv_all_open($url) : null;
     }
-    // The tick of the timer of the main screen: the lazy step; more to ask - the timer again (as aio_catv_all_tick), else
-    // nothing in the reply.
+    // The tick of the timer of the main screen: the lazy step; more to ask - the timer again (as aio_catv_all_tick); some
+    // meta got - the screen built again with it (aio_pg_tick_anew), its view sets the timer; else nothing in the reply.
     if ($control === 'cat_tick' && aio_catv_is_main($from))
-        return aio_pg_tick($from) ? aio_catv_tick_again($from) : null;
+    {
+        if (aio_pg_tick($from))
+            return aio_catv_tick_again($from);
+        return aio_pg_anew($from) ? aio_catv_invalidate($from) : null;
+    }
     // The tick of the screen "Продолжить" or "Мой список": the lazy step of its tiles, the screen anew with what came.
     if ($control === 'cat_tick' && aio_mlv_is_screen($from))
         return aio_mlv_tick($from);

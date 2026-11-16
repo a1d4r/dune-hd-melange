@@ -321,6 +321,18 @@ function aio_cp_tile_items($types, $max, &$miss = null)
     return $out;
 }
 
+// The tiles of the row of tab $tab ('' both) of a pair with no meta, as aio_cp_row_defs gives them ($miss of
+// aio_cp_tile_items, in its order): AioCpm::$miss again after a tick of the main screen paired cards (aio_pg_tick).
+/**
+ * @param string $tab
+ * @return list<array{string, string, string}>
+ */
+function aio_cp_row_miss($tab)
+{
+    aio_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), AIO_CATV_ROW_TILES, $miss);
+    return $miss;
+}
+
 // The row of the types $types ($tab: 'movie', 'series', '' both) for a screen of rows: its title and tiles
 // (aio_cp_tile_items), no "Show all" tile (ENTER on its title: the screen of all of them of its type), no flag; none
 // when it is empty. $tiles: its tiles by "continue:<movie_id>" (the file of the tab "TV"); $miss: those of a pair with

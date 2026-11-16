@@ -43,6 +43,9 @@ define('AIO_PG_ROWS_QUIET_S', 0.5);
 // r25: a tick of the main screen this soon after the end of a tick of a screen of Fav (AioMlv::$tick_t; its timer may
 // tick over the main one): no step, the timer again, not one of the ticks of the opening (AIO_PG_TICK_MAX).
 define('AIO_PG_FAV_QUIET_S', 3.0);
+// r25: a view of the main screen within this many s of a tick of it that got the meta of tiles (aio_pg_tick_anew: the
+// shell builds it again at once) is of that tick, not an opening.
+define('AIO_PG_ANEW_S', 5.0);
 // A reply of the API this small is decoded whole when its code is not before "result".
 define('AIO_PG_HEAD_MAX', 65536);
 // Episodes of a season the pairs and their parse take at most.
@@ -76,6 +79,11 @@ class AioPgLinks
     public static $ticks = 0;
     /** @var string */
     public static $stop = '';
+    // r25: the main screen the last tick built again ('': none; aio_pg_tick_anew) and when (microtime).
+    /** @var string */
+    public static $anew = '';
+    /** @var float */
+    public static $anew_t = 0.0;
     /** @var float */
     public static $rows_t = 0.0;
 }
@@ -99,13 +107,16 @@ function aio_pg_screen_start()
 // r25: a screen of Melange $url is asked of get_folder_view (aio_folder_view): another than the main screen of the
 // timer - no more ticks of it (a tick under that screen would hold php_server), a line. Not a screen the tick of a
 // screen of Fav invalidated, within the window of it (aio_mlv_inv: the shell builds them again, the main one under it
-// with its timer; its ticks wait for those of that screen, AIO_PG_FAV_QUIET_S).
+// with its timer; its ticks wait for those of that screen, AIO_PG_FAV_QUIET_S). Another screen than the one a tick built
+// again (AioPgLinks::$anew): that one no more of it.
 /**
  * @param string $url
  * @return void
  */
 function aio_pg_view_asked($url)
 {
+    if ($url !== AioPgLinks::$anew)
+        AioPgLinks::$anew = '';
     if (AioPgLinks::$tick_url === '' || $url === AioPgLinks::$tick_url || aio_mlv_inv($url) !== '')
         return;
     AioPgLinks::$tick_url = '';
@@ -145,14 +156,28 @@ function aio_pg_screen_built($left, $net)
 // there is more to ask: aio_pg_tick_again), after the rows of the window of the shell (get_folder_rows), as php_server
 // answers one call at a time. A timer with more to ask (aio_pg_tick_why); a line of the log when a pause or the
 // catalog server down holds it, of no dune_auth once till it comes (AioPgLinks::$no_auth, as aio_pg_token). Back to
-// the screen with no get_folder_view: no timer, no step. -> the timer is set.
+// the screen with no get_folder_view: no timer, no step. Built again by a tick of it ($anew, aio_pg_anew): the ticks of
+// the opening go on - the timer under AIO_PG_TICK_MAX of them with more to ask, a line as of aio_pg_tick_again. -> the
+// timer is set.
 /**
  * @param string $url
+ * @param bool $anew
  * @return bool
  */
-function aio_pg_tick_set($url)
+function aio_pg_tick_set($url, $anew = false)
 {
     AioPgLinks::$screen = $url;
+    if ($anew)
+    {
+        $n = AioPgLinks::$ticks;
+        $why = $n >= AIO_PG_TICK_MAX ? 'limit' : aio_pg_tick_why();
+        AioPgLinks::$tick_url = $why === '' ? $url : '';
+        if ($why !== '')
+            AioPgLinks::$stop = $why;
+        aio_log(sprintf('link: tick %d/%d: the screen anew, %s', $n, AIO_PG_TICK_MAX,
+            $why === '' ? 'again in ' . AIO_PG_TICK_MS . ' ms' : "no more, $why"));
+        return $why === '';
+    }
     $why = aio_pg_tick_why();
     if ($why === 'pause')
         aio_log(sprintf('link: no timer: a pause of the requests, %d s left', max(aio_pg_paused(), aio_cpm_paused())));
@@ -178,13 +203,16 @@ function aio_pg_tick_set($url)
 // within AIO_PG_FAV_QUIET_S of the end of a tick of a screen of Fav (the main one under it or just after Back: the
 // timer again, not one of AIO_PG_TICK_MAX; no two timers asking at once), a tick after the last one of the screen, a
 // tick of another or an old one, a tick with no screen since the start of php_server. A line of the log of each, in its
-// own words. -> the timer again (aio_catv_input: change_behaviour).
+// own words. Cards paired: the tiles of the row "Continue" with no meta again (AioCpm::$miss, aio_cp_row_miss), theirs
+// asked in the same tick. Some meta got: the screen built again (aio_pg_tick_anew), no timer again here. -> the timer
+// again (aio_catv_input: change_behaviour).
 /**
  * @param string $url
  * @return bool
  */
 function aio_pg_tick($url)
 {
+    AioPgLinks::$anew = '';
     if ($url === '' || AioPgLinks::$tick_url !== $url)
     {
         if (AioPgLinks::$screen === '')
@@ -211,10 +239,42 @@ function aio_pg_tick($url)
     {
         $t = microtime(true);
         $rounds = 0;
-        aio_pg_link_step(min(AIO_PG_LINK_S, AIO_CPM_TICK_S), true, $rounds);
-        aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $rounds, true);
+        $pairs = 0;
+        aio_pg_link_step(min(AIO_PG_LINK_S, AIO_CPM_TICK_S), true, $rounds, $pairs);
+        if ($pairs)
+            AioCpm::$miss = aio_cp_row_miss(aio_catv_tab($url));
+        $got = aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $rounds, true);
+        if ($got)
+            return aio_pg_tick_anew($url, $got);
     }
     return aio_pg_tick_again($url);
+}
+
+// r25: a tick of the main screen $url got the meta of $got tiles: the screen built again with them (aio_catv_input:
+// invalidate of it, the focus by sel_state - device r25), its view the one of this tick (aio_pg_anew; its timer
+// aio_pg_tick_set); a line. -> false: no timer again here.
+/**
+ * @param string $url
+ * @param int $got
+ * @return bool
+ */
+function aio_pg_tick_anew($url, $got)
+{
+    AioPgLinks::$anew = $url;
+    AioPgLinks::$anew_t = microtime(true);
+    aio_log(sprintf('link: tick %d/%d: %d got, the screen anew', AioPgLinks::$ticks, AIO_PG_TICK_MAX, $got));
+    return false;
+}
+
+// r25: main screen $url is the one the last tick built again (aio_pg_tick_anew) within AIO_PG_ANEW_S of it.
+/**
+ * @param string $url
+ * @return bool
+ */
+function aio_pg_anew($url)
+{
+    $ago = microtime(true) - AioPgLinks::$anew_t;
+    return $url !== '' && AioPgLinks::$anew === $url && $ago >= 0 && $ago < AIO_PG_ANEW_S;
 }
 
 // r25: after a tick of the main screen $url: the timer again (AIO_PG_TICK_AGAIN_MS) with more to ask
