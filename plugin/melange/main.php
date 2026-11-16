@@ -1712,6 +1712,7 @@ function aio_speed_str($bps, $lang, $zero = false)
 function aio_folder_view($media_url, $sel_state)
 {
     aio_pg_view_asked($media_url);
+    aio_mlv_view_asked($media_url);
     // "setup:<n>": the same screen redrawn by aio_setup_refresh; a first run: the
     // settings in place of the catalog until AIOStreams is set.
     if ($media_url === 'setup' || strpos($media_url, 'setup:') === 0 ||

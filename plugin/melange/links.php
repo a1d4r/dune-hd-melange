@@ -226,19 +226,21 @@ function aio_pg_tick_again($url)
     return false;
 }
 
-// r25: why a tick would ask nothing (aio_pg_tick_set, aio_pg_tick_again) -> '': a meta of the row "Continue" to ask
-// (aio_cpm_todo) with no pause of it and the catalog server not down, or a card to ask (aio_pg_link_queue) with no pause
-// and dune_auth; else 'pause' (of either queue), 'server down' (the catalog server, of the meta), 'no dune_auth',
-// 'queue empty'.
+// r25: why a tick would ask nothing (aio_pg_tick_set, aio_pg_tick_again; of the screen "Продолжить" or "Мой список":
+// its tiles $titles, the cards with $pairs) -> '': a meta of the row "Continue" to ask (aio_cpm_todo) with no pause of
+// it and the catalog server not down, or a card to ask (aio_pg_link_queue) with no pause and dune_auth; else 'pause'
+// (of either queue), 'server down' (the catalog server, of the meta), 'no dune_auth', 'queue empty'.
 /**
+ * @param list<array{string, string, string}>|null $titles
+ * @param bool $pairs
  * @return string
  */
-function aio_pg_tick_why()
+function aio_pg_tick_why($titles = null, $pairs = true)
 {
-    $cpm = aio_cpm_todo() !== array();
+    $cpm = aio_cpm_todo($titles) !== array();
     if ($cpm && !aio_cpm_paused() && !aio_catv_is_down())
         return '';
-    $q = aio_pg_link_queue() !== array();
+    $q = $pairs && aio_pg_link_queue() !== array();
     if ($q && !aio_pg_paused() && aio_card_token() !== '')
         return '';
     if (($q && aio_pg_paused()) || ($cpm && aio_cpm_paused()))
@@ -1079,14 +1081,15 @@ function aio_pg_link_queue()
 // with AIO_PG_LINK_NEXT_S left; a $tick, aio_pg_tick: one). None in a pause (aio_pg_paused) or with no dune_auth.
 // One line of the log of a step that asked (its path: aio_http_mark); of a $tick always. -> how many were asked (only
 // the tests read it); $rounds: the requests in time - a batch one, one by one each: the callers take it off AIO_CPM_N,
-// the $n of aio_cpm_step.
+// the $n of aio_cpm_step; $pairs: the pairs got (the tick of the screen "Продолжить" builds it anew for them).
 /**
  * @param float $limit
  * @param bool $tick
  * @param int $rounds
+ * @param int $pairs
  * @return int
  */
-function aio_pg_link_step($limit, $tick = false, &$rounds = 0)
+function aio_pg_link_step($limit, $tick = false, &$rounds = 0, &$pairs = 0)
 {
     $t = microtime(true);
     $n = 0;
@@ -1121,5 +1124,6 @@ function aio_pg_link_step($limit, $tick = false, &$rounds = 0)
     if ($n || $tick)
         aio_log(sprintf('link: %s: %d asked, %d pairs, %.0f ms%s', $tick ? 'tick' : 'step', $n, $got, (microtime(true) - $t) * 1000,
             $mark !== '' ? ", $mark" : ''));
+    $pairs = $got;
     return $n;
 }

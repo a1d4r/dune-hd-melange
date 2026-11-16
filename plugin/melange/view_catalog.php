@@ -2073,7 +2073,24 @@ function aio_catv_tick_again($url)
             ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => AIO_PG_TICK_AGAIN_MS)));
 }
 
-// The actions of "Show all"; with stubs, the tick of the timer too.
+// The view of "Show all" $url (or "Продолжить", "Мой список": aio_mlv_tick) again with its timer in $ms:
+// change_behaviour, its actions whole (aio_catv_all_actions with the tick) and the Fav keys (aio_mlv_key_acts); the
+// focus and the tiles stay.
+/**
+ * @param string $url
+ * @param int $ms
+ * @return AioAction
+ */
+function aio_catv_all_again($url, $ms)
+{
+    return array(
+        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
+        GuiAction::data => array(
+            ChangeBehaviourActionData::actions => aio_catv_all_actions($url, true) + aio_mlv_key_acts($url),
+            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => $ms)));
+}
+
+// The actions of "Show all"; with stubs (or a timer of its own, $stubs too), the tick of the timer too.
 /**
  * @param string $url
  * @param bool $stubs
@@ -2088,15 +2105,17 @@ function aio_catv_all_actions($url, $stubs)
 }
 
 // The screen of the rows $rows: the pane of get_rows_pane of movie_list_screen.php r25, the
-// panel and the template of the catalog. $dup: row_dup_map, null without stubs; with them the timer.
+// panel and the template of the catalog. $dup: row_dup_map, null without stubs; with them the timer. $timer_ms: a timer
+// of no stubs in that many ms ("Продолжить", "Мой список": aio_mlv_view), 0 none.
 /**
  * @param list<array<string, mixed>> $rows
  * @param array<string, array<string, mixed>>|null $dup
  * @param mixed $sel_state
  * @param string $url
+ * @param int $timer_ms
  * @return array<string, mixed>
  */
-function aio_catv_all_pane($rows, $dup, $sel_state, $url)
+function aio_catv_all_pane($rows, $dup, $sel_state, $url, $timer_ms = 0)
 {
     array_unshift($rows, array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 20, PluginRow::id => 'top_vgap'));
     $r = aio_catv_pane_r(false);
@@ -2132,8 +2151,9 @@ function aio_catv_all_pane($rows, $dup, $sel_state, $url)
         PluginFolderView::data => array(
             PluginRowsFolderView::pane => $pane,
             PluginRowsFolderView::sel_state => is_string($sel_state) && $sel_state !== '' ? $sel_state : null,
-            PluginRowsFolderView::actions => aio_catv_all_actions($url, $dup !== null),
-            PluginRowsFolderView::timer => $dup !== null ? array(GuiTimerDef::delay_ms => AIO_CATV_ALL_TICK_MS) : null));
+            PluginRowsFolderView::actions => aio_catv_all_actions($url, $dup !== null || $timer_ms > 0),
+            PluginRowsFolderView::timer => $dup !== null || $timer_ms > 0 ?
+                array(GuiTimerDef::delay_ms => $dup !== null ? AIO_CATV_ALL_TICK_MS : $timer_ms) : null));
 }
 
 // The screen "Show all" (aio_catv_all_list). Its first row is never flagged (a flagged
@@ -2733,11 +2753,7 @@ function aio_catv_all_tick($url)
         else
         {
             $what = 'change_behaviour';
-            $act = array(
-                GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
-                GuiAction::data => array(
-                    ChangeBehaviourActionData::actions => aio_catv_all_actions($url, true) + aio_mlv_key_acts($url),
-                    ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => AIO_CATV_ALL_TICK_MS)));
+            $act = aio_catv_all_again($url, AIO_CATV_ALL_TICK_MS);
         }
     }
     if ($what !== AioCat::$all_tick_last)
@@ -3011,6 +3027,9 @@ function aio_catv_input($in, $control)
     // nothing in the reply.
     if ($control === 'cat_tick' && aio_catv_is_main($from))
         return aio_pg_tick($from) ? aio_catv_tick_again($from) : null;
+    // The tick of the screen "Продолжить" or "Мой список": the lazy step of its tiles, the screen anew with what came.
+    if ($control === 'cat_tick' && aio_mlv_is_screen($from))
+        return aio_mlv_tick($from);
     if ($control === 'cat_tick')
         return aio_catv_all_tick($from);
     if ($control === 'cat_retry')
