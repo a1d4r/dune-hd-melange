@@ -207,8 +207,9 @@ function aio_pg_tick_set($url, $anew = false)
 // timer again, not one of AIO_PG_TICK_MAX; no two timers asking at once), a tick after the last one of the screen, a
 // tick of another or an old one, a tick with no screen since the start of php_server. A line of the log of each, in its
 // own words. The tiles of the row "Continue" of the screen paired first (aio_cp_row_mids). Cards paired: the tiles of
-// that row with no meta again (AioCpm::$miss, aio_cp_row_miss), theirs asked in the same tick. Some meta got: the
-// screen built again (aio_pg_tick_anew), no timer again here. -> the timer again (aio_catv_input: change_behaviour).
+// that row with no meta again (AioCpm::$miss, aio_cp_row_miss), theirs asked in the same tick. The meta of a tile of
+// the screen got (AioCpm::$miss, AioCpm::$ml; not of AioCpm::$more, a screen of Fav): the screen built again
+// (aio_pg_tick_anew), no timer again here. -> the timer again (aio_catv_input: change_behaviour).
 /**
  * @param string $url
  * @return bool
@@ -247,9 +248,14 @@ function aio_pg_tick($url)
         aio_pg_link_step(min(AIO_PG_LINK_S, AIO_CPM_TICK_S), true, $rounds, $pairs, null, aio_cp_row_mids($tab));
         if ($pairs)
             AioCpm::$miss = aio_cp_row_miss($tab);
+        $mine = aio_cpm_queue(array_merge(AioCpm::$miss, AioCpm::$ml));
         $got = aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $rounds, true);
-        if ($got)
-            return aio_pg_tick_anew($url, $got);
+        $c = $got ? aio_cpm_read() : array();
+        $shown = 0;
+        foreach ($got ? $mine : array() as $m)
+            $shown += aio_cpm_tile($m[0], $m[1], $m[2], $c) ? 1 : 0;
+        if ($shown)
+            return aio_pg_tick_anew($url, $shown);
     }
     return aio_pg_tick_again($url);
 }
@@ -279,6 +285,19 @@ function aio_pg_anew($url)
 {
     $ago = microtime(true) - AioPgLinks::$anew_t;
     return $url !== '' && AioPgLinks::$anew === $url && $ago >= 0 && $ago < AIO_PG_ANEW_S;
+}
+
+// r25: main screen $url is being built: is it the one the last tick built again (aio_pg_anew)? That is no more after
+// it, whatever the view gives (a message, no rows): the next view of it an opening.
+/**
+ * @param string $url
+ * @return bool
+ */
+function aio_pg_anew_take($url)
+{
+    $anew = aio_pg_anew($url);
+    AioPgLinks::$anew = '';
+    return $anew;
 }
 
 // r25: after a tick of the main screen $url: the timer again (AIO_PG_TICK_AGAIN_MS) with more to ask

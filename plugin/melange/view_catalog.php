@@ -1296,6 +1296,9 @@ function aio_catv_main_view($media_url, $sel_state)
     $lang = aio_catv_lang();
     AioCat::$lang = $lang;
     $tab = aio_catv_tab($media_url);
+    // Built again by a tick of its own that got meta (aio_pg_anew_take): no opening - its ticks go on
+    // (aio_pg_tick_set).
+    $anew = aio_pg_anew_take($media_url);
     // A switch of the tab (aio_catv_strip_enter): the shell brings no sel_state, the focus goes
     // to the tab pressed. Else none of ours: at an opening the focus is on the panel.
     if ((!is_string($sel_state) || $sel_state === '') && $media_url === aio_catv_main_url($tab))
@@ -1339,9 +1342,6 @@ function aio_catv_main_view($media_url, $sel_state)
         aio_log("catalog: screen: $tab: all " . count($rows) . ' rows empty');
         return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, true), $sel_state, $media_url);
     }
-    // Built again by a tick of its own that got meta (aio_pg_anew): no opening - its ticks go on (aio_pg_tick_set).
-    $anew = aio_pg_anew($media_url);
-    AioPgLinks::$anew = '';
     if (!$anew)
         aio_pg_screen_start();
     // The row "Continue" first, of the history, then "Мой список" of the tab: ready at once, the meta of their tiles
