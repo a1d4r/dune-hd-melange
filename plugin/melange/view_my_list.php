@@ -5,7 +5,7 @@
 // AIO_CATV_ALL_COLS with the info panel, on r24 the grid): "Мой список" the entries of its file in their order,
 // "Продолжить" all the cards of the row "Continue" (continue.php), not AIO_CATV_ROW_TILES; the meta of their tiles of
 // no request at the opening (aio_cpm_local), then r25 the ticks of a timer of the screen (aio_mlv_tick), r24 the first
-// tiles asked in the opening (aio_mlv_open_net). The ways to them: the heart and the clock on the strip of the catalog
+// tiles asked in the opening (aio_cpm_ask_due). The ways to them: the heart and the clock on the strip of the catalog
 // and in its POP UP (aio_catv_strip_rows, aio_catv_menu) and the keys Fav 2 (key_favorites: "Мой список") and Fav 1
 // (key_dune: "Продолжить") of the remote on every screen of Melange (aio_mlv_keys; the player has no folder view). An empty
 // "Мой список": the hint tile, its POP UP the import of the Favorites of the Dune (aio_mlv_import). The file, the
@@ -65,16 +65,17 @@ class AioMlv
     /** @var array<string, bool> */
     public static $opened = array();
     // r25: the screen whose timer is set (aio_mlv_view, aio_mlv_tick; '': none, or its tick came), the ticks of its
-    // opening, the tiles and pairs they got, the tiles of it with no meta of its view last built (array(type, IMDb,
-    // TMDB): the queue of its ticks), when its last tick ended (microtime; 0: none).
+    // opening, the tiles of it with no meta of its view last built (array(type, IMDb, TMDB), of its first
+    // AIO_CPM_SCREEN_MAX: the queue of its ticks), the cards of them with no pair ("Продолжить": the pairs its ticks
+    // ask), when its last tick ended (microtime; 0: none).
     /** @var string */
     public static $tick_url = '';
     /** @var int */
     public static $ticks = 0;
-    /** @var int */
-    public static $got = 0;
     /** @var list<array{string, string, string}> */
     public static $miss = array();
+    /** @var list<string> */
+    public static $cards = array();
     /** @var float */
     public static $tick_t = 0.0;
     // The screen a tick invalidated ('': none) and when (microtime): its next view is no opening.
@@ -298,16 +299,19 @@ function aio_mlv_list_cells($types, $max, &$miss = null)
 
 // The titles of the tiles of screen $sc (aio_mlv_screen) in their order, as aio_mlv_cells has them: array(type, IMDb,
 // TMDB) of the entries of "Мой список", of the pairs of the cards of "Продолжить" (aio_cp_ids; none of a card with no
-// pair: '' both).
+// pair: '' both). $mids: the movie_id of each, in that order ('' of an entry of the list).
 /**
  * @param array{string, string} $sc
+ * @param list<string>|null $mids
+ * @param-out list<string> $mids
  * @return list<array{string, string, string}>
  */
-function aio_mlv_titles($sc)
+function aio_mlv_titles($sc, &$mids = null)
 {
     $max = AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS;
     $types = aio_mlv_types($sc[1]);
     $out = array();
+    $mids = array();
     if ($sc[0] === AIO_MLV_LIST)
     {
         foreach (aio_ml_list() as $e)
@@ -315,20 +319,45 @@ function aio_mlv_titles($sc)
             if (count($out) >= $max)
                 break;
             if (in_array($e['type'], $types, true))
+            {
                 $out[] = array($e['type'], $e['imdb_id'], $e['_tmdbId']);
+                $mids[] = '';
+            }
         }
         return $out;
     }
     $idx = aio_pg_index();
     foreach (aio_cp_items($types, $max) as $mid => $it)
+    {
         $out[] = aio_cp_ids(strval($mid), $idx[strval($mid)]['series'] ? true : false);
+        $mids[] = strval($mid);
+    }
     return $out;
+}
+
+// The titles of screen $sc whose meta it keeps and asks: its first AIO_CPM_SCREEN_MAX (aio_mlv_titles), their keys
+// kept over the other ones of the file (AioCpm::$hold), the cards of them with no pair to ask (AioMlv::$cards).
+/**
+ * @param array{string, string} $sc
+ * @return list<array{string, string, string}>
+ */
+function aio_mlv_hold($sc)
+{
+    $titles = array_slice(aio_mlv_titles($sc, $mids), 0, AIO_CPM_SCREEN_MAX);
+    AioCpm::$hold = aio_cpm_keys($titles);
+    AioMlv::$cards = array();
+    foreach ($titles as $i => $m)
+    {
+        if ($m[1] === '' && $m[2] === '' && $mids[$i] !== '')
+            AioMlv::$cards[] = $mids[$i];
+    }
+    return $titles;
 }
 
 // The tiles of screen $url (aio_mlv_screen): the items of a row and their tiles (for the grid of r24). "Мой список": its
 // entries (aio_mlv_list_cells); "Продолжить": the cards of the row "Continue", the latest first; of its type, both on
-// a screen of all. Its tiles with no meta: the queue of its ticks (AioMlv::$miss), the first of them to the lazy meta of
-// a main screen after those of the rows (AioCpm::$more).
+// a screen of all. Its tiles with no meta of its first AIO_CPM_SCREEN_MAX (aio_mlv_hold, held anew): the queue of its
+// ticks (AioMlv::$miss), the first of them to the lazy meta of a main screen after those of the rows (AioCpm::$more).
 /**
  * @param string $url
  * @return list<array{item: array<string, mixed>, tile: AioCatTile}>
@@ -339,12 +368,18 @@ function aio_mlv_cells($url)
     $max = AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS;
     if (!$sc)
         return array();
+    aio_mlv_hold($sc);
     if ($sc[0] === AIO_MLV_LIST)
         $cells = aio_mlv_list_cells(aio_mlv_types($sc[1]), $max, $miss);
     else
         $cells = array_values(aio_cp_tile_items(aio_mlv_types($sc[1]), $max, $miss));
-    AioMlv::$miss = $miss;
-    AioCpm::$more = array_slice($miss, 0, AIO_CPM_MORE);
+    AioMlv::$miss = array();
+    foreach ($miss as $m)
+    {
+        if (isset(AioCpm::$hold[aio_cpm_key($m[0], $m[1], $m[2])]))
+            AioMlv::$miss[] = $m;
+    }
+    AioCpm::$more = array_slice(AioMlv::$miss, 0, AIO_CPM_MORE);
     return $cells;
 }
 
@@ -389,10 +424,11 @@ function aio_mlv_grid_item($item, $t, $info, $lang)
 
 // The screen "Мой список" or "Продолжить" ($url), all its tiles at once (no stubs, no get_folder_rows): on r25 rows of
 // AIO_CATV_ALL_COLS as "Show all" (aio_catv_all_pane: the info panel, ENTER, POP UP, the search), on r24 the grid of
-// "Show all" with POP UP. Empty: one tile, aio_mlv_empty_item. Before its tiles the meta of them with no request, all
-// of them (aio_cpm_local: kept, of a row in memory, of a copy of a row on the disk; kept at one write, with those
-// asked on r24); then r24 the first ones asked (aio_mlv_open_net), r25 the timer of the screen when there is more to
-// ask (aio_mlv_tick_set: the count of the ticks anew at an opening, not at a view of its own tick). One line of the log.
+// "Show all" with POP UP. Empty: one tile, aio_mlv_empty_item. Before its tiles the meta of them with no request, of
+// its first AIO_CPM_SCREEN_MAX (aio_mlv_hold; aio_cpm_local: kept, of a row in memory, of a copy of a row on the disk;
+// kept at one write, with those asked on r24); then r24 the first AIO_MLV_OPEN_TILES of them to ask asked in
+// AIO_MLV_OPEN_S s of the opening (aio_cpm_ask_due, as a build), r25 the timer of the screen when there is more to ask
+// (aio_mlv_tick_set: the count of the ticks anew at an opening, not at a view of its own tick). One line of the log.
 /**
  * @param string $url
  * @param mixed $sel_state
@@ -411,25 +447,22 @@ function aio_mlv_view($url, $sel_state)
     $anew = AioMlv::$anew === $url && $ago >= 0 && $ago < AIO_MLV_ANEW_S;
     AioMlv::$anew = '';
     if (!$anew)
-    {
         AioMlv::$ticks = 0;
-        AioMlv::$got = 0;
-    }
-    $now = time();
-    $titles = $sc ? aio_mlv_titles($sc) : array();
-    list($put, $renew, $due, , $mem, $disk) = aio_cpm_local($titles, aio_cpm_read(), $now);
+    $titles = $sc ? aio_mlv_hold($sc) : array();
+    list($put, $renew, $due, , $mem, $disk) = aio_cpm_local($titles, aio_cpm_read(), time());
     $net = '';
     if (!$rows_ok)
     {
-        list($got_put, $asked, $got, $mark) = aio_mlv_open_net($due, $start, $now);
+        list($got_put, $asked, $got, $mark) = aio_cpm_ask_due($due, $start, AIO_MLV_OPEN_S, AIO_MLV_OPEN_TILES);
         $put = array_merge($put, $got_put);
-        $net = sprintf(', %d asked, %d got%s', $asked, $got, $mark !== '' ? ", $mark" : '');
+        $net = sprintf(', %d asked, %d got%s', $asked, $got, $mark);
     }
     if ($put)
         aio_cpm_put_all($put, $renew);
     $cells = aio_mlv_cells($url);
     $ms = $rows_ok ? aio_mlv_tick_set($url) : 0;
-    $why = $rows_ok ? ($ms ? ", timer in $ms ms" : ', no timer: ' . aio_mlv_why($url)) : '';
+    $no = AioMlv::$ticks >= AIO_MLV_TICK_MAX ? 'limit' : aio_mlv_why($url);
+    $why = $rows_ok ? ($ms ? ", timer in $ms ms" : ", no timer: $no") : '';
     aio_log(sprintf('%s: screen%s%s: %d tiles, %d of rows in memory, %d of rows on the disk%s, %d with no meta, %.0f ms%s',
         $list ? 'my list' : 'continue', $sc && $sc[1] !== '' ? " of {$sc[1]}" : '', $anew ? ' anew' : '', count($cells), $mem,
         $disk, $net, count(AioMlv::$miss), (microtime(true) - $start) * 1000, $why));
@@ -460,49 +493,8 @@ function aio_mlv_view($url, $sel_state)
             GUI_EVENT_KEY_POPUP_MENU => aio_input('cat_menu', $p)) + aio_egg_acts());
 }
 
-// r24: the first AIO_MLV_OPEN_TILES titles to ask of the screen ($due of aio_cpm_local, in the order of its tiles; none
-// cut short at a build within AIO_CPM_BUILD_CUT_S, aio_cpm_uncut) asked in AIO_MLV_OPEN_S s from $t0 (the opening):
-// batches of AIO_HTTP_PAR (aio_cpm_ask_some; else AIO_CPM_N one by one), each its timeout what is left, judged as a
-// step (a timeout of a rest under AIO_CPM_SHORT_S: cut, AioCpm::$cut), none in a pause or with the catalog server
-// down, none as a build would not (aio_cpm_build_net; all of no connection: aio_cpm_build_off). -> array(key => tile
-// to keep, asked, got, the path of them for the log: aio_http_mark, ", unreached" with none of them asked so).
-/**
- * @param array<string, string> $due
- * @param float $t0
- * @param int $now
- * @return array{array<string, AioCatTile|null>, int, int, string}
- */
-function aio_mlv_open_net($due, $t0, $now)
-{
-    $todo = array_slice(aio_cpm_uncut($due, $now), 0, AIO_MLV_OPEN_TILES, true);
-    $net = aio_cpm_build_net($now);
-    $put = array();
-    $asked = 0;
-    $got = 0;
-    $par = 0;
-    $off = 0;
-    while ($net && $todo)
-    {
-        list($p, $a, $g, $at_once, $cut, $o) = aio_cpm_ask_some($todo, $t0, AIO_MLV_OPEN_S, AIO_HTTP_PAR, AIO_CPM_N);
-        if (!$a)
-            break;
-        foreach ($cut as $key)
-            AioCpm::$cut[$key] = time();
-        $put = array_merge($put, $p);
-        $asked += $a;
-        $got += $g;
-        $par = max($par, $at_once);
-        $off += $o;
-        $todo = array_slice($todo, $a, null, true);
-    }
-    $mark = $asked ? aio_http_mark($par, $par ? 0 : $asked) : '';
-    if (($todo && !$net) || aio_cpm_build_off($asked, $off))
-        $mark .= ($mark !== '' ? ', ' : '') . 'unreached';
-    return array($put, $asked, $got, $mark);
-}
-
-// r25: why a tick of screen $url would ask nothing (aio_pg_tick_why of its tiles with no meta, AioMlv::$miss; the cards
-// of the history to pair on "Продолжить" alone) -> '' or why not.
+// r25: why a tick of screen $url would ask nothing (aio_pg_tick_why of its tiles with no meta, AioMlv::$miss; on
+// "Продолжить" the cards of them with no pair, AioMlv::$cards) -> '' or why not.
 /**
  * @param string $url
  * @return string
@@ -510,7 +502,7 @@ function aio_mlv_open_net($due, $t0, $now)
 function aio_mlv_why($url)
 {
     $sc = aio_mlv_screen($url);
-    return aio_pg_tick_why(AioMlv::$miss, $sc !== null && $sc[0] === AIO_MLV_CONT);
+    return aio_pg_tick_why(AioMlv::$miss, $sc !== null && $sc[0] === AIO_MLV_CONT ? AioMlv::$cards : array());
 }
 
 // r25: ms till the next tick of a screen: AIO_MLV_TICK_FIRST_MS at least, AIO_CPM_STEP_PAR requests in their share of
@@ -539,13 +531,17 @@ function aio_mlv_tick_set($url)
 }
 
 // A screen of Melange $url is asked of get_folder_view (aio_folder_view): another than the one of the timer - no more
-// ticks of it, nor a view anew of its tick.
+// ticks of it, nor a view anew of its tick. Not a main screen of rows built again (AioCat::$mains: invalidated with the
+// screen by its tick, the shell may build it first; else the view anew of the screen was an opening, its count of the
+// ticks 0 again and the limit gone).
 /**
  * @param string $url
  * @return void
  */
 function aio_mlv_view_asked($url)
 {
+    if (in_array($url, AioCat::$mains, true))
+        return;
     if (AioMlv::$anew !== '' && AioMlv::$anew !== $url)
         AioMlv::$anew = '';
     if (AioMlv::$tick_url === '' || AioMlv::$tick_url === $url)
@@ -557,12 +553,12 @@ function aio_mlv_view_asked($url)
 }
 
 // r25: a tick of the timer of screen $url (aio_mlv_tick_set), AIO_CPM_TICK_S at most, as aio_pg_tick: on "Продолжить"
-// the pairs (aio_pg_link_step; one got: the tiles of no meta again), then the meta of its tiles with no meta
-// (aio_cpm_step of AioMlv::$miss, its order: the first tiles first) in what is left. Some got: the view anew
-// (invalidate, no post_action; it sets the timer again itself, the focus by sel_state); the last of them (nothing more to ask, the limit) with the main screens of the
-// catalog (r25: AioCat::$mains, the row "Continue" with the rating after Back). None got, more to ask: the timer again
-// (aio_catv_all_again, aio_mlv_tick_ms); else nothing - the main screens anew when a tick of the opening got some. Not
-// the tick of the timer set (another screen, an old one): nothing. A line of the log of each.
+// the pairs of its cards with none (aio_pg_link_step of AioMlv::$cards; one got: the tiles of no meta again), then the
+// meta of its tiles with no meta (aio_cpm_step of AioMlv::$miss, its order: the first tiles first) in what is left.
+// Some got: the view anew with the main screens of the catalog (aio_catv_mains_anew, the screen first, no post_action;
+// the row "Continue" with the rating after Back; the view sets the timer again itself, the focus by sel_state). None
+// got, more to ask: the timer again (aio_catv_all_again, aio_mlv_tick_ms); else nothing. Not the tick of the timer set
+// (another screen, an old one): nothing. A line of the log of each.
 /**
  * @param string $url
  * @return AioAction|null
@@ -582,29 +578,22 @@ function aio_mlv_tick($url)
     $t = microtime(true);
     $rounds = 0;
     $pairs = 0;
-    if ($cont)
-        aio_pg_link_step(min(AIO_PG_LINK_S, AIO_CPM_TICK_S), true, $rounds, $pairs);
+    if ($cont && AioMlv::$cards)
+        aio_pg_link_step(min(AIO_PG_LINK_S, AIO_CPM_TICK_S), true, $rounds, $pairs, AioMlv::$cards);
     // A card paired: its tile has ids now, its meta to ask (the tiles of no meta again, AioMlv::$miss).
     if ($pairs)
         aio_mlv_cells($url);
     $got = aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $rounds, true, AioMlv::$miss);
     AioMlv::$tick_t = microtime(true);
-    AioMlv::$got += $pairs + $got;
     $why = $n >= AIO_MLV_TICK_MAX ? 'limit' : aio_mlv_why($url);
-    $left = count(aio_cpm_todo(AioMlv::$miss)) + ($cont ? count(aio_pg_link_queue()) : 0);
-    $mains = aio_fw_r() >= 25 ? AioCat::$mains : array();
+    $left = count(aio_cpm_todo(AioMlv::$miss)) + ($cont ? count(aio_pg_link_queue(AioMlv::$cards)) : 0);
     $act = null;
     if ($pairs + $got > 0)
     {
         AioMlv::$anew = $url;
         AioMlv::$anew_t = microtime(true);
-        $act = aio_catv_invalidate($url);
-        $what = 'invalidate';
-        if ($why !== '' && $mains)
-        {
-            $act[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = array_merge(array($url), $mains);
-            $what .= ' with the main screens';
-        }
+        $act = aio_catv_mains_anew(null, "after a tick of $url", $url);
+        $what = aio_fw_r() >= 25 && AioCat::$mains ? 'invalidate with the main screens' : 'invalidate';
         $what .= $why !== '' ? ", no more: $why" : '';
     }
     else if ($why === '')
@@ -615,15 +604,7 @@ function aio_mlv_tick($url)
         $what = "again in $ms ms";
     }
     else
-    {
         $what = "no more: $why";
-        if (AioMlv::$got > 0 && $mains)
-        {
-            $act = aio_catv_invalidate($mains[0]);
-            $act[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = $mains;
-            $what .= ', invalidate the main screens';
-        }
-    }
     aio_log(sprintf('%s: screen: tick %d/%d: %d pairs, %d got, %d left, %.0f ms, %s', $who, $n, AIO_MLV_TICK_MAX, $pairs, $got,
         $left, (microtime(true) - $t) * 1000, $what));
     return $act;

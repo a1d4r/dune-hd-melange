@@ -2090,23 +2090,23 @@ function aio_catv_all_again($url, $ms)
             ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => $ms)));
 }
 
-// The actions of "Show all"; with stubs (or a timer of its own, $stubs too), the tick of the timer too.
+// The actions of "Show all"; with a timer ($tick: of the stubs, or of "Продолжить", "Мой список"), its tick too.
 /**
  * @param string $url
- * @param bool $stubs
+ * @param bool $tick
  * @return array<string, AioAction>
  */
-function aio_catv_all_actions($url, $stubs)
+function aio_catv_all_actions($url, $tick)
 {
     $actions = aio_catv_actions($url);
-    if ($stubs)
+    if ($tick)
         $actions[GUI_EVENT_TIMER] = aio_catv_tick($url);
     return $actions;
 }
 
 // The screen of the rows $rows: the pane of get_rows_pane of movie_list_screen.php r25, the
-// panel and the template of the catalog. $dup: row_dup_map, null without stubs; with them the timer. $timer_ms: a timer
-// of no stubs in that many ms ("Продолжить", "Мой список": aio_mlv_view), 0 none.
+// panel and the template of the catalog. $dup: row_dup_map, null without stubs. $timer_ms: its timer in that many ms
+// (of the stubs AIO_CATV_ALL_TICK_MS; "Продолжить", "Мой список": aio_mlv_view), 0 none.
 /**
  * @param list<array<string, mixed>> $rows
  * @param array<string, array<string, mixed>>|null $dup
@@ -2151,9 +2151,8 @@ function aio_catv_all_pane($rows, $dup, $sel_state, $url, $timer_ms = 0)
         PluginFolderView::data => array(
             PluginRowsFolderView::pane => $pane,
             PluginRowsFolderView::sel_state => is_string($sel_state) && $sel_state !== '' ? $sel_state : null,
-            PluginRowsFolderView::actions => aio_catv_all_actions($url, $dup !== null || $timer_ms > 0),
-            PluginRowsFolderView::timer => $dup !== null || $timer_ms > 0 ?
-                array(GuiTimerDef::delay_ms => $dup !== null ? AIO_CATV_ALL_TICK_MS : $timer_ms) : null));
+            PluginRowsFolderView::actions => aio_catv_all_actions($url, $timer_ms > 0),
+            PluginRowsFolderView::timer => $timer_ms > 0 ? array(GuiTimerDef::delay_ms => $timer_ms) : null));
 }
 
 // The screen "Show all" (aio_catv_all_list). Its first row is never flagged (a flagged
@@ -2229,7 +2228,7 @@ function aio_catv_all_view($url, $sel_state)
         unset(AioCat::$all_stubs[$rid]);
     aio_log(sprintf('catalog: show all: %d tiles, %d rows%s, %.0f ms', $n, count($rows), $end ? ', the end' : ($failed ? ', failed' : ''),
         (microtime(true) - $start) * 1000));
-    return aio_catv_all_pane($rows, $dup, $sel_state, $url);
+    return aio_catv_all_pane($rows, $dup, $sel_state, $url, $dup !== null ? AIO_CATV_ALL_TICK_MS : 0);
 }
 
 // get_folder_rows of "Show all": the rows asked that are full; once the end is known also the
@@ -2630,8 +2629,8 @@ function aio_catv_mains_urls()
 // The screens opened (aio_catv_mains_urls) invalidated first, then $post: the row "Continue" and the badges of
 // the history anew when the shell is back on one (O2: whether a screen under the card is built again, the focus kept,
 // is not proven); none opened: $post as it is. Only on r25: on r24 a screen of rows lower in the stack built again may
-// go to the network for 3-7 s (not checked there). $also ('' none): a screen invalidated too, after them, on r24 too
-// (the screen of a change of "Мой список", aio_ml_changed). $why: for the log.
+// go to the network for 3-7 s (not checked there). $also ('' none): a screen invalidated too, first of them, on r24 too
+// (the screen of a change of "Мой список", aio_ml_changed; the screen of a tick, aio_mlv_tick). $why: for the log.
 /**
  * @param AioAction|null $post
  * @param string $why
@@ -2641,9 +2640,7 @@ function aio_catv_mains_urls()
 function aio_catv_mains_anew($post, $why, $also = '')
 {
     $mains = aio_catv_mains_urls();
-    $urls = aio_fw_r() >= 25 ? $mains : array();
-    if ($also !== '')
-        $urls[] = $also;
+    $urls = array_merge($also !== '' ? array($also) : array(), aio_fw_r() >= 25 ? $mains : array());
     $urls = array_values(array_unique($urls));
     if (!$urls)
     {

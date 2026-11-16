@@ -1711,6 +1711,7 @@ function aio_speed_str($bps, $lang, $zero = false)
 
 function aio_folder_view($media_url, $sel_state)
 {
+    // One timer lives, of a main screen or of a Fav screen: a view of another stops it (aio_mlv_view_asked: not a main one).
     aio_pg_view_asked($media_url);
     aio_mlv_view_asked($media_url);
     // "setup:<n>": the same screen redrawn by aio_setup_refresh; a first run: the
