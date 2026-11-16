@@ -654,8 +654,8 @@ function aio_mlv_fav_tile($f, $l, $map = null)
 // meta of the ones added in what is left of it, at once (aio_cpm_fill: the tile of a row in memory, else a request;
 // not asked, no answer: lazily). Then the screens of the list anew (aio_ml_changed: the list, not the hint) and the
 // message: "Добавлено из «Избранного»: N" (with the ones not added; the list full), "В «Избранном» Дюны нет нового",
-// or why the file was not written (aio_ml_err). One line of the log (the meta in it, no line of each request of it),
-// no address.
+// or why the file was not written (aio_ml_err). One line of the log (the meta in it, no line of each request of it;
+// ", pause": the lazy meta in a pause after it, aio_cpm_paused), no address.
 /**
  * @param string $from
  * @param float|null $budget
@@ -698,8 +698,9 @@ function aio_mlv_import($from, $budget = null)
             $tiles[] = $a[0];
     }
     list($metas, $got) = aio_cpm_fill($tiles, $budget - (microtime(true) - $t0), $map);
-    aio_log(sprintf('my list: import: %d in the Favorites, %d there, %d asked, %d added, %d not%s, meta %d asked, %d got, %.0f ms',
-        count($favs), $there, $asked, $n, $skip, $why !== '' ? ", $why" : '', $metas, $got, (microtime(true) - $t0) * 1000));
+    aio_log(sprintf('my list: import: %d in the Favorites, %d there, %d asked, %d added, %d not%s, meta %d asked, %d got, %.0f ms%s',
+        count($favs), $there, $asked, $n, $skip, $why !== '' ? ", $why" : '', $metas, $got, (microtime(true) - $t0) * 1000,
+        aio_cpm_paused() ? ', pause' : ''));
     if ($n === 0 && $why !== '' && $why !== 'full')
         return aio_ml_err($why);
     $lines = array();

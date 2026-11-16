@@ -26,10 +26,11 @@ define('AIO_CPM_MAX', 700);
 define('AIO_CPM_MAX_BYTES', 3145728);
 define('AIO_CPM_OTHER_MAX', 60);
 // A failure of a title (big, 404, not its meta) is asked again after this many s. No connection, 429 or 5xx: the
-// server, not the title - no request for AIO_CPM_PAUSE_S (memory of php_server), the title not kept; a timeout the
-// same, a second one of the title in a php_server kept as its failure with no pause (a meta too slow for the step, not
-// the server: the next titles go on; big too: the own card asks AIO_CM_SERIES_BYTES in AIO_CM_SERIES_TOTAL s and keeps
-// its tile here).
+// server, not the title - no request for AIO_CPM_PAUSE_S (memory of php_server), the title not kept. A timeout is of
+// the title (a meta the server has not kept, a big series, in the ~1.5 s of a tick): the first one of it in a
+// php_server not kept, asked again at the next step (the server has it by then, mostly), the second kept as its
+// failure, no pause either (the own card asks AIO_CM_SERIES_BYTES in AIO_CM_SERIES_TOTAL s and keeps its tile here);
+// of the server only right after a timeout of another title with no reply between: a pause.
 define('AIO_CPM_FAIL_S', 86400);
 define('AIO_CPM_PAUSE_S', 1800);
 // Requests of a step at most, those of the pairs in it counted; one starts with AIO_CPM_MIN_S left at least, its
@@ -75,6 +76,9 @@ class AioCpm
     // The titles whose request timed out once since the start of php_server (the next one kept as a failure).
     /** @var array<string, bool> */
     public static $slow = array();
+    // The title whose request timed out last, no reply since (aio_cpm_ask); '': none.
+    /** @var string */
+    public static $timed_out = '';
 }
 
 // The key of a title of type $type with IMDb $imdb, else TMDB $tmdb ('' none), as aio_cm_id; '' for none.
@@ -355,8 +359,10 @@ function aio_cpm_wanted()
 // One request of the meta of title $key of type $type (aio_cat_get, its timeout $limit s, to the ms; its line of the log
 // if $log). -> tile: of it
 // (null: none); keep: kept as it is (the tile, or a failure of the title: big, 404, not its meta); stop: no more
-// requests now. No connection, 429 or 5xx: a pause (AIO_CPM_PAUSE_S), the title not kept; a timeout the same, the second
-// of the title in this php_server kept failed with no pause; one of under AIO_CPM_SHORT_S given: nothing kept, no pause.
+// requests now. No connection, 429 or 5xx: a pause (AIO_CPM_PAUSE_S), the title not kept. A timeout: the first of the
+// title in this php_server not kept, no pause; the second kept failed, no pause; one right after a timeout of another
+// title (AioCpm::$timed_out): a pause, not kept; each of them a stop (it took the rest). One of under AIO_CPM_SHORT_S
+// given: nothing kept, no pause.
 /**
  * @param string $key
  * @param string $type
@@ -371,16 +377,21 @@ function aio_cpm_ask($key, $type, $limit, $log = true)
     $tile = $g['err'] === '' && aio_cm_same($g['list'], $id) ? aio_cat_tile($g['list'], $type) : null;
     if ($tile)
         $tile['type'] = $type;
-    // A timeout of a short rest: nothing (AIO_CPM_SHORT_S). Of a whole one, the first of the title: asked again after
-    // the pause; the second: kept failed, no pause (the title is slow, not the server: one such title holds no row).
+    // A timeout of a short rest: nothing (AIO_CPM_SHORT_S). Of a whole one, the first of the title: asked again at the
+    // next step; the second: kept failed (the title is slow: one such title holds no row); right after a timeout of
+    // another title: the server, a pause.
     $short = $g['err'] === 'timeout' && $limit < AIO_CPM_SHORT_S;
-    $again = $g['err'] === 'timeout' && !$short && !isset(AioCpm::$slow[$key]);
-    $pause = $again || in_array($g['err'], array('net', 'rate', 'server'), true);
+    $timeout = $g['err'] === 'timeout' && !$short;
+    $again = $timeout && !isset(AioCpm::$slow[$key]);
+    $pause = ($timeout && AioCpm::$timed_out !== '' && AioCpm::$timed_out !== $key) ||
+        in_array($g['err'], array('net', 'rate', 'server'), true);
     if ($again)
         AioCpm::$slow[$key] = true;
     if ($pause)
         AioCpm::$pause = time() + AIO_CPM_PAUSE_S;
-    return array('tile' => $tile, 'keep' => !$pause && !$short, 'stop' => $pause || $short);
+    if (!$short)
+        AioCpm::$timed_out = $timeout ? $key : '';
+    return array('tile' => $tile, 'keep' => !$pause && !$short && !$again, 'stop' => $pause || $short || $timeout);
 }
 
 // The lazy meta: the titles of aio_cpm_queue no row in memory has now (aio_cp_tile_map), up to $n requests in $limit s
