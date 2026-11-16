@@ -559,8 +559,10 @@ function aio_lp_src_name($v)
 
 // Items $list of events, added to the sources $have of the search, $gone its
 // items hidden (a key of the item => the reason of aio_lp_source): none
-// twice, by link - a life list comes again whole. -> array(the sources by
-// index, then by arrival; the items hidden).
+// twice, by link - a life list comes again whole. An item hidden by show false
+// that comes with show true later is a source (a server may send all its items
+// at every /lifeevents and turn show on as its balancers answer). ->
+// array(the sources by index, then by arrival; the items hidden).
 /**
  * @param mixed $list
  * @param list<AioLpSource> $have
@@ -581,8 +583,12 @@ function aio_lp_sources($list, $have, $gone)
             if (!isset($by[$k]) && !isset($gone[$k]))
                 $gone[$k] = $s;
         }
-        else if (!isset($by[$s['url']]) && !isset($gone[$s['url']]) && count($by) < AIO_LP_SOURCES_MAX)
+        else if (!isset($by[$s['url']]) && (!isset($gone[$s['url']]) || $gone[$s['url']] === 'show') &&
+            count($by) < AIO_LP_SOURCES_MAX)
+        {
+            unset($gone[$s['url']]);
             $by[$s['url']] = $s;
+        }
     }
     $out = array_values($by);
     usort($out, function ($a, $b)
