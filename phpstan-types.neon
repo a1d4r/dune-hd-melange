@@ -60,11 +60,14 @@ parameters:
         # The online list of a list state (AioState lp, view_online.php): the title asked, the sources of the
         # search, the hidden, the rows (the remembered one first), the reasons, the next source not asked and
         # the number left, the start of the search (aio_lp_now), the yellow line; the cursor as AioState's, of its lines (aio_lpv_lines);
-        # the filter by a voice: its key and name (aio_lpv_voices); flt_gone - the yellow line is of a filter gone (aio_lpv_flt_keep).
-        AioLpView: 'array{title: AioLpTitle, q: string, sources: list<AioLpSource>, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: AioProgress, flt?: array{k: string, name: string}, flt_gone?: bool}'
+        # the filter by a voice: its key and name (aio_lpv_voices); flt_gone - the yellow line is of a filter gone (aio_lpv_flt_keep);
+        # off - the paths of the sources of the search turned off in "Источники…" (aio_lpv_src_pick), not asked.
+        AioLpView: 'array{title: AioLpTitle, q: string, sources: list<AioLpSource>, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: AioProgress, flt?: array{k: string, name: string}, flt_gone?: bool, off?: list<string>}'
         # The search window between its ticks (AioLpv::$run, aio_lpv_search_open, view_online.php).
         # The view of the search so far in v, the start of the replies t1, more: the rows before "Ещё N" (-1: a new search).
         AioLpRun: 'array{sid: string, st: AioState, how: string, mark: bool, back: bool, path: string, phase: string, search: AioLpSearch|null, v: AioLpView, t1: float, more: int}'
+        # A source of the online list found on this Dune (lampac_sources of settings.json, aio_lp_srcs_ok, lampac.php): its path, name, shown.
+        AioLpSrc: 'array{path: string, name: string, on: bool}'
         # The mark "online" of a title (data_dir/lampac_choice.json, view_online.php): the path of the balancer, the voice and the key of the row of the last start ('' none).
         AioLpMark: 'array{online: bool, path: string, voice: string, key: string, ts: int}'
         # A config of AIOStreams made by the settings page (aio_aio_conf, common.php).
@@ -106,6 +109,7 @@ parameters:
                 lampac_url: string,
                 lampac_token: string,
                 lampac_as_lampa: bool,
+                lampac_sources: list<AioLpSrc>,
                 aio_confs: array<string, array<string, AioConf>>,
                 src_profiles: bool,
                 profiles: list<AioProfile>,
@@ -140,7 +144,8 @@ parameters:
                 debrid_main: string,
                 profiles: array<int, array{name: string, now: bool}>,
                 made: array{base: string, mode: string, conf: AioConf}|null,
-                lp: string
+                lp: string,
+                lp_src: list<AioLpSrc>
             }
         '''
         # Badges of a release (aio_badges, parse.php).

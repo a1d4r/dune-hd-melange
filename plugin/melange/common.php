@@ -854,7 +854,8 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // src_profiles off too), 'lampac_url' => the address of Lampac ("Онлайн"),
 // aio_lp_addr() or '' (off), 'lampac_token' => the token of its provider, aio_lp_token() or ''
 // (none), 'lampac_as_lampa' => bool, "Представляться приложением Lampa" (aio_lp_send of lampac.php;
-// not a bool - false),
+// not a bool - false), 'lampac_sources' => the sources Lampac has found and the choice of them, aio_lp_srcs_ok()
+// (the window "Источники…" of the online list; no field on the page),
 // each checked by the rules above; absent or wrong -> as not set ('', the
 // default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
@@ -917,7 +918,7 @@ function aio_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'lampac_url' => '', 'lampac_token' => '', 'lampac_as_lampa' => false, 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'lampac_url' => '', 'lampac_token' => '', 'lampac_as_lampa' => false, 'lampac_sources' => array(), 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
         'saved_once' => false);
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
@@ -1000,6 +1001,8 @@ function aio_settings_parse($j)
         $r['lampac_token'] = aio_lp_token($j['lampac_token']);
     if (isset($j['lampac_as_lampa']) && is_bool($j['lampac_as_lampa']))
         $r['lampac_as_lampa'] = $j['lampac_as_lampa'];
+    if (isset($j['lampac_sources']))
+        $r['lampac_sources'] = aio_lp_srcs_ok($j['lampac_sources']);
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
         foreach ($j['aio_confs'] as $b => $cs)

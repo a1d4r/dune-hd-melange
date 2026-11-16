@@ -5,7 +5,8 @@
 // on the screen of the releases (the frame of view_gcomps.php, rows "Phantom · Дублированный"
 // and a card of their own; of an episode a row a voice of its season), its MENU, ENTER (the start:
 // online_play.php, as "Continue" of a record of it and play_action), the left and right keys and
-// "Выбрать серию" of an episode, the mark "online" of a title (data_dir/lampac_choice.json) and
+// "Выбрать серию" of an episode, "Источники…" (which sources, their order: lampac_sources of settings.json), the
+// mark "online" of a title (data_dir/lampac_choice.json) and
 // the windows: nothing online, no answer, no such episode in the voice.
 // The list lives in Aio::$state beside the releases: 'lp' (AioLpView), 'lp_on' - the screen
 // shows it, 'lp_only' - the releases were never asked, 'lp_note' - the yellow line of the
@@ -989,7 +990,7 @@ function aio_lpv_finish($st)
 }
 
 // --- MENU of the online list (A4): "Озвучка: …" (aio_gc_keys_in_menu: the red key), "Обновить", "Выбрать серию"
-// (an episode), "Откуда брать…", "Ошибки источников", "Настройки".
+// (an episode), "Откуда брать…", "Источники…" (aio_lpv_srcs_edit; some found), "Ошибки источников", "Настройки".
 
 /**
  * @param AioState $st
@@ -1021,6 +1022,11 @@ function aio_lpv_menu($st)
             GuiMenuItemDef::caption => aio_tr($lang, 'src_list'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
             GuiMenuItemDef::action => aio_gc_act('gc_src_menu', $rid));
+    if (Aio::$settings['lp_src'])
+        $menu[] = array(
+            GuiMenuItemDef::caption => aio_tr($lang, 'lp_srcs_menu'),
+            GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'playlist_small.png',
+            GuiMenuItemDef::action => aio_gc_act('lp_srcs', $rid));
     $errors = aio_lpv_errors_of($st);
     if ($errors['lines'])
         $menu[] = array(
@@ -1179,10 +1185,15 @@ function aio_lpv_tick($in)
     $s = $run['search'];
     if ($run['phase'] === 'search' && $s)
     {
-        $run['v']['sources'] = $s['sources'];
+        // Those turned off in "Источники…" not asked, nor counted; the others in its order. Done: the new ones there.
+        if ($s['done'])
+            aio_lpv_srcs_seen($s['sources']);
+        list($run['v']['sources'], $run['v']['off']) = aio_lpv_srcs_pick($s['sources'], Aio::$settings['lp_src']);
         $run['v']['hidden'] = $s['hidden'];
         if ($s['done'])
         {
+            if ($run['v']['off'])
+                aio_log('lampac: sources off: ' . implode(', ', $run['v']['off']));
             if (!$s['sources'] && $s['err'] !== '' && $s['err'] !== 'accsdb')
             {
                 AioLpv::$run = null;
@@ -1192,7 +1203,7 @@ function aio_lpv_tick($in)
                 $run['v']['why'][] = array('src' => '', 'path' => '', 'why' => 'accsdb', 'detail' => $s['detail']);
             $run['v']['q'] = $s['q'];
             $run['v']['t'] = $s['t0'];
-            $run['phase'] = $s['sources'] ? 'replies' : 'done';
+            $run['phase'] = $run['v']['sources'] ? 'replies' : 'done';
             $run['t1'] = aio_lp_now();
         }
     }
@@ -1236,7 +1247,8 @@ function aio_lpv_down($run, $why, $detail)
 }
 
 // The end of run $run: the online list (of a new search the remembered row of the title first, the
-// other rows of its balancer after it, then the order of Lampac; the cursor on the balancer of the run, after "Ещё N" on the first new
+// other rows of its balancer after it, then the order of "Источники…" (aio_lpv_srcs_pick: the sources asked in it);
+// the cursor on the balancer of the run, after "Ещё N" on the first new
 // row), its screen opened or the list screen replaced; nothing at all - the window "Онлайн для
 // «…» не нашлось" (a marked title with releases: those with the yellow line).
 /**
@@ -1658,6 +1670,314 @@ function aio_lpv_chosen($in, $st)
     return aio_lpv_search_open($ns, 'chosen');
 }
 
+// --- "Источники…" (MENU of the online list): which sources of Lampac the list shows and in which order, a dialog
+// of the shell (edit_list_config), as "Настроить список…" of the rows of the catalog (view_catalog_rows.php). Its
+// items: the sources Lampac has found on this Dune (lampac_sources of settings.json: a path, its name, on), one
+// list and one order for all titles; a new one on, last. The key of a source is its path (aio_lp_path: "phantom"
+// of /lite/phantom), as in the key of a row and the history ("Continue" asks that balancer alone, aio_lp_find:
+// a source turned off still plays from there). Its state is the file <FS_PREFIX>/config/lcfg_melange_lp_sources.txt
+// (bin/uninstall.sh removes it), written from the settings before the dialog opens, read back when it closes.
+
+define('AIO_LPV_SRCS_ID', 'melange_lp_sources');
+
+// The sources $sources of a search (AioLpSource) by choice $choice (lampac_sources): those turned off out, the
+// others in its order, one not there (a new one, of no path) after them, in their order. -> array(the sources,
+// the paths of those turned off).
+/**
+ * @param list<AioLpSource> $sources
+ * @param list<AioLpSrc> $choice
+ * @return array{list<AioLpSource>, list<string>}
+ */
+function aio_lpv_srcs_pick($sources, $choice)
+{
+    $pos = array();
+    foreach ($choice as $i => $c)
+        $pos[$c['path']] = $c['on'] ? $i : -1;
+    $keep = array();
+    $off = array();
+    foreach ($sources as $i => $x)
+    {
+        $p = $x['path'] !== '' && isset($pos[$x['path']]) ? $pos[$x['path']] : count($choice) + $i;
+        if ($p < 0)
+            $off[] = $x['path'];
+        else
+            $keep[] = array($p, $i);
+    }
+    sort($keep);
+    $out = array();
+    foreach ($keep as $k)
+        $out[] = $sources[$k[1]];
+    return array($out, array_values(array_unique($off)));
+}
+
+// Choice $choice with the sources $sources of a search: one of a path not there - on, last (up to
+// AIO_LP_SEEN_MAX); one there of another name - that name. -> array(the choice, changed).
+/**
+ * @param list<AioLpSrc> $choice
+ * @param list<AioLpSource> $sources
+ * @return array{list<AioLpSrc>, bool}
+ */
+function aio_lpv_srcs_merge($choice, $sources)
+{
+    $at = array();
+    foreach ($choice as $i => $c)
+        $at[$c['path']] = $i;
+    $changed = false;
+    foreach ($sources as $x)
+    {
+        $p = $x['path'];
+        if ($p === '' || (!isset($at[$p]) && count($choice) >= AIO_LP_SEEN_MAX))
+            continue;
+        if (!isset($at[$p]))
+        {
+            $at[$p] = count($choice);
+            $choice[] = array('path' => $p, 'name' => $x['label'], 'on' => true);
+            $changed = true;
+        }
+        else if ($choice[$at[$p]]['name'] !== $x['label'])
+        {
+            $choice[$at[$p]]['name'] = $x['label'];
+            $changed = true;
+        }
+    }
+    return array($choice, $changed);
+}
+
+// lampac_sources $choice into Aio::$settings and settings.json, read again just before (a source of the file not
+// in $choice kept, last), written as the quick setup does (aio_settings_write). -> written.
+/**
+ * @param list<AioLpSrc> $choice
+ * @return bool
+ */
+function aio_lpv_srcs_save($choice)
+{
+    Aio::$settings['lp_src'] = $choice;
+    $dir = aio_data_dir();
+    $why = 'no data_dir';
+    $s = $dir !== '' ? aio_settings_read($dir, $why) : null;
+    if (!$s || $why !== '')
+    {
+        aio_log('lampac: sources: settings.json not read, not written');
+        return false;
+    }
+    $have = array();
+    foreach ($choice as $c)
+        $have[$c['path']] = true;
+    foreach ($s['lampac_sources'] as $c)
+    {
+        if (!isset($have[$c['path']]) && count($choice) < AIO_LP_SEEN_MAX)
+            $choice[] = $c;
+    }
+    $s['lampac_sources'] = Aio::$settings['lp_src'] = $choice;
+    if (!aio_settings_write($s))
+    {
+        aio_log('lampac: sources: settings.json not written');
+        return false;
+    }
+    return true;
+}
+
+// The sources $sources of a search done: those new (or of another name) into lampac_sources (aio_lpv_srcs_merge).
+/**
+ * @param list<AioLpSource> $sources
+ * @return void
+ */
+function aio_lpv_srcs_seen($sources)
+{
+    list($choice, $changed) = aio_lpv_srcs_merge(Aio::$settings['lp_src'], $sources);
+    if (!$changed)
+        return;
+    $n = count($choice) - count(Aio::$settings['lp_src']);
+    if (aio_lpv_srcs_save($choice))
+        aio_log('lampac: sources: ' . ($n > 0 ? "$n new" : 'a name changed') . ', ' . count(Aio::$settings['lp_src']) .
+            ' in all, saved');
+}
+
+/**
+ * @return string
+ */
+function aio_lpv_srcs_path()
+{
+    return getenv('FS_PREFIX') . '/config/lcfg_' . AIO_LPV_SRCS_ID . '.txt';
+}
+
+// lp_srcs ("Источники…") of the online list $st: the dialog of the sources of lampac_sources in their order, those
+// on checked, "Сброс" all on (checked_ids), the source of the row under the cursor selected. No empty set (no
+// options: a list of no source shows nothing). Its file written first; not written: an error, no dialog (its
+// close would write the last state of the shell over the choice). No close_item_params, dialog_params or params
+// of items: r22 has none (as aio_catv_rows_edit).
+/**
+ * @param AioState $st
+ * @return AioAction|null
+ */
+function aio_lpv_srcs_edit($st)
+{
+    $choice = Aio::$settings['lp_src'];
+    if (!$choice || !isset($st['lp']))
+        return null;
+    if (!class_exists('EditListConfigActionData') || !defined('EDIT_LIST_CONFIG_ACTION_ID'))
+        return aio_error('cat_rows_no_dialog');
+    $ids = array();
+    $on = array();
+    $items = array();
+    foreach ($choice as $c)
+    {
+        $ids[] = $c['path'];
+        if ($c['on'])
+            $on[$c['path']] = true;
+        $items[] = array(GuiItem::id => $c['path'], GuiItem::caption => $c['name']);
+    }
+    if (!aio_write_file(aio_lpv_srcs_path(), aio_catv_lcfg_text($ids, $on, $ids), 0644))
+    {
+        aio_log('lampac: sources: the file of the dialog not written');
+        return aio_error('lp_srcs_not_opened');
+    }
+    $data = array(
+        EditListConfigActionData::config_id => AIO_LPV_SRCS_ID,
+        EditListConfigActionData::title => aio_tr($st['lang'], 'lp_srcs_title'),
+        EditListConfigActionData::all_items => $items,
+        EditListConfigActionData::checked_ids => $ids,
+        EditListConfigActionData::post_action => aio_gc_act('lp_srcs_apply', $st['rid']));
+    list($sel) = aio_lpv_pos($st['lp'], null);
+    $i = aio_lpv_row_of(aio_lpv_lines($st['lp']), $sel);
+    if ($i >= 0 && isset($on[$st['lp']['rows'][$i]['path']]))
+        $data[EditListConfigActionData::sel_id] = $st['lp']['rows'][$i]['path'];
+    aio_log('lampac: sources: dialog, ' . count($ids) . ' sources, ' . count($on) . ' on');
+    return array(GuiAction::handler_string_id => EDIT_LIST_CONFIG_ACTION_ID, GuiAction::data => $data);
+}
+
+// View $v by choice $choice (lampac_sources after "Источники…"), no request: its sources and rows of those turned
+// off out, the others in the order of the choice (the rows of a source in their order), those asked before those
+// not ("Ещё N"), the reasons of those off out. -> array(the view; the paths of its sources turned on that were off
+// in its search: not asked, a search anew; a row of $v => its row now).
+/**
+ * @param AioLpView $v
+ * @param list<AioLpSrc> $choice
+ * @return array{AioLpView, list<string>, array<int, int>}
+ */
+function aio_lpv_srcs_view($v, $choice)
+{
+    $asked = array();
+    foreach (array_slice($v['sources'], 0, $v['next']) as $x)
+        $asked[$x['url']] = true;
+    list($srcs, $off) = aio_lpv_srcs_pick($v['sources'], $choice);
+    $now = array();
+    foreach ($choice as $c)
+        $now[$c['path']] = $c['on'];
+    $back = array();
+    foreach (isset($v['off']) ? $v['off'] : array() as $p)
+    {
+        if (isset($now[$p]) && $now[$p])
+            $back[] = $p;
+        else
+            $off[] = $p;
+    }
+    $a = array();
+    $u = array();
+    $pos = array();
+    foreach ($srcs as $i => $x)
+    {
+        $pos[$x['path']] = $i;
+        if (isset($asked[$x['url']]))
+            $a[] = $x;
+        else
+            $u[] = $x;
+    }
+    $v['sources'] = array_merge($a, $u);
+    $v['next'] = count($a);
+    $v['left'] = count($u);
+    $v['off'] = array_values(array_unique($off));
+    $keep = array();
+    foreach ($v['rows'] as $i => $r)
+    {
+        if (isset($pos[$r['path']]))
+            $keep[] = array($pos[$r['path']], $i);
+    }
+    sort($keep);
+    $rows = array();
+    $map = array();
+    foreach ($keep as $k)
+    {
+        $map[$k[1]] = count($rows);
+        $rows[] = $v['rows'][$k[1]];
+    }
+    $v['rows'] = $rows;
+    $why = array();
+    foreach ($v['why'] as $w)
+    {
+        if (!in_array($w['path'], $v['off'], true))
+            $why[] = $w;
+    }
+    $v['why'] = $why;
+    return array($v, $back, $map);
+}
+
+// lp_srcs_apply: post_action of the dialog of "Источники…" of the online list $st, at every close (the shell has
+// written its file by then). Changed: the sources in the order of the file, each on or off, into lampac_sources;
+// none on, the file not a file, the same: nothing written; not read: an error. Then the list at once: a source
+// turned on that was off in its search - the search anew (it was not asked); else the list of what it has
+// (aio_lpv_srcs_view), the cursor on its row if still shown, else the first.
+/**
+ * @param stdClass $in
+ * @param AioState $st
+ * @return AioAction|null
+ */
+function aio_lpv_srcs_apply($in, $st)
+{
+    $changed = isset($in->list_config_changed) && is_scalar($in->list_config_changed) ? strval($in->list_config_changed) : '';
+    if (!isset($in->list_config_id) || $in->list_config_id !== AIO_LPV_SRCS_ID)
+        return null;
+    if ($changed !== '1')
+    {
+        aio_log('lampac: sources: dialog closed, no change');
+        return null;
+    }
+    list($text, $no) = aio_catv_lcfg_load(aio_lpv_srcs_path());
+    if ($no === 'bad' || $no === 'unread')
+    {
+        aio_log("lampac: sources: the file of the dialog $no, nothing changed");
+        return $no === 'unread' ? aio_error('lp_srcs_not_saved') : null;
+    }
+    $was = Aio::$settings['lp_src'];
+    $ids = array();
+    $by = array();
+    foreach ($was as $c)
+    {
+        $ids[] = $c['path'];
+        $by[$c['path']] = $c;
+    }
+    list($order, $state) = aio_catv_lcfg_sorted($text, $ids, array_fill_keys($ids, true), $ids);
+    if (!in_array(true, $state, true))
+    {
+        aio_log('lampac: sources: none on in the file, nothing changed');
+        return null;
+    }
+    $choice = array();
+    foreach ($order as $p)
+        $choice[] = array('path' => $p, 'name' => $by[$p]['name'], 'on' => $state[$p]);
+    if ($choice === $was)
+    {
+        aio_log('lampac: sources: the same');
+        return null;
+    }
+    if (!aio_lpv_srcs_save($choice))
+        return aio_error('lp_srcs_not_saved');
+    list($v, $back, $map) = aio_lpv_srcs_view($st['lp'], Aio::$settings['lp_src']);
+    $n = count(array_filter($state));
+    aio_log("lampac: sources: $n of " . count($choice) . ' on, saved; ' . ($back ? 'turned on, not asked: ' .
+        implode(', ', $back) . ' -> the search anew' : count($v['rows']) . ' rows of ' . count($st['lp']['rows']) . ' kept'));
+    if ($back)
+        return aio_lpv_search_open($st, 'replace');
+    list($sel) = aio_lpv_pos($st['lp'], null);
+    $row = aio_lpv_row_of(aio_lpv_lines($st['lp']), $sel);
+    $ns = $st;
+    $ns['rid'] = aio_rid();
+    $ns['lp'] = aio_lpv_flt_keep($v, $st);
+    $ns['lp']['gc'] = aio_lpv_put(aio_lpv_lines($ns['lp']), isset($map[$row]) ? $map[$row] : 0);
+    $ns['lp']['gc_new'] = true;
+    return aio_list_replace($ns);
+}
+
 // --- The dispatcher of lp_* (main.php).
 
 /**
@@ -1721,5 +2041,9 @@ function aio_lpv_input($in, $control)
         return aio_errors_dialog(aio_tr($st['lang'], 'errors_menu'), $st['lang'], aio_lpv_errors_of($st));
     if ($control === 'lp_refresh')
         return aio_lpv_refresh($st);
+    if ($control === 'lp_srcs')
+        return aio_lpv_srcs_edit($st);
+    if ($control === 'lp_srcs_apply')
+        return aio_lpv_srcs_apply($in, $st);
     return null;
 }

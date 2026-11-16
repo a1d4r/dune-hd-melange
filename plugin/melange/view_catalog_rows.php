@@ -209,19 +209,18 @@ function aio_catv_lcfg_read($text, $ids, $checked)
     return array($state, $rank, $in_order, $plus, $minus);
 }
 
-// The items checked after a dialog over $ids, its checked_ids $checked, the order shown when it
-// opened $shown: in the order of the file after "---"; no "---" but lines "+"/"-" (checks, no
-// "Move"), in the order of $shown; neither ("Reset to defaults", no file), in the order of $ids
-// (all_items). An item with no place in that order after, in the order of $ids. -> ids; none
-// checked: null.
+// All items after a dialog over $ids, its checked_ids $checked, the order shown when it opened
+// $shown: in the order of the file after "---"; no "---" but lines "+"/"-" (checks, no "Move"), in
+// the order of $shown; neither ("Reset to defaults", no file), in the order of $ids (all_items). An
+// item with no place in that order after, in the order of $ids. -> array(ids, id => checked).
 /**
  * @param string $text
  * @param list<string> $ids
  * @param array<string, bool> $checked
  * @param list<string> $shown
- * @return list<string>|null
+ * @return array{list<string>, array<string, bool>}
  */
-function aio_catv_lcfg_order($text, $ids, $checked, $shown)
+function aio_catv_lcfg_sorted($text, $ids, $checked, $shown)
 {
     list($state, $rank, $has_order, $plus, $minus) = aio_catv_lcfg_read($text, $ids, $checked);
     if (!$has_order && $plus + $minus > 0)
@@ -233,11 +232,47 @@ function aio_catv_lcfg_order($text, $ids, $checked, $shown)
     asort($pos);
     $out = array();
     foreach (array_keys($pos) as $id)
+        $out[] = strval($id);
+    return array($out, $state);
+}
+
+// The items checked after a dialog (as aio_catv_lcfg_sorted), in that order -> ids; none checked:
+// null.
+/**
+ * @param string $text
+ * @param list<string> $ids
+ * @param array<string, bool> $checked
+ * @param list<string> $shown
+ * @return list<string>|null
+ */
+function aio_catv_lcfg_order($text, $ids, $checked, $shown)
+{
+    list($all, $state) = aio_catv_lcfg_sorted($text, $ids, $checked, $shown);
+    $out = array();
+    foreach ($all as $id)
     {
         if ($state[$id])
-            $out[] = strval($id);
+            $out[] = $id;
     }
     return $out ? $out : null;
+}
+
+// The file of a dialog at $path after it closed -> array(its text, '' or why there is none: 'none' -
+// no file, as an empty one (list_utils.php r25: no change against checked_ids); 'bad' - not a file
+// or too big; 'unread' - not read, not as an empty one: that puts the dialog back to checked_ids).
+/**
+ * @param string $path
+ * @return array{string, string}
+ */
+function aio_catv_lcfg_load($path)
+{
+    clearstatcache();
+    if (!is_link($path) && !file_exists($path))
+        return array('', 'none');
+    if (is_link($path) || !is_file($path) || filesize($path) > 65536)
+        return array('', 'bad');
+    $text = @file_get_contents($path);
+    return $text === false ? array('', 'unread') : array($text, '');
 }
 
 // The keys of the tab after "Group order": the rows of the groups $groups (aio_catv_lcfg_order) in
@@ -482,20 +517,16 @@ function aio_catv_rows_apply($in, $from)
         aio_log("catalog: rows: $tab: $what: dialog closed, no change");
         return null;
     }
-    $path = aio_catv_lcfg_path($tab, $g);
-    clearstatcache();
-    $none = !is_link($path) && !file_exists($path);
-    if (!$none && (is_link($path) || !is_file($path) || filesize($path) > 65536))
+    list($text, $no) = aio_catv_lcfg_load(aio_catv_lcfg_path($tab, $g));
+    if ($no === 'bad')
     {
         aio_log("catalog: rows: $tab: $what: the file of the dialog not a file or too big, nothing changed");
         return null;
     }
-    if ($none)
+    if ($no === 'none')
         aio_log("catalog: rows: $tab: $what: no file of the dialog, the defaults");
-    $text = $none ? '' : @file_get_contents($path);
-    if ($text === false)
+    if ($no === 'unread')
     {
-        // Not as an empty one: that puts the dialog back to checked_ids.
         aio_log("catalog: rows: $tab: $what: the file of the dialog not read, nothing changed");
         return aio_error('cat_rows_not_saved');
     }

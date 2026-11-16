@@ -68,6 +68,8 @@ define('AIO_LP_KEY_PATH_MAX', 24);
 // Sources of a search and rows of a reply kept, at most.
 define('AIO_LP_SOURCES_MAX', 60);
 define('AIO_LP_ROWS_MAX', 60);
+// Sources of lampac_sources at most (aio_lp_srcs_ok): those found on this Dune for all titles.
+define('AIO_LP_SEEN_MAX', 200);
 // Tracks of a balancer without voices (details of Collaps) at most.
 define('AIO_LP_TRACKS_MAX', 30);
 // Episodes of a season of a balancer kept, at most (a long anime has some hundreds).
@@ -506,6 +508,27 @@ function aio_lp_source_of($base, $path)
         return null;
     return array('name' => $path, 'label' => ucfirst($path), 'q' => '', 'url' => "$base/lite/$path", 'path' => $path,
         'index' => 0, 'pos' => 0);
+}
+
+// The sources Lampac has found on this Dune, for all titles (lampac_sources of settings.json, the window
+// "Источники…" of view_online.php), as stored: in their order, each path (aio_lp_path_ok), name (aio_lp_text;
+// '' - the path) and on (not a bool - true); the first of a path kept, at most AIO_LP_SEEN_MAX; not a list - none.
+/**
+ * @param mixed $v
+ * @return list<AioLpSrc>
+ */
+function aio_lp_srcs_ok($v)
+{
+    $out = array();
+    foreach (is_array($v) ? $v : array() as $x)
+    {
+        $p = is_array($x) && isset($x['path']) && is_string($x['path']) ? $x['path'] : '';
+        if (!aio_lp_path_ok($p, AIO_LP_NAME_MAX) || isset($out[$p]) || count($out) >= AIO_LP_SEEN_MAX)
+            continue;
+        $name = aio_lp_text(isset($x['name']) ? $x['name'] : '');
+        $out[$p] = array('path' => $p, 'name' => $name !== '' ? $name : $p, 'on' => !isset($x['on']) || $x['on'] !== false);
+    }
+    return array_values($out);
 }
 
 // Items $list of events, added to the sources $have of the search, $gone its

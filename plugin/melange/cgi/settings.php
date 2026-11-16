@@ -244,6 +244,8 @@ function aio_cgi_save($dir, $t)
         if (!isset($_POST[$k]))
             $data[$k] = $cur[$k];
     }
+    // The sources of the online list (the window "Источники…" on the Dune): no field, the stored ones stay.
+    $data['lampac_sources'] = $cur['lampac_sources'];
     $on = $data['src_profiles'];
     unset($data['src_profiles']);
     $data['aio_confs'] = $cur['aio_confs'];

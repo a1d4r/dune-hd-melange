@@ -121,12 +121,14 @@ class Aio
     // 'profiles' - the source profiles of MENU of a list (aio_profiles_menu; none with the
     // setting off). 'made' - the config of Melange in use: array('base', 'mode', 'conf' - AioConf),
     // null for none or the own one (the migrations of aio_mig_run). 'lp' - the Lampac of "Онлайн"
-    // (aio_lp_base, view_online.php), '' off; its host "<lampac>" in the log ('hosts').
+    // (aio_lp_base, view_online.php), '' off; its host "<lampac>" in the log ('hosts'). 'lp_src' - lampac_sources
+    // of the settings: the sources of the online list found and the choice of them (aio_lpv_srcs_pick).
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true,
-        'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array(), 'made' => null, 'lp' => '');
+        'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array(), 'made' => null, 'lp' => '',
+        'lp_src' => array());
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -741,7 +743,8 @@ function aio_op_settings($s)
         'debrid_main' => aio_debrid_main_read(aio_data_dir()),
         'profiles' => aio_profiles_menu($s),
         'made' => $conf ? array('base' => aio_settings_base($s), 'mode' => $s['aio_mode'], 'conf' => $conf) : null,
-        'lp' => $lp);
+        'lp' => $lp,
+        'lp_src' => $s['lampac_sources']);
 }
 
 // The source profiles of MENU of a list (0.58.0): with src_profiles on, those
