@@ -1250,6 +1250,9 @@ function aio_movie_load($key)
  */
 function aio_lazy_action($pb)
 {
+    // An episode of "Онлайн" (online_play.php).
+    if (is_string($pb) && strpos($pb, 'lampac_next:') === 0)
+        return aio_lpv_lazy($pb);
     if (!is_string($pb) || !preg_match('/^aio_next:(' . AIO_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([0-9a-f]{40}):(debrid|ts)$/D',
         $pb, $m))
     {

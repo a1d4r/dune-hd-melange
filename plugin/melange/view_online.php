@@ -33,6 +33,11 @@ class AioLpv
     // dune id or IMDb: their search needs no /externalids. Memory only.
     /** @var array<string, array{string, string}> */
     public static $ids = array();
+    // The season of the last start of an episode (online_play.php): its key (aio_lp_season_key), s,
+    // the row of the voice, the season in it (AioLpSeason) - the next episodes of its playlist take
+    // their link from it (lampac_next:). One, memory only.
+    /** @var array{key: string, s: int, row: AioLpRow, sea: AioLpSeason}|null */
+    public static $season = null;
 }
 
 // "Онлайн" for card $mv: a Lampac in the settings.
@@ -1022,7 +1027,9 @@ function aio_lpv_pick($in, $st)
     $l = aio_lpv_link($base, $r, $deadline, $s, $e);
     if ($l['why'] !== '')
         return aio_lpv_failed($st['lang'], $r, $l['why'], $l['detail']);
-    return aio_lpv_vod($st['movie'], $st['lang'], $r, $l['url'], 0, $st['s'], $st['e']);
+    if ($f && $f['sea'])
+        AioLpv::$season = array('key' => $r['key'], 's' => $s, 'row' => $r, 'sea' => $f['sea']);
+    return aio_lpv_vod($st['movie'], $st['lang'], $r, $l['url'], 0, $st['s'], $st['e'], $f ? $f['have'] : array());
 }
 
 // Episode $e of season $s of row $r of a voice of a season (method season) of view $v: the season by
@@ -1181,6 +1188,9 @@ function aio_lpv_input($in, $control)
 {
     if ($control === 'lp_tick')
         return aio_lpv_tick($in);
+    // Under the player (aio_lpv_lazy): no list.
+    if ($control === 'lp_next')
+        return aio_lpv_next($in);
     if ($control === 'lp_cancel')
     {
         if (AioLpv::$run && isset($in->sid) && $in->sid === AioLpv::$run['sid'])

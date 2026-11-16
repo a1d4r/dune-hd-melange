@@ -1,6 +1,7 @@
 <?php
 // "Онлайн" on the Dune, its start (the list: view_online.php): ENTER of a row ("call", the check
-// of the link, vod_play), "Continue" of a record of it, play_action of a card with "Онлайн" (the title marked "online", no
+// of the link, vod_play; an episode in the playlist of its season, the others lazy: lampac_next:),
+// "Continue" of a record of it, play_action of a card with "Онлайн" (the title marked "online", no
 // AIOStreams), the window "Раздач нет" with "Искать онлайн".
 // PHP 5.3.6, firmware API only. Types (AioLpRow, AioMovie): phpstan-types.neon.
 
@@ -73,9 +74,12 @@ function aio_lpv_link($base, $r, $deadline, $s = 0, $e = 0)
 // vod_play of link $url of row $r of card $mv from $pos s (episode $e of season $s; -1 a movie),
 // linked to the card when it has a dune id (spec §7): recent_uid aio:<dune id>:<s>:<e>:<key of the
 // row>, as a release; recent_action_params wh_release = the key (the path of the balancer and the hex
-// of the voice in it), wh_mode lampac ("Continue": aio_lpv_resume). The mark of a title marked
-// "online" takes the row: the next list puts it first (only "Онлайн" and "Искать онлайн" mark a
-// title, spec §8). On r24 through pf_check (aio_pf_check of call_plugin).
+// of the voice in it), wh_mode lampac ("Continue": aio_lpv_resume). A linked episode plays in a
+// playlist of the episodes $have of its voice in the season (aio_lp_episode, up to AIO_EPISODES_MAX),
+// the others lazy - "lampac_next:<dune id>:<s>:<e>:<key>" (aio_lpv_lazy: the same voice, the key
+// has it); P+/P- and the autoplay go through them. The mark of a title marked "online" takes the
+// row: the next list puts it first (only "Онлайн" and "Искать онлайн" mark a title, spec §8). On r24
+// through pf_check (aio_pf_check of call_plugin).
 /**
  * @param AioMovie $mv
  * @param string $lang
@@ -84,20 +88,41 @@ function aio_lpv_link($base, $r, $deadline, $s = 0, $e = 0)
  * @param int $pos
  * @param int $s
  * @param int $e
+ * @param list<int> $have
  * @return AioAction
  */
-function aio_lpv_vod($mv, $lang, $r, $url, $pos, $s = -1, $e = -1)
+function aio_lpv_vod($mv, $lang, $r, $url, $pos, $s = -1, $e = -1, $have = array())
 {
     $path = $r['path'];
     $linked = $mv['dune_id'] !== '';
-    $ser = aio_vod_item($mv, $s, $e, $url, $linked ? $r['key'] : '', false);
+    $eps = $e > 0 && $linked && in_array($e, $have, true) && count($have) <= AIO_EPISODES_MAX ?
+        array_values(array_unique($have)) : array($e);
+    $list = count($eps) > 1;
+    $series = array();
+    $ndx = 0;
+    foreach ($eps as $n => $i)
+    {
+        if ($i === $e)
+        {
+            $ndx = $n;
+            $series[] = aio_vod_item($mv, $s, $e, $url, $linked ? $r['key'] : '', $list);
+        }
+        else
+            $series[] = array(
+                PluginVodSeriesInfo::name => aio_ser_name($mv, $s, $i, true),
+                PluginVodSeriesInfo::playback_url => "lampac_next:{$mv['dune_id']}:$s:$i:{$r['key']}",
+                PluginVodSeriesInfo::playback_url_is_stream_url => false);
+    }
+    // The lazy ones find the card after a restart of php_server too.
+    if ($list)
+        aio_movie_save($mv, $lang);
     $info = array(
         PluginVodInfo::id => 'aio.' . aio_lpv_key($mv),
-        PluginVodInfo::name => aio_ser_name($mv, $s, $e, false),
+        PluginVodInfo::name => $list ? $mv['title'] : aio_ser_name($mv, $s, $e, false),
         PluginVodInfo::sub_name => $r['src'] . ($r['voice'] !== '' ? " \xC2\xB7 {$r['voice']}" : ''),
         PluginVodInfo::poster_url => $mv['poster'],
-        PluginVodInfo::series => array($ser),
-        PluginVodInfo::initial_series_ndx => 0,
+        PluginVodInfo::series => $series,
+        PluginVodInfo::initial_series_ndx => $ndx,
         // No annotation of the card in INFO, as aio_play.
         PluginVodInfo::description => '',
         PluginVodInfo::buffering_ms => 3000,
@@ -120,10 +145,110 @@ function aio_lpv_vod($mv, $lang, $r, $url, $pos, $s = -1, $e = -1)
     if ($path !== '' && aio_lpv_mark($mv))
         aio_lpv_mark_set($mv, true, $path, $r['voice'], $r['key']);
     aio_log("play: lampac {$r['key']}" . ($e > 0 ? sprintf(' S%02dE%02d', $s, $e) : '') . " pos=$pos linked=" .
-        ($linked ? 1 : 0));
+        ($linked ? 1 : 0) . ($list ? ', ' . count($eps) . ' episodes' : ''));
     return array(
         GuiAction::handler_string_id => PLUGIN_VOD_PLAY_ACTION_ID,
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
+}
+
+// --- The lazy episodes of a playlist of a season (aio_lpv_vod).
+
+// get_vod_stream_url of lazy episode $pb "lampac_next:<dune id>:<s>:<e>:<key>" (aio_lazy_action of
+// playback.php) -> error_action: handle_user_input lp_next (aio_lpv_next), as aio_next; the episode
+// is that of $pb, whatever item of the playlist the player is on (plugin_vod_series_ndx). A bad one:
+// the error.
+/**
+ * @param string $pb
+ * @return AioAction
+ */
+function aio_lpv_lazy($pb)
+{
+    if (!preg_match('/^lampac_next:(' . AIO_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([^:]+)\z/', $pb, $m) ||
+        aio_lp_key_parse($m[4]) === null)
+    {
+        aio_log('lazy: bad playback_url ' . aio_cut(aio_mask($pb), 100));
+        return aio_error('err_list_expired', '', true);
+    }
+    aio_log("lazy: lampac S{$m[2]}E{$m[3]} {$m[4]} -> handle_user_input lp_next");
+    return aio_input('lp_next', array('k' => $m[1], 's' => $m[2], 'e' => $m[3], 'key' => $m[4]));
+}
+
+// lp_next (aio_lpv_lazy): episode $in->e of season $in->s in the voice of key $in->key of card $in->k
+// (aio_movie_load) under the player -> vod_play of the playlist of the season with it a link
+// (aio_lpv_vod). The link: of the season of the last start (AioLpv::$season) when it is of that key
+// and season; none there, or it gives no link - aio_lp_find anew (the links of /proxy/ in a season
+// expire; after a restart of php_server: /externalids too); "call" with its check of the episode, the
+// check of the link. One deadline for all, of the operation. No such episode in the voice, a row that
+// gives no link: the window "Серия … не загрузилась" with the reason and "Стоп", as aio_next; never
+// another balancer or voice (spec §5.2: no families).
+/**
+ * @param stdClass $in
+ * @return AioAction
+ */
+function aio_lpv_next($in)
+{
+    $ok = isset($in->k, $in->s, $in->e, $in->key) && is_string($in->k) && preg_match('/^' . AIO_DUNE_ID . '\z/', $in->k) &&
+        is_string($in->s) && preg_match('/^[1-9][0-9]{0,3}\z/', $in->s) && is_string($in->e) &&
+        preg_match('/^[1-9][0-9]{0,4}\z/', $in->e) && aio_lp_key_parse($in->key) !== null;
+    $saved = $ok ? aio_movie_load($in->k) : null;
+    $lang = $saved ? $saved['lang'] : (isset($in->lang) && is_string($in->lang) ? $in->lang : '');
+    if (!$saved)
+    {
+        aio_log('lampac next: ' . ($ok ? 'no card' : 'bad params'));
+        return aio_next_failed($lang, '', 'err_list_expired');
+    }
+    $mv = $saved['movie'];
+    $s = intval($in->s);
+    $e = intval($in->e);
+    $key = strval($in->key);
+    $ep = sprintf('S%02dE%02d', $s, $e);
+    $base = Aio::$settings['lp'];
+    $left = Aio::$t0 > 0 ? AIO_OP_BUDGET - (microtime(true) - Aio::$t0) : AIO_OP_BUDGET;
+    $deadline = aio_lp_now() + $left;
+    $c = AioLpv::$season;
+    $f = array('row' => null, 'why' => 'down', 'detail' => 'no address', 'have' => array(), 'voice' => '', 'sea' => null);
+    if ($base !== '' && $c && $c['key'] === $key && $c['s'] === $s)
+    {
+        $x = aio_lp_episode($c['sea'], $s, $e);
+        $f = array('row' => $x['ep'] ? aio_lp_ep_row($c['row'], $x['ep']) : null, 'why' => $x['why'], 'detail' => $x['detail'],
+            'have' => $x['have'], 'voice' => $c['row']['voice'], 'sea' => $c['sea']);
+        if ($f['row'])
+        {
+            $l = aio_lpv_link($base, $f['row'], $deadline, $s, $e);
+            if ($l['why'] === '')
+                return aio_lpv_vod($mv, $lang, $f['row'], $l['url'], 0, $s, $e, $f['have']);
+            aio_log("lampac next: $ep of the season kept: {$l['why']} -> the balancer anew");
+        }
+        else
+            aio_log("lampac next: $ep not in the season kept ({$x['why']}) -> the balancer anew");
+    }
+    else if ($base !== '')
+        aio_log("lampac next: $ep, no season kept for $key -> the balancer");
+    if ($base !== '')
+    {
+        list($t) = aio_lp_externalids($base, aio_lpv_title($mv));
+        $f = aio_lp_find($base, $key, aio_lp_query($t), $s, $e,
+            min(AIO_LP_REPLIES_MAX, max(0, $deadline - aio_lp_now() - AIO_LPV_CHECK_MIN)));
+    }
+    $why = array($f['why'], $f['detail']);
+    if ($f['row'])
+    {
+        $l = aio_lpv_link($base, $f['row'], $deadline, $s, $e);
+        if ($l['why'] === '')
+        {
+            if ($f['sea'])
+                AioLpv::$season = array('key' => $key, 's' => $s, 'row' => $f['row'], 'sea' => $f['sea']);
+            return aio_lpv_vod($mv, $lang, $f['row'], $l['url'], 0, $s, $e, $f['have']);
+        }
+        $why = array($l['why'], $l['detail']);
+    }
+    $k = aio_lp_key_parse($key);
+    $src = $f['row'] ? $f['row']['src'] : ucfirst($k ? $k[0] : '');
+    aio_log("lampac next: $ep: no link ({$why[0]}" . ($why[1] !== '' ? ', ' . aio_lp_mask($why[1], $base) : '') . ')');
+    $text = $why[0] === 'no_episode' || $why[0] === 'no_episodes' ?
+        aio_lpv_no_ep_text($lang, $src, $f['voice'], $s, $e, $why[0], $f['have']) : "$src: " . aio_lpv_why($lang, $why[0], $why[1]);
+    return aio_dialog(aio_tr($lang, 'next_failed', aio_se($s, $e)), aio_dialog_lines($text),
+        array(aio_tr($lang, 'next_stop') => aio_input('next_stop')));
 }
 
 // --- play_action: "Continue", the title marked "online", no AIOStreams, no releases.
