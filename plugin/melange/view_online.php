@@ -281,10 +281,11 @@ function aio_lpv_badge($q)
 // Lines of the online list of view $v on screen: the rows of a balancer in a run of 2 and more after
 // a header line of it (the cursor skips it), a row alone as one line; "Ещё N источников" last. A line:
 // k (head; row: under a header; one: alone; more), i (the row; of a head its first; of more the number
-// of rows), n (of a head the rows under it).
+// of rows), n (of a head the rows under it), q (the quality it shows: of a head the best of its rows, of
+// a row under it only another one, '' none).
 /**
  * @param AioLpView $v
- * @return list<array{k: string, i: int, n: int}>
+ * @return list<array{k: string, i: int, n: int, q: string}>
  */
 function aio_lpv_lines($v)
 {
@@ -296,19 +297,29 @@ function aio_lpv_lines($v)
         $b = $a + 1;
         while ($b < $c && $v['rows'][$ids[$b]]['path'] === $v['rows'][$ids[$a]]['path'])
             $b++;
-        if ($b - $a > 1)
-            $out[] = array('k' => 'head', 'i' => $ids[$a], 'n' => $b - $a);
+        $best = '';
         for ($j = $a; $j < $b; $j++)
-            $out[] = array('k' => $b - $a > 1 ? 'row' : 'one', 'i' => $ids[$j], 'n' => 0);
+        {
+            $q = $v['rows'][$ids[$j]]['quality'];
+            if ($q !== '' && ($best === '' || aio_lp_q_num($q) > aio_lp_q_num($best)))
+                $best = $q;
+        }
+        if ($b - $a > 1)
+            $out[] = array('k' => 'head', 'i' => $ids[$a], 'n' => $b - $a, 'q' => $best);
+        for ($j = $a; $j < $b; $j++)
+        {
+            $q = $v['rows'][$ids[$j]]['quality'];
+            $out[] = array('k' => $b - $a > 1 ? 'row' : 'one', 'i' => $ids[$j], 'n' => 0, 'q' => $b - $a > 1 && $q === $best ? '' : $q);
+        }
     }
     if ($v['left'] > 0)
-        $out[] = array('k' => 'more', 'i' => count($v['rows']), 'n' => 0);
+        $out[] = array('k' => 'more', 'i' => count($v['rows']), 'n' => 0, 'q' => '');
     return $out;
 }
 
 // The line of lines $L of row $i, else of the first row after it there (or "Ещё N"), else the last.
 /**
- * @param list<array{k: string, i: int, n: int}> $L
+ * @param list<array{k: string, i: int, n: int, q: string}> $L
  * @param int $i
  * @return int
  */
@@ -324,7 +335,7 @@ function aio_lpv_line_at($L, $i)
 
 // The row of line $j of lines $L, -1 for "Ещё N" and a header.
 /**
- * @param list<array{k: string, i: int, n: int}> $L
+ * @param list<array{k: string, i: int, n: int, q: string}> $L
  * @param int $j
  * @return int
  */
@@ -336,7 +347,7 @@ function aio_lpv_row_of($L, $j)
 // Cursor $sel, $top of lines $L as the list keeps it: never on a header (the line after it); on the
 // first row under a header that header on screen too.
 /**
- * @param list<array{k: string, i: int, n: int}> $L
+ * @param list<array{k: string, i: int, n: int, q: string}> $L
  * @param int $sel
  * @param int $top
  * @return array{int, int}
@@ -353,7 +364,7 @@ function aio_lpv_fix($L, $sel, $top)
 
 // One key of lines $L (aio_gc_step): a header skipped in the way of the key (the first line: down).
 /**
- * @param list<array{k: string, i: int, n: int}> $L
+ * @param list<array{k: string, i: int, n: int, q: string}> $L
  * @param int $sel
  * @param int $top
  * @param 'up'|'down'|'pgup'|'pgdn' $key
@@ -373,7 +384,7 @@ function aio_lpv_step($L, $sel, $top, $key)
 // The cursor of lines $L put on row $i (aio_lpv_line_at) in the middle of the screen, as far as the
 // list allows. -> array(sel, top).
 /**
- * @param list<array{k: string, i: int, n: int}> $L
+ * @param list<array{k: string, i: int, n: int, q: string}> $L
  * @param int $i
  * @return array{int, int}
  */
@@ -385,7 +396,7 @@ function aio_lpv_put($L, $i)
 
 // The counter of line $sel of lines $L: the rows, not the lines ("Ещё N": the last).
 /**
- * @param list<array{k: string, i: int, n: int}> $L
+ * @param list<array{k: string, i: int, n: int, q: string}> $L
  * @param int $sel
  * @return list<AioGcComp>
  */
@@ -403,11 +414,11 @@ function aio_lpv_counter($L, $sel)
     return aio_gc_counter($at - 1, $n);
 }
 
-// Columns of lines $L of view $v: the badge, the balancer, the voice of a line alone (after the widest
-// name of those). -> array(x of the balancer, x of the voice of a line alone).
+// Columns of lines $L of view $v: the badge (of the quality of a line), the balancer, the voice of a
+// line alone (after the widest name of those). -> array(x of the balancer, x of the voice of a line alone).
 /**
  * @param AioLpView $v
- * @param list<array{k: string, i: int, n: int}> $L
+ * @param list<array{k: string, i: int, n: int, q: string}> $L
  * @return array{int, int}
  */
 function aio_lpv_cols($v, $L)
@@ -416,27 +427,24 @@ function aio_lpv_cols($v, $L)
     $sw = 0;
     foreach ($L as $l)
     {
-        if ($l['k'] !== 'row' && $l['k'] !== 'one')
-            continue;
-        $r = $v['rows'][$l['i']];
-        $b = aio_lpv_badge($r['quality']);
+        $b = aio_lpv_badge($l['q']);
         if ($b !== '')
             $bw = max($bw, AioGc::$badge_w[$b]);
         if ($l['k'] === 'one')
-            $sw = max($sw, min(AIO_LPV_SRC_W, aio_gc_w($r['src'], 30)));
+            $sw = max($sw, min(AIO_LPV_SRC_W, aio_gc_w($v['rows'][$l['i']]['src'], 30)));
     }
     $x = AIO_GC_PAD + ($bw > 0 ? $bw + 24 : 0);
     return array($x, $x + $sw + 40);
 }
 
 // Children of row panel "r$j" of view $v, line $j of its lines $L, $top the first line on screen: a
-// line over a block but between two rows alone; a header - the balancer, the number of its rows dimmed;
-// a row under it - the voice indented, on the first line of the screen the balancer dimmed before it; a
-// row alone - the balancer and the voice; a row: its badge, of one watched the bar of the share. The
-// line "Ещё N источников — Обновить".
+// line over a block but between two rows alone; the quality of the line (aio_lpv_lines): its badge and
+// "до 1080p" at the right; a header - the balancer, the number of its rows dimmed; a row under it - the
+// voice indented, on the first line of the screen the balancer dimmed before it; a row alone - the
+// balancer and the voice; a row watched: the bar of the share. The line "Ещё N источников — Обновить".
 /**
  * @param AioLpView $v
- * @param list<array{k: string, i: int, n: int}> $L
+ * @param list<array{k: string, i: int, n: int, q: string}> $L
  * @param int $j
  * @param array{int, int} $c
  * @param bool $on
@@ -459,6 +467,17 @@ function aio_lpv_row_items($v, $L, $j, $c, $on, $top, $lang)
     if ($j > 0 && $l['k'] !== 'row' && !($l['k'] === 'one' && $L[$j - 1]['k'] === 'one'))
         $d[] = aio_gc_rect(aio_gc_at($w, 2, AIO_GC_PAD, 0), AIO_LPV_LINE);
     $sw = min(AIO_LPV_SRC_W, aio_gc_w($r['src'], 30));
+    $qw = 0;
+    $b = aio_lpv_badge($l['q']);
+    if ($b !== '')
+        $d = array_merge($d, aio_gc_plates(array($b), AIO_GC_PAD));
+    if ($l['q'] !== '')
+    {
+        $t = aio_lpv_tr($lang, 'lp_side_q', array('q' => $l['q']));
+        $qw = aio_gc_w($t, 30) + 24;
+        $d[] = aio_gc_cut(null, aio_gc_left_center($qw - 24, 44, AIO_GC_LW - AIO_GC_PAD - $qw + 24), $t, 30,
+            $l['k'] === 'head' ? AIO_GC_TEXT2 : $hi, array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
+    }
     if ($l['k'] === 'head')
     {
         $d[] = aio_gc_cut(null, aio_gc_left_center($sw, 44, $c[0]), $r['src'], 30, AIO_GC_TEXT);
@@ -466,23 +485,20 @@ function aio_lpv_row_items($v, $L, $j, $c, $on, $top, $lang)
             aio_gc_plural($lang, $l['n'], 'lp_voices'), 26, AIO_GC_DIM);
         return $d;
     }
-    $b = aio_lpv_badge($r['quality']);
-    if ($b !== '')
-        $d = array_merge($d, aio_gc_plates(array($b), AIO_GC_PAD));
     $vx = $l['k'] === 'one' ? $c[1] : $c[0] + AIO_LPV_INDENT;
     if ($l['k'] === 'one' || $j === $top)
         $d[] = aio_gc_cut(null, aio_gc_left_center($sw, 44, $c[0]), $r['src'], 30, $l['k'] === 'one' ? $hi : AIO_GC_DIM);
     if ($l['k'] === 'row' && $j === $top)
         $vx = max($vx, $c[0] + $sw + 30);
-    $d[] = aio_gc_cut(null, aio_gc_left_center(max(40, AIO_GC_LW - AIO_GC_PAD - $vx), 44, $vx),
+    $d[] = aio_gc_cut(null, aio_gc_left_center(max(40, AIO_GC_LW - AIO_GC_PAD - $qw - $vx), 44, $vx),
         $r['voice'] !== '' ? $r['voice'] : "\xE2\x80\x94", 30, $hi);
     $prog = isset($v['gc_prog']) ? $v['gc_prog'] : array();
     return array_merge($d, aio_gc_bar(isset($prog[$r['key']]) ? $prog[$r['key']] : 0));
 }
 
 // Children of 'card' of row $sel of view $v: beside the poster the balancer and "до 2160p";
-// under it the voice, the quality "(заявлено)", the subtitles that do not go to the player,
-// "Через: Lampac из настроек". The row "Ещё N" and none: no card.
+// under it the voice, the quality ("до 2160p", else "источник не сообщает"), the subtitles that do not
+// go to the player, "Через: Lampac из настроек". The row "Ещё N" and none: no card.
 /**
  * @param AioState $st
  * @param AioLpView $v
@@ -504,8 +520,8 @@ function aio_lpv_card($st, $v, $sel)
             30, AIO_GC_TEXT2);
     $y = AIO_GC_PH + 20;
     $fields = array(array('lp_card_voice', $r['voice'] !== '' ? $r['voice'] : "\xE2\x80\x94"));
-    if ($r['quality'] !== '')
-        $fields[] = array('lp_card_quality', aio_lpv_tr($lang, 'lp_card_q', array('q' => $r['quality'])));
+    $fields[] = array('lp_card_quality', $r['quality'] !== '' ? aio_lpv_tr($lang, 'lp_side_q', array('q' => $r['quality'])) :
+        aio_tr($lang, 'lp_card_q_none'));
     if ($r['subs'] > 0)
         $fields[] = array('lp_card_subs', aio_tr($lang, 'lp_card_subs_v'));
     $fields[] = array('lp_card_via', aio_tr($lang, 'lp_card_via_v'));

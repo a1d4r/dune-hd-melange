@@ -1010,7 +1010,8 @@ function aio_lp_season_link($j, $s)
 // strictly, of the first such alone); a voice without a name or a link, or of a name twice, left
 // out; AIO_LP_ROWS_MAX at most), eps (data[]: AioLpEp - s and e (aio_lp_num; -1 s none), name,
 // what aio_lp_item gives; an item of no number e or of s and e twice left out, AIO_LP_EPS_MAX at most, in the order of the reply), quality (maxquality
-// of the reply, else the quality of the list), why and detail '' (aio_lp_season_reply sets them).
+// of the reply, else the best of the quality of its episodes (Vibix), else the quality of the source), why and
+// detail '' (aio_lp_season_reply sets them).
 /**
  * @param AioLpSource $src
  * @param array<mixed> $j
@@ -1052,7 +1053,32 @@ function aio_lp_season($src, $j, $url, $base = '')
         $out['eps'][] = array('s' => $es, 'e' => $e,
             'name' => aio_lp_text(aio_lp_str($x, 'name'))) + aio_lp_item($src, $x, $base);
     }
+    if ($q === '')
+    {
+        foreach ($out['eps'] as $x)
+        {
+            foreach (array_keys($x['qual']) as $k)
+            {
+                if (aio_lp_q_num($k) > aio_lp_q_num($q))
+                    $q = $k;
+            }
+        }
+        if ($q !== '')
+            $out['quality'] = $q;
+    }
     return $out;
+}
+
+// The number of quality $q ("1080p", "4K"): its lines, 0 for none.
+/**
+ * @param string $q
+ * @return int
+ */
+function aio_lp_q_num($q)
+{
+    if (preg_match('/^([0-9])K\z/i', $q, $m))
+        return $m[1] === '4' ? 2160 : ($m[1] === '8' ? 4320 : 0);
+    return preg_match('/^([0-9]{3,4})p\z/i', $q, $m) ? intval($m[1]) : 0;
 }
 
 // The reply ($code, $body) of season link $url of source $src -> AioLpSeason, why '' or the reason
@@ -1162,7 +1188,8 @@ function aio_lp_season_get($base, $src, $url, $total = AIO_LP_REPLY_MAX, $s = 0)
 
 // Season $s of source $src from reply $j of its balancer without s (asked by link $url): of a
 // list of seasons (type season) - its link (aio_lp_season_link) asked in up to $total s, no
-// such season - no_season; episodes at once (type episode) - those, if of season $s. -> AioLpSeason.
+// such season - no_season; maxquality of the list (Filmix) the quality of the source for it (aio_lp_season);
+// episodes at once (type episode) - those, if of season $s. -> AioLpSeason.
 /**
  * @param string $base
  * @param AioLpSource $src
@@ -1182,6 +1209,9 @@ function aio_lp_serial($base, $src, $j, $url, $s, $total = AIO_LP_REPLY_MAX)
         aio_lp_log("season: {$src['path']}, no season $s", $base);
         return aio_lp_season_no($src, $url, 'no_season', strval($s));
     }
+    $q = aio_lp_text(aio_lp_str($j, 'maxquality'));
+    if ($q !== '')
+        $src['q'] = $q;
     return aio_lp_season_get($base, $src, $link, $total, $s);
 }
 
