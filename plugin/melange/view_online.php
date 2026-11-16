@@ -1025,7 +1025,7 @@ function aio_lpv_pick($in, $st)
     aio_log("lampac: row $sel of " . count($v['rows']) . ": {$r['path']}, {$r['method']}" . ($st['e'] > 0 ? ', ' . aio_ep_tag($st) : ''));
     $s = $st['e'] > 0 ? $st['s'] : 0;
     $e = $st['e'] > 0 ? $st['e'] : 0;
-    $f = null;
+    $f = aio_lp_found($r, null, -1, -1);
     if ($r['method'] === 'season')
     {
         $f = aio_lpv_episode($base, $v, $r, $s, $e, $deadline);
@@ -1036,17 +1036,12 @@ function aio_lpv_pick($in, $st)
                 aio_dialog_lines(aio_lpv_no_ep_text($st['lang'], $r['src'], $r['voice'], $s, $e, $f['why'], $f['have'])),
                 array('OK' => aio_close_and(null)));
         }
-        if ($f['row'] === null)
-            return aio_lpv_failed($st['lang'], $r, $f['why'], $f['detail']);
-        $r = $f['row'];
     }
-    $l = aio_lpv_link($base, $r, $deadline, $s, $e);
-    if ($l['why'] !== '')
-        return aio_lpv_failed($st['lang'], $r, $l['why'], $l['detail']);
+    $a = aio_lpv_ep_play($st['movie'], $st['lang'], $f, $st['s'], $st['e'], 0, $deadline);
+    if (isset($a[0]))
+        return aio_lpv_failed($st['lang'], $r, $a[0], $a[1]);
     AioLpv::$played = null;
-    if ($f && $f['sea'])
-        AioLpv::$season = array('k' => $st['movie']['dune_id'], 'key' => $r['key'], 's' => $s, 'row' => $r, 'sea' => $f['sea']);
-    return aio_lpv_vod($st['movie'], $st['lang'], $r, $l['url'], 0, $st['s'], $st['e'], $f ? $f['have'] : array());
+    return $a;
 }
 
 // Episode $e of season $s of row $r of a voice of a season (method season) of view $v: the season by
@@ -1071,7 +1066,7 @@ function aio_lpv_episode($base, $v, $r, $s, $e, $deadline)
             $src = $x;
     }
     if ($src === null || $s < 1 || $e < 1)
-        return array('row' => null, 'why' => 'bad_key', 'detail' => '', 'have' => array(), 'voice' => $r['voice'], 'sea' => null);
+        return aio_lp_not_found('bad_key', '', $r['voice']);
     $total = min(2 * AIO_LP_REPLY_MAX, $deadline - aio_lp_now() - AIO_LPV_CHECK_MIN);
     $t0 = aio_lp_now();
     $sea = aio_lp_season_get($base, $src, $r['url'], $total, $s);

@@ -1241,7 +1241,7 @@ function aio_lp_ep_row($row, $ep)
 function aio_lp_find($base, $key, $q, $s, $e, $total = AIO_LP_REPLIES_MAX)
 {
     $t0 = aio_lp_now();
-    $out = array('row' => null, 'why' => '', 'detail' => '', 'have' => array(), 'voice' => '', 'sea' => null);
+    $out = aio_lp_not_found('', '');
     $k = aio_lp_key_parse($key);
     $src = $k !== null && $k[0] !== '' ? aio_lp_source_of($base, $k[0]) : null;
     $each = (int) min(AIO_LP_REPLY_MAX, floor($total));
@@ -1285,12 +1285,42 @@ function aio_lp_find($base, $key, $q, $s, $e, $total = AIO_LP_REPLIES_MAX)
 function aio_lp_voice_ep($base, $src, $key, $sea, $s, $e, $total)
 {
     list($row, $sea) = aio_lp_voice_season($base, $src, $key, $sea, $s, $total);
-    if ($sea['why'] !== '' || $row === null)
-        return array('row' => null, 'why' => $sea['why'], 'detail' => $sea['detail'], 'have' => array(),
-            'voice' => $row ? $row['voice'] : '', 'sea' => null);
+    return aio_lp_found($row, $sea, $s, $e);
+}
+
+// Episode $e of season $s in season $sea of the voice of row $row (aio_lp_voice_season: a reason of
+// the season, or no row - the reason) -> AioLpFound: the row of the episode (aio_lp_ep_row), its
+// reason (aio_lp_episode), the episodes of the voice, the voice, the season. $sea null: $row is of a
+// movie, played as it is (null: no_voice).
+/**
+ * @param AioLpRow|null $row
+ * @param AioLpSeason|null $sea
+ * @param int $s
+ * @param int $e
+ * @return AioLpFound
+ */
+function aio_lp_found($row, $sea, $s, $e)
+{
+    if ($sea === null)
+        return $row ? array('row' => $row, 'why' => '', 'detail' => '', 'have' => array(), 'voice' => $row['voice'],
+            'sea' => null) : aio_lp_not_found('no_voice', '');
+    if ($row === null || $sea['why'] !== '')
+        return aio_lp_not_found($sea['why'], $sea['detail'], $row ? $row['voice'] : '');
     $f = aio_lp_episode($sea, $s, $e);
     return array('row' => $f['ep'] ? aio_lp_ep_row($row, $f['ep']) : null, 'why' => $f['why'], 'detail' => $f['detail'],
         'have' => $f['have'], 'voice' => $row['voice'], 'sea' => $sea);
+}
+
+// No row (AioLpFound) for reason $why, $detail, of voice $voice ('' none known).
+/**
+ * @param string $why
+ * @param string $detail
+ * @param string $voice
+ * @return AioLpFound
+ */
+function aio_lp_not_found($why, $detail, $voice = '')
+{
+    return array('row' => null, 'why' => $why, 'detail' => $detail, 'have' => array(), 'voice' => $voice, 'sea' => null);
 }
 
 // Season $sea of source $src (s $s) in the voice of key $key (aio_lp_season_key): its row of
