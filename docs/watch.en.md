@@ -6,7 +6,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
 1. In the Melange catalog, choose the "Movies" or "Series" tab on the bar at the top.
 
-   <img src="../screenshots/watch-tabs.jpg" alt="Melange catalog: focus on the Movies tab, heart, magnifier and gear on the right" width="100%">
+   <img src="../screenshots/watch-tabs.jpg" alt="Melange catalog: focus on the Movies tab, clock, heart, magnifier and gear on the right" width="100%">
 
 2. To find a movie by title, open search (the magnifier on the same bar), type the title and confirm.
 

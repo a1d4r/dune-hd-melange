@@ -72,7 +72,7 @@ Next: [first setup](#first-setup).
 
 4. The Melange catalog opens: you can pick a movie.
 
-   <img src="../screenshots/catalog.jpg" alt="Melange catalog: Movies and Series tabs at the top, heart, magnifier and gear on the right, Continue Watching, Favorites and other rows below" width="100%">
+   <img src="../screenshots/catalog.jpg" alt="Melange catalog: Movies and Series tabs at the top, clock, heart, magnifier and gear on the right, Favorites, Trending and other rows below" width="100%">
 
    If you see "TorrServer does not answer", open TorrServe (it starts the server), then Melange again. If that does not help, check step 1.
 

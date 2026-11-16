@@ -9,7 +9,8 @@
 - **Fav 1 and Fav 2 on the remote.** If your remote has them, Fav 1 opens the Continue Watching screen with everything you started, and Fav 2 opens Favorites. They work on every Melange screen except the player. In the TV tab of the home screen they stay with the Dune.
 - **Mark as watched from the tile.** POP UP on a tile offers **Mark as watched** / **Mark as unwatched**; for a series, it marks the whole series, all aired episodes. Tiles of Continue Watching also have **Remove from Continue Watching**. These items are also in the TV tab of the home screen, where the Continue Watching and Favorites rows also come first. The MENU of a movie card now has **Mark as watched** / **Mark as unwatched** too.
 - **Card buttons.** The Melange card has **Watch**, **Trailer** and **Favorites**; **Dune card** moved to MENU.
-- **Bring over Dune Favorites.** POP UP on the Favorites screen → **Add from Dune Favorites** adds the movies and series that are missing and removes nothing. If there is nothing to add, it says "Nothing new in Dune Favorites".
+- **History icon in the catalog.** The top bar of the catalog has a clock to the left of the heart, like the Dune's own history icon, so the bar reads Movies, Series, clock, heart, search, settings. ENTER on it opens the Continue Watching screen with everything you started, movies and series. BACK returns the focus to the clock. POP UP on the top bar or a tile also has **Continue Watching**, before **Favorites**.
+- **Bring over Dune Favorites.** POP UP on the Favorites screen → **Add from Dune Favorites** adds the movies and series that are missing and removes nothing. If there is nothing to add, it says "Nothing new in Dune Favorites". The added titles show their description, genres and rating in the Favorites row right away.
 - **Backup** on the settings page now saves Favorites too, and loading the backup brings them back.
 
 ## 0.61.0 — 16.11.2026
@@ -268,7 +269,8 @@ First public release. What it does:
 - **Fav 1 и Fav 2 на пульте.** Если такие кнопки есть, Fav 1 открывает экран «Продолжить» со всем начатым, Fav 2 — «Избранное». Они работают на всех экранах Melange, кроме плеера. На вкладке «ТВ» главного экрана эти кнопки остаются у Дюны.
 - **Отметка просмотра с плитки.** В POP UP плитки есть «Отметить просмотренным» / «Снять отметку»; у сериала отмечается весь сериал, все вышедшие серии. У плиток «Продолжить» есть ещё «Убрать из «Продолжить»». Те же пункты есть и на вкладке «ТВ» главного экрана, где ряды «Продолжить» и «Избранное» тоже идут первыми. В MENU карточки фильма появились «Отметить просмотренным» / «Снять отметку».
 - **Кнопки карточки.** В карточке Melange кнопки «Смотреть», «Трейлер» и «В избранное»; «Карточка Дюны» перенесена в MENU.
-- **Перенос из «Избранного» Дюны.** POP UP на экране «Избранное» → «Добавить из «Избранного» Дюны» добавляет недостающие фильмы и сериалы и ничего не удаляет. Если добавлять нечего, появится «В «Избранном» Дюны нет нового».
+- **Значок истории в каталоге.** На полосе сверху каталога слева от ❤ появились часы, как родной значок истории Дюны, и полоса теперь такая: «Фильмы», «Сериалы», часы, ❤, поиск, настройки. ENTER на них открывает экран «Продолжить» со всем начатым, фильмами и сериалами. «Назад» возвращает фокус на часы. В POP UP полосы и плитки тоже есть пункт «Продолжить», перед «Избранным».
+- **Перенос из «Избранного» Дюны.** POP UP на экране «Избранное» → «Добавить из «Избранного» Дюны» добавляет недостающие фильмы и сериалы и ничего не удаляет. Если добавлять нечего, появится «В «Избранном» Дюны нет нового». У перенесённых тайтлов в ряду «Избранное» сразу видны описание, жанры и рейтинг.
 - **Резервная копия** на странице настроек теперь сохраняет и «Избранное», а загрузка копии его восстанавливает.
 
 ## 0.61.0 — 16.11.2026
