@@ -58,9 +58,9 @@ define('AIO_CPM_TICK_S', 1.5);
 define('AIO_CPM_MORE', 40);
 // The meta of the tiles of the rows "Continue" and "Мой список" no row has, asked at the build of a main screen of rows
 // (aio_cpm_build), s at most from its start, the look at the rows in memory and on the disk in it: r25 its reply (the
-// view with the first rows) waits for it, r24 it is in AIO_CATV_OPEN_S. AIO_CPM_SHORT_S at most: a timeout of the build
-// is of its short rest (aio_cpm_judge), never a slow title or the server.
-define('AIO_CPM_BUILD_S', min(1.0, AIO_CPM_SHORT_S));
+// view with the first rows) waits for it, r24 it is in AIO_CATV_OPEN_S. AIO_CPM_SHORT_S at most (a test holds it): a
+// timeout of the build is of its short rest (aio_cpm_judge), never a slow title or the server.
+define('AIO_CPM_BUILD_S', 1.0);
 // A title cut short at the build (a timeout of its short rest): not asked by the builds for this many s (AioCpm::$cut),
 // the tick asks it (a meta that takes longer than the build has would else hold every opening for good).
 define('AIO_CPM_BUILD_CUT_S', 180);
