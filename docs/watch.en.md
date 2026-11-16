@@ -38,6 +38,8 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
 ## Continue
 
+What you started is also in the first row of the Melange catalog ([Continue Watching and Favorites](favorites.en.md)).
+
 1. What you started is in the **Continue Watching** row on the Dune home screen. **ENTER** plays it from the same spot.
 
    <img src="../screenshots/watch-continue-row.jpg" alt="Dune home screen: the Continue Watching row" width="100%">
@@ -68,4 +70,4 @@ You can also open Melange from a card in the Dune **Movies** catalog: home scree
 - "TorrServer is not responding…": open TorrServe on the Dune ([Quick start](start.en.md#first-setup), step 1).
 - "AIOStreams found no streams": the movie has no releases ([Troubleshooting](troubleshooting.en.md)).
 
-Next: [Your own catalog rows](catalog-rows.en.md) · [Contents](README.en.md)
+Next: [Continue Watching and Favorites](favorites.en.md) · [Contents](README.en.md)
