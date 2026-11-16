@@ -73,6 +73,18 @@ define('AIO_LP_EPS_MAX', 2000);
 // they fit a label of a dialog (AIO_ERROR_LABEL of main.php, 48), with the name of a balancer a
 // line of the window of the reasons (AIO_ERROR_LINE, 68).
 define('AIO_LP_RANGES_LEN', 30);
+// The User-Agent of "Представляться приложением Lampa": the web Lampa sends that of its browser.
+define('AIO_LP_UA',
+    'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36');
+
+// What the requests to the Lampac of the settings take (aio_lp_send): token - lampac_token ('' none);
+// lampa - lampac_as_lampa; uid - the id of this Dune of it ('' none). aio_op_settings of main.php sets
+// it; without it (the settings page) nothing is added.
+class AioLp
+{
+    /** @var array{token: string, lampa: bool, uid: string} */
+    public static $auth = array('token' => '', 'lampa' => false, 'uid' => '');
+}
 
 // Tests define their own aio_lp_now() and aio_lp_wait(): the clock of the
 // budgets and the pause before a repeat.
@@ -124,6 +136,47 @@ function aio_lp_version($body)
     $j = aio_lp_json($body);
     return is_array($j) && isset($j['version']) && is_string($j['version']) &&
         preg_match('/^[0-9]{1,4}(?:\.[0-9]{1,6}){1,3}\z/', $j['version']) ? $j['version'] : '';
+}
+
+// --- The requests.
+
+// Link $url as it goes to Lampac $base (AioLp::$auth): to the host:port of $base token= and, as
+// Lampa, uid= added when the link has none (Lampac 1.90.1 takes them only from the query and puts
+// them in no link of a row, a season, a voice or "call"), the User-Agent of Lampa; to another host
+// as it is. The link to play stays as it came: only a check of it goes so. -> array(the link, the
+// User-Agent: '' that of Melange).
+/**
+ * @param string $url
+ * @param string $base
+ * @return array{string, string}
+ */
+function aio_lp_send($url, $base)
+{
+    $a = AioLp::$auth;
+    $h = aio_lp_hostport($url);
+    if ($h === '' || $h !== aio_lp_hostport($base))
+        return array($url, '');
+    $q = array();
+    if ($a['token'] !== '' && !preg_match('/[?&]token=/i', $url))
+        $q['token'] = $a['token'];
+    if ($a['lampa'] && $a['uid'] !== '' && !preg_match('/[?&]uid=/i', $url))
+        $q['uid'] = $a['uid'];
+    return array(aio_lp_url($url, aio_lp_query($q)), $a['lampa'] ? AIO_LP_UA : '');
+}
+
+// aio_lp_get of link $url of Lampac $base as aio_lp_send makes it.
+/**
+ * @param string $base
+ * @param string $url
+ * @param int $connect
+ * @param int $total
+ * @param int $max
+ * @return AioLpReply
+ */
+function aio_lp_ask($base, $url, $connect, $total, $max)
+{
+    list($u, $ua) = aio_lp_send($url, $base);
+    return aio_lp_get($u, $connect, $total, $max, $ua);
 }
 
 // --- The log.
@@ -262,7 +315,7 @@ function aio_lp_externalids($base, $p)
         return array($p, '');
     $t = aio_lp_now();
     $ask = $p['id'] !== '' ? array('id' => $p['id']) : array('imdb_id' => $p['imdb_id']);
-    $r = aio_lp_get("$base/externalids?" . aio_lp_query($ask + array('serial' => $p['serial'])),
+    $r = aio_lp_ask($base, "$base/externalids?" . aio_lp_query($ask + array('serial' => $p['serial'])),
         AIO_LP_CONNECT, AIO_LP_STEP, 65536);
     $j = $r['err'] === '' && $r['code'] === 200 ? aio_lp_json($r['body']) : null;
     if ($j === null)
@@ -511,7 +564,7 @@ function aio_lp_search_start($base, $p)
         'hidden' => array('show' => 0, 'rch' => 0, 'bad' => 0),
         'tasks' => 0, 'pending' => 0, 'done' => false, 'capped' => false, 'err' => '', 'detail' => '');
     aio_lp_log("search: {$p['id']}/{$p['imdb_id']}/{$p['kinopoisk_id']}, serial {$p['serial']}", $base);
-    $r = aio_lp_get("$base/lite/events?" . aio_lp_query($p, array('life' => 'true')), AIO_LP_CONNECT, AIO_LP_STEP,
+    $r = aio_lp_ask($base, "$base/lite/events?" . aio_lp_query($p, array('life' => 'true')), AIO_LP_CONNECT, AIO_LP_STEP,
         AIO_LP_MAX_BYTES);
     $j = $r['err'] === '' && $r['code'] === 200 ? aio_lp_json($r['body']) : null;
     if ($j !== null && isset($j['memkey']) && is_string($j['memkey']) && preg_match('/^[A-Za-z0-9_\-]{1,200}\z/', $j['memkey']))
@@ -587,14 +640,15 @@ function aio_lp_search_step($st)
     }
     if ($st['mode'] === 'plain')
     {
-        $r = aio_lp_get("{$st['base']}/lite/events?{$st['q']}", AIO_LP_CONNECT, (int) ceil($left), AIO_LP_MAX_BYTES);
+        $r = aio_lp_ask($st['base'], "{$st['base']}/lite/events?{$st['q']}", AIO_LP_CONNECT, (int) ceil($left),
+            AIO_LP_MAX_BYTES);
         $j = $r['err'] === '' && $r['code'] === 200 ? aio_lp_json($r['body']) : null;
         if ($j !== null && (isset($j[0]) || $j === array() || (isset($j['online']) && is_array($j['online']))))
             return aio_lp_search_end(aio_lp_search_add($st, isset($j['online']) ? $j['online'] : $j));
         list($st['err'], $st['detail']) = aio_lp_events_why($r, $j);
         return aio_lp_search_end($st);
     }
-    $r = aio_lp_get("{$st['base']}/lifeevents?" . aio_lp_query(array('memkey' => $st['memkey'],
+    $r = aio_lp_ask($st['base'], "{$st['base']}/lifeevents?" . aio_lp_query(array('memkey' => $st['memkey'],
         'seen' => strval($st['seen']))), AIO_LP_CONNECT, (int) min(AIO_LP_STEP, ceil($left)), AIO_LP_MAX_BYTES);
     $j = $r['err'] === '' && $r['code'] === 200 ? aio_lp_json($r['body']) : null;
     if ($j === null || !isset($j['online']) || !is_array($j['online']))
@@ -819,7 +873,7 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
         $src = $sources[$i];
         $each = (int) min(AIO_LP_REPLY_MAX, floor($left));
         $url = aio_lp_url($src['url'], 'rjson=true&' . $q);
-        $r = aio_lp_get($url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
+        $r = aio_lp_ask($base, $url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
         $out['asked']++;
         $out['next'] = $i + 1;
         if ($r['err'] !== '')
@@ -1076,7 +1130,7 @@ function aio_lp_season_get($base, $src, $url, $total = AIO_LP_REPLY_MAX, $s = 0)
         $out = aio_lp_season_no($src, $url, 'down', 'no time');
     else
     {
-        $r = aio_lp_get($url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
+        $r = aio_lp_ask($base, $url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
         $out = $r['err'] !== '' ? aio_lp_season_no($src, $url, 'down', $r['err']) :
             aio_lp_season_reply($src, $r['code'], $r['body'], $url, $base, $s);
     }
@@ -1253,7 +1307,7 @@ function aio_lp_find($base, $key, $q, $s, $e, $total = AIO_LP_REPLIES_MAX)
     else
     {
         $url = aio_lp_url($src['url'], 'rjson=true&' . $q);
-        $r = aio_lp_get($url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
+        $r = aio_lp_ask($base, $url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
         $p = $r['err'] === '' ? aio_lp_reply($src, $r['code'], $r['body'], $base) : null;
         if ($p === null)
             list($out['why'], $out['detail']) = array('down', $r['err']);
@@ -1457,7 +1511,7 @@ function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL
         if ($left < AIO_LP_REPLY_MIN)
             break;
         $out['tries']++;
-        $r = aio_lp_get($url, min(AIO_LP_CONNECT, $left), $left, AIO_LP_MAX_BYTES);
+        $r = aio_lp_ask($base, $url, min(AIO_LP_CONNECT, $left), $left, AIO_LP_MAX_BYTES);
         $j = $r['err'] === '' ? aio_lp_json($r['body']) : null;
         $ep = $e > 0 && is_array($j) ? aio_lp_call_ep($j, $s, $e) : array('', '');
         $again = true;
@@ -1610,12 +1664,14 @@ function aio_lp_check($base, $url, $total = AIO_LP_CHECK_MAX)
             $each = min(AIO_LP_CHECK_EACH, $left);
             $hls = (bool) preg_match('~\.m3u8?(?:[?#]|\z)~i', $u);
             $err = '';
-            list($code, $body) = aio_http_range($u, $hls ? AIO_LP_HLS_HEAD : 1, $err, min(AIO_LP_CONNECT, $each), $each);
+            list($su, $ua) = aio_lp_send($u, $base);
+            list($code, $body) = aio_http_range($su, $hls ? AIO_LP_HLS_HEAD : 1, $err, min(AIO_LP_CONNECT, $each), $each, '',
+                $ua);
             // A file of "#": a playlist after all (a link without .m3u8, a redirect to one).
             if (!$hls && $err === '' && $body === '#')
             {
                 $hls = true;
-                list($code, $body) = aio_http_range($u, AIO_LP_HLS_HEAD, $err, min(AIO_LP_CONNECT, $each), $each);
+                list($code, $body) = aio_http_range($su, AIO_LP_HLS_HEAD, $err, min(AIO_LP_CONNECT, $each), $each, '', $ua);
             }
             if ($err !== '' && $code === 0)
                 $c = array('class' => 'unclear', 'url' => $u, 'why' => 'down', 'detail' => $err, 'hls' => $hls,

@@ -186,15 +186,16 @@ if (!function_exists('aio_lp_get'))
     // http and https, no redirects (an address of the page: its /version
     // without type sends to another site), gzip. No log here: the address
     // and the tokens of a link never go there. The plugin and the check of
-    // the settings page.
+    // the settings page. $ua: the User-Agent ('' that of Melange; aio_lp_send).
     /**
      * @param string $url
      * @param int $connect
      * @param int $total
      * @param int $max
+     * @param string $ua
      * @return AioLpReply
      */
-    function aio_lp_get($url, $connect, $total, $max)
+    function aio_lp_get($url, $connect, $total, $max, $ua = '')
     {
         $body = '';
         $over = false;
@@ -209,7 +210,7 @@ if (!function_exists('aio_lp_get'))
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_ENCODING => '',
-            CURLOPT_USERAGENT => 'Melange-Dune/' . AIO_VERSION,
+            CURLOPT_USERAGENT => $ua !== '' ? $ua : 'Melange-Dune/' . AIO_VERSION,
             CURLOPT_HTTPHEADER => array('Accept: application/json'),
             CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$hit)
             {

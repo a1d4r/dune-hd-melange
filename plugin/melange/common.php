@@ -17,6 +17,9 @@ define('AIO_SETTINGS_V', 2);
 // In data_dir: the token of the settings page; written by the plugin, and by the
 // page only on the import of a backup that holds another one (0.51.0).
 define('AIO_TOKEN_FILE', 'web_token');
+// In data_dir: the id of this Dune for Lampac (aio_lp_uid); not in settings.json: the export of the
+// settings would take it to another Dune.
+define('AIO_LP_UID_FILE', 'lampac_uid');
 // In data_dir: the sort of the stream lists (aio_sort_read); written by the plugin only.
 define('AIO_SORT_FILE', 'list_sort');
 // In data_dir: the main Debrid service (aio_debrid_main_read, 0.56.0); written by the
@@ -235,6 +238,25 @@ function aio_ts_base($stored)
 
 // A stored address of Lampac ("Онлайн") longer than this is not one.
 define('AIO_LP_URL_MAX', 300);
+// A token of the provider of Lampac longer than this is not one (Lampac 1.90.1 sets no limit).
+define('AIO_LP_TOKEN_MAX', 200);
+
+// The token of the provider of Lampac (accsdb of Lampac 1.90.1: its query token=) as typed or stored:
+// trimmed, 1 to AIO_LP_TOKEN_MAX characters of [A-Za-z0-9_+.\-@=] (those ValidateIdentity of Lampac
+// keeps) -> the token, '' for empty (none), null when it does not fit.
+/**
+ * @param mixed $s
+ * @return string|null
+ */
+function aio_lp_token($s)
+{
+    if (!is_string($s))
+        return null;
+    $s = trim($s, AIO_TRIM);
+    if ($s === '')
+        return '';
+    return preg_match('/^[A-Za-z0-9_+.\-@=]{1,' . AIO_LP_TOKEN_MAX . '}\z/', $s) ? $s : null;
+}
 
 // The address of Lampac as typed or stored: [http(s)://]host[:port][/path][/]
 // -> 'scheme://host[:port][/path]' (http when no scheme; scheme and host in
@@ -697,7 +719,7 @@ function aio_jacred_list($s)
 function aio_settings_secrets($s)
 {
     $pw = aio_server_secrets($s['servers']);
-    foreach (array('rd_key', 'tb_key', 'tmdb_key', 'ts_pass') as $k)
+    foreach (array('rd_key', 'tb_key', 'tmdb_key', 'ts_pass', 'lampac_token') as $k)
     {
         if ($s[$k] !== '')
             $pw[] = $s[$k];
@@ -830,7 +852,9 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // takes the JacRed, the template and the config of the settings), at most
 // AIO_PROFILES_MAX, unique names and targets (the first one kept; kept with
 // src_profiles off too), 'lampac_url' => the address of Lampac ("Онлайн"),
-// aio_lp_addr() or '' (off),
+// aio_lp_addr() or '' (off), 'lampac_token' => the token of its provider, aio_lp_token() or ''
+// (none), 'lampac_as_lampa' => bool, "Представляться приложением Lampa" (aio_lp_send of lampac.php;
+// not a bool - false),
 // each checked by the rules above; absent or wrong -> as not set ('', the
 // default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
@@ -893,7 +917,7 @@ function aio_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'lampac_url' => '', 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'lampac_url' => '', 'lampac_token' => '', 'lampac_as_lampa' => false, 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
         'saved_once' => false);
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
@@ -972,6 +996,10 @@ function aio_settings_parse($j)
         $r['src_profiles'] = $j['src_profiles'];
     if (isset($j['lampac_url']) && is_string(aio_lp_addr($j['lampac_url'])))
         $r['lampac_url'] = aio_lp_addr($j['lampac_url']);
+    if (isset($j['lampac_token']) && is_string(aio_lp_token($j['lampac_token'])))
+        $r['lampac_token'] = aio_lp_token($j['lampac_token']);
+    if (isset($j['lampac_as_lampa']) && is_bool($j['lampac_as_lampa']))
+        $r['lampac_as_lampa'] = $j['lampac_as_lampa'];
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
         foreach ($j['aio_confs'] as $b => $cs)
