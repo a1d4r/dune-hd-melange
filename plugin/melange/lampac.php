@@ -996,14 +996,37 @@ function aio_lp_season_reply($src, $code, $body, $url, $base = '', $s = 0)
 {
     $p = aio_lp_reply($src, $code, $body, $base);
     $j = aio_lp_json($body);
-    $out = array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'], 'why' => '',
-        'detail' => '');
     if ($p['kind'] !== 'serial' || !is_array($j))
-        list($out['why'], $out['detail']) = $p['kind'] === 'skip' && $p['why'] ?
-            array($p['why'][0]['why'], $p['why'][0]['detail']) : array('type', $p['kind']);
-    else
-        $out = aio_lp_season_of($src, $j, $url, $base, $s);
-    return $out;
+    {
+        list($why, $detail) = aio_lp_parsed_why($p);
+        return aio_lp_season_no($src, $url, $why, $detail);
+    }
+    return aio_lp_season_of($src, $j, $url, $base, $s);
+}
+
+// A season of source $src (link $url) that is none: no voice nor episode, reason $why, $detail.
+/**
+ * @param AioLpSource $src
+ * @param string $url
+ * @param string $why
+ * @param string $detail
+ * @return AioLpSeason
+ */
+function aio_lp_season_no($src, $url, $why, $detail)
+{
+    return array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'], 'why' => $why,
+        'detail' => $detail);
+}
+
+// The reason of reply $p (aio_lp_reply) of a serial that is not one: its first reason, else type
+// (detail: its kind). -> array(why, detail).
+/**
+ * @param AioLpParsed $p
+ * @return array{string, string}
+ */
+function aio_lp_parsed_why($p)
+{
+    return $p['kind'] === 'skip' && $p['why'] ? array($p['why'][0]['why'], $p['why'][0]['detail']) : array('type', $p['kind']);
 }
 
 // Reply $j of source $src, a list of seasons or an episode list (aio_lp_season), with why: no_season
@@ -1020,8 +1043,7 @@ function aio_lp_season_reply($src, $code, $body, $url, $base = '', $s = 0)
 function aio_lp_season_of($src, $j, $url, $base, $s)
 {
     if (!isset($j['type']) || $j['type'] !== 'episode')
-        return array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'],
-            'why' => 'no_season', 'detail' => strval($s));
+        return aio_lp_season_no($src, $url, 'no_season', strval($s));
     $out = aio_lp_season($src, $j, $url, $base);
     $other = 0;
     foreach ($out['eps'] as $x)
@@ -1029,8 +1051,7 @@ function aio_lp_season_of($src, $j, $url, $base, $s)
     if (!$out['eps'] && !$out['voices'])
         $out['why'] = 'empty';
     else if ($out['eps'] && $other === count($out['eps']))
-        $out = array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $out['quality'],
-            'why' => 'no_season', 'detail' => "s {$out['eps'][0]['s']}");
+        $out = aio_lp_season_no($src, $url, 'no_season', "s {$out['eps'][0]['s']}");
     return $out;
 }
 
@@ -1051,13 +1072,12 @@ function aio_lp_season_get($base, $src, $url, $total = AIO_LP_REPLY_MAX, $s = 0)
     if (!preg_match('/[?&]rjson=/i', $url))
         $url = aio_lp_url($url, 'rjson=true');
     if ($each < AIO_LP_REPLY_MIN)
-        $out = array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'], 'why' => 'down',
-            'detail' => 'no time');
+        $out = aio_lp_season_no($src, $url, 'down', 'no time');
     else
     {
         $r = aio_lp_get($url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
-        $out = $r['err'] !== '' ? array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'],
-            'why' => 'down', 'detail' => $r['err']) : aio_lp_season_reply($src, $r['code'], $r['body'], $url, $base, $s);
+        $out = $r['err'] !== '' ? aio_lp_season_no($src, $url, 'down', $r['err']) :
+            aio_lp_season_reply($src, $r['code'], $r['body'], $url, $base, $s);
     }
     aio_lp_log(sprintf('season: %s, %d voices, %d episodes%s, %.2f s', $src['path'], count($out['voices']),
         count($out['eps']), $out['why'] !== '' ? ", {$out['why']}" . ($out['detail'] !== '' ? " ({$out['detail']})" : '') : '',
@@ -1085,8 +1105,7 @@ function aio_lp_serial($base, $src, $j, $url, $s, $total = AIO_LP_REPLY_MAX)
     if ($link === '')
     {
         aio_lp_log("season: {$src['path']}, no season $s", $base);
-        return array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $src['q'],
-            'why' => 'no_season', 'detail' => strval($s));
+        return aio_lp_season_no($src, $url, 'no_season', strval($s));
     }
     return aio_lp_season_get($base, $src, $link, $total, $s);
 }
@@ -1237,8 +1256,7 @@ function aio_lp_find($base, $key, $q, $s, $e, $total = AIO_LP_REPLIES_MAX)
         if ($p === null)
             list($out['why'], $out['detail']) = array('down', $r['err']);
         else if ($p['kind'] !== 'serial')
-            list($out['why'], $out['detail']) = $p['kind'] === 'skip' && $p['why'] ?
-                array($p['why'][0]['why'], $p['why'][0]['detail']) : array('type', $p['kind']);
+            list($out['why'], $out['detail']) = aio_lp_parsed_why($p);
         else
             $out = aio_lp_find_voice($base, $src, $key, (array) aio_lp_json($r['body']), $url, $s, $e,
                 $total - (aio_lp_now() - $t0));

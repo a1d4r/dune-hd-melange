@@ -29,17 +29,26 @@ function aio_lpv_ids_keep($in, $mv)
 // --- ENTER of a row of the online list (aio_lpv_pick, view_online.php): the link, the player.
 
 // The link of row $r to play by deadline $deadline (aio_lp_now): "call" of a row of the method
-// call (AIO_LPV_CHECK_MIN s kept for the check), then the check of the link (aio_lp_check: its
-// mirrors, the length). A link that does not answer the check is played, as aio_precheck's.
-// -> array(url, err: '' or a code of AioLpWhy, detail).
+// call (AIO_LPV_CHECK_MIN s kept for the check; of episode $e of season $s, $e > 0: the reply is
+// that episode, aio_lp_call), then the check of the link (aio_lp_check: its mirrors, the length). A
+// link that does not answer the check is played, as aio_precheck's. A row of a season (method
+// season, aio_lp_season_rows) plays nothing: its episode first (aio_lp_ep_row).
+// -> array(url, why: '' or a code of AioLpWhy, detail).
 /**
  * @param string $base
  * @param AioLpRow $r
  * @param float $deadline
- * @return array{url: string, err: string, detail: string}
+ * @param int $s
+ * @param int $e
+ * @return array{url: string, why: string, detail: string}
  */
-function aio_lpv_link($base, $r, $deadline)
+function aio_lpv_link($base, $r, $deadline, $s = 0, $e = 0)
 {
+    if ($r['method'] === 'season')
+    {
+        aio_log("lampac: {$r['path']}: a row of a season, not of its episode");
+        return array('url' => '', 'why' => 'method', 'detail' => 'season');
+    }
     $url = $r['url'];
     if ($r['method'] === 'call')
     {
@@ -47,18 +56,18 @@ function aio_lpv_link($base, $r, $deadline)
         if ($total < AIO_LP_REPLY_MIN)
         {
             aio_log('lampac: call: no time left');
-            return array('url' => '', 'err' => 'down', 'detail' => '');
+            return array('url' => '', 'why' => 'down', 'detail' => '');
         }
-        $c = aio_lp_call($base, $url, $total);
+        $c = aio_lp_call($base, $url, $total, AIO_LP_CALL_PAUSE, $s, $e);
         if ($c['err'] !== '')
-            return array('url' => '', 'err' => $c['err'], 'detail' => $c['detail']);
+            return array('url' => '', 'why' => $c['err'], 'detail' => $c['detail']);
         $url = $c['url'];
     }
     $total = (int) min(AIO_LP_CHECK_MAX, floor($deadline - aio_lp_now()));
     $k = aio_lp_check($base, $url, max(AIO_LP_REPLY_MIN, $total));
     if ($k['class'] === 'bad')
-        return array('url' => '', 'err' => $k['why'], 'detail' => $k['detail']);
-    return array('url' => $k['url'], 'err' => '', 'detail' => '');
+        return array('url' => '', 'why' => $k['why'], 'detail' => $k['detail']);
+    return array('url' => $k['url'], 'why' => '', 'detail' => '');
 }
 
 // vod_play of link $url of row $r of card $mv from $pos s, linked to the
@@ -169,12 +178,12 @@ function aio_lpv_resume($mv, $r, $lang)
         if ($row)
         {
             $l = aio_lpv_link($base, $row, $deadline);
-            if ($l['err'] === '')
+            if ($l['why'] === '')
             {
                 aio_log("resume: lampac {$r['path']}, pos {$r['pos']}");
                 return aio_lpv_vod($mv, $lang, $row, $l['url'], $r['pos']);
             }
-            $why = "no link ({$l['err']})";
+            $why = "no link ({$l['why']})";
         }
     }
     aio_log("resume: lampac {$r['path']}: $why -> the search");

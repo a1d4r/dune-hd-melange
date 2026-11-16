@@ -962,8 +962,8 @@ function aio_lpv_pick($in, $st)
     $left = Aio::$t0 > 0 ? AIO_OP_BUDGET - (microtime(true) - Aio::$t0) : AIO_OP_BUDGET;
     aio_log("lampac: row $sel of " . count($v['rows']) . ": {$r['path']}, {$r['method']}");
     $l = aio_lpv_link(Aio::$settings['lp'], $r, aio_lp_now() + $left);
-    if ($l['err'] !== '')
-        return aio_lpv_failed($st['lang'], $r, $l['err'], $l['detail']);
+    if ($l['why'] !== '')
+        return aio_lpv_failed($st['lang'], $r, $l['why'], $l['detail']);
     return aio_lpv_vod($st['movie'], $st['lang'], $r, $l['url'], 0);
 }
 
