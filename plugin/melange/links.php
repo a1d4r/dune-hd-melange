@@ -19,7 +19,7 @@ define('AIO_PG_SHELL_MAX_BYTES', 2000000);
 define('AIO_PG_SHELL_MS', 150);
 // The pairs, in data_dir.
 define('AIO_PG_LINKS_FILE', 'wh_links.json');
-// A failed request is asked again after this many s; "no pair" stays.
+// A failed request is asked again after this many s (no reply of the server: AIO_PG_PAUSE_S); "no pair" stays.
 define('AIO_PG_FAIL_S', 86400);
 // No connection, a timeout or 5xx: no request for this many s (memory of php_server).
 define('AIO_PG_PAUSE_S', 1800);
@@ -269,7 +269,8 @@ function aio_pg_tick_why($titles = null, $mids = null)
 // (season_numbers: season => episodes), soon, src (meta: the seasons are of the meta of the own card, aio_pg_link_meta),
 // on (1: of the meta of an anime numbered on, aio_cm_numbered_on), sq (a series with no seasons: the time a request
 // for them gave none, asked again after AIO_PG_FAIL_S, aio_pg_link_queue); or none (the time it was found there is no
-// pair: for good) or fail (the time of a failed request: asked again after AIO_PG_FAIL_S). Read once from data_dir.
+// pair: for good) or fail (the time of a failed request: asked again after AIO_PG_FAIL_S; of no reply of the server,
+// fail and sq set AIO_PG_FAIL_S - AIO_PG_PAUSE_S back: after AIO_PG_PAUSE_S, aio_pg_link_got). Read once from data_dir.
 /**
  * @return array<string, AioPgLink>
  */
@@ -905,7 +906,7 @@ function aio_pg_token()
 // sq, the time (the pair is not touched by none or fail); a new pair of a series with none in the reply - sq too.
 // Kept: a pair; none (code 100 with no ids in the sources of the card, or the message "not found", as
 // aio_card_ask); fail (no dune_auth, transport, "sources" not found by the parse, another answer: asked again
-// after AIO_PG_FAIL_S). No connection, a timeout or 5xx: no request in
+// after AIO_PG_FAIL_S). No connection, a timeout, 429 or 5xx: that card asked again after AIO_PG_PAUSE_S, no request in
 // AIO_PG_PAUSE_S (aio_pg_link_step). One log line with the size and the time, no token. -> st: pair, none,
 // fail; link: the pair or null.
 /**
@@ -1020,7 +1021,11 @@ function aio_pg_link_got($mid, $need, $r, $pause = true)
         if ($st === 'none' && $api === 100 && !$found && strpos($body, '"sources":') !== false)
             $st = 'fail';
     }
-    $down = $pause && aio_pg_link_down($code, $err);
+    // No reply of the server (a slow one too): the card asked again after AIO_PG_PAUSE_S, not AIO_PG_FAIL_S - its
+    // time of fail (sq) set back so (aio_pg_link_queue).
+    $net = aio_pg_link_down($code, $err);
+    $at = $net ? time() - AIO_PG_FAIL_S + AIO_PG_PAUSE_S : time();
+    $down = $pause && $net;
     if ($down)
         AioPgLinks::$pause = time() + AIO_PG_PAUSE_S;
     // Only the number of curl: its text may hold the address.
@@ -1029,13 +1034,14 @@ function aio_pg_link_got($mid, $need, $r, $pause = true)
     $got = $st === 'pair' && isset($l['seasons']);
     // No seasons of a series: asked for them, or a new pair of a series with none (not asked again at the next tick).
     $sq = !$got && ($need || ($st === 'pair' && aio_pg_no_seasons($l)));
-    aio_log(sprintf('link: movie/%s %d B, %.0f ms, %s, %s%s%s', $mid, strlen($body), $s * 1000, $why, $st,
-        $sq ? ', no seasons' : ($got && $need ? ', seasons' : ''), $down ? ', pause' : ''));
-    aio_pg_link_put($mid, $st === 'pair' ? $l : array($st => time()), !$sq);
+    aio_log(sprintf('link: movie/%s %d B, %.0f ms, %s, %s%s%s%s', $mid, strlen($body), $s * 1000, $why, $st,
+        $sq ? ', no seasons' : ($got && $need ? ', seasons' : ''),
+        $net ? sprintf(', retry %d min', AIO_PG_PAUSE_S / 60) : '', $down ? ', pause' : ''));
+    aio_pg_link_put($mid, $st === 'pair' ? $l : array($st => $at), !$sq);
     if ($sq)
     {
         $links = aio_pg_links();
-        $links[$mid]['sq'] = time();
+        $links[$mid]['sq'] = $at;
         AioPgLinks::$links = $links;
         aio_pg_links_save();
     }
@@ -1066,8 +1072,8 @@ function aio_pg_paused()
 }
 
 // The cards a step asks for (aio_pg_link_step): of aio_pg_wanted, the latest first, records that ended within
-// AIO_PG_LINK_AGE_S, a failure older than AIO_PG_FAIL_S (sq of a series with no seasons too), ids of the Dune; of
-// $mids alone (the cards of a screen; null: all). -> movie_ids.
+// AIO_PG_LINK_AGE_S, a failure older than AIO_PG_FAIL_S (sq of a series with no seasons too; set back for no reply of
+// the server, aio_pg_link_got), ids of the Dune; of $mids alone (the cards of a screen; null: all). -> movie_ids.
 /**
  * @param list<string>|null $mids
  * @return list<string>
