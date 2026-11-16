@@ -113,6 +113,9 @@ define('AIO_CATV_ICON_SEARCH', 'xxx4.png');
 define('AIO_CATV_ICON_SETUP', 'xxx5.png');
 // "Мой список" (view_my_list.php): the heart of the shell, on the strip left of the search and in POP UP.
 define('AIO_CATV_ICON_MYLIST', 'xxx3.png');
+// "Продолжить" (view_my_list.php): the clock of the shell (its history), left of the heart, as on the main
+// screen of the Dune, and in POP UP.
+define('AIO_CATV_ICON_CONT', 'xxx2.png');
 // Our pictures of the panel, img/cat<N>_*: N goes up when they change, as the shell keeps a
 // picture by its URL even across a reinstall (plugins/melange_catalog_img.py of the kitchen). The
 // mask: of the shell, but darker to the right, so the text column (TEXT_W) stays on the dark
@@ -1034,9 +1037,9 @@ function aio_catv_strip_rows($tab, $lang)
     $defs[] = aio_gc_rect(aio_gc_geom(0, 4, aio_gc_align(0, 36, true, false, 0, 0, 0, 0, "tab_$tab")), AIO_CATV_UNDERLINE);
     // The icons 75 apart as the native ones, their glyphs 48x48 at 8, 8 of the PNG; the gear
     // ends at 1660, its frame at 1670. Grey #AAAAAA as the native ones: the magnifier is white at
-    // most (alpha 170), the gear and the heart #BBBBBB (alpha 232).
-    foreach (array(array('mylist', 'ml_title', AIO_CATV_ICON_MYLIST, 1446, 232), array('search', 'cat_search', AIO_CATV_ICON_SEARCH, 1521, 170),
-        array('setup', 'setup_menu', AIO_CATV_ICON_SETUP, 1596, 232)) as $t)
+    // most (alpha 170), the clock #F8F8F8 (alpha 175), the gear and the heart #BBBBBB (alpha 232).
+    foreach (array(array('continue', 'cp_row_continue', AIO_CATV_ICON_CONT, 1371, 175), array('mylist', 'ml_title', AIO_CATV_ICON_MYLIST, 1446, 232),
+        array('search', 'cat_search', AIO_CATV_ICON_SEARCH, 1521, 170), array('setup', 'setup_menu', AIO_CATV_ICON_SETUP, 1596, 232)) as $t)
     {
         $id = "tab_{$t[0]}";
         $defs[] = array(
@@ -2730,7 +2733,7 @@ function aio_catv_all_open($url)
 // ENTER on the part $id of the strip of the main screen $from. A tab not active: the screen of its
 // type in place of this one (erase_count 1: Back does not grow), the active one: nothing; $up (its
 // item of POP UP, aio_catv_menu): the active one too, the focus up on it. The icons: the dialog of
-// a search and the settings screen.
+// a search, the settings screen and the screens "Продолжить" and "Мой список".
 /**
  * @param string $id
  * @param string $from
@@ -2743,6 +2746,8 @@ function aio_catv_strip_enter($id, $from, $up = false)
         return aio_catv_search_ask($from);
     if ($id === 'tab_setup')
         return aio_setup_open_act($from);
+    if ($id === 'tab_continue')
+        return aio_mlv_open('continue', $from);
     if ($id === 'tab_mylist')
         return aio_mlv_open('list', $from);
     $tab = strval(substr($id, strlen('tab_')));
@@ -2785,8 +2790,8 @@ function aio_catv_menu($in, $from)
     $screen = aio_catv_rows_menu_items($hid, $tab, $from, $lang);
     $parts = array(
         'tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png'),
-        'tab_mylist' => array('ml_title', AIO_CATV_ICON_MYLIST), 'tab_search' => array('cat_search', AIO_CATV_ICON_SEARCH),
-        'tab_setup' => array('setup_menu', AIO_CATV_ICON_SETUP));
+        'tab_continue' => array('cp_row_continue', AIO_CATV_ICON_CONT), 'tab_mylist' => array('ml_title', AIO_CATV_ICON_MYLIST),
+        'tab_search' => array('cat_search', AIO_CATV_ICON_SEARCH), 'tab_setup' => array('setup_menu', AIO_CATV_ICON_SETUP));
     foreach ($parts as $id => $p)
     {
         $screen[] = array(

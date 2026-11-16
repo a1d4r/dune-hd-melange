@@ -4,11 +4,11 @@
 // "Продолжить" (Continue Watching), each as "Show all" of a row of the catalog (view_catalog.php: on r25 rows of
 // AIO_CATV_ALL_COLS with the info panel, on r24 the grid), of memory and data_dir alone, no request: "Мой список" the
 // entries of its file in their order, "Продолжить" all the cards of the row "Continue" (continue.php), not
-// AIO_CATV_ROW_TILES. The ways to them: the heart on the strip of the catalog (aio_catv_strip_rows) and the keys Fav 2
-// (key_favorites: "Мой список") and Fav 1 (key_dune: "Продолжить") of the remote on every screen of Melange
-// (aio_mlv_keys; the player has no folder view). An empty "Мой список": the hint tile, its POP UP the import of the
-// Favorites of the Dune (aio_mlv_import). The file, the copy of the backup and the reading of the Favorites are of
-// my_list.php (the settings page has it alone).
+// AIO_CATV_ROW_TILES. The ways to them: the heart and the clock on the strip of the catalog and in its POP UP
+// (aio_catv_strip_rows, aio_catv_menu) and the keys Fav 2 (key_favorites: "Мой список") and Fav 1 (key_dune:
+// "Продолжить") of the remote on every screen of Melange (aio_mlv_keys; the player has no folder view). An empty
+// "Мой список": the hint tile, its POP UP the import of the Favorites of the Dune (aio_mlv_import). The file, the
+// copy of the backup and the reading of the Favorites are of my_list.php (the settings page has it alone).
 // Needs my_list.php, view_catalog.php (aio_catv_*), continue.php, cp_meta.php (AioCpm::$more), links.php (aio_pg_links,
 // aio_pg_link_now, aio_pg_paused), progress.php, catalog.php (aio_cat_tile), catalog_card.php (aio_card_enter,
 // aio_card_open, AIO_CARD_DELAY), view_card.php (aio_oc_enter), card_meta.php (aio_cm_id), tv_tab.php (aio_tv_flag,
@@ -17,8 +17,8 @@
 
 // The rid of the tiles of "Мой список": "mylist:<the key of the entry>" (aio_catv_tile).
 define('AIO_ML_RID', 'mylist');
-// The screens of all the titles (the heart, Fav 2 and Fav 1); of one type (ENTER on the title of the row of a tab) the
-// address and ":movie" or ":series".
+// The screens of all the titles (the heart and the clock, Fav 2 and Fav 1); of one type (ENTER on the title of the row
+// of a tab) the address and ":movie" or ":series".
 define('AIO_MLV_LIST', 'cat_mylist');
 define('AIO_MLV_CONT', 'cat_continue');
 // The id of the hint tile of an empty "Мой список" (no tile of a title: aio_catv_tile has none of it).
