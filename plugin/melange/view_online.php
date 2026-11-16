@@ -1130,9 +1130,9 @@ function aio_lpv_redraw_keys($a, $sid)
 {
     if (!AioLpv::$redraw || AioLpv::$redraw['sid'] !== $sid)
         return $a;
-    $key = $a[GuiAction::handler_string_id] === CHANGE_BEHAVIOUR_ACTION_ID ? ChangeBehaviourActionData::actions :
-        ShowDialogActionData::actions;
-    if ($key === ShowDialogActionData::actions)
+    // The keys of show_dialog and of change_behaviour: both 'actions'.
+    $key = ShowDialogActionData::actions;
+    if ($a[GuiAction::handler_string_id] === SHOW_DIALOG_ACTION_ID)
         $a[GuiAction::data][ShowDialogActionData::close_by_return] = false;
     $acts = isset($a[GuiAction::data][$key]) ? $a[GuiAction::data][$key] : array();
     $acts[GUI_EVENT_KEY_RETURN] = aio_input('lp_cancel', array('sid' => $sid));
