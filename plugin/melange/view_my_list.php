@@ -515,8 +515,9 @@ function aio_mlv_fav_pair($mid, $left, &$asked)
 
 // The tile of movie $f of the Favorites (aio_ml_fav_read) by its pair $l: the best tile of its IMDb or TMDB
 // (aio_cp_best_tile: of a row in memory, else of the meta kept - the pictures and the ratings of the catalog, not the
-// poster of dunemdb with auth=), else of the Favorites (its name, year, poster; a name of an item of the root "Name
-// (2008)": the year of it). The type of the pair, else of the Favorites, else by its TMDB. null: no IMDb and no TMDB.
+// poster of dunemdb with auth=), else of the Favorites (its name, year, poster - its address, else its picture on the
+// Dune: a root item has no address; a name of an item of the root "Name (2008)": the year of it). The type of the pair,
+// else of the Favorites, else by its TMDB. null: no IMDb and no TMDB.
 /**
  * @param AioMlFav $f
  * @param AioPgLink $l
@@ -541,8 +542,12 @@ function aio_mlv_fav_tile($f, $l)
         $name = $x[1];
         $year = $x[2];
     }
-    return aio_cat_tile(array('id' => $imdb !== '' ? $imdb : "tmdb:$tmdb", 'name' => $name, 'type' => $type, 'imdb_id' => $imdb,
+    $t = aio_cat_tile(array('id' => $imdb !== '' ? $imdb : "tmdb:$tmdb", 'name' => $name, 'type' => $type, 'imdb_id' => $imdb,
         '_tmdbId' => $tmdb, 'year' => $year, 'poster' => $f['poster']), $type);
+    // A path is no address for aio_cat_tile.
+    if ($t && $t['poster'] === '')
+        $t['poster'] = $f['file'];
+    return $t;
 }
 
 // "Добавить из «Избранного» Дюны" of screen $from: the movies and series of the shell in the Favorites of the Dune

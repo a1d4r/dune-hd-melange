@@ -383,13 +383,15 @@ function aio_catv_list_restore($rid)
 
 // --- Pictures: the size is in the address; a picture of another type or width is fine.
 
-// Never empty.
+// Never empty. A path (of a picture of the Favorites of the Dune, aio_ml_url) as it is, as the shell has it in its row.
 /**
  * @param AioCatTile $t
  * @return string
  */
 function aio_catv_poster($t)
 {
+    if (substr($t['poster'], 0, 1) === '/')
+        return $t['poster'];
     $u = aio_img(str_replace('/poster-cache/poster/', '/poster-cache/w342/poster/', $t['poster']));
     return $u !== '' ? $u : AIO_CATV_ICONS . 'no_movie_poster.png';
 }

@@ -99,14 +99,24 @@ function aio_ml_text($v, $max)
     return preg_match('/^.{0,' . $max . '}/su', $s, $m) ? rtrim($m[0]) : '';
 }
 
-// An address of a picture as a tile has it (aio_cat_img), '' for none.
+// An address of a picture as a tile has it (aio_cat_img: http or https), or the path of a picture of the Favorites of
+// the Dune (of a root item, aio_ml_fav_read: as the shell shows it; its folder may have spaces, no ".."); '' for another.
 /**
  * @param mixed $v
  * @return string
  */
 function aio_ml_url($v)
 {
-    return is_string($v) && strlen($v) <= AIO_ML_URL_MAX && preg_match('~^https?://\S+$~D', $v) ? $v : '';
+    if (!is_string($v) || strlen($v) > AIO_ML_URL_MAX)
+        return '';
+    if (preg_match('~^https?://\S+$~D', $v))
+        return $v;
+    foreach (array(AIO_ML_FAV_DIR, AIO_ML_FAV_DIR2) as $dir)
+    {
+        if (strpos($v, "$dir/") === 0 && !preg_match('~[\x00-\x1f\x7f]|/\.\.(/|$)~', $v))
+            return $v;
+    }
+    return '';
 }
 
 // An entry as stored, of the file, the copy or a tile -> its good fields with the key, null for one without a key or a
@@ -279,7 +289,8 @@ function aio_ml_broken($why)
 // [imdbRating, kpRating, kpVotes] after them (a Melange of before them reads the 11 alone), a picture as [<its part in
 // dirs>, <the rest>] or ''}. No key (aio_ml_key makes it again) and no names of fields: 200 titles take ~80 KB of the
 // body of the import, not ~180 KB of the form of the file. A picture with auth= (of @Movies of the Favorites of the
-// Dune, aio_ml_fav_read: the outside IP of this Dune) is '': the file of the export leaves the Dune.
+// Dune, aio_ml_fav_read: the outside IP of this Dune) is '': the file of the export leaves the Dune. A path of a picture
+// of the Favorites stays (no address in it; loaded back on this Dune after Melange is installed again, it shows).
 /**
  * @param list<AioMlEntry> $list
  * @return array{v: int, dirs: list<string>, items: list<array<int, mixed>>}
