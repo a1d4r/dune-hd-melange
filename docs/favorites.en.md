@@ -16,13 +16,17 @@ Melange keeps what you started and what you saved for later in the first catalog
 
 4. To save a movie for later, open its card (**ENTER** on the poster) and press "Favorites". The button turns into "In Favorites". Press it again to remove the movie.
 
-   <img src="../screenshots/progress-card-fav.jpg" alt="Melange card for Joker: focus on In Favorites next to Watch and Trailer" width="100%">
+   <img src="../screenshots/progress-card-fav.jpg" alt="Melange card for Last Night in Soho: focus on In Favorites next to Watch and Trailer" width="100%">
 
 5. With **MENU** on a movie card you can mark it as watched ("Mark as watched" or "Mark as unwatched") or open its "Dune card".
 
-   <img src="../screenshots/progress-card-menu.jpg" alt="MENU on the Melange card for Joker: Mark as watched, Dune card, Settings" width="100%">
+   <img src="../screenshots/progress-card-menu.jpg" alt="MENU on the Melange card for Last Night in Soho: Mark as watched, Dune card, Settings" width="100%">
 
-6. The heart on the top bar, next to the magnifier and the gear, opens the Favorites screen. If your remote has **Fav** buttons, **Fav 2** (the heart) opens Favorites too, and **Fav 1** opens everything you started. **ENTER** on a row's name opens the whole row.
+6. The clock on the top bar of the catalog opens everything you started, movies and series together. "Continue Watching" in **POP UP** opens it too.
+
+   <img src="../screenshots/progress-clock.jpg" alt="Catalog, Series tab: focus on the clock on the top bar, left of the heart, Continue Watching and Favorites rows below" width="100%">
+
+7. The heart on the top bar, between the clock and the magnifier, opens the Favorites screen. If your remote has **Fav** buttons, **Fav 2** (the heart) opens Favorites too, and **Fav 1** opens everything you started. **ENTER** on a row's name opens the whole row.
 
    <img src="../screenshots/progress-heart.jpg" alt="Catalog, Series tab: focus on the heart on the top bar, Continue Watching and Favorites rows below" width="100%">
 
@@ -30,11 +34,11 @@ Melange keeps what you started and what you saved for later in the first catalog
 
    <img src="../screenshots/progress-favorites.jpg" alt="Favorites screen: a grid of posters, focus on Joker, In Favorites in the info panel" width="100%">
 
-7. On a poster, press **POP UP** to add it to Favorites or remove it, mark it as watched or unwatched, or, in Continue Watching, remove it from the row. Marking a series marks all its aired episodes.
+8. On a poster, press **POP UP** to add it to Favorites or remove it, mark it as watched or unwatched, or, in Continue Watching, remove it from the row. Marking a series marks all its aired episodes.
 
-   <img src="../screenshots/progress-popup.jpg" alt="POP UP on Last Night in Soho in Continue Watching: Remove from Continue Watching, Mark as watched, Remove from Favorites, then links to sections" width="100%">
+   <img src="../screenshots/progress-popup.jpg" alt="POP UP on Game of Thrones in Continue Watching: Remove from Continue Watching, Mark as watched, Remove from Favorites, then Movies, Series, Continue Watching, Favorites, Search, Settings" width="100%">
 
-8. Melange Favorites is separate from Dune Favorites. To bring movies and series over from Dune Favorites, on the Favorites screen press **POP UP** on a tile (on the empty screen, the heart tile) and choose "Add from Dune Favorites". Melange adds only what is missing and removes nothing. You see "Added from Dune Favorites: N".
+9. Melange Favorites is separate from Dune Favorites. To bring movies and series over from Dune Favorites, on the Favorites screen press **POP UP** on a tile (on the empty screen, the heart tile) and choose "Add from Dune Favorites". Melange adds only what is missing and removes nothing. You see "Added from Dune Favorites: N", and the added titles show their description, genres and rating right away.
 
    <img src="../screenshots/progress-import.jpg" alt="Empty Favorites: a hint, a heart tile and POP UP Add from Dune Favorites" width="100%">
 
