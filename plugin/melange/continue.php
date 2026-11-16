@@ -6,7 +6,7 @@
 // Needs progress.php, links.php, history.php, main.php (aio_tr, aio_log, aio_error, aio_data_dir, aio_file_sig,
 // aio_write_file, AIO_SUP_ID), catalog.php (aio_cat_tile, aio_cat_row_state), catalog_card.php (aio_card_open,
 // aio_card_id), card_meta.php (aio_cm_id, aio_cm_get), view_card_series.php (aio_cm_eps_before), view_catalog.php
-// (aio_catv_*), view_card.php (aio_oc_enter), cp_meta.php (aio_cpm_tile, AioCpm).
+// (aio_catv_*), view_card.php (aio_oc_enter), cp_meta.php (aio_cpm_tile, AioCpm), view_my_list.php (aio_ml_changed).
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The rid of the row: its tiles are "continue:<movie_id>" (aio_catv_tile), its rows "items:continue", "title:continue".
@@ -92,7 +92,7 @@ function aio_cp_items($types, $max = AIO_CATV_ROW_TILES)
     foreach ($ends as $mid => $end)
     {
         $mid = strval($mid);
-        $it = isset($hidden[$mid]) && $end <= $hidden[$mid] ? null : aio_cp_item($mid, $idx[$mid]);
+        $it = aio_cp_off($hidden, $mid, $end) ? null : aio_cp_item($mid, $idx[$mid]);
         if ($it && in_array($it['type'], $types, true))
         {
             $res[$mid] = $it;
@@ -396,10 +396,62 @@ function aio_cp_hide($mid)
         asort($hidden);
         $hidden = array_slice($hidden, count($hidden) - AIO_CP_HIDDEN_MAX, null, true);
     }
+    return aio_cp_hidden_put($hidden);
+}
+
+// The cards off the row $hidden (aio_cp_hidden) written whole (aio_write_file: a temporary file and rename), the memory
+// read again. -> written.
+/**
+ * @param array<string, int> $hidden
+ * @return bool
+ */
+function aio_cp_hidden_put($hidden)
+{
     $json = json_encode(array('v' => 1, 'hidden' => (object) $hidden));
     $ok = is_string($json) && aio_write_file(aio_data_dir() . '/' . AIO_CP_HIDDEN_FILE, $json);
     AioCp::$hidden = null;
     return $ok;
+}
+
+// Card $mid of the latest record ending at $end is off the row now: taken off it ($hidden, aio_cp_hidden) with no
+// record ending later since.
+/**
+ * @param array<string, int> $hidden
+ * @param string $mid
+ * @param int $end
+ * @return bool
+ */
+function aio_cp_off($hidden, $mid, $end)
+{
+    return isset($hidden[$mid]) && $end <= $hidden[$mid];
+}
+
+// The cards taken off the row and kept off it now: of the history (aio_pg_index) with no record ending later, in the
+// row else (aio_cp_item), both types. A card watched again or out of the history since is not counted. -> how many.
+/**
+ * @return int
+ */
+function aio_cp_hidden_n()
+{
+    $idx = aio_pg_index();
+    $hidden = aio_cp_hidden();
+    $n = 0;
+    foreach ($hidden as $mid => $end)
+    {
+        $mid = strval($mid);
+        if (isset($idx[$mid]) && aio_cp_off($hidden, $mid, $idx[$mid]['end']) && aio_cp_item($mid, $idx[$mid]))
+            $n++;
+    }
+    return $n;
+}
+
+// "Вернуть убранные": none taken off the row (every key, of a card of the Dune or "m-..."), aio_cp_hidden_put. -> written.
+/**
+ * @return bool
+ */
+function aio_cp_unhide()
+{
+    return aio_data_dir() !== '' && aio_cp_hidden_put(array());
 }
 
 // --- POP UP of a tile of the catalog and the tab "TV".
@@ -462,7 +514,9 @@ function aio_cp_menu_items($id, $from, $lang)
     return $items;
 }
 
-// "Убрать из «Продолжить»" of tile $in->item of screen $in->from: off the row (aio_cp_hide), the screen anew.
+// "Убрать из «Продолжить»" of tile $in->item of screen $in->from: off the row (aio_cp_hide), the screens of the row anew
+// (aio_ml_changed: on r25 the main ones and the screens of the lists opened too, the shell keeps rows_info by the id of a
+// tile).
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -474,7 +528,21 @@ function aio_cp_hide_act($in)
         return null;
     $ok = aio_cp_hide($mid);
     aio_log("continue: $mid off the row" . ($ok ? '' : ', not written'));
-    return aio_catv_tile_after(aio_catv_in($in, 'from'), 'off the row "Continue"');
+    return aio_ml_changed(aio_catv_in($in, 'from'), null, 'off the row "Continue"');
+}
+
+// "Вернуть убранные (N)" of POP UP of the screen "Продолжить" $from (aio_mlv_menu_items): all back to the row
+// (aio_cp_unhide), no message, as "Убрать"; the screens of the row anew as after it (aio_ml_changed).
+/**
+ * @param string $from
+ * @return AioAction|null
+ */
+function aio_cp_unhide_act($from)
+{
+    $n = aio_cp_hidden_n();
+    $ok = aio_cp_unhide();
+    aio_log("continue: unhide: $n" . ($ok ? '' : ', not written'));
+    return aio_ml_changed($from, null, 'back to the row "Continue"');
 }
 
 // "Отметить просмотренным" / "Снять отметку" ($in->w on, off) of tile $in->item of screen $in->from: the card of the
@@ -484,7 +552,7 @@ function aio_cp_hide_act($in)
 // aio_cm_eps_before; its episodes to the pair, aio_pg_link_meta: the dates of those not out) with the uids of the records of our releases of them (aio_wh_mark_ids), as "Отметить предыдущие"
 // of the own card; a tile of the row with no pair ("dune:<movie_id>") gets it first (aio_pg_link_now, as ENTER); a
 // series off - movie_ids and every uid of the card marked (aio_wh_marked_of: no request, no meta). post_action:
-// aio_catv_tile_after. No card, no pair, no meta: the message cp_err_mark (the reason in the log).
+// aio_ml_changed. No card, no pair, no meta: the message cp_err_mark (the reason in the log).
 /**
  * @param stdClass $in
  * @return AioAction|null
@@ -529,5 +597,5 @@ function aio_cp_mark($in)
     else if ($w === 'off')
         $ids = aio_wh_movie_off_ids($mid);
     aio_log("continue: mark $w of $mid ({$t['type']}): " . count($ids) . ' uids');
-    return aio_pg_mark_act($ids, array($mid), $w === 'on', aio_catv_tile_after($from, "a mark $w"));
+    return aio_pg_mark_act($ids, array($mid), $w === 'on', aio_ml_changed($from, null, "a mark $w"));
 }
