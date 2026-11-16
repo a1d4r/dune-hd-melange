@@ -33,11 +33,16 @@ class AioLpv
     // dune id or IMDb: their search needs no /externalids. Memory only.
     /** @var array<string, array{string, string}> */
     public static $ids = array();
-    // The season of the last start of an episode (online_play.php): its key (aio_lp_season_key), s,
-    // the row of the voice, the season in it (AioLpSeason) - the next episodes of its playlist take
-    // their link from it (lampac_next:). One, memory only.
-    /** @var array{key: string, s: int, row: AioLpRow, sea: AioLpSeason}|null */
+    // The season of the last start of an episode (online_play.php): the dune id of its card (a key of
+    // a voice is the same for two series), its key (aio_lp_season_key), s, the row of the voice, the
+    // season in it (AioLpSeason) - the next episodes of its playlist take their link from it
+    // (lampac_next:). One, memory only.
+    /** @var array{k: string, key: string, s: int, row: AioLpRow, sea: AioLpSeason}|null */
     public static $season = null;
+    // The episode a lazy one of the playlist played last (aio_lpv_next): the rid of the online list
+    // under the player, s, e; back from the player the list goes to it (aio_lpv_finish). null none.
+    /** @var array{rid: string, s: int, e: int}|null */
+    public static $played = null;
 }
 
 // "Онлайн" for card $mv: a Lampac in the settings.
@@ -518,13 +523,23 @@ function aio_lpv_move($in, $st)
     return aio_gc_changes_act($ch, $nsel, $ntop);
 }
 
-// Back from the player (aio_finish): the bars of the rows whose share changed, else nothing.
+// Back from the player (aio_finish): lazy episodes played another episode of the season of the list
+// (AioLpv::$played) - the list of that one, its rows and cursor kept (as aio_finish of the releases);
+// else the bars of the rows whose share changed, else nothing.
 /**
  * @param AioState $st
  * @return AioAction|null
  */
 function aio_lpv_finish($st)
 {
+    $p = AioLpv::$played;
+    AioLpv::$played = null;
+    if ($p && $p['rid'] === $st['rid'] && $p['s'] === $st['s'] && $p['e'] !== $st['e'])
+    {
+        $ns = aio_lpv_ep_state($st, $p['s'], $p['e']);
+        aio_log('lampac: finish: list ' . aio_ep_tag($st) . ', played ' . aio_ep_tag($ns) . ' -> screen replaced');
+        return aio_list_replace($ns);
+    }
     $v = $st['lp'];
     $old = isset($v['gc_prog']) ? $v['gc_prog'] : array();
     $v['gc_prog'] = Aio::$state['lp']['gc_prog'] = aio_wh_progress($st);
@@ -1017,7 +1032,8 @@ function aio_lpv_pick($in, $st)
         if ($f['why'] === 'no_episode' || $f['why'] === 'no_episodes')
         {
             aio_log("lampac: {$r['path']}: no " . aio_ep_tag($st) . " in the voice ({$f['detail']})");
-            return aio_dialog(aio_lpv_no_ep_text($st['lang'], $r['src'], $r['voice'], $s, $e, $f['why'], $f['have']), array(),
+            return aio_dialog(aio_lpv_tr($st['lang'], 'lp_no_ep_title', array('se' => "S{$s}E{$e}")),
+                aio_dialog_lines(aio_lpv_no_ep_text($st['lang'], $r['src'], $r['voice'], $s, $e, $f['why'], $f['have'])),
                 array('OK' => aio_close_and(null)));
         }
         if ($f['row'] === null)
@@ -1027,8 +1043,9 @@ function aio_lpv_pick($in, $st)
     $l = aio_lpv_link($base, $r, $deadline, $s, $e);
     if ($l['why'] !== '')
         return aio_lpv_failed($st['lang'], $r, $l['why'], $l['detail']);
+    AioLpv::$played = null;
     if ($f && $f['sea'])
-        AioLpv::$season = array('key' => $r['key'], 's' => $s, 'row' => $r, 'sea' => $f['sea']);
+        AioLpv::$season = array('k' => $st['movie']['dune_id'], 'key' => $r['key'], 's' => $s, 'row' => $r, 'sea' => $f['sea']);
     return aio_lpv_vod($st['movie'], $st['lang'], $r, $l['url'], 0, $st['s'], $st['e'], $f ? $f['have'] : array());
 }
 

@@ -377,6 +377,7 @@ lp_card_via = Через
 lp_card_via_v = Lampac из настроек
 lp_refresh_wait = Обновить можно через {n} с
 lp_failed = {src}: видео не получить
+lp_no_ep_title = Серии {se} нет
 lp_no_ep = В озвучке {voice} нет {se}, есть {have}
 lp_no_eps = В озвучке {voice} нет серий
 lp_no_ep_src = У {src} нет {se}, есть {have}

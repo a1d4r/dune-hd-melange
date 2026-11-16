@@ -207,7 +207,7 @@ function aio_lpv_next($in)
     $deadline = aio_lp_now() + $left;
     $c = AioLpv::$season;
     $f = array('row' => null, 'why' => 'down', 'detail' => 'no address', 'have' => array(), 'voice' => '', 'sea' => null);
-    if ($base !== '' && $c && $c['key'] === $key && $c['s'] === $s)
+    if ($base !== '' && $c && $c['k'] === $mv['dune_id'] && $c['key'] === $key && $c['s'] === $s)
     {
         $x = aio_lp_episode($c['sea'], $s, $e);
         $f = array('row' => $x['ep'] ? aio_lp_ep_row($c['row'], $x['ep']) : null, 'why' => $x['why'], 'detail' => $x['detail'],
@@ -216,7 +216,11 @@ function aio_lpv_next($in)
         {
             $l = aio_lpv_link($base, $f['row'], $deadline, $s, $e);
             if ($l['why'] === '')
-                return aio_lpv_vod($mv, $lang, $f['row'], $l['url'], 0, $s, $e, $f['have']);
+                return aio_lpv_played($mv, $lang, $f['row'], $l['url'], $s, $e, $f['have']);
+            // Anew only for a link that expired (the check, http, no answer): the cache of Lampac keeps a
+            // reply of another episode, a list or rch, a second "call" gives the same after its time.
+            if (!in_array($l['why'], array('http', 'down', 'not_hls', 'html', 'long_variant'), true))
+                return aio_lpv_next_failed($lang, $base, $f['row']['src'], $f['voice'], $s, $e, $l['why'], $l['detail'], array());
             aio_log("lampac next: $ep of the season kept: {$l['why']} -> the balancer anew");
         }
         else
@@ -237,16 +241,56 @@ function aio_lpv_next($in)
         if ($l['why'] === '')
         {
             if ($f['sea'])
-                AioLpv::$season = array('key' => $key, 's' => $s, 'row' => $f['row'], 'sea' => $f['sea']);
-            return aio_lpv_vod($mv, $lang, $f['row'], $l['url'], 0, $s, $e, $f['have']);
+                AioLpv::$season = array('k' => $mv['dune_id'], 'key' => $key, 's' => $s, 'row' => $f['row'], 'sea' => $f['sea']);
+            return aio_lpv_played($mv, $lang, $f['row'], $l['url'], $s, $e, $f['have']);
         }
         $why = array($l['why'], $l['detail']);
     }
     $k = aio_lp_key_parse($key);
-    $src = $f['row'] ? $f['row']['src'] : ucfirst($k ? $k[0] : '');
-    aio_log("lampac next: $ep: no link ({$why[0]}" . ($why[1] !== '' ? ', ' . aio_lp_mask($why[1], $base) : '') . ')');
-    $text = $why[0] === 'no_episode' || $why[0] === 'no_episodes' ?
-        aio_lpv_no_ep_text($lang, $src, $f['voice'], $s, $e, $why[0], $f['have']) : "$src: " . aio_lpv_why($lang, $why[0], $why[1]);
+    return aio_lpv_next_failed($lang, $base, $f['row'] ? $f['row']['src'] : ucfirst($k ? $k[0] : ''), $f['voice'], $s, $e,
+        $why[0], $why[1], $f['have']);
+}
+
+// vod_play of a lazy episode $e of season $s (aio_lpv_vod), noted for the online list on screen
+// (AioLpv::$played: back from the player it goes to that episode).
+/**
+ * @param AioMovie $mv
+ * @param string $lang
+ * @param AioLpRow $r
+ * @param string $url
+ * @param int $s
+ * @param int $e
+ * @param list<int> $have
+ * @return AioAction
+ */
+function aio_lpv_played($mv, $lang, $r, $url, $s, $e, $have)
+{
+    $st = Aio::$state;
+    AioLpv::$played = $st && !empty($st['lp_on']) && $st['movie']['dune_id'] === $mv['dune_id'] ?
+        array('rid' => $st['rid'], 's' => $s, 'e' => $e) : null;
+    return aio_lpv_vod($mv, $lang, $r, $url, 0, $s, $e, $have);
+}
+
+// The window of lazy episode $e of season $s with no link (reason $why, $detail; no_episode and
+// no_episodes of voice $voice of balancer $src: those $have) over the stopped player: "Серия … не
+// загрузилась", the reason, "Стоп" (as aio_next_failed).
+/**
+ * @param string $lang
+ * @param string $base
+ * @param string $src
+ * @param string $voice
+ * @param int $s
+ * @param int $e
+ * @param string $why
+ * @param string $detail
+ * @param list<int> $have
+ * @return AioAction
+ */
+function aio_lpv_next_failed($lang, $base, $src, $voice, $s, $e, $why, $detail, $have)
+{
+    aio_log(sprintf('lampac next: S%02dE%02d: no link (%s%s)', $s, $e, $why, $detail !== '' ? ', ' . aio_lp_mask($detail, $base) : ''));
+    $text = $why === 'no_episode' || $why === 'no_episodes' ?
+        aio_lpv_no_ep_text($lang, $src, $voice, $s, $e, $why, $have) : "$src: " . aio_lpv_why($lang, $why, $detail);
     return aio_dialog(aio_tr($lang, 'next_failed', aio_se($s, $e)), aio_dialog_lines($text),
         array(aio_tr($lang, 'next_stop') => aio_input('next_stop')));
 }

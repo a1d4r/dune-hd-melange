@@ -377,6 +377,7 @@ lp_card_via = Via
 lp_card_via_v = Lampac of the settings
 lp_refresh_wait = Refresh is possible in {n} s
 lp_failed = {src}: no video
+lp_no_ep_title = No episode {se}
 lp_no_ep = No {se} in the voice {voice}, there are {have}
 lp_no_eps = No episodes in the voice {voice}
 lp_no_ep_src = {src} has no {se}, there are {have}

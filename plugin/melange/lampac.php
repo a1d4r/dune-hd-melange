@@ -971,7 +971,8 @@ function aio_lp_season($src, $j, $url, $base = '')
             break;
         $e = is_array($x) ? aio_lp_num(isset($x['e']) ? $x['e'] : null) : -1;
         $es = is_array($x) ? aio_lp_num(isset($x['s']) ? $x['s'] : null) : -1;
-        if ($e < 0 || isset($seen["$es:$e"]))
+        // e 0: a special or a trailer, no episode of the card.
+        if ($e < 1 || isset($seen["$es:$e"]))
             continue;
         $seen["$es:$e"] = true;
         $out['eps'][] = array('s' => $es, 'e' => $e,
