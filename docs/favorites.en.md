@@ -2,7 +2,7 @@
 
 Melange keeps what you started and what you saved for later in the first catalog rows. [← Contents](README.en.md)
 
-1. The first catalog row is "Continue Watching": movies you started, and the next episode of a series. The second row is "Favorites". The "Movies" tab shows movies in them, the "Series" tab shows series. An empty row is hidden.
+1. The first catalog row is "Continue Watching": movies you started, and the next episode of a series. The second row is "Favorites". The "Movies" tab shows movies in them, the "Series" tab shows series. An empty row is hidden. It also gets what you started in the Dune's own Movies.
 
    <img src="../screenshots/progress-rows.jpg" alt="Catalog, Movies tab: focus on The Martian in Continue Watching, 2:12 left in the info panel, Favorites row below" width="100%">
 
@@ -34,7 +34,7 @@ Melange keeps what you started and what you saved for later in the first catalog
 
    <img src="../screenshots/progress-favorites.jpg" alt="Favorites screen: a grid of posters, focus on Joker, In Favorites in the info panel" width="100%">
 
-8. On a poster, press **POP UP** to add it to Favorites or remove it, mark it as watched or unwatched, or, in Continue Watching, remove it from the row. Marking a series marks all its aired episodes.
+8. On a poster, press **POP UP** to add it to Favorites or remove it, mark it as watched or unwatched, or, in Continue Watching, remove it from the row. To bring everything removed back at once, choose "Restore removed" in **POP UP** on the Continue Watching screen (the clock on the top bar opens it). Marking a series marks all its aired episodes.
 
    <img src="../screenshots/progress-popup.jpg" alt="POP UP on Game of Thrones in Continue Watching: Remove from Continue Watching, Mark as watched, Remove from Favorites, then Movies, Series, Continue Watching, Favorites, Search, Settings" width="100%">
 
