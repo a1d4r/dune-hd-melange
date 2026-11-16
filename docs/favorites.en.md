@@ -14,7 +14,7 @@ Melange keeps what you started and what you saved for later in the first catalog
 
    <img src="../screenshots/progress-infopanel.jpg" alt="Info panel above the rows: a progress bar and the time left under the description" width="100%">
 
-4. To save a movie for later, open its card (**ENTER** on the poster) and press "Favorites". The button turns into "In Favorites". Press it again to remove the movie.
+4. To save a movie for later, open its card (**ENTER** on the poster) and press "Favorites". The button turns into "In Favorites". Press it again to remove the movie. With **MENU** on a movie card you can mark it as watched ("Mark as watched" or "Mark as unwatched") or open its "Dune card".
 
    <img src="../screenshots/progress-card-fav.jpg" alt="Melange card: Watch, Trailer and In Favorites buttons" width="100%">
 
