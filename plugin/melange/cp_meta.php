@@ -365,13 +365,33 @@ function aio_cpm_queue()
     return $out;
 }
 
-// A step would ask: a title in the queue, no pause, the catalog server not down.
+// A step would ask: a title to ask (aio_cpm_todo), no pause, the catalog server not down.
 /**
  * @return bool
  */
 function aio_cpm_wanted()
 {
-    return !aio_cpm_paused() && !aio_catv_is_down() && aio_cpm_queue() !== array();
+    return !aio_cpm_paused() && !aio_catv_is_down() && aio_cpm_todo() !== array();
+}
+
+// The titles of aio_cpm_queue a step asks for: those no row in memory has now (aio_cp_tile_map), pause or not. ->
+// keys => type.
+/**
+ * @return array<string, string>
+ */
+function aio_cpm_todo()
+{
+    $q = aio_cpm_queue();
+    $map = $q ? aio_cp_tile_map() : array();
+    $todo = array();
+    foreach ($q as $key => $m)
+    {
+        list($type, $imdb, $tmdb) = $m;
+        if (($imdb !== '' && isset($map["$type|imdb:$imdb"])) || ($tmdb !== '' && isset($map["$type|tmdb:$tmdb"])))
+            continue;
+        $todo[strval($key)] = $type;
+    }
+    return $todo;
 }
 
 // One request of the meta of title $key of type $type (aio_cat_get, its timeout $limit s, to the ms; its line of the log
@@ -479,8 +499,8 @@ function aio_cpm_judge($gets, $types, $limit)
     return $out;
 }
 
-// The lazy meta: the titles of aio_cpm_queue no row in memory has now (aio_cp_tile_map), in $limit s. $n limits the
-// requests one by one; of the batch only $n > 0 counts. With curl_multi one batch of AIO_CPM_STEP_PAR at most
+// The lazy meta: the titles of aio_cpm_todo, in $limit s. $n limits the requests one by one; of the batch only $n > 0
+// counts. With curl_multi one batch of AIO_CPM_STEP_PAR at most
 // (aio_cpm_ask_many, each its timeout the whole of what is left); else up to $n requests one by one (each with
 // AIO_CPM_MIN_S left, its timeout the s left: aio_cpm_ask), a pause or a short rest - no more of the step. The ones
 // kept at one write. One line of the log of a step that asked (its path: aio_http_mark); of a $tick always. -> how
@@ -497,16 +517,7 @@ function aio_cpm_step($limit, $n, $tick = false)
     $asked = 0;
     $got = 0;
     $put = array();
-    $q = $n > 0 && !aio_cpm_paused() && !aio_catv_is_down() ? aio_cpm_queue() : array();
-    $map = $q ? aio_cp_tile_map() : array();
-    $todo = array();
-    foreach ($q as $key => $m)
-    {
-        list($type, $imdb, $tmdb) = $m;
-        if (($imdb !== '' && isset($map["$type|imdb:$imdb"])) || ($tmdb !== '' && isset($map["$type|tmdb:$tmdb"])))
-            continue;
-        $todo[strval($key)] = $type;
-    }
+    $todo = $n > 0 && !aio_cpm_paused() && !aio_catv_is_down() ? aio_cpm_todo() : array();
     $left = $limit - (microtime(true) - $t);
     $many = $todo && $left >= AIO_CPM_MIN_S ? aio_cpm_ask_many(array_slice($todo, 0, AIO_CPM_STEP_PAR, true), $left) : null;
     $par = $many !== null ? count($many) : 0;

@@ -2048,6 +2048,22 @@ function aio_catv_tick($url)
     return $tick;
 }
 
+// r25: the timer of the main screen $url again (aio_pg_tick_again): change_behaviour, its actions whole as of
+// aio_catv_rows_view with the tick and the Fav keys (aio_mlv_keys); the focus and the tiles stay.
+/**
+ * @param string $url
+ * @return AioAction
+ */
+function aio_catv_tick_again($url)
+{
+    return array(
+        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
+        GuiAction::data => array(
+            ChangeBehaviourActionData::actions => aio_catv_actions($url) + array(GUI_EVENT_TIMER => aio_catv_tick($url)) +
+                aio_mlv_key_acts($url),
+            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => AIO_PG_TICK_AGAIN_MS)));
+}
+
 // The actions of "Show all"; with stubs, the tick of the timer too.
 /**
  * @param string $url
@@ -2982,12 +2998,10 @@ function aio_catv_input($in, $control)
         $url = aio_catv_more_url(aio_catv_in($in, 'cat_more'));
         return $url !== '' ? aio_catv_all_open($url) : null;
     }
-    // The tick of the timer of the main screen: the lazy step, nothing in the reply.
+    // The tick of the timer of the main screen: the lazy step; more to ask - the timer again (as aio_catv_all_tick), else
+    // nothing in the reply.
     if ($control === 'cat_tick' && aio_catv_is_main($from))
-    {
-        aio_pg_tick($from);
-        return null;
-    }
+        return aio_pg_tick($from) ? aio_catv_tick_again($from) : null;
     if ($control === 'cat_tick')
         return aio_catv_all_tick($from);
     if ($control === 'cat_retry')
