@@ -1710,46 +1710,59 @@ function aio_lpv_srcs_pick($sources, $choice)
     return array($out, array_values(array_unique($off)));
 }
 
-// Choice $choice with the sources $sources of a search: one of a path not there - on, last (up to
-// AIO_LP_SEEN_MAX); one there of another name - that name. -> array(the choice, changed).
+// The sources $sources of a search not in choice $choice, each once, in their order: entries of lampac_sources, on, the
+// name of their label (aio_lp_src_name); a path not of aio_lp_src_path_ok none. A source there keeps the name of its
+// first sight: another label of it changes nothing (settings.json is not written at every search).
 /**
  * @param list<AioLpChoice> $choice
  * @param list<AioLpSource> $sources
- * @return array{list<AioLpChoice>, bool}
+ * @return list<AioLpChoice>
  */
-function aio_lpv_srcs_merge($choice, $sources)
+function aio_lpv_srcs_new($choice, $sources)
 {
     $at = array();
-    foreach ($choice as $i => $c)
-        $at[$c['path']] = $i;
-    $changed = false;
+    foreach ($choice as $c)
+        $at[$c['path']] = true;
+    $out = array();
     foreach ($sources as $x)
     {
         $p = $x['path'];
-        if ($p === '' || (!isset($at[$p]) && count($choice) >= AIO_LP_SEEN_MAX))
+        if (isset($at[$p]) || !aio_lp_src_path_ok($p))
             continue;
-        if (!isset($at[$p]))
-        {
-            $at[$p] = count($choice);
-            $choice[] = array('path' => $p, 'name' => $x['label'], 'on' => true);
-            $changed = true;
-        }
-        else if ($choice[$at[$p]]['name'] !== $x['label'])
-        {
-            $choice[$at[$p]]['name'] = $x['label'];
-            $changed = true;
-        }
+        $at[$p] = true;
+        $name = aio_lp_src_name($x['label']);
+        $out[] = array('path' => $p, 'name' => $name !== '' ? $name : aio_lp_src_name($p), 'on' => true);
     }
-    return array($choice, $changed);
+    return $out;
+}
+
+// The longest body of the import of the settings page: AIO_CGI_IMPORT_MAX of cgi/lib/backup.php (not loaded here).
+define('AIO_LPV_SRCS_IMPORT_MAX', 32768);
+
+// The export of settings $s (aio_settings_read) loads back on the settings page, as aio_cgi_import_fits of
+// cgi/lib/backup.php has it: the body of its file (aio_cgi_export_json: web_token of 32 hex characters, any of the
+// same length) not over AIO_LPV_SRCS_IMPORT_MAX. So settings.json stays within AIO_SETTINGS_MAX too.
+/**
+ * @param AioSettings $s
+ * @return bool
+ */
+function aio_lpv_srcs_fits($s)
+{
+    $json = aio_settings_json($s + array('web_token' => str_repeat('0', 32)));
+    return $json !== '' && strlen('settings=' . rawurlencode($json)) <= AIO_LPV_SRCS_IMPORT_MAX;
 }
 
 // lampac_sources $choice into Aio::$settings and settings.json, read again just before (a source of the file not
-// in $choice kept, last), written as the quick setup does (aio_settings_write). -> written.
+// in $choice kept, last), then the new ones $add (aio_lpv_srcs_new) after them, each while there is room
+// (AIO_LP_SEEN_MAX) and the export of the settings with it loads back (aio_lpv_srcs_fits); those not kept - one
+// line. Written as the quick setup does (aio_settings_write); $add, none of it kept: nothing written. -> the number
+// of $add kept; -1: not written.
 /**
  * @param list<AioLpChoice> $choice
- * @return bool
+ * @param list<AioLpChoice> $add
+ * @return int
  */
-function aio_lpv_srcs_save($choice)
+function aio_lpv_srcs_save($choice, $add = array())
 {
     Aio::$settings['lp_src'] = $choice;
     $dir = aio_data_dir();
@@ -1758,7 +1771,7 @@ function aio_lpv_srcs_save($choice)
     if (!$s || $why !== '')
     {
         aio_log('lampac: sources: settings.json not read, not written');
-        return false;
+        return -1;
     }
     $have = array();
     foreach ($choice as $c)
@@ -1766,31 +1779,59 @@ function aio_lpv_srcs_save($choice)
     foreach ($s['lampac_sources'] as $c)
     {
         if (!isset($have[$c['path']]) && count($choice) < AIO_LP_SEEN_MAX)
+        {
             $choice[] = $c;
+            $have[$c['path']] = true;
+        }
     }
-    $s['lampac_sources'] = Aio::$settings['lp_src'] = $choice;
+    $s['lampac_sources'] = $choice;
+    $full = 0;
+    $big = 0;
+    $n = 0;
+    foreach ($add as $c)
+    {
+        if (isset($have[$c['path']]))
+            continue;
+        $t = $s;
+        $t['lampac_sources'][] = $c;
+        if (count($s['lampac_sources']) >= AIO_LP_SEEN_MAX)
+            $full++;
+        else if (!aio_lpv_srcs_fits($t))
+            $big++;
+        else
+        {
+            $s = $t;
+            $have[$c['path']] = true;
+            $n++;
+        }
+    }
+    if ($full + $big > 0)
+        aio_log('lampac: sources: ' . ($full + $big) . ' new not kept (' . AIO_LP_SEEN_MAX . " at most: $full, the export " .
+            'of the settings over ' . AIO_LPV_SRCS_IMPORT_MAX . " bytes: $big)");
+    Aio::$settings['lp_src'] = $s['lampac_sources'];
+    if ($add && $n === 0)
+        return 0;
     if (!aio_settings_write($s))
     {
         aio_log('lampac: sources: settings.json not written');
-        return false;
+        return -1;
     }
-    return true;
+    return $n;
 }
 
-// The sources $sources of a search done: those new (or of another name) into lampac_sources (aio_lpv_srcs_merge).
+// The sources $sources of a search done: those new into lampac_sources (aio_lpv_srcs_new, aio_lpv_srcs_save).
 /**
  * @param list<AioLpSource> $sources
  * @return void
  */
 function aio_lpv_srcs_seen($sources)
 {
-    list($choice, $changed) = aio_lpv_srcs_merge(Aio::$settings['lp_src'], $sources);
-    if (!$changed)
+    $new = aio_lpv_srcs_new(Aio::$settings['lp_src'], $sources);
+    if (!$new)
         return;
-    $n = count($choice) - count(Aio::$settings['lp_src']);
-    if (aio_lpv_srcs_save($choice))
-        aio_log('lampac: sources: ' . ($n > 0 ? "$n new" : 'a name changed') . ', ' . count(Aio::$settings['lp_src']) .
-            ' in all, saved');
+    $n = aio_lpv_srcs_save(Aio::$settings['lp_src'], $new);
+    if ($n > 0)
+        aio_log("lampac: sources: $n new, " . count(Aio::$settings['lp_src']) . ' in all, saved');
 }
 
 /**
@@ -1960,7 +2001,7 @@ function aio_lpv_srcs_apply($in, $st)
         aio_log('lampac: sources: the same');
         return null;
     }
-    if (!aio_lpv_srcs_save($choice))
+    if (aio_lpv_srcs_save($choice) < 0)
         return aio_error('lp_srcs_not_saved');
     list($v, $back, $map) = aio_lpv_srcs_view($st['lp'], Aio::$settings['lp_src']);
     $n = count(array_filter($state));

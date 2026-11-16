@@ -68,8 +68,10 @@ define('AIO_LP_KEY_PATH_MAX', 24);
 // Sources of a search and rows of a reply kept, at most.
 define('AIO_LP_SOURCES_MAX', 60);
 define('AIO_LP_ROWS_MAX', 60);
-// Sources of lampac_sources at most (aio_lp_srcs_ok): those found on this Dune for all titles.
-define('AIO_LP_SEEN_MAX', 200);
+// Sources of lampac_sources at most (aio_lp_srcs_ok): those found on this Dune for all titles (Lampac has some
+// tens of balancers), and characters of the name of one: the export of settings.json fits AIO_CGI_IMPORT_MAX.
+define('AIO_LP_SEEN_MAX', 60);
+define('AIO_LP_SEEN_NAME_MAX', 40);
 // Tracks of a balancer without voices (details of Collaps) at most.
 define('AIO_LP_TRACKS_MAX', 30);
 // Episodes of a season of a balancer kept, at most (a long anime has some hundreds).
@@ -511,8 +513,9 @@ function aio_lp_source_of($base, $path)
 }
 
 // The sources Lampac has found on this Dune, for all titles (lampac_sources of settings.json, the window
-// "Источники…" of view_online.php), as stored: in their order, each path (aio_lp_path_ok), name (aio_lp_text;
-// '' - the path) and on (not a bool - true); the first of a path kept, at most AIO_LP_SEEN_MAX; not a list - none.
+// "Источники…" of view_online.php), as stored: in their order, each path (aio_lp_src_path_ok), name
+// (aio_lp_src_name; '' - the path, cut so too) and on (not a bool - true); the first of a path kept, at most
+// AIO_LP_SEEN_MAX; not a list - none.
 /**
  * @param mixed $v
  * @return list<AioLpChoice>
@@ -523,12 +526,35 @@ function aio_lp_srcs_ok($v)
     foreach (is_array($v) ? $v : array() as $x)
     {
         $p = is_array($x) && isset($x['path']) && is_string($x['path']) ? $x['path'] : '';
-        if (!aio_lp_path_ok($p, AIO_LP_NAME_MAX) || isset($out[$p]) || count($out) >= AIO_LP_SEEN_MAX)
+        if (!aio_lp_src_path_ok($p) || isset($out[$p]) || count($out) >= AIO_LP_SEEN_MAX)
             continue;
-        $name = aio_lp_text(isset($x['name']) ? $x['name'] : '');
-        $out[$p] = array('path' => $p, 'name' => $name !== '' ? $name : $p, 'on' => !isset($x['on']) || $x['on'] !== false);
+        $name = aio_lp_src_name(isset($x['name']) ? $x['name'] : '');
+        $out[$p] = array('path' => $p, 'name' => $name !== '' ? $name : aio_lp_src_name($p),
+            'on' => !isset($x['on']) || $x['on'] !== false);
     }
     return array_values($out);
+}
+
+// $p is a path of a source of lampac_sources: of a balancer (aio_lp_path_ok) beginning with a letter or a digit
+// (off, "--x" would be the line "---x" of the file of the window, read as its "---").
+/**
+ * @param string $p
+ * @return bool
+ */
+function aio_lp_src_path_ok($p)
+{
+    return aio_lp_path_ok($p, AIO_LP_NAME_MAX) && preg_match('/^[A-Za-z0-9]/', $p) === 1;
+}
+
+// The name of a source of lampac_sources: aio_lp_text, at most AIO_LP_SEEN_NAME_MAX characters.
+/**
+ * @param mixed $v
+ * @return string
+ */
+function aio_lp_src_name($v)
+{
+    $v = aio_lp_text($v);
+    return mb_strlen($v, 'UTF-8') > AIO_LP_SEEN_NAME_MAX ? mb_substr($v, 0, AIO_LP_SEEN_NAME_MAX, 'UTF-8') : $v;
 }
 
 // Items $list of events, added to the sources $have of the search, $gone its
