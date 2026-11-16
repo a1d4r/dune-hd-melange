@@ -383,7 +383,9 @@ function aio_catv_list_restore($rid)
 
 // --- Pictures: the size is in the address; a picture of another type or width is fine.
 
-// Never empty. A path (of a picture of the Favorites of the Dune, aio_ml_url) as it is, as the shell has it in its row.
+// Never empty. A path (of a picture of the Favorites of the Dune, aio_ml_url) as it is, as the shell has it in its row,
+// if the file is there (PHP of the Dune adds FS_PREFIX itself, as aio_ml_fav_read): taken out of the Favorites of the
+// Dune (its folder gone) or of a backup of another Dune - the usual picture of none.
 /**
  * @param AioCatTile $t
  * @return string
@@ -391,7 +393,7 @@ function aio_catv_list_restore($rid)
 function aio_catv_poster($t)
 {
     if (substr($t['poster'], 0, 1) === '/')
-        return $t['poster'];
+        return is_file($t['poster']) ? $t['poster'] : AIO_CATV_ICONS . 'no_movie_poster.png';
     $u = aio_img(str_replace('/poster-cache/poster/', '/poster-cache/w342/poster/', $t['poster']));
     return $u !== '' ? $u : AIO_CATV_ICONS . 'no_movie_poster.png';
 }
