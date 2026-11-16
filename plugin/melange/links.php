@@ -133,22 +133,25 @@ function aio_pg_rows_answered()
     AioPgLinks::$rows_t = microtime(true);
 }
 
-// r24: the screen is made, $left s of its opening left, $net: rows of it went to the server in it (old or no
-// copies). The lazy pairs now, then the lazy meta of the row "Continue" (aio_cpm_step) in what is left of the time
-// of the step, only with $net: an opening of rows of memory or the cache stays at once.
+// r24: the screen of tab $tab is made, $left s of its opening left, $net: rows of it went to the server in it (old or
+// no copies). The lazy pairs now, the tiles of its row "Continue" first (aio_cp_row_mids), then the lazy meta of that
+// row (aio_cpm_step) in what is left of the time of the step, only with $net: an opening of rows of memory or the
+// cache stays at once.
 /**
  * @param float $left
  * @param bool $net
+ * @param string $tab
  * @return void
  */
-function aio_pg_screen_built($left, $net)
+function aio_pg_screen_built($left, $net, $tab = '')
 {
     if (!$net || $left < 1)
         return;
     $t = microtime(true);
     $limit = min($left, AIO_PG_LINK_S);
     $rounds = 0;
-    aio_pg_link_step($limit, false, $rounds);
+    $pairs = 0;
+    aio_pg_link_step($limit, false, $rounds, $pairs, null, aio_cp_row_mids($tab));
     aio_cpm_step($limit - (microtime(true) - $t), AIO_CPM_N - $rounds);
 }
 
@@ -203,9 +206,9 @@ function aio_pg_tick_set($url, $anew = false)
 // within AIO_PG_FAV_QUIET_S of the end of a tick of a screen of Fav (the main one under it or just after Back: the
 // timer again, not one of AIO_PG_TICK_MAX; no two timers asking at once), a tick after the last one of the screen, a
 // tick of another or an old one, a tick with no screen since the start of php_server. A line of the log of each, in its
-// own words. Cards paired: the tiles of the row "Continue" with no meta again (AioCpm::$miss, aio_cp_row_miss), theirs
-// asked in the same tick. Some meta got: the screen built again (aio_pg_tick_anew), no timer again here. -> the timer
-// again (aio_catv_input: change_behaviour).
+// own words. The tiles of the row "Continue" of the screen paired first (aio_cp_row_mids). Cards paired: the tiles of
+// that row with no meta again (AioCpm::$miss, aio_cp_row_miss), theirs asked in the same tick. Some meta got: the
+// screen built again (aio_pg_tick_anew), no timer again here. -> the timer again (aio_catv_input: change_behaviour).
 /**
  * @param string $url
  * @return bool
@@ -240,9 +243,10 @@ function aio_pg_tick($url)
         $t = microtime(true);
         $rounds = 0;
         $pairs = 0;
-        aio_pg_link_step(min(AIO_PG_LINK_S, AIO_CPM_TICK_S), true, $rounds, $pairs);
+        $tab = aio_catv_tab($url);
+        aio_pg_link_step(min(AIO_PG_LINK_S, AIO_CPM_TICK_S), true, $rounds, $pairs, null, aio_cp_row_mids($tab));
         if ($pairs)
-            AioCpm::$miss = aio_cp_row_miss(aio_catv_tab($url));
+            AioCpm::$miss = aio_cp_row_miss($tab);
         $got = aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $rounds, true);
         if ($got)
             return aio_pg_tick_anew($url, $got);
@@ -1133,12 +1137,14 @@ function aio_pg_paused()
 
 // The cards a step asks for (aio_pg_link_step): of aio_pg_wanted, the latest first, records that ended within
 // AIO_PG_LINK_AGE_S, a failure older than AIO_PG_FAIL_S (sq of a series with no seasons too; set back for no reply of
-// the server, aio_pg_link_got), ids of the Dune; of $mids alone (the cards of a screen; null: all). -> movie_ids.
+// the server, aio_pg_link_got), ids of the Dune; of $mids alone (the cards of a screen; null: all); those of $first
+// before the others, in its order (the tiles of the row "Continue" of the main screen, aio_cp_row_mids). -> movie_ids.
 /**
  * @param list<string>|null $mids
+ * @param list<string> $first
  * @return list<string>
  */
-function aio_pg_link_queue($mids = null)
+function aio_pg_link_queue($mids = null, $first = array())
 {
     $now = time();
     $links = aio_pg_links();
@@ -1155,13 +1161,16 @@ function aio_pg_link_queue($mids = null)
             continue;
         $out[] = $mid;
     }
-    return $out;
+    if (!$first)
+        return $out;
+    $head = array_values(array_intersect($first, $out));
+    return array_merge($head, array_values(array_diff($out, $head)));
 }
 
-// The lazy pairs: the cards of aio_pg_link_queue (of $mids: as it takes them) in $limit s: AIO_HTTP_PAR at once
-// (aio_pg_link_many), each its timeout the whole of what is left; else (no curl_multi) up to AIO_PG_LINK_N requests
-// one by one (the second one only with AIO_PG_LINK_NEXT_S left; a $tick, aio_pg_tick: one). None in a pause
-// (aio_pg_paused) or with no dune_auth.
+// The lazy pairs: the cards of aio_pg_link_queue (of $mids, those of $first first: as it takes them) in $limit s:
+// AIO_HTTP_PAR at once (aio_pg_link_many), each its timeout the whole of what is left; else (no curl_multi) up to
+// AIO_PG_LINK_N requests one by one (the second one only with AIO_PG_LINK_NEXT_S left; a $tick, aio_pg_tick: one).
+// None in a pause (aio_pg_paused) or with no dune_auth.
 // One line of the log of a step that asked (its path: aio_http_mark); of a $tick always. -> how many were asked (only
 // the tests read it); $rounds: the requests in time - a batch one, one by one each: the callers take it off AIO_CPM_N,
 // the $n of aio_cpm_step; $pairs: the pairs got (the tick of the screen "Продолжить" builds it anew for them).
@@ -1171,15 +1180,16 @@ function aio_pg_link_queue($mids = null)
  * @param int $rounds
  * @param int $pairs
  * @param list<string>|null $mids
+ * @param list<string> $first
  * @return int
  */
-function aio_pg_link_step($limit, $tick = false, &$rounds = 0, &$pairs = 0, $mids = null)
+function aio_pg_link_step($limit, $tick = false, &$rounds = 0, &$pairs = 0, $mids = null, $first = array())
 {
     $t = microtime(true);
     $n = 0;
     $got = 0;
     $rounds = 0;
-    $q = aio_pg_paused() ? array() : aio_pg_link_queue($mids);
+    $q = aio_pg_paused() ? array() : aio_pg_link_queue($mids, $first);
     $par = 0;
     $many = $q && $limit >= 1 && aio_pg_token() !== '' ? aio_pg_link_many(array_slice($q, 0, AIO_HTTP_PAR), $limit, $par) :
         null;

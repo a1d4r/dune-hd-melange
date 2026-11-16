@@ -333,6 +333,17 @@ function aio_cp_row_miss($tab)
     return $miss;
 }
 
+// The movie_ids of the tiles of the row of tab $tab ('' both), in its order (aio_cp_items): their pairs asked before
+// those of the other cards of the history (aio_pg_tick, aio_pg_screen_built).
+/**
+ * @param string $tab
+ * @return list<string>
+ */
+function aio_cp_row_mids($tab)
+{
+    return array_map('strval', array_keys(aio_cp_items($tab === '' ? array('movie', 'series') : array($tab))));
+}
+
 // The row of the types $types ($tab: 'movie', 'series', '' both) for a screen of rows: its title and tiles
 // (aio_cp_tile_items), no "Show all" tile (ENTER on its title: the screen of all of them of its type), no flag; none
 // when it is empty. $tiles: its tiles by "continue:<movie_id>" (the file of the tab "TV"); $miss: those of a pair with

@@ -1396,7 +1396,7 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     // The lazy pairs: r24 on the time left of the opening; r25 at the tick of the timer of the screen (aio_pg_tick_set).
     if (!$loading)
-        aio_pg_screen_built(AIO_CATV_OPEN_S - (microtime(true) - $rows_t0), $net);
+        aio_pg_screen_built(AIO_CATV_OPEN_S - (microtime(true) - $rows_t0), $net, $tab);
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms%s', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000,
         $under !== '' ? ", under $under: no requests of the meta" : ''));
     if (AioCat::$inv_t > 0)
