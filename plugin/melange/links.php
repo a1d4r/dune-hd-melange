@@ -40,6 +40,9 @@ define('AIO_PG_TICK_MAX', 10);
 // r25: a tick this soon after a reply of get_folder_rows comes between the rows of a cold opening (the window of
 // the shell still loading, longer than AIO_PG_TICK_MS): no step of that opening.
 define('AIO_PG_ROWS_QUIET_S', 0.5);
+// r25: a tick of the main screen this soon after the end of a tick of a screen of Fav (AioMlv::$tick_t; its timer may
+// tick over the main one): no step, the timer again, not one of the ticks of the opening (AIO_PG_TICK_MAX).
+define('AIO_PG_FAV_QUIET_S', 3.0);
 // A reply of the API this small is decoded whole when its code is not before "result".
 define('AIO_PG_HEAD_MAX', 65536);
 // Episodes of a season the pairs and their parse take at most.
@@ -94,14 +97,16 @@ function aio_pg_screen_start()
 }
 
 // r25: a screen of Melange $url is asked of get_folder_view (aio_folder_view): another than the main screen of the
-// timer - no more ticks of it (a tick under that screen would hold php_server), a line.
+// timer - no more ticks of it (a tick under that screen would hold php_server), a line. Not within the window of the
+// invalidate of a tick of a screen of Fav (aio_mlv_inv: the shell builds the screens of the stack again, the main one
+// under it with its timer; its ticks wait for those of that screen, AIO_PG_FAV_QUIET_S).
 /**
  * @param string $url
  * @return void
  */
 function aio_pg_view_asked($url)
 {
-    if (AioPgLinks::$tick_url === '' || $url === AioPgLinks::$tick_url)
+    if (AioPgLinks::$tick_url === '' || $url === AioPgLinks::$tick_url || aio_mlv_inv() !== '')
         return;
     AioPgLinks::$tick_url = '';
     AioPgLinks::$stop = 'the screen left';
@@ -170,8 +175,10 @@ function aio_pg_tick_set($url)
 // then the lazy meta of the row "Continue" (aio_cpm_step) in what is left of it: one batch at once, else AIO_CPM_N
 // requests of the tick at most one by one; then the timer again or not (aio_pg_tick_again). No step: within
 // AIO_PG_ROWS_QUIET_S of a reply of get_folder_rows (the rows of a cold opening wait for php_server; the timer again),
-// a tick after the last one of the screen, a tick of another or an old one, a tick with no screen since the start of
-// php_server. A line of the log of each, in its own words. -> the timer again (aio_catv_input: change_behaviour).
+// within AIO_PG_FAV_QUIET_S of the end of a tick of a screen of Fav (the main one under it or just after Back: the
+// timer again, not one of AIO_PG_TICK_MAX; no two timers asking at once), a tick after the last one of the screen, a
+// tick of another or an old one, a tick with no screen since the start of php_server. A line of the log of each, in its
+// own words. -> the timer again (aio_catv_input: change_behaviour).
 /**
  * @param string $url
  * @return bool
@@ -188,6 +195,12 @@ function aio_pg_tick($url)
             $why = AioPgLinks::$stop !== '' ? 'no more ticks, ' . AioPgLinks::$stop : 'no timer on this screen';
         aio_log("link: tick: no step, $why");
         return false;
+    }
+    $ago = microtime(true) - AioMlv::$tick_t;
+    if (AioMlv::$ticked !== '' && $ago >= 0 && $ago < AIO_PG_FAV_QUIET_S)
+    {
+        aio_log('link: tick: no step, after a tick of ' . AioMlv::$ticked);
+        return aio_pg_tick_again($url);
     }
     AioPgLinks::$tick_url = '';
     AioPgLinks::$ticks++;

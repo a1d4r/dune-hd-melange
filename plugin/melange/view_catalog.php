@@ -1344,7 +1344,8 @@ function aio_catv_main_view($media_url, $sel_state)
     // first (aio_cpm_build: kept, of the rows in memory or on the disk, else asked in AIO_CPM_BUILD_S; r24 in what is
     // left of AIO_CATV_OPEN_S but AIO_CATV_OPEN_ROW_S, under AIO_CPM_MIN_S none asked). Their tiles with no meta still
     // are for the lazy meta of this screen (aio_cpm_step), those of "Continue" first. Built again by the tick of a
-    // screen of Fav over it (aio_mlv_under): none asked and no timer of its own, the ticks of that screen ask.
+    // screen of Fav over it (aio_mlv_under): none asked, the ticks of that screen ask; its own timer still (after Back the
+    // lazy step goes on), its ticks wait for those of that screen (aio_pg_tick, AIO_PG_FAV_QUIET_S).
     $under = aio_mlv_under();
     aio_cpm_build($tab, $under !== '' ? 0.0 : ($loading ? AIO_CPM_BUILD_S :
         max(0.0, min(AIO_CPM_BUILD_S, AIO_CATV_OPEN_S - (microtime(true) - $rows_t0) - AIO_CATV_OPEN_ROW_S))));
@@ -1392,7 +1393,7 @@ function aio_catv_main_view($media_url, $sel_state)
     if (!$loading)
         aio_pg_screen_built(AIO_CATV_OPEN_S - (microtime(true) - $rows_t0), $net);
     aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms%s', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000,
-        $under !== '' ? ", under $under: no requests of the meta, no timer" : ''));
+        $under !== '' ? ", under $under: no requests of the meta" : ''));
     if (AioCat::$inv_t > 0)
     {
         $since = microtime(true) - AioCat::$inv_t;
@@ -1402,7 +1403,7 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     if (!$defs)
         return aio_catv_message_view('cat_unavailable', $lang, $media_url);
-    return aio_catv_rows_view($defs, $sel_state, $media_url, $loading && $under === '' && aio_pg_tick_set($media_url));
+    return aio_catv_rows_view($defs, $sel_state, $media_url, $loading && aio_pg_tick_set($media_url));
 }
 
 // The rows of the tab $rows (aio_cat_user_rows) the main screen shows (aio_catv_main_view; the link of a row,

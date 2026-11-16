@@ -58,6 +58,7 @@ define('AIO_MLV_ANEW_S', 5.0);
 define('AIO_MLV_OPEN_TILES', 10);
 define('AIO_MLV_OPEN_S', 2.0);
 
+// The state of the ticks of a screen of Fav: a new field of it goes to aio_mlv_state too.
 class AioMlv
 {
     // The screens of these two opened since the start of php_server, by address: invalidated with the main screens of
@@ -78,6 +79,9 @@ class AioMlv
     public static $cards = array();
     /** @var float */
     public static $tick_t = 0.0;
+    // The screen of that last tick ('': none; a tick of the main screen within AIO_PG_FAV_QUIET_S of it waits, aio_pg_tick).
+    /** @var string */
+    public static $ticked = '';
     // The screen a tick invalidated ('': none) and when (microtime): its next view is no opening.
     /** @var string */
     public static $anew = '';
@@ -466,8 +470,14 @@ function aio_mlv_view($url, $sel_state)
         $put = array_merge($put, $got_put);
         $net = sprintf(', %d asked, %d got%s', $asked, $got, $mark);
     }
+    // Within the window of a tick: written with the titles of the screen of the tick held ($keep), not of this one - a
+    // full file pushes out these first, not those.
     if ($put)
+    {
+        if ($keep !== null)
+            AioCpm::$hold = $keep['hold'];
         aio_cpm_put_all($put, $renew);
+    }
     $cells = aio_mlv_cells($url);
     $ms = $rows_ok && $keep === null ? aio_mlv_tick_set($url) : 0;
     $why = '';
@@ -559,7 +569,8 @@ function aio_mlv_input($control)
  */
 function aio_mlv_state()
 {
-    return array(AioMlv::$tick_url, AioMlv::$ticks, AioMlv::$miss, AioMlv::$cards, AioMlv::$anew, AioCpm::$hold, AioCpm::$more);
+    return array('tick_url' => AioMlv::$tick_url, 'ticks' => AioMlv::$ticks, 'miss' => AioMlv::$miss, 'cards' => AioMlv::$cards,
+        'anew' => AioMlv::$anew, 'hold' => AioCpm::$hold, 'more' => AioCpm::$more);
 }
 
 // The state $s of aio_mlv_state back.
@@ -569,13 +580,13 @@ function aio_mlv_state()
  */
 function aio_mlv_restore($s)
 {
-    AioMlv::$tick_url = $s[0];
-    AioMlv::$ticks = $s[1];
-    AioMlv::$miss = $s[2];
-    AioMlv::$cards = $s[3];
-    AioMlv::$anew = $s[4];
-    AioCpm::$hold = $s[5];
-    AioCpm::$more = $s[6];
+    AioMlv::$tick_url = $s['tick_url'];
+    AioMlv::$ticks = $s['ticks'];
+    AioMlv::$miss = $s['miss'];
+    AioMlv::$cards = $s['cards'];
+    AioMlv::$anew = $s['anew'];
+    AioCpm::$hold = $s['hold'];
+    AioCpm::$more = $s['more'];
 }
 
 // r25: ms till the next tick of a screen: AIO_MLV_TICK_FIRST_MS at least, AIO_CPM_STEP_PAR requests in their share of
@@ -660,6 +671,7 @@ function aio_mlv_tick($url)
         aio_mlv_cells($url);
     $got = aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $rounds, true, AioMlv::$miss);
     AioMlv::$tick_t = microtime(true);
+    AioMlv::$ticked = $url;
     $why = $n >= AIO_MLV_TICK_MAX ? 'limit' : aio_mlv_why();
     $left = count(aio_cpm_todo(AioMlv::$miss)) + (AioMlv::$cards ? count(aio_pg_link_queue(AioMlv::$cards)) : 0);
     $act = null;
