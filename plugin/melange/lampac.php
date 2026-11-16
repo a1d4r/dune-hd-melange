@@ -69,7 +69,7 @@ define('AIO_LP_KEY_PATH_MAX', 24);
 define('AIO_LP_SOURCES_MAX', 60);
 define('AIO_LP_ROWS_MAX', 60);
 // Sources of lampac_sources at most (aio_lp_srcs_ok): those found on this Dune for all titles (Lampac has some
-// tens of balancers), and characters of the name of one: the export of settings.json fits AIO_CGI_IMPORT_MAX.
+// tens of balancers), and characters of the name of one: the export of settings.json fits AIO_CGI_BAK_SETTINGS_MAX.
 define('AIO_LP_SEEN_MAX', 60);
 define('AIO_LP_SEEN_NAME_MAX', 40);
 // Tracks of a balancer without voices (details of Collaps) at most.

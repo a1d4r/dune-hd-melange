@@ -70,7 +70,8 @@ function aio_lpv_srcs_new($choice, $sources)
     return $out;
 }
 
-// The longest body of the import of the settings page: AIO_CGI_IMPORT_MAX of cgi/lib/backup.php (not loaded here).
+// The longest body of the settings of an import of the settings page (0.62.0: "Мой список" goes over it):
+// AIO_CGI_BAK_SETTINGS_MAX of cgi/lib/backup.php (not loaded here).
 define('AIO_LPV_SRCS_IMPORT_MAX', 32768);
 
 // The export of settings $s (aio_settings_read) loads back on the settings page, as aio_cgi_import_fits of
