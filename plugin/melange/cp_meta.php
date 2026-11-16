@@ -17,14 +17,15 @@ define('AIO_CPM_MAX', 60);
 define('AIO_CPM_MAX_BYTES', 262144);
 // A failure of a title (big, 404, not its meta) is asked again after this many s. No connection, 429 or 5xx: the
 // server, not the title - no request for AIO_CPM_PAUSE_S (memory of php_server), the title not kept; a timeout the
-// same, a second one of the title in a php_server kept as its failure (a meta too slow for the step; big too: the own
-// card asks AIO_CM_SERIES_BYTES in AIO_CM_SERIES_TOTAL s and keeps its tile here).
+// same, a second one of the title in a php_server kept as its failure with no pause (a meta too slow for the step, not
+// the server: the next titles go on; big too: the own card asks AIO_CM_SERIES_BYTES in AIO_CM_SERIES_TOTAL s and keeps
+// its tile here).
 define('AIO_CPM_FAIL_S', 86400);
 define('AIO_CPM_PAUSE_S', 1800);
 // Requests of a step at most, those of the pairs in it counted; one starts with AIO_CPM_MIN_S left at least, its
-// timeout the whole s left (no more than them).
+// timeout what is left, to the ms (aio_http_get: CURLOPT_TIMEOUT_MS; a pair of ~0.6 s of a tick leaves ~0.9 s).
 define('AIO_CPM_N', 2);
-define('AIO_CPM_MIN_S', 1.0);
+define('AIO_CPM_MIN_S', 0.5);
 // r25: the tick (aio_pg_tick, links.php) - the pair and the meta - within this many s from its start, typically (a
 // key pressed waits for it); a pair alone may take its AIO_PG_LINK_S.
 define('AIO_CPM_TICK_S', 1.5);
@@ -206,8 +207,8 @@ function aio_cpm_wanted()
 
 // The lazy meta: the titles of aio_cpm_queue no row in memory has now (aio_cp_tile_map), up to $n requests in $limit s
 // (each with AIO_CPM_MIN_S left, its timeout the s left), each kept (a failure of the title too). No connection, 429 or
-// 5xx: a pause, the title not kept; a timeout the same, the second of the title kept failed (AIO_CPM_FAIL_S); no more
-// of the step. One line of the log of a step that asked; of a $tick always. -> how many were asked.
+// 5xx: a pause, the title not kept, no more of the step; a timeout the same, the second of the title kept failed
+// (AIO_CPM_FAIL_S) with no pause. One line of the log of a step that asked; of a $tick always. -> how many were asked.
 /**
  * @param float $limit
  * @param int $n
@@ -230,17 +231,18 @@ function aio_cpm_step($limit, $n, $tick = false)
         if ($asked >= $n || $left < AIO_CPM_MIN_S)
             break;
         $id = substr($key, strlen($type) + 1);
-        $g = aio_cat_get("meta/$type/$id.json", "meta $key", 'meta', intval(floor($left)), true);
+        $g = aio_cat_get("meta/$type/$id.json", "meta $key", 'meta', $left, true);
         $asked++;
         $tile = $g['err'] === '' && aio_cm_same($g['list'], $id) ? aio_cat_tile($g['list'], $type) : null;
         if ($tile)
             $tile['type'] = $type;
-        $pause = in_array($g['err'], array('net', 'timeout', 'rate', 'server'), true);
-        // The first timeout of the title: asked again after the pause.
+        // The first timeout of the title: asked again after the pause; the second: kept failed, no pause (the title is
+        // slow, not the server: one such title holds no row).
         $again = $g['err'] === 'timeout' && !isset(AioCpm::$slow[$key]);
+        $pause = $again || in_array($g['err'], array('net', 'rate', 'server'), true);
         if ($again)
             AioCpm::$slow[$key] = true;
-        else if (!$pause || $g['err'] === 'timeout')
+        else if (!$pause)
             aio_cpm_put($key, $tile);
         $got += $tile ? 1 : 0;
         if ($pause)

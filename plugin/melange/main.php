@@ -816,20 +816,26 @@ if (!function_exists('aio_http_get'))
     // -> array(HTTP code, body); $err is set on a transport error, to
     // AIO_HTTP_TOO_BIG (body '') when the decoded body passes $max bytes.
     // $connected: a connection was made (a timeout before it is no slow reply).
+    // $connect, $total: s; whole s as they are, a fraction (the lazy meta in what is left of a tick, cp_meta.php) in ms
+    // where curl has them (r25), with no signals: by the alarm of the resolver one under 1 s fails at once; else whole
+    // s, rounded up.
     function aio_http_get($url, &$err, $connect = 10, $total = 30, $max = 0, &$connected = null)
     {
         $connected = false;
         $body = '';
         $over = false;
+        $ms = ($connect != floor($connect) || $total != floor($total)) && defined('CURLOPT_TIMEOUT_MS') &&
+            defined('CURLOPT_CONNECTTIMEOUT_MS') && defined('CURLOPT_NOSIGNAL');
+        $time = $ms ? array(CURLOPT_NOSIGNAL => true, CURLOPT_CONNECTTIMEOUT_MS => max(1, intval($connect * 1000)),
+            CURLOPT_TIMEOUT_MS => max(1, intval($total * 1000))) :
+            array(CURLOPT_CONNECTTIMEOUT => intval(ceil($connect)), CURLOPT_TIMEOUT => intval(ceil($total)));
         $ch = curl_init($url);
-        $set = curl_setopt_array($ch, array(
+        $set = curl_setopt_array($ch, $time + array(
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => 3,
             // http(s) only, redirects too (as the settings page).
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_CONNECTTIMEOUT => $connect,
-            CURLOPT_TIMEOUT => $total,
             // HTTPS works only with the firmware CA bundle.
             CURLOPT_CAINFO => AIO_CA_BUNDLE,
             CURLOPT_SSL_VERIFYPEER => true,
