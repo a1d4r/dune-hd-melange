@@ -45,24 +45,17 @@ class AioLpv
     public static $played = null;
 }
 
-// "Онлайн" for card $mv: a Lampac in the settings.
+// "Онлайн" for card $mv, episode $e of season $s (-1: none): a Lampac in the settings; of a series
+// an episode (its season asked).
 /**
  * @param AioMovie $mv
+ * @param int $s
+ * @param int $e
  * @return bool
  */
-function aio_lpv_on($mv)
+function aio_lpv_on($mv, $s = -1, $e = -1)
 {
-    return Aio::$settings['lp'] !== '';
-}
-
-// "Онлайн" for list $st: aio_lpv_on, of a series an episode (its season asked).
-/**
- * @param AioState $st
- * @return bool
- */
-function aio_lpv_st_on($st)
-{
-    return aio_lpv_on($st['movie']) && (!$st['movie']['series'] || ($st['s'] > 0 && $st['e'] > 0));
+    return Aio::$settings['lp'] !== '' && (!$mv['series'] || ($s >= 1 && $e >= 1));
 }
 
 // --- The title.
@@ -213,7 +206,7 @@ function aio_lpv_why($lang, $why, $detail)
  */
 function aio_lpv_in_menu($st)
 {
-    return aio_lpv_st_on($st) && Aio::$settings['base'] !== '';
+    return aio_lpv_on($st['movie'], $st['s'], $st['e']) && Aio::$settings['base'] !== '';
 }
 
 // Items $items of the menu "Откуда брать…" of list $st (the profiles, $sel the one in use;
@@ -929,7 +922,7 @@ function aio_lpv_releases($st, $note)
  */
 function aio_lpv_go($st)
 {
-    if (!empty($st['lp_on']) || !aio_lpv_st_on($st))
+    if (!empty($st['lp_on']) || !aio_lpv_on($st['movie'], $st['s'], $st['e']))
         return null;
     if (isset($st['lp']) && aio_lp_now() - $st['lp']['t'] < AIO_LPV_REFRESH)
     {
@@ -1217,7 +1210,7 @@ function aio_lpv_input($in, $control)
         return $control === 'lp_move' ? null : aio_error('err_list_expired');
     }
     if ($control === 'lp_find')
-        return aio_lpv_st_on($st) ? aio_lpv_search_open($st, 'open', array('mark' => true)) : null;
+        return aio_lpv_on($st['movie'], $st['s'], $st['e']) ? aio_lpv_search_open($st, 'open', array('mark' => true)) : null;
     if ($control === 'lp_go')
         return aio_lpv_go($st);
     if ($control === 'lp_back')

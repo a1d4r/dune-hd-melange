@@ -233,7 +233,7 @@ function aio_gc_src($in)
         if ($e === '')
         {
             // A profile chosen: the title is not "online" any more.
-            if (aio_lpv_on($st['movie']))
+            if (aio_lpv_on($st['movie'], $st['s'], $st['e']))
                 aio_lpv_mark_set($st['movie'], false);
             $ns = $r['st'];
             aio_log(sprintf('%s, screen replaced, %d -> %d rows, row %d -> %d (%s), %.2f s', $tag, count($st['rows']),
@@ -248,15 +248,16 @@ function aio_gc_src($in)
 
 // --- The line "Откуда: <source>" over the lists (the releases and the online list, view_online.php).
 
-// Sources of the lists of card $mv: the releases (the profiles ready, else the settings, if
-// AIOStreams is set), and "Онлайн".
+// Sources of list $st: the releases (the profiles ready, else the settings, if AIOStreams is set),
+// and "Онлайн".
 /**
- * @param AioMovie $mv
+ * @param AioState $st
  * @return int
  */
-function aio_src_sources_n($mv)
+function aio_src_sources_n($st)
 {
-    return (Aio::$settings['base'] !== '' ? max(1, count(Aio::$settings['profiles'])) : 0) + (aio_lpv_on($mv) ? 1 : 0);
+    return (Aio::$settings['base'] !== '' ? max(1, count(Aio::$settings['profiles'])) : 0) +
+        (aio_lpv_on($st['movie'], $st['s'], $st['e']) ? 1 : 0);
 }
 
 // The name of the source of list $st for "Откуда: …": "Онлайн", the profile in use, else "Раздачи".
@@ -288,7 +289,7 @@ function aio_src_from_name($st)
  */
 function aio_src_tabs_right($st, $right, $y, $room)
 {
-    if (aio_src_sources_n($st['movie']) < 2)
+    if (aio_src_sources_n($st) < 2)
         return array(array(), 0);
     $lang = aio_gc_lang($st);
     $h = AIO_GC_LABEL_H;

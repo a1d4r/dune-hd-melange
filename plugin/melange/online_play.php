@@ -372,13 +372,12 @@ function aio_lpv_resume($mv, $r, $lang)
  */
 function aio_lpv_play_action($in, $mv, $lang)
 {
-    if (!aio_lpv_on($mv))
-        return null;
+    // Of a series too: its online list from the releases takes them.
     aio_lpv_ids_keep($in, $mv);
     // A series: the releases as before, until the fork of "Онлайн" after the episode of play_action
     // (aio_play_action: its s and e, "Continue" of an episode): here they are not known, a search of
     // -1/-1 would find no season. Its online list from the releases ("Откуда брать…", "Искать онлайн").
-    if ($mv['series'])
+    if (!aio_lpv_on($mv))
         return null;
     $res = aio_lpv_resume_in($in);
     if ($res)
@@ -411,7 +410,7 @@ function aio_lpv_play_action($in, $mv, $lang)
  */
 function aio_lpv_no_releases($mv, $s, $e, $lang, $res)
 {
-    if (!aio_lpv_on($mv) || ($mv['series'] && ($s < 1 || $e < 1)) || $res['error'] !== 'err_no_streams' ||
+    if (!aio_lpv_on($mv, $s, $e) || $res['error'] !== 'err_no_streams' ||
         (isset($res['errors']) && $res['errors']['lines']))
         return null;
     $st = aio_list_state($mv, $s, $e, array(), $lang, aio_no_errors());
