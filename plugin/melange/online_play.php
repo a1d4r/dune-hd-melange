@@ -10,6 +10,33 @@ define('AIO_LPV_RESUME_MAX', 18);
 // Seconds kept for the check of a link after "call".
 define('AIO_LPV_CHECK_MIN', 4);
 
+// The id of this Dune for Lampac of "Представляться приложением Lampa": 8 characters [a-z0-9], as
+// the uid of the web Lampa, made once and kept in data_dir (AIO_LP_UID_FILE). '' when it cannot be
+// kept: a new one each time is worse than none; that told once in the life of php_server.
+/**
+ * @return string
+ */
+function aio_lp_uid()
+{
+    static $told = false;
+    $f = aio_data_dir() . '/' . AIO_LP_UID_FILE;
+    clearstatcache();
+    if (aio_data_dir() === '' || is_link($f))
+        return '';
+    $u = is_file($f) ? trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM) : '';
+    if (preg_match('/^[a-z0-9]{8}\z/', $u))
+        return $u;
+    $u = '';
+    for ($i = 0; $i < 8; $i++)
+        $u .= substr('abcdefghijklmnopqrstuvwxyz0123456789', mt_rand(0, 35), 1);
+    if (aio_write_file($f, $u))
+        return $u;
+    if (!$told)
+        aio_log('lampac: ' . AIO_LP_UID_FILE . ' not written');
+    $told = true;
+    return '';
+}
+
 // The ids of movie_str of play_action $in kept for card $mv (AioLpv::$ids).
 /**
  * @param stdClass $in
