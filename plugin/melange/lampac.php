@@ -37,8 +37,11 @@ define('AIO_LP_CONNECT', 2);
 define('AIO_LP_STEP', 3);
 // Seconds of the whole search, events without life (the fallback, one call) too.
 define('AIO_LP_SEARCH_MAX', 12);
-// Seconds of the replies of the balancers, all and each.
+// Seconds of the replies of the balancers: of a search those lost to the balancers of no answer, all of
+// "Continue" (aio_lp_find); all of a search while they answer (aio_lpv_replies_tick: a server without a cache
+// answers in 0.2-4 s each); each.
 define('AIO_LP_REPLIES_MAX', 8);
+define('AIO_LP_REPLIES_LONG', 24);
 define('AIO_LP_REPLY_MAX', 3);
 // A balancer is not asked with less time left than this (s).
 define('AIO_LP_REPLY_MIN', 1);
@@ -961,11 +964,20 @@ function aio_lp_movie($src, $data, $base = '')
 }
 
 // The replies of sources $sources (of a search) from the $from-th, in turn,
-// for title $p (its query aio_lp_query): up to $total s in all (a tick of a
-// window asks a part, from the next of the one before), AIO_LP_REPLY_MAX each (Lampac has them in its cache after events: 0.01-0.23
-// s). -> array(rows (AioLpRow, by source), why (AioLpWhy), next: the index of
-// the first source not asked, left: sources not asked (the screen says "N
-// more"), similar, serial: sources that answered so, asked). Season $s > 0 of
+// for title $p (its query aio_lp_query): asked while $total s have not gone (a
+// tick of a window asks a part, from the next of the one before), each up to
+// AIO_LP_REPLY_MAX s and up to $cap s from the start ($cap below $total: $total;
+// the replies of a search left, the tick may go over its part so: a server
+// without a cache answers 0.2-4 s; Lampac has them in its cache after events:
+// 0.01-0.23 s). -> array(rows (AioLpRow, by source), at (the index of the source
+// of each row), why (AioLpWhy), next: the index of the first source not asked,
+// left: sources not asked (the screen says "N more"), similar, serial: sources
+// that answered so, asked, lost: seconds of the requests of no answer (down),
+// again: the indexes of the sources of no answer in time (aio_lp_timed_out: asked
+// once more by the window, aio_lpv_replies_tick), held: the reply of the series of
+// the source next when no time of the part was left for its season (with $cap
+// over $total; '' none), given back as $held - its season asked first, the reply
+// not again). Season $s > 0 of
 // a serial: a balancer of a series gives its season (aio_lp_serial: one more
 // request, by the link of the season) and its rows a voice (aio_lp_season_rows), a
 // movie the reason movie; $s 0: a series is the reason serial, as of a movie.
@@ -976,27 +988,39 @@ function aio_lp_movie($src, $data, $base = '')
  * @param int $from
  * @param int|float $total
  * @param int $s
+ * @param int|float $cap
+ * @param string $held
  * @return AioLpReplies
  */
-function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_MAX, $s = 0)
+function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_MAX, $s = 0, $cap = 0, $held = '')
 {
     $t0 = aio_lp_now();
-    $out = array('rows' => array(), 'why' => array(), 'next' => $from, 'left' => 0, 'similar' => 0, 'serial' => 0,
-        'asked' => 0);
+    $cap = max($total, $cap);
+    $out = array('rows' => array(), 'at' => array(), 'why' => array(), 'next' => $from, 'left' => 0, 'similar' => 0,
+        'serial' => 0, 'asked' => 0, 'lost' => 0.0, 'again' => array(), 'held' => '');
     for ($i = $from; $i < count($sources); $i++)
     {
-        $left = $total - (aio_lp_now() - $t0);
-        if ($left < AIO_LP_REPLY_MIN)
+        if ($total - (aio_lp_now() - $t0) < AIO_LP_REPLY_MIN)
             break;
         $src = $sources[$i];
-        $each = (int) min(AIO_LP_REPLY_MAX, floor($left));
+        $t1 = aio_lp_now();
+        $each = (int) min(AIO_LP_REPLY_MAX, floor($cap - ($t1 - $t0)));
         $url = aio_lp_url($src['url'], 'rjson=true&' . $q);
-        $r = aio_lp_ask($base, $url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
-        $out['asked']++;
+        $kept = $i === $from && $held !== '';
+        if ($kept)
+            $r = array('err' => '', 'code' => 200, 'body' => $held);
+        else
+        {
+            $r = aio_lp_ask($base, $url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
+            $out['asked']++;
+        }
         $out['next'] = $i + 1;
         if ($r['err'] !== '')
         {
             $out['why'][] = aio_lp_why($src, 'down', $r['err']);
+            $out['lost'] += aio_lp_now() - $t1;
+            if (aio_lp_timed_out($r['err']))
+                $out['again'][] = $i;
             continue;
         }
         $p = aio_lp_reply($src, $r['code'], $r['body'], $base);
@@ -1004,19 +1028,33 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
             $p = array('kind' => 'skip', 'rows' => array(), 'why' => array(aio_lp_why($src, 'movie')));
         if ($p['kind'] === 'serial' && $s > 0)
         {
+            // No time of the part left for its season: at the next part, the reply kept (a tick of a window stays short).
+            if (!$kept && $cap > $total && $total - (aio_lp_now() - $t0) < AIO_LP_REPLY_MIN)
+            {
+                $out['next'] = $i;
+                $out['held'] = $r['body'];
+                break;
+            }
+            $t2 = aio_lp_now();
             $sea = aio_lp_serial($base, $src, (array) aio_lp_json($r['body']), $url, $s,
-                min(AIO_LP_REPLY_MAX, $total - (aio_lp_now() - $t0)));
+                min(AIO_LP_REPLY_MAX, $cap - (aio_lp_now() - $t0)));
             $p['rows'] = $sea['why'] === '' ? aio_lp_season_rows($src, $sea) : array();
             $p['why'] = $sea['why'] === '' ? array() : array(aio_lp_why($src, $sea['why'], $sea['detail']));
             // The stub of Filmix among the voices of the season: the other voices rows, it the reason.
             if ($sea['why'] === '' && !empty($sea['blocked']))
                 $p['why'][] = aio_lp_why($src, 'blocked');
+            if ($sea['why'] === 'down')
+                $out['lost'] += aio_lp_now() - $t2;
+            if ($sea['why'] === 'down' && aio_lp_timed_out($sea['detail']))
+                $out['again'][] = $i;
         }
         if ($p['kind'] === 'similar')
             $out['similar']++;
         else if ($p['kind'] === 'serial')
             $out['serial']++;
         $out['rows'] = array_merge($out['rows'], $p['rows']);
+        foreach ($p['rows'] as $x)
+            $out['at'][] = $i;
         $out['why'] = array_merge($out['why'], $p['why']);
     }
     $out['left'] = count($sources) - $out['next'];
@@ -1024,6 +1062,17 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
         count($out['rows']), $out['asked'], $out['left'], $out['similar'], $out['serial'],
         $out['why'] ? '; skipped: ' . aio_lp_why_log($out['why'], $base) : '', aio_lp_now() - $t0), $base);
     return $out;
+}
+
+// Detail $detail of the reason down is no answer in time: the timeout of curl (28), or no time left for the
+// request ("no time", aio_lp_season_get) - not a connection refused.
+/**
+ * @param string $detail
+ * @return bool
+ */
+function aio_lp_timed_out($detail)
+{
+    return $detail === 'no time' || strpos($detail, 'curl 28:') === 0;
 }
 
 // Reasons $why (AioLpWhy) for the log, by code and detail in their order: "down (curl 28: ...):

@@ -44,7 +44,7 @@ parameters:
         # A reply of a balancer (aio_lp_reply, lampac.php).
         AioLpParsed: 'array{kind: string, rows: list<AioLpRow>, why: list<AioLpWhy>}'
         # The replies of the sources (aio_lp_replies, lampac.php).
-        AioLpReplies: 'array{rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, similar: int, serial: int, asked: int}'
+        AioLpReplies: 'array{rows: list<AioLpRow>, at: list<int>, why: list<AioLpWhy>, next: int, left: int, similar: int, serial: int, asked: int, lost: float, again: list<int>, held: string}'
         # The link of "call" (aio_lp_call, lampac.php).
         AioLpLink: 'array{url: string, qual: array<string, string>, err: string, detail: string, tries: int}'
         # The check of a link (aio_lp_check, lampac.php).
@@ -65,7 +65,7 @@ parameters:
         AioLpView: 'array{title: AioLpTitle, q: string, sources: list<AioLpSource>, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: AioProgress, flt?: array{k: string, name: string}, flt_gone?: bool, off?: list<string>}'
         # The search window between its ticks (AioLpv::$run, aio_lpv_search_open, view_online.php).
         # The view of the search so far in v, the start of the replies t1, more: the rows before "Ещё N" (-1: a new search).
-        AioLpRun: 'array{sid: string, st: AioState, how: string, mark: bool, back: bool, path: string, phase: string, search: AioLpSearch|null, v: AioLpView, t1: float, more: int}'
+        AioLpRun: 'array{sid: string, st: AioState, how: string, mark: bool, back: bool, path: string, phase: string, search: AioLpSearch|null, v: AioLpView, t1: float, more: int, lost: float, again: list<int>, held: string, at: list<int>}'
         # A choice of a source of the online list found on this Dune (lampac_sources of settings.json, aio_lp_srcs_ok, lampac.php): its path, name, shown;
         # not AioLpSource, a source of a search.
         AioLpChoice: 'array{path: string, name: string, on: bool}'
