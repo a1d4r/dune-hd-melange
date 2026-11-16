@@ -20,8 +20,29 @@ class AioWh
     public static $all = array();
 }
 
-// A record of the card $dune_id that WatchHistory::do_update keeps: not deleted,
-// wh_item_is_suitable of the shell.
+// The card of a record that WatchHistory::do_update keeps: not deleted, wh_item_is_suitable of the
+// shell -> its movie_id, '' for none or another record.
+/**
+ * @param mixed $w
+ * @return string
+ */
+function aio_wh_kept($w)
+{
+    if (!is_object($w) || (isset($w->deleted) && $w->deleted == 1))
+        return '';
+    if (!isset($w->action_plugin) || !isset($w->action_params))
+    {
+        $url = isset($w->url) && is_string($w->url) ? $w->url : '';
+        $p = strpos($url, '://');
+        $scheme = $p ? substr($url, 0, $p) : '';
+        if ($scheme === '' || $scheme === 'tmpfs' ||
+            (isset($w->show_in_recent) ? !$w->show_in_recent : $scheme === 'file'))
+            return '';
+    }
+    return isset($w->movie_id) && is_string($w->movie_id) ? $w->movie_id : '';
+}
+
+// A record of the card $dune_id that WatchHistory::do_update keeps (aio_wh_kept).
 /**
  * @param mixed $w
  * @param string $dune_id
@@ -30,18 +51,7 @@ class AioWh
  */
 function aio_wh_of($w, $dune_id)
 {
-    if (!is_object($w) || (isset($w->deleted) && $w->deleted == 1))
-        return false;
-    if (!isset($w->action_plugin) || !isset($w->action_params))
-    {
-        $url = isset($w->url) && is_string($w->url) ? $w->url : '';
-        $p = strpos($url, '://');
-        $scheme = $p ? substr($url, 0, $p) : '';
-        if ($scheme === '' || $scheme === 'tmpfs' ||
-            (isset($w->show_in_recent) ? !$w->show_in_recent : $scheme === 'file'))
-            return false;
-    }
-    return isset($w->movie_id) && is_string($w->movie_id) && $w->movie_id === $dune_id;
+    return $dune_id !== '' && aio_wh_kept($w) === $dune_id;
 }
 
 // An episode record of the series that WatchHistory::do_update keeps.
@@ -179,8 +189,8 @@ function aio_wh_full($pos, $len)
     return $len > 0 && $pos >= 0 && $pos >= $len - 30 && round($pos * 100.0 / $len) >= 90;
 }
 
-// Names, sizes and times of the history files (NNNNNN.json and
-// watched_files.txt); null without the folder or while a file is younger than
+// Names, sizes and times of the history files (NNNNNN.json, watched_files.txt and
+// watched_movies.txt); null without the folder or while a file is younger than
 // 2 s (written again within the same second it would keep its signature).
 /**
  * @return string|null
@@ -195,7 +205,7 @@ function aio_wh_sig()
     $sig = '';
     foreach (scandir($dir) as $f)
     {
-        if ($f !== 'watched_files.txt' && !preg_match('/^[0-9]*\\.json$/', $f))
+        if ($f !== 'watched_files.txt' && $f !== 'watched_movies.txt' && !preg_match('/^[0-9]*\\.json$/', $f))
             continue;
         $t = filemtime("$dir/$f");
         if ($t === false || $t >= $now - 1)
@@ -280,13 +290,15 @@ function aio_wh_progress($st)
 
 // uids marked as watched in watched_files.txt, as load_ts_by_id_from_wh_file (r25): uid => the
 // time of the mark ("<ts>\t<uid>"; no tab: PHP_INT_MAX, the newest), a time of 0 or less skipped.
-// Read anew at every call: update_watched_marks writes the file before its post_action.
+// Read anew at every call: update_watched_marks writes the file before its post_action. $name
+// watched_movies.txt: the movie_ids of the cards marked so.
 /**
+ * @param string $name
  * @return array<int|string, int>
  */
-function aio_wh_marked_set()
+function aio_wh_marked_set($name = 'watched_files.txt')
 {
-    $path = AIO_WH_PATH . '/watched_files.txt';
+    $path = AIO_WH_PATH . "/$name";
     $set = array();
     if (!is_file($path) || !is_readable($path))
         return $set;
@@ -353,6 +365,30 @@ function aio_wh_marks($dune_id, $set)
             $out["{$u[0]}:{$u[1]}"] = $ts;
     }
     return $out;
+}
+
+// The last by order (season, then episode) of the marks of the own card $marks (aio_wh_marks) made after $end
+// (the end of the latest record of the series; 0: any) -> array(s, e), null for none. Not the newest by time:
+// "Mark previous" gives many episodes one time.
+/**
+ * @param array<string, int> $marks
+ * @param int $end
+ * @return array{int, int}|null
+ */
+function aio_wh_mark_last($marks, $end)
+{
+    $last = null;
+    foreach ($marks as $k => $ts)
+    {
+        if ($ts <= $end)
+            continue;
+        $p = explode(':', strval($k));
+        $s = intval($p[0]);
+        $e = isset($p[1]) ? intval($p[1]) : 0;
+        if (!$last || $s > $last[0] || ($s === $last[0] && $e > $last[1]))
+            $last = array($s, $e);
+    }
+    return $last;
 }
 
 // When record $w ends, as watch_history.php r25 counts it: start + watched; 0 without start.
@@ -557,20 +593,11 @@ function aio_wh_native($dune_id, $eps, $last)
     $set = $dune_id !== '' ? aio_wh_marked_set() : array();
     $marks = aio_wh_marks($dune_id, $set);
     $w = null;
-    if ($marks)
+    $mk = aio_wh_mark_last($marks, 0);
+    if ($mk)
     {
         $st = aio_wh_series($dune_id, $set);
-        $ls = -1;
-        $le = -1;
-        foreach (array_keys($marks) as $k)
-        {
-            list($a, $b) = explode(':', strval($k));
-            if (intval($a) > $ls || (intval($a) === $ls && intval($b) > $le))
-            {
-                $ls = intval($a);
-                $le = intval($b);
-            }
-        }
+        list($ls, $le) = $mk;
         if (isset($eps[$ls]) && in_array($le, $eps[$ls], true))
             return $st;
         aio_log("history: the last mark S{$ls}E{$le} not in season_numbers, the record decides");
@@ -633,12 +660,24 @@ function aio_wh_series($dune_id, $set)
     $acc = aio_wh_find('history: series', 'aio_wh_series_visit', array($dune_id, $set, $marks));
     $last = isset($acc['last']) ? $acc['last'] : null;
     unset($acc['last']);
+    return array($last, aio_wh_series_fill($acc, $marks), $marks);
+}
+
+// The progress $prog of the episodes of a series (aio_wh_series) with the episodes of the marks of the own card
+// $marks that have no record: array(-1, 0, true).
+/**
+ * @param array<string, array{float, float, bool}> $prog
+ * @param array<string, int> $marks
+ * @return array<string, array{float, float, bool}>
+ */
+function aio_wh_series_fill($prog, $marks)
+{
     foreach ($marks as $k => $ts)
     {
-        if (!isset($acc[$k]))
-            $acc[$k] = array(-1.0, 0.0, true);
+        if (!isset($prog[$k]))
+            $prog[$k] = array(-1.0, 0.0, true);
     }
-    return array($last, $acc, $marks);
+    return $prog;
 }
 
 /**
@@ -654,15 +693,28 @@ function aio_wh_series_visit($w, $arg, &$acc)
     if (!isset($acc['last']))
         $acc['last'] = $w;
     // e is a number of 1 or more here (aio_wh_match): aio_wh_rec's E1 for no e is not reached.
-    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
+    list($s, $e, $pos, $len) = aio_wh_rec($w);
     $k = "$s:$e";
     if (isset($acc[$k]))
         return false;
-    $end = aio_wh_end($w);
-    $mark = isset($arg[2][$k]) ? $arg[2][$k] : 0;
-    $acc[$k] = array($pos, $len, aio_wh_full($pos, $len) || aio_wh_mark_on(isset($arg[1][$uid]) ? $arg[1][$uid] : 0, $end) ||
-        ($mark > 0 && $mark > $end));
+    $acc[$k] = array($pos, $len, aio_wh_ep_watched($w, $arg[1], $arg[2]));
     return false;
+}
+
+// Episode record $w watched: by its position, its uid marked in $set (aio_wh_marked_set, aio_wh_mark_on) or
+// its episode marked by the own card ($marks of aio_wh_marks) after the record ended.
+/**
+ * @param stdClass $w
+ * @param array<int|string, int> $set
+ * @param array<string, int> $marks
+ * @return bool
+ */
+function aio_wh_ep_watched($w, $set, $marks)
+{
+    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
+    $end = aio_wh_end($w);
+    $mark = isset($marks["$s:$e"]) ? $marks["$s:$e"] : 0;
+    return aio_wh_full($pos, $len) || aio_wh_mark_on(isset($set[$uid]) ? $set[$uid] : 0, $end) || ($mark > 0 && $mark > $end);
 }
 
 // The uids of the records of our releases of the episodes $keys ("s:e" as asked) of the series of
@@ -698,6 +750,46 @@ function aio_wh_ours_eps_visit($w, $arg, &$acc)
     if ($u && $u[2] !== 'm' && isset($arg[1][$k]))
         $acc[$k][$w->uid] = true;
     return false;
+}
+
+// The uids update_watched_marks marks for episodes $keys ("q:e" as asked, aio_cm_hkey) of the series of card $dune_id:
+// the mark of the own card of each (aio_wh_mark_uid), then the uids of the records of our releases of it
+// (aio_wh_ours_eps), in the order of $keys.
+/**
+ * @param string $dune_id
+ * @param list<string> $keys
+ * @return list<string>
+ */
+function aio_wh_mark_ids($dune_id, $keys)
+{
+    $recs = aio_wh_ours_eps($dune_id, $keys);
+    $ids = array();
+    foreach ($keys as $k)
+    {
+        list($q, $n) = explode(':', $k);
+        $ids[] = aio_wh_mark_uid($dune_id, $q, intval($n));
+        foreach (isset($recs[$k]) ? $recs[$k] : array() as $u)
+            $ids[] = $u;
+    }
+    return $ids;
+}
+
+// The uids of card $dune_id marked in watched_files.txt (aio_wh_marked_set): the marks of the own card and of the
+// records of our releases ("aio:<dune id>:..."), as they are; no request, the history not read.
+/**
+ * @param string $dune_id
+ * @return list<string>
+ */
+function aio_wh_marked_of($dune_id)
+{
+    $p = AIO_SUP_ID . ":$dune_id:";
+    $out = array();
+    foreach (aio_wh_marked_set() as $uid => $ts)
+    {
+        if ($dune_id !== '' && strncmp(strval($uid), $p, strlen($p)) === 0)
+            $out[] = strval($uid);
+    }
+    return $out;
 }
 
 // "Continue watching" of a series ($r of aio_resume): the episode recorded,

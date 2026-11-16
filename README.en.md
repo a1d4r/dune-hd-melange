@@ -9,13 +9,14 @@ Releases are found by AIOStreams, a service that queries torrent search engines 
 What it does:
 - its own movie and series catalog: rows of collections (trending, new releases, Russian, genres, streaming services and more; you choose which to show) and search;
 - a list of up to 100 releases with details: resolution, source, HDR / Dolby Vision, audio, size, languages, voice-overs, whether the release is cached in Debrid; sorting with the colored remote buttons;
-- Dune history: the percentage on the **Melange [NN%]** button, the **Continue Watching** row, resuming from the same spot;
+- Dune history: Melange's own Continue Watching row and watch marks on posters, the percentage on the **Melange [NN%]** button, resuming from the same spot;
+- your own Favorites, separate from Dune Favorites;
 - series: the episodes of a season play in a row on the same release, and you flip episodes right in the list with ← / →;
 - Debrid (Real-Debrid or TorBox) or, without a subscription, torrents via TorrServer;
 - studio voice-overs (dubbing studios), from the release name and its tracks, plus tracks and voice-overs from JacRed;
 - setup from a phone via a QR code, with **Download the log** on the same page.
 
-<img src="screenshots/catalog.jpg" alt="Melange catalog: rows of collections and posters" width="100%">
+<img src="screenshots/catalog.jpg" alt="Melange catalog: Movies and Series tabs, Continue Watching, Favorites and other rows" width="100%">
 
 <img src="screenshots/film-list.jpg" alt="Left: the release list with Debrid, a lightning bolt on cached releases, details of the selected release" width="49%"> <img src="screenshots/film-list-p2p.jpg" alt="Right: the same movie in Torrents mode, seeder counts in the first column, P2P with 407 seeders on the left" width="49%">
 

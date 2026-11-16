@@ -18,6 +18,9 @@ require_once dirname(__FILE__) . '/parse.php';
 require_once dirname(__FILE__) . '/jacred.php';
 // Dune's watch history.
 require_once dirname(__FILE__) . '/history.php';
+// The state of the history for the badges of the catalog; the pairs card -> IMDb / TMDB.
+require_once dirname(__FILE__) . '/progress.php';
+require_once dirname(__FILE__) . '/links.php';
 // Playback, the episodes around it and the lazy ones.
 require_once dirname(__FILE__) . '/playback.php';
 // Markers of an episode: "Skip intro", "Next episode".
@@ -62,6 +65,11 @@ require_once dirname(__FILE__) . '/catalog.php';
 require_once dirname(__FILE__) . '/catalog_card.php';
 require_once dirname(__FILE__) . '/view_catalog.php';
 require_once dirname(__FILE__) . '/view_catalog_rows.php';
+require_once dirname(__FILE__) . '/continue.php';
+require_once dirname(__FILE__) . '/cp_meta.php';
+// "Мой список": its file; its actions on the screens.
+require_once dirname(__FILE__) . '/my_list.php';
+require_once dirname(__FILE__) . '/view_my_list.php';
 // The tab "TV" of the main screen.
 require_once dirname(__FILE__) . '/tv_tab.php';
 // The own card of a title: its meta, its screen; the page of a person.
@@ -802,46 +810,130 @@ function aio_debrid_main_write($svc)
 
 // --- AIOStreams.
 
+// Requests at once at most (aio_http_get_many): the catalog server allows 180 a minute, the dunemdb API as many.
+define('AIO_HTTP_PAR', 5);
+
+// The body of a GET (aio_http_get, aio_http_get_many): its WRITEFUNCTION, $max bytes at most (0: no limit). Its own
+// object a request: inside curl_multi the callback of r25 gets another handle as its first argument (multi.c of its
+// libphp5 built for another php_curl), so the handle there is never used.
+class AioHttpSink
+{
+    /** @var string */
+    public $body = '';
+    /** @var bool */
+    public $over = false;
+    /** @var int */
+    public $max = 0;
+
+    /**
+     * @param int $max
+     */
+    public function __construct($max)
+    {
+        $this->max = $max;
+    }
+
+    // Not RETURNTRANSFER: a reply over $max stops loading here, a short count aborts the transfer.
+    /**
+     * @param mixed $ch
+     * @param string $chunk
+     * @return int
+     */
+    public function write($ch, $chunk)
+    {
+        if ($this->max > 0 && strlen($this->body) + strlen($chunk) > $this->max)
+        {
+            $this->over = true;
+            return 0;
+        }
+        $this->body .= $chunk;
+        return strlen($chunk);
+    }
+}
+
+// curl_multi failed in this php_server (aio_http_get_many): one by one since.
+class AioHttp
+{
+    /** @var bool */
+    public static $multi_off = false;
+}
+
+// The options of a GET of aio_http_get and aio_http_get_many with its body to $sink. $connect, $total: s; whole s as
+// they are, a fraction (the lazy meta in what is left of a tick, cp_meta.php) in ms where curl has them (r25), with no
+// signals: by the alarm of the resolver one under 1 s fails at once; else whole s, rounded up.
+/**
+ * @param float|int $connect
+ * @param float|int $total
+ * @param AioHttpSink $sink
+ * @return array<int, mixed>
+ */
+function aio_http_opts($connect, $total, $sink)
+{
+    $ms = ($connect != floor($connect) || $total != floor($total)) && defined('CURLOPT_TIMEOUT_MS') &&
+        defined('CURLOPT_CONNECTTIMEOUT_MS') && defined('CURLOPT_NOSIGNAL');
+    $time = $ms ? array(CURLOPT_NOSIGNAL => true, CURLOPT_CONNECTTIMEOUT_MS => max(1, intval($connect * 1000)),
+        CURLOPT_TIMEOUT_MS => max(1, intval($total * 1000))) :
+        array(CURLOPT_CONNECTTIMEOUT => intval(ceil($connect)), CURLOPT_TIMEOUT => intval(ceil($total)));
+    return $time + array(
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 3,
+        // http(s) only, redirects too (as the settings page).
+        CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+        CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+        // HTTPS works only with the firmware CA bundle.
+        CURLOPT_CAINFO => AIO_CA_BUNDLE,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_ENCODING => '',
+        // A User-Agent starting with "AIOStreams" makes it add streamData.
+        CURLOPT_USERAGENT => 'AIOStreams-DuneClient/' . AIO_VERSION,
+        CURLOPT_HTTPHEADER => array('Accept: application/json'),
+        CURLOPT_WRITEFUNCTION => array($sink, 'write'));
+}
+
+// The reply of a GET done on handle $ch (aio_http_opts, its body in $sink), $fail: its curl error as
+// "curl <errno>: <text>" ('' none) -> array(HTTP code, body, err, connected) as aio_http_get.
+/**
+ * @param resource $ch
+ * @param string $fail
+ * @param AioHttpSink $sink
+ * @return array{int, string, string, bool}
+ */
+function aio_http_reply($ch, $fail, $sink)
+{
+    $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
+    // 0 until the TCP connection is made (PHP 5.3 has no CURLINFO_PRIMARY_IP).
+    $connected = curl_getinfo($ch, CURLINFO_CONNECT_TIME) > 0;
+    // Over $max with an error status: that HTTP error, not "too big".
+    $err = $sink->over ? ($code === 200 ? AIO_HTTP_TOO_BIG : '') : $fail;
+    return array($code, $err !== '' || $sink->over ? '' : $sink->body, $err, $connected);
+}
+
+// The path of the requests of a step for its line of the log: "par <n>" (aio_http_get_many, $par at most at once),
+// "seq" (one by one: no curl_multi, or it failed), both, '' none.
+/**
+ * @param int $par
+ * @param int $seq
+ * @return string
+ */
+function aio_http_mark($par, $seq)
+{
+    return implode(', ', array_merge($par ? array("par $par") : array(), $seq ? array('seq') : array()));
+}
+
 // Tests define their own aio_http_get().
 if (!function_exists('aio_http_get'))
 {
     // -> array(HTTP code, body); $err is set on a transport error, to
     // AIO_HTTP_TOO_BIG (body '') when the decoded body passes $max bytes.
     // $connected: a connection was made (a timeout before it is no slow reply).
+    // $connect, $total: s, as aio_http_opts.
     function aio_http_get($url, &$err, $connect = 10, $total = 30, $max = 0, &$connected = null)
     {
         $connected = false;
-        $body = '';
-        $over = false;
+        $sink = new AioHttpSink($max);
         $ch = curl_init($url);
-        $set = curl_setopt_array($ch, array(
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 3,
-            // http(s) only, redirects too (as the settings page).
-            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_CONNECTTIMEOUT => $connect,
-            CURLOPT_TIMEOUT => $total,
-            // HTTPS works only with the firmware CA bundle.
-            CURLOPT_CAINFO => AIO_CA_BUNDLE,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_ENCODING => '',
-            // A User-Agent starting with "AIOStreams" makes it add streamData.
-            CURLOPT_USERAGENT => 'AIOStreams-DuneClient/' . AIO_VERSION,
-            CURLOPT_HTTPHEADER => array('Accept: application/json'),
-            // Not RETURNTRANSFER: a reply over $max stops loading here, a
-            // short count aborts the transfer.
-            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$over, $max)
-            {
-                if ($max > 0 && strlen($body) + strlen($chunk) > $max)
-                {
-                    $over = true;
-                    return 0;
-                }
-                $body .= $chunk;
-                return strlen($chunk);
-            }));
+        $set = curl_setopt_array($ch, aio_http_opts($connect, $total, $sink));
         // PHP 5.3 stops at a refused option: no WRITEFUNCTION, the body would go to stdout.
         if (!$set)
         {
@@ -850,16 +942,142 @@ if (!function_exists('aio_http_get'))
             return array(0, '');
         }
         $ok = curl_exec($ch);
-        $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
-        // 0 until the TCP connection is made (PHP 5.3 has no CURLINFO_PRIMARY_IP).
-        $connected = curl_getinfo($ch, CURLINFO_CONNECT_TIME) > 0;
-        // Over $max with an error status: that HTTP error, not "too big".
-        if ($over)
-            $err = $code === 200 ? AIO_HTTP_TOO_BIG : '';
-        else
-            $err = $ok === false ? 'curl ' . curl_errno($ch) . ': ' . curl_error($ch) : '';
+        list($code, $body, $err, $connected) = aio_http_reply($ch, $ok === false ? 'curl ' . curl_errno($ch) . ': ' .
+            curl_error($ch) : '', $sink);
         curl_close($ch);
-        return array($code, $err !== '' || $over ? '' : $body);
+        return array($code, $body);
+    }
+}
+
+// Tests define their own aio_http_get_many().
+if (!function_exists('aio_http_get_many'))
+{
+    // The GETs $reqs (key => array(url, connect, total, max) as of aio_http_get) at once by curl_multi -> key =>
+    // array(HTTP code, body, err, connected, s it took) as aio_http_get, in the order of $reqs; null: no curl_multi
+    // (old firmware), or it failed now (add, exec; from then on none in this php_server, one line of the log): the
+    // caller asks one by one (aio_http_get). The callers keep to AIO_HTTP_PAR. r25 (knowledge of its libphp5): no
+    // curl_multi_getcontent (it crashes PHP), the body by WRITEFUNCTION only; a new handle a request, none kept past
+    // the call (curl_close frees no handle that went through curl_multi there, the end of its last zval does).
+    /**
+     * @param array<array-key, array{string, float|int, float|int, int}> $reqs
+     * @return array<array-key, array{int, string, string, bool, float}>|null
+     */
+    function aio_http_get_many($reqs)
+    {
+        if (AioHttp::$multi_off || !function_exists('curl_multi_init'))
+            return null;
+        // Not cut: a sign for the caller to keep to it.
+        if (count($reqs) > AIO_HTTP_PAR)
+            aio_log(sprintf('http: %d requests at once, over AIO_HTTP_PAR (%d)', count($reqs), AIO_HTTP_PAR));
+        $t0 = microtime(true);
+        // curl_multi_init of PHP 5.3 has no failure of its own: a broken one fails at add or exec.
+        $mh = curl_multi_init();
+        $hs = array();
+        $sinks = array();
+        $keys = array();
+        $res = array();
+        $wait = 0;
+        foreach ($reqs as $k => $q)
+        {
+            $sink = new AioHttpSink($q[3]);
+            $ch = curl_init($q[0]);
+            if (!curl_setopt_array($ch, aio_http_opts($q[1], $q[2], $sink)))
+            {
+                curl_close($ch);
+                $res[$k] = array(0, '', 'curl options refused', false, 0.0);
+                continue;
+            }
+            if (curl_multi_add_handle($mh, $ch) !== 0)
+            {
+                curl_close($ch);
+                foreach ($hs as $h)
+                {
+                    curl_multi_remove_handle($mh, $h);
+                    curl_close($h);
+                }
+                curl_multi_close($mh);
+                return aio_http_multi_off('add');
+            }
+            $hs[$k] = $ch;
+            $sinks[$k] = $sink;
+            $keys[(int) $ch] = $k;
+            $wait = max($wait, $q[2]);
+        }
+        // A last guard past the timeouts of curl: the ones left then are timeouts of it.
+        $end = $t0 + $wait + 2;
+        $done = array();
+        $bad = '';
+        while (count($done) < count($hs))
+        {
+            do
+                $rc = curl_multi_exec($mh, $active);
+            while ($rc === CURLM_CALL_MULTI_PERFORM);
+            if ($rc !== CURLM_OK)
+            {
+                $bad = "exec $rc";
+                break;
+            }
+            // By $m['handle'] (right on r25), not by an argument of a callback.
+            while (($m = curl_multi_info_read($mh)) !== false)
+            {
+                $id = (int) $m['handle'];
+                if ($m['msg'] === CURLMSG_DONE && isset($keys[$id]) && !isset($done[$keys[$id]]))
+                    $done[$keys[$id]] = array(intval($m['result']), microtime(true) - $t0);
+            }
+            if (count($done) >= count($hs) || microtime(true) >= $end)
+                break;
+            if (!$active)
+            {
+                $bad = 'no result';
+                break;
+            }
+            if (curl_multi_select($mh, 0.2) === -1)
+                usleep(10000);
+        }
+        if ($bad === '')
+        {
+            foreach ($reqs as $k => $q)
+            {
+                if (isset($res[$k]))
+                    continue;
+                if (isset($done[$k]))
+                {
+                    $fail = $done[$k][0] !== 0 ? 'curl ' . $done[$k][0] . ': ' . curl_error($hs[$k]) : '';
+                    $r = aio_http_reply($hs[$k], $fail, $sinks[$k]);
+                    $r[] = $done[$k][1];
+                }
+                else
+                {
+                    $r = aio_http_reply($hs[$k], 'curl 28: no reply in time', $sinks[$k]);
+                    $r[] = microtime(true) - $t0;
+                }
+                $res[$k] = $r;
+            }
+        }
+        foreach ($hs as $h)
+        {
+            curl_multi_remove_handle($mh, $h);
+            curl_close($h);
+        }
+        curl_multi_close($mh);
+        if ($bad !== '')
+            return aio_http_multi_off($bad);
+        $out = array();
+        foreach ($reqs as $k => $q)
+            $out[$k] = $res[$k];
+        return $out;
+    }
+
+    // curl_multi failed ($why: of the log): none from now on in this php_server. -> null.
+    /**
+     * @param string $why
+     * @return null
+     */
+    function aio_http_multi_off($why)
+    {
+        AioHttp::$multi_off = true;
+        aio_log("http: curl_multi failed ($why), one by one from now on");
+        return null;
     }
 }
 
@@ -1493,6 +1711,11 @@ function aio_speed_str($bps, $lang, $zero = false)
 
 function aio_folder_view($media_url, $sel_state)
 {
+    // One timer lives, of a main screen or of a Fav screen: a view of another stops it (aio_mlv_view_asked: not a main
+    // one). Within the window of the invalidate of a tick of a screen of Fav (aio_mlv_inv) a screen it invalidated stops
+    // none: the main screen under it keeps its own, its ticks wait for those of that screen (aio_pg_tick).
+    aio_pg_view_asked($media_url);
+    aio_mlv_view_asked($media_url);
     // "setup:<n>": the same screen redrawn by aio_setup_refresh; a first run: the
     // settings in place of the catalog until AIOStreams is set.
     if ($media_url === 'setup' || strpos($media_url, 'setup:') === 0 ||
@@ -1557,6 +1780,7 @@ function aio_play_action($in)
     $mv = aio_movie($in);
     if (!$mv || $mv['imdb'] === '')
         return aio_error('err_no_imdb');
+    aio_pg_link_movie($mv);
 
     $resume = aio_resume($in);
     $s = -1;
@@ -1691,16 +1915,17 @@ function aio_tr($lang, $key, $ep = '')
     return $ep !== '' ? str_replace('{ep}', $ep, $s) : trim(str_replace(array(' {ep}', '{ep}'), '', $s));
 }
 
-// handle_user_input of our plugin, 60 s; "Please wait" after $delay ms (0: at
-// once, a request to the internet for sure: the quick setup).
-function aio_input($control, $params = array(), $delay = AIO_DELAY_INPUT)
+// handle_user_input of our plugin, the shell waiting $timeout ms for it (60 s;
+// more: the import of the Favorites of the Dune); "Please wait" after $delay
+// ms (0: at once, a request to the internet for sure: the quick setup).
+function aio_input($control, $params = array(), $delay = AIO_DELAY_INPUT, $timeout = 60000)
 {
     return array(
         GuiAction::handler_string_id => PLUGIN_HANDLE_USER_INPUT_ACTION_ID,
         GuiAction::caption => null,
         GuiAction::plugin_name => AIO_PLUGIN,
         GuiAction::data => array(
-            PluginHandleUserInputActionData::operation_timeout => 60000,
+            PluginHandleUserInputActionData::operation_timeout => $timeout,
             PluginHandleUserInputActionData::show_dialog_delay => $delay),
         GuiAction::params => array_merge(array('handler_id' => 'aio', 'control_id' => $control), $params));
 }
@@ -1783,6 +2008,7 @@ function aio_handle_user_input($in)
     $control = isset($in->control_id) ? $in->control_id : null;
     if ($handler !== 'aio')
         return null;
+    aio_mlv_input($control);
     // The colour keys of every screen, before the screen's own work (egg.php): a run of them plays the video and
     // puts back the sort of new lists from before the run; else (RuTube failed too) the key goes on, in a list it sorts.
     $egg = aio_egg_input($in, $control);
@@ -1889,8 +2115,9 @@ class AioFw extends DunePluginFw
             if ($op === PLUGIN_OP_GET_FOLDER_VIEW)
             {
                 $type = PLUGIN_OUT_DATA_PLUGIN_FOLDER_VIEW;
-                $data = aio_folder_view(isset($in->media_url) && is_string($in->media_url) ?
-                    $in->media_url : '', isset($in->sel_state) ? $in->sel_state : null);
+                $url = isset($in->media_url) && is_string($in->media_url) ? $in->media_url : '';
+                // Every screen of Melange: the keys Fav 2 and Fav 1 to "Мой список" and "Продолжить" (view_my_list.php).
+                $data = aio_mlv_keys(aio_folder_view($url, isset($in->sel_state) ? $in->sel_state : null), $url);
             }
             else if ($op === PLUGIN_OP_HANDLE_USER_INPUT)
             {

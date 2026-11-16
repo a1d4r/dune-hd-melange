@@ -5,7 +5,7 @@
 // PHP 5.3: no firmware API, no logging here.
 // Types in the PHPDoc (AioSettings and others): phpstan-types.neon of the repository.
 
-define('AIO_VERSION', '0.61.0');
+define('AIO_VERSION', '0.62.0');
 // HTTPS works only with the firmware CA bundle (curl of the plugin and the page).
 define('AIO_CA_BUNDLE', '/firmware/certs/ca-bundle.crt');
 // In data_dir: written by the settings page and by the plugin (the quick setup, the rows of
@@ -1131,6 +1131,8 @@ function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
     foreach ($hosts as $u => $tag)
         $s = aio_mask_host($s, $u, $tag);
     $s = preg_replace('~(\\\\?/(?:playback|torz)\\\\?/)[^/\\\\\\s"?#&]+~', '$1***', $s);
+    // A picture of dunemdb (the Favorites of the Dune, "Мой список"): auth=<the outside IP>-<a hash>.
+    $s = preg_replace('~([?&]auth=)[^&\\s"\\\\]+~', '$1***', $s);
     // Base64 of JSON: it starts with the encoding of '{"'.
     $s = preg_replace('~ey[J][A-Za-z0-9_\\-+=%]+~', '***', $s);
     $s = preg_replace('~[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}~i',

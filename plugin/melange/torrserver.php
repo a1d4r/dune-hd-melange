@@ -828,8 +828,10 @@ function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_
         aio_log("ts: $tag: $base answered just now");
 
     list($mg, $n, $src) = aio_magnet($r);
+    // An address only: a path of a picture on the Dune (of its Favorites, aio_ml_url) means nothing to TorrServer.
+    $poster = preg_match('~^https?://~', $st['movie']['poster']) ? $st['movie']['poster'] : '';
     $req = json_encode(array('action' => 'add', 'link' => $mg, 'title' => aio_ep_name($st['movie'], $st['s'], $st['e']),
-        'poster' => $st['movie']['poster'], 'save_to_db' => Aio::$settings['ts_save']));
+        'poster' => $poster, 'save_to_db' => Aio::$settings['ts_save']));
     $t = microtime(true);
     $ra = aio_ts_call("$base/torrents", $req, 5, Aio::$settings['ts_auth']);
     $err = $ra['err'];

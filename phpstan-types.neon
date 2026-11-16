@@ -9,6 +9,10 @@ parameters:
         AioCatRow: 'array{key: string, type: string, id: string, name: string, genre: string, home: bool, group: string, q?: string, sid?: string}'
         # A tile of a row (aio_cat_tile, catalog.php).
         AioCatTile: 'array{id: string, imdb_id: string, _tmdbId: string, type: string, name: string, year: string, imdbRating: string, description: string, genres: list<string>, poster: string, background: string, country: string, runtime: string, age: string, cast: list<string>, englishTitle: string, kpRating: string, kpVotes: int, kpId: string, logo: string, logoLang: string}'
+        # An entry of "Мой список" (aio_ml_clean, my_list.php): key - type:<IMDb | tmdb:<id>>; dune_id '' - not known; added - unix time.
+        AioMlEntry: 'array{key: string, type: string, name: string, englishTitle: string, year: string, poster: string, background: string, imdb_id: string, _tmdbId: string, kpId: string, imdbRating: string, kpRating: string, kpVotes: int, dune_id: string, added: int}'
+        # A movie of the Favorites of the Dune (aio_ml_fav_read, my_list.php).
+        AioMlFav: 'array{dune_id: string, type: string, name: string, year: string, poster: string, file: string}'
         # A listing of a row (aio_cat_row_state, catalog.php).
         AioCatState: 'array{row: AioCatRow, t0: int, skip: int, end: string, seen: array<string, bool>}'
         # A result of a listing or a search (aio_cat_more, catalog.php).
@@ -183,6 +187,14 @@ parameters:
         AioWhSeries: 'array{stdClass|null, array<string, array{float, float, bool}>, array<string, int>}'
         # The episode to offer of a series by its history (aio_wh_pick, history.php).
         AioWhPick: 'array{s: int, e: int, hash: string, kind: string, rec: string, why: string}'
+        # The state of a card of the history (aio_pg_index, progress.php).
+        AioPgEntry: 'array{w: stdClass|null, end: int, seen: bool, movie_mark: bool, series: AioWhSeries|null, ep: array{w: stdClass, seen: bool}|null}'
+        # What the badges show of it (aio_pg_badge, progress.php).
+        AioPgBadge: 'array{pos: float, len: float, watched: bool, s: int, e: int, all: bool, next: bool}'
+        # A pair of a card of the Dune (aio_pg_links, links.php): its ids, or none / fail with a time.
+        AioPgLink: 'array{imdb?: string, tmdb?: string, tmdbtv?: string, type?: string, seasons?: array<int, int>, soon?: array<string, string>, src?: string, on?: int, sq?: int, none?: int, fail?: int}'
+        # The meta of a tile of the row "Continue" kept (aio_cpm_read, cp_meta.php): when written, its tile (null: a failure).
+        AioCpmEntry: 'array{t: int, tile: AioCatTile|null}'
         # "Continue watching" of play_action (aio_resume, main.php; next:
         # aio_wh_resume_ep, history.php).
         AioResume: 'array{hash: string, mode: string, s: int, e: int, pos: int, len: int, uid: string, next: bool}'
@@ -393,9 +405,9 @@ parameters:
         # A place of the focus on the own card, in AioOcCard and in sel_state (aio_oc_pos, view_card.php).
         AioOcPos: 'array{z: string, b: int, p: int, s: int, e: int, r: array<string, int>}'
         # What the keys of the own card need of its layout (view_card.php).
-        AioOcNav: 'array{kind: string, btns: list<array{string, string, bool}>, btn_y: int, stops: list<int>, clips: list<int>, tops: list<int>, h: int, off: int, zones: list<string>, tabs: AioOcTabs, ep: AioOcEp|null, prog: array<string, array{float, float, bool}>, rows: array<int, string>, strips: array<string, AioOcStrip>, tw: int, first: list<array<string, mixed>>}'
+        AioOcNav: 'array{kind: string, btns: list<array{string, string, string, int}>, btn_y: int, stops: list<int>, clips: list<int>, tops: list<int>, h: int, off: int, zones: list<string>, tabs: AioOcTabs, ep: AioOcEp|null, prog: array<string, array{float, float, bool}>, rows: array<int, string>, strips: array<string, AioOcStrip>, tw: int, first: list<array<string, mixed>>}'
         # The own card laid out (aio_oc_layout, view_card.php).
-        AioOcLayout: 'array{kind: string, btns: list<array{string, string, bool}>, btn_y: int, stops: list<int>, clips: list<int>, tops: list<int>, h: int, off: int, zones: list<string>, tabs: AioOcTabs, ep: AioOcEp|null, prog: array<string, array{float, float, bool}>, rows: array<int, string>, strips: array<string, AioOcStrip>, tw: int, first: list<array<string, mixed>>, down: list<array<string, mixed>>}'
+        AioOcLayout: 'array{kind: string, btns: list<array{string, string, string, int}>, btn_y: int, stops: list<int>, clips: list<int>, tops: list<int>, h: int, off: int, zones: list<string>, tabs: AioOcTabs, ep: AioOcEp|null, prog: array<string, array{float, float, bool}>, rows: array<int, string>, strips: array<string, AioOcStrip>, tw: int, first: list<array<string, mixed>>, down: list<array<string, mixed>>}'
         # A strip of a row under a frame of the focus (view_card_row.php).
         AioOcStrip: 'array{n: int, nc: int, w: int, h: int, cw: int, ch: int, step: int, div: int, vis: int, lead: int, x: int, y: int, id: string}'
         # The tabs of the seasons of a series card (aio_oc_tabs_layout, view_card_series.php).

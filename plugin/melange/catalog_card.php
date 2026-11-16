@@ -160,7 +160,7 @@ function aio_card_pick($tmdb, $imdb, $tile)
 // refused or failed request the second is not asked. Without dune_auth nothing is
 // asked: the shell can not open a card either. kp: the rating of Kinopoisk of the card
 // ('' for none), kept with the id in the cache; null when not known (a cache of before it, no sign,
-// no dune_auth).
+// no dune_auth). A card found goes to the pairs of the badges (aio_pg_link_tile).
 /**
  * @param AioCatTile $tile
  * @return array{id: string, none: bool, kp: string|null}
@@ -190,6 +190,7 @@ function aio_card_id($tile)
         if (time() >= $c['t'] && time() - $c['t'] < ($id !== '' ? AIO_CARD_TTL_ID : AIO_CARD_TTL_NONE))
         {
             aio_log('card: cached ' . ($id !== '' ? $id : 'none'));
+            aio_pg_link_tile($id, $tile);
             return array('id' => $id, 'none' => $id === '',
                 'kp' => isset($c['data']['kp']) && is_string($c['data']['kp']) ? $c['data']['kp'] : null);
         }
@@ -210,6 +211,7 @@ function aio_card_id($tile)
     $kp = $card ? $card['kp'] : '';
     if ($whole)
         aio_cat_cache_write($key, 1, array('id' => $id, 'kp' => $kp));
+    aio_pg_link_tile($id, $tile);
     return array('id' => $id, 'none' => $whole && $id === '', 'kp' => $kp);
 }
 
@@ -460,6 +462,17 @@ function aio_card_meta($imdb)
 function aio_card_local_id($tile)
 {
     return preg_match('/^tt[0-9]{1,10}$/D', $tile['imdb_id']) ? 'm-melange-' . $tile['imdb_id'] : '';
+}
+
+// The IMDb of the local card $mid (aio_card_local_id: of a movie alone, no card of the Dune, no pair ever: the dunemdb
+// API has no such card), '' for another card.
+/**
+ * @param string $mid
+ * @return string
+ */
+function aio_card_local_imdb($mid)
+{
+    return preg_match('/^m-melange-(tt[0-9]{1,10})$/D', $mid, $m) ? $m[1] : '';
 }
 
 // A tile with IMDb and no card of the server: the local card of the shell made from it

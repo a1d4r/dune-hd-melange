@@ -6,7 +6,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
 1. In the Melange catalog, choose the "Movies" or "Series" tab on the bar at the top.
 
-   <img src="../screenshots/watch-tabs.jpg" alt="Melange catalog: focus on the Movies tab, magnifier and gear on the right" width="100%">
+   <img src="../screenshots/watch-tabs.jpg" alt="Melange catalog: focus on the Movies tab, clock, heart, magnifier and gear on the right" width="100%">
 
 2. To find a movie by title, open search (the magnifier on the same bar), type the title and confirm.
 
@@ -14,7 +14,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
 3. Press **ENTER** on the poster. On the card, choose "Watch".
 
-   <img src="../screenshots/own-card-film.jpg" alt="Melange card for The Dark Knight, focus on Watch" width="100%">
+   <img src="../screenshots/own-card-film.jpg" alt="Melange card for The Dark Knight, focus on Watch, Trailer and Favorites next to it" width="100%">
 
 4. Choose a release and press **ENTER**. Releases are versions of the movie file: quality, voice-over, size. The more seeders (people sharing it, the number in the first column), the sooner the movie starts.
 
@@ -38,7 +38,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
 ## Continue
 
-1. What you started is in the **Continue Watching** row on the Dune home screen. **ENTER** plays it from the same spot.
+1. What you started is in the first row of the Melange catalog, Continue Watching ([Continue Watching and Favorites](favorites.en.md)), and in the **Continue Watching** row on the Dune home screen. **ENTER** plays it from the same spot.
 
    <img src="../screenshots/watch-continue-row.jpg" alt="Dune home screen: the Continue Watching row" width="100%">
 
@@ -68,4 +68,4 @@ You can also open Melange from a card in the Dune **Movies** catalog: home scree
 - "TorrServer is not responding…": open TorrServe on the Dune ([Quick start](start.en.md#first-setup), step 1).
 - "AIOStreams found no streams": the movie has no releases ([Troubleshooting](troubleshooting.en.md)).
 
-Next: [Your own catalog rows](catalog-rows.en.md) · [Contents](README.en.md)
+Next: [Continue Watching and Favorites](favorites.en.md) · [Contents](README.en.md)

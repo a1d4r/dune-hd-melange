@@ -2,7 +2,8 @@
 // Data of the own card of a title: the meta of the catalog server (meta/<movie|series>/<id>.json),
 // asked when the card opens, parsed to what the card shows and kept in the memory of php_server.
 // What is asked only by an action (a person, similar titles, a franchise): card_more.php. No screens. Needs catalog.php
-// (aio_cat_get), catalog_card.php (aio_card_people, limits) and main.php (aio_log, aio_cin_save, aio_cin_load).
+// (aio_cat_get), catalog_card.php (aio_card_people, limits), main.php (aio_log, aio_cin_save, aio_cin_load) and
+// cp_meta.php (aio_cpm_of_card).
 // Not through aio_catv_load_first: a 429 here must not stop the rows.
 // Types in the PHPDoc (AioCardMeta and others): phpstan-types.neon of the repository.
 
@@ -54,6 +55,23 @@ function aio_cm_id($t)
     if ($t['imdb_id'] !== '')
         return $t['imdb_id'];
     return $t['_tmdbId'] !== '' ? 'tmdb:' . $t['_tmdbId'] : '';
+}
+
+// The tile of the meta of the own card of tile $t in memory (aio_cm_get kept it), of the type of $t; null for none. No
+// request.
+/**
+ * @param AioCatTile $t
+ * @return AioCatTile|null
+ */
+function aio_cm_mem_tile($t)
+{
+    $id = aio_cm_id($t);
+    $key = "{$t['type']}:$id";
+    if ($id === '' || !isset(AioCm::$cache[$key]) || !AioCm::$cache[$key]['m']['tile'])
+        return null;
+    $m = AioCm::$cache[$key]['m']['tile'];
+    $m['type'] = $t['type'];
+    return $m;
 }
 
 // A picture of the meta -> the address the Dune loads, '' for none. TMDB (blocked for many,
@@ -585,7 +603,8 @@ function aio_cm_cin_runs($a, $map)
 // parsed one or null. Only a parsed meta is kept: a failure is asked again at the next opening.
 // Kept: AIO_CM_KEEP titles and AIO_CM_KEEP_EPS episodes in all at most, the oldest go. The runs of an anime
 // numbered on (cin, aio_cm_pairs) to their file too (aio_cin_save): the ways in of the native card number its
-// episodes by them.
+// episodes by them. The tile of an asked meta of a title of the history to the meta of the row "Continue"
+// (aio_cpm_of_card, cp_meta.php).
 /**
  * @param AioCatTile $t
  * @return array{err: string, meta: AioCardMeta|null}
@@ -625,6 +644,7 @@ function aio_cm_get($t)
     unset($g);
     if ($m['cin'])
         aio_cin_save($m['imdb'], $m['cin']);
+    aio_cpm_of_card($t, $m['tile']);
     $eps = aio_cm_eps_count($m);
     aio_log(sprintf('card: meta %s: imdb %s, %d seasons, %d episodes, %d seasons out, %d actors, %d directors, %d writers, %d creators, collection %s',
         $key, $m['imdb'] !== '' ? $m['imdb'] : 'none', count($m['seasons']), $eps, count($m['season_numbers']),

@@ -712,12 +712,24 @@ function aio_finish_act($rid)
 // shell keeps the screen and its cursor; only the progress bar of the
 // release played may change (aio_gc_bar_update). The rows are those of "next", no
 // request; of a state of one row (aio_ts_pack_state), one request of that episode.
-// JacRed tracks of the old list go over by hash (one release).
+// JacRed tracks of the old list go over by hash (one release). The tab "TV" built anew (aio_tv_flag) and the main
+// screens of the catalog invalidated (aio_catv_after_player): the row "Continue" and the badges are of the history.
 /**
  * @param stdClass $in
  * @return AioAction|null
  */
 function aio_finish($in)
+{
+    aio_tv_flag('back from the player');
+    return aio_catv_after_player(aio_finish_list($in));
+}
+
+// aio_finish of list $in->rid: the action of its screen.
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
+function aio_finish_list($in)
 {
     $st = Aio::$state;
     $p = Aio::$playing;

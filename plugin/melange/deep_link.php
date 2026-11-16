@@ -9,7 +9,7 @@
 // pattern, a field the target does not take, one it lacks: a line of the log, no screen. Each call: a line of the log
 // with the target and the ids.
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_card.php, view_card_series.php, view_catalog.php,
-// view_person.php.
+// view_person.php, continue.php (aio_cp_items).
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The targets: fn - the handler of the link; id - the fields of an id it takes, exactly one of them given (none: no
@@ -28,7 +28,9 @@ function aio_dl_targets()
         'person' => array('fn' => 'aio_dl_person', 'id' => array('tmdb'), 'need' => array(), 'may' => array(), 'se' => false),
         'search' => array('fn' => 'aio_dl_search', 'id' => array(), 'need' => array('q'), 'may' => array(), 'se' => false),
         'tab' => array('fn' => 'aio_dl_tab', 'id' => array(), 'need' => array('tab'), 'may' => array(), 'se' => false),
-        'row' => array('fn' => 'aio_dl_row', 'id' => array(), 'need' => array('tab', 'n'), 'may' => array(), 'se' => false));
+        'row' => array('fn' => 'aio_dl_row', 'id' => array(), 'need' => array('tab', 'n'), 'may' => array(), 'se' => false),
+        'mylist' => array('fn' => 'aio_dl_mylist', 'id' => array(), 'need' => array(), 'may' => array(), 'se' => false),
+        'continue' => array('fn' => 'aio_dl_continue', 'id' => array(), 'need' => array(), 'may' => array(), 'se' => false));
 }
 
 // The fields of $in of a link (the others not read) -> array(why it is wrong: "<field>" (off its pattern), "<field>:
@@ -231,8 +233,29 @@ function aio_dl_tab($q)
     return aio_catv_open_act(aio_catv_main_url($q['tab']), '%tr%plugin_caption');
 }
 
-// to=row: "Show all" (aio_catv_all_open) of row n of tab $q['tab'], counted as the main screen shows them: the rows of
-// the user of the saved manifest (aio_cat_user_rows: those turned off not there) it shows (aio_catv_shown_rows: on r24
+// to=mylist, to=continue: the screens "Мой список" and "Продолжить" (view_my_list.php), as Fav 2 and Fav 1 open them.
+/**
+ * @param AioDlLink $q
+ * @return AioAction|null
+ */
+function aio_dl_mylist($q)
+{
+    return aio_mlv_open('list', '');
+}
+
+/**
+ * @param AioDlLink $q
+ * @return AioAction|null
+ */
+function aio_dl_continue($q)
+{
+    return aio_mlv_open('continue', '');
+}
+
+// to=row: "Show all" (aio_catv_all_open) of row n of tab $q['tab'], counted as the main screen shows them: the row
+// "Continue" first when it has tiles of the tab (aio_cp_items), then "Мой список" when the list has titles of it - the
+// screens of all of them of the tab (aio_mlv_open of ENTER on their title), then the rows of the user of the saved
+// manifest (aio_cat_user_rows: those turned off not there) it shows (aio_catv_shown_rows: on r24
 // those with tiles in memory, as the last opening of the tab got them). No saved manifest, no such row: null, logged.
 /**
  * @param AioDlLink $q
@@ -247,13 +270,27 @@ function aio_dl_row($q)
         return null;
     }
     $n = intval($q['n']);
-    $rows = aio_catv_shown_rows(aio_cat_user_rows($copy['rows'], Aio::$settings['cat_rows'], $q['tab']), aio_catv_loading_flag());
-    if (!isset($rows[$n - 1]))
+    // n is of the rows of the screen, not of the manifest: with "Continue" and "Мой список" on the tab the same row of
+    // the catalog is one or two further, without them - back.
+    $local = array();
+    if (aio_cp_items(array($q['tab']), 1))
+        $local[] = AIO_MLV_CONT;
+    if (aio_mlv_list_cells(array($q['tab']), 1))
+        $local[] = AIO_MLV_LIST;
+    if (isset($local[$n - 1]))
     {
-        aio_log("open: row {$q['tab']} #$n: none, " . count($rows) . ' rows on the tab');
+        $url = $local[$n - 1] . ':' . $q['tab'];
+        aio_log("open: row {$q['tab']} #$n: $url");
+        return aio_catv_open_act($url, aio_tr(aio_catv_lang(), $local[$n - 1] === AIO_MLV_LIST ? 'ml_title' : 'cp_row_continue'));
+    }
+    $cp = count($local);
+    $rows = aio_catv_shown_rows(aio_cat_user_rows($copy['rows'], Aio::$settings['cat_rows'], $q['tab']), aio_catv_loading_flag());
+    if (!isset($rows[$n - 1 - $cp]))
+    {
+        aio_log("open: row {$q['tab']} #$n: none, " . (count($rows) + $cp) . ' rows on the tab');
         return null;
     }
-    $rid = aio_catv_rid($rows[$n - 1]);
+    $rid = aio_catv_rid($rows[$n - 1 - $cp]);
     aio_log("open: row {$q['tab']} #$n: $rid");
     return aio_catv_all_open("cat_grid:$rid");
 }

@@ -28,11 +28,11 @@ Turn on the movie logo in place of the title, ratings on posters and the own mov
 
    <img src="../screenshots/appearance-rating-off.jpg" alt="Catalog, Popular row: posters without ratings" width="100%">
 
-4. "Own card": leave it "On". ENTER on a poster opens the Melange card with seasons and episodes. With "Off", the Dune card opens, as in earlier versions.
+4. "Own card": leave it "On". ENTER on a poster opens the Melange card with seasons and episodes. With "Off", the Dune card opens, as in earlier versions. From the own card, open it with **MENU** → "Dune card".
 
    On:
 
-   <img src="../screenshots/appearance-card-own.jpg" alt="Own Melange card: logo, KP and IMDb ratings, Watch, Trailer and Dune card buttons, Similar row" width="100%">
+   <img src="../screenshots/appearance-card-own.jpg" alt="Own Melange card: logo, KP and IMDb ratings, Watch, Trailer and Favorites buttons, Similar row" width="100%">
 
    Off:
 
