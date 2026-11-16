@@ -9,8 +9,8 @@ Releases are found by AIOStreams, a service that queries torrent search engines 
 What it does:
 - its own movie and series catalog: rows of collections (trending, new releases, Russian, genres, streaming services and more; you choose which to show) and search;
 - a list of up to 100 releases with details: resolution, source, HDR / Dolby Vision, audio, size, languages, voice-overs, whether the release is cached in Debrid; sorting with the colored remote buttons;
-- Dune history: the percentage on the **Melange [NN%]** button, the **Continue Watching** row, resuming from the same spot;
-- Melange's own Continue Watching and Favorites rows in the catalog, and watch marks on posters;
+- Dune history: Melange's own Continue Watching row and watch marks on posters, the percentage on the **Melange [NN%]** button, resuming from the same spot;
+- your own Favorites, separate from Dune Favorites;
 - series: the episodes of a season play in a row on the same release, and you flip episodes right in the list with ← / →;
 - Debrid (Real-Debrid or TorBox) or, without a subscription, torrents via TorrServer;
 - studio voice-overs (dubbing studios), from the release name and its tracks, plus tracks and voice-overs from JacRed;
