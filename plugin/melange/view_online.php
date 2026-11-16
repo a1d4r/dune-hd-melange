@@ -783,7 +783,7 @@ function aio_lpv_down($run, $why, $detail)
 {
     $st = $run['st'];
     $lang = $st['lang'];
-    aio_log("lampac: window {$run['sid']}: no answer ($why" . ($detail !== '' ? ', ' . aio_lp_mask($detail, Aio::$settings['lp']) : '') .
+    aio_log("lampac: window {$run['sid']}: no answer ($why" . aio_lp_mask(aio_lp_log_detail($why, $detail, ', %s'), Aio::$settings['lp']) .
         ')' . ($run['back'] ? ' -> the releases' : ''));
     if ($run['back'])
         return aio_lpv_releases($st, aio_tr($lang, 'lp_note_down'));

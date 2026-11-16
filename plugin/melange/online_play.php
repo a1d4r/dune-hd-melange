@@ -282,7 +282,8 @@ function aio_lpv_played($mv, $s, $e, $a)
  */
 function aio_lpv_next_failed($lang, $base, $src, $voice, $s, $e, $why, $detail, $have)
 {
-    aio_log(sprintf('lampac next: S%02dE%02d: no link (%s%s)', $s, $e, $why, $detail !== '' ? ', ' . aio_lp_mask($detail, $base) : ''));
+    aio_log(sprintf('lampac next: S%02dE%02d: no link (%s%s)', $s, $e, $why, aio_lp_mask(aio_lp_log_detail($why, $detail, ', %s'),
+        $base)));
     $text = $why === 'no_episode' || $why === 'no_episodes' ?
         aio_lpv_no_ep_text($lang, $src, $voice, $s, $e, $why, $have) : "$src: " . aio_lpv_why($lang, $why, $detail);
     return aio_dialog(aio_tr($lang, 'next_failed', aio_se($s, $e)), aio_dialog_lines($text),

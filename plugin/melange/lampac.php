@@ -199,7 +199,27 @@ function aio_lp_mask($s, $base)
             $s = aio_mask_host($s, $o, '<lampac>');
     }
     $s = preg_replace('~/proxy/[^\s"\'?&#]+~', '/proxy/***', $s);
-    return preg_replace('~\b((?:token[a-z_]*|id_file|uid|account_email|memkey)=)[^\s"\'&#]+~i', '$1***', $s);
+    $s = preg_replace('~\b((?:token[a-z_]*|id_file|uid|account_email|memkey)=)[^\s"\'&#]+~i', '$1***', $s);
+    // The token and the uid of the settings anywhere (the msg of accsdb may have them), of any length.
+    foreach (array(AioLp::$auth['token'], AioLp::$auth['uid']) as $v)
+    {
+        if ($v !== '')
+            $s = str_ireplace(array_unique(array($v, rawurlencode($v), urlencode($v))), '***', $s);
+    }
+    return $s;
+}
+
+// Detail $detail of reason $why for the log, as $fmt makes it ('' none): never the msg of accsdb
+// (Lampac 1.90.1 puts the uid or the id of the account in it, Accsdb.cs): the window shows it.
+/**
+ * @param string $why
+ * @param string $detail
+ * @param string $fmt
+ * @return string
+ */
+function aio_lp_log_detail($why, $detail, $fmt = '%s')
+{
+    return $detail === '' || $why === 'accsdb' ? '' : sprintf($fmt, $detail);
 }
 
 /**
@@ -614,7 +634,7 @@ function aio_lp_search_end($st)
     $h = $st['hidden'];
     aio_lp_log(sprintf('search: %d sources (hidden: show %d, rch %d, bad %d)%s%s, %.2f s', count($st['sources']),
         $h['show'], $h['rch'], $h['bad'], $st['capped'] ? ', out of time' : '',
-        $st['err'] !== '' ? ", {$st['err']}" . ($st['detail'] !== '' ? " ({$st['detail']})" : '') : '',
+        $st['err'] !== '' ? ", {$st['err']}" . aio_lp_log_detail($st['err'], $st['detail'], ' (%s)') : '',
         aio_lp_now() - $st['t0']), $st['base']);
     return $st;
 }
@@ -920,7 +940,7 @@ function aio_lp_why_log($why, $base)
     $by = array();
     foreach ($why as $w)
     {
-        $d = aio_lp_mask($w['detail'], $base);
+        $d = aio_lp_mask(aio_lp_log_detail($w['why'], $w['detail']), $base);
         if (mb_strlen($d, 'UTF-8') > 100)
             $d = mb_substr($d, 0, 100, 'UTF-8') . '...';
         $by[$w['why'] . ($d !== '' ? " ($d)" : '')][] = $w['path'] !== '' ? $w['path'] : $w['src'];
@@ -1135,8 +1155,8 @@ function aio_lp_season_get($base, $src, $url, $total = AIO_LP_REPLY_MAX, $s = 0)
             aio_lp_season_reply($src, $r['code'], $r['body'], $url, $base, $s);
     }
     aio_lp_log(sprintf('season: %s, %d voices, %d episodes%s, %.2f s', $src['path'], count($out['voices']),
-        count($out['eps']), $out['why'] !== '' ? ", {$out['why']}" . ($out['detail'] !== '' ? " ({$out['detail']})" : '') : '',
-        aio_lp_now() - $t0), $base);
+        count($out['eps']), $out['why'] !== '' ? ", {$out['why']}" . aio_lp_log_detail($out['why'], $out['detail'], ' (%s)') :
+        '', aio_lp_now() - $t0), $base);
     return $out;
 }
 
@@ -1330,8 +1350,8 @@ function aio_lp_find($base, $key, $q, $s, $e, $total = AIO_LP_REPLIES_MAX)
         }
     }
     aio_lp_log(sprintf('find: %s S%dE%d: %s%s, %.2f s', $src ? $src['path'] : '-', $s, $e,
-        $out['why'] !== '' ? $out['why'] : 'row', $out['detail'] !== '' ? " ({$out['detail']})" : '', aio_lp_now() - $t0),
-        $base);
+        $out['why'] !== '' ? $out['why'] : 'row', aio_lp_log_detail($out['why'], $out['detail'], ' (%s)'),
+        aio_lp_now() - $t0), $base);
     return $out;
 }
 
@@ -1548,7 +1568,7 @@ function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL
     if ($out['tries'] === 0)
         list($out['err'], $out['detail']) = array('down', 'no time');
     aio_lp_log(sprintf('call: %s%s, %d tries, %.2f s', $out['err'] !== '' ? $out['err'] : 'link',
-        $out['detail'] !== '' ? " ({$out['detail']})" : '', $out['tries'], aio_lp_now() - $t0), $base);
+        aio_lp_log_detail($out['err'], $out['detail'], ' (%s)'), $out['tries'], aio_lp_now() - $t0), $base);
     return $out;
 }
 
