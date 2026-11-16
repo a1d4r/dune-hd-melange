@@ -6,7 +6,7 @@ Removing Melange erases all its settings, so save the file before you remove it.
 
 1. On the settings page ([Settings page on a phone](phone-page.en.md)), open "Backup" in the "More" section.
 
-   <img src="../screenshots/backup-screen.jpg" alt="Backup screen: Save to a file and Load from a file buttons" width="300">
+   <img src="../screenshots/backup-screen.jpg" alt="Backup screen: the hint that the backup includes Favorites, Save to a file and Load from a file buttons" width="300">
 
 2. Press "Save to a file". The phone downloads a `melange-settings-….json` file. It holds what you entered in Melange: the Debrid keys and the key of your own JacRed, the TorrServer and download server passwords, and Favorites. Do not share it publicly.
 

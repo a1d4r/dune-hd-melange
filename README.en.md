@@ -15,7 +15,7 @@ What it does:
 - studio voice-overs (dubbing studios), from the release name and its tracks, plus tracks and voice-overs from JacRed;
 - setup from a phone via a QR code, with **Download the log** on the same page.
 
-<img src="screenshots/catalog.jpg" alt="Melange catalog: rows of collections and posters" width="100%">
+<img src="screenshots/catalog.jpg" alt="Melange catalog: Movies and Series tabs, Continue Watching, Favorites and other rows" width="100%">
 
 <img src="screenshots/film-list.jpg" alt="Left: the release list with Debrid, a lightning bolt on cached releases, details of the selected release" width="49%"> <img src="screenshots/film-list-p2p.jpg" alt="Right: the same movie in Torrents mode, seeder counts in the first column, P2P with 407 seeders on the left" width="49%">
 

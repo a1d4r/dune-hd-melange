@@ -14,11 +14,11 @@ Show Melange catalog rows right on the Dune home screen, in the TV tab. [← Con
 
 3. Under TV, the "Movies" and "Series" sub-items appear right away, with the catalog rows. ENTER on a poster opens the movie card. The rows refresh by themselves, about once an hour.
 
-   <img src="../screenshots/tv-tab-rows.jpg" alt="TV tab, Movies sub-item with Melange catalog rows" width="100%">
+   <img src="../screenshots/tv-tab-rows.jpg" alt="TV tab, Movies sub-item: Melange rows Continue Watching, Favorites and others on the left" width="100%">
 
 4. On a poster, press **POP UP**: it has "Search", "Open Melange" and "Settings", plus the Favorites and mark-as-watched items, as in the catalog ([Continue Watching and Favorites](favorites.en.md)). The first rows of Movies and Series are Continue Watching and Favorites. The **Fav** buttons on the remote work here as usual in Dune.
 
-   <img src="../screenshots/tv-tab-poster.jpg" alt="POP UP menu on a poster in the TV tab: Search, Open Melange, Settings" width="100%">
+   <img src="../screenshots/tv-tab-poster.jpg" alt="POP UP menu on a poster in the TV tab: Remove from Continue Watching, Mark as watched, Remove from Favorites, Search, Open Melange, Settings" width="100%">
 
 ## If it did not work
 
