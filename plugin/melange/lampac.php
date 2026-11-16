@@ -807,7 +807,7 @@ function aio_lp_quals($q)
 // found several titles: skipped, counted), skip (nothing to play, reasons);
 // rows; why). A row (AioLpRow): path (aio_lp_path of the link of $src:
 // "Continue" and the mark ask it again; the key has it), src (its label), voice
-// (translate, else voice_name, else ''), quality (maxquality, else the quality of the
+// (translate, else voice_name, else name not of a quality: some balancers keep the voice there; else ''), quality (maxquality, else the quality of the
 // list), method (play: url plays; call: url gives the link, aio_lp_call),
 // url (by "quality" when empty), stream (the link of "call" that plays at
 // once, '' none), qual (quality => link), subs (subtitles of the item), key
@@ -916,6 +916,8 @@ function aio_lp_movie($src, $data, $base = '')
     $why = array();
     // The rows without a voice so far by their quality: their keys (aio_lp_key).
     $mute = array();
+    // The voices and links of the rows so far: an item of the same twice is one row.
+    $had = array();
     foreach ($data as $x)
     {
         if (!is_array($x))
@@ -928,6 +930,13 @@ function aio_lp_movie($src, $data, $base = '')
             $voice = aio_lp_text(aio_lp_str($x, 'translate'));
             if ($voice === '')
                 $voice = aio_lp_text(aio_lp_str($x, 'voice_name'));
+            // A name of a quality ("1080p") is none.
+            $name = aio_lp_text(aio_lp_str($x, 'name'));
+            if ($voice === '' && aio_lp_q_num($name) === 0)
+                $voice = $name;
+            if (isset($had[$voice . "\n" . $it['url']]))
+                continue;
+            $had[$voice . "\n" . $it['url']] = true;
             $q = aio_lp_text(aio_lp_str($x, 'maxquality'));
             $q = $q !== '' ? $q : $src['q'];
             $n = 0;
@@ -1105,7 +1114,8 @@ function aio_lp_season_link($j, $s)
 // what aio_lp_item gives; an item of no number e or of s and e twice left out, AIO_LP_EPS_MAX at most, in the order of the reply), quality (maxquality
 // of the reply, else the best of the quality of its episodes (Vibix), else the quality of the source), why and
 // detail '' (aio_lp_season_reply sets them); no voice[]: tracks - by the number of an episode the names of its
-// details, once each, AIO_LP_TRACKS_MAX at most (none: no key).
+// details, once each, AIO_LP_TRACKS_MAX at most (none: no key); no tracks either: voice - the translate of all its
+// episodes when one (none: no key), the name of its one row (aio_lp_season_rows).
 /**
  * @param AioLpSource $src
  * @param array<mixed> $j
@@ -1186,6 +1196,14 @@ function aio_lp_season($src, $j, $url, $base = '')
         }
         if ($by)
             $out['tracks'] = $by;
+        $one = array();
+        foreach ($by ? array() : (isset($j['data']) && is_array($j['data']) ? $j['data'] : array()) as $x)
+        {
+            if (is_array($x) && aio_lp_num(isset($x['e']) ? $x['e'] : null) >= 1)
+                $one[aio_lp_text(aio_lp_str($x, 'translate'))] = true;
+        }
+        if (count($one) === 1 && key($one) !== '')
+            $out['voice'] = strval(key($one));
     }
     return $out;
 }
@@ -1340,7 +1358,7 @@ function aio_lp_serial($base, $src, $j, $url, $s, $total = AIO_LP_REPLY_MAX)
 
 // The rows of the online list of season $sea of source $src (spec §5.2): one a voice of voice[],
 // the active first, then in the order of Lampac; a balancer without voices (Collaps, AniDub) - one,
-// voice '', the tracks of the episodes with it (tracks_by; tracks of one episode: aio_lpv_ep_tracks). A row (AioLpRow) of method "season": url is the link of the season in that voice (of
+// voice '' (the voice of the season, aio_lp_season), the tracks of the episodes with it (tracks_by; tracks of one episode: aio_lpv_ep_tracks). A row (AioLpRow) of method "season": url is the link of the season in that voice (of
 // the active one, the first alone, $sea['url'], the link asked), no stream, qual or subs, quality of the season, key
 // aio_lp_season_key (one for each episode of the voice). Its episode by ENTER: the season of url
 // (aio_lp_season_get), aio_lp_episode, aio_lp_ep_row.
@@ -1351,7 +1369,8 @@ function aio_lp_serial($base, $src, $j, $url, $s, $total = AIO_LP_REPLY_MAX)
  */
 function aio_lp_season_rows($src, $sea)
 {
-    $voices = $sea['voices'] ? $sea['voices'] : array(array('name' => '', 'url' => $sea['url'], 'active' => true));
+    $voices = $sea['voices'] ? $sea['voices'] : array(array('name' => isset($sea['voice']) ? $sea['voice'] : '',
+        'url' => $sea['url'], 'active' => true));
     $first = array();
     $rest = array();
     foreach ($voices as $v)

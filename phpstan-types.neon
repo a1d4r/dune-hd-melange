@@ -54,7 +54,7 @@ parameters:
         # An episode of a season of a balancer (aio_lp_season, lampac.php; s -1: none in the reply).
         AioLpEp: 'array{s: int, e: int, name: string, method: string, url: string, stream: string, qual: array<string, string>, subs: int, why: string, detail: string}'
         # A season of a balancer (aio_lp_season_reply, lampac.php).
-        AioLpSeason: 'array{url: string, voices: list<AioLpVoice>, eps: list<AioLpEp>, quality: string, why: string, detail: string, tracks?: array<int, list<string>>, blocked?: bool}'
+        AioLpSeason: 'array{url: string, voices: list<AioLpVoice>, eps: list<AioLpEp>, quality: string, why: string, detail: string, tracks?: array<int, list<string>>, blocked?: bool, voice?: string}'
         # The row of an episode of a key of the history (aio_lp_find, lampac.php).
         AioLpFound: 'array{row: AioLpRow|null, why: string, detail: string, have: list<int>, voice: string, sea: AioLpSeason|null}'
         # The online list of a list state (AioState lp, view_online.php): the title asked, the sources of the
