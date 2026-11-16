@@ -36,7 +36,7 @@ parameters:
         # A source of a search of Lampac (aio_lp_source, lampac.php).
         AioLpSource: 'array{name: string, label: string, q: string, url: string, path: string, index: int, pos: int}'
         # A search of Lampac between the ticks (aio_lp_search_start, lampac.php).
-        AioLpSearch: 'array{base: string, q: string, mode: string, memkey: string, seen: int, t0: float, sources: list<AioLpSource>, gone: array<string, string>, hidden: array{show: int, rch: int, bad: int}, tasks: int, pending: int, done: bool, capped: bool, err: string, detail: string}'
+        AioLpSearch: 'array{base: string, q: string, mode: string, memkey: string, seen: int, t0: float, sources: list<AioLpSource>, gone: array<string, string>, hidden: array{show: int, rch: int, bad: int}, tasks: int, pending: int, fails: int, done: bool, capped: bool, err: string, detail: string}'
         # A reason of a source of Lampac (aio_lp_why, lampac.php).
         AioLpWhy: 'array{src: string, path: string, why: string, detail: string}'
         # A row of a reply of a balancer (aio_lp_movie, aio_lp_season_rows, lampac.php); method play|call|season (its episode: aio_lp_ep_row).
