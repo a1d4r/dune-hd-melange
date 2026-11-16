@@ -1,11 +1,12 @@
 <?php
-// "Онлайн" on the Dune, movies (series: a later version): the client is lampac.php. Here the
+// "Онлайн" on the Dune, movies and episodes: the client is lampac.php. Here the
 // item "Онлайн" of "Откуда брать…", the window "Ищу онлайн…" of ticks (the search of Lampac,
 // then the replies of its balancers, each call of php_server a few seconds), the online list
 // on the screen of the releases (the frame of view_gcomps.php, rows "Phantom · Дублированный"
-// and a card of their own), its MENU, ENTER (the start: online_play.php, as "Continue" of a
-// record of it and play_action), the mark "online" of a title (data_dir/lampac_choice.json) and
-// the windows: nothing online, no answer.
+// and a card of their own; of an episode a row a voice of its season), its MENU, ENTER (the start:
+// online_play.php, as "Continue" of a record of it and play_action), the left and right keys and
+// "Выбрать серию" of an episode, the mark "online" of a title (data_dir/lampac_choice.json) and
+// the windows: nothing online, no answer, no such episode in the voice.
 // The list lives in Aio::$state beside the releases: 'lp' (AioLpView), 'lp_on' - the screen
 // shows it, 'lp_only' - the releases were never asked, 'lp_note' - the yellow line of the
 // releases. The word Lampac only in the card of a row ("Через: Lampac из настроек").
@@ -34,14 +35,24 @@ class AioLpv
     public static $ids = array();
 }
 
-// "Онлайн" for card $mv: a Lampac in the settings, a movie.
+// "Онлайн" for card $mv: a Lampac in the settings.
 /**
  * @param AioMovie $mv
  * @return bool
  */
 function aio_lpv_on($mv)
 {
-    return Aio::$settings['lp'] !== '' && !$mv['series'];
+    return Aio::$settings['lp'] !== '';
+}
+
+// "Онлайн" for list $st: aio_lpv_on, of a series an episode (its season asked).
+/**
+ * @param AioState $st
+ * @return bool
+ */
+function aio_lpv_st_on($st)
+{
+    return aio_lpv_on($st['movie']) && (!$st['movie']['series'] || ($st['s'] > 0 && $st['e'] > 0));
 }
 
 // --- The title.
@@ -80,7 +91,7 @@ function aio_lpv_marks_path()
     return $dir !== '' ? "$dir/" . AIO_LPV_MARKS_FILE : '';
 }
 
-// The marks of the file, the bad ones left out.
+// The marks of the file, the bad ones left out; key '' of a mark before it.
 /**
  * @return array<string, AioLpMark>
  */
@@ -94,7 +105,8 @@ function aio_lpv_marks_read()
         if (is_string($k) && preg_match('/^(?:' . AIO_DUNE_ID . '|tt[0-9]{1,10})\z/', $k) && is_array($m) &&
             isset($m['online'], $m['path'], $m['voice'], $m['ts']) && is_bool($m['online']) && is_string($m['path']) &&
             is_string($m['voice']) && is_int($m['ts']))
-            $out[$k] = array('online' => $m['online'], 'path' => $m['path'], 'voice' => $m['voice'], 'ts' => $m['ts']);
+            $out[$k] = array('online' => $m['online'], 'path' => $m['path'], 'voice' => $m['voice'],
+                'key' => isset($m['key']) && is_string($m['key']) ? $m['key'] : '', 'ts' => $m['ts']);
     }
     return $out;
 }
@@ -111,16 +123,18 @@ function aio_lpv_mark($mv)
     return $k !== '' && isset($all[$k]) && $all[$k]['online'] ? $all[$k] : null;
 }
 
-// Card $mv marked "online" with balancer path $path and voice $voice of the last start (null: as
-// it was), or the mark taken off ($on false). The newest AIO_LPV_MARKS_MAX kept.
+// Card $mv marked "online" with balancer path $path, voice $voice and the key of the row $key (a
+// series: its row first by it, the voice in the hex) of the last start (null: as it was), or the
+// mark taken off ($on false). The newest AIO_LPV_MARKS_MAX kept.
 /**
  * @param AioMovie $mv
  * @param bool $on
  * @param string|null $path
  * @param string|null $voice
+ * @param string|null $key
  * @return void
  */
-function aio_lpv_mark_set($mv, $on, $path = null, $voice = null)
+function aio_lpv_mark_set($mv, $on, $path = null, $voice = null, $key = null)
 {
     $f = aio_lpv_marks_path();
     $k = aio_lpv_key($mv);
@@ -129,11 +143,11 @@ function aio_lpv_mark_set($mv, $on, $path = null, $voice = null)
     $all = aio_lpv_marks_read();
     if (!$on && !isset($all[$k]))
         return;
-    $old = isset($all[$k]) ? $all[$k] : array('online' => true, 'path' => '', 'voice' => '', 'ts' => 0);
+    $old = isset($all[$k]) ? $all[$k] : array('online' => true, 'path' => '', 'voice' => '', 'key' => '', 'ts' => 0);
     unset($all[$k]);
     if ($on)
         $all[$k] = array('online' => true, 'path' => $path !== null ? $path : $old['path'],
-            'voice' => $voice !== null ? $voice : $old['voice'], 'ts' => time());
+            'voice' => $voice !== null ? $voice : $old['voice'], 'key' => $key !== null ? $key : $old['key'], 'ts' => time());
     uasort($all, function ($a, $b)
     {
         return $a['ts'] - $b['ts'];
@@ -189,7 +203,7 @@ function aio_lpv_why($lang, $why, $detail)
  */
 function aio_lpv_in_menu($st)
 {
-    return aio_lpv_on($st['movie']) && Aio::$settings['base'] !== '';
+    return aio_lpv_st_on($st) && Aio::$settings['base'] !== '';
 }
 
 // Items $items of the menu "Откуда брать…" of list $st (the profiles, $sel the one in use;
@@ -383,8 +397,13 @@ function aio_lpv_window($st, $sel, $top)
         $d[] = aio_gc_image(aio_gc_at(AIO_GC_PW, AIO_GC_PH, AIO_GC_CX, AIO_GC_CY), $poster, true);
     $d[] = aio_gc_panel('card', aio_gc_at(AIO_GC_CW, AIO_GC_CARD_BOTTOM - AIO_GC_CY, AIO_GC_CX, AIO_GC_CY),
         aio_lpv_card($st, $v, $sel));
-    list($title) = aio_gc_title($st);
-    $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16, 66, AIO_GC_LX, 40), $title, 48, AIO_GC_TEXT);
+    // An episode: its label at the right of the title, as the releases have it.
+    list($title, $ep) = aio_gc_title($st);
+    $ew = $ep === '' ? 0 : aio_gc_w($ep, 36);
+    $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16 - ($ew > 0 ? $ew + 30 : 0), 66, AIO_GC_LX, 40), $title, 48, AIO_GC_TEXT);
+    if ($ep !== '')
+        $d[] = aio_gc_cut(null, aio_gc_at($ew, 50, AIO_GC_LX + AIO_GC_LW - 16 - $ew, 52), $ep, 36, AIO_GC_TEXT2,
+            array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
     $in = array(aio_gc_rect(aio_gc_row_geom($sel), AIO_GC_SEL, 'sel'));
     for ($i = 0; $i < $n; $i++)
         $in[] = aio_gc_panel("r$i", aio_gc_row_geom($i), aio_lpv_row_items($v, $i, $c, $i === $sel, $lang));
@@ -399,6 +418,9 @@ function aio_lpv_window($st, $sel, $top)
         $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/p_plus_p_minus.png' => 114),
             $tt['page']);
     }
+    if ($st['e'] > 0)
+        $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/left_arrow.png' => AIO_GC_ARROW_W,
+            'plugin_file://%shell_ext%/icons/right_arrow.png' => AIO_GC_ARROW_W), $tt['flip'], AIO_GC_ARROW_H);
     aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/popup_icon_only.png' => 52), $tt['actions']);
     $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, AIO_GC_LX + AIO_GC_LW - 16 - 300, AIO_GC_HINT_Y),
         aio_gc_counter($sel, $n));
@@ -445,6 +467,12 @@ function aio_lpv_folder_view($st, $sel_state)
         GUI_EVENT_KEY_ENTER => aio_gc_act('lp_pick', $rid),
         GUI_EVENT_MENU_PLAYBACK_FINISH => aio_finish_act($rid),
         GUI_EVENT_KEY_POPUP_MENU => aio_gc_act('lp_menu', $rid));
+    // An episode: left and right flip the episodes of the season (aio_lpv_flip).
+    if ($st['e'] > 0)
+    {
+        $acts[GUI_EVENT_KEY_LEFT] = aio_gc_act('lp_flip', $rid, array('d' => 'prev'));
+        $acts[GUI_EVENT_KEY_RIGHT] = aio_gc_act('lp_flip', $rid, array('d' => 'next'));
+    }
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -512,7 +540,8 @@ function aio_lpv_finish($st)
     return aio_gc_changes_act($ch, $sel, $top);
 }
 
-// --- MENU of the online list (A4): "Обновить", "Откуда брать…", "Ошибки источников", "Настройки".
+// --- MENU of the online list (A4): "Обновить", "Выбрать серию" (an episode), "Откуда брать…",
+// "Ошибки источников", "Настройки".
 
 /**
  * @param AioState $st
@@ -526,6 +555,12 @@ function aio_lpv_menu($st)
         GuiMenuItemDef::caption => aio_tr($lang, 'refresh_menu'),
         GuiMenuItemDef::icon_url => 'gui_skin://small_icons/upgrade.aai',
         GuiMenuItemDef::action => aio_gc_act('lp_refresh', $rid)));
+    // As the releases (aio_gc_menu): with a card of the Dune only.
+    if ($st['e'] > 0 && $st['movie']['dune_id'] !== '' && empty($st['movie']['own_card']))
+        $menu[] = array(
+            GuiMenuItemDef::caption => aio_tr($lang, 'choose_menu'),
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
+            GuiMenuItemDef::action => aio_gc_act('lp_choose', $rid));
     if (aio_lpv_in_menu($st))
         $menu[] = array(
             GuiMenuItemDef::caption => aio_tr($lang, 'src_list'),
@@ -577,8 +612,9 @@ function aio_lpv_errors_of($st)
 // balancers, a tick each call of php_server (spec §4.3); the result - the online list, else
 // a window. AioLpv::$run keeps it between the ticks; Cancel or RETURN drops the window.
 
-// A new window of the search of list $st (rows may be none) as $how: 'open' - over a card
-// (play_action), its screen opened; 'replace' - over a list screen, replaced. $opt: mark (the
+// A new window of the search of list $st (rows may be none; of an episode the rows of its season) as
+// $how: 'open' - over a card (play_action), its screen opened; 'replace' - over a list screen,
+// replaced; 'chosen' - over the episodes of the shell ("Выбрать серию"), those and the list replaced. $opt: mark (the
 // title marked "online" when there is a list), back (nothing online: the releases with the
 // yellow line), path (the path of a balancer: the cursor on it, the yellow line "<it> больше не
 // отдаёт эту озвучку"), more (the replies of the view of $st from its next, no search; the
@@ -673,7 +709,8 @@ function aio_lpv_tick($in)
         $left = AIO_LP_REPLIES_MAX - (aio_lp_now() - $run['t1']);
         if ($left >= AIO_LP_REPLY_MIN && $v['next'] < count($v['sources']))
         {
-            $rr = aio_lp_replies($base, $v['sources'], $v['q'], $v['next'], min(AIO_LPV_TICK_MAX, $left));
+            $rr = aio_lp_replies($base, $v['sources'], $v['q'], $v['next'], min(AIO_LPV_TICK_MAX, $left),
+                $run['st']['movie']['series'] ? $run['st']['s'] : 0);
             $v['rows'] = array_slice(array_merge($v['rows'], $rr['rows']), 0, AIO_LP_ROWS_MAX);
             $v['why'] = array_merge($v['why'], $rr['why']);
             $v['next'] = $rr['next'];
@@ -776,7 +813,9 @@ function aio_lpv_result($run)
     $first = -1;
     foreach ($rows as $i => $r)
     {
-        if ($mark && $mark['path'] !== '' && $r['path'] === $mark['path'] && $r['voice'] === $mark['voice'])
+        // A series by the key of the row (the voice in its hex), a movie by the voice.
+        if ($mark && $mark['path'] !== '' && $r['path'] === $mark['path'] &&
+            ($mv['series'] ? $mark['key'] !== '' && $r['key'] === $mark['key'] : $r['voice'] === $mark['voice']))
         {
             $first = $i;
             break;
@@ -820,7 +859,7 @@ function aio_lpv_result($run)
     aio_log("$tag -> the list, row $sel" . ($first > 0 ? ", the remembered row $first first" : ''));
     if ($run['how'] === 'open')
         return aio_lpv_open($ns);
-    return aio_list_replace($ns);
+    return aio_list_replace($ns, $run['how'] === 'chosen' ? 3 : 1);
 }
 
 // List $ns the live one, its screen opened (over a card).
@@ -870,7 +909,7 @@ function aio_lpv_releases($st, $note)
  */
 function aio_lpv_go($st)
 {
-    if (!empty($st['lp_on']) || !aio_lpv_on($st['movie']))
+    if (!empty($st['lp_on']) || !aio_lpv_st_on($st))
         return null;
     if (isset($st['lp']) && aio_lp_now() - $st['lp']['t'] < AIO_LPV_REFRESH)
     {
@@ -945,7 +984,8 @@ function aio_lpv_refresh($st)
 }
 
 // lp_pick (ENTER) of the online list $st: the row "Ещё N" - the replies of the sources left; a
-// row - its link and the player.
+// row - its link and the player; a row of a season (an episode): its episode first (aio_lpv_episode),
+// none in the voice - a window, the list stays.
 /**
  * @param stdClass $in
  * @param AioState $st
@@ -959,12 +999,79 @@ function aio_lpv_pick($in, $st)
     if (!isset($v['rows'][$sel]))
         return $v['left'] > 0 ? aio_lpv_search_open($st, 'replace', array('more' => true)) : null;
     $r = $v['rows'][$sel];
+    $base = Aio::$settings['lp'];
     $left = Aio::$t0 > 0 ? AIO_OP_BUDGET - (microtime(true) - Aio::$t0) : AIO_OP_BUDGET;
-    aio_log("lampac: row $sel of " . count($v['rows']) . ": {$r['path']}, {$r['method']}");
-    $l = aio_lpv_link(Aio::$settings['lp'], $r, aio_lp_now() + $left);
+    $deadline = aio_lp_now() + $left;
+    aio_log("lampac: row $sel of " . count($v['rows']) . ": {$r['path']}, {$r['method']}" . ($st['e'] > 0 ? ', ' . aio_ep_tag($st) : ''));
+    $s = $st['e'] > 0 ? $st['s'] : 0;
+    $e = $st['e'] > 0 ? $st['e'] : 0;
+    $f = null;
+    if ($r['method'] === 'season')
+    {
+        $f = aio_lpv_episode($base, $v, $r, $s, $e, $deadline);
+        if ($f['why'] === 'no_episode' || $f['why'] === 'no_episodes')
+        {
+            aio_log("lampac: {$r['path']}: no " . aio_ep_tag($st) . " in the voice ({$f['detail']})");
+            return aio_dialog(aio_lpv_no_ep_text($st['lang'], $r['src'], $r['voice'], $s, $e, $f['why'], $f['have']), array(),
+                array('OK' => aio_close_and(null)));
+        }
+        if ($f['row'] === null)
+            return aio_lpv_failed($st['lang'], $r, $f['why'], $f['detail']);
+        $r = $f['row'];
+    }
+    $l = aio_lpv_link($base, $r, $deadline, $s, $e);
     if ($l['why'] !== '')
         return aio_lpv_failed($st['lang'], $r, $l['why'], $l['detail']);
-    return aio_lpv_vod($st['movie'], $st['lang'], $r, $l['url'], 0);
+    return aio_lpv_vod($st['movie'], $st['lang'], $r, $l['url'], 0, $st['s'], $st['e']);
+}
+
+// Episode $e of season $s of row $r of a voice of a season (method season) of view $v: the season by
+// the link of the row (spec §5.3: never a link of our own), in its voice (aio_lp_voice_ep: Lampac made
+// another one active - the link of the voice among voice[]; none of the row - no_voice), the episode,
+// before deadline $deadline (AIO_LPV_CHECK_MIN s kept for the check of the link) -> AioLpFound.
+/**
+ * @param string $base
+ * @param AioLpView $v
+ * @param AioLpRow $r
+ * @param int $s
+ * @param int $e
+ * @param float $deadline
+ * @return AioLpFound
+ */
+function aio_lpv_episode($base, $v, $r, $s, $e, $deadline)
+{
+    $src = aio_lp_source_of($base, $r['path']);
+    foreach ($v['sources'] as $x)
+    {
+        if ($x['path'] === $r['path'])
+            $src = $x;
+    }
+    if ($src === null || $s < 1 || $e < 1)
+        return array('row' => null, 'why' => 'bad_key', 'detail' => '', 'have' => array(), 'voice' => $r['voice'], 'sea' => null);
+    $total = min(2 * AIO_LP_REPLY_MAX, $deadline - aio_lp_now() - AIO_LPV_CHECK_MIN);
+    $t0 = aio_lp_now();
+    $sea = aio_lp_season_get($base, $src, $r['url'], $total, $s);
+    return aio_lp_voice_ep($base, $src, $r['key'], $sea, $s, $e, $total - (aio_lp_now() - $t0));
+}
+
+// The words of no episode $e of season $s ($why no_episode: of those $have; no_episodes: none at all)
+// in voice $voice of balancer $src ('': the balancer has no voices): "В озвучке LostFilm нет S1E9,
+// есть 1–7", "В озвучке LostFilm нет серий", "У Collaps нет S1E9, есть 1–7".
+/**
+ * @param string $lang
+ * @param string $src
+ * @param string $voice
+ * @param int $s
+ * @param int $e
+ * @param string $why
+ * @param list<int> $have
+ * @return string
+ */
+function aio_lpv_no_ep_text($lang, $src, $voice, $s, $e, $why, $have)
+{
+    $key = ($why === 'no_episode' ? 'lp_no_ep' : 'lp_no_eps') . ($voice !== '' ? '' : '_src');
+    return aio_lpv_tr($lang, $key, array('voice' => aio_cut($voice, 40), 'src' => $src, 'se' => "S{$s}E{$e}",
+        'have' => aio_lp_ranges($have)));
 }
 
 // The window of row $r that gave no link to play: its reason; the list stays.
@@ -980,6 +1087,87 @@ function aio_lpv_failed($lang, $r, $why, $detail)
     aio_log("lampac: {$r['path']}: no link to play ($why)");
     return aio_dialog(aio_lpv_tr($lang, 'lp_failed', array('src' => $r['src'])), aio_dialog_lines(aio_lpv_why($lang, $why,
         $detail)), array('OK' => aio_close_and(null)));
+}
+
+// --- The episodes of the online list: the left and right keys, "Выбрать серию".
+
+// List $st as of episode $e of season $s, its rows the same (of the season): a new rid, the cursor
+// kept; the releases, of another episode, asked anew when chosen (lp_only).
+/**
+ * @param AioState $st
+ * @param int $s
+ * @param int $e
+ * @return AioState
+ */
+function aio_lpv_ep_state($st, $s, $e)
+{
+    $ns = $st;
+    $ns['rid'] = aio_rid();
+    $ns['s'] = $s;
+    $ns['e'] = $e;
+    $ns['rows'] = array();
+    $ns['errors'] = aio_no_errors();
+    $ns['lp_only'] = true;
+    if (isset($st['lp']['gc']))
+    {
+        $ns['lp']['gc'] = $st['lp']['gc'];
+        $ns['lp']['gc_new'] = true;
+    }
+    return $ns;
+}
+
+// lp_flip (d prev|next) of the online list $st of an episode: the episode before or after it in its
+// season (the rows are of the season: no request), the screen replaced (aio_flip of the releases). Past
+// the first or the last episode of the season (season_numbers; none known: back only): nothing - the
+// rows of another season are another search.
+/**
+ * @param stdClass $in
+ * @param AioState $st
+ * @return AioAction|null
+ */
+function aio_lpv_flip($in, $st)
+{
+    $d = isset($in->d) && is_string($in->d) ? $in->d : '';
+    if ($st['e'] < 1 || ($d !== 'prev' && $d !== 'next'))
+        return null;
+    list($sel, $top) = aio_lpv_pos($st['lp'], isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    $st['lp']['gc'] = array($sel, $top);
+    $n = isset($st['movie']['seasons'][$st['s']]) ? $st['movie']['seasons'][$st['s']] : 0;
+    $e = $st['e'] + ($d === 'next' ? 1 : -1);
+    if ($e < 1 || ($d === 'next' && $e > $n))
+    {
+        aio_log('lampac: flip: ' . aio_ep_tag($st) . ', ' . ($e < 1 ? 'the first' : "the last ($n)") . ' of the season, nothing');
+        Aio::$state['lp']['gc'] = array($sel, $top);
+        return null;
+    }
+    $ns = aio_lpv_ep_state($st, $st['s'], $e);
+    aio_log('lampac: flip: ' . aio_ep_tag($st) . ' -> ' . aio_ep_tag($ns) . ', the rows kept, row ' . $sel);
+    return aio_list_replace($ns);
+}
+
+// lp_chosen of "Выбрать серию" (aio_choose_act) of the online list $st: an episode of its season -
+// the list of it (as aio_lpv_flip); of another season - the search of that season ('chosen'); the
+// screens of the shell taken off with the list.
+/**
+ * @param stdClass $in
+ * @param AioState $st
+ * @return AioAction|null
+ */
+function aio_lpv_chosen($in, $st)
+{
+    $s = aio_chosen_num($in, 'chosen_s', '/^[1-9][0-9]{0,3}$/D');
+    $e = aio_chosen_num($in, 'chosen_e', '/^[1-9][0-9]{0,4}$/D');
+    if ($st['e'] < 1 || $s < 1 || $e < 1)
+    {
+        aio_log('lampac: chosen: no episode, nothing');
+        return null;
+    }
+    $ns = aio_lpv_ep_state($st, $s, $e);
+    aio_log('lampac: chosen: ' . aio_ep_tag($st) . ' -> ' . aio_ep_tag($ns) . ($s === $st['s'] ? ', the rows kept' : ', the search'));
+    if ($s === $st['s'])
+        return aio_list_replace($ns, 3);
+    unset($ns['lp']['gc'], $ns['lp']['gc_new']);
+    return aio_lpv_search_open($ns, 'chosen');
 }
 
 // --- The dispatcher of lp_* (main.php).
@@ -1007,7 +1195,7 @@ function aio_lpv_input($in, $control)
         return $control === 'lp_move' ? null : aio_error('err_list_expired');
     }
     if ($control === 'lp_find')
-        return aio_lpv_on($st['movie']) ? aio_lpv_search_open($st, 'open', array('mark' => true)) : null;
+        return aio_lpv_st_on($st) ? aio_lpv_search_open($st, 'open', array('mark' => true)) : null;
     if ($control === 'lp_go')
         return aio_lpv_go($st);
     if ($control === 'lp_back')
@@ -1024,6 +1212,18 @@ function aio_lpv_input($in, $control)
         Aio::$state['lp']['gc'] = array($sel, $top);
         return aio_lpv_menu($st);
     }
+    if ($control === 'lp_flip')
+        return aio_lpv_flip($in, $st);
+    if ($control === 'lp_choose')
+    {
+        if ($st['e'] < 1)
+            return null;
+        Aio::$state['lp']['gc'] = aio_lpv_pos($st['lp'], isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+        aio_log('lampac: choose: ' . aio_ep_tag($st) . ' -> seasons screen of the shell');
+        return aio_choose_act($st['rid'], 'lp_chosen');
+    }
+    if ($control === 'lp_chosen')
+        return aio_lpv_chosen($in, $st);
     if ($control === 'lp_errors')
         return aio_errors_dialog(aio_tr($st['lang'], 'errors_menu'), $st['lang'], aio_lpv_errors_of($st));
     if ($control === 'lp_refresh')

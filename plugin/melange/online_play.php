@@ -1,7 +1,7 @@
 <?php
 // "Онлайн" on the Dune, its start (the list: view_online.php): ENTER of a row ("call", the check
-// of the link, vod_play), "Continue" of a record of it, play_action of a card with "Онлайн" (the
-// title marked "online", no AIOStreams), the window "Раздач нет" with "Искать онлайн".
+// of the link, vod_play), "Continue" of a record of it, play_action of a card with "Онлайн" (the title marked "online", no
+// AIOStreams), the window "Раздач нет" with "Искать онлайн".
 // PHP 5.3.6, firmware API only. Types (AioLpRow, AioMovie): phpstan-types.neon.
 
 // "Continue": seconds of the whole way (the row of the shell waits ~20 s), of the reply of
@@ -70,10 +70,10 @@ function aio_lpv_link($base, $r, $deadline, $s = 0, $e = 0)
     return array('url' => $k['url'], 'why' => '', 'detail' => '');
 }
 
-// vod_play of link $url of row $r of card $mv from $pos s, linked to the
-// card when it has a dune id (spec §7): recent_uid aio:<dune id>:-1:-1:<key of the row>, as a
-// release of a movie; recent_action_params wh_release = the key (the path of the balancer and the
-// hex of the voice in it), wh_mode lampac ("Continue": aio_lpv_resume). The mark of a title marked
+// vod_play of link $url of row $r of card $mv from $pos s (episode $e of season $s; -1 a movie),
+// linked to the card when it has a dune id (spec §7): recent_uid aio:<dune id>:<s>:<e>:<key of the
+// row>, as a release; recent_action_params wh_release = the key (the path of the balancer and the hex
+// of the voice in it), wh_mode lampac ("Continue": aio_lpv_resume). The mark of a title marked
 // "online" takes the row: the next list puts it first (only "Онлайн" and "Искать онлайн" mark a
 // title, spec §8). On r24 through pf_check (aio_pf_check of call_plugin).
 /**
@@ -82,16 +82,18 @@ function aio_lpv_link($base, $r, $deadline, $s = 0, $e = 0)
  * @param AioLpRow $r
  * @param string $url
  * @param int $pos
+ * @param int $s
+ * @param int $e
  * @return AioAction
  */
-function aio_lpv_vod($mv, $lang, $r, $url, $pos)
+function aio_lpv_vod($mv, $lang, $r, $url, $pos, $s = -1, $e = -1)
 {
     $path = $r['path'];
     $linked = $mv['dune_id'] !== '';
-    $ser = aio_vod_item($mv, -1, -1, $url, $linked ? $r['key'] : '', false);
+    $ser = aio_vod_item($mv, $s, $e, $url, $linked ? $r['key'] : '', false);
     $info = array(
         PluginVodInfo::id => 'aio.' . aio_lpv_key($mv),
-        PluginVodInfo::name => aio_ep_name($mv, -1, -1),
+        PluginVodInfo::name => aio_ser_name($mv, $s, $e, false),
         PluginVodInfo::sub_name => $r['src'] . ($r['voice'] !== '' ? " \xC2\xB7 {$r['voice']}" : ''),
         PluginVodInfo::poster_url => $mv['poster'],
         PluginVodInfo::series => array($ser),
@@ -116,8 +118,9 @@ function aio_lpv_vod($mv, $lang, $r, $url, $pos)
             'wh_mode' => 'lampac');
     }
     if ($path !== '' && aio_lpv_mark($mv))
-        aio_lpv_mark_set($mv, true, $path, $r['voice']);
-    aio_log("play: lampac {$r['key']} pos=$pos linked=" . ($linked ? 1 : 0));
+        aio_lpv_mark_set($mv, true, $path, $r['voice'], $r['key']);
+    aio_log("play: lampac {$r['key']}" . ($e > 0 ? sprintf(' S%02dE%02d', $s, $e) : '') . " pos=$pos linked=" .
+        ($linked ? 1 : 0));
     return array(
         GuiAction::handler_string_id => PLUGIN_VOD_PLAY_ACTION_ID,
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
@@ -207,6 +210,11 @@ function aio_lpv_play_action($in, $mv, $lang)
     if (!aio_lpv_on($mv))
         return null;
     aio_lpv_ids_keep($in, $mv);
+    // A series: the releases as before, until the fork of "Онлайн" after the episode of play_action
+    // (aio_play_action: its s and e, "Continue" of an episode): here they are not known, a search of
+    // -1/-1 would find no season. Its online list from the releases ("Откуда брать…", "Искать онлайн").
+    if ($mv['series'])
+        return null;
     $res = aio_lpv_resume_in($in);
     if ($res)
         return aio_lpv_resume($mv, $res, $lang);
@@ -238,7 +246,8 @@ function aio_lpv_play_action($in, $mv, $lang)
  */
 function aio_lpv_no_releases($mv, $s, $e, $lang, $res)
 {
-    if (!aio_lpv_on($mv) || $res['error'] !== 'err_no_streams' || (isset($res['errors']) && $res['errors']['lines']))
+    if (!aio_lpv_on($mv) || ($mv['series'] && ($s < 1 || $e < 1)) || $res['error'] !== 'err_no_streams' ||
+        (isset($res['errors']) && $res['errors']['lines']))
         return null;
     $st = aio_list_state($mv, $s, $e, array(), $lang, aio_no_errors());
     Aio::$state = $st;

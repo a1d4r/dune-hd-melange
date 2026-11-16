@@ -1227,7 +1227,7 @@ function aio_lp_ep_row($row, $ep)
 // $key) or null; why: '' or bad_key (not a key of a balancer, s below 1), no_voice (the voice of
 // the key is not in the season), a reason of the reply, the season or the episode (down, http,
 // type, no_season, no_episode...); detail; have: the episodes of the voice (aio_lp_episode); voice:
-// its name, '' none).
+// its name, '' none; sea: the season of the voice (the next episodes take it), null without one).
 /**
  * @param string $base
  * @param string $key
@@ -1240,7 +1240,7 @@ function aio_lp_ep_row($row, $ep)
 function aio_lp_find($base, $key, $q, $s, $e, $total = AIO_LP_REPLIES_MAX)
 {
     $t0 = aio_lp_now();
-    $out = array('row' => null, 'why' => '', 'detail' => '', 'have' => array(), 'voice' => '');
+    $out = array('row' => null, 'why' => '', 'detail' => '', 'have' => array(), 'voice' => '', 'sea' => null);
     $k = aio_lp_key_parse($key);
     $src = $k !== null && $k[0] !== '' ? aio_lp_source_of($base, $k[0]) : null;
     $each = (int) min(AIO_LP_REPLY_MAX, floor($total));
@@ -1258,8 +1258,10 @@ function aio_lp_find($base, $key, $q, $s, $e, $total = AIO_LP_REPLIES_MAX)
         else if ($p['kind'] !== 'serial')
             list($out['why'], $out['detail']) = aio_lp_parsed_why($p);
         else
-            $out = aio_lp_find_voice($base, $src, $key, (array) aio_lp_json($r['body']), $url, $s, $e,
-                $total - (aio_lp_now() - $t0));
+        {
+            $sea = aio_lp_serial($base, $src, (array) aio_lp_json($r['body']), $url, $s, $total - (aio_lp_now() - $t0));
+            $out = aio_lp_voice_ep($base, $src, $key, $sea, $s, $e, $total - (aio_lp_now() - $t0));
+        }
     }
     aio_lp_log(sprintf('find: %s S%dE%d: %s%s, %.2f s', $src ? $src['path'] : '-', $s, $e,
         $out['why'] !== '' ? $out['why'] : 'row', $out['detail'] !== '' ? " ({$out['detail']})" : '', aio_lp_now() - $t0),
@@ -1267,24 +1269,47 @@ function aio_lp_find($base, $key, $q, $s, $e, $total = AIO_LP_REPLIES_MAX)
     return $out;
 }
 
-// aio_lp_find past the reply $j (asked by $url) of balancer $src: the season, the voice of $key,
-// the episode, in up to $total s.
+// Episode $e of season $s (aio_lp_serial, aio_lp_season_get of source $src) in the voice of key $key
+// (aio_lp_voice_season), in up to $total s -> AioLpFound (aio_lp_find; ENTER of a row of a season).
 /**
  * @param string $base
  * @param AioLpSource $src
  * @param string $key
- * @param array<mixed> $j
- * @param string $url
+ * @param AioLpSeason $sea
  * @param int $s
  * @param int $e
  * @param int|float $total
  * @return AioLpFound
  */
-function aio_lp_find_voice($base, $src, $key, $j, $url, $s, $e, $total)
+function aio_lp_voice_ep($base, $src, $key, $sea, $s, $e, $total)
+{
+    list($row, $sea) = aio_lp_voice_season($base, $src, $key, $sea, $s, $total);
+    if ($sea['why'] !== '' || $row === null)
+        return array('row' => null, 'why' => $sea['why'], 'detail' => $sea['detail'], 'have' => array(),
+            'voice' => $row ? $row['voice'] : '', 'sea' => null);
+    $f = aio_lp_episode($sea, $s, $e);
+    return array('row' => $f['ep'] ? aio_lp_ep_row($row, $f['ep']) : null, 'why' => $f['why'], 'detail' => $f['detail'],
+        'have' => $f['have'], 'voice' => $row['voice'], 'sea' => $sea);
+}
+
+// Season $sea of source $src (s $s) in the voice of key $key (aio_lp_season_key): its row of
+// aio_lp_season_rows and the season of that voice - $sea when its episodes are of it (the active
+// voice of the reply; no voices: the one row), else the link of the voice asked in up to $total s.
+// The active voice of a reply may be another than that of its link: Lampac makes another one active
+// after its cache of 10 min. -> array(the row or null, the season; why no_voice: not in voice[]
+// (detail: the number of voices) or another voice active by its link (detail: "active <name>")).
+/**
+ * @param string $base
+ * @param AioLpSource $src
+ * @param string $key
+ * @param AioLpSeason $sea
+ * @param int $s
+ * @param int|float $total
+ * @return array{AioLpRow|null, AioLpSeason}
+ */
+function aio_lp_voice_season($base, $src, $key, $sea, $s, $total)
 {
     $t0 = aio_lp_now();
-    $out = array('row' => null, 'why' => '', 'detail' => '', 'have' => array(), 'voice' => '');
-    $sea = aio_lp_serial($base, $src, $j, $url, $s, $total);
     $row = null;
     foreach ($sea['why'] === '' ? aio_lp_season_rows($src, $sea) : array() as $x)
     {
@@ -1295,15 +1320,38 @@ function aio_lp_find_voice($base, $src, $key, $j, $url, $s, $e, $total)
         }
     }
     if ($sea['why'] === '' && $row === null)
-        list($sea['why'], $sea['detail']) = array('no_voice', count($sea['voices']) . ' voices');
-    if ($row !== null && $row['url'] !== $sea['url'])
+        return array(null, aio_lp_season_no($src, $sea['url'], 'no_voice', count($sea['voices']) . ' voices'));
+    if ($row === null)
+        return array(null, $sea);
+    $other = aio_lp_voice_other($sea, $row);
+    if ($row['url'] !== $sea['url'])
+    {
         $sea = aio_lp_season_get($base, $src, $row['url'], $total - (aio_lp_now() - $t0), $s);
-    if ($sea['why'] !== '' || $row === null)
-        return array('row' => null, 'why' => $sea['why'], 'detail' => $sea['detail'], 'have' => array(),
-            'voice' => $row ? $row['voice'] : '');
-    $f = aio_lp_episode($sea, $s, $e);
-    return array('row' => $f['ep'] ? aio_lp_ep_row($row, $f['ep']) : null, 'why' => $f['why'], 'detail' => $f['detail'],
-        'have' => $f['have'], 'voice' => $row['voice']);
+        $other = $sea['why'] === '' ? aio_lp_voice_other($sea, $row) : '';
+    }
+    if ($other !== '')
+    {
+        aio_lp_log("season: {$src['path']}, the voice of the link not active, $other is", $base);
+        $sea = aio_lp_season_no($src, $sea['url'], 'no_voice', "active $other");
+    }
+    return array($row, $sea);
+}
+
+// The name of the voice active in season $sea when it is another than that of row $row ($sea has the
+// episodes of that one), '' when it is that of the row or none is active.
+/**
+ * @param AioLpSeason $sea
+ * @param AioLpRow $row
+ * @return string
+ */
+function aio_lp_voice_other($sea, $row)
+{
+    foreach ($sea['voices'] as $v)
+    {
+        if ($v['active'] && $v['name'] !== $row['voice'])
+            return $v['name'];
+    }
+    return '';
 }
 
 // --- "call" and the link.

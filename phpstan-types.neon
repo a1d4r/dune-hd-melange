@@ -56,7 +56,7 @@ parameters:
         # A season of a balancer (aio_lp_season_reply, lampac.php).
         AioLpSeason: 'array{url: string, voices: list<AioLpVoice>, eps: list<AioLpEp>, quality: string, why: string, detail: string}'
         # The row of an episode of a key of the history (aio_lp_find, lampac.php).
-        AioLpFound: 'array{row: AioLpRow|null, why: string, detail: string, have: list<int>, voice: string}'
+        AioLpFound: 'array{row: AioLpRow|null, why: string, detail: string, have: list<int>, voice: string, sea: AioLpSeason|null}'
         # The online list of a list state (AioState lp, view_online.php): the title asked, the sources of the
         # search, the hidden, the rows (the remembered one first), the reasons, the next source not asked and
         # the number left, the start of the search (aio_lp_now), the yellow line; the cursor as AioState's.
@@ -64,8 +64,8 @@ parameters:
         # The search window between its ticks (AioLpv::$run, aio_lpv_search_open, view_online.php).
         # The view of the search so far in v, the start of the replies t1, more: the rows before "Ещё N" (-1: a new search).
         AioLpRun: 'array{sid: string, st: AioState, how: string, mark: bool, back: bool, path: string, phase: string, search: AioLpSearch|null, v: AioLpView, t1: float, more: int}'
-        # The mark "online" of a title (data_dir/lampac_choice.json, view_online.php): the path of the balancer and the voice of the last start.
-        AioLpMark: 'array{online: bool, path: string, voice: string, ts: int}'
+        # The mark "online" of a title (data_dir/lampac_choice.json, view_online.php): the path of the balancer, the voice and the key of the row of the last start ('' none).
+        AioLpMark: 'array{online: bool, path: string, voice: string, key: string, ts: int}'
         # A config of AIOStreams made by the settings page (aio_aio_conf, common.php).
         AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null}'
         # A JacRed to ask (aio_jacred_conf, aio_jacred_builtin_conf, common.php).

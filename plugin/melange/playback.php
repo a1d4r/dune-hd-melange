@@ -941,6 +941,18 @@ function aio_choose($in)
     Aio::$state['gc'] = aio_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     aio_log('choose: ' . aio_ep_tag($st) . " of list {$st['rid']}, row " . Aio::$state['gc'][0] .
         ' -> seasons screen of the shell');
+    return aio_choose_act($st['rid'], 'gc_chosen');
+}
+
+// The seasons screen of the shell over list $rid, ENTER on an episode there -> $control of it (gc_chosen;
+// lp_chosen of the online list, view_online.php).
+/**
+ * @param string $rid
+ * @param string $control
+ * @return AioAction
+ */
+function aio_choose_act($rid, $control)
+{
     return array(
         GuiAction::handler_string_id => PLUGIN_HANDLE_USER_INPUT_ACTION_ID,
         GuiAction::caption => null,
@@ -949,7 +961,7 @@ function aio_choose($in)
         GuiAction::params => array(
             'handler_id' => 'entry',
             'control_id' => 'choose_season_episode',
-            'result_action' => json_encode(aio_gc_act('gc_chosen', $st['rid']))));
+            'result_action' => json_encode(aio_gc_act($control, $rid))));
 }
 
 // chosen_s / chosen_e of the shell: an int or a string of digits, >= 1.
