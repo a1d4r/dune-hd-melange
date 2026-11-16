@@ -292,12 +292,12 @@ function aio_lpv_next_failed($lang, $base, $src, $voice, $s, $e, $why, $detail, 
 // --- play_action: "Continue", the title marked "online", no AIOStreams, no releases.
 
 // "Continue" of an online record of play_action $in (supplier_info: wh_mode lampac, wh_release a
-// key of aio_lp_key, the path of the balancer and the hex of the voice in it; wh_lv of an old
-// record not read) -> array(path, hex of the voice, pos), null for another. The button "Melange
-// NN%" of r25 (play_online): null, the list as aio_resume.
+// key of aio_lp_key with the path of a balancer in it; wh_lv of an old record not read) ->
+// array(key: wh_release as it is, pos), null for another. The button "Melange NN%" of r25
+// (play_online): null, the list as aio_resume.
 /**
  * @param stdClass $in
- * @return array{path: string, hex: string, pos: int}|null
+ * @return array{key: string, pos: int}|null
  */
 function aio_lpv_resume_in($in)
 {
@@ -307,19 +307,20 @@ function aio_lpv_resume_in($in)
     $k = aio_lp_key_parse($si->wh_release);
     if (!$k || $k[0] === '' || (isset($in->selected_control_id) && $in->selected_control_id === 'play_online'))
         return null;
-    return array('path' => $k[0], 'hex' => $k[1], 'pos' => max(0, aio_int($si, 'wh_pos', 0)));
+    return array('key' => $si->wh_release, 'pos' => max(0, aio_int($si, 'wh_pos', 0)));
 }
 
-// "Continue" $r of card $mv (spec §7), of episode $e of season $s (-1 a movie; of a series the
-// episode the caller chose: the next one after a watched one is not of here): the balancer of the
-// record alone (aio_lp_find: /lite/<path> on the Lampac of the settings, no events), the voice of
-// its hex, of a series its season and episode, "call", the check, vod_play from the position
-// (aio_lpv_ep_play: an episode in the playlist of its season, the others lazy); within
-// AIO_LPV_RESUME_MAX s. Not so (no title, no voice, no episode, no link) -> the search window of
-// that episode, the cursor on that balancer, the yellow line "<it> больше не отдаёт эту озвучку".
+// "Continue" $r (aio_lpv_resume_in) of card $mv (spec §7), of episode $e of season $s (-1 a movie;
+// of a series the episode the caller chose: the next one after a watched one is not of here): the
+// balancer of the record alone (aio_lp_find of its key: /lite/<path> on the Lampac of the settings,
+// no events), the voice of the key, of a series its season and episode, "call", the check, vod_play
+// from the position (aio_lpv_ep_play: an episode in the playlist of its season, the others lazy);
+// within AIO_LPV_RESUME_MAX s. Not so (no title, no voice, no episode, no link) -> the search window
+// of that episode, the cursor on that balancer, the yellow line "<it> больше не отдаёт эту озвучку".
+// An episode of no number (a special, a bad uid: $s >= 0, $e < 1): "the list expired" at once.
 /**
  * @param AioMovie $mv
- * @param array{path: string, hex: string, pos: int} $r
+ * @param array{key: string, pos: int} $r
  * @param string $lang
  * @param int $s
  * @param int $e
@@ -327,23 +328,28 @@ function aio_lpv_resume_in($in)
  */
 function aio_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
 {
+    $k = aio_lp_key_parse($r['key']);
+    $path = $k ? $k[0] : '';
+    $ep = $s >= 0 ? sprintf(' S%02dE%02d', $s, $e) : '';
+    // A list of before must not take the player back to its episode (as aio_lpv_pick).
+    AioLpv::$played = null;
+    if ($s >= 0 && ($s < 1 || $e < 1))
+        return aio_error('err_list_expired', "resume: lampac $path$ep, no such episode");
     $base = Aio::$settings['lp'];
     $deadline = aio_lp_now() + AIO_LPV_RESUME_MAX;
-    $ep = $s >= 0 ? sprintf(' S%02dE%02d', $s, $e) : '';
     list($t) = aio_lp_externalids($base, aio_lpv_title($mv));
-    // The key back from its path and hex (aio_lp_key_parse).
-    $f = aio_lp_find($base, "lp-{$r['path']}-{$r['hex']}", aio_lp_query($t), $s, $e,
+    $f = aio_lp_find($base, $r['key'], aio_lp_query($t), $s, $e,
         min(AIO_LP_REPLIES_MAX, max(0, $deadline - aio_lp_now() - AIO_LPV_CHECK_MIN)));
     $a = aio_lpv_ep_play($mv, $lang, $f, $s, $e, $r['pos'], $deadline);
     if (!isset($a[0]))
     {
-        aio_log("resume: lampac {$r['path']}$ep, pos {$r['pos']}");
+        aio_log("resume: lampac $path$ep, pos {$r['pos']}");
         return $a;
     }
-    aio_log("resume: lampac {$r['path']}$ep: " . ($f['row'] ? 'no link' : 'no row') . " ({$a[0]}) -> the search");
+    aio_log("resume: lampac $path$ep: " . ($f['row'] ? 'no link' : 'no row') . " ({$a[0]}) -> the search");
     $st = aio_list_state($mv, $s, $e, array(), $lang, aio_no_errors());
     $st['lp_only'] = true;
-    return aio_lpv_search_open($st, 'open', array('path' => $r['path']));
+    return aio_lpv_search_open($st, 'open', array('path' => $path));
 }
 
 // play_action $in of card $mv with "Онлайн" (aio_lpv_on): "Continue" of an online record; no

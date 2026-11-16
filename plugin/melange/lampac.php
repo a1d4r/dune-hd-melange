@@ -1301,8 +1301,8 @@ function aio_lp_voice_ep($base, $src, $key, $sea, $s, $e, $total)
 
 // Episode $e of season $s in season $sea of the voice of row $row (aio_lp_voice_season: a reason of
 // the season, or no row - the reason) -> AioLpFound: the row of the episode (aio_lp_ep_row), its
-// reason (aio_lp_episode), the episodes of the voice, the voice, the season. $sea null: $row is of a
-// movie, played as it is (null: no_voice).
+// reason (aio_lp_episode), the episodes of the voice, the voice, the season. $sea null: $row is
+// played as it is, no season (null: no_voice).
 /**
  * @param AioLpRow|null $row
  * @param AioLpSeason|null $sea
