@@ -1005,6 +1005,22 @@ function aio_catv_strip_focusable($m)
         GCompFocusableDef::background_url => null);
 }
 
+// The icons of the strip in its order, id => (key of the caption, PNG, alpha), for the strip and its
+// items of POP UP (aio_catv_menu). Their glyphs 48x48 at 8, 8 of the PNG; grey #AAAAAA as the
+// native ones: the magnifier is white at most (alpha 170), the clock #F8F8F8 (alpha 175), the gear
+// and the heart #BBBBBB (alpha 232).
+/**
+ * @return array<string, array{0: string, 1: string, 2: int}>
+ */
+function aio_catv_strip_icons()
+{
+    return array(
+        'tab_continue' => array('cp_row_continue', AIO_CATV_ICON_CONT, 175),
+        'tab_mylist' => array('ml_title', AIO_CATV_ICON_MYLIST, 232),
+        'tab_search' => array('cat_search', AIO_CATV_ICON_SEARCH, 170),
+        'tab_setup' => array('setup_menu', AIO_CATV_ICON_SETUP, 232));
+}
+
 // The strip of the main screen of the tab $tab: its title row, a focusable row of GComps and a
 // gap. With the panel of titles on, a row without a title before the rows with one hangs the
 // screen, so the strip has a title and a group as a row of posters. Its parts: the tabs as text,
@@ -1035,25 +1051,25 @@ function aio_catv_strip_rows($tab, $lang)
     }
     // The line under the open tab: as wide as its word, 3 px under the baseline, inside the frame.
     $defs[] = aio_gc_rect(aio_gc_geom(0, 4, aio_gc_align(0, 36, true, false, 0, 0, 0, 0, "tab_$tab")), AIO_CATV_UNDERLINE);
-    // The icons 75 apart as the native ones, their glyphs 48x48 at 8, 8 of the PNG; the gear
-    // ends at 1660, its frame at 1670. Grey #AAAAAA as the native ones: the magnifier is white at
-    // most (alpha 170), the clock #F8F8F8 (alpha 175), the gear and the heart #BBBBBB (alpha 232).
-    foreach (array(array('continue', 'cp_row_continue', AIO_CATV_ICON_CONT, 1371, 175), array('mylist', 'ml_title', AIO_CATV_ICON_MYLIST, 1446, 232),
-        array('search', 'cat_search', AIO_CATV_ICON_SEARCH, 1521, 170), array('setup', 'setup_menu', AIO_CATV_ICON_SETUP, 1596, 232)) as $t)
+    // The icons (aio_catv_strip_icons) 75 apart as the native ones, from the right: the gear
+    // ends at 1660, its frame at 1670.
+    $icons = aio_catv_strip_icons();
+    $i = 0;
+    $n = count($icons);
+    foreach ($icons as $id => $t)
     {
-        $id = "tab_{$t[0]}";
         $defs[] = array(
             GComponentDef::id => $id,
-            GComponentDef::geom_def => aio_gc_at(64, 64, $t[3], 34),
+            GComponentDef::geom_def => aio_gc_at(64, 64, 1596 - 75 * ($n - 1 - $i++), 34),
             GComponentDef::focusable_def => aio_catv_strip_focusable(array(10, 2, 10, 3)),
             GComponentDef::kind => GCOMPONENT_IMAGE,
             GComponentDef::specific_def => array(
-                GCompImageDef::url => AIO_CATV_ICONS . $t[2],
+                GCompImageDef::url => AIO_CATV_ICONS . $t[1],
                 GCompImageDef::keep_aspect_ratio => true,
                 GCompImageDef::upscale_enabled => false,
-                GCompImageDef::alpha => $t[4]));
+                GCompImageDef::alpha => $t[2]));
         $items[] = array(GCompItemDef::type => GCOMP_ITEM_REGULAR, GCompItemDef::id => $id,
-            GCompItemDef::caption => aio_tr($lang, $t[1]), GCompItemDef::icon_url => AIO_CATV_ICONS . $t[2]);
+            GCompItemDef::caption => aio_tr($lang, $t[0]), GCompItemDef::icon_url => AIO_CATV_ICONS . $t[1]);
     }
     $title = aio_tr($lang, 'cat_tab_menu');
     return array(
@@ -2789,10 +2805,10 @@ function aio_catv_menu($in, $from)
     }
     // On a header "Configure list…" and its separator (aio_catv_rows_menu_items), then the parts of the strip.
     $screen = aio_catv_rows_menu_items($hid, $tab, $from, $lang);
-    $parts = array(
-        'tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png'),
-        'tab_continue' => array('cp_row_continue', AIO_CATV_ICON_CONT), 'tab_mylist' => array('ml_title', AIO_CATV_ICON_MYLIST),
-        'tab_search' => array('cat_search', AIO_CATV_ICON_SEARCH), 'tab_setup' => array('setup_menu', AIO_CATV_ICON_SETUP));
+    // The tabs with icons of their own, then the icons of the strip (aio_catv_strip_icons).
+    $parts = array_merge(
+        array('tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png')),
+        aio_catv_strip_icons());
     foreach ($parts as $id => $p)
     {
         $screen[] = array(
