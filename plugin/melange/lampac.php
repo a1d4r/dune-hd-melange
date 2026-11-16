@@ -805,6 +805,31 @@ function aio_lp_quals($q)
     return $out;
 }
 
+// Link $url of an item by its quality links $qual (aio_lp_quals; a quality by its first word: "2160p HEVC"): the
+// link of the best quality when $url is there under a quality known below it (Kinoc: url 1080p, also 2160p HEVC);
+// else $url - not there, or under a quality not known ("auto": an adaptive one), as it is.
+/**
+ * @param string $url
+ * @param array<string, string> $qual
+ * @return string
+ */
+function aio_lp_qual_best($url, $qual)
+{
+    $best = '';
+    $n = 0;
+    $at = 0;
+    foreach ($qual as $k => $u)
+    {
+        $w = explode(' ', trim($k));
+        $q = aio_lp_q_num($w[0]);
+        if ($u === $url)
+            $at = max($at, $q);
+        if ($q > $n)
+            list($n, $best) = array($q, $u);
+    }
+    return $at > 0 && $at < $n ? $best : $url;
+}
+
 // The reply ($code, $body) of the balancer of source $src -> array(kind: movie
 // (rows), serial (a series: not in this version, a reason), similar (Lampac
 // found several titles: skipped, counted), skip (nothing to play, reasons);
@@ -812,7 +837,7 @@ function aio_lp_quals($q)
 // "Continue" and the mark ask it again; the key has it), src (its label), voice
 // (translate, else voice_name, else name not of a quality: some balancers keep the voice there; else ''), quality (maxquality, else the quality of the
 // list), method (play: url plays; call: url gives the link, aio_lp_call),
-// url (by "quality" when empty), stream (the link of "call" that plays at
+// url (of play by "quality", aio_lp_qual_best; by "quality" when empty), stream (the link of "call" that plays at
 // once, '' none), qual (quality => link), subs (subtitles of the item), key
 // (aio_lp_key). url, stream and qual may be mirrors (" or "); the link of a
 // row of call is one. An item with headers and a link not to Lampac
@@ -869,6 +894,8 @@ function aio_lp_item($src, $x, $base = '')
     $qual = aio_lp_quals(isset($x['quality']) ? $x['quality'] : null);
     $raw = isset($x['url']) ? $x['url'] : null;
     $url = $method === 'call' ? aio_lp_link1($raw) : aio_lp_link_ok($raw);
+    if ($method === 'play')
+        $url = aio_lp_qual_best($url, $qual);
     if ($url === '' && $qual)
         $url = $method === 'call' ? aio_lp_link1(reset($qual)) : reset($qual);
     $why = array('', '');
@@ -1257,16 +1284,17 @@ function aio_lp_season($src, $j, $url, $base = '')
     return $out;
 }
 
-// The number of quality $q ("1080p", "4K"): its lines, 0 for none.
+// The number of quality $q ("1080p", "1080p60", "2K", "4K"): its lines, 0 for none.
 /**
  * @param string $q
  * @return int
  */
 function aio_lp_q_num($q)
 {
+    $k = array('2' => 1440, '4' => 2160, '8' => 4320);
     if (preg_match('/^([0-9])K\z/i', $q, $m))
-        return $m[1] === '4' ? 2160 : ($m[1] === '8' ? 4320 : 0);
-    return preg_match('/^([0-9]{3,4})p\z/i', $q, $m) ? intval($m[1]) : 0;
+        return isset($k[$m[1]]) ? $k[$m[1]] : 0;
+    return preg_match('/^([0-9]{3,4})p(?:[0-9]{2,3})?\z/i', $q, $m) ? intval($m[1]) : 0;
 }
 
 // The reply ($code, $body) of season link $url of source $src -> AioLpSeason, why '' or the reason
@@ -1725,7 +1753,7 @@ function aio_lp_call_ep($j, $s, $e)
 }
 
 // "call" of row link $url (a row of method call; by ENTER only): its reply
-// {"method":"play","url":...} -> array(url: the link ('' on a failure), qual:
+// {"method":"play","url":...} -> array(url: the link (by quality, aio_lp_qual_best; '' on a failure), qual:
 // quality => link, err: '' or the reason (AioLpWhy codes: down, http, rch,
 // accsdb, not_lampac, no_link, method; of an episode $e > 0 of season $s also
 // season_list and other_episode, aio_lp_call_ep), detail, tries). A failure, an empty
@@ -1776,7 +1804,7 @@ function aio_lp_call($base, $url, $total = AIO_LP_CALL_MAX, $pause = AIO_LP_CALL
         {
             $out['qual'] = aio_lp_quals(isset($j['quality']) ? $j['quality'] : null);
             $raw = isset($j['url']) ? $j['url'] : null;
-            $out['url'] = aio_lp_link_ok($raw);
+            $out['url'] = aio_lp_qual_best(aio_lp_link_ok($raw), $out['qual']);
             if ($out['url'] === '' && $out['qual'])
                 $out['url'] = reset($out['qual']);
             if ($out['url'] === '' && aio_lp_too_long($raw) !== '')
