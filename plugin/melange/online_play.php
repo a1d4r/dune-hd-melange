@@ -107,7 +107,7 @@ function aio_lpv_link($base, $r, $deadline, $s = 0, $e = 0)
 // playlist of the episodes $f['have'] of its voice in the season (aio_lp_episode, up to AIO_EPISODES_MAX),
 // the others lazy - "lampac_next:<dune id>:<s>:<e>:<key>" (aio_lpv_lazy: the same voice, the key
 // has it); P+/P- and the autoplay go through them. The mark of a title marked "online" takes the
-// row: the next list puts it first (only "Онлайн" and "Искать онлайн" mark a title, spec §8). On r24
+// row: the next list puts the cursor on it (only "Онлайн" and "Искать онлайн" mark a title, spec §8). On r24
 // through pf_check (aio_pf_check of call_plugin).
 /**
  * @param AioMovie $mv

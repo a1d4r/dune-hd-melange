@@ -58,7 +58,7 @@ parameters:
         # The row of an episode of a key of the history (aio_lp_find, lampac.php).
         AioLpFound: 'array{row: AioLpRow|null, why: string, detail: string, have: list<int>, voice: string, sea: AioLpSeason|null}'
         # The online list of a list state (AioState lp, view_online.php): the title asked, the sources of the
-        # search, the hidden, the rows (the remembered one first), the reasons, the next source not asked and
+        # search, the hidden, the rows (in the order of "Источники…"), the reasons, the next source not asked and
         # the number left, the start of the search (aio_lp_now), the yellow line; the cursor as AioState's, of its lines (aio_lpv_lines);
         # the filter by a voice: its key and name (aio_lpv_voices); flt_gone - the yellow line is of a filter gone (aio_lpv_flt_keep);
         # off - the paths of the sources of the search turned off in "Источники…" (aio_lpv_src_pick), not asked.

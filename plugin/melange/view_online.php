@@ -137,7 +137,7 @@ function aio_lpv_mark($mv)
 }
 
 // Card $mv marked "online" with balancer path $path, voice $voice and the key of the row $key (a
-// series: its row first by it, the voice in the hex) of the last start (null: as it was), or the
+// series: the cursor on its row by it, the voice in the hex) of the last start (null: as it was), or the
 // mark taken off ($on false). The newest AIO_LPV_MARKS_MAX kept.
 /**
  * @param AioMovie $mv
@@ -1302,10 +1302,9 @@ function aio_lpv_close_act($sid)
     return AioLpv::$redraw && AioLpv::$redraw['sid'] === $sid ? aio_input('lp_cancel', array('sid' => $sid)) : aio_close_and(null);
 }
 
-// The end of run $run: the online list (of a new search the remembered row of the title first, the
-// other rows of its balancer after it, then the order of "Источники…" (aio_lpv_srcs_pick: the sources asked in it);
-// the cursor on the balancer of the run, after "Ещё N" on the first new
-// row), its screen opened or the list screen replaced; nothing at all - the window "Онлайн для
+// The end of run $run: the online list (the rows in the order of "Источники…", aio_lpv_srcs_pick: the sources
+// asked in it; the cursor of a new search on the remembered row of the title, on the balancer of the run,
+// after "Ещё N" on the first new row), its screen opened or the list screen replaced; nothing at all - the window "Онлайн для
 // «…» не нашлось" (a marked title with releases: those with the yellow line). All the sources found turned off in
 // "Источники…": the list of no row all the same, with the yellow line of it - MENU there turns them on.
 /**
@@ -1350,21 +1349,7 @@ function aio_lpv_result($run)
             break;
         }
     }
-    // The remembered row first, the other rows of its balancer after it: one block (aio_lpv_lines).
-    if ($first > 0)
-    {
-        $mine = array($rows[$first]);
-        $rest = array();
-        foreach ($rows as $i => $r)
-        {
-            if ($i !== $first && $r['path'] === $rows[$first]['path'])
-                $mine[] = $r;
-            else if ($i !== $first)
-                $rest[] = $r;
-        }
-        $rows = array_merge($mine, $rest);
-    }
-    $sel = max(0, $run['more']);
+    $sel = $run['more'] >= 0 ? $run['more'] : max(0, $first);
     $note = '';
     if ($run['path'] !== '')
     {
@@ -1386,7 +1371,6 @@ function aio_lpv_result($run)
     }
     if ($off > 0)
         $note = aio_lpv_tr($lang, 'lp_note_off', array('n' => $off));
-    $v['rows'] = $rows;
     $v['left'] = max(0, $left);
     $v['note'] = $note;
     unset($v['flt_gone']);
@@ -1400,7 +1384,7 @@ function aio_lpv_result($run)
     unset($ns['lp_note']);
     if ($run['mark'])
         aio_lpv_mark_set($mv, true);
-    aio_log("$tag -> the list, the cursor on row $sel of the list" . ($first > 0 ? ", the remembered row $first first" : ''));
+    aio_log("$tag -> the list, the cursor on row $sel of the list" . ($first >= 0 ? ", the remembered row $first" : ''));
     if ($run['how'] === 'open')
         return aio_lpv_open($ns);
     return aio_list_replace($ns, $run['how'] === 'chosen' ? 3 : 1);
