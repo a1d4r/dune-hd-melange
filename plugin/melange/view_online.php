@@ -1250,7 +1250,8 @@ function aio_lpv_down($run, $why, $detail)
 // other rows of its balancer after it, then the order of "Источники…" (aio_lpv_srcs_pick: the sources asked in it);
 // the cursor on the balancer of the run, after "Ещё N" on the first new
 // row), its screen opened or the list screen replaced; nothing at all - the window "Онлайн для
-// «…» не нашлось" (a marked title with releases: those with the yellow line).
+// «…» не нашлось" (a marked title with releases: those with the yellow line). All the sources found turned off in
+// "Источники…": the list of no row all the same, with the yellow line of it - MENU there turns them on.
 /**
  * @param AioLpRun $run
  * @return AioAction
@@ -1262,8 +1263,10 @@ function aio_lpv_result($run)
     $lang = $st['lang'];
     $v = $run['v'];
     $left = count($v['sources']) - $v['next'];
-    $tag = "lampac: window {$run['sid']}: " . count($v['sources']) . ' sources, ' . count($v['rows']) . " rows, $left left";
-    if (!$v['rows'] && $left <= 0)
+    $off = !$v['sources'] && !empty($v['off']) ? count($v['off']) : 0;
+    $tag = "lampac: window {$run['sid']}: " . count($v['sources']) . ' sources, ' . count($v['rows']) . " rows, $left left" .
+        ($off > 0 ? ", all $off found off" : '');
+    if (!$v['rows'] && $left <= 0 && $off === 0)
     {
         aio_log("$tag -> " . ($run['back'] ? 'the releases' : 'nothing online'));
         if ($run['back'])
@@ -1324,6 +1327,8 @@ function aio_lpv_result($run)
         }
         $note = aio_lpv_tr($lang, 'lp_note_gone', array('src' => $label));
     }
+    if ($off > 0)
+        $note = aio_lpv_tr($lang, 'lp_note_off', array('n' => $off));
     $v['rows'] = $rows;
     $v['left'] = max(0, $left);
     $v['note'] = $note;

@@ -370,6 +370,7 @@ lp_hidden_rch = Hidden {n} {sources}: only through the Lampa app
 lp_note_down = Online does not answer — showing the releases
 lp_note_empty = Nothing online — showing the releases
 lp_note_gone = {src} does not give this voice any more
+lp_note_off = Sources are off ({n}): MENU
 lp_flt_tab = Voice: {name}
 lp_flt_menu = Voice: {name}…
 lp_flt_any = all
