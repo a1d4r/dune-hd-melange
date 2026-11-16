@@ -88,7 +88,8 @@ function aio_cat_url($path)
 // err: net (transport; a timeout before a connection too: the server out of reach),
 // timeout (curl 28 once connected: a slow reply), big (over the limit), rate (429), server (5xx),
 // notfound (404), http (another status), bad (not the JSON expected). A failure
-// is never an empty list. $what: for the log, no URL and no reply there. $limit: s
+// is never an empty list. $what: for the log, no URL and no reply there; '' no line (the
+// caller logs a sum of its requests). $limit: s
 // the request may take at most (a fraction too: aio_http_get), 0 for the usual timeouts; over
 // AIO_CAT_TOTAL (15 s) it is cut to that, silently. $one: $field holds one
 // object (the meta of a title), not a list; null or a list there is bad. $max: bytes of the
@@ -145,8 +146,9 @@ function aio_cat_get($path, $what, $field, $limit = 0, $one = false, $max = AIO_
             $why = 'bad';
     }
     unset($body, $j);
-    aio_log(sprintf('catalog: %s: %s, %d bytes, %d items, %.0f ms%s', $what, $status, $size, $one ? ($list ? 1 : 0) : count($list),
-        (microtime(true) - $t) * 1000, $why !== '' ? ", failed: $why" : ''));
+    if ($what !== '')
+        aio_log(sprintf('catalog: %s: %s, %d bytes, %d items, %.0f ms%s', $what, $status, $size, $one ? ($list ? 1 : 0) : count($list),
+            (microtime(true) - $t) * 1000, $why !== '' ? ", failed: $why" : ''));
     return array('err' => $why, 'list' => $list);
 }
 

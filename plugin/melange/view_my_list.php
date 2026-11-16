@@ -31,12 +31,13 @@ define('AIO_MLV_HINT_IMG', 'plugin_file://img/ml1_hint_');
 // ROWS when the actions of the screen have them, and the shell opens neither its history nor its Favorites then.
 define('AIO_MLV_KEY_LIST', 'key_favorites');
 define('AIO_MLV_KEY_CONT', 'key_dune');
-// The import: the shell waits for it (operation_timeout of its item of POP UP, aio_mlv_import_s) AIO_MLV_IMPORT_T0_S
-// and AIO_MLV_IMPORT_PER_S a title of the Favorites not in the list (its pair and its meta: ~0.6 and 0.2-1.9 s,
-// AIO_PG_LINK_S and AIO_CPM_FILL_S at most), AIO_MLV_IMPORT_MAX_S at most (php_server answers nothing else meanwhile:
-// more is a hang to the user; ~180 titles of requests, the cards of the shell and the pairs kept ask none); the import
-// itself AIO_MLV_IMPORT_TAIL_S less (the files written and the answer after it). The ones not paired in it not added,
-// counted in the message (a repeat goes on); the meta of one not asked in it lazily (aio_cpm_step).
+// The import, of two inputs: the item of POP UP the usual 60 s (aio_mlv_import_ask: the Favorites read, how many not in
+// the list), then the import itself (aio_mlv_import), the shell waiting for it (its operation_timeout, aio_mlv_import_s)
+// AIO_MLV_IMPORT_T0_S and AIO_MLV_IMPORT_PER_S a title of the Favorites not in the list (its pair and its meta: ~0.6
+// and 0.2-1.9 s, AIO_PG_LINK_S and AIO_CPM_FILL_S at most), AIO_MLV_IMPORT_MAX_S at most (php_server answers nothing
+// else meanwhile: more is a hang to the user; ~180 titles of requests, the cards of the shell and the pairs kept ask
+// none); the import AIO_MLV_IMPORT_TAIL_S less (the files written and the answer after it). The ones not paired in it
+// not added, counted in the message (a repeat goes on); the meta of one not asked in it lazily (aio_cpm_step).
 define('AIO_MLV_IMPORT_T0_S', 60);
 define('AIO_MLV_IMPORT_PER_S', 3);
 define('AIO_MLV_IMPORT_MAX_S', 600);
@@ -222,7 +223,7 @@ function aio_mlv_tile($key)
 // The tiles of "Мой список" of the types $types, $max at most: the items of a row (id "mylist:<key>", caption, the
 // poster of the entry, stickers: the rating of the best tile, else of the entry, the badges of the history) and their
 // tiles, the best (aio_cp_best_tile: of a row in memory, else of the meta kept) else of the entry; the newest first.
-// $miss: those with no best tile, in their order (array(type, IMDb, TMDB): the lazy meta, AioCpm::$fav and $more).
+// $miss: those with no best tile, in their order (array(type, IMDb, TMDB): the lazy meta, AioCpm::$ml and $more).
 /**
  * @param list<string> $types
  * @param int $max
@@ -404,7 +405,7 @@ function aio_mlv_enter($id, $lang)
 // the newest first, the entry and its best tile, no request), no "Show all" tile, no flag; ENTER on its title the screen of its type
 // (aio_mlv_screen). None when the list has none of them (the empty screen with the hint is of the heart and Fav 2). $tiles:
 // its tiles by "mylist:<key>" (the file of the tab "TV"); $miss: those with no meta (the lazy meta of a main screen,
-// AioCpm::$fav: aio_catv_main_view puts them there).
+// AioCpm::$ml: aio_catv_main_view puts them there).
 /**
  * @param string $tab
  * @param string $lang
@@ -497,9 +498,8 @@ function aio_mlv_open($w, $from)
 // --- The import of the Favorites of the Dune.
 
 // The items of POP UP of tile $id of screen $from (after those of a tile: aio_catv_tile_menu): on the screen
-// "Мой список" (of a type too) and on a tile of the row "Мой список" "Добавить из «Избранного» Дюны", the shell waiting
-// for it by the titles of the Favorites not in the list (aio_mlv_import_s), the import that less AIO_MLV_IMPORT_TAIL_S
-// (its param s); none on another.
+// "Мой список" (of a type too) and on a tile of the row "Мой список" "Добавить из «Избранного» Дюны" (its first input,
+// aio_mlv_import_ask; the Favorites not read for the menu); none on another.
 /**
  * @param string $id
  * @param string $from
@@ -512,12 +512,30 @@ function aio_mlv_menu_items($id, $from, $lang)
     list(, $x) = aio_catv_id_mode($id);
     if (!($sc && $sc[0] === AIO_MLV_LIST) && strpos($x, AIO_ML_RID . ':') !== 0)
         return array();
-    $s = aio_mlv_import_s(aio_mlv_fav_new());
     return array(array(
         GuiMenuItemDef::caption => aio_tr($lang, 'ml_import'),
         GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'favorites_small.png',
-        GuiMenuItemDef::action => aio_input('cat_ml_import', array('from' => $from, 's' => strval($s - AIO_MLV_IMPORT_TAIL_S)),
-            AIO_CARD_DELAY, $s * 1000)));
+        GuiMenuItemDef::action => aio_input('cat_ml_import', array('from' => $from), AIO_CARD_DELAY)));
+}
+
+// The first input of the import of screen $from: the Favorites of the Dune read (aio_ml_fav_read), the movies of no
+// card of the Dune of the list counted, n. None: "В «Избранном» Дюны нет нового" at once. Else the import itself
+// (aio_mlv_import) in an input of its own, the shell waiting aio_mlv_import_s(n) for it, the import that less
+// AIO_MLV_IMPORT_TAIL_S (its param s, aio_mlv_import_budget). One line of the log.
+/**
+ * @param string $from
+ * @return AioAction
+ */
+function aio_mlv_import_ask($from)
+{
+    $favs = aio_ml_fav_read();
+    $n = aio_mlv_fav_new($favs);
+    $s = aio_mlv_import_s($n);
+    aio_log(sprintf('my list: import: %d in the Favorites, %d new%s', count($favs), $n, $n ? ", $s s" : ''));
+    if (!$n)
+        return aio_dialog(aio_tr(aio_catv_lang(), 'ml_import_none'), array(), array('OK' => aio_close_and(null)));
+    return aio_input('cat_ml_import_go', array('from' => $from, 's' => strval($s - AIO_MLV_IMPORT_TAIL_S)), AIO_CARD_DELAY,
+        $s * 1000);
 }
 
 // s the shell waits for an import of $n titles of the Favorites not in the list: AIO_MLV_IMPORT_T0_S and
@@ -531,22 +549,23 @@ function aio_mlv_import_s($n)
     return min(AIO_MLV_IMPORT_MAX_S, AIO_MLV_IMPORT_T0_S + AIO_MLV_IMPORT_PER_S * max(0, $n));
 }
 
-// The movies of the Favorites of the Dune (aio_ml_fav_read) of no card of the Dune of the list: how many.
+// The movies of Favorites $favs of the Dune (aio_ml_fav_read) of no card of the Dune of the list: how many.
 /**
+ * @param list<AioMlFav> $favs
  * @return int
  */
-function aio_mlv_fav_new()
+function aio_mlv_fav_new($favs)
 {
     $there = array();
     foreach (aio_ml_list() as $e)
         $there[$e['dune_id']] = true;
     $n = 0;
-    foreach (aio_ml_fav_read() as $f)
+    foreach ($favs as $f)
         $n += isset($there[$f['dune_id']]) ? 0 : 1;
     return $n;
 }
 
-// The s of the import of param $s (aio_mlv_menu_items): 1 to AIO_MLV_IMPORT_MAX_S less AIO_MLV_IMPORT_TAIL_S; another
+// The s of the import of param $s (aio_mlv_import_ask): 1 to AIO_MLV_IMPORT_MAX_S less AIO_MLV_IMPORT_TAIL_S; another
 // (none: an older item) AIO_MLV_IMPORT_T0_S less it.
 /**
  * @param string $s
@@ -627,14 +646,15 @@ function aio_mlv_fav_tile($f, $l, $map = null)
     return $t;
 }
 
-// "Добавить из «Избранного» Дюны" of screen $from: the movies and series of the shell in the Favorites of the Dune
-// (aio_ml_fav_read, read only) not in the list (by their card of the Dune and by IMDb or TMDB) to the end of it in
-// their order (aio_ml_append), nothing taken out; IMDb and TMDB by the pairs first, then the card of the shell or a
-// request (aio_mlv_fav_pair), all in $budget s (aio_mlv_import_budget). One without them: not added, counted (a repeat
-// of the import goes on with them). Then the meta of the ones added in what is left of it, at once (aio_cpm_fill: the
-// tile of a row in memory, else a request; not asked, no answer: lazily). Then the screens of the list anew
-// (aio_ml_changed: the list, not the hint) and the message: "Добавлено из «Избранного»: N" (with the ones not added;
-// the list full), "В «Избранном» Дюны нет нового", or why the file was not written (aio_ml_err). One line of the log,
+// The import of screen $from (the second input of "Добавить из «Избранного» Дюны", aio_mlv_import_ask): the movies
+// and series of the shell in the Favorites of the Dune (aio_ml_fav_read, read only) not in the list (by their card of
+// the Dune and by IMDb or TMDB) to the end of it in their order (aio_ml_append), nothing taken out; IMDb and TMDB by
+// the pairs first, then the card of the shell or a request (aio_mlv_fav_pair), all in $budget s
+// (aio_mlv_import_budget). One without them: not added, counted (a repeat of the import goes on with them). Then the
+// meta of the ones added in what is left of it, at once (aio_cpm_fill: the tile of a row in memory, else a request;
+// not asked, no answer: lazily). Then the screens of the list anew (aio_ml_changed: the list, not the hint) and the
+// message: "Добавлено из «Избранного»: N" (with the ones not added; the list full), "В «Избранном» Дюны нет нового",
+// or why the file was not written (aio_ml_err). One line of the log (the meta in it, no line of each request of it),
 // no address.
 /**
  * @param string $from

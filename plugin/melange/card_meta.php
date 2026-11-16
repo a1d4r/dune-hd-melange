@@ -57,6 +57,23 @@ function aio_cm_id($t)
     return $t['_tmdbId'] !== '' ? 'tmdb:' . $t['_tmdbId'] : '';
 }
 
+// The tile of the meta of the own card of tile $t in memory (aio_cm_get kept it), of the type of $t; null for none. No
+// request.
+/**
+ * @param AioCatTile $t
+ * @return AioCatTile|null
+ */
+function aio_cm_mem_tile($t)
+{
+    $id = aio_cm_id($t);
+    $key = "{$t['type']}:$id";
+    if ($id === '' || !isset(AioCm::$cache[$key]) || !AioCm::$cache[$key]['m']['tile'])
+        return null;
+    $m = AioCm::$cache[$key]['m']['tile'];
+    $m['type'] = $t['type'];
+    return $m;
+}
+
 // A picture of the meta -> the address the Dune loads, '' for none. TMDB (blocked for many,
 // straight or already in the cache of the server) goes through the cache of the server in
 // class $class: background keeps the size and shape (a still 500x281, a face 276x350), w342/poster

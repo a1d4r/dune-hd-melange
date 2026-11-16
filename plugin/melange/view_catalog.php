@@ -1337,9 +1337,9 @@ function aio_catv_main_view($media_url, $sel_state)
     aio_pg_screen_start();
     // The row "Continue" first, of the history, then "Мой список" of the tab: ready at once. Their tiles with no meta are
     // for the lazy meta of this screen (aio_cpm_step), those of "Continue" first.
-    $defs = array_merge(aio_cp_row_defs($tab, $lang, $cp_tiles, $miss), aio_ml_row_defs($tab, $lang, $ml_tiles, $fav));
+    $defs = array_merge(aio_cp_row_defs($tab, $lang, $cp_tiles, $miss), aio_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss));
     AioCpm::$miss = $miss;
-    AioCpm::$fav = $fav;
+    AioCpm::$ml = $ml_miss;
     $now = microtime(true);
     $net = aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S - ($now - $rows_t0), AIO_CATV_OPEN_MAX_S - ($now - $start)));
     if (!$loading)
@@ -3032,6 +3032,8 @@ function aio_catv_input($in, $control)
     if ($control === 'cat_fav')
         return aio_mlv_open(aio_catv_in($in, 'w'), $from);
     if ($control === 'cat_ml_import')
+        return aio_mlv_import_ask($from);
+    if ($control === 'cat_ml_import_go')
         return aio_mlv_import($from, aio_mlv_import_budget(aio_catv_in($in, 's')));
     return null;
 }

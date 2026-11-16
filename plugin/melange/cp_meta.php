@@ -7,20 +7,24 @@
 // history or of the list; a title into the list the tile of it in memory (aio_cpm_of_add); the import of the Favorites
 // of the Dune asks the meta of every title it adds at once (aio_cpm_fill).
 // Needs main.php (aio_log, aio_data_dir, aio_file_sig, aio_write_file), catalog.php (aio_cat_get, aio_cat_tile),
-// card_meta.php (aio_cm_same, aio_cm_id, AioCm), continue.php (aio_cp_tile_map, aio_cp_tile_find, aio_cp_items,
-// aio_cp_ids), links.php (aio_pg_tile_cards), progress.php (aio_pg_index), my_list.php (aio_ml_list, aio_ml_in),
-// view_catalog.php (aio_catv_is_down, AIO_CATV_ALL_COLS, AIO_CATV_ALL_ROWS).
+// card_meta.php (aio_cm_same, aio_cm_mem_tile), continue.php (aio_cp_tile_map, aio_cp_best_tile, aio_cp_items,
+// aio_cp_ids), links.php (aio_pg_tile_cards), my_list.php (aio_ml_list, aio_ml_in), view_catalog.php (aio_catv_is_down,
+// AIO_CATV_ALL_COLS, AIO_CATV_ALL_ROWS).
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // In data_dir: "<type>:<IMDb | tmdb:<id>>" => t (when written), tile (null: the request failed then).
 define('AIO_CPM_FILE', 'cp_meta.json');
 // Titles kept at most and the size of the file (a tile ~3-4.5 KB, the Russian escaped): "Мой список" holds ~570 at most
-// (AIO_ML_COPY_MAX), the rows "Continue" 20 of a type. Over them the oldest written go first of the titles neither in
-// the list nor of the history (aio_cpm_kept), then the oldest of those. The file is read once by php_server (~0.1-0.2
-// s at 3 MB: json_decode of the Dune ~26 ms for 575 KB) and written whole at a change only (json_encode and a flash
-// write of it).
+// (AIO_ML_COPY_MAX), the rows "Continue" 20 of a type. The titles neither in the list nor of the history (aio_cpm_kept;
+// the own card of another card of the history, a title out of the list) AIO_CPM_OTHER_MAX at most, as the file was
+// before the list had its meta here. Over them the oldest written go first of those others, then the oldest of
+// the rest. The file is read once by php_server and written whole at a change only: 700 titles, 2 MB measured on a Mac
+// (docker) - json_decode 17 ms, aio_cpm_read 70 ms (aio_cat_tile of each entry mostly), a write 16-18 ms; the Dune ~6
+// times that: a read ~0.4-0.6 s once, a write ~0.1 s and the flash. A user with no list: AIO_CPM_OTHER_MAX and the
+// titles of the history, as before.
 define('AIO_CPM_MAX', 700);
 define('AIO_CPM_MAX_BYTES', 3145728);
+define('AIO_CPM_OTHER_MAX', 60);
 // A failure of a title (big, 404, not its meta) is asked again after this many s. No connection, 429 or 5xx: the
 // server, not the title - no request for AIO_CPM_PAUSE_S (memory of php_server), the title not kept; a timeout the
 // same, a second one of the title in a php_server kept as its failure with no pause (a meta too slow for the step, not
@@ -57,9 +61,10 @@ class AioCpm
     // in memory and none here, in its order: array(type, IMDb, TMDB); for the step. Not of the tab "TV".
     /** @var list<array{string, string, string}> */
     public static $miss = array();
-    // The same of the row "Мой список" of that screen (aio_ml_row_defs): asked after those of "Continue".
+    // The same of the row "Мой список" (our list, not the Favorites of the Dune) of that screen (aio_ml_row_defs): asked
+    // after those of "Continue".
     /** @var list<array{string, string, string}> */
-    public static $fav = array();
+    public static $ml = array();
     // The same of the screen "Продолжить" or "Мой список" built last (view_my_list.php), its first AIO_CPM_MORE: asked
     // after those of the rows; a row built again keeps them.
     /** @var list<array{string, string, string}> */
@@ -128,7 +133,7 @@ function aio_cpm_put($key, $tile)
 }
 
 // Entries $put (key => tile, null: a failure), now, at one write of the file whole (aio_write_file: a temporary file
-// and rename), AIO_CPM_MAX entries and AIO_CPM_MAX_BYTES at most (aio_cpm_json); the memory is the file written then.
+// and rename), within the limits of aio_cpm_json; the memory is the file written then.
 // The same tile again: nothing written. -> written (or nothing new).
 /**
  * @param array<string, AioCatTile|null> $put
@@ -160,9 +165,9 @@ function aio_cpm_put_all($put)
     return $ok;
 }
 
-// The text of the file of entries $c, AIO_CPM_MAX of them and AIO_CPM_MAX_BYTES at most: over them out first the oldest
-// written of the titles neither in "Мой список" nor of the history (aio_cpm_kept), then the oldest of those; $c without
-// them. '' if json_encode failed.
+// The text of the file of entries $c: of the titles neither in "Мой список" nor of the history (aio_cpm_kept) the
+// AIO_CPM_OTHER_MAX written last at most; AIO_CPM_MAX entries and AIO_CPM_MAX_BYTES at most, over them out first the
+// oldest written of those others, then the oldest of the rest; $c without them. '' if json_encode failed.
 /**
  * @param array<string, AioCpmEntry> $c
  * @param-out array<string, AioCpmEntry> $c
@@ -173,10 +178,12 @@ function aio_cpm_json(&$c)
     $json = json_encode(array('v' => 1, 'm' => (object) $c));
     if (!is_string($json))
         return '';
-    if (count($c) <= AIO_CPM_MAX && strlen($json) <= AIO_CPM_MAX_BYTES)
+    // AIO_CPM_OTHER_MAX entries or fewer are within every limit, whoever they are: no aio_cpm_kept.
+    if (count($c) <= AIO_CPM_OTHER_MAX && strlen($json) <= AIO_CPM_MAX_BYTES)
         return $json;
     $kept = aio_cpm_kept();
     $order = array();
+    $others = 0;
     foreach (array(false, true) as $k)
     {
         foreach ($c as $key => $e)
@@ -184,11 +191,23 @@ function aio_cpm_json(&$c)
             if (isset($kept[$key]) === $k)
                 $order[] = strval($key);
         }
+        if (!$k)
+            $others = count($order);
     }
+    $i = 0;
+    for (; $others > AIO_CPM_OTHER_MAX; $others--)
+        unset($c[$order[$i++]]);
+    if ($i)
+    {
+        $json = json_encode(array('v' => 1, 'm' => (object) $c));
+        if (!is_string($json))
+            return '';
+    }
+    if (count($c) <= AIO_CPM_MAX && strlen($json) <= AIO_CPM_MAX_BYTES)
+        return $json;
     // The size of the text without an entry: its "key":{...} and a comma (the last one has none: the text encoded again
     // till it fits).
     $size = strlen($json);
-    $i = 0;
     while ($i < count($order) && count($c) > 1)
     {
         if (count($c) <= AIO_CPM_MAX && $size <= AIO_CPM_MAX_BYTES)
@@ -218,9 +237,8 @@ function aio_cpm_kept()
     $ids = array();
     foreach (aio_ml_list() as $e)
         $ids[] = array($e['type'], $e['imdb_id'], $e['_tmdbId']);
-    $idx = aio_pg_index();
-    foreach (array_keys(aio_cp_items(array('movie', 'series'), AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS)) as $mid)
-        $ids[] = aio_cp_ids(strval($mid), $idx[$mid]['series'] ? true : false);
+    foreach (aio_cp_items(array('movie', 'series'), AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS) as $mid => $it)
+        $ids[] = aio_cp_ids(strval($mid), $it['type'] === 'series');
     $out = array();
     foreach ($ids as $m)
     {
@@ -267,8 +285,8 @@ function aio_cpm_of_card($t, $tile)
     aio_cpm_put($key, $tile);
 }
 
-// The tile of title $t in memory with no request: of its meta of the own card (AioCm::$cache), else of a row
-// (aio_cp_tile_find; $map: aio_cp_tile_map of the caller); null for none.
+// The tile of title $t with no request: of its meta of the own card in memory (aio_cm_mem_tile), else the best one
+// (aio_cp_best_tile: of a row in memory, $map: aio_cp_tile_map of the caller; else of the meta kept); null for none.
 /**
  * @param AioCatTile $t
  * @param array<string, AioCatTile>|null $map
@@ -276,22 +294,8 @@ function aio_cpm_of_card($t, $tile)
  */
 function aio_cpm_mem($t, $map = null)
 {
-    $id = aio_cm_id($t);
-    $k = "{$t['type']}:$id";
-    if ($id !== '' && isset(AioCm::$cache[$k]) && AioCm::$cache[$k]['m']['tile'])
-    {
-        $m = AioCm::$cache[$k]['m']['tile'];
-        $m['type'] = $t['type'];
-        return $m;
-    }
-    if ($map === null)
-        return aio_cp_tile_find($t['type'], $t['imdb_id'], $t['_tmdbId']);
-    foreach (array("{$t['type']}|imdb:{$t['imdb_id']}" => $t['imdb_id'], "{$t['type']}|tmdb:{$t['_tmdbId']}" => $t['_tmdbId']) as $mk => $v)
-    {
-        if ($v !== '' && isset($map[$mk]))
-            return $map[$mk];
-    }
-    return null;
+    $m = aio_cm_mem_tile($t);
+    return $m ? $m : aio_cp_best_tile($t['type'], $t['imdb_id'], $t['_tmdbId'], $map);
 }
 
 // Title $t into "Мой список" (aio_ml_set): the tile of it in memory (aio_cpm_mem: the own card, a row) kept, no request.
@@ -318,8 +322,8 @@ function aio_cpm_paused()
     return $left > 0 && $left <= AIO_CPM_PAUSE_S ? $left : 0;
 }
 
-// The titles of AioCpm::$miss, AioCpm::$fav, then of AioCpm::$more, to ask, in their order: none kept, no failure within AIO_CPM_FAIL_S.
-// -> keys => array(type, IMDb, TMDB).
+// The titles of AioCpm::$miss, AioCpm::$ml, then of AioCpm::$more, to ask, in their order: none kept, no failure within
+// AIO_CPM_FAIL_S. -> keys => array(type, IMDb, TMDB).
 /**
  * @return array<string, array{string, string, string}>
  */
@@ -328,7 +332,7 @@ function aio_cpm_queue()
     $c = aio_cpm_read();
     $now = time();
     $out = array();
-    foreach (array_merge(AioCpm::$miss, AioCpm::$fav, AioCpm::$more) as $m)
+    foreach (array_merge(AioCpm::$miss, AioCpm::$ml, AioCpm::$more) as $m)
     {
         $key = aio_cpm_key($m[0], $m[1], $m[2]);
         $e = $key !== '' && isset($c[$key]) ? $c[$key] : null;
@@ -348,7 +352,8 @@ function aio_cpm_wanted()
     return !aio_cpm_paused() && !aio_catv_is_down() && aio_cpm_queue() !== array();
 }
 
-// One request of the meta of title $key of type $type (aio_cat_get, its timeout $limit s, to the ms). -> tile: of it
+// One request of the meta of title $key of type $type (aio_cat_get, its timeout $limit s, to the ms; its line of the log
+// if $log). -> tile: of it
 // (null: none); keep: kept as it is (the tile, or a failure of the title: big, 404, not its meta); stop: no more
 // requests now. No connection, 429 or 5xx: a pause (AIO_CPM_PAUSE_S), the title not kept; a timeout the same, the second
 // of the title in this php_server kept failed with no pause; one of under AIO_CPM_SHORT_S given: nothing kept, no pause.
@@ -356,12 +361,13 @@ function aio_cpm_wanted()
  * @param string $key
  * @param string $type
  * @param float $limit
+ * @param bool $log
  * @return array{tile: AioCatTile|null, keep: bool, stop: bool}
  */
-function aio_cpm_ask($key, $type, $limit)
+function aio_cpm_ask($key, $type, $limit, $log = true)
 {
     $id = substr($key, strlen($type) + 1);
-    $g = aio_cat_get("meta/$type/$id.json", "meta $key", 'meta', $limit, true);
+    $g = aio_cat_get("meta/$type/$id.json", $log ? "meta $key" : '', 'meta', $limit, true);
     $tile = $g['err'] === '' && aio_cm_same($g['list'], $id) ? aio_cat_tile($g['list'], $type) : null;
     if ($tile)
         $tile['type'] = $type;
@@ -420,8 +426,9 @@ function aio_cpm_step($limit, $n, $tick = false)
 
 // The meta of tiles $tiles kept now (the import of the Favorites of the Dune, view_my_list.php), for each with none
 // kept: the tile of it in memory (aio_cpm_mem, $map: aio_cp_tile_map of the caller; no request), else asked
-// (aio_cpm_ask, AIO_CPM_FILL_S at most) with AIO_CPM_MIN_S left of $limit s at least; no request in a pause (one it set
-// too: the rest lazily, aio_cpm_step) or with the catalog server down. One write of the file. -> array(asked, got).
+// (aio_cpm_ask, AIO_CPM_FILL_S at most; no line of the log each: the caller logs the sum) with AIO_CPM_MIN_S left of
+// $limit s at least; no request in a pause (one it set too: the rest lazily, aio_cpm_step) or with the catalog server
+// down. One write of the file. -> array(asked, got).
 /**
  * @param list<AioCatTile> $tiles
  * @param float $limit
@@ -448,7 +455,7 @@ function aio_cpm_fill($tiles, $limit, $map = null)
         $left = $limit - (microtime(true) - $t0);
         if ($left < AIO_CPM_MIN_S || aio_cpm_paused() || aio_catv_is_down())
             continue;
-        $r = aio_cpm_ask($key, $t['type'], min(AIO_CPM_FILL_S, $left));
+        $r = aio_cpm_ask($key, $t['type'], min(AIO_CPM_FILL_S, $left), false);
         $asked++;
         if ($r['keep'])
             $put[$key] = $r['tile'];
