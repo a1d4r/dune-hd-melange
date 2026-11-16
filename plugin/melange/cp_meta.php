@@ -48,8 +48,8 @@ define('AIO_CPM_MIN_S', 0.5);
 // the title (a meta the server has not kept takes 0.2-1.9 s): no pause, the title not marked or kept, asked at the
 // next step.
 define('AIO_CPM_SHORT_S', 1.0);
-// r25: the tick (aio_pg_tick, links.php) - the pair and the meta - within this many s from its start, typically (a
-// key pressed waits for it); a pair alone may take its AIO_PG_LINK_S.
+// r25: the tick (aio_pg_tick, links.php) - the pair and the meta - within this many s from its start (a key pressed
+// waits for it); the pair in it too, its timeout the whole s of it.
 define('AIO_CPM_TICK_S', 1.5);
 // The tiles of the screen "Продолжить" or "Мой список" asked after those of the rows, at most (the screen built again
 // gives the next ones).
@@ -363,15 +363,6 @@ function aio_cpm_queue()
         $out[$key] = $m;
     }
     return $out;
-}
-
-// A step would ask: a title to ask (aio_cpm_todo), no pause, the catalog server not down.
-/**
- * @return bool
- */
-function aio_cpm_wanted()
-{
-    return !aio_cpm_paused() && !aio_catv_is_down() && aio_cpm_todo() !== array();
 }
 
 // The titles of aio_cpm_queue a step asks for: those no row in memory has now (aio_cp_tile_map), pause or not. ->

@@ -138,10 +138,9 @@ function aio_pg_screen_built($left, $net)
 
 // r25: the main screen of rows $url is made: the step goes to the ticks of its timer (AIO_PG_TICK_MS, then again while
 // there is more to ask: aio_pg_tick_again), after the rows of the window of the shell (get_folder_rows), as php_server
-// answers one call at a time. A timer with a meta of the row "Continue" to ask (aio_cpm_wanted), else only with a card
-// to ask (aio_pg_link_queue), no pause and dune_auth; a line of the log when a pause holds it, of no dune_auth once
-// till it comes (AioPgLinks::$no_auth, as aio_pg_token). Back to the screen with no get_folder_view: no timer, no
-// step. -> the timer is set.
+// answers one call at a time. A timer with more to ask (aio_pg_tick_why); a line of the log when a pause or the
+// catalog server down holds it, of no dune_auth once till it comes (AioPgLinks::$no_auth, as aio_pg_token). Back to
+// the screen with no get_folder_view: no timer, no step. -> the timer is set.
 /**
  * @param string $url
  * @return bool
@@ -149,32 +148,26 @@ function aio_pg_screen_built($left, $net)
 function aio_pg_tick_set($url)
 {
     AioPgLinks::$screen = $url;
-    if (aio_cpm_wanted())
-    {
-        AioPgLinks::$tick_url = $url;
-        return true;
-    }
-    if (!aio_pg_link_queue())
-        return false;
-    $pause = aio_pg_paused();
-    if ($pause)
-    {
-        aio_log(sprintf('link: no timer: a pause of the requests, %d s left', $pause));
-        return false;
-    }
-    $no_auth = aio_card_token() === '';
-    if ($no_auth && !AioPgLinks::$no_auth)
+    $why = aio_pg_tick_why();
+    if ($why === 'pause')
+        aio_log(sprintf('link: no timer: a pause of the requests, %d s left', max(aio_pg_paused(), aio_cpm_paused())));
+    else if ($why === 'server down')
+        aio_log('link: no timer: the catalog server down');
+    else if ($why === 'no dune_auth' && !AioPgLinks::$no_auth)
         aio_log('link: no timer: no dune_auth');
-    AioPgLinks::$no_auth = $no_auth;
-    if ($no_auth)
+    if ($why === 'no dune_auth')
+        AioPgLinks::$no_auth = true;
+    else if ($why === '' && aio_card_token() !== '')
+        AioPgLinks::$no_auth = false;
+    if ($why !== '')
         return false;
     AioPgLinks::$tick_url = $url;
     return true;
 }
 
-// r25: a tick of the timer of the main screen $url: the step (aio_pg_link_step) once, of one batch at once, else of
-// one request (a key pressed now waits for it, ~0.5 s), its timeout as of a step; then the lazy meta of the row "Continue"
-// (aio_cpm_step) in what is left of AIO_CPM_TICK_S from the start of the tick: one batch at once, else AIO_CPM_N
+// r25: a tick of the timer of the main screen $url, AIO_CPM_TICK_S at most (a key pressed now waits for it): the step
+// (aio_pg_link_step) once in it, of one batch at once, else of one request (~0.5 s; its timeout 1 s, whole s of curl);
+// then the lazy meta of the row "Continue" (aio_cpm_step) in what is left of it: one batch at once, else AIO_CPM_N
 // requests of the tick at most one by one; then the timer again or not (aio_pg_tick_again). No step: within
 // AIO_PG_ROWS_QUIET_S of a reply of get_folder_rows (the rows of a cold opening wait for php_server; the timer again),
 // a tick after the last one of the screen, a tick of another or an old one, a tick with no screen since the start of
@@ -205,7 +198,7 @@ function aio_pg_tick($url)
     {
         $t = microtime(true);
         $rounds = 0;
-        aio_pg_link_step(AIO_PG_LINK_S, true, $rounds);
+        aio_pg_link_step(min(AIO_PG_LINK_S, AIO_CPM_TICK_S), true, $rounds);
         aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $rounds, true);
     }
     return aio_pg_tick_again($url);
@@ -213,7 +206,7 @@ function aio_pg_tick($url)
 
 // r25: after a tick of the main screen $url: the timer again (AIO_PG_TICK_AGAIN_MS) with more to ask
 // (aio_pg_tick_why), under AIO_PG_TICK_MAX ticks of the opening; a line of the log: the tick of the opening, again or
-// why no more (limit, pause, no dune_auth, queue empty). -> the timer again.
+// why no more (limit, pause, server down, no dune_auth, queue empty). -> the timer again.
 /**
  * @param string $url
  * @return bool
@@ -233,9 +226,10 @@ function aio_pg_tick_again($url)
     return false;
 }
 
-// r25: why a tick would ask nothing -> '': a meta of the row "Continue" to ask (aio_cpm_todo) with no pause of it and
-// the catalog server not down, or a card to ask (aio_pg_link_queue) with no pause and dune_auth; else 'pause' (either
-// queue held by it, the server down), 'no dune_auth', 'queue empty'.
+// r25: why a tick would ask nothing (aio_pg_tick_set, aio_pg_tick_again) -> '': a meta of the row "Continue" to ask
+// (aio_cpm_todo) with no pause of it and the catalog server not down, or a card to ask (aio_pg_link_queue) with no pause
+// and dune_auth; else 'pause' (of either queue), 'server down' (the catalog server, of the meta), 'no dune_auth',
+// 'queue empty'.
 /**
  * @return string
  */
@@ -247,8 +241,10 @@ function aio_pg_tick_why()
     $q = aio_pg_link_queue() !== array();
     if ($q && !aio_pg_paused() && aio_card_token() !== '')
         return '';
-    if ($cpm || ($q && aio_pg_paused()))
+    if (($q && aio_pg_paused()) || ($cpm && aio_cpm_paused()))
         return 'pause';
+    if ($cpm)
+        return 'server down';
     return $q ? 'no dune_auth' : 'queue empty';
 }
 
