@@ -237,6 +237,13 @@ function aio_cgi_save($dir, $t)
     // Read again just before the write: a=aio_sync of another tab may have
     // written them while the keys were checked.
     $cur = aio_settings_read($dir);
+    // The token of the provider of Lampac and "Представляться приложением Lampa": not posted (no field
+    // yet) - the stored ones stay.
+    foreach (array('lampac_token', 'lampac_as_lampa') as $k)
+    {
+        if (!isset($_POST[$k]))
+            $data[$k] = $cur[$k];
+    }
     $on = $data['src_profiles'];
     unset($data['src_profiles']);
     $data['aio_confs'] = $cur['aio_confs'];
