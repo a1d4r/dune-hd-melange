@@ -1685,7 +1685,7 @@ define('AIO_LPV_SRCS_ID', 'melange_lp_sources');
 // the paths of those turned off).
 /**
  * @param list<AioLpSource> $sources
- * @param list<AioLpSrc> $choice
+ * @param list<AioLpChoice> $choice
  * @return array{list<AioLpSource>, list<string>}
  */
 function aio_lpv_srcs_pick($sources, $choice)
@@ -1713,9 +1713,9 @@ function aio_lpv_srcs_pick($sources, $choice)
 // Choice $choice with the sources $sources of a search: one of a path not there - on, last (up to
 // AIO_LP_SEEN_MAX); one there of another name - that name. -> array(the choice, changed).
 /**
- * @param list<AioLpSrc> $choice
+ * @param list<AioLpChoice> $choice
  * @param list<AioLpSource> $sources
- * @return array{list<AioLpSrc>, bool}
+ * @return array{list<AioLpChoice>, bool}
  */
 function aio_lpv_srcs_merge($choice, $sources)
 {
@@ -1746,7 +1746,7 @@ function aio_lpv_srcs_merge($choice, $sources)
 // lampac_sources $choice into Aio::$settings and settings.json, read again just before (a source of the file not
 // in $choice kept, last), written as the quick setup does (aio_settings_write). -> written.
 /**
- * @param list<AioLpSrc> $choice
+ * @param list<AioLpChoice> $choice
  * @return bool
  */
 function aio_lpv_srcs_save($choice)
@@ -1852,7 +1852,7 @@ function aio_lpv_srcs_edit($st)
 // in its search: not asked, a search anew; a row of $v => its row now).
 /**
  * @param AioLpView $v
- * @param list<AioLpSrc> $choice
+ * @param list<AioLpChoice> $choice
  * @return array{AioLpView, list<string>, array<int, int>}
  */
 function aio_lpv_srcs_view($v, $choice)

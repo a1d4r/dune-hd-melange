@@ -66,8 +66,9 @@ parameters:
         # The search window between its ticks (AioLpv::$run, aio_lpv_search_open, view_online.php).
         # The view of the search so far in v, the start of the replies t1, more: the rows before "Ещё N" (-1: a new search).
         AioLpRun: 'array{sid: string, st: AioState, how: string, mark: bool, back: bool, path: string, phase: string, search: AioLpSearch|null, v: AioLpView, t1: float, more: int}'
-        # A source of the online list found on this Dune (lampac_sources of settings.json, aio_lp_srcs_ok, lampac.php): its path, name, shown.
-        AioLpSrc: 'array{path: string, name: string, on: bool}'
+        # A choice of a source of the online list found on this Dune (lampac_sources of settings.json, aio_lp_srcs_ok, lampac.php): its path, name, shown;
+        # not AioLpSource, a source of a search.
+        AioLpChoice: 'array{path: string, name: string, on: bool}'
         # The mark "online" of a title (data_dir/lampac_choice.json, view_online.php): the path of the balancer, the voice and the key of the row of the last start ('' none).
         AioLpMark: 'array{online: bool, path: string, voice: string, key: string, ts: int}'
         # A config of AIOStreams made by the settings page (aio_aio_conf, common.php).
@@ -109,7 +110,7 @@ parameters:
                 lampac_url: string,
                 lampac_token: string,
                 lampac_as_lampa: bool,
-                lampac_sources: list<AioLpSrc>,
+                lampac_sources: list<AioLpChoice>,
                 aio_confs: array<string, array<string, AioConf>>,
                 src_profiles: bool,
                 profiles: list<AioProfile>,
@@ -145,7 +146,7 @@ parameters:
                 profiles: array<int, array{name: string, now: bool}>,
                 made: array{base: string, mode: string, conf: AioConf}|null,
                 lp: string,
-                lp_src: list<AioLpSrc>
+                lp_src: list<AioLpChoice>
             }
         '''
         # Badges of a release (aio_badges, parse.php).

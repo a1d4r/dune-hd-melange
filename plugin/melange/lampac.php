@@ -515,7 +515,7 @@ function aio_lp_source_of($base, $path)
 // '' - the path) and on (not a bool - true); the first of a path kept, at most AIO_LP_SEEN_MAX; not a list - none.
 /**
  * @param mixed $v
- * @return list<AioLpSrc>
+ * @return list<AioLpChoice>
  */
 function aio_lp_srcs_ok($v)
 {
