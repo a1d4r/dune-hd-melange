@@ -27,7 +27,8 @@
 //   (aio_lp_find); no_link - no link in the reply; long - "the link is too
 //   long for Lampac, choose another source"; long_variant - the same inside a
 //   playlist; not_hls - a playlist without #EXTM3U; html - a web page instead
-//   of a video.
+//   of a video; blocked - the stub of Filmix "Заблокировано правообладателем!"
+//   (aio_lp_blocked).
 
 // Seconds of a connection to Lampac: a hung one is as one not answering.
 define('AIO_LP_CONNECT', 2);
@@ -785,7 +786,7 @@ function aio_lp_reply($src, $code, $body, $base = '')
 
 // Item $x of data[] of a reply (a movie or an episode) of source $src on Lampac $base: what it plays
 // -> array(method: play or call, url ('' with a reason; of call one link, else mirrors), stream,
-// qual, subs (its subtitles), why: '' or the reason it is not played (method, long, no_link,
+// qual, subs (its subtitles), why: '' or the reason it is not played (blocked, method, long, no_link,
 // headers: aio_lp_reply), detail).
 /**
  * @param AioLpSource $src
@@ -802,7 +803,9 @@ function aio_lp_item($src, $x, $base = '')
     if ($url === '' && $qual)
         $url = $method === 'call' ? aio_lp_link1(reset($qual)) : reset($qual);
     $why = array('', '');
-    if ($method !== 'play' && $method !== 'call')
+    if (aio_lp_blocked($x))
+        $why = array('blocked', '');
+    else if ($method !== 'play' && $method !== 'call')
         $why = array('method', aio_lp_text($method));
     else if ($url === '' && aio_lp_too_long($raw) !== '')
         $why = array('long', aio_lp_too_long($raw));
@@ -814,6 +817,24 @@ function aio_lp_item($src, $x, $base = '')
         'stream' => aio_lp_link_ok(isset($x['stream']) ? $x['stream'] : null), 'qual' => $qual,
         'subs' => isset($x['subtitles']) && is_array($x['subtitles']) ? count($x['subtitles']) : 0,
         'why' => $why[0], 'detail' => $why[1]);
+}
+
+// Item $x is the stub of Filmix "Заблокировано правообладателем!" (its translate, voice_name, or title "<the
+// title> (Заблокировано правообладателем!)"; case, "!" and spaces aside): a video of the notice, no voice.
+/**
+ * @param array<mixed> $x
+ * @return bool
+ */
+function aio_lp_blocked($x)
+{
+    foreach (array('translate', 'voice_name', 'title') as $k)
+    {
+        $t = preg_replace('/[\s!]+/u', '', mb_strtolower(aio_lp_str($x, $k), 'UTF-8'));
+        if (is_string($t) && ($k === 'title' ? strpos($t, '(заблокированоправообладателем)') !== false :
+            $t === 'заблокированоправообладателем'))
+            return true;
+    }
+    return false;
 }
 
 // Items $data of a reply "movie" of source $src on Lampac $base -> aio_lp_reply.

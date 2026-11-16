@@ -418,4 +418,5 @@ lp_why_long = the link is too long, choose another source
 lp_why_long_variant = a link in the playlist is too long, choose another source
 lp_why_not_hls = a playlist without #EXTM3U
 lp_why_html = a web page instead of a video
+lp_why_blocked = blocked by the copyright holder
 lp_why_other = error
