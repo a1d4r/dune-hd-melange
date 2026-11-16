@@ -3,7 +3,7 @@
 // file of data_dir; found by play_action, ENTER, the cards the shell keeps and, lazily, a request of the card
 // to the dunemdb API: r24 in an opening of the catalog, r25 at the tick of the timer of its screen (aio_pg_tick); the
 // lazy meta of the row "Continue" after them (cp_meta.php, aio_cpm_step).
-// Needs progress.php (aio_pg_index), main.php (aio_log, aio_write_file, aio_data_dir, aio_http_get,
+// Needs progress.php (aio_pg_index), main.php (aio_log, aio_write_file, aio_data_dir, aio_http_get, aio_http_get_many,
 // AIO_DUNE_ID, AIO_HTTP_TOO_BIG), parse.php (aio_str), catalog.php (AIO_CAT_MAX_BYTES), catalog_card.php
 // (aio_card_token, aio_card_api).
 
@@ -108,8 +108,9 @@ function aio_pg_screen_built($left, $net)
         return;
     $t = microtime(true);
     $limit = min($left, AIO_PG_LINK_S);
-    $n = aio_pg_link_step($limit);
-    aio_cpm_step($limit - (microtime(true) - $t), AIO_CPM_N - $n);
+    $rounds = 0;
+    aio_pg_link_step($limit, false, $rounds);
+    aio_cpm_step($limit - (microtime(true) - $t), AIO_CPM_N - $rounds);
 }
 
 // r25: the main screen of rows $url is made: the step goes to the tick of its timer (AIO_PG_TICK_MS, once), after
@@ -147,10 +148,10 @@ function aio_pg_tick_set($url)
     return true;
 }
 
-// r25: the tick of the timer of the main screen $url: the step (aio_pg_link_step) once, of one request (a key
-// pressed now waits for it, ~0.5 s), its timeout as of a step; then the lazy meta of the row "Continue"
-// (aio_cpm_step) in what is left of AIO_CPM_TICK_S from the start of the tick, AIO_CPM_N requests of the tick at
-// most. No step: within
+// r25: the tick of the timer of the main screen $url: the step (aio_pg_link_step) once, of one batch at once, else of
+// one request (a key pressed now waits for it, ~0.5 s), its timeout as of a step; then the lazy meta of the row "Continue"
+// (aio_cpm_step) in what is left of AIO_CPM_TICK_S from the start of the tick: one batch at once, else AIO_CPM_N
+// requests of the tick at most one by one. No step: within
 // AIO_PG_ROWS_QUIET_S of a reply of get_folder_rows (the rows of a cold opening wait for php_server; the step of the
 // opening is lost), a second tick of the screen, a tick of another or an old one, a tick with no screen since the start
 // of php_server. A line of the log of each, in its own words.
@@ -180,8 +181,9 @@ function aio_pg_tick($url)
     }
     AioPgLinks::$ticked = true;
     $t = microtime(true);
-    $n = aio_pg_link_step(AIO_PG_LINK_S, true);
-    aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $n, true);
+    $rounds = 0;
+    aio_pg_link_step(AIO_PG_LINK_S, true, $rounds);
+    aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $rounds, true);
 }
 
 // --- The pairs.
@@ -836,27 +838,107 @@ function aio_pg_token()
  */
 function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
 {
+    $p = aio_pg_link_pre($mid, $total);
+    if ($p['done'])
+        return $p['done'];
+    $t = microtime(true);
+    $err = '';
+    list($code, $body) = aio_http_get($p['req'][0], $err, $p['req'][1], $p['req'][2], $p['req'][3]);
+    return aio_pg_link_got($mid, $p['need'], array($code, $body, $err, true, microtime(true) - $t));
+}
+
+// The pairs of $mids now, as aio_pg_link_now each, their requests at once (aio_http_get_many; the caller keeps to
+// AIO_HTTP_PAR); the pause (AIO_PG_PAUSE_S) only with no reply of the server in the batch (aio_pg_link_down of
+// each) -> movie_id => array(st, link) in the order of $mids; null: no curl_multi (the caller asks one by one,
+// aio_pg_link_now).
+/**
+ * @param list<string> $mids
+ * @param float $total
+ * @return array<string, array{st: string, link: AioPgLink|null}>|null
+ */
+function aio_pg_link_many($mids, $total = AIO_PG_LINK_S)
+{
+    $pre = array();
+    $reqs = array();
+    foreach ($mids as $mid)
+    {
+        $pre[$mid] = aio_pg_link_pre($mid, $total);
+        if (!$pre[$mid]['done'])
+            $reqs[$mid] = $pre[$mid]['req'];
+    }
+    $res = $reqs ? aio_http_get_many($reqs) : array();
+    if ($res === null)
+        return null;
+    // No connection, a timeout or 5xx: a pause only with no reply in the batch.
+    $answered = false;
+    foreach ($res as $r)
+        $answered = $answered || !aio_pg_link_down($r[0], $r[2]);
+    $out = array();
+    foreach ($pre as $mid => $p)
+    {
+        $mid = strval($mid);
+        $out[$mid] = $p['done'] ? $p['done'] : aio_pg_link_got($mid, $p['need'], $res[$mid], !$answered);
+        // The body of each freed as it is parsed.
+        unset($res[$mid]);
+    }
+    return $out;
+}
+
+// aio_pg_link_now of $mid before its request -> done: its result with no request (the card of the shell, not an id
+// of the server, no time or no dune_auth), else null and req: array(URL, connect, total, max) of aio_http_get; need:
+// a series with no seasons asks for them.
+/**
+ * @param string $mid
+ * @param float $total
+ * @return array{done: array{st: string, link: AioPgLink|null}|null, need: bool, req: array{string, int, int, int}}
+ */
+function aio_pg_link_pre($mid, $total)
+{
     $links = aio_pg_links();
     $need = aio_pg_no_seasons(isset($links[$mid]) ? $links[$mid] : null);
+    $out = array('done' => array('st' => 'fail', 'link' => null), 'need' => $need, 'req' => array('', 0, 0, 0));
     $l = isset(AioPgLinks::$shell_seen[$mid]) ? null : aio_pg_shell_pair($mid);
     if ($l)
     {
         aio_pg_link_put($mid, $l);
         if (!$need || isset($l['seasons']))
-            return array('st' => 'pair', 'link' => $l);
+        {
+            $out['done'] = array('st' => 'pair', 'link' => $l);
+            return $out;
+        }
     }
     if (!preg_match('/^[0-9a-f]{24}$/D', $mid))
-        return array('st' => 'none', 'link' => null);
+    {
+        $out['done'] = array('st' => 'none', 'link' => null);
+        return $out;
+    }
     // The request in what is left, whole seconds of curl: under 1 s none.
     if ($total < 1)
-        return array('st' => 'fail', 'link' => null);
+        return $out;
     $token = aio_pg_token();
     if ($token === '')
-        return array('st' => 'fail', 'link' => null);
-    $t = microtime(true);
-    $err = '';
-    list($code, $body) = aio_http_get(aio_card_api() . "movie/$mid?movieAnswerType=full_with_recommendations&lang=ru&$token",
-        $err, min(AIO_PG_LINK_CONNECT, intval(floor($total))), intval(floor($total)), AIO_CAT_MAX_BYTES);
+        return $out;
+    $out['done'] = null;
+    $out['req'] = array(aio_card_api() . "movie/$mid?movieAnswerType=full_with_recommendations&lang=ru&$token",
+        min(AIO_PG_LINK_CONNECT, intval(floor($total))), intval(floor($total)), AIO_CAT_MAX_BYTES);
+    return $out;
+}
+
+// The reply $r (array(HTTP code, body, err, connected, s it took) of aio_http_get) of the request of aio_pg_link_now
+// of $mid ($need: of aio_pg_link_pre): parsed, kept, its pause (if $pause: aio_pg_link_down) and its line of the log
+// -> array(st, link).
+/**
+ * @param string $mid
+ * @param bool $need
+ * @param array{int, string, string, bool, float} $r
+ * @param bool $pause
+ * @return array{st: string, link: AioPgLink|null}
+ */
+function aio_pg_link_got($mid, $need, $r, $pause = true)
+{
+    list($code, $body, $err, , $s) = $r;
+    unset($r);
+    $l = null;
     $st = 'fail';
     if ($err === '' && $code === 200)
     {
@@ -868,7 +950,7 @@ function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
         if ($st === 'none' && $api === 100 && !$found && strpos($body, '"sources":') !== false)
             $st = 'fail';
     }
-    $down = ($err !== '' && $err !== AIO_HTTP_TOO_BIG) || ($err === '' && $code >= 500 && $code < 600);
+    $down = $pause && aio_pg_link_down($code, $err);
     if ($down)
         AioPgLinks::$pause = time() + AIO_PG_PAUSE_S;
     // Only the number of curl: its text may hold the address.
@@ -877,7 +959,7 @@ function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
     $got = $st === 'pair' && isset($l['seasons']);
     // No seasons of a series: asked for them, or a new pair of a series with none (not asked again at the next tick).
     $sq = !$got && ($need || ($st === 'pair' && aio_pg_no_seasons($l)));
-    aio_log(sprintf('link: movie/%s %d B, %.0f ms, %s, %s%s%s', $mid, strlen($body), (microtime(true) - $t) * 1000, $why, $st,
+    aio_log(sprintf('link: movie/%s %d B, %.0f ms, %s, %s%s%s', $mid, strlen($body), $s * 1000, $why, $st,
         $sq ? ', no seasons' : ($got && $need ? ', seasons' : ''), $down ? ', pause' : ''));
     aio_pg_link_put($mid, $st === 'pair' ? $l : array($st => time()), !$sq);
     if ($sq)
@@ -888,6 +970,17 @@ function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
         aio_pg_links_save();
     }
     return array('st' => $st, 'link' => $l);
+}
+
+// A reply of HTTP code $code, transport error $err (aio_http_get) is of the API down: no connection, a timeout, 5xx.
+/**
+ * @param int $code
+ * @param string $err
+ * @return bool
+ */
+function aio_pg_link_down($code, $err)
+{
+    return ($err !== '' && $err !== AIO_HTTP_TOO_BIG) || ($err === '' && $code >= 500 && $code < 600);
 }
 
 // s of the pause of the requests left (aio_pg_link_now: no connection, 5xx); 0: none. A pause ending past
@@ -925,20 +1018,33 @@ function aio_pg_link_queue()
     return $out;
 }
 
-// The lazy pairs: the cards of aio_pg_link_queue, up to AIO_PG_LINK_N requests in $limit s (the second one only
+// The lazy pairs: the cards of aio_pg_link_queue in $limit s: AIO_HTTP_PAR at once (aio_pg_link_many), each its
+// timeout the whole of what is left; else (no curl_multi) up to AIO_PG_LINK_N requests one by one (the second one only
 // with AIO_PG_LINK_NEXT_S left; a $tick, aio_pg_tick: one). None in a pause (aio_pg_paused) or with no dune_auth.
-// One line of the log of a step that asked; of a $tick always. -> how many were asked.
+// One line of the log of a step that asked (its path: aio_http_mark); of a $tick always. -> how many were asked;
+// $rounds: the requests in time - a batch one, one by one each.
 /**
  * @param float $limit
  * @param bool $tick
+ * @param int $rounds
  * @return int
  */
-function aio_pg_link_step($limit, $tick = false)
+function aio_pg_link_step($limit, $tick = false, &$rounds = 0)
 {
     $t = microtime(true);
     $n = 0;
     $got = 0;
-    foreach (aio_pg_paused() ? array() : aio_pg_link_queue() as $mid)
+    $rounds = 0;
+    $q = aio_pg_paused() ? array() : aio_pg_link_queue();
+    $many = $q && $limit >= 1 && aio_pg_token() !== '' ? aio_pg_link_many(array_slice($q, 0, AIO_HTTP_PAR), $limit) : null;
+    $par = $many !== null ? count($many) : 0;
+    foreach ($many !== null ? $many : array() as $r)
+    {
+        $n++;
+        $got += $r['st'] === 'pair' ? 1 : 0;
+    }
+    $rounds = $par ? 1 : 0;
+    foreach ($many !== null ? array() : $q as $mid)
     {
         $left = $limit - (microtime(true) - $t);
         if ($n >= ($tick ? 1 : AIO_PG_LINK_N) || $left < ($n ? AIO_PG_LINK_NEXT_S : 1))
@@ -948,11 +1054,14 @@ function aio_pg_link_step($limit, $tick = false)
         $pause = AioPgLinks::$pause;
         $r = aio_pg_link_now($mid, $left);
         $n++;
+        $rounds++;
         $got += $r['st'] === 'pair' ? 1 : 0;
         if (AioPgLinks::$pause !== $pause)
             break;
     }
+    $mark = $n ? aio_http_mark($par, $par ? 0 : $n) : '';
     if ($n || $tick)
-        aio_log(sprintf('link: %s: %d asked, %d pairs, %.0f ms', $tick ? 'tick' : 'step', $n, $got, (microtime(true) - $t) * 1000));
+        aio_log(sprintf('link: %s: %d asked, %d pairs, %.0f ms%s', $tick ? 'tick' : 'step', $n, $got, (microtime(true) - $t) * 1000,
+            $mark !== '' ? ", $mark" : ''));
     return $n;
 }

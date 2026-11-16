@@ -577,35 +577,68 @@ function aio_mlv_import_budget($s)
     return preg_match('/^[1-9][0-9]{0,3}$/D', $s) ? (float) min($max, intval($s)) : (float) (AIO_MLV_IMPORT_T0_S - AIO_MLV_IMPORT_TAIL_S);
 }
 
-// The pair of card $mid of the Dune (links.php) now: kept, else of the card of the shell (aio_pg_shell_pair, kept), else
-// asked (aio_pg_link_now, in $left s, AIO_PG_LINK_S at most; none in a pause of the requests, none with under 1 s
-// left). null: none ("no pair" kept for good, a failure, no time left); $asked: one more when asked.
+// The pair of card $mid of the Dune (links.php) with no request: kept, else of the card of the shell
+// (aio_pg_shell_pair, kept). -> array(the pair or null, to ask: none kept, no "no pair" kept for good).
 /**
  * @param string $mid
- * @param float $left
- * @param int $asked
- * @return AioPgLink|null
+ * @return array{AioPgLink|null, bool}
  */
-function aio_mlv_fav_pair($mid, $left, &$asked)
+function aio_mlv_fav_known($mid)
 {
     $links = aio_pg_links();
     $l = isset($links[$mid]) ? $links[$mid] : null;
     if ($l && !isset($l['none']) && !isset($l['fail']))
-        return $l;
+        return array($l, false);
     if ($l && isset($l['none']))
-        return null;
+        return array(null, false);
     // The card of the shell first: no request, not counted.
     $l = isset(AioPgLinks::$shell_seen[$mid]) ? null : aio_pg_shell_pair($mid);
     if ($l)
     {
         aio_pg_link_put($mid, $l);
-        return $l;
+        return array($l, false);
     }
-    if ($left < 1 || aio_pg_paused())
-        return null;
-    $asked++;
-    $r = aio_pg_link_now($mid, min(AIO_PG_LINK_S, $left));
-    return $r['link'];
+    return array(null, true);
+}
+
+// The pairs of cards $mids of the Dune asked (aio_mlv_fav_known: to ask) into $pairs (movie_id => the pair or null),
+// in the $budget s from $t0, each AIO_PG_LINK_S at most: AIO_HTTP_PAR at once (aio_pg_link_many), else one by one (no
+// curl_multi: aio_pg_link_now); none in a pause of the requests, none with under 1 s left (null). $asked: one more
+// each asked. -> array(at most at once (0: none at once), one by one) for aio_http_mark.
+/**
+ * @param list<string> $mids
+ * @param float $budget
+ * @param float $t0
+ * @param array<string, AioPgLink|null> $pairs
+ * @param int $asked
+ * @return array{int, int}
+ */
+function aio_mlv_fav_ask($mids, $budget, $t0, &$pairs, &$asked)
+{
+    $par = 0;
+    $seq = 0;
+    $multi = true;
+    $i = 0;
+    while ($i < count($mids))
+    {
+        $left = $budget - (microtime(true) - $t0);
+        if ($left < 1 || aio_pg_paused())
+            break;
+        $rs = $multi ? aio_pg_link_many(array_slice($mids, $i, AIO_HTTP_PAR), min(AIO_PG_LINK_S, $left)) : null;
+        if ($rs === null)
+        {
+            $multi = false;
+            $rs = array($mids[$i] => aio_pg_link_now($mids[$i], min(AIO_PG_LINK_S, $left)));
+            $seq++;
+        }
+        else
+            $par = max($par, count($rs));
+        foreach ($rs as $mid => $r)
+            $pairs[strval($mid)] = $r['link'];
+        $asked += count($rs);
+        $i += count($rs);
+    }
+    return array($par, $seq);
 }
 
 // The tile of movie $f of the Favorites (aio_ml_fav_read) by its pair $l: the best tile of its IMDb or TMDB
@@ -649,13 +682,13 @@ function aio_mlv_fav_tile($f, $l, $map = null)
 // The import of screen $from (the second input of "Добавить из «Избранного» Дюны", aio_mlv_import_ask): the movies
 // and series of the shell in the Favorites of the Dune (aio_ml_fav_read, read only) not in the list (by their card of
 // the Dune and by IMDb or TMDB) to the end of it in their order (aio_ml_append), nothing taken out; IMDb and TMDB by
-// the pairs first, then the card of the shell or a request (aio_mlv_fav_pair), all in $budget s
-// (aio_mlv_import_budget). One without them: not added, counted (a repeat of the import goes on with them). Then the
+// the pairs first, then the card of the shell (aio_mlv_fav_known), then the requests of the rest (aio_mlv_fav_ask: at
+// once by AIO_HTTP_PAR, else one by one), all in $budget s (aio_mlv_import_budget). One without them: not added, counted (a repeat of the import goes on with them). Then the
 // meta of the ones added in what is left of it, at once (aio_cpm_fill: the tile of a row in memory, else a request;
 // not asked, no answer: lazily). Then the screens of the list anew (aio_ml_changed: the list, not the hint) and the
 // message: "Добавлено из «Избранного»: N" (with the ones not added; the list full), "В «Избранном» Дюны нет нового",
 // or why the file was not written (aio_ml_err). One line of the log (the meta in it, no line of each request of it;
-// ", pause": the lazy meta in a pause after it, aio_cpm_paused), no address.
+// the path of the requests, aio_http_mark; ", pause": the lazy meta in a pause after it, aio_cpm_paused), no address.
 /**
  * @param string $from
  * @param float|null $budget
@@ -673,6 +706,19 @@ function aio_mlv_import($from, $budget = null)
     $there = 0;
     $skip = 0;
     $asked = 0;
+    // The pairs first: kept or of the cards of the shell, then the rest asked (aio_mlv_fav_ask).
+    $pairs = array();
+    $ask = array();
+    foreach ($favs as $f)
+    {
+        $mid = $f['dune_id'];
+        if (array_key_exists($mid, $pairs) || aio_ml_find_dune($mid))
+            continue;
+        list($pairs[$mid], $q) = aio_mlv_fav_known($mid);
+        if ($q)
+            $ask[] = $mid;
+    }
+    list($par, $seq) = aio_mlv_fav_ask($ask, $budget, $t0, $pairs, $asked);
     foreach ($favs as $f)
     {
         if (aio_ml_find_dune($f['dune_id']))
@@ -680,7 +726,7 @@ function aio_mlv_import($from, $budget = null)
             $there++;
             continue;
         }
-        $l = aio_mlv_fav_pair($f['dune_id'], $budget - (microtime(true) - $t0), $asked);
+        $l = $pairs[$f['dune_id']];
         $t = $l ? aio_mlv_fav_tile($f, $l, $map) : null;
         if ($t && aio_ml_in($t) !== '')
             $there++;
@@ -697,10 +743,11 @@ function aio_mlv_import($from, $budget = null)
         if ($why === '' || aio_ml_in($a[0]) !== '')
             $tiles[] = $a[0];
     }
-    list($metas, $got) = aio_cpm_fill($tiles, $budget - (microtime(true) - $t0), $map);
-    aio_log(sprintf('my list: import: %d in the Favorites, %d there, %d asked, %d added, %d not%s, meta %d asked, %d got, %.0f ms%s',
+    list($metas, $got, $mpar, $mseq) = aio_cpm_fill($tiles, $budget - (microtime(true) - $t0), $map);
+    $mark = aio_http_mark(max($par, $mpar), $seq + $mseq);
+    aio_log(sprintf('my list: import: %d in the Favorites, %d there, %d asked, %d added, %d not%s, meta %d asked, %d got, %.0f ms%s%s',
         count($favs), $there, $asked, $n, $skip, $why !== '' ? ", $why" : '', $metas, $got, (microtime(true) - $t0) * 1000,
-        aio_cpm_paused() ? ', pause' : ''));
+        $mark !== '' ? ", $mark" : '', aio_cpm_paused() ? ', pause' : ''));
     if ($n === 0 && $why !== '' && $why !== 'full')
         return aio_ml_err($why);
     $lines = array();

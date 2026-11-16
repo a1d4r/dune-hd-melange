@@ -1,7 +1,7 @@
 <?php
 // Client of the catalog: rows of the shared AIOMetadata instance (Stremio addon
 // protocol), its search, a cache on the device and the last good copy on a
-// failure. Data only, no screens. Needs parse.php and main.php (aio_http_get,
+// failure. Data only, no screens. Needs parse.php and main.php (aio_http_get, aio_http_get_many,
 // aio_log, aio_write_file, aio_data_dir), on the settings page cgi/lib/rows.php.
 // Types in the PHPDoc (AioCatRow and others): phpstan-types.neon of the repository.
 
@@ -106,11 +106,68 @@ function aio_cat_url($path)
 function aio_cat_get($path, $what, $field, $limit = 0, $one = false, $max = AIO_CAT_MAX_BYTES)
 {
     $t = microtime(true);
+    $q = aio_cat_req($path, $limit, $max);
     $err = '';
     $connected = true;
+    list($code, $body) = aio_http_get($q[0], $err, $q[1], $q[2], $q[3], $connected);
+    return aio_cat_reply(array($code, $body, $err, $connected, microtime(true) - $t), $what, $field, $one);
+}
+
+// The GETs of paths $paths (key => array(path, what)) at once (aio_http_get_many; the caller keeps to AIO_HTTP_PAR),
+// each as aio_cat_get with the same $field, $limit, $one, $max and its line of the log -> key => array(err, list) in
+// the order of $paths; null: no curl_multi (the caller asks one by one, aio_cat_get).
+/**
+ * @param array<array-key, array{string, string}> $paths
+ * @param string $field
+ * @param float|int $limit
+ * @param bool $one
+ * @param int $max
+ * @return array<array-key, array{err: string, list: array<mixed>}>|null
+ */
+function aio_cat_get_many($paths, $field, $limit = 0, $one = false, $max = AIO_CAT_MAX_BYTES)
+{
+    $reqs = array();
+    foreach ($paths as $k => $p)
+        $reqs[$k] = aio_cat_req($p[0], $limit, $max);
+    $res = aio_http_get_many($reqs);
+    if ($res === null)
+        return null;
+    $out = array();
+    foreach ($paths as $k => $p)
+    {
+        $out[$k] = aio_cat_reply($res[$k], $p[1], $field, $one);
+        // The body of each freed as it is parsed.
+        unset($res[$k]);
+    }
+    return $out;
+}
+
+// The GET of $path (aio_cat_get) -> array(URL, connect, total, max) of aio_http_get.
+/**
+ * @param string $path
+ * @param float|int $limit
+ * @param int $max
+ * @return array{string, float|int, float|int, int}
+ */
+function aio_cat_req($path, $limit, $max)
+{
     $total = $limit > 0 ? min($limit, AIO_CAT_TOTAL) : AIO_CAT_TOTAL;
-    list($code, $body) = aio_http_get(aio_cat_url($path), $err, min(AIO_CAT_CONNECT, $total), $total, $max,
-        $connected);
+    return array(aio_cat_url($path), min(AIO_CAT_CONNECT, $total), $total, $max);
+}
+
+// The reply $r (array(HTTP code, body, err, connected, s it took) of aio_http_get) of a GET of aio_cat_get, its line
+// of the log -> array(err, list) as aio_cat_get.
+/**
+ * @param array{int, string, string, bool, float} $r
+ * @param string $what
+ * @param string $field
+ * @param bool $one
+ * @return array{err: string, list: array<mixed>}
+ */
+function aio_cat_reply($r, $what, $field, $one)
+{
+    list($code, $body, $err, $connected, $s) = $r;
+    unset($r);
     $size = strlen($body);
     $status = $err !== '' ? $err : "HTTP $code";
     $why = '';
@@ -148,7 +205,7 @@ function aio_cat_get($path, $what, $field, $limit = 0, $one = false, $max = AIO_
     unset($body, $j);
     if ($what !== '')
         aio_log(sprintf('catalog: %s: %s, %d bytes, %d items, %.0f ms%s', $what, $status, $size, $one ? ($list ? 1 : 0) : count($list),
-            (microtime(true) - $t) * 1000, $why !== '' ? ", failed: $why" : ''));
+            $s * 1000, $why !== '' ? ", failed: $why" : ''));
     return array('err' => $why, 'list' => $list);
 }
 
