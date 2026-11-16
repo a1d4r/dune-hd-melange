@@ -48,6 +48,10 @@ class AioLpv
     // under the player, s, e; back from the player the list goes to it (aio_lpv_finish). null none.
     /** @var array{rid: string, s: int, e: int}|null */
     public static $played = null;
+    // The search window of "Источники…" on screen (aio_lpv_srcs_apply): its sid and the list of the new choice, put in
+    // when the window closes with no list of its own (Cancel, RETURN, no answer, nothing: aio_lpv_redraw). null none.
+    /** @var array{sid: string, st: AioState}|null */
+    public static $redraw = null;
 }
 
 // "Онлайн" for card $mv, episode $e of season $s (-1: none): a Lampac in the settings; of a series
@@ -1079,11 +1083,12 @@ function aio_lpv_errors_of($st)
 // title marked "online" when there is a list), back (nothing online: the releases with the
 // yellow line), path (the path of a balancer: the cursor on it, the yellow line "<it> больше не
 // отдаёт эту озвучку"), more (the replies of the view of $st from its next, no search; the
-// cursor on the first new row).
+// cursor on the first new row), redraw (the screen under it shows a list before $st: $st put in when the window
+// closes with no list - AioLpv::$redraw, aio_lpv_redraw_keys).
 /**
  * @param AioState $st
  * @param string $how
- * @param array{mark?: bool, back?: bool, path?: string, more?: bool} $opt
+ * @param array{mark?: bool, back?: bool, path?: string, more?: bool, redraw?: bool} $opt
  * @return AioAction
  */
 function aio_lpv_search_open($st, $how, $opt = array())
@@ -1104,11 +1109,51 @@ function aio_lpv_search_open($st, $how, $opt = array())
         'path' => isset($opt['path']) ? $opt['path'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null,
         'v' => $v, 't1' => $more ? aio_lp_now() : 0.0, 'more' => $more ? count($v['rows']) : -1);
     AioLpv::$run = $run;
+    AioLpv::$redraw = !empty($opt['redraw']) ? array('sid' => $sid, 'st' => $st) : null;
     aio_log("lampac: window $sid, " . aio_ep_tag($st) . ", $how, phase {$run['phase']}" . ($run['mark'] ? ', mark' : '') .
-        ($run['back'] ? ', back' : '') . ($run['path'] !== '' ? ", balancer {$run['path']}" : ''));
-    return aio_dialog_act(aio_tr($st['lang'], 'lp_search'), aio_lpv_search_defs($run), array(
+        ($run['back'] ? ', back' : '') . ($run['path'] !== '' ? ", balancer {$run['path']}" : '') .
+        (AioLpv::$redraw ? ', redraw' : ''));
+    return aio_lpv_redraw_keys(aio_dialog_act(aio_tr($st['lang'], 'lp_search'), aio_lpv_search_defs($run), array(
         ShowDialogActionData::actions => array(GUI_EVENT_TIMER => aio_input('lp_tick', array('sid' => $sid), 30000)),
-        ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => AIO_LPV_TICK_MS)));
+        ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => AIO_LPV_TICK_MS))), $sid);
+}
+
+// Dialog $a of the window $sid (the search, no answer, nothing) of a search of "Источники…" (AioLpv::$redraw): RETURN
+// to lp_cancel (aio_lpv_redraw), not closed by the shell; else $a as it is.
+/**
+ * @param AioAction $a
+ * @param string $sid
+ * @return AioAction
+ */
+function aio_lpv_redraw_keys($a, $sid)
+{
+    if (!AioLpv::$redraw || AioLpv::$redraw['sid'] !== $sid)
+        return $a;
+    $key = $a[GuiAction::handler_string_id] === CHANGE_BEHAVIOUR_ACTION_ID ? ChangeBehaviourActionData::actions :
+        ShowDialogActionData::actions;
+    if ($key === ShowDialogActionData::actions)
+        $a[GuiAction::data][ShowDialogActionData::close_by_return] = false;
+    $acts = isset($a[GuiAction::data][$key]) ? $a[GuiAction::data][$key] : array();
+    $acts[GUI_EVENT_KEY_RETURN] = aio_input('lp_cancel', array('sid' => $sid));
+    $a[GuiAction::data][$key] = $acts;
+    return $a;
+}
+
+// lp_cancel of the window $in->sid: of a search of "Источники…" (AioLpv::$redraw) its list of the new choice put in,
+// the screen replaced (else the rows of before stay there, of the sources just turned off too); else nothing.
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
+function aio_lpv_redraw($in)
+{
+    $r = AioLpv::$redraw;
+    if (!$r || !isset($in->sid) || $in->sid !== $r['sid'])
+        return null;
+    AioLpv::$redraw = null;
+    aio_log('lampac: window ' . $r['sid'] . ' closed with no list: the list of the new choice, ' . count($r['st']['lp']['rows']) .
+        ' rows');
+    return aio_list_replace($r['st']);
 }
 
 // Controls of the window of run $run: the sources found, the balancers asked and the variants
@@ -1213,7 +1258,7 @@ function aio_lpv_tick($in)
         AioLpv::$run = null;
         return aio_close_and(aio_lpv_result($run));
     }
-    return array(
+    return aio_lpv_redraw_keys(array(
         GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
         GuiAction::data => array(
             ChangeBehaviourActionData::actions => array(GUI_EVENT_TIMER => aio_input('lp_tick', array('sid' => $run['sid']), 30000)),
@@ -1223,7 +1268,7 @@ function aio_lpv_tick($in)
                 GuiAction::data => array(
                     ResetControlsActionData::defs => aio_lpv_search_defs($run),
                     ResetControlsActionData::initial_sel_ndx => -1,
-                    ResetControlsActionData::post_action => null))));
+                    ResetControlsActionData::post_action => null)))), $run['sid']);
 }
 
 // Lampac of run $run did not answer ($why, $detail: AioLpWhy): a marked title with releases -
@@ -1242,8 +1287,18 @@ function aio_lpv_down($run, $why, $detail)
         ')' . ($run['back'] ? ' -> the releases' : ''));
     if ($run['back'])
         return aio_lpv_releases($st, aio_tr($lang, 'lp_note_down'));
-    return aio_dialog(aio_tr($lang, 'lp_down'), aio_dialog_lines(aio_lpv_why($lang, $why, $detail)),
-        array(aio_tr($lang, 'lp_close') => aio_close_and(null)));
+    return aio_lpv_redraw_keys(aio_dialog(aio_tr($lang, 'lp_down'), aio_dialog_lines(aio_lpv_why($lang, $why, $detail)),
+        array(aio_tr($lang, 'lp_close') => aio_lpv_close_act($run['sid']))), $run['sid']);
+}
+
+// The button "Закрыть" of a window of run $sid: of a search of "Источники…" lp_cancel (aio_lpv_redraw), else closed.
+/**
+ * @param string $sid
+ * @return AioAction
+ */
+function aio_lpv_close_act($sid)
+{
+    return AioLpv::$redraw && AioLpv::$redraw['sid'] === $sid ? aio_input('lp_cancel', array('sid' => $sid)) : aio_close_and(null);
 }
 
 // The end of run $run: the online list (of a new search the remembered row of the title first, the
@@ -1277,9 +1332,10 @@ function aio_lpv_result($run)
             if ($w['why'] === 'accsdb' && $w['detail'] !== '')
                 $lines = array_merge($lines, aio_dialog_lines($w['detail']));
         }
-        return aio_dialog(aio_lpv_tr($lang, 'lp_none', array('title' => $mv['title'])), array_slice($lines, 0, 2),
-            array(aio_tr($lang, 'lp_close') => aio_close_and(null)));
+        return aio_lpv_redraw_keys(aio_dialog(aio_lpv_tr($lang, 'lp_none', array('title' => $mv['title'])),
+            array_slice($lines, 0, 2), array(aio_tr($lang, 'lp_close') => aio_lpv_close_act($run['sid']))), $run['sid']);
     }
+    AioLpv::$redraw = null;
     $mark = $run['more'] < 0 ? aio_lpv_mark($mv) : null;
     $rows = $v['rows'];
     $first = -1;
@@ -2012,8 +2068,6 @@ function aio_lpv_srcs_apply($in, $st)
     $n = count(array_filter($state));
     aio_log("lampac: sources: $n of " . count($choice) . ' on, saved; ' . ($back ? 'turned on, not asked: ' .
         implode(', ', $back) . ' -> the search anew' : count($v['rows']) . ' rows of ' . count($st['lp']['rows']) . ' kept'));
-    if ($back)
-        return aio_lpv_search_open($st, 'replace');
     list($sel) = aio_lpv_pos($st['lp'], null);
     $row = aio_lpv_row_of(aio_lpv_lines($st['lp']), $sel);
     $ns = $st;
@@ -2021,6 +2075,9 @@ function aio_lpv_srcs_apply($in, $st)
     $ns['lp'] = aio_lpv_flt_keep($v, $st);
     $ns['lp']['gc'] = aio_lpv_put(aio_lpv_lines($ns['lp']), isset($map[$row]) ? $map[$row] : 0);
     $ns['lp']['gc_new'] = true;
+    // The search over the rows of before: closed with no list (Cancel, no answer), this list of the new choice instead.
+    if ($back)
+        return aio_lpv_search_open($ns, 'replace', array('redraw' => true));
     return aio_list_replace($ns);
 }
 
@@ -2043,7 +2100,7 @@ function aio_lpv_input($in, $control)
         if (AioLpv::$run && isset($in->sid) && $in->sid === AioLpv::$run['sid'])
             AioLpv::$run = null;
         aio_log('lampac: the search cancelled');
-        return aio_close_and(null);
+        return aio_close_and(aio_lpv_redraw($in));
     }
     $st = Aio::$state;
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
