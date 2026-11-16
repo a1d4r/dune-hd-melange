@@ -5,10 +5,8 @@
 // AIOStreams), the window "Раздач нет" with "Искать онлайн".
 // PHP 5.3.6, firmware API only. Types (AioLpRow, AioMovie): phpstan-types.neon.
 
-// "Continue": seconds of the whole way (the row of the shell waits ~20 s), of the reply of
-// the balancer (cold: not after events).
+// "Continue": seconds of the whole way (the row of the shell waits ~20 s).
 define('AIO_LPV_RESUME_MAX', 18);
-define('AIO_LPV_RESUME_REPLY', 5);
 // Seconds kept for the check of a link after "call".
 define('AIO_LPV_CHECK_MIN', 4);
 
@@ -312,50 +310,38 @@ function aio_lpv_resume_in($in)
     return array('path' => $k[0], 'hex' => $k[1], 'pos' => max(0, aio_int($si, 'wh_pos', 0)));
 }
 
-// "Continue" $r of card $mv (spec §7): the balancer alone (/lite/<path> on the Lampac of the
-// settings, no events), its row of the voice, "call", the check, vod_play from the position;
-// within AIO_LPV_RESUME_MAX s. Not so (no title, no voice, no link) -> the search window, the
-// cursor on that balancer, the yellow line "<it> больше не отдаёт эту озвучку".
+// "Continue" $r of card $mv (spec §7), of episode $e of season $s (-1 a movie; of a series the
+// episode the caller chose: the next one after a watched one is not of here): the balancer of the
+// record alone (aio_lp_find: /lite/<path> on the Lampac of the settings, no events), the voice of
+// its hex, of a series its season and episode, "call", the check, vod_play from the position
+// (aio_lpv_ep_play: an episode in the playlist of its season, the others lazy); within
+// AIO_LPV_RESUME_MAX s. Not so (no title, no voice, no episode, no link) -> the search window of
+// that episode, the cursor on that balancer, the yellow line "<it> больше не отдаёт эту озвучку".
 /**
  * @param AioMovie $mv
  * @param array{path: string, hex: string, pos: int} $r
  * @param string $lang
+ * @param int $s
+ * @param int $e
  * @return AioAction
  */
-function aio_lpv_resume($mv, $r, $lang)
+function aio_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
 {
     $base = Aio::$settings['lp'];
     $deadline = aio_lp_now() + AIO_LPV_RESUME_MAX;
-    $src = aio_lp_source_of($base, $r['path']);
-    $why = 'no source';
-    if ($src)
+    $ep = $s >= 0 ? sprintf(' S%02dE%02d', $s, $e) : '';
+    list($t) = aio_lp_externalids($base, aio_lpv_title($mv));
+    // The key back from its path and hex (aio_lp_key_parse).
+    $f = aio_lp_find($base, "lp-{$r['path']}-{$r['hex']}", aio_lp_query($t), $s, $e,
+        min(AIO_LP_REPLIES_MAX, max(0, $deadline - aio_lp_now() - AIO_LPV_CHECK_MIN)));
+    $a = aio_lpv_ep_play($mv, $lang, $f, $s, $e, $r['pos'], $deadline);
+    if (!isset($a[0]))
     {
-        list($t) = aio_lp_externalids($base, aio_lpv_title($mv));
-        $rr = aio_lp_replies($base, array($src), aio_lp_query($t), 0,
-            min(AIO_LPV_RESUME_REPLY, max(AIO_LP_REPLY_MIN, floor($deadline - aio_lp_now() - AIO_LPV_CHECK_MIN))));
-        $row = null;
-        foreach ($rr['rows'] as $x)
-        {
-            if (aio_lp_voice_is($x, $r['hex']))
-            {
-                $row = $x;
-                break;
-            }
-        }
-        $why = $row ? '' : ($rr['rows'] ? 'no voice' : 'no rows');
-        if ($row)
-        {
-            $a = aio_lpv_ep_play($mv, $lang, aio_lp_found($row, null, -1, -1), -1, -1, $r['pos'], $deadline);
-            if (!isset($a[0]))
-            {
-                aio_log("resume: lampac {$r['path']}, pos {$r['pos']}");
-                return $a;
-            }
-            $why = "no link ({$a[0]})";
-        }
+        aio_log("resume: lampac {$r['path']}$ep, pos {$r['pos']}");
+        return $a;
     }
-    aio_log("resume: lampac {$r['path']}: $why -> the search");
-    $st = aio_list_state($mv, -1, -1, array(), $lang, aio_no_errors());
+    aio_log("resume: lampac {$r['path']}$ep: " . ($f['row'] ? 'no link' : 'no row') . " ({$a[0]}) -> the search");
+    $st = aio_list_state($mv, $s, $e, array(), $lang, aio_no_errors());
     $st['lp_only'] = true;
     return aio_lpv_search_open($st, 'open', array('path' => $r['path']));
 }

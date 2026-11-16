@@ -1220,12 +1220,13 @@ function aio_lp_ep_row($row, $ep)
 
 // The row of episode $e of season $s of history key $key (aio_lp_season_key: the path of the
 // balancer and the hex of the voice) for title query $q (aio_lp_query) on Lampac $base, without
-// events: "Continue" of a serial and the next episode (lampac_next:). The balancer of the path
+// events: "Continue" and the next episode (lampac_next:). $s -1: a movie (a key of aio_lp_key), the
+// row of the reply of the hex of the key (aio_lp_voice_is; none: no_voice). The balancer of the path
 // alone (aio_lp_source_of): its reply, its season (aio_lp_serial), the voice of the key among
 // voice[] of the season (aio_lp_season_rows, by key; no voices: the key of md5("")), the season in
 // that voice when it is not the active one, the episode (aio_lp_episode). Up to $total s, up to 3
 // requests. -> array(row: the row of the episode (aio_lp_ep_row: method play or call, the key
-// $key) or null; why: '' or bad_key (not a key of a balancer, s below 1), no_voice (the voice of
+// $key) or null; why: '' or bad_key (not a key of a balancer, s 0), no_voice (the voice of
 // the key is not in the season), a reason of the reply, the season or the episode (down, http,
 // type, no_season, no_episode...); detail; have: the episodes of the voice (aio_lp_episode); voice:
 // its name, '' none; sea: the season of the voice (the next episodes take it), null without one).
@@ -1245,7 +1246,7 @@ function aio_lp_find($base, $key, $q, $s, $e, $total = AIO_LP_REPLIES_MAX)
     $k = aio_lp_key_parse($key);
     $src = $k !== null && $k[0] !== '' ? aio_lp_source_of($base, $k[0]) : null;
     $each = (int) min(AIO_LP_REPLY_MAX, floor($total));
-    if ($src === null || $s < 1 || $e < 0)
+    if ($src === null || ($s >= 0 && ($s < 1 || $e < 0)))
         $out['why'] = 'bad_key';
     else if ($each < AIO_LP_REPLY_MIN)
         list($out['why'], $out['detail']) = array('down', 'no time');
@@ -1256,7 +1257,17 @@ function aio_lp_find($base, $key, $q, $s, $e, $total = AIO_LP_REPLIES_MAX)
         $p = $r['err'] === '' ? aio_lp_reply($src, $r['code'], $r['body'], $base) : null;
         if ($p === null)
             list($out['why'], $out['detail']) = array('down', $r['err']);
-        else if ($p['kind'] !== 'serial')
+        else if ($s < 0 && $p['kind'] === 'movie')
+        {
+            $row = null;
+            foreach ($p['rows'] as $x)
+            {
+                if ($row === null && aio_lp_voice_is($x, $k[1]))
+                    $row = $x;
+            }
+            $out = aio_lp_found($row, null, $s, $e);
+        }
+        else if ($p['kind'] !== 'serial' || $s < 0)
             list($out['why'], $out['detail']) = aio_lp_parsed_why($p);
         else
         {
