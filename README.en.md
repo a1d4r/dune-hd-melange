@@ -10,6 +10,7 @@ What it does:
 - its own movie and series catalog: rows of collections (trending, new releases, Russian, genres, streaming services and more; you choose which to show) and search;
 - a list of up to 100 releases with details: resolution, source, HDR / Dolby Vision, audio, size, languages, voice-overs, whether the release is cached in Debrid; sorting with the colored remote buttons;
 - Dune history: the percentage on the **Melange [NN%]** button, the **Continue Watching** row, resuming from the same spot;
+- Melange's own Continue Watching and Favorites rows in the catalog, and watch marks on posters;
 - series: the episodes of a season play in a row on the same release, and you flip episodes right in the list with ← / →;
 - Debrid (Real-Debrid or TorBox) or, without a subscription, torrents via TorrServer;
 - studio voice-overs (dubbing studios), from the release name and its tracks, plus tracks and voice-overs from JacRed;
