@@ -464,6 +464,17 @@ function aio_card_local_id($tile)
     return preg_match('/^tt[0-9]{1,10}$/D', $tile['imdb_id']) ? 'm-melange-' . $tile['imdb_id'] : '';
 }
 
+// The IMDb of the local card $mid (aio_card_local_id: of a movie alone, no card of the Dune, no pair ever: the dunemdb
+// API has no such card), '' for another card.
+/**
+ * @param string $mid
+ * @return string
+ */
+function aio_card_local_imdb($mid)
+{
+    return preg_match('/^m-melange-(tt[0-9]{1,10})$/D', $mid, $m) ? $m[1] : '';
+}
+
 // A tile with IMDb and no card of the server: the local card of the shell made from it
 // before, opened as it is (the user may have edited it in the shell), whatever the server
 // said. -> its id, '' for none or a broken one.

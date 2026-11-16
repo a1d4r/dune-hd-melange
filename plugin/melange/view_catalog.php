@@ -9,6 +9,11 @@
 // r24: seconds for rows at an opening, with the refresh of the manifest: what does not
 // make it stays hidden until the next one. A cold row takes up to 4.5 s, 6 rows 2.5 s.
 define('AIO_CATV_OPEN_S', 3.0);
+// r24: s of it the meta of the rows "Continue" and "Мой список" (aio_cpm_build, before aio_catv_open) leaves to the rows
+// at least: one row of the server (~0.4 s, 6 rows 2.5 s; aio_catv_open starts one with AIO_CATV_MIN_S left). The rows of
+// memory and the copies take none of it: aio_catv_open counts its limit after them (the 35 rows of a tab of copies, the
+// whole screen with them ~0.5 s on the Dune).
+define('AIO_CATV_OPEN_ROW_S', 0.5);
 // r25: one row of get_folder_rows, a key of the user waits for it; the stubs of a row.
 define('AIO_CATV_ROW_S', 5.0);
 define('AIO_CATV_STUBS', 9);
@@ -1336,9 +1341,11 @@ function aio_catv_main_view($media_url, $sel_state)
     }
     aio_pg_screen_start();
     // The row "Continue" first, of the history, then "Мой список" of the tab: ready at once, the meta of their tiles
-    // first (aio_cpm_build: kept, of the rows in memory or on the disk, else asked in AIO_CPM_BUILD_S). Their tiles with
-    // no meta still are for the lazy meta of this screen (aio_cpm_step), those of "Continue" first.
-    aio_cpm_build($tab, AIO_CPM_BUILD_S);
+    // first (aio_cpm_build: kept, of the rows in memory or on the disk, else asked in AIO_CPM_BUILD_S; r24 in what is
+    // left of AIO_CATV_OPEN_S but AIO_CATV_OPEN_ROW_S, under AIO_CPM_MIN_S none asked). Their tiles with no meta still
+    // are for the lazy meta of this screen (aio_cpm_step), those of "Continue" first.
+    aio_cpm_build($tab, $loading ? AIO_CPM_BUILD_S :
+        max(0.0, min(AIO_CPM_BUILD_S, AIO_CATV_OPEN_S - (microtime(true) - $rows_t0) - AIO_CATV_OPEN_ROW_S)));
     $defs = array_merge(aio_cp_row_defs($tab, $lang, $cp_tiles, $miss), aio_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss));
     AioCpm::$miss = $miss;
     AioCpm::$ml = $ml_miss;

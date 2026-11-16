@@ -5,8 +5,9 @@
 // The keys of the translations of it are "cp_..." (catalog progress); "cp" in the names of its code is "Continue".
 // Needs progress.php, links.php, history.php, main.php (aio_tr, aio_log, aio_error, aio_data_dir, aio_file_sig,
 // aio_write_file, AIO_SUP_ID), catalog.php (aio_cat_tile, aio_cat_row_state), catalog_card.php (aio_card_open,
-// aio_card_id), card_meta.php (aio_cm_id, aio_cm_get), view_card_series.php (aio_cm_eps_before), view_catalog.php
-// (aio_catv_*), view_card.php (aio_oc_enter), cp_meta.php (aio_cpm_tile, AioCpm), view_my_list.php (aio_ml_changed).
+// aio_card_id, aio_card_local_imdb), card_meta.php (aio_cm_id, aio_cm_get), view_card_series.php (aio_cm_eps_before),
+// view_catalog.php (aio_catv_*), view_card.php (aio_oc_enter), cp_meta.php (aio_cpm_tile, AioCpm), view_my_list.php
+// (aio_ml_changed).
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The rid of the row: its tiles are "continue:<movie_id>" (aio_catv_tile), its rows "items:continue", "title:continue".
@@ -220,20 +221,9 @@ function aio_cp_pair_type($l, $series)
     return $series ? 'series' : 'movie';
 }
 
-// The IMDb of a local card of Melange ("m-melange-<IMDb>", aio_card_local_id: of a movie alone, no card of the Dune, no
-// pair ever: the dunemdb API has no such card) $mid, '' for another card.
-/**
- * @param string $mid
- * @return string
- */
-function aio_cp_local_imdb($mid)
-{
-    return preg_match('/^m-melange-(tt[0-9]{1,10})$/D', $mid, $m) ? $m[1] : '';
-}
-
 // The type, IMDb and TMDB ('' none) of card $mid of the history by its pair (links.php), its type by aio_cp_pair_type
 // ($series: the card has episodes); a local card of Melange with no pair: a movie of the IMDb of its id
-// (aio_cp_local_imdb).
+// (aio_card_local_imdb).
 /**
  * @param string $mid
  * @param bool $series
@@ -243,7 +233,7 @@ function aio_cp_ids($mid, $series)
 {
     $links = aio_pg_links();
     $l = isset($links[$mid]) ? $links[$mid] : array();
-    $local = isset($l['imdb']) ? '' : aio_cp_local_imdb($mid);
+    $local = isset($l['imdb']) ? '' : aio_card_local_imdb($mid);
     if ($local !== '')
         return array('movie', $local, '');
     $type = aio_cp_pair_type($l, $series);

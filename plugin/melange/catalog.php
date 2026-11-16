@@ -72,6 +72,19 @@ define('AIO_CAT_QUERY_MAX', 100);
 // The rating of Kinopoisk of fewer votes is not shown (the owner's choice).
 define('AIO_CAT_KP_VOTES_MIN', 1000);
 
+class AioCatCopies
+{
+    // The index of the copies of the rows on the disk (aio_cat_cache_index): each file (aio_cat_cache_dir) as it was
+    // when its keys were read ("mtime:size"), its keys ("<type>|imdb:<IMDb>", "<type>|tmdb:<TMDB>"), and the file of
+    // each key (of the newest file). Memory of php_server.
+    /** @var array<string, string> */
+    public static $sig = array();
+    /** @var array<string, list<string>> */
+    public static $keys = array();
+    /** @var array<string, string> */
+    public static $map = array();
+}
+
 // --- Requests.
 
 // The only place that adds the UUID to an address: no log or cache gets this URL.
@@ -84,7 +97,7 @@ function aio_cat_url($path)
     return AIO_CAT_BASE . AIO_CAT_UUID . '/' . $path;
 }
 
-// One GET -> array(err: '' or why it failed, list: the JSON list in $field).
+// One GET -> array(err: '' or why it failed, list: the JSON list in $field, curl28: a timeout of curl, connected or not).
 // err: net (transport; a timeout before a connection too: the server out of reach),
 // timeout (curl 28 once connected: a slow reply), big (over the limit), rate (429), server (5xx),
 // notfound (404), http (another status), bad (not the JSON expected). A failure
@@ -101,7 +114,7 @@ function aio_cat_url($path)
  * @param float|int $limit
  * @param bool $one
  * @param int $max
- * @return array{err: string, list: array<mixed>} list: the object itself when $one
+ * @return array{err: string, list: array<mixed>, curl28: bool} list: the object itself when $one
  */
 function aio_cat_get($path, $what, $field, $limit = 0, $one = false, $max = AIO_CAT_MAX_BYTES)
 {
@@ -133,7 +146,7 @@ function aio_http_get_req($q)
  * @param float|int $limit
  * @param bool $one
  * @param int $max
- * @return array<array-key, array{err: string, list: array<mixed>}>|null
+ * @return array<array-key, array{err: string, list: array<mixed>, curl28: bool}>|null
  */
 function aio_cat_get_many($paths, $field, $limit = 0, $one = false, $max = AIO_CAT_MAX_BYTES)
 {
@@ -167,13 +180,13 @@ function aio_cat_req($path, $limit, $max)
 }
 
 // The reply $r (array(HTTP code, body, err, connected, s it took) of aio_http_get) of a GET of aio_cat_get, its line
-// of the log -> array(err, list) as aio_cat_get.
+// of the log -> array(err, list, curl28) as aio_cat_get.
 /**
  * @param array{int, string, string, bool, float} $r
  * @param string $what
  * @param string $field
  * @param bool $one
- * @return array{err: string, list: array<mixed>}
+ * @return array{err: string, list: array<mixed>, curl28: bool}
  */
 function aio_cat_reply($r, $what, $field, $one)
 {
@@ -217,7 +230,7 @@ function aio_cat_reply($r, $what, $field, $one)
     if ($what !== '')
         aio_log(sprintf('catalog: %s: %s, %d bytes, %d items, %.0f ms%s', $what, $status, $size, $one ? ($list ? 1 : 0) : count($list),
             $s * 1000, $why !== '' ? ", failed: $why" : ''));
-    return array('err' => $why, 'list' => $list);
+    return array('err' => $why, 'list' => $list, 'curl28' => strpos($err, 'curl 28:') === 0);
 }
 
 // --- Rows.
@@ -639,6 +652,7 @@ function aio_cat_tile($m, $row_type)
         if ($c !== '' && count($cast) < AIO_CAT_CAST_MAX)
             $cast[] = $c;
     }
+    // The first keys in this order: the index of the copies on the disk reads them so (aio_cat_cache_keys).
     return array('id' => $id, 'imdb_id' => $imdb, '_tmdbId' => $tmdb, 'type' => $type, 'name' => $name, 'year' => $year,
         'imdbRating' => preg_match('/^[0-9]{1,2}(\.[0-9]+)?$/', $rating) ? $rating : '',
         'description' => aio_cut(aio_one_line(aio_str($m, 'description')), AIO_CAT_DESC_MAX), 'genres' => $genres,
@@ -1005,12 +1019,23 @@ function aio_cat_cache_read($key)
     if ($f === '' || !is_file($f))
         return null;
     $c = json_decode(strval(file_get_contents($f)), true);
-    if (is_array($c) && isset($c['v'], $c['t'], $c['n'], $c['data']) && $c['v'] === AIO_CAT_CACHE_V && is_int($c['t']) &&
-        is_int($c['n']) && $c['n'] >= 1 && is_array($c['data']) && time() - $c['t'] < AIO_CAT_KEEP)
+    if (aio_cat_cache_good($c))
         return array('t' => $c['t'], 'n' => $c['n'], 'data' => $c['data']);
     if (!defined('AIO_CAT_READ_ONLY'))
         unlink($f);
     return null;
+}
+
+// A copy $c as decoded is good: of this version, its fields, saved less than AIO_CAT_KEEP ago.
+/**
+ * @param mixed $c
+ * @return bool
+ * @phpstan-assert-if-true array{v: int, t: int, n: int, data: array<mixed>} $c
+ */
+function aio_cat_cache_good($c)
+{
+    return is_array($c) && isset($c['v'], $c['t'], $c['n'], $c['data']) && $c['v'] === AIO_CAT_CACHE_V && is_int($c['t']) &&
+        is_int($c['n']) && $c['n'] >= 1 && is_array($c['data']) && time() - $c['t'] < AIO_CAT_KEEP;
 }
 
 // Saved less than AIO_CAT_FRESH ago. A saved time ahead of the clock (a clock not
@@ -1108,4 +1133,126 @@ function aio_cat_cache_prune($dir)
         $total -= $sizes[$f];
         $count--;
     }
+}
+
+// --- The tiles of the copies on the disk by IMDb or TMDB (the meta of the rows "Continue" and "Мой список",
+// aio_cpm_build of cp_meta.php), no request.
+
+// The keys of the tiles of the text $text of a copy (aio_cat_cache_write: {"v":..,"t":..,"n":..,"data":[tiles of
+// aio_cat_tile]}) of a movie or a series, "<type>|imdb:<IMDb>" and "<type>|tmdb:<TMDB>" (as aio_cp_tile_map): by the
+// fields of a tile in the order aio_cat_tile makes them, no json_decode; none of another version, of the manifest, of a
+// card (catalog_card.php). The id a run of no quote or backslash at a time: PCRE of PHP 5.3.6 recurses on each repeat of
+// a group, one a character would crash it on a long id.
+/**
+ * @param string $text
+ * @return list<string>
+ */
+function aio_cat_cache_keys($text)
+{
+    $head = '{"v":' . AIO_CAT_CACHE_V . ',';
+    if (strncmp($text, $head, strlen($head)) !== 0 || !preg_match_all('/\{"id":"(?:[^"\\\\]++|\\\\.)*+","imdb_id":"(tt[0-9]{1,10}|)",' .
+        '"_tmdbId":"([0-9]{0,10})","type":"(movie|series)"/', $text, $m, PREG_SET_ORDER))
+        return array();
+    $out = array();
+    foreach ($m as $one)
+    {
+        if ($one[1] !== '')
+            $out[] = "$one[3]|imdb:$one[1]";
+        if ($one[2] !== '')
+            $out[] = "$one[3]|tmdb:$one[2]";
+    }
+    return $out;
+}
+
+// The index of the copies on the disk: key ("<type>|imdb:<IMDb>", "<type>|tmdb:<TMDB>") => the file of the newest copy
+// with it. The keys of a file are read once while it is the same (its mtime and size; aio_cat_cache_keys: no
+// json_decode), the files looked at each call (a stat each): the copies of the owner, 240 files of 8 MB, ~3000 tiles -
+// all read ~15 ms on a Mac (docker), the Dune ~6 times that, once a php_server; then a stat of each.
+/**
+ * @return array<string, string>
+ */
+function aio_cat_cache_index()
+{
+    $dir = aio_cat_cache_dir();
+    $list = $dir !== '' ? glob("$dir/*.json") : array();
+    clearstatcache();
+    $sigs = array();
+    $times = array();
+    foreach ($list ? $list : array() as $f)
+    {
+        $s = @stat($f);
+        if (!$s)
+            continue;
+        $sigs[$f] = $s['mtime'] . ':' . $s['size'];
+        $times[$f] = $s['mtime'];
+    }
+    if ($sigs === AioCatCopies::$sig)
+        return AioCatCopies::$map;
+    $keys = array();
+    foreach ($sigs as $f => $sig)
+    {
+        $keys[$f] = isset(AioCatCopies::$sig[$f]) && AioCatCopies::$sig[$f] === $sig ? AioCatCopies::$keys[$f] :
+            aio_cat_cache_keys(strval(@file_get_contents($f)));
+    }
+    // The newest copy of a title last: its key is of it.
+    asort($times);
+    $map = array();
+    foreach ($times as $f => $t)
+    {
+        foreach ($keys[$f] as $k)
+            $map[$k] = $f;
+    }
+    AioCatCopies::$sig = $sigs;
+    AioCatCopies::$keys = $keys;
+    AioCatCopies::$map = $map;
+    return $map;
+}
+
+// The tiles of titles $want (key => array(type, IMDb, TMDB, since)) of the copies on the disk (aio_cat_cache_index: by
+// IMDb, else by TMDB; the newest copy with it, saved after since by its mtime - 0: any), no request: only the files with
+// them decoded, each once (a copy aio_cat_cache_read would not take: none of it), its tile parsed again (aio_cat_tile),
+// of the type asked. -> key => tile, of those found.
+/**
+ * @param array<string, array{string, string, string, int}> $want
+ * @return array<string, AioCatTile>
+ */
+function aio_cat_cache_tiles($want)
+{
+    $idx = aio_cat_cache_index();
+    $files = array();
+    foreach ($want as $key => $m)
+    {
+        list($type, $imdb, $tmdb, $since) = $m;
+        foreach (array('imdb' => $imdb, 'tmdb' => $tmdb) as $by => $v)
+        {
+            if ($v === '' || !isset($idx["$type|$by:$v"]))
+                continue;
+            $f = $idx["$type|$by:$v"];
+            $sig = explode(':', AioCatCopies::$sig[$f]);
+            if (intval($sig[0]) > $since)
+                $files[$f][strval($key)] = array($type, $by === 'imdb' ? 'imdb_id' : '_tmdbId', $v);
+            break;
+        }
+    }
+    $out = array();
+    foreach ($files as $f => $of)
+    {
+        $j = json_decode(strval(@file_get_contents($f)), true);
+        foreach (aio_cat_cache_good($j) ? $j['data'] : array() as $m)
+        {
+            foreach ($of as $key => $w)
+            {
+                if (!is_array($m) || aio_str($m, 'type') !== $w[0] || aio_str($m, $w[1]) !== $w[2])
+                    continue;
+                $t = aio_cat_tile($m, $w[0]);
+                if ($t)
+                {
+                    $t['type'] = $w[0];
+                    $out[$key] = $t;
+                }
+                unset($of[$key]);
+            }
+        }
+    }
+    return $out;
 }

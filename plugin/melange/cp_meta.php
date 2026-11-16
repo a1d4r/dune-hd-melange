@@ -2,15 +2,15 @@
 // The meta of the tiles of the row "Continue" (continue.php) and of "Мой список" (view_my_list.php): the tile of the
 // meta of the catalog server (meta/<type>/<id>.json, as the own card asks it: the fields of the info panel of a tile of
 // a row and its rating), kept in a file of data_dir. At the build of the rows (aio_cpm_build) a title with none kept
-// gets the tile of a row in memory, else of a copy of a row on the disk, else one batch of requests in AIO_CPM_BUILD_S;
-// the rest asked lazily at the step of the pairs (links.php: r25 the tick of the timer of the main screen, r24 the end
-// of an opening), the pairs first, then one batch at once (curl_multi), else AIO_CPM_N requests of the step at most
-// with theirs. The own card puts the tile of its
-// meta there too (aio_cm_get), of a title of the history or of the list; a title into the list the tile of it in
-// memory (aio_cpm_of_add); the import of the Favorites of the Dune asks the meta of every title it adds at once
-// (aio_cpm_fill).
+// (or one kept over AIO_CPM_STALE_S ago) gets the tile of a row in memory, else of a copy of a row on the disk, else
+// (none kept) one batch of requests in AIO_CPM_BUILD_S; the rest asked lazily at the step of the pairs (links.php: r25
+// the tick of the timer of the main screen, r24 the end of an opening), the pairs first, then one batch at once
+// (curl_multi), else AIO_CPM_N requests of the step at most with theirs. The own card puts the tile of its meta there
+// too (aio_cm_get), of a title of the history or of the list; a title into the list the tile of it with no request
+// (aio_cpm_of_add: of the own card in memory, else the best one); the import of the Favorites of the Dune asks the meta
+// of every title it adds at once (aio_cpm_fill).
 // Needs main.php (aio_log, aio_data_dir, aio_file_sig, aio_write_file, aio_http_mark, AIO_HTTP_PAR), catalog.php
-// (aio_cat_get, aio_cat_get_many, aio_cat_tile, aio_cat_cache_dir, AIO_CAT_CACHE_V),
+// (aio_cat_get, aio_cat_get_many, aio_cat_tile, aio_cat_cache_tiles),
 // card_meta.php (aio_cm_same, aio_cm_mem_tile), continue.php (aio_cp_tile_map, aio_cp_map_tile, aio_cp_best_tile,
 // aio_cp_items, aio_cp_ids), progress.php (aio_pg_index), links.php (aio_pg_tile_cards), my_list.php (aio_ml_list, aio_ml_in), view_catalog.php (aio_catv_is_down,
 // AIO_CATV_ALL_COLS, AIO_CATV_ALL_ROWS).
@@ -48,7 +48,7 @@ define('AIO_CPM_STEP_PAR', 4);
 define('AIO_CPM_MIN_S', 0.5);
 // A timeout of a request given less than this many s (the rest of a tick) is of that short rest, not of the server or
 // the title (a meta the server has not kept takes 0.2-1.9 s): no pause, the title not marked or kept, asked at the
-// next step.
+// next step; so is a timeout of no connection in it (curl 28: its connect is the rest too, aio_cat_req).
 define('AIO_CPM_SHORT_S', 1.0);
 // r25: the tick (aio_pg_tick, links.php) - the pair and the meta - within this many s from its start (a key pressed
 // waits for it); the pair in it too, its timeout the whole s of it.
@@ -58,8 +58,15 @@ define('AIO_CPM_TICK_S', 1.5);
 define('AIO_CPM_MORE', 40);
 // The meta of the tiles of the rows "Continue" and "Мой список" no row has, asked at the build of a main screen of rows
 // (aio_cpm_build), s at most from its start, the look at the rows in memory and on the disk in it: r25 its reply (the
-// view with the first rows) waits for it, r24 it is in AIO_CATV_OPEN_S.
-define('AIO_CPM_BUILD_S', 1.0);
+// view with the first rows) waits for it, r24 it is in AIO_CATV_OPEN_S. AIO_CPM_SHORT_S at most: a timeout of the build
+// is of its short rest (aio_cpm_judge), never a slow title or the server.
+define('AIO_CPM_BUILD_S', min(1.0, AIO_CPM_SHORT_S));
+// A title cut short at the build (a timeout of its short rest): not asked by the builds for this many s (AioCpm::$cut),
+// the tick asks it (a meta that takes longer than the build has would else hold every opening for good).
+define('AIO_CPM_BUILD_CUT_S', 180);
+// A tile kept this many s ago or more: the build takes a newer one of a row in memory, or of a copy on the disk saved
+// after it (a rating of a new title comes days after it, kpRating changes); none - kept as it is, no request.
+define('AIO_CPM_STALE_S', 86400);
 // A request of the meta of a title of the import of the Favorites of the Dune (aio_cpm_fill), s at most: a meta the
 // server has not kept takes 0.2-1.9 s.
 define('AIO_CPM_FILL_S', 5.0);
@@ -101,15 +108,10 @@ class AioCpm
     public static $timed_out = '';
     /** @var int */
     public static $timed_t = 0;
-    // The index of the copies of the rows on the disk (aio_cpm_disk_index): each file (aio_cat_cache_dir) as it was
-    // when its keys were read ("mtime:size"), its keys ("<type>|imdb:<IMDb>", "<type>|tmdb:<TMDB>"), and the file of
-    // each key (of the newest file). Memory of php_server.
-    /** @var array<string, string> */
-    public static $disk_sig = array();
-    /** @var array<string, list<string>> */
-    public static $disk_keys = array();
-    /** @var array<string, string> */
-    public static $disk = array();
+    // The titles cut short at a build (aio_cpm_build): key => when (time()); the builds do not ask them for
+    // AIO_CPM_BUILD_CUT_S. Not in the file.
+    /** @var array<string, int> */
+    public static $cut = array();
 }
 
 // The key of a title of type $type with IMDb $imdb, else TMDB $tmdb ('' none), as aio_cm_id; '' for none.
@@ -169,12 +171,14 @@ function aio_cpm_put($key, $tile)
 
 // Entries $put (key => tile, null: a failure), now, at one write of the file whole (aio_write_file: a temporary file
 // and rename), within the limits of aio_cpm_json; the memory is the file written then.
-// The same tile again: nothing written. -> written (or nothing new).
+// The same tile again: nothing written, but of the keys of $renew (the build, a tile kept long ago: its time now). ->
+// written (or nothing new).
 /**
  * @param array<string, AioCatTile|null> $put
+ * @param array<string, bool> $renew
  * @return bool
  */
-function aio_cpm_put_all($put)
+function aio_cpm_put_all($put, $renew = array())
 {
     if (aio_data_dir() === '')
         return false;
@@ -184,7 +188,7 @@ function aio_cpm_put_all($put)
     foreach ($put as $key => $tile)
     {
         $key = strval($key);
-        if ($tile && isset($c[$key]) && $c[$key]['tile'] === $tile)
+        if ($tile && isset($c[$key]) && $c[$key]['tile'] === $tile && !isset($renew[$key]))
             continue;
         // The order of the file is that of writing: the oldest first.
         unset($c[$key]);
@@ -299,12 +303,27 @@ function aio_cpm_tile($type, $imdb, $tmdb, $c = null)
 {
     if ($c === null)
         $c = aio_cpm_read();
+    $key = aio_cpm_tile_key($type, $imdb, $tmdb, $c);
+    return $key !== '' ? $c[$key]['tile'] : null;
+}
+
+// The key of the entry of entries $c with the tile kept of a title of type $type with IMDb $imdb, else TMDB $tmdb, as
+// aio_cpm_tile finds it; '' for none.
+/**
+ * @param string $type
+ * @param string $imdb
+ * @param string $tmdb
+ * @param array<string, AioCpmEntry> $c
+ * @return string
+ */
+function aio_cpm_tile_key($type, $imdb, $tmdb, $c)
+{
     foreach (array(aio_cpm_key($type, $imdb, ''), aio_cpm_key($type, '', $tmdb)) as $key)
     {
         if ($key !== '' && isset($c[$key]) && $c[$key]['tile'])
-            return $c[$key]['tile'];
+            return $key;
     }
-    return null;
+    return '';
 }
 
 // The own card got the meta of tile $t (aio_cm_get, a reply of the server), its tile $tile: kept when the title is of
@@ -326,7 +345,7 @@ function aio_cpm_of_card($t, $tile)
 }
 
 // The tile of title $t with no request: of its meta of the own card in memory (aio_cm_mem_tile), else the best one
-// (aio_cp_best_tile: of a row in memory, $map: aio_cp_tile_map of the caller; else of the meta kept); null for none.
+// (aio_cp_best_tile: of the meta kept, else of a row in memory, $map: aio_cp_tile_map of the caller); null for none.
 /**
  * @param AioCatTile $t
  * @param array<string, AioCatTile>|null $map
@@ -363,8 +382,8 @@ function aio_cpm_paused()
     return $left > 0 && $left <= AIO_CPM_PAUSE_S ? $left : 0;
 }
 
-// The titles of AioCpm::$miss, AioCpm::$ml, then of AioCpm::$more, to ask, in their order: none kept, no failure within
-// AIO_CPM_FAIL_S. -> keys => array(type, IMDb, TMDB).
+// The titles of AioCpm::$miss, AioCpm::$ml, then of AioCpm::$more, to ask (aio_cpm_due), in their order. -> keys =>
+// array(type, IMDb, TMDB).
 /**
  * @return array<string, array{string, string, string}>
  */
@@ -376,12 +395,23 @@ function aio_cpm_queue()
     foreach (array_merge(AioCpm::$miss, AioCpm::$ml, AioCpm::$more) as $m)
     {
         $key = aio_cpm_key($m[0], $m[1], $m[2]);
-        $e = $key !== '' && isset($c[$key]) ? $c[$key] : null;
-        if ($key === '' || isset($out[$key]) || ($e && ($e['tile'] || ($now - $e['t'] >= 0 && $now - $e['t'] < AIO_CPM_FAIL_S))))
+        if ($key === '' || isset($out[$key]) || !aio_cpm_due(isset($c[$key]) ? $c[$key] : null, $now))
             continue;
         $out[$key] = $m;
     }
     return $out;
+}
+
+// A title of entry $e (null: none) is to be asked at time $now: none kept, no failure within AIO_CPM_FAIL_S (one of a
+// time ahead of the clock is none).
+/**
+ * @param AioCpmEntry|null $e
+ * @param int $now
+ * @return bool
+ */
+function aio_cpm_due($e, $now)
+{
+    return !$e || (!$e['tile'] && ($now - $e['t'] < 0 || $now - $e['t'] >= AIO_CPM_FAIL_S));
 }
 
 // The titles of aio_cpm_queue a step asks for: those no row in memory has now (aio_cp_tile_map), pause or not. ->
@@ -396,23 +426,23 @@ function aio_cpm_todo()
     $todo = array();
     foreach ($q as $key => $m)
     {
-        list($type, $imdb, $tmdb) = $m;
-        if (($imdb !== '' && isset($map["$type|imdb:$imdb"])) || ($tmdb !== '' && isset($map["$type|tmdb:$tmdb"])))
+        if (aio_cp_map_tile($map, $m[0], $m[1], $m[2]))
             continue;
-        $todo[strval($key)] = $type;
+        $todo[strval($key)] = $m[0];
     }
     return $todo;
 }
 
 // One request of the meta of title $key of type $type (aio_cat_get, its timeout $limit s, to the ms; its line of the log
 // if $log), judged by aio_cpm_judge -> tile: of it (null: none); keep: kept as it is (the tile, or a failure of the
-// title: big, 404, not its meta); stop: no more requests now (a pause, a timeout: it took the rest).
+// title: big, 404, not its meta); stop: no more requests now (a pause, a timeout: it took the rest); cut: a timeout of
+// a short rest (under AIO_CPM_SHORT_S).
 /**
  * @param string $key
  * @param string $type
  * @param float $limit
  * @param bool $log
- * @return array{tile: AioCatTile|null, keep: bool, stop: bool}
+ * @return array{tile: AioCatTile|null, keep: bool, stop: bool, cut: bool}
  */
 function aio_cpm_ask($key, $type, $limit, $log = true)
 {
@@ -429,7 +459,7 @@ function aio_cpm_ask($key, $type, $limit, $log = true)
  * @param array<string, string> $types
  * @param float $limit
  * @param bool $log
- * @return array<string, array{tile: AioCatTile|null, keep: bool, stop: bool}>|null
+ * @return array<string, array{tile: AioCatTile|null, keep: bool, stop: bool, cut: bool}>|null
  */
 function aio_cpm_ask_many($types, $limit, $log = true)
 {
@@ -441,18 +471,19 @@ function aio_cpm_ask_many($types, $limit, $log = true)
 }
 
 // The replies $gets (key => aio_cat_get of the meta of the title, type $types[key]) of requests of $limit s each, asked
-// together (one, or a batch at once) -> key => tile, keep, stop (as aio_cpm_ask). Of each title: no connection, 429 or
-// 5xx - a pause (AIO_CPM_PAUSE_S), the title not kept; a timeout of under AIO_CPM_SHORT_S given - nothing kept, no
-// pause, not counted; a timeout, the first of the title in this php_server - not kept, asked again; the second - kept
+// together (one, or a batch at once) -> key => tile, keep, stop, cut (as aio_cpm_ask). Of each title: no connection,
+// 429 or 5xx - a pause (AIO_CPM_PAUSE_S), the title not kept; a timeout of under AIO_CPM_SHORT_S given (connected or
+// not: curl 28) - cut, nothing kept, no pause, not counted; a timeout, the first of the title in this php_server - not
+// kept, asked again; the second - kept
 // failed, a pause or not, and of no pause (the title is slow: two such at the head of the queue would else hold it in
 // pauses for good). A reply of the server (all but net and a timeout; any order in the batch) - no timeout before it
 // counts (AioCpm::$timed_out ''). With none: the first timeouts of two titles or more (of the batch, and the one timed
 // out last if within AIO_CPM_TIMED_OUT_S and not timed out again here) - the server, a pause, none of them kept.
 /**
- * @param array<string, array{err: string, list: array<mixed>}> $gets
+ * @param array<string, array{err: string, list: array<mixed>, curl28: bool}> $gets
  * @param array<string, string> $types
  * @param float $limit
- * @return array<string, array{tile: AioCatTile|null, keep: bool, stop: bool}>
+ * @return array<string, array{tile: AioCatTile|null, keep: bool, stop: bool, cut: bool}>
  */
 function aio_cpm_judge($gets, $types, $limit)
 {
@@ -489,14 +520,15 @@ function aio_cpm_judge($gets, $types, $limit)
         if ($tile)
             $tile['type'] = $type;
         $one = isset($first[$key]);
-        $pause = ($one && $server) || in_array($g['err'], array('net', 'rate', 'server'), true);
+        // A timeout of no connection is "net" (aio_cat_reply): in a short rest its connect was that rest too.
+        $cut = $short && ($g['err'] === 'timeout' || ($g['err'] === 'net' && $g['curl28']));
+        $pause = ($one && $server) || (!$cut && in_array($g['err'], array('net', 'rate', 'server'), true));
         if ($one)
             AioCpm::$slow[$key] = true;
         if ($pause)
             AioCpm::$pause = time() + AIO_CPM_PAUSE_S;
-        $cut = $g['err'] === 'timeout' && $short;
         $out[$key] = array('tile' => $tile, 'keep' => isset($again[$key]) || (!$pause && !$cut && !$one),
-            'stop' => $pause || $cut || $one || isset($again[$key]));
+            'stop' => $pause || $cut || $one || isset($again[$key]), 'cut' => $cut);
     }
     if ($answered)
         AioCpm::$timed_out = '';
@@ -509,12 +541,56 @@ function aio_cpm_judge($gets, $types, $limit)
     return $out;
 }
 
-// The lazy meta: the titles of aio_cpm_todo, in $limit s. $n limits the requests one by one; of the batch only $n > 0
-// counts. With curl_multi one batch of AIO_CPM_STEP_PAR at most
-// (aio_cpm_ask_many, each its timeout the whole of what is left); else up to $n requests one by one (each with
-// AIO_CPM_MIN_S left, its timeout the s left: aio_cpm_ask), a pause or a short rest - no more of the step. The ones
-// kept at one write. One line of the log of a step that asked (its path: aio_http_mark); of a $tick always. -> how
-// many were asked.
+// The requests of the meta of titles $todo (key => type, in their order) in $limit s from $t0, with AIO_CPM_MIN_S left
+// at least: with curl_multi one batch of the first $par (aio_cpm_ask_many, each its timeout the whole of what is left);
+// else up to $n one by one (each with AIO_CPM_MIN_S left, its timeout the s left: aio_cpm_ask), a pause or a short rest
+// - no more. -> array(key => tile of those to keep (null: a failure), asked, got, at once (0: one by one), keys cut short
+// (a timeout of a short rest)).
+/**
+ * @param array<string, string> $todo
+ * @param float $t0
+ * @param float $limit
+ * @param int $par
+ * @param int $n
+ * @return array{array<string, AioCatTile|null>, int, int, int, list<string>}
+ */
+function aio_cpm_ask_some($todo, $t0, $limit, $par, $n)
+{
+    $left = $limit - (microtime(true) - $t0);
+    $rs = $todo && $left >= AIO_CPM_MIN_S ? aio_cpm_ask_many(array_slice($todo, 0, $par, true), $left) : null;
+    $at_once = $rs !== null ? count($rs) : 0;
+    if ($rs === null)
+    {
+        $rs = array();
+        foreach ($todo as $key => $type)
+        {
+            $key = strval($key);
+            $left = $limit - (microtime(true) - $t0);
+            if (count($rs) >= $n || $left < AIO_CPM_MIN_S)
+                break;
+            $rs[$key] = aio_cpm_ask($key, $type, $left);
+            if ($rs[$key]['stop'])
+                break;
+        }
+    }
+    $put = array();
+    $got = 0;
+    $cut = array();
+    foreach ($rs as $key => $r)
+    {
+        $key = strval($key);
+        if ($r['keep'])
+            $put[$key] = $r['tile'];
+        $got += $r['tile'] ? 1 : 0;
+        if ($r['cut'])
+            $cut[] = $key;
+    }
+    return array($put, count($rs), $got, $at_once, $cut);
+}
+
+// The lazy meta: the titles of aio_cpm_todo, in $limit s (aio_cpm_ask_some: a batch of AIO_CPM_STEP_PAR at most, else
+// $n one by one; of the batch only $n > 0 counts). The ones kept at one write. One line of the log of a step that
+// asked (its path: aio_http_mark); of a $tick always. -> how many were asked.
 /**
  * @param float $limit
  * @param int $n
@@ -524,34 +600,8 @@ function aio_cpm_judge($gets, $types, $limit)
 function aio_cpm_step($limit, $n, $tick = false)
 {
     $t = microtime(true);
-    $asked = 0;
-    $got = 0;
-    $put = array();
     $todo = $n > 0 && !aio_cpm_paused() && !aio_catv_is_down() ? aio_cpm_todo() : array();
-    $left = $limit - (microtime(true) - $t);
-    $many = $todo && $left >= AIO_CPM_MIN_S ? aio_cpm_ask_many(array_slice($todo, 0, AIO_CPM_STEP_PAR, true), $left) : null;
-    $par = $many !== null ? count($many) : 0;
-    if ($many === null)
-    {
-        $many = array();
-        foreach ($todo as $key => $type)
-        {
-            $key = strval($key);
-            $left = $limit - (microtime(true) - $t);
-            if (count($many) >= $n || $left < AIO_CPM_MIN_S)
-                break;
-            $many[$key] = aio_cpm_ask($key, $type, $left);
-            if ($many[$key]['stop'])
-                break;
-        }
-    }
-    foreach ($many as $key => $r)
-    {
-        $asked++;
-        if ($r['keep'])
-            $put[strval($key)] = $r['tile'];
-        $got += $r['tile'] ? 1 : 0;
-    }
+    list($put, $asked, $got, $par) = aio_cpm_ask_some($todo, $t, $limit, AIO_CPM_STEP_PAR, $n);
     if ($put)
         aio_cpm_put_all($put);
     $mark = $asked ? aio_http_mark($par, $par ? 0 : $asked) : '';
@@ -676,12 +726,15 @@ function aio_cpm_build_titles($tab)
 
 // The tiles of the rows "Continue" and "Мой список" (aio_cpm_build_titles of tab $tab) before they are built, so their
 // tiles have the rating and the info panel at once: of each title with no tile kept, the tile of a row in memory
-// (aio_cp_tile_map), else of a copy of a row on the disk (aio_cpm_disk_tiles), kept; the titles of neither (no failure
-// of theirs within AIO_CPM_FAIL_S, as aio_cpm_queue) asked in $limit s from the start (0: none, the tab "TV" builds its
-// file with no request; AIO_CPM_MIN_S left at least): AIO_HTTP_PAR at once (aio_cpm_ask_many), else AIO_CPM_N one by
-// one (aio_cpm_ask), judged as a step (aio_cpm_judge: the rest is under AIO_CPM_SHORT_S, so a timeout is of it -
-// nothing kept, asked again at the step), none in a pause or with the catalog server down. One write of the file; the
-// titles not got go to the step as before (AioCpm::$miss, AioCpm::$ml of the rows built). One line of the log.
+// (aio_cp_tile_map), else of a copy of a row on the disk (aio_cat_cache_tiles), kept; the titles of neither (to ask:
+// aio_cpm_due, as aio_cpm_queue; none cut short at a build within AIO_CPM_BUILD_CUT_S) asked in $limit s from the start
+// (0: none, the tab "TV" builds its file with no request): aio_cpm_ask_some, AIO_HTTP_PAR at once, else AIO_CPM_N one
+// by one, judged as a step (aio_cpm_judge: the rest is under AIO_CPM_SHORT_S, so a timeout is of it - nothing kept,
+// asked again at the step, AioCpm::$cut), none in a pause or with the catalog server down. A tile kept AIO_CPM_STALE_S
+// ago or more (or ahead of the clock): the tile of a row in memory, else of a copy saved after it, no request; another
+// tile kept, the same - its time now (no look again for AIO_CPM_STALE_S); neither - as it is (the own card renews it).
+// One write of the file; the titles not got go to the step as before (AioCpm::$miss, AioCpm::$ml of the rows built).
+// One line of the log ("of rows" counts the tiles renewed too).
 /**
  * @param string $tab
  * @param float $limit
@@ -691,23 +744,35 @@ function aio_cpm_build($tab, $limit)
 {
     $t0 = microtime(true);
     $c = aio_cpm_read();
+    $now = time();
     $kept = 0;
     $mem = 0;
     $seen = array();
     $put = array();
+    $renew = array();
     $want = array();
     $map = null;
     foreach (aio_cpm_build_titles($tab) as $m)
     {
         list($type, $imdb, $tmdb) = $m;
         $key = aio_cpm_key($type, $imdb, $tmdb);
-        if ($key === '' || isset($seen[$key]))
+        $ek = $key !== '' ? aio_cpm_tile_key($type, $imdb, $tmdb, $c) : '';
+        if ($key === '' || isset($seen[$key]) || isset($seen[$ek]))
             continue;
         $seen[$key] = true;
-        if (aio_cpm_tile($type, $imdb, $tmdb, $c))
+        $since = 0;
+        if ($ek !== '')
         {
-            $kept++;
-            continue;
+            $seen[$ek] = true;
+            $since = $c[$ek]['t'];
+            if ($now - $since >= 0 && $now - $since < AIO_CPM_STALE_S)
+            {
+                $kept++;
+                continue;
+            }
+            // Renewed under the key it is kept by.
+            $key = $ek;
+            $renew[$key] = true;
         }
         if ($map === null)
             $map = aio_cp_tile_map();
@@ -719,172 +784,40 @@ function aio_cpm_build($tab, $limit)
             $mem++;
         }
         else
-            $want[$key] = $m;
+            $want[$key] = array($type, $imdb, $tmdb, $ek !== '' ? $since : 0);
     }
-    $disk = $want ? aio_cpm_disk_tiles($want) : array();
-    $now = time();
+    $disk = $want ? aio_cat_cache_tiles($want) : array();
     $todo = array();
+    $due = 0;
+    foreach (AioCpm::$cut as $key => $when)
+    {
+        if ($now - $when < 0 || $now - $when >= AIO_CPM_BUILD_CUT_S)
+            unset(AioCpm::$cut[$key]);
+    }
     foreach ($want as $key => $m)
     {
         $key = strval($key);
-        $e = isset($c[$key]) ? $c[$key] : null;
         if (isset($disk[$key]))
             $put[$key] = $disk[$key];
-        else if (!$e || $now - $e['t'] < 0 || $now - $e['t'] >= AIO_CPM_FAIL_S)
-            $todo[$key] = $m[0];
-    }
-    $asked = 0;
-    $got = 0;
-    $par = 0;
-    $left = $limit - (microtime(true) - $t0);
-    $rs = array();
-    if ($todo && $left >= AIO_CPM_MIN_S && !aio_cpm_paused() && !aio_catv_is_down())
-    {
-        $rs = aio_cpm_ask_many(array_slice($todo, 0, AIO_HTTP_PAR, true), $left);
-        $par = $rs !== null ? count($rs) : 0;
-        if ($rs === null)
+        else if (isset($renew[$key]))
+            $kept++;
+        else if (aio_cpm_due(isset($c[$key]) ? $c[$key] : null, $now))
         {
-            $rs = array();
-            foreach ($todo as $key => $type)
-            {
-                $key = strval($key);
-                $left = $limit - (microtime(true) - $t0);
-                if (count($rs) >= AIO_CPM_N || $left < AIO_CPM_MIN_S)
-                    break;
-                $rs[$key] = aio_cpm_ask($key, $type, $left);
-                if ($rs[$key]['stop'])
-                    break;
-            }
+            $due++;
+            if (!isset(AioCpm::$cut[$key]))
+                $todo[$key] = $m[0];
         }
     }
-    foreach ($rs as $key => $r)
-    {
-        $asked++;
-        if ($r['keep'])
-            $put[strval($key)] = $r['tile'];
-        $got += $r['tile'] ? 1 : 0;
-    }
+    if (aio_cpm_paused() || aio_catv_is_down())
+        $todo = array();
+    list($got_put, $asked, $got, $par, $cut) = aio_cpm_ask_some($todo, $t0, $limit, AIO_HTTP_PAR, AIO_CPM_N);
+    foreach ($cut as $key)
+        AioCpm::$cut[$key] = time();
+    $put = array_merge($put, $got_put);
     if ($put)
-        aio_cpm_put_all($put);
+        aio_cpm_put_all($put, $renew);
     $mark = $asked ? aio_http_mark($par, $par ? 0 : $asked) : '';
     aio_log(sprintf('continue: meta: build: %s: %d kept, %d of rows in memory, %d of rows on the disk, %d asked, %d got, ' .
-        '%d left, %.0f ms%s%s', $tab !== '' ? $tab : 'all', $kept, $mem, count($disk), $asked, $got, count($todo) - $got,
+        '%d left, %.0f ms%s%s', $tab !== '' ? $tab : 'all', $kept, $mem, count($disk), $asked, $got, $due - $got,
         (microtime(true) - $t0) * 1000, $mark !== '' ? ", $mark" : '', $asked && aio_cpm_paused() ? ', pause' : ''));
-}
-
-// The keys of the tiles of the text $text of a copy of the catalog (aio_cat_cache_write: {"v":..,"t":..,"n":..,"data":
-// [tiles of aio_cat_tile]}) of a movie or a series, "<type>|imdb:<IMDb>" and "<type>|tmdb:<TMDB>" (as aio_cp_tile_map):
-// by the fields of a tile in the order aio_cat_tile makes them, no json_decode; none of another version, of the
-// manifest, of a card (catalog_card.php).
-/**
- * @param string $text
- * @return list<string>
- */
-function aio_cpm_disk_keys($text)
-{
-    $head = '{"v":' . AIO_CAT_CACHE_V . ',';
-    if (strncmp($text, $head, strlen($head)) !== 0 || !preg_match_all('/\{"id":"(?:[^"\\\\]|\\\\.)*+","imdb_id":"(tt[0-9]{1,10}|)",' .
-        '"_tmdbId":"([0-9]{0,10})","type":"(movie|series)"/', $text, $m, PREG_SET_ORDER))
-        return array();
-    $out = array();
-    foreach ($m as $one)
-    {
-        if ($one[1] !== '')
-            $out[] = "$one[3]|imdb:$one[1]";
-        if ($one[2] !== '')
-            $out[] = "$one[3]|tmdb:$one[2]";
-    }
-    return $out;
-}
-
-// The index of the copies of the rows on the disk: key ("<type>|imdb:<IMDb>", "<type>|tmdb:<TMDB>") => the file of
-// the newest copy with it. The keys of a file are read once while it is the same (its mtime and size; aio_cpm_disk_keys:
-// no json_decode), the files looked at each call (a stat each): the copies of the owner, 240 files of 8 MB, ~3000 tiles -
-// all read ~15 ms on a Mac (docker), the Dune ~6 times that, once a php_server; then a stat of each.
-/**
- * @return array<string, string>
- */
-function aio_cpm_disk_index()
-{
-    $dir = aio_cat_cache_dir();
-    $list = $dir !== '' ? glob("$dir/*.json") : array();
-    clearstatcache();
-    $sigs = array();
-    $times = array();
-    foreach ($list ? $list : array() as $f)
-    {
-        $s = @stat($f);
-        if (!$s)
-            continue;
-        $sigs[$f] = $s['mtime'] . ':' . $s['size'];
-        $times[$f] = $s['mtime'];
-    }
-    if ($sigs === AioCpm::$disk_sig)
-        return AioCpm::$disk;
-    $keys = array();
-    foreach ($sigs as $f => $sig)
-    {
-        $keys[$f] = isset(AioCpm::$disk_sig[$f]) && AioCpm::$disk_sig[$f] === $sig ? AioCpm::$disk_keys[$f] :
-            aio_cpm_disk_keys(strval(@file_get_contents($f)));
-    }
-    // The newest copy of a title last: its key is of it.
-    asort($times);
-    $map = array();
-    foreach ($times as $f => $t)
-    {
-        foreach ($keys[$f] as $k)
-            $map[$k] = $f;
-    }
-    AioCpm::$disk_sig = $sigs;
-    AioCpm::$disk_keys = $keys;
-    AioCpm::$disk = $map;
-    return $map;
-}
-
-// The tiles of titles $want (key => array(type, IMDb, TMDB)) of the copies of the rows on the disk (aio_cpm_disk_index:
-// by IMDb, else by TMDB), no request: only the files with them decoded, each once, its tile parsed again (aio_cat_tile),
-// of the type asked. -> key => tile, of those found.
-/**
- * @param array<string, array{string, string, string}> $want
- * @return array<string, AioCatTile>
- */
-function aio_cpm_disk_tiles($want)
-{
-    $idx = aio_cpm_disk_index();
-    $files = array();
-    foreach ($want as $key => $m)
-    {
-        list($type, $imdb, $tmdb) = $m;
-        foreach (array('imdb' => $imdb, 'tmdb' => $tmdb) as $by => $v)
-        {
-            if ($v !== '' && isset($idx["$type|$by:$v"]))
-            {
-                $files[$idx["$type|$by:$v"]][strval($key)] = array($type, $by === 'imdb' ? 'imdb_id' : '_tmdbId', $v);
-                break;
-            }
-        }
-    }
-    $out = array();
-    foreach ($files as $f => $of)
-    {
-        $j = json_decode(strval(@file_get_contents($f)), true);
-        $data = is_array($j) && isset($j['v'], $j['data']) && $j['v'] === AIO_CAT_CACHE_V && is_array($j['data']) ? $j['data'] :
-            array();
-        foreach ($data as $m)
-        {
-            foreach ($of as $key => $w)
-            {
-                if (!is_array($m) || aio_str($m, 'type') !== $w[0] || aio_str($m, $w[1]) !== $w[2])
-                    continue;
-                $t = aio_cat_tile($m, $w[0]);
-                if ($t)
-                {
-                    $t['type'] = $w[0];
-                    $out[$key] = $t;
-                }
-                unset($of[$key]);
-            }
-        }
-    }
-    return $out;
 }
