@@ -147,7 +147,7 @@ function aio_catv_lcfg_dialog($rows, $tab, $g, $lang)
     return $d;
 }
 
-// Shared with the window "Источники…" of the online list (aio_lpv_srcs_edit, aio_lpv_srcs_apply of view_online.php):
+// Shared with the window "Источники…" of the online list (aio_lpv_srcs_edit, aio_lpv_srcs_apply of online_sources.php):
 // aio_catv_lcfg_text, aio_catv_lcfg_read, aio_catv_lcfg_sorted, aio_catv_lcfg_load - not of the rows alone.
 
 // The text of the file of a dialog over its items $ids, those chosen $on (id => true), the order

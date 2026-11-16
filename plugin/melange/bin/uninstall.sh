@@ -5,7 +5,7 @@
 # Local cards custom_mdb/user_movie/m-melange-* stay on purpose: the user's history (catalog_card.php).
 # Also removes the shell's files of the dialogs of the catalog rows (config_id melange_rows_<tab>_order
 # and melange_rows_<tab>_g_<g>, aio_catv_lcfg_id) and of the sources of the online list (melange_lp_sources,
-# AIO_LPV_SRCS_ID of view_online.php), which live outside the plugin's dirs, and the
+# AIO_LPV_SRCS_ID of online_sources.php), which live outside the plugin's dirs, and the
 # directory of its files of the tab "TV" (tv_tab.php), named by the plugin: the shell keeps it.
 
 f=${MELANGE_TMP:-$FS_PREFIX/tmp}/movie_suppliers/aio

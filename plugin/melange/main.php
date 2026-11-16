@@ -35,6 +35,8 @@ require_once dirname(__FILE__) . '/torrserver.php';
 require_once dirname(__FILE__) . '/lampac.php';
 // "Онлайн" on the Dune: the search window, the online list.
 require_once dirname(__FILE__) . '/view_online.php';
+// "Источники…" of the online list: which sources, their order.
+require_once dirname(__FILE__) . '/online_sources.php';
 // "Онлайн": its start, "Continue", play_action of a card with it.
 require_once dirname(__FILE__) . '/online_play.php';
 // TorrServer in the player: the window of its numbers with INFO.

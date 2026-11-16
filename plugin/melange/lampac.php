@@ -513,7 +513,7 @@ function aio_lp_source_of($base, $path)
 }
 
 // The sources Lampac has found on this Dune, for all titles (lampac_sources of settings.json, the window
-// "Источники…" of view_online.php), as stored: in their order, each path (aio_lp_src_path_ok), name
+// "Источники…" of online_sources.php), as stored: in their order, each path (aio_lp_src_path_ok), name
 // (aio_lp_src_name; '' - the path, cut so too) and on (not a bool - true); the first of a path kept, at most
 // AIO_LP_SEEN_MAX; not a list - none.
 /**
