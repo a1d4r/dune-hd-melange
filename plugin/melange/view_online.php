@@ -413,7 +413,7 @@ function aio_lpv_ep_tracks($v, $e)
 }
 
 // View $v of list $st with its filter when a row has the voice; else none, the yellow line "В S1 E5 нет LostFilm —
-// показаны все".
+// показаны все" (flt_gone: the line is of it).
 /**
  * @param AioLpView $v
  * @param AioState $st
@@ -427,6 +427,7 @@ function aio_lpv_flt_keep($v, $st)
         array('se' => "S{$st['s']} E{$st['e']}", 'voice' => $v['flt']['name']));
     aio_log('lampac: no voice of the filter in ' . aio_ep_tag($st) . ', all shown');
     unset($v['flt']);
+    $v['flt_gone'] = true;
     return $v;
 }
 
@@ -520,6 +521,7 @@ function aio_lpv_flt($in, $st)
     if ($i > 0)
         $ns['lp']['flt'] = array('k' => $g[$i - 1]['k'], 'name' => $g[$i - 1]['name']);
     $ns['lp']['note'] = '';
+    unset($ns['lp']['flt_gone']);
     $L = aio_lpv_lines($ns['lp']);
     $j = aio_lpv_line_at($L, $row);
     $ns['lp']['gc'] = aio_lpv_put($L, aio_lpv_row_of($L, $j) === $row ? $row : 0);
@@ -1303,6 +1305,7 @@ function aio_lpv_result($run)
     $v['rows'] = $rows;
     $v['left'] = max(0, $left);
     $v['note'] = $note;
+    unset($v['flt_gone']);
     $v = aio_lpv_flt_keep(aio_lpv_ep_tracks($v, $st['e']), $st);
     $v['gc'] = aio_lpv_put(aio_lpv_lines($v), $sel);
     $v['gc_new'] = true;
@@ -1572,7 +1575,13 @@ function aio_lpv_ep_state($st, $s, $e)
     $ns['lp_only'] = true;
     // The same season: the tracks of the episode (Collaps), the filter of them (aio_lpv_flt_keep).
     if ($s === $st['s'])
-        $ns['lp'] = aio_lpv_flt_keep(aio_lpv_ep_tracks($st['lp'], $e), $ns);
+    {
+        // The yellow line of a filter gone of the episode before: not of this one.
+        if (!empty($ns['lp']['flt_gone']))
+            $ns['lp']['note'] = '';
+        unset($ns['lp']['flt_gone']);
+        $ns['lp'] = aio_lpv_flt_keep(aio_lpv_ep_tracks($ns['lp'], $e), $ns);
+    }
     if (isset($st['lp']['gc']))
     {
         // Other lines: the cursor on its row.
