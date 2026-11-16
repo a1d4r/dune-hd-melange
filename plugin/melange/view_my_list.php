@@ -555,8 +555,8 @@ function aio_mlv_fav_tile($f, $l)
 // their order (aio_ml_append), nothing taken out; IMDb and TMDB by the pairs first, then the card of the shell or a
 // request (aio_mlv_fav_pair: AIO_MLV_IMPORT_N in AIO_MLV_IMPORT_S at most). One without them: not added, counted (a
 // repeat of the import goes on with them). Then the screens of the list anew (aio_ml_changed: the list, not the hint)
-// and the message: "Добавлено из «Избранного»: N" (with the ones not added; the list full), "Новых фильмов в
-// «Избранном» нет", or why the file was not written (aio_ml_err). One line of the log, no address.
+// and the message: "Добавлено из «Избранного»: N" (with the ones not added; the list full), "В «Избранном» Дюны
+// нет нового", or why the file was not written (aio_ml_err). One line of the log, no address.
 /**
  * @param string $from
  * @param float $budget
