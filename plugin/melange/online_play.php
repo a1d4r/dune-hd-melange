@@ -37,7 +37,8 @@ function aio_lp_uid()
     return '';
 }
 
-// The ids of movie_str of play_action $in kept for card $mv (AioLpv::$ids).
+// The ids of movie_str of play_action $in kept for card $mv (AioLpv::$ids): of a series tmdbtv_id, else tmdb_id (the
+// Dune gives a series tmdbtv_id, its tmdb_id and kp_id often empty).
 /**
  * @param stdClass $in
  * @param AioMovie $mv
@@ -46,7 +47,9 @@ function aio_lp_uid()
 function aio_lpv_ids_keep($in, $mv)
 {
     $m = isset($in->movie_str) && is_string($in->movie_str) ? json_decode($in->movie_str, true) : null;
-    $tmdb = aio_str($m, 'tmdb_id');
+    $tmdb = $mv['series'] ? aio_str($m, 'tmdbtv_id') : '';
+    if ($tmdb === '')
+        $tmdb = aio_str($m, 'tmdb_id');
     $kp = aio_str($m, 'kp_id');
     if ($tmdb !== '' || $kp !== '')
         AioLpv::$ids[aio_lpv_key($mv)] = array($tmdb, $kp);

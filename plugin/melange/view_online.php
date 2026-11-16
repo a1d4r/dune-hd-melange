@@ -35,7 +35,7 @@ class AioLpv
     // The search of the window on screen (aio_lpv_search_open), null none.
     /** @var AioLpRun|null */
     public static $run = null;
-    // The TMDB and KinoPoisk ids of the cards of play_action (movie_str: tmdb_id, kp_id) by
+    // The TMDB and KinoPoisk ids of the cards of play_action (movie_str: tmdb_id or tmdbtv_id, kp_id) by
     // dune id or IMDb: their search needs no /externalids. Memory only.
     /** @var array<string, array{string, string}> */
     public static $ids = array();
