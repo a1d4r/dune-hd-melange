@@ -57,6 +57,12 @@ define('AIO_CPM_MORE', 40);
 // A request of the meta of a title of the import of the Favorites of the Dune (aio_cpm_fill), s at most: a meta the
 // server has not kept takes 0.2-1.9 s.
 define('AIO_CPM_FILL_S', 5.0);
+// Requests of the meta of an import at most in AIO_CPM_RATE_S s (the catalog server lets 180 a minute in, the rows of
+// the catalog after the import need their share). Tests may define them first.
+if (!defined('AIO_CPM_RATE_N'))
+    define('AIO_CPM_RATE_N', 120);
+if (!defined('AIO_CPM_RATE_S'))
+    define('AIO_CPM_RATE_S', 60.0);
 
 class AioCpm
 {
@@ -408,9 +414,10 @@ function aio_cpm_ask_many($types, $limit, $log = true)
 // together (one, or a batch at once) -> key => tile, keep, stop (as aio_cpm_ask). Of each title: no connection, 429 or
 // 5xx - a pause (AIO_CPM_PAUSE_S), the title not kept; a timeout of under AIO_CPM_SHORT_S given - nothing kept, no
 // pause, not counted; a timeout, the first of the title in this php_server - not kept, asked again; the second - kept
-// failed. A reply of the server (all but net and a timeout; any order in the batch) - no timeout before it counts
-// (AioCpm::$timed_out ''). With none: the timeouts of two titles or more (of the batch, and the one timed out last if
-// within AIO_CPM_TIMED_OUT_S) - the server, a pause, none of them kept.
+// failed, a pause or not, and of no pause (the title is slow: two such at the head of the queue would else hold it in
+// pauses for good). A reply of the server (all but net and a timeout; any order in the batch) - no timeout before it
+// counts (AioCpm::$timed_out ''). With none: the first timeouts of two titles or more (of the batch, and the one timed
+// out last if within AIO_CPM_TIMED_OUT_S and not timed out again here) - the server, a pause, none of them kept.
 /**
  * @param array<string, array{err: string, list: array<mixed>}> $gets
  * @param array<string, string> $types
@@ -421,17 +428,25 @@ function aio_cpm_judge($gets, $types, $limit)
 {
     $short = $limit < AIO_CPM_SHORT_S;
     $answered = false;
-    $slow = array();
+    // The timeouts of the batch: the first of a title, again of a slow one.
+    $first = array();
+    $again = array();
     foreach ($gets as $key => $g)
     {
+        $key = strval($key);
         if ($g['err'] !== 'timeout' && $g['err'] !== 'net')
             $answered = true;
         else if ($g['err'] === 'timeout' && !$short)
-            $slow[strval($key)] = true;
+        {
+            if (isset(AioCpm::$slow[$key]))
+                $again[$key] = true;
+            else
+                $first[$key] = true;
+        }
     }
     $ago = time() - AioCpm::$timed_t;
-    $who = $slow;
-    if (AioCpm::$timed_out !== '' && $ago >= 0 && $ago < AIO_CPM_TIMED_OUT_S)
+    $who = $first;
+    if (AioCpm::$timed_out !== '' && $ago >= 0 && $ago < AIO_CPM_TIMED_OUT_S && !isset($again[AioCpm::$timed_out]))
         $who[AioCpm::$timed_out] = true;
     $server = !$answered && count($who) >= 2;
     $out = array();
@@ -443,32 +458,33 @@ function aio_cpm_judge($gets, $types, $limit)
             null;
         if ($tile)
             $tile['type'] = $type;
-        $timeout = isset($slow[$key]);
-        $again = $timeout && !isset(AioCpm::$slow[$key]);
-        $pause = ($timeout && $server) || in_array($g['err'], array('net', 'rate', 'server'), true);
-        if ($again)
+        $one = isset($first[$key]);
+        $pause = ($one && $server) || in_array($g['err'], array('net', 'rate', 'server'), true);
+        if ($one)
             AioCpm::$slow[$key] = true;
         if ($pause)
             AioCpm::$pause = time() + AIO_CPM_PAUSE_S;
         $cut = $g['err'] === 'timeout' && $short;
-        $out[$key] = array('tile' => $tile, 'keep' => !$pause && !$cut && !$again, 'stop' => $pause || $cut || $timeout);
+        $out[$key] = array('tile' => $tile, 'keep' => isset($again[$key]) || (!$pause && !$cut && !$one),
+            'stop' => $pause || $cut || $one || isset($again[$key]));
     }
     if ($answered)
         AioCpm::$timed_out = '';
-    else if ($slow)
+    else if ($first)
     {
-        end($slow);
-        AioCpm::$timed_out = strval(key($slow));
+        end($first);
+        AioCpm::$timed_out = strval(key($first));
         AioCpm::$timed_t = time();
     }
     return $out;
 }
 
-// The lazy meta: the titles of aio_cpm_queue no row in memory has now (aio_cp_tile_map), in $limit s: with curl_multi
-// one batch of AIO_CPM_STEP_PAR at most (aio_cpm_ask_many, each its timeout the whole of what is left), $n > 0; else up
-// to $n requests one by one (each with AIO_CPM_MIN_S left, its timeout the s left: aio_cpm_ask), a pause or a short
-// rest - no more of the step. The ones kept at one write. One line of the log of a step that asked (its path:
-// aio_http_mark); of a $tick always. -> how many were asked.
+// The lazy meta: the titles of aio_cpm_queue no row in memory has now (aio_cp_tile_map), in $limit s. $n limits the
+// requests one by one; of the batch only $n > 0 counts. With curl_multi one batch of AIO_CPM_STEP_PAR at most
+// (aio_cpm_ask_many, each its timeout the whole of what is left); else up to $n requests one by one (each with
+// AIO_CPM_MIN_S left, its timeout the s left: aio_cpm_ask), a pause or a short rest - no more of the step. The ones
+// kept at one write. One line of the log of a step that asked (its path: aio_http_mark); of a $tick always. -> how
+// many were asked.
 /**
  * @param float $limit
  * @param int $n
@@ -527,7 +543,8 @@ function aio_cpm_step($limit, $n, $tick = false)
 // The meta of tiles $tiles kept now (the import of the Favorites of the Dune, view_my_list.php), for each with none
 // kept: the tile of it in memory (aio_cpm_mem, $map: aio_cp_tile_map of the caller; no request), else asked
 // (AIO_CPM_FILL_S at most; no line of the log each: the caller logs the sum) with AIO_CPM_MIN_S left of $limit s at
-// least: AIO_HTTP_PAR at once (aio_cpm_ask_many), else one by one (no curl_multi: aio_cpm_ask); no request in a pause
+// least: AIO_HTTP_PAR at once (aio_cpm_ask_many), else one by one (no curl_multi: aio_cpm_ask), AIO_CPM_RATE_N in
+// AIO_CPM_RATE_S s at most (a wait for that within $limit, else the rest lazily); no request in a pause
 // (one it set too: the rest lazily, aio_cpm_step) or with the catalog server down. One write of the file. ->
 // array(asked, got, at most at once (0: none at once), one by one), the last two for aio_http_mark.
 /**
@@ -558,12 +575,27 @@ function aio_cpm_fill($tiles, $limit, $map = null)
             $todo[$key] = $t['type'];
     }
     $multi = true;
+    // When each request went (microtime), of the last AIO_CPM_RATE_S s.
+    $sent = array();
     while ($todo)
     {
         $left = $limit - (microtime(true) - $t0);
         if ($left < AIO_CPM_MIN_S || aio_cpm_paused() || aio_catv_is_down())
             break;
         $batch = $multi ? array_slice($todo, 0, AIO_HTTP_PAR, true) : array_slice($todo, 0, 1, true);
+        $now = microtime(true);
+        while ($sent && $now - $sent[0] >= AIO_CPM_RATE_S)
+            array_shift($sent);
+        $over = count($sent) + count($batch) - AIO_CPM_RATE_N;
+        if ($over > 0)
+        {
+            $wait = $sent[$over - 1] + AIO_CPM_RATE_S - $now;
+            if ($wait > $left - AIO_CPM_MIN_S)
+                break;
+            usleep((int) ceil($wait * 1000000));
+            continue;
+        }
+        $sent = array_merge($sent, array_fill(0, count($batch), $now));
         $rs = $multi ? aio_cpm_ask_many($batch, min(AIO_CPM_FILL_S, $left), false) : null;
         if ($rs === null)
         {

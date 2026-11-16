@@ -105,12 +105,23 @@ function aio_cat_url($path)
  */
 function aio_cat_get($path, $what, $field, $limit = 0, $one = false, $max = AIO_CAT_MAX_BYTES)
 {
+    return aio_cat_reply(aio_http_get_req(aio_cat_req($path, $limit, $max)), $what, $field, $one);
+}
+
+// One GET $q (array(URL, connect, total, max), as a request of aio_http_get_many) by aio_http_get -> array(HTTP code,
+// body, err, connected, s it took), as a reply of aio_http_get_many. Here, not in main.php: the settings page
+// (cgi/lib/rows.php) has its own aio_http_get and no main.php.
+/**
+ * @param array{string, float|int, float|int, int} $q
+ * @return array{int, string, string, bool, float}
+ */
+function aio_http_get_req($q)
+{
     $t = microtime(true);
-    $q = aio_cat_req($path, $limit, $max);
     $err = '';
     $connected = true;
     list($code, $body) = aio_http_get($q[0], $err, $q[1], $q[2], $q[3], $connected);
-    return aio_cat_reply(array($code, $body, $err, $connected, microtime(true) - $t), $what, $field, $one);
+    return array($code, $body, $err, (bool) $connected, microtime(true) - $t);
 }
 
 // The GETs of paths $paths (key => array(path, what)) at once (aio_http_get_many; the caller keeps to AIO_HTTP_PAR),

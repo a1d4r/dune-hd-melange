@@ -966,6 +966,9 @@ if (!function_exists('aio_http_get_many'))
     {
         if (AioHttp::$multi_off || !function_exists('curl_multi_init'))
             return null;
+        // Not cut: a sign for the caller to keep to it.
+        if (count($reqs) > AIO_HTTP_PAR)
+            aio_log(sprintf('http: %d requests at once, over AIO_HTTP_PAR (%d)', count($reqs), AIO_HTTP_PAR));
         $t0 = microtime(true);
         // curl_multi_init of PHP 5.3 has no failure of its own: a broken one fails at add or exec.
         $mh = curl_multi_init();

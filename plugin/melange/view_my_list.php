@@ -624,7 +624,8 @@ function aio_mlv_fav_ask($mids, $budget, $t0, &$pairs, &$asked)
         $left = $budget - (microtime(true) - $t0);
         if ($left < 1 || aio_pg_paused())
             break;
-        $rs = $multi ? aio_pg_link_many(array_slice($mids, $i, AIO_HTTP_PAR), min(AIO_PG_LINK_S, $left)) : null;
+        $sent = 0;
+        $rs = $multi ? aio_pg_link_many(array_slice($mids, $i, AIO_HTTP_PAR), min(AIO_PG_LINK_S, $left), $sent) : null;
         if ($rs === null)
         {
             $multi = false;
@@ -632,7 +633,7 @@ function aio_mlv_fav_ask($mids, $budget, $t0, &$pairs, &$asked)
             $seq++;
         }
         else
-            $par = max($par, count($rs));
+            $par = max($par, $sent);
         foreach ($rs as $mid => $r)
             $pairs[strval($mid)] = $r['link'];
         $asked += count($rs);
