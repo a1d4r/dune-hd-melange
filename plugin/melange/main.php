@@ -471,7 +471,9 @@ function aio_seasons($m)
 
 // "Continue watching" -> shell_ext play_recent -> our play_action with
 // supplier_info = {sup_data, wh_uid, wh_s, wh_e, wh_pos, wh_len (seconds), wh_*}.
-// 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else.
+// 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else;
+// 'lampac' of an online record (online_play.php): 'hash' its key as it is, of no format
+// checked here (aio_lp_find of aio_lpv_resume does: bad_key, the search window).
 // 'len': 0 without wh_len; 'next': of aio_wh_resume_ep. r22 (240619_0210) sends
 // wh_len, but no wh_release or wh_mode: null there, the list.
 /**
@@ -482,8 +484,9 @@ function aio_resume($in)
 {
     $si = isset($in->supplier_info) && is_string($in->supplier_info) ?
         json_decode($in->supplier_info) : null;
+    $lp = is_object($si) && isset($si->wh_mode) && $si->wh_mode === 'lampac';
     if (!is_object($si) || !isset($si->wh_release) || !is_string($si->wh_release) ||
-        !preg_match('/^[0-9a-f]{40}$/', $si->wh_release))
+        (!$lp && !preg_match('/^[0-9a-f]{40}$/', $si->wh_release)))
         return null;
     // r25 shell attaches the history to our own button "Melange NN%" in the
     // "Play..." dialog too: that one opens the list, as in r24.
@@ -494,7 +497,7 @@ function aio_resume($in)
     }
     return array(
         'hash' => $si->wh_release,
-        'mode' => isset($si->wh_mode) && ($si->wh_mode === 'debrid' || $si->wh_mode === 'ts') ? $si->wh_mode : '',
+        'mode' => $lp ? 'lampac' : (isset($si->wh_mode) && ($si->wh_mode === 'debrid' || $si->wh_mode === 'ts') ? $si->wh_mode : ''),
         's' => aio_int($si, 'wh_s', -1),
         'e' => aio_int($si, 'wh_e', -1),
         'pos' => max(0, aio_int($si, 'wh_pos', 0)),
@@ -1793,16 +1796,15 @@ function aio_play_action($in)
     if (!$mv || $mv['imdb'] === '')
         return aio_error('err_no_imdb');
     aio_pg_link_movie($mv);
-    // "Онлайн" (online_play.php): its "Continue", a title marked so, no AIOStreams.
-    $lp = aio_lpv_play_action($in, $mv, isset($in->lang) && is_string($in->lang) ? $in->lang : '');
-    if ($lp)
-        return $lp;
+    $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
 
     $resume = aio_resume($in);
+    // The key of an online record ("Continue" of mode lampac), never a release of the list.
+    $lpk = $resume && $resume['mode'] === 'lampac' ? $resume['hash'] : '';
     $s = -1;
     $e = -1;
     // A list opens with the cursor on this release (the one of the history).
-    $hash = $resume ? $resume['hash'] : '';
+    $hash = $resume && $lpk === '' ? $resume['hash'] : '';
     if ($mv['series'])
     {
         // Back from "Continue watching" the shell sends season = episode = -1.
@@ -1818,8 +1820,14 @@ function aio_play_action($in)
         if ($s < 1 || $e < 1)
             list($s, $e, $hash) = aio_wh_episode($mv);
     }
+    // "Онлайн" (online_play.php) of the episode chosen: its "Continue", a title marked so, no AIOStreams.
+    $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk);
+    if ($lp)
+        return $lp;
+    // No "Онлайн" (no Lampac): an online record opens the releases of its episode, as the card.
+    if ($lpk !== '')
+        $resume = null;
 
-    $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
     if (Aio::$settings['base'] === '')
         return aio_no_address($lang);
 

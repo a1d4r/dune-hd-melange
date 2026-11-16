@@ -437,6 +437,21 @@ function aio_lpv_flt_keep($v, $st)
     return $v;
 }
 
+// View $v with its row $i on screen: the filter dropped when it hides that one (all shown, no yellow line of it).
+/**
+ * @param AioLpView $v
+ * @param int $i
+ * @return AioLpView
+ */
+function aio_lpv_flt_show($v, $i)
+{
+    if (!isset($v['flt']) || in_array($i, aio_lpv_shown($v), true))
+        return $v;
+    aio_log("lampac: row $i not of the filter {$v['flt']['k']}, all shown");
+    unset($v['flt'], $v['flt_gone']);
+    return $v;
+}
+
 // Children of the tab of the filter (where the releases have their sort tabs): the red key (not on a remote the
 // firmware knows is without it), "Озвучка: все", or "Озвучка: LostFilm" bright with a line under it, the triangle.
 // -> array(children, their width with the gap after).
@@ -1083,13 +1098,15 @@ function aio_lpv_errors_of($st)
 // replaced; 'chosen' - over the episodes of the shell ("Выбрать серию"), those and the list replaced. $opt: mark (the
 // title marked "online" when there is a list), back (nothing online: the releases with the
 // yellow line), path (the path of a balancer: the cursor on it, the yellow line "<it> больше не
-// отдаёт эту озвучку"), more (the replies of the view of $st from its next, no search; the
-// cursor on the first new row), redraw (the screen under it shows a list before $st: $st put in when the window
-// closes with no list - AioLpv::$redraw, aio_lpv_redraw_keys).
+// отдаёт эту озвучку"), key (the key of a row, of an online record: the cursor on that row, shown
+// though a filter hides it; none - on the first of the balancer of the key), more (the replies of
+// the view of $st from its next, no search; the cursor on the first new row), redraw (the screen
+// under it shows a list before $st: $st put in when the window closes with no list -
+// AioLpv::$redraw, aio_lpv_redraw_keys).
 /**
  * @param AioState $st
  * @param string $how
- * @param array{mark?: bool, back?: bool, path?: string, more?: bool, redraw?: bool} $opt
+ * @param array{mark?: bool, back?: bool, path?: string, key?: string, more?: bool, redraw?: bool} $opt
  * @return AioAction
  */
 function aio_lpv_search_open($st, $how, $opt = array())
@@ -1107,9 +1124,9 @@ function aio_lpv_search_open($st, $how, $opt = array())
     else if (isset($st['lp']['flt']))
         $v['flt'] = $st['lp']['flt'];
     $run = array('sid' => $sid, 'st' => $st, 'how' => $how, 'mark' => !empty($opt['mark']), 'back' => !empty($opt['back']),
-        'path' => isset($opt['path']) ? $opt['path'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null,
-        'v' => $v, 't1' => $more ? aio_lp_now() : 0.0, 'more' => $more ? count($v['rows']) : -1, 'lost' => 0.0,
-        'again' => array(), 'held' => '', 'at' => array());
+        'path' => isset($opt['path']) ? $opt['path'] : '', 'key' => isset($opt['key']) ? $opt['key'] : '',
+        'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v, 't1' => $more ? aio_lp_now() : 0.0,
+        'more' => $more ? count($v['rows']) : -1, 'lost' => 0.0, 'again' => array(), 'held' => '', 'at' => array());
     // The rows of before ("Ещё N") first (aio_lpv_rows_by_source).
     foreach ($v['rows'] as $x)
         $run['at'][] = -1;
@@ -1435,6 +1452,22 @@ function aio_lpv_result($run)
         }
     }
     $sel = $run['more'] >= 0 ? $run['more'] : max(0, $first);
+    // The row of the key of a record, else the first of its balancer.
+    $k = aio_lp_key_parse($run['key']);
+    $path = $run['path'] !== '' ? $run['path'] : ($k ? $k[0] : '');
+    $pin = -1;
+    foreach ($path !== '' ? $rows : array() as $i => $r)
+    {
+        if ($r['key'] === $run['key'])
+        {
+            $pin = $i;
+            break;
+        }
+        if ($pin < 0 && $r['path'] === $path)
+            $pin = $i;
+    }
+    if ($pin >= 0)
+        $sel = $pin;
     $note = '';
     if ($run['path'] !== '')
     {
@@ -1444,14 +1477,6 @@ function aio_lpv_result($run)
             if ($src['path'] === $run['path'])
                 $label = $src['label'];
         }
-        foreach ($rows as $i => $r)
-        {
-            if ($r['path'] === $run['path'])
-            {
-                $sel = $i;
-                break;
-            }
-        }
         $note = aio_lpv_tr($lang, 'lp_note_gone', array('src' => $label));
     }
     if ($off > 0)
@@ -1460,6 +1485,8 @@ function aio_lpv_result($run)
     $v['note'] = $note;
     unset($v['flt_gone']);
     $v = aio_lpv_flt_keep(aio_lpv_ep_tracks($v, $st['e']), $st);
+    if ($pin >= 0)
+        $v = aio_lpv_flt_show($v, $pin);
     $v['gc'] = aio_lpv_put(aio_lpv_lines($v), $sel);
     $v['gc_new'] = true;
     $ns = $st;
@@ -1469,7 +1496,8 @@ function aio_lpv_result($run)
     unset($ns['lp_note']);
     if ($run['mark'])
         aio_lpv_mark_set($mv, true);
-    aio_log("$tag -> the list, the cursor on row $sel of the list" . ($first >= 0 ? ", the remembered row $first" : ''));
+    aio_log("$tag -> the list, the cursor on row $sel of the list" . ($first >= 0 ? ", the remembered row $first" : '') .
+        ($pin >= 0 ? ', ' . ($rows[$pin]['key'] === $run['key'] ? 'the row of the record' : 'the balancer of the record') : ''));
     if ($run['how'] === 'open')
         return aio_lpv_open($ns);
     return aio_list_replace($ns, $run['how'] === 'chosen' ? 3 : 1);
