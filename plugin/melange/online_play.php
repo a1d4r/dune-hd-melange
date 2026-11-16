@@ -217,9 +217,10 @@ function aio_lpv_next($in)
             $l = aio_lpv_link($base, $f['row'], $deadline, $s, $e);
             if ($l['why'] === '')
                 return aio_lpv_played($mv, $lang, $f['row'], $l['url'], $s, $e, $f['have']);
-            // Anew only for a link that expired (the check, http, no answer): the cache of Lampac keeps a
-            // reply of another episode, a list or rch, a second "call" gives the same after its time.
-            if (!in_array($l['why'], array('http', 'down', 'not_hls', 'html', 'long_variant'), true))
+            // Anew only for a link that expired (the check, http, no answer, an empty link of "call": its
+            // token_movie of hours ago): the cache of Lampac keeps a reply of another episode, a list or
+            // rch, a second "call" gives the same after its time.
+            if (!in_array($l['why'], array('http', 'down', 'no_link', 'not_hls', 'html', 'long_variant'), true))
                 return aio_lpv_next_failed($lang, $base, $f['row']['src'], $f['voice'], $s, $e, $l['why'], $l['detail'], array());
             aio_log("lampac next: $ep of the season kept: {$l['why']} -> the balancer anew");
         }
