@@ -16,9 +16,9 @@ Choose whether Melange starts torrents, shows skip-intro buttons and reports add
 
 4. "Addon errors": turn it on if there are few releases or none. The number of errors appears above the release list; **POP UP** → "Addon errors" shows the reasons.
 
-   <img src="../screenshots/advanced-errors-menu.jpg" alt="Release list for Resident Evil: Errors: 2 at the top right, the menu is open, focus on Addon errors" width="100%">
+   <img src="../screenshots/advanced-errors-menu.jpg" alt="Release list for Resident Evil: Errors: 1 at the top right, the menu is open, focus on Addon errors" width="100%">
 
-   <img src="../screenshots/advanced-errors.jpg" alt="Addon errors window: JacRed and MediaFusion did not answer in time" width="100%">
+   <img src="../screenshots/advanced-errors.jpg" alt="Addon errors window: JacRed did not answer in time" width="100%">
 
 5. "Remote without colour buttons": turn it on if your remote has no colour buttons or INFO. Then the **POP UP** menu of the release list starts with "Release details" and "Sort". Choosing the current sort again reverses the order.
 
