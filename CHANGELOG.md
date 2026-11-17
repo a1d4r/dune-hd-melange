@@ -2,8 +2,14 @@
 
 **English version**
 
-## 0.62.1 — 17.11.2026
-- Fixed: after you switch the source with MENU → **Get films from** in the release list, the cursor is now on the first row of the new list. Before, it moved down to the release it had been on.
+## NEXT — 18.11.2026
+- **Sources instead of source profiles.** On the settings page, "Source profiles" are now "Sources", with no on/off switch. "+ Add source" opens a copy of the current source with the Debrid keys already filled in. Each source has its own Real-Debrid and TorBox keys. You choose the main source on the page with "Set as main".
+- **Which source the Dune opens.** A new movie opens from the main source. A movie you started continues from the source you watched it from: in Continue Watching, for the next episode and in the card.
+- **Get films from… in the release list.** POP UP → "Get films from…" shows this movie from another source. The choice applies to this screen only and is not remembered. After you switch, the cursor is on the first row of the new list.
+- **Lampac.** A new kind of source, for those who run their own Lampac server; you type its address yourself. A movie or episode from it opens as an online list of voice-overs by balancer. MENU of the list has **Balancers…** (which ones to ask and in what order), the voice-over filter and **Balancer errors**. If a movie has no releases, "No releases" offers **Search online**. A movie or episode started online continues with the same voice-over.
+- **New names.** "Source errors" is now **Addon errors**, and the release details show "Platform: Netflix" instead of "Source: Netflix".
+- Profiles you saved while "Source profiles" were off now show up in the menu.
+- Your settings move to the new format by themselves when you update.
 
 ## 0.62.0 — 16.11.2026
 - **Continue Watching row.** The first catalog row is now "Continue Watching": movies you started and didn't finish (after 2 minutes or 2% of the movie), and for a series, the next episode. The "Movies" tab shows movies, the "Series" tab shows series, up to 20 tiles; with nothing started, the row is hidden. Videos under 10 minutes without an episode number, such as trailers, don't count. It also gets what you started in the Dune's own Movies. ENTER opens the Melange card. Progress and marks come from the Dune history. Older history entries are linked to their titles a few at a time, as you open the catalog and cards, and only with a connection, so right after the update some things you started long ago may take a while to show up in Continue Watching.
@@ -266,8 +272,14 @@ First public release. What it does:
 
 **Russian version**
 
-## 0.62.1 — 17.11.2026
-- Исправлено: после смены источника через MENU → «Откуда брать» в списке раздач курсор теперь стоит на первой строке нового списка. Раньше он уезжал вниз, к раздаче, на которой стоял.
+## NEXT — 18.11.2026
+- **Источники вместо профилей источников.** На странице настроек «Профили источников» теперь называются «Источники», выключателя у них нет. «+ Добавить источник» открывает копию текущего источника, ключи Debrid уже вписаны. У каждого источника свои ключи Real-Debrid и TorBox. Основной источник выбирается на странице кнопкой «Сделать основным».
+- **Каким источником открывает Дюна.** Новый фильм открывается из основного источника. Начатый — из того источника, где вы его смотрели: в «Продолжить», на следующей серии и в карточке.
+- **«Откуда брать…» в списке раздач.** POP UP → «Откуда брать…» показывает этот фильм из другого источника. Выбор действует только на этом экране и не запоминается. После смены курсор стоит на первой строке нового списка.
+- **Lampac.** Новый вид источника для тех, у кого свой сервер Lampac; адрес вписываете сами. Фильм или серия из него открывается онлайн-списком озвучек по балансерам. В MENU списка есть **Балансеры…** (какие спрашивать и в каком порядке), выбор озвучки и **Ошибки балансеров**. Если у фильма нет раздач, в окне «Раздач нет» есть **Искать онлайн**. Начатый онлайн фильм или серия продолжается на той же озвучке.
+- **Новые названия.** «Ошибки источников» теперь **Ошибки аддонов**, а в сведениях о раздаче вместо «Источник: Netflix» — «Платформа: Netflix».
+- Профили, сохранённые при выключенных «Профилях источников», теперь видны в меню.
+- Настройки переходят на новый формат сами при обновлении.
 
 ## 0.62.0 — 16.11.2026
 - **Ряд «Продолжить».** Первый ряд каталога теперь «Продолжить»: начатые и недосмотренные фильмы (после 2 минут или 2 % просмотра), а у сериала — следующая серия. На вкладке «Фильмы» в нём фильмы, на «Сериалах» — сериалы, до 20 плиток; если ничего не начато, ряда нет. Ролики короче 10 минут без номера серии, например трейлеры, не считаются. Сюда попадает и начатое в родных «Фильмах» Дюны. ENTER открывает карточку Melange. Прогресс и отметки Melange берёт из истории Дюны. Старые записи истории связываются с фильмами понемногу, при открытии каталога и карточек и только при связи с сервером, поэтому сразу после обновления часть давно начатого появится в «Продолжить» не сразу.
