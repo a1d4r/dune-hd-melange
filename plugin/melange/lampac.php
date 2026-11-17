@@ -630,7 +630,7 @@ function aio_lp_events_why($r, $j)
 // (items of /lifeevents had), t0 (its start, aio_lp_now), sources (by index;
 // AioLpSource: name, label, q, url, path (aio_lp_path of url), index, pos), gone (items hidden:
 // a key => show, rch or bad), hidden (their counts by reason), tasks and pending (of the last
-// /lifeevents), fails (/lifeevents of no answer in a row), done, capped (the
+// /lifeevents), shown (its items of show not false when all its tasks came, -1 not yet), fails (/lifeevents of no answer in a row), done, capped (the
 // time of the search ran out), err and detail (a reason, '' none: the search
 // failed only if no source came). One search at a time: two events at once
 // make Lampac answer 500.
@@ -644,7 +644,8 @@ function aio_lp_search_start($base, $p)
     $st = array('base' => $base, 'q' => aio_lp_query($p), 'mode' => 'life', 'memkey' => '', 'seen' => 0,
         't0' => aio_lp_now(), 'sources' => array(), 'gone' => array(),
         'hidden' => array('show' => 0, 'rch' => 0, 'bad' => 0),
-        'tasks' => 0, 'pending' => 0, 'fails' => 0, 'done' => false, 'capped' => false, 'err' => '', 'detail' => '');
+        'tasks' => 0, 'pending' => 0, 'shown' => -1, 'fails' => 0, 'done' => false, 'capped' => false, 'err' => '',
+        'detail' => '');
     aio_lp_log("search: {$p['id']}/{$p['imdb_id']}/{$p['kinopoisk_id']}, serial {$p['serial']}", $base);
     $r = aio_lp_ask($base, "$base/lite/events?" . aio_lp_query($p, array('life' => 'true')), AIO_LP_CONNECT, AIO_LP_STEP,
         AIO_LP_MAX_BYTES);
@@ -704,8 +705,10 @@ function aio_lp_search_end($st)
 // One step of search $st (aio_lp_search_start), a tick of the window: life -
 // one /lifeevents (up to AIO_LP_STEP s) with what came so far; plain - the one
 // events without life (up to the time of the search left). Done at ready, or
-// when all its tasks came (online of tasks items, none pending: a server may
-// not send ready), at AIO_LP_SEARCH_MAX s from the start (capped), at a
+// when all its tasks came (online of tasks items: a server may not send ready) -
+// with pending, none pending (Lampac); with no pending, the items of show true
+// the same at two /lifeevents in a row (a server may send all its items at once
+// and turn show on later), at AIO_LP_SEARCH_MAX s from the start (capped), at a
 // failure; a /lifeevents of no answer is asked once more at the next step (a
 // slow server holds one over 3 s at times), a second one in a row is the
 // failure. -> the new state. A done search is returned as it is.
@@ -753,7 +756,17 @@ function aio_lp_search_step($st)
     $st['seen'] = max($st['seen'], count($j['online']));
     $st['tasks'] = isset($j['tasks']) && is_int($j['tasks']) ? $j['tasks'] : 0;
     $st['pending'] = isset($j['pending']) && is_array($j['pending']) ? count($j['pending']) : 0;
-    if (!empty($j['ready']) || ($st['tasks'] > 0 && count($j['online']) >= $st['tasks'] && $st['pending'] === 0))
+    $all = $st['tasks'] > 0 && count($j['online']) >= $st['tasks'];
+    $on = 0;
+    foreach ($j['online'] as $o)
+    {
+        if (!is_array($o) || !isset($o['show']) || $o['show'] !== false)
+            $on++;
+    }
+    $was = $st['shown'];
+    $st['shown'] = $all ? $on : -1;
+    if (!empty($j['ready']) || ($all && (isset($j['pending']) && is_array($j['pending']) ? $st['pending'] === 0 :
+        $was === $on)))
         return aio_lp_search_end($st);
     if (AIO_LP_SEARCH_MAX - (aio_lp_now() - $st['t0']) < AIO_LP_REPLY_MIN)
     {
