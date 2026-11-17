@@ -6,6 +6,8 @@ Add several sources (Debrid, torrents, your own config) and open a movie on the 
 
 2. Type a name, choose the kind of source and press "Save". Add the others the same way.
 
+   <img src="../screenshots/profiles-copy.jpg" alt="Copy of a source: name Debrid 2, kind Debrid, Real-Debrid key as dots, Save and create the config at the bottom" width="300">
+
    Lampac: if you have your own server; you type its address yourself.
 
 3. A "Sources" block now appears at the top. The Dune opens new movies from the main source (marked "main"). To change it, open another source and press "Set as main".
