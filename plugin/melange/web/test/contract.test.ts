@@ -23,6 +23,7 @@ const PLACEHOLDERS: Partial<Record<keyof Texts, string[]>> = {
   changeFew: ["%d"],
   changeMany: ["%d"],
   profileDeleteConfirm: ["%s"],
+  profileDeleteMain: ["%s"],
 };
 
 // Made by the script, not by PHP: "Duplicate", the "on" state of an eye, the mark of an error.
@@ -47,13 +48,16 @@ describe.each([...FIXTURES])("%s", (name) => {
     for (const key of TEXT_KEYS) expect([key, [...(init.i18n[key].match(/%[a-z]/g) || [])]]).toEqual([key, PLACEHOLDERS[key] || []]);
   });
 
-  test("the editor of the source profiles: every id of EDITOR once on the pages of it (prof*), none on the others; in #src, its fields in the form", () => {
+  test("the editor of the sources: its block and the fields of the save on every page, in #src; the list, the name, the buttons on those of three sources (prof*), else the box of + Add source", () => {
     const { doc, form } = open(name, { start: false });
-    const editor = name.startsWith("prof");
-    for (const id of Object.values(EDITOR)) expect([id, doc.querySelectorAll("#" + id).length]).toEqual([id, editor ? 1 : 0]);
-    if (!editor) return;
-    expect(doc.getElementById(EDITOR.block)!.closest("section")!.id).toBe("src");
-    for (const id of [EDITOR.name, EDITOR.sel, EDITOR.was, EDITOR.now]) expect((doc.getElementById(id) as HTMLInputElement).form).toBe(form);
+    const listed = name.startsWith("prof");
+    const once: string[] = [EDITOR.block, EDITOR.sel, EDITOR.from];
+    const alone: string[] = [EDITOR.add];
+    for (const id of Object.values(EDITOR))
+      expect([id, doc.querySelectorAll("#" + id).length]).toEqual([id, once.includes(id) ? 1 : alone.includes(id) === !listed ? 1 : 0]);
+    for (const id of Object.values(EDITOR)) if (doc.getElementById(id)) expect([id, doc.getElementById(id)!.closest("section")!.id]).toEqual([id, "src"]);
+    for (const id of listed ? [EDITOR.name, EDITOR.sel, EDITOR.from] : [EDITOR.sel, EDITOR.from])
+      expect((doc.getElementById(id) as HTMLInputElement).form).toBe(form);
   });
 
   test("every id of ID, once (#first: on the first run only, #state hidden there); the line of each screen of ROWS", () => {
@@ -70,7 +74,7 @@ describe.each([...FIXTURES])("%s", (name) => {
     // The state: a line of each state, one shown.
     const state = doc.getElementById(ID.state)!;
     const lines = Array.from(state.querySelectorAll<HTMLElement>("p[" + DATA.state + "]"));
-    expect(lines.map((line) => line.getAttribute(DATA.state))).toEqual(["key", "conf", "man", "ok"]);
+    expect(lines.map((line) => line.getAttribute(DATA.state))).toEqual(["key", "conf", "man", "lp", "ok"]);
     expect(lines.filter((line) => !line.hidden).map((line) => line.getAttribute(DATA.state))).toEqual([state.getAttribute(DATA.state)]);
   });
 
@@ -83,7 +87,7 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(form.querySelectorAll("." + CLS.save + "[type=submit]").length).toBe(1);
     // The answers: the values the script compares with, each with its card in a group of #src.
     const watches = Array.from(form.querySelectorAll<HTMLInputElement>("input[type=radio][name=" + NAME.watch + "]"));
-    expect(watches.map((radio) => radio.value)).toEqual([VALUE.debrid, VALUE.p2p, VALUE.own]);
+    expect(watches.map((radio) => radio.value)).toEqual([VALUE.debrid, VALUE.p2p, VALUE.own, VALUE.lampac]);
     for (const radio of watches)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("src");
     // Every JacRed radio: its card in a group.

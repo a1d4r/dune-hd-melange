@@ -108,21 +108,19 @@ function aio_cgi_aio_status_post()
 }
 
 // The config $c of the server $base in the mode $mode (null: forgotten) written to settings.json, the rest as it is
-// now in the file. It takes the place of the config X it was made of or changed - that of the source profile $prof
-// (0.58.0, a=aio_sync&prof: the profile gone or of another server or mode now - nothing written), else that of the
-// cell aio_confs[$base][$mode] - wherever X is (its uuid): the cell, the profiles. None (just made): in the profile,
-// and in the cell - without $prof, or of a profile that is the source in use (aio_profile_same) while the cell has no
-// config or one a profile keeps (aio_profile_held: no config is lost). -> '' or the reason (for the log).
-function aio_cgi_aio_keep($dir, $base, $mode, $c, $prof = '')
+// now in the file. It takes the place of the config X of the source $prof (its id; gone or of another server or mode
+// now - nothing written) - wherever X is (its uuid): the cell, the profiles. None (just made): in the profile only
+// (aio_settings_json puts the config of the main one in its cell). -> '' or the reason (for the log).
+function aio_cgi_aio_keep($dir, $base, $mode, $c, $prof)
 {
     $s = aio_settings_read($dir);
     $cell = isset($s['aio_confs'][$base][$mode]) ? $s['aio_confs'][$base][$mode] : null;
-    $k = $prof !== '' ? aio_profile_find($s, $prof) : -1;
+    $k = aio_profile_index($s, $prof);
     $p = $k >= 0 ? $s['profiles'][$k] : null;
-    if ($prof !== '' && (!$p || !isset($p['base']) || $p['base'] !== $base || $p['mode'] !== $mode))
-        return 'the profile changed meanwhile, not kept';
-    $x = $p ? $p['conf'] : $cell;
-    if ($x ? $cell && $cell['uuid'] === $x['uuid'] : !$p || (aio_profile_same($s, $p) && (!$cell || aio_profile_held($s, $cell))))
+    if (!$p || !isset($p['base']) || $p['base'] !== $base || $p['mode'] !== $mode)
+        return 'the source changed meanwhile, not kept';
+    $x = $p['conf'];
+    if ($x && $cell && $cell['uuid'] === $x['uuid'])
         $s = aio_settings_cell($s, $base, $mode, $c);
     foreach ($s['profiles'] as $i => $q)
     {
@@ -156,10 +154,8 @@ function aio_cgi_aio_res($base, $mode)
     return array('ok' => false, 'msg' => '', 'skip' => false, 'base' => $base, 'mode' => $mode, 'conf' => null);
 }
 
-// The config of the chosen server (of the list or the own one) in the mode
-// aio_mode by settings.json (that of the other mode is never touched); $prof (0.58.0):
-// of the source profile of that name - by the settings as of it (aio_profile_view: its
-// server, mode, template, JacRed; the keys of the settings), its own config: none
+// The config of the source of id $prof (v2; '' - the main one) by the settings as of it (aio_profile_view: its
+// server, mode, template, JacRed, keys of Debrid; that of the other mode is never touched), its own config: none
 // -> POST of the template (aio_settings_tpl: aio_tpl, or aio_tpl_p2p with no
 // Debrid key needed) with our fields;
 // there -> GET, its template by its presets stored (tpl), the migrations
@@ -179,17 +175,20 @@ function aio_cgi_aio_sync($dir, $reset = false, $prof = '')
     set_time_limit(120);
     $s = aio_settings_read($dir);
     $f = aio_cgi_fields();
-    $k = $prof !== '' ? aio_profile_find($s, $prof) : -1;
-    // A profile of Lampac has no config (the page of before v2 shows none: v2 stage 3).
-    if ($k >= 0 && !aio_profile_rel($s['profiles'][$k]))
-        $k = -1;
+    $k = $prof !== '' ? aio_profile_index($s, $prof) : aio_profile_main($s);
     if ($prof !== '' && $k < 0)
     {
-        aio_cgi_log('aio sync: no such profile');
-        return array_merge(aio_cgi_aio_res('', ''), array('msg' => aio_cgi_profiles_changed()));
+        aio_cgi_log('aio sync: no such source');
+        return array_merge(aio_cgi_aio_res('', ''), array('msg' => aio_cgi_profile_gone()));
     }
-    if ($k >= 0)
-        $s = aio_profile_view($s, $s['profiles'][$k]);
+    // Lampac, no sources: nothing to make.
+    if ($k < 0 || !aio_profile_rel($s['profiles'][$k]))
+    {
+        aio_cgi_log('aio sync: no config of the source, skipped');
+        return array_merge(aio_cgi_aio_res('', ''), array('ok' => true, 'skip' => true));
+    }
+    $prof = $s['profiles'][$k]['id'];
+    $s = aio_profile_view($s, $s['profiles'][$k]);
     $choice = $s['aio_server'];
     $base = aio_settings_base($s);
     $host = (string) parse_url($base, PHP_URL_HOST);
@@ -350,15 +349,14 @@ function aio_cgi_aio_sync($dir, $reset = false, $prof = '')
         'conf' => aio_cgi_aio_show($conf)));
 }
 
-// a=aio_sync (reset=1: to the template; prof: of that source profile, 0.58.0): JSON {ok, msg, skip, base, mode
-// (aio_mode: the config is of it), conf: {cfg, login, pass, tpl} | null[, field][, profiles]} (profiles: with "Профили
-// источников" on, those of the file after it - a config made or forgotten: ready, now; aio_cgi_profiles_data).
+// a=aio_sync (reset=1: to the template; prof: of that source, its id; none - the main one): JSON {ok, msg, skip, base,
+// mode (aio_mode: the config is of it), conf: {cfg, login, pass, tpl} | null[, field], profiles} (profiles: those of the
+// file after it - a config made or forgotten: ready; aio_cgi_profiles_data).
 function aio_cgi_aio_sync_post($dir)
 {
     if (!aio_cgi_dir_ok($dir))
         aio_cgi_json(200, array_merge(aio_cgi_aio_res('', ''), array('msg' => aio_cgi_l('Нет папки плагина на Дюне',
             'The plugin data folder is missing on the Dune'))));
     $r = aio_cgi_aio_sync($dir, aio_cgi_param($_POST, 'reset') === '1', aio_cgi_param($_POST, 'prof'));
-    $s = aio_settings_read($dir);
-    aio_cgi_json(200, $s['src_profiles'] ? $r + array('profiles' => aio_cgi_profiles_data($s)) : $r);
+    aio_cgi_json(200, $r + array('profiles' => aio_cgi_profiles_data(aio_settings_read($dir))));
 }

@@ -1,39 +1,39 @@
 <?php
-// The settings page (cgi/settings.php): the source profiles (0.58.0) - with "Профили источников" on the page is the
-// editor of one profile (?p=<i>, p=new: a new one; none - the one in use, else a new one of the source in use): its
-// settings of the source shown by the same fields as the source in use (aio_profile_view), "Сохранить" saves them to
-// it (aio_cgi_editor_save, in the save of the form), a=aio_sync&prof=<name> makes or changes its config; its block on
-// #src (aio_cgi_editor_block), the data and texts of the script; the actions of the script, POST
-// ?t=<token>&a=<action>&ajax=1 (i: the index the page shows, was: its name there - another one in the file: nothing
-// written) -> JSON {ok, msg[, profiles]}:
-//   profile_use (i, was) -> profile i in use, the main one (v2: aio_settings_from_top of aio_cgi_store; no request:
-//     its config is there);
-//   profile_del (i, was) -> profile i gone (its config stays on the server, the source in use stays).
-// Each one reads settings.json and writes it whole (aio_cgi_store). profiles: those of the file (none when it was not
-// read).
+// The settings page (cgi/settings.php): the sources (v2, spec source-profiles-v2 §3; in the code - profiles). The page is
+// the editor of one of them, by its id: ?p=<id> (none or not there - the main one), ?p=new&from=<id> - a new one, the copy
+// of that one (not there - of the main one; no profiles - the first one, of the settings). Its settings in the fields of
+// the form (aio_cgi_editor_view), "Сохранить" writes it and the shared fields (aio_cgi_editor_save, in the save of the
+// form), a=aio_sync&prof=<id> makes or changes its config. On #src: with two or more (or a new one) the block "Источники" -
+// the list (by the script), the name; the four kinds; "Сделать основным", "Удалить" (aio_cgi_editor_foot). The actions of
+// the script, POST ?t=<token>&a=<action>&ajax=1 (i: the id) -> JSON {ok, msg[, profiles]}:
+//   profile_main (i) -> src_main, the main one (no request; one without its config too: "конфига нет" stays);
+//   profile_del (i) -> gone (not the last one); its config into the cell of its server and mode when no other profile
+//     has it (no config is lost); the main one gone - the first one left is.
+// Each reads settings.json and writes it whole (aio_cgi_store). profiles: those of the file (none when it was not read).
 
-// The texts of the profiles in the i18n of the script (aio_cgi_js: web/src/profiles.ts takes them by these keys).
+// The texts of the sources in the i18n of the script (aio_cgi_js: web/src/profiles.ts takes them by these keys).
 function aio_cgi_profile_texts()
 {
-    return array('profileNow' => aio_cgi_l('сейчас', 'now'),
+    return array('profileMain' => aio_cgi_l('основной', 'main'),
         'profileNoConf' => aio_cgi_l('конфига нет', 'no config'),
-        'profileNew' => aio_cgi_l('+ Новый профиль', '+ New profile'),
+        'profileNew' => aio_cgi_l('+ Добавить источник', '+ Add source'),
         'profilesFull' => aio_cgi_profiles_full(),
-        'profileDeleteConfirm' => aio_cgi_l('Удалить профиль «%s»? Конфиг на сервере останется.',
-            'Delete the profile "%s"? Its config on the server stays.'));
+        'profileDeleteConfirm' => aio_cgi_l('Удалить источник «%s»? Конфиг на сервере останется.',
+            'Delete the source "%s"? Its config on the server stays.'),
+        'profileDeleteMain' => aio_cgi_l('Основным станет «%s».', '"%s" becomes the main source.'));
 }
 
-// The line of the profiles full: of "+ Новый профиль" and of a save of a new one refused.
+// The line of the sources full: instead of "+ Добавить источник", a save of a new one refused.
 function aio_cgi_profiles_full()
 {
-    return sprintf(aio_cgi_l('Профилей уже %d. Удалите лишний, чтобы добавить новый.',
-        'There are %d profiles already. Delete one to add another.'), AIO_PROFILES_MAX);
+    return sprintf(aio_cgi_l('Источников уже %d. Удалите лишний, чтобы добавить новый.',
+        'There are %d sources already. Delete one to add another.'), AIO_PROFILES_MAX);
 }
 
-// The line of a save refused by the profiles changed meanwhile (another tab).
-function aio_cgi_profiles_changed()
+// The line of a save or an action refused by the source gone meanwhile (another tab deleted it).
+function aio_cgi_profile_gone()
 {
-    return aio_cgi_l('Профили изменились в другой вкладке — обновите страницу', 'The profiles changed in another tab: reload the page');
+    return aio_cgi_l('Источник удалён в другой вкладке — обновите страницу', 'The source was deleted in another tab: reload the page');
 }
 
 // The kind of profile $p in the words of the page: Debrid, Торренты, Свой конфиг, Lampac.
@@ -43,15 +43,22 @@ function aio_cgi_profile_word($p)
         return 'Lampac';
     if (isset($p['url']))
         return aio_cgi_l('Свой конфиг', 'Own config');
-    return $p['mode'] === AIO_MODE_P2P ? aio_cgi_mode_p2p() : 'Debrid';
+    return isset($p['mode']) && $p['mode'] === AIO_MODE_P2P ? aio_cgi_mode_p2p() : 'Debrid';
 }
 
-// The name of a new profile of the source of the settings $s (its profiles too): the word of its kind, with a number
-// from 2 while the name is taken (aio_profile_free_name).
-function aio_cgi_profile_def($s)
+// The name of a new profile of the kind of $p (aio_profile_of of the settings, a profile) among the profiles of the
+// settings $s: the word of its kind, with a number from 2 while the name is taken (aio_profile_free_name).
+function aio_cgi_profile_def($s, $p)
 {
-    $target = aio_profile_of($s);
-    return aio_profile_free_name($s, aio_cgi_profile_word($target ? $target : array('mode' => $s['aio_mode'])));
+    return aio_profile_free_name($s, aio_cgi_profile_word($p ? $p : array('mode' => $s['aio_mode'])));
+}
+
+// The name of a copy of profile $p in the settings $s: "<its name> 2" (the first free one, aio_profile_free_name), its
+// name cut so the number fits AIO_PROFILE_NAME_MAX.
+function aio_cgi_profile_copy_name($s, $p)
+{
+    preg_match('/^.{0,' . (AIO_PROFILE_NAME_MAX - 2) . '}/su', $p['name'], $m);
+    return aio_profile_free_name($s, aio_profile_name($m ? $m[0] : $p['name']));
 }
 
 // The line of profile $p under its name: its kind, host (the page is in the home network: hosts are shown) and JacRed.
@@ -64,247 +71,294 @@ function aio_cgi_profile_line($p)
     return aio_cgi_profile_word($p) . ($h !== '' ? " · $h" : '') . ($jr !== '' ? " · $jr" : '');
 }
 
-// The profile the page is the editor of, by ?p= of the address $p and the settings $s (aio_settings_read): sel - its
-// index, 'new' (a new one: the settings of the source in use, a config of its own made by the save), 'cur' (a new one
-// of the source in use, with its config: none in use is a profile; a save without a name is the save of before), ''
-// (no editor: the setting off); now - it is the one in use (the index; 'cur'); view - the settings the page shows
-// (aio_profile_view: the source of the profile, the configs only its own; 'new': none; 'cur': $s); name - its name
-// ('' of a new one). Another p (none, an index not there, 'new' with the profiles full): the one in use, else 'cur'.
-function aio_cgi_editor($s, $p)
+// The index of the profile of the settings $s whose keys of Debrid a source without its own (an own config, Lampac)
+// shows for another kind chosen there (spec v2 §3.3): the main one when it is Debrid or Торренты, else the first such
+// one; -1 none.
+function aio_cgi_keys_of($s)
 {
-    if (!$s['src_profiles'])
-        return array('sel' => '', 'now' => false, 'view' => $s, 'name' => '');
-    $now = aio_profile_now($s);
-    $k = preg_match('/^[0-9]{1,2}\z/', $p) ? intval($p) : -1;
-    // The profiles of Lampac (v2) are not of this editor (v2 stage 3): as none.
-    if ($k < 0 || !isset($s['profiles'][$k]) || !aio_profile_rel($s['profiles'][$k]))
-        $k = $p === 'new' && count($s['profiles']) < AIO_PROFILES_MAX ? -1 : $now;
-    if ($k >= 0)
-        return array('sel' => strval($k), 'now' => $k === $now, 'view' => aio_profile_view($s, $s['profiles'][$k]),
-            'name' => $s['profiles'][$k]['name']);
-    if ($p !== 'new' || count($s['profiles']) >= AIO_PROFILES_MAX)
-        return array('sel' => 'cur', 'now' => true, 'view' => $s, 'name' => '');
-    $s['aio_confs'] = array();
-    return array('sel' => 'new', 'now' => false, 'view' => $s, 'name' => '');
+    $m = aio_profile_main($s);
+    if ($m >= 0 && isset($s['profiles'][$m]['base']))
+        return $m;
+    foreach ($s['profiles'] as $i => $p)
+    {
+        if (isset($p['base']))
+            return $i;
+    }
+    return -1;
 }
 
-// The values of the form of the editor $ed (aio_cgi_editor) over $v (aio_cgi_values of its view), the settings $s:
-// the fields pf_sel, pf_was, pf_now, pf_name, the placeholder of the name pf_def (aio_cgi_editor_def), prof - the data
-// of the script (aio_cgi_profiles_data).
+// The configs of the cells of the settings $s no profile has (a config of before the profiles, spec v2 §4 p. 6): a
+// profile of their server and mode takes one (aio_cgi_editor_save).
+function aio_cgi_free_cells($s)
+{
+    $r = array();
+    foreach ($s['aio_confs'] as $b => $cs)
+    {
+        foreach ($cs as $m => $c)
+        {
+            if (!aio_profile_held($s, $c))
+                $r[$b][$m] = $c;
+        }
+    }
+    return $r;
+}
+
+// The settings $s as the editor of profile $p shows them (aio_profile_view: its source, its config): the configs of the
+// cells no profile has too (its save takes one of its server and mode); of Lampac - no config of its own; of one of
+// releases - no Lampac (aio_lp_keys); of an own config or Lampac - the keys of Debrid of aio_cgi_keys_of (Debrid
+// chosen there: no key typed again, spec v2 §3.3), none such - those at the top (of a file of before v2: kept).
+function aio_cgi_editor_view($s, $p)
+{
+    $v = aio_profile_view($s, $p);
+    $own = isset($p['base']) ? $v['aio_confs'] : array();
+    $v['aio_confs'] = aio_cgi_free_cells($s);
+    foreach ($own as $b => $cs)
+        $v['aio_confs'][$b] = $cs + (isset($v['aio_confs'][$b]) ? $v['aio_confs'][$b] : array());
+    if (aio_profile_rel($p))
+        $v = array_merge($v, aio_lp_keys());
+    if (!isset($p['base']))
+    {
+        $k = aio_cgi_keys_of($s);
+        $q = $k >= 0 ? $s['profiles'][$k] : $s;
+        list($v['rd_key'], $v['tb_key']) = array($q['rd_key'], $q['tb_key']);
+    }
+    return $v;
+}
+
+// A new profile, the copy of the profile of index $f of the settings $s (spec v2 §3.3: no config of its own, the
+// name "<name> 2", no id yet), else (-1) null.
+function aio_cgi_profile_copy($s, $f)
+{
+    if ($f < 0)
+        return null;
+    $c = $s['profiles'][$f];
+    if (isset($c['base']))
+        $c['conf'] = null;
+    list($c['id'], $c['name']) = array('', aio_cgi_profile_copy_name($s, $c));
+    return $c;
+}
+
+// The editor of the page by ?p= $p, from= $from of the address and the settings $s (aio_settings_read) -> array(sel - the
+// id of the profile or 'new', from - the id of the profile a new one is the copy of ('' none), name ('' a new one of no
+// copy: the word of its kind on the save), view - the settings the page shows (aio_cgi_editor_view; a new one of no
+// copy: $s, the configs of the cells no profile has), lp - the profile is of Lampac). Not there (none, an id gone): the
+// main one; p=new with the profiles full: the main one too.
+function aio_cgi_editor($s, $p, $from)
+{
+    $k = $p !== 'new' ? aio_profile_index($s, $p) : -1;
+    if ($k < 0 && ($p !== 'new' || count($s['profiles']) >= AIO_PROFILES_MAX))
+        $k = aio_profile_main($s);
+    if ($k >= 0)
+    {
+        $x = $s['profiles'][$k];
+        return array('sel' => $x['id'], 'from' => '', 'name' => $x['name'], 'view' => aio_cgi_editor_view($s, $x),
+            'lp' => !aio_profile_rel($x));
+    }
+    $f = aio_profile_index($s, $from);
+    $f = $f >= 0 ? $f : aio_profile_main($s);
+    $c = aio_cgi_profile_copy($s, $f);
+    $view = $s;
+    $view['aio_confs'] = aio_cgi_free_cells($s);
+    return array('sel' => 'new', 'from' => $c ? $s['profiles'][$f]['id'] : '', 'name' => $c ? $c['name'] : '',
+        'view' => $c ? aio_cgi_editor_view($s, $c) : $view, 'lp' => $c && !aio_profile_rel($c));
+}
+
+// The values of the form of the editor $ed (aio_cgi_editor) over $v (aio_cgi_values of its view), the settings $s: the
+// fields pf_sel, pf_from, pf_name, its placeholder pf_def (aio_cgi_editor_def), pf_list (the block "Источники" shown),
+// watch "lampac" of a profile of Lampac, prof - the data of the script (aio_cgi_profiles_data).
 function aio_cgi_editor_values($v, $ed, $s)
 {
     $v['pf_sel'] = $ed['sel'];
-    $v['pf_was'] = $ed['name'];
-    $v['pf_now'] = $ed['now'] ? '1' : '';
+    $v['pf_from'] = $ed['from'];
     $v['pf_name'] = $ed['name'];
-    $v['pf_def'] = aio_cgi_editor_def($ed['sel'], $ed['view']);
+    $v['pf_def'] = aio_cgi_editor_def($ed['view'], $ed['lp']);
+    $v['pf_list'] = aio_cgi_editor_list($s, $ed['sel']);
+    if ($ed['lp'])
+        $v['watch'] = 'lampac';
     $v['prof'] = aio_cgi_profiles_data($s);
     return $v;
 }
 
-// The placeholder of "Название профиля" of the editor $sel (pf_sel) showing the settings $view: of a new one of the
-// source in use (cur) - what a name does there (without one: no profile); of another one - the name a new one gets
-// without one (aio_cgi_profile_def); '' - no editor.
-function aio_cgi_editor_def($sel, $view)
+// The block "Источники" (the list, the name of the source) on the page of the editor $sel (pf_sel) of the settings $s:
+// two profiles or more, or a new one beside one at least (spec v2 §3.1: one - no list, no name).
+function aio_cgi_editor_list($s, $sel)
 {
-    if ($sel === 'cur')
-        return aio_cgi_l('Название, чтобы сохранить профилем', 'A name to save it as a profile');
-    return $sel !== '' ? aio_cgi_profile_def($view) : '';
+    $n = count($s['profiles']);
+    return $n >= 2 || ($sel === 'new' && $n >= 1);
 }
 
-// The profiles of the settings $s for the script (#init.profiles, "profiles" of the answers): list - {name, line, now
-// (the one in use: aio_profile_now), ready (aio_profile_ready; not: "конфига нет")} each in order, those of releases
-// only (before the ones of Lampac: aio_profile_add; the index of the list is that of profiles; Lampac on the page - v2
-// stage 3); max - AIO_PROFILES_MAX.
+// The placeholder of "Название источника" of the editor showing the settings $view (of Lampac: $lp): the name a new one
+// gets without one (aio_cgi_profile_def of its kind).
+function aio_cgi_editor_def($view, $lp)
+{
+    return aio_cgi_profile_def($view, $lp ? array('lampac_url' => '') : aio_profile_of($view));
+}
+
+// The profiles of the settings $s for the script (#init.profiles, "profiles" of the answers): list - {id, name, line,
+// main (aio_profile_main), ready (aio_profile_ready; not: "конфига нет")} each in order; max - AIO_PROFILES_MAX.
 function aio_cgi_profiles_data($s)
 {
-    $now = aio_profile_now($s);
+    $m = aio_profile_main($s);
     $list = array();
     foreach ($s['profiles'] as $i => $p)
-    {
-        if (aio_profile_rel($p))
-            $list[] = array('name' => $p['name'], 'line' => aio_cgi_profile_line($p), 'now' => $i === $now,
-                'ready' => (bool) aio_profile_ready($p));
-    }
+        $list[] = array('id' => $p['id'], 'name' => $p['name'], 'line' => aio_cgi_profile_line($p), 'main' => $i === $m,
+            'ready' => (bool) aio_profile_ready($p));
     return array('list' => $list, 'max' => AIO_PROFILES_MAX);
 }
 
-// The block of the editor at the top of #src (only with the editor: pf_sel of $v not '', aio_cgi_editor; by the CSS
-// only with "Профили источников" on, class xs): the list of the profiles (#pel, by the script: a link each, "+ Новый
-// профиль"), "Название профиля" (prof_name: posted, a change for the bar; of a new one of the source in use empty -
-// no profile, the save of before), the line of the profile (#pen), "Сделать текущим" and "Удалить" (#peb, by the
-// script: profile_use, profile_del), their results; the profile of the save - prof (pf_sel), prof_was (its name as
-// the page came), prof_now (1: the page shows it in use).
+// The block of the editor at the top of #src (#pe): with the list (pf_list of $v) the heading "Источники", the list (#pel,
+// by the script: a link each to the page of it, "+ Добавить источник") and "Название источника" (prof_name: posted, a
+// change for the bar; empty - the name stays, of a new one - the word of its kind); always the profile of the save - prof
+// (pf_sel: its id, new), prof_from (pf_from: a new one is the copy of it).
 function aio_cgi_editor_block($v)
 {
-    if ($v['pf_sel'] === '')
-        return '';
     $f = aio_cgi_fields();
-    if ($v['pf_sel'] === 'cur')
-        $line = aio_cgi_l('Без названия — сохранить без профиля.', 'No name: saved without a profile.');
-    // Of the kind chosen (by the CSS: xm - Debrid, Торренты; xo - the own config).
-    elseif ($v['pf_sel'] === 'new')
-        $line = '<span class="xm">' . aio_cgi_l('Новый профиль: на сервере создастся свой конфиг.',
-            'A new profile: a config of its own is made on the server.') . '</span><span class="xo">' .
-            aio_cgi_l('Новый профиль со своей ссылкой: конфиг на сервере не создаётся.',
-            'A new profile with your own link: no config is made on the server.') . '</span>';
-    else
-        $line = $v['pf_now'] === '1' ? aio_cgi_l('Этот профиль сейчас на Дюне.', 'This profile is in use on the Dune.') :
-            aio_cgi_l('Не текущий: источник сохранится в профиль, ключи и TorrServer — как обычно.',
-            'Not in use: the source goes to the profile; keys and TorrServer save as usual.');
-    $hidden = '';
-    foreach (array('pf_sel', 'pf_was', 'pf_now') as $k)
-        $hidden .= aio_cgi_hidden($f[$k], $v[$k]);
-    return '<div id="pe" class="xs"><div id="pel" class="list"></div>' .
-        aio_cgi_input($f['pf_name'], aio_cgi_l('Название профиля', 'Profile name'), $v['pf_name'], $v['pf_def']) .
-        '<p class="hint" id="pen">' . $line . '</p><div class="btns" id="peb" hidden><button type="button" id="peu" ' .
-        'class="btn ghost">' . aio_cgi_l('Сделать текущим', 'Make it current') . '</button><button type="button" id="pex" ' .
-        'class="btn danger">' . aio_cgi_l('Удалить', 'Delete') . '</button></div><div id="per" class="res" aria-live="polite">' .
-        '</div>' . $hidden . '</div>';
+    $out = '<div id="pe">';
+    if ($v['pf_list'])
+        $out .= '<h3 class="gh">' . aio_cgi_l('Источники', 'Sources') . '</h3><div id="pel" class="list"></div>' .
+            aio_cgi_input($f['pf_name'], aio_cgi_l('Название источника', 'Source name'), $v['pf_name'], $v['pf_def']);
+    return $out . aio_cgi_hidden($f['pf_sel'], $v['pf_sel']) . aio_cgi_hidden($f['pf_from'], $v['pf_from']) . '</div>';
 }
 
-// The line of the profile on #cfg and #voices (their settings are of it): "Профиль «X»", "Новый профиль".
+// The end of #src: with the list (pf_list) "Сделать основным" and "Удалить" of a saved one (#peb, by the script:
+// profile_main, profile_del; not "Сделать основным" of the main one) and their results (#per); one source alone - the box
+// of "+ Добавить источник" under its fields (#pea, by the script).
+function aio_cgi_editor_foot($v)
+{
+    if (!$v['pf_list'])
+        return '<div id="pea" class="list"></div>';
+    return '<div class="btns" id="peb" hidden><button type="button" id="peu" class="btn ghost">' .
+        aio_cgi_l('Сделать основным', 'Set as main') . '</button><button type="button" id="pex" class="btn danger">' .
+        aio_cgi_l('Удалить', 'Delete') . '</button></div><div id="per" class="res" aria-live="polite"></div>';
+}
+
+// The line of the source on #cfg and #voices (their settings are of it), with the list: "Источник «X»", "Новый источник".
 function aio_cgi_editor_line($v)
 {
-    if (!isset($v['pf_sel']) || $v['pf_sel'] === '' || $v['pf_sel'] === 'cur')
+    if (empty($v['pf_list']))
         return '';
-    return '<p class="sub xs">' . ($v['pf_sel'] !== 'new' ? sprintf(aio_cgi_l('Профиль «%s»', 'Profile "%s"'),
-        aio_cgi_h($v['pf_was'])) : aio_cgi_l('Новый профиль', 'New profile')) . '</p>';
+    return '<p class="sub">' . ($v['pf_sel'] !== 'new' ? sprintf(aio_cgi_l('Источник «%s»', 'Source "%s"'),
+        aio_cgi_h($v['pf_name'])) : aio_cgi_l('Новый источник', 'New source')) . '</p>';
 }
 
-// The editor of the save, by the posted $v (aio_cgi_posted: pf_sel, pf_was, pf_now, pf_name) and the stored settings
-// $cur -> null (no editor: none posted; a new one of the source in use without a name - the save of before) or
-// array(sel, old (the profile; null - a new one), name (as typed), now (it is in use in $cur: aio_profile_is; a new one
-// of the source in use - none in use is a profile), view (the settings as of it: aio_cgi_editor), err (why
-// refused: the profile gone or renamed meanwhile, the profiles full; '' - none)).
+// The editor of the save, by the posted $v (aio_cgi_posted: pf_sel, pf_from, pf_name) and the stored settings $cur ->
+// array(old - the profile (null: a new one), from - the profile a new one is the copy of (null none), name - as typed
+// (null: no field posted - the name stays), view (the settings as of it: aio_cgi_editor_view), err (why refused: the
+// profile gone meanwhile, the profiles full; '' none)). prof none (a form of before v2) - the main one; no profiles -
+// a new one.
 function aio_cgi_editor_posted($v, $cur)
 {
+    $f = aio_cgi_fields();
     $sel = $v['pf_sel'];
-    if ($sel === '' || ($sel === 'cur' && aio_profile_name($v['pf_name']) === ''))
-        return null;
-    $ed = array('sel' => $sel, 'old' => null, 'name' => $v['pf_name'], 'now' => false, 'view' => $cur, 'err' => '');
-    if (preg_match('/^[0-9]{1,2}\z/', $sel))
+    $ed = array('old' => null, 'from' => null, 'name' => isset($_POST[$f['pf_name']['name']]) ? $v['pf_name'] : null,
+        'view' => $cur, 'err' => '');
+    if ($sel === 'new' || ($sel === '' && !$cur['profiles']))
     {
-        $k = intval($sel);
-        if (!isset($cur['profiles'][$k]) || $cur['profiles'][$k]['name'] !== $v['pf_was'] ||
-            !aio_profile_rel($cur['profiles'][$k]))
-            return array_merge($ed, array('err' => aio_cgi_profiles_changed()));
-        $p = $cur['profiles'][$k];
-        return array_merge($ed, array('old' => $p, 'now' => aio_profile_is($cur, $p), 'view' => aio_profile_view($cur, $p)));
+        if (count($cur['profiles']) >= AIO_PROFILES_MAX)
+            return array_merge($ed, array('err' => aio_cgi_profiles_full()));
+        $k = aio_profile_index($cur, $v['pf_from']);
+        $c = aio_cgi_profile_copy($cur, $k);
+        $view = $cur;
+        $view['aio_confs'] = aio_cgi_free_cells($cur);
+        return array_merge($ed, array('from' => $k >= 0 ? $cur['profiles'][$k] : null,
+            'view' => $c ? aio_cgi_editor_view($cur, $c) : $view));
     }
-    if (count($cur['profiles']) >= AIO_PROFILES_MAX)
-        return array_merge($ed, array('err' => aio_cgi_profiles_full()));
-    if ($sel === 'cur')
-        return array_merge($ed, array('now' => aio_profile_now($cur) < 0));
-    $cur['aio_confs'] = array();
-    return array_merge($ed, array('sel' => 'new', 'view' => $cur));
+    $k = $sel === '' ? aio_profile_main($cur) : aio_profile_index($cur, $sel);
+    if ($k < 0)
+        return array_merge($ed, array('err' => aio_cgi_profile_gone()));
+    $p = $cur['profiles'][$k];
+    return array_merge($ed, array('old' => $p, 'view' => aio_cgi_editor_view($cur, $p)));
 }
 
-// The profile of the editor $ed (aio_cgi_editor_posted) by the values checked $data (aio_cgi_check_values with the
-// view of it) and the settings stored $cur (read again just before the write; the profile found by its name - gone:
-// refused); $t: the token (of the export) -> array(the settings to write, the profile, '') or array(null, null, why
-// refused). In use (now of $ed): $data with the config of the profile in the cell (aio_profile_apply), the profile -
-// the source of $data; else the settings of the source of $cur kept (aio_source_keys), the profile - the source of
-// $data. Its config: the old one while the server and mode are those of it; else (a new one, another server or mode)
-// the config of the cell of its server and mode when no profile has it (aio_profile_held) and it is not that of the
-// source in use of no profile (unless this one is in use: a change of a profile not in use never changes the config
-// the Dune plays) - a config of before the profiles is not lost; else none (made by a=aio_sync&prof). A new one
-// without a name: the word of its kind (aio_cgi_profile_def). The name and the target (aio_profile_key) unique, the
-// profiles at most AIO_PROFILES_MAX, the export with it loads back (aio_cgi_import_fits).
-function aio_cgi_editor_save($ed, $data, $cur, $t)
+// The profile of the values $data checked (aio_cgi_check_values with the view of it): of Lampac ($lp: "Lampac" chosen) -
+// its address, token, "as Lampa" and the balancers of $was (its record in the file: the Dune writes them; of a new one
+// the copy, else none); else the source of $data (aio_profile_of) and its keys of Debrid; null - none (the own config
+// without its link, no server).
+function aio_cgi_profile_of_data($data, $lp, $was)
 {
-    $k = $ed['old'] ? aio_profile_find($cur, $ed['old']['name']) : -1;
+    if ($lp)
+        return array('lampac_url' => $data['lampac_url'], 'lampac_token' => $data['lampac_token'],
+            'lampac_as_lampa' => $data['lampac_as_lampa'], 'lampac_sources' => $was && isset($was['lampac_sources']) ?
+            $was['lampac_sources'] : array());
+    $p = aio_profile_of($data);
+    return $p ? $p + array('rd_key' => $data['rd_key'], 'tb_key' => $data['tb_key']) : null;
+}
+
+// The profile of the editor $ed (aio_cgi_editor_posted) by the values checked $data (aio_cgi_check_values with the view
+// of it; $lp - "Lampac" chosen) and the settings stored $cur (read again just before the write; the profile found by its
+// id - gone: refused); $t: the token (of the export) -> array(the settings to write, the profile, '') or array(null, null,
+// why refused). Its record by its index (its id kept: a rename too; the main one stays it), a new one at the end with an
+// id of its name (aio_profile_new_id), the first one the main one. Its config: the one of it while its server and mode
+// are those of it; else the config of the cell of its server and mode when no profile has it (aio_profile_held: a config
+// of before the profiles is not lost); else none (made by a=aio_sync&prof). The name: as typed; empty or none posted -
+// the one of it, of a new one the word of its kind (aio_cgi_profile_def). Names unique, the profiles at most
+// AIO_PROFILES_MAX, the export with it loads back (aio_cgi_import_fits).
+function aio_cgi_editor_save($ed, $data, $cur, $t, $lp)
+{
+    $k = $ed['old'] ? aio_profile_index($cur, $ed['old']['id']) : -1;
     if ($ed['old'] && $k < 0)
-        return array(null, null, aio_cgi_profiles_changed());
+        return array(null, null, aio_cgi_profile_gone());
     if (!$ed['old'] && count($cur['profiles']) >= AIO_PROFILES_MAX)
         return array(null, null, aio_cgi_profiles_full());
-    $p = aio_profile_of($data);
+    $o = $k >= 0 ? $cur['profiles'][$k] : null;
+    $fk = $ed['from'] ? aio_profile_index($cur, $ed['from']['id']) : -1;
+    $p = aio_cgi_profile_of_data($data, $lp, $o ? $o : ($fk >= 0 ? $cur['profiles'][$fk] : null));
     if ($p === null)
-        return array(null, null, aio_cgi_profiles_changed());
+        return array(null, null, aio_cgi_profile_gone());
     if (isset($p['base']))
     {
-        $o = $ed['old'];
-        $cell = $p['conf'];
-        $use = $cur['source'] === 'made' ? aio_settings_conf($cur) : null;
+        $cell = isset($cur['aio_confs'][$p['base']][$p['mode']]) ? $cur['aio_confs'][$p['base']][$p['mode']] : null;
         if ($o && isset($o['base']) && $o['base'] === $p['base'] && $o['mode'] === $p['mode'])
             $p['conf'] = $o['conf'];
-        elseif (!$cell || aio_profile_held($cur, $cell) || (!$ed['now'] && $use && $use['uuid'] === $cell['uuid']))
-            $p['conf'] = null;
+        else
+            $p['conf'] = $cell && !aio_profile_held($cur, $cell) ? $cell : null;
     }
-    // A new one without a name: the word of its kind (the hint of the field).
-    $name = $ed['sel'] === 'new' && aio_profile_name($ed['name']) === '' ? aio_cgi_profile_def($data) : $ed['name'];
-    // v2: its id kept (a rename too: the main one stays it), its keys of Debrid when not in use (those of the page go to the
-    // one in use: aio_settings_from_top of aio_cgi_store).
-    $o = $ed['old'];
-    $keep = $o ? array('id' => $o['id']) + (!$ed['now'] && isset($o['rd_key'], $p['base']) ?
-        array('rd_key' => $o['rd_key'], 'tb_key' => $o['tb_key']) : array()) : array();
-    $p = aio_profile_ok(array('name' => $name) + $keep + $p, $cur);
+    $name = $ed['name'] !== null ? aio_profile_name($ed['name']) : '';
+    if ($name === '')
+        $name = $o ? $o['name'] : aio_cgi_profile_def($cur, $p);
+    $p = aio_profile_ok(array('id' => $o ? $o['id'] : aio_profile_new_id($cur, $name), 'name' => $name) + $p, $cur);
     if (!$p)
-        return array(null, null, sprintf(aio_cgi_l('Название профиля: от 1 до %d символов, без управляющих и невидимых',
-            'Profile name: 1 to %d characters, no control or invisible ones'), AIO_PROFILE_NAME_MAX));
+        return array(null, null, sprintf(aio_cgi_l('Название источника: от 1 до %d символов, без управляющих и невидимых',
+            'Source name: 1 to %d characters, no control or invisible ones'), AIO_PROFILE_NAME_MAX));
     foreach ($cur['profiles'] as $i => $x)
     {
-        if ($i === $k)
-            continue;
-        if ($x['name'] === $p['name'])
-            return array(null, null, sprintf(aio_cgi_l('Профиль «%s» уже есть, выберите другое название',
-                'A profile "%s" exists already, choose another name'), $p['name']));
-        if (aio_profile_key($x) === aio_profile_key($p))
-            return array(null, null, sprintf(aio_cgi_l('Такие настройки уже в профиле «%s»',
-                'These settings are in the profile "%s" already'), $x['name']));
+        if ($i !== $k && $x['name'] === $p['name'])
+            return array(null, null, sprintf(aio_cgi_l('Источник «%s» уже есть, выберите другое название',
+                'A source "%s" exists already, choose another name'), $p['name']));
     }
-    if ($ed['now'])
-        $data = aio_profile_apply($data, $p);
-    else
-    {
-        foreach (aio_source_keys() as $key)
-            $data[$key] = $cur[$key];
-    }
+    $data['profiles'] = $cur['profiles'];
+    $data['src_main'] = $cur['src_main'];
     if ($k >= 0)
         $data['profiles'][$k] = $p;
     else
-        $data['profiles'][] = $p;
+        list($data) = aio_profile_add($data, $p);
+    // The first one is the main one.
+    if ($data['src_main'] === '')
+        $data['src_main'] = $p['id'];
     if (!aio_cgi_import_fits(aio_cgi_export_json($data, $t)))
-        return array(null, null, aio_cgi_l('Не сохранено: с этим профилем резервная копия будет слишком большой',
-            'Not saved: with this profile the backup file would be too big'));
+        return array(null, null, aio_cgi_l('Не сохранено: с этим источником резервная копия будет слишком большой',
+            'Not saved: with this source the backup file would be too big'));
     return array($data, $p, '');
 }
 
-// The profile of the editor $ed of the save saved (aio_cgi_editor_save) with the values $data checked (the configs
-// and the profiles - of $cur) and the settings stored $cur; $t: the token, $v: the values of the form -> array(the
-// settings to write, the profile). Refused (the err of $ed too: gone, renamed, the profiles full) - the form back with
-// why on the field of the name, nothing written (aio_cgi_failed). The save asks it before the keys are checked (no
-// request for a save refused) and again just before the write.
+// The profile of the editor $ed of the save saved (aio_cgi_editor_save) with the values $data checked (the configs - of
+// $cur) and the settings stored $cur; $t: the token, $v: the values of the form -> array(the settings to write, the
+// profile). Refused (the err of $ed too: gone, the profiles full) - the form back with why on the field of the name,
+// nothing written (aio_cgi_failed). The save asks it before the keys are checked (no request for a save refused) and
+// again just before the write.
 function aio_cgi_editor_check($ed, $data, $cur, $t, $v)
 {
     $data['aio_confs'] = $cur['aio_confs'];
-    $data['profiles'] = $cur['profiles'];
-    list($with, $p, $why) = $ed['err'] !== '' ? array(null, null, $ed['err']) : aio_cgi_editor_save($ed, $data, $cur, $t);
+    list($with, $p, $why) = $ed['err'] !== '' ? array(null, null, $ed['err']) :
+        aio_cgi_editor_save($ed, $data, $cur, $t, $v['watch'] === 'lampac');
     if ($with === null)
     {
-        aio_cgi_log('save: the profile refused, nothing written');
+        aio_cgi_log('save: the source refused, nothing written');
         $f = aio_cgi_fields();
         $e = array(aio_cgi_err($why, $f['pf_name']['name']));
         aio_cgi_failed($v['ajax'], 200, $e, aio_cgi_form($t, $v, $e, false));
     }
     return array($with, $p);
-}
-
-// The settings $s of a save without the editor ("Профили источников" off, or a new one of the source in use without
-// a name): the config in use (aio_settings_conf) of a profile with other settings than those saved (aio_profile_same:
-// another template or JacRed typed) leaves the cell - the profile keeps it, the save makes a new one (aio create): the
-// config of a profile changes only with it.
-function aio_cgi_profile_drift($s)
-{
-    $c = aio_settings_conf($s);
-    // v2: the main profile is the source the page edits (aio_settings_from_top): its config changes with it.
-    $m = aio_profile_main($s);
-    foreach ($s['source'] === 'made' && $c ? $s['profiles'] : array() as $i => $p)
-    {
-        if ($i !== $m && !empty($p['conf']) && $p['conf']['uuid'] === $c['uuid'] && !aio_profile_same($s, $p))
-            return aio_settings_cell($s, aio_settings_base($s), $s['aio_mode'], null);
-    }
-    return $s;
 }
 
 // The answer of an action: JSON {ok, msg, profiles (of $s; null - none)}.
@@ -321,7 +375,7 @@ function aio_cgi_profile_failed($a, $why, $msg, $s)
     aio_cgi_profile_answer(false, $msg, $s);
 }
 
-// POST a=profile_use | profile_del (ajax=1): as above.
+// POST a=profile_main | profile_del (ajax=1): as above.
 function aio_cgi_profile_post($dir, $a)
 {
     $s = aio_settings_read(aio_cgi_dir_ok($dir) ? $dir : '', $why);
@@ -332,40 +386,33 @@ function aio_cgi_profile_post($dir, $a)
         aio_cgi_profile_failed($a, $why !== '' ? 'not read' : 'no data dir', aio_cgi_l('Не сохранено: настройки на Дюне не читаются',
             'Not saved: the settings on the Dune cannot be read'), null);
     }
-    $i = aio_cgi_param($_POST, 'i');
-    $k = preg_match('/^[0-9]{1,2}\z/', $i) ? intval($i) : -1;
-    if (!isset($s['profiles'][$k]) || $s['profiles'][$k]['name'] !== aio_cgi_param($_POST, 'was') ||
-        !aio_profile_rel($s['profiles'][$k]))
-        aio_cgi_profile_failed($a, 'no such profile', aio_cgi_profiles_changed(), $s);
+    $k = aio_profile_index($s, aio_cgi_param($_POST, 'i'));
+    if ($k < 0)
+        aio_cgi_profile_failed($a, 'no such profile', aio_cgi_profile_gone(), $s);
     $p = $s['profiles'][$k];
+    $main = aio_profile_main($s) === $k;
     if ($a === 'profile_del')
     {
-        $main = $s['profiles'][aio_profile_main($s)]['id'] === $p['id'];
+        // No button of the last one.
+        if (count($s['profiles']) === 1)
+            aio_cgi_profile_failed($a, 'the last one', aio_cgi_l('Последний источник не удаляется',
+                'The last source cannot be deleted'), $s);
         array_splice($s['profiles'], $k, 1);
-        // The main one gone (v2): the first one is, its source at the top (aio_settings_from_top of the store keeps the
-        // top of a profile as it is); no profile of releases left - none at the top.
+        // Its config into the cell of its server and mode, empty or of a profile (no config is lost; spec v2 §3.3).
+        $c = isset($p['base']) ? $p['conf'] : null;
+        $cell = $c && isset($s['aio_confs'][$p['base']][$p['mode']]) ? $s['aio_confs'][$p['base']][$p['mode']] : null;
+        if ($c && !aio_profile_held($s, $c) && (!$cell || aio_profile_held($s, $cell)))
+            $s = aio_settings_cell($s, $p['base'], $p['mode'], $c);
         if ($main)
-        {
-            $s['src_main'] = '';
-            $r = aio_profile_first($s, true, false);
-            if ($r >= 0)
-                $s = aio_profile_apply($s, $s['profiles'][$r]);
-            else
-                list($s['source'], $s['manifest_url']) = array('own', '');
-        }
-        $msg = sprintf(aio_cgi_l('Профиль «%s» удалён', 'Profile "%s" deleted'), $p['name']);
+            $s['src_main'] = $s['profiles'][0]['id'];
+        $msg = sprintf(aio_cgi_l('Источник «%s» удалён', 'Source "%s" deleted'), $p['name']);
     }
     else
     {
-        if (aio_profile_is($s, $p))
-            aio_cgi_profile_answer(true, sprintf(aio_cgi_l('Профиль «%s» уже текущий', 'Profile "%s" is in use already'),
-                $p['name']), $s);
-        if (!aio_profile_ready($p))
-            aio_cgi_profile_failed($a, 'no config', sprintf(aio_cgi_l('Конфига профиля ещё нет: нажмите «%s»',
-                'The profile has no config yet: press "%s"'), aio_cgi_saveb()), $s);
-        // The main one now (v2: aio_settings_from_top of aio_cgi_store); the source of before is a profile already.
-        $s = aio_profile_apply($s, $p);
-        $msg = sprintf(aio_cgi_l('Профиль «%s» теперь текущий', 'Profile "%s" is in use now'), $p['name']);
+        $msg = sprintf(aio_cgi_l('Основной источник — «%s»', 'The main source is "%s"'), $p['name']);
+        if ($main)
+            aio_cgi_profile_answer(true, $msg, $s);
+        $s['src_main'] = $p['id'];
     }
     $why = aio_cgi_store($dir, $s);
     if ($why !== '')

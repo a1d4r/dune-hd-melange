@@ -30,12 +30,14 @@ function servers(first: [string, string][]): [string, string][] {
   return out;
 }
 const FILLED: [string, string][] = [
-  ["watch", "debrid"], ["no_torrents", "allow"], ["src_profiles", "off"], ["rd_key", "RDTESTKEY00000000000000001"], ["tb_key", "tbtest-0000000000000000001"],
+  // The source of the page (v2): the one of the file, Debrid of the migration (its id of its name).
+  ["watch", "debrid"], ["no_torrents", "allow"], ["prof", "4a65481c"], ["prof_from", ""], ["rd_key", "RDTESTKEY00000000000000001"], ["tb_key", "tbtest-0000000000000000001"],
   // "Main Debrid": none chosen, none posted; the one the page showed.
   ["debrid_main_was", ""], ["aio_tpl", "addons"],
   ["aio_tpl_seen", "addons"], ["aio_tpl_p2p", "p2p_jacred"], ["aio_tpl_p2p_seen", "p2p_jacred"], ["manifest", ""],
-  // The source as the page came (0.58.0): the answer, the server, the own server, the link.
-  ["src_was", "debrid " + MADE + "   c866d6d544a5d505"], ["aio_server", MADE], ["aio_own_url", ""], ["tmdb_key", "TMDBTESTKEY000000000001"],
+  // The fields of Lampac (v2: of the answer Lampac only; of Debrid none), the token a secret field.
+  ["lampac_url", ""], ["lampac_token", ""], ["lampac_as_lampa", "off"],
+  ["aio_server", MADE], ["aio_own_url", ""], ["tmdb_key", "TMDBTESTKEY000000000001"],
   ["jacred", "own"], ["jacred_own_url", "http://192.168.1.10:9117"], ["jacred_own_key", "testkey01"],
   ["ts", "http://192.168.1.10:8090"], ["ts_user", "tsuser"], ["ts_pass", "ts p@ss&x"], ["ts_save", "add"],
   ["cat_rows", ""], ["cat_rows_was", ""],
@@ -47,9 +49,6 @@ const FILLED: [string, string][] = [
   ["markers", "on"],
   ["source_errors", "off"],
   ["no_color_keys", "off"],
-  ["lampac_url", "http://lampac.example:9118"],
-  // The token of its provider (a secret field) and "Present as the Lampa app".
-  ["lampac_token", "LpTestToken_01"], ["lampac_as_lampa", "off"],
 ];
 // Torrents: as the page came but the answer (0.44.0: the TorrServer field stays on #torr).
 const P2P_BODY = encode([["watch", "p2p"], ...FILLED.slice(1)]);
@@ -169,27 +168,6 @@ describe("saved", () => {
     page.replies.push(json({ ok: true, next: NEXT, aio: "", rows: rows, notes: [{ level: "ok", msg: "Fine" }] }));
     await save(page);
     expect(lines(page.el(ID.saveResult))).toEqual([["ok", page.init.i18n.saved], ["ok", "Fine"]]);
-  });
-
-  test("the source kept (changed since the page came): its line, the config, then next - not before the config answered", async () => {
-    const page = open("filled");
-    const t = page.init.i18n;
-    const sync = later();
-    page.replies.push(json({ ok: true, next: NEXT + "&kept=1", aio: "update", kept: true, notes: [{ level: "ok", msg: "Fine" }] }), sync.reply);
-    await save(page);
-    expect(t.sourceKept).toBeTruthy();
-    expect([lines(page.el(ID.saveResult)), page.replaced]).toEqual([[["ok", t.saved], ["warn", t.sourceKept], ["ok", "Fine"], ["hint", t.updating]], []]);
-    sync.resolve(json({ ok: false, msg: "Нет связи", skip: false, base: MADE, mode: "debrid", conf: null }));
-    await flush();
-    expect(page.replaced).toEqual([NEXT + "&kept=1"]);
-    expect(page.calls.map((call) => call.url)).toEqual([SAVE.url, SYNC.url]);
-  });
-
-  test.each([[true, ["&kept=1"]], [1, []], ["true", []]])("kept %p, no config: next at once only for true", async (kept, to) => {
-    const page = open("filled");
-    page.replies.push(json({ ok: true, next: NEXT + "&kept=1", aio: "", kept: kept, notes: [{ level: "ok", msg: "Fine" }] }));
-    await save(page);
-    expect(page.replaced).toEqual(to.map((query) => NEXT + query));
   });
 
   test("the template saved: the one for a new config and the one shown when there is no config", async () => {

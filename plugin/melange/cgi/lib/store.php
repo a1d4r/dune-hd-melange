@@ -149,13 +149,10 @@ function aio_cgi_write($dir, $data, $name = AIO_SETTINGS_FILE)
     return $why;
 }
 
-// settings.json of aio_settings_json (common.php), the keys of $data in the order of aio_settings_read (those it does not
-// know after them) -> '' or the reason (for the log). The page of before v2 edits the source at the top: into the
-// profiles first (aio_settings_from_top; until stage 3 of v2), aio_settings_json copies the main one back.
+// settings.json of aio_settings_json (common.php: the main profile copied to the top), the keys of $data in the order of
+// aio_settings_read (those it does not know after them) -> '' or the reason (for the log).
 function aio_cgi_store($dir, $data)
 {
-    if (isset($data['profiles'], $data['src_main'], $data['source'], $data['lampac_url']))
-        $data = aio_settings_from_top($data);
     $json = aio_settings_json(array_merge(array_intersect_key(aio_settings_parse(array()), $data), $data));
     return $json !== '' ? aio_cgi_write($dir, $json) : 'json_encode failed';
 }

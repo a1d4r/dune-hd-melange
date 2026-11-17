@@ -9,6 +9,7 @@ function aio_cgi_home_texts()
 {
     return array('watchOwn' => aio_cgi_l('Свой конфиг AIOStreams', 'Own AIOStreams config'),
         'needKey' => aio_cgi_l('нужен ключ', 'a key is needed'), 'needLink' => aio_cgi_l('нужна ссылка', 'a link is needed'),
+        'needAddress' => aio_cgi_l('нужен адрес', 'an address is needed'),
         'viaTs' => aio_cgi_l('через TorrServer', 'via TorrServer'), 'tsDune' => aio_cgi_l('Приложение на Дюне', 'The app on the Dune'),
         'tsSpare' => aio_cgi_l('по выбору', 'by choice'), 'noServers' => aio_cgi_l('Не настроено', 'Not set up'),
         'ownJacred' => aio_cgi_l('Свой JacRed', 'Own JacRed'), 'ownAioServer' => aio_cgi_l('свой сервер', 'own server'),
@@ -17,7 +18,7 @@ function aio_cgi_home_texts()
         'ratingOn' => aio_cgi_l('рейтинг IMDb', 'IMDb rating'), 'ratingOff' => aio_cgi_l('без рейтинга', 'no rating'));
 }
 
-// The three cards of the answers of "Откуда брать фильмы" (the radio watch):
+// The four cards of the answers of "Откуда брать фильмы" (the radio watch; Lampac - v2):
 // on #src and on the main screen of the first run.
 function aio_cgi_watch_cards()
 {
@@ -25,7 +26,8 @@ function aio_cgi_watch_cards()
     return '<div class="choice">' . aio_cgi_card('wd', 'Debrid', aio_cgi_l('Real-Debrid или TorBox. Быстро, платная подписка.',
         'Real-Debrid or TorBox. Fast, a paid subscription.')) . aio_cgi_card('wp', aio_cgi_mode_p2p(),
         aio_cgi_l('Бесплатно, через TorrServer на Дюне.', 'Free, via TorrServer on the Dune.')) .
-        aio_cgi_card('wo', $t['watchOwn'], aio_cgi_l('Если он у вас уже настроен.', 'If you already have one set up.')) . '</div>';
+        aio_cgi_card('wo', $t['watchOwn'], aio_cgi_l('Если он у вас уже настроен.', 'If you already have one set up.')) .
+        aio_cgi_card('wl', 'Lampac', aio_cgi_l('Если у вас свой сервер Lampac.', 'If you have your own Lampac server.')) . '</div>';
 }
 
 // The screens of the page (0.43.0): id => title; the main one is #home.
@@ -57,10 +59,12 @@ function aio_cgi_err_screen($field)
 
 // The state of the main screen by the values (no request): key - Debrid
 // without a key, conf - Debrid or Торренты without a config on the chosen
-// server in that mode, man - the own config without its link, ok.
+// server in that mode, man - the own config without its link, lp - Lampac without its address (v2), ok.
 function aio_cgi_state($v)
 {
     $w = aio_cgi_watch($v);
+    if ($w === 'lampac')
+        return $v['lampac'] === '' ? 'lp' : 'ok';
     if ($w === 'own')
         return $v['manifest'] === '' ? 'man' : 'ok';
     if ($w === AIO_MODE_DEBRID && $v['rd'] . $v['tb'] === '')
@@ -69,7 +73,8 @@ function aio_cgi_state($v)
 }
 
 // The lines of the main screen: id of the screen => array(dot: ok, warn,
-// '' - grey or none - no status, the value now). The server (#cfg, 0.44.0):
+// '' - grey or none - no status, the value now). The source: of the source the page edits; two sources or more (v2) -
+// the name of the main one "и ещё N" (aio_cgi_src_more). The server (#cfg, 0.44.0):
 // its host (own one without a host: ownAioServer), ok - a config of the mode
 // there. #adv: its value only with "Без торрентов" in effect, by the CSS of
 // the radios.
@@ -79,7 +84,9 @@ function aio_cgi_rows($v)
     $w = aio_cgi_watch($v);
     $st = aio_cgi_state($v);
     $dot = $st === 'ok' ? 'ok' : 'warn';
-    if ($w === 'own')
+    if ($w === 'lampac')
+        $src = 'Lampac · ' . ($v['lampac'] !== '' ? aio_cgi_host($v['lampac']) : $t['needAddress']);
+    elseif ($w === 'own')
         $src = $t['watchOwn'] . ($v['manifest'] === '' ? ' · ' . $t['needLink'] : '');
     elseif ($w === AIO_MODE_P2P)
         $src = aio_cgi_mode_p2p() . ' · ' . $t['viaTs'];
@@ -93,7 +100,7 @@ function aio_cgi_rows($v)
         $src = 'Debrid · ' . ($keys ? implode(' + ', $keys) : $t['needKey']);
     }
     // The template of the mode, by its short name (0.44.0: P2P too).
-    if ($w !== 'own')
+    if ($w !== 'own' && $w !== 'lampac')
     {
         $tk = aio_cgi_tpl_keys($w);
         $all = $tk['tpls'] + aio_cgi_tpl_marks();
@@ -113,8 +120,10 @@ function aio_cgi_rows($v)
     $host = aio_cgi_host($v['aio_server'] === 'own' ? $v['aio_own'] : $v['aio_server']);
     // A form back: never the login and password typed in the address.
     list($ts) = aio_ts_userinfo($v['ts']);
-    return array('src' => array($dot, $src),
-        'cfg' => array($w === 'own' ? '' : (aio_cgi_aio_sel($v) ? 'ok' : 'warn'), $host !== '' ? $host : $t['ownAioServer']),
+    $more = aio_cgi_src_more($v);
+    return array('src' => array($dot, $more !== '' ? $more : $src),
+        'cfg' => array($w === 'own' || $w === 'lampac' ? '' : (aio_cgi_aio_sel($v) ? 'ok' : 'warn'),
+            $host !== '' ? $host : $t['ownAioServer']),
         'voices' => array($jr === '' ? 'warn' : 'ok', $jr !== '' ? $jr : $t['ownJacred']),
         'torr' => array($w === AIO_MODE_P2P ? 'ok' : '', ($ts !== '' ? $ts : $t['tsDune']) .
             ($w === AIO_MODE_DEBRID ? ' · ' . $t['tsSpare'] : '')),
@@ -127,6 +136,19 @@ function aio_cgi_rows($v)
         'bak' => array('none', aio_cgi_l('Настройки в файл и из файла', 'Settings to a file and back')),
         'log' => array('none', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')),
         'about' => array('none', AIO_VERSION . ' · ' . aio_cgi_l('поддержать автора', 'support the author')));
+}
+
+// The value of the line of the source on the main screen with two sources or more (v2, prof of the values $v:
+// aio_cgi_profiles_data): "<the main one> и ещё N" (the script keeps it: data-fixed); '' - one or none.
+function aio_cgi_src_more($v)
+{
+    $list = isset($v['prof']['list']) ? $v['prof']['list'] : array();
+    foreach (count($list) >= 2 ? $list : array() as $p)
+    {
+        if ($p['main'])
+            return sprintf(aio_cgi_l('%s и ещё %d', '%s and %d more'), $p['name'], count($list) - 1);
+    }
+    return '';
 }
 
 // The main screen (#home): the first run (no saved_at: $v['first']) - the
@@ -151,6 +173,8 @@ function aio_cgi_home($v)
         aio_cgi_saveb()),
         'man' => aio_cgi_l('<b>Нужна ссылка на свой конфиг.</b> Вставьте её в «Откуда брать фильмы».',
         '<b>Your config link is needed.</b> Paste it in "Where to get films".'),
+        'lp' => aio_cgi_l('<b>Нужен адрес Lampac.</b> Впишите его в «Откуда брать фильмы».',
+        '<b>The Lampac address is needed.</b> Enter it in "Where to get films".'),
         'ok' => aio_cgi_l('<b>Всё готово к просмотру.</b> На Дюне: фильм → Смотреть… → Melange.',
         '<b>All set to watch.</b> On the Dune: a film → Play... → Melange.'));
     $out .= '<div id="state" class="state ' . ($st === 'ok' ? 'ok' : 'warn') . '" data-st="' . $st . '"' .
@@ -170,9 +194,11 @@ function aio_cgi_home($v)
             $val = aio_cgi_h($rows[$id][1]);
             if ($id === 'adv')
                 $val = '<span class="xn xt">' . aio_cgi_l('Торренты выключены', 'Torrents are off') . '</span>';
-            $out .= '<a class="row' . ($id === 'cfg' ? ' xm' : '') . '" id="r' . $id . '" href="#' . $id . '"><span class="dot' .
+            $cls = array('cfg' => ' xm', 'voices' => ' xr');
+            $out .= '<a class="row' . (isset($cls[$id]) ? $cls[$id] : '') . '" id="r' . $id . '" href="#' . $id . '"><span class="dot' .
                 ($rows[$id][0] !== '' ? ' ' . $rows[$id][0] : '') . '" id="d' . $id . '"></span><span class="rt"><span class="t">' .
-                $scr[$id] . '</span><span class="v" id="v' . $id . '">' . $val .
+                $scr[$id] . '</span><span class="v" id="v' . $id . '"' . ($id === 'src' && aio_cgi_src_more($v) !== '' ?
+                ' data-fixed="1"' : '') . '>' . $val .
                 '</span></span><span class="chev">›</span></a>';
         }
         $out .= '</div>';

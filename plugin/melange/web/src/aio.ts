@@ -80,6 +80,10 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   function ownWatch(): boolean {
     return watchOf(form) === VALUE.own;
   }
+  // No config of Melange: the own config, Lampac (v2: a source of its own kind).
+  function noConf(): boolean {
+    return ownWatch() || watchOf(form) === VALUE.lampac;
+  }
   // Of the chosen server in the mode (the one chosen by default); of own one only if it is of the address typed.
   function currentConf(ofMode: string = mode()): KnownConf | null {
     const radio = selected();
@@ -91,7 +95,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   }
   // The one of the mode chosen; own config: none.
   function chosen(): Choice | null {
-    return ownWatch() ? null : choices.find((c) => c.mode === mode())!;
+    return noConf() ? null : choices.find((c) => c.mode === mode())!;
   }
   // The line of the mark shown (as PHP): only while no card is checked.
   function renderMarks(c: Choice): void {
@@ -123,7 +127,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
   }
   function creates(): boolean {
     const hasKey = trimmed(rdKey.value) + trimmed(tbKey.value) !== "";
-    return !ownWatch() && !currentConf() && (hasKey || p2p());
+    return !noConf() && !currentConf() && (hasKey || p2p());
   }
   function render(): void {
     const radio = selected(),

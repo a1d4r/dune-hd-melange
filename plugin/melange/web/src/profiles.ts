@@ -1,12 +1,13 @@
-// The editor of the source profiles (#pe at the top of "Where to get films", 0.58.0): PHP makes it with "Source
-// profiles" on (the page is of one profile, ?p=<i>; its fields are those of the source, the save saves it), the CSS
-// shows it while that is on. Here: the list of the profiles from #init.profiles - a link each to the page of it
-// (?p=<i>#src), the one of the page marked (aria-current), "now" on the one in use, "no config"; "+ New profile"
-// (?p=new) while there are fewer than max; a link is followed always, the changes not saved are lost then. "Make it
-// current" (a=profile_use) and "Delete" (a=profile_del, asked first) - of a saved profile only, the first not of the
-// one in use; disabled while the form has something to save; done - the page of it anew. After a save of the profile that stayed on the page: its place, name and "in use" of the answer in the
-// fields of the save (prof, prof_was, prof_now) and the address, the list of the answer; after the config of the
-// server (aio_sync) - its list.
+// The editor of the sources (v2; #pe at the top of "Where to get films", lib/profiles.php): the page is of one source,
+// ?p=<id> (its fields, the save saves it), ?p=new&from=<id> - a new one, the copy of that one. Here, from #init.profiles:
+// with two sources or more (or on a new one) the list - a link each to the page of it (?p=<id>#src), the one of the
+// page marked (aria-current), "main" on the main one, "no config"; "+ Add source" (?p=new&from=<the id of the page>)
+// while there are fewer than max, else the line of the sources full; one source alone - "+ Add source" only, at the end
+// of #src. A link is followed always, the changes not saved are lost then. "Make it the main one" (a=profile_main; not
+// of the main one) and "Delete" (a=profile_del, asked first; not of the last one) - of a saved source only, disabled
+// while the form has something to save; done - the page anew (of it; deleted - of the main one). After a save that
+// stayed on the page: the id of the answer in the fields of the save (prof, prof_from) and the address, the list of
+// the answer; after the config of the server (aio_sync) - its list.
 
 import type { Api, ProfileList, SavedProfile } from "./api";
 import { parseProfiles } from "./api";
@@ -19,33 +20,29 @@ import { show } from "./ui";
 export interface Profiles {
   // After a change of the form: the buttons follow the bar.
   render(): void;
-  // After a save of the profile of the page that stayed on it: the answer's place of it, its name, in use; the list.
+  // After a save of the source of the page that stayed on it: the answer's id of it; the list.
   saved(prof: SavedProfile, list: ProfileList | null): void;
   // The list of the file now (after aio_sync).
   update(list: ProfileList): void;
 }
 
-// The page of profile p ("new": a new one) of the form's action (settings?t=<token>), on #src.
-const pageOf = (action: string, p: string) => action + "&p=" + p + "#src";
+// The page of source p ("new": a new one, the copy of from) of the form's action (settings?t=<token>), on #src.
+const pageOf = (action: string, p: string, from = "") =>
+  action + "&p=" + encodeURIComponent(p) + (from ? "&from=" + encodeURIComponent(from) : "") + "#src";
 
-// null: no editor on the page ("Source profiles" off when it came).
+// null: no editor on the page (a page of before v2).
 export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: unknown): Profiles | null {
   const { doc, form, texts } = page;
-  const box = doc.getElementById(EDITOR.block);
-  if (!box) return null;
-  const listBox = byId(doc, EDITOR.list),
-    buttons = byId(doc, EDITOR.buttons),
-    use = byId<HTMLButtonElement>(doc, EDITOR.use),
-    del = byId<HTMLButtonElement>(doc, EDITOR.del),
-    results = byId(doc, EDITOR.result),
+  if (!doc.getElementById(EDITOR.block)) return null;
+  // The list (with its buttons) or the box of "+ Add source" alone: PHP made the one of the page.
+  const listBox = doc.getElementById(EDITOR.list),
+    addBox = doc.getElementById(EDITOR.add),
+    buttons = doc.getElementById(EDITOR.buttons),
     sel = byId<HTMLInputElement>(doc, EDITOR.sel),
-    was = byId<HTMLInputElement>(doc, EDITOR.was),
-    now = byId<HTMLInputElement>(doc, EDITOR.now);
+    from = byId<HTMLInputElement>(doc, EDITOR.from);
   const action = form.getAttribute("action") || "";
   let profiles: ProfileList = parseProfiles(data) || { list: [], max: 0 };
-  // The saved profile of the page (its place): -1 - a new one.
-  const index = () => (/^[0-9]+$/.test(sel.value) ? Number(sel.value) : -1);
-  const current = () => profiles.list[index()];
+  const current = () => profiles.list.find((p) => p.id === sel.value);
 
   function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string): HTMLElementTagNameMap[K] {
     const made = doc.createElement(tag);
@@ -66,28 +63,42 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     link.append(text, el("span", CLS.chevron, "›"));
     return link;
   }
+  // "+ Add source": the copy of the source of the page (of a new one - of the one it copies); full - the line why not.
+  function addRow(): HTMLElement {
+    if (profiles.list.length >= profiles.max) return el("p", CLS.row + " " + CLS.value, texts.profilesFull);
+    const of = sel.value === "new" ? from.value : sel.value;
+    return row(pageOf(action, "new", of), texts.profileNew, "", sel.value === "new", []);
+  }
   function renderList(): void {
-    listBox.textContent = "";
-    profiles.list.forEach((p, i) => {
-      const badges: [string, string][] = [];
-      if (p.now) badges.push([CLS.badge, texts.profileNow]);
-      if (!p.ready) badges.push([CLS.badge + " " + CLS.warn, texts.profileNoConf]);
-      listBox.appendChild(row(pageOf(action, String(i)), p.name, p.line, i === index(), badges));
-    });
-    if (profiles.list.length < profiles.max)
-      listBox.appendChild(row(pageOf(action, "new"), texts.profileNew, "", sel.value === "new", []));
-    else listBox.appendChild(el("p", CLS.row + " " + CLS.value, texts.profilesFull));
+    if (listBox) {
+      listBox.textContent = "";
+      for (const p of profiles.list) {
+        const badges: [string, string][] = [];
+        if (p.main) badges.push([CLS.badge, texts.profileMain]);
+        if (!p.ready) badges.push([CLS.badge + " " + CLS.warn, texts.profileNoConf]);
+        listBox.appendChild(row(pageOf(action, p.id), p.name, p.line, p.id === sel.value, badges));
+      }
+      listBox.appendChild(addRow());
+    }
+    // One source alone, saved: its "+ Add source" at the end of #src.
+    if (addBox) {
+      addBox.textContent = "";
+      if (profiles.list.length === 1 && current()) addBox.appendChild(addRow());
+    }
   }
   function render(): void {
+    if (!buttons) return;
     const p = current();
     buttons.hidden = !p;
-    use.hidden = !p || p.now;
+    byId(doc, EDITOR.main).hidden = !p || p.main;
+    byId(doc, EDITOR.del).hidden = !p || profiles.list.length < 2;
     lock.render();
   }
-  // A request of "Make it current" or "Delete": done - the page of to (its place now), else the line why here.
-  function act(source: HTMLButtonElement, call: () => ReturnType<Api["profileUse"]>, to: () => string): void {
+  // A request of "Make it the main one" or "Delete": done - the page of to, else the line why here.
+  function act(source: HTMLButtonElement, call: () => ReturnType<Api["profileMain"]>, to: () => string): void {
     if (!lock.free(source)) return;
     lock.run(source, true);
+    const results = byId(doc, EDITOR.result);
     show(results, "hint", [texts.saving]);
     call().then((result) => {
       lock.run(source, false);
@@ -105,32 +116,39 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
     render();
   }
 
-  for (const button of [use, del]) lock.hold(button, () => bar.pending());
-  use.addEventListener("click", () => {
-    const p = current();
-    if (p) act(use, () => api.profileUse(index(), p.name), () => pageOf(action, String(index())));
-  });
-  del.addEventListener("click", () => {
-    const p = current();
-    if (!p || !lock.free(del) || !confirm(texts.profileDeleteConfirm.replace("%s", () => p.name))) return;
-    // The page of the one in use now (none: of the source in use).
-    act(del, () => api.profileDel(index(), p.name), () => action + "#src");
-  });
+  if (buttons) {
+    const main = byId<HTMLButtonElement>(doc, EDITOR.main),
+      del = byId<HTMLButtonElement>(doc, EDITOR.del);
+    for (const button of [main, del]) lock.hold(button, () => bar.pending());
+    main.addEventListener("click", () => {
+      const p = current();
+      if (p) act(main, () => api.profileMain(p.id), () => pageOf(action, p.id));
+    });
+    del.addEventListener("click", () => {
+      const p = current();
+      if (!p || !lock.free(del)) return;
+      // The main one deleted: the first one left becomes it (as PHP).
+      const next = p.main ? profiles.list.find((q) => q.id !== p.id) : undefined;
+      const ask = texts.profileDeleteConfirm.replace("%s", () => p.name) + (next ? " " + texts.profileDeleteMain.replace("%s", () => next.name) : "");
+      if (!confirm(ask)) return;
+      // The page of the main one now.
+      act(del, () => api.profileDel(p.id), () => action + "#src");
+    });
+  }
   renderList();
   render();
   return {
     render: render,
     update: update,
     saved(prof: SavedProfile, list: ProfileList | null): void {
-      sel.value = String(prof.i);
-      was.value = prof.name;
-      now.value = prof.now ? "1" : "";
+      sel.value = prof.id;
+      from.value = "";
       if (list) profiles = list;
       renderList();
       render();
-      // A reload shows this profile (a new one has its place now).
+      // A reload shows this source (a new one has its id now).
       try {
-        history.replaceState(history.state, "", pageOf(action, String(prof.i)));
+        history.replaceState(history.state, "", pageOf(action, prof.id));
       } catch (e) {}
     },
   };

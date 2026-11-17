@@ -280,18 +280,13 @@ function aio_setup_qr($p, $renew = false)
 
 // After a save the page makes the config of the chosen server in a second
 // write (cgi/settings.php aio_cgi_aio_sync): the main profile (v2) a config of
-// Melange (Debrid, Торренты) with none of its own yet, P2P or a Debrid key of it;
-// until the page of v2 (stage 3) the source at the top so too (the page of before
-// writes it there; no config - no profile of it yet, aio_settings_from_top).
+// Melange (Debrid, Торренты) with none of its own yet, P2P or a Debrid key of it.
 function aio_setup_config_due()
 {
     $s = aio_settings_read_logged();
     $m = aio_profile_main($s);
     $p = $m >= 0 ? $s['profiles'][$m] : null;
-    if ($p && isset($p['base']) && !$p['conf'] && ($p['mode'] === AIO_MODE_P2P || $p['rd_key'] !== '' || $p['tb_key'] !== ''))
-        return true;
-    return $s['source'] === 'made' && aio_settings_base($s) !== '' && !aio_settings_conf($s) &&
-        ($s['aio_mode'] === AIO_MODE_P2P || $s['rd_key'] !== '' || $s['tb_key'] !== '');
+    return $p && isset($p['base']) && !$p['conf'] && ($p['mode'] === AIO_MODE_P2P || $p['rd_key'] !== '' || $p['tb_key'] !== '');
 }
 
 // Timer of the QR dialog: a new settings.json closes it and redraws the

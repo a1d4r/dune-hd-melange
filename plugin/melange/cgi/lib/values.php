@@ -11,10 +11,9 @@
 // of the settings, markers: aio_cgi_markers_of() (of markers_exact too), those of aio_cgi_toggles(): aio_cgi_toggle_of(),
 // cat_card: aio_cgi_cat_card_of(), as posted - none: '',
 // settings.php puts the stored one; cat_card_was: cat_card of the settings, as posted ('' none);
-// src_was: aio_cgi_src_was_stored() of the settings, as posted;
-// pf_sel, pf_was, pf_now, pf_name - the editor of the profiles, '' (aio_cgi_editor_values puts it), as posted);
-// pf_def - the placeholder of the name (aio_cgi_editor_def); prof - the profiles for the script (aio_cgi_profiles_data of the settings,
-// of the file on a save: settings.php);
+// pf_sel, pf_from, pf_name - the editor of the sources, '' (aio_cgi_editor_values puts it), as posted;
+// pf_def - the placeholder of the name, pf_list - the block of the sources shown (aio_cgi_editor_values; a save:
+// settings.php); prof - the sources for the script (aio_cgi_profiles_data of the settings, of the file on a save);
 // tpl_new, tpl_p2p_new -
 // aio_tpl, aio_tpl_p2p of the settings (for a new config);
 // mode_cur - aio_mode of the settings (one for all servers); servers -
@@ -38,10 +37,10 @@ function aio_cgi_values($s)
         $v[$k] = aio_cgi_toggle_of($k, $v[$k]);
     $v['cat_card'] = aio_cgi_cat_card_of($s['cat_card']);
     $v['cat_card_was'] = $v['cat_card'];
-    $v['src_was'] = aio_cgi_src_was_stored($s);
-    // No editor of the profiles (aio_cgi_editor_values puts one).
-    foreach (array('pf_sel', 'pf_was', 'pf_now', 'pf_name', 'pf_def') as $k)
+    // No editor of the sources (aio_cgi_editor_values puts one).
+    foreach (array('pf_sel', 'pf_from', 'pf_name', 'pf_def') as $k)
         $v[$k] = '';
+    $v['pf_list'] = false;
     $v['prof'] = aio_cgi_profiles_data($s);
     $v['cat_rows'] = aio_cgi_cat_rows_of($s['cat_rows']);
     $v['cat_rows_was'] = $v['cat_rows'];
@@ -70,13 +69,13 @@ function aio_cgi_posted()
     foreach ($f as $k => $x)
         $v[$k] = isset($x['raw']) ? aio_cgi_param($_POST, $x['name']) : trim(aio_cgi_param($_POST, $x['name']), AIO_TRIM);
     // The answer of 0.43.0 (watch): the source and the mode by it; the own
-    // config keeps the stored mode. None (a form of 0.42 or older) or another
-    // one (an error, aio_cgi_check_values): source and aio_mode as posted.
+    // config and Lampac (v2: its fields, aio_cgi_check_values) keep the stored mode. None (a form of 0.42 or older) or
+    // another one (an error, aio_cgi_check_values): source and aio_mode as posted.
     $w = array_search($v['watch'], aio_cgi_watches(), true);
     if ($w !== false)
     {
         $v['source'] = $w === 'wo' ? 'own' : 'made';
-        $v['aio_mode'] = $w === 'wo' ? '' : $v['watch'];
+        $v['aio_mode'] = $w === 'wo' || $w === 'wl' ? '' : $v['watch'];
     }
     // A form without the source: 0.35.1 chose the own config by aio_server
     // "manifest", 0.35.0 and older (no aio_own_url) by the manifest address
@@ -99,61 +98,6 @@ function aio_cgi_posted()
     return $v;
 }
 
-// The values posted $v with the source of the stored settings $cur (src_was posted back as the page came, the
-// stored source another one: settings.php): the answer, the mode, the server, the own server and the manifest
-// of the file; the templates too (none posted: the stored ones), the check of the one seen skipped - the page
-// showed those of the server it came with - and no reset by its button or another template. After the check the save
-// takes all the settings of the source of the file (aio_source_keys: the JacRed too).
-function aio_cgi_src_kept($v, $cur)
-{
-    $own = $cur['source'] === 'own';
-    $v['source'] = $cur['source'];
-    $v['watch'] = $own ? 'own' : $cur['aio_mode'];
-    $v['aio_mode'] = $own ? '' : $cur['aio_mode'];
-    $v['aio_server'] = $cur['aio_server'];
-    $v['aio_own'] = $cur['aio_own_url'];
-    $v['manifest'] = $cur['manifest_url'];
-    foreach (array('aio_tpl', 'aio_tpl_p2p', 'tpl_seen', 'tpl_p2p_seen') as $k)
-        $v[$k] = '';
-    $v['reset'] = false;
-    return $v;
-}
-
-// The source of the page as the save compares it with the values posted: the answer (watch), the AIOStreams server,
-// the own server and the manifest by spaces (none is in a right one); the last two as stored (a right one typed
-// otherwise - "/" at the end, stremio:// - as the save stores it), a wrong one as it is.
-function aio_cgi_src_key($watch, $server, $own, $manifest)
-{
-    $o = aio_aio_own($own);
-    $m = aio_manifest_url($manifest);
-    return implode(' ', array($watch, $server, $o !== '' ? $o : $own, $m !== '' ? $m : $manifest));
-}
-
-// The source of the values posted $v (aio_cgi_posted) by aio_cgi_src_key.
-function aio_cgi_src_was_posted($v)
-{
-    return aio_cgi_src_key($v['watch'], $v['aio_server'], $v['aio_own'], $v['manifest']);
-}
-
-// src_was (0.58.0) of the settings $s (aio_settings_read; of a profile: aio_profile_view) - the source the page shows:
-// aio_cgi_src_key of it and a hash of all its settings (aio_source_keys: the templates and the JacRed too), by a space.
-// The page posts it back as it came (the script: as the answer of its save has it, "was"); the save tells by it the
-// source changed on the Dune (another one stored) and, by its first part, on the page (aio_cgi_src_was_part).
-function aio_cgi_src_was_stored($s)
-{
-    $all = array();
-    foreach (aio_source_keys() as $k)
-        $all[] = $s[$k];
-    return aio_cgi_src_key($s['source'] === 'own' ? 'own' : $s['aio_mode'], $s['aio_server'], $s['aio_own_url'],
-        $s['manifest_url']) . ' ' . substr(md5(json_encode($all)), 0, 16);
-}
-
-// The part of src_was $was to compare with aio_cgi_src_was_posted: the first four.
-function aio_cgi_src_was_part($was)
-{
-    return implode(' ', array_slice(explode(' ', $was), 0, 4));
-}
-
 // An error of the save: its text and the name= of the form field it is
 // about (null: none; of a pair, the first one).
 function aio_cgi_err($msg, $field = null)
@@ -168,8 +112,11 @@ function aio_cgi_check_values($v)
     $f = aio_cgi_fields();
     $errors = array();
     // Only the fields of the chosen source are checked; a wrong one of the
-    // other (hidden) is not written: the stored value stays ($v['cur']).
-    $made = $v['source'] === 'made';
+    // other (hidden) is not written: the stored value stays ($v['cur']). Lampac (v2): its fields only, those of
+    // AIOStreams and JacRed hidden.
+    $lp = $v['watch'] === 'lampac';
+    $made = $v['source'] === 'made' && !$lp;
+    $ownc = $v['source'] === 'own' && !$lp;
     // No field (a form of 0.42 or older), or a wrong one of the own config: the stored one.
     $mode = in_array($v['aio_mode'], aio_aio_modes(), true) ? $v['aio_mode'] : $v['cur']['aio_mode'];
     if ($v['watch'] !== '' && !in_array($v['watch'], aio_cgi_watches(), true))
@@ -185,10 +132,11 @@ function aio_cgi_check_values($v)
     $set = array();
     foreach ($f as $k => $x)
         $set[$k] = $x['set'];
-    $d = array('v' => AIO_SETTINGS_V, $set['source'] => $v['source'], $set['manifest'] => aio_manifest_url($v['manifest']));
+    $d = array('v' => AIO_SETTINGS_V, $set['source'] => $lp ? $v['cur']['source'] : $v['source'],
+        $set['manifest'] => aio_manifest_url($v['manifest']));
     if ($v['manifest'] !== '' && $d[$set['manifest']] === '')
     {
-        if ($made)
+        if (!$ownc)
             $d[$set['manifest']] = $v['cur'][$set['manifest']];
         else
         {
@@ -206,7 +154,10 @@ function aio_cgi_check_values($v)
     $own = aio_jacred_own(array('url' => $v['jo_url'], 'key' => $v['jo_key']));
     $d[$set['jo_url']] = $own ? $own['url'] : '';
     $d[$set['jo_key']] = $own ? $own['key'] : '';
-    if (!$own && (trim($v['jo_url'] . $v['jo_key'], AIO_TRIM) !== '' || $d[$set['jacred']] === 'own'))
+    if (!$own && $lp)
+        list($d[$set['jacred']], $d[$set['jo_url']], $d[$set['jo_key']]) = array($v['cur'][$set['jacred']],
+            $v['cur'][$set['jo_url']], $v['cur'][$set['jo_key']]);
+    elseif (!$own && (trim($v['jo_url'] . $v['jo_key'], AIO_TRIM) !== '' || $d[$set['jacred']] === 'own'))
     {
         // The address alone right: the key is wrong.
         $errors[] = aio_cgi_err(aio_cgi_l('Свой JacRed', 'Own JacRed') . ': ' . aio_cgi_fmt_jacred(),
@@ -214,7 +165,7 @@ function aio_cgi_check_values($v)
     }
     $d[$set['aio_server']] = aio_cgi_server_choice($v['aio_server']);
     // The fields of both sources are kept; those of the chosen one must be there.
-    if (!$made && $v['manifest'] === '')
+    if ($ownc && $v['manifest'] === '')
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Укажите ссылку на конфиг — или выберите Debrid или «Торренты»',
             'Enter the config link, or choose Debrid or "Torrents"'), $f['manifest']['name']);
@@ -260,7 +211,7 @@ function aio_cgi_check_values($v)
     $new = $v['cur'][$set[$k]];
     $shown = $d[$set['aio_server']] === 'own' && $d[$set['aio_own']] !== $v['cur'][$set['aio_own']] ? $new :
         aio_cgi_tpl_shown($mode, aio_settings_base($d), $v['confs'], $new);
-    if ($v[$seen] !== '' && ($v['ajax'] || aio_cgi_same_server($d, $v['cur'])) && $v[$seen] !== $shown)
+    if (!$lp && $v[$seen] !== '' && ($v['ajax'] || aio_cgi_same_server($d, $v['cur'])) && $v[$seen] !== $shown)
     {
         $errors[] = aio_cgi_err(aio_cgi_l('Шаблон изменён в другой вкладке — обновите страницу',
             'The template was changed in another tab: reload the page'), $f[$k]['name']);
@@ -376,15 +327,19 @@ function aio_cgi_check_values($v)
     if (!array_key_exists($v['cat_card'], aio_cgi_cat_card()))
         $errors[] = aio_cgi_err(aio_cgi_l('Своя карточка: нет такого ответа', 'Own card: no such answer'), $f['cat_card']['name']);
     $d[$set['cat_rows']] = aio_cat_rows_ok(explode(' ', $v['cat_rows']));
-    // "Адрес Lampac": '' - off; none posted - the stored one already (settings.php).
-    $lp = aio_lp_addr($v['lampac']);
-    $d[$set['lampac']] = is_string($lp) ? $lp : '';
-    if (!is_string($lp))
-        $errors[] = aio_cgi_err(aio_cgi_fmt_lampac(), $f['lampac']['name']);
-    // "Токен провайдера": '' - none (an empty field clears it); none posted - the stored one already (settings.php).
+    // The fields of Lampac: of the answer "Lampac" only (v2: a source of its own), the address needed; else hidden -
+    // those of the view (of a source of releases: none).
+    $a = aio_lp_addr($v['lampac']);
     $tk = aio_lp_token($v['lp_token']);
-    $d[$set['lp_token']] = is_string($tk) ? $tk : '';
-    if (!is_string($tk))
+    $d[$set['lampac']] = $lp && is_string($a) ? $a : $v['cur'][$set['lampac']];
+    $d[$set['lp_token']] = $lp && is_string($tk) ? $tk : $v['cur'][$set['lp_token']];
+    if (!$lp)
+        $d[$set['lp_lampa']] = $v['cur'][$set['lp_lampa']];
+    if ($lp && !is_string($a))
+        $errors[] = aio_cgi_err(aio_cgi_fmt_lampac(), $f['lampac']['name']);
+    elseif ($lp && $a === '')
+        $errors[] = aio_cgi_err(aio_cgi_l('Впишите адрес Lampac', 'Enter the Lampac address'), $f['lampac']['name']);
+    if ($lp && !is_string($tk))
         $errors[] = aio_cgi_err(aio_cgi_fmt_lp_token(), $f['lp_token']['name']);
     return array($d, $errors);
 }

@@ -34,8 +34,8 @@ const CONF_TEXTS: Record<ConfHow, readonly [keyof Texts, keyof Texts]> = {
   reset: ["resetting", "notReset"],
 };
 
-// changed: the main screen and the bar follow (a config made, the values saved); profiles: the editor of the source
-// profiles (null: none on the page) - a save of its profile stays on the page with it.
+// changed: the main screen and the bar follow (a config made, the values saved); profiles: the editor of the sources
+// (null: none on the page) - a save of its source stays on the page with it.
 export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Marks, bar: Bar, home: Home, changed: () => void,
   profiles: Profiles | null): void {
   const { doc, form, texts } = page;
@@ -43,10 +43,9 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
   const results = () => byId(doc, ID.saveResult);
   const templates = [NAME.template, NAME.templateP2p];
 
-  // The config of the chosen server after the save (of the profile of the editor saved: prof, its name): its result
-  // replaces the "creating" line; failed, the line "Saved" (savedLine) says only the settings on the Dune are. next:
-  // the page to load once it answered (the source kept, the editor turned on or off), null: none.
-  function syncConf(how: ConfHow, savedLine: HTMLElement, next: string | null, prof: string | null): void {
+  // The config of the chosen server after the save (of the source of the editor saved: prof, its id): its result
+  // replaces the "creating" line; failed, the line "Saved" (savedLine) says only the settings on the Dune are.
+  function syncConf(how: ConfHow, savedLine: HTMLElement, prof: string | null): void {
     const [going, failed] = CONF_TEXTS[how];
     button.textContent = texts[going];
     const line = addLine(results(), "hint", button.textContent);
@@ -59,15 +58,11 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
         else setLine(line, sync.ok ? "ok" : "err", sync.msg);
         // Its field marked as of a save error (no Debrid key, the own server).
         if (!sync.ok) marks.show([{ msg: sync.msg, field: sync.field }]);
-        // The profiles after it: a config made or forgotten (ready, now).
+        // The sources after it: a config made or forgotten (ready).
         if (sync.profiles && profiles) profiles.update(sync.profiles);
       } else if (result.kind !== "http") setLine(line, "err", texts[failed]);
       else setLine(line, "err", failureText(texts, result));
       if (result.kind !== "data" || !result.data.ok) savedLine.textContent = texts.savedOnDune;
-      if (next !== null) {
-        location.replace(next);
-        return;
-      }
       const before = templates.map((name) => checkedValue(form, name));
       aio.render();
       // The template of the config found (a mark "none" no more) is no change either; the rest typed meanwhile is.
@@ -109,19 +104,12 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     bar.rebase(moveTsUserinfo(posted));
     // The rows posted are now those the page came with: posted back unchanged, the next save keeps the stored ones.
     byId<HTMLInputElement>(doc, ID.rowsWas).value = posted.cat_rows ?? "";
-    // So the source: the next save keeps the stored one when it posts this one (MENU of a list may switch it).
-    if (answer.was) byId<HTMLInputElement>(doc, ID.sourceWas).value = answer.was;
     const savedLine = addLine(results(), "ok", texts.saved);
     if (answer.rows) addLine(results(), "ok", texts.rowsLater);
-    if (answer.kept) addLine(results(), "warn", texts.sourceKept);
     for (const note of answer.notes) addLine(results(), note.level === "ok" ? "ok" : "warn", note.msg);
-    // The profile of the editor saved: the page stays of it (a new one has its place now).
+    // The source of the editor saved: the page stays of it (a new one has its id now).
     if (answer.prof && profiles) profiles.saved(answer.prof, answer.profiles);
-    // The source kept (not by the profile of the editor: the page shows that one): the radios and src_was show the one
-    // posted - the page anew (its line by kept=1 of next); so the editor turned on or off.
-    const next = (answer.kept && !answer.prof) || answer.reload ? answer.next : null;
-    if (answer.aio) syncConf(answer.aio, savedLine, next, answer.prof ? answer.prof.name : null);
-    else if (next !== null) location.replace(next);
+    if (answer.aio) syncConf(answer.aio, savedLine, answer.prof ? answer.prof.id : null);
   }
   function save(reset: boolean): void {
     const pairs = encodedOr(results(), texts.badChars, () => serialize(form));

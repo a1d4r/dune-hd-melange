@@ -18,8 +18,6 @@ export const TEXT_KEYS = [
   "savedOnDune",
   // After "saved" when the rows of the catalog changed: the catalog takes them when it opens next.
   "rowsLater",
-  // After "saved" when the source changed since the page came (MENU on the Dune, another tab): the stored one kept.
-  "sourceKept",
   "saveAndCreate",
   "creating",
   "updating",
@@ -58,6 +56,8 @@ export const TEXT_KEYS = [
   "watchOwn",
   "needKey",
   "needLink",
+  // Lampac without its address (v2).
+  "needAddress",
   "viaTs",
   "tsDune",
   "tsSpare",
@@ -107,13 +107,15 @@ export const TEXT_KEYS = [
   "importing",
   "importTooBig",
   "importUnread",
-  // The source profiles (profiles.ts): the mark of the one in use, of one without its config, the link of a new one, the
-  // line instead of it (the profiles full), the question before "Delete" (%s: its name).
-  "profileNow",
+  // The sources (profiles.ts): the mark of the main one, of one without its config, the link of a new one, the line
+  // instead of it (the sources full), the question before "Delete" (%s: its name) and its end for the main one (%s: the
+  // name of the one that becomes it).
+  "profileMain",
   "profileNoConf",
   "profileNew",
   "profilesFull",
   "profileDeleteConfirm",
+  "profileDeleteMain",
 ] as const;
 
 export type Texts = Record<(typeof TEXT_KEYS)[number], string>;

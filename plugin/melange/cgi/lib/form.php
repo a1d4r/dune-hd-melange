@@ -67,29 +67,18 @@ function aio_cgi_fields()
         // "Без торрентов" (0.49.0): its radios at the top of the form (aio_cgi_form), for the CSS.
         'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
-        // "Профили источников" (0.58.0): its radios at the top of the form too, for the CSS
-        // (the block of the profiles on #src).
-        'src_profiles' => array('id' => 'spf', 'name' => 'src_profiles', 'set' => 'src_profiles', 'max' => 0, 'type' => 'radio',
-            'scr' => 'adv'),
-        // "Адрес Lampac" ("Онлайн", lampac.php): aio_cgi_lampac_block.
+        // "Адрес Lampac" (v2: a source of the kind "Lampac", lampac.php): aio_cgi_lampac_block on #src.
         'lampac' => array('id' => 'lp', 'name' => 'lampac_url', 'set' => 'lampac_url', 'max' => AIO_LP_URL_MAX, 'type' => 'plain',
-            'scr' => 'adv'),
+            'scr' => 'src'),
         // Under it: "Токен провайдера" ('' none, aio_lp_token) and "Представляться приложением Lampa" (aio_cgi_toggles).
-        // One for all the source profiles, as the address.
         'lp_token' => array('id' => 'lpt', 'name' => 'lampac_token', 'set' => 'lampac_token', 'max' => AIO_LP_TOKEN_MAX,
-            'type' => 'sec', 'scr' => 'adv'),
+            'type' => 'sec', 'scr' => 'src'),
         'lp_lampa' => array('id' => 'lpa', 'name' => 'lampac_as_lampa', 'set' => 'lampac_as_lampa', 'max' => 0, 'type' => 'radio',
-            'scr' => 'adv'),
-        // The source as the page came (aio_cgi_src_was_stored): posted back the same, the save keeps the stored one
-        // (MENU of a list on the Dune may have switched the profile since).
-        'src_was' => array('id' => 'sw', 'name' => 'src_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src',
-            'raw' => true),
-        // The editor of the source profiles (0.58.0, lib/profiles.php): the profile the page shows (an index, new, cur),
-        // its name as the page came, 1 - in use then; its name as typed.
+            'scr' => 'src'),
+        // The editor of the sources (v2, lib/profiles.php): the source the page shows (its id, new), the one a new one is
+        // the copy of (its id, ''); its name as typed.
         'pf_sel' => array('id' => 'pfs', 'name' => 'prof', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src'),
-        'pf_was' => array('id' => 'pfw', 'name' => 'prof_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src',
-            'raw' => true),
-        'pf_now' => array('id' => 'pfc', 'name' => 'prof_now', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src'),
+        'pf_from' => array('id' => 'pff', 'name' => 'prof_from', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src'),
         'pf_name' => array('id' => 'pfn', 'name' => 'prof_name', 'set' => '', 'max' => AIO_PROFILE_NAME_MAX, 'type' => 'plain',
             'scr' => 'src', 'raw' => true),
         // "Рейтинг IMDb на постерах".
@@ -384,14 +373,6 @@ function aio_cgi_toggles()
             'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
                 'В меню «Действия» списка раздач появятся «Сведения» и «Сортировка».',
                 'The "Actions" menu of the list of releases gets "Details" and "Sort".'))), 'on'),
-        // 0.58.0: its radios at the top of the form too (the block of the profiles on #src).
-        'src_profiles' => array(aio_cgi_l('Профили источников', 'Source profiles'), array(
-            'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
-                'Источник выбирается только в «Откуда брать фильмы».',
-                'The source is chosen in "Where to get films" only.')),
-            'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
-                'MENU в списке раздач → «Откуда брать». Профили — в «Откуда брать фильмы».',
-                'Release list: MENU → "Get films from". Profiles are in "Where to get films".'))), 'on'),
         // On #look (0.55.0).
         'cat_logo' => array(aio_cgi_l('Логотип фильма вместо названия', 'Film logo in place of the title'), array(
             'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
@@ -407,7 +388,7 @@ function aio_cgi_toggles()
             'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
                 'Цифра IMDb в углу постера: в рядах каталога и в карточке.',
                 'The IMDb number in the corner of a poster: in the catalog rows and in the card.'))), 'on'),
-        // Under "Токен провайдера" on #adv: the User-Agent of Lampa and the uid of the Dune (aio_lp_send of lampac.php).
+        // Under "Токен провайдера" of Lampac on #src: the User-Agent of Lampa and the uid of the Dune (aio_lp_send of lampac.php).
         'lp_lampa' => array(aio_cgi_l('Представляться приложением Lampa', 'Present as the Lampa app'), array(
             'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
                 'Melange шлёт запросы под своим именем.',
@@ -438,7 +419,7 @@ function aio_cgi_toggle_block($k, $v)
 }
 
 // The label of toggle $k and the cards of its radios, not the radios: those at the top of the form, for the CSS
-// (aio_cgi_form: no_torrents, src_profiles); $cls: more classes of the label and the cards ('' none).
+// (aio_cgi_form: no_torrents); $cls: more classes of the label and the cards ('' none).
 function aio_cgi_toggle_cards($k, $cls = '')
 {
     $f = aio_cgi_fields();
@@ -451,17 +432,18 @@ function aio_cgi_toggle_cards($k, $cls = '')
     return $out . '</div>';
 }
 
-// "Онлайн" (Lampac) on #adv: the address of Lampac with "Проверить" (a=lp_check, with the token and the option below as
-// typed), '' - off; the token of its provider (a secret, as the password of TorrServer), "Представляться приложением
-// Lampa". One label, no heading over it (on #adv both look the same): "Онлайн" is the item of the Dune it turns on.
+// The fields of a source of the kind "Lampac" on #src (v2; #slp of class xl - by the CSS only with that answer): its
+// address with "Проверить" (a=lp_check, with the token and the option below as typed; needed: no "off"), the token of
+// its provider (a secret, as the password of TorrServer), "Представляться приложением Lampa".
 function aio_cgi_lampac_block($v)
 {
     $f = aio_cgi_fields();
-    return aio_cgi_input($f['lampac'], aio_cgi_l('Онлайн: адрес Lampac', 'Online: Lampac address'), $v['lampac'],
-        aio_cgi_l('Выключено', 'Off'), aio_cgi_chk('lpb', 'lpr')) .
-        '<p class="hint">' . aio_cgi_l('Пусто — выключено. Сервер Lampac: http://хост:порт', 'Empty: off. Lampac server: http://host:port') .
+    return '<div id="slp" class="xl">' . aio_cgi_input($f['lampac'], aio_cgi_l('Адрес Lampac', 'Lampac address'), $v['lampac'],
+        'http://lampac.example:9118', aio_cgi_chk('lpb', 'lpr')) .
+        '<p class="hint">' . aio_cgi_l('Ваш сервер Lampac: http://хост:порт', 'Your Lampac server: http://host:port') .
         '</p>' . aio_cgi_input($f['lp_token'], aio_cgi_l('Токен провайдера', 'Provider token'), $v['lp_token'],
-        aio_cgi_l('Пусто — без входа. Токен выдаёт провайдер Lampac.', 'Empty: no login. Your Lampac provider gives the token.')) . aio_cgi_toggle_block('lp_lampa', $v);
+        aio_cgi_l('Пусто — без входа. Токен выдаёт провайдер Lampac.', 'Empty: no login. Your Lampac provider gives the token.')) .
+        aio_cgi_toggle_block('lp_lampa', $v) . '</div>';
 }
 
 // The answers of "Своя карточка" on the screen #look (radio cat_card, 0.59.0): its value =>
@@ -779,15 +761,18 @@ function aio_cgi_tpl($v, $m)
     return $out . '</div>' . aio_cgi_choice($f[$k], $tk['tpls'], $sel) . aio_cgi_hidden($f[$seen], $shown);
 }
 
-// The answers of "Откуда брать фильмы" (radio watch): id of the radio => value.
+// The answers of "Откуда брать фильмы" (radio watch): id of the radio => value; Lampac (v2) - a source of its own kind.
 function aio_cgi_watches()
 {
-    return array('wd' => AIO_MODE_DEBRID, 'wp' => AIO_MODE_P2P, 'wo' => 'own');
+    return array('wd' => AIO_MODE_DEBRID, 'wp' => AIO_MODE_P2P, 'wo' => 'own', 'wl' => 'lampac');
 }
 
-// The answer the page shows: the own config, else the mode (aio_cgi_mode_sel).
+// The answer the page shows: Lampac (watch of the values: a source of Lampac, aio_cgi_editor_values; a form back), the
+// own config, else the mode (aio_cgi_mode_sel).
 function aio_cgi_watch($v)
 {
+    if (isset($v['watch']) && $v['watch'] === 'lampac')
+        return 'lampac';
     return $v['source'] === 'own' ? 'own' : aio_cgi_mode_sel($v);
 }
 
@@ -824,14 +809,15 @@ function aio_cgi_debrid_main($v)
         '</div>';
 }
 
-// The screen "Откуда брать фильмы" (0.43.0): three cards of the radio watch
-// (aio_cgi_form), under them the fields of the answer shown by the CSS
-// (classes xd, xp, xo, xm - Debrid, Торренты, the own config, both made; xt -
+// The screen "Откуда брать фильмы" (0.43.0): the block of the sources at the top (aio_cgi_editor_block, v2), four cards
+// of the radio watch (aio_cgi_form), under them the fields of the answer shown by the CSS
+// (classes xd, xp, xo, xl, xm - Debrid, Торренты, the own config, Lampac, both made; xr - not Lampac; xt -
 // not Торренты, of "Без торрентов" (#adv); xa - not with it, xn - only with it):
 // Debrid - the keys (#dseg, #rdadd, #tbadd: by the script) and the template;
 // Торренты - the template of P2P and a link to TorrServer (its field is on
 // #torr only, 0.44.0); the own config - its manifest
-// address, only read. The server of both made: on #cfg (aio_cgi_cfg).
+// address, only read; Lampac - its address, token, "as Lampa" (aio_cgi_lampac_block). The server of both made: on #cfg
+// (aio_cgi_cfg). Then "Сделать основным", "Удалить" or "+ Добавить источник" (aio_cgi_editor_foot).
 function aio_cgi_src($v)
 {
     $f = aio_cgi_fields();
@@ -856,8 +842,7 @@ function aio_cgi_src($v)
         'Get it at: Save & Install → Stremio → Direct Manifest URL.'), aio_cgi_chk('mb', 'mr')) .
         '<p class="hint">' . aio_cgi_l('Melange этот конфиг не меняет.', 'Melange does not change this config.') .
         '</p><p class="hint xa">' . aio_cgi_l('Торренты из него играют через ', 'Torrents of it play via ') .
-        '<a href="#torr">TorrServer</a>.</p></div>' .
-        aio_cgi_hidden($f['src_was'], $v['src_was']);
+        '<a href="#torr">TorrServer</a>.</p></div>' . aio_cgi_lampac_block($v) . aio_cgi_editor_foot($v);
 }
 
 // The screen "AIOStreams" (#cfg, 0.44.0; its fields: Debrid and
@@ -947,7 +932,7 @@ function aio_cgi_js($v)
         'server' => aio_cgi_l('Сервер', 'Server'),
         'checking' => aio_cgi_l('Проверяю…', 'Checking…'), 'saving' => aio_cgi_l('Сохраняю…', 'Saving…'),
         'save' => aio_cgi_saveb(), 'saved' => aio_cgi_saved(), 'rowsLater' => aio_cgi_rows_later(),
-        'sourceKept' => aio_cgi_src_kept_line(), 'saveAndCreate' => aio_cgi_savec(),
+        'saveAndCreate' => aio_cgi_savec(),
         'savedOnDune' => aio_cgi_l('Настройки Melange сохранены на Дюне.', 'Melange settings are saved on the Dune.'),
         'creating' => aio_cgi_l('Создаю конфиг…', 'Creating the config…'),
         'updating' => aio_cgi_l('Обновляю конфиг…', 'Updating the config…'),
@@ -1052,14 +1037,6 @@ function aio_cgi_saved()
     return aio_cgi_l('Сохранено. Дюна подхватит настройки сама.', 'Saved. The Dune picks up the settings automatically.');
 }
 
-// After "Saved" when the source changed since the page came, the stored one kept (?kept=1, "kept" of the JSON of a
-// save: settings.php).
-function aio_cgi_src_kept_line()
-{
-    return aio_cgi_l('Источник уже сменили на Дюне или в другой вкладке, оставлен новый.',
-        'The source was changed on the Dune or in another tab, so the new one stays.');
-}
-
 // After "Saved" when the rows of the catalog changed (?rows=1, "rows" of the JSON of a save).
 function aio_cgi_rows_later()
 {
@@ -1070,17 +1047,16 @@ function aio_cgi_rows_later()
 // saved_once of aio_settings_read); $errors: of aio_cgi_err(); $imported:
 // after the import of a file (a=import), its line in #msg (2: and that the
 // link of the file was not written); $rows: with $saved,
-// the rows of the catalog changed (aio_cgi_rows_later); $kept: with $saved, the source
-// changed since the page came (aio_cgi_src_kept_line).
-// The page (0.43.0): the radios of watch, no_torrents and src_profiles, then the screens, #home
+// the rows of the catalog changed (aio_cgi_rows_later).
+// The page (0.43.0): the radios of watch and no_torrents, then the screens, #home
 // last - the CSS shows the one of the address (#src...), else #home, the fields
 // of the answer chosen and, with "Без торрентов" in effect, #home without the
 // lines of TorrServer and the servers (without the script too); the bar of the
 // save under them (#bar: the script shows it on a change, #dirty - their
-// number, #srx - "Скрыть" of the results of a save). With "Профили источников" on the page is the editor of a profile
-// (lib/profiles.php): its block on #src, its line on #cfg and #voices. Errors without the script: in #msg, each with a link to the screen of its field, the field
+// number, #srx - "Скрыть" of the results of a save). The page is the editor of a source (v2, lib/profiles.php): its
+// block on #src, its line on #cfg and #voices with two sources or more. Errors without the script: in #msg, each with a link to the screen of its field, the field
 // aria-invalid.
-function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $kept = false)
+function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false)
 {
     $scr = aio_cgi_screens();
     $msg = '';
@@ -1096,8 +1072,6 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
         $msg .= '<p class="ok">' . aio_cgi_saved() . '</p>';
     if ($saved && $rows)
         $msg .= '<p class="ok">' . aio_cgi_rows_later() . '</p>';
-    if ($saved && $kept)
-        $msg .= '<p class="warn">' . aio_cgi_src_kept_line() . '</p>';
     if ($imported)
         $msg .= '<p class="ok">' . aio_cgi_l('Настройки загружены из файла. Дюна подхватит их сама.',
             'Settings loaded from the file. The Dune picks them up automatically.') . '</p>';
@@ -1111,12 +1085,9 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
     foreach (aio_cgi_watches() as $id => $x)
         $radios .= aio_cgi_vradio($id, $f['watch']['name'], $x, $w === $x);
     $tg = aio_cgi_toggles();
-    foreach (array('no_torrents', 'src_profiles') as $k)
-    {
-        $i = 0;
-        foreach (array_keys($tg[$k][1]) as $x)
-            $radios .= aio_cgi_vradio($f[$k]['id'] . ++$i, $f[$k]['name'], $x, $v[$k] === $x);
-    }
+    $i = 0;
+    foreach (array_keys($tg['no_torrents'][1]) as $x)
+        $radios .= aio_cgi_vradio($f['no_torrents']['id'] . ++$i, $f['no_torrents']['name'], $x, $v['no_torrents'] === $x);
     $form = '<form method="post" action="settings?t=' . aio_cgi_h($t) . '" autocomplete="off">' .
         // Enter in a field without the script submits the first button: the save, not the reset.
         '<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>' . $radios .
@@ -1141,8 +1112,7 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
         aio_cgi_screen('adv', aio_cgi_toggle_cards('no_torrents', 'xt') . aio_cgi_markers_block($v) . aio_cgi_toggle_block('source_errors', $v) .
-            aio_cgi_toggle_block('no_color_keys', $v) .
-            aio_cgi_toggle_cards('src_profiles') . aio_cgi_lampac_block($v)) .
+            aio_cgi_toggle_block('no_color_keys', $v)) .
         aio_cgi_screen('bak', aio_cgi_backup($t, $v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .

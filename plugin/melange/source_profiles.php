@@ -658,9 +658,8 @@ function aio_dune_lang()
     return $l === 'russian' ? 'ru' : 'en';
 }
 
-// Profile $p (of aio_profile_ok) added to the settings $s, before the first one of Lampac when it is of releases (the
-// page of before v2 shows those of releases only, by their index from 0: aio_cgi_profiles_data); its id of its name
-// (aio_profiles_ids). -> array(the settings, its index); the profiles full or $p null - $s and -1.
+// Profile $p (of aio_profile_ok) added to the settings $s at the end; no id - one of its name (aio_profiles_ids). ->
+// array(the settings, its index); the profiles full or $p null - $s and -1.
 /**
  * @param AioSettings $s
  * @param AioProfile|null $p
@@ -670,19 +669,16 @@ function aio_profile_add($s, $p)
 {
     if (!$p || count($s['profiles']) >= AIO_PROFILES_MAX)
         return array($s, -1);
-    $at = aio_profile_rel($p) ? aio_profile_first($s, false, false) : -1;
-    if ($at < 0)
-        $at = count($s['profiles']);
-    array_splice($s['profiles'], $at, 0, array($p));
+    $s['profiles'][] = $p;
     $s['profiles'] = aio_profiles_ids($s['profiles']);
-    return array($s, $at);
+    return array($s, count($s['profiles']) - 1);
 }
 
 // The settings $s of a settings.json of before v2 (no src_main: 0.58.0-0.62.0, feat/lampac; aio_settings_parse; spec v2
 // §4): the profiles have their ids and keys already (aio_profiles_ok). The source at the top of them, the one in use of
 // before, is the main one: a profile of it by the old rule (aio_profile_now; without its config it gets that of the
 // cell, if no other one has it), else - when it fits a profile (an own config with its link, a config of Melange with
-// its config in the cell) - a new one at the end of those of releases, named by its kind (aio_profile_word), the keys
+// its config in the cell) - a new one at the end, named by its kind (aio_profile_word), the keys
 // of the top; its config that of another profile (other settings typed on the page) - that one; the profiles full - the
 // first. lampac_url set - a profile of Lampac "Lampac" at the end with the address, token, "as Lampa" and balancers of
 // the top, the main one only of no other profile. The cells of aio_confs stay (a new profile of their server and mode
@@ -800,76 +796,4 @@ function aio_profile_conf_given($p, $c, $free)
     if (isset($p['base']) && !$p['conf'] && $c && $free)
         $p['conf'] = $c;
     return $p;
-}
-
-// Until the page of v2 (spec v2, stage 3): the settings $s of a writer of before v2 - the page of before
-// (aio_cgi_store; MENU of a list writes nothing since stage 2) edits the source at the top, as the one in use - into
-// the profiles, before aio_settings_json copies the main one to the top over it: the source of
-// the top a profile (aio_profile_now) other than that of releases of the copy (aio_settings_top) - the main one now
-// ("Сделать текущим"); of no profile and the main one of releases - the main one takes it (its id and name kept;
-// the page of before edits the source in use there); else, when it fits a profile (aio_settings_migrate) - a new one,
-// the main one (the keys of the top). The keys of Debrid of the top, the main one the same - of the main one when it is
-// Debrid or Торренты, else of the first such one (another main one: they are of the one of before, not taken). lampac_url of the top - the first profile of Lampac takes it, its token and "as Lampa" (its balancers are of the
-// Dune: kept), none - a new one "Lampac"; '' (the page of before: «Пусто — выключено») - the first one goes.
-/**
- * @param AioSettings $s
- * @return AioSettings
- */
-function aio_settings_from_top($s)
-{
-    $m = aio_profile_main($s);
-    $rel = $m >= 0 && aio_profile_rel($s['profiles'][$m]) ? $m : aio_profile_first($s, true, false);
-    $now = aio_profile_now($s);
-    $t = aio_profile_of($s);
-    $c = $t && !isset($t['url']) ? $t['conf'] : null;
-    // Another main one now (or a new one): the keys of the top are of the one of before, not its own.
-    $keys = true;
-    if ($now >= 0)
-    {
-        if ($now !== $rel)
-            list($s['src_main'], $keys) = array($s['profiles'][$now]['id'], false);
-        $s['profiles'][$now] = aio_profile_conf_given($s['profiles'][$now], $c, !aio_profile_held($s, $c));
-    }
-    elseif ($t && $m >= 0 && $m === $rel)
-    {
-        // Its config stays while its server and mode do (a template or JacRed typed: the page changes it there).
-        $mp = $s['profiles'][$m];
-        if (!$c && isset($t['base'], $mp['base']) && $t['base'] === $mp['base'] && $t['mode'] === $mp['mode'])
-            $t['conf'] = $mp['conf'];
-        $p = aio_profile_ok(array('id' => $s['profiles'][$m]['id'], 'name' => $s['profiles'][$m]['name']) + $t +
-            array('rd_key' => $s['rd_key'], 'tb_key' => $s['tb_key']), $s);
-        if ($p)
-            $s['profiles'][$m] = $p;
-    }
-    elseif ($t && (isset($t['url']) || $c))
-    {
-        list($s, $i) = aio_profile_add($s, aio_profile_ok(array('name' =>
-            aio_profile_free_name($s, aio_profile_word(aio_profile_kind($t)))) + $t, $s));
-        if ($i >= 0)
-            list($s['src_main'], $keys) = array($s['profiles'][$i]['id'], false);
-    }
-    $deb = aio_profile_debrid($s);
-    $q = $deb >= 0 ? $s['profiles'][$deb] : null;
-    if ($q && isset($q['base']) && $keys)
-    {
-        list($q['rd_key'], $q['tb_key']) = array($s['rd_key'], $s['tb_key']);
-        $s['profiles'][$deb] = $q;
-    }
-    $lp = aio_profile_first($s, false, false);
-    $q = $lp >= 0 ? $s['profiles'][$lp] : null;
-    if ($s['lampac_url'] === '' && $lp >= 0)
-    {
-        array_splice($s['profiles'], $lp, 1);
-    }
-    elseif ($s['lampac_url'] !== '' && $q && isset($q['lampac_url']))
-    {
-        list($q['lampac_url'], $q['lampac_token'], $q['lampac_as_lampa']) = array($s['lampac_url'], $s['lampac_token'],
-            $s['lampac_as_lampa']);
-        $s['profiles'][$lp] = $q;
-    }
-    elseif ($s['lampac_url'] !== '')
-        list($s) = aio_profile_add($s, aio_profile_ok(array('name' => aio_profile_free_name($s, aio_profile_word('lampac')),
-            'lampac_url' => $s['lampac_url'], 'lampac_token' => $s['lampac_token'], 'lampac_as_lampa' => $s['lampac_as_lampa'],
-            'lampac_sources' => $s['lampac_sources']), $s));
-    return $s;
 }

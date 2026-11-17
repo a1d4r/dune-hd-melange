@@ -61,7 +61,8 @@ export const ID = {
   tsPass: "tsp",
   tsCheck: "tsb",
   tsResult: "tsr",
-  // "Lampac address" ("Online") on #adv, its check; the token of its provider under it (the check takes it as typed).
+  // "Lampac address" (v2: of a source of the kind Lampac, on #src), its check; the token of its provider under it (the
+  // check takes it as typed).
   lampacUrl: "lp",
   lampacCheck: "lpb",
   lampacResult: "lpr",
@@ -100,26 +101,23 @@ export const ID = {
   backupButton: "bkb",
   backupFile: "bkf",
   backupResult: "bkr",
-  // The source as the page came (or the last save that stayed on it: "was" of its answer): posted back the same, the
-  // save keeps the stored one (MENU of a list on the Dune may have switched the profile since).
-  sourceWas: "sw",
 } as const;
 
-// The editor of the source profiles (0.58.0, profiles.ts) at the top of #src: on a page PHP made with "Source profiles"
-// on only. The block, the list of the profiles (by the script), the name of the profile (posted), the box of "Make it
-// current" and "Delete", those two, their results; the profile of the save as posted: its place (an index, new, cur),
-// its name as the page came, 1 - in use then.
+// The editor of the sources (v2, profiles.ts) on #src: the block at its top (always), the list of the sources and the
+// name of the source (posted) - with two sources or more, or on a new one; the box of "Make it the main one" and
+// "Delete" at its end, those two, their results - with the list too; else the box of "+ Add source" there (one source
+// alone). The source of the save as posted: its id (or "new"), the id of the one a new one is the copy of ("" none).
 export const EDITOR = {
   block: "pe",
   list: "pel",
+  add: "pea",
   name: "pfn",
   buttons: "peb",
-  use: "peu",
+  main: "peu",
   del: "pex",
   result: "per",
   sel: "pfs",
-  was: "pfw",
-  now: "pfc",
+  from: "pff",
 } as const;
 
 // The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>; in the order of the page.
@@ -149,7 +147,7 @@ export const CLS = {
   screen: "scr",
   // A field or server block an error of the save is about (made by the script).
   bad: "bad",
-  // A mark after a title ("of Melange"; "now", "no config" of a source profile).
+  // A mark after a title ("of Melange"; "main", "no config" of a source).
   badge: "badge",
   // A line under a title (of a card, a profile), the warning one (also of a mark).
   value: "v",
@@ -186,8 +184,10 @@ export const DATA = {
   key: "data-k",
   // The file input of the backup: the longest body of the import (post_max_size of the page).
   max: "data-max",
-  // The state of #state and its lines: key, conf, man, ok.
+  // The state of #state and its lines: key, conf, man, lp, ok.
   state: "data-st",
+  // The value of the line of the source on the main screen fixed by PHP ("Debrid and 2 more": two sources or more).
+  fixed: "data-fixed",
   // Of a field of a server block by its client (s<n>_type: qbt, tr): of a label - its text, of an input - its
   // placeholder.
   qbt: "data-qbt",
@@ -195,13 +195,11 @@ export const DATA = {
 } as const;
 
 export const NAME = {
-  // "Where to get films": VALUE.debrid, VALUE.p2p (the configs melange makes, by their mode) or VALUE.own.
+  // "Where to get films": VALUE.debrid, VALUE.p2p (the configs melange makes, by their mode), VALUE.own or VALUE.lampac.
   watch: "watch",
   // The own server of AIOStreams (its address), the link of the own config.
   aioOwnUrl: "aio_own_url",
   manifest: "manifest",
-  // "Source profiles" (0.58.0): VALUE.on, VALUE.off.
-  srcProfiles: "src_profiles",
   // The AIOStreams server: a URL of the list or VALUE.own (own one, its address in #ao).
   aioServer: "aio_server",
   jacred: "jacred",
@@ -225,6 +223,8 @@ export const VALUE = {
   // The modes (the keys of #init.confs and #init.tplNew).
   debrid: "debrid",
   p2p: "p2p",
+  // The answer "Lampac" of "Where to get films" (v2).
+  lampac: "lampac",
   // The answers of the radios on and off.
   on: "on",
   off: "off",

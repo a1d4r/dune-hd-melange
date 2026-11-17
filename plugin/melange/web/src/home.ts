@@ -12,8 +12,8 @@ export interface Home {
 }
 
 // The state of aio_cgi_state: key - Debrid without a key, conf - no config of the mode on the server, man - own
-// config without its link, ok.
-type State = "key" | "conf" | "man" | "ok";
+// config without its link, lp - Lampac without its address (v2), ok.
+type State = "key" | "conf" | "man" | "lp" | "ok";
 // A dot: ok, warn or "" (grey); "none" (no dot) is PHP only, on lines JS never sets.
 type Dot = "ok" | "warn" | "";
 
@@ -25,11 +25,16 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
 
   function state(): State {
     const watch = watchOf(form);
+    if (watch === VALUE.lampac) return value(ID.lampacUrl) === "" ? "lp" : "ok";
     if (watch === VALUE.own) return value(ID.manifest) === "" ? "man" : "ok";
     if (watch === VALUE.debrid && value(ID.rdKey) + value(ID.tbKey) === "") return "key";
     return aio.creates() ? "conf" : "ok";
   }
   function sourceLine(watch: string): string {
+    if (watch === VALUE.lampac) {
+      const host = hostOf(value(ID.lampacUrl));
+      return "Lampac · " + (value(ID.lampacUrl) !== "" ? host : texts.needAddress);
+    }
     if (watch === VALUE.own) return texts.watchOwn + (value(ID.manifest) === "" ? " · " + texts.needLink : "");
     // The template of the mode by its short name (0.44.0: P2P too).
     const short = aio.templateShort(watch),
@@ -55,9 +60,11 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
     });
     return names;
   }
+  // The value of a line fixed by PHP (data-fixed: the source with two sources or more) stays.
   function setRow(id: Row, dot: Dot, text: string): void {
     byId(doc, "d" + id).className = "dot" + (dot ? " " + dot : "");
-    byId(doc, "v" + id).textContent = text;
+    const line = byId(doc, "v" + id);
+    if (!line.hasAttribute(DATA.fixed)) line.textContent = text;
   }
 
   function render(): void {
@@ -69,9 +76,9 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
     const lines = box.querySelectorAll<HTMLElement>("p[" + DATA.state + "]");
     for (let i = 0; i < lines.length; i++) lines[i]!.hidden = lines[i]!.getAttribute(DATA.state) !== st;
     setRow("src", st === "ok" ? "ok" : "warn", sourceLine(watch));
-    // The server: not for own config (the line hidden).
+    // The server: not for own config nor Lampac (the line hidden).
     const host = aio.serverHost();
-    setRow("cfg", watch === VALUE.own ? "" : aio.hasConf() ? "ok" : "warn", host !== "" ? host : texts.ownAioServer);
+    setRow("cfg", watch === VALUE.own || watch === VALUE.lampac ? "" : aio.hasConf() ? "ok" : "warn", host !== "" ? host : texts.ownAioServer);
     const jacred = checkedValue(form, NAME.jacred) || "",
       jr = jacred !== VALUE.own ? jacred : hostOf(byId<HTMLInputElement>(doc, ID.jacredOwnUrl).value);
     setRow("voices", jr === "" ? "warn" : "ok", jr !== "" ? jr : texts.ownJacred);

@@ -12,11 +12,8 @@ export type SaveNote = { level: string; msg: string };
 export type SaveError = { msg: string; field: string | null };
 // What the save does to the config of the chosen server next (aio_sync).
 export type ConfHow = "create" | "update" | "reset";
-// aio: "" - nothing (another value sent is taken as that). rows: the rows of the catalog changed. kept: the source
-// changed since the page came, the stored one kept (the page shows another one: next is loaded, after aio_sync).
-// reload: "Source profiles" turned on or off (next has the editor or none: loaded after aio_sync). was: src_was of the
-// source the page shows now, another one than it posted ("" - none sent). prof: the profile of the editor saved
-// (aio_sync goes for it), profiles: the list then.
+// aio: "" - nothing (another value sent is taken as that). rows: the rows of the catalog changed. prof: the source of
+// the editor saved (aio_sync goes for it; null - none sent), profiles: the list then.
 export type Save =
   | {
       ok: true;
@@ -24,9 +21,6 @@ export type Save =
       aio: ConfHow | "";
       rows: boolean;
       notes: SaveNote[];
-      kept: boolean;
-      reload: boolean;
-      was: string;
       prof: SavedProfile | null;
       profiles: ProfileList | null;
     }
@@ -37,21 +31,21 @@ export type Save =
 export type CatRow = { key: string; name: string; group: string; home: boolean; tab: "movie" | "series" };
 export type CatRows = { ok: boolean; stale: boolean; rows: CatRow[] };
 
-// The source profiles (lib/profiles.php): each in order - its name, the line under it (kind, host, JacRed), the one in
-// use, its config made (ready); max - the most there can be.
-export type Profile = { name: string; line: string; now: boolean; ready: boolean };
+// The sources (lib/profiles.php, v2): each in order - its id, name, the line under it (kind, host, JacRed), the main
+// one, its config made (ready); max - the most there can be.
+export type Profile = { id: string; name: string; line: string; main: boolean; ready: boolean };
 export type ProfileList = { list: Profile[]; max: number };
-// a=profile_use, profile_del: profiles - those of the file (null: none sent, it was not read).
+// a=profile_main, profile_del: profiles - those of the file (null: none sent, it was not read).
 export type ProfileAnswer = { ok: boolean; msg: string; profiles: ProfileList | null };
-// The profile of the editor a save saved: its place, its name, in use now.
-export type SavedProfile = { i: number; name: string; now: boolean };
+// The source of the editor a save saved: its id, its name, the main one.
+export type SavedProfile = { id: string; name: string; main: boolean };
 
 // a=import: next - the page again (its values imported), msg - why nothing was written.
 export type Import = { ok: true; next: string } | { ok: false; msg: string };
 
 export type ServerConf = { cfg: string; login: string; pass: string; tpl: string | null };
-// mode: of the config (debrid, p2p: a config per mode on a server), null: none sent. profiles: those of the file after it
-// (with "Source profiles" on), null: none sent.
+// mode: of the config (debrid, p2p: a config per mode on a server), null: none sent. profiles: those of the file after it,
+// null: none sent.
 export type Sync = {
   ok: boolean;
   msg: string;
@@ -107,9 +101,6 @@ function parseSave(json: Json): Save | null {
       aio: isConfHow(json.aio) ? json.aio : "",
       rows: json.rows === true,
       notes: parseItems(json.notes, parseNote),
-      kept: json.kept === true,
-      reload: json.reload === true,
-      was: typeof json.was === "string" ? json.was : "",
       prof: parseSaved(json.prof),
       profiles: parseProfiles(json.profiles),
     };
@@ -128,13 +119,19 @@ function parseImport(json: Json): Import | null {
 // #init.profiles and "profiles" of an answer; another shape: null.
 export function parseProfiles(value: unknown): ProfileList | null {
   if (!isObject(value) || !Array.isArray(value.list) || typeof value.max !== "number") return null;
-  const parseProfile = (item: Json): Profile => ({ name: String(item.name), line: String(item.line), now: item.now === true, ready: item.ready === true });
+  const parseProfile = (item: Json): Profile => ({
+    id: String(item.id),
+    name: String(item.name),
+    line: String(item.line),
+    main: item.main === true,
+    ready: item.ready === true,
+  });
   return { list: parseItems(value.list, parseProfile), max: value.max };
 }
 
 function parseSaved(value: unknown): SavedProfile | null {
-  if (!isObject(value) || typeof value.i !== "number" || typeof value.name !== "string") return null;
-  return { i: value.i, name: value.name, now: value.now === true };
+  if (!isObject(value) || typeof value.id !== "string" || typeof value.name !== "string") return null;
+  return { id: value.id, name: value.name, main: value.main === true };
 }
 
 function parseProfileAnswer(json: Json): ProfileAnswer | null {
@@ -251,15 +248,15 @@ export function createApi(base: string | null, hooks: ApiHooks) {
     jrSpeed: (target: string, probe: number) => post("&a=jr_speed&ajax=1", target + "&q=" + probe, parseJrSpeed),
     catRows: () => post("&a=cat_rows&ajax=1", "", parseCatRows),
     save: (form: string) => save("&ajax=1", form, parseSave),
-    // prof: the source profile of the config (its name; null - the source in use).
+    // prof: the source of the config (its id; null - the main one).
     aioSync: (reset: boolean, prof: string | null = null) =>
       save("&a=aio_sync&ajax=1", [reset ? "reset=1" : "", prof !== null ? "prof=" + encodeURIComponent(prof) : ""].filter((x) => x).join("&"),
         parseSync, 60000),
     // body: importBody() of the file as read; a write as a save is (no other save meanwhile).
     importSettings: (body: string) => save("&a=import&ajax=1", body, parseImport),
-    // The source profiles (i: its place, was: its name on the page): one in use, one deleted - each a write as a save is.
-    profileUse: (i: number, was: string) => save("&a=profile_use&ajax=1", "i=" + i + "&was=" + encodeURIComponent(was), parseProfileAnswer),
-    profileDel: (i: number, was: string) => save("&a=profile_del&ajax=1", "i=" + i + "&was=" + encodeURIComponent(was), parseProfileAnswer),
+    // The sources (id: of the one on the page): the main one, one deleted - each a write as a save is.
+    profileMain: (id: string) => save("&a=profile_main&ajax=1", "i=" + encodeURIComponent(id), parseProfileAnswer),
+    profileDel: (id: string) => save("&a=profile_del&ajax=1", "i=" + encodeURIComponent(id), parseProfileAnswer),
   };
 }
 

@@ -23,7 +23,7 @@ import { setupServerChecks, setupServers } from "./servers";
 
 // Written by aio_cgi_js(). i18n and jacredDefault: always written, checked by isInit() (else #init is broken);
 // confs: {<mode>: {<value of a server option>: {cfg, login, pass, tpl, url?}}}, tplNew: the template for a new config;
-// both checked by createConfs(); profiles: the source profiles and the one of the page (parseProfiles).
+// both checked by createConfs(); profiles: the sources (parseProfiles).
 export interface Init {
   i18n: Texts;
   jacredDefault: string;
@@ -57,7 +57,7 @@ function setupForm(page: Page, init: Init): void {
   setupJacredNote(page, init.jacredDefault);
   const home = setupHome(page, aio);
   const bar = setupBar(page, () => aio.creates() || aio.templateUnknown(), lock.saving);
-  // The editor of the source profiles: by the script, with fetch.
+  // The editor of the sources: by the script, with fetch.
   let profiles: Profiles | null = null;
   // The main screen and the bar after any change: the handlers of the form, after those of its fields.
   const changed = () => {
@@ -79,13 +79,13 @@ function setupForm(page: Page, init: Init): void {
   setupBackup(page, api, lock);
 }
 
-// saved=1 of the address after a save, with rows=1 when the rows changed, kept=1 when the source changed since the page
-// came, imported=1 or 2 after an import (the lines of PHP)
+// saved=1 of the address after a save, with rows=1 when the rows changed, imported=1 or 2 after an import (the lines of
+// PHP)
 // dropped, the rest kept as it is: a reload does not show them again. No history API: nothing.
 function dropSaved(): void {
   try {
     const params = location.search.slice(1).split("&");
-    const kept = params.filter((param) => param !== "saved=1" && param !== "rows=1" && param !== "kept=1" && param !== "imported=1" && param !== "imported=2");
+    const kept = params.filter((param) => param !== "saved=1" && param !== "rows=1" && param !== "imported=1" && param !== "imported=2");
     if (kept.length === params.length || typeof history.replaceState !== "function") return;
     history.replaceState(history.state, "", location.pathname + (kept.length ? "?" + kept.join("&") : "") + location.hash);
   } catch (e) {}

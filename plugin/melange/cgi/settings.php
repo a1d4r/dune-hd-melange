@@ -7,17 +7,15 @@
 //                      the Dune (aio_cgi_lang);
 //   POST ?t=<token> -> format (no request out) -> the keys given checked with
 //                      their services (a refused one: nothing written) ->
-//                      write settings.json v 2 (aio_confs and the profiles kept;
-//                      src_was posted back as the page came: the stored source) -> the
+//                      write settings.json v 2 (aio_confs and the other sources kept;
+//                      the source of the page - prof, lib/profiles.php - and the shared fields) -> the
 //                      config of AIOStreams as a=aio_sync -> 303 to GET
-//                      ?t=<token>&saved=1 (a reload does not post again; kept=1: the source
-//                      changed since the page came, the stored one kept - its line);
+//                      ?t=<token>&p=<id>&saved=1 (a reload does not post again);
 //                      errors -> the form back (only without JS);
 //   POST ?t=<token>&ajax=1 -> the same save without the config, JSON {ok,
-//                      next, aio[, rows][, notes][, kept][, reload][, was][, prof, profiles] | errors: [{msg, field}]}
-//                      to the script of the page (reload: "Профили источников" turned on or off - next
-//                      loaded after aio_sync; was: src_was of the page now, when another one; prof: the
-//                      profile of the editor saved, {i, name, now})
+//                      next, aio[, rows][, notes], prof, profiles | errors: [{msg, field}]}
+//                      to the script of the page (prof: the source saved, {id, name, main};
+//                      profiles: the list now)
 //                      (aio: create, update, reset (0.40.0: its button or
 //                      another template) or '' - what a=aio_sync is to do):
 //                      no page is ever an answer to a POST (a mobile browser
@@ -25,18 +23,18 @@
 //   POST ?t=<token>&a=aio_status&ajax=1 (url) -> GET /api/v1/status of that
 //                      own AIOStreams server: version, TMDB of its own; JSON
 //                      {ok, level, msg}, nothing written;
-//   POST ?t=<token>&a=aio_sync&ajax=1 -> the config of AIOStreams on the
-//                      chosen server (of the list or the own one, 0.35.1) in
-//                      the mode chosen (a config per mode) by
-//                      settings.json: the own config chosen -> nothing; the
+//   POST ?t=<token>&a=aio_sync&ajax=1 (prof: the id of the source; none - the main one)
+//                      -> the config of AIOStreams of that source: on its
+//                      server (of the list or the own one, 0.35.1) in
+//                      its mode (a config per mode): an own config or Lampac -> nothing; the
 //                      own server -> its TMDB by /status first; no config
 //                      there -> no Debrid key (mode Debrid): no
 //                      request, else POST /api/v1/user of the template; a
 //                      config -> GET ?raw=true, our fields, PUT (none if it has
 //                      no Debrid at all, mode Debrid); reset=1 -> PUT of the template with
 //                      our fields, no GET. aio_confs written; JSON {ok, msg,
-//                      skip, base, mode, conf[, field][, profiles]} (field: as of a save error;
-//                      profiles: with "Профили источников" on, those of the file after it);
+//                      skip, base, mode, conf[, field], profiles} (field: as of a save error;
+//                      profiles: those of the file after it);
 //   GET  ?t=<token>&a=log -> <FS_PREFIX>/tmp/run/melange.log masked, an attachment;
 //   GET  ?t=<token>&a=export -> settings.json as read, with web_token (0.51.0), an
 //                      attachment (0.50.0); none saved yet: 404, a text;
@@ -69,15 +67,12 @@
 //                      Real-Debrid, TorBox or TMDB, JSON {ok, level, msg}, nothing written;
 //   POST ?t=<token>&a=cat_rows&ajax=1 -> the rows of the catalog (lib/rows.php),
 //                      JSON {ok, stale, rows: [{key, name, group, home}]}, nothing written;
-//   GET  ?t=<token>&p=<i>|new -> with "Профили источников" on (0.58.0, lib/profiles.php)
-//                      the page is the editor of profile i (new: a new one; none: the one in
-//                      use, else a new one of the source in use): its settings of the source in
-//                      the fields, prof=<i>|new|cur posted back, the save saves it (in use:
-//                      the source too; else the source stored kept), a=aio_sync&prof=<name>
-//                      its config;
-//   POST ?t=<token>&a=profile_use|profile_del&ajax=1 (i, was) -> a source profile in use
-//                      (as MENU of a list), one deleted; JSON {ok, msg[, profiles]},
-//                      settings.json written whole.
+//   GET  ?t=<token>&p=<id>|new[&from=<id>] -> the page is the editor of that source (v2,
+//                      lib/profiles.php; new: a new one, the copy of from; none: the main
+//                      one): its settings in the fields, prof=<id>|new posted back, the
+//                      save saves it, a=aio_sync&prof=<id> its config;
+//   POST ?t=<token>&a=profile_main|profile_del&ajax=1 (i: the id) -> the main source,
+//                      one deleted; JSON {ok, msg[, profiles]}, settings.json written whole.
 // Input only goes through the rules of common.php; it never reaches exec,
 // a path or eval. stderr (dune_apk_cgi_err.log) gets reasons, never values.
 // PHP 5.3 syntax; php-cgi has no date.timezone: dates only in the log
@@ -134,11 +129,12 @@ function aio_cgi_save($dir, $t)
     $cur = aio_settings_read(aio_cgi_dir_ok($dir) ? $dir : '', $why);
     if ($why !== '')
         aio_cgi_log("save: settings.json $why");
-    // The editor of a source profile (lib/profiles.php): the fields of the source are of it, checked by its settings.
+    // The editor of a source (lib/profiles.php): the fields of the source are of it, checked by its settings.
     $ed = aio_cgi_editor_posted($v, $cur);
-    $view = $ed ? $ed['view'] : $cur;
+    $view = $ed['view'];
     $v['prof'] = aio_cgi_profiles_data($cur);
-    $v['pf_def'] = aio_cgi_editor_def($v['pf_sel'], $view);
+    $v['pf_def'] = aio_cgi_editor_def($view, $v['watch'] === 'lampac');
+    $v['pf_list'] = aio_cgi_editor_list($cur, $ed['old'] ? $ed['old']['id'] : 'new');
     $v['confs'] = $view['aio_confs'];
     $v['cur'] = $view;
     $v['tpl_new'] = $view['aio_tpl'];
@@ -152,42 +148,16 @@ function aio_cgi_save($dir, $t)
     foreach (aio_cgi_toggles() as $k => $x)
     {
         if ($v[$k] === '')
-            $v[$k] = aio_cgi_toggle_of($k, $cur[$f[$k]['set']]);
+            $v[$k] = aio_cgi_toggle_of($k, $view[$f[$k]['set']]);
     }
     if ($v['cat_card'] === '')
         $v['cat_card'] = aio_cgi_cat_card_of($cur['cat_card']);
-    // The address of Lampac and the token of its provider: '' is a value (off, none), only no field means an older form.
-    if (!isset($_POST[$f['lampac']['name']]))
-        $v['lampac'] = $cur['lampac_url'];
-    if (!isset($_POST[$f['lp_token']['name']]))
-        $v['lp_token'] = $cur['lampac_token'];
     // '' is a choice here (none made), only no field at all means an older form.
     if (!isset($_POST['cat_rows']))
         $v['cat_rows'] = aio_cgi_cat_rows_of($cur['cat_rows']);
     $v['ajax'] = $ajax;
     $v['reset'] = aio_cgi_param($_POST, 'aio_reset') === '1';
     $v['first'] = !$cur['saved_once'];
-    // The page showed the source of the Dune (no editor, a new one of the source in use, the profile in use): posted back
-    // as the page came (src_was; none: a form of before), another one stored - changed on the Dune since (MENU of a list
-    // switched the profile, another tab saved: $moved); the page posts it as it came (not changed there) - the stored one
-    // stays ($src_kept: aio_cgi_src_kept, all the settings of the source of the file after the check).
-    $moved = (!$ed || $ed['sel'] === 'cur' || $v['pf_now'] === '1') && isset($_POST[$f['src_was']['name']]) &&
-        $v['src_was'] !== aio_cgi_src_was_stored($cur);
-    $src_kept = $moved && aio_cgi_src_was_part($v['src_was']) === aio_cgi_src_was_posted($v);
-    // A profile: the one in use changed meanwhile - a new one of the source in use is not of it now; one of the profiles
-    // in use then - it stays (another tab saved it).
-    if ($src_kept && $ed && $ed['sel'] === 'cur')
-        $ed['now'] = false;
-    elseif ($src_kept && $ed && $ed['now'])
-        $ed = null;
-    if ($src_kept && !$ed)
-    {
-        aio_cgi_log('save: the source changed since the page came, the stored one kept');
-        $v = aio_cgi_src_kept($v, $cur);
-    }
-    // kept of the answer: the stored source kept; or the page showed the source of the Dune and it is another one now
-    // (MENU of a list switched), the profile of the page not in use - saved to it, the source of the Dune kept.
-    $kept = ($src_kept && !$ed) || ($moved && $ed && !$ed['now']);
     list($data, $errors) = aio_cgi_check_values($v);
     if ($errors)
     {
@@ -197,14 +167,8 @@ function aio_cgi_save($dir, $t)
         aio_cgi_log('save: bad format of ' . implode(', ', array_unique($bad)));
         aio_cgi_failed($ajax, 200, $errors, aio_cgi_form($t, $v, $errors, false));
     }
-    if ($src_kept && !$ed)
-    {
-        foreach (aio_source_keys() as $k)
-            $data[$k] = $cur[$k];
-    }
-    // The profile of the editor checked before the keys (no request for a save refused): again just before the write.
-    if ($ed)
-        aio_cgi_editor_check($ed, $data, $cur, $t, $v);
+    // The source of the editor checked before the keys (no request for a save refused): again just before the write.
+    aio_cgi_editor_check($ed, $data, $cur, $t, $v);
     if (!aio_cgi_dir_ok($dir))
     {
         aio_cgi_log('save: no data dir');
@@ -216,8 +180,8 @@ function aio_cgi_save($dir, $t)
     {
         $k = $f[$what]['set'];
         // A server with a TMDB key of its own: the field is hidden, the key kept unchecked.
-        // Only the keys of the chosen source: the own config needs none, nor a config of P2P a Debrid one.
-        if ($data[$k] === '' || $data['source'] === 'own' || ($what === 'tmdb' ?
+        // Only the keys of the chosen source: the own config and Lampac need none, nor a config of P2P a Debrid one.
+        if ($data[$k] === '' || $data['source'] === 'own' || $v['watch'] === 'lampac' || ($what === 'tmdb' ?
             aio_tmdb_sent(aio_settings_base($data), $data[$k]) === '' : $data['aio_mode'] === AIO_MODE_P2P))
             continue;
         $r = aio_cgi_key_check($what, $data[$k]);
@@ -234,28 +198,21 @@ function aio_cgi_save($dir, $t)
     // Read again just before the write: a=aio_sync of another tab may have
     // written them while the keys were checked.
     $cur = aio_settings_read($dir);
-    // The sources of the online list (the window "Источники…" on the Dune): no field, the stored ones stay.
-    $data['lampac_sources'] = $cur['lampac_sources'];
-    $on = $data['src_profiles'];
     $data['aio_confs'] = $cur['aio_confs'];
-    // The source profiles (0.58.0): the setting as posted; the profiles of the file (a=profile_*, MENU of a list write
-    // them), the one of the editor saved over them.
-    $data['profiles'] = $cur['profiles'];
-    // The main one (v2): only "Сделать текущим" changes it (aio_settings_from_top of aio_cgi_store).
-    $data['src_main'] = $cur['src_main'];
+    // The balancers of Lampac: of each source of it, from the file (the Dune writes them); none at the top (v2).
+    $data['lampac_sources'] = array();
+    // "Профили источников" of before v2 (no field now): as stored; aio_settings_json sets it for a version of before.
+    $data['src_profiles'] = $cur['src_profiles'];
     // The rows not changed on the page (posted as it came, cat_rows_was): the stored ones stay, the
     // dialog of the rows on the Dune may have changed them since. No cat_rows_was: a form of before.
     if (isset($_POST[$f['cat_rows_was']['name']]) && $v['cat_rows'] === $v['cat_rows_was'])
         $data[$f['cat_rows']['set']] = $cur['cat_rows'];
-    $prof = null;
-    if (!$ed)
-        $data = aio_cgi_profile_drift($data);
-    else
-    {
-        list($data, $prof) = aio_cgi_editor_check($ed, $data, $cur, $t, $v);
-        aio_cgi_log('save: profile ' . (aio_profile_find($data, $prof['name']) + 1) . ($ed['now'] ? ', in use' : ', not in use') .
-            ($ed['old'] ? '' : ', new'));
-    }
+    // The sources of the file (the Dune writes the balancers of Lampac), the one of the editor saved over them; the main
+    // one as stored (a=profile_main, a=profile_del change it; the first source saved is it).
+    list($data, $prof) = aio_cgi_editor_check($ed, $data, $cur, $t, $v);
+    $pk = aio_profile_index($data, $prof['id']);
+    aio_cgi_log('save: source ' . aio_profile_tag($pk, $prof) . ($prof['id'] === $data['src_main'] ? ', the main one' : '') .
+        ($ed['old'] ? '' : ', new'));
     $why = aio_cgi_store($dir, $data);
     if ($why !== '')
     {
@@ -271,12 +228,12 @@ function aio_cgi_save($dir, $t)
         $why = aio_cgi_write($dir, $dm, AIO_DEBRID_MAIN_FILE);
         aio_cgi_log('save: debrid_main ' . ($why !== '' ? $why : 'written'));
     }
-    // The config there (of the mode chosen) is reset to the template (0.40.0): aio_cgi_resets. That of the profile of
-    // the editor: its settings, its config.
-    $src = $prof ? aio_profile_view($data, $prof) : $data;
+    // The config there (of the mode chosen) is reset to the template (0.40.0): aio_cgi_resets. That of the source of
+    // the editor: its settings, its config; Lampac - none.
+    $src = aio_profile_view($data, $prof);
+    $lp = !aio_profile_rel($prof);
     $has = (bool) aio_settings_conf($src);
-    $reset = aio_cgi_resets($src, $src['aio_confs'], $v);
-    $pk = $prof ? aio_profile_find($data, $prof['name']) : -1;
+    $reset = !$lp && aio_cgi_resets($src, $src['aio_confs'], $v);
     // Other rows of the catalog, or their order: the catalog on the Dune takes them only
     // when it opens next, the page says so (rows=1, "rows" of the JSON).
     $rows = $data[$f['cat_rows']['set']] !== $cur['cat_rows'];
@@ -287,26 +244,20 @@ function aio_cgi_save($dir, $t)
         require dirname(__FILE__) . '/lib/rows.php';
         $rows = $data[$f['cat_rows']['set']] !== aio_cgi_cat_start($dir);
     }
-    // The editor: the page of the profile saved; "Профили источников" turned on or off: the page anew (the editor or none).
-    $was = aio_cgi_src_was_stored($src);
-    $next = 'settings?t=' . $t . ($pk >= 0 ? "&p=$pk" : '') . '&saved=1' . ($rows ? '&rows=1' : '') . ($kept ? '&kept=1' : '');
-    $reload = $on !== $cur['src_profiles'];
+    // The page of the source saved (a new one has its id now).
+    $next = 'settings?t=' . $t . '&p=' . $prof['id'] . '&saved=1' . ($rows ? '&rows=1' : '');
     // Only the checked token, as in the redirect below. aio: what a=aio_sync
-    // is to do next ('' - nothing, the own address). kept: the page shows another source than
-    // the stored one - the script loads next (after aio_sync).
-    // was: src_was of the source the page shows now (the one saved; of the profile of the editor saved: it), only
-    // another one than the page posted (none posted: a form of before, none).
-    // prof: the profile of the editor saved - its index, name (a=aio_sync&prof), in use; profiles: the list now.
+    // is to do next ('' - nothing: the own address, Lampac). prof: the source saved - its id (a=aio_sync&prof), name, the
+    // main one; profiles: the list now.
     if ($ajax)
         aio_cgi_json(200, array_merge(array('ok' => true, 'next' => $next,
-            'aio' => $src['source'] === 'own' ? '' : ($reset ? 'reset' : ($has ? 'update' : 'create'))),
+            'aio' => $lp || $src['source'] === 'own' ? '' : ($reset ? 'reset' : ($has ? 'update' : 'create'))),
             $rows ? array('rows' => true) : array(), $notes ? array('notes' => $notes) : array(),
-            $kept ? array('kept' => true) : array(), $reload ? array('reload' => true) : array(),
-            isset($_POST[$f['src_was']['name']]) && $was !== $v['src_was'] ? array('was' => $was) : array(),
-            $prof ? array('prof' => array('i' => $pk, 'name' => $prof['name'], 'now' => $ed['now']),
-            'profiles' => aio_cgi_profiles_data($data)) : array()));
+            array('prof' => array('id' => $prof['id'], 'name' => $prof['name'], 'main' => $prof['id'] === $data['src_main']),
+            'profiles' => aio_cgi_profiles_data($data))));
     // Without the script: the config right here; its result is seen on the page (made or not).
-    aio_cgi_aio_sync($dir, $reset, $prof ? $prof['name'] : '');
+    if (!$lp)
+        aio_cgi_aio_sync($dir, $reset, $prof['id']);
     // Post/Redirect/Get. Relative to this page; only the checked token, no
     // value of the request (and not the Host header).
     header('HTTP/1.0 303 See Other');
@@ -347,7 +298,7 @@ if ($method === 'POST' && aio_cgi_param($_GET, 'ajax') === '1')
         require dirname(__FILE__) . '/lib/rows.php';
         aio_cgi_cat_rows_post($dir);
     }
-    if ($a === 'profile_use' || $a === 'profile_del')
+    if ($a === 'profile_main' || $a === 'profile_del')
         aio_cgi_profile_post($dir, $a);
 }
 // Any other POST with an action is never a save: "Проверить" of a tab opened
@@ -373,15 +324,14 @@ if ($method === 'GET')
     if ($s['mig_lost'])
         aio_cgi_log('form: settings.json of before v2, ' . AIO_PROFILES_MAX . ' profiles already: no profile of ' .
             implode(', ', $s['mig_lost']));
-    // "Профили источников" on: the page of the profile p (lib/profiles.php).
-    $ed = aio_cgi_editor($s, aio_cgi_param($_GET, 'p'));
+    // The page of the source p (lib/profiles.php; p=new: a new one, the copy of from).
+    $ed = aio_cgi_editor($s, aio_cgi_param($_GET, 'p'), aio_cgi_param($_GET, 'from'));
     $v = aio_cgi_editor_values(aio_cgi_values($ed['view']), $ed, $s);
     $v['debrid_main'] = aio_debrid_main_read($dir);
     $v['debrid_main_was'] = $v['debrid_main'];
     $v['first'] = !$s['saved_once'];
     $imp = aio_cgi_param($_GET, 'imported');
     aio_cgi_send(200, 'text/html', aio_cgi_form($t, $v, array(), aio_cgi_param($_GET, 'saved') === '1',
-        in_array($imp, array('1', '2'), true) ? intval($imp) : 0, aio_cgi_param($_GET, 'rows') === '1',
-        aio_cgi_param($_GET, 'kept') === '1'));
+        in_array($imp, array('1', '2'), true) ? intval($imp) : 0, aio_cgi_param($_GET, 'rows') === '1'));
 }
 aio_cgi_send(405, 'text/plain', "405 Method Not Allowed\n");
