@@ -233,7 +233,7 @@ parameters:
         # episode record, "s:e" => array(pos, len, watched), the marks of the own card.
         AioWhSeries: 'array{stdClass|null, array<string, array{float, float, bool}>, array<string, int>}'
         # The episode to offer of a series by its history (aio_wh_pick, history.php).
-        AioWhPick: 'array{s: int, e: int, hash: string, kind: string, rec: string, why: string}'
+        AioWhPick: 'array{s: int, e: int, hash: string, key: string, kind: string, rec: string, why: string}'
         # The state of a card of the history (aio_pg_index, progress.php).
         AioPgEntry: 'array{w: stdClass|null, end: int, seen: bool, movie_mark: bool, series: AioWhSeries|null, ep: array{w: stdClass, seen: bool}|null}'
         # What the badges show of it (aio_pg_badge, progress.php).
@@ -464,7 +464,7 @@ parameters:
         # The tabs of the seasons of a series card (aio_oc_tabs_layout, view_card_series.php).
         AioOcTabs: 'array{list: list<array{int, string, int, int}>, x: int, w: int, all: int, word: int, cx: int}'
         # The episode a series card offers (aio_oc_pick, view_card_series.php).
-        AioOcEp: 'array{q: int, e: int, s: int, hash: string, kind: string}'
+        AioOcEp: 'array{q: int, e: int, s: int, hash: string, key: string, kind: string}'
         # A person of the own card: an actor, a director, a writer, a creator (aio_cm_people, card_meta.php).
         AioCardCredit: 'array{name: string, role: string, photo: string, tmdb: string}'
         # A person of the own card asked by ENTER (aio_cm_person_parse, card_more.php).

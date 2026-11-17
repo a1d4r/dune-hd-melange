@@ -545,7 +545,9 @@ function aio_wh_mark_next($st, $eps)
 // (aio_wh_mark_next) first; else the recorded one while not watched (by the progress of $st, as
 // the row shows it), the next one by $eps (aio_wh_after) once it is, S1E1 with no record or after
 // the last episode. hash: the release of the record if it is ours (uid "aio:<dune id>:<s>:<e>:<infoHash>"),
-// also with another episode offered (its list opens at that release), else ''; kind: none (no
+// also with another episode offered (its list opens at that release), else ''; key: so the key of an online
+// record of ours (uid "aio:<dune id>:<s>:<e>:lp-…", aio_lp_key_parse: its online list opens at the row of
+// it), else ''; kind: none (no
 // record), record (not watched), next, same (watched, no data on its season), first (the last one
 // watched); rec: the record for the log, why: the choice for the log.
 /**
@@ -559,21 +561,24 @@ function aio_wh_pick($st, $dune_id, $eps)
     $w = $st[0];
     $mk = aio_wh_mark_next($st, $eps);
     if (!$w)
-        return $mk ? array('s' => $mk[0], 'e' => $mk[1], 'hash' => '', 'kind' => $mk[2] ? 'next' : 'first', 'rec' => '',
-            'why' => $mk[3]) : array('s' => 1, 'e' => 1, 'hash' => '', 'kind' => 'none', 'rec' => '', 'why' => 'no history record');
+        return $mk ? array('s' => $mk[0], 'e' => $mk[1], 'hash' => '', 'key' => '', 'kind' => $mk[2] ? 'next' : 'first',
+            'rec' => '', 'why' => $mk[3]) : array('s' => 1, 'e' => 1, 'hash' => '', 'key' => '', 'kind' => 'none', 'rec' => '',
+            'why' => 'no history record');
     list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
     $u = aio_wh_uid($uid, $dune_id);
     $hash = $u && preg_match('/^[0-9a-f]{40}$/D', $u[2]) ? $u[2] : '';
+    $key = $u && aio_lp_key_parse($u[2]) ? $u[2] : '';
     $watched = isset($st[1]["$s:$e"]) && $st[1]["$s:$e"][2] ? (aio_wh_full($pos, $len) ? 'by position' : 'marked') : '';
     $rec = sprintf('record S%dE%d pos=%d/%d watched=%s', $s, $e, $pos, $len, $watched !== '' ? $watched : 'no');
     if ($mk)
-        return array('s' => $mk[0], 'e' => $mk[1], 'hash' => $hash, 'kind' => $mk[2] ? 'next' : 'first', 'rec' => $rec,
-            'why' => $mk[3]);
+        return array('s' => $mk[0], 'e' => $mk[1], 'hash' => $hash, 'key' => $key, 'kind' => $mk[2] ? 'next' : 'first',
+            'rec' => $rec, 'why' => $mk[3]);
     if ($watched === '')
-        return array('s' => $s, 'e' => $e, 'hash' => $hash, 'kind' => 'record', 'rec' => $rec, 'why' => 'not watched');
+        return array('s' => $s, 'e' => $e, 'hash' => $hash, 'key' => $key, 'kind' => 'record', 'rec' => $rec,
+            'why' => 'not watched');
     list($ns, $ne, $next, $why) = aio_wh_after($eps, $s, $e);
-    return array('s' => $ns, 'e' => $ne, 'hash' => $hash, 'kind' => $next ? 'next' : (isset($eps[$s]) ? 'first' : 'same'),
-        'rec' => $rec, 'why' => $why);
+    return array('s' => $ns, 'e' => $ne, 'hash' => $hash, 'key' => $key,
+        'kind' => $next ? 'next' : (isset($eps[$s]) ? 'first' : 'same'), 'rec' => $rec, 'why' => $why);
 }
 
 // The state of the series of card $dune_id for the ways in of the native (aio_wh_episode,
@@ -627,10 +632,10 @@ function aio_wh_alone($w, $dune_id, $set)
 }
 
 // Episode of a series opened from its main card (season = episode = -1): aio_wh_pick of the state
-// of the series for the ways in of the native (aio_wh_native) by season_numbers, logged. -> array(s, e, hash)
+// of the series for the ways in of the native (aio_wh_native) by season_numbers, logged. -> array(s, e, hash, key)
 /**
  * @param AioMovie $mv
- * @return array{int, int, string}
+ * @return array{int, int, string, string}
  */
 function aio_wh_episode($mv)
 {
@@ -639,7 +644,7 @@ function aio_wh_episode($mv)
     if ($p['rec'] !== '')
         aio_log("history: {$p['rec']}, " . count($mv['seasons']) . ' seasons in season_numbers');
     aio_log("episode: S{$p['s']}E{$p['e']}, {$p['why']}");
-    return array($p['s'], $p['e'], $p['hash']);
+    return array($p['s'], $p['e'], $p['hash'], $p['key']);
 }
 
 // The state of the series of card $dune_id, read once a screen of its own card, by $set

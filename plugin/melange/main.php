@@ -1788,7 +1788,13 @@ function aio_list_state($mv, $s, $e, $rows, $lang, $errors)
 
 // --- play_action of the supplier.
 
-function aio_play_action($in)
+// play_action $in; $key: the key of the online record of the episode $in asks (the own card: aio_oc_watch), '' none.
+/**
+ * @param stdClass $in
+ * @param string $key
+ * @return AioAction
+ */
+function aio_play_action($in, $key = '')
 {
     Aio::$playing = null;
     Aio::$alt = null;
@@ -1802,8 +1808,8 @@ function aio_play_action($in)
     $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
 
     $resume = aio_resume($in);
-    // The key of an online record ("Continue" of mode lampac), never a release of the list.
-    $lpk = $resume && $resume['mode'] === 'lampac' ? $resume['hash'] : '';
+    // The key of an online record ("Continue" of mode lampac, else of the own card), never a release of the list.
+    $lpk = $resume && $resume['mode'] === 'lampac' ? $resume['hash'] : ($resume ? '' : $key);
     $s = -1;
     $e = -1;
     // A list opens with the cursor on this release (the one of the history).
@@ -1821,9 +1827,13 @@ function aio_play_action($in)
             $s = aio_int($in, 'season', -1);
             $e = aio_int($in, 'episode', -1);
         }
-        // From the main card: season = episode = -1 and no supplier_info.
+        // From the main card: season = episode = -1 and no supplier_info; the latest record online: its key.
         if ($s < 1 || $e < 1)
-            list($s, $e, $hash) = aio_wh_episode($mv);
+        {
+            list($s, $e, $hash, $wk) = aio_wh_episode($mv);
+            if ($lpk === '' && !$rel)
+                $lpk = $wk;
+        }
     }
     // "Онлайн" (online_play.php) of the episode chosen: its "Continue", a title marked so, no AIOStreams.
     $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $rel);

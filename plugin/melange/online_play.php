@@ -373,7 +373,8 @@ function aio_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
 
 // play_action $in of card $mv, of episode $e of season $s (-1 a movie; of a series the one play_action chose: of
 // "Continue", of the shell, of the history) with "Онлайн" (aio_lpv_on): "Continue" $r of an online record (mode
-// lampac: aio_lpv_resume); the key $lpk of such a record with no episode to play (watched, no later one) - the
+// lampac: aio_lpv_resume); the key $lpk of such a record with no episode to play (watched, no later one), or of the
+// latest record of the series (the main card, the own card: aio_wh_pick, its episode or the next one) - the
 // online list of the episode, the cursor on the row of the key (as the releases of a record of them); no
 // AIOStreams - the search at once; a title marked "online" - the search, its releases if nothing comes, but
 // "Continue" of a record of AIOStreams ($rel; $r its episode to play, null none: watched, no later one) goes on as
@@ -407,7 +408,7 @@ function aio_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk, $rel = false)
         aio_log('lampac: the title is marked online, "Continue" of a release -> the releases');
         return null;
     }
-    aio_log('lampac: ' . ($lpk !== '' ? 'an online record, no episode to play' : ($aio ? 'the title is marked online' :
+    aio_log('lampac: ' . ($lpk !== '' ? 'an online record' : ($aio ? 'the title is marked online' :
         'no AIOStreams')) . ' -> the search');
     $st = aio_list_state($mv, $s, $e, array(), $lang, aio_no_errors());
     $st['lp_only'] = true;

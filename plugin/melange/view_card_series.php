@@ -55,7 +55,7 @@ function aio_oc_prog($c, $prog, $ep)
 
 // The episode to offer of a series card (aio_wh_pick of its history and its marks by the episodes
 // of the meta, those not out too; without the meta as play_action without season_numbers): q, e - as
-// asked, s - the season of the meta (0: none has it); kind of aio_wh_pick. -> array(it, the progress
+// asked, s - the season of the meta (0: none has it); hash, key, kind of aio_wh_pick. -> array(it, the progress
 // of its episodes, aio_wh_series).
 /**
  * @param AioOcCard $c
@@ -69,7 +69,8 @@ function aio_oc_pick($c)
     $s = $m ? aio_cm_season_of($m, $p['s'], $p['e']) : 0;
     aio_log('card: own series: ' . ($p['rec'] !== '' ? "{$p['rec']}, " : '') . "S{$p['s']}E{$p['e']}, {$p['why']}" .
         ($m && $s !== $p['s'] ? ", season $s of the meta" : ''));
-    return array(array('q' => $p['s'], 'e' => $p['e'], 's' => $s, 'hash' => $p['hash'], 'kind' => $p['kind']), $st[1]);
+    return array(array('q' => $p['s'], 'e' => $p['e'], 's' => $s, 'hash' => $p['hash'], 'key' => $p['key'],
+        'kind' => $p['kind']), $st[1]);
 }
 
 // The episode $e of season $s of card $c, null for none.
