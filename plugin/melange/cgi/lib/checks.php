@@ -474,7 +474,7 @@ function aio_cgi_lp_check($base)
             $st['detail']));
     if (!$n && $why !== '')
         return array(false, aio_cgi_l('Это не Lampac', 'Not a Lampac server'));
-    $msg = sprintf(aio_cgi_l('Lampac%s отвечает, источников: %d', 'Lampac%s is responding, sources: %d'),
+    $msg = sprintf(aio_cgi_l('Lampac%s отвечает, балансеров: %d', 'Lampac%s is responding, balancers: %d'),
         $ver !== '' ? " $ver" : '', $n);
     return $n ? array(true, $msg, 'ok') : array(true, $msg, 'warn');
 }

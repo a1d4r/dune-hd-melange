@@ -1045,7 +1045,7 @@ function aio_lpv_menu($st)
     $errors = aio_lpv_errors_of($st);
     if ($errors['lines'])
         $menu[] = array(
-            GuiMenuItemDef::caption => aio_tr($lang, 'errors_menu'),
+            GuiMenuItemDef::caption => aio_tr($lang, 'lp_errors_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
             GuiMenuItemDef::action => aio_gc_act('lp_errors', $rid));
     $menu[] = array(
@@ -1057,7 +1057,7 @@ function aio_lpv_menu($st)
         GuiAction::data => array(ShowPopupMenuActionData::menu_items => $menu));
 }
 
-// "Ошибки источников" of the online list of $st: a line a reason of a source ("Filmix: не
+// "Ошибки балансеров" of the online list of $st: a line a reason of a balancer ("Filmix: не
 // отвечает"), once each; those only through the Lampa app as one line of their number.
 /**
  * @param AioState $st
@@ -1434,7 +1434,7 @@ function aio_lpv_input($in, $control)
     if ($control === 'lp_chosen')
         return aio_lpv_chosen($in, $st);
     if ($control === 'lp_errors')
-        return aio_errors_dialog(aio_tr($st['lang'], 'errors_menu'), $st['lang'], aio_lpv_errors_of($st));
+        return aio_errors_dialog(aio_tr($st['lang'], 'lp_errors_menu'), $st['lang'], aio_lpv_errors_of($st));
     if ($control === 'lp_refresh')
         return aio_lpv_refresh($st);
     if ($control === 'lp_srcs')

@@ -59,7 +59,7 @@ function aio_cgi_fields()
         'ts_save' => array('id' => 'tss', 'name' => 'ts_save', 'set' => 'ts_save', 'max' => 0, 'type' => 'radio', 'scr' => 'torr'),
         // "Пропуск заставки и титров" (0.49.1): aio_cgi_markers().
         'markers' => array('id' => 'mrk', 'name' => 'markers', 'set' => 'markers', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
-        // "Ошибки источников" (0.49.1): aio_cgi_toggles(), as the others on/off.
+        // "Ошибки аддонов" (0.49.1): aio_cgi_toggles(), as the others on/off.
         'source_errors' => array('id' => 'ser', 'name' => 'source_errors', 'set' => 'source_errors', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
         // "Пульт без цветных кнопок" (0.61.0).
         'no_color_keys' => array('id' => 'nck', 'name' => 'no_color_keys', 'set' => 'no_color_keys', 'max' => 0, 'type' => 'radio',
@@ -369,10 +369,10 @@ function aio_cgi_toggles()
                 'Melange не запускает торренты: P2P скрыты, TorrServer и скачивание отключены.',
                 'Melange does not start torrents: P2P hidden, TorrServer and downloads disabled.'))), 'off'),
         // 0.49.1.
-        'source_errors' => array(aio_cgi_l('Ошибки источников', 'Source errors'), array(
+        'source_errors' => array(aio_cgi_l('Ошибки аддонов', 'Addon errors'), array(
             'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
-                'Melange не показывает ошибки источников.',
-                'Melange does not show source errors.')),
+                'Melange не показывает ошибки аддонов AIOStreams.',
+                'Melange does not show AIOStreams addon errors.')),
             'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
                 'Над списком раздач — число ошибок, причины — в меню «Действия».',
                 'The number of errors above the list of releases, the reasons in the "Actions" menu.'))), 'on'),
