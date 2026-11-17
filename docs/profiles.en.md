@@ -26,6 +26,8 @@ Add several sources (Debrid, torrents, your own config) and open a movie on the 
 
    A movie you have started continues from the source you watched it from: "Continue Watching", the next episode, the movie card.
 
+   You can also pick the source before the release list: press **POP UP** on a movie tile or its card → "Watch from…". The list opens from that source right away.
+
 ## If it did not work
 
 - A source is missing from the POP UP menu or is marked "no config": see [Troubleshooting](troubleshooting.en.md#sources).
