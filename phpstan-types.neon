@@ -63,7 +63,7 @@ parameters:
         # the filter by a voice: its key and name (aio_lpv_voices); flt_gone - the yellow line is of a filter gone (aio_lpv_flt_keep);
         # off - the paths of the sources of the search turned off in "Источники…" (aio_lpv_src_pick), not asked.
         AioLpView: 'array{title: AioLpTitle, q: string, sources: list<AioLpSource>, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: AioProgress, flt?: array{k: string, name: string}, flt_gone?: bool, off?: list<string>}'
-        # The search window between its ticks (AioLpv::$run, aio_lpv_search_open, view_online.php).
+        # The search window between its ticks (AioLpv::$run, aio_lpv_search_open, online_search.php).
         # The view of the search so far in v, the start of the replies t1, more: the rows before "Ещё N" (-1: a new search).
         AioLpRun: 'array{sid: string, st: AioState, how: string, mark: bool, back: bool, path: string, key: string, fail: string, phase: string, search: AioLpSearch|null, v: AioLpView, t1: float, more: int, lost: float, again: list<int>, held: string, at: list<int>}'
         # A choice of a source of the online list found on this Dune (lampac_sources of settings.json, aio_lp_srcs_ok, lampac.php): its path, name, shown;

@@ -33,8 +33,10 @@ require_once dirname(__FILE__) . '/sources.php';
 require_once dirname(__FILE__) . '/torrserver.php';
 // The client of Lampac ("Онлайн"): no firmware API.
 require_once dirname(__FILE__) . '/lampac.php';
-// "Онлайн" on the Dune: the search window, the online list.
+// "Онлайн" on the Dune: the online list.
 require_once dirname(__FILE__) . '/view_online.php';
+// "Онлайн": the search window "Ищу онлайн…", its result.
+require_once dirname(__FILE__) . '/online_search.php';
 // "Источники…" of the online list: which sources, their order.
 require_once dirname(__FILE__) . '/online_sources.php';
 // "Онлайн": its start, "Continue", play_action of a card with it.
