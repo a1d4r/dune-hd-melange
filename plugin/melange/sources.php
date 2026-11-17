@@ -149,7 +149,8 @@ function aio_gc_src_commit($dir, $s0, $p, $tag, $words)
 // movie or episode from the source of the profile first (aio_relist with the settings of
 // the profile, its JacRed too: the voices and tracks of JacRed are of the profile). It answered, with no streams too (an empty list), but not with error
 // streams only (a link not taken): written (aio_gc_src_commit; the source in use kept by a
-// profile first), the screen replaced, the cursor on the same release. An error, not written: its dialog - the source, the screen
+// profile first), the screen replaced, the cursor on the first row (another source sorts the releases
+// its own way: the one under the cursor would be lower). An error, not written: its dialog - the source, the screen
 // and the state as they were. The profile gone, not ready, the setting off, settings.json
 // not read, the source to save with the profiles full: a dialog too, no request. The profile in use, a list not live: nothing.
 /**
@@ -198,8 +199,10 @@ function aio_gc_src($in)
     $old = Aio::$settings;
     // The request goes with the settings of the profile, the log masked by them too.
     Aio::$settings = aio_op_settings(aio_profile_apply($s, $p));
-    $r = aio_relist($st, $st['s'], $st['e'], isset($st['rows'][$cur]) ? $st['rows'][$cur]['hash'] : '');
-    if (isset($r['error']))
+    $r = aio_relist($st, $st['s'], $st['e'], '');
+    if (!isset($r['error']))
+        $r['by'] = 'first row';
+    else
     {
         $errors = isset($r['errors']) ? $r['errors'] : aio_no_errors();
         if ($r['error'] === 'err_no_streams' && !$errors['lines'])
