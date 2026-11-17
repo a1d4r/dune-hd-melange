@@ -6,7 +6,7 @@ We will install Melange and TorrServe (the Dune plays torrents through it) and o
 
 <img src="../screenshots/overview-en.png" alt="Diagram: you pick a movie in the Melange catalog, Melange searches torrents for releases, you pick a release, the movie plays in the Dune player via TorrServe or Debrid" width="100%">
 
-You need: a Dune HD on Android with firmware r24 or r25. r25 is recommended (if available). What r24 lacks: [Known limitations](limitations.en.md#devices-and-firmware).
+You need: a Dune HD on Android with firmware r22 or newer. r25 is recommended (if available). What older versions lack: [Known limitations](limitations.en.md#devices-and-firmware).
 
 If you have a Real-Debrid or TorBox subscription, go to the [Debrid](debrid.en.md) chapter after installing Melange: you don't need TorrServe then.
 

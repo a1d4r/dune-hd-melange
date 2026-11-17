@@ -4,7 +4,7 @@
 
 Melange turns your Dune into an online cinema: a movie and series catalog with curated rows and search. Pick a movie, and Melange finds releases, shows their quality and dubs, and plays the movie in the Dune player. Stop anytime and resume from the same spot. You can also pick a movie in the Dune's own **Movies** catalog: its card has a **Melange** item in the **Play...** menu.
 
-You need an Android Dune with firmware r24 or r25. Watch for free through TorrServer or with a paid Debrid service.
+You need an Android Dune with firmware r22 or newer. Watch for free through TorrServer or with a paid Debrid service.
 
 New here? Start with Quick start.
 
