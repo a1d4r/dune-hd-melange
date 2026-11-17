@@ -11,6 +11,8 @@ define('AIO_PROFILES_MAX', 8);
 // Characters of the name of a profile, at most.
 define('AIO_PROFILE_NAME_MAX', 30);
 
+// --- Storage: the profiles of settings.json, their ids, names and configs.
+
 // The JacRed of a profile as stored (0.58.0, the editor of the page): 'jacred' - a key of aio_jacred_builtin() or
 // 'own' (only with a good own one), 'jacred_own_url', 'jacred_own_key' - aio_jacred_own() or both '' (kept when a
 // built-in one is chosen, as of the settings); a wrong choice - AIO_JACRED_DEFAULT, as aio_settings_parse.
@@ -270,17 +272,6 @@ function aio_profiles_ok($list, $s)
     return aio_profiles_ids($r);
 }
 
-// The keys of the settings of the source (aio_profile_apply sets them; the template of a profile is one of the two):
-// those MENU of a list and the page compare to see the source changed meanwhile.
-/**
- * @return list<string>
- */
-function aio_source_keys()
-{
-    return array('source', 'manifest_url', 'aio_server', 'aio_own_url', 'aio_mode', 'aio_tpl', 'aio_tpl_p2p', 'jacred',
-        'jacred_own_url', 'jacred_own_key');
-}
-
 // aio_confs[$base][$mode] of the settings $s set to $c (null: emptied; the config of the other mode stays).
 /**
  * @param AioSettings $s
@@ -330,125 +321,6 @@ function aio_profile_held($s, $c)
     return aio_profile_holder($s, $c) >= 0;
 }
 
-// Settings $s with the source of profile $p of releases (aio_profile_rel) at the top (the copy of the main one in
-// settings.json, aio_settings_top; the settings of an operation, aio_profile_view): a config of Melange - source made,
-// the mode, the server (one of the list, else "own" with its address), the template of its mode, its config in the
-// cell of the server and mode (none: the cell as it is - a config there no profile has is never lost); an own config -
-// source own and its link, the server, the mode and the templates kept (only stored then); the JacRed of both. The
-// keys of Debrid not: aio_profile_view, aio_settings_top.
-/**
- * @param AioSettings $s
- * @param AioProfile $p
- * @return AioSettings
- */
-function aio_profile_apply($s, $p)
-{
-    if (isset($p['lampac_url']))
-        return $s;
-    list($s['jacred'], $s['jacred_own_url'], $s['jacred_own_key']) = array($p['jacred'], $p['jacred_own_url'], $p['jacred_own_key']);
-    if (isset($p['url']))
-    {
-        $s['source'] = 'own';
-        $s['manifest_url'] = $p['url'];
-        return $s;
-    }
-    $servers = aio_aio_servers();
-    $s['source'] = 'made';
-    $s['aio_mode'] = $p['mode'];
-    $s[$p['mode'] === AIO_MODE_P2P ? 'aio_tpl_p2p' : 'aio_tpl'] = $p['tpl'];
-    if (isset($servers[$p['base']]))
-        $s['aio_server'] = $p['base'];
-    else
-        list($s['aio_server'], $s['aio_own_url']) = array('own', $p['base']);
-    return $p['conf'] ? aio_settings_cell($s, $p['base'], $p['mode'], $p['conf']) : $s;
-}
-
-// The settings $s as if the source were profile $p, the configs only its own (the editor of the page; an operation,
-// aio_op_settings of main.php): of one of releases its source (aio_profile_apply) and of Debrid and Торренты its keys
-// (an own config: none, they are in the config); of Lampac its address, token, "as Lampa" and balancers.
-/**
- * @param AioSettings $s
- * @param AioProfile $p
- * @return AioSettings
- */
-function aio_profile_view($s, $p)
-{
-    if (isset($p['lampac_url']))
-        return array_merge($s, array_intersect_key($p, aio_lp_keys()));
-    $s = aio_profile_apply($s, $p);
-    $s['aio_confs'] = array();
-    list($s['rd_key'], $s['tb_key']) = array('', '');
-    if (isset($p['base']))
-    {
-        if ($p['conf'])
-            $s['aio_confs'] = array($p['base'] => array($p['mode'] => $p['conf']));
-        list($s['rd_key'], $s['tb_key']) = array($p['rd_key'], $p['tb_key']);
-    }
-    return $s;
-}
-
-// The target of profile $p of releases (or of aio_profile_of) as one string, its settings without the name, the keys
-// and the config: the old rule of the source in use (aio_profile_same). The JacRed as it is used: the own address and
-// key only of the own one chosen. Lampac: its address.
-/**
- * @param array<string, mixed> $p
- * @return string
- */
-function aio_profile_key($p)
-{
-    if (isset($p['lampac_url']))
-        return "lampac {$p['lampac_url']}";
-    $jr = $p['jacred'] === 'own' ? "own {$p['jacred_own_url']} {$p['jacred_own_key']}" : strval($p['jacred']);
-    return isset($p['url']) ? "url {$p['url']} $jr" : "made {$p['base']} {$p['mode']} {$p['tpl']} $jr";
-}
-
-// A profile of the source at the top of settings $s, without a name: of the own config (url) or of a config of Melange
-// (base, mode, the template of the mode, conf - the config of its cell, null - none); with the JacRed of $s. null -
-// none (the own config without its link, no server).
-/**
- * @param AioSettings $s
- * @return array<string, mixed>|null
- */
-function aio_profile_of($s)
-{
-    $jr = array('jacred' => $s['jacred'], 'jacred_own_url' => $s['jacred_own_url'], 'jacred_own_key' => $s['jacred_own_key']);
-    if ($s['source'] === 'own')
-        return $s['manifest_url'] !== '' ? array('url' => $s['manifest_url']) + $jr : null;
-    $b = aio_settings_base($s);
-    return $b !== '' ? array('base' => $b, 'mode' => $s['aio_mode'], 'tpl' => aio_settings_tpl($s)) + $jr +
-        array('conf' => aio_settings_conf($s)) : null;
-}
-
-// The source at the top of settings $s is that of profile $p (what aio_profile_apply sets), its config aside.
-/**
- * @param AioSettings $s
- * @param AioProfile $p
- * @return bool
- */
-function aio_profile_same($s, $p)
-{
-    $t = aio_profile_of($s);
-    return $t !== null && aio_profile_rel($p) && aio_profile_key($t) === aio_profile_key($p);
-}
-
-// Profile $p is the source at the top of settings $s: its settings (aio_profile_same) and, of a config of Melange, its
-// config in the cell (the settings of another profile of that server and mode typed on the page are not it) or none of
-// its own yet (not made: a create failed - the source is still the profile). Lampac: never.
-/**
- * @param AioSettings $s
- * @param AioProfile $p
- * @return bool
- */
-function aio_profile_is($s, $p)
-{
-    if (!aio_profile_same($s, $p))
-        return false;
-    if (!isset($p['base']))
-        return true;
-    $c = aio_settings_conf($s);
-    return !$p['conf'] || ($c && $c['uuid'] === $p['conf']['uuid']);
-}
-
 // Profile $p can be used: an own config, a config of Melange with its config made (the plugin makes none; the page
 // does on "Save"), Lampac (its address is never '').
 /**
@@ -492,21 +364,6 @@ function aio_profile_index($s, $id)
     return -1;
 }
 
-// The index of the profile of the settings $s at the top (aio_profile_is), -1 for none.
-/**
- * @param AioSettings $s
- * @return int
- */
-function aio_profile_now($s)
-{
-    foreach ($s['profiles'] as $i => $p)
-    {
-        if (aio_profile_is($s, $p))
-            return $i;
-    }
-    return -1;
-}
-
 // The index of the main profile of the settings $s (src_main; written only by the page and the quick setup): that of
 // the id, none there - the first; -1 - no profiles.
 /**
@@ -537,65 +394,19 @@ function aio_profile_first($s, $rel, $ready = true)
     return -1;
 }
 
-// The pair of profiles of an operation (spec v2 §1.9) of the profile $t of a title (an index of the settings $s; -1 -
-// the main one) -> array(the index of the profile of releases, of Lampac; -1 none), both ready: $t of releases - it and
-// the first Lampac (its "Искать онлайн"); $t of Lampac - it and the main one if it is of releases, else the first of
-// them (its releases when nothing is online). $t not ready (the main one without its config) - the first ready one of
-// its kind, else of the other one.
+// The index of the profile of releases of the settings $s by the main one: the main one if it is of releases (and ready,
+// of $ready: aio_profile_ready), else the first of them (aio_profile_first, of $ready); -1 for none. The releases of the
+// pair of a profile of Lampac (aio_profile_pair, aio_profile_of_record), the source at the top (aio_settings_top).
 /**
  * @param AioSettings $s
- * @param int $t
- * @return array{int, int}
- */
-function aio_profile_pair($s, $t = -1)
-{
-    $m = aio_profile_main($s);
-    if ($t < 0)
-        $t = $m;
-    if ($t < 0)
-        return array(-1, -1);
-    $p = $s['profiles'][$t];
-    $rel = aio_profile_rel($p);
-    if (!aio_profile_ready($p))
-        $t = aio_profile_first($s, $rel);
-    if ($t < 0)
-    {
-        $rel = !$rel;
-        $t = aio_profile_first($s, $rel);
-    }
-    if ($t < 0)
-        return array(-1, -1);
-    if ($rel)
-        return array($t, aio_profile_first($s, false));
-    $mr = $m >= 0 && aio_profile_rel($s['profiles'][$m]) && aio_profile_ready($s['profiles'][$m]) ? $m :
-        aio_profile_first($s, true);
-    return array($mr, $t);
-}
-
-// The index of the profile a title opens by (spec v2 §1.5) in the settings $s: of its record of the history of kind $kind
-// ('lp' - an online one, 'rel' - of a release, '' - none: a new title) and the profile $id of it (wh_prof; '' - a record
-// of before v2). The profile of the record there, ready and of its kind - it; else (none, deleted, not ready): an online
-// record - the first Lampac, of a release - the main one if it is of releases, else the first of them; none of that
-// kind, no record - the main one (-1 no profiles; aio_profile_pair takes a ready one then).
-/**
- * @param AioSettings $s
- * @param string $id
- * @param string $kind
+ * @param bool $ready
  * @return int
  */
-function aio_profile_of_record($s, $id, $kind)
+function aio_profile_rel_main($s, $ready)
 {
     $m = aio_profile_main($s);
-    if ($kind !== 'lp' && $kind !== 'rel')
-        return $m;
-    $rel = $kind === 'rel';
-    $i = aio_profile_index($s, $id);
-    if ($i >= 0 && aio_profile_ready($s['profiles'][$i]) && aio_profile_rel($s['profiles'][$i]) === $rel)
-        return $i;
-    if ($rel && $m >= 0 && aio_profile_rel($s['profiles'][$m]) && aio_profile_ready($s['profiles'][$m]))
-        return $m;
-    $i = aio_profile_first($s, $rel);
-    return $i >= 0 ? $i : $m;
+    return $m >= 0 && aio_profile_rel($s['profiles'][$m]) && (!$ready || aio_profile_ready($s['profiles'][$m])) ? $m :
+        aio_profile_first($s, true, $ready);
 }
 
 // A profile for the log (MENU of a list, the page): its number from 1 ("none" for -1) and kind, never its name or link
@@ -674,6 +485,83 @@ function aio_profile_add($s, $p)
     return array($s, count($s['profiles']) - 1);
 }
 
+// --- Before v2: the migration only (the old rule of the source in use, aio_profile_now).
+
+// The target of profile $p of releases (or of aio_profile_of) as one string, its settings without the name, the keys
+// and the config: the old rule of the source in use (aio_profile_same). The JacRed as it is used: the own address and
+// key only of the own one chosen. Lampac: its address.
+/**
+ * @param array<string, mixed> $p
+ * @return string
+ */
+function aio_profile_key($p)
+{
+    if (isset($p['lampac_url']))
+        return "lampac {$p['lampac_url']}";
+    $jr = $p['jacred'] === 'own' ? "own {$p['jacred_own_url']} {$p['jacred_own_key']}" : strval($p['jacred']);
+    return isset($p['url']) ? "url {$p['url']} $jr" : "made {$p['base']} {$p['mode']} {$p['tpl']} $jr";
+}
+
+// The source at the top of settings $s is that of profile $p (what aio_profile_apply sets), its config aside.
+/**
+ * @param AioSettings $s
+ * @param AioProfile $p
+ * @return bool
+ */
+function aio_profile_same($s, $p)
+{
+    $t = aio_profile_of($s);
+    return $t !== null && aio_profile_rel($p) && aio_profile_key($t) === aio_profile_key($p);
+}
+
+// Profile $p is the source at the top of settings $s: its settings (aio_profile_same) and, of a config of Melange, its
+// config in the cell (the settings of another profile of that server and mode typed on the page are not it) or none of
+// its own yet (not made: a create failed - the source is still the profile). Lampac: never.
+/**
+ * @param AioSettings $s
+ * @param AioProfile $p
+ * @return bool
+ */
+function aio_profile_is($s, $p)
+{
+    if (!aio_profile_same($s, $p))
+        return false;
+    if (!isset($p['base']))
+        return true;
+    $c = aio_settings_conf($s);
+    return !$p['conf'] || ($c && $c['uuid'] === $p['conf']['uuid']);
+}
+
+// The index of the profile of the settings $s at the top (aio_profile_is), -1 for none.
+/**
+ * @param AioSettings $s
+ * @return int
+ */
+function aio_profile_now($s)
+{
+    foreach ($s['profiles'] as $i => $p)
+    {
+        if (aio_profile_is($s, $p))
+            return $i;
+    }
+    return -1;
+}
+
+// Profile $p of the source at the top, of a config of Melange without one of its own (a create of before failed), with
+// the config $c of the cell when $free (no other profile has it) -> the profile; else as it is.
+/**
+ * @param AioProfile $p
+ * @param AioConf|null $c
+ * @param bool $free
+ * @return AioProfile
+ */
+function aio_profile_conf_given($p, $c, $free)
+{
+    if (isset($p['base']) && !$p['conf'] && $c && $free)
+        $p['conf'] = $c;
+    return $p;
+}
+
 // The settings $s of a settings.json of before v2 (no src_main: 0.58.0-0.62.0, feat/lampac; aio_settings_parse; spec v2
 // §4): the profiles have their ids and keys already (aio_profiles_ok). The source at the top of them, the one in use of
 // before, is the main one: a profile of it by the old rule (aio_profile_now; without its config it gets that of the
@@ -722,6 +610,58 @@ function aio_settings_migrate($s)
     return $s;
 }
 
+// --- The copy at the top: the main one there (spec v2 §4 p. 7), the source of the top as a profile.
+
+// Settings $s with the source of profile $p of releases (aio_profile_rel) at the top (the copy of the main one in
+// settings.json, aio_settings_top; the settings of an operation, aio_profile_view): a config of Melange - source made,
+// the mode, the server (one of the list, else "own" with its address), the template of its mode, its config in the
+// cell of the server and mode (none: the cell as it is - a config there no profile has is never lost); an own config -
+// source own and its link, the server, the mode and the templates kept (only stored then); the JacRed of both. The
+// keys of Debrid not: aio_profile_view, aio_settings_top.
+/**
+ * @param AioSettings $s
+ * @param AioProfile $p
+ * @return AioSettings
+ */
+function aio_profile_apply($s, $p)
+{
+    if (isset($p['lampac_url']))
+        return $s;
+    list($s['jacred'], $s['jacred_own_url'], $s['jacred_own_key']) = array($p['jacred'], $p['jacred_own_url'], $p['jacred_own_key']);
+    if (isset($p['url']))
+    {
+        $s['source'] = 'own';
+        $s['manifest_url'] = $p['url'];
+        return $s;
+    }
+    $servers = aio_aio_servers();
+    $s['source'] = 'made';
+    $s['aio_mode'] = $p['mode'];
+    $s[$p['mode'] === AIO_MODE_P2P ? 'aio_tpl_p2p' : 'aio_tpl'] = $p['tpl'];
+    if (isset($servers[$p['base']]))
+        $s['aio_server'] = $p['base'];
+    else
+        list($s['aio_server'], $s['aio_own_url']) = array('own', $p['base']);
+    return $p['conf'] ? aio_settings_cell($s, $p['base'], $p['mode'], $p['conf']) : $s;
+}
+
+// A profile of the source at the top of settings $s, without a name: of the own config (url) or of a config of Melange
+// (base, mode, the template of the mode, conf - the config of its cell, null - none); with the JacRed of $s. null -
+// none (the own config without its link, no server).
+/**
+ * @param AioSettings $s
+ * @return array<string, mixed>|null
+ */
+function aio_profile_of($s)
+{
+    $jr = array('jacred' => $s['jacred'], 'jacred_own_url' => $s['jacred_own_url'], 'jacred_own_key' => $s['jacred_own_key']);
+    if ($s['source'] === 'own')
+        return $s['manifest_url'] !== '' ? array('url' => $s['manifest_url']) + $jr : null;
+    $b = aio_settings_base($s);
+    return $b !== '' ? array('base' => $b, 'mode' => $s['aio_mode'], 'tpl' => aio_settings_tpl($s)) + $jr +
+        array('conf' => aio_settings_conf($s)) : null;
+}
+
 // The settings $s to write (aio_settings_json, the one writer of settings.json) with the settings of the main profile
 // copied to the top (spec v2 §4 p. 7), so a version of before v2 over this file goes on with the main one: the source of
 // it, else of the first profile of releases (aio_profile_apply: its config in the cell); the keys of Debrid of
@@ -743,7 +683,7 @@ function aio_settings_top($s)
     $t['src_main'] = $m >= 0 ? $t['profiles'][$m]['id'] : '';
     if ($m < 0)
         return $t;
-    $rel = aio_profile_rel($t['profiles'][$m]) ? $m : aio_profile_first($t, true, false);
+    $rel = aio_profile_rel_main($t, false);
     if ($rel >= 0)
         $t = aio_profile_apply($t, $t['profiles'][$rel]);
     $deb = aio_profile_debrid($t);
@@ -783,17 +723,85 @@ function aio_profile_debrid($s)
     return -1;
 }
 
-// Profile $p of the source at the top, of a config of Melange without one of its own (a create of before failed), with
-// the config $c of the cell when $free (no other profile has it) -> the profile; else as it is.
+// --- The pair of an operation (spec v2 §1.9): its profiles and its settings.
+
+// The settings $s as if the source were profile $p, the configs only its own (the editor of the page; an operation,
+// aio_op_settings of main.php): of one of releases its source (aio_profile_apply) and of Debrid and Торренты its keys
+// (an own config: none, they are in the config); of Lampac its address, token, "as Lampa" and balancers.
 /**
+ * @param AioSettings $s
  * @param AioProfile $p
- * @param AioConf|null $c
- * @param bool $free
- * @return AioProfile
+ * @return AioSettings
  */
-function aio_profile_conf_given($p, $c, $free)
+function aio_profile_view($s, $p)
 {
-    if (isset($p['base']) && !$p['conf'] && $c && $free)
-        $p['conf'] = $c;
-    return $p;
+    if (isset($p['lampac_url']))
+        return array_merge($s, array_intersect_key($p, aio_lp_keys()));
+    $s = aio_profile_apply($s, $p);
+    $s['aio_confs'] = array();
+    list($s['rd_key'], $s['tb_key']) = array('', '');
+    if (isset($p['base']))
+    {
+        if ($p['conf'])
+            $s['aio_confs'] = array($p['base'] => array($p['mode'] => $p['conf']));
+        list($s['rd_key'], $s['tb_key']) = array($p['rd_key'], $p['tb_key']);
+    }
+    return $s;
+}
+
+// The pair of profiles of an operation (spec v2 §1.9) of the profile $t of a title (an index of the settings $s; -1 -
+// the main one) -> array(the index of the profile of releases, of Lampac; -1 none), both ready: $t of releases - it and
+// the first Lampac (its "Искать онлайн"); $t of Lampac - it and the main one if it is of releases, else the first of
+// them (its releases when nothing is online). $t not ready (the main one without its config) - the first ready one of
+// its kind, else of the other one.
+/**
+ * @param AioSettings $s
+ * @param int $t
+ * @return array{int, int}
+ */
+function aio_profile_pair($s, $t = -1)
+{
+    $m = aio_profile_main($s);
+    if ($t < 0)
+        $t = $m;
+    if ($t < 0)
+        return array(-1, -1);
+    $p = $s['profiles'][$t];
+    $rel = aio_profile_rel($p);
+    if (!aio_profile_ready($p))
+        $t = aio_profile_first($s, $rel);
+    if ($t < 0)
+    {
+        $rel = !$rel;
+        $t = aio_profile_first($s, $rel);
+    }
+    if ($t < 0)
+        return array(-1, -1);
+    if ($rel)
+        return array($t, aio_profile_first($s, false));
+    return array(aio_profile_rel_main($s, true), $t);
+}
+
+// The index of the profile a title opens by (spec v2 §1.5) in the settings $s: of its record of the history of kind $kind
+// ('lp' - an online one, 'rel' - of a release, '' - none: a new title) and the profile $id of it (wh_prof; '' - a record
+// of before v2). The profile of the record there, ready and of its kind - it; else (none, deleted, not ready): an online
+// record - the first Lampac, of a release - the main one if it is of releases, else the first of them; none of that
+// kind, no record - the main one (-1 no profiles; aio_profile_pair takes a ready one then).
+/**
+ * @param AioSettings $s
+ * @param string $id
+ * @param string $kind
+ * @return int
+ */
+function aio_profile_of_record($s, $id, $kind)
+{
+    $m = aio_profile_main($s);
+    if ($kind !== 'lp' && $kind !== 'rel')
+        return $m;
+    $rel = $kind === 'rel';
+    $i = aio_profile_index($s, $id);
+    if ($i >= 0 && aio_profile_ready($s['profiles'][$i]) && aio_profile_rel($s['profiles'][$i]) === $rel)
+        return $i;
+    $i = $rel ? aio_profile_rel_main($s, true) : aio_profile_first($s, false);
+    return $i >= 0 ? $i : $m;
 }

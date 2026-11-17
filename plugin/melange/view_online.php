@@ -680,8 +680,8 @@ function aio_lpv_card($st, $v, $i)
     if ($r['subs'] > 0)
         $fields[] = array('lp_card_subs', aio_tr($lang, 'lp_card_subs_v'));
     // The profile of Lampac of the list (v2: one of several).
-    $via = aio_src_name(Aio::$settings['lp_prof']);
-    $fields[] = array('lp_card_via', aio_lpv_tr($lang, 'lp_card_via_v', array('name' => $via !== '' ? $via : 'Lampac')));
+    $via = aio_src_name($st['lp_prof']);
+    $fields[] = array('lp_card_via', $via !== '' ? $via : 'Lampac');
     foreach ($fields as $f)
     {
         $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_VX - 6, 36, 0, $y), aio_tr($lang, $f[0]), 26, AIO_GC_DIM);

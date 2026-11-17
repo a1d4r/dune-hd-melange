@@ -388,7 +388,6 @@ lp_card_q_none = the balancer does not say
 lp_card_subs = Subtitles
 lp_card_subs_v = there are, not passed to the player
 lp_card_via = Via
-lp_card_via_v = {name}
 lp_refresh_wait = Refresh is possible in {n} s
 lp_srcs_menu = Balancers…
 lp_srcs_title = Balancers

@@ -388,7 +388,6 @@ lp_card_q_none = балансер не сообщает
 lp_card_subs = Субтитры
 lp_card_subs_v = есть, в плеер не передаются
 lp_card_via = Через
-lp_card_via_v = {name}
 lp_refresh_wait = Обновить можно через {n} с
 lp_srcs_menu = Балансеры…
 lp_srcs_title = Балансеры

@@ -200,17 +200,31 @@ function aio_wh_prof($w)
     return $ap && isset($ap->wh_prof) && aio_profile_id_ok($ap->wh_prof) ? $ap->wh_prof : '';
 }
 
-// The latest of our records of card $dune_id (aio_wh_ours_all: read again only when the history files change) ->
-// array(the rest of its uid: infoHash or the key of an online record, the id of its profile: '' none), null none.
+// The latest of our records of card $dune_id (aio_wh_ours_all: read again only when the history files change), as
+// aio_wh_pick has it: hash and key of the rest of its uid (aio_wh_tail), prof - the id of its profile ('' none); null none
+// (or the rest of its uid neither).
 /**
  * @param string $dune_id
- * @return array{string, string}|null
+ * @return array{hash: string, key: string, prof: string}|null
  */
 function aio_wh_card_last($dune_id)
 {
     aio_wh_ours_all();
-    return $dune_id !== '' && isset(AioWh::$last[$dune_id]) ? array(AioWh::$last[$dune_id][0], AioWh::$last[$dune_id][1]) :
-        null;
+    if ($dune_id === '' || !isset(AioWh::$last[$dune_id]))
+        return null;
+    list($hash, $key) = aio_wh_tail(AioWh::$last[$dune_id][0]);
+    return $hash !== '' || $key !== '' ? array('hash' => $hash, 'key' => $key, 'prof' => AioWh::$last[$dune_id][1]) : null;
+}
+
+// The rest $t of the uid of a record of ours ("aio:<dune id>:<s>:<e>:<rest>") -> array(hash: the infoHash of a release,
+// key: the key of an online record, aio_lp_key_parse), '' each it is not.
+/**
+ * @param string $t
+ * @return array{string, string}
+ */
+function aio_wh_tail($t)
+{
+    return array(preg_match('/^[0-9a-f]{40}$/D', $t) ? $t : '', aio_lp_key_parse($t) ? $t : '');
 }
 
 // is_fully_watched of the shell with its default settings: 90 %, 30 s left.
@@ -605,8 +619,7 @@ function aio_wh_pick($st, $dune_id, $eps)
             'key' => '', 'prof' => '', 'kind' => 'none', 'rec' => '', 'why' => 'no history record');
     list($s, $e, $pos, $len, $uid, $prof) = aio_wh_rec($w);
     $u = aio_wh_uid($uid, $dune_id);
-    $hash = $u && preg_match('/^[0-9a-f]{40}$/D', $u[2]) ? $u[2] : '';
-    $key = $u && aio_lp_key_parse($u[2]) ? $u[2] : '';
+    list($hash, $key) = $u ? aio_wh_tail($u[2]) : array('', '');
     $watched = isset($st[1]["$s:$e"]) && $st[1]["$s:$e"][2] ? (aio_wh_full($pos, $len) ? 'by position' : 'marked') : '';
     $rec = sprintf('record S%dE%d pos=%d/%d watched=%s', $s, $e, $pos, $len, $watched !== '' ? $watched : 'no');
     if ($mk)

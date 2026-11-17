@@ -259,16 +259,6 @@ function aio_src_name($id)
     return '';
 }
 
-// The name of the profile list $st shows (aio_src_now), '' none ready of it.
-/**
- * @param AioState $st
- * @return string
- */
-function aio_src_from_name($st)
-{
-    return aio_src_name(aio_src_now($st));
-}
-
 // Children of "Откуда: <source>" right-aligned to x $right of the row of the tabs of list $st,
 // with two ready profiles or more (spec v2 §2.2), in $room px at most (the tabs left of it; less than the
 // word and a few letters: none). -> array(children, their width; 0 none).
@@ -281,7 +271,7 @@ function aio_src_from_name($st)
  */
 function aio_src_tabs_right($st, $right, $y, $room)
 {
-    $from = aio_src_in_menu() ? aio_src_from_name($st) : '';
+    $from = aio_src_in_menu() ? aio_src_name(aio_src_now($st)) : '';
     if ($from === '')
         return array(array(), 0);
     $lang = aio_gc_lang($st);

@@ -485,7 +485,8 @@ function aio_seasons($m)
 }
 
 // "Continue watching" -> shell_ext play_recent -> our play_action with
-// supplier_info = {sup_data, wh_uid, wh_s, wh_e, wh_pos, wh_len (seconds), wh_*}.
+// supplier_info = {sup_data, wh_uid, wh_s, wh_e, wh_pos, wh_len (seconds), wh_*}; on r25
+// the button "Melange NN%" (play_online) too: aio_play_action takes its profile only.
 // 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else;
 // 'lampac' of an online record (online_play.php): 'hash' its key as it is, of no format
 // checked here (aio_lp_find of aio_lpv_resume does: bad_key, the search window).
@@ -504,13 +505,6 @@ function aio_resume($in)
     if (!is_object($si) || !isset($si->wh_release) || !is_string($si->wh_release) ||
         (!$lp && !preg_match('/^[0-9a-f]{40}$/', $si->wh_release)))
         return null;
-    // r25 shell attaches the history to our own button "Melange NN%" in the
-    // "Play..." dialog too: that one opens the list, as in r24.
-    if (isset($in->selected_control_id) && $in->selected_control_id === 'play_online')
-    {
-        aio_log('resume: supplier_info of the play_online button ignored -> list');
-        return null;
-    }
     return array(
         'hash' => $si->wh_release,
         'mode' => $lp ? 'lampac' : (isset($si->wh_mode) && ($si->wh_mode === 'debrid' || $si->wh_mode === 'ts') ? $si->wh_mode : ''),
@@ -905,24 +899,6 @@ function aio_op_title($id, $kind)
         aio_profile_tag($r, $r >= 0 ? $s['profiles'][$r] : null) . ' + ' . aio_profile_tag($l, $l >= 0 ? $s['profiles'][$l] : null) .
         ($on ? ', online' : ''));
     return $on;
-}
-
-// The record of the history of play_action $in its supplier_info gives (the shell sends our wh_* of it on "Continue",
-// on r25 with the button "Melange NN%" too): array(the id of its profile - wh_prof, '' none or not an id; its kind - 'lp'
-// online, 'rel' of a release, '' no record).
-/**
- * @param stdClass $in
- * @return array{string, string}
- */
-function aio_si_record($in)
-{
-    $si = isset($in->supplier_info) && is_string($in->supplier_info) ? json_decode($in->supplier_info) : null;
-    if (!is_object($si) || !isset($si->wh_release) || !is_string($si->wh_release))
-        return array('', '');
-    $lp = isset($si->wh_mode) && $si->wh_mode === 'lampac';
-    if (!$lp && !preg_match('/^[0-9a-f]{40}$/', $si->wh_release))
-        return array('', '');
-    return array(isset($si->wh_prof) && aio_profile_id_ok($si->wh_prof) ? $si->wh_prof : '', $lp ? 'lp' : 'rel');
 }
 
 // The sort of the lists, chosen by a colour key of the list (aio_gc_sort):
@@ -1835,7 +1811,15 @@ function aio_play_action($in, $hist = null)
     aio_pg_link_movie($mv);
     $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
 
-    $resume = aio_resume($in);
+    $si = aio_resume($in);
+    $resume = $si;
+    // r25 shell attaches the history to our own button "Melange NN%" in the
+    // "Play..." dialog too: that one opens the list, as in r24.
+    if ($si && isset($in->selected_control_id) && $in->selected_control_id === 'play_online')
+    {
+        aio_log('resume: supplier_info of the play_online button ignored -> list');
+        $resume = null;
+    }
     // The key of an online record ("Continue" of mode lampac), never a release of the list.
     $lpk = $resume && $resume['mode'] === 'lampac' ? $resume['hash'] : '';
     $s = -1;
@@ -1874,19 +1858,14 @@ function aio_play_action($in, $hist = null)
     // aio_wh_pick), else our latest record of the card (a movie, an episode asked by the shell: aio_wh_card_last; of a
     // movie its release or online row takes the cursor too). Its profile, else the rule of a record of none; no record
     // - the main one.
-    $rec = aio_si_record($in);
-    if ($rec[1] === '' && $hist && ($hist['hash'] !== '' || $hist['key'] !== ''))
-        $rec = array($hist['prof'], $hist['key'] !== '' ? 'lp' : 'rel');
+    $r = $hist && ($hist['hash'] !== '' || $hist['key'] !== '') ? $hist : null;
     $cur = !$mv['series'] && !$resume && $hash === '' && $lpk === '';
-    $last = $mv['dune_id'] !== '' && ($rec[1] === '' || $cur) ? aio_wh_card_last($mv['dune_id']) : null;
-    $kind = $last ? (aio_lp_key_parse($last[0]) ? 'lp' : (preg_match('/^[0-9a-f]{40}\z/', $last[0]) ? 'rel' : '')) : '';
-    if ($last && $kind !== '')
-    {
-        if ($rec[1] === '')
-            $rec = array($last[1], $kind);
-        if ($cur)
-            list($hash, $lpk) = $kind === 'lp' ? array('', $last[0]) : array($last[0], '');
-    }
+    if (!$r && $mv['dune_id'] !== '' && (!$si || $cur))
+        $r = aio_wh_card_last($mv['dune_id']);
+    if ($r && $cur)
+        list($hash, $lpk) = array($r['hash'], $r['key']);
+    $rec = $si ? array($si['prof'], $si['mode'] === 'lampac' ? 'lp' : 'rel') :
+        ($r ? array($r['prof'], $r['key'] !== '' ? 'lp' : 'rel') : array('', ''));
     $online = aio_op_title($rec[0], $rec[1]);
     // "Онлайн" (online_play.php) of the episode chosen: its "Continue", the title of a profile of Lampac.
     $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $online);
