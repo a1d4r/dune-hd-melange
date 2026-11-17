@@ -1,10 +1,10 @@
 # Advanced
 
-Choose whether Melange starts torrents, shows skip-intro buttons and reports source errors. If your remote has no colour buttons, you can also add sorting and release details to the menu here. [← Contents](README.en.md)
+Choose whether Melange starts torrents, shows skip-intro buttons and reports addon errors. If your remote has no colour buttons, you can also add sorting and release details to the menu here. [← Contents](README.en.md)
 
 1. On the settings page ([Settings page on a phone](phone-page.en.md)), open "Advanced".
 
-   <img src="../screenshots/advanced-screen.jpg" alt="Advanced screen: Running torrents, Skip intro and credits, Source errors, Remote without colour buttons, Source profiles" width="300">
+   <img src="../screenshots/advanced-screen.jpg" alt="Advanced screen: Running torrents, Skip intro and credits, Addon errors, Remote without colour buttons" width="300">
 
 2. "Running torrents": leave "Allow". Choose "No torrents" if you do not need torrents on the Dune at all ([Known limitations](limitations.en.md)).
 
@@ -14,17 +14,17 @@ Choose whether Melange starts torrents, shows skip-intro buttons and reports sou
 
    The button appears at the start of an episode, at the bottom left.
 
-4. "Source errors": turn it on if there are few releases or none. The number of errors appears above the release list; **POP UP** → "Source errors" shows the reasons.
+4. "Addon errors": turn it on if there are few releases or none. The number of errors appears above the release list; **POP UP** → "Addon errors" shows the reasons.
 
-   <img src="../screenshots/advanced-errors-menu.jpg" alt="Release list for Resident Evil: Errors: 2 at the top right, the menu is open, focus on Source errors" width="100%">
+   <img src="../screenshots/advanced-errors-menu.jpg" alt="Release list for Resident Evil: Errors: 2 at the top right, the menu is open, focus on Addon errors" width="100%">
 
-   <img src="../screenshots/advanced-errors.jpg" alt="Source errors window: JacRed and MediaFusion did not answer in time" width="100%">
+   <img src="../screenshots/advanced-errors.jpg" alt="Addons returned errors window: JacRed and MediaFusion did not answer in time" width="100%">
 
 5. "Remote without colour buttons": turn it on if your remote has no colour buttons or INFO. Then the **POP UP** menu of the release list starts with "Release details" and "Sort". Choosing the current sort again reverses the order.
 
    <img src="../screenshots/advanced-remote-menu.jpg" alt="Release list for Avatar: The Last Airbender (2026): the menu is open, focus on Release details, then Sort: Auto, Refresh, Get films from..., Watch via TorrServer, Open in an app..., Download to server..., Settings" width="100%">
 
-6. "Source profiles" are described in [Source profiles](profiles.en.md). Press "Save".
+6. Press "Save".
 
    <img src="../screenshots/phone-saved.jpg" alt="A green line at the top of the page: Saved. The Dune picks up the settings automatically." width="300">
 

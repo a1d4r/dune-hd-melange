@@ -10,7 +10,7 @@ What Melange cannot do, or does with caveats. [← Contents](README.en.md)
 - [No torrents](#no-torrents)
 - [Series](#series)
 - [Skipping intros and credits](#skipping-intros-and-credits)
-- [Source profiles](#source-profiles)
+- [Sources](#sources)
 - [Backup and two Dunes](#backup-and-two-dunes)
 - [TV tab](#tv-tab)
 - [Removing Melange](#removing-melange)
@@ -70,20 +70,18 @@ What Melange cannot do, or does with caveats. [← Contents](README.en.md)
 - Credits times not checked against the file length are sometimes taken from another edition of the episode. If such a mark ends more than a minute before the end of the file, there is no **Next Episode** button and the episode plays to the end.
 - **"Exact only"** keeps only marks checked against the file length, for the intro too. There will be fewer buttons, and if the file length is unknown, none at all.
 
-## Source profiles
+## Sources
 
-- At most 8 profiles, names don't repeat, and no two profiles have the same settings.
-- A profile that has no config on the server yet (marked "no config") is not in the POP UP menu on the Dune. To fix it, see [Troubleshooting](troubleshooting.en.md).
-- If the current source is not saved as a profile and you already have 8 profiles, you can't switch from the Dune until you delete one.
-- After changing the Debrid key, open each profile on the page, except your own configs, and press "Save": this puts the new key into each profile's config.
-- A page open on the phone does not see switches made on the Dune: refresh it after them.
-- Unsaved changes are lost if you open another profile.
-- Debrid and TMDB keys, TorrServer, your own torrent clients and other settings are shared by all profiles.
+- At most 8 sources, and names don't repeat.
+- A source that has no config on the server yet (marked "no config") is not in the POP UP menu on the Dune. To fix it, see [Troubleshooting](troubleshooting.en.md#sources).
+- The choice in "Get films from…" on the Dune is not remembered. A movie started from there later continues from the same source.
+- Unsaved changes are lost if you open another source.
+- Each source has its own Debrid keys. The TMDB key, TorrServer, your own torrent clients and other settings are shared by all sources.
 
 ## Backup and two Dunes
 
 - Along with the settings, the file brings back links to AIOStreams configs that already exist; no new ones are created. After the transfer, both Dunes use one config: changes on one show on the other.
-- "Load from a file" replaces settings and profiles completely and merges config links: for the server and mode present in the file, the config from the file is taken; the rest stay from this Dune.
+- "Load from a file" replaces settings and sources completely and merges config links: for the server and mode present in the file, the config from the file is taken; the rest stay from this Dune.
 
 ## TV tab
 

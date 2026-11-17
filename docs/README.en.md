@@ -24,11 +24,11 @@ New here? Start with Quick start.
 - [Debrid](debrid.en.md): movies start right away, paid subscription
 - [Torrents and TorrServer](torrserver.en.md): watch for free, no subscription
 - [JacRed](jacred.en.md): Russian tracker search and what to do if it stops responding
-- [Source profiles](profiles.en.md): switch between Debrid and torrents with the remote
+- [Sources](profiles.en.md): Debrid, torrents and your own configs, picked on the Dune
 - [Your own torrent client](download-server.en.md): download a release to a NAS or computer
 - [Appearance](appearance.en.md): logo, ratings on posters, custom movie card
 - [Melange in the TV tab](tv-tab.en.md): Melange rows on the Dune home screen
-- [Advanced](advanced-options.en.md): intro skipping, source errors, menu without color buttons
+- [Advanced](advanced-options.en.md): intro skipping, addon errors, menu without color buttons
 - [Backup](backup.en.md): save settings and move them to another Dune
 
 **For advanced users**

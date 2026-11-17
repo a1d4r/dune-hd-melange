@@ -12,7 +12,7 @@ A message or symptom and what to do. [← Contents](README.en.md)
 - [Does not open via TorrServer](#does-not-open-via-torrserver)
 - [Does not start via Debrid](#does-not-start-via-debrid)
 - [Your own torrent client](#your-own-torrent-client)
-- [Source profiles](#source-profiles)
+- [Sources](#sources)
 - [Catalog and the TV tab](#catalog-and-the-tv-tab)
 - [Log](#log)
 - [Where to write](#where-to-write)
@@ -70,7 +70,7 @@ On the Dune, when opening a movie:
 | "AIOStreams found no streams" | no releases were found for this movie. If this happens with every movie, see [No releases or few](#no-releases-or-few) |
 | "The link to your own AIOStreams config is not set", "Set the config link: Setup → Apps → Melange" | your own config is selected, but there is no link: paste it in "Where to get films" ([Settings page on a phone](phone-page.en.md)) |
 | "AIOStreams is not responding", "AIOStreams returned an error", "Unexpected reply from AIOStreams" | a server or network failure: try again later. Details are in the [log](#log) |
-| "Sources returned errors" | the release sources did not answer. Try again later; the "Source errors" setting shows what happened ([Advanced](advanced-options.en.md)) |
+| "Addons returned errors" | the AIOStreams addons did not answer. Try again later; the "Addon errors" setting shows what happened ([Advanced](advanced-options.en.md)) |
 | "Reply too large: lower the result limit in the AIOStreams settings" | the server reply is over 6 MB. Lower the result limit in the web settings of the config ([AIOStreams and your own config](aiostreams.en.md)) |
 | "This title has no IMDb ID", "Releases cannot be found: no Dune card and no IMDb ID" | without an IMDb ID Melange cannot find the movie ([Known limitations](limitations.en.md)) |
 | "The list is outdated, open it again", "This screen is outdated: open the catalog again" | open the movie or the catalog again |
@@ -83,7 +83,7 @@ To look into an error, move to a release and press **INFO**: after the release d
 - **Few releases.** In "Where to look for releases", choose **"Everywhere"**: "Russian trackers only" gives fewer releases, especially with Real-Debrid alone.
 - **The page says "jacred.stream refuses the chosen AIOStreams server: choose another JacRed".** Choose another JacRed.
 - **Few series releases on a server marked "no TMDB".** Set your own TMDB key ([AIOStreams and your own config](aiostreams.en.md)).
-- **Why the sources sent no releases** is shown by the "Source errors" setting: turn it on ([Advanced](advanced-options.en.md)), then in the release list press POP UP → "Source errors".
+- **Why the addons sent no releases** is shown by the "Addon errors" setting: turn it on ([Advanced](advanced-options.en.md)), then in the release list press POP UP → "Addon errors".
 
 ## Does not open via TorrServer
 
@@ -150,19 +150,23 @@ Messages on the Dune after POP UP → "Download to server…":
 - "The client did not accept the torrent (it may already have it)": look in the client.
 - "The server did not answer in time — check the client": the release may have been added, look in the client.
 
-## Source profiles
+## Sources
 
 On the settings page:
 
 | Message or symptom | What to do |
 |---|---|
-| A profile is marked "no config" and is missing from the POP UP menu on the Dune | the profile config was not created on the server (for example, the server did not answer). Open the profile on the page and press "Save" |
-| "The profile has no config yet: press "Save"" | the same |
-| "These settings are in the profile "…" already" | there cannot be two identical profiles: change at least one setting |
-| "A profile "…" exists already, choose another name" | change the name |
-| "There are 8 profiles already. Delete one to add another." | delete a profile you do not need |
-| "The profiles changed in another tab: reload the page" | reload the page |
-| The page shows the wrong current profile | the profile was switched on the Dune: reload the page |
+| A source is marked "no config" and is missing from the POP UP menu on the Dune | the source config was not created on the server (for example, the server did not answer). Open the source on the page and press "Save" |
+| "A source "…" exists already, choose another name" | change the name |
+| "There are 8 sources already. Delete one to add another." | delete a source you do not need |
+| "The source was deleted in another tab: reload the page" | reload the page |
+
+On the Dune:
+
+| Message | What to do |
+|---|---|
+| "Source not changed: …" | the source did not answer. Try again later or choose another one |
+| "Sources changed on the page, the source is kept" | the source was changed on the page while the menu was open: open "Get films from…" again |
 
 ## Catalog and the TV tab
 

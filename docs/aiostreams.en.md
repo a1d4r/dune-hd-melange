@@ -101,7 +101,7 @@ When you need it: you move from Debrid to "Torrents" or back.
 
 If the config of the new mode could not be created (the server is unreachable, a limit), go back to the previous one: its config is intact.
 
-Different servers, configs and JacRed can be saved as profiles and switched with the remote: [Source profiles](profiles.en.md).
+Different servers, configs and JacRed can be added as sources and picked on the Dune: [Sources](profiles.en.md).
 
 ## Your own JacRed
 

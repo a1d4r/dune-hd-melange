@@ -21,4 +21,4 @@ Your own JacRed is covered in [AIOStreams and your own config](aiostreams.en.md)
 - "no answer" for all servers: check the internet on the Dune and press "Compare speed" again.
 - The JacRed server answers, but there are few releases: see [Known limitations](limitations.en.md).
 
-Next: [Source profiles](profiles.en.md) · [Contents](README.en.md)
+Next: [Sources](profiles.en.md) · [Contents](README.en.md)
