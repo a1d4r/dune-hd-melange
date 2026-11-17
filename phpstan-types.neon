@@ -67,18 +67,16 @@ parameters:
         AioLpView: 'array{title: AioLpTitle, q: string, sources: list<AioLpSource>, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: AioProgress, flt?: array{k: string, name: string}, flt_gone?: bool, off?: list<string>}'
         # The search window between its ticks (AioLpv::$run, aio_lpv_search_open, online_search.php).
         # The view of the search so far in v, the poll of its replies (aio_lp_poll), more: the rows before "Ещё N" (-1: a new search).
-        AioLpRun: 'array{sid: string, st: AioState, how: string, mark: bool, back: bool, path: string, key: string, fail: string, phase: string, search: AioLpSearch|null, v: AioLpView, poll: AioLpPoll, more: int}'
+        AioLpRun: 'array{sid: string, st: AioState, how: string, back: bool, path: string, key: string, fail: string, phase: string, search: AioLpSearch|null, v: AioLpView, poll: AioLpPoll, more: int}'
         # A choice of a source of the online list found on this Dune (lampac_sources of settings.json, aio_lp_srcs_ok, lampac.php): its path, name, shown;
         # not AioLpSource, a source of a search.
         AioLpChoice: 'array{path: string, name: string, on: bool}'
-        # The mark "online" of a title (data_dir/lampac_choice.json, view_online.php): the path of the balancer, the voice and the key of the row of the last start ('' none).
-        AioLpMark: 'array{online: bool, path: string, voice: string, key: string, ts: int}'
         # A config of AIOStreams made by the settings page (aio_aio_conf, common.php).
         AioConf: 'array{uuid: string, pass: string, manifest: string, tmdb: bool, set: list<string>|null, tpl: string|null}'
         # A JacRed to ask (aio_jacred_conf, aio_jacred_builtin_conf, common.php).
         AioJacred: 'array{base: string, host: string, key: string, key_url: string, builtin?: bool}'
-        # A source profile (aio_profile_ok, source_profiles.php): a config of Melange or an own config, each with its JacRed.
-        AioProfile: 'array{name: string, base: string, mode: string, tpl: string, jacred: string, jacred_own_url: string, jacred_own_key: string, conf: AioConf|null}|array{name: string, url: string, jacred: string, jacred_own_url: string, jacred_own_key: string}'
+        # A source profile (aio_profile_ok, source_profiles.php; v2): a config of Melange (Debrid, Торренты) with its keys, an own config, each with its JacRed, or Lampac.
+        AioProfile: 'array{id: string, name: string, base: string, mode: string, tpl: string, jacred: string, jacred_own_url: string, jacred_own_key: string, conf: AioConf|null, rd_key: string, tb_key: string}|array{id: string, name: string, url: string, jacred: string, jacred_own_url: string, jacred_own_key: string}|array{id: string, name: string, lampac_url: string, lampac_token: string, lampac_as_lampa: bool, lampac_sources: list<AioLpChoice>}'
         # settings.json as read (aio_settings_read, common.php).
         AioSettings: '''
             array{
@@ -116,6 +114,7 @@ parameters:
                 aio_confs: array<string, array<string, AioConf>>,
                 src_profiles: bool,
                 profiles: list<AioProfile>,
+                src_main: string,
                 saved_once: bool
             }
         '''
@@ -145,7 +144,11 @@ parameters:
                 cat_rating: bool,
                 cat_card: bool,
                 debrid_main: string,
-                profiles: array<int, array{name: string, now: bool}>,
+                profiles: list<array{id: string, name: string, kind: string, ready: bool}>,
+                prof: string,
+                lp_prof: string,
+                main: string,
+                ready: bool,
                 made: array{base: string, mode: string, conf: AioConf}|null,
                 lp: string,
                 lp_src: list<AioLpChoice>
@@ -235,7 +238,7 @@ parameters:
         # episode record, "s:e" => array(pos, len, watched), the marks of the own card.
         AioWhSeries: 'array{stdClass|null, array<string, array{float, float, bool}>, array<string, int>}'
         # The episode to offer of a series by its history (aio_wh_pick, history.php).
-        AioWhPick: 'array{s: int, e: int, hash: string, key: string, kind: string, rec: string, why: string}'
+        AioWhPick: 'array{s: int, e: int, hash: string, key: string, prof: string, kind: string, rec: string, why: string}'
         # The state of a card of the history (aio_pg_index, progress.php).
         AioPgEntry: 'array{w: stdClass|null, end: int, seen: bool, movie_mark: bool, series: AioWhSeries|null, ep: array{w: stdClass, seen: bool}|null}'
         # What the badges show of it (aio_pg_badge, progress.php).
@@ -245,8 +248,8 @@ parameters:
         # The meta of a tile of the row "Continue" kept (aio_cpm_read, cp_meta.php): when written, its tile (null: a failure).
         AioCpmEntry: 'array{t: int, tile: AioCatTile|null}'
         # "Continue watching" of play_action (aio_resume, main.php; next:
-        # aio_wh_resume_ep, history.php). mode: debrid, ts, lampac (hash: the key of an online record), ''.
-        AioResume: 'array{hash: string, mode: string, s: int, e: int, pos: int, len: int, uid: string, next: bool}'
+        # aio_wh_resume_ep, history.php). mode: debrid, ts, lampac (hash: the key of an online record), ''; prof: wh_prof, the id of the profile of the start ('' none, v2).
+        AioResume: 'array{hash: string, mode: string, s: int, e: int, pos: int, len: int, uid: string, prof: string, next: bool}'
         # Reasons of the error streams of a reply (aio_error_streams, main.php):
         # different lines up to AIO_ERRORS_MAX, more: different ones past them.
         AioErrors: 'array{lines: list<string>, more: int}'
@@ -273,7 +276,9 @@ parameters:
                 lp?: AioLpView,
                 lp_on?: bool,
                 lp_only?: bool,
-                lp_note?: string
+                lp_note?: string,
+                prof?: string,
+                lp_prof?: string
             }
         '''
         # The row and the map of the last start through TorrServer (Aio::$ts_pack, torrserver.php).

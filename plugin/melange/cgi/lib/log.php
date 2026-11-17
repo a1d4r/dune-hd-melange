@@ -184,7 +184,7 @@ function aio_cgi_log_download($dir)
     // The own JacRed, chosen or not: its key and address never in the log.
     $jrs = aio_jacred_own_confs($s);
     $pw = aio_settings_secrets($s);
-    $hosts = aio_settings_hosts($s);
+    $hosts = aio_settings_hosts($s, $s['source'] === 'own' ? $s['manifest_url'] : '');
     $m = array('base' => $base, 'jrs' => $jrs, 'pw' => $pw, 'aio' => $s['aio_own_url'], 'hosts' => $hosts);
     aio_cgi_headers(200, 'text/plain');
     header('Content-Disposition: attachment; filename="' . AIO_CGI_NAME . '-' . gmdate('Ymd-Hi') . '.log"');

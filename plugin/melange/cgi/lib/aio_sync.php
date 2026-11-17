@@ -119,14 +119,14 @@ function aio_cgi_aio_keep($dir, $base, $mode, $c, $prof = '')
     $cell = isset($s['aio_confs'][$base][$mode]) ? $s['aio_confs'][$base][$mode] : null;
     $k = $prof !== '' ? aio_profile_find($s, $prof) : -1;
     $p = $k >= 0 ? $s['profiles'][$k] : null;
-    if ($prof !== '' && (!$p || isset($p['url']) || $p['base'] !== $base || $p['mode'] !== $mode))
+    if ($prof !== '' && (!$p || !isset($p['base']) || $p['base'] !== $base || $p['mode'] !== $mode))
         return 'the profile changed meanwhile, not kept';
     $x = $p ? $p['conf'] : $cell;
     if ($x ? $cell && $cell['uuid'] === $x['uuid'] : !$p || (aio_profile_same($s, $p) && (!$cell || aio_profile_held($s, $cell))))
         $s = aio_settings_cell($s, $base, $mode, $c);
     foreach ($s['profiles'] as $i => $q)
     {
-        if ($x ? !isset($q['url']) && $q['conf'] && $q['conf']['uuid'] === $x['uuid'] : $i === $k)
+        if ($x ? !empty($q['conf']) && $q['conf']['uuid'] === $x['uuid'] : $i === $k)
             $s['profiles'][$i]['conf'] = $c;
     }
     return aio_cgi_store($dir, $s);
@@ -180,6 +180,9 @@ function aio_cgi_aio_sync($dir, $reset = false, $prof = '')
     $s = aio_settings_read($dir);
     $f = aio_cgi_fields();
     $k = $prof !== '' ? aio_profile_find($s, $prof) : -1;
+    // A profile of Lampac has no config (the page of before v2 shows none: v2 stage 3).
+    if ($k >= 0 && !aio_profile_rel($s['profiles'][$k]))
+        $k = -1;
     if ($prof !== '' && $k < 0)
     {
         aio_cgi_log('aio sync: no such profile');

@@ -18,6 +18,13 @@ class AioWh
     public static $sig = null;
     /** @var array<string, float> */
     public static $all = array();
+    // The latest of our records of each card (v2, spec §1.6: a movie without supplier_info opens by the profile of it):
+    // dune id => array(the rest of its uid - infoHash or the key of an online record, wh_prof of its action_params ('' -
+    // none, of before v2), the end of the record); one a card, not a release. $last_new: while the files are read.
+    /** @var array<string, array{string, string, int}> */
+    public static $last = array();
+    /** @var array<string, array{string, string, int}> */
+    public static $last_new = array();
 }
 
 // The card of a record that WatchHistory::do_update keeps: not deleted, wh_item_is_suitable of the
@@ -173,9 +180,37 @@ function aio_wh_ours_visit($w, $arg, &$acc)
     $pos = isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1;
     $len = isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0;
     $mark = isset($arg[1][$w->uid]) ? $arg[1][$w->uid] : 0;
-    $acc[$w->uid] = aio_wh_full($pos, $len) || aio_wh_mark_on($mark, aio_wh_end($w)) ? 1.0 :
+    $end = aio_wh_end($w);
+    $acc[$w->uid] = aio_wh_full($pos, $len) || aio_wh_mark_on($mark, $end) ? 1.0 :
         ($len > 0 && $pos > 0 ? min(1.0, $pos / $len) : 0.0);
+    if (preg_match('/^[^:]+:(' . AIO_DUNE_ID . '):-?[0-9]{1,5}:-?[0-9]{1,5}:([^:]+)\z/', $w->uid, $m) &&
+        (!isset(AioWh::$last_new[$m[1]]) || AioWh::$last_new[$m[1]][2] < $end))
+        AioWh::$last_new[$m[1]] = array($m[2], aio_wh_prof($w), $end);
     return false;
+}
+
+// wh_prof of the action_params of record $w (the id of the profile of its start, v2), '' none or not an id.
+/**
+ * @param stdClass $w
+ * @return string
+ */
+function aio_wh_prof($w)
+{
+    $ap = isset($w->action_params) && is_object($w->action_params) ? $w->action_params : null;
+    return $ap && isset($ap->wh_prof) && aio_profile_id_ok($ap->wh_prof) ? $ap->wh_prof : '';
+}
+
+// The latest of our records of card $dune_id (aio_wh_ours_all: read again only when the history files change) ->
+// array(the rest of its uid: infoHash or the key of an online record, the id of its profile: '' none), null none.
+/**
+ * @param string $dune_id
+ * @return array{string, string}|null
+ */
+function aio_wh_card_last($dune_id)
+{
+    aio_wh_ours_all();
+    return $dune_id !== '' && isset(AioWh::$last[$dune_id]) ? array(AioWh::$last[$dune_id][0], AioWh::$last[$dune_id][1]) :
+        null;
 }
 
 // is_fully_watched of the shell with its default settings: 90 %, 30 s left.
@@ -260,9 +295,12 @@ function aio_wh_ours_all()
         aio_log(sprintf('progress: cache hit, %d releases, %.0f ms', count(AioWh::$all), (microtime(true) - $t) * 1000));
         return AioWh::$all;
     }
+    AioWh::$last_new = array();
     $all = aio_wh_find('progress', 'aio_wh_ours_visit', array(AIO_SUP_ID . ':', aio_wh_marked_set()));
     AioWh::$sig = $sig;
     AioWh::$all = $all;
+    AioWh::$last = AioWh::$last_new;
+    AioWh::$last_new = array();
     return $all;
 }
 
@@ -486,10 +524,10 @@ function aio_wh_after($eps, $s, $e)
 }
 
 // Episode record $w -> array(s (1 for none or a negative one), e (1 for none), pos (-1 for none),
-// len (0 for none), uid (else url, else '')).
+// len (0 for none), uid (else url, else ''), the id of the profile of its start (aio_wh_prof, '' none)).
 /**
  * @param stdClass $w
- * @return array{int, int, float, float, string}
+ * @return array{int, int, float, float, string, string}
  */
 function aio_wh_rec($w)
 {
@@ -497,7 +535,8 @@ function aio_wh_rec($w)
         isset($w->e) && is_numeric($w->e) ? intval($w->e) : 1,
         isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : -1.0,
         isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0.0,
-        isset($w->uid) && is_string($w->uid) ? $w->uid : (isset($w->url) && is_string($w->url) ? $w->url : ''));
+        isset($w->uid) && is_string($w->uid) ? $w->uid : (isset($w->url) && is_string($w->url) ? $w->url : ''),
+        aio_wh_prof($w));
 }
 
 // The episode after the marks of the own card in state $st of a series (aio_wh_series) made after
@@ -547,7 +586,7 @@ function aio_wh_mark_next($st, $eps)
 // the last episode. hash: the release of the record if it is ours (uid "aio:<dune id>:<s>:<e>:<infoHash>"),
 // also with another episode offered (its list opens at that release), else ''; key: so the key of an online
 // record of ours (uid "aio:<dune id>:<s>:<e>:lp-…", aio_lp_key_parse: its online list opens at the row of
-// it), else ''; kind: none (no
+// it), else ''; prof: the id of the profile of the record (wh_prof of its action_params, v2; '' none); kind: none (no
 // record), record (not watched), next, same (watched, no data on its season), first (the last one
 // watched); rec: the record for the log, why: the choice for the log.
 /**
@@ -561,23 +600,23 @@ function aio_wh_pick($st, $dune_id, $eps)
     $w = $st[0];
     $mk = aio_wh_mark_next($st, $eps);
     if (!$w)
-        return $mk ? array('s' => $mk[0], 'e' => $mk[1], 'hash' => '', 'key' => '', 'kind' => $mk[2] ? 'next' : 'first',
-            'rec' => '', 'why' => $mk[3]) : array('s' => 1, 'e' => 1, 'hash' => '', 'key' => '', 'kind' => 'none', 'rec' => '',
-            'why' => 'no history record');
-    list($s, $e, $pos, $len, $uid) = aio_wh_rec($w);
+        return $mk ? array('s' => $mk[0], 'e' => $mk[1], 'hash' => '', 'key' => '', 'prof' => '',
+            'kind' => $mk[2] ? 'next' : 'first', 'rec' => '', 'why' => $mk[3]) : array('s' => 1, 'e' => 1, 'hash' => '',
+            'key' => '', 'prof' => '', 'kind' => 'none', 'rec' => '', 'why' => 'no history record');
+    list($s, $e, $pos, $len, $uid, $prof) = aio_wh_rec($w);
     $u = aio_wh_uid($uid, $dune_id);
     $hash = $u && preg_match('/^[0-9a-f]{40}$/D', $u[2]) ? $u[2] : '';
     $key = $u && aio_lp_key_parse($u[2]) ? $u[2] : '';
     $watched = isset($st[1]["$s:$e"]) && $st[1]["$s:$e"][2] ? (aio_wh_full($pos, $len) ? 'by position' : 'marked') : '';
     $rec = sprintf('record S%dE%d pos=%d/%d watched=%s', $s, $e, $pos, $len, $watched !== '' ? $watched : 'no');
     if ($mk)
-        return array('s' => $mk[0], 'e' => $mk[1], 'hash' => $hash, 'key' => $key, 'kind' => $mk[2] ? 'next' : 'first',
-            'rec' => $rec, 'why' => $mk[3]);
+        return array('s' => $mk[0], 'e' => $mk[1], 'hash' => $hash, 'key' => $key, 'prof' => $prof,
+            'kind' => $mk[2] ? 'next' : 'first', 'rec' => $rec, 'why' => $mk[3]);
     if ($watched === '')
-        return array('s' => $s, 'e' => $e, 'hash' => $hash, 'key' => $key, 'kind' => 'record', 'rec' => $rec,
+        return array('s' => $s, 'e' => $e, 'hash' => $hash, 'key' => $key, 'prof' => $prof, 'kind' => 'record', 'rec' => $rec,
             'why' => 'not watched');
     list($ns, $ne, $next, $why) = aio_wh_after($eps, $s, $e);
-    return array('s' => $ns, 'e' => $ne, 'hash' => $hash, 'key' => $key,
+    return array('s' => $ns, 'e' => $ne, 'hash' => $hash, 'key' => $key, 'prof' => $prof,
         'kind' => $next ? 'next' : (isset($eps[$s]) ? 'first' : 'same'), 'rec' => $rec, 'why' => $why);
 }
 

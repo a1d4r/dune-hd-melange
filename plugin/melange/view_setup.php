@@ -388,14 +388,64 @@ function aio_quick_settings($s)
     return $s;
 }
 
+// The profile of the quick setup in the settings $s (v2, spec §2.10): Торренты on the server of Melange - its index,
+// -1 none.
+/**
+ * @param AioSettings $s
+ * @return int
+ */
+function aio_quick_profile($s)
+{
+    foreach ($s['profiles'] as $i => $p)
+    {
+        if (isset($p['base']) && $p['base'] === AIO_AIO_SERVER_MELANGE && $p['mode'] === AIO_MODE_P2P)
+            return $i;
+    }
+    return -1;
+}
+
+// The settings $s with the config $conf of the quick setup in its profile (aio_quick_profile; v2, spec §2.10): one
+// without a config gets it; none - a new one at the end of those of releases, named by its kind
+// (aio_profile_word, aio_profile_free_name), of the settings of aio_quick_settings (the template of P2P, the JacRed,
+// the keys of the top). It is the main one when there is none or the main one is not ready. -> array(the settings,
+// '') or array(null, the key of the error: src_full - the profiles full).
+/**
+ * @param AioSettings $s
+ * @param AioConf $conf
+ * @return array{0: AioSettings|null, 1: string}
+ */
+function aio_quick_put($s, $conf)
+{
+    $k = aio_quick_profile($s);
+    if ($k >= 0 && !$s['profiles'][$k]['conf'])
+        $s['profiles'][$k]['conf'] = $conf;
+    if ($k < 0)
+    {
+        $q = aio_quick_settings($s);
+        $p = aio_profile_ok(array('name' => aio_profile_free_name($s, aio_profile_word('p2p')),
+            'base' => AIO_AIO_SERVER_MELANGE, 'mode' => AIO_MODE_P2P, 'tpl' => $q['aio_tpl_p2p'], 'jacred' => $s['jacred'],
+            'jacred_own_url' => $s['jacred_own_url'], 'jacred_own_key' => $s['jacred_own_key'], 'conf' => $conf), $s);
+        if (!$p || count($s['profiles']) >= AIO_PROFILES_MAX)
+            return array(null, 'src_full');
+        $p['id'] = aio_profile_new_id($s, $p['name']);
+        list($s, $k) = aio_profile_add($s, $p);
+    }
+    $m = aio_profile_main($s);
+    if ($m < 0 || !aio_profile_ready($s['profiles'][$m]))
+        $s['src_main'] = $s['profiles'][$k]['id'];
+    return array($s, '');
+}
+
 // "Quick setup: torrents" (0.51.0) of the settings screen ($p of
 // aio_setup_params) and of the window "No config" of play_action ($p['card'],
 // $p['lang']: the language of the card). TorrServer is asked first
 // (aio_ts_alive): none is no stop, the catalog and search work without it -
-// said after. The settings of aio_quick_settings; the config there in that
-// mode made by aio_conf_create (one there already: no request). settings.json
-// is written only after it, read again just before (as the page); a failure,
-// a file not read too, writes nothing. Then aio_quick_done.
+// said after. The config of its profile (aio_quick_profile; none - the one of
+// the cell of the server of Melange in P2P no other profile has; none - made by
+// aio_conf_create with the settings of aio_quick_settings). settings.json is
+// written only after it, read again just before (as the page), the profile in
+// it (aio_quick_put); a failure, a file not read too, writes nothing. Then
+// aio_quick_done.
 /**
  * @param array<string, string> $p
  * @return array<string, mixed>
@@ -406,16 +456,25 @@ function aio_setup_quick($p)
     if ($dir === '' || !is_dir($dir))
         return aio_error('err_setup_dir');
     // A file there not read (aio_settings_load logged why): not overwritten with the defaults.
-    $s = aio_quick_settings(aio_settings_read($dir, $why));
+    $s = aio_settings_read($dir, $why);
     if ($why !== '')
         return aio_error('err_quick_read');
     $ts = aio_ts_alive();
-    $conf = aio_settings_conf($s);
+    $k = aio_quick_profile($s);
+    $conf = $k >= 0 ? $s['profiles'][$k]['conf'] : null;
+    $cell = aio_settings_conf(aio_quick_settings($s));
+    if (!$conf && $cell && !aio_profile_held($s, $cell))
+        $conf = $cell;
     $made = !$conf;
     if ($conf)
         aio_log('setup: quick: a config of P2P there, no request');
     else
     {
+        if ($k < 0 && count($s['profiles']) >= AIO_PROFILES_MAX)
+        {
+            aio_log('setup: quick: the profiles full, no request');
+            return aio_error('src_full');
+        }
         $pass = substr(aio_setup_rand_hex(), 0, 24);
         if ($pass === '')
         {
@@ -423,7 +482,7 @@ function aio_setup_quick($p)
             return aio_error('err_setup_write');
         }
         $t = microtime(true);
-        list($conf, $r) = aio_conf_create($s, null, $pass, 'aio_user_req');
+        list($conf, $r) = aio_conf_create(aio_quick_settings($s), null, $pass, 'aio_user_req');
         aio_log(sprintf('setup: quick: create: %s%s, %.2f s', !$r ? 'no template' : ($r[0] ? "curl $r[0]" : "HTTP $r[1]"),
             $conf ? ', made' : '', microtime(true) - $t));
         if (!$conf)
@@ -431,13 +490,18 @@ function aio_setup_quick($p)
     }
     // Read again: the page may have saved while the server answered; a file
     // not read then is not overwritten with the defaults either.
-    $s = aio_quick_settings(aio_settings_read($dir, $why));
+    $s = aio_settings_read($dir, $why);
     if ($why !== '')
     {
         aio_log("setup: quick: settings.json $why, not written");
         return aio_error('err_quick_read');
     }
-    $s['aio_confs'][AIO_AIO_SERVER_MELANGE][AIO_MODE_P2P] = $conf;
+    list($s, $err) = aio_quick_put($s, $conf);
+    if (!$s)
+    {
+        aio_log('setup: quick: the profiles full, not written');
+        return aio_error($err);
+    }
     if (!aio_settings_write($s))
     {
         aio_log('setup: quick: settings.json not written');
@@ -446,7 +510,9 @@ function aio_setup_quick($p)
     // Made by the template now: no migration to run.
     if ($made && !aio_mig_mark($conf['uuid'], $s))
         aio_log('setup: quick: the migration mark not written');
-    aio_log('setup: quick: saved' . ($ts ? '' : ', TorrServer does not answer'));
+    $k = aio_quick_profile($s);
+    aio_log('setup: quick: saved' . ($ts ? '' : ', TorrServer does not answer') . ', profile ' .
+        aio_profile_tag($k, $s['profiles'][$k]) . ($s['profiles'][$k]['id'] === $s['src_main'] ? ', the main one' : ''));
     // The screen of the catalog under it is read by this operation too.
     aio_settings_load();
     return aio_quick_done($p, $ts);

@@ -4,20 +4,16 @@
 // on the screen of the releases (the frame of view_gcomps.php, rows "Phantom · Дублированный"
 // and a card of their own; of an episode a row a voice of its season), its MENU, ENTER (the start:
 // online_play.php, as "Continue" of a record of it and play_action), the left and right keys and
-// "Выбрать серию" of an episode, "Источники…" (which sources, their order: lampac_sources of settings.json;
-// online_sources.php), the
-// mark "online" of a title (data_dir/lampac_choice.json) and
-// the window of no such episode in the voice.
+// "Выбрать серию" of an episode, "Балансеры…" (which balancers, their order: lampac_sources of the profile of
+// Lampac; online_sources.php) and the window of no such episode in the voice. The mark "online" of a title
+// (data_dir/lampac_choice.json) is gone (v2): a record of the history leads to the online list.
 // The list lives in Aio::$state beside the releases: 'lp' (AioLpView), 'lp_on' - the screen
 // shows it, 'lp_only' - the releases were never asked, 'lp_note' - the yellow line of the
 // releases. The word Lampac only in the card of a row ("Через: Lampac из настроек").
-// PHP 5.3.6, firmware API only. Types (AioLpView, AioLpRun, AioLpMark): phpstan-types.neon.
+// PHP 5.3.6, firmware API only. Types (AioLpView, AioLpRun): phpstan-types.neon.
 
 // Seconds between two searches of "Обновить": a poll of all balancers often gets the IP banned.
 define('AIO_LPV_REFRESH', 30);
-// Titles of lampac_choice.json at most, the newest kept.
-define('AIO_LPV_MARKS_MAX', 500);
-define('AIO_LPV_MARKS_FILE', 'lampac_choice.json');
 // Width of the column of the balancers at most, px.
 define('AIO_LPV_SRC_W', 320);
 // A row under the header of its balancer: its voice indented, px.
@@ -36,9 +32,9 @@ class AioLpv
     public static $ids = array();
     // The season of the last start of an episode (online_play.php): the dune id of its card (a key of
     // a voice is the same for two series), its key (aio_lp_season_key), s, the row of the voice, the
-    // season in it (AioLpSeason) - the next episodes of its playlist take their link from it
-    // (lampac_next:). One, memory only.
-    /** @var array{k: string, key: string, s: int, row: AioLpRow, sea: AioLpSeason}|null */
+    // season in it (AioLpSeason), the id of the profile of Lampac ('' none: one of another server does not fit) - the
+    // next episodes of its playlist take their link from it (lampac_next:). One, memory only.
+    /** @var array{k: string, key: string, s: int, prof: string, row: AioLpRow, sea: AioLpSeason}|null */
     public static $season = null;
     // The episode a lazy one of the playlist played last (aio_lpv_next): the rid of the online list
     // under the player, s, e; back from the player the list goes to it (aio_lpv_finish). null none.
@@ -86,83 +82,6 @@ function aio_lpv_title($mv)
     $ids = isset(AioLpv::$ids[$k]) ? AioLpv::$ids[$k] : array('', '');
     return aio_lp_title(array('tmdb' => $ids[0], 'imdb' => $mv['imdb'], 'kp' => $ids[1], 'title' => $mv['title'],
         'original_title' => $mv['native'], 'year' => $mv['year'], 'serial' => $mv['series']));
-}
-
-// --- The mark "online" of a title (spec §8): data_dir/lampac_choice.json, key => mark.
-
-/**
- * @return string
- */
-function aio_lpv_marks_path()
-{
-    $dir = aio_data_dir();
-    return $dir !== '' ? "$dir/" . AIO_LPV_MARKS_FILE : '';
-}
-
-// The marks of the file, the bad ones left out; key '' of a mark before it.
-/**
- * @return array<string, AioLpMark>
- */
-function aio_lpv_marks_read()
-{
-    $f = aio_lpv_marks_path();
-    $j = $f !== '' && is_file($f) ? json_decode((string) file_get_contents($f, false, null, 0, 1048576), true) : null;
-    $out = array();
-    foreach (is_array($j) ? $j : array() as $k => $m)
-    {
-        if (is_string($k) && preg_match('/^(?:' . AIO_DUNE_ID . '|tt[0-9]{1,10})\z/', $k) && is_array($m) &&
-            isset($m['online'], $m['path'], $m['voice'], $m['ts']) && is_bool($m['online']) && is_string($m['path']) &&
-            is_string($m['voice']) && is_int($m['ts']))
-            $out[$k] = array('online' => $m['online'], 'path' => $m['path'], 'voice' => $m['voice'],
-                'key' => isset($m['key']) && is_string($m['key']) ? $m['key'] : '', 'ts' => $m['ts']);
-    }
-    return $out;
-}
-
-// The mark of card $mv, null none.
-/**
- * @param AioMovie $mv
- * @return AioLpMark|null
- */
-function aio_lpv_mark($mv)
-{
-    $all = aio_lpv_marks_read();
-    $k = aio_lpv_key($mv);
-    return $k !== '' && isset($all[$k]) && $all[$k]['online'] ? $all[$k] : null;
-}
-
-// Card $mv marked "online" with balancer path $path, voice $voice and the key of the row $key (a
-// series: the cursor on its row by it, the voice in the hex) of the last start (null: as it was), or the
-// mark taken off ($on false). The newest AIO_LPV_MARKS_MAX kept.
-/**
- * @param AioMovie $mv
- * @param bool $on
- * @param string|null $path
- * @param string|null $voice
- * @param string|null $key
- * @return void
- */
-function aio_lpv_mark_set($mv, $on, $path = null, $voice = null, $key = null)
-{
-    $f = aio_lpv_marks_path();
-    $k = aio_lpv_key($mv);
-    if ($f === '' || $k === '')
-        return;
-    $all = aio_lpv_marks_read();
-    if (!$on && !isset($all[$k]))
-        return;
-    $old = isset($all[$k]) ? $all[$k] : array('online' => true, 'path' => '', 'voice' => '', 'key' => '', 'ts' => 0);
-    unset($all[$k]);
-    if ($on)
-        $all[$k] = array('online' => true, 'path' => $path !== null ? $path : $old['path'],
-            'voice' => $voice !== null ? $voice : $old['voice'], 'key' => $key !== null ? $key : $old['key'], 'ts' => time());
-    uasort($all, function ($a, $b)
-    {
-        return $a['ts'] - $b['ts'];
-    });
-    $all = array_slice($all, -AIO_LPV_MARKS_MAX, AIO_LPV_MARKS_MAX, true);
-    $ok = aio_write_file($f, json_encode($all));
-    aio_log("lampac: mark $k " . ($on ? 'online' : 'off') . ($ok ? '' : ', not written'));
 }
 
 // --- Words.
@@ -1086,7 +1005,7 @@ function aio_lpv_errors_of($st)
 
 // --- MENU and the keys of the lists.
 
-// lp_go ("Откуда брать… → Онлайн") of list $st: the search window, the title marked; the online
+// lp_go ("Откуда брать… → Онлайн") of list $st: the search window; the online
 // list of this list from a search younger than AIO_LPV_REFRESH s: it again, no request; already
 // the online list: nothing.
 /**
@@ -1099,7 +1018,6 @@ function aio_lpv_go($st)
         return null;
     if (isset($st['lp']) && aio_lp_now() - $st['lp']['t'] < AIO_LPV_REFRESH)
     {
-        aio_lpv_mark_set($st['movie'], true);
         $ns = $st;
         $ns['rid'] = aio_rid();
         $ns['lp_on'] = true;
@@ -1108,13 +1026,12 @@ function aio_lpv_go($st)
         aio_log('lampac: the online list again, ' . count($ns['lp']['rows']) . ' rows, no request');
         return aio_list_replace($ns);
     }
-    return aio_lpv_search_open($st, 'replace', array('mark' => true));
+    return aio_lpv_search_open($st, 'replace');
 }
 
-// lp_back ("Откуда брать… → Раздачи", or the profile in use, of the online list $st): the mark
-// taken off, the releases back - those asked before as they were, else asked now (an error:
-// its dialog, the online list kept). Of the releases with the yellow line (a marked title,
-// nothing online): the mark taken off, the releases stay, the line gone.
+// lp_back ("Откуда брать… → Раздачи", or the profile in use, of the online list $st): the releases
+// back - those asked before as they were, else asked now (an error: its dialog, the online list
+// kept). Of the releases with the yellow line (nothing online): the releases stay, the line gone.
 /**
  * @param AioState $st
  * @return AioAction|null
@@ -1123,16 +1040,14 @@ function aio_lpv_back($st)
 {
     if (empty($st['lp_on']) && !empty($st['lp_note']))
     {
-        aio_lpv_mark_set($st['movie'], false);
         $ns = $st;
         $ns['rid'] = aio_rid();
         unset($ns['lp_note']);
-        aio_log('lampac: the releases chosen over the yellow line, the mark off');
+        aio_log('lampac: the releases chosen over the yellow line');
         return aio_list_replace($ns);
     }
     if (empty($st['lp_on']))
         return null;
-    aio_lpv_mark_set($st['movie'], false);
     if (empty($st['lp_only']))
     {
         $ns = $st;
@@ -1402,7 +1317,7 @@ function aio_lpv_input($in, $control)
         return $control === 'lp_move' ? null : aio_error('err_list_expired');
     }
     if ($control === 'lp_find')
-        return aio_lpv_on($st['movie'], $st['s'], $st['e']) ? aio_lpv_search_open($st, 'open', array('mark' => true)) : null;
+        return aio_lpv_on($st['movie'], $st['s'], $st['e']) ? aio_lpv_search_open($st, 'open') : null;
     if ($control === 'lp_go')
         return aio_lpv_go($st);
     if ($control === 'lp_back')

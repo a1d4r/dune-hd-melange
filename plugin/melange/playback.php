@@ -84,7 +84,9 @@ function aio_info_desc($r, $lang)
 // An episode of the playlist without a URL: the player asks for it with
 // get_vod_stream_url (aio_lazy_action). No recent_uid: its own vod_play has it.
 // $list: in a playlist of several (aio_ser_name). $mode: 'debrid' or 'ts', the
-// way the playlist was started, aio_next keeps it.
+// way the playlist was started, aio_next keeps it; then the id of the profile of
+// releases of the start (v2, spec §1.7: the next episode is an operation of its
+// own, it asks the same AIOStreams; none - no such suffix, the main one).
 /**
  * @param AioMovie $mv
  * @param int $s
@@ -98,7 +100,8 @@ function aio_lazy_series($mv, $s, $e, $hash, $list, $mode)
 {
     return array(
         PluginVodSeriesInfo::name => aio_ser_name($mv, $s, $e, $list),
-        PluginVodSeriesInfo::playback_url => "aio_next:{$mv['dune_id']}:$s:$e:$hash:$mode",
+        PluginVodSeriesInfo::playback_url => "aio_next:{$mv['dune_id']}:$s:$e:$hash:$mode" .
+            (Aio::$settings['prof'] !== '' ? ':' . Aio::$settings['prof'] : ''),
         PluginVodSeriesInfo::playback_url_is_stream_url => false);
 }
 
@@ -298,7 +301,8 @@ function aio_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
             'movie_id' => $mv['dune_id'],
             'sup_data' => 'auto',
             'wh_release' => $r['hash'],
-            'wh_mode' => $mode);
+            'wh_mode' => $mode,
+            'wh_prof' => Aio::$settings['prof']);
     }
     // A file cached on several services: which copy plays.
     $copy = !$ts && isset($r['copies'], $r['copy']) ? sprintf(', copy %d of %d: %s', $r['copy'] + 1, count($r['copies']),
@@ -1253,14 +1257,16 @@ function aio_lazy_action($pb)
     // An episode of "Онлайн" (online_play.php).
     if (is_string($pb) && strpos($pb, 'lampac_next:') === 0)
         return aio_lpv_lazy($pb);
-    if (!is_string($pb) || !preg_match('/^aio_next:(' . AIO_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([0-9a-f]{40}):(debrid|ts)$/D',
-        $pb, $m))
+    if (!is_string($pb) || !preg_match('/^aio_next:(' . AIO_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([0-9a-f]{40}):(debrid|ts)' .
+        '(?::([a-z0-9]{8}))?$/D', $pb, $m))
     {
         aio_log('lazy: bad playback_url ' . (is_string($pb) ? aio_cut(aio_mask($pb), 100) : gettype($pb)));
         return aio_error('err_list_expired', '', true);
     }
-    aio_log("lazy: S{$m[2]}E{$m[3]} hash={$m[4]} mode={$m[5]} -> handle_user_input next");
-    return aio_input('next', array('k' => $m[1], 's' => $m[2], 'e' => $m[3], 'h' => $m[4], 'm' => $m[5]));
+    $prof = isset($m[6]) ? $m[6] : '';
+    aio_log("lazy: S{$m[2]}E{$m[3]} hash={$m[4]} mode={$m[5]}" . ($prof !== '' ? " profile $prof" : '') .
+        ' -> handle_user_input next');
+    return aio_input('next', array('k' => $m[1], 's' => $m[2], 'e' => $m[3], 'h' => $m[4], 'm' => $m[5], 'p' => $prof));
 }
 
 // "Episode SxEy did not load": the error, $labels (aio_errors_labels) and "Stop" only.
@@ -1278,6 +1284,18 @@ function aio_next_failed($lang, $ep, $key, $detail = '', $labels = array())
     return aio_dialog(aio_tr($lang, 'next_failed', $ep),
         array_merge(aio_dialog_lines(aio_tr($lang, $key)), aio_dialog_lines($detail), $labels),
         array(aio_tr($lang, 'next_stop') => aio_input('next_stop')));
+}
+
+// Param p of next/next_pick: the id of the profile of releases of the playlist (aio_lazy_series) - Aio::$settings of it
+// (aio_op_use; none, not there or not ready: the main one as loaded).
+/**
+ * @param stdClass $in
+ * @return void
+ */
+function aio_next_prof($in)
+{
+    if (isset($in->p) && is_string($in->p) && $in->p !== '')
+        aio_op_use($in->p, Aio::$settings['lp_prof']);
 }
 
 // Params k, s, e, h of next/next_pick -> array(key, s, e, hash) or null.
@@ -1465,6 +1483,7 @@ function aio_next($in)
         $saved = aio_movie_load($in->k);
         $lang = $saved ? $saved['lang'] : '';
     }
+    aio_next_prof($in);
     $p = aio_next_params($in);
     $mode = isset($in->m) ? $in->m : '';
     if (!$p || ($mode !== 'debrid' && $mode !== 'ts'))
@@ -1553,7 +1572,7 @@ function aio_next_missing($st, $hash, $errors)
     $title = $errors['lines'] ? aio_tr($lang, 'next_sources_failed', $se) : aio_tr($lang, 'next_no_episode', $se);
     return aio_dialog($title, aio_errors_labels($lang, $errors), array(
         aio_tr($lang, 'next_pick') => aio_input('next_pick', array('k' => $st['movie']['dune_id'], 's' => strval($st['s']),
-            'e' => strval($st['e']), 'h' => $hash, 'rid' => $st['rid'])),
+            'e' => strval($st['e']), 'h' => $hash, 'rid' => $st['rid'], 'p' => Aio::$settings['prof'])),
         aio_tr($lang, 'next_stop') => aio_input('next_stop')));
 }
 
@@ -1568,6 +1587,7 @@ function aio_next_pick($in)
     $st = Aio::$next;
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
     {
+        aio_next_prof($in);
         $p = aio_next_params($in);
         $res = $p ? aio_next_fetch($p[0], $p[1], $p[2]) : array('error' => 'err_list_expired', 'detail' => '');
         if (isset($res['error']))

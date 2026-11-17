@@ -122,8 +122,10 @@ class Aio
     // 'cat_card' - "Своя карточка" in effect (aio_card_own): aio_card_enter.
     // 'debrid_main' - the main Debrid service (aio_debrid_main_read): of a file cached on
     // several, the copy of it plays (aio_list_state, aio_play); '' - the first in the reply.
-    // 'profiles' - the source profiles of MENU of a list (aio_profiles_menu; none with the
-    // setting off). 'made' - the config of Melange in use: array('base', 'mode', 'conf' - AioConf),
+    // 'profiles' - the source profiles (v2) in their order for MENU of a list: id, name, kind (aio_profile_kind), ready
+    // (aio_profile_ready). 'prof', 'lp_prof' - the ids of the pair of profiles of the operation (aio_profile_pair: of
+    // releases, of Lampac; '' none): 'base' and the rest are of the first, 'lp' and 'lp_src' of the second. 'main' - the
+    // id of the main profile ('' none), 'ready' - a profile ready there. 'made' - the config of Melange in use: array('base', 'mode', 'conf' - AioConf),
     // null for none or the own one (the migrations of aio_mig_run). 'lp' - the Lampac of "Онлайн"
     // (aio_lp_base, view_online.php), '' off; its host "<lampac>" in the log ('hosts'). 'lp_src' - lampac_sources
     // of the settings: the sources of the online list found and the choice of them (aio_lpv_srcs_pick).
@@ -131,8 +133,12 @@ class Aio
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true,
-        'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array(), 'made' => null, 'lp' => '',
-        'lp_src' => array());
+        'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array(), 'prof' => '', 'lp_prof' => '',
+        'main' => '', 'ready' => false, 'made' => null, 'lp' => '', 'lp_src' => array());
+    // settings.json as read at the start of the operation (aio_settings_load): another pair of its profiles takes its
+    // settings without a second read (aio_op_use). null before the first one.
+    /** @var AioSettings|null */
+    public static $file = null;
     // Movies of the playlists with lazy episodes, by dune id: array('movie' =>
     // aio_movie, 'lang' => ...). Also in tmp_dir (aio_movie_save): a lazy
     // episode must work after a php_server restart. No stream URLs.
@@ -479,7 +485,8 @@ function aio_seasons($m)
 // 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else;
 // 'lampac' of an online record (online_play.php): 'hash' its key as it is, of no format
 // checked here (aio_lp_find of aio_lpv_resume does: bad_key, the search window).
-// 'len': 0 without wh_len; 'next': of aio_wh_resume_ep. r22 (240619_0210) sends
+// 'len': 0 without wh_len; 'next': of aio_wh_resume_ep; 'prof': wh_prof, the id of the
+// profile of the start (v2; '' - a record of before it, or not an id). r22 (240619_0210) sends
 // wh_len, but no wh_release or wh_mode: null there, the list.
 /**
  * @param stdClass $in
@@ -508,6 +515,7 @@ function aio_resume($in)
         'pos' => max(0, aio_int($si, 'wh_pos', 0)),
         'len' => max(0, aio_int($si, 'wh_len', 0)),
         'uid' => isset($si->wh_uid) && is_string($si->wh_uid) ? $si->wh_uid : '',
+        'prof' => isset($si->wh_prof) && aio_profile_id_ok($si->wh_prof) ? $si->wh_prof : '',
         'next' => false);
 }
 
@@ -702,34 +710,62 @@ function aio_settings_write($s)
 
 // data_dir/settings.json, read at the start of every operation, before its
 // first log line (the values are masked there). Not cached: the page writes
-// it while php_server runs.
+// it while php_server runs. Aio::$settings - of the pair of the main profile
+// (aio_profile_pair); a list screen, a lazy episode take their own (aio_op_use).
 /**
  * @return void
  */
 function aio_settings_load()
 {
-    Aio::$settings = aio_op_settings(aio_settings_read_logged());
+    Aio::$file = aio_settings_read_logged();
+    Aio::$settings = aio_op_settings(Aio::$file);
 }
 
-// Aio::$settings of settings $s (aio_settings_read; a profile applied: aio_gc_src),
-// the sort and the main Debrid read from their files.
+// Aio::$settings of settings $s (aio_settings_read) as if the source were the profiles of the pair $rel (of releases),
+// $lp (of Lampac): their indexes in profiles, -1 none, null - of the pair of the main one (aio_profile_pair; spec v2
+// §1.9). The source, its config and keys, "Без торрентов" of $rel (aio_profile_view: the configs only its own - a cell
+// of another profile never goes in); the Lampac of $lp; the passwords, keys, tokens and hosts hidden in the log - of
+// all profiles; the sort and the main Debrid read from their files.
 /**
  * @param AioSettings $s
+ * @param int|null $rel
+ * @param int|null $lp
  * @return AioOpSettings
  */
-function aio_op_settings($s)
+function aio_op_settings($s, $rel = null, $lp = null)
 {
+    list($r0, $l0) = aio_profile_pair($s);
+    $rel = $rel === null ? $r0 : $rel;
+    $lp = $lp === null ? $l0 : $lp;
+    $v = $s;
+    if ($rel >= 0)
+        $v = aio_profile_view($v, $s['profiles'][$rel]);
+    // No profile of releases: no config (the source at the top kept, of its words: "Впишите ссылку…" of an own one).
+    else
+        list($v['manifest_url'], $v['aio_confs'], $v['rd_key'], $v['tb_key']) = array('', array(), '', '');
+    if ($lp >= 0)
+        $v = aio_profile_view($v, $s['profiles'][$lp]);
+    else
+        list($v['lampac_url'], $v['lampac_token'], $v['lampac_as_lampa'], $v['lampac_sources']) = array('', '', false, array());
     list($sort, $rev) = aio_sort_read();
-    $conf = $s['source'] === 'own' ? null : aio_settings_conf($s);
-    $lp = aio_lp_base($s);
-    $hosts = aio_settings_hosts($s);
+    $conf = $v['source'] === 'own' ? null : aio_settings_conf($v);
+    $lpb = aio_lp_base($v);
     // lampac.php has no settings: its requests to the Lampac of them take these (aio_lp_send).
-    AioLp::$auth = array('token' => $s['lampac_token'], 'lampa' => $s['lampac_as_lampa'],
-        'uid' => $s['lampac_as_lampa'] && $lp !== '' ? aio_lp_uid() : '');
+    AioLp::$auth = array('token' => $v['lampac_token'], 'lampa' => $v['lampac_as_lampa'],
+        'uid' => $v['lampac_as_lampa'] && $lpb !== '' ? aio_lp_uid() : '');
+    $profiles = array();
+    $ready = false;
+    foreach ($s['profiles'] as $p)
+    {
+        $profiles[] = array('id' => $p['id'], 'name' => $p['name'], 'kind' => aio_profile_kind($p),
+            'ready' => (bool) aio_profile_ready($p));
+        $ready = $ready || aio_profile_ready($p);
+    }
+    $m = aio_profile_main($s);
     return array(
         // The stream URL is <base>/stream/...: the base keeps its trailing slash.
-        'base' => aio_manifest_base(aio_settings_manifest($s)),
-        'jrs' => aio_jacred_list($s),
+        'base' => aio_manifest_base(aio_settings_manifest($v)),
+        'jrs' => aio_jacred_list($v),
         'jrm' => aio_jacred_own_confs($s),
         'servers' => $s['servers'],
         'pw' => aio_settings_secrets($s),
@@ -740,10 +776,10 @@ function aio_op_settings($s)
         'markers_exact' => $s['markers_exact'],
         'source_errors' => $s['source_errors'],
         'no_color_keys' => $s['no_color_keys'],
-        'no_torrents' => aio_no_torrents($s),
-        'aio' => $s['aio_own_url'],
-        'own' => $s['source'] === 'own',
-        'hosts' => $hosts,
+        'no_torrents' => aio_no_torrents($v),
+        'aio' => $v['aio_own_url'],
+        'own' => $v['source'] === 'own',
+        'hosts' => aio_settings_hosts($s, $v['source'] === 'own' ? $v['manifest_url'] : ''),
         'sort' => $sort,
         'sort_rev' => $rev,
         'cat_rows' => $s['cat_rows'],
@@ -751,28 +787,57 @@ function aio_op_settings($s)
         'cat_rating' => $s['cat_rating'],
         'cat_card' => aio_card_own($s['cat_card']),
         'debrid_main' => aio_debrid_main_read(aio_data_dir()),
-        'profiles' => aio_profiles_menu($s),
-        'made' => $conf ? array('base' => aio_settings_base($s), 'mode' => $s['aio_mode'], 'conf' => $conf) : null,
-        'lp' => $lp,
-        'lp_src' => $s['lampac_sources']);
+        'profiles' => $profiles,
+        'prof' => $rel >= 0 ? $s['profiles'][$rel]['id'] : '',
+        'lp_prof' => $lp >= 0 ? $s['profiles'][$lp]['id'] : '',
+        'main' => $m >= 0 ? $s['profiles'][$m]['id'] : '',
+        'ready' => $ready,
+        'made' => $conf ? array('base' => aio_settings_base($v), 'mode' => $v['aio_mode'], 'conf' => $conf) : null,
+        'lp' => $lpb,
+        'lp_src' => $v['lampac_sources']);
 }
 
-// The source profiles of MENU of a list (0.58.0): with src_profiles on, those
-// ready (aio_profile_ready), by their index in profiles => array('name', 'now' -
-// the settings are of it, aio_profile_is). array() with the setting off.
+// Aio::$settings of the pair of profiles of ids $rel (of releases) and $lp (of Lampac) of Aio::$file (a list screen,
+// a lazy episode, a record of the history): one not there, not of its kind or not ready ('' too) - that of the pair of
+// the main one (aio_profile_pair). -> the pair as taken (ids, '' none).
 /**
- * @param AioSettings $s
- * @return array<int, array{name: string, now: bool}>
+ * @param string $rel
+ * @param string $lp
+ * @return array{string, string}
  */
-function aio_profiles_menu($s)
+function aio_op_use($rel, $lp)
 {
-    $r = array();
-    foreach ($s['src_profiles'] ? $s['profiles'] : array() as $i => $p)
-    {
-        if (aio_profile_ready($p))
-            $r[$i] = array('name' => $p['name'], 'now' => aio_profile_is($s, $p));
-    }
-    return $r;
+    $s = Aio::$file;
+    if (!$s)
+        return array(Aio::$settings['prof'], Aio::$settings['lp_prof']);
+    list($r0, $l0) = aio_profile_pair($s);
+    $r = aio_profile_index($s, $rel);
+    $l = aio_profile_index($s, $lp);
+    if ($r < 0 || !aio_profile_rel($s['profiles'][$r]) || !aio_profile_ready($s['profiles'][$r]))
+        $r = $r0;
+    if ($l < 0 || aio_profile_rel($s['profiles'][$l]))
+        $l = $l0;
+    $rid = $r >= 0 ? $s['profiles'][$r]['id'] : '';
+    $lid = $l >= 0 ? $s['profiles'][$l]['id'] : '';
+    if ($rid !== Aio::$settings['prof'] || $lid !== Aio::$settings['lp_prof'])
+        Aio::$settings = aio_op_settings($s, $r, $l);
+    return array(Aio::$settings['prof'], Aio::$settings['lp_prof']);
+}
+
+// The pair of profiles of the list screen of input $in (spec v2 §1.9): its media_url "streams:<rid>" or its rid that of
+// Aio::$state - the profiles the list was made of (prof, lp_prof of the state), else the pair of the main one as loaded.
+/**
+ * @param stdClass $in
+ * @return void
+ */
+function aio_op_of_screen($in)
+{
+    $st = Aio::$state;
+    if (!$st || !isset($st['prof'], $st['lp_prof']))
+        return;
+    $url = isset($in->media_url) && is_string($in->media_url) ? $in->media_url : '';
+    if ($url === 'streams:' . $st['rid'] || (isset($in->rid) && $in->rid === $st['rid']))
+        aio_op_use($st['prof'], $st['lp_prof']);
 }
 
 // The sort of the lists, chosen by a colour key of the list (aio_gc_sort):
@@ -1658,7 +1723,8 @@ function aio_list_state($mv, $s, $e, $rows, $lang, $errors)
     foreach ($rows as $i => $r)
         $rows[$i] = aio_row_pick($r, Aio::$settings['debrid_main']);
     return array('rid' => aio_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => aio_rows_sort($rows, $sort, $rev),
-        'lang' => $lang, 'sort' => $sort, 'sort_rev' => $rev, 'errors' => $errors);
+        'lang' => $lang, 'sort' => $sort, 'sort_rev' => $rev, 'errors' => $errors, 'prof' => Aio::$settings['prof'],
+        'lp_prof' => Aio::$settings['lp_prof']);
 }
 
 // --- play_action of the supplier.
@@ -2072,6 +2138,7 @@ class AioFw extends DunePluginFw
             if (!isset($in->control_id) || $in->control_id !== 'cat_info')
             {
                 aio_settings_load();
+                aio_op_of_screen($in);
                 aio_tv_settings_seen($in);
             }
             $op = $ctx->op_type_code;

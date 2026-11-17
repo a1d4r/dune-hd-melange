@@ -87,11 +87,12 @@ function aio_lpv_srcs_fits($s)
     return $json !== '' && strlen('settings=' . rawurlencode($json)) <= AIO_LPV_SRCS_IMPORT_MAX;
 }
 
-// lampac_sources $choice into Aio::$settings and settings.json, read again just before (a source of the file not
-// in $choice kept, last), then the new ones $add (aio_lpv_srcs_new) after them, each while there is room
-// (AIO_LP_SEEN_MAX) and the export of the settings with it loads back (aio_lpv_srcs_fits); those not kept - one
-// line. Written as the quick setup does (aio_settings_write); $add, none of it kept: nothing written. -> the number
-// of $add kept; -1: not written.
+// lampac_sources $choice into Aio::$settings and settings.json - of the profile of Lampac of the operation (its id
+// lp_prof; v2: each Lampac its own balancers), the file read again just before (a source of the file not in $choice
+// kept, last), then the new ones $add (aio_lpv_srcs_new) after them, each while there is room (AIO_LP_SEEN_MAX) and
+// the export of the settings with it loads back (aio_lpv_srcs_fits: the whole file, all the profiles); those not kept -
+// one line. Written as the quick setup does (aio_settings_write); $add, none of it kept, or the profile gone (the
+// page deleted it meanwhile): nothing written. -> the number of $add kept; -1: not written.
 /**
  * @param list<AioLpChoice> $choice
  * @param list<AioLpChoice> $add
@@ -108,10 +109,16 @@ function aio_lpv_srcs_save($choice, $add = array())
         aio_log('lampac: sources: settings.json not read, not written');
         return -1;
     }
+    $k = aio_profile_index($s, Aio::$settings['lp_prof']);
+    if ($k < 0 || aio_profile_rel($s['profiles'][$k]))
+    {
+        aio_log('lampac: sources: the profile of Lampac gone, not written');
+        return -1;
+    }
     $have = array();
     foreach ($choice as $c)
         $have[$c['path']] = true;
-    foreach ($s['lampac_sources'] as $c)
+    foreach ($s['profiles'][$k]['lampac_sources'] as $c)
     {
         if (!isset($have[$c['path']]) && count($choice) < AIO_LP_SEEN_MAX)
         {
@@ -119,7 +126,7 @@ function aio_lpv_srcs_save($choice, $add = array())
             $have[$c['path']] = true;
         }
     }
-    $s['lampac_sources'] = $choice;
+    $s['profiles'][$k]['lampac_sources'] = $choice;
     $full = 0;
     $big = 0;
     $n = 0;
@@ -128,8 +135,8 @@ function aio_lpv_srcs_save($choice, $add = array())
         if (isset($have[$c['path']]))
             continue;
         $t = $s;
-        $t['lampac_sources'][] = $c;
-        if (count($s['lampac_sources']) >= AIO_LP_SEEN_MAX)
+        $t['profiles'][$k]['lampac_sources'][] = $c;
+        if (count($s['profiles'][$k]['lampac_sources']) >= AIO_LP_SEEN_MAX)
             $full++;
         else if (!aio_lpv_srcs_fits($t))
             $big++;
@@ -143,7 +150,7 @@ function aio_lpv_srcs_save($choice, $add = array())
     if ($full + $big > 0)
         aio_log('lampac: sources: ' . ($full + $big) . ' new not kept (' . AIO_LP_SEEN_MAX . " at most: $full, the export " .
             'of the settings over ' . AIO_LPV_SRCS_IMPORT_MAX . " bytes: $big)");
-    Aio::$settings['lp_src'] = $s['lampac_sources'];
+    Aio::$settings['lp_src'] = $s['profiles'][$k]['lampac_sources'];
     if ($add && $n === 0)
         return 0;
     if (!aio_settings_write($s))

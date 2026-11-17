@@ -241,6 +241,8 @@ function aio_cgi_save($dir, $t)
     // The source profiles (0.58.0): the setting as posted; the profiles of the file (a=profile_*, MENU of a list write
     // them), the one of the editor saved over them.
     $data['profiles'] = $cur['profiles'];
+    // The main one (v2): only "Сделать текущим" changes it (aio_settings_from_top of aio_cgi_store).
+    $data['src_main'] = $cur['src_main'];
     // The rows not changed on the page (posted as it came, cat_rows_was): the stored ones stay, the
     // dialog of the rows on the Dune may have changed them since. No cat_rows_was: a form of before.
     if (isset($_POST[$f['cat_rows_was']['name']]) && $v['cat_rows'] === $v['cat_rows_was'])

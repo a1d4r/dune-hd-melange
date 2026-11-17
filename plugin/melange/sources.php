@@ -1,8 +1,8 @@
 <?php
 // "Откуда брать" in MENU of the list (0.58.0): the source profiles the user saved on the
-// settings page (settings.json, src_profiles). The menu of them, and the switch: the
+// settings page (settings.json, profiles). The menu of them, and the switch: the
 // request to the source of the profile first, then settings.json read again and
-// written, the screen replaced. The item of MENU: aio_gc_src_item, view_gcomps.php. The line
+// written (until stage 2 of v2: the main one, aio_settings_from_top), the screen replaced. The item of MENU: aio_gc_src_item, view_gcomps.php. The line
 // "Откуда: <source>" over the lists: aio_src_tabs_right.
 // Reads and writes Aio (state, settings). Functions are global; the require order is
 // in main.php.
@@ -24,7 +24,7 @@ function aio_gc_src_menu($in)
     }
     $items = array();
     $sel = 0;
-    foreach (Aio::$settings['profiles'] as $p)
+    foreach (aio_src_menu_profiles() as $p)
     {
         // The online list: no profile "сейчас" (view_online.php).
         $now = $p['now'] && empty($st['lp_on']);
@@ -67,8 +67,23 @@ function aio_gc_src_dialog($title, $lang, $res)
     return aio_dialog($title, $lines, array('OK' => aio_close_and(null)));
 }
 
-// Profile $k of the settings $s (aio_profile_find; -1: none) can be switched to: the setting
-// on, the profile there and ready.
+// The profiles of releases of MENU "Откуда брать…" (v2: always, no setting): those ready (aio_profile_ready) in their
+// order, now - the profile of releases of the operation (Aio::$settings prof).
+/**
+ * @return list<array{name: string, now: bool}>
+ */
+function aio_src_menu_profiles()
+{
+    $r = array();
+    foreach (Aio::$settings['profiles'] as $p)
+    {
+        if ($p['ready'] && $p['kind'] !== 'lampac')
+            $r[] = array('name' => $p['name'], 'now' => $p['id'] === Aio::$settings['prof']);
+    }
+    return $r;
+}
+
+// Profile $k of the settings $s (aio_profile_find; -1: none) can be switched to: there, of releases and ready.
 /**
  * @param AioSettings $s
  * @param int $k
@@ -76,38 +91,24 @@ function aio_gc_src_dialog($title, $lang, $res)
  */
 function aio_gc_src_usable($s, $k)
 {
-    return $s['src_profiles'] && $k >= 0 && aio_profile_ready($s['profiles'][$k]);
-}
-
-// The words of the kinds of the profiles in the language $lang (aio_profile_keep).
-/**
- * @param string $lang
- * @return array{debrid: string, p2p: string, own: string}
- */
-function aio_gc_src_words($lang)
-{
-    return array('debrid' => 'Debrid', 'p2p' => aio_tr($lang, 'src_kind_torrents'), 'own' => aio_tr($lang, 'src_kind_own'));
+    return $k >= 0 && aio_profile_rel($s['profiles'][$k]) && aio_profile_ready($s['profiles'][$k]);
 }
 
 // After the request to the source of profile $p (aio_gc_src): settings.json read again (the
-// page may have saved while the source answered), the source in use kept by a profile
-// (aio_profile_keep, the names of $words; its config or its settings those of another
-// profile: not, a line in the log), the profile applied and
-// written, Aio::$settings of it -> ''. Not written -> the key of the error, Aio::$settings not
+// page may have saved while the source answered), the profile applied, the main one until stage 2 of v2
+// (aio_settings_from_top), written, Aio::$settings of it -> ''. Not written -> the key of the error, Aio::$settings not
 // touched (the one rollback, to the settings before the request, is in aio_gc_src): the
 // file not read (err_quick_read), not written (err_setup_write); the page changed meanwhile
-// the profile (gone, another, not ready, the setting off) or the source of the settings
-// $s0 of the first read (aio_source_keys: src_changed); the source to save, the profiles full
-// (src_full).
+// the profile (gone, another, not ready) or the source of the settings
+// $s0 of the first read (aio_source_keys: src_changed).
 /**
  * @param string $dir
  * @param AioSettings $s0
  * @param AioProfile $p
  * @param string $tag
- * @param array{debrid: string, p2p: string, own: string} $words
  * @return string
  */
-function aio_gc_src_commit($dir, $s0, $p, $tag, $words)
+function aio_gc_src_commit($dir, $s0, $p, $tag)
 {
     $s = aio_settings_read($dir, $why);
     $k = aio_profile_find($s, $p['name']);
@@ -124,24 +125,12 @@ function aio_gc_src_commit($dir, $s0, $p, $tag, $words)
                 $err = array('src_changed', 'the source changed meanwhile');
         }
     }
-    $kept = -1;
     if ($err[0] === '')
     {
-        list($s, $kept, $full, $held, $same) = aio_profile_keep($s, $words);
-        if ($full)
-            $err = array('src_full', 'the profiles full, the previous source not saved');
-        elseif ($held >= 0)
-            aio_log('source: previous not saved: its config is of profile ' . aio_profile_tag($held, $s['profiles'][$held]));
-        elseif ($same >= 0)
-            aio_log('source: previous not saved: its settings are of profile ' . aio_profile_tag($same, $s['profiles'][$same]));
-    }
-    if ($err[0] === '')
-    {
-        $s = aio_profile_apply($s, $p);
+        $s = aio_settings_from_top(aio_profile_apply($s, $p));
         if (aio_settings_write($s))
         {
-            if ($kept >= 0)
-                aio_log('source: saved previous as profile ' . aio_profile_tag($kept, $s['profiles'][$kept]));
+            Aio::$file = $s;
             Aio::$settings = aio_op_settings($s);
             return '';
         }
@@ -184,12 +173,12 @@ function aio_gc_src($in)
         return aio_gc_src_dialog($title, $st['lang'], array('error' => $why !== '' ? 'err_quick_read' : 'src_changed',
             'detail' => ''));
     }
-    $now = aio_profile_now($s);
+    $now = aio_profile_index($s, Aio::$settings['prof']);
     $p = $s['profiles'][$k];
     $tag = 'source: profile ' . aio_profile_tag($now, $now < 0 ? null : $s['profiles'][$now]) . ' -> ' .
         aio_profile_tag($k, $p) . ', ' . aio_ep_tag($st);
     // The profile in use from the online list: its releases back; from the releases with the
-    // yellow line: the mark off (view_online.php).
+    // yellow line: the line gone (view_online.php).
     if ($k === $now && (!empty($st['lp_on']) || !empty($st['lp_note'])))
         return aio_lpv_back($st);
     if ($k === $now)
@@ -197,19 +186,11 @@ function aio_gc_src($in)
         aio_log("$tag: in use, nothing");
         return null;
     }
-    // The source of no profile to save first, the profiles full: no request.
-    $words = aio_gc_src_words($st['lang']);
-    list(, , $full) = aio_profile_keep($s, $words);
-    if ($full)
-    {
-        aio_log("$tag: the profiles full, the previous source not saved, the source and the screen kept");
-        return aio_gc_src_dialog($title, $st['lang'], array('error' => 'src_full', 'detail' => ''));
-    }
     // The online list: the cursor of the releases, not of its rows.
     list($cur) = aio_gc_pos($st, isset($in->parent_sel_state) && empty($st['lp_on']) ? $in->parent_sel_state : null);
     $old = Aio::$settings;
     // The request goes with the settings of the profile, the log masked by them too.
-    Aio::$settings = aio_op_settings(aio_profile_apply($s, $p));
+    Aio::$settings = aio_op_settings($s, $k, aio_profile_index($s, Aio::$settings['lp_prof']));
     $r = aio_relist($st, $st['s'], $st['e'], '');
     if (!isset($r['error']))
         $r['by'] = 'first row';
@@ -229,12 +210,9 @@ function aio_gc_src($in)
     }
     if (!isset($r['error']))
     {
-        $e = aio_gc_src_commit($dir, $s, $p, $tag, $words);
+        $e = aio_gc_src_commit($dir, $s, $p, $tag);
         if ($e === '')
         {
-            // A profile chosen: the title is not "online" any more.
-            if (aio_lpv_on($st['movie'], $st['s'], $st['e']))
-                aio_lpv_mark_set($st['movie'], false);
             $ns = $r['st'];
             aio_log(sprintf('%s, screen replaced, %d -> %d rows, row %d -> %d (%s), %.2f s', $tag, count($st['rows']),
                 count($ns['rows']), $cur, $r['sel'], $r['by'], microtime(true) - Aio::$t0));
@@ -256,7 +234,7 @@ function aio_gc_src($in)
  */
 function aio_src_sources_n($st)
 {
-    return (Aio::$settings['base'] !== '' ? max(1, count(Aio::$settings['profiles'])) : 0) +
+    return (Aio::$settings['base'] !== '' ? max(1, count(aio_src_menu_profiles())) : 0) +
         (aio_lpv_on($st['movie'], $st['s'], $st['e']) ? 1 : 0);
 }
 
@@ -269,7 +247,7 @@ function aio_src_from_name($st)
 {
     if (!empty($st['lp_on']))
         return aio_tr($st['lang'], 'lp_online');
-    foreach (Aio::$settings['profiles'] as $p)
+    foreach (aio_src_menu_profiles() as $p)
     {
         if ($p['now'])
             return $p['name'];

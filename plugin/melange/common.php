@@ -695,7 +695,7 @@ function aio_jacred_own_confs($s)
     $seen = array();
     foreach (array_merge(array($s), $s['profiles']) as $x)
     {
-        $c = aio_jacred_own_conf($x['jacred_own_url'], $x['jacred_own_key']);
+        $c = isset($x['jacred_own_url']) ? aio_jacred_own_conf($x['jacred_own_url'], $x['jacred_own_key']) : null;
         if ($c && !isset($seen[$c['base'] . ' ' . $c['key']]))
         {
             $seen[$c['base'] . ' ' . $c['key']] = true;
@@ -728,7 +728,9 @@ function aio_jacred_list($s)
 // passwords, keys of Real-Debrid, TorBox, TMDB, the password of TorrServer, passwords of the configs
 // and the long segments of their manifests, as of the manifest in use
 // (aio_mask_secrets); so the long segments of the own config, and of the own
-// configs and of the configs of the profiles, in use or not (0.58.0).
+// configs and of the configs of the profiles, in use or not (0.58.0); the keys of
+// Debrid of every profile and the token of every Lampac (as typed and URL-encoded
+// both ways: + @ = change), not only of the one in use (v2).
 /**
  * @param AioSettings $s
  * @return list<string>
@@ -754,12 +756,27 @@ function aio_settings_secrets($s)
     {
         if (isset($p['url']))
             $urls[] = $p['url'];
-        elseif ($p['conf'])
+        elseif (isset($p['lampac_url']))
         {
-            $pw[] = $p['conf']['pass'];
-            $urls[] = $p['conf']['manifest'];
+            if ($p['lampac_token'] !== '')
+                $pw = array_merge($pw, array_unique(array($p['lampac_token'], rawurlencode($p['lampac_token']),
+                    urlencode($p['lampac_token']))));
+        }
+        else
+        {
+            foreach (array('rd_key', 'tb_key') as $k)
+            {
+                if ($p[$k] !== '')
+                    $pw[] = $p[$k];
+            }
+            if ($p['conf'])
+            {
+                $pw[] = $p['conf']['pass'];
+                $urls[] = $p['conf']['manifest'];
+            }
         }
     }
+    $pw = array_values(array_unique($pw));
     foreach (array_unique($urls) as $url)
     {
         foreach (explode('/', preg_replace('~^[^:]*://[^/]*~', '', aio_manifest_base($url))) as $seg)
@@ -775,13 +792,16 @@ function aio_settings_secrets($s)
 // tag: the own TorrServer "<ts>" (not the default one on the Dune), the
 // servers of "Download to server" "<server>", the own AIOStreams servers of the
 // configs and of the profiles and the hosts of the own configs of the profiles,
-// in use or not, "<aio>" (0.58.0; not the servers of the list: public), Lampac
-// ("Онлайн") "<lampac>", its scheme://host[:port].
+// in use or not, "<aio>" (0.58.0; not the servers of the list: public; nor the
+// host of the own config $use in use: its long segments are hidden, its host is
+// kept, as before the profiles), Lampac ("Онлайн") "<lampac>", its
+// scheme://host[:port], of every profile of Lampac (v2).
 /**
  * @param AioSettings $s
+ * @param string $use
  * @return array<string, string>
  */
-function aio_settings_hosts($s)
+function aio_settings_hosts($s, $use = '')
 {
     $h = array();
     if ($s['ts_url'] !== '' && $s['ts_url'] !== AIO_TS_DEFAULT)
@@ -794,11 +814,15 @@ function aio_settings_hosts($s)
             $h[$u] = '<server>';
     }
     $own = array_keys($s['aio_confs']);
+    $lps = $s['lampac_url'] !== '' ? array($s['lampac_url']) : array();
     foreach ($s['profiles'] as $p)
     {
+        if (isset($p['lampac_url']))
+            $lps[] = $p['lampac_url'];
         // The address of the host of an own config: as aio_aio_own makes it.
-        $own[] = isset($p['url']) ? aio_aio_own(strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $p['url']))) :
-            $p['base'];
+        elseif (!isset($p['url']) || $p['url'] !== $use)
+            $own[] = isset($p['url']) ? aio_aio_own(strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $p['url']))) :
+                $p['base'];
     }
     $servers = aio_aio_servers();
     foreach ($own as $u)
@@ -806,8 +830,8 @@ function aio_settings_hosts($s)
         if ($u !== '' && !isset($servers[$u]) && !isset($h[$u]))
             $h[$u] = '<aio>';
     }
-    if ($s['lampac_url'] !== '')
-        $h[strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $s['lampac_url']))] = '<lampac>';
+    foreach ($lps as $u)
+        $h[strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $u))] = '<lampac>';
     return $h;
 }
 
@@ -863,16 +887,17 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
 // 0.42 or older (one per server, base => config) is read into the cell of
 // its mode (aio_mode_of), written back so by the next save),
-// 'src_profiles' => bool, "Профили источников": the source profiles in MENU of a
-// list (0.58.0; not a bool - false), 'profiles' => list of aio_profile_ok() (each a set
-// of the settings of the source with its own config; one of before the editor of the page
-// takes the JacRed, the template and the config of the settings), at most
-// AIO_PROFILES_MAX, unique names and targets (the first one kept; kept with
-// src_profiles off too), 'lampac_url' => the address of Lampac ("Онлайн"),
-// aio_lp_addr() or '' (off), 'lampac_token' => the token of its provider, aio_lp_token() or ''
-// (none), 'lampac_as_lampa' => bool, "Представляться приложением Lampa" (aio_lp_send of lampac.php;
-// not a bool - false), 'lampac_sources' => the sources Lampac has found and the choice of them, aio_lp_srcs_ok()
-// (the window "Источники…" of the online list; no field on the page),
+// 'src_profiles' => bool, "Профили источников" of the page of before v2 (0.58.0; not a bool - false; the plugin
+// does not read it: MENU of a list has the profiles always), 'profiles' => list of aio_profile_ok() (v2: a source
+// each, all its settings in it and an id: Debrid, Торренты, an own config, Lampac; one of before the editor of the
+// page takes the JacRed, the template and the config of the settings, of before v2 the keys of Debrid), at most
+// AIO_PROFILES_MAX, unique names (the first one kept), 'src_main' => the id of the main profile (v2; of none - ''),
+// 'lampac_url' => the address of Lampac, aio_lp_addr() or '' (off), 'lampac_token' => the token of its provider,
+// aio_lp_token() or '' (none), 'lampac_as_lampa' => bool, "Представляться приложением Lampa" (not a bool - false),
+// 'lampac_sources' => the balancers Lampac has found and the choice of them, aio_lp_srcs_ok(); the source, the
+// keys of Debrid and lampac_* at the top are those of the main profile (of v2 a copy, aio_settings_top: a version of
+// before reads them; a file of before v2 without src_main - the source in use of it and Lampac go into the profiles,
+// aio_settings_migrate),
 // each checked by the rules above; absent or wrong -> as not set ('', the
 // default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
@@ -936,7 +961,7 @@ function aio_settings_parse($j)
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
         'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'lampac_url' => '', 'lampac_token' => '', 'lampac_as_lampa' => false, 'lampac_sources' => array(), 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
-        'saved_once' => false);
+        'src_main' => '', 'saved_once' => false);
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
         $r['manifest_url'] = aio_manifest_url($j['manifest_url']);
@@ -1042,9 +1067,14 @@ function aio_settings_parse($j)
             }
         }
     }
-    // After aio_confs and the JacRed: a profile of before takes them (aio_profile_ok).
+    // After aio_confs, the JacRed and the keys: a profile of before takes them (aio_profile_ok).
     if (isset($j['profiles']) && is_array($j['profiles']))
         $r['profiles'] = aio_profiles_ok($j['profiles'], $r);
+    // No src_main: a file of before v2 (spec v2 §4); src_main of no profile - the first is the main one.
+    if (!array_key_exists('src_main', $j))
+        return aio_settings_migrate($r);
+    if (aio_profile_id_ok($j['src_main']) && aio_profile_index($r, $j['src_main']) >= 0)
+        $r['src_main'] = $j['src_main'];
     return $r;
 }
 
@@ -1088,8 +1118,9 @@ function aio_settings_unread($f)
 
 // The JSON of settings.json v AIO_SETTINGS_V of $data (keys of
 // aio_settings_read, its order; not saved_once: read only) with saved_at
-// now; '' if json_encode failed. Written by the page (aio_cgi_store), its
-// export (a=export) and the quick setup of the plugin (aio_settings_write).
+// now, the main profile copied to the top (aio_settings_top); '' if json_encode
+// failed. Written by the page (aio_cgi_store), its export (a=export) and the
+// plugin (aio_settings_write: the quick setup, the rows, the balancers).
 /**
  * @param array<string, mixed> $data
  * @return string
@@ -1097,7 +1128,7 @@ function aio_settings_unread($f)
 function aio_settings_json($data)
 {
     unset($data['saved_once']);
-    $data = array_merge(array('v' => AIO_SETTINGS_V), $data, array('saved_at' => time()));
+    $data = array_merge(array('v' => AIO_SETTINGS_V), aio_settings_top($data), array('saved_at' => time()));
     $json = json_encode($data);
     // PHP 5.3 turns a value that is not UTF-8 into null, not an error.
     return is_string($json) && json_decode($json, true) === $data ? $json : '';

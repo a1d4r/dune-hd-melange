@@ -1455,7 +1455,7 @@ function aio_gc_src_item($st)
             GuiMenuItemDef::caption => aio_tr($st['lang'], 'src_list'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
             GuiMenuItemDef::action => aio_gc_act('gc_src_menu', $st['rid']));
-    $ps = Aio::$settings['profiles'];
+    $ps = aio_src_menu_profiles();
     $other = array();
     foreach ($ps as $p)
     {

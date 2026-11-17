@@ -12,8 +12,8 @@ define('AIO_LPV_TICK_MS', 100);
 
 // A new window of the search of list $st (rows may be none; of an episode the rows of its season) as
 // $how: 'open' - over a card (play_action), its screen opened; 'replace' - over a list screen,
-// replaced; 'chosen' - over the episodes of the shell ("Выбрать серию"), those and the list replaced. $opt: mark (the
-// title marked "online" when there is a list), back (nothing online: the releases with the
+// replaced; 'chosen' - over the episodes of the shell ("Выбрать серию"), those and the list replaced. $opt: back
+// (nothing online: the releases with the
 // yellow line), path (the path of a balancer: the cursor on it, the yellow line "<it> больше не
 // отдаёт эту озвучку"), key (the key of a row, of an online record: the cursor on that row, shown
 // though a filter hides it; none - on the first of the balancer of the key), fail (the row of the key found,
@@ -24,7 +24,7 @@ define('AIO_LPV_TICK_MS', 100);
 /**
  * @param AioState $st
  * @param string $how
- * @param array{mark?: bool, back?: bool, path?: string, key?: string, fail?: string, more?: bool, redraw?: bool} $opt
+ * @param array{back?: bool, path?: string, key?: string, fail?: string, more?: bool, redraw?: bool} $opt
  * @return AioAction
  */
 function aio_lpv_search_open($st, $how, $opt = array())
@@ -41,13 +41,13 @@ function aio_lpv_search_open($st, $how, $opt = array())
     }
     else if (isset($st['lp']['flt']))
         $v['flt'] = $st['lp']['flt'];
-    $run = array('sid' => $sid, 'st' => $st, 'how' => $how, 'mark' => !empty($opt['mark']), 'back' => !empty($opt['back']),
+    $run = array('sid' => $sid, 'st' => $st, 'how' => $how, 'back' => !empty($opt['back']),
         'path' => isset($opt['path']) ? $opt['path'] : '', 'key' => isset($opt['key']) ? $opt['key'] : '',
         'fail' => isset($opt['fail']) ? $opt['fail'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v,
         'poll' => aio_lp_poll_start(count($v['rows'])), 'more' => $more ? count($v['rows']) : -1);
     AioLpv::$run = $run;
     AioLpv::$redraw = !empty($opt['redraw']) ? array('sid' => $sid, 'st' => $st) : null;
-    aio_log("lampac: window $sid, " . aio_ep_tag($st) . ", $how, phase {$run['phase']}" . ($run['mark'] ? ', mark' : '') .
+    aio_log("lampac: window $sid, " . aio_ep_tag($st) . ", $how, phase {$run['phase']}" .
         ($run['back'] ? ', back' : '') . ($run['path'] !== '' ? ", balancer {$run['path']}" : '') .
         (AioLpv::$redraw ? ', redraw' : ''));
     return aio_lpv_redraw_keys(aio_dialog_act(aio_tr($st['lang'], 'lp_search'), aio_lpv_search_defs($run), array(
@@ -199,7 +199,7 @@ function aio_lpv_tick($in)
                     ResetControlsActionData::post_action => null)))), $run['sid']);
 }
 
-// Lampac of run $run did not answer ($why, $detail: AioLpWhy): a marked title with releases -
+// Lampac of run $run did not answer ($why, $detail: AioLpWhy): a title with releases (back) -
 // those with the yellow line; else the window "Онлайн не отвечает".
 /**
  * @param AioLpRun $run
@@ -230,9 +230,9 @@ function aio_lpv_close_act($sid)
 }
 
 // The end of run $run: the online list (the rows in the order of "Источники…", aio_lpv_srcs_pick: the sources
-// asked in it; the cursor of a new search on the remembered row of the title, on the balancer of the run,
+// asked in it; the cursor of a new search on the row of the key of the run, else on its balancer,
 // after "Ещё N" on the first new row), its screen opened or the list screen replaced; nothing at all - the window "Онлайн для
-// «…» не нашлось" (a marked title with releases: those with the yellow line). All the sources found turned off in
+// «…» не нашлось" (a title with releases, back: those with the yellow line). All the sources found turned off in
 // "Источники…" (not back): the list of no row all the same, with the yellow line of it - MENU there turns them on.
 /**
  * @param AioLpRun $run
@@ -245,7 +245,7 @@ function aio_lpv_result($run)
     $lang = $st['lang'];
     $v = $run['v'];
     $left = count($v['sources']) - $v['next'];
-    // A marked title with releases (back): those with the yellow line of nothing online, as before.
+    // A title with releases (back): those with the yellow line of nothing online, as before.
     $off = !$v['sources'] && !empty($v['off']) && !$run['back'] ? count($v['off']) : 0;
     $tag = "lampac: window {$run['sid']}: " . count($v['sources']) . ' sources, ' . count($v['rows']) . " rows, $left left" .
         ($off > 0 ? ", all $off found off" : '');
@@ -264,20 +264,8 @@ function aio_lpv_result($run)
             array_slice($lines, 0, 2), array(aio_tr($lang, 'lp_close') => aio_lpv_close_act($run['sid']))), $run['sid']);
     }
     AioLpv::$redraw = null;
-    $mark = $run['more'] < 0 ? aio_lpv_mark($mv) : null;
     $rows = $v['rows'];
-    $first = -1;
-    foreach ($rows as $i => $r)
-    {
-        // A series by the key of the row (the voice in its hex), a movie by the voice.
-        if ($mark && $mark['path'] !== '' && $r['path'] === $mark['path'] &&
-            ($mv['series'] ? $mark['key'] !== '' && $r['key'] === $mark['key'] : $r['voice'] === $mark['voice']))
-        {
-            $first = $i;
-            break;
-        }
-    }
-    $sel = $run['more'] >= 0 ? $run['more'] : max(0, $first);
+    $sel = $run['more'] >= 0 ? $run['more'] : 0;
     // The row of the key of a record, else the first of its balancer.
     $k = aio_lp_key_parse($run['key']);
     $path = $run['path'] !== '' ? $run['path'] : ($k ? $k[0] : '');
@@ -324,9 +312,7 @@ function aio_lpv_result($run)
     $ns['lp'] = $v;
     $ns['lp_on'] = true;
     unset($ns['lp_note']);
-    if ($run['mark'])
-        aio_lpv_mark_set($mv, true);
-    aio_log("$tag -> the list, the cursor on row $sel of the list" . ($first >= 0 ? ", the remembered row $first" : '') .
+    aio_log("$tag -> the list, the cursor on row $sel of the list" .
         ($pin >= 0 ? ', ' . ($rows[$pin]['key'] === $run['key'] ? 'the row of the record' : 'the balancer of the record') : ''));
     if ($run['how'] === 'open')
         return aio_lpv_open($ns);

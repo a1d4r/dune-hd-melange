@@ -489,7 +489,7 @@ function aio_conf_mig_json($m, $uuid, $n, $s)
     }
     foreach ($s['profiles'] as $p)
     {
-        if (!isset($p['url']) && $p['conf'])
+        if (!empty($p['conf']))
             $keep[aio_conf_mig_key($p['conf']['uuid'])] = true;
     }
     $m[aio_conf_mig_key($uuid)] = $n;
