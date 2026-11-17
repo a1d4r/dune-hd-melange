@@ -8,9 +8,7 @@ You need an Android Dune with firmware r24 or r25. Watch for free through TorrSe
 
 New here? Start with Quick start.
 
-<img src="../screenshots/catalog.jpg" alt="Melange catalog: Movies and Series tabs at the top, clock, heart, magnifier and gear on the right, Favorites, Trending and other rows below" width="100%">
-
-<img src="../screenshots/film-list-p2p.jpg" alt="Release list for Dune: Part Two: seed count in the first column, then quality, HDR, audio and size; details and dubs of the selected release on the left" width="100%">
+<img src="../screenshots/overview-collage.jpg" alt="Four Melange screens: the catalog with rows; Melange's own movie card; the release list with quality, audio and dubs; a Dune «Фильмы» (Movies) card with «Смотреть…» (Watch…)" width="100%">
 
 **Getting started**
 
