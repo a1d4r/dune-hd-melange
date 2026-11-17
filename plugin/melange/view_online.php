@@ -1461,11 +1461,13 @@ function aio_lpv_result($run)
     $k = aio_lp_key_parse($run['key']);
     $path = $run['path'] !== '' ? $run['path'] : ($k ? $k[0] : '');
     $pin = -1;
+    $hit = false;
     foreach ($path !== '' ? $rows : array() as $i => $r)
     {
         if ($r['key'] === $run['key'])
         {
             $pin = $i;
+            $hit = true;
             break;
         }
         if ($pin < 0 && $r['path'] === $path)
@@ -1474,7 +1476,8 @@ function aio_lpv_result($run)
     if ($pin >= 0)
         $sel = $pin;
     $note = '';
-    if ($run['path'] !== '')
+    // The row of the key found by the search (a balancer cold at "Continue"): never "gone", the voice is there.
+    if ($run['path'] !== '' && !($hit && $run['fail'] === ''))
     {
         $label = ucfirst($run['path']);
         foreach ($v['sources'] as $src)

@@ -329,8 +329,9 @@ function aio_lpv_next_failed($lang, $base, $src, $voice, $s, $e, $why, $detail, 
 // another season found among its voice[] by the hex), "call", the check, vod_play from the position
 // (aio_lpv_ep_play: an episode in the playlist of its season, the others lazy); within AIO_LPV_RESUME_MAX s. Not
 // so (not a key, no title, no voice, no episode, no link) -> the search window of that episode, the cursor on the
-// row of the key (else on that balancer), the yellow line "<it> больше не отдаёт эту озвучку"; the row found but
-// no link (fail: the reason) - "<it> не ответил — …" (down), else "<it> не дал видео — …". An episode of a
+// row of the key (else on that balancer), the yellow line "<it> больше не отдаёт эту озвучку" (none when the search
+// finds the row of the key); the row found but no link (fail: the reason), or no answer to the find (down) -
+// "<it> не ответил — …" (down), else "<it> не дал видео — …". An episode of a
 // series of no number (play_action asks none such: aio_lpv_on) - "<it>: видео не получить", "нет такой серии":
 // a search of it would find no season, a list opened anew the same.
 /**
@@ -368,7 +369,9 @@ function aio_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
     aio_log("resume: lampac $path$ep: " . ($f['row'] ? 'no link' : 'no row') . " ({$a[0]}) -> the search");
     $st = aio_list_state($mv, $s, $e, array(), $lang, aio_no_errors());
     $st['lp_only'] = true;
-    return aio_lpv_search_open($st, 'open', array('path' => $path, 'key' => $r['hash'], 'fail' => $f['row'] ? $a[0] : ''));
+    // No answer of the balancer to the find itself (no row): as to "call" - "<it> не ответил".
+    return aio_lpv_search_open($st, 'open', array('path' => $path, 'key' => $r['hash'],
+        'fail' => $f['row'] || $a[0] === 'down' ? $a[0] : ''));
 }
 
 // play_action $in of card $mv, of episode $e of season $s (-1 a movie; of a series the one play_action chose: of
