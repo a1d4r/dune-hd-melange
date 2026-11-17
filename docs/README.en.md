@@ -10,7 +10,7 @@ New here? Start with Quick start.
 
 <img src="../screenshots/catalog.jpg" alt="Melange catalog: Movies and Series tabs at the top, clock, heart, magnifier and gear on the right, Favorites, Trending and other rows below" width="100%">
 
-<img src="../screenshots/film-list-p2p.jpg" alt="Release list for a movie: quality, audio and dubs, seed count in the first column" width="100%">
+<img src="../screenshots/film-list-p2p.jpg" alt="Release list for Dune: Part Two: seed count in the first column, then quality, HDR, audio and size; details and dubs of the selected release on the left" width="100%">
 
 **Getting started**
 
