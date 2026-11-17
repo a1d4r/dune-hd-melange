@@ -38,11 +38,14 @@ define('AIO_LP_STEP', 3);
 // Seconds of the whole search, events without life (the fallback, one call) too.
 define('AIO_LP_SEARCH_MAX', 12);
 // Seconds of the replies of the balancers: of a search those lost to the balancers of no answer, all of
-// "Continue" (aio_lp_find); all of a search while they answer (aio_lpv_replies_tick: a server without a cache
+// "Continue" (aio_lp_find); all of a search while they answer (aio_lp_poll: a server without a cache
 // answers in 0.2-4 s each); each.
 define('AIO_LP_REPLIES_MAX', 8);
 define('AIO_LP_REPLIES_LONG', 24);
 define('AIO_LP_REPLY_MAX', 3);
+// Seconds of the replies of the balancers in one tick of a window (aio_lp_poll): no request started with less than
+// AIO_LP_REPLY_MIN s of it left; a request started is not cut by it (up to AIO_LP_REPLY_MAX s), so a tick may go ~5 s.
+define('AIO_LP_TICK_MAX', 3);
 // A balancer is not asked with less time left than this (s).
 define('AIO_LP_REPLY_MIN', 1);
 // Seconds of "call" (Chromium balancers are slow), by default; the pause before its one repeat (us).
@@ -1010,58 +1013,51 @@ function aio_lp_movie($src, $data, $base = '')
     return array('kind' => $rows ? 'movie' : 'skip', 'rows' => $rows, 'why' => array_values($one));
 }
 
-// The replies of sources $sources (of a search) from the $from-th, in turn,
-// for title $p (its query aio_lp_query): asked while $total s have not gone (a
-// tick of a window asks a part, from the next of the one before), each up to
-// AIO_LP_REPLY_MAX s and up to $cap s from the start ($cap below $total: $total;
-// the replies of a search left, the tick may go over its part so: a server
-// without a cache answers 0.2-4 s; Lampac has them in its cache after events:
-// 0.01-0.23 s). -> array(rows (AioLpRow, by source), at (the index of the source
-// of each row), why (AioLpWhy, at: the index of its source), next: the index of the first source not asked,
-// left: sources not asked (the screen says "N more"), similar, serial: sources
-// that answered so, asked, lost: seconds of the requests of no answer (down),
-// again: the indexes of the sources of no answer in time (aio_lp_timed_out: asked
-// once more by the window, aio_lpv_replies_tick), held: the reply of the series of
-// the source next when no time of the part was left for its season (with $cap
-// over $total; '' none), given back as $held - its season asked first, the reply
-// not again). Season $s > 0 of
-// a serial: a balancer of a series gives its season (aio_lp_serial: one more
-// request, by the link of the season) and its rows a voice (aio_lp_season_rows), a
-// movie the reason movie; $s 0: a series is the reason serial, as of a movie.
+// The replies of sources $srcs (of a search: its index => the source) in their order, for title $q (its query
+// aio_lp_query): asked while $total s have not gone (a tick of a window asks a part: aio_lp_poll), each up to
+// AIO_LP_REPLY_MAX s and up to $cap s from the start ($cap below $total: $total; the replies of a search left, the tick
+// may go over its part so: a server without a cache answers 0.2-4 s; Lampac has them in its cache after events:
+// 0.01-0.23 s). $held: replies kept by the call before (held), by the index of the source: not asked again. -> array(rows
+// (AioLpRow, by source), at (the index of the source of each row), why (AioLpWhy, at: the index of its source), done: the
+// sources of $srcs gone through, in their order, left: those not (the screen says "N more"), similar, serial: sources
+// that answered so, asked, lost: seconds of the requests of no answer (down), again: the indexes of the sources of no
+// answer in time (aio_lp_timed_out: asked once more, aio_lp_poll), held: the reply of the series of the source next when
+// no time of the part was left for its season (with $cap over $total; none: empty), its season asked first by the next
+// call, the reply not again). Season $s > 0 of a serial: a balancer of a series gives its season (aio_lp_serial: one more
+// request, by the link of the season) and its rows a voice (aio_lp_season_rows), a movie the reason movie; $s 0: a series
+// is the reason serial, as of a movie.
 /**
  * @param string $base
- * @param list<AioLpSource> $sources
+ * @param array<int, AioLpSource> $srcs
  * @param string $q
- * @param int $from
  * @param int|float $total
  * @param int $s
  * @param int|float $cap
- * @param string $held
+ * @param array<int, AioLpReply> $held
  * @return AioLpReplies
  */
-function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_MAX, $s = 0, $cap = 0, $held = '')
+function aio_lp_replies($base, $srcs, $q, $total = AIO_LP_REPLIES_MAX, $s = 0, $cap = 0, $held = array())
 {
     $t0 = aio_lp_now();
     $cap = max($total, $cap);
-    $out = array('rows' => array(), 'at' => array(), 'why' => array(), 'next' => $from, 'left' => 0, 'similar' => 0,
-        'serial' => 0, 'asked' => 0, 'lost' => 0.0, 'again' => array(), 'held' => '');
-    for ($i = $from; $i < count($sources); $i++)
+    $out = array('rows' => array(), 'at' => array(), 'why' => array(), 'done' => 0, 'left' => 0, 'similar' => 0,
+        'serial' => 0, 'asked' => 0, 'lost' => 0.0, 'again' => array(), 'held' => array());
+    foreach ($srcs as $i => $src)
     {
         if ($total - (aio_lp_now() - $t0) < AIO_LP_REPLY_MIN)
             break;
-        $src = $sources[$i];
         $t1 = aio_lp_now();
         $each = (int) min(AIO_LP_REPLY_MAX, floor($cap - ($t1 - $t0)));
         $url = aio_lp_url($src['url'], 'rjson=true&' . $q);
-        $kept = $i === $from && $held !== '';
+        $kept = isset($held[$i]);
         if ($kept)
-            $r = array('err' => '', 'code' => 200, 'body' => $held);
+            $r = $held[$i];
         else
         {
             $r = aio_lp_ask($base, $url, min(AIO_LP_CONNECT, $each), $each, AIO_LP_MAX_BYTES);
             $out['asked']++;
         }
-        $out['next'] = $i + 1;
+        $out['done']++;
         if ($r['err'] !== '')
         {
             $out['why'][] = aio_lp_why($src, 'down', $r['err']) + array('at' => $i);
@@ -1079,8 +1075,8 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
             // A request is not cut by the part (up to AIO_LP_REPLY_MAX s of the time left): a tick may go ~5 s.
             if (!$kept && $cap > $total && $total - (aio_lp_now() - $t0) < AIO_LP_REPLY_MIN)
             {
-                $out['next'] = $i;
-                $out['held'] = $r['body'];
+                $out['done']--;
+                $out['held'] = array($i => $r);
                 break;
             }
             $t2 = aio_lp_now();
@@ -1106,10 +1102,114 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
         foreach ($p['why'] as $w)
             $out['why'][] = $w + array('at' => $i);
     }
-    $out['left'] = count($sources) - $out['next'];
+    $out['left'] = count($srcs) - $out['done'];
     aio_lp_log(sprintf('replies: %d rows of %d sources, %d not asked, similar: %d, serial: %d%s, %.2f s',
         count($out['rows']), $out['asked'], $out['left'], $out['similar'], $out['serial'],
         $out['why'] ? '; skipped: ' . aio_lp_why_log($out['why'], $base) : '', aio_lp_now() - $t0), $base);
+    return $out;
+}
+
+// --- The poll of the replies of a search (a window, tick by tick): its policy here, the window draws it.
+
+// A new poll of the replies of a view (AioLpView) of $before rows so far ("Ещё N": the rows of before first) ->
+// AioLpPoll: t1 (its start, aio_lp_now), lost (seconds of the requests of no answer), again (the indexes of the sources
+// of no answer in time, asked once more at the end), held (replies kept for the next tick, aio_lp_replies), at (the
+// index of the source of each row of the view, -1 a row of before).
+/**
+ * @param int $before
+ * @return AioLpPoll
+ */
+function aio_lp_poll_start($before)
+{
+    return array('t1' => aio_lp_now(), 'lost' => 0.0, 'again' => array(), 'held' => array(),
+        'at' => $before > 0 ? array_fill(0, $before, -1) : array());
+}
+
+// The seconds of the replies of poll $poll left: AIO_LP_REPLIES_LONG from its start while the balancers answer,
+// AIO_LP_REPLIES_MAX lost to those of no answer.
+/**
+ * @param AioLpPoll $poll
+ * @return float
+ */
+function aio_lp_poll_left($poll)
+{
+    return min(AIO_LP_REPLIES_LONG - (aio_lp_now() - $poll['t1']), AIO_LP_REPLIES_MAX - $poll['lost']);
+}
+
+// One tick of poll $poll of the replies of view $v (its sources, q, rows, why, next) on Lampac $base, season $s (0: a
+// movie): the next sources (aio_lp_replies) for up to AIO_LP_TICK_MAX s, a request up to the time left
+// (aio_lp_poll_left), a season of no time left in the tick at the next one (held); all asked, those of no answer in time
+// (again) once more, the same way. The rows in the order of the sources (aio_lp_rows_by_source), the reasons of no
+// answer of the sources asked replaced (by the index of the source, not its path and label: two sources of one path,
+// "X ~ 2160p" and "X ~ 1080p", have one label). -> array(the poll, the view, over: all asked or no time left).
+/**
+ * @param string $base
+ * @param AioLpPoll $poll
+ * @param AioLpView $v
+ * @param int $s
+ * @return array{AioLpPoll, AioLpView, bool}
+ */
+function aio_lp_poll($base, $poll, $v, $s)
+{
+    $left = aio_lp_poll_left($poll);
+    $again = $v['next'] >= count($v['sources']);
+    $ask = array();
+    if ($left >= AIO_LP_REPLY_MIN)
+    {
+        foreach ($again ? $poll['again'] : range($v['next'], count($v['sources']) - 1) as $i)
+            $ask[$i] = $v['sources'][$i];
+    }
+    if ($ask)
+    {
+        if ($again)
+            aio_lp_log('asked again: ' . implode(', ', array_map(function ($x) { return $x['path']; }, $ask)), $base);
+        $rr = aio_lp_replies($base, $ask, $v['q'], min(AIO_LP_TICK_MAX, $left), $s, $left, $poll['held']);
+        $gone = array_flip(array_slice(array_keys($ask), 0, $rr['done']));
+        $why = array();
+        foreach ($v['why'] as $w)
+        {
+            if ($w['why'] !== 'down' || !isset($w['at']) || !isset($gone[$w['at']]))
+                $why[] = $w;
+        }
+        $v['why'] = array_merge($why, $rr['why']);
+        list($rows, $at) = aio_lp_rows_by_source(array_merge($v['rows'], $rr['rows']), array_merge($poll['at'], $rr['at']));
+        $v['rows'] = array_slice($rows, 0, AIO_LP_ROWS_MAX);
+        $poll['at'] = array_slice($at, 0, AIO_LP_ROWS_MAX);
+        $poll['lost'] += $rr['lost'];
+        // Those of no answer when asked again: not a third time.
+        if ($again)
+            $poll['again'] = array_slice($poll['again'], $rr['done']);
+        else
+        {
+            $v['next'] += $rr['done'];
+            $poll['again'] = array_merge($poll['again'], $rr['again']);
+        }
+        $poll['held'] = $rr['held'];
+    }
+    return array($poll, $v, ($v['next'] >= count($v['sources']) && !$poll['again']) ||
+        aio_lp_poll_left($poll) < AIO_LP_REPLY_MIN);
+}
+
+// Rows $rows in the order of their sources, $at the index of the source of each (-1: a row of before, first), those of
+// one source in their order (two sources of one path, "Phantom ~ 2160p" and "~ 1080p", stay apart). -> array(the rows,
+// their indexes).
+/**
+ * @param list<AioLpRow> $rows
+ * @param list<int> $at
+ * @return array{list<AioLpRow>, list<int>}
+ */
+function aio_lp_rows_by_source($rows, $at)
+{
+    $by = array();
+    foreach ($rows as $i => $r)
+        $by[] = array(isset($at[$i]) ? $at[$i] : PHP_INT_MAX, $i);
+    sort($by);
+    $out = array(array(), array());
+    foreach ($by as $x)
+    {
+        $out[0][] = $rows[$x[1]];
+        $out[1][] = $x[0];
+    }
     return $out;
 }
 

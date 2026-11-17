@@ -41,11 +41,7 @@ function aio_lpv_search_open($st, $how, $opt = array())
     $run = array('sid' => $sid, 'st' => $st, 'how' => $how, 'mark' => !empty($opt['mark']), 'back' => !empty($opt['back']),
         'path' => isset($opt['path']) ? $opt['path'] : '', 'key' => isset($opt['key']) ? $opt['key'] : '',
         'fail' => isset($opt['fail']) ? $opt['fail'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v,
-        't1' => $more ? aio_lp_now() : 0.0,
-        'more' => $more ? count($v['rows']) : -1, 'lost' => 0.0, 'again' => array(), 'held' => '', 'at' => array());
-    // The rows of before ("Ещё N") first (aio_lpv_rows_by_source).
-    foreach ($v['rows'] as $x)
-        $run['at'][] = -1;
+        'poll' => aio_lp_poll_start(count($v['rows'])), 'more' => $more ? count($v['rows']) : -1);
     AioLpv::$run = $run;
     AioLpv::$redraw = !empty($opt['redraw']) ? array('sid' => $sid, 'st' => $st) : null;
     aio_log("lampac: window $sid, " . aio_ep_tag($st) . ", $how, phase {$run['phase']}" . ($run['mark'] ? ', mark' : '') .
@@ -150,7 +146,12 @@ function aio_lpv_tick($in)
     else if ($run['phase'] === 'search' && $run['search'])
         $run['search'] = aio_lp_search_step($run['search']);
     else if ($run['phase'] === 'replies')
-        $run = aio_lpv_replies_tick($base, $run);
+    {
+        list($run['poll'], $run['v'], $over) = aio_lp_poll($base, $run['poll'], $run['v'],
+            $run['st']['movie']['series'] ? $run['st']['s'] : 0);
+        if ($over)
+            $run['phase'] = 'done';
+    }
     $s = $run['search'];
     if ($run['phase'] === 'search' && $s)
     {
@@ -173,7 +174,7 @@ function aio_lpv_tick($in)
             $run['v']['q'] = $s['q'];
             $run['v']['t'] = $s['t0'];
             $run['phase'] = $run['v']['sources'] ? 'replies' : 'done';
-            $run['t1'] = aio_lp_now();
+            $run['poll'] = aio_lp_poll_start(count($run['v']['rows']));
         }
     }
     AioLpv::$run = $run;
@@ -193,102 +194,6 @@ function aio_lpv_tick($in)
                     ResetControlsActionData::defs => aio_lpv_search_defs($run),
                     ResetControlsActionData::initial_sel_ndx => -1,
                     ResetControlsActionData::post_action => null)))), $run['sid']);
-}
-
-// The seconds of the replies of run $run left: AIO_LP_REPLIES_LONG from their start (t1) while the balancers answer,
-// AIO_LP_REPLIES_MAX lost to those of no answer (lost).
-/**
- * @param AioLpRun $run
- * @return float
- */
-function aio_lpv_replies_left($run)
-{
-    return min(AIO_LP_REPLIES_LONG - (aio_lp_now() - $run['t1']), AIO_LP_REPLIES_MAX - $run['lost']);
-}
-
-// One tick of the replies of run $run (phase replies) on Lampac $base: the next sources (aio_lp_replies) for up to
-// AIO_LPV_TICK_MAX s, a request up to the time left (aio_lpv_replies_left), a season of no time left in the tick at
-// the next one (held); all asked, those of no answer in time (again) once more, the same way, their rows put in the
-// order of the sources (aio_lpv_rows_by_source), their reasons of before replaced. -> the run, its phase done when all
-// were asked or no time is left.
-/**
- * @param string $base
- * @param AioLpRun $run
- * @return AioLpRun
- */
-function aio_lpv_replies_tick($base, $run)
-{
-    $v = $run['v'];
-    $left = aio_lpv_replies_left($run);
-    $s = $run['st']['movie']['series'] ? $run['st']['s'] : 0;
-    if ($left >= AIO_LP_REPLY_MIN && $v['next'] < count($v['sources']))
-    {
-        $rr = aio_lp_replies($base, $v['sources'], $v['q'], $v['next'], min(AIO_LPV_TICK_MAX, $left), $s, $left,
-            $run['held']);
-        $v['rows'] = array_slice(array_merge($v['rows'], $rr['rows']), 0, AIO_LP_ROWS_MAX);
-        $run['at'] = array_slice(array_merge($run['at'], $rr['at']), 0, AIO_LP_ROWS_MAX);
-        $v['why'] = array_merge($v['why'], $rr['why']);
-        $v['next'] = $rr['next'];
-        $run['lost'] += $rr['lost'];
-        $run['again'] = array_merge($run['again'], $rr['again']);
-        $run['held'] = $rr['held'];
-    }
-    else if ($left >= AIO_LP_REPLY_MIN && $run['again'])
-    {
-        $sub = array();
-        foreach ($run['again'] as $i)
-            $sub[] = $v['sources'][$i];
-        aio_log('lampac: asked again: ' . implode(', ', array_map(function ($x) { return $x['path']; }, $sub)));
-        $rr = aio_lp_replies($base, $sub, $v['q'], 0, min(AIO_LPV_TICK_MAX, $left), $s, $left, $run['held']);
-        // By the index of the source, not its path and label: two sources of one path ("X ~ 2160p", "X ~ 1080p") have
-        // one label.
-        $gone = array_flip(array_slice($run['again'], 0, $rr['next']));
-        $why = array();
-        foreach ($v['why'] as $w)
-        {
-            if ($w['why'] !== 'down' || !isset($w['at']) || !isset($gone[$w['at']]))
-                $why[] = $w;
-        }
-        foreach ($rr['why'] as $w)
-            $why[] = isset($w['at']) ? array('at' => $run['again'][$w['at']]) + $w : $w;
-        $v['why'] = $why;
-        $at = $run['at'];
-        foreach ($rr['at'] as $k)
-            $at[] = $run['again'][$k];
-        list($rows, $at) = aio_lpv_rows_by_source(array_merge($v['rows'], $rr['rows']), $at);
-        $v['rows'] = array_slice($rows, 0, AIO_LP_ROWS_MAX);
-        $run['at'] = array_slice($at, 0, AIO_LP_ROWS_MAX);
-        $run['lost'] += $rr['lost'];
-        $run['again'] = array_slice($run['again'], $rr['next']);
-        $run['held'] = $rr['held'];
-    }
-    $run['v'] = $v;
-    if (($v['next'] >= count($v['sources']) && !$run['again']) || aio_lpv_replies_left($run) < AIO_LP_REPLY_MIN)
-        $run['phase'] = 'done';
-    return $run;
-}
-
-// Rows $rows in the order of their sources, $at the index of the source of each (-1: a row of before, first), those of
-// one source in their order (two sources of one path, "Phantom ~ 2160p" and "~ 1080p", stay apart). -> array(the rows,
-// their indexes).
-/**
- * @param list<AioLpRow> $rows
- * @param list<int> $at
- * @return array{list<AioLpRow>, list<int>}
- */
-function aio_lpv_rows_by_source($rows, $at)
-{
-    $by = array();
-    foreach ($rows as $i => $r)
-        $by[] = array(isset($at[$i]) ? $at[$i] : PHP_INT_MAX, $i);
-    sort($by);
-    $out = array(array(), array());
-    foreach ($by as $x)
-    {
-        $out[0][] = $rows[$x[1]];
-        $out[1][] = $x[0];
-    }
-    return $out;
 }
 
 // Lampac of run $run did not answer ($why, $detail: AioLpWhy): a marked title with releases -

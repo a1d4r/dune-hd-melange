@@ -15,9 +15,6 @@
 
 // The timer of the window between its ticks, ms: a tick is a request itself.
 define('AIO_LPV_TICK_MS', 100);
-// Seconds of the replies of the balancers in one tick: no request started with less than AIO_LP_REPLY_MIN s of it
-// left; a request started is not cut by it (up to AIO_LP_REPLY_MAX s), so a tick may go ~5 s.
-define('AIO_LPV_TICK_MAX', 3);
 // Seconds between two searches of "Обновить": a poll of all balancers often gets the IP banned.
 define('AIO_LPV_REFRESH', 30);
 // Titles of lampac_choice.json at most, the newest kept.
