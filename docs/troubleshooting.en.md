@@ -169,6 +169,7 @@ On the settings page:
 - **"The Dune firmware does not support this dialog"** on "Configure List...": set up the rows from a phone ([Your own catalog rows](catalog-rows.en.md)).
 - **Row names in the catalog cannot be selected**: the "Navigation panel on the left" is turned off in the Dune settings. Turn it on or set up the rows from a phone.
 - **"The catalog did not load. Check the network and retry"**, **"Search failed: the server does not answer. Try later"**: check the internet and try again.
+- **The microphone button on the remote starts Google Assistant**: open search with the magnifier on the top bar or via **POP UP** → "Search" ([Search](search.en.md)).
 - **The TV tab is empty.** Most likely Melange was removed while it was chosen for TV. On the home screen, move to TV, press **POP UP** → «TV section Setup» and choose DUNE-HD.TV, or Melange again if you reinstalled it ([Melange in the TV tab](tv-tab.en.md)).
 - **TV has a single "Set up Melange" tile**: Melange is not set up yet. Press it ([Quick start](start.en.md)).
 - **"Open in an app…" always opens the same app**: "Always" was once chosen in the Android window. Clear the default choice in the Android settings of that app.

@@ -8,9 +8,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
    <img src="../screenshots/watch-tabs.jpg" alt="Melange catalog: focus on the Movies tab, clock, heart, magnifier and gear on the right" width="100%">
 
-2. To find a movie by title, open search (the magnifier on the same bar), type the title and confirm.
-
-   <img src="../screenshots/search.jpg" alt="Search results: Movies and Series rows" width="100%">
+2. Pick a movie in the rows or find it by title ([Search](search.en.md)).
 
 3. Press **ENTER** on the poster. On the card, choose "Watch".
 

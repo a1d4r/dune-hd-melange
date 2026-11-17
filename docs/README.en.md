@@ -6,8 +6,9 @@ Melange is a movie and series catalog for Dune HD. Pick a movie, and Melange fin
 
 1. [Quick start](start.en.md): install and first setup
 2. [Watching](watch.en.md)
-3. [Continue Watching and Favorites](favorites.en.md)
-4. [Your own catalog rows](catalog-rows.en.md)
+3. [Search](search.en.md)
+4. [Continue Watching and Favorites](favorites.en.md)
+5. [Your own catalog rows](catalog-rows.en.md)
 
 **Settings**
 
