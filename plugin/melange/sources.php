@@ -57,19 +57,33 @@ function aio_gc_src_menu($in)
         aio_log('source: menu of no live list');
         return aio_error('err_list_expired');
     }
+    return aio_src_popup($st['lang'], 'gc_src', array('rid' => $st['rid']), aio_src_now($st));
+}
+
+// The popup menu of the ready profiles in their order, Lampac with its own icon, each to $control of $params with p (its
+// id) and n (its name for the dialog); the one of id $now "<name> · сейчас" and selected ('' none: the first selected).
+// None ready: null.
+/**
+ * @param string $lang
+ * @param string $control
+ * @param array<string, string> $params
+ * @param string $now
+ * @return AioAction|null
+ */
+function aio_src_popup($lang, $control, $params, $now = '')
+{
     $items = array();
     $sel = 0;
-    $now = aio_src_now($st);
     foreach (aio_src_ready() as $p)
     {
         if ($p['id'] === $now)
             $sel = count($items);
         $items[] = array(
-            GuiMenuItemDef::caption => $p['id'] === $now ? str_replace('{name}', $p['name'], aio_tr($st['lang'], 'src_now')) :
+            GuiMenuItemDef::caption => $p['id'] === $now ? str_replace('{name}', $p['name'], aio_tr($lang, 'src_now')) :
                 $p['name'],
             GuiMenuItemDef::icon_url => $p['kind'] === 'lampac' ? 'gui_skin://small_icons/web_browser.aai' :
                 'gui_skin://small_icons/sources.aai',
-            GuiMenuItemDef::action => aio_gc_act('gc_src', $st['rid'], array('p' => $p['id'], 'n' => $p['name'])));
+            GuiMenuItemDef::action => aio_input($control, array_merge($params, array('p' => $p['id'], 'n' => $p['name']))));
     }
     if (!$items)
     {
@@ -81,6 +95,53 @@ function aio_gc_src_menu($in)
         GuiAction::data => array(
             ShowPopupMenuActionData::menu_items => $items,
             ShowPopupMenuActionData::selected_menu_item_index => $sel));
+}
+
+// --- "Смотреть из…" of POP UP of a tile of a title and of the own card: the list of the title at once from the source
+// chosen (aio_play_action with its profile), not of the record or the main one; nothing remembered, as "Откуда брать…".
+
+// The item "Смотреть из…" to $control of $params (its menu of sources: aio_src_popup), with two ready profiles or more
+// (aio_src_in_menu); none else.
+/**
+ * @param string $lang
+ * @param string $control
+ * @param array<string, string> $params
+ * @return list<array<string, mixed>>
+ */
+function aio_src_watch_item($lang, $control, $params)
+{
+    if (!aio_src_in_menu())
+        return array();
+    return array(array(
+        GuiMenuItemDef::caption => aio_tr($lang, 'src_watch'),
+        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
+        GuiMenuItemDef::action => aio_input($control, $params)));
+}
+
+// The choice of "Смотреть из…" of input $in (p: the id of a profile, n: its name; of aio_src_popup) -> array(the id, ''
+// not an id: nothing; the dialog "Источник не сменился: <name>" (src_changed) of a profile gone or not ready since the
+// menu (the page changed them), no request; null - there and ready).
+/**
+ * @param stdClass $in
+ * @param string $lang
+ * @return array{string, AioAction|null}
+ */
+function aio_src_watch_pick($in, $lang)
+{
+    $id = isset($in->p) && is_string($in->p) ? $in->p : '';
+    if (!aio_profile_id_ok($id))
+    {
+        aio_log('source: watch from: no profile, nothing');
+        return array('', null);
+    }
+    $s = Aio::$file;
+    $k = $s ? aio_profile_index($s, $id) : -1;
+    if ($k >= 0 && aio_profile_ready($s['profiles'][$k]))
+        return array($id, null);
+    aio_log('source: watch from: no such profile ready, nothing asked');
+    $name = isset($in->n) && is_string($in->n) ? $in->n : '';
+    return array($id, aio_gc_src_dialog(str_replace('{name}', $name, aio_tr($lang, 'src_failed')), $lang,
+        array('error' => 'src_changed', 'detail' => '')));
 }
 
 // The dialog of a source that failed (aio_gc_src): $title, the error, its detail, the

@@ -73,6 +73,7 @@ errors_more = и ещё {n}
 choose_menu = Выбрать серию
 main_menu = Основной Debrid → {svc}
 src_list = Откуда брать…
+src_watch = Смотреть из…
 src_now = {name} · сейчас
 src_failed = Источник не сменился: {name}
 src_changed = Источники поменялись на странице, источник прежний

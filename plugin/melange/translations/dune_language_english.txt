@@ -73,6 +73,7 @@ errors_more = and {n} more
 choose_menu = Choose episode
 main_menu = Main Debrid → {svc}
 src_list = Get films from…
+src_watch = Watch from…
 src_now = {name} · now
 src_failed = Source not changed: {name}
 src_changed = Sources changed on the page, the source is kept
