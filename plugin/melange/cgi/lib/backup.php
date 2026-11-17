@@ -227,6 +227,9 @@ function aio_cgi_import_post($dir, $t)
         aio_cgi_import_failed(500, $why, aio_cgi_l('Не загружено: ошибка записи на Дюне', 'Not loaded: write error on the Dune'));
     }
     aio_cgi_log('import: ok');
+    if ($s['mig_lost'])
+        aio_cgi_log('import: the file of before v2, ' . AIO_PROFILES_MAX . ' profiles already: no profile of ' .
+            implode(', ', $s['mig_lost']));
     $ft = isset($j['web_token']) ? $j['web_token'] : null;
     $done = 1;
     if (aio_token_ok($ft) && !aio_cgi_same($ft, $t))

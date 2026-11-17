@@ -71,22 +71,6 @@ function aio_cgi_profile_line($p)
     return aio_cgi_profile_word($p) . ($h !== '' ? " · $h" : '') . ($jr !== '' ? " · $jr" : '');
 }
 
-// The index of the profile of the settings $s whose keys of Debrid a source without its own (an own config, Lampac)
-// shows for another kind chosen there (spec v2 §3.3): the main one when it is Debrid or Торренты, else the first such
-// one; -1 none.
-function aio_cgi_keys_of($s)
-{
-    $m = aio_profile_main($s);
-    if ($m >= 0 && isset($s['profiles'][$m]['base']))
-        return $m;
-    foreach ($s['profiles'] as $i => $p)
-    {
-        if (isset($p['base']))
-            return $i;
-    }
-    return -1;
-}
-
 // The configs of the cells of the settings $s no profile has (a config of before the profiles, spec v2 §4 p. 6): a
 // profile of their server and mode takes one (aio_cgi_editor_save).
 function aio_cgi_free_cells($s)
@@ -105,8 +89,9 @@ function aio_cgi_free_cells($s)
 
 // The settings $s as the editor of profile $p shows them (aio_profile_view: its source, its config): the configs of the
 // cells no profile has too (its save takes one of its server and mode); of Lampac - no config of its own; of one of
-// releases - no Lampac (aio_lp_keys); of an own config or Lampac - the keys of Debrid of aio_cgi_keys_of (Debrid
-// chosen there: no key typed again, spec v2 §3.3), none such - those at the top (of a file of before v2: kept).
+// releases - no Lampac (aio_lp_keys); of an own config or Lampac - the keys of Debrid of aio_profile_debrid (those of
+// the top; Debrid chosen there: no key typed again, spec v2 §3.3), none such - those at the top (of a file of before v2:
+// kept).
 function aio_cgi_editor_view($s, $p)
 {
     $v = aio_profile_view($s, $p);
@@ -118,7 +103,7 @@ function aio_cgi_editor_view($s, $p)
         $v = array_merge($v, aio_lp_keys());
     if (!isset($p['base']))
     {
-        $k = aio_cgi_keys_of($s);
+        $k = aio_profile_debrid($s);
         $q = $k >= 0 ? $s['profiles'][$k] : $s;
         list($v['rd_key'], $v['tb_key']) = array($q['rd_key'], $q['tb_key']);
     }
@@ -136,6 +121,18 @@ function aio_cgi_profile_copy($s, $f)
         $c['conf'] = null;
     list($c['id'], $c['name']) = array('', aio_cgi_profile_copy_name($s, $c));
     return $c;
+}
+
+// A new profile of the editor (of the page, of the save), the copy of the profile of index $f of the settings $s
+// (aio_cgi_profile_copy; -1 none) -> array(the copy (null: none), the view: of the copy (aio_cgi_editor_view), else $s
+// with the configs of the cells no profile has).
+function aio_cgi_editor_new($s, $f)
+{
+    $c = aio_cgi_profile_copy($s, $f);
+    if ($c)
+        return array($c, aio_cgi_editor_view($s, $c));
+    $s['aio_confs'] = aio_cgi_free_cells($s);
+    return array(null, $s);
 }
 
 // The editor of the page by ?p= $p, from= $from of the address and the settings $s (aio_settings_read) -> array(sel - the
@@ -156,11 +153,9 @@ function aio_cgi_editor($s, $p, $from)
     }
     $f = aio_profile_index($s, $from);
     $f = $f >= 0 ? $f : aio_profile_main($s);
-    $c = aio_cgi_profile_copy($s, $f);
-    $view = $s;
-    $view['aio_confs'] = aio_cgi_free_cells($s);
+    list($c, $view) = aio_cgi_editor_new($s, $f);
     return array('sel' => 'new', 'from' => $c ? $s['profiles'][$f]['id'] : '', 'name' => $c ? $c['name'] : '',
-        'view' => $c ? aio_cgi_editor_view($s, $c) : $view, 'lp' => $c && !aio_profile_rel($c));
+        'view' => $view, 'lp' => $c && !aio_profile_rel($c));
 }
 
 // The values of the form of the editor $ed (aio_cgi_editor) over $v (aio_cgi_values of its view), the settings $s: the
@@ -257,11 +252,8 @@ function aio_cgi_editor_posted($v, $cur)
         if (count($cur['profiles']) >= AIO_PROFILES_MAX)
             return array_merge($ed, array('err' => aio_cgi_profiles_full()));
         $k = aio_profile_index($cur, $v['pf_from']);
-        $c = aio_cgi_profile_copy($cur, $k);
-        $view = $cur;
-        $view['aio_confs'] = aio_cgi_free_cells($cur);
-        return array_merge($ed, array('from' => $k >= 0 ? $cur['profiles'][$k] : null,
-            'view' => $c ? aio_cgi_editor_view($cur, $c) : $view));
+        list(, $view) = aio_cgi_editor_new($cur, $k);
+        return array_merge($ed, array('from' => $k >= 0 ? $cur['profiles'][$k] : null, 'view' => $view));
     }
     $k = $sel === '' ? aio_profile_main($cur) : aio_profile_index($cur, $sel);
     if ($k < 0)
@@ -277,9 +269,8 @@ function aio_cgi_editor_posted($v, $cur)
 function aio_cgi_profile_of_data($data, $lp, $was)
 {
     if ($lp)
-        return array('lampac_url' => $data['lampac_url'], 'lampac_token' => $data['lampac_token'],
-            'lampac_as_lampa' => $data['lampac_as_lampa'], 'lampac_sources' => $was && isset($was['lampac_sources']) ?
-            $was['lampac_sources'] : array());
+        return array_merge(aio_lp_keys(), array_intersect_key($data, aio_lp_keys()), array('lampac_sources' =>
+            $was && isset($was['lampac_sources']) ? $was['lampac_sources'] : array()));
     $p = aio_profile_of($data);
     return $p ? $p + array('rd_key' => $data['rd_key'], 'tb_key' => $data['tb_key']) : null;
 }
@@ -290,9 +281,12 @@ function aio_cgi_profile_of_data($data, $lp, $was)
 // why refused). Its record by its index (its id kept: a rename too; the main one stays it), a new one at the end with an
 // id of its name (aio_profile_new_id), the first one the main one. Its config: the one of it while its server and mode
 // are those of it; else the config of the cell of its server and mode when no profile has it (aio_profile_held: a config
-// of before the profiles is not lost); else none (made by a=aio_sync&prof). The name: as typed; empty or none posted -
-// the one of it, of a new one the word of its kind (aio_cgi_profile_def). Names unique, the profiles at most
-// AIO_PROFILES_MAX, the export with it loads back (aio_cgi_import_fits).
+// of before the profiles is not lost); else none (made by a=aio_sync&prof). Its config of before, of another server or
+// mode now (or none: Lampac, an own config), into the cell of them when it is empty (no config is lost, as of
+// profile_del; a cell with a config stays). The name: as typed; empty or none posted - the one of it, of a new one the
+// word of its kind (aio_cgi_profile_def); none posted (one source alone) and the one of it the word of its kind before -
+// the word of its kind now. Names unique, the profiles at most AIO_PROFILES_MAX, the export with it loads back
+// (aio_cgi_import_fits).
 function aio_cgi_editor_save($ed, $data, $cur, $t, $lp)
 {
     $k = $ed['old'] ? aio_profile_index($cur, $ed['old']['id']) : -1;
@@ -316,6 +310,8 @@ function aio_cgi_editor_save($ed, $data, $cur, $t, $lp)
     $name = $ed['name'] !== null ? aio_profile_name($ed['name']) : '';
     if ($name === '')
         $name = $o ? $o['name'] : aio_cgi_profile_def($cur, $p);
+    if ($ed['name'] === null && $o && $o['name'] === aio_cgi_profile_word($o) && aio_cgi_profile_word($p) !== $o['name'])
+        $name = aio_cgi_profile_def($cur, $p);
     $p = aio_profile_ok(array('id' => $o ? $o['id'] : aio_profile_new_id($cur, $name), 'name' => $name) + $p, $cur);
     if (!$p)
         return array(null, null, sprintf(aio_cgi_l('Название источника: от 1 до %d символов, без управляющих и невидимых',
@@ -332,6 +328,10 @@ function aio_cgi_editor_save($ed, $data, $cur, $t, $lp)
         $data['profiles'][$k] = $p;
     else
         list($data) = aio_profile_add($data, $p);
+    $c = $o && isset($o['base']) ? $o['conf'] : null;
+    if ($c && (!isset($p['base']) || $p['base'] !== $o['base'] || $p['mode'] !== $o['mode']) &&
+        !isset($data['aio_confs'][$o['base']][$o['mode']]) && !aio_profile_held($data, $c))
+        $data = aio_settings_cell($data, $o['base'], $o['mode'], $c);
     // The first one is the main one.
     if ($data['src_main'] === '')
         $data['src_main'] = $p['id'];
