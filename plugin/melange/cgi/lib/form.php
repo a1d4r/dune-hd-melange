@@ -59,15 +59,15 @@ function aio_cgi_fields()
         'ts_save' => array('id' => 'tss', 'name' => 'ts_save', 'set' => 'ts_save', 'max' => 0, 'type' => 'radio', 'scr' => 'torr'),
         // "Пропуск заставки и титров" (0.49.1): aio_cgi_markers().
         'markers' => array('id' => 'mrk', 'name' => 'markers', 'set' => 'markers', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
-        // "Ошибки источников" (0.49.1): aio_cgi_source_errors().
+        // "Ошибки источников" (0.49.1): aio_cgi_toggles(), as the others on/off.
         'source_errors' => array('id' => 'ser', 'name' => 'source_errors', 'set' => 'source_errors', 'max' => 0, 'type' => 'radio', 'scr' => 'adv'),
-        // "Пульт без цветных кнопок" (0.61.0): aio_cgi_no_color_keys().
+        // "Пульт без цветных кнопок" (0.61.0).
         'no_color_keys' => array('id' => 'nck', 'name' => 'no_color_keys', 'set' => 'no_color_keys', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
-        // "Без торрентов" (0.49.0): aio_cgi_no_torrents(); its radios at the top of the form (aio_cgi_form), for the CSS.
+        // "Без торрентов" (0.49.0): its radios at the top of the form (aio_cgi_form), for the CSS.
         'no_torrents' => array('id' => 'nt', 'name' => 'no_torrents', 'set' => 'no_torrents', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
-        // "Профили источников" (0.58.0): aio_cgi_src_profiles(); its radios at the top of the form too, for the CSS
+        // "Профили источников" (0.58.0): its radios at the top of the form too, for the CSS
         // (the block of the profiles on #src).
         'src_profiles' => array('id' => 'spf', 'name' => 'src_profiles', 'set' => 'src_profiles', 'max' => 0, 'type' => 'radio',
             'scr' => 'adv'),
@@ -86,9 +86,9 @@ function aio_cgi_fields()
         'pf_now' => array('id' => 'pfc', 'name' => 'prof_now', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src'),
         'pf_name' => array('id' => 'pfn', 'name' => 'prof_name', 'set' => '', 'max' => AIO_PROFILE_NAME_MAX, 'type' => 'plain',
             'scr' => 'src', 'raw' => true),
-        // "Рейтинг IMDb на постерах": aio_cgi_cat_rating().
+        // "Рейтинг IMDb на постерах".
         'cat_rating' => array('id' => 'rti', 'name' => 'cat_rating', 'set' => 'cat_rating', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
-        // "Логотип фильма вместо названия" (0.55.0): aio_cgi_cat_logo().
+        // "Логотип фильма вместо названия" (0.55.0).
         'cat_logo' => array('id' => 'clg', 'name' => 'cat_logo', 'set' => 'cat_logo', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // "Своя карточка" (0.59.0): aio_cgi_cat_card().
         'cat_card' => array('id' => 'ocd', 'name' => 'cat_card', 'set' => 'cat_card', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
@@ -338,85 +338,91 @@ function aio_cgi_markers_block($v)
         aio_cgi_choice($f['markers'], aio_cgi_markers(), $v['markers']);
 }
 
-// The answers of "Ошибки источников" on the screen #adv (radio source_errors,
-// 0.49.1): its value => array(name, hint); "on" - source_errors of the settings.
-function aio_cgi_source_errors()
+// --- The settings on/off.
+
+// The settings on/off of the page (radios of two answers, by aio_cgi_choice): the key of aio_cgi_fields() =>
+// array(its label, the answers - value => array(name, hint), the answer of true of the settings). Their value of the
+// form (aio_cgi_toggle_of: aio_cgi_values; a form of before without one - the stored one, settings.php), its check
+// (aio_cgi_check_values: "<label>: нет такого ответа"). Not here: ts_save (kept when torrents are off), markers (three
+// answers), cat_card (none chosen: by the firmware).
+function aio_cgi_toggles()
 {
     return array(
-        'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
-            'Melange не показывает ошибки источников.',
-            'Melange does not show source errors.')),
-        'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
-            'Над списком раздач — число ошибок, причины — в меню «Действия».',
-            'The number of errors above the list of releases, the reasons in the "Actions" menu.')));
+        // "Запуск торрентов" (0.49.0): its radios at the top of the form, for the CSS (aio_cgi_form).
+        'no_torrents' => array(aio_cgi_l('Запуск торрентов', 'Running torrents'), array(
+            'allow' => array(aio_cgi_l('Разрешить', 'Allow'), aio_cgi_l('Если конфиг отдаёт P2P, они показываются; TorrServer и скачивание доступны.',
+                'P2P releases show if the config has them; TorrServer and downloads are available.')),
+            'off' => array(aio_cgi_l('Без торрентов', 'No torrents'), aio_cgi_l(
+                'Melange не запускает торренты: P2P скрыты, TorrServer и скачивание отключены.',
+                'Melange does not start torrents: P2P hidden, TorrServer and downloads disabled.'))), 'off'),
+        // 0.49.1.
+        'source_errors' => array(aio_cgi_l('Ошибки источников', 'Source errors'), array(
+            'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
+                'Melange не показывает ошибки источников.',
+                'Melange does not show source errors.')),
+            'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
+                'Над списком раздач — число ошибок, причины — в меню «Действия».',
+                'The number of errors above the list of releases, the reasons in the "Actions" menu.'))), 'on'),
+        // 0.61.0.
+        'no_color_keys' => array(aio_cgi_l('Пульт без цветных кнопок', 'Remote without colour buttons'), array(
+            'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
+                'Сортировка цветными кнопками, сведения кнопкой INFO.',
+                'Sort with the colour buttons, details with the INFO button.')),
+            'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
+                'В меню «Действия» списка раздач появятся «Сведения» и «Сортировка».',
+                'The "Actions" menu of the list of releases gets "Details" and "Sort".'))), 'on'),
+        // 0.58.0: its radios at the top of the form too (the block of the profiles on #src).
+        'src_profiles' => array(aio_cgi_l('Профили источников', 'Source profiles'), array(
+            'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
+                'Источник выбирается только в «Откуда брать фильмы».',
+                'The source is chosen in "Where to get films" only.')),
+            'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
+                'MENU в списке раздач → «Откуда брать». Профили — в «Откуда брать фильмы».',
+                'Release list: MENU → "Get films from". Profiles are in "Where to get films".'))), 'on'),
+        // On #look (0.55.0).
+        'cat_logo' => array(aio_cgi_l('Логотип фильма вместо названия', 'Film logo in place of the title'), array(
+            'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
+                'Русский логотип в карточке над рядами, как в онлайн-кинотеатрах.',
+                'The Russian logo in the card above the rows, as in streaming services.')),
+            'off' => array(aio_cgi_l('Выключен', 'Off'), aio_cgi_l(
+                'Название текстом, памяти Дюны нужно вдвое меньше.',
+                'The title as text; the Dune needs half the memory.'))), 'on'),
+        'cat_rating' => array(aio_cgi_l('Рейтинг IMDb на постерах', 'IMDb rating on posters'), array(
+            'off' => array(aio_cgi_l('Выключен', 'Off'), aio_cgi_l(
+                'Постеры без цифр, рейтинги — в карточке над рядами.',
+                'Posters without numbers, the ratings in the card above the rows.')),
+            'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
+                'Цифра IMDb в углу постера: в рядах каталога и в карточке.',
+                'The IMDb number in the corner of a poster: in the catalog rows and in the card.'))), 'on'));
 }
 
-// The answer of aio_cgi_source_errors() of source_errors of the settings (a bool).
-function aio_cgi_source_errors_of($on)
+// The answer of toggle $k (aio_cgi_toggles) of a bool of the settings.
+function aio_cgi_toggle_of($k, $on)
 {
-    return $on ? 'on' : 'off';
+    $t = aio_cgi_toggles();
+    foreach (array_keys($t[$k][1]) as $x)
+    {
+        if (($x === $t[$k][2]) === (bool) $on)
+            return $x;
+    }
+    return '';
 }
 
-// "Ошибки источников" on #adv (a value of the form: '' or another one - none checked).
-function aio_cgi_source_errors_block($v)
+// The label of toggle $k and the cards of its answers ($v: values of the form; '' or another one - none checked).
+function aio_cgi_toggle_block($k, $v)
 {
     $f = aio_cgi_fields();
-    return '<p class="lbl">' . aio_cgi_l('Ошибки источников', 'Source errors') . '</p>' .
-        aio_cgi_choice($f['source_errors'], aio_cgi_source_errors(), $v['source_errors']);
-}
-
-// The answers of "Пульт без цветных кнопок" on the screen #adv (radio no_color_keys,
-// 0.61.0): its value => array(name, hint); "on" - no_color_keys of the settings.
-function aio_cgi_no_color_keys()
-{
-    return array(
-        'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
-            'Сортировка цветными кнопками, сведения кнопкой INFO.',
-            'Sort with the colour buttons, details with the INFO button.')),
-        'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
-            'В меню «Действия» списка раздач появятся «Сведения» и «Сортировка».',
-            'The "Actions" menu of the list of releases gets "Details" and "Sort".')));
-}
-
-// The answer of aio_cgi_no_color_keys() of no_color_keys of the settings (a bool).
-function aio_cgi_no_color_keys_of($on)
-{
-    return $on ? 'on' : 'off';
-}
-
-// "Пульт без цветных кнопок" on #adv (a value of the form: '' or another one - none checked).
-function aio_cgi_no_color_keys_block($v)
-{
-    $f = aio_cgi_fields();
-    return '<p class="lbl">' . aio_cgi_l('Пульт без цветных кнопок', 'Remote without colour buttons') . '</p>' .
-        aio_cgi_choice($f['no_color_keys'], aio_cgi_no_color_keys(), $v['no_color_keys']);
-}
-
-// The answers of "Профили источников" on the screen #adv (radio src_profiles, 0.58.0): its
-// value => array(name, hint); "on" - src_profiles of the settings.
-function aio_cgi_src_profiles()
-{
-    return array(
-        'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
-            'Источник выбирается только в «Откуда брать фильмы».',
-            'The source is chosen in "Where to get films" only.')),
-        'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
-            'MENU в списке раздач → «Откуда брать». Профили — в «Откуда брать фильмы».',
-            'Release list: MENU → "Get films from". Profiles are in "Where to get films".')));
-}
-
-// The answer of aio_cgi_src_profiles() of src_profiles of the settings (a bool).
-function aio_cgi_src_profiles_of($on)
-{
-    return $on ? 'on' : 'off';
+    $t = aio_cgi_toggles();
+    return '<p class="lbl">' . $t[$k][0] . '</p>' . aio_cgi_choice($f[$k], $t[$k][1], $v[$k]);
 }
 
 // "Профили источников" on #adv: the cards of its radios (aio_cgi_form).
 function aio_cgi_src_profiles_cards()
 {
-    $out = '<p class="lbl">' . aio_cgi_l('Профили источников', 'Source profiles') . '</p><div class="choice">';
+    $t = aio_cgi_toggles();
+    $out = '<p class="lbl">' . $t['src_profiles'][0] . '</p><div class="choice">';
     $i = 0;
-    foreach (aio_cgi_src_profiles() as $x)
+    foreach ($t['src_profiles'][1] as $x)
         $out .= aio_cgi_card('spf' . ++$i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
     return $out . '</div>';
 }
@@ -430,43 +436,6 @@ function aio_cgi_lampac_block($v)
         aio_cgi_l('Выключено', 'Off'), aio_cgi_chk('lpb', 'lpr')) .
         '<p class="hint">' . aio_cgi_l('Пусто — выключено. Сервер Lampac: http://хост:порт', 'Empty: off. Lampac server: http://host:port') .
         '</p>';
-}
-
-// The answers of "Запуск торрентов" on the screen #adv (radio no_torrents, 0.49.0): its
-// value => array(name, hint); "off" - no_torrents of the settings.
-function aio_cgi_no_torrents()
-{
-    return array(
-        'allow' => array(aio_cgi_l('Разрешить', 'Allow'), aio_cgi_l('Если конфиг отдаёт P2P, они показываются; TorrServer и скачивание доступны.',
-            'P2P releases show if the config has them; TorrServer and downloads are available.')),
-        'off' => array(aio_cgi_l('Без торрентов', 'No torrents'), aio_cgi_l(
-            'Melange не запускает торренты: P2P скрыты, TorrServer и скачивание отключены.',
-            'Melange does not start torrents: P2P hidden, TorrServer and downloads disabled.')));
-}
-
-// The answer of aio_cgi_no_torrents() of no_torrents of the settings (a bool).
-function aio_cgi_no_torrents_of($on)
-{
-    return $on ? 'off' : 'allow';
-}
-
-// The answers of "Логотип фильма вместо названия" on the screen #look (radio
-// cat_logo, 0.55.0): its value => array(name, hint); "on" - cat_logo of the settings.
-function aio_cgi_cat_logo()
-{
-    return array(
-        'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
-            'Русский логотип в карточке над рядами, как в онлайн-кинотеатрах.',
-            'The Russian logo in the card above the rows, as in streaming services.')),
-        'off' => array(aio_cgi_l('Выключен', 'Off'), aio_cgi_l(
-            'Название текстом, памяти Дюны нужно вдвое меньше.',
-            'The title as text; the Dune needs half the memory.')));
-}
-
-// The answer of aio_cgi_cat_logo() of cat_logo of the settings (a bool).
-function aio_cgi_cat_logo_of($on)
-{
-    return $on ? 'on' : 'off';
 }
 
 // The answers of "Своя карточка" on the screen #look (radio cat_card, 0.59.0): its value =>
@@ -488,25 +457,6 @@ function aio_cgi_cat_card_of($c)
     return aio_card_own($c) ? 'on' : 'off';
 }
 
-// The answers of "Рейтинг IMDb на постерах" on the screen #look (radio cat_rating):
-// its value => array(name, hint); "on" - cat_rating of the settings.
-function aio_cgi_cat_rating()
-{
-    return array(
-        'off' => array(aio_cgi_l('Выключен', 'Off'), aio_cgi_l(
-            'Постеры без цифр, рейтинги — в карточке над рядами.',
-            'Posters without numbers, the ratings in the card above the rows.')),
-        'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
-            'Цифра IMDb в углу постера: в рядах каталога и в карточке.',
-            'The IMDb number in the corner of a poster: in the catalog rows and in the card.')));
-}
-
-// The answer of aio_cgi_cat_rating() of cat_rating of the settings (a bool).
-function aio_cgi_cat_rating_of($on)
-{
-    return $on ? 'on' : 'off';
-}
-
 // The screen #look (a value of the form: '' or another one - none checked). Under the logo:
 // on r24, older or an unknown firmware (aio_fw_vod_r) a warning that it needs r25, the catalog
 // shows the title as text whatever is chosen; else when to turn it off. Under the own card: where
@@ -516,14 +466,12 @@ function aio_cgi_look_screen($v)
 {
     $f = aio_cgi_fields();
     return '<p class="sub">' . aio_cgi_l('Действует со следующего открытия каталога.', 'Takes effect the next time the catalog opens.') .
-        '</p><p class="lbl">' . aio_cgi_l('Логотип фильма вместо названия', 'Film logo in place of the title') . '</p>' .
-        aio_cgi_choice($f['cat_logo'], aio_cgi_cat_logo(), $v['cat_logo']) .
+        '</p>' . aio_cgi_toggle_block('cat_logo', $v) .
         (aio_fw_vod_r() ? '<p class="hint">' . aio_cgi_l('Выключите, если каталог тормозит или карточки грузятся долго.',
         'Turn off if the catalog lags or the cards take long to load.') : '<p class="hint wn">' .
         aio_cgi_l('Логотип работает с прошивки r25. На этой Дюне — название текстом.',
-        'The logo needs firmware r25 or newer; this Dune shows the title as text.')) . '</p><p class="lbl">' .
-        aio_cgi_l('Рейтинг IMDb на постерах', 'IMDb rating on posters') . '</p>' .
-        aio_cgi_choice($f['cat_rating'], aio_cgi_cat_rating(), $v['cat_rating']) .
+        'The logo needs firmware r25 or newer; this Dune shows the title as text.')) . '</p>' .
+        aio_cgi_toggle_block('cat_rating', $v) .
         '<p class="lbl">' . aio_cgi_l('Своя карточка', 'Own card') . '</p>' .
         aio_cgi_choice($f['cat_card'], aio_cgi_cat_card(), $v['cat_card']) .
         '<input type="hidden" id="' . $f['cat_card_was']['id'] . '" name="' . $f['cat_card_was']['name'] . '" value="' .
@@ -832,9 +780,10 @@ function aio_cgi_host($url)
 // "Торренты" (class xt), the value kept.
 function aio_cgi_no_torrents_cards()
 {
-    $out = '<p class="lbl xt">' . aio_cgi_l('Запуск торрентов', 'Running torrents') . '</p><div class="choice xt">';
+    $t = aio_cgi_toggles();
+    $out = '<p class="lbl xt">' . $t['no_torrents'][0] . '</p><div class="choice xt">';
     $i = 0;
-    foreach (aio_cgi_no_torrents() as $x)
+    foreach ($t['no_torrents'][1] as $x)
         $out .= aio_cgi_card('nt' . ++$i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
     return $out . '</div>';
 }
@@ -1153,12 +1102,13 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
     $radios = '';
     foreach (aio_cgi_watches() as $id => $x)
         $radios .= aio_cgi_vradio($id, $f['watch']['name'], $x, $w === $x);
-    $i = 0;
-    foreach (array_keys(aio_cgi_no_torrents()) as $x)
-        $radios .= aio_cgi_vradio('nt' . ++$i, $f['no_torrents']['name'], $x, $v['no_torrents'] === $x);
-    $i = 0;
-    foreach (array_keys(aio_cgi_src_profiles()) as $x)
-        $radios .= aio_cgi_vradio('spf' . ++$i, $f['src_profiles']['name'], $x, $v['src_profiles'] === $x);
+    $tg = aio_cgi_toggles();
+    foreach (array('no_torrents', 'src_profiles') as $k)
+    {
+        $i = 0;
+        foreach (array_keys($tg[$k][1]) as $x)
+            $radios .= aio_cgi_vradio($f[$k]['id'] . ++$i, $f[$k]['name'], $x, $v[$k] === $x);
+    }
     $form = '<form method="post" action="settings?t=' . aio_cgi_h($t) . '" autocomplete="off">' .
         // Enter in a field without the script submits the first button: the save, not the reset.
         '<button type="submit" class="dflt" tabindex="-1" aria-hidden="true"></button>' . $radios .
@@ -1182,8 +1132,8 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
         aio_cgi_screen('look', aio_cgi_look_screen($v)) .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
-        aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_source_errors_block($v) .
-            aio_cgi_no_color_keys_block($v) .
+        aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_toggle_block('source_errors', $v) .
+            aio_cgi_toggle_block('no_color_keys', $v) .
             aio_cgi_src_profiles_cards() . aio_cgi_lampac_block($v)) .
         aio_cgi_screen('bak', aio_cgi_backup($t, $v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',

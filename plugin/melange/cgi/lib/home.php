@@ -122,8 +122,8 @@ function aio_cgi_rows($v)
         'adv' => array('none', ''),
         'rows' => array('none', aio_cgi_l('Какие показывать и в каком порядке', 'Which to show and in what order')),
         // A form back with a wrong value: as on.
-        'look' => array('none', ($v['cat_logo'] === aio_cgi_cat_logo_of(false) ? $t['logoOff'] : $t['logoOn']) . ' · ' .
-            ($v['cat_rating'] === aio_cgi_cat_rating_of(false) ? $t['ratingOff'] : $t['ratingOn'])),
+        'look' => array('none', ($v['cat_logo'] === aio_cgi_toggle_of('cat_logo', false) ? $t['logoOff'] : $t['logoOn']) . ' · ' .
+            ($v['cat_rating'] === aio_cgi_toggle_of('cat_rating', false) ? $t['ratingOff'] : $t['ratingOn'])),
         'bak' => array('none', aio_cgi_l('Настройки в файл и из файла', 'Settings to a file and back')),
         'log' => array('none', aio_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')),
         'about' => array('none', AIO_VERSION . ' · ' . aio_cgi_l('поддержать автора', 'support the author')));

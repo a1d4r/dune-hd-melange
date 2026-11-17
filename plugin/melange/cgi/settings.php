@@ -148,20 +148,13 @@ function aio_cgi_save($dir, $t)
         $v['ts_save'] = aio_cgi_ts_save_of($cur['ts_save']);
     if ($v['markers'] === '')
         $v['markers'] = aio_cgi_markers_of($cur['markers'], $cur['markers_exact']);
-    if ($v['source_errors'] === '')
-        $v['source_errors'] = aio_cgi_source_errors_of($cur['source_errors']);
-    if ($v['no_color_keys'] === '')
-        $v['no_color_keys'] = aio_cgi_no_color_keys_of($cur['no_color_keys']);
-    if ($v['cat_rating'] === '')
-        $v['cat_rating'] = aio_cgi_cat_rating_of($cur['cat_rating']);
-    if ($v['cat_logo'] === '')
-        $v['cat_logo'] = aio_cgi_cat_logo_of($cur['cat_logo']);
+    foreach (aio_cgi_toggles() as $k => $x)
+    {
+        if ($v[$k] === '')
+            $v[$k] = aio_cgi_toggle_of($k, $cur[$f[$k]['set']]);
+    }
     if ($v['cat_card'] === '')
         $v['cat_card'] = aio_cgi_cat_card_of($cur['cat_card']);
-    if ($v['no_torrents'] === '')
-        $v['no_torrents'] = aio_cgi_no_torrents_of($cur['no_torrents']);
-    if ($v['src_profiles'] === '')
-        $v['src_profiles'] = aio_cgi_src_profiles_of($cur['src_profiles']);
     if (!isset($_POST[$f['lampac']['name']]))
         $v['lampac'] = $cur['lampac_url'];
     // '' is a choice here (none made), only no field at all means an older form.

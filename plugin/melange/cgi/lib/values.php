@@ -8,10 +8,8 @@
 // (aio_cgi_posted), by the keys of aio_cgi_fields() - strings (aio_tpl,
 // aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
 // settings; tpl_seen, tpl_p2p_seen only posted; ts_save: aio_cgi_ts_save_of()
-// of the settings, markers: aio_cgi_markers_of() (of markers_exact too), source_errors:
-// aio_cgi_source_errors_of(), no_color_keys: aio_cgi_no_color_keys_of(), cat_rating: aio_cgi_cat_rating_of(),
-// cat_logo: aio_cgi_cat_logo_of(),
-// cat_card: aio_cgi_cat_card_of(), no_torrents: aio_cgi_no_torrents_of(), src_profiles: aio_cgi_src_profiles_of(), as posted - none: '',
+// of the settings, markers: aio_cgi_markers_of() (of markers_exact too), those of aio_cgi_toggles(): aio_cgi_toggle_of(),
+// cat_card: aio_cgi_cat_card_of(), as posted - none: '',
 // settings.php puts the stored one; cat_card_was: cat_card of the settings, as posted ('' none);
 // src_was: aio_cgi_src_was_stored() of the settings, as posted;
 // pf_sel, pf_was, pf_now, pf_name - the editor of the profiles, '' (aio_cgi_editor_values puts it), as posted);
@@ -36,14 +34,10 @@ function aio_cgi_values($s)
     $v['aio_mode'] = '';
     $v['ts_save'] = aio_cgi_ts_save_of($s['ts_save']);
     $v['markers'] = aio_cgi_markers_of($s['markers'], $s['markers_exact']);
-    $v['source_errors'] = aio_cgi_source_errors_of($s['source_errors']);
-    $v['no_color_keys'] = aio_cgi_no_color_keys_of($s['no_color_keys']);
-    $v['cat_rating'] = aio_cgi_cat_rating_of($s['cat_rating']);
-    $v['cat_logo'] = aio_cgi_cat_logo_of($s['cat_logo']);
+    foreach (aio_cgi_toggles() as $k => $x)
+        $v[$k] = aio_cgi_toggle_of($k, $v[$k]);
     $v['cat_card'] = aio_cgi_cat_card_of($s['cat_card']);
     $v['cat_card_was'] = $v['cat_card'];
-    $v['no_torrents'] = aio_cgi_no_torrents_of($s['no_torrents']);
-    $v['src_profiles'] = aio_cgi_src_profiles_of($s['src_profiles']);
     $v['src_was'] = aio_cgi_src_was_stored($s);
     // No editor of the profiles (aio_cgi_editor_values puts one).
     foreach (array('pf_sel', 'pf_was', 'pf_now', 'pf_name', 'pf_def') as $k)
@@ -310,11 +304,12 @@ function aio_cgi_check_values($v)
     {
         $errors[] = aio_cgi_err(aio_cgi_fmt_key('tmdb'), $f['tmdb']['name']);
     }
-    // None posted: the stored one already (settings.php).
-    $d[$set['no_torrents']] = $v['no_torrents'] === aio_cgi_no_torrents_of(true);
-    if (!array_key_exists($v['no_torrents'], aio_cgi_no_torrents()))
+    // The settings on/off (no_torrents among them, before $off). None posted: the stored one already (settings.php).
+    foreach (aio_cgi_toggles() as $k => $x)
     {
-        $errors[] = aio_cgi_err(aio_cgi_l('Торренты: нет такого ответа', 'Torrents: no such answer'), $f['no_torrents']['name']);
+        $d[$set[$k]] = $v[$k] === $x[2];
+        if (!array_key_exists($v[$k], $x[1]))
+            $errors[] = aio_cgi_err(sprintf(aio_cgi_l('%s: нет такого ответа', '%s: no such answer'), $x[0]), $f[$k]['name']);
     }
     // In effect, TorrServer and the servers are hidden: a wrong value there is not
     // in the way and not written, the stored one stays.
@@ -372,30 +367,6 @@ function aio_cgi_check_values($v)
         $errors[] = aio_cgi_err(aio_cgi_l('Пропуск заставки и титров: нет такого ответа', 'Skip intro and credits: no such answer'),
             $f['markers']['name']);
     }
-    $d[$set['source_errors']] = $v['source_errors'] === aio_cgi_source_errors_of(true);
-    if (!array_key_exists($v['source_errors'], aio_cgi_source_errors()))
-    {
-        $errors[] = aio_cgi_err(aio_cgi_l('Ошибки источников: нет такого ответа', 'Source errors: no such answer'),
-            $f['source_errors']['name']);
-    }
-    $d[$set['no_color_keys']] = $v['no_color_keys'] === aio_cgi_no_color_keys_of(true);
-    if (!array_key_exists($v['no_color_keys'], aio_cgi_no_color_keys()))
-    {
-        $errors[] = aio_cgi_err(aio_cgi_l('Пульт без цветных кнопок: нет такого ответа',
-            'Remote without colour buttons: no such answer'), $f['no_color_keys']['name']);
-    }
-    $d[$set['cat_rating']] = $v['cat_rating'] === aio_cgi_cat_rating_of(true);
-    if (!array_key_exists($v['cat_rating'], aio_cgi_cat_rating()))
-    {
-        $errors[] = aio_cgi_err(aio_cgi_l('Рейтинг IMDb на постерах: нет такого ответа',
-            'IMDb rating on posters: no such answer'), $f['cat_rating']['name']);
-    }
-    $d[$set['cat_logo']] = $v['cat_logo'] === aio_cgi_cat_logo_of(true);
-    if (!array_key_exists($v['cat_logo'], aio_cgi_cat_logo()))
-    {
-        $errors[] = aio_cgi_err(aio_cgi_l('Логотип фильма вместо названия: нет такого ответа',
-            'Film logo in place of the title: no such answer'), $f['cat_logo']['name']);
-    }
     // None chosen in the file and the answer the page showed for it posted (saved for another field): none still, the
     // default goes on by the firmware (on after an update to r24). Shown: as the page came (cat_card_was: a page of
     // r22 open over the update shows "off"); a form without it - by the firmware now.
@@ -404,19 +375,15 @@ function aio_cgi_check_values($v)
         $v['cat_card'] === aio_cgi_cat_card_of(true);
     if (!array_key_exists($v['cat_card'], aio_cgi_cat_card()))
         $errors[] = aio_cgi_err(aio_cgi_l('Своя карточка: нет такого ответа', 'Own card: no such answer'), $f['cat_card']['name']);
-    $d[$set['src_profiles']] = $v['src_profiles'] === aio_cgi_src_profiles_of(true);
-    if (!array_key_exists($v['src_profiles'], aio_cgi_src_profiles()))
-    {
-        $errors[] = aio_cgi_err(aio_cgi_l('Профили источников: нет такого ответа', 'Source profiles: no such answer'),
-            $f['src_profiles']['name']);
-    }
     $d[$set['cat_rows']] = aio_cat_rows_ok(explode(' ', $v['cat_rows']));
     // "Адрес Lampac": '' - off; none posted - the stored one already (settings.php).
     $lp = aio_lp_addr($v['lampac']);
     $d[$set['lampac']] = is_string($lp) ? $lp : '';
     if (!is_string($lp))
         $errors[] = aio_cgi_err(aio_cgi_fmt_lampac(), $f['lampac']['name']);
-    return array($d, $errors);
+    // The keys in the order of aio_settings_read, as settings.json has them (aio_settings_json): the settings on/off are
+    // checked together above.
+    return array(array_merge(array_intersect_key(aio_settings_parse(array()), $d), $d), $errors);
 }
 
 // TorrServer of the form (0.45.0): its address, login and password as
