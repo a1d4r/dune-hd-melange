@@ -1045,8 +1045,9 @@ function aio_lp_movie($src, $data, $base = '')
 // the sources of $srcs gone through, in their order, left: those not (the screen says "N more"), similar, serial:
 // sources that answered so, asked, lost: seconds of the requests of no answer (down; of a batch its slowest of no
 // answer), again: the indexes of the sources of no answer in time (aio_lp_timed_out: asked once more, aio_lp_poll),
-// held: when no time of the part was left for the season of a series (with $cap over $total), its reply and those of
-// the sources after it in its batch (none: empty) - the next call takes them, its season first, none asked again).
+// held: when no time of the part was left for the season of a series (with $cap over $total, or after another source
+// of the call), its reply and those of the sources after it in its batch (none: empty) - the next call takes them, its
+// season first, none asked again).
 // Season $s > 0 of a serial: a balancer of a series gives its season (aio_lp_serial: one more request, by the link of
 // the season, one by one) and its rows a voice (aio_lp_season_rows), a movie the reason movie; $s 0: a series is the
 // reason serial, as of a movie.
@@ -1067,10 +1068,9 @@ function aio_lp_replies($base, $srcs, $q, $total = AIO_LP_REPLIES_MAX, $s = 0, $
     $out = array('rows' => array(), 'at' => array(), 'why' => array(), 'done' => 0, 'left' => 0, 'similar' => 0,
         'serial' => 0, 'asked' => 0, 'lost' => 0.0, 'again' => array(), 'held' => array());
     $keys = array_keys($srcs);
-    // For the log: the most at once (curl_multi), one by one (it failed or none).
+    // curl_multi (none or it failed: one by one, "seq" in the log); the most at once, for the log.
     $multi = true;
     $par = 0;
-    $seq = false;
     $hold = false;
     $k = 0;
     while (!$hold && $k < count($keys) && $total - (aio_lp_now() - $t0) >= AIO_LP_REPLY_MIN)
@@ -1084,13 +1084,16 @@ function aio_lp_replies($base, $srcs, $q, $total = AIO_LP_REPLIES_MAX, $s = 0, $
         if (!$batch)
             $batch = array_slice($keys, $k, $multi ? AIO_HTTP_PAR : 1);
         $got = array();
+        // The links of the batch; those to ask (not held).
+        $links = array();
         $urls = array();
         foreach ($batch as $i)
         {
+            $links[$i] = aio_lp_url($srcs[$i]['url'], 'rjson=true&' . $q);
             if (isset($held[$i]))
                 $got[$i] = array($held[$i], 0.0);
             else
-                $urls[$i] = aio_lp_url($srcs[$i]['url'], 'rjson=true&' . $q);
+                $urls[$i] = $links[$i];
         }
         if (count($urls) > 1)
         {
@@ -1101,7 +1104,6 @@ function aio_lp_replies($base, $srcs, $q, $total = AIO_LP_REPLIES_MAX, $s = 0, $
                 if ($why !== '')
                     aio_lp_log("curl_multi failed ($why), one by one from now on", $base);
                 $multi = false;
-                $seq = true;
                 continue;
             }
             $got += $many;
@@ -1129,7 +1131,7 @@ function aio_lp_replies($base, $srcs, $q, $total = AIO_LP_REPLIES_MAX, $s = 0, $
                 continue;
             }
             $src = $srcs[$i];
-            $url = aio_lp_url($src['url'], 'rjson=true&' . $q);
+            $url = $links[$i];
             if ($r['err'] !== '')
             {
                 $out['done']++;
@@ -1144,9 +1146,12 @@ function aio_lp_replies($base, $srcs, $q, $total = AIO_LP_REPLIES_MAX, $s = 0, $
             if ($p['kind'] === 'serial' && $s > 0)
             {
                 // No time of the part left for its season: at the next part, the reply kept (and those after it in
-                // the batch), no season request on top; a kept one first in the call is gone through all the same.
-                // A request is not cut by the part (up to AIO_LP_REPLY_MAX s of the time left): a tick may go ~5 s.
-                if ((!isset($held[$i]) || $out['done'] > 0) && $cap > $total &&
+                // the batch), no season request on top - also with no time after the part ($cap not over $total),
+                // when a source went through before it in the call (one by one it would not have been asked: it is
+                // left, "N more"). The first in the call is gone through all the same when it is a kept one, or with
+                // no time after the part (its season of what is left: no time - down, again). A request is not cut
+                // by the part (up to AIO_LP_REPLY_MAX s of the time left): a tick may go ~5 s.
+                if (($out['done'] > 0 || (!isset($held[$i]) && $cap > $total)) &&
                     $total - (aio_lp_now() - $t0) < AIO_LP_REPLY_MIN)
                 {
                     $hold = true;
@@ -1182,7 +1187,7 @@ function aio_lp_replies($base, $srcs, $q, $total = AIO_LP_REPLIES_MAX, $s = 0, $
     $out['left'] = count($srcs) - $out['done'];
     aio_lp_log(sprintf('replies: %d rows of %d sources, %d not asked, similar: %d, serial: %d%s%s%s, %.2f s',
         count($out['rows']), $out['asked'], $out['left'], $out['similar'], $out['serial'], $par > 1 ? ", par $par" : '',
-        $seq ? ', seq' : '', $out['why'] ? '; skipped: ' . aio_lp_why_log($out['why'], $base) : '', aio_lp_now() - $t0),
+        $multi ? '' : ', seq', $out['why'] ? '; skipped: ' . aio_lp_why_log($out['why'], $base) : '', aio_lp_now() - $t0),
         $base);
     return $out;
 }
