@@ -62,9 +62,9 @@ parameters:
         # The online list of a list state (AioState lp, view_online.php): the title asked, the sources of the
         # search, the hidden, the rows (in the order of "Источники…"), the reasons, the next source not asked and
         # the number left, the start of the search (aio_lp_now), the yellow line; the cursor as AioState's, of its lines (aio_lpv_lines);
-        # the filter by a voice: its key and name (aio_lpv_voices); flt_gone - the yellow line is of a filter gone (aio_lpv_flt_keep);
+        # the filter by voices: their keys => names, in the order of aio_lpv_voices (none: all); flt_gone - the yellow line is of a filter gone (aio_lpv_flt_keep);
         # off - the paths of the sources of the search turned off in "Источники…" (aio_lpv_src_pick), not asked.
-        AioLpView: 'array{title: AioLpTitle, q: string, sources: list<AioLpSource>, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: AioProgress, flt?: array{k: string, name: string}, flt_gone?: bool, off?: list<string>}'
+        AioLpView: 'array{title: AioLpTitle, q: string, sources: list<AioLpSource>, hidden: array{show: int, rch: int, bad: int}, rows: list<AioLpRow>, why: list<AioLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: AioProgress, flt?: non-empty-array<string, string>, flt_gone?: bool, off?: list<string>}'
         # The search window between its ticks (AioLpv::$run, aio_lpv_search_open, online_search.php).
         # The view of the search so far in v, the poll of its replies (aio_lp_poll), more: the rows before "Ещё N" (-1: a new search).
         AioLpRun: 'array{sid: string, st: AioState, how: string, back: bool, path: string, key: string, fail: string, phase: string, search: AioLpSearch|null, v: AioLpView, poll: AioLpPoll, more: int}'
