@@ -3,7 +3,7 @@
 **English version**
 
 ## 0.62.1 — 17.11.2026
-- Fixed: after you switch the source with MENU → **Get films from…** in the release list, the cursor is now on the first row of the new list. Before, it moved down to the release it had been on.
+- Fixed: after you switch the source with MENU → **Get films from** in the release list, the cursor is now on the first row of the new list. Before, it moved down to the release it had been on.
 
 ## 0.62.0 — 16.11.2026
 - **Continue Watching row.** The first catalog row is now "Continue Watching": movies you started and didn't finish (after 2 minutes or 2% of the movie), and for a series, the next episode. The "Movies" tab shows movies, the "Series" tab shows series, up to 20 tiles; with nothing started, the row is hidden. Videos under 10 minutes without an episode number, such as trailers, don't count. It also gets what you started in the Dune's own Movies. ENTER opens the Melange card. Progress and marks come from the Dune history. Older history entries are linked to their titles a few at a time, as you open the catalog and cards, and only with a connection, so right after the update some things you started long ago may take a while to show up in Continue Watching.
@@ -267,7 +267,7 @@ First public release. What it does:
 **Russian version**
 
 ## 0.62.1 — 17.11.2026
-- Исправлено: после смены источника через MENU → «Откуда брать…» в списке раздач курсор теперь стоит на первой строке нового списка. Раньше он уезжал вниз, к раздаче, на которой стоял.
+- Исправлено: после смены источника через MENU → «Откуда брать» в списке раздач курсор теперь стоит на первой строке нового списка. Раньше он уезжал вниз, к раздаче, на которой стоял.
 
 ## 0.62.0 — 16.11.2026
 - **Ряд «Продолжить».** Первый ряд каталога теперь «Продолжить»: начатые и недосмотренные фильмы (после 2 минут или 2 % просмотра), а у сериала — следующая серия. На вкладке «Фильмы» в нём фильмы, на «Сериалах» — сериалы, до 20 плиток; если ничего не начато, ряда нет. Ролики короче 10 минут без номера серии, например трейлеры, не считаются. Сюда попадает и начатое в родных «Фильмах» Дюны. ENTER открывает карточку Melange. Прогресс и отметки Melange берёт из истории Дюны. Старые записи истории связываются с фильмами понемногу, при открытии каталога и карточек и только при связи с сервером, поэтому сразу после обновления часть давно начатого появится в «Продолжить» не сразу.
