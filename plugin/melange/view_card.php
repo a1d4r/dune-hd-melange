@@ -1420,8 +1420,8 @@ function aio_oc_folder_view($media_url, $sel_state)
 // episode $e of season $q as asked (aio_cm_req_s), season_numbers of the meta (the episodes out,
 // aio_cm_eps) for the playlist of the season and the next episode, the runs of the numbering of
 // Cinemeta of an anime numbered on (aio_cin: the numbers of its episodes, aio_cin_n), the titles of the episodes
-// (aio_titles, aio_cm_titles); the cursor of the list on
-// release $hash of the history ('' none). The list marked own: its MENU has no "Choose episode"
+// (aio_titles, aio_cm_titles), aio_own_card; the cursor of the list on
+// release $hash of the history ('' none). The list marked own (its online list too): its MENU has no "Choose episode"
 // (choose_season_episode would give the seasons of the last native series, not of this card).
 /**
  * @param AioOcCard $c
@@ -1438,6 +1438,8 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
         'native_title' => $native, 'year' => $t['year'], 'poster_url' => $t['poster'], 'fanart_url' => $t['background'],
         'rate_imdb' => $t['imdbRating'], 'description' => $t['description']);
     $series = $t['type'] === 'series';
+    // The list, its online one too (the window of the search builds it later), marked own (aio_movie).
+    $mv['aio_own_card'] = true;
     if ($series && $c['meta'])
     {
         $sn = array();
@@ -1462,7 +1464,6 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '')
     $a = aio_play_action($in);
     if (!Aio::$state || $a[GuiAction::handler_string_id] !== PLUGIN_OPEN_FOLDER_ACTION_ID)
         return $a;
-    Aio::$state['movie']['own_card'] = true;
     if ($hash !== '')
         Aio::$state = aio_list_cursor(Aio::$state, $hash);
     return $a;

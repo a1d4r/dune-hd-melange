@@ -375,7 +375,8 @@ function aio_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
 // lampac: aio_lpv_resume); the key $lpk of such a record with no episode to play (watched, no later one) - the
 // online list of the episode, the cursor on the row of the key (as the releases of a record of them); no
 // AIOStreams - the search at once; a title marked "online" - the search, its releases if nothing comes, but
-// "Continue" $r of a record of AIOStreams goes on as before. null: the releases as before.
+// "Continue" of a record of AIOStreams ($rel; $r its episode to play, null none: watched, no later one) goes on as
+// before, the releases. null: the releases as before.
 /**
  * @param stdClass $in
  * @param AioMovie $mv
@@ -384,9 +385,10 @@ function aio_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
  * @param int $e
  * @param AioResume|null $r
  * @param string $lpk
+ * @param bool $rel
  * @return AioAction|null
  */
-function aio_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk)
+function aio_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk, $rel = false)
 {
     // Of a series too: its online list from the releases takes them.
     aio_lpv_ids_keep($in, $mv);
@@ -399,7 +401,7 @@ function aio_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk)
     if ($aio && !$mark && $lpk === '')
         return null;
     // $r here of a release (debrid, ts, ''): one of lampac is played above.
-    if ($aio && $r)
+    if ($aio && ($r || $rel))
     {
         aio_log('lampac: the title is marked online, "Continue" of a release -> the releases');
         return null;

@@ -277,6 +277,9 @@ function aio_movie($in)
     $titles = aio_titles_valid(isset($m['aio_titles']) ? $m['aio_titles'] : null);
     if ($titles)
         $mv['titles'] = $titles;
+    // Of the own card (aio_oc_watch): its lists, the online one too, have no "Выбрать серию".
+    if (isset($m['aio_own_card']) && $m['aio_own_card'] === true)
+        $mv['own_card'] = true;
     return $mv;
 }
 
@@ -1805,6 +1808,8 @@ function aio_play_action($in)
     $e = -1;
     // A list opens with the cursor on this release (the one of the history).
     $hash = $resume && $lpk === '' ? $resume['hash'] : '';
+    // The record is of a release (debrid, ts), even when aio_wh_resume_ep leaves no episode to play of it.
+    $rel = $resume && $lpk === '';
     if ($mv['series'])
     {
         // Back from "Continue watching" the shell sends season = episode = -1.
@@ -1821,7 +1826,7 @@ function aio_play_action($in)
             list($s, $e, $hash) = aio_wh_episode($mv);
     }
     // "Онлайн" (online_play.php) of the episode chosen: its "Continue", a title marked so, no AIOStreams.
-    $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk);
+    $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $rel);
     if ($lp)
         return $lp;
     // No "Онлайн" (no Lampac): an online record opens the releases of its episode, as the card.
