@@ -1505,11 +1505,11 @@ function aio_oc_watch_from($c, $ep, $x, $src)
 }
 
 // "Смотреть из…" of tile $tile ($dune: its card of the Dune known, '' - asked as by ENTER, aio_card_id) from the source of
-// profile $src: its own card in memory, else one made as by ENTER (aio_oc_enter) with no screen, not kept: no rows of
-// posters, the tile filled by the meta, no rating asked (aio_oc_fill), a series with a card of the Dune - its episodes of
-// the meta to the pair (aio_pg_link_meta, as aio_oc_build) -> aio_oc_watch_from (a series: the episode offered,
-// aio_oc_pick). No IMDb: the message of the card (aio_oc_under) - the meta did not load (a tile of TMDB alone), else
-// none in it.
+// profile $src: its own card in memory with its meta, else one made as by ENTER (aio_oc_enter) with no screen, not
+// kept: no rows of posters, the tile filled by the meta, no rating asked (aio_oc_fill), a series with a card of the Dune
+// - its episodes of the meta to the pair (aio_pg_link_meta, as aio_oc_build) -> aio_oc_watch_from (a series: the
+// episode offered, aio_oc_pick). No IMDb: the message of the card (aio_oc_under) - the meta did not load (a tile of
+// TMDB alone), else none in it.
 /**
  * @param AioCatTile $tile
  * @param string $lang
@@ -1520,7 +1520,8 @@ function aio_oc_watch_from($c, $ep, $x, $src)
 function aio_oc_tile_watch($tile, $lang, $dune, $src)
 {
     $key = $tile['type'] . ':' . aio_cm_id($tile);
-    $kept = isset(AioOc::$cards[$key]);
+    // One in memory of no meta (it failed at ENTER) is made anew: the meta asked again.
+    $kept = isset(AioOc::$cards[$key]) && AioOc::$cards[$key]['meta'];
     if ($kept)
         $c = AioOc::$cards[$key];
     else
