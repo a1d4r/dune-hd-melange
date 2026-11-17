@@ -831,12 +831,9 @@ function aio_debrid_main_write($svc)
 
 // --- AIOStreams.
 
-// Requests at once at most (aio_http_get_many): the catalog server allows 180 a minute, the dunemdb API as many.
-define('AIO_HTTP_PAR', 5);
-
 // The body of a GET (aio_http_get, aio_http_get_many): its WRITEFUNCTION, $max bytes at most (0: no limit). Its own
 // object a request: inside curl_multi the callback of r25 gets another handle as its first argument (multi.c of its
-// libphp5 built for another php_curl), so the handle there is never used.
+// libphp5 built for another php_curl), so the handle there is never used. AIO_HTTP_PAR, AioHttp: net.php.
 class AioHttpSink
 {
     /** @var string */
@@ -870,13 +867,6 @@ class AioHttpSink
         $this->body .= $chunk;
         return strlen($chunk);
     }
-}
-
-// curl_multi failed in this php_server (aio_http_get_many): one by one since.
-class AioHttp
-{
-    /** @var bool */
-    public static $multi_off = false;
 }
 
 // The options of a GET of aio_http_get and aio_http_get_many with its body to $sink. $connect, $total: s; whole s as
@@ -922,9 +912,21 @@ function aio_http_opts($connect, $total, $sink)
  */
 function aio_http_reply($ch, $fail, $sink)
 {
-    $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
     // 0 until the TCP connection is made (PHP 5.3 has no CURLINFO_PRIMARY_IP).
-    $connected = curl_getinfo($ch, CURLINFO_CONNECT_TIME) > 0;
+    return aio_http_reply_of(intval(curl_getinfo($ch, CURLINFO_HTTP_CODE)), curl_getinfo($ch, CURLINFO_CONNECT_TIME) > 0,
+        $fail, $sink);
+}
+
+// The reply of a GET done (HTTP $code, $connected, $fail as aio_http_reply) with its body in $sink -> as aio_http_reply.
+/**
+ * @param int $code
+ * @param bool $connected
+ * @param string $fail
+ * @param AioHttpSink $sink
+ * @return array{int, string, string, bool}
+ */
+function aio_http_reply_of($code, $connected, $fail, $sink)
+{
     // Over $max with an error status: that HTTP error, not "too big".
     $err = $sink->over ? ($code === 200 ? AIO_HTTP_TOO_BIG : '') : $fail;
     return array($code, $err !== '' || $sink->over ? '' : $sink->body, $err, $connected);
@@ -973,132 +975,41 @@ if (!function_exists('aio_http_get'))
 // Tests define their own aio_http_get_many().
 if (!function_exists('aio_http_get_many'))
 {
-    // The GETs $reqs (key => array(url, connect, total, max) as of aio_http_get) at once by curl_multi -> key =>
-    // array(HTTP code, body, err, connected, s it took) as aio_http_get, in the order of $reqs; null: no curl_multi
-    // (old firmware), or it failed now (add, exec; from then on none in this php_server, one line of the log): the
-    // caller asks one by one (aio_http_get). The callers keep to AIO_HTTP_PAR. r25 (knowledge of its libphp5): no
-    // curl_multi_getcontent (it crashes PHP), the body by WRITEFUNCTION only; a new handle a request, none kept past
-    // the call (curl_close frees no handle that went through curl_multi there, the end of its last zval does).
+    // The GETs $reqs (key => array(url, connect, total, max) as of aio_http_get) at once (aio_net_multi of net.php) ->
+    // key => array(HTTP code, body, err, connected, s it took) as aio_http_get, in the order of $reqs; null: no
+    // curl_multi (old firmware), or it failed now (add, exec; from then on none in this php_server, one line of the
+    // log): the caller asks one by one (aio_http_get). The callers keep to AIO_HTTP_PAR.
     /**
      * @param array<array-key, array{string, float|int, float|int, int}> $reqs
      * @return array<array-key, array{int, string, string, bool, float}>|null
      */
     function aio_http_get_many($reqs)
     {
-        if (AioHttp::$multi_off || !function_exists('curl_multi_init'))
-            return null;
         // Not cut: a sign for the caller to keep to it.
-        if (count($reqs) > AIO_HTTP_PAR)
+        if (count($reqs) > AIO_HTTP_PAR && !AioHttp::$multi_off && function_exists('curl_multi_init'))
             aio_log(sprintf('http: %d requests at once, over AIO_HTTP_PAR (%d)', count($reqs), AIO_HTTP_PAR));
-        $t0 = microtime(true);
-        // curl_multi_init of PHP 5.3 has no failure of its own: a broken one fails at add or exec.
-        $mh = curl_multi_init();
-        $hs = array();
         $sinks = array();
-        $keys = array();
-        $res = array();
-        $wait = 0;
-        foreach ($reqs as $k => $q)
+        $q = array();
+        foreach ($reqs as $k => $r)
         {
-            $sink = new AioHttpSink($q[3]);
-            $ch = curl_init($q[0]);
-            if (!curl_setopt_array($ch, aio_http_opts($q[1], $q[2], $sink)))
-            {
-                curl_close($ch);
-                $res[$k] = array(0, '', 'curl options refused', false, 0.0);
-                continue;
-            }
-            if (curl_multi_add_handle($mh, $ch) !== 0)
-            {
-                curl_close($ch);
-                foreach ($hs as $h)
-                {
-                    curl_multi_remove_handle($mh, $h);
-                    curl_close($h);
-                }
-                curl_multi_close($mh);
-                return aio_http_multi_off('add');
-            }
-            $hs[$k] = $ch;
-            $sinks[$k] = $sink;
-            $keys[(int) $ch] = $k;
-            $wait = max($wait, $q[2]);
+            $sinks[$k] = new AioHttpSink($r[3]);
+            $q[$k] = array($r[0], aio_http_opts($r[1], $r[2], $sinks[$k]), $r[2]);
         }
-        // A last guard past the timeouts of curl: the ones left then are timeouts of it.
-        $end = $t0 + $wait + 2;
-        $done = array();
-        $bad = '';
-        while (count($done) < count($hs))
+        $why = '';
+        $res = aio_net_multi($q, $why);
+        if ($res === null)
         {
-            do
-                $rc = curl_multi_exec($mh, $active);
-            while ($rc === CURLM_CALL_MULTI_PERFORM);
-            if ($rc !== CURLM_OK)
-            {
-                $bad = "exec $rc";
-                break;
-            }
-            // By $m['handle'] (right on r25), not by an argument of a callback.
-            while (($m = curl_multi_info_read($mh)) !== false)
-            {
-                $id = (int) $m['handle'];
-                if ($m['msg'] === CURLMSG_DONE && isset($keys[$id]) && !isset($done[$keys[$id]]))
-                    $done[$keys[$id]] = array(intval($m['result']), microtime(true) - $t0);
-            }
-            if (count($done) >= count($hs) || microtime(true) >= $end)
-                break;
-            if (!$active)
-            {
-                $bad = 'no result';
-                break;
-            }
-            if (curl_multi_select($mh, 0.2) === -1)
-                usleep(10000);
+            if ($why !== '')
+                aio_log("http: curl_multi failed ($why), one by one from now on");
+            return null;
         }
-        if ($bad === '')
-        {
-            foreach ($reqs as $k => $q)
-            {
-                if (isset($res[$k]))
-                    continue;
-                if (isset($done[$k]))
-                {
-                    $fail = $done[$k][0] !== 0 ? 'curl ' . $done[$k][0] . ': ' . curl_error($hs[$k]) : '';
-                    $r = aio_http_reply($hs[$k], $fail, $sinks[$k]);
-                    $r[] = $done[$k][1];
-                }
-                else
-                {
-                    $r = aio_http_reply($hs[$k], 'curl 28: no reply in time', $sinks[$k]);
-                    $r[] = microtime(true) - $t0;
-                }
-                $res[$k] = $r;
-            }
-        }
-        foreach ($hs as $h)
-        {
-            curl_multi_remove_handle($mh, $h);
-            curl_close($h);
-        }
-        curl_multi_close($mh);
-        if ($bad !== '')
-            return aio_http_multi_off($bad);
         $out = array();
-        foreach ($reqs as $k => $q)
-            $out[$k] = $res[$k];
+        foreach ($res as $k => $x)
+        {
+            $out[$k] = $x['errno'] === -1 ? array(0, '', $x['err'], false, 0.0) :
+                aio_http_reply_of($x['code'], $x['connected'], $x['err'], $sinks[$k]) + array(4 => $x['t']);
+        }
         return $out;
-    }
-
-    // curl_multi failed ($why: of the log): none from now on in this php_server. -> null.
-    /**
-     * @param string $why
-     * @return null
-     */
-    function aio_http_multi_off($why)
-    {
-        AioHttp::$multi_off = true;
-        aio_log("http: curl_multi failed ($why), one by one from now on");
-        return null;
     }
 }
 

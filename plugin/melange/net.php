@@ -1,9 +1,10 @@
 <?php
 // HTTP clients shared by the plugin (php_server) and the settings page
-// (cgi/settings.php, php-cgi as root): TorrServer, the Transmission RPC and
-// Lampac. Plain PHP 5.3: no firmware API, no logging here. Needs common.php
-// (AIO_VERSION, AIO_CA_BUNDLE); tests define their own aio_ts_call(),
-// aio_trm_call() and aio_lp_get().
+// (cgi/settings.php, php-cgi as root): TorrServer, the Transmission RPC,
+// Lampac, and the loop of curl_multi (aio_net_multi: aio_http_get_many of
+// main.php, aio_lp_get_many). Plain PHP 5.3: no firmware API, no logging here.
+// Needs common.php (AIO_VERSION, AIO_CA_BUNDLE); tests define their own
+// aio_ts_call(), aio_trm_call(), aio_lp_get() and aio_lp_get_many().
 // Types in the PHPDoc (AioServer): phpstan-types.neon of the repository.
 
 // The Transmission RPC address of a stored server address: no path ->
@@ -172,8 +173,235 @@ if (!function_exists('aio_ts_call'))
     }
 }
 
+// Requests at once at most (aio_net_multi: aio_http_get_many of main.php, aio_lp_get_many): the catalog server allows
+// 180 a minute, the dunemdb API as many; Lampac answers 5 balancers at once in the time of the slowest (a server without
+// a cache: 0.2-0.7 s each).
+define('AIO_HTTP_PAR', 5);
+
+// curl_multi failed in this php_server (aio_net_multi): one by one since.
+class AioHttp
+{
+    /** @var bool */
+    public static $multi_off = false;
+}
+
+// The requests $reqs (key => array(URL, the options of curl (the body by WRITEFUNCTION), its total s)) at once by
+// curl_multi -> key => array(errno: curl errno (0 none, -1 its options refused, 28 also no reply by the last guard),
+// err: "curl <errno>: <text>" ('' none), code: HTTP code, connected: a connection was made, t: s it took), in the order
+// of $reqs; null: no curl_multi (old firmware), or it failed now ($why: add, exec <rc>, no result; from then on none in
+// this php_server, AioHttp::$multi_off; '' - none before) - the caller asks one by one and logs $why. The callers keep
+// to AIO_HTTP_PAR. r25 (knowledge of its libphp5): no curl_multi_getcontent (it crashes PHP), the body by
+// WRITEFUNCTION only, its callbacks get another handle as their first argument (never used); a new handle a request,
+// none kept past the call (curl_close frees no handle that went through curl_multi there, the end of its last zval
+// does).
+/**
+ * @param array<array-key, array{string, array<int, mixed>, float|int}> $reqs
+ * @param string $why
+ * @return array<array-key, array{errno: int, err: string, code: int, connected: bool, t: float}>|null
+ */
+function aio_net_multi($reqs, &$why)
+{
+    $why = '';
+    if (AioHttp::$multi_off || !function_exists('curl_multi_init'))
+        return null;
+    $t0 = microtime(true);
+    // curl_multi_init of PHP 5.3 has no failure of its own: a broken one fails at add or exec.
+    $mh = curl_multi_init();
+    $hs = array();
+    $keys = array();
+    $res = array();
+    $wait = 0;
+    foreach ($reqs as $k => $q)
+    {
+        $ch = curl_init($q[0]);
+        // PHP 5.3 stops at a refused option: no WRITEFUNCTION, the body would go to stdout.
+        if (!curl_setopt_array($ch, $q[1]))
+        {
+            curl_close($ch);
+            $res[$k] = array('errno' => -1, 'err' => 'curl options refused', 'code' => 0, 'connected' => false, 't' => 0.0);
+            continue;
+        }
+        if (curl_multi_add_handle($mh, $ch) !== 0)
+        {
+            curl_close($ch);
+            foreach ($hs as $h)
+            {
+                curl_multi_remove_handle($mh, $h);
+                curl_close($h);
+            }
+            curl_multi_close($mh);
+            return aio_net_multi_off('add', $why);
+        }
+        $hs[$k] = $ch;
+        $keys[(int) $ch] = $k;
+        $wait = max($wait, $q[2]);
+    }
+    // A last guard past the timeouts of curl: the ones left then are timeouts of it.
+    $end = $t0 + $wait + 2;
+    $done = array();
+    $bad = '';
+    while (count($done) < count($hs))
+    {
+        do
+            $rc = curl_multi_exec($mh, $active);
+        while ($rc === CURLM_CALL_MULTI_PERFORM);
+        if ($rc !== CURLM_OK)
+        {
+            $bad = "exec $rc";
+            break;
+        }
+        // By $m['handle'] (right on r25), not by an argument of a callback.
+        while (($m = curl_multi_info_read($mh)) !== false)
+        {
+            $id = (int) $m['handle'];
+            if ($m['msg'] === CURLMSG_DONE && isset($keys[$id]) && !isset($done[$keys[$id]]))
+                $done[$keys[$id]] = array(intval($m['result']), microtime(true) - $t0);
+        }
+        if (count($done) >= count($hs) || microtime(true) >= $end)
+            break;
+        if (!$active)
+        {
+            $bad = 'no result';
+            break;
+        }
+        if (curl_multi_select($mh, 0.2) === -1)
+            usleep(10000);
+    }
+    foreach ($bad === '' ? $hs : array() as $k => $h)
+    {
+        $no = isset($done[$k]) ? $done[$k][0] : 28;
+        $res[$k] = array('errno' => $no, 'err' => !isset($done[$k]) ? 'curl 28: no reply in time' :
+            ($no !== 0 ? "curl $no: " . curl_error($h) : ''), 'code' => intval(curl_getinfo($h, CURLINFO_HTTP_CODE)),
+            // 0 until the TCP connection is made (PHP 5.3 has no CURLINFO_PRIMARY_IP).
+            'connected' => curl_getinfo($h, CURLINFO_CONNECT_TIME) > 0,
+            't' => isset($done[$k]) ? $done[$k][1] : microtime(true) - $t0);
+    }
+    foreach ($hs as $h)
+    {
+        curl_multi_remove_handle($mh, $h);
+        curl_close($h);
+    }
+    curl_multi_close($mh);
+    if ($bad !== '')
+        return aio_net_multi_off($bad, $why);
+    $out = array();
+    foreach ($reqs as $k => $q)
+        $out[$k] = $res[$k];
+    return $out;
+}
+
+// curl_multi failed ($why: of the log): none from now on in this php_server. -> null.
+/**
+ * @param string $bad
+ * @param string $why
+ * @return null
+ */
+function aio_net_multi_off($bad, &$why)
+{
+    AioHttp::$multi_off = true;
+    $why = $bad;
+    return null;
+}
+
 // err of aio_lp_get for a reply over its $max bytes.
 define('AIO_LP_TOO_BIG', 'reply over the size limit');
+
+// The body of a reply of Lampac (aio_lp_get, aio_lp_get_many), $max bytes at most, and its mark of the cache: the
+// WRITEFUNCTION and HEADERFUNCTION of its handle. Its own object a request: the handle of a callback is never used
+// (aio_net_multi).
+class AioLpSink
+{
+    /** @var string */
+    public $body = '';
+    /** @var bool */
+    public $over = false;
+    /** @var bool */
+    public $hit = false;
+    /** @var int */
+    public $max = 0;
+
+    /**
+     * @param int $max
+     */
+    public function __construct($max)
+    {
+        $this->max = $max;
+    }
+
+    // Not RETURNTRANSFER (curl_multi_getcontent of r25): a short count aborts the transfer.
+    /**
+     * @param mixed $ch
+     * @param string $chunk
+     * @return int
+     */
+    public function write($ch, $chunk)
+    {
+        if (strlen($this->body) + strlen($chunk) > $this->max)
+        {
+            $this->over = true;
+            return 0;
+        }
+        $this->body .= $chunk;
+        return strlen($chunk);
+    }
+
+    /**
+     * @param mixed $ch
+     * @param string $line
+     * @return int
+     */
+    public function head($ch, $line)
+    {
+        // A status line starts a response (also after "100 Continue").
+        if (preg_match('~^HTTP/\S+\s+[0-9]{3}~', $line))
+            $this->hit = false;
+        else if (preg_match('/^X-Invoke-Cache:[ \t]*HIT[ \t\r\n]*$/i', $line))
+            $this->hit = true;
+        return strlen($line);
+    }
+}
+
+// The options of a GET of Lampac (aio_lp_get) with its body to $sink: http and https, no redirects (an address of the
+// page: its /version without type sends to another site), gzip. $ua: the User-Agent ('' that of Melange; aio_lp_send).
+/**
+ * @param int $connect
+ * @param int $total
+ * @param string $ua
+ * @param AioLpSink $sink
+ * @return array<int, mixed>
+ */
+function aio_lp_opts($connect, $total, $ua, $sink)
+{
+    return array(
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+        CURLOPT_CONNECTTIMEOUT => $connect,
+        CURLOPT_TIMEOUT => $total,
+        CURLOPT_CAINFO => AIO_CA_BUNDLE,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_ENCODING => '',
+        CURLOPT_USERAGENT => $ua !== '' ? $ua : 'Melange-Dune/' . AIO_VERSION,
+        CURLOPT_HTTPHEADER => array('Accept: application/json'),
+        CURLOPT_HEADERFUNCTION => array($sink, 'head'),
+        CURLOPT_WRITEFUNCTION => array($sink, 'write'));
+}
+
+// The reply of a GET of Lampac done (HTTP $code, curl $errno, its error $fail: '' none) with its body in $sink ->
+// AioLpReply (aio_lp_get).
+/**
+ * @param int $code
+ * @param int $errno
+ * @param string $fail
+ * @param AioLpSink $sink
+ * @return AioLpReply
+ */
+function aio_lp_reply_of($code, $errno, $fail, $sink)
+{
+    $err = $sink->over ? AIO_LP_TOO_BIG : $fail;
+    return array('code' => $code, 'body' => $err !== '' ? '' : $sink->body, 'err' => $err,
+        'errno' => $sink->over ? 0 : $errno, 'hit' => $sink->hit);
+}
 
 // Tests define their own aio_lp_get().
 if (!function_exists('aio_lp_get'))
@@ -183,10 +411,9 @@ if (!function_exists('aio_lp_get'))
     // transport error ('' none; AIO_LP_TOO_BIG over $max), errno: curl errno
     // (0 none, -1 its options refused), hit: the reply came with
     // "X-Invoke-Cache: HIT" (Lampac keeps errors too: no point asking again)).
-    // http and https, no redirects (an address of the page: its /version
-    // without type sends to another site), gzip. No log here: the address
-    // and the tokens of a link never go there. The plugin and the check of
-    // the settings page. $ua: the User-Agent ('' that of Melange; aio_lp_send).
+    // As aio_lp_opts. No log here: the address and the tokens of a link never
+    // go there. The plugin and the check of the settings page. $ua: the
+    // User-Agent ('' that of Melange; aio_lp_send).
     /**
      * @param string $url
      * @param int $connect
@@ -197,52 +424,48 @@ if (!function_exists('aio_lp_get'))
      */
     function aio_lp_get($url, $connect, $total, $max, $ua = '')
     {
-        $body = '';
-        $over = false;
-        $hit = false;
+        $sink = new AioLpSink($max);
         $ch = curl_init($url);
-        $opts = array(
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_CONNECTTIMEOUT => $connect,
-            CURLOPT_TIMEOUT => $total,
-            CURLOPT_CAINFO => AIO_CA_BUNDLE,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_ENCODING => '',
-            CURLOPT_USERAGENT => $ua !== '' ? $ua : 'Melange-Dune/' . AIO_VERSION,
-            CURLOPT_HTTPHEADER => array('Accept: application/json'),
-            CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$hit)
-            {
-                // A status line starts a response (also after "100 Continue").
-                if (preg_match('~^HTTP/\S+\s+[0-9]{3}~', $line))
-                    $hit = false;
-                else if (preg_match('/^X-Invoke-Cache:[ \t]*HIT[ \t\r\n]*$/i', $line))
-                    $hit = true;
-                return strlen($line);
-            },
-            // Not RETURNTRANSFER (curl_multi_getcontent of r25): a short count aborts the transfer.
-            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$over, $max)
-            {
-                if (strlen($body) + strlen($chunk) > $max)
-                {
-                    $over = true;
-                    return 0;
-                }
-                $body .= $chunk;
-                return strlen($chunk);
-            });
-        if (!curl_setopt_array($ch, $opts))
+        if (!curl_setopt_array($ch, aio_lp_opts($connect, $total, $ua, $sink)))
         {
             curl_close($ch);
             return array('code' => 0, 'body' => '', 'err' => 'curl options refused', 'errno' => -1, 'hit' => false);
         }
         $ok = curl_exec($ch);
-        $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
-        $errno = $over ? 0 : curl_errno($ch);
-        $err = $over ? AIO_LP_TOO_BIG : ($ok === false ? "curl $errno: " . curl_error($ch) : '');
+        $errno = curl_errno($ch);
+        $r = aio_lp_reply_of(intval(curl_getinfo($ch, CURLINFO_HTTP_CODE)), $errno,
+            $ok === false ? "curl $errno: " . curl_error($ch) : '', $sink);
         curl_close($ch);
-        return array('code' => $code, 'body' => $err !== '' ? '' : $body, 'err' => $err, 'errno' => $errno,
-            'hit' => $hit);
+        return $r;
+    }
+}
+
+// Tests define their own aio_lp_get_many().
+if (!function_exists('aio_lp_get_many'))
+{
+    // The GETs $reqs (key => array(url, connect, total, max, ua) as of aio_lp_get) at once (aio_net_multi) -> key =>
+    // array(the reply as of aio_lp_get, s it took), in the order of $reqs; null: no curl_multi ($why as aio_net_multi):
+    // the caller asks one by one (aio_lp_get).
+    /**
+     * @param array<array-key, array{string, int, int, int, string}> $reqs
+     * @param string $why
+     * @return array<array-key, array{AioLpReply, float}>|null
+     */
+    function aio_lp_get_many($reqs, &$why)
+    {
+        $sinks = array();
+        $q = array();
+        foreach ($reqs as $k => $r)
+        {
+            $sinks[$k] = new AioLpSink($r[3]);
+            $q[$k] = array($r[0], aio_lp_opts($r[1], $r[2], $r[4], $sinks[$k]), $r[2]);
+        }
+        $res = aio_net_multi($q, $why);
+        if ($res === null)
+            return null;
+        $out = array();
+        foreach ($res as $k => $x)
+            $out[$k] = array(aio_lp_reply_of($x['code'], $x['errno'], $x['err'], $sinks[$k]), $x['t']);
+        return $out;
     }
 }
