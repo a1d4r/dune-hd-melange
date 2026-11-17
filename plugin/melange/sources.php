@@ -130,8 +130,7 @@ function aio_gc_src_commit($dir, $s0, $p, $tag)
         $s = aio_settings_from_top(aio_profile_apply($s, $p));
         if (aio_settings_write($s))
         {
-            Aio::$file = $s;
-            Aio::$settings = aio_op_settings($s);
+            aio_op_apply(aio_op_settings($s));
             return '';
         }
         $err = array('err_setup_write', 'settings.json not written');
@@ -190,7 +189,7 @@ function aio_gc_src($in)
     list($cur) = aio_gc_pos($st, isset($in->parent_sel_state) && empty($st['lp_on']) ? $in->parent_sel_state : null);
     $old = Aio::$settings;
     // The request goes with the settings of the profile, the log masked by them too.
-    Aio::$settings = aio_op_settings($s, $k, aio_profile_index($s, Aio::$settings['lp_prof']));
+    aio_op_apply(aio_op_settings($s, $p['id'], Aio::$settings['lp_prof']));
     $r = aio_relist($st, $st['s'], $st['e'], '');
     if (!isset($r['error']))
         $r['by'] = 'first row';
@@ -220,7 +219,7 @@ function aio_gc_src($in)
         }
         $r = array('error' => $e, 'detail' => '');
     }
-    Aio::$settings = $old;
+    aio_op_apply($old);
     return aio_gc_src_dialog($title, $st['lang'], $r);
 }
 

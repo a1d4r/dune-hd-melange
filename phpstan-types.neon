@@ -151,7 +151,8 @@ parameters:
                 ready: bool,
                 made: array{base: string, mode: string, conf: AioConf}|null,
                 lp: string,
-                lp_src: list<AioLpChoice>
+                lp_src: list<AioLpChoice>,
+                lp_auth: array{token: string, lampa: bool, uid: string}
             }
         '''
         # Badges of a release (aio_badges, parse.php).

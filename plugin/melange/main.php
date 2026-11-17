@@ -134,7 +134,8 @@ class Aio
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true,
         'cat_rating' => false, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array(), 'prof' => '', 'lp_prof' => '',
-        'main' => '', 'ready' => false, 'made' => null, 'lp' => '', 'lp_src' => array());
+        'main' => '', 'ready' => false, 'made' => null, 'lp' => '', 'lp_src' => array(),
+        'lp_auth' => array('token' => '', 'lampa' => false, 'uid' => ''));
     // settings.json as read at the start of the operation (aio_settings_load): another pair of its profiles takes its
     // settings without a second read (aio_op_use). null before the first one.
     /** @var AioSettings|null */
@@ -705,7 +706,11 @@ function aio_qr_file($group, $list, $text, $scale, $max_side, $mask, $tag)
 function aio_settings_write($s)
 {
     $json = aio_settings_json($s);
-    return $json !== '' && aio_data_dir() !== '' && aio_write_file(aio_data_dir() . '/' . AIO_SETTINGS_FILE, $json);
+    if ($json === '' || aio_data_dir() === '' || !aio_write_file(aio_data_dir() . '/' . AIO_SETTINGS_FILE, $json))
+        return false;
+    // The file of the operation is this one now: another pair of its profiles (aio_op_use) takes it.
+    Aio::$file = $s;
+    return true;
 }
 
 // data_dir/settings.json, read at the start of every operation, before its
@@ -718,25 +723,58 @@ function aio_settings_write($s)
 function aio_settings_load()
 {
     Aio::$file = aio_settings_read_logged();
-    Aio::$settings = aio_op_settings(Aio::$file);
+    aio_op_apply(aio_op_settings(Aio::$file));
 }
 
-// Aio::$settings of settings $s (aio_settings_read) as if the source were the profiles of the pair $rel (of releases),
-// $lp (of Lampac): their indexes in profiles, -1 none, null - of the pair of the main one (aio_profile_pair; spec v2
-// §1.9). The source, its config and keys, "Без торрентов" of $rel (aio_profile_view: the configs only its own - a cell
-// of another profile never goes in); the Lampac of $lp; the passwords, keys, tokens and hosts hidden in the log - of
-// all profiles; the sort and the main Debrid read from their files.
+// Settings $o of an operation (aio_op_settings) in use: Aio::$settings and the auth of its Lampac (AioLp::$auth -
+// lampac.php has no settings, its requests take it: aio_lp_send). The one writer of both: the load, another pair
+// (aio_op_use), a rollback to the settings of before.
+/**
+ * @param AioOpSettings $o
+ * @return void
+ */
+function aio_op_apply($o)
+{
+    Aio::$settings = $o;
+    AioLp::$auth = $o['lp_auth'];
+}
+
+// The pair of profiles of ids $rel (of releases) and $lp (of Lampac) of the settings $s (spec v2 §1.9) -> their indexes
+// in profiles, the one resolver of a pair: one not there, not of its kind or not ready ('' too) - that of the pair of the
+// main one (aio_profile_pair; -1 none).
 /**
  * @param AioSettings $s
- * @param int|null $rel
- * @param int|null $lp
- * @return AioOpSettings
+ * @param string $rel
+ * @param string $lp
+ * @return array{int, int}
  */
-function aio_op_settings($s, $rel = null, $lp = null)
+function aio_op_pair($s, $rel, $lp)
 {
     list($r0, $l0) = aio_profile_pair($s);
-    $rel = $rel === null ? $r0 : $rel;
-    $lp = $lp === null ? $l0 : $lp;
+    $r = aio_profile_index($s, $rel);
+    $l = aio_profile_index($s, $lp);
+    if ($r < 0 || !aio_profile_rel($s['profiles'][$r]) || !aio_profile_ready($s['profiles'][$r]))
+        $r = $r0;
+    if ($l < 0 || aio_profile_rel($s['profiles'][$l]) || !aio_profile_ready($s['profiles'][$l]))
+        $l = $l0;
+    return array($r, $l);
+}
+
+// The settings of an operation (Aio::$settings, put in use by aio_op_apply) of settings $s (aio_settings_read) as if the
+// source were the profiles of the pair of ids $rel (of releases), $lp (of Lampac), resolved by aio_op_pair ('' - of the
+// pair of the main one; spec v2 §1.9). The source, its config and keys, "Без торрентов" of $rel (aio_profile_view: the
+// configs only its own - a cell of another profile never goes in); the Lampac of $lp and its auth (lp_auth); the
+// passwords, keys, tokens and hosts hidden in the log - of all profiles; the sort and the main Debrid read from their
+// files.
+/**
+ * @param AioSettings $s
+ * @param string $rel
+ * @param string $lp
+ * @return AioOpSettings
+ */
+function aio_op_settings($s, $rel = '', $lp = '')
+{
+    list($rel, $lp) = aio_op_pair($s, $rel, $lp);
     $v = $s;
     if ($rel >= 0)
         $v = aio_profile_view($v, $s['profiles'][$rel]);
@@ -750,9 +788,6 @@ function aio_op_settings($s, $rel = null, $lp = null)
     list($sort, $rev) = aio_sort_read();
     $conf = $v['source'] === 'own' ? null : aio_settings_conf($v);
     $lpb = aio_lp_base($v);
-    // lampac.php has no settings: its requests to the Lampac of them take these (aio_lp_send).
-    AioLp::$auth = array('token' => $v['lampac_token'], 'lampa' => $v['lampac_as_lampa'],
-        'uid' => $v['lampac_as_lampa'] && $lpb !== '' ? aio_lp_uid() : '');
     $profiles = array();
     $ready = false;
     foreach ($s['profiles'] as $p)
@@ -794,12 +829,15 @@ function aio_op_settings($s, $rel = null, $lp = null)
         'ready' => $ready,
         'made' => $conf ? array('base' => aio_settings_base($v), 'mode' => $v['aio_mode'], 'conf' => $conf) : null,
         'lp' => $lpb,
-        'lp_src' => $v['lampac_sources']);
+        'lp_src' => $v['lampac_sources'],
+        // lampac.php has no settings: its requests to the Lampac of them take these (aio_op_apply, aio_lp_send).
+        'lp_auth' => array('token' => $v['lampac_token'], 'lampa' => $v['lampac_as_lampa'],
+            'uid' => $v['lampac_as_lampa'] && $lpb !== '' ? aio_lp_uid() : ''));
 }
 
-// Aio::$settings of the pair of profiles of ids $rel (of releases) and $lp (of Lampac) of Aio::$file (a list screen,
-// a lazy episode, a record of the history): one not there, not of its kind or not ready ('' too) - that of the pair of
-// the main one (aio_profile_pair). -> the pair as taken (ids, '' none).
+// The settings of the operation (aio_op_apply) of the pair of profiles of ids $rel (of releases) and $lp (of Lampac) of
+// Aio::$file (a list screen, a lazy episode, a record of the history), resolved by aio_op_pair. -> the pair as taken
+// (ids, '' none).
 /**
  * @param string $rel
  * @param string $lp
@@ -810,17 +848,11 @@ function aio_op_use($rel, $lp)
     $s = Aio::$file;
     if (!$s)
         return array(Aio::$settings['prof'], Aio::$settings['lp_prof']);
-    list($r0, $l0) = aio_profile_pair($s);
-    $r = aio_profile_index($s, $rel);
-    $l = aio_profile_index($s, $lp);
-    if ($r < 0 || !aio_profile_rel($s['profiles'][$r]) || !aio_profile_ready($s['profiles'][$r]))
-        $r = $r0;
-    if ($l < 0 || aio_profile_rel($s['profiles'][$l]))
-        $l = $l0;
+    list($r, $l) = aio_op_pair($s, $rel, $lp);
     $rid = $r >= 0 ? $s['profiles'][$r]['id'] : '';
     $lid = $l >= 0 ? $s['profiles'][$l]['id'] : '';
     if ($rid !== Aio::$settings['prof'] || $lid !== Aio::$settings['lp_prof'])
-        Aio::$settings = aio_op_settings($s, $r, $l);
+        aio_op_apply(aio_op_settings($s, $rid, $lid));
     return array(Aio::$settings['prof'], Aio::$settings['lp_prof']);
 }
 
