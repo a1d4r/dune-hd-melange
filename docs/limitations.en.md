@@ -77,6 +77,7 @@ What Melange cannot do, or does with caveats. [← Contents](README.en.md)
 - The choice in "Get films from…" on the Dune is not remembered. A movie started from there later continues from the same source.
 - Unsaved changes are lost if you open another source.
 - Each source has its own Debrid keys. The TMDB key, TorrServer, your own torrent clients and other settings are shared by all sources.
+- After you change the TMDB key, open each source on the page, except your own configs and Lampac, and press "Save": the key gets into a source's config only when you save it.
 
 ## Backup and two Dunes
 
