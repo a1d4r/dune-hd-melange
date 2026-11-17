@@ -384,8 +384,10 @@ function aio_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
 // ($online: its record online, of none - the first Lampac; a new one of the main Lampac; spec v2 §2.1) - the search, the
 // cursor on the row of the key $lpk of the online record (of "Continue" with no episode to play, of the latest record of
 // the series: aio_wh_pick, of a movie: aio_wh_card_last), nothing online - the releases with the yellow line when a
-// profile of releases is there (not of a source chosen, $only: "Смотреть из…" - its window "nothing online"). null: the
-// releases (the title of a profile of releases).
+// profile of releases is there and $back (the online list has a way back to the releases; false: a source chosen by
+// "Смотреть из…" - the window "nothing online" of it). null: the releases (the title of a profile of releases). A source
+// of releases chosen with none for the title: the window "Раздач нет" (aio_lpv_no_releases) still offers "Искать онлайн"
+// of the main Lampac - so meant.
 /**
  * @param stdClass $in
  * @param AioMovie $mv
@@ -395,10 +397,10 @@ function aio_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
  * @param AioResume|null $r
  * @param string $lpk
  * @param bool $online
- * @param bool $only
+ * @param bool $back
  * @return AioAction|null
  */
-function aio_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk, $online, $only = false)
+function aio_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk, $online, $back = true)
 {
     // Of a series too: its online list from the releases takes them.
     aio_lpv_ids_keep($in, $mv);
@@ -408,7 +410,7 @@ function aio_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk, $online, $only =
         return aio_lpv_resume($mv, $r, $lang, $s, $e);
     if (!$online)
         return null;
-    $aio = Aio::$settings['prof'] !== '' && !$only;
+    $aio = Aio::$settings['prof'] !== '' && $back;
     aio_log('lampac: ' . ($lpk !== '' ? 'an online record' : ($r ? 'a record of a release, no profile of releases' :
         'the title of Lampac')) . ' -> the search');
     $st = aio_list_state($mv, $s, $e, array(), $lang, aio_no_errors());

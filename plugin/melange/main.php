@@ -1892,7 +1892,7 @@ function aio_play_action($in, $hist = null, $src = '')
         ($r ? array($r['prof'], $r['key'] !== '' ? 'lp' : 'rel') : array('', ''));
     $online = $src !== '' ? aio_op_src($src) : aio_op_title($rec[0], $rec[1]);
     // "Онлайн" (online_play.php) of the episode chosen: its "Continue", the title of a profile of Lampac.
-    $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $online, $src !== '');
+    $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $online, $src === '');
     if ($lp)
         return $lp;
     // No "Онлайн" (no Lampac): an online record opens the releases of its episode, as the card.

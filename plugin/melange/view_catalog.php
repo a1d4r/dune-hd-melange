@@ -2733,8 +2733,8 @@ function aio_catv_src($in)
     $t = aio_catv_tile($id, aio_tv_is_from(aio_catv_in($in, 'from')));
     if (!$t || aio_cm_id($t) === '')
         return aio_error('cat_outdated');
-    list(, $x) = aio_catv_id_mode($id);
-    $e = strpos($x, AIO_ML_RID . ':') === 0 ? aio_mlv_entry(strval(substr($x, strlen(AIO_ML_RID . ':')))) : null;
+    $k = aio_mlv_key_of($id);
+    $e = $k !== null ? aio_mlv_entry($k) : null;
     $dune = $e && $e['dune_id'] !== '' ? $e['dune_id'] : aio_cp_card_known($t, aio_cp_mid_of($id));
     return aio_oc_tile_watch($t, $lang, $dune, $src);
 }

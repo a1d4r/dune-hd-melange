@@ -1506,8 +1506,10 @@ function aio_oc_watch_from($c, $ep, $x, $src)
 
 // "Смотреть из…" of tile $tile ($dune: its card of the Dune known, '' - asked as by ENTER, aio_card_id) from the source of
 // profile $src: its own card in memory, else one made as by ENTER (aio_oc_enter) with no screen, not kept: no rows of
-// posters, the tile filled by the meta, no rating asked (aio_oc_fill) -> aio_oc_watch_from (a series: the episode
-// offered, aio_oc_pick).
+// posters, the tile filled by the meta, no rating asked (aio_oc_fill), a series with a card of the Dune - its episodes of
+// the meta to the pair (aio_pg_link_meta, as aio_oc_build) -> aio_oc_watch_from (a series: the episode offered,
+// aio_oc_pick). No IMDb: the message of the card (aio_oc_under) - the meta did not load (a tile of TMDB alone), else
+// none in it.
 /**
  * @param AioCatTile $tile
  * @param string $lang
@@ -1531,9 +1533,13 @@ function aio_oc_tile_watch($tile, $lang, $dune, $src)
         $g = aio_cm_get($tile);
         $c = aio_oc_make(aio_oc_fill($tile, $g['meta'], array('id' => '', 'none' => false, 'kp' => null)), $g['meta'], $dune,
             $lang, aio_cm_posters_new($tile, $g['meta']));
+        if ($g['meta'] && $dune !== '' && $tile['type'] === 'series')
+            aio_pg_link_meta($dune, $g['meta']);
     }
     aio_log("card: own $key: watch from, the card " . ($kept ? 'in memory' : 'made') . ', of the Dune ' .
         ($c['dune'] !== '' ? $c['dune'] : 'none'));
+    if ($c['imdb'] === '')
+        return aio_error($c['meta'] ? 'err_no_imdb' : 'card_meta_failed');
     $ep = null;
     if ($tile['type'] === 'series')
         list($ep) = aio_oc_pick($c);
