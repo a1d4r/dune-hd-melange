@@ -903,6 +903,28 @@ function aio_op_title($id, $kind)
     return $on;
 }
 
+// The settings of the operation (aio_op_use) of profile $id chosen by "Смотреть из…" (aio_play_action; its caller
+// checked it there and ready: aio_src_watch_pick): it and the other one of the pair of the main one, logged; nothing
+// written. -> it is Lampac (the title opens online).
+/**
+ * @param string $id
+ * @return bool
+ */
+function aio_op_src($id)
+{
+    $s = Aio::$file;
+    $k = $s ? aio_profile_index($s, $id) : -1;
+    $on = $k >= 0 && !aio_profile_rel($s['profiles'][$k]);
+    $tags = array();
+    foreach (array_merge(array($id), aio_op_use($on ? '' : $id, $on ? $id : '')) as $x)
+    {
+        $i = $s ? aio_profile_index($s, $x) : -1;
+        $tags[] = aio_profile_tag($i, $i >= 0 ? $s['profiles'][$i] : null);
+    }
+    aio_log("source: chosen {$tags[0]}, pair {$tags[1]} + {$tags[2]}" . ($on ? ', online' : ''));
+    return $on;
+}
+
 // The sort of the lists, chosen by a colour key of the list (aio_gc_sort):
 // data_dir/list_sort, not settings.json (the page writes that one), "<key>"
 // or "<key>_rev" (reversed; 0.48.0 before the direction: the key only). None
@@ -1794,13 +1816,15 @@ function aio_list_state($mv, $s, $e, $rows, $lang, $errors)
 
 // play_action $in; $hist: the episode of the history (aio_wh_pick) $in asks, null none - the own card (aio_oc_watch,
 // AioOcEp of aio_oc_pick), the main card (aio_wh_episode here). With no "Continue" its list opens at its release
-// (hash), or its online list at the row of its online record (key).
+// (hash), or its online list at the row of its online record (key). $src: the id of the ready profile chosen by
+// "Смотреть из…" (aio_oc_watch_from), its list at once (aio_op_src), nothing remembered; '' - by the record (aio_op_title).
 /**
  * @param stdClass $in
  * @param AioWhPick|AioOcEp|null $hist
+ * @param string $src
  * @return AioAction
  */
-function aio_play_action($in, $hist = null)
+function aio_play_action($in, $hist = null, $src = '')
 {
     Aio::$playing = null;
     Aio::$alt = null;
@@ -1868,9 +1892,9 @@ function aio_play_action($in, $hist = null)
         list($hash, $lpk) = array($r['hash'], $r['key']);
     $rec = $si ? array($si['prof'], $si['mode'] === 'lampac' ? 'lp' : 'rel') :
         ($r ? array($r['prof'], $r['key'] !== '' ? 'lp' : 'rel') : array('', ''));
-    $online = aio_op_title($rec[0], $rec[1]);
+    $online = $src !== '' ? aio_op_src($src) : aio_op_title($rec[0], $rec[1]);
     // "Онлайн" (online_play.php) of the episode chosen: its "Continue", the title of a profile of Lampac.
-    $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $online);
+    $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $online, $src === '');
     if ($lp)
         return $lp;
     // No "Онлайн" (no Lampac): an online record opens the releases of its episode, as the card.

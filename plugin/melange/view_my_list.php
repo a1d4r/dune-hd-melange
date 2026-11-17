@@ -670,6 +670,19 @@ function aio_mlv_tick($url)
     return $act;
 }
 
+// The key of the entry of "Мой список" (aio_ml_key) of tile $id of a screen (its id of the row of the list,
+// AIO_ML_RID:<key>, of any mode, aio_catv_id_mode); null for another tile.
+/**
+ * @param string $id
+ * @return string|null
+ */
+function aio_mlv_key_of($id)
+{
+    list(, $x) = aio_catv_id_mode($id);
+    $p = AIO_ML_RID . ':';
+    return strncmp($x, $p, strlen($p)) === 0 ? strval(substr($x, strlen($p))) : null;
+}
+
 // ENTER on tile $id of "Мой список" (another tile: null): the own card ("Своя карточка" on) or the card of the Dune
 // by the card of the Dune of the entry, no request of it; not known - as ENTER on a tile of a row (aio_card_enter). No
 // such entry (taken out on another screen): the screen is old.
@@ -680,11 +693,9 @@ function aio_mlv_tick($url)
  */
 function aio_mlv_enter($id, $lang)
 {
-    list(, $id) = aio_catv_id_mode($id);
-    $p = AIO_ML_RID . ':';
-    if (strncmp($id, $p, strlen($p)) !== 0)
+    $key = aio_mlv_key_of($id);
+    if ($key === null)
         return null;
-    $key = strval(substr($id, strlen($p)));
     $e = aio_mlv_entry($key);
     $t = $e ? aio_mlv_tile($key) : null;
     if (!$e || !$t)
@@ -820,8 +831,7 @@ function aio_mlv_menu_items($id, $from, $lang)
             GuiMenuItemDef::icon_url => AIO_CATV_ICONS . (aio_fw_r() >= 25 ? 'recent_small.png' : 'return_small.png'),
             GuiMenuItemDef::action => aio_input('cat_unhide', array('from' => $from)))) : array();
     }
-    list(, $x) = aio_catv_id_mode($id);
-    if (!($sc && $sc[0] === AIO_MLV_LIST) && strpos($x, AIO_ML_RID . ':') !== 0)
+    if (!($sc && $sc[0] === AIO_MLV_LIST) && aio_mlv_key_of($id) === null)
         return array();
     return array(array(
         GuiMenuItemDef::caption => aio_tr($lang, 'ml_import'),

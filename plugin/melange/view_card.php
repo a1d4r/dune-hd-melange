@@ -1423,15 +1423,16 @@ function aio_oc_folder_view($media_url, $sel_state)
 // (aio_titles, aio_cm_titles), aio_own_card; $ep: the episode of the history (aio_oc_pick) when it is this one, null
 // none - the list at its release, the online list at the row of its online record (aio_play_action). The list marked
 // own (its online list too): its MENU has no "Choose episode" (choose_season_episode would give the seasons of the
-// last native series, not of this card).
+// last native series, not of this card). $src: the profile of "Смотреть из…" (aio_play_action), '' none.
 /**
  * @param AioOcCard $c
  * @param int $q
  * @param int $e
  * @param AioOcEp|null $ep
+ * @param string $src
  * @return AioAction
  */
-function aio_oc_watch($c, $q = -1, $e = -1, $ep = null)
+function aio_oc_watch($c, $q = -1, $e = -1, $ep = null, $src = '')
 {
     $t = $c['tile'];
     $native = $c['meta'] && $c['meta']['original'] !== '' ? $c['meta']['original'] : $t['englishTitle'];
@@ -1462,24 +1463,88 @@ function aio_oc_watch($c, $q = -1, $e = -1, $ep = null)
         $in->episode = $e;
     }
     $in->lang = $c['lang'];
-    return aio_play_action($in, $ep);
+    return aio_play_action($in, $ep, $src);
 }
 
 // ENTER on episode $x of the meta of card $c (the row; the link of streams, aio_dl_streams), $ep the episode the card
 // offers (aio_oc_pick; null none): its list (aio_oc_watch: the season asked by aio_cm_req_s, the cursor on the release
 // or the online row of the history of $ep when it is this episode); one not out yet: the message (aio_oc_soon_msg).
+// $src: the profile of "Смотреть из…", '' none.
 /**
  * @param AioOcCard $c
  * @param AioCardEp $x
  * @param AioOcEp|null $ep
+ * @param string $src
  * @return AioAction
  */
-function aio_oc_ep_watch($c, $x, $ep)
+function aio_oc_ep_watch($c, $x, $ep, $src = '')
 {
     if ($x['soon'])
         return aio_oc_soon_msg($x, $c['ui']);
     $q = $c['meta'] ? aio_cm_req_s($c['meta'], $x['s']) : $x['s'];
-    return aio_oc_watch($c, $q, $x['e'], $ep && $ep['q'] === $q && $ep['e'] === $x['e'] ? $ep : null);
+    return aio_oc_watch($c, $q, $x['e'], $ep && $ep['q'] === $q && $ep['e'] === $x['e'] ? $ep : null, $src);
+}
+
+// "Смотреть из…" (src_watch) of card $c from the source of profile $src: the list ENTER opens - on episode $x in focus
+// in the row (aio_oc_ep_watch), else of "Смотреть" (a series: of the episode offered, $ep of aio_oc_pick; one not out
+// yet - the message, as ENTER on it in the row).
+/**
+ * @param AioOcCard $c
+ * @param AioOcEp|null $ep
+ * @param AioCardEp|null $x
+ * @param string $src
+ * @return AioAction
+ */
+function aio_oc_watch_from($c, $ep, $x, $src)
+{
+    if (!$x && $ep)
+        $x = aio_oc_ep($c, $ep['s'], $ep['e']);
+    if ($x)
+        return aio_oc_ep_watch($c, $x, $ep, $src);
+    return $ep ? aio_oc_watch($c, $ep['q'], $ep['e'], $ep, $src) : aio_oc_watch($c, -1, -1, null, $src);
+}
+
+// "Смотреть из…" of tile $tile ($dune: its card of the Dune known, '' - asked as by ENTER, aio_card_id) from the source of
+// profile $src: its own card in memory with its meta, else one made as by ENTER (aio_oc_enter) with no screen, not
+// kept: no rows of posters, the tile filled by the meta, no rating asked (aio_oc_fill), a series with a card of the Dune
+// - its episodes of the meta to the pair (aio_pg_link_meta, as aio_oc_build) -> aio_oc_watch_from (a series: the
+// episode offered, aio_oc_pick). No IMDb: the message of the card (aio_oc_under) - the meta did not load (a tile of
+// TMDB alone), else none in it.
+/**
+ * @param AioCatTile $tile
+ * @param string $lang
+ * @param string $dune
+ * @param string $src
+ * @return AioAction
+ */
+function aio_oc_tile_watch($tile, $lang, $dune, $src)
+{
+    $key = $tile['type'] . ':' . aio_cm_id($tile);
+    // One in memory of no meta (it failed at ENTER) is made anew: the meta asked again.
+    $kept = isset(AioOc::$cards[$key]) && AioOc::$cards[$key]['meta'];
+    if ($kept)
+        $c = AioOc::$cards[$key];
+    else
+    {
+        if ($dune === '')
+        {
+            $d = aio_card_id($tile);
+            $dune = $d['id'];
+        }
+        $g = aio_cm_get($tile);
+        $c = aio_oc_make(aio_oc_fill($tile, $g['meta'], array('id' => '', 'none' => false, 'kp' => null)), $g['meta'], $dune,
+            $lang, aio_cm_posters_new($tile, $g['meta']));
+        if ($g['meta'] && $dune !== '' && $tile['type'] === 'series')
+            aio_pg_link_meta($dune, $g['meta']);
+    }
+    aio_log("card: own $key: watch from, the card " . ($kept ? 'in memory' : 'made') . ', of the Dune ' .
+        ($c['dune'] !== '' ? $c['dune'] : 'none'));
+    if ($c['imdb'] === '')
+        return aio_error($c['meta'] ? 'err_no_imdb' : 'card_meta_failed');
+    $ep = null;
+    if ($tile['type'] === 'series')
+        list($ep) = aio_oc_pick($c);
+    return aio_oc_watch_from($c, $ep, null, $src);
 }
 
 // MENU of a movie of card $c ($key) with a card of the Dune: "Отметить просмотренным" / "Снять отметку" (aio_pg_mark_kind;
@@ -1532,8 +1597,8 @@ function aio_oc_mark_post($key, $c)
     return aio_catv_mains_anew(aio_replace_act("card:$key", $c['tile']['name']), 'after a mark of the own card');
 }
 
-// MENU: $items (the marks of an episode, aio_oc_mark_items; of a movie, aio_oc_movie_mark_items; "Карточка Дюны",
-// aio_oc_dune_items), then "Settings", as on the list.
+// MENU: $items ("Смотреть из…", aio_oc_src_items; the marks of an episode, aio_oc_mark_items; of a movie,
+// aio_oc_movie_mark_items; "Карточка Дюны", aio_oc_dune_items), then "Settings", as on the list.
 /**
  * @param string $lang
  * @param list<array<string, mixed>> $items
@@ -1548,6 +1613,58 @@ function aio_oc_menu($lang, $items = array())
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
         GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
+}
+
+// "Смотреть из…" of MENU of card $c ($key) at place $pos of layout $l (aio_src_watch_item: two ready profiles or more):
+// card_src_menu of the card, of an episode in focus in the row its s and e; none without IMDb (no "Смотреть") and on a
+// strip of posters or of the cast (the title there is another one).
+/**
+ * @param string $key
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @param AioOcPos $pos
+ * @return list<array<string, mixed>>
+ */
+function aio_oc_src_items($key, $c, $l, $pos)
+{
+    if ($c['imdb'] === '' || aio_oc_strip_on($l, $pos) !== '')
+        return array();
+    $p = array('c' => $key);
+    if ($pos['z'] === 'row')
+        $p += array('s' => strval($pos['s']), 'e' => strval($pos['e']));
+    return aio_src_watch_item($c['ui'], 'card_src_menu', $p);
+}
+
+// The params of card_src_menu of input $in for its menu of sources: c, s and e of an episode when there.
+/**
+ * @param stdClass $in
+ * @return array<string, string>
+ */
+function aio_oc_src_params($in)
+{
+    $p = array('c' => aio_catv_in($in, 'c'));
+    if (aio_catv_in($in, 's') !== '')
+        $p += array('s' => aio_catv_in($in, 's'), 'e' => aio_catv_in($in, 'e'));
+    return $p;
+}
+
+// card_src (p, n of the profile of the menu of sources; s, e of the episode in focus) of card $c of layout $l: the list
+// from that profile (aio_oc_watch_from; the episode of s, e, else that of "Смотреть"); the profile gone or not ready:
+// its dialog (aio_src_watch_pick), no request.
+/**
+ * @param AioOcCard $c
+ * @param AioOcNav $l
+ * @param stdClass $in
+ * @return AioAction|null
+ */
+function aio_oc_src($c, $l, $in)
+{
+    list($src, $err) = aio_src_watch_pick($in, $c['ui']);
+    if ($src === '' || $err)
+        return $err;
+    $s = aio_catv_in($in, 's');
+    $x = $s !== '' ? aio_oc_ep($c, intval($s), intval(aio_catv_in($in, 'e'))) : null;
+    return aio_oc_watch_from($c, $l['ep'], $x, $src);
 }
 
 // "Карточка Дюны" of MENU of card $c with a card of the Dune (or an old local one): the native card (file_movie); none
@@ -1601,7 +1718,8 @@ function aio_oc_list($key, $c, $l, $pos)
 }
 
 // card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (aio_oc_mark), card_mark_movie,
-// card_load (the timer, aio_oc_load) of the card c. MENU: the marks of the episode in focus in the
+// card_load (the timer, aio_oc_load), card_src_menu, card_src ("Смотреть из…", aio_oc_src) of the card c. MENU:
+// "Смотреть из…" (aio_oc_src_items), the marks of the episode in focus in the
 // row (of a movie: its mark, aio_oc_movie_mark_items), "Карточка Дюны" (aio_oc_dune_items), then "Settings". The keys: the place of aio_oc_next by change_gcomps, null at an edge; the layout of the screen shown
 // (nav), else laid out anew. ENTER on a button: "Watch" - the list of the episode offered, an
 // episode not out yet - the focus to it in the row, the button of the list - into it or out (aio_oc_list);
@@ -1623,7 +1741,7 @@ function aio_oc_input($in, $control)
     if ($control === 'card_menu' && !$c)
         return aio_oc_menu(aio_catv_ui_lang());
     if (!$c)
-        return in_array($control, array('card_enter', 'card_trailer'), true) ? aio_error('cat_outdated') : null;
+        return in_array($control, array('card_enter', 'card_trailer', 'card_src'), true) ? aio_error('cat_outdated') : null;
     if ($control === 'card_mark')
         return aio_oc_mark($key, $c, $in);
     if ($control === 'card_mark_movie')
@@ -1633,15 +1751,19 @@ function aio_oc_input($in, $control)
     }
     if ($control === 'card_trailer')
         return aio_ct_play($c);
+    if ($control === 'card_src_menu')
+        return aio_src_popup($c['ui'], 'card_src', aio_oc_src_params($in));
     $l = isset($c['nav']) ? $c['nav'] : aio_oc_layout($c);
+    if ($control === 'card_src')
+        return aio_oc_src($c, $l, $in);
     $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;
     $pos = aio_oc_pos($c, $l, $raw);
     AioOc::$cards[$key]['pos'] = $pos;
     if ($control === 'card_load')
         return aio_oc_load($key, AioOc::$cards[$key], $l);
     if ($control === 'card_menu')
-        return aio_oc_menu($c['ui'], array_merge($l['kind'] === 'movie' ? aio_oc_movie_mark_items($key, $c) :
-            aio_oc_mark_items($key, $c, $l['prog'], $pos), aio_oc_dune_items($c)));
+        return aio_oc_menu($c['ui'], array_merge(aio_oc_src_items($key, $c, $l, $pos), $l['kind'] === 'movie' ?
+            aio_oc_movie_mark_items($key, $c) : aio_oc_mark_items($key, $c, $l['prog'], $pos), aio_oc_dune_items($c)));
     $j = is_string($raw) ? json_decode($raw, true) : null;
     $rs = implode(',', $l['rows']);
     if (is_array($j) && isset($j['rs']) && is_string($j['rs']) && $j['rs'] !== $rs)

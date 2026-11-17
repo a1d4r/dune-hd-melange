@@ -2682,10 +2682,11 @@ function aio_catv_after_player($post)
 }
 
 // The items of POP UP of tile $id of screen $from (a main screen of the catalog, "Show all", the results of a search, an
-// EPF of "TV"): those of the row "Continue" and the marks (aio_cp_menu_items), then that of "Мой список"
-// (aio_ml_menu_items), then a separator and the import of the Favorites of the Dune (aio_mlv_menu_items: on the screen
-// "Мой список" and its row); a separator after them is for the caller, when items of the screen follow. A tile
-// aio_catv_tile has not (the hint of "Мой список", '' - none in focus) is for each part to tell.
+// EPF of "TV"): "Смотреть из…" of a title (aio_catv_src_items), those of the row "Continue" and the marks
+// (aio_cp_menu_items), then that of "Мой список" (aio_ml_menu_items), then a separator and the import of the Favorites
+// of the Dune (aio_mlv_menu_items: on the screen "Мой список" and its row); a separator after them is for the caller,
+// when items of the screen follow. A tile aio_catv_tile has not (the hint of "Мой список", '' - none in focus) is for
+// each part to tell.
 /**
  * @param string $id
  * @param string $from
@@ -2694,8 +2695,48 @@ function aio_catv_after_player($post)
  */
 function aio_catv_tile_menu($id, $from, $lang)
 {
-    return aio_catv_menu_join(array_merge(aio_cp_menu_items($id, $from, $lang), aio_ml_menu_items($id, $from, $lang)),
-        aio_mlv_menu_items($id, $from, $lang));
+    return aio_catv_menu_join(array_merge(aio_catv_src_items($id, $from, $lang), aio_cp_menu_items($id, $from, $lang),
+        aio_ml_menu_items($id, $from, $lang)), aio_mlv_menu_items($id, $from, $lang));
+}
+
+// "Смотреть из…" of tile $id of screen $from (aio_src_watch_item: two ready profiles or more): a movie or a series with
+// an id of the meta (aio_cm_id, as of the own card), cat_src_menu of it; none on another.
+/**
+ * @param string $id
+ * @param string $from
+ * @param string $lang
+ * @return list<array<string, mixed>>
+ */
+function aio_catv_src_items($id, $from, $lang)
+{
+    $t = aio_catv_tile($id, aio_tv_is_from($from));
+    if (!$t || aio_cm_id($t) === '')
+        return array();
+    return aio_src_watch_item($lang, 'cat_src_menu', array('from' => $from, 'item' => $id));
+}
+
+// cat_src of POP UP (p, n of the menu of sources of "Смотреть из…") of tile $in->item of screen $in->from: the list of
+// the title from that profile at once (aio_oc_tile_watch; the card of the Dune of the entry of "Мой список", else known
+// with no request - aio_cp_card_known, else asked as by ENTER); the profile gone or not ready - its dialog
+// (aio_src_watch_pick), no request; no such tile now - cat_outdated.
+/**
+ * @param stdClass $in
+ * @return AioAction|null
+ */
+function aio_catv_src($in)
+{
+    $lang = aio_catv_lang();
+    list($src, $err) = aio_src_watch_pick($in, $lang);
+    if ($src === '' || $err)
+        return $err;
+    $id = aio_catv_in($in, 'item');
+    $t = aio_catv_tile($id, aio_tv_is_from(aio_catv_in($in, 'from')));
+    if (!$t || aio_cm_id($t) === '')
+        return aio_error('cat_outdated');
+    $k = aio_mlv_key_of($id);
+    $e = $k !== null ? aio_mlv_entry($k) : null;
+    $dune = $e && $e['dune_id'] !== '' ? $e['dune_id'] : aio_cp_card_known($t, aio_cp_mid_of($id));
+    return aio_oc_tile_watch($t, $lang, $dune, $src);
 }
 
 // $a, then a separator and $b; no separator when one of them is empty.
@@ -3055,6 +3096,10 @@ function aio_catv_input($in, $control)
         return aio_catv_search_run(aio_catv_in($in, 'cat_q'), $from);
     if ($control === 'cat_menu')
         return aio_tv_is_from($from) ? aio_tv_menu($in) : aio_catv_menu($in, $from);
+    if ($control === 'cat_src_menu')
+        return aio_src_popup(aio_catv_lang(), 'cat_src', array('from' => $from, 'item' => aio_catv_in($in, 'item')));
+    if ($control === 'cat_src')
+        return aio_catv_src($in);
     if ($control === 'cat_part')
         return aio_catv_strip_enter(aio_catv_in($in, 'part'), $from, true);
     if ($control === 'cat_rows_menu')

@@ -516,7 +516,8 @@ function aio_cp_unhide()
 // --- POP UP of a tile of the catalog and the tab "TV".
 
 // The card of the Dune of tile $t known with no request: of its id of the row "Continue" ($mid; '' another tile), else by
-// the pairs (aio_pg_tile_card); '' for none. The one rule of "the card of a title" of POP UP (the marks, "Мой список").
+// the pairs (aio_pg_tile_card); '' for none. The card of a title of POP UP with no request: of the marks and "Мой
+// список"; "Смотреть из…" (aio_catv_src) takes the card of the entry of "Мой список" first.
 /**
  * @param AioCatTile $t
  * @param string $mid
