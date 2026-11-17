@@ -7,14 +7,12 @@
 // "Выбрать серию" of an episode, "Источники…" (which sources, their order: lampac_sources of settings.json;
 // online_sources.php), the
 // mark "online" of a title (data_dir/lampac_choice.json) and
-// the windows: nothing online, no answer, no such episode in the voice.
+// the window of no such episode in the voice.
 // The list lives in Aio::$state beside the releases: 'lp' (AioLpView), 'lp_on' - the screen
 // shows it, 'lp_only' - the releases were never asked, 'lp_note' - the yellow line of the
 // releases. The word Lampac only in the card of a row ("Через: Lampac из настроек").
 // PHP 5.3.6, firmware API only. Types (AioLpView, AioLpRun, AioLpMark): phpstan-types.neon.
 
-// The timer of the window between its ticks, ms: a tick is a request itself.
-define('AIO_LPV_TICK_MS', 100);
 // Seconds between two searches of "Обновить": a poll of all balancers often gets the IP banned.
 define('AIO_LPV_REFRESH', 30);
 // Titles of lampac_choice.json at most, the newest kept.

@@ -1,7 +1,10 @@
 <?php
 // "Онлайн" on the Dune: the window "Ищу онлайн…" of ticks (the search of Lampac, then the replies of its
-// balancers, each call of php_server a few seconds) and its result: the online list (view_online.php) or a window.
-// PHP 5.3.6, firmware API only. Types (AioLpRun, AioLpView): phpstan-types.neon.
+// balancers, each call of php_server a few seconds) and its result: the online list (view_online.php) or a window
+// (nothing online, no answer). PHP 5.3.6, firmware API only. Types (AioLpRun, AioLpView): phpstan-types.neon.
+
+// The timer of the window between its ticks, ms: a tick is a request itself.
+define('AIO_LPV_TICK_MS', 100);
 
 // --- The window "Ищу онлайн…": the search (events, /lifeevents), then the replies of the
 // balancers, a tick each call of php_server (spec §4.3); the result - the online list, else
