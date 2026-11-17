@@ -2,11 +2,11 @@
 
 **English version**
 
-## NEXT — 18.11.2026
+## 0.63.0 — 18.11.2026
 - **Sources instead of source profiles.** On the settings page, "Source profiles" are now "Sources", with no on/off switch. "+ Add source" opens a copy of the current source with the Debrid keys already filled in. Each source has its own Real-Debrid and TorBox keys. You choose the main source on the page with "Set as main".
 - **Which source the Dune opens.** A new movie opens from the main source. A movie you started continues from the source you watched it from: in Continue Watching, for the next episode and in the card.
 - **Get films from… in the release list.** POP UP → "Get films from…" shows this movie from another source. The choice applies to this screen only and is not remembered. After you switch, the cursor is on the first row of the new list.
-- **Lampac.** A new kind of source, for those who run their own Lampac server; you type its address yourself. A movie or episode from it opens as an online list of voice-overs by balancer. MENU of the list has **Balancers…** (which ones to ask and in what order), the voice-over filter and **Balancer errors**. If a movie has no releases, "No releases" offers **Search online**. A movie or episode started online continues with the same voice-over.
+- **Lampac.** A new kind of source, for those who run their own Lampac server; you type its address yourself. A movie or episode from it opens as an online list of voice-overs by balancer. MENU of the list has **Balancers…** (which ones to ask and in what order) and **Balancer errors**; the red button filters the list by voice-over. If a movie has no releases, "No releases" offers **Search online**. A movie or episode started online continues with the same voice-over.
 - **New names.** "Source errors" is now **Addon errors**, and the release details show "Platform: Netflix" instead of "Source: Netflix".
 - Profiles you saved while "Source profiles" were off now show up in the menu.
 - Your settings move to the new format by themselves when you update.
@@ -272,11 +272,11 @@ First public release. What it does:
 
 **Russian version**
 
-## NEXT — 18.11.2026
+## 0.63.0 — 18.11.2026
 - **Источники вместо профилей источников.** На странице настроек «Профили источников» теперь называются «Источники», выключателя у них нет. «+ Добавить источник» открывает копию текущего источника, ключи Debrid уже вписаны. У каждого источника свои ключи Real-Debrid и TorBox. Основной источник выбирается на странице кнопкой «Сделать основным».
 - **Каким источником открывает Дюна.** Новый фильм открывается из основного источника. Начатый — из того источника, где вы его смотрели: в «Продолжить», на следующей серии и в карточке.
 - **«Откуда брать…» в списке раздач.** POP UP → «Откуда брать…» показывает этот фильм из другого источника. Выбор действует только на этом экране и не запоминается. После смены курсор стоит на первой строке нового списка.
-- **Lampac.** Новый вид источника для тех, у кого свой сервер Lampac; адрес вписываете сами. Фильм или серия из него открывается онлайн-списком озвучек по балансерам. В MENU списка есть **Балансеры…** (какие спрашивать и в каком порядке), выбор озвучки и **Ошибки балансеров**. Если у фильма нет раздач, в окне «Раздач нет» есть **Искать онлайн**. Начатый онлайн фильм или серия продолжается на той же озвучке.
+- **Lampac.** Новый вид источника для тех, у кого свой сервер Lampac; адрес вписываете сами. Фильм или серия из него открывается онлайн-списком озвучек по балансерам. В MENU списка есть **Балансеры…** (какие спрашивать и в каком порядке) и **Ошибки балансеров**, а красная кнопка оставляет в списке одну озвучку. Если у фильма нет раздач, в окне «Раздач нет» есть **Искать онлайн**. Начатый онлайн фильм или серия продолжается на той же озвучке.
 - **Новые названия.** «Ошибки источников» теперь **Ошибки аддонов**, а в сведениях о раздаче вместо «Источник: Netflix» — «Платформа: Netflix».
 - Профили, сохранённые при выключенных «Профилях источников», теперь видны в меню.
 - Настройки переходят на новый формат сами при обновлении.
