@@ -630,7 +630,7 @@ function aio_lp_events_why($r, $j)
 // (items of /lifeevents had), t0 (its start, aio_lp_now), sources (by index;
 // AioLpSource: name, label, q, url, path (aio_lp_path of url), index, pos), gone (items hidden:
 // a key => show, rch or bad), hidden (their counts by reason), tasks and pending (of the last
-// /lifeevents), shown (its items of show not false when all its tasks came, -1 not yet), fails (/lifeevents of no answer in a row), done, capped (the
+// /lifeevents), shown (its items of show not false when all its tasks came and no pending was sent, -1 not so), fails (/lifeevents of no answer in a row), done, capped (the
 // time of the search ran out), err and detail (a reason, '' none: the search
 // failed only if no source came). One search at a time: two events at once
 // make Lampac answer 500.
@@ -708,7 +708,8 @@ function aio_lp_search_end($st)
 // when all its tasks came (online of tasks items: a server may not send ready) -
 // with pending, none pending (Lampac); with no pending, the items of show true
 // the same at two /lifeevents in a row (a server may send all its items at once
-// and turn show on later), at AIO_LP_SEARCH_MAX s from the start (capped), at a
+// and turn show on later; then a /lifeevents of no answer in time is the end too),
+// at AIO_LP_SEARCH_MAX s from the start (capped), at a
 // failure; a /lifeevents of no answer is asked once more at the next step (a
 // slow server holds one over 3 s at times), a second one in a row is the
 // failure. -> the new state. A done search is returned as it is.
@@ -741,6 +742,12 @@ function aio_lp_search_step($st)
     $j = $r['err'] === '' && $r['code'] === 200 ? aio_lp_json($r['body']) : null;
     if ($j === null || !isset($j['online']) || !is_array($j['online']))
     {
+        // All came, no pending: a server holds /lifeevents till news (over the time of the call) - the end, no reason.
+        if ($st['shown'] >= 0 && aio_lp_timed_out($r['err']))
+        {
+            aio_lp_log(sprintf('lifeevents: %s, all came, the end, %.2f s', $r['err'], aio_lp_now() - $st['t0']), $st['base']);
+            return aio_lp_search_end($st);
+        }
         if ($r['err'] !== '' && $st['fails'] < 1)
         {
             $st['fails']++;
@@ -764,9 +771,9 @@ function aio_lp_search_step($st)
             $on++;
     }
     $was = $st['shown'];
-    $st['shown'] = $all ? $on : -1;
-    if (!empty($j['ready']) || ($all && (isset($j['pending']) && is_array($j['pending']) ? $st['pending'] === 0 :
-        $was === $on)))
+    $hasp = isset($j['pending']) && is_array($j['pending']);
+    $st['shown'] = $all && !$hasp ? $on : -1;
+    if (!empty($j['ready']) || ($all && ($hasp ? $st['pending'] === 0 : $was === $on)))
         return aio_lp_search_end($st);
     if (AIO_LP_SEARCH_MAX - (aio_lp_now() - $st['t0']) < AIO_LP_REPLY_MIN)
     {
