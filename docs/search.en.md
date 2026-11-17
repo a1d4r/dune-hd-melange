@@ -4,11 +4,11 @@ Find a movie or series by title, typed or spoken. [← Contents](README.en.md)
 
 1. In the Melange catalog, open search: the magnifier on the bar at the top, the microphone button on the remote, or **POP UP** → "Search".
 
-   <img src="../screenshots/search-dialog.jpg" alt="Melange search window with the input field" width="100%">
+   <img src="../screenshots/search-dialog.jpg" alt="Melange «Поиск» (Search) window: input field and on-screen keyboard" width="100%">
 
 2. Type the title, or, while the cursor is in the input field, press the microphone again and say it.
 
-   <img src="../screenshots/search-voice.jpg" alt="Dune voice input window" width="100%">
+   <img src="../screenshots/search-voice.jpg" alt="Dune voice input: microphone and «Говорите, пожалуйста» (Please speak) at the bottom, the search window above" width="100%">
 
 3. Confirm. The results appear in the "Movies" and "Series" rows.
 
