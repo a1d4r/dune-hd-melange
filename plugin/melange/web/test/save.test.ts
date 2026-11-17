@@ -48,6 +48,8 @@ const FILLED: [string, string][] = [
   ["source_errors", "off"],
   ["no_color_keys", "off"],
   ["lampac_url", "http://lampac.example:9118"],
+  // The token of its provider (a secret field) and "Present as the Lampa app".
+  ["lampac_token", "LpTestToken_01"], ["lampac_as_lampa", "off"],
 ];
 // Torrents: as the page came but the answer (0.44.0: the TorrServer field stays on #torr).
 const P2P_BODY = encode([["watch", "p2p"], ...FILLED.slice(1)]);

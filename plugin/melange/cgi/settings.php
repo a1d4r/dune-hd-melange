@@ -52,9 +52,10 @@
 //                      <TorrServer>/echo, then POST /settings with the login
 //                      (0.45.0: is one asked for, taken), JSON {ok, msg[,
 //                      level]}, nothing written;
-//   POST ?t=<token>&a=lp_check&ajax=1 (lampac_url) -> /version?type=build, then
-//                      the search of a film to its end (lampac.php) in that Lampac,
-//                      JSON {ok, msg, level}, nothing written;
+//   POST ?t=<token>&a=lp_check&ajax=1 (lampac_url, lampac_token, lampac_as_lampa)
+//                      -> /version?type=build, then the search of a film to its
+//                      end (lampac.php) in that Lampac, with that token and as
+//                      Lampa or not, JSON {ok, msg, level}, nothing written;
 //   POST ?t=<token>&a=srv_check (type, url, user, pass, category, tags) ->
 //                      login, app/version, categories, tags of that
 //                      qBittorrent; type tr (0.47.0): session-get of that
@@ -155,8 +156,11 @@ function aio_cgi_save($dir, $t)
     }
     if ($v['cat_card'] === '')
         $v['cat_card'] = aio_cgi_cat_card_of($cur['cat_card']);
+    // The address of Lampac and the token of its provider: '' is a value (off, none), only no field means an older form.
     if (!isset($_POST[$f['lampac']['name']]))
         $v['lampac'] = $cur['lampac_url'];
+    if (!isset($_POST[$f['lp_token']['name']]))
+        $v['lp_token'] = $cur['lampac_token'];
     // '' is a choice here (none made), only no field at all means an older form.
     if (!isset($_POST['cat_rows']))
         $v['cat_rows'] = aio_cgi_cat_rows_of($cur['cat_rows']);
@@ -230,13 +234,6 @@ function aio_cgi_save($dir, $t)
     // Read again just before the write: a=aio_sync of another tab may have
     // written them while the keys were checked.
     $cur = aio_settings_read($dir);
-    // The token of the provider of Lampac and "Представляться приложением Lampa": not posted (no field
-    // yet) - the stored ones stay.
-    foreach (array('lampac_token', 'lampac_as_lampa') as $k)
-    {
-        if (!isset($_POST[$k]))
-            $data[$k] = $cur[$k];
-    }
     // The sources of the online list (the window "Источники…" on the Dune): no field, the stored ones stay.
     $data['lampac_sources'] = $cur['lampac_sources'];
     $on = $data['src_profiles'];
@@ -332,7 +329,7 @@ if ($method === 'POST' && aio_cgi_param($_GET, 'ajax') === '1')
     if ($a === 'ts_check')
         aio_cgi_ts_check_post();
     if ($a === 'lp_check')
-        aio_cgi_lp_check_post();
+        aio_cgi_lp_check_post($dir);
     if ($a === 'aio_check')
         aio_cgi_aio_check_post();
     if ($a === 'jr_speed')

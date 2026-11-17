@@ -61,10 +61,11 @@ export const ID = {
   tsPass: "tsp",
   tsCheck: "tsb",
   tsResult: "tsr",
-  // "Lampac address" ("Online") on #adv, its check.
+  // "Lampac address" ("Online") on #adv, its check; the token of its provider under it (the check takes it as typed).
   lampacUrl: "lp",
   lampacCheck: "lpb",
   lampacResult: "lpr",
+  lampacToken: "lpt",
   // The main screen: the question of the first run (none after it), the state (hidden on the first run).
   first: "first",
   state: "state",
@@ -211,6 +212,8 @@ export const NAME = {
   catLogo: "cat_logo",
   // "IMDb rating on posters": VALUE.on, VALUE.off.
   catRating: "cat_rating",
+  // "Present as the Lampa app" (under the token of the Lampac provider): VALUE.on, VALUE.off.
+  lampacAsLampa: "lampac_as_lampa",
 } as const;
 
 // The values of the page the script compares with.

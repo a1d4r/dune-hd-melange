@@ -1,7 +1,7 @@
 // The "Check" buttons of keys, TorrServer, Lampac, the manifest and own AIOStreams.
 
 import type { Api, Check, Result } from "./api";
-import { byId, ID, type Page } from "./dom";
+import { byId, checkedValue, ID, NAME, type Page } from "./dom";
 import { failureText, type Texts } from "./i18n";
 import type { Lock } from "./lock";
 import { encodedOr, type LineClass, show } from "./ui";
@@ -45,7 +45,8 @@ export function setupChecks(page: Page, api: Api, lock: Lock): void {
     bindCheck(lock, page.texts, byId<HTMLButtonElement>(doc, buttonId), () => byId(doc, outId), run, render);
   }
   bind(ID.tsCheck, ID.tsResult, () => api.tsCheck(value(ID.ts), value(ID.tsUser), value(ID.tsPass)), byLevel);
-  bind(ID.lampacCheck, ID.lampacResult, () => api.lampacCheck(value(ID.lampacUrl)), byLevel);
+  bind(ID.lampacCheck, ID.lampacResult, () =>
+    api.lampacCheck(value(ID.lampacUrl), value(ID.lampacToken), checkedValue(page.form, NAME.lampacAsLampa) ?? ""), byLevel);
   bind(ID.manifestCheck, ID.manifestResult, () => api.aioCheck(value(ID.manifest)), byLevel);
   bind(ID.aioOwnCheck, ID.aioOwnResult, () => api.aioStatus(value(ID.aioOwnUrl)), byLevel);
   bind(ID.rdCheck, ID.rdResult, () => api.keyCheck("rd", value(ID.rdKey)), byLevel);

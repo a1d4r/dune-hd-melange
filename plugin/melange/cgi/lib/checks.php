@@ -21,6 +21,12 @@ function aio_cgi_fmt_lampac()
         'Lampac: use an address like http://host:port or https://host');
 }
 
+function aio_cgi_fmt_lp_token()
+{
+    return sprintf(aio_cgi_l('Токен провайдера: латинские буквы, цифры и _ + . - @ =, до %d символов',
+        'Provider token: Latin letters, digits and _ + . - @ =, up to %d characters'), AIO_LP_TOKEN_MAX);
+}
+
 function aio_cgi_fmt_key($what)
 {
     if ($what === 'rd')
@@ -427,14 +433,15 @@ function aio_cgi_lp_down($errno)
 
 // Lampac $base (aio_lp_addr, not '') -> array(ok, the line for the page, level): GET /version?type=build first (no
 // answer: "Не отвечает" at once, no search), then the search of aio_cgi_lp_title to its end (AIO_LP_SEARCH_MAX s, as on
-// the Dune). Its sources (balancers that found the film) - ok, none - warn; no source and a reason - its line. Never the
-// address in the log.
+// the Dune), both by AioLp::$auth (aio_lp_ask: the token of the provider, as Lampa). Its sources (balancers that found
+// the film) - ok, none - warn; no source and a reason - its line. Never the address nor the token in the log.
 function aio_cgi_lp_check($base)
 {
-    $r = aio_lp_get("$base/version?type=build", AIO_LP_CONNECT, AIO_LP_STEP, 65536);
+    $r = aio_lp_ask($base, "$base/version?type=build", AIO_LP_CONNECT, AIO_LP_STEP, 65536);
     $ver = $r['err'] === '' && $r['code'] === 200 ? aio_lp_version($r['body']) : '';
     aio_cgi_log('lampac check: version ' . ($r['err'] !== '' ? ($r['errno'] > 0 ? "curl {$r['errno']}" : 'too big') :
-        "HTTP {$r['code']}") . ($ver !== '' ? ", $ver" : ''));
+        "HTTP {$r['code']}") . ($ver !== '' ? ", $ver" : '') . (AioLp::$auth['token'] !== '' ? ', a token' : '') .
+        (AioLp::$auth['lampa'] ? ', as Lampa' : ''));
     if ($r['errno'] === -1)
         return array(false, aio_cgi_l('Lampac не отвечает (curl не настроен)', 'Lampac is not responding (curl not set up)'));
     if ($r['err'] !== '' && $r['err'] !== AIO_LP_TOO_BIG)
@@ -458,9 +465,10 @@ function aio_cgi_lp_check($base)
     if (!$n && $why === 'forbidden')
         return array(false, aio_cgi_l('Доступ закрыт (403) — проверьте WAF в init.conf',
             'Access denied (403): check WAF in init.conf'));
+    if (!$n && $why === 'accsdb' && AioLp::$auth['token'] !== '')
+        return array(false, aio_cgi_l('Токен не принят', 'Token not accepted'));
     if (!$n && $why === 'accsdb')
-        return array(false, aio_cgi_l('Lampac просит вход, а Melange входить не умеет',
-            'Lampac asks for a login, and Melange cannot log in'));
+        return array(false, aio_cgi_l('Провайдер просит вход — впишите токен', 'The provider asks for a login: enter the token'));
     if (!$n && $why === 'http')
         return array(false, sprintf(aio_cgi_l('Ответил HTTP %s — это не Lampac?', 'It answered HTTP %s: not a Lampac?'),
             $st['detail']));
@@ -471,15 +479,34 @@ function aio_cgi_lp_check($base)
     return $n ? array(true, $msg, 'ok') : array(true, $msg, 'warn');
 }
 
-// a=lp_check: the Lampac of the posted lampac_url (not the stored one), nothing written. -> JSON {ok, msg, level}.
-function aio_cgi_lp_check_post()
+// The uid of this Dune for Lampac in data dir $dir ("Представляться приложением Lampa": aio_lp_uid of online_play.php
+// makes it on the first request as Lampa), '' when there is none: the page makes none (it runs as root).
+function aio_cgi_lp_uid($dir)
+{
+    $f = "$dir/" . AIO_LP_UID_FILE;
+    clearstatcache();
+    if (is_link($f) || !is_file($f))
+        return '';
+    $u = trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM);
+    return preg_match('/^[a-z0-9]{8}\z/', $u) ? $u : '';
+}
+
+// a=lp_check: the Lampac of the posted lampac_url with the posted token of its provider and "Представляться
+// приложением Lampa" (as typed, not the stored ones; the uid of data dir $dir), nothing written. The token never in
+// the log nor the answer. -> JSON {ok, msg, level}.
+function aio_cgi_lp_check_post($dir)
 {
     $f = aio_cgi_fields();
     $a = aio_lp_addr(aio_cgi_param($_POST, $f['lampac']['name']));
-    if (!is_string($a))
-        aio_cgi_log('lampac check: bad format');
+    $tk = aio_lp_token(aio_cgi_param($_POST, $f['lp_token']['name']));
+    $lampa = aio_cgi_param($_POST, $f['lp_lampa']['name']) === aio_cgi_toggle_of('lp_lampa', true);
+    if (!is_string($a) || !is_string($tk))
+        aio_cgi_log('lampac check: bad format' . (is_string($a) ? ' of the token' : ''));
+    if (is_string($a) && $a !== '' && is_string($tk))
+        AioLp::$auth = array('token' => $tk, 'lampa' => $lampa, 'uid' => $lampa ? aio_cgi_lp_uid($dir) : '');
     $res = !is_string($a) ? array(false, aio_cgi_fmt_lampac(), 'err') : ($a === '' ? array(false,
-        aio_cgi_l('Впишите адрес Lampac', 'Enter the Lampac address'), 'err') : aio_cgi_lp_check($a));
+        aio_cgi_l('Впишите адрес Lampac', 'Enter the Lampac address'), 'err') : (!is_string($tk) ? array(false,
+        aio_cgi_fmt_lp_token(), 'err') : aio_cgi_lp_check($a)));
     aio_cgi_json(200, array('ok' => $res[0], 'msg' => $res[1], 'level' => isset($res[2]) ? $res[2] : 'err'));
 }
 

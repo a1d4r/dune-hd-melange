@@ -74,6 +74,12 @@ function aio_cgi_fields()
         // "Адрес Lampac" ("Онлайн", lampac.php): aio_cgi_lampac_block.
         'lampac' => array('id' => 'lp', 'name' => 'lampac_url', 'set' => 'lampac_url', 'max' => AIO_LP_URL_MAX, 'type' => 'plain',
             'scr' => 'adv'),
+        // Under it: "Токен провайдера" ('' none, aio_lp_token) and "Представляться приложением Lampa" (aio_cgi_toggles).
+        // One for all the source profiles, as the address.
+        'lp_token' => array('id' => 'lpt', 'name' => 'lampac_token', 'set' => 'lampac_token', 'max' => AIO_LP_TOKEN_MAX,
+            'type' => 'sec', 'scr' => 'adv'),
+        'lp_lampa' => array('id' => 'lpa', 'name' => 'lampac_as_lampa', 'set' => 'lampac_as_lampa', 'max' => 0, 'type' => 'radio',
+            'scr' => 'adv'),
         // The source as the page came (aio_cgi_src_was_stored): posted back the same, the save keeps the stored one
         // (MENU of a list on the Dune may have switched the profile since).
         'src_was' => array('id' => 'sw', 'name' => 'src_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'src',
@@ -393,7 +399,15 @@ function aio_cgi_toggles()
                 'Posters without numbers, the ratings in the card above the rows.')),
             'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
                 'Цифра IMDb в углу постера: в рядах каталога и в карточке.',
-                'The IMDb number in the corner of a poster: in the catalog rows and in the card.'))), 'on'));
+                'The IMDb number in the corner of a poster: in the catalog rows and in the card.'))), 'on'),
+        // Under "Токен провайдера" on #adv: the User-Agent of Lampa and the uid of the Dune (aio_lp_send of lampac.php).
+        'lp_lampa' => array(aio_cgi_l('Представляться приложением Lampa', 'Present as the Lampa app'), array(
+            'off' => array(aio_cgi_l('Выключено', 'Off'), aio_cgi_l(
+                'Melange шлёт запросы под своим именем.',
+                'Melange sends requests under its own name.')),
+            'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
+                'Melange шлёт запросы как Lampa в браузере Android. Под вашу ответственность.',
+                'Melange sends requests as Lampa in an Android browser. At your own risk.'))), 'on'));
 }
 
 // The answer of toggle $k (aio_cgi_toggles) of a bool of the settings.
@@ -427,15 +441,17 @@ function aio_cgi_src_profiles_cards()
     return $out . '</div>';
 }
 
-// "Онлайн" (Lampac) on #adv: the address of Lampac with "Проверить" (a=lp_check), '' - off. One label, no heading over
-// it (on #adv both look the same): "Онлайн" is the item of the Dune it turns on.
+// "Онлайн" (Lampac) on #adv: the address of Lampac with "Проверить" (a=lp_check, with the token and the option below as
+// typed), '' - off; the token of its provider (a secret, as the password of TorrServer), "Представляться приложением
+// Lampa". One label, no heading over it (on #adv both look the same): "Онлайн" is the item of the Dune it turns on.
 function aio_cgi_lampac_block($v)
 {
     $f = aio_cgi_fields();
     return aio_cgi_input($f['lampac'], aio_cgi_l('Онлайн: адрес Lampac', 'Online: Lampac address'), $v['lampac'],
         aio_cgi_l('Выключено', 'Off'), aio_cgi_chk('lpb', 'lpr')) .
         '<p class="hint">' . aio_cgi_l('Пусто — выключено. Сервер Lampac: http://хост:порт', 'Empty: off. Lampac server: http://host:port') .
-        '</p>';
+        '</p>' . aio_cgi_input($f['lp_token'], aio_cgi_l('Токен провайдера', 'Provider token'), $v['lp_token'],
+        aio_cgi_l('Пусто — без входа. Токен выдаёт провайдер Lampac.', 'Empty: no login. Your Lampac provider gives the token.')) . aio_cgi_toggle_block('lp_lampa', $v);
 }
 
 // The answers of "Своя карточка" on the screen #look (radio cat_card, 0.59.0): its value =>

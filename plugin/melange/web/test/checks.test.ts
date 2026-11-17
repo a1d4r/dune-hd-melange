@@ -24,7 +24,8 @@ const CASES: Case[] = [
     call: { method: "POST", url: TOKEN + "&a=ts_check&ajax=1",
       body: "ts=http%3A%2F%2F192.168.1.10%3A8090%2Fa%20b&ts_user=tsuser&ts_pass=ts%20p%40ss%26x", contentType: FORM } },
   { button: ID.lampacCheck, out: ID.lampacResult, input: ID.lampacUrl, value: "http://lampac.example:9118/a b", warn: true,
-    call: { method: "POST", url: TOKEN + "&a=lp_check&ajax=1", body: "lampac_url=http%3A%2F%2Flampac.example%3A9118%2Fa%20b", contentType: FORM } },
+    call: { method: "POST", url: TOKEN + "&a=lp_check&ajax=1", body: "lampac_url=http%3A%2F%2Flampac.example%3A9118%2Fa%20b&lampac_token=LpTestToken_01&lampac_as_lampa=off",
+      contentType: FORM } },
   { button: ID.manifestCheck, out: ID.manifestResult, input: ID.manifest, value: "http://192.168.1.10:3000/m.json?x=1&y", warn: true,
     call: { method: "POST", url: TOKEN + "&a=aio_check&ajax=1", body: "manifest=http%3A%2F%2F192.168.1.10%3A3000%2Fm.json%3Fx%3D1%26y", contentType: FORM } },
   { button: ID.aioOwnCheck, out: ID.aioOwnResult, input: ID.aioOwnUrl, value: "http://192.168.1.10:3000", warn: true,
@@ -66,6 +67,22 @@ describe.each(CASES)("$button -> $out", (c) => {
     expect(lines(page.el(c.out))).toEqual([[c.warn ? "warn" : "ok", "Slow"]]);
     await page.click(c.button);
     expect(lines(page.el(c.out))).toEqual([[c.warn ? "warn" : "err", "Half"]]);
+  });
+});
+
+describe("Lampac: the token of the provider and \"Present as the Lampa app\" as typed, not as saved", () => {
+  test("another token, on checked -> both posted with the address; the token emptied -> empty", async () => {
+    const page = open("filled");
+    page.type(ID.lampacToken, "Other+Tok@x");
+    await page.click("lpa2");
+    page.replies.push(json({ ok: false, level: "err", msg: "Токен не принят" }), json({ ok: true, level: "ok", msg: "Works" }));
+    await page.click(ID.lampacCheck);
+    page.type(ID.lampacToken, "");
+    await page.click(ID.lampacCheck);
+    const body = (token: string, lampa: string) => ({ method: "POST", url: TOKEN + "&a=lp_check&ajax=1",
+      body: "lampac_url=http%3A%2F%2Flampac.example%3A9118&lampac_token=" + token + "&lampac_as_lampa=" + lampa, contentType: FORM });
+    expect(page.calls).toEqual([body("Other%2BTok%40x", "on"), body("", "on")]);
+    expect(lines(page.el(ID.lampacResult))).toEqual([["ok", "Works"]]);
   });
 });
 
