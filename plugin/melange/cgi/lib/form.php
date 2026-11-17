@@ -137,6 +137,12 @@ function aio_cgi_input($f, $label, $value, $more, $chk = '')
         aio_cgi_plain($f['id'], $f['name'], $label, $value, $more, $f['max'], $chk);
 }
 
+// A hidden field of the row $f of aio_cgi_fields() with $value (the *_was ones: a value as the page came, posted back).
+function aio_cgi_hidden($f, $value)
+{
+    return '<input type="hidden" id="' . $f['id'] . '" name="' . $f['name'] . '" value="' . aio_cgi_h($value) . '">';
+}
+
 // A small button in a field ("Проверить", "Копировать") and the box of its
 // result right under the field: array(button, box).
 function aio_cgi_chk($bid, $rid, $text = '')
@@ -494,8 +500,7 @@ function aio_cgi_look_screen($v)
         aio_cgi_toggle_block('cat_rating', $v) .
         '<p class="lbl">' . aio_cgi_l('Своя карточка', 'Own card') . '</p>' .
         aio_cgi_choice($f['cat_card'], aio_cgi_cat_card(), $v['cat_card']) .
-        '<input type="hidden" id="' . $f['cat_card_was']['id'] . '" name="' . $f['cat_card_was']['name'] . '" value="' .
-        aio_cgi_h($v['cat_card_was']) . '">' .
+        aio_cgi_hidden($f['cat_card_was'], $v['cat_card_was']) .
         (aio_card_own(null) ? '' : '<p class="hint wn">' . aio_cgi_l(
         'Своя карточка проверена на прошивках r24 и r25. Здесь по умолчанию выключена.',
         'The own card is tested on firmware r24 and r25; off by default on this Dune.') . '</p>');
@@ -521,8 +526,7 @@ function aio_cgi_rows_screen($v)
         'Which rows the tabs of the catalog on the Dune show, and in what order.') . '</p>' .
         '<input type="text" id="' . $f['cat_rows']['id'] . '" name="' . $f['cat_rows']['name'] . '" value="' .
         aio_cgi_h($v['cat_rows']) . '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" hidden>' .
-        '<input type="hidden" id="' . $f['cat_rows_was']['id'] . '" name="' . $f['cat_rows_was']['name'] . '" value="' .
-        aio_cgi_h($v['cat_rows_was']) . '">' .
+        aio_cgi_hidden($f['cat_rows_was'], $v['cat_rows_was']) .
         '<div id="crs" class="res" aria-live="polite"><p class="hint">' .
         aio_cgi_l('Список рядов не открылся: нужен браузер с поддержкой скриптов.',
         'The list of rows did not open: a browser with scripts is needed.') . '</p></div>' .
@@ -772,8 +776,7 @@ function aio_cgi_tpl($v, $m)
         $out .= '<p class="mark" data-mark="' . $mk . '" data-short="' . aio_cgi_h($x[2]) . '"' . ($mk === $sel ? '' : ' hidden') . '>' .
             '<span class="t">' . aio_cgi_h($x[0]) .
             '</span><span class="v">' . aio_cgi_h($x[1]) . '</span></p>';
-    return $out . '</div>' . aio_cgi_choice($f[$k], $tk['tpls'], $sel) . '<input type="hidden" id="' . $f[$seen]['id'] .
-        '" name="' . $f[$seen]['name'] . '" value="' . aio_cgi_h($shown) . '">';
+    return $out . '</div>' . aio_cgi_choice($f[$k], $tk['tpls'], $sel) . aio_cgi_hidden($f[$seen], $shown);
 }
 
 // The answers of "Откуда брать фильмы" (radio watch): id of the radio => value.
@@ -817,9 +820,8 @@ function aio_cgi_debrid_main($v)
         aio_cgi_l('Основной Debrid', 'Main Debrid') . '</p>' .
         aio_cgi_choice($f['debrid_main'], aio_cgi_debrid_mains(), $v['debrid_main']) . '<p class="hint">' .
         aio_cgi_l('Через какой сервис запускать раздачу, если она в кэше у обоих',
-        'Which service plays a release cached on both') . '</p><input type="hidden" id="' .
-        $f['debrid_main_was']['id'] . '" name="' . $f['debrid_main_was']['name'] . '" value="' . aio_cgi_h($v['debrid_main_was']) .
-        '"></div>';
+        'Which service plays a release cached on both') . '</p>' . aio_cgi_hidden($f['debrid_main_was'], $v['debrid_main_was']) .
+        '</div>';
 }
 
 // The screen "Откуда брать фильмы" (0.43.0): three cards of the radio watch
@@ -855,8 +857,7 @@ function aio_cgi_src($v)
         '<p class="hint">' . aio_cgi_l('Melange этот конфиг не меняет.', 'Melange does not change this config.') .
         '</p><p class="hint xa">' . aio_cgi_l('Торренты из него играют через ', 'Torrents of it play via ') .
         '<a href="#torr">TorrServer</a>.</p></div>' .
-        '<input type="hidden" id="' . $f['src_was']['id'] . '" name="' . $f['src_was']['name'] . '" value="' .
-        aio_cgi_h($v['src_was']) . '">';
+        aio_cgi_hidden($f['src_was'], $v['src_was']);
 }
 
 // The screen "AIOStreams" (#cfg, 0.44.0; its fields: Debrid and

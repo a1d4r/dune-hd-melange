@@ -159,7 +159,7 @@ function aio_cgi_editor_block($v)
             'Not in use: the source goes to the profile; keys and TorrServer save as usual.');
     $hidden = '';
     foreach (array('pf_sel', 'pf_was', 'pf_now') as $k)
-        $hidden .= '<input type="hidden" id="' . $f[$k]['id'] . '" name="' . $f[$k]['name'] . '" value="' . aio_cgi_h($v[$k]) . '">';
+        $hidden .= aio_cgi_hidden($f[$k], $v[$k]);
     return '<div id="pe" class="xs"><div id="pel" class="list"></div>' .
         aio_cgi_input($f['pf_name'], aio_cgi_l('Название профиля', 'Profile name'), $v['pf_name'], $v['pf_def']) .
         '<p class="hint" id="pen">' . $line . '</p><div class="btns" id="peb" hidden><button type="button" id="peu" ' .
