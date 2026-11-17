@@ -1,8 +1,9 @@
 <?php
 // HTTP clients shared by the plugin (php_server) and the settings page
 // (cgi/settings.php, php-cgi as root): TorrServer, the Transmission RPC,
-// Lampac, and the loop of curl_multi (aio_net_multi: aio_http_get_many of
-// main.php, aio_lp_get_many). Plain PHP 5.3: no firmware API, no logging here.
+// Lampac, the loop of curl_multi (aio_net_multi: aio_http_get_many of
+// main.php, aio_lp_get_many) and the body of a GET (AioHttpSink). Plain PHP
+// 5.3: no firmware API, no logging here.
 // Needs common.php (AIO_VERSION, AIO_CA_BUNDLE); tests define their own
 // aio_ts_call(), aio_trm_call(), aio_lp_get() and aio_lp_get_many().
 // Types in the PHPDoc (AioServer): phpstan-types.neon of the repository.
@@ -264,7 +265,9 @@ function aio_net_multi($reqs, &$why)
             $bad = 'no result';
             break;
         }
-        if (curl_multi_select($mh, 0.2) === -1)
+        // Short: PHP 5.3.6 sleeps its whole timeout with no descriptor to wait for (the asynchronous resolver of a
+        // host by its name).
+        if (curl_multi_select($mh, 0.02) === -1)
             usleep(10000);
     }
     foreach ($bad === '' ? $hs : array() as $k => $h)
@@ -306,10 +309,11 @@ function aio_net_multi_off($bad, &$why)
 // err of aio_lp_get for a reply over its $max bytes.
 define('AIO_LP_TOO_BIG', 'reply over the size limit');
 
-// The body of a reply of Lampac (aio_lp_get, aio_lp_get_many), $max bytes at most, and its mark of the cache: the
-// WRITEFUNCTION and HEADERFUNCTION of its handle. Its own object a request: the handle of a callback is never used
-// (aio_net_multi).
-class AioLpSink
+// The body of a GET (aio_http_get, aio_http_get_many of main.php; aio_lp_get, aio_lp_get_many): its WRITEFUNCTION,
+// $max bytes at most (0: no limit); hit - the reply came with "X-Invoke-Cache: HIT" (its HEADERFUNCTION, of Lampac
+// only). Its own object a request: inside curl_multi the callback of r25 gets another handle as its first argument
+// (multi.c of its libphp5 built for another php_curl), so the handle there is never used.
+class AioHttpSink
 {
     /** @var string */
     public $body = '';
@@ -328,7 +332,8 @@ class AioLpSink
         $this->max = $max;
     }
 
-    // Not RETURNTRANSFER (curl_multi_getcontent of r25): a short count aborts the transfer.
+    // Not RETURNTRANSFER (curl_multi_getcontent of r25): a reply over $max stops loading here, a short count aborts
+    // the transfer.
     /**
      * @param mixed $ch
      * @param string $chunk
@@ -336,7 +341,7 @@ class AioLpSink
      */
     public function write($ch, $chunk)
     {
-        if (strlen($this->body) + strlen($chunk) > $this->max)
+        if ($this->max > 0 && strlen($this->body) + strlen($chunk) > $this->max)
         {
             $this->over = true;
             return 0;
@@ -367,7 +372,7 @@ class AioLpSink
  * @param int $connect
  * @param int $total
  * @param string $ua
- * @param AioLpSink $sink
+ * @param AioHttpSink $sink
  * @return array<int, mixed>
  */
 function aio_lp_opts($connect, $total, $ua, $sink)
@@ -393,7 +398,7 @@ function aio_lp_opts($connect, $total, $ua, $sink)
  * @param int $code
  * @param int $errno
  * @param string $fail
- * @param AioLpSink $sink
+ * @param AioHttpSink $sink
  * @return AioLpReply
  */
 function aio_lp_reply_of($code, $errno, $fail, $sink)
@@ -424,7 +429,7 @@ if (!function_exists('aio_lp_get'))
      */
     function aio_lp_get($url, $connect, $total, $max, $ua = '')
     {
-        $sink = new AioLpSink($max);
+        $sink = new AioHttpSink($max);
         $ch = curl_init($url);
         if (!curl_setopt_array($ch, aio_lp_opts($connect, $total, $ua, $sink)))
         {
@@ -457,7 +462,7 @@ if (!function_exists('aio_lp_get_many'))
         $q = array();
         foreach ($reqs as $k => $r)
         {
-            $sinks[$k] = new AioLpSink($r[3]);
+            $sinks[$k] = new AioHttpSink($r[3]);
             $q[$k] = array($r[0], aio_lp_opts($r[1], $r[2], $r[4], $sinks[$k]), $r[2]);
         }
         $res = aio_net_multi($q, $why);

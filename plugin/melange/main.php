@@ -831,44 +831,6 @@ function aio_debrid_main_write($svc)
 
 // --- AIOStreams.
 
-// The body of a GET (aio_http_get, aio_http_get_many): its WRITEFUNCTION, $max bytes at most (0: no limit). Its own
-// object a request: inside curl_multi the callback of r25 gets another handle as its first argument (multi.c of its
-// libphp5 built for another php_curl), so the handle there is never used. AIO_HTTP_PAR, AioHttp: net.php.
-class AioHttpSink
-{
-    /** @var string */
-    public $body = '';
-    /** @var bool */
-    public $over = false;
-    /** @var int */
-    public $max = 0;
-
-    /**
-     * @param int $max
-     */
-    public function __construct($max)
-    {
-        $this->max = $max;
-    }
-
-    // Not RETURNTRANSFER: a reply over $max stops loading here, a short count aborts the transfer.
-    /**
-     * @param mixed $ch
-     * @param string $chunk
-     * @return int
-     */
-    public function write($ch, $chunk)
-    {
-        if ($this->max > 0 && strlen($this->body) + strlen($chunk) > $this->max)
-        {
-            $this->over = true;
-            return 0;
-        }
-        $this->body .= $chunk;
-        return strlen($chunk);
-    }
-}
-
 // The options of a GET of aio_http_get and aio_http_get_many with its body to $sink. $connect, $total: s; whole s as
 // they are, a fraction (the lazy meta in what is left of a tick, cp_meta.php) in ms where curl has them (r25), with no
 // signals: by the alarm of the resolver one under 1 s fails at once; else whole s, rounded up.
