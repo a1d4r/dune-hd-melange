@@ -22,7 +22,7 @@ What it does:
 
 ## Requirements
 
-- **A Dune HD on Android with firmware r22 or newer.**
+- **A Dune HD on Android with firmware r22 or newer**, r24 or r25 recommended.
 - **Does not work** on Sigma / Linux Dunes (Solo 4K, Duo 4K, Base 3D, TV-303D and older): they have no **Movies** catalog with **Play...** items and no Android apps. On models with 1 GB of memory (SmartBox 4K, SmartBox 4K Plus, Traveler, Neo 4K, 4K Neo, Neo 4K T2) it is not guaranteed to work.
 - **A phone on the same home network** as the Dune, for the settings page.
 - **A source of releases**, one of three options:
