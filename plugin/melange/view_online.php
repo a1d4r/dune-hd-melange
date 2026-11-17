@@ -5,7 +5,8 @@
 // and a card of their own; of an episode a row a voice of its season), its MENU, ENTER (the start:
 // online_play.php, as "Continue" of a record of it and play_action), the left and right keys and
 // "Выбрать серию" of an episode, "Балансеры…" (which balancers, their order: lampac_sources of the profile of
-// Lampac; online_sources.php) and the window of no such episode in the voice. The mark "online" of a title
+// Lampac; online_sources.php), the filter by voices (its dialog "Озвучка": online_voices.php) and the window of no
+// such episode in the voice. The mark "online" of a title
 // (data_dir/lampac_choice.json) is gone (v2): a record of the history leads to the online list.
 // The list lives in Aio::$state beside the releases: 'lp' (AioLpView), 'lp_on' - the screen
 // shows it, 'lp_only' - the releases were never asked, 'lp_note' - the yellow line of the
@@ -157,10 +158,6 @@ function aio_lpv_badge($q)
 // --- The filter by voices (the red key, "Озвучка: …" of MENU): the rows of the voices chosen of all balancers. Its state
 // 'flt' of the view: the keys of the voices (aio_lpv_voice_key) => their names, in the order of aio_lpv_voices when
 // chosen; none: all. It lives with the list of the title (between the episodes too), not past it.
-
-// The id of the dialog of the voices (edit_list_config): its file <FS_PREFIX>/config/lcfg_melange_lp_voices.txt
-// (bin/uninstall.sh removes it).
-define('AIO_LPV_VOICES_ID', 'melange_lp_voices');
 
 // The key of voice $name for the filter: its studios (aio_track_voice, by aio_voices_same: "Кубик в кубе" and
 // "Кубик в Кубе" one), else a dub ("Дубляж [1080, Rus]" and "Дублированный" one; other types by the name:
@@ -382,290 +379,6 @@ function aio_lpv_flt_tab($v, $lang)
     return array($d, $x + AIO_GC_HINT_GAP);
 }
 
-// --- Folding (ENTER on the line of a balancer, the green key, MENU "Развернуть все" / "Свернуть все"): the rows of a
-// balancer shown under its line or not. Its state 'open' of the view: the paths of the balancers unfolded; none: all folded,
-// as a list opens. It lives with the list of the title (between the episodes, "Обновить", back from the player), as 'flt'.
-
-// Of lines $L: '' no line of a balancer, 'open' one unfolded, else 'shut'.
-/**
- * @param list<AioLpLine> $L
- * @return string
- */
-function aio_lpv_fold_state($L)
-{
-    $out = '';
-    foreach ($L as $l)
-    {
-        if ($l['k'] === 'head')
-            return 'open';
-        if ($l['k'] === 'shut')
-            $out = 'shut';
-    }
-    return $out;
-}
-
-// The words of the green key of lines $L: "Свернуть все" one unfolded, "Развернуть все" ($short: "Свернуть", "Развернуть");
-// '' no line of a balancer.
-/**
- * @param list<AioLpLine> $L
- * @param string $lang
- * @param bool $short
- * @return string
- */
-function aio_lpv_fold_word($L, $lang, $short = false)
-{
-    $f = aio_lpv_fold_state($L);
-    if ($f === '')
-        return '';
-    if ($f === 'open')
-        return aio_tr($lang, $short ? 'lp_fold' : 'lp_fold_all');
-    return aio_tr($lang, $short ? 'lp_unfold' : 'lp_unfold_all');
-}
-
-// lp_pick on line $sel of a balancer of the online list $st ($top the first line on screen): folded - its rows shown under
-// it, the cursor on the first of them; unfolded - folded, the cursor on its line. The screen replaced from the state, no
-// request (as aio_lpv_flt_set).
-/**
- * @param AioState $st
- * @param int $sel
- * @param int $top
- * @return AioAction
- */
-function aio_lpv_fold($st, $sel, $top)
-{
-    $L = aio_lpv_lines($st['lp']);
-    $i = $L[$sel]['i'];
-    $path = $st['lp']['rows'][$i]['path'];
-    $open = $L[$sel]['k'] === 'shut';
-    $ns = $st;
-    $ns['rid'] = aio_rid();
-    if ($open)
-        $ns['lp']['open'][$path] = true;
-    else
-        unset($ns['lp']['open'][$path]);
-    $nl = aio_lpv_lines($ns['lp']);
-    $j = aio_lpv_bal_of($nl, max(0, aio_lpv_line_at($nl, $i)));
-    $ns['lp']['gc'] = aio_lpv_fix($nl, $open && isset($nl[$j + 1]) ? $j + 1 : $j, $top);
-    $ns['lp']['gc_new'] = true;
-    aio_log("lampac: balancer $path " . ($open ? 'unfolded' : 'folded') . ", {$L[$sel]['n']} rows");
-    return aio_list_replace($ns);
-}
-
-// lp_fold (the green key, MENU "Развернуть все" / "Свернуть все") of the online list $st, the cursor on line $sel: one
-// unfolded - all folded, else all unfolded; the cursor on the line of the balancer it was on (on a row alone: on it). No line of
-// a balancer: nothing.
-/**
- * @param AioState $st
- * @param int $sel
- * @return AioAction|null
- */
-function aio_lpv_fold_all($st, $sel)
-{
-    $L = aio_lpv_lines($st['lp']);
-    $f = aio_lpv_fold_state($L);
-    if ($f === '')
-    {
-        aio_log('lampac: fold: no balancer of 2 rows, nothing');
-        return null;
-    }
-    $m = aio_lpv_mark($L, aio_lpv_bal_of($L, $sel));
-    $ns = $st;
-    $ns['rid'] = aio_rid();
-    unset($ns['lp']['open']);
-    if ($f === 'shut')
-        $ns['lp']['open'] = aio_lpv_open_all($st['lp']);
-    $nl = aio_lpv_lines($ns['lp']);
-    $ns['lp']['gc'] = aio_lpv_put_at($nl, $m);
-    $ns['lp']['gc_new'] = true;
-    aio_log('lampac: all balancers ' . ($f === 'shut' ? 'unfolded' : 'folded'));
-    return aio_list_replace($ns);
-}
-
-// 'open' of view $v with all its balancers unfolded.
-/**
- * @param AioLpView $v
- * @return array<string, bool>
- */
-function aio_lpv_open_all($v)
-{
-    $out = array();
-    foreach ($v['rows'] as $r)
-        $out[$r['path']] = true;
-    return $out;
-}
-
-/**
- * @return string
- */
-function aio_lpv_flt_path()
-{
-    return getenv('FS_PREFIX') . '/config/lcfg_' . AIO_LPV_VOICES_ID . '.txt';
-}
-
-// The id of voice $k in the dialog of the voices: ASCII (a key has ":" and "|"), not a number.
-/**
- * @param string $k
- * @return string
- */
-function aio_lpv_flt_id($k)
-{
-    return 'v' . substr(md5($k), 0, 12);
-}
-
-// lp_flt_menu (the red key, MENU "Озвучка: …") of the online list $st: the dialog "Озвучка" of the shell (edit_list_config)
-// with a check of each voice (aio_lpv_voices, "LostFilm · 8 балансеров"), those of the filter checked, the cursor on the
-// first of them, else on the first. None checked: all (ALLOW_EMPTY; no checked_ids: "Сброс" unchecks all). Its order
-// ("Переместить") is not read. Its file written first; not written: an error, no dialog. No close_item_params,
-// dialog_params or params of items (as aio_lpv_srcs_edit). No voice: nothing; no such dialog of the firmware: an error.
-/**
- * @param AioState $st
- * @return AioAction|null
- */
-function aio_lpv_flt_edit($st)
-{
-    $lang = aio_gc_lang($st);
-    $g = aio_lpv_voices($st['lp'], $lang);
-    if (!$g)
-    {
-        aio_log('lampac: voices: none in the list, no dialog');
-        return null;
-    }
-    if (!class_exists('EditListConfigActionData') || !defined('EDIT_LIST_CONFIG_ACTION_ID'))
-        return aio_error('cat_rows_no_dialog');
-    $ids = array();
-    $on = array();
-    $items = array();
-    foreach ($g as $x)
-    {
-        $id = aio_lpv_flt_id($x['k']);
-        $ids[] = $id;
-        if (isset($st['lp']['flt'][$x['k']]))
-            $on[$id] = true;
-        $items[] = array(GuiItem::id => $id, GuiItem::caption => aio_lpv_flt_row($lang, $x['name'], $x['n']));
-    }
-    if (!aio_write_file(aio_lpv_flt_path(), aio_catv_lcfg_text($ids, $on, $ids), 0644))
-    {
-        aio_log('lampac: voices: the file of the dialog not written');
-        return aio_error('lp_flt_not_opened');
-    }
-    $sel = $on ? array_keys($on) : $ids;
-    aio_log('lampac: voices: dialog, ' . count($ids) . ' voices, ' . count($on) . ' chosen');
-    return array(GuiAction::handler_string_id => EDIT_LIST_CONFIG_ACTION_ID, GuiAction::data => array(
-        EditListConfigActionData::config_id => AIO_LPV_VOICES_ID,
-        EditListConfigActionData::title => aio_tr($lang, 'lp_flt_title'),
-        EditListConfigActionData::all_items => $items,
-        EditListConfigActionData::options => EDIT_LIST_CONFIG_OPT_ALLOW_EMPTY,
-        EditListConfigActionData::sel_id => strval($sel[0]),
-        EditListConfigActionData::post_action => aio_gc_act('lp_flt_apply', $st['rid'])));
-}
-
-// lp_flt_apply: post_action of the dialog of the voices of the online list $st, at every close (the shell has written its
-// file by then; none: none checked). The voices checked in it (an id of no voice now goes) the filter, none or all of them
-// no filter; the same as before: nothing; the file not a file or not read: an error, nothing changed. Else the list with
-// it (aio_lpv_flt_set).
-/**
- * @param stdClass $in
- * @param AioState $st
- * @return AioAction|null
- */
-function aio_lpv_flt_apply($in, $st)
-{
-    if (!isset($in->list_config_id) || $in->list_config_id !== AIO_LPV_VOICES_ID)
-        return null;
-    if (!isset($in->list_config_changed) || !is_scalar($in->list_config_changed) || strval($in->list_config_changed) !== '1')
-    {
-        aio_log('lampac: voices: dialog closed, no change');
-        return null;
-    }
-    list($text, $no) = aio_catv_lcfg_load(aio_lpv_flt_path());
-    if ($no === 'bad' || $no === 'unread')
-    {
-        aio_log("lampac: voices: the file of the dialog $no, nothing changed");
-        return aio_error('lp_flt_not_read');
-    }
-    $g = aio_lpv_voices($st['lp'], aio_gc_lang($st));
-    $ids = array();
-    foreach ($g as $x)
-        $ids[] = aio_lpv_flt_id($x['k']);
-    list($state) = aio_catv_lcfg_read($text, $ids, array_fill_keys($ids, false));
-    $set = array();
-    foreach ($g as $j => $x)
-    {
-        if ($state[$ids[$j]])
-            $set[$x['k']] = $x['name'];
-    }
-    if (count($set) === count($g))
-    {
-        aio_log('lampac: voices: all checked, no filter');
-        $set = array();
-    }
-    $a = array_keys($set);
-    $b = isset($st['lp']['flt']) ? array_keys($st['lp']['flt']) : array();
-    sort($a);
-    sort($b);
-    if ($a === $b)
-    {
-        aio_log('lampac: voices: the same');
-        return null;
-    }
-    return aio_lpv_flt_set($st, $set);
-}
-
-// An item of the dialog of the voices: voice $name of $n balancers ("LostFilm · 8 источников").
-/**
- * @param string $lang
- * @param string $name
- * @param int $n
- * @return string
- */
-function aio_lpv_flt_row($lang, $name, $n)
-{
-    return aio_lpv_tr($lang, 'lp_flt_item', array('name' => $name, 'n' => $n,
-        'sources' => aio_gc_plural($lang, $n, 'lp_sources')));
-}
-
-// The online list $st with filter $set (aio_lpv_voices key => name; none: all; some: all the balancers unfolded): the screen
-// replaced (a new rid), the yellow line gone; the cursor on its row (on the line of a balancer: of it) when shown, else the
-// first.
-/**
- * @param AioState $st
- * @param array<string, string> $set
- * @return AioAction
- */
-function aio_lpv_flt_set($st, $set)
-{
-    list($sel) = aio_lpv_pos($st['lp'], null);
-    $m = aio_lpv_mark(aio_lpv_lines($st['lp']), $sel);
-    $ns = $st;
-    $ns['rid'] = aio_rid();
-    unset($ns['lp']['flt']);
-    // A filter: the rows of its voices shown, all unfolded.
-    if ($set)
-    {
-        $ns['lp']['flt'] = $set;
-        $ns['lp']['open'] = aio_lpv_open_all($ns['lp']);
-    }
-    $ns['lp']['note'] = '';
-    unset($ns['lp']['flt_gone']);
-    $L = aio_lpv_lines($ns['lp']);
-    $j = -1;
-    // On the line of a balancer: on its line (the line of its rows shown) when one of them is shown.
-    if ($m[1])
-    {
-        $j = aio_lpv_bal_of($L, max(0, aio_lpv_line_at($L, $m[0])));
-        $ok = aio_lpv_row_of($L, $j) >= 0 || aio_lpv_is_bal($L, $j);
-        if (!$ok || $ns['lp']['rows'][$L[$j]['i']]['path'] !== $st['lp']['rows'][$m[0]]['path'])
-            $j = -1;
-    }
-    else if (in_array($m[0], aio_lpv_shown($ns['lp']), true))
-        $j = aio_lpv_line_at($L, $m[0]);
-    $ns['lp']['gc'] = aio_lpv_put_line($L, max(0, $j));
-    $ns['lp']['gc_new'] = true;
-    aio_log('lampac: filter ' . ($set ? implode(', ', array_keys($set)) : 'off') . ', ' . count(aio_lpv_shown($ns['lp'])) .
-        ' rows shown');
-    return aio_list_replace($ns);
-}
-
 // Lines of the online list of view $v on screen (the rows of its filter, aio_lpv_shown): the rows of a balancer in a run of 2 and more
 // after a line of it, shown under it when it is unfolded ('open' of the view: its path), else none; a row alone as one line; "Ещё N
 // источников" last. A line: k (head: of a balancer unfolded; shut: folded; row: under a head; one: alone; more), i (the row; of a
@@ -868,6 +581,118 @@ function aio_lpv_counter($L, $sel)
 {
     $n = aio_lpv_count($L);
     return aio_gc_counter(min($sel, $n - 1), $n);
+}
+
+// --- Folding (ENTER on the line of a balancer, the green key, MENU "Развернуть все" / "Свернуть все"): the rows of a
+// balancer shown under its line or not. Its state 'open' of the view: the paths of the balancers unfolded; none: all folded,
+// as a list opens. It lives with the list of the title (between the episodes, "Обновить", back from the player), as 'flt'.
+
+// Of lines $L: '' no line of a balancer, 'open' one unfolded, else 'shut'.
+/**
+ * @param list<AioLpLine> $L
+ * @return string
+ */
+function aio_lpv_fold_state($L)
+{
+    $out = '';
+    foreach ($L as $l)
+    {
+        if ($l['k'] === 'head')
+            return 'open';
+        if ($l['k'] === 'shut')
+            $out = 'shut';
+    }
+    return $out;
+}
+
+// The words of the green key of lines $L: "Свернуть все" one unfolded, "Развернуть все" ($short: "Свернуть", "Развернуть");
+// '' no line of a balancer.
+/**
+ * @param list<AioLpLine> $L
+ * @param string $lang
+ * @param bool $short
+ * @return string
+ */
+function aio_lpv_fold_word($L, $lang, $short = false)
+{
+    $f = aio_lpv_fold_state($L);
+    if ($f === '')
+        return '';
+    if ($f === 'open')
+        return aio_tr($lang, $short ? 'lp_fold' : 'lp_fold_all');
+    return aio_tr($lang, $short ? 'lp_unfold' : 'lp_unfold_all');
+}
+
+// lp_pick on line $sel of a balancer of the online list $st ($top the first line on screen): folded - its rows shown under
+// it, the cursor on the first of them; unfolded - folded, the cursor on its line. The screen replaced from the state, no
+// request (as aio_lpv_flt_set).
+/**
+ * @param AioState $st
+ * @param int $sel
+ * @param int $top
+ * @return AioAction
+ */
+function aio_lpv_fold($st, $sel, $top)
+{
+    $L = aio_lpv_lines($st['lp']);
+    $i = $L[$sel]['i'];
+    $path = $st['lp']['rows'][$i]['path'];
+    $open = $L[$sel]['k'] === 'shut';
+    $ns = $st;
+    $ns['rid'] = aio_rid();
+    if ($open)
+        $ns['lp']['open'][$path] = true;
+    else
+        unset($ns['lp']['open'][$path]);
+    $nl = aio_lpv_lines($ns['lp']);
+    $j = aio_lpv_bal_of($nl, max(0, aio_lpv_line_at($nl, $i)));
+    $ns['lp']['gc'] = aio_lpv_fix($nl, $open && isset($nl[$j + 1]) ? $j + 1 : $j, $top);
+    $ns['lp']['gc_new'] = true;
+    aio_log("lampac: balancer $path " . ($open ? 'unfolded' : 'folded') . ", {$L[$sel]['n']} rows");
+    return aio_list_replace($ns);
+}
+
+// lp_fold (the green key, MENU "Развернуть все" / "Свернуть все") of the online list $st, the cursor on line $sel: one
+// unfolded - all folded, else all unfolded; the cursor on the line of the balancer it was on (on a row alone: on it). No line of
+// a balancer: nothing.
+/**
+ * @param AioState $st
+ * @param int $sel
+ * @return AioAction|null
+ */
+function aio_lpv_fold_all($st, $sel)
+{
+    $L = aio_lpv_lines($st['lp']);
+    $f = aio_lpv_fold_state($L);
+    if ($f === '')
+    {
+        aio_log('lampac: fold: no balancer of 2 rows, nothing');
+        return null;
+    }
+    $m = aio_lpv_mark($L, aio_lpv_bal_of($L, $sel));
+    $ns = $st;
+    $ns['rid'] = aio_rid();
+    unset($ns['lp']['open']);
+    if ($f === 'shut')
+        $ns['lp']['open'] = aio_lpv_open_all($st['lp']);
+    $nl = aio_lpv_lines($ns['lp']);
+    $ns['lp']['gc'] = aio_lpv_put_at($nl, $m);
+    $ns['lp']['gc_new'] = true;
+    aio_log('lampac: all balancers ' . ($f === 'shut' ? 'unfolded' : 'folded'));
+    return aio_list_replace($ns);
+}
+
+// 'open' of view $v with all its balancers unfolded.
+/**
+ * @param AioLpView $v
+ * @return array<string, bool>
+ */
+function aio_lpv_open_all($v)
+{
+    $out = array();
+    foreach ($v['rows'] as $r)
+        $out[$r['path']] = true;
+    return $out;
 }
 
 // Columns of lines $L of view $v: the badge (of the quality of a line), the balancer, the voice of a

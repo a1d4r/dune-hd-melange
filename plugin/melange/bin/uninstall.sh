@@ -6,7 +6,7 @@
 # Also removes the shell's files of the dialogs of the catalog rows (config_id melange_rows_<tab>_order
 # and melange_rows_<tab>_g_<g>, aio_catv_lcfg_id), of the sources of the online list (melange_lp_sources,
 # AIO_LPV_SRCS_ID of online_sources.php) and of its voices (melange_lp_voices, AIO_LPV_VOICES_ID of
-# view_online.php), which live outside the plugin's dirs, and the
+# online_voices.php), which live outside the plugin's dirs, and the
 # directory of its files of the tab "TV" (tv_tab.php), named by the plugin: the shell keeps it.
 
 f=${MELANGE_TMP:-$FS_PREFIX/tmp}/movie_suppliers/aio

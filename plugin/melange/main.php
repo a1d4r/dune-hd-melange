@@ -39,6 +39,8 @@ require_once dirname(__FILE__) . '/view_online.php';
 require_once dirname(__FILE__) . '/online_search.php';
 // "Источники…" of the online list: which sources, their order.
 require_once dirname(__FILE__) . '/online_sources.php';
+// "Озвучка" of the online list: the dialog of the filter by voices.
+require_once dirname(__FILE__) . '/online_voices.php';
 // "Онлайн": its start, "Continue", play_action of a card with it.
 require_once dirname(__FILE__) . '/online_play.php';
 // TorrServer in the player: the window of its numbers with INFO.
