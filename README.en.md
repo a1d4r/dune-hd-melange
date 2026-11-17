@@ -94,7 +94,7 @@ All messages and what to do about them: [Troubleshooting and the log](docs/troub
 - [Debrid](docs/debrid.en.md)
 - [Torrents and TorrServer](docs/torrserver.en.md)
 - [JacRed](docs/jacred.en.md)
-- [Source profiles](docs/profiles.en.md)
+- [Sources](docs/profiles.en.md)
 - [Your own torrent client](docs/download-server.en.md)
 - [Appearance](docs/appearance.en.md)
 - [Melange in the TV tab](docs/tv-tab.en.md)

@@ -94,7 +94,7 @@ JacRed настраивать не нужно: по умолчанию стои�
 - [Debrid](docs/debrid.md)
 - [Торренты и TorrServer](docs/torrserver.md)
 - [JacRed](docs/jacred.md)
-- [Профили источников](docs/profiles.md)
+- [Источники](docs/profiles.md)
 - [Свой торрент-клиент](docs/download-server.md)
 - [Внешний вид](docs/appearance.md)
 - [Melange во вкладке «ТВ»](docs/tv-tab.md)
