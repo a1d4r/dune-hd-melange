@@ -115,7 +115,8 @@ parameters:
                 src_profiles: bool,
                 profiles: list<AioProfile>,
                 src_main: string,
-                saved_once: bool
+                saved_once: bool,
+                mig_lost: list<string>
             }
         '''
         # Settings of the operation (Aio::$settings, aio_settings_load, main.php).

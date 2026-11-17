@@ -68,12 +68,8 @@ function aio_profile_ok($p, $s)
     $id = isset($p['id']) && aio_profile_id_ok($p['id']) ? $p['id'] : '';
     if (isset($p['lampac_url']))
     {
-        $u = aio_lp_addr($p['lampac_url']);
-        $t = isset($p['lampac_token']) ? aio_lp_token($p['lampac_token']) : '';
-        return is_string($u) && $u !== '' ? array('id' => $id, 'name' => $name, 'lampac_url' => $u,
-            'lampac_token' => is_string($t) ? $t : '', 'lampac_as_lampa' => isset($p['lampac_as_lampa']) &&
-            $p['lampac_as_lampa'] === true, 'lampac_sources' => isset($p['lampac_sources']) ?
-            aio_lp_srcs_ok($p['lampac_sources']) : array()) : null;
+        $lp = aio_lp_fields($p);
+        return $lp['lampac_url'] !== '' ? array('id' => $id, 'name' => $name) + $lp : null;
     }
     $old = !array_key_exists('jacred', $p);
     $jr = aio_profile_jacred($old ? $s : $p);
@@ -99,6 +95,38 @@ function aio_profile_ok($p, $s)
         $keys[$k] = array_key_exists($k, $p) ? aio_key_ok($what, $p[$k]) : $s[$k];
     return array('id' => $id, 'name' => $name, 'base' => $b, 'mode' => $mode, 'tpl' => (string) $tpl) + $jr +
         array('conf' => $conf) + $keys;
+}
+
+// The fields of Lampac (of a profile of Lampac; at the top of settings.json - of before v2, the copy of the first one)
+// with their defaults (none): the one list of them.
+/**
+ * @return array{lampac_url: string, lampac_token: string, lampac_as_lampa: bool, lampac_sources: list<AioLpChoice>}
+ */
+function aio_lp_keys()
+{
+    return array('lampac_url' => '', 'lampac_token' => '', 'lampac_as_lampa' => false, 'lampac_sources' => array());
+}
+
+// The fields of Lampac (aio_lp_keys) of $p as stored (a profile, settings.json): the address of aio_lp_addr, the
+// token of aio_lp_token, "as Lampa" a bool, the balancers of aio_lp_srcs_ok; one missing or wrong - its default.
+/**
+ * @param array<mixed> $p
+ * @return array{lampac_url: string, lampac_token: string, lampac_as_lampa: bool, lampac_sources: list<AioLpChoice>}
+ */
+function aio_lp_fields($p)
+{
+    $r = aio_lp_keys();
+    $u = isset($p['lampac_url']) ? aio_lp_addr($p['lampac_url']) : null;
+    $t = isset($p['lampac_token']) ? aio_lp_token($p['lampac_token']) : null;
+    if (is_string($u))
+        $r['lampac_url'] = $u;
+    if (is_string($t))
+        $r['lampac_token'] = $t;
+    if (isset($p['lampac_as_lampa']) && is_bool($p['lampac_as_lampa']))
+        $r['lampac_as_lampa'] = $p['lampac_as_lampa'];
+    if (isset($p['lampac_sources']))
+        $r['lampac_sources'] = aio_lp_srcs_ok($p['lampac_sources']);
+    return $r;
 }
 
 // The kind of profile $p: 'debrid', 'p2p' (Торренты), 'own' (an own config), 'lampac'.
@@ -346,11 +374,7 @@ function aio_profile_apply($s, $p)
 function aio_profile_view($s, $p)
 {
     if (isset($p['lampac_url']))
-    {
-        list($s['lampac_url'], $s['lampac_token'], $s['lampac_as_lampa'], $s['lampac_sources']) = array($p['lampac_url'],
-            $p['lampac_token'], $p['lampac_as_lampa'], $p['lampac_sources']);
-        return $s;
-    }
+        return array_merge($s, array_intersect_key($p, aio_lp_keys()));
     $s = aio_profile_apply($s, $p);
     $s['aio_confs'] = array();
     list($s['rd_key'], $s['tb_key']) = array('', '');
@@ -649,11 +673,8 @@ function aio_profile_add($s, $p)
     $at = aio_profile_rel($p) ? aio_profile_first($s, false, false) : -1;
     if ($at < 0)
         $at = count($s['profiles']);
-    $main = aio_profile_main($s) >= 0 ? $s['profiles'][aio_profile_main($s)]['id'] : '';
     array_splice($s['profiles'], $at, 0, array($p));
     $s['profiles'] = aio_profiles_ids($s['profiles']);
-    if ($main !== '' && $s['src_main'] === '')
-        $s['src_main'] = $main;
     return array($s, $at);
 }
 
@@ -665,7 +686,8 @@ function aio_profile_add($s, $p)
 // of the top; its config that of another profile (other settings typed on the page) - that one; the profiles full - the
 // first. lampac_url set - a profile of Lampac "Lampac" at the end with the address, token, "as Lampa" and balancers of
 // the top, the main one only of no other profile. The cells of aio_confs stay (a new profile of their server and mode
-// takes one). -> the settings, src_main the id of the main one ('' none).
+// takes one). Not made for the profiles full (AIO_PROFILES_MAX, the limit kept): mig_lost of the settings says which,
+// the reader logs it. -> the settings, src_main the id of the main one ('' none).
 /**
  * @param AioSettings $s
  * @return AioSettings
@@ -689,13 +711,14 @@ function aio_settings_migrate($s)
             list($s, $main) = aio_profile_add($s, aio_profile_ok(array('name' =>
                 aio_profile_free_name($s, aio_profile_word(aio_profile_kind($t)))) + $t, $s));
         if ($main < 0)
-            $main = 0;
+            list($s['mig_lost'][], $main) = array('the source in use', 0);
     }
     if ($s['lampac_url'] !== '')
     {
-        list($s, $lp) = aio_profile_add($s, aio_profile_ok(array('name' => aio_profile_free_name($s, aio_profile_word('lampac')),
-            'lampac_url' => $s['lampac_url'], 'lampac_token' => $s['lampac_token'], 'lampac_as_lampa' => $s['lampac_as_lampa'],
-            'lampac_sources' => $s['lampac_sources']), $s));
+        list($s, $lp) = aio_profile_add($s, aio_profile_ok(array('name' => aio_profile_free_name($s, aio_profile_word('lampac'))) +
+            array_intersect_key($s, aio_lp_keys()), $s));
+        if ($lp < 0)
+            $s['mig_lost'][] = 'Lampac';
         if ($main < 0 && $lp >= 0 && count($s['profiles']) === 1)
             $main = $lp;
     }
@@ -705,10 +728,10 @@ function aio_settings_migrate($s)
 
 // The settings $s to write (aio_settings_json, the one writer of settings.json) with the settings of the main profile
 // copied to the top (spec v2 §4 p. 7), so a version of before v2 over this file goes on with the main one: the source of
-// it, else of the first profile of releases (aio_profile_apply: its config in the cell); the keys of Debrid of it when
-// it is Debrid or Торренты, else of the first such one; src_profiles on with two profiles of releases or more (its MENU
-// of a list); lampac_* of the first profile of Lampac (none: lampac_url ''); src_main the id of the main one ('' no
-// profiles); an id each (aio_profiles_ids). Without profiles in $s: as it is.
+// it, else of the first profile of releases (aio_profile_apply: its config in the cell); the keys of Debrid of
+// aio_profile_debrid; src_profiles on with two profiles of releases or more (its MENU of a list); lampac_* of the first
+// profile of Lampac but its balancers (none: lampac_url ''); src_main the id of the main one ('' no profiles); an id
+// each (aio_profiles_ids). Without profiles in $s: as it is.
 /**
  * @param array<string, mixed> $s
  * @return array<string, mixed>
@@ -717,7 +740,6 @@ function aio_settings_top($s)
 {
     if (!isset($s['profiles']) || !is_array($s['profiles']))
         return $s;
-    $s['src_main'] = isset($s['src_main']) && is_string($s['src_main']) ? $s['src_main'] : '';
     /** @var AioSettings $t */
     $t = $s;
     $t['profiles'] = aio_profiles_ids($t['profiles']);
@@ -738,17 +760,14 @@ function aio_settings_top($s)
     if ($n >= 2)
         $t['src_profiles'] = true;
     $lp = aio_profile_first($t, false, false);
-    $q = $lp >= 0 ? $t['profiles'][$lp] : null;
-    if ($q && isset($q['lampac_url']))
-        list($t['lampac_url'], $t['lampac_token'], $t['lampac_as_lampa'], $t['lampac_sources']) = array($q['lampac_url'],
-            $q['lampac_token'], $q['lampac_as_lampa'], $q['lampac_sources']);
-    else
-        list($t['lampac_url'], $t['lampac_token'], $t['lampac_as_lampa'], $t['lampac_sources']) = array('', '', false, array());
+    $t = array_merge($t, $lp >= 0 ? array_intersect_key($t['profiles'][$lp], aio_lp_keys()) : aio_lp_keys());
+    // Not its balancers: feat/lampac of before was never released (no way back to it), the file has them once.
+    $t['lampac_sources'] = array();
     return $t;
 }
 
-// The index of the profile of Debrid or Торренты of the settings $s whose keys are those of the top: the main one when it
-// is one, else the first such one; -1 none.
+// The index of the profile of the settings $s whose keys of Debrid are those of the top (spec v2 §4 p. 7): the main one
+// when it is of Debrid, else the first of Debrid; none - the main one of Торренты, else the first of them; -1 none.
 /**
  * @param AioSettings $s
  * @return int
@@ -756,12 +775,14 @@ function aio_settings_top($s)
 function aio_profile_debrid($s)
 {
     $m = aio_profile_main($s);
-    if ($m >= 0 && isset($s['profiles'][$m]['base']))
-        return $m;
-    foreach ($s['profiles'] as $i => $p)
+    $order = $m >= 0 ? array($m => $s['profiles'][$m]) + $s['profiles'] : $s['profiles'];
+    foreach (array('debrid', 'p2p') as $kind)
     {
-        if (isset($p['base']))
-            return $i;
+        foreach ($order as $i => $p)
+        {
+            if (isset($p['base']) && aio_profile_kind($p) === $kind)
+                return $i;
+        }
     }
     return -1;
 }

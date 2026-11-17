@@ -491,7 +491,7 @@ function aio_cgi_lp_check_post($dir)
     if (!is_string($a) || !is_string($tk))
         aio_cgi_log('lampac check: bad format' . (is_string($a) ? ' of the token' : ''));
     if (is_string($a) && $a !== '' && is_string($tk))
-        AioLp::$auth = array('token' => $tk, 'lampa' => $lampa, 'uid' => $lampa ? aio_lp_uid_read($dir) : '');
+        AioLp::$auth = aio_lp_auth($tk, $lampa, $lampa ? aio_lp_uid_read($dir) : '');
     $res = !is_string($a) ? array(false, aio_cgi_fmt_lampac(), 'err') : ($a === '' ? array(false,
         aio_cgi_l('Впишите адрес Lampac', 'Enter the Lampac address'), 'err') : (!is_string($tk) ? array(false,
         aio_cgi_fmt_lp_token(), 'err') : aio_cgi_lp_check($a)));

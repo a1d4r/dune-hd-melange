@@ -100,6 +100,19 @@ class AioLp
     public static $auth = array('token' => '', 'lampa' => false, 'uid' => '');
 }
 
+// The auth of AioLp::$auth of the token $token of the provider ('' none), "as Lampa" $lampa and the uid of this Dune
+// $uid (only as Lampa): the one maker of it - the settings of an operation (aio_op_settings), "Проверить" of the page.
+/**
+ * @param string $token
+ * @param bool $lampa
+ * @param string $uid
+ * @return array{token: string, lampa: bool, uid: string}
+ */
+function aio_lp_auth($token, $lampa, $uid)
+{
+    return array('token' => $token, 'lampa' => $lampa, 'uid' => $lampa ? $uid : '');
+}
+
 // Tests define their own aio_lp_now() and aio_lp_wait(): the clock of the
 // budgets and the pause before a repeat.
 if (!function_exists('aio_lp_now'))

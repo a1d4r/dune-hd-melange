@@ -184,6 +184,8 @@ class Aio
     // Why settings.json was not read and the file then (aio_settings_read_logged):
     // a reason is logged once, not on every read.
     public static $settings_why_key = '';
+    // The same of mig_lost of the settings: the line of the migration once per file.
+    public static $settings_lost_key = '';
     // 'ino:uid' of web_token after aio_token_fix tried it: never again for that file.
     public static $token_tried = '';
     // The root of the server that answered 404 on /api/v1/segments (aio_markers):
@@ -561,6 +563,11 @@ function aio_settings_read_logged()
     if ($key !== Aio::$settings_why_key && $why !== '')
         aio_log("settings: settings.json $why");
     Aio::$settings_why_key = $key;
+    // Once per file: the migration of a file of before v2 with the profiles full (spec v2 §4 p. 2).
+    $lost = $s['mig_lost'] ? implode(', ', $s['mig_lost']) . ' ' . aio_settings_sig() : '';
+    if ($lost !== '' && $lost !== Aio::$settings_lost_key)
+        aio_log('settings: of before v2, ' . AIO_PROFILES_MAX . ' profiles already: no profile of ' . implode(', ', $s['mig_lost']));
+    Aio::$settings_lost_key = $lost;
     aio_token_fix(strpos($why, 'not readable') === 0);
     return $s;
 }
@@ -785,7 +792,7 @@ function aio_op_settings($s, $rel = '', $lp = '')
     if ($lp >= 0)
         $v = aio_profile_view($v, $s['profiles'][$lp]);
     else
-        list($v['lampac_url'], $v['lampac_token'], $v['lampac_as_lampa'], $v['lampac_sources']) = array('', '', false, array());
+        $v = array_merge($v, aio_lp_keys());
     list($sort, $rev) = aio_sort_read();
     $conf = $v['source'] === 'own' ? null : aio_settings_conf($v);
     $lpb = aio_lp_base($v);
@@ -815,7 +822,7 @@ function aio_op_settings($s, $rel = '', $lp = '')
         'no_torrents' => aio_no_torrents($v),
         'aio' => $v['aio_own_url'],
         'own' => $v['source'] === 'own',
-        'hosts' => aio_settings_hosts($s, $v['source'] === 'own' ? $v['manifest_url'] : ''),
+        'hosts' => aio_settings_hosts($s),
         'sort' => $sort,
         'sort_rev' => $rev,
         'cat_rows' => $s['cat_rows'],
@@ -832,8 +839,8 @@ function aio_op_settings($s, $rel = '', $lp = '')
         'lp' => $lpb,
         'lp_src' => $v['lampac_sources'],
         // lampac.php has no settings: its requests to the Lampac of them take these (aio_op_apply, aio_lp_send).
-        'lp_auth' => array('token' => $v['lampac_token'], 'lampa' => $v['lampac_as_lampa'],
-            'uid' => $v['lampac_as_lampa'] && $lpb !== '' ? aio_lp_uid() : ''));
+        'lp_auth' => aio_lp_auth($v['lampac_token'], $v['lampac_as_lampa'],
+            $v['lampac_as_lampa'] && $lpb !== '' ? aio_lp_uid() : ''));
 }
 
 // The settings of the operation (aio_op_apply) of the pair of profiles of ids $rel (of releases) and $lp (of Lampac) of

@@ -370,6 +370,9 @@ if ($method === 'GET')
     $s = aio_settings_read($dir, $why);
     if ($why !== '')
         aio_cgi_log("form: settings.json $why");
+    if ($s['mig_lost'])
+        aio_cgi_log('form: settings.json of before v2, ' . AIO_PROFILES_MAX . ' profiles already: no profile of ' .
+            implode(', ', $s['mig_lost']));
     // "Профили источников" on: the page of the profile p (lib/profiles.php).
     $ed = aio_cgi_editor($s, aio_cgi_param($_GET, 'p'));
     $v = aio_cgi_editor_values(aio_cgi_values($ed['view']), $ed, $s);

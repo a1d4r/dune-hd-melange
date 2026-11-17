@@ -792,16 +792,13 @@ function aio_settings_secrets($s)
 // tag: the own TorrServer "<ts>" (not the default one on the Dune), the
 // servers of "Download to server" "<server>", the own AIOStreams servers of the
 // configs and of the profiles and the hosts of the own configs of the profiles,
-// in use or not, "<aio>" (0.58.0; not the servers of the list: public; nor the
-// host of the own config $use in use: its long segments are hidden, its host is
-// kept, as before the profiles), Lampac ("Онлайн") "<lampac>", its
-// scheme://host[:port], of every profile of Lampac (v2).
+// in use or not, "<aio>" (0.58.0; not the servers of the list: public), Lampac
+// ("Онлайн") "<lampac>", its scheme://host[:port], of every profile of Lampac (v2).
 /**
  * @param AioSettings $s
- * @param string $use
  * @return array<string, string>
  */
-function aio_settings_hosts($s, $use = '')
+function aio_settings_hosts($s)
 {
     $h = array();
     if ($s['ts_url'] !== '' && $s['ts_url'] !== AIO_TS_DEFAULT)
@@ -820,7 +817,7 @@ function aio_settings_hosts($s, $use = '')
         if (isset($p['lampac_url']))
             $lps[] = $p['lampac_url'];
         // The address of the host of an own config: as aio_aio_own makes it.
-        elseif (!isset($p['url']) || $p['url'] !== $use)
+        else
             $own[] = isset($p['url']) ? aio_aio_own(strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $p['url']))) :
                 $p['base'];
     }
@@ -902,7 +899,8 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
 // (aio_jacred_migrate); the plugin never writes it. Never through a symlink
-// (the page runs as root). 'saved_once' => the file has saved_at (the page saved
+// (the page runs as root). 'mig_lost' => what the migration of a file of before v2 could not make a profile of (the
+// profiles full: 'the source in use', 'Lampac'; the reader logs it), never written. 'saved_once' => the file has saved_at (the page saved
 // it, cgi/settings.php: the first run till then); never written back
 // (aio_cgi_store drops it). $why: why a settings.json there was not read
 // (aio_settings_unread, 'read failed', 'bad JSON', 'data dir not
@@ -960,8 +958,8 @@ function aio_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null, 'lampac_url' => '', 'lampac_token' => '', 'lampac_as_lampa' => false, 'lampac_sources' => array(), 'aio_confs' => array(), 'src_profiles' => false, 'profiles' => array(),
-        'src_main' => '', 'saved_once' => false);
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null) + aio_lp_keys() + array('aio_confs' => array(), 'src_profiles' => false,
+        'profiles' => array(), 'src_main' => '', 'saved_once' => false, 'mig_lost' => array());
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
         $r['manifest_url'] = aio_manifest_url($j['manifest_url']);
@@ -1037,14 +1035,7 @@ function aio_settings_parse($j)
         $r['cat_rows'] = aio_cat_rows_ok($j['cat_rows']);
     if (isset($j['src_profiles']) && is_bool($j['src_profiles']))
         $r['src_profiles'] = $j['src_profiles'];
-    if (isset($j['lampac_url']) && is_string(aio_lp_addr($j['lampac_url'])))
-        $r['lampac_url'] = aio_lp_addr($j['lampac_url']);
-    if (isset($j['lampac_token']) && is_string(aio_lp_token($j['lampac_token'])))
-        $r['lampac_token'] = aio_lp_token($j['lampac_token']);
-    if (isset($j['lampac_as_lampa']) && is_bool($j['lampac_as_lampa']))
-        $r['lampac_as_lampa'] = $j['lampac_as_lampa'];
-    if (isset($j['lampac_sources']))
-        $r['lampac_sources'] = aio_lp_srcs_ok($j['lampac_sources']);
+    $r = array_merge($r, aio_lp_fields($j));
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
         foreach ($j['aio_confs'] as $b => $cs)
@@ -1070,11 +1061,14 @@ function aio_settings_parse($j)
     // After aio_confs, the JacRed and the keys: a profile of before takes them (aio_profile_ok).
     if (isset($j['profiles']) && is_array($j['profiles']))
         $r['profiles'] = aio_profiles_ok($j['profiles'], $r);
-    // No src_main: a file of before v2 (spec v2 §4); src_main of no profile - the first is the main one.
+    // No src_main: a file of before v2 (spec v2 §4).
     if (!array_key_exists('src_main', $j))
-        return aio_settings_migrate($r);
-    if (aio_profile_id_ok($j['src_main']) && aio_profile_index($r, $j['src_main']) >= 0)
+        $r = aio_settings_migrate($r);
+    elseif (aio_profile_id_ok($j['src_main']) && aio_profile_index($r, $j['src_main']) >= 0)
         $r['src_main'] = $j['src_main'];
+    // The main one by its id always: none or of no profile - the first one.
+    $m = aio_profile_main($r);
+    $r['src_main'] = $m >= 0 ? $r['profiles'][$m]['id'] : '';
     return $r;
 }
 
@@ -1127,7 +1121,7 @@ function aio_settings_unread($f)
  */
 function aio_settings_json($data)
 {
-    unset($data['saved_once']);
+    unset($data['saved_once'], $data['mig_lost']);
     $data = array_merge(array('v' => AIO_SETTINGS_V), aio_settings_top($data), array('saved_at' => time()));
     $json = json_encode($data);
     // PHP 5.3 turns a value that is not UTF-8 into null, not an error.

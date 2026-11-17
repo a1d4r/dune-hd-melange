@@ -184,18 +184,20 @@ function aio_cgi_log_download($dir)
     // The own JacRed, chosen or not: its key and address never in the log.
     $jrs = aio_jacred_own_confs($s);
     $pw = aio_settings_secrets($s);
-    $hosts = aio_settings_hosts($s, $s['source'] === 'own' ? $s['manifest_url'] : '');
+    $hosts = aio_settings_hosts($s);
     $m = array('base' => $base, 'jrs' => $jrs, 'pw' => $pw, 'aio' => $s['aio_own_url'], 'hosts' => $hosts);
     aio_cgi_headers(200, 'text/plain');
     header('Content-Disposition: attachment; filename="' . AIO_CGI_NAME . '-' . gmdate('Ymd-Hi') . '.log"');
     header('X-Content-Type-Options: nosniff');
     $host = $base !== '' ? (string) parse_url($base, PHP_URL_HOST) : '';
     $own = $s['aio_own_url'] !== '' ? (string) parse_url($s['aio_own_url'], PHP_URL_HOST) : '';
+    // The host of an own config hidden in the lines (v2: a profile, aio_settings_hosts) - here too.
+    $hid = isset($hosts[strtolower(strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $base)))]);
     echo 'Melange ' . AIO_VERSION . ', ' . gmdate('Y-m-d H:i:s') . " UTC\n" .
         // Another server never by its address (a LAN or NAS one), an own
         // config on it neither.
         'AIOStreams: ' . ($host === '' ? 'not set' : ($s['source'] === 'made' && $s['aio_server'] === 'own' ? 'own' :
-        ($own !== '' && strtolower($host) === $own ? '<aio>' : $host))) .
+        (($own !== '' && strtolower($host) === $own) || $hid ? '<aio>' : $host))) .
         ($s['source'] === 'own' ? ', own config' : ', Melange config') . "\n" .
         // The chosen one: a built-in id, the own one never by its address.
         'JacRed: ' . ($s['jacred'] === 'own' ? '<jacred>' : $s['jacred']) . "\n" .
