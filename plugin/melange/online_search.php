@@ -17,7 +17,7 @@ define('AIO_LPV_TICK_MS', 100);
 // yellow line), path (the path of a balancer: the cursor on it, the yellow line "<it> больше не
 // отдаёт эту озвучку"), key (the key of a row, of an online record: the cursor on that row, shown
 // though a filter hides it; none - on the first of the balancer of the key), fail (the row of the key found,
-// its link not: the reason, the yellow line "<it> не ответил — …" of down, else "<it> не дал видео — …"),
+// its link not: the reason, the yellow line "<it> не ответил" of down, else "<it> не дал видео"),
 // more (the replies of the view of $st from its next, no search; the cursor on the first new row), redraw (the screen
 // under it shows a list before $st: $st put in when the window closes with no list -
 // AioLpv::$redraw, aio_lpv_redraw_keys).
