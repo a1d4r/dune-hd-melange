@@ -279,11 +279,17 @@ function aio_setup_qr($p, $renew = false)
 }
 
 // After a save the page makes the config of the chosen server in a second
-// write (cgi/settings.php aio_cgi_aio_sync): Melange config, none there yet
-// in the mode chosen, P2P or a Debrid key.
+// write (cgi/settings.php aio_cgi_aio_sync): the main profile (v2) a config of
+// Melange (Debrid, Торренты) with none of its own yet, P2P or a Debrid key of it;
+// until the page of v2 (stage 3) the source at the top so too (the page of before
+// writes it there; no config - no profile of it yet, aio_settings_from_top).
 function aio_setup_config_due()
 {
     $s = aio_settings_read_logged();
+    $m = aio_profile_main($s);
+    $p = $m >= 0 ? $s['profiles'][$m] : null;
+    if ($p && isset($p['base']) && !$p['conf'] && ($p['mode'] === AIO_MODE_P2P || $p['rd_key'] !== '' || $p['tb_key'] !== ''))
+        return true;
     return $s['source'] === 'made' && aio_settings_base($s) !== '' && !aio_settings_conf($s) &&
         ($s['aio_mode'] === AIO_MODE_P2P || $s['rd_key'] !== '' || $s['tb_key'] !== '');
 }
@@ -328,7 +334,7 @@ function aio_setup_tick($p)
 // The settings screen replaced by a fresh one; $p of aio_setup_params. The catalog under
 // it ($p['from']) is read again: its rows may have changed, and Back does not ask for it
 // (the shell finds a screen by its exact media_url). A first run: the catalog itself, the
-// settings until AIOStreams is set; AIOStreams gone: the catalog under them shows the
+// settings until a source is ready (v2: Lampac too); none any more: the catalog under them shows the
 // settings too, so both go for one such screen, no settings over settings.
 function aio_setup_refresh($p)
 {
@@ -337,7 +343,7 @@ function aio_setup_refresh($p)
     $from = isset($p['from']) && aio_catv_is_main($p['from']) ? $p['from'] : '';
     if ($from === '')
         return aio_replace_act("setup:$id", '%tr%plugin_caption');
-    if (isset($p['first']) || Aio::$settings['base'] === '')
+    if (isset($p['first']) || !Aio::$settings['ready'])
         return aio_replace_act(aio_catv_main_url(aio_catv_tab($from), $id), '%tr%plugin_caption', isset($p['first']) ? 1 : 2);
     return array(
         GuiAction::handler_string_id => PLUGIN_INVALIDATE_FOLDERS_ACTION_ID,

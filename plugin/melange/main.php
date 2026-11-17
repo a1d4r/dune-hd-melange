@@ -128,7 +128,8 @@ class Aio
     // id of the main profile ('' none), 'ready' - a profile ready there. 'made' - the config of Melange in use: array('base', 'mode', 'conf' - AioConf),
     // null for none or the own one (the migrations of aio_mig_run). 'lp' - the Lampac of "Онлайн"
     // (aio_lp_base, view_online.php), '' off; its host "<lampac>" in the log ('hosts'). 'lp_src' - lampac_sources
-    // of the settings: the sources of the online list found and the choice of them (aio_lpv_srcs_pick).
+    // of the settings: the sources of the online list found and the choice of them (aio_lpv_srcs_pick). 'lp_auth' - the
+    // token, "as Lampa" and uid of that Lampac, AioLp::$auth with it (aio_op_apply).
     /** @var AioOpSettings */
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => AIO_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
@@ -865,11 +866,54 @@ function aio_op_use($rel, $lp)
 function aio_op_of_screen($in)
 {
     $st = Aio::$state;
-    if (!$st || !isset($st['prof'], $st['lp_prof']))
+    if (!$st)
         return;
     $url = isset($in->media_url) && is_string($in->media_url) ? $in->media_url : '';
     if ($url === 'streams:' . $st['rid'] || (isset($in->rid) && $in->rid === $st['rid']))
         aio_op_use($st['prof'], $st['lp_prof']);
+}
+
+// The settings of the operation (aio_op_use) of the pair of the profile a title opens by (aio_profile_of_record of
+// Aio::$file: the record of the history of kind $kind - 'lp', 'rel', '' none - and its profile $id), logged. -> it
+// opens online first: that profile is Lampac, or no profile of releases is ready (spec v2 §2.1).
+/**
+ * @param string $id
+ * @param string $kind
+ * @return bool
+ */
+function aio_op_title($id, $kind)
+{
+    $s = Aio::$file;
+    if (!$s)
+        return Aio::$settings['prof'] === '' && Aio::$settings['lp_prof'] !== '';
+    $t = aio_profile_of_record($s, $id, $kind);
+    list($r, $l) = aio_profile_pair($s, $t);
+    aio_op_use($r >= 0 ? $s['profiles'][$r]['id'] : '', $l >= 0 ? $s['profiles'][$l]['id'] : '');
+    $on = $l >= 0 && ($r < 0 || ($t >= 0 && !aio_profile_rel($s['profiles'][$t])));
+    $of = $kind === '' ? 'no record' : ($kind === 'lp' ? 'an online record' : 'a record of a release') . ($id === '' ?
+        ' of no profile' : (aio_profile_index($s, $id) === $t ? ' of its profile' : ' of a profile gone or not ready'));
+    aio_log("source: $of -> profile " . aio_profile_tag($t, $t >= 0 ? $s['profiles'][$t] : null) . ', pair ' .
+        aio_profile_tag($r, $r >= 0 ? $s['profiles'][$r] : null) . ' + ' . aio_profile_tag($l, $l >= 0 ? $s['profiles'][$l] : null) .
+        ($on ? ', online' : ''));
+    return $on;
+}
+
+// The record of the history of play_action $in its supplier_info gives (the shell sends our wh_* of it on "Continue",
+// on r25 with the button "Melange NN%" too): array(the id of its profile - wh_prof, '' none or not an id; its kind - 'lp'
+// online, 'rel' of a release, '' no record).
+/**
+ * @param stdClass $in
+ * @return array{string, string}
+ */
+function aio_si_record($in)
+{
+    $si = isset($in->supplier_info) && is_string($in->supplier_info) ? json_decode($in->supplier_info) : null;
+    if (!is_object($si) || !isset($si->wh_release) || !is_string($si->wh_release))
+        return array('', '');
+    $lp = isset($si->wh_mode) && $si->wh_mode === 'lampac';
+    if (!$lp && !preg_match('/^[0-9a-f]{40}$/', $si->wh_release))
+        return array('', '');
+    return array(isset($si->wh_prof) && aio_profile_id_ok($si->wh_prof) ? $si->wh_prof : '', $lp ? 'lp' : 'rel');
 }
 
 // The sort of the lists, chosen by a colour key of the list (aio_gc_sort):
@@ -1706,9 +1750,9 @@ function aio_folder_view($media_url, $sel_state)
     aio_pg_view_asked($media_url);
     aio_mlv_view_asked($media_url);
     // "setup:<n>": the same screen redrawn by aio_setup_refresh; a first run: the
-    // settings in place of the catalog until AIOStreams is set.
+    // settings in place of the catalog until a source is ready (v2: Lampac alone too).
     if ($media_url === 'setup' || strpos($media_url, 'setup:') === 0 ||
-        (Aio::$settings['base'] === '' && aio_catv_is_main($media_url)))
+        (!Aio::$settings['ready'] && aio_catv_is_main($media_url)))
         return aio_setup_folder_view($media_url);
     if (strpos($media_url, 'info:') === 0)
         return aio_info_folder_view($media_url, $sel_state);
@@ -1816,15 +1860,35 @@ function aio_play_action($in, $hist = null)
         $hash = $hist['hash'];
         $lpk = $hist['key'];
     }
-    // "Онлайн" (online_play.php) of the episode chosen: its "Continue", a title marked so, no AIOStreams.
-    $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $rel);
+    // The record the title goes on with (spec v2 §1.5): of supplier_info ("Continue"; the button "Melange NN%" of r25
+    // too - its position is not taken, its profile is), else of the history of the card (the main card, the own card:
+    // aio_wh_pick), else our latest record of the card (a movie, an episode asked by the shell: aio_wh_card_last; of a
+    // movie its release or online row takes the cursor too). Its profile, else the rule of a record of none; no record
+    // - the main one.
+    $rec = aio_si_record($in);
+    if ($rec[1] === '' && $hist && ($hist['hash'] !== '' || $hist['key'] !== ''))
+        $rec = array($hist['prof'], $hist['key'] !== '' ? 'lp' : 'rel');
+    $cur = !$mv['series'] && !$resume && $hash === '' && $lpk === '';
+    $last = $mv['dune_id'] !== '' && ($rec[1] === '' || $cur) ? aio_wh_card_last($mv['dune_id']) : null;
+    $kind = $last ? (aio_lp_key_parse($last[0]) ? 'lp' : (preg_match('/^[0-9a-f]{40}\z/', $last[0]) ? 'rel' : '')) : '';
+    if ($last && $kind !== '')
+    {
+        if ($rec[1] === '')
+            $rec = array($last[1], $kind);
+        if ($cur)
+            list($hash, $lpk) = $kind === 'lp' ? array('', $last[0]) : array($last[0], '');
+    }
+    $online = aio_op_title($rec[0], $rec[1]);
+    // "Онлайн" (online_play.php) of the episode chosen: its "Continue", the title of a profile of Lampac.
+    $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $online);
     if ($lp)
         return $lp;
     // No "Онлайн" (no Lampac): an online record opens the releases of its episode, as the card.
     if ($lpk !== '')
         $resume = null;
 
-    if (Aio::$settings['base'] === '')
+    // No profile ready: Melange not set. No profile of releases (only Lampac, its "Онлайн" not for this one): the same.
+    if (!Aio::$settings['ready'] || Aio::$settings['base'] === '')
         return aio_no_address($lang);
 
     list($id, $cin) = aio_stream_ask($mv, $s, $e);

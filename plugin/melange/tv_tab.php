@@ -232,7 +232,7 @@ function aio_tv_note_defs($id, $key, $lang)
 // aio_ml_row_defs: of both on tv.json), then the rows of their tabs of the catalog from the copies, as
 // a screen of rows opened now (the mode of the tiles and the plates of the settings and the firmware,
 // as aio_catv_logo_of gives, but not kept among its screens: the EPF would push out a screen of Melange).
-// Each tab built once. AIOStreams not set: one tile "Set up Melange" ("tv:setup"), as the catalog opens
+// Each tab built once. No source ready (Lampac too): one tile "Set up Melange" ("tv:setup"), as the catalog opens
 // the settings; no row of its tabs with a copy: one tile "Open Melange" ("tv:open"). The mode of the screen
 // of rows before it is back after it: the grid of "Show all" asks for its next tiles without aio_catv_logo_of.
 // With the switch AIO_TV_SUB_OFF only tv.json: the sub-items are not shown, so their files are neither
@@ -252,7 +252,7 @@ function aio_tv_views($lang, &$tiles = null)
     $tiles = array();
     $tabs = array();
     $epfs = aio_tv_epfs();
-    if (Aio::$settings['base'] !== '')
+    if (Aio::$settings['ready'])
     {
         foreach ($epfs[AIO_TV_EPF] as $tab)
         {
@@ -274,7 +274,7 @@ function aio_tv_views($lang, &$tiles = null)
     $off = aio_tv_sub_off();
     // The meta of the tiles of the rows "Continue" and "Мой список" of no request (aio_cpm_build): kept, of the rows in
     // memory or on the disk.
-    if (Aio::$settings['base'] !== '')
+    if (Aio::$settings['ready'])
         aio_cpm_build('', 0.0);
     foreach ($epfs as $epf => $of)
     {
@@ -283,12 +283,12 @@ function aio_tv_views($lang, &$tiles = null)
         $cp_tiles = array();
         $ml_tiles = array();
         $one = count($of) === 1 ? $of[0] : '';
-        $defs = Aio::$settings['base'] !== '' ? array_merge(aio_cp_row_defs($one, $lang, $cp_tiles), aio_ml_row_defs($one, $lang, $ml_tiles)) :
+        $defs = Aio::$settings['ready'] ? array_merge(aio_cp_row_defs($one, $lang, $cp_tiles), aio_ml_row_defs($one, $lang, $ml_tiles)) :
             array();
         $tiles = array_merge($tiles, $cp_tiles, $ml_tiles);
         foreach ($of as $tab)
             $defs = isset($tabs[$tab]) ? array_merge($defs, $tabs[$tab]['defs']) : $defs;
-        if (Aio::$settings['base'] === '')
+        if (!Aio::$settings['ready'])
             $defs = aio_tv_note_defs('tv:setup', 'tv_setup', $lang);
         else if (!$defs)
             $defs = aio_tv_note_defs('tv:open', 'tv_open', $lang);
@@ -681,7 +681,7 @@ function aio_tv_timer($in)
     $state = aio_tv_timer_state($lang);
     $asked = 'AIOStreams not set, nothing asked';
     $new = 0;
-    if (Aio::$settings['base'] !== '')
+    if (Aio::$settings['ready'])
     {
         $asked = aio_tv_refresh(AIO_TV_TIMER_S);
         $new = AioTv::$new_copies;

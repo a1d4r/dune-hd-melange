@@ -548,6 +548,32 @@ function aio_profile_pair($s, $t = -1)
     return array($mr, $t);
 }
 
+// The index of the profile a title opens by (spec v2 §1.5) in the settings $s: of its record of the history of kind $kind
+// ('lp' - an online one, 'rel' - of a release, '' - none: a new title) and the profile $id of it (wh_prof; '' - a record
+// of before v2). The profile of the record there, ready and of its kind - it; else (none, deleted, not ready): an online
+// record - the first Lampac, of a release - the main one if it is of releases, else the first of them; none of that
+// kind, no record - the main one (-1 no profiles; aio_profile_pair takes a ready one then).
+/**
+ * @param AioSettings $s
+ * @param string $id
+ * @param string $kind
+ * @return int
+ */
+function aio_profile_of_record($s, $id, $kind)
+{
+    $m = aio_profile_main($s);
+    if ($kind !== 'lp' && $kind !== 'rel')
+        return $m;
+    $rel = $kind === 'rel';
+    $i = aio_profile_index($s, $id);
+    if ($i >= 0 && aio_profile_ready($s['profiles'][$i]) && aio_profile_rel($s['profiles'][$i]) === $rel)
+        return $i;
+    if ($rel && $m >= 0 && aio_profile_rel($s['profiles'][$m]) && aio_profile_ready($s['profiles'][$m]))
+        return $m;
+    $i = aio_profile_first($s, $rel);
+    return $i >= 0 ? $i : $m;
+}
+
 // A profile for the log (MENU of a list, the page): its number from 1 ("none" for -1) and kind, never its name or link
 // (the user typed them).
 /**
@@ -755,11 +781,11 @@ function aio_profile_conf_given($p, $c, $free)
     return $p;
 }
 
-// Until the page and MENU of a list of v2 (spec v2, stages 2 and 3): the settings $s of a writer of before v2 - the
-// page of before (aio_cgi_store) and the switch of MENU of a list (aio_gc_src_commit) edit the source at the top, as
-// the one in use - into the profiles, before aio_settings_json copies the main one to the top over it: the source of
+// Until the page of v2 (spec v2, stage 3): the settings $s of a writer of before v2 - the page of before
+// (aio_cgi_store; MENU of a list writes nothing since stage 2) edits the source at the top, as the one in use - into
+// the profiles, before aio_settings_json copies the main one to the top over it: the source of
 // the top a profile (aio_profile_now) other than that of releases of the copy (aio_settings_top) - the main one now
-// ("Сделать текущим", MENU); of no profile and the main one of releases - the main one takes it (its id and name kept;
+// ("Сделать текущим"); of no profile and the main one of releases - the main one takes it (its id and name kept;
 // the page of before edits the source in use there); else, when it fits a profile (aio_settings_migrate) - a new one,
 // the main one (the keys of the top). The keys of Debrid of the top, the main one the same - of the main one when it is
 // Debrid or Торренты, else of the first such one (another main one: they are of the one of before, not taken). lampac_url of the top - the first profile of Lampac takes it, its token and "as Lampa" (its balancers are of the

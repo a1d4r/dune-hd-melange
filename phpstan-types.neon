@@ -278,8 +278,8 @@ parameters:
                 lp_on?: bool,
                 lp_only?: bool,
                 lp_note?: string,
-                prof?: string,
-                lp_prof?: string
+                prof: string,
+                lp_prof: string
             }
         '''
         # The row and the map of the last start through TorrServer (Aio::$ts_pack, torrserver.php).
@@ -472,7 +472,7 @@ parameters:
         # The tabs of the seasons of a series card (aio_oc_tabs_layout, view_card_series.php).
         AioOcTabs: 'array{list: list<array{int, string, int, int}>, x: int, w: int, all: int, word: int, cx: int}'
         # The episode a series card offers (aio_oc_pick, view_card_series.php).
-        AioOcEp: 'array{q: int, e: int, s: int, hash: string, key: string, kind: string}'
+        AioOcEp: 'array{q: int, e: int, s: int, hash: string, key: string, prof: string, kind: string}'
         # A person of the own card: an actor, a director, a writer, a creator (aio_cm_people, card_meta.php).
         AioCardCredit: 'array{name: string, role: string, photo: string, tmdb: string}'
         # A person of the own card asked by ENTER (aio_cm_person_parse, card_more.php).

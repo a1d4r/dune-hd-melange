@@ -130,6 +130,8 @@ function aio_lpv_tick($in)
         aio_log('lampac: tick of a window gone');
         return aio_close_and(null);
     }
+    // A tick is an operation of its own: the Lampac of the list of the run (its profile, spec v2 §2.2), not the main one.
+    aio_op_use($run['st']['prof'], $run['st']['lp_prof']);
     $base = Aio::$settings['lp'];
     if ($base === '')
     {

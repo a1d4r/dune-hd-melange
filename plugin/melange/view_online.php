@@ -1,6 +1,6 @@
 <?php
-// "Онлайн" on the Dune, movies and episodes: the client is lampac.php. Here the
-// item "Онлайн" of "Откуда брать…" (the window "Ищу онлайн…" of its search: online_search.php), the online list
+// "Онлайн" on the Dune, movies and episodes: the client is lampac.php. Here (the window "Ищу онлайн…" of its search:
+// online_search.php; a profile of Lampac of "Откуда брать…": sources.php) the online list
 // on the screen of the releases (the frame of view_gcomps.php, rows "Phantom · Дублированный"
 // and a card of their own; of an episode a row a voice of its season), its MENU, ENTER (the start:
 // online_play.php, as "Continue" of a record of it and play_action), the left and right keys and
@@ -9,7 +9,8 @@
 // (data_dir/lampac_choice.json) is gone (v2): a record of the history leads to the online list.
 // The list lives in Aio::$state beside the releases: 'lp' (AioLpView), 'lp_on' - the screen
 // shows it, 'lp_only' - the releases were never asked, 'lp_note' - the yellow line of the
-// releases. The word Lampac only in the card of a row ("Через: Lampac из настроек").
+// releases; 'lp_prof' - the profile of Lampac of 'lp', 'prof' - of releases of 'rows' (v2, sources.php). The name of
+// the profile of Lampac only in the card of a row ("Через: Lampac").
 // PHP 5.3.6, firmware API only. Types (AioLpView, AioLpRun): phpstan-types.neon.
 
 // Seconds between two searches of "Обновить": a poll of all balancers often gets the IP banned.
@@ -119,50 +120,6 @@ function aio_lpv_why($lang, $why, $detail)
         return str_replace(array(' ({d})', ': {d}', ' {d}'), '', $s);
     $detail = aio_mask(aio_lp_mask($detail, Aio::$settings['lp']));
     return str_replace('{d}', aio_cut(aio_one_line($detail), 80), $s);
-}
-
-// --- "Онлайн" in "Откуда брать…" (the line "Откуда: …": aio_src_tabs_right, sources.php).
-
-// "Онлайн" goes into "Откуда брать…" of list $st: the releases are there to go back to.
-/**
- * @param AioState $st
- * @return bool
- */
-function aio_lpv_in_menu($st)
-{
-    return aio_lpv_on($st['movie'], $st['s'], $st['e']) && Aio::$settings['base'] !== '';
-}
-
-// Items $items of the menu "Откуда брать…" of list $st (the profiles, $sel the one in use;
-// none "· сейчас" in the online list) with "Онлайн" (aio_lpv_in_menu): no profile - "Раздачи"
-// first; the profiles - a separator; then "Онлайн", in the online list "Онлайн · сейчас"
-// selected. -> array(items, sel).
-/**
- * @param AioState $st
- * @param list<array<string, mixed>> $items
- * @param int $sel
- * @return array{list<array<string, mixed>>, int}
- */
-function aio_lpv_src_items($st, $items, $sel)
-{
-    $lang = $st['lang'];
-    $on = !empty($st['lp_on']);
-    if (!$items)
-        $items[] = array(
-            GuiMenuItemDef::caption => $on ? aio_tr($lang, 'lp_releases') :
-                aio_lpv_tr($lang, 'src_now', array('name' => aio_tr($lang, 'lp_releases'))),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
-            GuiMenuItemDef::action => aio_gc_act('lp_back', $st['rid']));
-    else
-        $items[] = array(GuiMenuItemDef::is_separator => true);
-    if ($on)
-        $sel = count($items);
-    $items[] = array(
-        GuiMenuItemDef::caption => $on ? aio_lpv_tr($lang, 'src_now', array('name' => aio_tr($lang, 'lp_online'))) :
-            aio_tr($lang, 'lp_online'),
-        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/web_browser.aai',
-        GuiMenuItemDef::action => aio_gc_act('lp_go', $st['rid']));
-    return array($items, $sel);
 }
 
 // Children of the yellow line of the releases of list $st (lp_note: "Онлайн не отвечает —
@@ -722,7 +679,9 @@ function aio_lpv_card($st, $v, $i)
         aio_tr($lang, 'lp_card_q_none'));
     if ($r['subs'] > 0)
         $fields[] = array('lp_card_subs', aio_tr($lang, 'lp_card_subs_v'));
-    $fields[] = array('lp_card_via', aio_tr($lang, 'lp_card_via_v'));
+    // The profile of Lampac of the list (v2: one of several).
+    $via = aio_src_name(Aio::$settings['lp_prof']);
+    $fields[] = array('lp_card_via', aio_lpv_tr($lang, 'lp_card_via_v', array('name' => $via !== '' ? $via : 'Lampac')));
     foreach ($fields as $f)
     {
         $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_VX - 6, 36, 0, $y), aio_tr($lang, $f[0]), 26, AIO_GC_DIM);
@@ -951,11 +910,9 @@ function aio_lpv_menu($st)
             GuiMenuItemDef::caption => aio_tr($lang, 'choose_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
             GuiMenuItemDef::action => aio_gc_act('lp_choose', $rid));
-    if (aio_lpv_in_menu($st))
-        $menu[] = array(
-            GuiMenuItemDef::caption => aio_tr($lang, 'src_list'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
-            GuiMenuItemDef::action => aio_gc_act('gc_src_menu', $rid));
+    $src = aio_gc_src_item($st);
+    if ($src)
+        $menu[] = $src;
     if (Aio::$settings['lp_src'])
         $menu[] = array(
             GuiMenuItemDef::caption => aio_tr($lang, 'lp_srcs_menu'),
@@ -1004,71 +961,6 @@ function aio_lpv_errors_of($st)
 }
 
 // --- MENU and the keys of the lists.
-
-// lp_go ("Откуда брать… → Онлайн") of list $st: the search window; the online
-// list of this list from a search younger than AIO_LPV_REFRESH s: it again, no request; already
-// the online list: nothing.
-/**
- * @param AioState $st
- * @return AioAction|null
- */
-function aio_lpv_go($st)
-{
-    if (!empty($st['lp_on']) || !aio_lpv_on($st['movie'], $st['s'], $st['e']))
-        return null;
-    if (isset($st['lp']) && aio_lp_now() - $st['lp']['t'] < AIO_LPV_REFRESH)
-    {
-        $ns = $st;
-        $ns['rid'] = aio_rid();
-        $ns['lp_on'] = true;
-        // Its own cursor, not the sel_state of the releases it replaces.
-        $ns['lp']['gc_new'] = true;
-        aio_log('lampac: the online list again, ' . count($ns['lp']['rows']) . ' rows, no request');
-        return aio_list_replace($ns);
-    }
-    return aio_lpv_search_open($st, 'replace');
-}
-
-// lp_back ("Откуда брать… → Раздачи", or the profile in use, of the online list $st): the releases
-// back - those asked before as they were, else asked now (an error: its dialog, the online list
-// kept). Of the releases with the yellow line (nothing online): the releases stay, the line gone.
-/**
- * @param AioState $st
- * @return AioAction|null
- */
-function aio_lpv_back($st)
-{
-    if (empty($st['lp_on']) && !empty($st['lp_note']))
-    {
-        $ns = $st;
-        $ns['rid'] = aio_rid();
-        unset($ns['lp_note']);
-        aio_log('lampac: the releases chosen over the yellow line');
-        return aio_list_replace($ns);
-    }
-    if (empty($st['lp_on']))
-        return null;
-    if (empty($st['lp_only']))
-    {
-        $ns = $st;
-        $ns['rid'] = aio_rid();
-        unset($ns['lp_on']);
-        // Their own cursor, not the sel_state of the online list.
-        $ns['gc_new'] = true;
-        aio_log('lampac: back to the releases, ' . count($ns['rows']) . ' rows, no request');
-        return aio_list_replace($ns);
-    }
-    $r = aio_relist($st, $st['s'], $st['e'], '');
-    if (isset($r['error']))
-    {
-        aio_log("lampac: back to the releases: {$r['error']}, the online list kept");
-        return aio_relist_dialog(aio_tr($st['lang'], 'lp_releases'), $st['lang'], $r);
-    }
-    $ns = $r['st'];
-    $ns['lp'] = $st['lp'];
-    aio_log('lampac: back to the releases, asked: ' . count($ns['rows']) . ' rows');
-    return aio_list_replace($ns);
-}
 
 // lp_refresh ("Обновить") of the online list $st: a new search, not within AIO_LPV_REFRESH s of
 // the last one (a message then).
@@ -1318,10 +1210,6 @@ function aio_lpv_input($in, $control)
     }
     if ($control === 'lp_find')
         return aio_lpv_on($st['movie'], $st['s'], $st['e']) ? aio_lpv_search_open($st, 'open') : null;
-    if ($control === 'lp_go')
-        return aio_lpv_go($st);
-    if ($control === 'lp_back')
-        return aio_lpv_back($st);
     if (empty($st['lp_on']) || !isset($st['lp']))
         return null;
     if ($control === 'lp_move')

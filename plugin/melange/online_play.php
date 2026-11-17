@@ -1,8 +1,8 @@
 <?php
 // "Онлайн" on the Dune, its start (the list: view_online.php): ENTER of a row ("call", the check
 // of the link, vod_play; an episode in the playlist of its season, the others lazy: lampac_next:),
-// "Continue" of a record of it, play_action of a card with "Онлайн" (an online record, no
-// AIOStreams), the window "Раздач нет" with "Искать онлайн".
+// "Continue" of a record of it, play_action of a card with "Онлайн" (an online record, the title of a profile
+// of Lampac), the window "Раздач нет" with "Искать онлайн".
 // PHP 5.3.6, firmware API only. Types (AioLpRow, AioMovie): phpstan-types.neon.
 
 // "Continue": seconds of the whole way (the row of the shell waits ~20 s).
@@ -324,7 +324,7 @@ function aio_lpv_next_failed($lang, $base, $src, $voice, $s, $e, $why, $detail, 
         array(aio_tr($lang, 'next_stop') => aio_input('next_stop')));
 }
 
-// --- play_action: "Continue", an online record, no AIOStreams, no releases.
+// --- play_action: "Continue", an online record, the title of a profile of Lampac, no releases.
 
 // "Continue" $r of an online record (aio_resume, mode lampac: hash the key of the record as it is, pos) of card
 // $mv (spec §7), of episode $e of season $s (-1 a movie; of a series the episode play_action chose: the next one
@@ -379,13 +379,12 @@ function aio_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
 }
 
 // play_action $in of card $mv, of episode $e of season $s (-1 a movie; of a series the one play_action chose: of
-// "Continue", of the shell, of the history) with "Онлайн" (aio_lpv_on): "Continue" $r of an online record (mode
-// lampac: aio_lpv_resume); the key $lpk of such a record with no episode to play (watched, no later one), or of the
-// latest record of the series (the main card, the own card: aio_wh_pick, its episode or the next one) - the
-// online list of the episode, the cursor on the row of the key (as the releases of a record of them); no
-// AIOStreams - the search at once; with AIOStreams the search of the key, its releases if nothing comes, but
-// "Continue" of a record of AIOStreams ($rel; $r its episode to play, null none: watched, no later one) goes on as
-// before, the releases (the mark "online" of a title is gone, v2). null: the releases as before.
+// "Continue", of the shell, of the history) with "Онлайн" (aio_lpv_on: the Lampac of the pair of the operation,
+// aio_op_title): "Continue" $r of an online record (mode lampac: aio_lpv_resume); the title of a profile of Lampac
+// ($online: its record online, of none - the first Lampac; a new one of the main Lampac; spec v2 §2.1) - the search, the
+// cursor on the row of the key $lpk of the online record (of "Continue" with no episode to play, of the latest record of
+// the series: aio_wh_pick, of a movie: aio_wh_card_last), nothing online - the releases with the yellow line when a
+// profile of releases is there. null: the releases (the title of a profile of releases).
 /**
  * @param stdClass $in
  * @param AioMovie $mv
@@ -394,10 +393,10 @@ function aio_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
  * @param int $e
  * @param AioResume|null $r
  * @param string $lpk
- * @param bool $rel
+ * @param bool $online
  * @return AioAction|null
  */
-function aio_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk, $rel = false)
+function aio_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk, $online)
 {
     // Of a series too: its online list from the releases takes them.
     aio_lpv_ids_keep($in, $mv);
@@ -405,16 +404,11 @@ function aio_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk, $rel = false)
         return null;
     if ($r && $r['mode'] === 'lampac')
         return aio_lpv_resume($mv, $r, $lang, $s, $e);
-    $aio = Aio::$settings['base'] !== '';
-    if ($aio && $lpk === '')
+    if (!$online)
         return null;
-    // $r here of a release (debrid, ts, ''): one of lampac is played above.
-    if ($aio && ($r || $rel))
-    {
-        aio_log('lampac: an online record, "Continue" of a release -> the releases');
-        return null;
-    }
-    aio_log('lampac: ' . ($lpk !== '' ? 'an online record' : 'no AIOStreams') . ' -> the search');
+    $aio = Aio::$settings['prof'] !== '';
+    aio_log('lampac: ' . ($lpk !== '' ? 'an online record' : ($r ? 'a record of a release, no profile of releases' :
+        'the title of Lampac')) . ' -> the search');
     $st = aio_list_state($mv, $s, $e, array(), $lang, aio_no_errors());
     $st['lp_only'] = true;
     return aio_lpv_search_open($st, 'open', array('back' => $aio, 'key' => $lpk));

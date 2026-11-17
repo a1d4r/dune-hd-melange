@@ -1435,49 +1435,30 @@ function aio_gc_main($in)
     return aio_list_replace(aio_gc_put_cursor($ns, isset($st['gc']) ? $st['gc'][0] : 0));
 }
 
-// --- The source profiles in MENU of a list (0.58.0): the user saved them on the page
-// (settings.json, src_profiles), MENU switches the source of all lists at once. Here the
-// item only; its menu and the switch: sources.php.
+// --- The sources in MENU of a list (v2): the user saved them on the page (settings.json, profiles); a choice is of
+// this screen only. Here the item only; its menu and the choice: sources.php.
 
-// The MENU item of the source profiles of live list $st, or null: no ready profile but the
-// one in use (Aio::$settings['profiles']). One ready but the one in use (two ready, one of
-// them in use; one ready, the source not a profile): "Откуда брать → <it>" (gc_src); else
-// "Откуда брать…", the menu of all (gc_src_menu).
+// The MENU item "Откуда брать…" of live list $st (gc_src_menu: the menu of all ready profiles, any kind), or null: fewer
+// than two ready (aio_src_in_menu).
 /**
  * @param AioState $st
  * @return array<string, mixed>|null
  */
 function aio_gc_src_item($st)
 {
-    // "Онлайн" (view_online.php): always the menu, it is one of the sources.
-    if (aio_lpv_in_menu($st))
-        return array(
-            GuiMenuItemDef::caption => aio_tr($st['lang'], 'src_list'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
-            GuiMenuItemDef::action => aio_gc_act('gc_src_menu', $st['rid']));
-    $ps = aio_src_menu_profiles();
-    $other = array();
-    foreach ($ps as $p)
-    {
-        if (!$p['now'])
-            $other[] = $p['name'];
-    }
-    if (!$other)
+    if (!aio_src_in_menu())
         return null;
-    $one = count($other) === 1;
     return array(
-        GuiMenuItemDef::caption => $one ? str_replace('{name}', $other[0], aio_tr($st['lang'], 'src_menu')) :
-            aio_tr($st['lang'], 'src_list'),
+        GuiMenuItemDef::caption => aio_tr($st['lang'], 'src_list'),
         GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
-        GuiMenuItemDef::action => $one ? aio_gc_act('gc_src', $st['rid'], array('n' => $other[0])) :
-            aio_gc_act('gc_src_menu', $st['rid']));
+        GuiMenuItemDef::action => aio_gc_act('gc_src_menu', $st['rid']));
 }
 
 // gc_menu (MENU) of a live list -> the popup menu of the row under the cursor:
 // with aio_gc_keys_in_menu "Release details" of the row (as INFO; none in an empty list) and "Sort: <sort>"
 // (aio_gc_sort_menu) first; "Refresh" (aio_refresh), an episode: "Choose episode" (aio_choose), copies of
 // Real-Debrid and TorBox in the list: "Main Debrid -> <the other one>" (aio_gc_main), the
-// source profiles: "Get films from" (aio_gc_src_item), a row
+// sources: "Get films from…" (aio_gc_src_item), a row
 // with infoHash: "Download in app" (aio_download) and, with a server in the
 // settings, "Download to server" (aio_srv_menu; these three not with "no torrents"), source errors of the
 // reply if shown (aio_gc_errors), "Settings". A screen of a
