@@ -818,7 +818,7 @@ function aio_lp_quals($q)
     return $out;
 }
 
-// Link $url of an item by its quality links $qual (aio_lp_quals; a quality by its first word: "2160p HEVC"): the
+// Link $url of an item by its quality links $qual (aio_lp_quals; a quality by aio_lp_q_num: "2160p HEVC"): the
 // link of the best quality when $url is there under a quality known below it (Kinoc: url 1080p, also 2160p HEVC);
 // else $url - not there, or under a quality not known ("auto": an adaptive one), as it is.
 /**
@@ -833,8 +833,7 @@ function aio_lp_qual_best($url, $qual)
     $at = 0;
     foreach ($qual as $k => $u)
     {
-        $w = explode(' ', trim($k));
-        $q = aio_lp_q_num($w[0]);
+        $q = aio_lp_q_num($k);
         if ($u === $url)
             $at = max($at, $q);
         if ($q > $n)
@@ -973,7 +972,7 @@ function aio_lp_movie($src, $data, $base = '')
             $voice = aio_lp_text(aio_lp_str($x, 'translate'));
             if ($voice === '')
                 $voice = aio_lp_text(aio_lp_str($x, 'voice_name'));
-            // A name of a quality ("1080p") is none.
+            // A name of a quality ("1080p", "4K HDR") is none.
             $name = aio_lp_text(aio_lp_str($x, 'name'));
             if ($voice === '' && aio_lp_q_num($name) === 0)
                 $voice = $name;
@@ -1010,7 +1009,7 @@ function aio_lp_movie($src, $data, $base = '')
 // the replies of a search left, the tick may go over its part so: a server
 // without a cache answers 0.2-4 s; Lampac has them in its cache after events:
 // 0.01-0.23 s). -> array(rows (AioLpRow, by source), at (the index of the source
-// of each row), why (AioLpWhy), next: the index of the first source not asked,
+// of each row), why (AioLpWhy, at: the index of its source), next: the index of the first source not asked,
 // left: sources not asked (the screen says "N more"), similar, serial: sources
 // that answered so, asked, lost: seconds of the requests of no answer (down),
 // again: the indexes of the sources of no answer in time (aio_lp_timed_out: asked
@@ -1057,7 +1056,7 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
         $out['next'] = $i + 1;
         if ($r['err'] !== '')
         {
-            $out['why'][] = aio_lp_why($src, 'down', $r['err']);
+            $out['why'][] = aio_lp_why($src, 'down', $r['err']) + array('at' => $i);
             $out['lost'] += aio_lp_now() - $t1;
             if (aio_lp_timed_out($r['err']))
                 $out['again'][] = $i;
@@ -1068,7 +1067,8 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
             $p = array('kind' => 'skip', 'rows' => array(), 'why' => array(aio_lp_why($src, 'movie')));
         if ($p['kind'] === 'serial' && $s > 0)
         {
-            // No time of the part left for its season: at the next part, the reply kept (a tick of a window stays short).
+            // No time of the part left for its season: at the next part, the reply kept, no season request on top.
+            // A request is not cut by the part (up to AIO_LP_REPLY_MAX s of the time left): a tick may go ~5 s.
             if (!$kept && $cap > $total && $total - (aio_lp_now() - $t0) < AIO_LP_REPLY_MIN)
             {
                 $out['next'] = $i;
@@ -1095,7 +1095,8 @@ function aio_lp_replies($base, $sources, $q, $from = 0, $total = AIO_LP_REPLIES_
         $out['rows'] = array_merge($out['rows'], $p['rows']);
         foreach ($p['rows'] as $x)
             $out['at'][] = $i;
-        $out['why'] = array_merge($out['why'], $p['why']);
+        foreach ($p['why'] as $w)
+            $out['why'][] = $w + array('at' => $i);
     }
     $out['left'] = count($sources) - $out['next'];
     aio_lp_log(sprintf('replies: %d rows of %d sources, %d not asked, similar: %d, serial: %d%s, %.2f s',
@@ -1297,13 +1298,16 @@ function aio_lp_season($src, $j, $url, $base = '')
     return $out;
 }
 
-// The number of quality $q ("1080p", "1080p60", "2K", "4K"): its lines, 0 for none.
+// The number of quality $q ("1080p", "1080p60", "2K", "4K"; by its first word: "2160p HEVC", "4K HDR"): its lines,
+// 0 for none. The one rule of a quality of a string: links, the quality of a season, a name as a voice, the badges.
 /**
  * @param string $q
  * @return int
  */
 function aio_lp_q_num($q)
 {
+    $w = explode(' ', trim($q));
+    $q = $w[0];
     $k = array('2' => 1440, '4' => 2160, '8' => 4320);
     if (preg_match('/^([0-9])K\z/i', $q, $m))
         return isset($k[$m[1]]) ? $k[$m[1]] : 0;

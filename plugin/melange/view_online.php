@@ -16,7 +16,8 @@
 
 // The timer of the window between its ticks, ms: a tick is a request itself.
 define('AIO_LPV_TICK_MS', 100);
-// Seconds of the replies of the balancers in one tick (each call <= 3 s).
+// Seconds of the replies of the balancers in one tick: no request started with less than AIO_LP_REPLY_MIN s of it
+// left; a request started is not cut by it (up to AIO_LP_REPLY_MAX s), so a tick may go ~5 s.
 define('AIO_LPV_TICK_MAX', 3);
 // Seconds between two searches of "Обновить": a poll of all balancers often gets the IP banned.
 define('AIO_LPV_REFRESH', 30);
@@ -1324,16 +1325,18 @@ function aio_lpv_replies_tick($base, $run)
             $sub[] = $v['sources'][$i];
         aio_log('lampac: asked again: ' . implode(', ', array_map(function ($x) { return $x['path']; }, $sub)));
         $rr = aio_lp_replies($base, $sub, $v['q'], 0, min(AIO_LPV_TICK_MAX, $left), $s, $left, $run['held']);
-        $gone = array();
-        foreach (array_slice($sub, 0, $rr['next']) as $x)
-            $gone[$x['path'] . "\n" . $x['label']] = true;
+        // By the index of the source, not its path and label: two sources of one path ("X ~ 2160p", "X ~ 1080p") have
+        // one label.
+        $gone = array_flip(array_slice($run['again'], 0, $rr['next']));
         $why = array();
         foreach ($v['why'] as $w)
         {
-            if ($w['why'] !== 'down' || !isset($gone[$w['path'] . "\n" . $w['src']]))
+            if ($w['why'] !== 'down' || !isset($w['at']) || !isset($gone[$w['at']]))
                 $why[] = $w;
         }
-        $v['why'] = array_merge($why, $rr['why']);
+        foreach ($rr['why'] as $w)
+            $why[] = isset($w['at']) ? array('at' => $run['again'][$w['at']]) + $w : $w;
+        $v['why'] = $why;
         $at = $run['at'];
         foreach ($rr['at'] as $k)
             $at[] = $run['again'][$k];
