@@ -30,6 +30,9 @@ function aio_cut($s, $max)
 // Characters of a line of a dialog 1100 px wide: the shell cuts a longer one
 // in the middle (~65 fit, seen on the device 08.10.2026).
 define('AIO_DIALOG_LINE', 60);
+// Its width in thousandths of the font size (the advances of font_w.php; aio_gc_w at 1000 px): 29405 fit, 29964 cut
+// (device 08.10.2026).
+define('AIO_DIALOG_LINE_W', 29000);
 
 // Text (an error detail) -> at most 3 lines of a dialog, wrapped at spaces;
 // a word longer than a line is cut hard, text past 3 lines ends in "...".

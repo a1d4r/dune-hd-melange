@@ -354,6 +354,7 @@ lp_cancel = Cancel
 lp_close = Close
 lp_none = Nothing online for “{title}”
 lp_down = Online does not answer (the address in the settings)
+lp_down_src = Online does not answer: {name}
 lp_no_releases = No releases
 lp_find = Search online
 lp_more = {n} more {sources} — Refresh

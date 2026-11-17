@@ -948,6 +948,9 @@ function aio_ts_tick($in)
         aio_log('ts: tick of a list gone');
         return aio_close_and(aio_error('err_list_expired'));
     }
+    // The list of the dialog, not always the one on screen (aio_op_of_screen): the pair of its profiles - the record, the
+    // links of the next episodes and the markers of its source, not of the main one (spec v2 §1.9).
+    aio_op_use($st['prof'], $st['lp_prof']);
     $r = $st['rows'][$i];
     $lang = $st['lang'];
     $sec = max(0, time() - intval($p['t']));

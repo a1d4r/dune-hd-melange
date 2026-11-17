@@ -150,10 +150,10 @@ function aio_gc_src($in)
 // The releases of profile $id for list $st (aio_gc_src; $tag of the log, $title of the dialog of an error, $sel_state
 // of the shell - the cursor of the releases). Its releases there (the screen shows its online list over them): back to
 // them, no request, the cursor where it was (the same list, the same order). Else asked with its settings (aio_relist;
-// the log masked by them too), the online list of the screen kept as its second one, the screen replaced, the cursor
-// on the first row (another source sorts the releases its own way: the one under the cursor would be lower); no
-// streams - an empty list; an error - its dialog, the screen, the state and the settings of the operation kept
-// (aio_op_apply).
+// the log masked by them too), the online list of the screen kept as its second one (of the same Lampac only), the
+// screen replaced, the cursor on the first row (another source sorts the releases its own way: the one under the
+// cursor would be lower); no streams - an empty list; an error - its dialog, the screen, the state and the settings
+// of the operation kept (aio_op_apply).
 /**
  * @param AioState $st
  * @param string $id
@@ -198,7 +198,8 @@ function aio_src_releases($st, $id, $tag, $title, $sel_state)
         }
     }
     $ns = $r['st'];
-    if (isset($st['lp']))
+    // The online list goes with its Lampac: kept only when the pair kept it (that profile gone - another one now).
+    if (isset($st['lp']) && $ns['lp_prof'] === $st['lp_prof'])
         $ns['lp'] = $st['lp'];
     aio_log(sprintf('%s, screen replaced, %d -> %d rows, row %d -> %d (%s), %.2f s', $tag, count($st['rows']),
         count($ns['rows']), $cur, $r['sel'], $r['by'], microtime(true) - Aio::$t0));

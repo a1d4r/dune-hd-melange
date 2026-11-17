@@ -458,6 +458,8 @@ function aio_pre_via($in)
         return aio_close_and(aio_error('err_list_expired'));
     }
     $st = $a['st'];
+    // The list of the start, not always the one on screen (aio_op_of_screen): the pair of its profiles (spec v2 §1.9).
+    aio_op_use($st['prof'], $st['lp_prof']);
     Aio::$via = array('k' => $st['movie']['dune_id'], 'hash' => $row['hash'], 'svc' => $svc);
     aio_log(sprintf('via: %s, row %d: %s refused, %s chosen', aio_ep_tag($st), $i, implode(', ', $a['tried']), $svc));
     $act = aio_play($st, $row, $a['pos'], null, $a['lazy'], null, $a['from']);

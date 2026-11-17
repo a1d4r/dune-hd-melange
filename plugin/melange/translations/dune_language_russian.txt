@@ -354,6 +354,7 @@ lp_cancel = Отмена
 lp_close = Закрыть
 lp_none = Онлайн для «{title}» не нашлось
 lp_down = Онлайн не отвечает (адрес из настроек)
+lp_down_src = Онлайн не отвечает: {name}
 lp_no_releases = Раздач нет
 lp_find = Искать онлайн
 lp_more = Ещё {n} {sources} — Обновить

@@ -866,6 +866,8 @@ function aio_op_use($rel, $lp)
 
 // The pair of profiles of the list screen of input $in (spec v2 §1.9): its media_url "streams:<rid>" or its rid that of
 // Aio::$state - the profiles the list was made of (prof, lp_prof of the state), else the pair of the main one as loaded.
+// The list on screen only: a handler of a list kept elsewhere (Aio::$tswait, Aio::$alt, AioLpv::$run) takes the pair
+// of that list itself (aio_op_use).
 /**
  * @param stdClass $in
  * @return void

@@ -131,8 +131,17 @@ function aio_lpv_tick($in)
         return aio_close_and(null);
     }
     // A tick is an operation of its own: the Lampac of the list of the run (its profile, spec v2 §2.2), not the main one.
-    aio_op_use($run['st']['prof'], $run['st']['lp_prof']);
+    list(, $lp) = aio_op_use($run['st']['prof'], $run['st']['lp_prof']);
     $base = Aio::$settings['lp'];
+    // That profile gone, not ready or of another address since (the page): no request - not to the address of before
+    // with the auth of another Lampac, nor to another one with the balancers of this one.
+    if ($lp !== $run['st']['lp_prof'] || ($run['search'] && $run['search']['base'] !== $base))
+    {
+        AioLpv::$run = null;
+        aio_log("lampac: window {$run['sid']}: its profile of Lampac gone or changed on the page, closed with no request");
+        return aio_close_and(aio_lpv_redraw_keys(aio_dialog(aio_tr($run['st']['lang'], 'src_changed'), array(),
+            array(aio_tr($run['st']['lang'], 'lp_close') => aio_lpv_close_act($run['sid']))), $run['sid']));
+    }
     if ($base === '')
     {
         AioLpv::$run = null;
@@ -202,7 +211,7 @@ function aio_lpv_tick($in)
 }
 
 // Lampac of run $run did not answer ($why, $detail: AioLpWhy): a title with releases (back) -
-// those with the yellow line; else the window "Онлайн не отвечает".
+// those with the yellow line; else the window "Онлайн не отвечает: <its source>".
 /**
  * @param AioLpRun $run
  * @param string $why
@@ -217,7 +226,12 @@ function aio_lpv_down($run, $why, $detail)
         ')' . ($run['back'] ? ' -> the releases' : ''));
     if ($run['back'])
         return aio_lpv_releases($st, aio_tr($lang, 'lp_note_down'));
-    return aio_lpv_redraw_keys(aio_dialog(aio_tr($lang, 'lp_down'), aio_dialog_lines(aio_lpv_why($lang, $why, $detail)),
+    // The source of Lampac of the screen by its name (spec v2: several of them; a wide one cut with "…" - the shell cuts a
+    // title wider than the dialog in the middle), none ready - the words of before.
+    $name = aio_src_name(Aio::$settings['lp_prof']);
+    $title = $name !== '' ? aio_gc_cut_w(str_replace('{name}', $name, aio_tr($lang, 'lp_down_src')), 1000, AIO_DIALOG_LINE_W) :
+        aio_tr($lang, 'lp_down');
+    return aio_lpv_redraw_keys(aio_dialog($title, aio_dialog_lines(aio_lpv_why($lang, $why, $detail)),
         array(aio_tr($lang, 'lp_close') => aio_lpv_close_act($run['sid']))), $run['sid']);
 }
 
