@@ -354,7 +354,8 @@ function aio_cgi_markers_block($v)
 function aio_cgi_toggles()
 {
     return array(
-        // "Запуск торрентов" (0.49.0): its radios at the top of the form, for the CSS (aio_cgi_form).
+        // "Запуск торрентов" (0.49.0): its radios at the top of the form, for the CSS (aio_cgi_form); its cards on #adv, not
+        // on #torr (its line goes with "Без торрентов"), none with "Торренты" (class xt), the value kept.
         'no_torrents' => array(aio_cgi_l('Запуск торрентов', 'Running torrents'), array(
             'allow' => array(aio_cgi_l('Разрешить', 'Allow'), aio_cgi_l('Если конфиг отдаёт P2P, они показываются; TorrServer и скачивание доступны.',
                 'P2P releases show if the config has them; TorrServer and downloads are available.')),
@@ -430,14 +431,17 @@ function aio_cgi_toggle_block($k, $v)
     return '<p class="lbl">' . $t[$k][0] . '</p>' . aio_cgi_choice($f[$k], $t[$k][1], $v[$k]);
 }
 
-// "Профили источников" on #adv: the cards of its radios (aio_cgi_form).
-function aio_cgi_src_profiles_cards()
+// The label of toggle $k and the cards of its radios, not the radios: those at the top of the form, for the CSS
+// (aio_cgi_form: no_torrents, src_profiles); $cls: more classes of the label and the cards ('' none).
+function aio_cgi_toggle_cards($k, $cls = '')
 {
+    $f = aio_cgi_fields();
     $t = aio_cgi_toggles();
-    $out = '<p class="lbl">' . $t['src_profiles'][0] . '</p><div class="choice">';
+    $c = $cls !== '' ? " $cls" : '';
+    $out = '<p class="lbl' . $c . '">' . $t[$k][0] . '</p><div class="choice' . $c . '">';
     $i = 0;
-    foreach ($t['src_profiles'][1] as $x)
-        $out .= aio_cgi_card('spf' . ++$i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
+    foreach ($t[$k][1] as $x)
+        $out .= aio_cgi_card($f[$k]['id'] . ++$i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
     return $out . '</div>';
 }
 
@@ -791,19 +795,6 @@ function aio_cgi_host($url)
     return is_string($h) ? $h : '';
 }
 
-// "Запуск торрентов" on the screen #adv, not on that of TorrServer: its line goes
-// with "Без торрентов". The cards of its radios (aio_cgi_form); none with
-// "Торренты" (class xt), the value kept.
-function aio_cgi_no_torrents_cards()
-{
-    $t = aio_cgi_toggles();
-    $out = '<p class="lbl xt">' . $t['no_torrents'][0] . '</p><div class="choice xt">';
-    $i = 0;
-    foreach ($t['no_torrents'][1] as $x)
-        $out .= aio_cgi_card('nt' . ++$i, aio_cgi_h($x[0]), aio_cgi_h($x[1]));
-    return $out . '</div>';
-}
-
 // The answers of "Основной Debrid" (radio debrid_main, 0.56.0): an id of
 // aio_debrid_mains() => array(name, hint).
 function aio_cgi_debrid_mains()
@@ -1148,9 +1139,9 @@ function aio_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false, $ke
         aio_cgi_screen('look', aio_cgi_look_screen($v)) .
         aio_cgi_screen('dl', '<p class="sub">' . aio_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . aio_cgi_servers($v['servers'])) .
-        aio_cgi_screen('adv', aio_cgi_no_torrents_cards() . aio_cgi_markers_block($v) . aio_cgi_toggle_block('source_errors', $v) .
+        aio_cgi_screen('adv', aio_cgi_toggle_cards('no_torrents', 'xt') . aio_cgi_markers_block($v) . aio_cgi_toggle_block('source_errors', $v) .
             aio_cgi_toggle_block('no_color_keys', $v) .
-            aio_cgi_src_profiles_cards() . aio_cgi_lampac_block($v)) .
+            aio_cgi_toggle_cards('src_profiles') . aio_cgi_lampac_block($v)) .
         aio_cgi_screen('bak', aio_cgi_backup($t, $v)) .
         aio_cgi_screen('log', '<p class="sub">' . aio_cgi_l('С последнего включения Дюны; адреса и ключи скрыты — можно переслать разработчику.',
             'Since the Dune was last switched on; addresses and keys hidden: fine to send to the developer.') . '</p>' .

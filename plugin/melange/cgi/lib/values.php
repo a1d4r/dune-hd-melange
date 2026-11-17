@@ -386,9 +386,7 @@ function aio_cgi_check_values($v)
     $d[$set['lp_token']] = is_string($tk) ? $tk : '';
     if (!is_string($tk))
         $errors[] = aio_cgi_err(aio_cgi_fmt_lp_token(), $f['lp_token']['name']);
-    // The keys in the order of aio_settings_read, as settings.json has them (aio_settings_json): the settings on/off are
-    // checked together above.
-    return array(array_merge(array_intersect_key(aio_settings_parse(array()), $d), $d), $errors);
+    return array($d, $errors);
 }
 
 // TorrServer of the form (0.45.0): its address, login and password as

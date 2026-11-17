@@ -258,6 +258,23 @@ function aio_lp_token($s)
     return preg_match('/^[A-Za-z0-9_+.\-@=]{1,' . AIO_LP_TOKEN_MAX . '}\z/', $s) ? $s : null;
 }
 
+// The uid of this Dune for Lampac kept in data dir $dir (AIO_LP_UID_FILE): 8 of [a-z0-9]; '' when there is none, it
+// is a link or not one. Only reads: the settings page makes none (it runs as root), aio_lp_uid of online_play.php makes
+// it on the first request as Lampa (it is to read it by this one).
+/**
+ * @param string $dir
+ * @return string
+ */
+function aio_lp_uid_read($dir)
+{
+    $f = "$dir/" . AIO_LP_UID_FILE;
+    clearstatcache();
+    if ($dir === '' || is_link($f) || !is_file($f))
+        return '';
+    $u = trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM);
+    return preg_match('/^[a-z0-9]{8}\z/', $u) ? $u : '';
+}
+
 // The address of Lampac as typed or stored: [http(s)://]host[:port][/path][/]
 // -> 'scheme://host[:port][/path]' (http when no scheme; scheme and host in
 // lower case, no trailing '/'), '' for empty (off), null when it does not fit

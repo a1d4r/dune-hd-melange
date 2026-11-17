@@ -90,7 +90,7 @@ define('AIO_LP_UA',
 
 // What the requests to the Lampac of the settings take (aio_lp_send): token - lampac_token ('' none);
 // lampa - lampac_as_lampa; uid - the id of this Dune of it ('' none). aio_op_settings of main.php sets
-// it; without it (the settings page) nothing is added.
+// it, "Проверить" of the settings page (aio_cgi_lp_check_post) - from the form; unset, nothing is added.
 class AioLp
 {
     /** @var array{token: string, lampa: bool, uid: string} */

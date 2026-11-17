@@ -237,11 +237,9 @@ function aio_cgi_save($dir, $t)
     // The sources of the online list (the window "Источники…" on the Dune): no field, the stored ones stay.
     $data['lampac_sources'] = $cur['lampac_sources'];
     $on = $data['src_profiles'];
-    unset($data['src_profiles']);
     $data['aio_confs'] = $cur['aio_confs'];
     // The source profiles (0.58.0): the setting as posted; the profiles of the file (a=profile_*, MENU of a list write
-    // them), the one of the editor saved over them. After aio_confs, as aio_settings_parse has them.
-    $data['src_profiles'] = $on;
+    // them), the one of the editor saved over them.
     $data['profiles'] = $cur['profiles'];
     // The rows not changed on the page (posted as it came, cat_rows_was): the stored ones stay, the
     // dialog of the rows on the Dune may have changed them since. No cat_rows_was: a form of before.

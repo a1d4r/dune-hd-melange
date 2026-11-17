@@ -149,9 +149,10 @@ function aio_cgi_write($dir, $data, $name = AIO_SETTINGS_FILE)
     return $why;
 }
 
-// settings.json of aio_settings_json (common.php) -> '' or the reason (for the log).
+// settings.json of aio_settings_json (common.php), the keys of $data in the order of aio_settings_read (those it does not
+// know after them) -> '' or the reason (for the log).
 function aio_cgi_store($dir, $data)
 {
-    $json = aio_settings_json($data);
+    $json = aio_settings_json(array_merge(array_intersect_key(aio_settings_parse(array()), $data), $data));
     return $json !== '' ? aio_cgi_write($dir, $json) : 'json_encode failed';
 }

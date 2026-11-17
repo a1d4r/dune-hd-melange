@@ -479,18 +479,6 @@ function aio_cgi_lp_check($base)
     return $n ? array(true, $msg, 'ok') : array(true, $msg, 'warn');
 }
 
-// The uid of this Dune for Lampac in data dir $dir ("Представляться приложением Lampa": aio_lp_uid of online_play.php
-// makes it on the first request as Lampa), '' when there is none: the page makes none (it runs as root).
-function aio_cgi_lp_uid($dir)
-{
-    $f = "$dir/" . AIO_LP_UID_FILE;
-    clearstatcache();
-    if (is_link($f) || !is_file($f))
-        return '';
-    $u = trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM);
-    return preg_match('/^[a-z0-9]{8}\z/', $u) ? $u : '';
-}
-
 // a=lp_check: the Lampac of the posted lampac_url with the posted token of its provider and "Представляться
 // приложением Lampa" (as typed, not the stored ones; the uid of data dir $dir), nothing written. The token never in
 // the log nor the answer. -> JSON {ok, msg, level}.
@@ -503,7 +491,7 @@ function aio_cgi_lp_check_post($dir)
     if (!is_string($a) || !is_string($tk))
         aio_cgi_log('lampac check: bad format' . (is_string($a) ? ' of the token' : ''));
     if (is_string($a) && $a !== '' && is_string($tk))
-        AioLp::$auth = array('token' => $tk, 'lampa' => $lampa, 'uid' => $lampa ? aio_cgi_lp_uid($dir) : '');
+        AioLp::$auth = array('token' => $tk, 'lampa' => $lampa, 'uid' => $lampa ? aio_lp_uid_read($dir) : '');
     $res = !is_string($a) ? array(false, aio_cgi_fmt_lampac(), 'err') : ($a === '' ? array(false,
         aio_cgi_l('Впишите адрес Lampac', 'Enter the Lampac address'), 'err') : (!is_string($tk) ? array(false,
         aio_cgi_fmt_lp_token(), 'err') : aio_cgi_lp_check($a)));
