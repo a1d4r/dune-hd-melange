@@ -39,8 +39,15 @@ function aio_lpv_search_open($st, $how, $opt = array())
         $v = $st['lp'];
         unset($v['gc'], $v['gc_new'], $v['gc_prog']);
     }
-    else if (isset($st['lp']['flt']))
-        $v['flt'] = $st['lp']['flt'];
+    else
+    {
+        // The filter and the folding of the list of the title before ("Обновить", another season).
+        foreach (array('flt', 'open') as $k)
+        {
+            if (isset($st['lp'][$k]))
+                $v[$k] = $st['lp'][$k];
+        }
+    }
     $run = array('sid' => $sid, 'st' => $st, 'how' => $how, 'back' => !empty($opt['back']),
         'path' => isset($opt['path']) ? $opt['path'] : '', 'key' => isset($opt['key']) ? $opt['key'] : '',
         'fail' => isset($opt['fail']) ? $opt['fail'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v,
@@ -320,7 +327,11 @@ function aio_lpv_result($run)
     unset($v['flt_gone']);
     $v = aio_lpv_flt_keep(aio_lpv_ep_tracks($v, $st['e']), $st);
     if ($pin >= 0)
+    {
         $v = aio_lpv_flt_show($v, $pin);
+        // The balancer of the record unfolded, the cursor on its row.
+        $v['open'][$rows[$pin]['path']] = true;
+    }
     $v['gc'] = aio_lpv_put(aio_lpv_lines($v), $sel);
     $v['gc_new'] = true;
     $ns = $st;

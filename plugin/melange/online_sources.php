@@ -222,8 +222,8 @@ function aio_lpv_srcs_edit($st)
         EditListConfigActionData::checked_ids => $ids,
         EditListConfigActionData::post_action => aio_gc_act('lp_srcs_apply', $st['rid']));
     list($sel) = aio_lpv_pos($st['lp'], null);
-    $i = aio_lpv_row_of(aio_lpv_lines($st['lp']), $sel);
-    if ($i >= 0 && isset($on[$st['lp']['rows'][$i]['path']]))
+    list($i) = aio_lpv_mark(aio_lpv_lines($st['lp']), $sel);
+    if (isset($st['lp']['rows'][$i]) && isset($on[$st['lp']['rows'][$i]['path']]))
         $data[EditListConfigActionData::sel_id] = $st['lp']['rows'][$i]['path'];
     aio_log('lampac: sources: dialog, ' . count($ids) . ' sources, ' . count($on) . ' on');
     return array(GuiAction::handler_string_id => EDIT_LIST_CONFIG_ACTION_ID, GuiAction::data => $data);
@@ -350,14 +350,14 @@ function aio_lpv_srcs_apply($in, $st)
     aio_log("lampac: sources: $n of " . count($choice) . ' on, saved; ' . ($back ? 'turned on, not asked: ' .
         implode(', ', $back) . ' -> the search anew' : count($v['rows']) . ' rows of ' . count($st['lp']['rows']) . ' kept'));
     list($sel) = aio_lpv_pos($st['lp'], null);
-    $row = aio_lpv_row_of(aio_lpv_lines($st['lp']), $sel);
+    $m = aio_lpv_mark(aio_lpv_lines($st['lp']), $sel);
     $ns = $st;
     $ns['rid'] = aio_rid();
     $ns['lp'] = aio_lpv_flt_keep($v, $st);
     // No row left (the sources of the rows off, those on gave none): the yellow line how to turn them on.
     if (!$ns['lp']['rows'] && !empty($ns['lp']['off']))
         $ns['lp']['note'] = aio_lpv_tr($st['lang'], 'lp_note_off', array('n' => count($ns['lp']['off'])));
-    $ns['lp']['gc'] = aio_lpv_put(aio_lpv_lines($ns['lp']), isset($map[$row]) ? $map[$row] : 0);
+    $ns['lp']['gc'] = aio_lpv_put_at(aio_lpv_lines($ns['lp']), isset($map[$m[0]]) ? array($map[$m[0]], $m[1]) : array(0, false));
     $ns['lp']['gc_new'] = true;
     // The search over the rows of before: closed with no list (Cancel, no answer), this list of the new choice instead.
     if ($back)
