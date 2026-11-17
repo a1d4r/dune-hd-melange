@@ -68,9 +68,10 @@ define('AIO_LP_NAME_MAX', 100);
 define('AIO_LP_PATH_CHARS', 'A-Za-z0-9_\-');
 // Characters of the path of a balancer in the key of the history at most (aio_lp_key).
 define('AIO_LP_KEY_PATH_MAX', 24);
-// Sources of a search and rows of a reply kept, at most.
+// Sources of a search kept, at most.
 define('AIO_LP_SOURCES_MAX', 60);
-define('AIO_LP_ROWS_MAX', 60);
+// Rows of a reply and of the online list, voices of a season, kept at most.
+define('AIO_LP_ROWS_MAX', 100);
 // Sources of lampac_sources at most (aio_lp_srcs_ok): those found on this Dune for all titles (Lampac has some
 // tens of balancers), and characters of the name of one: the export of settings.json fits AIO_CGI_BAK_SETTINGS_MAX.
 define('AIO_LP_SEEN_MAX', 60);
