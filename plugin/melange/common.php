@@ -260,7 +260,7 @@ function aio_lp_token($s)
 
 // The uid of this Dune for Lampac kept in data dir $dir (AIO_LP_UID_FILE): 8 of [a-z0-9]; '' when there is none, it
 // is a link or not one. Only reads: the settings page makes none (it runs as root), aio_lp_uid of online_play.php makes
-// it on the first request as Lampa (it is to read it by this one).
+// it on the first request as Lampa, reading it by this one.
 /**
  * @param string $dir
  * @return string

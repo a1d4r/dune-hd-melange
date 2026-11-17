@@ -19,14 +19,11 @@ define('AIO_LPV_CHECK_MIN', 4);
 function aio_lp_uid()
 {
     static $told = false;
+    $u = aio_lp_uid_read(aio_data_dir());
     $f = aio_data_dir() . '/' . AIO_LP_UID_FILE;
-    clearstatcache();
-    if (aio_data_dir() === '' || is_link($f))
-        return '';
-    $u = is_file($f) ? trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM) : '';
-    if (preg_match('/^[a-z0-9]{8}\z/', $u))
+    // A link is never written over (aio_lp_uid_read: none).
+    if ($u !== '' || aio_data_dir() === '' || is_link($f))
         return $u;
-    $u = '';
     for ($i = 0; $i < 8; $i++)
         $u .= substr('abcdefghijklmnopqrstuvwxyz0123456789', mt_rand(0, 35), 1);
     if (aio_write_file($f, $u))
