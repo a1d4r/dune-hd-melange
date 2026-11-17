@@ -306,7 +306,10 @@ function aio_lpv_flt_keep($v, $st)
 {
     if (!isset($v['flt']) || aio_lpv_shown($v))
         return $v;
-    $key = (count($v['flt']) === 1 ? 'lp_flt_gone' : 'lp_flt_gone_many') . ($st['e'] > 0 ? '' : '_movie');
+    if (count($v['flt']) === 1)
+        $key = $st['e'] > 0 ? 'lp_flt_gone' : 'lp_flt_gone_movie';
+    else
+        $key = $st['e'] > 0 ? 'lp_flt_gone_many' : 'lp_flt_gone_many_movie';
     $v['note'] = aio_lpv_tr($st['lang'], $key, array('se' => "S{$st['s']} E{$st['e']}", 'voice' => reset($v['flt'])));
     aio_log('lampac: no voice of the filter in ' . aio_ep_tag($st) . ', all shown');
     unset($v['flt']);
@@ -379,20 +382,6 @@ function aio_lpv_flt_tab($v, $lang)
     return array($d, $x + AIO_GC_HINT_GAP);
 }
 
-// The dialog of the shell edit_list_config with the option ALLOW_EMPTY on this firmware (else the window of buttons of one
-// voice, aio_lpv_flt_menu). Tests define their own aio_lpv_flt_lcfg().
-if (!function_exists('aio_lpv_flt_lcfg'))
-{
-    /**
-     * @return bool
-     */
-    function aio_lpv_flt_lcfg()
-    {
-        return class_exists('EditListConfigActionData') && defined('EDIT_LIST_CONFIG_ACTION_ID') &&
-            defined('EDIT_LIST_CONFIG_OPT_ALLOW_EMPTY');
-    }
-}
-
 /**
  * @return string
  */
@@ -415,17 +404,22 @@ function aio_lpv_flt_id($k)
 // with a check of each voice (aio_lpv_voices, "LostFilm · 8 балансеров"), those of the filter checked, the cursor on the
 // first of them, else on the first. None checked: all (ALLOW_EMPTY; no checked_ids: "Сброс" unchecks all). Its order
 // ("Переместить") is not read. Its file written first; not written: an error, no dialog. No close_item_params,
-// dialog_params or params of items (as aio_lpv_srcs_edit). No such dialog, no voice: the window of buttons of one.
+// dialog_params or params of items (as aio_lpv_srcs_edit). No voice: nothing; no such dialog of the firmware: an error.
 /**
  * @param AioState $st
- * @return AioAction
+ * @return AioAction|null
  */
 function aio_lpv_flt_edit($st)
 {
     $lang = aio_gc_lang($st);
     $g = aio_lpv_voices($st['lp'], $lang);
-    if (!$g || !aio_lpv_flt_lcfg())
-        return aio_lpv_flt_menu($st);
+    if (!$g)
+    {
+        aio_log('lampac: voices: none in the list, no dialog');
+        return null;
+    }
+    if (!class_exists('EditListConfigActionData') || !defined('EDIT_LIST_CONFIG_ACTION_ID'))
+        return aio_error('cat_rows_no_dialog');
     $ids = array();
     $on = array();
     $items = array();
@@ -435,7 +429,7 @@ function aio_lpv_flt_edit($st)
         $ids[] = $id;
         if (isset($st['lp']['flt'][$x['k']]))
             $on[$id] = true;
-        $items[] = array(GuiItem::id => $id, GuiItem::caption => aio_lpv_flt_row($lang, $x['name'], $x['n'], false));
+        $items[] = array(GuiItem::id => $id, GuiItem::caption => aio_lpv_flt_row($lang, $x['name'], $x['n']));
     }
     if (!aio_write_file(aio_lpv_flt_path(), aio_catv_lcfg_text($ids, $on, $ids), 0644))
     {
@@ -454,8 +448,9 @@ function aio_lpv_flt_edit($st)
 }
 
 // lp_flt_apply: post_action of the dialog of the voices of the online list $st, at every close (the shell has written its
-// file by then; none: none checked). The voices checked in it (an id of no voice now goes) the filter, none all; the same
-// as before, the file not a file or not read: nothing. Else as lp_flt (aio_lpv_flt_set).
+// file by then; none: none checked). The voices checked in it (an id of no voice now goes) the filter, none or all of them
+// no filter; the same as before: nothing; the file not a file or not read: an error, nothing changed. Else the list with
+// it (aio_lpv_flt_set).
 /**
  * @param stdClass $in
  * @param AioState $st
@@ -474,7 +469,7 @@ function aio_lpv_flt_apply($in, $st)
     if ($no === 'bad' || $no === 'unread')
     {
         aio_log("lampac: voices: the file of the dialog $no, nothing changed");
-        return null;
+        return aio_error('lp_flt_not_read');
     }
     $g = aio_lpv_voices($st['lp'], aio_gc_lang($st));
     $ids = array();
@@ -486,6 +481,11 @@ function aio_lpv_flt_apply($in, $st)
     {
         if ($state[$ids[$j]])
             $set[$x['k']] = $x['name'];
+    }
+    if (count($set) === count($g))
+    {
+        aio_log('lampac: voices: all checked, no filter');
+        $set = array();
     }
     $a = array_keys($set);
     $b = isset($st['lp']['flt']) ? array_keys($st['lp']['flt']) : array();
@@ -499,68 +499,17 @@ function aio_lpv_flt_apply($in, $st)
     return aio_lpv_flt_set($st, $set);
 }
 
-// The window "Озвучка" of buttons of one voice (aio_lpv_flt_edit with no dialog of the shell) of the online list $st: rows
-// "Все озвучки", then the voices (aio_lpv_voices) "LostFilm · 8 источников", each lp_flt; the filter of that one alone
-// "· сейчас", the cursor on it. A window of buttons, not a popup menu: a popup of 18 and more items goes off the screen and
-// does not scroll (experiments/long_menu_probe, r25). The shell cuts a long button at the right with no ellipsis: the name
-// is cut to AIO_ROW_LINE characters of the row with its own.
-/**
- * @param AioState $st
- * @return AioAction
- */
-function aio_lpv_flt_menu($st)
-{
-    $lang = aio_gc_lang($st);
-    $ks = isset($st['lp']['flt']) ? array_keys($st['lp']['flt']) : array();
-    $now = count($ks) === 1 ? strval($ks[0]) : '';
-    $rows = array(array(aio_tr($lang, 'lp_flt_all'), -1, !$ks));
-    foreach (aio_lpv_voices($st['lp'], $lang) as $g)
-        $rows[] = array($g['name'], $g['n'], $g['k'] === $now);
-    $defs = array();
-    $sel = 0;
-    foreach ($rows as $i => $r)
-    {
-        $t = aio_lpv_flt_row($lang, $r[0], $r[1], $r[2]);
-        $over = mb_strlen($t, 'UTF-8') - AIO_ROW_LINE;
-        if ($over > 0)
-            $t = aio_lpv_flt_row($lang, aio_error_cut($r[0], max(1, mb_strlen($r[0], 'UTF-8') - $over)), $r[1], $r[2]);
-        if ($r[2])
-            $sel = $i;
-        $defs[] = aio_row_button("flt$i", $t, aio_close_and(aio_gc_act('lp_flt', $st['rid'], array('i' => strval($i)))));
-    }
-    return aio_rows_dialog(aio_tr($lang, 'lp_flt_title'), $defs, $sel);
-}
-
-// A row of the window of the filter: voice $name of $n balancers ("LostFilm · 8 источников"; $n < 0: $name alone),
-// "· сейчас" when it is the filter ($now).
+// An item of the dialog of the voices: voice $name of $n balancers ("LostFilm · 8 источников").
 /**
  * @param string $lang
  * @param string $name
  * @param int $n
- * @param bool $now
  * @return string
  */
-function aio_lpv_flt_row($lang, $name, $n, $now)
+function aio_lpv_flt_row($lang, $name, $n)
 {
-    $t = $n < 0 ? $name : aio_lpv_tr($lang, 'lp_flt_item', array('name' => $name, 'n' => $n,
+    return aio_lpv_tr($lang, 'lp_flt_item', array('name' => $name, 'n' => $n,
         'sources' => aio_gc_plural($lang, $n, 'lp_sources')));
-    return $now ? aio_lpv_tr($lang, 'src_now', array('name' => $t)) : $t;
-}
-
-// lp_flt (i: 0 all, else the voice of aio_lpv_voices from 1) of the window of buttons of the online list $st: the filter of
-// that voice alone (aio_lpv_flt_set). A bad i: nothing.
-/**
- * @param stdClass $in
- * @param AioState $st
- * @return AioAction|null
- */
-function aio_lpv_flt($in, $st)
-{
-    $g = aio_lpv_voices($st['lp'], aio_gc_lang($st));
-    $i = isset($in->i) && is_string($in->i) && preg_match('/^[0-9]{1,3}\z/', $in->i) ? intval($in->i) : -1;
-    if ($i < 0 || $i > count($g))
-        return null;
-    return aio_lpv_flt_set($st, $i > 0 ? array($g[$i - 1]['k'] => $g[$i - 1]['name']) : array());
 }
 
 // The online list $st with filter $set (aio_lpv_voices key => name; none: all): the screen replaced (a new rid), the yellow
@@ -1379,8 +1328,6 @@ function aio_lpv_input($in, $control)
         Aio::$state['lp']['gc'] = array($sel, $top);
         return $control === 'lp_menu' ? aio_lpv_menu($st) : aio_lpv_flt_edit($st);
     }
-    if ($control === 'lp_flt')
-        return aio_lpv_flt($in, Aio::$state);
     if ($control === 'lp_flt_apply')
         return aio_lpv_flt_apply($in, $st);
     if ($control === 'lp_flip')
