@@ -632,10 +632,10 @@ function aio_wh_alone($w, $dune_id, $set)
 }
 
 // Episode of a series opened from its main card (season = episode = -1): aio_wh_pick of the state
-// of the series for the ways in of the native (aio_wh_native) by season_numbers, logged. -> array(s, e, hash, key)
+// of the series for the ways in of the native (aio_wh_native) by season_numbers, logged.
 /**
  * @param AioMovie $mv
- * @return array{int, int, string, string}
+ * @return AioWhPick
  */
 function aio_wh_episode($mv)
 {
@@ -644,7 +644,7 @@ function aio_wh_episode($mv)
     if ($p['rec'] !== '')
         aio_log("history: {$p['rec']}, " . count($mv['seasons']) . ' seasons in season_numbers');
     aio_log("episode: S{$p['s']}E{$p['e']}, {$p['why']}");
-    return array($p['s'], $p['e'], $p['hash'], $p['key']);
+    return $p;
 }
 
 // The state of the series of card $dune_id, read once a screen of its own card, by $set

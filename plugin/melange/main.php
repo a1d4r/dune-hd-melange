@@ -1788,13 +1788,15 @@ function aio_list_state($mv, $s, $e, $rows, $lang, $errors)
 
 // --- play_action of the supplier.
 
-// play_action $in; $key: the key of the online record of the episode $in asks (the own card: aio_oc_watch), '' none.
+// play_action $in; $hist: the episode of the history (aio_wh_pick) $in asks, null none - the own card (aio_oc_watch,
+// AioOcEp of aio_oc_pick), the main card (aio_wh_episode here). With no "Continue" its list opens at its release
+// (hash), or its online list at the row of its online record (key).
 /**
  * @param stdClass $in
- * @param string $key
+ * @param AioWhPick|AioOcEp|null $hist
  * @return AioAction
  */
-function aio_play_action($in, $key = '')
+function aio_play_action($in, $hist = null)
 {
     Aio::$playing = null;
     Aio::$alt = null;
@@ -1808,8 +1810,8 @@ function aio_play_action($in, $key = '')
     $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
 
     $resume = aio_resume($in);
-    // The key of an online record ("Continue" of mode lampac, else of the own card), never a release of the list.
-    $lpk = $resume && $resume['mode'] === 'lampac' ? $resume['hash'] : ($resume ? '' : $key);
+    // The key of an online record ("Continue" of mode lampac), never a release of the list.
+    $lpk = $resume && $resume['mode'] === 'lampac' ? $resume['hash'] : '';
     $s = -1;
     $e = -1;
     // A list opens with the cursor on this release (the one of the history).
@@ -1827,13 +1829,19 @@ function aio_play_action($in, $key = '')
             $s = aio_int($in, 'season', -1);
             $e = aio_int($in, 'episode', -1);
         }
-        // From the main card: season = episode = -1 and no supplier_info; the latest record online: its key.
+        // From the main card: season = episode = -1 and no supplier_info. Its release even after "Continue".
         if ($s < 1 || $e < 1)
         {
-            list($s, $e, $hash, $wk) = aio_wh_episode($mv);
-            if ($lpk === '' && !$rel)
-                $lpk = $wk;
+            $hist = aio_wh_episode($mv);
+            $s = $hist['s'];
+            $e = $hist['e'];
+            $hash = $hist['hash'];
         }
+    }
+    if ($hist && $lpk === '' && !$rel)
+    {
+        $hash = $hist['hash'];
+        $lpk = $hist['key'];
     }
     // "Онлайн" (online_play.php) of the episode chosen: its "Continue", a title marked so, no AIOStreams.
     $lp = aio_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $rel);

@@ -1420,19 +1420,18 @@ function aio_oc_folder_view($media_url, $sel_state)
 // episode $e of season $q as asked (aio_cm_req_s), season_numbers of the meta (the episodes out,
 // aio_cm_eps) for the playlist of the season and the next episode, the runs of the numbering of
 // Cinemeta of an anime numbered on (aio_cin: the numbers of its episodes, aio_cin_n), the titles of the episodes
-// (aio_titles, aio_cm_titles), aio_own_card; the cursor of the list on
-// release $hash of the history ('' none); $key: the key of an online record of the history (aio_wh_pick) - with
-// "Онлайн" its online list, the cursor on its row (aio_play_action). The list marked own (its online list too): its
-// MENU has no "Choose episode" (choose_season_episode would give the seasons of the last native series, not of this card).
+// (aio_titles, aio_cm_titles), aio_own_card; $ep: the episode of the history (aio_oc_pick) when it is this one, null
+// none - the list at its release, the online list at the row of its online record (aio_play_action). The list marked
+// own (its online list too): its MENU has no "Choose episode" (choose_season_episode would give the seasons of the
+// last native series, not of this card).
 /**
  * @param AioOcCard $c
  * @param int $q
  * @param int $e
- * @param string $hash
- * @param string $key
+ * @param AioOcEp|null $ep
  * @return AioAction
  */
-function aio_oc_watch($c, $q = -1, $e = -1, $hash = '', $key = '')
+function aio_oc_watch($c, $q = -1, $e = -1, $ep = null)
 {
     $t = $c['tile'];
     $native = $c['meta'] && $c['meta']['original'] !== '' ? $c['meta']['original'] : $t['englishTitle'];
@@ -1463,12 +1462,7 @@ function aio_oc_watch($c, $q = -1, $e = -1, $hash = '', $key = '')
         $in->episode = $e;
     }
     $in->lang = $c['lang'];
-    $a = aio_play_action($in, $key);
-    if (!Aio::$state || $a[GuiAction::handler_string_id] !== PLUGIN_OPEN_FOLDER_ACTION_ID)
-        return $a;
-    if ($hash !== '')
-        Aio::$state = aio_list_cursor(Aio::$state, $hash);
-    return $a;
+    return aio_play_action($in, $ep);
 }
 
 // ENTER on episode $x of the meta of card $c (the row; the link of streams, aio_dl_streams), $ep the episode the card
@@ -1485,8 +1479,7 @@ function aio_oc_ep_watch($c, $x, $ep)
     if ($x['soon'])
         return aio_oc_soon_msg($x, $c['ui']);
     $q = $c['meta'] ? aio_cm_req_s($c['meta'], $x['s']) : $x['s'];
-    $it = $ep && $ep['q'] === $q && $ep['e'] === $x['e'];
-    return aio_oc_watch($c, $q, $x['e'], $it ? $ep['hash'] : '', $it ? $ep['key'] : '');
+    return aio_oc_watch($c, $q, $x['e'], $ep && $ep['q'] === $q && $ep['e'] === $x['e'] ? $ep : null);
 }
 
 // MENU of a movie of card $c ($key) with a card of the Dune: "Отметить просмотренным" / "Снять отметку" (aio_pg_mark_kind;
@@ -1683,7 +1676,7 @@ function aio_oc_input($in, $control)
         if ($kind === 'trailer')
             return aio_ct_enter($key);
         if ($kind === 'watch')
-            return $ep ? aio_oc_watch($c, $ep['q'], $ep['e'], $ep['hash'], $ep['key']) : aio_oc_watch($c);
+            return $ep ? aio_oc_watch($c, $ep['q'], $ep['e'], $ep) : aio_oc_watch($c);
         // Not out yet: the focus to it in the row.
         if ($kind === 'soon')
             $new = array_merge($pos, array('z' => 'row', 'p' => 0, 's' => $ep['s'], 'e' => $ep['e']));
