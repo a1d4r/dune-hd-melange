@@ -326,6 +326,9 @@ function aio_lpv_result($run)
     $v['note'] = $note;
     unset($v['flt_gone']);
     $v = aio_lpv_flt_keep(aio_lpv_ep_tracks($v, $st['e']), $st);
+    // A filter: all unfolded (as aio_lpv_flt_set), the balancers new to the list ("Ещё N", "Источники…") too.
+    if (isset($v['flt']))
+        $v['open'] = aio_lpv_open_all($v);
     if ($pin >= 0)
     {
         $v = aio_lpv_flt_show($v, $pin);
