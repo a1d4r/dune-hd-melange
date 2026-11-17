@@ -1100,14 +1100,15 @@ function aio_lpv_errors_of($st)
 // title marked "online" when there is a list), back (nothing online: the releases with the
 // yellow line), path (the path of a balancer: the cursor on it, the yellow line "<it> больше не
 // отдаёт эту озвучку"), key (the key of a row, of an online record: the cursor on that row, shown
-// though a filter hides it; none - on the first of the balancer of the key), more (the replies of
-// the view of $st from its next, no search; the cursor on the first new row), redraw (the screen
+// though a filter hides it; none - on the first of the balancer of the key), fail (the row of the key found,
+// its link not: the reason, the yellow line "<it> не ответил — …" of down, else "<it> не дал видео — …"),
+// more (the replies of the view of $st from its next, no search; the cursor on the first new row), redraw (the screen
 // under it shows a list before $st: $st put in when the window closes with no list -
 // AioLpv::$redraw, aio_lpv_redraw_keys).
 /**
  * @param AioState $st
  * @param string $how
- * @param array{mark?: bool, back?: bool, path?: string, key?: string, more?: bool, redraw?: bool} $opt
+ * @param array{mark?: bool, back?: bool, path?: string, key?: string, fail?: string, more?: bool, redraw?: bool} $opt
  * @return AioAction
  */
 function aio_lpv_search_open($st, $how, $opt = array())
@@ -1126,7 +1127,8 @@ function aio_lpv_search_open($st, $how, $opt = array())
         $v['flt'] = $st['lp']['flt'];
     $run = array('sid' => $sid, 'st' => $st, 'how' => $how, 'mark' => !empty($opt['mark']), 'back' => !empty($opt['back']),
         'path' => isset($opt['path']) ? $opt['path'] : '', 'key' => isset($opt['key']) ? $opt['key'] : '',
-        'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v, 't1' => $more ? aio_lp_now() : 0.0,
+        'fail' => isset($opt['fail']) ? $opt['fail'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v,
+        't1' => $more ? aio_lp_now() : 0.0,
         'more' => $more ? count($v['rows']) : -1, 'lost' => 0.0, 'again' => array(), 'held' => '', 'at' => array());
     // The rows of before ("Ещё N") first (aio_lpv_rows_by_source).
     foreach ($v['rows'] as $x)
@@ -1480,7 +1482,8 @@ function aio_lpv_result($run)
             if ($src['path'] === $run['path'])
                 $label = $src['label'];
         }
-        $note = aio_lpv_tr($lang, 'lp_note_gone', array('src' => $label));
+        $note = aio_lpv_tr($lang, $run['fail'] === '' ? 'lp_note_gone' : ($run['fail'] === 'down' ? 'lp_note_no_answer' :
+            'lp_note_no_video'), array('src' => $label));
     }
     if ($off > 0)
         $note = aio_lpv_tr($lang, 'lp_note_off', array('n' => $off));
