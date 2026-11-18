@@ -52,6 +52,31 @@ function aio_lpv_ids_keep($in, $mv)
         AioLpv::$ids[aio_lpv_key($mv)] = array($tmdb, $kp);
 }
 
+// The ids of tile $t for movie_str of a play_action of Melange itself (aio_card_releases, aio_oc_watch; read by
+// aio_lpv_ids_keep): the TMDB id of the tile, else of the tile of its meta $meta (in hand, no request), as tmdbtv_id of a
+// series, else tmdb_id; kp_id of Kinopoisk the same way. None empty.
+/**
+ * @param AioCatTile $t
+ * @param AioCardMeta|null $meta
+ * @return array<string, string>
+ */
+function aio_lpv_tile_ids($t, $meta = null)
+{
+    $m = $meta && $meta['tile'] ? $meta['tile'] : null;
+    $tmdb = aio_str($t, '_tmdbId');
+    $kp = aio_str($t, 'kpId');
+    if ($tmdb === '')
+        $tmdb = aio_str($m, '_tmdbId');
+    if ($kp === '')
+        $kp = aio_str($m, 'kpId');
+    $out = array();
+    if ($tmdb !== '')
+        $out[aio_str($t, 'type') === 'series' ? 'tmdbtv_id' : 'tmdb_id'] = $tmdb;
+    if ($kp !== '')
+        $out['kp_id'] = $kp;
+    return $out;
+}
+
 // --- ENTER of a row of the online list (aio_lpv_pick, view_online.php): the link, the player.
 
 // The link of row $r to play by deadline $deadline (aio_lp_now): "call" of a row of the method

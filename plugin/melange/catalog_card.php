@@ -596,7 +596,7 @@ function aio_card_releases($tile, $lang)
     $in = new stdClass();
     $in->movie_str = json_encode(array('imdb_id' => $tile['imdb_id'], 'title' => $tile['name'], 'year' => $tile['year'],
         'poster_url' => $tile['poster'], 'fanart_url' => $tile['background'], 'rate_imdb' => $tile['imdbRating'],
-        'description' => $tile['description']));
+        'description' => $tile['description']) + aio_lpv_tile_ids($tile));
     $in->series_type = $tile['type'] === 'series' ? 'series' : 'single';
     $in->lang = $lang;
     $act = aio_play_action($in);

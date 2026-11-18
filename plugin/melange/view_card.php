@@ -1416,7 +1416,8 @@ function aio_oc_folder_view($media_url, $sel_state)
 
 // "Watch": the list of Melange as play_action makes it of the card of the tile, the id of the card
 // of the Dune (or none: no history) in movie_str. native_title, as the card of the Dune gives it
-// (JacRed asks by it): the original title of the meta, else the English one of the tile. A series:
+// (JacRed asks by it): the original title of the meta, else the English one of the tile. The TMDB and Kinopoisk ids
+// for the search of Lampac (aio_lpv_tile_ids). A series:
 // episode $e of season $q as asked (aio_cm_req_s), season_numbers of the meta (the episodes out,
 // aio_cm_eps) for the playlist of the season and the next episode, the runs of the numbering of
 // Cinemeta of an anime numbered on (aio_cin: the numbers of its episodes, aio_cin_n), the titles of the episodes
@@ -1438,7 +1439,7 @@ function aio_oc_watch($c, $q = -1, $e = -1, $ep = null, $src = '')
     $native = $c['meta'] && $c['meta']['original'] !== '' ? $c['meta']['original'] : $t['englishTitle'];
     $mv = array('id' => $c['dune'], 'imdb_id' => $c['imdb'], 'title' => $t['name'],
         'native_title' => $native, 'year' => $t['year'], 'poster_url' => $t['poster'], 'fanart_url' => $t['background'],
-        'rate_imdb' => $t['imdbRating'], 'description' => $t['description']);
+        'rate_imdb' => $t['imdbRating'], 'description' => $t['description']) + aio_lpv_tile_ids($t, $c['meta']);
     $series = $t['type'] === 'series';
     // The list, its online one too (the window of the search builds it later), marked own (aio_movie).
     $mv['aio_own_card'] = true;
