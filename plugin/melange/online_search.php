@@ -163,11 +163,12 @@ function mel_lpv_tick($in)
     {
         $run['search'] = mel_lp_search_start($base, $run['v']['title']);
         // The title of Lampac kept for "Continue" and the next episode of the card (mel_lpv_title): they ask the
-        // balancer without events. Memory only.
+        // balancer without events. With the title it replaced: the own card and the native one share the dune id,
+        // not the title. Memory only.
         $k = mel_lpv_key($run['st']['movie']);
         if ($run['search']['title'] !== '' && $k !== '')
             mel_lpv_ids_put($k, array('tmdb' => '', 'kp' => '', 'original_language' => '',
-                'title' => $run['search']['title']));
+                'title' => $run['search']['title'], 'title_of' => $run['v']['title']['title']));
         $run['phase'] = 'search';
     }
     else if ($run['phase'] === 'search' && $run['search'])

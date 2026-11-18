@@ -77,7 +77,8 @@ function mel_lpv_key($mv)
     return $mv['dune_id'] !== '' ? $mv['dune_id'] : $mv['imdb'];
 }
 
-// The parameters of Lampac of card $mv (mel_lp_title): its title the one of Lampac kept (MelLpv::$ids), else its own.
+// The parameters of Lampac of card $mv (mel_lp_title): its title the one of Lampac kept (MelLpv::$ids) when that replaced
+// this very title (the own card and the native one of the Dune share the key, not the title), else its own.
 /**
  * @param MelMovie $mv
  * @return MelLpTitle
@@ -86,6 +87,9 @@ function mel_lpv_title($mv)
 {
     $k = mel_lpv_key($mv);
     $ids = isset(MelLpv::$ids[$k]) ? MelLpv::$ids[$k] : array();
+    if (!isset($ids['title_of']) || $ids['title_of'] !== mel_lp_text($mv['title']))
+        unset($ids['title']);
+    unset($ids['title_of']);
     return mel_lp_title($ids + array('imdb' => $mv['imdb'], 'title' => $mv['title'], 'original_title' => $mv['native'],
         'year' => $mv['year'], 'serial' => $mv['series']));
 }
