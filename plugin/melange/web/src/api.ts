@@ -40,6 +40,12 @@ export type ProfileAnswer = { ok: boolean; msg: string; profiles: ProfileList | 
 // The source of the editor a save saved: its id, its name, the main one.
 export type SavedProfile = { id: string; name: string; main: boolean };
 
+// "Скрытые" (lib/hidden.php): a title - its key (posted back by "Unhide"), name, the line under it; #init.hidden - the
+// list and why there is none ("" - there is); a=title_unhide - items: the list of the file now (null: none sent).
+export type HiddenItem = { k: string; name: string; line: string };
+export type Hidden = { items: HiddenItem[]; msg: string };
+export type UnhideAnswer = { ok: boolean; msg: string; items: HiddenItem[] | null };
+
 // a=import: next - the page again (its values imported), msg - why nothing was written.
 export type Import = { ok: true; next: string } | { ok: false; msg: string };
 
@@ -137,6 +143,19 @@ function parseSaved(value: unknown): SavedProfile | null {
 function parseProfileAnswer(json: Json): ProfileAnswer | null {
   if (typeof json.ok !== "boolean") return null;
   return { ok: json.ok, msg: typeof json.msg === "string" ? json.msg : "", profiles: parseProfiles(json.profiles) };
+}
+
+const parseHiddenItem = (item: Json): HiddenItem => ({ k: String(item.k), name: String(item.name), line: String(item.line) });
+
+// #init.hidden; another shape: an empty list.
+export function parseHidden(value: unknown): Hidden {
+  if (!isObject(value)) return { items: [], msg: "" };
+  return { items: parseItems(value.items, parseHiddenItem), msg: typeof value.msg === "string" ? value.msg : "" };
+}
+
+function parseUnhide(json: Json): UnhideAnswer | null {
+  if (typeof json.ok !== "boolean") return null;
+  return { ok: json.ok, msg: typeof json.msg === "string" ? json.msg : "", items: Array.isArray(json.items) ? parseItems(json.items, parseHiddenItem) : null };
 }
 
 function parseCatRows(json: Json): CatRows | null {
@@ -257,6 +276,8 @@ export function createApi(base: string | null, hooks: ApiHooks) {
     // The sources (id: of the one on the page): the main one, one deleted - each a write as a save is.
     profileMain: (id: string) => save("&a=profile_main&ajax=1", "i=" + encodeURIComponent(id), parseProfileAnswer),
     profileDel: (id: string) => save("&a=profile_del&ajax=1", "i=" + encodeURIComponent(id), parseProfileAnswer),
+    // "Unhide" of a hidden title (k: its key): a write as a save is.
+    titleUnhide: (k: string) => save("&a=title_unhide&ajax=1", "k=" + encodeURIComponent(k), parseUnhide),
   };
 }
 

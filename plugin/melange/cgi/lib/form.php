@@ -89,6 +89,8 @@ function mel_cgi_fields()
         'cat_card' => array('id' => 'ocd', 'name' => 'cat_card', 'set' => 'cat_card', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // cat_card as the page came (a none chosen shown by the firmware of then): mel_cgi_check_values.
         'cat_card_was' => array('id' => 'ocw', 'name' => 'cat_card_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'look'),
+        // "Возраст" of "Что не показывать" (0.65.0, lib/hidden.php): mel_cgi_cat_ages().
+        'cat_age' => array('id' => 'cag', 'name' => 'cat_age', 'set' => 'cat_age', 'max' => 0, 'type' => 'radio', 'scr' => 'hide'),
         // The rows of the catalog chosen: mel_cgi_rows_screen.
         'cat_rows' => array('id' => 'crv', 'name' => 'cat_rows', 'set' => 'cat_rows', 'max' => 0, 'type' => 'plain', 'scr' => 'rows'),
         // cat_rows as the page came (as debrid_main_was): the save keeps the stored ones when it is posted back.
@@ -189,7 +191,7 @@ function mel_cgi_card($for, $title, $sub, $more = '')
 // A simple choice (div.choice): a card of a radio of the row $f of
 // mel_cgi_fields() each (its id: that of the row and the number of the card),
 // by $opts value => array(title, hint[, data-short of the radio]); $sel: the
-// value checked.
+// value checked (a string: a key of digits is an int in PHP, the age of mel_cgi_cat_ages).
 function mel_cgi_choice($f, $opts, $sel)
 {
     $out = '<div class="choice">';
@@ -197,7 +199,7 @@ function mel_cgi_choice($f, $opts, $sel)
     foreach ($opts as $val => $x)
     {
         $i++;
-        $out .= mel_cgi_vradio($f['id'] . $i, $f['name'], $val, $val === $sel, '', isset($x[2]) ? ' data-short="' .
+        $out .= mel_cgi_vradio($f['id'] . $i, $f['name'], $val, strval($val) === $sel, '', isset($x[2]) ? ' data-short="' .
             mel_cgi_h($x[2]) . '"' : '') . mel_cgi_card($f['id'] . $i, mel_cgi_h($x[0]), mel_cgi_h($x[1]));
     }
     return $out . '</div>';
@@ -919,7 +921,8 @@ function mel_cgi_css()
 // the page stays the answer to a GET. No fetch -> the form posts as usual.
 // Messages go in by textContent; #init has the texts (i18n), the defaults,
 // the configs of the servers by mode (confs) and the template for a new
-// config of each mode (tplNew), the source profiles (profiles: mel_cgi_profiles_data); the script is
+// config of each mode (tplNew), the source profiles (profiles: mel_cgi_profiles_data), the hidden titles (hidden:
+// mel_cgi_ht_data of $v['hidden'], settings.php puts it; none - an empty list); the script is
 // cgi/settings.js, built from web/ (none readable:
 // the page without it).
 function mel_cgi_js($v)
@@ -992,7 +995,9 @@ function mel_cgi_js($v)
             'The current settings will be replaced with those from the file, the link of this page with the one from the file: the current link will stop working. Continue?'),
         'importing' => mel_cgi_l('Загружаю…', 'Loading…'),
         'importTooBig' => mel_cgi_import_big(),
-        'importUnread' => mel_cgi_l('Файл не прочитался — выберите его ещё раз', 'The file could not be read: choose it again')) +
+        'importUnread' => mel_cgi_l('Файл не прочитался — выберите его ещё раз', 'The file could not be read: choose it again'),
+        // "Скрытые" of "Что не показывать" (lib/hidden.php): the line of an empty list, the button of a title.
+        'hiddenNone' => mel_cgi_l('Скрытых нет.', 'Nothing hidden.'), 'hiddenReturn' => mel_cgi_l('Вернуть', 'Unhide')) +
         // The lines of the main screen (mel_cgi_rows), the source profiles (lib/profiles.php).
         mel_cgi_home_texts() + mel_cgi_profile_texts();
     $js = dirname(dirname(__FILE__)) . '/settings.js';
@@ -1001,7 +1006,7 @@ function mel_cgi_js($v)
         return '';
     $init = json_encode(array('i18n' => $t, 'jacredDefault' => MEL_JACRED_DEFAULT,
         'tplNew' => array(MEL_MODE_DEBRID => $v['tpl_new'], MEL_MODE_P2P => $v['tpl_p2p_new']), 'confs' => mel_cgi_aio_confs($v),
-        'profiles' => $v['prof']));
+        'profiles' => $v['prof'], 'hidden' => isset($v['hidden']) ? $v['hidden'] : mel_cgi_ht_data('')));
     // JSON_HEX_TAG for "<" (PHP 5.3 has none): no "</script>" or "<!--" in the element; "<" is only in strings.
     return '<script type="application/json" id="init">' . str_replace('<', '\\u003c', $init) . '</script><script>' .
         $js . '</script>';
@@ -1109,6 +1114,7 @@ function mel_cgi_form($t, $v, $errors, $saved, $imported = 0, $rows = false)
                 'If TorrServer asks for them. Also in the address: login:password@host:port')) . mel_cgi_ts_save($v)) .
         mel_cgi_screen('rows', mel_cgi_rows_screen($v)) .
         mel_cgi_screen('look', mel_cgi_look_screen($v)) .
+        mel_cgi_screen('hide', mel_cgi_hide_screen($v)) .
         mel_cgi_screen('dl', '<p class="sub">' . mel_cgi_l('На Дюне в списке раздач: Меню → «Скачать на сервер».',
             'On the Dune, in the list of releases: Menu → "Download to server".') . '</p>' . mel_cgi_servers($v['servers'])) .
         mel_cgi_screen('adv', mel_cgi_toggle_cards('no_torrents', 'xt') . mel_cgi_markers_block($v) . mel_cgi_toggle_block('source_errors', $v) .

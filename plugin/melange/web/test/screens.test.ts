@@ -39,6 +39,19 @@ describe("the main screen", () => {
     expect(value()).toEqual(["dot none", t.logoOn + " · " + t.ratingOn]);
   });
 
+  test("the line of What not to show (0.65.0): the short name of the age chosen, none chosen - as All; no dot", () => {
+    const page = open("filled");
+    const value = () => [page.el("dhide").className, page.el("vhide").textContent];
+    expect(value()).toEqual(["dot none", "До 12+"]);
+    page.choose(NAME.catAge, "0");
+    expect(value()).toEqual(["dot none", "Только 0+"]);
+    page.choose(NAME.catAge, "all");
+    expect(value()).toEqual(["dot none", "Все возрасты"]);
+    page.doc.querySelectorAll<HTMLInputElement>("input[name=" + NAME.catAge + "]").forEach((radio) => (radio.checked = false));
+    page.type(ID.ts, "http://192.0.2.1:8090");
+    expect(value()).toEqual(["dot none", "Все возрасты"]);
+  });
+
   test("follows the form: the answer, the keys, the link of own config, JacRed, TorrServer, the servers", () => {
     const page = open("filled");
     const t = page.init.i18n;

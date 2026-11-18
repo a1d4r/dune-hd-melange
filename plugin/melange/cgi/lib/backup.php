@@ -3,7 +3,9 @@
 // export of settings.json to a file (a=export) and the import of such a file
 // (a=import: its text posted by the script of the page, never $_FILES).
 // "Мой список" (0.62.0) goes with them: the field my_list of the file
-// (mel_ml_copy of my_list.php), written to its file of data_dir on an import.
+// (mel_ml_copy of my_list.php), written to its file of data_dir on an import;
+// so do the hidden titles (0.65.0): the field hidden_titles (mel_cgi_ht_copy of
+// lib/hidden.php), in the room the rest of the body leaves.
 
 require_once dirname(dirname(dirname(__FILE__))) . '/my_list.php';
 
@@ -45,7 +47,7 @@ function mel_cgi_export($dir, $t)
         mel_cgi_log('export: json_encode failed');
         mel_cgi_send(500, 'text/plain', mel_cgi_l('Файл не сохранён: ошибка на Дюне.', 'No file saved: an error on the Dune.') . "\n");
     }
-    $json = mel_cgi_export_list($dir, $json);
+    $json = mel_cgi_export_hidden($dir, mel_cgi_export_list($dir, $json));
     date_default_timezone_set('UTC');
     mel_cgi_headers(200, 'application/json');
     header('Content-Disposition: attachment; filename="' . MEL_CGI_NAME . '-settings-' . gmdate('Ymd-Hi') . '.json"');
@@ -95,7 +97,8 @@ function mel_cgi_backup($t, $v)
     $first = isset($v['first']) && $v['first'];
     return '<p class="sub">' . mel_cgi_l('Все настройки Melange в одном файле: перед переустановкой или для другой Дюны.',
         'All Melange settings in one file: before a reinstall or for another Dune.') . '</p>' .
-        '<p class="hint">' . mel_cgi_l('Копия сохраняет и «Избранное».', 'The backup includes Favorites too.') . '</p>' .
+        '<p class="hint">' . mel_cgi_l('Копия сохраняет и «Избранное», и скрытые тайтлы.',
+        'The backup includes Favorites and hidden titles too.') . '</p>' .
         '<p class="hint wn">' . mel_cgi_l('В файле ключи Debrid, токены, пароли и ссылка на страницу — храните его у себя.',
         'It holds Debrid keys, tokens, passwords and the page link: keep it to yourself.') . '</p>' .
         '<p class="hint" id="bkn"' . ($first ? '' : ' hidden') . '>' . mel_cgi_l('Настроек ещё нет: сначала сохраните их.',
@@ -132,6 +135,38 @@ function mel_cgi_import_failed($code, $why, $msg)
     mel_cgi_json($code, array('ok' => false, 'msg' => $msg));
 }
 
+// The file $name of $dir written over by $data on an import ($what: of the log; '' - json_encode failed): -> its text
+// before, null - none (for mel_cgi_import_back). Not readable or not written: the files of $back put back
+// (mel_cgi_import_back), the import refused with $msg.
+function mel_cgi_import_put($dir, $name, $data, $what, $msg, $back = array())
+{
+    $path = "$dir/$name";
+    clearstatcache();
+    $old = is_file($path) && !is_link($path) ? @file_get_contents($path) : (file_exists($path) || is_link($path) ? false : null);
+    $why = $old === false ? 'the file of this Dune not readable' : ($data !== '' ? mel_cgi_write($dir, $data, $name) :
+        'json_encode failed');
+    if ($why !== '')
+    {
+        mel_cgi_import_back($dir, $back);
+        mel_cgi_import_failed(500, "$what: $why", $msg);
+    }
+    return $old;
+}
+
+// The files written over by an import put back after a failure: array(name, the text before - null: none, false: not
+// written over, what of the log) each; a line of the log each.
+function mel_cgi_import_back($dir, $files)
+{
+    foreach ($files as $x)
+    {
+        list($name, $old, $what) = $x;
+        if ($old === false)
+            continue;
+        $back = $old === null ? (@unlink("$dir/$name") ? '' : 'unlink failed') : mel_cgi_write($dir, $old, $name);
+        mel_cgi_log("import: $what of this Dune " . ($back === '' ? 'put back' : "not put back: $back"));
+    }
+}
+
 // POST a=import&ajax=1 (settings: the text of the file) -> the settings of
 // Melange in it (an object with v 1..MEL_SETTINGS_V; a newer v: its own
 // message) through the rules of mel_settings_read (mel_settings_parse: a
@@ -144,7 +179,8 @@ function mel_cgi_import_failed($code, $why, $msg)
 // a failure of the settings puts the list of this Dune back (none: the file
 // removed); a list whose file php_server would not read (MEL_ML_FILE_MAX): the
 // message, nothing written; no field (a file of before 0.62.0): the list of
-// this Dune stays. The
+// this Dune stays. The hidden titles of the field hidden_titles (mel_cgi_ht_from_copy) the same way, after "Мой
+// список" (its failure puts that back too; a file over MEL_HT_FILE_MAX: the message, nothing written). The
 // configs of AIOStreams (aio_confs): those of this Dune, those of the file
 // over them (mel_cgi_confs_merge): the
 // configs are on the servers already, an older file unlinks none. No key
@@ -187,6 +223,16 @@ function mel_cgi_import_post($dir, $t)
         if ($list === null)
             mel_cgi_import_failed(200, "my list $why", $not);
     }
+    $hidden = null;
+    if (array_key_exists(MEL_CGI_HT_FIELD, $j))
+    {
+        $hidden = mel_cgi_ht_from_copy($j[MEL_CGI_HT_FIELD], $why, $hdropped);
+        if ($hidden === null && strpos($why, 'newer') !== false)
+            mel_cgi_import_failed(200, "hidden $why", mel_cgi_l('Файл от более новой версии Melange — обновите плагин',
+                'The file is from a newer version of Melange: update the plugin'));
+        if ($hidden === null)
+            mel_cgi_import_failed(200, "hidden $why", $not);
+    }
     if (!mel_cgi_dir_ok($dir))
         mel_cgi_import_failed(500, 'no data dir', mel_cgi_l('Не загружено: нет папки плагина на Дюне',
             'Not loaded: the plugin data folder is missing on the Dune'));
@@ -198,33 +244,31 @@ function mel_cgi_import_post($dir, $t)
     // The plugin reads no settings.json over MEL_SETTINGS_MAX.
     if (strlen(mel_settings_json($s)) > MEL_SETTINGS_MAX)
         mel_cgi_import_failed(200, 'settings over ' . MEL_SETTINGS_MAX . ' bytes', $big);
+    $wfail = mel_cgi_l('Не загружено: ошибка записи на Дюне', 'Not loaded: write error on the Dune');
+    $ml = $list !== null ? mel_ml_json($list) : '';
+    if ($list !== null && strlen($ml) > MEL_ML_FILE_MAX)
+        mel_cgi_import_failed(200, 'my list: the file over ' . MEL_ML_FILE_MAX . ' bytes', $big);
+    $ht = $hidden !== null ? mel_ht_json($hidden) : '';
+    if ($hidden !== null && strlen($ht) > MEL_HT_FILE_MAX)
+        mel_cgi_import_failed(200, 'hidden: the file over ' . MEL_HT_FILE_MAX . ' bytes', $big);
+    // The files of this Dune, for a failure after them: their text, null - no file (false: not written over).
     $old = false;
     if ($list !== null)
     {
-        $data = mel_ml_json($list);
-        if (strlen($data) > MEL_ML_FILE_MAX)
-            mel_cgi_import_failed(200, 'my list: the file over ' . MEL_ML_FILE_MAX . ' bytes', $big);
-        $path = "$dir/" . MEL_ML_FILE;
-        clearstatcache();
-        // The list of this Dune, for a failure of the settings: its text, null - no file.
-        $old = is_file($path) && !is_link($path) ? @file_get_contents($path) : (file_exists($path) || is_link($path) ? false : null);
-        if ($old === false)
-            mel_cgi_import_failed(500, 'my list: the file of this Dune not readable', mel_cgi_l('Не загружено: ошибка записи на Дюне',
-                'Not loaded: write error on the Dune'));
-        $why = $data !== '' ? mel_cgi_write($dir, $data, MEL_ML_FILE) : 'json_encode failed';
-        if ($why !== '')
-            mel_cgi_import_failed(500, "my list: $why", mel_cgi_l('Не загружено: ошибка записи на Дюне', 'Not loaded: write error on the Dune'));
+        $old = mel_cgi_import_put($dir, MEL_ML_FILE, $ml, 'my list', $wfail);
         mel_cgi_log('import: my list, ' . count($list) . ' titles' . ($dropped ? ", $dropped not good dropped" : ''));
+    }
+    $hold = false;
+    if ($hidden !== null)
+    {
+        $hold = mel_cgi_import_put($dir, MEL_HT_FILE, $ht, 'hidden', $wfail, array(array(MEL_ML_FILE, $old, 'my list')));
+        mel_cgi_log('import: hidden, ' . count($hidden) . ' titles' . ($hdropped ? ", $hdropped not good dropped" : ''));
     }
     $why = mel_cgi_store($dir, $s);
     if ($why !== '')
     {
-        if ($old !== false)
-        {
-            $back = $old === null ? (@unlink("$dir/" . MEL_ML_FILE) ? '' : 'unlink failed') : mel_cgi_write($dir, $old, MEL_ML_FILE);
-            mel_cgi_log('import: my list of this Dune ' . ($back === '' ? 'put back' : "not put back: $back"));
-        }
-        mel_cgi_import_failed(500, $why, mel_cgi_l('Не загружено: ошибка записи на Дюне', 'Not loaded: write error on the Dune'));
+        mel_cgi_import_back($dir, array(array(MEL_ML_FILE, $old, 'my list'), array(MEL_HT_FILE, $hold, 'hidden')));
+        mel_cgi_import_failed(500, $why, $wfail);
     }
     mel_cgi_log('import: ok');
     if ($s['mig_lost'])

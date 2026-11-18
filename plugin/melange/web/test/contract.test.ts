@@ -135,6 +135,13 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(cards.map((radio) => [radio.type, radio.value, radio.checked])).toEqual([["radio", "on", true], ["radio", "off", false]]);
     for (const radio of cards)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("look");
+    // The age of What not to show (cat_age, 0.65.0): five radios, "all" by default (filled: "12"), a short name each, on #hide.
+    const ages = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=" + NAME.catAge + "]"));
+    expect(ages.map((radio) => [radio.type, radio.value, !!radio.getAttribute(DATA.short)])).toEqual(
+      ["all", "16", "12", "6", "0"].map((value) => ["radio", value, true]));
+    expect(ages.filter((radio) => radio.checked).map((radio) => radio.value)).toEqual([name === "filled" ? "12" : "all"]);
+    for (const radio of ages)
+      expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("hide");
     // The rows of the catalog: one field on #rows, not of type hidden (the bar counts only others), nothing to read by eye.
     const rowsField = form.querySelectorAll<HTMLInputElement>("input[name=cat_rows]");
     expect(Array.from(rowsField).map((field) => [field.id, field.type, field.hidden, field.closest("section")!.id])).toEqual([[ID.rowsValue, "text", true, "rows"]]);
