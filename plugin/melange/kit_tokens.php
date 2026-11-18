@@ -118,6 +118,7 @@ define('MEL_K_ICON_SORT', 26);
 define('MEL_K_ICON_SETUP_SOURCE', 30);
 define('MEL_K_ICON_SETUP_STATUS', 44);
 define('MEL_K_ICON_MENU', 28);
+define('MEL_K_ICON_INFO', 28);
 define('MEL_K_ICON_MORE_BELOW', 36);
 define('MEL_K_ICON_POPUP', 48);
 
@@ -333,7 +334,8 @@ function mel_k_pic()
         'k_badge_flac' => array('url' => 'plugin_file://img/k_badge_flac.7f03f7f3.png', 'w' => 97, 'h' => 40, 'mid' => null),
         'k_badge_pcm' => array('url' => 'plugin_file://img/k_badge_pcm.fb45bab7.png', 'w' => 69, 'h' => 40, 'mid' => null),
         'k_badge_opus' => array('url' => 'plugin_file://img/k_badge_opus.ab589dc8.png', 'w' => 100, 'h' => 40, 'mid' => null),
-        'k_badge_aac' => array('url' => 'plugin_file://img/k_badge_aac.8db942be.png', 'w' => 86, 'h' => 40, 'mid' => null)
+        'k_badge_aac' => array('url' => 'plugin_file://img/k_badge_aac.8db942be.png', 'w' => 86, 'h' => 40, 'mid' => null),
+        'k_key_info' => array('url' => 'plugin_file://img/k_key_info.4abf6008.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0))
     );
     return $t;
 }
