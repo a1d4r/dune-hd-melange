@@ -15,6 +15,12 @@
 define('MEL_TS_TICK_MS', 1000);
 define('MEL_TS_WAIT', 60);
 define('MEL_TS_TICKS', 60);
+// A start from 0: before the player the preload of its file (mel_ts_preload), the window till
+// MEL_TS_BUF of it in the cache of TorrServer - the player of the Dune waits for as much itself, on a black
+// screen. Or till MEL_TS_BUF_SHARE of a smaller preload_size; none after MEL_TS_PRE_TICKS ticks: the player.
+define('MEL_TS_BUF', 33554432);
+define('MEL_TS_BUF_SHARE', 0.98);
+define('MEL_TS_PRE_TICKS', 5);
 // TorrServer MatriX answers /echo within a second ("Continue watching" asks
 // before it goes there).
 /**
@@ -571,16 +577,17 @@ function mel_ts_pick($files, $r, $s, $e, $one_season = false, $n = 0)
     return $big >= 0 ? array($big, 'the biggest video') : array(-1, 'no video');
 }
 
-// The stream URL of file $f of torrent $hash for the player.
+// The stream URL of file $f of torrent $hash for the player ($what 'play'), or the one of its preload ('preload').
 /**
  * @param string $base
  * @param string $hash
  * @param MelTsFile $f
+ * @param string $what
  * @return string
  */
-function mel_ts_url($base, $hash, $f)
+function mel_ts_url($base, $hash, $f, $what = 'play')
 {
-    return "$base/stream/" . rawurlencode(mel_ts_basename($f['path'])) . "?link=$hash&index={$f['id']}&play";
+    return "$base/stream/" . rawurlencode(mel_ts_basename($f['path'])) . "?link=$hash&index={$f['id']}&$what";
 }
 
 // Episodes of season $s in the pack up to $max, besides $e (the file $chosen):
@@ -788,9 +795,10 @@ function mel_ts_auth_err()
 // Row $i of list $st through TorrServer from position $pos (s); $from: rid of
 // the list screen under the player, '' for play_action; $lazy: a lazy
 // episode of the player (mel_next): no file of it -> mel_next_missing.
-// -> vod_play when the files are known at once, else the dialog that waits
-// for them (its state in Mel::$tswait when $st is not the list on screen); an
-// error dialog. $alive: mel_ts_alive() has just answered, no echo again.
+// -> vod_play when the files are known at once and $pos > 0, else the dialog that
+// waits for them or, from 0, for the preload of the file (its state in
+// Mel::$tswait when $st is not the list on screen); an error dialog. $alive:
+// mel_ts_alive() has just answered, no echo again.
 // $miss_list: "Continue" to the next episode, no file of it -> the list of $st.
 /**
  * @param MelState $st
@@ -845,17 +853,63 @@ function mel_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_
         return mel_ts_fail($lang, mel_ts_auth_err(), '', $lazy);
     if ($err !== '' || $code !== 200 || !$j)
         return mel_ts_fail($lang, 'ts_err_add', $err !== '' ? $err : "HTTP $code", $lazy);
-    if ($files)
+    if ($files && ($pos > 0 || !mel_ts_preload($st, $i, $files)))
         return mel_ts_play($st, $i, $files, $pos, $from, $lazy, $miss_list);
     Mel::$tswait = $st;
-    // l: 1 lazy, 2 $miss_list.
+    // l: 1 lazy, 2 $miss_list; b: the tick of the start of the preload, '' none yet.
     $p = array('rid' => $st['rid'], 'i' => strval($i), 'pos' => strval($pos), 'f' => $from,
         'l' => $lazy ? '1' : ($miss_list ? '2' : '0'),
-        't' => strval(time()), 'n' => '0');
-    mel_log('ts: no files yet -> waiting dialog');
-    return mel_dialog_act(mel_tr($lang, 'ts_wait'), mel_ts_wait_defs($st, $r, 0, $j, $lazy), array(
+        't' => strval(time()), 'n' => '0', 'b' => $files ? '0' : '');
+    mel_log($files ? 'ts: -> the dialog of the preload' : 'ts: no files yet -> waiting dialog');
+    return mel_dialog_act(mel_tr($lang, 'ts_wait'), mel_ts_wait_defs($st, $r, 0, $j, $lazy, $p['b'] !== ''), array(
         ShowDialogActionData::actions => mel_ts_wait_acts($p),
         ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => MEL_TS_TICK_MS)));
+}
+
+// The preload of the file of row $i of $st among $files (mel_ts_file), a start from 0: a GET of
+// its &preload with a timeout of 1 s, the reply not awaited - TorrServer holds the request till the end
+// of the preload and goes on when the client leaves (device, knowledge melange-preload-buffer.md);
+// its error ignored, the ticks see none (mel_ts_buf_done). No shell: the name of the file is in the URL.
+// -> false: no file (mel_ts_play tells why).
+/**
+ * @param MelState $st
+ * @param int $i
+ * @param list<MelTsFile> $files
+ * @return bool
+ */
+function mel_ts_preload($st, $i, $files)
+{
+    list($k) = mel_ts_file($st, $i, $files);
+    if ($k < 0)
+        return false;
+    $f = $files[$k];
+    $t = microtime(true);
+    $rp = mel_ts_call(mel_ts_url(Mel::$settings['ts'], $st['rows'][$i]['hash'], $f, 'preload'), null, 1, Mel::$settings['ts_auth']);
+    mel_log(sprintf('ts: preload of file %d: %s, %.2f s: %s', $f['id'], $rp['err'] !== '' ? $rp['err'] : "HTTP {$rp['code']}",
+        microtime(true) - $t, mel_cut($f['path'], 200)));
+    return true;
+}
+
+// TorrentStatus $j of a tick $ticks after the start of the preload -> why the player now, '' not yet:
+// MEL_TS_BUF in the cache; MEL_TS_BUF_SHARE of its preload_size (a small cache or file); the preload over
+// ("Torrent working" with a preload_size); no preload_size after MEL_TS_PRE_TICKS (an old TorrServer, the
+// request lost).
+/**
+ * @param array<mixed>|null $j
+ * @param int $ticks
+ * @return string
+ */
+function mel_ts_buf_done($j, $ticks)
+{
+    $got = mel_ts_bytes($j, 'preloaded_bytes');
+    $size = mel_ts_bytes($j, 'preload_size');
+    if ($got >= MEL_TS_BUF)
+        return 'the buffer';
+    if ($size > 0 && $got >= MEL_TS_BUF_SHARE * $size)
+        return '98 % of the preload';
+    if ($size > 0 && strtolower(mel_str($j, 'stat_string')) === 'torrent working')
+        return 'the preload over';
+    return $size <= 0 && $ticks >= MEL_TS_PRE_TICKS ? 'no preload' : '';
 }
 
 /**
@@ -888,24 +942,53 @@ function mel_ts_int($j, $k)
     return is_array($j) && isset($j[$k]) && is_int($j[$k]) ? $j[$k] : 0;
 }
 
+// A size in bytes of a TorrentStatus (quoted over 2 GB, mel_ts_decode): none, not a number -> 0.
+/**
+ * @param array<mixed>|null $j
+ * @param string $k
+ * @return float
+ */
+function mel_ts_bytes($j, $k)
+{
+    $v = is_array($j) && isset($j[$k]) ? $j[$k] : null;
+    return is_int($v) || (is_string($v) && ctype_digit($v)) ? max(0.0, (float) $v) : 0.0;
+}
+
+// The target of a preload in bytes: MEL_TS_BUF, a smaller preload_size of TorrentStatus $j.
+/**
+ * @param array<mixed>|null $j
+ * @return float
+ */
+function mel_ts_buf_need($j)
+{
+    $size = mel_ts_bytes($j, 'preload_size');
+    return $size > 0 && $size < MEL_TS_BUF ? $size : (float) MEL_TS_BUF;
+}
+
 // Controls of the waiting dialog (0.45.0): the release; the status in words
-// (none: "waiting for the file list"), seconds, peers, connected seeders;
-// the download speed (mel_speed_str), always: the window keeps its height; "Cancel".
+// (none: "waiting for the file list"; $buf, the preload: the MB of its target),
+// seconds, peers, connected seeders; the download speed (mel_speed_str), always:
+// the window keeps its height; with $buf the bit rate of the row, if known; "Cancel".
 /**
  * @param MelState $st
  * @param MelRow $r
  * @param int $sec
  * @param array<mixed>|null $j
  * @param bool $lazy
+ * @param bool $buf
  * @return list<array<string, mixed>>
  */
-function mel_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
+function mel_ts_wait_defs($st, $r, $sec, $j, $lazy = false, $buf = false)
 {
     $lang = $st['lang'];
     $stat = mel_one_line(mel_str($j, 'stat_string'));
     $keys = mel_ts_stats();
     $low = strtolower($stat);
     $status = $stat === '' ? mel_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? mel_tr($lang, $keys[$low]) : mel_cut($stat, 30));
+    $need = $buf ? mel_ts_buf_need($j) : 0.0;
+    if ($buf)
+        $status = str_replace(array('{got}', '{need}'), array(strval(intval(floor(min(mel_ts_bytes($j, 'preloaded_bytes'), $need) / 1048576))),
+            strval(intval(ceil($need / 1048576)))), mel_tr($lang, 'ts_wait_buf'));
     $defs = array();
     foreach (mel_dialog_lines($r['label']) as $l)
         $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l));
@@ -914,15 +997,18 @@ function mel_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
     $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{peers}', '{all}', '{seeds}'),
         array(mel_ts_int($j, 'active_peers'), mel_ts_int($j, 'total_peers'), mel_ts_int($j, 'connected_seeders')),
         mel_tr($lang, 'ts_wait_peers'))));
-    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace('{speed}',
-        mel_speed_str(is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null, $lang), mel_tr($lang, 'ts_wait_speed'))));
+    $rate = $buf && $r['rate'] > 0;
+    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{speed}', '{rate}'),
+        array(mel_speed_str(is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null, $lang),
+        $rate ? mel_gc_rate($r['rate'], false, $lang) : ''), mel_tr($lang, $rate ? 'ts_wait_speed_need' : 'ts_wait_speed'))));
     $defs[] = mel_ctl('cancel', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => mel_tr($lang, 'ts_cancel'),
         GuiButtonDef::width => 300, GuiButtonDef::push_action => mel_input($lazy ? 'next_stop' : 'ts_cancel')));
     return $defs;
 }
 
-// Timer of the waiting dialog: "get" of the torrent; its files -> playback;
-// still none -> the timer again, the text redrawn; gone or too long -> error.
+// Timer of the waiting dialog: "get" of the torrent; its files -> playback, from 0 the preload of the
+// file first (mel_ts_preload), then playback when it is done (mel_ts_buf_done) or the time is out;
+// still none -> the timer again, the text redrawn; gone or too long with no files -> error.
 /**
  * @param stdClass $in
  * @return MelAction
@@ -931,7 +1017,8 @@ function mel_ts_tick($in)
 {
     $p = array();
     foreach (array('rid' => '/^[0-9a-f]{12}$/D', 'i' => '/^[0-9]{1,3}$/D', 'pos' => '/^[0-9]{1,7}$/D',
-        'f' => '/^([0-9a-f]{12})?$/D', 'l' => '/^[012]$/D', 't' => '/^[0-9]{1,12}$/D', 'n' => '/^[0-9]{1,4}$/D') as $k => $re)
+        'f' => '/^([0-9a-f]{12})?$/D', 'l' => '/^[012]$/D', 't' => '/^[0-9]{1,12}$/D', 'n' => '/^[0-9]{1,4}$/D',
+        'b' => '/^([0-9]{1,4})?$/D') as $k => $re)
     {
         if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
         {
@@ -963,15 +1050,31 @@ function mel_ts_tick($in)
         $err !== '' ? $err : "HTTP $code", is_array($j) && isset($j['stat']) ? json_encode($j['stat']) : '-',
         is_array($j) && isset($j['active_peers']) ? json_encode($j['active_peers']) : '-',
         is_array($j) && isset($j['total_peers']) ? json_encode($j['total_peers']) : '-',
-        is_array($j) && isset($j['connected_seeders']) ? json_encode($j['connected_seeders']) : '-', count($files)));
-    if ($files)
+        is_array($j) && isset($j['connected_seeders']) ? json_encode($j['connected_seeders']) : '-', count($files)) .
+        ($p['b'] !== '' ? sprintf(', preloaded %.0f of %.0f', mel_ts_bytes($j, 'preloaded_bytes'), mel_ts_bytes($j, 'preload_size')) : ''));
+    $out = $sec >= MEL_TS_WAIT || intval($p['n']) >= MEL_TS_TICKS;
+    $play = '';
+    if ($files && $p['b'] === '')
+    {
+        if (intval($p['pos']) > 0 || $out || !mel_ts_preload($st, $i, $files))
+            $play = 'the files';
+        else
+            $p['b'] = $p['n'];
+    }
+    else if ($files)
+        $play = $out ? 'the time out' : mel_ts_buf_done($j, intval($p['n']) - intval($p['b']));
+    if ($play !== '')
+    {
+        if ($p['b'] !== '')
+            mel_log("ts: -> the player: $play");
         return mel_close_and(mel_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1', $p['l'] === '2'));
+    }
     if ($err === '' && $code === 401)
         return mel_close_and(mel_ts_fail($lang, mel_ts_auth_err(), '', $p['l'] === '1'));
     // 404: TorrServer has it neither in memory nor in its DB (closed).
     if ($err === '' && $code === 404)
         return mel_close_and(mel_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));
-    if ($sec >= MEL_TS_WAIT || intval($p['n']) >= MEL_TS_TICKS)
+    if ($out)
         return mel_close_and(mel_ts_fail($lang, 'ts_err_timeout', $err !== '' ? $err : '', $p['l'] === '1'));
     return array(
         GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
@@ -981,7 +1084,7 @@ function mel_ts_tick($in)
             ChangeBehaviourActionData::post_action => array(
                 GuiAction::handler_string_id => RESET_CONTROLS_ACTION_ID,
                 GuiAction::data => array(
-                    ResetControlsActionData::defs => mel_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1'),
+                    ResetControlsActionData::defs => mel_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1', $p['b'] !== ''),
                     ResetControlsActionData::initial_sel_ndx => -1,
                     ResetControlsActionData::post_action => null))));
 }
@@ -1028,11 +1131,37 @@ function mel_ts_pack_state($key, $s, $e, $hash)
     return $st;
 }
 
-// The file of the row among $files -> vod_play (the files of its map as ready
+// The file of row $i of $st among $files -> array(key of $files or -1, why, the map of a state of
+// mel_ts_pack_state or null). That state: the file of its map; else the file by mel_ts_pick.
+/**
+ * @param MelState $st
+ * @param int $i
+ * @param list<MelTsFile> $files
+ * @return array{int, string, array<int, array<int, int>>|null}
+ */
+function mel_ts_file($st, $i, $files)
+{
+    $map = isset($st['pack_map']) ? $st['pack_map'] : null;
+    if ($map !== null)
+    {
+        $k = -1;
+        foreach ($files as $n => $f)
+        {
+            if ($f['id'] === $map[$st['s']][$st['e']])
+                $k = $n;
+        }
+        return array($k, $k >= 0 ? 'the map' : 'no file of the map', $map);
+    }
+    list($k, $by) = mel_ts_pick($files, $st['rows'][$i], $st['s'], $st['e'], count($st['movie']['seasons']) === 1,
+        mel_cin_n($st['movie']['cin'], $st['s'], $st['e']));
+    return array($k, $by, null);
+}
+
+// The file of the row among $files (mel_ts_file) -> vod_play (the files of its map as ready
 // URLs, mel_ts_map_start), or the dialog "no video" ($lazy: "not in this release"
 // of a lazy episode; $miss_list: the list, as mel_ts_open). A state of
 // mel_ts_pack_state: the file and the playlist of its map, the map stays; else
-// the file by mel_ts_pick, a new map.
+// a new map.
 /**
  * @param MelState $st
  * @param int $i
@@ -1046,20 +1175,7 @@ function mel_ts_pack_state($key, $s, $e, $hash)
 function mel_ts_play($st, $i, $files, $pos, $from, $lazy = false, $miss_list = false)
 {
     $r = $st['rows'][$i];
-    $map = isset($st['pack_map']) ? $st['pack_map'] : null;
-    if ($map !== null)
-    {
-        $k = -1;
-        foreach ($files as $n => $f)
-        {
-            if ($f['id'] === $map[$st['s']][$st['e']])
-                $k = $n;
-        }
-        $by = $k >= 0 ? 'the map' : 'no file of the map';
-    }
-    else
-        list($k, $by) = mel_ts_pick($files, $r, $st['s'], $st['e'], count($st['movie']['seasons']) === 1,
-            mel_cin_n($st['movie']['cin'], $st['s'], $st['e']));
+    list($k, $by, $map) = mel_ts_file($st, $i, $files);
     if ($k < 0)
     {
         mel_log("ts: {$by}, " . count($files) . ' files');
