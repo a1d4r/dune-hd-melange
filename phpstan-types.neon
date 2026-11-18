@@ -30,7 +30,7 @@ parameters:
         # A reply of the Transmission RPC (mel_trm_call, net.php).
         MelTrmReply: 'array{code: int, body: string, err: string, errno: int, sid: bool}'
         # A reply of Lampac (mel_lp_get, net.php).
-        MelLpReply: 'array{code: int, body: string, err: string, errno: int, hit: bool}'
+        MelLpReply: 'array{code: int, body: string, err: string, errno: int, hit: bool, loc: string}'
         # The parameters of a title for Lampac (mel_lp_title, lampac.php).
         MelLpTitle: 'array{id: string, imdb_id: string, kinopoisk_id: string, title: string, original_title: string, serial: string, year: string, original_language: string, source: string}'
         # The ids of a card kept for the search of Lampac (MelLpv::$ids, mel_lpv_ids_put, online_play.php): keys of mel_lp_title.

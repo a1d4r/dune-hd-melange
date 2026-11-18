@@ -48,6 +48,8 @@ define('MEL_LP_REPLY_MAX', 3);
 define('MEL_LP_TICK_MAX', 3);
 // A balancer is not asked with less time left than this (s).
 define('MEL_LP_REPLY_MIN', 1);
+// Redirects of a request followed at most (mel_lp_ask).
+define('MEL_LP_HOPS', 3);
 // Seconds of "call" (Chromium balancers are slow), by default; the pause before its one repeat (us).
 define('MEL_LP_CALL_MAX', 20);
 define('MEL_LP_CALL_PAUSE', 1000000);
@@ -191,7 +193,31 @@ function mel_lp_send($url, $base)
     return array(mel_lp_url($url, mel_lp_query($q)), $a['lampa'] ? MEL_LP_UA : '');
 }
 
-// mel_lp_get of link $url of Lampac $base as mel_lp_send makes it.
+// The link redirect $r (a reply of link $url) goes to when it is to follow: 301, 302, 303, 307 or 308 with a Location
+// of a path ("/lite/...") or a link of the scheme, host and port of $url; '' for none (another host: the reply stays,
+// its reason http). Lampac 1.90.1: a balancer of the one title it found sends to its own link of that title (AniLiberty,
+// Animevost, Dreamerscast and other anime ones; Kodik of no title by the ids to its search by the name), ZetflixDB to
+// /lite/videodb; the link keeps rjson, token and uid. Lampa follows them (XHR).
+/**
+ * @param string $url
+ * @param MelLpReply $r
+ * @return string
+ */
+function mel_lp_redirect($url, $r)
+{
+    $loc = $r['loc'];
+    if ($r['err'] !== '' || !in_array($r['code'], array(301, 302, 303, 307, 308), true) || $loc === '' ||
+        strlen($loc) > MEL_LP_LINK_MAX || !preg_match('~^(https?)://[^/?#]+~i', $url, $m))
+        return '';
+    if (preg_match('~^/(?!/)~', $loc))
+        $loc = $m[0] . $loc;
+    $to = mel_lp_link1($loc);
+    return $to !== '' && stripos($to, $m[1] . '://') === 0 && mel_lp_hostport($to) === mel_lp_hostport($url) ? $to : '';
+}
+
+// mel_lp_get of link $url of Lampac $base as mel_lp_send makes it; its redirects to Lampac (mel_lp_redirect) followed,
+// MEL_LP_HOPS at most, each in the time of the $total s left: the reply of the last link (a redirect not followed - as
+// it is).
 /**
  * @param string $base
  * @param string $url
@@ -202,12 +228,23 @@ function mel_lp_send($url, $base)
  */
 function mel_lp_ask($base, $url, $connect, $total, $max)
 {
-    list($u, $ua) = mel_lp_send($url, $base);
-    return mel_lp_get($u, $connect, $total, $max, $ua);
+    $t0 = mel_lp_now();
+    for ($hop = 0; ; $hop++)
+    {
+        $left = $hop > 0 ? (int) floor($total - (mel_lp_now() - $t0)) : $total;
+        list($u, $ua) = mel_lp_send($url, $base);
+        $r = mel_lp_get($u, $hop > 0 ? min($connect, $left) : $connect, $left, $max, $ua);
+        $to = $hop < MEL_LP_HOPS ? mel_lp_redirect($url, $r) : '';
+        if ($to === '' || $total - (mel_lp_now() - $t0) < MEL_LP_REPLY_MIN)
+            return $r;
+        mel_lp_log_hop($r, $to, $base);
+        $url = $to;
+    }
 }
 
-// mel_lp_get_many of links $urls (key => link) of Lampac $base as mel_lp_send makes them, each as mel_lp_ask. ->
-// key => array(the reply, s it took); null: no curl_multi ($why: mel_net_multi).
+// mel_lp_get_many of links $urls (key => link) of Lampac $base as mel_lp_send makes them, each as mel_lp_ask: the
+// redirects to follow asked at once again, in the time of the $total s left. -> key => array(the reply, s from the
+// start it took); null: no curl_multi ($why: mel_net_multi; it failing at a redirect: the replies so far, as they are).
 /**
  * @param string $base
  * @param array<int, string> $urls
@@ -219,13 +256,49 @@ function mel_lp_ask($base, $url, $connect, $total, $max)
  */
 function mel_lp_ask_many($base, $urls, $connect, $total, $max, &$why)
 {
-    $reqs = array();
-    foreach ($urls as $k => $url)
+    $t0 = mel_lp_now();
+    $out = array();
+    $ask = $urls;
+    for ($hop = 0; $ask; $hop++)
     {
-        list($u, $ua) = mel_lp_send($url, $base);
-        $reqs[$k] = array($u, $connect, $total, $max, $ua);
+        $t1 = mel_lp_now() - $t0;
+        $left = $hop > 0 ? (int) floor($total - $t1) : $total;
+        $reqs = array();
+        foreach ($ask as $k => $url)
+        {
+            list($u, $ua) = mel_lp_send($url, $base);
+            $reqs[$k] = array($u, $hop > 0 ? min($connect, $left) : $connect, $left, $max, $ua);
+        }
+        $got = mel_lp_get_many($reqs, $why);
+        if ($got === null)
+            return $hop > 0 ? $out : null;
+        $next = array();
+        $late = $total - (mel_lp_now() - $t0) < MEL_LP_REPLY_MIN;
+        foreach ($got as $k => $x)
+        {
+            $out[$k] = array($x[0], $t1 + $x[1]);
+            $to = $hop < MEL_LP_HOPS && !$late ? mel_lp_redirect($ask[$k], $x[0]) : '';
+            if ($to !== '')
+            {
+                mel_lp_log_hop($x[0], $to, $base);
+                $next[$k] = $to;
+            }
+        }
+        $ask = $next;
     }
-    return mel_lp_get_many($reqs, $why);
+    return $out;
+}
+
+// The log of redirect $r followed to link $to: its code and the path of the link (no query: the title, the tokens).
+/**
+ * @param MelLpReply $r
+ * @param string $to
+ * @param string $base
+ * @return void
+ */
+function mel_lp_log_hop($r, $to, $base)
+{
+    mel_lp_log("redirect {$r['code']}: " . (string) parse_url($to, PHP_URL_PATH), $base);
 }
 
 // --- The log.

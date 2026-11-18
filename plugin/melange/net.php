@@ -310,8 +310,8 @@ function mel_net_multi_off($bad, &$why)
 define('MEL_LP_TOO_BIG', 'reply over the size limit');
 
 // The body of a GET (mel_http_get, mel_http_get_many of main.php; mel_lp_get, mel_lp_get_many): its WRITEFUNCTION,
-// $max bytes at most (0: no limit); hit - the reply came with "X-Invoke-Cache: HIT" (its HEADERFUNCTION, of Lampac
-// only). Its own object a request: inside curl_multi the callback of r25 gets another handle as its first argument
+// $max bytes at most (0: no limit); hit - the reply came with "X-Invoke-Cache: HIT", loc - its Location ('' none; its
+// HEADERFUNCTION, of Lampac only: lampac.php follows its own redirects). Its own object a request: inside curl_multi the callback of r25 gets another handle as its first argument
 // (multi.c of its libphp5 built for another php_curl), so the handle there is never used.
 class MelHttpSink
 {
@@ -321,6 +321,8 @@ class MelHttpSink
     public $over = false;
     /** @var bool */
     public $hit = false;
+    /** @var string */
+    public $loc = '';
     /** @var int */
     public $max = 0;
 
@@ -359,15 +361,17 @@ class MelHttpSink
     {
         // A status line starts a response (also after "100 Continue").
         if (preg_match('~^HTTP/\S+\s+[0-9]{3}~', $line))
-            $this->hit = false;
+            list($this->hit, $this->loc) = array(false, '');
         else if (preg_match('/^X-Invoke-Cache:[ \t]*HIT[ \t\r\n]*$/i', $line))
             $this->hit = true;
+        else if (preg_match('/^Location:[ \t]*(\S*)[ \t\r\n]*$/i', $line, $m))
+            $this->loc = $m[1];
         return strlen($line);
     }
 }
 
 // The options of a GET of Lampac (mel_lp_get) with its body to $sink: http and https, no redirects (an address of the
-// page: its /version without type sends to another site), gzip. $ua: the User-Agent ('' that of Melange; mel_lp_send).
+// page: its /version without type sends to another site; those to Lampac itself mel_lp_ask of lampac.php follows), gzip. $ua: the User-Agent ('' that of Melange; mel_lp_send).
 /**
  * @param int $connect
  * @param int $total
@@ -405,7 +409,7 @@ function mel_lp_reply_of($code, $errno, $fail, $sink)
 {
     $err = $sink->over ? MEL_LP_TOO_BIG : $fail;
     return array('code' => $code, 'body' => $err !== '' ? '' : $sink->body, 'err' => $err,
-        'errno' => $sink->over ? 0 : $errno, 'hit' => $sink->hit);
+        'errno' => $sink->over ? 0 : $errno, 'hit' => $sink->hit, 'loc' => $sink->loc);
 }
 
 // Tests define their own mel_lp_get().
@@ -415,7 +419,7 @@ if (!function_exists('mel_lp_get'))
     // the body ('' on a transport error or over $max bytes), err: the
     // transport error ('' none; MEL_LP_TOO_BIG over $max), errno: curl errno
     // (0 none, -1 its options refused), hit: the reply came with
-    // "X-Invoke-Cache: HIT" (Lampac keeps errors too: no point asking again)).
+    // "X-Invoke-Cache: HIT" (Lampac keeps errors too: no point asking again), loc: its Location header ('' none)).
     // As mel_lp_opts. No log here: the address and the tokens of a link never
     // go there. The plugin and the check of the settings page. $ua: the
     // User-Agent ('' that of Melange; mel_lp_send).
@@ -434,7 +438,8 @@ if (!function_exists('mel_lp_get'))
         if (!curl_setopt_array($ch, mel_lp_opts($connect, $total, $ua, $sink)))
         {
             curl_close($ch);
-            return array('code' => 0, 'body' => '', 'err' => 'curl options refused', 'errno' => -1, 'hit' => false);
+            return array('code' => 0, 'body' => '', 'err' => 'curl options refused', 'errno' => -1, 'hit' => false,
+                'loc' => '');
         }
         $ok = curl_exec($ch);
         $errno = curl_errno($ch);
