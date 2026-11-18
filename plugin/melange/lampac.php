@@ -742,7 +742,7 @@ function mel_lp_events_why($r, $j)
 // Lampac $base: events in the life mode (Lampac asks the balancers itself,
 // its answers come by mel_lp_search_step). -> the state of the search
 // (MelLpSearch), kept by the caller between the ticks and given to the next
-// step: base, q (the query of the title), mode (life: /lifeevents next; plain:
+// step: base, q (the query of the title; its title the one of Lampac when events gives one), mode (life: /lifeevents next; plain:
 // one events without life next, Lampac has no life mode; done), memkey, seen
 // (items of /lifeevents had), t0 (its start, mel_lp_now), sources (by index;
 // MelLpSource: name, label, q, url, path (mel_lp_path of url), index, pos), gone (items hidden:
@@ -770,7 +770,16 @@ function mel_lp_search_start($base, $p)
     if ($j !== null && isset($j['memkey']) && is_string($j['memkey']) && preg_match('/^[A-Za-z0-9_\-]{1,200}\z/', $j['memkey']))
     {
         $st['memkey'] = $j['memkey'];
-        mel_lp_log(sprintf('events: life, %.2f s', mel_lp_now() - $st['t0']), $base);
+        // A title of ja, ko, zh or cn in hieroglyphs or hangul: Lampac 1.90.1 asks the balancers by its English name of
+        // TMDB and sends it back (fix_title; null none), Lampa asks them by it too (title of the card, online.js).
+        $fix = isset($j['title']) && is_string($j['title']) ? mel_lp_text($j['title']) : '';
+        if ($fix !== '' && $fix !== $p['title'])
+        {
+            $p['title'] = $fix;
+            $st['q'] = mel_lp_query($p);
+        }
+        mel_lp_log(sprintf('events: life%s, %.2f s', $fix !== '' ? ', the title of Lampac' : '', mel_lp_now() - $st['t0']),
+            $base);
         return $st;
     }
     // A list at once: a Lampac that does not know life answered without it.
