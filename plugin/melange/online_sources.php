@@ -357,7 +357,7 @@ function aio_lpv_srcs_apply($in, $st)
     // No row left (the sources of the rows off, those on gave none): the yellow line how to turn them on.
     if (!$ns['lp']['rows'] && !empty($ns['lp']['off']))
         $ns['lp']['note'] = aio_lpv_tr($st['lang'], 'lp_note_off', array('n' => count($ns['lp']['off'])));
-    $ns['lp']['gc'] = aio_lpv_put_at(aio_lpv_lines($ns['lp']), isset($map[$m[0]]) ? array($map[$m[0]], $m[1]) : array(0, false));
+    $ns['lp']['gc'] = aio_lpv_put_at($ns['lp'], aio_lpv_lines($ns['lp']), isset($map[$m[0]]) ? array($map[$m[0]], $m[1]) : array(0, false));
     $ns['lp']['gc_new'] = true;
     // The search over the rows of before: closed with no list (Cancel, no answer), this list of the new choice instead.
     if ($back)

@@ -339,7 +339,7 @@ function aio_lpv_result($run)
     // No row of a record nor "Ещё N": on the first line (by quality, aio_lpv_qsort, not the first row).
     if ($pin < 0 && $run['more'] < 0 && $L)
         $sel = $L[0]['i'];
-    $v['gc'] = aio_lpv_put($L, $sel);
+    $v['gc'] = aio_lpv_put($v, $L, $sel);
     $v['gc_new'] = true;
     $ns = $st;
     $ns['rid'] = aio_rid();

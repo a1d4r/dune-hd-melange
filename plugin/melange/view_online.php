@@ -324,7 +324,9 @@ function aio_lpv_qsort_flip($st)
         aio_log("lampac: balancers $tag not saved, till the plugin restarts");
     $ns = $st;
     $ns['rid'] = aio_rid();
-    $ns['lp']['gc'] = array(0, 0);
+    // The cursor on the first line, as after "Обновить" (aio_lpv_result).
+    $L = aio_lpv_lines($ns['lp']);
+    $ns['lp']['gc'] = $L ? aio_lpv_put($ns['lp'], $L, $L[0]['i']) : array(0, 0);
     $ns['lp']['gc_new'] = true;
     aio_log("lampac: balancers $tag");
     return aio_list_replace($ns);
@@ -416,10 +418,20 @@ function aio_lpv_flt_name($v, $lang, $w = 0)
 {
     if (!isset($v['flt']))
         return aio_tr($lang, 'lp_flt_any');
-    $name = strval(reset($v['flt']));
+    $name = aio_lpv_flt_first($v);
     if ($w > 0)
         $name = aio_gc_cut_w($name, AIO_GC_HINT_PX, $w);
     return count($v['flt']) > 1 ? aio_lpv_tr($lang, 'lp_flt_more', array('name' => $name, 'n' => count($v['flt']) - 1)) : $name;
+}
+
+// The first voice of the filter of view $v (aio_lpv_flt_name: the name of the filter), '' none.
+/**
+ * @param AioLpView $v
+ * @return string
+ */
+function aio_lpv_flt_first($v)
+{
+    return isset($v['flt']) ? strval(reset($v['flt'])) : '';
 }
 
 // Children of the tab of the filter (where the releases have their sort tabs): the red key (not on a remote the
@@ -463,14 +475,11 @@ function aio_lpv_flt_tab($v, $lang, $nw = 360)
  */
 function aio_lpv_fold_tab($word)
 {
+    $d = array();
     if ($word === '')
-        return array(array(), 0);
-    $x = AIO_GC_KEY_W + AIO_GC_KEY_GAP;
-    $w = aio_gc_w($word, AIO_GC_HINT_PX);
-    return array(array(
-        aio_gc_image(aio_gc_at(AIO_GC_KEY_W, AIO_GC_KEY_H, 0, 0), 'plugin_file://%shell_ext%/icons/green.png'),
-        aio_gc_cut(null, aio_gc_at($w, AIO_GC_LABEL_H, $x, (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $word, AIO_GC_HINT_PX,
-            AIO_GC_TEXT2)), $x + $w + AIO_GC_HINT_GAP);
+        return array($d, 0);
+    $w = aio_gc_hint($d, 0, 0, array('plugin_file://%shell_ext%/icons/green.png' => AIO_GC_KEY_W), $word);
+    return array($d, $w);
 }
 
 // Children of the tab of the order of the balancers (after the green one), as a sort tab of the releases with no direction:
@@ -531,7 +540,7 @@ function aio_lpv_tabs($st, $L)
     $over = $fw + $gw + $qw - $room;
     // From the name as wide as it is (360 at most, aio_lpv_flt_tab), not from 360; again while the cut text is wider than
     // the sum of its parts (aio_gc_w rounds each one).
-    $nw = isset($v['flt']) ? min(360, aio_gc_w(strval(reset($v['flt'])), AIO_GC_HINT_PX)) : 80;
+    $nw = isset($v['flt']) ? min(360, aio_gc_w(aio_lpv_flt_first($v), AIO_GC_HINT_PX)) : 80;
     while ($over > 0 && $ft && $nw > 80)
     {
         $nw = max(80, $nw - $over);
@@ -597,17 +606,20 @@ function aio_lpv_lines($v)
     return $out;
 }
 
-// The line of lines $L of row $i: its line (of a balancer folded: that one), else the line of the first row after it in the
-// list (or "Ещё N"), else the last. Of the lines but the heads: A the one of the least row $i or after, P the one of the
-// greatest row before $i; A of row $i, else P of a balancer folded (its row then), else A; no A - the last. Not by the order
-// of the lines: by quality (aio_lpv_qsort) a balancer later in the list comes first.
+// The line of lines $L of view $v of row $i: its line (of a balancer folded: that one), else the line of the first row after
+// it in the list (or "Ещё N"), else the last. Of the lines but the heads: A the one of the least row $i or after, P the one
+// of the greatest row before $i of the path of row $i; A of row $i, else P of a balancer folded (its row then), else A; no
+// A - the last. Not by the order of the lines: by quality (aio_lpv_qsort) a balancer later in the list comes first, and
+// the runs of one path apart in the rows are one balancer.
 /**
+ * @param AioLpView $v
  * @param list<AioLpLine> $L
  * @param int $i
  * @return int
  */
-function aio_lpv_line_at($L, $i)
+function aio_lpv_line_at($v, $L, $i)
 {
+    $path = isset($v['rows'][$i]) ? $v['rows'][$i]['path'] : null;
     $a = -1;
     $p = -1;
     foreach ($L as $j => $l)
@@ -616,7 +628,7 @@ function aio_lpv_line_at($L, $i)
             continue;
         if ($l['i'] >= $i && ($a < 0 || $l['i'] < $L[$a]['i']))
             $a = $j;
-        if ($l['i'] < $i && ($p < 0 || $l['i'] > $L[$p]['i']))
+        if ($l['i'] < $i && $l['k'] !== 'more' && $v['rows'][$l['i']]['path'] === $path && ($p < 0 || $l['i'] > $L[$p]['i']))
             $p = $j;
     }
     if ($a >= 0 && $L[$a]['i'] === $i)
@@ -676,16 +688,17 @@ function aio_lpv_mark($L, $j)
     return isset($L[$j]) ? array($L[$j]['i'], aio_lpv_is_bal($L, $j)) : array(0, false);
 }
 
-// The cursor of lines $L put on place $m (aio_lpv_mark): of a line of a balancer the line of the balancer of its row, else
-// its row (aio_lpv_put).
+// The cursor of lines $L of view $v put on place $m (aio_lpv_mark): of a line of a balancer the line of the balancer of its
+// row, else its row (aio_lpv_put).
 /**
+ * @param AioLpView $v
  * @param list<AioLpLine> $L
  * @param array{int, bool} $m
  * @return array{int, int}
  */
-function aio_lpv_put_at($L, $m)
+function aio_lpv_put_at($v, $L, $m)
 {
-    $j = max(0, aio_lpv_line_at($L, $m[0]));
+    $j = max(0, aio_lpv_line_at($v, $L, $m[0]));
     return aio_lpv_put_line($L, $m[1] ? aio_lpv_bal_of($L, $j) : $j);
 }
 
@@ -719,16 +732,17 @@ function aio_lpv_step($L, $sel, $top, $key)
     return aio_lpv_fix($L, $nsel, $ntop);
 }
 
-// The cursor of lines $L put on row $i (aio_lpv_line_at) in the middle of the screen, as far as the
+// The cursor of lines $L of view $v put on row $i (aio_lpv_line_at) in the middle of the screen, as far as the
 // list allows. -> array(sel, top).
 /**
+ * @param AioLpView $v
  * @param list<AioLpLine> $L
  * @param int $i
  * @return array{int, int}
  */
-function aio_lpv_put($L, $i)
+function aio_lpv_put($v, $L, $i)
 {
-    return aio_lpv_put_line($L, max(0, aio_lpv_line_at($L, $i)));
+    return aio_lpv_put_line($L, max(0, aio_lpv_line_at($v, $L, $i)));
 }
 
 // The cursor of lines $L put on line $j in the middle of the screen, as far as the list allows. -> array(sel, top).
@@ -828,7 +842,7 @@ function aio_lpv_fold($st, $sel, $top)
     else
         unset($ns['lp']['open'][$path]);
     $nl = aio_lpv_lines($ns['lp']);
-    $j = aio_lpv_bal_of($nl, max(0, aio_lpv_line_at($nl, $i)));
+    $j = aio_lpv_bal_of($nl, max(0, aio_lpv_line_at($ns['lp'], $nl, $i)));
     $ns['lp']['gc'] = aio_lpv_fix($nl, $open && isset($nl[$j + 1]) ? $j + 1 : $j, $top);
     $ns['lp']['gc_new'] = true;
     aio_log("lampac: balancer $path " . ($open ? 'unfolded' : 'folded') . ", {$L[$sel]['n']} rows");
@@ -859,7 +873,7 @@ function aio_lpv_fold_all($st, $sel)
     if ($f === 'shut')
         $ns['lp']['open'] = aio_lpv_open_all($st['lp']);
     $nl = aio_lpv_lines($ns['lp']);
-    $ns['lp']['gc'] = aio_lpv_put_at($nl, $m);
+    $ns['lp']['gc'] = aio_lpv_put_at($ns['lp'], $nl, $m);
     $ns['lp']['gc_new'] = true;
     aio_log('lampac: all balancers ' . ($f === 'shut' ? 'unfolded' : 'folded'));
     return aio_list_replace($ns);
@@ -1459,7 +1473,7 @@ function aio_lpv_ep_state($st, $s, $e)
         // Other lines: the cursor on its row (on the line of a balancer: of it).
         $L = aio_lpv_lines($st['lp']);
         $nl = aio_lpv_lines($ns['lp']);
-        $ns['lp']['gc'] = $nl === $L ? $st['lp']['gc'] : aio_lpv_put_at($nl, aio_lpv_mark($L, $st['lp']['gc'][0]));
+        $ns['lp']['gc'] = $nl === $L ? $st['lp']['gc'] : aio_lpv_put_at($ns['lp'], $nl, aio_lpv_mark($L, $st['lp']['gc'][0]));
         $ns['lp']['gc_new'] = true;
     }
     return $ns;

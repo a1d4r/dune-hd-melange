@@ -166,13 +166,13 @@ function aio_lpv_flt_set($st, $set)
     // On the line of a balancer: on its line (the line of its rows shown) when one of them is shown.
     if ($m[1])
     {
-        $j = aio_lpv_bal_of($L, max(0, aio_lpv_line_at($L, $m[0])));
+        $j = aio_lpv_bal_of($L, max(0, aio_lpv_line_at($ns['lp'], $L, $m[0])));
         $ok = aio_lpv_row_of($L, $j) >= 0 || aio_lpv_is_bal($L, $j);
         if (!$ok || $ns['lp']['rows'][$L[$j]['i']]['path'] !== $st['lp']['rows'][$m[0]]['path'])
             $j = -1;
     }
     else if (in_array($m[0], aio_lpv_shown($ns['lp']), true))
-        $j = aio_lpv_line_at($L, $m[0]);
+        $j = aio_lpv_line_at($ns['lp'], $L, $m[0]);
     $ns['lp']['gc'] = aio_lpv_put_line($L, max(0, $j));
     $ns['lp']['gc_new'] = true;
     aio_log('lampac: filter ' . ($set ? implode(', ', array_keys($set)) : 'off') . ', ' . count(aio_lpv_shown($ns['lp'])) .
