@@ -621,7 +621,7 @@ function mel_cat_kp($kp, $votes)
 // logo, logoLang: of our patch too, the logo of the title in place of its name (the card background of
 // the server, mel_catv_card, sizes it): kept only of "ru", its address https, the plain characters of
 // a path, ending in a file of TMDB, PNG or SVG (the server takes an SVG as its PNG of TMDB); else none
-// ('', ''): another language, null, not of TMDB.
+// ('', ''): another language, null, not of TMDB. originalLanguage: mel_cat_lang.
 // Run again on what the cache holds (age, cast: its own keys; a copy of before them: '' and
 // none): the same result.
 /**
@@ -686,7 +686,27 @@ function mel_cat_tile($m, $row_type)
         'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast,
         'englishTitle' => mel_cut(mel_one_line(mel_str($m, 'englishTitle')), MEL_CAT_NAME_MAX),
         'kpRating' => $kp, 'kpVotes' => $votes, 'kpId' => preg_match('/^[1-9][0-9]{0,9}$/D', $kp_id) ? $kp_id : '',
-        'logo' => $ru ? $logo : '', 'logoLang' => $ru ? 'ru' : '');
+        'logo' => $ru ? $logo : '', 'logoLang' => $ru ? 'ru' : '', 'originalLanguage' => mel_cat_lang($m));
+}
+
+// The original language of tile $m: two letters as TMDB gives it ("ja"), '' none. _providerArt.originalLanguage of
+// AIOMetadata, else originalLanguage (a copy of the cache, mel_cat_tile), else _originalLanguage (rows of anime: ISO
+// 639-2, "jpn"; of the three letters only the languages Lampac tells anime by, OnlineApi.cs).
+/**
+ * @param mixed $m
+ * @return string
+ */
+function mel_cat_lang($m)
+{
+    $l = strtolower(mel_str(mel_arr($m, '_providerArt'), 'originalLanguage'));
+    if ($l === '')
+        $l = strtolower(mel_str($m, 'originalLanguage'));
+    if ($l === '')
+        $l = strtolower(mel_str($m, '_originalLanguage'));
+    $three = array('jpn' => 'ja', 'chi' => 'zh', 'zho' => 'zh', 'kor' => 'ko', 'tha' => 'th', 'vie' => 'vi', 'tgl' => 'tl');
+    if (isset($three[$l]))
+        $l = $three[$l];
+    return preg_match('/^[a-z]{2}$/D', $l) ? $l : '';
 }
 
 // Items of a page -> the tiles among them; what is not a tile is dropped.

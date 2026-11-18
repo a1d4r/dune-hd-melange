@@ -28,9 +28,9 @@ class MelLpv
     // The search of the window on screen (mel_lpv_search_open), null none.
     /** @var MelLpRun|null */
     public static $run = null;
-    // The TMDB and KinoPoisk ids of the cards of play_action (movie_str: tmdb_id or tmdbtv_id, kp_id) by
-    // dune id or IMDb: their search needs no /externalids. Memory only.
-    /** @var array<string, array{string, string}> */
+    // The TMDB and KinoPoisk ids and the original language of the cards of play_action (movie_str: tmdb_id or
+    // tmdbtv_id, kp_id, original_language) by dune id or IMDb: their search needs no /externalids. Memory only.
+    /** @var array<string, array{string, string, string}> */
     public static $ids = array();
     // The season of the last start of an episode (online_play.php): the dune id of its card (a key of
     // a voice is the same for two series), its key (mel_lp_season_key), s, the row of the voice, the
@@ -84,9 +84,9 @@ function mel_lpv_key($mv)
 function mel_lpv_title($mv)
 {
     $k = mel_lpv_key($mv);
-    $ids = isset(MelLpv::$ids[$k]) ? MelLpv::$ids[$k] : array('', '');
+    $ids = isset(MelLpv::$ids[$k]) ? MelLpv::$ids[$k] : array('', '', '');
     return mel_lp_title(array('tmdb' => $ids[0], 'imdb' => $mv['imdb'], 'kp' => $ids[1], 'title' => $mv['title'],
-        'original_title' => $mv['native'], 'year' => $mv['year'], 'serial' => $mv['series']));
+        'original_title' => $mv['native'], 'year' => $mv['year'], 'serial' => $mv['series'], 'original_language' => $ids[2]));
 }
 
 // --- Words.

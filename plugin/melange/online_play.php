@@ -35,8 +35,9 @@ function mel_lp_uid()
 }
 
 // The ids of movie_str of play_action $in kept for card $mv (MelLpv::$ids): of a series tmdbtv_id, else tmdb_id (the
-// Dune gives a series tmdbtv_id, its tmdb_id and kp_id often empty). An empty one keeps the id kept before (the native
-// card gave a KP, the own card of the same dune id has none).
+// Dune gives a series tmdbtv_id, its tmdb_id and kp_id often empty), kp_id, original_language (of Melange only,
+// mel_lpv_tile_ids: the movie_str of the Dune has none). An empty one keeps the one kept before (the native card gave a
+// KP, the own card of the same dune id has none; the own card gave the language, the native card has none).
 /**
  * @param stdClass $in
  * @param MelMovie $mv
@@ -49,16 +50,19 @@ function mel_lpv_ids_keep($in, $mv)
     if ($tmdb === '')
         $tmdb = mel_str($m, 'tmdb_id');
     $kp = mel_str($m, 'kp_id');
+    $lang = mel_str($m, 'original_language');
     $k = mel_lpv_key($mv);
-    $was = isset(MelLpv::$ids[$k]) ? MelLpv::$ids[$k] : array('', '');
-    if ($tmdb !== '' || $kp !== '')
-        MelLpv::$ids[$k] = array($tmdb !== '' ? $tmdb : $was[0], $kp !== '' ? $kp : $was[1]);
+    $was = isset(MelLpv::$ids[$k]) ? MelLpv::$ids[$k] : array('', '', '');
+    if ($tmdb !== '' || $kp !== '' || $lang !== '')
+        MelLpv::$ids[$k] = array($tmdb !== '' ? $tmdb : $was[0], $kp !== '' ? $kp : $was[1],
+            $lang !== '' ? $lang : $was[2]);
 }
 
 // The ids of tile $t for movie_str of a play_action of Melange itself (mel_card_releases, mel_oc_watch; read by
 // mel_lpv_ids_keep): the TMDB id of the tile, else of the tile of its meta $meta (in hand, no request), as tmdbtv_id of a
-// series, else tmdb_id; kp_id of Kinopoisk the same way. None empty. Lampac puts the quality into the name of a
-// balancer and show false only with a TMDB id: every way of Melange that makes movie_str for mel_play_action adds these.
+// series, else tmdb_id; kp_id of Kinopoisk and original_language (mel_cat_lang) the same way. None empty. Lampac puts
+// the quality into the name of a balancer and show false only with a TMDB id, and its balancers of anime only with
+// the language ja or zh: every way of Melange that makes movie_str for mel_play_action adds these.
 /**
  * @param MelCatTile $t
  * @param MelCardMeta|null $meta
@@ -69,15 +73,20 @@ function mel_lpv_tile_ids($t, $meta = null)
     $m = $meta && $meta['tile'] ? $meta['tile'] : null;
     $tmdb = mel_str($t, '_tmdbId');
     $kp = mel_str($t, 'kpId');
+    $lang = mel_str($t, 'originalLanguage');
     if ($tmdb === '')
         $tmdb = mel_str($m, '_tmdbId');
     if ($kp === '')
         $kp = mel_str($m, 'kpId');
+    if ($lang === '')
+        $lang = mel_str($m, 'originalLanguage');
     $out = array();
     if ($tmdb !== '')
         $out[mel_str($t, 'type') === 'series' ? 'tmdbtv_id' : 'tmdb_id'] = $tmdb;
     if ($kp !== '')
         $out['kp_id'] = $kp;
+    if ($lang !== '')
+        $out['original_language'] = $lang;
     return $out;
 }
 

@@ -8,7 +8,7 @@ parameters:
         # A row of the catalog (mel_cat_row, catalog.php); q: the query of a search (mel_cat_search_row), sid: its id (mel_catv_search_run).
         MelCatRow: 'array{key: string, type: string, id: string, name: string, genre: string, home: bool, group: string, q?: string, sid?: string}'
         # A tile of a row (mel_cat_tile, catalog.php).
-        MelCatTile: 'array{id: string, imdb_id: string, _tmdbId: string, type: string, name: string, year: string, imdbRating: string, description: string, genres: list<string>, poster: string, background: string, country: string, runtime: string, age: string, cast: list<string>, englishTitle: string, kpRating: string, kpVotes: int, kpId: string, logo: string, logoLang: string}'
+        MelCatTile: 'array{id: string, imdb_id: string, _tmdbId: string, type: string, name: string, year: string, imdbRating: string, description: string, genres: list<string>, poster: string, background: string, country: string, runtime: string, age: string, cast: list<string>, englishTitle: string, kpRating: string, kpVotes: int, kpId: string, logo: string, logoLang: string, originalLanguage: string}'
         # An entry of "Мой список" (mel_ml_clean, my_list.php): key - type:<IMDb | tmdb:<id>>; dune_id '' - not known; added - unix time.
         MelMlEntry: 'array{key: string, type: string, name: string, englishTitle: string, year: string, poster: string, background: string, imdb_id: string, _tmdbId: string, kpId: string, imdbRating: string, kpRating: string, kpVotes: int, dune_id: string, added: int}'
         # A movie of the Favorites of the Dune (mel_ml_fav_read, my_list.php).
