@@ -55,7 +55,7 @@ function aio_lpv_flt_edit($st)
         $ids[] = $id;
         if (isset($st['lp']['flt'][$x['k']]))
             $on[$id] = true;
-        $items[] = array(GuiItem::id => $id, GuiItem::caption => aio_lpv_flt_row($lang, $x['name'], $x['n']));
+        $items[] = array(GuiItem::id => $id, GuiItem::caption => aio_catv_lcfg_caption(aio_lpv_flt_row($lang, $x['name'], $x['n'])));
     }
     if (!aio_write_file(aio_lpv_flt_path(), aio_catv_lcfg_text($ids, $on, $ids), 0644))
     {

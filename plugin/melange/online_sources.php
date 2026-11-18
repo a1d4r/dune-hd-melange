@@ -208,7 +208,7 @@ function aio_lpv_srcs_edit($st)
         $ids[] = $c['path'];
         if ($c['on'])
             $on[$c['path']] = true;
-        $items[] = array(GuiItem::id => $c['path'], GuiItem::caption => $c['name']);
+        $items[] = array(GuiItem::id => $c['path'], GuiItem::caption => aio_catv_lcfg_caption($c['name']));
     }
     if (!aio_write_file(aio_lpv_srcs_path(), aio_catv_lcfg_text($ids, $on, $ids), 0644))
     {

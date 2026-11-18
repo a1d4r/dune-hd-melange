@@ -147,8 +147,25 @@ function aio_catv_lcfg_dialog($rows, $tab, $g, $lang)
     return $d;
 }
 
-// Shared with the window "Источники…" of the online list (aio_lpv_srcs_edit, aio_lpv_srcs_apply of online_sources.php):
-// aio_catv_lcfg_text, aio_catv_lcfg_read, aio_catv_lcfg_sorted, aio_catv_lcfg_load - not of the rows alone.
+// Shared with the window "Источники…" of the online list (aio_lpv_srcs_edit, aio_lpv_srcs_apply of online_sources.php)
+// and "Озвучка" (aio_lpv_flt_edit, aio_lpv_flt_apply of online_voices.php): aio_catv_lcfg_caption, aio_catv_lcfg_text,
+// aio_catv_lcfg_read, aio_catv_lcfg_sorted, aio_catv_lcfg_load - not of the rows alone.
+
+// The caption of an item of a dialog from $s. The shell puts it into JSON as is ({"type":"text","text":"%s"}, r24, r25):
+// a " or \ breaks it, the row empty. So " -> « and » in turn, \ -> /, control characters -> a space; not \" (a shell
+// that escapes it itself would show \").
+/**
+ * @param string $s
+ * @return string
+ */
+function aio_catv_lcfg_caption($s)
+{
+    $parts = explode('"', strtr(strval(preg_replace('/[\x00-\x1F\x7F]/', ' ', $s)), '\\', '/'));
+    $out = array_shift($parts);
+    foreach ($parts as $i => $p)
+        $out .= ($i % 2 ? '»' : '«') . $p;
+    return $out;
+}
 
 // The text of the file of a dialog over its items $ids, those chosen $on (id => true), the order
 // shown $order: the state of every item, then the order.
@@ -474,7 +491,7 @@ function aio_catv_rows_edit($from, $sel, $g)
     }
     $items = array();
     foreach ($d['ids'] as $id)
-        $items[] = array(GuiItem::id => $id, GuiItem::caption => $d['captions'][$id]);
+        $items[] = array(GuiItem::id => $id, GuiItem::caption => aio_catv_lcfg_caption($d['captions'][$id]));
     $sel = isset($d['item'][$sel]) ? $d['item'][$sel] : '';
     $checked = array_keys(array_filter($d['checked']));
     $data = array(
