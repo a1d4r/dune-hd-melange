@@ -25,8 +25,12 @@ define('MEL_K_C_SHADE_MARK', '#B0000000');
 define('MEL_K_C_SHADE_STICKER', '#E6000000');
 define('MEL_K_C_OK', '#FF34C759');
 define('MEL_K_C_WARN', '#FFFFB340');
+define('MEL_K_C_OK_TINT', '#2E34C759');
+define('MEL_K_C_WARN_TINT', '#2EFFB340');
 define('MEL_K_C_ERR', '#FFE5646E');
 define('MEL_K_C_UNCACHED', '#FF8E8E93');
+define('MEL_K_C_BADGE', '#8C000000');
+define('MEL_K_C_CACHED_ON', '#3CFFFFFF');
 define('MEL_K_C_BAR_DONE', '#FFFFFFFF');
 define('MEL_K_C_BAR_REST', '#FF404040');
 define('MEL_K_C_BAR_EDGE', '#FF000000');
@@ -72,6 +76,8 @@ define('MEL_K_ROW_H', 64);
 define('MEL_K_BTN_H', 64);
 define('MEL_K_BTN_PAD', 28);
 define('MEL_K_PLATE_H', 40);
+define('MEL_K_RATING_LINE', 2);
+define('MEL_K_RING_W', 6);
 define('MEL_K_RATING_H', 40);
 define('MEL_K_KEY_H', 40);
 define('MEL_K_KEY_PAD', 14);
@@ -94,6 +100,11 @@ define('MEL_K_R_SORT', 12);
 define('MEL_K_R_RATING', 6);
 define('MEL_K_R_PLATE', 5);
 define('MEL_K_R_KEY', 8);
+define('MEL_K_R_TAB', 26);
+define('MEL_K_R_CHIP', 6);
+define('MEL_K_R_CACHED', 19);
+define('MEL_K_R_MARK', 21);
+define('MEL_K_R_RING', 16);
 
 // Icon size by role: one PNG 96 per icon, the size is the image box.
 define('MEL_K_ICON_BUTTON', 30);
@@ -172,7 +183,67 @@ function mel_k_pic()
         'ml_hint_ru' => array('url' => 'plugin_file://img/ml1_hint_ru.png', 'w' => 200, 'h' => 300, 'mid' => null),
         'ml_hint_en' => array('url' => 'plugin_file://img/ml1_hint_en.png', 'w' => 200, 'h' => 300, 'mid' => null),
         'tv_sub_movie' => array('url' => 'plugin_file://img/tv_sub_movie.png', 'w' => 100, 'h' => 100, 'mid' => null),
-        'tv_sub_series' => array('url' => 'plugin_file://img/tv_sub_series.png', 'w' => 100, 'h' => 100, 'mid' => null)
+        'tv_sub_series' => array('url' => 'plugin_file://img/tv_sub_series.png', 'w' => 100, 'h' => 100, 'mid' => null),
+        'k_corner_r5_badge_tl' => array('url' => 'plugin_file://img/k_corner_r5_badge_tl.6bf55574.png', 'w' => 5, 'h' => 5, 'mid' => null),
+        'k_corner_r5_badge_tr' => array('url' => 'plugin_file://img/k_corner_r5_badge_tr.6e41463b.png', 'w' => 5, 'h' => 5, 'mid' => null),
+        'k_corner_r5_badge_bl' => array('url' => 'plugin_file://img/k_corner_r5_badge_bl.6d2d5bef.png', 'w' => 5, 'h' => 5, 'mid' => null),
+        'k_corner_r5_badge_br' => array('url' => 'plugin_file://img/k_corner_r5_badge_br.7d8108fc.png', 'w' => 5, 'h' => 5, 'mid' => null),
+        'k_corner_r6_ok_tint_tl' => array('url' => 'plugin_file://img/k_corner_r6_ok_tint_tl.d3e65b3a.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6_ok_tint_tr' => array('url' => 'plugin_file://img/k_corner_r6_ok_tint_tr.5a9cbfce.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6_ok_tint_bl' => array('url' => 'plugin_file://img/k_corner_r6_ok_tint_bl.bb3d0c0f.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6_ok_tint_br' => array('url' => 'plugin_file://img/k_corner_r6_ok_tint_br.5611c43d.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6_warn_tint_tl' => array('url' => 'plugin_file://img/k_corner_r6_warn_tint_tl.5a1bca6e.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6_warn_tint_tr' => array('url' => 'plugin_file://img/k_corner_r6_warn_tint_tr.9c6b66c3.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6_warn_tint_bl' => array('url' => 'plugin_file://img/k_corner_r6_warn_tint_bl.d685cd92.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6_warn_tint_br' => array('url' => 'plugin_file://img/k_corner_r6_warn_tint_br.946282aa.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6w2_text2_tl' => array('url' => 'plugin_file://img/k_corner_r6w2_text2_tl.36038a68.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6w2_text2_tr' => array('url' => 'plugin_file://img/k_corner_r6w2_text2_tr.e2371988.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6w2_text2_bl' => array('url' => 'plugin_file://img/k_corner_r6w2_text2_bl.9be1ddc7.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r6w2_text2_br' => array('url' => 'plugin_file://img/k_corner_r6w2_text2_br.69798ea1.png', 'w' => 6, 'h' => 6, 'mid' => null),
+        'k_corner_r8_key_tl' => array('url' => 'plugin_file://img/k_corner_r8_key_tl.c04d07c1.png', 'w' => 8, 'h' => 8, 'mid' => null),
+        'k_corner_r8_key_tr' => array('url' => 'plugin_file://img/k_corner_r8_key_tr.b6ec47ca.png', 'w' => 8, 'h' => 8, 'mid' => null),
+        'k_corner_r8_key_bl' => array('url' => 'plugin_file://img/k_corner_r8_key_bl.cd7980c0.png', 'w' => 8, 'h' => 8, 'mid' => null),
+        'k_corner_r8_key_br' => array('url' => 'plugin_file://img/k_corner_r8_key_br.55708d7d.png', 'w' => 8, 'h' => 8, 'mid' => null),
+        'k_corner_r10_accent_tl' => array('url' => 'plugin_file://img/k_corner_r10_accent_tl.43a9df33.png', 'w' => 10, 'h' => 10, 'mid' => null),
+        'k_corner_r10_accent_tr' => array('url' => 'plugin_file://img/k_corner_r10_accent_tr.7f41d33e.png', 'w' => 10, 'h' => 10, 'mid' => null),
+        'k_corner_r10_accent_bl' => array('url' => 'plugin_file://img/k_corner_r10_accent_bl.4551709c.png', 'w' => 10, 'h' => 10, 'mid' => null),
+        'k_corner_r10_accent_br' => array('url' => 'plugin_file://img/k_corner_r10_accent_br.5a4f67b4.png', 'w' => 10, 'h' => 10, 'mid' => null),
+        'k_corner_r12_accent_tl' => array('url' => 'plugin_file://img/k_corner_r12_accent_tl.b150ee45.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_accent_tr' => array('url' => 'plugin_file://img/k_corner_r12_accent_tr.06563718.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_accent_bl' => array('url' => 'plugin_file://img/k_corner_r12_accent_bl.0276802f.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_accent_br' => array('url' => 'plugin_file://img/k_corner_r12_accent_br.e329703b.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_surface_tl' => array('url' => 'plugin_file://img/k_corner_r12_surface_tl.74f5123b.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_surface_tr' => array('url' => 'plugin_file://img/k_corner_r12_surface_tr.3a02784a.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_surface_bl' => array('url' => 'plugin_file://img/k_corner_r12_surface_bl.a6746e12.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_surface_br' => array('url' => 'plugin_file://img/k_corner_r12_surface_br.e8ff5673.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_surface_on_tl' => array('url' => 'plugin_file://img/k_corner_r12_surface_on_tl.58d0ca9e.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_surface_on_tr' => array('url' => 'plugin_file://img/k_corner_r12_surface_on_tr.90f30309.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_surface_on_bl' => array('url' => 'plugin_file://img/k_corner_r12_surface_on_bl.996d95bd.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r12_surface_on_br' => array('url' => 'plugin_file://img/k_corner_r12_surface_on_br.d9325307.png', 'w' => 12, 'h' => 12, 'mid' => null),
+        'k_corner_r16w6_accent_tl' => array('url' => 'plugin_file://img/k_corner_r16w6_accent_tl.24e820aa.png', 'w' => 16, 'h' => 16, 'mid' => null),
+        'k_corner_r16w6_accent_tr' => array('url' => 'plugin_file://img/k_corner_r16w6_accent_tr.c9ebabf7.png', 'w' => 16, 'h' => 16, 'mid' => null),
+        'k_corner_r16w6_accent_bl' => array('url' => 'plugin_file://img/k_corner_r16w6_accent_bl.f1a55008.png', 'w' => 16, 'h' => 16, 'mid' => null),
+        'k_corner_r16w6_accent_br' => array('url' => 'plugin_file://img/k_corner_r16w6_accent_br.ddc102f6.png', 'w' => 16, 'h' => 16, 'mid' => null),
+        'k_corner_r19_cached_on_tl' => array('url' => 'plugin_file://img/k_corner_r19_cached_on_tl.8d0fdb3a.png', 'w' => 19, 'h' => 19, 'mid' => null),
+        'k_corner_r19_cached_on_tr' => array('url' => 'plugin_file://img/k_corner_r19_cached_on_tr.0cc8abfa.png', 'w' => 19, 'h' => 19, 'mid' => null),
+        'k_corner_r19_cached_on_bl' => array('url' => 'plugin_file://img/k_corner_r19_cached_on_bl.9319c5ba.png', 'w' => 19, 'h' => 19, 'mid' => null),
+        'k_corner_r19_cached_on_br' => array('url' => 'plugin_file://img/k_corner_r19_cached_on_br.83bb9cc3.png', 'w' => 19, 'h' => 19, 'mid' => null),
+        'k_corner_r19_ok_tl' => array('url' => 'plugin_file://img/k_corner_r19_ok_tl.07adaadf.png', 'w' => 19, 'h' => 19, 'mid' => null),
+        'k_corner_r19_ok_tr' => array('url' => 'plugin_file://img/k_corner_r19_ok_tr.42f53615.png', 'w' => 19, 'h' => 19, 'mid' => null),
+        'k_corner_r19_ok_bl' => array('url' => 'plugin_file://img/k_corner_r19_ok_bl.83b73bc7.png', 'w' => 19, 'h' => 19, 'mid' => null),
+        'k_corner_r19_ok_br' => array('url' => 'plugin_file://img/k_corner_r19_ok_br.9d7b6aca.png', 'w' => 19, 'h' => 19, 'mid' => null),
+        'k_corner_r21_shade_mark_tl' => array('url' => 'plugin_file://img/k_corner_r21_shade_mark_tl.3305c594.png', 'w' => 21, 'h' => 21, 'mid' => null),
+        'k_corner_r21_shade_mark_tr' => array('url' => 'plugin_file://img/k_corner_r21_shade_mark_tr.7e8d8c48.png', 'w' => 21, 'h' => 21, 'mid' => null),
+        'k_corner_r21_shade_mark_bl' => array('url' => 'plugin_file://img/k_corner_r21_shade_mark_bl.361b6f8d.png', 'w' => 21, 'h' => 21, 'mid' => null),
+        'k_corner_r21_shade_mark_br' => array('url' => 'plugin_file://img/k_corner_r21_shade_mark_br.57b05020.png', 'w' => 21, 'h' => 21, 'mid' => null),
+        'k_corner_r26_accent_tl' => array('url' => 'plugin_file://img/k_corner_r26_accent_tl.fb6c62f4.png', 'w' => 26, 'h' => 26, 'mid' => null),
+        'k_corner_r26_accent_tr' => array('url' => 'plugin_file://img/k_corner_r26_accent_tr.9cb4f141.png', 'w' => 26, 'h' => 26, 'mid' => null),
+        'k_corner_r26_accent_bl' => array('url' => 'plugin_file://img/k_corner_r26_accent_bl.e7e9ddd7.png', 'w' => 26, 'h' => 26, 'mid' => null),
+        'k_corner_r26_accent_br' => array('url' => 'plugin_file://img/k_corner_r26_accent_br.7460aab7.png', 'w' => 26, 'h' => 26, 'mid' => null),
+        'k_corner_r26_surface_on_tl' => array('url' => 'plugin_file://img/k_corner_r26_surface_on_tl.69389a53.png', 'w' => 26, 'h' => 26, 'mid' => null),
+        'k_corner_r26_surface_on_tr' => array('url' => 'plugin_file://img/k_corner_r26_surface_on_tr.6bab0dc4.png', 'w' => 26, 'h' => 26, 'mid' => null),
+        'k_corner_r26_surface_on_bl' => array('url' => 'plugin_file://img/k_corner_r26_surface_on_bl.d01e6e19.png', 'w' => 26, 'h' => 26, 'mid' => null),
+        'k_corner_r26_surface_on_br' => array('url' => 'plugin_file://img/k_corner_r26_surface_on_br.36192b6b.png', 'w' => 26, 'h' => 26, 'mid' => null)
     );
     return $t;
 }
