@@ -119,11 +119,12 @@ if (!function_exists('mel_ts_call'))
     // none), errno: curl errno, 0 none, -1 its options refused). http only,
     // no redirects; the errors of TorrServer have an empty body: the code
     // tells. $auth: "login:password" for Basic auth (0.45.0), '' none. The
-    // plugin and the check of the settings page.
+    // plugin and the check of the settings page. $total (s): a fraction (the preload, MEL_TS_PRE_S) in ms
+    // with no signals where curl has them, as mel_http_opts; else whole s, rounded up.
     /**
      * @param string $url
      * @param string|null $post
-     * @param int $total
+     * @param int|float $total
      * @param string $auth
      * @return MelTsReply
      */
@@ -132,11 +133,14 @@ if (!function_exists('mel_ts_call'))
         $body = '';
         $over = false;
         $ch = curl_init($url);
-        $opts = array(
+        $ms = $total != floor($total) && defined('CURLOPT_TIMEOUT_MS') && defined('CURLOPT_CONNECTTIMEOUT_MS') &&
+            defined('CURLOPT_NOSIGNAL');
+        $time = $ms ? array(CURLOPT_NOSIGNAL => true, CURLOPT_CONNECTTIMEOUT_MS => max(1, intval(min(1, $total) * 1000)),
+            CURLOPT_TIMEOUT_MS => max(1, intval($total * 1000))) :
+            array(CURLOPT_CONNECTTIMEOUT => 1, CURLOPT_TIMEOUT => intval(ceil($total)));
+        $opts = $time + array(
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP,
             CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_CONNECTTIMEOUT => 1,
-            CURLOPT_TIMEOUT => $total,
             CURLOPT_USERAGENT => 'Melange-Dune/' . MEL_VERSION,
             CURLOPT_HTTPHEADER => array('Expect:', 'Content-Type: application/json'),
             CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$over)

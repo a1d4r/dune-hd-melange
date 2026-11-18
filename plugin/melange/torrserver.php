@@ -18,9 +18,11 @@ define('MEL_TS_TICKS', 60);
 // A start from 0: before the player the preload of its file (mel_ts_preload), the window till
 // MEL_TS_BUF of it in the cache of TorrServer - the player of the Dune waits for as much itself, on a black
 // screen. Or till MEL_TS_BUF_SHARE of a smaller preload_size; none after MEL_TS_PRE_TICKS ticks: the player.
+// The request of the preload waits MEL_TS_PRE_S: it only has to reach TorrServer.
 define('MEL_TS_BUF', 33554432);
 define('MEL_TS_BUF_SHARE', 0.98);
 define('MEL_TS_PRE_TICKS', 5);
+define('MEL_TS_PRE_S', 0.3);
 // TorrServer MatriX answers /echo within a second ("Continue watching" asks
 // before it goes there).
 /**
@@ -853,7 +855,7 @@ function mel_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_
         return mel_ts_fail($lang, mel_ts_auth_err(), '', $lazy);
     if ($err !== '' || $code !== 200 || !$j)
         return mel_ts_fail($lang, 'ts_err_add', $err !== '' ? $err : "HTTP $code", $lazy);
-    if ($files && ($pos > 0 || !mel_ts_preload($st, $i, $files)))
+    if ($files && ($pos > 0 || mel_ts_preload($st, $i, $files, $j) !== ''))
         return mel_ts_play($st, $i, $files, $pos, $from, $lazy, $miss_list);
     Mel::$tswait = $st;
     // l: 1 lazy, 2 $miss_list; b: the tick of the start of the preload, '' none yet.
@@ -866,28 +868,42 @@ function mel_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_
         ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => MEL_TS_TICK_MS)));
 }
 
-// The preload of the file of row $i of $st among $files (mel_ts_file), a start from 0: a GET of
-// its &preload with a timeout of 1 s, the reply not awaited - TorrServer holds the request till the end
-// of the preload and goes on when the client leaves (device, knowledge melange-preload-buffer.md);
-// its error ignored, the ticks see none (mel_ts_buf_done). No shell: the name of the file is in the URL.
-// -> false: no file (mel_ts_play tells why).
+// The preload of the file of row $i of $st among $files (mel_ts_file), a start from 0, $j the
+// TorrentStatus where the files came: a GET of its &preload with a timeout of MEL_TS_PRE_S, the reply not
+// awaited - TorrServer holds the request till the end of the preload and goes on when the client leaves
+// (device, knowledge melange-preload-buffer.md); its error ignored, the ticks see none (mel_ts_buf_done).
+// No shell: the name of the file is in the URL. -> why the player at once, '' the preload asked (the window):
+// no file (mel_ts_play tells why); MEL_TS_BUF in the cache already, no request (preloaded_bytes is the cache of
+// the whole torrent: a lazy episode of the pack, a torrent alive); a 200 at once with no preload_size in $j -
+// the preload is off in TorrServer (PreloadCache 0 %: it returns at once).
 /**
  * @param MelState $st
  * @param int $i
  * @param list<MelTsFile> $files
- * @return bool
+ * @param array<mixed>|null $j
+ * @return string
  */
-function mel_ts_preload($st, $i, $files)
+function mel_ts_preload($st, $i, $files, $j)
 {
     list($k) = mel_ts_file($st, $i, $files);
     if ($k < 0)
-        return false;
+        return 'no file';
+    $got = mel_num(mel_str($j, 'preloaded_bytes'));
+    if ($got >= MEL_TS_BUF)
+    {
+        mel_log(sprintf('ts: -> the player: the cache warm, preloaded %.0f', $got));
+        return 'the cache warm';
+    }
     $f = $files[$k];
     $t = microtime(true);
-    $rp = mel_ts_call(mel_ts_url(Mel::$settings['ts'], $st['rows'][$i]['hash'], $f, 'preload'), null, 1, Mel::$settings['ts_auth']);
+    $rp = mel_ts_call(mel_ts_url(Mel::$settings['ts'], $st['rows'][$i]['hash'], $f, 'preload'), null, MEL_TS_PRE_S,
+        Mel::$settings['ts_auth']);
     mel_log(sprintf('ts: preload of file %d: %s, %.2f s: %s', $f['id'], $rp['err'] !== '' ? $rp['err'] : "HTTP {$rp['code']}",
         microtime(true) - $t, mel_cut($f['path'], 200)));
-    return true;
+    if ($rp['err'] !== '' || $rp['code'] !== 200 || mel_num(mel_str($j, 'preload_size')) > 0)
+        return '';
+    mel_log('ts: -> the player: no preload in TorrServer');
+    return 'no preload in TorrServer';
 }
 
 // TorrentStatus $j of a tick $ticks after the start of the preload -> why the player now, '' not yet:
@@ -901,8 +917,8 @@ function mel_ts_preload($st, $i, $files)
  */
 function mel_ts_buf_done($j, $ticks)
 {
-    $got = mel_ts_bytes($j, 'preloaded_bytes');
-    $size = mel_ts_bytes($j, 'preload_size');
+    $got = mel_num(mel_str($j, 'preloaded_bytes'));
+    $size = mel_num(mel_str($j, 'preload_size'));
     if ($got >= MEL_TS_BUF)
         return 'the buffer';
     if ($size > 0 && $got >= MEL_TS_BUF_SHARE * $size)
@@ -942,18 +958,6 @@ function mel_ts_int($j, $k)
     return is_array($j) && isset($j[$k]) && is_int($j[$k]) ? $j[$k] : 0;
 }
 
-// A size in bytes of a TorrentStatus (quoted over 2 GB, mel_ts_decode): none, not a number -> 0.
-/**
- * @param array<mixed>|null $j
- * @param string $k
- * @return float
- */
-function mel_ts_bytes($j, $k)
-{
-    $v = is_array($j) && isset($j[$k]) ? $j[$k] : null;
-    return is_int($v) || (is_string($v) && ctype_digit($v)) ? max(0.0, (float) $v) : 0.0;
-}
-
 // The target of a preload in bytes: MEL_TS_BUF, a smaller preload_size of TorrentStatus $j.
 /**
  * @param array<mixed>|null $j
@@ -961,13 +965,26 @@ function mel_ts_bytes($j, $k)
  */
 function mel_ts_buf_need($j)
 {
-    $size = mel_ts_bytes($j, 'preload_size');
+    $size = mel_num(mel_str($j, 'preload_size'));
     return $size > 0 && $size < MEL_TS_BUF ? $size : (float) MEL_TS_BUF;
+}
+
+// "42 Мбит/с" of the download speed of TorrServer (B/s) in the waiting dialog, as the bit rate next to it
+// (mel_gc_rate); over 50 B/s never "0": 0.1 at least. No speed - as mel_speed_str: "—".
+/**
+ * @param mixed $bps
+ * @param string $lang
+ * @return string
+ */
+function mel_ts_speed($bps, $lang)
+{
+    $s = mel_speed_str($bps, $lang);
+    return $s === "\xE2\x80\x94" ? $s : mel_gc_rate(max(8.0 * $bps, 1e5), false, $lang);
 }
 
 // Controls of the waiting dialog (0.45.0): the release; the status in words
 // (none: "waiting for the file list"; $buf, the preload: the MB of its target),
-// seconds, peers, connected seeders; the download speed (mel_speed_str), always:
+// seconds, peers, connected seeders; the download speed (mel_ts_speed), always:
 // the window keeps its height; with $buf the bit rate of the row, if known; "Cancel".
 /**
  * @param MelState $st
@@ -987,7 +1004,8 @@ function mel_ts_wait_defs($st, $r, $sec, $j, $lazy = false, $buf = false)
     $status = $stat === '' ? mel_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? mel_tr($lang, $keys[$low]) : mel_cut($stat, 30));
     $need = $buf ? mel_ts_buf_need($j) : 0.0;
     if ($buf)
-        $status = str_replace(array('{got}', '{need}'), array(strval(intval(floor(min(mel_ts_bytes($j, 'preloaded_bytes'), $need) / 1048576))),
+        $status = str_replace(array('{got}', '{need}'),
+            array(strval(intval(floor(min(mel_num(mel_str($j, 'preloaded_bytes')), $need) / 1048576))),
             strval(intval(ceil($need / 1048576)))), mel_tr($lang, 'ts_wait_buf'));
     $defs = array();
     foreach (mel_dialog_lines($r['label']) as $l)
@@ -999,7 +1017,7 @@ function mel_ts_wait_defs($st, $r, $sec, $j, $lazy = false, $buf = false)
         mel_tr($lang, 'ts_wait_peers'))));
     $rate = $buf && $r['rate'] > 0;
     $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{speed}', '{rate}'),
-        array(mel_speed_str(is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null, $lang),
+        array(mel_ts_speed(is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null, $lang),
         $rate ? mel_gc_rate($r['rate'], false, $lang) : ''), mel_tr($lang, $rate ? 'ts_wait_speed_need' : 'ts_wait_speed'))));
     $defs[] = mel_ctl('cancel', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => mel_tr($lang, 'ts_cancel'),
         GuiButtonDef::width => 300, GuiButtonDef::push_action => mel_input($lazy ? 'next_stop' : 'ts_cancel')));
@@ -1051,12 +1069,13 @@ function mel_ts_tick($in)
         is_array($j) && isset($j['active_peers']) ? json_encode($j['active_peers']) : '-',
         is_array($j) && isset($j['total_peers']) ? json_encode($j['total_peers']) : '-',
         is_array($j) && isset($j['connected_seeders']) ? json_encode($j['connected_seeders']) : '-', count($files)) .
-        ($p['b'] !== '' ? sprintf(', preloaded %.0f of %.0f', mel_ts_bytes($j, 'preloaded_bytes'), mel_ts_bytes($j, 'preload_size')) : ''));
+        ($p['b'] !== '' ? sprintf(', preloaded %.0f of %.0f', mel_num(mel_str($j, 'preloaded_bytes')),
+        mel_num(mel_str($j, 'preload_size'))) : ''));
     $out = $sec >= MEL_TS_WAIT || intval($p['n']) >= MEL_TS_TICKS;
     $play = '';
     if ($files && $p['b'] === '')
     {
-        if (intval($p['pos']) > 0 || $out || !mel_ts_preload($st, $i, $files))
+        if (intval($p['pos']) > 0 || $out || mel_ts_preload($st, $i, $files, $j) !== '')
             $play = 'the files';
         else
             $p['b'] = $p['n'];
