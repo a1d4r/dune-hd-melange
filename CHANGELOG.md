@@ -3,6 +3,13 @@
 **English version**
 
 ## 0.64.0 — 18.11.2026
+- **Watch from… on a tile and the card.** POP UP on a movie tile or on its Melange card → "Watch from…" opens the list straight from the source you pick. The choice is not remembered.
+- **Stream quality in Lampac.** Melange now sends Lampac the movie's TMDB and Kinopoisk ids, and the balancers show the quality of their streams.
+- **Balancers collapsed.** The Lampac online list opens with each balancer folded into one line: its name, how many streams it has and the best quality. ENTER opens or closes a balancer; the green button is **Expand all** / **Collapse all**.
+- **Order by quality.** The yellow button sorts balancers by quality or puts them back in the order set in **Balancers…**. Your choice applies to all lists.
+- **Several voice-overs.** The red button opens the "Voice" window with a check box for each voice-over, and you can keep several. With none checked, the list shows all.
+- **Colour buttons above the list.** The online list shows what the red, green and yellow buttons do as tabs at the top. Above the list there is now just the source name, without "Source:". With "Remote without colour buttons" on, the same items come first in the list menu.
+- Fixed: in the "Voice", "Balancers…" and "Configure List..." windows, a line whose name had a quote mark showed up empty.
 - Fixed: in the catalog on r24 firmware, when one row took too long to load, the other rows showed "(saved copy)" in their names and stopped updating. On any firmware, one slow row in the TV tab of the home screen also kept the other rows from updating.
 
 ## 0.63.0 — 18.11.2026
@@ -276,6 +283,13 @@ First public release. What it does:
 **Russian version**
 
 ## 0.64.0 — 18.11.2026
+- **«Смотреть из…» на плитке и карточке.** POP UP на плитке фильма или на своей карточке Melange → «Смотреть из…» открывает список сразу из выбранного источника. Выбор не запоминается.
+- **Качество потоков в Lampac.** Melange передаёт в Lampac id фильма в TMDB и Кинопоиске, и у балансеров видно качество потоков.
+- **Балансеры свёрнуты.** Онлайн-список Lampac открывается свёрнутым: у каждого балансера одна строка с именем, числом потоков и лучшим качеством. ENTER раскрывает и сворачивает балансер, зелёная кнопка — **Развернуть все** / **Свернуть все**.
+- **Порядок по качеству.** Жёлтая кнопка сортирует балансеры по качеству или возвращает порядок из **Балансеров…**. Выбор действует во всех списках.
+- **Несколько озвучек.** Красная кнопка открывает окно «Озвучка» с галочкой у каждой озвучки, можно оставить несколько. Если ничего не отмечено, показаны все.
+- **Цветные кнопки над списком.** Над онлайн-списком вкладками видно, что делают красная, зелёная и жёлтая кнопки. Над списком теперь просто имя источника, без «Откуда:». С включённым «Пульт без цветных кнопок» те же пункты идут первыми в меню списка.
+- Исправлено: в окнах «Озвучка», «Балансеры…» и «Настроить список…» строка, в названии которой была кавычка, показывалась пустой.
 - Исправлено: в каталоге на прошивке r24, если один ряд долго не загружался, у остальных рядов в названии стояло «(сохранённая копия)», и они переставали обновляться. На любой прошивке во вкладке «ТВ» главного экрана один медленный ряд тоже не давал обновляться остальным.
 
 ## 0.63.0 — 18.11.2026
