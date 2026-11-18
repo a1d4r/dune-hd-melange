@@ -35,7 +35,8 @@ function aio_lp_uid()
 }
 
 // The ids of movie_str of play_action $in kept for card $mv (AioLpv::$ids): of a series tmdbtv_id, else tmdb_id (the
-// Dune gives a series tmdbtv_id, its tmdb_id and kp_id often empty).
+// Dune gives a series tmdbtv_id, its tmdb_id and kp_id often empty). An empty one keeps the id kept before (the native
+// card gave a KP, the own card of the same dune id has none).
 /**
  * @param stdClass $in
  * @param AioMovie $mv
@@ -48,13 +49,16 @@ function aio_lpv_ids_keep($in, $mv)
     if ($tmdb === '')
         $tmdb = aio_str($m, 'tmdb_id');
     $kp = aio_str($m, 'kp_id');
+    $k = aio_lpv_key($mv);
+    $was = isset(AioLpv::$ids[$k]) ? AioLpv::$ids[$k] : array('', '');
     if ($tmdb !== '' || $kp !== '')
-        AioLpv::$ids[aio_lpv_key($mv)] = array($tmdb, $kp);
+        AioLpv::$ids[$k] = array($tmdb !== '' ? $tmdb : $was[0], $kp !== '' ? $kp : $was[1]);
 }
 
 // The ids of tile $t for movie_str of a play_action of Melange itself (aio_card_releases, aio_oc_watch; read by
 // aio_lpv_ids_keep): the TMDB id of the tile, else of the tile of its meta $meta (in hand, no request), as tmdbtv_id of a
-// series, else tmdb_id; kp_id of Kinopoisk the same way. None empty.
+// series, else tmdb_id; kp_id of Kinopoisk the same way. None empty. Lampac puts the quality into the name of a
+// balancer and show false only with a TMDB id: every way of Melange that makes movie_str for aio_play_action adds these.
 /**
  * @param AioCatTile $t
  * @param AioCardMeta|null $meta

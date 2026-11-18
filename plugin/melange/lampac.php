@@ -370,7 +370,7 @@ function aio_lp_json($body)
 }
 
 // The ids the title lacks (no KinoPoisk or IMDb id, a TMDB or an IMDb one
-// known: Lampac 1.90.1 takes either) by /externalids of Lampac $base: without
+// known: Lampac 1.90.1 takes either; both known - both, as Lampa) by /externalids of Lampac $base: without
 // the KinoPoisk id the balancers find almost nothing. -> array(the parameters, '' or the reason of a failure: its
 // ids stay as they were). An id it sends is taken only where there is none.
 /**
@@ -383,7 +383,12 @@ function aio_lp_externalids($base, $p)
     if (($p['id'] === '' && $p['imdb_id'] === '') || ($p['kinopoisk_id'] !== '' && $p['imdb_id'] !== ''))
         return array($p, '');
     $t = aio_lp_now();
-    $ask = $p['id'] !== '' ? array('id' => $p['id']) : array('imdb_id' => $p['imdb_id']);
+    $ask = array();
+    foreach (array('id', 'imdb_id') as $k)
+    {
+        if ($p[$k] !== '')
+            $ask[$k] = $p[$k];
+    }
     $r = aio_lp_ask($base, "$base/externalids?" . aio_lp_query($ask + array('serial' => $p['serial'])),
         AIO_LP_CONNECT, AIO_LP_STEP, 65536);
     $j = $r['err'] === '' && $r['code'] === 200 ? aio_lp_json($r['body']) : null;

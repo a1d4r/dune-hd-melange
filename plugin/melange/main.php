@@ -1818,6 +1818,8 @@ function aio_list_state($mv, $s, $e, $rows, $lang, $errors)
 // AioOcEp of aio_oc_pick), the main card (aio_wh_episode here). With no "Continue" its list opens at its release
 // (hash), or its online list at the row of its online record (key). $src: the id of the ready profile chosen by
 // "Смотреть из…" (aio_oc_watch_from), its list at once (aio_op_src), nothing remembered; '' - by the record (aio_op_title).
+// A movie_str made by Melange itself adds aio_lpv_tile_ids: Lampac puts the quality into the name of a balancer and show
+// false only with a TMDB id.
 /**
  * @param stdClass $in
  * @param AioWhPick|AioOcEp|null $hist
