@@ -579,7 +579,7 @@ function mel_catv_slow_note($rid, $err)
 
 // The first page of a row asked for anew: with tiles, into MelCat::$lists (of a copy
 // after a failure: stale), else what is there stays; an empty row is remembered.
-// MelCat::$down by its failure: net, rate, server, and a timeout unless $timeout_down is
+// MelCat::$down by its failure: mel_cat_err_down, and a timeout unless $timeout_down is
 // false (an opening: a slow row or the end of its limit, not the server down).
 /**
  * @param MelCatRow $row
