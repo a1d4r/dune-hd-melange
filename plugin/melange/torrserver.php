@@ -873,9 +873,10 @@ function mel_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_
 // awaited - TorrServer holds the request till the end of the preload and goes on when the client leaves
 // (device, knowledge melange-preload-buffer.md); its error ignored, the ticks see none (mel_ts_buf_done).
 // No shell: the name of the file is in the URL. -> why the player at once, '' the preload asked (the window):
-// no file (mel_ts_play tells why); MEL_TS_BUF in the cache already, no request (preloaded_bytes is the cache of
-// the whole torrent: a lazy episode of the pack, a torrent alive); a 200 at once with no preload_size in $j -
-// the preload is off in TorrServer (PreloadCache 0 %: it returns at once).
+// no file (mel_ts_play tells why); MEL_TS_BUF in the cache already - the request all the same, no window
+// (preloaded_bytes is the cache of the whole torrent: a lazy episode of the pack, a torrent alive - the head of
+// its file may be cold, TorrServer loads it beside the player); a 200 at once with no preload_size in $j - the
+// preload is off in TorrServer (PreloadCache 0 %: it returns at once).
 /**
  * @param MelState $st
  * @param int $i
@@ -888,18 +889,18 @@ function mel_ts_preload($st, $i, $files, $j)
     list($k) = mel_ts_file($st, $i, $files);
     if ($k < 0)
         return 'no file';
-    $got = mel_num(mel_str($j, 'preloaded_bytes'));
-    if ($got >= MEL_TS_BUF)
-    {
-        mel_log(sprintf('ts: -> the player: the cache warm, preloaded %.0f', $got));
-        return 'the cache warm';
-    }
     $f = $files[$k];
     $t = microtime(true);
     $rp = mel_ts_call(mel_ts_url(Mel::$settings['ts'], $st['rows'][$i]['hash'], $f, 'preload'), null, MEL_TS_PRE_S,
         Mel::$settings['ts_auth']);
     mel_log(sprintf('ts: preload of file %d: %s, %.2f s: %s', $f['id'], $rp['err'] !== '' ? $rp['err'] : "HTTP {$rp['code']}",
         microtime(true) - $t, mel_cut($f['path'], 200)));
+    $got = mel_num(mel_str($j, 'preloaded_bytes'));
+    if ($got >= MEL_TS_BUF)
+    {
+        mel_log(sprintf('ts: -> the player: the cache warm, preloaded %.0f', $got));
+        return 'the cache warm';
+    }
     if ($rp['err'] !== '' || $rp['code'] !== 200 || mel_num(mel_str($j, 'preload_size')) > 0)
         return '';
     mel_log('ts: -> the player: no preload in TorrServer');
