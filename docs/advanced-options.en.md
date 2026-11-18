@@ -20,7 +20,7 @@ Choose whether Melange starts torrents, shows skip-intro buttons and reports add
 
    <img src="../screenshots/advanced-errors.jpg" alt="Addon errors window: JacRed did not answer in time" width="100%">
 
-5. "Remote without colour buttons": turn it on if your remote has no colour buttons or INFO. Then the **POP UP** menu of the release list starts with "Release details" and "Sort". Choosing the current sort again reverses the order.
+5. "Remote without colour buttons": turn it on if your remote has no colour buttons or INFO. Then the **POP UP** menu of the release list starts with "Release details" and "Sort". Choosing the current sort again reverses the order. The menu of the Lampac online list starts with "Voice: all…", "Collapse all" and "Sort by quality".
 
    <img src="../screenshots/advanced-remote-menu.jpg" alt="Release list for Avatar: The Last Airbender (2026): the menu is open, focus on Release details, then Sort: Auto, Refresh, Get films from..., Watch via TorrServer, Open in an app..., Download to server..., Settings" width="100%">
 

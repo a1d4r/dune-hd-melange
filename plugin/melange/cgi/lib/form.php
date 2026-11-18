@@ -372,7 +372,7 @@ function aio_cgi_toggles()
                 'Sort with the colour buttons, details with the INFO button.')),
             'on' => array(aio_cgi_l('Включено', 'On'), aio_cgi_l(
                 'Всё с цветных кнопок и INFO — в меню «Действия» раздач и онлайн-списка.',
-                'The colour buttons and INFO in the "Actions" menu of releases and online.'))), 'on'),
+                'Adds colour button and INFO items to "Actions" of the release and online lists.'))), 'on'),
         // On #look (0.55.0).
         'cat_logo' => array(aio_cgi_l('Логотип фильма вместо названия', 'Film logo in place of the title'), array(
             'on' => array(aio_cgi_l('Включён', 'On'), aio_cgi_l(
