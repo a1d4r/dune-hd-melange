@@ -579,8 +579,9 @@ function mel_catv_load_first($row, $limit, $timeout_down = true)
 
 // The rows $rows for a new screen, into MelCat::$lists. At once: listings in memory
 // still fresh, then the saved first pages of any age. In $limit s, one by one: the rows
-// without a copy, then the old copies, then the rows that timed out at an opening before
-// (MelCat::$slow): one slow row does not take the time of every opening. A timeout is not
+// without a copy, then the old copies (the oldest first: rows past the limit of one opening
+// are first at the next), then the rows that timed out at an opening before (MelCat::$slow):
+// one slow row does not take the time of every opening. A timeout is not
 // the server down; on a failure of the server (mel_catv_is_down) no more requests and the
 // old copies not refreshed are marked stale. Those the limit left out are not. No tile: the
 // row stays out of the lists. -> a row was asked of the server.
@@ -595,6 +596,7 @@ function mel_catv_open($rows, $limit)
     $none = array();
     $old = array();
     $slow = array();
+    $old_t = array();
     foreach ($rows as $row)
     {
         $rid = mel_catv_rid($row);
@@ -612,10 +614,21 @@ function mel_catv_open($rows, $limit)
         else if (!$c)
             $none[$rid] = $row;
         else
+        {
             $old[$rid] = $row;
+            $old_t[] = $c['t'];
+        }
     }
+    // The oldest copy first, of the same time in the order of the screen (asort is not stable).
+    $order = array_keys($old);
+    $pos = array_keys($order);
+    array_multisort($old_t, SORT_ASC, $pos, SORT_ASC, $order);
+    $sorted = array();
+    foreach ($order as $rid)
+        $sorted[$rid] = $old[$rid];
+    $old = $sorted;
     $start = microtime(true);
-    $down = false;
+    $is_down = false;
     foreach ($none + $old + $slow as $rid => $row)
     {
         $left = $limit - (microtime(true) - $start);
@@ -628,17 +641,20 @@ function mel_catv_open($rows, $limit)
         else if ($res['err'] === '')
             unset(MelCat::$slow[$rid]);
         unset($old[$rid], $slow[$rid]);
-        $down = mel_catv_is_down();
-        if ($down)
+        $is_down = mel_catv_is_down();
+        if ($is_down)
             break;
     }
-    foreach ($down ? $old + $slow : array() as $rid => $row)
+    if ($is_down)
     {
-        if (!isset(MelCat::$lists[$rid]))
-            continue;
-        $list = MelCat::$lists[$rid];
-        $list['stale'] = true;
-        MelCat::$lists[$rid] = $list;
+        foreach ($old + $slow as $rid => $row)
+        {
+            if (!isset(MelCat::$lists[$rid]))
+                continue;
+            $list = MelCat::$lists[$rid];
+            $list['stale'] = true;
+            MelCat::$lists[$rid] = $list;
+        }
     }
     return $net;
 }
@@ -2937,6 +2953,7 @@ function mel_catv_enter($in)
     // "Show all" goes on from the same place.
     if (strpos($id, 'fail:') === 0)
     {
+        // MelCat::$slow stays: it is the order of the requests alone, the slow row first again would take the opening.
         MelCat::$down = 0;
         unset(MelCat::$all_failed[strval(substr($id, strlen('fail:')))]);
         return mel_catv_invalidate(mel_catv_in($in, 'from'));
@@ -2966,6 +2983,7 @@ function mel_catv_enter($in)
 function mel_catv_retry($from)
 {
     MelCat::$empty = array();
+    // MelCat::$slow stays: the order of the requests alone (mel_catv_open).
     MelCat::$down = 0;
     $tab = mel_catv_tab($from);
     return mel_replace_act(mel_catv_main_url($tab !== '' ? $tab : 'movie', substr(mel_rid(), 0, 8)), mel_tr(mel_catv_lang(), 'cat_title'));
