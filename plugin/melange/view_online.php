@@ -126,21 +126,15 @@ function aio_lpv_why($lang, $why, $detail)
     return str_replace('{d}', aio_cut(aio_one_line($detail), 80), $s);
 }
 
-// Children of the yellow line of the releases of list $st (lp_note: "Онлайн не отвечает —
-// показаны раздачи") right-aligned to x $right of the row of the title, 26 px: the title keeps
-// half the row. -> array(children, their width; 0 none).
+// The yellow line of the releases of list $st (lp_note: "Онлайн не отвечает — показаны раздачи") in the row of the title
+// (aio_gc_title_row), '' none.
 /**
  * @param AioState $st
- * @param int $right
- * @return array{list<AioGcComp>, int}
+ * @return string
  */
-function aio_lpv_note($st, $right)
+function aio_lpv_note($st)
 {
-    if (!empty($st['lp_on']) || empty($st['lp_note']))
-        return array(array(), 0);
-    $t = aio_gc_cut_w($st['lp_note'], 26, 560);
-    $w = aio_gc_w($t, 26);
-    return array(array(aio_gc_cut(null, aio_gc_at($w, 36, $right - $w, 58), $t, 26, AIO_GC_AMBER)), $w);
+    return !empty($st['lp_on']) || empty($st['lp_note']) ? '' : strval($st['lp_note']);
 }
 
 // --- The online list on screen.
@@ -461,31 +455,101 @@ function aio_lpv_flt_tab($v, $lang, $nw = 360)
     return array($d, $x + AIO_GC_HINT_GAP);
 }
 
-// Children of the tab of the order of the balancers (after the tab of the filter), as a sort tab of the releases: the yellow
-// key (not on a remote the firmware knows is without it), "По качеству" - by quality (aio_lpv_qsort) bright with a line
-// under it, else dimmed. -> array(children, their width with the gap after).
+// Children of the tab of the green key (after the tab of the filter, of a remote with the colour keys): the key and $word
+// ("Свернуть все", aio_lpv_fold_word) dimmed, an action, no state; '' none. -> array(children, their width with the gap after).
+/**
+ * @param string $word
+ * @return array{list<AioGcComp>, int}
+ */
+function aio_lpv_fold_tab($word)
+{
+    if ($word === '')
+        return array(array(), 0);
+    $x = AIO_GC_KEY_W + AIO_GC_KEY_GAP;
+    $w = aio_gc_w($word, AIO_GC_HINT_PX);
+    return array(array(
+        aio_gc_image(aio_gc_at(AIO_GC_KEY_W, AIO_GC_KEY_H, 0, 0), 'plugin_file://%shell_ext%/icons/green.png'),
+        aio_gc_cut(null, aio_gc_at($w, AIO_GC_LABEL_H, $x, (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $word, AIO_GC_HINT_PX,
+            AIO_GC_TEXT2)), $x + $w + AIO_GC_HINT_GAP);
+}
+
+// Children of the tab of the order of the balancers (after the green one), as a sort tab of the releases with no direction:
+// the yellow key and "Качество", by quality (aio_lpv_qsort) bright with a line under it, else dimmed; on a remote the
+// firmware knows is without the colour keys a state only: "По качеству" bright by quality, else none (MENU has the item).
+// -> array(children, their width with the gap after).
 /**
  * @param string $lang
  * @return array{list<AioGcComp>, int}
  */
 function aio_lpv_qsort_tab($lang)
 {
+    $on = aio_lpv_qsort();
+    $keys = aio_gc_color_keys();
+    if (!$keys && !$on)
+        return array(array(), 0);
     $d = array();
     $x = 0;
-    if (aio_gc_color_keys())
+    if ($keys)
     {
         $d[] = aio_gc_image(aio_gc_at(AIO_GC_KEY_W, AIO_GC_KEY_H, 0, 0), 'plugin_file://%shell_ext%/icons/yellow.png');
         $x = AIO_GC_KEY_W + AIO_GC_KEY_GAP;
     }
-    $on = aio_lpv_qsort();
-    $t = aio_tr($lang, 'lp_qsort_tab');
+    $t = aio_tr($lang, $keys ? 'lp_qsort_key' : 'lp_qsort_tab');
     $w = aio_gc_w($t, AIO_GC_HINT_PX);
     $d[] = aio_gc_cut(null, aio_gc_at($w, AIO_GC_LABEL_H, $x, (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $t, AIO_GC_HINT_PX,
         $on ? AIO_GC_TEXT : AIO_GC_TEXT2);
     $x += $w;
-    if ($on)
+    if ($on && $keys)
         $d[] = aio_gc_rect(aio_gc_at($x, AIO_GC_TAB_LINE, 0, AIO_GC_TAB_LINE_Y), AIO_GC_TEXT);
     return array($d, $x + AIO_GC_HINT_GAP);
+}
+
+// Children of the row of the tabs of the online list $st, lines $L, in the order of the colour keys: the filter (aio_lpv_flt_tab;
+// no voice in the list: none), the green key (aio_lpv_fold_tab; no balancer of 2 rows, or a remote the firmware knows is without
+// the colour keys: none), the order (aio_lpv_qsort_tab; no row: none); the name of the source at the right (aio_src_tabs_right).
+// No room: the green one in a short word ("Свернуть"), then the name of the filter shorter, 80 px at least; the order always,
+// the name of the source shorter or none then.
+/**
+ * @param AioState $st
+ * @param list<AioLpLine> $L
+ * @return list<AioGcComp>
+ */
+function aio_lpv_tabs($st, $L)
+{
+    $v = $st['lp'];
+    $lang = aio_gc_lang($st);
+    $right = AIO_GC_LX + AIO_GC_LW - 16;
+    list($from, $sw) = aio_src_tabs_right($st, $right, AIO_GC_TABS_Y, 360);
+    // The gap after the last tab is the one before the source.
+    $room = AIO_GC_LW - 16 + AIO_GC_HINT_GAP - ($sw > 0 ? $sw + AIO_GC_HINT_GAP : 0);
+    list($ft, $fw) = aio_lpv_voices($v, $lang) ? aio_lpv_flt_tab($v, $lang) : array(array(), 0);
+    $fold = aio_gc_color_keys() ? aio_lpv_fold_word($L, $lang) : '';
+    list($gt, $gw) = aio_lpv_fold_tab($fold);
+    list($qt, $qw) = $v['rows'] ? aio_lpv_qsort_tab($lang) : array(array(), 0);
+    if ($fw + $gw + $qw > $room && $fold !== '')
+        list($gt, $gw) = aio_lpv_fold_tab(aio_lpv_fold_word($L, $lang, true));
+    $over = $fw + $gw + $qw - $room;
+    // From the name as wide as it is (360 at most, aio_lpv_flt_tab), not from 360; again while the cut text is wider than
+    // the sum of its parts (aio_gc_w rounds each one).
+    $nw = isset($v['flt']) ? min(360, aio_gc_w(strval(reset($v['flt'])), AIO_GC_HINT_PX)) : 80;
+    while ($over > 0 && $ft && $nw > 80)
+    {
+        $nw = max(80, $nw - $over);
+        list($ft, $fw) = aio_lpv_flt_tab($v, $lang, $nw);
+        $over = $fw + $gw + $qw - $room;
+    }
+    $end = $fw + $gw + $qw;
+    if ($sw > 0 && $end > $room)
+        list($from) = aio_src_tabs_right($st, $right, AIO_GC_TABS_Y, AIO_GC_LW - 16 - $end);
+    $h = AIO_GC_TAB_LINE_Y + AIO_GC_TAB_LINE;
+    $d = $from;
+    if ($ft)
+        $d[] = aio_gc_panel('flt', aio_gc_at($fw, $h, AIO_GC_LX, AIO_GC_TABS_Y), $ft);
+    if ($gt)
+        $d[] = aio_gc_panel('fold', aio_gc_at($gw, $h, AIO_GC_LX + $fw, AIO_GC_TABS_Y), $gt);
+    if ($qt)
+        $d[] = aio_gc_panel('qsort', aio_gc_at($qw, $h, AIO_GC_LX + $fw + $gw, AIO_GC_TABS_Y), $qt);
+    return $d;
 }
 
 // Lines of the online list of view $v on screen (the rows of its filter, aio_lpv_shown): the rows of a balancer in a run of 2 and more
@@ -533,9 +597,10 @@ function aio_lpv_lines($v)
     return $out;
 }
 
-// The line of lines $L of row $i (of a balancer folded: its line), else of the first row after it there (or "Ещё N"), else the
-// last. "After" in the order of the rows: by quality (aio_lpv_qsort) the blocks of the lines (a balancer with its rows, a row
-// alone, "Ещё N") are taken in the order of their first rows.
+// The line of lines $L of row $i: its line (of a balancer folded: that one), else the line of the first row after it in the
+// list (or "Ещё N"), else the last. Of the lines but the heads: A the one of the least row $i or after, P the one of the
+// greatest row before $i; A of row $i, else P of a balancer folded (its row then), else A; no A - the last. Not by the order
+// of the lines: by quality (aio_lpv_qsort) a balancer later in the list comes first.
 /**
  * @param list<AioLpLine> $L
  * @param int $i
@@ -543,27 +608,22 @@ function aio_lpv_lines($v)
  */
 function aio_lpv_line_at($L, $i)
 {
-    $blocks = array();
+    $a = -1;
+    $p = -1;
     foreach ($L as $j => $l)
     {
-        if ($l['k'] === 'row' && $blocks)
-            $blocks[count($blocks) - 1][2][] = $j;
-        else
-            $blocks[] = array($l['i'], count($blocks), array($j));
-    }
-    sort($blocks);
-    $ord = array();
-    foreach ($blocks as $b)
-        $ord = array_merge($ord, $b[2]);
-    foreach ($ord as $p => $j)
-    {
-        $l = $L[$j];
         if ($l['k'] === 'head')
             continue;
-        if ($l['i'] >= $i || ($l['k'] === 'shut' && (!isset($ord[$p + 1]) || $L[$ord[$p + 1]]['i'] > $i)))
-            return $j;
+        if ($l['i'] >= $i && ($a < 0 || $l['i'] < $L[$a]['i']))
+            $a = $j;
+        if ($l['i'] < $i && ($p < 0 || $l['i'] > $L[$p]['i']))
+            $p = $j;
     }
-    return count($L) - 1;
+    if ($a >= 0 && $L[$a]['i'] === $i)
+        return $a;
+    if ($p >= 0 && $L[$p]['k'] === 'shut')
+        return $p;
+    return $a >= 0 ? $a : count($L) - 1;
 }
 
 // The row of line $j of lines $L, -1 for "Ещё N" and a line of a balancer.
@@ -843,7 +903,7 @@ function aio_lpv_cols($v, $L)
 
 // Children of row panel "r$j" of view $v, line $j of its lines $L, $top the first line on screen: a
 // line over a block of an unfolded balancer and after it (none between the lines of the balancers folded and the rows alone);
-// the quality of the line (aio_lpv_lines): its badge and "до 1080p" at the right; a balancer - its name, the number of
+// the quality of the line (aio_lpv_lines): its badge, else "до 4320p" at the right; a balancer - its name, the number of
 // its rows dimmed ("12 потоков"), the triangle: down folded, up unfolded; a row under it - the voice indented, on the
 // first line of the screen the balancer dimmed before it; a row alone - the balancer and the voice; a row watched: the
 // bar of the share. The line "Ещё N источников — Обновить".
@@ -877,7 +937,8 @@ function aio_lpv_row_items($v, $L, $j, $c, $on, $top, $lang)
     $b = aio_lpv_badge($l['q']);
     if ($b !== '')
         $d = array_merge($d, aio_gc_plates(array($b), AIO_GC_PAD));
-    if ($l['q'] !== '')
+    // "до 2160p" at the right only of no badge (8K, a quality not known): the badge says it, the card too.
+    if ($l['q'] !== '' && $b === '')
     {
         $t = aio_lpv_tr($lang, 'lp_side_q', array('q' => $l['q']));
         $qw = aio_gc_w($t, 30) + 24;
@@ -965,11 +1026,8 @@ function aio_lpv_card($st, $v, $i, $q = null)
 }
 
 // The window of the online list of $st (its view 'lp'), line $sel selected, $top the first
-// on screen (aio_lpv_lines): the frame of aio_gc_window (the background, the poster, the title, the hints,
-// the counter); on the row of the tabs the tab of the filter (aio_lpv_flt_tab; no voice in the list: none), the tab of
-// the order (aio_lpv_qsort_tab; no row, or no room for the yellow line of the view too: none), that line after them,
-// "Откуда: Онлайн" at the right; the hint of the green key last (not without the colour keys: MENU has it), short of the
-// counter in a short word.
+// on screen (aio_lpv_lines): the frame of aio_gc_window (the background, the poster, the title with the yellow line of the
+// view, aio_gc_title_row, the hints, the counter); the row of the tabs of aio_lpv_tabs.
 /**
  * @param AioState $st
  * @param int $sel
@@ -990,13 +1048,7 @@ function aio_lpv_window($st, $sel, $top)
         $d[] = aio_gc_image(aio_gc_at(AIO_GC_PW, AIO_GC_PH, AIO_GC_CX, AIO_GC_CY), $poster, true);
     $d[] = aio_gc_panel('card', aio_gc_at(AIO_GC_CW, AIO_GC_CARD_BOTTOM - AIO_GC_CY, AIO_GC_CX, AIO_GC_CY),
         aio_lpv_card_of($st, $v, $L, $sel));
-    // An episode: its label at the right of the title, as the releases have it.
-    list($title, $ep) = aio_gc_title($st);
-    $ew = $ep === '' ? 0 : aio_gc_w($ep, 36);
-    $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16 - ($ew > 0 ? $ew + 30 : 0), 66, AIO_GC_LX, 40), $title, 48, AIO_GC_TEXT);
-    if ($ep !== '')
-        $d[] = aio_gc_cut(null, aio_gc_at($ew, 50, AIO_GC_LX + AIO_GC_LW - 16 - $ew, 52), $ep, 36, AIO_GC_TEXT2,
-            array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
+    $d = array_merge($d, aio_gc_title_row($st, $v['note']));
     $in = array(aio_gc_rect(aio_gc_row_geom($sel), AIO_GC_SEL, 'sel'));
     for ($i = 0; $i < $n; $i++)
         $in[] = aio_gc_panel("r$i", aio_gc_row_geom($i), aio_lpv_row_items($v, $L, $i, $c, $i === $sel, $top, $lang));
@@ -1014,44 +1066,10 @@ function aio_lpv_window($st, $sel, $top)
     if ($st['e'] > 0)
         $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://img/left_arrow.png' => AIO_GC_ARROW_W,
             'plugin_file://%shell_ext%/icons/right_arrow.png' => AIO_GC_ARROW_W), $tt['flip'], AIO_GC_ARROW_H);
-    $hx = aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/popup_icon_only.png' => 52), $tt['actions']);
-    // The right edge of the counter (right-aligned) and of "Откуда: Онлайн".
+    aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/popup_icon_only.png' => 52), $tt['actions']);
     $right = AIO_GC_LX + AIO_GC_LW - 16;
-    $fold = aio_lpv_fold_word($L, $lang);
-    if ($fold !== '' && aio_gc_color_keys())
-    {
-        // Short of the widest counter ("40 / 40") by the gap of the hints (P+/P-, the episodes and MENU before it): the
-        // words without "все".
-        $cn = aio_lpv_count($L);
-        $room = $right - aio_gc_w("$cn / $cn", AIO_GC_HINT_PX) - AIO_GC_HINT_GAP - $hx - AIO_GC_KEY_W - AIO_GC_KEY_GAP;
-        if (aio_gc_w($fold, AIO_GC_HINT_PX) > $room)
-            $fold = aio_lpv_fold_word($L, $lang, true);
-        aio_gc_hint($d, $hx, AIO_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/green.png' => AIO_GC_KEY_W), $fold);
-    }
     $d[] = aio_gc_panel('counter', aio_gc_at(300, AIO_GC_KEY_H, $right - 300, AIO_GC_HINT_Y), aio_lpv_counter($L, $sel));
-    // On the row of the tabs: the tab of the filter, the tab of the order, the yellow line of the view after them, "Откуда:
-    // Онлайн" at the right.
-    list($from, $fw) = aio_src_tabs_right($st, $right, AIO_GC_TABS_Y, 360);
-    $d = array_merge($d, $from);
-    // No voice in the list: no tab, no red key (aio_lpv_folder_view).
-    list($tab, $tw) = aio_lpv_voices($v, $lang) ? aio_lpv_flt_tab($v, $lang) : array(array(), 0);
-    list($qt, $qw) = $v['rows'] ? aio_lpv_qsort_tab($lang) : array(array(), 0);
-    $tabs = AIO_GC_LW - 16 - ($fw > 0 ? $fw + 40 : 0);
-    // The two tabs wider than the room left of "Откуда: …": the name of the filter shorter.
-    $cut = $tab && $tw + $qw > $tabs ? aio_lpv_flt_tab($v, $lang, max(80, 360 - ($tw + $qw - $tabs))) : array($tab, $tw);
-    // The yellow line whole first: no room for it too - no tab of the order (the yellow key the same), the name whole.
-    if ($v['note'] !== '' && $cut[1] + $qw + aio_gc_w($v['note'], AIO_GC_HINT_PX) > $tabs)
-        list($qt, $qw) = array(array(), 0);
-    else
-        list($tab, $tw) = $cut;
-    if ($tab)
-        $d[] = aio_gc_panel('flt', aio_gc_at(AIO_GC_LW, AIO_GC_TAB_LINE_Y + AIO_GC_TAB_LINE, AIO_GC_LX, AIO_GC_TABS_Y), $tab);
-    if ($qt)
-        $d[] = aio_gc_panel('qsort', aio_gc_at($qw, AIO_GC_TAB_LINE_Y + AIO_GC_TAB_LINE, AIO_GC_LX + $tw, AIO_GC_TABS_Y), $qt);
-    $tw += $qw;
-    if ($v['note'] !== '')
-        $d[] = aio_gc_cut(null, aio_gc_at(max(100, $tabs - $tw), AIO_GC_LABEL_H,
-            AIO_GC_LX + $tw, AIO_GC_TABS_Y + (AIO_GC_KEY_H - AIO_GC_LABEL_H) / 2), $v['note'], AIO_GC_HINT_PX, AIO_GC_AMBER);
+    $d = array_merge($d, aio_lpv_tabs($st, $L));
     return aio_gc_window_def($d, $mv['fanart']);
 }
 
@@ -1091,8 +1109,10 @@ function aio_lpv_folder_view($st, $sel_state)
         GUI_EVENT_KEY_ENTER => aio_gc_act('lp_pick', $rid),
         GUI_EVENT_MENU_PLAYBACK_FINISH => aio_finish_act($rid),
         GUI_EVENT_KEY_POPUP_MENU => aio_gc_act('lp_menu', $rid),
-        GUI_EVENT_KEY_B_GREEN => aio_gc_act('lp_fold', $rid),
-        GUI_EVENT_KEY_C_YELLOW => aio_gc_act('lp_qsort', $rid));
+        GUI_EVENT_KEY_B_GREEN => aio_gc_act('lp_fold', $rid));
+    // The yellow key: the order of the balancers, of a list with rows (its tab, aio_lpv_tabs); else nothing.
+    if ($st['lp']['rows'])
+        $acts[GUI_EVENT_KEY_C_YELLOW] = aio_gc_act('lp_qsort', $rid);
     // The red key: the filter by voices, of a list with voices (its tab, aio_lpv_window).
     if (aio_lpv_voices($st['lp'], aio_gc_lang($st)))
         $acts[GUI_EVENT_KEY_A_RED] = aio_gc_act('lp_flt_menu', $rid);
@@ -1549,7 +1569,7 @@ function aio_lpv_input($in, $control)
         return aio_lpv_fold_all($st, $sel);
     }
     if ($control === 'lp_qsort')
-        return aio_lpv_qsort_flip($st);
+        return $st['lp']['rows'] ? aio_lpv_qsort_flip($st) : null;
     if ($control === 'lp_flip')
         return aio_lpv_flip($in, $st);
     if ($control === 'lp_choose')

@@ -1030,7 +1030,7 @@ function aio_lp_movie($src, $data, $base = '')
             if (isset($had[$voice . "\n" . $it['url']]))
                 continue;
             $had[$voice . "\n" . $it['url']] = true;
-            $q = aio_lp_text(aio_lp_str($x, 'maxquality'));
+            $q = aio_lp_maxq($x);
             $q = $q !== '' ? $q : $src['q'];
             $n = 0;
             if (trim($voice) === '')
@@ -1447,7 +1447,7 @@ function aio_lp_season_link($j, $s)
  */
 function aio_lp_season($src, $j, $url, $base = '')
 {
-    $q = aio_lp_text(aio_lp_str($j, 'maxquality'));
+    $q = aio_lp_maxq($j);
     $out = array('url' => $url, 'voices' => array(), 'eps' => array(), 'quality' => $q !== '' ? $q : $src['q'],
         'why' => '', 'detail' => '');
     $names = array();
@@ -1528,6 +1528,18 @@ function aio_lp_season($src, $j, $url, $base = '')
             $out['voice'] = strval(key($one));
     }
     return $out;
+}
+
+// maxquality of item $j of a reply, a bare number of lines ("1080" of ZetflixDB) as "1080p": aio_lp_q_num keeps "1080" no
+// quality (a name as a voice).
+/**
+ * @param array<mixed> $j
+ * @return string
+ */
+function aio_lp_maxq($j)
+{
+    $q = aio_lp_text(aio_lp_str($j, 'maxquality'));
+    return preg_match('/^[0-9]{3,4}\z/', $q) ? $q . 'p' : $q;
 }
 
 // The number of quality $q ("1080p", "1080p60", "2K", "4K"; by its first word: "2160p HEVC", "4K HDR"): its lines,
@@ -1676,7 +1688,7 @@ function aio_lp_serial($base, $src, $j, $url, $s, $total = AIO_LP_REPLY_MAX)
         aio_lp_log("season: {$src['path']}, no season $s", $base);
         return aio_lp_season_no($src, $url, 'no_season', strval($s));
     }
-    $q = aio_lp_text(aio_lp_str($j, 'maxquality'));
+    $q = aio_lp_maxq($j);
     if ($q !== '')
         $src['q'] = $q;
     return aio_lp_season_get($base, $src, $link, $total, $s);

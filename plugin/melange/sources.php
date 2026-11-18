@@ -4,8 +4,8 @@
 // remembered - the next opening goes by the history or the main one (§1.5); what is started from the screen takes its
 // profile into the record (wh_prof). The screen keeps two lists (view_online.php): the releases of one profile of
 // releases (rows, prof) and the online list of one profile of Lampac (lp, lp_prof); a choice of one of them already
-// there - no request. The item of MENU: aio_gc_src_item (view_gcomps.php), aio_lpv_menu (view_online.php). The line
-// "Откуда: <source>" over the lists: aio_src_tabs_right.
+// there - no request. The item of MENU: aio_gc_src_item (view_gcomps.php), aio_lpv_menu (view_online.php). The name
+// of the source over the lists: aio_src_tabs_right.
 // Reads and writes Aio (state, settings). Functions are global; the require order is in main.php.
 
 // The id of the profile list $st shows: of Lampac on the online list, else of releases ('' none).
@@ -303,7 +303,7 @@ function aio_src_lampac($st, $id, $tag)
     return aio_lpv_search_open($ns, 'replace');
 }
 
-// --- The line "Откуда: <source>" over the lists (the releases and the online list, view_online.php).
+// --- The name of the source over the lists (the releases and the online list, view_online.php).
 
 // The name of the ready profile of id $id of the operation (Aio::$settings profiles), '' none.
 /**
@@ -320,9 +320,9 @@ function aio_src_name($id)
     return '';
 }
 
-// Children of "Откуда: <source>" right-aligned to x $right of the row of the tabs of list $st,
-// with two ready profiles or more (spec v2 §2.2), in $room px at most (the tabs left of it; less than the
-// word and a few letters: none). -> array(children, their width; 0 none).
+// Children of the name of the source of list $st ("NAS", no word before it) right-aligned to x $right of the row of the
+// tabs, with two ready profiles or more (spec v2 §2.2), in $room px at most (the tabs left of it; less than a few letters:
+// none). -> array(children, their width; 0 none).
 /**
  * @param AioState $st
  * @param int $right
@@ -333,18 +333,10 @@ function aio_src_name($id)
 function aio_src_tabs_right($st, $right, $y, $room)
 {
     $from = aio_src_in_menu() ? aio_src_name(aio_src_now($st)) : '';
-    if ($from === '')
+    if ($from === '' || $room < 80)
         return array(array(), 0);
-    $lang = aio_gc_lang($st);
-    $h = AIO_GC_LABEL_H;
-    $y += intval((AIO_GC_KEY_H - $h) / 2);
-    $lead = aio_tr($lang, 'lp_from') . ' ';
-    $lw = aio_gc_w($lead, AIO_GC_HINT_PX);
-    if ($room - $lw < 80)
-        return array(array(), 0);
-    $name = aio_gc_cut_w($from, AIO_GC_HINT_PX, min(300, $room - $lw));
+    $name = aio_gc_cut_w($from, AIO_GC_HINT_PX, min(300, $room));
     $nw = aio_gc_w($name, AIO_GC_HINT_PX);
-    return array(array(
-        aio_gc_cut(null, aio_gc_at($lw, $h, $right - $nw - $lw, $y), $lead, AIO_GC_HINT_PX, AIO_GC_DIM),
-        aio_gc_cut(null, aio_gc_at($nw, $h, $right - $nw, $y), $name, AIO_GC_HINT_PX, AIO_GC_TEXT2)), $nw + $lw);
+    return array(array(aio_gc_cut(null, aio_gc_at($nw, AIO_GC_LABEL_H, $right - $nw, $y + intval((AIO_GC_KEY_H -
+        AIO_GC_LABEL_H) / 2)), $name, AIO_GC_HINT_PX, AIO_GC_TEXT2)), $nw);
 }

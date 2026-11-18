@@ -434,6 +434,32 @@ function aio_gc_title($st)
     return array($title, $st['e'] > 0 ? aio_ep_code($mv, $st['s'], $st['e']) : '');
 }
 
+// Children of the row of the title of list $st (aio_gc_window, aio_lpv_window): the title (aio_gc_title) at the left, whole
+// when it fits; "S5 E3" of an episode at the right; between them yellow line $note ('' none: the releases, aio_lpv_note;
+// the online list, its note), 26 px, in the room the title leaves, 300 px at least (the title cut then).
+/**
+ * @param AioState $st
+ * @param string $note
+ * @return list<AioGcComp>
+ */
+function aio_gc_title_row($st, $note)
+{
+    list($title, $ep) = aio_gc_title($st);
+    $right = AIO_GC_LX + AIO_GC_LW - 16;
+    $ew = $ep === '' ? 0 : aio_gc_w($ep, 36);
+    $nr = $right - ($ew > 0 ? $ew + 30 : 0);
+    $nt = $note === '' ? '' : aio_gc_cut_w($note, 26, max(300, $nr - AIO_GC_LX - aio_gc_w($title, 48) - 30));
+    $nw = $nt === '' ? 0 : aio_gc_w($nt, 26);
+    $d = array(aio_gc_cut(null, aio_gc_at($nr - AIO_GC_LX - ($nw > 0 ? $nw + 30 : 0), 66, AIO_GC_LX, 40), $title, 48,
+        AIO_GC_TEXT));
+    if ($nt !== '')
+        $d[] = aio_gc_cut(null, aio_gc_at($nw, 36, $nr - $nw, 58), $nt, 26, AIO_GC_AMBER);
+    if ($ep !== '')
+        $d[] = aio_gc_cut(null, aio_gc_at($ew, 50, $right - $ew, 52), $ep, 36, AIO_GC_TEXT2,
+            array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
+    return $d;
+}
+
 // The word <$key>_one/_few/_many for $n: English 1 / else, Russian by the
 // last digit (1, 2-4, else; 11-14 as 5).
 /**
@@ -1087,17 +1113,8 @@ function aio_gc_window($st, $sel, $top)
     $d[] = aio_gc_panel('card', aio_gc_at(AIO_GC_CW, AIO_GC_CARD_BOTTOM - AIO_GC_CY, AIO_GC_CX, AIO_GC_CY),
         aio_gc_card($st, $sel));
 
-    // Title cut alone; an episode has its own label at the right, the yellow line of "Онлайн"
-    // too (view_online.php).
-    list($title, $ep) = aio_gc_title($st);
-    $ew = $ep === '' ? 0 : aio_gc_w($ep, 36);
-    list($note, $nw) = aio_lpv_note($st, AIO_GC_LX + AIO_GC_LW - 16);
-    $d = array_merge($d, $note);
-    $d[] = aio_gc_cut(null, aio_gc_at(AIO_GC_LW - 16 - ($ew > 0 ? $ew + 30 : 0) - ($nw > 0 ? $nw + 30 : 0), 66, AIO_GC_LX, 40),
-        $title, 48, AIO_GC_TEXT);
-    if ($ep !== '')
-        $d[] = aio_gc_cut(null, aio_gc_at($ew, 50, AIO_GC_LX + AIO_GC_LW - 16 - $ew, 52), $ep, 36, AIO_GC_TEXT2,
-            array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
+    // The yellow line of "Онлайн" (view_online.php) in the row of the title.
+    $d = array_merge($d, aio_gc_title_row($st, aio_lpv_note($st)));
 
     // Viewport: clipping panel 'list'; the inner panel 'rows' moves to scroll.
     $prog = isset($st['gc_prog']) ? $st['gc_prog'] : array();
@@ -1138,8 +1155,8 @@ function aio_gc_window($st, $sel, $top)
     if (aio_gc_color_keys())
         $d[] = aio_gc_panel('sort', aio_gc_at(AIO_GC_LW, AIO_GC_TAB_LINE_Y + AIO_GC_TAB_LINE, AIO_GC_LX, AIO_GC_TABS_Y),
             aio_gc_sort_tabs($st, $tt, $tabs_end));
-    // Outside the panel: a remote without the colour keys has it too. Left of it "Откуда: …"
-    // in the room the tabs leave (view_online.php).
+    // Outside the panel: a remote without the colour keys has it too. Left of it the name of the source
+    // in the room the tabs leave (sources.php).
     $right = AIO_GC_LX + AIO_GC_LW - 16;
     if (aio_errors_shown($st['errors']))
     {
