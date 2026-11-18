@@ -54,13 +54,13 @@ define('MEL_MAX_BYTES', 6291456);
 // $err of mel_http_get for a reply over its $max bytes.
 define('MEL_HTTP_TOO_BIG', 'reply over the size limit');
 define('MEL_PLUGIN', 'melange');
-// Supplier id kept from the plugin's old name aiostreams: Dune's watch history
-// (recent_uid, sup_id of "Continue") refers to it. "aio" is a legacy name kept for
-// the old watch history of the users: the shell finds the supplier by the prefix
-// of a uid ("aio:..."), so a new id would cut that history off from Melange.
-// Names: mel_ / MEL_ / Mel is the prefix of the code of Melange; an "aio" left in
-// a name is AIOStreams (mel_cgi_aio_api) or data kept as it was (keys of
-// settings.json, files of data_dir, handler_id, this id).
+// Names: mel_ / MEL_ / Mel is the prefix of the code of Melange. An "aio" left is
+// AIOStreams almost everywhere (aio_server, aio_mode, aio_tpl*, aio_confs,
+// aio_own_url, aio_conf_mig*, a=aio_sync|aio_status|aio_check). The exceptions are
+// legacy data kept by the users, so they stay "aio": this supplier id and the
+// handler_id "aio", the uid "aio:..." of the watch history (the shell finds the
+// supplier by the prefix of a uid), the scheme aio_next: and the fields aio_cin,
+// aio_titles, aio_own_card of movie_str.
 define('MEL_SUP_ID', 'aio');
 // Id of a Dune card in a regex: of the server (24 hex) or a local one of the shell
 // (custom_mdb/user_movie, "m-..."). No ':' or '/': it goes into recent_uid,

@@ -7,8 +7,6 @@
   </permissions>
   <params>
     <program>main.php</program>
-    <!-- "aio": a legacy supplier id (MEL_SUP_ID of main.php), kept for the old watch
-         history of the users: the shell finds the supplier by the prefix of a uid ("aio:..."). -->
     <movie_suppliers>aio</movie_suppliers>
   </params>
   <entry_points>

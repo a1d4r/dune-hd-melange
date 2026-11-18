@@ -493,7 +493,7 @@ function mel_pp_id($media_url)
 }
 
 // get_folder_view of "person:<tmdb>": the person from memory only (mel_cm_more_get); none there, as
-// it is asked: the timer (mel_pp_load).
+// it is asked: the timer (person_load of mel_pp_input).
 /**
  * @param string $media_url
  * @param mixed $sel_state
