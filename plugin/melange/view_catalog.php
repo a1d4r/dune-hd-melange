@@ -186,8 +186,8 @@ class MelCat
     // r25: when a request of a row failed for the server (net, rate, server), 0: it did not.
     /** @var int */
     public static $down = 0;
-    // r24: when a row timed out at an opening (mel_catv_open), by rid; within MEL_CAT_FRESH it is asked after the
-    // others, until it loads.
+    // When a row timed out at an opening of r24 (mel_catv_open) or at the timer of the tab "TV" (mel_tv_refresh, the
+    // same php_server), by rid; within MEL_CAT_FRESH both ask it after the others, until it loads (mel_catv_slow_note).
     /** @var array<string, int> */
     public static $slow = array();
     // r25: the tiles of the flagged rows as this screen shows them, by rid and id: the shell
@@ -553,6 +553,30 @@ function mel_catv_is_down()
     return MelCat::$down > 0 && $since >= 0 && $since < MEL_CATV_DOWN_S;
 }
 
+// Row $rid timed out less than MEL_CAT_FRESH ago (MelCat::$slow): asked after the others.
+/**
+ * @param string $rid
+ * @return bool
+ */
+function mel_catv_is_slow($rid)
+{
+    return isset(MelCat::$slow[$rid]) && mel_cat_fresh_since(MelCat::$slow[$rid]);
+}
+
+// The err of a request of the first page of row $rid (mel_cat_reply): a timeout - into MelCat::$slow, none - out of it.
+/**
+ * @param string $rid
+ * @param string $err
+ * @return void
+ */
+function mel_catv_slow_note($rid, $err)
+{
+    if ($err === 'timeout')
+        MelCat::$slow[$rid] = time();
+    else if ($err === '')
+        unset(MelCat::$slow[$rid]);
+}
+
 // The first page of a row asked for anew: with tiles, into MelCat::$lists (of a copy
 // after a failure: stale), else what is there stays; an empty row is remembered.
 // MelCat::$down by its failure: net, rate, server, and a timeout unless $timeout_down is
@@ -572,8 +596,8 @@ function mel_catv_load_first($row, $limit, $timeout_down = true)
         MelCat::$lists[$rid] = mel_catv_list($st, $res['tiles'], $res['stale']);
     else if ($res['end'] && $res['err'] === '')
         MelCat::$empty[$rid] = time();
-    $down = $timeout_down ? array('net', 'timeout', 'rate', 'server') : array('net', 'rate', 'server');
-    MelCat::$down = in_array($res['err'], $down, true) ? time() : 0;
+    $down = mel_cat_err_down($res['err']) || ($timeout_down && $res['err'] === 'timeout');
+    MelCat::$down = $down ? time() : 0;
     return $res;
 }
 
@@ -609,7 +633,7 @@ function mel_catv_open($rows, $limit)
             MelCat::$lists[$rid] = mel_catv_list_copy($row, $c);
         if ($c && mel_cat_is_fresh($c))
             continue;
-        if (isset(MelCat::$slow[$rid]) && mel_cat_fresh_since(MelCat::$slow[$rid]))
+        if (mel_catv_is_slow($rid))
             $slow[$rid] = $row;
         else if (!$c)
             $none[$rid] = $row;
@@ -619,12 +643,8 @@ function mel_catv_open($rows, $limit)
             $old_t[] = $c['t'];
         }
     }
-    // The oldest copy first, of the same time in the order of the screen (asort is not stable).
-    $order = array_keys($old);
-    $pos = array_keys($order);
-    array_multisort($old_t, SORT_ASC, $pos, SORT_ASC, $order);
     $sorted = array();
-    foreach ($order as $rid)
+    foreach (mel_cat_oldest_first(array_keys($old), $old_t) as $rid)
         $sorted[$rid] = $old[$rid];
     $old = $sorted;
     $start = microtime(true);
@@ -636,10 +656,7 @@ function mel_catv_open($rows, $limit)
             break;
         $res = mel_catv_load_first($row, $left, false);
         $net = true;
-        if ($res['err'] === 'timeout')
-            MelCat::$slow[$rid] = time();
-        else if ($res['err'] === '')
-            unset(MelCat::$slow[$rid]);
+        mel_catv_slow_note($rid, $res['err']);
         unset($old[$rid], $slow[$rid]);
         $is_down = mel_catv_is_down();
         if ($is_down)

@@ -604,9 +604,11 @@ function mel_tv_timer_state($lang)
 
 // The timer: the copy of the manifest older than MEL_CAT_FRESH asked anew (not MEL_CAT_MANIFEST_FRESH:
 // the timer comes every 10 min), then the first pages
-// of the rows of the file without a copy or with one older than MEL_CAT_FRESH, the oldest first, one by
-// one in $limit s; after a failure of the server no more. Fresh copies are not asked: at most a request
-// a row an hour, however often the shell calls. No flag of each copy (MelTv::$quiet), they are counted
+// of the rows of the file without a copy or with one older than MEL_CAT_FRESH, one by one in $limit s: those
+// without a copy first, then the oldest copy (of the same time in the order of the file), then the rows that timed
+// out before (MelCat::$slow, as mel_catv_open: one slow row does not take the budget of every tick). A timeout is
+// not the server down; after a failure of the server (mel_cat_err_down) no more. Fresh copies are not asked: at most
+// a request a row an hour, however often the shell calls. No flag of each copy (MelTv::$quiet), they are counted
 // (MelTv::$new_copies). Each request gets the whole seconds left (curl takes whole ones: rounded up, the
 // last could run past $limit), none begins with less than 1 s. -> for the log.
 /**
@@ -616,7 +618,6 @@ function mel_tv_timer_state($lang)
 function mel_tv_refresh($limit)
 {
     $start = microtime(true);
-    $down = array('net', 'timeout', 'rate', 'server');
     MelTv::$quiet = true;
     MelTv::$new_copies = 0;
     $copy = mel_cat_manifest_copy();
@@ -633,26 +634,36 @@ function mel_tv_refresh($limit)
     }
     $tv_rows = mel_tv_rows($rows);
     $old = array();
+    $old_t = array();
+    $slow = array();
     foreach ($tv_rows as $i => $row)
     {
         $c = mel_cat_page_cached($row, 0);
-        if (!mel_cat_is_fresh($c))
-            $old[$i] = $c ? $c['t'] : 0;
+        if (mel_cat_is_fresh($c))
+            continue;
+        if (mel_catv_is_slow(mel_catv_rid($row)))
+            $slow[] = $i;
+        else
+        {
+            $old[] = $i;
+            $old_t[] = $c ? $c['t'] : 0;
+        }
     }
-    asort($old);
+    $queue = array_merge(mel_cat_oldest_first($old, $old_t), $slow);
     $asked = 0;
-    foreach (array_keys($old) as $i)
+    foreach ($queue as $i)
     {
         $secs = floor($limit - (microtime(true) - $start));
-        if (in_array($err, $down, true) || $secs < 1)
+        if (mel_cat_err_down($err) || $secs < 1)
             break;
         $st = mel_cat_row_state($tv_rows[$i]);
         $res = mel_cat_more($st, $secs);
         $err = $res['err'];
+        mel_catv_slow_note(mel_catv_rid($tv_rows[$i]), $err);
         $asked++;
     }
     MelTv::$quiet = false;
-    return sprintf('%s, rows asked %d of %d old', $man, $asked, count($old));
+    return sprintf('%s, rows asked %d of %d old', $man, $asked, count($queue));
 }
 
 // topmenu_timer_action of the manifest: the old copies asked anew (mel_tv_refresh, none without AIOStreams:

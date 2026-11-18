@@ -247,6 +247,17 @@ function mel_cat_reply($r, $what, $field, $one)
     return array('err' => $why, 'list' => $list, 'curl28' => strpos($err, 'curl 28:') === 0);
 }
 
+// The err of mel_cat_reply is the server down: no request of the next row after it. A timeout is not: a slow row or the
+// end of the limit (mel_catv_open, mel_tv_refresh).
+/**
+ * @param string $err
+ * @return bool
+ */
+function mel_cat_err_down($err)
+{
+    return in_array($err, array('net', 'rate', 'server'), true);
+}
+
 // --- Rows.
 
 // The group of a row, by its id: the manifest has no such field. 'other' for the
@@ -1070,6 +1081,20 @@ function mel_cat_fresh_since($t)
 function mel_cat_is_fresh($c)
 {
     return $c !== null && mel_cat_fresh_since($c['t']);
+}
+
+// $keys by $times (the time of the copy of each, in the same order), the oldest first, of the same time in the order of
+// $keys (asort is not stable).
+/**
+ * @param list<int|string> $keys
+ * @param list<int> $times
+ * @return list<int|string>
+ */
+function mel_cat_oldest_first($keys, $times)
+{
+    $pos = array_keys($keys);
+    array_multisort($times, SORT_ASC, $pos, SORT_ASC, $keys);
+    return $keys;
 }
 
 // The first page of the listing was got less than MEL_CAT_FRESH ago.
