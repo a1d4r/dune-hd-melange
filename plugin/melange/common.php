@@ -22,6 +22,8 @@ define('AIO_TOKEN_FILE', 'web_token');
 define('AIO_LP_UID_FILE', 'lampac_uid');
 // In data_dir: the sort of the stream lists (aio_sort_read); written by the plugin only.
 define('AIO_SORT_FILE', 'list_sort');
+// In data_dir: the order of the balancers of the online list (aio_lpv_qsort); written by the plugin only.
+define('AIO_LP_SORT_FILE', 'lampac_sort');
 // In data_dir: the main Debrid service (aio_debrid_main_read, 0.56.0); written by the
 // plugin (MENU of a list) and by the settings page, not in settings.json.
 define('AIO_DEBRID_MAIN_FILE', 'debrid_main');

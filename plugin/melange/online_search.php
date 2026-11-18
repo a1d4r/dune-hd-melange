@@ -335,7 +335,11 @@ function aio_lpv_result($run)
         // The balancer of the record unfolded, the cursor on its row.
         $v['open'][$rows[$pin]['path']] = true;
     }
-    $v['gc'] = aio_lpv_put(aio_lpv_lines($v), $sel);
+    $L = aio_lpv_lines($v);
+    // No row of a record nor "Ещё N": on the first line (by quality, aio_lpv_qsort, not the first row).
+    if ($pin < 0 && $run['more'] < 0 && $L)
+        $sel = $L[0]['i'];
+    $v['gc'] = aio_lpv_put($L, $sel);
     $v['gc_new'] = true;
     $ns = $st;
     $ns['rid'] = aio_rid();
