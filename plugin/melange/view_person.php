@@ -492,7 +492,20 @@ function mel_pp_id($media_url)
     return preg_match('/^person:([1-9][0-9]{0,9})$/D', $media_url, $m) ? $m[1] : '';
 }
 
-// get_folder_view of "person:<tmdb>": the person from memory only (mel_cm_more_get); none there, as
+// The person of TMDB $tmdb from memory only (mel_cm_more_get), its works those the filter shows (mel_cm_person_shown:
+// hidden, the age), or null. The view and the keys both take it so: the works drawn are those ENTER counts in.
+/**
+ * @param string $tmdb
+ * @return MelCmPerson|null
+ */
+function mel_pp_person($tmdb)
+{
+    /** @var MelCmPerson|null $p */
+    $p = mel_cm_more_get('person', "tmdb:$tmdb");
+    return $p ? mel_cm_person_shown($p) : null;
+}
+
+// get_folder_view of "person:<tmdb>": the person from memory only (mel_pp_person); none there, as
 // it is asked: the timer (person_load of mel_pp_input).
 /**
  * @param string $media_url
@@ -505,8 +518,7 @@ function mel_pp_folder_view($media_url, $sel_state)
     if ($tmdb === '')
         return mel_lines_view(array(mel_expired_item()));
     $e = mel_pp_entry($tmdb);
-    /** @var MelCmPerson|null $p */
-    $p = mel_cm_more_get('person', "tmdb:$tmdb");
+    $p = mel_pp_person($tmdb);
     $l = mel_pp_layout($e, $p);
     $pos = mel_pp_pos($e, $l, $sel_state);
     $e['pos'] = $pos;
@@ -606,8 +618,7 @@ function mel_pp_input($in, $control)
     if ($tmdb === '')
         return null;
     $e = mel_pp_entry($tmdb);
-    /** @var MelCmPerson|null $p */
-    $p = mel_cm_more_get('person', "tmdb:$tmdb");
+    $p = mel_pp_person($tmdb);
     $l = mel_pp_layout($e, $p);
     $pos = mel_pp_pos($e, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     $e['pos'] = $pos;

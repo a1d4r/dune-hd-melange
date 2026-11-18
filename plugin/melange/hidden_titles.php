@@ -4,9 +4,9 @@
 // mel_settings_parse). Hidden: none in the rows of the catalog, "Show all", the tab "TV", "Похожие" and "Части
 // франшизы" of the own card, the works of a person; a search shows them (its rows have q). The age: there and in a
 // search too. "Continue" and "Мой список" are not filtered (their tiles never go through mel_cat_take).
-// The functions of the file and of an entry need my_list.php alone (mel_ml_key, mel_ml_same, mel_ml_text) and log
-// nothing: the settings page has them too, with no main.php ("Скрытые", "Вернуть": mel_ht_read_file, mel_ht_without,
-// mel_ht_json, then its own write of the file). Those of php_server need main.php (mel_data_dir, mel_file_sig,
+// The functions of the file and of an entry need my_list.php alone (mel_ml_key, mel_ml_same, mel_ml_text,
+// mel_ml_broken) and log nothing: the settings page has them too, with no main.php ("Скрытые", "Вернуть":
+// mel_ht_read_file, mel_ht_broken, mel_ht_without, mel_ht_json, then its own write of the file). Those of php_server need main.php (mel_data_dir, mel_file_sig,
 // mel_write_file, mel_log, Mel::$settings) and catalog.php (mel_cat_age_of). POP UP, "Скрыть" and the listings in
 // memory: view_catalog.php.
 // PHP 5.3.6. Types in the PHPDoc: phpstan-types.neon of the repository.
@@ -16,10 +16,11 @@ require_once dirname(__FILE__) . '/my_list.php';
 define('MEL_HT_FILE', 'hidden_titles.json');
 // The version of the file: {"v": 1, "items": [<entry>...]}.
 define('MEL_HT_V', 1);
-// Titles kept at most: the oldest go first. ~150 bytes a title: 500 are ~75 KB.
+// Titles kept at most: the oldest go first. ~150 bytes a title of a short Latin name: 500 are ~75 KB.
 define('MEL_HT_MAX', 500);
-// A bigger file is broken.
-define('MEL_HT_FILE_MAX', 262144);
+// A bigger file is broken, as of "Мой список" (MEL_ML_FILE_MAX): json_encode of PHP 5.3 makes Cyrillic \uXXXX, 6 bytes
+// a letter, 500 names of 70 letters are ~273 KB. A write over it puts the oldest out (mel_ht_fit).
+define('MEL_HT_FILE_MAX', 1048576);
 
 class MelHt
 {
@@ -93,9 +94,9 @@ function mel_ht_items($items)
     return $list;
 }
 
-// The list of the file $path, null when it is not taken: $why 'unreadable' or 'v <n> newer' (of a later Melange). No
-// file, a file too big, not JSON or not a list: an empty list ($why 'too big', 'not JSON', 'not a list'; a write puts a
-// good one over it).
+// The list of the file $path, null when it is not taken; $why ('' - read, or no file: an empty list): 'unreadable',
+// 'v <n> newer' (of a later Melange) or, the file broken, 'too big', 'not JSON', 'not a list' (mel_ht_broken), as
+// mel_ml_read_file.
 /**
  * @param string $path
  * @param string $why
@@ -111,7 +112,7 @@ function mel_ht_read_file($path, &$why)
     if ($size !== false && $size > MEL_HT_FILE_MAX)
     {
         $why = 'too big';
-        return array();
+        return null;
     }
     $text = $size !== false && is_readable($path) ? @file_get_contents($path) : false;
     if (!is_string($text))
@@ -120,17 +121,33 @@ function mel_ht_read_file($path, &$why)
         return null;
     }
     $j = json_decode($text, true);
-    $v = is_array($j) && isset($j['v']) ? $j['v'] : null;
+    if (!is_array($j))
+    {
+        $why = 'not JSON';
+        return null;
+    }
+    $v = isset($j['v']) ? $j['v'] : null;
     if (is_int($v) && $v > MEL_HT_V)
     {
         $why = "v $v newer";
         return null;
     }
-    if (!is_array($j))
-        $why = 'not JSON';
-    elseif ($v !== MEL_HT_V || !isset($j['items']) || !is_array($j['items']) || $j['items'] !== array_values($j['items']))
+    if ($v !== MEL_HT_V || !isset($j['items']) || !is_array($j['items']) || $j['items'] !== array_values($j['items']))
+    {
         $why = 'not a list';
-    return $why === '' ? mel_ht_items($j['items']) : array();
+        return null;
+    }
+    return mel_ht_items($j['items']);
+}
+
+// $why of mel_ht_read_file is of a broken file: php_server moves it aside (mel_ht_list), a new one may be written.
+/**
+ * @param string $why
+ * @return bool
+ */
+function mel_ht_broken($why)
+{
+    return mel_ml_broken($why);
 }
 
 // The text of the file of list $list; '' if json_encode failed.
@@ -142,6 +159,24 @@ function mel_ht_json($list)
 {
     $j = json_encode(array('v' => MEL_HT_V, 'items' => $list));
     return is_string($j) ? $j : '';
+}
+
+// The text of the file of list $list within MEL_HT_FILE_MAX: the oldest (the last) out till it fits; $list as written.
+// '' if json_encode failed.
+/**
+ * @param list<MelHtEntry> $list
+ * @param-out list<MelHtEntry> $list
+ * @return string
+ */
+function mel_ht_fit(&$list)
+{
+    $data = mel_ht_json($list);
+    while ($data !== '' && strlen($data) > MEL_HT_FILE_MAX && $list)
+    {
+        array_pop($list);
+        $data = mel_ht_json($list);
+    }
+    return $data;
 }
 
 // List $list with entry $e first, the entries of the same title (mel_ml_same: of its type, its IMDb or its TMDB) out,
@@ -221,8 +256,9 @@ function mel_ht_keep_list($list, $sig)
 }
 
 // The list in order, the newest first. Read when the file is not that of the memory (mel_file_sig: the settings page
-// renames a new one over it). A newer version or one not readable: none hidden, the file not written over
-// (MelHt::$lock); one line of the log.
+// renames a new one over it). As mel_ml_list: a broken file (mel_ht_broken) renamed to hidden_titles.json.bad (one
+// before it replaced), none hidden, a new file written by "Скрыть"; not renamed, a newer version or one not readable:
+// none hidden, the file not written over (MelHt::$lock). One line of the log each time.
 /**
  * @return list<MelHtEntry>
  */
@@ -234,15 +270,25 @@ function mel_ht_list()
     $why = '';
     $path = mel_ht_path();
     $list = $path !== '' ? mel_ht_read_file($path, $why) : array();
-    MelHt::$lock = $list === null ? $why : '';
-    if ($why !== '')
-        mel_log('hidden: ' . MEL_HT_FILE . " $why" . ($list === null ? ', not written over, none hidden' : ', none hidden'));
-    mel_ht_keep_list($list === null ? array() : $list, $sig);
+    MelHt::$lock = '';
+    if ($list === null)
+    {
+        $list = array();
+        $moved = mel_ht_broken($why) && @rename($path, "$path.bad");
+        if ($moved)
+            $sig = mel_file_sig(MEL_HT_FILE);
+        else
+            MelHt::$lock = $why;
+        mel_log('hidden: ' . MEL_HT_FILE . " $why, " . ($moved ? 'moved to ' . MEL_HT_FILE . '.bad' : 'not written over') .
+            ', none hidden');
+    }
+    mel_ht_keep_list($list, $sig);
     return MelHt::$list;
 }
 
 // "Скрыть" of tile $t: first in the list (an entry of the same title before replaced), written whole (mel_write_file: a
-// temporary file and rename). -> '' or why not: 'no id' (no IMDb or TMDB), 'locked' (MelHt::$lock), 'write'.
+// temporary file and rename) within MEL_HT_FILE_MAX (mel_ht_fit). -> '' or why not: 'no id' (no IMDb or TMDB), 'locked'
+// (MelHt::$lock), 'write'.
 /**
  * @param MelCatTile $t
  * @return string
@@ -259,7 +305,7 @@ function mel_ht_hide($t)
         return 'locked';
     }
     $path = mel_ht_path();
-    $data = mel_ht_json($list);
+    $data = mel_ht_fit($list);
     if ($path === '' || $data === '' || !mel_write_file($path, $data))
     {
         mel_log('hidden: not saved, write failed');

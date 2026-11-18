@@ -293,6 +293,7 @@ ml_err_write = Couldn't save Favorites: Melange couldn't write the file. Try aga
 ml_err_name = Couldn't add to Favorites: the title has no name yet. Try again later
 ht_hide = Hide
 ht_err_write = Couldn't hide the title: Melange couldn't write the file. Try again
+ht_err_locked = Can't hide: a newer Melange saved the hidden list, or the file can't be read. Update Melange
 ml_title = Favorites
 ml_hint = Movies and shows you save for later will be here. Open a title page and press "Favorites". To bring over your Dune Favorites, press POP UP on this tile.
 ml_import = Add from Dune Favorites

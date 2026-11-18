@@ -41,11 +41,16 @@ function mel_cgi_cat_age_set($x)
     return $x !== 'all' && array_key_exists($x, mel_cgi_cat_ages()) ? intval($x) : null;
 }
 
-// Why the list of the file is not taken (mel_ht_read_file gave null, $why): the line of the page.
+// Why the list of the file is not taken (mel_ht_read_file gave null, $why): the line of the page. A broken file
+// (mel_ht_broken): php_server renames it to .bad at its next read and starts a new list (mel_ht_list); the page only
+// reads it.
 function mel_cgi_ht_locked($why)
 {
-    return strpos($why, 'newer') !== false ? mel_cgi_l('Список скрытых записан более новой версией Melange: обновите плагин',
-        'The hidden list is from a newer version of Melange: update the plugin') :
+    if (strpos($why, 'newer') !== false)
+        return mel_cgi_l('Список скрытых записан более новой версией Melange: обновите плагин',
+            'The hidden list is from a newer version of Melange: update the plugin');
+    return mel_ht_broken($why) ? mel_cgi_l('Список скрытых повреждён: Дюна сохранит его копию и начнёт новый',
+        'The hidden list is damaged: the Dune keeps a copy and starts a new one') :
         mel_cgi_l('Список скрытых на Дюне не читается', 'The hidden list on the Dune cannot be read');
 }
 
@@ -62,8 +67,8 @@ function mel_cgi_ht_items($list)
     return $out;
 }
 
-// #init.hidden of the page: {items (mel_cgi_ht_items), msg: '' or why there is no list (mel_cgi_ht_locked)}. No file
-// or a broken one: none hidden (the plugin writes a good one over it).
+// #init.hidden of the page: {items (mel_cgi_ht_items), msg: '' or why there is no list (mel_cgi_ht_locked: of a later
+// Melange, not readable, broken)}. No file: none hidden, no msg.
 function mel_cgi_ht_data($dir)
 {
     $why = '';
@@ -99,9 +104,9 @@ function mel_cgi_ht_answer($ok, $msg, $list)
 
 // POST a=title_unhide&ajax=1 (k: the key of a title, mel_ml_key) -> the file read now (the Dune may have hidden
 // more since the page came), that title out, written whole (mel_cgi_write: by rename, php_server reads it anew by
-// mel_file_sig) -> {ok: true, msg, items}. No such title (out already, a broken file): ok, nothing written. A file not
-// taken (of a later Melange, not readable) or no data dir: refused, nothing written, no list; not written: refused, the
-// list of the file.
+// mel_file_sig) -> {ok: true, msg, items}. No such title (out already): ok, nothing written. A file not taken (of a
+// later Melange, not readable, broken: mel_cgi_ht_locked) or no data dir: refused, nothing written, no list; not
+// written: refused, the list of the file.
 function mel_cgi_ht_unhide_post($dir)
 {
     if (!mel_cgi_dir_ok($dir))
@@ -120,7 +125,7 @@ function mel_cgi_ht_unhide_post($dir)
     $out = mel_ht_without($list, $k);
     if (count($out) === count($list))
     {
-        mel_cgi_log('title_unhide: no such title' . ($why !== '' ? ', ' . MEL_HT_FILE . " $why" : '') . ', nothing written');
+        mel_cgi_log('title_unhide: no such title, nothing written');
         mel_cgi_ht_answer(true, '', $list);
     }
     $name = '';

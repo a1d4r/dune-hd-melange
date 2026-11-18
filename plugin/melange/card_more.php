@@ -269,7 +269,7 @@ function mel_cm_bio_pars($s)
 // it: from memory if asked less than MEL_CM_TTL ago, else in $limit s at most (up to MEL_CAT_TOTAL:
 // mel_cat_get cuts more). -> err: '' or none (no such person: a wrong id, 404, a reply of another
 // or no name; asking again will not help) or later (no reply in time, the net, 429, 5xx: ask again);
-// person: the parsed one or null, its works those the filter shows (mel_cm_person_shown).
+// person: the parsed one or null, its works all of them (the screen shows them through mel_cm_person_shown).
 /**
  * @param string $tmdb
  * @param int $limit
@@ -285,7 +285,7 @@ function mel_cm_person($tmdb, $limit)
     if ($p)
     {
         mel_log("card: person $key cached");
-        return array('err' => '', 'person' => mel_cm_person_shown($p));
+        return array('err' => '', 'person' => $p);
     }
     $g = mel_cat_get("meta/person/$key.json", "person $key", 'meta', $limit, true);
     if ($g['err'] !== '')
@@ -300,11 +300,12 @@ function mel_cm_person($tmdb, $limit)
     mel_log(sprintf('card: person %s: %d works, bio %s', $key, count($p['works']),
         $p['bio'] === '' ? 'none' : ($p['bio_en'] ? 'en' : 'ru')));
     mel_cm_more_put('person', $key, $p);
-    return array('err' => '', 'person' => mel_cm_person_shown($p));
+    return array('err' => '', 'person' => $p);
 }
 
 // Person $p (kept whole in memory) with the works the filter shows (mel_ht_off: hidden, the age of the settings), in
-// their order: a title hidden or the age changed since it was asked shows so at once.
+// their order: a title hidden or the age changed since it was asked shows so at once. The screen of the person
+// (mel_pp_person) draws them and finds ENTER among them.
 /**
  * @param MelCmPerson $p
  * @return MelCmPerson
