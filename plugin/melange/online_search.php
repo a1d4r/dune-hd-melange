@@ -162,6 +162,12 @@ function mel_lpv_tick($in)
     else if ($run['phase'] === 'start')
     {
         $run['search'] = mel_lp_search_start($base, $run['v']['title']);
+        // The title of Lampac kept for "Continue" and the next episode of the card (mel_lpv_title): they ask the
+        // balancer without events. Memory only.
+        $k = mel_lpv_key($run['st']['movie']);
+        if ($run['search']['title'] !== '' && $k !== '')
+            mel_lpv_ids_put($k, array('tmdb' => '', 'kp' => '', 'original_language' => '',
+                'title' => $run['search']['title']));
         $run['phase'] = 'search';
     }
     else if ($run['phase'] === 'search' && $run['search'])

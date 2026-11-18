@@ -29,7 +29,8 @@ class MelLpv
     /** @var MelLpRun|null */
     public static $run = null;
     // The TMDB and KinoPoisk ids and the original language of the cards of play_action (movie_str: tmdb_id or
-    // tmdbtv_id, kp_id, original_language) by dune id or IMDb: their search needs no /externalids. Memory only.
+    // tmdbtv_id, kp_id, original_language) by dune id or IMDb: their search needs no /externalids; the title of Lampac
+    // of their search (fix_title, mel_lp_search_start), when it gave one. Memory only.
     /** @var array<string, MelLpvIds> */
     public static $ids = array();
     // The season of the last start of an episode (online_play.php): the dune id of its card (a key of
@@ -76,7 +77,7 @@ function mel_lpv_key($mv)
     return $mv['dune_id'] !== '' ? $mv['dune_id'] : $mv['imdb'];
 }
 
-// The parameters of Lampac of card $mv (mel_lp_title).
+// The parameters of Lampac of card $mv (mel_lp_title): its title the one of Lampac kept (MelLpv::$ids), else its own.
 /**
  * @param MelMovie $mv
  * @return MelLpTitle

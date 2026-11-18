@@ -763,7 +763,7 @@ function mel_lp_events_why($r, $j)
 // a key => show, rch or bad), hidden (their counts by reason), tasks and pending (of the last
 // /lifeevents), shown (its items of show not false when all its tasks came and no pending was sent, -1 not so), fails (/lifeevents of no answer in a row), done, capped (the
 // time of the search ran out), err and detail (a reason, '' none: the search
-// failed only if no source came). One search at a time: two events at once
+// failed only if no source came), title (the title of Lampac in q, '' none). One search at a time: two events at once
 // make Lampac answer 500.
 /**
  * @param string $base
@@ -776,7 +776,7 @@ function mel_lp_search_start($base, $p)
         't0' => mel_lp_now(), 'sources' => array(), 'gone' => array(),
         'hidden' => array('show' => 0, 'rch' => 0, 'bad' => 0),
         'tasks' => 0, 'pending' => 0, 'shown' => -1, 'fails' => 0, 'done' => false, 'capped' => false, 'err' => '',
-        'detail' => '');
+        'detail' => '', 'title' => '');
     mel_lp_log("search: {$p['id']}/{$p['imdb_id']}/{$p['kinopoisk_id']}, serial {$p['serial']}", $base);
     $r = mel_lp_ask($base, "$base/lite/events?" . mel_lp_query($p, array('life' => 'true')), MEL_LP_CONNECT, MEL_LP_STEP,
         MEL_LP_MAX_BYTES);
@@ -791,6 +791,7 @@ function mel_lp_search_start($base, $p)
         {
             $p['title'] = $fix;
             $st['q'] = mel_lp_query($p);
+            $st['title'] = $fix;
         }
         mel_lp_log(sprintf('events: life%s, %.2f s', $fix !== '' ? ', the title of Lampac' : '', mel_lp_now() - $st['t0']),
             $base);

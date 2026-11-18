@@ -33,12 +33,13 @@ parameters:
         MelLpReply: 'array{code: int, body: string, err: string, errno: int, hit: bool, loc: string}'
         # The parameters of a title for Lampac (mel_lp_title, lampac.php).
         MelLpTitle: 'array{id: string, imdb_id: string, kinopoisk_id: string, title: string, original_title: string, serial: string, year: string, original_language: string, source: string}'
-        # The ids of a card kept for the search of Lampac (MelLpv::$ids, mel_lpv_ids_put, online_play.php): keys of mel_lp_title.
-        MelLpvIds: 'array{tmdb: string, kp: string, original_language: string}'
+        # The ids of a card kept for the search of Lampac (MelLpv::$ids, mel_lpv_ids_put, online_play.php): keys of mel_lp_title;
+        # title only when Lampac gave one (fix_title).
+        MelLpvIds: 'array{tmdb: string, kp: string, original_language: string, title?: string}'
         # A source of a search of Lampac (mel_lp_source, lampac.php).
         MelLpSource: 'array{name: string, label: string, q: string, url: string, path: string, index: int, pos: int}'
         # A search of Lampac between the ticks (mel_lp_search_start, lampac.php).
-        MelLpSearch: 'array{base: string, q: string, mode: string, memkey: string, seen: int, t0: float, sources: list<MelLpSource>, gone: array<string, string>, hidden: array{show: int, rch: int, bad: int}, tasks: int, pending: int, shown: int, fails: int, done: bool, capped: bool, err: string, detail: string}'
+        MelLpSearch: 'array{base: string, q: string, mode: string, memkey: string, seen: int, t0: float, sources: list<MelLpSource>, gone: array<string, string>, hidden: array{show: int, rch: int, bad: int}, tasks: int, pending: int, shown: int, fails: int, done: bool, capped: bool, err: string, detail: string, title: string}'
         # A reason of a source of Lampac (mel_lp_why, lampac.php); at: the index of its source (mel_lp_replies).
         MelLpWhy: 'array{src: string, path: string, why: string, detail: string, at?: int}'
         # A row of a reply of a balancer (mel_lp_movie, mel_lp_season_rows, lampac.php); method play|call|season (its episode: mel_lp_ep_row).

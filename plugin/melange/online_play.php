@@ -55,7 +55,7 @@ function mel_lpv_ids_keep($in, $mv)
 }
 
 // Ids $new kept for key $k of a card (mel_lpv_key) in MelLpv::$ids: an empty one keeps the one kept before; all empty -
-// nothing kept.
+// nothing kept. title (of Lampac, mel_lp_search_start) only when one is kept: none - no key.
 /**
  * @param string $k
  * @param MelLpvIds $new
@@ -64,11 +64,14 @@ function mel_lpv_ids_keep($in, $mv)
 function mel_lpv_ids_put($k, $new)
 {
     $was = isset(MelLpv::$ids[$k]) ? MelLpv::$ids[$k] : array('tmdb' => '', 'kp' => '', 'original_language' => '');
-    if ($new['tmdb'] === '' && $new['kp'] === '' && $new['original_language'] === '')
+    $title = isset($new['title']) && $new['title'] !== '' ? $new['title'] : (isset($was['title']) ? $was['title'] : '');
+    if ($new['tmdb'] === '' && $new['kp'] === '' && $new['original_language'] === '' && $title === '')
         return;
     MelLpv::$ids[$k] = array('tmdb' => $new['tmdb'] !== '' ? $new['tmdb'] : $was['tmdb'],
         'kp' => $new['kp'] !== '' ? $new['kp'] : $was['kp'],
         'original_language' => $new['original_language'] !== '' ? $new['original_language'] : $was['original_language']);
+    if ($title !== '')
+        MelLpv::$ids[$k]['title'] = $title;
 }
 
 // The ids of tile $t for movie_str of a play_action of Melange itself (mel_card_releases, mel_oc_watch; read by
