@@ -33,6 +33,8 @@ parameters:
         MelLpReply: 'array{code: int, body: string, err: string, errno: int, hit: bool}'
         # The parameters of a title for Lampac (mel_lp_title, lampac.php).
         MelLpTitle: 'array{id: string, imdb_id: string, kinopoisk_id: string, title: string, original_title: string, serial: string, year: string, original_language: string, source: string}'
+        # The ids of a card kept for the search of Lampac (MelLpv::$ids, mel_lpv_ids_put, online_play.php): keys of mel_lp_title.
+        MelLpvIds: 'array{tmdb: string, kp: string, original_language: string}'
         # A source of a search of Lampac (mel_lp_source, lampac.php).
         MelLpSource: 'array{name: string, label: string, q: string, url: string, path: string, index: int, pos: int}'
         # A search of Lampac between the ticks (mel_lp_search_start, lampac.php).

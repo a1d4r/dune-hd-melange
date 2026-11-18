@@ -50,17 +50,30 @@ function mel_lpv_ids_keep($in, $mv)
     if ($tmdb === '')
         $tmdb = mel_str($m, 'tmdb_id');
     $kp = mel_str($m, 'kp_id');
-    $lang = mel_str($m, 'original_language');
-    $k = mel_lpv_key($mv);
-    $was = isset(MelLpv::$ids[$k]) ? MelLpv::$ids[$k] : array('', '', '');
-    if ($tmdb !== '' || $kp !== '' || $lang !== '')
-        MelLpv::$ids[$k] = array($tmdb !== '' ? $tmdb : $was[0], $kp !== '' ? $kp : $was[1],
-            $lang !== '' ? $lang : $was[2]);
+    mel_lpv_ids_put(mel_lpv_key($mv), array('tmdb' => $tmdb, 'kp' => $kp,
+        'original_language' => mel_str($m, 'original_language')));
+}
+
+// Ids $new kept for key $k of a card (mel_lpv_key) in MelLpv::$ids: an empty one keeps the one kept before; all empty -
+// nothing kept.
+/**
+ * @param string $k
+ * @param MelLpvIds $new
+ * @return void
+ */
+function mel_lpv_ids_put($k, $new)
+{
+    $was = isset(MelLpv::$ids[$k]) ? MelLpv::$ids[$k] : array('tmdb' => '', 'kp' => '', 'original_language' => '');
+    if ($new['tmdb'] === '' && $new['kp'] === '' && $new['original_language'] === '')
+        return;
+    MelLpv::$ids[$k] = array('tmdb' => $new['tmdb'] !== '' ? $new['tmdb'] : $was['tmdb'],
+        'kp' => $new['kp'] !== '' ? $new['kp'] : $was['kp'],
+        'original_language' => $new['original_language'] !== '' ? $new['original_language'] : $was['original_language']);
 }
 
 // The ids of tile $t for movie_str of a play_action of Melange itself (mel_card_releases, mel_oc_watch; read by
 // mel_lpv_ids_keep): the TMDB id of the tile, else of the tile of its meta $meta (in hand, no request), as tmdbtv_id of a
-// series, else tmdb_id; kp_id of Kinopoisk and original_language (mel_cat_lang) the same way. None empty. Lampac puts
+// series, else tmdb_id; kp_id of Kinopoisk and original_language (mel_cat_orig_lang) the same way. None empty. Lampac puts
 // the quality into the name of a balancer and show false only with a TMDB id, and its balancers of anime only with
 // the language ja or zh: every way of Melange that makes movie_str for mel_play_action adds these.
 /**

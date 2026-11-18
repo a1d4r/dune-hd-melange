@@ -608,7 +608,8 @@ function mel_card_releases($tile, $lang)
 
 // The action of ENTER on $tile (mel_cat_tile). $lang: ru or another, as of play_action. "Своя
 // карточка" on (cat_card), a movie or a series with an id of the meta (mel_cm_id: IMDb or TMDB):
-// the own card of Melange (view_card.php), no local card written; else the way of 0.58.0.
+// the own card of Melange (view_card.php), no local card written; else the way of 0.58.0. The card of the Dune it
+// opens gives no original language in its movie_str: that of the tile is kept for its search of Lampac.
 /**
  * @param MelCatTile $tile
  * @param string $lang
@@ -621,6 +622,9 @@ function mel_card_enter($tile, $lang)
     $c = mel_card_id($tile);
     $id = $c['id'] !== '' ? $c['id'] : mel_card_local($tile, $c['none']);
     if ($id !== '')
+    {
+        mel_lpv_ids_put($id, array('tmdb' => '', 'kp' => '', 'original_language' => $tile['originalLanguage']));
         return mel_card_open($id);
+    }
     return $tile['imdb_id'] !== '' ? mel_card_releases($tile, $lang) : mel_error('err_card_no_source');
 }
