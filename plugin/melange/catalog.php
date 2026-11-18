@@ -1086,9 +1086,10 @@ function mel_cat_is_fresh($c)
 // $keys by $times (the time of the copy of each, in the same order), the oldest first, of the same time in the order of
 // $keys (asort is not stable).
 /**
- * @param list<int|string> $keys
+ * @template T of int|string
+ * @param list<T> $keys
  * @param list<int> $times
- * @return list<int|string>
+ * @return list<T>
  */
 function mel_cat_oldest_first($keys, $times)
 {
