@@ -18,6 +18,8 @@ require_once dirname(__FILE__) . '/parse.php';
 require_once dirname(__FILE__) . '/jacred.php';
 // Dune's watch history.
 require_once dirname(__FILE__) . '/history.php';
+// The tokens of the UI kit (generated): colours, sizes, the font metric; before the screens and gcomps.php.
+require_once dirname(__FILE__) . '/kit_tokens.php';
 // The state of the history for the badges of the catalog; the pairs card -> IMDb / TMDB.
 require_once dirname(__FILE__) . '/progress.php';
 require_once dirname(__FILE__) . '/links.php';
