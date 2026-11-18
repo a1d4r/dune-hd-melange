@@ -139,6 +139,40 @@ function mel_k_cap()
  */
 function mel_k_pic()
 {
-    static $t = array();
+    static $t = array(
+        'card_pill_l' => array('url' => 'plugin_file://img/card1_pill_l.png', 'w' => 12, 'h' => 64, 'mid' => null),
+        'card_pill_r' => array('url' => 'plugin_file://img/card1_pill_r.png', 'w' => 12, 'h' => 64, 'mid' => null),
+        'card_pill_on_l' => array('url' => 'plugin_file://img/card1_pill_on_l.png', 'w' => 12, 'h' => 64, 'mid' => null),
+        'card_pill_on_r' => array('url' => 'plugin_file://img/card1_pill_on_r.png', 'w' => 12, 'h' => 64, 'mid' => null),
+        'card_tab_l' => array('url' => 'plugin_file://img/card1_tab_l.png', 'w' => 26, 'h' => 52, 'mid' => null),
+        'card_tab_r' => array('url' => 'plugin_file://img/card1_tab_r.png', 'w' => 26, 'h' => 52, 'mid' => null),
+        'card_tab_on_l' => array('url' => 'plugin_file://img/card1_tab_on_l.png', 'w' => 26, 'h' => 52, 'mid' => null),
+        'card_tab_on_r' => array('url' => 'plugin_file://img/card1_tab_on_r.png', 'w' => 26, 'h' => 52, 'mid' => null),
+        'card_play_icon' => array('url' => 'plugin_file://img/card1_play_icon.png', 'w' => 20, 'h' => 24, 'mid' => null),
+        'card_play_on_icon' => array('url' => 'plugin_file://img/card1_play_on_icon.png', 'w' => 20, 'h' => 24, 'mid' => null),
+        'card_heart_icon' => array('url' => 'plugin_file://img/card1_heart_icon.png', 'w' => 20, 'h' => 24, 'mid' => null),
+        'card_heart_on_icon' => array('url' => 'plugin_file://img/card1_heart_on_icon.png', 'w' => 20, 'h' => 24, 'mid' => null),
+        'card_tick_icon' => array('url' => 'plugin_file://img/card1_tick_icon.png', 'w' => 20, 'h' => 24, 'mid' => null),
+        'card_tick_on_icon' => array('url' => 'plugin_file://img/card1_tick_on_icon.png', 'w' => 20, 'h' => 24, 'mid' => null),
+        'card_chev_l' => array('url' => 'plugin_file://img/card1_chev_l.png', 'w' => 12, 'h' => 22, 'mid' => null),
+        'card_chev_on_l' => array('url' => 'plugin_file://img/card1_chev_on_l.png', 'w' => 12, 'h' => 22, 'mid' => null),
+        'card_chev_r' => array('url' => 'plugin_file://img/card1_chev_r.png', 'w' => 12, 'h' => 22, 'mid' => null),
+        'card_chev_on_r' => array('url' => 'plugin_file://img/card1_chev_on_r.png', 'w' => 12, 'h' => 22, 'mid' => null),
+        'card_more_down' => array('url' => 'plugin_file://img/card1_more_down.png', 'w' => 30, 'h' => 14, 'mid' => null),
+        'card_rate' => array('url' => 'plugin_file://img/card1_rate.png', 'w' => 66, 'h' => 40, 'mid' => null),
+        'cat_mask' => array('url' => 'plugin_file://img/cat2_mask.png', 'w' => 1280, 'h' => 720, 'mid' => null),
+        'cat_card0' => array('url' => 'plugin_file://img/cat2_card0.jpg', 'w' => 1920, 'h' => 1080, 'mid' => null),
+        'cat_kp' => array('url' => 'plugin_file://img/cat2_kp.png', 'w' => 117, 'h' => 40, 'mid' => null),
+        'cat_imdb' => array('url' => 'plugin_file://img/cat2_imdb.png', 'w' => 153, 'h' => 40, 'mid' => null),
+        'cat_age' => array('url' => 'plugin_file://img/cat2_age.png', 'w' => 73, 'h' => 40, 'mid' => null),
+        'rate_plate' => array('url' => 'plugin_file://img/rate1_plate.png', 'w' => 52, 'h' => 32, 'mid' => null),
+        'ts_info_bg_5' => array('url' => 'plugin_file://img/ts_info_bg_5.png', 'w' => 625, 'h' => 233, 'mid' => null),
+        'ts_info_bg_6' => array('url' => 'plugin_file://img/ts_info_bg_6.png', 'w' => 625, 'h' => 267, 'mid' => null),
+        'ts_info_bg_7' => array('url' => 'plugin_file://img/ts_info_bg_7.png', 'w' => 625, 'h' => 301, 'mid' => null),
+        'ml_hint_ru' => array('url' => 'plugin_file://img/ml1_hint_ru.png', 'w' => 200, 'h' => 300, 'mid' => null),
+        'ml_hint_en' => array('url' => 'plugin_file://img/ml1_hint_en.png', 'w' => 200, 'h' => 300, 'mid' => null),
+        'tv_sub_movie' => array('url' => 'plugin_file://img/tv_sub_movie.png', 'w' => 100, 'h' => 100, 'mid' => null),
+        'tv_sub_series' => array('url' => 'plugin_file://img/tv_sub_series.png', 'w' => 100, 'h' => 100, 'mid' => null)
+    );
     return $t;
 }

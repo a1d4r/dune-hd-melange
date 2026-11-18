@@ -48,7 +48,7 @@ define('MEL_GC_HINT_GAP', 40);  // between hints (vendor HINTS_SMALL_HGAP)
 // The sort tabs (mel_gc_sort_tabs): the colour keys and labels as the hints,
 // in the row y 125..175 between the title (40..106) and the list; the line
 // under the current tab 4 px, 3 px under the keys. The direction: a
-// triangle of img/ (sort_down.png, sort_up.png: the kit generator),
+// triangle of img/ (sort_down.png, sort_up.png: kept as they are, not generated),
 // its room kept at every tab, so that the tabs never move.
 define('MEL_GC_TABS_Y', 125);
 define('MEL_GC_TAB_LINE', 4);
