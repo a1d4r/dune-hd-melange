@@ -212,12 +212,41 @@ function mel_lp_redirect($url, $r)
     if (preg_match('~^/(?!/)~', $loc))
         $loc = $m[0] . $loc;
     $to = mel_lp_link1($loc);
-    return $to !== '' && stripos($to, $m[1] . '://') === 0 && mel_lp_hostport($to) === mel_lp_hostport($url) ? $to : '';
+    $h = mel_lp_hostport($url);
+    return $to !== '' && $h !== '' && stripos($to, $m[1] . '://') === 0 && mel_lp_hostport($to) === $h ? $to : '';
 }
 
-// mel_lp_get of link $url of Lampac $base as mel_lp_send makes it; its redirects to Lampac (mel_lp_redirect) followed,
-// MEL_LP_HOPS at most, each in the time of the $total s left: the reply of the last link (a redirect not followed - as
-// it is).
+// Reply $r of link $url, the $hop-th of a request of $total s from $t0 (mel_lp_now) on Lampac $base -> array(the link of
+// its redirect to follow (mel_lp_redirect, MEL_LP_HOPS at most; logged: its code and path, no query - the title, the
+// tokens) and its seconds, the time left; '' and 0: none, the reply is the one; the reply: $r, or down "no time" when
+// less than MEL_LP_REPLY_MIN s are left for its redirect (mel_lp_timed_out: asked again as one of no answer in time)).
+/**
+ * @param string $url
+ * @param MelLpReply $r
+ * @param int $hop
+ * @param int $total
+ * @param float $t0
+ * @param string $base
+ * @return array{string, int, MelLpReply}
+ */
+function mel_lp_hop_to($url, $r, $hop, $total, $t0, $base)
+{
+    $to = $hop < MEL_LP_HOPS ? mel_lp_redirect($url, $r) : '';
+    if ($to === '')
+        return array('', 0, $r);
+    $left = (int) floor($total - (mel_lp_now() - $t0));
+    $log = "redirect {$r['code']}: " . (string) parse_url($to, PHP_URL_PATH);
+    if ($left < MEL_LP_REPLY_MIN)
+    {
+        mel_lp_log("$log, no time", $base);
+        return array('', 0, array('code' => 0, 'body' => '', 'err' => 'no time', 'errno' => 0, 'hit' => false, 'loc' => ''));
+    }
+    mel_lp_log($log, $base);
+    return array($to, $left, $r);
+}
+
+// mel_lp_get of link $url of Lampac $base as mel_lp_send makes it; its redirects followed as mel_lp_hop_to tells, each
+// in the time of the $total s left: the reply of the last link (a redirect not followed - as it is; of no time - down).
 /**
  * @param string $base
  * @param string $url
@@ -229,22 +258,22 @@ function mel_lp_redirect($url, $r)
 function mel_lp_ask($base, $url, $connect, $total, $max)
 {
     $t0 = mel_lp_now();
+    $left = $total;
     for ($hop = 0; ; $hop++)
     {
-        $left = $hop > 0 ? (int) floor($total - (mel_lp_now() - $t0)) : $total;
         list($u, $ua) = mel_lp_send($url, $base);
         $r = mel_lp_get($u, $hop > 0 ? min($connect, $left) : $connect, $left, $max, $ua);
-        $to = $hop < MEL_LP_HOPS ? mel_lp_redirect($url, $r) : '';
-        if ($to === '' || $total - (mel_lp_now() - $t0) < MEL_LP_REPLY_MIN)
+        list($to, $left, $r) = mel_lp_hop_to($url, $r, $hop, $total, $t0, $base);
+        if ($to === '')
             return $r;
-        mel_lp_log_hop($r, $to, $base);
         $url = $to;
     }
 }
 
 // mel_lp_get_many of links $urls (key => link) of Lampac $base as mel_lp_send makes them, each as mel_lp_ask: the
 // redirects to follow asked at once again, in the time of the $total s left. -> key => array(the reply, s from the
-// start it took); null: no curl_multi ($why: mel_net_multi; it failing at a redirect: the replies so far, as they are).
+// start it took); null: no curl_multi ($why: mel_net_multi). It failing at a redirect: the replies so far, as they are,
+// $why its reason.
 /**
  * @param string $base
  * @param array<int, string> $urls
@@ -259,46 +288,31 @@ function mel_lp_ask_many($base, $urls, $connect, $total, $max, &$why)
     $t0 = mel_lp_now();
     $out = array();
     $ask = $urls;
+    $left = array();
     for ($hop = 0; $ask; $hop++)
     {
         $t1 = mel_lp_now() - $t0;
-        $left = $hop > 0 ? (int) floor($total - $t1) : $total;
         $reqs = array();
         foreach ($ask as $k => $url)
         {
             list($u, $ua) = mel_lp_send($url, $base);
-            $reqs[$k] = array($u, $hop > 0 ? min($connect, $left) : $connect, $left, $max, $ua);
+            $reqs[$k] = $hop > 0 ? array($u, min($connect, $left[$k]), $left[$k], $max, $ua) :
+                array($u, $connect, $total, $max, $ua);
         }
         $got = mel_lp_get_many($reqs, $why);
         if ($got === null)
             return $hop > 0 ? $out : null;
         $next = array();
-        $late = $total - (mel_lp_now() - $t0) < MEL_LP_REPLY_MIN;
         foreach ($got as $k => $x)
         {
-            $out[$k] = array($x[0], $t1 + $x[1]);
-            $to = $hop < MEL_LP_HOPS && !$late ? mel_lp_redirect($ask[$k], $x[0]) : '';
+            list($to, $left[$k], $r) = mel_lp_hop_to($ask[$k], $x[0], $hop, $total, $t0, $base);
+            $out[$k] = array($r, $t1 + $x[1]);
             if ($to !== '')
-            {
-                mel_lp_log_hop($x[0], $to, $base);
                 $next[$k] = $to;
-            }
         }
         $ask = $next;
     }
     return $out;
-}
-
-// The log of redirect $r followed to link $to: its code and the path of the link (no query: the title, the tokens).
-/**
- * @param MelLpReply $r
- * @param string $to
- * @param string $base
- * @return void
- */
-function mel_lp_log_hop($r, $to, $base)
-{
-    mel_lp_log("redirect {$r['code']}: " . (string) parse_url($to, PHP_URL_PATH), $base);
 }
 
 // --- The log.
@@ -1203,10 +1217,14 @@ function mel_lp_replies($base, $srcs, $q, $total = MEL_LP_REPLIES_MAX, $s = 0, $
         {
             $why = '';
             $many = mel_lp_ask_many($base, $urls, min(MEL_LP_CONNECT, $each), $each, MEL_LP_MAX_BYTES, $why);
+            // It may fail at a redirect too: the replies so far kept, the next batches one by one all the same.
+            if ($why !== '')
+            {
+                mel_lp_log("curl_multi failed ($why), one by one from now on", $base);
+                $multi = false;
+            }
             if ($many === null)
             {
-                if ($why !== '')
-                    mel_lp_log("curl_multi failed ($why), one by one from now on", $base);
                 $multi = false;
                 continue;
             }
