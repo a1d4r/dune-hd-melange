@@ -25,7 +25,7 @@ define('MEL_MLV_CONT', 'cat_continue');
 // The id of the hint tile of an empty "Мой список" (no tile of a title: mel_catv_tile has none of it).
 define('MEL_MLV_HINT', 'hint:mylist');
 // Its picture, T2 of knowledge/melange/design-my-list.md: <MEL_MLV_HINT_IMG>ru.png, en.png, 200x300 (the N of ml<N>
-// goes up when they change: the shell keeps a picture by its URL; plugins/melange_mylist_img.py of the kitchen).
+// goes up when they change: the shell keeps a picture by its URL; the kit generator).
 define('MEL_MLV_HINT_IMG', 'plugin_file://img/ml1_hint_');
 // The events of the keys, literal: key_favorites is of r24 on (no GUI_EVENT_KEY_FAVORITES in r22; an unknown name the
 // shell ignores). Proven on the device (r25, the probe fav_keys_probe): they reach handle_user_input on REGULAR and

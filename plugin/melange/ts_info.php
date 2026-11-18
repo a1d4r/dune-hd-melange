@@ -32,7 +32,7 @@ define('MEL_TSI_TIMEOUT', 5000);
 // img/ts_info_bg_<rows>.png is drawn at its own size, MEL_TSI_BG_* (the frame
 // plus the shadow, the extents of the skin's osd_glass: 13 left, 9 top, 32
 // right, 29 bottom), one per count of rows (mel_tsi_bg_h): image_height is not
-// proven to stretch a PNG. The PNGs: plugins/melange_img.sh of the development
+// proven to stretch a PNG. The PNGs: the kit generator of the development
 // repository, its numbers repeat these.
 define('MEL_TSI_X', 1300);
 define('MEL_TSI_Y', 80);
