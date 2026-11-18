@@ -305,7 +305,7 @@ function mel_cm_person($tmdb, $limit)
 
 // Person $p (kept whole in memory) with the works the filter shows (mel_ht_off: hidden, the age of the settings), in
 // their order: a title hidden or the age changed since it was asked shows so at once. The screen of the person
-// (mel_pp_person) draws them and finds ENTER among them.
+// (mel_pp_person) draws them; its keys go by the works it drew.
 /**
  * @param MelCmPerson $p
  * @return MelCmPerson

@@ -14,13 +14,15 @@ require_once dirname(dirname(dirname(__FILE__))) . '/my_list.php';
 // longer is refused (lib/profiles.php). A real settings.json is a few KB (a
 // heavy one: 15 KB, a body of 20 KB).
 define('MEL_CGI_BAK_SETTINGS_MAX', 32768);
-// The longest body of the import: the settings and "Мой список"
-// (MEL_ML_COPY_MAX), 256K - post_max_size of cgi/php.ini, over it php-cgi
+// What the hidden titles take of the body at least: the rest of 1M. 500 of
+// Cyrillic names of 190 letters take ~780 KB (8 bytes a letter there, lib/hidden.php);
+// longer names are cut to fit (mel_cgi_export_hidden).
+define('MEL_CGI_BAK_HT_MAX', 786432);
+// The longest body of the import: the settings, "Мой список" (MEL_ML_COPY_MAX)
+// and the hidden titles, 1M - post_max_size of cgi/php.ini, over it php-cgi
 // drops the body. The page refuses a longer one before it goes (a file over it
 // unread), the field is checked here too. The list of 200 titles takes ~80 KB.
-// The hidden titles have no part of their own: they take what the settings and
-// the list leave (mel_cgi_export_hidden).
-define('MEL_CGI_IMPORT_MAX', MEL_CGI_BAK_SETTINGS_MAX + MEL_ML_COPY_MAX);
+define('MEL_CGI_IMPORT_MAX', MEL_CGI_BAK_SETTINGS_MAX + MEL_ML_COPY_MAX + MEL_CGI_BAK_HT_MAX);
 
 // The settings as mel_settings_read has them (checked fields only) in the form of settings.json
 // v MEL_SETTINGS_V, with web_token: $t, the token of the page (0.51.0: the import
@@ -81,8 +83,9 @@ function mel_cgi_export_list($dir, $json)
 }
 
 // The text of the export $json (with "Мой список": mel_cgi_export_list) with the hidden titles of $dir: the field
-// hidden_titles (mel_cgi_ht_copy_part) after the others, in the room its import has left in MEL_CGI_IMPORT_MAX. All of
-// them, their names cut as little as it takes (500 of names of a letter: ~32 KB of the body at most); no room even so:
+// hidden_titles (mel_cgi_ht_copy_part) after the others, in the room its import has left in MEL_CGI_IMPORT_MAX
+// (MEL_CGI_BAK_HT_MAX at least: the settings and the list keep to their parts). All of them, their names cut as little
+// as it takes (500 of names of a letter: ~32 KB of the body at most); no room even so:
 // the newest that fit (names of a letter), the oldest left out; none fits: no field. A line of the log. No file: no
 // field (an import leaves the hidden of that Dune as they are); one not taken (broken, of a later Melange, not
 // readable): none too, a line of the log.
@@ -133,7 +136,7 @@ function mel_cgi_most($lo, $hi, $ok)
 
 // The settings of the file of the export $json (mel_cgi_export_json, no list) load back: the body the page posts of
 // them (importBody of web/src/api.ts, by encodeURIComponent - rawurlencode is never shorter) is not over
-// MEL_CGI_BAK_SETTINGS_MAX, the rest of MEL_CGI_IMPORT_MAX is of the list.
+// MEL_CGI_BAK_SETTINGS_MAX, the rest of MEL_CGI_IMPORT_MAX is of the list and the hidden titles.
 function mel_cgi_import_fits($json)
 {
     return strlen('settings=' . rawurlencode($json)) <= MEL_CGI_BAK_SETTINGS_MAX;

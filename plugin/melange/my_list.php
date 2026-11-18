@@ -27,8 +27,8 @@ define('MEL_ML_VOTES_MAX', 999999999);
 define('MEL_ML_COPY_FIELD', 'my_list');
 define('MEL_ML_COPY_V', 1);
 // The most the list may take of the body of an import (cgi/lib/backup.php: settings=<the file, URL-encoded>, post_max_size
-// 256K of cgi/php.ini): the rest, 32K, is of the settings. ~0.4 KB a title (a Russian name, the pictures of the catalog
-// server): ~570 titles; a title over it is not added (mel_ml_add), so every export loads back.
+// 1M of cgi/php.ini): of the rest, 32K is of the settings, 768K of the hidden titles. ~0.4 KB a title (a Russian name,
+// the pictures of the catalog server): ~570 titles; a title over it is not added (mel_ml_add), so every export loads back.
 define('MEL_ML_COPY_MAX', 229376);
 // The Favorites of the Dune, as Favorites::reload of shell_ext r25 reads them (PHP of the Dune adds FS_PREFIX to /flashdata
 // and /config itself). Tests may define them first.

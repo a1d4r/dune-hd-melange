@@ -44,9 +44,10 @@ define('MEL_CAT_SEARCH_PAGE', 20);
 // (MEL_CATV_ROW_TILES of view_catalog.php). A short page is not the end, so one page is
 // not enough.
 define('MEL_CAT_SEARCH_TILES', 20);
-// s from the start of a search after which no pages past the first are asked: a page
-// takes 0.2-1.9 s, the first pages keep MEL_CAT_TOTAL each, so the worst case of a
-// search stays that of its first pages alone.
+// s from the start of a search after which no pages past the first are asked (those the
+// filter of the age goes on to either: mel_cat_search): a page takes 0.2-1.9 s, the
+// first pages keep MEL_CAT_TOTAL each, so the worst case of a search stays that of its
+// first pages alone.
 define('MEL_CAT_SEARCH_WAIT', 10);
 
 // Cache in data_dir/catalog: a failure right after a reboot has it too, tmp_dir
@@ -907,15 +908,18 @@ function mel_cat_page_key($row, $skip)
 // a row. A short page or a page of repeats is not the end either.
 // $limit: s for this call, no next request after it, requests cut to what is left of it.
 // $pages: pages past the first of this call whose new tiles the filter took all (mel_cat_take) asked at most, then
-// the end (filter; the tab "TV" asks only first pages for their copies: 0).
+// the end (filter; the tab "TV" asks only first pages for their copies: 0). $past: s from the start of this call
+// after which no page past its first one is asked (not the end: the next call goes on; null - $limit; a search:
+// what is left of MEL_CAT_SEARCH_WAIT).
 /**
  * @param MelCatState $st
  * @param float $limit
  * @param int $pages
+ * @param float|null $past
  * @param-out MelCatState $st
  * @return MelCatResult
  */
-function mel_cat_more(&$st, $limit, $pages = MEL_CAT_FILTER_PAGES)
+function mel_cat_more(&$st, $limit, $pages = MEL_CAT_FILTER_PAGES, $past = null)
 {
     $row = $st['row'];
     $res = mel_cat_result();
@@ -977,6 +981,9 @@ function mel_cat_more(&$st, $limit, $pages = MEL_CAT_FILTER_PAGES)
             return $res;
         }
         $seen = count($st['seen']);
+        // The pages past the first of this call.
+        if ($past !== null)
+            $limit = min($limit, $past);
         // No new tiles and not the end: the next portion at once.
         if (mel_cat_take($st, $res, $page['n'], $page['tiles']) > 0 || $st['end'] !== '' ||
             microtime(true) - $start >= $limit)
@@ -1048,7 +1055,9 @@ function mel_cat_search($q, $names, $wait = MEL_CAT_SEARCH_WAIT)
         if (!$row)
             continue;
         $st = mel_cat_row_state($row);
-        $res = mel_cat_more($st, MEL_CAT_TOTAL);
+        // The first page in MEL_CAT_TOTAL; the pages the filter goes past it to (mel_cat_more), as those after it, while
+        // $wait lasts.
+        $res = mel_cat_more($st, MEL_CAT_TOTAL, MEL_CAT_FILTER_PAGES, $wait - (microtime(true) - $start));
         while (!$res['stale'] && $res['err'] === '' && $st['end'] === '' && count($res['tiles']) < MEL_CAT_SEARCH_TILES)
         {
             // curl takes whole seconds: less than 1 s left would be a request cut to 1 s, likely a timeout.

@@ -239,9 +239,13 @@ class MelCat
     /** @var float */
     public static $inv_t = 0.0;
     // What the filter of the listings was made of at the last operation (mel_ht_filter_sig, mel_catv_filter_seen); null:
-    // none since a start of php_server.
+    // none since a start of php_server. "Скрыть" sets it anew (mel_catv_hide_act).
     /** @var string|null */
     public static $filter_sig = null;
+    // The age of it (Mel::$settings['cat_age'] then; null - all ages), apart: a change of the age begins the listings of
+    // a search anew, one of the file alone does not (mel_catv_filter_seen).
+    /** @var int|null */
+    public static $filter_age = null;
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -313,6 +317,17 @@ function mel_catv_list($st, $tiles, $stale)
     foreach ($tiles as $t)
         $list['tiles'][$t['id']] = $t;
     return $list;
+}
+
+// Listing $list has no tile and is not at its end ("Скрыть" took its last one, a change of the age began it anew
+// empty - mel_catv_filter_seen): its next pages are for its screen to ask.
+/**
+ * @param MelCatList $list
+ * @return bool
+ */
+function mel_catv_list_cut($list)
+{
+    return !$list['tiles'] && $list['st']['end'] === '';
 }
 
 // A listing from the saved first page, as if it was just got.
@@ -629,8 +644,7 @@ function mel_catv_load_first($row, $limit, $timeout_down = true)
  */
 function mel_catv_is_cut($rid)
 {
-    return isset(MelCat::$lists[$rid]) && !MelCat::$lists[$rid]['tiles'] && MelCat::$lists[$rid]['st']['end'] === '' &&
-        mel_cat_state_fresh(MelCat::$lists[$rid]['st']);
+    return isset(MelCat::$lists[$rid]) && mel_catv_list_cut(MelCat::$lists[$rid]) && mel_cat_state_fresh(MelCat::$lists[$rid]['st']);
 }
 
 // The next pages of the listing of $rid (mel_catv_is_cut) in $limit s, from where it is (mel_cat_more: while the filter
@@ -1627,7 +1641,7 @@ function mel_catv_results_view($id, $sel_state)
             continue;
         $list = MelCat::$lists[$rid];
         $err = '';
-        if (!$list['tiles'] && $list['st']['end'] === '')
+        if (mel_catv_list_cut($list))
             $err = mel_catv_fill($list, $rid, MEL_CAT_SEARCH_TILES, MEL_CATV_OPEN_MAX_S, $start);
         $defs = array_merge($defs, $list['tiles'] ? mel_catv_row_defs($list, $lang) :
             mel_catv_row_note($list['st']['row'], $lang, $err === '' && $list['st']['end'] !== '' ? 'cat_row_empty' : 'cat_row_failed'));
@@ -2820,7 +2834,7 @@ function mel_catv_after_player($post)
 function mel_catv_tile_menu($id, $from, $lang)
 {
     return mel_catv_menu_join(array_merge(mel_catv_src_items($id, $from, $lang), mel_cp_menu_items($id, $from, $lang),
-        mel_ml_menu_items($id, $from, $lang), mel_ht_menu_items($id, $from, $lang)), mel_mlv_menu_items($id, $from, $lang));
+        mel_ml_menu_items($id, $from, $lang), mel_catv_hide_items($id, $from, $lang)), mel_mlv_menu_items($id, $from, $lang));
 }
 
 // --- "Скрыть" (hidden_titles.php).
@@ -2834,7 +2848,7 @@ function mel_catv_tile_menu($id, $from, $lang)
  * @param string $lang
  * @return list<array<string, mixed>>
  */
-function mel_ht_menu_items($id, $from, $lang)
+function mel_catv_hide_items($id, $from, $lang)
 {
     list(, $bare) = mel_catv_id_mode($id);
     $p = explode(':', $bare, 2);
@@ -2873,7 +2887,7 @@ function mel_catv_drop_title($t)
     }
 }
 
-// cat_title_hide of POP UP (mel_ht_menu_items) of tile $in->item of screen $in->from: the title into the file
+// cat_title_hide of POP UP (mel_catv_hide_items) of tile $in->item of screen $in->from: the title into the file
 // (mel_ht_hide), out of the listings in memory (mel_catv_drop_title), the filter of them as it is now
 // (MelCat::$filter_sig: not begun anew by it), then the screens anew as after a change of "Мой список" (mel_ml_changed:
 // the tab "TV", on r25 the main screens, $from on r24 too - "Show all" counts its tiles by their place). Not written:
@@ -2882,7 +2896,7 @@ function mel_catv_drop_title($t)
  * @param stdClass $in
  * @return MelAction|null
  */
-function mel_ht_hide_act($in)
+function mel_catv_hide_act($in)
 {
     $from = mel_catv_in($in, 'from');
     $t = mel_catv_tile(mel_catv_in($in, 'item'), mel_tv_is_from($from));
@@ -2914,11 +2928,11 @@ function mel_catv_filter_seen($in)
 {
     $sig = mel_ht_filter_sig();
     $was = MelCat::$filter_sig;
+    $age = Mel::$settings['cat_age'] !== MelCat::$filter_age;
     MelCat::$filter_sig = $sig;
+    MelCat::$filter_age = Mel::$settings['cat_age'];
     if ($was === null || $sig === $was)
         return;
-    // mel_ht_filter_sig: the age before the first space.
-    $age = strtok($sig, ' ') !== strtok($was, ' ');
     foreach (MelCat::$lists as $rid => $list)
     {
         $search = isset($list['st']['row']['q']);
@@ -3353,7 +3367,7 @@ function mel_catv_input($in, $control)
     if ($control === 'cat_unhide')
         return mel_cp_unhide_act($from);
     if ($control === 'cat_title_hide')
-        return mel_ht_hide_act($in);
+        return mel_catv_hide_act($in);
     if ($control === 'cat_mark')
         return mel_cp_mark($in);
     if ($control === 'cat_ml')

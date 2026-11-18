@@ -492,7 +492,7 @@ parameters:
         # A work of a person (mel_cm_person_parse, card_more.php).
         MelCmWork: 'array{tile: MelCatTile, role: string, types: list<string>, eps: int}'
         # A person of the page of a person in memory (MelPp::$people, view_person.php).
-        MelPpEntry: 'array{name: string, photo: string, job: string, lang: string, ui: string, pos: MelPpPos, err: string, tries: int}'
+        MelPpEntry: 'array{name: string, photo: string, job: string, lang: string, ui: string, pos: MelPpPos, err: string, tries: int, drawn: list<string>|null}'
         # A place of the focus on the page of a person, in MelPpEntry and in sel_state (mel_pp_pos, view_person.php).
         MelPpPos: 'array{z: string, p: int, k: int}'
         # The page of a person laid out (mel_pp_layout, view_person.php).
