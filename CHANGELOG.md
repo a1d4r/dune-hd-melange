@@ -2,8 +2,8 @@
 
 **English version**
 
-## 0.63.1 — 18.11.2026
-- Fixed: on r24 firmware, when one catalog row took too long to load, the other rows showed "(saved copy)" in their names and stopped updating.
+## 0.64.0 — 18.11.2026
+- Fixed: on r24 firmware, when one catalog row took too long to load, the other rows showed "(saved copy)" in their names and stopped updating. In the TV tab of the home screen, one slow row kept the other rows from updating too.
 
 ## 0.63.0 — 18.11.2026
 - **Sources instead of source profiles.** On the settings page, "Source profiles" are now "Sources", with no on/off switch. "+ Add source" opens a copy of the current source with the Debrid keys already filled in. Each source has its own Real-Debrid and TorBox keys. You choose the main source on the page with "Set as main".
@@ -275,8 +275,8 @@ First public release. What it does:
 
 **Russian version**
 
-## 0.63.1 — 18.11.2026
-- Исправлено: на прошивке r24, если один ряд каталога долго не загружался, у остальных рядов в названии стояло «(сохранённая копия)», и они переставали обновляться.
+## 0.64.0 — 18.11.2026
+- Исправлено: на прошивке r24, если один ряд каталога долго не загружался, у остальных рядов в названии стояло «(сохранённая копия)», и они переставали обновляться. Во вкладке «ТВ» на главном экране один медленный ряд тоже не давал обновляться остальным.
 
 ## 0.63.0 — 18.11.2026
 - **Источники вместо профилей источников.** На странице настроек «Профили источников» теперь называются «Источники», выключателя у них нет. «+ Добавить источник» открывает копию текущего источника, ключи Debrid уже вписаны. У каждого источника свои ключи Real-Debrid и TorBox. Основной источник выбирается на странице кнопкой «Сделать основным».
