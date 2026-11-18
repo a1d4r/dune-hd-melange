@@ -76,6 +76,7 @@ define('MEL_K_ROW_H', 64);
 define('MEL_K_BTN_H', 64);
 define('MEL_K_BTN_PAD', 28);
 define('MEL_K_PLATE_H', 40);
+define('MEL_K_PLATE_PAD', 11);
 define('MEL_K_RATING_LINE', 2);
 define('MEL_K_RING_W', 6);
 define('MEL_K_RATING_H', 40);
@@ -292,7 +293,47 @@ function mel_k_pic()
         'k_icon_heart_off' => array('url' => 'plugin_file://img/k_icon_heart_off.9a3d044c.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0)),
         'k_icon_rotate_ccw' => array('url' => 'plugin_file://img/k_icon_rotate_ccw.782ff27b.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0)),
         'k_icon_arrow_left' => array('url' => 'plugin_file://img/k_icon_arrow_left.31eae70b.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0)),
-        'k_icon_list' => array('url' => 'plugin_file://img/k_icon_list.e59f9a41.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0))
+        'k_icon_list' => array('url' => 'plugin_file://img/k_icon_list.e59f9a41.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0)),
+        'k_badge_4k' => array('url' => 'plugin_file://img/k_badge_4k.f3036d92.png', 'w' => 45, 'h' => 40, 'mid' => null),
+        'k_badge_1440p' => array('url' => 'plugin_file://img/k_badge_1440p.6cdd2957.png', 'w' => 46, 'h' => 40, 'mid' => null),
+        'k_badge_1080p' => array('url' => 'plugin_file://img/k_badge_1080p.4222634f.png', 'w' => 61, 'h' => 40, 'mid' => null),
+        'k_badge_720p' => array('url' => 'plugin_file://img/k_badge_720p.fe45ac6d.png', 'w' => 48, 'h' => 40, 'mid' => null),
+        'k_badge_576p' => array('url' => 'plugin_file://img/k_badge_576p.8f3e5937.png', 'w' => 83, 'h' => 40, 'mid' => null),
+        'k_badge_480p' => array('url' => 'plugin_file://img/k_badge_480p.721ec471.png', 'w' => 84, 'h' => 40, 'mid' => null),
+        'k_badge_360p' => array('url' => 'plugin_file://img/k_badge_360p.1ad9901d.png', 'w' => 83, 'h' => 40, 'mid' => null),
+        'k_badge_240p' => array('url' => 'plugin_file://img/k_badge_240p.6d7f8808.png', 'w' => 83, 'h' => 40, 'mid' => null),
+        'k_badge_144p' => array('url' => 'plugin_file://img/k_badge_144p.d73a8a28.png', 'w' => 71, 'h' => 40, 'mid' => null),
+        'k_badge_remux' => array('url' => 'plugin_file://img/k_badge_remux.86c77347.png', 'w' => 132, 'h' => 40, 'mid' => null),
+        'k_badge_bluray' => array('url' => 'plugin_file://img/k_badge_bluray.c06d8587.png', 'w' => 131, 'h' => 40, 'mid' => null),
+        'k_badge_web_dl' => array('url' => 'plugin_file://img/k_badge_web_dl.50849c15.png', 'w' => 134, 'h' => 40, 'mid' => null),
+        'k_badge_webrip' => array('url' => 'plugin_file://img/k_badge_webrip.af085868.png', 'w' => 135, 'h' => 40, 'mid' => null),
+        'k_badge_hdrip' => array('url' => 'plugin_file://img/k_badge_hdrip.82358489.png', 'w' => 108, 'h' => 40, 'mid' => null),
+        'k_badge_hc_hdrip' => array('url' => 'plugin_file://img/k_badge_hc_hdrip.d13afd42.png', 'w' => 139, 'h' => 40, 'mid' => null),
+        'k_badge_dvdrip' => array('url' => 'plugin_file://img/k_badge_dvdrip.fd7d12d8.png', 'w' => 114, 'h' => 40, 'mid' => null),
+        'k_badge_hdtv' => array('url' => 'plugin_file://img/k_badge_hdtv.d32e2ea6.png', 'w' => 118, 'h' => 40, 'mid' => null),
+        'k_badge_cam' => array('url' => 'plugin_file://img/k_badge_cam.d4942eb4.png', 'w' => 106, 'h' => 40, 'mid' => null),
+        'k_badge_ts' => array('url' => 'plugin_file://img/k_badge_ts.2f51b6ec.png', 'w' => 67, 'h' => 40, 'mid' => null),
+        'k_badge_tc' => array('url' => 'plugin_file://img/k_badge_tc.5c490039.png', 'w' => 67, 'h' => 40, 'mid' => null),
+        'k_badge_scr' => array('url' => 'plugin_file://img/k_badge_scr.af4aa01c.png', 'w' => 134, 'h' => 40, 'mid' => null),
+        'k_badge_dolby_vision' => array('url' => 'plugin_file://img/k_badge_dolby_vision.edbc79f5.png', 'w' => 129, 'h' => 40, 'mid' => null),
+        'k_badge_hdr10_plus' => array('url' => 'plugin_file://img/k_badge_hdr10_plus.e0154e8a.png', 'w' => 108, 'h' => 40, 'mid' => null),
+        'k_badge_hdr10' => array('url' => 'plugin_file://img/k_badge_hdr10.fee0ddb6.png', 'w' => 98, 'h' => 40, 'mid' => null),
+        'k_badge_hdr' => array('url' => 'plugin_file://img/k_badge_hdr.3e94e14c.png', 'w' => 69, 'h' => 40, 'mid' => null),
+        'k_badge_hlg' => array('url' => 'plugin_file://img/k_badge_hlg.60b7abac.png', 'w' => 86, 'h' => 40, 'mid' => null),
+        'k_badge_10bit' => array('url' => 'plugin_file://img/k_badge_10bit.4538df72.png', 'w' => 71, 'h' => 40, 'mid' => null),
+        'k_badge_dolby_atmos' => array('url' => 'plugin_file://img/k_badge_dolby_atmos.7119d451.png', 'w' => 133, 'h' => 40, 'mid' => null),
+        'k_badge_dolby_truehd' => array('url' => 'plugin_file://img/k_badge_dolby_truehd.f4a468dc.png', 'w' => 139, 'h' => 40, 'mid' => null),
+        'k_badge_dolby_digital_plus' => array('url' => 'plugin_file://img/k_badge_dolby_digital_plus.1ff3f382.png', 'w' => 145, 'h' => 40, 'mid' => null),
+        'k_badge_dolby_digital' => array('url' => 'plugin_file://img/k_badge_dolby_digital.b24529cb.png', 'w' => 130, 'h' => 40, 'mid' => null),
+        'k_badge_dts_x' => array('url' => 'plugin_file://img/k_badge_dts_x.10260bf7.png', 'w' => 88, 'h' => 40, 'mid' => null),
+        'k_badge_dts_hd_ma' => array('url' => 'plugin_file://img/k_badge_dts_hd_ma.f573542f.png', 'w' => 130, 'h' => 40, 'mid' => null),
+        'k_badge_dts_hd' => array('url' => 'plugin_file://img/k_badge_dts_hd.6bdc5af4.png', 'w' => 106, 'h' => 40, 'mid' => null),
+        'k_badge_dts_es' => array('url' => 'plugin_file://img/k_badge_dts_es.18c14b8f.png', 'w' => 122, 'h' => 40, 'mid' => null),
+        'k_badge_dts' => array('url' => 'plugin_file://img/k_badge_dts.60750f64.png', 'w' => 65, 'h' => 40, 'mid' => null),
+        'k_badge_flac' => array('url' => 'plugin_file://img/k_badge_flac.7f03f7f3.png', 'w' => 97, 'h' => 40, 'mid' => null),
+        'k_badge_pcm' => array('url' => 'plugin_file://img/k_badge_pcm.fb45bab7.png', 'w' => 69, 'h' => 40, 'mid' => null),
+        'k_badge_opus' => array('url' => 'plugin_file://img/k_badge_opus.ab589dc8.png', 'w' => 100, 'h' => 40, 'mid' => null),
+        'k_badge_aac' => array('url' => 'plugin_file://img/k_badge_aac.8db942be.png', 'w' => 86, 'h' => 40, 'mid' => null)
     );
     return $t;
 }
