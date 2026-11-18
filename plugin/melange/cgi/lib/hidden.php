@@ -8,8 +8,10 @@
 
 require_once dirname(dirname(dirname(__FILE__))) . '/hidden_titles.php';
 
-// The field of the copy in the file of the export and its version: {"v": 1, "items": [[type, name, year, IMDb, TMDB,
-// hidden]...]}, the newest first.
+// The field of the copy in the file of the export and its version: {"v": 1, "items": ["<m|s>~<IMDb>~<TMDB>~<year>~<name>"
+// ...]}, the newest first, no time of hiding (an import makes it 0). A string a title, not a row of fields: the page
+// posts the file URL-encoded, where a quote or a comma takes 3 bytes and "~" one; a title of an empty name is ~35 bytes
+// of the body so, ~90 as a row. A letter of a Cyrillic name: \uXXXX of json_encode of PHP 5.3, 8 bytes there.
 define('MEL_CGI_HT_FIELD', 'hidden_titles');
 define('MEL_CGI_HT_COPY_V', 1);
 
@@ -44,13 +46,13 @@ function mel_cgi_cat_age_set($x)
 // Why the list of the file is not taken (mel_ht_read_file gave null, $why): the line of the page. A broken file
 // (mel_ht_broken): php_server renames it to .bad at its next read and starts a new list (mel_ht_list); the page only
 // reads it.
-function mel_cgi_ht_locked($why)
+function mel_cgi_ht_why_text($why)
 {
     if (strpos($why, 'newer') !== false)
         return mel_cgi_l('Список скрытых записан более новой версией Melange: обновите плагин',
             'The hidden list is from a newer version of Melange: update the plugin');
-    return mel_ht_broken($why) ? mel_cgi_l('Список скрытых повреждён: Дюна сохранит его копию и начнёт новый',
-        'The hidden list is damaged: the Dune keeps a copy and starts a new one') :
+    return mel_ht_broken($why) ? mel_cgi_l('Список скрытых повреждён: Дюна начнёт новый, старый файл останется рядом',
+        'The hidden list is damaged: the Dune starts a new one and keeps the old file') :
         mel_cgi_l('Список скрытых на Дюне не читается', 'The hidden list on the Dune cannot be read');
 }
 
@@ -67,7 +69,7 @@ function mel_cgi_ht_items($list)
     return $out;
 }
 
-// #init.hidden of the page: {items (mel_cgi_ht_items), msg: '' or why there is no list (mel_cgi_ht_locked: of a later
+// #init.hidden of the page: {items (mel_cgi_ht_items), msg: '' or why there is no list (mel_cgi_ht_why_text: of a later
 // Melange, not readable, broken)}. No file: none hidden, no msg.
 function mel_cgi_ht_data($dir)
 {
@@ -75,7 +77,7 @@ function mel_cgi_ht_data($dir)
     $list = mel_cgi_dir_ok($dir) ? mel_ht_read_file("$dir/" . MEL_HT_FILE, $why) : array();
     if ($why !== '')
         mel_cgi_log('form: ' . MEL_HT_FILE . " $why");
-    return array('items' => $list !== null ? mel_cgi_ht_items($list) : array(), 'msg' => $list !== null ? '' : mel_cgi_ht_locked($why));
+    return array('items' => $list !== null ? mel_cgi_ht_items($list) : array(), 'msg' => $list !== null ? '' : mel_cgi_ht_why_text($why));
 }
 
 // The screen "Что не показывать" (#hide): the age (a value of the form: '' or another one - none checked), where it and
@@ -84,8 +86,8 @@ function mel_cgi_ht_data($dir)
 function mel_cgi_hide_screen($v)
 {
     $f = mel_cgi_fields();
-    return '<p class="sub">' . mel_cgi_l('Действует в рядах каталога, «Показать все», «ТВ» и «Похожих». «Продолжить» и «Избранное» не меняются.',
-        'Applies to the catalog rows, "Show all", "TV" and "Similar". "Continue Watching" and "Favorites" stay as they are.') . '</p>' .
+    return '<p class="sub">' . mel_cgi_l('Действует в каталоге, «ТВ» и карточках. «Продолжить» и «Избранное» не меняются.',
+        'Applies to the catalog, "TV" and cards. "Continue Watching" and Favorites stay.') . '</p>' .
         '<p class="lbl">' . mel_cgi_l('Возраст', 'Age rating') . '</p>' . mel_cgi_choice($f['cat_age'], mel_cgi_cat_ages(), $v['cat_age']) .
         '<p class="hint">' . mel_cgi_l('Возраст проверяется и в поиске. Тайтлы без возраста видны.',
         'Search results are filtered too. Titles with no age rating stay visible.') . '</p>' .
@@ -105,7 +107,7 @@ function mel_cgi_ht_answer($ok, $msg, $list)
 // POST a=title_unhide&ajax=1 (k: the key of a title, mel_ml_key) -> the file read now (the Dune may have hidden
 // more since the page came), that title out, written whole (mel_cgi_write: by rename, php_server reads it anew by
 // mel_file_sig) -> {ok: true, msg, items}. No such title (out already): ok, nothing written. A file not taken (of a
-// later Melange, not readable, broken: mel_cgi_ht_locked) or no data dir: refused, nothing written, no list; not
+// later Melange, not readable, broken: mel_cgi_ht_why_text) or no data dir: refused, nothing written, no list; not
 // written: refused, the list of the file.
 function mel_cgi_ht_unhide_post($dir)
 {
@@ -119,7 +121,7 @@ function mel_cgi_ht_unhide_post($dir)
     if ($list === null)
     {
         mel_cgi_log('title_unhide: ' . MEL_HT_FILE . " $why, nothing written");
-        mel_cgi_ht_answer(false, mel_cgi_ht_locked($why), null);
+        mel_cgi_ht_answer(false, mel_cgi_ht_why_text($why), null);
     }
     $k = mel_cgi_param($_POST, 'k');
     $out = mel_ht_without($list, $k);
@@ -145,20 +147,27 @@ function mel_cgi_ht_unhide_post($dir)
 
 // --- The backup.
 
-// The copy of list $list in the file of the export: the fields of each entry in a row.
-function mel_cgi_ht_copy($list)
+// Name $name as the copy keeps it: up to $n letters, "…" after a cut one.
+function mel_cgi_ht_cut($name, $n)
+{
+    return preg_match('/^(.{' . $n . '}).+/su', $name, $m) ? rtrim($m[1]) . '…' : $name;
+}
+
+// The copy of list $list in the file of the export, its names up to $n letters (mel_cgi_ht_cut).
+function mel_cgi_ht_copy($list, $n)
 {
     $items = array();
     foreach ($list as $e)
-        $items[] = array($e['type'], $e['name'], $e['year'], $e['imdb_id'], $e['_tmdbId'], $e['hidden']);
+        $items[] = ($e['type'] === 'series' ? 's' : 'm') . '~' . $e['imdb_id'] . '~' . $e['_tmdbId'] . '~' . $e['year'] . '~' .
+            mel_cgi_ht_cut($e['name'], $n);
     return array('v' => MEL_CGI_HT_COPY_V, 'items' => $items);
 }
 
-// The field of the copy of list $list, ',"hidden_titles":{…}', to go before the last "}" of the export ('': json_encode
-// failed).
-function mel_cgi_ht_copy_part($list)
+// The field of the copy of list $list (names up to $n letters), ',"hidden_titles":{…}', to go before the last "}" of the
+// export ('': json_encode failed).
+function mel_cgi_ht_copy_part($list, $n)
 {
-    $c = json_encode(mel_cgi_ht_copy($list));
+    $c = json_encode(mel_cgi_ht_copy($list, $n));
     return is_string($c) ? ',"' . MEL_CGI_HT_FIELD . '":' . $c : '';
 }
 
@@ -182,47 +191,12 @@ function mel_cgi_ht_from_copy($c, &$why, &$dropped)
     $rows = array();
     foreach ($c['items'] as $x)
     {
-        // Fields after these (of a later form of v 1): not read.
-        $rows[] = is_array($x) && count($x) >= 6 && array_keys(array_slice($x, 0, 6, true)) === range(0, 5) ? array('type' => $x[0],
-            'name' => $x[1], 'year' => $x[2], 'imdb_id' => $x[3], '_tmdbId' => $x[4], 'hidden' => $x[5]) : null;
+        // The name last: a "~" in it is of the name.
+        $f = is_string($x) ? explode('~', $x, 5) : array();
+        $rows[] = count($f) === 5 && ($f[0] === 'm' || $f[0] === 's') ? array('type' => $f[0] === 's' ? 'series' : 'movie',
+            'imdb_id' => $f[1], '_tmdbId' => $f[2], 'year' => $f[3], 'name' => $f[4]) : null;
     }
     $list = mel_ht_items($rows);
     $dropped = count($rows) - count($list);
     return $list;
-}
-
-// The text of the export $json (with "Мой список": mel_cgi_export_list) with the hidden of $dir: the field
-// hidden_titles after the others, the newest titles as many as keep the body of its import within MEL_CGI_IMPORT_MAX
-// (the oldest left out, a line of the log; none fits: no field). No file: none (an import leaves the hidden of that
-// Dune as they are); one not taken or broken: none too, a line of the log.
-function mel_cgi_export_hidden($dir, $json)
-{
-    $path = "$dir/" . MEL_HT_FILE;
-    $list = mel_ht_read_file($path, $why);
-    if ($why !== '')
-        mel_cgi_log('export: ' . MEL_HT_FILE . " $why, not in the file");
-    clearstatcache();
-    if ($list === null || $why !== '' || !file_exists($path))
-        return $json;
-    $room = MEL_CGI_IMPORT_MAX - strlen('settings=' . rawurlencode($json));
-    // The most titles that fit: rawurlencode is never shorter than encodeURIComponent of the page.
-    $lo = 0;
-    $hi = count($list);
-    while ($lo < $hi)
-    {
-        $m = intval(($lo + $hi + 1) / 2);
-        if (strlen(rawurlencode(mel_cgi_ht_copy_part(array_slice($list, 0, $m)))) <= $room)
-            $lo = $m;
-        else
-            $hi = $m - 1;
-    }
-    $c = $lo > 0 || !$list ? mel_cgi_ht_copy_part(array_slice($list, 0, $lo)) : '';
-    if ($c === '' || strlen(rawurlencode($c)) > $room)
-    {
-        mel_cgi_log('export: hidden, ' . count($list) . ' titles, not in the file: no room');
-        return $json;
-    }
-    mel_cgi_log('export: hidden, ' . $lo . ' titles' . ($lo < count($list) ? ', ' . (count($list) - $lo) .
-        ' oldest left out: no room' : ''));
-    return substr($json, 0, -1) . $c . '}';
 }

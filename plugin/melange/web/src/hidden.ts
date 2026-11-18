@@ -4,7 +4,7 @@
 // Melange, not readable) - why. By the script with fetch only: without it the line of PHP (no list) stays.
 
 import { type Api, type HiddenItem, parseHidden } from "./api";
-import { byId, CLS, ID, type Page } from "./dom";
+import { byId, CLS, ID, make, type Page } from "./dom";
 import { failureText } from "./i18n";
 import type { Lock } from "./lock";
 import { addLine, show } from "./ui";
@@ -15,19 +15,13 @@ export function setupHidden(page: Page, api: Api, lock: Lock, data: unknown): vo
     results = byId(doc, ID.hiddenResult);
   const hidden = parseHidden(data);
 
-  function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string): HTMLElementTagNameMap[K] {
-    const made = doc.createElement(tag);
-    made.className = cls;
-    if (text !== undefined) made.textContent = text;
-    return made;
-  }
   function render(items: HiddenItem[]): void {
     list.textContent = "";
     for (const item of items) {
-      const row = el("div", CLS.row),
-        text = el("span", CLS.rowText),
-        button = el("button", CLS.check + " " + CLS.inline, texts.hiddenReturn);
-      text.append(el("span", CLS.cardTitle, item.name), el("span", CLS.value, item.line));
+      const row = make(doc, "div", CLS.row),
+        text = make(doc, "span", CLS.rowText),
+        button = make(doc, "button", CLS.check + " " + CLS.inline, texts.hiddenReturn);
+      text.append(make(doc, "span", CLS.cardTitle, item.name), make(doc, "span", CLS.value, item.line));
       button.type = "button";
       button.addEventListener("click", () => unhide(button, item));
       row.append(text, button);

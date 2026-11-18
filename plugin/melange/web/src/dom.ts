@@ -265,6 +265,19 @@ export function byId<E extends HTMLElement = HTMLElement>(doc: Document, id: str
   return el as E;
 }
 
+// A new element of document doc: its classes (none for ""), its text if given (textContent).
+export function make<K extends keyof HTMLElementTagNameMap>(
+  doc: Document,
+  tag: K,
+  cls: string,
+  text?: string,
+): HTMLElementTagNameMap[K] {
+  const made = doc.createElement(tag);
+  if (cls) made.className = cls;
+  if (text !== undefined) made.textContent = text;
+  return made;
+}
+
 export function query<E extends Element = HTMLElement>(root: ParentNode, selector: string): E {
   const el = root.querySelector<E>(selector);
   if (!el) throw new Error("settings: no " + selector);

@@ -5,7 +5,7 @@
 // "Мой список" (0.62.0) goes with them: the field my_list of the file
 // (mel_ml_copy of my_list.php), written to its file of data_dir on an import;
 // so do the hidden titles (0.65.0): the field hidden_titles (mel_cgi_ht_copy of
-// lib/hidden.php), in the room the rest of the body leaves.
+// lib/hidden.php), in the room the rest of the body leaves (mel_cgi_export_hidden).
 
 require_once dirname(dirname(dirname(__FILE__))) . '/my_list.php';
 
@@ -18,6 +18,8 @@ define('MEL_CGI_BAK_SETTINGS_MAX', 32768);
 // (MEL_ML_COPY_MAX), 256K - post_max_size of cgi/php.ini, over it php-cgi
 // drops the body. The page refuses a longer one before it goes (a file over it
 // unread), the field is checked here too. The list of 200 titles takes ~80 KB.
+// The hidden titles have no part of their own: they take what the settings and
+// the list leave (mel_cgi_export_hidden).
 define('MEL_CGI_IMPORT_MAX', MEL_CGI_BAK_SETTINGS_MAX + MEL_ML_COPY_MAX);
 
 // The settings as mel_settings_read has them (checked fields only) in the form of settings.json
@@ -76,6 +78,57 @@ function mel_cgi_export_list($dir, $json)
     mel_cgi_log('export: my list, ' . count($list) . ' titles');
     // $json is an object: the field goes before its last "}".
     return substr($json, 0, -1) . $c . '}';
+}
+
+// The text of the export $json (with "Мой список": mel_cgi_export_list) with the hidden titles of $dir: the field
+// hidden_titles (mel_cgi_ht_copy_part) after the others, in the room its import has left in MEL_CGI_IMPORT_MAX. All of
+// them, their names cut as little as it takes (500 of names of a letter: ~32 KB of the body at most); no room even so:
+// the newest that fit (names of a letter), the oldest left out; none fits: no field. A line of the log. No file: no
+// field (an import leaves the hidden of that Dune as they are); one not taken (broken, of a later Melange, not
+// readable): none too, a line of the log.
+function mel_cgi_export_hidden($dir, $json)
+{
+    $path = "$dir/" . MEL_HT_FILE;
+    $list = mel_ht_read_file($path, $why);
+    if ($list === null)
+        mel_cgi_log('export: ' . MEL_HT_FILE . " $why, not in the file");
+    clearstatcache();
+    if ($list === null || !file_exists($path))
+        return $json;
+    $room = MEL_CGI_IMPORT_MAX - strlen('settings=' . rawurlencode($json));
+    // rawurlencode is never shorter than encodeURIComponent of the page.
+    $fits = function ($k, $n) use ($list, $room)
+    {
+        $c = mel_cgi_ht_copy_part(array_slice($list, 0, $k), $n);
+        return $c !== '' && strlen(rawurlencode($c)) <= $room;
+    };
+    $all = count($list);
+    $n = mel_cgi_most(1, MEL_ML_NAME_MAX, function ($n) use ($fits, $all) { return $fits($all, $n); });
+    $k = $n > 0 ? $all : mel_cgi_most(1, $all, function ($k) use ($fits) { return $fits($k, 1); });
+    if ($n < 1 && $k < 1)
+    {
+        mel_cgi_log("export: hidden, $all titles, not in the file: no room");
+        return $json;
+    }
+    $n = max($n, 1);
+    mel_cgi_log("export: hidden, $k titles" . ($k < $all ? ', ' . ($all - $k) . ' oldest left out: no room' : '') .
+        ($n < MEL_ML_NAME_MAX ? ", names up to $n letters" : ''));
+    return substr($json, 0, -1) . mel_cgi_ht_copy_part(array_slice($list, 0, $k), $n) . '}';
+}
+
+// The largest $x of $lo..$hi for which $ok($x) holds ($ok holds up to some $x and not after it); $lo - 1 for none.
+function mel_cgi_most($lo, $hi, $ok)
+{
+    $lo--;
+    while ($lo < $hi)
+    {
+        $m = intval(($lo + $hi + 1) / 2);
+        if ($ok($m))
+            $lo = $m;
+        else
+            $hi = $m - 1;
+    }
+    return $lo;
 }
 
 // The settings of the file of the export $json (mel_cgi_export_json, no list) load back: the body the page posts of
@@ -258,16 +311,16 @@ function mel_cgi_import_post($dir, $t)
         $old = mel_cgi_import_put($dir, MEL_ML_FILE, $ml, 'my list', $wfail);
         mel_cgi_log('import: my list, ' . count($list) . ' titles' . ($dropped ? ", $dropped not good dropped" : ''));
     }
-    $hold = false;
+    $ht_old = false;
     if ($hidden !== null)
     {
-        $hold = mel_cgi_import_put($dir, MEL_HT_FILE, $ht, 'hidden', $wfail, array(array(MEL_ML_FILE, $old, 'my list')));
+        $ht_old = mel_cgi_import_put($dir, MEL_HT_FILE, $ht, 'hidden', $wfail, array(array(MEL_ML_FILE, $old, 'my list')));
         mel_cgi_log('import: hidden, ' . count($hidden) . ' titles' . ($hdropped ? ", $hdropped not good dropped" : ''));
     }
     $why = mel_cgi_store($dir, $s);
     if ($why !== '')
     {
-        mel_cgi_import_back($dir, array(array(MEL_ML_FILE, $old, 'my list'), array(MEL_HT_FILE, $hold, 'hidden')));
+        mel_cgi_import_back($dir, array(array(MEL_ML_FILE, $old, 'my list'), array(MEL_HT_FILE, $ht_old, 'hidden')));
         mel_cgi_import_failed(500, $why, $wfail);
     }
     mel_cgi_log('import: ok');
