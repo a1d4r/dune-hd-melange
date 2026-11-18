@@ -186,6 +186,10 @@ class MelCat
     // r25: when a request of a row failed for the server (net, rate, server), 0: it did not.
     /** @var int */
     public static $down = 0;
+    // r24: when a row timed out at an opening (mel_catv_open), by rid; within MEL_CAT_FRESH it is asked after the
+    // others, until it loads.
+    /** @var array<string, int> */
+    public static $slow = array();
     // r25: the tiles of the flagged rows as this screen shows them, by rid and id: the shell
     // throws away a reply cancelled by ENTER, while the listing has already moved on. Also the
     // tiles of an old copy the grid of "Show all" began anew from (mel_catv_all_list): they
@@ -551,7 +555,8 @@ function mel_catv_is_down()
 
 // The first page of a row asked for anew: with tiles, into MelCat::$lists (of a copy
 // after a failure: stale), else what is there stays; an empty row is remembered.
-// $timeout_down false: a timeout is a slow row, not the server down.
+// MelCat::$down by its failure: net, rate, server, and a timeout unless $timeout_down is
+// false (an opening: a slow row or the end of its limit, not the server down).
 /**
  * @param MelCatRow $row
  * @param float $limit
@@ -574,8 +579,11 @@ function mel_catv_load_first($row, $limit, $timeout_down = true)
 
 // The rows $rows for a new screen, into MelCat::$lists. At once: listings in memory
 // still fresh, then the saved first pages of any age. In $limit s, one by one: the rows
-// without a copy, then the old copies; on a failure of the server no more requests. No
-// tile: the row stays out of the lists. -> a row was asked of the server.
+// without a copy, then the old copies, then the rows that timed out at an opening before
+// (MelCat::$slow): one slow row does not take the time of every opening. A timeout is not
+// the server down; on a failure of the server (mel_catv_is_down) no more requests and the
+// old copies not refreshed are marked stale. Those the limit left out are not. No tile: the
+// row stays out of the lists. -> a row was asked of the server.
 /**
  * @param list<MelCatRow> $rows
  * @param float $limit
@@ -586,6 +594,7 @@ function mel_catv_open($rows, $limit)
     $net = false;
     $none = array();
     $old = array();
+    $slow = array();
     foreach ($rows as $row)
     {
         $rid = mel_catv_rid($row);
@@ -596,34 +605,40 @@ function mel_catv_open($rows, $limit)
         // Not "restored" (mel_catv_list_restore): this screen shows it.
         if ($c)
             MelCat::$lists[$rid] = mel_catv_list_copy($row, $c);
-        if (!$c)
+        if ($c && mel_cat_is_fresh($c))
+            continue;
+        if (isset(MelCat::$slow[$rid]) && mel_cat_fresh_since(MelCat::$slow[$rid]))
+            $slow[$rid] = $row;
+        else if (!$c)
             $none[$rid] = $row;
-        else if (!mel_cat_is_fresh($c))
+        else
             $old[$rid] = $row;
     }
     $start = microtime(true);
-    $failed = false;
-    foreach ($none + $old as $rid => $row)
+    $down = false;
+    foreach ($none + $old + $slow as $rid => $row)
     {
         $left = $limit - (microtime(true) - $start);
         if ($left < MEL_CATV_MIN_S)
             break;
-        $res = mel_catv_load_first($row, $left);
+        $res = mel_catv_load_first($row, $left, false);
         $net = true;
-        if ($res['tiles'] && !$res['stale'])
-            unset($old[$rid]);
-        $failed = $failed || $res['err'] !== '';
-        if (mel_catv_is_down())
+        if ($res['err'] === 'timeout')
+            MelCat::$slow[$rid] = time();
+        else if ($res['err'] === '')
+            unset(MelCat::$slow[$rid]);
+        unset($old[$rid], $slow[$rid]);
+        $down = mel_catv_is_down();
+        if ($down)
             break;
     }
-    if ($failed)
+    foreach ($down ? $old + $slow : array() as $rid => $row)
     {
-        foreach ($old as $rid => $row)
-        {
-            $list = MelCat::$lists[$rid];
-            $list['stale'] = true;
-            MelCat::$lists[$rid] = $list;
-        }
+        if (!isset(MelCat::$lists[$rid]))
+            continue;
+        $list = MelCat::$lists[$rid];
+        $list['stale'] = true;
+        MelCat::$lists[$rid] = $list;
     }
     return $net;
 }
