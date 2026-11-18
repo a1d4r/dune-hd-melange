@@ -4,173 +4,173 @@
 // a grid on r24), search and its results ("cat_search:<id>"). Data: catalog.php,
 // ENTER on a tile: catalog_card.php. rid: a short hash of the key of a row; the id of a
 // tile is "<rid>:<id of the title>", so it stays the same after a rebuild or a restart.
-// Types in the PHPDoc (AioCatList and others): phpstan-types.neon of the repository.
+// Types in the PHPDoc (MelCatList and others): phpstan-types.neon of the repository.
 
 // r24: seconds for rows at an opening, with the refresh of the manifest: what does not
 // make it stays hidden until the next one. A cold row takes up to 4.5 s, 6 rows 2.5 s.
-define('AIO_CATV_OPEN_S', 3.0);
-// r24: s of it the meta of the rows "Continue" and "Мой список" (aio_cpm_build, before aio_catv_open) leaves to the rows
-// at least: one row of the server (~0.4 s, 6 rows 2.5 s; aio_catv_open starts one with AIO_CATV_MIN_S left). The rows of
-// memory and the copies take none of it: aio_catv_open counts its limit after them (the 35 rows of a tab of copies, the
+define('MEL_CATV_OPEN_S', 3.0);
+// r24: s of it the meta of the rows "Continue" and "Мой список" (mel_cpm_build, before mel_catv_open) leaves to the rows
+// at least: one row of the server (~0.4 s, 6 rows 2.5 s; mel_catv_open starts one with MEL_CATV_MIN_S left). The rows of
+// memory and the copies take none of it: mel_catv_open counts its limit after them (the 35 rows of a tab of copies, the
 // whole screen with them ~0.5 s on the Dune).
-define('AIO_CATV_OPEN_ROW_S', 0.5);
+define('MEL_CATV_OPEN_ROW_S', 0.5);
 // r25: one row of get_folder_rows, a key of the user waits for it; the stubs of a row.
-define('AIO_CATV_ROW_S', 5.0);
-define('AIO_CATV_STUBS', 9);
-// r25: after a failure of the server this many s no row asks it (aio_catv_is_down).
-define('AIO_CATV_DOWN_S', 30);
+define('MEL_CATV_ROW_S', 5.0);
+define('MEL_CATV_STUBS', 9);
+// r25: after a failure of the server this many s no row asks it (mel_catv_is_down).
+define('MEL_CATV_DOWN_S', 30);
 // The timeout of get_folder_view and of a portion of the grid is not known (10 s by
 // the SDK): all of an opening, the first manifest in it, and a portion stay under it.
-define('AIO_CATV_OPEN_MAX_S', 7.0);
-define('AIO_CATV_GRID_S', 7.0);
+define('MEL_CATV_OPEN_MAX_S', 7.0);
+define('MEL_CATV_GRID_S', 7.0);
 // The first manifest, no copy: the screen waits for it.
-define('AIO_CATV_MANIFEST_S', 5);
-// The refresh of a copy (~0.3 s, 5 KB in gzip): r24 first in an opening, within AIO_CATV_OPEN_S;
+define('MEL_CATV_MANIFEST_S', 5);
+// The refresh of a copy (~0.3 s, 5 KB in gzip): r24 first in an opening, within MEL_CATV_OPEN_S;
 // r25 at most this in get_folder_rows, keys and RETURN wait for php_server.
-define('AIO_CATV_REFRESH_S', 2);
+define('MEL_CATV_REFRESH_S', 2);
 // Less than this left: no more requests.
-define('AIO_CATV_MIN_S', 0.3);
-define('AIO_CATV_ROW_TILES', 20);
-define('AIO_CATV_GRID_PORTION', 50);
+define('MEL_CATV_MIN_S', 0.3);
+define('MEL_CATV_ROW_TILES', 20);
+define('MEL_CATV_GRID_PORTION', 50);
 // r25 "Show all": rows of 9 ($ROWS_NUM_COLS of movie_list_screen.php), 112 of them hold the
 // 1000 tiles of AIOMetadata; the shell can not add rows later.
-define('AIO_CATV_ALL_COLS', 9);
-define('AIO_CATV_ALL_ROWS', 112);
+define('MEL_CATV_ALL_COLS', 9);
+define('MEL_CATV_ALL_ROWS', 112);
 // The tiles a call of get_folder_rows loads past the row after the first one asked: the end on
 // the border of a row closes the rows past it in the same reply.
-define('AIO_CATV_ALL_AHEAD', 9);
+define('MEL_CATV_ALL_AHEAD', 9);
 // The timer of a view with stubs: the focus run past the end onto a closed row is lost, the tick
 // once the end is known builds the view anew (catalog_probe y9, y9b).
-define('AIO_CATV_ALL_TICK_MS', 1500);
+define('MEL_CATV_ALL_TICK_MS', 1500);
 // The searches kept in memory: Back to the results of an older one, its tiles and "Show all" work.
-define('AIO_CATV_SEARCHES', 3);
-// The screens of rows whose cat_logo of the opening is kept (aio_catv_logo_of).
-define('AIO_CATV_SCREENS', 16);
-// The main screens of rows the catalog keeps the addresses of (AioCat::$mains): of the two tabs and a new address.
-define('AIO_CATV_MAINS', 4);
-// A main screen built this many s at most after the player that invalidated it (AioCat::$inv_t) logs the time since; later
+define('MEL_CATV_SEARCHES', 3);
+// The screens of rows whose cat_logo of the opening is kept (mel_catv_logo_of).
+define('MEL_CATV_SCREENS', 16);
+// The main screens of rows the catalog keeps the addresses of (MelCat::$mains): of the two tabs and a new address.
+define('MEL_CATV_MAINS', 4);
+// A main screen built this many s at most after the player that invalidated it (MelCat::$inv_t) logs the time since; later
 // it is not of that operation (the shell built it when the user came back to it).
-define('AIO_CATV_INV_LOG_S', 10);
+define('MEL_CATV_INV_LOG_S', 10);
 // The info panel, on the info_r of the native one (movie_helper.php of shell_ext), its colours
 // and sizes of text: a title in TEXT_W, one line as large as fits from TITLE_PX down to
 // TITLE_MIN_PX, else 2 lines of TITLE2_PX, its bottom at TITLE_BOTTOM (SUB_H higher over the
 // English name); then lines of 30 px from LINES_Y (to fit TEXT_W the genres down to 26 px, the cast
 // loses names), then the description. Names up to 197, descriptions up to 1096
 // characters were seen. DESC_CHARS: of the text of an item of the grid.
-define('AIO_CATV_PANE_W', 950);
-define('AIO_CATV_PANE_H', 560);
-define('AIO_CATV_TEXT_W', 800);
-define('AIO_CATV_TITLE_PX', 88);
-define('AIO_CATV_TITLE_MIN_PX', 60);
-define('AIO_CATV_TITLE2_PX', 48);
-define('AIO_CATV_TITLE_H', 120);
-// TITLE_BOTTOM: PANE_Y + 216 = 256 is the bottom of the logo of a card: baked into card/v1 (AIO_CATV_CARD).
-define('AIO_CATV_TITLE_BOTTOM', 216);
-define('AIO_CATV_LINES_Y', 229);
-define('AIO_CATV_LINE_PX', 30);
-define('AIO_CATV_LINE_H', 46);
-define('AIO_CATV_DATA_MIN_PX', 26);
-// The description with the line of the history under it (aio_catv_info): this many lines under all the lines of the
+define('MEL_CATV_PANE_W', 950);
+define('MEL_CATV_PANE_H', 560);
+define('MEL_CATV_TEXT_W', 800);
+define('MEL_CATV_TITLE_PX', 88);
+define('MEL_CATV_TITLE_MIN_PX', 60);
+define('MEL_CATV_TITLE2_PX', 48);
+define('MEL_CATV_TITLE_H', 120);
+// TITLE_BOTTOM: PANE_Y + 216 = 256 is the bottom of the logo of a card: baked into card/v1 (MEL_CATV_CARD).
+define('MEL_CATV_TITLE_BOTTOM', 216);
+define('MEL_CATV_LINES_Y', 229);
+define('MEL_CATV_LINE_PX', 30);
+define('MEL_CATV_LINE_H', 46);
+define('MEL_CATV_DATA_MIN_PX', 26);
+// The description with the line of the history under it (mel_catv_info): this many lines under all the lines of the
 // panel; the middle of the capitals of its line DESC_MID px under the top of the line (the mock of the designer).
-define('AIO_CATV_DESC_HIST', 3);
-define('AIO_CATV_DESC_MID', 32);
-define('AIO_CATV_TITLE_COLOR', '#FFFFFFE0');
-define('AIO_CATV_TEXT_COLOR', '#FFAFAFA0');
-define('AIO_CATV_CAST_COLOR', '#FFFFFF40');
+define('MEL_CATV_DESC_HIST', 3);
+define('MEL_CATV_DESC_MID', 32);
+define('MEL_CATV_TITLE_COLOR', '#FFFFFFE0');
+define('MEL_CATV_TEXT_COLOR', '#FFAFAFA0');
+define('MEL_CATV_CAST_COLOR', '#FFFFFF40');
 // The numbers of the ratings in the line of facts: white as the title, the rest of it grey.
-define('AIO_CATV_RATE_COLOR', AIO_CATV_TITLE_COLOR);
-// The line of facts (aio_catv_facts_labels): the ratings and the Russian age marks in outlined
+define('MEL_CATV_RATE_COLOR', MEL_CATV_TITLE_COLOR);
+// The line of facts (mel_catv_facts_labels): the ratings and the Russian age marks in outlined
 // plates (img/cat1_kp.png ...), PLATE_H high, their tops PLATE_DY under the top of the line: centred
 // on the capitals of 30 px (their middle 27 px under the top of the label, device 07.11.2026). The
 // text over them by the shell: of a rating the name grey PLATE_PAD from the left, the number white
 // as far from the right (both in one, centred, if they do not fit so by font_w.php), the age centred.
 // Widths: "КП 8.9", "IMDb 9.5", "18+" at 30 px by font_w.php, PLATE_PAD a side (the age 10 a side).
 // Gaps: between plates, before the rest of the line (grey text), before the age.
-define('AIO_CATV_PLATE_H', 40);
-define('AIO_CATV_PLATE_DY', 7);
-define('AIO_CATV_PLATE_PAD', 12);
-define('AIO_CATV_KP_W', 117);
-define('AIO_CATV_IMDB_W', 153);
-define('AIO_CATV_AGE_W', 73);
-define('AIO_CATV_PLATE_GAP', 12);
-define('AIO_CATV_REST_GAP', 18);
-define('AIO_CATV_AGE_GAP', 16);
+define('MEL_CATV_PLATE_H', 40);
+define('MEL_CATV_PLATE_DY', 7);
+define('MEL_CATV_PLATE_PAD', 12);
+define('MEL_CATV_KP_W', 117);
+define('MEL_CATV_IMDB_W', 153);
+define('MEL_CATV_AGE_W', 73);
+define('MEL_CATV_PLATE_GAP', 12);
+define('MEL_CATV_REST_GAP', 18);
+define('MEL_CATV_AGE_GAP', 16);
 // The English name under the title (info_ntitle of movie_helper.php): 36 px down to 20, 2 lines.
-define('AIO_CATV_SUB_PX', 36);
+define('MEL_CATV_SUB_PX', 36);
 // SUB_H: the height of the English name under a title of text.
-define('AIO_CATV_SUB_H', 46);
-define('AIO_CATV_SUB_MIN_PX', 20);
-define('AIO_CATV_SUB_COLOR', '#FF808080');
-define('AIO_CATV_DESC_CHARS', 360);
+define('MEL_CATV_SUB_H', 46);
+define('MEL_CATV_SUB_MIN_PX', 20);
+define('MEL_CATV_SUB_COLOR', '#FF808080');
+define('MEL_CATV_DESC_CHARS', 360);
 // The TMDB size of a background; w780 if the shell runs short of memory.
-define('AIO_CATV_BG_SIZE', 'w1280');
+define('MEL_CATV_BG_SIZE', 'w1280');
 // The panel: x of info_r. The strip of the row titles (the main screen, the results of a search of
 // two groups and more) moves it to the right by 30, to CARD_X, where the card background of the
-// server has the logo (aio_catv_card); a screen without the strip (a search of one group, "Show all")
+// server has the logo (mel_catv_card); a screen without the strip (a search of one group, "Show all")
 // with the card background: info_r at CARD_X itself.
-// CARD_X (PANE_X + 30) is the left of the logo of a card, PANE_Y + TITLE_BOTTOM its bottom: baked into card/v1 (AIO_CATV_CARD).
-define('AIO_CATV_PANE_X', 100);
-define('AIO_CATV_CARD_X', 130);
-define('AIO_CATV_PANE_Y', 40);
-define('AIO_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
+// CARD_X (PANE_X + 30) is the left of the logo of a card, PANE_Y + TITLE_BOTTOM its bottom: baked into card/v1 (MEL_CATV_CARD).
+define('MEL_CATV_PANE_X', 100);
+define('MEL_CATV_CARD_X', 130);
+define('MEL_CATV_PANE_Y', 40);
+define('MEL_CATV_ICONS', 'plugin_file://%shell_ext%/icons/');
 // The icons of the shell for the search and the setup: on the strip and in POP UP.
-define('AIO_CATV_ICON_SEARCH', 'xxx4.png');
-define('AIO_CATV_ICON_SETUP', 'xxx5.png');
+define('MEL_CATV_ICON_SEARCH', 'xxx4.png');
+define('MEL_CATV_ICON_SETUP', 'xxx5.png');
 // "Мой список" (view_my_list.php): the heart of the shell, on the strip left of the search and in POP UP.
-define('AIO_CATV_ICON_MYLIST', 'xxx3.png');
+define('MEL_CATV_ICON_MYLIST', 'xxx3.png');
 // "Продолжить" (view_my_list.php): the clock of the shell (its history), left of the heart, as on the main
 // screen of the Dune, and in POP UP.
-define('AIO_CATV_ICON_CONT', 'xxx2.png');
+define('MEL_CATV_ICON_CONT', 'xxx2.png');
 // Our pictures of the panel, img/cat<N>_*: N goes up when they change, as the shell keeps a
 // picture by its URL even across a reinstall (plugins/melange_catalog_img.py of the kitchen). The
 // mask: of the shell, but darker to the right, so the text column (TEXT_W) stays on the dark
 // whatever the background; card0.jpg: the dark background of vod_r of the whole screen without a
-// card background (aio_catv_card). cat2_mask.png: baked into card/v1 (AIO_CATV_CARD).
-define('AIO_CATV_IMG', 'plugin_file://img/cat2_');
-// The IMDb rating in the top left corner of a poster of a row (aio_catv_rate_stickers): a plate
+// card background (mel_catv_card). cat2_mask.png: baked into card/v1 (MEL_CATV_CARD).
+define('MEL_CATV_IMG', 'plugin_file://img/cat2_');
+// The IMDb rating in the top left corner of a poster of a row (mel_catv_rate_stickers): a plate
 // RATE_W x RATE_H at (RATE_PAD, RATE_PAD) of the poster 190x285, 70 % black, the N of rate<N> goes
 // up when it changes, as of cat<N>; the number over it, sticker_text_size RATE_PX of the template.
-define('AIO_CATV_RATE_PLATE', 'plugin_file://img/rate1_plate.png');
-define('AIO_CATV_RATE_PAD', 8);
-define('AIO_CATV_RATE_W', 52);
-define('AIO_CATV_RATE_H', 32);
-define('AIO_CATV_RATE_PX', 25);
-// The card backgrounds of the server: <base>/<CARD>... (aio_catv_card). Its layout - the logo up to
+define('MEL_CATV_RATE_PLATE', 'plugin_file://img/rate1_plate.png');
+define('MEL_CATV_RATE_PAD', 8);
+define('MEL_CATV_RATE_W', 52);
+define('MEL_CATV_RATE_H', 32);
+define('MEL_CATV_RATE_PX', 25);
+// The card backgrounds of the server: <base>/<CARD>... (mel_catv_card). Its layout - the logo up to
 // 780x200 at CARD_X, its bottom at PANE_Y + TITLE_BOTTOM (256), the mask cat2_mask.png - is baked
 // into card/v1 of the server (addon/lib/posterCache/card.ts of the fork of AIOMetadata): a change
 // after a release of the plugin = v2 in the path and in card.ts.
-define('AIO_CATV_CARD', 'poster-cache/card/v1/');
+define('MEL_CATV_CARD', 'poster-cache/card/v1/');
 // The strip on top of the main screen, as the native top menu: the tabs "Movies" and "Series"
 // (rows by their type), the icons of search and settings of the shell. The id of its row; the
 // ids of its parts are "tab_<x>", no ':' (an id with one is a tile). A part in focus far right
 // scrolls the whole strip: on the device a part at 1606-1670 did not (its frame on the part), one
 // at 1640-1704 did. So the gear ends at 1660 and its frame, with the margins, at 1670.
-define('AIO_CATV_STRIP', 'tabs');
+define('MEL_CATV_STRIP', 'tabs');
 // The header_id of a row of tiles: this and its rid (the shell names the headers of the rows without
 // one by their number, "H0" is the strip). POP UP on a header brings it as selected_header_id
 // (genre_rows_screen.php r25: header_id = the id of the list the dialog of the rows edits).
-define('AIO_CATV_HEADER', 'h:');
+define('MEL_CATV_HEADER', 'h:');
 // The header of the strip, as the shell names it: the strip has no header_id and is the first row
 // with a title, so "H0" (device r25: POP UP on "Menu" brings it, the sel_state of a switch of the
-// tab has it). A header_id of the strip would change both; the other rows all have AIO_CATV_HEADER.
-define('AIO_CATV_STRIP_HEADER', 'H0');
+// tab has it). A header_id of the strip would change both; the other rows all have MEL_CATV_HEADER.
+define('MEL_CATV_STRIP_HEADER', 'H0');
 // The tabs as the native menu: text in caps, the open one brighter (the colours of the title and
 // the text of the panel, as the native ones), a blue line under it. No focused variant: it does
 // nothing in a row of GComps, only the frame of the shell shows the focus.
-define('AIO_CATV_TAB_PX', 38);
-define('AIO_CATV_UNDERLINE', '#FF3870FF');
+define('MEL_CATV_TAB_PX', 38);
+define('MEL_CATV_UNDERLINE', '#FF3870FF');
 
-class AioCat
+class MelCat
 {
     // Listings by rid: what the info panel and ENTER read. Memory of php_server
     // only; after a restart a tile or "Show all" asked for brings the saved first page of its row
-    // (aio_catv_list_restore).
-    /** @var array<string, AioCatList> */
+    // (mel_catv_list_restore).
+    /** @var array<string, MelCatList> */
     public static $lists = array();
-    // The last AIO_CATV_SEARCHES searches, the oldest first: by its id, the rids of its rows.
+    // The last MEL_CATV_SEARCHES searches, the oldest first: by its id, the rids of its rows.
     /** @var array<string, list<string>> */
     public static $searches = array();
-    // The searches of them opened as "Show all" of their one row (aio_catv_search_run): that
+    // The searches of them opened as "Show all" of their one row (mel_catv_search_run): that
     // screen is their results.
     /** @var array<string, bool> */
     public static $at_once = array();
@@ -180,7 +180,7 @@ class AioCat
     // r25: the manifest to refresh in get_folder_rows, once an opening.
     /** @var bool */
     public static $manifest_due = false;
-    // When the manifest was last asked to refresh its copy, a failure too (aio_catv_manifest_tried); 0: not yet.
+    // When the manifest was last asked to refresh its copy, a failure too (mel_catv_manifest_tried); 0: not yet.
     /** @var int */
     public static $manifest_tried = 0;
     // r25: when a request of a row failed for the server (net, rate, server), 0: it did not.
@@ -188,11 +188,11 @@ class AioCat
     public static $down = 0;
     // r25: the tiles of the flagged rows as this screen shows them, by rid and id: the shell
     // throws away a reply cancelled by ENTER, while the listing has already moved on. Also the
-    // tiles of an old copy the grid of "Show all" began anew from (aio_catv_all_list): they
+    // tiles of an old copy the grid of "Show all" began anew from (mel_catv_all_list): they
     // stay on the screen it was opened from.
-    /** @var array<string, array<int|string, AioCatTile>> */
+    /** @var array<string, array<int|string, MelCatTile>> */
     public static $on_screen = array();
-    // The language of the last screen of rows ('': not read yet), aio_catv_ui_lang.
+    // The language of the last screen of rows ('': not read yet), mel_catv_ui_lang.
     /** @var string */
     public static $lang = '';
     // "Show all": by rid, a call of get_folder_rows failed; no request until ENTER on its "did not load".
@@ -210,24 +210,24 @@ class AioCat
     // starts with it. Memory of php_server only, as the query is in no log and no file.
     /** @var string */
     public static $last_q = '';
-    // cat_logo of the screen of rows built or asked for now (aio_catv_logo_of; null: none yet, the
+    // cat_logo of the screen of rows built or asked for now (mel_catv_logo_of; null: none yet, the
     // settings): its vod_r and the ids of its tiles are by it.
     /** @var bool|null */
     public static $logo = null;
-    // cat_logo of the last AIO_CATV_SCREENS screens of rows at their openings, by media_url.
+    // cat_logo of the last MEL_CATV_SCREENS screens of rows at their openings, by media_url.
     /** @var array<string, bool> */
     public static $logo_of = array();
-    // The same of cat_rating (aio_catv_rating_on): a screen has the plates on all its tiles or on none.
+    // The same of cat_rating (mel_catv_rating_on): a screen has the plates on all its tiles or on none.
     /** @var bool|null */
     public static $rating = null;
     /** @var array<string, bool> */
     public static $rating_of = array();
-    // The main screens of rows opened last (their media_url, AIO_CATV_MAINS at most, the latest last): invalidated
-    // back from the player and after a mark of the own card (aio_catv_mains_anew).
+    // The main screens of rows opened last (their media_url, MEL_CATV_MAINS at most, the latest last): invalidated
+    // back from the player and after a mark of the own card (mel_catv_mains_anew).
     /** @var list<string> */
     public static $mains = array();
-    // r25: when the operation back from the player that invalidated them began (Aio::$t0, aio_catv_after_player): the
-    // first of them built again within AIO_CATV_INV_LOG_S logs the time since (O2); 0: none.
+    // r25: when the operation back from the player that invalidated them began (Mel::$t0, mel_catv_after_player): the
+    // first of them built again within MEL_CATV_INV_LOG_S logs the time since (O2); 0: none.
     /** @var float */
     public static $inv_t = 0.0;
 }
@@ -236,7 +236,7 @@ class AioCat
 /**
  * @return string
  */
-function aio_catv_lang()
+function mel_catv_lang()
 {
     $f = getenv('FS_PREFIX') . '/config/settings.properties';
     $text = is_file($f) ? strval(file_get_contents($f, false, null, 0, 65536)) : '';
@@ -251,11 +251,11 @@ function aio_catv_lang()
 /**
  * @return string
  */
-function aio_catv_ui_lang()
+function mel_catv_ui_lang()
 {
-    if (AioCat::$lang === '')
-        AioCat::$lang = aio_catv_lang();
-    return AioCat::$lang;
+    if (MelCat::$lang === '')
+        MelCat::$lang = mel_catv_lang();
+    return MelCat::$lang;
 }
 
 /**
@@ -263,16 +263,16 @@ function aio_catv_ui_lang()
  * @param string $k
  * @return string
  */
-function aio_catv_in($in, $k)
+function mel_catv_in($in, $k)
 {
     return isset($in->$k) && is_string($in->$k) ? $in->$k : '';
 }
 
 /**
- * @param AioCatRow $row
+ * @param MelCatRow $row
  * @return string
  */
-function aio_catv_rid($row)
+function mel_catv_rid($row)
 {
     // A row of a search: a rid of its own for every search (sid), the key is one for all.
     return substr(md5($row['key'] . (isset($row['sid']) ? ':' . $row['sid'] : '')), 0, 8);
@@ -280,12 +280,12 @@ function aio_catv_rid($row)
 
 // A listing and all its tiles so far, by the id of a tile. stale: of a copy, a request failed.
 /**
- * @param AioCatState $st
- * @param list<AioCatTile> $tiles
+ * @param MelCatState $st
+ * @param list<MelCatTile> $tiles
  * @param bool $stale
- * @return AioCatList
+ * @return MelCatList
  */
-function aio_catv_list($st, $tiles, $stale)
+function mel_catv_list($st, $tiles, $stale)
 {
     $list = array('st' => $st, 'tiles' => array(), 'stale' => $stale);
     foreach ($tiles as $t)
@@ -295,14 +295,14 @@ function aio_catv_list($st, $tiles, $stale)
 
 // A listing from the saved first page, as if it was just got.
 /**
- * @param AioCatRow $row
- * @param AioCatCached $c
- * @return AioCatList
+ * @param MelCatRow $row
+ * @param MelCatCached $c
+ * @return MelCatList
  */
-function aio_catv_list_copy($row, $c)
+function mel_catv_list_copy($row, $c)
 {
-    $copy = aio_cat_state_of_copy($row, $c);
-    return aio_catv_list($copy['st'], $copy['tiles'], false);
+    $copy = mel_cat_state_of_copy($row, $c);
+    return mel_catv_list($copy['st'], $copy['tiles'], false);
 }
 
 // The mode of the panel of an id of a tile or of "Show all" of a screen of rows: "c:" before it,
@@ -315,161 +315,161 @@ function aio_catv_list_copy($row, $c)
  * @param string $id
  * @return array{bool, string}
  */
-function aio_catv_id_mode($id)
+function mel_catv_id_mode($id)
 {
     if (strpos($id, 'c:') === 0 || strpos($id, 'f:') === 0)
         return array($id[0] === 'c', strval(substr($id, 2)));
     return array(false, $id);
 }
 
-// $id of a tile or of "Show all" with the mode of the screen (aio_catv_id_mode).
+// $id of a tile or of "Show all" with the mode of the screen (mel_catv_id_mode).
 /**
  * @param string $id
  * @return string
  */
-function aio_catv_tile_id($id)
+function mel_catv_tile_id($id)
 {
-    return (aio_catv_logo_on() ? 'c:' : 'f:') . $id;
+    return (mel_catv_logo_on() ? 'c:' : 'f:') . $id;
 }
 
 // The tile of an id of the screen, or null. Looked for in this order:
-// 1. $tv (asked from the tab "TV"): the tiles of its file (aio_tv_tile); the listing in memory may have moved on since.
-//    A tile of the row "Continue" ("continue:<movie_id>"): of the history and the pairs (aio_cp_tile), not of a listing;
-//    of the screen "Мой список" ("mylist:<key>"): of its entry (aio_mlv_tile).
-// 2. AioCat::$lists, "restored" ones too (aio_catv_list_restore); aio_catv_all_list begins the grid anew
-//    from one older than AIO_CAT_FRESH, aio_catv_all_rows goes on from none older than AIO_CAT_STATE_TTL.
-// 3. AioCat::$on_screen: r25, the flagged rows as the screen shows them; the old copy a grid began anew from.
+// 1. $tv (asked from the tab "TV"): the tiles of its file (mel_tv_tile); the listing in memory may have moved on since.
+//    A tile of the row "Continue" ("continue:<movie_id>"): of the history and the pairs (mel_cp_tile), not of a listing;
+//    of the screen "Мой список" ("mylist:<key>"): of its entry (mel_mlv_tile).
+// 2. MelCat::$lists, "restored" ones too (mel_catv_list_restore); mel_catv_all_list begins the grid anew
+//    from one older than MEL_CAT_FRESH, mel_catv_all_rows goes on from none older than MEL_CAT_STATE_TTL.
+// 3. MelCat::$on_screen: r25, the flagged rows as the screen shows them; the old copy a grid began anew from.
 // 4. No listing of its rid in memory (a restart of php_server, a file the shell shows without PHP): the copy
-//    on the disk (aio_catv_list_restore). A listing in memory without the tile: null, the copy is not newer.
+//    on the disk (mel_catv_list_restore). A listing in memory without the tile: null, the copy is not newer.
 /**
  * @param string $id
  * @param bool $tv
- * @return AioCatTile|null
+ * @return MelCatTile|null
  */
-function aio_catv_tile($id, $tv = false)
+function mel_catv_tile($id, $tv = false)
 {
-    list(, $id) = aio_catv_id_mode($id);
-    $t = $tv ? aio_tv_tile($id) : null;
+    list(, $id) = mel_catv_id_mode($id);
+    $t = $tv ? mel_tv_tile($id) : null;
     if ($t)
         return $t;
     $p = explode(':', $id, 2);
     if (count($p) !== 2)
         return null;
-    if ($p[0] === AIO_CP_RID)
-        return aio_cp_mid_of($id) !== '' ? aio_cp_tile($p[1]) : null;
-    if ($p[0] === AIO_ML_RID)
-        return aio_mlv_tile($p[1]);
-    if (isset(AioCat::$lists[$p[0]]['tiles'][$p[1]]))
-        return AioCat::$lists[$p[0]]['tiles'][$p[1]];
-    if (isset(AioCat::$on_screen[$p[0]][$p[1]]))
-        return AioCat::$on_screen[$p[0]][$p[1]];
-    $list = isset(AioCat::$lists[$p[0]]) ? null : aio_catv_list_restore($p[0]);
+    if ($p[0] === MEL_CP_RID)
+        return mel_cp_mid_of($id) !== '' ? mel_cp_tile($p[1]) : null;
+    if ($p[0] === MEL_ML_RID)
+        return mel_mlv_tile($p[1]);
+    if (isset(MelCat::$lists[$p[0]]['tiles'][$p[1]]))
+        return MelCat::$lists[$p[0]]['tiles'][$p[1]];
+    if (isset(MelCat::$on_screen[$p[0]][$p[1]]))
+        return MelCat::$on_screen[$p[0]][$p[1]];
+    $list = isset(MelCat::$lists[$p[0]]) ? null : mel_catv_list_restore($p[0]);
     return isset($list['tiles'][$p[1]]) ? $list['tiles'][$p[1]] : null;
 }
 
 // The listing of the row $rid of the saved manifest not in memory, from the saved first page of
-// any age, no request; it goes to memory marked "restored" (aio_catv_all_list). null: no such row
+// any age, no request; it goes to memory marked "restored" (mel_catv_all_list). null: no such row
 // or no copy of it.
 /**
  * @param string $rid
- * @return AioCatList|null
+ * @return MelCatList|null
  */
-function aio_catv_list_restore($rid)
+function mel_catv_list_restore($rid)
 {
-    // A rid (aio_catv_rid), not "more", "stub" and the like: they read no manifest.
+    // A rid (mel_catv_rid), not "more", "stub" and the like: they read no manifest.
     if (!preg_match('/^[0-9a-f]{8}$/D', $rid))
         return null;
-    $row = aio_catv_row_by_rid($rid);
-    $c = $row ? aio_cat_page_cached($row, 0) : null;
+    $row = mel_catv_row_by_rid($rid);
+    $c = $row ? mel_cat_page_cached($row, 0) : null;
     if (!$row || !$c)
         return null;
-    $list = aio_catv_list_copy($row, $c);
+    $list = mel_catv_list_copy($row, $c);
     $list['restored'] = true;
-    AioCat::$lists[$rid] = $list;
+    MelCat::$lists[$rid] = $list;
     return $list;
 }
 
 // --- Pictures: the size is in the address; a picture of another type or width is fine.
 
-// Never empty. A path (of a picture of the Favorites of the Dune, aio_ml_url) as it is, as the shell has it in its row,
-// if the file is there (PHP of the Dune adds FS_PREFIX itself, as aio_ml_fav_read): taken out of the Favorites of the
+// Never empty. A path (of a picture of the Favorites of the Dune, mel_ml_url) as it is, as the shell has it in its row,
+// if the file is there (PHP of the Dune adds FS_PREFIX itself, as mel_ml_fav_read): taken out of the Favorites of the
 // Dune (its folder gone) or of a backup of another Dune - the usual picture of none.
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @return string
  */
-function aio_catv_poster($t)
+function mel_catv_poster($t)
 {
     if (substr($t['poster'], 0, 1) === '/')
-        return is_file($t['poster']) ? $t['poster'] : AIO_CATV_ICONS . 'no_movie_poster.png';
-    $u = aio_img(str_replace('/poster-cache/poster/', '/poster-cache/w342/poster/', $t['poster']));
-    return $u !== '' ? $u : AIO_CATV_ICONS . 'no_movie_poster.png';
+        return is_file($t['poster']) ? $t['poster'] : MEL_CATV_ICONS . 'no_movie_poster.png';
+    $u = mel_img(str_replace('/poster-cache/poster/', '/poster-cache/w342/poster/', $t['poster']));
+    return $u !== '' ? $u : MEL_CATV_ICONS . 'no_movie_poster.png';
 }
 
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @return string
  */
-function aio_catv_background($t)
+function mel_catv_background($t)
 {
-    $u = aio_img(strval(preg_replace('~/t/p/[a-z0-9_]+/~', '/t/p/' . AIO_CATV_BG_SIZE . '/', $t['background'])));
-    return $u !== '' ? $u : AIO_CATV_ICONS . 'bg0.jpg';
+    $u = mel_img(strval(preg_replace('~/t/p/[a-z0-9_]+/~', '/t/p/' . MEL_CATV_BG_SIZE . '/', $t['background'])));
+    return $u !== '' ? $u : MEL_CATV_ICONS . 'bg0.jpg';
 }
 
 // cat_logo ("Логотип фильма вместо названия" of the page) in effect on the screens of rows: on
-// only where the shell sizes the background by vod_r (aio_fw_vod_r), as the card of the whole
+// only where the shell sizes the background by vod_r (mel_fw_vod_r), as the card of the whole
 // screen needs. Else, the setting kept as it is, the fanart on the right and the title as text;
 // after an update to r25 the logo comes.
 /**
  * @return bool
  */
-function aio_catv_logo_effective()
+function mel_catv_logo_effective()
 {
-    return Aio::$settings['cat_logo'] && aio_fw_vod_r();
+    return Mel::$settings['cat_logo'] && mel_fw_vod_r();
 }
 
-// cat_logo (aio_catv_logo_effective) of the screen of rows built or asked for now.
+// cat_logo (mel_catv_logo_effective) of the screen of rows built or asked for now.
 /**
  * @return bool
  */
-function aio_catv_logo_on()
+function mel_catv_logo_on()
 {
-    return AioCat::$logo !== null ? AioCat::$logo : aio_catv_logo_effective();
+    return MelCat::$logo !== null ? MelCat::$logo : mel_catv_logo_effective();
 }
 
-// cat_logo of the screen of rows $url: at its opening ($open, aio_catv_folder_view) of the settings,
+// cat_logo of the screen of rows $url: at its opening ($open, mel_catv_folder_view) of the settings,
 // later (get_folder_rows: the rows of "Show all" as it scrolls) the same as then, so all its tiles
-// are of the mode of its vod_r. A screen not among the last AIO_CATV_SCREENS (php_server restarted):
+// are of the mode of its vod_r. A screen not among the last MEL_CATV_SCREENS (php_server restarted):
 // the settings now. cat_rating the same way, so the rows of a screen are all with the rating or without.
 /**
  * @param string $url
  * @param bool $open
  * @return void
  */
-function aio_catv_logo_of($url, $open)
+function mel_catv_logo_of($url, $open)
 {
-    if ($open || !isset(AioCat::$logo_of[$url]))
+    if ($open || !isset(MelCat::$logo_of[$url]))
     {
-        unset(AioCat::$logo_of[$url]);
-        AioCat::$logo_of[$url] = aio_catv_logo_effective();
-        if (count(AioCat::$logo_of) > AIO_CATV_SCREENS)
-            array_shift(AioCat::$logo_of);
-        unset(AioCat::$rating_of[$url]);
-        AioCat::$rating_of[$url] = Aio::$settings['cat_rating'];
-        if (count(AioCat::$rating_of) > AIO_CATV_SCREENS)
-            array_shift(AioCat::$rating_of);
+        unset(MelCat::$logo_of[$url]);
+        MelCat::$logo_of[$url] = mel_catv_logo_effective();
+        if (count(MelCat::$logo_of) > MEL_CATV_SCREENS)
+            array_shift(MelCat::$logo_of);
+        unset(MelCat::$rating_of[$url]);
+        MelCat::$rating_of[$url] = Mel::$settings['cat_rating'];
+        if (count(MelCat::$rating_of) > MEL_CATV_SCREENS)
+            array_shift(MelCat::$rating_of);
     }
-    AioCat::$logo = AioCat::$logo_of[$url];
-    AioCat::$rating = AioCat::$rating_of[$url];
+    MelCat::$logo = MelCat::$logo_of[$url];
+    MelCat::$rating = MelCat::$rating_of[$url];
 }
 
 // cat_rating ("Рейтинг IMDb на постерах" of the page) of the screen of rows built or asked for now.
 /**
  * @return bool
  */
-function aio_catv_rating_on()
+function mel_catv_rating_on()
 {
-    return AioCat::$rating !== null ? AioCat::$rating : Aio::$settings['cat_rating'];
+    return MelCat::$rating !== null ? MelCat::$rating : Mel::$settings['cat_rating'];
 }
 
 // cat_logo on: vod_r of the whole screen (the card background is of it), else on the right as the
@@ -478,127 +478,127 @@ function aio_catv_rating_on()
  * @param bool $titles
  * @return array{info_r: array{w: int, h: int, x: int, y: int}, vod_r: array{w: int, h: int, x: int, y: int}}
  */
-function aio_catv_pane_r($titles)
+function mel_catv_pane_r($titles)
 {
-    $on = aio_catv_logo_on();
-    return array('info_r' => array('w' => AIO_CATV_PANE_W, 'h' => AIO_CATV_PANE_H,
-            'x' => $on && !$titles ? AIO_CATV_CARD_X : AIO_CATV_PANE_X, 'y' => AIO_CATV_PANE_Y),
+    $on = mel_catv_logo_on();
+    return array('info_r' => array('w' => MEL_CATV_PANE_W, 'h' => MEL_CATV_PANE_H,
+            'x' => $on && !$titles ? MEL_CATV_CARD_X : MEL_CATV_PANE_X, 'y' => MEL_CATV_PANE_Y),
         'vod_r' => $on ? array('w' => 1920, 'h' => 1080, 'x' => 0, 'y' => 0) : array('w' => 1280, 'h' => 720, 'x' => 640, 'y' => 0));
 }
 
 // The background of the panel of tile $t (null: none, "Show all"), the one while it loads or if it
 // fails (nl_bg_url), its mask, and whether it has the logo in place of the title, in the mode $on of
-// the id (aio_catv_id_mode). cat_logo off: the fanart (aio_catv_background) on the right under our
+// the id (mel_catv_id_mode). cat_logo off: the fanart (mel_catv_background) on the right under our
 // mask. On: the card background of the server, the fanart, our mask and the logo in one picture of the
 // screen, so the panel comes with all of it at once (the shell switches the panel once the background
 // has loaded, its pictures load after: experiments/bg_probe of the kitchen). Of the cache of
 // backgrounds of the server only, <base>/poster-cache/background/<TMDB address>: the card is
-// <base>/AIO_CATV_CARD[n/<logo>/]<fanart>, TMDB file names; n: no English name under the logo.
-// The logo: the Russian one aio_cat_tile kept. No such fanart (none, another
+// <base>/MEL_CATV_CARD[n/<logo>/]<fanart>, TMDB file names; n: no English name under the logo.
+// The logo: the Russian one mel_cat_tile kept. No such fanart (none, another
 // server, not of TMDB) or no tile: our dark card0.jpg, no mask; the same while a card loads.
 /**
- * @param AioCatTile|null $t
+ * @param MelCatTile|null $t
  * @param bool $on
  * @return array{bg: string, nl: string|null, mask: string|null, logo: bool}
  */
-function aio_catv_card($t, $on)
+function mel_catv_card($t, $on)
 {
     if (!$on)
-        return array('bg' => $t ? aio_catv_background($t) : AIO_CATV_ICONS . 'bg0.jpg', 'nl' => null, 'mask' => AIO_CATV_IMG . 'mask.png',
+        return array('bg' => $t ? mel_catv_background($t) : MEL_CATV_ICONS . 'bg0.jpg', 'nl' => null, 'mask' => MEL_CATV_IMG . 'mask.png',
             'logo' => false);
-    $none = AIO_CATV_IMG . 'card0.jpg';
-    if (!$t || !preg_match('~^(https?://[^\s?#]+?)/poster-cache/background/' . AIO_CAT_TMDB . '([A-Za-z0-9]{10,40}\.jpg)$~D',
+    $none = MEL_CATV_IMG . 'card0.jpg';
+    if (!$t || !preg_match('~^(https?://[^\s?#]+?)/poster-cache/background/' . MEL_CAT_TMDB . '([A-Za-z0-9]{10,40}\.jpg)$~D',
         $t['background'], $f))
         return array('bg' => $none, 'nl' => $none, 'mask' => null, 'logo' => false);
     $logo = $t['logo'] !== '' ? basename($t['logo']) : '';
     $path = $logo !== '' ? "n/$logo/$f[2]" : $f[2];
-    return array('bg' => aio_img("$f[1]/" . AIO_CATV_CARD . $path), 'nl' => $none, 'mask' => null, 'logo' => $logo !== '');
+    return array('bg' => mel_img("$f[1]/" . MEL_CATV_CARD . $path), 'nl' => $none, 'mask' => null, 'logo' => $logo !== '');
 }
 
 // --- What to give at an opening.
 
-// The refresh of the manifest was tried less than AIO_CAT_MANIFEST_FRESH ago: a failure keeps
+// The refresh of the manifest was tried less than MEL_CAT_MANIFEST_FRESH ago: a failure keeps
 // the window too, so a slow server does not hold every opening. The clock going back is not trusted.
 /**
  * @return bool
  */
-function aio_catv_manifest_tried()
+function mel_catv_manifest_tried()
 {
-    $since = time() - AioCat::$manifest_tried;
-    return AioCat::$manifest_tried > 0 && $since >= 0 && $since < AIO_CAT_MANIFEST_FRESH;
+    $since = time() - MelCat::$manifest_tried;
+    return MelCat::$manifest_tried > 0 && $since >= 0 && $since < MEL_CAT_MANIFEST_FRESH;
 }
 
-// The refresh of a copy of the manifest in $limit s (aio_cat_manifest_fetch), its time remembered.
+// The refresh of a copy of the manifest in $limit s (mel_cat_manifest_fetch), its time remembered.
 /**
  * @param int $limit
- * @return array{rows: list<AioCatRow>, err: string}
+ * @return array{rows: list<MelCatRow>, err: string}
  */
-function aio_catv_manifest_refresh($limit)
+function mel_catv_manifest_refresh($limit)
 {
-    AioCat::$manifest_tried = time();
-    return aio_cat_manifest_fetch($limit);
+    MelCat::$manifest_tried = time();
+    return mel_cat_manifest_fetch($limit);
 }
 
-// The server failed less than AIO_CATV_DOWN_S ago. The clock going back is not trusted.
+// The server failed less than MEL_CATV_DOWN_S ago. The clock going back is not trusted.
 /**
  * @return bool
  */
-function aio_catv_is_down()
+function mel_catv_is_down()
 {
-    $since = time() - AioCat::$down;
-    return AioCat::$down > 0 && $since >= 0 && $since < AIO_CATV_DOWN_S;
+    $since = time() - MelCat::$down;
+    return MelCat::$down > 0 && $since >= 0 && $since < MEL_CATV_DOWN_S;
 }
 
-// The first page of a row asked for anew: with tiles, into AioCat::$lists (of a copy
+// The first page of a row asked for anew: with tiles, into MelCat::$lists (of a copy
 // after a failure: stale), else what is there stays; an empty row is remembered.
 // $timeout_down false: a timeout is a slow row, not the server down.
 /**
- * @param AioCatRow $row
+ * @param MelCatRow $row
  * @param float $limit
  * @param bool $timeout_down
- * @return AioCatResult
+ * @return MelCatResult
  */
-function aio_catv_load_first($row, $limit, $timeout_down = true)
+function mel_catv_load_first($row, $limit, $timeout_down = true)
 {
-    $rid = aio_catv_rid($row);
-    $st = aio_cat_row_state($row);
-    $res = aio_cat_more($st, $limit);
+    $rid = mel_catv_rid($row);
+    $st = mel_cat_row_state($row);
+    $res = mel_cat_more($st, $limit);
     if ($res['tiles'])
-        AioCat::$lists[$rid] = aio_catv_list($st, $res['tiles'], $res['stale']);
+        MelCat::$lists[$rid] = mel_catv_list($st, $res['tiles'], $res['stale']);
     else if ($res['end'] && $res['err'] === '')
-        AioCat::$empty[$rid] = time();
+        MelCat::$empty[$rid] = time();
     $down = $timeout_down ? array('net', 'timeout', 'rate', 'server') : array('net', 'rate', 'server');
-    AioCat::$down = in_array($res['err'], $down, true) ? time() : 0;
+    MelCat::$down = in_array($res['err'], $down, true) ? time() : 0;
     return $res;
 }
 
-// The rows $rows for a new screen, into AioCat::$lists. At once: listings in memory
+// The rows $rows for a new screen, into MelCat::$lists. At once: listings in memory
 // still fresh, then the saved first pages of any age. In $limit s, one by one: the rows
 // without a copy, then the old copies; on a failure of the server no more requests. No
 // tile: the row stays out of the lists. -> a row was asked of the server.
 /**
- * @param list<AioCatRow> $rows
+ * @param list<MelCatRow> $rows
  * @param float $limit
  * @return bool
  */
-function aio_catv_open($rows, $limit)
+function mel_catv_open($rows, $limit)
 {
     $net = false;
     $none = array();
     $old = array();
     foreach ($rows as $row)
     {
-        $rid = aio_catv_rid($row);
-        if (isset(AioCat::$lists[$rid]) && aio_cat_state_fresh(AioCat::$lists[$rid]['st']))
+        $rid = mel_catv_rid($row);
+        if (isset(MelCat::$lists[$rid]) && mel_cat_state_fresh(MelCat::$lists[$rid]['st']))
             continue;
-        unset(AioCat::$lists[$rid]);
-        $c = aio_cat_page_cached($row, 0);
-        // Not "restored" (aio_catv_list_restore): this screen shows it.
+        unset(MelCat::$lists[$rid]);
+        $c = mel_cat_page_cached($row, 0);
+        // Not "restored" (mel_catv_list_restore): this screen shows it.
         if ($c)
-            AioCat::$lists[$rid] = aio_catv_list_copy($row, $c);
+            MelCat::$lists[$rid] = mel_catv_list_copy($row, $c);
         if (!$c)
             $none[$rid] = $row;
-        else if (!aio_cat_is_fresh($c))
+        else if (!mel_cat_is_fresh($c))
             $old[$rid] = $row;
     }
     $start = microtime(true);
@@ -606,23 +606,23 @@ function aio_catv_open($rows, $limit)
     foreach ($none + $old as $rid => $row)
     {
         $left = $limit - (microtime(true) - $start);
-        if ($left < AIO_CATV_MIN_S)
+        if ($left < MEL_CATV_MIN_S)
             break;
-        $res = aio_catv_load_first($row, $left);
+        $res = mel_catv_load_first($row, $left);
         $net = true;
         if ($res['tiles'] && !$res['stale'])
             unset($old[$rid]);
         $failed = $failed || $res['err'] !== '';
-        if (aio_catv_is_down())
+        if (mel_catv_is_down())
             break;
     }
     if ($failed)
     {
         foreach ($old as $rid => $row)
         {
-            $list = AioCat::$lists[$rid];
+            $list = MelCat::$lists[$rid];
             $list['stale'] = true;
-            AioCat::$lists[$rid] = $list;
+            MelCat::$lists[$rid] = $list;
         }
     }
     return $net;
@@ -638,41 +638,41 @@ function aio_catv_open($rows, $limit)
  * @param mixed $icon
  * @return array<string, string>
  */
-function aio_catv_item($id, $caption, $icon)
+function mel_catv_item($id, $caption, $icon)
 {
     return array(
         PluginRegularItem::id => $id,
-        PluginRegularItem::icon_url => is_string($icon) && $icon !== '' ? $icon : AIO_CATV_ICONS . 'no_movie_poster.png',
+        PluginRegularItem::icon_url => is_string($icon) && $icon !== '' ? $icon : MEL_CATV_ICONS . 'no_movie_poster.png',
         PluginRegularItem::caption => $caption);
 }
 
 // The tile of a title in a row: its poster, the IMDb rating in the corner if it has one and
-// cat_rating of the screen is on (aio_catv_rating_on), the badges of the history at the bottom
-// (aio_pg_stickers; made now, never in the cache of the pages).
+// cat_rating of the screen is on (mel_catv_rating_on), the badges of the history at the bottom
+// (mel_pg_stickers; made now, never in the cache of the pages).
 /**
  * @param string $rid
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @return array<string, mixed>
  */
-function aio_catv_title_item($rid, $t)
+function mel_catv_title_item($rid, $t)
 {
-    $item = aio_catv_item(aio_catv_tile_id("$rid:{$t['id']}"), $t['name'], aio_catv_poster($t));
-    $stickers = aio_catv_rating_on() ? aio_catv_rate_stickers($t['imdbRating']) : array();
-    $b = aio_pg_tile_badge($t);
+    $item = mel_catv_item(mel_catv_tile_id("$rid:{$t['id']}"), $t['name'], mel_catv_poster($t));
+    $stickers = mel_catv_rating_on() ? mel_catv_rate_stickers($t['imdbRating']) : array();
+    $b = mel_pg_tile_badge($t);
     if ($b)
-        $stickers = array_merge($stickers, aio_pg_stickers($b));
+        $stickers = array_merge($stickers, mel_pg_stickers($b));
     if ($stickers)
         $item[PluginRegularItem::stickers] = $stickers;
     return $item;
 }
 
 // The number of an IMDb rating on a poster ("8.6", "10"), '' for none; also of the rows of the own
-// card (aio_oc_rate_over).
+// card (mel_oc_rate_over).
 /**
  * @param string $rating
  * @return string
  */
-function aio_catv_rate_text($rating)
+function mel_catv_rate_text($rating)
 {
     // "0.04" is "0.0": none, as of kpRating; over 10 ("99.99" is "100.0", wider than the plate) none too.
     $s = sprintf('%.1F', (float) $rating);
@@ -681,7 +681,7 @@ function aio_catv_rate_text($rating)
     return $s === '10.0' ? '10' : $s;
 }
 
-// The plate and the number of an IMDb rating (aio_catv_rate_text), none for none. In pixels of the
+// The plate and the number of an IMDb rating (mel_catv_rate_text), none for none. In pixels of the
 // poster 190x285, the shell scales them in focus. The shell puts the text at the left of its r and a
 // pixel over the middle of it: the r of the text is a pixel lower than the plate, its x centres the
 // number by font_w.php.
@@ -689,17 +689,17 @@ function aio_catv_rate_text($rating)
  * @param string $rating
  * @return list<array<string, mixed>>
  */
-function aio_catv_rate_stickers($rating)
+function mel_catv_rate_stickers($rating)
 {
-    $s = aio_catv_rate_text($rating);
+    $s = mel_catv_rate_text($rating);
     if ($s === '')
         return array();
-    $p = AIO_CATV_RATE_PAD;
-    $x = $p + intval(round((AIO_CATV_RATE_W - aio_gc_sum($s, AIO_CATV_RATE_PX)) / 2));
+    $p = MEL_CATV_RATE_PAD;
+    $x = $p + intval(round((MEL_CATV_RATE_W - mel_gc_sum($s, MEL_CATV_RATE_PX)) / 2));
     return array(
-        array(PluginRegularSticker::r => array('w' => AIO_CATV_RATE_W, 'h' => AIO_CATV_RATE_H, 'x' => $p, 'y' => $p),
-            PluginRegularSticker::icon_url => AIO_CATV_RATE_PLATE),
-        array(PluginRegularSticker::r => array('w' => $p + AIO_CATV_RATE_W - $x, 'h' => AIO_CATV_RATE_H, 'x' => $x, 'y' => $p + 1),
+        array(PluginRegularSticker::r => array('w' => MEL_CATV_RATE_W, 'h' => MEL_CATV_RATE_H, 'x' => $p, 'y' => $p),
+            PluginRegularSticker::icon_url => MEL_CATV_RATE_PLATE),
+        array(PluginRegularSticker::r => array('w' => $p + MEL_CATV_RATE_W - $x, 'h' => MEL_CATV_RATE_H, 'x' => $x, 'y' => $p + 1),
             PluginRegularSticker::text => $s));
 }
 
@@ -709,7 +709,7 @@ function aio_catv_rate_stickers($rating)
  * @param string $caption
  * @return array<string, mixed>
  */
-function aio_catv_title_row($g, $caption)
+function mel_catv_title_row($g, $caption)
 {
     return array(
         PluginRow::type => PLUGIN_ROW_TYPE_TITLE,
@@ -731,44 +731,44 @@ function aio_catv_title_row($g, $caption)
 }
 
 // A row of the panel: its title and tiles, the first page and "Show all", or $items
-// instead of them. $options: of the row of tiles. $rid: the rid of its ids ('': of the row, aio_catv_rid; a row of
+// instead of them. $options: of the row of tiles. $rid: the rid of its ids ('': of the row, mel_catv_rid; a row of
 // our own, "Continue": its own).
 /**
- * @param AioCatList $list
+ * @param MelCatList $list
  * @param string $lang
  * @param list<array<string, mixed>>|null $items
  * @param int $options
  * @param string $rid
  * @return array{array<string, mixed>, array<string, mixed>}
  */
-function aio_catv_row_defs($list, $lang, $items = null, $options = 0, $rid = '')
+function mel_catv_row_defs($list, $lang, $items = null, $options = 0, $rid = '')
 {
     $row = $list['st']['row'];
     if ($rid === '')
-        $rid = aio_catv_rid($row);
+        $rid = mel_catv_rid($row);
     $more = '';
     // The no-break space at the end of the name of a search row (cat_movies) not before the mark.
-    $title = $list['stale'] ? strval(preg_replace('/\x{00A0}$/u', '', $row['name'])) . ' (' . aio_tr($lang, 'cat_saved') . ')' : $row['name'];
+    $title = $list['stale'] ? strval(preg_replace('/\x{00A0}$/u', '', $row['name'])) . ' (' . mel_tr($lang, 'cat_saved') . ')' : $row['name'];
     if ($items === null)
     {
         $items = array();
-        foreach (array_slice($list['tiles'], 0, AIO_CATV_ROW_TILES) as $t)
-            $items[] = aio_catv_title_item($rid, $t);
+        foreach (array_slice($list['tiles'], 0, MEL_CATV_ROW_TILES) as $t)
+            $items[] = mel_catv_title_item($rid, $t);
         // A search row: "Show all" past a row of its screen, so a long one is not scrolled through.
-        if ($list['st']['end'] === '' || count($list['tiles']) > (isset($row['q']) ? AIO_CATV_ALL_COLS : AIO_CATV_ROW_TILES))
+        if ($list['st']['end'] === '' || count($list['tiles']) > (isset($row['q']) ? MEL_CATV_ALL_COLS : MEL_CATV_ROW_TILES))
         {
             // Of a search: and its id, as in cat_grid:.
-            $more = aio_catv_tile_id(isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid");
-            $items[] = aio_catv_item($more, aio_tr($lang, 'cat_more'), AIO_CATV_ICONS . 'more.png');
+            $more = mel_catv_tile_id(isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid");
+            $items[] = mel_catv_item($more, mel_tr($lang, 'cat_more'), MEL_CATV_ICONS . 'more.png');
         }
     }
     $defs = array(
-        aio_catv_title_row($rid, $title),
+        mel_catv_title_row($rid, $title),
         array(
             PluginRow::type => PLUGIN_ROW_TYPE_REGULAR,
             PluginRow::id => "items:$rid",
             PluginRow::title => $title,
-            PluginRow::header_id => AIO_CATV_HEADER . $rid,
+            PluginRow::header_id => MEL_CATV_HEADER . $rid,
             PluginRow::group_id => "row:$rid",
             PluginRow::height => 302,
             PluginRow::inactive_height => 300,
@@ -788,7 +788,7 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0, $rid = '')
         $defs[1][PluginRow::options] = $options;
     // ENTER on the title of the row in the panel of titles: "Show all", as genre_rows_screen.php.
     if ($more !== '')
-        $defs[1][PluginRow::show_all_action] = aio_input('cat_all', array('cat_more' => $more));
+        $defs[1][PluginRow::show_all_action] = mel_input('cat_all', array('cat_more' => $more));
     return $defs;
 }
 
@@ -798,7 +798,7 @@ function aio_catv_row_defs($list, $lang, $items = null, $options = 0, $rid = '')
 /**
  * @return int
  */
-function aio_catv_loading_flag()
+function mel_catv_loading_flag()
 {
     return defined('PLUGIN_OP_GET_FOLDER_ROWS') && defined('PLUGIN_ROW_OPT_LOADING') ? PLUGIN_ROW_OPT_LOADING : 0;
 }
@@ -807,9 +807,9 @@ function aio_catv_loading_flag()
  * @param string $rid
  * @return bool
  */
-function aio_catv_is_empty($rid)
+function mel_catv_is_empty($rid)
 {
-    return isset(AioCat::$empty[$rid]) && aio_cat_fresh_since(AioCat::$empty[$rid]);
+    return isset(MelCat::$empty[$rid]) && mel_cat_fresh_since(MelCat::$empty[$rid]);
 }
 
 // A tile of a message: "fail:<rid>" (cat_row_failed, ENTER tries again) or "empty:<rid>" (cat_row_empty).
@@ -819,29 +819,29 @@ function aio_catv_is_empty($rid)
  * @param string $lang
  * @return array<string, string>
  */
-function aio_catv_note_item($rid, $note, $lang)
+function mel_catv_note_item($rid, $note, $lang)
 {
-    return aio_catv_item(($note === 'cat_row_empty' ? 'empty:' : 'fail:') . $rid, aio_tr($lang, $note), AIO_CATV_ICONS . 'no_movie_poster.png');
+    return mel_catv_item(($note === 'cat_row_empty' ? 'empty:' : 'fail:') . $rid, mel_tr($lang, $note), MEL_CATV_ICONS . 'no_movie_poster.png');
 }
 
 // A row without tiles of titles. $note '': stubs for the shell to ask for. Else one tile
 // with this message and no flag: a row hidden on the screen takes the focus away with it.
 /**
- * @param AioCatRow $row
+ * @param MelCatRow $row
  * @param string $lang
  * @param string $note
  * @return array{array<string, mixed>, array<string, mixed>}
  */
-function aio_catv_row_note($row, $lang, $note)
+function mel_catv_row_note($row, $lang, $note)
 {
-    $rid = aio_catv_rid($row);
-    $list = aio_catv_list(aio_cat_row_state($row), array(), false);
+    $rid = mel_catv_rid($row);
+    $list = mel_catv_list(mel_cat_row_state($row), array(), false);
     if ($note !== '')
-        return aio_catv_row_defs($list, $lang, array(aio_catv_note_item($rid, $note, $lang)));
+        return mel_catv_row_defs($list, $lang, array(mel_catv_note_item($rid, $note, $lang)));
     $items = array();
-    for ($i = 0; $i < AIO_CATV_STUBS; $i++)
-        $items[] = aio_catv_item("stub:$rid:$i", aio_tr($lang, 'cat_row_loading'), AIO_CATV_ICONS . 'loading_movie_poster.png');
-    return aio_catv_row_defs($list, $lang, $items, aio_catv_loading_flag());
+    for ($i = 0; $i < MEL_CATV_STUBS; $i++)
+        $items[] = mel_catv_item("stub:$rid:$i", mel_tr($lang, 'cat_row_loading'), MEL_CATV_ICONS . 'loading_movie_poster.png');
+    return mel_catv_row_defs($list, $lang, $items, mel_catv_loading_flag());
 }
 
 // The row $row now, never flagged (such a row is not asked for again): from memory or the
@@ -850,28 +850,28 @@ function aio_catv_row_note($row, $lang, $note)
 // server down: no request, what memory has is a saved copy. No tiles: one tile "empty" or
 // "did not load". -> its title and its row.
 /**
- * @param AioCatRow $row
+ * @param MelCatRow $row
  * @param string $lang
  * @param float $limit
  * @param bool $timeout_down
  * @return array{array<string, mixed>, array<string, mixed>}
  */
-function aio_catv_row_now($row, $lang, $limit, $timeout_down = true)
+function mel_catv_row_now($row, $lang, $limit, $timeout_down = true)
 {
-    $rid = aio_catv_rid($row);
-    $ready = isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'] && aio_cat_state_fresh(AioCat::$lists[$rid]['st']);
-    if (!$ready && !aio_catv_is_empty($rid) && !aio_catv_is_down())
-        aio_catv_load_first($row, $limit, $timeout_down);
-    if (isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
+    $rid = mel_catv_rid($row);
+    $ready = isset(MelCat::$lists[$rid]) && MelCat::$lists[$rid]['tiles'] && mel_cat_state_fresh(MelCat::$lists[$rid]['st']);
+    if (!$ready && !mel_catv_is_empty($rid) && !mel_catv_is_down())
+        mel_catv_load_first($row, $limit, $timeout_down);
+    if (isset(MelCat::$lists[$rid]) && MelCat::$lists[$rid]['tiles'])
     {
-        if (!aio_cat_state_fresh(AioCat::$lists[$rid]['st']))
-            AioCat::$lists[$rid]['stale'] = true;
-        return aio_catv_row_defs(AioCat::$lists[$rid], $lang);
+        if (!mel_cat_state_fresh(MelCat::$lists[$rid]['st']))
+            MelCat::$lists[$rid]['stale'] = true;
+        return mel_catv_row_defs(MelCat::$lists[$rid], $lang);
     }
-    return aio_catv_row_note($row, $lang, aio_catv_is_empty($rid) ? 'cat_row_empty' : 'cat_row_failed');
+    return mel_catv_row_note($row, $lang, mel_catv_is_empty($rid) ? 'cat_row_empty' : 'cat_row_failed');
 }
 
-// The row $rid for the shell (aio_catv_row_now) -> the row and, only for a saved copy, its
+// The row $rid for the shell (mel_catv_row_now) -> the row and, only for a saved copy, its
 // title: the shell replaces any row of a reply by its id, and that is the only way the
 // title gets the mark.
 /**
@@ -879,55 +879,55 @@ function aio_catv_row_now($row, $lang, $limit, $timeout_down = true)
  * @param string $lang
  * @return non-empty-list<array<string, mixed>>
  */
-function aio_catv_row_answer($rid, $lang)
+function mel_catv_row_answer($rid, $lang)
 {
-    $row = isset(AioCat::$lists[$rid]) ? AioCat::$lists[$rid]['st']['row'] : aio_catv_row_by_rid($rid);
+    $row = isset(MelCat::$lists[$rid]) ? MelCat::$lists[$rid]['st']['row'] : mel_catv_row_by_rid($rid);
     if (!$row)
     {
-        aio_log('catalog: row: unknown id');
-        $row = array('key' => '', 'type' => 'movie', 'id' => '', 'name' => aio_tr($lang, 'cat_title'), 'genre' => '', 'home' => false, 'group' => '');
-        $defs = aio_catv_row_note($row, $lang, 'cat_row_failed');
+        mel_log('catalog: row: unknown id');
+        $row = array('key' => '', 'type' => 'movie', 'id' => '', 'name' => mel_tr($lang, 'cat_title'), 'genre' => '', 'home' => false, 'group' => '');
+        $defs = mel_catv_row_note($row, $lang, 'cat_row_failed');
         return array($defs[1]);
     }
-    $defs = aio_catv_row_now($row, $lang, AIO_CATV_ROW_S);
-    $saved = isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'] && AioCat::$lists[$rid]['stale'];
+    $defs = mel_catv_row_now($row, $lang, MEL_CATV_ROW_S);
+    $saved = isset(MelCat::$lists[$rid]) && MelCat::$lists[$rid]['tiles'] && MelCat::$lists[$rid]['stale'];
     return $saved ? array($defs[1], $defs[0]) : array($defs[1]);
 }
 
-// get_folder_rows: "Show all": aio_catv_all_rows. Else one row a call (a saved copy: and
+// get_folder_rows: "Show all": mel_catv_all_rows. Else one row a call (a saved copy: and
 // its title), the shell asks for the rest next.
 // Always a row with the id asked: on a reply without rows the shell asks again
-// every ~1 ms. The refresh of the manifest (AioCat::$manifest_due) takes the time left of the call,
-// AIO_CATV_REFRESH_S at most: an opening does not wait for it.
+// every ~1 ms. The refresh of the manifest (MelCat::$manifest_due) takes the time left of the call,
+// MEL_CATV_REFRESH_S at most: an opening does not wait for it.
 /**
  * @param stdClass $in
  * @return array{rows: list<array<string, mixed>>}
  */
-function aio_catv_rows_op($in)
+function mel_catv_rows_op($in)
 {
     $start = microtime(true);
     $ids = isset($in->row_ids) && is_array($in->row_ids) ? $in->row_ids : array();
-    $url = aio_catv_in($in, 'media_url');
-    aio_catv_logo_of($url, false);
+    $url = mel_catv_in($in, 'media_url');
+    mel_catv_logo_of($url, false);
     if (strpos($url, 'cat_grid:') === 0)
     {
-        $all = aio_catv_all_rows($url, $ids);
-        aio_pg_rows_answered();
+        $all = mel_catv_all_rows($url, $ids);
+        mel_pg_rows_answered();
         return array('rows' => $all);
     }
     $id = isset($ids[0]) && is_string($ids[0]) ? $ids[0] : 'items:';
     $rid = strpos($id, 'items:') === 0 ? strval(substr($id, strlen('items:'))) : '';
-    $rows = aio_catv_row_answer($rid, aio_catv_lang());
+    $rows = mel_catv_row_answer($rid, mel_catv_lang());
     // The id and the header asked, of an unknown row too.
     $rows[0][PluginRow::id] = $id;
-    $rows[0][PluginRow::header_id] = AIO_CATV_HEADER . $rid;
-    $left = AIO_CATV_ROW_S - (microtime(true) - $start);
-    if (AioCat::$manifest_due && $left >= 1 && !aio_catv_is_down())
+    $rows[0][PluginRow::header_id] = MEL_CATV_HEADER . $rid;
+    $left = MEL_CATV_ROW_S - (microtime(true) - $start);
+    if (MelCat::$manifest_due && $left >= 1 && !mel_catv_is_down())
     {
-        AioCat::$manifest_due = false;
-        aio_catv_manifest_refresh(min(intval($left), AIO_CATV_REFRESH_S));
+        MelCat::$manifest_due = false;
+        mel_catv_manifest_refresh(min(intval($left), MEL_CATV_REFRESH_S));
     }
-    aio_pg_rows_answered();
+    mel_pg_rows_answered();
     return array('rows' => $rows);
 }
 
@@ -942,7 +942,7 @@ function aio_catv_rows_op($in)
  * @param string $color
  * @return array<string, int|string>
  */
-function aio_catv_item_vars($w, $h, $dx, $iw, $ih, $idy, $cdy, $color)
+function mel_catv_item_vars($w, $h, $dx, $iw, $ih, $idy, $cdy, $color)
 {
     return array(
         PluginRegularItemVariableParams::width => $w,
@@ -961,17 +961,17 @@ function aio_catv_item_vars($w, $h, $dx, $iw, $ih, $idy, $cdy, $color)
  * @param array{int, int, int, int} $m
  * @return array<string, mixed>
  */
-function aio_catv_item_tpl($m)
+function mel_catv_item_tpl($m)
 {
     return array(
-        PluginRegularItemParams::def => aio_catv_item_vars(200, 302, 0, 190, 285, 7, 10, '#FFAFAFA0'),
-        PluginRegularItemParams::sel => aio_catv_item_vars(200, 302, 0, 200, 300, 0, 10, '#FFFFFFE0'),
-        PluginRegularItemParams::inactive => aio_catv_item_vars(200, 300, 5, 190, 285, 0, 0, '#00000000'),
-        PluginRegularItemParams::loading_url => AIO_CATV_ICONS . 'loading_movie_poster.png',
-        PluginRegularItemParams::load_failed_url => AIO_CATV_ICONS . 'no_movie_poster.png',
+        PluginRegularItemParams::def => mel_catv_item_vars(200, 302, 0, 190, 285, 7, 10, '#FFAFAFA0'),
+        PluginRegularItemParams::sel => mel_catv_item_vars(200, 302, 0, 200, 300, 0, 10, '#FFFFFFE0'),
+        PluginRegularItemParams::inactive => mel_catv_item_vars(200, 300, 5, 190, 285, 0, 0, '#00000000'),
+        PluginRegularItemParams::loading_url => MEL_CATV_ICONS . 'loading_movie_poster.png',
+        PluginRegularItemParams::load_failed_url => MEL_CATV_ICONS . 'no_movie_poster.png',
         PluginRegularItemParams::caption_max_num_lines => 3,
         PluginRegularItemParams::caption_line_spacing => 3,
-        PluginRegularItemParams::sticker_text_size => AIO_CATV_RATE_PX,
+        PluginRegularItemParams::sticker_text_size => MEL_CATV_RATE_PX,
         PluginRegularItemParams::sel_margins => array(
             PluginMargins::left => $m[0], PluginMargins::top => $m[1],
             PluginMargins::right => $m[2], PluginMargins::bottom => $m[3]));
@@ -981,19 +981,19 @@ function aio_catv_item_tpl($m)
 // new search replaces them; else the address of the screen, for its "did not load" tile.
 /**
  * @param string $from
- * @return array<string, AioAction>
+ * @return array<string, MelAction>
  */
-function aio_catv_actions($from)
+function mel_catv_actions($from)
 {
     $p = array('from' => $from);
-    $info = aio_input('cat_info');
+    $info = mel_input('cat_info');
     // As the sample proven on the device: no timeout and no dialog on a focus move.
     $info[GuiAction::data] = null;
     return array(
-        GUI_EVENT_KEY_ENTER => aio_input('cat_enter', $p, Aio::$settings['cat_card'] ? AIO_CARD_DELAY : AIO_DELAY_INPUT),
-        GUI_EVENT_KEY_POPUP_MENU => aio_input('cat_menu', $p),
-        GUI_EVENT_KEY_SEARCH => aio_input('cat_search', $p),
-        GUI_EVENT_PLUGIN_ROWS_INFO_UPDATE => $info) + aio_egg_acts();
+        GUI_EVENT_KEY_ENTER => mel_input('cat_enter', $p, Mel::$settings['cat_card'] ? MEL_CARD_DELAY : MEL_DELAY_INPUT),
+        GUI_EVENT_KEY_POPUP_MENU => mel_input('cat_menu', $p),
+        GUI_EVENT_KEY_SEARCH => mel_input('cat_search', $p),
+        GUI_EVENT_PLUGIN_ROWS_INFO_UPDATE => $info) + mel_egg_acts();
 }
 
 // The focusable_def of a part of the strip. $m: sel_margins, left, top, right, bottom; the frame of
@@ -1002,7 +1002,7 @@ function aio_catv_actions($from)
  * @param array{int, int, int, int} $m
  * @return array<string, mixed>
  */
-function aio_catv_strip_focusable($m)
+function mel_catv_strip_focusable($m)
 {
     return array(
         GCompFocusableDef::sel_margins => array(
@@ -1011,19 +1011,19 @@ function aio_catv_strip_focusable($m)
 }
 
 // The icons of the strip in its order, id => (key of the caption, PNG, alpha), for the strip and its
-// items of POP UP (aio_catv_menu). Their glyphs 48x48 at 8, 8 of the PNG; grey #AAAAAA as the
+// items of POP UP (mel_catv_menu). Their glyphs 48x48 at 8, 8 of the PNG; grey #AAAAAA as the
 // native ones: the magnifier is white at most (alpha 170), the clock #F8F8F8 (alpha 175), the gear
 // and the heart #BBBBBB (alpha 232).
 /**
  * @return array<string, array{0: string, 1: string, 2: int}>
  */
-function aio_catv_strip_icons()
+function mel_catv_strip_icons()
 {
     return array(
-        'tab_continue' => array('cp_row_continue', AIO_CATV_ICON_CONT, 175),
-        'tab_mylist' => array('ml_title', AIO_CATV_ICON_MYLIST, 232),
-        'tab_search' => array('cat_search', AIO_CATV_ICON_SEARCH, 170),
-        'tab_setup' => array('setup_menu', AIO_CATV_ICON_SETUP, 232));
+        'tab_continue' => array('cp_row_continue', MEL_CATV_ICON_CONT, 175),
+        'tab_mylist' => array('ml_title', MEL_CATV_ICON_MYLIST, 232),
+        'tab_search' => array('cat_search', MEL_CATV_ICON_SEARCH, 170),
+        'tab_setup' => array('setup_menu', MEL_CATV_ICON_SETUP, 232));
 }
 
 // The strip of the main screen of the tab $tab: its title row, a focusable row of GComps and a
@@ -1036,7 +1036,7 @@ function aio_catv_strip_icons()
  * @param string $lang
  * @return list<array<string, mixed>>
  */
-function aio_catv_strip_rows($tab, $lang)
+function mel_catv_strip_rows($tab, $lang)
 {
     $defs = array();
     $items = array();
@@ -1046,44 +1046,44 @@ function aio_catv_strip_rows($tab, $lang)
     foreach (array('movie' => 'cat_tab_movies', 'series' => 'cat_tab_series') as $type => $key)
     {
         $id = "tab_$type";
-        $caption = aio_tr($lang, $key);
-        $geom = $type === 'movie' ? aio_gc_at(-1, -1, 128, 50) : aio_gc_geom(-1, -1, aio_gc_next_right(46));
-        $def = aio_gc_ttf($id, $geom, $caption, AIO_CATV_TAB_PX, $type === $tab ? AIO_CATV_TITLE_COLOR : AIO_CATV_TEXT_COLOR);
-        $def[GComponentDef::focusable_def] = aio_catv_strip_focusable(array(16, 4, 16, 8));
+        $caption = mel_tr($lang, $key);
+        $geom = $type === 'movie' ? mel_gc_at(-1, -1, 128, 50) : mel_gc_geom(-1, -1, mel_gc_next_right(46));
+        $def = mel_gc_ttf($id, $geom, $caption, MEL_CATV_TAB_PX, $type === $tab ? MEL_CATV_TITLE_COLOR : MEL_CATV_TEXT_COLOR);
+        $def[GComponentDef::focusable_def] = mel_catv_strip_focusable(array(16, 4, 16, 8));
         $defs[] = $def;
         $items[] = array(GCompItemDef::type => GCOMP_ITEM_REGULAR, GCompItemDef::id => $id,
             GCompItemDef::caption => $caption, GCompItemDef::icon_url => null);
     }
     // The line under the open tab: as wide as its word, 3 px under the baseline, inside the frame.
-    $defs[] = aio_gc_rect(aio_gc_geom(0, 4, aio_gc_align(0, 36, true, false, 0, 0, 0, 0, "tab_$tab")), AIO_CATV_UNDERLINE);
-    // The icons (aio_catv_strip_icons) 75 apart as the native ones, from the right: the gear
+    $defs[] = mel_gc_rect(mel_gc_geom(0, 4, mel_gc_align(0, 36, true, false, 0, 0, 0, 0, "tab_$tab")), MEL_CATV_UNDERLINE);
+    // The icons (mel_catv_strip_icons) 75 apart as the native ones, from the right: the gear
     // ends at 1660, its frame at 1670.
-    $icons = aio_catv_strip_icons();
+    $icons = mel_catv_strip_icons();
     $i = 0;
     $n = count($icons);
     foreach ($icons as $id => $t)
     {
         $defs[] = array(
             GComponentDef::id => $id,
-            GComponentDef::geom_def => aio_gc_at(64, 64, 1596 - 75 * ($n - 1 - $i++), 34),
-            GComponentDef::focusable_def => aio_catv_strip_focusable(array(10, 2, 10, 3)),
+            GComponentDef::geom_def => mel_gc_at(64, 64, 1596 - 75 * ($n - 1 - $i++), 34),
+            GComponentDef::focusable_def => mel_catv_strip_focusable(array(10, 2, 10, 3)),
             GComponentDef::kind => GCOMPONENT_IMAGE,
             GComponentDef::specific_def => array(
-                GCompImageDef::url => AIO_CATV_ICONS . $t[1],
+                GCompImageDef::url => MEL_CATV_ICONS . $t[1],
                 GCompImageDef::keep_aspect_ratio => true,
                 GCompImageDef::upscale_enabled => false,
                 GCompImageDef::alpha => $t[2]));
         $items[] = array(GCompItemDef::type => GCOMP_ITEM_REGULAR, GCompItemDef::id => $id,
-            GCompItemDef::caption => aio_tr($lang, $t[0]), GCompItemDef::icon_url => AIO_CATV_ICONS . $t[1]);
+            GCompItemDef::caption => mel_tr($lang, $t[0]), GCompItemDef::icon_url => MEL_CATV_ICONS . $t[1]);
     }
-    $title = aio_tr($lang, 'cat_tab_menu');
+    $title = mel_tr($lang, 'cat_tab_menu');
     return array(
-        aio_catv_title_row(AIO_CATV_STRIP, $title),
+        mel_catv_title_row(MEL_CATV_STRIP, $title),
         array(
             PluginRow::type => PLUGIN_ROW_TYPE_GCOMPS,
-            PluginRow::id => AIO_CATV_STRIP,
+            PluginRow::id => MEL_CATV_STRIP,
             PluginRow::title => $title,
-            PluginRow::group_id => 'row:' . AIO_CATV_STRIP,
+            PluginRow::group_id => 'row:' . MEL_CATV_STRIP,
             PluginRow::ui_level => 0,
             PluginRow::height => 90,
             PluginRow::inactive_height => 90,
@@ -1105,9 +1105,9 @@ function aio_catv_strip_rows($tab, $lang)
  * @param string $id
  * @return string
  */
-function aio_catv_strip_sel($id)
+function mel_catv_strip_sel($id)
 {
-    return "1\n0\n" . AIO_CATV_STRIP_HEADER . "\n" . AIO_CATV_STRIP . "\n$id\npri:1\n$id\n1\n1\n";
+    return "1\n0\n" . MEL_CATV_STRIP_HEADER . "\n" . MEL_CATV_STRIP . "\n$id\npri:1\n$id\n1\n1\n";
 }
 
 // The screen of the rows $defs. The key set of RowsFactory::pane r25, nulls too;
@@ -1121,12 +1121,12 @@ function aio_catv_strip_sel($id)
  * @param bool $tick
  * @return array<string, mixed>
  */
-function aio_catv_rows_view($defs, $sel_state, $from, $tick = false)
+function mel_catv_rows_view($defs, $sel_state, $from, $tick = false)
 {
     $rows = array(array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 10, PluginRow::inactive_height => 10));
-    $tab = aio_catv_tab($from);
+    $tab = mel_catv_tab($from);
     if ($tab !== '')
-        $rows = array_merge($rows, aio_catv_strip_rows($tab, aio_catv_ui_lang()));
+        $rows = array_merge($rows, mel_catv_strip_rows($tab, mel_catv_ui_lang()));
     // The first title of the rows.
     $y2_index = $tab !== '' ? count($rows) : 0;
     $groups = 0;
@@ -1138,7 +1138,7 @@ function aio_catv_rows_view($defs, $sel_state, $from, $tick = false)
     }
     $rows[] = array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 80, PluginRow::inactive_height => 80);
     // The strip of the row titles: on the main screen and in a search of two groups and more (device r25).
-    $r = aio_catv_pane_r($tab !== '' || $groups > 1);
+    $r = mel_catv_pane_r($tab !== '' || $groups > 1);
     $pane = array(
         PluginRowsPane::rows => $rows,
         'row_dup_map' => null,
@@ -1161,7 +1161,7 @@ function aio_catv_rows_view($defs, $sel_state, $from, $tick = false)
         PluginRowsPane::min_row_index_for_y2 => $y2_index,
         PluginRowsPane::info_r => $r['info_r'],
         PluginRowsPane::vod_r => $r['vod_r'],
-        PluginRowsPane::regular_item_params_templates => array('common' => aio_catv_item_tpl(array(3, 3, 3, 4))));
+        PluginRowsPane::regular_item_params_templates => array('common' => mel_catv_item_tpl(array(3, 3, 3, 4))));
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -1170,13 +1170,13 @@ function aio_catv_rows_view($defs, $sel_state, $from, $tick = false)
         PluginFolderView::data => array(
             PluginRowsFolderView::pane => $pane,
             PluginRowsFolderView::sel_state => is_string($sel_state) && $sel_state !== '' ? $sel_state : null,
-            PluginRowsFolderView::actions => aio_catv_actions($from) + ($tick ? array(GUI_EVENT_TIMER => aio_catv_tick($from)) : array()),
-            PluginRowsFolderView::timer => $tick ? array(GuiTimerDef::delay_ms => AIO_PG_TICK_MS) : null));
+            PluginRowsFolderView::actions => mel_catv_actions($from) + ($tick ? array(GUI_EVENT_TIMER => mel_catv_tick($from)) : array()),
+            PluginRowsFolderView::timer => $tick ? array(GuiTimerDef::delay_ms => MEL_PG_TICK_MS) : null));
 }
 
 // --- Screens.
 
-// The tab of a screen of the rows (aio_catv_main_url): 'movie' of "catalog" (the entry),
+// The tab of a screen of the rows (mel_catv_main_url): 'movie' of "catalog" (the entry),
 // "catalog:<n>" and "cat_tab:movie"; the type of "cat_tab:<type>", "cat_tab:<type>:<n>". '': not
 // such a screen. "catalog" and "cat_tab:movie" are the same screen, only the focus at the opening
 // differs: on the panel, on the tab.
@@ -1184,7 +1184,7 @@ function aio_catv_rows_view($defs, $sel_state, $from, $tick = false)
  * @param string $media_url
  * @return string
  */
-function aio_catv_tab($media_url)
+function mel_catv_tab($media_url)
 {
     if ($media_url === 'catalog' || strpos($media_url, 'catalog:') === 0)
         return 'movie';
@@ -1192,14 +1192,14 @@ function aio_catv_tab($media_url)
 }
 
 // The address of the main screen of the tab $tab. No $n: "cat_tab:<type>", a switch of the tab,
-// the focus on it (aio_catv_main_view). $n, a new id of a screen (cat_retry, aio_setup_refresh):
+// the focus on it (mel_catv_main_view). $n, a new id of a screen (cat_retry, mel_setup_refresh):
 // "catalog:<n>" of the movies, "cat_tab:series:<n>", the focus where the shell puts it.
 /**
  * @param string $tab
  * @param string $n
  * @return string
  */
-function aio_catv_main_url($tab, $n = '')
+function mel_catv_main_url($tab, $n = '')
 {
     if ($n === '')
         return "cat_tab:$tab";
@@ -1210,32 +1210,32 @@ function aio_catv_main_url($tab, $n = '')
  * @param string $media_url
  * @return bool
  */
-function aio_catv_is_main($media_url)
+function mel_catv_is_main($media_url)
 {
-    return aio_catv_tab($media_url) !== '';
+    return mel_catv_tab($media_url) !== '';
 }
 
-// The address of the screen of $from of the actions of a screen of rows (aio_catv_actions): of the results of a search
+// The address of the screen of $from of the actions of a screen of rows (mel_catv_actions): of the results of a search
 // "results:<id>" "cat_search:<id>", of an EPF of "TV" none (''), else $from itself.
 /**
  * @param string $from
  * @return string
  */
-function aio_catv_screen_of($from)
+function mel_catv_screen_of($from)
 {
     if (strpos($from, 'results:') === 0)
         return 'cat_search:' . substr($from, strlen('results:'));
-    return aio_tv_is_from($from) ? '' : $from;
+    return mel_tv_is_from($from) ? '' : $from;
 }
 
 /**
  * @param string $media_url
  * @return bool
  */
-function aio_catv_is_screen($media_url)
+function mel_catv_is_screen($media_url)
 {
-    return aio_catv_is_main($media_url) || strpos($media_url, 'cat_grid:') === 0 || strpos($media_url, 'cat_search:') === 0 ||
-        aio_mlv_is_screen($media_url);
+    return mel_catv_is_main($media_url) || strpos($media_url, 'cat_grid:') === 0 || strpos($media_url, 'cat_search:') === 0 ||
+        mel_mlv_is_screen($media_url);
 }
 
 /**
@@ -1243,16 +1243,16 @@ function aio_catv_is_screen($media_url)
  * @param mixed $sel_state
  * @return array<string, mixed>
  */
-function aio_catv_folder_view($media_url, $sel_state)
+function mel_catv_folder_view($media_url, $sel_state)
 {
-    aio_catv_logo_of($media_url, true);
+    mel_catv_logo_of($media_url, true);
     if (strpos($media_url, 'cat_grid:') === 0)
-        return aio_catv_all_ok() ? aio_catv_all_view($media_url, $sel_state) : aio_catv_grid_view($media_url);
+        return mel_catv_all_ok() ? mel_catv_all_view($media_url, $sel_state) : mel_catv_grid_view($media_url);
     if (strpos($media_url, 'cat_search:') === 0)
-        return aio_catv_results_view(substr($media_url, strlen('cat_search:')), $sel_state);
-    if (aio_mlv_is_screen($media_url))
-        return aio_mlv_view($media_url, $sel_state);
-    return aio_catv_main_view($media_url, $sel_state);
+        return mel_catv_results_view(substr($media_url, strlen('cat_search:')), $sel_state);
+    if (mel_mlv_is_screen($media_url))
+        return mel_mlv_view($media_url, $sel_state);
+    return mel_catv_main_view($media_url, $sel_state);
 }
 
 // A message instead of an empty screen $from, and a way to try again.
@@ -1262,220 +1262,220 @@ function aio_catv_folder_view($media_url, $sel_state)
  * @param string $from
  * @return array<string, mixed>
  */
-function aio_catv_message_view($key, $lang, $from)
+function mel_catv_message_view($key, $lang, $from)
 {
-    aio_log("catalog: screen: $key");
+    mel_log("catalog: screen: $key");
     return array(
         PluginFolderView::view_kind => PLUGIN_FOLDER_VIEW_CONTROLS,
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::data => array(
             PluginControlsFolderView::defs => array(
-                aio_setup_label(null, aio_tr($lang, $key)),
-                aio_setup_button('retry', aio_tr($lang, 'cat_retry'), aio_input('cat_retry', array('from' => $from)))),
+                mel_setup_label(null, mel_tr($lang, $key)),
+                mel_setup_button('retry', mel_tr($lang, 'cat_retry'), mel_input('cat_retry', array('from' => $from)))),
             PluginControlsFolderView::initial_sel_ndx => -1));
 }
 
-// The manifest: a copy within AIO_CAT_MANIFEST_FRESH as it is; no copy: one request that holds the screen.
-// r25: the first row now (aio_catv_row_now), the others: a fresh copy ready, an old one
-// flagged, none: stubs; get_folder_rows asks for the flagged ones. r24: the rows in AIO_CATV_OPEN_S.
+// The manifest: a copy within MEL_CAT_MANIFEST_FRESH as it is; no copy: one request that holds the screen.
+// r25: the first row now (mel_catv_row_now), the others: a fresh copy ready, an old one
+// flagged, none: stubs; get_folder_rows asks for the flagged ones. r24: the rows in MEL_CATV_OPEN_S.
 // Only the rows of the tab of $media_url, in the order of the user.
-// An older copy is refreshed, once in AIO_CAT_MANIFEST_FRESH even on a failure (aio_catv_manifest_tried): r24 first
+// An older copy is refreshed, once in MEL_CAT_MANIFEST_FRESH even on a failure (mel_catv_manifest_tried): r24 first
 // here (a failure: the copy); r25 in get_folder_rows, or here at the end with none flagged.
 /**
  * @param string $media_url
  * @param mixed $sel_state
  * @return array<string, mixed>
  */
-function aio_catv_main_view($media_url, $sel_state)
+function mel_catv_main_view($media_url, $sel_state)
 {
     $start = microtime(true);
-    AioCat::$on_screen = array();
-    AioCat::$mains = array_values(array_diff(AioCat::$mains, array($media_url)));
-    AioCat::$mains[] = $media_url;
-    AioCat::$mains = array_slice(AioCat::$mains, -AIO_CATV_MAINS);
-    $lang = aio_catv_lang();
-    AioCat::$lang = $lang;
-    $tab = aio_catv_tab($media_url);
-    // Built again by a tick of its own that got meta (aio_pg_anew_take): no opening - its ticks go on
-    // (aio_pg_tick_set).
-    $anew = aio_pg_anew_take($media_url);
-    // A switch of the tab (aio_catv_strip_enter): the shell brings no sel_state, the focus goes
+    MelCat::$on_screen = array();
+    MelCat::$mains = array_values(array_diff(MelCat::$mains, array($media_url)));
+    MelCat::$mains[] = $media_url;
+    MelCat::$mains = array_slice(MelCat::$mains, -MEL_CATV_MAINS);
+    $lang = mel_catv_lang();
+    MelCat::$lang = $lang;
+    $tab = mel_catv_tab($media_url);
+    // Built again by a tick of its own that got meta (mel_pg_anew_take): no opening - its ticks go on
+    // (mel_pg_tick_set).
+    $anew = mel_pg_anew_take($media_url);
+    // A switch of the tab (mel_catv_strip_enter): the shell brings no sel_state, the focus goes
     // to the tab pressed. Else none of ours: at an opening the focus is on the panel.
-    if ((!is_string($sel_state) || $sel_state === '') && $media_url === aio_catv_main_url($tab))
-        $sel_state = aio_catv_strip_sel("tab_$tab");
-    $loading = aio_catv_loading_flag();
-    $copy = aio_cat_manifest_copy();
+    if ((!is_string($sel_state) || $sel_state === '') && $media_url === mel_catv_main_url($tab))
+        $sel_state = mel_catv_strip_sel("tab_$tab");
+    $loading = mel_catv_loading_flag();
+    $copy = mel_cat_manifest_copy();
     $rows = $copy['rows'];
-    // No request of the manifest due: a recent copy, a recent try, or asked in this opening. AIO_CATV_OPEN_S
+    // No request of the manifest due: a recent copy, a recent try, or asked in this opening. MEL_CATV_OPEN_S
     // counts from $rows_t0: after the first manifest (no copy), else from the start, the refresh within it.
-    $manifest_done = aio_cat_manifest_recent($copy) || aio_catv_manifest_tried();
+    $manifest_done = mel_cat_manifest_recent($copy) || mel_catv_manifest_tried();
     $rows_t0 = $start;
     if (!$rows)
     {
-        $new = aio_cat_manifest_fetch(AIO_CATV_MANIFEST_S);
+        $new = mel_cat_manifest_fetch(MEL_CATV_MANIFEST_S);
         $rows = $new['rows'];
         $manifest_done = true;
         $rows_t0 = microtime(true);
         if (!$rows)
-            return aio_catv_message_view('cat_unavailable', $lang, $media_url);
+            return mel_catv_message_view('cat_unavailable', $lang, $media_url);
     }
-    else if (!$loading && !$manifest_done && !aio_catv_is_down())
+    else if (!$loading && !$manifest_done && !mel_catv_is_down())
     {
-        $new = aio_catv_manifest_refresh(AIO_CATV_REFRESH_S);
+        $new = mel_catv_manifest_refresh(MEL_CATV_REFRESH_S);
         $manifest_done = true;
         if ($new['rows'])
             $rows = $new['rows'];
     }
-    $rows = aio_cat_user_rows($rows, Aio::$settings['cat_rows'], $tab);
+    $rows = mel_cat_user_rows($rows, Mel::$settings['cat_rows'], $tab);
     if (!$rows)
     {
-        aio_log("catalog: screen: $tab: no rows");
-        return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, false), $sel_state, $media_url);
+        mel_log("catalog: screen: $tab: no rows");
+        return mel_catv_rows_view(mel_catv_tab_empty($tab, $lang, false), $sel_state, $media_url);
     }
     $defs = array();
     $asked = false;
-    // The rows shown: aio_catv_shown_rows, on r25 now, on r24 after the opening got their tiles.
-    $shown = $loading ? aio_catv_shown_rows($rows, $loading) : $rows;
+    // The rows shown: mel_catv_shown_rows, on r25 now, on r24 after the opening got their tiles.
+    $shown = $loading ? mel_catv_shown_rows($rows, $loading) : $rows;
     // r25: all the rows of the tab came empty within the hour: the strip stays, not "did not load".
     if (!$shown)
     {
-        aio_log("catalog: screen: $tab: all " . count($rows) . ' rows empty');
-        return aio_catv_rows_view(aio_catv_tab_empty($tab, $lang, true), $sel_state, $media_url);
+        mel_log("catalog: screen: $tab: all " . count($rows) . ' rows empty');
+        return mel_catv_rows_view(mel_catv_tab_empty($tab, $lang, true), $sel_state, $media_url);
     }
     if (!$anew)
-        aio_pg_screen_start();
+        mel_pg_screen_start();
     // The row "Continue" first, of the history, then "Мой список" of the tab: ready at once, the meta of their tiles
-    // first (aio_cpm_build: kept, of the rows in memory or on the disk, else asked in AIO_CPM_BUILD_S; r24 in what is
-    // left of AIO_CATV_OPEN_S but AIO_CATV_OPEN_ROW_S, under AIO_CPM_MIN_S none asked). Their tiles with no meta still
-    // are for the lazy meta of this screen (aio_cpm_step), those of "Continue" first. Built again by the tick of a
-    // screen of Fav over it (aio_mlv_under): none asked, the ticks of that screen ask; its own timer still (after Back the
-    // lazy step goes on), its ticks wait for those of that screen (aio_pg_tick, AIO_PG_FAV_QUIET_S). Built again by its
+    // first (mel_cpm_build: kept, of the rows in memory or on the disk, else asked in MEL_CPM_BUILD_S; r24 in what is
+    // left of MEL_CATV_OPEN_S but MEL_CATV_OPEN_ROW_S, under MEL_CPM_MIN_S none asked). Their tiles with no meta still
+    // are for the lazy meta of this screen (mel_cpm_step), those of "Continue" first. Built again by the tick of a
+    // screen of Fav over it (mel_mlv_under): none asked, the ticks of that screen ask; its own timer still (after Back the
+    // lazy step goes on), its ticks wait for those of that screen (mel_pg_tick, MEL_PG_FAV_QUIET_S). Built again by its
     // own tick: none asked either, its next ticks ask.
-    $under = aio_mlv_under($media_url);
-    aio_cpm_build($tab, $under !== '' || $anew ? 0.0 : ($loading ? AIO_CPM_BUILD_S :
-        max(0.0, min(AIO_CPM_BUILD_S, AIO_CATV_OPEN_S - (microtime(true) - $rows_t0) - AIO_CATV_OPEN_ROW_S))));
-    $defs = array_merge(aio_cp_row_defs($tab, $lang, $cp_tiles, $miss), aio_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss));
-    AioCpm::$miss = $miss;
-    AioCpm::$ml = $ml_miss;
+    $under = mel_mlv_under($media_url);
+    mel_cpm_build($tab, $under !== '' || $anew ? 0.0 : ($loading ? MEL_CPM_BUILD_S :
+        max(0.0, min(MEL_CPM_BUILD_S, MEL_CATV_OPEN_S - (microtime(true) - $rows_t0) - MEL_CATV_OPEN_ROW_S))));
+    $defs = array_merge(mel_cp_row_defs($tab, $lang, $cp_tiles, $miss), mel_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss));
+    MelCpm::$miss = $miss;
+    MelCpm::$ml = $ml_miss;
     $now = microtime(true);
-    $net = aio_catv_open($shown, $loading ? 0 : min(AIO_CATV_OPEN_S - ($now - $rows_t0), AIO_CATV_OPEN_MAX_S - ($now - $start)));
+    $net = mel_catv_open($shown, $loading ? 0 : min(MEL_CATV_OPEN_S - ($now - $rows_t0), MEL_CATV_OPEN_MAX_S - ($now - $start)));
     if (!$loading)
-        $shown = aio_catv_shown_rows($shown, $loading);
+        $shown = mel_catv_shown_rows($shown, $loading);
     foreach ($shown as $i => $row)
     {
-        $rid = aio_catv_rid($row);
+        $rid = mel_catv_rid($row);
         // A flagged first row replaced under the focus on the headers covers the rows under it (device, 0.50.0). After
         // the row "Continue" the first row of the server is flagged as the others (the focus is not on it; O3).
         if ($loading && $i === 0 && count($defs) === 0)
         {
-            $limit = max(AIO_CATV_MIN_S, min(AIO_CATV_ROW_S, AIO_CATV_OPEN_MAX_S - (microtime(true) - $start)));
-            $defs = array_merge($defs, aio_catv_row_now($row, $lang, $limit, false));
+            $limit = max(MEL_CATV_MIN_S, min(MEL_CATV_ROW_S, MEL_CATV_OPEN_MAX_S - (microtime(true) - $start)));
+            $defs = array_merge($defs, mel_catv_row_now($row, $lang, $limit, false));
         }
-        else if (isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
+        else if (isset(MelCat::$lists[$rid]) && MelCat::$lists[$rid]['tiles'])
         {
-            $flag = aio_cat_state_fresh(AioCat::$lists[$rid]['st']) ? 0 : $loading;
+            $flag = mel_cat_state_fresh(MelCat::$lists[$rid]['st']) ? 0 : $loading;
             if ($flag)
             {
-                AioCat::$on_screen[$rid] = AioCat::$lists[$rid]['tiles'];
+                MelCat::$on_screen[$rid] = MelCat::$lists[$rid]['tiles'];
             }
-            $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang, null, $flag));
+            $defs = array_merge($defs, mel_catv_row_defs(MelCat::$lists[$rid], $lang, null, $flag));
             $asked = $asked || $flag;
         }
         else if ($loading)
         {
-            $defs = array_merge($defs, aio_catv_row_note($row, $lang, ''));
+            $defs = array_merge($defs, mel_catv_row_note($row, $lang, ''));
             $asked = true;
         }
     }
     if ($loading)
     {
-        AioCat::$manifest_due = $asked && !$manifest_done;
-        $left = AIO_CATV_OPEN_S - (microtime(true) - $rows_t0);
-        if (!$asked && !$manifest_done && $left >= 1 && !aio_catv_is_down())
-            aio_catv_manifest_refresh(intval($left));
+        MelCat::$manifest_due = $asked && !$manifest_done;
+        $left = MEL_CATV_OPEN_S - (microtime(true) - $rows_t0);
+        if (!$asked && !$manifest_done && $left >= 1 && !mel_catv_is_down())
+            mel_catv_manifest_refresh(intval($left));
     }
-    // The lazy pairs: r24 on the time left of the opening; r25 at the tick of the timer of the screen (aio_pg_tick_set).
+    // The lazy pairs: r24 on the time left of the opening; r25 at the tick of the timer of the screen (mel_pg_tick_set).
     if (!$loading)
-        aio_pg_screen_built(AIO_CATV_OPEN_S - (microtime(true) - $rows_t0), $net, $tab);
-    aio_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms%s', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000,
+        mel_pg_screen_built(MEL_CATV_OPEN_S - (microtime(true) - $rows_t0), $net, $tab);
+    mel_log(sprintf('catalog: screen: %s: %d rows of %d, %.0f ms%s', $tab, count($defs) / 2, count($rows), (microtime(true) - $start) * 1000,
         $under !== '' ? ", under $under: no requests of the meta" : ''));
-    if (AioCat::$inv_t > 0)
+    if (MelCat::$inv_t > 0)
     {
-        $since = microtime(true) - AioCat::$inv_t;
-        if ($since >= 0 && $since <= AIO_CATV_INV_LOG_S)
-            aio_log(sprintf('catalog: screen: %s: anew after the player, %.0f ms since its finish', $media_url, $since * 1000));
-        AioCat::$inv_t = 0.0;
+        $since = microtime(true) - MelCat::$inv_t;
+        if ($since >= 0 && $since <= MEL_CATV_INV_LOG_S)
+            mel_log(sprintf('catalog: screen: %s: anew after the player, %.0f ms since its finish', $media_url, $since * 1000));
+        MelCat::$inv_t = 0.0;
     }
     if (!$defs)
-        return aio_catv_message_view('cat_unavailable', $lang, $media_url);
-    return aio_catv_rows_view($defs, $sel_state, $media_url, $loading && aio_pg_tick_set($media_url, $anew));
+        return mel_catv_message_view('cat_unavailable', $lang, $media_url);
+    return mel_catv_rows_view($defs, $sel_state, $media_url, $loading && mel_pg_tick_set($media_url, $anew));
 }
 
-// The rows of the tab $rows (aio_cat_user_rows) the main screen shows (aio_catv_main_view; the link of a row,
-// aio_dl_row): r25 ($loading) all but those come empty within the hour (aio_catv_is_empty), before the opening; r24
-// those with tiles in memory, after the opening (aio_catv_open) got them. A new filter goes here, and to the rows of a
-// tab of the copies alone as well (aio_catv_tab_copy_defs).
+// The rows of the tab $rows (mel_cat_user_rows) the main screen shows (mel_catv_main_view; the link of a row,
+// mel_dl_row): r25 ($loading) all but those come empty within the hour (mel_catv_is_empty), before the opening; r24
+// those with tiles in memory, after the opening (mel_catv_open) got them. A new filter goes here, and to the rows of a
+// tab of the copies alone as well (mel_catv_tab_copy_defs).
 /**
- * @param list<AioCatRow> $rows
+ * @param list<MelCatRow> $rows
  * @param int $loading
- * @return list<AioCatRow>
+ * @return list<MelCatRow>
  */
-function aio_catv_shown_rows($rows, $loading)
+function mel_catv_shown_rows($rows, $loading)
 {
     $out = array();
     foreach ($rows as $row)
     {
-        $rid = aio_catv_rid($row);
-        if ($loading ? !aio_catv_is_empty($rid) : isset(AioCat::$lists[$rid]) && AioCat::$lists[$rid]['tiles'])
+        $rid = mel_catv_rid($row);
+        if ($loading ? !mel_catv_is_empty($rid) : isset(MelCat::$lists[$rid]) && MelCat::$lists[$rid]['tiles'])
             $out[] = $row;
     }
     return $out;
 }
 
 // The rows of the tab $tab from the copies alone, for a file the shell shows without PHP (the tab
-// "TV"): the rows of the user (aio_cat_user_rows) of the saved manifest, each by its saved first page
+// "TV"): the rows of the user (mel_cat_user_rows) of the saved manifest, each by its saved first page
 // of any age; a row without one is left out. No request, no flag, no mark "saved", no strip; the tiles
-// and the plates by the mode of the screen now (aio_catv_logo_of), the caller sets it. -> the defs of
-// the rows (aio_catv_row_defs, for aio_catv_rows_view), their rids and their listings by rid.
+// and the plates by the mode of the screen now (mel_catv_logo_of), the caller sets it. -> the defs of
+// the rows (mel_catv_row_defs, for mel_catv_rows_view), their rids and their listings by rid.
 /**
  * @param string $tab
  * @param string $lang
- * @return array{defs: list<array<string, mixed>>, rids: list<string>, lists: array<string, AioCatList>}
+ * @return array{defs: list<array<string, mixed>>, rids: list<string>, lists: array<string, MelCatList>}
  */
-function aio_catv_tab_copy_defs($tab, $lang)
+function mel_catv_tab_copy_defs($tab, $lang)
 {
-    $copy = aio_cat_manifest_copy();
+    $copy = mel_cat_manifest_copy();
     $defs = array();
     $rids = array();
     $lists = array();
-    foreach (aio_cat_user_rows($copy['rows'], Aio::$settings['cat_rows'], $tab) as $row)
+    foreach (mel_cat_user_rows($copy['rows'], Mel::$settings['cat_rows'], $tab) as $row)
     {
-        $c = aio_cat_page_cached($row, 0);
+        $c = mel_cat_page_cached($row, 0);
         if (!$c)
             continue;
-        $rid = aio_catv_rid($row);
-        $lists[$rid] = aio_catv_list_copy($row, $c);
-        $defs = array_merge($defs, aio_catv_row_defs($lists[$rid], $lang));
+        $rid = mel_catv_rid($row);
+        $lists[$rid] = mel_catv_list_copy($row, $c);
+        $defs = array_merge($defs, mel_catv_row_defs($lists[$rid], $lang));
         $rids[] = $rid;
     }
     return array('defs' => $defs, 'rids' => $rids, 'lists' => $lists);
 }
 
-// The row of the tab $tab without a row to show (aio_catv_tab_empty; its header: aio_catv_menu).
+// The row of the tab $tab without a row to show (mel_catv_tab_empty; its header: mel_catv_menu).
 /**
  * @param string $tab
  * @param string $lang
- * @return AioCatRow
+ * @return MelCatRow
  */
-function aio_catv_tab_empty_row($tab, $lang)
+function mel_catv_tab_empty_row($tab, $lang)
 {
-    return array('key' => "tab/$tab", 'type' => $tab, 'id' => 'tab', 'name' => aio_tr($lang, $tab === 'movie' ? 'cat_movies' : 'cat_series'),
+    return array('key' => "tab/$tab", 'type' => $tab, 'id' => 'tab', 'name' => mel_tr($lang, $tab === 'movie' ? 'cat_movies' : 'cat_series'),
         'genre' => '', 'home' => false, 'group' => '');
 }
 
 // The tab $tab without a row to show: under the strip one tile that says why. $retry: its rows
 // came empty (r25, hidden for an hour), "retry:<rid>", ENTER is "Retry"; else the manifest has
-// none of its type to show (none chosen and no start row of it, aio_cat_user_rows), "empty:<rid>",
+// none of its type to show (none chosen and no start row of it, mel_cat_user_rows), "empty:<rid>",
 // ENTER: nothing.
 /**
  * @param string $tab
@@ -1483,14 +1483,14 @@ function aio_catv_tab_empty_row($tab, $lang)
  * @param bool $retry
  * @return array{array<string, mixed>, array<string, mixed>}
  */
-function aio_catv_tab_empty($tab, $lang, $retry)
+function mel_catv_tab_empty($tab, $lang, $retry)
 {
-    $row = aio_catv_tab_empty_row($tab, $lang);
-    $rid = aio_catv_rid($row);
-    $list = aio_catv_list(aio_cat_row_state($row), array(), false);
-    $item = $retry ? aio_catv_item("retry:$rid", aio_tr($lang, 'cat_tab_retry'), AIO_CATV_ICONS . 'no_movie_poster.png') :
-        aio_catv_item("empty:$rid", aio_tr($lang, 'cat_tab_empty'), AIO_CATV_ICONS . 'no_movie_poster.png');
-    return aio_catv_row_defs($list, $lang, array($item));
+    $row = mel_catv_tab_empty_row($tab, $lang);
+    $rid = mel_catv_rid($row);
+    $list = mel_catv_list(mel_cat_row_state($row), array(), false);
+    $item = $retry ? mel_catv_item("retry:$rid", mel_tr($lang, 'cat_tab_retry'), MEL_CATV_ICONS . 'no_movie_poster.png') :
+        mel_catv_item("empty:$rid", mel_tr($lang, 'cat_tab_empty'), MEL_CATV_ICONS . 'no_movie_poster.png');
+    return mel_catv_row_defs($list, $lang, array($item));
 }
 
 /**
@@ -1498,34 +1498,34 @@ function aio_catv_tab_empty($tab, $lang, $retry)
  * @param mixed $sel_state
  * @return array<string, mixed>
  */
-function aio_catv_results_view($id, $sel_state)
+function mel_catv_results_view($id, $sel_state)
 {
-    $lang = aio_catv_lang();
-    AioCat::$lang = $lang;
+    $lang = mel_catv_lang();
+    MelCat::$lang = $lang;
     $defs = array();
-    foreach (isset(AioCat::$searches[$id]) ? AioCat::$searches[$id] : array() as $rid)
+    foreach (isset(MelCat::$searches[$id]) ? MelCat::$searches[$id] : array() as $rid)
     {
-        if (isset(AioCat::$lists[$rid]))
-            $defs = array_merge($defs, aio_catv_row_defs(AioCat::$lists[$rid], $lang));
+        if (isset(MelCat::$lists[$rid]))
+            $defs = array_merge($defs, mel_catv_row_defs(MelCat::$lists[$rid], $lang));
     }
     if (!$defs)
     {
-        aio_log('catalog: search screen outdated');
-        return aio_lines_view(array(aio_expired_item()));
+        mel_log('catalog: search screen outdated');
+        return mel_lines_view(array(mel_expired_item()));
     }
-    return aio_catv_rows_view($defs, $sel_state, "results:$id");
+    return mel_catv_rows_view($defs, $sel_state, "results:$id");
 }
 
 /**
  * @param string $media_url
  * @param string $caption
- * @return AioAction
+ * @return MelAction
  */
-function aio_catv_open_act($media_url, $caption)
+function mel_catv_open_act($media_url, $caption)
 {
     return array(
         GuiAction::handler_string_id => PLUGIN_OPEN_FOLDER_ACTION_ID,
-        GuiAction::plugin_name => AIO_PLUGIN,
+        GuiAction::plugin_name => MEL_PLUGIN,
         GuiAction::data => array(
             PluginOpenFolderActionData::media_url => $media_url,
             PluginOpenFolderActionData::caption => $caption));
@@ -1540,7 +1540,7 @@ function aio_catv_open_act($media_url, $caption)
  * @param string $lang
  * @return string
  */
-function aio_catv_country($c, $lang)
+function mel_catv_country($c, $lang)
 {
     static $en = array('united states of america' => 'USA', 'united states' => 'USA', 'united kingdom' => 'UK',
         'russian federation' => 'Russia', 'united arab emirates' => 'UAE');
@@ -1573,14 +1573,14 @@ function aio_catv_country($c, $lang)
  * @param string $lang
  * @return string
  */
-function aio_catv_runtime($r, $lang)
+function mel_catv_runtime($r, $lang)
 {
-    $min = aio_cat_runtime_min($r);
+    $min = mel_cat_runtime_min($r);
     $parts = array();
     if ($min >= 60)
-        $parts[] = str_replace('{n}', strval(intval($min / 60)), aio_tr($lang, 'cat_len_h'));
+        $parts[] = str_replace('{n}', strval(intval($min / 60)), mel_tr($lang, 'cat_len_h'));
     if ($min % 60 > 0)
-        $parts[] = str_replace('{n}', strval($min % 60), aio_tr($lang, 'cat_len_m'));
+        $parts[] = str_replace('{n}', strval($min % 60), mel_tr($lang, 'cat_len_m'));
     return implode(' ', $parts);
 }
 
@@ -1588,10 +1588,10 @@ function aio_catv_runtime($r, $lang)
 // server names them in Russian in any interface), with a capital, no repeat in another case,
 // the first 2.
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @return list<string>
  */
-function aio_catv_genres($t)
+function mel_catv_genres($t)
 {
     static $short = array('боевик и приключения' => 'боевик', 'нф и фэнтези' => 'фантастика', 'война и политика' => 'военный');
     $out = array();
@@ -1613,20 +1613,20 @@ function aio_catv_genres($t)
 // (of an episode for a series: no word for it); the age ('' for none). Words of the server only,
 // the empty ones left out.
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @param string $lang
  * @return array{rates: list<array{string, string, string}>, rest: list<string>, age: string}
  */
-function aio_catv_fact_parts($t, $lang)
+function mel_catv_fact_parts($t, $lang)
 {
     $rates = array();
     if ($t['kpRating'] !== '')
-        $rates[] = array('kp', aio_tr($lang, 'cat_rate_kp'), $t['kpRating']);
+        $rates[] = array('kp', mel_tr($lang, 'cat_rate_kp'), $t['kpRating']);
     $rating = (float) $t['imdbRating'];
     if ($rating > 0)
-        $rates[] = array('imdb', aio_tr($lang, 'cat_rate_imdb'), sprintf('%.1F', $rating));
-    $rest = array_filter(array($t['type'] === 'series' ? aio_tr($lang, 'cat_kind_series') : '', $t['year'],
-        aio_catv_runtime($t['runtime'], $lang)), 'strlen');
+        $rates[] = array('imdb', mel_tr($lang, 'cat_rate_imdb'), sprintf('%.1F', $rating));
+    $rest = array_filter(array($t['type'] === 'series' ? mel_tr($lang, 'cat_kind_series') : '', $t['year'],
+        mel_catv_runtime($t['runtime'], $lang)), 'strlen');
     return array('rates' => $rates, 'rest' => array_values($rest), 'age' => $t['age']);
 }
 
@@ -1635,7 +1635,7 @@ function aio_catv_fact_parts($t, $lang)
  * @param array{rates: list<array{string, string, string}>, rest: list<string>, age: string} $parts
  * @return list<string>
  */
-function aio_catv_fact_texts($parts)
+function mel_catv_fact_texts($parts)
 {
     $out = array();
     foreach ($parts['rates'] as $r)
@@ -1648,21 +1648,21 @@ function aio_catv_fact_texts($parts)
 // 56 мин", "·" between), the age in a plate ("age", "18+") if a Russian mark, else at the end of
 // the text. No "·" next to a plate.
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @param string $lang
  * @return list<array{string, string, string}>
  */
-function aio_catv_facts($t, $lang)
+function mel_catv_facts($t, $lang)
 {
-    return aio_catv_facts_of(aio_catv_fact_parts($t, $lang));
+    return mel_catv_facts_of(mel_catv_fact_parts($t, $lang));
 }
 
-// The line of facts of aio_catv_facts of the parts of aio_catv_fact_parts (the own card adds its kind to the rest).
+// The line of facts of mel_catv_facts of the parts of mel_catv_fact_parts (the own card adds its kind to the rest).
 /**
  * @param array{rates: list<array{string, string, string}>, rest: list<string>, age: string} $p
  * @return list<array{string, string, string}>
  */
-function aio_catv_facts_of($p)
+function mel_catv_facts_of($p)
 {
     static $ages = array('0+', '6+', '12+', '16+', '18+');
     $out = array();
@@ -1680,43 +1680,43 @@ function aio_catv_facts_of($p)
 }
 
 // The genres and the country of a tile, of the panel and the grid alike: the genres of
-// aio_catv_genres, a second one in Cyrillic small ("Комедия, криминал"; "Fantasy, Comedy" as it
+// mel_catv_genres, a second one in Cyrillic small ("Комедия, криминал"; "Fantasy, Comedy" as it
 // is), the country of the interface; cleaned.
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @param string $lang
  * @return array{list<string>, string}
  */
-function aio_catv_genre_parts($t, $lang)
+function mel_catv_genre_parts($t, $lang)
 {
-    $g = array_map('aio_clean', aio_catv_genres($t));
+    $g = array_map('mel_clean', mel_catv_genres($t));
     foreach ($g as $i => $x)
     {
         if ($i && preg_match('/^[\x{0400}-\x{04FF}]/u', $x))
             $g[$i] = mb_strtolower($x, 'UTF-8');
     }
-    return array($g, aio_clean(aio_catv_country($t['country'], $lang)));
+    return array($g, mel_clean(mel_catv_country($t['country'], $lang)));
 }
 
 // The second line of data of the panel: the genres, then the country, fitted to TEXT_W. What
 // does not fit at DATA_MIN_PX goes: the countries but the first, then all of them, then the
-// second genre; aio_catv_fit cuts the rest. $countries: those of the own card (cleaned), else
+// second genre; mel_catv_fit cuts the rest. $countries: those of the own card (cleaned), else
 // the one of the tile.
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @param string $lang
  * @param list<string>|null $countries
  * @return string
  */
-function aio_catv_genre_line($t, $lang, $countries = null)
+function mel_catv_genre_line($t, $lang, $countries = null)
 {
-    list($g, $c) = aio_catv_genre_parts($t, $lang);
+    list($g, $c) = mel_catv_genre_parts($t, $lang);
     $cs = $countries !== null ? $countries : ($c !== '' ? array($c) : array());
     $line = '';
     foreach (array(array($g, $cs), array($g, array_slice($cs, 0, 1)), array($g, array()), array(array_slice($g, 0, 1), array())) as $v)
     {
         $line = implode(' · ', array_filter(array(implode(', ', $v[0]), implode(', ', $v[1])), 'strlen'));
-        if (aio_gc_w($line, AIO_CATV_DATA_MIN_PX) <= AIO_CATV_TEXT_W)
+        if (mel_gc_w($line, MEL_CATV_DATA_MIN_PX) <= MEL_CATV_TEXT_W)
             break;
     }
     return $line;
@@ -1725,94 +1725,94 @@ function aio_catv_genre_line($t, $lang, $countries = null)
 // The cast of the panel: the names as fit TEXT_W at 30 px, the last ones dropped whole, one at
 // least; one too long is cut with "…".
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @return string
  */
-function aio_catv_cast_line($t)
+function mel_catv_cast_line($t)
 {
-    $names = array_map('aio_clean', $t['cast']);
-    while (count($names) > 1 && aio_gc_w(implode(', ', $names), AIO_CATV_LINE_PX) > AIO_CATV_TEXT_W)
+    $names = array_map('mel_clean', $t['cast']);
+    while (count($names) > 1 && mel_gc_w(implode(', ', $names), MEL_CATV_LINE_PX) > MEL_CATV_TEXT_W)
         array_pop($names);
-    return aio_gc_cut_w(implode(', ', $names), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W);
+    return mel_gc_cut_w(implode(', ', $names), MEL_CATV_LINE_PX, MEL_CATV_TEXT_W);
 }
 
 // An item of the grid: the lines of the panel in one, "·" between the parts.
 /**
  * @param string $rid
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @param string $lang
  * @return array<string, mixed>
  */
-function aio_catv_grid_item($rid, $t, $lang)
+function mel_catv_grid_item($rid, $t, $lang)
 {
-    $icon = aio_catv_poster($t);
-    $g = aio_catv_genre_parts($t, $lang);
-    $parts = array_merge(aio_catv_fact_texts(aio_catv_fact_parts($t, $lang)),
-        array(implode(', ', $g[0]), $g[1], aio_error_cut($t['description'], AIO_CATV_DESC_CHARS)));
+    $icon = mel_catv_poster($t);
+    $g = mel_catv_genre_parts($t, $lang);
+    $parts = array_merge(mel_catv_fact_texts(mel_catv_fact_parts($t, $lang)),
+        array(implode(', ', $g[0]), $g[1], mel_error_cut($t['description'], MEL_CATV_DESC_CHARS)));
     $text = implode(' · ', array_filter($parts, 'strlen'));
     return array(
-        PluginRegularFolderItem::media_url => aio_catv_tile_id("$rid:{$t['id']}"),
+        PluginRegularFolderItem::media_url => mel_catv_tile_id("$rid:{$t['id']}"),
         PluginRegularFolderItem::caption => $t['name'],
         PluginRegularFolderItem::view_item_params => array(
             ViewItemParams::icon_path => $icon,
             ViewItemParams::item_detailed_icon_path => $icon,
-            ViewItemParams::item_detailed_info => aio_clean($t['name']) . '|' . aio_clean($text)));
+            ViewItemParams::item_detailed_info => mel_clean($t['name']) . '|' . mel_clean($text)));
 }
 
 // The row of a rid from the saved manifest, or null.
 /**
  * @param string $rid
- * @return AioCatRow|null
+ * @return MelCatRow|null
  */
-function aio_catv_row_by_rid($rid)
+function mel_catv_row_by_rid($rid)
 {
-    $copy = aio_cat_manifest_copy();
+    $copy = mel_cat_manifest_copy();
     foreach ($copy['rows'] as $row)
     {
-        if (aio_catv_rid($row) === $rid)
+        if (mel_catv_rid($row) === $rid)
             return $row;
     }
     return null;
 }
 
-// New tiles to the listing. The listing begun anew (aio_cat_more: reset): the shell
+// New tiles to the listing. The listing begun anew (mel_cat_more: reset): the shell
 // holds the old tiles by their place, so they stay and are not new any more.
 /**
- * @param AioCatList $list
- * @param AioCatResult $res
- * @param-out AioCatList $list
+ * @param MelCatList $list
+ * @param MelCatResult $res
+ * @param-out MelCatList $list
  * @return void
  */
-function aio_catv_add(&$list, $res)
+function mel_catv_add(&$list, $res)
 {
     foreach ($res['tiles'] as $t)
         $list['tiles'][$t['id']] = $t;
     if ($res['reset'])
-        aio_cat_keep_seen($list['st'], $list['tiles']);
+        mel_cat_keep_seen($list['st'], $list['tiles']);
 }
 
 // The next pages of the listing $list of $rid, up to $want tiles or its end, within $budget s
 // from $start; the listing goes to memory page by page, so a repeat of a call cancelled is at
 // once. -> '', the error of a page, or 'out of time'.
 /**
- * @param AioCatList $list
+ * @param MelCatList $list
  * @param string $rid
  * @param int $want
  * @param float $budget
  * @param float $start
- * @param-out AioCatList $list
+ * @param-out MelCatList $list
  * @return string
  */
-function aio_catv_fill(&$list, $rid, $want, $budget, $start)
+function mel_catv_fill(&$list, $rid, $want, $budget, $start)
 {
     while (count($list['tiles']) < $want && $list['st']['end'] === '')
     {
         $left = $budget - (microtime(true) - $start);
-        if ($left < AIO_CATV_MIN_S)
+        if ($left < MEL_CATV_MIN_S)
             return 'out of time';
-        $res = aio_cat_more($list['st'], $left);
-        aio_catv_add($list, $res);
-        AioCat::$lists[$rid] = $list;
+        $res = mel_cat_more($list['st'], $left);
+        mel_catv_add($list, $res);
+        MelCat::$lists[$rid] = $list;
         if ($res['err'] !== '')
             return $res['err'];
     }
@@ -1824,47 +1824,47 @@ function aio_catv_fill(&$list, $rid, $want, $budget, $start)
  * @param string $id
  * @return string
  */
-function aio_catv_more_url($id)
+function mel_catv_more_url($id)
 {
-    list(, $id) = aio_catv_id_mode($id);
+    list(, $id) = mel_catv_id_mode($id);
     return strpos($id, 'more:') === 0 ? 'cat_grid:' . substr($id, strlen('more:')) : '';
 }
 
 // The listing of a screen "Show all" ("cat_grid:<rid>", of a search "cat_grid:<rid>:<id of
-// the search>"), or null: a search no more in memory (AIO_CATV_SEARCHES) gets nothing. $anew:
+// the search>"), or null: a search no more in memory (MEL_CATV_SEARCHES) gets nothing. $anew:
 // a row of the manifest not in memory gets a new listing, from the first page on, and so does a
-// listing restored from a copy older than AIO_CAT_FRESH (aio_catv_list_restore): a first page
+// listing restored from a copy older than MEL_CAT_FRESH (mel_catv_list_restore): a first page
 // hours old would begin the grid, the titles gone from a row of trends since then missing in it;
-// its tiles stay to the screen it came from (AioCat::$on_screen). Not $anew, for the rows of a
+// its tiles stay to the screen it came from (MelCat::$on_screen). Not $anew, for the rows of a
 // screen already shown (the listing anew may differ): the listing in memory, else restored.
 /**
  * @param string $url
  * @param bool $anew
- * @return AioCatList|null
+ * @return MelCatList|null
  */
-function aio_catv_all_list($url, $anew)
+function mel_catv_all_list($url, $anew)
 {
     $p = explode(':', strval(substr($url, strlen('cat_grid:'))));
     $rid = $p[0];
-    $list = isset(AioCat::$lists[$rid]) ? AioCat::$lists[$rid] : null;
+    $list = isset(MelCat::$lists[$rid]) ? MelCat::$lists[$rid] : null;
     if (count($p) === 2)
-        return isset(AioCat::$searches[$p[1]]) && in_array($rid, AioCat::$searches[$p[1]], true) ? $list : null;
+        return isset(MelCat::$searches[$p[1]]) && in_array($rid, MelCat::$searches[$p[1]], true) ? $list : null;
     if (count($p) > 2 || ($list && isset($list['st']['row']['q'])))
         return null;
     if (!$anew)
-        return $list ? $list : aio_catv_list_restore($rid);
-    if ($list && !empty($list['restored']) && !aio_cat_state_fresh($list['st']))
+        return $list ? $list : mel_catv_list_restore($rid);
+    if ($list && !empty($list['restored']) && !mel_cat_state_fresh($list['st']))
     {
-        AioCat::$on_screen[$rid] = $list['tiles'];
+        MelCat::$on_screen[$rid] = $list['tiles'];
         $list = null;
     }
     if ($list)
         return $list;
-    $row = aio_catv_row_by_rid($rid);
+    $row = mel_catv_row_by_rid($rid);
     if (!$row)
         return null;
-    AioCat::$lists[$rid] = aio_catv_list(aio_cat_row_state($row), array(), false);
-    return AioCat::$lists[$rid];
+    MelCat::$lists[$rid] = mel_catv_list(mel_cat_row_state($row), array(), false);
+    return MelCat::$lists[$rid];
 }
 
 // The items of the grid from $from on, by their place in all the tiles so far: the shell
@@ -1872,24 +1872,24 @@ function aio_catv_all_list($url, $anew)
 // a new one, from the first page to $from. A failure: what there is; with nothing, the
 // list ends for now, so the shell does not ask in a loop. ENTER on "Show all" goes on from
 // there. Out of time with nothing, only repeats so far: more to come; such a call took all
-// of AIO_CATV_GRID_S, so it is no fast loop.
+// of MEL_CATV_GRID_S, so it is no fast loop.
 /**
  * @param string $url
  * @param int $from
  * @return array<string, mixed>
  */
-function aio_catv_range($url, $from)
+function mel_catv_range($url, $from)
 {
-    $list = aio_catv_all_list($url, true);
+    $list = mel_catv_all_list($url, true);
     $items = array();
     $more = false;
     if ($list)
     {
-        $rid = aio_catv_rid($list['st']['row']);
-        $out_of_time = aio_catv_fill($list, $rid, $from + 1, AIO_CATV_GRID_S, microtime(true)) === 'out of time';
-        $lang = aio_catv_ui_lang();
-        foreach (array_slice($list['tiles'], $from, AIO_CATV_GRID_PORTION) as $t)
-            $items[] = aio_catv_grid_item($rid, $t, $lang);
+        $rid = mel_catv_rid($list['st']['row']);
+        $out_of_time = mel_catv_fill($list, $rid, $from + 1, MEL_CATV_GRID_S, microtime(true)) === 'out of time';
+        $lang = mel_catv_ui_lang();
+        foreach (array_slice($list['tiles'], $from, MEL_CATV_GRID_PORTION) as $t)
+            $items[] = mel_catv_grid_item($rid, $t, $lang);
         $more = $items ? $list['st']['end'] === '' || count($list['tiles']) > $from + count($items) : $out_of_time;
     }
     return array(
@@ -1906,34 +1906,34 @@ function aio_catv_range($url, $from)
  * @param int $from
  * @return array<string, mixed>|null
  */
-function aio_catv_range_op($media_url, $from)
+function mel_catv_range_op($media_url, $from)
 {
-    return strpos($media_url, 'cat_grid:') === 0 ? aio_catv_range($media_url, $from) : null;
+    return strpos($media_url, 'cat_grid:') === 0 ? mel_catv_range($media_url, $from) : null;
 }
 
 /**
  * @param string $url
  * @return array<string, mixed>
  */
-function aio_catv_grid_view($url)
+function mel_catv_grid_view($url)
 {
-    $range = aio_catv_range($url, 0);
+    $range = mel_catv_range($url, 0);
     if (!$range[PluginRegularFolderRange::items])
     {
-        aio_log('catalog: grid: nothing to show');
-        return aio_lines_view(array(aio_expired_item()));
+        mel_log('catalog: grid: nothing to show');
+        return mel_lines_view(array(mel_expired_item()));
     }
-    return aio_catv_grid_pane($range, array(GUI_EVENT_KEY_ENTER => aio_input('cat_enter')) + aio_egg_acts());
+    return mel_catv_grid_pane($range, array(GUI_EVENT_KEY_ENTER => mel_input('cat_enter')) + mel_egg_acts());
 }
 
-// The grid of r24 of the items of $range (aio_catv_range), its actions $actions: "Show all", "Мой список" and
+// The grid of r24 of the items of $range (mel_catv_range), its actions $actions: "Show all", "Мой список" and
 // "Продолжить" of Fav 1 (view_my_list.php).
 /**
  * @param array<string, mixed> $range
- * @param array<string, AioAction> $actions
+ * @param array<string, MelAction> $actions
  * @return array<string, mixed>
  */
-function aio_catv_grid_pane($range, $actions)
+function mel_catv_grid_pane($range, $actions)
 {
     return array(
         PluginFolderView::multiple_views_supported => false,
@@ -1963,9 +1963,9 @@ function aio_catv_grid_pane($range, $actions)
                 ViewItemParams::item_detailed_icon_width => 350,
                 ViewItemParams::item_detailed_icon_height => 525),
             PluginRegularFolderView::not_loaded_view_item_params => array(
-                ViewItemParams::icon_path => AIO_CATV_ICONS . 'loading_movie_poster.png'),
+                ViewItemParams::icon_path => MEL_CATV_ICONS . 'loading_movie_poster.png'),
             PluginRegularFolderView::load_failed_view_item_params => array(
-                ViewItemParams::icon_path => AIO_CATV_ICONS . 'no_movie_poster.png'),
+                ViewItemParams::icon_path => MEL_CATV_ICONS . 'no_movie_poster.png'),
             PluginRegularFolderView::async_icon_loading => true,
             PluginRegularFolderView::actions => $actions,
             PluginRegularFolderView::initial_range => $range));
@@ -1976,19 +1976,19 @@ function aio_catv_grid_pane($range, $actions)
 
 // The end of the listing for "Show all": known, or past the last row the screen has.
 /**
- * @param AioCatList $list
+ * @param MelCatList $list
  * @return bool
  */
-function aio_catv_all_end($list)
+function mel_catv_all_end($list)
 {
-    return $list['st']['end'] !== '' || count($list['tiles']) >= AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS;
+    return $list['st']['end'] !== '' || count($list['tiles']) >= MEL_CATV_ALL_COLS * MEL_CATV_ALL_ROWS;
 }
 
 // r24 has neither get_folder_rows nor dup rows: the grid there.
 /**
  * @return bool
  */
-function aio_catv_all_ok()
+function mel_catv_all_ok()
 {
     return defined('PLUGIN_OP_GET_FOLDER_ROWS') && defined('PLUGIN_ROW_TYPE_DUP') && defined('PLUGIN_ROW_OPT_LOADING') &&
         defined('PLUGIN_ROW_OPT_OPTIMIZE_INVISIBLE');
@@ -2001,7 +2001,7 @@ function aio_catv_all_ok()
  * @param int $options
  * @return array<string, mixed>
  */
-function aio_catv_all_def($id, $items, $options = 0)
+function mel_catv_all_def($id, $items, $options = 0)
 {
     return array(
         PluginRow::type => PLUGIN_ROW_TYPE_REGULAR,
@@ -2028,15 +2028,15 @@ function aio_catv_all_def($id, $items, $options = 0)
 /**
  * @param string $rid
  * @param int $k
- * @param AioCatList $list
+ * @param MelCatList $list
  * @return array<string, mixed>
  */
-function aio_catv_all_row($rid, $k, $list)
+function mel_catv_all_row($rid, $k, $list)
 {
     $items = array();
-    foreach (array_slice($list['tiles'], AIO_CATV_ALL_COLS * $k, AIO_CATV_ALL_COLS) as $t)
-        $items[] = aio_catv_title_item($rid, $t);
-    return aio_catv_all_def("row$k", $items);
+    foreach (array_slice($list['tiles'], MEL_CATV_ALL_COLS * $k, MEL_CATV_ALL_COLS) as $t)
+        $items[] = mel_catv_title_item($rid, $t);
+    return mel_catv_all_def("row$k", $items);
 }
 
 // A row to ask for, a copy of "ld" of row_dup_map; the type a literal, the r24 API has no such constant.
@@ -2044,58 +2044,58 @@ function aio_catv_all_row($rid, $k, $list)
  * @param int $k
  * @return array<string, mixed>
  */
-function aio_catv_all_stub($k)
+function mel_catv_all_stub($k)
 {
     return array(
         PluginRow::type => 'row_dup',
         PluginRow::data => 'ld',
         PluginRow::id => "row$k",
-        PluginRow::options => aio_catv_loading_flag() | (defined('PLUGIN_ROW_OPT_OPTIMIZE_INVISIBLE') ? PLUGIN_ROW_OPT_OPTIMIZE_INVISIBLE : 0));
+        PluginRow::options => mel_catv_loading_flag() | (defined('PLUGIN_ROW_OPT_OPTIMIZE_INVISIBLE') ? PLUGIN_ROW_OPT_OPTIMIZE_INVISIBLE : 0));
 }
 
-// The tick of the timer of the screen $url: of "Show all" (aio_catv_all_tick), of the main screen (aio_pg_tick).
+// The tick of the timer of the screen $url: of "Show all" (mel_catv_all_tick), of the main screen (mel_pg_tick).
 // No dialog, as rows_info.
 /**
  * @param string $url
- * @return AioAction
+ * @return MelAction
  */
-function aio_catv_tick($url)
+function mel_catv_tick($url)
 {
-    $tick = aio_input('cat_tick', array('from' => $url));
+    $tick = mel_input('cat_tick', array('from' => $url));
     $tick[GuiAction::data] = null;
     return $tick;
 }
 
-// r25: the timer of the main screen $url again (aio_pg_tick_again): change_behaviour, its actions whole as of
-// aio_catv_rows_view with the tick and the Fav keys (aio_mlv_keys); the focus and the tiles stay.
+// r25: the timer of the main screen $url again (mel_pg_tick_again): change_behaviour, its actions whole as of
+// mel_catv_rows_view with the tick and the Fav keys (mel_mlv_keys); the focus and the tiles stay.
 /**
  * @param string $url
- * @return AioAction
+ * @return MelAction
  */
-function aio_catv_tick_again($url)
+function mel_catv_tick_again($url)
 {
     return array(
         GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
         GuiAction::data => array(
-            ChangeBehaviourActionData::actions => aio_catv_actions($url) + array(GUI_EVENT_TIMER => aio_catv_tick($url)) +
-                aio_mlv_key_acts($url),
-            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => AIO_PG_TICK_AGAIN_MS)));
+            ChangeBehaviourActionData::actions => mel_catv_actions($url) + array(GUI_EVENT_TIMER => mel_catv_tick($url)) +
+                mel_mlv_key_acts($url),
+            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => MEL_PG_TICK_AGAIN_MS)));
 }
 
-// The view of "Show all" $url (or "Продолжить", "Мой список": aio_mlv_tick) again with its timer in $ms:
-// change_behaviour, its actions whole (aio_catv_all_actions with the tick) and the Fav keys (aio_mlv_key_acts); the
+// The view of "Show all" $url (or "Продолжить", "Мой список": mel_mlv_tick) again with its timer in $ms:
+// change_behaviour, its actions whole (mel_catv_all_actions with the tick) and the Fav keys (mel_mlv_key_acts); the
 // focus and the tiles stay.
 /**
  * @param string $url
  * @param int $ms
- * @return AioAction
+ * @return MelAction
  */
-function aio_catv_all_again($url, $ms)
+function mel_catv_all_again($url, $ms)
 {
     return array(
         GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
         GuiAction::data => array(
-            ChangeBehaviourActionData::actions => aio_catv_all_actions($url, true) + aio_mlv_key_acts($url),
+            ChangeBehaviourActionData::actions => mel_catv_all_actions($url, true) + mel_mlv_key_acts($url),
             ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => $ms)));
 }
 
@@ -2103,19 +2103,19 @@ function aio_catv_all_again($url, $ms)
 /**
  * @param string $url
  * @param bool $tick
- * @return array<string, AioAction>
+ * @return array<string, MelAction>
  */
-function aio_catv_all_actions($url, $tick)
+function mel_catv_all_actions($url, $tick)
 {
-    $actions = aio_catv_actions($url);
+    $actions = mel_catv_actions($url);
     if ($tick)
-        $actions[GUI_EVENT_TIMER] = aio_catv_tick($url);
+        $actions[GUI_EVENT_TIMER] = mel_catv_tick($url);
     return $actions;
 }
 
 // The screen of the rows $rows: the pane of get_rows_pane of movie_list_screen.php r25, the
 // panel and the template of the catalog. $dup: row_dup_map, null without stubs. $timer_ms: its timer in that many ms
-// (of the stubs AIO_CATV_ALL_TICK_MS; "Продолжить", "Мой список": aio_mlv_view), 0 none.
+// (of the stubs MEL_CATV_ALL_TICK_MS; "Продолжить", "Мой список": mel_mlv_view), 0 none.
 /**
  * @param list<array<string, mixed>> $rows
  * @param array<string, array<string, mixed>>|null $dup
@@ -2124,10 +2124,10 @@ function aio_catv_all_actions($url, $tick)
  * @param int $timer_ms
  * @return array<string, mixed>
  */
-function aio_catv_all_pane($rows, $dup, $sel_state, $url, $timer_ms = 0)
+function mel_catv_all_pane($rows, $dup, $sel_state, $url, $timer_ms = 0)
 {
     array_unshift($rows, array(PluginRow::type => PLUGIN_ROW_TYPE_VGAP, PluginRow::height => 20, PluginRow::id => 'top_vgap'));
-    $r = aio_catv_pane_r(false);
+    $r = mel_catv_pane_r(false);
     $pane = array(
         PluginRowsPane::rows => $rows,
         'row_dup_map' => $dup,
@@ -2151,7 +2151,7 @@ function aio_catv_all_pane($rows, $dup, $sel_state, $url, $timer_ms = 0)
         PluginRowsPane::info_r => $r['info_r'],
         PluginRowsPane::vod_r => $r['vod_r'],
         PluginRowsPane::up_arrow_dy => 0,
-        PluginRowsPane::regular_item_params_templates => array('common' => aio_catv_item_tpl(array(8, 4, 4, 6))));
+        PluginRowsPane::regular_item_params_templates => array('common' => mel_catv_item_tpl(array(8, 4, 4, 6))));
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -2160,110 +2160,110 @@ function aio_catv_all_pane($rows, $dup, $sel_state, $url, $timer_ms = 0)
         PluginFolderView::data => array(
             PluginRowsFolderView::pane => $pane,
             PluginRowsFolderView::sel_state => is_string($sel_state) && $sel_state !== '' ? $sel_state : null,
-            PluginRowsFolderView::actions => aio_catv_all_actions($url, $timer_ms > 0),
+            PluginRowsFolderView::actions => mel_catv_all_actions($url, $timer_ms > 0),
             PluginRowsFolderView::timer => $timer_ms > 0 ? array(GuiTimerDef::delay_ms => $timer_ms) : null));
 }
 
-// The screen "Show all" (aio_catv_all_list). Its first row is never flagged (a flagged
+// The screen "Show all" (mel_catv_all_list). Its first row is never flagged (a flagged
 // first row covered the rows under it, 0.50.0) and never changes: the end not known, it is
-// filled to 9 tiles here, in AIO_CATV_GRID_S. The end known: its rows only, the last one
-// short. Else the full rows in memory, then stubs up to AIO_CATV_ALL_ROWS, and the timer. No
+// filled to 9 tiles here, in MEL_CATV_GRID_S. The end known: its rows only, the last one
+// short. Else the full rows in memory, then stubs up to MEL_CATV_ALL_ROWS, and the timer. No
 // tile at all: one tile "empty"; the first row not filled: its tiles and "did not load", ENTER
-// on it opens the screen anew. After a failure of get_folder_rows (aio_catv_all_rows) the same
+// on it opens the screen anew. After a failure of get_folder_rows (mel_catv_all_rows) the same
 // from memory, its full rows and "did not load", no stubs, no timer: no request till ENTER on it.
 /**
  * @param string $url
  * @param mixed $sel_state
  * @return array<string, mixed>
  */
-function aio_catv_all_view($url, $sel_state)
+function mel_catv_all_view($url, $sel_state)
 {
     $start = microtime(true);
-    $lang = aio_catv_lang();
-    AioCat::$lang = $lang;
-    $list = aio_catv_all_list($url, true);
+    $lang = mel_catv_lang();
+    MelCat::$lang = $lang;
+    $list = mel_catv_all_list($url, true);
     if (!$list)
     {
-        aio_log('catalog: show all: nothing to show');
-        return aio_lines_view(array(aio_expired_item()));
+        mel_log('catalog: show all: nothing to show');
+        return mel_lines_view(array(mel_expired_item()));
     }
-    $rid = aio_catv_rid($list['st']['row']);
-    $failed = isset(AioCat::$all_failed[$rid]);
+    $rid = mel_catv_rid($list['st']['row']);
+    $failed = isset(MelCat::$all_failed[$rid]);
     if (!$failed)
-        aio_catv_fill($list, $rid, AIO_CATV_ALL_COLS, AIO_CATV_GRID_S, $start);
+        mel_catv_fill($list, $rid, MEL_CATV_ALL_COLS, MEL_CATV_GRID_S, $start);
     $n = count($list['tiles']);
-    $end = aio_catv_all_end($list);
+    $end = mel_catv_all_end($list);
     $rows = array();
     $dup = null;
     if ($n === 0 && $end)
     {
-        $row = aio_catv_all_row($rid, 0, $list);
-        $row[PluginRow::data][PluginRegularRow::items][] = aio_catv_note_item($rid, 'cat_row_empty', $lang);
+        $row = mel_catv_all_row($rid, 0, $list);
+        $row[PluginRow::data][PluginRegularRow::items][] = mel_catv_note_item($rid, 'cat_row_empty', $lang);
         $rows[] = $row;
     }
     else if ($end)
     {
-        for ($k = 0; $k < min(AIO_CATV_ALL_ROWS, intval(ceil($n / AIO_CATV_ALL_COLS))); $k++)
-            $rows[] = aio_catv_all_row($rid, $k, $list);
+        for ($k = 0; $k < min(MEL_CATV_ALL_ROWS, intval(ceil($n / MEL_CATV_ALL_COLS))); $k++)
+            $rows[] = mel_catv_all_row($rid, $k, $list);
     }
-    else if ($failed || $n < AIO_CATV_ALL_COLS)
+    else if ($failed || $n < MEL_CATV_ALL_COLS)
     {
         // "Did not load" after the last tile, a new row after a full one.
-        $full = intval($n / AIO_CATV_ALL_COLS);
+        $full = intval($n / MEL_CATV_ALL_COLS);
         for ($k = 0; $k <= $full; $k++)
-            $rows[] = aio_catv_all_row($rid, $k, $list);
-        $rows[$full][PluginRow::data][PluginRegularRow::items][] = aio_catv_note_item($rid, 'cat_row_failed', $lang);
+            $rows[] = mel_catv_all_row($rid, $k, $list);
+        $rows[$full][PluginRow::data][PluginRegularRow::items][] = mel_catv_note_item($rid, 'cat_row_failed', $lang);
     }
     else
     {
-        $full = intval($n / AIO_CATV_ALL_COLS);
-        for ($k = 0; $k < AIO_CATV_ALL_ROWS; $k++)
-            $rows[] = $k < $full ? aio_catv_all_row($rid, $k, $list) : aio_catv_all_stub($k);
+        $full = intval($n / MEL_CATV_ALL_COLS);
+        for ($k = 0; $k < MEL_CATV_ALL_ROWS; $k++)
+            $rows[] = $k < $full ? mel_catv_all_row($rid, $k, $list) : mel_catv_all_stub($k);
         // As add_loading_movie_ritem of movie_helper.php r25: no caption.
         $items = array();
-        for ($j = 0; $j < AIO_CATV_ALL_COLS; $j++)
-            $items[] = array(PluginRegularItem::id => ".$j", PluginRegularItem::icon_url => AIO_CATV_ICONS . 'loading_movie_poster_noalpha.png');
+        for ($j = 0; $j < MEL_CATV_ALL_COLS; $j++)
+            $items[] = array(PluginRegularItem::id => ".$j", PluginRegularItem::icon_url => MEL_CATV_ICONS . 'loading_movie_poster_noalpha.png');
         // The shell puts the id of the dup row before the ids of its tiles: "row<k>.<j>".
-        $dup = array('ld' => aio_catv_all_def('loading', $items, aio_catv_loading_flag()));
+        $dup = array('ld' => mel_catv_all_def('loading', $items, mel_catv_loading_flag()));
     }
     if ($dup)
     {
-        AioCat::$all_stubs[$rid] = true;
+        MelCat::$all_stubs[$rid] = true;
         // The ticks of this screen from #1 in the log.
-        AioCat::$all_ticks = 0;
-        AioCat::$all_tick_last = '';
+        MelCat::$all_ticks = 0;
+        MelCat::$all_tick_last = '';
     }
     else
-        unset(AioCat::$all_stubs[$rid]);
-    aio_log(sprintf('catalog: show all: %d tiles, %d rows%s, %.0f ms', $n, count($rows), $end ? ', the end' : ($failed ? ', failed' : ''),
+        unset(MelCat::$all_stubs[$rid]);
+    mel_log(sprintf('catalog: show all: %d tiles, %d rows%s, %.0f ms', $n, count($rows), $end ? ', the end' : ($failed ? ', failed' : ''),
         (microtime(true) - $start) * 1000));
-    return aio_catv_all_pane($rows, $dup, $sel_state, $url, $dup !== null ? AIO_CATV_ALL_TICK_MS : 0);
+    return mel_catv_all_pane($rows, $dup, $sel_state, $url, $dup !== null ? MEL_CATV_ALL_TICK_MS : 0);
 }
 
 // get_folder_rows of "Show all": the rows asked that are full; once the end is known also the
 // last short row and 0 tiles for every row past it, asked or not, in every reply (the shell
 // throws away a reply it cancelled; it does not draw a row of 0 tiles). Before that the next
-// pages, in AIO_CATV_ROW_S, up to the row after the first one asked and AIO_CATV_ALL_AHEAD tiles
+// pages, in MEL_CATV_ROW_S, up to the row after the first one asked and MEL_CATV_ALL_AHEAD tiles
 // more, not to the last one: the opening asks row1..row11 at once, the rest of them the shell
 // asks again by itself in a few ms, the screen below the first row is not empty for seconds. The
 // listing goes to memory page by page, so a repeat of a cancelled call is at once. No row asked
 // filled (a failure, out of time): "did not load" after the last tile and the rows past it closed
 // as at the end, in every reply until the view anew; no request till then. Never an empty
 // reply: the shell would ask again at once. php_server restarted: the listing goes on from the copy
-// of the first page (aio_catv_all_list); no listing (no copy, a search out of memory): 0 tiles from
+// of the first page (mel_catv_all_list); no listing (no copy, a search out of memory): 0 tiles from
 // the first row asked on; an id not of a row of the screen: 0 tiles with that id.
 /**
  * @param string $url
  * @param array<mixed> $ids
  * @return non-empty-list<array<string, mixed>>
  */
-function aio_catv_all_rows($url, $ids)
+function mel_catv_all_rows($url, $ids)
 {
     $start = microtime(true);
-    $list = aio_catv_all_list($url, false);
-    // Restored from a copy older than AIO_CAT_STATE_TTL: aio_cat_more would begin it anew, its first page
+    $list = mel_catv_all_list($url, false);
+    // Restored from a copy older than MEL_CAT_STATE_TTL: mel_cat_more would begin it anew, its first page
     // after the tiles on the screen, the titles again. As with no listing.
-    if ($list && !empty($list['restored']) && ($list['st']['t0'] > time() || time() - $list['st']['t0'] >= AIO_CAT_STATE_TTL))
+    if ($list && !empty($list['restored']) && ($list['st']['t0'] > time() || time() - $list['st']['t0'] >= MEL_CAT_STATE_TTL))
         $list = null;
     $asked = array();
     $bad = array();
@@ -2271,59 +2271,59 @@ function aio_catv_all_rows($url, $ids)
     {
         if (!is_string($id))
             continue;
-        if (preg_match('/^row([0-9]{1,3})$/D', $id, $m) && intval($m[1]) < AIO_CATV_ALL_ROWS)
+        if (preg_match('/^row([0-9]{1,3})$/D', $id, $m) && intval($m[1]) < MEL_CATV_ALL_ROWS)
             $asked[] = intval($m[1]);
         else
-            $bad[] = aio_catv_all_def($id, array());
+            $bad[] = mel_catv_all_def($id, array());
     }
     $out = array();
     if (!$list)
     {
-        aio_log('catalog: show all: rows: no listing');
-        for ($k = $asked ? min($asked) : AIO_CATV_ALL_ROWS; $k < AIO_CATV_ALL_ROWS; $k++)
-            $out[] = aio_catv_all_def("row$k", array());
+        mel_log('catalog: show all: rows: no listing');
+        for ($k = $asked ? min($asked) : MEL_CATV_ALL_ROWS; $k < MEL_CATV_ALL_ROWS; $k++)
+            $out[] = mel_catv_all_def("row$k", array());
     }
     else
     {
-        $rid = aio_catv_rid($list['st']['row']);
-        $cap = AIO_CATV_ALL_COLS * AIO_CATV_ALL_ROWS;
-        $want = $asked ? min($cap, AIO_CATV_ALL_COLS * (min($asked) + 2) + AIO_CATV_ALL_AHEAD) : 0;
+        $rid = mel_catv_rid($list['st']['row']);
+        $cap = MEL_CATV_ALL_COLS * MEL_CATV_ALL_ROWS;
+        $want = $asked ? min($cap, MEL_CATV_ALL_COLS * (min($asked) + 2) + MEL_CATV_ALL_AHEAD) : 0;
         $was = count($list['tiles']);
-        $failed = isset(AioCat::$all_failed[$rid]);
-        $err = $failed ? '' : aio_catv_fill($list, $rid, $want, AIO_CATV_ROW_S, $start);
+        $failed = isset(MelCat::$all_failed[$rid]);
+        $err = $failed ? '' : mel_catv_fill($list, $rid, $want, MEL_CATV_ROW_S, $start);
         $n = count($list['tiles']);
-        $end = aio_catv_all_end($list);
+        $end = mel_catv_all_end($list);
         foreach ($asked as $k)
         {
-            if ($end || AIO_CATV_ALL_COLS * ($k + 1) <= $n)
-                $out[] = aio_catv_all_row($rid, $k, $list);
+            if ($end || MEL_CATV_ALL_COLS * ($k + 1) <= $n)
+                $out[] = mel_catv_all_row($rid, $k, $list);
         }
         if (!$end && !$failed && $asked && !$out)
         {
             $failed = true;
-            AioCat::$all_failed[$rid] = true;
-            aio_log(sprintf('catalog: show all: rows: failed (%s), %d tiles', $err, $n));
+            MelCat::$all_failed[$rid] = true;
+            mel_log(sprintf('catalog: show all: rows: failed (%s), %d tiles', $err, $n));
         }
         if ($end || $failed)
         {
-            $full = intval($n / AIO_CATV_ALL_COLS);
-            for ($k = $full; $k < AIO_CATV_ALL_ROWS; $k++)
+            $full = intval($n / MEL_CATV_ALL_COLS);
+            for ($k = $full; $k < MEL_CATV_ALL_ROWS; $k++)
             {
                 if (in_array($k, $asked, true) && $end)
                     continue;
-                $row = aio_catv_all_row($rid, $k, $list);
+                $row = mel_catv_all_row($rid, $k, $list);
                 if ($failed && $k === $full)
-                    $row[PluginRow::data][PluginRegularRow::items][] = aio_catv_note_item($rid, 'cat_row_failed', aio_catv_ui_lang());
+                    $row[PluginRow::data][PluginRegularRow::items][] = mel_catv_note_item($rid, 'cat_row_failed', mel_catv_ui_lang());
                 $out[] = $row;
             }
         }
         if ($n > $was)
-            aio_log(sprintf('catalog: show all: rows: %d tiles, %d new%s, %.0f ms', $n, $n - $was, $end ? ', the end' : '',
+            mel_log(sprintf('catalog: show all: rows: %d tiles, %d new%s, %.0f ms', $n, $n - $was, $end ? ', the end' : '',
                 (microtime(true) - $start) * 1000));
     }
     $out = array_merge($out, $bad);
     // No id at all: a row the screen does not have, the shell drops it.
-    return $out ? $out : array(aio_catv_all_def('none', array()));
+    return $out ? $out : array(mel_catv_all_def('none', array()));
 }
 
 // --- The info panel: on every focus move, from memory only.
@@ -2341,7 +2341,7 @@ function aio_catv_all_rows($url, $ids)
  * @param int $options
  * @return array<string, mixed>
  */
-function aio_catv_info_label($text, $size, $color, $w, $h, $y, $spec = array(), $options = 0)
+function mel_catv_info_label($text, $size, $color, $w, $h, $y, $spec = array(), $options = 0)
 {
     $spec[GCompTtfLabelDef::text] = $text;
     $spec[GCompTtfLabelDef::font_size] = $size;
@@ -2367,13 +2367,13 @@ function aio_catv_info_label($text, $size, $color, $w, $h, $y, $spec = array(), 
  * @param int $width
  * @return array{int, string}
  */
-function aio_catv_fit($text, $max, $min, $width)
+function mel_catv_fit($text, $max, $min, $width)
 {
-    $w = aio_gc_w($text, 100);
+    $w = mel_gc_w($text, 100);
     $px = max($min, min($max, $w > 0 ? intval($width * 100 / $w) + 1 : $max));
-    while ($px > $min && aio_gc_w($text, $px) > $width)
+    while ($px > $min && mel_gc_w($text, $px) > $width)
         $px--;
-    return array($px, aio_gc_cut_w($text, $px, $width));
+    return array($px, mel_gc_cut_w($text, $px, $width));
 }
 
 // A label of the line of facts at $y: 30 px, LINE_H high as the other lines, $align its place (x, y
@@ -2382,21 +2382,21 @@ function aio_catv_fit($text, $max, $min, $width)
  * @param string $text
  * @param string $color
  * @param int $w
- * @param AioGcAlign $align
+ * @param MelGcAlign $align
  * @param int $halign
  * @return array<string, mixed>
  */
-function aio_catv_fact_label($text, $color, $w, $align, $halign = HALIGN_LEFT)
+function mel_catv_fact_label($text, $color, $w, $align, $halign = HALIGN_LEFT)
 {
-    $l = aio_catv_info_label(aio_clean($text), AIO_CATV_LINE_PX, $color, $w, AIO_CATV_LINE_H, 0,
+    $l = mel_catv_info_label(mel_clean($text), MEL_CATV_LINE_PX, $color, $w, MEL_CATV_LINE_H, 0,
         $halign === HALIGN_LEFT ? array() : array(GCompTtfLabelDef::halign => $halign));
     $l[GComponentDef::geom_def][GCompGeometryDef::align_def] = $align;
     return $l;
 }
 
-// The line of facts of aio_catv_facts at $y, all of it 30 px: the plates at their places, as their
+// The line of facts of mel_catv_facts at $y, all of it 30 px: the plates at their places, as their
 // widths are known; the text after them, cut with "…" to the room it has; the age plate after the
-// text right of it by the shell (aio_gc_next_right: the text is as wide as the font of the user
+// text right of it by the shell (mel_gc_next_right: the text is as wide as the font of the user
 // makes it), its label on it. The plates are pictures of their own size: the text in them, not
 // the plate, follows the font.
 /**
@@ -2404,11 +2404,11 @@ function aio_catv_fact_label($text, $color, $w, $align, $halign = HALIGN_LEFT)
  * @param int $y
  * @return list<array<string, mixed>>
  */
-function aio_catv_facts_labels($facts, $y)
+function mel_catv_facts_labels($facts, $y)
 {
-    $w = array('kp' => AIO_CATV_KP_W, 'imdb' => AIO_CATV_IMDB_W, 'age' => AIO_CATV_AGE_W);
+    $w = array('kp' => MEL_CATV_KP_W, 'imdb' => MEL_CATV_IMDB_W, 'age' => MEL_CATV_AGE_W);
     $last = end($facts);
-    $age_w = $last && $last[0] === 'age' ? AIO_CATV_AGE_GAP + AIO_CATV_AGE_W : 0;
+    $age_w = $last && $last[0] === 'age' ? MEL_CATV_AGE_GAP + MEL_CATV_AGE_W : 0;
     $defs = array();
     $x = 0;
     $text = false;
@@ -2417,35 +2417,35 @@ function aio_catv_facts_labels($facts, $y)
         list($kind, $s, $value) = $f;
         if ($kind === 'text')
         {
-            $x += $x ? AIO_CATV_REST_GAP : 0;
-            $defs[] = aio_catv_fact_label(aio_gc_cut_w(aio_clean($s), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W - $x - $age_w),
-                AIO_CATV_TEXT_COLOR, -1, array(GCompAlignDef::x => $x, GCompAlignDef::y => $y));
+            $x += $x ? MEL_CATV_REST_GAP : 0;
+            $defs[] = mel_catv_fact_label(mel_gc_cut_w(mel_clean($s), MEL_CATV_LINE_PX, MEL_CATV_TEXT_W - $x - $age_w),
+                MEL_CATV_TEXT_COLOR, -1, array(GCompAlignDef::x => $x, GCompAlignDef::y => $y));
             $text = true;
             continue;
         }
         $pw = $w[$kind];
-        $plate = AIO_CATV_IMG . "$kind.png";
+        $plate = MEL_CATV_IMG . "$kind.png";
         if ($kind === 'age' && $text)
         {
-            $defs[] = aio_gc_image(aio_gc_geom($pw, AIO_CATV_PLATE_H, aio_gc_next_right(AIO_CATV_AGE_GAP, AIO_CATV_PLATE_DY)), $plate);
-            $defs[] = aio_catv_fact_label($s, AIO_CATV_TEXT_COLOR, $pw, array(GCompAlignDef::y => -AIO_CATV_PLATE_DY,
+            $defs[] = mel_gc_image(mel_gc_geom($pw, MEL_CATV_PLATE_H, mel_gc_next_right(MEL_CATV_AGE_GAP, MEL_CATV_PLATE_DY)), $plate);
+            $defs[] = mel_catv_fact_label($s, MEL_CATV_TEXT_COLOR, $pw, array(GCompAlignDef::y => -MEL_CATV_PLATE_DY,
                 GCompAlignDef::halign => HALIGN_LEFT, GCompAlignDef::valign => VALIGN_TOP, GCompAlignDef::base_halign => HALIGN_LEFT,
                 GCompAlignDef::base_valign => VALIGN_TOP, GCompAlignDef::base_to_prev => true), HALIGN_CENTER);
             continue;
         }
-        $x += $x ? ($kind === 'age' ? AIO_CATV_AGE_GAP : AIO_CATV_PLATE_GAP) : 0;
-        $defs[] = aio_gc_image(aio_gc_at($pw, AIO_CATV_PLATE_H, $x, $y + AIO_CATV_PLATE_DY), $plate);
-        $in = $pw - 2 * AIO_CATV_PLATE_PAD;
+        $x += $x ? ($kind === 'age' ? MEL_CATV_AGE_GAP : MEL_CATV_PLATE_GAP) : 0;
+        $defs[] = mel_gc_image(mel_gc_at($pw, MEL_CATV_PLATE_H, $x, $y + MEL_CATV_PLATE_DY), $plate);
+        $in = $pw - 2 * MEL_CATV_PLATE_PAD;
         if ($kind === 'age')
-            $defs[] = aio_catv_fact_label($s, AIO_CATV_TEXT_COLOR, $pw, array(GCompAlignDef::x => $x, GCompAlignDef::y => $y), HALIGN_CENTER);
-        else if (aio_gc_w("$s $value", AIO_CATV_LINE_PX) <= $in)
+            $defs[] = mel_catv_fact_label($s, MEL_CATV_TEXT_COLOR, $pw, array(GCompAlignDef::x => $x, GCompAlignDef::y => $y), HALIGN_CENTER);
+        else if (mel_gc_w("$s $value", MEL_CATV_LINE_PX) <= $in)
         {
-            $at = array(GCompAlignDef::x => $x + AIO_CATV_PLATE_PAD, GCompAlignDef::y => $y);
-            $defs[] = aio_catv_fact_label($s, AIO_CATV_TEXT_COLOR, $in, $at);
-            $defs[] = aio_catv_fact_label($value, AIO_CATV_RATE_COLOR, $in, $at, HALIGN_RIGHT);
+            $at = array(GCompAlignDef::x => $x + MEL_CATV_PLATE_PAD, GCompAlignDef::y => $y);
+            $defs[] = mel_catv_fact_label($s, MEL_CATV_TEXT_COLOR, $in, $at);
+            $defs[] = mel_catv_fact_label($value, MEL_CATV_RATE_COLOR, $in, $at, HALIGN_RIGHT);
         }
         else
-            $defs[] = aio_catv_fact_label(aio_gc_cut_w("$s $value", AIO_CATV_LINE_PX, $pw), AIO_CATV_RATE_COLOR, $pw,
+            $defs[] = mel_catv_fact_label(mel_gc_cut_w("$s $value", MEL_CATV_LINE_PX, $pw), MEL_CATV_RATE_COLOR, $pw,
                 array(GCompAlignDef::x => $x, GCompAlignDef::y => $y), HALIGN_CENTER);
         $x += $pw;
     }
@@ -2460,50 +2460,50 @@ function aio_catv_facts_labels($facts, $y)
  * @param int $bottom
  * @return array<string, mixed>
  */
-function aio_catv_title_label($name, $bottom)
+function mel_catv_title_label($name, $bottom)
 {
     $spec = array(GCompTtfLabelDef::line_spacing => 0, GCompTtfLabelDef::valign => VALIGN_BOTTOM);
-    if (aio_gc_w($name, AIO_CATV_TITLE_MIN_PX) <= AIO_CATV_TEXT_W)
-        $fit = aio_catv_fit($name, AIO_CATV_TITLE_PX, AIO_CATV_TITLE_MIN_PX, AIO_CATV_TEXT_W);
+    if (mel_gc_w($name, MEL_CATV_TITLE_MIN_PX) <= MEL_CATV_TEXT_W)
+        $fit = mel_catv_fit($name, MEL_CATV_TITLE_PX, MEL_CATV_TITLE_MIN_PX, MEL_CATV_TEXT_W);
     else
     {
-        $fit = array(AIO_CATV_TITLE2_PX, implode(' ', aio_gc_wrap($name, AIO_CATV_TITLE2_PX, AIO_CATV_TEXT_W, 2, true)));
+        $fit = array(MEL_CATV_TITLE2_PX, implode(' ', mel_gc_wrap($name, MEL_CATV_TITLE2_PX, MEL_CATV_TEXT_W, 2, true)));
         $spec[GCompTtfLabelDef::max_num_lines] = 2;
     }
-    return aio_catv_info_label($fit[1], $fit[0], AIO_CATV_TITLE_COLOR, AIO_CATV_TEXT_W, AIO_CATV_TITLE_H, $bottom - AIO_CATV_TITLE_H,
+    return mel_catv_info_label($fit[1], $fit[0], MEL_CATV_TITLE_COLOR, MEL_CATV_TEXT_W, MEL_CATV_TITLE_H, $bottom - MEL_CATV_TITLE_H,
         $spec, GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
 }
 
 // The panel on the coordinates of the native one (movie_helper.php, the same info_r), 30 px lower,
-// nearer the rows: the title (aio_catv_title_label), none when the background has the logo in its
-// place (aio_catv_card); without the logo, the English name of the tile under the title when it is not
+// nearer the rows: the title (mel_catv_title_label), none when the background has the logo in its
+// place (mel_catv_card); without the logo, the English name of the tile under the title when it is not
 // the title (native_title of dunemdb_cache.php: of a title not in English, as those of the catalog are
 // in any interface), the title higher by its height. Then the facts, the genres and the
-// country, the cast: lines LINE_H high from AIO_CATV_LINES_Y; the description 13 px under the last one, as many lines
+// country, the cast: lines LINE_H high from MEL_CATV_LINES_Y; the description 13 px under the last one, as many lines
 // as the rest of the panel holds, as the native one counts them; the line of the history of a card watched or begun
-// (aio_pg_info_line; a title of "Мой список" with " · В моём списке" at its end, one not watched with these words
-// alone, aio_pg_info_words) under it at one place, the description the lines over it. No line for an empty field, the
+// (mel_pg_info_line; a title of "Мой список" with " · В моём списке" at its end, one not watched with these words
+// alone, mel_pg_info_words) under it at one place, the description the lines over it. No line for an empty field, the
 // next ones go up.
-// "Show all": the name of the row and the caption of the tile. null without a tile (aio_catv_tile) or a row in memory or a copy
-// (aio_catv_all_list: a stub, a message). No label with an empty text: whether the shell takes one is not known.
+// "Show all": the name of the row and the caption of the tile. null without a tile (mel_catv_tile) or a row in memory or a copy
+// (mel_catv_all_list: a stub, a message). No label with an empty text: whether the shell takes one is not known.
 /**
  * @param stdClass $in
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_info($in)
+function mel_catv_info($in)
 {
-    $id = aio_catv_in($in, 'item_id');
-    $t = aio_catv_tile($id, aio_tv_is_key(aio_catv_in($in, 'folder_key')));
-    $more_url = aio_catv_more_url($id);
-    $more = $more_url !== '' ? aio_catv_all_list($more_url, false) : null;
+    $id = mel_catv_in($in, 'item_id');
+    $t = mel_catv_tile($id, mel_tv_is_key(mel_catv_in($in, 'folder_key')));
+    $more_url = mel_catv_more_url($id);
+    $more = $more_url !== '' ? mel_catv_all_list($more_url, false) : null;
     if ($t)
     {
         $name = $t['name'];
         $sub = $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
-        $lang = aio_catv_ui_lang();
-        $facts = aio_catv_facts($t, $lang);
-        $lines = array(array(aio_catv_genre_line($t, $lang), AIO_CATV_TEXT_COLOR, AIO_CATV_DATA_MIN_PX),
-            array(aio_catv_cast_line($t), AIO_CATV_CAST_COLOR, AIO_CATV_LINE_PX));
+        $lang = mel_catv_ui_lang();
+        $facts = mel_catv_facts($t, $lang);
+        $lines = array(array(mel_catv_genre_line($t, $lang), MEL_CATV_TEXT_COLOR, MEL_CATV_DATA_MIN_PX),
+            array(mel_catv_cast_line($t), MEL_CATV_CAST_COLOR, MEL_CATV_LINE_PX));
         $desc = $t['description'];
     }
     else if ($more)
@@ -2511,78 +2511,78 @@ function aio_catv_info($in)
         $name = $more['st']['row']['name'];
         $sub = '';
         $facts = array();
-        $lines = array(array(aio_clean(aio_tr(aio_catv_ui_lang(), 'cat_more')), AIO_CATV_TEXT_COLOR, AIO_CATV_LINE_PX));
+        $lines = array(array(mel_clean(mel_tr(mel_catv_ui_lang(), 'cat_more')), MEL_CATV_TEXT_COLOR, MEL_CATV_LINE_PX));
         $desc = '';
     }
     // The hint of an empty "Мой список": its name and what it is for (the tile has the short words).
-    else if (aio_mlv_is_hint($id))
+    else if (mel_mlv_is_hint($id))
     {
-        $name = aio_tr(aio_catv_ui_lang(), 'ml_title');
+        $name = mel_tr(mel_catv_ui_lang(), 'ml_title');
         $sub = '';
         $facts = array();
         $lines = array();
-        $desc = aio_tr(aio_catv_ui_lang(), 'ml_hint');
+        $desc = mel_tr(mel_catv_ui_lang(), 'ml_hint');
     }
     else
         return null;
     $labels = array();
-    $name = aio_clean($name);
-    list($on) = aio_catv_id_mode($id);
-    $card = aio_catv_card($t, $on);
+    $name = mel_clean($name);
+    list($on) = mel_catv_id_mode($id);
+    $card = mel_catv_card($t, $on);
     // None under the logo. Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
-    $sub = $card['logo'] ? '' : implode(' ', aio_gc_wrap(aio_clean($sub), AIO_CATV_SUB_MIN_PX, AIO_CATV_TEXT_W, 2, true));
-    $bottom = AIO_CATV_TITLE_BOTTOM - ($sub !== '' ? AIO_CATV_SUB_H : 0);
+    $sub = $card['logo'] ? '' : implode(' ', mel_gc_wrap(mel_clean($sub), MEL_CATV_SUB_MIN_PX, MEL_CATV_TEXT_W, 2, true));
+    $bottom = MEL_CATV_TITLE_BOTTOM - ($sub !== '' ? MEL_CATV_SUB_H : 0);
     if ($name !== '' && !$card['logo'])
-        $labels[] = aio_catv_title_label($name, $bottom);
+        $labels[] = mel_catv_title_label($name, $bottom);
     if ($sub !== '')
-        $labels[] = aio_catv_info_label($sub, AIO_CATV_SUB_PX, AIO_CATV_SUB_COLOR, AIO_CATV_TEXT_W, AIO_CATV_SUB_H, $bottom + 4,
-            array(GCompTtfLabelDef::max_num_lines => 2, GCompTtfLabelDef::min_font_size => AIO_CATV_SUB_MIN_PX,
+        $labels[] = mel_catv_info_label($sub, MEL_CATV_SUB_PX, MEL_CATV_SUB_COLOR, MEL_CATV_TEXT_W, MEL_CATV_SUB_H, $bottom + 4,
+            array(GCompTtfLabelDef::max_num_lines => 2, GCompTtfLabelDef::min_font_size => MEL_CATV_SUB_MIN_PX,
                 GCompTtfLabelDef::line_spacing => 0));
-    $y = AIO_CATV_LINES_Y;
+    $y = MEL_CATV_LINES_Y;
     if ($facts)
     {
-        $labels = array_merge($labels, aio_catv_facts_labels($facts, $y));
-        $y += AIO_CATV_LINE_H;
+        $labels = array_merge($labels, mel_catv_facts_labels($facts, $y));
+        $y += MEL_CATV_LINE_H;
     }
     foreach ($lines as $l)
     {
         if ($l[0] === '')
             continue;
-        $fit = aio_catv_fit($l[0], AIO_CATV_LINE_PX, $l[2], AIO_CATV_TEXT_W);
-        $labels[] = aio_catv_info_label($fit[1], $fit[0], $l[1], AIO_CATV_TEXT_W, AIO_CATV_LINE_H, $y);
-        $y += AIO_CATV_LINE_H;
+        $fit = mel_catv_fit($l[0], MEL_CATV_LINE_PX, $l[2], MEL_CATV_TEXT_W);
+        $labels[] = mel_catv_info_label($fit[1], $fit[0], $l[1], MEL_CATV_TEXT_W, MEL_CATV_LINE_H, $y);
+        $y += MEL_CATV_LINE_H;
     }
     // Lines of 30 px 5 px apart, 13 px under the last line; cut here to them, "…" on the last one; the shell, with a
     // little more room, breaks them no sooner.
     $y += 13;
-    $step = AIO_CATV_LINE_PX + 5;
-    $n = intval((AIO_CATV_PANE_H - $y - AIO_CATV_LINE_PX) / $step);
-    // The line of the history (aio_pg_info_line), V2b of the designer: under the description, as the native one, at one
-    // place whatever the length of the description and the lines over it: its middle AIO_PG_INFO_GAP under the middle of
-    // the last line of a description of AIO_CATV_DESC_HIST lines under all the lines of the panel (facts, genres, cast);
+    $step = MEL_CATV_LINE_PX + 5;
+    $n = intval((MEL_CATV_PANE_H - $y - MEL_CATV_LINE_PX) / $step);
+    // The line of the history (mel_pg_info_line), V2b of the designer: under the description, as the native one, at one
+    // place whatever the length of the description and the lines over it: its middle MEL_PG_INFO_GAP under the middle of
+    // the last line of a description of MEL_CATV_DESC_HIST lines under all the lines of the panel (facts, genres, cast);
     // the description as many lines as are over it.
     // A title of "Мой список": " · В моём списке" after it; in the list with no history the words alone there.
-    $mid = aio_cp_mid_of($id);
-    $b = $t ? ($mid !== '' ? aio_cp_badge($mid, $t['type']) : aio_pg_tile_badge($t)) : null;
-    $ml = $t && aio_ml_in($t, $mid) !== '' ? aio_tr(aio_catv_ui_lang(), 'ml_in') : '';
+    $mid = mel_cp_mid_of($id);
+    $b = $t ? ($mid !== '' ? mel_cp_badge($mid, $t['type']) : mel_pg_tile_badge($t)) : null;
+    $ml = $t && mel_ml_in($t, $mid) !== '' ? mel_tr(mel_catv_ui_lang(), 'ml_in') : '';
     $hist = array();
     if ($b || $ml !== '')
     {
         // The top of the last line of such a description.
-        $last = AIO_CATV_LINES_Y + 3 * AIO_CATV_LINE_H + 13 + (AIO_CATV_DESC_HIST - 1) * $step;
+        $last = MEL_CATV_LINES_Y + 3 * MEL_CATV_LINE_H + 13 + (MEL_CATV_DESC_HIST - 1) * $step;
         $n = min($n, intval(($last - $y) / $step) + 1);
-        $hy = $last + AIO_CATV_DESC_MID + AIO_PG_INFO_GAP - intval(AIO_PG_INFO_H / 2);
-        $hist = $b ? aio_pg_info_line($b, $hy, aio_catv_ui_lang(), $ml !== '' ? " · $ml" : '') : aio_pg_info_words($ml, $hy);
+        $hy = $last + MEL_CATV_DESC_MID + MEL_PG_INFO_GAP - intval(MEL_PG_INFO_H / 2);
+        $hist = $b ? mel_pg_info_line($b, $hy, mel_catv_ui_lang(), $ml !== '' ? " · $ml" : '') : mel_pg_info_words($ml, $hy);
     }
-    $desc = implode(' ', aio_gc_wrap(aio_clean($desc), AIO_CATV_LINE_PX, AIO_CATV_TEXT_W, $n, true));
+    $desc = implode(' ', mel_gc_wrap(mel_clean($desc), MEL_CATV_LINE_PX, MEL_CATV_TEXT_W, $n, true));
     if ($desc !== '')
-        $labels[] = aio_catv_info_label($desc, AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR, AIO_CATV_TEXT_W, -1, $y,
+        $labels[] = mel_catv_info_label($desc, MEL_CATV_LINE_PX, MEL_CATV_TEXT_COLOR, MEL_CATV_TEXT_W, -1, $y,
             array(GCompTtfLabelDef::max_num_lines => $n, GCompTtfLabelDef::line_spacing => 5));
     $labels = array_merge($labels, $hist);
     $pane = array(
         GComponentDef::geom_def => array(
-            GCompGeometryDef::w => AIO_CATV_PANE_W,
-            GCompGeometryDef::h => AIO_CATV_PANE_H,
+            GCompGeometryDef::w => MEL_CATV_PANE_W,
+            GCompGeometryDef::h => MEL_CATV_PANE_H,
             GCompGeometryDef::align_def => array(GCompAlignDef::x => 0, GCompAlignDef::y => 0)),
         GComponentDef::kind => GCOMPONENT_PANEL,
         GComponentDef::id => 'info_pane',
@@ -2600,8 +2600,8 @@ function aio_catv_info($in)
         PluginRowsInfo::bg_poster_mode => false,
         PluginRowsInfo::playback_urls => null,
         PluginRowsInfo::item_id => $id);
-    if (aio_catv_in($in, 'folder_key') !== '')
-        $info[PluginRowsInfo::folder_key] = aio_catv_in($in, 'folder_key');
+    if (mel_catv_in($in, 'folder_key') !== '')
+        $info[PluginRowsInfo::folder_key] = mel_catv_in($in, 'folder_key');
     return array(
         GuiAction::handler_string_id => PLUGIN_UPDATE_ROWS_INFO_ACTION_ID,
         GuiAction::data => array(
@@ -2613,9 +2613,9 @@ function aio_catv_info($in)
 
 /**
  * @param string $url
- * @return AioAction
+ * @return MelAction
  */
-function aio_catv_invalidate($url)
+function mel_catv_invalidate($url)
 {
     return array(
         GuiAction::handler_string_id => PLUGIN_INVALIDATE_FOLDERS_ACTION_ID,
@@ -2626,66 +2626,66 @@ function aio_catv_invalidate($url)
 }
 
 // The screens of the history and the list opened, invalidated after the player, a mark, a change of the list: the main
-// screens of rows (AioCat::$mains), then "Мой список" and "Продолжить" of Fav 1 (AioMlv::$opened).
+// screens of rows (MelCat::$mains), then "Мой список" and "Продолжить" of Fav 1 (MelMlv::$opened).
 /**
  * @return list<string>
  */
-function aio_catv_mains_urls()
+function mel_catv_mains_urls()
 {
-    return array_merge(AioCat::$mains, array_keys(AioMlv::$opened));
+    return array_merge(MelCat::$mains, array_keys(MelMlv::$opened));
 }
 
-// The screens opened (aio_catv_mains_urls) invalidated first, then $post: the row "Continue" and the badges of
+// The screens opened (mel_catv_mains_urls) invalidated first, then $post: the row "Continue" and the badges of
 // the history anew when the shell is back on one (O2: whether a screen under the card is built again, the focus kept,
 // is not proven); none opened: $post as it is. Only on r25: on r24 a screen of rows lower in the stack built again may
 // go to the network for 3-7 s (not checked there). $also ('' none): a screen invalidated too, first of them, on r24 too
-// (the screen of a change of "Мой список", aio_ml_changed; the screen of a tick, aio_mlv_tick). $why: for the log.
-// $fav: the screens of Fav opened too; not by a tick (aio_mlv_tick: a screen of Fav lower in the stack built again would
+// (the screen of a change of "Мой список", mel_ml_changed; the screen of a tick, mel_mlv_tick). $why: for the log.
+// $fav: the screens of Fav opened too; not by a tick (mel_mlv_tick: a screen of Fav lower in the stack built again would
 // take the timer of the screen of the tick).
 /**
- * @param AioAction|null $post
+ * @param MelAction|null $post
  * @param string $why
  * @param string $also
  * @param bool $fav
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_mains_anew($post, $why, $also = '', $fav = true)
+function mel_catv_mains_anew($post, $why, $also = '', $fav = true)
 {
-    $mains = $fav ? aio_catv_mains_urls() : AioCat::$mains;
-    $urls = array_merge($also !== '' ? array($also) : array(), aio_fw_r() >= 25 ? $mains : array());
+    $mains = $fav ? mel_catv_mains_urls() : MelCat::$mains;
+    $urls = array_merge($also !== '' ? array($also) : array(), mel_fw_r() >= 25 ? $mains : array());
     $urls = array_values(array_unique($urls));
     if (!$urls)
     {
         if ($mains)
-            aio_log("catalog: no invalidate $why: r" . aio_fw_r());
+            mel_log("catalog: no invalidate $why: r" . mel_fw_r());
         return $post;
     }
-    aio_log("catalog: invalidate $why: " . implode(', ', $urls));
-    $a = aio_catv_invalidate($urls[0]);
+    mel_log("catalog: invalidate $why: " . implode(', ', $urls));
+    $a = mel_catv_invalidate($urls[0]);
     $a[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = $urls;
     $a[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $post;
     return $a;
 }
 
-// Back from the player (aio_finish), the action $post of the list of streams: aio_catv_mains_anew; invalidated, the time
-// of the operation for the log of the screen built again (AioCat::$inv_t).
+// Back from the player (mel_finish), the action $post of the list of streams: mel_catv_mains_anew; invalidated, the time
+// of the operation for the log of the screen built again (MelCat::$inv_t).
 /**
- * @param AioAction|null $post
- * @return AioAction|null
+ * @param MelAction|null $post
+ * @return MelAction|null
  */
-function aio_catv_after_player($post)
+function mel_catv_after_player($post)
 {
-    $a = aio_catv_mains_anew($post, 'after the player');
+    $a = mel_catv_mains_anew($post, 'after the player');
     if ($a !== $post)
-        AioCat::$inv_t = Aio::$t0 > 0 ? floatval(Aio::$t0) : microtime(true);
+        MelCat::$inv_t = Mel::$t0 > 0 ? floatval(Mel::$t0) : microtime(true);
     return $a;
 }
 
 // The items of POP UP of tile $id of screen $from (a main screen of the catalog, "Show all", the results of a search, an
-// EPF of "TV"): "Смотреть из…" of a title (aio_catv_src_items), those of the row "Continue" and the marks
-// (aio_cp_menu_items), then that of "Мой список" (aio_ml_menu_items), then a separator and the import of the Favorites
-// of the Dune (aio_mlv_menu_items: on the screen "Мой список" and its row); a separator after them is for the caller,
-// when items of the screen follow. A tile aio_catv_tile has not (the hint of "Мой список", '' - none in focus) is for
+// EPF of "TV"): "Смотреть из…" of a title (mel_catv_src_items), those of the row "Continue" and the marks
+// (mel_cp_menu_items), then that of "Мой список" (mel_ml_menu_items), then a separator and the import of the Favorites
+// of the Dune (mel_mlv_menu_items: on the screen "Мой список" and its row); a separator after them is for the caller,
+// when items of the screen follow. A tile mel_catv_tile has not (the hint of "Мой список", '' - none in focus) is for
 // each part to tell.
 /**
  * @param string $id
@@ -2693,50 +2693,50 @@ function aio_catv_after_player($post)
  * @param string $lang
  * @return list<array<string, mixed>>
  */
-function aio_catv_tile_menu($id, $from, $lang)
+function mel_catv_tile_menu($id, $from, $lang)
 {
-    return aio_catv_menu_join(array_merge(aio_catv_src_items($id, $from, $lang), aio_cp_menu_items($id, $from, $lang),
-        aio_ml_menu_items($id, $from, $lang)), aio_mlv_menu_items($id, $from, $lang));
+    return mel_catv_menu_join(array_merge(mel_catv_src_items($id, $from, $lang), mel_cp_menu_items($id, $from, $lang),
+        mel_ml_menu_items($id, $from, $lang)), mel_mlv_menu_items($id, $from, $lang));
 }
 
-// "Смотреть из…" of tile $id of screen $from (aio_src_watch_item: two ready profiles or more): a movie or a series with
-// an id of the meta (aio_cm_id, as of the own card), cat_src_menu of it; none on another.
+// "Смотреть из…" of tile $id of screen $from (mel_src_watch_item: two ready profiles or more): a movie or a series with
+// an id of the meta (mel_cm_id, as of the own card), cat_src_menu of it; none on another.
 /**
  * @param string $id
  * @param string $from
  * @param string $lang
  * @return list<array<string, mixed>>
  */
-function aio_catv_src_items($id, $from, $lang)
+function mel_catv_src_items($id, $from, $lang)
 {
-    $t = aio_catv_tile($id, aio_tv_is_from($from));
-    if (!$t || aio_cm_id($t) === '')
+    $t = mel_catv_tile($id, mel_tv_is_from($from));
+    if (!$t || mel_cm_id($t) === '')
         return array();
-    return aio_src_watch_item($lang, 'cat_src_menu', array('from' => $from, 'item' => $id));
+    return mel_src_watch_item($lang, 'cat_src_menu', array('from' => $from, 'item' => $id));
 }
 
 // cat_src of POP UP (p, n of the menu of sources of "Смотреть из…") of tile $in->item of screen $in->from: the list of
-// the title from that profile at once (aio_oc_tile_watch; the card of the Dune of the entry of "Мой список", else known
-// with no request - aio_cp_card_known, else asked as by ENTER); the profile gone or not ready - its dialog
-// (aio_src_watch_pick), no request; no such tile now - cat_outdated.
+// the title from that profile at once (mel_oc_tile_watch; the card of the Dune of the entry of "Мой список", else known
+// with no request - mel_cp_card_known, else asked as by ENTER); the profile gone or not ready - its dialog
+// (mel_src_watch_pick), no request; no such tile now - cat_outdated.
 /**
  * @param stdClass $in
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_src($in)
+function mel_catv_src($in)
 {
-    $lang = aio_catv_lang();
-    list($src, $err) = aio_src_watch_pick($in, $lang);
+    $lang = mel_catv_lang();
+    list($src, $err) = mel_src_watch_pick($in, $lang);
     if ($src === '' || $err)
         return $err;
-    $id = aio_catv_in($in, 'item');
-    $t = aio_catv_tile($id, aio_tv_is_from(aio_catv_in($in, 'from')));
-    if (!$t || aio_cm_id($t) === '')
-        return aio_error('cat_outdated');
-    $k = aio_mlv_key_of($id);
-    $e = $k !== null ? aio_mlv_entry($k) : null;
-    $dune = $e && $e['dune_id'] !== '' ? $e['dune_id'] : aio_cp_card_known($t, aio_cp_mid_of($id));
-    return aio_oc_tile_watch($t, $lang, $dune, $src);
+    $id = mel_catv_in($in, 'item');
+    $t = mel_catv_tile($id, mel_tv_is_from(mel_catv_in($in, 'from')));
+    if (!$t || mel_cm_id($t) === '')
+        return mel_error('cat_outdated');
+    $k = mel_mlv_key_of($id);
+    $e = $k !== null ? mel_mlv_entry($k) : null;
+    $dune = $e && $e['dune_id'] !== '' ? $e['dune_id'] : mel_cp_card_known($t, mel_cp_mid_of($id));
+    return mel_oc_tile_watch($t, $lang, $dune, $src);
 }
 
 // $a, then a separator and $b; no separator when one of them is empty.
@@ -2745,29 +2745,29 @@ function aio_catv_src($in)
  * @param list<array<string, mixed>> $b
  * @return list<array<string, mixed>>
  */
-function aio_catv_menu_join($a, $b)
+function mel_catv_menu_join($a, $b)
 {
     if ($a && $b)
         $a[] = array(GuiMenuItemDef::is_separator => true);
     return array_merge($a, $b);
 }
 
-// The input of an action of POP UP of a tile ($in: item, from, w of aio_catv_tile_menu): its tile (aio_catv_tile; of
+// The input of an action of POP UP of a tile ($in: item, from, w of mel_catv_tile_menu): its tile (mel_catv_tile; of
 // the file of "TV" there). -> id, from, w, t: the tile, null with err: cat_outdated (no such tile now), null (w not of
 // $ws).
 /**
  * @param stdClass $in
  * @param list<string> $ws
- * @return array{id: string, from: string, w: string, t: AioCatTile|null, err: AioAction|null}
+ * @return array{id: string, from: string, w: string, t: MelCatTile|null, err: MelAction|null}
  */
-function aio_catv_tile_act($in, $ws)
+function mel_catv_tile_act($in, $ws)
 {
-    $id = aio_catv_in($in, 'item');
-    $from = aio_catv_in($in, 'from');
-    $w = aio_catv_in($in, 'w');
+    $id = mel_catv_in($in, 'item');
+    $from = mel_catv_in($in, 'from');
+    $w = mel_catv_in($in, 'w');
     $ok = in_array($w, $ws, true);
-    $t = $ok ? aio_catv_tile($id, aio_tv_is_from($from)) : null;
-    return array('id' => $id, 'from' => $from, 'w' => $w, 't' => $t, 'err' => $ok && !$t ? aio_error('cat_outdated') : null);
+    $t = $ok ? mel_catv_tile($id, mel_tv_is_from($from)) : null;
+    return array('id' => $id, 'from' => $from, 'w' => $w, 't' => $t, 'err' => $ok && !$t ? mel_error('cat_outdated') : null);
 }
 
 // The tick of the timer of "Show all" $url, memory only. The view of stubs and the end known or
@@ -2776,15 +2776,15 @@ function aio_catv_tile_act($in, $ws)
 // no more ticks. The log: only a tick that gives other than the last one.
 /**
  * @param string $url
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_all_tick($url)
+function mel_catv_all_tick($url)
 {
-    $n = ++AioCat::$all_ticks;
-    $list = aio_catv_all_list($url, false);
+    $n = ++MelCat::$all_ticks;
+    $list = mel_catv_all_list($url, false);
     $act = null;
-    $rid = $list ? aio_catv_rid($list['st']['row']) : '';
-    if (!$list || !isset(AioCat::$all_stubs[$rid]))
+    $rid = $list ? mel_catv_rid($list['st']['row']) : '';
+    if (!$list || !isset(MelCat::$all_stubs[$rid]))
     {
         $what = 'null';
         $why = $list ? 'no stubs' : 'no listing';
@@ -2792,168 +2792,168 @@ function aio_catv_all_tick($url)
     else
     {
         $tiles = count($list['tiles']);
-        $end = aio_catv_all_end($list);
-        $failed = isset(AioCat::$all_failed[$rid]);
+        $end = mel_catv_all_end($list);
+        $failed = isset(MelCat::$all_failed[$rid]);
         $why = ($end ? 'the end, ' : ($failed ? 'failed, ' : '')) . "$tiles tiles";
         if ($end || $failed)
         {
             $what = 'invalidate';
-            $act = aio_catv_invalidate($url);
+            $act = mel_catv_invalidate($url);
         }
         else
         {
             $what = 'change_behaviour';
-            $act = aio_catv_all_again($url, AIO_CATV_ALL_TICK_MS);
+            $act = mel_catv_all_again($url, MEL_CATV_ALL_TICK_MS);
         }
     }
-    if ($what !== AioCat::$all_tick_last)
-        aio_log("catalog: show all: tick #$n: $why, $what");
-    AioCat::$all_tick_last = $what;
+    if ($what !== MelCat::$all_tick_last)
+        mel_log("catalog: show all: tick #$n: $why, $what");
+    MelCat::$all_tick_last = $what;
     return $act;
 }
 
-// Opens the screen "Show all" $url (aio_catv_more_url), named after its row.
+// Opens the screen "Show all" $url (mel_catv_more_url), named after its row.
 /**
  * @param string $url
- * @return AioAction
+ * @return MelAction
  */
-function aio_catv_all_open($url)
+function mel_catv_all_open($url)
 {
-    $list = aio_catv_all_list($url, false);
-    return aio_catv_open_act($url, $list ? $list['st']['row']['name'] : aio_tr(aio_catv_lang(), 'cat_title'));
+    $list = mel_catv_all_list($url, false);
+    return mel_catv_open_act($url, $list ? $list['st']['row']['name'] : mel_tr(mel_catv_lang(), 'cat_title'));
 }
 
 // ENTER on the part $id of the strip of the main screen $from. A tab not active: the screen of its
 // type in place of this one (erase_count 1: Back does not grow), the active one: nothing; $up (its
-// item of POP UP, aio_catv_menu): the active one too, the focus up on it. The icons: the dialog of
+// item of POP UP, mel_catv_menu): the active one too, the focus up on it. The icons: the dialog of
 // a search, the settings screen and the screens "Продолжить" and "Мой список".
 /**
  * @param string $id
  * @param string $from
  * @param bool $up
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_strip_enter($id, $from, $up = false)
+function mel_catv_strip_enter($id, $from, $up = false)
 {
     if ($id === 'tab_search')
-        return aio_catv_search_ask($from);
+        return mel_catv_search_ask($from);
     if ($id === 'tab_setup')
-        return aio_setup_open_act($from);
+        return mel_setup_open_act($from);
     if ($id === 'tab_continue')
-        return aio_mlv_open('continue', $from);
+        return mel_mlv_open('continue', $from);
     if ($id === 'tab_mylist')
-        return aio_mlv_open('list', $from);
+        return mel_mlv_open('list', $from);
     $tab = strval(substr($id, strlen('tab_')));
-    if (($tab !== 'movie' && $tab !== 'series') || !aio_catv_is_main($from) || (!$up && $tab === aio_catv_tab($from)))
+    if (($tab !== 'movie' && $tab !== 'series') || !mel_catv_is_main($from) || (!$up && $tab === mel_catv_tab($from)))
         return null;
-    return aio_replace_act(aio_catv_main_url($tab), '%tr%plugin_caption');
+    return mel_replace_act(mel_catv_main_url($tab), '%tr%plugin_caption');
 }
 
 // POP UP of the screen $from. A main screen: the parts of the strip, as ENTER on them (cat_part), so
 // the strip is at hand anywhere, with icons of the shell (the search and the setup as on the strip);
-// on a header above them "Configure list…" and a separator (aio_catv_rows_menu_items), on a tile of a
-// title its items and a separator (aio_catv_tile_menu). Else (the results of a search, "Show all") the items of a tile
+// on a header above them "Configure list…" and a separator (mel_catv_rows_menu_items), on a tile of a
+// title its items and a separator (mel_catv_tile_menu). Else (the results of a search, "Show all") the items of a tile
 // alone, no separator; none: nothing.
 /**
  * @param stdClass $in
  * @param string $from
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_menu($in, $from)
+function mel_catv_menu($in, $from)
 {
-    $hid = aio_catv_in($in, 'selected_header_id');
-    $tab = aio_catv_tab($from);
-    aio_log("catalog: POP UP: header '" . aio_cut($hid, 100) . "', row '" . aio_cut(aio_catv_in($in, 'selected_row_id'), 100) .
-        "', item '" . aio_cut(aio_catv_in($in, 'selected_item_id'), 100) . "'");
-    $lang = aio_catv_lang();
-    // On a tile (no header in focus): its items first (aio_catv_tile_menu), then those of the screen. The grid of r24
+    $hid = mel_catv_in($in, 'selected_header_id');
+    $tab = mel_catv_tab($from);
+    mel_log("catalog: POP UP: header '" . mel_cut($hid, 100) . "', row '" . mel_cut(mel_catv_in($in, 'selected_row_id'), 100) .
+        "', item '" . mel_cut(mel_catv_in($in, 'selected_item_id'), 100) . "'");
+    $lang = mel_catv_lang();
+    // On a tile (no header in focus): its items first (mel_catv_tile_menu), then those of the screen. The grid of r24
     // ("Мой список", "Продолжить") brings the tile as selected_media_url.
-    $item = aio_catv_in($in, 'selected_item_id');
+    $item = mel_catv_in($in, 'selected_item_id');
     if ($item === '')
-        $item = aio_catv_in($in, 'selected_media_url');
+        $item = mel_catv_in($in, 'selected_media_url');
     // A header in focus: no tile (on the screen "Мой список" the import still).
-    $items = aio_catv_tile_menu($hid === '' ? $item : '', $from, $lang);
+    $items = mel_catv_tile_menu($hid === '' ? $item : '', $from, $lang);
     if ($tab === '')
     {
         return $items ? array(
             GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
             GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items)) : null;
     }
-    // On a header "Configure list…" and its separator (aio_catv_rows_menu_items), then the parts of the strip.
-    $screen = aio_catv_rows_menu_items($hid, $tab, $from, $lang);
-    // The tabs with icons of their own, then the icons of the strip (aio_catv_strip_icons).
+    // On a header "Configure list…" and its separator (mel_catv_rows_menu_items), then the parts of the strip.
+    $screen = mel_catv_rows_menu_items($hid, $tab, $from, $lang);
+    // The tabs with icons of their own, then the icons of the strip (mel_catv_strip_icons).
     $parts = array_merge(
         array('tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png')),
-        aio_catv_strip_icons());
+        mel_catv_strip_icons());
     foreach ($parts as $id => $p)
     {
         $screen[] = array(
-            GuiMenuItemDef::caption => aio_tr($lang, $p[0]),
-            GuiMenuItemDef::icon_url => AIO_CATV_ICONS . $p[1],
-            GuiMenuItemDef::action => aio_input('cat_part', array('from' => $from, 'part' => $id)));
+            GuiMenuItemDef::caption => mel_tr($lang, $p[0]),
+            GuiMenuItemDef::icon_url => MEL_CATV_ICONS . $p[1],
+            GuiMenuItemDef::action => mel_input('cat_part', array('from' => $from, 'part' => $id)));
     }
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => aio_catv_menu_join($items, $screen)));
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => mel_catv_menu_join($items, $screen)));
 }
 
 // ENTER on a tile: selected_item_id on the rows, selected_media_url on the grid.
 /**
  * @param stdClass $in
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_enter($in)
+function mel_catv_enter($in)
 {
-    $id = aio_catv_in($in, 'selected_item_id');
+    $id = mel_catv_in($in, 'selected_item_id');
     if ($id === '')
-        $id = aio_catv_in($in, 'selected_media_url');
-    if (aio_catv_in($in, 'selected_row_id') === AIO_CATV_STRIP || preg_match('/^tab_[a-z]+$/D', $id))
-        return aio_catv_strip_enter($id, aio_catv_in($in, 'from'));
+        $id = mel_catv_in($in, 'selected_media_url');
+    if (mel_catv_in($in, 'selected_row_id') === MEL_CATV_STRIP || preg_match('/^tab_[a-z]+$/D', $id))
+        return mel_catv_strip_enter($id, mel_catv_in($in, 'from'));
     // "more:<rid>", of a search "more:<rid>:<id of the search>": an older search opens outdated.
-    $url = aio_catv_more_url($id);
+    $url = mel_catv_more_url($id);
     if ($url !== '')
-        return aio_catv_all_open($url);
+        return mel_catv_all_open($url);
     if (strpos($id, 'retry:') === 0)
-        return aio_catv_retry(aio_catv_in($in, 'from'));
+        return mel_catv_retry(mel_catv_in($in, 'from'));
     // A stub of "Show all": row<k>.<j>.
-    if (strpos($id, 'stub:') === 0 || strpos($id, 'empty:') === 0 || aio_mlv_is_hint($id) || preg_match('/^row[0-9]+\.[0-9]+$/D', $id))
+    if (strpos($id, 'stub:') === 0 || strpos($id, 'empty:') === 0 || mel_mlv_is_hint($id) || preg_match('/^row[0-9]+\.[0-9]+$/D', $id))
         return null;
     // The opening tries again, and the rows after it too; the shell brings sel_state, the focus stays.
     // "Show all" goes on from the same place.
     if (strpos($id, 'fail:') === 0)
     {
-        AioCat::$down = 0;
-        unset(AioCat::$all_failed[strval(substr($id, strlen('fail:')))]);
-        return aio_catv_invalidate(aio_catv_in($in, 'from'));
+        MelCat::$down = 0;
+        unset(MelCat::$all_failed[strval(substr($id, strlen('fail:')))]);
+        return mel_catv_invalidate(mel_catv_in($in, 'from'));
     }
     // A tile of the row "Continue": by its card of the Dune.
-    $mid = aio_cp_mid_of($id);
+    $mid = mel_cp_mid_of($id);
     if ($mid !== '')
-        return aio_cp_enter($mid, aio_catv_lang());
+        return mel_cp_enter($mid, mel_catv_lang());
     // A tile of "Мой список": by its card of the Dune when the entry knows it.
-    $ml = aio_mlv_enter($id, aio_catv_lang());
+    $ml = mel_mlv_enter($id, mel_catv_lang());
     if ($ml)
         return $ml;
-    $t = aio_catv_tile($id, aio_tv_is_from(aio_catv_in($in, 'from')));
+    $t = mel_catv_tile($id, mel_tv_is_from(mel_catv_in($in, 'from')));
     if (!$t)
     {
-        aio_log('catalog: ENTER: no such tile in memory');
-        return aio_error('cat_outdated');
+        mel_log('catalog: ENTER: no such tile in memory');
+        return mel_error('cat_outdated');
     }
-    return aio_card_enter($t, aio_catv_lang());
+    return mel_card_enter($t, mel_catv_lang());
 }
 
 // "Retry" of the main screen $from: rows asked anew, the screen of its tab by a new address.
 /**
  * @param string $from
- * @return AioAction
+ * @return MelAction
  */
-function aio_catv_retry($from)
+function mel_catv_retry($from)
 {
-    AioCat::$empty = array();
-    AioCat::$down = 0;
-    $tab = aio_catv_tab($from);
-    return aio_replace_act(aio_catv_main_url($tab !== '' ? $tab : 'movie', substr(aio_rid(), 0, 8)), aio_tr(aio_catv_lang(), 'cat_title'));
+    MelCat::$empty = array();
+    MelCat::$down = 0;
+    $tab = mel_catv_tab($from);
+    return mel_replace_act(mel_catv_main_url($tab !== '' ? $tab : 'movie', substr(mel_rid(), 0, 8)), mel_tr(mel_catv_lang(), 'cat_title'));
 }
 
 // The search $sid out of memory, its listings and the flags of their screens with it.
@@ -2961,36 +2961,36 @@ function aio_catv_retry($from)
  * @param string $sid
  * @return void
  */
-function aio_catv_search_drop($sid)
+function mel_catv_search_drop($sid)
 {
-    if (!isset(AioCat::$searches[$sid]))
+    if (!isset(MelCat::$searches[$sid]))
         return;
-    foreach (AioCat::$searches[$sid] as $r)
-        unset(AioCat::$lists[$r], AioCat::$all_failed[$r], AioCat::$all_stubs[$r]);
-    unset(AioCat::$searches[$sid], AioCat::$at_once[$sid]);
+    foreach (MelCat::$searches[$sid] as $r)
+        unset(MelCat::$lists[$r], MelCat::$all_failed[$r], MelCat::$all_stubs[$r]);
+    unset(MelCat::$searches[$sid], MelCat::$at_once[$sid]);
 }
 
 // The dialog of a search; the field goes to cat_search_apply and on as cat_q. The
 // query is in no action to run and no address: only in what the shell sends back
-// and in the field, which starts with the last one (AioCat::$last_q).
+// and in the field, which starts with the last one (MelCat::$last_q).
 /**
  * @param string $from
- * @return AioAction
+ * @return MelAction
  */
-function aio_catv_search_ask($from)
+function mel_catv_search_ask($from)
 {
     $p = array('from' => $from);
-    return aio_dialog_act(aio_tr(aio_catv_lang(), 'cat_search'), array(
-        aio_ctl('cat_q', GUI_CONTROL_TEXT_FIELD, array(
-            GuiTextFieldDef::initial_value => AioCat::$last_q,
+    return mel_dialog_act(mel_tr(mel_catv_lang(), 'cat_search'), array(
+        mel_ctl('cat_q', GUI_CONTROL_TEXT_FIELD, array(
+            GuiTextFieldDef::initial_value => MelCat::$last_q,
             GuiTextFieldDef::numeric => 0,
             GuiTextFieldDef::password => 0,
             GuiTextFieldDef::has_osk => 1,
             GuiTextFieldDef::always_active => 1,
             GuiTextFieldDef::width => 1400,
-            GuiTextFieldDef::apply_action => aio_input('cat_search_apply', $p),
+            GuiTextFieldDef::apply_action => mel_input('cat_search_apply', $p),
             GuiTextFieldDef::confirm_action => null), ''),
-        aio_ctl('', GUI_CONTROL_VGAP, array(GuiVGapDef::vgap => 500))),
+        mel_ctl('', GUI_CONTROL_VGAP, array(GuiVGapDef::vgap => 500))),
         array(ShowDialogActionData::preferred_width => 0));
 }
 
@@ -2999,18 +2999,18 @@ function aio_catv_search_ask($from)
 /**
  * @param string $q
  * @param string $from
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_search_run($q, $from)
+function mel_catv_search_run($q, $from)
 {
-    $q = aio_cat_query($q);
+    $q = mel_cat_query($q);
     if ($q === '')
         return null;
-    AioCat::$last_q = $q;
-    $lang = aio_catv_lang();
+    MelCat::$last_q = $q;
+    $lang = mel_catv_lang();
     // The no-break space at the end of cat_movies, cat_series is on purpose, in place of the number (the owner's choice); editors drop it as trailing whitespace: keep it.
-    $found = aio_cat_search($q, array('movie' => aio_tr($lang, 'cat_movies'), 'series' => aio_tr($lang, 'cat_series')));
-    $sid = substr(aio_rid(), 0, 8);
+    $found = mel_cat_search($q, array('movie' => mel_tr($lang, 'cat_movies'), 'series' => mel_tr($lang, 'cat_series')));
+    $sid = substr(mel_rid(), 0, 8);
     $rids = array();
     $failed = false;
     $whole = false;
@@ -3022,105 +3022,105 @@ function aio_catv_search_run($q, $from)
             continue;
         $st = $f['st'];
         $st['row']['sid'] = $sid;
-        $rid = aio_catv_rid($st['row']);
-        AioCat::$lists[$rid] = aio_catv_list($st, $res['tiles'], $res['stale']);
+        $rid = mel_catv_rid($st['row']);
+        MelCat::$lists[$rid] = mel_catv_list($st, $res['tiles'], $res['stale']);
         $rids[] = $rid;
         $whole = $res['err'] === '' && !$res['stale'];
     }
     if (!$rids)
-        return aio_error($failed ? 'cat_search_failed' : 'cat_search_none');
-    AioCat::$searches[$sid] = $rids;
+        return mel_error($failed ? 'cat_search_failed' : 'cat_search_none');
+    MelCat::$searches[$sid] = $rids;
     // From the results of a search, its "Show all" opened at once too: they are replaced, that
     // search holds no place. "Show all" of a search with the results under it: opened over it.
     $old = strpos($from, 'results:') === 0 ? strval(substr($from, strlen('results:'))) : '';
-    if (preg_match('/^cat_grid:[^:]+:([^:]+)$/D', $from, $m) && isset(AioCat::$at_once[$m[1]]))
+    if (preg_match('/^cat_grid:[^:]+:([^:]+)$/D', $from, $m) && isset(MelCat::$at_once[$m[1]]))
         $old = $m[1];
     $replace = $old !== '';
     if ($replace)
-        aio_catv_search_drop($old);
+        mel_catv_search_drop($old);
     // Not array_shift: an id of digits only is a key of int, it would renumber it.
-    while (count(AioCat::$searches) > AIO_CATV_SEARCHES)
+    while (count(MelCat::$searches) > MEL_CATV_SEARCHES)
     {
-        reset(AioCat::$searches);
-        aio_catv_search_drop(strval(key(AioCat::$searches)));
+        reset(MelCat::$searches);
+        mel_catv_search_drop(strval(key(MelCat::$searches)));
     }
-    // One type found: its "Show all" at once, named after its row, as aio_catv_all_open. Only as
+    // One type found: its "Show all" at once, named after its row, as mel_catv_all_open. Only as
     // the expanded row of r25: the grid of r24 has neither the search key nor the info panel. Not
     // after a failure or of a saved copy: the results say so on the row and do not ask again.
-    $one = count($rids) === 1 && $whole && aio_catv_all_ok();
+    $one = count($rids) === 1 && $whole && mel_catv_all_ok();
     if ($one)
-        AioCat::$at_once[$sid] = true;
+        MelCat::$at_once[$sid] = true;
     $url = $one ? "cat_grid:{$rids[0]}:$sid" : "cat_search:$sid";
-    $caption = $one ? AioCat::$lists[$rids[0]]['st']['row']['name'] : aio_tr($lang, 'cat_results');
-    return $replace ? aio_replace_act($url, $caption) : aio_catv_open_act($url, $caption);
+    $caption = $one ? MelCat::$lists[$rids[0]]['st']['row']['name'] : mel_tr($lang, 'cat_results');
+    return $replace ? mel_replace_act($url, $caption) : mel_catv_open_act($url, $caption);
 }
 
 /**
  * @param stdClass $in
  * @param string $control
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_input($in, $control)
+function mel_catv_input($in, $control)
 {
-    $from = aio_catv_in($in, 'from');
+    $from = mel_catv_in($in, 'from');
     if ($control === 'cat_info')
-        return aio_catv_info($in);
+        return mel_catv_info($in);
     if ($control === 'cat_enter')
-        return aio_tv_is_from($from) ? aio_tv_enter($in) : aio_catv_enter($in);
+        return mel_tv_is_from($from) ? mel_tv_enter($in) : mel_catv_enter($in);
     // show_all_action of a row: cat_more is the id of its tile "Show all".
     if ($control === 'cat_all')
     {
-        $url = aio_catv_more_url(aio_catv_in($in, 'cat_more'));
-        return $url !== '' ? aio_catv_all_open($url) : null;
+        $url = mel_catv_more_url(mel_catv_in($in, 'cat_more'));
+        return $url !== '' ? mel_catv_all_open($url) : null;
     }
-    // The tick of the timer of the main screen: the lazy step; more to ask - the timer again (as aio_catv_all_tick); some
-    // meta got - the screen built again with it (aio_pg_tick_anew), its view sets the timer; else nothing in the reply.
-    if ($control === 'cat_tick' && aio_catv_is_main($from))
+    // The tick of the timer of the main screen: the lazy step; more to ask - the timer again (as mel_catv_all_tick); some
+    // meta got - the screen built again with it (mel_pg_tick_anew), its view sets the timer; else nothing in the reply.
+    if ($control === 'cat_tick' && mel_catv_is_main($from))
     {
-        if (aio_pg_tick($from))
-            return aio_catv_tick_again($from);
-        return aio_pg_anew($from) ? aio_catv_invalidate($from) : null;
+        if (mel_pg_tick($from))
+            return mel_catv_tick_again($from);
+        return mel_pg_anew($from) ? mel_catv_invalidate($from) : null;
     }
     // The tick of the screen "Продолжить" or "Мой список": the lazy step of its tiles, the screen anew with what came.
-    if ($control === 'cat_tick' && aio_mlv_is_screen($from))
-        return aio_mlv_tick($from);
+    if ($control === 'cat_tick' && mel_mlv_is_screen($from))
+        return mel_mlv_tick($from);
     if ($control === 'cat_tick')
-        return aio_catv_all_tick($from);
+        return mel_catv_all_tick($from);
     if ($control === 'cat_retry')
-        return aio_tv_is_from($from) ? null : aio_catv_retry($from);
+        return mel_tv_is_from($from) ? null : mel_catv_retry($from);
     if ($control === 'cat_search')
-        return aio_catv_search_ask($from);
+        return mel_catv_search_ask($from);
     if ($control === 'cat_search_apply')
-        return aio_close_and(aio_input('cat_search_run', array('from' => $from)));
+        return mel_close_and(mel_input('cat_search_run', array('from' => $from)));
     if ($control === 'cat_search_run')
-        return aio_catv_search_run(aio_catv_in($in, 'cat_q'), $from);
+        return mel_catv_search_run(mel_catv_in($in, 'cat_q'), $from);
     if ($control === 'cat_menu')
-        return aio_tv_is_from($from) ? aio_tv_menu($in) : aio_catv_menu($in, $from);
+        return mel_tv_is_from($from) ? mel_tv_menu($in) : mel_catv_menu($in, $from);
     if ($control === 'cat_src_menu')
-        return aio_src_popup(aio_catv_lang(), 'cat_src', array('from' => $from, 'item' => aio_catv_in($in, 'item')));
+        return mel_src_popup(mel_catv_lang(), 'cat_src', array('from' => $from, 'item' => mel_catv_in($in, 'item')));
     if ($control === 'cat_src')
-        return aio_catv_src($in);
+        return mel_catv_src($in);
     if ($control === 'cat_part')
-        return aio_catv_strip_enter(aio_catv_in($in, 'part'), $from, true);
+        return mel_catv_strip_enter(mel_catv_in($in, 'part'), $from, true);
     if ($control === 'cat_rows_menu')
-        return aio_catv_rows_menu($from, aio_catv_in($in, 'sel'));
+        return mel_catv_rows_menu($from, mel_catv_in($in, 'sel'));
     if ($control === 'cat_rows_edit')
-        return aio_catv_rows_edit($from, aio_catv_in($in, 'sel'), aio_catv_in($in, 'g'));
+        return mel_catv_rows_edit($from, mel_catv_in($in, 'sel'), mel_catv_in($in, 'g'));
     if ($control === 'cat_rows_apply')
-        return aio_catv_rows_apply($in, $from);
+        return mel_catv_rows_apply($in, $from);
     if ($control === 'cat_hide')
-        return aio_cp_hide_act($in);
+        return mel_cp_hide_act($in);
     if ($control === 'cat_unhide')
-        return aio_cp_unhide_act($from);
+        return mel_cp_unhide_act($from);
     if ($control === 'cat_mark')
-        return aio_cp_mark($in);
+        return mel_cp_mark($in);
     if ($control === 'cat_ml')
-        return aio_ml_menu_act($in);
+        return mel_ml_menu_act($in);
     if ($control === 'cat_fav')
-        return aio_mlv_open(aio_catv_in($in, 'w'), $from);
+        return mel_mlv_open(mel_catv_in($in, 'w'), $from);
     if ($control === 'cat_ml_import')
-        return aio_mlv_import_ask($from);
+        return mel_mlv_import_ask($from);
     if ($control === 'cat_ml_import_go')
-        return aio_mlv_import($from, aio_mlv_import_budget(aio_catv_in($in, 's')));
+        return mel_mlv_import($from, mel_mlv_import_budget(mel_catv_in($in, 's')));
     return null;
 }

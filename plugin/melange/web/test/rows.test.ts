@@ -86,16 +86,16 @@ function click(page: Page, check: HTMLInputElement): void {
   check.dispatchEvent(new page.win.Event("change", { bubbles: true }) as unknown as Event);
 }
 
-// The cases of the rule of the groups, the same for aio_cat_by_groups (melange_catalog_test.php of the tests of the plugin).
+// The cases of the rule of the groups, the same for mel_cat_by_groups (melange_catalog_test.php of the tests of the plugin).
 const GROUP_CASES: { name: string; rows: [string, string][]; want: string[] }[] = JSON.parse(readFileSync(import.meta.dir + "/groups.json", "utf8"));
 
-describe("the rule of the groups, as aio_cat_by_groups (groups.json)", () => {
+describe("the rule of the groups, as mel_cat_by_groups (groups.json)", () => {
   test.each(GROUP_CASES.map((c) => [c.name, c] as const))("%s", (_name, c) => {
     expect(byGroups(c.rows.map(([key, group]) => ({ key, group })))).toEqual(c.want);
   });
 });
 
-describe("the rule of the choice, as aio_cat_user_rows: by the tab", () => {
+describe("the rule of the choice, as mel_cat_user_rows: by the tab", () => {
   test.each([
     ["nothing chosen: the start rows of the tab in the order of the list", "", ["movie/a", "movie/c"], ["series/a"]],
     ["a choice with the groups mixed: each group where its first row is", "movie/b movie/a movie/c", ["movie/b", "movie/c", "movie/a"], ["series/a"]],

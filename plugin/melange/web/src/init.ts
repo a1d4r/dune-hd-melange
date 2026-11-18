@@ -21,7 +21,7 @@ import { setupSave } from "./save";
 import { bindEyes, maskSecrets } from "./secrets";
 import { setupServerChecks, setupServers } from "./servers";
 
-// Written by aio_cgi_js(). i18n and jacredDefault: always written, checked by isInit() (else #init is broken);
+// Written by mel_cgi_js(). i18n and jacredDefault: always written, checked by isInit() (else #init is broken);
 // confs: {<mode>: {<value of a server option>: {cfg, login, pass, tpl, url?}}}, tplNew: the template for a new config;
 // both checked by createConfs(); profiles: the sources (parseProfiles).
 export interface Init {

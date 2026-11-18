@@ -1,5 +1,5 @@
 // The main screen: the state (#state) and the line of each screen (its dot and value) by the values of the form now,
-// by the rules of PHP (aio_cgi_state, aio_cgi_rows in cgi/lib/home.php): the same values give the same page.
+// by the rules of PHP (mel_cgi_state, mel_cgi_rows in cgi/lib/home.php): the same values give the same page.
 
 import type { Aio } from "./aio";
 import { byId, checkedValue, DATA, hostOf, ID, NAME, type Page, type Row, SERVER_BLOCK, SERVER_FIELD, trimmed, tsUserinfo, VALUE, watchOf } from "./dom";
@@ -11,7 +11,7 @@ export interface Home {
   saved(): void;
 }
 
-// The state of aio_cgi_state: key - Debrid without a key, conf - no config of the mode on the server, man - own
+// The state of mel_cgi_state: key - Debrid without a key, conf - no config of the mode on the server, man - own
 // config without its link, lp - Lampac without its address (v2), ok.
 type State = "key" | "conf" | "man" | "lp" | "ok";
 // A dot: ok, warn or "" (grey); "none" (no dot) is PHP only, on lines JS never sets.
@@ -82,7 +82,7 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
     const jacred = checkedValue(form, NAME.jacred) || "",
       jr = jacred !== VALUE.own ? jacred : hostOf(byId<HTMLInputElement>(doc, ID.jacredOwnUrl).value);
     setRow("voices", jr === "" ? "warn" : "ok", jr !== "" ? jr : texts.ownJacred);
-    // Never the login and password typed in the address (login:password@host): as aio_ts_userinfo (common.php).
+    // Never the login and password typed in the address (login:password@host): as mel_ts_userinfo (common.php).
     const ts = tsUserinfo(value(ID.ts))[0];
     setRow("torr", watch === VALUE.p2p ? "ok" : "", (ts !== "" ? ts : texts.tsDune) + (watch === VALUE.debrid ? " · " + texts.tsSpare : ""));
     const names = servers();

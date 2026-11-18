@@ -1,27 +1,27 @@
 <?php
 // The settings page (cgi/settings.php): the request and the reply - the
 // parameters, the language, the log line, the headers and the body of a
-// reply; curl - the one request of the page (aio_cgi_curl), redirects.
+// reply; curl - the one request of the page (mel_cgi_curl), redirects.
 
-define('AIO_CGI_MAX_BODY', 262144);
+define('MEL_CGI_MAX_BODY', 262144);
 
-// The language of the page: 'ru' or 'en', by aio_cgi_lang() on the first
+// The language of the page: 'ru' or 'en', by mel_cgi_lang() on the first
 // text (null: not yet).
-$AIO_CGI_LANG = null;
+$MEL_CGI_LANG = null;
 
 // The text in the language of the page.
-function aio_cgi_l($ru, $en)
+function mel_cgi_l($ru, $en)
 {
-    if ($GLOBALS['AIO_CGI_LANG'] === null)
-        $GLOBALS['AIO_CGI_LANG'] = aio_cgi_lang();
-    return $GLOBALS['AIO_CGI_LANG'] === 'en' ? $en : $ru;
+    if ($GLOBALS['MEL_CGI_LANG'] === null)
+        $GLOBALS['MEL_CGI_LANG'] = mel_cgi_lang();
+    return $GLOBALS['MEL_CGI_LANG'] === 'en' ? $en : $ru;
 }
 
 // The language of the Dune (interface_language of settings.properties, read
 // as the firmware does: dunelib/config_utils.php): russian -> ru, any other
 // -> en; no such file -> the first language of the browser (ru* -> ru, other
 // -> en); none -> ru.
-function aio_cgi_lang()
+function mel_cgi_lang()
 {
     $f = getenv('FS_PREFIX') . '/config/settings.properties';
     $cfg = array();
@@ -47,7 +47,7 @@ function aio_cgi_lang()
     return 'ru';
 }
 
-function aio_cgi_param($arr, $key)
+function mel_cgi_param($arr, $key)
 {
     if (!isset($arr[$key]) || !is_string($arr[$key]))
         return '';
@@ -55,12 +55,12 @@ function aio_cgi_param($arr, $key)
 }
 
 // A reason for the CGI log; never a value of the form.
-function aio_cgi_log($msg)
+function mel_cgi_log($msg)
 {
-    file_put_contents('php://stderr', AIO_CGI_NAME . " settings: $msg\n");
+    file_put_contents('php://stderr', MEL_CGI_NAME . " settings: $msg\n");
 }
 
-function aio_cgi_headers($code, $type)
+function mel_cgi_headers($code, $type)
 {
     $reasons = array(303 => 'See Other', 403 => 'Forbidden', 404 => 'Not Found', 405 => 'Method Not Allowed',
         500 => 'Internal Server Error');
@@ -73,26 +73,26 @@ function aio_cgi_headers($code, $type)
     header('Referrer-Policy: no-referrer');
 }
 
-function aio_cgi_send($code, $type, $body)
+function mel_cgi_send($code, $type, $body)
 {
-    aio_cgi_headers($code, $type);
+    mel_cgi_headers($code, $type);
     echo $body;
     exit(0);
 }
 
 // JSON for the script of the page; never a value of the form (passwords).
-function aio_cgi_json($code, $data)
+function mel_cgi_json($code, $data)
 {
-    aio_cgi_send($code, 'application/json', json_encode($data));
+    mel_cgi_send($code, 'application/json', json_encode($data));
 }
 
-function aio_cgi_forbidden()
+function mel_cgi_forbidden()
 {
-    aio_cgi_send(403, 'text/plain', "403 Forbidden\n");
+    mel_cgi_send(403, 'text/plain', "403 Forbidden\n");
 }
 
 // Location of a redirect -> the address it points to (relative to $base).
-function aio_cgi_location($base, $loc)
+function mel_cgi_location($base, $loc)
 {
     if (preg_match('~^[A-Za-z][A-Za-z0-9+.\-]*:~', $loc))
         return $loc;
@@ -107,16 +107,16 @@ function aio_cgi_location($base, $loc)
 // The one curl request of the page, no redirects followed: $o - method
 // ('GET' by default; POST, PUT), body (of a POST or PUT), headers (the request
 // headers), connect, total (timeouts, s; 3 and 8 by default), max (the body
-// read at most, AIO_CGI_MAX_BODY by default), ua (User-Agent,
+// read at most, MEL_CGI_MAX_BODY by default), ua (User-Agent,
 // Melange-Dune/<version> by default), gzip (any Content-Encoding) ->
 // array(errno: curl errno, 0 also when cut, -1 its options refused; code:
 // HTTP code; body; cut: over max (curl 23), the start is there; location:
 // Location of the reply; cookies: its Set-Cookie as "a=b; c=d"; error: the
 // text of curl; connected: a connection was made).
-function aio_cgi_curl($url, $o)
+function mel_cgi_curl($url, $o)
 {
     $o += array('method' => 'GET', 'body' => null, 'headers' => array(), 'connect' => 3, 'total' => 8,
-        'max' => AIO_CGI_MAX_BODY, 'ua' => 'Melange-Dune/' . AIO_VERSION, 'gzip' => false);
+        'max' => MEL_CGI_MAX_BODY, 'ua' => 'Melange-Dune/' . MEL_VERSION, 'gzip' => false);
     $max = $o['max'];
     $body = '';
     $loc = '';
@@ -143,7 +143,7 @@ function aio_cgi_curl($url, $o)
         CURLOPT_CONNECTTIMEOUT => $o['connect'],
         CURLOPT_TIMEOUT => $o['total'],
         // HTTPS works only with the firmware CA bundle.
-        CURLOPT_CAINFO => AIO_CA_BUNDLE,
+        CURLOPT_CAINFO => MEL_CA_BUNDLE,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
         CURLOPT_USERAGENT => $o['ua'],
@@ -177,37 +177,37 @@ function aio_cgi_curl($url, $o)
 
 // One request of the checks of a server, a key, JacRed: POST of $fields
 // (null: GET) with the cookies $cookie (or the request headers $headers
-// instead), the body up to $max -> the reply of aio_cgi_curl. 3 s to connect,
+// instead), the body up to $max -> the reply of mel_cgi_curl. 3 s to connect,
 // 8 s in all.
-function aio_cgi_srv_req($url, $fields, $cookie, $headers = null, $max = AIO_CGI_MAX_BODY)
+function mel_cgi_srv_req($url, $fields, $cookie, $headers = null, $max = MEL_CGI_MAX_BODY)
 {
-    // As aio_http_post of the plugin: no Referer or Origin, no Expect.
-    return aio_cgi_curl($url, array(
+    // As mel_http_post of the plugin: no Referer or Origin, no Expect.
+    return mel_cgi_curl($url, array(
         'method' => is_array($fields) ? 'POST' : 'GET',
         'body' => is_array($fields) ? http_build_query($fields, '', '&') : null,
         'headers' => is_array($headers) ? $headers : ($cookie !== '' ? array('Expect:', "Cookie: $cookie") : array('Expect:')),
         'connect' => 3,
         'total' => 8,
         'max' => $max,
-        'ua' => 'Melange-Dune/' . AIO_VERSION));
+        'ua' => 'Melange-Dune/' . MEL_VERSION));
 }
 
 // $what: the service at the address for "connection refused", '' for a client.
-function aio_cgi_srv_net($errno, $what = '')
+function mel_cgi_srv_net($errno, $what = '')
 {
     if ($errno === 7)
-        return sprintf(aio_cgi_l('Нет связи: соединение отклонено — %s по этому адресу не запущен?',
-            'No connection: refused - is %s running at this address?'), $what !== '' ? $what : aio_cgi_l('клиент', 'the client'));
+        return sprintf(mel_cgi_l('Нет связи: соединение отклонено — %s по этому адресу не запущен?',
+            'No connection: refused - is %s running at this address?'), $what !== '' ? $what : mel_cgi_l('клиент', 'the client'));
     if ($errno === 28)
-        return aio_cgi_l('Нет связи: сервер не ответил вовремя', 'No connection: the server did not answer in time');
+        return mel_cgi_l('Нет связи: сервер не ответил вовремя', 'No connection: the server did not answer in time');
     if ($errno === 6)
-        return aio_cgi_l('Нет связи: имя сервера не найдено', 'No connection: the server name was not found');
-    return $errno === -1 ? aio_cgi_l('Нет связи (curl не настроен)', 'No connection (curl not set up)') :
-        aio_cgi_l('Нет связи', 'No connection') . " (curl $errno)";
+        return mel_cgi_l('Нет связи: имя сервера не найдено', 'No connection: the server name was not found');
+    return $errno === -1 ? mel_cgi_l('Нет связи (curl не настроен)', 'No connection (curl not set up)') :
+        mel_cgi_l('Нет связи', 'No connection') . " (curl $errno)";
 }
 
 // post_max_size of php.ini in bytes ("8K").
-function aio_cgi_post_max()
+function mel_cgi_post_max()
 {
     $v = trim((string) ini_get('post_max_size'));
     $n = intval($v);

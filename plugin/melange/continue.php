@@ -3,23 +3,23 @@
 // history of Melange begun and not watched, a series at its next episode, of the state of the history (progress.php)
 // with no request; its tiles by movie_id, ENTER the own card (the pair of links.php, asked once when none).
 // The keys of the translations of it are "cp_..." (catalog progress); "cp" in the names of its code is "Continue".
-// Needs progress.php, links.php, history.php, main.php (aio_tr, aio_log, aio_error, aio_data_dir, aio_file_sig,
-// aio_write_file, AIO_SUP_ID), catalog.php (aio_cat_tile, aio_cat_row_state), catalog_card.php (aio_card_open,
-// aio_card_id, aio_card_local_imdb), card_meta.php (aio_cm_id, aio_cm_get), view_card_series.php (aio_cm_eps_before),
-// view_catalog.php (aio_catv_*), view_card.php (aio_oc_enter), cp_meta.php (aio_cpm_tile, AioCpm), view_my_list.php
-// (aio_ml_changed).
+// Needs progress.php, links.php, history.php, main.php (mel_tr, mel_log, mel_error, mel_data_dir, mel_file_sig,
+// mel_write_file, MEL_SUP_ID), catalog.php (mel_cat_tile, mel_cat_row_state), catalog_card.php (mel_card_open,
+// mel_card_id, mel_card_local_imdb), card_meta.php (mel_cm_id, mel_cm_get), view_card_series.php (mel_cm_eps_before),
+// view_catalog.php (mel_catv_*), view_card.php (mel_oc_enter), cp_meta.php (mel_cpm_tile, MelCpm), view_my_list.php
+// (mel_ml_changed).
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
-// The rid of the row: its tiles are "continue:<movie_id>" (aio_catv_tile), its rows "items:continue", "title:continue".
-define('AIO_CP_RID', 'continue');
+// The rid of the row: its tiles are "continue:<movie_id>" (mel_catv_tile), its rows "items:continue", "title:continue".
+define('MEL_CP_RID', 'continue');
 // In data_dir: the cards taken off the row ("Убрать из «Продолжить»"), movie_id => the end of the latest record then.
-define('AIO_CP_HIDDEN_FILE', 'cp_hidden.json');
+define('MEL_CP_HIDDEN_FILE', 'cp_hidden.json');
 // Cards kept in it at most: the oldest ends go first.
-define('AIO_CP_HIDDEN_MAX', 500);
+define('MEL_CP_HIDDEN_MAX', 500);
 
-class AioCp
+class MelCp
 {
-    // AIO_CP_HIDDEN_FILE as read ($hidden_sig: aio_file_sig of it then); null: not read.
+    // MEL_CP_HIDDEN_FILE as read ($hidden_sig: mel_file_sig of it then); null: not read.
     /** @var array<string, int>|null */
     public static $hidden = null;
     /** @var string */
@@ -33,41 +33,41 @@ class AioCp
  * @param stdClass|null $w
  * @return bool
  */
-function aio_cp_ours($w)
+function mel_cp_ours($w)
 {
-    return $w !== null && isset($w->uid) && is_string($w->uid) && strpos($w->uid, AIO_SUP_ID . ':') === 0;
+    return $w !== null && isset($w->uid) && is_string($w->uid) && strpos($w->uid, MEL_SUP_ID . ':') === 0;
 }
 
-// The card $mid of the state $ent (aio_pg_index) in the row, null for none: a movie (no episode in the history, the
-// pair not of a series) by its latest record, of Melange, begun (aio_pg_begun) and not watched, not marked in
-// watched_movies.txt; a series by its latest episode record of Melange and its badge (aio_pg_badge: the episode the
+// The card $mid of the state $ent (mel_pg_index) in the row, null for none: a movie (no episode in the history, the
+// pair not of a series) by its latest record, of Melange, begun (mel_pg_begun) and not watched, not marked in
+// watched_movies.txt; a series by its latest episode record of Melange and its badge (mel_pg_badge: the episode the
 // own card offers after the one watched, by the episodes of the pair out today; begun; watched with no list of them),
 // none when all of them out are watched (all) or no episode is watched or begun. -> type, end (of the latest record, the
 // order of the row), w (the record: the title, the poster), s, e (of the badge; -1 of a movie), b (the badge the row
 // draws).
 /**
  * @param string $mid
- * @param AioPgEntry $ent
- * @return array{type: string, end: int, w: stdClass, s: int, e: int, b: AioPgBadge|null}|null
+ * @param MelPgEntry $ent
+ * @return array{type: string, end: int, w: stdClass, s: int, e: int, b: MelPgBadge|null}|null
  */
-function aio_cp_item($mid, $ent)
+function mel_cp_item($mid, $ent)
 {
-    $links = aio_pg_links();
+    $links = mel_pg_links();
     $l = isset($links[$mid]) ? $links[$mid] : null;
     $st = $ent['series'];
-    if ($st === null && aio_cp_pair_type($l, false) !== 'series')
+    if ($st === null && mel_cp_pair_type($l, false) !== 'series')
     {
         $w = $ent['w'];
-        if ($ent['movie_mark'] || !aio_cp_ours($w) || $ent['seen'])
+        if ($ent['movie_mark'] || !mel_cp_ours($w) || $ent['seen'])
             return null;
-        list(, , $pos, $len) = aio_wh_rec($w);
-        return aio_pg_begun($pos, $len) ? array('type' => 'movie', 'end' => $ent['end'], 'w' => $w, 's' => -1, 'e' => -1,
-            'b' => aio_pg_badge($ent, false, $mid)) : null;
+        list(, , $pos, $len) = mel_wh_rec($w);
+        return mel_pg_begun($pos, $len) ? array('type' => 'movie', 'end' => $ent['end'], 'w' => $w, 's' => -1, 'e' => -1,
+            'b' => mel_pg_badge($ent, false, $mid)) : null;
     }
     $w = $st ? $st[0] : null;
-    if (!$w || !aio_cp_ours($w))
+    if (!$w || !mel_cp_ours($w))
         return null;
-    $b = aio_pg_badge($ent, true, $mid);
+    $b = mel_pg_badge($ent, true, $mid);
     if (!$b || $b['all'] || $b['e'] < 0)
         return null;
     return array('type' => 'series', 'end' => $ent['end'], 'w' => $w, 's' => $b['s'], 'e' => $b['e'], 'b' => $b);
@@ -75,25 +75,25 @@ function aio_cp_item($mid, $ent)
 
 // The cards of the row of the types $types (movie, series), the latest records first, $max at most (the cards after them
 // not looked at; the screen "Продолжить" of Fav 1: all of them, view_my_list.php), none taken off it with no record
-// ending later (aio_cp_hidden): movie_id => aio_cp_item.
+// ending later (mel_cp_hidden): movie_id => mel_cp_item.
 /**
  * @param list<string> $types
  * @param int $max
- * @return array<string, array{type: string, end: int, w: stdClass, s: int, e: int, b: AioPgBadge|null}>
+ * @return array<string, array{type: string, end: int, w: stdClass, s: int, e: int, b: MelPgBadge|null}>
  */
-function aio_cp_items($types, $max = AIO_CATV_ROW_TILES)
+function mel_cp_items($types, $max = MEL_CATV_ROW_TILES)
 {
-    $idx = aio_pg_index();
+    $idx = mel_pg_index();
     $ends = array();
     foreach ($idx as $mid => $ent)
         $ends[strval($mid)] = $ent['end'];
     arsort($ends);
-    $hidden = aio_cp_hidden();
+    $hidden = mel_cp_hidden();
     $res = array();
     foreach ($ends as $mid => $end)
     {
         $mid = strval($mid);
-        $it = aio_cp_off($hidden, $mid, $end) ? null : aio_cp_item($mid, $idx[$mid]);
+        $it = mel_cp_off($hidden, $mid, $end) ? null : mel_cp_item($mid, $idx[$mid]);
         if ($it && in_array($it['type'], $types, true))
         {
             $res[$mid] = $it;
@@ -112,23 +112,23 @@ function aio_cp_items($types, $max = AIO_CATV_ROW_TILES)
  * @param string $id
  * @return string
  */
-function aio_cp_mid_of($id)
+function mel_cp_mid_of($id)
 {
-    list(, $id) = aio_catv_id_mode($id);
-    $p = AIO_CP_RID . ':';
+    list(, $id) = mel_catv_id_mode($id);
+    $p = MEL_CP_RID . ':';
     $mid = strncmp($id, $p, strlen($p)) === 0 ? strval(substr($id, strlen($p))) : '';
-    return preg_match('/^' . AIO_DUNE_ID . '$/D', $mid) ? $mid : '';
+    return preg_match('/^' . MEL_DUNE_ID . '$/D', $mid) ? $mid : '';
 }
 
-// The tiles of the rows in memory (AioCat::$lists) by "<type>|imdb:<IMDb>" and "<type>|tmdb:<TMDB>", the first one of
-// each: for the tiles of the whole row (aio_cp_row_defs).
+// The tiles of the rows in memory (MelCat::$lists) by "<type>|imdb:<IMDb>" and "<type>|tmdb:<TMDB>", the first one of
+// each: for the tiles of the whole row (mel_cp_row_defs).
 /**
- * @return array<string, AioCatTile>
+ * @return array<string, MelCatTile>
  */
-function aio_cp_tile_map()
+function mel_cp_tile_map()
 {
     $out = array();
-    foreach (AioCat::$lists as $list)
+    foreach (MelCat::$lists as $list)
     {
         foreach ($list['tiles'] as $t)
         {
@@ -142,18 +142,18 @@ function aio_cp_tile_map()
     return $out;
 }
 
-// The first tile of the rows in memory of type $type and IMDb $imdb, else of TMDB $tmdb ('': none), as aio_cp_tile_map
+// The first tile of the rows in memory of type $type and IMDb $imdb, else of TMDB $tmdb ('': none), as mel_cp_tile_map
 // gives it, of one pass (a tile of the info panel or POP UP: no map of thousands of tiles); null for none.
 /**
  * @param string $type
  * @param string $imdb
  * @param string $tmdb
- * @return AioCatTile|null
+ * @return MelCatTile|null
  */
-function aio_cp_tile_find($type, $imdb, $tmdb)
+function mel_cp_tile_find($type, $imdb, $tmdb)
 {
     $by_tmdb = null;
-    foreach (AioCat::$lists as $list)
+    foreach (MelCat::$lists as $list)
     {
         foreach ($list['tiles'] as $t)
         {
@@ -168,16 +168,16 @@ function aio_cp_tile_find($type, $imdb, $tmdb)
     return $by_tmdb;
 }
 
-// The tile of map $map (aio_cp_tile_map) of a title of type $type with IMDb $imdb, else TMDB $tmdb ('': none); null for
+// The tile of map $map (mel_cp_tile_map) of a title of type $type with IMDb $imdb, else TMDB $tmdb ('': none); null for
 // none.
 /**
- * @param array<string, AioCatTile> $map
+ * @param array<string, MelCatTile> $map
  * @param string $type
  * @param string $imdb
  * @param string $tmdb
- * @return AioCatTile|null
+ * @return MelCatTile|null
  */
-function aio_cp_map_tile($map, $type, $imdb, $tmdb)
+function mel_cp_map_tile($map, $type, $imdb, $tmdb)
 {
     if ($imdb !== '' && isset($map["$type|imdb:$imdb"]))
         return $map["$type|imdb:$imdb"];
@@ -185,34 +185,34 @@ function aio_cp_map_tile($map, $type, $imdb, $tmdb)
 }
 
 // The best tile of no request of a title of type $type with IMDb $imdb, else TMDB $tmdb ('': none): the tile of its
-// meta kept (aio_cpm_tile, cp_meta.php: of a row in memory or on the disk when a row "Continue" or "Мой список" was
-// built, aio_cpm_build; asked; of the own card), else a tile of a row in memory ($map, aio_cp_map_tile; null:
-// aio_cp_tile_find); null: neither (the caller has a tile of its own record: of the history, of "Мой список", of the
+// meta kept (mel_cpm_tile, cp_meta.php: of a row in memory or on the disk when a row "Continue" or "Мой список" was
+// built, mel_cpm_build; asked; of the own card), else a tile of a row in memory ($map, mel_cp_map_tile; null:
+// mel_cp_tile_find); null: neither (the caller has a tile of its own record: of the history, of "Мой список", of the
 // Favorites of the Dune).
 /**
  * @param string $type
  * @param string $imdb
  * @param string $tmdb
- * @param array<string, AioCatTile>|null $map
- * @return AioCatTile|null
+ * @param array<string, MelCatTile>|null $map
+ * @return MelCatTile|null
  */
-function aio_cp_best_tile($type, $imdb, $tmdb, $map = null)
+function mel_cp_best_tile($type, $imdb, $tmdb, $map = null)
 {
-    $t = aio_cpm_tile($type, $imdb, $tmdb);
+    $t = mel_cpm_tile($type, $imdb, $tmdb);
     if ($t)
         return $t;
-    return $map === null ? aio_cp_tile_find($type, $imdb, $tmdb) : aio_cp_map_tile($map, $type, $imdb, $tmdb);
+    return $map === null ? mel_cp_tile_find($type, $imdb, $tmdb) : mel_cp_map_tile($map, $type, $imdb, $tmdb);
 }
 
 // The type of a card of the history by its pair $l (null: none): its type, else a series by a TMDB of a series alone
 // (tmdbtv, no tmdb: the TMDB numbers of movies and series are not the same ids), else a series if $series (the card has
 // episode records), else a movie.
 /**
- * @param AioPgLink|array{}|null $l
+ * @param MelPgLink|array{}|null $l
  * @param bool $series
  * @return string
  */
-function aio_cp_pair_type($l, $series)
+function mel_cp_pair_type($l, $series)
 {
     if (isset($l['type']))
         return $l['type'];
@@ -221,99 +221,99 @@ function aio_cp_pair_type($l, $series)
     return $series ? 'series' : 'movie';
 }
 
-// The type, IMDb and TMDB ('' none) of card $mid of the history by its pair (links.php), its type by aio_cp_pair_type
+// The type, IMDb and TMDB ('' none) of card $mid of the history by its pair (links.php), its type by mel_cp_pair_type
 // ($series: the card has episodes); a local card of Melange with no pair: a movie of the IMDb of its id
-// (aio_card_local_imdb).
+// (mel_card_local_imdb).
 /**
  * @param string $mid
  * @param bool $series
  * @return array{string, string, string}
  */
-function aio_cp_ids($mid, $series)
+function mel_cp_ids($mid, $series)
 {
-    $links = aio_pg_links();
+    $links = mel_pg_links();
     $l = isset($links[$mid]) ? $links[$mid] : array();
-    $local = isset($l['imdb']) ? '' : aio_card_local_imdb($mid);
+    $local = isset($l['imdb']) ? '' : mel_card_local_imdb($mid);
     if ($local !== '')
         return array('movie', $local, '');
-    $type = aio_cp_pair_type($l, $series);
+    $type = mel_cp_pair_type($l, $series);
     $imdb = isset($l['imdb']) ? $l['imdb'] : '';
     $tmdb = $type === 'series' ? (isset($l['tmdbtv']) ? $l['tmdbtv'] : '') : (isset($l['tmdb']) ? $l['tmdb'] : '');
     return array($type, $imdb, $tmdb);
 }
 
-// The tile of card $mid of the history for the info panel and ENTER: the best tile of its pair (aio_cp_best_tile: of the
+// The tile of card $mid of the history for the info panel and ENTER: the best tile of its pair (mel_cp_best_tile: of the
 // meta kept, else of a row in memory), else one of the pair and the latest record (title, poster); no pair: of the
-// record alone, id "dune:<movie_id>", no ids (ENTER asks the pair, aio_cp_enter). null: no record. $rec: the tile is of
+// record alone, id "dune:<movie_id>", no ids (ENTER asks the pair, mel_cp_enter). null: no record. $rec: the tile is of
 // the pair and the record alone.
 /**
  * @param string $mid
- * @param array<string, AioCatTile>|null $map
+ * @param array<string, MelCatTile>|null $map
  * @param bool $rec
  * @param-out bool $rec
- * @return AioCatTile|null
+ * @return MelCatTile|null
  */
-function aio_cp_tile($mid, $map = null, &$rec = false)
+function mel_cp_tile($mid, $map = null, &$rec = false)
 {
     $rec = false;
-    $idx = aio_pg_index();
+    $idx = mel_pg_index();
     $ent = isset($idx[$mid]) ? $idx[$mid] : null;
     $w = $ent ? ($ent['series'] && $ent['series'][0] ? $ent['series'][0] : $ent['w']) : null;
     if (!$w)
         return null;
-    list($type, $imdb, $tmdb) = aio_cp_ids($mid, $ent['series'] ? true : false);
-    $t = aio_cp_best_tile($type, $imdb, $tmdb, $map);
+    list($type, $imdb, $tmdb) = mel_cp_ids($mid, $ent['series'] ? true : false);
+    $t = mel_cp_best_tile($type, $imdb, $tmdb, $map);
     if ($t)
         return $t;
     $rec = true;
     $id = $imdb !== '' ? $imdb : ($tmdb !== '' ? "tmdb:$tmdb" : "dune:$mid");
-    return aio_cat_tile(array('id' => $id, 'name' => isset($w->title) ? $w->title : '-', 'type' => $type, 'imdb_id' => $imdb,
+    return mel_cat_tile(array('id' => $id, 'name' => isset($w->title) ? $w->title : '-', 'type' => $type, 'imdb_id' => $imdb,
         '_tmdbId' => $tmdb, 'poster' => isset($w->icon) ? $w->icon : ''), $type);
 }
 
-// The badge of card $mid of the history (aio_pg_badge by the type of its tile), null for none.
+// The badge of card $mid of the history (mel_pg_badge by the type of its tile), null for none.
 /**
  * @param string $mid
  * @param string $type
- * @return AioPgBadge|null
+ * @return MelPgBadge|null
  */
-function aio_cp_badge($mid, $type)
+function mel_cp_badge($mid, $type)
 {
-    $idx = aio_pg_index();
-    return isset($idx[$mid]) ? aio_pg_badge($idx[$mid], $type === 'series', $mid) : null;
+    $idx = mel_pg_index();
+    return isset($idx[$mid]) ? mel_pg_badge($idx[$mid], $type === 'series', $mid) : null;
 }
 
-// The cells of the row of the types $types, $max at most (aio_cp_items), by "continue:<movie_id>": the item (the title
+// The cells of the row of the types $types, $max at most (mel_cp_items), by "continue:<movie_id>": the item (the title
 // and the poster of the record, the plate of the rating of the meta kept or of a tile of a row in memory, the badge)
 // and its tile; $miss: those of a pair with neither, in their order (array(type, IMDb, TMDB): the lazy meta,
-// AioCpm::$miss and AioCpm::$more).
+// MelCpm::$miss and MelCpm::$more).
 /**
  * @param list<string> $types
  * @param int $max
  * @param list<array{string, string, string}>|null $miss
  * @param-out list<array{string, string, string}> $miss
- * @return array<string, array{item: array<string, mixed>, tile: AioCatTile}>
+ * @return array<string, array{item: array<string, mixed>, tile: MelCatTile}>
  */
-function aio_cp_tile_items($types, $max, &$miss = null)
+function mel_cp_tile_items($types, $max, &$miss = null)
 {
     $out = array();
     $map = null;
     $miss = array();
-    foreach (aio_cp_items($types, $max) as $mid => $it)
+    foreach (mel_cp_items($types, $max) as $mid => $it)
     {
         if ($map === null)
-            $map = aio_cp_tile_map();
-        $t = aio_cp_tile($mid, $map, $rec);
+            $map = mel_cp_tile_map();
+        $t = mel_cp_tile($mid, $map, $rec);
         if (!$t)
             continue;
         if ($rec && ($t['imdb_id'] !== '' || $t['_tmdbId'] !== ''))
             $miss[] = array($t['type'], $t['imdb_id'], $t['_tmdbId']);
-        $id = AIO_CP_RID . ":$mid";
-        $item = aio_catv_item(aio_catv_tile_id($id), isset($it['w']->title) ? aio_clean($it['w']->title) : $t['name'],
-            aio_img(isset($it['w']->icon) && is_string($it['w']->icon) ? $it['w']->icon : ''));
-        $stickers = aio_catv_rating_on() ? aio_catv_rate_stickers($t['imdbRating']) : array();
+        $id = MEL_CP_RID . ":$mid";
+        $item = mel_catv_item(mel_catv_tile_id($id), isset($it['w']->title) ? mel_clean($it['w']->title) : $t['name'],
+            mel_img(isset($it['w']->icon) && is_string($it['w']->icon) ? $it['w']->icon : ''));
+        $stickers = mel_catv_rating_on() ? mel_catv_rate_stickers($t['imdbRating']) : array();
         if ($it['b'])
-            $stickers = array_merge($stickers, aio_pg_stickers($it['b']));
+            $stickers = array_merge($stickers, mel_pg_stickers($it['b']));
         if ($stickers)
             $item[PluginRegularItem::stickers] = $stickers;
         $out[$id] = array('item' => $item, 'tile' => $t);
@@ -321,48 +321,48 @@ function aio_cp_tile_items($types, $max, &$miss = null)
     return $out;
 }
 
-// The tiles of the row of tab $tab ('' both) of a pair with no meta, as aio_cp_row_defs gives them ($miss of
-// aio_cp_tile_items, in its order): AioCpm::$miss again after a tick of the main screen paired cards (aio_pg_tick).
+// The tiles of the row of tab $tab ('' both) of a pair with no meta, as mel_cp_row_defs gives them ($miss of
+// mel_cp_tile_items, in its order): MelCpm::$miss again after a tick of the main screen paired cards (mel_pg_tick).
 /**
  * @param string $tab
  * @return list<array{string, string, string}>
  */
-function aio_cp_row_miss($tab)
+function mel_cp_row_miss($tab)
 {
-    aio_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), AIO_CATV_ROW_TILES, $miss);
+    mel_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), MEL_CATV_ROW_TILES, $miss);
     return $miss;
 }
 
-// The movie_ids of the tiles of the row of tab $tab ('' both), in its order (aio_cp_items): their pairs asked before
-// those of the other cards of the history (aio_pg_tick, aio_pg_screen_built).
+// The movie_ids of the tiles of the row of tab $tab ('' both), in its order (mel_cp_items): their pairs asked before
+// those of the other cards of the history (mel_pg_tick, mel_pg_screen_built).
 /**
  * @param string $tab
  * @return list<string>
  */
-function aio_cp_row_mids($tab)
+function mel_cp_row_mids($tab)
 {
-    return array_map('strval', array_keys(aio_cp_items($tab === '' ? array('movie', 'series') : array($tab))));
+    return array_map('strval', array_keys(mel_cp_items($tab === '' ? array('movie', 'series') : array($tab))));
 }
 
 // The row of the types $types ($tab: 'movie', 'series', '' both) for a screen of rows: its title and tiles
-// (aio_cp_tile_items), no "Show all" tile (ENTER on its title: the screen of all of them of its type), no flag; none
+// (mel_cp_tile_items), no "Show all" tile (ENTER on its title: the screen of all of them of its type), no flag; none
 // when it is empty. $tiles: its tiles by "continue:<movie_id>" (the file of the tab "TV"); $miss: those of a pair with
-// neither, in its order (the lazy meta of a main screen, AioCpm::$miss: aio_catv_main_view puts them there, the tab
+// neither, in its order (the lazy meta of a main screen, MelCpm::$miss: mel_catv_main_view puts them there, the tab
 // "TV" not).
 /**
  * @param string $tab
  * @param string $lang
- * @param array<string, AioCatTile>|null $tiles
- * @param-out array<string, AioCatTile> $tiles
+ * @param array<string, MelCatTile>|null $tiles
+ * @param-out array<string, MelCatTile> $tiles
  * @param list<array{string, string, string}>|null $miss
  * @param-out list<array{string, string, string}> $miss
  * @return list<array<string, mixed>>
  */
-function aio_cp_row_defs($tab, $lang, &$tiles = null, &$miss = null)
+function mel_cp_row_defs($tab, $lang, &$tiles = null, &$miss = null)
 {
     $tiles = array();
     $items = array();
-    $cells = aio_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), AIO_CATV_ROW_TILES, $miss);
+    $cells = mel_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), MEL_CATV_ROW_TILES, $miss);
     foreach ($cells as $id => $c)
     {
         $items[] = $c['item'];
@@ -370,109 +370,109 @@ function aio_cp_row_defs($tab, $lang, &$tiles = null, &$miss = null)
     }
     if (!$items)
         return array();
-    $row = array('key' => AIO_CP_RID, 'type' => $tab !== '' ? $tab : 'movie', 'id' => AIO_CP_RID,
-        'name' => aio_tr($lang, 'cp_row_continue'), 'genre' => '', 'home' => false, 'group' => '');
-    $defs = aio_catv_row_defs(aio_catv_list(aio_cat_row_state($row), array(), false), $lang, $items, 0, AIO_CP_RID);
+    $row = array('key' => MEL_CP_RID, 'type' => $tab !== '' ? $tab : 'movie', 'id' => MEL_CP_RID,
+        'name' => mel_tr($lang, 'cp_row_continue'), 'genre' => '', 'home' => false, 'group' => '');
+    $defs = mel_catv_row_defs(mel_catv_list(mel_cat_row_state($row), array(), false), $lang, $items, 0, MEL_CP_RID);
     // ENTER on its title: all the cards of its type ("Продолжить" of view_my_list.php), as "Show all" of a row.
-    $defs[1][PluginRow::show_all_action] = aio_catv_open_act(AIO_MLV_CONT . ($tab !== '' ? ":$tab" : ''), $row['name']);
-    aio_log(sprintf('continue: %s: %d tiles', $tab !== '' ? $tab : 'all', count($items)));
+    $defs[1][PluginRow::show_all_action] = mel_catv_open_act(MEL_MLV_CONT . ($tab !== '' ? ":$tab" : ''), $row['name']);
+    mel_log(sprintf('continue: %s: %d tiles', $tab !== '' ? $tab : 'all', count($items)));
     return $defs;
 }
 
 // ENTER on the tile of card $mid of the row: "Своя карточка" off - the card of the Dune at once (no pair needed); else
-// the own card (aio_oc_enter, the card of the Dune known, its rating of Kinopoisk not: asked as of a card not in
-// memory). No pair: one request of it now (aio_pg_link_now, kept for good); failed (no connection, no dune_auth) - the
+// the own card (mel_oc_enter, the card of the Dune known, its rating of Kinopoisk not: asked as of a card not in
+// memory). No pair: one request of it now (mel_pg_link_now, kept for good); failed (no connection, no dune_auth) - the
 // message cp_err_link; the card has no IMDb and no TMDB - err_no_imdb. No record of it: the screen is old.
 /**
  * @param string $mid
  * @param string $lang
- * @return AioAction
+ * @return MelAction
  */
-function aio_cp_enter($mid, $lang)
+function mel_cp_enter($mid, $lang)
 {
-    if (!Aio::$settings['cat_card'])
-        return aio_card_open($mid);
-    $links = aio_pg_links();
+    if (!Mel::$settings['cat_card'])
+        return mel_card_open($mid);
+    $links = mel_pg_links();
     $l = isset($links[$mid]) ? $links[$mid] : null;
     if (!$l || isset($l['fail']))
     {
-        $r = aio_pg_link_now($mid, AIO_PG_LINK_S);
-        aio_log("continue: ENTER: the pair asked: {$r['st']}");
+        $r = mel_pg_link_now($mid, MEL_PG_LINK_S);
+        mel_log("continue: ENTER: the pair asked: {$r['st']}");
         if ($r['st'] === 'fail')
-            return aio_error('cp_err_link');
+            return mel_error('cp_err_link');
     }
-    $t = aio_cp_tile($mid);
+    $t = mel_cp_tile($mid);
     if (!$t)
     {
-        aio_log('continue: ENTER: no record of the card');
-        return aio_error('cat_outdated');
+        mel_log('continue: ENTER: no record of the card');
+        return mel_error('cat_outdated');
     }
-    if (aio_cm_id($t) === '')
-        return aio_error('err_no_imdb');
-    return aio_oc_enter($t, $lang, $mid);
+    if (mel_cm_id($t) === '')
+        return mel_error('err_no_imdb');
+    return mel_oc_enter($t, $lang, $mid);
 }
 
 // --- "Убрать из «Продолжить»": the history is not touched (the shell has no way to delete a record of it).
 
-// The cards taken off the row: movie_id => the end of their latest record then (aio_cp_hide). From memory, read again
+// The cards taken off the row: movie_id => the end of their latest record then (mel_cp_hide). From memory, read again
 // when the file is another one.
 /**
  * @return array<string, int>
  */
-function aio_cp_hidden()
+function mel_cp_hidden()
 {
-    $sig = aio_file_sig(AIO_CP_HIDDEN_FILE);
-    if (AioCp::$hidden !== null && $sig === AioCp::$hidden_sig)
-        return AioCp::$hidden;
-    $j = $sig !== '' ? json_decode(strval(file_get_contents(aio_data_dir() . '/' . AIO_CP_HIDDEN_FILE)), true) : null;
+    $sig = mel_file_sig(MEL_CP_HIDDEN_FILE);
+    if (MelCp::$hidden !== null && $sig === MelCp::$hidden_sig)
+        return MelCp::$hidden;
+    $j = $sig !== '' ? json_decode(strval(file_get_contents(mel_data_dir() . '/' . MEL_CP_HIDDEN_FILE)), true) : null;
     $out = array();
     foreach (is_array($j) && isset($j['hidden']) && is_array($j['hidden']) ? $j['hidden'] : array() as $mid => $end)
     {
-        if (preg_match('/^' . AIO_DUNE_ID . '$/D', strval($mid)) && is_int($end))
+        if (preg_match('/^' . MEL_DUNE_ID . '$/D', strval($mid)) && is_int($end))
             $out[strval($mid)] = $end;
     }
-    AioCp::$hidden = $out;
-    AioCp::$hidden_sig = $sig;
+    MelCp::$hidden = $out;
+    MelCp::$hidden_sig = $sig;
     return $out;
 }
 
-// Card $mid off the row till a record of it ends later than its latest one now (aio_pg_index), written whole
-// (aio_write_file: a temporary file and rename), AIO_CP_HIDDEN_MAX at most. -> written.
+// Card $mid off the row till a record of it ends later than its latest one now (mel_pg_index), written whole
+// (mel_write_file: a temporary file and rename), MEL_CP_HIDDEN_MAX at most. -> written.
 /**
  * @param string $mid
  * @return bool
  */
-function aio_cp_hide($mid)
+function mel_cp_hide($mid)
 {
-    $idx = aio_pg_index();
-    if (!isset($idx[$mid]) || aio_data_dir() === '')
+    $idx = mel_pg_index();
+    if (!isset($idx[$mid]) || mel_data_dir() === '')
         return false;
-    $hidden = aio_cp_hidden();
+    $hidden = mel_cp_hidden();
     unset($hidden[$mid]);
     $hidden[$mid] = $idx[$mid]['end'];
-    if (count($hidden) > AIO_CP_HIDDEN_MAX)
+    if (count($hidden) > MEL_CP_HIDDEN_MAX)
     {
         asort($hidden);
-        $hidden = array_slice($hidden, count($hidden) - AIO_CP_HIDDEN_MAX, null, true);
+        $hidden = array_slice($hidden, count($hidden) - MEL_CP_HIDDEN_MAX, null, true);
     }
-    return aio_cp_hidden_put($hidden);
+    return mel_cp_hidden_put($hidden);
 }
 
-// The cards off the row $hidden (aio_cp_hidden) written whole (aio_write_file: a temporary file and rename), the memory
+// The cards off the row $hidden (mel_cp_hidden) written whole (mel_write_file: a temporary file and rename), the memory
 // read again. -> written.
 /**
  * @param array<string, int> $hidden
  * @return bool
  */
-function aio_cp_hidden_put($hidden)
+function mel_cp_hidden_put($hidden)
 {
     $json = json_encode(array('v' => 1, 'hidden' => (object) $hidden));
-    $ok = is_string($json) && aio_write_file(aio_data_dir() . '/' . AIO_CP_HIDDEN_FILE, $json);
-    AioCp::$hidden = null;
+    $ok = is_string($json) && mel_write_file(mel_data_dir() . '/' . MEL_CP_HIDDEN_FILE, $json);
+    MelCp::$hidden = null;
     return $ok;
 }
 
-// Card $mid of the latest record ending at $end is off the row now: taken off it ($hidden, aio_cp_hidden) with no
+// Card $mid of the latest record ending at $end is off the row now: taken off it ($hidden, mel_cp_hidden) with no
 // record ending later since.
 /**
  * @param array<string, int> $hidden
@@ -480,182 +480,182 @@ function aio_cp_hidden_put($hidden)
  * @param int $end
  * @return bool
  */
-function aio_cp_off($hidden, $mid, $end)
+function mel_cp_off($hidden, $mid, $end)
 {
     return isset($hidden[$mid]) && $end <= $hidden[$mid];
 }
 
-// The cards taken off the row and kept off it now: of the history (aio_pg_index) with no record ending later, in the
-// row else (aio_cp_item), both types. A card watched again or out of the history since is not counted. -> how many.
+// The cards taken off the row and kept off it now: of the history (mel_pg_index) with no record ending later, in the
+// row else (mel_cp_item), both types. A card watched again or out of the history since is not counted. -> how many.
 /**
  * @return int
  */
-function aio_cp_hidden_n()
+function mel_cp_hidden_n()
 {
-    $idx = aio_pg_index();
-    $hidden = aio_cp_hidden();
+    $idx = mel_pg_index();
+    $hidden = mel_cp_hidden();
     $n = 0;
     foreach ($hidden as $mid => $end)
     {
         $mid = strval($mid);
-        if (isset($idx[$mid]) && aio_cp_off($hidden, $mid, $idx[$mid]['end']) && aio_cp_item($mid, $idx[$mid]))
+        if (isset($idx[$mid]) && mel_cp_off($hidden, $mid, $idx[$mid]['end']) && mel_cp_item($mid, $idx[$mid]))
             $n++;
     }
     return $n;
 }
 
-// "Вернуть убранные": none taken off the row (every key, of a card of the Dune or "m-..."), aio_cp_hidden_put. -> written.
+// "Вернуть убранные": none taken off the row (every key, of a card of the Dune or "m-..."), mel_cp_hidden_put. -> written.
 /**
  * @return bool
  */
-function aio_cp_unhide()
+function mel_cp_unhide()
 {
-    return aio_data_dir() !== '' && aio_cp_hidden_put(array());
+    return mel_data_dir() !== '' && mel_cp_hidden_put(array());
 }
 
 // --- POP UP of a tile of the catalog and the tab "TV".
 
 // The card of the Dune of tile $t known with no request: of its id of the row "Continue" ($mid; '' another tile), else by
-// the pairs (aio_pg_tile_card); '' for none. The card of a title of POP UP with no request: of the marks and "Мой
-// список"; "Смотреть из…" (aio_catv_src) takes the card of the entry of "Мой список" first.
+// the pairs (mel_pg_tile_card); '' for none. The card of a title of POP UP with no request: of the marks and "Мой
+// список"; "Смотреть из…" (mel_catv_src) takes the card of the entry of "Мой список" first.
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @param string $mid
  * @return string
  */
-function aio_cp_card_known($t, $mid)
+function mel_cp_card_known($t, $mid)
 {
-    return $mid !== '' ? $mid : aio_pg_tile_card($t, aio_pg_index());
+    return $mid !== '' ? $mid : mel_pg_tile_card($t, mel_pg_index());
 }
 
-// The card of the Dune of tile $t now: known (aio_cp_card_known: of its id of the row "Continue" $mid, by the pairs),
-// else asked (aio_card_id, as ENTER: the pair kept). -> array(movie_id, '' none; why none: cp_err_mark - no answer,
+// The card of the Dune of tile $t now: known (mel_cp_card_known: of its id of the row "Continue" $mid, by the pairs),
+// else asked (mel_card_id, as ENTER: the pair kept). -> array(movie_id, '' none; why none: cp_err_mark - no answer,
 // card_none_title - the Dune has no card of it).
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @param string $mid
  * @return array{string, string}
  */
-function aio_cp_card_of($t, $mid)
+function mel_cp_card_of($t, $mid)
 {
-    $mid = aio_cp_card_known($t, $mid);
+    $mid = mel_cp_card_known($t, $mid);
     if ($mid !== '')
         return array($mid, '');
-    $c = aio_card_id($t);
+    $c = mel_card_id($t);
     return array($c['id'], $c['id'] !== '' ? '' : ($c['none'] ? 'card_none_title' : 'cp_err_mark'));
 }
 
 // The items of POP UP of tile $id of screen $from (a main screen of the catalog, an EPF of "TV") of the row "Continue"
-// and the marks (aio_catv_tile_menu puts them first): on the row "Continue" "Убрать из «Продолжить»", then "Отметить
-// просмотренным" / "Снять отметку" (aio_pg_mark_kind; the card not known yet: "Отметить", asked at it). None but on a
-// tile of a title (aio_catv_tile).
+// and the marks (mel_catv_tile_menu puts them first): on the row "Continue" "Убрать из «Продолжить»", then "Отметить
+// просмотренным" / "Снять отметку" (mel_pg_mark_kind; the card not known yet: "Отметить", asked at it). None but on a
+// tile of a title (mel_catv_tile).
 /**
  * @param string $id
  * @param string $from
  * @param string $lang
  * @return list<array<string, mixed>>
  */
-function aio_cp_menu_items($id, $from, $lang)
+function mel_cp_menu_items($id, $from, $lang)
 {
-    $t = aio_catv_tile($id, aio_tv_is_from($from));
+    $t = mel_catv_tile($id, mel_tv_is_from($from));
     if (!$t)
         return array();
-    $mid = aio_cp_mid_of($id);
+    $mid = mel_cp_mid_of($id);
     $items = array();
     $p = array('from' => $from, 'item' => $id);
     if ($mid !== '')
-        $items[] = array(GuiMenuItemDef::caption => aio_tr($lang, 'cp_hide'), GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'cancel_small.png',
-            GuiMenuItemDef::action => aio_input('cat_hide', $p));
-    $w = aio_pg_mark_kind(aio_cp_card_known($t, $mid), $t['type']);
+        $items[] = array(GuiMenuItemDef::caption => mel_tr($lang, 'cp_hide'), GuiMenuItemDef::icon_url => MEL_CATV_ICONS . 'cancel_small.png',
+            GuiMenuItemDef::action => mel_input('cat_hide', $p));
+    $w = mel_pg_mark_kind(mel_cp_card_known($t, $mid), $t['type']);
     if ($w !== '')
-        $items[] = array(GuiMenuItemDef::caption => aio_tr($lang, $w === 'on' ? 'cp_mark_on' : 'card_mark_off'),
-            GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'watched_small.png',
-            GuiMenuItemDef::action => aio_input('cat_mark', $p + array('w' => $w), AIO_CARD_DELAY));
+        $items[] = array(GuiMenuItemDef::caption => mel_tr($lang, $w === 'on' ? 'cp_mark_on' : 'card_mark_off'),
+            GuiMenuItemDef::icon_url => MEL_CATV_ICONS . 'watched_small.png',
+            GuiMenuItemDef::action => mel_input('cat_mark', $p + array('w' => $w), MEL_CARD_DELAY));
     return $items;
 }
 
-// "Убрать из «Продолжить»" of tile $in->item of screen $in->from: off the row (aio_cp_hide), the screens of the row anew
-// (aio_ml_changed: on r25 the main ones and the screens of the lists opened too, the shell keeps rows_info by the id of a
+// "Убрать из «Продолжить»" of tile $in->item of screen $in->from: off the row (mel_cp_hide), the screens of the row anew
+// (mel_ml_changed: on r25 the main ones and the screens of the lists opened too, the shell keeps rows_info by the id of a
 // tile).
 /**
  * @param stdClass $in
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_cp_hide_act($in)
+function mel_cp_hide_act($in)
 {
-    $mid = aio_cp_mid_of(aio_catv_in($in, 'item'));
+    $mid = mel_cp_mid_of(mel_catv_in($in, 'item'));
     if ($mid === '')
         return null;
-    $ok = aio_cp_hide($mid);
-    aio_log("continue: $mid off the row" . ($ok ? '' : ', not written'));
-    return aio_ml_changed(aio_catv_in($in, 'from'), null, 'off the row "Continue"');
+    $ok = mel_cp_hide($mid);
+    mel_log("continue: $mid off the row" . ($ok ? '' : ', not written'));
+    return mel_ml_changed(mel_catv_in($in, 'from'), null, 'off the row "Continue"');
 }
 
-// "Вернуть убранные (N)" of POP UP of the screen "Продолжить" $from (aio_mlv_menu_items): all back to the row
-// (aio_cp_unhide), no message, as "Убрать"; the screens of the row anew as after it (aio_ml_changed).
+// "Вернуть убранные (N)" of POP UP of the screen "Продолжить" $from (mel_mlv_menu_items): all back to the row
+// (mel_cp_unhide), no message, as "Убрать"; the screens of the row anew as after it (mel_ml_changed).
 /**
  * @param string $from
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_cp_unhide_act($from)
+function mel_cp_unhide_act($from)
 {
-    $n = aio_cp_hidden_n();
-    $ok = aio_cp_unhide();
-    aio_log("continue: unhide: $n" . ($ok ? '' : ', not written'));
-    return aio_ml_changed($from, null, 'back to the row "Continue"');
+    $n = mel_cp_hidden_n();
+    $ok = mel_cp_unhide();
+    mel_log("continue: unhide: $n" . ($ok ? '' : ', not written'));
+    return mel_ml_changed($from, null, 'back to the row "Continue"');
 }
 
 // "Отметить просмотренным" / "Снять отметку" ($in->w on, off) of tile $in->item of screen $in->from: the card of the
-// Dune (aio_cp_card_of: a request as ENTER without a pair), then update_watched_marks (aio_pg_mark_act): a movie -
-// movie_ids, off also the uid of its latest record if marked (aio_wh_movie_off_ids); a series on - the whole of it (the
-// owner): movie_ids and the marks of the own card of every episode out (the meta asked now, aio_cm_get, and
-// aio_cm_eps_before; its episodes to the pair, aio_pg_link_meta: the dates of those not out) with the uids of the records of our releases of them (aio_wh_mark_ids), as "Отметить предыдущие"
-// of the own card; a tile of the row with no pair ("dune:<movie_id>") gets it first (aio_pg_link_now, as ENTER); a
-// series off - movie_ids and every uid of the card marked (aio_wh_marked_of: no request, no meta). post_action:
-// aio_ml_changed. No card, no pair, no meta: the message cp_err_mark (the reason in the log).
+// Dune (mel_cp_card_of: a request as ENTER without a pair), then update_watched_marks (mel_pg_mark_act): a movie -
+// movie_ids, off also the uid of its latest record if marked (mel_wh_movie_off_ids); a series on - the whole of it (the
+// owner): movie_ids and the marks of the own card of every episode out (the meta asked now, mel_cm_get, and
+// mel_cm_eps_before; its episodes to the pair, mel_pg_link_meta: the dates of those not out) with the uids of the records of our releases of them (mel_wh_mark_ids), as "Отметить предыдущие"
+// of the own card; a tile of the row with no pair ("dune:<movie_id>") gets it first (mel_pg_link_now, as ENTER); a
+// series off - movie_ids and every uid of the card marked (mel_wh_marked_of: no request, no meta). post_action:
+// mel_ml_changed. No card, no pair, no meta: the message cp_err_mark (the reason in the log).
 /**
  * @param stdClass $in
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_cp_mark($in)
+function mel_cp_mark($in)
 {
-    $a = aio_catv_tile_act($in, array('on', 'off'));
+    $a = mel_catv_tile_act($in, array('on', 'off'));
     $t = $a['t'];
     if (!$t)
         return $a['err'];
     $from = $a['from'];
     $w = $a['w'];
-    $cp = aio_cp_mid_of($a['id']);
-    list($mid, $err) = aio_cp_card_of($t, $cp);
+    $cp = mel_cp_mid_of($a['id']);
+    list($mid, $err) = mel_cp_card_of($t, $cp);
     if ($mid === '')
-        return aio_error($err);
+        return mel_error($err);
     $ids = array();
     if ($t['type'] === 'series' && $w === 'off')
-        $ids = aio_wh_marked_of($mid);
+        $ids = mel_wh_marked_of($mid);
     else if ($t['type'] === 'series')
     {
-        $links = aio_pg_links();
+        $links = mel_pg_links();
         if ($cp !== '' && (!isset($links[$mid]) || isset($links[$mid]['fail'])))
         {
-            $r = aio_pg_link_now($mid, AIO_PG_LINK_S);
-            aio_log("continue: mark: the pair asked: {$r['st']}");
-            $t = $r['st'] === 'fail' ? null : aio_cp_tile($mid);
+            $r = mel_pg_link_now($mid, MEL_PG_LINK_S);
+            mel_log("continue: mark: the pair asked: {$r['st']}");
+            $t = $r['st'] === 'fail' ? null : mel_cp_tile($mid);
             if (!$t)
-                return aio_error('cp_err_mark');
+                return mel_error('cp_err_mark');
         }
-        if (aio_cm_id($t) === '')
-            return aio_error('err_no_imdb');
-        $g = aio_cm_get($t);
+        if (mel_cm_id($t) === '')
+            return mel_error('err_no_imdb');
+        $g = mel_cm_get($t);
         if (!$g['meta'])
         {
-            aio_log("continue: mark: no meta ({$g['err']})");
-            return aio_error('cp_err_mark');
+            mel_log("continue: mark: no meta ({$g['err']})");
+            return mel_error('cp_err_mark');
         }
-        aio_pg_link_meta($mid, $g['meta']);
-        $ids = aio_wh_mark_ids($mid, aio_cm_eps_before($g['meta'], PHP_INT_MAX, 0));
+        mel_pg_link_meta($mid, $g['meta']);
+        $ids = mel_wh_mark_ids($mid, mel_cm_eps_before($g['meta'], PHP_INT_MAX, 0));
     }
     else if ($w === 'off')
-        $ids = aio_wh_movie_off_ids($mid);
-    aio_log("continue: mark $w of $mid ({$t['type']}): " . count($ids) . ' uids');
-    return aio_pg_mark_act($ids, array($mid), $w === 'on', aio_ml_changed($from, null, "a mark $w"));
+        $ids = mel_wh_movie_off_ids($mid);
+    mel_log("continue: mark $w of $mid ({$t['type']}): " . count($ids) . ' uids');
+    return mel_pg_mark_act($ids, array($mid), $w === 'on', mel_ml_changed($from, null, "a mark $w"));
 }

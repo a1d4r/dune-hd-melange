@@ -1,4 +1,4 @@
-// The texts of the script: #init.i18n, written by aio_cgi_js() in the language of the page.
+// The texts of the script: #init.i18n, written by mel_cgi_js() in the language of the page.
 
 import type { Failure } from "./api";
 
@@ -52,7 +52,7 @@ export const TEXT_KEYS = [
   "seconds",
   // "Check" or a card of "Compare speed" of JacRed when a save stopped the probes (a 403: linkExpired).
   "stopped",
-  // The values of the lines of the main screen (as aio_cgi_rows).
+  // The values of the lines of the main screen (as mel_cgi_rows).
   "watchOwn",
   "needKey",
   "needLink",

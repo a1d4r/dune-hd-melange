@@ -3,14 +3,14 @@
 // widths by the firmware font, wrapping, the component builders, the key
 // action. Required by view_gcomps.php; view_info.php and ts_info.php (the
 // window of TorrServer in the player) get it through the require order of
-// main.php. Not self-contained: aio_gc_act puts the rid of
-// the list and calls aio_input (main.php), aio_gc_ttf calls aio_clean
+// main.php. Not self-contained: mel_gc_act puts the rid of
+// the list and calls mel_input (main.php), mel_gc_ttf calls mel_clean
 // (parse.php). PHP 5.3.6, firmware API only.
-// Types in the PHPDoc (AioGcComp and others): phpstan-types.neon of the repository.
+// Types in the PHPDoc (MelGcComp and others): phpstan-types.neon of the repository.
 
 require_once dirname(__FILE__) . '/font_w.php';
 
-define('AIO_GC_W_MARGIN', 1.03);   // text widths: the font's advances + 3 %
+define('MEL_GC_W_MARGIN', 1.03);   // text widths: the font's advances + 3 %
 
 // --- Text: cleaning, width, wrapping.
 
@@ -21,43 +21,43 @@ define('AIO_GC_W_MARGIN', 1.03);   // text widths: the font's advances + 3 %
  * @param string $c
  * @return int
  */
-function aio_gc_glyph($c)
+function mel_gc_glyph($c)
 {
     // Kept, not copied on every glyph (684 entries); "=== null": is_null()
     // copies the array again (review 0.4.1).
     static $t = null;
     if ($t === null)
-        $t = aio_font_w();
+        $t = mel_font_w();
     if (isset($t[$c]))
         return $t[$c];
     return preg_match('/^[\\p{Han}\\p{Hangul}\\p{Hiragana}\\p{Katakana}\\x{FF00}-\\x{FFEF}]$/u', $c) ?
-        1000 : AIO_FONT_AVG;
+        1000 : MEL_FONT_AVG;
 }
 
-// Width of a text at $px before AIO_GC_W_MARGIN: advances rounded to pixels
+// Width of a text at $px before MEL_GC_W_MARGIN: advances rounded to pixels
 // glyph by glyph, as FreeType hints them (1.7 % from its layout on test lines).
 /**
  * @param string $s
  * @param int $px
  * @return float|int
  */
-function aio_gc_sum($s, $px)
+function mel_gc_sum($s, $px)
 {
     $w = 0;
     foreach (preg_split('//u', $s, -1, PREG_SPLIT_NO_EMPTY) as $c)
-        $w += round(aio_gc_glyph($c) * $px / 1000);
+        $w += round(mel_gc_glyph($c) * $px / 1000);
     return $w;
 }
 
-// Width of a text at $px: aio_gc_sum plus AIO_GC_W_MARGIN.
+// Width of a text at $px: mel_gc_sum plus MEL_GC_W_MARGIN.
 /**
  * @param string $s
  * @param int $px
  * @return int
  */
-function aio_gc_w($s, $px)
+function mel_gc_w($s, $px)
 {
-    return intval(ceil(aio_gc_sum($s, $px) * AIO_GC_W_MARGIN));
+    return intval(ceil(mel_gc_sum($s, $px) * MEL_GC_W_MARGIN));
 }
 
 // The longest prefix of $s (in characters) not wider than $width.
@@ -67,9 +67,9 @@ function aio_gc_w($s, $px)
  * @param int $width
  * @return int
  */
-function aio_gc_fit($s, $px, $width)
+function mel_gc_fit($s, $px, $width)
 {
-    $r = aio_gc_run($s, 0, strlen($s), $px, $width);
+    $r = mel_gc_run($s, 0, strlen($s), $px, $width);
     return $r[1];
 }
 
@@ -79,14 +79,14 @@ function aio_gc_fit($s, $px, $width)
  * @param int $i
  * @return int
  */
-function aio_gc_clen($s, $i)
+function mel_gc_clen($s, $i)
 {
     $b = ord($s[$i]);
     return $b < 0xC0 ? 1 : ($b < 0xE0 ? 2 : ($b < 0xF0 ? 3 : 4));
 }
 
 // The longest run of characters of $s from byte $i (to byte $e at most) not
-// wider than $width after a width $w (aio_gc_sum) before it: array(the byte
+// wider than $width after a width $w (mel_gc_sum) before it: array(the byte
 // after it, its characters, $w with its width). Reads a character past it at
 // most, not the whole rest: linear on a long word. $s: valid UTF-8.
 /**
@@ -98,14 +98,14 @@ function aio_gc_clen($s, $i)
  * @param float|int $w
  * @return array{int, int, float|int}
  */
-function aio_gc_run($s, $i, $e, $px, $width, $w = 0)
+function mel_gc_run($s, $i, $e, $px, $width, $w = 0)
 {
     $n = 0;
     while ($i < $e)
     {
-        $l = aio_gc_clen($s, $i);
-        $g = round(aio_gc_glyph(substr($s, $i, $l)) * $px / 1000);
-        if (($w + $g) * AIO_GC_W_MARGIN > $width)
+        $l = mel_gc_clen($s, $i);
+        $g = round(mel_gc_glyph(substr($s, $i, $l)) * $px / 1000);
+        if (($w + $g) * MEL_GC_W_MARGIN > $width)
             break;
         $w += $g;
         $i += $l;
@@ -121,12 +121,12 @@ function aio_gc_run($s, $i, $e, $px, $width, $w = 0)
  * @param int $width
  * @return string
  */
-function aio_gc_cut_w($s, $px, $width)
+function mel_gc_cut_w($s, $px, $width)
 {
-    if (aio_gc_w($s, $px) <= $width)
+    if (mel_gc_w($s, $px) <= $width)
         return $s;
     $ell = "\xE2\x80\xA6";
-    return rtrim(mb_substr($s, 0, aio_gc_fit($s, $px, $width - aio_gc_w($ell, $px)), 'UTF-8'), " \t\n\r\0\x0B.,;:") . $ell;
+    return rtrim(mb_substr($s, 0, mel_gc_fit($s, $px, $width - mel_gc_w($ell, $px)), 'UTF-8'), " \t\n\r\0\x0B.,;:") . $ell;
 }
 
 // The byte after the word of $s from byte $p: after one of $brk (a dot not
@@ -139,7 +139,7 @@ function aio_gc_cut_w($s, $px, $width)
  * @param int $far
  * @return int
  */
-function aio_gc_word_end($s, $p, $brk, $far)
+function mel_gc_word_end($s, $p, $brk, $far)
 {
     $len = strlen($s);
     $e = $p;
@@ -152,7 +152,7 @@ function aio_gc_word_end($s, $p, $brk, $far)
 // Lines of at most $width, broken after spaces and separators (a long word
 // by characters); more than $max lines: the last one ends with "…". Every
 // other line is a piece of $s as is, but the spaces trimmed at its ends:
-// aio_info_wrap_tracks finds the rest of $s after the first line by its length.
+// mel_info_wrap_tracks finds the rest of $s after the first line by its length.
 // Linear: a word is measured once, past $max lines the rest is not read.
 /**
  * @param string $s
@@ -162,7 +162,7 @@ function aio_gc_word_end($s, $p, $brk, $far)
  * @param bool $spaces
  * @return list<string>
  */
-function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
+function mel_gc_wrap($s, $px, $width, $max, $spaces = false)
 {
     $lines = array();
     // No room or invalid UTF-8: no lines (on purpose; names never come here
@@ -184,17 +184,17 @@ function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
             if ($p >= $len)
                 break;
         }
-        $e = aio_gc_word_end($s, $p, $brk, $p + 256);
+        $e = mel_gc_word_end($s, $p, $brk, $p + 256);
         // Still in a word of "5.1.2...": its end only as far as the lines left
         // reach (each holds a glyph of 2 em or $width at most), so no run
         // below gets to $e; past the reach, $e is after a dot inside it.
         if ($e < $len && $s[$e - 1] === '.' && $s[$e] >= '0' && $s[$e] <= '9')
         {
-            list($r) = aio_gc_run($s, $p, $len, $px, 2 * ($max + 1) * ($width + 2 * $px));
-            $e = aio_gc_word_end($s, $e, $brk, $r < $len ? $r + aio_gc_clen($s, $r) : $len);
+            list($r) = mel_gc_run($s, $p, $len, $px, 2 * ($max + 1) * ($width + 2 * $px));
+            $e = mel_gc_word_end($s, $e, $brk, $r < $len ? $r + mel_gc_clen($s, $r) : $len);
         }
         // The word on the line.
-        list($j, , $w) = aio_gc_run($s, $p, $e, $px, $width, $cw);
+        list($j, , $w) = mel_gc_run($s, $p, $e, $px, $width, $cw);
         if ($j === $e)
         {
             $cur .= substr($s, $p, $e - $p);
@@ -206,11 +206,11 @@ function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
         // A word wider than a line: lines of characters (one at least).
         while (count($lines) <= $max)
         {
-            list($j, $n) = aio_gc_run($s, $p, $e, $px, $width);
+            list($j, $n) = mel_gc_run($s, $p, $e, $px, $width);
             if ($j === $e)
                 break;
             if ($n === 0)
-                $j = $p + aio_gc_clen($s, $p);
+                $j = $p + mel_gc_clen($s, $p);
             $lines[] = (string) substr($s, $p, $j - $p);
             $p = $j;
         }
@@ -218,7 +218,7 @@ function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
         if (count($lines) > $max)
             break;
         $cur = ltrim(substr($s, $p, $e - $p));
-        $cw = aio_gc_sum($cur, $px);
+        $cw = mel_gc_sum($cur, $px);
     }
     if (trim($cur) !== '' && count($lines) <= $max)
         $lines[] = rtrim($cur);
@@ -227,12 +227,12 @@ function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
         $lines = array_slice($lines, 0, $max);
         $ell = "\xE2\x80\xA6";
         $l = (string) array_pop($lines);
-        $lines[] = rtrim(mb_substr($l, 0, aio_gc_fit($l, $px, $width - aio_gc_w($ell, $px)), 'UTF-8'), " \t\n\r\0\x0B.,;:") . $ell;
+        $lines[] = rtrim(mb_substr($l, 0, mel_gc_fit($l, $px, $width - mel_gc_w($ell, $px)), 'UTF-8'), " \t\n\r\0\x0B.,;:") . $ell;
     }
     return $lines;
 }
 
-// Like aio_gc_wrap, but by items of " · ": an item goes to the next line
+// Like mel_gc_wrap, but by items of " · ": an item goes to the next line
 // whole and no line ends with the separator; an item wider than a line is
 // wrapped by itself.
 /**
@@ -242,7 +242,7 @@ function aio_gc_wrap($s, $px, $width, $max, $spaces = false)
  * @param int $max
  * @return list<string>
  */
-function aio_gc_wrap_items($s, $px, $width, $max)
+function mel_gc_wrap_items($s, $px, $width, $max)
 {
     $lines = array();
     $cur = '';
@@ -251,14 +251,14 @@ function aio_gc_wrap_items($s, $px, $width, $max)
         if (trim($item) === '')
             continue;
         $try = $cur === '' ? $item : "$cur · $item";
-        if (aio_gc_w($try, $px) <= $width)
+        if (mel_gc_w($try, $px) <= $width)
         {
             $cur = $try;
             continue;
         }
         if ($cur !== '')
             $lines[] = $cur;
-        $sub = aio_gc_wrap($item, $px, $width, $max + 1);
+        $sub = mel_gc_wrap($item, $px, $width, $max + 1);
         $cur = (string) array_pop($sub);
         $lines = array_merge($lines, $sub);
         if (count($lines) > $max)
@@ -271,7 +271,7 @@ function aio_gc_wrap_items($s, $px, $width, $max)
         $lines = array_slice($lines, 0, $max);
         $ell = "\xE2\x80\xA6";
         $l = $lines[$max - 1];
-        $l = mb_substr($l, 0, aio_gc_fit($l, $px, $width - aio_gc_w($ell, $px)), 'UTF-8');
+        $l = mb_substr($l, 0, mel_gc_fit($l, $px, $width - mel_gc_w($ell, $px)), 'UTF-8');
         $lines[$max - 1] = preg_replace('/[ \x{00B7}]+$/u', '', $l) . $ell;
     }
     return $lines;
@@ -290,7 +290,7 @@ function aio_gc_wrap_items($s, $px, $width, $max)
  * @param bool $alone
  * @return list<string>
  */
-function aio_gc_wrap_voices($s, $px, $width, $max, $alone = false)
+function mel_gc_wrap_voices($s, $px, $width, $max, $alone = false)
 {
     $lines = array();
     $cur = '';
@@ -301,7 +301,7 @@ function aio_gc_wrap_voices($s, $px, $width, $max, $alone = false)
             $lines[] = $cur;
             $cur = '';
         }
-        if ($cur !== '' && aio_gc_w("$cur · $item", $px) > $width && aio_gc_w($item, $px) <= $width)
+        if ($cur !== '' && mel_gc_w("$cur · $item", $px) > $width && mel_gc_w($item, $px) <= $width)
         {
             $lines[] = $cur;
             $cur = '';
@@ -313,7 +313,7 @@ function aio_gc_wrap_voices($s, $px, $width, $max, $alone = false)
         {
             $sep = $cur === '' ? '' : ($j > 0 ? ', ' : ' · ');
             // Room for the comma a break after it would leave.
-            if (aio_gc_w($cur . $sep . $u . ($j < count($units) - 1 ? ',' : ''), $px) <= $width)
+            if (mel_gc_w($cur . $sep . $u . ($j < count($units) - 1 ? ',' : ''), $px) <= $width)
             {
                 $cur .= $sep . $u;
                 continue;
@@ -331,13 +331,13 @@ function aio_gc_wrap_voices($s, $px, $width, $max, $alone = false)
     {
         $ell = "\xE2\x80\xA6";
         $l = $lines[$max - 1];
-        $l = mb_substr($l, 0, aio_gc_fit($l, $px, $width - aio_gc_w($ell, $px)), 'UTF-8');
+        $l = mb_substr($l, 0, mel_gc_fit($l, $px, $width - mel_gc_w($ell, $px)), 'UTF-8');
         $lines[$max - 1] = preg_replace('/[ ,\x{00B7}]+$/u', '', $l) . $ell;
         $lines = array_slice($lines, 0, $max);
     }
     // A name wider than a line alone.
     foreach ($lines as $i => $l)
-        $lines[$i] = aio_gc_cut_w($l, $px, $width);
+        $lines[$i] = mel_gc_cut_w($l, $px, $width);
     return $lines;
 }
 
@@ -354,9 +354,9 @@ function aio_gc_wrap_voices($s, $px, $width, $max, $alone = false)
  * @param int $bha
  * @param int $bva
  * @param string|null $base_id
- * @return AioGcAlign
+ * @return MelGcAlign
  */
-function aio_gc_align($x, $y, $ubw, $ubh, $ha, $va, $bha, $bva, $base_id)
+function mel_gc_align($x, $y, $ubw, $ubh, $ha, $va, $bha, $bva, $base_id)
 {
     $a = array();
     foreach (array(GCompAlignDef::x => $x, GCompAlignDef::y => $y,
@@ -374,10 +374,10 @@ function aio_gc_align($x, $y, $ubw, $ubh, $ha, $va, $bha, $bva, $base_id)
 /**
  * @param int $w
  * @param int $h
- * @param AioGcAlign $align
- * @return AioGcGeom
+ * @param MelGcAlign $align
+ * @return MelGcGeom
  */
-function aio_gc_geom($w, $h, $align)
+function mel_gc_geom($w, $h, $align)
 {
     $g = array(GCompGeometryDef::w => $w, GCompGeometryDef::h => $h);
     if ($align)
@@ -391,11 +391,11 @@ function aio_gc_geom($w, $h, $align)
  * @param int $h
  * @param int $x
  * @param int $y
- * @return AioGcGeom
+ * @return MelGcGeom
  */
-function aio_gc_at($w, $h, $x, $y)
+function mel_gc_at($w, $h, $x, $y)
 {
-    return aio_gc_geom($w, $h, aio_gc_align($x, $y, false, false, 0, 0, 0, 0, null));
+    return mel_gc_geom($w, $h, mel_gc_align($x, $y, false, false, 0, 0, 0, 0, null));
 }
 
 // Right of the component before it (base_to_prev), $x apart, the tops aligned, $y lower:
@@ -403,9 +403,9 @@ function aio_gc_at($w, $h, $x, $y)
 /**
  * @param int $x
  * @param int $y
- * @return AioGcAlign
+ * @return MelGcAlign
  */
-function aio_gc_next_right($x, $y = 0)
+function mel_gc_next_right($x, $y = 0)
 {
     $a = array(GCompAlignDef::x => $x);
     if ($y)
@@ -423,28 +423,28 @@ function aio_gc_next_right($x, $y = 0)
  * @param int $w
  * @param int $h
  * @param int $x
- * @return AioGcGeom
+ * @return MelGcGeom
  */
-function aio_gc_left_center($w, $h, $x)
+function mel_gc_left_center($w, $h, $x)
 {
-    return aio_gc_geom($w, $h, aio_gc_align($x, 0, false, false,
+    return mel_gc_geom($w, $h, mel_gc_align($x, 0, false, false,
         HALIGN_LEFT, VALIGN_CENTER, HALIGN_LEFT, VALIGN_CENTER, null));
 }
 
 // A text label; the text is cleaned of line breaks and '|' here.
 /**
  * @param string|null $id
- * @param AioGcGeom $geom
+ * @param MelGcGeom $geom
  * @param string $text
  * @param int $size
  * @param string $color
  * @param array<string, mixed> $more
- * @return AioGcComp
+ * @return MelGcComp
  */
-function aio_gc_ttf($id, $geom, $text, $size, $color, $more = array())
+function mel_gc_ttf($id, $geom, $text, $size, $color, $more = array())
 {
     $spec = array(
-        GCompTtfLabelDef::text => aio_clean($text),
+        GCompTtfLabelDef::text => mel_clean($text),
         GCompTtfLabelDef::text_color => $color,
         GCompTtfLabelDef::font_size => $size);
     foreach ($more as $k => $v)
@@ -460,26 +460,26 @@ function aio_gc_ttf($id, $geom, $text, $size, $color, $more = array())
 // One line; the shell cuts it with "..." if our estimate was short.
 /**
  * @param string|null $id
- * @param AioGcGeom $geom
+ * @param MelGcGeom $geom
  * @param string $text
  * @param int $size
  * @param string $color
  * @param array<string, mixed> $more
- * @return AioGcComp
+ * @return MelGcComp
  */
-function aio_gc_cut($id, $geom, $text, $size, $color, $more = array())
+function mel_gc_cut($id, $geom, $text, $size, $color, $more = array())
 {
     $more[GCompTtfLabelDef::fit] = GCOMP_TEXT_FIT_APPEND_ELLIPSIS;
-    return aio_gc_ttf($id, $geom, $text, $size, $color, $more);
+    return mel_gc_ttf($id, $geom, $text, $size, $color, $more);
 }
 
 /**
- * @param AioGcGeom $geom
+ * @param MelGcGeom $geom
  * @param string $color
  * @param string|null $id
- * @return AioGcComp
+ * @return MelGcComp
  */
-function aio_gc_rect($geom, $color, $id = null)
+function mel_gc_rect($geom, $color, $id = null)
 {
     $r = array(
         GComponentDef::geom_def => $geom,
@@ -493,12 +493,12 @@ function aio_gc_rect($geom, $color, $id = null)
 // A picture; a poster gets the shell's own "loading" and "no poster" pictures,
 // as the vendor card (plugin_file://%<plugin>% works from our plugin, device 03.10.2026).
 /**
- * @param AioGcGeom $geom
+ * @param MelGcGeom $geom
  * @param string $url
  * @param bool $poster
- * @return AioGcComp
+ * @return MelGcComp
  */
-function aio_gc_image($geom, $url, $poster = false)
+function mel_gc_image($geom, $url, $poster = false)
 {
     return array(
         GComponentDef::geom_def => $geom,
@@ -521,12 +521,12 @@ function aio_gc_image($geom, $url, $poster = false)
 // $options 0 = clipping panel, default NO_CLIP (vendor panel()).
 /**
  * @param string $id
- * @param AioGcGeom $geom
- * @param list<AioGcComp> $children
+ * @param MelGcGeom $geom
+ * @param list<MelGcComp> $children
  * @param int $options
- * @return AioGcComp
+ * @return MelGcComp
  */
-function aio_gc_panel($id, $geom, $children, $options = GCOMP_OPT_NO_CLIP)
+function mel_gc_panel($id, $geom, $children, $options = GCOMP_OPT_NO_CLIP)
 {
     $p = array(
         GComponentDef::id => $id,
@@ -540,12 +540,12 @@ function aio_gc_panel($id, $geom, $children, $options = GCOMP_OPT_NO_CLIP)
 
 /**
  * @param string $id
- * @param AioGcGeom|null $geom
+ * @param MelGcGeom|null $geom
  * @param string $transition
- * @param list<AioGcComp>|null $children
- * @return AioGcChange
+ * @param list<MelGcComp>|null $children
+ * @return MelGcChange
  */
-function aio_gc_change($id, $geom, $transition, $children = null)
+function mel_gc_change($id, $geom, $transition, $children = null)
 {
     return array(
         ChangeGCompDef::id => $id,
@@ -563,9 +563,9 @@ function aio_gc_change($id, $geom, $transition, $children = null)
  * @param string $control_id
  * @param string $rid
  * @param array<string, string> $params
- * @return AioAction
+ * @return MelAction
  */
-function aio_gc_act($control_id, $rid, $params = array())
+function mel_gc_act($control_id, $rid, $params = array())
 {
-    return aio_input($control_id, array_merge(array('rid' => $rid), $params));
+    return mel_input($control_id, array_merge(array('rid' => $rid), $params));
 }

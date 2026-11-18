@@ -2,14 +2,14 @@
 // Voices of a release for the "Voices" field:
 // studios, types, original and subtitles from its names and audio tracks.
 // Pure functions, no screens. Needs voices.php (the dictionary), of
-// parse.php: aio_utf8, aio_cut, AIO_TEXT_MAX, and of main.php: aio_tr.
-// Types in the PHPDoc (AioVoices and others): phpstan-types.neon of the repository.
+// parse.php: mel_utf8, mel_cut, MEL_TEXT_MAX, and of main.php: mel_tr.
+// Types in the PHPDoc (MelVoices and others): phpstan-types.neon of the repository.
 
 // Bytes of a release name read for its voices (real names are below 1 KB).
-define('AIO_VOICES_BYTES', 4000);
+define('MEL_VOICES_BYTES', 4000);
 // Audio tracks of a release read for its voices (real releases have up to ~30):
 // every redraw of the card parses them.
-define('AIO_VOICES_TRACKS', 32);
+define('MEL_VOICES_TRACKS', 32);
 
 // A track title without what the codec and channels show, its parts joined
 // by " | ": "Original | AC3 5.1 | 640 Kbps" -> "Original", "Dub \| DD 5.1 @
@@ -18,7 +18,7 @@ define('AIO_VOICES_TRACKS', 32);
  * @param string $t
  * @return string
  */
-function aio_jr_title($t)
+function mel_jr_title($t)
 {
     $t = preg_replace('/(?<![\p{L}\p{N}])(?:(?:e-?ac-?3|ac-?3|ddp?\+?|dolby\s+digital(?:\s+plus)?|' .
         'dts(?:[:\-]x|-?hd)?(?:\s*(?:ma|master\s+audio|hra|es))?|truehd|atmos|aac|flac|opus|mp3|l?pcm)' .
@@ -46,9 +46,9 @@ function aio_jr_title($t)
 /**
  * @param string $low
  * @param string $word
- * @return AioVoicesWord|null
+ * @return MelVoicesWord|null
  */
-function aio_voices_word($low, $word)
+function mel_voices_word($low, $word)
 {
     static $words = array('dub' => 'type:dub', 'dubbed' => 'type:dub', 'mvo' => 'type:mvo',
         'dvo' => 'type:dvo', 'avo' => 'type:avo', 'авторский' => 'type:avo', 'original' => 'orig:orig',
@@ -83,12 +83,12 @@ function aio_voices_word($low, $word)
 /**
  * @param string $s
  * @param bool $tails
- * @return AioVoicesName
+ * @return MelVoicesName
  */
-function aio_voices_parse($s, $tails = true)
+function mel_voices_parse($s, $tails = true)
 {
-    // Bytes first: no regex on a huge string; aio_utf8 mends a cut letter.
-    $s = trim(aio_voices_nfc(aio_utf8(substr(strval($s), 0, AIO_VOICES_BYTES))));
+    // Bytes first: no regex on a huge string; mel_utf8 mends a cut letter.
+    $s = trim(mel_voices_nfc(mel_utf8(substr(strval($s), 0, MEL_VOICES_BYTES))));
     // JacRed's " | [A B].rus" ("Кирдин | Stalk" is one name): its voices by
     // substring of this name and of the duplicates it joined.
     $tail = '';
@@ -108,7 +108,7 @@ function aio_voices_parse($s, $tails = true)
     // "Бернштейн"): only from the voices of the name itself, not its join or tail.
     static $unsafe = array('Штейн' => true);
 
-    list($word, $low, $join, $seps, $part, $dep, $lead, $pipe) = aio_voices_tokens($s);
+    list($word, $low, $join, $seps, $part, $dep, $lead, $pipe) = mel_voices_tokens($s);
     $n = count($word);
     $p = count($pipe);
     if ($n === 0)
@@ -122,7 +122,7 @@ function aio_voices_parse($s, $tails = true)
     if ($year === $n)
         $year = 0;
 
-    $cls = aio_voices_classes($word, $low, $join, $seps, $part);
+    $cls = mel_voices_classes($word, $low, $join, $seps, $part);
 
     // Each part of the name between "|": 1 - voices (numbers too), 0 - only
     // numbers, -1 - something else.
@@ -214,12 +214,12 @@ function aio_voices_parse($s, $tails = true)
     $v['types'] = array_values($types);
     if ($tails)
     {
-        foreach (aio_voices_name_extra($s) as $x)
+        foreach (mel_voices_name_extra($s) as $x)
         {
             if (count($v['studios']) < 20 && !isset($v['keys'][$x[0]]))
             {
                 $v['studios'][] = $x[0];
-                $v['keys'][$x[0]] = aio_voices_key($x[0]);
+                $v['keys'][$x[0]] = mel_voices_key($x[0]);
                 if ($x[1] !== '')
                     $v['stype'][$x[0]] = $x[1];
             }
@@ -227,7 +227,7 @@ function aio_voices_parse($s, $tails = true)
     }
 
     if ($tail !== '')
-        $v = aio_voices_tail($v, implode(' ', $low), $tail, $unsafe);
+        $v = mel_voices_tail($v, implode(' ', $low), $tail, $unsafe);
     return $v;
 }
 
@@ -237,7 +237,7 @@ function aio_voices_parse($s, $tails = true)
  * @param string $s
  * @return string
  */
-function aio_voices_nfc($s)
+function mel_voices_nfc($s)
 {
     return str_replace(array("\xD0\xB8\xCC\x86", "\xD0\x98\xCC\x86", "\xD0\xB5\xCC\x88", "\xD0\x95\xCC\x88",
         "\xD1\x96\xCC\x88", "\xD0\x86\xCC\x88"), array('й', 'Й', 'ё', 'Ё', 'ї', 'Ї'), $s);
@@ -252,9 +252,9 @@ function aio_voices_nfc($s)
 // changed the words (a letter whose lower case is a letter and a mark).
 /**
  * @param string $s
- * @return AioVoicesTokens
+ * @return MelVoicesTokens
  */
-function aio_voices_tokens($s)
+function mel_voices_tokens($s)
 {
     $re = '/([^\p{L}\p{N}]+)/u';
     $pc = preg_split($re, $s, -1, PREG_SPLIT_DELIM_CAPTURE);
@@ -303,7 +303,7 @@ function aio_voices_tokens($s)
     return array($word, $low, $join, $seps, $part, $dep, $lead, $pipe);
 }
 
-// What each word of aio_voices_tokens() is: array(kind, id) - 'studio' (id:
+// What each word of mel_voices_tokens() is: array(kind, id) - 'studio' (id:
 // the name shown, then its key), 'type', 'code' (of rutor), 'orig', 'subs';
 // 'in' - inside a studio; 'n' - a number or "x" ("2 x ПМ"); null - unknown.
 // Studios: whole words of the dictionary (voices.php), the longest first.
@@ -313,9 +313,9 @@ function aio_voices_tokens($s)
  * @param array<int, string> $join
  * @param array<int, string> $seps
  * @param array<int, int> $part
- * @return array<int, AioVoicesClass|null>
+ * @return array<int, MelVoicesClass|null>
  */
-function aio_voices_classes($word, $low, $join, $seps, $part)
+function mel_voices_classes($word, $low, $join, $seps, $part)
 {
     // Kept here: a static array returned by a function is copied on every call.
     static $dict = null;
@@ -324,8 +324,8 @@ function aio_voices_classes($word, $low, $join, $seps, $part)
     static $first = null;
     if ($first === null)
     {
-        $dict = aio_voices_dict();
-        $exact = aio_voices_exact();
+        $dict = mel_voices_dict();
+        $exact = mel_voices_exact();
         $first = array();
         foreach ($dict as $k => $unused)
         {
@@ -337,7 +337,7 @@ function aio_voices_classes($word, $low, $join, $seps, $part)
     // Rutor codes: only in a part after "|" that is all voices ("| D, P, L2").
     static $rutor = null;
     if ($rutor === null)
-        $rutor = aio_voices_codes();
+        $rutor = mel_voices_codes();
     $n = count($word);
     $cls = array();
     for ($i = 0; $i < $n; )
@@ -348,7 +348,7 @@ function aio_voices_classes($word, $low, $join, $seps, $part)
         if (isset($seps[$i]) && $seps[$i][0] === '+' && isset($dict["$key плюс"]))
             $hit = "$key плюс";
         $len = 1;
-        for ($j = $i + 1; isset($first[$low[$i]]) && $j < $n && $j - $i < AIO_VOICES_NGRAM && $join[$j - 1] !== ''; $j++)
+        for ($j = $i + 1; isset($first[$low[$i]]) && $j < $n && $j - $i < MEL_VOICES_NGRAM && $join[$j - 1] !== ''; $j++)
         {
             $key .= $join[$j - 1] . $low[$j];
             if (isset($dict[$key]))
@@ -365,7 +365,7 @@ function aio_voices_classes($word, $low, $join, $seps, $part)
             $i += $len;
             continue;
         }
-        $c = aio_voices_word($low[$i], $word[$i]);
+        $c = mel_voices_word($low[$i], $word[$i]);
         if (!$c && isset($rutor[$word[$i]]))
         {
             // "Dune.Part.Two.2024.D.MVO.AVO.WEB-DL": right after the year, by a dot.
@@ -388,15 +388,15 @@ function aio_voices_classes($word, $low, $join, $seps, $part)
 // substring ("Королёв" of "Королева", "Amedia" of "Novamedia"); one not in
 // the name at all comes from a duplicate.
 /**
- * @param AioVoicesName $v
+ * @param MelVoicesName $v
  * @param string $norm
  * @param string $tail
  * @param array<string, true> $unsafe
- * @return AioVoicesName
+ * @return MelVoicesName
  */
-function aio_voices_tail($v, $norm, $tail, $unsafe)
+function mel_voices_tail($v, $norm, $tail, $unsafe)
 {
-    $t = aio_voices_parse($tail, false);
+    $t = mel_voices_parse($tail, false);
     foreach ($t['keys'] as $name => $key)
     {
         if (strpos($norm, $key) === false && !isset($v['keys'][$name]) && !isset($unsafe[$name]) &&
@@ -414,10 +414,10 @@ function aio_voices_tail($v, $norm, $tail, $unsafe)
 // order, without repeats; a studio inside a longer one found is dropped
 // ("Сербин" with "Ю. Сербин").
 /**
- * @param array<AioVoicesName> $names
- * @return AioVoices
+ * @param array<MelVoicesName> $names
+ * @return MelVoices
  */
-function aio_voices($names)
+function mel_voices($names)
 {
     $v = array('types' => array(), 'studios' => array(), 'orig' => '', 'subs' => false, 'stype' => array());
     foreach ($names as $p)
@@ -449,10 +449,10 @@ function aio_voices($names)
  * @param string $lang
  * @return array{dub: string, orig: string, subs: string}
  */
-function aio_voices_words($lang)
+function mel_voices_words($lang)
 {
-    return array('dub' => aio_tr($lang, 'voices_dub'), 'orig' => aio_tr($lang, 'voices_orig'),
-        'subs' => aio_tr($lang, 'voices_subs'));
+    return array('dub' => mel_tr($lang, 'voices_dub'), 'orig' => mel_tr($lang, 'voices_orig'),
+        'subs' => mel_tr($lang, 'voices_subs'));
 }
 
 // Lower case, ё -> е, words joined by a space: the key of voices.php.
@@ -460,7 +460,7 @@ function aio_voices_words($lang)
  * @param string $s
  * @return string
  */
-function aio_voices_key($s)
+function mel_voices_key($s)
 {
     return trim(preg_replace('/[^\p{L}\p{N}+]+/u', ' ', mb_strtolower(str_replace(array('ё', 'Ё'), 'е', $s), 'UTF-8')));
 }
@@ -471,16 +471,16 @@ function aio_voices_key($s)
  * @param string $name
  * @return string
  */
-function aio_voices_same($name)
+function mel_voices_same($name)
 {
     static $dict = null;
     if ($dict === null)
-        $dict = aio_voices_dict();
-    $k = aio_voices_key($name);
+        $dict = mel_voices_dict();
+    $k = mel_voices_key($name);
     $last = substr(strrchr(" $k", ' '), 1);
     if (isset($dict[$k]) && $dict[$k] !== '')
-        return aio_voices_key($dict[$k]);
-    return $last !== $k && isset($dict[$last]) && $dict[$last] !== '' ? aio_voices_key($dict[$last]) : $k;
+        return mel_voices_key($dict[$k]);
+    return $last !== $k && isset($dict[$last]) && $dict[$last] !== '' ? mel_voices_key($dict[$last]) : $k;
 }
 
 // The voice of one audio track by its title ("Dub Bravo Records Georgia",
@@ -496,7 +496,7 @@ function aio_voices_same($name)
  * @param string $lang
  * @return array{types: list<string>, studios: list<string>, orig: bool}|null
  */
-function aio_track_voice($title, $lang = '')
+function mel_track_voice($title, $lang = '')
 {
     static $noise = null;
     static $own = null;
@@ -506,15 +506,15 @@ function aio_track_voice($title, $lang = '')
     static $glued = array();
     if ($dict === null)
     {
-        $noise = aio_voices_noise();
-        $own = aio_voices_own();
-        $dict = aio_voices_dict();
-        $exact = aio_voices_exact();
+        $noise = mel_voices_noise();
+        $own = mel_voices_own();
+        $dict = mel_voices_dict();
+        $exact = mel_voices_exact();
         foreach ($dict as $k => $name)
             $glued[str_replace(' ', '', $k)] = $name;
     }
     // [b] tags, also with the brackets lost ("bBravo Records GeorgiaB").
-    $s = aio_voices_nfc(aio_voices_clean($title));
+    $s = mel_voices_nfc(mel_voices_clean($title));
     $s = preg_replace('~\[/?[a-zA-Z]\]|(?<!\p{L})b(?=\p{Lu}\p{Ll})|(?<=\p{Ll})B(?!\p{L})~u', ' ', $s);
     // File names and track numbers: "X265-SpaceHD13.А.Гаврилов", "Rus.mka", "Track2", "18+".
     $s = preg_replace('/(?<![\p{L}\p{N}])(?:[xh]\.?26[45]|hevc|avc)(?:-[A-Za-z0-9]+)?|' .
@@ -522,26 +522,26 @@ function aio_track_voice($title, $lang = '')
         '(?<![\p{L}\p{N}])(?:track|дорожка|audio|аудио)\s*#?\s*[0-9]+|[0-9]+\+(?![0-9])/iu', '|', $s);
     // A channel before its name: "т/к Україна", 'ТК "Україна"' ("Телеканал Че" stays).
     $s = preg_replace('~(?<![\p{L}\p{N}])(?:т\s*/\s*к|тк|телеканал|канал)\s*(?=["\x{00AB}]?\p{L}{3})~iu', '|', $s);
-    $s = aio_jr_title($s);
+    $s = mel_jr_title($s);
     // Commentaries and audio description are no voices.
     if (preg_match('/comment|коммент|\bcomm\b|descripti|audiodescr|тифло/iu', $s))
         return null;
     $foreign = !in_array($lang, array('', 'RU', 'UA'), true);
     // The cast of a studio is no studio: "AniLibria (HectoR, Sharon)", "[AniLibria]
-    // HectoR, Lupin", "Itashi & Kari [AniLibria]" (aio_voices_cast).
+    // HectoR, Lupin", "Itashi & Kari [AniLibria]" (mel_voices_cast).
     $skip = array();
     if (preg_match('~^(.*?)[(\[]([^()\[\]]*)[)\]](.*)$~su', $s, $m))
     {
-        $in = aio_voices_side($m[2]);
-        $out = aio_voices_side($m[1] . ' | ' . $m[3]);
+        $in = mel_voices_side($m[2]);
+        $out = mel_voices_side($m[1] . ' | ' . $m[3]);
         $drop = '';
         // Outside the brackets only a list goes: "Студия Нота [РТР/СТС]" stays.
-        if (aio_voices_cast($out, $in) && $out['n'] >= 2)
+        if (mel_voices_cast($out, $in) && $out['n'] >= 2)
             $drop = $m[1] . '|' . $m[3];
-        else if (aio_voices_cast($in, $out))
+        else if (mel_voices_cast($in, $out))
             $drop = $m[2];
-        foreach (aio_voices_items($drop) as $x)
-            $skip[] = ' ' . aio_voices_skip_key($x) . ' ';
+        foreach (mel_voices_items($drop) as $x)
+            $skip[] = ' ' . mel_voices_skip_key($x) . ' ';
     }
     $v = array('types' => array(), 'studios' => array(), 'orig' => false);
     $parts = preg_split('/([\p{L}\p{N}]+)/u', $s, -1, PREG_SPLIT_DELIM_CAPTURE);
@@ -570,7 +570,7 @@ function aio_track_voice($title, $lang = '')
         else if (strpos($low, 'origin') === 0)
             $c = array('orig', 'orig');
         else
-            $c = aio_voices_word($low, $parts[$i]);
+            $c = mel_voices_word($low, $parts[$i]);
         if ($c && $c[0] === 'type' && !in_array($c[1], $v['types'], true))
             $v['types'][] = $c[1];
         else if ($c && $c[0] === 'orig')
@@ -581,16 +581,16 @@ function aio_track_voice($title, $lang = '')
     }
     $list = array();
     foreach (preg_split('~\s*[|,;/()\[\]{}"\x{00AB}\x{00BB}]+\s*~u', implode('', $parts)) as $p)
-        $list = array_merge($list, aio_voices_names($p));
+        $list = array_merge($list, mel_voices_names($p));
     foreach ($list as $p)
     {
         // "НТВ+": the "+" is part of the name.
         $plus = '';
         if (preg_match('/^[\s.\-_:\x{2013}\x{2014}]*(\p{L}.*?)\s*\+\s*$/u', $p, $pm) &&
-            isset($dict[aio_voices_key($pm[1]) . ' плюс']))
-            $plus = $dict[aio_voices_key($pm[1]) . ' плюс'];
+            isset($dict[mel_voices_key($pm[1]) . ' плюс']))
+            $plus = $dict[mel_voices_key($pm[1]) . ' плюс'];
         $p = preg_replace('/^[\s.\-_:+&\x{2013}\x{2014}]+|[\s\-_:+&\x{2013}\x{2014}]+$/u', '', $p);
-        $p = aio_voices_unwrap($p);
+        $p = mel_voices_unwrap($p);
         // The year of a translation: "AVO Goblin 2004".
         $p = trim(preg_replace('/(?<![\p{L}\p{N}])(?:19|20)[0-9]{2}(?![\p{L}\p{N}])/u', '', $p));
         if ($p === '' || count($v['studios']) >= 10)
@@ -601,10 +601,10 @@ function aio_track_voice($title, $lang = '')
                 $v['studios'][] = $plus;
             continue;
         }
-        $k = aio_voices_key($p);
+        $k = mel_voices_key($p);
         // A common word of voices.php ("Inter" of "International") is none.
         // A dropped name, or the part of one left by noise words.
-        $sk = ' ' . aio_voices_skip_key($p) . ' ';
+        $sk = ' ' . mel_voices_skip_key($p) . ' ';
         foreach ($sk === '  ' ? array() : $skip as $x)
         {
             if (strpos($x, $sk) !== false)
@@ -613,7 +613,7 @@ function aio_track_voice($title, $lang = '')
         if (isset($dict[$k]) && $dict[$k] === '' && !isset($own[$k]))
             continue;
         $g = str_replace(' ', '', $k);
-        $pv = isset($own[$k]) ? array('studios' => array($own[$k])) : aio_voices_parse($p, false);
+        $pv = isset($own[$k]) ? array('studios' => array($own[$k])) : mel_voices_parse($p, false);
         // An exact key only as written: "HDR" is no "HDr" of HDRezka.
         if (!$pv['studios'] && isset($glued[$g]) && $glued[$g] !== '' && (!isset($exact[$g]) || isset($exact[$g][$p])))
             $pv['studios'] = array($glued[$g]);
@@ -630,8 +630,8 @@ function aio_track_voice($title, $lang = '')
         // ("Брат.1997.HDTV.1080p", "4ol2bwkl", "128kbs"), two letters ("HE"),
         // letters of two scripts in a word (look-alike Latin "Пepeвog"), or of a
         // foreign track.
-        if (!$foreign && aio_voices_as_written($p))
-            $v['studios'][] = aio_cut(aio_voices_person($p), 40);
+        if (!$foreign && mel_voices_as_written($p))
+            $v['studios'][] = mel_cut(mel_voices_person($p), 40);
     }
     return $v;
 }
@@ -641,28 +641,28 @@ function aio_track_voice($title, $lang = '')
 // not a studio).
 /**
  * @param string $s
- * @return AioVoicesSide
+ * @return MelVoicesSide
  */
-function aio_voices_side($s)
+function mel_voices_side($s)
 {
     static $own = null;
     static $noise = null;
     if ($own === null)
     {
-        $own = aio_voices_own();
-        $noise = aio_voices_noise();
+        $own = mel_voices_own();
+        $noise = mel_voices_noise();
     }
     $v = array('studios' => array(), 'n' => 0, 'other' => false);
-    foreach (aio_voices_items($s) as $x)
+    foreach (mel_voices_items($s) as $x)
     {
-        $x = aio_voices_unwrap($x);
-        $k = aio_voices_key($x);
-        $pv = isset($own[$k]) ? array('types' => array(), 'studios' => array($own[$k])) : aio_voices_parse($x, false);
+        $x = mel_voices_unwrap($x);
+        $k = mel_voices_key($x);
+        $pv = isset($own[$k]) ? array('types' => array(), 'studios' => array($own[$k])) : mel_voices_parse($x, false);
         // Types ("MVO Russian"), noise words, a file part are no names.
         $named = false;
         foreach (explode(' ', $k) as $w)
-            $named = $named || (!isset($noise[$w]) && !aio_voices_word($w, $w));
-        if (!$pv['studios'] && (!$named || !aio_voices_as_written($x)))
+            $named = $named || (!isset($noise[$w]) && !mel_voices_word($w, $w));
+        if (!$pv['studios'] && (!$named || !mel_voices_as_written($x)))
             continue;
         $v['n']++;
         $v['studios'] = array_merge($v['studios'], $pv['studios']);
@@ -675,11 +675,11 @@ function aio_voices_side($s)
 // against some, or a list of names (one not a studio: JacRed knows a few nicks)
 // against one studio.
 /**
- * @param AioVoicesSide $a
- * @param AioVoicesSide $b
+ * @param MelVoicesSide $a
+ * @param MelVoicesSide $b
  * @return bool
  */
-function aio_voices_cast($a, $b)
+function mel_voices_cast($a, $b)
 {
     return ($b['studios'] && !$a['studios']) ||
         (count($b['studios']) === 1 && $b['n'] === 1 && $a['n'] >= 2 && $a['other']);
@@ -690,12 +690,12 @@ function aio_voices_cast($a, $b)
  * @param string $s
  * @return list<string>
  */
-function aio_voices_items($s)
+function mel_voices_items($s)
 {
     $out = array();
     foreach (preg_split('~\s*[|,;/]\s*~u', $s) as $x)
     {
-        foreach (aio_voices_names($x) as $y)
+        foreach (mel_voices_names($x) as $y)
         {
             if (preg_match('/[\p{L}\p{N}]/u', $y))
                 $out[] = $y;
@@ -711,16 +711,16 @@ function aio_voices_items($s)
  * @param string $p
  * @return list<string>
  */
-function aio_voices_names($p)
+function mel_voices_names($p)
 {
     static $dict = null;
     static $own = null;
     if ($dict === null)
     {
-        $dict = aio_voices_dict();
-        $own = aio_voices_own();
+        $dict = mel_voices_dict();
+        $own = mel_voices_own();
     }
-    $k = aio_voices_key($p);
+    $k = mel_voices_key($p);
     if (isset($dict[$k]) || isset($own[$k]))
         return array($p);
     $out = array();
@@ -739,9 +739,9 @@ function aio_voices_names($p)
         $known = count($y) > 1;
         foreach ($y as $z)
         {
-            $kz = aio_voices_key($z);
+            $kz = mel_voices_key($z);
             $known = $known && ((isset($dict[$kz]) && $dict[$kz] !== '') || isset($own[$kz]) ||
-                preg_match('/^\p{Lu}\.\s*\p{Lu}\p{Ll}+$/u', trim($z)) || aio_voices_person($z) !== $z);
+                preg_match('/^\p{Lu}\.\s*\p{Lu}\p{Ll}+$/u', trim($z)) || mel_voices_person($z) !== $z);
         }
         $out = array_merge($out, $known ? $y : array($x));
     }
@@ -753,16 +753,16 @@ function aio_voices_names($p)
  * @param string $s
  * @return string
  */
-function aio_voices_skip_key($s)
+function mel_voices_skip_key($s)
 {
-    return trim(preg_replace('/(?:^|\s)\p{L}(?=\s|$)/u', '', aio_voices_key($s)));
+    return trim(preg_replace('/(?:^|\s)\p{L}(?=\s|$)/u', '', mel_voices_key($s)));
 }
 
 // First names of people of the voices, lower case, е for ё.
 /**
  * @return array<string, int>
  */
-function aio_voices_first_names()
+function mel_voices_first_names()
 {
     static $first = array('александр' => 1, 'алексей' => 1, 'анастасия' => 1, 'андрей' => 1, 'анна' => 1,
         'антон' => 1, 'артем' => 1, 'борис' => 1, 'вадим' => 1, 'валерий' => 1, 'вартан' => 1, 'василий' => 1,
@@ -781,21 +781,21 @@ function aio_voices_first_names()
  * @param string $p
  * @return string
  */
-function aio_voices_person($p)
+function mel_voices_person($p)
 {
     static $dict = null;
     static $own = null;
     static $first = null;
     if ($dict === null)
     {
-        $dict = aio_voices_dict();
-        $own = aio_voices_own();
-        $first = aio_voices_first_names();
+        $dict = mel_voices_dict();
+        $own = mel_voices_own();
+        $first = mel_voices_first_names();
     }
     if (!preg_match('/^(\p{Lu})(\p{Ll}+)\s+(\p{Lu}\p{Ll}+(?:-\p{Lu}\p{Ll}+)?)$/u', trim($p), $m) ||
         !isset($first[mb_strtolower(str_replace('ё', 'е', $m[1] . $m[2]), 'UTF-8')]))
         return $p;
-    $k = aio_voices_key($m[3]);
+    $k = mel_voices_key($m[3]);
     return (isset($dict[$k]) && $dict[$k] !== '') || isset($own[$k]) ? "{$m[1]}. {$m[3]}" : $p;
 }
 
@@ -804,7 +804,7 @@ function aio_voices_person($p)
 /**
  * @return array<string, int>
  */
-function aio_voices_noise()
+function mel_voices_noise()
 {
     static $noise = array('russian' => 1, 'english' => 1, 'ukrainian' => 1, 'rus' => 1, 'eng' => 1, 'ukr' => 1,
         'русский' => 1, 'русская' => 1, 'рус' => 1, 'украинский' => 1, 'украинская' => 1, 'укр' => 1,
@@ -850,7 +850,7 @@ function aio_voices_noise()
 /**
  * @return array<string, string>
  */
-function aio_voices_own()
+function mel_voices_own()
 {
     static $own = array('інтер' => 'Інтер', 'интер' => 'Інтер', 'україна' => 'Україна', 'украина' => 'Україна',
         'ukraina' => 'Україна', 'карусель' => 'Карусель', 'домашний' => 'Домашний', 'tycoon' => 'Tycoon',
@@ -869,19 +869,19 @@ function aio_voices_own()
  * @param string $p
  * @return string
  */
-function aio_voices_unwrap($p)
+function mel_voices_unwrap($p)
 {
     return preg_replace('~^(?:(?:для|по\s+заказу|по\s+переводу|т\s*/\s*к|тк|телеканал|канал)\s+)+|\s+по$~iu', '',
         $p);
 }
 
 // Text where names are shown as written, without HTML ("<b>LostFilm</b>",
-// "&amp;") and pictographs ("MVO 🎬 Кубик"), as aio_plain_name.
+// "&amp;") and pictographs ("MVO 🎬 Кубик"), as mel_plain_name.
 /**
  * @param string $s
  * @return string
  */
-function aio_voices_clean($s)
+function mel_voices_clean($s)
 {
     $s = preg_replace('/&#?[A-Za-z0-9]+;/', ' ', html_entity_decode($s, ENT_QUOTES, 'UTF-8'));
     $s = preg_replace('~</?(?:a|b|i|u|s|em|strong|span|font|br|p|div|small|big|sup|sub)(?![\p{L}\p{N}])[^<>]*>~iu',
@@ -898,16 +898,16 @@ function aio_voices_clean($s)
  * @param string $p
  * @return bool
  */
-function aio_voices_as_written($p)
+function mel_voices_as_written($p)
 {
     static $first = null;
     static $dict = null;
     if ($first === null)
     {
-        $first = aio_voices_first_names();
-        $dict = aio_voices_dict();
+        $first = mel_voices_first_names();
+        $dict = mel_voices_dict();
     }
-    $w = explode(' ', aio_voices_key($p));
+    $w = explode(' ', mel_voices_key($p));
     for ($i = count($w) - 1; $i > 0; $i--)
     {
         if (isset($dict["{$w[$i - 1]} {$w[$i]}"]) && $dict["{$w[$i - 1]} {$w[$i]}"] === '')
@@ -926,7 +926,7 @@ function aio_voices_as_written($p)
 /**
  * @return array<string, string>
  */
-function aio_voices_codes()
+function mel_voices_codes()
 {
     static $codes = array('D' => 'dub', 'P' => 'mvo', 'L' => 'mvo', 'P2' => 'dvo', 'L2' => 'dvo', 'P1' => 'avo',
         'L1' => 'avo', 'A' => 'avo');
@@ -941,7 +941,7 @@ function aio_voices_codes()
  * @param string $s
  * @return list<array{string, string}>
  */
-function aio_voices_name_extra($s)
+function mel_voices_name_extra($s)
 {
     // Words of an edition or a release after rutor's codes ("| Open Matte").
     static $stop = array('open' => 1, 'matte' => 1, 'imax' => 1, 'cut' => 1, 'remastered' => 1, 'remaster' => 1,
@@ -959,23 +959,23 @@ function aio_voices_name_extra($s)
     static $codes = null;
     if ($dict === null)
     {
-        $noise = aio_voices_noise();
-        $own = aio_voices_own();
-        $dict = aio_voices_dict();
-        $codes = aio_voices_codes();
+        $noise = mel_voices_noise();
+        $own = mel_voices_own();
+        $dict = mel_voices_dict();
+        $codes = mel_voices_codes();
     }
     $out = array();
     if (strpbrk($s, '(|') === false ||
         !preg_match('/(?<![0-9])(?:19|20)[0-9]{2}(?![0-9])/', $s, $m, PREG_OFFSET_CAPTURE))
         return $out;
-    $s = aio_voices_clean(substr($s, $m[0][1] + 4));
+    $s = mel_voices_clean(substr($s, $m[0][1] + 4));
     $lists = array();
     if (preg_match_all('/(?<![\p{L}\p{N}])(ДБ|ПМ|ЛМ|ПД|ЛД|АП|ЛО|ПО|Dub|DUB|MVO|DVO|AVO|VO)\s*\(([^()]{1,300})\)/u', $s,
         $mm, PREG_SET_ORDER))
     {
         foreach ($mm as $x)
         {
-            $c = aio_voices_word(mb_strtolower($x[1], 'UTF-8'), $x[1]);
+            $c = mel_voices_word(mb_strtolower($x[1], 'UTF-8'), $x[1]);
             $lists[] = array($x[2], $c && $c[0] === 'type' ? $c[1] : '');
         }
     }
@@ -992,18 +992,18 @@ function aio_voices_name_extra($s)
         foreach (preg_split('~\s*[|,;/]\s*~u', preg_replace('~(?<!\p{L})т\s*/\s*к\s+~iu', '', $l[0])) as $x)
         {
             // "Black & Chrome Edition" is an edition as a whole.
-            foreach (explode(' ', aio_voices_key($x)) as $w)
+            foreach (explode(' ', mel_voices_key($x)) as $w)
             {
                 if (isset($stop[$w]))
                     continue 2;
             }
-            $items = array_merge($items, aio_voices_names($x));
+            $items = array_merge($items, mel_voices_names($x));
         }
         foreach ($items as $p)
         {
-            $p = aio_voices_unwrap(preg_replace('/^[\s"\'\x{00AB}\x{00BB}.\-]+|[\s"\'\x{00AB}\x{00BB}.\-]+$/u', '',
+            $p = mel_voices_unwrap(preg_replace('/^[\s"\'\x{00AB}\x{00BB}.\-]+|[\s"\'\x{00AB}\x{00BB}.\-]+$/u', '',
                 $p));
-            $k = aio_voices_key($p);
+            $k = mel_voices_key($p);
             // A common word of voices.php ("Ultradox", "Tycoon") is none.
             if ($k === '' || (isset($dict[$k]) && $dict[$k] === '' && !isset($own[$k])))
                 continue;
@@ -1015,34 +1015,34 @@ function aio_voices_name_extra($s)
             // A name of voices.php is the parse's already.
             if (isset($dict[$k]))
                 continue;
-            $pv = aio_voices_parse($p, false);
-            if ($pv['studios'] || $pv['types'] || $pv['orig'] !== '' || $pv['subs'] || !aio_voices_as_written($p) ||
+            $pv = mel_voices_parse($p, false);
+            if ($pv['studios'] || $pv['types'] || $pv['orig'] !== '' || $pv['subs'] || !mel_voices_as_written($p) ||
                 mb_strlen($p, 'UTF-8') > 40)
                 continue;
             // "JAP", "японская": the original is no studio (the parse above keeps
             // the Japanese one only in brackets).
             foreach (explode(' ', $k) as $w)
             {
-                $c = aio_voices_word($w, $w);
+                $c = mel_voices_word($w, $w);
                 if (isset($noise[$w]) || isset($stop[$w]) || preg_match('/^[0-9]+$/', $w) || ($c && $c[0] === 'orig'))
                     continue 2;
             }
-            $out[] = array(aio_voices_person($p), $l[1]);
+            $out[] = array(mel_voices_person($p), $l[1]);
         }
     }
     return $out;
 }
 
-// The voices of a row, in order (aio_voices_struct_text makes the text):
+// The voices of a row, in order (mel_voices_struct_text makes the text):
 // array('groups' => type => studios (dub, mvo, dvo, avo; only with a track of
 // a type and a studio), 'types' => types without studios, 'studios' =>
 // studios without a type, 'orig' => '' | 'orig' | 'jap', 'subs' => bool of
 // the name).
 /**
- * @param AioRow $r
- * @return AioVoicesStruct
+ * @param MelRow $r
+ * @return MelVoicesStruct
  */
-function aio_row_voices_struct($r)
+function mel_row_voices_struct($r)
 {
     $groups = array();
     $seen = array();
@@ -1052,18 +1052,18 @@ function aio_row_voices_struct($r)
     // Types the name gives its studios: "DVO (Кубик в Кубе)".
     $nst = array();
     foreach ($nv['stype'] as $st => $type)
-        $nst[aio_voices_same($st)] = $type;
-    foreach (array_slice($r['tracks'], 0, AIO_VOICES_TRACKS) as $t)
+        $nst[mel_voices_same($st)] = $type;
+    foreach (array_slice($r['tracks'], 0, MEL_VOICES_TRACKS) as $t)
     {
-        $v = aio_track_voice($t['title'], $t['lang']);
+        $v = mel_track_voice($t['title'], $t['lang']);
         if (!$v)
             continue;
         // A track without a type: the type the name gives one of its studios
         // ("Kubik3 / el brujo" of "DVO (Кубик в Кубе)" -> "ПД: Кубик в Кубе, el brujo").
         foreach ($v['types'] ? array() : $v['studios'] as $st)
         {
-            if (!$v['types'] && isset($nst[aio_voices_same($st)]))
-                $v['types'] = array($nst[aio_voices_same($st)]);
+            if (!$v['types'] && isset($nst[mel_voices_same($st)]))
+                $v['types'] = array($nst[mel_voices_same($st)]);
         }
         $foreign = $t['lang'] !== '' && $t['lang'] !== 'RU';
         // Original: by the title, or a foreign track (not UA) that names no studio.
@@ -1080,7 +1080,7 @@ function aio_row_voices_struct($r)
             $types[$type] = true;
             foreach ($v['studios'] as $st)
             {
-                $k = aio_voices_same($st) . ($foreign ? ":{$t['lang']}" : '');
+                $k = mel_voices_same($st) . ($foreign ? ":{$t['lang']}" : '');
                 if (!isset($groups[$type][$k]))
                     $groups[$type][$k] = $st . ($foreign ? " ({$t['lang']})" : '');
                 $seen[$k] = true;
@@ -1095,14 +1095,14 @@ function aio_row_voices_struct($r)
     foreach ($groups as $list)
     {
         foreach ($list as $st)
-            $all[] = aio_voices_key($st);
+            $all[] = mel_voices_key($st);
     }
     foreach ($nv['studios'] as $st)
-        $all[] = aio_voices_key($st);
+        $all[] = mel_voices_key($st);
     $keep = array();
     foreach ($nv['studios'] as $st)
     {
-        $k = aio_voices_key($st);
+        $k = mel_voices_key($st);
         $in = false;
         foreach ($all as $o)
             $in = $in || ($o !== $k && preg_match('/\p{L}' . preg_quote($k, '/') . '(?![\p{L}\p{N}])/u', $o));
@@ -1113,7 +1113,7 @@ function aio_row_voices_struct($r)
     $orig = $orig !== '' ? $orig : $nv['orig'];
     // No voice from the tracks: the types and studios of the name, no groups.
     if (!$groups && !$types)
-        return aio_voices_by_tracker(array('groups' => array(), 'types' => $nv['types'], 'studios' => $nv['studios'],
+        return mel_voices_by_tracker(array('groups' => array(), 'types' => $nv['types'], 'studios' => $nv['studios'],
             'orig' => $orig, 'subs' => $nv['subs']), $r);
     // Without a type: no studio of a type, nor one of the name in the tracks.
     $bare = array();
@@ -1127,7 +1127,7 @@ function aio_row_voices_struct($r)
     }
     foreach ($nv['studios'] as $st)
     {
-        $k = aio_voices_same($st);
+        $k = mel_voices_same($st);
         if (isset($seen[$k]) || isset($bare[$k]))
             continue;
         if (isset($nst[$k]))
@@ -1149,7 +1149,7 @@ function aio_row_voices_struct($r)
         if (!isset($out[$type]))
             $rest[$type] = $type;
     }
-    return aio_voices_by_tracker(array('groups' => $out, 'types' => array_values($rest),
+    return mel_voices_by_tracker(array('groups' => $out, 'types' => array_values($rest),
         'studios' => array_values($bare), 'orig' => $orig, 'subs' => $nv['subs']), $r);
 }
 
@@ -1157,11 +1157,11 @@ function aio_row_voices_struct($r)
 // AIOStreams ("kinozal, rudub"), whose names and tracks name no studio: that
 // studio. BaibaKo's "(УКР.)" is its Ukrainian voice.
 /**
- * @param AioVoicesStruct $v
- * @param AioRow $r
- * @return AioVoicesStruct
+ * @param MelVoicesStruct $v
+ * @param MelRow $r
+ * @return MelVoicesStruct
  */
-function aio_voices_by_tracker($v, $r)
+function mel_voices_by_tracker($v, $r)
 {
     static $studio = array('lostfilm' => 'LostFilm', 'baibako' => 'BaibaKo', 'leproduction' => 'LE-Production',
         'anidub' => 'AniDUB', 'aniliberty' => 'AniLiberty', 'anistar' => 'AniStar', 'rudub' => 'RuDub');
@@ -1181,22 +1181,22 @@ function aio_voices_by_tracker($v, $r)
     return $v;
 }
 
-// aio_row_voices_struct() for the screens: of the types only the dub, "Дубляж:
+// mel_row_voices_struct() for the screens: of the types only the dub, "Дубляж:
 // Red Head Sound · LostFilm, HDRezka, Ю. Сербин · оригинал JAP · субтитры"
 // ("Дубляж" alone without its studios); the other studios in one list, groups
 // in order, then those without a type, no repeats; bare types (ПМ, АП) not
 // shown. '' if empty. Past $max characters cut with "..." (the card); 0: whole
 // (INFO, the bottom of its column cuts).
 /**
- * @param AioVoicesStruct $v
+ * @param MelVoicesStruct $v
  * @param string $lang
  * @param bool $subs
  * @param int $max
  * @return string
  */
-function aio_voices_struct_text($v, $lang, $subs = true, $max = AIO_TEXT_MAX)
+function mel_voices_struct_text($v, $lang, $subs = true, $max = MEL_TEXT_MAX)
 {
-    $w = aio_voices_words($lang);
+    $w = mel_voices_words($lang);
     $p = array();
     // The struct has one name a studio already: repeats by the name shown.
     $seen = array();
@@ -1227,16 +1227,16 @@ function aio_voices_struct_text($v, $lang, $subs = true, $max = AIO_TEXT_MAX)
     if ($v['subs'] && $subs)
         $p[] = $w['subs'];
     $s = implode(' · ', array_filter($p, 'strlen'));
-    return $max > 0 ? aio_cut($s, $max) : $s;
+    return $max > 0 ? mel_cut($s, $max) : $s;
 }
 
-// The text of $v (aio_voices_struct_text) starts with the dub: "Дубляж: …"
-// or "Дубляж" alone (aio_gc_wrap_voices puts it on lines of its own).
+// The text of $v (mel_voices_struct_text) starts with the dub: "Дубляж: …"
+// or "Дубляж" alone (mel_gc_wrap_voices puts it on lines of its own).
 /**
- * @param AioVoicesStruct $v
+ * @param MelVoicesStruct $v
  * @return bool
  */
-function aio_voices_dub_first($v)
+function mel_voices_dub_first($v)
 {
     return !empty($v['groups']['dub']) || in_array('dub', $v['types'], true);
 }
@@ -1244,18 +1244,18 @@ function aio_voices_dub_first($v)
 // Voices of the names of a row and the name shown without JacRed's tails;
 // only for the rows listed (two parses a row).
 /**
- * @param AioRow $r
- * @return AioRow
+ * @param MelRow $r
+ * @return MelRow
  */
-function aio_row_voices($r)
+function mel_row_voices($r)
 {
     $p = array();
     foreach ($r['names'] as $nm)
     {
         if ($nm !== '' && !isset($p[$nm]))
-            $p[$nm] = aio_voices_parse($nm);
+            $p[$nm] = mel_voices_parse($nm);
     }
-    $r['voices'] = aio_voices($p);
+    $r['voices'] = mel_voices($p);
     // BaibaKo's Ukrainian voice: "(УКР.)" in the folder or the file name.
     if (preg_match('/\(УКР\.?\)/u', implode(' ', $r['names'])))
         $r['voices']['ua'] = true;

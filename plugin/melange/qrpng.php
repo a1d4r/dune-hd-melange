@@ -5,7 +5,7 @@
 
 require_once dirname(__FILE__) . '/qrcode/qrcode.php';
 
-class AioQrPng
+class MelQrPng
 {
     // Returns array('png' => bytes, 'size' => px, 'modules' => n, 'version' => v).
     // $max_side > 0: the largest whole $scale whose side fits it (1 at least).

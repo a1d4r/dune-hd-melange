@@ -1,38 +1,38 @@
 <?php
 // AIOStreams reply -> rows of the list: accessors of decoded JSON, a stream
-// -> row (aio_row), its badges, audio and tracks. Pure functions: no firmware
+// -> row (mel_row), its badges, audio and tracks. Pure functions: no firmware
 // API, no log, no state.
-// Types in the PHPDoc (AioRow and others): phpstan-types.neon of the repository.
+// Types in the PHPDoc (MelRow and others): phpstan-types.neon of the repository.
 
 // Characters of a joined list (trackers, languages) on a screen, before wrapping.
-define('AIO_TEXT_MAX', 300);
+define('MEL_TEXT_MAX', 300);
 // A bit rate above this (bit/s) is not believed.
-define('AIO_RATE_MAX', 1e9);
+define('MEL_RATE_MAX', 1e9);
 // PCM is not in kingsizew/badges, its badge is our own: false drops it.
-define('AIO_BADGE_PCM', true);
-// streamData.sources (aio_addons): items looked at - and ids of each
+define('MEL_BADGE_PCM', true);
+// streamData.sources (mel_addons): items looked at - and ids of each
 // "cached" -, add-ons kept of them.
-define('AIO_ADDONS_SCAN', 30);
-define('AIO_ADDONS_MAX', 10);
-// Bytes of streamData.infoUrl at most (aio_release_url): a longer one is left out.
-define('AIO_RELEASE_URL_MAX', 2048);
+define('MEL_ADDONS_SCAN', 30);
+define('MEL_ADDONS_MAX', 10);
+// Bytes of streamData.infoUrl at most (mel_release_url): a longer one is left out.
+define('MEL_RELEASE_URL_MAX', 2048);
 
 /**
  * @param string $s
  * @param int $max
  * @return string
  */
-function aio_cut($s, $max)
+function mel_cut($s, $max)
 {
     return mb_strlen($s, 'UTF-8') > $max ? mb_substr($s, 0, $max, 'UTF-8') . '...' : $s;
 }
 
 // Characters of a line of a dialog 1100 px wide: the shell cuts a longer one
 // in the middle (~65 fit, seen on the device 08.10.2026).
-define('AIO_DIALOG_LINE', 60);
-// Its width in thousandths of the font size (the advances of font_w.php; aio_gc_w at 1000 px): 29405 fit, 29964 cut
+define('MEL_DIALOG_LINE', 60);
+// Its width in thousandths of the font size (the advances of font_w.php; mel_gc_w at 1000 px): 29405 fit, 29964 cut
 // (device 08.10.2026).
-define('AIO_DIALOG_LINE_W', 29000);
+define('MEL_DIALOG_LINE_W', 29000);
 
 // Text (an error detail) -> at most 3 lines of a dialog, wrapped at spaces;
 // a word longer than a line is cut hard, text past 3 lines ends in "...".
@@ -40,18 +40,18 @@ define('AIO_DIALOG_LINE_W', 29000);
  * @param mixed $s
  * @return list<string>
  */
-function aio_dialog_lines($s)
+function mel_dialog_lines($s)
 {
-    $max = AIO_DIALOG_LINE;
+    $max = MEL_DIALOG_LINE;
     $out = array();
     // Bad UTF-8 counts differently in mb_strrpos and mb_substr.
-    $s = trim(preg_replace('/[ \t\r\n]+/', ' ', aio_utf8($s)));
+    $s = trim(preg_replace('/[ \t\r\n]+/', ' ', mel_utf8($s)));
     while ($s !== '')
     {
         $n = mb_strlen($s, 'UTF-8');
         if ($n <= $max || count($out) === 2)
         {
-            $out[] = $n <= $max ? $s : aio_cut($s, $max - 3);
+            $out[] = $n <= $max ? $s : mel_cut($s, $max - 3);
             break;
         }
         $sp = mb_strrpos(mb_substr($s, 0, $max + 1, 'UTF-8'), ' ', 0, 'UTF-8');
@@ -70,7 +70,7 @@ function aio_dialog_lines($s)
  * @param mixed $s
  * @return string
  */
-function aio_utf8($s)
+function mel_utf8($s)
 {
     return mb_convert_encoding(strval($s), 'UTF-8', 'UTF-8');
 }
@@ -80,9 +80,9 @@ function aio_utf8($s)
  * @param int|string $k
  * @return string
  */
-function aio_str($a, $k)
+function mel_str($a, $k)
 {
-    return is_array($a) && isset($a[$k]) && is_scalar($a[$k]) && !is_bool($a[$k]) ? trim(aio_utf8($a[$k])) : '';
+    return is_array($a) && isset($a[$k]) && is_scalar($a[$k]) && !is_bool($a[$k]) ? trim(mel_utf8($a[$k])) : '';
 }
 
 // http(s) picture with the shell's image cache flag (as vendor
@@ -91,7 +91,7 @@ function aio_str($a, $k)
  * @param string $url
  * @return string
  */
-function aio_img($url)
+function mel_img($url)
 {
     if (!preg_match('~^https?://[^\\s]+$~', $url))
         return '';
@@ -106,7 +106,7 @@ function aio_img($url)
  * @param mixed $s
  * @return string
  */
-function aio_clean($s)
+function mel_clean($s)
 {
     return trim(str_replace('|', '/', preg_replace('/[\\r\\n\\t]+/', ' ', strval($s))));
 }
@@ -117,9 +117,9 @@ function aio_clean($s)
  * @param mixed $s
  * @return string
  */
-function aio_one_line($s)
+function mel_one_line($s)
 {
-    return trim(strval(preg_replace('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]+/u', ' ', aio_utf8($s))));
+    return trim(strval(preg_replace('/[\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]+/u', ' ', mel_utf8($s))));
 }
 
 // A positive finite number from a JSON value (sizes come quoted), else 0.
@@ -127,7 +127,7 @@ function aio_one_line($s)
  * @param mixed $v
  * @return float
  */
-function aio_num($v)
+function mel_num($v)
 {
     $f = is_numeric($v) ? (float) $v : 0.0;
     return $f > 0 && $f < 1e18 ? $f : 0.0;
@@ -138,7 +138,7 @@ function aio_num($v)
  * @param int|string $k
  * @return array<mixed>
  */
-function aio_arr($a, $k)
+function mel_arr($a, $k)
 {
     return is_array($a) && isset($a[$k]) && is_array($a[$k]) ? $a[$k] : array();
 }
@@ -146,14 +146,14 @@ function aio_arr($a, $k)
 // The duration of the file of row $r, s (0: unknown): streamData.duration
 // in ms (a second at least), else parsedFile.duration in s.
 /**
- * @param AioRow $r
+ * @param MelRow $r
  * @return float
  */
-function aio_row_duration($r)
+function mel_row_duration($r)
 {
-    $sd = aio_arr(aio_arr($r, 'raw'), 'streamData');
-    $ms = aio_num(aio_str($sd, 'duration'));
-    return $ms >= 1000 ? $ms / 1000 : aio_num(aio_str(aio_arr($sd, 'parsedFile'), 'duration'));
+    $sd = mel_arr(mel_arr($r, 'raw'), 'streamData');
+    $ms = mel_num(mel_str($sd, 'duration'));
+    return $ms >= 1000 ? $ms / 1000 : mel_num(mel_str(mel_arr($sd, 'parsedFile'), 'duration'));
 }
 
 /**
@@ -162,7 +162,7 @@ function aio_row_duration($r)
  * @param int $def
  * @return int
  */
-function aio_int($obj, $k, $def)
+function mel_int($obj, $k, $def)
 {
     return is_object($obj) && isset($obj->$k) && is_numeric($obj->$k) ? intval($obj->$k) : $def;
 }
@@ -173,7 +173,7 @@ function aio_int($obj, $k, $def)
  * @param string $name
  * @return string
  */
-function aio_lang_code($name)
+function mel_lang_code($name)
 {
     static $codes = array('English' => 'EN', 'Japanese' => 'JA', 'Chinese' => 'ZH',
         'Russian' => 'RU', 'Arabic' => 'AR', 'Portuguese' => 'PT', 'Portuguese (Brazil)' => 'PT-BR',
@@ -199,7 +199,7 @@ function aio_lang_code($name)
 /**
  * @return array<string, array{string, int, list<string>}>
  */
-function aio_audio_rules()
+function mel_audio_rules()
 {
     return array(
         'dolby-atmos-truehd' => array('dolby', 1, array('Atmos', 'TrueHD')),
@@ -230,15 +230,15 @@ function aio_audio_rules()
 /**
  * @param array<mixed> $pf
  * @param string|null $res
- * @return AioBadges
+ * @return MelBadges
  */
-function aio_badges($pf, $res = null)
+function mel_badges($pf, $res = null)
 {
     $set = array();
     foreach (array('visualTags', 'audioTags', 'editions') as $k)
     {
         $set[$k] = array();
-        foreach (aio_arr($pf, $k) as $t)
+        foreach (mel_arr($pf, $k) as $t)
         {
             if (is_string($t))
                 $set[$k][$t] = true;
@@ -247,7 +247,7 @@ function aio_badges($pf, $res = null)
     $v = $set['visualTags'];
     $a = $set['audioTags'];
 
-    $res = strtolower(is_null($res) ? aio_str($pf, 'resolution') : $res);
+    $res = strtolower(is_null($res) ? mel_str($pf, 'resolution') : $res);
     $res = $res === '2160p' ? '4k' : ($res === '2k' ? '1440p' : $res);
     if (!in_array($res, array('4k', '1440p', '1080p', '720p', '576p', '480p', '360p', '240p', '144p'), true))
         $res = '';
@@ -255,7 +255,7 @@ function aio_badges($pf, $res = null)
     $srcs = array('BluRay REMUX' => 'remux', 'DVD REMUX' => 'remux', 'BluRay' => 'bluray',
         'WEB-DL' => 'web-dl', 'WEBRip' => 'webrip', 'HDRip' => 'hdrip', 'HC HD-Rip' => 'hc-hdrip',
         'DVDRip' => 'dvdrip', 'HDTV' => 'hdtv', 'CAM' => 'cam', 'TS' => 'ts', 'TC' => 'tc', 'SCR' => 'scr');
-    $q = aio_str($pf, 'quality');
+    $q = mel_str($pf, 'quality');
     $src = isset($srcs[$q]) ? $srcs[$q] : '';
 
     // Picture: one badge, DV with its HDR first, 10bit last; SDR has none.
@@ -274,9 +274,9 @@ function aio_badges($pf, $res = null)
     // the first in the table (Dolby: Russian tracks are mostly Dolby).
     $audio = array();
     $tier = 99;
-    foreach (aio_audio_rules() as $id => $r)
+    foreach (mel_audio_rules() as $id => $r)
     {
-        if ($r[1] < $tier && ($id !== 'pcm' || AIO_BADGE_PCM) &&
+        if ($r[1] < $tier && ($id !== 'pcm' || MEL_BADGE_PCM) &&
             count(array_intersect_key(array_flip($r[2]), $a)) === count($r[2]))
         {
             $audio = array($id);
@@ -292,7 +292,7 @@ function aio_badges($pf, $res = null)
     foreach (array_keys($set['editions']) as $e)
     {
         if ($e !== 'IMAX' && count($tags) < 8)
-            $tags[] = aio_cut(aio_utf8($e), 40);
+            $tags[] = mel_cut(mel_utf8($e), 40);
     }
     foreach (array('repack', 'proper', 'regraded', 'uncensored', 'unrated') as $f)
     {
@@ -305,12 +305,12 @@ function aio_badges($pf, $res = null)
         'audio' => $audio, 'tags' => $tags);
 }
 
-// Badge id of aio_badges as text, for the card: "DV · HDR10", "TrueHD Atmos".
+// Badge id of mel_badges as text, for the card: "DV · HDR10", "TrueHD Atmos".
 /**
  * @param string $id
  * @return string
  */
-function aio_badge_text($id)
+function mel_badge_text($id)
 {
     static $t = array('dolby-vision-hdr10-plus' => 'DV · HDR10+', 'dolby-vision-hdr10' => 'DV · HDR10',
         'dolby-vision-hdr' => 'DV · HDR', 'dolby-vision' => 'DV', 'hdr10-plus' => 'HDR10+', 'hdr10' => 'HDR10',
@@ -330,30 +330,30 @@ function aio_badge_text($id)
  * @param array<mixed> $pf
  * @return string
  */
-function aio_audio_text($pf)
+function mel_audio_text($pf)
 {
     $left = array();
-    foreach (aio_arr($pf, 'audioTags') as $t)
+    foreach (mel_arr($pf, 'audioTags') as $t)
     {
         if (is_string($t) && trim($t) !== '' && $t !== 'Unknown')
-            $left[trim(aio_utf8($t))] = true;
+            $left[trim(mel_utf8($t))] = true;
     }
     $codecs = array();
     $i = 0;
-    foreach (aio_audio_rules() as $id => $r)
+    foreach (mel_audio_rules() as $id => $r)
     {
         $i++;
         if (count(array_intersect_key(array_flip($r[2]), $left)) === count($r[2]))
         {
             // Tier first, the order of the table on a tie (ksort, not an unstable sort).
-            $codecs[sprintf('%d%03d', $r[1], $i)] = aio_badge_text($id);
+            $codecs[sprintf('%d%03d', $r[1], $i)] = mel_badge_text($id);
             $left = array_diff_key($left, array_flip($r[2]));
         }
     }
     ksort($codecs);
     $codecs = array_merge(array_values($codecs), array_keys($left));
     $ch = array();
-    foreach (aio_arr($pf, 'audioChannels') as $c)
+    foreach (mel_arr($pf, 'audioChannels') as $c)
     {
         if (is_string($c) && preg_match('/^[0-9]\.[0-9]$/', $c))
             $ch[$c] = $c;
@@ -361,7 +361,7 @@ function aio_audio_text($pf)
     rsort($ch);
     if ($ch)
         $codecs[] = implode(' / ', $ch);
-    return aio_cut(implode(' · ', $codecs), AIO_TEXT_MAX);
+    return mel_cut(implode(' · ', $codecs), MEL_TEXT_MAX);
 }
 
 // A track title without the language the code already shows: "Russian Dub
@@ -371,7 +371,7 @@ function aio_audio_text($pf)
  * @param string $lang
  * @return string
  */
-function aio_track_title($title, $lang)
+function mel_track_title($title, $lang)
 {
     static $ru = array('Russian' => 'русский|русская|рус',
         'English' => 'английский|английская|англ',
@@ -396,28 +396,28 @@ function aio_track_title($title, $lang)
 // 'title' => 'Dub Jaskier'). At most 99 tracks.
 /**
  * @param array<mixed> $pf
- * @return list<AioTrack>
+ * @return list<MelTrack>
  */
-function aio_tracks($pf)
+function mel_tracks($pf)
 {
     $out = array();
-    foreach (aio_arr($pf, 'audioTracks') as $t)
+    foreach (mel_arr($pf, 'audioTracks') as $t)
     {
         if (!is_array($t))
             continue;
-        $lang = aio_str($t, 'lang');
-        $codec = aio_str($t, 'tag') !== '' ? aio_str($t, 'tag') : strtoupper(aio_str($t, 'codec'));
-        $ch = aio_str($t, 'channels');
+        $lang = mel_str($t, 'lang');
+        $codec = mel_str($t, 'tag') !== '' ? mel_str($t, 'tag') : strtoupper(mel_str($t, 'codec'));
+        $ch = mel_str($t, 'channels');
         // "Dub_Bravo": one space; "|" and "/" -> " / ", they split studios
         // ("MVO | LostFilm | Кубик в Кубе"; after the language: "Russian/English" stays).
-        $title = aio_track_title(aio_clean(str_replace('_', ' ', aio_str($t, 'title'))), $lang);
+        $title = mel_track_title(mel_clean(str_replace('_', ' ', mel_str($t, 'title'))), $lang);
         $title = trim(preg_replace('~\s*/\s*~u', ' / ', $title), ' /');
-        $code = $lang !== '' ? aio_lang_code($lang) : '';
+        $code = $lang !== '' ? mel_lang_code($lang) : '';
         $out[] = array(
             'lang' => $code,
-            'codec' => aio_cut($codec, 20),
+            'codec' => mel_cut($codec, 20),
             'ch' => preg_match('/^[0-9]\.[0-9]$/', $ch) ? $ch : '',
-            'title' => aio_cut($title, 120));
+            'title' => mel_cut($title, 120));
         if (count($out) === 99)
             break;
     }
@@ -428,11 +428,11 @@ function aio_tracks($pf)
 // any track has one, else $langs (parsedFile.languages: JacRed's Torznab marks
 // any Cyrillic title ru-RU and AIOStreams takes that over the title).
 /**
- * @param list<AioTrack> $tracks
+ * @param list<MelTrack> $tracks
  * @param list<string> $langs
  * @return list<string>
  */
-function aio_track_langs($tracks, $langs)
+function mel_track_langs($tracks, $langs)
 {
     $out = array();
     foreach ($tracks as $t)
@@ -450,7 +450,7 @@ function aio_track_langs($tracks, $langs)
  * @param string $id
  * @return string
  */
-function aio_service_name($id)
+function mel_service_name($id)
 {
     $names = array('realdebrid' => 'Real-Debrid', 'alldebrid' => 'AllDebrid', 'premiumize' => 'Premiumize',
         'debridlink' => 'Debrid-Link', 'torbox' => 'TorBox', 'stremio_nntp' => 'Stremio NNTP', 'nzbdav' => 'NzbDAV',
@@ -464,7 +464,7 @@ function aio_service_name($id)
 
 // One playable stream -> row; null for errors, statistics, no http(s) URL
 // unless an infoHash (a P2P stream: played through TorrServer).
-// The row, as Aio::$state['rows'] keeps it (main.php, playback.php, jacred.php,
+// The row, as Mel::$state['rows'] keeps it (main.php, playback.php, jacred.php,
 // view_gcomps.php, view_info.php, voices_parse.php read it by these keys):
 //   url          the stream URL; memory of php_server only, never logged nor saved;
 //                '' for a P2P stream (then hash is set)
@@ -474,12 +474,12 @@ function aio_service_name($id)
 //   seeders      streamData.torrent.seeders: an int >= 0, else null (unknown);
 //                the list shows it for a P2P row (url '')
 //   age          streamData.age: hours since the release was added, a float >= 0,
-//                else null (unknown); the sort by date (aio_rows_sort)
-//   service      service name for "Cached in ..."; '' when unknown (aio_service_name)
+//                else null (unknown); the sort by date (mel_rows_sort)
+//   service      service name for "Cached in ..."; '' when unknown (mel_service_name)
 //   resolution   parsedFile.resolution, else from the name ("2160p"); may be ''
-//   badges       aio_badges()
-//   audio_full   audio of the card (aio_audio_text); JacRed fills it when ''
-//   tracks       aio_tracks(); JacRed fills them when none (aio_fill_tracks)
+//   badges       mel_badges()
+//   audio_full   audio of the card (mel_audio_text); JacRed fills it when ''
+//   tracks       mel_tracks(); JacRed fills them when none (mel_fill_tracks)
 //   subs         subtitle language codes; JacRed fills them when none
 //   group        release, at most 60 characters: parsedFile.releaseGroup (the
 //                releaser) and the first ranked expression of AIOStreams
@@ -488,7 +488,7 @@ function aio_service_name($id)
 //                "rg · ranked" when they differ, the ranked one when they are
 //                the same but for case; one of them when the other is empty;
 //                neither: "от X" / "by X" of the folder, then of the file
-//                (aio_release_by), else streamData.streamExpressionMatched.name
+//                (mel_release_by), else streamData.streamExpressionMatched.name
 //   expr         name of the AIOStreams expression the stream matched, at most
 //                60 characters: the first ranked one, else streamExpressionMatched
 //                .name; the list shows it in place of the trackers
@@ -499,125 +499,125 @@ function aio_service_name($id)
 //   quality      parsedFile.quality, capped: the screen wraps it (12 000 characters took seconds)
 //   size         bytes, float: PHP on Dune is 32-bit, sizes over 2 GB do not fit an int
 //   langs        language codes of the audio tracks, else of parsedFile.languages
-//                (aio_track_langs); JacRed replaces them with its tracks
+//                (mel_track_langs); JacRed replaces them with its tracks
 //   trackers     indexers
 //   addon        streamData.addon: the name of the AIOStreams add-on ("DMM Cast"), at most 60
 //                characters; shown where there are no trackers
-//   addons       add-ons that found the same release (aio_addons, of streamData.sources):
+//   addons       add-ons that found the same release (mel_addons, of streamData.sources):
 //                list of array('addon' => name, 'cached' => bool); empty for fewer than 2
 //   release_url  streamData.infoUrl: the page of the release on its tracker
-//                (aio_release_url; the Melange server sends it), '' for none
+//                (mel_release_url; the Melange server sends it), '' for none
 //   pf_seasons   seasons in the file, null when not parsed; pf_episodes: its
-//                episodes (aio_has_ep)
-//   names        array(folder, file); aio_row_voices replaces it by 'voices'
-//                (aio_voices) and may shorten 'label'
+//                episodes (mel_has_ep)
+//   names        array(folder, file); mel_row_voices replaces it by 'voices'
+//                (mel_voices) and may shorten 'label'
 //   label        name of the release: the file of a movie, the folder of a season pack
 //   raw          the stream as it came, for the details screen (INFO); memory of
 //                php_server only, as the URL: never logged nor saved
-//   ord          place in the reply, from 0 (aio_fetch numbers the rows): the order of
-//                AIOStreams that every sort keeps for equal values (aio_rows_sort)
-//   copies, copy a file cached on several services, one row (aio_row_merge): its
-//                copies (AioCopy) and the index of the one on top; none for one copy
+//   ord          place in the reply, from 0 (mel_fetch numbers the rows): the order of
+//                AIOStreams that every sort keeps for equal values (mel_rows_sort)
+//   copies, copy a file cached on several services, one row (mel_row_merge): its
+//                copies (MelCopy) and the index of the one on top; none for one copy
 /**
  * @param array<mixed> $st
  * @param bool $series
- * @return AioRow|null
+ * @return MelRow|null
  */
-function aio_row($st, $series)
+function mel_row($st, $series)
 {
-    $url = aio_str($st, 'url');
-    $sd = aio_arr($st, 'streamData');
-    $tor = aio_arr($sd, 'torrent');
-    $hash = aio_st_hash($st);
+    $url = mel_str($st, 'url');
+    $sd = mel_arr($st, 'streamData');
+    $tor = mel_arr($sd, 'torrent');
+    $hash = mel_st_hash($st);
     if (!preg_match('~^https?://~', $url))
     {
         // P2P (AIOStreams: no url, infoHash and fileIdx): TorrServer plays it.
         if ($url !== '' || $hash === '')
             return null;
     }
-    $type = aio_str($sd, 'type');
+    $type = mel_str($sd, 'type');
     // An http stream to the bare root of a site, no path nor query (Comet's
     // "Scraping in progress" row): nothing to play there.
     $u = $type === 'http' ? parse_url($url) : false;
     if ($type === 'error' || $type === 'statistic' ||
         (is_array($u) && (!isset($u['path']) || $u['path'] === '/') && !isset($u['query'])))
         return null;
-    $pf = aio_arr($sd, 'parsedFile');
-    $svc = aio_arr($sd, 'service');
-    $name = aio_str($st, 'name');   // "[TB⚡] JacRed 2160p"
+    $pf = mel_arr($sd, 'parsedFile');
+    $svc = mel_arr($sd, 'service');
+    $name = mel_str($st, 'name');   // "[TB⚡] JacRed 2160p"
 
     // Only a bool service.cached counts, not the emoji of the name; no
     // service (P2P, HTTP add-ons): unknown.
     $cached = isset($svc['cached']) && is_bool($svc['cached']) ? $svc['cached'] : null;
-    $res = aio_str($pf, 'resolution');
+    $res = mel_str($pf, 'resolution');
     if ($res === '' && preg_match('/\\b([0-9]{3,4}p|4k)\\b/i', $name, $m))
         $res = $m[1];
-    $size = aio_st_size($st);
-    $tracks = aio_tracks($pf);
+    $size = mel_st_size($st);
+    $tracks = mel_tracks($pf);
     $langs = array();
-    foreach (aio_arr($pf, 'languages') as $l)
+    foreach (mel_arr($pf, 'languages') as $l)
     {
-        $c = is_string($l) ? aio_lang_code($l) : '';
+        $c = is_string($l) ? mel_lang_code($l) : '';
         if ($c !== '')
             $langs[$c] = $c;
     }
     // Subtitle languages: parsedFile.subtitles, else the languages of the tracks.
     $subs = array();
-    $names = aio_arr($pf, 'subtitles');
+    $names = mel_arr($pf, 'subtitles');
     if (!$names)
     {
-        foreach (aio_arr($pf, 'subtitleTracks') as $t)
-            $names[] = aio_str($t, 'lang');
+        foreach (mel_arr($pf, 'subtitleTracks') as $t)
+            $names[] = mel_str($t, 'lang');
     }
     foreach ($names as $l)
     {
-        $c = is_string($l) ? aio_lang_code($l) : '';
+        $c = is_string($l) ? mel_lang_code($l) : '';
         if ($c !== '' && count($subs) < 30)
             $subs[$c] = $c;
     }
-    $pack = aio_num(aio_str($sd, 'folderSize'));
+    $pack = mel_num(mel_str($sd, 'folderSize'));
     // Bit rate, bit/s: the probe's; else size / duration (ms, at least a
     // second); else the estimate in the description ("67 Mbps", not "7,4"),
-    // shown with "≈". A value over AIO_RATE_MAX falls to the next source.
-    $rate = aio_num(aio_str($pf, 'bitrate'));
+    // shown with "≈". A value over MEL_RATE_MAX falls to the next source.
+    $rate = mel_num(mel_str($pf, 'bitrate'));
     $approx = false;
     $rate_src = 'parsedFile.bitrate';
-    if ($rate > AIO_RATE_MAX)
+    if ($rate > MEL_RATE_MAX)
         $rate = 0.0;
-    $dur = aio_num(aio_str($sd, 'duration'));
-    if ($rate == 0 && $dur >= 1000 && aio_num($size) > 0 && aio_num($size) * 8 / ($dur / 1000) <= AIO_RATE_MAX)
+    $dur = mel_num(mel_str($sd, 'duration'));
+    if ($rate == 0 && $dur >= 1000 && mel_num($size) > 0 && mel_num($size) * 8 / ($dur / 1000) <= MEL_RATE_MAX)
     {
-        $rate = aio_num($size) * 8 / ($dur / 1000);
+        $rate = mel_num($size) * 8 / ($dur / 1000);
         $rate_src = 'size/duration';
     }
-    if ($rate == 0 && preg_match('/(?<![0-9.,])([0-9]+(?:\.[0-9]+)?)\s*Mbps/', aio_str($st, 'description'), $m) &&
-        aio_num($m[1]) * 1e6 <= AIO_RATE_MAX)
+    if ($rate == 0 && preg_match('/(?<![0-9.,])([0-9]+(?:\.[0-9]+)?)\s*Mbps/', mel_str($st, 'description'), $m) &&
+        mel_num($m[1]) * 1e6 <= MEL_RATE_MAX)
     {
-        $rate = aio_num($m[1]) * 1e6;
+        $rate = mel_num($m[1]) * 1e6;
         $approx = true;
         $rate_src = 'description';
     }
     $trackers = array();
-    foreach (explode(',', aio_str($sd, 'indexer')) as $tr)
+    foreach (explode(',', mel_str($sd, 'indexer')) as $tr)
     {
         if (trim($tr) !== '')
             $trackers[] = trim($tr);
     }
     // A movie file name tells the release best; a season pack - its folder.
-    $file = aio_st_file($st);
-    $folder = aio_str($sd, 'folderName');
+    $file = mel_st_file($st);
+    $folder = mel_str($sd, 'folderName');
     $label = $series ? ($folder !== '' ? $folder : $file) : ($file !== '' ? $file : $folder);
-    $group = aio_str($pf, 'releaseGroup');
-    $ranked = aio_arr($sd, 'rankedStreamExpressionsMatched');
-    $ranked = isset($ranked[0]) && is_string($ranked[0]) ? trim(aio_utf8($ranked[0])) : '';
+    $group = mel_str($pf, 'releaseGroup');
+    $ranked = mel_arr($sd, 'rankedStreamExpressionsMatched');
+    $ranked = isset($ranked[0]) && is_string($ranked[0]) ? trim(mel_utf8($ranked[0])) : '';
     if ($ranked !== '')
         $group = $group === '' || strcasecmp($group, $ranked) == 0 ? $ranked : $group . ' · ' . $ranked;
     if ($group === '')
-        $group = aio_release_by($folder);
+        $group = mel_release_by($folder);
     if ($group === '')
-        $group = aio_release_by(preg_replace('/\\.[A-Za-z0-9]{2,4}$/', '', $file));
-    $expr = aio_arr($sd, 'streamExpressionMatched');
-    $expr = isset($expr['name']) && is_string($expr['name']) ? trim(aio_utf8($expr['name'])) : '';
+        $group = mel_release_by(preg_replace('/\\.[A-Za-z0-9]{2,4}$/', '', $file));
+    $expr = mel_arr($sd, 'streamExpressionMatched');
+    $expr = isset($expr['name']) && is_string($expr['name']) ? trim(mel_utf8($expr['name'])) : '';
     if ($group === '')
         $group = $expr;
     // A number, or a string of plain decimal digits: not "0x1A", " 5", "1e3".
@@ -630,46 +630,46 @@ function aio_row($st, $series)
         'cached' => $cached,
         'seeders' => isset($tor['seeders']) && is_int($tor['seeders']) && $tor['seeders'] >= 0 ? $tor['seeders'] : null,
         'age' => $age >= 0 && $age < 1e9 ? $age : null,
-        'service' => aio_service_name(aio_str($svc, 'id')),
+        'service' => mel_service_name(mel_str($svc, 'id')),
         'resolution' => $res,
-        'badges' => aio_badges($pf, $res),
-        'audio_full' => aio_audio_text($pf),
+        'badges' => mel_badges($pf, $res),
+        'audio_full' => mel_audio_text($pf),
         'tracks' => $tracks,
         'subs' => array_values($subs),
-        'group' => aio_cut($group, 60),
-        'expr' => aio_cut($ranked !== '' ? $ranked : $expr, 60),
-        'network' => aio_cut(aio_str($pf, 'network'), 60),
-        'pack' => $series && $pack > aio_num($size) * 1.05 ? $pack : 0.0,
+        'group' => mel_cut($group, 60),
+        'expr' => mel_cut($ranked !== '' ? $ranked : $expr, 60),
+        'network' => mel_cut(mel_str($pf, 'network'), 60),
+        'pack' => $series && $pack > mel_num($size) * 1.05 ? $pack : 0.0,
         'rate' => $rate,
         'rate_approx' => $approx,
         'rate_src' => $rate > 0 ? $rate_src : '',
-        'quality' => aio_cut(aio_str($pf, 'quality'), AIO_TEXT_MAX),
-        'size' => aio_num($size),
-        'langs' => aio_track_langs($tracks, array_values($langs)),
+        'quality' => mel_cut(mel_str($pf, 'quality'), MEL_TEXT_MAX),
+        'size' => mel_num($size),
+        'langs' => mel_track_langs($tracks, array_values($langs)),
         'trackers' => $trackers,
-        'addon' => aio_cut(aio_str($sd, 'addon'), 60),
-        'addons' => aio_addons(aio_arr($sd, 'sources'), aio_str($svc, 'id'), aio_str($sd, 'addon')),
-        'release_url' => aio_release_url(isset($sd['infoUrl']) ? $sd['infoUrl'] : null),
+        'addon' => mel_cut(mel_str($sd, 'addon'), 60),
+        'addons' => mel_addons(mel_arr($sd, 'sources'), mel_str($svc, 'id'), mel_str($sd, 'addon')),
+        'release_url' => mel_release_url(isset($sd['infoUrl']) ? $sd['infoUrl'] : null),
         'pf_seasons' => isset($pf['seasons']) && is_array($pf['seasons']) && $pf['seasons'] ?
-            aio_ints($pf['seasons']) : null,
-        'pf_episodes' => aio_ints(aio_arr($pf, 'episodes')),
+            mel_ints($pf['seasons']) : null,
+        'pf_episodes' => mel_ints(mel_arr($pf, 'episodes')),
         'names' => array($folder, $file),
-        'label' => $label !== '' ? $label : aio_plain_name($name),
+        'label' => $label !== '' ? $label : mel_plain_name($name),
         'raw' => $st,
         'ord' => 0);
 }
 
 // streamData.infoUrl $v (the Melange server: <comments> of Torznab) as it
-// came, '' unless an http(s) URL (any case) of at most AIO_RELEASE_URL_MAX bytes
+// came, '' unless an http(s) URL (any case) of at most MEL_RELEASE_URL_MAX bytes
 // (a cut one is broken), of printable ASCII only, with a host and no user
 // part. Other servers check none of it; it is never logged.
 /**
  * @param mixed $v
  * @return string
  */
-function aio_release_url($v)
+function mel_release_url($v)
 {
-    if (!is_string($v) || strlen($v) > AIO_RELEASE_URL_MAX || preg_match('/[^\x21-\x7E]/', $v) ||
+    if (!is_string($v) || strlen($v) > MEL_RELEASE_URL_MAX || preg_match('/[^\x21-\x7E]/', $v) ||
         !preg_match('~^https?://([^/?#]*)~i', $v, $m))
         return '';
     return preg_match('/^(?:[A-Za-z0-9._-]+|\[[0-9A-Fa-f:.]+\])(?::[0-9]{1,5})?$/D', $m[1]) ? $v : '';
@@ -677,10 +677,10 @@ function aio_release_url($v)
 
 // A P2P row (url '', hash set): TorrServer plays it.
 /**
- * @param AioRow $r
+ * @param MelRow $r
  * @return bool
  */
-function aio_is_p2p($r)
+function mel_is_p2p($r)
 {
     return $r['url'] === '';
 }
@@ -691,10 +691,10 @@ function aio_is_p2p($r)
  * @param array<mixed> $st
  * @return string
  */
-function aio_st_hash($st)
+function mel_st_hash($st)
 {
-    $tor = aio_arr(aio_arr($st, 'streamData'), 'torrent');
-    $hash = strtolower(aio_str($tor, 'infoHash') !== '' ? aio_str($tor, 'infoHash') : aio_str($st, 'infoHash'));
+    $tor = mel_arr(mel_arr($st, 'streamData'), 'torrent');
+    $hash = strtolower(mel_str($tor, 'infoHash') !== '' ? mel_str($tor, 'infoHash') : mel_str($st, 'infoHash'));
     return preg_match('/^[0-9a-f]{40}$/D', $hash) ? $hash : '';
 }
 
@@ -703,10 +703,10 @@ function aio_st_hash($st)
  * @param array<mixed> $st
  * @return string
  */
-function aio_st_file($st)
+function mel_st_file($st)
 {
-    $sd = aio_arr($st, 'streamData');
-    return aio_str($sd, 'filename') !== '' ? aio_str($sd, 'filename') : aio_str(aio_arr($st, 'behaviorHints'), 'filename');
+    $sd = mel_arr($st, 'streamData');
+    return mel_str($sd, 'filename') !== '' ? mel_str($sd, 'filename') : mel_str(mel_arr($st, 'behaviorHints'), 'filename');
 }
 
 // The size of the file of stream $st as it came (streamData, else behaviorHints.videoSize), '' none.
@@ -714,60 +714,60 @@ function aio_st_file($st)
  * @param array<mixed> $st
  * @return string
  */
-function aio_st_size($st)
+function mel_st_size($st)
 {
-    $sd = aio_arr($st, 'streamData');
-    return aio_str($sd, 'size') !== '' ? aio_str($sd, 'size') : aio_str(aio_arr($st, 'behaviorHints'), 'videoSize');
+    $sd = mel_arr($st, 'streamData');
+    return mel_str($sd, 'size') !== '' ? mel_str($sd, 'size') : mel_str(mel_arr($st, 'behaviorHints'), 'videoSize');
 }
 
-// Path $path names a video file, by its extension (files of TorrServer, aio_merge_key).
+// Path $path names a video file, by its extension (files of TorrServer, mel_merge_key).
 /**
  * @param string $path
  * @return bool
  */
-function aio_ts_video($path)
+function mel_ts_video($path)
 {
     return preg_match('/\.(mkv|mp4|m4v|avi|mov|wmv|ts|m2ts|mts|mpg|mpeg|vob|webm|flv|divx)$/iD', $path) === 1;
 }
 
 // --- One row of a file cached on several Debrid services (0.56.0).
 // The dedup of AIOStreams (cached: per_service) leaves a copy of the release
-// per service; aio_fetch makes them one row. Such a row keeps its copies in
-// 'copies' (aio_row_copy_of: the reply order) and the one in 'copy' on top:
-// the fields of aio_row_copy_of of the row are those of that copy
-// (aio_row_use). A row of one copy has neither key.
+// per service; mel_fetch makes them one row. Such a row keeps its copies in
+// 'copies' (mel_row_copy_of: the reply order) and the one in 'copy' on top:
+// the fields of mel_row_copy_of of the row are those of that copy
+// (mel_row_use). A row of one copy has neither key.
 
 // streamData.service.id of the stream of row $r, '' for none.
 /**
- * @param AioRow $r
+ * @param MelRow $r
  * @return string
  */
-function aio_row_svc($r)
+function mel_row_svc($r)
 {
-    return aio_str(aio_arr(aio_arr($r['raw'], 'streamData'), 'service'), 'id');
+    return mel_str(mel_arr(mel_arr($r['raw'], 'streamData'), 'service'), 'id');
 }
 
 // The copy of the fields of row $r on top: all that its start, the stream
 // check and the screens read of its service.
 /**
- * @param AioRow $r
- * @return AioCopy
+ * @param MelRow $r
+ * @return MelCopy
  */
-function aio_row_copy_of($r)
+function mel_row_copy_of($r)
 {
-    return array('svc' => aio_row_svc($r), 'service' => $r['service'], 'url' => $r['url'], 'addon' => $r['addon'],
+    return array('svc' => mel_row_svc($r), 'service' => $r['service'], 'url' => $r['url'], 'addon' => $r['addon'],
         'addons' => $r['addons'], 'raw' => $r['raw']);
 }
 
 // Index of the copy to play of $copies (the reply order, all cached): the
-// first one of service $main (the main Debrid, aio_debrid_main_read), else
+// first one of service $main (the main Debrid, mel_debrid_main_read), else
 // the one first in the reply.
 /**
- * @param list<AioCopy> $copies
+ * @param list<MelCopy> $copies
  * @param string $main
  * @return int
  */
-function aio_copy_pick($copies, $main)
+function mel_copy_pick($copies, $main)
 {
     foreach ($copies as $i => $c)
     {
@@ -777,24 +777,24 @@ function aio_copy_pick($copies, $main)
     return 0;
 }
 
-// Row $r with the copy of aio_copy_pick($main) on top; a row of one copy as it is.
+// Row $r with the copy of mel_copy_pick($main) on top; a row of one copy as it is.
 /**
- * @param AioRow $r
+ * @param MelRow $r
  * @param string $main
- * @return AioRow
+ * @return MelRow
  */
-function aio_row_pick($r, $main)
+function mel_row_pick($r, $main)
 {
-    return isset($r['copies']) ? aio_row_use($r, aio_copy_pick($r['copies'], $main)) : $r;
+    return isset($r['copies']) ? mel_row_use($r, mel_copy_pick($r['copies'], $main)) : $r;
 }
 
-// Row $r with copy $i of its copies on top: its fields (aio_row_copy_of) but svc.
+// Row $r with copy $i of its copies on top: its fields (mel_row_copy_of) but svc.
 /**
- * @param AioRow $r
+ * @param MelRow $r
  * @param int $i
- * @return AioRow
+ * @return MelRow
  */
-function aio_row_use($r, $i)
+function mel_row_use($r, $i)
 {
     if (!isset($r['copies'][$i]))
         return $r;
@@ -810,10 +810,10 @@ function aio_row_use($r, $i)
 // Names of the services of row $r: of the copy on top, then of the others in
 // the reply order ('' unknown kept); a row of one copy: its service.
 /**
- * @param AioRow $r
+ * @param MelRow $r
  * @return list<string>
  */
-function aio_row_services($r)
+function mel_row_services($r)
 {
     $out = array($r['service']);
     if (isset($r['copies'], $r['copy']))
@@ -827,72 +827,72 @@ function aio_row_services($r)
     return $out;
 }
 
-// Copies of a file in one row at most (aio_merge_find): its merge is quadratic in them.
-define('AIO_MERGE_MAX', 8);
+// Copies of a file in one row at most (mel_merge_find): its merge is quadratic in them.
+define('MEL_MERGE_MAX', 8);
 
-// Sizes of one file the add-ons of two services give (aio_merge_size): at
+// Sizes of one file the add-ons of two services give (mel_merge_size): at
 // most this times apart, or GiB told as GB (MediaFusion), within 1 %.
-define('AIO_MERGE_SIZE', 1.05);
-define('AIO_MERGE_GIB_GB', 1073741824 / 1e9);
+define('MEL_MERGE_SIZE', 1.05);
+define('MEL_MERGE_GIB_GB', 1073741824 / 1e9);
 
 // What the merge compares of stream $st of a reply (the raw of a row of
-// aio_row; $series: of an episode): the service, infoHash, the file (its
+// mel_row; $series: of an episode): the service, infoHash, the file (its
 // name, norm - the name in letters and digits, lower case; its index in the
 // torrent: -1 unknown), the size, nk - the key of the index by the name and
 // the size ('' no name or size), whole - a copy of a movie named after the
 // release (no index, a name of no video: the size is of the release, of one
 // file mostly); null for a stream never merged: not cached (true), P2P (no
 // http URL), no service. Of the stream: a stream past the limit of the list
-// is looked at so, before aio_row (aio_fetch).
+// is looked at so, before mel_row (mel_fetch).
 /**
  * @param array<mixed> $st
  * @param bool $series
- * @return AioMergeKey|null
+ * @return MelMergeKey|null
  */
-function aio_merge_key($st, $series)
+function mel_merge_key($st, $series)
 {
-    $sd = aio_arr($st, 'streamData');
-    $svc = aio_arr($sd, 'service');
-    $id = aio_str($svc, 'id');
-    if (!isset($svc['cached']) || $svc['cached'] !== true || $id === '' || !preg_match('~^https?://~', aio_str($st, 'url')))
+    $sd = mel_arr($st, 'streamData');
+    $svc = mel_arr($sd, 'service');
+    $id = mel_str($svc, 'id');
+    if (!isset($svc['cached']) || $svc['cached'] !== true || $id === '' || !preg_match('~^https?://~', mel_str($st, 'url')))
         return null;
-    $tor = aio_arr($sd, 'torrent');
+    $tor = mel_arr($sd, 'torrent');
     $idx = isset($tor['fileIdx']) ? $tor['fileIdx'] : (isset($st['fileIdx']) ? $st['fileIdx'] : null);
     $idx = is_int($idx) && $idx >= 0 ? $idx : -1;
-    $file = aio_st_file($st);
-    $size = aio_num(aio_st_size($st));
+    $file = mel_st_file($st);
+    $size = mel_num(mel_st_size($st));
     $norm = preg_replace('/[^\p{L}\p{N}]+/u', '', $file);
-    return array('svc' => $id, 'hash' => aio_st_hash($st), 'file' => $file,
+    return array('svc' => $id, 'hash' => mel_st_hash($st), 'file' => $file,
         'norm' => is_string($norm) ? mb_strtolower($norm, 'UTF-8') : $file, 'idx' => $idx,
         'size' => $size, 'nk' => $file !== '' && $size > 0 ? $file . "\x00" . sprintf('%.0f', $size) : '',
-        'whole' => !$series && $idx < 0 && $file !== '' && !aio_ts_video($file));
+        'whole' => !$series && $idx < 0 && $file !== '' && !mel_ts_video($file));
 }
 
-// Sizes $a, $b (bytes, 0 unknown) are of one file (AIO_MERGE_SIZE).
+// Sizes $a, $b (bytes, 0 unknown) are of one file (MEL_MERGE_SIZE).
 /**
  * @param float $a
  * @param float $b
  * @return bool
  */
-function aio_merge_size($a, $b)
+function mel_merge_size($a, $b)
 {
     if ($a <= 0 || $b <= 0)
         return false;
     $r = max($a, $b) / min($a, $b);
-    return $r <= AIO_MERGE_SIZE || abs($r / AIO_MERGE_GIB_GB - 1) <= 0.01;
+    return $r <= MEL_MERGE_SIZE || abs($r / MEL_MERGE_GIB_GB - 1) <= 0.01;
 }
 
-// Copies $a, $b (aio_merge_key) are of one file: both with an infoHash - the
+// Copies $a, $b (mel_merge_key) are of one file: both with an infoHash - the
 // same one and the same file (by the index, the name, the size: below), or one
-// of them whole of the size of the other (aio_merge_size); else (MediaFusion
+// of them whole of the size of the other (mel_merge_size); else (MediaFusion
 // has no infoHash) the same name of the file, as it is, and the size in bytes.
 // -> how: 'hash', 'name', '' not one file.
 /**
- * @param AioMergeKey $a
- * @param AioMergeKey $b
+ * @param MelMergeKey $a
+ * @param MelMergeKey $b
  * @return string
  */
-function aio_merge_same($a, $b)
+function mel_merge_same($a, $b)
 {
     if ($a['hash'] !== '' && $b['hash'] !== '')
     {
@@ -913,27 +913,27 @@ function aio_merge_same($a, $b)
         $renumbered = $name && $bytes && substr($a['norm'], -3) !== 'vob';
         if (($idx || $name) && $same_name && ($same_idx || $renumbered))
             return 'hash';
-        return ($a['whole'] || $b['whole']) && aio_merge_size($a['size'], $b['size']) ? 'hash' : '';
+        return ($a['whole'] || $b['whole']) && mel_merge_size($a['size'], $b['size']) ? 'hash' : '';
     }
     return $a['file'] !== '' && $a['file'] === $b['file'] && $a['size'] > 0 && $a['size'] == $b['size'] ? 'name' : '';
 }
 
-// Copy $k (aio_merge_key) is of the file of every copy of a group, $keys
-// (aio_merge_same of each): so an infoHash of it, where it has one, is that of
+// Copy $k (mel_merge_key) is of the file of every copy of a group, $keys
+// (mel_merge_same of each): so an infoHash of it, where it has one, is that of
 // each copy with one (a copy of no infoHash joined by the name never takes
 // one of another infoHash in). -> 'hash' one of them by the infoHash, 'name'
 // all by the name and size, '' not of that file.
 /**
- * @param list<AioMergeKey> $keys
- * @param AioMergeKey $k
+ * @param list<MelMergeKey> $keys
+ * @param MelMergeKey $k
  * @return string
  */
-function aio_merge_group($keys, $k)
+function mel_merge_group($keys, $k)
 {
     $by = 'name';
     foreach ($keys as $g)
     {
-        $how = aio_merge_same($g, $k);
+        $how = mel_merge_same($g, $k);
         if ($how === '')
             return '';
         if ($how === 'hash')
@@ -942,25 +942,25 @@ function aio_merge_group($keys, $k)
     return $by;
 }
 
-// The state of aio_row_merge over one reply, of an episode: $series.
+// The state of mel_row_merge over one reply, of an episode: $series.
 /**
  * @param bool $series
- * @return AioMerge
+ * @return MelMerge
  */
-function aio_merge_start($series)
+function mel_merge_start($series)
 {
     return array('g' => array(), 'hash' => array(), 'name' => array(), 'by_hash' => 0, 'by_name' => 0, 'series' => $series);
 }
 
-// The row of $mx (aio_merge_start) copy $k (aio_merge_key) joins: of the file
-// of each of its copies (aio_merge_group), none of the service of $k, fewer
-// than AIO_MERGE_MAX copies -> array(its index, how: 'hash' or 'name'); null none.
+// The row of $mx (mel_merge_start) copy $k (mel_merge_key) joins: of the file
+// of each of its copies (mel_merge_group), none of the service of $k, fewer
+// than MEL_MERGE_MAX copies -> array(its index, how: 'hash' or 'name'); null none.
 /**
- * @param AioMerge $mx
- * @param AioMergeKey $k
+ * @param MelMerge $mx
+ * @param MelMergeKey $k
  * @return array{int, string}|null
  */
-function aio_merge_find($mx, $k)
+function mel_merge_find($mx, $k)
 {
     $cand = $k['hash'] !== '' && isset($mx['hash'][$k['hash']]) ? $mx['hash'][$k['hash']] : array();
     if ($k['nk'] !== '' && isset($mx['name'][$k['nk']]))
@@ -968,52 +968,52 @@ function aio_merge_find($mx, $k)
     foreach ($cand as $gi)
     {
         $g = $mx['g'][$gi];
-        $by = count($g['keys']) >= AIO_MERGE_MAX || in_array($k['svc'], $g['svcs'], true) ? '' :
-            aio_merge_group($g['keys'], $k);
+        $by = count($g['keys']) >= MEL_MERGE_MAX || in_array($k['svc'], $g['svcs'], true) ? '' :
+            mel_merge_group($g['keys'], $k);
         if ($by !== '')
             return array($gi, $by);
     }
     return null;
 }
 
-// Row $r (aio_row, before aio_row_voices) cached on a service, of the file of
-// an earlier row of $rows (aio_merge_find; the list aio_fetch makes): a copy
+// Row $r (mel_row, before mel_row_voices) cached on a service, of the file of
+// an earlier row of $rows (mel_merge_find; the list mel_fetch makes): a copy
 // of it there (the copy first in the reply stays on top, the list picks one:
-// aio_list_state; the row without an infoHash gets that of the copy) -> true.
+// mel_list_state; the row without an infoHash gets that of the copy) -> true.
 // Else false: $r is the next row of $rows, the caller puts it there; $mx
-// (aio_merge_start) notes it. Not merged: not cached, P2P, a copy of the same
-// service, a row of AIO_MERGE_MAX copies.
+// (mel_merge_start) notes it. Not merged: not cached, P2P, a copy of the same
+// service, a row of MEL_MERGE_MAX copies.
 /**
- * @param list<AioRow> $rows
- * @param AioMerge $mx
- * @param AioRow $r
+ * @param list<MelRow> $rows
+ * @param MelMerge $mx
+ * @param MelRow $r
  * @return bool
  */
-function aio_row_merge(&$rows, &$mx, $r)
+function mel_row_merge(&$rows, &$mx, $r)
 {
-    $k = aio_merge_key($r['raw'], $mx['series']);
+    $k = mel_merge_key($r['raw'], $mx['series']);
     if (!$k)
         return false;
-    $f = aio_merge_find($mx, $k);
+    $f = mel_merge_find($mx, $k);
     if ($f && isset($rows[$f[0]]))
     {
         list($gi, $by) = $f;
         $row = $rows[$gi];
         if (!isset($row['copies']))
-            $row['copies'] = array(aio_row_copy_of($row));
-        $row['copies'][] = aio_row_copy_of($r);
+            $row['copies'] = array(mel_row_copy_of($row));
+        $row['copies'][] = mel_row_copy_of($r);
         if ($row['hash'] === '' && $k['hash'] !== '')
         {
             $row['hash'] = $k['hash'];
             $mx['hash'][$k['hash']][] = $gi;
         }
-        $rows[$gi] = aio_row_use($row, 0);
+        $rows[$gi] = mel_row_use($row, 0);
         $g = $mx['g'][$gi];
         $g['svcs'][] = $k['svc'];
         $g['keys'][] = $k;
         $mx['g'][$gi] = $g;
         // Full: out of the index, never a candidate again (a reply of many copies stays linear).
-        if (count($g['keys']) >= AIO_MERGE_MAX)
+        if (count($g['keys']) >= MEL_MERGE_MAX)
         {
             if ($row['hash'] !== '' && isset($mx['hash'][$row['hash']]))
                 $mx['hash'][$row['hash']] = array_values(array_diff($mx['hash'][$row['hash']], array($gi)));
@@ -1038,12 +1038,12 @@ function aio_row_merge(&$rows, &$mx, $r)
 
 // --- Sort of the list by the colour keys (0.48.0).
 
-// Keys of the sort, the stored one too (aio_sort_read): the order of
+// Keys of the sort, the stored one too (mel_sort_read): the order of
 // AIOStreams, seeders (cached first in a Debrid list), size, date.
 /**
  * @return list<string>
  */
-function aio_sort_keys()
+function mel_sort_keys()
 {
     return array('aio', 'seeds', 'size', 'date');
 }
@@ -1051,10 +1051,10 @@ function aio_sort_keys()
 // A Debrid list: some row has a service (cached not null); its green key
 // sorts by the cache, not by seeders.
 /**
- * @param list<AioRow> $rows
+ * @param list<MelRow> $rows
  * @return bool
  */
-function aio_rows_debrid($rows)
+function mel_rows_debrid($rows)
 {
     foreach ($rows as $r)
     {
@@ -1072,14 +1072,14 @@ function aio_rows_debrid($rows)
 // AIOStreams (ord); rows without the value (no seeders, size 0, no age) go to
 // the end in that order.
 /**
- * @param list<AioRow> $rows
+ * @param list<MelRow> $rows
  * @param string $key
  * @param bool $rev
- * @return list<AioRow>
+ * @return list<MelRow>
  */
-function aio_rows_sort($rows, $key, $rev = false)
+function mel_rows_sort($rows, $key, $rev = false)
 {
-    $deb = aio_rows_debrid($rows);
+    $deb = mel_rows_debrid($rows);
     $miss = $val = $ord = $pos = array();
     foreach ($rows as $i => $r)
     {
@@ -1108,34 +1108,34 @@ function aio_rows_sort($rows, $key, $rev = false)
 // row's add-on, always first (added unmarked when the list lacks it). ->
 // array(array('addon' => name, 'cached' => whether this add-on itself said
 // the release is cached on service $svc, the service of the row)), in the
-// order given, at most AIO_ADDONS_MAX; an add-on once (names compared whole,
+// order given, at most MEL_ADDONS_MAX; an add-on once (names compared whole,
 // ignoring case); items that are not an object with a visible string name are
 // left out. Fewer than 2 add-ons: array() - the screens show 'addon' as before.
 /**
  * @param array<mixed> $src
  * @param string $svc
  * @param string $own
- * @return list<AioAddon>
+ * @return list<MelAddon>
  */
-function aio_addons($src, $svc, $own)
+function mel_addons($src, $svc, $own)
 {
     $out = array();
     $seen = array();
     $own_key = null;
-    $own = aio_addon_name($own);
+    $own = mel_addon_name($own);
     if ($own !== '')
     {
-        $out[] = array('addon' => aio_cut($own, 60), 'cached' => false);
+        $out[] = array('addon' => mel_cut($own, 60), 'cached' => false);
         $own_key = mb_strtolower($own, 'UTF-8');
     }
     $n = 0;
     foreach ($src as $it)
     {
-        if (++$n > AIO_ADDONS_SCAN || count($out) >= AIO_ADDONS_MAX)
+        if (++$n > MEL_ADDONS_SCAN || count($out) >= MEL_ADDONS_MAX)
             break;
         if (!is_array($it) || !isset($it['addon']) || !is_string($it['addon']))
             continue;
-        $name = aio_addon_name($it['addon']);
+        $name = mel_addon_name($it['addon']);
         $key = mb_strtolower($name, 'UTF-8');
         if ($name === '' || isset($seen[$key]))
             continue;
@@ -1143,16 +1143,16 @@ function aio_addons($src, $svc, $own)
         $cached = false;
         if ($svc !== '' && isset($it['cached']) && is_array($it['cached']))
         {
-            foreach (array_slice($it['cached'], 0, AIO_ADDONS_SCAN) as $id)
+            foreach (array_slice($it['cached'], 0, MEL_ADDONS_SCAN) as $id)
                 $cached = $cached || (is_string($id) && $id === $svc);
         }
         if ($key === $own_key)
             $out[0]['cached'] = $cached;
         else
-            $out[] = array('addon' => aio_cut($name, 60), 'cached' => $cached);
+            $out[] = array('addon' => mel_cut($name, 60), 'cached' => $cached);
     }
     // The write to $out[0] above loses the shape for PHPStan.
-    /** @var list<AioAddon> $out */
+    /** @var list<MelAddon> $out */
     return count($out) >= 2 ? $out : array();
 }
 
@@ -1162,10 +1162,10 @@ function aio_addons($src, $svc, $own)
  * @param mixed $s
  * @return string
  */
-function aio_addon_name($s)
+function mel_addon_name($s)
 {
     return strval(preg_replace('/^[\\s\\x{00A0}\\x{200B}-\\x{200D}\\x{2060}\\x{FEFF}]+|' .
-        '[\\s\\x{00A0}\\x{200B}-\\x{200D}\\x{2060}\\x{FEFF}]+$/u', '', aio_utf8($s)));
+        '[\\s\\x{00A0}\\x{200B}-\\x{200D}\\x{2060}\\x{FEFF}]+$/u', '', mel_utf8($s)));
 }
 
 // The releaser credited as "от X" / "by X" (the last credit: it follows the
@@ -1175,7 +1175,7 @@ function aio_addon_name($s)
  * @param string $s
  * @return string
  */
-function aio_release_by($s)
+function mel_release_by($s)
 {
     if (!preg_match_all('/(?:^|[\\s._\\-(\\[])(?:от|by)[\\s_]+([^\\s|\\[\\](),\\/]+)/iu', $s, $m))
         return '';
@@ -1187,7 +1187,7 @@ function aio_release_by($s)
  * @param array<mixed> $a
  * @return list<int>
  */
-function aio_ints($a)
+function mel_ints($a)
 {
     $res = array();
     foreach ($a as $v)
@@ -1200,17 +1200,17 @@ function aio_ints($a)
 
 // Emoji and other pictures, for a character class of a /u regex (the Dune font
 // may lack them).
-define('AIO_EMOJI', '\\x{2190}-\\x{2BFF}\\x{1F000}-\\x{1FFFF}\\x{FE0F}\\x{200D}');
+define('MEL_EMOJI', '\\x{2190}-\\x{2BFF}\\x{1F000}-\\x{1FFFF}\\x{FE0F}\\x{200D}');
 
 // "[TB⚡] JacRed 2160p" -> "JacRed 2160p": no bracket tags, no emoji.
 /**
  * @param string $name
  * @return string
  */
-function aio_plain_name($name)
+function mel_plain_name($name)
 {
     $name = preg_replace('/\\[[^\\]]*\\]/', ' ', $name);
-    $name = preg_replace('/[' . AIO_EMOJI . ']/u', '', $name);
+    $name = preg_replace('/[' . MEL_EMOJI . ']/u', '', $name);
     return trim(preg_replace('/\\s+/u', ' ', strval($name)));
 }
 
@@ -1222,13 +1222,13 @@ function aio_plain_name($name)
  * @param-out string|null $body
  * @return mixed
  */
-function aio_decode_streams(&$body)
+function mel_decode_streams(&$body)
 {
     // One bad byte fails json_decode of the whole list: invalid UTF-8 goes
     // first. mbstring of 5.3 lets lead bytes past U+10FFFF through, they go
     // to "?" here (json_decode rejects them).
     if (!preg_match('//u', $body))
-        $body = aio_utf8(preg_replace('/[\xF5-\xFF]|\xF4[\x90-\xBF]/', '?', $body));
+        $body = mel_utf8(preg_replace('/[\xF5-\xFF]|\xF4[\x90-\xBF]/', '?', $body));
     // The whole number: "12345678901.5" quoted only up to the dot breaks the JSON.
     $body = preg_replace('/("(?:size|videoSize|folderSize|bitrate|duration)"\\s*:\\s*)' .
         '([0-9]{10,}(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)/',
@@ -1239,13 +1239,13 @@ function aio_decode_streams(&$body)
 // --- Magnet of a release ("Download in app", 0.29.0).
 
 // Trackers of a magnet at most (a long intent URI, a long form field).
-define('AIO_MAGNET_TR', 20);
+define('MEL_MAGNET_TR', 20);
 
 // Trackers of a magnet when the stream names none: common public trackers.
 /**
  * @return list<string>
  */
-function aio_magnet_trackers()
+function mel_magnet_trackers()
 {
     return array('udp://tracker.opentrackr.org:1337/announce', 'udp://open.stealth.si:80/announce',
         'udp://tracker.torrent.eu.org:451/announce', 'udp://exodus.desync.com:6969/announce');
@@ -1253,28 +1253,28 @@ function aio_magnet_trackers()
 
 // Row with infoHash -> array(magnet, number of trackers, 'sources' | 'public').
 // dn: the folder of the torrent, else its single file; tr: the first
-// AIO_MAGNET_TR "tracker:<url>" of sources (of the stream, of
+// MEL_MAGNET_TR "tracker:<url>" of sources (of the stream, of
 // streamData.torrent), else the public ones. Every
 // value is percent-encoded: no quote, space, "#" or ";" for the intent URI.
 /**
- * @param AioRow $r
+ * @param MelRow $r
  * @return array{string, int, 'sources'|'public'}
  */
-function aio_magnet($r)
+function mel_magnet($r)
 {
     $raw = $r['raw'];
-    $sd = aio_arr($raw, 'streamData');
-    $file = aio_str($sd, 'filename') !== '' ? aio_str($sd, 'filename') :
-        aio_str(aio_arr($raw, 'behaviorHints'), 'filename');
-    $dn = aio_str($sd, 'folderName') !== '' ? aio_str($sd, 'folderName') : $file;
+    $sd = mel_arr($raw, 'streamData');
+    $file = mel_str($sd, 'filename') !== '' ? mel_str($sd, 'filename') :
+        mel_str(mel_arr($raw, 'behaviorHints'), 'filename');
+    $dn = mel_str($sd, 'folderName') !== '' ? mel_str($sd, 'folderName') : $file;
     $tr = array();
-    foreach (array_merge(aio_arr($raw, 'sources'), aio_arr(aio_arr($sd, 'torrent'), 'sources')) as $s)
+    foreach (array_merge(mel_arr($raw, 'sources'), mel_arr(mel_arr($sd, 'torrent'), 'sources')) as $s)
     {
         if (is_string($s) && preg_match('~^tracker:((?:udp|https?|wss?)://[^\\s]+)$~D', trim($s), $m))
             $tr[$m[1]] = true;
     }
     $src = $tr ? 'sources' : 'public';
-    $tr = $tr ? array_slice(array_keys($tr), 0, AIO_MAGNET_TR) : aio_magnet_trackers();
+    $tr = $tr ? array_slice(array_keys($tr), 0, MEL_MAGNET_TR) : mel_magnet_trackers();
     $mg = 'magnet:?xt=urn:btih:' . $r['hash'] . ($dn !== '' ? '&dn=' . rawurlencode($dn) : '');
     foreach ($tr as $t)
         $mg .= '&tr=' . rawurlencode($t);

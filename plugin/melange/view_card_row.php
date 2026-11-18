@@ -3,55 +3,55 @@
 // episodes of a series, the cast, similar titles, the movies of a franchise) and of the page of a
 // person (its works). The frame goes in the first slots, then the strip moves under it; a line
 // after the first nc items. A row draws its own cells and the colours of their labels; the strip
-// moves them and the frame. Ids of a strip: its id (also its key in the place of a screen, AioOcPos
+// moves them and the frame. Ids of a strip: its id (also its key in the place of a screen, MelOcPos
 // r) and "<id>st" (the strip), "<id>fr" (the frame); the cells of a row of posters
-// (aio_oc_poster_cell) "<id><i>" and their titles "<id>n<i>", so the rows of a screen do not
-// collide; the stubs of a row asked (aio_oc_poster_stub) have none. The cast ("c") has its own:
+// (mel_oc_poster_cell) "<id><i>" and their titles "<id>n<i>", so the rows of a screen do not
+// collide; the stubs of a row asked (mel_oc_poster_stub) have none. The cast ("c") has its own:
 // "p<i>", the names "pn<i>"; the episodes ("e") too: "c<i>", the titles "tt<i>".
-// AioOcStrip: n items, nc before the line (0 none); the item w x h (the frame goes round it), the
+// MelOcStrip: n items, nc before the line (0 none); the item w x h (the frame goes round it), the
 // cell cw x ch (the strip ends cw after the x of the last); step apart, div more after the line;
 // vis whole on the screen, lead slots the frame goes before the strip moves; x the left slot on
 // the screen (the clip of the strip starts at 0), y the top of the item where the frame is drawn.
-// The title of a row ROW_HEAD over the top of its items (aio_oc_row_title).
-// Needs view_card.php (AIO_OC_FRAME, AIO_OC_FOCUS, AIO_OC_IMG, aio_oc_label), view_catalog.php
-// (aio_catv_poster, aio_catv_rate_text) and gcomps.php.
+// The title of a row ROW_HEAD over the top of its items (mel_oc_row_title).
+// Needs view_card.php (MEL_OC_FRAME, MEL_OC_FOCUS, MEL_OC_IMG, mel_oc_label), view_catalog.php
+// (mel_catv_poster, mel_catv_rate_text) and gcomps.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
-define('AIO_OC_ROW_HEAD', 58);
+define('MEL_OC_ROW_HEAD', 58);
 // A poster of a row (the works of a person, similar titles, the movies of a franchise),
 // POSTER_W x POSTER_H, STEP apart, VIS of them whole (the next one at the right edge of the screen:
 // 10 px of it cut), DIV more after the line; CAP_DY under it its title in 2 lines at most and the
-// lines under it (aio_oc_poster_titles), 24 px. The owner, 13.11.2026: the posters of 190x285 were
+// lines under it (mel_oc_poster_titles), 24 px. The owner, 13.11.2026: the posters of 190x285 were
 // small, their titles cut. The lines under the items of a row (the titles and years of the posters,
 // the names and roles of the cast): CAP_LH apart, the lines under a title CAP_GAP more apart from
-// it; the bands of their ink (aio_oc_row_bands) are of the same.
-define('AIO_OC_POSTER_W', 240);
-define('AIO_OC_POSTER_H', 360);
-define('AIO_OC_POSTER_STEP', 260);
-define('AIO_OC_POSTER_VIS', 6);
-define('AIO_OC_POSTER_DIV', 40);
-define('AIO_OC_POSTER_CAP_DY', 12);
-define('AIO_OC_CAP_LH', 26);
-define('AIO_OC_CAP_GAP', 4);
-// The IMDb rating in the top left corner of a poster of a row (aio_oc_rate_over): the plate of the
-// catalog (AIO_CATV_RATE_*, of its poster 190x285) scaled to POSTER_W x POSTER_H, RATE_W x RATE_H at
+// it; the bands of their ink (mel_oc_row_bands) are of the same.
+define('MEL_OC_POSTER_W', 240);
+define('MEL_OC_POSTER_H', 360);
+define('MEL_OC_POSTER_STEP', 260);
+define('MEL_OC_POSTER_VIS', 6);
+define('MEL_OC_POSTER_DIV', 40);
+define('MEL_OC_POSTER_CAP_DY', 12);
+define('MEL_OC_CAP_LH', 26);
+define('MEL_OC_CAP_GAP', 4);
+// The IMDb rating in the top left corner of a poster of a row (mel_oc_rate_over): the plate of the
+// catalog (MEL_CATV_RATE_*, of its poster 190x285) scaled to POSTER_W x POSTER_H, RATE_W x RATE_H at
 // (RATE_PAD, RATE_PAD), img/card1_rate.png (70 % black, rounded); the number over it RATE_PX, centred
 // by the shell in a label RATE_TH high in the middle of the plate, as the text of a button.
-define('AIO_OC_RATE_PAD', 10);
-define('AIO_OC_RATE_W', 66);
-define('AIO_OC_RATE_H', 40);
-define('AIO_OC_RATE_PX', 32);
-define('AIO_OC_RATE_TH', 46);
+define('MEL_OC_RATE_PAD', 10);
+define('MEL_OC_RATE_W', 66);
+define('MEL_OC_RATE_H', 40);
+define('MEL_OC_RATE_PX', 32);
+define('MEL_OC_RATE_TH', 46);
 
 // The initials shared by the cast and the page of a person without a photo.
 /**
  * @param string $name
  * @return string
  */
-function aio_oc_initials($name)
+function mel_oc_initials($name)
 {
     $ini = '';
-    foreach (array_slice(explode(' ', aio_clean($name)), 0, 2) as $w)
+    foreach (array_slice(explode(' ', mel_clean($name)), 0, 2) as $w)
         $ini .= mb_substr($w, 0, 1, 'UTF-8');
     return $ini;
 }
@@ -66,108 +66,108 @@ function aio_oc_initials($name)
  * @param int $lead
  * @return int
  */
-function aio_oc_off($i, $n, $vis, $lead)
+function mel_oc_off($i, $n, $vis, $lead)
 {
     return max(0, min($i - $lead, $n - $vis));
 }
 
 // x in the strip of item $i: step apart, div more after the first nc.
 /**
- * @param AioOcStrip $s
+ * @param MelOcStrip $s
  * @param int $i
  * @return int
  */
-function aio_oc_strip_x($s, $i)
+function mel_oc_strip_x($s, $i)
 {
     return $i * $s['step'] + ($s['nc'] > 0 && $i >= $s['nc'] ? $s['div'] : 0);
 }
 
 // Strip $s with item $k in focus: array(it, clamped to the strip, the first item at the left slot,
-// aio_oc_off).
+// mel_oc_off).
 /**
- * @param AioOcStrip $s
+ * @param MelOcStrip $s
  * @param int $k
  * @return array{int, int}
  */
-function aio_oc_strip_at($s, $k)
+function mel_oc_strip_at($s, $k)
 {
     $k = max(0, min($s['n'] - 1, $k));
-    return array($k, aio_oc_off($k, $s['n'], $s['vis'], $s['lead']));
+    return array($k, mel_oc_off($k, $s['n'], $s['vis'], $s['lead']));
 }
 
 // The strip in its clip with item $off at the left slot.
 /**
- * @param AioOcStrip $s
+ * @param MelOcStrip $s
  * @param int $off
- * @return AioGcGeom
+ * @return MelGcGeom
  */
-function aio_oc_strip_geom($s, $off)
+function mel_oc_strip_geom($s, $off)
 {
-    return aio_gc_at(aio_oc_strip_x($s, $s['n'] - 1) + $s['cw'], $s['ch'], $s['x'] - aio_oc_strip_x($s, $off), 0);
+    return mel_gc_at(mel_oc_strip_x($s, $s['n'] - 1) + $s['cw'], $s['ch'], $s['x'] - mel_oc_strip_x($s, $off), 0);
 }
 
 // The frame round item $k with $off at the left slot, where the frame of the strip is drawn.
 /**
- * @param AioOcStrip $s
+ * @param MelOcStrip $s
  * @param int $k
  * @param int $off
- * @return AioGcGeom
+ * @return MelGcGeom
  */
-function aio_oc_strip_frame_geom($s, $k, $off)
+function mel_oc_strip_frame_geom($s, $k, $off)
 {
-    return aio_oc_frame_at($s['x'] + aio_oc_strip_x($s, $k) - aio_oc_strip_x($s, $off), $s['y'], $s['w'], $s['h']);
+    return mel_oc_frame_at($s['x'] + mel_oc_strip_x($s, $k) - mel_oc_strip_x($s, $off), $s['y'], $s['w'], $s['h']);
 }
 
 // The strip ("<id>st") of $cells with item $k in focus, the line after the first nc in the middle of
 // their gap (none when all or none are before it).
 /**
- * @param AioOcStrip $s
+ * @param MelOcStrip $s
  * @param int $k
- * @param list<AioGcComp> $cells
- * @return AioGcComp
+ * @param list<MelGcComp> $cells
+ * @return MelGcComp
  */
-function aio_oc_strip_panel($s, $k, $cells)
+function mel_oc_strip_panel($s, $k, $cells)
 {
-    list(, $off) = aio_oc_strip_at($s, $k);
+    list(, $off) = mel_oc_strip_at($s, $k);
     if ($s['nc'] > 0 && $s['nc'] < $s['n'])
-        $cells[] = aio_gc_rect(aio_gc_at(2, $s['h'], aio_oc_strip_x($s, $s['nc'] - 1) + $s['w'] +
-            intval(($s['step'] + $s['div'] - $s['w']) / 2) - 1, 0), AIO_GC_DIM);
-    return aio_gc_panel($s['id'] . 'st', aio_oc_strip_geom($s, $off), $cells);
+        $cells[] = mel_gc_rect(mel_gc_at(2, $s['h'], mel_oc_strip_x($s, $s['nc'] - 1) + $s['w'] +
+            intval(($s['step'] + $s['div'] - $s['w']) / 2) - 1, 0), MEL_GC_DIM);
+    return mel_gc_panel($s['id'] . 'st', mel_oc_strip_geom($s, $off), $cells);
 }
 
 // The frame ("<id>fr") round item $k, empty but when the strip has the focus ($on).
 /**
- * @param AioOcStrip $s
+ * @param MelOcStrip $s
  * @param int $k
  * @param bool $on
- * @return AioGcComp
+ * @return MelGcComp
  */
-function aio_oc_strip_frame($s, $k, $on)
+function mel_oc_strip_frame($s, $k, $on)
 {
-    list($k, $off) = aio_oc_strip_at($s, $k);
-    return aio_gc_panel($s['id'] . 'fr', aio_oc_strip_frame_geom($s, $k, $off), $on ? aio_oc_frame_rects($s['w'], $s['h']) : array());
+    list($k, $off) = mel_oc_strip_at($s, $k);
+    return mel_gc_panel($s['id'] . 'fr', mel_oc_strip_frame_geom($s, $k, $off), $on ? mel_oc_frame_rects($s['w'], $s['h']) : array());
 }
 
 // The changes of strip $s from item $ok (the focus on it: $was) to $k ($is): the strip moved, the
-// frame moved (shown or hidden at once, aio_oc_frame_change).
+// frame moved (shown or hidden at once, mel_oc_frame_change).
 /**
- * @param AioOcStrip $s
+ * @param MelOcStrip $s
  * @param int $ok
  * @param int $k
  * @param bool $was
  * @param bool $is
- * @return list<AioGcChange>
+ * @return list<MelGcChange>
  */
-function aio_oc_strip_changes($s, $ok, $k, $was, $is)
+function mel_oc_strip_changes($s, $ok, $k, $was, $is)
 {
-    list($k, $off) = aio_oc_strip_at($s, $k);
-    list($ok, $ooff) = aio_oc_strip_at($s, $ok);
+    list($k, $off) = mel_oc_strip_at($s, $k);
+    list($ok, $ooff) = mel_oc_strip_at($s, $ok);
     $ch = array();
     if ($off !== $ooff)
-        $ch[] = aio_gc_change($s['id'] . 'st', aio_oc_strip_geom($s, $off), GCOMP_TRANSITION_DEFAULT);
-    $slot = aio_oc_strip_x($s, $k) - aio_oc_strip_x($s, $off);
-    return array_merge($ch, aio_oc_frame_change($s['id'] . 'fr', $slot !== aio_oc_strip_x($s, $ok) - aio_oc_strip_x($s, $ooff) ?
-        aio_oc_strip_frame_geom($s, $k, $off) : null, true, $was, $is, $s['w'], $s['h']));
+        $ch[] = mel_gc_change($s['id'] . 'st', mel_oc_strip_geom($s, $off), GCOMP_TRANSITION_DEFAULT);
+    $slot = mel_oc_strip_x($s, $k) - mel_oc_strip_x($s, $off);
+    return array_merge($ch, mel_oc_frame_change($s['id'] . 'fr', $slot !== mel_oc_strip_x($s, $ok) - mel_oc_strip_x($s, $ooff) ?
+        mel_oc_strip_frame_geom($s, $k, $off) : null, true, $was, $is, $s['w'], $s['h']));
 }
 
 // The frame of the focus around an item $w x $h at ($x, $y).
@@ -176,47 +176,47 @@ function aio_oc_strip_changes($s, $ok, $k, $was, $is)
  * @param int $y
  * @param int $w
  * @param int $h
- * @return AioGcGeom
+ * @return MelGcGeom
  */
-function aio_oc_frame_at($x, $y, $w, $h)
+function mel_oc_frame_at($x, $y, $w, $h)
 {
-    $f = AIO_OC_FRAME;
-    return aio_gc_at($w + 2 * $f, $h + 2 * $f, $x - $f, $y - $f);
+    $f = MEL_OC_FRAME;
+    return mel_gc_at($w + 2 * $f, $h + 2 * $f, $x - $f, $y - $f);
 }
 
 // The frame of the focus around an item $w x $h: 4 rects FRAME wide.
 /**
  * @param int $w
  * @param int $h
- * @return list<AioGcComp>
+ * @return list<MelGcComp>
  */
-function aio_oc_frame_rects($w, $h)
+function mel_oc_frame_rects($w, $h)
 {
-    $f = AIO_OC_FRAME;
+    $f = MEL_OC_FRAME;
     $w += 2 * $f;
     $h += 2 * $f;
-    return array(aio_gc_rect(aio_gc_at($w, $f, 0, 0), AIO_OC_FOCUS), aio_gc_rect(aio_gc_at($w, $f, 0, $h - $f), AIO_OC_FOCUS),
-        aio_gc_rect(aio_gc_at($f, $h - 2 * $f, 0, $f), AIO_OC_FOCUS), aio_gc_rect(aio_gc_at($f, $h - 2 * $f, $w - $f, $f), AIO_OC_FOCUS));
+    return array(mel_gc_rect(mel_gc_at($w, $f, 0, 0), MEL_OC_FOCUS), mel_gc_rect(mel_gc_at($w, $f, 0, $h - $f), MEL_OC_FOCUS),
+        mel_gc_rect(mel_gc_at($f, $h - 2 * $f, 0, $f), MEL_OC_FOCUS), mel_gc_rect(mel_gc_at($f, $h - 2 * $f, $w - $f, $f), MEL_OC_FOCUS));
 }
 
 // The change of frame $id around an item $w x $h: shown or hidden ($was, $is) at once, at $geom
 // (null: where it is); else moved to $geom, in motion if $smooth; none when nothing changes.
 /**
  * @param string $id
- * @param AioGcGeom|null $geom
+ * @param MelGcGeom|null $geom
  * @param bool $smooth
  * @param bool $was
  * @param bool $is
  * @param int $w
  * @param int $h
- * @return list<AioGcChange>
+ * @return list<MelGcChange>
  */
-function aio_oc_frame_change($id, $geom, $smooth, $was, $is, $w, $h)
+function mel_oc_frame_change($id, $geom, $smooth, $was, $is, $w, $h)
 {
     if ($was !== $is)
-        return array(aio_gc_change($id, $geom, GCOMP_TRANSITION_NONE, $is ? aio_oc_frame_rects($w, $h) : array()));
+        return array(mel_gc_change($id, $geom, GCOMP_TRANSITION_NONE, $is ? mel_oc_frame_rects($w, $h) : array()));
     if ($geom)
-        return array(aio_gc_change($id, $geom, $smooth ? GCOMP_TRANSITION_DEFAULT : GCOMP_TRANSITION_NONE));
+        return array(mel_gc_change($id, $geom, $smooth ? GCOMP_TRANSITION_DEFAULT : GCOMP_TRANSITION_NONE));
     return array();
 }
 
@@ -229,16 +229,16 @@ function aio_oc_frame_change($id, $geom, $smooth, $was, $is, $w, $h)
  * @param string $title
  * @param string $rest
  * @param int $w
- * @return list<AioGcComp>
+ * @return list<MelGcComp>
  */
-function aio_oc_row_title($y, $title, $rest, $w)
+function mel_oc_row_title($y, $title, $rest, $w)
 {
-    $tw = min($w, aio_gc_w($title, AIO_CATV_LINE_PX));
-    $d = array(aio_oc_label(AIO_CATV_CARD_X, $y, $tw, aio_gc_cut_w($title, AIO_CATV_LINE_PX, $w), AIO_CATV_LINE_PX, AIO_GC_TEXT));
-    $x = intval(aio_gc_sum($title . ' ', AIO_CATV_LINE_PX));
+    $tw = min($w, mel_gc_w($title, MEL_CATV_LINE_PX));
+    $d = array(mel_oc_label(MEL_CATV_CARD_X, $y, $tw, mel_gc_cut_w($title, MEL_CATV_LINE_PX, $w), MEL_CATV_LINE_PX, MEL_GC_TEXT));
+    $x = intval(mel_gc_sum($title . ' ', MEL_CATV_LINE_PX));
     if ($rest !== '' && $x < $w)
-        $d[] = aio_oc_label(AIO_CATV_CARD_X + $x, $y, $w - $x, aio_gc_cut_w("· $rest", AIO_CATV_LINE_PX, $w - $x),
-            AIO_CATV_LINE_PX, AIO_CATV_TEXT_COLOR);
+        $d[] = mel_oc_label(MEL_CATV_CARD_X + $x, $y, $w - $x, mel_gc_cut_w("· $rest", MEL_CATV_LINE_PX, $w - $x),
+            MEL_CATV_LINE_PX, MEL_CATV_TEXT_COLOR);
     return $d;
 }
 
@@ -250,13 +250,13 @@ function aio_oc_row_title($y, $title, $rest, $w)
  * @param int $nc
  * @param int $y
  * @param int $ch
- * @return AioOcStrip
+ * @return MelOcStrip
  */
-function aio_oc_poster_strip($id, $n, $nc, $y, $ch)
+function mel_oc_poster_strip($id, $n, $nc, $y, $ch)
 {
-    return array('n' => $n, 'nc' => $nc, 'w' => AIO_OC_POSTER_W, 'h' => AIO_OC_POSTER_H, 'cw' => AIO_OC_POSTER_W, 'ch' => $ch,
-        'step' => AIO_OC_POSTER_STEP, 'div' => AIO_OC_POSTER_DIV, 'vis' => AIO_OC_POSTER_VIS, 'lead' => AIO_OC_POSTER_VIS - 2,
-        'x' => AIO_CATV_CARD_X, 'y' => $y + AIO_OC_ROW_HEAD, 'id' => $id);
+    return array('n' => $n, 'nc' => $nc, 'w' => MEL_OC_POSTER_W, 'h' => MEL_OC_POSTER_H, 'cw' => MEL_OC_POSTER_W, 'ch' => $ch,
+        'step' => MEL_OC_POSTER_STEP, 'div' => MEL_OC_POSTER_DIV, 'vis' => MEL_OC_POSTER_VIS, 'lead' => MEL_OC_POSTER_VIS - 2,
+        'x' => MEL_CATV_CARD_X, 'y' => $y + MEL_OC_ROW_HEAD, 'id' => $id);
 }
 
 // The title of a poster ($name in $color): one line, two in focus ($on), the last with "…" if
@@ -266,72 +266,72 @@ function aio_oc_poster_strip($id, $n, $nc, $y, $ch)
  * @param list<string> $lines
  * @param string $color
  * @param bool $on
- * @return list<AioGcComp>
+ * @return list<MelGcComp>
  */
-function aio_oc_poster_titles($name, $lines, $color, $on)
+function mel_oc_poster_titles($name, $lines, $color, $on)
 {
     $d = array();
     $y = 0;
-    foreach (aio_gc_wrap(aio_clean($name), 24, AIO_OC_POSTER_W, $on ? 2 : 1, true) as $s)
+    foreach (mel_gc_wrap(mel_clean($name), 24, MEL_OC_POSTER_W, $on ? 2 : 1, true) as $s)
     {
-        $d[] = aio_oc_label(0, $y, AIO_OC_POSTER_W, $s, 24, $color);
-        $y += AIO_OC_CAP_LH;
+        $d[] = mel_oc_label(0, $y, MEL_OC_POSTER_W, $s, 24, $color);
+        $y += MEL_OC_CAP_LH;
     }
-    $y += AIO_OC_CAP_GAP;
+    $y += MEL_OC_CAP_GAP;
     foreach ($lines as $s)
     {
-        $d[] = aio_oc_label(0, $y, AIO_OC_POSTER_W, $s, 24, AIO_GC_DIM);
-        $y += AIO_OC_CAP_LH;
+        $d[] = mel_oc_label(0, $y, MEL_OC_POSTER_W, $s, 24, MEL_GC_DIM);
+        $y += MEL_OC_CAP_LH;
     }
     return $d;
 }
 
 // The shell's loading poster at $i of strip $s, while its row is asked (a card, a person).
 /**
- * @param AioOcStrip $s
+ * @param MelOcStrip $s
  * @param int $i
- * @return AioGcComp
+ * @return MelGcComp
  */
-function aio_oc_poster_stub($s, $i)
+function mel_oc_poster_stub($s, $i)
 {
-    return aio_gc_image(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, aio_oc_strip_x($s, $i), 0),
+    return mel_gc_image(mel_gc_at(MEL_OC_POSTER_W, MEL_OC_POSTER_H, mel_oc_strip_x($s, $i), 0),
         'plugin_file://%shell_ext%/icons/loading_movie_poster.png');
 }
 
-// The IMDb rating of a tile over its poster (aio_catv_rate_text), as on the posters of the catalog:
+// The IMDb rating of a tile over its poster (mel_catv_rate_text), as on the posters of the catalog:
 // the plate and the number, 2 components; none without a rating or with cat_rating of the settings
 // off ("Рейтинг IMDb на постерах").
 /**
  * @param string $rating
- * @return list<AioGcComp>
+ * @return list<MelGcComp>
  */
-function aio_oc_rate_over($rating)
+function mel_oc_rate_over($rating)
 {
-    $s = Aio::$settings['cat_rating'] ? aio_catv_rate_text($rating) : '';
+    $s = Mel::$settings['cat_rating'] ? mel_catv_rate_text($rating) : '';
     if ($s === '')
         return array();
-    $p = AIO_OC_RATE_PAD;
-    return array(aio_gc_image(aio_gc_at(AIO_OC_RATE_W, AIO_OC_RATE_H, $p, $p), AIO_OC_IMG . 'rate.png'),
-        aio_gc_ttf(null, aio_gc_at(AIO_OC_RATE_W, AIO_OC_RATE_TH, $p, $p + intval((AIO_OC_RATE_H - AIO_OC_RATE_TH) / 2)), $s,
-            AIO_OC_RATE_PX, AIO_GC_TEXT, array(GCompTtfLabelDef::halign => HALIGN_CENTER)));
+    $p = MEL_OC_RATE_PAD;
+    return array(mel_gc_image(mel_gc_at(MEL_OC_RATE_W, MEL_OC_RATE_H, $p, $p), MEL_OC_IMG . 'rate.png'),
+        mel_gc_ttf(null, mel_gc_at(MEL_OC_RATE_W, MEL_OC_RATE_TH, $p, $p + intval((MEL_OC_RATE_H - MEL_OC_RATE_TH) / 2)), $s,
+            MEL_OC_RATE_PX, MEL_GC_TEXT, array(GCompTtfLabelDef::halign => HALIGN_CENTER)));
 }
 
-// The poster of tile $t at $i of strip $s ("<id><i>") as in the catalog (aio_catv_poster), its IMDb
-// rating (aio_oc_rate_over) and $over over it, its titles under it ("<id>n<i>", aio_oc_poster_titles).
+// The poster of tile $t at $i of strip $s ("<id><i>") as in the catalog (mel_catv_poster), its IMDb
+// rating (mel_oc_rate_over) and $over over it, its titles under it ("<id>n<i>", mel_oc_poster_titles).
 /**
- * @param AioOcStrip $s
+ * @param MelOcStrip $s
  * @param int $i
- * @param AioCatTile $t
- * @param list<AioGcComp> $titles
- * @param list<AioGcComp> $over
- * @return AioGcComp
+ * @param MelCatTile $t
+ * @param list<MelGcComp> $titles
+ * @param list<MelGcComp> $over
+ * @return MelGcComp
  */
-function aio_oc_poster_cell($s, $i, $t, $titles, $over = array())
+function mel_oc_poster_cell($s, $i, $t, $titles, $over = array())
 {
-    $d = array_merge(array(aio_gc_rect(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, 0, 0), AIO_OC_NO_PHOTO),
-        aio_gc_image(aio_gc_at(AIO_OC_POSTER_W, AIO_OC_POSTER_H, 0, 0), aio_catv_poster($t), true)),
-        aio_oc_rate_over($t['imdbRating']), $over);
-    $d[] = aio_gc_panel("{$s['id']}n$i", aio_gc_at(AIO_OC_POSTER_W, $s['ch'] - AIO_OC_POSTER_H - AIO_OC_POSTER_CAP_DY, 0,
-        AIO_OC_POSTER_H + AIO_OC_POSTER_CAP_DY), $titles);
-    return aio_gc_panel("{$s['id']}$i", aio_gc_at(AIO_OC_POSTER_W, $s['ch'], aio_oc_strip_x($s, $i), 0), $d);
+    $d = array_merge(array(mel_gc_rect(mel_gc_at(MEL_OC_POSTER_W, MEL_OC_POSTER_H, 0, 0), MEL_OC_NO_PHOTO),
+        mel_gc_image(mel_gc_at(MEL_OC_POSTER_W, MEL_OC_POSTER_H, 0, 0), mel_catv_poster($t), true)),
+        mel_oc_rate_over($t['imdbRating']), $over);
+    $d[] = mel_gc_panel("{$s['id']}n$i", mel_gc_at(MEL_OC_POSTER_W, $s['ch'] - MEL_OC_POSTER_H - MEL_OC_POSTER_CAP_DY, 0,
+        MEL_OC_POSTER_H + MEL_OC_POSTER_CAP_DY), $titles);
+    return mel_gc_panel("{$s['id']}$i", mel_gc_at(MEL_OC_POSTER_W, $s['ch'], mel_oc_strip_x($s, $i), 0), $d);
 }

@@ -5,17 +5,17 @@
 // (list_utils.php): "+id"/"-id" against checked_ids, then "---" and an order. cat_rows of
 // settings.json stays the choice, the page and the dialogs the same: the file is written from it
 // before a dialog opens and read back when it closes; only the keys of that tab change. The rows
-// of a group stay together (aio_cat_by_groups): "Group order" moves the groups, the dialog of a
+// of a group stay together (mel_cat_by_groups): "Group order" moves the groups, the dialog of a
 // group its rows.
 
-// The groups of the menu: those of the page (aio_cat_groups) in its order, the keys of their names.
+// The groups of the menu: those of the page (mel_cat_groups) in its order, the keys of their names.
 /**
  * @return array<string, string>
  */
-function aio_catv_lcfg_groups()
+function mel_catv_lcfg_groups()
 {
     $out = array();
-    foreach (aio_cat_groups() as $g)
+    foreach (mel_cat_groups() as $g)
         $out[$g] = 'cat_group_' . str_replace('-', '_', $g);
     return $out;
 }
@@ -27,7 +27,7 @@ function aio_catv_lcfg_groups()
  * @param string $g
  * @return string
  */
-function aio_catv_lcfg_id($tab, $g)
+function mel_catv_lcfg_id($tab, $g)
 {
     return $g === '' ? "melange_rows_{$tab}_order" : "melange_rows_{$tab}_g_$g";
 }
@@ -37,37 +37,37 @@ function aio_catv_lcfg_id($tab, $g)
  * @param string $g
  * @return string
  */
-function aio_catv_lcfg_path($tab, $g)
+function mel_catv_lcfg_path($tab, $g)
 {
-    return getenv('FS_PREFIX') . '/config/lcfg_' . aio_catv_lcfg_id($tab, $g) . '.txt';
+    return getenv('FS_PREFIX') . '/config/lcfg_' . mel_catv_lcfg_id($tab, $g) . '.txt';
 }
 
-// The chosen rows of the tab $tab of the manifest $rows (aio_cat_user_rows), in their order, those
+// The chosen rows of the tab $tab of the manifest $rows (mel_cat_user_rows), in their order, those
 // of a group together.
 /**
- * @param list<AioCatRow> $rows
+ * @param list<MelCatRow> $rows
  * @param string $tab
- * @return list<AioCatRow>
+ * @return list<MelCatRow>
  */
-function aio_catv_lcfg_chosen($rows, $tab)
+function mel_catv_lcfg_chosen($rows, $tab)
 {
-    return aio_cat_user_rows($rows, Aio::$settings['cat_rows'], $tab);
+    return mel_cat_user_rows($rows, Mel::$settings['cat_rows'], $tab);
 }
 
 // The rows of the group $g of the tab $tab of the manifest $rows, in the order of the manifest: the
 // rows of the dialog of the group.
 /**
- * @param list<AioCatRow> $rows
+ * @param list<MelCatRow> $rows
  * @param string $tab
  * @param string $g
- * @return list<AioCatRow>
+ * @return list<MelCatRow>
  */
-function aio_catv_lcfg_group_rows($rows, $tab, $g)
+function mel_catv_lcfg_group_rows($rows, $tab, $g)
 {
     $out = array();
     foreach ($rows as $r)
     {
-        if (aio_cat_row_tab($r) === $tab && aio_cat_block($r) === $g)
+        if (mel_cat_row_tab($r) === $tab && mel_cat_block($r) === $g)
             $out[] = $r;
     }
     return $out;
@@ -75,10 +75,10 @@ function aio_catv_lcfg_group_rows($rows, $tab, $g)
 
 // The keys of the rows $rows -> key => true.
 /**
- * @param list<AioCatRow> $rows
+ * @param list<MelCatRow> $rows
  * @return array<string, true>
  */
-function aio_catv_lcfg_keys($rows)
+function mel_catv_lcfg_keys($rows)
 {
     $out = array();
     foreach ($rows as $r)
@@ -91,35 +91,35 @@ function aio_catv_lcfg_keys($rows)
 // defaults" gives back); captions: id => caption; checked: its checked_ids, id => checked, every
 // id; on: the ids chosen now (id => true); order: the ids in the order shown now, as the file after
 // "---"; item: a row of the tab => its item (to select the row of the header); blocks: the chosen
-// rows of the tab by groups, group => keys (aio_cat_blocks).
-// "Group order": the groups with chosen rows, all_items in the order of the page (aio_cat_groups),
+// rows of the tab by groups, group => keys (mel_cat_blocks).
+// "Group order": the groups with chosen rows, all_items in the order of the page (mel_cat_groups),
 // all checked, the order theirs on the tab. A group: its rows in the order of the manifest,
 // checked_ids its start rows (showInHome); shown: its chosen rows in their order, then the others
 // in the order of the manifest. checked_ids are also the state of an id with no line in the file
 // (list_utils.php r25: a line only against checked_ids).
 /**
- * @param list<AioCatRow> $rows
+ * @param list<MelCatRow> $rows
  * @param string $tab
  * @param string $g
  * @param string $lang
  * @return array{ids: list<string>, captions: array<string, string>, checked: array<string, bool>, on: array<string, true>, order: list<string>, item: array<string, string>, blocks: array<string, list<string>>}
  */
-function aio_catv_lcfg_dialog($rows, $tab, $g, $lang)
+function mel_catv_lcfg_dialog($rows, $tab, $g, $lang)
 {
     $blocks = array();
-    foreach (aio_cat_blocks(aio_catv_lcfg_chosen($rows, $tab)) as $b => $rs)
-        $blocks[$b] = array_keys(aio_catv_lcfg_keys($rs));
-    $names = aio_catv_lcfg_groups();
+    foreach (mel_cat_blocks(mel_catv_lcfg_chosen($rows, $tab)) as $b => $rs)
+        $blocks[$b] = array_keys(mel_catv_lcfg_keys($rs));
+    $names = mel_catv_lcfg_groups();
     $d = array('ids' => array(), 'captions' => array(), 'checked' => array(), 'on' => array(), 'order' => array(), 'item' => array(),
         'blocks' => $blocks);
     if ($g === '')
     {
-        foreach (aio_cat_groups() as $b)
+        foreach (mel_cat_groups() as $b)
         {
             if (!isset($blocks[$b]))
                 continue;
             $d['ids'][] = $b;
-            $d['captions'][$b] = aio_tr($lang, $names[$b]);
+            $d['captions'][$b] = mel_tr($lang, $names[$b]);
             $d['checked'][$b] = true;
             $d['on'][$b] = true;
         }
@@ -127,15 +127,15 @@ function aio_catv_lcfg_dialog($rows, $tab, $g, $lang)
             $d['order'][] = strval($b);
         foreach ($rows as $r)
         {
-            if (aio_cat_row_tab($r) === $tab)
-                $d['item'][$r['key']] = aio_cat_block($r);
+            if (mel_cat_row_tab($r) === $tab)
+                $d['item'][$r['key']] = mel_cat_block($r);
         }
         return $d;
     }
     $d['order'] = isset($blocks[$g]) ? $blocks[$g] : array();
     foreach ($d['order'] as $k)
         $d['on'][$k] = true;
-    foreach (aio_catv_lcfg_group_rows($rows, $tab, $g) as $r)
+    foreach (mel_catv_lcfg_group_rows($rows, $tab, $g) as $r)
     {
         $d['ids'][] = $r['key'];
         $d['captions'][$r['key']] = $r['name'];
@@ -147,9 +147,9 @@ function aio_catv_lcfg_dialog($rows, $tab, $g, $lang)
     return $d;
 }
 
-// Shared with the window "Источники…" of the online list (aio_lpv_srcs_edit, aio_lpv_srcs_apply of online_sources.php)
-// and "Озвучка" (aio_lpv_flt_edit, aio_lpv_flt_apply of online_voices.php): aio_catv_lcfg_caption, aio_catv_lcfg_text,
-// aio_catv_lcfg_read, aio_catv_lcfg_sorted, aio_catv_lcfg_load - not of the rows alone.
+// Shared with the window "Источники…" of the online list (mel_lpv_srcs_edit, mel_lpv_srcs_apply of online_sources.php)
+// and "Озвучка" (mel_lpv_flt_edit, mel_lpv_flt_apply of online_voices.php): mel_catv_lcfg_caption, mel_catv_lcfg_text,
+// mel_catv_lcfg_read, mel_catv_lcfg_sorted, mel_catv_lcfg_load - not of the rows alone.
 
 // The caption of an item of a dialog from $s. The shell puts it into JSON as is ({"type":"text","text":"%s"}, r24, r25):
 // a " or \ breaks it, the row empty. So " -> « and » in turn, \ -> /, control characters -> a space; not \" (a shell
@@ -158,7 +158,7 @@ function aio_catv_lcfg_dialog($rows, $tab, $g, $lang)
  * @param string $s
  * @return string
  */
-function aio_catv_lcfg_caption($s)
+function mel_catv_lcfg_caption($s)
 {
     $parts = explode('"', strtr(strval(preg_replace('/[\x00-\x1F\x7F]/', ' ', $s)), '\\', '/'));
     $out = array_shift($parts);
@@ -175,7 +175,7 @@ function aio_catv_lcfg_caption($s)
  * @param list<string> $order
  * @return string
  */
-function aio_catv_lcfg_text($ids, $on, $order)
+function mel_catv_lcfg_text($ids, $on, $order)
 {
     $state = '';
     foreach ($ids as $id)
@@ -183,7 +183,7 @@ function aio_catv_lcfg_text($ids, $on, $order)
     return $state . "---\n" . ($order ? implode("\n", $order) . "\n" : '');
 }
 
-// The file $text of a dialog over its items $ids, its checked_ids $checked (aio_catv_lcfg_dialog)
+// The file $text of a dialog over its items $ids, its checked_ids $checked (mel_catv_lcfg_dialog)
 // -> the state of every item: by its line (the last line of an item wins), an item with no line
 // as $checked; the place of an item in the order after "---" (its first line); whether there is
 // "---" (the shell writes it after "Move" only); the count of the lines "+" and "-" of items.
@@ -194,7 +194,7 @@ function aio_catv_lcfg_text($ids, $on, $order)
  * @param array<string, bool> $checked
  * @return array{array<string, bool>, array<string, int>, bool, int, int}
  */
-function aio_catv_lcfg_read($text, $ids, $checked)
+function mel_catv_lcfg_read($text, $ids, $checked)
 {
     $known = array_flip($ids);
     $state = $checked;
@@ -240,9 +240,9 @@ function aio_catv_lcfg_read($text, $ids, $checked)
  * @param list<string> $shown
  * @return array{list<string>, array<string, bool>}
  */
-function aio_catv_lcfg_sorted($text, $ids, $checked, $shown)
+function mel_catv_lcfg_sorted($text, $ids, $checked, $shown)
 {
-    list($state, $rank, $has_order, $plus, $minus) = aio_catv_lcfg_read($text, $ids, $checked);
+    list($state, $rank, $has_order, $plus, $minus) = mel_catv_lcfg_read($text, $ids, $checked);
     if (!$has_order && $plus + $minus > 0)
         $rank = array_flip($shown);
     $pos = array();
@@ -256,7 +256,7 @@ function aio_catv_lcfg_sorted($text, $ids, $checked, $shown)
     return array($out, $state);
 }
 
-// The items checked after a dialog (as aio_catv_lcfg_sorted), in that order -> ids; none checked:
+// The items checked after a dialog (as mel_catv_lcfg_sorted), in that order -> ids; none checked:
 // null.
 /**
  * @param string $text
@@ -265,9 +265,9 @@ function aio_catv_lcfg_sorted($text, $ids, $checked, $shown)
  * @param list<string> $shown
  * @return list<string>|null
  */
-function aio_catv_lcfg_order($text, $ids, $checked, $shown)
+function mel_catv_lcfg_order($text, $ids, $checked, $shown)
 {
-    list($all, $state) = aio_catv_lcfg_sorted($text, $ids, $checked, $shown);
+    list($all, $state) = mel_catv_lcfg_sorted($text, $ids, $checked, $shown);
     $out = array();
     foreach ($all as $id)
     {
@@ -284,7 +284,7 @@ function aio_catv_lcfg_order($text, $ids, $checked, $shown)
  * @param string $path
  * @return array{string, string}
  */
-function aio_catv_lcfg_load($path)
+function mel_catv_lcfg_load($path)
 {
     clearstatcache();
     if (!is_link($path) && !file_exists($path))
@@ -295,15 +295,15 @@ function aio_catv_lcfg_load($path)
     return $text === false ? array('', 'unread') : array($text, '');
 }
 
-// The keys of the tab after "Group order": the rows of the groups $groups (aio_catv_lcfg_order) in
-// their order, each its rows of $blocks (aio_catv_lcfg_dialog) in their order; a group not there
+// The keys of the tab after "Group order": the rows of the groups $groups (mel_catv_lcfg_order) in
+// their order, each its rows of $blocks (mel_catv_lcfg_dialog) in their order; a group not there
 // goes with its rows.
 /**
  * @param list<string> $groups
  * @param array<string, list<string>> $blocks
  * @return list<string>
  */
-function aio_catv_lcfg_groups_apply($groups, $blocks)
+function mel_catv_lcfg_groups_apply($groups, $blocks)
 {
     $keys = array();
     foreach ($groups as $b)
@@ -321,7 +321,7 @@ function aio_catv_lcfg_groups_apply($groups, $blocks)
  * @param list<string> $block
  * @return list<string>
  */
-function aio_catv_lcfg_group_apply($chosen, $ids, $block)
+function mel_catv_lcfg_group_apply($chosen, $ids, $block)
 {
     $of = array_flip($ids);
     $keys = array();
@@ -338,17 +338,17 @@ function aio_catv_lcfg_group_apply($chosen, $ids, $block)
 }
 
 // cat_rows $chosen with the keys of the tab $tab replaced by $keys, movies first, then series,
-// as the page keeps them (aio_cat_tabs).
+// as the page keeps them (mel_cat_tabs).
 /**
  * @param mixed $chosen
  * @param list<string> $keys
  * @param string $tab
  * @return list<string>|null
  */
-function aio_catv_rows_merge($chosen, $keys, $tab)
+function mel_catv_rows_merge($chosen, $keys, $tab)
 {
     $out = array();
-    foreach (aio_cat_tabs() as $t)
+    foreach (mel_cat_tabs() as $t)
     {
         if ($t === $tab)
         {
@@ -357,18 +357,18 @@ function aio_catv_rows_merge($chosen, $keys, $tab)
         }
         foreach (is_array($chosen) ? $chosen : array() as $k)
         {
-            if (is_string($k) && strpos($k, '/') !== false && aio_cat_row_tab(array('type' => strval(strstr($k, '/', true)))) === $t)
+            if (is_string($k) && strpos($k, '/') !== false && mel_cat_row_tab(array('type' => strval(strstr($k, '/', true)))) === $t)
                 $out[] = $k;
         }
     }
-    return aio_cat_rows_ok($out);
+    return mel_cat_rows_ok($out);
 }
 
 
 // "Configure list…" and a separator for the POP UP of the main screen $from of the tab $tab, on the
 // header $hid (selected_header_id, in the panel of the headers; genre_rows_screen.php r25): the
-// menu of the rows of its tab (aio_catv_rows_menu), that row selected; on the row "No rows" of the
-// tab and on the header of the strip (AIO_CATV_STRIP_HEADER) too, no row selected. Else (a tile, a
+// menu of the rows of its tab (mel_catv_rows_menu), that row selected; on the row "No rows" of the
+// tab and on the header of the strip (MEL_CATV_STRIP_HEADER) too, no row selected. Else (a tile, a
 // header of no row of the tab) none.
 /**
  * @param string $hid
@@ -377,79 +377,79 @@ function aio_catv_rows_merge($chosen, $keys, $tab)
  * @param string $lang
  * @return list<array<string, mixed>>
  */
-function aio_catv_rows_menu_items($hid, $tab, $from, $lang)
+function mel_catv_rows_menu_items($hid, $tab, $from, $lang)
 {
-    $strip = $hid === AIO_CATV_STRIP_HEADER;
-    if (!$strip && strpos($hid, AIO_CATV_HEADER) !== 0)
+    $strip = $hid === MEL_CATV_STRIP_HEADER;
+    if (!$strip && strpos($hid, MEL_CATV_HEADER) !== 0)
         return array();
-    $rid = $strip ? '' : strval(substr($hid, strlen(AIO_CATV_HEADER)));
-    $copy = aio_cat_manifest_copy();
+    $rid = $strip ? '' : strval(substr($hid, strlen(MEL_CATV_HEADER)));
+    $copy = mel_cat_manifest_copy();
     $any = false;
     $sel = null;
     foreach ($copy['rows'] as $r)
     {
-        if (aio_cat_row_tab($r) !== $tab)
+        if (mel_cat_row_tab($r) !== $tab)
             continue;
         $any = true;
-        if (aio_catv_rid($r) === $rid)
+        if (mel_catv_rid($r) === $rid)
             $sel = $r['key'];
     }
-    if (!$any || ($sel === null && !$strip && $rid !== aio_catv_rid(aio_catv_tab_empty_row($tab, $lang))))
+    if (!$any || ($sel === null && !$strip && $rid !== mel_catv_rid(mel_catv_tab_empty_row($tab, $lang))))
         return array();
     return array(
         array(
-            GuiMenuItemDef::caption => aio_tr($lang, 'cat_rows_edit'),
-            GuiMenuItemDef::icon_url => AIO_CATV_ICONS . 'playlist_small.png',
-            GuiMenuItemDef::action => aio_input('cat_rows_menu', array('from' => $from, 'sel' => strval($sel)))),
+            GuiMenuItemDef::caption => mel_tr($lang, 'cat_rows_edit'),
+            GuiMenuItemDef::icon_url => MEL_CATV_ICONS . 'playlist_small.png',
+            GuiMenuItemDef::action => mel_input('cat_rows_menu', array('from' => $from, 'sel' => strval($sel)))),
         array(GuiMenuItemDef::is_separator => true));
 }
 
 // "Configure list…" of the main screen $from, the row $sel ('': none) -> the second menu, as the
-// MENU item "Download to server" (aio_srv_menu): "Group order" (with chosen rows of the tab), a
+// MENU item "Download to server" (mel_srv_menu): "Group order" (with chosen rows of the tab), a
 // separator, the groups of the tab in the order of the page with "N of M" (chosen, all of the tab);
 // a group with no row of the tab not there. The cursor on the first item.
 /**
  * @param string $from
  * @param string $sel
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_rows_menu($from, $sel)
+function mel_catv_rows_menu($from, $sel)
 {
-    $tab = aio_catv_tab($from);
+    $tab = mel_catv_tab($from);
     if ($tab === '')
         return null;
-    $copy = aio_cat_manifest_copy();
-    $chosen = aio_catv_lcfg_chosen($copy['rows'], $tab);
-    $on = aio_catv_lcfg_keys($chosen);
+    $copy = mel_cat_manifest_copy();
+    $chosen = mel_catv_lcfg_chosen($copy['rows'], $tab);
+    $on = mel_catv_lcfg_keys($chosen);
     $all = array();
     $n = array();
     foreach ($copy['rows'] as $r)
     {
-        if (aio_cat_row_tab($r) !== $tab)
+        if (mel_cat_row_tab($r) !== $tab)
             continue;
-        $g = aio_cat_block($r);
+        $g = mel_cat_block($r);
         $all[$g] = isset($all[$g]) ? $all[$g] + 1 : 1;
         $n[$g] = (isset($n[$g]) ? $n[$g] : 0) + (isset($on[$r['key']]) ? 1 : 0);
     }
     if (!$all)
         return null;
-    $lang = aio_catv_lang();
+    $lang = mel_catv_lang();
     $items = array();
     if ($chosen)
     {
         $items[] = array(
-            GuiMenuItemDef::caption => aio_tr($lang, 'cat_rows_group_order'),
-            GuiMenuItemDef::action => aio_input('cat_rows_edit', array('from' => $from, 'sel' => $sel, 'g' => '')));
+            GuiMenuItemDef::caption => mel_tr($lang, 'cat_rows_group_order'),
+            GuiMenuItemDef::action => mel_input('cat_rows_edit', array('from' => $from, 'sel' => $sel, 'g' => '')));
         $items[] = array(GuiMenuItemDef::is_separator => true);
     }
-    foreach (aio_catv_lcfg_groups() as $g => $name)
+    foreach (mel_catv_lcfg_groups() as $g => $name)
     {
         if (!isset($all[$g]))
             continue;
-        $of = str_replace(array('{n}', '{m}'), array(strval($n[$g]), strval($all[$g])), aio_tr($lang, 'cat_rows_of'));
+        $of = str_replace(array('{n}', '{m}'), array(strval($n[$g]), strval($all[$g])), mel_tr($lang, 'cat_rows_of'));
         $items[] = array(
-            GuiMenuItemDef::caption => aio_tr($lang, $name) . "  $of",
-            GuiMenuItemDef::action => aio_input('cat_rows_edit', array('from' => $from, 'sel' => $sel, 'g' => $g)));
+            GuiMenuItemDef::caption => mel_tr($lang, $name) . "  $of",
+            GuiMenuItemDef::action => mel_input('cat_rows_edit', array('from' => $from, 'sel' => $sel, 'g' => $g)));
     }
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
@@ -459,7 +459,7 @@ function aio_catv_rows_menu($from, $sel)
 }
 
 // The dialog $g of the tab of the main screen $from ('': "Group order", else of the group $g), as
-// aio_catv_lcfg_dialog; selected: the row $sel ('': none) if in it, in "Group order" its group.
+// mel_catv_lcfg_dialog; selected: the row $sel ('': none) if in it, in "Group order" its group.
 // "Group order" has no options (no empty set, as on the page), a group ALLOW_EMPTY. No groups of
 // the shell. Its file written from cat_rows first (the order shown after "---"); not written: an
 // error, no dialog (its close would write the last state of the shell over cat_rows of the tab). No
@@ -468,131 +468,131 @@ function aio_catv_rows_menu($from, $sel)
  * @param string $from
  * @param string $sel
  * @param string $g
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_rows_edit($from, $sel, $g)
+function mel_catv_rows_edit($from, $sel, $g)
 {
-    $tab = aio_catv_tab($from);
-    $names = aio_catv_lcfg_groups();
+    $tab = mel_catv_tab($from);
+    $names = mel_catv_lcfg_groups();
     if ($tab === '' || ($g !== '' && !isset($names[$g])))
         return null;
     if (!class_exists('EditListConfigActionData') || !defined('EDIT_LIST_CONFIG_ACTION_ID'))
-        return aio_error('cat_rows_no_dialog');
-    $copy = aio_cat_manifest_copy();
-    $lang = aio_catv_lang();
-    $d = aio_catv_lcfg_dialog($copy['rows'], $tab, $g, $lang);
+        return mel_error('cat_rows_no_dialog');
+    $copy = mel_cat_manifest_copy();
+    $lang = mel_catv_lang();
+    $d = mel_catv_lcfg_dialog($copy['rows'], $tab, $g, $lang);
     if (!$d['ids'])
-        return aio_error('cat_outdated');
+        return mel_error('cat_outdated');
     $what = $g === '' ? 'order' : "group $g";
-    if (!aio_write_file(aio_catv_lcfg_path($tab, $g), aio_catv_lcfg_text($d['ids'], $d['on'], $d['order']), 0644))
+    if (!mel_write_file(mel_catv_lcfg_path($tab, $g), mel_catv_lcfg_text($d['ids'], $d['on'], $d['order']), 0644))
     {
-        aio_log("catalog: rows: $tab: $what: the file of the dialog not written");
-        return aio_error('cat_rows_not_opened');
+        mel_log("catalog: rows: $tab: $what: the file of the dialog not written");
+        return mel_error('cat_rows_not_opened');
     }
     $items = array();
     foreach ($d['ids'] as $id)
-        $items[] = array(GuiItem::id => $id, GuiItem::caption => aio_catv_lcfg_caption($d['captions'][$id]));
+        $items[] = array(GuiItem::id => $id, GuiItem::caption => mel_catv_lcfg_caption($d['captions'][$id]));
     $sel = isset($d['item'][$sel]) ? $d['item'][$sel] : '';
     $checked = array_keys(array_filter($d['checked']));
     $data = array(
-        EditListConfigActionData::config_id => aio_catv_lcfg_id($tab, $g),
-        EditListConfigActionData::title => aio_tr($lang, $g === '' ? 'cat_rows_group_order' : $names[$g]),
+        EditListConfigActionData::config_id => mel_catv_lcfg_id($tab, $g),
+        EditListConfigActionData::title => mel_tr($lang, $g === '' ? 'cat_rows_group_order' : $names[$g]),
         EditListConfigActionData::all_items => $items,
-        EditListConfigActionData::post_action => aio_input('cat_rows_apply', array('from' => $from, 'g' => $g)));
+        EditListConfigActionData::post_action => mel_input('cat_rows_apply', array('from' => $from, 'g' => $g)));
     if ($checked)
         $data[EditListConfigActionData::checked_ids] = $checked;
     if ($g !== '')
         $data[EditListConfigActionData::options] = EDIT_LIST_CONFIG_OPT_ALLOW_EMPTY;
     if (isset($d['checked'][$sel]))
         $data[EditListConfigActionData::sel_id] = $sel;
-    aio_log("catalog: rows: $tab: $what: dialog, " . count($items) . ($g === '' ? ' groups' : ' rows, ' . count($d['on']) . ' chosen'));
+    mel_log("catalog: rows: $tab: $what: dialog, " . count($items) . ($g === '' ? ' groups' : ' rows, ' . count($d['on']) . ' chosen'));
     return array(GuiAction::handler_string_id => EDIT_LIST_CONFIG_ACTION_ID, GuiAction::data => $data);
 }
 
-// post_action of the dialog $g (as aio_catv_rows_edit) of the main screen $from, at every close;
+// post_action of the dialog $g (as mel_catv_rows_edit) of the main screen $from, at every close;
 // the shell has written its file by then; none: as an empty one (list_utils.php r25: no file, no
 // change against checked_ids); there but not read: an error, nothing written. Changed: "Group order"
 // gives the groups of the tab in their order, a group unchecked going with its rows
-// (aio_catv_lcfg_groups_apply); a group gives its rows in its place (aio_catv_lcfg_group_apply); no
+// (mel_catv_lcfg_groups_apply); a group gives its rows in its place (mel_catv_lcfg_group_apply); no
 // row left on the tab: an error, nothing written. The rows go to cat_rows in place of those of the
-// tab, settings.json read again and written as the quick setup does (aio_settings_write), the
+// tab, settings.json read again and written as the quick setup does (mel_settings_write), the
 // screen read again in place (invalidate: the shell keeps the focus by sel_state). Anything else:
 // nothing written. Back to the second menu: no.
 /**
  * @param stdClass $in
  * @param string $from
- * @return AioAction|null
+ * @return MelAction|null
  */
-function aio_catv_rows_apply($in, $from)
+function mel_catv_rows_apply($in, $from)
 {
-    $tab = aio_catv_tab($from);
-    $g = aio_catv_in($in, 'g');
-    $names = aio_catv_lcfg_groups();
+    $tab = mel_catv_tab($from);
+    $g = mel_catv_in($in, 'g');
+    $names = mel_catv_lcfg_groups();
     $changed = isset($in->list_config_changed) && is_scalar($in->list_config_changed) ? strval($in->list_config_changed) : '';
-    if ($tab === '' || ($g !== '' && !isset($names[$g])) || aio_catv_in($in, 'list_config_id') !== aio_catv_lcfg_id($tab, $g))
+    if ($tab === '' || ($g !== '' && !isset($names[$g])) || mel_catv_in($in, 'list_config_id') !== mel_catv_lcfg_id($tab, $g))
         return null;
     $what = $g === '' ? 'order' : "group $g";
     if ($changed !== '1')
     {
-        aio_log("catalog: rows: $tab: $what: dialog closed, no change");
+        mel_log("catalog: rows: $tab: $what: dialog closed, no change");
         return null;
     }
-    list($text, $no) = aio_catv_lcfg_load(aio_catv_lcfg_path($tab, $g));
+    list($text, $no) = mel_catv_lcfg_load(mel_catv_lcfg_path($tab, $g));
     if ($no === 'bad')
     {
-        aio_log("catalog: rows: $tab: $what: the file of the dialog not a file or too big, nothing changed");
+        mel_log("catalog: rows: $tab: $what: the file of the dialog not a file or too big, nothing changed");
         return null;
     }
     if ($no === 'none')
-        aio_log("catalog: rows: $tab: $what: no file of the dialog, the defaults");
+        mel_log("catalog: rows: $tab: $what: no file of the dialog, the defaults");
     if ($no === 'unread')
     {
-        aio_log("catalog: rows: $tab: $what: the file of the dialog not read, nothing changed");
-        return aio_error('cat_rows_not_saved');
+        mel_log("catalog: rows: $tab: $what: the file of the dialog not read, nothing changed");
+        return mel_error('cat_rows_not_saved');
     }
-    $copy = aio_cat_manifest_copy();
-    $d = aio_catv_lcfg_dialog($copy['rows'], $tab, $g, aio_catv_lang());
-    list(, , $has_order, $plus, $minus) = aio_catv_lcfg_read($text, $d['ids'], $d['checked']);
-    aio_log("catalog: rows: $tab: $what: the file: " . ($has_order ? 'an order' : 'no order') . ", $plus on, $minus off");
-    $got = aio_catv_lcfg_order($text, $d['ids'], $d['checked'], $d['order']);
+    $copy = mel_cat_manifest_copy();
+    $d = mel_catv_lcfg_dialog($copy['rows'], $tab, $g, mel_catv_lang());
+    list(, , $has_order, $plus, $minus) = mel_catv_lcfg_read($text, $d['ids'], $d['checked']);
+    mel_log("catalog: rows: $tab: $what: the file: " . ($has_order ? 'an order' : 'no order') . ", $plus on, $minus off");
+    $got = mel_catv_lcfg_order($text, $d['ids'], $d['checked'], $d['order']);
     if ($g === '')
     {
         if (!$got)
         {
-            aio_log("catalog: rows: $tab: $what: none chosen in the file, nothing changed");
+            mel_log("catalog: rows: $tab: $what: none chosen in the file, nothing changed");
             return null;
         }
-        $keys = aio_catv_lcfg_groups_apply($got, $d['blocks']);
+        $keys = mel_catv_lcfg_groups_apply($got, $d['blocks']);
     }
     else
     {
-        $keys = aio_catv_lcfg_group_apply(aio_catv_lcfg_groups_apply(array_keys($d['blocks']), $d['blocks']), $d['ids'], $got ? $got : array());
+        $keys = mel_catv_lcfg_group_apply(mel_catv_lcfg_groups_apply(array_keys($d['blocks']), $d['blocks']), $d['ids'], $got ? $got : array());
         if (!$keys)
         {
-            aio_log("catalog: rows: $tab: $what: no row left on the tab, nothing changed");
-            return aio_error('cat_rows_empty');
+            mel_log("catalog: rows: $tab: $what: no row left on the tab, nothing changed");
+            return mel_error('cat_rows_empty');
         }
     }
-    $dir = aio_data_dir();
+    $dir = mel_data_dir();
     $why = 'no data_dir';
-    $s = $dir !== '' ? aio_settings_read($dir, $why) : null;
+    $s = $dir !== '' ? mel_settings_read($dir, $why) : null;
     if (!$s || $why !== '')
     {
-        aio_log("catalog: rows: $tab: settings.json not read, not written");
-        return aio_error('cat_rows_not_saved');
+        mel_log("catalog: rows: $tab: settings.json not read, not written");
+        return mel_error('cat_rows_not_saved');
     }
-    $rows = aio_catv_rows_merge($s['cat_rows'], $keys, $tab);
+    $rows = mel_catv_rows_merge($s['cat_rows'], $keys, $tab);
     if ($rows === $s['cat_rows'])
     {
-        aio_log("catalog: rows: $tab: the same rows");
+        mel_log("catalog: rows: $tab: the same rows");
         return null;
     }
     $s['cat_rows'] = $rows;
-    if (!aio_settings_write($s))
+    if (!mel_settings_write($s))
     {
-        aio_log("catalog: rows: $tab: settings.json not written");
-        return aio_error('cat_rows_not_saved');
+        mel_log("catalog: rows: $tab: settings.json not written");
+        return mel_error('cat_rows_not_saved');
     }
-    aio_log("catalog: rows: $tab: " . count($keys) . ' chosen, saved');
-    return aio_catv_invalidate($from);
+    mel_log("catalog: rows: $tab: " . count($keys) . ' chosen, saved');
+    return mel_catv_invalidate($from);
 }

@@ -3,47 +3,47 @@
 // and "Next episode" with a countdown (closing credits; dropped by the player
 // on the last item of the playlist). Timecodes: GET /api/v1/segments of the
 // AIOStreams server of the streams (Melange's fork; other servers have no
-// such route: 404, no markers, and no more asking: Aio::$seg_no_route). aio_play (playback.php) asks for the episode
+// such route: 404, no markers, and no more asking: Mel::$seg_no_route). mel_play (playback.php) asks for the episode
 // that starts; a file of no known length is read first: the server's timecodes
 // are of the file only with its duration, else 10-20 s late on some releases.
-// Reads Aio::$settings; the time left of the operation: aio_op_total
+// Reads Mel::$settings; the time left of the operation: mel_op_total
 // (playback.php). Functions are global; the require order is in main.php.
 // Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // Seconds: the server of the streams has just answered, so the connection
 // is quick; a reply from its cache takes a fraction of a second. A slower
 // one leaves this episode without markers rather than delay the video.
-define('AIO_SEG_CONNECT', 2);
-define('AIO_SEG_TOTAL', 3);
+define('MEL_SEG_CONNECT', 2);
+define('MEL_SEG_TOTAL', 3);
 // A reply this big is not a list of three segments.
-define('AIO_SEG_MAX_BYTES', 65536);
+define('MEL_SEG_MAX_BYTES', 65536);
 // A marker ending this far past the end of the file is of another release
 // (the same rule as the server's); a closer one is cut at the end.
-define('AIO_SEG_SLACK', 20);
+define('MEL_SEG_SLACK', 20);
 // A longer file is taken for an unknown length: the server refuses such a
 // duration (400) and would give no markers at all.
-define('AIO_SEG_DUR_MAX', 86400);
+define('MEL_SEG_DUR_MAX', 86400);
 // The length of the file unknown: credits starting earlier, s, are garbage
 // (an episode is 20 min or more, its credits near the end). A false one
 // would switch to the next episode in the middle of this one.
-define('AIO_SEG_OUTRO_MIN', 600);
+define('MEL_SEG_OUTRO_MIN', 600);
 // Credits not matched to the file by the server (matchesFile not true: a
 // source that does not know the length, IntroDB) ending more than this many
 // seconds before the end of a file of known length are of a shorter release:
 // "Next episode" would count down and switch over the end of this one.
-define('AIO_SEG_OUTRO_TAIL', 60);
+define('MEL_SEG_OUTRO_TAIL', 60);
 // The head of the file for its length: seconds, as the markers, and at most
 // this many bytes (mkvmerge puts Info within the first 7 KB).
-define('AIO_MKV_CONNECT', 2);
-define('AIO_MKV_TOTAL', 3);
-define('AIO_MKV_MAX_BYTES', 65536);
+define('MEL_MKV_CONNECT', 2);
+define('MEL_MKV_TOTAL', 3);
+define('MEL_MKV_MAX_BYTES', 65536);
 // EBML IDs of Matroska, with their length marks.
-define('AIO_MKV_ID_EBML', "\x1A\x45\xDF\xA3");
-define('AIO_MKV_ID_SEGMENT', "\x18\x53\x80\x67");
-define('AIO_MKV_ID_INFO', "\x15\x49\xA9\x66");
-define('AIO_MKV_ID_CLUSTER', "\x1F\x43\xB6\x75");
-define('AIO_MKV_ID_SCALE', "\x2A\xD7\xB1");
-define('AIO_MKV_ID_DURATION', "\x44\x89");
+define('MEL_MKV_ID_EBML', "\x1A\x45\xDF\xA3");
+define('MEL_MKV_ID_SEGMENT', "\x18\x53\x80\x67");
+define('MEL_MKV_ID_INFO', "\x15\x49\xA9\x66");
+define('MEL_MKV_ID_CLUSTER', "\x1F\x43\xB6\x75");
+define('MEL_MKV_ID_SCALE', "\x2A\xD7\xB1");
+define('MEL_MKV_ID_DURATION', "\x44\x89");
 
 // Manifest base $base -> the root of its AIOStreams server (what is before
 // /stremio/), '' when the address has no /stremio/.
@@ -51,7 +51,7 @@ define('AIO_MKV_ID_DURATION', "\x44\x89");
  * @param string $base
  * @return string
  */
-function aio_seg_root($base)
+function mel_seg_root($base)
 {
     return preg_match('~^(https?://[^/]+(?:/[^/]+)*?)/stremio/~', $base, $m) ? $m[1] : '';
 }
@@ -64,10 +64,10 @@ function aio_seg_root($base)
 // $drop ("outro 10-60 (before half)"): a type of more than one is dropped
 // whole; intro and recap end by the half of a known length; the credits
 // start after the end of the intro and the recap kept, from the half of a
-// known length, from AIO_SEG_OUTRO_MIN s of an unknown one. A segment not
+// known length, from MEL_SEG_OUTRO_MIN s of an unknown one. A segment not
 // matched to the file by the server (matchesFile not true) is dropped first:
 // with $exact ("Только точные" of the settings) any one, else the credits of
-// it ending more than AIO_SEG_OUTRO_TAIL s before the end of a known length.
+// it ending more than MEL_SEG_OUTRO_TAIL s before the end of a known length.
 /**
  * @param string $body
  * @param float $dur
@@ -75,7 +75,7 @@ function aio_seg_root($base)
  * @param bool $exact
  * @return list<array<string, int|string>>|null
  */
-function aio_seg_markers($body, $dur, &$drop, $exact = false)
+function mel_seg_markers($body, $dur, &$drop, $exact = false)
 {
     $drop = array();
     $j = json_decode($body, true);
@@ -95,7 +95,7 @@ function aio_seg_markers($body, $dur, &$drop, $exact = false)
         $to = $sg['end'];
         if ($dur > 0)
         {
-            if ($to > $dur + AIO_SEG_SLACK)
+            if ($to > $dur + MEL_SEG_SLACK)
                 continue;
             $to = min($to, $dur);
         }
@@ -107,7 +107,7 @@ function aio_seg_markers($body, $dur, &$drop, $exact = false)
         $tail = $dur - $sg['end'];
         if (!$matched && $exact)
             $drop[] = "{$sg['type']} $from-$to (not matched)";
-        else if (!$matched && $sg['type'] === 'outro' && $dur > 0 && $tail > AIO_SEG_OUTRO_TAIL)
+        else if (!$matched && $sg['type'] === 'outro' && $dur > 0 && $tail > MEL_SEG_OUTRO_TAIL)
             $drop[] = sprintf('outro %d-%d (%d s before the end, not matched)', $from, $to, ceil($tail));
         else
             $by[$sg['type']][] = array($from, $to);
@@ -129,8 +129,8 @@ function aio_seg_markers($body, $dur, &$drop, $exact = false)
             $why = 'before the end of intro/recap';
         else if ($dur > 0)
             $why = $from < $dur / 2 ? 'before half' : '';
-        else if ($from < AIO_SEG_OUTRO_MIN)
-            $why = 'before ' . AIO_SEG_OUTRO_MIN . ' s';
+        else if ($from < MEL_SEG_OUTRO_MIN)
+            $why = 'before ' . MEL_SEG_OUTRO_MIN . ' s';
         if ($why !== '')
         {
             foreach ($by[$t] as $m)
@@ -155,7 +155,7 @@ function aio_seg_markers($body, $dur, &$drop, $exact = false)
  * @param int $end
  * @return array{string, float}|null
  */
-function aio_mkv_el($b, &$p, $end)
+function mel_mkv_el($b, &$p, $end)
 {
     if ($p >= $end)
         return null;
@@ -188,23 +188,23 @@ function aio_mkv_el($b, &$p, $end)
 }
 
 // Info of a Matroska file (its data) -> seconds, 0.0 without a finite
-// Duration in 1..AIO_SEG_DUR_MAX.
+// Duration in 1..MEL_SEG_DUR_MAX.
 /**
  * @param string $b
  * @return float
  */
-function aio_mkv_info($b)
+function mel_mkv_info($b)
 {
     $n = strlen($b);
     $p = 0;
     $scale = 1000000.0;
     $dur = 0.0;
-    while (($el = aio_mkv_el($b, $p, $n)) !== null)
+    while (($el = mel_mkv_el($b, $p, $n)) !== null)
     {
         if ($el[1] < 0 || $p + $el[1] > $n)
             return 0.0;
         $size = (int) $el[1];
-        if ($el[0] === AIO_MKV_ID_SCALE)
+        if ($el[0] === MEL_MKV_ID_SCALE)
         {
             // TimestampScale, an unsigned of 1..8 bytes.
             if ($size < 1 || $size > 8)
@@ -213,7 +213,7 @@ function aio_mkv_info($b)
             for ($i = 0; $i < $size; $i++)
                 $scale = $scale * 256 + ord($b[$p + $i]);
         }
-        else if ($el[0] === AIO_MKV_ID_DURATION)
+        else if ($el[0] === MEL_MKV_ID_DURATION)
         {
             if ($size !== 4 && $size !== 8)
                 return 0.0;
@@ -227,7 +227,7 @@ function aio_mkv_info($b)
     }
     $sec = $dur * $scale / 1e9;
     // is_finite first: PHP 5.3 may take a comparison with NaN for true.
-    return is_finite($sec) && $sec >= 1 && $sec <= AIO_SEG_DUR_MAX ? $sec : 0.0;
+    return is_finite($sec) && $sec >= 1 && $sec <= MEL_SEG_DUR_MAX ? $sec : 0.0;
 }
 
 // The first bytes $b of a file -> its length from the Info of a Matroska file,
@@ -240,27 +240,27 @@ function aio_mkv_info($b)
  * @param-out string $why
  * @return float
  */
-function aio_mkv_duration($b, &$why = null)
+function mel_mkv_duration($b, &$why = null)
 {
     $why = 'not MKV';
     $n = strlen($b);
     $p = 0;
-    $el = aio_mkv_el($b, $p, $n);
-    if ($el === null || $el[0] !== AIO_MKV_ID_EBML || $el[1] < 0 || $p + $el[1] > $n)
+    $el = mel_mkv_el($b, $p, $n);
+    if ($el === null || $el[0] !== MEL_MKV_ID_EBML || $el[1] < 0 || $p + $el[1] > $n)
         return 0.0;
     $p += (int) $el[1];
-    $el = aio_mkv_el($b, $p, $n);
-    if ($el === null || $el[0] !== AIO_MKV_ID_SEGMENT)
+    $el = mel_mkv_el($b, $p, $n);
+    if ($el === null || $el[0] !== MEL_MKV_ID_SEGMENT)
         return 0.0;
     $why = 'no Info';
     // Its size may be unknown, and it is usually past the buffer.
     $end = $el[1] < 0 ? $n : (int) min($n, $p + $el[1]);
-    while (($el = aio_mkv_el($b, $p, $end)) !== null && $el[0] !== AIO_MKV_ID_CLUSTER && $el[1] >= 0 && $p + $el[1] <= $end)
+    while (($el = mel_mkv_el($b, $p, $end)) !== null && $el[0] !== MEL_MKV_ID_CLUSTER && $el[1] >= 0 && $p + $el[1] <= $end)
     {
-        if ($el[0] === AIO_MKV_ID_INFO)
+        if ($el[0] === MEL_MKV_ID_INFO)
         {
             $why = 'no Duration';
-            return aio_mkv_info((string) substr($b, $p, (int) $el[1]));
+            return mel_mkv_info((string) substr($b, $p, (int) $el[1]));
         }
         $p += (int) $el[1];
     }
@@ -277,23 +277,23 @@ function aio_mkv_duration($b, &$why = null)
  * @param string $auth
  * @return float
  */
-function aio_mkv_read($url, $ep, $auth)
+function mel_mkv_read($url, $ep, $auth)
 {
-    $total = aio_op_total(AIO_MKV_TOTAL, 1, "mkv length: $ep");
+    $total = mel_op_total(MEL_MKV_TOTAL, 1, "mkv length: $ep");
     if ($total === 0)
         return 0.0;
     $t = microtime(true);
     $err = '';
-    list($code, $b) = aio_http_range($url, AIO_MKV_MAX_BYTES, $err, min(AIO_MKV_CONNECT, $total), $total, $auth);
+    list($code, $b) = mel_http_range($url, MEL_MKV_MAX_BYTES, $err, min(MEL_MKV_CONNECT, $total), $total, $auth);
     $t = microtime(true) - $t;
     $why = "HTTP $code";
-    $sec = $code === 200 || $code === 206 ? aio_mkv_duration($b, $why) : 0.0;
+    $sec = $code === 200 || $code === 206 ? mel_mkv_duration($b, $why) : 0.0;
     if ($err !== '')
-        $why = aio_cut(aio_mask($err), 120);
+        $why = mel_cut(mel_mask($err), 120);
     if ($sec > 0)
-        aio_log(sprintf('mkv length: %s, %.1f s, %.2f s', $ep, $sec, $t));
+        mel_log(sprintf('mkv length: %s, %.1f s, %.2f s', $ep, $sec, $t));
     else
-        aio_log(sprintf('mkv length: %s: none (%s), %.2f s', $ep, $why, $t));
+        mel_log(sprintf('mkv length: %s: none (%s), %.2f s', $ep, $why, $t));
     return $sec;
 }
 
@@ -301,9 +301,9 @@ function aio_mkv_read($url, $ep, $auth)
 // unknown, then not sent) from the server of the streams -> the list (with
 // markers_exact of the settings only those matched to the file), array()
 // on any failure (logged), or with the markers of the settings off, a server
-// known to have no route or markers_exact with no length: no request at all. A length not in 1..AIO_SEG_DUR_MAX
+// known to have no route or markers_exact with no length: no request at all. A length not in 1..MEL_SEG_DUR_MAX
 // and a stream URL $stream ('': none to read; $auth: its Basic auth): the length
-// comes from its head (aio_mkv_read).
+// comes from its head (mel_mkv_read).
 /**
  * @param string $imdb
  * @param int $s
@@ -313,51 +313,51 @@ function aio_mkv_read($url, $ep, $auth)
  * @param string $auth
  * @return list<array<string, int|string>>
  */
-function aio_markers($imdb, $s, $e, $dur, $stream, $auth)
+function mel_markers($imdb, $s, $e, $dur, $stream, $auth)
 {
     $ep = sprintf('S%02dE%02d', $s, $e);
-    if (!Aio::$settings['markers'])
+    if (!Mel::$settings['markers'])
     {
-        aio_log("markers: $ep: off in the settings");
+        mel_log("markers: $ep: off in the settings");
         return array();
     }
     // A firmware PHP API without markers (older models): nothing to ask for.
     if (!class_exists('StreamMarker') || !defined('PluginVodSeriesInfo::markers'))
         return array();
-    $root = aio_seg_root(Aio::$settings['base']);
-    if ($root === '' || $root === Aio::$seg_no_route || !preg_match('/^tt[0-9]{1,10}$/D', $imdb))
+    $root = mel_seg_root(Mel::$settings['base']);
+    if ($root === '' || $root === Mel::$seg_no_route || !preg_match('/^tt[0-9]{1,10}$/D', $imdb))
         return array();
-    if (!($dur >= 1 && $dur <= AIO_SEG_DUR_MAX))
-        $dur = $stream !== '' ? aio_mkv_read($stream, $ep, $auth) : 0.0;
+    if (!($dur >= 1 && $dur <= MEL_SEG_DUR_MAX))
+        $dur = $stream !== '' ? mel_mkv_read($stream, $ep, $auth) : 0.0;
     // The server matches a segment to the file only by the duration sent: with
     // markers_exact and no length every one would be dropped, not worth the wait.
-    if (Aio::$settings['markers_exact'] && !($dur > 0))
+    if (Mel::$settings['markers_exact'] && !($dur > 0))
     {
-        aio_log("markers: $ep, duration unknown: exact only, not asked");
+        mel_log("markers: $ep, duration unknown: exact only, not asked");
         return array();
     }
-    $total = aio_op_total(AIO_SEG_TOTAL, 1, "markers: $ep");
+    $total = mel_op_total(MEL_SEG_TOTAL, 1, "markers: $ep");
     if ($total === 0)
         return array();
     $sec = (int) round($dur);
     $url = "$root/api/v1/segments?idType=imdbId&idValue=$imdb&season=$s&episode=$e" . ($sec > 0 ? "&duration=$sec" : '');
     $t = microtime(true);
     $err = '';
-    list($code, $body) = aio_http_get($url, $err, min(AIO_SEG_CONNECT, $total), $total, AIO_SEG_MAX_BYTES);
+    list($code, $body) = mel_http_get($url, $err, min(MEL_SEG_CONNECT, $total), $total, MEL_SEG_MAX_BYTES);
     $t = microtime(true) - $t;
     $drop = array();
-    $mk = $err === '' && $code === 200 ? aio_seg_markers($body, $dur, $drop, Aio::$settings['markers_exact']) : null;
+    $mk = $err === '' && $code === 200 ? mel_seg_markers($body, $dur, $drop, Mel::$settings['markers_exact']) : null;
     $what = array();
     foreach ($mk ? $mk : array() as $m)
         $what[] = $m[StreamMarker::type] . ' ' . $m[StreamMarker::from] . '-' . $m[StreamMarker::to];
     if ($drop)
         $what[] = 'dropped ' . implode(', ', $drop);
-    aio_log(sprintf('markers: %s, duration %s: %s, %s, %.2f s', $ep, $sec > 0 ? "$sec s" : 'unknown',
+    mel_log(sprintf('markers: %s, duration %s: %s, %s, %.2f s', $ep, $sec > 0 ? "$sec s" : 'unknown',
         $err !== '' ? $err : "HTTP $code", $mk === null ? 'none' : ($what ? implode(', ', $what) : 'no segments'), $t));
     if ($err === '' && $code === 404)
     {
-        Aio::$seg_no_route = $root;
-        aio_log('markers: no route on this server, not asked again');
+        Mel::$seg_no_route = $root;
+        mel_log('markers: no route on this server, not asked again');
     }
     return $mk ? $mk : array();
 }

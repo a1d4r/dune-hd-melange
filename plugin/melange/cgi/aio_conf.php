@@ -5,27 +5,27 @@
 // settings of AIOStreams) is never touched. Configs are objects
 // (json_decode without assoc): an empty {} stays {}, never [] (Zod of the
 // server refuses [] for a record such as credentials). Plain PHP 5.3, no
-// firmware API, no request of its own: aio_conf_create sends by the function
+// firmware API, no request of its own: mel_conf_create sends by the function
 // of its caller. Shared by the page (cgi/lib/aio_sync.php) and the plugin
 // (main.php: the migrations; view_setup.php: the quick setup).
 
-// instanceIds of the JacRed presets of the templates (aio_conf_patch puts
+// instanceIds of the JacRed presets of the templates (mel_conf_patch puts
 // the chosen JacRed in that of a template): Torznab of AIOStreams (Debrid;
-// P2P on the servers of aio_conf_p2p_torznab), Magnetio (P2P elsewhere,
+// P2P on the servers of mel_conf_p2p_torznab), Magnetio (P2P elsewhere,
 // preset custom).
-define('AIO_CONF_PRESET', 'melange');
-define('AIO_CONF_MAGNETIO', 'magnetio');
-define('AIO_CONF_TEMPLATE', 'aio_template.json');
+define('MEL_CONF_PRESET', 'melange');
+define('MEL_CONF_MAGNETIO', 'magnetio');
+define('MEL_CONF_TEMPLATE', 'aio_template.json');
 // The fields of the template P2P over those of aio_template.json.
-define('AIO_CONF_TEMPLATE_P2P', 'aio_template_p2p.json');
+define('MEL_CONF_TEMPLATE_P2P', 'aio_template_p2p.json');
 // Magnetio: its server; the releases it gives, the best seeded (its default: 10).
-define('AIO_CONF_MAGNETIO_URL', 'https://magnetio.peterdsp.dev');
-define('AIO_CONF_MAGNETIO_LIMIT', 100);
+define('MEL_CONF_MAGNETIO_URL', 'https://magnetio.peterdsp.dev');
+define('MEL_CONF_MAGNETIO_LIMIT', 100);
 
 // A reply of /api/v1/user: 1 MB at most; 20 s a request (POST and PUT took
 // about a second). The page and the quick setup of the plugin.
-define('AIO_CONF_API_MAX', 1048576);
-define('AIO_CONF_API_TIMEOUT', 20);
+define('MEL_CONF_API_MAX', 1048576);
+define('MEL_CONF_API_TIMEOUT', 20);
 
 // The headers of a request to the API of AIOStreams with the body $json (null:
 // none) and Basic auth of $auth (array(uuid, password), null none): JSON
@@ -35,7 +35,7 @@ define('AIO_CONF_API_TIMEOUT', 20);
  * @param array{string, string}|null $auth
  * @return list<string>
  */
-function aio_conf_api_headers($json, $auth)
+function mel_conf_api_headers($json, $auth)
 {
     $h = array('Accept: application/json', 'Expect:');
     if ($json !== null)
@@ -54,27 +54,27 @@ function aio_conf_api_headers($json, $auth)
  * @param string $method
  * @return string
  */
-function aio_conf_user_url($url, $method)
+function mel_conf_user_url($url, $method)
 {
     return $url . ($method === 'GET' ? '?raw=true' : '');
 }
 
-// userData of a reply of GET /api/v1/user (as aio_conf_ok takes it) -> the
+// userData of a reply of GET /api/v1/user (as mel_conf_ok takes it) -> the
 // config there; null: a failure or no config in it.
 /**
  * @param array{int, int, mixed} $r
  * @return object|null
  */
-function aio_conf_user_data($r)
+function mel_conf_user_data($r)
 {
-    return aio_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) && isset($r[2]->data->userData) &&
+    return mel_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) && isset($r[2]->data->userData) &&
         is_object($r[2]->data->userData) ? $r[2]->data->userData : null;
 }
 
 // PHP on Dune is 32-bit and json_decode of 5.3 clamps big integers to
 // 2147483647: numbers of 10+ digits (sizes in bytes of the filters) pass
 // as strings with this mark ("\u0001big:" in JSON) and come back as they were.
-function aio_conf_big_in($m)
+function mel_conf_big_in($m)
 {
     return $m[0][0] === '"' ? $m[0] : '"\\u0001big:' . $m[0] . '"';
 }
@@ -82,21 +82,21 @@ function aio_conf_big_in($m)
 // PCRE of PHP 5.3 has no JIT: a string with ~20 000 escapes overflows the
 // stack (SIGSEGV) at the default recursion limit. With this one preg gives
 // up (null) long before: such a reply is "not JSON".
-define('AIO_CONF_PCRE_DEPTH', 3000);
+define('MEL_CONF_PCRE_DEPTH', 3000);
 
 // JSON text -> objects and arrays (null when not JSON); big numbers marked.
-function aio_conf_decode($s)
+function mel_conf_decode($s)
 {
     $old = ini_get('pcre.recursion_limit');
-    ini_set('pcre.recursion_limit', AIO_CONF_PCRE_DEPTH);
+    ini_set('pcre.recursion_limit', MEL_CONF_PCRE_DEPTH);
     $t = preg_replace_callback('/"[^"\\\\]*+(?:\\\\.[^"\\\\]*+)*+"|' .
-        '(?<![0-9.eE+\-])-?[0-9]{10,}(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/', 'aio_conf_big_in', (string) $s);
+        '(?<![0-9.eE+\-])-?[0-9]{10,}(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/', 'mel_conf_big_in', (string) $s);
     ini_set('pcre.recursion_limit', $old);
     return is_string($t) ? json_decode($t) : null;
 }
 
-// A value of aio_conf_decode -> JSON text, the big numbers back as numbers.
-function aio_conf_encode($v)
+// A value of mel_conf_decode -> JSON text, the big numbers back as numbers.
+function mel_conf_encode($v)
 {
     return preg_replace('/"\\\\u0001big:(-?[0-9][0-9.eE+\-]*)"/', '$1', json_encode($v));
 }
@@ -104,45 +104,45 @@ function aio_conf_encode($v)
 // AIOStreams servers whose JacRed in the template P2P is Torznab of
 // AIOStreams, not Magnetio: the fork of melange there makes P2P rows of
 // Torznab with no Debrid service (elsewhere the server refuses it: 400).
-function aio_conf_p2p_torznab()
+function mel_conf_p2p_torznab()
 {
     return array('https://aiostreams.kompotik.com');
 }
 
-// The AIOStreams server $base has Torznab for P2P (one of aio_conf_p2p_torznab).
-function aio_conf_has_torznab($base)
+// The AIOStreams server $base has Torznab for P2P (one of mel_conf_p2p_torznab).
+function mel_conf_has_torznab($base)
 {
-    return in_array($base, aio_conf_p2p_torznab(), true);
+    return in_array($base, mel_conf_p2p_torznab(), true);
 }
 
-// The template $id (a key of aio_aio_tpls of common.php: the file with only
+// The template $id (a key of mel_aio_tpls of common.php: the file with only
 // its presets, in its order; the title and year matched for its JacRed
-// only; one of P2P (aio_tpl_p2p): the fields of AIO_CONF_TEMPLATE_P2P over,
+// only; one of P2P (aio_tpl_p2p): the fields of MEL_CONF_TEMPLATE_P2P over,
 // those of an object into it) for the AIOStreams server $base ('' - none: P2P with Magnetio;
-// one of aio_conf_p2p_torznab: P2P with Torznab in the place of Magnetio)
+// one of mel_conf_p2p_torznab: P2P with Torznab in the place of Magnetio)
 // as an object, null when unreadable or no such template. No $base on
 // purpose: the template with Magnetio whatever the server (the patch of a
-// P2P config made with Magnetio, aio_cgi_aio_sync; aio_conf_tpl_of).
-function aio_conf_template($id = 'addons', $base = '')
+// P2P config made with Magnetio, mel_cgi_aio_sync; mel_conf_tpl_of).
+function mel_conf_template($id = 'addons', $base = '')
 {
-    $tpls = aio_aio_tpls();
-    $torznab = aio_conf_has_torznab($base);
-    $j = aio_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . AIO_CONF_TEMPLATE));
+    $tpls = mel_aio_tpls();
+    $torznab = mel_conf_has_torznab($base);
+    $j = mel_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . MEL_CONF_TEMPLATE));
     if (!is_object($j) || !is_string($id) || !array_key_exists($id, $tpls) || !isset($j->presets) || !is_array($j->presets))
         return null;
     $keep = array();
     foreach ($tpls[$id] as $want)
     {
-        $x = aio_conf_find($j->presets, 'instanceId', $torznab && $want === AIO_CONF_MAGNETIO ? AIO_CONF_PRESET : $want);
+        $x = mel_conf_find($j->presets, 'instanceId', $torznab && $want === MEL_CONF_MAGNETIO ? MEL_CONF_PRESET : $want);
         if ($x)
             $keep[] = $x;
     }
     $j->presets = $keep;
     foreach (array('titleMatching', 'yearMatching') as $k)
-        aio_conf_obj($j, $k)->addons = array(aio_conf_jacred_id($j));
-    if (aio_tpl_p2p($id))
+        mel_conf_obj($j, $k)->addons = array(mel_conf_jacred_id($j));
+    if (mel_tpl_p2p($id))
     {
-        $o = aio_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . AIO_CONF_TEMPLATE_P2P));
+        $o = mel_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . MEL_CONF_TEMPLATE_P2P));
         if (!is_object($o))
             return null;
         foreach (get_object_vars($o) as $k => $x)
@@ -161,22 +161,22 @@ function aio_conf_template($id = 'addons', $base = '')
 
 // instanceId of the JacRed preset of a template: Magnetio if it has one,
 // else Torznab of AIOStreams.
-function aio_conf_jacred_id($tpl)
+function mel_conf_jacred_id($tpl)
 {
-    return aio_conf_find($tpl->presets, 'instanceId', AIO_CONF_MAGNETIO) ? AIO_CONF_MAGNETIO : AIO_CONF_PRESET;
+    return mel_conf_find($tpl->presets, 'instanceId', MEL_CONF_MAGNETIO) ? MEL_CONF_MAGNETIO : MEL_CONF_PRESET;
 }
 
 // The manifest of Magnetio searching the Torznab endpoint $url with the key
 // $key ('' none) of JacRed. Its config is "k=v|k=v" in one path segment.
-function aio_conf_magnetio($url, $key)
+function mel_conf_magnetio($url, $key)
 {
-    return AIO_CONF_MAGNETIO_URL . '/' . rawurlencode("providers=torznab|torznabUrl=$url" .
-        ($key !== '' ? "|torznabKey=$key" : '') . '|limit=' . AIO_CONF_MAGNETIO_LIMIT) . '/manifest.json';
+    return MEL_CONF_MAGNETIO_URL . '/' . rawurlencode("providers=torznab|torznabUrl=$url" .
+        ($key !== '' ? "|torznabKey=$key" : '') . '|limit=' . MEL_CONF_MAGNETIO_LIMIT) . '/manifest.json';
 }
 
 // instanceIds of the presets of a config, sorted; null when not a list of
 // presets each with a string instanceId.
-function aio_conf_preset_ids($c)
+function mel_conf_preset_ids($c)
 {
     if (!is_object($c) || !isset($c->presets) || !is_array($c->presets))
         return null;
@@ -192,22 +192,22 @@ function aio_conf_preset_ids($c)
 }
 
 // The template of a config as it is on the server (0.40.0; before
-// aio_conf_patch, which brings back a removed JacRed preset) in the cell of
-// the mode $mode (aio_aio_modes): its set of presets is exactly that of a
+// mel_conf_patch, which brings back a removed JacRed preset) in the cell of
+// the mode $mode (mel_aio_modes): its set of presets is exactly that of a
 // template of that mode -> its id, else 'custom' (one of the other mode
 // too: p2p_jacred with Torznab is jacred there). Enabled or not, the order:
 // not looked at. P2P: with Magnetio or Torznab, whatever the server (made
 // with Magnetio before the server got Torznab: still its template).
-function aio_conf_tpl_of($c, $mode)
+function mel_conf_tpl_of($c, $mode)
 {
-    $ids = aio_conf_preset_ids($c);
-    foreach (array_keys(aio_aio_tpls()) as $id)
+    $ids = mel_conf_preset_ids($c);
+    foreach (array_keys(mel_aio_tpls()) as $id)
     {
-        if (aio_tpl_p2p($id) !== ($mode === AIO_MODE_P2P))
+        if (mel_tpl_p2p($id) !== ($mode === MEL_MODE_P2P))
             continue;
-        foreach (array_merge(array(''), aio_conf_p2p_torznab()) as $base)
+        foreach (array_merge(array(''), mel_conf_p2p_torznab()) as $base)
         {
-            if ($ids !== null && $ids === aio_conf_preset_ids(aio_conf_template($id, $base)))
+            if ($ids !== null && $ids === mel_conf_preset_ids(mel_conf_template($id, $base)))
                 return $id;
         }
     }
@@ -215,18 +215,18 @@ function aio_conf_tpl_of($c, $mode)
 }
 
 // Torznab endpoint of a JacRed base (no trailing slash).
-function aio_conf_torznab($base)
+function mel_conf_torznab($base)
 {
     return "$base/api/v2.0/indexers/all/results/torznab/api";
 }
 
-function aio_conf_copy($o)
+function mel_conf_copy($o)
 {
     return json_decode(json_encode($o));
 }
 
 // $o->$k as an object, made one if it is not.
-function aio_conf_obj($o, $k)
+function mel_conf_obj($o, $k)
 {
     if (!isset($o->$k) || !is_object($o->$k))
         $o->$k = new stdClass();
@@ -234,7 +234,7 @@ function aio_conf_obj($o, $k)
 }
 
 // The item of the list $list with $field === $id, or null.
-function aio_conf_find($list, $field, $id)
+function mel_conf_find($list, $field, $id)
 {
     foreach ($list as $x)
     {
@@ -245,14 +245,14 @@ function aio_conf_find($list, $field, $id)
 }
 
 // A non-empty string at $o->$k.
-function aio_conf_str($o, $k)
+function mel_conf_str($o, $k)
 {
     return isset($o->$k) && is_string($o->$k) && $o->$k !== '';
 }
 
 // The config has a service turned on with a credential (ours or set by hand
 // in the web settings): without one the server refuses it (Torznab).
-function aio_conf_has_debrid($c)
+function mel_conf_has_debrid($c)
 {
     foreach (isset($c->services) && is_array($c->services) ? $c->services : array() as $svc)
     {
@@ -278,7 +278,7 @@ function aio_conf_has_debrid($c)
 // key of melange is put (and marked); none -> the field is cleared only if
 // melange put it, else left as the user set it in the web settings.
 // -> array(whether the config has TMDB now, set now).
-function aio_conf_patch($c, $tpl, $p)
+function mel_conf_patch($c, $tpl, $p)
 {
     $set = array();
     if (!isset($c->services) || !is_array($c->services))
@@ -286,13 +286,13 @@ function aio_conf_patch($c, $tpl, $p)
     foreach (array('rd' => 'realdebrid', 'tb' => 'torbox') as $k => $id)
     {
         $key = $p[$k];
-        $svc = aio_conf_find($c->services, 'id', $id);
+        $svc = mel_conf_find($c->services, 'id', $id);
         if ($key !== '')
         {
             if (!$svc)
                 $c->services[] = $svc = (object) array('id' => $id);
             $svc->enabled = true;
-            aio_conf_obj($svc, 'credentials')->apiKey = $key;
+            mel_conf_obj($svc, 'credentials')->apiKey = $key;
             $set[] = $k;
         }
         elseif ($svc && in_array($k, $p['set'], true))
@@ -303,27 +303,27 @@ function aio_conf_patch($c, $tpl, $p)
     }
     if (!isset($c->presets) || !is_array($c->presets))
         $c->presets = array();
-    $jid = aio_conf_jacred_id($tpl);
-    $pr = aio_conf_find($c->presets, 'instanceId', $jid);
+    $jid = mel_conf_jacred_id($tpl);
+    $pr = mel_conf_find($c->presets, 'instanceId', $jid);
     if (!$pr)
     {
         // Deleted in the web settings: back from the template, with its id
         // in the matching (the server dropped it from there).
-        $c->presets[] = $pr = aio_conf_copy(aio_conf_find($tpl->presets, 'instanceId', $jid));
+        $c->presets[] = $pr = mel_conf_copy(mel_conf_find($tpl->presets, 'instanceId', $jid));
         foreach (array('titleMatching', 'yearMatching') as $k)
         {
-            $m = aio_conf_obj($c, $k);
+            $m = mel_conf_obj($c, $k);
             if (!isset($m->addons) || !is_array($m->addons))
                 $m->addons = array();
             if (!in_array($jid, $m->addons, true))
                 $m->addons[] = $jid;
         }
     }
-    if ($jid === AIO_CONF_MAGNETIO)
-        aio_conf_obj($pr, 'options')->manifestUrl = aio_conf_magnetio($p['jr_url'], $p['jr_key']);
+    if ($jid === MEL_CONF_MAGNETIO)
+        mel_conf_obj($pr, 'options')->manifestUrl = mel_conf_magnetio($p['jr_url'], $p['jr_key']);
     else
     {
-        $api = aio_conf_obj(aio_conf_obj($pr, 'options'), 'api');
+        $api = mel_conf_obj(mel_conf_obj($pr, 'options'), 'api');
         $api->url = $p['jr_url'];
         if ($p['jr_key'] !== '')
             $api->apiKey = $p['jr_key'];
@@ -339,33 +339,33 @@ function aio_conf_patch($c, $tpl, $p)
         unset($c->tmdbApiKey);
     // As the server checks it: a key or a token in the config (ours or by
     // hand), or its own.
-    $now = $p['tmdb_server'] || aio_conf_str($c, 'tmdbApiKey') || aio_conf_str($c, 'tmdbAccessToken');
+    $now = $p['tmdb_server'] || mel_conf_str($c, 'tmdbApiKey') || mel_conf_str($c, 'tmdbAccessToken');
     // Matching without TMDB: 400. Turned on once when TMDB comes.
     if (!$now || $p['tmdb_prev'] === false)
     {
-        aio_conf_obj($c, 'titleMatching')->enabled = $now;
-        aio_conf_obj($c, 'yearMatching')->enabled = $now;
+        mel_conf_obj($c, 'titleMatching')->enabled = $now;
+        mel_conf_obj($c, 'yearMatching')->enabled = $now;
     }
     return array($now, $set);
 }
 
 // --- Migrations (0.60.0): a change of the template applied once to a config
 // made before it - by the plugin before the streams of the config are asked
-// (aio_conf_migrate) and by "Сохранить" (aio_cgi_aio_sync, before
-// aio_conf_patch). The schema a config is at: data_dir/aio_conf_mig, not
+// (mel_conf_migrate) and by "Сохранить" (mel_cgi_aio_sync, before
+// mel_conf_patch). The schema a config is at: data_dir/aio_conf_mig, not
 // settings.json (a write there moves saved_at; an import would bring old marks).
-define('AIO_CONF_SCHEMA', 2);
-define('AIO_CONF_MIG_FILE', 'aio_conf_mig');
+define('MEL_CONF_SCHEMA', 2);
+define('MEL_CONF_MIG_FILE', 'aio_conf_mig');
 
 // The migrations by the schema each brings a config to: the names of the steps,
-// aio_conf_step_<name> - a function of userData of GET, changed in place -> it
+// mel_conf_step_<name> - a function of userData of GET, changed in place -> it
 // changed. Each looks at the value itself, so a second run changes nothing.
-// The plugin (aio_conf_migrate) does not update conf['tpl'] of settings.json: a step
+// The plugin (mel_conf_migrate) does not update conf['tpl'] of settings.json: a step
 // that changes the set of presets gets its tpl only at "Сохранить".
 /**
  * @return array<int, string>
  */
-function aio_conf_migrations()
+function mel_conf_migrations()
 {
     return array(1 => 'dedup', 2 => 'both');
 }
@@ -377,7 +377,7 @@ function aio_conf_migrations()
  * @param object $u
  * @return bool
  */
-function aio_conf_step_dedup($u)
+function mel_conf_step_dedup($u)
 {
     if (!isset($u->deduplicator) || !is_object($u->deduplicator) || !isset($u->deduplicator->cached) ||
         $u->deduplicator->cached !== 'single_result')
@@ -393,12 +393,12 @@ function aio_conf_step_dedup($u)
  * @param object $u
  * @return bool
  */
-function aio_conf_step_both($u)
+function mel_conf_step_both($u)
 {
     $ch = false;
     foreach (isset($u->presets) && is_array($u->presets) ? $u->presets : array() as $x)
     {
-        if (is_object($x) && isset($x->instanceId, $x->type, $x->options) && $x->instanceId === AIO_CONF_PRESET &&
+        if (is_object($x) && isset($x->instanceId, $x->type, $x->options) && $x->instanceId === MEL_CONF_PRESET &&
             $x->type === 'torznab' && is_object($x->options) && isset($x->options->searchMode) &&
             $x->options->searchMode === 'query')
         {
@@ -410,18 +410,18 @@ function aio_conf_step_both($u)
 }
 
 // The migrations after the schema $from applied to $u in place -> the names of
-// those that changed it (as aio_conf_migrations names them), none: $u as it was.
+// those that changed it (as mel_conf_migrations names them), none: $u as it was.
 /**
  * @param object $u
  * @param int $from
  * @return list<string>
  */
-function aio_conf_migrate_apply($u, $from)
+function mel_conf_migrate_apply($u, $from)
 {
     $done = array();
-    foreach (aio_conf_migrations() as $n => $name)
+    foreach (mel_conf_migrations() as $n => $name)
     {
-        if ($n > $from && call_user_func('aio_conf_step_' . $name, $u))
+        if ($n > $from && call_user_func('mel_conf_step_' . $name, $u))
             $done[] = $name;
     }
     return $done;
@@ -432,20 +432,20 @@ function aio_conf_migrate_apply($u, $from)
  * @param string $uuid
  * @return string
  */
-function aio_conf_mig_key($uuid)
+function mel_conf_mig_key($uuid)
 {
     return substr(sha1($uuid), 0, 16);
 }
 
-// data_dir/aio_conf_mig of the directory $dir -> key (aio_conf_mig_key) =>
+// data_dir/aio_conf_mig of the directory $dir -> key (mel_conf_mig_key) =>
 // schema; none or unreadable: array() (every config at 0).
 /**
  * @param string $dir
  * @return array<int|string, int>
  */
-function aio_conf_mig_read($dir)
+function mel_conf_mig_read($dir)
 {
-    $f = "$dir/" . AIO_CONF_MIG_FILE;
+    $f = "$dir/" . MEL_CONF_MIG_FILE;
     $j = $dir !== '' && is_file($f) ? json_decode((string) file_get_contents($f, false, null, 0, 65536), true) : null;
     $m = array();
     foreach (is_array($j) ? $j : array() as $k => $v)
@@ -456,55 +456,55 @@ function aio_conf_mig_read($dir)
     return $m;
 }
 
-// The schema of the config $uuid by the marks $m (aio_conf_mig_read); 0: none
+// The schema of the config $uuid by the marks $m (mel_conf_mig_read); 0: none
 // (made before 0.60.0, or the mark lost: its migrations run, they change nothing twice).
 /**
  * @param array<int|string, int> $m
  * @param string $uuid
  * @return int
  */
-function aio_conf_mig_of($m, $uuid)
+function mel_conf_mig_of($m, $uuid)
 {
-    $k = aio_conf_mig_key($uuid);
+    $k = mel_conf_mig_key($uuid);
     return isset($m[$k]) ? $m[$k] : 0;
 }
 
 // The text of data_dir/aio_conf_mig: the marks $m with the config $uuid at the
-// schema $n; the marks of configs no longer in the settings $s (aio_settings_read:
+// schema $n; the marks of configs no longer in the settings $s (mel_settings_read:
 // the cells, the profiles) left out.
 /**
  * @param array<int|string, int> $m
  * @param string $uuid
  * @param int $n
- * @param AioSettings $s
+ * @param MelSettings $s
  * @return string
  */
-function aio_conf_mig_json($m, $uuid, $n, $s)
+function mel_conf_mig_json($m, $uuid, $n, $s)
 {
-    $keep = array(aio_conf_mig_key($uuid) => true);
+    $keep = array(mel_conf_mig_key($uuid) => true);
     foreach ($s['aio_confs'] as $cells)
     {
         foreach ($cells as $c)
-            $keep[aio_conf_mig_key($c['uuid'])] = true;
+            $keep[mel_conf_mig_key($c['uuid'])] = true;
     }
     foreach ($s['profiles'] as $p)
     {
         if (!empty($p['conf']))
-            $keep[aio_conf_mig_key($p['conf']['uuid'])] = true;
+            $keep[mel_conf_mig_key($p['conf']['uuid'])] = true;
     }
-    $m[aio_conf_mig_key($uuid)] = $n;
+    $m[mel_conf_mig_key($uuid)] = $n;
     return json_encode(array_intersect_key($m, $keep));
 }
 
-// A reply of the API (as aio_conf_ok takes it) for the log: "HTTP 200" or
+// A reply of the API (as mel_conf_ok takes it) for the log: "HTTP 200" or
 // "curl 28", the error code of AIOStreams after it; never its message.
 /**
  * @param array{int, int, mixed} $r
  * @return string
  */
-function aio_conf_mig_res($r)
+function mel_conf_mig_res($r)
 {
-    list($ec) = aio_conf_err($r[2]);
+    list($ec) = mel_conf_err($r[2]);
     return ($r[0] ? "curl $r[0]" : "HTTP $r[1]") . ($ec !== '' ? " $ec" : '');
 }
 
@@ -516,68 +516,68 @@ function aio_conf_mig_res($r)
  * @param array{int, int, mixed} $r
  * @return string
  */
-function aio_conf_mig_class($r)
+function mel_conf_mig_class($r)
 {
     return !$r[0] && $r[1] >= 400 && $r[1] < 500 && $r[1] !== 429 ? 'stop' : 'retry';
 }
 
-// The migrations of the config $conf (AioConf) of the server $base in the mode
+// The migrations of the config $conf (MelConf) of the server $base in the mode
 // $mode, after the schema $from: GET ?raw=true by $req (the request of the
-// caller, as aio_conf_create takes it), aio_conf_migrate_apply, PUT only when
+// caller, as mel_conf_create takes it), mel_conf_migrate_apply, PUT only when
 // one of them changed the config (none of our other fields: the keys and
 // JacRed go by "Сохранить"). A config of Debrid with no Debrid service there:
-// no PUT (the server refuses it). -> array('done' (at AIO_CONF_SCHEMA now) |
-// 'retry' | 'stop' (aio_conf_mig_class), the line for the log: no login,
+// no PUT (the server refuses it). -> array('done' (at MEL_CONF_SCHEMA now) |
+// 'retry' | 'stop' (mel_conf_mig_class), the line for the log: no login,
 // password or message of the server).
 /**
  * @param string $base
  * @param string $mode
- * @param AioConf $conf
+ * @param MelConf $conf
  * @param int $from
  * @param string $req
  * @return array{string, string}
  */
-function aio_conf_migrate($base, $mode, $conf, $from, $req)
+function mel_conf_migrate($base, $mode, $conf, $from, $req)
 {
     $auth = array($conf['uuid'], $conf['pass']);
     $r = call_user_func($req, $base, 'GET', null, $auth);
-    $u = aio_conf_user_data($r);
-    $line = 'get ' . aio_conf_mig_res($r);
+    $u = mel_conf_user_data($r);
+    $line = 'get ' . mel_conf_mig_res($r);
     if (!$u)
-        return array(aio_conf_mig_class($r), $line);
-    $done = aio_conf_migrate_apply($u, $from);
+        return array(mel_conf_mig_class($r), $line);
+    $done = mel_conf_migrate_apply($u, $from);
     if (!$done)
         return array('done', "$line, nothing to change");
     $line .= ', ' . implode(', ', $done);
-    if ($mode !== AIO_MODE_P2P && !aio_conf_has_debrid($u))
+    if ($mode !== MEL_MODE_P2P && !mel_conf_has_debrid($u))
         return array('stop', "$line, no Debrid service there, not put");
-    $r = call_user_func($req, $base, 'PUT', aio_conf_encode((object) array('config' => $u)), $auth);
-    return array(aio_conf_ok($r) ? 'done' : aio_conf_mig_class($r), "$line, put " . aio_conf_mig_res($r));
+    $r = call_user_func($req, $base, 'PUT', mel_conf_encode((object) array('config' => $u)), $auth);
+    return array(mel_conf_ok($r) ? 'done' : mel_conf_mig_class($r), "$line, put " . mel_conf_mig_res($r));
 }
 
-// The fields of aio_conf_patch from the settings $s (aio_settings_read of
+// The fields of mel_conf_patch from the settings $s (mel_settings_read of
 // common.php) for the config of the chosen server (of the list or the own
 // one) in the mode aio_mode; $conf: that config of aio_confs, null for a new
 // one; $tmdbs: the server has TMDB of its own (null: as the list says;
-// /status of the own server). The key of TMDB as aio_tmdb_sent(); the
+// /status of the own server). The key of TMDB as mel_tmdb_sent(); the
 // Debrid keys: none in the mode P2P.
-function aio_conf_params($s, $conf, $tmdbs = null)
+function mel_conf_params($s, $conf, $tmdbs = null)
 {
-    $servers = aio_aio_servers();
-    $base = aio_settings_base($s);
-    $jr = aio_jacred_list($s);
-    $p2p = $s['aio_mode'] === AIO_MODE_P2P;
-    return array('rd' => $p2p ? '' : $s['rd_key'], 'tb' => $p2p ? '' : $s['tb_key'], 'jr_url' => aio_conf_torznab($jr[0]['base']),
-        'jr_key' => $jr[0]['key'], 'tmdb_key' => aio_tmdb_sent($base, $s['tmdb_key']),
+    $servers = mel_aio_servers();
+    $base = mel_settings_base($s);
+    $jr = mel_jacred_list($s);
+    $p2p = $s['aio_mode'] === MEL_MODE_P2P;
+    return array('rd' => $p2p ? '' : $s['rd_key'], 'tb' => $p2p ? '' : $s['tb_key'], 'jr_url' => mel_conf_torznab($jr[0]['base']),
+        'jr_key' => $jr[0]['key'], 'tmdb_key' => mel_tmdb_sent($base, $s['tmdb_key']),
         'tmdb_server' => $tmdbs !== null ? $tmdbs : !empty($servers[$base]), 'tmdb_prev' => $conf ? $conf['tmdb'] : null,
         'set' => $conf ? $conf['set'] : array());
 }
 
-// The error of a refused request of the API (the reply by aio_conf_decode) ->
+// The error of a refused request of the API (the reply by mel_conf_decode) ->
 // array(its code of AIOStreams or '', its message: control bytes gone,
 // trimmed; '' when none or not UTF-8 - a lone surrogate of JSON). Never
 // logged.
-function aio_conf_err($j)
+function mel_conf_err($j)
 {
     $e = is_object($j) && isset($j->error) && is_object($j->error) ? $j->error : null;
     $ec = $e && isset($e->code) && is_string($e->code) && preg_match('/^[A-Z0-9_]{1,40}\z/', $e->code) ? $e->code : '';
@@ -585,36 +585,36 @@ function aio_conf_err($j)
     return array($ec, preg_match('//u', $msg) ? $msg : '');
 }
 
-// A reply of the API - array(curl errno, HTTP code, aio_conf_decode of the
+// A reply of the API - array(curl errno, HTTP code, mel_conf_decode of the
 // body or null) - is a success of AIOStreams: 2xx, success true.
-function aio_conf_ok($r)
+function mel_conf_ok($r)
 {
     return !$r[0] && $r[1] >= 200 && $r[1] < 300 && is_object($r[2]) && isset($r[2]->success) && $r[2]->success === true;
 }
 
-// A new config by the settings $s (aio_settings_read) on their server
-// (aio_settings_base) in their mode: the template aio_settings_tpl with our
-// fields (aio_conf_params; $tmdbs as there), POST /api/v1/user with the
+// A new config by the settings $s (mel_settings_read) on their server
+// (mel_settings_base) in their mode: the template mel_settings_tpl with our
+// fields (mel_conf_params; $tmdbs as there), POST /api/v1/user with the
 // password $pass (24 hex) by $req, the request of the caller: ($base,
-// $method, $json, $auth) -> a reply as aio_conf_ok takes it (the page:
-// aio_cgi_aio_req; the plugin: aio_user_req). Nothing written. -> array(the
-// config for aio_confs[$base][aio_mode] (aio_aio_conf) or null, the reply;
+// $method, $json, $auth) -> a reply as mel_conf_ok takes it (the page:
+// mel_cgi_aio_req; the plugin: mel_user_req). Nothing written. -> array(the
+// config for aio_confs[$base][aio_mode] (mel_aio_conf) or null, the reply;
 // null: no template, no request).
-function aio_conf_create($s, $tmdbs, $pass, $req)
+function mel_conf_create($s, $tmdbs, $pass, $req)
 {
-    $base = aio_settings_base($s);
-    $id = aio_settings_tpl($s);
-    $tpl = aio_conf_template($id, $base);
-    $c = aio_conf_template($id, $base);
+    $base = mel_settings_base($s);
+    $id = mel_settings_tpl($s);
+    $tpl = mel_conf_template($id, $base);
+    $c = mel_conf_template($id, $base);
     if (!$tpl || !$c)
         return array(null, null);
-    list($tmdb, $set) = aio_conf_patch($c, $tpl, aio_conf_params($s, null, $tmdbs));
-    $r = call_user_func($req, $base, 'POST', aio_conf_encode((object) array('config' => $c, 'password' => $pass)), null);
-    $d = aio_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) ? $r[2]->data : null;
+    list($tmdb, $set) = mel_conf_patch($c, $tpl, mel_conf_params($s, null, $tmdbs));
+    $r = call_user_func($req, $base, 'POST', mel_conf_encode((object) array('config' => $c, 'password' => $pass)), null);
+    $d = mel_conf_ok($r) && isset($r[2]->data) && is_object($r[2]->data) ? $r[2]->data : null;
     $uuid = $d && isset($d->uuid) && is_string($d->uuid) ? $d->uuid : '';
     $enc = $d && isset($d->encryptedPassword) && is_string($d->encryptedPassword) &&
         preg_match('/^[A-Za-z0-9._~%=+\-]{1,1500}\z/', $d->encryptedPassword) ? $d->encryptedPassword : '';
-    $new = $enc !== '' ? aio_aio_conf($base, array('uuid' => $uuid, 'pass' => $pass,
+    $new = $enc !== '' ? mel_aio_conf($base, array('uuid' => $uuid, 'pass' => $pass,
         'manifest' => "$base/stremio/$uuid/$enc/manifest.json", 'tmdb' => $tmdb, 'set' => $set, 'tpl' => $id)) : null;
     return array($new, $r);
 }

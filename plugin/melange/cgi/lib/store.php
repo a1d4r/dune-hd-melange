@@ -3,11 +3,11 @@
 // the data dir and its token, the write of settings.json.
 
 // <storage>/plugins_data/melange for <storage>/plugins/melange<$suffix>; '' else.
-function aio_cgi_data_of($path, $suffix)
+function mel_cgi_data_of($path, $suffix)
 {
     if (!preg_match('#(^|/)\.\.?(/|\z)|//#', $path) &&
-        preg_match('#^((?:/[^/]+)+)/plugins/' . AIO_CGI_NAME . preg_quote($suffix, '#') . '\z#', $path, $m))
-        return $m[1] . '/plugins_data/' . AIO_CGI_NAME;
+        preg_match('#^((?:/[^/]+)+)/plugins/' . MEL_CGI_NAME . preg_quote($suffix, '#') . '\z#', $path, $m))
+        return $m[1] . '/plugins_data/' . MEL_CGI_NAME;
     return '';
 }
 
@@ -17,35 +17,35 @@ function aio_cgi_data_of($path, $suffix)
 // folder of the plugin (three levels up from cgi/lib/store.php), then the
 // paths of Screenshoter: /persistfs (Sigma), $FS_PREFIX/flashdata. None for
 // another plugin name.
-function aio_cgi_data_dirs()
+function mel_cgi_data_dirs()
 {
     $name = (string) getenv('PLUGIN_NAME');
-    if ($name !== '' && $name !== AIO_CGI_NAME)
+    if ($name !== '' && $name !== MEL_CGI_NAME)
         return array();
     $dirs = array(
-        $name !== '' ? aio_cgi_data_of((string) getenv('PLUGIN_CGI_DIR'), '/www/cgi-bin') : '',
-        aio_cgi_data_of(dirname(dirname(dirname(__FILE__))), ''),
-        '/persistfs/plugins_data/' . AIO_CGI_NAME,
-        getenv('FS_PREFIX') . '/flashdata/plugins_data/' . AIO_CGI_NAME);
+        $name !== '' ? mel_cgi_data_of((string) getenv('PLUGIN_CGI_DIR'), '/www/cgi-bin') : '',
+        mel_cgi_data_of(dirname(dirname(dirname(__FILE__))), ''),
+        '/persistfs/plugins_data/' . MEL_CGI_NAME,
+        getenv('FS_PREFIX') . '/flashdata/plugins_data/' . MEL_CGI_NAME);
     return array_values(array_unique(array_diff($dirs, array(''))));
 }
 
 // The data dir that holds the given token; '' if none. Nothing at any of
 // the paths (a layout not known here): 500, whatever the token.
-function aio_cgi_data_dir($t)
+function mel_cgi_data_dir($t)
 {
-    $dirs = aio_cgi_data_dirs();
+    $dirs = mel_cgi_data_dirs();
     $seen = false;
     foreach ($dirs as $d)
     {
-        if (aio_cgi_token_ok($d, $t))
+        if (mel_cgi_token_ok($d, $t))
             return $d;
         $seen = $seen || file_exists($d) || is_link($d);
     }
     if ($dirs && !$seen)
     {
-        aio_cgi_log('no data dir: ' . implode(', ', $dirs));
-        aio_cgi_send(500, 'text/plain', aio_cgi_l(
+        mel_cgi_log('no data dir: ' . implode(', ', $dirs));
+        mel_cgi_send(500, 'text/plain', mel_cgi_l(
             'Melange: на этой Дюне не найдена папка данных плагина. Сообщите автору модель Дюны и версию прошивки.',
             'Melange: the plugin data folder was not found on this Dune. Please tell the author your Dune model and firmware version.') . "\n");
     }
@@ -53,13 +53,13 @@ function aio_cgi_data_dir($t)
 }
 
 // The CGI never creates it: a root-owned dir would lock the plugin out.
-function aio_cgi_dir_ok($dir)
+function mel_cgi_dir_ok($dir)
 {
     clearstatcache();
     return $dir !== '' && !is_link($dir) && is_dir($dir);
 }
 
-function aio_cgi_same($a, $b)
+function mel_cgi_same($a, $b)
 {
     if (strlen($a) !== strlen($b))
         return false;
@@ -69,18 +69,18 @@ function aio_cgi_same($a, $b)
     return $d === 0;
 }
 
-function aio_cgi_token_ok($dir, $given)
+function mel_cgi_token_ok($dir, $given)
 {
-    if (!aio_token_ok($given) || !aio_cgi_dir_ok($dir))
+    if (!mel_token_ok($given) || !mel_cgi_dir_ok($dir))
         return false;
-    $f = "$dir/" . AIO_TOKEN_FILE;
+    $f = "$dir/" . MEL_TOKEN_FILE;
     if (is_link($f) || !is_file($f))
         return false;
     $t = trim((string) file_get_contents($f, false, null, 0, 64));
-    return aio_token_ok($t) && aio_cgi_same($t, $given);
+    return mel_token_ok($t) && mel_cgi_same($t, $given);
 }
 
-function aio_cgi_rand_hex($n)
+function mel_cgi_rand_hex($n)
 {
     $b = function_exists('openssl_random_pseudo_bytes') ? (string) openssl_random_pseudo_bytes($n) : '';
     if (strlen($b) !== $n)
@@ -94,21 +94,21 @@ function aio_cgi_rand_hex($n)
 
 // $data as data_dir/$name (settings.json; web_token: the token of a backup
 // imported, lib/backup.php). Umask 077 (0600, as the plugin makes web_token;
-// another mode of the old one: aio_token_fix), a fresh randomly
+// another mode of the old one: mel_token_fix), a fresh randomly
 // named temp file opened with 'x', lchown/lchgrp to the owner of web_token
 // (l*: never through a symlink), rename over (replaces a symlink itself).
 // web_token is made by php_server, the reader of settings.json (anew at each
 // QR, and when it cannot read settings.json or, with posix, web_token is of
-// another uid: aio_token_fix): the owner of the dir may be another uid (a
+// another uid: mel_token_fix): the owner of the dir may be another uid (a
 // restored backup, hypothesis). fopen 'x' follows a *dangling* symlink and creates its
 // target (PHP 5.3.6 and 5.6), so the temp path is lstat-checked before and
 // after fopen, before any data goes in. -> '' or the reason (for the log).
-function aio_cgi_write($dir, $data, $name = AIO_SETTINGS_FILE)
+function mel_cgi_write($dir, $data, $name = MEL_SETTINGS_FILE)
 {
-    $part = "$dir/$name." . aio_cgi_rand_hex(4) . '.part';
+    $part = "$dir/$name." . mel_cgi_rand_hex(4) . '.part';
     clearstatcache();
-    // lstat: a symlink put there after aio_cgi_token_ok gives no owner of its target.
-    $ts = lstat("$dir/" . AIO_TOKEN_FILE);
+    // lstat: a symlink put there after mel_cgi_token_ok gives no owner of its target.
+    $ts = lstat("$dir/" . MEL_TOKEN_FILE);
     if ($ts === false || ($ts['mode'] & 0170000) !== 0100000)
         return 'no web_token to take the owner from';
     umask(077);
@@ -149,10 +149,10 @@ function aio_cgi_write($dir, $data, $name = AIO_SETTINGS_FILE)
     return $why;
 }
 
-// settings.json of aio_settings_json (common.php: the main profile copied to the top), the keys of $data in the order of
-// aio_settings_read (those it does not know after them) -> '' or the reason (for the log).
-function aio_cgi_store($dir, $data)
+// settings.json of mel_settings_json (common.php: the main profile copied to the top), the keys of $data in the order of
+// mel_settings_read (those it does not know after them) -> '' or the reason (for the log).
+function mel_cgi_store($dir, $data)
 {
-    $json = aio_settings_json(array_merge(array_intersect_key(aio_settings_parse(array()), $data), $data));
-    return $json !== '' ? aio_cgi_write($dir, $json) : 'json_encode failed';
+    $json = mel_settings_json(array_merge(array_intersect_key(mel_settings_parse(array()), $data), $data));
+    return $json !== '' ? mel_cgi_write($dir, $json) : 'json_encode failed';
 }

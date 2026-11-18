@@ -3,40 +3,40 @@
 // php-cgi as root): the version, the files of data_dir, the rules for the
 // addresses and the mask of the log (the HTTP clients: net.php). Plain
 // PHP 5.3: no firmware API, no logging here.
-// Types in the PHPDoc (AioSettings and others): phpstan-types.neon of the repository.
+// Types in the PHPDoc (MelSettings and others): phpstan-types.neon of the repository.
 
-define('AIO_VERSION', '0.63.0');
+define('MEL_VERSION', '0.63.0');
 // HTTPS works only with the firmware CA bundle (curl of the plugin and the page).
-define('AIO_CA_BUNDLE', '/firmware/certs/ca-bundle.crt');
+define('MEL_CA_BUNDLE', '/firmware/certs/ca-bundle.crt');
 // In data_dir: written by the settings page and by the plugin (the quick setup, the rows of
-// the catalog, the source profiles of MENU of a list), whole each time (aio_settings_json).
-define('AIO_SETTINGS_FILE', 'settings.json');
+// the catalog, the source profiles of MENU of a list), whole each time (mel_settings_json).
+define('MEL_SETTINGS_FILE', 'settings.json');
 // Its format: "v" of the file the page writes; a file of v 1 (0.33) is read
-// by the migration (aio_settings_parse), a newer one is refused by the import.
-define('AIO_SETTINGS_V', 2);
+// by the migration (mel_settings_parse), a newer one is refused by the import.
+define('MEL_SETTINGS_V', 2);
 // In data_dir: the token of the settings page; written by the plugin, and by the
 // page only on the import of a backup that holds another one (0.51.0).
-define('AIO_TOKEN_FILE', 'web_token');
-// In data_dir: the id of this Dune for Lampac (aio_lp_uid); not in settings.json: the export of the
+define('MEL_TOKEN_FILE', 'web_token');
+// In data_dir: the id of this Dune for Lampac (mel_lp_uid); not in settings.json: the export of the
 // settings would take it to another Dune.
-define('AIO_LP_UID_FILE', 'lampac_uid');
-// In data_dir: the sort of the stream lists (aio_sort_read); written by the plugin only.
-define('AIO_SORT_FILE', 'list_sort');
-// In data_dir: the order of the balancers of the online list (aio_lpv_qsort); written by the plugin only.
-define('AIO_LP_SORT_FILE', 'lampac_sort');
-// In data_dir: the main Debrid service (aio_debrid_main_read, 0.56.0); written by the
+define('MEL_LP_UID_FILE', 'lampac_uid');
+// In data_dir: the sort of the stream lists (mel_sort_read); written by the plugin only.
+define('MEL_SORT_FILE', 'list_sort');
+// In data_dir: the order of the balancers of the online list (mel_lpv_qsort); written by the plugin only.
+define('MEL_LP_SORT_FILE', 'lampac_sort');
+// In data_dir: the main Debrid service (mel_debrid_main_read, 0.56.0); written by the
 // plugin (MENU of a list) and by the settings page, not in settings.json.
-define('AIO_DEBRID_MAIN_FILE', 'debrid_main');
-// In data_dir also aio_conf_mig: the schema of each config of Melange (AIO_CONF_MIG_FILE
+define('MEL_DEBRID_MAIN_FILE', 'debrid_main');
+// In data_dir also aio_conf_mig: the schema of each config of Melange (MEL_CONF_MIG_FILE
 // of cgi/aio_conf.php, 0.60.0); written by the plugin and by the settings page.
-define('AIO_URL_MAX', 2000);
+define('MEL_URL_MAX', 2000);
 // A bigger settings.json is not read (a real one is below 5 KB).
-define('AIO_SETTINGS_MAX', 65536);
+define('MEL_SETTINGS_MAX', 65536);
 // trim() without \0: a NUL byte at an edge is a format error, not stripped.
-define('AIO_TRIM', " \t\r\n\x0B");
+define('MEL_TRIM', " \t\r\n\x0B");
 // Path segments of the manifest base this long or longer are hidden in the
 // log wherever they are (UUID and config password of a public instance).
-define('AIO_MASK_SEGMENT', 16);
+define('MEL_MASK_SEGMENT', 16);
 
 // AIOStreams manifest address as typed or stored -> the URL to use, or ''
 // when it does not fit: http(s)://host[:port]/path/manifest.json, printable
@@ -45,12 +45,12 @@ define('AIO_MASK_SEGMENT', 16);
  * @param mixed $s
  * @return string
  */
-function aio_manifest_url($s)
+function mel_manifest_url($s)
 {
     if (!is_string($s))
         return '';
-    $s = preg_replace('~^stremio://~i', 'https://', trim($s, AIO_TRIM));
-    if (strlen($s) > AIO_URL_MAX || !preg_match('~^[\x21-\x7e]+\z~', $s) || preg_match('~[?#"\'`<>\\\\]~', $s))
+    $s = preg_replace('~^stremio://~i', 'https://', trim($s, MEL_TRIM));
+    if (strlen($s) > MEL_URL_MAX || !preg_match('~^[\x21-\x7e]+\z~', $s) || preg_match('~[?#"\'`<>\\\\]~', $s))
         return '';
     // The scheme in any case ("HTTP://" of a redirect), stored in lower case.
     if (!preg_match('~^((?i)https?)(://[A-Za-z0-9.\-]+(?::[0-9]{1,5})?(?:/[^/]*)*/manifest\.json)\z~', $s, $m))
@@ -63,7 +63,7 @@ function aio_manifest_url($s)
  * @param string $url
  * @return string
  */
-function aio_manifest_base($url)
+function mel_manifest_base($url)
 {
     return $url !== '' ? substr($url, 0, -strlen('manifest.json')) : '';
 }
@@ -76,12 +76,12 @@ function aio_manifest_base($url)
 // 'key_url' => for the URL).
 /**
  * @param mixed $s
- * @return AioJacred|null
+ * @return MelJacred|null
  */
-function aio_jacred_conf($s)
+function mel_jacred_conf($s)
 {
-    $url = is_string($s) ? trim(preg_replace('/^\xEF\xBB\xBF/', '', $s), AIO_TRIM) : '';
-    if (strlen($url) > AIO_URL_MAX ||
+    $url = is_string($s) ? trim(preg_replace('/^\xEF\xBB\xBF/', '', $s), MEL_TRIM) : '';
+    if (strlen($url) > MEL_URL_MAX ||
         !preg_match('~^(https?://([A-Za-z0-9.\-]+)(?::[0-9]{1,5})?)/?(?:\?apikey=([\x21\x22\x24\x25\x27-\x7e]*))?\z~', $url, $m))
         return null;
     $key = isset($m[3]) ? $m[3] : '';
@@ -92,29 +92,29 @@ function aio_jacred_conf($s)
         'key_url' => preg_match('/%[0-9A-Fa-f]{2}/', $key) ? $key : rawurlencode($key));
 }
 
-// Built-in JacRed $id of aio_jacred_builtin() -> aio_jacred_conf() +
+// Built-in JacRed $id of mel_jacred_builtin() -> mel_jacred_conf() +
 // 'builtin' => true, null for another id.
 /**
  * @param string $id
- * @return AioJacred|null
+ * @return MelJacred|null
  */
-function aio_jacred_builtin_conf($id)
+function mel_jacred_builtin_conf($id)
 {
-    $b = aio_jacred_builtin();
+    $b = mel_jacred_builtin();
     return isset($b[$id]) ? array('base' => $b[$id][0], 'host' => $id, 'key' => $b[$id][1],
         'key_url' => rawurlencode($b[$id][1]), 'builtin' => true) : null;
 }
 
 // "Download to server" (0.30.0): at most this many servers (qBittorrent WebAPI,
 // Transmission RPC since 0.47.0).
-define('AIO_SERVERS_MAX', 5);
+define('MEL_SERVERS_MAX', 5);
 
 // Debrid services a server may stand for (its "cache"): id of
 // streamData.service of AIOStreams => name.
 /**
  * @return array<string, string>
  */
-function aio_server_caches()
+function mel_server_caches()
 {
     return array('torbox' => 'TorBox', 'realdebrid' => 'Real-Debrid');
 }
@@ -124,30 +124,30 @@ function aio_server_caches()
 /**
  * @return array<string, string>
  */
-function aio_debrid_mains()
+function mel_debrid_mains()
 {
     return array('realdebrid' => 'Real-Debrid', 'torbox' => 'TorBox');
 }
 
 // The main Debrid service (0.56.0): a file cached on both plays from it.
-// data_dir/debrid_main of directory $dir: an id of aio_debrid_mains(), else ''
+// data_dir/debrid_main of directory $dir: an id of mel_debrid_mains(), else ''
 // (none, unreadable, anything else): the copy first in the reply plays.
 /**
  * @param string $dir
  * @return string
  */
-function aio_debrid_main_read($dir)
+function mel_debrid_main_read($dir)
 {
-    $f = "$dir/" . AIO_DEBRID_MAIN_FILE;
-    $v = $dir !== '' && is_file($f) ? trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM) : '';
-    return $v !== '' && array_key_exists($v, aio_debrid_mains()) ? $v : '';
+    $f = "$dir/" . MEL_DEBRID_MAIN_FILE;
+    $v = $dir !== '' && is_file($f) ? trim((string) @file_get_contents($f, false, null, 0, 16), MEL_TRIM) : '';
+    return $v !== '' && array_key_exists($v, mel_debrid_mains()) ? $v : '';
 }
 
 // Clients of a server (0.47.0): its type => name for the settings page.
 /**
  * @return array<string, string>
  */
-function aio_server_types()
+function mel_server_types()
 {
     return array('qbt' => 'qBittorrent / rdt-client', 'tr' => 'Transmission');
 }
@@ -159,13 +159,13 @@ function aio_server_types()
 // the host[:port] when empty; user, category, tags: up
 // to 100 printable characters, pass: up to 200; tags: comma-separated,
 // stored without spaces around each tag, empty ones and repeats; cache: a key of
-// aio_server_caches() or ''; type: a key of aio_server_types() (0.47.0), else
+// mel_server_caches() or ''; type: a key of mel_server_types() (0.47.0), else
 // 'qbt' (qBittorrent WebAPI: qBittorrent, rdt-client). No control bytes, UTF-8 only.
 /**
  * @param mixed $a
- * @return AioServer|null
+ * @return MelServer|null
  */
-function aio_server_conf($a)
+function mel_server_conf($a)
 {
     if (!is_array($a))
         return null;
@@ -176,7 +176,7 @@ function aio_server_conf($a)
         $s = isset($a[$k]) && is_string($a[$k]) ? $a[$k] : '';
         // The password as typed: spaces at its edges may be part of it.
         if ($k !== 'pass')
-            $s = trim($s, AIO_TRIM);
+            $s = trim($s, MEL_TRIM);
         if (!preg_match('/^[^\x00-\x1F\x7F]{0,' . $max . '}\z/u', $s))
             return null;
         $v[$k] = $s;
@@ -187,7 +187,7 @@ function aio_server_conf($a)
     $tags = array();
     foreach (explode(',', $v['tags']) as $t)
     {
-        $t = trim($t, AIO_TRIM);
+        $t = trim($t, MEL_TRIM);
         if ($t !== '' && !in_array($t, $tags, true))
             $tags[] = $t;
     }
@@ -196,17 +196,17 @@ function aio_server_conf($a)
     $v['url'] = strtolower($m[1]) . "://$host$m[4]";
     if ($v['name'] === '')
         $v['name'] = $host;
-    $caches = aio_server_caches();
+    $caches = mel_server_caches();
     if (!isset($caches[$v['cache']]))
         $v['cache'] = '';
     // None (stored before 0.47.0) or unknown: qBittorrent, as it was.
-    $types = aio_server_types();
+    $types = mel_server_types();
     $v['type'] = isset($a['type']) && is_string($a['type']) && isset($types[$a['type']]) ? $a['type'] : 'qbt';
     return $v;
 }
 
 // "Watch via TorrServer" (0.31.0): no address set -> the TorrServe app of this Dune.
-define('AIO_TS_DEFAULT', 'http://127.0.0.1:8090');
+define('MEL_TS_DEFAULT', 'http://127.0.0.1:8090');
 
 // TorrServer address as typed or stored: [http://]host[:port][/] -> 'http://host:port'
 // (port 8090 when none, as Online movies), '' for empty, null when it does
@@ -215,11 +215,11 @@ define('AIO_TS_DEFAULT', 'http://127.0.0.1:8090');
  * @param mixed $s
  * @return string|null
  */
-function aio_ts_addr($s)
+function mel_ts_addr($s)
 {
     if (!is_string($s))
         return null;
-    $s = trim($s, AIO_TRIM);
+    $s = trim($s, MEL_TRIM);
     if ($s === '')
         return '';
     if (strlen($s) > 300 || !preg_match('~^(?:(?i)http://)?([A-Za-z0-9.\-]+)(?::([0-9]{1,5}))?/?\z~', $s, $m))
@@ -233,47 +233,47 @@ function aio_ts_addr($s)
  * @param string $stored
  * @return string
  */
-function aio_ts_base($stored)
+function mel_ts_base($stored)
 {
-    return $stored !== '' ? $stored : AIO_TS_DEFAULT;
+    return $stored !== '' ? $stored : MEL_TS_DEFAULT;
 }
 
 // A stored address of Lampac ("Онлайн") longer than this is not one.
-define('AIO_LP_URL_MAX', 300);
+define('MEL_LP_URL_MAX', 300);
 // A token of the provider of Lampac longer than this is not one (Lampac 1.90.1 sets no limit).
-define('AIO_LP_TOKEN_MAX', 200);
+define('MEL_LP_TOKEN_MAX', 200);
 
 // The token of the provider of Lampac (accsdb of Lampac 1.90.1: its query token=) as typed or stored:
-// trimmed, 1 to AIO_LP_TOKEN_MAX characters of [A-Za-z0-9_+.\-@=] (those ValidateIdentity of Lampac
+// trimmed, 1 to MEL_LP_TOKEN_MAX characters of [A-Za-z0-9_+.\-@=] (those ValidateIdentity of Lampac
 // keeps) -> the token, '' for empty (none), null when it does not fit.
 /**
  * @param mixed $s
  * @return string|null
  */
-function aio_lp_token($s)
+function mel_lp_token($s)
 {
     if (!is_string($s))
         return null;
-    $s = trim($s, AIO_TRIM);
+    $s = trim($s, MEL_TRIM);
     if ($s === '')
         return '';
-    return preg_match('/^[A-Za-z0-9_+.\-@=]{1,' . AIO_LP_TOKEN_MAX . '}\z/', $s) ? $s : null;
+    return preg_match('/^[A-Za-z0-9_+.\-@=]{1,' . MEL_LP_TOKEN_MAX . '}\z/', $s) ? $s : null;
 }
 
-// The uid of this Dune for Lampac kept in data dir $dir (AIO_LP_UID_FILE): 8 of [a-z0-9]; '' when there is none, it
-// is a link or not one. Only reads: the settings page makes none (it runs as root), aio_lp_uid of online_play.php makes
+// The uid of this Dune for Lampac kept in data dir $dir (MEL_LP_UID_FILE): 8 of [a-z0-9]; '' when there is none, it
+// is a link or not one. Only reads: the settings page makes none (it runs as root), mel_lp_uid of online_play.php makes
 // it on the first request as Lampa, reading it by this one.
 /**
  * @param string $dir
  * @return string
  */
-function aio_lp_uid_read($dir)
+function mel_lp_uid_read($dir)
 {
-    $f = "$dir/" . AIO_LP_UID_FILE;
+    $f = "$dir/" . MEL_LP_UID_FILE;
     clearstatcache();
     if ($dir === '' || is_link($f) || !is_file($f))
         return '';
-    $u = trim((string) @file_get_contents($f, false, null, 0, 16), AIO_TRIM);
+    $u = trim((string) @file_get_contents($f, false, null, 0, 16), MEL_TRIM);
     return preg_match('/^[a-z0-9]{8}\z/', $u) ? $u : '';
 }
 
@@ -285,14 +285,14 @@ function aio_lp_uid_read($dir)
  * @param mixed $s
  * @return string|null
  */
-function aio_lp_addr($s)
+function mel_lp_addr($s)
 {
     if (!is_string($s))
         return null;
-    $s = trim($s, AIO_TRIM);
+    $s = trim($s, MEL_TRIM);
     if ($s === '')
         return '';
-    if (strlen($s) > AIO_LP_URL_MAX ||
+    if (strlen($s) > MEL_LP_URL_MAX ||
         !preg_match('~^(?:(https?)://)?([A-Za-z0-9](?:[A-Za-z0-9.\-]*[A-Za-z0-9])?)(?::([0-9]{1,5}))?((?:/[A-Za-z0-9._\~\-]+)*)/?\z~i',
         $s, $m))
         return null;
@@ -311,11 +311,11 @@ function aio_lp_addr($s)
  * @param mixed $s
  * @return string|null
  */
-function aio_ts_login($s)
+function mel_ts_login($s)
 {
     if (!is_string($s))
         return null;
-    $s = trim($s, AIO_TRIM);
+    $s = trim($s, MEL_TRIM);
     return preg_match('/^[^\x00-\x1F\x7F:]{0,100}\z/u', $s) ? $s : null;
 }
 
@@ -325,19 +325,19 @@ function aio_ts_login($s)
  * @param mixed $s
  * @return string|null
  */
-function aio_ts_pass($s)
+function mel_ts_pass($s)
 {
     return is_string($s) && preg_match('/^[^\x00-\x1F\x7F]{0,200}\z/u', $s) ? $s : null;
 }
 
-// Basic auth of TorrServer by a login and password checked (aio_ts_login,
-// aio_ts_pass): "login:password", '' for no login.
+// Basic auth of TorrServer by a login and password checked (mel_ts_login,
+// mel_ts_pass): "login:password", '' for no login.
 /**
  * @param string $user
  * @param string $pass
  * @return string
  */
-function aio_ts_auth($user, $pass)
+function mel_ts_auth($user, $pass)
 {
     return $user !== '' ? "$user:$pass" : '';
 }
@@ -351,7 +351,7 @@ function aio_ts_auth($user, $pass)
  * @param string $s
  * @return array{string, string|null, string|null}
  */
-function aio_ts_userinfo($s)
+function mel_ts_userinfo($s)
 {
     $at = strrpos($s, '@');
     $pre = preg_match('~^http://~i', $s) ? 7 : 0;
@@ -360,7 +360,7 @@ function aio_ts_userinfo($s)
     $ui = substr($s, $pre, $at - $pre);
     $c = strpos($ui, ':');
     $u = $c === false ? $ui : substr($ui, 0, $c);
-    if (strpbrk($ui, '/?#') !== false || trim($u, AIO_TRIM) === '')
+    if (strpbrk($ui, '/?#') !== false || trim($u, MEL_TRIM) === '')
         return array($s, null, null);
     return array(substr($s, 0, $pre) . (string) substr($s, $at + 1), $u, $c === false ? '' : (string) substr($ui, $c + 1));
 }
@@ -369,11 +369,11 @@ function aio_ts_userinfo($s)
 // id (its host) => array(base, key). Public: neither is hidden in the log.
 // jacred.stream answers 403 to a "curl/*" User-Agent and to a wrong key;
 // jac.red answers 429 to a second request within ~0.5 s.
-// The order is only that of the page: the default (and fallback) is AIO_JACRED_DEFAULT.
+// The order is only that of the page: the default (and fallback) is MEL_JACRED_DEFAULT.
 /**
  * @return array<string, array{string, string}>
  */
-function aio_jacred_builtin()
+function mel_jacred_builtin()
 {
     return array(
         // Melange's own backend (a VPS run by the author for Melange users).
@@ -386,26 +386,26 @@ function aio_jacred_builtin()
 }
 // Chosen when the settings choose none (no file, 0.33 without one, a wrong
 // choice); also the one asked when the chosen one does not answer.
-define('AIO_JACRED_DEFAULT', 'jacred.kompotik.com');
-define('AIO_JACRED_URL_MAX', 300);
+define('MEL_JACRED_DEFAULT', 'jacred.kompotik.com');
+define('MEL_JACRED_URL_MAX', 300);
 
 // The own JacRed as typed or stored: array(url, key) -> the same keys
-// checked, or null. url: http(s)://host[:port][/] of up to AIO_JACRED_URL_MAX
+// checked, or null. url: http(s)://host[:port][/] of up to MEL_JACRED_URL_MAX
 // characters, stored without the slash, scheme and host in lower case, port
 // 1-65535; key: '' or 8-200 printable ASCII without space & # (as
-// aio_jacred_conf; a shorter one would be masked all over the log).
+// mel_jacred_conf; a shorter one would be masked all over the log).
 /**
  * @param mixed $a
  * @return array{url: string, key: string}|null
  */
-function aio_jacred_own($a)
+function mel_jacred_own($a)
 {
     if (!is_array($a))
         return null;
-    $url = isset($a['url']) && is_string($a['url']) ? trim($a['url'], AIO_TRIM) : '';
-    $key = isset($a['key']) && is_string($a['key']) ? trim($a['key'], AIO_TRIM) : '';
-    // 300 + "/?apikey=" + 200 stays within AIO_URL_MAX of aio_jacred_conf.
-    if (strlen($url) > AIO_JACRED_URL_MAX || !preg_match('~^(https?)://([A-Za-z0-9.\-]+)(?::([0-9]{1,5}))?/?\z~i', $url, $m) ||
+    $url = isset($a['url']) && is_string($a['url']) ? trim($a['url'], MEL_TRIM) : '';
+    $key = isset($a['key']) && is_string($a['key']) ? trim($a['key'], MEL_TRIM) : '';
+    // 300 + "/?apikey=" + 200 stays within MEL_URL_MAX of mel_jacred_conf.
+    if (strlen($url) > MEL_JACRED_URL_MAX || !preg_match('~^(https?)://([A-Za-z0-9.\-]+)(?::([0-9]{1,5}))?/?\z~i', $url, $m) ||
         (isset($m[3]) && (intval($m[3]) < 1 || intval($m[3]) > 65535)) ||
         ($key !== '' && !preg_match('~^[\x21\x22\x24\x25\x27-\x7e]{8,200}\z~', $key)))
         return null;
@@ -418,7 +418,7 @@ function aio_jacred_own($a)
 /**
  * @return array<string, bool>
  */
-function aio_aio_servers()
+function mel_aio_servers()
 {
     return array(
         // Melange's own backend (a VPS run by the author for Melange users).
@@ -431,60 +431,60 @@ function aio_aio_servers()
         'https://aiostreams-stable.forthewizards.uk' => false,
         'https://aiostreams.fortheweak.cloud' => false);
 }
-// The server of Melange in aio_aio_servers() (the badge "у Melange" of the page).
-define('AIO_AIO_SERVER_MELANGE', 'https://aiostreams.kompotik.com');
+// The server of Melange in mel_aio_servers() (the badge "у Melange" of the page).
+define('MEL_AIO_SERVER_MELANGE', 'https://aiostreams.kompotik.com');
 
 // The template of the mode P2P "everywhere". The same value as the mode
-// (AIO_MODE_P2P) by history (one template of P2P till 0.43): not the mode.
-define('AIO_TPL_P2P', 'p2p');
+// (MEL_MODE_P2P) by history (one template of P2P till 0.43): not the mode.
+define('MEL_TPL_P2P', 'p2p');
 // The template of the mode P2P "JacRed only" (0.44.0), its default.
-define('AIO_TPL_P2P_JACRED', 'p2p_jacred');
+define('MEL_TPL_P2P_JACRED', 'p2p_jacred');
 // The value of the mode Debrid (aio_mode).
-define('AIO_MODE_DEBRID', 'debrid');
+define('MEL_MODE_DEBRID', 'debrid');
 // The value of the mode P2P (aio_mode).
-define('AIO_MODE_P2P', 'p2p');
+define('MEL_MODE_P2P', 'p2p');
 
 // Templates of the config melange makes (0.40.0): id => instanceIds of the
 // presets of cgi/aio_template.json it has, in this order. The first one is
 // the default of Debrid; the Debrid mode chooses one of them, the mode P2P
-// (no Debrid service) one of aio_aio_tpls_p2p (Torrentio first, its rows win
+// (no Debrid service) one of mel_aio_tpls_p2p (Torrentio first, its rows win
 // the dedup). All templates of a mode have the same JacRed preset and the
-// same fields out of presets: aio_cgi_aio_sync patches a config of P2P with
+// same fields out of presets: mel_cgi_aio_sync patches a config of P2P with
 // Magnetio by the template of the settings, whatever its own.
 // Their JacRed: Torznab of AIOStreams "melange" (needs a Debrid service) or
-// Magnetio "magnetio" (aio_conf_patch puts the chosen JacRed in either); P2P
-// on the servers of aio_conf_p2p_torznab: Torznab in the place of Magnetio
-// (so p2p_jacred there has the presets of jacred: aio_conf_tpl_of by the mode).
+// Magnetio "magnetio" (mel_conf_patch puts the chosen JacRed in either); P2P
+// on the servers of mel_conf_p2p_torznab: Torznab in the place of Magnetio
+// (so p2p_jacred there has the presets of jacred: mel_conf_tpl_of by the mode).
 /**
  * @return array<string, list<string>>
  */
-function aio_aio_tpls()
+function mel_aio_tpls()
 {
     return array('addons' => array('melange', 'comet', 'torz', 'mf', 'torrentio'), 'jacred' => array('melange'),
-        AIO_TPL_P2P => array('torrentio', 'magnetio', 'torrentsdb', 'comet', 'torz'), AIO_TPL_P2P_JACRED => array('magnetio'));
+        MEL_TPL_P2P => array('torrentio', 'magnetio', 'torrentsdb', 'comet', 'torz'), MEL_TPL_P2P_JACRED => array('magnetio'));
 }
 
 // The templates of the mode P2P (aio_tpl_p2p of the settings), the rest of
-// aio_aio_tpls are of Debrid. The first one is the default (as of Debrid);
-// the order of the page: aio_cgi_tpls_p2p.
+// mel_aio_tpls are of Debrid. The first one is the default (as of Debrid);
+// the order of the page: mel_cgi_tpls_p2p.
 /**
  * @return list<string>
  */
-function aio_aio_tpls_p2p()
+function mel_aio_tpls_p2p()
 {
-    return array(AIO_TPL_P2P_JACRED, AIO_TPL_P2P);
+    return array(MEL_TPL_P2P_JACRED, MEL_TPL_P2P);
 }
 
 // Modes of the config melange makes (aio_mode of the settings, the one in
 // use, one for all servers; a server has a config of each at most): debrid
-// - aio_tpl with the Debrid keys; p2p (AIO_MODE_P2P) - aio_tpl_p2p, the keys
+// - aio_tpl with the Debrid keys; p2p (MEL_MODE_P2P) - aio_tpl_p2p, the keys
 // kept but never sent. The first one is the default.
 /**
  * @return list<string>
  */
-function aio_aio_modes()
+function mel_aio_modes()
 {
-    return array(AIO_MODE_DEBRID, AIO_MODE_P2P);
+    return array(MEL_MODE_DEBRID, MEL_MODE_P2P);
 }
 
 // $id is a template of the Debrid mode (aio_tpl).
@@ -492,9 +492,9 @@ function aio_aio_modes()
  * @param mixed $id
  * @return bool
  */
-function aio_tpl_debrid($id)
+function mel_tpl_debrid($id)
 {
-    return is_string($id) && !aio_tpl_p2p($id) && array_key_exists($id, aio_aio_tpls());
+    return is_string($id) && !mel_tpl_p2p($id) && array_key_exists($id, mel_aio_tpls());
 }
 
 // $id is a template of the mode P2P (aio_tpl_p2p).
@@ -502,9 +502,9 @@ function aio_tpl_debrid($id)
  * @param mixed $id
  * @return bool
  */
-function aio_tpl_p2p($id)
+function mel_tpl_p2p($id)
 {
-    return in_array($id, aio_aio_tpls_p2p(), true);
+    return in_array($id, mel_aio_tpls_p2p(), true);
 }
 
 // The template of a new config or a reset by the settings: the mode P2P ->
@@ -513,13 +513,13 @@ function aio_tpl_p2p($id)
  * @param array{aio_mode: string, aio_tpl: string, aio_tpl_p2p: string} $s
  * @return string
  */
-function aio_settings_tpl($s)
+function mel_settings_tpl($s)
 {
-    return $s['aio_mode'] === AIO_MODE_P2P ? $s['aio_tpl_p2p'] : $s['aio_tpl'];
+    return $s['aio_mode'] === MEL_MODE_P2P ? $s['aio_tpl_p2p'] : $s['aio_tpl'];
 }
 
 // The mode of a config of 0.42 or older (one per server; moved to the cell
-// of its mode once, by aio_settings_read): by its template $tpl - one of
+// of its mode once, by mel_settings_read): by its template $tpl - one of
 // P2P -> p2p, of the Debrid mode -> debrid; else ('custom', null) $mode, the one
 // stored with it, none -> debrid (a config of P2P always had it stored).
 /**
@@ -527,42 +527,42 @@ function aio_settings_tpl($s)
  * @param string|null $mode
  * @return string
  */
-function aio_mode_of($tpl, $mode = null)
+function mel_mode_of($tpl, $mode = null)
 {
-    if (aio_tpl_p2p($tpl))
-        return AIO_MODE_P2P;
-    if (aio_tpl_debrid($tpl))
-        return AIO_MODE_DEBRID;
-    return $mode !== null ? $mode : AIO_MODE_DEBRID;
+    if (mel_tpl_p2p($tpl))
+        return MEL_MODE_P2P;
+    if (mel_tpl_debrid($tpl))
+        return MEL_MODE_DEBRID;
+    return $mode !== null ? $mode : MEL_MODE_DEBRID;
 }
 
 // A config of AIOStreams made by the settings page (0.35.0), as stored in
 // aio_confs of settings.json under its server $base (a key of
-// aio_aio_servers()) and its mode (aio_aio_modes(): a server has a config
+// mel_aio_servers()) and its mode (mel_aio_modes(): a server has a config
 // of each mode at most): uuid, pass - the login and password of the config
 // (24 hex, made by the page), manifest - its URL from the reply of the
 // server (<base>/stremio/<uuid>/<encrypted password>/manifest.json), tmdb -
 // the config had TMDB at its last change, set (0.35.1) - of rd, tb, tmdb
 // the fields melange put in the config (null: not stored, a file of
 // 0.35.0), tpl (0.40.0) - its template by its presets: a key of
-// aio_aio_tpls(), 'custom' (changed in AIOStreams) or null (not known yet,
+// mel_aio_tpls(), 'custom' (changed in AIOStreams) or null (not known yet,
 // a config of 0.39 or older). -> the same keys checked, or null.
 /**
  * @param int|string $base
  * @param mixed $c
- * @return AioConf|null
+ * @return MelConf|null
  */
-function aio_aio_conf($base, $c)
+function mel_aio_conf($base, $c)
 {
-    $servers = aio_aio_servers();
-    if ((!isset($servers[$base]) && aio_aio_own($base) !== $base) || !is_array($c) || !isset($c['uuid'], $c['pass'], $c['manifest']) ||
+    $servers = mel_aio_servers();
+    if ((!isset($servers[$base]) && mel_aio_own($base) !== $base) || !is_array($c) || !isset($c['uuid'], $c['pass'], $c['manifest']) ||
         !is_string($c['uuid']) || !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i', $c['uuid']) ||
         !is_string($c['pass']) || !preg_match('/^[0-9a-f]{24}\z/', $c['pass']) ||
-        aio_manifest_url($c['manifest']) !== $c['manifest'] ||
+        mel_manifest_url($c['manifest']) !== $c['manifest'] ||
         strpos($c['manifest'], "$base/stremio/{$c['uuid']}/") !== 0)
         return null;
     $tpl = isset($c['tpl']) && is_string($c['tpl']) && ($c['tpl'] === 'custom' ||
-        array_key_exists($c['tpl'], aio_aio_tpls())) ? $c['tpl'] : null;
+        array_key_exists($c['tpl'], mel_aio_tpls())) ? $c['tpl'] : null;
     return array('uuid' => $c['uuid'], 'pass' => $c['pass'], 'manifest' => $c['manifest'],
         'tmdb' => isset($c['tmdb']) && $c['tmdb'] === true, 'set' => isset($c['set']) && is_array($c['set']) ?
         array_values(array_intersect(array('rd', 'tb', 'tmdb'), $c['set'])) : null, 'tpl' => $tpl);
@@ -577,9 +577,9 @@ function aio_aio_conf($base, $c)
  * @param string $key
  * @return string
  */
-function aio_tmdb_sent($base, $key)
+function mel_tmdb_sent($base, $key)
 {
-    $servers = aio_aio_servers();
+    $servers = mel_aio_servers();
     return empty($servers[$base]) ? $key : '';
 }
 
@@ -591,9 +591,9 @@ function aio_tmdb_sent($base, $key)
  * @param mixed $s
  * @return string
  */
-function aio_aio_own($s)
+function mel_aio_own($s)
 {
-    $s = is_string($s) ? trim($s, AIO_TRIM) : '';
+    $s = is_string($s) ? trim($s, MEL_TRIM) : '';
     if (strlen($s) > 300 || !preg_match('~^(https?)://([A-Za-z0-9][A-Za-z0-9.\-]*[A-Za-z0-9])(?::([0-9]{1,5}))?/?\z~i', $s, $m) ||
         (isset($m[3]) && (intval($m[3]) < 1 || intval($m[3]) > 65535)))
         return '';
@@ -607,33 +607,33 @@ function aio_aio_own($s)
  * @param array{aio_server: string, aio_own_url: string} $s
  * @return string
  */
-function aio_settings_base($s)
+function mel_settings_base($s)
 {
     return $s['aio_server'] === 'own' ? $s['aio_own_url'] : $s['aio_server'];
 }
 
 // The config made in use: that of the chosen server in the mode aio_mode, or null.
 /**
- * @param AioSettings $s
- * @return AioConf|null
+ * @param MelSettings $s
+ * @return MelConf|null
  */
-function aio_settings_conf($s)
+function mel_settings_conf($s)
 {
-    $b = aio_settings_base($s);
+    $b = mel_settings_base($s);
     return $b !== '' && isset($s['aio_confs'][$b][$s['aio_mode']]) ? $s['aio_confs'][$b][$s['aio_mode']] : null;
 }
 
 // The manifest the plugin uses: the own config (source own), else the
-// config made in use (aio_settings_conf; '' for none).
+// config made in use (mel_settings_conf; '' for none).
 /**
- * @param AioSettings $s
+ * @param MelSettings $s
  * @return string
  */
-function aio_settings_manifest($s)
+function mel_settings_manifest($s)
 {
     if ($s['source'] === 'own')
         return $s['manifest_url'];
-    $c = aio_settings_conf($s);
+    $c = mel_settings_conf($s);
     return $c ? $c['manifest'] : '';
 }
 
@@ -645,11 +645,11 @@ function aio_settings_manifest($s)
  * @param mixed $s
  * @return string
  */
-function aio_key_ok($what, $s)
+function mel_key_ok($what, $s)
 {
     if (!is_string($s))
         return '';
-    $s = trim($s, AIO_TRIM);
+    $s = trim($s, MEL_TRIM);
     $re = array('rd' => '~^[A-Za-z0-9]{20,100}\z~', 'tb' => '~^[A-Za-z0-9\-]{20,100}\z~',
         'tmdb' => '~^[A-Za-z0-9]{20,64}\z~');
     return isset($re[$what]) && preg_match($re[$what], $s) ? $s : '';
@@ -657,47 +657,47 @@ function aio_key_ok($what, $s)
 
 // jacred_url of 0.33 and older -> array(jacred, own url, own key): a
 // built-in one if its host is one of them, else the own one (the key from
-// ?apikey=); empty or wrong -> AIO_JACRED_DEFAULT.
+// ?apikey=); empty or wrong -> MEL_JACRED_DEFAULT.
 /**
  * @param mixed $url
  * @return array{string, string, string}
  */
-function aio_jacred_migrate($url)
+function mel_jacred_migrate($url)
 {
-    $c = aio_jacred_conf($url);
-    $b = aio_jacred_builtin();
+    $c = mel_jacred_conf($url);
+    $b = mel_jacred_builtin();
     if ($c && isset($b[strtolower($c['host'])]))
         return array(strtolower($c['host']), '', '');
-    $own = $c ? aio_jacred_own(array('url' => $c['base'], 'key' => $c['key'])) : null;
-    return $own ? array('own', $own['url'], $own['key']) : array(AIO_JACRED_DEFAULT, '', '');
+    $own = $c ? mel_jacred_own(array('url' => $c['base'], 'key' => $c['key'])) : null;
+    return $own ? array('own', $own['url'], $own['key']) : array(MEL_JACRED_DEFAULT, '', '');
 }
 
-// The own JacRed of the address $url and the key $key (as aio_jacred_own() stores them; $url '' - none)
-// -> aio_jacred_conf() + 'builtin' => false, or null.
+// The own JacRed of the address $url and the key $key (as mel_jacred_own() stores them; $url '' - none)
+// -> mel_jacred_conf() + 'builtin' => false, or null.
 /**
  * @param string $url
  * @param string $key
- * @return AioJacred|null
+ * @return MelJacred|null
  */
-function aio_jacred_own_conf($url, $key)
+function mel_jacred_own_conf($url, $key)
 {
-    $c = $url !== '' ? aio_jacred_conf($url . ($key !== '' ? '/?apikey=' . $key : '')) : null;
+    $c = $url !== '' ? mel_jacred_conf($url . ($key !== '' ? '/?apikey=' . $key : '')) : null;
     return $c ? $c + array('builtin' => false) : null;
 }
 
 // The own JacRed of the settings and of the source profiles (0.58.0), chosen or not, for the mask of the log:
-// a list of aio_jacred_own_conf(), each once.
+// a list of mel_jacred_own_conf(), each once.
 /**
- * @param AioSettings $s
- * @return list<AioJacred>
+ * @param MelSettings $s
+ * @return list<MelJacred>
  */
-function aio_jacred_own_confs($s)
+function mel_jacred_own_confs($s)
 {
     $list = array();
     $seen = array();
     foreach (array_merge(array($s), $s['profiles']) as $x)
     {
-        $c = isset($x['jacred_own_url']) ? aio_jacred_own_conf($x['jacred_own_url'], $x['jacred_own_key']) : null;
+        $c = isset($x['jacred_own_url']) ? mel_jacred_own_conf($x['jacred_own_url'], $x['jacred_own_key']) : null;
         if ($c && !isset($seen[$c['base'] . ' ' . $c['key']]))
         {
             $seen[$c['base'] . ' ' . $c['key']] = true;
@@ -707,19 +707,19 @@ function aio_jacred_own_confs($s)
     return $list;
 }
 
-// The JacRed to ask, in this order: the chosen one, then AIO_JACRED_DEFAULT
-// if that is another. -> list of aio_jacred_conf() + 'builtin'.
+// The JacRed to ask, in this order: the chosen one, then MEL_JACRED_DEFAULT
+// if that is another. -> list of mel_jacred_conf() + 'builtin'.
 /**
- * @param AioSettings $s
- * @return list<AioJacred>
+ * @param MelSettings $s
+ * @return list<MelJacred>
  */
-function aio_jacred_list($s)
+function mel_jacred_list($s)
 {
-    $own = $s['jacred'] === 'own' ? aio_jacred_own_conf($s['jacred_own_url'], $s['jacred_own_key']) : null;
+    $own = $s['jacred'] === 'own' ? mel_jacred_own_conf($s['jacred_own_url'], $s['jacred_own_key']) : null;
     $list = $own ? array($own) : array();
-    foreach (array_unique(array($s['jacred'], AIO_JACRED_DEFAULT)) as $id)
+    foreach (array_unique(array($s['jacred'], MEL_JACRED_DEFAULT)) as $id)
     {
-        $c = aio_jacred_builtin_conf($id);
+        $c = mel_jacred_builtin_conf($id);
         if ($c)
             $list[] = $c;
     }
@@ -729,17 +729,17 @@ function aio_jacred_list($s)
 // The secrets of the settings besides the manifest and JacRed: server
 // passwords, keys of Real-Debrid, TorBox, TMDB, the password of TorrServer, passwords of the configs
 // and the long segments of their manifests, as of the manifest in use
-// (aio_mask_secrets); so the long segments of the own config, and of the own
+// (mel_mask_secrets); so the long segments of the own config, and of the own
 // configs and of the configs of the profiles, in use or not (0.58.0); the keys of
 // Debrid of every profile and the token of every Lampac (as typed and URL-encoded
 // both ways: + @ = change), not only of the one in use (v2).
 /**
- * @param AioSettings $s
+ * @param MelSettings $s
  * @return list<string>
  */
-function aio_settings_secrets($s)
+function mel_settings_secrets($s)
 {
-    $pw = aio_server_secrets($s['servers']);
+    $pw = mel_server_secrets($s['servers']);
     foreach (array('rd_key', 'tb_key', 'tmdb_key', 'ts_pass', 'lampac_token') as $k)
     {
         if ($s[$k] !== '')
@@ -781,9 +781,9 @@ function aio_settings_secrets($s)
     $pw = array_values(array_unique($pw));
     foreach (array_unique($urls) as $url)
     {
-        foreach (explode('/', preg_replace('~^[^:]*://[^/]*~', '', aio_manifest_base($url))) as $seg)
+        foreach (explode('/', preg_replace('~^[^:]*://[^/]*~', '', mel_manifest_base($url))) as $seg)
         {
-            if (strlen($seg) >= AIO_MASK_SEGMENT && !in_array($seg, $pw, true))
+            if (strlen($seg) >= MEL_MASK_SEGMENT && !in_array($seg, $pw, true))
                 $pw[] = $seg;
         }
     }
@@ -797,13 +797,13 @@ function aio_settings_secrets($s)
 // in use or not, "<aio>" (0.58.0; not the servers of the list: public), Lampac
 // ("Онлайн") "<lampac>", its scheme://host[:port], of every profile of Lampac (v2).
 /**
- * @param AioSettings $s
+ * @param MelSettings $s
  * @return array<string, string>
  */
-function aio_settings_hosts($s)
+function mel_settings_hosts($s)
 {
     $h = array();
-    if ($s['ts_url'] !== '' && $s['ts_url'] !== AIO_TS_DEFAULT)
+    if ($s['ts_url'] !== '' && $s['ts_url'] !== MEL_TS_DEFAULT)
         $h[$s['ts_url']] = '<ts>';
     foreach ($s['servers'] as $srv)
     {
@@ -818,12 +818,12 @@ function aio_settings_hosts($s)
     {
         if (isset($p['lampac_url']))
             $lps[] = $p['lampac_url'];
-        // The address of the host of an own config: as aio_aio_own makes it.
+        // The address of the host of an own config: as mel_aio_own makes it.
         else
-            $own[] = isset($p['url']) ? aio_aio_own(strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $p['url']))) :
+            $own[] = isset($p['url']) ? mel_aio_own(strval(preg_replace('~^([^:]*://[^/]*).*\z~s', '$1', $p['url']))) :
                 $p['base'];
     }
-    $servers = aio_aio_servers();
+    $servers = mel_aio_servers();
     foreach ($own as $u)
     {
         if ($u !== '' && !isset($servers[$u]) && !isset($h[$u]))
@@ -835,14 +835,14 @@ function aio_settings_hosts($s)
 }
 
 // "Без торрентов" in effect: not with the mode "Торренты" of a made config,
-// where the value is only kept. $s: of aio_settings_read or the values to save.
+// where the value is only kept. $s: of mel_settings_read or the values to save.
 /**
  * @param array{no_torrents: bool, source: string, aio_mode: string} $s
  * @return bool
  */
-function aio_no_torrents($s)
+function mel_no_torrents($s)
 {
-    return $s['no_torrents'] && !($s['source'] === 'made' && $s['aio_mode'] === AIO_MODE_P2P);
+    return $s['no_torrents'] && !($s['source'] === 'made' && $s['aio_mode'] === MEL_MODE_P2P);
 }
 
 // --- Source profiles (0.58.0): source_profiles.php.
@@ -851,73 +851,73 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // <data_dir>/settings.json -> array('source' => 'made' (melange makes the
 // config on aio_server) or 'own' (the own config of manifest_url),
 // 'manifest_url' => ..., 'rd_key', 'tb_key',
-// 'jacred' => a key of aio_jacred_builtin() or 'own', 'jacred_own_url',
-// 'jacred_own_key' => aio_jacred_own() or '' (kept when a built-in one is
-// chosen), 'aio_server' => a key of aio_aio_servers() or 'own' (another
-// server: aio_own_url), 'aio_own_url' => aio_aio_own(), 'aio_mode' => one of
-// aio_aio_modes(), 'aio_tpl' => aio_tpl_debrid(), 'aio_tpl_p2p' =>
-// aio_tpl_p2p() (0.44.0; none - the first of aio_aio_tpls_p2p, a config
+// 'jacred' => a key of mel_jacred_builtin() or 'own', 'jacred_own_url',
+// 'jacred_own_key' => mel_jacred_own() or '' (kept when a built-in one is
+// chosen), 'aio_server' => a key of mel_aio_servers() or 'own' (another
+// server: aio_own_url), 'aio_own_url' => mel_aio_own(), 'aio_mode' => one of
+// mel_aio_modes(), 'aio_tpl' => mel_tpl_debrid(), 'aio_tpl_p2p' =>
+// mel_tpl_p2p() (0.44.0; none - the first of mel_aio_tpls_p2p, a config
 // there keeps its template; all three one for all servers); everything kept
 // whatever is chosen, 'tmdb_key',
-// 'servers' => list of aio_server_conf(), 'ts_url' => aio_ts_addr() or '',
-// 'ts_user', 'ts_pass' => aio_ts_login(), aio_ts_pass() (0.45.0; both set
+// 'servers' => list of mel_server_conf(), 'ts_url' => mel_ts_addr() or '',
+// 'ts_user', 'ts_pass' => mel_ts_login(), mel_ts_pass() (0.45.0; both set
 // or both '', else both ''), 'ts_save' => bool, "Добавить и играть": the
 // add of TorrServer keeps the release in its list (0.45.0; not a bool - false),
 // 'markers' => bool, "Пропуск заставки и титров": the skip buttons in the player
 // (segments.php); off: none, and the episodes of a pack in the playlist are
 // ready URLs (0.49.1; not a bool - true),
 // 'markers_exact' => bool, "Только точные" of it: only the markers the server
-// matched to the length of the file (aio_seg_markers); nothing with markers
+// matched to the length of the file (mel_seg_markers); nothing with markers
 // off (not a bool - false),
 // 'source_errors' => bool, "Ошибки источников": the reasons of the error streams
 // on the list screen and in the dialogs (0.49.1; not a bool - false),
 // 'no_color_keys' => bool, "Пульт без цветных кнопок": the sort and the details of a release
-// in MENU of the list too (aio_gc_keys_in_menu; 0.61.0; not a bool - false),
+// in MENU of the list too (mel_gc_keys_in_menu; 0.61.0; not a bool - false),
 // 'cat_rating' => bool, "Рейтинг IMDb на постерах": the IMDb rating in the corner of the
-// posters of the rows of the catalog (aio_catv_title_item; not a bool - false),
+// posters of the rows of the catalog (mel_catv_title_item; not a bool - false),
 // 'cat_logo' => bool, "Логотип фильма вместо названия": the card background of
-// the server with the logo in the panel of the catalog (aio_catv_card; 0.55.0;
+// the server with the logo in the panel of the catalog (mel_catv_card; 0.55.0;
 // not a bool - true),
 // 'cat_card' => bool|null, "Своя карточка": ENTER on a tile of the catalog opens the own card
-// of Melange (aio_card_enter; 0.59.0); null - none chosen, by the firmware (aio_card_own; not a
+// of Melange (mel_card_enter; 0.59.0); null - none chosen, by the firmware (mel_card_own; not a
 // bool - null),
 // 'no_torrents' => bool, "Без торрентов" (0.49.0; not a bool - false; what it
-// does: aio_no_torrents),
-// 'aio_confs' => base of a server => mode => aio_aio_conf(); a config of
+// does: mel_no_torrents),
+// 'aio_confs' => base of a server => mode => mel_aio_conf(); a config of
 // 0.42 or older (one per server, base => config) is read into the cell of
-// its mode (aio_mode_of), written back so by the next save),
+// its mode (mel_mode_of), written back so by the next save),
 // 'src_profiles' => bool, "Профили источников" of the page of before v2 (0.58.0; not a bool - false; the plugin
-// does not read it: MENU of a list has the profiles always), 'profiles' => list of aio_profile_ok() (v2: a source
+// does not read it: MENU of a list has the profiles always), 'profiles' => list of mel_profile_ok() (v2: a source
 // each, all its settings in it and an id: Debrid, Торренты, an own config, Lampac; one of before the editor of the
 // page takes the JacRed, the template and the config of the settings, of before v2 the keys of Debrid), at most
-// AIO_PROFILES_MAX, unique names (the first one kept), 'src_main' => the id of the main profile (v2; of none - ''),
-// 'lampac_url' => the address of Lampac, aio_lp_addr() or '' (off), 'lampac_token' => the token of its provider,
-// aio_lp_token() or '' (none), 'lampac_as_lampa' => bool, "Представляться приложением Lampa" (not a bool - false),
-// 'lampac_sources' => the balancers Lampac has found and the choice of them, aio_lp_srcs_ok(); the source, the
-// keys of Debrid and lampac_* at the top are those of the main profile (of v2 a copy, aio_settings_top: a version of
+// MEL_PROFILES_MAX, unique names (the first one kept), 'src_main' => the id of the main profile (v2; of none - ''),
+// 'lampac_url' => the address of Lampac, mel_lp_addr() or '' (off), 'lampac_token' => the token of its provider,
+// mel_lp_token() or '' (none), 'lampac_as_lampa' => bool, "Представляться приложением Lampa" (not a bool - false),
+// 'lampac_sources' => the balancers Lampac has found and the choice of them, mel_lp_srcs_ok(); the source, the
+// keys of Debrid and lampac_* at the top are those of the main profile (of v2 a copy, mel_settings_top: a version of
 // before reads them; a file of before v2 without src_main - the source in use of it and Lampac go into the profiles,
-// aio_settings_migrate),
+// mel_settings_migrate),
 // each checked by the rules above; absent or wrong -> as not set ('', the
-// default server, AIO_JACRED_DEFAULT; 'own' without a good address too; a
+// default server, MEL_JACRED_DEFAULT; 'own' without a good address too; a
 // wrong server is left out). A file of 0.33 (v 1, jacred_url) is read as v 2
-// (aio_jacred_migrate); the plugin never writes it. Never through a symlink
+// (mel_jacred_migrate); the plugin never writes it. Never through a symlink
 // (the page runs as root). 'mig_lost' => what the migration of a file of before v2 could not make a profile of (the
 // profiles full: 'the source in use', 'Lampac'; the reader logs it), never written. 'saved_once' => the file has saved_at (the page saved
 // it, cgi/settings.php: the first run till then); never written back
-// (aio_cgi_store drops it). $why: why a settings.json there was not read
-// (aio_settings_unread, 'read failed', 'bad JSON', 'data dir not
+// (mel_cgi_store drops it). $why: why a settings.json there was not read
+// (mel_settings_unread, 'read failed', 'bad JSON', 'data dir not
 // accessible'); '' when it was or there is none - the caller logs it.
 /**
  * @param string $dir
  * @param string|null $why
  * @param-out string $why
- * @return AioSettings
+ * @return MelSettings
  */
-function aio_settings_read($dir, &$why = null)
+function mel_settings_read($dir, &$why = null)
 {
     $why = '';
-    $r = aio_settings_parse(array());
-    $f = "$dir/" . AIO_SETTINGS_FILE;
+    $r = mel_settings_parse(array());
+    $f = "$dir/" . MEL_SETTINGS_FILE;
     clearstatcache();
     if ($dir === '')
         return $r;
@@ -925,50 +925,50 @@ function aio_settings_read($dir, &$why = null)
     {
         // None in a dir this process may enter: a new install, nothing to say.
         if (file_exists($dir) && (!is_dir($dir) || !is_executable($dir)))
-            $why = 'data dir not accessible ' . aio_settings_owner($dir);
+            $why = 'data dir not accessible ' . mel_settings_owner($dir);
         return $r;
     }
-    $why = aio_settings_unread($f);
+    $why = mel_settings_unread($f);
     if ($why !== '')
         return $r;
     // @: quiet in the CGI; php_server's hd_error_handler ignores it and logs the warning.
-    $raw = @file_get_contents($f, false, null, 0, AIO_SETTINGS_MAX);
+    $raw = @file_get_contents($f, false, null, 0, MEL_SETTINGS_MAX);
     $j = json_decode((string) $raw, true);
     if (!is_array($j))
     {
         // is_readable is access(R_OK), SELinux included: open denied after it
         // passed - a race or the SELinux open permission (hypothesis).
-        $why = $raw === false ? 'read failed ' . aio_settings_owner($f) : 'bad JSON';
+        $why = $raw === false ? 'read failed ' . mel_settings_owner($f) : 'bad JSON';
         return $r;
     }
-    return aio_settings_parse($j);
+    return mel_settings_parse($j);
 }
 
 // The settings of the decoded JSON of a settings.json (array() - the defaults)
-// by the rules of aio_settings_read; also a file imported by the page
+// by the rules of mel_settings_read; also a file imported by the page
 // (cgi/settings.php a=import).
 /**
  * @param array<mixed> $j
- * @return AioSettings
+ * @return MelSettings
  */
-function aio_settings_parse($j)
+function mel_settings_parse($j)
 {
-    $servers = array_keys(aio_aio_servers());
-    $tpls = aio_aio_tpls();
-    $tpls_p2p = aio_aio_tpls_p2p();
-    $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => AIO_JACRED_DEFAULT,
+    $servers = array_keys(mel_aio_servers());
+    $tpls = mel_aio_tpls();
+    $tpls_p2p = mel_aio_tpls_p2p();
+    $r = array('source' => 'made', 'manifest_url' => '', 'rd_key' => '', 'tb_key' => '', 'jacred' => MEL_JACRED_DEFAULT,
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
-        'aio_mode' => AIO_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
+        'aio_mode' => MEL_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null) + aio_lp_keys() + array('aio_confs' => array(), 'src_profiles' => false,
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null) + mel_lp_keys() + array('aio_confs' => array(), 'src_profiles' => false,
         'profiles' => array(), 'src_main' => '', 'saved_once' => false, 'mig_lost' => array());
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
-        $r['manifest_url'] = aio_manifest_url($j['manifest_url']);
+        $r['manifest_url'] = mel_manifest_url($j['manifest_url']);
     foreach (array('rd_key' => 'rd', 'tb_key' => 'tb', 'tmdb_key' => 'tmdb') as $k => $what)
     {
         if (isset($j[$k]))
-            $r[$k] = aio_key_ok($what, $j[$k]);
+            $r[$k] = mel_key_ok($what, $j[$k]);
     }
     $as = isset($j['aio_server']) && is_string($j['aio_server']) ? $j['aio_server'] : '';
     if (in_array($as, array_merge($servers, array('own')), true))
@@ -980,23 +980,23 @@ function aio_settings_parse($j)
     elseif ($as === 'manifest' || ($r['manifest_url'] !== '' && !array_key_exists('aio_own_url', $j)))
         $r['source'] = 'own';
     if (isset($j['aio_own_url']))
-        $r['aio_own_url'] = aio_aio_own($j['aio_own_url']);
-    if (isset($j['aio_mode']) && in_array($j['aio_mode'], aio_aio_modes(), true))
+        $r['aio_own_url'] = mel_aio_own($j['aio_own_url']);
+    if (isset($j['aio_mode']) && in_array($j['aio_mode'], mel_aio_modes(), true))
         $r['aio_mode'] = $j['aio_mode'];
-    if (isset($j['aio_tpl']) && aio_tpl_debrid($j['aio_tpl']))
+    if (isset($j['aio_tpl']) && mel_tpl_debrid($j['aio_tpl']))
         $r['aio_tpl'] = $j['aio_tpl'];
-    if (isset($j['aio_tpl_p2p']) && aio_tpl_p2p($j['aio_tpl_p2p']))
+    if (isset($j['aio_tpl_p2p']) && mel_tpl_p2p($j['aio_tpl_p2p']))
         $r['aio_tpl_p2p'] = $j['aio_tpl_p2p'];
-    if (!isset($j['v']) || $j['v'] !== AIO_SETTINGS_V)
+    if (!isset($j['v']) || $j['v'] !== MEL_SETTINGS_V)
         list($r['jacred'], $r['jacred_own_url'], $r['jacred_own_key']) =
-            aio_jacred_migrate(isset($j['jacred_url']) ? $j['jacred_url'] : '');
+            mel_jacred_migrate(isset($j['jacred_url']) ? $j['jacred_url'] : '');
     else
     {
-        $own = aio_jacred_own(array('url' => isset($j['jacred_own_url']) ? $j['jacred_own_url'] : '',
+        $own = mel_jacred_own(array('url' => isset($j['jacred_own_url']) ? $j['jacred_own_url'] : '',
             'key' => isset($j['jacred_own_key']) ? $j['jacred_own_key'] : ''));
         if ($own)
             list($r['jacred_own_url'], $r['jacred_own_key']) = array($own['url'], $own['key']);
-        $b = aio_jacred_builtin();
+        $b = mel_jacred_builtin();
         if (isset($j['jacred']) && is_string($j['jacred']) && (isset($b[$j['jacred']]) || ($j['jacred'] === 'own' && $own)))
             $r['jacred'] = $j['jacred'];
     }
@@ -1004,15 +1004,15 @@ function aio_settings_parse($j)
     {
         foreach (array_values($j['servers']) as $s)
         {
-            $s = aio_server_conf($s);
-            if ($s && count($r['servers']) < AIO_SERVERS_MAX)
+            $s = mel_server_conf($s);
+            if ($s && count($r['servers']) < MEL_SERVERS_MAX)
                 $r['servers'][] = $s;
         }
     }
-    if (isset($j['ts_url']) && is_string(aio_ts_addr($j['ts_url'])))
-        $r['ts_url'] = aio_ts_addr($j['ts_url']);
-    $tu = aio_ts_login(isset($j['ts_user']) ? $j['ts_user'] : '');
-    $tp = aio_ts_pass(isset($j['ts_pass']) ? $j['ts_pass'] : '');
+    if (isset($j['ts_url']) && is_string(mel_ts_addr($j['ts_url'])))
+        $r['ts_url'] = mel_ts_addr($j['ts_url']);
+    $tu = mel_ts_login(isset($j['ts_user']) ? $j['ts_user'] : '');
+    $tp = mel_ts_pass(isset($j['ts_pass']) ? $j['ts_pass'] : '');
     if (is_string($tu) && is_string($tp) && ($tu === '') === ($tp === ''))
         list($r['ts_user'], $r['ts_pass']) = array($tu, $tp);
     if (isset($j['ts_save']) && is_bool($j['ts_save']))
@@ -1034,10 +1034,10 @@ function aio_settings_parse($j)
     if (isset($j['no_torrents']) && is_bool($j['no_torrents']))
         $r['no_torrents'] = $j['no_torrents'];
     if (isset($j['cat_rows']))
-        $r['cat_rows'] = aio_cat_rows_ok($j['cat_rows']);
+        $r['cat_rows'] = mel_cat_rows_ok($j['cat_rows']);
     if (isset($j['src_profiles']) && is_bool($j['src_profiles']))
         $r['src_profiles'] = $j['src_profiles'];
-    $r = array_merge($r, aio_lp_fields($j));
+    $r = array_merge($r, mel_lp_fields($j));
     if (isset($j['aio_confs']) && is_array($j['aio_confs']))
     {
         foreach ($j['aio_confs'] as $b => $cs)
@@ -1046,42 +1046,42 @@ function aio_settings_parse($j)
                 continue;
             // One config of 0.42 or older: in the cell of its mode.
             if (isset($cs['uuid']))
-                $cs = array(aio_mode_of(isset($cs['tpl']) ? $cs['tpl'] : null, isset($cs['mode']) &&
-                    in_array($cs['mode'], aio_aio_modes(), true) ? $cs['mode'] : null) => $cs);
-            foreach (aio_aio_modes() as $m)
+                $cs = array(mel_mode_of(isset($cs['tpl']) ? $cs['tpl'] : null, isset($cs['mode']) &&
+                    in_array($cs['mode'], mel_aio_modes(), true) ? $cs['mode'] : null) => $cs);
+            foreach (mel_aio_modes() as $m)
             {
-                $c = isset($cs[$m]) ? aio_aio_conf($b, $cs[$m]) : null;
+                $c = isset($cs[$m]) ? mel_aio_conf($b, $cs[$m]) : null;
                 // 0.35.0 stored no marks: the keys melange has now are taken as its own.
                 if ($c && $c['set'] === null)
                     $c['set'] = array_keys(array_filter(array('rd' => $r['rd_key'] !== '', 'tb' => $r['tb_key'] !== '',
-                        'tmdb' => aio_tmdb_sent($b, $r['tmdb_key']) !== '')));
+                        'tmdb' => mel_tmdb_sent($b, $r['tmdb_key']) !== '')));
                 if ($c)
                     $r['aio_confs'][$b][$m] = $c;
             }
         }
     }
-    // After aio_confs, the JacRed and the keys: a profile of before takes them (aio_profile_ok).
+    // After aio_confs, the JacRed and the keys: a profile of before takes them (mel_profile_ok).
     if (isset($j['profiles']) && is_array($j['profiles']))
-        $r['profiles'] = aio_profiles_ok($j['profiles'], $r);
+        $r['profiles'] = mel_profiles_ok($j['profiles'], $r);
     // No src_main: a file of before v2 (spec v2 §4).
     if (!array_key_exists('src_main', $j))
-        $r = aio_settings_migrate($r);
-    elseif (aio_profile_id_ok($j['src_main']) && aio_profile_index($r, $j['src_main']) >= 0)
+        $r = mel_settings_migrate($r);
+    elseif (mel_profile_id_ok($j['src_main']) && mel_profile_index($r, $j['src_main']) >= 0)
         $r['src_main'] = $j['src_main'];
     // The main one by its id always: none or of no profile - the first one.
-    $m = aio_profile_main($r);
+    $m = mel_profile_main($r);
     $r['src_main'] = $m >= 0 ? $r['profiles'][$m]['id'] : '';
     return $r;
 }
 
-// cat_rows of settings.json or the form -> the rows chosen: keys of rows (aio_cat_row
+// cat_rows of settings.json or the form -> the rows chosen: keys of rows (mel_cat_row
 // of catalog.php), in order, unique; what can not be a key goes. null: not a list,
 // or nothing left, as nothing chosen.
 /**
  * @param mixed $v
  * @return list<string>|null
  */
-function aio_cat_rows_ok($v)
+function mel_cat_rows_ok($v)
 {
     $keys = array();
     foreach (is_array($v) ? $v : array() as $k)
@@ -1099,32 +1099,32 @@ function aio_cat_rows_ok($v)
  * @param string $f
  * @return string
  */
-function aio_settings_unread($f)
+function mel_settings_unread($f)
 {
     if (is_link($f))
         return 'a symlink';
     if (!is_file($f))
         return 'not a file';
     if (!is_readable($f))
-        return 'not readable ' . aio_settings_owner($f);
-    if (filesize($f) > AIO_SETTINGS_MAX)
+        return 'not readable ' . mel_settings_owner($f);
+    if (filesize($f) > MEL_SETTINGS_MAX)
         return 'too big (' . filesize($f) . ' bytes)';
     return '';
 }
 
-// The JSON of settings.json v AIO_SETTINGS_V of $data (keys of
-// aio_settings_read, its order; not saved_once: read only) with saved_at
-// now, the main profile copied to the top (aio_settings_top); '' if json_encode
-// failed. Written by the page (aio_cgi_store), its export (a=export) and the
-// plugin (aio_settings_write: the quick setup, the rows, the balancers).
+// The JSON of settings.json v MEL_SETTINGS_V of $data (keys of
+// mel_settings_read, its order; not saved_once: read only) with saved_at
+// now, the main profile copied to the top (mel_settings_top); '' if json_encode
+// failed. Written by the page (mel_cgi_store), its export (a=export) and the
+// plugin (mel_settings_write: the quick setup, the rows, the balancers).
 /**
  * @param array<string, mixed> $data
  * @return string
  */
-function aio_settings_json($data)
+function mel_settings_json($data)
 {
     unset($data['saved_once'], $data['mig_lost']);
-    $data = array_merge(array('v' => AIO_SETTINGS_V), aio_settings_top($data), array('saved_at' => time()));
+    $data = array_merge(array('v' => MEL_SETTINGS_V), mel_settings_top($data), array('saved_at' => time()));
     $json = json_encode($data);
     // PHP 5.3 turns a value that is not UTF-8 into null, not an error.
     return is_string($json) && json_decode($json, true) === $data ? $json : '';
@@ -1135,18 +1135,18 @@ function aio_settings_json($data)
  * @param string $f
  * @return string
  */
-function aio_settings_owner($f)
+function mel_settings_owner($f)
 {
     return sprintf('(uid %d, gid %d, %04o; process uid %s)', fileowner($f), filegroup($f), fileperms($f) & 07777,
         function_exists('posix_getuid') ? posix_getuid() : '?');
 }
 
-// Passwords of the servers to hide in the log (aio_mask_secrets).
+// Passwords of the servers to hide in the log (mel_mask_secrets).
 /**
- * @param list<AioServer> $servers
+ * @param list<MelServer> $servers
  * @return list<string>
  */
-function aio_server_secrets($servers)
+function mel_server_secrets($servers)
 {
     $pw = array();
     foreach ($servers as $s)
@@ -1159,7 +1159,7 @@ function aio_server_secrets($servers)
  * @param mixed $t
  * @return bool
  */
-function aio_token_ok($t)
+function mel_token_ok($t)
 {
     return is_string($t) && preg_match('/^[0-9a-f]{32}\z/', $t) === 1;
 }
@@ -1171,11 +1171,11 @@ function aio_token_ok($t)
  * @param string $tag
  * @return string
  */
-function aio_mask_host($s, $aio, $tag)
+function mel_mask_host($s, $aio, $tag)
 {
     // Only as a whole host: not "aio" of "aio sync", not the start of
     // "aiostreams.example" (a host "aiostreams"). In any case: a host of a link
-    // is kept as typed (aio_manifest_url), its key in lower case (aio_aio_own).
+    // is kept as typed (mel_manifest_url), its key in lower case (mel_aio_own).
     $end = '(?![A-Za-z0-9\\-]|\\.[A-Za-z0-9])';
     $hp = preg_replace('~^[^:]*://~', '', $aio);
     $h = preg_replace('~:[0-9]+\z~', '', $hp);
@@ -1198,31 +1198,31 @@ function aio_mask_host($s, $aio, $tag)
 // A log line with the secrets hidden: the manifest base ($base, '' when not
 // set) and each of its long path segments, the key of the own JacRed as
 // written, URL-encoded (both ways) and JSON-escaped, and its address as
-// "<jacred>" ($jrs: aio_jacred_own_confs() or confs of aio_jacred_conf();
+// "<jacred>" ($jrs: mel_jacred_own_confs() or confs of mel_jacred_conf();
 // built-in ones are public and skipped),
 // playback tokens, StremThru and Comet configs (base64 JSON), UUIDs, the
 // secrets $pw of 4+ bytes (server passwords, keys of the services; a
 // shorter one would garble the log and never goes there anyway).
 // JSON-escaped slashes ("\/") are covered too. $aio: the own AIOStreams
-// server (aio_aio_own(), '' for none; a LAN or NAS address) -> "<aio>";
-// $hosts: more such addresses, as aio_settings_hosts().
+// server (mel_aio_own(), '' for none; a LAN or NAS address) -> "<aio>";
+// $hosts: more such addresses, as mel_settings_hosts().
 /**
  * @param string $s
  * @param string $base
- * @param list<AioJacred> $jrs
+ * @param list<MelJacred> $jrs
  * @param list<string> $pw
  * @param string $aio
  * @param array<string, string> $hosts
  * @return string
  */
-function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = array())
+function mel_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = array())
 {
     if ($base !== '')
     {
         $s = str_replace(array($base, str_replace('/', '\\/', $base)), '<manifest>/', $s);
         foreach (explode('/', preg_replace('~^[^:]*://[^/]*~', '', $base)) as $seg)
         {
-            if (strlen($seg) >= AIO_MASK_SEGMENT)
+            if (strlen($seg) >= MEL_MASK_SEGMENT)
                 $s = str_replace($seg, '***', $s);
         }
     }
@@ -1238,9 +1238,9 @@ function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
                 str_replace($jr['base'], '<jacred>', $s));
     }
     if ($aio !== '')
-        $s = aio_mask_host($s, $aio, '<aio>');
+        $s = mel_mask_host($s, $aio, '<aio>');
     foreach ($hosts as $u => $tag)
-        $s = aio_mask_host($s, $u, $tag);
+        $s = mel_mask_host($s, $u, $tag);
     $s = preg_replace('~(\\\\?/(?:playback|torz)\\\\?/)[^/\\\\\\s"?#&]+~', '$1***', $s);
     // A picture of dunemdb (the Favorites of the Dune, "Мой список"): auth=<the outside IP>-<a hash>.
     $s = preg_replace('~([?&]auth=)[^&\\s"\\\\]+~', '$1***', $s);
@@ -1258,26 +1258,26 @@ function aio_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
 }
 
 // --- The firmware of the box. Its version only for what the API has no sign of; else
-// defined() / class_exists() of the API (PLUGIN_OP_GET_FOLDER_ROWS of AioFw, aio_catv_loading_flag,
-// aio_catv_all_ok, aio_markers).
+// defined() / class_exists() of the API (PLUGIN_OP_GET_FOLDER_ROWS of MelFw, mel_catv_loading_flag,
+// mel_catv_all_ok, mel_markers).
 
 // From r25 the shell sizes the background of the rows by PluginRowsPane::vod_r; r24 puts it
 // at 1280x720 at (640, 0) whatever vod_r is (the field is in the API of both).
-define('AIO_FW_VOD_R_R', 25);
-// The own card of Melange (view_card.php) is seen on r24 and r25: on by default from r24 (aio_card_own).
-define('AIO_FW_CARD_R', 24);
+define('MEL_FW_VOD_R_R', 25);
+// The own card of Melange (view_card.php) is seen on r24 and r25: on by default from r24 (mel_card_own).
+define('MEL_FW_CARD_R', 24);
 // The rows of posters of the own card come by the timer of its screen from r25 (seen on the device
 // there; r24 by the code only): asked as the card opens before.
-define('AIO_FW_TIMER_R', 25);
+define('MEL_FW_TIMER_R', 25);
 // The shell of r24 checks Dune Extra as a plugin starts its player and quits if the built-in pf_check
 // has not run in its session yet (the card of the Dune runs it before a supplier): Melange runs it
-// first there (aio_pf_check). r25 has no such check; r22 not looked at. Only this r (===), not a
-// threshold as the other AIO_FW_*_R.
-define('AIO_FW_PF_CHECK_R', 24);
+// first there (mel_pf_check). r25 has no such check; r22 not looked at. Only this r (===), not a
+// threshold as the other MEL_FW_*_R.
+define('MEL_FW_PF_CHECK_R', 24);
 
-class AioFirmware
+class MelFirmware
 {
-    // r of the firmware (aio_fw_r): null not read yet or unknown (read again next time).
+    // r of the firmware (mel_fw_r): null not read yet or unknown (read again next time).
     /** @var int|null */
     public static $r = null;
 }
@@ -1288,7 +1288,7 @@ class AioFirmware
 /**
  * @return string
  */
-function aio_versions_text()
+function mel_versions_text()
 {
     $f = getenv('FS_PREFIX') . '/tmp/run/versions.txt';
     clearstatcache();
@@ -1306,7 +1306,7 @@ function aio_versions_text()
  * @param string $k
  * @return string
  */
-function aio_versions_field($t, $k)
+function mel_versions_field($t, $k)
 {
     return preg_match('~^' . $k . '=([^\n]*)~m', $t, $m) ?
         (string) substr(strval(preg_replace('~[^A-Za-z0-9._+\-]~', '', $m[1])), 0, 48) : '';
@@ -1318,7 +1318,7 @@ function aio_versions_field($t, $k)
  * @param string $v
  * @return int
  */
-function aio_fw_r_of($v)
+function mel_fw_r_of($v)
 {
     return preg_match('~_r([0-9]{1,4})$~D', $v, $m) ? intval($m[1]) : 0;
 }
@@ -1328,35 +1328,35 @@ function aio_fw_r_of($v)
 /**
  * @return int
  */
-function aio_fw_r()
+function mel_fw_r()
 {
-    if (AioFirmware::$r === null)
+    if (MelFirmware::$r === null)
     {
-        $r = aio_fw_r_of(aio_versions_field(aio_versions_text(), 'firmware_version'));
+        $r = mel_fw_r_of(mel_versions_field(mel_versions_text(), 'firmware_version'));
         if ($r === 0)
             return 0;
-        AioFirmware::$r = $r;
+        MelFirmware::$r = $r;
     }
-    return AioFirmware::$r;
+    return MelFirmware::$r;
 }
 
-// The shell of the box sizes the background of the rows by vod_r for sure (AIO_FW_VOD_R_R):
+// The shell of the box sizes the background of the rows by vod_r for sure (MEL_FW_VOD_R_R):
 // false on r24, older or unknown.
 /**
  * @return bool
  */
-function aio_fw_vod_r()
+function mel_fw_vod_r()
 {
-    return aio_fw_r() >= AIO_FW_VOD_R_R;
+    return mel_fw_r() >= MEL_FW_VOD_R_R;
 }
 
 // "Своя карточка" in effect of cat_card of the settings: as chosen; none chosen (null) - on from
-// AIO_FW_CARD_R, off on r22, older or an unknown firmware (the card of the Dune there).
+// MEL_FW_CARD_R, off on r22, older or an unknown firmware (the card of the Dune there).
 /**
  * @param bool|null $c
  * @return bool
  */
-function aio_card_own($c)
+function mel_card_own($c)
 {
-    return $c !== null ? $c : aio_fw_r() >= AIO_FW_CARD_R;
+    return $c !== null ? $c : mel_fw_r() >= MEL_FW_CARD_R;
 }

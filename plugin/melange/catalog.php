@@ -1,48 +1,48 @@
 <?php
 // Client of the catalog: rows of the shared AIOMetadata instance (Stremio addon
 // protocol), its search, a cache on the device and the last good copy on a
-// failure. Data only, no screens. Needs parse.php and main.php (aio_http_get, aio_http_get_many,
-// aio_log, aio_write_file, aio_data_dir), on the settings page cgi/lib/rows.php.
-// Types in the PHPDoc (AioCatRow and others): phpstan-types.neon of the repository.
+// failure. Data only, no screens. Needs parse.php and main.php (mel_http_get, mel_http_get_many,
+// mel_log, mel_write_file, mel_data_dir), on the settings page cgi/lib/rows.php.
+// Types in the PHPDoc (MelCatRow and others): phpstan-types.neon of the repository.
 
-define('AIO_CAT_BASE', 'https://aiometadata.kompotik.com/stremio/');
+define('MEL_CAT_BASE', 'https://aiometadata.kompotik.com/stremio/');
 // The shared config of the instance: public, as the apikey of the own JacRed, and
 // read-only without its password. CI of this repository
 // allows this one value.
-define('AIO_CAT_UUID', 'e3778c33-0d0e-4d2e-a4db-a817b2d506f4');
+define('MEL_CAT_UUID', 'e3778c33-0d0e-4d2e-a4db-a817b2d506f4');
 
 // Timeouts of a request, s: a cold row of the server takes up to 4.5 s.
-define('AIO_CAT_CONNECT', 5);
-define('AIO_CAT_TOTAL', 15);
+define('MEL_CAT_CONNECT', 5);
+define('MEL_CAT_TOTAL', 15);
 // A bigger reply (decoded) is cut off while it loads: 3 times the largest seen
 // (344 KB). Over this many objects and lists it is not decoded: 1 MB of "{}," takes
 // more than the 128 MB of PHP in json_decode, a Fatal; a real page of 50 tiles has
 // ~1600 of them, its links aside.
-define('AIO_CAT_MAX_BYTES', 1048576);
-define('AIO_CAT_MAX_NODES', 40000);
+define('MEL_CAT_MAX_BYTES', 1048576);
+define('MEL_CAT_MAX_NODES', 40000);
 // Tiles kept of a page, the rest only counts for skip: the server sends up to 50.
-define('AIO_CAT_PAGE_TILES', 200);
+define('MEL_CAT_PAGE_TILES', 200);
 
 // Listing of a row. skip of 1000 and more is a 404 of the server, so the row ends
 // there. The state lives 5 h: the cursor of the server lives 6 h, and a lost one
 // silently loses tiles.
-define('AIO_CAT_SKIP_MAX', 1000);
-define('AIO_CAT_STATE_TTL', 18000);
+define('MEL_CAT_SKIP_MAX', 1000);
+define('MEL_CAT_STATE_TTL', 18000);
 // skip of a search goes by pages: the server asks its engine for page
 // ceil(skip / size) + 1 and sends what of it passed the filters, so skip by the tiles
 // got would ask for the same page again. 20 is the smallest page of the search engines
 // of the server (TMDB, Kitsu 20; MAL, TVDB 25; Trakt 30): with a bigger one a page
 // only comes twice (repeats are dropped), a step over the page would silently skip
 // results. Not fitted to the engine on purpose.
-define('AIO_CAT_SEARCH_PAGE', 20);
+define('MEL_CAT_SEARCH_PAGE', 20);
 // A search gets this many tiles of a type, if there are: a full row of the screen
-// (AIO_CATV_ROW_TILES of view_catalog.php). A short page is not the end, so one page is
+// (MEL_CATV_ROW_TILES of view_catalog.php). A short page is not the end, so one page is
 // not enough.
-define('AIO_CAT_SEARCH_TILES', 20);
+define('MEL_CAT_SEARCH_TILES', 20);
 // s from the start of a search after which no pages past the first are asked: a page
-// takes 0.2-1.9 s, the first pages keep AIO_CAT_TOTAL each, so the worst case of a
+// takes 0.2-1.9 s, the first pages keep MEL_CAT_TOTAL each, so the worst case of a
 // search stays that of its first pages alone.
-define('AIO_CAT_SEARCH_WAIT', 10);
+define('MEL_CAT_SEARCH_WAIT', 10);
 
 // Cache in data_dir/catalog: a failure right after a reboot has it too, tmp_dir
 // (RAM) would not. Fresh for 1 h: first pages are not asked again (the server
@@ -50,31 +50,31 @@ define('AIO_CAT_SEARCH_WAIT', 10);
 // copy: an older row is of little use, and TMDB allows 6 months at most. 8 MB,
 // 400 files: ~80 pages of 100 KB (json_encode makes Cyrillic 6 bytes a letter),
 // the oldest go first.
-// Raise the version when aio_cat_tile makes a wrong tile of an older copy, not for a new key alone: older copies are dropped.
-define('AIO_CAT_CACHE_V', 2);
-define('AIO_CAT_FRESH', 3600);
-// The copy of the manifest is not asked again for 10 min (aio_cat_manifest_recent): rows added or
+// Raise the version when mel_cat_tile makes a wrong tile of an older copy, not for a new key alone: older copies are dropped.
+define('MEL_CAT_CACHE_V', 2);
+define('MEL_CAT_FRESH', 3600);
+// The copy of the manifest is not asked again for 10 min (mel_cat_manifest_recent): rows added or
 // removed on the server show within it, an opening or a switch of the tab does not wait ~1 s for it.
-define('AIO_CAT_MANIFEST_FRESH', 600);
-define('AIO_CAT_KEEP', 2592000);
-define('AIO_CAT_CACHE_BYTES', 8388608);
-define('AIO_CAT_CACHE_FILES', 400);
-define('AIO_CAT_MANIFEST_KEY', 'manifest');
+define('MEL_CAT_MANIFEST_FRESH', 600);
+define('MEL_CAT_KEEP', 2592000);
+define('MEL_CAT_CACHE_BYTES', 8388608);
+define('MEL_CAT_CACHE_FILES', 400);
+define('MEL_CAT_MANIFEST_KEY', 'manifest');
 
-define('AIO_CAT_NAME_MAX', 200);
-define('AIO_CAT_DESC_MAX', 1200);
-define('AIO_CAT_URL_MAX', 1000);
-// A TMDB address in the URLs of the tiles (the logo, the fanart of the card backgrounds, aio_catv_card).
-define('AIO_CAT_TMDB', 'https://image\.tmdb\.org/t/p/[a-z0-9_]+/');
-define('AIO_CAT_GENRES_MAX', 8);
-define('AIO_CAT_CAST_MAX', 3);
-define('AIO_CAT_QUERY_MAX', 100);
+define('MEL_CAT_NAME_MAX', 200);
+define('MEL_CAT_DESC_MAX', 1200);
+define('MEL_CAT_URL_MAX', 1000);
+// A TMDB address in the URLs of the tiles (the logo, the fanart of the card backgrounds, mel_catv_card).
+define('MEL_CAT_TMDB', 'https://image\.tmdb\.org/t/p/[a-z0-9_]+/');
+define('MEL_CAT_GENRES_MAX', 8);
+define('MEL_CAT_CAST_MAX', 3);
+define('MEL_CAT_QUERY_MAX', 100);
 // The rating of Kinopoisk of fewer votes is not shown (the owner's choice).
-define('AIO_CAT_KP_VOTES_MIN', 1000);
+define('MEL_CAT_KP_VOTES_MIN', 1000);
 
-class AioCatCopies
+class MelCatCopies
 {
-    // The index of the copies of the rows on the disk (aio_cat_cache_index): each file (aio_cat_cache_dir) as it was
+    // The index of the copies of the rows on the disk (mel_cat_cache_index): each file (mel_cat_cache_dir) as it was
     // when its keys were read ("mtime:size") and its mtime, its keys ("<type>|imdb:<IMDb>", "<type>|tmdb:<TMDB>"), and
     // the file of each key (of the newest file). Memory of php_server.
     /** @var array<string, string> */
@@ -106,9 +106,9 @@ class AioCatCopies
  * @param string $path
  * @return string
  */
-function aio_cat_url($path)
+function mel_cat_url($path)
 {
-    return AIO_CAT_BASE . AIO_CAT_UUID . '/' . $path;
+    return MEL_CAT_BASE . MEL_CAT_UUID . '/' . $path;
 }
 
 // One GET -> array(err: '' or why it failed, list: the JSON list in $field, curl28: a timeout of curl, connected or not).
@@ -117,8 +117,8 @@ function aio_cat_url($path)
 // notfound (404), http (another status), bad (not the JSON expected). A failure
 // is never an empty list. $what: for the log, no URL and no reply there; '' no line (the
 // caller logs a sum of its requests). $limit: s
-// the request may take at most (a fraction too: aio_http_get), 0 for the usual timeouts; over
-// AIO_CAT_TOTAL (15 s) it is cut to that, silently. $one: $field holds one
+// the request may take at most (a fraction too: mel_http_get), 0 for the usual timeouts; over
+// MEL_CAT_TOTAL (15 s) it is cut to that, silently. $one: $field holds one
 // object (the meta of a title), not a list; null or a list there is bad. $max: bytes of the
 // decoded reply at most (big over it).
 /**
@@ -130,30 +130,30 @@ function aio_cat_url($path)
  * @param int $max
  * @return array{err: string, list: array<mixed>, curl28: bool} list: the object itself when $one
  */
-function aio_cat_get($path, $what, $field, $limit = 0, $one = false, $max = AIO_CAT_MAX_BYTES)
+function mel_cat_get($path, $what, $field, $limit = 0, $one = false, $max = MEL_CAT_MAX_BYTES)
 {
-    return aio_cat_reply(aio_http_get_req(aio_cat_req($path, $limit, $max)), $what, $field, $one);
+    return mel_cat_reply(mel_http_get_req(mel_cat_req($path, $limit, $max)), $what, $field, $one);
 }
 
-// One GET $q (array(URL, connect, total, max), as a request of aio_http_get_many) by aio_http_get -> array(HTTP code,
-// body, err, connected, s it took), as a reply of aio_http_get_many. Here, not in main.php: the settings page
-// (cgi/lib/rows.php) has its own aio_http_get and no main.php.
+// One GET $q (array(URL, connect, total, max), as a request of mel_http_get_many) by mel_http_get -> array(HTTP code,
+// body, err, connected, s it took), as a reply of mel_http_get_many. Here, not in main.php: the settings page
+// (cgi/lib/rows.php) has its own mel_http_get and no main.php.
 /**
  * @param array{string, float|int, float|int, int} $q
  * @return array{int, string, string, bool, float}
  */
-function aio_http_get_req($q)
+function mel_http_get_req($q)
 {
     $t = microtime(true);
     $err = '';
     $connected = true;
-    list($code, $body) = aio_http_get($q[0], $err, $q[1], $q[2], $q[3], $connected);
+    list($code, $body) = mel_http_get($q[0], $err, $q[1], $q[2], $q[3], $connected);
     return array($code, $body, $err, (bool) $connected, microtime(true) - $t);
 }
 
-// The GETs of paths $paths (key => array(path, what)) at once (aio_http_get_many; the caller keeps to AIO_HTTP_PAR),
-// each as aio_cat_get with the same $field, $limit, $one, $max and its line of the log -> key => array(err, list) in
-// the order of $paths; null: no curl_multi (the caller asks one by one, aio_cat_get).
+// The GETs of paths $paths (key => array(path, what)) at once (mel_http_get_many; the caller keeps to MEL_HTTP_PAR),
+// each as mel_cat_get with the same $field, $limit, $one, $max and its line of the log -> key => array(err, list) in
+// the order of $paths; null: no curl_multi (the caller asks one by one, mel_cat_get).
 /**
  * @param array<array-key, array{string, string}> $paths
  * @param string $field
@@ -162,39 +162,39 @@ function aio_http_get_req($q)
  * @param int $max
  * @return array<array-key, array{err: string, list: array<mixed>, curl28: bool}>|null
  */
-function aio_cat_get_many($paths, $field, $limit = 0, $one = false, $max = AIO_CAT_MAX_BYTES)
+function mel_cat_get_many($paths, $field, $limit = 0, $one = false, $max = MEL_CAT_MAX_BYTES)
 {
     $reqs = array();
     foreach ($paths as $k => $p)
-        $reqs[$k] = aio_cat_req($p[0], $limit, $max);
-    $res = aio_http_get_many($reqs);
+        $reqs[$k] = mel_cat_req($p[0], $limit, $max);
+    $res = mel_http_get_many($reqs);
     if ($res === null)
         return null;
     $out = array();
     foreach ($paths as $k => $p)
     {
-        $out[$k] = aio_cat_reply($res[$k], $p[1], $field, $one);
+        $out[$k] = mel_cat_reply($res[$k], $p[1], $field, $one);
         // The body of each freed as it is parsed.
         unset($res[$k]);
     }
     return $out;
 }
 
-// The GET of $path (aio_cat_get) -> array(URL, connect, total, max) of aio_http_get.
+// The GET of $path (mel_cat_get) -> array(URL, connect, total, max) of mel_http_get.
 /**
  * @param string $path
  * @param float|int $limit
  * @param int $max
  * @return array{string, float|int, float|int, int}
  */
-function aio_cat_req($path, $limit, $max)
+function mel_cat_req($path, $limit, $max)
 {
-    $total = $limit > 0 ? min($limit, AIO_CAT_TOTAL) : AIO_CAT_TOTAL;
-    return array(aio_cat_url($path), min(AIO_CAT_CONNECT, $total), $total, $max);
+    $total = $limit > 0 ? min($limit, MEL_CAT_TOTAL) : MEL_CAT_TOTAL;
+    return array(mel_cat_url($path), min(MEL_CAT_CONNECT, $total), $total, $max);
 }
 
-// The reply $r (array(HTTP code, body, err, connected, s it took) of aio_http_get) of a GET of aio_cat_get, its line
-// of the log -> array(err, list, curl28) as aio_cat_get.
+// The reply $r (array(HTTP code, body, err, connected, s it took) of mel_http_get) of a GET of mel_cat_get, its line
+// of the log -> array(err, list, curl28) as mel_cat_get.
 /**
  * @param array{int, string, string, bool, float} $r
  * @param string $what
@@ -202,7 +202,7 @@ function aio_cat_req($path, $limit, $max)
  * @param bool $one
  * @return array{err: string, list: array<mixed>, curl28: bool}
  */
-function aio_cat_reply($r, $what, $field, $one)
+function mel_cat_reply($r, $what, $field, $one)
 {
     list($code, $body, $err, $connected, $s) = $r;
     unset($r);
@@ -210,7 +210,7 @@ function aio_cat_reply($r, $what, $field, $one)
     $status = $err !== '' ? $err : "HTTP $code";
     $why = '';
     $list = array();
-    if ($err === AIO_HTTP_TOO_BIG)
+    if ($err === MEL_HTTP_TOO_BIG)
         $why = 'big';
     else if (strpos($err, 'curl 28:') === 0 && $connected)
         $why = 'timeout';
@@ -226,7 +226,7 @@ function aio_cat_reply($r, $what, $field, $one)
         $why = 'http';
     else
     {
-        $j = substr_count($body, '{') + substr_count($body, '[') <= AIO_CAT_MAX_NODES ? json_decode($body, true) : null;
+        $j = substr_count($body, '{') + substr_count($body, '[') <= MEL_CAT_MAX_NODES ? json_decode($body, true) : null;
         // An array in PHP may be an object in JSON: only a list goes on.
         // No ternary on the array: PHP 5.3 would copy it.
         $ok = is_array($j) && isset($j[$field]) && is_array($j[$field]);
@@ -242,7 +242,7 @@ function aio_cat_reply($r, $what, $field, $one)
     }
     unset($body, $j);
     if ($what !== '')
-        aio_log(sprintf('catalog: %s: %s, %d bytes, %d items, %.0f ms%s', $what, $status, $size, $one ? ($list ? 1 : 0) : count($list),
+        mel_log(sprintf('catalog: %s: %s, %d bytes, %d items, %.0f ms%s', $what, $status, $size, $one ? ($list ? 1 : 0) : count($list),
             $s * 1000, $why !== '' ? ", failed: $why" : ''));
     return array('err' => $why, 'list' => $list, 'curl28' => strpos($err, 'curl 28:') === 0);
 }
@@ -255,7 +255,7 @@ function aio_cat_reply($r, $what, $field, $one)
  * @param string $id
  * @return string
  */
-function aio_cat_group($id)
+function mel_cat_group($id)
 {
     if (preg_match('/^tmdb\.discover\.[^.]+\.([^.]+)\./', $id, $m))
         return $m[1];
@@ -267,57 +267,57 @@ function aio_cat_group($id)
 }
 
 // The groups of the screens in their order: GROUPS of web/src/rows.ts, the menu of the rows
-// (aio_catv_lcfg_groups). A group of aio_cat_group not here is "other" there.
+// (mel_catv_lcfg_groups). A group of mel_cat_group not here is "other" there.
 /**
  * @return list<string>
  */
-function aio_cat_groups()
+function mel_cat_groups()
 {
     return array('top', 'fresh', 'ru', 'ru-services', 'genres', 'theme', 'studios', 'decades', 'years',
         'streaming', 'world', 'runtime', 'anime', 'other');
 }
 
-// The group of the row $r on the screens: its own (aio_cat_group), if one of aio_cat_groups, else "other".
+// The group of the row $r on the screens: its own (mel_cat_group), if one of mel_cat_groups, else "other".
 /**
  * @param array{group: string} $r
  * @return string
  */
-function aio_cat_block($r)
+function mel_cat_block($r)
 {
-    return in_array($r['group'], aio_cat_groups(), true) ? $r['group'] : 'other';
+    return in_array($r['group'], mel_cat_groups(), true) ? $r['group'] : 'other';
 }
 
-// The rows $rows by groups (aio_cat_block): group => its rows, the groups in the order of their
+// The rows $rows by groups (mel_cat_block): group => its rows, the groups in the order of their
 // first row, the rows of each in their order. The same rule as blocksOf of web/src/rows.ts.
 /**
- * @param list<AioCatRow> $rows
- * @return array<string, list<AioCatRow>>
+ * @param list<MelCatRow> $rows
+ * @return array<string, list<MelCatRow>>
  */
-function aio_cat_blocks($rows)
+function mel_cat_blocks($rows)
 {
     $out = array();
     foreach ($rows as $r)
-        $out[aio_cat_block($r)][] = $r;
+        $out[mel_cat_block($r)][] = $r;
     return $out;
 }
 
-// The rows $rows with those of a group together (aio_cat_blocks, one after another).
+// The rows $rows with those of a group together (mel_cat_blocks, one after another).
 /**
- * @param list<AioCatRow> $rows
- * @return list<AioCatRow>
+ * @param list<MelCatRow> $rows
+ * @return list<MelCatRow>
  */
-function aio_cat_by_groups($rows)
+function mel_cat_by_groups($rows)
 {
     $out = array();
-    foreach (aio_cat_blocks($rows) as $b)
+    foreach (mel_cat_blocks($rows) as $b)
         $out = array_merge($out, $b);
     return $out;
 }
 
 // A row of the screen, or null when it can not be asked for. key: type and id
 // (names repeat between the types, an id too; of a search: search/<type>,
-// aio_cat_search_row), name for the screen (aio_cat_short_name), genre: the
-// value to send, '' for none, home: a start row, group: aio_cat_group. $short: false for a
+// mel_cat_search_row), name for the screen (mel_cat_short_name), genre: the
+// value to send, '' for none, home: a start row, group: mel_cat_group. $short: false for a
 // name of the plugin (a search row), not one of the manifest.
 /**
  * @param mixed $type
@@ -326,17 +326,17 @@ function aio_cat_by_groups($rows)
  * @param string $genre
  * @param bool $home
  * @param bool $short
- * @return AioCatRow|null
+ * @return MelCatRow|null
  */
-function aio_cat_row($type, $id, $name, $genre, $home, $short = true)
+function mel_cat_row($type, $id, $name, $genre, $home, $short = true)
 {
     static $types = array('movie' => true, 'series' => true, 'anime' => true);
     if (!is_string($type) || !isset($types[$type]) || !is_string($id) || !preg_match('/^[\x21-\x7e]{1,200}$/', $id))
         return null;
     $row = array('key' => "$type/$id", 'type' => $type, 'id' => $id, 'name' => '', 'genre' => $genre,
-        'home' => $home, 'group' => aio_cat_group($id));
-    $name = aio_one_line($name !== '' ? $name : $id);
-    $row['name'] = aio_cut($short ? aio_cat_short_name($name, aio_cat_row_tab($row)) : $name, AIO_CAT_NAME_MAX);
+        'home' => $home, 'group' => mel_cat_group($id));
+    $name = mel_one_line($name !== '' ? $name : $id);
+    $row['name'] = mel_cut($short ? mel_cat_short_name($name, mel_cat_row_tab($row)) : $name, MEL_CAT_NAME_MAX);
     return $row;
 }
 
@@ -346,7 +346,7 @@ function aio_cat_row($type, $id, $name, $genre, $home, $short = true)
  * @param array{type: string} $row
  * @return string
  */
-function aio_cat_row_tab($row)
+function mel_cat_row_tab($row)
 {
     return $row['type'] === 'movie' ? 'movie' : 'series';
 }
@@ -356,12 +356,12 @@ function aio_cat_row_tab($row)
 /**
  * @return list<string>
  */
-function aio_cat_tabs()
+function mel_cat_tabs()
 {
     return array('movie', 'series');
 }
 
-// The name of a row without the type its tab ($tab: aio_cat_row_tab) already says:
+// The name of a row without the type its tab ($tab: mel_cat_row_tab) already says:
 // "Боевик: фильмы" -> "Боевик", "Фильмы в тренде" -> "В тренде", "2025: фильмы" -> "2025 год".
 // The first letter capital after a cut. Nothing left: the name as it is. A short name stays
 // as it is (the copy of the manifest keeps them). The words are of the shared config in
@@ -371,7 +371,7 @@ function aio_cat_tabs()
  * @param string $tab
  * @return string
  */
-function aio_cat_short_name($name, $tab)
+function mel_cat_short_name($name, $tab)
 {
     $w = $tab === 'movie' ? 'фильмы' : 'сериалы';
     $s = strval(preg_replace("/\\s*:\\s*$w\\z/iu", '', $name));
@@ -391,9 +391,9 @@ function aio_cat_short_name($name, $tab)
 // A start row: showInHome strictly true (service rows have no such field).
 /**
  * @param array<mixed> $catalogs
- * @return list<AioCatRow>
+ * @return list<MelCatRow>
  */
-function aio_cat_pick_rows($catalogs)
+function mel_cat_pick_rows($catalogs)
 {
     $rows = array();
     foreach ($catalogs as $c)
@@ -401,113 +401,113 @@ function aio_cat_pick_rows($catalogs)
         if (!is_array($c))
             continue;
         $req = array();
-        foreach (aio_arr($c, 'extraRequired') as $name)
-            $req[aio_str(array($name), 0)] = true;
+        foreach (mel_arr($c, 'extraRequired') as $name)
+            $req[mel_str(array($name), 0)] = true;
         $genre = '';
-        foreach (aio_arr($c, 'extra') as $x)
+        foreach (mel_arr($c, 'extra') as $x)
         {
-            $name = aio_str($x, 'name');
+            $name = mel_str($x, 'name');
             if (is_array($x) && isset($x['isRequired']) && $x['isRequired'] === true)
                 $req[$name] = true;
             if ($name === 'genre')
             {
-                $opts = aio_arr($x, 'options');
-                $genre = aio_str($opts, 0);
+                $opts = mel_arr($x, 'options');
+                $genre = mel_str($opts, 0);
             }
         }
         if (array_diff(array_keys($req), array('genre')))
             continue;
-        $row = aio_cat_row(isset($c['type']) ? $c['type'] : null, isset($c['id']) ? $c['id'] : null,
-            aio_str($c, 'name'), isset($req['genre']) ? $genre : '', isset($c['showInHome']) && $c['showInHome'] === true);
+        $row = mel_cat_row(isset($c['type']) ? $c['type'] : null, isset($c['id']) ? $c['id'] : null,
+            mel_str($c, 'name'), isset($req['genre']) ? $genre : '', isset($c['showInHome']) && $c['showInHome'] === true);
         if ($row && !isset($rows[$row['key']]))
             $rows[$row['key']] = $row;
     }
     return array_values($rows);
 }
 
-// The saved rows of any age within AIO_CAT_KEEP, no request -> rows, t: when saved
+// The saved rows of any age within MEL_CAT_KEEP, no request -> rows, t: when saved
 // (0: no copy).
 /**
- * @return array{rows: list<AioCatRow>, t: int}
+ * @return array{rows: list<MelCatRow>, t: int}
  */
-function aio_cat_manifest_copy()
+function mel_cat_manifest_copy()
 {
-    $c = aio_cat_cache_read(AIO_CAT_MANIFEST_KEY);
+    $c = mel_cat_cache_read(MEL_CAT_MANIFEST_KEY);
     $rows = array();
     foreach ($c ? $c['data'] : array() as $r)
     {
-        $row = aio_cat_row(isset($r['type']) ? $r['type'] : null, isset($r['id']) ? $r['id'] : null,
-            aio_str($r, 'name'), aio_str($r, 'genre'), isset($r['home']) && $r['home'] === true);
+        $row = mel_cat_row(isset($r['type']) ? $r['type'] : null, isset($r['id']) ? $r['id'] : null,
+            mel_str($r, 'name'), mel_str($r, 'genre'), isset($r['home']) && $r['home'] === true);
         if ($row)
             $rows[] = $row;
     }
     return array('rows' => $rows, 't' => $c ? $c['t'] : 0);
 }
 
-// The rows from the server, saved as the copy -> rows, err ('' none; aio_cat_get).
-// $limit: as of aio_cat_get.
+// The rows from the server, saved as the copy -> rows, err ('' none; mel_cat_get).
+// $limit: as of mel_cat_get.
 /**
  * @param int $limit
- * @return array{rows: list<AioCatRow>, err: string}
+ * @return array{rows: list<MelCatRow>, err: string}
  */
-function aio_cat_manifest_fetch($limit = 0)
+function mel_cat_manifest_fetch($limit = 0)
 {
-    $g = aio_cat_get('manifest.json', 'manifest', 'catalogs', $limit);
-    $new = aio_cat_pick_rows($g['list']);
+    $g = mel_cat_get('manifest.json', 'manifest', 'catalogs', $limit);
+    $new = mel_cat_pick_rows($g['list']);
     if ($new)
     {
-        aio_cat_cache_write(AIO_CAT_MANIFEST_KEY, count($new), $new);
+        mel_cat_cache_write(MEL_CAT_MANIFEST_KEY, count($new), $new);
         return array('rows' => $new, 'err' => '');
     }
     // A manifest without rows is broken too.
     return array('rows' => array(), 'err' => $g['err'] !== '' ? $g['err'] : 'bad');
 }
 
-// The copy $c of aio_cat_manifest_copy has rows saved less than AIO_CAT_MANIFEST_FRESH ago:
-// no request for the manifest. A time ahead of the clock is not recent (aio_cat_fresh_since).
+// The copy $c of mel_cat_manifest_copy has rows saved less than MEL_CAT_MANIFEST_FRESH ago:
+// no request for the manifest. A time ahead of the clock is not recent (mel_cat_fresh_since).
 /**
- * @param array{rows: list<AioCatRow>, t: int} $c
+ * @param array{rows: list<MelCatRow>, t: int} $c
  * @return bool
  */
-function aio_cat_manifest_recent($c)
+function mel_cat_manifest_recent($c)
 {
-    return $c['rows'] && time() >= $c['t'] && time() - $c['t'] < AIO_CAT_MANIFEST_FRESH;
+    return $c['rows'] && time() >= $c['t'] && time() - $c['t'] < MEL_CAT_MANIFEST_FRESH;
 }
 
-// Rows of the catalog: from the cache for AIO_CAT_MANIFEST_FRESH, else from the server; on
-// a failure the last good copy with stale set, err tells why ('' none; aio_cat_get).
+// Rows of the catalog: from the cache for MEL_CAT_MANIFEST_FRESH, else from the server; on
+// a failure the last good copy with stale set, err tells why ('' none; mel_cat_get).
 // No copy either: no rows and err.
 /**
- * @return AioCatRows
+ * @return MelCatRows
  */
-function aio_cat_manifest()
+function mel_cat_manifest()
 {
-    $c = aio_cat_manifest_copy();
-    if (aio_cat_manifest_recent($c))
+    $c = mel_cat_manifest_copy();
+    if (mel_cat_manifest_recent($c))
         return array('rows' => $c['rows'], 'stale' => false, 'err' => '');
-    $new = aio_cat_manifest_fetch();
+    $new = mel_cat_manifest_fetch();
     if ($new['rows'])
         return array('rows' => $new['rows'], 'stale' => false, 'err' => '');
     return array('rows' => $c['rows'], 'stale' => (bool) $c['rows'], 'err' => $new['err']);
 }
 
-// The rows of the tab $tab (aio_cat_row_tab) by the choice of the user (Aio::$settings['cat_rows']):
+// The rows of the tab $tab (mel_cat_row_tab) by the choice of the user (Mel::$settings['cat_rows']):
 // the chosen ones of the tab in the order of the user; a key not in the manifest goes, a new row
 // does not come by itself. None of the tab (not a list, nothing chosen, a choice of before 0.54.0
 // with only movies): the start rows of the tab, in the order of the manifest, never an empty tab.
-// Either way the rows of a group together (aio_cat_by_groups): a choice made before may mix them.
+// Either way the rows of a group together (mel_cat_by_groups): a choice made before may mix them.
 /**
- * @param list<AioCatRow> $rows
+ * @param list<MelCatRow> $rows
  * @param mixed $chosen
  * @param string $tab
- * @return list<AioCatRow>
+ * @return list<MelCatRow>
  */
-function aio_cat_user_rows($rows, $chosen, $tab)
+function mel_cat_user_rows($rows, $chosen, $tab)
 {
     $by = array();
     foreach ($rows as $r)
     {
-        if (aio_cat_row_tab($r) === $tab)
+        if (mel_cat_row_tab($r) === $tab)
             $by[$r['key']] = $r;
     }
     $out = array();
@@ -520,13 +520,13 @@ function aio_cat_user_rows($rows, $chosen, $tab)
         }
     }
     if ($out)
-        return aio_cat_by_groups($out);
+        return mel_cat_by_groups($out);
     foreach ($by as $r)
     {
         if ($r['home'])
             $out[] = $r;
     }
-    return aio_cat_by_groups($out);
+    return mel_cat_by_groups($out);
 }
 
 // --- Tiles.
@@ -538,10 +538,10 @@ function aio_cat_user_rows($rows, $chosen, $tab)
  * @param string $k
  * @return string
  */
-function aio_cat_img($m, $k)
+function mel_cat_img($m, $k)
 {
-    $u = aio_str($m, $k);
-    return strlen($u) <= AIO_CAT_URL_MAX && preg_match('~^https?://\S+$~', $u) ? $u : '';
+    $u = mel_str($m, $k);
+    return strlen($u) <= MEL_CAT_URL_MAX && preg_match('~^https?://\S+$~', $u) ? $u : '';
 }
 
 // The first country of the server ("Spain", "United States of America, Canada", ISO-3
@@ -550,7 +550,7 @@ function aio_cat_img($m, $k)
  * @param string $s
  * @return string
  */
-function aio_cat_country($s)
+function mel_cat_country($s)
 {
     static $iso = array('usa' => 'United States of America', 'gbr' => 'United Kingdom', 'fra' => 'France', 'deu' => 'Germany',
         'esp' => 'Spain', 'ita' => 'Italy', 'jpn' => 'Japan', 'kor' => 'South Korea', 'chn' => 'China', 'ind' => 'India',
@@ -560,8 +560,8 @@ function aio_cat_country($s)
         'hun' => 'Hungary', 'grc' => 'Greece', 'tur' => 'Turkey', 'isr' => 'Israel', 'arg' => 'Argentina', 'hkg' => 'Hong Kong',
         'twn' => 'Taiwan', 'tha' => 'Thailand', 'idn' => 'Indonesia', 'phl' => 'Philippines', 'zaf' => 'South Africa',
         'isl' => 'Iceland', 'ukr' => 'Ukraine', 'kaz' => 'Kazakhstan');
-    $first = explode(',', aio_one_line($s));
-    $c = aio_cut(trim($first[0]), 60);
+    $first = explode(',', mel_one_line($s));
+    $c = mel_cut(trim($first[0]), 60);
     if (!preg_match('/^[a-z]{3}$/i', $c))
         return $c;
     $k = strtolower($c);
@@ -573,7 +573,7 @@ function aio_cat_country($s)
  * @param string $r
  * @return int
  */
-function aio_cat_runtime_min($r)
+function mel_cat_runtime_min($r)
 {
     if (!preg_match('/^(?:([0-9]+)h)?(?:([0-9]+)min)?$/', $r, $x))
         return 0;
@@ -581,15 +581,15 @@ function aio_cat_runtime_min($r)
 }
 
 // A rating of Kinopoisk ("7.93") of $votes votes -> "7.9" as shown; '' for none, 0, over 10 or
-// under AIO_CAT_KP_VOTES_MIN votes.
+// under MEL_CAT_KP_VOTES_MIN votes.
 /**
  * @param string $kp
  * @param int $votes
  * @return string
  */
-function aio_cat_kp($kp, $votes)
+function mel_cat_kp($kp, $votes)
 {
-    $kp = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $kp) && (float) $kp <= 10 && $votes >= AIO_CAT_KP_VOTES_MIN ?
+    $kp = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $kp) && (float) $kp <= 10 && $votes >= MEL_CAT_KP_VOTES_MIN ?
         sprintf('%.1F', (float) $kp) : '';
     // "0.04" is "0.0": none.
     return (float) $kp > 0 ? $kp : '';
@@ -600,15 +600,15 @@ function aio_cat_kp($kp, $votes)
 // All values strings, genres and cast lists. imdb_id and _tmdbId: also from the id itself,
 // '' for none (mal:...). type: of the tile (rows of anime hold movie and series),
 // else of the row, '' when neither says. year: 4 digits or ''. country: the English
-// name of the first one (aio_cat_country), '' for none. runtime: "1h38min" or "30min" (of an
+// name of the first one (mel_cat_country), '' for none. runtime: "1h38min" or "30min" (of an
 // episode for series). age: the Russian rating "16+" of app_extras.certifications.RU.
 // cast: the first names of app_extras.cast. englishTitle: the English name of the title
 // (a field of our patch of the server; none: ''), as name. kpRating, kpVotes, kpId: of our
-// patch too: the rating "7.9" ('' for none, 0, over 10 or under AIO_CAT_KP_VOTES_MIN votes),
+// patch too: the rating "7.9" ('' for none, 0, over 10 or under MEL_CAT_KP_VOTES_MIN votes),
 // its votes (0 for none), the id of Kinopoisk (digits, '' for none). kpVotes is kept for the
-// threshold when a copy of the cache is parsed again (aio_cat_tiles): without it the rating goes.
+// threshold when a copy of the cache is parsed again (mel_cat_tiles): without it the rating goes.
 // logo, logoLang: of our patch too, the logo of the title in place of its name (the card background of
-// the server, aio_catv_card, sizes it): kept only of "ru", its address https, the plain characters of
+// the server, mel_catv_card, sizes it): kept only of "ru", its address https, the plain characters of
 // a path, ending in a file of TMDB, PNG or SVG (the server takes an SVG as its PNG of TMDB); else none
 // ('', ''): another language, null, not of TMDB.
 // Run again on what the cache holds (age, cast: its own keys; a copy of before them: '' and
@@ -616,64 +616,64 @@ function aio_cat_kp($kp, $votes)
 /**
  * @param mixed $m
  * @param string $row_type
- * @return AioCatTile|null
+ * @return MelCatTile|null
  */
-function aio_cat_tile($m, $row_type)
+function mel_cat_tile($m, $row_type)
 {
-    $id = aio_str($m, 'id');
-    $name = aio_cut(aio_one_line(aio_str($m, 'name')), AIO_CAT_NAME_MAX);
+    $id = mel_str($m, 'id');
+    $name = mel_cut(mel_one_line(mel_str($m, 'name')), MEL_CAT_NAME_MAX);
     if ($name === '' || !preg_match('/^[\x21-\x7e]{1,100}$/', $id))
         return null;
-    $imdb = aio_str($m, 'imdb_id');
+    $imdb = mel_str($m, 'imdb_id');
     if (!preg_match('/^tt[0-9]{1,10}$/', $imdb))
         $imdb = preg_match('/^tt[0-9]{1,10}$/', $id) ? $id : '';
-    $tmdb = aio_str($m, '_tmdbId');
+    $tmdb = mel_str($m, '_tmdbId');
     if (!preg_match('/^[0-9]{1,10}$/', $tmdb))
         $tmdb = preg_match('/^tmdb:([0-9]{1,10})$/', $id, $x) ? $x[1] : '';
-    $type = aio_str($m, 'type');
+    $type = mel_str($m, 'type');
     if ($type !== 'movie' && $type !== 'series')
         $type = $row_type === 'movie' || $row_type === 'series' ? $row_type : '';
     $year = '';
-    if (preg_match('/^[0-9]{4}/', aio_str($m, 'year'), $x) || preg_match('/^[0-9]{4}/', aio_str($m, 'releaseInfo'), $x))
+    if (preg_match('/^[0-9]{4}/', mel_str($m, 'year'), $x) || preg_match('/^[0-9]{4}/', mel_str($m, 'releaseInfo'), $x))
         $year = $x[0];
-    $rating = aio_str($m, 'imdbRating');
-    $votes = aio_str($m, 'kpVotes');
+    $rating = mel_str($m, 'imdbRating');
+    $votes = mel_str($m, 'kpVotes');
     $votes = preg_match('/^[0-9]{1,9}$/D', $votes) ? intval($votes) : 0;
-    $kp = aio_cat_kp(aio_str($m, 'kpRating'), $votes);
-    $kp_id = aio_str($m, 'kpId');
+    $kp = mel_cat_kp(mel_str($m, 'kpRating'), $votes);
+    $kp_id = mel_str($m, 'kpId');
     $genres = array();
-    foreach (aio_arr($m, 'genres') as $g)
+    foreach (mel_arr($m, 'genres') as $g)
     {
-        $g = aio_cut(aio_one_line(aio_str(array($g), 0)), 40);
-        if ($g !== '' && count($genres) < AIO_CAT_GENRES_MAX)
+        $g = mel_cut(mel_one_line(mel_str(array($g), 0)), 40);
+        if ($g !== '' && count($genres) < MEL_CAT_GENRES_MAX)
             $genres[] = $g;
     }
-    $country = aio_str($m, 'country');
-    $country = aio_cat_country($country !== '' ? $country : aio_str(aio_arr($m, 'countries'), 0));
-    $runtime = aio_str($m, 'runtime');
-    $extras = aio_arr($m, 'app_extras');
-    $age = aio_str(aio_arr($extras, 'certifications'), 'RU');
+    $country = mel_str($m, 'country');
+    $country = mel_cat_country($country !== '' ? $country : mel_str(mel_arr($m, 'countries'), 0));
+    $runtime = mel_str($m, 'runtime');
+    $extras = mel_arr($m, 'app_extras');
+    $age = mel_str(mel_arr($extras, 'certifications'), 'RU');
     if (!isset($extras['certifications']))
-        $age = aio_str($m, 'age');
-    $logo = aio_str($m, 'logo');
-    $ru = aio_str($m, 'logoLang') === 'ru' && strlen($logo) <= AIO_CAT_URL_MAX &&
+        $age = mel_str($m, 'age');
+    $logo = mel_str($m, 'logo');
+    $ru = mel_str($m, 'logoLang') === 'ru' && strlen($logo) <= MEL_CAT_URL_MAX &&
         preg_match('~^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[A-Za-z0-9._/%:+-]*$~D', $logo) &&
-        preg_match('~(^|/)' . AIO_CAT_TMDB . '[A-Za-z0-9]{10,40}\.(png|svg)$~D', $logo);
+        preg_match('~(^|/)' . MEL_CAT_TMDB . '[A-Za-z0-9]{10,40}\.(png|svg)$~D', $logo);
     $cast = array();
-    foreach (isset($extras['cast']) ? aio_arr($extras, 'cast') : aio_arr($m, 'cast') as $c)
+    foreach (isset($extras['cast']) ? mel_arr($extras, 'cast') : mel_arr($m, 'cast') as $c)
     {
-        $c = aio_cut(aio_one_line(is_array($c) ? aio_str($c, 'name') : aio_str(array($c), 0)), 40);
-        if ($c !== '' && count($cast) < AIO_CAT_CAST_MAX)
+        $c = mel_cut(mel_one_line(is_array($c) ? mel_str($c, 'name') : mel_str(array($c), 0)), 40);
+        if ($c !== '' && count($cast) < MEL_CAT_CAST_MAX)
             $cast[] = $c;
     }
-    // The first keys in this order: the index of the copies on the disk reads them so (aio_cat_cache_keys).
+    // The first keys in this order: the index of the copies on the disk reads them so (mel_cat_cache_keys).
     return array('id' => $id, 'imdb_id' => $imdb, '_tmdbId' => $tmdb, 'type' => $type, 'name' => $name, 'year' => $year,
         'imdbRating' => preg_match('/^[0-9]{1,2}(\.[0-9]+)?$/', $rating) ? $rating : '',
-        'description' => aio_cut(aio_one_line(aio_str($m, 'description')), AIO_CAT_DESC_MAX), 'genres' => $genres,
-        'poster' => aio_cat_img($m, 'poster'), 'background' => aio_cat_img($m, 'background'), 'country' => $country,
+        'description' => mel_cut(mel_one_line(mel_str($m, 'description')), MEL_CAT_DESC_MAX), 'genres' => $genres,
+        'poster' => mel_cat_img($m, 'poster'), 'background' => mel_cat_img($m, 'background'), 'country' => $country,
         'runtime' => preg_match('/^(?=[0-9])([0-9]{1,2}h)?([0-9]{1,3}min)?$/', $runtime) ? $runtime : '',
         'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast,
-        'englishTitle' => aio_cut(aio_one_line(aio_str($m, 'englishTitle')), AIO_CAT_NAME_MAX),
+        'englishTitle' => mel_cut(mel_one_line(mel_str($m, 'englishTitle')), MEL_CAT_NAME_MAX),
         'kpRating' => $kp, 'kpVotes' => $votes, 'kpId' => preg_match('/^[1-9][0-9]{0,9}$/D', $kp_id) ? $kp_id : '',
         'logo' => $ru ? $logo : '', 'logoLang' => $ru ? 'ru' : '');
 }
@@ -682,14 +682,14 @@ function aio_cat_tile($m, $row_type)
 /**
  * @param array<mixed> $items
  * @param string $row_type
- * @return list<AioCatTile>
+ * @return list<MelCatTile>
  */
-function aio_cat_tiles($items, $row_type)
+function mel_cat_tiles($items, $row_type)
 {
     $tiles = array();
-    foreach (array_slice($items, 0, AIO_CAT_PAGE_TILES) as $m)
+    foreach (array_slice($items, 0, MEL_CAT_PAGE_TILES) as $m)
     {
-        $t = aio_cat_tile($m, $row_type);
+        $t = mel_cat_tile($m, $row_type);
         if ($t)
             $tiles[] = $t;
     }
@@ -701,11 +701,11 @@ function aio_cat_tiles($items, $row_type)
 // The address of a page of a row: the query of a search, its genre if any, skip if not 0;
 // values encoded.
 /**
- * @param AioCatRow $row
+ * @param MelCatRow $row
  * @param int $skip
  * @return string
  */
-function aio_cat_page_path($row, $skip)
+function mel_cat_page_path($row, $skip)
 {
     $extra = array();
     if (isset($row['q']))
@@ -718,68 +718,68 @@ function aio_cat_page_path($row, $skip)
         ($extra ? '/' . implode('&', $extra) : '') . '.json';
 }
 
-// The state of a new listing of row $row (aio_cat_manifest), the argument of
-// aio_cat_more. The caller keeps it where the tiles are and changes it only by the
+// The state of a new listing of row $row (mel_cat_manifest), the argument of
+// mel_cat_more. The caller keeps it where the tiles are and changes it only by the
 // functions here: t0: when its first page was got (0: none yet), skip: all tiles got,
-// repeats too (of a search: AIO_CAT_SEARCH_PAGE a page), end: why it ended ('' not yet;
+// repeats too (of a search: MEL_CAT_SEARCH_PAGE a page), end: why it ended ('' not yet;
 // empty, skip), seen: ids.
 /**
- * @param AioCatRow $row
- * @return AioCatState
+ * @param MelCatRow $row
+ * @return MelCatState
  */
-function aio_cat_row_state($row)
+function mel_cat_row_state($row)
 {
     return array('row' => $row, 't0' => 0, 'skip' => 0, 'end' => '', 'seen' => array());
 }
 
-// A listing from the saved first page of a row (aio_cat_page_cached), as if just got.
+// A listing from the saved first page of a row (mel_cat_page_cached), as if just got.
 /**
- * @param AioCatRow $row
- * @param AioCatCached $c
- * @return array{st: AioCatState, tiles: list<AioCatTile>}
+ * @param MelCatRow $row
+ * @param MelCatCached $c
+ * @return array{st: MelCatState, tiles: list<MelCatTile>}
  */
-function aio_cat_state_of_copy($row, $c)
+function mel_cat_state_of_copy($row, $c)
 {
-    $st = aio_cat_row_state($row);
-    $res = aio_cat_result();
+    $st = mel_cat_row_state($row);
+    $res = mel_cat_result();
     $st['t0'] = $c['t'];
-    aio_cat_take($st, $res, $c['n'], $c['data']);
+    mel_cat_take($st, $res, $c['n'], $c['data']);
     return array('st' => $st, 'tiles' => $res['tiles']);
 }
 
 // $tiles the caller keeps after a reset: they do not come as new again.
 /**
- * @param AioCatState $st
- * @param array<int|string, AioCatTile> $tiles
- * @param-out AioCatState $st
+ * @param MelCatState $st
+ * @param array<int|string, MelCatTile> $tiles
+ * @param-out MelCatState $st
  * @return void
  */
-function aio_cat_keep_seen(&$st, $tiles)
+function mel_cat_keep_seen(&$st, $tiles)
 {
     foreach ($tiles as $t)
         $st['seen'][$t['id']] = true;
 }
 
 /**
- * @return AioCatResult
+ * @return MelCatResult
  */
-function aio_cat_result()
+function mel_cat_result()
 {
     return array('tiles' => array(), 'reset' => false, 'end' => false, 'stale' => false, 'err' => '');
 }
 
 // A page taken into the listing: new tiles to $res, skip counts all $n got (of a
-// search: AIO_CAT_SEARCH_PAGE a page), end set at its limits. -> the number of new tiles.
+// search: MEL_CAT_SEARCH_PAGE a page), end set at its limits. -> the number of new tiles.
 /**
- * @param AioCatState $st
- * @param AioCatResult $res
+ * @param MelCatState $st
+ * @param MelCatResult $res
  * @param int $n
- * @param list<AioCatTile> $tiles
- * @param-out AioCatState $st
- * @param-out AioCatResult $res
+ * @param list<MelCatTile> $tiles
+ * @param-out MelCatState $st
+ * @param-out MelCatResult $res
  * @return int
  */
-function aio_cat_take(&$st, &$res, $n, $tiles)
+function mel_cat_take(&$st, &$res, $n, $tiles)
 {
     $new = 0;
     foreach ($tiles as $t)
@@ -790,8 +790,8 @@ function aio_cat_take(&$st, &$res, $n, $tiles)
         $res['tiles'][] = $t;
         $new++;
     }
-    $st['skip'] += isset($st['row']['q']) ? AIO_CAT_SEARCH_PAGE : $n;
-    if ($st['skip'] >= AIO_CAT_SKIP_MAX)
+    $st['skip'] += isset($st['row']['q']) ? MEL_CAT_SEARCH_PAGE : $n;
+    if ($st['skip'] >= MEL_CAT_SKIP_MAX)
         $st['end'] = 'skip';
     $res['end'] = $st['end'] !== '';
     return $new;
@@ -799,25 +799,25 @@ function aio_cat_take(&$st, &$res, $n, $tiles)
 
 // The cached copy of a page -> array(t, n, tiles) or null.
 /**
- * @param AioCatRow $row
+ * @param MelCatRow $row
  * @param int $skip
- * @return AioCatCached|null
+ * @return MelCatCached|null
  */
-function aio_cat_page_cached($row, $skip)
+function mel_cat_page_cached($row, $skip)
 {
-    $c = aio_cat_cache_read(aio_cat_page_key($row, $skip));
+    $c = mel_cat_cache_read(mel_cat_page_key($row, $skip));
     if (!$c)
         return null;
-    $c['data'] = aio_cat_tiles($c['data'], $row['type']);
+    $c['data'] = mel_cat_tiles($c['data'], $row['type']);
     return $c['data'] ? $c : null;
 }
 
 /**
- * @param AioCatRow $row
+ * @param MelCatRow $row
  * @param int $skip
  * @return string
  */
-function aio_cat_page_key($row, $skip)
+function mel_cat_page_key($row, $skip)
 {
     return isset($row['q']) ? "search|{$row['type']}|{$row['q']}|$skip" : "{$row['key']}|{$row['genre']}|$skip";
 }
@@ -826,67 +826,67 @@ function aio_cat_page_key($row, $skip)
 // $limit (then call again, the state goes on). Moves $st on.
 // -> tiles: the new ones (no repeats of this listing); reset: the listing began
 // anew after 5 h, the tiles replace those of the caller; end: nothing more to ask
-// for; err: why it failed ('' none; aio_cat_get, or empty: a first page came empty
+// for; err: why it failed ('' none; mel_cat_get, or empty: a first page came empty
 // though the row had tiles); stale: tiles from the last good copy. On a failure the
 // state stays for a retry, unless the copy moved it on: a failure is never the end of
 // a row. A short page or a page of repeats is not the end either.
 // $limit: s for this call, no next request after it, requests cut to what is left of it.
 /**
- * @param AioCatState $st
+ * @param MelCatState $st
  * @param float $limit
- * @param-out AioCatState $st
- * @return AioCatResult
+ * @param-out MelCatState $st
+ * @return MelCatResult
  */
-function aio_cat_more(&$st, $limit)
+function mel_cat_more(&$st, $limit)
 {
     $row = $st['row'];
-    $res = aio_cat_result();
+    $res = mel_cat_result();
     $start = microtime(true);
     while (true)
     {
         $now = time();
         // The clock going back is not trusted either.
-        $expired = $st['t0'] > 0 && ($now < $st['t0'] || $now - $st['t0'] >= AIO_CAT_STATE_TTL);
+        $expired = $st['t0'] > 0 && ($now < $st['t0'] || $now - $st['t0'] >= MEL_CAT_STATE_TTL);
         if ($st['end'] !== '' && !$expired)
         {
             $res['end'] = true;
             return $res;
         }
         $skip = $expired ? 0 : $st['skip'];
-        $first = $skip === 0 ? aio_cat_page_cached($row, 0) : null;
-        if ($first && aio_cat_is_fresh($first))
+        $first = $skip === 0 ? mel_cat_page_cached($row, 0) : null;
+        if ($first && mel_cat_is_fresh($first))
             $page = array('err' => '', 'n' => $first['n'], 't' => $first['t'], 'tiles' => $first['data']);
         else
         {
             // curl takes whole seconds.
             $left = max(1, intval(ceil($limit - (microtime(true) - $start))));
-            $g = aio_cat_get(aio_cat_page_path($row, $skip), "{$row['key']} skip=$skip", 'metas', $left);
-            $tiles = aio_cat_tiles($g['list'], $row['type']);
+            $g = mel_cat_get(mel_cat_page_path($row, $skip), "{$row['key']} skip=$skip", 'metas', $left);
+            $tiles = mel_cat_tiles($g['list'], $row['type']);
             $page = array('err' => $g['err'], 'n' => count($g['list']), 't' => time(), 'tiles' => $tiles);
             // Empty though the row had tiles: more likely a trouble of the server.
             if ($page['err'] === '' && $page['n'] === 0 && $first)
                 $page['err'] = 'empty';
             // Of a search the first page only: its pages further on would push the
-            // copies of the first pages of rows out of AIO_CAT_CACHE_FILES.
+            // copies of the first pages of rows out of MEL_CAT_CACHE_FILES.
             if ($tiles && ($skip === 0 || !isset($row['q'])))
-                aio_cat_cache_write(aio_cat_page_key($row, $skip), $page['n'], $tiles);
+                mel_cat_cache_write(mel_cat_page_key($row, $skip), $page['n'], $tiles);
         }
         if ($page['err'] !== '')
         {
             // The tiles of the caller stay: a copy of the position it is at, not of the first page.
             $res['err'] = $page['err'];
-            $c = aio_cat_page_cached($row, $st['skip']);
+            $c = mel_cat_page_cached($row, $st['skip']);
             if (!$c)
                 return $res;
             $res['stale'] = true;
             if ($st['skip'] === 0)
                 $st['t0'] = $c['t'];
-            aio_cat_take($st, $res, $c['n'], $c['data']);
+            mel_cat_take($st, $res, $c['n'], $c['data']);
             return $res;
         }
         if ($expired)
         {
-            $st = aio_cat_row_state($row);
+            $st = mel_cat_row_state($row);
             $res['reset'] = true;
         }
         if ($st['skip'] === 0)
@@ -898,7 +898,7 @@ function aio_cat_more(&$st, $limit)
             return $res;
         }
         // No new tiles and not the end: the next portion at once.
-        if (aio_cat_take($st, $res, $page['n'], $page['tiles']) > 0 || $st['end'] !== '' ||
+        if (mel_cat_take($st, $res, $page['n'], $page['tiles']) > 0 || $st['end'] !== '' ||
             microtime(true) - $start >= $limit)
             return $res;
     }
@@ -906,19 +906,19 @@ function aio_cat_more(&$st, $limit)
 
 // --- Search.
 
-// The row of a search by $q of $type, a listing of aio_cat_more as of other rows: its
+// The row of a search by $q of $type, a listing of mel_cat_more as of other rows: its
 // first page is cached, a failure gives the last good copy. Its key is not that of the
 // catalog of the server (id: for its address). The query stays out of the key, so out
-// of the log (aio_cat_more), and out of the file names (aio_cat_cache_path).
+// of the log (mel_cat_more), and out of the file names (mel_cat_cache_path).
 /**
  * @param string $type
  * @param string $q
  * @param string $name
- * @return AioCatRow|null
+ * @return MelCatRow|null
  */
-function aio_cat_search_row($type, $q, $name)
+function mel_cat_search_row($type, $q, $name)
 {
-    $row = aio_cat_row($type, "search.$type", $name, '', false, false);
+    $row = mel_cat_row($type, "search.$type", $name, '', false, false);
     if ($row)
     {
         $row['key'] = "search/$type";
@@ -927,19 +927,19 @@ function aio_cat_search_row($type, $q, $name)
     return $row;
 }
 
-// A query as the search sends it: one line, at most AIO_CAT_QUERY_MAX characters.
+// A query as the search sends it: one line, at most MEL_CAT_QUERY_MAX characters.
 /**
  * @param string $q
  * @return string
  */
-function aio_cat_query($q)
+function mel_cat_query($q)
 {
-    return mb_substr(aio_one_line($q), 0, AIO_CAT_QUERY_MAX, 'UTF-8');
+    return mb_substr(mel_one_line($q), 0, MEL_CAT_QUERY_MAX, 'UTF-8');
 }
 
 // Search by $q in movies and series: by type, its listing after the pages got and the
-// result of them (aio_cat_more): the first page, then pages further on until
-// AIO_CAT_SEARCH_TILES tiles or the end, while $wait s from the start of the search
+// result of them (mel_cat_more): the first page, then pages further on until
+// MEL_CAT_SEARCH_TILES tiles or the end, while $wait s from the start of the search
 // last. None past a failure or the copy (stale) of the first page; a failure further
 // on: err, the tiles before it stay, not the end. $names: by type, the name of its
 // row. Search of anime does not find Russian names, so it is not asked. An empty
@@ -948,27 +948,27 @@ function aio_cat_query($q)
  * @param string $q
  * @param array{movie: string, series: string} $names
  * @param float $wait
- * @return array<string, array{st: AioCatState, res: AioCatResult}>
+ * @return array<string, array{st: MelCatState, res: MelCatResult}>
  */
-function aio_cat_search($q, $names, $wait = AIO_CAT_SEARCH_WAIT)
+function mel_cat_search($q, $names, $wait = MEL_CAT_SEARCH_WAIT)
 {
-    $q = aio_cat_query($q);
+    $q = mel_cat_query($q);
     $start = microtime(true);
     $found = array();
     foreach ($q !== '' ? $names : array() as $type => $name)
     {
-        $row = aio_cat_search_row($type, $q, $name);
+        $row = mel_cat_search_row($type, $q, $name);
         if (!$row)
             continue;
-        $st = aio_cat_row_state($row);
-        $res = aio_cat_more($st, AIO_CAT_TOTAL);
-        while (!$res['stale'] && $res['err'] === '' && $st['end'] === '' && count($res['tiles']) < AIO_CAT_SEARCH_TILES)
+        $st = mel_cat_row_state($row);
+        $res = mel_cat_more($st, MEL_CAT_TOTAL);
+        while (!$res['stale'] && $res['err'] === '' && $st['end'] === '' && count($res['tiles']) < MEL_CAT_SEARCH_TILES)
         {
             // curl takes whole seconds: less than 1 s left would be a request cut to 1 s, likely a timeout.
             $left = $wait - (microtime(true) - $start);
             if ($left < 1)
                 break;
-            $more = aio_cat_more($st, $left);
+            $more = mel_cat_more($st, $left);
             // The listing began anew (the clock jumped): its tiles are all there is.
             if ($more['reset'])
                 $res['tiles'] = $more['tiles'];
@@ -983,22 +983,22 @@ function aio_cat_search($q, $names, $wait = AIO_CAT_SEARCH_WAIT)
 }
 
 // --- Cache: <data_dir>/catalog/<md5 of the key>.json, no secrets in the names. Only
-// trimmed data goes in, and the UUID never does (aio_cat_cache_write).
+// trimmed data goes in, and the UUID never does (mel_cat_cache_write).
 
 // '' when there is no data_dir or the folder can not be made: all works, uncached.
 /**
  * @return string
  */
-function aio_cat_cache_dir()
+function mel_cat_cache_dir()
 {
     static $pruned = '';
-    $data = aio_data_dir();
+    $data = mel_data_dir();
     if ($data === '' || !is_dir($data))
         return '';
     $dir = "$data/catalog";
     // The settings page runs as root and only reads: a folder or a file of its own
     // would lock out php_server.
-    if (defined('AIO_CAT_READ_ONLY'))
+    if (defined('MEL_CAT_READ_ONLY'))
         return !is_link($dir) && is_dir($dir) ? $dir : '';
     if (!is_dir($dir) && !mkdir($dir, 0700))
         return '';
@@ -1006,7 +1006,7 @@ function aio_cat_cache_dir()
     if ($pruned !== $dir)
     {
         $pruned = $dir;
-        aio_cat_cache_prune($dir);
+        mel_cat_cache_prune($dir);
     }
     return $dir;
 }
@@ -1015,71 +1015,71 @@ function aio_cat_cache_dir()
  * @param string $key
  * @return string
  */
-function aio_cat_cache_path($key)
+function mel_cat_cache_path($key)
 {
-    $dir = aio_cat_cache_dir();
-    return $dir === '' ? '' : "$dir/" . ($key === AIO_CAT_MANIFEST_KEY ? $key : md5($key)) . '.json';
+    $dir = mel_cat_cache_dir();
+    return $dir === '' ? '' : "$dir/" . ($key === MEL_CAT_MANIFEST_KEY ? $key : md5($key)) . '.json';
 }
 
 // -> array(t: when saved, n: items of the reply, data) or null; a broken or expired file
-// is removed, unless AIO_CAT_READ_ONLY.
+// is removed, unless MEL_CAT_READ_ONLY.
 /**
  * @param string $key
  * @return array{t: int, n: int, data: array<mixed>}|null
  */
-function aio_cat_cache_read($key)
+function mel_cat_cache_read($key)
 {
-    $f = aio_cat_cache_path($key);
+    $f = mel_cat_cache_path($key);
     if ($f === '' || !is_file($f))
         return null;
     $c = json_decode(strval(file_get_contents($f)), true);
-    if (aio_cat_cache_good($c))
+    if (mel_cat_cache_good($c))
         return array('t' => $c['t'], 'n' => $c['n'], 'data' => $c['data']);
-    if (!defined('AIO_CAT_READ_ONLY'))
+    if (!defined('MEL_CAT_READ_ONLY'))
         unlink($f);
     return null;
 }
 
-// A copy $c as decoded is good: of this version, its fields, saved less than AIO_CAT_KEEP ago.
+// A copy $c as decoded is good: of this version, its fields, saved less than MEL_CAT_KEEP ago.
 /**
  * @param mixed $c
  * @return bool
  * @phpstan-assert-if-true array{v: int, t: int, n: int, data: array<mixed>} $c
  */
-function aio_cat_cache_good($c)
+function mel_cat_cache_good($c)
 {
-    return is_array($c) && isset($c['v'], $c['t'], $c['n'], $c['data']) && $c['v'] === AIO_CAT_CACHE_V && is_int($c['t']) &&
-        is_int($c['n']) && $c['n'] >= 1 && is_array($c['data']) && time() - $c['t'] < AIO_CAT_KEEP;
+    return is_array($c) && isset($c['v'], $c['t'], $c['n'], $c['data']) && $c['v'] === MEL_CAT_CACHE_V && is_int($c['t']) &&
+        is_int($c['n']) && $c['n'] >= 1 && is_array($c['data']) && time() - $c['t'] < MEL_CAT_KEEP;
 }
 
-// Saved less than AIO_CAT_FRESH ago. A saved time ahead of the clock (a clock not
+// Saved less than MEL_CAT_FRESH ago. A saved time ahead of the clock (a clock not
 // set after a reboot) is not fresh, but still a last good copy.
 /**
  * @param int $t
  * @return bool
  */
-function aio_cat_fresh_since($t)
+function mel_cat_fresh_since($t)
 {
-    return time() >= $t && time() - $t < AIO_CAT_FRESH;
+    return time() >= $t && time() - $t < MEL_CAT_FRESH;
 }
 
 /**
  * @param array{t: int}|null $c
  * @return bool
  */
-function aio_cat_is_fresh($c)
+function mel_cat_is_fresh($c)
 {
-    return $c !== null && aio_cat_fresh_since($c['t']);
+    return $c !== null && mel_cat_fresh_since($c['t']);
 }
 
-// The first page of the listing was got less than AIO_CAT_FRESH ago.
+// The first page of the listing was got less than MEL_CAT_FRESH ago.
 /**
- * @param AioCatState $st
+ * @param MelCatState $st
  * @return bool
  */
-function aio_cat_state_fresh($st)
+function mel_cat_state_fresh($st)
 {
-    return aio_cat_fresh_since($st['t0']);
+    return mel_cat_fresh_since($st['t0']);
 }
 
 /**
@@ -1088,36 +1088,36 @@ function aio_cat_state_fresh($st)
  * @param array<mixed> $data
  * @return void
  */
-function aio_cat_cache_write($key, $n, $data)
+function mel_cat_cache_write($key, $n, $data)
 {
-    $f = aio_cat_cache_path($key);
-    if ($f === '' || defined('AIO_CAT_READ_ONLY'))
+    $f = mel_cat_cache_path($key);
+    if ($f === '' || defined('MEL_CAT_READ_ONLY'))
         return;
-    $json = json_encode(array('v' => AIO_CAT_CACHE_V, 't' => time(), 'n' => $n, 'data' => $data));
+    $json = json_encode(array('v' => MEL_CAT_CACHE_V, 't' => time(), 'n' => $n, 'data' => $data));
     // The trimmed fields do not hold it; should the server put it there, no copy on the disk.
-    if (!is_string($json) || stripos($json, AIO_CAT_UUID) !== false)
+    if (!is_string($json) || stripos($json, MEL_CAT_UUID) !== false)
     {
-        aio_log('catalog: not cached: bad data');
+        mel_log('catalog: not cached: bad data');
         return;
     }
-    if (!aio_write_file($f, $json))
+    if (!mel_write_file($f, $json))
     {
-        aio_log('catalog: not cached: write failed');
+        mel_log('catalog: not cached: write failed');
         return;
     }
     // The tab "TV" of the main screen may be built of it (tv_tab.php; not loaded by the settings page).
-    if (function_exists('aio_tv_copy_saved'))
-        aio_tv_copy_saved($key);
-    aio_cat_cache_prune(dirname($f));
+    if (function_exists('mel_tv_copy_saved'))
+        mel_tv_copy_saved($key);
+    mel_cat_cache_prune(dirname($f));
 }
 
-// Removes what is left of an interrupted write and files over AIO_CAT_KEEP, then the
+// Removes what is left of an interrupted write and files over MEL_CAT_KEEP, then the
 // oldest while over the limits. The manifest goes only by age: rows need it.
 /**
  * @param string $dir
  * @return void
  */
-function aio_cat_cache_prune($dir)
+function mel_cat_cache_prune($dir)
 {
     clearstatcache();
     $list = glob("$dir/*");
@@ -1126,7 +1126,7 @@ function aio_cat_cache_prune($dir)
     foreach ($list ? $list : array() as $f)
     {
         $m = intval(filemtime($f));
-        if (substr($f, -5) !== '.json' || time() - $m >= AIO_CAT_KEEP)
+        if (substr($f, -5) !== '.json' || time() - $m >= MEL_CAT_KEEP)
         {
             unlink($f);
             continue;
@@ -1139,9 +1139,9 @@ function aio_cat_cache_prune($dir)
     $count = count($times);
     foreach ($times as $f => $m)
     {
-        if ($total <= AIO_CAT_CACHE_BYTES && $count <= AIO_CAT_CACHE_FILES)
+        if ($total <= MEL_CAT_CACHE_BYTES && $count <= MEL_CAT_CACHE_FILES)
             break;
-        if (basename($f) === AIO_CAT_MANIFEST_KEY . '.json')
+        if (basename($f) === MEL_CAT_MANIFEST_KEY . '.json')
             continue;
         unlink($f);
         $total -= $sizes[$f];
@@ -1150,20 +1150,20 @@ function aio_cat_cache_prune($dir)
 }
 
 // --- The tiles of the copies on the disk by IMDb or TMDB (the meta of the rows "Continue" and "Мой список",
-// aio_cpm_build of cp_meta.php), no request.
+// mel_cpm_build of cp_meta.php), no request.
 
-// The keys of the tiles of the text $text of a copy (aio_cat_cache_write: {"v":..,"t":..,"n":..,"data":[tiles of
-// aio_cat_tile]}) of a movie or a series, "<type>|imdb:<IMDb>" and "<type>|tmdb:<TMDB>" (as aio_cp_tile_map): by the
-// fields of a tile in the order aio_cat_tile makes them, no json_decode; none of another version, of the manifest, of a
+// The keys of the tiles of the text $text of a copy (mel_cat_cache_write: {"v":..,"t":..,"n":..,"data":[tiles of
+// mel_cat_tile]}) of a movie or a series, "<type>|imdb:<IMDb>" and "<type>|tmdb:<TMDB>" (as mel_cp_tile_map): by the
+// fields of a tile in the order mel_cat_tile makes them, no json_decode; none of another version, of the manifest, of a
 // card (catalog_card.php). The id a run of no quote or backslash at a time: PCRE of PHP 5.3.6 recurses on each repeat of
 // a group, one a character would crash it on a long id.
 /**
  * @param string $text
  * @return list<string>
  */
-function aio_cat_cache_keys($text)
+function mel_cat_cache_keys($text)
 {
-    $head = '{"v":' . AIO_CAT_CACHE_V . ',';
+    $head = '{"v":' . MEL_CAT_CACHE_V . ',';
     if (strncmp($text, $head, strlen($head)) !== 0 || !preg_match_all('/\{"id":"(?:[^"\\\\]++|\\\\.)*+","imdb_id":"(tt[0-9]{1,10}|)",' .
         '"_tmdbId":"([0-9]{0,10})","type":"(movie|series)"/', $text, $m, PREG_SET_ORDER))
         return array();
@@ -1179,15 +1179,15 @@ function aio_cat_cache_keys($text)
 }
 
 // The index of the copies on the disk: key ("<type>|imdb:<IMDb>", "<type>|tmdb:<TMDB>") => the file of the newest copy
-// with it. The keys of a file are read once while it is the same (its mtime and size; aio_cat_cache_keys: no
+// with it. The keys of a file are read once while it is the same (its mtime and size; mel_cat_cache_keys: no
 // json_decode), the files looked at each call (a stat each): the copies of the owner, 240 files of 8 MB, ~3000 tiles -
 // all read ~15 ms on a Mac (docker), the Dune ~6 times that, once a php_server; then a stat of each.
 /**
  * @return array<string, string>
  */
-function aio_cat_cache_index()
+function mel_cat_cache_index()
 {
-    $dir = aio_cat_cache_dir();
+    $dir = mel_cat_cache_dir();
     $list = $dir !== '' ? glob("$dir/*.json") : array();
     clearstatcache();
     $sigs = array();
@@ -1200,13 +1200,13 @@ function aio_cat_cache_index()
         $sigs[$f] = $s['mtime'] . ':' . $s['size'];
         $times[$f] = $s['mtime'];
     }
-    if ($sigs === AioCatCopies::$sig)
-        return AioCatCopies::$map;
+    if ($sigs === MelCatCopies::$sig)
+        return MelCatCopies::$map;
     $keys = array();
     foreach ($sigs as $f => $sig)
     {
-        $keys[$f] = isset(AioCatCopies::$sig[$f]) && AioCatCopies::$sig[$f] === $sig ? AioCatCopies::$keys[$f] :
-            aio_cat_cache_keys(strval(@file_get_contents($f)));
+        $keys[$f] = isset(MelCatCopies::$sig[$f]) && MelCatCopies::$sig[$f] === $sig ? MelCatCopies::$keys[$f] :
+            mel_cat_cache_keys(strval(@file_get_contents($f)));
     }
     // The newest copy of a title last: its key is of it.
     asort($times);
@@ -1216,24 +1216,24 @@ function aio_cat_cache_index()
         foreach ($keys[$f] as $k)
             $map[$k] = $f;
     }
-    AioCatCopies::$sig = $sigs;
-    AioCatCopies::$mtime = $times;
-    AioCatCopies::$keys = $keys;
-    AioCatCopies::$map = $map;
+    MelCatCopies::$sig = $sigs;
+    MelCatCopies::$mtime = $times;
+    MelCatCopies::$keys = $keys;
+    MelCatCopies::$map = $map;
     return $map;
 }
 
-// The tiles of titles $want (key => array(type, IMDb, TMDB, since)) of the copies on the disk (aio_cat_cache_index: by
+// The tiles of titles $want (key => array(type, IMDb, TMDB, since)) of the copies on the disk (mel_cat_cache_index: by
 // IMDb, else by TMDB; the newest copy with it, saved after since by its mtime - 0: any), no request: only the files with
-// them decoded, each once (a copy aio_cat_cache_read would not take: none of it), its tile parsed again (aio_cat_tile),
+// them decoded, each once (a copy mel_cat_cache_read would not take: none of it), its tile parsed again (mel_cat_tile),
 // of the type asked. -> key => tile, of those found.
 /**
  * @param array<string, array{string, string, string, int}> $want
- * @return array<string, AioCatTile>
+ * @return array<string, MelCatTile>
  */
-function aio_cat_cache_tiles($want)
+function mel_cat_cache_tiles($want)
 {
-    $idx = aio_cat_cache_index();
+    $idx = mel_cat_cache_index();
     $files = array();
     foreach ($want as $key => $m)
     {
@@ -1243,7 +1243,7 @@ function aio_cat_cache_tiles($want)
             if ($v === '' || !isset($idx["$type|$by:$v"]))
                 continue;
             $f = $idx["$type|$by:$v"];
-            if (AioCatCopies::$mtime[$f] > $since)
+            if (MelCatCopies::$mtime[$f] > $since)
                 $files[$f][strval($key)] = array($type, $by === 'imdb' ? 'imdb_id' : '_tmdbId', $v);
             break;
         }
@@ -1252,13 +1252,13 @@ function aio_cat_cache_tiles($want)
     foreach ($files as $f => $of)
     {
         $j = json_decode(strval(@file_get_contents($f)), true);
-        foreach (aio_cat_cache_good($j) ? $j['data'] : array() as $m)
+        foreach (mel_cat_cache_good($j) ? $j['data'] : array() as $m)
         {
             foreach ($of as $key => $w)
             {
-                if (!is_array($m) || aio_str($m, 'type') !== $w[0] || aio_str($m, $w[1]) !== $w[2])
+                if (!is_array($m) || mel_str($m, 'type') !== $w[0] || mel_str($m, $w[1]) !== $w[2])
                     continue;
-                $t = aio_cat_tile($m, $w[0]);
+                $t = mel_cat_tile($m, $w[0]);
                 if ($t)
                 {
                     $t['type'] = $w[0];

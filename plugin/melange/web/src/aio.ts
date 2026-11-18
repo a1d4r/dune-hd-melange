@@ -159,7 +159,7 @@ export function setupAio(page: Page, confs: Confs, lock: Lock): Aio {
     if (!lock.saving()) saveButton.textContent = creates() ? texts.saveAndCreate : texts.save;
   }
 
-  // As aio_cgi_host of PHP: of own one, the address as typed.
+  // As mel_cgi_host of PHP: of own one, the address as typed.
   function serverHost(): string {
     const radio = selected();
     return radio ? hostOf(radio.value === VALUE.own ? trimmed(ownUrlField.value) : radio.value) : "";

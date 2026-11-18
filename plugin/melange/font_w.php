@@ -2,9 +2,9 @@
 // Generated from OpenSans-Regular of the r24
 // firmware: glyph advance in thousandths of the font size.
 
-define('AIO_FONT_AVG', 606);    // a glyph not in the table
+define('MEL_FONT_AVG', 606);    // a glyph not in the table
 
-function aio_font_w()
+function mel_font_w()
 {
     static $w = array(
         ' ' => 260, '!' => 267, '"' => 401, '#' => 646, '$' => 572, '%' => 823, '&' => 730, '\'' => 221,

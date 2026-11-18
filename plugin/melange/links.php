@@ -1,85 +1,85 @@
 <?php
 // The pairs card of the Dune (movie_id) -> IMDb / TMDB for the badges of the history (progress.php): kept in a
 // file of data_dir; found by play_action, ENTER, the cards the shell keeps and, lazily, a request of the card
-// to the dunemdb API: r24 in an opening of the catalog, r25 at the tick of the timer of its screen (aio_pg_tick); the
-// lazy meta of the row "Continue" after them (cp_meta.php, aio_cpm_step).
-// Needs progress.php (aio_pg_index), main.php (aio_log, aio_write_file, aio_data_dir, aio_http_get, aio_http_get_many,
-// AIO_DUNE_ID, AIO_HTTP_TOO_BIG), parse.php (aio_str), catalog.php (AIO_CAT_MAX_BYTES), catalog_card.php
-// (aio_card_token, aio_card_api), view_catalog.php (aio_catv_is_down).
+// to the dunemdb API: r24 in an opening of the catalog, r25 at the tick of the timer of its screen (mel_pg_tick); the
+// lazy meta of the row "Continue" after them (cp_meta.php, mel_cpm_step).
+// Needs progress.php (mel_pg_index), main.php (mel_log, mel_write_file, mel_data_dir, mel_http_get, mel_http_get_many,
+// MEL_DUNE_ID, MEL_HTTP_TOO_BIG), parse.php (mel_str), catalog.php (MEL_CAT_MAX_BYTES), catalog_card.php
+// (mel_card_token, mel_card_api), view_catalog.php (mel_catv_is_down).
 
 // The cards the shell keeps (movies/storage_helper.php: /flashdata, /persistfs on old models): PHP of the
 // Dune adds FS_PREFIX itself. Tests may define them first.
-if (!defined('AIO_PG_SHELL_DIR'))
-    define('AIO_PG_SHELL_DIR', '/flashdata/dunemdb_cache/movies');
-if (!defined('AIO_PG_SHELL_DIR2'))
-    define('AIO_PG_SHELL_DIR2', '/persistfs/dunemdb_cache/movies');
+if (!defined('MEL_PG_SHELL_DIR'))
+    define('MEL_PG_SHELL_DIR', '/flashdata/dunemdb_cache/movies');
+if (!defined('MEL_PG_SHELL_DIR2'))
+    define('MEL_PG_SHELL_DIR2', '/persistfs/dunemdb_cache/movies');
 // A bigger card of the shell is not read (seen up to ~840 KB).
-define('AIO_PG_SHELL_MAX_BYTES', 2000000);
+define('MEL_PG_SHELL_MAX_BYTES', 2000000);
 // ms of an opening for the cards of the shell; one card is read even past it.
-define('AIO_PG_SHELL_MS', 150);
+define('MEL_PG_SHELL_MS', 150);
 // The pairs, in data_dir.
-define('AIO_PG_LINKS_FILE', 'wh_links.json');
-// A failed request is asked again after this many s (no reply of the server: AIO_PG_PAUSE_S); "no pair" stays.
-define('AIO_PG_FAIL_S', 86400);
+define('MEL_PG_LINKS_FILE', 'wh_links.json');
+// A failed request is asked again after this many s (no reply of the server: MEL_PG_PAUSE_S); "no pair" stays.
+define('MEL_PG_FAIL_S', 86400);
 // No connection, a timeout or 5xx: no request for this many s (memory of php_server).
-define('AIO_PG_PAUSE_S', 1800);
+define('MEL_PG_PAUSE_S', 1800);
 // A record that ended longer ago is not linked by a request.
-define('AIO_PG_LINK_AGE_S', 31536000);
+define('MEL_PG_LINK_AGE_S', 31536000);
 // Requests of an opening, the time of them all, s; the second one only with LINK_NEXT_S left.
-define('AIO_PG_LINK_N', 2);
-define('AIO_PG_LINK_S', 3.0);
-define('AIO_PG_LINK_NEXT_S', 1.5);
-define('AIO_PG_LINK_CONNECT', 2);
-// r25: the first tick of the timer of the main screen of rows (aio_pg_tick_set) this long after its opening: the
+define('MEL_PG_LINK_N', 2);
+define('MEL_PG_LINK_S', 3.0);
+define('MEL_PG_LINK_NEXT_S', 1.5);
+define('MEL_PG_LINK_CONNECT', 2);
+// r25: the first tick of the timer of the main screen of rows (mel_pg_tick_set) this long after its opening: the
 // rows of the window of the shell are asked by then, the step does not hold them.
-define('AIO_PG_TICK_MS', 2500);
-// r25: the timer again this long after a tick with more to ask (aio_pg_tick_again); ticks of an opening at most (the
+define('MEL_PG_TICK_MS', 2500);
+// r25: the timer again this long after a tick with more to ask (mel_pg_tick_again); ticks of an opening at most (the
 // titles that fail are out of the queues, a slow one is asked again).
-define('AIO_PG_TICK_AGAIN_MS', 3000);
-define('AIO_PG_TICK_MAX', 10);
+define('MEL_PG_TICK_AGAIN_MS', 3000);
+define('MEL_PG_TICK_MAX', 10);
 // r25: a tick this soon after a reply of get_folder_rows comes between the rows of a cold opening (the window of
-// the shell still loading, longer than AIO_PG_TICK_MS): no step of that opening.
-define('AIO_PG_ROWS_QUIET_S', 0.5);
-// r25: a tick of the main screen this soon after the end of a tick of a screen of Fav (AioMlv::$tick_t; its timer may
-// tick over the main one): no step, the timer again, not one of the ticks of the opening (AIO_PG_TICK_MAX).
-define('AIO_PG_FAV_QUIET_S', 3.0);
-// r25: a view of the main screen within this many s of a tick of it that got the meta of tiles (aio_pg_tick_anew: the
+// the shell still loading, longer than MEL_PG_TICK_MS): no step of that opening.
+define('MEL_PG_ROWS_QUIET_S', 0.5);
+// r25: a tick of the main screen this soon after the end of a tick of a screen of Fav (MelMlv::$tick_t; its timer may
+// tick over the main one): no step, the timer again, not one of the ticks of the opening (MEL_PG_TICK_MAX).
+define('MEL_PG_FAV_QUIET_S', 3.0);
+// r25: a view of the main screen within this many s of a tick of it that got the meta of tiles (mel_pg_tick_anew: the
 // shell builds it again at once) is of that tick, not an opening.
-define('AIO_PG_ANEW_S', 5.0);
+define('MEL_PG_ANEW_S', 5.0);
 // A reply of the API this small is decoded whole when its code is not before "result".
-define('AIO_PG_HEAD_MAX', 65536);
+define('MEL_PG_HEAD_MAX', 65536);
 // Episodes of a season the pairs and their parse take at most.
-define('AIO_PG_EPS_MAX', 5000);
+define('MEL_PG_EPS_MAX', 5000);
 
-class AioPgLinks
+class MelPgLinks
 {
-    // The pairs by movie_id (aio_pg_links; null: not read yet) and the reverse of them: key => movie_ids.
-    /** @var array<string, AioPgLink>|null */
+    // The pairs by movie_id (mel_pg_links; null: not read yet) and the reverse of them: key => movie_ids.
+    /** @var array<string, MelPgLink>|null */
     public static $links = null;
     /** @var array<string, list<string>> */
     public static $rev = array();
     // movie_ids whose card of the shell was looked at since the start of php_server.
     /** @var array<string, bool> */
     public static $shell_seen = array();
-    // No request before this time (aio_pg_link_now: no connection, 5xx); 0: none.
+    // No request before this time (mel_pg_link_now: no connection, 5xx); 0: none.
     /** @var int */
     public static $pause = 0;
     // The last step found no dune_auth (logged once).
     /** @var bool */
     public static $no_auth = false;
-    // r25: the main screen of rows whose timer is set for the lazy step (aio_pg_tick_set, aio_pg_tick_again); '': none,
+    // r25: the main screen of rows whose timer is set for the lazy step (mel_pg_tick_set, mel_pg_tick_again); '': none,
     // or its tick came.
     /** @var string */
     public static $tick_url = '';
     // r25: the main screen of rows opened last ('': none since the start of php_server), the ticks of its opening and
-    // why no more of them ('': not known yet); when get_folder_rows last answered (microtime; 0: never). For aio_pg_tick.
+    // why no more of them ('': not known yet); when get_folder_rows last answered (microtime; 0: never). For mel_pg_tick.
     /** @var string */
     public static $screen = '';
     /** @var int */
     public static $ticks = 0;
     /** @var string */
     public static $stop = '';
-    // r25: the main screen the last tick built again ('': none; aio_pg_tick_anew) and when (microtime).
+    // r25: the main screen the last tick built again ('': none; mel_pg_tick_anew) and when (microtime).
     /** @var string */
     public static $anew = '';
     /** @var float */
@@ -95,47 +95,47 @@ class AioPgLinks
 /**
  * @return void
  */
-function aio_pg_screen_start()
+function mel_pg_screen_start()
 {
-    aio_pg_shell_step();
-    AioPgLinks::$tick_url = '';
-    AioPgLinks::$screen = '';
-    AioPgLinks::$ticks = 0;
-    AioPgLinks::$stop = '';
+    mel_pg_shell_step();
+    MelPgLinks::$tick_url = '';
+    MelPgLinks::$screen = '';
+    MelPgLinks::$ticks = 0;
+    MelPgLinks::$stop = '';
 }
 
-// r25: a screen of Melange $url is asked of get_folder_view (aio_folder_view): another than the main screen of the
+// r25: a screen of Melange $url is asked of get_folder_view (mel_folder_view): another than the main screen of the
 // timer - no more ticks of it (a tick under that screen would hold php_server), a line. Not a screen the tick of a
-// screen of Fav invalidated, within the window of it (aio_mlv_inv: the shell builds them again, the main one under it
-// with its timer; its ticks wait for those of that screen, AIO_PG_FAV_QUIET_S). Another screen than the one a tick built
-// again (AioPgLinks::$anew): that one no more of it.
+// screen of Fav invalidated, within the window of it (mel_mlv_inv: the shell builds them again, the main one under it
+// with its timer; its ticks wait for those of that screen, MEL_PG_FAV_QUIET_S). Another screen than the one a tick built
+// again (MelPgLinks::$anew): that one no more of it.
 /**
  * @param string $url
  * @return void
  */
-function aio_pg_view_asked($url)
+function mel_pg_view_asked($url)
 {
-    if ($url !== AioPgLinks::$anew)
-        AioPgLinks::$anew = '';
-    if (AioPgLinks::$tick_url === '' || $url === AioPgLinks::$tick_url || aio_mlv_inv($url) !== '')
+    if ($url !== MelPgLinks::$anew)
+        MelPgLinks::$anew = '';
+    if (MelPgLinks::$tick_url === '' || $url === MelPgLinks::$tick_url || mel_mlv_inv($url) !== '')
         return;
-    AioPgLinks::$tick_url = '';
-    AioPgLinks::$stop = 'the screen left';
-    aio_log(sprintf('link: tick %d/%d: no more, the screen left', AioPgLinks::$ticks, AIO_PG_TICK_MAX));
+    MelPgLinks::$tick_url = '';
+    MelPgLinks::$stop = 'the screen left';
+    mel_log(sprintf('link: tick %d/%d: no more, the screen left', MelPgLinks::$ticks, MEL_PG_TICK_MAX));
 }
 
-// r25: get_folder_rows answers now (aio_pg_tick: rows still loading).
+// r25: get_folder_rows answers now (mel_pg_tick: rows still loading).
 /**
  * @return void
  */
-function aio_pg_rows_answered()
+function mel_pg_rows_answered()
 {
-    AioPgLinks::$rows_t = microtime(true);
+    MelPgLinks::$rows_t = microtime(true);
 }
 
 // r24: the screen of tab $tab is made, $left s of its opening left, $net: rows of it went to the server in it (old or
-// no copies). The lazy pairs now, the tiles of its row "Continue" first (aio_cp_row_mids), then the lazy meta of that
-// row (aio_cpm_step) in what is left of the time of the step, only with $net: an opening of rows of memory or the
+// no copies). The lazy pairs now, the tiles of its row "Continue" first (mel_cp_row_mids), then the lazy meta of that
+// row (mel_cpm_step) in what is left of the time of the step, only with $net: an opening of rows of memory or the
 // cache stays at once.
 /**
  * @param float $left
@@ -143,203 +143,203 @@ function aio_pg_rows_answered()
  * @param string $tab
  * @return void
  */
-function aio_pg_screen_built($left, $net, $tab = '')
+function mel_pg_screen_built($left, $net, $tab = '')
 {
     if (!$net || $left < 1)
         return;
     $t = microtime(true);
-    $limit = min($left, AIO_PG_LINK_S);
+    $limit = min($left, MEL_PG_LINK_S);
     $rounds = 0;
     $pairs = 0;
-    aio_pg_link_step($limit, false, $rounds, $pairs, null, aio_cp_row_mids($tab));
-    aio_cpm_step($limit - (microtime(true) - $t), AIO_CPM_N - $rounds);
+    mel_pg_link_step($limit, false, $rounds, $pairs, null, mel_cp_row_mids($tab));
+    mel_cpm_step($limit - (microtime(true) - $t), MEL_CPM_N - $rounds);
 }
 
-// r25: the main screen of rows $url is made: the step goes to the ticks of its timer (AIO_PG_TICK_MS, then again while
-// there is more to ask: aio_pg_tick_again), after the rows of the window of the shell (get_folder_rows), as php_server
-// answers one call at a time. A timer with more to ask (aio_pg_tick_why); a line of the log when a pause or the
-// catalog server down holds it, of no dune_auth once till it comes (AioPgLinks::$no_auth, as aio_pg_token). Back to
-// the screen with no get_folder_view: no timer, no step. Built again by a tick of it ($anew, aio_pg_anew): the ticks of
-// the opening go on - the timer under AIO_PG_TICK_MAX of them with more to ask, a line as of aio_pg_tick_again. -> the
+// r25: the main screen of rows $url is made: the step goes to the ticks of its timer (MEL_PG_TICK_MS, then again while
+// there is more to ask: mel_pg_tick_again), after the rows of the window of the shell (get_folder_rows), as php_server
+// answers one call at a time. A timer with more to ask (mel_pg_tick_why); a line of the log when a pause or the
+// catalog server down holds it, of no dune_auth once till it comes (MelPgLinks::$no_auth, as mel_pg_token). Back to
+// the screen with no get_folder_view: no timer, no step. Built again by a tick of it ($anew, mel_pg_anew): the ticks of
+// the opening go on - the timer under MEL_PG_TICK_MAX of them with more to ask, a line as of mel_pg_tick_again. -> the
 // timer is set.
 /**
  * @param string $url
  * @param bool $anew
  * @return bool
  */
-function aio_pg_tick_set($url, $anew = false)
+function mel_pg_tick_set($url, $anew = false)
 {
-    AioPgLinks::$screen = $url;
+    MelPgLinks::$screen = $url;
     if ($anew)
     {
-        $n = AioPgLinks::$ticks;
-        $why = $n >= AIO_PG_TICK_MAX ? 'limit' : aio_pg_tick_why();
-        AioPgLinks::$tick_url = $why === '' ? $url : '';
+        $n = MelPgLinks::$ticks;
+        $why = $n >= MEL_PG_TICK_MAX ? 'limit' : mel_pg_tick_why();
+        MelPgLinks::$tick_url = $why === '' ? $url : '';
         if ($why !== '')
-            AioPgLinks::$stop = $why;
-        aio_log(sprintf('link: tick %d/%d: the screen anew, %s', $n, AIO_PG_TICK_MAX,
-            $why === '' ? 'again in ' . AIO_PG_TICK_MS . ' ms' : "no more, $why"));
+            MelPgLinks::$stop = $why;
+        mel_log(sprintf('link: tick %d/%d: the screen anew, %s', $n, MEL_PG_TICK_MAX,
+            $why === '' ? 'again in ' . MEL_PG_TICK_MS . ' ms' : "no more, $why"));
         return $why === '';
     }
-    $why = aio_pg_tick_why();
+    $why = mel_pg_tick_why();
     if ($why === 'pause')
-        aio_log(sprintf('link: no timer: a pause of the requests, %d s left', max(aio_pg_paused(), aio_cpm_paused())));
+        mel_log(sprintf('link: no timer: a pause of the requests, %d s left', max(mel_pg_paused(), mel_cpm_paused())));
     else if ($why === 'server down')
-        aio_log('link: no timer: the catalog server down');
-    else if ($why === 'no dune_auth' && !AioPgLinks::$no_auth)
-        aio_log('link: no timer: no dune_auth');
+        mel_log('link: no timer: the catalog server down');
+    else if ($why === 'no dune_auth' && !MelPgLinks::$no_auth)
+        mel_log('link: no timer: no dune_auth');
     if ($why === 'no dune_auth')
-        AioPgLinks::$no_auth = true;
-    else if ($why === '' && aio_card_token() !== '')
-        AioPgLinks::$no_auth = false;
+        MelPgLinks::$no_auth = true;
+    else if ($why === '' && mel_card_token() !== '')
+        MelPgLinks::$no_auth = false;
     if ($why !== '')
         return false;
-    AioPgLinks::$tick_url = $url;
+    MelPgLinks::$tick_url = $url;
     return true;
 }
 
-// r25: a tick of the timer of the main screen $url, AIO_CPM_TICK_S at most (a key pressed now waits for it): the step
-// (aio_pg_link_step) once in it, of one batch at once, else of one request (~0.5 s; its timeout 1 s, whole s of curl);
-// then the lazy meta of the row "Continue" (aio_cpm_step) in what is left of it: one batch at once, else AIO_CPM_N
-// requests of the tick at most one by one; then the timer again or not (aio_pg_tick_again). No step: within
-// AIO_PG_ROWS_QUIET_S of a reply of get_folder_rows (the rows of a cold opening wait for php_server; the timer again),
-// within AIO_PG_FAV_QUIET_S of the end of a tick of a screen of Fav (the main one under it or just after Back: the
-// timer again, not one of AIO_PG_TICK_MAX; no two timers asking at once), a tick after the last one of the screen, a
+// r25: a tick of the timer of the main screen $url, MEL_CPM_TICK_S at most (a key pressed now waits for it): the step
+// (mel_pg_link_step) once in it, of one batch at once, else of one request (~0.5 s; its timeout 1 s, whole s of curl);
+// then the lazy meta of the row "Continue" (mel_cpm_step) in what is left of it: one batch at once, else MEL_CPM_N
+// requests of the tick at most one by one; then the timer again or not (mel_pg_tick_again). No step: within
+// MEL_PG_ROWS_QUIET_S of a reply of get_folder_rows (the rows of a cold opening wait for php_server; the timer again),
+// within MEL_PG_FAV_QUIET_S of the end of a tick of a screen of Fav (the main one under it or just after Back: the
+// timer again, not one of MEL_PG_TICK_MAX; no two timers asking at once), a tick after the last one of the screen, a
 // tick of another or an old one, a tick with no screen since the start of php_server. A line of the log of each, in its
-// own words. The tiles of the row "Continue" of the screen paired first (aio_cp_row_mids). Cards paired: the tiles of
-// that row with no meta again (AioCpm::$miss, aio_cp_row_miss), theirs asked in the same tick. The meta of a tile of
-// the screen got (AioCpm::$miss, AioCpm::$ml; not of AioCpm::$more, a screen of Fav): the screen built again
-// (aio_pg_tick_anew), no timer again here. -> the timer again (aio_catv_input: change_behaviour).
+// own words. The tiles of the row "Continue" of the screen paired first (mel_cp_row_mids). Cards paired: the tiles of
+// that row with no meta again (MelCpm::$miss, mel_cp_row_miss), theirs asked in the same tick. The meta of a tile of
+// the screen got (MelCpm::$miss, MelCpm::$ml; not of MelCpm::$more, a screen of Fav): the screen built again
+// (mel_pg_tick_anew), no timer again here. -> the timer again (mel_catv_input: change_behaviour).
 /**
  * @param string $url
  * @return bool
  */
-function aio_pg_tick($url)
+function mel_pg_tick($url)
 {
-    AioPgLinks::$anew = '';
-    if ($url === '' || AioPgLinks::$tick_url !== $url)
+    MelPgLinks::$anew = '';
+    if ($url === '' || MelPgLinks::$tick_url !== $url)
     {
-        if (AioPgLinks::$screen === '')
+        if (MelPgLinks::$screen === '')
             $why = 'no screen since the start of php_server';
-        else if ($url !== AioPgLinks::$screen)
+        else if ($url !== MelPgLinks::$screen)
             $why = 'a tick of another or an old screen';
         else
-            $why = AioPgLinks::$stop !== '' ? 'no more ticks, ' . AioPgLinks::$stop : 'no timer on this screen';
-        aio_log("link: tick: no step, $why");
+            $why = MelPgLinks::$stop !== '' ? 'no more ticks, ' . MelPgLinks::$stop : 'no timer on this screen';
+        mel_log("link: tick: no step, $why");
         return false;
     }
-    $ago = microtime(true) - AioMlv::$tick_t;
-    if (AioMlv::$ticked !== '' && $ago >= 0 && $ago < AIO_PG_FAV_QUIET_S)
+    $ago = microtime(true) - MelMlv::$tick_t;
+    if (MelMlv::$ticked !== '' && $ago >= 0 && $ago < MEL_PG_FAV_QUIET_S)
     {
-        aio_log('link: tick: no step, after a tick of ' . AioMlv::$ticked);
-        return aio_pg_tick_again($url);
+        mel_log('link: tick: no step, after a tick of ' . MelMlv::$ticked);
+        return mel_pg_tick_again($url);
     }
-    AioPgLinks::$tick_url = '';
-    AioPgLinks::$ticks++;
-    $ago = microtime(true) - AioPgLinks::$rows_t;
-    if (AioPgLinks::$rows_t > 0 && $ago >= 0 && $ago < AIO_PG_ROWS_QUIET_S)
-        aio_log('link: tick: no step, rows are loading');
+    MelPgLinks::$tick_url = '';
+    MelPgLinks::$ticks++;
+    $ago = microtime(true) - MelPgLinks::$rows_t;
+    if (MelPgLinks::$rows_t > 0 && $ago >= 0 && $ago < MEL_PG_ROWS_QUIET_S)
+        mel_log('link: tick: no step, rows are loading');
     else
     {
         $t = microtime(true);
         $rounds = 0;
         $pairs = 0;
-        $tab = aio_catv_tab($url);
-        aio_pg_link_step(min(AIO_PG_LINK_S, AIO_CPM_TICK_S), true, $rounds, $pairs, null, aio_cp_row_mids($tab));
+        $tab = mel_catv_tab($url);
+        mel_pg_link_step(min(MEL_PG_LINK_S, MEL_CPM_TICK_S), true, $rounds, $pairs, null, mel_cp_row_mids($tab));
         if ($pairs)
-            AioCpm::$miss = aio_cp_row_miss($tab);
-        $mine = aio_cpm_queue(array_merge(AioCpm::$miss, AioCpm::$ml));
-        $got = aio_cpm_step(AIO_CPM_TICK_S - (microtime(true) - $t), AIO_CPM_N - $rounds, true);
-        $c = $got ? aio_cpm_read() : array();
+            MelCpm::$miss = mel_cp_row_miss($tab);
+        $mine = mel_cpm_queue(array_merge(MelCpm::$miss, MelCpm::$ml));
+        $got = mel_cpm_step(MEL_CPM_TICK_S - (microtime(true) - $t), MEL_CPM_N - $rounds, true);
+        $c = $got ? mel_cpm_read() : array();
         $shown = 0;
         foreach ($got ? $mine : array() as $m)
-            $shown += aio_cpm_tile($m[0], $m[1], $m[2], $c) ? 1 : 0;
+            $shown += mel_cpm_tile($m[0], $m[1], $m[2], $c) ? 1 : 0;
         if ($shown)
-            return aio_pg_tick_anew($url, $shown);
+            return mel_pg_tick_anew($url, $shown);
     }
-    return aio_pg_tick_again($url);
+    return mel_pg_tick_again($url);
 }
 
-// r25: a tick of the main screen $url got the meta of $got tiles: the screen built again with them (aio_catv_input:
-// invalidate of it, the focus by sel_state - device r25), its view the one of this tick (aio_pg_anew; its timer
-// aio_pg_tick_set); a line. -> false: no timer again here.
+// r25: a tick of the main screen $url got the meta of $got tiles: the screen built again with them (mel_catv_input:
+// invalidate of it, the focus by sel_state - device r25), its view the one of this tick (mel_pg_anew; its timer
+// mel_pg_tick_set); a line. -> false: no timer again here.
 /**
  * @param string $url
  * @param int $got
  * @return bool
  */
-function aio_pg_tick_anew($url, $got)
+function mel_pg_tick_anew($url, $got)
 {
-    AioPgLinks::$anew = $url;
-    AioPgLinks::$anew_t = microtime(true);
-    aio_log(sprintf('link: tick %d/%d: %d got, the screen anew', AioPgLinks::$ticks, AIO_PG_TICK_MAX, $got));
+    MelPgLinks::$anew = $url;
+    MelPgLinks::$anew_t = microtime(true);
+    mel_log(sprintf('link: tick %d/%d: %d got, the screen anew', MelPgLinks::$ticks, MEL_PG_TICK_MAX, $got));
     return false;
 }
 
-// r25: main screen $url is the one the last tick built again (aio_pg_tick_anew) within AIO_PG_ANEW_S of it.
+// r25: main screen $url is the one the last tick built again (mel_pg_tick_anew) within MEL_PG_ANEW_S of it.
 /**
  * @param string $url
  * @return bool
  */
-function aio_pg_anew($url)
+function mel_pg_anew($url)
 {
-    $ago = microtime(true) - AioPgLinks::$anew_t;
-    return $url !== '' && AioPgLinks::$anew === $url && $ago >= 0 && $ago < AIO_PG_ANEW_S;
+    $ago = microtime(true) - MelPgLinks::$anew_t;
+    return $url !== '' && MelPgLinks::$anew === $url && $ago >= 0 && $ago < MEL_PG_ANEW_S;
 }
 
-// r25: main screen $url is being built: is it the one the last tick built again (aio_pg_anew)? That is no more after
+// r25: main screen $url is being built: is it the one the last tick built again (mel_pg_anew)? That is no more after
 // it, whatever the view gives (a message, no rows): the next view of it an opening.
 /**
  * @param string $url
  * @return bool
  */
-function aio_pg_anew_take($url)
+function mel_pg_anew_take($url)
 {
-    $anew = aio_pg_anew($url);
-    AioPgLinks::$anew = '';
+    $anew = mel_pg_anew($url);
+    MelPgLinks::$anew = '';
     return $anew;
 }
 
-// r25: after a tick of the main screen $url: the timer again (AIO_PG_TICK_AGAIN_MS) with more to ask
-// (aio_pg_tick_why), under AIO_PG_TICK_MAX ticks of the opening; a line of the log: the tick of the opening, again or
+// r25: after a tick of the main screen $url: the timer again (MEL_PG_TICK_AGAIN_MS) with more to ask
+// (mel_pg_tick_why), under MEL_PG_TICK_MAX ticks of the opening; a line of the log: the tick of the opening, again or
 // why no more (limit, pause, server down, no dune_auth, queue empty). -> the timer again.
 /**
  * @param string $url
  * @return bool
  */
-function aio_pg_tick_again($url)
+function mel_pg_tick_again($url)
 {
-    $n = AioPgLinks::$ticks;
-    $why = $n >= AIO_PG_TICK_MAX ? 'limit' : aio_pg_tick_why();
+    $n = MelPgLinks::$ticks;
+    $why = $n >= MEL_PG_TICK_MAX ? 'limit' : mel_pg_tick_why();
     if ($why === '')
     {
-        AioPgLinks::$tick_url = $url;
-        aio_log(sprintf('link: tick %d/%d: again in %d ms', $n, AIO_PG_TICK_MAX, AIO_PG_TICK_AGAIN_MS));
+        MelPgLinks::$tick_url = $url;
+        mel_log(sprintf('link: tick %d/%d: again in %d ms', $n, MEL_PG_TICK_MAX, MEL_PG_TICK_AGAIN_MS));
         return true;
     }
-    AioPgLinks::$stop = $why;
-    aio_log(sprintf('link: tick %d/%d: no more, %s', $n, AIO_PG_TICK_MAX, $why));
+    MelPgLinks::$stop = $why;
+    mel_log(sprintf('link: tick %d/%d: no more, %s', $n, MEL_PG_TICK_MAX, $why));
     return false;
 }
 
-// r25: why a tick would ask nothing (aio_pg_tick_set, aio_pg_tick_again; of the screen "Продолжить" or "Мой список":
-// its tiles $titles, its cards $mids) -> '': a meta of the row "Continue" to ask (aio_cpm_todo) with no pause of
-// it and the catalog server not down, or a card to ask (aio_pg_link_queue) with no pause and dune_auth; else 'pause'
+// r25: why a tick would ask nothing (mel_pg_tick_set, mel_pg_tick_again; of the screen "Продолжить" or "Мой список":
+// its tiles $titles, its cards $mids) -> '': a meta of the row "Continue" to ask (mel_cpm_todo) with no pause of
+// it and the catalog server not down, or a card to ask (mel_pg_link_queue) with no pause and dune_auth; else 'pause'
 // (of either queue), 'server down' (the catalog server, of the meta), 'no dune_auth', 'queue empty'.
 /**
  * @param list<array{string, string, string}>|null $titles
  * @param list<string>|null $mids
  * @return string
  */
-function aio_pg_tick_why($titles = null, $mids = null)
+function mel_pg_tick_why($titles = null, $mids = null)
 {
-    $cpm = aio_cpm_todo($titles) !== array();
-    if ($cpm && !aio_cpm_paused() && !aio_catv_is_down())
+    $cpm = mel_cpm_todo($titles) !== array();
+    if ($cpm && !mel_cpm_paused() && !mel_catv_is_down())
         return '';
-    $q = $mids !== array() && aio_pg_link_queue($mids) !== array();
-    if ($q && !aio_pg_paused() && aio_card_token() !== '')
+    $q = $mids !== array() && mel_pg_link_queue($mids) !== array();
+    if ($q && !mel_pg_paused() && mel_card_token() !== '')
         return '';
-    if (($q && aio_pg_paused()) || ($cpm && aio_cpm_paused()))
+    if (($q && mel_pg_paused()) || ($cpm && mel_cpm_paused()))
         return 'pause';
     if ($cpm)
         return 'server down';
@@ -349,38 +349,38 @@ function aio_pg_tick_why($titles = null, $mids = null)
 // --- The pairs.
 
 // The pairs movie_id => imdb, tmdb (of a movie), tmdbtv (of a series), type (movie, series, ''), seasons
-// (season_numbers: season => episodes), soon, src (meta: the seasons are of the meta of the own card, aio_pg_link_meta),
-// on (1: of the meta of an anime numbered on, aio_cm_numbered_on), sq (a series with no seasons: the time a request
-// for them gave none, asked again after AIO_PG_FAIL_S, aio_pg_link_queue); or none (the time it was found there is no
-// pair: for good) or fail (the time of a failed request: asked again after AIO_PG_FAIL_S; of no reply of the server,
-// fail and sq set AIO_PG_FAIL_S - AIO_PG_PAUSE_S back: after AIO_PG_PAUSE_S, aio_pg_link_got). Read once from data_dir.
+// (season_numbers: season => episodes), soon, src (meta: the seasons are of the meta of the own card, mel_pg_link_meta),
+// on (1: of the meta of an anime numbered on, mel_cm_numbered_on), sq (a series with no seasons: the time a request
+// for them gave none, asked again after MEL_PG_FAIL_S, mel_pg_link_queue); or none (the time it was found there is no
+// pair: for good) or fail (the time of a failed request: asked again after MEL_PG_FAIL_S; of no reply of the server,
+// fail and sq set MEL_PG_FAIL_S - MEL_PG_PAUSE_S back: after MEL_PG_PAUSE_S, mel_pg_link_got). Read once from data_dir.
 /**
- * @return array<string, AioPgLink>
+ * @return array<string, MelPgLink>
  */
-function aio_pg_links()
+function mel_pg_links()
 {
-    if (AioPgLinks::$links !== null)
-        return AioPgLinks::$links;
-    $path = aio_data_dir() !== '' ? aio_data_dir() . '/' . AIO_PG_LINKS_FILE : '';
+    if (MelPgLinks::$links !== null)
+        return MelPgLinks::$links;
+    $path = mel_data_dir() !== '' ? mel_data_dir() . '/' . MEL_PG_LINKS_FILE : '';
     $j = $path !== '' && is_file($path) ? json_decode(strval(file_get_contents($path)), true) : null;
     $links = array();
     foreach (is_array($j) && isset($j['links']) && is_array($j['links']) ? $j['links'] : array() as $mid => $l)
     {
-        $l = aio_pg_link_clean($l);
-        if ($l && preg_match('/^' . AIO_DUNE_ID . '$/D', strval($mid)))
+        $l = mel_pg_link_clean($l);
+        if ($l && preg_match('/^' . MEL_DUNE_ID . '$/D', strval($mid)))
             $links[strval($mid)] = $l;
     }
-    AioPgLinks::$links = $links;
-    aio_pg_rev_build();
+    MelPgLinks::$links = $links;
+    mel_pg_rev_build();
     return $links;
 }
 
 // A pair as stored, of the file or of a source -> its fields that are good, null for none.
 /**
  * @param mixed $l
- * @return AioPgLink|null
+ * @return MelPgLink|null
  */
-function aio_pg_link_clean($l)
+function mel_pg_link_clean($l)
 {
     if (!is_array($l))
         return null;
@@ -389,18 +389,18 @@ function aio_pg_link_clean($l)
     if (isset($l['fail']) && is_int($l['fail']))
         return array('fail' => $l['fail']);
     $out = array();
-    $imdb = aio_str($l, 'imdb');
+    $imdb = mel_str($l, 'imdb');
     if (preg_match('/^tt[0-9]{1,10}$/D', $imdb))
         $out['imdb'] = $imdb;
     foreach (array('tmdb', 'tmdbtv') as $k)
     {
-        $v = aio_str($l, $k);
+        $v = mel_str($l, $k);
         if (preg_match('/^[0-9]{1,10}$/D', $v))
             $out[$k] = $v;
     }
     if (!$out)
         return null;
-    $type = aio_str($l, 'type');
+    $type = mel_str($l, 'type');
     if ($type === 'movie' || $type === 'series')
         $out['type'] = $type;
     $seasons = array();
@@ -424,7 +424,7 @@ function aio_pg_link_clean($l)
     }
     if ($soon)
         $out['soon'] = $soon;
-    if ($seasons && aio_str($l, 'src') === 'meta')
+    if ($seasons && mel_str($l, 'src') === 'meta')
     {
         $out['src'] = 'meta';
         if (isset($l['on']) && $l['on'] === 1)
@@ -436,29 +436,29 @@ function aio_pg_link_clean($l)
 }
 
 // The pair $l is of a series (its type, or a TMDB of a series) with no seasons: the next episode and "all watched" of its
-// badge want them (aio_pg_wanted).
+// badge want them (mel_pg_wanted).
 /**
- * @param AioPgLink|null $l
+ * @param MelPgLink|null $l
  * @return bool
  */
-function aio_pg_no_seasons($l)
+function mel_pg_no_seasons($l)
 {
     return $l && !isset($l['none']) && !isset($l['fail']) && !isset($l['seasons']) &&
         ((isset($l['type']) && $l['type'] === 'series') || isset($l['tmdbtv']));
 }
 
 // The episodes of the pair $l out by today (UTC; an episode of its soon with no date or a later one is not
-// out), season => list ascending (aio_wh_pick), seasons of no episode out left out; none without seasons. The
+// out), season => list ascending (mel_wh_pick), seasons of no episode out left out; none without seasons. The
 // season $s of a record whose episode $e is past the episodes of the season (an anime numbered on: One Piece S2
-// asked as S1 E62, aio_cm_req_s), or season 1 of a pair of on: the episodes of $s and the seasons after it
+// asked as S1 E62, mel_cm_req_s), or season 1 of a pair of on: the episodes of $s and the seasons after it
 // numbered on in it, as the own card asks them; $e past them all (the pair is behind): none, the record as it is.
 /**
- * @param AioPgLink|null $l
+ * @param MelPgLink|null $l
  * @param int $s
  * @param int $e
  * @return array<int, list<int>>
  */
-function aio_pg_eps($l, $s = -1, $e = -1)
+function mel_pg_eps($l, $s = -1, $e = -1)
 {
     if (!$l || !isset($l['seasons']))
         return array();
@@ -468,7 +468,7 @@ function aio_pg_eps($l, $s = -1, $e = -1)
     foreach ($l['seasons'] as $n => $count)
     {
         $list = array();
-        for ($x = 1; $x <= min($count, AIO_PG_EPS_MAX); $x++)
+        for ($x = 1; $x <= min($count, MEL_PG_EPS_MAX); $x++)
         {
             $d = isset($soon["$n:$x"]) ? $soon["$n:$x"] : null;
             if ($d === null || ($d !== '' && $d <= $today))
@@ -500,15 +500,15 @@ function aio_pg_eps($l, $s = -1, $e = -1)
     return $eps;
 }
 
-// AioPgLinks::$rev of AioPgLinks::$links: "imdb:tt..", "tmdb:N", "tmdbtv:N" => the movie_ids with it (two cards of
+// MelPgLinks::$rev of MelPgLinks::$links: "imdb:tt..", "tmdb:N", "tmdbtv:N" => the movie_ids with it (two cards of
 // the Dune can have the same ids).
 /**
  * @return void
  */
-function aio_pg_rev_build()
+function mel_pg_rev_build()
 {
     $rev = array();
-    foreach (AioPgLinks::$links ? AioPgLinks::$links : array() as $mid => $l)
+    foreach (MelPgLinks::$links ? MelPgLinks::$links : array() as $mid => $l)
     {
         foreach (array('imdb', 'tmdb', 'tmdbtv') as $k)
         {
@@ -516,24 +516,24 @@ function aio_pg_rev_build()
                 $rev["$k:{$l[$k]}"][] = strval($mid);
         }
     }
-    AioPgLinks::$rev = $rev;
+    MelPgLinks::$rev = $rev;
 }
 
-// The pairs written whole (aio_write_file). -> written.
+// The pairs written whole (mel_write_file). -> written.
 /**
  * @return bool
  */
-function aio_pg_links_save()
+function mel_pg_links_save()
 {
-    $path = aio_data_dir() !== '' ? aio_data_dir() . '/' . AIO_PG_LINKS_FILE : '';
-    $data = json_encode(array('v' => 1, 'links' => aio_pg_links()));
-    $ok = $path !== '' && is_string($data) && aio_write_file($path, $data);
+    $path = mel_data_dir() !== '' ? mel_data_dir() . '/' . MEL_PG_LINKS_FILE : '';
+    $data = json_encode(array('v' => 1, 'links' => mel_pg_links()));
+    $ok = $path !== '' && is_string($data) && mel_write_file($path, $data);
     if (!$ok)
-        aio_log('progress: pairs not saved');
+        mel_log('progress: pairs not saved');
     return $ok;
 }
 
-// The pair of movie_id $mid set to $l (aio_pg_link_clean): the fields of a pair it has not kept; a pair
+// The pair of movie_id $mid set to $l (mel_pg_link_clean): the fields of a pair it has not kept; a pair
 // over none or fail; none or fail only over none or fail. Over a pair the seasons: of the meta (src) replace those of
 // the pair whole, soon and on with them (the records of Melange are numbered by the own card: the Dune may have S1 of
 // 20 where Cinemeta has S1 and S2 of 10); those of the card of the shell (numbered by the Dune) do not touch those of
@@ -542,7 +542,7 @@ function aio_pg_links_save()
 // 25), those of $undated (season_numbers of play_action: no dates, the episodes not out counted) none (seen after the
 // own card is opened); else the larger number of episodes of each. soon replaced only by a source of dates ($l has
 // it, even empty: the card of the shell, the meta). A pair of before src (the seasons of the meta mixed in by the
-// larger) is of the meta again at the next one. Written (aio_pg_links_save) only on a change and with $save; else
+// larger) is of the meta again at the next one. Written (mel_pg_links_save) only on a change and with $save; else
 // the caller writes them once. No log line: the caller says what it found. -> it changed.
 /**
  * @param string $mid
@@ -551,13 +551,13 @@ function aio_pg_links_save()
  * @param bool $undated
  * @return bool
  */
-function aio_pg_link_put($mid, $l, $save = true, $undated = false)
+function mel_pg_link_put($mid, $l, $save = true, $undated = false)
 {
     $dated = is_array($l) && array_key_exists('soon', $l);
-    $l = aio_pg_link_clean($l);
-    if (!$l || !preg_match('/^' . AIO_DUNE_ID . '$/D', $mid))
+    $l = mel_pg_link_clean($l);
+    if (!$l || !preg_match('/^' . MEL_DUNE_ID . '$/D', $mid))
         return false;
-    $links = aio_pg_links();
+    $links = mel_pg_links();
     $old = isset($links[$mid]) ? $links[$mid] : null;
     $pair = !isset($l['none']) && !isset($l['fail']);
     $old_pair = $old && !isset($old['none']) && !isset($old['fail']);
@@ -615,40 +615,40 @@ function aio_pg_link_put($mid, $l, $save = true, $undated = false)
     if ($new == $old)
         return false;
     $links[$mid] = $new;
-    AioPgLinks::$links = $links;
-    aio_pg_rev_build();
+    MelPgLinks::$links = $links;
+    mel_pg_rev_build();
     if ($save)
-        aio_pg_links_save();
+        mel_pg_links_save();
     return true;
 }
 
-// The pair of the card of play_action: movie_str of the Dune (aio_movie) has its id, IMDb, the type
-// and season_numbers (no dates: not added to a pair of the meta, aio_pg_link_put).
+// The pair of the card of play_action: movie_str of the Dune (mel_movie) has its id, IMDb, the type
+// and season_numbers (no dates: not added to a pair of the meta, mel_pg_link_put).
 /**
- * @param AioMovie $mv
+ * @param MelMovie $mv
  * @return void
  */
-function aio_pg_link_movie($mv)
+function mel_pg_link_movie($mv)
 {
-    if ($mv['dune_id'] !== '' && $mv['imdb'] !== '' && aio_pg_link_put($mv['dune_id'], array('imdb' => $mv['imdb'],
+    if ($mv['dune_id'] !== '' && $mv['imdb'] !== '' && mel_pg_link_put($mv['dune_id'], array('imdb' => $mv['imdb'],
         'type' => $mv['series'] ? 'series' : 'movie', 'seasons' => $mv['seasons']), true, true))
-        aio_log('progress: a pair of play_action');
+        mel_log('progress: a pair of play_action');
 }
 
 // The episodes of the series of card $id of the own card by its meta $m to the pair (src meta: over the seasons of the
-// Dune, aio_pg_link_put): its episodes now in the row "Continue" and the badges. Each season its number of episodes,
-// "s:e" of those not out => the date ('' none). An anime numbered on whole (aio_cm_numbered_on: One Piece S2 E62-E77,
-// asked as S1 E62): the episodes of each season by their place in it, on (aio_pg_eps numbers them on in season 1, as
+// Dune, mel_pg_link_put): its episodes now in the row "Continue" and the badges. Each season its number of episodes,
+// "s:e" of those not out => the date ('' none). An anime numbered on whole (mel_cm_numbered_on: One Piece S2 E62-E77,
+// asked as S1 E62): the episodes of each season by their place in it, on (mel_pg_eps numbers them on in season 1, as
 // the own card asks them). None: a season asked by another number but not all of them, a season numbered not 1 and up
 // (numbered on: not on from the season before).
 /**
  * @param string $id
- * @param AioCardMeta $m
+ * @param MelCardMeta $m
  * @return void
  */
-function aio_pg_link_meta($id, $m)
+function mel_pg_link_meta($id, $m)
 {
-    $on = aio_cm_numbered_on($m);
+    $on = mel_cm_numbered_on($m);
     $seasons = array();
     $soon = array();
     $first = 1;
@@ -656,7 +656,7 @@ function aio_pg_link_meta($id, $m)
     {
         if ($s < 1 || !$eps)
             continue;
-        if (!$on && aio_cm_req_s($m, $s) !== $s)
+        if (!$on && mel_cm_req_s($m, $s) !== $s)
             return;
         $list = array();
         foreach ($eps as $ep)
@@ -675,41 +675,41 @@ function aio_pg_link_meta($id, $m)
     $l = array('imdb' => $m['imdb'], 'type' => 'series', 'seasons' => $seasons, 'soon' => $soon, 'src' => 'meta');
     if ($on)
         $l['on'] = 1;
-    if ($seasons && $m['imdb'] !== '' && aio_pg_link_put($id, $l))
-        aio_log('progress: the episodes of the meta' . ($on ? ', numbered on' : ''));
+    if ($seasons && $m['imdb'] !== '' && mel_pg_link_put($id, $l))
+        mel_log('progress: the episodes of the meta' . ($on ? ', numbered on' : ''));
 }
 
-// The pair of the card $id found for tile $t (aio_card_id): its IMDb, its TMDB by its type.
+// The pair of the card $id found for tile $t (mel_card_id): its IMDb, its TMDB by its type.
 /**
  * @param string $id
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @return void
  */
-function aio_pg_link_tile($id, $t)
+function mel_pg_link_tile($id, $t)
 {
     $l = array('imdb' => $t['imdb_id'], 'type' => $t['type']);
     if ($t['_tmdbId'] !== '' && ($t['type'] === 'movie' || $t['type'] === 'series'))
         $l[$t['type'] === 'series' ? 'tmdbtv' : 'tmdb'] = $t['_tmdbId'];
-    if ($id !== '' && aio_pg_link_put($id, $l))
-        aio_log('progress: a pair of ENTER');
+    if ($id !== '' && mel_pg_link_put($id, $l))
+        mel_log('progress: a pair of ENTER');
 }
 
 // The movie_ids of the card of tile $t by the pairs: of its IMDb, then of its TMDB of its type. A tile of no
 // type (a row of anime) has no TMDB key: the numbers of movies and series of TMDB are not the same ids.
 /**
- * @param AioCatTile $t
+ * @param MelCatTile $t
  * @return list<string>
  */
-function aio_pg_tile_cards($t)
+function mel_pg_tile_cards($t)
 {
-    aio_pg_links();
+    mel_pg_links();
     $keys = array('imdb:' . $t['imdb_id']);
     if ($t['_tmdbId'] !== '' && ($t['type'] === 'movie' || $t['type'] === 'series'))
         $keys[] = ($t['type'] === 'series' ? 'tmdbtv:' : 'tmdb:') . $t['_tmdbId'];
     $out = array();
     foreach ($keys as $k)
     {
-        foreach (isset(AioPgLinks::$rev[$k]) ? AioPgLinks::$rev[$k] : array() as $mid)
+        foreach (isset(MelPgLinks::$rev[$k]) ? MelPgLinks::$rev[$k] : array() as $mid)
             $out[] = $mid;
     }
     return array_values(array_unique($out));
@@ -727,7 +727,7 @@ function aio_pg_tile_cards($t)
  * @param bool $first
  * @return array<int, bool>
  */
-function aio_pg_out_of_lists($text, $offs, $first = false)
+function mel_pg_out_of_lists($text, $offs, $first = false)
 {
     $out = array();
     $at = 0;
@@ -752,13 +752,13 @@ function aio_pg_out_of_lists($text, $offs, $first = false)
 // last "sources" with "auxSources" after it in no list (not of a person, a supplier, a recommendation), as
 // the shell reads them (dunemdb_cache.php: sources first, then auxSources; either may be an empty []), the
 // type by the first "type" of a title in no list. No json_decode of the ~400 KB. $found: such sources were
-// found (with no ids in them: the card has none). -> the pair (aio_pg_link_clean), null for none.
+// found (with no ids in them: the card has none). -> the pair (mel_pg_link_clean), null for none.
 /**
  * @param string $text
  * @param bool $found
- * @return AioPgLink|null
+ * @return MelPgLink|null
  */
-function aio_pg_parse_card($text, &$found = false)
+function mel_pg_parse_card($text, &$found = false)
 {
     $found = false;
     $obj = '(\{[^{}]*+\}|\[\])';
@@ -768,7 +768,7 @@ function aio_pg_parse_card($text, &$found = false)
     $offs = array();
     foreach ($m as $one)
         $offs[] = intval($one[0][1]);
-    $top = aio_pg_out_of_lists($text, $offs);
+    $top = mel_pg_out_of_lists($text, $offs);
     $last = null;
     foreach ($m as $one)
     {
@@ -793,7 +793,7 @@ function aio_pg_parse_card($text, &$found = false)
         $offs = array();
         foreach ($t as $one)
             $offs[] = intval($one[0][1]);
-        $top = aio_pg_out_of_lists($text, $offs, true);
+        $top = mel_pg_out_of_lists($text, $offs, true);
         foreach ($t as $one)
         {
             if (!empty($top[intval($one[0][1])]))
@@ -803,7 +803,7 @@ function aio_pg_parse_card($text, &$found = false)
             }
         }
     }
-    return aio_pg_link_clean(array_merge($l, aio_pg_parse_seasons($text)));
+    return mel_pg_link_clean(array_merge($l, mel_pg_parse_seasons($text)));
 }
 
 // A string of the raw text of a card ($m[0], $m[1] ':' of a key) -> it, a key or a date "YYYY-MM-DD"; else "".
@@ -811,21 +811,21 @@ function aio_pg_parse_card($text, &$found = false)
  * @param array<int, string> $m
  * @return string
  */
-function aio_pg_strip_str($m)
+function mel_pg_strip_str($m)
 {
     return $m[1] === ':' || preg_match('/^"[0-9]{4}-[0-9]{2}-[0-9]{2}"$/D', $m[0]) ? $m[0] : '""';
 }
 
-// The seasons of a card of the dunemdb API in its raw text (aio_pg_parse_card): the first "seasons" of episodes in no
+// The seasons of a card of the dunemdb API in its raw text (mel_pg_parse_card): the first "seasons" of episodes in no
 // list, its strings but the keys and the dates cut out (the titles and descriptions are most of it, may hold
 // brackets) and only that decoded -> seasons (season => its last episode by number, season 0 left out, as
-// season_numbers of the shell) and soon (aio_pg_link_clean: "s:e" => premiered, '' for none, of those not out
+// season_numbers of the shell) and soon (mel_pg_link_clean: "s:e" => premiered, '' for none, of those not out
 // today, UTC); none for none.
 /**
  * @param string $text
  * @return array{seasons?: array<int, int>, soon?: array<string, string>}
  */
-function aio_pg_parse_seasons($text)
+function mel_pg_parse_seasons($text)
 {
     if (!preg_match_all('/"seasons":\[\{"number":/', $text, $m, PREG_OFFSET_CAPTURE))
         return array();
@@ -833,20 +833,20 @@ function aio_pg_parse_seasons($text)
     foreach ($m[0] as $one)
         $offs[] = intval($one[1]);
     $at = -1;
-    foreach (aio_pg_out_of_lists($text, $offs, true) as $o => $top)
+    foreach (mel_pg_out_of_lists($text, $offs, true) as $o => $top)
     {
         if ($top)
             $at = $o;
     }
     if ($at < 0)
         return array();
-    $tail = preg_replace_callback('/"[^"\\\\]*+(?:\\\\.[^"\\\\]*+)*+"(:?)/', 'aio_pg_strip_str',
+    $tail = preg_replace_callback('/"[^"\\\\]*+(?:\\\\.[^"\\\\]*+)*+"(:?)/', 'mel_pg_strip_str',
         substr($text, $at + strlen('"seasons":')));
     if (!is_string($tail) || !preg_match('/\[(?:[^\[\]]++|(?R))*+\]/A', $tail, $arr))
     {
         // pcre.backtrack_limit of PHP 5.3.6 is 100000: a card of 5 seasons of 300 episodes is past it.
         if (preg_last_error() !== PREG_NO_ERROR)
-            aio_log(sprintf('link: the seasons of a card not read, preg error %d, %d B', preg_last_error(), strlen($text)));
+            mel_log(sprintf('link: the seasons of a card not read, preg error %d, %d B', preg_last_error(), strlen($text)));
         return array();
     }
     $list = json_decode($arr[0], true);
@@ -861,7 +861,7 @@ function aio_pg_parse_seasons($text)
         foreach ($sn['episodes'] as $ep)
         {
             $e = isset($ep['number']) && is_int($ep['number']) ? $ep['number'] : 0;
-            if ($e < 1 || $e > AIO_PG_EPS_MAX)
+            if ($e < 1 || $e > MEL_PG_EPS_MAX)
                 continue;
             $seasons[$n] = max(isset($seasons[$n]) ? $seasons[$n] : 0, $e);
             $d = isset($ep['premiered']) && is_string($ep['premiered']) ? $ep['premiered'] : '';
@@ -878,14 +878,14 @@ function aio_pg_parse_seasons($text)
  * @param string $body
  * @return array{int, string}
  */
-function aio_pg_api_head($body)
+function mel_pg_api_head($body)
 {
     $p = strpos($body, '"result":');
     $j = json_decode($p === false ? $body : rtrim(substr($body, 0, $p), " \t\r\n,") . '}', true);
-    if ((!is_array($j) || !isset($j['code'])) && strlen($body) <= AIO_PG_HEAD_MAX)
+    if ((!is_array($j) || !isset($j['code'])) && strlen($body) <= MEL_PG_HEAD_MAX)
         $j = json_decode($body, true);
     $code = is_array($j) && isset($j['code']) && is_numeric($j['code']) ? intval($j['code']) : -1;
-    return array($code, strtolower(aio_str($j, 'message')));
+    return array($code, strtolower(mel_str($j, 'message')));
 }
 
 // --- The cards of the shell.
@@ -895,9 +895,9 @@ function aio_pg_api_head($body)
  * @param string $mid
  * @return string
  */
-function aio_pg_shell_path($mid)
+function mel_pg_shell_path($mid)
 {
-    foreach (array(AIO_PG_SHELL_DIR, AIO_PG_SHELL_DIR2) as $dir)
+    foreach (array(MEL_PG_SHELL_DIR, MEL_PG_SHELL_DIR2) as $dir)
     {
         if (is_file("$dir/$mid.json"))
             return "$dir/$mid.json";
@@ -909,63 +909,63 @@ function aio_pg_shell_path($mid)
 // for it while php_server runs.
 /**
  * @param string $mid
- * @return AioPgLink|null
+ * @return MelPgLink|null
  */
-function aio_pg_shell_pair($mid)
+function mel_pg_shell_pair($mid)
 {
-    AioPgLinks::$shell_seen[$mid] = true;
-    $path = preg_match('/^[0-9a-f]{24}$/D', $mid) ? aio_pg_shell_path($mid) : '';
+    MelPgLinks::$shell_seen[$mid] = true;
+    $path = preg_match('/^[0-9a-f]{24}$/D', $mid) ? mel_pg_shell_path($mid) : '';
     $size = $path !== '' ? filesize($path) : 0;
-    if ($size <= 0 || $size > AIO_PG_SHELL_MAX_BYTES)
+    if ($size <= 0 || $size > MEL_PG_SHELL_MAX_BYTES)
         return null;
-    return aio_pg_parse_card(strval(file_get_contents($path)));
+    return mel_pg_parse_card(strval(file_get_contents($path)));
 }
 
 // The cards of the history a card of the dunemdb API is wanted for, their records ending the latest first: with no
-// pair (a failed request too), or a pair of a series with no seasons (aio_pg_no_seasons: of ENTER, of a version before
+// pair (a failed request too), or a pair of a series with no seasons (mel_pg_no_seasons: of ENTER, of a version before
 // the seasons) with an episode record. -> movie_id => end.
 /**
  * @return array<string, int>
  */
-function aio_pg_wanted()
+function mel_pg_wanted()
 {
-    $links = aio_pg_links();
+    $links = mel_pg_links();
     $out = array();
-    foreach (aio_pg_index() as $mid => $ent)
+    foreach (mel_pg_index() as $mid => $ent)
     {
         $l = isset($links[$mid]) ? $links[$mid] : null;
-        if (!$l || isset($l['fail']) || ($ent['series'] && $ent['series'][0] && aio_pg_no_seasons($l)))
+        if (!$l || isset($l['fail']) || ($ent['series'] && $ent['series'][0] && mel_pg_no_seasons($l)))
             $out[strval($mid)] = $ent['end'];
     }
     arsort($out);
     return $out;
 }
 
-// The cards of aio_pg_wanted from the cards of the shell, the latest first, in AIO_PG_SHELL_MS (one card at least),
+// The cards of mel_pg_wanted from the cards of the shell, the latest first, in MEL_PG_SHELL_MS (one card at least),
 // each once while php_server runs; the pairs written once. A line of the log only when one was read.
 /**
  * @return void
  */
-function aio_pg_shell_step()
+function mel_pg_shell_step()
 {
     $t = microtime(true);
     $read = 0;
     $found = 0;
-    foreach (aio_pg_wanted() as $mid => $end)
+    foreach (mel_pg_wanted() as $mid => $end)
     {
-        if (isset(AioPgLinks::$shell_seen[$mid]))
+        if (isset(MelPgLinks::$shell_seen[$mid]))
             continue;
-        if ($read && (microtime(true) - $t) * 1000 >= AIO_PG_SHELL_MS)
+        if ($read && (microtime(true) - $t) * 1000 >= MEL_PG_SHELL_MS)
             break;
         $read++;
-        $l = aio_pg_shell_pair($mid);
-        if ($l && aio_pg_link_put($mid, $l, false))
+        $l = mel_pg_shell_pair($mid);
+        if ($l && mel_pg_link_put($mid, $l, false))
             $found++;
     }
     if ($found)
-        aio_pg_links_save();
+        mel_pg_links_save();
     if ($read)
-        aio_log(sprintf('progress: shell cards: %d looked at, %d pairs, %.0f ms', $read, $found, (microtime(true) - $t) * 1000));
+        mel_log(sprintf('progress: shell cards: %d looked at, %d pairs, %.0f ms', $read, $found, (microtime(true) - $t) * 1000));
 }
 
 // --- The request.
@@ -974,94 +974,94 @@ function aio_pg_shell_step()
 /**
  * @return string
  */
-function aio_pg_token()
+function mel_pg_token()
 {
-    $token = aio_card_token();
-    if ($token === '' && !AioPgLinks::$no_auth)
-        aio_log('link: no dune_auth');
-    AioPgLinks::$no_auth = $token === '';
+    $token = mel_card_token();
+    if ($token === '' && !MelPgLinks::$no_auth)
+        mel_log('link: no dune_auth');
+    MelPgLinks::$no_auth = $token === '';
     return $token;
 }
 
 // The pair of $mid now: the card of the shell (not looked at yet), else movie/<id> of the dunemdb API with
 // dune_auth, as the shell opens its card (dunemdb_api.php api_movie), in $total s (whole s; under 1 none). A pair of
-// a series with no seasons (aio_pg_no_seasons): the card for them, of the shell only with them; none in the reply -
+// a series with no seasons (mel_pg_no_seasons): the card for them, of the shell only with them; none in the reply -
 // sq, the time (the pair is not touched by none or fail); a new pair of a series with none in the reply - sq too.
 // Kept: a pair; none (code 100 with no ids in the sources of the card, or the message "not found", as
-// aio_card_ask); fail (no dune_auth, transport, "sources" not found by the parse, another answer: asked again
-// after AIO_PG_FAIL_S). No connection, a timeout, 429 or 5xx: that card asked again after AIO_PG_PAUSE_S, no request in
-// AIO_PG_PAUSE_S (aio_pg_link_step). One log line with the size and the time, no token. -> st: pair, none,
+// mel_card_ask); fail (no dune_auth, transport, "sources" not found by the parse, another answer: asked again
+// after MEL_PG_FAIL_S). No connection, a timeout, 429 or 5xx: that card asked again after MEL_PG_PAUSE_S, no request in
+// MEL_PG_PAUSE_S (mel_pg_link_step). One log line with the size and the time, no token. -> st: pair, none,
 // fail; link: the pair or null.
 /**
  * @param string $mid
  * @param float $total
- * @return array{st: string, link: AioPgLink|null}
+ * @return array{st: string, link: MelPgLink|null}
  */
-function aio_pg_link_now($mid, $total = AIO_PG_LINK_S)
+function mel_pg_link_now($mid, $total = MEL_PG_LINK_S)
 {
-    $p = aio_pg_link_pre($mid, $total);
+    $p = mel_pg_link_pre($mid, $total);
     if ($p['done'])
         return $p['done'];
-    return aio_pg_link_got($mid, $p['need'], aio_http_get_req($p['req']));
+    return mel_pg_link_got($mid, $p['need'], mel_http_get_req($p['req']));
 }
 
-// The pairs of $mids now, as aio_pg_link_now each, their requests at once (aio_http_get_many; the caller keeps to
-// AIO_HTTP_PAR); the pause (AIO_PG_PAUSE_S) only with no reply of the server in the batch (aio_pg_link_down of
+// The pairs of $mids now, as mel_pg_link_now each, their requests at once (mel_http_get_many; the caller keeps to
+// MEL_HTTP_PAR); the pause (MEL_PG_PAUSE_S) only with no reply of the server in the batch (mel_pg_link_down of
 // each) -> movie_id => array(st, link) in the order of $mids; null: no curl_multi (the caller asks one by one,
-// aio_pg_link_now). $sent: the requests that went (not those of no request: aio_pg_link_pre).
+// mel_pg_link_now). $sent: the requests that went (not those of no request: mel_pg_link_pre).
 /**
  * @param list<string> $mids
  * @param float $total
  * @param int $sent
- * @return array<string, array{st: string, link: AioPgLink|null}>|null
+ * @return array<string, array{st: string, link: MelPgLink|null}>|null
  */
-function aio_pg_link_many($mids, $total = AIO_PG_LINK_S, &$sent = 0)
+function mel_pg_link_many($mids, $total = MEL_PG_LINK_S, &$sent = 0)
 {
     $sent = 0;
     $pre = array();
     $reqs = array();
     foreach ($mids as $mid)
     {
-        $pre[$mid] = aio_pg_link_pre($mid, $total);
+        $pre[$mid] = mel_pg_link_pre($mid, $total);
         if (!$pre[$mid]['done'])
             $reqs[$mid] = $pre[$mid]['req'];
     }
-    $res = $reqs ? aio_http_get_many($reqs) : array();
+    $res = $reqs ? mel_http_get_many($reqs) : array();
     if ($res === null)
         return null;
     $sent = count($reqs);
     // No connection, a timeout or 5xx: a pause only with no reply in the batch.
     $answered = false;
     foreach ($res as $r)
-        $answered = $answered || !aio_pg_link_down($r[0], $r[2]);
+        $answered = $answered || !mel_pg_link_down($r[0], $r[2]);
     $out = array();
     foreach ($pre as $mid => $p)
     {
         $mid = strval($mid);
-        $out[$mid] = $p['done'] ? $p['done'] : aio_pg_link_got($mid, $p['need'], $res[$mid], !$answered);
+        $out[$mid] = $p['done'] ? $p['done'] : mel_pg_link_got($mid, $p['need'], $res[$mid], !$answered);
         // The body of each freed as it is parsed.
         unset($res[$mid]);
     }
     return $out;
 }
 
-// aio_pg_link_now of $mid before its request -> done: its result with no request (the card of the shell, not an id
-// of the server, no time or no dune_auth), else null and req: array(URL, connect, total, max) of aio_http_get; need:
+// mel_pg_link_now of $mid before its request -> done: its result with no request (the card of the shell, not an id
+// of the server, no time or no dune_auth), else null and req: array(URL, connect, total, max) of mel_http_get; need:
 // a series with no seasons asks for them.
 /**
  * @param string $mid
  * @param float $total
- * @return array{done: array{st: string, link: AioPgLink|null}|null, need: bool, req: array{string, int, int, int}}
+ * @return array{done: array{st: string, link: MelPgLink|null}|null, need: bool, req: array{string, int, int, int}}
  */
-function aio_pg_link_pre($mid, $total)
+function mel_pg_link_pre($mid, $total)
 {
-    $links = aio_pg_links();
-    $need = aio_pg_no_seasons(isset($links[$mid]) ? $links[$mid] : null);
+    $links = mel_pg_links();
+    $need = mel_pg_no_seasons(isset($links[$mid]) ? $links[$mid] : null);
     $out = array('done' => null, 'need' => $need, 'req' => array('', 0, 0, 0));
-    $l = isset(AioPgLinks::$shell_seen[$mid]) ? null : aio_pg_shell_pair($mid);
+    $l = isset(MelPgLinks::$shell_seen[$mid]) ? null : mel_pg_shell_pair($mid);
     if ($l)
     {
-        aio_pg_link_put($mid, $l);
+        mel_pg_link_put($mid, $l);
         if (!$need || isset($l['seasons']))
             return array('done' => array('st' => 'pair', 'link' => $l)) + $out;
     }
@@ -1070,25 +1070,25 @@ function aio_pg_link_pre($mid, $total)
     // The request in what is left, whole seconds of curl: under 1 s none.
     if ($total < 1)
         return array('done' => array('st' => 'fail', 'link' => null)) + $out;
-    $token = aio_pg_token();
+    $token = mel_pg_token();
     if ($token === '')
         return array('done' => array('st' => 'fail', 'link' => null)) + $out;
-    $out['req'] = array(aio_card_api() . "movie/$mid?movieAnswerType=full_with_recommendations&lang=ru&$token",
-        min(AIO_PG_LINK_CONNECT, intval(floor($total))), intval(floor($total)), AIO_CAT_MAX_BYTES);
+    $out['req'] = array(mel_card_api() . "movie/$mid?movieAnswerType=full_with_recommendations&lang=ru&$token",
+        min(MEL_PG_LINK_CONNECT, intval(floor($total))), intval(floor($total)), MEL_CAT_MAX_BYTES);
     return $out;
 }
 
-// The reply $r (array(HTTP code, body, err, connected, s it took) of aio_http_get) of the request of aio_pg_link_now
-// of $mid ($need: of aio_pg_link_pre): parsed, kept, its pause (if $pause: aio_pg_link_down) and its line of the log
+// The reply $r (array(HTTP code, body, err, connected, s it took) of mel_http_get) of the request of mel_pg_link_now
+// of $mid ($need: of mel_pg_link_pre): parsed, kept, its pause (if $pause: mel_pg_link_down) and its line of the log
 // -> array(st, link).
 /**
  * @param string $mid
  * @param bool $need
  * @param array{int, string, string, bool, float} $r
  * @param bool $pause
- * @return array{st: string, link: AioPgLink|null}
+ * @return array{st: string, link: MelPgLink|null}
  */
-function aio_pg_link_got($mid, $need, $r, $pause = true)
+function mel_pg_link_got($mid, $need, $r, $pause = true)
 {
     list($code, $body, $err, , $s) = $r;
     unset($r);
@@ -1096,87 +1096,87 @@ function aio_pg_link_got($mid, $need, $r, $pause = true)
     $st = 'fail';
     if ($err === '' && $code === 200)
     {
-        list($api, $msg) = aio_pg_api_head($body);
+        list($api, $msg) = mel_pg_api_head($body);
         $found = false;
-        $l = $api === 100 ? aio_pg_parse_card($body, $found) : null;
+        $l = $api === 100 ? mel_pg_parse_card($body, $found) : null;
         $st = $l ? 'pair' : ($api === 100 || $msg === 'not found' ? 'none' : 'fail');
         // "sources" the parse did not find (a format not known): not "no pair" for good.
         if ($st === 'none' && $api === 100 && !$found && strpos($body, '"sources":') !== false)
             $st = 'fail';
     }
-    // No reply of the server (a slow one too): the card asked again after AIO_PG_PAUSE_S, not AIO_PG_FAIL_S - its
-    // time of fail (sq) set back so (aio_pg_link_queue).
-    $net = aio_pg_link_down($code, $err);
-    $at = $net ? time() - AIO_PG_FAIL_S + AIO_PG_PAUSE_S : time();
+    // No reply of the server (a slow one too): the card asked again after MEL_PG_PAUSE_S, not MEL_PG_FAIL_S - its
+    // time of fail (sq) set back so (mel_pg_link_queue).
+    $net = mel_pg_link_down($code, $err);
+    $at = $net ? time() - MEL_PG_FAIL_S + MEL_PG_PAUSE_S : time();
     $down = $pause && $net;
     if ($down)
-        AioPgLinks::$pause = time() + AIO_PG_PAUSE_S;
+        MelPgLinks::$pause = time() + MEL_PG_PAUSE_S;
     // Only the number of curl: its text may hold the address.
-    $why = $err !== '' ? (preg_match('/^curl [0-9]+/', $err, $e) ? $e[0] : ($err === AIO_HTTP_TOO_BIG ? 'too big' : 'failed')) :
+    $why = $err !== '' ? (preg_match('/^curl [0-9]+/', $err, $e) ? $e[0] : ($err === MEL_HTTP_TOO_BIG ? 'too big' : 'failed')) :
         "HTTP $code";
     $got = $st === 'pair' && isset($l['seasons']);
     // No seasons of a series: asked for them, or a new pair of a series with none (not asked again at the next tick).
-    $sq = !$got && ($need || ($st === 'pair' && aio_pg_no_seasons($l)));
-    aio_log(sprintf('link: movie/%s %d B, %.0f ms, %s, %s%s%s%s', $mid, strlen($body), $s * 1000, $why, $st,
+    $sq = !$got && ($need || ($st === 'pair' && mel_pg_no_seasons($l)));
+    mel_log(sprintf('link: movie/%s %d B, %.0f ms, %s, %s%s%s%s', $mid, strlen($body), $s * 1000, $why, $st,
         $sq ? ', no seasons' : ($got && $need ? ', seasons' : ''),
-        $net ? sprintf(', retry %d min', AIO_PG_PAUSE_S / 60) : '', $down ? ', pause' : ''));
-    aio_pg_link_put($mid, $st === 'pair' ? $l : array($st => $at), !$sq);
+        $net ? sprintf(', retry %d min', MEL_PG_PAUSE_S / 60) : '', $down ? ', pause' : ''));
+    mel_pg_link_put($mid, $st === 'pair' ? $l : array($st => $at), !$sq);
     if ($sq)
     {
-        $links = aio_pg_links();
+        $links = mel_pg_links();
         $links[$mid]['sq'] = $at;
-        AioPgLinks::$links = $links;
-        aio_pg_links_save();
+        MelPgLinks::$links = $links;
+        mel_pg_links_save();
     }
     return array('st' => $st, 'link' => $l);
 }
 
-// A reply of HTTP code $code, transport error $err (aio_http_get) is of the API down: no connection, a timeout, 429
+// A reply of HTTP code $code, transport error $err (mel_http_get) is of the API down: no connection, a timeout, 429
 // (busy), 5xx.
 /**
  * @param int $code
  * @param string $err
  * @return bool
  */
-function aio_pg_link_down($code, $err)
+function mel_pg_link_down($code, $err)
 {
-    return ($err !== '' && $err !== AIO_HTTP_TOO_BIG) || ($err === '' && ($code === 429 || ($code >= 500 && $code < 600)));
+    return ($err !== '' && $err !== MEL_HTTP_TOO_BIG) || ($err === '' && ($code === 429 || ($code >= 500 && $code < 600)));
 }
 
-// s of the pause of the requests left (aio_pg_link_now: no connection, 5xx); 0: none. A pause ending past
-// AIO_PG_PAUSE_S from now (the clock set back) is none.
+// s of the pause of the requests left (mel_pg_link_now: no connection, 5xx); 0: none. A pause ending past
+// MEL_PG_PAUSE_S from now (the clock set back) is none.
 /**
  * @return int
  */
-function aio_pg_paused()
+function mel_pg_paused()
 {
-    $left = AioPgLinks::$pause - time();
-    return $left > 0 && $left <= AIO_PG_PAUSE_S ? $left : 0;
+    $left = MelPgLinks::$pause - time();
+    return $left > 0 && $left <= MEL_PG_PAUSE_S ? $left : 0;
 }
 
-// The cards a step asks for (aio_pg_link_step): of aio_pg_wanted, the latest first, records that ended within
-// AIO_PG_LINK_AGE_S, a failure older than AIO_PG_FAIL_S (sq of a series with no seasons too; set back for no reply of
-// the server, aio_pg_link_got), ids of the Dune; of $mids alone (the cards of a screen; null: all); those of $first
-// before the others, in its order (the tiles of the row "Continue" of the main screen, aio_cp_row_mids). -> movie_ids.
+// The cards a step asks for (mel_pg_link_step): of mel_pg_wanted, the latest first, records that ended within
+// MEL_PG_LINK_AGE_S, a failure older than MEL_PG_FAIL_S (sq of a series with no seasons too; set back for no reply of
+// the server, mel_pg_link_got), ids of the Dune; of $mids alone (the cards of a screen; null: all); those of $first
+// before the others, in its order (the tiles of the row "Continue" of the main screen, mel_cp_row_mids). -> movie_ids.
 /**
  * @param list<string>|null $mids
  * @param list<string> $first
  * @return list<string>
  */
-function aio_pg_link_queue($mids = null, $first = array())
+function mel_pg_link_queue($mids = null, $first = array())
 {
     $now = time();
-    $links = aio_pg_links();
+    $links = mel_pg_links();
     $only = $mids !== null ? array_flip($mids) : null;
     $out = array();
-    foreach (aio_pg_wanted() as $mid => $end)
+    foreach (mel_pg_wanted() as $mid => $end)
     {
         $mid = strval($mid);
-        if ($end <= 0 || $now - $end > AIO_PG_LINK_AGE_S || !preg_match('/^[0-9a-f]{24}$/D', $mid) ||
+        if ($end <= 0 || $now - $end > MEL_PG_LINK_AGE_S || !preg_match('/^[0-9a-f]{24}$/D', $mid) ||
             ($only !== null && !isset($only[$mid])))
             continue;
         $t = isset($links[$mid]['fail']) ? $links[$mid]['fail'] : (isset($links[$mid]['sq']) ? $links[$mid]['sq'] : null);
-        if ($t !== null && $now - $t >= 0 && $now - $t < AIO_PG_FAIL_S)
+        if ($t !== null && $now - $t >= 0 && $now - $t < MEL_PG_FAIL_S)
             continue;
         $out[] = $mid;
     }
@@ -1186,13 +1186,13 @@ function aio_pg_link_queue($mids = null, $first = array())
     return array_merge($head, array_values(array_diff($out, $head)));
 }
 
-// The lazy pairs: the cards of aio_pg_link_queue (of $mids, those of $first first: as it takes them) in $limit s:
-// AIO_HTTP_PAR at once (aio_pg_link_many), each its timeout the whole of what is left; else (no curl_multi) up to
-// AIO_PG_LINK_N requests one by one (the second one only with AIO_PG_LINK_NEXT_S left; a $tick, aio_pg_tick: one).
-// None in a pause (aio_pg_paused) or with no dune_auth.
-// One line of the log of a step that asked (its path: aio_http_mark); of a $tick always. -> how many were asked (only
-// the tests read it); $rounds: the requests in time - a batch one, one by one each: the callers take it off AIO_CPM_N,
-// the $n of aio_cpm_step; $pairs: the pairs got (the tick of the screen "Продолжить" builds it anew for them).
+// The lazy pairs: the cards of mel_pg_link_queue (of $mids, those of $first first: as it takes them) in $limit s:
+// MEL_HTTP_PAR at once (mel_pg_link_many), each its timeout the whole of what is left; else (no curl_multi) up to
+// MEL_PG_LINK_N requests one by one (the second one only with MEL_PG_LINK_NEXT_S left; a $tick, mel_pg_tick: one).
+// None in a pause (mel_pg_paused) or with no dune_auth.
+// One line of the log of a step that asked (its path: mel_http_mark); of a $tick always. -> how many were asked (only
+// the tests read it); $rounds: the requests in time - a batch one, one by one each: the callers take it off MEL_CPM_N,
+// the $n of mel_cpm_step; $pairs: the pairs got (the tick of the screen "Продолжить" builds it anew for them).
 /**
  * @param float $limit
  * @param bool $tick
@@ -1202,15 +1202,15 @@ function aio_pg_link_queue($mids = null, $first = array())
  * @param list<string> $first
  * @return int
  */
-function aio_pg_link_step($limit, $tick = false, &$rounds = 0, &$pairs = 0, $mids = null, $first = array())
+function mel_pg_link_step($limit, $tick = false, &$rounds = 0, &$pairs = 0, $mids = null, $first = array())
 {
     $t = microtime(true);
     $n = 0;
     $got = 0;
     $rounds = 0;
-    $q = aio_pg_paused() ? array() : aio_pg_link_queue($mids, $first);
+    $q = mel_pg_paused() ? array() : mel_pg_link_queue($mids, $first);
     $par = 0;
-    $many = $q && $limit >= 1 && aio_pg_token() !== '' ? aio_pg_link_many(array_slice($q, 0, AIO_HTTP_PAR), $limit, $par) :
+    $many = $q && $limit >= 1 && mel_pg_token() !== '' ? mel_pg_link_many(array_slice($q, 0, MEL_HTTP_PAR), $limit, $par) :
         null;
     foreach ($many !== null ? $many : array() as $r)
     {
@@ -1221,21 +1221,21 @@ function aio_pg_link_step($limit, $tick = false, &$rounds = 0, &$pairs = 0, $mid
     foreach ($many !== null ? array() : $q as $mid)
     {
         $left = $limit - (microtime(true) - $t);
-        if ($n >= ($tick ? 1 : AIO_PG_LINK_N) || $left < ($n ? AIO_PG_LINK_NEXT_S : 1))
+        if ($n >= ($tick ? 1 : MEL_PG_LINK_N) || $left < ($n ? MEL_PG_LINK_NEXT_S : 1))
             break;
-        if ($n === 0 && aio_pg_token() === '')
+        if ($n === 0 && mel_pg_token() === '')
             break;
-        $pause = AioPgLinks::$pause;
-        $r = aio_pg_link_now($mid, $left);
+        $pause = MelPgLinks::$pause;
+        $r = mel_pg_link_now($mid, $left);
         $n++;
         $rounds++;
         $got += $r['st'] === 'pair' ? 1 : 0;
-        if (AioPgLinks::$pause !== $pause)
+        if (MelPgLinks::$pause !== $pause)
             break;
     }
-    $mark = aio_http_mark($par, $many !== null ? 0 : $n);
+    $mark = mel_http_mark($par, $many !== null ? 0 : $n);
     if ($n || $tick)
-        aio_log(sprintf('link: %s: %d asked, %d pairs, %.0f ms%s', $tick ? 'tick' : 'step', $n, $got, (microtime(true) - $t) * 1000,
+        mel_log(sprintf('link: %s: %d asked, %d pairs, %.0f ms%s', $tick ? 'tick' : 'step', $n, $got, (microtime(true) - $t) * 1000,
             $mark !== '' ? ", $mark" : ''));
     $pairs = $got;
     return $n;

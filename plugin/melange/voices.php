@@ -3,12 +3,12 @@
 // (FileDB.Metadata.cs) and our lists there: key (lower case, words joined by
 // a space) -> the name shown, '' for a common word never shown.
 
-define('AIO_VOICES_NGRAM', 5);   // words in the longest key
+define('MEL_VOICES_NGRAM', 5);   // words in the longest key
 
 /**
  * @return array<string, string>
  */
-function aio_voices_dict()
+function mel_voices_dict()
 {
     static $d = array(
         '1+1' => '1+1', '100 тв' => '100 ТВ', '1001 cinema' => '1001cinema', '1001cinema' => '1001cinema',
@@ -411,7 +411,7 @@ function aio_voices_dict()
 /**
  * @return array<string, array<string, true>>
  */
-function aio_voices_exact()
+function mel_voices_exact()
 {
     static $e = array(
         'ams' => array('AMS' => true), 'cpi' => array('CPI' => true), 'deep' => array('DEEP' => true),

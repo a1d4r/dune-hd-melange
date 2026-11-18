@@ -278,12 +278,12 @@ export function watchOf(form: HTMLFormElement): string {
   return checkedValue(form, NAME.watch) || VALUE.debrid;
 }
 
-// A value without the spaces around it, as PHP trims it (AIO_TRIM).
+// A value without the spaces around it, as PHP trims it (MEL_TRIM).
 export const trimmed = (value: string): string => value.replace(/^[ \t\r\n\x0B]+|[ \t\r\n\x0B]+$/g, "");
 
 // An address typed as [http://]login:password@host[:port] -> [the address without them, login, password] as typed
 // (no ":" - an empty password); no "@", no login before it or a "/", "?", "#" there -> [s, null, null] (a bad
-// address). As aio_ts_userinfo (common.php): the last "@" ends the password.
+// address). As mel_ts_userinfo (common.php): the last "@" ends the password.
 export function tsUserinfo(s: string): [string, string | null, string | null] {
   const at = s.lastIndexOf("@"),
     pre = /^http:\/\//i.test(s) ? 7 : 0;

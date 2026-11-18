@@ -9,7 +9,7 @@ import { byId, DATA, ID, type Page } from "./dom";
 import { failureText, type Texts } from "./i18n";
 import { addLine, show } from "./ui";
 
-// The groups of aio_cat_group (catalog.php), in the order of the screen; any other one goes to the last, "other".
+// The groups of mel_cat_group (catalog.php), in the order of the screen; any other one goes to the last, "other".
 const GROUPS: readonly (readonly [string, keyof Texts])[] = [
   ["top", "groupTop"],
   ["fresh", "groupFresh"],
@@ -27,17 +27,17 @@ const GROUPS: readonly (readonly [string, keyof Texts])[] = [
   ["other", "groupOther"],
 ];
 const SCREEN = "#rows";
-// Keys in the field: no key has a space (aio_cat_row).
+// Keys in the field: no key has a space (mel_cat_row).
 const SEPARATOR = " ";
 type Tab = CatRow["tab"];
 // The parts of the screen, as the tabs of the catalog; in the field the keys of movies go first.
 const TABS: readonly Tab[] = ["movie", "series"];
 
 const KNOWN = new Set(GROUPS.map(([group]) => group));
-// As aio_cat_block (catalog.php): the group of a row on the screen, one not of GROUPS "other".
+// As mel_cat_block (catalog.php): the group of a row on the screen, one not of GROUPS "other".
 export const groupOf = (row: Pick<CatRow, "group">): string => (KNOWN.has(row.group) ? row.group : "other");
 
-// As aio_cat_blocks (catalog.php): the rows by groups (groupOf), group => its rows, the groups in the order of their
+// As mel_cat_blocks (catalog.php): the rows by groups (groupOf), group => its rows, the groups in the order of their
 // first row, the rows of each in their order.
 export function blocksOf<T extends Pick<CatRow, "group">>(rows: readonly T[]): Map<string, T[]> {
   const blocks = new Map<string, T[]>();
@@ -48,12 +48,12 @@ export function blocksOf<T extends Pick<CatRow, "group">>(rows: readonly T[]): M
   return blocks;
 }
 
-// As aio_cat_by_groups (catalog.php): the keys of the rows with those of a group together (blocksOf).
+// As mel_cat_by_groups (catalog.php): the keys of the rows with those of a group together (blocksOf).
 export function byGroups(rows: readonly Pick<CatRow, "key" | "group">[]): string[] {
   return ([] as string[]).concat(...[...blocksOf(rows).values()].map((block) => block.map((row) => row.key)));
 }
 
-// As aio_cat_user_rows (catalog.php): the keys of the choice of the tab still in the list, else its start rows; the
+// As mel_cat_user_rows (catalog.php): the keys of the choice of the tab still in the list, else its start rows; the
 // rows of a group together either way.
 export function chosenKeys(rows: CatRow[], value: string, tab: Tab): string[] {
   const of = rows.filter((row) => row.tab === tab);

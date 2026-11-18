@@ -4,27 +4,27 @@
 // with a timer, then vod_play of /stream/<name>?link=<hash>&index=<id>&play:
 // the Dune player buffers a TorrServer stream itself. The episodes of the
 // pack go to the playlist as such URLs, the player switching them alone, or
-// lazy, each with its markers (markers of the settings, aio_play).
+// lazy, each with its markers (markers of the settings, mel_play).
 // TorrServer drops a torrent nobody reads after its own timeout: no drop/rem.
-// Reads Aio (state, settings), writes Aio::$tswait, Aio::$ts_pack. Functions are global; the
+// Reads Mel (state, settings), writes Mel::$tswait, Mel::$ts_pack. Functions are global; the
 // require order is in main.php.
 
-// Dialog ticks: every AIO_TS_TICK_MS a "get"; the file list awaited
-// AIO_TS_WAIT s at most (Online movies: 60 ticks of 950 ms), and AIO_TS_TICKS
+// Dialog ticks: every MEL_TS_TICK_MS a "get"; the file list awaited
+// MEL_TS_WAIT s at most (Online movies: 60 ticks of 950 ms), and MEL_TS_TICKS
 // ticks at most: the clock of the Dune may jump (NTP).
-define('AIO_TS_TICK_MS', 1000);
-define('AIO_TS_WAIT', 60);
-define('AIO_TS_TICKS', 60);
+define('MEL_TS_TICK_MS', 1000);
+define('MEL_TS_WAIT', 60);
+define('MEL_TS_TICKS', 60);
 // TorrServer MatriX answers /echo within a second ("Continue watching" asks
 // before it goes there).
 /**
  * @return bool
  */
-function aio_ts_alive()
+function mel_ts_alive()
 {
-    $r = aio_ts_call(Aio::$settings['ts'] . '/echo', null, 1);
+    $r = mel_ts_call(Mel::$settings['ts'] . '/echo', null, 1);
     $ok = $r['err'] === '' && $r['code'] === 200 && strpos($r['body'], 'MatriX.') === 0;
-    aio_log('ts: ' . Aio::$settings['ts'] . ' echo: ' .
+    mel_log('ts: ' . Mel::$settings['ts'] . ' echo: ' .
         ($ok ? 'MatriX' : ($r['err'] !== '' ? $r['err'] : "HTTP {$r['code']}")));
     return $ok;
 }
@@ -35,7 +35,7 @@ function aio_ts_alive()
  * @param string $body
  * @return array<mixed>|null
  */
-function aio_ts_decode($body)
+function mel_ts_decode($body)
 {
     $body = preg_replace('/("(?:length|torrent_size|loaded_size|preloaded_bytes|preload_size|bytes_[a-z_]+)"\s*:\s*)' .
         '([0-9]{10,})/', '$1"$2"', $body);
@@ -48,30 +48,30 @@ function aio_ts_decode($body)
 // window of TorrServer in the player (ts_info.php).
 /**
  * @param string $hash
- * @return array{AioTsReply, array<mixed>|null}
+ * @return array{MelTsReply, array<mixed>|null}
  */
-function aio_ts_get($hash)
+function mel_ts_get($hash)
 {
-    $rg = aio_ts_call(Aio::$settings['ts'] . '/torrents', (string) json_encode(array('action' => 'get', 'hash' => $hash)), 2,
-        Aio::$settings['ts_auth']);
-    return array($rg, $rg['err'] === '' && $rg['code'] === 200 ? aio_ts_decode($rg['body']) : null);
+    $rg = mel_ts_call(Mel::$settings['ts'] . '/torrents', (string) json_encode(array('action' => 'get', 'hash' => $hash)), 2,
+        Mel::$settings['ts_auth']);
+    return array($rg, $rg['err'] === '' && $rg['code'] === 200 ? mel_ts_decode($rg['body']) : null);
 }
 
 // file_stats of a TorrentStatus -> list of array('id' => int, 'path' =>
 // string, 'size' => float), as TorrServer sorts them (ids from 1).
 /**
  * @param array<mixed>|null $j
- * @return list<AioTsFile>
+ * @return list<MelTsFile>
  */
-function aio_ts_files($j)
+function mel_ts_files($j)
 {
     $out = array();
-    foreach (aio_arr($j, 'file_stats') as $f)
+    foreach (mel_arr($j, 'file_stats') as $f)
     {
         $id = is_array($f) && isset($f['id']) && is_int($f['id']) ? $f['id'] : 0;
-        $path = aio_str($f, 'path');
+        $path = mel_str($f, 'path');
         if ($id >= 1 && $path !== '')
-            $out[] = array('id' => $id, 'path' => $path, 'size' => aio_num(aio_str($f, 'length')));
+            $out[] = array('id' => $id, 'path' => $path, 'size' => mel_num(mel_str($f, 'length')));
     }
     return $out;
 }
@@ -80,7 +80,7 @@ function aio_ts_files($j)
  * @param string $path
  * @return string
  */
-function aio_ts_basename($path)
+function mel_ts_basename($path)
 {
     $p = strrpos($path, '/');
     return $p === false ? $path : substr($path, $p + 1);
@@ -90,7 +90,7 @@ function aio_ts_basename($path)
  * @param string $path
  * @return string
  */
-function aio_ts_dirname($path)
+function mel_ts_dirname($path)
 {
     $p = strrpos($path, '/');
     return $p === false ? '' : substr($path, 0, $p);
@@ -98,21 +98,21 @@ function aio_ts_dirname($path)
 
 // The number of an episode in the name of a file: up to 4 digits (One Piece - 1000), not a year 1900-2099, not
 // a resolution ("1080p", "2160i").
-define('AIO_TS_EP_N', '(?!(?:19|20)[0-9]{2}(?![0-9])|[0-9]{4}[pi])[0-9]{1,4}');
+define('MEL_TS_EP_N', '(?!(?:19|20)[0-9]{2}(?![0-9])|[0-9]{4}[pi])[0-9]{1,4}');
 
 // Season and episode by the name of a file -> array(season or null, episode)
 // or null: S01E02, s1.e2, s01ep02, S01E.02, 1x02; else E02 / EP02 / "Серия 2" /
-// "2 серия" / " - 07" (season unknown); an episode up to 4 digits (AIO_TS_EP_N,
+// "2 серия" / " - 07" (season unknown); an episode up to 4 digits (MEL_TS_EP_N,
 // 1x02: 3). Only to find a file in a known pack.
-// The number leading the name is aio_ts_ep_lead, weaker (aio_ts_eps).
+// The number leading the name is mel_ts_ep_lead, weaker (mel_ts_eps).
 /**
  * @param string $path
  * @return array{int|null, int}|null
  */
-function aio_ts_ep($path)
+function mel_ts_ep($path)
 {
-    $n = aio_ts_basename($path);
-    $x = AIO_TS_EP_N;
+    $n = mel_ts_basename($path);
+    $x = MEL_TS_EP_N;
     if (preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?(' . $x . ')(?![0-9])/i', $n, $m) ||
         preg_match('/(?<![a-z0-9])s([0-9]{1,2})[ ._\-]?e(?:p(?:isode)?)?[ ._\-](?=[0-9]{2})(' . $x . ')(?![0-9a-z])/i', $n, $m) ||
         preg_match('/(?<![a-z0-9])([0-9]{1,2})x([0-9]{1,3})(?![0-9])/i', $n, $m))
@@ -133,9 +133,9 @@ function aio_ts_ep($path)
  * @param string $path
  * @return array{null, int}|null
  */
-function aio_ts_ep_lead($path)
+function mel_ts_ep_lead($path)
 {
-    return preg_match('/^(' . AIO_TS_EP_N . ')(?=[ ._\-])/', aio_ts_basename($path), $m) ? array(null, intval($m[1])) : null;
+    return preg_match('/^(' . MEL_TS_EP_N . ')(?=[ ._\-])/', mel_ts_basename($path), $m) ? array(null, intval($m[1])) : null;
 }
 
 // The weakest: in each folder, the number right after the start common to the
@@ -146,16 +146,16 @@ function aio_ts_ep_lead($path)
 // number is in two of them.
 // -> array(key of $files => array(null, episode)).
 /**
- * @param list<AioTsFile> $files
+ * @param list<MelTsFile> $files
  * @return array<int, array{null, int}>
  */
-function aio_ts_eps_prefix($files)
+function mel_ts_eps_prefix($files)
 {
     $dirs = array();
     foreach ($files as $k => $f)
     {
-        if (aio_ts_video($f['path']))
-            $dirs[aio_ts_dirname($f['path'])][$k] = aio_ts_basename($f['path']);
+        if (mel_ts_video($f['path']))
+            $dirs[mel_ts_dirname($f['path'])][$k] = mel_ts_basename($f['path']);
     }
     $season = array();
     $other = array();
@@ -164,7 +164,7 @@ function aio_ts_eps_prefix($files)
     $any_season = false;
     foreach ($dirs as $dir => $names)
     {
-        $in_season = aio_ts_dir_season("$dir/", null);
+        $in_season = mel_ts_dir_season("$dir/", null);
         $any_season = $any_season || $in_season;
         if (count($names) < 2)
             continue;
@@ -188,7 +188,7 @@ function aio_ts_eps_prefix($files)
             if (preg_match('/(?<![0-9])(?:(?:19|20)[0-9]{2}[ ._\-][0-9]{1,2}[ ._\-][0-9]{1,2}|' .
                 '[0-9]{1,2}[ ._\-][0-9]{1,2}[ ._\-](?:19|20)[0-9]{2})(?![0-9])/', $n))
                 continue 2;
-            if (preg_match('/^(' . AIO_TS_EP_N . ')(?:v[0-9])?(?![0-9a-z])(?![ ._\-][0-9]{1,2}(?![0-9a-z]))/i', substr($n, $start), $m))
+            if (preg_match('/^(' . MEL_TS_EP_N . ')(?:v[0-9])?(?![0-9a-z])(?![ ._\-][0-9]{1,2}(?![0-9a-z]))/i', substr($n, $start), $m))
             {
                 $e = intval($m[1]);
                 if (isset($seen[$e]))
@@ -209,42 +209,42 @@ function aio_ts_eps_prefix($files)
     return $any_season ? $season : ($twice ? array() : $other);
 }
 
-// Episodes of the videos of $files by aio_ts_ep; only when it knows none of
-// them, by aio_ts_ep_lead; only when that knows none, by aio_ts_eps_prefix.
+// Episodes of the videos of $files by mel_ts_ep; only when it knows none of
+// them, by mel_ts_ep_lead; only when that knows none, by mel_ts_eps_prefix.
 // -> array(key of $files => its episode, by one of the last two).
 /**
- * @param list<AioTsFile> $files
+ * @param list<MelTsFile> $files
  * @return array{array<int, array{int|null, int}>, bool}
  */
-function aio_ts_eps($files)
+function mel_ts_eps($files)
 {
     $out = array();
     foreach ($files as $k => $f)
     {
-        if (aio_ts_video($f['path']) && ($ep = aio_ts_ep($f['path'])))
+        if (mel_ts_video($f['path']) && ($ep = mel_ts_ep($f['path'])))
             $out[$k] = $ep;
     }
     if ($out)
         return array($out, false);
     foreach ($files as $k => $f)
     {
-        if (aio_ts_video($f['path']) && ($ep = aio_ts_ep_lead($f['path'])))
+        if (mel_ts_video($f['path']) && ($ep = mel_ts_ep_lead($f['path'])))
             $out[$k] = $ep;
     }
-    return array($out ? $out : aio_ts_eps_prefix($files), true);
+    return array($out ? $out : mel_ts_eps_prefix($files), true);
 }
 
 // What starts a mark of a season before its number: "S", "Season ", "Сезон ".
-define('AIO_TS_SEASON_MARK', '(?:(?<![a-z0-9])(?:s|season[ ._\-]?)|сезон[ ._\-]*)');
+define('MEL_TS_SEASON_MARK', '(?:(?<![a-z0-9])(?:s|season[ ._\-]?)|сезон[ ._\-]*)');
 
 // The marks of a season numbered by the regex $n: "S01", "Season 1", "Сезон 1", "1 сезон".
 /**
  * @param string $n
  * @return string
  */
-function aio_ts_season_re($n)
+function mel_ts_season_re($n)
 {
-    return AIO_TS_SEASON_MARK . '0*' . $n . '(?![0-9])|(?<![0-9])0*' . $n . '[ ._\-]*сезон';
+    return MEL_TS_SEASON_MARK . '0*' . $n . '(?![0-9])|(?<![0-9])0*' . $n . '[ ._\-]*сезон';
 }
 
 // A folder of the path names season $s ("Season 1", "S01", "1 сезон"); $s
@@ -254,29 +254,29 @@ function aio_ts_season_re($n)
  * @param int|null $s
  * @return bool
  */
-function aio_ts_dir_season($path, $s)
+function mel_ts_dir_season($path, $s)
 {
-    return preg_match('/' . aio_ts_season_re($s === null ? '[0-9]{1,3}' : strval($s)) . '/iu', aio_ts_dirname($path)) === 1;
+    return preg_match('/' . mel_ts_season_re($s === null ? '[0-9]{1,3}' : strval($s)) . '/iu', mel_ts_dirname($path)) === 1;
 }
 
 // The one season the folder name $dir names: "S2", "Season 2", "2 сезон",
 // "Show.S02.1080p" -> its number, else null: none ("Extras"), more than one
 // ("сезон 1-8", "S01-S08", "S1-3", "Season 1 and 2") or marks that differ, which
 // one is the season is unclear ("911 Сезон 4", "2 сезон 3 озвучки"). Unlike
-// aio_ts_dir_season: one folder, no ranges.
+// mel_ts_dir_season: one folder, no ranges.
 /**
  * @param string $dir
  * @return int|null
  */
-function aio_ts_one_season($dir)
+function mel_ts_one_season($dir)
 {
     $sep = '(?:[ ._]*[\-–—,+&][ ._]*|[ ._]+(?:and|и)[ ._]+)';
-    if (preg_match('/' . AIO_TS_SEASON_MARK . '[0-9]{1,3}' . $sep . '(?:s|season[ ._\-]?)?[0-9]{1,3}(?![0-9a-zа-я])|[0-9]{1,3}' . $sep .
+    if (preg_match('/' . MEL_TS_SEASON_MARK . '[0-9]{1,3}' . $sep . '(?:s|season[ ._\-]?)?[0-9]{1,3}(?![0-9a-zа-я])|[0-9]{1,3}' . $sep .
         '[0-9]{1,3}[ ._\-]*сезон/iu', $dir))
         return null;
     // Every mark, overlapping ones too ("911 Сезон 4": two), so a lookahead. A
     // number with a letter after is no mark ("сезон 720p"), but "S02E01" is.
-    if (!preg_match_all('/(?=' . AIO_TS_SEASON_MARK . '0*([0-9]{1,3})(?![0-9]|(?!e[0-9])\pL)|(?<![0-9])([0-9]+)[ ._\-]*сезон(?!\pL))/iu', $dir, $m, PREG_SET_ORDER))
+    if (!preg_match_all('/(?=' . MEL_TS_SEASON_MARK . '0*([0-9]{1,3})(?![0-9]|(?!e[0-9])\pL)|(?<![0-9])([0-9]+)[ ._\-]*сезон(?!\pL))/iu', $dir, $m, PREG_SET_ORDER))
         return null;
     $found = array();
     // The group that matched is the last of the set.
@@ -285,19 +285,19 @@ function aio_ts_one_season($dir)
     return count($found) === 1 ? key($found) : null;
 }
 
-// The season of file $path, episode $ep of aio_ts_eps: in its name, else in its last folder.
+// The season of file $path, episode $ep of mel_ts_eps: in its name, else in its last folder.
 /**
  * @param string $path
  * @param array{int|null, int} $ep
  * @return int|null
  */
-function aio_ts_file_season($path, $ep)
+function mel_ts_file_season($path, $ep)
 {
-    return $ep[0] !== null ? $ep[0] : aio_ts_one_season(aio_ts_basename(aio_ts_dirname($path)));
+    return $ep[0] !== null ? $ep[0] : mel_ts_one_season(mel_ts_basename(mel_ts_dirname($path)));
 }
 
 // The episodes of the other seasons of the pack, by the seasons of their files
-// (aio_ts_file_season), $s the one played: season => episode => key of $files,
+// (mel_ts_file_season), $s the one played: season => episode => key of $files,
 // both ascending. Only from the folder of $played or a neighbour of it: the same
 // parent and the same name but for its numbers after the mark of a season, if any
 // ("S1" -> "S2", "Сезон 1 (2011)" -> "Сезон 2 (2012)", not "Show 2 S01" -> "Show 3 S02"),
@@ -306,17 +306,17 @@ function aio_ts_file_season($path, $ep)
 // "Show.S02.720p"), else other neighbours; of several files of an episode, the first.
 // A folder whose numbers do not start at 1 numbers across seasons ("S2/11.mkv"): left out.
 /**
- * @param list<AioTsFile> $files
+ * @param list<MelTsFile> $files
  * @param array<int, array{int|null, int}> $all
  * @param string $played
  * @param int $s
  * @return array<int, array<int, int>>
  */
-function aio_ts_pack_map($files, $all, $played, $s)
+function mel_ts_pack_map($files, $all, $played, $s)
 {
-    $home = aio_ts_dirname($played);
-    $name = aio_ts_basename($home);
-    $title = preg_match('/' . aio_ts_season_re('[0-9]{1,3}') . '/iu', $name, $m, PREG_OFFSET_CAPTURE) ? $m[0][1] : 0;
+    $home = mel_ts_dirname($played);
+    $name = mel_ts_basename($home);
+    $title = preg_match('/' . mel_ts_season_re('[0-9]{1,3}') . '/iu', $name, $m, PREG_OFFSET_CAPTURE) ? $m[0][1] : 0;
     $like = '/^' . preg_quote(strval(substr($name, 0, $title)), '/') . preg_replace('/[0-9]+/', '[0-9]+', preg_quote(strval(substr($name, $title)), '/')) . '$/iu';
     preg_match_all('/[0-9]+/', $name, $nums);
     $out = array();
@@ -325,10 +325,10 @@ function aio_ts_pack_map($files, $all, $played, $s)
     foreach ($all as $k => $ep)
     {
         $path = $files[$k]['path'];
-        $q = aio_ts_file_season($path, $ep);
-        $d = aio_ts_dirname($path);
-        $base = aio_ts_basename($d);
-        if ($q === null || $q === $s || ($d !== $home && ($home === '' || aio_ts_dirname($d) !== aio_ts_dirname($home) || !preg_match($like, $base))))
+        $q = mel_ts_file_season($path, $ep);
+        $d = mel_ts_dirname($path);
+        $base = mel_ts_basename($d);
+        if ($q === null || $q === $s || ($d !== $home && ($home === '' || mel_ts_dirname($d) !== mel_ts_dirname($home) || !preg_match($like, $base))))
             continue;
         preg_match_all('/[0-9]+/', $base, $m);
         $diff = array_diff_assoc($m[0], $nums[0]);
@@ -360,20 +360,20 @@ function aio_ts_pack_map($files, $all, $played, $s)
 
 // Files of episode $e of season $s among $files (video only): its season in
 // the name, else an unknown season with the season in the folder, else any
-// unknown season. By a number with no mark (the last two of aio_ts_eps): not in
+// unknown season. By a number with no mark (the last two of mel_ts_eps): not in
 // a folder of another season, and only from one folder; of several with the
 // season in the path ("S1-3/Season 1"), the one whose last folder names it,
 // none if the last folder of any names no season ("S01/Extras").
 // -> keys of $files.
 /**
- * @param list<AioTsFile> $files
+ * @param list<MelTsFile> $files
  * @param int $s
  * @param int $e
  * @return list<int>
  */
-function aio_ts_ep_files($files, $s, $e)
+function mel_ts_ep_files($files, $s, $e)
 {
-    list($all, $weak) = aio_ts_eps($files);
+    list($all, $weak) = mel_ts_eps($files);
     $named = array();
     $dir = array();
     $any = array();
@@ -386,17 +386,17 @@ function aio_ts_ep_files($files, $s, $e)
             continue;
         if ($ep[0] !== null)
             $named[] = $k;
-        else if (aio_ts_dir_season($path, $s))
+        else if (mel_ts_dir_season($path, $s))
         {
             $dir[] = $k;
-            $season_dirs[aio_ts_dirname($path)] = true;
+            $season_dirs[mel_ts_dirname($path)] = true;
         }
         else if (!$weak)
             $any[] = $k;
-        else if (!aio_ts_dir_season($path, null))
+        else if (!mel_ts_dir_season($path, null))
         {
             $any[] = $k;
-            $dirs[aio_ts_dirname($path)] = true;
+            $dirs[mel_ts_dirname($path)] = true;
         }
     }
     if ($named)
@@ -409,10 +409,10 @@ function aio_ts_ep_files($files, $s, $e)
         $last_dirs = array();
         foreach ($dir as $k)
         {
-            $d = aio_ts_dirname($files[$k]['path']);
-            if (!aio_ts_dir_season(aio_ts_basename($d) . '/', null))
+            $d = mel_ts_dirname($files[$k]['path']);
+            if (!mel_ts_dir_season(mel_ts_basename($d) . '/', null))
                 return array();
-            if (aio_ts_dir_season(aio_ts_basename($d) . '/', $s))
+            if (mel_ts_dir_season(mel_ts_basename($d) . '/', $s))
             {
                 $last[] = $k;
                 $last_dirs[$d] = true;
@@ -423,23 +423,23 @@ function aio_ts_ep_files($files, $s, $e)
     return count($dirs) > 1 ? array() : $any;
 }
 
-// Files $keys of $files (aio_ts_ep_files) of season $s for sure: the season in the
-// name, else as the one season of its own folder (aio_ts_one_season: "Season
+// Files $keys of $files (mel_ts_ep_files) of season $s for sure: the season in the
+// name, else as the one season of its own folder (mel_ts_one_season: "Season
 // 21/032.mkv", not "S01-S21/032.mkv" nor "1-21 сезон/032.mkv").
 /**
- * @param list<AioTsFile> $files
+ * @param list<MelTsFile> $files
  * @param list<int> $keys
  * @param int $s
  * @return list<int>
  */
-function aio_ts_ep_sure($files, $keys, $s)
+function mel_ts_ep_sure($files, $keys, $s)
 {
     $out = array();
     foreach ($keys as $k)
     {
         $p = $files[$k]['path'];
-        $ep = aio_ts_ep($p);
-        if (($ep && $ep[0] !== null ? $ep[0] : aio_ts_one_season(aio_ts_basename(aio_ts_dirname($p)))) === $s)
+        $ep = mel_ts_ep($p);
+        if (($ep && $ep[0] !== null ? $ep[0] : mel_ts_one_season(mel_ts_basename(mel_ts_dirname($p)))) === $s)
             $out[] = $k;
     }
     return $out;
@@ -447,7 +447,7 @@ function aio_ts_ep_sure($files, $keys, $s)
 
 // The name of file $path, the one AIOStreams chose for S$s E$e of an anime
 // numbered on (its number of the meta $n), names no other episode: no episode in
-// it (aio_ts_ep, aio_ts_ep_lead), S$s E$e, or $n with no season or season 1. Not
+// it (mel_ts_ep, mel_ts_ep_lead), S$s E$e, or $n with no season or season 1. Not
 // "One Piece - 032.mkv" for S21E32, the 923rd.
 /**
  * @param string $path
@@ -456,13 +456,13 @@ function aio_ts_ep_sure($files, $keys, $s)
  * @param int $n
  * @return bool
  */
-function aio_ts_name_ok($path, $s, $e, $n)
+function mel_ts_name_ok($path, $s, $e, $n)
 {
-    $ep = aio_ts_ep($path);
+    $ep = mel_ts_ep($path);
     if (!$ep)
-        $ep = aio_ts_ep_lead($path);
+        $ep = mel_ts_ep_lead($path);
     return !$ep || ($ep[0] === $s && $ep[1] === $e) || (($ep[0] === null || $ep[0] === 1) && $ep[1] === $n) ||
-        ($ep[0] === null && $ep[1] === $e && aio_ts_one_season(aio_ts_basename(aio_ts_dirname($path))) === $s);
+        ($ep[0] === null && $ep[1] === $e && mel_ts_one_season(mel_ts_basename(mel_ts_dirname($path))) === $s);
 }
 
 // The file of row $r in $files -> array(key of $files or -1, why). The one
@@ -470,57 +470,57 @@ function aio_ts_name_ok($path, $s, $e, $n)
 // else an episode by the name of the file; else, for a movie, the biggest video,
 // for an episode of a card of season 1 alone ($one_season), the only video if
 // it has no mark. An episode of an anime numbered on, its number of the meta $n
-// (aio_cin_n: 923 for S21E32 of One Piece): its season and episode only with the
-// season in the name or as the one season of its own folder (aio_ts_ep_sure:
-// "032" of a pack "1-130" or "1-21 сезон" is another episode, aio_cin_wrong),
+// (mel_cin_n: 923 for S21E32 of One Piece): its season and episode only with the
+// season in the name or as the one season of its own folder (mel_ts_ep_sure:
+// "032" of a pack "1-130" or "1-21 сезон" is another episode, mel_cin_wrong),
 // else by that number in season 1 (an old pack of the absolute numbering
 // "1-990", "S01-S21/923.mkv"); the file named by AIOStreams only if its name has
-// no other episode (aio_ts_name_ok).
+// no other episode (mel_ts_name_ok).
 /**
- * @param list<AioTsFile> $files
- * @param AioRow $r
+ * @param list<MelTsFile> $files
+ * @param MelRow $r
  * @param int $s
  * @param int $e
  * @param bool $one_season
  * @param int $n
  * @return array{int, string}
  */
-function aio_ts_pick($files, $r, $s, $e, $one_season = false, $n = 0)
+function mel_ts_pick($files, $r, $s, $e, $one_season = false, $n = 0)
 {
     $raw = $r['raw'];
-    $sd = aio_arr($raw, 'streamData');
-    $bh = aio_arr($raw, 'behaviorHints');
-    $name = aio_str($bh, 'filename') !== '' ? aio_str($bh, 'filename') : aio_str($sd, 'filename');
-    $size = aio_str($bh, 'videoSize') !== '' ? aio_num(aio_str($bh, 'videoSize')) : $r['size'];
+    $sd = mel_arr($raw, 'streamData');
+    $bh = mel_arr($raw, 'behaviorHints');
+    $name = mel_str($bh, 'filename') !== '' ? mel_str($bh, 'filename') : mel_str($sd, 'filename');
+    $size = mel_str($bh, 'videoSize') !== '' ? mel_num(mel_str($bh, 'videoSize')) : $r['size'];
     $by_name = array();
     foreach ($files as $k => $f)
     {
-        if ($name !== '' && aio_ts_video($f['path']) && strcasecmp(aio_ts_basename($f['path']), $name) == 0 &&
-            ($n < 1 || aio_ts_name_ok($f['path'], $s, $e, $n)))
+        if ($name !== '' && mel_ts_video($f['path']) && strcasecmp(mel_ts_basename($f['path']), $name) == 0 &&
+            ($n < 1 || mel_ts_name_ok($f['path'], $s, $e, $n)))
             $by_name[] = $k;
     }
     // An episode: the file named by AIOStreams is left out for a file of this
     // episode with its season in the name, or in a folder when its own last
     // folder names another season and is not above that file. The rest stay:
     // absolute numbering ("- 13" for S02E01), a range of seasons in the root.
-    $eps = $e > 0 ? aio_ts_ep_files($files, $s, $e) : array();
+    $eps = $e > 0 ? mel_ts_ep_files($files, $s, $e) : array();
     $q = $s;
     if ($n > 0 && $e > 0)
     {
-        $eps = aio_ts_ep_sure($files, $eps, $s);
+        $eps = mel_ts_ep_sure($files, $eps, $s);
         if (!$eps)
-            list($eps, $q) = array(aio_ts_ep_files($files, 1, $n), 1);
+            list($eps, $q) = array(mel_ts_ep_files($files, 1, $n), 1);
     }
-    $ep0 = $eps ? aio_ts_ep($files[$eps[0]]['path']) : null;
+    $ep0 = $eps ? mel_ts_ep($files[$eps[0]]['path']) : null;
     if ($ep0 && $ep0[0] !== null)
         $by_name = array_values(array_intersect($by_name, $eps));
-    else if ($eps && aio_ts_dir_season($files[$eps[0]]['path'], $q))
+    else if ($eps && mel_ts_dir_season($files[$eps[0]]['path'], $q))
     {
         foreach ($by_name as $i => $k)
         {
-            $d = aio_ts_basename(aio_ts_dirname($files[$k]['path'])) . '/';
-            if (aio_ts_dir_season($d, null) && !aio_ts_dir_season($d, $q) &&
-                strpos($files[$eps[0]]['path'], aio_ts_dirname($files[$k]['path']) . '/') !== 0)
+            $d = mel_ts_basename(mel_ts_dirname($files[$k]['path'])) . '/';
+            if (mel_ts_dir_season($d, null) && !mel_ts_dir_season($d, $q) &&
+                strpos($files[$eps[0]]['path'], mel_ts_dirname($files[$k]['path']) . '/') !== 0)
                 unset($by_name[$i]);
         }
         $by_name = array_values($by_name);
@@ -547,15 +547,15 @@ function aio_ts_pick($files, $r, $s, $e, $one_season = false, $n = 0)
             $only = -1;
             foreach ($files as $k => $f)
             {
-                if (aio_ts_video($f['path']))
+                if (mel_ts_video($f['path']))
                 {
                     $n++;
                     $only = $k;
                 }
             }
-            list($marked) = aio_ts_eps($files);
-            // The path with "/": aio_ts_dir_season reads its folders, so the name too.
-            if ($n === 1 && !isset($marked[$only]) && !aio_ts_dir_season($files[$only]['path'] . '/', null))
+            list($marked) = mel_ts_eps($files);
+            // The path with "/": mel_ts_dir_season reads its folders, so the name too.
+            if ($n === 1 && !isset($marked[$only]) && !mel_ts_dir_season($files[$only]['path'] . '/', null))
                 return array($only, 'the only video');
         }
         return array(-1, 'no file of the episode');
@@ -565,7 +565,7 @@ function aio_ts_pick($files, $r, $s, $e, $one_season = false, $n = 0)
     $big = -1;
     foreach ($files as $k => $f)
     {
-        if (aio_ts_video($f['path']) && ($big < 0 || $f['size'] > $files[$big]['size']))
+        if (mel_ts_video($f['path']) && ($big < 0 || $f['size'] > $files[$big]['size']))
             $big = $k;
     }
     return $big >= 0 ? array($big, 'the biggest video') : array(-1, 'no video');
@@ -575,21 +575,21 @@ function aio_ts_pick($files, $r, $s, $e, $one_season = false, $n = 0)
 /**
  * @param string $base
  * @param string $hash
- * @param AioTsFile $f
+ * @param MelTsFile $f
  * @return string
  */
-function aio_ts_url($base, $hash, $f)
+function mel_ts_url($base, $hash, $f)
 {
-    return "$base/stream/" . rawurlencode(aio_ts_basename($f['path'])) . "?link=$hash&index={$f['id']}&play";
+    return "$base/stream/" . rawurlencode(mel_ts_basename($f['path'])) . "?link=$hash&index={$f['id']}&play";
 }
 
 // Episodes of season $s in the pack up to $max, besides $e (the file $chosen):
-// episode => key of $files. $parsed: aio_ts_eps of $files (a pack may have
+// episode => key of $files. $parsed: mel_ts_eps of $files (a pack may have
 // thousands of files). Its season in the name first, then a file of the folder
 // of $chosen; an unknown season counts only in that folder. By a number with no
 // mark, none unless $chosen has number $e: AIOStreams may name another numbering.
 /**
- * @param list<AioTsFile> $files
+ * @param list<MelTsFile> $files
  * @param array{array<int, array{int|null, int}>, bool} $parsed
  * @param int $s
  * @param int $e
@@ -597,9 +597,9 @@ function aio_ts_url($base, $hash, $f)
  * @param int $max
  * @return array<int, int>
  */
-function aio_ts_episodes($files, $parsed, $s, $e, $chosen, $max)
+function mel_ts_episodes($files, $parsed, $s, $e, $chosen, $max)
 {
-    $dir = aio_ts_dirname($files[$chosen]['path']);
+    $dir = mel_ts_dirname($files[$chosen]['path']);
     $best = array();
     list($all, $weak) = $parsed;
     if ($weak && (!isset($all[$chosen]) || $all[$chosen][1] !== $e))
@@ -608,7 +608,7 @@ function aio_ts_episodes($files, $parsed, $s, $e, $chosen, $max)
     {
         if ($ep[1] < 1 || $ep[1] > $max || $ep[1] === $e || ($ep[0] !== null && $ep[0] !== $s))
             continue;
-        $same = aio_ts_dirname($files[$k]['path']) === $dir;
+        $same = mel_ts_dirname($files[$k]['path']) === $dir;
         if ($ep[0] === null && !$same)
             continue;
         $rank = ($ep[0] !== null ? 2 : 0) + ($same ? 1 : 0);
@@ -623,45 +623,45 @@ function aio_ts_episodes($files, $parsed, $s, $e, $chosen, $max)
 }
 
 // The map of a start, file $k of row $r: season => episode => id of the file,
-// the one source of the files of the playlist. Season $st['s']: aio_ts_episodes,
-// the other seasons: aio_ts_pack_map, only if the file has the season asked for;
-// no season known: the season alone. Kept (Aio::$ts_pack) only if the file has the
+// the one source of the files of the playlist. Season $st['s']: mel_ts_episodes,
+// the other seasons: mel_ts_pack_map, only if the file has the season asked for;
+// no season known: the season alone. Kept (Mel::$ts_pack) only if the file has the
 // number and that season, or no season at all: else a lazy episode asks AIOStreams.
-// The file of an anime numbered on by its number of the meta (aio_cin_n: "923"
-// for S21E32): aio_ts_map_abs.
+// The file of an anime numbered on by its number of the meta (mel_cin_n: "923"
+// for S21E32): mel_ts_map_abs.
 /**
- * @param AioState $st
- * @param AioRow $r
- * @param list<AioTsFile> $files
+ * @param MelState $st
+ * @param MelRow $r
+ * @param list<MelTsFile> $files
  * @param int $k
  * @return array<int, array<int, int>>
  */
-function aio_ts_map_start($st, $r, $files, $k)
+function mel_ts_map_start($st, $r, $files, $k)
 {
-    Aio::$ts_pack = null;
+    Mel::$ts_pack = null;
     $s = $st['s'];
     $e = $st['e'];
     if ($e <= 0)
         return array();
     $seasons = $st['movie']['seasons'];
-    $parsed = aio_ts_eps($files);
+    $parsed = mel_ts_eps($files);
     $all = $parsed[0];
-    $abs = aio_cin_n($st['movie']['cin'], $s, $e);
+    $abs = mel_cin_n($st['movie']['cin'], $s, $e);
     if ($abs > 0 && isset($all[$k]) && $all[$k][1] === $abs && ($all[$k][0] === null || $all[$k][0] === 1))
-        return aio_ts_map_abs($st, $r, $files, $all, $k);
+        return mel_ts_map_abs($st, $r, $files, $all, $k);
     $map = array();
-    foreach (aio_ts_episodes($files, $parsed, $s, $e, $k, isset($seasons[$s]) ? min($seasons[$s], AIO_EPISODES_MAX) : 0) as $n => $f)
+    foreach (mel_ts_episodes($files, $parsed, $s, $e, $k, isset($seasons[$s]) ? min($seasons[$s], MEL_EPISODES_MAX) : 0) as $n => $f)
         $map[$s][$n] = $files[$f]['id'];
     if (!isset($all[$k]) || $all[$k][1] !== $e)
         return $map;
-    $fs = aio_ts_file_season($files[$k]['path'], $all[$k]);
+    $fs = mel_ts_file_season($files[$k]['path'], $all[$k]);
     if ($fs !== null && $fs !== $s)
         return $map;
     $map[$s][$e] = $files[$k]['id'];
     ksort($map[$s]);
     if ($fs !== null)
     {
-        foreach (aio_ts_pack_map($files, $all, $files[$k]['path'], $s) as $q => $m)
+        foreach (mel_ts_pack_map($files, $all, $files[$k]['path'], $s) as $q => $m)
         {
             foreach ($m as $n => $f)
             {
@@ -670,60 +670,60 @@ function aio_ts_map_start($st, $r, $files, $k)
             }
         }
     }
-    Aio::$ts_pack = array('key' => $st['movie']['dune_id'], 'hash' => $r['hash'], 'row' => aio_ts_pack_row($r), 'map' => $map);
+    Mel::$ts_pack = array('key' => $st['movie']['dune_id'], 'hash' => $r['hash'], 'row' => mel_ts_pack_row($r), 'map' => $map);
     return $map;
 }
 
 // The map of a start of an anime numbered on, file $k of row $r with the number of the
 // meta of the episode (the 923rd of One Piece for S21E32 in a pack "1-990"): the
-// episodes of its season by their numbers (aio_cin_abs), the files of the folder of $k
-// with such a number and no season or season 1 ($all: aio_ts_eps), the first of
-// several; up to AIO_EPISODES_MAX. Kept (Aio::$ts_pack) for the lazy ones.
+// episodes of its season by their numbers (mel_cin_abs), the files of the folder of $k
+// with such a number and no season or season 1 ($all: mel_ts_eps), the first of
+// several; up to MEL_EPISODES_MAX. Kept (Mel::$ts_pack) for the lazy ones.
 /**
- * @param AioState $st
- * @param AioRow $r
- * @param list<AioTsFile> $files
+ * @param MelState $st
+ * @param MelRow $r
+ * @param list<MelTsFile> $files
  * @param array<int, array{int|null, int}> $all
  * @param int $k
  * @return array<int, array<int, int>>
  */
-function aio_ts_map_abs($st, $r, $files, $all, $k)
+function mel_ts_map_abs($st, $r, $files, $all, $k)
 {
     $s = $st['s'];
     $mv = $st['movie'];
-    $dir = aio_ts_dirname($files[$k]['path']);
+    $dir = mel_ts_dirname($files[$k]['path']);
     $by = array();
     foreach ($all as $j => $ep)
     {
-        if (($ep[0] === null || $ep[0] === 1) && !isset($by[$ep[1]]) && aio_ts_dirname($files[$j]['path']) === $dir)
+        if (($ep[0] === null || $ep[0] === 1) && !isset($by[$ep[1]]) && mel_ts_dirname($files[$j]['path']) === $dir)
             $by[$ep[1]] = $j;
     }
-    $max = isset($mv['seasons'][$s]) ? min($mv['seasons'][$s], AIO_EPISODES_MAX) : 0;
+    $max = isset($mv['seasons'][$s]) ? min($mv['seasons'][$s], MEL_EPISODES_MAX) : 0;
     $map = array($s => array());
     for ($i = 1; $i <= $max; $i++)
     {
-        $a = aio_cin_abs($mv['cin'], $s, $i);
+        $a = mel_cin_abs($mv['cin'], $s, $i);
         if ($a > 0 && isset($by[$a]))
             $map[$s][$i] = $files[$by[$a]]['id'];
     }
     $map[$s][$st['e']] = $files[$k]['id'];
     ksort($map[$s]);
-    Aio::$ts_pack = array('key' => $mv['dune_id'], 'hash' => $r['hash'], 'row' => aio_ts_pack_row($r), 'map' => $map);
+    Mel::$ts_pack = array('key' => $mv['dune_id'], 'hash' => $r['hash'], 'row' => mel_ts_pack_row($r), 'map' => $map);
     return $map;
 }
 
 // The URLs of $map, but for episode $e of season $s -> array(episode => URL of
-// season $s, season => episode => URL of the others), for aio_play.
+// season $s, season => episode => URL of the others), for mel_play.
 /**
  * @param string $base
  * @param string $hash
- * @param list<AioTsFile> $files
+ * @param list<MelTsFile> $files
  * @param array<int, array<int, int>> $map
  * @param int $s
  * @param int $e
  * @return array{array<int, string>, array<int, array<int, string>>}
  */
-function aio_ts_map_urls($base, $hash, $files, $map, $s, $e)
+function mel_ts_map_urls($base, $hash, $files, $map, $s, $e)
 {
     $byid = array();
     foreach ($files as $f)
@@ -737,9 +737,9 @@ function aio_ts_map_urls($base, $hash, $files, $map, $s, $e)
             if (!isset($byid[$id]) || ($q === $s && $n === $e))
                 continue;
             if ($q === $s)
-                $eps[$n] = aio_ts_url($base, $hash, $byid[$id]);
+                $eps[$n] = mel_ts_url($base, $hash, $byid[$id]);
             else
-                $others[$q][$n] = aio_ts_url($base, $hash, $byid[$id]);
+                $others[$q][$n] = mel_ts_url($base, $hash, $byid[$id]);
         }
     }
     return array($eps, $others);
@@ -748,130 +748,130 @@ function aio_ts_map_urls($base, $hash, $files, $map, $s, $e)
 // --- The chain.
 
 // "Could not open via TorrServer": the reason, its detail, OK; over the
-// stopped player of a lazy episode ($lazy) - "Stop", as aio_next_failed.
+// stopped player of a lazy episode ($lazy) - "Stop", as mel_next_failed.
 /**
  * @param string $lang
  * @param string $key
  * @param string $detail
  * @param bool $lazy
- * @return AioAction
+ * @return MelAction
  */
-function aio_ts_fail($lang, $key, $detail = '', $lazy = false)
+function mel_ts_fail($lang, $key, $detail = '', $lazy = false)
 {
-    aio_log("ts: -> dialog: $key" . ($detail !== '' ? " ($detail)" : ''));
-    return aio_dialog(aio_tr($lang, 'ts_failed'), array_merge(aio_dialog_lines(aio_tr($lang, $key)),
-        aio_dialog_lines($detail)), $lazy ? array(aio_tr($lang, 'next_stop') => aio_input('next_stop')) :
-        array('OK' => aio_close_and(null)));
+    mel_log("ts: -> dialog: $key" . ($detail !== '' ? " ($detail)" : ''));
+    return mel_dialog(mel_tr($lang, 'ts_failed'), array_merge(mel_dialog_lines(mel_tr($lang, $key)),
+        mel_dialog_lines($detail)), $lazy ? array(mel_tr($lang, 'next_stop') => mel_input('next_stop')) :
+        array('OK' => mel_close_and(null)));
 }
 
 // "No torrents" and a row of a list opened before it was set: this dialog, nothing
 // sent anywhere.
 /**
  * @param string $lang
- * @return AioAction
+ * @return MelAction
  */
-function aio_torrents_off($lang)
+function mel_torrents_off($lang)
 {
-    aio_log('no torrents: -> dialog');
-    return aio_dialog(aio_tr($lang, 'ts_err_off'), array(), array('OK' => aio_close_and(null)));
+    mel_log('no torrents: -> dialog');
+    return mel_dialog(mel_tr($lang, 'ts_err_off'), array(), array('OK' => mel_close_and(null)));
 }
 
 // 401 of TorrServer: no login set -> it asks for one, else it refused ours.
 /**
  * @return string
  */
-function aio_ts_auth_err()
+function mel_ts_auth_err()
 {
-    return Aio::$settings['ts_auth'] === '' ? 'ts_err_auth' : 'ts_err_auth_bad';
+    return Mel::$settings['ts_auth'] === '' ? 'ts_err_auth' : 'ts_err_auth_bad';
 }
 
 // Row $i of list $st through TorrServer from position $pos (s); $from: rid of
 // the list screen under the player, '' for play_action; $lazy: a lazy
-// episode of the player (aio_next): no file of it -> aio_next_missing.
+// episode of the player (mel_next): no file of it -> mel_next_missing.
 // -> vod_play when the files are known at once, else the dialog that waits
-// for them (its state in Aio::$tswait when $st is not the list on screen); an
-// error dialog. $alive: aio_ts_alive() has just answered, no echo again.
+// for them (its state in Mel::$tswait when $st is not the list on screen); an
+// error dialog. $alive: mel_ts_alive() has just answered, no echo again.
 // $miss_list: "Continue" to the next episode, no file of it -> the list of $st.
 /**
- * @param AioState $st
+ * @param MelState $st
  * @param int $i
  * @param int $pos
  * @param string $from
  * @param bool $lazy
  * @param bool $alive
  * @param bool $miss_list
- * @return AioAction
+ * @return MelAction
  */
-function aio_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_list = false)
+function mel_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_list = false)
 {
     $r = $st['rows'][$i];
     $lang = $st['lang'];
-    if (Aio::$settings['no_torrents'])
-        return aio_torrents_off($lang);
-    $base = Aio::$settings['ts'];
-    $tag = aio_ep_tag($st) . ", row $i, hash {$r['hash']}";
+    if (Mel::$settings['no_torrents'])
+        return mel_torrents_off($lang);
+    $base = Mel::$settings['ts'];
+    $tag = mel_ep_tag($st) . ", row $i, hash {$r['hash']}";
     if (!$alive)
     {
         $t = microtime(true);
-        $re = aio_ts_call("$base/echo", null, 2);
+        $re = mel_ts_call("$base/echo", null, 2);
         $err = $re['err'];
         $code = $re['code'];
-        $ver = $err === '' && $code === 200 ? aio_cut(trim($re['body']), 40) : '';
-        aio_log(sprintf('ts: %s: %s echo: %s, %.2f s', $tag, $base, $err !== '' ? $err : "HTTP $code \"$ver\"",
+        $ver = $err === '' && $code === 200 ? mel_cut(trim($re['body']), 40) : '';
+        mel_log(sprintf('ts: %s: %s echo: %s, %.2f s', $tag, $base, $err !== '' ? $err : "HTTP $code \"$ver\"",
             microtime(true) - $t));
         if ($err !== '' || $code !== 200)
-            return aio_ts_fail($lang, 'ts_err_down', $err !== '' ? $err : "HTTP $code", $lazy);
+            return mel_ts_fail($lang, 'ts_err_down', $err !== '' ? $err : "HTTP $code", $lazy);
         if (strpos($ver, 'MatriX.') !== 0)
-            return aio_ts_fail($lang, 'ts_err_old', $ver, $lazy);
+            return mel_ts_fail($lang, 'ts_err_old', $ver, $lazy);
     }
     else
-        aio_log("ts: $tag: $base answered just now");
+        mel_log("ts: $tag: $base answered just now");
 
-    list($mg, $n, $src) = aio_magnet($r);
-    // An address only: a path of a picture on the Dune (of its Favorites, aio_ml_url) means nothing to TorrServer.
+    list($mg, $n, $src) = mel_magnet($r);
+    // An address only: a path of a picture on the Dune (of its Favorites, mel_ml_url) means nothing to TorrServer.
     $poster = preg_match('~^https?://~', $st['movie']['poster']) ? $st['movie']['poster'] : '';
-    $req = json_encode(array('action' => 'add', 'link' => $mg, 'title' => aio_ep_name($st['movie'], $st['s'], $st['e']),
-        'poster' => $poster, 'save_to_db' => Aio::$settings['ts_save']));
+    $req = json_encode(array('action' => 'add', 'link' => $mg, 'title' => mel_ep_name($st['movie'], $st['s'], $st['e']),
+        'poster' => $poster, 'save_to_db' => Mel::$settings['ts_save']));
     $t = microtime(true);
-    $ra = aio_ts_call("$base/torrents", $req, 5, Aio::$settings['ts_auth']);
+    $ra = mel_ts_call("$base/torrents", $req, 5, Mel::$settings['ts_auth']);
     $err = $ra['err'];
     $code = $ra['code'];
-    $j = $err === '' && $code === 200 ? aio_ts_decode($ra['body']) : null;
-    $files = aio_ts_files($j);
+    $j = $err === '' && $code === 200 ? mel_ts_decode($ra['body']) : null;
+    $files = mel_ts_files($j);
     // The magnet is not logged: a private tracker carries a passkey.
-    aio_log(sprintf('ts: add, save %d, %d trackers (%s): %s, %d files, %.2f s', Aio::$settings['ts_save'], $n, $src,
+    mel_log(sprintf('ts: add, save %d, %d trackers (%s): %s, %d files, %.2f s', Mel::$settings['ts_save'], $n, $src,
         $err !== '' ? $err : "HTTP $code", count($files), microtime(true) - $t));
     if ($err === '' && $code === 401)
-        return aio_ts_fail($lang, aio_ts_auth_err(), '', $lazy);
+        return mel_ts_fail($lang, mel_ts_auth_err(), '', $lazy);
     if ($err !== '' || $code !== 200 || !$j)
-        return aio_ts_fail($lang, 'ts_err_add', $err !== '' ? $err : "HTTP $code", $lazy);
+        return mel_ts_fail($lang, 'ts_err_add', $err !== '' ? $err : "HTTP $code", $lazy);
     if ($files)
-        return aio_ts_play($st, $i, $files, $pos, $from, $lazy, $miss_list);
-    Aio::$tswait = $st;
+        return mel_ts_play($st, $i, $files, $pos, $from, $lazy, $miss_list);
+    Mel::$tswait = $st;
     // l: 1 lazy, 2 $miss_list.
     $p = array('rid' => $st['rid'], 'i' => strval($i), 'pos' => strval($pos), 'f' => $from,
         'l' => $lazy ? '1' : ($miss_list ? '2' : '0'),
         't' => strval(time()), 'n' => '0');
-    aio_log('ts: no files yet -> waiting dialog');
-    return aio_dialog_act(aio_tr($lang, 'ts_wait'), aio_ts_wait_defs($st, $r, 0, $j, $lazy), array(
-        ShowDialogActionData::actions => aio_ts_wait_acts($p),
-        ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => AIO_TS_TICK_MS)));
+    mel_log('ts: no files yet -> waiting dialog');
+    return mel_dialog_act(mel_tr($lang, 'ts_wait'), mel_ts_wait_defs($st, $r, 0, $j, $lazy), array(
+        ShowDialogActionData::actions => mel_ts_wait_acts($p),
+        ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => MEL_TS_TICK_MS)));
 }
 
 /**
  * @param array<string, string> $p
- * @return array<string, AioAction>
+ * @return array<string, MelAction>
  */
-function aio_ts_wait_acts($p)
+function mel_ts_wait_acts($p)
 {
-    return array(GUI_EVENT_TIMER => aio_input('ts_tick', $p));
+    return array(GUI_EVENT_TIMER => mel_input('ts_tick', $p));
 }
 
 // stat_string of TorrServer -> the key of its words, as TorrServe says it.
 /**
  * @return array<string, string>
  */
-function aio_ts_stats()
+function mel_ts_stats()
 {
     return array('torrent added' => 'ts_st_added', 'torrent getting info' => 'ts_st_info', 'torrent preload' => 'ts_st_preload',
         'torrent working' => 'ts_st_working', 'torrent closed' => 'ts_st_closed', 'torrent in db' => 'ts_st_in_db');
@@ -883,41 +883,41 @@ function aio_ts_stats()
  * @param string $k
  * @return int
  */
-function aio_ts_int($j, $k)
+function mel_ts_int($j, $k)
 {
     return is_array($j) && isset($j[$k]) && is_int($j[$k]) ? $j[$k] : 0;
 }
 
 // Controls of the waiting dialog (0.45.0): the release; the status in words
 // (none: "waiting for the file list"), seconds, peers, connected seeders;
-// the download speed (aio_speed_str), always: the window keeps its height; "Cancel".
+// the download speed (mel_speed_str), always: the window keeps its height; "Cancel".
 /**
- * @param AioState $st
- * @param AioRow $r
+ * @param MelState $st
+ * @param MelRow $r
  * @param int $sec
  * @param array<mixed>|null $j
  * @param bool $lazy
  * @return list<array<string, mixed>>
  */
-function aio_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
+function mel_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
 {
     $lang = $st['lang'];
-    $stat = aio_one_line(aio_str($j, 'stat_string'));
-    $keys = aio_ts_stats();
+    $stat = mel_one_line(mel_str($j, 'stat_string'));
+    $keys = mel_ts_stats();
     $low = strtolower($stat);
-    $status = $stat === '' ? aio_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? aio_tr($lang, $keys[$low]) : aio_cut($stat, 30));
+    $status = $stat === '' ? mel_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? mel_tr($lang, $keys[$low]) : mel_cut($stat, 30));
     $defs = array();
-    foreach (aio_dialog_lines($r['label']) as $l)
-        $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l));
-    $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
-        str_replace(array('{status}', '{sec}'), array($status, $sec), aio_tr($lang, 'ts_wait_line'))));
-    $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{peers}', '{all}', '{seeds}'),
-        array(aio_ts_int($j, 'active_peers'), aio_ts_int($j, 'total_peers'), aio_ts_int($j, 'connected_seeders')),
-        aio_tr($lang, 'ts_wait_peers'))));
-    $defs[] = aio_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace('{speed}',
-        aio_speed_str(is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null, $lang), aio_tr($lang, 'ts_wait_speed'))));
-    $defs[] = aio_ctl('cancel', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => aio_tr($lang, 'ts_cancel'),
-        GuiButtonDef::width => 300, GuiButtonDef::push_action => aio_input($lazy ? 'next_stop' : 'ts_cancel')));
+    foreach (mel_dialog_lines($r['label']) as $l)
+        $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l));
+    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
+        str_replace(array('{status}', '{sec}'), array($status, $sec), mel_tr($lang, 'ts_wait_line'))));
+    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{peers}', '{all}', '{seeds}'),
+        array(mel_ts_int($j, 'active_peers'), mel_ts_int($j, 'total_peers'), mel_ts_int($j, 'connected_seeders')),
+        mel_tr($lang, 'ts_wait_peers'))));
+    $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace('{speed}',
+        mel_speed_str(is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null, $lang), mel_tr($lang, 'ts_wait_speed'))));
+    $defs[] = mel_ctl('cancel', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => mel_tr($lang, 'ts_cancel'),
+        GuiButtonDef::width => 300, GuiButtonDef::push_action => mel_input($lazy ? 'next_stop' : 'ts_cancel')));
     return $defs;
 }
 
@@ -925,9 +925,9 @@ function aio_ts_wait_defs($st, $r, $sec, $j, $lazy = false)
 // still none -> the timer again, the text redrawn; gone or too long -> error.
 /**
  * @param stdClass $in
- * @return AioAction
+ * @return MelAction
  */
-function aio_ts_tick($in)
+function mel_ts_tick($in)
 {
     $p = array();
     foreach (array('rid' => '/^[0-9a-f]{12}$/D', 'i' => '/^[0-9]{1,3}$/D', 'pos' => '/^[0-9]{1,7}$/D',
@@ -935,70 +935,70 @@ function aio_ts_tick($in)
     {
         if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
         {
-            aio_log("ts: tick with a bad $k");
-            return aio_close_and(aio_error('err_list_expired'));
+            mel_log("ts: tick with a bad $k");
+            return mel_close_and(mel_error('err_list_expired'));
         }
         $p[$k] = $in->$k;
     }
     $i = intval($p['i']);
-    // The list on screen, or the one of a lazy episode (aio_next).
-    $st = Aio::$state && Aio::$state['rid'] === $p['rid'] ? Aio::$state : Aio::$tswait;
+    // The list on screen, or the one of a lazy episode (mel_next).
+    $st = Mel::$state && Mel::$state['rid'] === $p['rid'] ? Mel::$state : Mel::$tswait;
     if (!$st || $p['rid'] !== $st['rid'] || !isset($st['rows'][$i]) || $st['rows'][$i]['hash'] === '')
     {
-        aio_log('ts: tick of a list gone');
-        return aio_close_and(aio_error('err_list_expired'));
+        mel_log('ts: tick of a list gone');
+        return mel_close_and(mel_error('err_list_expired'));
     }
-    // The list of the dialog, not always the one on screen (aio_op_of_screen): the pair of its profiles - the record, the
+    // The list of the dialog, not always the one on screen (mel_op_of_screen): the pair of its profiles - the record, the
     // links of the next episodes and the markers of its source, not of the main one (spec v2 §1.9).
-    aio_op_use($st['prof'], $st['lp_prof']);
+    mel_op_use($st['prof'], $st['lp_prof']);
     $r = $st['rows'][$i];
     $lang = $st['lang'];
     $sec = max(0, time() - intval($p['t']));
     $p['n'] = strval(intval($p['n']) + 1);
-    list($rg, $j) = aio_ts_get($r['hash']);
+    list($rg, $j) = mel_ts_get($r['hash']);
     $err = $rg['err'];
     $code = $rg['code'];
-    $files = aio_ts_files($j);
-    aio_log(sprintf('ts: tick %s, %d s: %s, stat %s, peers %s/%s, seeders %s, %d files', $p['n'], $sec,
+    $files = mel_ts_files($j);
+    mel_log(sprintf('ts: tick %s, %d s: %s, stat %s, peers %s/%s, seeders %s, %d files', $p['n'], $sec,
         $err !== '' ? $err : "HTTP $code", is_array($j) && isset($j['stat']) ? json_encode($j['stat']) : '-',
         is_array($j) && isset($j['active_peers']) ? json_encode($j['active_peers']) : '-',
         is_array($j) && isset($j['total_peers']) ? json_encode($j['total_peers']) : '-',
         is_array($j) && isset($j['connected_seeders']) ? json_encode($j['connected_seeders']) : '-', count($files)));
     if ($files)
-        return aio_close_and(aio_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1', $p['l'] === '2'));
+        return mel_close_and(mel_ts_play($st, $i, $files, intval($p['pos']), $p['f'], $p['l'] === '1', $p['l'] === '2'));
     if ($err === '' && $code === 401)
-        return aio_close_and(aio_ts_fail($lang, aio_ts_auth_err(), '', $p['l'] === '1'));
+        return mel_close_and(mel_ts_fail($lang, mel_ts_auth_err(), '', $p['l'] === '1'));
     // 404: TorrServer has it neither in memory nor in its DB (closed).
     if ($err === '' && $code === 404)
-        return aio_close_and(aio_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));
-    if ($sec >= AIO_TS_WAIT || intval($p['n']) >= AIO_TS_TICKS)
-        return aio_close_and(aio_ts_fail($lang, 'ts_err_timeout', $err !== '' ? $err : '', $p['l'] === '1'));
+        return mel_close_and(mel_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));
+    if ($sec >= MEL_TS_WAIT || intval($p['n']) >= MEL_TS_TICKS)
+        return mel_close_and(mel_ts_fail($lang, 'ts_err_timeout', $err !== '' ? $err : '', $p['l'] === '1'));
     return array(
         GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
         GuiAction::data => array(
-            ChangeBehaviourActionData::actions => aio_ts_wait_acts($p),
-            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => AIO_TS_TICK_MS),
+            ChangeBehaviourActionData::actions => mel_ts_wait_acts($p),
+            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => MEL_TS_TICK_MS),
             ChangeBehaviourActionData::post_action => array(
                 GuiAction::handler_string_id => RESET_CONTROLS_ACTION_ID,
                 GuiAction::data => array(
-                    ResetControlsActionData::defs => aio_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1'),
+                    ResetControlsActionData::defs => mel_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1'),
                     ResetControlsActionData::initial_sel_ndx => -1,
                     ResetControlsActionData::post_action => null))));
 }
 
 // The row of a start through TorrServer for its lazy episodes: without the name,
-// the size and the length of the file played, of another episode: aio_markers
+// the size and the length of the file played, of another episode: mel_markers
 // would drop the markers past its end.
 /**
- * @param AioRow $r
- * @return AioRow
+ * @param MelRow $r
+ * @return MelRow
  */
-function aio_ts_pack_row($r)
+function mel_ts_pack_row($r)
 {
     $raw = $r['raw'];
-    $bh = aio_arr($raw, 'behaviorHints');
-    $sd = aio_arr($raw, 'streamData');
-    $pf = aio_arr($sd, 'parsedFile');
+    $bh = mel_arr($raw, 'behaviorHints');
+    $sd = mel_arr($raw, 'streamData');
+    $pf = mel_arr($sd, 'parsedFile');
     unset($bh['filename'], $bh['videoSize'], $sd['filename'], $sd['duration'], $pf['duration']);
     $sd['parsedFile'] = $pf;
     $raw['behaviorHints'] = $bh;
@@ -1014,36 +1014,36 @@ function aio_ts_pack_row($r)
  * @param int $s
  * @param int $e
  * @param string $hash
- * @return AioState|null
+ * @return MelState|null
  */
-function aio_ts_pack_state($key, $s, $e, $hash)
+function mel_ts_pack_state($key, $s, $e, $hash)
 {
-    $p = Aio::$ts_pack;
-    $saved = $p && $p['key'] === $key && $p['hash'] === $hash && isset($p['map'][$s][$e]) ? aio_movie_load($key) : null;
+    $p = Mel::$ts_pack;
+    $saved = $p && $p['key'] === $key && $p['hash'] === $hash && isset($p['map'][$s][$e]) ? mel_movie_load($key) : null;
     if (!$saved)
         return null;
-    $st = aio_list_state($saved['movie'], $s, $e, array($p['row']), $saved['lang'], aio_no_errors());
+    $st = mel_list_state($saved['movie'], $s, $e, array($p['row']), $saved['lang'], mel_no_errors());
     $st['pack_only'] = true;
     $st['pack_map'] = $p['map'];
     return $st;
 }
 
 // The file of the row among $files -> vod_play (the files of its map as ready
-// URLs, aio_ts_map_start), or the dialog "no video" ($lazy: "not in this release"
-// of a lazy episode; $miss_list: the list, as aio_ts_open). A state of
-// aio_ts_pack_state: the file and the playlist of its map, the map stays; else
-// the file by aio_ts_pick, a new map.
+// URLs, mel_ts_map_start), or the dialog "no video" ($lazy: "not in this release"
+// of a lazy episode; $miss_list: the list, as mel_ts_open). A state of
+// mel_ts_pack_state: the file and the playlist of its map, the map stays; else
+// the file by mel_ts_pick, a new map.
 /**
- * @param AioState $st
+ * @param MelState $st
  * @param int $i
- * @param list<AioTsFile> $files
+ * @param list<MelTsFile> $files
  * @param int $pos
  * @param string $from
  * @param bool $lazy
  * @param bool $miss_list
- * @return AioAction
+ * @return MelAction
  */
-function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false, $miss_list = false)
+function mel_ts_play($st, $i, $files, $pos, $from, $lazy = false, $miss_list = false)
 {
     $r = $st['rows'][$i];
     $map = isset($st['pack_map']) ? $st['pack_map'] : null;
@@ -1058,42 +1058,42 @@ function aio_ts_play($st, $i, $files, $pos, $from, $lazy = false, $miss_list = f
         $by = $k >= 0 ? 'the map' : 'no file of the map';
     }
     else
-        list($k, $by) = aio_ts_pick($files, $r, $st['s'], $st['e'], count($st['movie']['seasons']) === 1,
-            aio_cin_n($st['movie']['cin'], $st['s'], $st['e']));
+        list($k, $by) = mel_ts_pick($files, $r, $st['s'], $st['e'], count($st['movie']['seasons']) === 1,
+            mel_cin_n($st['movie']['cin'], $st['s'], $st['e']));
     if ($k < 0)
     {
-        aio_log("ts: {$by}, " . count($files) . ' files');
+        mel_log("ts: {$by}, " . count($files) . ' files');
         if ($lazy)
-            return aio_next_missing($st, $r['hash'], aio_no_errors());
+            return mel_next_missing($st, $r['hash'], mel_no_errors());
         if ($miss_list)
-            return aio_open_list(aio_list_cursor($st, $r['hash']));
-        return aio_ts_fail($st['lang'], $st['e'] > 0 ? 'ts_err_no_ep' : 'ts_err_no_video');
+            return mel_open_list(mel_list_cursor($st, $r['hash']));
+        return mel_ts_fail($st['lang'], $st['e'] > 0 ? 'ts_err_no_ep' : 'ts_err_no_video');
     }
     if ($map === null)
-        $map = aio_ts_map_start($st, $r, $files, $k);
-    $base = Aio::$settings['ts'];
-    list($eps, $others) = aio_ts_map_urls($base, $r['hash'], $files, $map, $st['s'], $st['e']);
-    aio_log("ts: file {$files[$k]['id']} of " . count($files) . " ($by): " . aio_cut($files[$k]['path'], 200) .
+        $map = mel_ts_map_start($st, $r, $files, $k);
+    $base = Mel::$settings['ts'];
+    list($eps, $others) = mel_ts_map_urls($base, $r['hash'], $files, $map, $st['s'], $st['e']);
+    mel_log("ts: file {$files[$k]['id']} of " . count($files) . " ($by): " . mel_cut($files[$k]['path'], 200) .
         ($st['e'] > 0 ? ', other episodes in the pack: ' . (count($eps) ? implode(' ', array_keys($eps)) : 'none') : ''));
     if ($others)
-        aio_log('ts: other seasons in the pack: ' . implode(' ', array_keys($others)));
-    aio_playing($from, $st, $i);
-    return aio_play($st, $r, $pos, array('url' => aio_ts_url($base, $r['hash'], $files[$k]), 'eps' => $eps, 'others' => $others));
+        mel_log('ts: other seasons in the pack: ' . implode(' ', array_keys($others)));
+    mel_playing($from, $st, $i);
+    return mel_play($st, $r, $pos, array('url' => mel_ts_url($base, $r['hash'], $files[$k]), 'eps' => $eps, 'others' => $others));
 }
 
 // gc_ts (MENU "Watch via TorrServer") of row i of a live list.
 /**
  * @param stdClass $in
- * @return AioAction
+ * @return MelAction
  */
-function aio_ts_menu($in)
+function mel_ts_menu($in)
 {
-    $st = Aio::$state;
+    $st = Mel::$state;
     $i = isset($in->i) && is_string($in->i) && preg_match('/^[0-9]{1,3}$/D', $in->i) ? intval($in->i) : -1;
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || !isset($st['rows'][$i]) || $st['rows'][$i]['hash'] === '')
     {
-        aio_log('ts: menu of no live row with infoHash');
-        return aio_error('err_list_expired');
+        mel_log('ts: menu of no live row with infoHash');
+        return mel_error('err_list_expired');
     }
-    return aio_ts_open($st, $i, 0, $st['rid']);
+    return mel_ts_open($st, $i, 0, $st['rid']);
 }

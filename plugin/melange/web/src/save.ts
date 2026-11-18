@@ -77,12 +77,12 @@ export function setupSave(page: Page, api: Api, lock: Lock, aio: Aio, marks: Mar
     show(results(), "err", errors.map((error) => error.msg));
     marks.show(errors);
   }
-  // A login and password typed in the address are saved in their fields (aio_cgi_ts_parse): so on the page too, or
+  // A login and password typed in the address are saved in their fields (mel_cgi_ts_parse): so on the page too, or
   // a next save takes them from the address again, not the fields. posted -> the values saved.
   function moveTsUserinfo(posted: Values): Values {
     const [addr, typedUser, pass] = tsUserinfo(trimmed(posted.ts ?? ""));
     if (typedUser === null || pass === null) return posted;
-    // The login stored trimmed (aio_ts_login).
+    // The login stored trimmed (mel_ts_login).
     const saved: Values = { ...posted, ts: addr, ts_user: trimmed(typedUser), ts_pass: pass };
     // A field typed in meanwhile stays (a change).
     for (const [id, name] of [[ID.ts, "ts"], [ID.tsUser, "ts_user"], [ID.tsPass, "ts_pass"]] as const) {

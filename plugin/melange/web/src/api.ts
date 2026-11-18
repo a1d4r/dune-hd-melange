@@ -27,7 +27,7 @@ export type Save =
   | { ok: false; errors: SaveError[] };
 
 // A row of the catalog (a=cat_rows). ok false: no list at all; stale: the last good copy of it.
-// tab: its tab of the catalog (aio_cat_row_tab), anime on "series".
+// tab: its tab of the catalog (mel_cat_row_tab), anime on "series".
 export type CatRow = { key: string; name: string; group: string; home: boolean; tab: "movie" | "series" };
 export type CatRows = { ok: boolean; stale: boolean; rows: CatRow[] };
 

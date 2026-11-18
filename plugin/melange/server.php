@@ -5,22 +5,22 @@
 // sends: a torrent the client has already is refused by qBittorrent (Fails. /
 // 409), rdt-client returns the one it has (200). Transmission (0.47.0): JSON
 // RPC torrent-add, HTTP Basic, its session id handshake (409).
-// Reads Aio (state, settings). Functions are global; the require order is in
+// Reads Mel (state, settings). Functions are global; the require order is in
 // main.php.
 
 // Each request: connect, whole (rdt-client with TorBox may be slow to add).
-define('AIO_SRV_CONNECT', 3);
-define('AIO_SRV_TOTAL', 15);
+define('MEL_SRV_CONNECT', 3);
+define('MEL_SRV_TOTAL', 15);
 
 // Index of the server the cursor starts on: the one standing for the debrid
 // service the row is cached in (a file cached on several: the copy to play
-// first, aio_row_services), else the first with no service, else 0.
-function aio_srv_default($servers, $row)
+// first, mel_row_services), else the first with no service, else 0.
+function mel_srv_default($servers, $row)
 {
-    $caches = aio_server_caches();
+    $caches = mel_server_caches();
     if ($row['cached'] === true)
     {
-        foreach (aio_row_services($row) as $svc)
+        foreach (mel_row_services($row) as $svc)
         {
             foreach ($servers as $k => $s)
             {
@@ -38,9 +38,9 @@ function aio_srv_default($servers, $row)
 }
 
 // Row i of a live list with infoHash, from params rid and i; else null.
-function aio_srv_row($in)
+function mel_srv_row($in)
 {
-    $st = Aio::$state;
+    $st = Mel::$state;
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
         return null;
     $i = isset($in->i) && is_string($in->i) && preg_match('/^[0-9]{1,3}$/D', $in->i) ? intval($in->i) : -1;
@@ -48,39 +48,39 @@ function aio_srv_row($in)
 }
 
 // gc_srv (the MENU item) -> the popup menu of the servers.
-function aio_srv_menu($in)
+function mel_srv_menu($in)
 {
-    $i = aio_srv_row($in);
-    $servers = Aio::$settings['servers'];
+    $i = mel_srv_row($in);
+    $servers = Mel::$settings['servers'];
     if (is_null($i) || !$servers)
     {
-        aio_log('server: menu of no live row or no server');
-        return aio_error('err_list_expired');
+        mel_log('server: menu of no live row or no server');
+        return mel_error('err_list_expired');
     }
-    $st = Aio::$state;
+    $st = Mel::$state;
     $row = $st['rows'][$i];
     $items = array();
     foreach ($servers as $k => $s)
         $items[] = array(
             GuiMenuItemDef::caption => $s['name'],
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/network.aai',
-            GuiMenuItemDef::action => aio_gc_act('gc_push', $st['rid'], array('i' => strval($i), 'k' => strval($k))));
+            GuiMenuItemDef::action => mel_gc_act('gc_push', $st['rid'], array('i' => strval($i), 'k' => strval($k))));
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
         GuiAction::data => array(
             ShowPopupMenuActionData::menu_items => $items,
-            ShowPopupMenuActionData::selected_menu_item_index => aio_srv_default($servers, $row)));
+            ShowPopupMenuActionData::selected_menu_item_index => mel_srv_default($servers, $row)));
 }
 
 // Text of a reply for the dialog and the log: printable, short.
-function aio_srv_text($body)
+function mel_srv_text($body)
 {
-    return aio_cut(aio_one_line($body), 60);
+    return mel_cut(mel_one_line($body), 60);
 }
 
 // The magnet to server $srv -> array(status, key, detail): 'added'; 'failed'
 // (an error key); 'maybe' (srv_err_timeout: it may be there).
-function aio_qbt_add($srv, $magnet)
+function mel_qbt_add($srv, $magnet)
 {
     $cookie = '';
     $err = '';
@@ -88,9 +88,9 @@ function aio_qbt_add($srv, $magnet)
     if ($srv['user'] !== '')
     {
         $t = microtime(true);
-        list($code, $body, $cookie) = aio_http_post($srv['url'] . '/api/v2/auth/login',
-            array('username' => $srv['user'], 'password' => $srv['pass']), '', $err, AIO_SRV_CONNECT, AIO_SRV_TOTAL);
-        aio_log(sprintf('server: login: %s, %s, %.2f s', $err !== '' ? $err : "HTTP $code",
+        list($code, $body, $cookie) = mel_http_post($srv['url'] . '/api/v2/auth/login',
+            array('username' => $srv['user'], 'password' => $srv['pass']), '', $err, MEL_SRV_CONNECT, MEL_SRV_TOTAL);
+        mel_log(sprintf('server: login: %s, %s, %.2f s', $err !== '' ? $err : "HTTP $code",
             $cookie !== '' ? 'cookie' : 'no cookie', microtime(true) - $t));
         if ($err !== '')
             return array('failed', 'srv_err_net', $err);
@@ -103,7 +103,7 @@ function aio_qbt_add($srv, $magnet)
             return array('failed', 'srv_err_login', '');
         // A web page (a wrong port, another service) is no login.
         if (($code !== 200 && !($code >= 200 && $code < 300 && trim($body) === '')) || substr(trim($body), 0, 1) === '<')
-            return array('failed', 'srv_err_reply', trim("HTTP $code " . aio_srv_text($body)));
+            return array('failed', 'srv_err_reply', trim("HTTP $code " . mel_srv_text($body)));
     }
     $f = array('urls' => $magnet);
     if ($srv['category'] !== '')
@@ -112,10 +112,10 @@ function aio_qbt_add($srv, $magnet)
     if ($srv['tags'] !== '')
         $f['tags'] = $srv['tags'];
     $t = microtime(true);
-    list($code, $body) = aio_http_post($srv['url'] . '/api/v2/torrents/add', $f, $cookie, $err, AIO_SRV_CONNECT,
-        AIO_SRV_TOTAL);
-    $text = aio_srv_text($body);
-    aio_log(sprintf('server: add: %s, "%s", %.2f s', $err !== '' ? $err : "HTTP $code", $text,
+    list($code, $body) = mel_http_post($srv['url'] . '/api/v2/torrents/add', $f, $cookie, $err, MEL_SRV_CONNECT,
+        MEL_SRV_TOTAL);
+    $text = mel_srv_text($body);
+    mel_log(sprintf('server: add: %s, "%s", %.2f s', $err !== '' ? $err : "HTTP $code", $text,
         microtime(true) - $t));
     // rdt-client holds the reply while the torrent is queued: it may be there.
     if (strpos($err, 'curl 28:') === 0)
@@ -144,15 +144,15 @@ function aio_qbt_add($srv, $magnet)
         return array('failed', 'srv_err_refused', "failure_count $fc");
     // Any other 2xx is taken as added: a 2xx is not a refusal.
     if ($b !== '' && $b !== 'Ok.' && $fc < 0)
-        aio_log("server: HTTP $code, reply not understood, taken as added");
+        mel_log("server: HTTP $code, reply not understood, taken as added");
     return array('added', '', '');
 }
 
 // The magnet to the Transmission server $srv -> array(status, key, detail)
-// as aio_qbt_add; 'dup' (srv_dup): it has the torrent already. aio_trm_call
+// as mel_qbt_add; 'dup' (srv_dup): it has the torrent already. mel_trm_call
 // does its session id handshake (409). Neither the password, the
 // Authorization nor the session id is logged.
-function aio_trm_add($srv, $magnet)
+function mel_trm_add($srv, $magnet)
 {
     $a = array('filename' => $magnet);
     if ($srv['category'] !== '')
@@ -161,19 +161,19 @@ function aio_trm_add($srv, $magnet)
     if ($srv['tags'] !== '')
         $a['labels'] = explode(',', $srv['tags']);
     $t = microtime(true);
-    $rep = aio_trm_call($srv, json_encode(array('method' => 'torrent-add', 'arguments' => $a)), AIO_SRV_CONNECT,
-        AIO_SRV_TOTAL);
+    $rep = mel_trm_call($srv, json_encode(array('method' => 'torrent-add', 'arguments' => $a)), MEL_SRV_CONNECT,
+        MEL_SRV_TOTAL);
     $err = $rep['err'];
     $code = $rep['code'];
     $body = $rep['body'];
-    aio_log(sprintf('server: rpc%s: %s, %.2f s', $rep['sid'] ? ' with session id' : '',
+    mel_log(sprintf('server: rpc%s: %s, %.2f s', $rep['sid'] ? ' with session id' : '',
         $err !== '' ? $err : "HTTP $code", microtime(true) - $t));
     // Without a session id nothing is added: only the request with one may have been.
     if (strpos($err, 'curl 28:') === 0 && $rep['sid'])
         return array('maybe', 'srv_err_timeout', $err);
     if ($err !== '')
         return array('failed', 'srv_err_net', $err);
-    $text = aio_srv_text($body);
+    $text = mel_srv_text($body);
     if ($code === 401)
         return array('failed', 'srv_err_login', '');
     // Not in its rpc-whitelist.
@@ -190,51 +190,51 @@ function aio_trm_add($srv, $magnet)
         return array('failed', 'srv_err_reply', trim("HTTP $code $text"));
     // An error is in "result", not in the HTTP code.
     if ($j['result'] !== 'success')
-        return array('failed', 'srv_err_rejected', aio_srv_text($j['result']));
+        return array('failed', 'srv_err_rejected', mel_srv_text($j['result']));
     $r = isset($j['arguments']) && is_array($j['arguments']) ? $j['arguments'] : array();
     if (isset($r['torrent-duplicate']))
         return array('dup', 'srv_dup', '');
     if (!isset($r['torrent-added']))
-        aio_log('server: success without torrent-added, taken as added');
+        mel_log('server: success without torrent-added, taken as added');
     return array('added', '', '');
 }
 
 // gc_push of row i to server k -> a dialog: added or why not.
-function aio_srv_push($in)
+function mel_srv_push($in)
 {
-    $i = aio_srv_row($in);
-    $servers = Aio::$settings['servers'];
+    $i = mel_srv_row($in);
+    $servers = Mel::$settings['servers'];
     $k = isset($in->k) && is_string($in->k) && preg_match('/^[0-9]$/D', $in->k) ? intval($in->k) : -1;
     if (is_null($i) || !isset($servers[$k]))
     {
-        aio_log('server: push of no live row or no such server');
-        return aio_error('err_list_expired');
+        mel_log('server: push of no live row or no such server');
+        return mel_error('err_list_expired');
     }
-    $st = Aio::$state;
-    if (Aio::$settings['no_torrents'])
-        return aio_torrents_off($st['lang']);
+    $st = Mel::$state;
+    if (Mel::$settings['no_torrents'])
+        return mel_torrents_off($st['lang']);
     $row = $st['rows'][$i];
     $srv = $servers[$k];
     $lang = $st['lang'];
     // Not its address: the log is for others to read.
-    $tag = aio_ep_tag($st) . ", row $i, hash {$row['hash']}, server $k" . ($srv['type'] === 'tr' ? ' (Transmission)' : '') .
+    $tag = mel_ep_tag($st) . ", row $i, hash {$row['hash']}, server $k" . ($srv['type'] === 'tr' ? ' (Transmission)' : '') .
         ($srv['category'] !== '' ? ", category {$srv['category']}" : '') .
         ($srv['tags'] !== '' ? ", tags {$srv['tags']}" : '');
-    $ok = array('OK' => aio_close_and(null));
-    list($mg, $n, $src) = aio_magnet($row);
-    aio_log("server: $tag, $n trackers ($src)");
-    list($status, $key, $detail) = $srv['type'] === 'tr' ? aio_trm_add($srv, $mg) : aio_qbt_add($srv, $mg);
+    $ok = array('OK' => mel_close_and(null));
+    list($mg, $n, $src) = mel_magnet($row);
+    mel_log("server: $tag, $n trackers ($src)");
+    list($status, $key, $detail) = $srv['type'] === 'tr' ? mel_trm_add($srv, $mg) : mel_qbt_add($srv, $mg);
     if ($status === 'dup')
     {
-        aio_log('server: there already');
-        return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, $key)), array(), $ok);
+        mel_log('server: there already');
+        return mel_dialog(str_replace('{srv}', $srv['name'], mel_tr($lang, $key)), array(), $ok);
     }
     if ($status !== 'added')
     {
-        aio_log("server: not added: $key" . ($detail !== '' ? " ($detail)" : ''));
-        return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, $status === 'maybe' ? 'srv_maybe' : 'srv_failed')),
-            array_merge(aio_dialog_lines(aio_tr($lang, $key)), aio_dialog_lines($detail)), $ok);
+        mel_log("server: not added: $key" . ($detail !== '' ? " ($detail)" : ''));
+        return mel_dialog(str_replace('{srv}', $srv['name'], mel_tr($lang, $status === 'maybe' ? 'srv_maybe' : 'srv_failed')),
+            array_merge(mel_dialog_lines(mel_tr($lang, $key)), mel_dialog_lines($detail)), $ok);
     }
-    aio_log('server: added');
-    return aio_dialog(str_replace('{srv}', $srv['name'], aio_tr($lang, 'srv_added')), array(), $ok);
+    mel_log('server: added');
+    return mel_dialog(str_replace('{srv}', $srv['name'], mel_tr($lang, 'srv_added')), array(), $ok);
 }
