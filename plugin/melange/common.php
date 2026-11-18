@@ -878,6 +878,8 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // 'cat_logo' => bool, "Логотип фильма вместо названия": the card background of
 // the server with the logo in the panel of the catalog (mel_catv_card; 0.55.0;
 // not a bool - true),
+// 'cat_age' => int|null, the age of "Что не показывать": tiles of the catalog of an older age (mel_cat_age_of) not
+// shown (mel_ht_off; 0.65.0): 16, 12, 6, 0; null - all (another value - null),
 // 'cat_card' => bool|null, "Своя карточка": ENTER on a tile of the catalog opens the own card
 // of Melange (mel_card_enter; 0.59.0); null - none chosen, by the firmware (mel_card_own; not a
 // bool - null),
@@ -960,7 +962,7 @@ function mel_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => MEL_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_card' => null, 'cat_rows' => null) + mel_lp_keys() + array('aio_confs' => array(), 'src_profiles' => false,
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_age' => null, 'cat_card' => null, 'cat_rows' => null) + mel_lp_keys() + array('aio_confs' => array(), 'src_profiles' => false,
         'profiles' => array(), 'src_main' => '', 'saved_once' => false, 'mig_lost' => array());
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
@@ -1029,6 +1031,8 @@ function mel_settings_parse($j)
         $r['cat_rating'] = $j['cat_rating'];
     if (isset($j['cat_logo']) && is_bool($j['cat_logo']))
         $r['cat_logo'] = $j['cat_logo'];
+    if (isset($j['cat_age']) && in_array($j['cat_age'], array(16, 12, 6, 0), true))
+        $r['cat_age'] = $j['cat_age'];
     if (isset($j['cat_card']) && is_bool($j['cat_card']))
         $r['cat_card'] = $j['cat_card'];
     if (isset($j['no_torrents']) && is_bool($j['no_torrents']))

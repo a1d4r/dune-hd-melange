@@ -2,7 +2,8 @@
 // Client of the catalog: rows of the shared AIOMetadata instance (Stremio addon
 // protocol), its search, a cache on the device and the last good copy on a
 // failure. Data only, no screens. Needs parse.php and main.php (mel_http_get, mel_http_get_many,
-// mel_log, mel_write_file, mel_data_dir), on the settings page cgi/lib/rows.php.
+// mel_log, mel_write_file, mel_data_dir), on the settings page cgi/lib/rows.php; a listing of php_server
+// hidden_titles.php too (mel_ht_now, mel_ht_off: the filter of mel_cat_take).
 // Types in the PHPDoc (MelCatRow and others): phpstan-types.neon of the repository.
 
 define('MEL_CAT_BASE', 'https://aiometadata.kompotik.com/stremio/');
@@ -28,6 +29,10 @@ define('MEL_CAT_PAGE_TILES', 200);
 // silently loses tiles.
 define('MEL_CAT_SKIP_MAX', 1000);
 define('MEL_CAT_STATE_TTL', 18000);
+// Pages past the first one call of mel_cat_more asks at most while the filter ("Скрыть", the age: mel_ht_off) takes
+// all their new tiles; then the listing ends (end "filter"): a strict age would page a row of trends to the limit of
+// skip.
+define('MEL_CAT_FILTER_PAGES', 3);
 // skip of a search goes by pages: the server asks its engine for page
 // ceil(skip / size) + 1 and sends what of it passed the filters, so skip by the tiles
 // got would ask for the same page again. 20 is the smallest page of the search engines
@@ -51,7 +56,7 @@ define('MEL_CAT_SEARCH_WAIT', 10);
 // 400 files: ~80 pages of 100 KB (json_encode makes Cyrillic 6 bytes a letter),
 // the oldest go first.
 // Raise the version when mel_cat_tile makes a wrong tile of an older copy, not for a new key alone: older copies are dropped.
-define('MEL_CAT_CACHE_V', 2);
+define('MEL_CAT_CACHE_V', 3);
 define('MEL_CAT_FRESH', 3600);
 // The copy of the manifest is not asked again for 10 min (mel_cat_manifest_recent): rows added or
 // removed on the server show within it, an opening or a switch of the tab does not wait ~1 s for it.
@@ -612,7 +617,8 @@ function mel_cat_kp($kp, $votes)
 // '' for none (mal:...). type: of the tile (rows of anime hold movie and series),
 // else of the row, '' when neither says. year: 4 digits or ''. country: the English
 // name of the first one (mel_cat_country), '' for none. runtime: "1h38min" or "30min" (of an
-// episode for series). age: the Russian rating "16+" of app_extras.certifications.RU.
+// episode for series). age: the Russian rating "16+" of app_extras.certifications.RU. ageUs: the rating of the US
+// of app_extras.certifications.US on the Russian scale (mel_cat_us_age), for the filter of the age (mel_cat_age_of).
 // cast: the first names of app_extras.cast. englishTitle: the English name of the title
 // (a field of our patch of the server; none: ''), as name. kpRating, kpVotes, kpId: of our
 // patch too: the rating "7.9" ('' for none, 0, over 10 or under MEL_CAT_KP_VOTES_MIN votes),
@@ -664,8 +670,12 @@ function mel_cat_tile($m, $row_type)
     $runtime = mel_str($m, 'runtime');
     $extras = mel_arr($m, 'app_extras');
     $age = mel_str(mel_arr($extras, 'certifications'), 'RU');
+    $us = mel_cat_us_age(mel_str(mel_arr($extras, 'certifications'), 'US'));
     if (!isset($extras['certifications']))
+    {
         $age = mel_str($m, 'age');
+        $us = mel_str($m, 'ageUs');
+    }
     $logo = mel_str($m, 'logo');
     $ru = mel_str($m, 'logoLang') === 'ru' && strlen($logo) <= MEL_CAT_URL_MAX &&
         preg_match('~^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?/[A-Za-z0-9._/%:+-]*$~D', $logo) &&
@@ -683,10 +693,36 @@ function mel_cat_tile($m, $row_type)
         'description' => mel_cut(mel_one_line(mel_str($m, 'description')), MEL_CAT_DESC_MAX), 'genres' => $genres,
         'poster' => mel_cat_img($m, 'poster'), 'background' => mel_cat_img($m, 'background'), 'country' => $country,
         'runtime' => preg_match('/^(?=[0-9])([0-9]{1,2}h)?([0-9]{1,3}min)?$/', $runtime) ? $runtime : '',
-        'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'cast' => $cast,
+        'age' => preg_match('/^[0-9]{1,2}\+$/', $age) ? $age : '', 'ageUs' => preg_match('/^[0-9]{1,2}\+$/D', $us) ? $us : '',
+        'cast' => $cast,
         'englishTitle' => mel_cut(mel_one_line(mel_str($m, 'englishTitle')), MEL_CAT_NAME_MAX),
         'kpRating' => $kp, 'kpVotes' => $votes, 'kpId' => preg_match('/^[1-9][0-9]{0,9}$/D', $kp_id) ? $kp_id : '',
         'logo' => $ru ? $logo : '', 'logoLang' => $ru ? 'ru' : '', 'originalLanguage' => mel_cat_orig_lang($m));
+}
+
+// A rating of the US (G, PG-13, TV-MA...) on the Russian scale, by its stricter side: G, TV-Y, TV-G 0+; TV-Y7, PG,
+// TV-PG 6+; PG-13 12+; TV-14 16+; R, NC-17, TV-MA 18+. Another (NR, an empty one): '' - no age.
+/**
+ * @param string $us
+ * @return string
+ */
+function mel_cat_us_age($us)
+{
+    static $ages = array('G' => '0+', 'TV-Y' => '0+', 'TV-G' => '0+', 'TV-Y7' => '6+', 'PG' => '6+', 'TV-PG' => '6+',
+        'PG-13' => '12+', 'TV-14' => '16+', 'R' => '18+', 'NC-17' => '18+', 'TV-MA' => '18+');
+    $us = strtoupper(trim($us));
+    return isset($ages[$us]) ? $ages[$us] : '';
+}
+
+// The age of tile $t for the filter: its Russian one, else that of the US (ageUs); -1 for none.
+/**
+ * @param MelCatTile $t
+ * @return int
+ */
+function mel_cat_age_of($t)
+{
+    $a = $t['age'] !== '' ? $t['age'] : $t['ageUs'];
+    return $a !== '' ? intval($a) : -1;
 }
 
 // The original language of the title of tile $m (not the language of the interface): two letters as TMDB gives it
@@ -755,7 +791,7 @@ function mel_cat_page_path($row, $skip)
 // mel_cat_more. The caller keeps it where the tiles are and changes it only by the
 // functions here: t0: when its first page was got (0: none yet), skip: all tiles got,
 // repeats too (of a search: MEL_CAT_SEARCH_PAGE a page), end: why it ended ('' not yet;
-// empty, skip), seen: ids.
+// empty, skip, filter: MEL_CAT_FILTER_PAGES), seen: ids (those the filter took too).
 /**
  * @param MelCatRow $row
  * @return MelCatState
@@ -802,7 +838,9 @@ function mel_cat_result()
 }
 
 // A page taken into the listing: new tiles to $res, skip counts all $n got (of a
-// search: MEL_CAT_SEARCH_PAGE a page), end set at its limits. -> the number of new tiles.
+// search: MEL_CAT_SEARCH_PAGE a page), end set at its limits. A new tile the filter does not
+// show (mel_ht_off: hidden, but not in a search - a row with q; the age, in a search too) is seen,
+// not taken. -> the number of new tiles.
 /**
  * @param MelCatState $st
  * @param MelCatResult $res
@@ -815,11 +853,15 @@ function mel_cat_result()
 function mel_cat_take(&$st, &$res, $n, $tiles)
 {
     $new = 0;
+    $f = mel_ht_now();
+    $search = isset($st['row']['q']);
     foreach ($tiles as $t)
     {
         if (isset($st['seen'][$t['id']]))
             continue;
         $st['seen'][$t['id']] = true;
+        if (mel_ht_off($f, $t, $search))
+            continue;
         $res['tiles'][] = $t;
         $new++;
     }
@@ -864,17 +906,21 @@ function mel_cat_page_key($row, $skip)
 // state stays for a retry, unless the copy moved it on: a failure is never the end of
 // a row. A short page or a page of repeats is not the end either.
 // $limit: s for this call, no next request after it, requests cut to what is left of it.
+// $pages: pages past the first of this call whose new tiles the filter took all (mel_cat_take) asked at most, then
+// the end (filter; the tab "TV" asks only first pages for their copies: 0).
 /**
  * @param MelCatState $st
  * @param float $limit
+ * @param int $pages
  * @param-out MelCatState $st
  * @return MelCatResult
  */
-function mel_cat_more(&$st, $limit)
+function mel_cat_more(&$st, $limit, $pages = MEL_CAT_FILTER_PAGES)
 {
     $row = $st['row'];
     $res = mel_cat_result();
     $start = microtime(true);
+    $cut = 0;
     while (true)
     {
         $now = time();
@@ -930,10 +976,18 @@ function mel_cat_more(&$st, $limit)
             $res['end'] = true;
             return $res;
         }
+        $seen = count($st['seen']);
         // No new tiles and not the end: the next portion at once.
         if (mel_cat_take($st, $res, $page['n'], $page['tiles']) > 0 || $st['end'] !== '' ||
             microtime(true) - $start >= $limit)
             return $res;
+        // The filter took all the new ones, $pages times past the first: the end for this filter.
+        if (count($st['seen']) > $seen && ++$cut > $pages)
+        {
+            $st['end'] = 'filter';
+            $res['end'] = true;
+            return $res;
+        }
     }
 }
 

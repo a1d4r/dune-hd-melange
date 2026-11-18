@@ -180,7 +180,7 @@ function mel_ml_tile($e)
     return array('id' => $e['imdb_id'] !== '' ? $e['imdb_id'] : 'tmdb:' . $e['_tmdbId'], 'imdb_id' => $e['imdb_id'],
         '_tmdbId' => $e['_tmdbId'], 'type' => $e['type'], 'name' => $e['name'], 'year' => $e['year'], 'imdbRating' => $e['imdbRating'],
         'description' => '', 'genres' => array(), 'poster' => $e['poster'], 'background' => $e['background'], 'country' => '',
-        'runtime' => '', 'age' => '', 'cast' => array(), 'englishTitle' => $e['englishTitle'], 'kpRating' => $e['kpRating'],
+        'runtime' => '', 'age' => '', 'ageUs' => '', 'cast' => array(), 'englishTitle' => $e['englishTitle'], 'kpRating' => $e['kpRating'],
         'kpVotes' => $e['kpVotes'],
         'kpId' => $e['kpId'], 'logo' => '', 'logoLang' => '', 'originalLanguage' => '');
 }
