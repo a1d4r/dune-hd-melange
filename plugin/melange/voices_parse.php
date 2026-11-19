@@ -266,9 +266,12 @@ function mel_voices_parse($s, $tails = true)
             $v['ru_type'] = $rt;
     }
     // A Russian mark of the name: Cyrillic, "RUS(int)", a type of a Russian
-    // voice, "Rus" not of the subtitles alone.
+    // voice, "Rus" not of the subtitles alone and after the episode or the
+    // year ("Russian.Doll.S01E01", "The.Russian.Job.S01E01" are titles).
+    $at = preg_match('/(?<![\p{L}\p{N}])(?:s[0-9]{1,2}(?:e[0-9]{1,3})?|(?:19|20)[0-9]{2})(?![\p{L}\p{N}])/iu', $s, $m,
+        PREG_OFFSET_CAPTURE) ? $m[0][1] : 0;
     $v['ru_hint'] = $v['ru'] !== '' || $v['ru_type'] || preg_match('/\p{Cyrillic}/u', $s) === 1 ||
-        (!$v['ru_subs'] && preg_match('/(?<![\p{L}\p{N}])rus(?:sian)?(?!\p{L})/iu', $s) === 1);
+        (!$v['ru_subs'] && preg_match('/(?<![\p{L}\p{N}])rus(?:sian)?(?!\p{L})/iu', $s, $m, 0, $at) === 1);
     return $v;
 }
 
@@ -288,8 +291,8 @@ function mel_voices_ru_marks($s)
     if (stripos($s, 'rus') === false && strpos($s, 'усск') === false)
         return array('', false, $ukr);
     $ru = preg_match('/(?<![\p{L}\p{N}])rus\s?\((int|ext)(?:\/(?:int|ext))?\)/iu', $s, $m) ? strtolower($m[1]) : '';
-    $subs = preg_match('/(?<![\p{L}\p{N}])(?:rus[\s.\-+]?subs?(?![\p{L}\p{N}])|' .
-        'sub(?:s|titles)?[\s,:\-|]*\(?\s*(?:[a-z]{3}\s*[,\/]\s*)*rus(?![\p{L}\p{N}])(?!\s?\((?:int|ext))|' .
+    $subs = preg_match('/(?<![\p{L}\p{N}])(?:rus[\s.\-+_]?subs?(?![\p{L}\p{N}])|' .
+        'sub(?:s|titles)?[\s,:\-|._]*\(?\s*(?:[a-z]{3}\s*[,\/._]\s*)*rus(?![\p{L}\p{N}])(?!\s?\((?:int|ext))|' .
         'русск\p{L}*\s+субтитр|субтитр\p{L}*[\s:]*русск)/iu', $s) === 1;
     return array($ru, $subs, $ukr);
 }
