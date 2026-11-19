@@ -11,9 +11,11 @@
 // Types in the PHPDoc (MelKitItem): phpstan-types.neon of the repository.
 //
 // An item (MelKitItem), coordinates of the parent:
-//   kind      text, icon, box, row or stack;
+//   kind      text, icon, box, row, stack, or the component (plate,
+//             button, chip, badges, key, bar);
 //   defs      its components;
-//   x0, x1    the visible left and right (a text: its advances by the model);
+//   x0, x1    the visible left and right (a text: its advances by the model;
+//             a component on a plate: the plate);
 //   top, bottom  the visible top and bottom: of a text the top of its
 //             capitals and its (last) baseline, of an icon its strokes;
 //   mid       the line a row aligns it by: of a text the centre of its
@@ -543,6 +545,265 @@ class MelKit
             foreach (array('x0' => 'min', 'x1' => 'max', 'top' => 'min', 'bottom' => 'max') as $k => $f)
                 $out[$k] = $i ? $f($out[$k], $it[$k]) : $it[$k];
         }
+        return $out;
+    }
+
+    // --- Components on a plate.
+
+    // A plate (ring) of mel_k_corner() $key, $w x $h with its top left at
+    // ($x, $y): its 4 corners r x r and rects of its colour between them, butt
+    // to butt (a ring: only its band). Smaller than 2r: 2r. Its edges: the box.
+    /**
+     * @param string $key
+     * @param int $x
+     * @param int $y
+     * @param int $w
+     * @param int $h
+     * @return MelKitItem
+     */
+    public static function plate($key, $x, $y, $w, $h)
+    {
+        $c = self::corner($key);
+        $r = $c['r'];
+        $t = $c['ring'];
+        $w = max($w, 2 * $r);
+        $h = max($h, 2 * $r);
+        $iw = $w - 2 * $r;
+        $ih = $h - 2 * $r;
+        // x, y, w, h: of a ring the 4 sides of its band, of a fill the middle
+        // column and the two sides between the corners.
+        if ($t > 0)
+            $rects = array(array($x + $r, $y, $iw, $t), array($x + $r, $y + $h - $t, $iw, $t),
+                array($x, $y + $r, $t, $ih), array($x + $w - $t, $y + $r, $t, $ih));
+        else
+            $rects = array(array($x + $r, $y, $iw, $h), array($x, $y + $r, $r, $ih), array($x + $w - $r, $y + $r, $r, $ih));
+        $defs = array();
+        foreach ($rects as $q)
+        {
+            if ($q[2] > 0 && $q[3] > 0)
+                $defs[] = mel_gc_rect(mel_gc_at($q[2], $q[3], $q[0], $q[1]), $c['color']);
+        }
+        if ($r > 0)
+        {
+            $at = array('tl' => array($x, $y), 'tr' => array($x + $w - $r, $y), 'bl' => array($x, $y + $h - $r),
+                'br' => array($x + $w - $r, $y + $h - $r));
+            foreach ($at as $k => $q)
+            {
+                $p = self::pic($c[$k]);
+                if ($p['url'] !== '')
+                    $defs[] = mel_gc_image(mel_gc_at($r, $r, $q[0], $q[1]), $p['url']);
+            }
+        }
+        $out = self::box($defs, $x, $y, $w, $h);
+        $out['kind'] = 'plate';
+        return $out;
+    }
+
+    // $content on $plate: the edges of the plate, the line of the content
+    // (mid, caps); cy the centre of the plate.
+    /**
+     * @param string $kind
+     * @param MelKitItem $plate
+     * @param MelKitItem $content
+     * @return MelKitItem
+     */
+    private static function on($kind, $plate, $content)
+    {
+        $out = self::join($kind, array($plate, $content));
+        $out['mid'] = $content['mid'];
+        $out['cy'] = ($plate['top'] + $plate['bottom']) / 2;
+        $out['caps'] = $content['caps'];
+        return $out;
+    }
+
+    // A pill button MEL_K_BTN_H high: the icon $icon (k_icon_*,
+    // MEL_K_ICON_BUTTON; '' none) -MEL_K_ICON_GAP_BUTTON- the label
+    // (MEL_K_PX_ROW) between the pads MEL_K_BTN_PAD; the left of the plate at
+    // $x, its centre and the capitals at $y. In focus white on the accent
+    // (btn_on), else on the surface (btn). The label is never cut: a button
+    // wider than $o['w'] is logged and set whole. $o: w; off (disabled: text 3
+    // on the surface, no focus).
+    /**
+     * @param string $label
+     * @param string $icon
+     * @param bool $focus
+     * @param int $x
+     * @param int|float $y
+     * @param array<string, mixed> $o
+     * @return MelKitItem
+     */
+    public static function button($label, $icon, $focus, $x = 0, $y = 0, $o = array())
+    {
+        $off = !empty($o['off']);
+        $on = $focus && !$off;
+        $fg = $off ? MEL_K_C_TEXT3 : ($on ? MEL_K_C_ON_ACCENT : MEL_K_C_TEXT1);
+        $c = self::text($label, MEL_K_PX_ROW, $fg, $x + MEL_K_BTN_PAD, $y);
+        if ($icon !== '')
+            $c = self::row(array(self::icon($icon, MEL_K_ICON_BUTTON, $fg), $c), MEL_K_ICON_GAP_BUTTON,
+                $x + MEL_K_BTN_PAD, $y, 'button');
+        $w = $c['x1'] - $c['x0'] + 2 * MEL_K_BTN_PAD;
+        if (isset($o['w']) && $w > $o['w'])
+            mel_log("kit: button '$label' is $w px wide, more than {$o['w']}");
+        $p = self::plate($on ? 'btn_on' : 'btn', $x, (int) round($y - MEL_K_BTN_H / 2), $w, MEL_K_BTN_H);
+        return self::on('button', $p, $c);
+    }
+
+    // A chip MEL_K_CHIP_H high: $text (MEL_K_PX_CAPTION) in the colour of
+    // $kind, ok («main») or warn («needs a key»), on its tint (chip_ok,
+    // chip_warn), pads MEL_K_CHIP_PAD; the left at $x, the plate and the
+    // capitals centred at $y.
+    /**
+     * @param string $text
+     * @param string $kind
+     * @param int $x
+     * @param int|float $y
+     * @return MelKitItem
+     */
+    public static function chip($text, $kind, $x = 0, $y = 0)
+    {
+        $fg = $kind === 'warn' ? MEL_K_C_WARN : ($kind === 'ok' ? MEL_K_C_OK : MEL_K_C_TEXT2);
+        $t = self::text($text, MEL_K_PX_CAPTION, $fg, $x + MEL_K_CHIP_PAD, $y);
+        $p = self::plate("chip_$kind", $x, (int) round($y - MEL_K_CHIP_H / 2), $t['x1'] - $t['x0'] + 2 * MEL_K_CHIP_PAD,
+            MEL_K_CHIP_H);
+        return self::on('chip', $p, $t);
+    }
+
+    // The plates b2 k_badge_<id> of $ids (which ids: the caller) in a row
+    // MEL_K_PLATE_GAP apart, each as wide as its picture (mel_k_pic()); the
+    // left at $x, their centre at $y. An unknown id: logged, left out.
+    /**
+     * @param list<string> $ids
+     * @param int $x
+     * @param int|float $y
+     * @param string $name
+     * @return MelKitItem
+     */
+    public static function badges($ids, $x = 0, $y = 0, $name = 'badges')
+    {
+        $items = array();
+        foreach ($ids as $id)
+        {
+            $p = self::pic("k_badge_$id");
+            if ($p['url'] !== '')
+                $items[] = self::box(array(mel_gc_image(mel_gc_at($p['w'], $p['h'], 0, 0), $p['url'])), 0, 0, $p['w'], $p['h']);
+        }
+        $out = $items ? self::row($items, MEL_K_PLATE_GAP, $x, $y, $name) : self::box(array(), $x, (int) round($y), 0, 0);
+        $out['kind'] = 'badges';
+        return $out;
+    }
+
+    // A key of the remote on its plate (key) MEL_K_KEY_H high: 'pp' the two
+    // runs «P+» -MEL_K_KEY_GAP- «P−» (MEL_K_PX_KEY) between the pads
+    // MEL_K_KEY_PAD; else the picture $key (k_icon_menu MEL_K_ICON_MENU,
+    // k_key_info MEL_K_ICON_INFO) by the centre of its strokes on a plate
+    // MEL_K_KEY_W wide. The left at $x, the centre at $y.
+    /**
+     * @param string $key
+     * @param int $x
+     * @param int|float $y
+     * @return MelKitItem
+     */
+    public static function key($key, $x = 0, $y = 0)
+    {
+        $top = (int) round($y - MEL_K_KEY_H / 2);
+        if ($key === 'pp')
+        {
+            $c = self::row(array(self::text('P+', MEL_K_PX_KEY, MEL_K_C_TEXT1),
+                self::text("P\xE2\x88\x92", MEL_K_PX_KEY, MEL_K_C_TEXT1)), MEL_K_KEY_GAP, $x + MEL_K_KEY_PAD, $y, 'key');
+            $w = $c['x1'] - $c['x0'] + 2 * MEL_K_KEY_PAD;
+        }
+        else
+        {
+            $size = $key === 'k_key_info' ? MEL_K_ICON_INFO : MEL_K_ICON_MENU;
+            $c = self::icon($key, $size, MEL_K_C_TEXT1, $x + MEL_K_KEY_W / 2, $top + MEL_K_KEY_H / 2);
+            $w = MEL_K_KEY_W;
+        }
+        return self::on('key', self::plate('key', $x, $top, $w, MEL_K_KEY_H), $c);
+    }
+
+    // The hint line: for each array(key, label) of $items the key (see key)
+    // -MEL_K_KEY_LABEL- its label (MEL_K_PX_HINT, text 2) -MEL_K_HINT_GAP-
+    // the next; the left at $x, the line at $y.
+    /**
+     * @param list<array{string, string}> $items
+     * @param int|null $x
+     * @param int|float|null $y
+     * @param string $name
+     * @return MelKitItem
+     */
+    public static function hint($items, $x = null, $y = null, $name = 'hint')
+    {
+        $parts = array();
+        $gaps = array();
+        foreach ($items as $it)
+        {
+            $parts[] = self::key($it[0]);
+            $parts[] = self::text($it[1], MEL_K_PX_HINT, MEL_K_C_TEXT2);
+            $gaps[] = MEL_K_KEY_LABEL;
+            $gaps[] = MEL_K_HINT_GAP;
+        }
+        return self::row($parts, $gaps, $x, $y, $name);
+    }
+
+    // A bar of $role, $w x $h at ($x, $y); its edges the box:
+    //   progress, info: done $share of the width (at least MEL_K_BAR_MIN when
+    //     $share > 0) in MEL_K_C_BAR_DONE (info: MEL_K_C_BAR_INFO), the rest
+    //     MEL_K_C_BAR_REST; $o['edge']: a line MEL_K_C_BAR_EDGE 1 px over it;
+    //   scroll, upright: the track MEL_K_C_SCROLL_TRACK and the thumb
+    //     MEL_K_C_SCROLL_THUMB, $o['part'] of the height (default all, at
+    //     least MEL_K_THUMB_MIN), at $share of the way down;
+    //   ring: the focus ring (ring) round the box, MEL_K_RING_W outside it.
+    // $o['id']: the id of the thumb or of the done part. Width or height 0, or
+    // an unknown role (logged): nothing.
+    /**
+     * @param string $role
+     * @param int $x
+     * @param int $y
+     * @param int $w
+     * @param int $h
+     * @param int|float $share
+     * @param array<string, mixed> $o
+     * @return MelKitItem
+     */
+    public static function bar($role, $x, $y, $w, $h, $share = 0, $o = array())
+    {
+        $roles = array('progress' => MEL_K_C_BAR_DONE, 'info' => MEL_K_C_BAR_INFO, 'scroll' => '', 'ring' => '');
+        if (!isset($roles[$role]))
+            self::miss('bar', $role);
+        if ($w <= 0 || $h <= 0 || !isset($roles[$role]))
+            return self::box(array(), $x, $y, 0, 0);
+        if ($role === 'ring')
+        {
+            $out = self::plate('ring', $x - MEL_K_RING_W, $y - MEL_K_RING_W, $w + 2 * MEL_K_RING_W, $h + 2 * MEL_K_RING_W);
+            $out['kind'] = 'bar';
+            return $out;
+        }
+        $id = isset($o['id']) ? (string) $o['id'] : null;
+        $s = max(0, min(1, (float) $share));
+        $d = array();
+        $top = $y;
+        if ($role === 'scroll')
+        {
+            $part = isset($o['part']) ? max(0, min(1, (float) $o['part'])) : 1;
+            $th = min($h, max(MEL_K_THUMB_MIN, (int) round($h * $part)));
+            $d[] = mel_gc_rect(mel_gc_at($w, $h, $x, $y), MEL_K_C_SCROLL_TRACK);
+            $d[] = mel_gc_rect(mel_gc_at($w, $th, $x, $y + (int) round(($h - $th) * $s)), MEL_K_C_SCROLL_THUMB, $id);
+        }
+        else
+        {
+            $fw = $s > 0 ? min($w, max(MEL_K_BAR_MIN, (int) round($w * $s))) : 0;
+            if ($fw < $w)
+                $d[] = mel_gc_rect(mel_gc_at($w - $fw, $h, $x + $fw, $y), MEL_K_C_BAR_REST);
+            if ($fw > 0)
+                $d[] = mel_gc_rect(mel_gc_at($fw, $h, $x, $y), $roles[$role], $id);
+            if (!empty($o['edge']))
+            {
+                $d[] = mel_gc_rect(mel_gc_at($w, 1, $x, $y - 1), MEL_K_C_BAR_EDGE);
+                $top--;
+            }
+        }
+        $out = self::box($d, $x, $top, $w, $y + $h - $top);
+        $out['kind'] = 'bar';
         return $out;
     }
 }
