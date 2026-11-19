@@ -26,6 +26,8 @@ define('MEL_GC_LW', 1165);     // right edge at 1845 = 1920 - 75
 define('MEL_GC_LY', 194);      // under the sort tabs (12 px), no column heads
 define('MEL_GC_ROW_H', 64);
 define('MEL_GC_VIS', 12);      // visible rows: the list ends at y 962
+// The window of rows on the screen (mel_gc_win) moves by this many rows: a move of the window adds and removes as many.
+define('MEL_GC_WIN_STEP', 6);
 // The centres of the capitals of the title, of the sort tabs and of the hint line (r5).
 define('MEL_GC_TITLE_MID', 73);
 define('MEL_GC_TABS_MID', 150);
@@ -256,6 +258,21 @@ function mel_gc_step($sel, $top, $n, $key)
     else if ($nsel >= $ntop + MEL_GC_VIS)
         $ntop = $nsel - MEL_GC_VIS + 1;
     return array($nsel, $ntop);
+}
+
+// The rows of a list of $n rows on the screen with $top first visible: array(first, past the last). A step costs the
+// shell by all the components of the screen, so not all the rows: the visible ones and at least a page (MEL_GC_VIS)
+// above and below them, so that the animated scroll of a page (P+, P-) or of a row never shows a row missing; the
+// window moves by MEL_GC_WIN_STEP rows, 41 rows in all. Of the top only: a sel_state has always the same screen.
+/**
+ * @param int $top
+ * @param int $n
+ * @return array{int, int}
+ */
+function mel_gc_win($top, $n)
+{
+    $b = $top - $top % MEL_GC_WIN_STEP;
+    return array(max(0, $b - MEL_GC_VIS), min($n, $b + MEL_GC_WIN_STEP - 1 + 2 * MEL_GC_VIS));
 }
 
 // The key of a move of input $in (its 'd' of mel_gc_act: up, down, pgup, pgdn), null another.
@@ -1209,11 +1226,13 @@ function mel_gc_window($st, $sel, $top)
     // The yellow line of "Онлайн" (view_online.php) in the row of the title.
     $d = array_merge($d, mel_gc_head($st, mel_lpv_note($st)));
 
-    // Viewport: clipping panel 'list'; the inner panel 'rows' moves to scroll.
+    // Viewport: clipping panel 'list'; the inner panel 'rows' (as high as all the rows) moves to scroll, the rows of
+    // the window (mel_gc_win) in it at their places.
     $prog = isset($st['gc_prog']) ? $st['gc_prog'] : array();
     $in = array(mel_gc_sel($sel));
-    foreach ($rows as $i => $r)
-        $in[] = mel_gc_row($i, $r, $tt, $cols, $i === $sel, mel_gc_share($prog, $r));
+    list($lo, $hi) = mel_gc_win($top, $n);
+    for ($i = $lo; $i < $hi; $i++)
+        $in[] = mel_gc_row($i, $rows[$i], $tt, $cols, $i === $sel, mel_gc_share($prog, $rows[$i]));
     // An empty list (the source of a profile has no streams, mel_gc_src): the line
     // of the error in place of the rows.
     if ($n === 0)
@@ -1328,11 +1347,16 @@ function mel_gc_bar_update($st, $hash)
     list($sel, $top) = mel_gc_pos($st, null);
     $tt = mel_gc_text(mel_gc_lang($st));
     $cols = mel_gc_cols_st($st);
+    // Only the rows on the screen (mel_gc_win); the others get the share when the window comes to them.
+    list($lo, $hi) = mel_gc_win($top, count($st['rows']));
     $ch = array();
     foreach ($rows as $i)
-        $ch[] = mel_gc_change("r$i", null, GCOMP_TRANSITION_NONE,
-            mel_gc_row_items($st['rows'][$i], $tt, $cols, $i === $sel, $now));
-    return mel_gc_changes_act($ch, $sel, $top);
+    {
+        if ($i >= $lo && $i < $hi)
+            $ch[] = mel_gc_change("r$i", null, GCOMP_TRANSITION_NONE,
+                mel_gc_row_items($st['rows'][$i], $tt, $cols, $i === $sel, $now));
+    }
+    return $ch ? mel_gc_changes_act($ch, $sel, $top) : null;
 }
 
 // get_folder_view of a live list ($st matches the media_url).
@@ -1713,11 +1737,42 @@ function mel_gc_input($in)
     if ($nsel === $sel)
         return null;
 
-    $ch = mel_gc_cursor_changes($top, $nsel, $ntop, $n);
-    // The focus brightness moves with the row.
     $tt = mel_gc_text(mel_gc_lang($st));
     $cols = mel_gc_cols_st($st);
     $prog = isset($st['gc_prog']) ? $st['gc_prog'] : array();
+    // As mel_gc_cursor_changes, and the window of rows follows the top (mel_gc_win): the rows that leave it removed,
+    // those that come in (with the 'rows' change, after the row before them; above all: after 'sel', over it), as
+    // the episodes of the own card (view_card_series.php). Both cursor rows stay: the window holds a page above and
+    // below the screen.
+    $ch = array(mel_gc_change('sel', mel_gc_row_geom($nsel), GCOMP_TRANSITION_DEFAULT));
+    if ($ntop !== $top)
+    {
+        list($olo, $ohi) = mel_gc_win($top, $n);
+        list($lo, $hi) = mel_gc_win($ntop, $n);
+        $add = array();
+        for ($i = min($olo, $lo); $i < max($ohi, $hi); $i++)
+        {
+            $was = $i >= $olo && $i < $ohi;
+            $now = $i >= $lo && $i < $hi;
+            if ($was && !$now)
+            {
+                $x = mel_gc_change("r$i", null, GCOMP_TRANSITION_NONE);
+                $x[ChangeGCompDef::remove] = true;
+                $ch[] = $x;
+            }
+            elseif ($now && !$was)
+                $add[] = mel_gc_row($i, $st['rows'][$i], $tt, $cols, false, mel_gc_share($prog, $st['rows'][$i]));
+        }
+        $x = mel_gc_change('rows', mel_gc_rows_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT, $add ? $add : null);
+        if ($add)
+        {
+            $x[ChangeGCompDef::children_merge_mode] = true;
+            $x[ChangeGCompDef::children_insert_after_id] = $lo < $olo ? 'sel' : 'r' . ($ohi - 1);
+        }
+        $ch[] = $x;
+        $ch[] = mel_gc_change('thumb', mel_gc_thumb_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
+    }
+    // The focus brightness moves with the row.
     $ch[] = mel_gc_change("r$sel", null, GCOMP_TRANSITION_NONE,
         mel_gc_row_items($st['rows'][$sel], $tt, $cols, false, mel_gc_share($prog, $st['rows'][$sel])));
     $ch[] = mel_gc_change("r$nsel", null, GCOMP_TRANSITION_NONE,
