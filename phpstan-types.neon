@@ -306,9 +306,9 @@ parameters:
         # The own dialog open (kit_dlg.php): its icon, tone, title, text, buttons, the one in focus, the action of RETURN.
         MelDlg: 'array{icon: string, tone: string, title: string, text: string, buttons: list<MelDlgButton>, cur: int, cancel: MelAction|null}'
         # The wait open (kit_dlg.php): the view of its window (live, share and the seconds of the live line, elapsed its
-        # start), the function of its ticks and its data, the open time, late (null: none or passed) and its time, the
-        # text of late that stays.
-        MelWait: 'array{icon: string, tone: string, title: string, text: string, live: string, share: float|null, elapsed: string, buttons: list<MelDlgButton>, cur: int, tick: string, data: mixed, t0: int, sec: int, late: array<string, mixed>|null, late_at: int, late_text: string|null}'
+        # start), the function of its ticks and its data, the open time, the period of its ticks (ms), late (null: none or
+        # passed) and its time, the text of late that stays.
+        MelWait: 'array{icon: string, tone: string, title: string, text: string, live: string, share: float|null, elapsed: string, buttons: list<MelDlgButton>, cur: int, tick: string, data: mixed, t0: int, sec: int, ms: int, late: array<string, mixed>|null, late_at: int, late_text: string|null}'
         # The side panel open (kit_panel.php): its panels, a submenu over its panel last.
         MelKp: 'array{stack: non-empty-list<MelKpFrame>}'
         # A panel of MelKp: its description, its items by id, the ids of a menu by group, the cursor, the first line of

@@ -246,12 +246,41 @@ function mel_wait_map($owner)
     return $map;
 }
 
+// The timer of the ticks of a wait, every $ms.
 /**
+ * @param int $ms
  * @return array<string, int>
  */
-function mel_wait_timer()
+function mel_wait_timer($ms = MEL_WAIT_TICK_MS)
 {
-    return array(GuiTimerDef::delay_ms => MEL_WAIT_TICK_MS);
+    return array(GuiTimerDef::delay_ms => $ms);
+}
+
+// The state of a new wait of description $w (MelWaitDesc, see above), its ticks every $ms (the overlay
+// MEL_WAIT_TICK_MS; the wait screen of kit_scr.php MEL_KS_TICK_MS), started now. No function tick: null, logged.
+/**
+ * @param array<string, mixed> $w
+ * @param int $ms
+ * @return MelWait|null
+ */
+function mel_wait_new($w, $ms = MEL_WAIT_TICK_MS)
+{
+    $tick = mel_dlg_str($w, 'tick');
+    if ($tick === '' || !function_exists($tick))
+    {
+        mel_log("kit wait: no function tick '$tick', not opened");
+        return null;
+    }
+    $bs = mel_dlg_buttons(isset($w['buttons']) ? $w['buttons'] : null, 'wait');
+    $late = isset($w['late']) && is_array($w['late']) ? $w['late'] : null;
+    return array('icon' => mel_dlg_str($w, 'icon'), 'tone' => mel_dlg_str($w, 'tone'), 'title' => mel_dlg_str($w, 'title'),
+        'text' => mel_dlg_str($w, 'text'), 'live' => mel_dlg_str($w, 'live'),
+        'share' => isset($w['share']) && (is_int($w['share']) || is_float($w['share'])) ? (float) $w['share'] : null,
+        'elapsed' => mel_dlg_str($w, 'elapsed'), 'buttons' => $bs,
+        'cur' => mel_dlg_focus(isset($w['focus']) ? $w['focus'] : 0, count($bs)), 'tick' => $tick,
+        'data' => isset($w['data']) ? $w['data'] : null, 't0' => time(), 'sec' => 0, 'ms' => $ms, 'late' => $late,
+        'late_at' => $late && isset($late['sec']) && is_int($late['sec']) ? $late['sec'] : MEL_WAIT_LATE,
+        'late_text' => null);
 }
 
 // Open wait $w (MelWaitDesc, see above) over the screen of record $scr (MelOvlScreen): the shade and the window the
@@ -263,26 +292,13 @@ function mel_wait_timer()
  */
 function mel_wait_open($scr, $w)
 {
-    $tick = mel_dlg_str($w, 'tick');
-    if ($tick === '' || !function_exists($tick))
-    {
-        mel_log("kit wait: no function tick '$tick', not opened");
+    $s = mel_wait_new($w);
+    if ($s === null)
         return null;
-    }
-    $bs = mel_dlg_buttons(isset($w['buttons']) ? $w['buttons'] : null, 'wait');
-    $late = isset($w['late']) && is_array($w['late']) ? $w['late'] : null;
-    $s = array('icon' => mel_dlg_str($w, 'icon'), 'tone' => mel_dlg_str($w, 'tone'), 'title' => mel_dlg_str($w, 'title'),
-        'text' => mel_dlg_str($w, 'text'), 'live' => mel_dlg_str($w, 'live'),
-        'share' => isset($w['share']) && (is_int($w['share']) || is_float($w['share'])) ? (float) $w['share'] : null,
-        'elapsed' => mel_dlg_str($w, 'elapsed'), 'buttons' => $bs,
-        'cur' => mel_dlg_focus(isset($w['focus']) ? $w['focus'] : 0, count($bs)), 'tick' => $tick,
-        'data' => isset($w['data']) ? $w['data'] : null, 't0' => time(), 'sec' => 0, 'late' => $late,
-        'late_at' => $late && isset($late['sec']) && is_int($late['sec']) ? $late['sec'] : MEL_WAIT_LATE,
-        'late_text' => null);
     $owner = isset($scr['owner']) && is_string($scr['owner']) ? $scr['owner'] : '';
-    $a = mel_ovl_open($scr, array('wt' => $s), mel_wait_map($owner), mel_wait_defs($s), null, mel_wait_timer());
+    $a = mel_ovl_open($scr, array('wt' => $s), mel_wait_map($owner), mel_wait_defs($s), null, mel_wait_timer($s['ms']));
     if ($a)
-        mel_log('kit wait: open «' . $s['title'] . "», tick $tick");
+        mel_log('kit wait: open «' . $s['title'] . "», tick {$s['tick']}");
     return $a;
 }
 
@@ -321,28 +337,22 @@ function mel_wait_late($s)
     return $s;
 }
 
-// A tick of the open wait (MelOvl::$st['wt']): the function of the screen, then its reply (see above).
+// One tick of wait $s: the function of the screen called with its data and the seconds since the open -> array(the
+// wait after it, what it asks): array('post' => MelAction), done; array('dialog' => MelDlgDesc), failed (the wait as it
+// was but its seconds); null, still at work: its data, text, live and share taken (see above), at late_at s the late
+// ones (mel_wait_late). The caller does the rest: the overlay (mel_wait_tick), the wait screen (kit_scr.php).
 /**
- * @return MelAction|null
+ * @param MelWait $s
+ * @return array{0: MelWait, 1: array{post?: MelAction, dialog?: array<string, mixed>}|null}
  */
-function mel_wait_tick()
+function mel_wait_step($s)
 {
-    /** @var MelWait $s */
-    $s = MelOvl::$st['wt'];
-    $was = mel_wait_defs($s);
     $s['sec'] = max(0, time() - $s['t0']);
     $r = call_user_func($s['tick'], $s['data'], $s['sec']);
     if (is_array($r) && isset($r['post']) && is_array($r['post']))
-    {
-        mel_log("kit wait: done, {$s['sec']} s");
-        return mel_ovl_close($r['post']);
-    }
+        return array($s, array('post' => $r['post']));
     if (is_array($r) && isset($r['dialog']) && is_array($r['dialog']))
-    {
-        mel_log("kit wait: failed, {$s['sec']} s");
-        $a = mel_dlg_open(MelOvl::$st['scr'], $r['dialog']);
-        return $a ? $a : mel_ovl_close();
-    }
+        return array($s, array('dialog' => $r['dialog']));
     if (!is_array($r))
     {
         mel_log('kit wait: the tick gave no reply, the window as it was');
@@ -361,8 +371,31 @@ function mel_wait_tick()
         $s['text'] = $s['late_text'];
     if ($s['late'] !== null && $s['sec'] >= $s['late_at'])
         $s = mel_wait_late($s);
+    return array($s, null);
+}
+
+// A tick of the open wait (MelOvl::$st['wt']): the function of the screen, then its reply (see above).
+/**
+ * @return MelAction|null
+ */
+function mel_wait_tick()
+{
+    /** @var MelWait $was */
+    $was = MelOvl::$st['wt'];
+    list($s, $r) = mel_wait_step($was);
+    if (isset($r['post']))
+    {
+        mel_log("kit wait: done, {$s['sec']} s");
+        return mel_ovl_close($r['post']);
+    }
+    if (isset($r['dialog']))
+    {
+        mel_log("kit wait: failed, {$s['sec']} s");
+        $a = mel_dlg_open(MelOvl::$st['scr'], $r['dialog']);
+        return $a ? $a : mel_ovl_close();
+    }
     MelOvl::$st['wt'] = $s;
-    return mel_wait_again(mel_dlg_diff($was, mel_wait_defs($s)));
+    return mel_wait_again(mel_dlg_diff(mel_wait_defs($was), mel_wait_defs($s)));
 }
 
 // The reply of an open wait that goes on: its map and its timer again, then changes $ch (none: no change_gcomps).
@@ -373,7 +406,8 @@ function mel_wait_tick()
 function mel_wait_again($ch)
 {
     $scr = MelOvl::$st['scr'];
-    return mel_ovl_behaviour(mel_wait_map($scr['owner']), mel_wait_timer(), $ch ? mel_ovl_change($ch, $scr['sel']) : null);
+    return mel_ovl_behaviour(mel_wait_map($scr['owner']), mel_wait_timer(MelOvl::$st['wt']['ms']),
+        $ch ? mel_ovl_change($ch, $scr['sel']) : null);
 }
 
 // The components of the open dialog or wait $kind (dlg, wt).
