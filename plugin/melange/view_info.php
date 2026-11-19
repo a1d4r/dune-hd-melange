@@ -553,7 +553,7 @@ function mel_info_col_file($r, $raw, $sd, $pf, $tt, $top)
     }
     $dur = mel_row_duration($r);
     mel_info_field($c, $l['duration'], $dur >= 1 ? mel_info_duration($dur) : '', 1);
-    $video = implode(' · ', array_filter(array($r['resolution'], $r['quality'], mel_str($pf, 'encode')), 'strlen'));
+    $video = implode(' · ', array_filter(array($r['resolution'], mel_row_quality_text($r), mel_str($pf, 'encode')), 'strlen'));
     mel_info_field($c, $tt['video'], $video !== '' ? $video : "\xE2\x80\x94", 2, false, true);
     $vis = array();
     foreach (mel_arr($pf, 'visualTags') as $t)

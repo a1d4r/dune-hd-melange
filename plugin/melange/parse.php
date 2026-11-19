@@ -346,6 +346,17 @@ function mel_badge_text($id)
     return isset($t[$id]) ? $t[$id] : '';
 }
 
+// The quality of row $r in words for the field «Video» of the card and of INFO: BDRip when the source badge
+// of mel_badges is bdrip (the same rule as the badge, the owner 19.11.2026), else the quality of AIOStreams.
+/**
+ * @param MelRow $r
+ * @return string
+ */
+function mel_row_quality_text($r)
+{
+    return $r['badges']['src'] === 'bdrip' ? 'BDRip' : $r['quality'];
+}
+
 // All audio of a release in words for the card: codecs from the best down
 // in the words of the badges ("TrueHD Atmos · DTS:X MA · DD+"), tags we do not
 // know as they are, then every channel layout from the most ("7.1 / 5.1 / 2.0").

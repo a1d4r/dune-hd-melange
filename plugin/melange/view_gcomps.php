@@ -909,7 +909,7 @@ function mel_gc_fields($r, $tt, $addon_side, $top, $bottom)
     $vs = mel_row_voices_struct($r);
     $alone = mel_voices_dub_first($vs);
     $b = $r['badges'];
-    $video = array($r['resolution'], mel_badge_text($b['vis']), $b['ai'] ? 'AI' : '', $r['quality'],
+    $video = array($r['resolution'], mel_badge_text($b['vis']), $b['ai'] ? 'AI' : '', mel_row_quality_text($r),
         implode(' ', $b['tags']));
     $fields = array(
         array('video', implode(' · ', array_filter($video, 'strlen'))),
