@@ -79,9 +79,9 @@ function mel_voices_word($low, $word)
 // 'name' => the name without JacRed's tails, 'keys' => studio => its key,
 // 'ru' => 'int' | 'ext' | '', 'ru_subs', 'ukr' => bool of mel_voices_ru_marks,
 // 'ru_type' => bool: a type of a Russian voice, 'loose' => studio => true: not
-// of the voices (no type, not in the part of voices at the end), 'ru_hint' =>
-// bool: a Russian mark - Cyrillic, "RUS(int)", a type, "Rus" not of subtitles
-// alone). Studios: whole words of the
+// of the voices (no type, not in "[...]" nor the part of voices at the end),
+// 'ru_hint' => bool: a Russian mark - Cyrillic, "RUS(int)", a type, "Rus" not
+// of subtitles alone, after the episode or the year). Studios: whole words of the
 // dictionary (voices.php), the longest first, no overlaps, none before the
 // first year (the title and the director of rutracker: "Белорусский вокзал
 // (Андрей Смирнов) [1970, ...]").
@@ -132,6 +132,15 @@ function mel_voices_parse($s, $tails = true)
     $cls = mel_voices_classes($word, $low, $join, $seps, $part);
     // Rutor's part "| UKR": its codes are Ukrainian voices.
     $ua = preg_match('/\|\s*ukr\s*(?:\||$)/i', $s) === 1;
+    // The words inside "[...]": the group of a release of anime is its voice
+    // ("[AniLibria.TV] Show - 01", "Show_[01]_[AniLibria_TV]").
+    $sq = array();
+    for ($i = 0, $d = $s[0] === '[' ? 1 : 0; $i < $n; $i++)
+    {
+        $sq[$i] = $d > 0;
+        if (isset($seps[$i]) && strpbrk($seps[$i], '[]') !== false)
+            $d = max(0, $d + substr_count($seps[$i], '[') - substr_count($seps[$i], ']'));
+    }
 
     // Each part of the name between "|": 1 - voices (numbers too), 0 - only
     // numbers, -1 - something else.
@@ -212,8 +221,8 @@ function mel_voices_parse($s, $tails = true)
             $v['keys'][$c[1]] = $c[2];
             if (isset($stype[$i]))
                 $v['stype'][$c[1]] = $stype[$i];
-            // Not in the voices: no type, not in the part of voices at the end.
-            else if ($from === 0 || $part[$i] < $from)
+            // Not in the voices: no type, not in "[...]" nor the part of voices at the end.
+            else if (!$sq[$i] && ($from === 0 || $part[$i] < $from))
                 $v['loose'][$c[1]] = true;
         }
         else if ($c[0] === 'type' || $c[0] === 'code')
@@ -1348,10 +1357,10 @@ function mel_row_voices($r)
 // code of mel_lang_code, '' unknown), only when 'langs' has it. A type of a
 // Russian voice ("Дубляж", "ДБ", "MVO", "ПМ") confirms Russian, also next to
 // "Ukr". A Russian studio of the names, but not of their voices (no type, not
-// in the part of voices at the end: "The.Simpsons...FOX", "x264-Amber"), and a
-// studio of no known language confirm Russian only with a Russian mark of the
-// names (ru_hint: Cyrillic, "Rus", "RUS(int)", a type); the latter not with a
-// Ukrainian mark ("Ukr(TET)/Eng"). Guessed (parsedFile.languages: the Cyrillic title of
+// in "[...]" nor the part of voices at the end: "The.Simpsons...FOX",
+// "x264-Amber"), and a studio of no known language confirm Russian only with
+// a Russian mark of the names (ru_hint: Cyrillic, "Rus", "RUS(int)", a type)
+// or RU in 'langs'; the latter not with a Ukrainian mark ("Ukr(TET)/Eng"). Guessed (parsedFile.languages: the Cyrillic title of
 // JacRed, the flags of Torrentio, "rus" anywhere): the rest, but Russian of
 // a row with Russian subtitles in its names ("Original + Rus Sub"). Service
 // codes (MULTI, DUAL, DUB, ORIG) are neither.
@@ -1379,7 +1388,8 @@ function mel_row_langs($r, $orig)
             $ok['RU'] = true;
         $vs = mel_row_voices_struct($r);
         $known = mel_voices_lang();
-        $hint = !empty($v['ru_hint']);
+        // Russian among the languages of the row is a mark too (a flag, a guess).
+        $hint = !empty($v['ru_hint']) || in_array('RU', $r['langs'], true);
         $loose = $hint || !isset($v['loose']) ? array() : $v['loose'];
         $no = !$hint || !empty($v['ukr']);
         // Studios => loose; of a type too, as tracks without a language give them ("MVO LostFilm").
