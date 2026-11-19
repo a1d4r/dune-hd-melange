@@ -391,8 +391,9 @@ function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1)
 // play_action alike: the copy of key $first_key ('' none; not among them - logged, as none) from $first_pos s, if its
 // file is there (mel_lib_here); else (or no such copy) by the copies left - none: mel_lib_gone; one: it from $pos s, if
 // there; several: their menu (mel_lib_pick_menu) to $back = array(control, params), with k - the key of the copy
-// chosen. One check a copy at most; a copy that does not answer ('slow') takes the copies of its mount out unchecked
-// (the NAS sleeps or is off), and no check starts that the operation (MEL_OP_BUDGET) has no time left for.
+// chosen. One check a copy at most; a copy that does not answer ('slow') takes the copies of all the shares of its
+// server out unchecked (srv: the NAS sleeps or is off - one wait, not one a share), and no check starts that the
+// operation (MEL_OP_BUDGET) has no time left for.
 /**
  * @param MelMovie $mv
  * @param list<MelLibCopy> $copies
@@ -437,7 +438,7 @@ function mel_lib_start($mv, $copies, $first_key, $first_pos, $pos, $lang, $back)
         $rest = array();
         foreach ($left as $c)
         {
-            if ($c['key'] !== $try['key'] && !($here === 'slow' && $c['mnt'] === $try['mnt']))
+            if ($c['key'] !== $try['key'] && !($here === 'slow' && $c['srv'] === $try['srv']))
                 $rest[] = $c;
         }
         $left = $rest;

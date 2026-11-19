@@ -36,11 +36,18 @@ define('MEL_LIB_CANDIDATES', 3);
 // off answers only by the timeout of cifs (the check is in the background: php_server does not hang).
 if (!defined('MEL_LIB_HERE_S'))
     define('MEL_LIB_HERE_S', 8);
-// The script of the check (sh -c): 1 or 0 for a file at $MEL_P to $MEL_R, renamed there whole. The path only in the
-// environment. Tests define their own first (a check that does not answer in time).
-if (!defined('MEL_LIB_HERE_SH'))
-    define('MEL_LIB_HERE_SH',
-        'if test -f "$MEL_P"; then r=1; else r=0; fi; echo $r >"$MEL_R.p" && mv -f "$MEL_R.p" "$MEL_R"');
+// A step of the check before its test -f: tests define one first (a check that does not answer in time).
+if (!defined('MEL_LIB_HERE_TEST'))
+    define('MEL_LIB_HERE_TEST', '');
+// The script of the check (sh -c, POSIX: bash, dash, mksh, busybox ash): 1 or 0 for a file at $MEL_P to $MEL_R,
+// renamed there whole; the paths only in the environment. Its lifetime bound inside, with no timeout(1) (that of
+// busybox before 1.30 of old boxes takes "-t N", toybox "-s KILL N"; which one PATH finds is not known): a watcher in
+// the background kills the script (kill -9, MEL_LIB_HERE_S + 2 s); the test done, the script kills the watcher, and
+// the watcher its sleep (no sleep left behind, no kill of a pid reused later).
+define('MEL_LIB_HERE_SH',
+    '( trap \'kill $s 2>/dev/null; exit 0\' TERM; sleep ' . (MEL_LIB_HERE_S + 2) . ' & s=$!; wait $s; kill -9 $$ ) & ' .
+    'w=$!; ' . MEL_LIB_HERE_TEST . 'if test -f "$MEL_P"; then r=1; else r=0; fi; ' .
+    'echo $r >"$MEL_R.p" && mv -f "$MEL_R.p" "$MEL_R"; kill $w');
 
 // The library in the memory of php_server, until its files change (mel_lib_index).
 class MelLib
@@ -349,14 +356,14 @@ function mel_lib_mounts(&$err)
     return $res;
 }
 
-// The mount path of a network folder, '' when its share is not mounted
-// (DataModel::get_network_mount_by_server_and_subdir, data_model.php r25):
-// mounted, the same type, an SMB mount of a share (no '/' in its dir), the
-// server by name or by server_ipaddr, the dir the same or a parent of it.
+// The mount of a network folder (DataModel::get_network_mount_by_server_and_subdir, data_model.php r25): mounted, the
+// same type, an SMB mount of a share (no '/' in its dir), the server by name or by server_ipaddr, the dir the same or a
+// parent of it -> array(the path of the folder in it, the server of the mount: server_ipaddr, else its name in lower
+// case - one NAS of several shares, mel_lib_start), array('', '') when its share is not mounted.
 /**
  * @param MelLibNf $nf
  * @param list<MelLibMount> $mounts
- * @return string
+ * @return array{string, string}
  */
 function mel_lib_mount_for_nf($nf, $mounts)
 {
@@ -368,24 +375,24 @@ function mel_lib_mount_for_nf($nf, $mounts)
             continue;
         if ($mnt['server'] !== $nf['server'] && $mnt['server_ipaddr'] !== $nf['server'])
             continue;
+        $srv = $mnt['server_ipaddr'] !== '' ? $mnt['server_ipaddr'] : strtolower($mnt['server']);
         if ($mnt['dir'] === $nf['dir'])
-            return $mnt['path'];
+            return array($mnt['path'], $srv);
         $len = strlen($mnt['dir']);
         if (strncmp($nf['dir'], $mnt['dir'] . '/', $len + 1) === 0)
-            return $mnt['path'] . substr($nf['dir'], $len);
+            return array($mnt['path'] . substr($nf['dir'], $len), $srv);
     }
-    return '';
+    return array('', '');
 }
 
-// The mount path of the source of a folder of the library, '' when it is not
-// mounted. Only network folders (network_folder_id://<id>,
-// network_folder://<name>); other sources (USB, the internal memory) are not
-// supported yet.
+// The mount of the source of a folder of the library (mel_lib_mount_for_nf): array(its path, its server), array('', '')
+// when it is not mounted. Only network folders (network_folder_id://<id>, network_folder://<name>); other sources (USB,
+// the internal memory) are not supported yet.
 /**
  * @param MelLibFolder $folder
  * @param array<string, MelLibNf> $nfs
  * @param list<MelLibMount> $mounts
- * @return string
+ * @return array{string, string}
  */
 function mel_lib_source_mount($folder, $nfs, $mounts)
 {
@@ -405,7 +412,7 @@ function mel_lib_source_mount($folder, $nfs, $mounts)
                 $nf = $x;
         }
     }
-    return $nf ? mel_lib_mount_for_nf($nf, $mounts) : '';
+    return $nf ? mel_lib_mount_for_nf($nf, $mounts) : array('', '');
 }
 
 // UrlUtils::make_rel_path of the shell: the path of a file under the root of
@@ -863,14 +870,14 @@ function mel_lib_copies($mid)
         $folder = MelLib::$folders[$id];
         if (!isset($mnt[$id]))
             $mnt[$id] = mel_lib_source_mount($folder, MelLib::$nfs, $mounts);
-        if ($mnt[$id] === '')
+        if ($mnt[$id][0] === '')
             continue;
-        $url = $mnt[$id] . mel_lib_rel_path($folder['path'], $f['path']);
+        $url = $mnt[$id][0] . mel_lib_rel_path($folder['path'], $f['path']);
         if (isset($urls[$url]))
             continue;
         $urls[$url] = 1;
-        $res[] = $f + array('url' => $url, 'mnt' => $mnt[$id], 'key' => mel_lib_key($f['hash']),
-            'caption' => $folder['caption']);
+        $res[] = $f + array('url' => $url, 'mnt' => $mnt[$id][0], 'srv' => $mnt[$id][1],
+            'key' => mel_lib_key($f['hash']), 'caption' => $folder['caption']);
     }
     usort($res, 'mel_lib_cmp_copies');
     return $res;
@@ -1151,10 +1158,11 @@ function mel_lib_title($m, $series)
 // Is the file of the copy $copy there now: 'yes', 'no' or 'slow' (no answer in MEL_LIB_HERE_S s). Only from the
 // operation of a start (OK, play_action), never while a card is laid out: a share of a NAS off may stay "mounted", a
 // stat on it hangs until the timeout of cifs, and the keys and the operation with it if php_server did it itself. So
-// MEL_LIB_HERE_SH in the background under timeout -s KILL, 2 s past the wait (stdin, stdout and stderr redirected, one
-// '&': exec() does not wait for it), its answer polled every 50 ms in a file of tmp_dir, removed then (and those of
-// checks answered too late). The path only in the environment of the check; the log: "library: here lib-... yes|no|slow in N ms". No
-// tmp_dir: 'yes', not checked (the player tells).
+// MEL_LIB_HERE_SH in the background, killed by its own watcher 2 s past the wait (stdin, stdout and stderr redirected,
+// one '&': exec() does not wait for it), its answer polled every 50 ms in a file of tmp_dir, removed then (and those of
+// checks answered too late). The paths only in the environment of the check (putenv, taken out after exec()): not in
+// the command, where escapeshellarg of PHP 5.3 in the locale C drops the bytes of a Cyrillic path. The log: "library:
+// here lib-... yes|no|slow in N ms". No tmp_dir: 'yes', not checked (the player tells).
 /**
  * @param MelLibCopy $copy
  * @return string
@@ -1175,8 +1183,11 @@ function mel_lib_here($copy)
             unlink($old);
     }
     $res = "$tmp/lib_here_" . getmypid() . '_' . str_replace('.', '', uniqid('', true));
-    exec('MEL_P=' . escapeshellarg($copy['url']) . ' MEL_R=' . escapeshellarg($res) . ' timeout -s KILL ' .
-        (MEL_LIB_HERE_S + 2) . ' sh -c ' . escapeshellarg(MEL_LIB_HERE_SH) . ' </dev/null >/dev/null 2>&1 &');
+    putenv('MEL_P=' . $copy['url']);
+    putenv('MEL_R=' . $res);
+    exec('sh -c ' . escapeshellarg(MEL_LIB_HERE_SH) . ' </dev/null >/dev/null 2>&1 &');
+    putenv('MEL_P');
+    putenv('MEL_R');
     $ans = 'slow';
     do
     {
