@@ -500,7 +500,7 @@ function mel_service_name($id)
 //   size         bytes, float: PHP on Dune is 32-bit, sizes over 2 GB do not fit an int
 //   langs        language codes of the audio tracks, else of parsedFile.languages
 //                (mel_track_langs); JacRed replaces them with its tracks
-//   trackers     indexers
+//   trackers     indexers, each the last segment of an "A|B|Tracker" chain, no repeats
 //   addon        streamData.addon: the name of the AIOStreams add-on ("DMM Cast"), at most 60
 //                characters; shown where there are no trackers
 //   addons       add-ons that found the same release (mel_addons, of streamData.sources):
@@ -597,11 +597,15 @@ function mel_row($st, $series)
         $approx = true;
         $rate_src = 'description';
     }
+    // An add-on that asks other add-ons prefixes their tracker with its name
+    // ("Addon|Other|Tracker"): the last non-empty segment is the tracker.
     $trackers = array();
     foreach (explode(',', mel_str($sd, 'indexer')) as $tr)
     {
-        if (trim($tr) !== '')
-            $trackers[] = trim($tr);
+        $seg = array_filter(array_map('trim', explode('|', $tr)), 'strlen');
+        $tr = $seg ? strval(end($seg)) : '';
+        if ($tr !== '' && !in_array($tr, $trackers, true))
+            $trackers[] = $tr;
     }
     // A movie file name tells the release best; a season pack - its folder.
     $file = mel_st_file($st);
