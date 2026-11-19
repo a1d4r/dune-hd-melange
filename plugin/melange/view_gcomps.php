@@ -595,6 +595,17 @@ function mel_gc_cols($rows, $tt)
     return $cols;
 }
 
+// The columns of list $st: those of its last full view (gc_cols, mel_gc_folder_view), else counted (mel_gc_cols) -
+// they go over all the rows, the most of a step of the cursor before.
+/**
+ * @param MelState $st
+ * @return MelGcCols
+ */
+function mel_gc_cols_st($st)
+{
+    return isset($st['gc_cols']) ? $st['gc_cols'] : mel_gc_cols($st['rows'], mel_gc_text(mel_gc_lang($st)));
+}
+
 // --- Screen parts.
 
 /**
@@ -920,12 +931,19 @@ function mel_gc_fields($r, $tt, $addon_side, $top, $bottom)
         }
         $opt[] = array($f[0], $v, $lh, $max);
     }
-    // The optional fields while they fit: from the end, a field whole; the subtitles line by line.
+    // The optional fields while they fit: from the end, a field whole; the subtitles line by line. Each block built
+    // once (by field and lines), not again on every try.
+    $built = array();
     while ($opt)
     {
         $its = array();
         foreach ($opt as $o)
-            $its[] = mel_gc_field($tt[$o[0]], mel_gc_field_lines($o[0], $o[1], $o[3], $alone), $o[2]);
+        {
+            $key = "{$o[0]}:{$o[3]}";
+            if (!isset($built[$key]))
+                $built[$key] = mel_gc_field($tt[$o[0]], mel_gc_field_lines($o[0], $o[1], $o[3], $alone), $o[2]);
+            $its[] = $built[$key];
+        }
         if (mel_gc_stack_end($at, $its) <= $bottom)
             return array_merge($out, $its);
         $o = array_pop($opt);
@@ -1179,7 +1197,7 @@ function mel_gc_window($st, $sel, $top)
     $rows = $st['rows'];
     $n = count($rows);
     $tt = mel_gc_text(mel_gc_lang($st));
-    $cols = mel_gc_cols($rows, $tt);
+    $cols = mel_gc_cols_st($st);
     $d = array();
     $d[] = mel_gc_rect(mel_gc_at(1920, 1080, 0, 0), MEL_K_C_SCRIM);
     $poster = mel_img($mv['poster']);
@@ -1309,7 +1327,7 @@ function mel_gc_bar_update($st, $hash)
         return null;
     list($sel, $top) = mel_gc_pos($st, null);
     $tt = mel_gc_text(mel_gc_lang($st));
-    $cols = mel_gc_cols($st['rows'], $tt);
+    $cols = mel_gc_cols_st($st);
     $ch = array();
     foreach ($rows as $i)
         $ch[] = mel_gc_change("r$i", null, GCOMP_TRANSITION_NONE,
@@ -1333,6 +1351,8 @@ function mel_gc_folder_view($st, $sel_state)
     // Progress read anew with every full screen (back from the player too);
     // kept for the rows that gc_move redraws.
     $st['gc_prog'] = Mel::$state['gc_prog'] = mel_wh_progress($st);
+    // The columns too, counted once a full view (mel_gc_cols_st).
+    $st['gc_cols'] = Mel::$state['gc_cols'] = mel_gc_cols($st['rows'], mel_gc_text(mel_gc_lang($st)));
     $rid = $st['rid'];
     $acts = array(
         GUI_EVENT_KEY_UP => mel_gc_act('gc_move', $rid, array('d' => 'up')),
@@ -1696,7 +1716,7 @@ function mel_gc_input($in)
     $ch = mel_gc_cursor_changes($top, $nsel, $ntop, $n);
     // The focus brightness moves with the row.
     $tt = mel_gc_text(mel_gc_lang($st));
-    $cols = mel_gc_cols($st['rows'], $tt);
+    $cols = mel_gc_cols_st($st);
     $prog = isset($st['gc_prog']) ? $st['gc_prog'] : array();
     $ch[] = mel_gc_change("r$sel", null, GCOMP_TRANSITION_NONE,
         mel_gc_row_items($st['rows'][$sel], $tt, $cols, false, mel_gc_share($prog, $st['rows'][$sel])));

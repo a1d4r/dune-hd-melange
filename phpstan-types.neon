@@ -270,7 +270,7 @@ parameters:
         # A stream list (Mel::$state, mel_list_state, main.php), rows in the order
         # of sort (mel_sort_keys), reversed by sort_rev; rows may be empty from
         # 0.58.0 (a source profile with no streams, mel_gc_src); gc (sel, top:
-        # the last cursor), gc_new, gc_prog: of view_gcomps.php.
+        # the last cursor), gc_new, gc_prog, gc_cols: of view_gcomps.php.
         MelState: '''
             array{
                 rid: string,
@@ -285,6 +285,7 @@ parameters:
                 gc?: array{int, int},
                 gc_new?: bool,
                 gc_prog?: MelProgress,
+                gc_cols?: MelGcCols,
                 pack_only?: bool,
                 pack_map?: array<int, array<int, int>>,
                 lp?: MelLpView,
