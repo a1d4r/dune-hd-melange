@@ -123,6 +123,29 @@ function mel_src_watch_item($lang, $control, $params)
         GuiMenuItemDef::action => mel_input($control, $params)));
 }
 
+// The item of the sources of MENU of a movie with a copy on the disk ("Смотреть" plays the file; owner 18.11.2026):
+// always one when a profile is ready - of one, "Смотреть из «<name>»" to $pick_control of $params with p and n of it (its
+// list at once); of two and more, "Смотреть из…" to $menu_control (mel_src_watch_item); none ready - none.
+/**
+ * @param string $lang
+ * @param string $menu_control
+ * @param string $pick_control
+ * @param array<string, string> $params
+ * @return list<array<string, mixed>>
+ */
+function mel_src_watch_items_lib($lang, $menu_control, $pick_control, $params)
+{
+    $ready = mel_src_ready();
+    if (count($ready) !== 1)
+        return mel_src_watch_item($lang, $menu_control, $params);
+    $p = $ready[0];
+    return array(array(
+        GuiMenuItemDef::caption => str_replace('{name}', $p['name'], mel_tr($lang, 'src_watch_one')),
+        GuiMenuItemDef::icon_url => $p['kind'] === 'lampac' ? 'gui_skin://small_icons/web_browser.aai' :
+            'gui_skin://small_icons/sources.aai',
+        GuiMenuItemDef::action => mel_input($pick_control, array_merge($params, array('p' => $p['id'], 'n' => $p['name'])))));
+}
+
 // The choice of "Смотреть из…" of input $in (p: the id of a profile, n: its name; of mel_src_popup) -> array(the id, ''
 // not an id: nothing; the dialog "Источник не сменился: <name>" (src_changed) of a profile gone or not ready since the
 // menu (the page changed them), no request; null - there and ready).
