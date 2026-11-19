@@ -73,6 +73,7 @@ define('MEL_K_STEP_PANEL', 64);
 define('MEL_K_STEP_SETUP', 48);
 define('MEL_K_STEP_CARD_DESC', 42);
 define('MEL_K_STEP_INFO_DESC', 35);
+define('MEL_K_STEP_PANEL_NOTE', 31);
 
 // line_spacing of the multiline labels of the shell (step = size + line_spacing).
 define('MEL_K_LS_INFO_DESC', 5);
@@ -120,6 +121,8 @@ define('MEL_K_PANEL_INSET', 16);
 define('MEL_K_PANEL_INNER', 24);
 define('MEL_K_PANEL_TITLE_Y', 56);
 define('MEL_K_PANEL_TITLE_H', 64);
+define('MEL_K_PANEL_VIS', 10);
+define('MEL_K_PANEL_SCROLL_W', 4);
 
 // Radii.
 define('MEL_K_R_BTN', 12);
@@ -140,6 +143,8 @@ define('MEL_K_R_RING', 16);
 define('MEL_K_ICON_BUTTON', 30);
 define('MEL_K_ICON_PANEL', 32);
 define('MEL_K_ICON_PANEL_CHEVRON', 24);
+define('MEL_K_ICON_PANEL_BACK', 36);
+define('MEL_K_ICON_PANEL_MOVE', 28);
 define('MEL_K_ICON_CACHED', 30);
 define('MEL_K_ICON_LIST_ZAP', 22);
 define('MEL_K_ICON_LIST_DOWNLOAD', 30);

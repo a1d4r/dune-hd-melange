@@ -1284,4 +1284,270 @@ class MelKit
         $out['kind'] = 'sources';
         return $out;
     }
+    // --- The side panel on the right (stage 6a): the builders. The keys, the state of an open panel and its changes:
+    // kit_panel.php. Coordinates of the panel (its left 0, the top of the screen 0).
+
+    // A line of the panel MEL_K_STEP_PANEL high and MEL_K_PANEL_W wide as the group $id (a panel whose id goes by the
+    // key of its content, not its place: «Переместить» moves it by its geometry), its top at $y. One geometry in every
+    // state, so a screen changes the state by its children. $r:
+    //   state     '' text 1; focus white on the plate panel_row_on (MEL_K_ROW_ON_H in the line, MEL_K_PANEL_INSET from
+    //             both sides); move, a line taken by «Переместить»: focus and ⇅ on the right (k_icon_arrow-up-down
+    //             MEL_K_ICON_PANEL_MOVE);
+    //   label     MEL_K_PX_ROW, MEL_K_PANEL_INSET + MEL_K_PANEL_INNER from the left, after the icon or the square:
+    //   icon      k_icon_* ('' or none: no icon), or check (true or false: k_icon_square-check, k_icon_square; an
+    //             unchecked square text 3 off focus), MEL_K_ICON_PANEL by its box -MEL_K_ICON_GAP_PANEL- the label;
+    //   detail    after the label « · detail» in text 2 («Debrid · Real-Debrid»), cut first;
+    // on the right, as far from the right edge, one of: value (text 2) -xs- the chevron › MEL_K_ICON_PANEL_CHEVRON
+    // when chevron (a submenu); count (MEL_K_PX_CAPTION, text 3: «6» balancers of a voice); picked, the chosen one
+    // (k_icon_check MEL_K_ICON_PANEL), before it -s- the direction way (an icon, MEL_K_ICON_SORT). The label and its
+    // detail are cut with "…" MEL_K_GAP_M before the right part. Edges: the box of the line.
+    /**
+     * @param string $id
+     * @param MelKitPanelRow $r
+     * @param int $y
+     * @return MelKitItem
+     */
+    public static function panel_row($id, $r, $y = 0)
+    {
+        $state = self::state('panel row', isset($r['state']) ? (string) $r['state'] : '', array('focus', 'move'));
+        $on = $state !== '';
+        $fg = $on ? MEL_K_C_ON_ACCENT : MEL_K_C_TEXT1;
+        $fg2 = $on ? MEL_K_C_ON_ACCENT2 : MEL_K_C_TEXT2;
+        $fg3 = $on ? MEL_K_C_ON_ACCENT2 : MEL_K_C_TEXT3;
+        $h = MEL_K_STEP_PANEL;
+        $cy = $y + intval($h / 2);
+        $cx0 = MEL_K_PANEL_INSET + MEL_K_PANEL_INNER;
+        $cx1 = MEL_K_PANEL_W - $cx0;
+        $parts = array(self::box(array(), 0, $y, MEL_K_PANEL_W, $h));
+        if ($on)
+            $parts[] = self::plate('panel_row_on', MEL_K_PANEL_INSET, $y + intval(($h - MEL_K_ROW_ON_H) / 2),
+                MEL_K_PANEL_W - 2 * MEL_K_PANEL_INSET, MEL_K_ROW_ON_H);
+        // The right part, set from the right edge of the content.
+        $right = array();
+        $rgap = array();
+        if ($state === 'move')
+            $right[] = self::icon('k_icon_arrow-up-down', MEL_K_ICON_PANEL_MOVE, $fg2, 0, 0, array('box' => true));
+        elseif (!empty($r['picked']))
+        {
+            if (isset($r['way']) && $r['way'] !== '')
+            {
+                $right[] = self::icon($r['way'], MEL_K_ICON_SORT, $fg2, 0, 0, array('box' => true));
+                $rgap[] = MEL_K_GAP_S;
+            }
+            $right[] = self::icon('k_icon_check', MEL_K_ICON_PANEL, $fg, 0, 0, array('box' => true));
+        }
+        elseif (isset($r['count']) && $r['count'] !== '')
+            $right[] = self::text($r['count'], MEL_K_PX_CAPTION, $fg3);
+        else
+        {
+            if (isset($r['value']) && $r['value'] !== '')
+            {
+                $right[] = self::text($r['value'], MEL_K_PX_ROW, $fg2);
+                $rgap[] = MEL_K_GAP_XS;
+            }
+            if (!empty($r['chevron']))
+                $right[] = self::icon('k_icon_chevron-right', MEL_K_ICON_PANEL_CHEVRON, $fg2, 0, 0, array('box' => true));
+            else
+                $rgap = array();
+        }
+        $edge = $cx1;
+        if ($right)
+        {
+            // Its width first: row sets it from its left, and the trace has it where it stands.
+            $rw = array_sum($rgap);
+            foreach ($right as $it)
+                $rw += $it['x1'] - $it['x0'];
+            $parts[] = self::row($right, $rgap, $cx1 - $rw, $cy, 'panel row right');
+            $edge = $cx1 - $rw - MEL_K_GAP_M;
+        }
+        $left = array();
+        if (isset($r['check']))
+            $left[] = self::icon($r['check'] ? 'k_icon_square-check' : 'k_icon_square', MEL_K_ICON_PANEL,
+                $r['check'] ? $fg : $fg3, 0, 0, array('box' => true));
+        elseif (isset($r['icon']) && $r['icon'] !== '')
+            $left[] = self::icon($r['icon'], MEL_K_ICON_PANEL, $fg, 0, 0, array('box' => true));
+        $gaps = $left ? array(MEL_K_ICON_GAP_PANEL) : array();
+        $lx = $cx0 + ($left ? MEL_K_ICON_PANEL + MEL_K_ICON_GAP_PANEL : 0);
+        $room = max(0, $edge - $lx);
+        $label = self::text($r['label'], MEL_K_PX_ROW, $fg, 0, 0, array('w' => $room));
+        $left[] = $label;
+        // « · detail» after the label: a space as the gap (a label loses its spaces at the ends, mel_clean).
+        $sp = self::w(' ', MEL_K_PX_ROW);
+        $rest = $room - ($label['x1'] - $label['x0']) - $sp;
+        if (isset($r['detail']) && $r['detail'] !== '' && $rest > 0)
+        {
+            $det = self::cut("\xC2\xB7 " . $r['detail'], MEL_K_PX_ROW, MEL_K_FACE_REGULAR, $rest);
+            if ($det !== "\xE2\x80\xA6")
+            {
+                $left[] = self::text($det, MEL_K_PX_ROW, $fg2);
+                $gaps[] = $sp;
+            }
+        }
+        $parts[] = self::row($left, $gaps, $cx0, $cy, 'panel row');
+        $it = self::join('panel_row', $parts);
+        $it['mid'] = $cy;
+        $it['cy'] = $cy;
+        return self::group($id, $it);
+    }
+
+    // The head of a panel: the title (MEL_K_PX_PANEL_TITLE, text 1) with the centre of its capitals at
+    // MEL_K_PANEL_TITLE_Y + MEL_K_PANEL_TITLE_H / 2, from the left of the content, cut to its width; $back (a submenu
+    // in the place of the panel): ‹ before it (k_icon_chevron-left MEL_K_ICON_PANEL_BACK, text 2), the content edge
+    // at its strokes, -s- the title (r6 panel_title).
+    /**
+     * @param string $title
+     * @param bool $back
+     * @return MelKitItem
+     */
+    public static function panel_head($title, $back = false)
+    {
+        $cx0 = MEL_K_PANEL_INSET + MEL_K_PANEL_INNER;
+        $w = MEL_K_PANEL_W - 2 * $cx0;
+        $y = MEL_K_PANEL_TITLE_Y + MEL_K_PANEL_TITLE_H / 2;
+        if (!$back)
+            return self::text($title, MEL_K_PX_PANEL_TITLE, MEL_K_C_TEXT1, $cx0, $y, array('w' => $w));
+        $b = self::icon('k_icon_chevron-left', MEL_K_ICON_PANEL_BACK, MEL_K_C_TEXT2);
+        $t = self::text($title, MEL_K_PX_PANEL_TITLE, MEL_K_C_TEXT1, 0, 0,
+            array('w' => max(0, $w - ($b['x1'] - $b['x0']) - MEL_K_GAP_S)));
+        return self::row(array($b, $t), 's', $cx0, $y, 'panel head');
+    }
+
+    // The line «Готово» of a check list as the group $id: the button $label (k_icon_check; $state '' or focus, see
+    // button) MEL_K_GAP_XS left of the content (r5), its centre at $cy; on the same line $count (MEL_K_PX_CAPTION, text
+    // 3: «Выбрано: 2 из 9»; '' none) to the right edge of the content. Edges: those of the button and the count.
+    /**
+     * @param string $id
+     * @param string $label
+     * @param string $count
+     * @param string $state
+     * @param int $cy
+     * @return MelKitItem
+     */
+    public static function panel_done($id, $label, $count, $state = '', $cy = 0)
+    {
+        $cx0 = MEL_K_PANEL_INSET + MEL_K_PANEL_INNER;
+        $b = self::button($label, 'k_icon_check', $state, $cx0 - MEL_K_GAP_XS, $cy);
+        $parts = array($b);
+        if ($count !== '')
+        {
+            $c = self::text($count, MEL_K_PX_CAPTION, MEL_K_C_TEXT3, 0, $cy);
+            $parts[] = self::move($c, MEL_K_PANEL_W - $cx0 - $c['x1'], 0);
+        }
+        $it = self::join('panel_done', $parts);
+        $it['mid'] = $b['mid'];
+        $it['cy'] = $b['cy'];
+        $it['caps'] = true;
+        return self::group($id, $it);
+    }
+
+    // The side panel V2 over a screen (r5 panel, r6 sub_panel) from the top down by stack: the head (panel_head)
+    // [-s- sub] -l- (after sub -m-) the groups of lines, -s- a rule (MEL_K_C_LINE, 1 px) -s- between them; the last
+    // group is the list: its lines in the panel {id}_rows inside the clipping panel {id}_list, MEL_K_PANEL_VIS of them
+    // shown from line top, more: the scroll bar (bar scroll, MEL_K_PANEL_SCROLL_W, MEL_K_GAP_XS from the right edge of
+    // the panel, its thumb {id}_thumb) on the right of the list; then -s- the hint «› hint» (the key of RIGHT: hint),
+    // -m- the line done (panel_done, the group {id}_done) and -m- the note (MEL_K_PX_CAPTION, text 3, 2 lines a step
+    // MEL_K_STEP_PANEL_NOTE). $v:
+    //   id      the prefix of the ids (default kp): {id}_dim, the dim of the screen, and the panel {id}_pnl;
+    //   title, back, sub  the title, ‹ before it (a submenu) and the subtitle (MEL_K_PX_SECONDARY, text 2; '' none);
+    //   dim     dim (MEL_K_C_DIM: «Действия») or dim_strong (MEL_K_C_DIM_STRONG: «Озвучка», «Балансеры»);
+    //   x       the left of the panel (default 1920 - MEL_K_PANEL_W; 1920: off the screen, to slide in);
+    //   groups  lists of lines, a line array('id' => the id of its group, …$r of panel_row);
+    //   top     the first line of the list shown (default 0; kept within the list);
+    //   hint, note  '' or none: none; done: null or array('label', 'count', 'state') of panel_done.
+    // Its edges: the screen; ids: those of its components with ids.
+    /**
+     * @param array{id?: string, title: string, back?: bool, sub?: string, dim?: string, x?: int, groups: list<list<MelKitPanelRow>>, top?: int, hint?: string, done?: array{label: string, count: string, state: string}|null, note?: string} $v
+     * @return MelKitItem
+     */
+    public static function panel($v)
+    {
+        $p = isset($v['id']) ? (string) $v['id'] : 'kp';
+        $W = MEL_K_PANEL_W;
+        $cx0 = MEL_K_PANEL_INSET + MEL_K_PANEL_INNER;
+        $blocks = array(self::panel_head($v['title'], !empty($v['back'])));
+        $gaps = array();
+        $sub = isset($v['sub']) ? (string) $v['sub'] : '';
+        if ($sub !== '')
+        {
+            $blocks[] = self::text($sub, MEL_K_PX_SECONDARY, MEL_K_C_TEXT2, $cx0, 0, array('w' => $W - 2 * $cx0));
+            $gaps[] = 's';
+        }
+        $groups = $v['groups'];
+        $last = count($groups) - 1;
+        foreach ($groups as $g => $lines)
+        {
+            if ($g)
+            {
+                $blocks[] = self::box(array(mel_gc_rect(mel_gc_at($W - 2 * $cx0, 1, $cx0, 0), MEL_K_C_LINE)), $cx0, 0,
+                    $W - 2 * $cx0, 1);
+                $gaps[] = 's';
+                $gaps[] = 's';
+            }
+            else
+                $gaps[] = $sub !== '' ? 'm' : 'l';
+            $rows = array();
+            foreach ($lines as $k => $r)
+                $rows[] = self::panel_row(isset($r['id']) ? $r['id'] : '', $r, $k * MEL_K_STEP_PANEL);
+            $blocks[] = $g < $last ? self::join('panel_group', $rows)
+                : self::panel_list($p, $rows, isset($v['top']) ? (int) $v['top'] : 0);
+        }
+        if (isset($v['hint']) && $v['hint'] !== '')
+        {
+            $blocks[] = self::hint(array(array('k_icon_chevron-right', (string) $v['hint'])), $cx0, 0, 'panel hint');
+            $gaps[] = 's';
+        }
+        if (!empty($v['done']))
+        {
+            $d = $v['done'];
+            $blocks[] = self::panel_done("{$p}_done", $d['label'], $d['count'], $d['state']);
+            $gaps[] = 'm';
+        }
+        if (isset($v['note']) && $v['note'] !== '')
+        {
+            $blocks[] = self::text((string) $v['note'], MEL_K_PX_CAPTION, MEL_K_C_TEXT3, $cx0, 0, array('w' => $W - 2 * $cx0,
+                'lines' => 2, 'ls' => MEL_K_STEP_PANEL_NOTE - MEL_K_PX_CAPTION));
+            $gaps[] = 'm';
+        }
+        // The first block stays: the head is set by its line.
+        $body = self::stack($blocks, array_slice($gaps, 0, max(0, count($blocks) - 1)), null, 'panel');
+        $x = isset($v['x']) ? (int) $v['x'] : 1920 - $W;
+        $dim = isset($v['dim']) && $v['dim'] === 'dim_strong' ? MEL_K_C_DIM_STRONG : MEL_K_C_DIM;
+        $pnl = mel_gc_panel("{$p}_pnl", mel_gc_at($W, 1080, $x, 0), array_merge(array(
+            mel_gc_rect(mel_gc_at($W, 1080, 0, 0), MEL_K_C_PANEL), mel_gc_rect(mel_gc_at(1, 1080, 0, 0), MEL_K_C_LINE)),
+            $body['defs']));
+        $out = self::box(array(mel_gc_rect(mel_gc_at(1920, 1080, 0, 0), $dim, "{$p}_dim"), $pnl), 0, 0, 1920, 1080);
+        $out['kind'] = 'panel';
+        return $out;
+    }
+
+    // The list of a panel: $rows (lines at y 0, 64, …) in the panel {$p}_rows moved up by $top lines inside the
+    // clipping panel {$p}_list of MEL_K_PANEL_VIS lines at most, the scroll bar over its right when they are more.
+    /**
+     * @param string $p
+     * @param list<MelKitItem> $rows
+     * @param int $top
+     * @return MelKitItem
+     */
+    private static function panel_list($p, $rows, $top)
+    {
+        $W = MEL_K_PANEL_W;
+        $n = count($rows);
+        $vis = min($n, MEL_K_PANEL_VIS);
+        $top = max(0, min($top, $n - $vis));
+        $h = $vis * MEL_K_STEP_PANEL;
+        $defs = array();
+        foreach ($rows as $r)
+            $defs = array_merge($defs, $r['defs']);
+        $in = array(mel_gc_panel("{$p}_rows", mel_gc_at($W, $n * MEL_K_STEP_PANEL, 0, -$top * MEL_K_STEP_PANEL), $defs));
+        if ($n > $vis)
+        {
+            $bar = self::bar('scroll', $W - MEL_K_GAP_XS - MEL_K_PANEL_SCROLL_W, 0, MEL_K_PANEL_SCROLL_W, $h,
+                $top / ($n - $vis), array('part' => $vis / $n, 'id' => "{$p}_thumb"));
+            $in = array_merge($in, $bar['defs']);
+        }
+        // Options 0: the panel clips its children (the lines out of the window).
+        $out = self::box(array(mel_gc_panel("{$p}_list", mel_gc_at($W, $h, 0, 0), $in, 0)), 0, 0, $W, $h);
+        $out['kind'] = 'panel_list';
+        return $out;
+    }
 }

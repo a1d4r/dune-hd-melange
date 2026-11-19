@@ -397,6 +397,8 @@ parameters:
                 step?: int
             }
         '''
+        # A line of the side panel (MelKit::panel_row): its group id (in MelKit::panel), label, state and the rest.
+        MelKitPanelRow: 'array{id?: string, label: string, state?: string, icon?: string, check?: bool, detail?: string, value?: string, chevron?: bool, count?: string, picked?: bool, way?: string}'
         # ChangeGCompDef of change_gcomps (mel_gc_change).
         MelGcChange: '''
             array{
