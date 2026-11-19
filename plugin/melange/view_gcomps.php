@@ -599,8 +599,10 @@ function mel_gc_row_badges($b)
 // take no room; the icon column as wide as the plate of the cache, wider only
 // for wider seeders. A column of the badges for each part (its plates of every
 // row from its x, one under another), the size keep their width; the languages
-// get what is left, the trackers (or the expression name, or the add-on) the
-// rest if it is at least MEL_GC_TRACKER_MIN.
+// get what is left but MEL_GC_TRACKER_MIN of the trackers (or the expression
+// name, or the add-on): their flags fold into "+N" first, "?" and the plate of
+// the subtitles stay (the owner 19.11.2026); the trackers get the rest if it
+// is at least MEL_GC_TRACKER_MIN.
 /**
  * @param list<MelRow> $rows
  * @param MelGcText $tt
@@ -610,6 +612,8 @@ function mel_gc_cols($rows, $tt)
 {
     $max = array('res' => 0, 'src' => 0, 'vis' => 0, 'audio' => 0, 'size' => 0);
     $langs = 0;
+    // The narrowest the languages go: all flags in "+N" (mel_gc_lang_items at no width).
+    $lmin = 0;
     $any_tracker = false;
     $p = MelKit::pic('k_icon_cached');
     $icon = $p['w'];
@@ -623,6 +627,7 @@ function mel_gc_cols($rows, $tt)
         $max['size'] = max($max['size'], $r['size'] > 0 ?
             min(180, MelKit::w(mel_size_str($r['size'], $tt['lang']), MEL_K_PX_ROW)) : 0);
         $langs = max($langs, min(260, mel_gc_items_w(mel_gc_lang_items($r, PHP_INT_MAX))));
+        $lmin = max($lmin, min(260, mel_gc_items_w(mel_gc_lang_items($r, 0))));
         $any_tracker = $any_tracker || $r['expr'] !== '' || $r['trackers'] || $r['addon'] !== '';
     }
     $cols = array('icon' => array(12, $icon));
@@ -639,7 +644,8 @@ function mel_gc_cols($rows, $tt)
     // One flag at least, else no languages.
     if ($langs > 0 && $end - $x >= MEL_GC_FLAG)
     {
-        $cols['langs'] = array($x, min($langs, $end - $x));
+        $room = $end - $x - ($any_tracker ? MEL_GC_GAP + MEL_GC_TRACKER_MIN : 0);
+        $cols['langs'] = array($x, min($langs, $end - $x, max($room, $lmin, MEL_GC_FLAG)));
         $x += $cols['langs'][1] + MEL_GC_GAP;
     }
     if ($any_tracker && $end - $x >= MEL_GC_TRACKER_MIN)
