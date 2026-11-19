@@ -37,10 +37,6 @@
         "direction": "desc"
       },
       {
-        "key": "library",
-        "direction": "desc"
-      },
-      {
         "key": "cached",
         "direction": "desc"
       },
