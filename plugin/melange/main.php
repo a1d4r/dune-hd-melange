@@ -79,6 +79,8 @@ require_once dirname(__FILE__) . '/voices_parse.php';
 require_once dirname(__FILE__) . '/view_gcomps.php';
 // The components of the UI kit (row, stack, text, icon) over gcomps.php.
 require_once dirname(__FILE__) . '/kit.php';
+// The side panel on the right of a GComps screen: its keys, state and changes over the builders of kit.php.
+require_once dirname(__FILE__) . '/kit_panel.php';
 require_once dirname(__FILE__) . '/view_info.php';
 require_once dirname(__FILE__) . '/view_setup.php';
 // The catalog: client, ENTER on a tile, its screens.
@@ -2200,6 +2202,8 @@ function mel_handle_user_input($in)
         return mel_dl_open($in);
     if ($control === 'gc_move' || $control === 'gc_pick' || $control === 'gc_info')
         return mel_gc_input($in);
+    if ($control === 'kp_key')
+        return mel_kp_input($in);
     if ($control === 'info_page')
         return mel_info_input($in);
     if ($control === 'next')

@@ -292,7 +292,28 @@ parameters:
                 lp_only?: bool,
                 lp_note?: string,
                 prof: string,
-                lp_prof: string
+                lp_prof: string,
+                kp?: MelKp
+            }
+        '''
+        # The side panel open on a GComps screen (kit_panel.php): the map and the sel_state of the screen, the
+        # panels (a submenu over its panel last).
+        MelKp: 'array{map: array<string, MelAction>, sel: string|null, stack: non-empty-list<MelKpFrame>}'
+        # A panel of MelKp: its description, the cursor, the first line of the list shown; of a check list the
+        # checks, the order and a line taken.
+        MelKpFrame: 'array{desc: MelKpDesc, cur: int, top: int, on: array<string, bool>, order: list<string>, move: bool}'
+        # The description of a panel by its screen (kit_panel.php): a menu (groups) or a check list (items).
+        MelKpDesc: '''
+            array{
+                title: string,
+                sub?: string,
+                dim?: string,
+                note?: string,
+                groups?: list<list<array<string, mixed>>>,
+                all?: string,
+                items?: list<array{id: string, label: string, count?: string, on?: bool}>,
+                move?: string,
+                done?: array{label: string, count?: string, act: MelAction}
             }
         '''
         # The row and the map of the last start through TorrServer (Mel::$ts_pack, torrserver.php).
