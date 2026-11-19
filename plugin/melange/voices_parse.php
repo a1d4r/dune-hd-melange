@@ -78,7 +78,10 @@ function mel_voices_word($low, $word)
 // 'studios' => names shown, 'orig' => '' | 'orig' | 'jap', 'subs' => bool,
 // 'name' => the name without JacRed's tails, 'keys' => studio => its key,
 // 'ru' => 'int' | 'ext' | '', 'ru_subs', 'ukr' => bool of mel_voices_ru_marks,
-// 'ru_type' => bool: a type of a Russian voice). Studios: whole words of the
+// 'ru_type' => bool: a type of a Russian voice, 'loose' => studio => true: not
+// of the voices (no type, not in the part of voices at the end), 'ru_hint' =>
+// bool: a Russian mark - Cyrillic, "RUS(int)", a type, "Rus" not of subtitles
+// alone). Studios: whole words of the
 // dictionary (voices.php), the longest first, no overlaps, none before the
 // first year (the title and the director of rutracker: "Белорусский вокзал
 // (Андрей Смирнов) [1970, ...]").
@@ -101,7 +104,8 @@ function mel_voices_parse($s, $tails = true)
         $s = rtrim(substr($head, 0, -1));
     }
     $v = array('types' => array(), 'studios' => array(), 'orig' => '', 'subs' => false, 'name' => $s,
-        'keys' => array(), 'stype' => array(), 'ru' => '', 'ru_type' => false, 'ru_subs' => false, 'ukr' => false);
+        'keys' => array(), 'stype' => array(), 'ru' => '', 'ru_type' => false, 'ru_subs' => false, 'ukr' => false,
+        'loose' => array(), 'ru_hint' => false);
     // Real names are below 400 characters; a cut one keeps its end.
     $whole = mb_strlen($s, 'UTF-8') <= 1000;
     if (!$whole)
@@ -126,6 +130,8 @@ function mel_voices_parse($s, $tails = true)
         $year = 0;
 
     $cls = mel_voices_classes($word, $low, $join, $seps, $part);
+    // Rutor's part "| UKR": its codes are Ukrainian voices.
+    $ua = preg_match('/\|\s*ukr\s*(?:\||$)/i', $s) === 1;
 
     // Each part of the name between "|": 1 - voices (numbers too), 0 - only
     // numbers, -1 - something else.
@@ -206,6 +212,9 @@ function mel_voices_parse($s, $tails = true)
             $v['keys'][$c[1]] = $c[2];
             if (isset($stype[$i]))
                 $v['stype'][$c[1]] = $stype[$i];
+            // Not in the voices: no type, not in the part of voices at the end.
+            else if ($from === 0 || $part[$i] < $from)
+                $v['loose'][$c[1]] = true;
         }
         else if ($c[0] === 'type' || $c[0] === 'code')
         {
@@ -213,9 +222,10 @@ function mel_voices_parse($s, $tails = true)
             // A type is a Russian voice ("Дубляж", "ДБ", "MVO", "ПМ"), not the
             // Ukrainian words ("багатоголосий", "дубльований"); "Dub" and "Dubbed"
             // only after "Rus" or in a name with Cyrillic: "English Dubbed" of an
-            // anime is not.
+            // anime is not; nor rutor's codes of "| UKR".
             if (!$v['ru_type'] && !preg_match('/^(?:багатоголос|двоголос|дубльов)/u', $low[$i]))
-                $v['ru_type'] = $c[0] === 'code' || ($low[$i] !== 'dub' && $low[$i] !== 'dubbed') ||
+                $v['ru_type'] = $c[0] === 'code' ? !$ua :
+                    ($low[$i] !== 'dub' && $low[$i] !== 'dubbed') ||
                     ($i > 0 && $low[$i - 1] === 'rus') || preg_match('/\p{Cyrillic}/u', $s) === 1;
         }
         else if ($c[0] === 'orig' && $v['orig'] !== 'jap')
@@ -239,7 +249,17 @@ function mel_voices_parse($s, $tails = true)
     }
 
     if ($tail !== '')
+    {
+        $rt = $v['ru_type'];
         $v = mel_voices_tail($v, implode(' ', $low), $tail, $unsafe);
+        // JacRed's "[Дубляж].rus" of rutor's codes of "| UKR".
+        if ($ua)
+            $v['ru_type'] = $rt;
+    }
+    // A Russian mark of the name: Cyrillic, "RUS(int)", a type of a Russian
+    // voice, "Rus" not of the subtitles alone.
+    $v['ru_hint'] = $v['ru'] !== '' || $v['ru_type'] || preg_match('/\p{Cyrillic}/u', $s) === 1 ||
+        (!$v['ru_subs'] && preg_match('/(?<![\p{L}\p{N}])rus(?:sian)?(?!\p{L})/iu', $s) === 1);
     return $v;
 }
 
@@ -433,6 +453,8 @@ function mel_voices_tail($v, $norm, $tail, $unsafe)
     $t = mel_voices_parse($tail, false);
     foreach ($t['keys'] as $name => $key)
     {
+        // JacRed tells it a Russian voice.
+        unset($v['loose'][$name]);
         if (strpos($norm, $key) === false && !isset($v['keys'][$name]) && !isset($unsafe[$name]) &&
             count($v['studios']) < 20)
         {
@@ -455,9 +477,14 @@ function mel_voices_tail($v, $norm, $tail, $unsafe)
 function mel_voices($names)
 {
     $v = array('types' => array(), 'studios' => array(), 'orig' => '', 'subs' => false, 'stype' => array(),
-        'ru' => '', 'ru_type' => false, 'ru_subs' => false, 'ukr' => false);
+        'ru' => '', 'ru_type' => false, 'ru_subs' => false, 'ukr' => false, 'loose' => array(), 'ru_hint' => false);
+    // Studios some name has in its voices.
+    $voiced = array();
     foreach ($names as $p)
     {
+        $voiced += array_fill_keys(array_diff($p['studios'], array_keys($p['loose'])), true);
+        $v['loose'] += $p['loose'];
+        $v['ru_hint'] = $v['ru_hint'] || $p['ru_hint'];
         $v['stype'] += $p['stype'];
         $v['types'] = array_merge($v['types'], array_diff($p['types'], $v['types']));
         $v['studios'] = array_merge($v['studios'], array_diff($p['studios'], $v['studios']));
@@ -468,6 +495,7 @@ function mel_voices($names)
         $v['ru_subs'] = $v['ru_subs'] || $p['ru_subs'];
         $v['ukr'] = $v['ukr'] || $p['ukr'];
     }
+    $v['loose'] = array_diff_key($v['loose'], $voiced);
     $keep = array();
     foreach ($v['studios'] as $a)
     {
@@ -1318,9 +1346,12 @@ function mel_row_voices($r)
 // language of a studio of the dictionary or the tracker (mel_voices_lang;
 // "... (UA)": Ukrainian), and $orig, the original language of the title (a
 // code of mel_lang_code, '' unknown), only when 'langs' has it. A type of a
-// Russian voice ("Дубляж", "ДБ", "MVO", "ПМ") and a studio of no known
-// language confirm Russian, but not in a row of a Ukrainian mark in its
-// names ("Ukr.Eng.[Hurtom]", "Ukr(TET)/Eng", "Dub Ukr"). Guessed (parsedFile.languages: the Cyrillic title of
+// Russian voice ("Дубляж", "ДБ", "MVO", "ПМ") confirms Russian, also next to
+// "Ukr". A Russian studio of the names, but not of their voices (no type, not
+// in the part of voices at the end: "The.Simpsons...FOX", "x264-Amber"), and a
+// studio of no known language confirm Russian only with a Russian mark of the
+// names (ru_hint: Cyrillic, "Rus", "RUS(int)", a type); the latter not with a
+// Ukrainian mark ("Ukr(TET)/Eng"). Guessed (parsedFile.languages: the Cyrillic title of
 // JacRed, the flags of Torrentio, "rus" anywhere): the rest, but Russian of
 // a row with Russian subtitles in its names ("Original + Rus Sub"). Service
 // codes (MULTI, DUAL, DUB, ORIG) are neither.
@@ -1344,13 +1375,28 @@ function mel_row_langs($r, $orig)
     }
     else if ($v)
     {
-        $ukr = !empty($v['ukr']);
-        if (!empty($v['ru']) || (!empty($v['ru_type']) && !$ukr))
+        if (!empty($v['ru']) || !empty($v['ru_type']))
             $ok['RU'] = true;
         $vs = mel_row_voices_struct($r);
         $known = mel_voices_lang();
+        $hint = !empty($v['ru_hint']);
+        $loose = $hint || !isset($v['loose']) ? array() : $v['loose'];
+        $no = !$hint || !empty($v['ukr']);
+        // Studios => loose; of a type too, as tracks without a language give them ("MVO LostFilm").
+        $all = array();
+        foreach ($vs['groups'] as $list)
+            $all += array_fill_keys($list, false);
         foreach ($vs['studios'] as $st)
-            $ok[substr($st, -5) === ' (UA)' ? 'UA' : (isset($known[$st]) ? $known[$st] : ($ukr ? '' : 'RU'))] = true;
+            $all += array($st => isset($loose[$st]));
+        // The studio of the tracker, also when the names have loose ones ("...FOX..." of LostFilm).
+        $tv = mel_voices_by_tracker(array_merge($vs, array('groups' => array(), 'studios' => array())), $r);
+        $all += array_fill_keys($tv['studios'], false);
+        foreach ($all as $st => $lo)
+        {
+            $l = substr($st, -5) === ' (UA)' ? 'UA' : (isset($known[$st]) ? $known[$st] : ($no ? '' : 'RU'));
+            if (!($l === 'RU' && $lo))
+                $ok[$l] = true;
+        }
     }
     if (!$tracks && $orig !== '' && in_array($orig, $r['langs'], true))
         $ok[$orig] = true;
