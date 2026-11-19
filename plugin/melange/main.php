@@ -79,6 +79,8 @@ require_once dirname(__FILE__) . '/voices_parse.php';
 require_once dirname(__FILE__) . '/view_gcomps.php';
 // The components of the UI kit (row, stack, text, icon) over gcomps.php.
 require_once dirname(__FILE__) . '/kit.php';
+// The overlay of a GComps screen (the side panel, a dialog, a wait of our own): its open, close and state.
+require_once dirname(__FILE__) . '/kit_ovl.php';
 // The side panel on the right of a GComps screen: its keys, state and changes over the builders of kit.php.
 require_once dirname(__FILE__) . '/kit_panel.php';
 require_once dirname(__FILE__) . '/view_info.php';

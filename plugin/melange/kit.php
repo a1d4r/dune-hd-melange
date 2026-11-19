@@ -1498,7 +1498,7 @@ class MelKit
     //   hint, note  '' or none: none; done: null or array('label', 'count', 'state') of panel_done.
     // Its edges: the screen; ids: those of its components with ids.
     /**
-     * @param array{id?: string, title: string, back?: bool, sub?: string, dim?: string, x?: int, groups: list<list<MelKitPanelRow>>, top?: int, hint?: string, done?: array{label: string, count: string, state: string}|null, note?: string} $v
+     * @param MelKitPanel $v
      * @return MelKitItem
      */
     public static function panel($v)
@@ -1563,7 +1563,8 @@ class MelKit
     }
 
     // The list of a panel: $rows (lines at y 0, 64, …) in the panel {$p}_rows moved up by $top lines inside the
-    // clipping panel {$p}_list of MEL_K_PANEL_VIS lines at most, the scroll bar over its right when they are more.
+    // clipping panel {$p}_list of MEL_K_PANEL_VIS lines at most, the scroll bar over its right when they are more
+    // (panel_scroll).
     /**
      * @param string $p
      * @param list<MelKitItem> $rows
@@ -1574,22 +1575,46 @@ class MelKit
     {
         $W = MEL_K_PANEL_W;
         $n = count($rows);
-        $vis = min($n, MEL_K_PANEL_VIS);
-        $top = max(0, min($top, $n - $vis));
-        $h = $vis * MEL_K_STEP_PANEL;
+        $h = min($n, MEL_K_PANEL_VIS) * MEL_K_STEP_PANEL;
+        $s = self::panel_scroll($p, $n, $top);
         $defs = array();
         foreach ($rows as $r)
             $defs = array_merge($defs, $r['defs']);
-        $in = array(mel_gc_panel("{$p}_rows", mel_gc_at($W, $n * MEL_K_STEP_PANEL, 0, -$top * MEL_K_STEP_PANEL), $defs));
-        if ($n > $vis)
-        {
-            $bar = self::bar('scroll', $W - MEL_K_GAP_XS - MEL_K_PANEL_SCROLL_W, 0, MEL_K_PANEL_SCROLL_W, $h,
-                $top / ($n - $vis), array('part' => $vis / $n, 'id' => "{$p}_thumb"));
-            $in = array_merge($in, $bar['defs']);
-        }
+        $in = array_merge(array(mel_gc_panel("{$p}_rows", $s['rows'], $defs)), $s['bar']);
         // Options 0: the panel clips its children (the lines out of the window).
         $out = self::box(array(mel_gc_panel("{$p}_list", mel_gc_at($W, $h, 0, 0), $in, 0)), 0, 0, $W, $h);
         $out['kind'] = 'panel_list';
+        return $out;
+    }
+
+    // The scroll of the list of a panel, $n lines from line $top (kept within the list): rows, the geometry of the
+    // panel of its lines {$p}_rows (moved up by top lines); bar, the scroll bar (bar scroll, MEL_K_PANEL_SCROLL_W,
+    // MEL_K_GAP_XS from the right edge of the panel) when more than MEL_K_PANEL_VIS, else none; thumb, the geometry of
+    // its thumb {$p}_thumb or null. A key of an open panel moves the list by them, without its lines (kit_panel.php).
+    /**
+     * @param string $p
+     * @param int $n
+     * @param int $top
+     * @return array{rows: MelGcGeom, bar: list<MelGcComp>, thumb: MelGcGeom|null}
+     */
+    public static function panel_scroll($p, $n, $top)
+    {
+        $W = MEL_K_PANEL_W;
+        $vis = min($n, MEL_K_PANEL_VIS);
+        $top = max(0, min($top, $n - $vis));
+        $out = array('rows' => mel_gc_at($W, $n * MEL_K_STEP_PANEL, 0, -$top * MEL_K_STEP_PANEL), 'bar' => array(),
+            'thumb' => null);
+        if ($n > $vis)
+        {
+            $bar = self::bar('scroll', $W - MEL_K_GAP_XS - MEL_K_PANEL_SCROLL_W, 0, MEL_K_PANEL_SCROLL_W,
+                $vis * MEL_K_STEP_PANEL, $top / ($n - $vis), array('part' => $vis / $n, 'id' => "{$p}_thumb"));
+            $out['bar'] = $bar['defs'];
+            foreach ($bar['defs'] as $d)
+            {
+                if (isset($d[GComponentDef::id]) && $d[GComponentDef::id] === "{$p}_thumb")
+                    $out['thumb'] = $d[GComponentDef::geom_def];
+            }
+        }
         return $out;
     }
 }
