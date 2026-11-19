@@ -1455,15 +1455,15 @@ function mel_gc_main($in)
 // --- The sources in MENU of a list (v2): the user saved them on the page (settings.json, profiles); a choice is of
 // this screen only. Here the item only; its menu and the choice: sources.php.
 
-// The MENU item "Откуда брать…" of live list $st (gc_src_menu: the menu of all ready profiles, any kind), or null: fewer
-// than two ready (mel_src_in_menu).
+// The MENU item "Откуда брать…" of live list $st (gc_src_menu: the menu of all ready profiles, any kind; of a card of no
+// IMDb those of Lampac), or null: fewer than two ready (mel_src_in_menu).
 /**
  * @param MelState $st
  * @return array<string, mixed>|null
  */
 function mel_gc_src_item($st)
 {
-    if (!mel_src_in_menu())
+    if (!mel_src_in_menu($st['movie']['imdb'] === ''))
         return null;
     return array(
         GuiMenuItemDef::caption => mel_tr($st['lang'], 'src_list'),

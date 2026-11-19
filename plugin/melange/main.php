@@ -290,6 +290,12 @@ function mel_movie($in)
         'fanart' => mel_str($m, 'fanart_url'),
         'rate_imdb' => mel_str($m, 'rate_imdb'),
         'seasons' => mel_seasons($m));
+    // No card of the Dune and no IMDb: "tmdb:<id>" / "tmdbtv:<id>" of movie_str, the key of the card (mel_lpv_key).
+    $tmdb = $series ? mel_str($m, 'tmdbtv_id') : '';
+    if ($tmdb === '')
+        $tmdb = mel_str($m, 'tmdb_id');
+    if ($mv['imdb'] === '' && $mv['dune_id'] === '' && preg_match('/^[0-9]{1,10}$/D', $tmdb))
+        $mv['tmdb'] = ($series ? 'tmdbtv:' : 'tmdb:') . $tmdb;
     // Of the own card, else of its runs file (a card of the shell: its numbering is of Cinemeta, mel_cin_load).
     $cin = mel_cin_valid(isset($m['aio_cin']) ? $m['aio_cin'] : null);
     if (!$cin && $series && $mv['imdb'] !== '')
@@ -1828,7 +1834,8 @@ function mel_list_state($mv, $s, $e, $rows, $lang, $errors)
 // (hash), or its online list at the row of its online record (key). $src: the id of the ready profile chosen by
 // "Смотреть из…" (mel_oc_watch_from), its list at once (mel_op_src), nothing remembered; '' - by the record (mel_op_title).
 // A movie_str made by Melange itself adds mel_lpv_tile_ids: Lampac puts the quality into the name of a balancer and show
-// false only with a TMDB id.
+// false only with a TMDB id. No IMDb: the search of Lampac always (its "Continue" too), its windows of nothing online
+// and of no answer, never the releases; no Lampac - err_no_imdb_rel.
 /**
  * @param stdClass $in
  * @param MelWhPick|MelOcEp|null $hist
@@ -1843,8 +1850,12 @@ function mel_play_action($in, $hist = null, $src = '')
     mel_log_input($in);
 
     $mv = mel_movie($in);
-    if (!$mv || $mv['imdb'] === '')
+    if (!$mv)
         return mel_error('err_no_imdb');
+    // No IMDb: no releases; only Lampac, by the title (owner 19.11.2026), no way to the releases.
+    $no_id = $mv['imdb'] === '';
+    if ($no_id && Mel::$settings['lp'] === '')
+        return mel_error('err_no_imdb_rel');
     mel_pg_link_movie($mv);
     $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
 
@@ -1904,10 +1915,16 @@ function mel_play_action($in, $hist = null, $src = '')
     $rec = $si ? array($si['prof'], $si['mode'] === 'lampac' ? 'lp' : 'rel') :
         ($r ? array($r['prof'], $r['key'] !== '' ? 'lp' : 'rel') : array('', ''));
     $online = $src !== '' ? mel_op_src($src) : mel_op_title($rec[0], $rec[1]);
+    // A source of releases chosen for a title of no IMDb ("Смотреть из…" of a tile of its meta not known then): none.
+    if ($no_id && $src !== '' && !$online)
+        return mel_error('err_no_imdb_rel');
+    $online = $online || $no_id;
     // "Онлайн" (online_play.php) of the episode chosen: its "Continue", the title of a profile of Lampac.
-    $lp = mel_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $online, $src === '');
+    $lp = mel_lpv_play_action($in, $mv, $lang, $s, $e, $resume, $lpk, $online, $src === '' && !$no_id);
     if ($lp)
         return $lp;
+    if ($no_id)
+        return mel_error('err_no_imdb_rel');
     // No "Онлайн" (no Lampac): an online record opens the releases of its episode, as the card.
     if ($lpk !== '')
         $resume = null;

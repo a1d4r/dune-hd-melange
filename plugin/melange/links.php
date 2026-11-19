@@ -675,7 +675,10 @@ function mel_pg_link_meta($id, $m)
     $l = array('imdb' => $m['imdb'], 'type' => 'series', 'seasons' => $seasons, 'soon' => $soon, 'src' => 'meta');
     if ($on)
         $l['on'] = 1;
-    if ($seasons && $m['imdb'] !== '' && mel_pg_link_put($id, $l))
+    // No IMDb (a series of Lampac only): the pair by its TMDB.
+    if ($m['imdb'] === '' && preg_match('/^tmdb:([0-9]{1,10})$/D', $m['id'], $x))
+        $l['tmdbtv'] = $x[1];
+    if ($seasons && mel_pg_link_put($id, $l))
         mel_log('progress: the episodes of the meta' . ($on ? ', numbered on' : ''));
 }
 

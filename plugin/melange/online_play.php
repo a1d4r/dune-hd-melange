@@ -56,7 +56,7 @@ function mel_lpv_ids_keep($in, $mv)
 
 // Ids $new kept for key $k of a card (mel_lpv_key) in MelLpv::$ids: an empty one keeps the one kept before; all empty -
 // nothing kept. title (of Lampac, mel_lp_search_start) and title_of (the title of the card it replaced) only when one
-// is kept, the two together: none - no keys.
+// is kept, the two together: none - no keys. No key ('') - nothing kept: it would be of every card of no key.
 /**
  * @param string $k
  * @param MelLpvIds $new
@@ -64,6 +64,8 @@ function mel_lpv_ids_keep($in, $mv)
  */
 function mel_lpv_ids_put($k, $new)
 {
+    if ($k === '')
+        return;
     $was = isset(MelLpv::$ids[$k]) ? MelLpv::$ids[$k] : array('tmdb' => '', 'kp' => '', 'original_language' => '');
     $t = isset($new['title']) && $new['title'] !== '' ? $new : $was;
     $title = isset($t['title']) ? $t['title'] : '';

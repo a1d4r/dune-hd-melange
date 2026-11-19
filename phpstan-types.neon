@@ -243,6 +243,7 @@ parameters:
                 rate_imdb: string,
                 seasons: array<int, int>,
                 own_card?: bool,
+                tmdb?: string,
                 cin: list<array{int, int, int}>,
                 titles?: array<string, string>
             }

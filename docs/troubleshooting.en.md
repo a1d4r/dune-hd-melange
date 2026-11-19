@@ -72,7 +72,7 @@ On the Dune, when opening a movie:
 | "AIOStreams is not responding", "AIOStreams returned an error", "Unexpected reply from AIOStreams" | a server or network failure: try again later. Details are in the [log](#log) |
 | "Addons returned errors" | the AIOStreams addons did not answer. Try again later; the "Addon errors" setting shows what happened ([Advanced](advanced-options.en.md)) |
 | "Reply too large: lower the result limit in the AIOStreams settings" | the server reply is over 6 MB. Lower the result limit in the web settings of the config ([AIOStreams and your own config](aiostreams.en.md)) |
-| "This title has no IMDb ID", "Releases cannot be found: no Dune card and no IMDb ID" | without an IMDb ID Melange cannot find the movie ([Known limitations](limitations.en.md)) |
+| "No IMDb ID: no releases", "Releases cannot be found: no Dune card and no IMDb ID" | without an IMDb ID there are no releases. If Lampac is among your [sources](profiles.en.md), the movie opens in Lampac: Lampac searches by title and year, and the list may include other movies with the same title ([Known limitations](limitations.en.md)) |
 | "The list is outdated, open it again", "This screen is outdated: open the catalog again" | open the movie or the catalog again |
 
 To look into an error, move to a release and press **INFO**: after the release details, P+ / P− show everything the server sent. If your remote has no colour buttons or INFO, turn on "Remote without colour buttons" ([Advanced](advanced-options.en.md)).

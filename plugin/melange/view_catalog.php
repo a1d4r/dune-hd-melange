@@ -2952,7 +2952,8 @@ function mel_catv_filter_seen($in)
 }
 
 // "Смотреть из…" of tile $id of screen $from (mel_src_watch_item: two ready profiles or more): a movie or a series with
-// an id of the meta (mel_cm_id, as of the own card), cat_src_menu of it; none on another.
+// an id of the meta (mel_cm_id, as of the own card), cat_src_menu of it; none on another. A tile known to have no IMDb
+// (mel_catv_src_lp_only): of Lampac only.
 /**
  * @param string $id
  * @param string $from
@@ -2964,7 +2965,21 @@ function mel_catv_src_items($id, $from, $lang)
     $t = mel_catv_tile($id, mel_tv_is_from($from));
     if (!$t || mel_cm_id($t) === '')
         return array();
-    return mel_src_watch_item($lang, 'cat_src_menu', array('from' => $from, 'item' => $id));
+    return mel_src_watch_item($lang, 'cat_src_menu', array('from' => $from, 'item' => $id), mel_catv_src_lp_only($t));
+}
+
+// Tile $t (null none) has no IMDb, by its meta in memory too (no request: the meta not known - false, a source of
+// releases chosen then gets err_no_imdb_rel of mel_play_action): its "Смотреть из…" of Lampac only.
+/**
+ * @param MelCatTile|null $t
+ * @return bool
+ */
+function mel_catv_src_lp_only($t)
+{
+    if (!$t || $t['imdb_id'] !== '')
+        return false;
+    $m = mel_cm_mem_tile($t);
+    return $m !== null && $m['imdb_id'] === '';
 }
 
 // cat_src of POP UP (p, n of the menu of sources of "Смотреть из…") of tile $in->item of screen $in->from: the list of
@@ -3351,7 +3366,8 @@ function mel_catv_input($in, $control)
     if ($control === 'cat_menu')
         return mel_tv_is_from($from) ? mel_tv_menu($in) : mel_catv_menu($in, $from);
     if ($control === 'cat_src_menu')
-        return mel_src_popup(mel_catv_lang(), 'cat_src', array('from' => $from, 'item' => mel_catv_in($in, 'item')));
+        return mel_src_popup(mel_catv_lang(), 'cat_src', array('from' => $from, 'item' => mel_catv_in($in, 'item')), '',
+            mel_catv_src_lp_only(mel_catv_tile(mel_catv_in($in, 'item'), mel_tv_is_from($from))));
     if ($control === 'cat_src')
         return mel_catv_src($in);
     if ($control === 'cat_part')

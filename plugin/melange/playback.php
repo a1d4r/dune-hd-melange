@@ -1068,7 +1068,7 @@ function mel_download($in)
 // for the rest. Cursor on release $hash (an episode: with it in its file
 // first), else the first row. -> array('error' => key, 'detail' => text,
 // maybe 'errors') of mel_fetch or array('st' => new state, 'sel' => row, 'by' =>
-// why that row).
+// why that row). A card of no IMDb (Lampac only): err_no_imdb_rel, no request.
 /**
  * @param MelState $st
  * @param int $s
@@ -1079,8 +1079,10 @@ function mel_download($in)
 function mel_relist($st, $s, $e, $hash)
 {
     $mv = $st['movie'];
+    if ($mv['imdb'] === '')
+        $res = array('error' => 'err_no_imdb_rel', 'detail' => '');
     // From the list screen the player may be near: no detour to the settings.
-    if (Mel::$settings['base'] === '')
+    else if (Mel::$settings['base'] === '')
         $res = array('error' => Mel::$settings['own'] ? 'err_set_address_own' : 'err_set_address', 'detail' => '');
     else
     {
@@ -1227,7 +1229,9 @@ function mel_movie_load($key)
     $path = mel_movie_path($key);
     $d = $path !== '' && is_file($path) ? json_decode(strval(file_get_contents($path)), true) : null;
     $m = is_array($d) && isset($d['movie']) && is_array($d['movie']) ? $d['movie'] : null;
-    if (!$m || mel_str($m, 'dune_id') !== $key || !preg_match('/^tt[0-9]{1,10}$/', mel_str($m, 'imdb')))
+    // No IMDb: a card of Lampac only (mel_play_action), of its card of the Dune.
+    $imdb = mel_str($m, 'imdb');
+    if (!$m || $key === '' || mel_str($m, 'dune_id') !== $key || ($imdb !== '' && !preg_match('/^tt[0-9]{1,10}$/D', $imdb)))
         return null;
     $mv = array('series' => true, 'seasons' => array());
     foreach (array('imdb', 'dune_id', 'title', 'native', 'year', 'poster', 'fanart', 'rate_imdb') as $f)
