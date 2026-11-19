@@ -720,9 +720,9 @@ function mel_lib_res_rank($res)
 
 // The groups of the media tags of the indexer by MediaTags::$TAGS_ORDER of the shell (media_tags.php r25), the best
 // first in each: the resolution, HDR, the audio, the channels; each tag (upper case) => its badge of the list of
-// releases (img/nb2_<id>.png, MelGc::$badge_w), the channels none: they are text.
+// releases (img/nb2_<id>.png, MelGc::$badge_w), the channels none: they are text. 1080 and 720 are int keys in PHP.
 /**
- * @return list<array<string, string>>
+ * @return list<array<int|string, string>>
  */
 function mel_lib_tag_groups()
 {

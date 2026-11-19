@@ -73,6 +73,9 @@ define('MEL_OC_ICON_W', 34);
 define('MEL_OC_BTN_GAP', 20);
 define('MEL_OC_CAP', 12);
 define('MEL_OC_LINE_Y', 660);
+// The line "С диска" of a copy on the disk (mel_oc_lib_line): its text, its right edge (that of the progress before it).
+define('MEL_OC_LIB_PX', 24);
+define('MEL_OC_LIB_R', 1845);
 define('MEL_OC_BAR_H', 6);
 define('MEL_OC_BAR_DY', 9);
 define('MEL_OC_HINT_R', 1845);
@@ -524,7 +527,7 @@ function mel_oc_can_watch($c)
     return $c['imdb'] !== '' || $c['meta'] !== null;
 }
 
-// The buttons: "Watch" with an IMDb or the meta (mel_oc_can_watch), "Trailer" with one (card_trailer.php), "♡ В избранное" / "✓ В избранном" ("Мой список" of the code) (the
+// The buttons: "Watch" with an IMDb or the meta (mel_oc_can_watch) or a copy on the disk of a movie ($lib), "Trailer" with one (card_trailer.php), "♡ В избранное" / "✓ В избранном" ("Мой список" of the code) (the
 // list now, mel_ml_in); array(kind, text, its icon - the picture MEL_OC_IMG<icon>_icon.png, '' none, the least
 // width: the button of the list as wide as the longer of its two texts, design-my-list.md, A: ENTER changes it in
 // place, nothing moves; 0 for the others). "Dune card" is in MENU (mel_oc_dune_items), owner 15.11.2026.
@@ -533,13 +536,14 @@ function mel_oc_can_watch($c)
 /**
  * @param MelOcCard $c
  * @param MelOcEp|null $ep
+ * @param bool $lib
  * @return list<array{string, string, string, int}>
  */
-function mel_oc_buttons($c, $ep)
+function mel_oc_buttons($c, $ep, $lib = false)
 {
     $b = array();
     $ui = $c['ui'];
-    $can = mel_oc_can_watch($c);
+    $can = mel_oc_can_watch($c) || ($lib && !$ep);
     if ($can && !$ep)
         $b[] = array('watch', mel_tr($ui, 'card_watch'), 'play', 0);
     else if ($can)
@@ -733,10 +737,7 @@ function mel_oc_under($c, $wh, $w0, $marked = false)
         }
         else if ($p !== '')
         {
-            $by = MEL_OC_LINE_Y + MEL_OC_BAR_DY;
-            $fw = max(MEL_GC_BAR_MIN, intval(round($w0 * min(1, $wh[0] / $wh[1]))));
-            $d[] = mel_gc_rect(mel_gc_at($w0, MEL_OC_BAR_H, $x0, $by), MEL_OC_BAR_REST);
-            $d[] = mel_gc_rect(mel_gc_at($fw, MEL_OC_BAR_H, $x0, $by), MEL_GC_TEXT);
+            $d = mel_oc_bar($wh, $w0);
             $d[] = mel_oc_label($x0 + $w0 + MEL_OC_BTN_GAP, MEL_OC_LINE_Y, 1920 - $x0 - $w0 - MEL_OC_BTN_GAP - 75, $p, 24,
                 MEL_CATV_TEXT_COLOR);
         }
@@ -744,6 +745,118 @@ function mel_oc_under($c, $wh, $w0, $marked = false)
     if ($line !== '')
         $d[] = mel_oc_label($x0, MEL_OC_LINE_Y, MEL_CATV_TEXT_W, $line, 24, $color);
     return $d;
+}
+
+// The bar of progress $wh (begun) of a movie under "Watch" ($w0: its width).
+/**
+ * @param array{float, float} $wh
+ * @param int $w0
+ * @return list<MelGcComp>
+ */
+function mel_oc_bar($wh, $w0)
+{
+    $x0 = MEL_CATV_CARD_X;
+    $by = MEL_OC_LINE_Y + MEL_OC_BAR_DY;
+    $fw = max(MEL_GC_BAR_MIN, intval(round($w0 * min(1, $wh[0] / $wh[1]))));
+    return array(mel_gc_rect(mel_gc_at($w0, MEL_OC_BAR_H, $x0, $by), MEL_OC_BAR_REST),
+        mel_gc_rect(mel_gc_at($fw, MEL_OC_BAR_H, $x0, $by), MEL_GC_TEXT));
+}
+
+// Under the buttons of a movie with a copy on the disk $copy (the one "Watch" plays: begun, else the best, mel_oc_lib_cur;
+// owner 18-19.11.2026), in place of the lines of no IMDb, no Lampac or no card of the Dune (the file plays): not begun -
+// "С диска [badges] 7.1 · 58.3 ГБ" (mel_oc_lib_line) where the progress is; begun ($wh) - the bar and that after the
+// text of the progress ("Просмотрено 42 % · осталось 1 ч 6 мин · С диска …", B1 (A)); watched (by its position or
+// $marked) - "Просмотрено · С диска …" grey.
+/**
+ * @param MelOcCard $c
+ * @param array{float, float}|null $wh
+ * @param int $w0
+ * @param bool $marked
+ * @param MelLibCopy $copy
+ * @return list<array<string, mixed>>
+ */
+function mel_oc_under_lib($c, $wh, $w0, $marked, $copy)
+{
+    $x0 = MEL_CATV_CARD_X;
+    $ui = $c['ui'];
+    $from = mel_tr($ui, 'lib_from_disk');
+    if ($marked || ($wh && mel_wh_full($wh[0], $wh[1])))
+        return mel_oc_lib_line($ui, $copy, $x0, mel_tr($ui, 'card_watched') . " · $from", MEL_GC_DIM);
+    $p = $wh ? mel_oc_progress_text($wh[0], $wh[1], $ui) : '';
+    if ($p === '')
+        return mel_oc_lib_line($ui, $copy, $x0, $from, MEL_CATV_TEXT_COLOR);
+    return array_merge(mel_oc_bar($wh, $w0), mel_oc_lib_line($ui, $copy, $x0 + $w0 + MEL_OC_BTN_GAP, "$p · $from",
+        MEL_CATV_TEXT_COLOR));
+}
+
+// The line of copy $copy at $x under the buttons: $head, the badges of the list of releases of its tags (mel_lib_badges;
+// the resolution, Blu-ray, HDR, the audio, of a picture only, mel_gc_plates, as high as there), the channels and the
+// size as text. Wider than to MEL_OC_LIB_R: the size out first, then the channels, then the audio (owner 19.11.2026);
+// the resolution and HDR stay.
+/**
+ * @param string $lang
+ * @param MelLibCopy $copy
+ * @param int $x
+ * @param string $head
+ * @param string $color
+ * @return list<array<string, mixed>>
+ */
+function mel_oc_lib_line($lang, $copy, $x, $head, $color)
+{
+    $b = mel_lib_badges($copy);
+    $ids = array();
+    foreach (array('res', 'src', 'hdr', 'audio') as $k)
+    {
+        if ($b[$k] !== '' && isset(MelGc::$badge_w[$b[$k]]))
+            $ids[$k] = $b[$k];
+    }
+    $size = $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '';
+    $quiet = $ids;
+    unset($quiet['audio']);
+    $d = array();
+    foreach (array(array($b['ch'], $size, $ids), array($b['ch'], '', $ids), array('', '', $ids), array('', '', $quiet)) as $v)
+    {
+        list($d, $w) = mel_oc_lib_parts($head, array_values($v[2]), implode(' · ', array_filter(array($v[0], $v[1]), 'strlen')),
+            $x, $color);
+        if ($x + $w <= MEL_OC_LIB_R)
+            break;
+    }
+    return $d;
+}
+
+// The parts of the line of mel_oc_lib_line at $x: the text $head, the badges $ids, the text $tail (after $head with
+// " · " without badges) -> array(the components, the width).
+/**
+ * @param string $head
+ * @param list<string> $ids
+ * @param string $tail
+ * @param int $x
+ * @param string $color
+ * @return array{list<array<string, mixed>>, int}
+ */
+function mel_oc_lib_parts($head, $ids, $tail, $x, $color)
+{
+    if (!$ids && $tail !== '')
+    {
+        $head .= " · $tail";
+        $tail = '';
+    }
+    $w = intval(mel_gc_sum($head, MEL_OC_LIB_PX));
+    $d = array(mel_oc_label($x, MEL_OC_LINE_Y, mel_gc_w($head, MEL_OC_LIB_PX), $head, MEL_OC_LIB_PX, $color));
+    if ($ids)
+    {
+        $pw = mel_gc_plates_w($ids);
+        $d[] = mel_gc_panel('lib', mel_gc_at($pw, MEL_GC_BADGE_H, $x + $w + MEL_GC_BADGE_GAP,
+            MEL_OC_LINE_Y + intval((34 - MEL_GC_BADGE_H) / 2)), mel_gc_plates($ids, 0));
+        $w += MEL_GC_BADGE_GAP + $pw;
+    }
+    if ($tail !== '')
+    {
+        $d[] = mel_oc_label($x + $w + MEL_GC_BADGE_GAP, MEL_OC_LINE_Y, mel_gc_w($tail, MEL_OC_LIB_PX), $tail, MEL_OC_LIB_PX,
+            $color);
+        $w += MEL_GC_BADGE_GAP + intval(mel_gc_sum($tail, MEL_OC_LIB_PX));
+    }
+    return array($d, $w);
 }
 
 // A series without a card of the Dune or "Смотреть" (mel_oc_can_watch: the meta failed): the line why, right of the
@@ -1006,7 +1119,8 @@ function mel_oc_layout($c)
     $prog = array();
     if ($series)
         list($ep, $prog) = mel_oc_pick($c);
-    $btns = mel_oc_buttons($c, $ep);
+    list($lib, $hid) = mel_oc_lib($c);
+    $btns = mel_oc_buttons($c, $ep, (bool) $lib);
     list($stops, $clips, $tops) = mel_oc_stops($bands, $strips, $about, $off);
     $tw = MEL_OC_TITLE_W;
     $tabs = $series && $c['meta'] ? mel_oc_tabs_layout($c)
@@ -1029,8 +1143,15 @@ function mel_oc_layout($c)
     }
     else
     {
-        $wh = $c['dune'] !== '' && mel_oc_can_watch($c) ? mel_wh_movie($c['dune']) : null;
-        $only = mel_oc_under($c, $wh, $btns ? mel_oc_btn_w($btns[0]) : 0, $c['dune'] !== '' && mel_pg_mark_kind($c['dune'], 'movie') === 'off');
+        $w0 = $btns ? mel_oc_btn_w($btns[0]) : 0;
+        if ($lib)
+            $only = mel_oc_under_lib($c, mel_wh_movie($hid), $w0, mel_pg_mark_kind($hid, 'movie') === 'off',
+                mel_oc_lib_cur($lib, $hid));
+        else
+        {
+            $wh = $c['dune'] !== '' && mel_oc_can_watch($c) ? mel_wh_movie($c['dune']) : null;
+            $only = mel_oc_under($c, $wh, $w0, $c['dune'] !== '' && mel_pg_mark_kind($c['dune'], 'movie') === 'off');
+        }
         if ($down || $posters)
         {
             $below = array_slice($rows, 1);
@@ -1046,7 +1167,43 @@ function mel_oc_layout($c)
     return array('kind' => $series ? 'series' : 'movie', 'btns' => $btns, 'btn_y' => $series ? MEL_OC_BTN_Y_SER : MEL_OC_BTN_Y,
         'stops' => $stops, 'clips' => $clips, 'tops' => $tops, 'h' => max(1080, $stops[count($stops) - 1] + MEL_OC_SHOW_BOTTOM), 'off' => $off,
         'zones' => $zones, 'tabs' => $tabs, 'ep' => $ep, 'prog' => $prog, 'rows' => $rows, 'strips' => $strips, 'tw' => $tw,
-        'first' => $only, 'down' => $down);
+        'first' => $only, 'down' => $down, 'lib' => $lib, 'hid' => $hid);
+}
+
+// The copies on the disk of the movie of card $c (library.php): the movie found in the media library by the movie_str
+// of its start (mel_oc_watch_in, mel_lib_title: the same as play_action looks for it by), its copies on the shares
+// mounted now (mel_lib_copies; no share touched) -> array(the copies, H: the card of its history - of the Dune, else of
+// the index when there are copies). A series, no copy: none, H the card of the Dune.
+/**
+ * @param MelOcCard $c
+ * @return array{list<MelLibCopy>, string}
+ */
+function mel_oc_lib($c)
+{
+    if ($c['tile']['type'] !== 'movie')
+        return array(array(), $c['dune']);
+    $in = mel_oc_watch_in($c);
+    $y = mel_lib_mid(mel_lib_title((array) json_decode(strval($in->movie_str), true), false));
+    if ($y === '')
+        return array(array(), $c['dune']);
+    $lib = mel_lib_copies($y);
+    mel_log("card: own movie:" . mel_cm_id($c['tile']) . ": library $y, " . count($lib) . ' copies (' .
+        count(MelLib::$by_mid[$y]) . ' in index)');
+    return array($lib, $lib && $c['dune'] === '' ? $y : $c['dune']);
+}
+
+// The copy of copies $lib (the best first) "Watch" of the card of history $hid plays: that of its latest record
+// (mel_wh_lib_last), there; else the best.
+/**
+ * @param list<MelLibCopy> $lib
+ * @param string $hid
+ * @return MelLibCopy
+ */
+function mel_oc_lib_cur($lib, $hid)
+{
+    $rec = mel_wh_lib_last($hid);
+    $c = $rec ? mel_lib_copy_by_key($lib, $rec[0]) : null;
+    return $c ? $c : $lib[0];
 }
 
 // The clip of the page at stop $p of layout $l, from its top (under the logo; at the stop of a row of posters under
@@ -1447,12 +1604,28 @@ function mel_oc_folder_view($media_url, $sel_state)
  */
 function mel_oc_watch($c, $q = -1, $e = -1, $ep = null, $src = '')
 {
+    return mel_play_action(mel_oc_watch_in($c, $q, $e), $ep, $src);
+}
+
+// The input of play_action of card $c (mel_oc_watch; of episode $e of season $q of a series): its movie_str, of the
+// English title of the tile too (aio_en_title) - the names the media library is looked for by (mel_lib_title), the
+// same of the card (mel_oc_lib) and of its start.
+/**
+ * @param MelOcCard $c
+ * @param int $q
+ * @param int $e
+ * @return stdClass
+ */
+function mel_oc_watch_in($c, $q = -1, $e = -1)
+{
     $t = $c['tile'];
     $native = $c['meta'] && $c['meta']['original'] !== '' ? $c['meta']['original'] : $t['englishTitle'];
     $mv = array('id' => $c['dune'], 'imdb_id' => $c['imdb'], 'title' => $t['name'],
         'native_title' => $native, 'year' => $t['year'], 'poster_url' => $t['poster'], 'fanart_url' => $t['background'],
         'rate_imdb' => $t['imdbRating'], 'description' => $t['description']) + mel_lpv_tile_ids($t, $c['meta']);
     $series = $t['type'] === 'series';
+    if ($t['englishTitle'] !== '')
+        $mv['aio_en_title'] = $t['englishTitle'];
     // The list, its online one too (the window of the search builds it later), marked own (mel_movie).
     $mv['aio_own_card'] = true;
     if ($series && $c['meta'])
@@ -1476,7 +1649,7 @@ function mel_oc_watch($c, $q = -1, $e = -1, $ep = null, $src = '')
         $in->episode = $e;
     }
     $in->lang = $c['lang'];
-    return mel_play_action($in, $ep, $src);
+    return $in;
 }
 
 // ENTER on episode $x of the meta of card $c (the row; the link of streams, mel_dl_streams), $ep the episode the card
@@ -1715,7 +1888,7 @@ function mel_oc_list($key, $c, $l, $pos)
     if ($why !== '')
         return mel_ml_err($why);
     $i = $pos['b'];
-    $btns = mel_oc_buttons($c, $l['ep']);
+    $btns = mel_oc_buttons($c, $l['ep'], (bool) $l['lib']);
     if (!isset($btns[$i]) || $btns[$i][0] !== 'list')
         return mel_replace_act("card:$key", $c['tile']['name']);
     if (isset(MelOc::$cards[$key]['nav']))
