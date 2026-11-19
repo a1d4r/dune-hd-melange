@@ -931,13 +931,14 @@ class MelKit
     // The sort tabs (the colour keys of the remote), MEL_K_TAB_GAP from plate
     // to plate; the left of the first plate at $x, the centre at $y. A tab of
     // $tabs: key, its colour key (red, green, yellow, blue; '' or another: no
-    // dot, another logged), a dot MEL_K_KEY_DOT -MEL_K_KEY_DOT_GAP- label in
-    // capitals (MEL_K_PX_ROW) -MEL_K_ICON_GAP_SORT- the arrow MEL_K_ICON_SORT
+    // dot, another logged), a dot MEL_K_KEY_DOT -MEL_K_KEY_DOT_GAP- label as
+    // given (MEL_K_PX_ROW) -MEL_K_ICON_GAP_SORT- the arrow MEL_K_ICON_SORT
     // (down; up: up true) between the pads MEL_K_TAB_PAD; state: '' text 2,
     // no plate, no arrow; on (the sort of the list) text 1 on the plate sort;
-    // focus white on the accent (tab_on). The room of the arrow and the edges
-    // of the plate are at every tab: a tab is as wide in each state, the tabs
-    // never move.
+    // focus white on the accent (tab_on). As r5 sort_bar: only the selected
+    // has the arrow and its room, a tab without it ends MEL_K_ICON_GAP_SORT +
+    // MEL_K_TAB_PAD after the label, so the tabs after the selected move by
+    // MEL_K_ICON_SORT when the selection moves.
     /**
      * @param list<array{key: string, label: string, state?: string, up?: bool}> $tabs
      * @param int|null $x
@@ -976,16 +977,15 @@ class MelKit
         }
         elseif ($t['key'] !== '')
             self::once("tab key {$t['key']}", "kit: tab: no colour key '{$t['key']}', no dot");
-        $parts[] = self::text(mb_strtoupper($t['label'], 'UTF-8'), MEL_K_PX_ROW, $fg);
+        $parts[] = self::text($t['label'], MEL_K_PX_ROW, $fg);
         $gaps[] = MEL_K_ICON_GAP_SORT;
-        $a = self::icon(empty($t['up']) ? 'k_icon_arrow-down' : 'k_icon_arrow-up', MEL_K_ICON_SORT, $fg, 0, 0,
-            array('box' => true));
-        // No sort: the room of the arrow only.
-        $parts[] = $state !== '' ? $a : self::box(array(), $a['x0'], $a['top'], $a['x1'] - $a['x0'], $a['bottom'] - $a['top'],
-            $a['mid']);
+        if ($state !== '')
+            $parts[] = self::icon(empty($t['up']) ? 'k_icon_arrow-down' : 'k_icon_arrow-up', MEL_K_ICON_SORT, $fg, 0, 0,
+                array('box' => true));
         $c = self::row($parts, $gaps, MEL_K_TAB_PAD, 0, 'tab');
         $top = -intval(MEL_K_TAB_H / 2);
-        $w = $c['x1'] + MEL_K_TAB_PAD;
+        // No arrow: the gap before it stays (r5: label -56- the next dot).
+        $w = $c['x1'] + ($state !== '' ? 0 : MEL_K_ICON_GAP_SORT) + MEL_K_TAB_PAD;
         $p = $state === '' ? self::box(array(), 0, $top, $w, MEL_K_TAB_H)
             : self::plate($state === 'focus' ? 'tab_on' : 'sort', 0, $top, $w, MEL_K_TAB_H);
         return self::on('tab', $p, $c);
