@@ -504,7 +504,7 @@ function mel_op_total($cap, $min, $what)
 // The add-ons of ElfHosted redirect to slate.elfhosted.com instead, the
 // reason in its title and body. Comet sends its placeholder as the body: 200,
 // a video/* type (not an HLS playlist) and a Content-Length under 1 MB, no
-// film is that small.
+// film is that small; the reason by the size of its video (mel_pre_comet).
 
 define('MEL_PRE_CONNECT', 5);
 define('MEL_PRE_TOTAL', 30);
@@ -535,9 +535,14 @@ function mel_pre_class($url, $code, $loc, $type, $len)
         $t = strtolower(trim(preg_replace('/;.*$/s', '', $type)));
         // Not an HLS playlist: small, yet a stream. Comet: the reason is not in the headers.
         if (substr($t, 0, 6) === 'video/' && strpos($t, 'mpegurl') === false)
+        {
+            $note = mel_cut(preg_replace('/[^\x21-\x7e]+/', '', $t), 60) . " $len bytes";
+            $c = mel_pre_comet($len);
+            if ($c)
+                return array('class' => 'placeholder', 'key' => $c[1], 'detail' => '', 'note' => "$note, Comet {$c[0]}");
             return array('class' => 'placeholder', 'key' => 'err_pre_placeholder',
-                'detail' => sprintf('HTTP %d, %d KB', $code, max(1, round($len / 1024))),
-                'note' => mel_cut(preg_replace('/[^\x21-\x7e]+/', '', $t), 60) . " $len bytes");
+                'detail' => sprintf('HTTP %d, %d KB', $code, max(1, round($len / 1024))), 'note' => $note);
+        }
     }
     if ($code < 300 || $code > 399 || $loc === '')
         return array('class' => 'unclear', 'why' => "HTTP $code" . ($code >= 300 && $code <= 399 ? ', no Location' : ''));
@@ -573,6 +578,44 @@ function mel_pre_class($url, $code, $loc, $type, $len)
     if (preg_match('~(?:^|/)(?:static|videos)/(?:.*/)?([^/]+\.mp4)$~i', $path, $m))
         return mel_pre_file($m[1]);
     return array('class' => 'unclear', 'why' => "HTTP $code, same host, not a placeholder");
+}
+
+// Content-Length $len of a 200 video body -> array(name, key) of the placeholder
+// video of Comet of this size, else null. Sizes of comet/assets/status_videos
+// (g0ldyy/comet a3b75ec, 18.11.2026); Comet sends the video of the first code of
+// the error it has, else UNKNOWN. Not here: a size of several videos (410511,
+// 414298, 416584: one file under several names, UNAVAILABLE_FOR_LEGAL_REASONS
+// among them) and DEBRID_SYNC_* (not a refusal). The general key: a reason the
+// viewer can do nothing about but another release.
+/**
+ * @param int $len
+ * @return array{0: string, 1: string}|null
+ */
+function mel_pre_comet($len)
+{
+    static $keys = array(
+        'err_pre_no_file' => array(413778 => 'NOT_FOUND', 400976 => 'GONE', 405654 => 'LINK_OFFLINE'),
+        'err_pre_limit' => array(408922 => 'MONTHLY_LIMIT', 415250 => 'STORE_LIMIT_EXCEEDED',
+            416002 => 'FREE_TRIAL_LIMIT_REACHED', 416056 => 'COOLDOWN_LIMIT', 417188 => 'ACTIVE_LIMIT',
+            419051 => 'TOO_MANY_REQUESTS', 434596 => 'PROXY_LIMIT_REACHED'),
+        'err_pre_downloading' => array(433923 => 'MEDIA_NOT_CACHED_YET'),
+        'err_pre_down' => array(415159 => 'SERVICE_UNAVAILABLE', 413419 => 'STORE_SERVER_DOWN',
+            422926 => 'BAD_GATEWAY', 416182 => 'INTERNAL_SERVER_ERROR'),
+        'err_pre_account' => array(406404 => 'AUTH_BAD_APIKEY', 406636 => 'AUTH_BLOCKED',
+            407336 => 'AUTH_USER_BANNED', 406089 => 'ACCOUNT_INVALID', 409851 => 'AUTH_MISSING_APIKEY',
+            410052 => 'AUTH_ERROR', 409719 => 'EXPIRED_TOKEN', 411630 => 'BAD_TOKEN', 411119 => 'UNAUTHORIZED',
+            412188 => 'INVALID_ACCOUNT_OR_PASSWORD', 416228 => 'NO_AUTH', 407389 => 'INVALID_CLIENT',
+            408125 => 'UNAUTHORIZED_CLIENT', 403784 => 'PLAN_RESTRICTED_FEATURE'),
+        'err_pre_placeholder' => array(421667 => 'UNKNOWN', 417231 => 'BAD_REQUEST', 420256 => 'CONFLICT',
+            415943 => 'METHOD_NOT_ALLOWED', 402648 => 'NOT_IMPLEMENTED', 416790 => 'UNSUPPORTED_MEDIA_TYPE',
+            416961 => 'UNPROCESSABLE_ENTITY', 409183 => 'STORE_NAME_INVALID', 419446 => 'STORE_MAGNET_INVALID',
+            414378 => 'FORBIDDEN', 414436 => 'LOCKED'));
+    foreach ($keys as $key => $sizes)
+    {
+        if (isset($sizes[$len]))
+            return array($sizes[$len], $key);
+    }
+    return null;
 }
 
 // Name $file of a placeholder video of the add-on -> its placeholder.

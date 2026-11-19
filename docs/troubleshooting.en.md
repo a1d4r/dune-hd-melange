@@ -126,6 +126,8 @@ On the Dune, when starting a release:
 | "Debrid gave an archive, not a video — pick another release" | the release is a RAR or ZIP archive, and the Dune does not play it: choose another one |
 | "Debrid blocked the release: copyright", "Debrid found no matching file in the release — pick another", "Debrid didn't return the video — pick another release" | choose another release |
 | "Debrid limit reached" | the account limit is used up: wait or choose another release |
+| "Debrid is temporarily unavailable — try again later" | the failure is on the Debrid side: try again in a few minutes or choose another release |
+| "Debrid rejected the key or account — check the key and subscription" | check the Debrid key in the config and whether the subscription is still active |
 | "… could not play the release" and a "Play via TorBox" (or "Play via Real-Debrid") button | the release is cached in both services: press the button, and it starts through the other one |
 
 **Real-Debrid refuses "Not cached" releases**: do not start such releases more than 1–2 times in a row, wait a few minutes ([Known limitations](limitations.en.md#debrid)).
