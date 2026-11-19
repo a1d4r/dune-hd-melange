@@ -72,7 +72,10 @@
 //                      one): its settings in the fields, prof=<id>|new posted back, the
 //                      save saves it, a=aio_sync&prof=<id> its config;
 //   POST ?t=<token>&a=profile_main|profile_del&ajax=1 (i: the id) -> the main source,
-//                      one deleted; JSON {ok, msg[, profiles]}, settings.json written whole.
+//                      one deleted; JSON {ok, msg[, profiles]}, settings.json written whole;
+//   POST ?t=<token>&a=title_unhide&ajax=1 (k: the key of a title) -> "Вернуть" of "Скрытые"
+//                      (0.65.0, lib/hidden.php): that title out of data_dir/hidden_titles.json as it is
+//                      now, JSON {ok, msg[, items]}.
 // Input only goes through the rules of common.php; it never reaches exec,
 // a path or eval. stderr (dune_apk_cgi_err.log) gets reasons, never values.
 // PHP 5.3 syntax; php-cgi has no date.timezone: dates only in the log
@@ -96,6 +99,7 @@ require dirname(__FILE__) . '/lib/values.php';
 require dirname(__FILE__) . '/lib/home.php';
 require dirname(__FILE__) . '/lib/backup.php';
 require dirname(__FILE__) . '/lib/profiles.php';
+require dirname(__FILE__) . '/lib/hidden.php';
 
 // --- The save of the form.
 
@@ -152,6 +156,10 @@ function mel_cgi_save($dir, $t)
     }
     if ($v['cat_card'] === '')
         $v['cat_card'] = mel_cgi_cat_card_of($cur['cat_card']);
+    if ($v['cat_age'] === '')
+        $v['cat_age'] = mel_cgi_cat_age_of($cur['cat_age']);
+    // "Скрытые" of a form back (lib/hidden.php).
+    $v['hidden'] = mel_cgi_ht_data(mel_cgi_dir_ok($dir) ? $dir : '');
     // '' is a choice here (none made), only no field at all means an older form.
     if (!isset($_POST['cat_rows']))
         $v['cat_rows'] = mel_cgi_cat_rows_of($cur['cat_rows']);
@@ -300,6 +308,8 @@ if ($method === 'POST' && mel_cgi_param($_GET, 'ajax') === '1')
     }
     if ($a === 'profile_main' || $a === 'profile_del')
         mel_cgi_profile_post($dir, $a);
+    if ($a === 'title_unhide')
+        mel_cgi_ht_unhide_post($dir);
 }
 // Any other POST with an action is never a save: "Проверить" of a tab opened
 // before 0.31.1 posts the whole form with a=ts_check. 303 to the page, nothing written.
@@ -330,6 +340,7 @@ if ($method === 'GET')
     $v['debrid_main'] = mel_debrid_main_read($dir);
     $v['debrid_main_was'] = $v['debrid_main'];
     $v['first'] = !$s['saved_once'];
+    $v['hidden'] = mel_cgi_ht_data($dir);
     $imp = mel_cgi_param($_GET, 'imported');
     mel_cgi_send(200, 'text/html', mel_cgi_form($t, $v, array(), mel_cgi_param($_GET, 'saved') === '1',
         in_array($imp, array('1', '2'), true) ? intval($imp) : 0, mel_cgi_param($_GET, 'rows') === '1'));

@@ -164,7 +164,9 @@ class MelCat
 {
     // Listings by rid: what the info panel and ENTER read. Memory of php_server
     // only; after a restart a tile or "Show all" asked for brings the saved first page of its row
-    // (mel_catv_list_restore).
+    // (mel_catv_list_restore). A listing may have no tile: the filter took all its pages (end "filter",
+    // mel_catv_load_first), "Скрыть" took its last one (mel_catv_drop_title: asked again at the next opening,
+    // mel_catv_open), a search begun anew by a new age (mel_catv_filter_seen: filled by its screen).
     /** @var array<string, MelCatList> */
     public static $lists = array();
     // The last MEL_CATV_SEARCHES searches, the oldest first: by its id, the rids of its rows.
@@ -193,7 +195,9 @@ class MelCat
     // r25: the tiles of the flagged rows as this screen shows them, by rid and id: the shell
     // throws away a reply cancelled by ENTER, while the listing has already moved on. Also the
     // tiles of an old copy the grid of "Show all" began anew from (mel_catv_all_list): they
-    // stay on the screen it was opened from.
+    // stay on the screen it was opened from. Also the tiles "Скрыть" took out of a listing (mel_catv_drop_title)
+    // and those of the listings a new filter began anew (mel_catv_filter_seen): ENTER and the info panel on a
+    // screen built before still find them. It builds no row; the next main screen empties it.
     /** @var array<string, array<int|string, MelCatTile>> */
     public static $on_screen = array();
     // The language of the last screen of rows ('': not read yet), mel_catv_ui_lang.
@@ -234,6 +238,14 @@ class MelCat
     // first of them built again within MEL_CATV_INV_LOG_S logs the time since (O2); 0: none.
     /** @var float */
     public static $inv_t = 0.0;
+    // What the filter of the listings was made of at the last operation (mel_ht_filter_sig, mel_catv_filter_seen); null:
+    // none since a start of php_server. "Скрыть" sets it anew (mel_catv_hide_act).
+    /** @var string|null */
+    public static $filter_sig = null;
+    // The age of it (Mel::$settings['cat_age'] then; null - all ages), apart: a change of the age begins the listings of
+    // a search anew, one of the file alone does not (mel_catv_filter_seen).
+    /** @var int|null */
+    public static $filter_age = null;
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -282,6 +294,16 @@ function mel_catv_rid($row)
     return substr(md5($row['key'] . (isset($row['sid']) ? ':' . $row['sid'] : '')), 0, 8);
 }
 
+// $rid is of the form of mel_catv_rid (a row of the manifest or of a search), not "more", "stub", "continue" and the like.
+/**
+ * @param string $rid
+ * @return bool
+ */
+function mel_catv_is_row_rid($rid)
+{
+    return preg_match('/^[0-9a-f]{8}$/D', $rid) === 1;
+}
+
 // A listing and all its tiles so far, by the id of a tile. stale: of a copy, a request failed.
 /**
  * @param MelCatState $st
@@ -295,6 +317,17 @@ function mel_catv_list($st, $tiles, $stale)
     foreach ($tiles as $t)
         $list['tiles'][$t['id']] = $t;
     return $list;
+}
+
+// Listing $list has no tile and is not at its end ("Скрыть" took its last one, a change of the age began it anew
+// empty - mel_catv_filter_seen): its next pages are for its screen to ask.
+/**
+ * @param MelCatList $list
+ * @return bool
+ */
+function mel_catv_list_cut($list)
+{
+    return !$list['tiles'] && $list['st']['end'] === '';
 }
 
 // A listing from the saved first page, as if it was just got.
@@ -381,7 +414,7 @@ function mel_catv_tile($id, $tv = false)
 function mel_catv_list_restore($rid)
 {
     // A rid (mel_catv_rid), not "more", "stub" and the like: they read no manifest.
-    if (!preg_match('/^[0-9a-f]{8}$/D', $rid))
+    if (!mel_catv_is_row_rid($rid))
         return null;
     $row = mel_catv_row_by_rid($rid);
     $c = $row ? mel_cat_page_cached($row, 0) : null;
@@ -578,7 +611,9 @@ function mel_catv_slow_note($rid, $err)
 }
 
 // The first page of a row asked for anew: with tiles, into MelCat::$lists (of a copy
-// after a failure: stale), else what is there stays; an empty row is remembered.
+// after a failure: stale), else what is there stays; an empty row is remembered, so is one the filter
+// took all of (mel_cat_more: end "filter"), its listing kept with no tiles: within MEL_CAT_FRESH an
+// opening of r24 does not ask it again (mel_catv_open), r25 hides it (mel_catv_is_empty).
 // MelCat::$down by its failure: mel_cat_err_down, and a timeout unless $timeout_down is
 // false (an opening: a slow row or the end of its limit, not the server down).
 /**
@@ -592,12 +627,43 @@ function mel_catv_load_first($row, $limit, $timeout_down = true)
     $rid = mel_catv_rid($row);
     $st = mel_cat_row_state($row);
     $res = mel_cat_more($st, $limit);
-    if ($res['tiles'])
+    if ($res['tiles'] || $st['end'] === 'filter')
         MelCat::$lists[$rid] = mel_catv_list($st, $res['tiles'], $res['stale']);
-    else if ($res['end'] && $res['err'] === '')
+    if (!$res['tiles'] && $res['end'] && $res['err'] === '')
         MelCat::$empty[$rid] = time();
     $down = mel_cat_err_down($res['err']) || ($timeout_down && $res['err'] === 'timeout');
     MelCat::$down = $down ? time() : 0;
+    return $res;
+}
+
+// The listing of row $rid in memory is fresh, with no tile and not at its end: "Скрыть" took its last one
+// (mel_catv_drop_title). Its next pages are asked (mel_catv_load_next), not the row hidden till it is old.
+/**
+ * @param string $rid
+ * @return bool
+ */
+function mel_catv_is_cut($rid)
+{
+    return isset(MelCat::$lists[$rid]) && mel_catv_list_cut(MelCat::$lists[$rid]) && mel_cat_state_fresh(MelCat::$lists[$rid]['st']);
+}
+
+// The next pages of the listing of $rid (mel_catv_is_cut) in $limit s, from where it is (mel_cat_more: while the filter
+// takes all, MEL_CAT_FILTER_PAGES at most), as mel_catv_load_first: none and the end - remembered empty; MelCat::$down
+// by its failure.
+/**
+ * @param string $rid
+ * @param float $limit
+ * @return MelCatResult
+ */
+function mel_catv_load_next($rid, $limit)
+{
+    $list = MelCat::$lists[$rid];
+    $res = mel_cat_more($list['st'], $limit);
+    mel_catv_add($list, $res);
+    MelCat::$lists[$rid] = $list;
+    if (!$list['tiles'] && $res['end'] && $res['err'] === '')
+        MelCat::$empty[$rid] = time();
+    MelCat::$down = mel_cat_err_down($res['err']) ? time() : 0;
     return $res;
 }
 
@@ -608,7 +674,9 @@ function mel_catv_load_first($row, $limit, $timeout_down = true)
 // one slow row does not take the time of every opening. A timeout is not
 // the server down; on a failure of the server (mel_catv_is_down) no more requests and the
 // old copies not refreshed are marked stale. Those the limit left out are not. No tile: the
-// row stays out of the lists. -> a row was asked of the server.
+// row stays out of the lists, so does a copy the filter (mel_cat_take) took all of: it is asked as one of none, the
+// pages after it (mel_cat_more). A fresh listing "Скрыть" took the last tile of (mel_catv_is_cut): its next pages
+// first. -> a row was asked of the server.
 /**
  * @param list<MelCatRow> $rows
  * @param float $limit
@@ -621,16 +689,22 @@ function mel_catv_open($rows, $limit)
     $old = array();
     $slow = array();
     $old_t = array();
+    $cut = array();
     foreach ($rows as $row)
     {
         $rid = mel_catv_rid($row);
+        if (mel_catv_is_cut($rid))
+            $cut[$rid] = $row;
         if (isset(MelCat::$lists[$rid]) && mel_cat_state_fresh(MelCat::$lists[$rid]['st']))
             continue;
         unset(MelCat::$lists[$rid]);
         $c = mel_cat_page_cached($row, 0);
         // Not "restored" (mel_catv_list_restore): this screen shows it.
-        if ($c)
-            MelCat::$lists[$rid] = mel_catv_list_copy($row, $c);
+        $copy = $c ? mel_catv_list_copy($row, $c) : null;
+        if ($copy && $copy['tiles'])
+            MelCat::$lists[$rid] = $copy;
+        else
+            $c = null;
         if ($c && mel_cat_is_fresh($c))
             continue;
         if (mel_catv_is_slow($rid))
@@ -649,12 +723,12 @@ function mel_catv_open($rows, $limit)
     $old = $sorted;
     $start = microtime(true);
     $is_down = false;
-    foreach ($none + $old + $slow as $rid => $row)
+    foreach ($cut + $none + $old + $slow as $rid => $row)
     {
         $left = $limit - (microtime(true) - $start);
         if ($left < MEL_CATV_MIN_S)
             break;
-        $res = mel_catv_load_first($row, $left, false);
+        $res = isset($cut[$rid]) ? mel_catv_load_next($rid, $left) : mel_catv_load_first($row, $left, false);
         $net = true;
         mel_catv_slow_note($rid, $res['err']);
         unset($old[$rid], $slow[$rid]);
@@ -895,8 +969,8 @@ function mel_catv_row_note($row, $lang, $note)
 // The row $row now, never flagged (such a row is not asked for again): from memory or the
 // cache when it can be, so a repeat of a call the shell cancelled (ENTER) is at once and
 // the same; a new state every time, its skip never moves on. Else asked in $limit s; the
-// server down: no request, what memory has is a saved copy. No tiles: one tile "empty" or
-// "did not load". -> its title and its row.
+// server down: no request, what memory has is a saved copy. A listing "Скрыть" took the last tile of
+// (mel_catv_is_cut): its next pages. No tiles: one tile "empty" or "did not load". -> its title and its row.
 /**
  * @param MelCatRow $row
  * @param string $lang
@@ -908,7 +982,9 @@ function mel_catv_row_now($row, $lang, $limit, $timeout_down = true)
 {
     $rid = mel_catv_rid($row);
     $ready = isset(MelCat::$lists[$rid]) && MelCat::$lists[$rid]['tiles'] && mel_cat_state_fresh(MelCat::$lists[$rid]['st']);
-    if (!$ready && !mel_catv_is_empty($rid) && !mel_catv_is_down())
+    if (mel_catv_is_cut($rid) && !mel_catv_is_down())
+        mel_catv_load_next($rid, $limit);
+    else if (!$ready && !mel_catv_is_empty($rid) && !mel_catv_is_down())
         mel_catv_load_first($row, $limit, $timeout_down);
     if (isset(MelCat::$lists[$rid]) && MelCat::$lists[$rid]['tiles'])
     {
@@ -1482,7 +1558,8 @@ function mel_catv_shown_rows($rows, $loading)
 
 // The rows of the tab $tab from the copies alone, for a file the shell shows without PHP (the tab
 // "TV"): the rows of the user (mel_cat_user_rows) of the saved manifest, each by its saved first page
-// of any age; a row without one is left out. No request, no flag, no mark "saved", no strip; the tiles
+// of any age; a row without one is left out, so is one the filter (mel_cat_take) took all of (no tile "Show all"
+// alone). No request, no flag, no mark "saved", no strip; the tiles
 // and the plates by the mode of the screen now (mel_catv_logo_of), the caller sets it. -> the defs of
 // the rows (mel_catv_row_defs, for mel_catv_rows_view), their rids and their listings by rid.
 /**
@@ -1502,7 +1579,10 @@ function mel_catv_tab_copy_defs($tab, $lang)
         if (!$c)
             continue;
         $rid = mel_catv_rid($row);
-        $lists[$rid] = mel_catv_list_copy($row, $c);
+        $list = mel_catv_list_copy($row, $c);
+        if (!$list['tiles'])
+            continue;
+        $lists[$rid] = $list;
         $defs = array_merge($defs, mel_catv_row_defs($lists[$rid], $lang));
         $rids[] = $rid;
     }
@@ -1541,6 +1621,9 @@ function mel_catv_tab_empty($tab, $lang, $retry)
     return mel_catv_row_defs($list, $lang, array($item));
 }
 
+// The results of search $id: its rows of memory. One begun anew by a new age (mel_catv_filter_seen: no tile, not at
+// its end) is filled first, as the search fills its rows (MEL_CAT_SEARCH_TILES), all in MEL_CATV_OPEN_MAX_S; none came
+// - one tile "empty" or "did not load" (ENTER: the screen anew, asked again).
 /**
  * @param string $id
  * @param mixed $sel_state
@@ -1551,10 +1634,17 @@ function mel_catv_results_view($id, $sel_state)
     $lang = mel_catv_lang();
     MelCat::$lang = $lang;
     $defs = array();
+    $start = microtime(true);
     foreach (isset(MelCat::$searches[$id]) ? MelCat::$searches[$id] : array() as $rid)
     {
-        if (isset(MelCat::$lists[$rid]))
-            $defs = array_merge($defs, mel_catv_row_defs(MelCat::$lists[$rid], $lang));
+        if (!isset(MelCat::$lists[$rid]))
+            continue;
+        $list = MelCat::$lists[$rid];
+        $err = '';
+        if (mel_catv_list_cut($list))
+            $err = mel_catv_fill($list, $rid, MEL_CAT_SEARCH_TILES, MEL_CATV_OPEN_MAX_S, $start);
+        $defs = array_merge($defs, $list['tiles'] ? mel_catv_row_defs($list, $lang) :
+            mel_catv_row_note($list['st']['row'], $lang, $err === '' && $list['st']['end'] !== '' ? 'cat_row_empty' : 'cat_row_failed'));
     }
     if (!$defs)
     {
@@ -2744,7 +2834,121 @@ function mel_catv_after_player($post)
 function mel_catv_tile_menu($id, $from, $lang)
 {
     return mel_catv_menu_join(array_merge(mel_catv_src_items($id, $from, $lang), mel_cp_menu_items($id, $from, $lang),
-        mel_ml_menu_items($id, $from, $lang)), mel_mlv_menu_items($id, $from, $lang));
+        mel_ml_menu_items($id, $from, $lang), mel_catv_hide_items($id, $from, $lang)), mel_mlv_menu_items($id, $from, $lang));
+}
+
+// --- "Скрыть" (hidden_titles.php).
+
+// "Скрыть" of POP UP of tile $id of screen $from (mel_catv_tile_menu), last of the items of a title: on a tile of a row
+// of the catalog (a rid of mel_catv_rid: of a search too), with IMDb or TMDB, not hidden yet (a search shows them).
+// None on a tile of "Continue" or "Мой список" (their rows, their screens, the tab "TV").
+/**
+ * @param string $id
+ * @param string $from
+ * @param string $lang
+ * @return list<array<string, mixed>>
+ */
+function mel_catv_hide_items($id, $from, $lang)
+{
+    list(, $bare) = mel_catv_id_mode($id);
+    $p = explode(':', $bare, 2);
+    if (count($p) !== 2 || !mel_catv_is_row_rid($p[0]))
+        return array();
+    $t = mel_catv_tile($id, mel_tv_is_from($from));
+    if (!$t || mel_ml_key($t) === '' || mel_ht_has($t))
+        return array();
+    return array(array(
+        GuiMenuItemDef::caption => mel_tr($lang, 'ht_hide'),
+        GuiMenuItemDef::icon_url => MEL_CATV_ICONS . 'cancel_small.png',
+        GuiMenuItemDef::action => mel_input('cat_title_hide', array('from' => $from, 'item' => $id))));
+}
+
+// Title $t out of the listings in memory but those of a search (they show it): no row, "Show all" or tab "TV" built
+// again shows it, its listing does not take it again (seen). Its tiles go to MelCat::$on_screen, which builds no row: a
+// screen built before and not anew (r24: the main one under "Show all", mel_catv_mains_anew) still finds it for the info
+// panel and ENTER till the next main screen, not "outdated"; POP UP there has no "Скрыть" (mel_ht_has).
+/**
+ * @param MelCatTile $t
+ * @return void
+ */
+function mel_catv_drop_title($t)
+{
+    foreach (MelCat::$lists as $rid => $list)
+    {
+        if (isset($list['st']['row']['q']))
+            continue;
+        foreach ($list['tiles'] as $k => $x)
+        {
+            if (!mel_ml_same($x, $t))
+                continue;
+            unset(MelCat::$lists[$rid]['tiles'][$k]);
+            MelCat::$on_screen[$rid][$k] = $x;
+        }
+    }
+}
+
+// cat_title_hide of POP UP (mel_catv_hide_items) of tile $in->item of screen $in->from: the title into the file
+// (mel_ht_hide), out of the listings in memory (mel_catv_drop_title), the filter of them as it is now
+// (MelCat::$filter_sig: not begun anew by it), then the screens anew as after a change of "Мой список" (mel_ml_changed:
+// the tab "TV", on r25 the main screens, $from on r24 too - "Show all" counts its tiles by their place). Not written:
+// the message, nothing changed.
+/**
+ * @param stdClass $in
+ * @return MelAction|null
+ */
+function mel_catv_hide_act($in)
+{
+    $from = mel_catv_in($in, 'from');
+    $t = mel_catv_tile(mel_catv_in($in, 'item'), mel_tv_is_from($from));
+    if (!$t)
+        return mel_error('cat_outdated');
+    $why = mel_ht_hide($t);
+    if ($why !== '')
+        return mel_error($why === 'no id' ? 'err_no_imdb' : ($why === 'locked' ? 'ht_err_locked' : 'ht_err_write'), $why);
+    mel_catv_drop_title($t);
+    MelCat::$filter_sig = mel_ht_filter_sig();
+    return mel_ml_changed($from, null, 'title hidden');
+}
+
+// At the start of an operation (settings.json read, mel_settings_load): the filter of the listings (mel_ht_filter_sig:
+// the age of the settings, the file of the hidden titles) another than at the last one - the settings page changed the
+// age or took a title back: the listings in memory begin anew (a title back or of the age now shows), as after a start
+// of php_server, the rows remembered empty too (the filter may have emptied them); the tab "TV" flagged (not by its own
+// operations: tv_update reads the files anyway, tv_timer compares its state). The listings of a search (a search shows
+// the hidden): kept as they are when the file alone changed; the age changed - each begun anew in its place, its
+// search and its id kept, filled by the screen of its results (mel_catv_results_view) or its "Show all"
+// (mel_catv_range): not "outdated". The tiles of the listings begun anew go to MelCat::$on_screen: a screen built
+// before (results, "Show all" of r24, the main one under it) still finds them for ENTER. The first operation after a
+// start only remembers it.
+/**
+ * @param stdClass $in
+ * @return void
+ */
+function mel_catv_filter_seen($in)
+{
+    $sig = mel_ht_filter_sig();
+    $was = MelCat::$filter_sig;
+    $age = Mel::$settings['cat_age'] !== MelCat::$filter_age;
+    MelCat::$filter_sig = $sig;
+    MelCat::$filter_age = Mel::$settings['cat_age'];
+    if ($was === null || $sig === $was)
+        return;
+    foreach (MelCat::$lists as $rid => $list)
+    {
+        $search = isset($list['st']['row']['q']);
+        if ($search && !$age)
+            continue;
+        MelCat::$on_screen[$rid] = (isset(MelCat::$on_screen[$rid]) ? MelCat::$on_screen[$rid] : array()) + $list['tiles'];
+        if ($search)
+            MelCat::$lists[$rid] = mel_catv_list(mel_cat_row_state($list['st']['row']), array(), false);
+        else
+            unset(MelCat::$lists[$rid]);
+    }
+    MelCat::$empty = array();
+    mel_log('catalog: the filter changed (' . ($age ? 'the age' : 'the hidden titles') . '): the listings anew');
+    $c = isset($in->control_id) ? $in->control_id : '';
+    if ($c !== 'tv_update' && $c !== 'tv_timer')
+        mel_tv_flag('the filter changed');
 }
 
 // "Смотреть из…" of tile $id of screen $from (mel_src_watch_item: two ready profiles or more): a movie or a series with
@@ -3162,6 +3366,8 @@ function mel_catv_input($in, $control)
         return mel_cp_hide_act($in);
     if ($control === 'cat_unhide')
         return mel_cp_unhide_act($from);
+    if ($control === 'cat_title_hide')
+        return mel_catv_hide_act($in);
     if ($control === 'cat_mark')
         return mel_cp_mark($in);
     if ($control === 'cat_ml')

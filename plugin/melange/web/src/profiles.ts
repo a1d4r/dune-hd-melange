@@ -12,7 +12,7 @@
 import type { Api, ProfileList, SavedProfile } from "./api";
 import { parseProfiles } from "./api";
 import type { Bar } from "./bar";
-import { byId, CLS, EDITOR, type Page } from "./dom";
+import { byId, CLS, EDITOR, make, type Page } from "./dom";
 import { failureText } from "./i18n";
 import type { Lock } from "./lock";
 import { show } from "./ui";
@@ -44,28 +44,22 @@ export function setupProfiles(page: Page, api: Api, lock: Lock, bar: Bar, data: 
   let profiles: ProfileList = parseProfiles(data) || { list: [], max: 0 };
   const current = () => profiles.list.find((p) => p.id === sel.value);
 
-  function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string): HTMLElementTagNameMap[K] {
-    const made = doc.createElement(tag);
-    if (cls) made.className = cls;
-    if (text !== undefined) made.textContent = text;
-    return made;
-  }
   // A link of the list: a row of the main screen (its title, the line under it, the chevron).
   function row(href: string, title: string, line: string, here: boolean, badges: [string, string][]): HTMLAnchorElement {
-    const link = el("a", CLS.row);
+    const link = make(doc, "a", CLS.row);
     link.href = href;
     if (here) link.setAttribute("aria-current", "page");
-    const text = el("span", CLS.rowText);
-    const head = el("span", CLS.cardTitle, title);
-    for (const [cls, badge] of badges) head.appendChild(el("span", cls, badge));
+    const text = make(doc, "span", CLS.rowText);
+    const head = make(doc, "span", CLS.cardTitle, title);
+    for (const [cls, badge] of badges) head.appendChild(make(doc, "span", cls, badge));
     text.appendChild(head);
-    if (line) text.appendChild(el("span", CLS.value, line));
-    link.append(text, el("span", CLS.chevron, "›"));
+    if (line) text.appendChild(make(doc, "span", CLS.value, line));
+    link.append(text, make(doc, "span", CLS.chevron, "›"));
     return link;
   }
   // "+ Add source": the copy of the source of the page (of a new one - of the one it copies); full - the line why not.
   function addRow(): HTMLElement {
-    if (profiles.list.length >= profiles.max) return el("p", CLS.row + " " + CLS.value, texts.profilesFull);
+    if (profiles.list.length >= profiles.max) return make(doc, "p", CLS.row + " " + CLS.value, texts.profilesFull);
     const of = sel.value === "new" ? from.value : sel.value;
     return row(pageOf(action, "new", of), texts.profileNew, "", sel.value === "new", []);
   }

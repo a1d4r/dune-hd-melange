@@ -10,6 +10,7 @@ import { setupClipboard } from "./clipboard";
 import { createConfs } from "./confs";
 import { setupDebrid } from "./debrid";
 import { ID, type Page } from "./dom";
+import { setupHidden } from "./hidden";
 import { setupHome } from "./home";
 import type { Texts } from "./i18n";
 import { setupJacredNote, setupJacredSpeed } from "./jacred";
@@ -23,13 +24,14 @@ import { setupServerChecks, setupServers } from "./servers";
 
 // Written by mel_cgi_js(). i18n and jacredDefault: always written, checked by isInit() (else #init is broken);
 // confs: {<mode>: {<value of a server option>: {cfg, login, pass, tpl, url?}}}, tplNew: the template for a new config;
-// both checked by createConfs(); profiles: the sources (parseProfiles).
+// both checked by createConfs(); profiles: the sources (parseProfiles); hidden: the hidden titles (parseHidden).
 export interface Init {
   i18n: Texts;
   jacredDefault: string;
   tplNew?: unknown;
   confs?: unknown;
   profiles?: unknown;
+  hidden?: unknown;
 }
 
 function isInit(json: unknown): json is Init {
@@ -77,6 +79,7 @@ function setupForm(page: Page, init: Init): void {
   setupSave(page, api, lock, aio, setupMarks(page, servers, debrid), bar, home, changed, profiles);
   setupRows(page, api, changed);
   setupBackup(page, api, lock);
+  setupHidden(page, api, lock, init.hidden);
 }
 
 // saved=1 of the address after a save, with rows=1 when the rows changed, imported=1 or 2 after an import (the lines of

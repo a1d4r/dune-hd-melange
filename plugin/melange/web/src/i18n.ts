@@ -116,6 +116,9 @@ export const TEXT_KEYS = [
   "profilesFull",
   "profileDeleteConfirm",
   "profileDeleteMain",
+  // "Скрытые" (hidden.ts): the line of an empty list, the button of a title.
+  "hiddenNone",
+  "hiddenReturn",
 ] as const;
 
 export type Texts = Record<(typeof TEXT_KEYS)[number], string>;

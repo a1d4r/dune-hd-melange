@@ -8,9 +8,11 @@ parameters:
         # A row of the catalog (mel_cat_row, catalog.php); q: the query of a search (mel_cat_search_row), sid: its id (mel_catv_search_run).
         MelCatRow: 'array{key: string, type: string, id: string, name: string, genre: string, home: bool, group: string, q?: string, sid?: string}'
         # A tile of a row (mel_cat_tile, catalog.php).
-        MelCatTile: 'array{id: string, imdb_id: string, _tmdbId: string, type: string, name: string, year: string, imdbRating: string, description: string, genres: list<string>, poster: string, background: string, country: string, runtime: string, age: string, cast: list<string>, englishTitle: string, kpRating: string, kpVotes: int, kpId: string, logo: string, logoLang: string, originalLanguage: string}'
+        MelCatTile: 'array{id: string, imdb_id: string, _tmdbId: string, type: string, name: string, year: string, imdbRating: string, description: string, genres: list<string>, poster: string, background: string, country: string, runtime: string, age: string, ageUs: string, cast: list<string>, englishTitle: string, kpRating: string, kpVotes: int, kpId: string, logo: string, logoLang: string, originalLanguage: string}'
         # An entry of "Мой список" (mel_ml_clean, my_list.php): key - type:<IMDb | tmdb:<id>>; dune_id '' - not known; added - unix time.
         MelMlEntry: 'array{key: string, type: string, name: string, englishTitle: string, year: string, poster: string, background: string, imdb_id: string, _tmdbId: string, kpId: string, imdbRating: string, kpRating: string, kpVotes: int, dune_id: string, added: int}'
+        # A hidden title (mel_ht_clean, hidden_titles.php): key - as of MelMlEntry; hidden - unix time, 0 for none.
+        MelHtEntry: 'array{key: string, type: string, imdb_id: string, _tmdbId: string, name: string, year: string, hidden: int}'
         # A movie of the Favorites of the Dune (mel_ml_fav_read, my_list.php).
         MelMlFav: 'array{dune_id: string, type: string, name: string, year: string, poster: string, file: string}'
         # A listing of a row (mel_cat_row_state, catalog.php).
@@ -113,6 +115,7 @@ parameters:
                 cat_logo: bool,
                 cat_card: bool|null,
                 cat_rating: bool,
+                cat_age: int|null,
                 cat_rows: list<string>|null,
                 lampac_url: string,
                 lampac_token: string,
@@ -150,6 +153,7 @@ parameters:
                 cat_rows: list<string>|null,
                 cat_logo: bool,
                 cat_rating: bool,
+                cat_age: int|null,
                 cat_card: bool,
                 debrid_main: string,
                 profiles: list<array{id: string, name: string, kind: string, ready: bool}>,
@@ -488,7 +492,7 @@ parameters:
         # A work of a person (mel_cm_person_parse, card_more.php).
         MelCmWork: 'array{tile: MelCatTile, role: string, types: list<string>, eps: int}'
         # A person of the page of a person in memory (MelPp::$people, view_person.php).
-        MelPpEntry: 'array{name: string, photo: string, job: string, lang: string, ui: string, pos: MelPpPos, err: string, tries: int}'
+        MelPpEntry: 'array{name: string, photo: string, job: string, lang: string, ui: string, pos: MelPpPos, err: string, tries: int, drawn: list<string>|null}'
         # A place of the focus on the page of a person, in MelPpEntry and in sel_state (mel_pp_pos, view_person.php).
         MelPpPos: 'array{z: string, p: int, k: int}'
         # The page of a person laid out (mel_pp_layout, view_person.php).

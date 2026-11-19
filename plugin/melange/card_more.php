@@ -2,7 +2,8 @@
 // Data of the own card asked only by an action, kept apart from the cache of titles of card_meta.php:
 // a person (meta/person/tmdb:<id>.json), similar titles and the movies of a franchise (rows of the
 // server; mel_cm_posters: both rows of an own card). No screens. Needs card_meta.php (its parsing
-// and limits), catalog.php (mel_cat_get, mel_cat_tile) and main.php (mel_log).
+// and limits), catalog.php (mel_cat_get, mel_cat_tile), hidden_titles.php (mel_ht_keep, mel_ht_off: what the rows and the
+// works show) and main.php (mel_log).
 // Types in the PHPDoc (MelCmPerson and others): phpstan-types.neon of the repository.
 
 // Asked only by an action (a person, similar titles, a franchise): MEL_CM_MORE_KEEP persons and
@@ -268,7 +269,7 @@ function mel_cm_bio_pars($s)
 // it: from memory if asked less than MEL_CM_TTL ago, else in $limit s at most (up to MEL_CAT_TOTAL:
 // mel_cat_get cuts more). -> err: '' or none (no such person: a wrong id, 404, a reply of another
 // or no name; asking again will not help) or later (no reply in time, the net, 429, 5xx: ask again);
-// person: the parsed one or null.
+// person: the parsed one or null, its works all of them (the screen shows them through mel_cm_person_shown).
 /**
  * @param string $tmdb
  * @param int $limit
@@ -302,10 +303,31 @@ function mel_cm_person($tmdb, $limit)
     return array('err' => '', 'person' => $p);
 }
 
+// Person $p (kept whole in memory) with the works the filter shows (mel_ht_off: hidden, the age of the settings), in
+// their order: a title hidden or the age changed since it was asked shows so at once. The screen of the person
+// (mel_pp_person) draws them; its keys go by the works it drew.
+/**
+ * @param MelCmPerson $p
+ * @return MelCmPerson
+ */
+function mel_cm_person_shown($p)
+{
+    $f = mel_ht_now();
+    $works = array();
+    foreach ($p['works'] as $w)
+    {
+        if (!mel_ht_off($f, $w['tile'], false))
+            $works[] = $w;
+    }
+    $p['works'] = $works;
+    return $p;
+}
+
 // Tiles of a row of the server asked by an action: from memory if asked less than MEL_CM_TTL ago
 // (an empty row, a failure: MEL_CM_EMPTY_TTL; no reply in time, the net, 5xx: MEL_CM_LATER_TTL),
 // MEL_CM_ROWS_KEEP of a kind, else in $limit s at most, parsed by $parse (mel_cat_tiles,
-// mel_cm_parts_tiles), only those the own card opens (an id of mel_cm_id: not mal:...), no repeats.
+// mel_cm_parts_tiles), only those the own card opens (an id of mel_cm_id: not mal:...), no repeats; the filter
+// ("Скрыть", the age) is of the callers, on the way out of memory, so a change of it shows at once.
 // -> err: '' or as mel_cm_person (none, later); tiles: none on a failure, and none may be all there is.
 /**
  * @param string $kind
@@ -368,7 +390,8 @@ function mel_cm_parts_tiles($items, $type)
 
 // Similar titles of the title of $type (movie, series) asked as $id (its IMDb or tmdb:<n>): 20
 // recommendations of TMDB (aiom.similar of the server, one page), asked by an action, in $limit s
-// at most, tiles as a row of the catalog. -> as mel_cm_more_row; a wrong type or id: none.
+// at most, tiles as a row of the catalog. -> as mel_cm_more_row, the tiles the filter shows (mel_ht_keep: hidden, the
+// age); a wrong type or id: none.
 /**
  * @param string $type
  * @param string $id
@@ -380,8 +403,9 @@ function mel_cm_similar($type, $id, $limit)
     $key = mel_cm_similar_key($type, $id);
     if ($key === '')
         return array('err' => 'none', 'tiles' => array());
-    return mel_cm_more_row('similar', $key, "catalog/$type/aiom.similar/similar=$id.json", $limit, $type,
-        'mel_cat_tiles');
+    $r = mel_cm_more_row('similar', $key, "catalog/$type/aiom.similar/similar=$id.json", $limit, $type, 'mel_cat_tiles');
+    $r['tiles'] = mel_ht_keep($r['tiles']);
+    return $r;
 }
 
 // The key of the similar titles of the title of $type asked as $id in memory (MelCmMore) as
@@ -397,8 +421,9 @@ function mel_cm_similar_key($type, $id)
 }
 
 // The movies of franchise $coll (collection of MelCardMeta: tmdb.collection.<n>) by the date out,
-// asked by an action, in $limit s at most. -> as mel_cm_more_row; current: the index of the movie
-// of $ids (mel_cm_title_ids) among the tiles, -1 for none. A wrong id: none.
+// asked by an action, in $limit s at most. -> as mel_cm_more_row, the tiles the filter shows (mel_ht_off: hidden, the
+// age) and the movie of $ids (mel_cm_title_ids: its own card is open) whatever it; current: its index among them, -1
+// for none. A wrong id: none.
 /**
  * @param string $coll
  * @param list<string> $ids
@@ -411,16 +436,18 @@ function mel_cm_parts($coll, $ids, $limit)
     if ($key === '')
         return array('err' => 'none', 'tiles' => array(), 'current' => -1);
     $r = mel_cm_more_row('parts', $key, "catalog/movie/$key.json", $limit, 'movie', 'mel_cm_parts_tiles');
+    $f = mel_ht_now();
+    $tiles = array();
     $cur = -1;
-    foreach ($r['tiles'] as $i => $t)
+    foreach ($r['tiles'] as $t)
     {
-        if (mel_cm_tile_is($t, $ids))
-        {
-            $cur = $i;
-            break;
-        }
+        $is = mel_cm_tile_is($t, $ids);
+        if ($is && $cur < 0)
+            $cur = count($tiles);
+        if ($is || !mel_ht_off($f, $t, false))
+            $tiles[] = $t;
     }
-    return array('err' => $r['err'], 'tiles' => $r['tiles'], 'current' => $cur);
+    return array('err' => $r['err'], 'tiles' => $tiles, 'current' => $cur);
 }
 
 // The key of the movies of franchise $coll in memory (MelCmMore) as mel_cm_parts asks them: $coll;

@@ -590,16 +590,17 @@ function mel_tv_code_sig()
     return MelTv::$code_sig;
 }
 
-// What the EPF are built with besides the copies: settings.json (mel_settings_sig), the language, the
-// version and the build of the plugin (another one may build them otherwise), the history (mel_wh_sig: the row
-// "Continue" and the badges; a file of it written within 2 s: none, the next tick builds them again).
+// What the EPF are built with besides the copies: settings.json (mel_settings_sig), the filter of the tiles
+// (mel_ht_filter_sig: the file of the hidden titles - the settings page takes one back), the language, the version and
+// the build of the plugin (another one may build them otherwise), the history (mel_wh_sig: the row "Continue" and the
+// badges; a file of it written within 2 s: none, the next tick builds them again).
 /**
  * @param string $lang
  * @return string
  */
 function mel_tv_timer_state($lang)
 {
-    return mel_settings_sig() . " $lang " . MEL_VERSION . ' ' . mel_tv_code_sig() . ' ' . md5(strval(mel_wh_sig()));
+    return mel_settings_sig() . ' ' . mel_ht_filter_sig() . " $lang " . MEL_VERSION . ' ' . mel_tv_code_sig() . ' ' . md5(strval(mel_wh_sig()));
 }
 
 // The timer: the copy of the manifest older than MEL_CAT_FRESH asked anew (not MEL_CAT_MANIFEST_FRESH:
@@ -657,7 +658,8 @@ function mel_tv_refresh($limit)
         if (mel_cat_err_down($err) || $secs < 1)
             break;
         $st = mel_cat_row_state($tv_rows[$i]);
-        $res = mel_cat_more($st, $secs);
+        // The first page alone, whatever the filter takes of it: its copy is all the files need.
+        $res = mel_cat_more($st, $secs, 0);
         $err = $res['err'];
         mel_catv_slow_note(mel_catv_rid($tv_rows[$i]), $err);
         $asked++;

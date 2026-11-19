@@ -200,7 +200,7 @@ describe("the import", () => {
     const max = Number(page.el(ID.backupFile).getAttribute("data-max"));
     // Cyrillic: 6 characters of the body a letter (%D0%B6), 2 bytes of the file.
     const text = (n: number) => '{"v":2,"x":"' + "ж".repeat(n) + "a".repeat((max - 9 - encodeURIComponent('{"v":2,"x":""}').length) % 6) + '"}';
-    // The most letters that go (a loop over n is too slow for a data-max of 256K).
+    // The most letters that go (a loop over n is too slow for a data-max of 1M).
     const n = Math.floor((max - 9 - encodeURIComponent('{"v":2,"x":""}').length) / 6);
     expect(("settings=" + encodeURIComponent(text(n + 1))).length).toBeGreaterThan(max);
     expect(("settings=" + encodeURIComponent(text(n))).length).toBe(max);

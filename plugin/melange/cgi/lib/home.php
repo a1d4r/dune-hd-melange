@@ -39,6 +39,7 @@ function mel_cgi_screens()
         'adv' => mel_cgi_l('Дополнительно', 'Advanced'),
         'rows' => mel_cgi_l('Ряды каталога', 'Catalog rows'),
         'look' => mel_cgi_l('Внешний вид', 'Appearance'),
+        'hide' => mel_cgi_l('Что не показывать', 'Hide from the catalog'),
         'cfg' => 'AIOStreams', 'bak' => mel_cgi_l('Резервная копия', 'Backup'), 'log' => mel_cgi_l('Лог', 'Log'),
         'about' => mel_cgi_l('О Melange', 'About Melange'));
 }
@@ -133,9 +134,19 @@ function mel_cgi_rows($v)
         // A form back with a wrong value: as on.
         'look' => array('none', ($v['cat_logo'] === mel_cgi_toggle_of('cat_logo', false) ? $t['logoOff'] : $t['logoOn']) . ' · ' .
             ($v['cat_rating'] === mel_cgi_toggle_of('cat_rating', false) ? $t['ratingOff'] : $t['ratingOn'])),
+        // The age (lib/hidden.php): its short name; a form back with a wrong value - all.
+        'hide' => array('none', mel_cgi_hide_line($v['cat_age'])),
         'bak' => array('none', mel_cgi_l('Настройки в файл и из файла', 'Settings to a file and back')),
         'log' => array('none', mel_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')),
         'about' => array('none', MEL_VERSION . ' · ' . mel_cgi_l('поддержать автора', 'support the author')));
+}
+
+// The value of the line of "Что не показывать" of the answer $x of the age (mel_cgi_cat_ages; another one: as all, as
+// web/src/home.ts).
+function mel_cgi_hide_line($x)
+{
+    $a = mel_cgi_cat_ages();
+    return isset($a[$x]) ? $a[$x][2] : $a['all'][2];
 }
 
 // The value of the line of the source on the main screen with two sources or more (v2, prof of the values $v:
@@ -184,7 +195,7 @@ function mel_cgi_home($v)
     $out .= '</div></div>';
     $rows = mel_cgi_rows($v);
     $groups = array(mel_cgi_l('Просмотр', 'Watching') => array('src', 'cfg', 'voices', 'torr'),
-        mel_cgi_l('Каталог', 'Catalog') => array('rows', 'look'),
+        mel_cgi_l('Каталог', 'Catalog') => array('rows', 'look', 'hide'),
         mel_cgi_l('Ещё', 'More') => array('dl', 'adv', 'bak', 'log', 'about'));
     foreach ($groups as $h => $ids)
     {

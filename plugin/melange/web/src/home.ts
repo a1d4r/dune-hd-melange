@@ -2,7 +2,7 @@
 // by the rules of PHP (mel_cgi_state, mel_cgi_rows in cgi/lib/home.php): the same values give the same page.
 
 import type { Aio } from "./aio";
-import { byId, checkedValue, DATA, hostOf, ID, NAME, type Page, type Row, SERVER_BLOCK, SERVER_FIELD, trimmed, tsUserinfo, VALUE, watchOf } from "./dom";
+import { byId, checkedRadio, checkedValue, DATA, hostOf, ID, NAME, type Page, type Row, SERVER_BLOCK, SERVER_FIELD, trimmed, tsUserinfo, VALUE, watchOf } from "./dom";
 
 export interface Home {
   render(): void;
@@ -90,6 +90,9 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
     // No dot: only the value (a wrong one as on, as PHP).
     byId(doc, "vlook").textContent = (checkedValue(form, NAME.catLogo) === VALUE.off ? texts.logoOff : texts.logoOn) + " · " +
       (checkedValue(form, NAME.catRating) === VALUE.off ? texts.ratingOff : texts.ratingOn);
+    // The age by its short name; none checked - as the first one, all (as PHP).
+    const age = checkedRadio(form, NAME.catAge) || form.querySelector<HTMLInputElement>("input[name=" + NAME.catAge + "]");
+    byId(doc, "vhide").textContent = age ? age.getAttribute(DATA.short) || "" : "";
   }
   render();
   return {

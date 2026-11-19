@@ -101,6 +101,9 @@ export const ID = {
   backupButton: "bkb",
   backupFile: "bkf",
   backupResult: "bkr",
+  // "Скрытые" of "Что не показывать" (#hide, hidden.ts): the list (a row of each title with "Unhide"), its lines.
+  hiddenList: "htl",
+  hiddenResult: "htr",
 } as const;
 
 // The editor of the sources (v2, profiles.ts) on #src: the block at its top (always), the list of the sources and the
@@ -121,7 +124,7 @@ export const EDITOR = {
 } as const;
 
 // The screens with a line on the main screen: #r<id>, its dot #d<id>, its value #v<id>; in the order of the page.
-export const ROWS = ["src", "cfg", "voices", "torr", "rows", "look", "dl", "adv", "bak", "log", "about"] as const;
+export const ROWS = ["src", "cfg", "voices", "torr", "rows", "look", "hide", "dl", "adv", "bak", "log", "about"] as const;
 export type Row = (typeof ROWS)[number];
 
 export const CLS = {
@@ -130,6 +133,8 @@ export const CLS = {
   secret: "sec",
   on: "on",
   check: "chk",
+  // A button of a check in its field; "Unhide" of a hidden title.
+  inline: "in",
   serverBlock: "srv",
   serverCheck: "srvchk",
   serverDup: "srvdup",
@@ -176,7 +181,7 @@ export const DATA = {
   jacredId: "data-id",
   // The card of a JacRed in "Compare speed": its id, "own".
   jacredOf: "data-jr",
-  // A radio of the template choice or a line of its mark: its name on the main screen.
+  // A radio of the template choice or a line of its mark, of the age: its name on the main screen.
   short: "data-short",
   // A line of a mark of the template choice (the template of the config not a template to choose): its value.
   mark: "data-mark",
@@ -212,6 +217,8 @@ export const NAME = {
   catRating: "cat_rating",
   // "Present as the Lampa app" (under the token of the Lampac provider): VALUE.on, VALUE.off.
   lampacAsLampa: "lampac_as_lampa",
+  // The age of "Что не показывать" (0.65.0): all, 16, 12, 6, 0; each radio with its line on the main screen (DATA.short).
+  catAge: "cat_age",
 } as const;
 
 // The values of the page the script compares with.
@@ -256,6 +263,19 @@ export function byId<E extends HTMLElement = HTMLElement>(doc: Document, id: str
   const el = doc.getElementById(id);
   if (!el) throw new Error("settings: no #" + id);
   return el as E;
+}
+
+// A new element of document doc: its classes (none for ""), its text if given (textContent).
+export function make<K extends keyof HTMLElementTagNameMap>(
+  doc: Document,
+  tag: K,
+  cls: string,
+  text?: string,
+): HTMLElementTagNameMap[K] {
+  const made = doc.createElement(tag);
+  if (cls) made.className = cls;
+  if (text !== undefined) made.textContent = text;
+  return made;
 }
 
 export function query<E extends Element = HTMLElement>(root: ParentNode, selector: string): E {

@@ -52,8 +52,9 @@ define('MEL_PP_HINT_Y', 998);
 class MelPp
 {
     // tmdb => what the row knew (name, photo, job: the profession in the language of the screen),
-    // lang (of play_action), ui, pos (the place, mel_pp_pos), err ('' none yet, later, none) and
-    // tries of the timer. Memory of php_server only.
+    // lang (of play_action), ui, pos (the place, mel_pp_pos), err ('' none yet, later, none),
+    // tries of the timer and drawn: the works of the screen drawn last (mel_pp_work_key, in order;
+    // null: none drawn). Memory of php_server only.
     /** @var array<string, MelPpEntry> */
     public static $people = array();
 }
@@ -70,7 +71,7 @@ class MelPp
 function mel_pp_open($p, $job, $lang, $ui)
 {
     mel_pp_keep($p['tmdb'], array('name' => $p['name'], 'photo' => $p['photo'], 'job' => $job, 'lang' => $lang, 'ui' => $ui,
-        'pos' => array('z' => 'w', 'p' => 0, 'k' => 0), 'err' => '', 'tries' => 0));
+        'pos' => array('z' => 'w', 'p' => 0, 'k' => 0), 'err' => '', 'tries' => 0, 'drawn' => null));
     mel_log("card: person tmdb:{$p['tmdb']} opened");
     return array(
         GuiAction::handler_string_id => PLUGIN_OPEN_FOLDER_ACTION_ID,
@@ -118,7 +119,7 @@ function mel_pp_entry($tmdb)
         return MelPp::$people[$tmdb];
     $ui = mel_catv_ui_lang();
     $e = array('name' => '', 'photo' => '', 'job' => '', 'lang' => mel_catv_lang(), 'ui' => $ui,
-        'pos' => array('z' => 'w', 'p' => 0, 'k' => 0), 'err' => '', 'tries' => 0);
+        'pos' => array('z' => 'w', 'p' => 0, 'k' => 0), 'err' => '', 'tries' => 0, 'drawn' => null);
     mel_pp_keep($tmdb, $e);
     return $e;
 }
@@ -492,7 +493,45 @@ function mel_pp_id($media_url)
     return preg_match('/^person:([1-9][0-9]{0,9})$/D', $media_url, $m) ? $m[1] : '';
 }
 
-// get_folder_view of "person:<tmdb>": the person from memory only (mel_cm_more_get); none there, as
+// Work $w among the works of a person: its type and id (a movie and a series may share an id of TMDB).
+/**
+ * @param MelCmWork $w
+ * @return string
+ */
+function mel_pp_work_key($w)
+{
+    return $w['tile']['type'] . ':' . mel_cm_id($w['tile']);
+}
+
+// The person of TMDB $tmdb from memory only (mel_cm_more_get), or null. Its works: for the view ($e null) those the
+// filter shows now (mel_cm_person_shown: hidden, the age); for the keys of screen $e those it drew ($e['drawn']), so a
+// change of the filter on the phone since (the screen is not drawn anew by it) leaves LEFT, RIGHT and ENTER on the works
+// drawn. None drawn (php_server restarted): those the filter shows.
+/**
+ * @param string $tmdb
+ * @param MelPpEntry|null $e
+ * @return MelCmPerson|null
+ */
+function mel_pp_person($tmdb, $e = null)
+{
+    /** @var MelCmPerson|null $p */
+    $p = mel_cm_more_get('person', "tmdb:$tmdb");
+    if (!$p || $e === null || $e['drawn'] === null)
+        return $p ? mel_cm_person_shown($p) : null;
+    $by = array();
+    foreach ($p['works'] as $w)
+        $by[mel_pp_work_key($w)] = $w;
+    $works = array();
+    foreach ($e['drawn'] as $k)
+    {
+        if (isset($by[$k]))
+            $works[] = $by[$k];
+    }
+    $p['works'] = $works;
+    return $p;
+}
+
+// get_folder_view of "person:<tmdb>": the person from memory only (mel_pp_person); none there, as
 // it is asked: the timer (person_load of mel_pp_input).
 /**
  * @param string $media_url
@@ -505,11 +544,11 @@ function mel_pp_folder_view($media_url, $sel_state)
     if ($tmdb === '')
         return mel_lines_view(array(mel_expired_item()));
     $e = mel_pp_entry($tmdb);
-    /** @var MelCmPerson|null $p */
-    $p = mel_cm_more_get('person', "tmdb:$tmdb");
+    $p = mel_pp_person($tmdb);
     $l = mel_pp_layout($e, $p);
     $pos = mel_pp_pos($e, $l, $sel_state);
     $e['pos'] = $pos;
+    $e['drawn'] = $p ? array_map('mel_pp_work_key', $p['works']) : null;
     mel_pp_put($tmdb, $e);
     mel_log("card: person tmdb:$tmdb: screen, {$l['state']}, {$l['strip']['n']} works, at {$pos['z']} {$pos['p']}, work {$pos['k']}");
     $k = array('t' => $tmdb);
@@ -606,8 +645,7 @@ function mel_pp_input($in, $control)
     if ($tmdb === '')
         return null;
     $e = mel_pp_entry($tmdb);
-    /** @var MelCmPerson|null $p */
-    $p = mel_cm_more_get('person', "tmdb:$tmdb");
+    $p = mel_pp_person($tmdb, $e);
     $l = mel_pp_layout($e, $p);
     $pos = mel_pp_pos($e, $l, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     $e['pos'] = $pos;
