@@ -1362,7 +1362,7 @@ function mel_row_voices($r)
  */
 function mel_row_langs($r, $orig)
 {
-    static $service = array('MULTI' => true, 'DUAL' => true, 'DUB' => true, 'ORIG' => true);
+    $service = mel_lang_service();
     $v = isset($r['voices']) ? $r['voices'] : null;
     $ok = array();
     $tracks = mel_track_langs($r['tracks'], array());
@@ -1431,7 +1431,8 @@ function mel_row_voice_langs($r)
 }
 
 // The language of the subtitles mark of a row (mel_row_subs_mark): Russian
-// only; a setting of the language later changes this alone.
+// only. A setting of it needs more: the marks of the names ('ru_subs'), the
+// rules of mel_row_langs and the one picture (k_badge_subs-ru) are Russian.
 /**
  * @return string
  */

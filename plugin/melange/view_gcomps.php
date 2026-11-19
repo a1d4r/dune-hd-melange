@@ -377,8 +377,8 @@ function mel_gc_seed_color($n, $on)
     return $n < MEL_GC_SEED_HIGH ? MEL_K_C_TEXT1 : MEL_K_C_OK;
 }
 
-// Languages of a row: those with a flag first, then the rest; the service
-// codes only if there is no real language.
+// Languages of a row (confirmed ones of mel_row_langs, no service codes):
+// those with a flag first, then the rest.
 /**
  * @param list<string> $langs
  * @return list<string>
@@ -386,21 +386,20 @@ function mel_gc_seed_color($n, $on)
 function mel_gc_tail_langs($langs)
 {
     $flags = mel_gc_flags();
-    $service = array('MULTI', 'DUAL', 'DUB', 'ORIG');
-    $out = array('flag' => array(), 'text' => array(), 'service' => array());
+    $out = array('flag' => array(), 'text' => array());
     foreach ($langs as $c)
-        $out[isset($flags[$c]) ? 'flag' : (in_array($c, $service, true) ? 'service' : 'text')][] = $c;
-    return $out['flag'] || $out['text'] ? array_merge($out['flag'], $out['text']) : $out['service'];
+        $out[isset($flags[$c]) ? 'flag' : 'text'][] = $c;
+    return array_merge($out['flag'], $out['text']);
 }
 
-// The service codes of $langs (MULTI, DUAL, DUB, ORIG), in their order.
+// The service codes of $langs (mel_lang_service), in their order.
 /**
  * @param list<string> $langs
  * @return list<string>
  */
 function mel_gc_service_langs($langs)
 {
-    return array_values(array_intersect($langs, array('MULTI', 'DUAL', 'DUB', 'ORIG')));
+    return array_values(array_intersect($langs, array_keys(mel_lang_service())));
 }
 
 /**

@@ -194,6 +194,15 @@ function mel_lang_code($name)
     return strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $name), 0, 3));
 }
 
+// The codes of mel_lang_code() that are no language: MULTI, DUAL, DUB, ORIG.
+/**
+ * @return array<string, true>
+ */
+function mel_lang_service()
+{
+    return array('MULTI' => true, 'DUAL' => true, 'DUB' => true, 'ORIG' => true);
+}
+
 // Audio badges: id => array(family, tier, audioTags it needs), the best of a
 // family first (Smart Tier of Nuvio).
 /**
