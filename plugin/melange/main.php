@@ -83,6 +83,8 @@ require_once dirname(__FILE__) . '/kit.php';
 require_once dirname(__FILE__) . '/kit_ovl.php';
 // The side panel on the right of a GComps screen: its keys, state and changes over the builders of kit.php.
 require_once dirname(__FILE__) . '/kit_panel.php';
+// The own dialog and the wait window over a GComps screen: their keys, state and the ticks of a wait.
+require_once dirname(__FILE__) . '/kit_dlg.php';
 require_once dirname(__FILE__) . '/view_info.php';
 require_once dirname(__FILE__) . '/view_setup.php';
 // The catalog: client, ENTER on a tile, its screens.
@@ -2206,6 +2208,8 @@ function mel_handle_user_input($in)
         return mel_gc_input($in);
     if ($control === 'kp_key')
         return mel_kp_input($in);
+    if ($control === 'dlg_key' || $control === 'wt_key' || $control === 'wt_tick')
+        return mel_dlg_input($in, $control);
     if ($control === 'info_page')
         return mel_info_input($in);
     if ($control === 'next')

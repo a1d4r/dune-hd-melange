@@ -13,8 +13,9 @@
 //   timer  the timer of the screen (GuiTimerDef, null none): off while the overlay is open (a tick replacing the screen,
 //          as card_load of the own card, would take the overlay away), back at the close;
 //   sel    the sel_state of the screen, given to every change_gcomps of the overlay.
-// The open: change_behaviour (the map of the overlay, no timer), then change_gcomps of the children of ovl. The close:
-// change_behaviour (the map and the timer of the screen), then the children of ovl none - whatever is in it [device P4].
+// The open: change_behaviour (the map of the overlay, its timer: the ticks of a wait, else none), then change_gcomps of
+// the children of ovl. The close: change_behaviour (the map and the timer of the screen), then the children of ovl
+// none - whatever is in it [device P4].
 
 // The id of the slot of the overlay.
 define('MEL_OVL', 'ovl');
@@ -67,11 +68,11 @@ function mel_ovl_change($ch, $sel, $post = null)
     return array(GuiAction::handler_string_id => CHANGE_GCOMPS_ACTION_ID, GuiAction::data => $data);
 }
 
-// change_behaviour: the action map $map, the timer $timer (null none), then $post.
+// change_behaviour: the action map $map, the timer $timer (null none), then $post (null none).
 /**
  * @param array<string, MelAction> $map
  * @param array<string, int>|null $timer
- * @param MelAction $post
+ * @param MelAction|null $post
  * @return MelAction
  */
 function mel_ovl_behaviour($map, $timer, $post)
@@ -82,19 +83,20 @@ function mel_ovl_behaviour($map, $timer, $post)
         ChangeBehaviourActionData::post_action => $post));
 }
 
-// Open over the screen of record $scr (see above) the overlay of state $st (array('kp' => ...)), action map $map and
-// components $defs (the children of ovl), then $post (a change_gcomps of them: the panel slides in). A record that is
-// not one (owner '' or not a string, map not an array, a timer neither an array nor null, sel neither a string nor
-// null): null, logged.
+// Open over the screen of record $scr (see above) the overlay of state $st (array('kp' => ...)), action map $map,
+// timer $tick (null none; a wait: its ticks) and components $defs (the children of ovl), then $post (a change_gcomps
+// of them: the panel slides in). A record that is not one (owner '' or not a string, map not an array, a timer neither
+// an array nor null, sel neither a string nor null): null, logged.
 /**
  * @param array<string, mixed> $scr
  * @param array<string, mixed> $st
  * @param array<string, MelAction> $map
  * @param list<MelGcComp> $defs
  * @param MelAction|null $post
+ * @param array<string, int>|null $tick
  * @return MelAction|null
  */
-function mel_ovl_open($scr, $st, $map, $defs, $post = null)
+function mel_ovl_open($scr, $st, $map, $defs, $post = null, $tick = null)
 {
     $owner = isset($scr['owner']) ? $scr['owner'] : null;
     $smap = isset($scr['map']) ? $scr['map'] : null;
@@ -109,7 +111,7 @@ function mel_ovl_open($scr, $st, $map, $defs, $post = null)
     /** @var MelOvlScreen $rec */
     $rec = array('owner' => $owner, 'map' => $smap, 'timer' => $timer, 'sel' => $sel);
     MelOvl::$st = array_merge($st, array('scr' => $rec, 'open' => true));
-    return mel_ovl_behaviour($map, null, mel_ovl_change(array(mel_gc_change(MEL_OVL, null, GCOMP_TRANSITION_NONE,
+    return mel_ovl_behaviour($map, $tick, mel_ovl_change(array(mel_gc_change(MEL_OVL, null, GCOMP_TRANSITION_NONE,
         $defs)), $sel, $post));
 }
 
