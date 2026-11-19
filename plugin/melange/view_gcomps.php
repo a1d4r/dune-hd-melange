@@ -674,7 +674,7 @@ function mel_gc_line($items, $y, $name)
 }
 
 // Children of row panel "r$i", on the centre of the row: the cache status (a lightning on a green disc, the
-// arrow, the magnet, "?"; the seeders of a P2P row centred in its column), the plates b2 each from the x of its
+// arrow, "?"; the seeders of a P2P row centred in its column), the plates b2 each from the x of its
 // column (mel_gc_cols), the size (right-aligned), the flags, the trackers
 // (or the expression name; no trackers: the add-on dimmed). The row in focus on the blue plate (sel): its texts
 // white (the seeders too: the colours of their bins only out of focus), the dim ones light; the disc of the
