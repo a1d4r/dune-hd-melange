@@ -9,6 +9,8 @@
 // No login or password of a share is kept, returned or logged; the log has no
 // path, server, share, folder caption or file name: folders by id, files by
 // their key lib-... (mel_lib_key).
+// Needs main.php (mel_log, mel_num, mel_size_str), links.php (mel_pg_links, MelPgLinks, mel_pg_shell_pair,
+// mel_pg_link_put).
 
 // The files of the shell. PHP on the Dune adds FS_PREFIX to /config,
 // /flashdata and /tmp itself; a failed plain read is tried with FS_PREFIX.
@@ -21,6 +23,10 @@ define('MEL_LIB_MOUNTS', '/tmp/run/network_mount_list.xml');
 // A bigger file is not a config or an index of this box: not read.
 if (!defined('MEL_LIB_MAX_BYTES'))
     define('MEL_LIB_MAX_BYTES', 16777216);
+// Cards of the shell read for a title not found by its ids (mel_lib_by_movies).
+define('MEL_LIB_CANDIDATES', 3);
+// Characters of the path in a line of the menu of the copies (mel_lib_label).
+define('MEL_LIB_LABEL_MAX', 60);
 
 // The library in the memory of php_server, until its files change (mel_lib_index).
 class MelLib
@@ -38,6 +44,15 @@ class MelLib
     // Files of the shell read so far (tests count the reads by it).
     /** @var int */
     public static $reads = 0;
+    // The titles of the folders (folder_movies, mel_lib_movies): movie_id, the normalized names, the first and the
+    // last year; null: not read. Read lazily, again when the stat of their files changes ($movies_sig).
+    /** @var list<array{string, list<string>, int, int}>|null */
+    public static $movies = null;
+    /** @var string */
+    public static $movies_sig = '';
+    // What mel_lib_mid found for a title, until the index changes: its key => array(MelLib::$sig, movie_id or '', how).
+    /** @var array<string, array{string, string, string}> */
+    public static $found = array();
 }
 
 // --- Reads.
@@ -364,16 +379,17 @@ function mel_lib_rel_path($folder_path, $file_path)
 
 // --- Index.
 
-// Where the shell keeps folder_files.<id>.json (StorageHelper: /flashdata,
-// /persistfs on old models).
+// Where the shell keeps folder_files.<id>.json (folder_movies.<id>.json for
+// $kind 'movies'; StorageHelper: /flashdata, /persistfs on old models).
 /**
  * @param int|string $folder_id
+ * @param string $kind
  * @return list<string>
  */
-function mel_lib_index_paths($folder_id)
+function mel_lib_index_paths($folder_id, $kind = 'files')
 {
-    return array("/flashdata/movie_index/folder_files.$folder_id.json",
-        "/persistfs/movie_index/folder_files.$folder_id.json");
+    return array("/flashdata/movie_index/folder_$kind.$folder_id.json",
+        "/persistfs/movie_index/folder_$kind.$folder_id.json");
 }
 
 // The sizes of an index quoted before json_decode: PHP 5.3 on the 32-bit
@@ -451,18 +467,19 @@ function mel_lib_sig_cfg()
     return $c === '' ? '' : $c . '|' . mel_lib_stat(MEL_LIB_NF);
 }
 
-// The signature of the indexes of the folders $ids.
+// The signature of the indexes of the folders $ids (of their folder_movies for $kind 'movies').
 /**
  * @param list<int|string> $ids
+ * @param string $kind
  * @return string
  */
-function mel_lib_sig_files($ids)
+function mel_lib_sig_files($ids, $kind = 'files')
 {
     $s = '';
     foreach ($ids as $id)
     {
         $one = '';
-        foreach (mel_lib_index_paths($id) as $p)
+        foreach (mel_lib_index_paths($id, $kind) as $p)
         {
             $one = mel_lib_stat($p);
             if ($one !== '')
@@ -641,4 +658,324 @@ function mel_lib_copies($mid)
     }
     usort($res, 'mel_lib_cmp_copies');
     return $res;
+}
+
+// --- The movie_id of a title.
+
+// A name as the titles are compared: lower case, ё as е, all but letters and digits a space, the spaces squeezed.
+/**
+ * @param string $s
+ * @return string
+ */
+function mel_lib_norm($s)
+{
+    $s = preg_replace('/[^\p{L}\p{N}]+/u', ' ', str_replace('ё', 'е', mb_strtolower($s, 'UTF-8')));
+    return is_string($s) ? trim($s) : '';
+}
+
+// The years of a title of folder_movies, "2019" or "2019-2021" (MovieHelper::parse_years of the shell) -> first, last.
+/**
+ * @param mixed $years
+ * @return array{int, int}
+ */
+function mel_lib_years($years)
+{
+    $y = is_scalar($years) ? strval($years) : '';
+    $p = strpos($y, '-');
+    if (!$p)
+        return array(intval($y), intval($y));
+    return array(intval(substr($y, 0, $p)), intval(substr($y, $p + 1)));
+}
+
+// The movies of folder_movies.<id>.json of all the folders (load_folder_movies_file of the shell; a series out), each
+// movie_id once: read when the stat of these files changed since the last read.
+/**
+ * @return list<array{string, list<string>, int, int}>
+ */
+function mel_lib_movies()
+{
+    $ids = array_keys(MelLib::$folders);
+    $sig = mel_lib_sig_files($ids, 'movies');
+    if (MelLib::$movies !== null && $sig === MelLib::$movies_sig)
+        return MelLib::$movies;
+    $t = microtime(true);
+    $res = array();
+    $seen = array();
+    foreach ($ids as $id)
+    {
+        $list = null;
+        foreach (mel_lib_index_paths($id, 'movies') as $p)
+        {
+            list($doc, $why) = mel_lib_read($p);
+            if ($doc !== false)
+            {
+                $list = json_decode($doc, true);
+                if (!is_array($list))
+                    mel_log("library: folder $id: folder_movies not JSON");
+                break;
+            }
+        }
+        foreach (is_array($list) ? $list : array() as $m)
+        {
+            if (!is_array($m) || !isset($m['id'], $m['title']) || !is_string($m['id']) || !is_string($m['title']) ||
+                isset($seen[$m['id']]) || (isset($m['type']) && $m['type'] === 'series'))
+                continue;
+            $seen[$m['id']] = 1;
+            $names = array();
+            foreach (array($m['title'], isset($m['native_title']) ? $m['native_title'] : '') as $n)
+            {
+                $n = is_string($n) ? mel_lib_norm($n) : '';
+                if ($n !== '' && !in_array($n, $names, true))
+                    $names[] = $n;
+            }
+            list($y1, $y2) = mel_lib_years(isset($m['years']) ? $m['years'] : '');
+            $res[] = array($m['id'], $names, $y1, $y2);
+        }
+    }
+    MelLib::$movies = $res;
+    MelLib::$movies_sig = $sig;
+    mel_log('library: folder_movies read, ' . count($res) . ' titles, ' . round((microtime(true) - $t) * 1000) . ' ms');
+    return $res;
+}
+
+// The movie_id of the files of the title $t by its name and year: the movies of folder_movies of the year +-1 with
+// the same title or native_title (mel_lib_norm) and files in the index, the first MEL_LIB_CANDIDATES of them; the
+// first whose card of the shell has the IMDb or the TMDB of $t. Its pair is kept (mel_pg_link_put): the next time
+// the pairs find it. '' for none.
+/**
+ * @param MelLibTitle $t
+ * @return string
+ */
+function mel_lib_by_movies($t)
+{
+    $year = intval($t['year']);
+    $names = array();
+    foreach ($t['names'] as $n)
+    {
+        $n = mel_lib_norm($n);
+        if ($n !== '')
+            $names[$n] = true;
+    }
+    if ($year <= 0 || !$names || ($t['imdb'] === '' && $t['tmdb'] === ''))
+        return '';
+    $cands = array();
+    foreach (mel_lib_movies() as $m)
+    {
+        list($mid, $mnames, $y1, $y2) = $m;
+        if ($year < $y1 - 1 || $year > $y2 + 1 || empty(MelLib::$by_mid[$mid]))
+            continue;
+        foreach ($mnames as $n)
+        {
+            if (isset($names[$n]))
+            {
+                $cands[] = $mid;
+                break;
+            }
+        }
+        if (count($cands) >= MEL_LIB_CANDIDATES)
+            break;
+    }
+    foreach ($cands as $mid)
+    {
+        $t0 = microtime(true);
+        $pair = mel_pg_shell_pair($mid);
+        $same = $pair && (($t['imdb'] !== '' && isset($pair['imdb']) && $pair['imdb'] === $t['imdb']) ||
+            ($t['tmdb'] !== '' && isset($pair['tmdb']) && $pair['tmdb'] === $t['tmdb']));
+        mel_log("library: card $mid: shell card " . ($pair ? 'read' : 'none') . ', ' .
+            round((microtime(true) - $t0) * 1000) . ' ms' . ($pair ? ($same ? ', the same ids' : ', not the same ids') : ''));
+        if ($same)
+        {
+            mel_pg_link_put($mid, $pair);
+            return $mid;
+        }
+    }
+    return '';
+}
+
+// The movie_id of the files of the title $t (a movie) -> array(movie_id or '', how: dune, pairs, folder_movies, -):
+// its card of the Dune, else a card of the pairs (links.php) with its IMDb or TMDB, else mel_lib_by_movies. Only
+// cards with files in the index count.
+/**
+ * @param MelLibTitle $t
+ * @return array{string, string}
+ */
+function mel_lib_find($t)
+{
+    if ($t['dune'] !== '' && !empty(MelLib::$by_mid[$t['dune']]))
+        return array($t['dune'], 'dune');
+    $keys = array();
+    if ($t['imdb'] !== '')
+        $keys[] = 'imdb:' . $t['imdb'];
+    if ($t['tmdb'] !== '')
+        $keys[] = 'tmdb:' . $t['tmdb'];
+    if (!$keys)
+        return array('', '-');
+    mel_pg_links();
+    $mids = array();
+    foreach ($keys as $k)
+    {
+        foreach (isset(MelPgLinks::$rev[$k]) ? MelPgLinks::$rev[$k] : array() as $mid)
+        {
+            if (!empty(MelLib::$by_mid[$mid]) && !in_array($mid, $mids, true))
+                $mids[] = $mid;
+        }
+    }
+    if ($mids)
+    {
+        // The card of the Dune with files is found above: of two cards here, neither is it.
+        if (count($mids) > 1)
+            mel_log('library: ' . count($mids) . ' cards by pairs, the first taken');
+        return array($mids[0], 'pairs');
+    }
+    $y = mel_lib_by_movies($t);
+    return array($y, $y !== '' ? 'folder_movies' : '-');
+}
+
+// The movie_id of the index for the title $t, '' for none (a series, no library, no files): mel_lib_find, kept in
+// MelLib::$found until the index changes (an opening of the same card again reads nothing). $by: how it was found
+// (dune, pairs, folder_movies; '-' for none).
+/**
+ * @param MelLibTitle $t
+ * @param string $by
+ * @return string
+ */
+function mel_lib_mid($t, &$by = '')
+{
+    $by = '-';
+    mel_lib_index();
+    if ($t['type'] !== 'movie' || !MelLib::$by_mid)
+        return '';
+    $sig = strval(MelLib::$sig);
+    $key = "{$t['type']}|{$t['imdb']}|{$t['tmdb']}|{$t['dune']}";
+    if (!isset(MelLib::$found[$key]) || MelLib::$found[$key][0] !== $sig)
+    {
+        list($y, $how) = mel_lib_find($t);
+        MelLib::$found[$key] = array($sig, $y, $how);
+    }
+    $by = MelLib::$found[$key][2];
+    return MelLib::$found[$key][1];
+}
+
+// --- The line of a copy in the menu of the copies.
+
+// The resolution of a copy to show: by its media tags (4K, 2K, 1080p, 720p), by the name of its file
+// (mel_lib_quality) only when it has no tags; '' for none. The words of mel_lib_res_rank.
+/**
+ * @param string $tags
+ * @param string $path
+ * @return string
+ */
+function mel_lib_res($tags, $path)
+{
+    if (trim($tags) === '')
+        return mel_lib_quality($path);
+    $words = array('4K' => '4K', '2K' => '2K', '1080' => '1080p', '720' => '720p');
+    foreach (explode(',', $tags) as $t)
+    {
+        $t = trim($t);
+        if (isset($words[$t]))
+            return $words[$t];
+    }
+    return '';
+}
+
+// The length of the common start of two paths, whole parts only (PathUtils::get_common_path_prefix_len of the shell).
+/**
+ * @param string $a
+ * @param string $b
+ * @return int
+ */
+function mel_lib_prefix_len($a, $b)
+{
+    $la = strlen($a);
+    $lb = strlen($b);
+    if ($la === 0 || $lb === 0 || $a[0] !== $b[0])
+        return 0;
+    $n = $a[0] === '/' ? 1 : 0;
+    for (;;)
+    {
+        $na = strpos($a, '/', $n);
+        $nb = strpos($b, '/', $n);
+        if ($na === false || $na !== $nb || substr($a, $n, $na - $n) !== substr($b, $n, $nb - $n) ||
+            $na + 1 >= $la || $na + 1 >= $lb)
+            break;
+        $n = $na + 1;
+    }
+    return $n;
+}
+
+// The length of the start of the paths the screen "Files" of the shell cuts off (PathUtils::get_common_file_prefix_len):
+// their common start; of one path, all but its file and its folder.
+/**
+ * @param list<string> $paths
+ * @return int
+ */
+function mel_lib_common_len($paths)
+{
+    if (!$paths)
+        return 0;
+    if (count($paths) === 1)
+    {
+        $p = $paths[0];
+        $pos = strrpos($p, '/');
+        if (!$pos)
+            return 0;
+        $pos = strrpos($p, '/', -(strlen($p) - $pos + 1));
+        return $pos === false ? 0 : $pos + 1;
+    }
+    $n = mel_lib_prefix_len($paths[0], $paths[1]);
+    for ($i = 2; $i < count($paths); $i++)
+        $n = min($n, mel_lib_prefix_len($paths[0], $paths[$i]));
+    return $n;
+}
+
+// $s of over $max characters: its middle replaced by '…' (the start of the path and the end of the name stay).
+/**
+ * @param string $s
+ * @param int $max
+ * @return string
+ */
+function mel_lib_cut($s, $max)
+{
+    if (mb_strlen($s, 'UTF-8') <= $max)
+        return $s;
+    $tail = intval(ceil(($max - 1) / 2));
+    return mb_substr($s, 0, $max - 1 - $tail, 'UTF-8') . '…' . mb_substr($s, -$tail, $tail, 'UTF-8');
+}
+
+// The line of the copy $copy (one of $copies) in the menu of the copies: "4K · 58.3 ГБ · <path>" - the resolution
+// (mel_lib_res, none left out), the size (none left out), the path as the screen "Files" of the shell shows it: the
+// copies in one folder of the library - the path without the start common to them all; in several - "<caption of
+// the folder>/<path>"; over MEL_LIB_LABEL_MAX characters cut in the middle.
+/**
+ * @param MelLibCopy $copy
+ * @param list<MelLibCopy> $copies
+ * @param string $lang
+ * @return string
+ */
+function mel_lib_label($copy, $copies, $lang)
+{
+    $folders = array($copy['folder'] => 1);
+    $paths = array($copy['path']);
+    foreach ($copies as $c)
+    {
+        $folders[$c['folder']] = 1;
+        if (!in_array($c['path'], $paths, true))
+            $paths[] = $c['path'];
+    }
+    if (count($folders) > 1)
+    {
+        $id = $copy['folder'];
+        $path = (isset(MelLib::$folders[$id]) ? MelLib::$folders[$id]['caption'] : '') . '/' . $copy['path'];
+    }
+    else
+        $path = strval(substr($copy['path'], mel_lib_common_len($paths)));
+    $parts = array();
+    $res = mel_lib_res($copy['tags'], $copy['path']);
+    if ($res !== '')
+        $parts[] = $res;
+    if ($copy['size'] > 0)
+        $parts[] = mel_size_str($copy['size'], $lang);
+    $parts[] = mel_lib_cut($path, MEL_LIB_LABEL_MAX);
+    return implode(' · ', $parts);
 }
