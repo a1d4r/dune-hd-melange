@@ -374,13 +374,60 @@ function mel_main_svc($mv, $r)
     return Mel::$settings['debrid_main'];
 }
 
+// Keys of a placeholder another release of the same file may get past (mel_pre_twin): the file
+// is not found, gone, archived or blocked in this release. Not a limit, a service down, the key
+// or the account, a download to wait for: the same there.
+/**
+ * @param string $key
+ * @return bool
+ */
+function mel_pre_twin_key($key)
+{
+    return in_array($key, array('err_pre_no_file', 'err_pre_placeholder', 'err_pre_infringing', 'err_pre_archive'), true);
+}
+
+// Row $r of $rows refused: the first row of $rows of another release of its file - the same
+// file name and size in bytes (streamData, else behaviorHints; the merge of copies of one file,
+// mel_merge_key, takes the same), cached, a URL of Debrid, an infoHash of none of $r and
+// $failed (the rows refused on this start: a row of one of them, not merged, refused the
+// same) -> its index, -1 none. Not a row not cached: its check gives "downloading", the
+// chain stops before a cached one.
+/**
+ * @param list<MelRow> $rows
+ * @param MelRow $r
+ * @param list<int> $failed
+ * @return int
+ */
+function mel_pre_twin($rows, $r, $failed)
+{
+    $file = mel_st_file($r['raw']);
+    $size = mel_num(mel_st_size($r['raw']));
+    if ($file === '' || $size <= 0)
+        return -1;
+    $bad = array($r['hash']);
+    foreach ($failed as $n)
+        $bad[] = $rows[$n]['hash'];
+    foreach ($rows as $n => $x)
+    {
+        if ($x['cached'] === true && $x['hash'] !== '' && !in_array($x['hash'], $bad, true) &&
+            preg_match('~^https?://~i', $x['url']) && mel_st_file($x['raw']) === $file &&
+            mel_num(mel_st_size($x['raw'])) == $size)
+            return $n;
+    }
+    return -1;
+}
+
 // A placeholder of the stream check $pre (class placeholder) of row $r of list
-// $st, started at $pos ($lazy: under the player; $from: mel_play). A row of one copy: the error
-// as before 0.56.0 (mel_error, mel_next_failed). A file cached on several services
-// (0.56.0): the service that refused names the dialog, its reason under it; a copy
-// of a service not refused on this start yet (Mel::$alt: the refused ones) - the
-// button "Via <it>" (mel_pre_via), the start kept in Mel::$alt till then. OK, under
-// the player "Stop", closes it.
+// $st, started at $pos ($lazy: under the player; $from: mel_play). A file cached
+// on several services (0.56.0): the service that refused names the dialog, its
+// reason under it; a copy of a service not refused on this start yet - the button
+// "Via <it>" (mel_pre_via). A reason of mel_pre_twin_key and another release of the
+// file in the list (mel_pre_twin, not refused on this start) - the button "The same
+// episode from another release" (mel_pre_twin_go), after "Via". A button: the start
+// kept in Mel::$alt till then (tried: the services refused of the row, rows: the
+// rows refused, both on this start). A row of one copy without the button: the
+// error as before 0.56.0 (mel_error, mel_next_failed); with it, a dialog of the
+// same text. OK, under the player "Stop", closes it.
 /**
  * @param MelState $st
  * @param MelRow $r
@@ -396,59 +443,122 @@ function mel_pre_failed($st, $r, $pos, $lazy, $pre, $from)
     $ep = mel_se($st['s'], $st['e']);
     $key = $pre['key'];
     $detail = $pre['detail'];
-    if (!isset($r['copies'], $r['copy']))
-        return $lazy ? mel_next_failed($lang, $ep, $key, $detail) : mel_error($key, $detail);
     $i = -1;
     foreach ($st['rows'] as $n => $x)
     {
         if ($x['ord'] === $r['ord'])
             $i = $n;
     }
+    $copies = isset($r['copies'], $r['copy']);
     $svc = mel_row_svc($r);
     $a = Mel::$alt;
-    $tried = $a && $a['st']['rid'] === $st['rid'] && $a['i'] === $i ? $a['tried'] : array();
+    $same = $a && $a['st']['rid'] === $st['rid'];
+    $tried = $same && $a['i'] === $i ? $a['tried'] : array();
     if (!in_array($svc, $tried, true))
         $tried[] = $svc;
+    $failed = $same ? $a['rows'] : array();
+    if ($i >= 0 && !in_array($i, $failed, true))
+        $failed[] = $i;
     $other = null;
-    foreach ($r['copies'] as $c)
+    foreach ($copies ? $r['copies'] : array() as $c)
     {
         if (!$other && $c['svc'] !== '' && !in_array($c['svc'], $tried, true))
             $other = $c;
     }
-    Mel::$alt = $other && $i >= 0 ? array('st' => $st, 'i' => $i, 'pos' => $pos, 'lazy' => $lazy, 'from' => $from,
-        'tried' => $tried) : null;
-    mel_log("error: $key" . ($detail !== '' ? " ($detail)" : '') . sprintf(', copy %d of %d: %s, row %d -> dialog, ',
-        $r['copy'] + 1, count($r['copies']), $svc, $i) . (Mel::$alt ? "via {$other['svc']} offered" : 'no other copy left'));
-    $name = str_replace('{svc}', $r['service'] !== '' ? $r['service'] : $svc, mel_tr($lang, 'pre_svc_failed'));
+    // The buttons: a row of the list only (its index kept in Mel::$alt).
+    $via = $i >= 0 ? $other : null;
+    $twin = $i >= 0 && mel_pre_twin_key($key) ? mel_pre_twin($st['rows'], $r, $failed) : -1;
+    Mel::$alt = $via || $twin >= 0 ? array('st' => $st, 'i' => $i, 'pos' => $pos, 'lazy' => $lazy,
+        'from' => $from, 'tried' => $tried, 'rows' => $failed, 'twin' => $twin) : null;
+    if (!$copies && $twin < 0)
+        return $lazy ? mel_next_failed($lang, $ep, $key, $detail) : mel_error($key, $detail);
+    $offer = array();
+    if ($via)
+        $offer[] = "via {$via['svc']}";
+    if ($twin >= 0)
+        $offer[] = "row $twin of the same file";
+    mel_log("error: $key" . ($detail !== '' ? " ($detail)" : '') . ($copies ? sprintf(', copy %d of %d: %s',
+        $r['copy'] + 1, count($r['copies']), $svc) : '') . ", row $i -> dialog, " .
+        ($offer ? implode(', ', $offer) . ' offered' : 'no other copy left'));
     $lines = array_merge(mel_dialog_lines(mel_tr($lang, $key)), mel_dialog_lines($detail));
     $buttons = array();
-    if (Mel::$alt)
-        $buttons[str_replace('{svc}', $other['service'] !== '' ? $other['service'] : $other['svc'], mel_tr($lang, 'pre_via'))] =
-            mel_input('pre_via', array('rid' => $st['rid'], 'i' => strval($i), 'svc' => $other['svc']));
+    if ($via)
+        $buttons[str_replace('{svc}', $via['service'] !== '' ? $via['service'] : $via['svc'], mel_tr($lang, 'pre_via'))] =
+            mel_input('pre_via', array('rid' => $st['rid'], 'i' => strval($i), 'svc' => $via['svc']));
+    if ($twin >= 0)
+        $buttons[mel_tr($lang, $st['e'] > 0 ? 'pre_twin' : 'pre_twin_movie')] =
+            mel_input('pre_twin', array('rid' => $st['rid'], 'i' => strval($i), 'j' => strval($twin)));
+    $name = $copies ? str_replace('{svc}', $r['service'] !== '' ? $r['service'] : $svc, mel_tr($lang, 'pre_svc_failed')) : '';
     if ($lazy)
     {
         $buttons[mel_tr($lang, 'next_stop')] = mel_input('next_stop');
-        return mel_dialog(mel_tr($lang, 'next_failed', $ep), array_merge(array($name), $lines), $buttons);
+        return mel_dialog(mel_tr($lang, 'next_failed', $ep), array_merge($copies ? array($name) : array(), $lines), $buttons);
     }
     $buttons['OK'] = mel_close_and(null);
-    return mel_dialog($name, $lines, $buttons);
+    // One copy: the title of its error (mel_error), its detail under it.
+    return $copies ? mel_dialog($name, $lines, $buttons) : mel_dialog(mel_tr($lang, $key), mel_dialog_lines($detail), $buttons);
+}
+
+// Index $k of input $in of a dialog of mel_pre_failed ("0".."9999") -> it, -1 junk.
+/**
+ * @param stdClass $in
+ * @param string $k
+ * @return int
+ */
+function mel_alt_idx($in, $k)
+{
+    return isset($in->$k) && is_string($in->$k) && preg_match('/^[0-9]{1,4}$/D', $in->$k) ? intval($in->$k) : -1;
+}
+
+// Mel::$alt if input $in (rid, i: the row refused) is of its dialog, else null.
+/**
+ * @param stdClass $in
+ * @return MelAlt|null
+ */
+function mel_alt_of($in)
+{
+    $a = Mel::$alt;
+    return $a && isset($in->rid) && $in->rid === $a['st']['rid'] && mel_alt_idx($in, 'i') === $a['i'] ? $a : null;
+}
+
+// The start of row $sel of the list of Mel::$alt $a (a button of the dialog of
+// mel_pre_failed) as from that list: the pair of its profiles, its stream check;
+// played - the dialog state gone, noted as the caller of the first start would
+// (mel_playing: 'from' of $a).
+/**
+ * @param MelAlt $a
+ * @param int $sel
+ * @return MelAction
+ */
+function mel_alt_start($a, $sel)
+{
+    $st = $a['st'];
+    // The list of the start, not always the one on screen (mel_op_of_screen): the pair of its profiles (spec v2 §1.9).
+    mel_op_use($st['prof'], $st['lp_prof']);
+    $act = mel_play($st, $st['rows'][$sel], $a['pos'], null, $a['lazy'], null, $a['from']);
+    if ($act[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
+    {
+        Mel::$alt = null;
+        // The list on screen, if it is that one: its cursor now.
+        mel_playing($a['from'], Mel::$state && Mel::$state['rid'] === $st['rid'] ? Mel::$state : $st, $sel);
+    }
+    return mel_close_and($act);
 }
 
 // "Via <service>" of the dialog of mel_pre_failed (rid, i: the row, svc: the
 // service of its copy): the start again on that copy (Mel::$via: the next
-// episodes of the release too), noted as the caller of that start would
-// (mel_playing: 'from' of Mel::$alt). Not the start of Mel::$alt (another start
-// since, a php_server restart), a service refused already: "the list expired".
+// episodes of the release too), mel_alt_start. Not the dialog of Mel::$alt
+// (another start since, a php_server restart), a service refused already: "the
+// list expired".
 /**
  * @param stdClass $in
  * @return MelAction
  */
 function mel_pre_via($in)
 {
-    $a = Mel::$alt;
+    $a = mel_alt_of($in);
     $svc = isset($in->svc) && is_string($in->svc) ? $in->svc : '';
-    $i = isset($in->i) && is_string($in->i) && preg_match('/^[0-9]{1,4}$/D', $in->i) ? intval($in->i) : -1;
-    $row = $a && isset($in->rid) && $in->rid === $a['st']['rid'] && $i === $a['i'] ? $a['st']['rows'][$i] : null;
+    $row = $a ? $a['st']['rows'][$a['i']] : null;
     $ok = false;
     foreach ($row && isset($row['copies']) && !in_array($svc, $a['tried'], true) ? $row['copies'] : array() as $c)
         $ok = $ok || $c['svc'] === $svc;
@@ -458,18 +568,33 @@ function mel_pre_via($in)
         return mel_close_and(mel_error('err_list_expired'));
     }
     $st = $a['st'];
-    // The list of the start, not always the one on screen (mel_op_of_screen): the pair of its profiles (spec v2 §1.9).
-    mel_op_use($st['prof'], $st['lp_prof']);
     Mel::$via = array('k' => $st['movie']['dune_id'], 'hash' => $row['hash'], 'svc' => $svc);
-    mel_log(sprintf('via: %s, row %d: %s refused, %s chosen', mel_ep_tag($st), $i, implode(', ', $a['tried']), $svc));
-    $act = mel_play($st, $row, $a['pos'], null, $a['lazy'], null, $a['from']);
-    if ($act[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
+    mel_log(sprintf('via: %s, row %d: %s refused, %s chosen', mel_ep_tag($st), $a['i'], implode(', ', $a['tried']), $svc));
+    return mel_alt_start($a, $a['i']);
+}
+
+// "The same episode from another release" of the dialog of mel_pre_failed (rid, i: the
+// row refused, j: the row offered, mel_pre_twin): the start of row j as from the list
+// (the main Debrid, its stream check), mel_alt_start. Refused too: its dialog, the rows
+// refused on this start kept (Mel::$alt). Not the dialog of Mel::$alt: "the list expired".
+/**
+ * @param stdClass $in
+ * @return MelAction
+ */
+function mel_pre_twin_go($in)
+{
+    $a = mel_alt_of($in);
+    $j = mel_alt_idx($in, 'j');
+    if (!$a || $j < 0 || $j !== $a['twin'] || !isset($a['st']['rows'][$j]))
     {
-        Mel::$alt = null;
-        // The list on screen, if it is that one: its cursor now.
-        mel_playing($a['from'], Mel::$state && Mel::$state['rid'] === $st['rid'] ? Mel::$state : $st, $i);
+        mel_log('twin: not the dialog of the last start, nothing');
+        return mel_close_and(mel_error('err_list_expired'));
     }
-    return mel_close_and($act);
+    // "Via" chosen for the release refused dropped on purpose: row j is of another
+    // release, the main Debrid (mel_main_svc takes Via for a row of its hash only anyway).
+    Mel::$via = null;
+    mel_log(sprintf('twin: %s, row %d refused, row %d of the same file chosen', mel_ep_tag($a['st']), $a['i'], $j));
+    return mel_alt_start($a, $j);
 }
 
 // --- Time of the operation: handle_user_input and play_action have 60 s;
@@ -504,7 +629,10 @@ function mel_op_total($cap, $min, $what)
 // The add-ons of ElfHosted redirect to slate.elfhosted.com instead, the
 // reason in its title and body. Comet sends its placeholder as the body: 200,
 // a video/* type (not an HLS playlist) and a Content-Length under 1 MB, no
-// film is that small.
+// film is that small; the reason by the size of its video (mel_pre_comet).
+// The keys err_pre_* of a placeholder (mel_pre_class, mel_pre_comet,
+// mel_pre_file, mel_pre_slate): a new key - decide whether it needs the button
+// "The same episode from another release", in mel_pre_twin_key.
 
 define('MEL_PRE_CONNECT', 5);
 define('MEL_PRE_TOTAL', 30);
@@ -535,9 +663,7 @@ function mel_pre_class($url, $code, $loc, $type, $len)
         $t = strtolower(trim(preg_replace('/;.*$/s', '', $type)));
         // Not an HLS playlist: small, yet a stream. Comet: the reason is not in the headers.
         if (substr($t, 0, 6) === 'video/' && strpos($t, 'mpegurl') === false)
-            return array('class' => 'placeholder', 'key' => 'err_pre_placeholder',
-                'detail' => sprintf('HTTP %d, %d KB', $code, max(1, round($len / 1024))),
-                'note' => mel_cut(preg_replace('/[^\x21-\x7e]+/', '', $t), 60) . " $len bytes");
+            return mel_pre_comet($t, $len);
     }
     if ($code < 300 || $code > 399 || $loc === '')
         return array('class' => 'unclear', 'why' => "HTTP $code" . ($code >= 300 && $code <= 399 ? ', no Location' : ''));
@@ -573,6 +699,54 @@ function mel_pre_class($url, $code, $loc, $type, $len)
     if (preg_match('~(?:^|/)(?:static|videos)/(?:.*/)?([^/]+\.mp4)$~i', $path, $m))
         return mel_pre_file($m[1]);
     return array('class' => 'unclear', 'why' => "HTTP $code, same host, not a placeholder");
+}
+
+// Content-Length $len of a 200 body of video type $t (lower case, no
+// parameters) -> its placeholder: of the reason of the placeholder video of
+// Comet of this size, else the general one with the size. Sizes of
+// comet/assets/status_videos (g0ldyy/comet a3b75ec, 18.11.2026); Comet sends
+// the video of the first code of the error it has, else UNKNOWN. A size of
+// several videos is one file under several names: 414298 (MAGNET_MUST_BE_PREMIUM,
+// MUST_BE_PREMIUM, PAYMENT_REQUIRED: all "premium needed") is the account. Not
+// here: 410511 and 416584 (names of other reasons, UNAVAILABLE_FOR_LEGAL_REASONS
+// among them) and DEBRID_SYNC_* (not a refusal). The general key: a reason the
+// viewer can do nothing about but another release.
+/**
+ * @param string $t
+ * @param int $len
+ * @return array{class: 'placeholder', key: string, detail: string, note: string}
+ */
+function mel_pre_comet($t, $len)
+{
+    static $keys = array(
+        'err_pre_no_file' => array(400976 => 'GONE', 405654 => 'LINK_OFFLINE'),
+        // PROXY_LIMIT_REACHED: the limit of streams of the proxy of Comet itself
+        // per IP (comet/services/streaming/manager.py), not of the Debrid account; rare.
+        'err_pre_limit' => array(408922 => 'MONTHLY_LIMIT', 415250 => 'STORE_LIMIT_EXCEEDED',
+            416002 => 'FREE_TRIAL_LIMIT_REACHED', 416056 => 'COOLDOWN_LIMIT', 417188 => 'ACTIVE_LIMIT',
+            419051 => 'TOO_MANY_REQUESTS', 434596 => 'PROXY_LIMIT_REACHED'),
+        'err_pre_downloading' => array(433923 => 'MEDIA_NOT_CACHED_YET'),
+        'err_pre_down' => array(415159 => 'SERVICE_UNAVAILABLE', 413419 => 'STORE_SERVER_DOWN',
+            422926 => 'BAD_GATEWAY', 416182 => 'INTERNAL_SERVER_ERROR'),
+        'err_pre_account' => array(406404 => 'AUTH_BAD_APIKEY', 406636 => 'AUTH_BLOCKED',
+            407336 => 'AUTH_USER_BANNED', 406089 => 'ACCOUNT_INVALID', 409851 => 'AUTH_MISSING_APIKEY',
+            410052 => 'AUTH_ERROR', 409719 => 'EXPIRED_TOKEN', 411630 => 'BAD_TOKEN', 411119 => 'UNAUTHORIZED',
+            412188 => 'INVALID_ACCOUNT_OR_PASSWORD', 416228 => 'NO_AUTH', 407389 => 'INVALID_CLIENT',
+            408125 => 'UNAUTHORIZED_CLIENT', 403784 => 'PLAN_RESTRICTED_FEATURE', 414298 => 'MUST_BE_PREMIUM'),
+        // NOT_FOUND: TorBox through StremThru gave it for a file the release has,
+        // the link not given for a while; not "no file".
+        'err_pre_placeholder' => array(421667 => 'UNKNOWN', 413778 => 'NOT_FOUND', 417231 => 'BAD_REQUEST',
+            420256 => 'CONFLICT', 415943 => 'METHOD_NOT_ALLOWED', 402648 => 'NOT_IMPLEMENTED',
+            416790 => 'UNSUPPORTED_MEDIA_TYPE', 416961 => 'UNPROCESSABLE_ENTITY', 409183 => 'STORE_NAME_INVALID',
+            419446 => 'STORE_MAGNET_INVALID', 414378 => 'FORBIDDEN', 414436 => 'LOCKED'));
+    $note = mel_cut(preg_replace('/[^\x21-\x7e]+/', '', $t), 60) . " $len bytes";
+    foreach ($keys as $key => $sizes)
+    {
+        if (isset($sizes[$len]))
+            return array('class' => 'placeholder', 'key' => $key, 'detail' => '', 'note' => "$note, Comet {$sizes[$len]}");
+    }
+    return array('class' => 'placeholder', 'key' => 'err_pre_placeholder',
+        'detail' => sprintf('HTTP 200, %d KB', max(1, round($len / 1024))), 'note' => $note);
 }
 
 // Name $file of a placeholder video of the add-on -> its placeholder.
