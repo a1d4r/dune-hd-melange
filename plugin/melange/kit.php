@@ -1059,11 +1059,12 @@ class MelKit
     // block lays them out by the rhythm.
 
     // The block of facts of the info panel and the own card (r5 facts), from the top down by stack: the plates of
-    // the ratings (MEL_K_RATING_H) -s- the line of facts (MEL_K_PX_SECONDARY, text 2) -s- the line of the cast
+    // the ratings (MEL_K_RATING_H) -s- the line of facts (MEL_K_PX_SECONDARY, text 2) -s- the line of the people
     // (its label text 3 -MEL_K_CAST_GAP- the names text 2) -m- the description (MEL_K_PX_DESCRIPTION, text 1).
-    // No ratings and no age: no line of plates; no line of facts, of the cast or no description: no such block,
-    // the gaps of the others stay. $d:
-    //   ratings   list of array(kind, name, value) as mel_catv_facts: kind kp (MEL_K_RATING_KP_W wide), imdb
+    // No ratings and no age: no line of plates; no line of facts, of the people or no description: no such block,
+    // the gaps of the others stay. The strings of the lists are taken after mel_clean, the empty ones dropped. $d:
+    //   ratings   list of array(kind, name, value), the rates of mel_catv_fact_parts (not the output of
+    //             mel_catv_facts: its entries text and age are skipped here): kind kp (MEL_K_RATING_KP_W wide), imdb
     //             (MEL_K_RATING_IMDB_W), another (by its text); the name text 2 MEL_K_RATING_PAD from the left,
     //             the value text 1 as far from the right, a plate wider when they do not fit so;
     //   age       the age mark ('' none), centred on a plate MEL_K_RATING_AGE_W, MEL_K_RATING_AGE_GAP after
@@ -1071,16 +1072,17 @@ class MelKit
     //   facts     the parts of the line (year, length, …: list of strings), " · " between them, then the
     //   genres, countries  (lists, ", " between). Wider than $w: the countries but the first go, then all of
     //             them, then the genres but the first (mel_catv_genre_line), then the end is cut with "…";
-    //   cast_label, cast  the label («В ролях», «Режиссёр») and the names: those after the first that do not fit
+    //   people_label, people  the label (the directors of a film «Режиссёр», the cast of a series «В ролях»; ''
+    //             or none: the names alone, from the left) and the names: those after the first that do not fit
     //             $w go whole, the first is cut; no names: no line;
     //   desc      the description.
-    // $w: the width of the lines of facts and cast. $o: x, the left (default 0); y, the top of the block (default
-    // 0); desc_w, the width of the description (default $w); desc_lines, its most lines with the line of the cast
-    // (default 3), one more without it (the block is s + a line shorter: owner, the info panel), the last cut
-    // with "…"; desc_step, its step (default MEL_K_STEP_INFO_DESC, the card MEL_K_STEP_CARD_DESC). The edges:
-    // the top of the plates (else of the capitals of the first line), the baseline of the last line.
+    // $w: the width of the lines of facts and people. $o: x, the left (default 0); y, the top of the block (default
+    // 0); desc_w, the width of the description (default $w); desc_lines, its most lines (default 3; the info
+    // panel passes 4 without people: owner), the last cut with "…"; desc_step, its step (default
+    // MEL_K_STEP_INFO_DESC, the card MEL_K_STEP_CARD_DESC). The edges: the top of the plates (else of the
+    // capitals of the first line), the baseline of the last line.
     /**
-     * @param array{ratings?: list<array{string, string, string}>, age?: string, facts?: list<string>, genres?: list<string>, countries?: list<string>, cast_label?: string, cast?: list<string>, desc?: string} $d
+     * @param array{ratings?: list<array{string, string, string}>, age?: string, facts?: list<string>, genres?: list<string>, countries?: list<string>, people_label?: string, people?: list<string>, desc?: string} $d
      * @param int $w
      * @param array<string, mixed> $o
      * @return MelKitItem
@@ -1095,26 +1097,42 @@ class MelKit
             $x);
         if ($plates !== null)
             $blocks[] = $plates;
-        $line = self::facts_line(isset($d['facts']) ? $d['facts'] : array(), isset($d['genres']) ? $d['genres'] : array(),
-            isset($d['countries']) ? $d['countries'] : array(), $w);
+        $line = self::facts_line(self::strings($d, 'facts'), self::strings($d, 'genres'), self::strings($d, 'countries'),
+            $w);
         if ($line !== '')
             $blocks[] = self::text($line, $px, MEL_K_C_TEXT2, $x, 0, array('w' => $w));
-        $names = isset($d['cast']) ? array_values(array_filter(array_map('strval', $d['cast']), 'strlen')) : array();
+        $names = self::strings($d, 'people');
         if ($names)
         {
-            $label = self::text(isset($d['cast_label']) ? $d['cast_label'] : '', $px, MEL_K_C_TEXT3, $x);
-            $room = $w - ($label['x1'] - $label['x0']) - MEL_K_CAST_GAP;
-            while (count($names) > 1 && self::w(implode(', ', $names), $px) > $room)
-                array_pop($names);
-            $blocks[] = self::row(array($label, self::text(implode(', ', $names), $px, MEL_K_C_TEXT2, 0, 0,
-                array('w' => max(0, $room)))), MEL_K_CAST_GAP, $x, null, 'cast');
+            $parts = array();
+            $room = $w;
+            $label = isset($d['people_label']) ? mel_clean(self::utf8((string) $d['people_label'])) : '';
+            if ($label !== '')
+            {
+                $parts[] = self::text($label, $px, MEL_K_C_TEXT3, $x);
+                $room -= $parts[0]['x1'] - $parts[0]['x0'] + MEL_K_CAST_GAP;
+            }
+            // The names that fit whole, one at least (the widths add up: no kerning).
+            $sep = self::w(', ', $px);
+            $sum = -$sep;
+            $keep = 0;
+            foreach ($names as $k => $nm)
+            {
+                $sum += $sep + self::w($nm, $px);
+                if ($k && $sum > $room)
+                    break;
+                $keep = $k + 1;
+            }
+            $parts[] = self::text(implode(', ', array_slice($names, 0, $keep)), $px, MEL_K_C_TEXT2, 0, 0,
+                array('w' => max(0, $room)));
+            $blocks[] = self::row($parts, MEL_K_CAST_GAP, $x, null, 'people');
         }
         foreach ($blocks as $i => $b)
         {
             if ($i)
                 $gaps[] = 's';
         }
-        $n = (isset($o['desc_lines']) ? (int) $o['desc_lines'] : 3) + ($names ? 0 : 1);
+        $n = isset($o['desc_lines']) ? (int) $o['desc_lines'] : 3;
         $desc = isset($d['desc']) ? trim((string) $d['desc']) : '';
         if ($desc !== '' && $n > 0)
         {
@@ -1127,6 +1145,24 @@ class MelKit
         $y = isset($o['y']) ? (int) $o['y'] : 0;
         $out = $blocks ? self::stack($blocks, $gaps, $y, 'facts') : self::box(array(), $x, $y, 0, 0);
         $out['kind'] = 'facts';
+        return $out;
+    }
+
+    // The strings of the list $d[$key] after mel_clean, the empty ones dropped (see facts).
+    /**
+     * @param array<string, mixed> $d
+     * @param string $key
+     * @return list<string>
+     */
+    private static function strings($d, $key)
+    {
+        $out = array();
+        foreach (isset($d[$key]) ? (array) $d[$key] : array() as $v)
+        {
+            $v = mel_clean(self::utf8((string) $v));
+            if ($v !== '')
+                $out[] = $v;
+        }
         return $out;
     }
 
@@ -1144,6 +1180,9 @@ class MelKit
         $gaps = array();
         foreach ($ratings as $r)
         {
+            // The entries text and age of mel_catv_facts are not ratings: «Сериал · 2008» is no plate.
+            if ($r[0] === 'text' || $r[0] === 'age')
+                continue;
             $items[] = self::rating($r[1], $r[2], isset($min[$r[0]]) ? $min[$r[0]] : 0);
             $gaps[] = MEL_K_RATING_GAP;
         }
@@ -1215,32 +1254,36 @@ class MelKit
 
     // The list of sources of the settings on the TV (r5 sources_list), by stack: the caption $o['title']
     // (MEL_K_PX_CAPTION, text 3; '' or none: no caption) -s- the lines of $items one under another, MEL_K_STEP_SETUP
-    // apart (a chip MEL_K_CHIP_H and the gap s), the last one $more («и ещё 2»; '' none) with the icon
-    // k_icon_ellipsis. Which sources, in which order (the main one first, up to three) and the words: the
-    // screen's; the list draws them. A line of $items: icon, the kind (k_icon_*, MEL_K_ICON_SETUP_SOURCE, text 2,
-    // its box) -MEL_K_ICON_GAP_SETUP_SOURCE- name (MEL_K_PX_SECONDARY, text 1) and detail (« · » before it, text 2;
-    // optional: «Debrid · Real-Debrid», as the lines of the page) -MEL_K_CHIP_BEFORE- the chips, array(text, kind) of chip, MEL_K_CHIP_GAP apart (optional); all
-    // on the centre of the capitals of the name. $o: x, the left of the caption and of the icons (default 0); y,
-    // the top of the block (default 0); w, the width of a line (0, the default: not cut), the detail cut with
-    // "…" first, then the name with no detail. The edges: the top of the capitals of the caption (else the
-    // visible top of the first line: of the main one its chip, as r5), the visible bottom of the last line.
+    // apart (a chip MEL_K_CHIP_H and the gap s), the last one $o['more'] («и ещё 2»; '' or none: none) with the
+    // icon k_icon_ellipsis. Which sources, in which order (the main one first, up to three) and the words: the
+    // screen's; the list draws them. A line of $items (its keys do not matter, the lines go in its order): icon,
+    // the kind (k_icon_*, MEL_K_ICON_SETUP_SOURCE, text 2, its box) -MEL_K_ICON_GAP_SETUP_SOURCE- name
+    // (MEL_K_PX_SECONDARY, text 1) and detail (« · » before it, text 2; optional: «Debrid · Real-Debrid», as the
+    // lines of the page) -MEL_K_CHIP_BEFORE- the chips, array(text, kind) of chip, MEL_K_CHIP_GAP apart
+    // (optional); all on the centre of the capitals of the name. $w: the width of a line (0: not cut), the detail
+    // cut with "…" first, then the name with no detail. $o: x, the left of the caption and of the icons (default
+    // 0); y, the top of the block (default 0); title, more. The edges: the top of the capitals of the caption
+    // (else the visible top of the first line: of the main one its chip, as r5), the visible bottom of the last
+    // line.
     /**
-     * @param list<array{icon: string, name: string, detail?: string, chips?: list<array{string, string}>}> $items
-     * @param string $more
+     * @param array<int, array{icon: string, name: string, detail?: string, chips?: list<array{string, string}>}> $items
+     * @param int $w
      * @param array<string, mixed> $o
      * @return MelKitItem
      */
-    public static function sources($items, $more, $o = array())
+    public static function sources($items, $w, $o = array())
     {
         $x = isset($o['x']) ? (int) $o['x'] : 0;
-        $w = isset($o['w']) ? (int) $o['w'] : 0;
+        $w = (int) $w;
+        $more = isset($o['more']) ? (string) $o['more'] : '';
         $px = MEL_K_PX_SECONDARY;
         $ic = MEL_K_ICON_SETUP_SOURCE + MEL_K_ICON_GAP_SETUP_SOURCE;
         $blocks = array();
         if (isset($o['title']) && $o['title'] !== '')
             $blocks[] = self::text((string) $o['title'], MEL_K_PX_CAPTION, MEL_K_C_TEXT3, $x);
         $lines = array();
-        foreach ($items as $i => $s)
+        // The step goes by the place in the list, not by the key (holes after array_filter).
+        foreach (array_values($items) as $i => $s)
         {
             $chips = array();
             $cw = 0;
@@ -1290,8 +1333,8 @@ class MelKit
     // A line of the panel MEL_K_STEP_PANEL high and MEL_K_PANEL_W wide as the group $id (a panel whose id goes by the
     // key of its content, not its place: «Переместить» moves it by its geometry), its top at $y. One geometry in every
     // state, so a screen changes the state by its children. $r:
-    //   state     '' text 1; focus white on the plate panel_row_on (MEL_K_ROW_ON_H in the line, MEL_K_PANEL_INSET from
-    //             both sides); move, a line taken by «Переместить»: focus and ⇅ on the right (k_icon_arrow-up-down
+    //   state     '' text 1; focus white on the plate panel_row_on (the whole line high, as r5; MEL_K_PANEL_INSET
+    //             from both sides); move, a line taken by «Переместить»: focus and ⇅ on the right (k_icon_arrow-up-down
     //             MEL_K_ICON_PANEL_MOVE);
     //   label     MEL_K_PX_ROW, MEL_K_PANEL_INSET + MEL_K_PANEL_INNER from the left, after the icon or the square:
     //   icon      k_icon_* ('' or none: no icon), or check (true or false: k_icon_square-check, k_icon_square; an
@@ -1320,8 +1363,7 @@ class MelKit
         $cx1 = MEL_K_PANEL_W - $cx0;
         $parts = array(self::box(array(), 0, $y, MEL_K_PANEL_W, $h));
         if ($on)
-            $parts[] = self::plate('panel_row_on', MEL_K_PANEL_INSET, $y + intval(($h - MEL_K_ROW_ON_H) / 2),
-                MEL_K_PANEL_W - 2 * MEL_K_PANEL_INSET, MEL_K_ROW_ON_H);
+            $parts[] = self::plate('panel_row_on', MEL_K_PANEL_INSET, $y, MEL_K_PANEL_W - 2 * MEL_K_PANEL_INSET, $h);
         // The right part, set from the right edge of the content.
         $right = array();
         $rgap = array();

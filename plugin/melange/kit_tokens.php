@@ -119,7 +119,7 @@ define('MEL_K_KEY_DOT_GAP', 12);
 define('MEL_K_PANEL_W', 576);
 define('MEL_K_PANEL_INSET', 16);
 define('MEL_K_PANEL_INNER', 24);
-define('MEL_K_PANEL_TITLE_Y', 56);
+define('MEL_K_PANEL_TITLE_Y', 55);
 define('MEL_K_PANEL_TITLE_H', 64);
 define('MEL_K_PANEL_VIS', 10);
 define('MEL_K_PANEL_SCROLL_W', 4);
