@@ -6,8 +6,10 @@
 // builder returns an item, its components and its visible edges; row and
 // stack lay items out by those edges (the top of the capitals, the baseline,
 // the strokes of an icon, the edge of a box), not by their boxes.
-// Required by main.php after gcomps.php; calls mel_log (main.php) and
-// mel_clean (parse.php). PHP 5.3.6, firmware API only.
+// Required by main.php after gcomps.php; calls mel_log (main.php), mel_clean
+// and mel_utf8 (parse.php), mel_gc_word_end (gcomps.php, bytes only: the
+// width is the kit's own, never mel_gc_w and its kin). PHP 5.3.6, firmware
+// API only.
 // Types in the PHPDoc (MelKitItem): phpstan-types.neon of the repository.
 //
 // An item (MelKitItem), coordinates of the parent:
@@ -24,18 +26,21 @@
 //   cy        the point it was asked to be centred at (a text: its box top +
 //             h / 2, the centre of the capitals +-0.8 px [device]);
 //   caps      it is or starts with a text (a row aligns to the first such);
-//   ids       the ids of its components (only in a test, see $trace).
+//   ids       the ids of its components: those given as $o['id'] (at work
+//             too); in a test also the mk<n> the others get for the trace.
 // A text also has w, px, face, lines, base (of its first line), step.
 
 require_once dirname(__FILE__) . '/gcomps.php';
 
 class MelKit
 {
-    // The trace of a test: null at work. A test sets array(): the builders
-    // give their components ids (mk<n>) and row and stack add
-    // array('kind', 'name', 'token', 'ids'): token, the gap (px, or a list
-    // of one per pair); ids, a list of the ids of each element.
-    /** @var list<array{kind: string, name: string, token: int|list<int>, ids: list<list<string>>}>|null */
+    // The trace of a test: null at work. A test sets array() (reset): the
+    // builders give their components without an id one (mk<n>) and row and
+    // stack add array('kind', 'name', 'token', 'els'): token, the gap as
+    // given (a name of the rhythm xs, s, m, l or px; or a list of one per
+    // pair); els, of each element its ids and its edges after the layout
+    // (x0, x1, top, bottom, mid), what check_align holds to the token.
+    /** @var list<array{kind: string, name: string, token: int|string|list<int|string>, els: list<array{ids: list<string>, x0: int, x1: int, top: int, bottom: int, mid: int|float}>}>|null */
     public static $trace = null;
     /** @var array{wide: string, faces: array<string, array{upem: int, avg: int, w: array<string, int>}>}|null */
     private static $font = null;
@@ -43,6 +48,17 @@ class MelKit
     private static $n = 0;
     /** @var array<string, bool> */
     private static $missed = array();
+
+    // A test trace afresh (a test, a sheet of the showcase): $trace array(),
+    // the ids from mk1 again, whatever ran before.
+    /**
+     * @return void
+     */
+    public static function reset()
+    {
+        self::$n = 0;
+        self::$trace = array();
+    }
 
     // --- The tables of kit_tokens.php.
 
@@ -107,15 +123,26 @@ class MelKit
         return isset($f[$face]) ? $f[$face] : $f['regular'];
     }
 
-    // The characters of $s (bytes if it is not valid UTF-8).
+    // $s as valid UTF-8: invalid bytes dropped (mel_utf8). PHP 5.3.6 splits
+    // an invalid string by //u into one piece, the whole of it.
+    /**
+     * @param string $s
+     * @return string
+     */
+    private static function utf8($s)
+    {
+        return preg_match('//u', $s) ? $s : mel_utf8($s);
+    }
+
+    // The characters of $s, valid UTF-8 (see utf8).
     /**
      * @param string $s
      * @return list<string>
      */
     private static function chars($s)
     {
-        $c = preg_split('//u', $s, -1, PREG_SPLIT_NO_EMPTY);
-        return $c === false ? str_split($s) : $c;
+        $c = preg_split('//u', self::utf8($s), -1, PREG_SPLIT_NO_EMPTY);
+        return $c === false ? array() : $c;
     }
 
     // The advance of each character of $s at $px, px.
@@ -152,8 +179,8 @@ class MelKit
         return array_sum(self::advances(self::chars($s), $px, $face));
     }
 
-    // $s if it fits $w, else its longest start that fits with "…" (spaces and
-    // , . ; : · before it dropped).
+    // $s (valid UTF-8, see utf8) if it fits $w, else its longest start that
+    // fits with "…" (spaces and , . ; : · before it dropped).
     /**
      * @param string $s
      * @param int $px
@@ -163,6 +190,7 @@ class MelKit
      */
     public static function cut($s, $px, $face, $w)
     {
+        $s = self::utf8($s);
         $c = self::chars($s);
         $a = self::advances($c, $px, $face);
         if (array_sum($a) <= $w)
@@ -175,8 +203,12 @@ class MelKit
         return preg_replace('/[\s.,;:\x{00B7}]+$/u', '', implode('', array_slice($c, 0, $n))) . $ell;
     }
 
-    // $s in lines of $w at most, broken after spaces (a word wider than a line
-    // by characters); more than $n lines: the last ends with "…".
+    // $s (valid UTF-8, its runs of spaces one) in lines of $w at most, broken
+    // after spaces and after the separators of mel_gc_word_end (_ - / , ) ] .,
+    // a dot not before a digit: "5.1" stays whole), so the name of a torrent
+    // "Show.S01.2160p.WEB-DL" wraps at its dots and dashes; a word wider than
+    // a line by characters. A line has no spaces at its ends. More than $n
+    // lines: the last ends with "…".
     /**
      * @param string $s
      * @param int $px
@@ -187,49 +219,67 @@ class MelKit
      */
     public static function wrap($s, $px, $face, $w, $n)
     {
-        // Lines and what joins each to the next: ' ' between words, '' inside one.
+        // Lines and what joins each to the next: ' ' after a space, '' after
+        // a separator or inside a word.
         $lines = array();
         $join = array();
         if ($n < 1)
             return $lines;
-        $sp = self::w(' ', $px, $face);
+        $s = trim(preg_replace('/\s+/u', ' ', self::utf8($s)));
+        $len = strlen($s);
+        // The line so far as is; cw its width without its trailing spaces, ct
+        // the width of them.
         $cur = '';
         $cw = 0;
-        foreach (preg_split('/\s+/u', trim($s), -1, PREG_SPLIT_NO_EMPTY) as $word)
+        $ct = 0;
+        for ($p = 0, $e = 0; $p < $len; $p = $e)
         {
             // Past $n + 1 lines the rest is not read: the last is cut anyway.
             if (count($lines) > $n)
                 break;
-            $ww = self::w($word, $px, $face);
-            if ($cur !== '' && $cw + $sp + $ww <= $w)
+            $e = mel_gc_word_end($s, $p, ' _-/,)].', $len);
+            $word = (string) substr($s, $p, $e - $p);
+            if ($cur === '')
+                $word = ltrim($word, ' ');
+            $vis = rtrim($word, ' ');
+            $vw = self::w($vis, $px, $face);
+            $tw = self::w((string) substr($word, strlen($vis)), $px, $face);
+            if ($cur !== '' && ($vis === '' || $cw + $ct + $vw <= $w))
             {
-                $cur .= ' ' . $word;
-                $cw += $sp + $ww;
+                $cur .= $word;
+                if ($vis !== '')
+                {
+                    $cw += $ct + $vw;
+                    $ct = 0;
+                }
+                $ct += $tw;
                 continue;
             }
             if ($cur !== '')
             {
-                $lines[] = $cur;
-                $join[] = ' ';
+                $lines[] = rtrim($cur, ' ');
+                $join[] = $ct > 0 ? ' ' : '';
+                $cur = '';
             }
-            while ($ww > $w && count($lines) <= $n)
+            while ($vw > $w && count($lines) <= $n)
             {
-                $c = self::chars($word);
+                $c = self::chars($vis);
                 $a = self::advances($c, $px, $face);
                 for ($k = 0, $sum = 0; $k < count($c) && $sum + $a[$k] <= $w; $k++)
                     $sum += $a[$k];
                 $k = max(1, $k);
                 $lines[] = implode('', array_slice($c, 0, $k));
                 $join[] = '';
-                $word = implode('', array_slice($c, $k));
-                $ww = self::w($word, $px, $face);
+                $vis = implode('', array_slice($c, $k));
+                $vw = self::w($vis, $px, $face);
             }
-            $cur = $word;
-            $cw = $ww;
+            $cur = $vis !== '' ? $vis . substr($word, strlen(rtrim($word, ' '))) : '';
+            $cw = $vw;
+            $ct = $vis !== '' ? $tw : 0;
         }
         if ($cur !== '')
         {
-            $lines[] = $cur;
+            $lines[] = rtrim($cur, ' ');
             $join[] = ' ';
         }
         if (count($lines) <= $n)
@@ -257,11 +307,12 @@ class MelKit
         return self::$trace === null ? null : 'mk' . ++self::$n . $sfx;
     }
 
-    // A text with the centre of its capitals at $y, starting at $x. $o: face
-    // (MEL_K_FACE_*, default regular); w, the width it may take (cut with "…";
-    // with lines, wrapped); lines, the most lines (default 1: a label each,
-    // the step $px + ls); ls, line_spacing (default 0); id (of a line: id_<n>
-    // when lines > 1).
+    // A text (valid UTF-8, see utf8) with the centre of its capitals at $y,
+    // starting at $x. $o: face (MEL_K_FACE_*, default regular); w, the width
+    // it may take (cut with "…"; with lines, wrapped); lines, the most lines
+    // (default 1: a label each, the step $px + ls; without w logged, one
+    // line); ls, line_spacing (default 0); id (of a line: id_<n> when
+    // lines > 1).
     /**
      * @param string $s
      * @param int $px
@@ -276,7 +327,9 @@ class MelKit
         $face = isset($o['face']) ? (string) $o['face'] : MEL_K_FACE_REGULAR;
         $n = isset($o['lines']) ? max(1, (int) $o['lines']) : 1;
         $ls = isset($o['ls']) ? (int) $o['ls'] : 0;
-        $s = mel_clean($s);
+        $s = mel_clean(self::utf8($s));
+        if (isset($o['lines']) && !isset($o['w']))
+            mel_log("kit: text '" . mb_substr($s, 0, 40, 'UTF-8') . "': lines without w, one line");
         if (!isset($o['w']))
             $lines = array($s);
         elseif ($n > 1)
@@ -316,7 +369,8 @@ class MelKit
     // A picture of the table (an icon k_icon_*, a key k_key_*) $size px wide,
     // the centre of its strokes (mid) at ($cx, $cy), in $color (mix_color).
     // Its edges: the box of its strokes (ink). An unknown name: no component.
-    // $o: id.
+    // $o: id; box, its left and right those of its box, not of its strokes
+    // (a button: the gap and the pad from the box of the icon, as in r5).
     /**
      * @param string $name
      * @param int $size
@@ -351,8 +405,10 @@ class MelKit
             $img[GComponentDef::id] = $id;
             $ids[] = $id;
         }
+        $box = !empty($o['box']);
         return array('kind' => 'icon', 'defs' => array($img),
-            'x0' => $ix + (int) round($ink[0] * $k), 'x1' => $ix + (int) round($ink[2] * $k),
+            'x0' => $box ? $ix : $ix + (int) round($ink[0] * $k),
+            'x1' => $box ? $ix + $size : $ix + (int) round($ink[2] * $k),
             'top' => $iy + (int) round($ink[1] * $k), 'bottom' => $iy + (int) round($ink[3] * $k),
             'mid' => $iy + $mid[1] * $k, 'cy' => $iy + $mid[1] * $k, 'caps' => false, 'ids' => $ids);
     }
@@ -410,7 +466,11 @@ class MelKit
                 else
                     unset($a[$k]);
             }
-            $g[GCompGeometryDef::align_def] = $a;
+            // At (0, 0) no align_def at all, as mel_gc_geom.
+            if ($a)
+                $g[GCompGeometryDef::align_def] = $a;
+            else
+                unset($g[GCompGeometryDef::align_def]);
             $it['defs'][$i][GComponentDef::geom_def] = $g;
         }
         $it['x0'] += $dx;
@@ -425,40 +485,61 @@ class MelKit
 
     // --- Layout.
 
-    // The gap after element $i: $gap, or its $i-th.
+    // The gap after element $i of the $kind $name, px: $gap, or its $i-th; a
+    // name of the rhythm (xs, s, m, l) its MEL_K_GAP_*. No $i-th or an
+    // unknown name: 0, logged.
     /**
-     * @param int|list<int> $gap
+     * @param int|string|list<int|string> $gap
      * @param int $i
+     * @param string $kind
+     * @param string $name
      * @return int
      */
-    private static function gap($gap, $i)
+    private static function gap($gap, $i, $kind, $name)
     {
-        return is_array($gap) ? (int) $gap[$i] : (int) $gap;
+        if (is_array($gap))
+        {
+            if (!isset($gap[$i]))
+            {
+                mel_log("kit: $kind '$name': no gap after element $i, " . count($gap) . ' given; 0');
+                return 0;
+            }
+            $gap = $gap[$i];
+        }
+        if (!is_string($gap))
+            return (int) $gap;
+        $t = array('xs' => MEL_K_GAP_XS, 's' => MEL_K_GAP_S, 'm' => MEL_K_GAP_M, 'l' => MEL_K_GAP_L);
+        if (isset($t[$gap]))
+            return $t[$gap];
+        self::miss('gap', $gap);
+        return 0;
     }
 
     /**
      * @param string $kind
      * @param list<MelKitItem> $items
-     * @param int|list<int> $gap
+     * @param int|string|list<int|string> $gap
      * @param string $name
      * @return void
      */
     private static function trace($kind, $items, $gap, $name)
     {
-        $ids = array();
+        $els = array();
         foreach ($items as $it)
-            $ids[] = $it['ids'];
-        self::$trace[] = array('kind' => $kind, 'name' => $name, 'token' => $gap, 'ids' => $ids);
+            $els[] = array('ids' => $it['ids'], 'x0' => $it['x0'], 'x1' => $it['x1'], 'top' => $it['top'],
+                'bottom' => $it['bottom'], 'mid' => $it['mid']);
+        self::$trace[] = array('kind' => $kind, 'name' => $name, 'token' => $gap, 'els' => $els);
     }
 
-    // The items one after another, $gap (a token, or a list of one per pair)
+    // The items one after another, $gap (a token: px or a name of the rhythm
+    // xs, s, m, l; or a list of one per pair)
     // between the visible right of one and the left of the next, their mid on
     // the centre of the capitals of the first text (else of the first item),
     // to a pixel. $x: the left of the first (default: where it is); $y: the
     // centre the first text is set at (default: where it is).
     /**
      * @param list<MelKitItem> $items
-     * @param int|list<int> $gap
+     * @param int|string|list<int|string> $gap
      * @param int|null $x
      * @param int|float|null $y
      * @param string $name
@@ -482,7 +563,7 @@ class MelKit
         foreach ($items as $i => $it)
         {
             $items[$i] = self::move($it, $at - $it['x0'], $i === $ref ? 0 : (int) round($line - $it['mid']));
-            $at = $items[$i]['x1'] + ($i + 1 < count($items) ? self::gap($gap, $i) : 0);
+            $at = $items[$i]['x1'] + ($i + 1 < count($items) ? self::gap($gap, $i, 'row', $name) : 0);
         }
         $out = self::join('row', $items);
         $out['mid'] = $line;
@@ -496,13 +577,14 @@ class MelKit
         return $out;
     }
 
-    // The blocks from the top down, $gap (a token, or a list of one per pair)
-    // between the visible bottom of one and the top of the next (a baseline
-    // to the top of the capitals, the strokes of an icon, the edge of a box).
+    // The blocks from the top down, $gap (a token, by its name of the rhythm
+    // xs, s, m, l for check_align, or px; or a list of one per pair) between
+    // the visible bottom of one and the top of the next (a baseline to the
+    // top of the capitals, the strokes of an icon, the edge of a box).
     // $y: the top of the first (default: where it is). Their x stay.
     /**
      * @param list<MelKitItem> $blocks
-     * @param int|list<int> $gap
+     * @param int|string|list<int|string> $gap
      * @param int|null $y
      * @param string $name
      * @return MelKitItem
@@ -514,7 +596,7 @@ class MelKit
         {
             if ($at !== null)
                 $blocks[$i] = self::move($b, 0, $at - $b['top']);
-            $at = $blocks[$i]['bottom'] + ($i + 1 < count($blocks) ? self::gap($gap, $i) : 0);
+            $at = $blocks[$i]['bottom'] + ($i + 1 < count($blocks) ? self::gap($gap, $i, 'stack', $name) : 0);
         }
         $out = self::join('stack', $blocks);
         if ($blocks)
@@ -618,7 +700,8 @@ class MelKit
 
     // A pill button MEL_K_BTN_H high: the icon $icon (k_icon_*,
     // MEL_K_ICON_BUTTON; '' none) -MEL_K_ICON_GAP_BUTTON- the label
-    // (MEL_K_PX_ROW) between the pads MEL_K_BTN_PAD; the left of the plate at
+    // (MEL_K_PX_ROW) between the pads MEL_K_BTN_PAD, the pad and the gap
+    // from the box of the icon, not its strokes (r5); the left of the plate at
     // $x, its centre and the capitals at $y. In focus white on the accent
     // (btn_on), else on the surface (btn). The label is never cut: a button
     // wider than $o['w'] is logged and set whole. $o: w; off (disabled: text 3
@@ -639,8 +722,8 @@ class MelKit
         $fg = $off ? MEL_K_C_TEXT3 : ($on ? MEL_K_C_ON_ACCENT : MEL_K_C_TEXT1);
         $c = self::text($label, MEL_K_PX_ROW, $fg, $x + MEL_K_BTN_PAD, $y);
         if ($icon !== '')
-            $c = self::row(array(self::icon($icon, MEL_K_ICON_BUTTON, $fg), $c), MEL_K_ICON_GAP_BUTTON,
-                $x + MEL_K_BTN_PAD, $y, 'button');
+            $c = self::row(array(self::icon($icon, MEL_K_ICON_BUTTON, $fg, 0, 0, array('box' => true)), $c),
+                MEL_K_ICON_GAP_BUTTON, $x + MEL_K_BTN_PAD, $y, 'button');
         $w = $c['x1'] - $c['x0'] + 2 * MEL_K_BTN_PAD;
         if (isset($o['w']) && $w > $o['w'])
             mel_log("kit: button '$label' is $w px wide, more than {$o['w']}");
