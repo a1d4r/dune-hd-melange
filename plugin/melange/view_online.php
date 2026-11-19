@@ -26,6 +26,30 @@ define('MEL_LPV_LINE', '#40FFFFFF');
 // --- The old frame of the list of releases (before the UI kit, view_gcomps.php), drawn by the online list until its
 // stage: the badges of the quality (nb2_*), the bar of a row, the title row, the counter, the hints of the vendor keys.
 
+// The hint row and the sort tabs of the old frame: the keys at the vendor size, unscaled (scaled down they blur on
+// the device): P+/P- 114x50, POP UP 52x50, the episode arrows (the vendor's bare chevron) at half size; the gap 10 to
+// a label, 40 between hints (vendor HINTS_SMALL_HGAP). The tabs in the row y 125..175, the line under the current
+// tab 4 px, 3 px under the keys, its direction a triangle of img/ (sort_down.png, sort_up.png); a number of source
+// errors in amber. The bar of a row watched before: white done, grey the rest.
+// KEY_H, LABEL_H, HINT_PX: the name of the source over a list (sources.php) too.
+define('MEL_GC_KEY_H', 50);
+define('MEL_GC_LABEL_H', 40);
+define('MEL_GC_HINT_PX', 30);
+define('MEL_GC_HINT_Y', 990);  // the vendor hint row 990..1040
+define('MEL_GC_KEY_W', 52);    // a vendor key of one button: the colour keys
+define('MEL_GC_ARROW_W', 26);  // right_arrow.png 52x50 / 2
+define('MEL_GC_ARROW_H', 25);
+define('MEL_GC_KEY_GAP', 10);   // key -> its label
+define('MEL_GC_HINT_GAP', 40);  // between hints (vendor HINTS_SMALL_HGAP)
+define('MEL_GC_TABS_Y', 125);
+define('MEL_GC_TAB_LINE', 4);
+define('MEL_GC_TAB_LINE_Y', MEL_GC_KEY_H + 3);
+define('MEL_GC_SORT_ARROW_W', 18);
+define('MEL_GC_SORT_ARROW_H', 12);
+define('MEL_GC_SORT_ARROW_GAP', 10);    // label -> its triangle
+define('MEL_GC_AMBER', '#FFFFB340');   // the number of source errors over the online list
+define('MEL_GC_BAR_DONE', '#FFFFFFFF');
+define('MEL_GC_BAR_REST', '#FF404040');
 define('MEL_GC_BADGE_H', 46);  // badge pictures with their plate
 // Revision in the badge file names (BADGE_REV of their generator):
 // the shell caches pictures by URL even across a reinstall.

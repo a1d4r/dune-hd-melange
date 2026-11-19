@@ -31,24 +31,6 @@ define('MEL_GC_TITLE_MID', 73);
 define('MEL_GC_TABS_MID', 150);
 define('MEL_GC_HINT_MID', 1012);
 define('MEL_GC_COUNT_W', 300);   // the counter "5 / 60" at the right of the hint line
-// The old hint row and sort tabs, of the online list (view_online.php) until its stage: the keys at the vendor
-// size, labels 30 px in a box of 40 centred on the keys; the tabs in the row y 125..175, the line under the
-// current tab 4 px, 3 px under the keys, its direction a triangle of img/ (sort_down.png, sort_up.png).
-define('MEL_GC_HINT_Y', 990);  // the vendor hint row 990..1040
-define('MEL_GC_KEY_H', 50);
-define('MEL_GC_KEY_W', 52);    // a vendor key of one button: the colour keys
-define('MEL_GC_LABEL_H', 40);
-define('MEL_GC_ARROW_W', 26);  // right_arrow.png 52x50 / 2
-define('MEL_GC_ARROW_H', 25);
-define('MEL_GC_HINT_PX', 30);
-define('MEL_GC_KEY_GAP', 10);   // key -> its label
-define('MEL_GC_HINT_GAP', 40);  // between hints (vendor HINTS_SMALL_HGAP)
-define('MEL_GC_TABS_Y', 125);
-define('MEL_GC_TAB_LINE', 4);
-define('MEL_GC_TAB_LINE_Y', MEL_GC_KEY_H + 3);
-define('MEL_GC_SORT_ARROW_W', 18);
-define('MEL_GC_SORT_ARROW_H', 12);
-define('MEL_GC_SORT_ARROW_GAP', 10);    // label -> its triangle
 define('MEL_GC_PAD', 16);      // row padding left and right
 define('MEL_GC_GAP', 16);      // between columns
 // "rutracker +3" with a margin; less room: no tracker column (the card has them).
@@ -56,6 +38,7 @@ define('MEL_GC_TRACKER_MIN', 145);
 define('MEL_GC_FLAG', 36);         // a flag of the skin, square
 define('MEL_GC_FLAG_GAP', 6);
 define('MEL_GC_VX', 156);      // card values after the labels ("Субтитры")
+define('MEL_GC_SIDE_GAP', 26);  // the poster -> the column beside it (r5; between m 24 and l 32 of the rhythm)
 define('MEL_GC_NAME_MAX', 400);    // characters of the name in the card, at most
 // The steps of the lines of the card (of the code, not 37 of the mocks: with it "Трекеры" went, the owner
 // 18.11.2026): a value and the status 36, the name and the voices 32.
@@ -72,7 +55,6 @@ define('MEL_GC_TEXT', '#FFFFFFE0');
 define('MEL_GC_TEXT2', '#FFAFAFA0');
 define('MEL_GC_DIM', '#FF808080');
 define('MEL_GC_SEL', '#D02850C0');
-define('MEL_GC_AMBER', '#FFFFB340');   // the number of source errors over the online list
 // Seeders of a P2P row in place of its "?" icon (mel_gc_seed_color). Bins as
 // the ranked expressions of the P2P template (cgi/aio_template_p2p.json):
 // 0-2, 3-9, 10-29, 30+, a bin starts at LOW, MID, HIGH; the template also
@@ -85,8 +67,6 @@ define('MEL_GC_SEED_MAX', 999);    // more: "999+"
 define('MEL_GC_BAR_H', 4);
 define('MEL_GC_BAR_Y', 58);
 define('MEL_GC_BAR_MIN', 4);    // the white part at least, even for a second watched (the own card)
-define('MEL_GC_BAR_DONE', '#FFFFFFFF');
-define('MEL_GC_BAR_REST', '#FF404040');
 
 // Words of the list screen in language $lang of mel_gc_lang, by key.
 /**
@@ -329,8 +309,8 @@ function mel_gc_flags()
 }
 
 // The icon of the cache status of row $r (Lucide, k_icon_*) and its colour: in the cache a lightning (zap) in
-// green, to download an arrow (arrow-down-to-line) in grey, P2P a magnet, else a question mark (circle-help),
-// both dim. -> array(name, colour).
+// green, to download an arrow (arrow-down-to-line) in grey, else (P2P too) a question mark (circle-help), dim, as
+// the icons of the list before the kit. -> array(name, colour).
 /**
  * @param MelRow $r
  * @return array{string, string}
@@ -341,7 +321,7 @@ function mel_gc_status_icon($r)
         return array('k_icon_zap', MEL_K_C_OK);
     if ($r['cached'] === false)
         return array('k_icon_arrow-down-to-line', MEL_K_C_UNCACHED);
-    return array(mel_is_p2p($r) ? 'k_icon_magnet' : 'k_icon_circle-help', MEL_K_C_TEXT3);
+    return array('k_icon_circle-help', MEL_K_C_TEXT3);
 }
 
 // Seeders the list shows in place of the icon: those of a P2P row (no URL;
@@ -563,23 +543,6 @@ function mel_gc_row_badges($b)
     return $cols;
 }
 
-// Width of plates b2 $ids side by side (MelKit::badges).
-/**
- * @param list<string> $ids
- * @return int
- */
-function mel_gc_badges_w($ids)
-{
-    $w = 0;
-    foreach ($ids as $id)
-    {
-        $name = "k_badge_$id";
-        $p = MelKit::pic($name);
-        $w += $p['w'];
-    }
-    return $ids ? $w + MEL_K_PLATE_GAP * (count($ids) - 1) : 0;
-}
-
 // Column x and width for this list, each by its widest value; empty columns
 // take no room; the icon column as wide as the plate of the cache, wider only
 // for wider seeders. A column of the badges for each part (its plates of every
@@ -596,15 +559,15 @@ function mel_gc_cols($rows, $tt)
     $max = array('res' => 0, 'src' => 0, 'vis' => 0, 'audio' => 0, 'size' => 0);
     $langs = 0;
     $any_tracker = false;
-    $c = MelKit::corner('cached');
-    $icon = 2 * $c['r'];
+    $p = MelKit::pic('k_icon_cached');
+    $icon = $p['w'];
     foreach ($rows as $r)
     {
         $n = mel_gc_seeds($r);
         if (!is_null($n))
             $icon = max($icon, MelKit::w(mel_gc_seeds_str($n), MEL_K_PX_SECONDARY));
         foreach (mel_gc_row_badges($r['badges']) as $k => $ids)
-            $max[$k] = max($max[$k], mel_gc_badges_w($ids));
+            $max[$k] = max($max[$k], MelKit::badges_w($ids));
         $max['size'] = max($max['size'], $r['size'] > 0 ?
             min(180, MelKit::w(mel_size_str($r['size'], $tt['lang']), MEL_K_PX_ROW)) : 0);
         $langs = max($langs, min(260, mel_gc_items_w(mel_gc_lang_items($r['langs'], PHP_INT_MAX))));
@@ -714,7 +677,8 @@ function mel_gc_line($items, $y, $name)
 // arrow, the magnet, "?"; the seeders of a P2P row centred in its column), the plates b2 each from the x of its
 // column (mel_gc_cols), the size (right-aligned), the flags, the trackers
 // (or the expression name; no trackers: the add-on dimmed). The row in focus on the blue plate (sel): its texts
-// white, the dim ones light; the disc of the lightning lighter. A release watched before ($share > 0): a bar
+// white (the seeders too: the colours of their bins only out of focus), the dim ones light; the disc of the
+// lightning lighter. A release watched before ($share > 0): a bar
 // at the bottom of the plate of the focus (none at 0).
 /**
  * @param MelRow $r
@@ -737,14 +701,18 @@ function mel_gc_row_items($r, $tt, $c, $on, $share = 0)
     if (!is_null($n))
     {
         $s = mel_gc_seeds_str($n);
-        $it[] = MelKit::text($s, MEL_K_PX_SECONDARY, mel_gc_seed_color($n, $on),
+        $it[] = MelKit::text($s, MEL_K_PX_SECONDARY, $on ? MEL_K_C_ON_ACCENT : mel_gc_seed_color($n, false),
             $cx - intval(MelKit::w($s, MEL_K_PX_SECONDARY) / 2), $y);
     }
     elseif ($r['cached'] === true)
     {
-        $p = MelKit::corner('cached');
-        $it[] = MelKit::plate($on ? 'cached_on' : 'cached', $cx - $p['r'], intval($y - $p['r']), 2 * $p['r'], 2 * $p['r']);
-        $it[] = MelKit::icon('k_icon_zap', MEL_K_ICON_LIST_ZAP, MEL_K_C_ON_ACCENT, $cx, $y);
+        // The lightning on its disc, one picture (k_icon_cached, -on in focus), as it is: no mix_color.
+        $name = $on ? 'k_icon_cached-on' : 'k_icon_cached';
+        $p = MelKit::pic($name);
+        $px = $cx - intval($p['w'] / 2);
+        $py = intval($y - $p['h'] / 2);
+        $it[] = MelKit::box(array(mel_gc_image(mel_gc_at($p['w'], $p['h'], $px, $py), $p['url'])), $px, $py, $p['w'],
+            $p['h']);
     }
     else
     {
@@ -854,11 +822,9 @@ function mel_gc_field($label, $lines, $lh)
     $l = MelKit::text($label, MEL_K_PX_CAPTION, MEL_K_C_TEXT3, 0, 0, array('w' => MEL_GC_VX - MEL_K_GAP_XS));
     $v = MelKit::text($lines, MEL_K_PX_SECONDARY, MEL_K_C_TEXT1, 0, 0,
         array('w' => $vw, 'ls' => $lh - MEL_K_PX_SECONDARY));
-    $r = MelKit::row(array($l, $v), MEL_GC_VX - $l['x1'], 0, null, 'field');
     // The rhythm of the card by the text of the row: the top of the capitals of its first (the label), the baseline
-    // of its last (as the head of MelKit::error_screen).
-    $r['top'] = $l['top'];
-    return $r;
+    // of its last.
+    return MelKit::row(array($l, $v), MEL_GC_VX - $l['x1'], 0, null, 'field', true);
 }
 
 // The lines of field $k of the card with value $v, $n at most: video and audio by items of " · ", the voices by
@@ -990,7 +956,7 @@ function mel_gc_card($st, $sel)
     $w = MEL_GC_CW;
     $vls = MEL_GC_LH - MEL_K_PX_ROW;
     // Beside the poster; without a poster at the left edge.
-    $sx = mel_img($st['movie']['poster']) !== '' ? MEL_GC_PW + MEL_K_GAP_M : 0;
+    $sx = mel_img($st['movie']['poster']) !== '' ? MEL_GC_PW + MEL_GC_SIDE_GAP : 0;
     $sw = $w - $sx;
     $side = array();
     $gaps = array();
@@ -1008,19 +974,18 @@ function mel_gc_card($st, $sel)
     }
     // The status (and the release group) in 4 lines together, so that the worst case holds beside the poster: a
     // file cached on several takes up to 3 ("В кэше" / "Real-Debrid" / "и TorBox"), then the release 1; else 2 each.
+    // The icon (r5: the lightning) only of a known status, in the cache or to download; P2P and unknown none, as
+    // before the kit.
     list($status, $color) = mel_gc_card_status($r, $tt);
     list($icon, $icolor) = mel_gc_status_icon($r);
-    $i = MelKit::icon($icon, MEL_K_ICON_CACHED, mel_gc_seeds($r) !== null ? $color : $icolor, 0, 0, array('box' => true));
-    $tw = $sw - ($i['x1'] - $i['x0']) - MEL_K_GAP_XS;
+    $i = is_null($r['cached']) ? null : MelKit::icon($icon, MEL_K_ICON_CACHED, $icolor, 0, 0, array('box' => true));
+    $tw = $sw - ($i ? $i['x1'] - $i['x0'] + MEL_K_GAP_XS : 0);
     $sl = mel_gc_status_k($status, MEL_K_PX_ROW, $tw, 3);
     if ($side)
         $gaps[] = 'm';
-    $t = MelKit::text($sl, MEL_K_PX_ROW, $color, 0, 0, array('ls' => $vls));
-    $row = MelKit::row(array($i, $t), MEL_K_GAP_XS, $sx, null, 'status');
-    // The rhythm by the text, the icon on its line (as the head of MelKit::error_screen).
-    $row['top'] = $t['top'];
-    $row['bottom'] = $t['bottom'];
-    $side[] = $row;
+    $t = MelKit::text($sl, MEL_K_PX_ROW, $color, $sx, 0, array('ls' => $vls));
+    // The rhythm by the text, the icon on its line.
+    $side[] = $i ? MelKit::row(array($i, $t), MEL_K_GAP_XS, $sx, null, 'status', true) : $t;
     if ($r['group'] !== '')
     {
         $side[] = MelKit::text($tt['group'], MEL_K_PX_CAPTION, MEL_K_C_TEXT3, $sx, 0);

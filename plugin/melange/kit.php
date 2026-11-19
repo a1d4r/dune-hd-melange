@@ -695,16 +695,21 @@ class MelKit
     // between the visible right of one and the left of the next, their mid on
     // the centre of the capitals of the first text (else of the first item),
     // to a pixel. $x: the left of the first (default: where it is); $y: the
-    // centre the first text is set at (default: where it is).
+    // centre the first text is set at (default: where it is). $by_text: its
+    // top and bottom those of its texts (the top of the capitals of the first,
+    // the baseline of the last), not of all its items: a row with a text in a
+    // stack, its icon or a smaller text on its line, the rhythm by the text
+    // (as check_align takes the edge of such a block).
     /**
      * @param list<MelKitItem> $items
      * @param int|string|list<int|string> $gap
      * @param int|null $x
      * @param int|float|null $y
      * @param string $name
+     * @param bool $by_text
      * @return MelKitItem
      */
-    public static function row($items, $gap, $x = null, $y = null, $name = '')
+    public static function row($items, $gap, $x = null, $y = null, $name = '', $by_text = false)
     {
         $ref = 0;
         foreach ($items as $i => $it)
@@ -730,6 +735,17 @@ class MelKit
         {
             $out['cy'] = $items[$ref]['cy'];
             $out['caps'] = $items[$ref]['caps'];
+        }
+        $texts = array();
+        foreach ($by_text ? $items : array() as $it)
+        {
+            if ($it['caps'])
+                $texts[] = $it;
+        }
+        if ($texts)
+        {
+            $out['top'] = $texts[0]['top'];
+            $out['bottom'] = $texts[count($texts) - 1]['bottom'];
         }
         if (self::$trace !== null)
             self::trace('row', $items, $gap, $name);
@@ -998,6 +1014,27 @@ class MelKit
         return $out;
     }
 
+    // The width of the plates b2 of $ids side by side as badges() sets them (each as wide as its picture,
+    // MEL_K_PLATE_GAP between): a column of a list by its widest row. An unknown id: logged, no width.
+    /**
+     * @param list<string> $ids
+     * @return int
+     */
+    public static function badges_w($ids)
+    {
+        $w = 0;
+        $n = 0;
+        foreach ($ids as $id)
+        {
+            $p = self::pic("k_badge_$id");
+            if ($p['url'] === '')
+                continue;
+            $w += $p['w'];
+            $n++;
+        }
+        return $n ? $w + MEL_K_PLATE_GAP * ($n - 1) : 0;
+    }
+
     // A text plate b2 (IMAX, an edition: what no picture k_badge_* is) as
     // high as they, MEL_K_PLATE_H: $text (MEL_K_PX_BADGE, condensed, text 1)
     // between the pads MEL_K_PLATE_PAD on their plate (plate); the left at
@@ -1090,10 +1127,11 @@ class MelKit
     // given (MEL_K_PX_ROW) -MEL_K_ICON_GAP_SORT- the arrow MEL_K_ICON_SORT
     // (down; up: up true) between the pads MEL_K_TAB_PAD; state: '' text 2,
     // no plate, no arrow; on (the sort of the list) text 1 on the plate sort;
-    // focus white on the accent (tab_on). As r5 sort_bar: only the selected
-    // has the arrow and its room, a tab without it ends MEL_K_ICON_GAP_SORT +
-    // MEL_K_TAB_PAD after the label, so the tabs after the selected move by
-    // MEL_K_ICON_SORT when the selection moves.
+    // focus white on the accent (tab_on). Only the selected has the arrow, but
+    // every tab keeps its room (MEL_K_ICON_GAP_SORT + MEL_K_ICON_SORT after the
+    // label, then MEL_K_TAB_PAD), so the tabs stay where they are when the
+    // selection moves (as Melange 0.65.0, the owner 19.11.2026; r5 sort_bar
+    // moved them by the arrow).
     /**
      * @param list<array{key: string, label: string, state?: string, up?: bool}> $tabs
      * @param int|null $x
@@ -1139,8 +1177,8 @@ class MelKit
                 array('box' => true));
         $c = self::row($parts, $gaps, MEL_K_TAB_PAD, 0, 'tab');
         $top = -intval(MEL_K_TAB_H / 2);
-        // No arrow: the gap before it stays (r5: label -56- the next dot).
-        $w = $c['x1'] + ($state !== '' ? 0 : MEL_K_ICON_GAP_SORT) + MEL_K_TAB_PAD;
+        // No arrow: its room stays, the tabs do not move.
+        $w = $c['x1'] + ($state !== '' ? 0 : MEL_K_ICON_GAP_SORT + MEL_K_ICON_SORT) + MEL_K_TAB_PAD;
         $p = $state === '' ? self::box(array(), 0, $top, $w, MEL_K_TAB_H)
             : self::plate($state === 'focus' ? 'tab_on' : 'sort', 0, $top, $w, MEL_K_TAB_H);
         return self::on('tab', $p, $c);
@@ -1887,11 +1925,9 @@ class MelKit
         {
             $tone = self::state('page tone', isset($v['tone']) ? (string) $v['tone'] : '', array('warn', 'err'));
             $fg = $tone === 'err' ? MEL_K_C_ERR : ($tone === 'warn' ? MEL_K_C_WARN : MEL_K_C_TEXT2);
-            $head = self::row(array(self::icon($icon, MEL_K_ICON_PAGE, $fg, 0, 0, array('box' => true)), $t),
-                MEL_K_ICON_GAP_PAGE, $x, null, 'page head');
             // The row sets the title where it is (the first text), the icon on its line; the rhythm goes by the title.
-            $head['top'] = $t['top'];
-            $head['bottom'] = $t['bottom'];
+            $head = self::row(array(self::icon($icon, MEL_K_ICON_PAGE, $fg, 0, 0, array('box' => true)), $t),
+                MEL_K_ICON_GAP_PAGE, $x, null, 'page head', true);
         }
         $blocks[] = self::wide("{$p}_head", $head, $x, $x1);
         $text = isset($v['text']) ? (string) $v['text'] : '';
@@ -2032,11 +2068,9 @@ class MelKit
         {
             $tone = self::state('dialog tone', isset($v['tone']) ? (string) $v['tone'] : '', array('warn', 'err'));
             $fg = $tone === 'err' ? MEL_K_C_ERR : ($tone === 'warn' ? MEL_K_C_WARN : MEL_K_C_TEXT2);
-            $head = self::row(array(self::icon($icon, MEL_K_ICON_DIALOG, $fg, 0, 0, array('box' => true)), $t),
-                MEL_K_ICON_GAP_DIALOG, $pad, null, 'dialog head');
             // The row sets the title where it is (the first text), the icon on its line; the rhythm goes by the title.
-            $head['top'] = $t['top'];
-            $head['bottom'] = $t['bottom'];
+            $head = self::row(array(self::icon($icon, MEL_K_ICON_DIALOG, $fg, 0, 0, array('box' => true)), $t),
+                MEL_K_ICON_GAP_DIALOG, $pad, null, 'dialog head', true);
         }
         $blocks = array(self::wide("{$p}_head", $head, $pad, $W - $pad));
         $gaps = array();
