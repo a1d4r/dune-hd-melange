@@ -5,12 +5,14 @@
 // (network_mount_list.xml) and the index of the files of each folder
 // (folder_files.<id>.json), as shell_ext/movies of r25 reads them
 // (data_model.php, nf_common.php, gui_common.php). The copies of a movie are
-// its files whose share is mounted now. Nothing here touches a share.
+// its files whose share is mounted now. Only mel_lib_here touches a share: a
+// test -f of one file in the background, from the operation of a start only.
 // No login or password of a share is kept, returned or logged; the log has no
 // path, server, share, folder caption or file name: folders by id, files by
 // their key lib-... (mel_lib_key).
-// Needs main.php (mel_log, mel_num), links.php (mel_pg_links, mel_pg_rev, mel_pg_shell_pair, mel_pg_link_put,
-// mel_pg_links_save). The line of a copy in the menu of the copies: mel_lib_label (sources.php).
+// Needs main.php (mel_log, mel_num, mel_str), links.php (mel_pg_links, mel_pg_rev, mel_pg_shell_pair, mel_pg_link_put,
+// mel_pg_links_save). The menu of the copies: mel_lib_pick_menu, mel_lib_label (sources.php); their start:
+// mel_lib_start (playback.php).
 
 // The files of the shell. PHP on the Dune adds FS_PREFIX to /config,
 // /flashdata and /tmp itself; a failed plain read is tried with FS_PREFIX.
@@ -30,6 +32,15 @@ if (!defined('MEL_LIB_BUDGET_BYTES'))
     define('MEL_LIB_BUDGET_BYTES', 8388608);
 // Cards of the shell read for a title not found by its ids (mel_lib_by_movies).
 define('MEL_LIB_CANDIDATES', 3);
+// Seconds mel_lib_here waits for its check of a file: a NAS asleep spins its disks up; a share still "mounted" of a NAS
+// off answers only by the timeout of cifs (the check is in the background: php_server does not hang).
+if (!defined('MEL_LIB_HERE_S'))
+    define('MEL_LIB_HERE_S', 8);
+// The script of the check (sh -c): 1 or 0 for a file at $MEL_P to $MEL_R, renamed there whole. The path only in the
+// environment. Tests define their own first (a check that does not answer in time).
+if (!defined('MEL_LIB_HERE_SH'))
+    define('MEL_LIB_HERE_SH',
+        'if test -f "$MEL_P"; then r=1; else r=0; fi; echo $r >"$MEL_R.p" && mv -f "$MEL_R.p" "$MEL_R"');
 
 // The library in the memory of php_server, until its files change (mel_lib_index).
 class MelLib
@@ -632,6 +643,16 @@ function mel_lib_key($hash)
     return 'lib-' . substr(md5($hash), 0, 12);
 }
 
+// $k is a key of a copy (mel_lib_key): of the uid of a record, of wh_release of "Continue".
+/**
+ * @param mixed $k
+ * @return bool
+ */
+function mel_lib_key_ok($k)
+{
+    return is_string($k) && preg_match('/^lib-[0-9a-f]{12}$/D', $k) === 1;
+}
+
 // The resolution in the name of a file (the last part of its path): '4K',
 // '1080p', '720p', ... or ''. The expression of mel_row (parse.php); 2160p and
 // 4k are 4K.
@@ -994,4 +1015,82 @@ function mel_lib_mid($t)
     }
     mel_log('library: title -> ' . ($y !== '' ? "$y by $by" : 'none'));
     return $y;
+}
+
+// The title of mel_lib_mid of the fields $m of a movie_str: of the shell (play_action) or of the own card (its
+// movie_str, mel_oc_watch) - so the card and play_action of one title look for it alike (the same names, the same key
+// of MelLib::$found). dune: id; imdb: imdb_id; tmdb: tmdb_id of a movie; names: title, native_title and aio_en_title
+// (the English name the own card adds), in that order, each once, none empty. Ids not of their form: ''.
+/**
+ * @param array<mixed> $m
+ * @param bool $series
+ * @return MelLibTitle
+ */
+function mel_lib_title($m, $series)
+{
+    $names = array();
+    foreach (array('title', 'native_title', 'aio_en_title') as $k)
+    {
+        $n = mel_str($m, $k);
+        if ($n !== '' && !in_array($n, $names, true))
+            $names[] = $n;
+    }
+    $dune = mel_str($m, 'id');
+    $imdb = mel_str($m, 'imdb_id');
+    $tmdb = $series ? '' : mel_str($m, 'tmdb_id');
+    return array(
+        'dune' => preg_match('/^' . MEL_DUNE_ID . '$/D', $dune) ? $dune : '',
+        'imdb' => preg_match('/^tt[0-9]{1,10}$/D', $imdb) ? $imdb : '',
+        'tmdb' => preg_match('/^[0-9]{1,10}$/D', $tmdb) ? $tmdb : '',
+        'type' => $series ? 'series' : 'movie',
+        'year' => mel_str($m, 'year'),
+        'names' => $names);
+}
+
+// --- The file of a copy there.
+
+// Is the file of the copy $copy there now: 'yes', 'no' or 'slow' (no answer in MEL_LIB_HERE_S s). Only from the
+// operation of a start (OK, play_action), never while a card is laid out: a share of a NAS off may stay "mounted", a
+// stat on it hangs until the timeout of cifs, and the keys and the operation with it if php_server did it itself. So
+// MEL_LIB_HERE_SH in the background under timeout -s KILL, 2 s past the wait (stdin, stdout and stderr redirected, one
+// '&': exec() does not wait for it), its answer polled every 50 ms in a file of tmp_dir, removed then (and those of
+// checks answered too late). The path only in the environment of the check; the log: "library: here lib-... yes|no|slow in N ms". No
+// tmp_dir: 'yes', not checked (the player tells).
+/**
+ * @param MelLibCopy $copy
+ * @return string
+ */
+function mel_lib_here($copy)
+{
+    $t = microtime(true);
+    $tmp = isset(DuneSystem::$properties['tmp_dir_path']) ?
+        rtrim(strval(DuneSystem::$properties['tmp_dir_path']), '/') : '';
+    if ($tmp === '' || (!is_dir($tmp) && !mkdir($tmp, 0755, true)))
+    {
+        mel_log("library: here {$copy['key']} not checked, no tmp_dir");
+        return 'yes';
+    }
+    foreach ((array) glob("$tmp/lib_here_*") as $old)
+    {
+        if (is_string($old))
+            unlink($old);
+    }
+    $res = "$tmp/lib_here_" . getmypid() . '_' . str_replace('.', '', uniqid('', true));
+    exec('MEL_P=' . escapeshellarg($copy['url']) . ' MEL_R=' . escapeshellarg($res) . ' timeout -s KILL ' .
+        (MEL_LIB_HERE_S + 2) . ' sh -c ' . escapeshellarg(MEL_LIB_HERE_SH) . ' </dev/null >/dev/null 2>&1 &');
+    $ans = 'slow';
+    do
+    {
+        clearstatcache();
+        if (is_file($res))
+        {
+            $ans = trim(strval(file_get_contents($res))) === '1' ? 'yes' : 'no';
+            unlink($res);
+            break;
+        }
+        usleep(50000);
+    }
+    while (microtime(true) - $t < MEL_LIB_HERE_S);
+    mel_log("library: here {$copy['key']} $ans in " . round((microtime(true) - $t) * 1000) . ' ms');
+    return $ans;
 }

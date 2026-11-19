@@ -609,6 +609,8 @@ parameters:
         MelLibCopy: 'array{folder: string, path: string, mid: string, hash: string, size: float, tags: string, res: string, url: string, mnt: string, key: string, caption: string}'
         # A title whose files are looked for in the media library (mel_lib_mid, library.php): its card of the Dune, IMDb, TMDB of a movie, type (movie, series), year, names (of the tile, English, original).
         MelLibTitle: 'array{dune: string, imdb: string, tmdb: string, type: string, year: string, names: list<string>}'
+        # The latest record of a copy on the disk of a card (MelWh::$lib, history.php): key, pos and len in s, its end.
+        MelLibRec: 'array{string, float, float, int}'
         # A strip of a row under a frame of the focus (view_card_row.php).
         MelOcStrip: 'array{n: int, nc: int, w: int, h: int, cw: int, ch: int, step: int, div: int, vis: int, lead: int, x: int, y: int, id: string}'
         # The tabs of the seasons of a series card (mel_oc_tabs_layout, view_card_series.php).

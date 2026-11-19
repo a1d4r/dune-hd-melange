@@ -25,6 +25,12 @@ class MelWh
     public static $last = array();
     /** @var array<string, array{string, string, int}> */
     public static $last_new = array();
+    // The latest of our records of a copy of the media library (the rest of its uid a key lib-..., mel_lib_key) of each
+    // card, by its end: dune id => MelLibRec. $lib_new: while the files are read.
+    /** @var array<string, MelLibRec> */
+    public static $lib = array();
+    /** @var array<string, MelLibRec> */
+    public static $lib_new = array();
 }
 
 // The card of a record that WatchHistory::do_update keeps: not deleted, wh_item_is_suitable of the
@@ -183,9 +189,12 @@ function mel_wh_ours_visit($w, $arg, &$acc)
     $end = mel_wh_end($w);
     $acc[$w->uid] = mel_wh_full($pos, $len) || mel_wh_mark_on($mark, $end) ? 1.0 :
         ($len > 0 && $pos > 0 ? min(1.0, $pos / $len) : 0.0);
-    if (preg_match('/^[^:]+:(' . MEL_DUNE_ID . '):-?[0-9]{1,5}:-?[0-9]{1,5}:([^:]+)\z/', $w->uid, $m) &&
-        (!isset(MelWh::$last_new[$m[1]]) || MelWh::$last_new[$m[1]][2] < $end))
+    if (!preg_match('/^[^:]+:(' . MEL_DUNE_ID . '):-?[0-9]{1,5}:-?[0-9]{1,5}:([^:]+)\z/', $w->uid, $m))
+        return false;
+    if (!isset(MelWh::$last_new[$m[1]]) || MelWh::$last_new[$m[1]][2] < $end)
         MelWh::$last_new[$m[1]] = array($m[2], mel_wh_prof($w), $end);
+    if (mel_lib_key_ok($m[2]) && (!isset(MelWh::$lib_new[$m[1]]) || MelWh::$lib_new[$m[1]][3] < $end))
+        MelWh::$lib_new[$m[1]] = array($m[2], max(0.0, $pos), $len, $end);
     return false;
 }
 
@@ -201,30 +210,44 @@ function mel_wh_prof($w)
 }
 
 // The latest of our records of card $dune_id (mel_wh_ours_all: read again only when the history files change), as
-// mel_wh_pick has it: hash and key of the rest of its uid (mel_wh_tail), prof - the id of its profile ('' none); null none
-// (or the rest of its uid neither).
+// mel_wh_pick has it: hash and key of the rest of its uid (mel_wh_tail), lib - the key of a copy on the disk, prof -
+// the id of its profile ('' none); null none (or the rest of its uid none of them).
 /**
  * @param string $dune_id
- * @return array{hash: string, key: string, prof: string}|null
+ * @return array{hash: string, key: string, lib: string, prof: string}|null
  */
 function mel_wh_card_last($dune_id)
 {
     mel_wh_ours_all();
     if ($dune_id === '' || !isset(MelWh::$last[$dune_id]))
         return null;
-    list($hash, $key) = mel_wh_tail(MelWh::$last[$dune_id][0]);
-    return $hash !== '' || $key !== '' ? array('hash' => $hash, 'key' => $key, 'prof' => MelWh::$last[$dune_id][1]) : null;
+    list($hash, $key, $lib) = mel_wh_tail(MelWh::$last[$dune_id][0]);
+    return $hash !== '' || $key !== '' || $lib !== '' ?
+        array('hash' => $hash, 'key' => $key, 'lib' => $lib, 'prof' => MelWh::$last[$dune_id][1]) : null;
 }
 
 // The rest $t of the uid of a record of ours ("aio:<dune id>:<s>:<e>:<rest>") -> array(hash: the infoHash of a release,
-// key: the key of an online record, mel_lp_key_parse), '' each it is not.
+// key: the key of an online record, mel_lp_key_parse; lib: the key of a copy of the media library, mel_lib_key_ok), ''
+// each it is not.
 /**
  * @param string $t
- * @return array{string, string}
+ * @return array{string, string, string}
  */
 function mel_wh_tail($t)
 {
-    return array(preg_match('/^[0-9a-f]{40}$/D', $t) ? $t : '', mel_lp_key_parse($t) ? $t : '');
+    return array(preg_match('/^[0-9a-f]{40}$/D', $t) ? $t : '', mel_lp_key_parse($t) ? $t : '',
+        mel_lib_key_ok($t) ? $t : '');
+}
+
+// The latest of our records of a copy on the disk of card $hid (MelWh::$lib), null none.
+/**
+ * @param string $hid
+ * @return MelLibRec|null
+ */
+function mel_wh_lib_last($hid)
+{
+    mel_wh_ours_all();
+    return $hid !== '' && isset(MelWh::$lib[$hid]) ? MelWh::$lib[$hid] : null;
 }
 
 // is_fully_watched of the shell with its default settings: 90 %, 30 s left.
@@ -310,11 +333,14 @@ function mel_wh_ours_all()
         return MelWh::$all;
     }
     MelWh::$last_new = array();
+    MelWh::$lib_new = array();
     $all = mel_wh_find('progress', 'mel_wh_ours_visit', array(MEL_SUP_ID . ':', mel_wh_marked_set()));
     MelWh::$sig = $sig;
     MelWh::$all = $all;
     MelWh::$last = MelWh::$last_new;
     MelWh::$last_new = array();
+    MelWh::$lib = MelWh::$lib_new;
+    MelWh::$lib_new = array();
     return $all;
 }
 
