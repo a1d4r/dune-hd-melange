@@ -5,8 +5,8 @@
 // profile into the record (wh_prof). The screen keeps two lists (view_online.php): the releases of one profile of
 // releases (rows, prof) and the online list of one profile of Lampac (lp, lp_prof); a choice of one of them already
 // there - no request. The item of MENU: mel_gc_src_item (view_gcomps.php), mel_lpv_menu (view_online.php). The name
-// of the source over the lists: mel_src_tabs_right. The line of a copy of the media library in the menu of the copies:
-// mel_lib_label.
+// of the source over the lists: mel_src_tabs_right. The menu of the copies of a movie of the media library:
+// mel_lib_pick_menu, a line each by mel_lib_label.
 // Reads and writes Mel (state, settings). Functions are global; the require order is in main.php.
 
 // The id of the profile list $st shows: of Lampac on the online list, else of releases ('' none).
@@ -249,6 +249,42 @@ function mel_lib_label($copy, $copies, $lang)
         $parts[] = mel_size_str($copy['size'], $lang);
     $parts[] = mel_lib_cut($path, MEL_LIB_LABEL_MAX);
     return implode(' · ', $parts);
+}
+
+// The popup menu of the copies $copies of a movie (the best first, mel_lib_copies): a line each (mel_lib_label), each
+// to $control of $params with k - its key; the copy of key $cur ('' none) "<line> · сейчас" (src_now) and selected,
+// else the first. The own card (card_lib_copy) and play_action (lib_copy, mel_lib_start) alike.
+/**
+ * @param string $control
+ * @param array<string, string> $params
+ * @param list<MelLibCopy> $copies
+ * @param string $cur
+ * @param string $lang
+ * @return MelAction
+ */
+function mel_lib_pick_menu($control, $params, $copies, $cur, $lang)
+{
+    $items = array();
+    $sel = 0;
+    foreach ($copies as $c)
+    {
+        $line = mel_lib_label($c, $copies, $lang);
+        if ($c['key'] === $cur)
+        {
+            $sel = count($items);
+            $line = str_replace('{name}', $line, mel_tr($lang, 'src_now'));
+        }
+        $items[] = array(
+            GuiMenuItemDef::caption => $line,
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
+            GuiMenuItemDef::action => mel_input($control, array_merge($params, array('k' => $c['key']))));
+    }
+    mel_log('library: menu of ' . count($items) . ' copies' . ($cur !== '' ? ", $cur now" : ''));
+    return array(
+        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
+        GuiAction::data => array(
+            ShowPopupMenuActionData::menu_items => $items,
+            ShowPopupMenuActionData::selected_menu_item_index => $sel));
 }
 
 // The dialog of a source that failed (mel_gc_src): $title, the error, its detail, the

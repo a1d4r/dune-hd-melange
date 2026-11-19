@@ -328,6 +328,184 @@ function mel_pf_check($a)
     return is_array($a) && mel_fw_r() === MEL_FW_PF_CHECK_R ? mel_pf_wrap($a) : $a;
 }
 
+// --- A copy of a movie of the media library of the Dune (library.php): its file played by the path of its mount.
+
+// The fields of a movie_str a menu of the copies of play_action gives on (mel_lib_resume -> lib_copy): what mel_movie
+// and mel_lib_title read of a movie.
+define('MEL_LIB_MOVIE_KEYS', 'id imdb_id tmdb_id title native_title aio_en_title year poster_url fanart_url rate_imdb');
+
+// vod_play of the copy $copy (the $i-th of $n of its movie, for the log) of movie $mv from $pos s (0: the start; the
+// player offers the place of the record itself). No stream check, no TorrServer, no markers, one item. Linked by the
+// card $mv['dune_id'] (H: of the own card, else of the index, mel_lib_resume): recent_uid "aio:H:-1:-1:lib-...",
+// mdb_info, "Continue" back to play_action with wh_mode local; no H - unlinked. The log has its key, no path, no name.
+/**
+ * @param MelMovie $mv
+ * @param MelLibCopy $copy
+ * @param int $pos
+ * @param string $lang
+ * @param int $i
+ * @param int $n
+ * @return MelAction
+ */
+function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1)
+{
+    $linked = $mv['dune_id'] !== '';
+    $p = strrpos($copy['path'], '/');
+    $info = array(
+        PluginVodInfo::id => 'aio.' . ($linked ? $mv['dune_id'] : $mv['imdb']),
+        PluginVodInfo::name => mel_ser_name($mv, -1, -1, false),
+        // The second line of INFO: the file, as a release by its name.
+        PluginVodInfo::sub_name => mel_clean($p === false ? $copy['path'] : substr($copy['path'], $p + 1)),
+        PluginVodInfo::poster_url => $mv['poster'],
+        PluginVodInfo::series => array(mel_vod_item($mv, -1, -1, $copy['url'], $linked ? $copy['key'] : '', false)),
+        PluginVodInfo::initial_series_ndx => 0,
+        PluginVodInfo::description => implode(' · ', array_filter(array($copy['res'],
+            $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : ''), 'strlen')),
+        PluginVodInfo::buffering_ms => 3000,
+        PluginVodInfo::keep_playing_on_reenter => true,
+        PluginVodInfo::skip_dummy_player_on_error => false);
+    if ($pos > 0)
+        $info[PluginVodInfo::initial_position_ms] = $pos * 1000;
+    if ($linked)
+    {
+        $info[PluginVodInfo::recent_plugin] = 'shell_ext';
+        $info[PluginVodInfo::recent_action_params] = array(
+            'handler_id' => 'entry',
+            'control_id' => 'play_recent',
+            'sup_id' => MEL_SUP_ID,
+            'movie_id' => $mv['dune_id'],
+            'sup_data' => 'auto',
+            'wh_release' => $copy['key'],
+            'wh_mode' => 'local',
+            'wh_prof' => '');
+    }
+    mel_pg_link_movie($mv);
+    mel_log("play: local {$copy['key']} pos=$pos linked=" . ($linked ? 1 : 0) . ', copy ' . ($i + 1) . " of $n" .
+        ($copy['res'] !== '' ? ", {$copy['res']}" : ''));
+    return array(
+        GuiAction::handler_string_id => PLUGIN_VOD_PLAY_ACTION_ID,
+        GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
+}
+
+// The start of a copy of movie $mv of its copies $copies now (mel_lib_copies, the best first), the own card and
+// play_action alike: $first (null none) from $first_pos s, if its file is there (mel_lib_here); else (or no $first) by
+// the copies left - none: mel_lib_gone; one: it from $pos s, if there; several: their menu (mel_lib_pick_menu) to
+// $back = array(control, params), with k - the key of the copy chosen. One check a copy at most; a copy that does not
+// answer ('slow') takes the copies of its mount out unchecked (the NAS sleeps or is off), and no check starts that the
+// operation (MEL_OP_BUDGET) has no time left for.
+/**
+ * @param MelMovie $mv
+ * @param list<MelLibCopy> $copies
+ * @param MelLibCopy|null $first
+ * @param int $first_pos
+ * @param int $pos
+ * @param string $lang
+ * @param array{string, array<string, string>} $back
+ * @return MelAction
+ */
+function mel_lib_start($mv, $copies, $first, $first_pos, $pos, $lang, $back)
+{
+    $left = $copies;
+    $try = $first;
+    $at = $first_pos;
+    $slow = false;
+    for (;;)
+    {
+        if ($try === null)
+        {
+            if (!$left)
+                return mel_lib_gone($slow ? 'slow' : 'no');
+            if (count($left) > 1)
+                return mel_lib_pick_menu($back[0], $back[1], $left, '', $lang);
+            $try = $left[0];
+            $at = $pos;
+        }
+        if (mel_op_total(MEL_LIB_HERE_S, MEL_LIB_HERE_S, "library: here {$try['key']}") === 0)
+            return mel_lib_gone('slow');
+        $here = mel_lib_here($try);
+        $i = 0;
+        foreach ($copies as $n => $c)
+        {
+            if ($c['key'] === $try['key'])
+                $i = $n;
+        }
+        if ($here === 'yes')
+            return mel_lib_play($mv, $try, $at, $lang, $i, count($copies));
+        $slow = $slow || $here === 'slow';
+        $rest = array();
+        foreach ($left as $c)
+        {
+            if ($c['key'] !== $try['key'] && !($here === 'slow' && $c['mnt'] === $try['mnt']))
+                $rest[] = $c;
+        }
+        $left = $rest;
+        $try = null;
+    }
+}
+
+// "Continue" of the copy of key $key of movie $mv from $pos s (play_action of wh_mode local; the menu of the copies of
+// it, mel_lib_copy_input): the fields $m of its movie_str find the movie in the index (mel_lib_title, mel_lib_mid), the
+// card of the record H is its card of the Dune, else of the index. The copy of the key from $pos; it gone - the others
+// (mel_lib_start), their menu back here (lib_copy) with the place of the record.
+/**
+ * @param MelMovie $mv
+ * @param array<mixed> $m
+ * @param string $key
+ * @param int $pos
+ * @param string $lang
+ * @return MelAction
+ */
+function mel_lib_resume($mv, $m, $key, $pos, $lang)
+{
+    $y = mel_lib_mid(mel_lib_title($m, false));
+    $copies = $y !== '' ? mel_lib_copies($y) : array();
+    if ($mv['dune_id'] === '')
+        $mv['dune_id'] = $y;
+    $first = null;
+    foreach ($copies as $c)
+    {
+        if ($c['key'] === $key)
+            $first = $c;
+    }
+    mel_log("resume: local $key pos=$pos: " . ($first ? 'its copy' : 'not among ' . count($copies) . ' copies'));
+    $keep = array_intersect_key($m, array_flip(explode(' ', MEL_LIB_MOVIE_KEYS)));
+    $back = array('lib_copy', array('movie_str' => strval(json_encode($keep)), 'series_type' => 'single',
+        'lang' => $lang, 'pos' => strval($pos)));
+    return mel_lib_start($mv, $copies, $first, $pos, $pos, $lang, $back);
+}
+
+// lib_copy: the copy k chosen in the menu of the copies of play_action (mel_lib_resume) - from pos s, of the movie of
+// movie_str; a bad input: nothing.
+/**
+ * @param stdClass $in
+ * @return MelAction|null
+ */
+function mel_lib_copy_input($in)
+{
+    $mv = mel_movie($in);
+    $key = isset($in->k) && mel_lib_key_ok($in->k) ? strval($in->k) : '';
+    if (!$mv || $mv['series'] || $key === '')
+    {
+        mel_log('library: copy: no movie or no key, nothing');
+        return null;
+    }
+    mel_log("library: copy $key chosen");
+    return mel_lib_resume($mv, (array) json_decode(strval($in->movie_str), true), $key, max(0, mel_int($in, 'pos', 0)),
+        isset($in->lang) && is_string($in->lang) ? $in->lang : '');
+}
+
+// What a start says when the file of a movie is not there and no other copy is (C5, owner 19.11.2026: a message with
+// OK, the card stays): $why 'slow' - the disk did not answer in time, else the file is gone. All of it here: another
+// look of it is one edit.
+/**
+ * @param string $why
+ * @return MelAction
+ */
+function mel_lib_gone($why)
+{
+    return mel_error($why === 'slow' ? 'lib_slow' : 'lib_gone');
+}
+
 /**
  * @param array<mixed> $a
  * @return array<mixed>

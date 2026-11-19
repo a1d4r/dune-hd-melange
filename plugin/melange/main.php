@@ -536,7 +536,8 @@ function mel_seasons($m)
 // the button "Melange NN%" (play_online) too: mel_play_action takes its profile only.
 // 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else;
 // 'lampac' of an online record (online_play.php): 'hash' its key as it is, of no format
-// checked here (mel_lp_find of mel_lpv_resume does: bad_key, the search window).
+// checked here (mel_lp_find of mel_lpv_resume does: bad_key, the search window); 'local' of
+// a copy of the media library (mel_lib_play): 'hash' its key lib-<12 hex>, none else.
 // 'len': 0 without wh_len; 'next': of mel_wh_resume_ep; 'prof': wh_prof, the id of the
 // profile of the start (v2; '' - a record of before it, or not an id). r22 (240619_0210) sends
 // wh_len, but no wh_release or wh_mode: null there, the list.
@@ -549,12 +550,14 @@ function mel_resume($in)
     $si = isset($in->supplier_info) && is_string($in->supplier_info) ?
         json_decode($in->supplier_info) : null;
     $lp = is_object($si) && isset($si->wh_mode) && $si->wh_mode === 'lampac';
+    $local = is_object($si) && isset($si->wh_mode) && $si->wh_mode === 'local';
     if (!is_object($si) || !isset($si->wh_release) || !is_string($si->wh_release) ||
-        (!$lp && !preg_match('/^[0-9a-f]{40}$/', $si->wh_release)))
+        ($local ? !mel_lib_key_ok($si->wh_release) : (!$lp && !preg_match('/^[0-9a-f]{40}$/', $si->wh_release))))
         return null;
     return array(
         'hash' => $si->wh_release,
-        'mode' => $lp ? 'lampac' : (isset($si->wh_mode) && ($si->wh_mode === 'debrid' || $si->wh_mode === 'ts') ? $si->wh_mode : ''),
+        'mode' => $lp ? 'lampac' : ($local ? 'local' :
+            (isset($si->wh_mode) && ($si->wh_mode === 'debrid' || $si->wh_mode === 'ts') ? $si->wh_mode : '')),
         's' => mel_int($si, 'wh_s', -1),
         'e' => mel_int($si, 'wh_e', -1),
         'pos' => max(0, mel_int($si, 'wh_pos', 0)),
@@ -1908,7 +1911,8 @@ function mel_list_state($mv, $s, $e, $rows, $lang, $errors)
 // (mel_op_src), nothing remembered; '' - by the record (mel_op_title).
 // A movie_str made by Melange itself adds mel_lpv_tile_ids: Lampac puts the quality into the name of a balancer and show
 // false only with a TMDB id. No IMDb and no TMDB (mel_rel_id): the search of Lampac always (its "Continue" too), its
-// windows of nothing online and of no answer, never the releases; no Lampac - err_no_imdb_rel.
+// windows of nothing online and of no answer, never the releases; no Lampac - err_no_imdb_rel. "Continue" of a copy on
+// the disk (wh_mode local) of a movie: the file (mel_lib_resume), before all that - no IMDb, no profile, no network needed.
 /**
  * @param stdClass $in
  * @param MelWhPick|MelOcEp|null $hist
@@ -1925,11 +1929,6 @@ function mel_play_action($in, $hist = null, $src = '')
     $mv = mel_movie($in);
     if (!$mv)
         return mel_error('err_no_imdb');
-    // No IMDb and no TMDB: no releases; only Lampac, by the title (owner 19.11.2026), no way to the releases.
-    $no_id = mel_rel_id($mv) === '';
-    if ($no_id && Mel::$settings['lp'] === '')
-        return mel_error('err_no_imdb_rel');
-    mel_pg_link_movie($mv);
     $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
 
     $si = mel_resume($in);
@@ -1941,6 +1940,21 @@ function mel_play_action($in, $hist = null, $src = '')
         mel_log('resume: supplier_info of the play_online button ignored -> list');
         $resume = null;
     }
+    if ($resume && $resume['mode'] === 'local')
+    {
+        if (!$mv['series'])
+            return mel_lib_resume($mv, (array) json_decode(strval($in->movie_str), true), $resume['hash'], $resume['pos'],
+                $lang);
+        // Stage 1 writes no such record of a series: its list, as of no record.
+        mel_log('resume: a record of a copy on the disk of a series ignored -> list');
+        $si = $resume = null;
+    }
+
+    // No IMDb and no TMDB: no releases; only Lampac, by the title (owner 19.11.2026), no way to the releases.
+    $no_id = mel_rel_id($mv) === '';
+    if ($no_id && Mel::$settings['lp'] === '')
+        return mel_error('err_no_imdb_rel');
+    mel_pg_link_movie($mv);
     // The key of an online record ("Continue" of mode lampac), never a release of the list.
     $lpk = $resume && $resume['mode'] === 'lampac' ? $resume['hash'] : '';
     $s = -1;
@@ -1982,10 +1996,15 @@ function mel_play_action($in, $hist = null, $src = '')
     $r = $hist && ($hist['hash'] !== '' || $hist['key'] !== '') ? $hist : null;
     $cur = !$mv['series'] && !$resume && $hash === '' && $lpk === '';
     if (!$r && $mv['dune_id'] !== '' && (!$si || $cur))
+    {
         $r = mel_wh_card_last($mv['dune_id']);
+        // A record of a copy on the disk (mel_lib_play): no release, no online row - the list by the main profile.
+        if ($r && $r['lib'] !== '')
+            $r = null;
+    }
     if ($r && $cur)
         list($hash, $lpk) = array($r['hash'], $r['key']);
-    $rec = $si ? array($si['prof'], $si['mode'] === 'lampac' ? 'lp' : 'rel') :
+    $rec = $si ? array($si['prof'], $si['mode'] === 'lampac' ? 'lp' : ($si['mode'] === 'local' ? '' : 'rel')) :
         ($r ? array($r['prof'], $r['key'] !== '' ? 'lp' : 'rel') : array('', ''));
     $online = $src !== '' ? mel_op_src($src) : mel_op_title($rec[0], $rec[1]);
     // A source of releases chosen for a title of no IMDb and no TMDB: none.
@@ -2256,6 +2275,8 @@ function mel_handle_user_input($in)
         return null;
     if ($control === 'play')
         return mel_play_action($in);
+    if ($control === 'lib_copy')
+        return mel_lib_copy_input($in);
     if ($control === 'tv_update')
         return mel_tv_update($in);
     if ($control === 'tv_timer')
