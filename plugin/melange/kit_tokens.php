@@ -60,6 +60,7 @@ define('MEL_K_PX_HINT', 26);
 define('MEL_K_PX_CAPTION', 24);
 define('MEL_K_PX_KEY', 22);
 define('MEL_K_PX_BADGE', 18);
+define('MEL_K_PX_RATING', 30);
 
 // Rhythm: the gap between visible edges (cap top, baseline, plate edge, icon stroke).
 define('MEL_K_GAP_XS', 8);
@@ -86,11 +87,21 @@ define('MEL_K_PLATE_PAD', 11);
 define('MEL_K_PLATE_GAP', 10);
 define('MEL_K_CHIP_H', 34);
 define('MEL_K_CHIP_PAD', 10);
+define('MEL_K_CHIP_GAP', 10);
+define('MEL_K_CHIP_BEFORE', 16);
 define('MEL_K_BAR_MIN', 4);
 define('MEL_K_THUMB_MIN', 40);
 define('MEL_K_RATING_LINE', 2);
 define('MEL_K_RING_W', 6);
 define('MEL_K_RATING_H', 40);
+define('MEL_K_RATING_PAD', 12);
+define('MEL_K_RATING_KP_W', 117);
+define('MEL_K_RATING_IMDB_W', 153);
+define('MEL_K_RATING_AGE_W', 73);
+define('MEL_K_RATING_AGE_PAD', 10);
+define('MEL_K_RATING_GAP', 12);
+define('MEL_K_RATING_AGE_GAP', 16);
+define('MEL_K_CAST_GAP', 10);
 define('MEL_K_KEY_H', 40);
 define('MEL_K_KEY_W', 44);
 define('MEL_K_KEY_PAD', 14);
@@ -144,6 +155,7 @@ define('MEL_K_ICON_POPUP', 48);
 define('MEL_K_ICON_GAP_BUTTON', 14);
 define('MEL_K_ICON_GAP_PANEL', 24);
 define('MEL_K_ICON_GAP_SORT', 6);
+define('MEL_K_ICON_GAP_SETUP_SOURCE', 16);
 
 /**
  * The height of the capitals by font size, the same for regular, light and condensed
