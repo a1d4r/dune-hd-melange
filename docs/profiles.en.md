@@ -22,7 +22,7 @@ Add several sources (Debrid, torrents, your own config) and open a movie on the 
 
 5. Choose a source. The release list reloads from it. The choice applies to this screen only and is not remembered.
 
-   <img src="../screenshots/profiles-pick.jpg" alt="Window with a list of sources, focus on Debrid · now" width="100%">
+   <img src="../screenshots/profiles-pick.jpg" alt="Window with a list of sources, focus on Debrid (Melange) · now" width="100%">
 
    A movie you have started continues from the source you watched it from: "Continue Watching", the next episode, the movie card.
 
