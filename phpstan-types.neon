@@ -605,8 +605,8 @@ parameters:
         MelLibMount: 'array{path: string, type: string, server: string, server_ipaddr: string, dir: string, status: string}'
         # A movie file of the index of the media library (mel_lib_folder_index, library.php); tags: the media tags of the indexer, upper case, each once (mel_lib_tags); res: the resolution by the tags, else by the name (mel_lib_res).
         MelLibFile: 'array{folder: string, path: string, mid: string, hash: string, size: float, tags: list<string>, res: string}'
-        # A copy of a movie on a mounted share (mel_lib_copies, library.php): url - the path to play, mnt - where the source of its folder is mounted (url starts with it), srv - the server of that mount (server_ipaddr, else its name in lower case), key - lib-<12 hex>, caption - of its folder (mel_lib_label, sources.php).
-        MelLibCopy: 'array{folder: string, path: string, mid: string, hash: string, size: float, tags: list<string>, res: string, url: string, mnt: string, srv: string, key: string, caption: string}'
+        # A copy of a movie on a mounted share (mel_lib_copies, library.php): url - the path to play, mnt - where the source of its folder is mounted (url starts with it), srv - the server of that mount (server_ipaddr, else its name in lower case), key - lib-<12 hex> (one of mirrors), cid - cp-<12 hex> of url (mel_lib_cid), caption - of its folder (mel_lib_label, sources.php).
+        MelLibCopy: 'array{folder: string, path: string, mid: string, hash: string, size: float, tags: list<string>, res: string, url: string, mnt: string, srv: string, key: string, cid: string, caption: string}'
         # A title whose files are looked for in the media library (mel_lib_mid, library.php): its card of the Dune, IMDb, TMDB of a movie, type (movie, series), year, names (of the tile, English, original).
         MelLibTitle: 'array{dune: string, imdb: string, tmdb: string, type: string, year: string, names: list<string>}'
         # The latest record of a copy on the disk of a card (MelWh::$lib, history.php): key, pos and len in s, its end.

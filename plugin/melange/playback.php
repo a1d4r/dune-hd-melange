@@ -388,66 +388,81 @@ function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1)
 }
 
 // The start of a copy of movie $mv of its copies $copies now (mel_lib_copies, the best first), the own card and
-// play_action alike: the copy of key $first_key ('' none; not among them - logged, as none) from $first_pos s, if its
-// file is there (mel_lib_here); else (or no such copy) by the copies left - none: mel_lib_gone; one: it from $pos s, if
-// there; several: their menu (mel_lib_pick_menu) to $back = array(control, params), with k - the key of the copy
-// chosen. One check a copy at most; a copy that does not answer ('slow') takes the copies of all the shares of its
-// server out unchecked (srv: the NAS sleeps or is off - one wait, not one a share), and no check starts that the
-// operation (MEL_OP_BUDGET) has no time left for.
+// play_action alike: of $first - the key of a record (its mirrors in their order, the first there plays) or the id of
+// the copy chosen ('' none; not among them - logged, as none) - from $first_pos s, if its file is there (mel_lib_here);
+// else (or none such) by the copies left - none: mel_lib_gone; one: it from $pos s, if there; several: their menu
+// (mel_lib_pick_menu) to $back = array(control, params), with k - the id of the copy chosen. One check a copy at most;
+// a copy that does not answer ('slow') takes the copies of all the shares of its server out unchecked (srv: the NAS
+// sleeps or is off - one wait, not one a share; a mirror on another server is still checked), and no check starts that
+// the operation (MEL_OP_BUDGET) has no time left for.
 /**
  * @param MelMovie $mv
  * @param list<MelLibCopy> $copies
- * @param string $first_key
+ * @param string $first
  * @param int $first_pos
  * @param int $pos
  * @param string $lang
  * @param array{string, array<string, string>} $back
  * @return MelAction
  */
-function mel_lib_start($mv, $copies, $first_key, $first_pos, $pos, $lang, $back)
+function mel_lib_start($mv, $copies, $first, $first_pos, $pos, $lang, $back)
 {
     $left = $copies;
-    $try = mel_lib_copy_by_key($copies, $first_key);
-    if ($first_key !== '')
-        mel_log("library: start $first_key: " . ($try ? 'its copy' : 'not among ' . count($copies) . ' copies'));
+    $want = mel_lib_copies_of($copies, $first);
+    if ($first !== '')
+        mel_log("library: start $first: " . (count($want) === 1 ? 'its copy' : ($want ? 'its ' . count($want) . ' copies' :
+            'not among ' . count($copies) . ' copies')));
     $at = $first_pos;
     $slow = false;
     for (;;)
     {
-        if ($try === null)
+        if (!$want)
         {
             if (!$left)
                 return mel_lib_gone($slow ? 'slow' : 'no');
             if (count($left) > 1)
                 return mel_lib_pick_menu($back[0], $back[1], $left, '', $lang);
-            $try = $left[0];
+            $want = $left;
             $at = $pos;
         }
+        $try = array_shift($want);
         if (mel_op_total(MEL_LIB_HERE_S, MEL_LIB_HERE_S, "library: here {$try['key']}") === 0)
             return mel_lib_gone('slow');
         $here = mel_lib_here($try);
         $i = 0;
         foreach ($copies as $n => $c)
         {
-            if ($c['key'] === $try['key'])
+            if ($c['cid'] === $try['cid'])
                 $i = $n;
         }
         if ($here === 'yes')
             return mel_lib_play($mv, $try, $at, $lang, $i, count($copies));
         $slow = $slow || $here === 'slow';
-        $rest = array();
-        foreach ($left as $c)
-        {
-            if ($c['key'] !== $try['key'] && !($here === 'slow' && $c['srv'] === $try['srv']))
-                $rest[] = $c;
-        }
-        $left = $rest;
-        $try = null;
+        $left = mel_lib_copies_but($left, $try, $here === 'slow');
+        $want = mel_lib_copies_but($want, $try, $here === 'slow');
     }
 }
 
-// "Continue" of the copy of key $key of movie $mv from $pos s (play_action of wh_mode local; the menu of the copies of
-// it, mel_lib_copy_input): the fields $m of its movie_str find the movie in the index (mel_lib_title, mel_lib_mid), the
+// The copies $copies but copy $try, and, $slow (it did not answer), but all of its server (srv).
+/**
+ * @param list<MelLibCopy> $copies
+ * @param MelLibCopy $try
+ * @param bool $slow
+ * @return list<MelLibCopy>
+ */
+function mel_lib_copies_but($copies, $try, $slow)
+{
+    $res = array();
+    foreach ($copies as $c)
+    {
+        if ($c['cid'] !== $try['cid'] && !($slow && $c['srv'] === $try['srv']))
+            $res[] = $c;
+    }
+    return $res;
+}
+
+// "Continue" of the copy of key $key of movie $mv from $pos s (play_action of wh_mode local; $key the id of a copy of
+// the menu of the copies of it, mel_lib_copy_input): the fields $m of its movie_str find the movie in the index (mel_lib_title, mel_lib_mid), the
 // card of the record H is its card of the Dune, else of the index. The copy of the key from $pos; it gone - the others
 // (mel_lib_start), their menu back here (lib_copy) with the place of the record.
 /**
@@ -471,8 +486,8 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
     return mel_lib_start($mv, $copies, $key, $pos, $pos, $lang, $back);
 }
 
-// lib_copy: the copy k chosen in the menu of the copies of play_action (mel_lib_resume) - from pos s, of the movie of
-// movie_str; a bad input: nothing.
+// lib_copy: the copy of id k (mel_lib_cid) chosen in the menu of the copies of play_action (mel_lib_resume) - from pos
+// s, of the movie of movie_str; a bad input: nothing.
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -480,7 +495,7 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
 function mel_lib_copy_input($in)
 {
     $mv = mel_movie($in);
-    $key = isset($in->k) && mel_lib_key_ok($in->k) ? strval($in->k) : '';
+    $key = isset($in->k) && mel_lib_cid_ok($in->k) ? strval($in->k) : '';
     if (!$mv || $mv['series'] || $key === '')
     {
         mel_log('library: copy: no movie or no key, nothing');

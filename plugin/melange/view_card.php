@@ -1857,9 +1857,10 @@ function mel_oc_lib_menu_items($key, $c, $l, $pos)
 
 // The start of a copy on the disk of the movie of card $c ($key) of layout $l (C2-C4 of the spec): its copies read
 // anew (a share may be gone since the screen; mel_lib_copies), the latest record of a copy of the card of its history
-// (mel_wh_lib_last). The copy $k chosen in the menu of the copies ('' - "Смотреть": the copy of the record, none - the
-// copies by mel_lib_start: one plays, several - their menu back to card_lib_copy). The copy of the record from its
-// start (the player offers its place), another from the place of the record (0 when it was watched to the end).
+// (mel_wh_lib_last). The copy of id $k chosen in the menu of the copies ('' - "Смотреть": the copy of the record, of
+// its mirrors the first there; none - the copies by mel_lib_start: one plays, several - their menu back to
+// card_lib_copy). The place: of the latest record of the movie of any supplier (0 when it was watched to the end);
+// the copy of our record when that one is the latest from its start (the player offers its place).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1876,15 +1877,24 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
         $mv['dune_id'] = $l['hid'];
     $rec = mel_wh_lib_last($l['hid']);
     $rk = $rec ? $rec['key'] : '';
-    $pos = $rec && !mel_wh_full($rec['pos'], $rec['len']) ? intval($rec['pos']) : 0;
+    // The place: of the latest record of the movie of any supplier, as the line shows it (mel_wh_movie; B1 of the owner,
+    // step 1: of the newer record), 0 watched. The copy of our record (of its key) when that record is the latest:
+    // from its start, the player offers the place itself.
+    $any = mel_wh_movie_last($l['hid']);
+    $pos = $any && !mel_wh_full($any[0], $any[1]) ? intval($any[0]) : 0;
+    $own = $any && $rk !== '' && $any[2] === MEL_SUP_ID . ":{$l['hid']}:-1:-1:$rk";
+    $copies = mel_lib_copies($l['lib'][0]['mid']);
+    $chosen = $k !== '' ? mel_lib_copies_of($copies, $k) : array();
     $first = $k !== '' ? $k : $rk;
-    mel_log("card: own $key: watch a copy on the disk" . ($rk !== '' ? ", the record $rk at $pos s" : ', no record'));
+    $of_rec = $k !== '' ? $chosen && $chosen[0]['key'] === $rk : $rk !== '';
+    mel_log("card: own $key: watch a copy on the disk" . ($rk !== '' ? ", the record $rk" : ', no record') .
+        ", at $pos s" . ($own ? ', the latest' : ''));
     MelOc::$cards[$key]['played'] = true;
-    return mel_lib_start($mv, mel_lib_copies($l['lib'][0]['mid']), $first, $first === $rk ? 0 : $pos, $pos, $c['ui'],
+    return mel_lib_start($mv, $copies, $first, $of_rec && $own ? 0 : $pos, $pos, $c['ui'],
         array('card_lib_copy', array('c' => $key, 'from' => 'first')));
 }
 
-// card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the key of the copy of the menu of the copies; from:
+// card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the id of the copy of the menu of the copies; from:
 // first - of "Смотреть", menu - of MENU) of the movie of card $c ($key) of layout $l. The menu: the copies read anew, the
 // one of the latest record (mel_oc_lib_cur) "· сейчас" and selected, no record - none of them, the first selected;
 // none left - lib_gone. A copy: mel_oc_lib_start.
@@ -1903,7 +1913,7 @@ function mel_oc_lib_input($key, $c, $l, $in, $control)
     if ($control === 'card_lib_copy')
     {
         $k = mel_catv_in($in, 'k');
-        if (!mel_lib_key_ok($k))
+        if (!mel_lib_cid_ok($k))
             return null;
         mel_log("card: own $key: copy $k of the menu (" . mel_catv_in($in, 'from') . ')');
         return mel_oc_lib_start($key, $c, $l, $k);
@@ -1912,7 +1922,7 @@ function mel_oc_lib_input($key, $c, $l, $in, $control)
     if (!$copies)
         return mel_lib_gone('no');
     $cur = mel_oc_lib_cur($copies, $l['hid']);
-    return mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'menu'), $copies, $cur ? $cur['key'] : '',
+    return mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'menu'), $copies, $cur ? $cur['cid'] : '',
         $c['ui']);
 }
 

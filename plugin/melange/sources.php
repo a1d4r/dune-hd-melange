@@ -275,8 +275,8 @@ function mel_lib_label($copy, $copies, $lang)
 }
 
 // The popup menu of the copies $copies of a movie (the best first, mel_lib_copies): a line each (mel_lib_label), each
-// to $control of $params with k - its key; the copy of key $cur ('' none) "<line> · сейчас" (src_now) and selected,
-// else the first. The own card (card_lib_copy) and play_action (lib_copy, mel_lib_start) alike.
+// to $control of $params with k - its id (mel_lib_cid: mirrors of one key apart); the copy of id $cur ('' none)
+// "<line> · сейчас" (src_now) and selected, else the first. The own card (card_lib_copy) and play_action (lib_copy, mel_lib_start) alike.
 /**
  * @param string $control
  * @param array<string, string> $params
@@ -292,7 +292,7 @@ function mel_lib_pick_menu($control, $params, $copies, $cur, $lang)
     foreach ($copies as $c)
     {
         $line = mel_lib_label($c, $copies, $lang);
-        if ($c['key'] === $cur)
+        if ($c['cid'] === $cur)
         {
             $sel = count($items);
             $line = str_replace('{name}', $line, mel_tr($lang, 'src_now'));
@@ -300,7 +300,7 @@ function mel_lib_pick_menu($control, $params, $copies, $cur, $lang)
         $items[] = array(
             GuiMenuItemDef::caption => $line,
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
-            GuiMenuItemDef::action => mel_input($control, array_merge($params, array('k' => $c['key']))));
+            GuiMenuItemDef::action => mel_input($control, array_merge($params, array('k' => $c['cid']))));
     }
     mel_log('library: menu of ' . count($items) . ' copies' . ($cur !== '' ? ", $cur now" : ''));
     return array(

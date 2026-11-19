@@ -292,13 +292,24 @@ function mel_wh_sig()
  */
 function mel_wh_movie($dune_id)
 {
+    $r = mel_wh_movie_last($dune_id);
+    return $r ? array($r[0], $r[1]) : null;
+}
+
+// mel_wh_movie with the uid of that record -> array(pos, len, uid), null for none.
+/**
+ * @param string $dune_id
+ * @return array{float, float, string}|null
+ */
+function mel_wh_movie_last($dune_id)
+{
     $found = mel_wh_find('history: movie', 'mel_wh_movie_visit', $dune_id);
     if (!$found)
         return null;
     $w = $found[0];
     $pos = isset($w->pos) && is_numeric($w->pos) ? floatval($w->pos) : 0.0;
     $len = isset($w->len) && is_numeric($w->len) ? floatval($w->len) : 0.0;
-    return $len > 0 ? array($pos, $len) : null;
+    return $len > 0 ? array($pos, $len, isset($w->uid) && is_string($w->uid) ? $w->uid : '') : null;
 }
 
 /**

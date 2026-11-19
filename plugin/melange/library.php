@@ -509,8 +509,10 @@ function mel_lib_folder_index($folder_id, &$info, &$left)
     $seen = array();
     foreach ($list as $f)
     {
+        // A hash of zeros: none, as the shell skips it (data_model.php r25).
         if (!is_array($f) || !isset($f['path'], $f['hash'], $f['id']) || !is_string($f['path']) ||
-            !is_scalar($f['hash']) || !$f['hash'] || !is_scalar($f['id']) || isset($seen[$f['path']]))
+            !is_scalar($f['hash']) || preg_match('/^0*$/D', strval($f['hash'])) || !is_scalar($f['id']) ||
+            isset($seen[$f['path']]))
             continue;
         $seen[$f['path']] = 1;
         // Strings in the index.
@@ -640,7 +642,8 @@ function mel_lib_index()
 // --- Copies.
 
 // 'lib-' + 12 hex of the hash of a file of the index: the key of a copy in
-// the watch history (wh_release) and in the log. No ':' in it.
+// the watch history (wh_release) and in the log. No ':' in it. The hash is of
+// the content: the mirrors of one file on two shares have one key (one record).
 /**
  * @param string $hash
  * @return string
@@ -658,6 +661,27 @@ function mel_lib_key($hash)
 function mel_lib_key_ok($k)
 {
     return is_string($k) && preg_match('/^lib-[0-9a-f]{12}$/D', $k) === 1;
+}
+
+// 'cp-' + 12 hex of the path to play of a copy: its id in the menu of the copies and the choice of it (one of
+// mirrors of one key), no path in the params of an action.
+/**
+ * @param string $url
+ * @return string
+ */
+function mel_lib_cid($url)
+{
+    return 'cp-' . substr(md5($url), 0, 12);
+}
+
+// $k is the id of a copy (mel_lib_cid): of the menu of the copies.
+/**
+ * @param mixed $k
+ * @return bool
+ */
+function mel_lib_cid_ok($k)
+{
+    return is_string($k) && preg_match('/^cp-[0-9a-f]{12}$/D', $k) === 1;
 }
 
 // The resolution in the name of a file (the last part of its path): '4K',
@@ -841,7 +865,7 @@ function mel_lib_pf($c)
     return $pf;
 }
 
-// The copy of key $key of copies $copies, null none.
+// The first copy of key $key of copies $copies (of mirrors the best), null none.
 /**
  * @param list<MelLibCopy> $copies
  * @param string $key
@@ -849,12 +873,26 @@ function mel_lib_pf($c)
  */
 function mel_lib_copy_by_key($copies, $key)
 {
+    $of = mel_lib_copies_of($copies, $key);
+    return $of ? $of[0] : null;
+}
+
+// The copies of copies $copies of $k - the key of a record (mirrors: all of it, in their order) or the id of one
+// (mel_lib_cid); none of ''.
+/**
+ * @param list<MelLibCopy> $copies
+ * @param string $k
+ * @return list<MelLibCopy>
+ */
+function mel_lib_copies_of($copies, $k)
+{
+    $res = array();
     foreach ($copies as $c)
     {
-        if ($key !== '' && $c['key'] === $key)
-            return $c;
+        if ($k !== '' && ($c['key'] === $k || $c['cid'] === $k))
+            $res[] = $c;
     }
-    return null;
+    return $res;
 }
 
 // The copies of the movie $mid of the index: its files whose source is
@@ -893,7 +931,7 @@ function mel_lib_copies($mid)
             continue;
         $urls[$url] = 1;
         $res[] = $f + array('url' => $url, 'mnt' => $mnt[$id][0], 'srv' => $mnt[$id][1],
-            'key' => mel_lib_key($f['hash']), 'caption' => $folder['caption']);
+            'key' => mel_lib_key($f['hash']), 'cid' => mel_lib_cid($url), 'caption' => $folder['caption']);
     }
     usort($res, 'mel_lib_cmp_copies');
     return $res;
