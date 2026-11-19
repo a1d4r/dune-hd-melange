@@ -39,6 +39,7 @@ define('MEL_K_C_BAR_DONE', '#FFFFFFFF');
 define('MEL_K_C_BAR_REST', '#FF404040');
 define('MEL_K_C_BAR_EDGE', '#FF000000');
 define('MEL_K_C_BAR_INFO', '#FFE0E0FF');
+define('MEL_K_C_BAR_WAIT', '#38FFFFFF');
 define('MEL_K_C_SCROLL_TRACK', '#30FFFFFF');
 define('MEL_K_C_SCROLL_THUMB', '#C0FFFFFF');
 define('MEL_K_C_NO_PHOTO', '#FF262626');
@@ -98,6 +99,7 @@ define('MEL_K_THUMB_MIN', 40);
 define('MEL_K_RATING_LINE', 2);
 define('MEL_K_RING_W', 6);
 define('MEL_K_DIALOG_W', 960);
+define('MEL_K_DIALOG_W_MAX', 1440);
 define('MEL_K_DIALOG_PAD', 40);
 define('MEL_K_DIALOG_LINE', 2);
 define('MEL_K_DIALOG_BTN_GAP', 18);
@@ -159,6 +161,7 @@ define('MEL_K_R_MARK', 21);
 define('MEL_K_R_KEY_DOT', 7);
 define('MEL_K_R_RING', 16);
 define('MEL_K_R_DIALOG', 20);
+define('MEL_K_R_BAR', 4);
 
 // Icon size by role: one PNG 96 per icon, the size is the image box.
 define('MEL_K_ICON_BUTTON', 30);
@@ -249,6 +252,14 @@ function mel_k_pic()
         'ml_hint_en' => array('url' => 'plugin_file://img/ml1_hint_en.png', 'w' => 200, 'h' => 300, 'mid' => null, 'ink' => null),
         'tv_sub_movie' => array('url' => 'plugin_file://img/tv_sub_movie.png', 'w' => 100, 'h' => 100, 'mid' => null, 'ink' => null),
         'tv_sub_series' => array('url' => 'plugin_file://img/tv_sub_series.png', 'w' => 100, 'h' => 100, 'mid' => null, 'ink' => null),
+        'k_corner_r4_bar_wait_tl' => array('url' => 'plugin_file://img/k_corner_r4_bar_wait_tl.77b3b3b8.png', 'w' => 4, 'h' => 4, 'mid' => null, 'ink' => null),
+        'k_corner_r4_bar_wait_tr' => array('url' => 'plugin_file://img/k_corner_r4_bar_wait_tr.645571c4.png', 'w' => 4, 'h' => 4, 'mid' => null, 'ink' => null),
+        'k_corner_r4_bar_wait_bl' => array('url' => 'plugin_file://img/k_corner_r4_bar_wait_bl.9359eaa4.png', 'w' => 4, 'h' => 4, 'mid' => null, 'ink' => null),
+        'k_corner_r4_bar_wait_br' => array('url' => 'plugin_file://img/k_corner_r4_bar_wait_br.76037bac.png', 'w' => 4, 'h' => 4, 'mid' => null, 'ink' => null),
+        'k_corner_r4_text1_tl' => array('url' => 'plugin_file://img/k_corner_r4_text1_tl.20596d07.png', 'w' => 4, 'h' => 4, 'mid' => null, 'ink' => null),
+        'k_corner_r4_text1_tr' => array('url' => 'plugin_file://img/k_corner_r4_text1_tr.60077874.png', 'w' => 4, 'h' => 4, 'mid' => null, 'ink' => null),
+        'k_corner_r4_text1_bl' => array('url' => 'plugin_file://img/k_corner_r4_text1_bl.c77f07f8.png', 'w' => 4, 'h' => 4, 'mid' => null, 'ink' => null),
+        'k_corner_r4_text1_br' => array('url' => 'plugin_file://img/k_corner_r4_text1_br.20134840.png', 'w' => 4, 'h' => 4, 'mid' => null, 'ink' => null),
         'k_corner_r5_badge_tl' => array('url' => 'plugin_file://img/k_corner_r5_badge_tl.6bf55574.png', 'w' => 5, 'h' => 5, 'mid' => null, 'ink' => null),
         'k_corner_r5_badge_tr' => array('url' => 'plugin_file://img/k_corner_r5_badge_tr.6e41463b.png', 'w' => 5, 'h' => 5, 'mid' => null, 'ink' => null),
         'k_corner_r5_badge_bl' => array('url' => 'plugin_file://img/k_corner_r5_badge_bl.6d2d5bef.png', 'w' => 5, 'h' => 5, 'mid' => null, 'ink' => null),
@@ -438,7 +449,9 @@ function mel_k_corner()
         'rating' => array('r' => 6, 'ring' => 2, 'color' => '#FFAFAFA0', 'tl' => 'k_corner_r6w2_text2_tl', 'tr' => 'k_corner_r6w2_text2_tr', 'bl' => 'k_corner_r6w2_text2_bl', 'br' => 'k_corner_r6w2_text2_br', 'o' => ''),
         'ring' => array('r' => 16, 'ring' => 6, 'color' => '#FF366CFF', 'tl' => 'k_corner_r16w6_accent_tl', 'tr' => 'k_corner_r16w6_accent_tr', 'bl' => 'k_corner_r16w6_accent_bl', 'br' => 'k_corner_r16w6_accent_br', 'o' => ''),
         'dialog' => array('r' => 20, 'ring' => 0, 'color' => '#FF1C1C1E', 'tl' => 'k_corner_r20_panel_tl', 'tr' => 'k_corner_r20_panel_tr', 'bl' => 'k_corner_r20_panel_bl', 'br' => 'k_corner_r20_panel_br', 'o' => ''),
-        'dialog_line' => array('r' => 20, 'ring' => 2, 'color' => '#24FFFFFF', 'tl' => 'k_corner_r20w2_line_tl', 'tr' => 'k_corner_r20w2_line_tr', 'bl' => 'k_corner_r20w2_line_bl', 'br' => 'k_corner_r20w2_line_br', 'o' => '')
+        'dialog_line' => array('r' => 20, 'ring' => 2, 'color' => '#24FFFFFF', 'tl' => 'k_corner_r20w2_line_tl', 'tr' => 'k_corner_r20w2_line_tr', 'bl' => 'k_corner_r20w2_line_bl', 'br' => 'k_corner_r20w2_line_br', 'o' => ''),
+        'bar_wait' => array('r' => 4, 'ring' => 0, 'color' => '#38FFFFFF', 'tl' => 'k_corner_r4_bar_wait_tl', 'tr' => 'k_corner_r4_bar_wait_tr', 'bl' => 'k_corner_r4_bar_wait_bl', 'br' => 'k_corner_r4_bar_wait_br', 'o' => ''),
+        'bar_wait_on' => array('r' => 4, 'ring' => 0, 'color' => '#FFFFFFE0', 'tl' => 'k_corner_r4_text1_tl', 'tr' => 'k_corner_r4_text1_tr', 'bl' => 'k_corner_r4_text1_bl', 'br' => 'k_corner_r4_text1_br', 'o' => '')
     );
     return $t;
 }
