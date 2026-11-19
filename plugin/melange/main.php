@@ -549,15 +549,22 @@ function mel_resume($in)
 {
     $si = isset($in->supplier_info) && is_string($in->supplier_info) ?
         json_decode($in->supplier_info) : null;
-    $lp = is_object($si) && isset($si->wh_mode) && $si->wh_mode === 'lampac';
-    $local = is_object($si) && isset($si->wh_mode) && $si->wh_mode === 'local';
-    if (!is_object($si) || !isset($si->wh_release) || !is_string($si->wh_release) ||
-        ($local ? !mel_lib_key_ok($si->wh_release) : (!$lp && !preg_match('/^[0-9a-f]{40}$/', $si->wh_release))))
+    if (!is_object($si) || !isset($si->wh_release) || !is_string($si->wh_release))
+        return null;
+    $mode = isset($si->wh_mode) && in_array($si->wh_mode, array('debrid', 'ts', 'lampac', 'local'), true) ?
+        strval($si->wh_mode) : '';
+    $rel = $si->wh_release;
+    if ($mode === 'local')
+        $ok = mel_lib_key_ok($rel);
+    else if ($mode === 'lampac')
+        $ok = true;
+    else
+        $ok = preg_match('/^[0-9a-f]{40}$/', $rel) === 1;
+    if (!$ok)
         return null;
     return array(
-        'hash' => $si->wh_release,
-        'mode' => $lp ? 'lampac' : ($local ? 'local' :
-            (isset($si->wh_mode) && ($si->wh_mode === 'debrid' || $si->wh_mode === 'ts') ? $si->wh_mode : '')),
+        'hash' => $rel,
+        'mode' => $mode,
         's' => mel_int($si, 'wh_s', -1),
         'e' => mel_int($si, 'wh_e', -1),
         'pos' => max(0, mel_int($si, 'wh_pos', 0)),
@@ -1995,13 +2002,9 @@ function mel_play_action($in, $hist = null, $src = '')
     // - the main one.
     $r = $hist && ($hist['hash'] !== '' || $hist['key'] !== '') ? $hist : null;
     $cur = !$mv['series'] && !$resume && $hash === '' && $lpk === '';
+    // A record of a copy on the disk (mel_lib_play) latest: none (mel_wh_card_last) - the list by the main profile.
     if (!$r && $mv['dune_id'] !== '' && (!$si || $cur))
-    {
         $r = mel_wh_card_last($mv['dune_id']);
-        // A record of a copy on the disk (mel_lib_play): no release, no online row - the list by the main profile.
-        if ($r && $r['lib'] !== '')
-            $r = null;
-    }
     if ($r && $cur)
         list($hash, $lpk) = array($r['hash'], $r['key']);
     $rec = $si ? array($si['prof'], $si['mode'] === 'lampac' ? 'lp' : ($si['mode'] === 'local' ? '' : 'rel')) :

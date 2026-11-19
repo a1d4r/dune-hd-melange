@@ -1202,7 +1202,7 @@ function mel_oc_lib($c)
 function mel_oc_lib_cur($lib, $hid)
 {
     $rec = mel_wh_lib_last($hid);
-    $c = $rec ? mel_lib_copy_by_key($lib, $rec[0]) : null;
+    $c = $rec ? mel_lib_copy_by_key($lib, $rec['key']) : null;
     return $c ? $c : $lib[0];
 }
 
@@ -1869,8 +1869,8 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
     if ($mv['dune_id'] === '')
         $mv['dune_id'] = $l['hid'];
     $rec = mel_wh_lib_last($l['hid']);
-    $rk = $rec ? $rec[0] : '';
-    $pos = $rec && !mel_wh_full($rec[1], $rec[2]) ? intval($rec[1]) : 0;
+    $rk = $rec ? $rec['key'] : '';
+    $pos = $rec && !mel_wh_full($rec['pos'], $rec['len']) ? intval($rec['pos']) : 0;
     $first = $k !== '' ? $k : $rk;
     mel_log("card: own $key: watch a copy on the disk" . ($rk !== '' ? ", the record $rk at $pos s" : ', no record'));
     MelOc::$cards[$key]['played'] = true;
