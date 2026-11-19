@@ -354,7 +354,7 @@ function mel_conf_patch($c, $tpl, $p)
 // (mel_conf_migrate) and by "Сохранить" (mel_cgi_aio_sync, before
 // mel_conf_patch). The schema a config is at: data_dir/aio_conf_mig, not
 // settings.json (a write there moves saved_at; an import would bring old marks).
-define('MEL_CONF_SCHEMA', 2);
+define('MEL_CONF_SCHEMA', 3);
 define('MEL_CONF_MIG_FILE', 'aio_conf_mig');
 
 // The migrations by the schema each brings a config to: the names of the steps,
@@ -367,7 +367,7 @@ define('MEL_CONF_MIG_FILE', 'aio_conf_mig');
  */
 function mel_conf_migrations()
 {
-    return array(1 => 'dedup', 2 => 'both');
+    return array(1 => 'dedup', 2 => 'both', 3 => 'library');
 }
 
 // 1 (0.56.0): a copy of a cached file per service (one service: the same as
@@ -403,6 +403,38 @@ function mel_conf_step_both($u)
             $x->options->searchMode === 'query')
         {
             $x->options->searchMode = 'both';
+            $ch = true;
+        }
+    }
+    return $ch;
+}
+
+// 3: no key library (in the library of the Debrid service) in the sorting -
+// the old template had it over cached, so a release a failed try had added to
+// the service rose to the top of the next lists. Removed from every list of
+// sortCriteria; the other keys and their order as they are.
+/**
+ * @param object $u
+ * @return bool
+ */
+function mel_conf_step_library($u)
+{
+    if (!isset($u->sortCriteria) || !is_object($u->sortCriteria))
+        return false;
+    $ch = false;
+    foreach (get_object_vars($u->sortCriteria) as $k => $l)
+    {
+        if (!is_array($l))
+            continue;
+        $keep = array();
+        foreach ($l as $x)
+        {
+            if (!is_object($x) || !isset($x->key) || $x->key !== 'library')
+                $keep[] = $x;
+        }
+        if (count($keep) !== count($l))
+        {
+            $u->sortCriteria->$k = $keep;
             $ch = true;
         }
     }
