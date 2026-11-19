@@ -519,8 +519,8 @@ function mel_lib_folder_index($folder_id, &$info, &$left)
         $ass = isset($f['ass_type']) && is_numeric($f['ass_type']) ? intval($f['ass_type']) : 0;
         if ($ass !== 0 || $s >= 0 || $e >= 0)
             continue;
-        // The media tags of the indexer, as is: "MKV,4K,23.976,DV,HEVC,16:9,Atmos,7.1".
-        $tags = isset($f['tags']) && is_string($f['tags']) ? $f['tags'] : '';
+        // The media tags of the indexer ("MKV,4K,23.976,DV,HEVC,16:9,Atmos,7.1"), read once (mel_lib_tags).
+        $tags = mel_lib_tags(isset($f['tags']) && is_string($f['tags']) ? $f['tags'] : '');
         $files[] = array(
             'folder' => strval($folder_id),
             'path' => $f['path'],
@@ -689,21 +689,38 @@ function mel_lib_res_words()
         '720p' => array('720', 1));
 }
 
+// The media tags $s of a file of the index ("MKV,4K,23.976,DV,Atmos,7.1") -> each in upper case once, in their order,
+// none empty: the case of a tag not minded anywhere after.
+/**
+ * @param string $s
+ * @return list<string>
+ */
+function mel_lib_tags($s)
+{
+    $tags = array();
+    foreach (explode(',', strtoupper($s)) as $t)
+    {
+        $t = trim($t);
+        if ($t !== '' && !in_array($t, $tags, true))
+            $tags[] = $t;
+    }
+    return $tags;
+}
+
 // The resolution of a file of the index, the one of its copy to show and to sort by (mel_lib_res_rank): by its media
 // tags (mel_lib_res_words), by the name of its file (mel_lib_quality) only when it has no tags; '' for none.
 /**
- * @param string $tags
+ * @param list<string> $tags
  * @param string $path
  * @return string
  */
 function mel_lib_res($tags, $path)
 {
-    if (trim($tags) === '')
+    if (!$tags)
         return mel_lib_quality($path);
     $words = mel_lib_res_words();
-    foreach (explode(',', $tags) as $t)
+    foreach ($tags as $t)
     {
-        $t = trim($t);
         foreach ($words as $res => $w)
         {
             if ($w[0] !== '' && $w[0] === $t)
@@ -725,20 +742,18 @@ function mel_lib_res_rank($res)
     return isset($words[$res]) ? $words[$res][1] : ($res !== '' ? 0 : -1);
 }
 
-// The groups of the media tags of the indexer by MediaTags::$TAGS_ORDER of the shell (media_tags.php r25), the best
-// first in each: the resolution, HDR, the audio, the channels; each tag (upper case) => its badge of the list of
-// releases (img/nb2_<id>.png, MelGc::$badge_w), the channels none: they are text. 1080 and 720 are int keys in PHP.
+// The groups of the media tags of the indexer by MediaTags::$TAGS_ORDER of the shell (media_tags.php r25), upper case,
+// the best first in each: the resolution, HDR, the audio, the channels (only the order of the copies, mel_lib_order).
 /**
- * @return list<array<int|string, string>>
+ * @return list<list<string>>
  */
 function mel_lib_tag_groups()
 {
     return array(
-        array('4K' => '4k', '2K' => '1440p', '1080' => '1080p', '720' => '720p'),
-        array('DV' => 'dolby-vision', 'HDR10+' => 'hdr10-plus', 'HDR10' => 'hdr10', 'HLG' => 'hlg'),
-        array('ATMOS' => 'dolby-atmos', 'DTS:X' => 'dts-x', 'TRUEHD' => 'dolby-truehd', 'DTS-HD MA' => 'dts-hd-ma',
-            'DTS-HD' => 'dts-hd', 'DD' => 'dolby-digital', 'DTS' => 'dts'),
-        array('9.1' => '', '7.1' => '', '6.1' => '', '5.1' => ''));
+        array('4K', '2K', '1080', '720'),
+        array('DV', 'HDR10+', 'HDR10', 'HLG'),
+        array('ATMOS', 'DTS:X', 'TRUEHD', 'DTS-HD MA', 'DTS-HD', 'DD', 'DTS'),
+        array('9.1', '7.1', '6.1', '5.1'));
 }
 
 // The weight of a copy as MediaTags::get_order_by_tags of the shell weighs its tags: of each tag of a group its place
@@ -750,7 +765,7 @@ function mel_lib_tag_groups()
  */
 function mel_lib_order($c)
 {
-    if (trim($c['tags']) === '')
+    if (!$c['tags'])
     {
         $r = mel_lib_res_rank($c['res']);
         return $r > 0 ? $r * 1000 : $r;
@@ -760,14 +775,13 @@ function mel_lib_order($c)
     foreach (mel_lib_tag_groups() as $g)
     {
         $n = count($g);
-        foreach (array_keys($g) as $k => $tag)
-            $w[strval($tag)] = ($n - $k) * $mult;
+        foreach ($g as $k => $tag)
+            $w[$tag] = ($n - $k) * $mult;
         $mult = intval($mult / 10);
     }
     $sum = 0;
-    foreach (explode(',', strtoupper($c['tags'])) as $t)
+    foreach ($c['tags'] as $t)
     {
-        $t = trim($t);
         if (isset($w[$t]))
             $sum += $w[$t];
     }
@@ -792,37 +806,39 @@ function mel_lib_cmp_copies($a, $b)
     return strcmp($a['path'], $b['path']);
 }
 
-// The badges of copy $c of the line "С диска" of the card: the best tag of each group (mel_lib_tag_groups) - res, hdr,
-// audio as the ids of their badges, ch the channels as they are; src 'bluray' of a tag Blu-ray. No tags: res of the
-// resolution by the name (res of the copy, lower case: an id of a badge if there is one). The case of a tag not
-// minded; another tag (the container, the frame rate, the codec, the frame) - none.
+// The media tags of copy $c as a parsedFile of AIOStreams, for the badges of the list of releases (mel_badges,
+// mel_gc_row_badges) and its channels: resolution - res of the copy (by the tags, else by the name); quality BluRay of
+// a tag Blu-ray; visualTags and audioTags - its tags by the names mel_badges and mel_audio_rules know (DV, HDR10+,
+// HDR, Atmos, TrueHD, DD, DTS:X, ...: the case of a tag not minded); audioChannels - its layouts "N.N". The others (the
+// container, the frame rate, the codec, the frame, 3D) none.
 /**
  * @param MelLibCopy $c
- * @return array{res: string, src: string, hdr: string, audio: string, ch: string}
+ * @return array{resolution: string, quality: string, visualTags: list<string>, audioTags: list<string>, audioChannels: list<string>}
  */
-function mel_lib_badges($c)
+function mel_lib_pf($c)
 {
-    $b = array('res' => '', 'src' => '', 'hdr' => '', 'audio' => '', 'ch' => '');
-    if (trim($c['tags']) === '')
+    $names = array('vis' => array(), 'audio' => array());
+    foreach (array('DV', 'HDR10+', 'HDR10', 'HDR', 'HLG', '10bit') as $t)
+        $names['vis'][strtoupper($t)] = $t;
+    foreach (mel_audio_rules() as $r)
     {
-        $b['res'] = $c['res'] === '4K' ? '4k' : ($c['res'] === '2K' ? '1440p' : strtolower($c['res']));
-        return $b;
+        foreach ($r[2] as $t)
+            $names['audio'][strtoupper($t)] = $t;
     }
-    $tags = array_map('trim', explode(',', strtoupper($c['tags'])));
-    $b['src'] = in_array('BLU-RAY', $tags, true) ? 'bluray' : '';
-    $groups = mel_lib_tag_groups();
-    foreach (array('res', 'hdr', 'audio', 'ch') as $i => $k)
+    $pf = array('resolution' => $c['res'], 'quality' => '', 'visualTags' => array(), 'audioTags' => array(),
+        'audioChannels' => array());
+    foreach ($c['tags'] as $t)
     {
-        foreach ($groups[$i] as $tag => $id)
-        {
-            if (in_array(strval($tag), $tags, true))
-            {
-                $b[$k] = $k === 'ch' ? strval($tag) : $id;
-                break;
-            }
-        }
+        if ($t === 'BLU-RAY')
+            $pf['quality'] = 'BluRay';
+        else if (isset($names['vis'][$t]))
+            $pf['visualTags'][] = $names['vis'][$t];
+        else if (isset($names['audio'][$t]))
+            $pf['audioTags'][] = $names['audio'][$t];
+        else if (preg_match('/^[0-9]\.[0-9]$/D', $t))
+            $pf['audioChannels'][] = $t;
     }
-    return $b;
+    return $pf;
 }
 
 // The copy of key $key of copies $copies, null none.

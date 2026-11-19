@@ -76,6 +76,8 @@ define('MEL_OC_LINE_Y', 660);
 // The line "С диска" of a copy on the disk (mel_oc_lib_line): its text, its right edge (that of the progress before it).
 define('MEL_OC_LIB_PX', 24);
 define('MEL_OC_LIB_R', 1845);
+// The alpha of the badges of that line (T1, owner 18.11.2026): their white in the tone of the grey text by them.
+define('MEL_OC_LIB_ALPHA', 175);
 define('MEL_OC_BAR_H', 6);
 define('MEL_OC_BAR_DY', 9);
 define('MEL_OC_HINT_R', 1845);
@@ -762,7 +764,7 @@ function mel_oc_bar($wh, $w0)
         mel_gc_rect(mel_gc_at($fw, MEL_OC_BAR_H, $x0, $by), MEL_GC_TEXT));
 }
 
-// Under the buttons of a movie with a copy on the disk $copy (the one "Watch" plays: begun, else the best, mel_oc_lib_cur;
+// Under the buttons of a movie with a copy on the disk $copy (that of its latest record, mel_oc_lib_cur, else the best;
 // owner 18-19.11.2026), in place of the lines of no IMDb, no Lampac or no card of the Dune (the file plays): not begun -
 // "С диска [badges] 7.1 · 58.3 ГБ" (mel_oc_lib_line) where the progress is; begun ($wh) - the bar and that after the
 // text of the progress ("Просмотрено 42 % · осталось 1 ч 6 мин · С диска …", B1 (A)); watched (by its position or
@@ -789,10 +791,11 @@ function mel_oc_under_lib($c, $wh, $w0, $marked, $copy)
         MEL_CATV_TEXT_COLOR));
 }
 
-// The line of copy $copy at $x under the buttons: $head, the badges of the list of releases of its tags (mel_lib_badges;
-// the resolution, Blu-ray, HDR, the audio, of a picture only, mel_gc_plates, as high as there), the channels and the
-// size as text. Wider than to MEL_OC_LIB_R: the size out first, then the channels, then the audio (owner 19.11.2026);
-// the resolution and HDR stay.
+// The line of copy $copy at $x under the buttons: $head, the badges the list of releases gives its tags (mel_lib_pf ->
+// mel_badges -> mel_gc_row_badges: the resolution, the source, the picture, the audio, by mel_gc_plates, as high as
+// there, MEL_OC_LIB_ALPHA), the channels as the card of a release has them ("7.1 / 2.0", mel_audio_text) and the size
+// as text. Wider than to MEL_OC_LIB_R: the size out first, then the channels, then the audio (owner 19.11.2026); the
+// resolution and the picture stay.
 /**
  * @param string $lang
  * @param MelLibCopy $copy
@@ -803,20 +806,18 @@ function mel_oc_under_lib($c, $wh, $w0, $marked, $copy)
  */
 function mel_oc_lib_line($lang, $copy, $x, $head, $color)
 {
-    $b = mel_lib_badges($copy);
-    $ids = array();
-    foreach (array('res', 'src', 'hdr', 'audio') as $k)
-    {
-        if ($b[$k] !== '' && isset(MelGc::$badge_w[$b[$k]]))
-            $ids[$k] = $b[$k];
-    }
+    $pf = mel_lib_pf($copy);
+    $cols = mel_gc_row_badges(mel_badges($pf));
+    $quiet = array_merge($cols['res'], $cols['src'], $cols['vis']);
+    $ids = array_merge($quiet, $cols['audio']);
+    $ch = $pf['audioChannels'];
+    rsort($ch);
+    $ch = implode(' / ', $ch);
     $size = $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '';
-    $quiet = $ids;
-    unset($quiet['audio']);
     $d = array();
-    foreach (array(array($b['ch'], $size, $ids), array($b['ch'], '', $ids), array('', '', $ids), array('', '', $quiet)) as $v)
+    foreach (array(array($ch, $size, $ids), array($ch, '', $ids), array('', '', $ids), array('', '', $quiet)) as $v)
     {
-        list($d, $w) = mel_oc_lib_parts($head, array_values($v[2]), implode(' · ', array_filter(array($v[0], $v[1]), 'strlen')),
+        list($d, $w) = mel_oc_lib_parts($head, $v[2], implode(' · ', array_filter(array($v[0], $v[1]), 'strlen')),
             $x, $color);
         if ($x + $w <= MEL_OC_LIB_R)
             break;
@@ -846,8 +847,11 @@ function mel_oc_lib_parts($head, $ids, $tail, $x, $color)
     if ($ids)
     {
         $pw = mel_gc_plates_w($ids);
+        $plates = mel_gc_plates($ids, 0);
+        foreach ($plates as $i => $p)
+            $plates[$i][GComponentDef::specific_def][GCompImageDef::alpha] = MEL_OC_LIB_ALPHA;
         $d[] = mel_gc_panel('lib', mel_gc_at($pw, MEL_GC_BADGE_H, $x + $w + MEL_GC_BADGE_GAP,
-            MEL_OC_LINE_Y + intval((34 - MEL_GC_BADGE_H) / 2)), mel_gc_plates($ids, 0));
+            MEL_OC_LINE_Y + intval((34 - MEL_GC_BADGE_H) / 2)), $plates);
         $w += MEL_GC_BADGE_GAP + $pw;
     }
     if ($tail !== '')
@@ -1145,8 +1149,11 @@ function mel_oc_layout($c)
     {
         $w0 = $btns ? mel_oc_btn_w($btns[0]) : 0;
         if ($lib)
+        {
+            $cur = mel_oc_lib_cur($lib, $hid);
             $only = mel_oc_under_lib($c, mel_wh_movie($hid), $w0, mel_pg_mark_kind($hid, 'movie') === 'off',
-                mel_oc_lib_cur($lib, $hid));
+                $cur ? $cur : $lib[0]);
+        }
         else
         {
             $wh = $c['dune'] !== '' && mel_oc_can_watch($c) ? mel_wh_movie($c['dune']) : null;
@@ -1192,18 +1199,17 @@ function mel_oc_lib($c)
     return array($lib, $lib && $c['dune'] === '' ? $y : $c['dune']);
 }
 
-// The copy of copies $lib (the best first) "Watch" of the card of history $hid plays: that of its latest record
-// (mel_wh_lib_last), there; else the best.
+// The copy of copies $lib of the latest record of a copy of the card of history $hid (mel_wh_lib_last), there; null
+// none (no record, or its copy not among them): no copy is the current one then.
 /**
  * @param list<MelLibCopy> $lib
  * @param string $hid
- * @return MelLibCopy
+ * @return MelLibCopy|null
  */
 function mel_oc_lib_cur($lib, $hid)
 {
     $rec = mel_wh_lib_last($hid);
-    $c = $rec ? mel_lib_copy_by_key($lib, $rec['key']) : null;
-    return $c ? $c : $lib[0];
+    return $rec ? mel_lib_copy_by_key($lib, $rec['key']) : null;
 }
 
 // The clip of the page at stop $p of layout $l, from its top (under the logo; at the stop of a row of posters under
@@ -1880,7 +1886,8 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
 
 // card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the key of the copy of the menu of the copies; from:
 // first - of "Смотреть", menu - of MENU) of the movie of card $c ($key) of layout $l. The menu: the copies read anew, the
-// one "Смотреть" plays (mel_oc_lib_cur) "· сейчас" and selected; none left - lib_gone. A copy: mel_oc_lib_start.
+// one of the latest record (mel_oc_lib_cur) "· сейчас" and selected, no record - none of them, the first selected;
+// none left - lib_gone. A copy: mel_oc_lib_start.
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1905,7 +1912,8 @@ function mel_oc_lib_input($key, $c, $l, $in, $control)
     if (!$copies)
         return mel_lib_gone('no');
     $cur = mel_oc_lib_cur($copies, $l['hid']);
-    return mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'menu'), $copies, $cur['key'], $c['ui']);
+    return mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'menu'), $copies, $cur ? $cur['key'] : '',
+        $c['ui']);
 }
 
 // card_finish (GUI_EVENT_MENU_PLAYBACK_FINISH of the screen of card $c, $key; after STOP): the card anew in place (its
