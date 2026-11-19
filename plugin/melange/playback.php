@@ -629,14 +629,7 @@ function mel_pre_class($url, $code, $loc, $type, $len)
         $t = strtolower(trim(preg_replace('/;.*$/s', '', $type)));
         // Not an HLS playlist: small, yet a stream. Comet: the reason is not in the headers.
         if (substr($t, 0, 6) === 'video/' && strpos($t, 'mpegurl') === false)
-        {
-            $note = mel_cut(preg_replace('/[^\x21-\x7e]+/', '', $t), 60) . " $len bytes";
-            $c = mel_pre_comet($len);
-            if ($c)
-                return array('class' => 'placeholder', 'key' => $c[1], 'detail' => '', 'note' => "$note, Comet {$c[0]}");
-            return array('class' => 'placeholder', 'key' => 'err_pre_placeholder',
-                'detail' => sprintf('HTTP %d, %d KB', $code, max(1, round($len / 1024))), 'note' => $note);
-        }
+            return mel_pre_comet($t, $len);
     }
     if ($code < 300 || $code > 399 || $loc === '')
         return array('class' => 'unclear', 'why' => "HTTP $code" . ($code >= 300 && $code <= 399 ? ', no Location' : ''));
@@ -674,21 +667,27 @@ function mel_pre_class($url, $code, $loc, $type, $len)
     return array('class' => 'unclear', 'why' => "HTTP $code, same host, not a placeholder");
 }
 
-// Content-Length $len of a 200 video body -> array(name, key) of the placeholder
-// video of Comet of this size, else null. Sizes of comet/assets/status_videos
-// (g0ldyy/comet a3b75ec, 18.11.2026); Comet sends the video of the first code of
-// the error it has, else UNKNOWN. Not here: a size of several videos (410511,
-// 414298, 416584: one file under several names, UNAVAILABLE_FOR_LEGAL_REASONS
+// Content-Length $len of a 200 body of video type $t (lower case, no
+// parameters) -> its placeholder: of the reason of the placeholder video of
+// Comet of this size, else the general one with the size. Sizes of
+// comet/assets/status_videos (g0ldyy/comet a3b75ec, 18.11.2026); Comet sends
+// the video of the first code of the error it has, else UNKNOWN. A size of
+// several videos is one file under several names: 414298 (MAGNET_MUST_BE_PREMIUM,
+// MUST_BE_PREMIUM, PAYMENT_REQUIRED: all "premium needed") is the account. Not
+// here: 410511 and 416584 (names of other reasons, UNAVAILABLE_FOR_LEGAL_REASONS
 // among them) and DEBRID_SYNC_* (not a refusal). The general key: a reason the
 // viewer can do nothing about but another release.
 /**
+ * @param string $t
  * @param int $len
- * @return array{0: string, 1: string}|null
+ * @return array{class: 'placeholder', key: string, detail: string, note: string}
  */
-function mel_pre_comet($len)
+function mel_pre_comet($t, $len)
 {
     static $keys = array(
-        'err_pre_no_file' => array(413778 => 'NOT_FOUND', 400976 => 'GONE', 405654 => 'LINK_OFFLINE'),
+        'err_pre_no_file' => array(400976 => 'GONE', 405654 => 'LINK_OFFLINE'),
+        // PROXY_LIMIT_REACHED: the limit of streams of the proxy of Comet itself
+        // per IP (comet/services/streaming/manager.py), not of the Debrid account; rare.
         'err_pre_limit' => array(408922 => 'MONTHLY_LIMIT', 415250 => 'STORE_LIMIT_EXCEEDED',
             416002 => 'FREE_TRIAL_LIMIT_REACHED', 416056 => 'COOLDOWN_LIMIT', 417188 => 'ACTIVE_LIMIT',
             419051 => 'TOO_MANY_REQUESTS', 434596 => 'PROXY_LIMIT_REACHED'),
@@ -699,17 +698,21 @@ function mel_pre_comet($len)
             407336 => 'AUTH_USER_BANNED', 406089 => 'ACCOUNT_INVALID', 409851 => 'AUTH_MISSING_APIKEY',
             410052 => 'AUTH_ERROR', 409719 => 'EXPIRED_TOKEN', 411630 => 'BAD_TOKEN', 411119 => 'UNAUTHORIZED',
             412188 => 'INVALID_ACCOUNT_OR_PASSWORD', 416228 => 'NO_AUTH', 407389 => 'INVALID_CLIENT',
-            408125 => 'UNAUTHORIZED_CLIENT', 403784 => 'PLAN_RESTRICTED_FEATURE'),
-        'err_pre_placeholder' => array(421667 => 'UNKNOWN', 417231 => 'BAD_REQUEST', 420256 => 'CONFLICT',
-            415943 => 'METHOD_NOT_ALLOWED', 402648 => 'NOT_IMPLEMENTED', 416790 => 'UNSUPPORTED_MEDIA_TYPE',
-            416961 => 'UNPROCESSABLE_ENTITY', 409183 => 'STORE_NAME_INVALID', 419446 => 'STORE_MAGNET_INVALID',
-            414378 => 'FORBIDDEN', 414436 => 'LOCKED'));
+            408125 => 'UNAUTHORIZED_CLIENT', 403784 => 'PLAN_RESTRICTED_FEATURE', 414298 => 'MUST_BE_PREMIUM'),
+        // NOT_FOUND: TorBox through StremThru gave it for a file the release has,
+        // the link not given for a while; not "no file".
+        'err_pre_placeholder' => array(421667 => 'UNKNOWN', 413778 => 'NOT_FOUND', 417231 => 'BAD_REQUEST',
+            420256 => 'CONFLICT', 415943 => 'METHOD_NOT_ALLOWED', 402648 => 'NOT_IMPLEMENTED',
+            416790 => 'UNSUPPORTED_MEDIA_TYPE', 416961 => 'UNPROCESSABLE_ENTITY', 409183 => 'STORE_NAME_INVALID',
+            419446 => 'STORE_MAGNET_INVALID', 414378 => 'FORBIDDEN', 414436 => 'LOCKED'));
+    $note = mel_cut(preg_replace('/[^\x21-\x7e]+/', '', $t), 60) . " $len bytes";
     foreach ($keys as $key => $sizes)
     {
         if (isset($sizes[$len]))
-            return array($sizes[$len], $key);
+            return array('class' => 'placeholder', 'key' => $key, 'detail' => '', 'note' => "$note, Comet {$sizes[$len]}");
     }
-    return null;
+    return array('class' => 'placeholder', 'key' => 'err_pre_placeholder',
+        'detail' => sprintf('HTTP 200, %d KB', max(1, round($len / 1024))), 'note' => $note);
 }
 
 // Name $file of a placeholder video of the add-on -> its placeholder.

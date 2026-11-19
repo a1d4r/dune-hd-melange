@@ -127,7 +127,7 @@ On the Dune, when starting a release:
 | "Debrid blocked the release: copyright", "Debrid found no matching file in the release — pick another", "Debrid didn't return the video — pick another release" | choose another release |
 | "Debrid limit reached" | the account limit is used up: wait or choose another release |
 | "Debrid is temporarily unavailable — try again later" | the failure is on the Debrid side: try again in a few minutes or choose another release |
-| "Debrid rejected the key or account — check the key and subscription" | check the Debrid key in the config and whether the subscription is still active |
+| "Debrid rejected the key — check it and the subscription" | check the Debrid key in the Melange settings ([Debrid](debrid.en.md)) and whether the subscription is still active; with your own config, the key is set in AIOStreams |
 | "… could not play the release" and a "Play via TorBox" (or "Play via Real-Debrid") button | the release is cached in both services: press the button, and it starts through the other one |
 | A "Same episode, another release" button (for a movie, "Same movie, another release") | the list has another release with the same file: press the button to start it |
 
