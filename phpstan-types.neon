@@ -316,11 +316,12 @@ parameters:
         # What plays (Mel::$playing, mel_playing, playback.php): rid of the
         # list screen under the player ('' none), the list state, its row.
         MelPlaying: 'array{from: string, st: MelState, sel: int}'
-        # The dialog of a copy refused by its Debrid with "Via <the other one>" (Mel::$alt,
-        # mel_pre_failed, playback.php): the list state of the start, its row, the
-        # position, under the player or not, rid of the screen under the player to
-        # note (mel_playing; '' none), the services refused on this start.
-        MelAlt: 'array{st: MelState, i: int, pos: int, lazy: bool, from: string, tried: list<string>}'
+        # The dialog of a start refused by its Debrid with "Via <the other one>" or "The same
+        # episode from another release" (Mel::$alt, mel_pre_failed, playback.php): the list
+        # state of the start, its row, the position, under the player or not, rid of the
+        # screen under the player to note (mel_playing; '' none), the services of the row
+        # refused on this start, the rows refused on it, the row offered (mel_pre_twin, -1 none).
+        MelAlt: 'array{st: MelState, i: int, pos: int, lazy: bool, from: string, tried: list<string>, rows: list<int>, twin: int}'
         # The service chosen by "Via <service>" for this viewing (Mel::$via, mel_pre_via).
         MelVia: 'array{k: string, hash: string, svc: string}'
         # Params of the window of TorrServer in the player (mel_tsi_params, ts_info.php).

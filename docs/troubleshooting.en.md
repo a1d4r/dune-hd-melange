@@ -129,6 +129,7 @@ On the Dune, when starting a release:
 | "Debrid is temporarily unavailable — try again later" | the failure is on the Debrid side: try again in a few minutes or choose another release |
 | "Debrid rejected the key or account — check the key and subscription" | check the Debrid key in the config and whether the subscription is still active |
 | "… could not play the release" and a "Play via TorBox" (or "Play via Real-Debrid") button | the release is cached in both services: press the button, and it starts through the other one |
+| A "Same episode, another release" button (for a movie, "Same movie, another release") | the list has another release with the same file: press the button to start it |
 
 **Real-Debrid refuses "Not cached" releases**: do not start such releases more than 1–2 times in a row, wait a few minutes ([Known limitations](limitations.en.md#debrid)).
 

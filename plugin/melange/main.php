@@ -166,8 +166,9 @@ class Mel
     // mel_finish replaces it with the list of the episode played last.
     /** @var MelPlaying|null */
     public static $playing = null;
-    // The dialog "<service> could not play the release" with "Via <the other
-    // one>" (mel_pre_failed), until its button (mel_pre_via) or another start.
+    // The dialog of a refused start with "Via <the other one>" or "The same episode
+    // from another release" (mel_pre_failed), until its button (mel_pre_via,
+    // mel_pre_twin_go) or another start.
     /** @var MelAlt|null */
     public static $alt = null;
     // The service chosen by "Via <service>": the start and the next episodes of
@@ -2203,6 +2204,8 @@ function mel_handle_user_input($in)
         return mel_next_pick($in);
     if ($control === 'pre_via')
         return mel_pre_via($in);
+    if ($control === 'pre_twin')
+        return mel_pre_twin_go($in);
     if ($control === 'finish')
         return mel_finish($in);
     if ($control === 'gc_flip')
