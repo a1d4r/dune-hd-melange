@@ -414,6 +414,8 @@ function mel_k_pic()
         'k_badge_pcm' => array('url' => 'plugin_file://img/k_badge_pcm.e69cd926.png', 'w' => 76, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_opus' => array('url' => 'plugin_file://img/k_badge_opus.758c036c.png', 'w' => 111, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_aac' => array('url' => 'plugin_file://img/k_badge_aac.dc5c3a54.png', 'w' => 96, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_subs-ru' => array('url' => 'plugin_file://img/k_badge_subs_ru.f18cf4a8.png', 'w' => 93, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_lang_q' => array('url' => 'plugin_file://img/k_lang_q.ce71fd18.png', 'w' => 36, 'h' => 36, 'mid' => null, 'ink' => null),
         'k_key_info' => array('url' => 'plugin_file://img/k_key_info.4abf6008.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0), 'ink' => array(43, 16, 53, 80)),
         'k_mask_page' => array('url' => 'plugin_file://img/k_mask_page.bc9369ac.png', 'w' => 900, 'h' => 880, 'mid' => null, 'ink' => null)
     );
