@@ -1002,9 +1002,13 @@ class MelKit
     //     MEL_K_C_SCROLL_THUMB, $o['part'] of the height (default all, at
     //     least MEL_K_THUMB_MIN), at $share of the way down;
     //   ring: no bar but the outline of the focus (the plate ring) round the
-    //     box, MEL_K_RING_W outside it; its edges the outline.
-    // $o['id']: the id of the thumb or of the done part. Width or height 0, or
-    // an unknown role (logged): nothing.
+    //     box, MEL_K_RING_W outside it; its edges the outline;
+    //   wait: of the own wait window and wait screen (r6 bar_line), plates
+    //     rounded MEL_K_R_BAR: the track bar_wait whole, over it the done
+    //     part bar_wait_on (text 1), $share of the width when $share > 0.
+    // $o['id']: the id of the thumb or of the done part (not of wait: its
+    // done part is a plate of several). Width or height 0, or an unknown role
+    // (logged): nothing.
     /**
      * @param string $role
      * @param int $x
@@ -1017,7 +1021,8 @@ class MelKit
      */
     public static function bar($role, $x, $y, $w, $h, $share = 0, $o = array())
     {
-        $roles = array('progress' => MEL_K_C_BAR_DONE, 'info' => MEL_K_C_BAR_INFO, 'scroll' => '', 'ring' => '');
+        $roles = array('progress' => MEL_K_C_BAR_DONE, 'info' => MEL_K_C_BAR_INFO, 'scroll' => '', 'ring' => '',
+            'wait' => '');
         if (!isset($roles[$role]))
             self::miss('bar', $role);
         if ($w <= 0 || $h <= 0 || !isset($roles[$role]))
@@ -1030,6 +1035,15 @@ class MelKit
         }
         $id = isset($o['id']) ? (string) $o['id'] : null;
         $s = max(0, min(1, (float) $share));
+        if ($role === 'wait')
+        {
+            $parts = array(self::plate('bar_wait', $x, $y, $w, $h));
+            if ($s > 0)
+                $parts[] = self::plate('bar_wait_on', $x, $y, (int) round($w * $s), $h);
+            $out = self::join('bar', $parts);
+            $out['mid'] = $out['cy'] = $y + $h / 2;
+            return $out;
+        }
         $d = array();
         $top = $y;
         if ($role === 'scroll')
@@ -1633,7 +1647,9 @@ class MelKit
     // capitals of its first line; the rhythm goes by the title, the icon stands over it, as r6) -s- the text {id}_text
     // (MEL_K_PX_DESCRIPTION, text 2, 3 lines a step MEL_K_STEP_DIALOG_TEXT) -l- the buttons {id}_b0, {id}_b1, …
     // (button, MEL_K_DIALOG_BTN_GAP apart, from MEL_K_DIALOG_PAD) -l- the bottom of the window. The text and what
-    // follows it start where the title does. $v:
+    // follows it start where the title does. A line of buttons wider than the window: the window wider, up to
+    // MEL_K_DIALOG_W_MAX (the title and the text with it); wider still, the buttons that do not fit on a second line,
+    // from the left too, -s- under the first (lead 19.11, in «the buttons in a line on the left» of the owner). $v:
     //   id       the prefix of the ids (default dlg);
     //   icon     k_icon_* ('' or none: no icon, the title from MEL_K_DIALOG_PAD); tone: its colour, '' text 2, warn,
     //            err (another: logged once, '');
@@ -1653,8 +1669,8 @@ class MelKit
 
     // The wait window over a screen (r6 W2_ts_window; owner 19.11: the wait of a screen of ours is a window over it):
     // the dialog (see dialog), after its text -s- the live line {id}_live (MEL_K_PX_SECONDARY, text 3, one line: «прошло
-    // 25 с · скорость 2.1 МБ/с»; '' or none: no block) -s- the bar {id}_bar (bar progress MEL_K_DIALOG_BAR_H high, as
-    // wide as the text, done share of it) when share is not null. $v: those of dialog, live, share (0..1 or null).
+    // 25 с · скорость 2.1 МБ/с»; '' or none: no block) -s- the bar {id}_bar (bar wait MEL_K_DIALOG_BAR_H high, as wide
+    // as the text, done share of it) when share is not null. $v: those of dialog, live, share (0..1 or null).
     /**
      * @param array<string, mixed> $v
      * @return MelKitItem
@@ -1680,7 +1696,7 @@ class MelKit
     //             MEL_K_PAGE_X -MEL_K_ICON_GAP_PAGE- the title, on the centre of its capitals; the rhythm goes by the
     //             title) and the title (MEL_K_PX_PAGE_TITLE, text 1, one line cut with «…» at MEL_K_PAGE_TEXT_W) -s- the
     //             text {id}_text (MEL_K_PX_DESCRIPTION, text 2, 3 lines a step MEL_K_STEP_DIALOG_TEXT) -m- the bar
-    //             {id}_bar (bar progress MEL_K_DIALOG_BAR_H high, MEL_K_PAGE_BAR_W wide, done share of it) -s- the live
+    //             {id}_bar (bar wait MEL_K_DIALOG_BAR_H high, MEL_K_PAGE_BAR_W wide, done share of it) -s- the live
     //             line {id}_live (MEL_K_PX_SECONDARY, text 3: «прошло 25 с») -l- the buttons {id}_b0, {id}_b1, …
     //             (button, MEL_K_DIALOG_BTN_GAP apart, from MEL_K_PAGE_X) -l- the detail {id}_detail
     //             (MEL_K_PX_CAPTION, text 3, from MEL_K_PAGE_X: «Код ошибки плеера: 99»). The text, the bar and the
@@ -1736,7 +1752,7 @@ class MelKit
         }
         if (isset($v['share']))
         {
-            $blocks[] = self::group("{$p}_bar", self::bar('progress', $tx, 0, MEL_K_PAGE_BAR_W, MEL_K_DIALOG_BAR_H,
+            $blocks[] = self::group("{$p}_bar", self::bar('wait', $tx, 0, MEL_K_PAGE_BAR_W, MEL_K_DIALOG_BAR_H,
                 (float) $v['share']));
             $gaps[] = 'm';
         }
@@ -1840,8 +1856,20 @@ class MelKit
     private static function window($v, $live, $share)
     {
         $p = isset($v['id']) ? (string) $v['id'] : 'dlg';
-        $W = MEL_K_DIALOG_W;
         $pad = MEL_K_DIALOG_PAD;
+        $bs = isset($v['buttons']) && is_array($v['buttons']) ? $v['buttons'] : array();
+        if (count($bs) > 3)
+            self::once('dialog buttons', 'kit: dialog: ' . count($bs) . ' buttons, the first 3');
+        $items = array();
+        $need = 0;
+        foreach (array_slice($bs, 0, 3) as $i => $b)
+        {
+            $it = self::group("{$p}_b$i", self::button((string) $b['label'], isset($b['icon']) ? (string) $b['icon']
+                : '', isset($b['state']) ? (string) $b['state'] : ''));
+            $need += ($i ? MEL_K_DIALOG_BTN_GAP : 0) + $it['x1'] - $it['x0'];
+            $items[] = $it;
+        }
+        $W = max(MEL_K_DIALOG_W, min(MEL_K_DIALOG_W_MAX, $need + 2 * $pad));
         $icon = isset($v['icon']) ? (string) $v['icon'] : '';
         $tx = $pad + ($icon !== '' ? MEL_K_ICON_DIALOG + MEL_K_ICON_GAP_DIALOG : 0);
         $tw = $W - $pad - $tx;
@@ -1875,20 +1903,28 @@ class MelKit
         }
         if ($share !== null)
         {
-            $blocks[] = self::group("{$p}_bar", self::bar('progress', $tx, 0, $tw, MEL_K_DIALOG_BAR_H, $share));
+            $blocks[] = self::group("{$p}_bar", self::bar('wait', $tx, 0, $tw, MEL_K_DIALOG_BAR_H, $share));
             $gaps[] = 's';
         }
-        $bs = isset($v['buttons']) && is_array($v['buttons']) ? $v['buttons'] : array();
-        if (count($bs) > 3)
-            self::once('dialog buttons', 'kit: dialog: ' . count($bs) . ' buttons, the first 3');
-        $items = array();
-        foreach (array_slice($bs, 0, 3) as $i => $b)
-            $items[] = self::group("{$p}_b$i", self::button((string) $b['label'], isset($b['icon']) ? (string) $b['icon']
-                : '', isset($b['state']) ? (string) $b['state'] : ''));
-        if ($items)
+        // The lines of buttons: as many as fit in the window from the pad, the rest on the next line.
+        $rows = array(array());
+        $at = $pad;
+        foreach ($items as $it)
         {
-            $blocks[] = self::row($items, MEL_K_DIALOG_BTN_GAP, $pad, null, 'dialog buttons');
-            $gaps[] = 'l';
+            $w = $it['x1'] - $it['x0'];
+            $j = count($rows) - 1;
+            if ($rows[$j] && $at + $w > $W - $pad)
+            {
+                $rows[++$j] = array();
+                $at = $pad;
+            }
+            $rows[$j][] = $it;
+            $at += $w + MEL_K_DIALOG_BTN_GAP;
+        }
+        foreach ($items ? $rows : array() as $j => $r)
+        {
+            $blocks[] = self::row($r, MEL_K_DIALOG_BTN_GAP, $pad, null, $j ? 'dialog buttons ' . ($j + 1) : 'dialog buttons');
+            $gaps[] = $j ? 's' : 'l';
         }
         $body = self::stack($blocks, $gaps, MEL_K_GAP_L, 'dialog');
         $h = $body['bottom'] + MEL_K_GAP_L;

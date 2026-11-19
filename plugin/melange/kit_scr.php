@@ -10,26 +10,34 @@
 // MelKs::$scr (memory of php_server; the last MEL_KS_KEEP), so get_folder_view draws it again. The look of both
 // (MelKsLook): bg, nl, logo, sub as MelKit::error_screen takes them (mel_ks_look_of: of a tile of the catalog).
 // - An error, mel_ks_error($d): its description, those of the own dialog (MelDlgDesc, kit_dlg.php: icon, tone, title,
-//   text, buttons 1 to 3 with act, focus, cancel: RETURN) and detail, the small line under the buttons. LEFT and RIGHT
-//   move the focus (no wrap); ENTER leaves the screen for the act of the button in focus, RETURN for cancel (none:
-//   back where it came from, the rows, the card, the list). The three cases: mel_ks_rows_error (over the rows),
-//   mel_ks_player_error (pe_stop of the player with its code), mel_ks_no_releases (in place of an empty list).
+//   text, buttons 1 to 3 with act, focus, cancel: RETURN) and detail, the small line under the buttons. The keys are
+//   those of the dialog (mel_dlg_press): LEFT and RIGHT move the focus (no wrap); ENTER leaves the screen for the act
+//   of the button in focus, RETURN for cancel (none: back where it came from, the rows, the card, the list). The three
+//   cases: mel_ks_rows_error (over the rows), mel_ks_player_error (pe_stop of the player with its code),
+//   mel_ks_no_releases (in place of an empty list).
 // - A wait, mel_ks_wait($w): its description that of the wait window (MelWaitDesc, kit_dlg.php) and the same ticks
 //   (mel_wait_new, mel_wait_step): its timer MEL_KS_TICK_MS, the first tick at once. A tick replies post: the screen
-//   leaves for it (the list of releases, the error screen); dialog is not for a screen (logged, back); else its
-//   map and timer again, then the blocks that changed. A button (ENTER, or RETURN on its cancel) leaves for its act.
+//   leaves for it (the list of releases, the error screen); dialog: it leaves for the error screen of it, on the same
+//   look; else its map and timer again, then the blocks that changed. A button (ENTER, or RETURN on its cancel) leaves
+//   for its act, RETURN with no cancel button for the cancel of the description. Every key gives its map and its timer
+//   again.
 // To leave (mel_ks_leave): plugin_open_folder becomes plugin_replace_path of the same screen (Back from it goes where
-// the error or the wait came from, not to them), plugin_replace_path stays, anything else (none too) runs after
-// close_and_run. The screen ends then: a key or a tick that comes after (sent before) gets no reply, its get_folder_view
-// is «outdated». A key of an id not kept (a php_server restart): close_and_run, logged.
+// the error or the wait came from, not to them), anything else (none too) but plugin_replace_path runs after
+// close_and_run. The contract of the path: the tick and the buttons of a screen count the stack as the screen that
+// opened kscr sees it, without kscr - so the erase_count of a plugin_replace_path they give gets one more (kscr goes
+// too), and plugin_open_folder (on top of that screen) erases kscr alone. The screen ends then: a key or a tick that
+// comes after (sent before) gets no reply, its get_folder_view is «outdated», the data of its wait is dropped (a run
+// of the search, stage 3). A key of an id not kept (a php_server restart): close_and_run, logged.
 
 // The prefix of the ids of the components (MelKit::error_screen) and of the media_url of a screen.
 define('MEL_KS', 'ks');
 define('MEL_KS_URL', 'kscr:');
 // The ticks of a wait screen, ms: the first at once, the next as soon as the work of one is done (lead 19.11).
 define('MEL_KS_TICK_MS', 100);
-// Screens kept by id: the one on screen and those under it a key or Back may come to.
+// Screens kept by id, the oldest made goes first (a screen of a key or Back may be older than the last one made).
 define('MEL_KS_KEEP', 8);
+// Own buttons of an error over the rows, «Назад» after them.
+define('MEL_KS_ROWS_OWN', 2);
 
 class MelKs
 {
@@ -50,16 +58,21 @@ function mel_ks_look($d)
         'logo' => !empty($d['logo']), 'sub' => mel_dlg_str($d, 'sub'));
 }
 
-// The look of the title of tile $t (MelCatTile): its card background of the server with the logo, as the own card
-// (mel_catv_card); none or no logo: the head of Melange with its name.
+// The look of the title of tile $t (MelCatTile; null none) named $name: its card background of the server with the
+// logo, as the own card (mel_catv_card); with no logo the head of Melange with $name over it; no tile or no fanart
+// (mel_catv_card gives its stand-in card0 as the background): bg '', the background of Melange, as an error over the
+// rows.
 /**
- * @param MelCatTile $t
+ * @param MelCatTile|null $t
+ * @param string $name
  * @return MelKsLook
  */
-function mel_ks_look_of($t)
+function mel_ks_look_of($t, $name)
 {
-    $c = mel_catv_card($t, true);
-    return array('bg' => $c['bg'], 'nl' => $c['nl'], 'logo' => $c['logo'], 'sub' => mel_clean($t['name']));
+    $c = $t !== null ? mel_catv_card($t, true) : null;
+    if ($c === null || $c['bg'] === $c['nl'])
+        return array('bg' => '', 'nl' => null, 'logo' => false, 'sub' => mel_clean($name));
+    return array('bg' => $c['bg'], 'nl' => $c['nl'], 'logo' => $c['logo'], 'sub' => mel_clean($name));
 }
 
 // Keep screen $s under a new id, the oldest beyond MEL_KS_KEEP gone -> plugin_open_folder of it, $caption (the path).
@@ -91,12 +104,8 @@ function mel_ks_put($s, $caption)
  */
 function mel_ks_error($d, $caption = '')
 {
-    $bs = mel_dlg_buttons(isset($d['buttons']) ? $d['buttons'] : null, 'error screen');
-    $dlg = array('icon' => mel_dlg_str($d, 'icon'), 'tone' => mel_dlg_str($d, 'tone'), 'title' => mel_dlg_str($d, 'title'),
-        'text' => mel_dlg_str($d, 'text'), 'buttons' => $bs,
-        'cur' => mel_dlg_focus(isset($d['focus']) ? $d['focus'] : 0, count($bs)),
-        'cancel' => isset($d['cancel']) && is_array($d['cancel']) ? $d['cancel'] : null);
-    mel_log('kit error screen: «' . $dlg['title'] . '», ' . count($bs) . ' buttons');
+    $dlg = mel_dlg_new($d, 'error screen');
+    mel_log('kit error screen: «' . $dlg['title'] . '», ' . count($dlg['buttons']) . ' buttons');
     return mel_ks_put(array('look' => mel_ks_look($d), 'detail' => mel_dlg_str($d, 'detail'), 'dlg' => $dlg, 'wt' => null,
         'end' => null), $caption !== '' ? $caption : $dlg['title']);
 }
@@ -121,8 +130,8 @@ function mel_ks_wait($w, $caption = '')
 
 // Over the rows of the catalog, from their handle_user_input (in place of PLUGIN_SHOW_ERROR, owner 18.11): the
 // background and the head of Melange with $sub («Каталог», «Поиск»), the icon triangle-alert in warn, title $title,
-// text $text, the buttons of $d['buttons'] then «Назад»; $d may give icon and tone too («Ничего не найдено»: search-x
-// in text 2). RETURN and «Назад»: back to the rows.
+// text $text, the buttons of $d['buttons'] (MEL_KS_ROWS_OWN at most, the others left out, logged) then «Назад»; $d may
+// give icon and tone too («Ничего не найдено»: search-x in text 2). RETURN and «Назад»: back to the rows.
 /**
  * @param string $lang
  * @param string $sub
@@ -133,7 +142,12 @@ function mel_ks_wait($w, $caption = '')
  */
 function mel_ks_rows_error($lang, $sub, $title, $text, $d = array())
 {
-    $bs = isset($d['buttons']) && is_array($d['buttons']) ? $d['buttons'] : array();
+    $bs = isset($d['buttons']) && is_array($d['buttons']) ? array_values($d['buttons']) : array();
+    if (count($bs) > MEL_KS_ROWS_OWN)
+    {
+        mel_log('kit error screen: «' . $title . '», ' . count($bs) . ' buttons of its own, the first ' . MEL_KS_ROWS_OWN);
+        $bs = array_slice($bs, 0, MEL_KS_ROWS_OWN);
+    }
     $bs[] = array('label' => mel_tr($lang, 'ks_back'), 'icon' => 'k_icon_arrow-left');
     return mel_ks_error(array_merge(array('icon' => 'k_icon_triangle-alert', 'tone' => 'warn'), $d,
         array('bg' => '', 'sub' => $sub, 'title' => $title, 'text' => $text, 'buttons' => $bs)));
@@ -258,7 +272,9 @@ function mel_ks_folder_view($media_url)
             PluginGCompsFolderView::timer => $wait ? mel_wait_timer(MEL_KS_TICK_MS) : null));
 }
 
-// Leave screen $id for $act (see above), its end $end.
+// Leave screen $id for $act (see above), its end $end: the data of its wait dropped; plugin_open_folder ->
+// plugin_replace_path of kscr; plugin_replace_path with its erase_count one more (the screen under kscr counted it
+// without kscr); else close_and_run, then $act.
 /**
  * @param string $id
  * @param string $end
@@ -267,16 +283,26 @@ function mel_ks_folder_view($media_url)
  */
 function mel_ks_leave($id, $end, $act)
 {
-    MelKs::$scr[$id]['end'] = $end;
-    $h = is_array($act) && isset($act[GuiAction::handler_string_id]) ? $act[GuiAction::handler_string_id] : '';
-    if ($h === PLUGIN_OPEN_FOLDER_ACTION_ID && isset($act[GuiAction::data][PluginOpenFolderActionData::media_url]))
+    if (isset(MelKs::$scr[$id]))
     {
-        $d = $act[GuiAction::data];
+        $s = MelKs::$scr[$id];
+        $s['end'] = $end;
+        if ($s['wt'] !== null)
+            $s['wt']['data'] = null;
+        MelKs::$scr[$id] = $s;
+    }
+    $h = is_array($act) && isset($act[GuiAction::handler_string_id]) ? $act[GuiAction::handler_string_id] : '';
+    $d = is_array($act) && isset($act[GuiAction::data]) && is_array($act[GuiAction::data]) ? $act[GuiAction::data] : array();
+    if ($h === PLUGIN_OPEN_FOLDER_ACTION_ID && isset($d[PluginOpenFolderActionData::media_url]))
         return mel_replace_act((string) $d[PluginOpenFolderActionData::media_url],
             isset($d[PluginOpenFolderActionData::caption]) ? (string) $d[PluginOpenFolderActionData::caption] : '');
-    }
     if ($h === PLUGIN_REPLACE_PATH_ACTION_ID)
+    {
+        $n = isset($d[PluginReplacePathActionData::erase_count]) ? (int) $d[PluginReplacePathActionData::erase_count] : 0;
+        $d[PluginReplacePathActionData::erase_count] = $n + 1;
+        $act[GuiAction::data] = $d;
         return $act;
+    }
     return array(GuiAction::handler_string_id => CLOSE_AND_RUN_ACTION_ID,
         GuiAction::data => array(CloseAndRunActionData::post_action => $act));
 }
@@ -289,18 +315,20 @@ function mel_ks_leave($id, $end, $act)
  */
 function mel_ks_again($id, $post)
 {
-    return mel_ovl_behaviour(mel_ks_map($id, true), mel_wait_timer(MelKs::$scr[$id]['wt']['ms']), $post);
+    $ms = isset(MelKs::$scr[$id]['wt']) ? MelKs::$scr[$id]['wt']['ms'] : MEL_KS_TICK_MS;
+    return mel_ovl_behaviour(mel_ks_map($id, true), mel_wait_timer($ms), $post);
 }
 
-// A tick of wait screen $id: mel_wait_step, then its reply (see above).
+// A tick of wait screen $id (a wait): mel_wait_step, then its reply (see above).
 /**
  * @param string $id
- * @return MelAction
+ * @return MelAction|null
  */
 function mel_ks_tick($id)
 {
+    if (!isset(MelKs::$scr[$id]['wt']))
+        return null;
     $s = MelKs::$scr[$id];
-    /** @var MelWait $w */
     $w = $s['wt'];
     list($now, $r) = mel_wait_step($w);
     if (isset($r['post']))
@@ -310,17 +338,20 @@ function mel_ks_tick($id)
     }
     if (isset($r['dialog']))
     {
-        mel_log("kit wait screen: a dialog of the tick is not for a screen, back, {$now['sec']} s");
-        return mel_ks_leave($id, '', null);
+        mel_log("kit wait screen: failed, the error screen, {$now['sec']} s");
+        return mel_ks_leave($id, 'done', mel_ks_error(array_merge($s['look'], $r['dialog'])));
     }
-    MelKs::$scr[$id]['wt'] = $now;
-    $ch = mel_dlg_diff(mel_ks_defs($s), mel_ks_defs(MelKs::$scr[$id]));
+    $after = $s;
+    $after['wt'] = $now;
+    MelKs::$scr[$id] = $after;
+    $ch = mel_dlg_diff(mel_ks_defs($s), mel_ks_defs($after), MEL_KS . '_col');
     return mel_ks_again($id, $ch ? mel_ovl_change($ch, null) : null);
 }
 
-// Key $k of screen $id -> the reply, null none: left, right the focus a button, at the first and the last none; enter
-// leaves for the act of the button in focus; return for the cancel of an error, of a wait for its button cancel (as
-// enter on it; none: back). A key of a wait goes on with its map and timer.
+// Key $k of screen $id -> the reply, null none (mel_dlg_press, as the dialog): left, right the focus a button, the
+// children of the two; enter leaves for the act of the button in focus; return for the cancel of an error, of a wait
+// for its button cancel (as enter on it; none: the cancel of the description, none: back). A key of a wait that goes
+// on, of use or not: its map and its timer again.
 /**
  * @param string $id
  * @param string $k
@@ -329,35 +360,33 @@ function mel_ks_tick($id)
 function mel_ks_key($id, $k)
 {
     $s = MelKs::$scr[$id];
-    $kind = $s['wt'] !== null ? 'wt' : 'dlg';
-    /** @var MelDlg|MelWait $v */
-    $v = $s[$kind];
-    $n = count($v['buttons']);
-    if ($k === 'left' || $k === 'right')
+    $wait = true;
+    if ($s['wt'] !== null)
+        $v = $s['wt'];
+    elseif ($s['dlg'] !== null)
     {
-        $to = $v['cur'] + ($k === 'left' ? -1 : 1);
-        if ($to < 0 || $to >= $n)
-            return null;
-        MelKs::$scr[$id][$kind]['cur'] = $to;
-        $ch = mel_ovl_change(mel_dlg_diff(mel_ks_defs($s), mel_ks_defs(MelKs::$scr[$id])), null);
-        return $kind === 'wt' ? mel_ks_again($id, $ch) : $ch;
+        $v = $s['dlg'];
+        $wait = false;
     }
-    $b = null;
-    if ($k === 'enter' && $n > 0)
-        $b = $v['buttons'][$v['cur']];
-    elseif ($k === 'return' && $kind === 'wt')
-    {
-        foreach ($v['buttons'] as $c)
-        {
-            if ($c['cancel'] && $b === null)
-                $b = $c;
-        }
-    }
-    elseif ($k !== 'return')
+    else
         return null;
+    $r = mel_dlg_press($v, $k, $wait);
+    if ($r === null)
+        return $wait ? mel_ks_again($id, null) : null;
+    if (isset($r['cur']))
+    {
+        $after = $s;
+        if ($after['wt'] !== null)
+            $after['wt']['cur'] = $r['cur'];
+        elseif ($after['dlg'] !== null)
+            $after['dlg']['cur'] = $r['cur'];
+        MelKs::$scr[$id] = $after;
+        $ch = mel_ovl_change(mel_dlg_diff(mel_ks_defs($s), mel_ks_defs($after), MEL_KS . '_col'), null);
+        return $wait ? mel_ks_again($id, $ch) : $ch;
+    }
+    $b = $r['button'];
     mel_log("kit screen $id: $k" . ($b !== null ? " on {$b['id']}" : '') . ', left');
-    $cancel = $kind === 'dlg' && isset($v['cancel']) ? $v['cancel'] : null;
-    return mel_ks_leave($id, $b !== null ? $b['id'] : '', $b !== null ? $b['act'] : $cancel);
+    return mel_ks_leave($id, $b !== null ? $b['id'] : '', $b !== null ? $b['act'] : $v['cancel']);
 }
 
 // ks_key, ks_tick: a key or a tick of screen o. Not kept (a php_server restart): close_and_run, logged; ended (a key
@@ -382,6 +411,6 @@ function mel_ks_input($in, $control)
         return null;
     }
     if ($control === 'ks_tick')
-        return MelKs::$scr[$id]['wt'] !== null ? mel_ks_tick($id) : null;
+        return mel_ks_tick($id);
     return mel_ks_key($id, isset($in->k) && is_string($in->k) ? $in->k : '');
 }

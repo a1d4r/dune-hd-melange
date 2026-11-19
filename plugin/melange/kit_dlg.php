@@ -24,12 +24,14 @@
 //             what changed (the children of its groups), then the timer again.
 //   Its description (MelWaitDesc): icon, tone, title, text, live, share (as a reply), elapsed (the start of the live line,
 //   {sec} the seconds: «прошло {sec} с»; '' none), buttons (1 to 3, each array('id', 'label', 'icon', 'act', 'cancel':
-//   RETURN presses it)), focus, tick (the name of the function), data, late: at late['sec'] s (default MEL_WAIT_LATE),
-//   once, its text (in the place of the text of the ticks from then on), icon, tone, buttons and focus (default: the
-//   button of the same id, else the first). A button (ENTER, or RETURN on cancel) closes the window, then runs its act;
-//   the screen learns which one by mel_wait_end($owner), so a work it pressed off is off: a tick that comes after the
-//   close (sent before it) gets no reply. RETURN with no cancel button: the close only.
-// The state, MelOvl::$st: dlg (MelDlg), wt (MelWait) while open; wt_end, the id of the button that closed a wait, after.
+//   RETURN presses it)), focus, cancel (run after the close by RETURN with no cancel button, none: the close only), tick
+//   (the name of the function), data, late: at late['sec'] s (default MEL_WAIT_LATE), once, its text (in the place of
+//   the text of the ticks from then on), icon, tone, buttons and focus (default: the button of the same id, else the
+//   first). A button (ENTER, or RETURN on cancel) closes the window, then runs its act (the screen stops its work
+//   there): a tick that comes after the close (sent before it) gets no reply. Every key of a wait, of use or not, gives
+//   its map and its timer again (a key may stop the timer of the shell; not checked on the device).
+// The keys of both (mel_dlg_press) are those of the error and wait screen of kit_scr.php too.
+// The state, MelOvl::$st: dlg (MelDlg), wt (MelWait) while open.
 
 // The prefixes of the ids of the window (MelKit::dialog, MelKit::wait_box): dlg_win, dlg_b0, wt_live, wt_bar, …
 define('MEL_DLG', 'dlg');
@@ -91,6 +93,61 @@ function mel_dlg_str($d, $k)
     return isset($d[$k]) && is_string($d[$k]) ? $d[$k] : '';
 }
 
+// Action field $k of description $d: an array, else null.
+/**
+ * @param array<string, mixed> $d
+ * @param string $k
+ * @return MelAction|null
+ */
+function mel_dlg_act($d, $k)
+{
+    return isset($d[$k]) && is_array($d[$k]) ? $d[$k] : null;
+}
+
+// The state of a new dialog of description $d (MelDlgDesc, see above; $what: for the log): its view, its buttons with
+// the focus, its cancel. The overlay (mel_dlg_open) and the error screen of kit_scr.php.
+/**
+ * @param array<string, mixed> $d
+ * @param string $what
+ * @return MelDlg
+ */
+function mel_dlg_new($d, $what)
+{
+    $bs = mel_dlg_buttons(isset($d['buttons']) ? $d['buttons'] : null, $what);
+    return array('icon' => mel_dlg_str($d, 'icon'), 'tone' => mel_dlg_str($d, 'tone'), 'title' => mel_dlg_str($d, 'title'),
+        'text' => mel_dlg_str($d, 'text'), 'buttons' => $bs,
+        'cur' => mel_dlg_focus(isset($d['focus']) ? $d['focus'] : 0, count($bs)), 'cancel' => mel_dlg_act($d, 'cancel'));
+}
+
+// Key $k of dialog or wait $v (MelDlg, MelWait; $wait: RETURN presses its cancel button) -> what follows, null none
+// (LEFT on the first button, RIGHT on the last, ENTER with no button, another key): array('cur' => n), the focus on
+// button n; array('button' => b), it ends by button b (ENTER on it, RETURN on the cancel button of a wait) or, b null,
+// by RETURN (the host runs its cancel). The host (the overlay, the screen of kit_scr.php) does only what follows.
+/**
+ * @param MelDlg|MelWait $v
+ * @param string $k
+ * @param bool $wait
+ * @return array{cur: int}|array{button: MelDlgButton|null}|null
+ */
+function mel_dlg_press($v, $k, $wait)
+{
+    if ($k === 'left' || $k === 'right')
+    {
+        $to = $v['cur'] + ($k === 'left' ? -1 : 1);
+        return $to >= 0 && $to < count($v['buttons']) ? array('cur' => $to) : null;
+    }
+    if ($k === 'enter')
+        return isset($v['buttons'][$v['cur']]) ? array('button' => $v['buttons'][$v['cur']]) : null;
+    if ($k !== 'return')
+        return null;
+    foreach ($wait ? $v['buttons'] : array() as $b)
+    {
+        if ($b['cancel'])
+            return array('button' => $b);
+    }
+    return array('button' => null);
+}
+
 // The view of $s (MelDlg or MelWait) for MelKit::dialog / wait_box: its buttons with the focus on cur.
 /**
  * @param MelDlg|MelWait $s
@@ -139,22 +196,35 @@ function mel_wait_defs($s)
     return $k['defs'];
 }
 
-// The changes from the window of $was to that of $now (components of dialog / wait_box, the shade and the window),
-// only of what differs: a group of the window (a block, a button) by its children and, when it moved, its geometry;
-// the window whole (its geometry and children) when its geometry or the list of its components changed (a line more,
-// the bar, a button more), or a component of it with no id (its plates).
+// The changes from the window $win (the id of a panel: of dialog / wait_box, the column of error_screen) of components
+// $was to that of $now, only of what differs: a group of the window (a block, a button) by its children and, when it
+// moved, its geometry; the window whole (its geometry and children) when its geometry or the list of its components
+// changed (a line more, the bar, a button more), or a component of it with no id (its plates). No window in $now: none.
 /**
  * @param list<MelGcComp> $was
  * @param list<MelGcComp> $now
+ * @param string $win
  * @return list<MelGcChange>
  */
-function mel_dlg_diff($was, $now)
+function mel_dlg_diff($was, $now, $win)
 {
-    $a = $was[1];
-    $b = $now[1];
-    $ka = $a[GComponentDef::specific_def][GCompPanelDef::children];
+    $a = null;
+    $b = null;
+    foreach ($was as $c)
+    {
+        if (isset($c[GComponentDef::id]) && $c[GComponentDef::id] === $win)
+            $a = $c;
+    }
+    foreach ($now as $c)
+    {
+        if (isset($c[GComponentDef::id]) && $c[GComponentDef::id] === $win)
+            $b = $c;
+    }
+    if ($b === null)
+        return array();
+    $ka = $a !== null ? $a[GComponentDef::specific_def][GCompPanelDef::children] : array();
     $kb = $b[GComponentDef::specific_def][GCompPanelDef::children];
-    $whole = $a[GComponentDef::geom_def] !== $b[GComponentDef::geom_def] || count($ka) !== count($kb);
+    $whole = $a === null || $a[GComponentDef::geom_def] !== $b[GComponentDef::geom_def] || count($ka) !== count($kb);
     $ch = array();
     foreach ($kb as $i => $c)
     {
@@ -173,8 +243,7 @@ function mel_dlg_diff($was, $now)
         }
     }
     if ($whole)
-        return array(mel_gc_change((string) $b[GComponentDef::id], $b[GComponentDef::geom_def], GCOMP_TRANSITION_NONE,
-            $kb));
+        return array(mel_gc_change($win, $b[GComponentDef::geom_def], GCOMP_TRANSITION_NONE, $kb));
     return $ch;
 }
 
@@ -203,15 +272,11 @@ function mel_dlg_map($kind, $owner)
  */
 function mel_dlg_open($scr, $d)
 {
-    $bs = mel_dlg_buttons(isset($d['buttons']) ? $d['buttons'] : null, 'dialog');
-    $s = array('icon' => mel_dlg_str($d, 'icon'), 'tone' => mel_dlg_str($d, 'tone'), 'title' => mel_dlg_str($d, 'title'),
-        'text' => mel_dlg_str($d, 'text'), 'buttons' => $bs,
-        'cur' => mel_dlg_focus(isset($d['focus']) ? $d['focus'] : 0, count($bs)),
-        'cancel' => isset($d['cancel']) && is_array($d['cancel']) ? $d['cancel'] : null);
+    $s = mel_dlg_new($d, 'dialog');
     $owner = isset($scr['owner']) && is_string($scr['owner']) ? $scr['owner'] : '';
     $a = mel_ovl_open($scr, array('dlg' => $s), mel_dlg_map('dlg_key', $owner), mel_dlg_defs($s));
     if ($a)
-        mel_log('kit dialog: open «' . $s['title'] . '», ' . count($bs) . ' buttons');
+        mel_log('kit dialog: open «' . $s['title'] . '», ' . count($s['buttons']) . ' buttons');
     return $a;
 }
 
@@ -277,7 +342,8 @@ function mel_wait_new($w, $ms = MEL_WAIT_TICK_MS)
         'text' => mel_dlg_str($w, 'text'), 'live' => mel_dlg_str($w, 'live'),
         'share' => isset($w['share']) && (is_int($w['share']) || is_float($w['share'])) ? (float) $w['share'] : null,
         'elapsed' => mel_dlg_str($w, 'elapsed'), 'buttons' => $bs,
-        'cur' => mel_dlg_focus(isset($w['focus']) ? $w['focus'] : 0, count($bs)), 'tick' => $tick,
+        'cur' => mel_dlg_focus(isset($w['focus']) ? $w['focus'] : 0, count($bs)), 'cancel' => mel_dlg_act($w, 'cancel'),
+        'tick' => $tick,
         'data' => isset($w['data']) ? $w['data'] : null, 't0' => time(), 'sec' => 0, 'ms' => $ms, 'late' => $late,
         'late_at' => $late && isset($late['sec']) && is_int($late['sec']) ? $late['sec'] : MEL_WAIT_LATE,
         'late_text' => null);
@@ -340,15 +406,18 @@ function mel_wait_late($s)
 // One tick of wait $s: the function of the screen called with its data and the seconds since the open -> array(the
 // wait after it, what it asks): array('post' => MelAction), done; array('dialog' => MelDlgDesc), failed (the wait as it
 // was but its seconds); null, still at work: its data, text, live and share taken (see above), at late_at s the late
-// ones (mel_wait_late). The caller does the rest: the overlay (mel_wait_tick), the wait screen (kit_scr.php).
+// ones (mel_wait_late). The seconds of the wait (its live line, late) are counted after the function: it may take its
+// time (a request, a sleep). The caller does the rest: the overlay (mel_wait_tick), the wait screen (kit_scr.php).
 /**
  * @param MelWait $s
  * @return array{0: MelWait, 1: array{post?: MelAction, dialog?: array<string, mixed>}|null}
  */
 function mel_wait_step($s)
 {
+    // Checked at the open (mel_wait_new): is_callable for the type.
+    $f = $s['tick'];
+    $r = is_callable($f) ? call_user_func($f, $s['data'], max(0, time() - $s['t0'])) : null;
     $s['sec'] = max(0, time() - $s['t0']);
-    $r = call_user_func($s['tick'], $s['data'], $s['sec']);
     if (is_array($r) && isset($r['post']) && is_array($r['post']))
         return array($s, array('post' => $r['post']));
     if (is_array($r) && isset($r['dialog']) && is_array($r['dialog']))
@@ -380,8 +449,10 @@ function mel_wait_step($s)
  */
 function mel_wait_tick()
 {
-    /** @var MelWait $was */
-    $was = MelOvl::$st['wt'];
+    $st = MelOvl::$st;
+    if (!$st || !isset($st['wt']))
+        return null;
+    $was = $st['wt'];
     list($s, $r) = mel_wait_step($was);
     if (isset($r['post']))
     {
@@ -391,39 +462,46 @@ function mel_wait_tick()
     if (isset($r['dialog']))
     {
         mel_log("kit wait: failed, {$s['sec']} s");
-        $a = mel_dlg_open(MelOvl::$st['scr'], $r['dialog']);
+        $a = mel_dlg_open($st['scr'], $r['dialog']);
         return $a ? $a : mel_ovl_close();
     }
-    MelOvl::$st['wt'] = $s;
-    return mel_wait_again(mel_dlg_diff(mel_wait_defs($was), mel_wait_defs($s)));
+    $st['wt'] = $s;
+    MelOvl::$st = $st;
+    return mel_wait_again(mel_dlg_diff(mel_wait_defs($was), mel_wait_defs($s), MEL_WT . '_win'));
 }
 
-// The reply of an open wait that goes on: its map and its timer again, then changes $ch (none: no change_gcomps).
+// The reply of an open wait that goes on: its map and its timer again, then changes $ch (none: no change_gcomps). No
+// wait open: null.
 /**
  * @param list<MelGcChange> $ch
- * @return MelAction
+ * @return MelAction|null
  */
 function mel_wait_again($ch)
 {
-    $scr = MelOvl::$st['scr'];
-    return mel_ovl_behaviour(mel_wait_map($scr['owner']), mel_wait_timer(MelOvl::$st['wt']['ms']),
-        $ch ? mel_ovl_change($ch, $scr['sel']) : null);
+    $st = MelOvl::$st;
+    if (!$st || !isset($st['wt']))
+        return null;
+    return mel_ovl_behaviour(mel_wait_map($st['scr']['owner']), mel_wait_timer($st['wt']['ms']),
+        $ch ? mel_ovl_change($ch, $st['scr']['sel']) : null);
 }
 
-// The components of the open dialog or wait $kind (dlg, wt).
+// The components of the open dialog or wait $kind (dlg, wt); none open: none.
 /**
  * @param string $kind
  * @return list<MelGcComp>
  */
 function mel_dlg_now($kind)
 {
-    return $kind === 'wt' ? mel_wait_defs(MelOvl::$st['wt']) : mel_dlg_defs(MelOvl::$st['dlg']);
+    $st = MelOvl::$st;
+    if ($kind === 'wt')
+        return isset($st['wt']) ? mel_wait_defs($st['wt']) : array();
+    return isset($st['dlg']) ? mel_dlg_defs($st['dlg']) : array();
 }
 
-// Key $k of open dialog or wait $kind (dlg, wt) -> the reply, null for none: left, right the focus a button, at the
-// first and the last none; enter the close, then the act of the button in focus; return the close, then the cancel of a
-// dialog, of a wait its button cancel (as enter on it). The close of a wait keeps the id of its button (mel_wait_end).
-// A key of a wait goes on with its map and timer (a key may stop the timer of the shell; not checked on the device).
+// Key $k of open dialog or wait $kind (dlg, wt) -> the reply, null for none (mel_dlg_press): the focus on another
+// button, the children of the two; the end by a button (ENTER, RETURN on the cancel button of a wait): the close, then
+// its act; by RETURN: the close, then cancel. A key of a wait that goes on (none of use too): its map and its timer
+// again (mel_wait_again).
 /**
  * @param string $kind
  * @param string $k
@@ -431,39 +509,31 @@ function mel_dlg_now($kind)
  */
 function mel_dlg_key($kind, $k)
 {
-    /** @var MelDlg|MelWait $s */
-    $s = MelOvl::$st[$kind];
-    $n = count($s['buttons']);
-    if ($k === 'left' || $k === 'right')
-    {
-        $to = $s['cur'] + ($k === 'left' ? -1 : 1);
-        if ($to < 0 || $to >= $n)
-            return null;
-        $was = mel_dlg_now($kind);
-        MelOvl::$st[$kind]['cur'] = $to;
-        $ch = mel_dlg_diff($was, mel_dlg_now($kind));
-        return $kind === 'wt' ? mel_wait_again($ch) : mel_ovl_change($ch, MelOvl::$st['scr']['sel']);
-    }
-    $b = null;
-    if ($k === 'enter' && $n > 0)
-        $b = $s['buttons'][$s['cur']];
-    elseif ($k === 'return' && $kind === 'wt')
-    {
-        foreach ($s['buttons'] as $c)
-        {
-            if ($c['cancel'] && $b === null)
-                $b = $c;
-        }
-    }
-    elseif ($k !== 'return')
+    $st = MelOvl::$st;
+    $wait = $kind === 'wt';
+    if ($wait && isset($st['wt']))
+        $s = $st['wt'];
+    elseif (!$wait && isset($st['dlg']))
+        $s = $st['dlg'];
+    else
         return null;
-    if ($kind === 'dlg')
+    $r = mel_dlg_press($s, $k, $wait);
+    if ($r === null)
+        return $wait ? mel_wait_again(array()) : null;
+    if (isset($r['cur']))
     {
-        mel_log("kit dialog: $k, closed");
-        return mel_ovl_close($b !== null ? $b['act'] : $s['cancel']);
+        $was = mel_dlg_now($kind);
+        if ($wait)
+            $st['wt']['cur'] = $r['cur'];
+        else
+            $st['dlg']['cur'] = $r['cur'];
+        MelOvl::$st = $st;
+        $ch = mel_dlg_diff($was, mel_dlg_now($kind), "{$kind}_win");
+        return $wait ? mel_wait_again($ch) : mel_ovl_change($ch, $st['scr']['sel']);
     }
-    mel_log("kit wait: $k" . ($b !== null ? " on {$b['id']}" : '') . ', closed');
-    return mel_ovl_close($b !== null ? $b['act'] : null, array('wt_end' => $b !== null ? $b['id'] : ''));
+    $b = $r['button'];
+    mel_log('kit ' . ($wait ? 'wait' : 'dialog') . ": $k" . ($b !== null ? " on {$b['id']}" : '') . ', closed');
+    return mel_ovl_close($b !== null ? $b['act'] : $s['cancel']);
 }
 
 // dlg_key, wt_key, wt_tick: a key of an open dialog or wait, a tick of a wait. A stale screen: close_and_run
@@ -480,7 +550,7 @@ function mel_dlg_input($in, $control)
     if ($a)
         return $a;
     $kind = $control === 'dlg_key' ? 'dlg' : 'wt';
-    if (!MelOvl::$st['open'] || !isset(MelOvl::$st[$kind]))
+    if (!MelOvl::$st || !MelOvl::$st['open'] || !isset(MelOvl::$st[$kind]))
     {
         mel_log("kit $kind: $control after the close, none");
         return null;
@@ -488,19 +558,4 @@ function mel_dlg_input($in, $control)
     if ($control === 'wt_tick')
         return mel_wait_tick();
     return mel_dlg_key($kind, isset($in->k) && is_string($in->k) ? $in->k : '');
-}
-
-// The id of the button that closed the last wait of the screen of owner $owner ('' RETURN with no cancel button), for
-// the screen to stop its work; given once. None (another screen, another overlay since, not closed by a button): null.
-/**
- * @param string $owner
- * @return string|null
- */
-function mel_wait_end($owner)
-{
-    $st = MelOvl::$st;
-    if (!$st || $st['scr']['owner'] !== $owner || !isset($st['wt_end']))
-        return null;
-    unset(MelOvl::$st['wt_end']);
-    return $st['wt_end'];
 }
