@@ -977,7 +977,7 @@ function mel_gc_fields($r, $tt, $addon_side, $top, $bottom)
         array('audio', $r['audio_full']),
         // Subtitles have a field of their own.
         array('voices', mel_voices_struct_text($vs, $tt['lang'], false)),
-        array('subs', mel_cut(implode(', ', $r['subs']), MEL_TEXT_MAX)),
+        array('subs', mel_cut(implode(', ', mel_row_subs($r)), MEL_TEXT_MAX)),
         array('langs', mel_cut(mel_gc_langs_text($r), MEL_TEXT_MAX)),
         $r['trackers'] ? array('trackers', mel_cut(implode(', ', $r['trackers']), MEL_TEXT_MAX)) :
             array('addon', $addon_side ? '' : $r['addon']));

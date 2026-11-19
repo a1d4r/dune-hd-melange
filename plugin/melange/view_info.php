@@ -398,7 +398,7 @@ function mel_info_audio($r, $pf)
 // Subtitles of row $r, null without any: the label with the count of all,
 // the tracks of parsedFile.subtitleTracks (mel_info_wrap_tracks in the lines
 // of a column), else the languages (JacRed, parsedFile.subtitles) joined by
-// ", "; the lines the middle column gives them at most: all of the tracks,
+// ", " (mel_row_subs); the lines the middle column gives them at most: all of the tracks,
 // MEL_INF_SUBS_MIN of the languages.
 /**
  * @param MelRow $r
@@ -420,11 +420,12 @@ function mel_info_subs($r, $pf, $tt)
         $out[] = mel_info_track($l !== '' ? mel_lang_code($l) : '', mel_info_sub_codec(mel_str($t, 'codec')), '',
             mel_info_clean(mel_str($t, 'title')), isset($t['default']) && $t['default'] === true);
     }
-    if (!$out && !$r['subs'])
+    $subs = mel_row_subs($r);
+    if (!$out && !$subs)
         return null;
-    $n = $out ? count($all) : count($r['subs']);
+    $n = $out ? count($all) : count($subs);
     $st = mel_info_wrap_tracks($out, $max);
-    $codes = $out ? '' : implode(', ', $r['subs']);
+    $codes = $out ? '' : implode(', ', $subs);
     return array('label' => "{$tt['subs']} ($n)", 'st' => $st, 'codes' => $codes, 'n' => $n,
         'lines' => $codes !== '' ? count(mel_gc_wrap($codes, 26, MEL_INF_CW, MEL_INF_SUBS_MIN)) : mel_info_nlines($st));
 }

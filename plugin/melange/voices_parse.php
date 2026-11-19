@@ -1455,3 +1455,16 @@ function mel_row_subs_mark($r)
         return $l;
     return '';
 }
+
+// Subtitle languages of row $r for the "Subtitles" of the card and INFO:
+// 'subs', the language of its mark (mel_row_subs_mark) first when only the
+// names tell it ("Original + Rus Sub").
+/**
+ * @param MelRow $r
+ * @return list<string>
+ */
+function mel_row_subs($r)
+{
+    $m = mel_row_subs_mark($r);
+    return $m !== '' && !in_array($m, $r['subs'], true) ? array_merge(array($m), $r['subs']) : $r['subs'];
+}
