@@ -161,6 +161,7 @@ rate_mbps = Мбит/с
 voices_dub = Дубляж
 voices_orig = оригинал
 voices_subs = субтитры
+voices_ru = русская
 list_outdated = Список устарел
 ts_menu = Смотреть через TorrServer
 ts_wait = Открываю через TorrServer

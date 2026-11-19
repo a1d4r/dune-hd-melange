@@ -189,6 +189,7 @@ parameters:
         # A row of the stream list (mel_row, parse.php). names: until
         # mel_row_voices (voices_parse.php) puts voices in its place. copies,
         # copy: a file cached on several services (mel_row_merge, parse.php).
+        # voice_langs: mel_row_langs of a row of a list (mel_list_state, main.php).
         MelRow: '''
             array{
                 url: string,
@@ -220,6 +221,7 @@ parameters:
                 pf_episodes: list<int>,
                 names?: array{string, string},
                 voices?: MelVoices,
+                voice_langs?: MelRowLangs,
                 label: string,
                 raw: array<mixed>,
                 ord: int,
@@ -494,7 +496,9 @@ parameters:
         # Voices of one release name (mel_voices_parse, voices_parse.php):
         # type ids (dub, mvo, dvo, avo) in the order of the name, studios
         # shown, orig '' | 'orig' | 'jap', the name without JacRed's tails,
-        # keys: studio => its key of voices.php, stype: studio => its type id.
+        # keys: studio => its key of voices.php, stype: studio => its type id;
+        # ru: 'int' | 'ext' of "RUS(int)", "RUS(ext)", '' none; ru_type: a type
+        # of a Russian voice; ru_subs: Russian subtitles (mel_voices_ru_marks).
         MelVoicesName: '''
             array{
                 types: list<string>,
@@ -503,11 +507,15 @@ parameters:
                 subs: bool,
                 name: string,
                 keys: array<string, string>,
-                stype: array<string, string>
+                stype: array<string, string>,
+                ru: string,
+                ru_type: bool,
+                ru_subs: bool
             }
         '''
         # Voices of a row from its names (mel_voices, voices_parse.php); ua:
-        # "(УКР.)" in a name (mel_row_voices).
+        # "(УКР.)" in a name (mel_row_voices); ru, ru_type, ru_subs: as of
+        # MelVoicesName, of all the names.
         MelVoices: '''
             array{
                 types: list<string>,
@@ -515,21 +523,28 @@ parameters:
                 orig: string,
                 subs: bool,
                 stype: array<string, string>,
+                ru?: string,
+                ru_type?: bool,
+                ru_subs?: bool,
                 ua?: true
             }
         '''
         # What the "Voices" field shows (mel_row_voices_struct,
         # voices_parse.php): groups: type id (dub, mvo, dvo, avo) => its
-        # studios, types without studios, studios without a type.
+        # studios, types without studios, studios without a type; ru: of the names.
         MelVoicesStruct: '''
             array{
                 groups: array<string, list<string>>,
                 types: list<string>,
                 studios: list<string>,
                 orig: string,
-                subs: bool
+                subs: bool,
+                ru: string
             }
         '''
+        # Languages of the voices of a row (mel_row_langs, voices_parse.php):
+        # confirmed, Russian first; guessed.
+        MelRowLangs: 'array{ok: list<string>, q: list<string>}'
         # Tokens of a name (mel_voices_tokens, voices_parse.php), by word from
         # 0: as written, lower case, the joint to the next, the separator after
         # it, its part between "|", its depth in brackets, inside the leading

@@ -161,6 +161,7 @@ rate_mbps = Mbps
 voices_dub = Dub
 voices_orig = original
 voices_subs = subtitles
+voices_ru = Russian
 list_outdated = The list is outdated
 ts_menu = Watch via TorrServer
 ts_wait = Opening via TorrServer

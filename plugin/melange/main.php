@@ -1814,11 +1814,42 @@ function mel_rid()
     return substr(md5(uniqid('', true)), 0, 12);
 }
 
+// The original language of the title of card $mv as a code of mel_lang_code
+// (mel_iso_lang): of movie_str of its play_action kept in MelLpv::$ids (Melange's
+// own cards, mel_lpv_ids_keep); '' unknown (a native card of the Dune).
+/**
+ * @param MelMovie $mv
+ * @return string
+ */
+function mel_list_orig($mv)
+{
+    $k = mel_lpv_key($mv);
+    return isset(MelLpv::$ids[$k]) ? mel_iso_lang(MelLpv::$ids[$k]['original_language']) : '';
+}
+
+// ISO 639-1 or 639-2 code $l ("ja", "jpn") -> a code of mel_lang_code ("JA";
+// Ukrainian UA as on Russian trackers); '' for none or an unknown 639-2 one.
+/**
+ * @param string $l
+ * @return string
+ */
+function mel_iso_lang($l)
+{
+    $l = strtolower($l);
+    if (preg_match('/^[a-z]{3}$/D', $l))
+        return mel_jr_lang($l) !== $l ? mel_lang_code(mel_jr_lang($l)) : '';
+    if (!preg_match('/^[a-z]{2}$/D', $l))
+        return '';
+    return $l === 'uk' ? 'UA' : strtoupper($l);
+}
+
 // State of a stream list (Mel::$state): its screen "streams:<rid>", the card,
 // season and episode (-1 for a movie), rows in the order of 'sort' and
 // 'sort_rev' (of the settings: mel_rows_sort; none from 0.58.0: a source profile
 // with no streams, mel_gc_src), the shell language of play_action,
 // 'errors': the reasons of the error streams of its reply (mel_error_streams).
+// A row of no 'voice_langs' gets them (mel_row_langs, by mel_list_orig of the
+// card): a list sorted anew keeps them.
 // view_gcomps.php adds 'gc' - array(sel, top), the last cursor; 'gc_new' -
 // the first view of a replaced screen ignores the shell's sel_state; 'gc_prog'
 // - progress of the rows for their redraw. A screen replaced by a new list
@@ -1835,8 +1866,16 @@ function mel_list_state($mv, $s, $e, $rows, $lang, $errors)
     $sort = Mel::$settings['sort'];
     $rev = Mel::$settings['sort_rev'];
     // A file cached on several services: the copy of the main one on top (its status, INFO).
+    $orig = null;
     foreach ($rows as $i => $r)
+    {
         $rows[$i] = mel_row_pick($r, Mel::$settings['debrid_main']);
+        if (!isset($r['voice_langs']))
+        {
+            $orig = $orig === null ? mel_list_orig($mv) : $orig;
+            $rows[$i]['voice_langs'] = mel_row_langs($rows[$i], $orig);
+        }
+    }
     return array('rid' => mel_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => mel_rows_sort($rows, $sort, $rev),
         'lang' => $lang, 'sort' => $sort, 'sort_rev' => $rev, 'errors' => $errors, 'prof' => Mel::$settings['prof'],
         'lp_prof' => Mel::$settings['lp_prof']);

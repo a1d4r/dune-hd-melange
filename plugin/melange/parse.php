@@ -546,6 +546,8 @@ function mel_service_name($id)
 //                episodes (mel_has_ep)
 //   names        array(folder, file); mel_row_voices replaces it by 'voices'
 //                (mel_voices) and may shorten 'label'
+//   voice_langs  the languages of the voices confirmed and guessed (mel_row_langs):
+//                of a row of a list only (mel_list_state, mel_fill_tracks)
 //   label        name of the release: the file of a movie, the folder of a season pack
 //   raw          the stream as it came, for the details screen (INFO); memory of
 //                php_server only, as the URL: never logged nor saved
