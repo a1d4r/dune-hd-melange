@@ -375,6 +375,28 @@ parameters:
                 specific_def: array<string, mixed>
             }
         '''
+        # An item of the kit (kit.php): its components and its visible edges;
+        # a text also its width, size, face, lines, baseline and step.
+        MelKitItem: '''
+            array{
+                kind: string,
+                defs: list<MelGcComp>,
+                x0: int,
+                x1: int,
+                top: int,
+                bottom: int,
+                mid: int|float,
+                cy: int|float,
+                caps: bool,
+                ids: list<string>,
+                w?: int,
+                px?: int,
+                face?: string,
+                lines?: list<string>,
+                base?: int,
+                step?: int
+            }
+        '''
         # ChangeGCompDef of change_gcomps (mel_gc_change).
         MelGcChange: '''
             array{

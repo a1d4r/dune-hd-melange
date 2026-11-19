@@ -77,6 +77,8 @@ define('MEL_DELAY_INPUT', 10000);
 require_once dirname(__FILE__) . '/voices.php';
 require_once dirname(__FILE__) . '/voices_parse.php';
 require_once dirname(__FILE__) . '/view_gcomps.php';
+// The components of the UI kit (row, stack, text, icon) over gcomps.php.
+require_once dirname(__FILE__) . '/kit.php';
 require_once dirname(__FILE__) . '/view_info.php';
 require_once dirname(__FILE__) . '/view_setup.php';
 // The catalog: client, ENTER on a tile, its screens.
