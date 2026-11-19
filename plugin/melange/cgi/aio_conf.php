@@ -361,7 +361,8 @@ define('MEL_CONF_MIG_FILE', 'aio_conf_mig');
 // mel_conf_step_<name> - a function of userData of GET, changed in place -> it
 // changed. Each looks at the value itself, so a second run changes nothing.
 // The plugin (mel_conf_migrate) does not update conf['tpl'] of settings.json: a step
-// that changes the set of presets gets its tpl only at "Сохранить".
+// that changes the set of presets gets its tpl only at "Сохранить". A released step
+// is never removed or renumbered: the marks in data_dir/aio_conf_mig refer to its number.
 /**
  * @return array<int, string>
  */
@@ -409,36 +410,32 @@ function mel_conf_step_both($u)
     return $ch;
 }
 
-// 3: no key library (in the library of the Debrid service) in the sorting -
-// the old template had it over cached, so a release a failed try had added to
-// the service rose to the top of the next lists. Removed from every list of
-// sortCriteria; the other keys and their order as they are.
+// 3 (0.65.1): no key library (in the library of the Debrid service) desc in the
+// global sorting - the old template had it over cached, so a release a failed try
+// had added to the service rose to the top of the next lists. Only that value of
+// the template: library asc or in another list of sortCriteria is one set by hand.
+// A library desc in global set by hand is not told from the template's and goes as
+// well - accepted, as with query in the step 2.
 /**
  * @param object $u
  * @return bool
  */
 function mel_conf_step_library($u)
 {
-    if (!isset($u->sortCriteria) || !is_object($u->sortCriteria))
+    if (!isset($u->sortCriteria) || !is_object($u->sortCriteria) || !isset($u->sortCriteria->global) ||
+        !is_array($u->sortCriteria->global))
         return false;
-    $ch = false;
-    foreach (get_object_vars($u->sortCriteria) as $k => $l)
+    $l = $u->sortCriteria->global;
+    $keep = array();
+    foreach ($l as $x)
     {
-        if (!is_array($l))
-            continue;
-        $keep = array();
-        foreach ($l as $x)
-        {
-            if (!is_object($x) || !isset($x->key) || $x->key !== 'library')
-                $keep[] = $x;
-        }
-        if (count($keep) !== count($l))
-        {
-            $u->sortCriteria->$k = $keep;
-            $ch = true;
-        }
+        if (!is_object($x) || !isset($x->key, $x->direction) || $x->key !== 'library' || $x->direction !== 'desc')
+            $keep[] = $x;
     }
-    return $ch;
+    if (count($keep) === count($l))
+        return false;
+    $u->sortCriteria->global = $keep;
+    return true;
 }
 
 // The migrations after the schema $from applied to $u in place -> the names of
