@@ -61,6 +61,7 @@ define('MEL_K_PX_CAPTION', 24);
 define('MEL_K_PX_KEY', 22);
 define('MEL_K_PX_BADGE', 18);
 define('MEL_K_PX_RATING', 30);
+define('MEL_K_PX_PAGE_TITLE', 48);
 
 // Rhythm: the gap between visible edges (cap top, baseline, plate edge, icon stroke).
 define('MEL_K_GAP_XS', 8);
@@ -131,6 +132,18 @@ define('MEL_K_PANEL_TITLE_H', 64);
 define('MEL_K_PANEL_VIS', 10);
 define('MEL_K_PANEL_SCROLL_W', 4);
 
+// The screen of an error or a wait of the whole screen (MelKit::error_screen).
+define('MEL_K_PAGE_X', 130);
+define('MEL_K_PAGE_TEXT_W', 760);
+define('MEL_K_PAGE_LOGO_BOTTOM', 256);
+define('MEL_K_PAGE_TOP', 336);
+define('MEL_K_PAGE_LOGO', 96);
+define('MEL_K_PAGE_LOGO_Y', 86);
+define('MEL_K_PAGE_NAME_Y', 111);
+define('MEL_K_PAGE_BAR_W', 600);
+define('MEL_K_PAGE_MASK_X', 600);
+define('MEL_K_PAGE_MASK_Y', 200);
+
 // Radii.
 define('MEL_K_R_BTN', 12);
 define('MEL_K_R_ROW', 10);
@@ -160,6 +173,7 @@ define('MEL_K_ICON_SORT', 26);
 define('MEL_K_ICON_SETUP_SOURCE', 30);
 define('MEL_K_ICON_SETUP_STATUS', 44);
 define('MEL_K_ICON_DIALOG', 44);
+define('MEL_K_ICON_PAGE', 44);
 define('MEL_K_ICON_MENU', 28);
 define('MEL_K_ICON_INFO', 28);
 define('MEL_K_ICON_MORE_BELOW', 36);
@@ -171,6 +185,7 @@ define('MEL_K_ICON_GAP_PANEL', 24);
 define('MEL_K_ICON_GAP_SORT', 6);
 define('MEL_K_ICON_GAP_SETUP_SOURCE', 16);
 define('MEL_K_ICON_GAP_DIALOG', 18);
+define('MEL_K_ICON_GAP_PAGE', 18);
 
 /**
  * The height of the capitals by font size, the same for regular, light and condensed
@@ -386,7 +401,8 @@ function mel_k_pic()
         'k_badge_pcm' => array('url' => 'plugin_file://img/k_badge_pcm.fb45bab7.png', 'w' => 69, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_opus' => array('url' => 'plugin_file://img/k_badge_opus.ab589dc8.png', 'w' => 100, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_aac' => array('url' => 'plugin_file://img/k_badge_aac.8db942be.png', 'w' => 86, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_key_info' => array('url' => 'plugin_file://img/k_key_info.4abf6008.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0), 'ink' => array(43, 16, 53, 80))
+        'k_key_info' => array('url' => 'plugin_file://img/k_key_info.4abf6008.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0), 'ink' => array(43, 16, 53, 80)),
+        'k_mask_page' => array('url' => 'plugin_file://img/k_mask_page.bc9369ac.png', 'w' => 900, 'h' => 880, 'mid' => null, 'ink' => null)
     );
     return $t;
 }

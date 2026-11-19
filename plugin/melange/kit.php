@@ -45,6 +45,8 @@ class MelKit
     public static $trace = null;
     /** @var array{wide: string, faces: array<string, array{upem: int, avg: int, w: array<string, int>}>}|null */
     private static $font = null;
+    // The logo of Melange (the icon of the plugin) in the head of a screen with no logo of a title (error_screen).
+    const LOGO = 'plugin_file://icons/logo.png';
     /** @var int */
     private static $n = 0;
     /** @var array<string, bool> */
@@ -1659,6 +1661,156 @@ class MelKit
     {
         return self::window($v, isset($v['live']) ? (string) $v['live'] : '',
             isset($v['share']) ? (float) $v['share'] : null);
+    }
+
+    // --- The screen of an error or a wait of the whole screen (stage 6b-2): the builder. Its folder, keys and ticks:
+    // kit_scr.php. Coordinates of the screen.
+
+    // The screen of an error, of «no releases» or of a wait (r6 E1-E3, N1-N3, W1; owner 19.11: the whole screen, a
+    // column on the left as the settings and the card), two components:
+    //   {id}_bg   the background: of a title (bg, its card/v1 with the logo baked in; nl while it loads and when it
+    //             fails) under the mask k_mask_page; none (bg '') cat_card0 under the shade MEL_K_C_SCRIM. With no
+    //             logo (bg '' or logo false) the head of Melange: its logo MEL_K_PAGE_LOGO at (MEL_K_PAGE_X,
+    //             MEL_K_PAGE_LOGO_Y) -m- «Melange» (MEL_K_PX_PAGE_TITLE, text 1, the top of its capitals at
+    //             MEL_K_PAGE_NAME_Y) -s- sub (MEL_K_PX_CAPTION, text 3: «Каталог», the name of the title; '' none);
+    //   {id}_col  the column, from the top down by stack: the bottom of the logo of card/v1 (MEL_K_PAGE_LOGO_BOTTOM) -l-
+    //             (no logo: from MEL_K_PAGE_TOP) the head {id}_head, the icon (MEL_K_ICON_PAGE, its box at
+    //             MEL_K_PAGE_X -MEL_K_ICON_GAP_PAGE- the title, on the centre of its capitals; the rhythm goes by the
+    //             title) and the title (MEL_K_PX_PAGE_TITLE, text 1, one line cut with «…» at MEL_K_PAGE_TEXT_W) -s- the
+    //             text {id}_text (MEL_K_PX_DESCRIPTION, text 2, 3 lines a step MEL_K_STEP_DIALOG_TEXT) -m- the bar
+    //             {id}_bar (bar progress MEL_K_DIALOG_BAR_H high, MEL_K_PAGE_BAR_W wide, done share of it) -s- the live
+    //             line {id}_live (MEL_K_PX_SECONDARY, text 3: «прошло 25 с») -l- the buttons {id}_b0, {id}_b1, …
+    //             (button, MEL_K_DIALOG_BTN_GAP apart, from MEL_K_PAGE_X) -l- the detail {id}_detail
+    //             (MEL_K_PX_CAPTION, text 3, from MEL_K_PAGE_X: «Код ошибки плеера: 99»). The text, the bar and the
+    //             live line start where the title does; a block '' or none (share null) is not there.
+    // $v: id (default err); bg, nl (null none), logo (bool), sub; icon (k_icon_*, '' none), tone ('' text 2, warn,
+    // err); title, text, live, share, detail; buttons (as dialog, 3 at most). Every block of the column is a group of
+    // its id, the head, the text and the live line as wide as the column: a key or a tick changes a block by its
+    // children (mel_dlg_diff of the two components). Edges: the screen.
+    /**
+     * @param array<string, mixed> $v
+     * @return MelKitItem
+     */
+    public static function error_screen($v)
+    {
+        $p = isset($v['id']) ? (string) $v['id'] : 'err';
+        $bg = isset($v['bg']) ? (string) $v['bg'] : '';
+        $logo = $bg !== '' && !empty($v['logo']);
+        $x = MEL_K_PAGE_X;
+        $tx = $x + MEL_K_ICON_PAGE + MEL_K_ICON_GAP_PAGE;
+        $x1 = $tx + MEL_K_PAGE_TEXT_W;
+        $back = self::page_bg($bg, isset($v['nl']) && is_string($v['nl']) ? $v['nl'] : null, $logo,
+            isset($v['sub']) ? (string) $v['sub'] : '');
+        $blocks = array();
+        $gaps = array();
+        if ($logo)
+        {
+            // The logo is of the picture: only its bottom, for the rhythm.
+            $blocks[] = self::box(array(), $x, MEL_K_PAGE_LOGO_BOTTOM, 0, 0);
+            $gaps[] = 'l';
+        }
+        $t = self::text(isset($v['title']) ? (string) $v['title'] : '', MEL_K_PX_PAGE_TITLE, MEL_K_C_TEXT1, $tx, 0,
+            array('w' => MEL_K_PAGE_TEXT_W));
+        $head = $t;
+        $icon = isset($v['icon']) ? (string) $v['icon'] : '';
+        if ($icon !== '')
+        {
+            $tone = self::state('page tone', isset($v['tone']) ? (string) $v['tone'] : '', array('warn', 'err'));
+            $fg = $tone === 'err' ? MEL_K_C_ERR : ($tone === 'warn' ? MEL_K_C_WARN : MEL_K_C_TEXT2);
+            $head = self::row(array(self::icon($icon, MEL_K_ICON_PAGE, $fg, 0, 0, array('box' => true)), $t),
+                MEL_K_ICON_GAP_PAGE, $x, null, 'page head');
+            // The row sets the title where it is (the first text), the icon on its line; the rhythm goes by the title.
+            $head['top'] = $t['top'];
+            $head['bottom'] = $t['bottom'];
+        }
+        $blocks[] = self::wide("{$p}_head", $head, $x, $x1);
+        $text = isset($v['text']) ? (string) $v['text'] : '';
+        if ($text !== '')
+        {
+            $blocks[] = self::wide("{$p}_text", self::text($text, MEL_K_PX_DESCRIPTION, MEL_K_C_TEXT2, $tx, 0,
+                array('w' => MEL_K_PAGE_TEXT_W, 'lines' => 3, 'ls' => MEL_K_STEP_DIALOG_TEXT - MEL_K_PX_DESCRIPTION)),
+                $tx, $x1);
+            $gaps[] = 's';
+        }
+        if (isset($v['share']) && $v['share'] !== null)
+        {
+            $blocks[] = self::group("{$p}_bar", self::bar('progress', $tx, 0, MEL_K_PAGE_BAR_W, MEL_K_DIALOG_BAR_H,
+                (float) $v['share']));
+            $gaps[] = 'm';
+        }
+        $live = isset($v['live']) ? (string) $v['live'] : '';
+        if ($live !== '')
+        {
+            $blocks[] = self::wide("{$p}_live", self::text($live, MEL_K_PX_SECONDARY, MEL_K_C_TEXT3, $tx, 0,
+                array('w' => MEL_K_PAGE_TEXT_W)), $tx, $x1);
+            $gaps[] = 's';
+        }
+        $bs = isset($v['buttons']) && is_array($v['buttons']) ? $v['buttons'] : array();
+        if (count($bs) > 3)
+            self::once('page buttons', 'kit: error screen: ' . count($bs) . ' buttons, the first 3');
+        $items = array();
+        foreach (array_slice($bs, 0, 3) as $i => $b)
+            $items[] = self::group("{$p}_b$i", self::button((string) $b['label'], isset($b['icon']) ? (string) $b['icon']
+                : '', isset($b['state']) ? (string) $b['state'] : ''));
+        if ($items)
+        {
+            $blocks[] = self::row($items, MEL_K_DIALOG_BTN_GAP, $x, null, 'page buttons');
+            $gaps[] = 'l';
+        }
+        $detail = isset($v['detail']) ? (string) $v['detail'] : '';
+        if ($detail !== '')
+        {
+            $blocks[] = self::group("{$p}_detail", self::text($detail, MEL_K_PX_CAPTION, MEL_K_C_TEXT3, $x, 0,
+                array('w' => $x1 - $x)));
+            $gaps[] = 'l';
+        }
+        $body = self::stack($blocks, $gaps, $logo ? MEL_K_PAGE_LOGO_BOTTOM : MEL_K_PAGE_TOP, 'page');
+        $out = self::box(array(mel_gc_panel("{$p}_bg", mel_gc_at(1920, 1080, 0, 0), $back),
+            mel_gc_panel("{$p}_col", mel_gc_at(1920, 1080, 0, 0), $body['defs'])), 0, 0, 1920, 1080);
+        $out['kind'] = 'error_screen';
+        return $out;
+    }
+
+    // The components of the background of error_screen (see there): of a title $bg ($nl while it loads and when it
+    // fails) under the mask, with $logo baked into it or the head of Melange with $sub; none ($bg '') cat_card0 under
+    // the shade and the head.
+    /**
+     * @param string $bg
+     * @param string|null $nl
+     * @param bool $logo
+     * @param string $sub
+     * @return list<MelGcComp>
+     */
+    private static function page_bg($bg, $nl, $logo, $sub)
+    {
+        $full = mel_gc_at(1920, 1080, 0, 0);
+        if ($bg !== '')
+        {
+            $img = mel_gc_image($full, $bg);
+            $img[GComponentDef::specific_def][GCompImageDef::not_loaded_url] = $nl;
+            $img[GComponentDef::specific_def][GCompImageDef::load_failed_url] = $nl;
+            $m = self::pic('k_mask_page');
+            $d = array($img);
+            if ($m['url'] !== '')
+                $d[] = mel_gc_image(mel_gc_at($m['w'], $m['h'], MEL_K_PAGE_MASK_X, MEL_K_PAGE_MASK_Y), $m['url']);
+        }
+        else
+        {
+            $c = self::pic('cat_card0');
+            $d = array(mel_gc_image($full, $c['url']), mel_gc_rect($full, MEL_K_C_SCRIM));
+        }
+        $back = self::box($d, 0, 0, 1920, 1080);
+        if ($logo)
+            return $back['defs'];
+        $lx = MEL_K_PAGE_X + MEL_K_PAGE_LOGO;
+        $mark = self::box(array(mel_gc_image(mel_gc_at(MEL_K_PAGE_LOGO, MEL_K_PAGE_LOGO, MEL_K_PAGE_X, MEL_K_PAGE_LOGO_Y),
+            self::LOGO)), MEL_K_PAGE_X, MEL_K_PAGE_LOGO_Y, MEL_K_PAGE_LOGO, MEL_K_PAGE_LOGO);
+        $name = array(self::text('Melange', MEL_K_PX_PAGE_TITLE, MEL_K_C_TEXT1, $lx + MEL_K_GAP_M));
+        if ($sub !== '')
+            $name[] = self::text($sub, MEL_K_PX_CAPTION, MEL_K_C_TEXT3, $lx + MEL_K_GAP_M, 0,
+                array('w' => MEL_K_PAGE_TEXT_W));
+        $name = self::stack($name, 's', MEL_K_PAGE_NAME_Y, 'page brand');
+        return array_merge($back['defs'], $mark['defs'], $name['defs']);
     }
 
     // $it as the group $id from $x0 to $x1 (the width of the content: a text that changes keeps its geometry).
