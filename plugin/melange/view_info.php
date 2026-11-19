@@ -421,9 +421,13 @@ function mel_info_subs($r, $pf, $tt)
             mel_info_clean(mel_str($t, 'title')), isset($t['default']) && $t['default'] === true);
     }
     $subs = mel_row_subs($r);
+    // The language only the names tell (mel_row_subs) after the tracks too.
+    $more = $out ? array_diff($subs, $r['subs']) : array();
+    foreach ($more as $c)
+        $out[] = mel_info_track($c, '', '', '', false);
     if (!$out && !$subs)
         return null;
-    $n = $out ? count($all) : count($subs);
+    $n = $out ? count($all) + count($more) : count($subs);
     $st = mel_info_wrap_tracks($out, $max);
     $codes = $out ? '' : implode(', ', $subs);
     return array('label' => "{$tt['subs']} ($n)", 'st' => $st, 'codes' => $codes, 'n' => $n,
