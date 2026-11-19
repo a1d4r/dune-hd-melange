@@ -210,11 +210,11 @@ function mel_gc_src($in)
     }
     if (!mel_profile_rel($s['profiles'][$k]))
         return mel_src_lampac($st, $id, $tag);
-    // No IMDb: no releases (the menu has none of them; one of an old menu - nothing).
+    // No IMDb: no releases (the menu has none of them; one of an old menu - the message).
     if ($st['movie']['imdb'] === '')
     {
-        mel_log("$tag: no IMDb, no releases, nothing");
-        return null;
+        mel_log("$tag: no IMDb, no releases");
+        return mel_error('err_no_imdb_rel');
     }
     return mel_src_releases($st, $id, $tag, $title, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
 }

@@ -67,7 +67,7 @@ function mel_lpv_on($mv, $s = -1, $e = -1)
 
 // --- The title.
 
-// The key of a card: of the Dune, else IMDb, else its TMDB (mel_movie: "tmdb:<id>", "tmdbtv:<id>"); '' none.
+// The key of a card: of the Dune, else IMDb, else its TMDB (lpv_key of mel_movie: "tmdb:<id>", "tmdbtv:<id>"); '' none.
 /**
  * @param MelMovie $mv
  * @return string
@@ -76,7 +76,7 @@ function mel_lpv_key($mv)
 {
     if ($mv['dune_id'] !== '')
         return $mv['dune_id'];
-    return $mv['imdb'] !== '' ? $mv['imdb'] : (isset($mv['tmdb']) ? $mv['tmdb'] : '');
+    return $mv['imdb'] !== '' ? $mv['imdb'] : (isset($mv['lpv_key']) ? $mv['lpv_key'] : '');
 }
 
 // The parameters of Lampac of card $mv (mel_lp_title): its title the one of Lampac kept (MelLpv::$ids) when that replaced

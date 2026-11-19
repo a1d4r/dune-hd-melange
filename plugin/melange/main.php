@@ -290,12 +290,12 @@ function mel_movie($in)
         'fanart' => mel_str($m, 'fanart_url'),
         'rate_imdb' => mel_str($m, 'rate_imdb'),
         'seasons' => mel_seasons($m));
-    // No card of the Dune and no IMDb: "tmdb:<id>" / "tmdbtv:<id>" of movie_str, the key of the card (mel_lpv_key).
+    // No card of the Dune and no IMDb: the key of the card (mel_lpv_key) of its TMDB of movie_str, "tmdb:<id>" / "tmdbtv:<id>".
     $tmdb = $series ? mel_str($m, 'tmdbtv_id') : '';
     if ($tmdb === '')
         $tmdb = mel_str($m, 'tmdb_id');
     if ($mv['imdb'] === '' && $mv['dune_id'] === '' && preg_match('/^[0-9]{1,10}$/D', $tmdb))
-        $mv['tmdb'] = ($series ? 'tmdbtv:' : 'tmdb:') . $tmdb;
+        $mv['lpv_key'] = ($series ? 'tmdbtv:' : 'tmdb:') . $tmdb;
     // Of the own card, else of its runs file (a card of the shell: its numbering is of Cinemeta, mel_cin_load).
     $cin = mel_cin_valid(isset($m['aio_cin']) ? $m['aio_cin'] : null);
     if (!$cin && $series && $mv['imdb'] !== '')

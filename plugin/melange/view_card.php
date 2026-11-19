@@ -704,9 +704,10 @@ function mel_oc_head_lines($c, $l)
 }
 
 // Under the buttons ($w0: the width of the first): no IMDb and no Lampac - nothing plays (the meta failed: it
-// did not load, else it has none: no releases); no card of the Dune - no history; else the progress $wh of the
-// movie under "Watch", if begun, or "Watched" grey without the bar (watched by its position or $marked: by a mark,
-// mel_pg_mark_kind); none of them and no IMDb - "Только Lampac" (card_lp_only).
+// did not load, else it has none: no releases); no IMDb, Lampac (mel_oc_can_watch) - the progress or "Watched" as
+// below, else "Только Lampac" (card_lp_only), never "no history" (owner 19.11.2026); no card of the Dune - no history;
+// else the progress $wh of the movie under "Watch", if begun, or "Watched" grey without the bar (watched by its position
+// or $marked: by a mark, mel_pg_mark_kind).
 /**
  * @param MelOcCard $c
  * @param array{float, float}|null $wh
@@ -722,7 +723,7 @@ function mel_oc_under($c, $wh, $w0, $marked = false)
     $color = MEL_CATV_TEXT_COLOR;
     if (!mel_oc_can_watch($c))
         $line = mel_tr($c['ui'], $c['meta'] ? 'err_no_imdb_rel' : 'cat_row_failed');
-    else if ($c['dune'] === '')
+    else if ($c['dune'] === '' && $c['imdb'] !== '')
         $line = mel_tr($c['ui'], 'card_no_history');
     else
     {
@@ -750,7 +751,7 @@ function mel_oc_under($c, $wh, $w0, $marked = false)
 }
 
 // A series without a card of the Dune or an IMDb: the line why, right of the buttons ($x: their
-// end), as high as their middle; of Lampac only (mel_oc_can_watch) with a card of the Dune - "Только Lampac".
+// end), as high as their middle; of Lampac only (mel_oc_can_watch) - "Только Lampac", a card of the Dune or none.
 /**
  * @param MelOcCard $c
  * @param int $x
@@ -760,11 +761,9 @@ function mel_oc_under_ser($c, $x)
 {
     if ($c['imdb'] !== '' && $c['dune'] !== '')
         return array();
-    $k = 'card_no_history';
+    $k = $c['imdb'] !== '' ? 'card_no_history' : 'card_lp_only';
     if (!mel_oc_can_watch($c))
         $k = $c['meta'] ? 'err_no_imdb_rel' : 'cat_row_failed';
-    else if ($c['dune'] !== '')
-        $k = 'card_lp_only';
     $line = mel_tr($c['ui'], $k);
     return array(mel_oc_label($x, MEL_OC_BTN_Y_SER + (MEL_OC_BTN_H - 34) / 2, MEL_OC_HINT_R - $x, $line, 24, MEL_CATV_TEXT_COLOR));
 }

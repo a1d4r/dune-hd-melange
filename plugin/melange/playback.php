@@ -1336,6 +1336,9 @@ function mel_next_fetch($key, $s, $e)
     if (!$saved)
         return array('error' => 'err_list_expired', 'detail' => '', 'lang' => '', 'errors' => mel_no_errors());
     $mv = $saved['movie'];
+    // A card of no IMDb (Lampac only): no releases, no request.
+    if ($mv['imdb'] === '')
+        return array('error' => 'err_no_imdb_rel', 'detail' => '', 'lang' => $saved['lang'], 'errors' => mel_no_errors());
     // Under the player: only the error with the way to the settings.
     if (Mel::$settings['base'] === '')
         return array('error' => Mel::$settings['own'] ? 'err_set_address_own' : 'err_set_address', 'detail' => '',
