@@ -1732,7 +1732,7 @@ class MelKit
                 $tx, $x1);
             $gaps[] = 's';
         }
-        if (isset($v['share']) && $v['share'] !== null)
+        if (isset($v['share']))
         {
             $blocks[] = self::group("{$p}_bar", self::bar('progress', $tx, 0, MEL_K_PAGE_BAR_W, MEL_K_DIALOG_BAR_H,
                 (float) $v['share']));
