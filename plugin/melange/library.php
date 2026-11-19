@@ -718,7 +718,57 @@ function mel_lib_res_rank($res)
     return isset($words[$res]) ? $words[$res][1] : ($res !== '' ? 0 : -1);
 }
 
-// usort of the copies: the resolution down, then the size down, then the path.
+// The groups of the media tags of the indexer by MediaTags::$TAGS_ORDER of the shell (media_tags.php r25), the best
+// first in each: the resolution, HDR, the audio, the channels; each tag (upper case) => its badge of the list of
+// releases (img/nb2_<id>.png, MelGc::$badge_w), the channels none: they are text.
+/**
+ * @return list<array<string, string>>
+ */
+function mel_lib_tag_groups()
+{
+    return array(
+        array('4K' => '4k', '2K' => '1440p', '1080' => '1080p', '720' => '720p'),
+        array('DV' => 'dolby-vision', 'HDR10+' => 'hdr10-plus', 'HDR10' => 'hdr10', 'HLG' => 'hlg'),
+        array('ATMOS' => 'dolby-atmos', 'DTS:X' => 'dts-x', 'TRUEHD' => 'dolby-truehd', 'DTS-HD MA' => 'dts-hd-ma',
+            'DTS-HD' => 'dts-hd', 'DD' => 'dolby-digital', 'DTS' => 'dts'),
+        array('9.1' => '', '7.1' => '', '6.1' => '', '5.1' => ''));
+}
+
+// The weight of a copy as MediaTags::get_order_by_tags of the shell weighs its tags: of each tag of a group its place
+// from the end of the group (the best the most), times 1000 for the resolution, 100 HDR, 10 the audio, 1 the channels,
+// all summed; no tags: its resolution by the name of the file (mel_lib_res_rank) in place of the tag of it.
+/**
+ * @param MelLibCopy $c
+ * @return int
+ */
+function mel_lib_order($c)
+{
+    if (trim($c['tags']) === '')
+    {
+        $r = mel_lib_res_rank($c['res']);
+        return $r > 0 ? $r * 1000 : $r;
+    }
+    $w = array();
+    $mult = 1000;
+    foreach (mel_lib_tag_groups() as $g)
+    {
+        $n = count($g);
+        foreach (array_keys($g) as $k => $tag)
+            $w[strval($tag)] = ($n - $k) * $mult;
+        $mult = intval($mult / 10);
+    }
+    $sum = 0;
+    foreach (explode(',', strtoupper($c['tags'])) as $t)
+    {
+        $t = trim($t);
+        if (isset($w[$t]))
+            $sum += $w[$t];
+    }
+    return $sum;
+}
+
+// usort of the copies, the order of the shell (MediaTags::choose_tags_from_files, mel_lib_order): the weight of the
+// tags down, then the size down, then the path.
 /**
  * @param MelLibCopy $a
  * @param MelLibCopy $b
@@ -726,18 +776,67 @@ function mel_lib_res_rank($res)
  */
 function mel_lib_cmp_copies($a, $b)
 {
-    $ra = mel_lib_res_rank($a['res']);
-    $rb = mel_lib_res_rank($b['res']);
-    if ($ra !== $rb)
-        return $rb - $ra;
+    $oa = mel_lib_order($a);
+    $ob = mel_lib_order($b);
+    if ($oa !== $ob)
+        return $ob - $oa;
     if ($a['size'] != $b['size'])
         return $a['size'] < $b['size'] ? 1 : -1;
     return strcmp($a['path'], $b['path']);
 }
 
+// The badges of copy $c of the line "С диска" of the card: the best tag of each group (mel_lib_tag_groups) - res, hdr,
+// audio as the ids of their badges, ch the channels as they are; src 'bluray' of a tag Blu-ray. No tags: res of the
+// resolution by the name (res of the copy, lower case: an id of a badge if there is one). The case of a tag not
+// minded; another tag (the container, the frame rate, the codec, the frame) - none.
+/**
+ * @param MelLibCopy $c
+ * @return array{res: string, src: string, hdr: string, audio: string, ch: string}
+ */
+function mel_lib_badges($c)
+{
+    $b = array('res' => '', 'src' => '', 'hdr' => '', 'audio' => '', 'ch' => '');
+    if (trim($c['tags']) === '')
+    {
+        $b['res'] = $c['res'] === '4K' ? '4k' : ($c['res'] === '2K' ? '1440p' : strtolower($c['res']));
+        return $b;
+    }
+    $tags = array_map('trim', explode(',', strtoupper($c['tags'])));
+    $b['src'] = in_array('BLU-RAY', $tags, true) ? 'bluray' : '';
+    $groups = mel_lib_tag_groups();
+    foreach (array('res', 'hdr', 'audio', 'ch') as $i => $k)
+    {
+        foreach ($groups[$i] as $tag => $id)
+        {
+            if (in_array(strval($tag), $tags, true))
+            {
+                $b[$k] = $k === 'ch' ? strval($tag) : $id;
+                break;
+            }
+        }
+    }
+    return $b;
+}
+
+// The copy of key $key of copies $copies, null none.
+/**
+ * @param list<MelLibCopy> $copies
+ * @param string $key
+ * @return MelLibCopy|null
+ */
+function mel_lib_copy_by_key($copies, $key)
+{
+    foreach ($copies as $c)
+    {
+        if ($key !== '' && $c['key'] === $key)
+            return $c;
+    }
+    return null;
+}
+
 // The copies of the movie $mid of the index: its files whose source is
 // mounted now (with the caption of their folder, for mel_lib_label), each path to play once (one share in two network folders, by
-// the name and by the IP of its server: the first), the best first
+// the name and by the IP of its server: the first), the best first, as the shell chooses
 // (mel_lib_cmp_copies). The mount list is read on every call, and only when
 // the movie has files in the index.
 /**

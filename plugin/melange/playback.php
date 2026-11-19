@@ -388,25 +388,27 @@ function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1)
 }
 
 // The start of a copy of movie $mv of its copies $copies now (mel_lib_copies, the best first), the own card and
-// play_action alike: $first (null none) from $first_pos s, if its file is there (mel_lib_here); else (or no $first) by
-// the copies left - none: mel_lib_gone; one: it from $pos s, if there; several: their menu (mel_lib_pick_menu) to
-// $back = array(control, params), with k - the key of the copy chosen. One check a copy at most; a copy that does not
-// answer ('slow') takes the copies of its mount out unchecked (the NAS sleeps or is off), and no check starts that the
-// operation (MEL_OP_BUDGET) has no time left for.
+// play_action alike: the copy of key $first_key ('' none; not among them - logged, as none) from $first_pos s, if its
+// file is there (mel_lib_here); else (or no such copy) by the copies left - none: mel_lib_gone; one: it from $pos s, if
+// there; several: their menu (mel_lib_pick_menu) to $back = array(control, params), with k - the key of the copy
+// chosen. One check a copy at most; a copy that does not answer ('slow') takes the copies of its mount out unchecked
+// (the NAS sleeps or is off), and no check starts that the operation (MEL_OP_BUDGET) has no time left for.
 /**
  * @param MelMovie $mv
  * @param list<MelLibCopy> $copies
- * @param MelLibCopy|null $first
+ * @param string $first_key
  * @param int $first_pos
  * @param int $pos
  * @param string $lang
  * @param array{string, array<string, string>} $back
  * @return MelAction
  */
-function mel_lib_start($mv, $copies, $first, $first_pos, $pos, $lang, $back)
+function mel_lib_start($mv, $copies, $first_key, $first_pos, $pos, $lang, $back)
 {
     $left = $copies;
-    $try = $first;
+    $try = mel_lib_copy_by_key($copies, $first_key);
+    if ($first_key !== '')
+        mel_log("library: start $first_key: " . ($try ? 'its copy' : 'not among ' . count($copies) . ' copies'));
     $at = $first_pos;
     $slow = false;
     for (;;)
@@ -461,17 +463,11 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
     $copies = $y !== '' ? mel_lib_copies($y) : array();
     if ($mv['dune_id'] === '')
         $mv['dune_id'] = $y;
-    $first = null;
-    foreach ($copies as $c)
-    {
-        if ($c['key'] === $key)
-            $first = $c;
-    }
-    mel_log("resume: local $key pos=$pos: " . ($first ? 'its copy' : 'not among ' . count($copies) . ' copies'));
+    mel_log("resume: local $key pos=$pos");
     $keep = array_intersect_key($m, array_flip(explode(' ', MEL_LIB_MOVIE_KEYS)));
     $back = array('lib_copy', array('movie_str' => strval(json_encode($keep)), 'series_type' => 'single',
         'lang' => $lang, 'pos' => strval($pos)));
-    return mel_lib_start($mv, $copies, $first, $pos, $pos, $lang, $back);
+    return mel_lib_start($mv, $copies, $key, $pos, $pos, $lang, $back);
 }
 
 // lib_copy: the copy k chosen in the menu of the copies of play_action (mel_lib_resume) - from pos s, of the movie of
