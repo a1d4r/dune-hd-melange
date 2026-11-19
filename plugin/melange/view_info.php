@@ -37,6 +37,33 @@ define('MEL_INF_QR_SIDE', 520); // the QR page: side of the QR at most, px (a mo
 define('MEL_INF_QR_GAP', 60);   // the QR page: from the QR to the text
 define('MEL_INF_QR_LINES', 8);  // the QR page: lines of the address at most (30 px)
 
+// Status $s of mel_gc_status (view_gcomps.php) in lines of at most $width: each of its lines
+// wrapped after spaces ("Real-Debrid" whole), no line ends with a comma;
+// more than $max: the last ends with "…".
+/**
+ * @param string $s
+ * @param int $px
+ * @param int $width
+ * @param int $max
+ * @return list<string>
+ */
+function mel_gc_status_lines($s, $px, $width, $max)
+{
+    $lines = array();
+    foreach (explode("\n", $s) as $part)
+    {
+        foreach (mel_gc_wrap($part, $px, $width, $max + 1, true) as $l)
+            $lines[] = rtrim($l, ' ,');
+    }
+    if (count($lines) <= $max)
+        return $lines;
+    $lines = array_slice($lines, 0, $max);
+    $ell = "\xE2\x80\xA6";
+    $l = (string) array_pop($lines);
+    $lines[] = rtrim(mb_substr($l, 0, mel_gc_fit($l, $px, $width - mel_gc_w($ell, $px)), 'UTF-8'), ' ,') . $ell;
+    return $lines;
+}
+
 // open_folder of the details screen of row $n of list $st.
 /**
  * @param MelState $st

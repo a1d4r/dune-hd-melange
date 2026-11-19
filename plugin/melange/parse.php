@@ -305,6 +305,23 @@ function mel_badges($pf, $res = null)
         'audio' => $audio, 'tags' => $tags);
 }
 
+// The senior part of badge id $id of mel_badges, the plate b2 of a row of the list (the owner 18.11.2026): the
+// picture «Vision» without its HDR (dolby-vision-hdr10 -> dolby-vision), the sound «Atmos» when it has it
+// (dolby-atmos-truehd -> dolby-atmos), DTS:X so (dts-x-hd-ma -> dts-x), else the id itself (the codec).
+/**
+ * @param string $id
+ * @return string
+ */
+function mel_badge_senior($id)
+{
+    foreach (array('dolby-vision', 'dolby-atmos', 'dts-x') as $p)
+    {
+        if (strpos($id, "$p-") === 0)
+            return $p;
+    }
+    return $id;
+}
+
 // Badge id of mel_badges as text, for the card: "DV · HDR10", "TrueHD Atmos".
 /**
  * @param string $id

@@ -206,10 +206,24 @@ class MelKit
     public static function cut($s, $px, $face, $w)
     {
         $s = self::utf8($s);
+        if (self::w($s, $px, $face) <= $w)
+            return $s;
+        return self::ell($s, $px, $face, $w);
+    }
+
+    // The longest start of $s that fits $w with "…" after it, spaces and , . ; : · before it dropped: "…" even
+    // when $s fits (the last line of a text cut by lines).
+    /**
+     * @param string $s
+     * @param int $px
+     * @param string $face
+     * @param int $w
+     * @return string
+     */
+    public static function ell($s, $px, $face, $w)
+    {
         $c = self::chars($s);
         $a = self::advances($c, $px, $face);
-        if (array_sum($a) <= $w)
-            return $s;
         $ell = "\xE2\x80\xA6";
         $room = $w - self::w($ell, $px, $face);
         $n = 0;
@@ -306,6 +320,113 @@ class MelKit
         return $lines;
     }
 
+    // $s, items joined by " · " (the video, the audio of a release: "2160p · DV · HDR10"), in lines of $w at most:
+    // an item goes to the next line whole and no line ends with the separator; an item wider than a line is
+    // wrapped by itself (wrap). More than $n lines: the last ends with "…".
+    /**
+     * @param string $s
+     * @param int $px
+     * @param string $face
+     * @param int $w
+     * @param int $n
+     * @return list<string>
+     */
+    public static function wrap_items($s, $px, $face, $w, $n)
+    {
+        $lines = array();
+        if ($n < 1)
+            return $lines;
+        $cur = '';
+        foreach (explode(" \xC2\xB7 ", self::utf8($s)) as $item)
+        {
+            if (trim($item) === '')
+                continue;
+            $try = $cur === '' ? $item : "$cur \xC2\xB7 $item";
+            if (self::w($try, $px, $face) <= $w)
+            {
+                $cur = $try;
+                continue;
+            }
+            if ($cur !== '')
+                $lines[] = $cur;
+            $sub = self::wrap($item, $px, $face, $w, $n + 1);
+            $cur = (string) array_pop($sub);
+            $lines = array_merge($lines, $sub);
+            if (count($lines) > $n)
+                break;
+        }
+        if ($cur !== '' && count($lines) <= $n)
+            $lines[] = $cur;
+        if (count($lines) <= $n)
+            return $lines;
+        $lines = array_slice($lines, 0, $n);
+        $lines[] = self::ell((string) array_pop($lines), $px, $face, $w);
+        return $lines;
+    }
+
+    // $s, groups joined by " · " of units joined by ", " (the voices of a release: "Дубляж: Red Head Sound,
+    // LostFilm · оригинал"), in lines of $w at most: broken after " · " or ", " (the comma stays), never inside a
+    // unit; a group that fits a line but not the rest of this one starts the next; $alone: the first group has
+    // lines of its own. More than $n lines: the last ends with "…"; a unit wider than a line is cut.
+    /**
+     * @param string $s
+     * @param int $px
+     * @param string $face
+     * @param int $w
+     * @param int $n
+     * @param bool $alone
+     * @return list<string>
+     */
+    public static function wrap_groups($s, $px, $face, $w, $n, $alone = false)
+    {
+        $lines = array();
+        if ($n < 1)
+            return $lines;
+        $cur = '';
+        foreach (explode(" \xC2\xB7 ", self::utf8($s)) as $i => $item)
+        {
+            if ($i === 1 && $alone && $cur !== '')
+            {
+                $lines[] = $cur;
+                $cur = '';
+            }
+            if ($cur !== '' && self::w("$cur \xC2\xB7 $item", $px, $face) > $w && self::w($item, $px, $face) <= $w)
+            {
+                $lines[] = $cur;
+                $cur = '';
+                if (count($lines) > $n)
+                    break;
+            }
+            $units = explode(', ', $item);
+            foreach ($units as $j => $u)
+            {
+                $sep = $cur === '' ? '' : ($j > 0 ? ', ' : " \xC2\xB7 ");
+                // Room for the comma a break after it would leave.
+                if (self::w($cur . $sep . $u . ($j < count($units) - 1 ? ',' : ''), $px, $face) <= $w)
+                {
+                    $cur .= $sep . $u;
+                    continue;
+                }
+                if ($cur !== '')
+                    $lines[] = $cur . ($j > 0 ? ',' : '');
+                $cur = $u;
+                if (count($lines) > $n)
+                    break 2;
+            }
+        }
+        if ($cur !== '')
+            $lines[] = $cur;
+        if (count($lines) > $n)
+        {
+            $lines = array_slice($lines, 0, $n);
+            $lines[] = self::ell((string) array_pop($lines), $px, $face, $w);
+        }
+        $out = array();
+        foreach ($lines as $l)
+            $out[] = self::cut($l, $px, $face, $w);
+        return $out;
+    }
+
     // --- Components.
 
     // The id of a component: $o['id'] (with $sfx), else one of its own only
@@ -322,14 +443,35 @@ class MelKit
         return self::$trace === null ? null : 'mk' . ++self::$n . $sfx;
     }
 
+    // The lines of a text $s of text(): one, cut to $o['w'], or wrapped in $n.
+    /**
+     * @param string $s
+     * @param int $px
+     * @param string $face
+     * @param int $n
+     * @param array<string, mixed> $o
+     * @return list<string>
+     */
+    private static function lines($s, $px, $face, $n, $o)
+    {
+        if (isset($o['lines']) && !isset($o['w']))
+            mel_log("kit: text '" . mb_substr($s, 0, 40, 'UTF-8') . "': lines without w, one line");
+        if (!isset($o['w']))
+            return array($s);
+        if ($n > 1)
+            return self::wrap($s, $px, $face, (int) $o['w'], $n);
+        return array(self::cut($s, $px, $face, (int) $o['w']));
+    }
+
     // A text (valid UTF-8, see utf8) with the centre of its capitals at $y,
     // starting at $x. $o: face (MEL_K_FACE_*, default regular); w, the width
     // it may take (cut with "…"; with lines, wrapped); lines, the most lines
     // (default 1: a label each, the step $px + ls; without w logged, one
     // line); ls, line_spacing (default 0); id (of a line: id_<n> when
-    // lines > 1).
+    // lines > 1). $s a list: its lines as given (wrapped by the caller's
+    // rule: wrap_items, wrap_groups), each cut to w if given; lines unused.
     /**
-     * @param string $s
+     * @param string|list<string> $s
      * @param int $px
      * @param string $color
      * @param int $x
@@ -342,15 +484,17 @@ class MelKit
         $face = isset($o['face']) ? (string) $o['face'] : MEL_K_FACE_REGULAR;
         $n = isset($o['lines']) ? max(1, (int) $o['lines']) : 1;
         $ls = isset($o['ls']) ? (int) $o['ls'] : 0;
-        $s = mel_clean(self::utf8($s));
-        if (isset($o['lines']) && !isset($o['w']))
-            mel_log("kit: text '" . mb_substr($s, 0, 40, 'UTF-8') . "': lines without w, one line");
-        if (!isset($o['w']))
-            $lines = array($s);
-        elseif ($n > 1)
-            $lines = self::wrap($s, $px, $face, (int) $o['w'], $n);
+        if (is_array($s))
+        {
+            $lines = array();
+            foreach ($s as $l)
+            {
+                $l = mel_clean(self::utf8($l));
+                $lines[] = isset($o['w']) ? self::cut($l, $px, $face, (int) $o['w']) : $l;
+            }
+        }
         else
-            $lines = array(self::cut($s, $px, $face, (int) $o['w']));
+            $lines = self::lines(mel_clean(self::utf8($s)), $px, $face, $n, $o);
         if (!$lines)
             $lines = array('');
         // The box: h - px even, so the capitals are centred in it to a pixel.
@@ -877,9 +1021,10 @@ class MelKit
 
     // A key of the remote on its plate (key) MEL_K_KEY_H high: 'pp' the two
     // runs «P+» -MEL_K_KEY_GAP- «P−» (MEL_K_PX_KEY) between the pads
-    // MEL_K_KEY_PAD; else the picture $key (k_icon_menu MEL_K_ICON_MENU,
-    // k_key_info MEL_K_ICON_INFO) by the centre of its strokes on a plate
-    // MEL_K_KEY_W wide. The left at $x, the centre at $y.
+    // MEL_K_KEY_PAD; 'lr' the chevrons left and right (MEL_K_ICON_PANEL_CHEVRON)
+    // as far apart, between the same pads; else the picture $key (k_icon_menu
+    // MEL_K_ICON_MENU, k_key_info MEL_K_ICON_INFO) by the centre of its strokes
+    // on a plate MEL_K_KEY_W wide. The left at $x, the centre at $y.
     /**
      * @param string $key
      * @param int $x
@@ -894,6 +1039,13 @@ class MelKit
         {
             $c = self::row(array(self::text('P+', MEL_K_PX_KEY, MEL_K_C_TEXT1),
                 self::text("P\xE2\x88\x92", MEL_K_PX_KEY, MEL_K_C_TEXT1)), MEL_K_KEY_GAP, $x + MEL_K_KEY_PAD, $y, 'key');
+            $w = $c['x1'] - $c['x0'] + 2 * MEL_K_KEY_PAD;
+        }
+        elseif ($key === 'lr')
+        {
+            $c = self::row(array(self::icon('k_icon_chevron-left', MEL_K_ICON_PANEL_CHEVRON, MEL_K_C_TEXT1),
+                self::icon('k_icon_chevron-right', MEL_K_ICON_PANEL_CHEVRON, MEL_K_C_TEXT1)), MEL_K_KEY_GAP,
+                $x + MEL_K_KEY_PAD, $y, 'key');
             $w = $c['x1'] - $c['x0'] + 2 * MEL_K_KEY_PAD;
         }
         else
