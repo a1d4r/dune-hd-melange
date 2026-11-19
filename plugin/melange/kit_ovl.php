@@ -84,34 +84,34 @@ function mel_ovl_behaviour($map, $timer, $post)
 }
 
 // Open over the screen of record $scr (see above) the overlay of state $st (array('kp' => ...)), action map $map,
-// timer $tick (null none; a wait: its ticks) and components $defs (the children of ovl), then $post (a change_gcomps
-// of them: the panel slides in). A record that is not one (owner '' or not a string, map not an array, a timer neither
-// an array nor null, sel neither a string nor null): null, logged.
+// timer $timer (GuiTimerDef, null none; a wait: its ticks) and components $defs (the children of ovl), then $post (a
+// change_gcomps of them: the panel slides in). A record that is not one (owner '' or not a string, map not an array, a
+// timer neither an array nor null, sel neither a string nor null): null, logged.
 /**
  * @param array<string, mixed> $scr
  * @param array<string, mixed> $st
  * @param array<string, MelAction> $map
  * @param list<MelGcComp> $defs
  * @param MelAction|null $post
- * @param array<string, int>|null $tick
+ * @param array<string, int>|null $timer
  * @return MelAction|null
  */
-function mel_ovl_open($scr, $st, $map, $defs, $post = null, $tick = null)
+function mel_ovl_open($scr, $st, $map, $defs, $post = null, $timer = null)
 {
     $owner = isset($scr['owner']) ? $scr['owner'] : null;
     $smap = isset($scr['map']) ? $scr['map'] : null;
-    $timer = array_key_exists('timer', $scr) ? $scr['timer'] : false;
+    $stimer = array_key_exists('timer', $scr) ? $scr['timer'] : false;
     $sel = array_key_exists('sel', $scr) ? $scr['sel'] : false;
-    if (!is_string($owner) || $owner === '' || !is_array($smap) || !($timer === null || is_array($timer)) ||
+    if (!is_string($owner) || $owner === '' || !is_array($smap) || !($stimer === null || is_array($stimer)) ||
         !($sel === null || is_string($sel)))
     {
         mel_log('kit overlay: no record of the screen, not opened');
         return null;
     }
     /** @var MelOvlScreen $rec */
-    $rec = array('owner' => $owner, 'map' => $smap, 'timer' => $timer, 'sel' => $sel);
+    $rec = array('owner' => $owner, 'map' => $smap, 'timer' => $stimer, 'sel' => $sel);
     MelOvl::$st = array_merge($st, array('scr' => $rec, 'open' => true));
-    return mel_ovl_behaviour($map, $tick, mel_ovl_change(array(mel_gc_change(MEL_OVL, null, GCOMP_TRANSITION_NONE,
+    return mel_ovl_behaviour($map, $timer, mel_ovl_change(array(mel_gc_change(MEL_OVL, null, GCOMP_TRANSITION_NONE,
         $defs)), $sel, $post));
 }
 
