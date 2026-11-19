@@ -74,6 +74,8 @@ define('MEL_K_STEP_SETUP', 48);
 define('MEL_K_STEP_CARD_DESC', 42);
 define('MEL_K_STEP_INFO_DESC', 35);
 define('MEL_K_STEP_PANEL_NOTE', 31);
+define('MEL_K_STEP_DIALOG_TITLE', 48);
+define('MEL_K_STEP_DIALOG_TEXT', 42);
 
 // line_spacing of the multiline labels of the shell (step = size + line_spacing).
 define('MEL_K_LS_INFO_DESC', 5);
@@ -94,6 +96,11 @@ define('MEL_K_BAR_MIN', 4);
 define('MEL_K_THUMB_MIN', 40);
 define('MEL_K_RATING_LINE', 2);
 define('MEL_K_RING_W', 6);
+define('MEL_K_DIALOG_W', 960);
+define('MEL_K_DIALOG_PAD', 40);
+define('MEL_K_DIALOG_LINE', 2);
+define('MEL_K_DIALOG_BTN_GAP', 18);
+define('MEL_K_DIALOG_BAR_H', 8);
 define('MEL_K_RATING_H', 40);
 define('MEL_K_RATING_PAD', 12);
 define('MEL_K_RATING_KP_W', 117);
@@ -138,6 +145,7 @@ define('MEL_K_R_CACHED', 19);
 define('MEL_K_R_MARK', 21);
 define('MEL_K_R_KEY_DOT', 7);
 define('MEL_K_R_RING', 16);
+define('MEL_K_R_DIALOG', 20);
 
 // Icon size by role: one PNG 96 per icon, the size is the image box.
 define('MEL_K_ICON_BUTTON', 30);
@@ -151,6 +159,7 @@ define('MEL_K_ICON_LIST_DOWNLOAD', 30);
 define('MEL_K_ICON_SORT', 26);
 define('MEL_K_ICON_SETUP_SOURCE', 30);
 define('MEL_K_ICON_SETUP_STATUS', 44);
+define('MEL_K_ICON_DIALOG', 44);
 define('MEL_K_ICON_MENU', 28);
 define('MEL_K_ICON_INFO', 28);
 define('MEL_K_ICON_MORE_BELOW', 36);
@@ -161,6 +170,7 @@ define('MEL_K_ICON_GAP_BUTTON', 14);
 define('MEL_K_ICON_GAP_PANEL', 24);
 define('MEL_K_ICON_GAP_SORT', 6);
 define('MEL_K_ICON_GAP_SETUP_SOURCE', 16);
+define('MEL_K_ICON_GAP_DIALOG', 18);
 
 /**
  * The height of the capitals by font size, the same for regular, light and condensed
@@ -270,6 +280,14 @@ function mel_k_pic()
         'k_corner_r16w6_accent_br' => array('url' => 'plugin_file://img/k_corner_r16w6_accent_br.ddc102f6.png', 'w' => 16, 'h' => 16, 'mid' => null, 'ink' => null),
         'k_corner_r19_cached_on_o' => array('url' => 'plugin_file://img/k_corner_r19_cached_on_o.2c469d4a.png', 'w' => 38, 'h' => 38, 'mid' => null, 'ink' => null),
         'k_corner_r19_ok_o' => array('url' => 'plugin_file://img/k_corner_r19_ok_o.7dd6ab70.png', 'w' => 38, 'h' => 38, 'mid' => null, 'ink' => null),
+        'k_corner_r20_panel_tl' => array('url' => 'plugin_file://img/k_corner_r20_panel_tl.24e3ad7a.png', 'w' => 20, 'h' => 20, 'mid' => null, 'ink' => null),
+        'k_corner_r20_panel_tr' => array('url' => 'plugin_file://img/k_corner_r20_panel_tr.7e314802.png', 'w' => 20, 'h' => 20, 'mid' => null, 'ink' => null),
+        'k_corner_r20_panel_bl' => array('url' => 'plugin_file://img/k_corner_r20_panel_bl.8937f789.png', 'w' => 20, 'h' => 20, 'mid' => null, 'ink' => null),
+        'k_corner_r20_panel_br' => array('url' => 'plugin_file://img/k_corner_r20_panel_br.6d0936a7.png', 'w' => 20, 'h' => 20, 'mid' => null, 'ink' => null),
+        'k_corner_r20w2_line_tl' => array('url' => 'plugin_file://img/k_corner_r20w2_line_tl.3cefbb70.png', 'w' => 20, 'h' => 20, 'mid' => null, 'ink' => null),
+        'k_corner_r20w2_line_tr' => array('url' => 'plugin_file://img/k_corner_r20w2_line_tr.8321411a.png', 'w' => 20, 'h' => 20, 'mid' => null, 'ink' => null),
+        'k_corner_r20w2_line_bl' => array('url' => 'plugin_file://img/k_corner_r20w2_line_bl.0c0474d2.png', 'w' => 20, 'h' => 20, 'mid' => null, 'ink' => null),
+        'k_corner_r20w2_line_br' => array('url' => 'plugin_file://img/k_corner_r20w2_line_br.24aa2d5b.png', 'w' => 20, 'h' => 20, 'mid' => null, 'ink' => null),
         'k_corner_r21_shade_mark_o' => array('url' => 'plugin_file://img/k_corner_r21_shade_mark_o.63512ddf.png', 'w' => 42, 'h' => 42, 'mid' => null, 'ink' => null),
         'k_corner_r26_accent_tl' => array('url' => 'plugin_file://img/k_corner_r26_accent_tl.fb6c62f4.png', 'w' => 26, 'h' => 26, 'mid' => null, 'ink' => null),
         'k_corner_r26_accent_tr' => array('url' => 'plugin_file://img/k_corner_r26_accent_tr.9cb4f141.png', 'w' => 26, 'h' => 26, 'mid' => null, 'ink' => null),
@@ -402,7 +420,9 @@ function mel_k_corner()
         'key_yellow' => array('r' => 7, 'ring' => 0, 'color' => '#FFE8B53A', 'tl' => '', 'tr' => '', 'bl' => '', 'br' => '', 'o' => 'k_corner_r7_key_yellow_o'),
         'key_blue' => array('r' => 7, 'ring' => 0, 'color' => '#FF3D7BE0', 'tl' => '', 'tr' => '', 'bl' => '', 'br' => '', 'o' => 'k_corner_r7_key_blue_o'),
         'rating' => array('r' => 6, 'ring' => 2, 'color' => '#FFAFAFA0', 'tl' => 'k_corner_r6w2_text2_tl', 'tr' => 'k_corner_r6w2_text2_tr', 'bl' => 'k_corner_r6w2_text2_bl', 'br' => 'k_corner_r6w2_text2_br', 'o' => ''),
-        'ring' => array('r' => 16, 'ring' => 6, 'color' => '#FF366CFF', 'tl' => 'k_corner_r16w6_accent_tl', 'tr' => 'k_corner_r16w6_accent_tr', 'bl' => 'k_corner_r16w6_accent_bl', 'br' => 'k_corner_r16w6_accent_br', 'o' => '')
+        'ring' => array('r' => 16, 'ring' => 6, 'color' => '#FF366CFF', 'tl' => 'k_corner_r16w6_accent_tl', 'tr' => 'k_corner_r16w6_accent_tr', 'bl' => 'k_corner_r16w6_accent_bl', 'br' => 'k_corner_r16w6_accent_br', 'o' => ''),
+        'dialog' => array('r' => 20, 'ring' => 0, 'color' => '#FF1C1C1E', 'tl' => 'k_corner_r20_panel_tl', 'tr' => 'k_corner_r20_panel_tr', 'bl' => 'k_corner_r20_panel_bl', 'br' => 'k_corner_r20_panel_br', 'o' => ''),
+        'dialog_line' => array('r' => 20, 'ring' => 2, 'color' => '#24FFFFFF', 'tl' => 'k_corner_r20w2_line_tl', 'tr' => 'k_corner_r20w2_line_tr', 'bl' => 'k_corner_r20w2_line_bl', 'br' => 'k_corner_r20w2_line_br', 'o' => '')
     );
     return $t;
 }
