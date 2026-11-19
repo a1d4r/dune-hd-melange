@@ -89,6 +89,7 @@ define('MEL_K_BTN_H', 64);
 define('MEL_K_BTN_PAD', 28);
 define('MEL_K_PLATE_H', 40);
 define('MEL_K_PLATE_PAD', 11);
+define('MEL_K_RES_GLYPH_H', 18);
 define('MEL_K_PLATE_GAP', 10);
 define('MEL_K_CHIP_H', 34);
 define('MEL_K_CHIP_PAD', 10);
@@ -372,15 +373,15 @@ function mel_k_pic()
         'k_icon_list' => array('url' => 'plugin_file://img/k_icon_list.e59f9a41.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0), 'ink' => array(8, 20, 88, 76)),
         'k_icon_cached' => array('url' => 'plugin_file://img/k_icon_cached.1448b9d6.png', 'w' => 38, 'h' => 38, 'mid' => null, 'ink' => null),
         'k_icon_cached-on' => array('url' => 'plugin_file://img/k_icon_cached_on.99bfc664.png', 'w' => 38, 'h' => 38, 'mid' => null, 'ink' => null),
-        'k_badge_4k' => array('url' => 'plugin_file://img/k_badge_4k.f3036d92.png', 'w' => 45, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_badge_1440p' => array('url' => 'plugin_file://img/k_badge_1440p.6cdd2957.png', 'w' => 46, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_badge_1080p' => array('url' => 'plugin_file://img/k_badge_1080p.4222634f.png', 'w' => 61, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_badge_720p' => array('url' => 'plugin_file://img/k_badge_720p.fe45ac6d.png', 'w' => 48, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_badge_576p' => array('url' => 'plugin_file://img/k_badge_576p.8f3e5937.png', 'w' => 83, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_badge_480p' => array('url' => 'plugin_file://img/k_badge_480p.721ec471.png', 'w' => 84, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_badge_360p' => array('url' => 'plugin_file://img/k_badge_360p.1ad9901d.png', 'w' => 83, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_badge_240p' => array('url' => 'plugin_file://img/k_badge_240p.6d7f8808.png', 'w' => 83, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_badge_144p' => array('url' => 'plugin_file://img/k_badge_144p.d73a8a28.png', 'w' => 71, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_4k' => array('url' => 'plugin_file://img/k_badge_4k.82ba1828.png', 'w' => 47, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_1440p' => array('url' => 'plugin_file://img/k_badge_1440p.24a90e0f.png', 'w' => 48, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_1080p' => array('url' => 'plugin_file://img/k_badge_1080p.8a453ea3.png', 'w' => 62, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_720p' => array('url' => 'plugin_file://img/k_badge_720p.cbcff1dd.png', 'w' => 51, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_576p' => array('url' => 'plugin_file://img/k_badge_576p.f3356489.png', 'w' => 52, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_480p' => array('url' => 'plugin_file://img/k_badge_480p.f3356489.png', 'w' => 52, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_360p' => array('url' => 'plugin_file://img/k_badge_360p.f3356489.png', 'w' => 52, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_240p' => array('url' => 'plugin_file://img/k_badge_240p.f3356489.png', 'w' => 52, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_144p' => array('url' => 'plugin_file://img/k_badge_144p.f3356489.png', 'w' => 52, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_remux' => array('url' => 'plugin_file://img/k_badge_remux.86c77347.png', 'w' => 132, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_bluray' => array('url' => 'plugin_file://img/k_badge_bluray.c06d8587.png', 'w' => 131, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_web-dl' => array('url' => 'plugin_file://img/k_badge_web_dl.50849c15.png', 'w' => 134, 'h' => 40, 'mid' => null, 'ink' => null),
