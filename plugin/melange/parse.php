@@ -260,7 +260,7 @@ function mel_badges($pf, $res = null, $name = '')
         'DVDRip' => 'dvdrip', 'HDTV' => 'hdtv', 'CAM' => 'cam', 'TS' => 'ts', 'TC' => 'tc', 'SCR' => 'scr');
     $q = mel_str($pf, 'quality');
     $src = isset($srcs[$q]) ? $srcs[$q] : '';
-    if ($src === 'bluray' && is_string($name) && preg_match('/(?<![a-z0-9])b[dr][ ._-]?rip(?![a-z0-9])/i', $name))
+    if ($src === 'bluray' && preg_match('/(?<![a-z0-9])b[dr][ ._-]?rip(?![a-z0-9])/i', $name))
         $src = 'bdrip';
 
     // Picture: one badge, DV with its HDR first, 10bit last; SDR has none.
