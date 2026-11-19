@@ -384,6 +384,7 @@ function mel_k_pic()
         'k_badge_144p' => array('url' => 'plugin_file://img/k_badge_144p.ba9844c9.png', 'w' => 54, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_remux' => array('url' => 'plugin_file://img/k_badge_remux.8b3c7155.png', 'w' => 131, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_bluray' => array('url' => 'plugin_file://img/k_badge_bluray.831e59c5.png', 'w' => 131, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_badge_bdrip' => array('url' => 'plugin_file://img/k_badge_bdrip.28e96e0d.png', 'w' => 132, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_web-dl' => array('url' => 'plugin_file://img/k_badge_web_dl.1e80a82d.png', 'w' => 132, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_webrip' => array('url' => 'plugin_file://img/k_badge_webrip.fb7f6687.png', 'w' => 147, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_hdrip' => array('url' => 'plugin_file://img/k_badge_hdrip.6363332c.png', 'w' => 118, 'h' => 40, 'mid' => null, 'ink' => null),

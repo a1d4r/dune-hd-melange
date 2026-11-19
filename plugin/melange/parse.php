@@ -225,14 +225,17 @@ function mel_audio_rules()
 // the file names of kingsizew/badges; the hierarchy is the Smart Tier of
 // Nuvio, only AI stands apart. Tags come in
 // any order: only presence counts. $res overrides parsedFile.resolution.
+// $name: the names of the release (file, folder): AIOStreams gives BDRip and
+// BRRip as the quality BluRay, the name tells them (bdrip, the owner 19.11.2026).
 // -> array('res' => id|'', 'src' => id|'', 'vis' => id|'', 'ai' => bool,
 //    'audio' => array() or array(the best audio id), 'tags' => IMAX, editions, flags)
 /**
  * @param array<mixed> $pf
  * @param string|null $res
+ * @param string $name
  * @return MelBadges
  */
-function mel_badges($pf, $res = null)
+function mel_badges($pf, $res = null, $name = '')
 {
     $set = array();
     foreach (array('visualTags', 'audioTags', 'editions') as $k)
@@ -257,6 +260,8 @@ function mel_badges($pf, $res = null)
         'DVDRip' => 'dvdrip', 'HDTV' => 'hdtv', 'CAM' => 'cam', 'TS' => 'ts', 'TC' => 'tc', 'SCR' => 'scr');
     $q = mel_str($pf, 'quality');
     $src = isset($srcs[$q]) ? $srcs[$q] : '';
+    if ($src === 'bluray' && is_string($name) && preg_match('/(?<![a-z0-9])b[dr][ ._-]?rip(?![a-z0-9])/i', $name))
+        $src = 'bdrip';
 
     // Picture: one badge, DV with its HDR first, 10bit last; SDR has none.
     // HDR+DV, DV Only, HDR Only: service tags AIOStreams cuts before the reply.
@@ -658,7 +663,7 @@ function mel_row($st, $series)
         'age' => $age >= 0 && $age < 1e9 ? $age : null,
         'service' => mel_service_name(mel_str($svc, 'id')),
         'resolution' => $res,
-        'badges' => mel_badges($pf, $res),
+        'badges' => mel_badges($pf, $res, $file . ' ' . $folder),
         'audio_full' => mel_audio_text($pf),
         'tracks' => $tracks,
         'subs' => array_values($subs),
