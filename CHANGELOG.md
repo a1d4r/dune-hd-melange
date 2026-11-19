@@ -2,6 +2,13 @@
 
 **English version**
 
+## 0.65.0 — 19.11.2026
+- **Hide a title.** POP UP on a tile → "Hide". The title disappears from the catalog rows, "Show all", the TV tab of the home screen and the "Similar", "Franchise" and filmography rows of the Melange card. Search still shows it. Favorites rows have no such item.
+- **Age rating limit.** On the settings page, the "Hide from the catalog" screen has "Age rating": All, Up to 16+, Up to 12+, Up to 6+ or 0+ only. Melange takes the Russian age rating, or the US one if there is no Russian one, by its stricter side. Titles with no age rating stay visible. The limit applies in search too, but not to Favorites. The same screen lists "Hidden" titles with an "Unhide" button. Backup saves the hidden titles, and loading it brings them back.
+- **TorrServer buffer window.** When a movie or episode starts from the beginning, the "Opening via TorrServer" window shows the buffer ("Buffer N of 32 MB"), peers and seeders, the speed in Mbit/s and what this release needs ("needed ~N Mbit/s"). The player opens once 32 MB are in, and the picture shows up almost at once instead of a long black screen. A slow release shows before the player, and you can press "Cancel". A file already in the TorrServer cache opens in the player right away, without the window. Continuing from the middle works as before.
+- **Movies without an IMDb ID play through Lampac.** If Lampac is among your sources, the Melange card of such a movie or series has **Watch**, with "Lampac only: no IMDb ID" next to the buttons. It has no releases: Watch, the Dune card and Continue Watching go straight to the Lampac search, and "Watch from…" and "Get films from…" list only Lampac sources. Lampac searches by title and year, so the list may include other movies with the same title. Without Lampac the card says "No IMDb ID: no releases".
+- **More Lampac balancers, anime included.** Melange now tells Lampac the original language of a title, so anime balancers such as Kodik and AniDub show up: an anime series in testing had 21 sources instead of 12–13. Balancers that used to fail, such as ZetflixDB, now work. Melange asks the balancers with the title Lampac knows the movie by, so they find it more accurately, and Continue Watching of an online entry opens with the same title.
+
 ## 0.64.0 — 18.11.2026
 - **Watch from… on a tile and the card.** POP UP on a movie tile or on its Melange card → "Watch from…" opens the list straight from the source you pick. The choice is not remembered.
 - **Stream quality in Lampac.** Melange now sends Lampac the movie's TMDB and Kinopoisk ids, and the balancers show the quality of their streams.
@@ -281,6 +288,13 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.65.0 — 19.11.2026
+- **Скрыть тайтл.** POP UP на плитке → «Скрыть». Тайтл пропадает из рядов каталога, «Показать все», вкладки «ТВ» на главном экране и из рядов «Похожие», «Части франшизы» и фильмографии в карточке Melange. В поиске он виден. У рядов «Избранное» такого пункта нет.
+- **Ограничение по возрасту.** На странице настроек на экране «Что не показывать» есть «Возраст»: Все, До 16+, До 12+, До 6+ или Только 0+. Melange берёт российский возраст, а если его нет — американский, по более строгой стороне. Тайтл без возраста виден. Ограничение действует и в поиске, а «Избранное» не трогает. Там же список «Скрытые» с кнопкой «Вернуть». Скрытые сохраняются в резервную копию и возвращаются из неё.
+- **Окно буфера TorrServer.** Когда фильм или серия запускается с начала, окно «Открываю через TorrServer» показывает, сколько набралось буфера («Буфер N из 32 МБ»), пиров и сидов, скорость в Мбит/с и сколько нужно для этой раздачи («нужно ~N Мбит/с»). Плеер открывается, когда набралось 32 МБ, и картинка появляется почти сразу, без долгого чёрного экрана. Медленную раздачу видно ещё до плеера, можно нажать «Отмена». Если файл уже в кэше TorrServer, плеер открывается сразу, без окна. «Продолжить» с середины работает как раньше.
+- **Фильм без IMDb-id — через Lampac.** Если среди источников есть Lampac, в карточке Melange у такого фильма или сериала есть «Смотреть», а справа от кнопок строка «Только Lampac: нет IMDb-id». Раздач у него нет: «Смотреть», карточка Дюны и «Продолжить просмотр» сразу открывают поиск Lampac, в «Смотреть из…» и «Откуда брать…» только источники Lampac. Lampac ищет по названию и году, поэтому в списке бывают фильмы с тем же названием. Без Lampac в карточке «Нет IMDb-id: раздач нет».
+- **Больше балансеров Lampac, аниме.** Melange передаёт Lampac язык оригинала тайтла, и появились аниме-балансеры (Kodik, AniDub и др.): у аниме-сериала на проверке был 21 источник вместо 12–13. Заработали балансеры, которые раньше давали ошибку, например ZetflixDB. Балансерам уходит название, под которым тайтл знает Lampac, так что они находят точнее, а «Продолжить» online-записи открывается с тем же названием.
 
 ## 0.64.0 — 18.11.2026
 - **«Смотреть из…» на плитке и карточке.** POP UP на плитке фильма или на своей карточке Melange → «Смотреть из…» открывает список сразу из выбранного источника. Выбор не запоминается.
