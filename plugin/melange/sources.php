@@ -5,7 +5,8 @@
 // profile into the record (wh_prof). The screen keeps two lists (view_online.php): the releases of one profile of
 // releases (rows, prof) and the online list of one profile of Lampac (lp, lp_prof); a choice of one of them already
 // there - no request. The item of MENU: mel_gc_src_item (view_gcomps.php), mel_lpv_menu (view_online.php). The name
-// of the source over the lists: mel_src_tabs_right.
+// of the source over the lists: mel_src_tabs_right. The line of a copy of the media library in the menu of the copies:
+// mel_lib_label.
 // Reads and writes Mel (state, settings). Functions are global; the require order is in main.php.
 
 // The id of the profile list $st shows: of Lampac on the online list, else of releases ('' none).
@@ -146,6 +147,108 @@ function mel_src_watch_pick($in, $lang)
     $name = isset($in->n) && is_string($in->n) ? $in->n : '';
     return array($id, mel_gc_src_dialog(str_replace('{name}', $name, mel_tr($lang, 'src_failed')), $lang,
         array('error' => 'src_changed', 'detail' => '')));
+}
+
+// --- The line of a copy of the media library of the Dune (mel_lib_copies, library.php) in the menu of the copies.
+
+// Characters of the path in a line of the menu of the copies (mel_lib_label).
+define('MEL_LIB_LABEL_MAX', 60);
+
+// The length of the common start of two paths, whole parts only (PathUtils::get_common_path_prefix_len of the shell).
+/**
+ * @param string $a
+ * @param string $b
+ * @return int
+ */
+function mel_lib_prefix_len($a, $b)
+{
+    $la = strlen($a);
+    $lb = strlen($b);
+    if ($la === 0 || $lb === 0 || $a[0] !== $b[0])
+        return 0;
+    $n = $a[0] === '/' ? 1 : 0;
+    for (;;)
+    {
+        $na = strpos($a, '/', $n);
+        $nb = strpos($b, '/', $n);
+        if ($na === false || $na !== $nb || substr($a, $n, $na - $n) !== substr($b, $n, $nb - $n) ||
+            $na + 1 >= $la || $na + 1 >= $lb)
+            break;
+        $n = $na + 1;
+    }
+    return $n;
+}
+
+// The length of the start of the paths the screen "Files" of the shell cuts off (PathUtils::get_common_file_prefix_len):
+// their common start; of one path, all but its file and its folder.
+/**
+ * @param list<string> $paths
+ * @return int
+ */
+function mel_lib_common_len($paths)
+{
+    if (!$paths)
+        return 0;
+    if (count($paths) === 1)
+    {
+        $p = $paths[0];
+        $pos = strrpos($p, '/');
+        if (!$pos)
+            return 0;
+        $pos = strrpos($p, '/', -(strlen($p) - $pos + 1));
+        return $pos === false ? 0 : $pos + 1;
+    }
+    $n = mel_lib_prefix_len($paths[0], $paths[1]);
+    for ($i = 2; $i < count($paths); $i++)
+        $n = min($n, mel_lib_prefix_len($paths[0], $paths[$i]));
+    return $n;
+}
+
+// $s of over $max characters: its middle replaced by '…' (the start of the path and the end of the name stay).
+/**
+ * @param string $s
+ * @param int $max
+ * @return string
+ */
+function mel_lib_cut($s, $max)
+{
+    if (mb_strlen($s, 'UTF-8') <= $max)
+        return $s;
+    $tail = intval(ceil(($max - 1) / 2));
+    return mb_substr($s, 0, $max - 1 - $tail, 'UTF-8') . '…' . mb_substr($s, -$tail, $tail, 'UTF-8');
+}
+
+// The line of the copy $copy (one of $copies) in the menu of the copies: "4K · 58.3 ГБ · <path>" - its resolution
+// (res, none left out), the size (none left out), the path as the screen "Files" of the shell shows it: the copies in
+// one folder of the library - the path without the start common to them all; in several - "<caption of its
+// folder>/<path>"; over MEL_LIB_LABEL_MAX characters cut in the middle. Of the copies alone, nothing else read.
+/**
+ * @param MelLibCopy $copy
+ * @param list<MelLibCopy> $copies
+ * @param string $lang
+ * @return string
+ */
+function mel_lib_label($copy, $copies, $lang)
+{
+    $folders = array($copy['folder'] => 1);
+    $paths = array($copy['path']);
+    foreach ($copies as $c)
+    {
+        $folders[$c['folder']] = 1;
+        if (!in_array($c['path'], $paths, true))
+            $paths[] = $c['path'];
+    }
+    if (count($folders) > 1)
+        $path = $copy['caption'] . '/' . $copy['path'];
+    else
+        $path = strval(substr($copy['path'], mel_lib_common_len($paths)));
+    $parts = array();
+    if ($copy['res'] !== '')
+        $parts[] = $copy['res'];
+    if ($copy['size'] > 0)
+        $parts[] = mel_size_str($copy['size'], $lang);
+    $parts[] = mel_lib_cut($path, MEL_LIB_LABEL_MAX);
+    return implode(' · ', $parts);
 }
 
 // The dialog of a source that failed (mel_gc_src): $title, the error, its detail, the

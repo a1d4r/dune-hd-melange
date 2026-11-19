@@ -519,6 +519,18 @@ function mel_pg_rev_build()
     MelPgLinks::$rev = $rev;
 }
 
+// The movie_ids whose pairs have the key $key ("imdb:tt..", "tmdb:N", "tmdbtv:N"; mel_pg_rev_build), the pairs read
+// first.
+/**
+ * @param string $key
+ * @return list<string>
+ */
+function mel_pg_rev($key)
+{
+    mel_pg_links();
+    return isset(MelPgLinks::$rev[$key]) ? MelPgLinks::$rev[$key] : array();
+}
+
 // The pairs written whole (mel_write_file). -> written.
 /**
  * @return bool

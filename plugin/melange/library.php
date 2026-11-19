@@ -9,8 +9,8 @@
 // No login or password of a share is kept, returned or logged; the log has no
 // path, server, share, folder caption or file name: folders by id, files by
 // their key lib-... (mel_lib_key).
-// Needs main.php (mel_log, mel_num, mel_size_str), links.php (mel_pg_links, MelPgLinks, mel_pg_shell_pair,
-// mel_pg_link_put).
+// Needs main.php (mel_log, mel_num), links.php (mel_pg_links, mel_pg_rev, mel_pg_shell_pair, mel_pg_link_put,
+// mel_pg_links_save). The line of a copy in the menu of the copies: mel_lib_label (sources.php).
 
 // The files of the shell. PHP on the Dune adds FS_PREFIX to /config,
 // /flashdata and /tmp itself; a failed plain read is tried with FS_PREFIX.
@@ -30,8 +30,6 @@ if (!defined('MEL_LIB_BUDGET_BYTES'))
     define('MEL_LIB_BUDGET_BYTES', 8388608);
 // Cards of the shell read for a title not found by its ids (mel_lib_by_movies).
 define('MEL_LIB_CANDIDATES', 3);
-// Characters of the path in a line of the menu of the copies (mel_lib_label).
-define('MEL_LIB_LABEL_MAX', 60);
 
 // The library in the memory of php_server, until its files change (mel_lib_index).
 class MelLib
@@ -55,8 +53,9 @@ class MelLib
     public static $movies = null;
     /** @var string */
     public static $movies_sig = '';
-    // What mel_lib_mid found for a title, until the index changes: its key => array(MelLib::$sig, movie_id or '', how).
-    /** @var array<string, array{string, string, string}> */
+    // What mel_lib_by_movies found for a title (movie_id or ''), by all it goes by (mel_lib_movies_key); emptied whole
+    // when the index or folder_movies is read again.
+    /** @var array<string, string> */
     public static $found = array();
 }
 
@@ -573,6 +572,7 @@ function mel_lib_index()
             MelLib::$folders = array();
             MelLib::$nfs = array();
             MelLib::$by_mid = array();
+            MelLib::$found = array();
         }
         return;
     }
@@ -614,6 +614,7 @@ function mel_lib_index()
     MelLib::$folders = $folders;
     MelLib::$nfs = $nfs;
     MelLib::$by_mid = $by_mid;
+    MelLib::$found = array();
     mel_log('library: index read, ' . count($folders) . " folders, $n files, " .
         round((microtime(true) - $t) * 1000) . ' ms');
 }
@@ -648,17 +649,52 @@ function mel_lib_quality($path)
     return $q === '2160p' || $q === '4k' ? '4K' : $q;
 }
 
-// The rank of the resolution of a copy (mel_lib_res), the higher the better:
-// 4K > 2K, 1440p > 1080p > 720p (the order of MediaTags::$TAGS_ORDER of the
-// shell); 0 for another one, -1 for none.
+// The resolutions of a copy, the word to show and to sort by => array(its media tag of the indexer, '' for none: by
+// the name of the file only (mel_lib_quality); its rank, the higher the better: the order of MediaTags::$TAGS_ORDER of
+// the shell, 4K > 2K, 1440p > 1080p > 720p).
+/**
+ * @return array<string, array{string, int}>
+ */
+function mel_lib_res_words()
+{
+    return array('4K' => array('4K', 4), '2K' => array('2K', 3), '1440p' => array('', 3), '1080p' => array('1080', 2),
+        '720p' => array('720', 1));
+}
+
+// The resolution of a file of the index, the one of its copy to show and to sort by (mel_lib_res_rank): by its media
+// tags (mel_lib_res_words), by the name of its file (mel_lib_quality) only when it has no tags; '' for none.
+/**
+ * @param string $tags
+ * @param string $path
+ * @return string
+ */
+function mel_lib_res($tags, $path)
+{
+    if (trim($tags) === '')
+        return mel_lib_quality($path);
+    $words = mel_lib_res_words();
+    foreach (explode(',', $tags) as $t)
+    {
+        $t = trim($t);
+        foreach ($words as $res => $w)
+        {
+            if ($w[0] !== '' && $w[0] === $t)
+                return $res;
+        }
+    }
+    return '';
+}
+
+// The rank of the resolution of a copy (mel_lib_res, mel_lib_res_words), the higher the better; 0 for another one,
+// -1 for none.
 /**
  * @param string $res
  * @return int
  */
 function mel_lib_res_rank($res)
 {
-    $ranks = array('4K' => 4, '2K' => 3, '1440p' => 3, '1080p' => 2, '720p' => 1);
-    return isset($ranks[$res]) ? $ranks[$res] : ($res !== '' ? 0 : -1);
+    $words = mel_lib_res_words();
+    return isset($words[$res]) ? $words[$res][1] : ($res !== '' ? 0 : -1);
 }
 
 // usort of the copies: the resolution down, then the size down, then the path.
@@ -679,7 +715,7 @@ function mel_lib_cmp_copies($a, $b)
 }
 
 // The copies of the movie $mid of the index: its files whose source is
-// mounted now, each path to play once (one share in two network folders, by
+// mounted now (with the caption of their folder, for mel_lib_label), each path to play once (one share in two network folders, by
 // the name and by the IP of its server: the first), the best first
 // (mel_lib_cmp_copies). The mount list is read on every call, and only when
 // the movie has files in the index.
@@ -713,7 +749,8 @@ function mel_lib_copies($mid)
         if (isset($urls[$url]))
             continue;
         $urls[$url] = 1;
-        $res[] = $f + array('url' => $url, 'mnt' => $mnt[$id], 'key' => mel_lib_key($f['hash']));
+        $res[] = $f + array('url' => $url, 'mnt' => $mnt[$id], 'key' => mel_lib_key($f['hash']),
+            'caption' => $folder['caption']);
     }
     usort($res, 'mel_lib_cmp_copies');
     return $res;
@@ -792,21 +829,19 @@ function mel_lib_movies()
         mel_log("library: folder_movies budget: $skipped folders skipped");
     MelLib::$movies = $res;
     MelLib::$movies_sig = $sig;
+    MelLib::$found = array();
     mel_log('library: folder_movies read, ' . count($res) . ' titles, ' . round((microtime(true) - $t) * 1000) . ' ms');
     return $res;
 }
 
-// The movie_id of the files of the title $t by its name and year: the movies of folder_movies of the year +-1 with
-// the same title or native_title (mel_lib_norm) and files in the index, the first MEL_LIB_CANDIDATES of them; the
-// first whose card of the shell has the IMDb or the TMDB of $t. Its pair is kept (mel_pg_link_put): the next time
-// the pairs find it. '' for none.
+
+// The names of the title $t as the titles are compared (mel_lib_norm), each once, sorted; none empty.
 /**
  * @param MelLibTitle $t
- * @return string
+ * @return list<string>
  */
-function mel_lib_by_movies($t)
+function mel_lib_names($t)
 {
-    $year = intval($t['year']);
     $names = array();
     foreach ($t['names'] as $n)
     {
@@ -814,10 +849,41 @@ function mel_lib_by_movies($t)
         if ($n !== '')
             $names[$n] = true;
     }
+    ksort($names);
+    return array_map('strval', array_keys($names));
+}
+
+// The key of MelLib::$found of the title $t: all mel_lib_by_movies goes by (IMDb, TMDB, the year, mel_lib_names);
+// '' when it does not look (no year, no names, no ids).
+/**
+ * @param MelLibTitle $t
+ * @return string
+ */
+function mel_lib_movies_key($t)
+{
+    $year = intval($t['year']);
+    $names = mel_lib_names($t);
     if ($year <= 0 || !$names || ($t['imdb'] === '' && $t['tmdb'] === ''))
         return '';
+    return "{$t['imdb']}|{$t['tmdb']}|$year|" . implode('|', $names);
+}
+
+// The movie_id of the files of the title $t by its name and year (mel_lib_movies_key not ''): the movies $movies of
+// folder_movies (mel_lib_movies) of the year +-1 with the same title or native_title (mel_lib_norm) and files in the
+// index, the first MEL_LIB_CANDIDATES of them; the first whose pair (links.php) has the IMDb or the TMDB of $t. The pair
+// of a candidate known is taken as is, else read from its card of the shell; each pair read is kept
+// (mel_pg_link_put), the pairs written once: the next time the pairs find it and no card is read again. '' for none.
+/**
+ * @param MelLibTitle $t
+ * @param list<array{string, list<string>, int, int}> $movies
+ * @return string
+ */
+function mel_lib_by_movies($t, $movies)
+{
+    $year = intval($t['year']);
+    $names = array_fill_keys(mel_lib_names($t), true);
     $cands = array();
-    foreach (mel_lib_movies() as $m)
+    foreach ($movies as $m)
     {
         list($mid, $mnames, $y1, $y2) = $m;
         if ($year < $y1 - 1 || $year > $y2 + 1 || empty(MelLib::$by_mid[$mid]))
@@ -833,206 +899,99 @@ function mel_lib_by_movies($t)
         if (count($cands) >= MEL_LIB_CANDIDATES)
             break;
     }
+    $res = '';
+    $put = false;
     foreach ($cands as $mid)
     {
-        $t0 = microtime(true);
-        $pair = mel_pg_shell_pair($mid);
+        $links = mel_pg_links();
+        $pair = isset($links[$mid]) && !isset($links[$mid]['none']) && !isset($links[$mid]['fail']) ? $links[$mid] : null;
+        $known = $pair !== null;
+        if (!$known)
+        {
+            $t0 = microtime(true);
+            $pair = mel_pg_shell_pair($mid);
+            if ($pair && mel_pg_link_put($mid, $pair, false))
+                $put = true;
+        }
         $same = $pair && (($t['imdb'] !== '' && isset($pair['imdb']) && $pair['imdb'] === $t['imdb']) ||
             ($t['tmdb'] !== '' && isset($pair['tmdb']) && $pair['tmdb'] === $t['tmdb']));
-        mel_log("library: card $mid: shell card " . ($pair ? 'read' : 'none') . ', ' .
-            round((microtime(true) - $t0) * 1000) . ' ms' . ($pair ? ($same ? ', the same ids' : ', not the same ids') : ''));
+        if (!$known)
+            mel_log("library: card $mid: shell card " . ($pair ? 'read' : 'none') . ', ' .
+                round((microtime(true) - $t0) * 1000) . ' ms' . ($pair ? ($same ? ', the same ids' : ', not the same ids') : ''));
         if ($same)
         {
-            mel_pg_link_put($mid, $pair);
-            return $mid;
+            $res = $mid;
+            break;
         }
     }
-    return '';
+    if ($put)
+        mel_pg_links_save();
+    return $res;
 }
 
-// The movie_id of the files of the title $t (a movie) -> array(movie_id or '', how: dune, pairs, folder_movies, -):
-// its card of the Dune, else a card of the pairs (links.php) with its IMDb or TMDB, else mel_lib_by_movies. Only
-// cards with files in the index count.
+// The movie_id of a card of the pairs (links.php, mel_pg_rev) with the IMDb or the TMDB of the title $t and files in
+// the index, '' for none. No read.
 /**
  * @param MelLibTitle $t
- * @return array{string, string}
+ * @return string
  */
-function mel_lib_find($t)
+function mel_lib_by_pairs($t)
 {
-    if ($t['dune'] !== '' && !empty(MelLib::$by_mid[$t['dune']]))
-        return array($t['dune'], 'dune');
     $keys = array();
     if ($t['imdb'] !== '')
         $keys[] = 'imdb:' . $t['imdb'];
     if ($t['tmdb'] !== '')
         $keys[] = 'tmdb:' . $t['tmdb'];
-    if (!$keys)
-        return array('', '-');
-    mel_pg_links();
     $mids = array();
     foreach ($keys as $k)
     {
-        foreach (isset(MelPgLinks::$rev[$k]) ? MelPgLinks::$rev[$k] : array() as $mid)
+        foreach (mel_pg_rev($k) as $mid)
         {
             if (!empty(MelLib::$by_mid[$mid]) && !in_array($mid, $mids, true))
                 $mids[] = $mid;
         }
     }
-    if ($mids)
-    {
-        // The card of the Dune with files is found above: of two cards here, neither is it.
-        if (count($mids) > 1)
-            mel_log('library: ' . count($mids) . ' cards by pairs, the first taken');
-        return array($mids[0], 'pairs');
-    }
-    $y = mel_lib_by_movies($t);
-    return array($y, $y !== '' ? 'folder_movies' : '-');
+    if (!$mids)
+        return '';
+    // The card of the Dune with files is found before: of two cards here, neither is it.
+    if (count($mids) > 1)
+        mel_log('library: ' . count($mids) . ' cards by pairs, the first taken');
+    return $mids[0];
 }
 
-// The movie_id of the index for the title $t, '' for none (a series, no library, no files): mel_lib_find, kept in
-// MelLib::$found until the index changes (an opening of the same card again reads nothing). $by: how it was found
-// (dune, pairs, folder_movies; '-' for none).
+// The movie_id of the index for the title $t (a movie), '' for none (a series, no library, no files): its card of the
+// Dune, else a card of the pairs (mel_lib_by_pairs), else mel_lib_by_movies. Only cards with files in the index count.
+// The first two read nothing and are looked at on each call; what mel_lib_by_movies found (and '') is kept in
+// MelLib::$found until the index or folder_movies is read again: the same card opened again reads no card of the
+// shell, and no line of the log. Else one line: "library: title -> <movie_id> by dune|pairs|folder_movies" or
+// "library: title -> none".
 /**
  * @param MelLibTitle $t
- * @param string $by
  * @return string
  */
-function mel_lib_mid($t, &$by = '')
+function mel_lib_mid($t)
 {
-    $by = '-';
     mel_lib_index();
     if ($t['type'] !== 'movie' || !MelLib::$by_mid)
         return '';
-    $sig = strval(MelLib::$sig);
-    $key = "{$t['type']}|{$t['imdb']}|{$t['tmdb']}|{$t['dune']}";
-    if (!isset(MelLib::$found[$key]) || MelLib::$found[$key][0] !== $sig)
+    $by = 'dune';
+    $y = $t['dune'] !== '' && !empty(MelLib::$by_mid[$t['dune']]) ? $t['dune'] : '';
+    if ($y === '')
     {
-        list($y, $how) = mel_lib_find($t);
-        MelLib::$found[$key] = array($sig, $y, $how);
+        $by = 'pairs';
+        $y = mel_lib_by_pairs($t);
     }
-    $by = MelLib::$found[$key][2];
-    return MelLib::$found[$key][1];
-}
-
-// --- The line of a copy in the menu of the copies.
-
-// The resolution of a file of the index, the one of its copy to show and to sort by (mel_lib_res_rank): by its media
-// tags (4K, 2K, 1080p, 720p), by the name of its file (mel_lib_quality) only when it has no tags; '' for none.
-/**
- * @param string $tags
- * @param string $path
- * @return string
- */
-function mel_lib_res($tags, $path)
-{
-    if (trim($tags) === '')
-        return mel_lib_quality($path);
-    $words = array('4K' => '4K', '2K' => '2K', '1080' => '1080p', '720' => '720p');
-    foreach (explode(',', $tags) as $t)
+    $key = $y === '' ? mel_lib_movies_key($t) : '';
+    if ($key !== '')
     {
-        $t = trim($t);
-        if (isset($words[$t]))
-            return $words[$t];
+        // Read again (MelLib::$found emptied) when its files changed.
+        $movies = mel_lib_movies();
+        if (isset(MelLib::$found[$key]))
+            return MelLib::$found[$key];
+        $by = 'folder_movies';
+        $y = mel_lib_by_movies($t, $movies);
+        MelLib::$found[$key] = $y;
     }
-    return '';
-}
-
-// The length of the common start of two paths, whole parts only (PathUtils::get_common_path_prefix_len of the shell).
-/**
- * @param string $a
- * @param string $b
- * @return int
- */
-function mel_lib_prefix_len($a, $b)
-{
-    $la = strlen($a);
-    $lb = strlen($b);
-    if ($la === 0 || $lb === 0 || $a[0] !== $b[0])
-        return 0;
-    $n = $a[0] === '/' ? 1 : 0;
-    for (;;)
-    {
-        $na = strpos($a, '/', $n);
-        $nb = strpos($b, '/', $n);
-        if ($na === false || $na !== $nb || substr($a, $n, $na - $n) !== substr($b, $n, $nb - $n) ||
-            $na + 1 >= $la || $na + 1 >= $lb)
-            break;
-        $n = $na + 1;
-    }
-    return $n;
-}
-
-// The length of the start of the paths the screen "Files" of the shell cuts off (PathUtils::get_common_file_prefix_len):
-// their common start; of one path, all but its file and its folder.
-/**
- * @param list<string> $paths
- * @return int
- */
-function mel_lib_common_len($paths)
-{
-    if (!$paths)
-        return 0;
-    if (count($paths) === 1)
-    {
-        $p = $paths[0];
-        $pos = strrpos($p, '/');
-        if (!$pos)
-            return 0;
-        $pos = strrpos($p, '/', -(strlen($p) - $pos + 1));
-        return $pos === false ? 0 : $pos + 1;
-    }
-    $n = mel_lib_prefix_len($paths[0], $paths[1]);
-    for ($i = 2; $i < count($paths); $i++)
-        $n = min($n, mel_lib_prefix_len($paths[0], $paths[$i]));
-    return $n;
-}
-
-// $s of over $max characters: its middle replaced by '…' (the start of the path and the end of the name stay).
-/**
- * @param string $s
- * @param int $max
- * @return string
- */
-function mel_lib_cut($s, $max)
-{
-    if (mb_strlen($s, 'UTF-8') <= $max)
-        return $s;
-    $tail = intval(ceil(($max - 1) / 2));
-    return mb_substr($s, 0, $max - 1 - $tail, 'UTF-8') . '…' . mb_substr($s, -$tail, $tail, 'UTF-8');
-}
-
-// The line of the copy $copy (one of $copies) in the menu of the copies: "4K · 58.3 ГБ · <path>" - the resolution
-// (mel_lib_res, none left out), the size (none left out), the path as the screen "Files" of the shell shows it: the
-// copies in one folder of the library - the path without the start common to them all; in several - "<caption of
-// the folder>/<path>"; over MEL_LIB_LABEL_MAX characters cut in the middle.
-/**
- * @param MelLibCopy $copy
- * @param list<MelLibCopy> $copies
- * @param string $lang
- * @return string
- */
-function mel_lib_label($copy, $copies, $lang)
-{
-    $folders = array($copy['folder'] => 1);
-    $paths = array($copy['path']);
-    foreach ($copies as $c)
-    {
-        $folders[$c['folder']] = 1;
-        if (!in_array($c['path'], $paths, true))
-            $paths[] = $c['path'];
-    }
-    if (count($folders) > 1)
-    {
-        $id = $copy['folder'];
-        $path = (isset(MelLib::$folders[$id]) ? MelLib::$folders[$id]['caption'] : '') . '/' . $copy['path'];
-    }
-    else
-        $path = strval(substr($copy['path'], mel_lib_common_len($paths)));
-    $parts = array();
-    if ($copy['res'] !== '')
-        $parts[] = $copy['res'];
-    if ($copy['size'] > 0)
-        $parts[] = mel_size_str($copy['size'], $lang);
-    $parts[] = mel_lib_cut($path, MEL_LIB_LABEL_MAX);
-    return implode(' · ', $parts);
+    mel_log('library: title -> ' . ($y !== '' ? "$y by $by" : 'none'));
+    return $y;
 }
