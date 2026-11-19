@@ -309,6 +309,12 @@ parameters:
         # start), the function of its ticks and its data, the open time, the period of its ticks (ms), late (null: none or
         # passed) and its time, the text of late that stays.
         MelWait: 'array{icon: string, tone: string, title: string, text: string, live: string, share: float|null, elapsed: string, buttons: list<MelDlgButton>, cur: int, tick: string, data: mixed, t0: int, sec: int, ms: int, late: array<string, mixed>|null, late_at: int, late_text: string|null}'
+        # The look of an error or a wait screen (kit_scr.php, MelKit::error_screen): the card background of the title or ''
+        # (that of Melange), the one while it loads, the logo baked into it, the line under «Melange» of the head.
+        MelKsLook: 'array{bg: string, nl: string|null, logo: bool, sub: string}'
+        # An error or a wait screen kept (MelKs::$scr): its look, the detail line of an error, the error (as the own dialog)
+        # or the wait, its end (null: live).
+        MelKsScreen: 'array{look: MelKsLook, detail: string, dlg: MelDlg|null, wt: MelWait|null, end: string|null}'
         # The side panel open (kit_panel.php): its panels, a submenu over its panel last.
         MelKp: 'array{stack: non-empty-list<MelKpFrame>}'
         # A panel of MelKp: its description, its items by id, the ids of a menu by group, the cursor, the first line of

@@ -85,6 +85,8 @@ require_once dirname(__FILE__) . '/kit_ovl.php';
 require_once dirname(__FILE__) . '/kit_panel.php';
 // The own dialog and the wait window over a GComps screen: their keys, state and the ticks of a wait.
 require_once dirname(__FILE__) . '/kit_dlg.php';
+// The screen of an error and the wait screen of our own (a GComps folder): its view, keys and ticks.
+require_once dirname(__FILE__) . '/kit_scr.php';
 require_once dirname(__FILE__) . '/view_info.php';
 require_once dirname(__FILE__) . '/view_setup.php';
 // The catalog: client, ENTER on a tile, its screens.
@@ -1797,6 +1799,8 @@ function mel_folder_view($media_url, $sel_state)
         return mel_oc_folder_view($media_url, $sel_state);
     if (strpos($media_url, 'person:') === 0)
         return mel_pp_folder_view($media_url, $sel_state);
+    if (strpos($media_url, MEL_KS_URL) === 0)
+        return mel_ks_folder_view($media_url);
     $st = Mel::$state;
     if ($st && $media_url === 'streams:' . $st['rid'])
         return !empty($st['lp_on']) && isset($st['lp']) ? mel_lpv_folder_view($st, $sel_state) : mel_gc_folder_view($st, $sel_state);
@@ -2210,6 +2214,8 @@ function mel_handle_user_input($in)
         return mel_kp_input($in);
     if ($control === 'dlg_key' || $control === 'wt_key' || $control === 'wt_tick')
         return mel_dlg_input($in, $control);
+    if ($control === 'ks_key' || $control === 'ks_tick')
+        return mel_ks_input($in, $control);
     if ($control === 'info_page')
         return mel_info_input($in);
     if ($control === 'next')
