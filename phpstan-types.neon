@@ -597,6 +597,16 @@ parameters:
         MelOcNav: 'array{kind: string, btns: list<array{string, string, string, int}>, btn_y: int, stops: list<int>, clips: list<int>, tops: list<int>, h: int, off: int, zones: list<string>, tabs: MelOcTabs, ep: MelOcEp|null, prog: array<string, array{float, float, bool}>, rows: array<int, string>, strips: array<string, MelOcStrip>, tw: int, first: list<array<string, mixed>>}'
         # The own card laid out (mel_oc_layout, view_card.php).
         MelOcLayout: 'array{kind: string, btns: list<array{string, string, string, int}>, btn_y: int, stops: list<int>, clips: list<int>, tops: list<int>, h: int, off: int, zones: list<string>, tabs: MelOcTabs, ep: MelOcEp|null, prog: array<string, array{float, float, bool}>, rows: array<int, string>, strips: array<string, MelOcStrip>, tw: int, first: list<array<string, mixed>>, down: list<array<string, mixed>>}'
+        # A folder of the media library of the Dune (mel_lib_folders, library.php).
+        MelLibFolder: 'array{id: string, source_id: string, path: string, caption: string}'
+        # A network folder of the shell, no login or password (mel_lib_network_folders, library.php).
+        MelLibNf: 'array{id: string, name: string, type: string, server: string, dir: string}'
+        # A share the shell mounted, no login or password (mel_lib_mounts, library.php).
+        MelLibMount: 'array{path: string, type: string, server: string, server_ipaddr: string, dir: string, status: string}'
+        # A file of the index of the media library (mel_lib_folder_index, library.php); tags: the media tags of the indexer, raw.
+        MelLibFile: 'array{folder: string, path: string, mid: string, s: int, e: int, ass: int, hash: string, size: float, tags: string}'
+        # A copy of a movie on a mounted share (mel_lib_copies, library.php): url - the path to play, q - the resolution by the name, key - lib-<12 hex>.
+        MelLibCopy: 'array{folder: string, path: string, mid: string, s: int, e: int, ass: int, hash: string, size: float, tags: string, url: string, q: string, key: string}'
         # A strip of a row under a frame of the focus (view_card_row.php).
         MelOcStrip: 'array{n: int, nc: int, w: int, h: int, cw: int, ch: int, step: int, div: int, vis: int, lead: int, x: int, y: int, id: string}'
         # The tabs of the seasons of a series card (mel_oc_tabs_layout, view_card_series.php).
