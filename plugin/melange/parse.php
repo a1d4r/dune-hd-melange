@@ -225,8 +225,9 @@ function mel_audio_rules()
 // the file names of kingsizew/badges; the hierarchy is the Smart Tier of
 // Nuvio, only AI stands apart. Tags come in
 // any order: only presence counts. $res overrides parsedFile.resolution.
-// $name: the names of the release (file, folder): AIOStreams gives BDRip and
-// BRRip as the quality BluRay, the name tells them (bdrip, the owner 19.11.2026).
+// $name: the names of the release (file, folder): AIOStreams gives BDRip, BRRip
+// and Blu-ray Rip as the quality BluRay, the name tells them (bdrip, the owner
+// 19.11.2026).
 // -> array('res' => id|'', 'src' => id|'', 'vis' => id|'', 'ai' => bool,
 //    'audio' => array() or array(the best audio id), 'tags' => IMAX, editions, flags)
 /**
@@ -260,7 +261,7 @@ function mel_badges($pf, $res = null, $name = '')
         'DVDRip' => 'dvdrip', 'HDTV' => 'hdtv', 'CAM' => 'cam', 'TS' => 'ts', 'TC' => 'tc', 'SCR' => 'scr');
     $q = mel_str($pf, 'quality');
     $src = isset($srcs[$q]) ? $srcs[$q] : '';
-    if ($src === 'bluray' && preg_match('/(?<![a-z0-9])b[dr][ ._-]?rip(?![a-z0-9])/i', $name))
+    if ($src === 'bluray' && preg_match('/(?<![a-z0-9])(?:b[dr]|blu[ ._-]?ray)[ ._-]?rip(?![a-z0-9])/i', $name))
         $src = 'bdrip';
 
     // Picture: one badge, DV with its HDR first, 10bit last; SDR has none.
