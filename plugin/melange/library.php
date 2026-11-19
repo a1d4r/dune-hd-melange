@@ -20,9 +20,14 @@ if (!defined('MEL_LIB_ROOT'))
 define('MEL_LIB_CONFIG', '/config/movie_index_config.xml');
 define('MEL_LIB_NF', '/config/network_folders.properties');
 define('MEL_LIB_MOUNTS', '/tmp/run/network_mount_list.xml');
-// A bigger file is not a config or an index of this box: not read.
+// A bigger file is not read: not a config of this box, or an index json_decode can not take in the memory of
+// php_server (memory_limit 128M; an index of 16 MB is a Fatal there).
 if (!defined('MEL_LIB_MAX_BYTES'))
-    define('MEL_LIB_MAX_BYTES', 16777216);
+    define('MEL_LIB_MAX_BYTES', 4194304);
+// The bytes of the indexes of all the folders read at once (of folder_files, apart of folder_movies): a folder past
+// them is skipped.
+if (!defined('MEL_LIB_BUDGET_BYTES'))
+    define('MEL_LIB_BUDGET_BYTES', 8388608);
 // Cards of the shell read for a title not found by its ids (mel_lib_by_movies).
 define('MEL_LIB_CANDIDATES', 3);
 // Characters of the path in a line of the menu of the copies (mel_lib_label).
@@ -81,21 +86,30 @@ function mel_lib_paths($p)
 }
 
 // A shell file -> array(content or false, why not: 'no such file', 'too big',
-// 'read failed'). No PHP warning in the log, no path in the reason.
+// 'over budget' (bigger than $left bytes; -1: no budget), 'read failed'). Its
+// size is known before the read. No PHP warning in the log, no path in the
+// reason.
 /**
  * @param string $p
+ * @param int $left
  * @return array{string|false, string}
  */
-function mel_lib_read($p)
+function mel_lib_read($p, $left = -1)
 {
     $why = 'no such file';
     foreach (mel_lib_paths($p) as $f)
     {
         if (!is_file($f))
             continue;
-        if (filesize($f) > MEL_LIB_MAX_BYTES)
+        $size = filesize($f);
+        if ($size === false || $size > MEL_LIB_MAX_BYTES)
         {
             $why = 'too big';
+            continue;
+        }
+        if ($left >= 0 && $size > $left)
+        {
+            $why = 'over budget';
             continue;
         }
         MelLib::$reads++;
@@ -127,28 +141,37 @@ function mel_lib_stat($p)
 
 // --- Configs.
 
-// Attributes of every <$name ...> tag of a flat XML file of the shell -> list
-// of name => value; only the attributes $keys when given (the login and the
-// password of a mount are never kept). Not SimpleXML: the files are
-// machine-written attribute lists.
+// The attributes $keys of every element <$name> of an XML file of the shell ->
+// list of name => value, only these (none for an empty $keys: the login and
+// the password of a mount are never taken); false: not XML. SimpleXML, as the
+// shell reads these files (data_model.php r25): the entities decoded, a '>'
+// in a value is a part of it. No DTD: no entities of its own, nothing from
+// the network.
 /**
  * @param string $doc
  * @param string $name
  * @param list<string> $keys
- * @return list<array<string, string>>
+ * @return list<array<string, string>>|false
  */
-function mel_lib_xml_elements($doc, $name, $keys = array())
+function mel_lib_xml_elements($doc, $name, $keys)
 {
+    if (stripos($doc, '<!DOCTYPE') !== false)
+        return false;
+    $quiet = libxml_use_internal_errors(true);
+    $xml = simplexml_load_string($doc);
+    libxml_clear_errors();
+    libxml_use_internal_errors($quiet);
+    if ($xml === false)
+        return false;
+    $els = $xml->xpath('//' . $name);
     $res = array();
-    preg_match_all('~<' . $name . '\b([^>]*)>~', $doc, $tags);
-    foreach ($tags[1] as $t)
+    foreach (is_array($els) ? $els : array() as $el)
     {
-        preg_match_all('~([A-Za-z_][A-Za-z0-9_.-]*)\s*=\s*"([^"]*)"~', $t, $m, PREG_SET_ORDER);
         $a = array();
-        foreach ($m as $x)
+        foreach ($keys as $k)
         {
-            if (!$keys || in_array($x[1], $keys, true))
-                $a[$x[1]] = html_entity_decode($x[2], ENT_QUOTES, 'UTF-8');
+            if (isset($el[$k]))
+                $a[$k] = strval($el[$k]);
         }
         $res[] = $a;
     }
@@ -184,8 +207,14 @@ function mel_lib_folders(&$err)
         $err = 'not the movie index config';
         return array();
     }
+    $list = mel_lib_xml_elements($doc, 'folder', array('id', 'source_id', 'path', 'caption'));
+    if ($list === false)
+    {
+        $err = 'not XML';
+        return array();
+    }
     $res = array();
-    foreach (mel_lib_xml_elements($doc, 'folder', array('id', 'source_id', 'path', 'caption')) as $f)
+    foreach ($list as $f)
     {
         $id = mel_lib_attr($f, 'id');
         if (!preg_match('/^[0-9]+$/D', $id))
@@ -279,9 +308,14 @@ function mel_lib_mounts(&$err)
         $err = 'not the mount list';
         return array();
     }
+    $list = mel_lib_xml_elements($doc, 'mount', array('path', 'type', 'server', 'server_ipaddr', 'dir', 'status'));
+    if ($list === false)
+    {
+        $err = 'not XML';
+        return array();
+    }
     $res = array();
-    $keys = array('path', 'type', 'server', 'server_ipaddr', 'dir', 'status');
-    foreach (mel_lib_xml_elements($doc, 'mount', $keys) as $m)
+    foreach ($list as $m)
     {
         $type = mel_lib_attr($m, 'type');
         $status = mel_lib_attr($m, 'status');
@@ -404,57 +438,84 @@ function mel_lib_quote_size($doc)
     return (string) preg_replace('/("size"\\s*:\\s*)([0-9]{10,}(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)/', '$1"$2"', $doc);
 }
 
-// The index of a folder -> list of MelLibFile (load_index_for_folder of the
-// shell: a record without hash or id is skipped, the first of a path kept);
-// $info: 'N records, M files' or why there are none.
+// The index of the folder $id (folder_$kind.<id>.json, the first place of it there) decoded, if it fits in $left bytes
+// (less then by its size) -> array(the list or null, why none: 'no index', 'too big', 'over budget', 'read failed',
+// 'not JSON'). The text is freed before the list is returned.
+/**
+ * @param int|string $id
+ * @param string $kind
+ * @param int $left
+ * @return array{array<mixed>|null, string}
+ */
+function mel_lib_read_index($id, $kind, &$left)
+{
+    $why = 'no index';
+    foreach (mel_lib_index_paths($id, $kind) as $p)
+    {
+        list($doc, $w) = mel_lib_read($p, $left);
+        if ($doc === false)
+        {
+            // Too big or over the budget: the folder is skipped, not looked for in the next place.
+            if ($w === 'too big' || $w === 'over budget')
+                return array(null, $w);
+            if ($w !== 'no such file')
+                $why = $w;
+            continue;
+        }
+        $left -= strlen($doc);
+        if ($kind === 'files')
+            $doc = mel_lib_quote_size($doc);
+        $list = json_decode($doc, true);
+        unset($doc);
+        return is_array($list) ? array($list, '') : array(null, 'not JSON');
+    }
+    return array(null, $why);
+}
+
+// The movie files of the index of a folder (ass_type 0, no season, no
+// episode) -> list of MelLibFile, $left: the bytes of the budget left
+// (mel_lib_read_index). As load_index_for_folder of the shell: a record
+// without hash or id is skipped, the first of a path kept. $info: 'N records,
+// M files' or why there are none.
 /**
  * @param int|string $folder_id
  * @param string $info
+ * @param int $left
  * @return list<MelLibFile>
  */
-function mel_lib_folder_index($folder_id, &$info)
+function mel_lib_folder_index($folder_id, &$info, &$left)
 {
-    $info = 'no index';
-    foreach (mel_lib_index_paths($folder_id) as $p)
+    list($list, $info) = mel_lib_read_index($folder_id, 'files', $left);
+    if ($list === null)
+        return array();
+    $files = array();
+    $seen = array();
+    foreach ($list as $f)
     {
-        list($doc, $why) = mel_lib_read($p);
-        if ($doc === false)
-        {
-            if ($why !== 'no such file')
-                $info = $why;
+        if (!is_array($f) || !isset($f['path'], $f['hash'], $f['id']) || !is_string($f['path']) ||
+            !is_scalar($f['hash']) || !$f['hash'] || !is_scalar($f['id']) || isset($seen[$f['path']]))
             continue;
-        }
-        $list = json_decode(mel_lib_quote_size($doc), true);
-        if (!is_array($list))
-        {
-            $info = 'not JSON';
-            return array();
-        }
-        $files = array();
-        $seen = array();
-        foreach ($list as $f)
-        {
-            if (!is_array($f) || !isset($f['path'], $f['hash'], $f['id']) || !is_string($f['path']) ||
-                !is_scalar($f['hash']) || !$f['hash'] || !is_scalar($f['id']) || isset($seen[$f['path']]))
-                continue;
-            $seen[$f['path']] = 1;
-            $files[] = array(
-                'folder' => strval($folder_id),
-                'path' => $f['path'],
-                'mid' => strval($f['id']),
-                // Strings in the index.
-                's' => isset($f['s']) && is_numeric($f['s']) ? intval($f['s']) : -1,
-                'e' => isset($f['e']) && is_numeric($f['e']) ? intval($f['e']) : -1,
-                'ass' => isset($f['ass_type']) && is_numeric($f['ass_type']) ? intval($f['ass_type']) : 0,
-                'hash' => strval($f['hash']),
-                'size' => mel_num(isset($f['size']) ? $f['size'] : 0),
-                // The media tags of the indexer, as is: "MKV,4K,23.976,DV,HEVC,16:9,Atmos,7.1".
-                'tags' => isset($f['tags']) && is_string($f['tags']) ? $f['tags'] : '');
-        }
-        $info = count($list) . ' records, ' . count($files) . ' files';
-        return $files;
+        $seen[$f['path']] = 1;
+        // Strings in the index.
+        $s = isset($f['s']) && is_numeric($f['s']) ? intval($f['s']) : -1;
+        $e = isset($f['e']) && is_numeric($f['e']) ? intval($f['e']) : -1;
+        $ass = isset($f['ass_type']) && is_numeric($f['ass_type']) ? intval($f['ass_type']) : 0;
+        if ($ass !== 0 || $s >= 0 || $e >= 0)
+            continue;
+        // The media tags of the indexer, as is: "MKV,4K,23.976,DV,HEVC,16:9,Atmos,7.1".
+        $tags = isset($f['tags']) && is_string($f['tags']) ? $f['tags'] : '';
+        $files[] = array(
+            'folder' => strval($folder_id),
+            'path' => $f['path'],
+            'mid' => strval($f['id']),
+            'hash' => strval($f['hash']),
+            'size' => mel_num(isset($f['size']) ? $f['size'] : 0),
+            'tags' => $tags,
+            'res' => mel_lib_res($tags, $f['path']));
     }
-    return array();
+    $info = count($list) . ' records, ' . count($files) . ' files';
+    unset($list, $seen);
+    return $files;
 }
 
 // The signature of the configs: '' when there is no movie_index_config.xml.
@@ -492,7 +553,9 @@ function mel_lib_sig_files($ids, $kind = 'files')
 
 // The library in MelLib, read again only when the signature changed: stat of
 // the two configs and of the indexes of the folders of the last read (a new
-// folder changes the config itself). No movie_index_config.xml: an empty
+// folder changes the config itself). The indexes one by one, each up to
+// MEL_LIB_MAX_BYTES, all up to MEL_LIB_BUDGET_BYTES; a folder past them is
+// skipped, their count in the log. No movie_index_config.xml: an empty
 // library, "library: none" in the log once.
 /**
  * @return void
@@ -529,19 +592,24 @@ function mel_lib_index()
         $sig = $cfg . mel_lib_sig_files($ids);
     $by_mid = array();
     $n = 0;
+    $skipped = 0;
+    $left = MEL_LIB_BUDGET_BYTES;
     foreach ($ids as $id)
     {
         $info = '';
-        $files = mel_lib_folder_index($id, $info);
-        if (!$files)
+        $files = mel_lib_folder_index($id, $info, $left);
+        if ($info === 'too big' || $info === 'over budget')
+            $skipped++;
+        else if (!$files)
             mel_log("library: folder $id: $info");
         $n += count($files);
         foreach ($files as $f)
-        {
-            if ($f['ass'] === 0 && $f['s'] < 0 && $f['e'] < 0)
-                $by_mid[$f['mid']][] = $f;
-        }
+            $by_mid[$f['mid']][] = $f;
+        unset($files);
     }
+    if ($skipped)
+        mel_log("library: index budget: $skipped folders skipped");
+    // Kept with folders skipped too: they are not read again on each card, only when their files change.
     MelLib::$sig = $sig;
     MelLib::$folders = $folders;
     MelLib::$nfs = $nfs;
@@ -580,30 +648,17 @@ function mel_lib_quality($path)
     return $q === '2160p' || $q === '4k' ? '4K' : $q;
 }
 
-// The rank of the resolution of a copy, the higher the better: by the media
-// tags (4K > 2K > 1080 > 720, the order of MediaTags::$TAGS_ORDER of the
-// shell), by the name only when the file has no tags; 0 for another one, -1
-// for none.
+// The rank of the resolution of a copy (mel_lib_res), the higher the better:
+// 4K > 2K, 1440p > 1080p > 720p (the order of MediaTags::$TAGS_ORDER of the
+// shell); 0 for another one, -1 for none.
 /**
- * @param string $tags
- * @param string $q
+ * @param string $res
  * @return int
  */
-function mel_lib_res_rank($tags, $q)
+function mel_lib_res_rank($res)
 {
-    $ranks = array('4K' => 4, '2K' => 3, '1080' => 2, '720' => 1);
-    if (trim($tags) !== '')
-    {
-        foreach (explode(',', $tags) as $t)
-        {
-            $t = trim($t);
-            if (isset($ranks[$t]))
-                return $ranks[$t];
-        }
-        return -1;
-    }
-    $by_name = array('4K' => 4, '1440p' => 3, '1080p' => 2, '720p' => 1);
-    return isset($by_name[$q]) ? $by_name[$q] : ($q !== '' ? 0 : -1);
+    $ranks = array('4K' => 4, '2K' => 3, '1440p' => 3, '1080p' => 2, '720p' => 1);
+    return isset($ranks[$res]) ? $ranks[$res] : ($res !== '' ? 0 : -1);
 }
 
 // usort of the copies: the resolution down, then the size down, then the path.
@@ -614,8 +669,8 @@ function mel_lib_res_rank($tags, $q)
  */
 function mel_lib_cmp_copies($a, $b)
 {
-    $ra = mel_lib_res_rank($a['tags'], $a['q']);
-    $rb = mel_lib_res_rank($b['tags'], $b['q']);
+    $ra = mel_lib_res_rank($a['res']);
+    $rb = mel_lib_res_rank($b['res']);
     if ($ra !== $rb)
         return $rb - $ra;
     if ($a['size'] != $b['size'])
@@ -624,8 +679,10 @@ function mel_lib_cmp_copies($a, $b)
 }
 
 // The copies of the movie $mid of the index: its files whose source is
-// mounted now, the best first (mel_lib_cmp_copies). The mount list is read
-// on every call, and only when the movie has files in the index.
+// mounted now, each path to play once (one share in two network folders, by
+// the name and by the IP of its server: the first), the best first
+// (mel_lib_cmp_copies). The mount list is read on every call, and only when
+// the movie has files in the index.
 /**
  * @param string $mid
  * @return list<MelLibCopy>
@@ -641,6 +698,7 @@ function mel_lib_copies($mid)
         mel_log("library: mounts: $err");
     $res = array();
     $mnt = array();
+    $urls = array();
     foreach (MelLib::$by_mid[$mid] as $f)
     {
         $id = $f['folder'];
@@ -651,10 +709,11 @@ function mel_lib_copies($mid)
             $mnt[$id] = mel_lib_source_mount($folder, MelLib::$nfs, $mounts);
         if ($mnt[$id] === '')
             continue;
-        $res[] = $f + array(
-            'url' => $mnt[$id] . mel_lib_rel_path($folder['path'], $f['path']),
-            'q' => mel_lib_quality($f['path']),
-            'key' => mel_lib_key($f['hash']));
+        $url = $mnt[$id] . mel_lib_rel_path($folder['path'], $f['path']);
+        if (isset($urls[$url]))
+            continue;
+        $urls[$url] = 1;
+        $res[] = $f + array('url' => $url, 'mnt' => $mnt[$id], 'key' => mel_lib_key($f['hash']));
     }
     usort($res, 'mel_lib_cmp_copies');
     return $res;
@@ -688,7 +747,8 @@ function mel_lib_years($years)
 }
 
 // The movies of folder_movies.<id>.json of all the folders (load_folder_movies_file of the shell; a series out), each
-// movie_id once: read when the stat of these files changed since the last read.
+// movie_id once: read when the stat of these files changed since the last read. Each file up to MEL_LIB_MAX_BYTES, all
+// up to MEL_LIB_BUDGET_BYTES; a folder past them is skipped, their count in the log.
 /**
  * @return list<array{string, list<string>, int, int}>
  */
@@ -701,21 +761,16 @@ function mel_lib_movies()
     $t = microtime(true);
     $res = array();
     $seen = array();
+    $skipped = 0;
+    $left = MEL_LIB_BUDGET_BYTES;
     foreach ($ids as $id)
     {
-        $list = null;
-        foreach (mel_lib_index_paths($id, 'movies') as $p)
-        {
-            list($doc, $why) = mel_lib_read($p);
-            if ($doc !== false)
-            {
-                $list = json_decode($doc, true);
-                if (!is_array($list))
-                    mel_log("library: folder $id: folder_movies not JSON");
-                break;
-            }
-        }
-        foreach (is_array($list) ? $list : array() as $m)
+        list($list, $why) = mel_lib_read_index($id, 'movies', $left);
+        if ($why === 'too big' || $why === 'over budget')
+            $skipped++;
+        else if ($why !== '' && $why !== 'no index')
+            mel_log("library: folder $id: folder_movies $why");
+        foreach ($list !== null ? $list : array() as $m)
         {
             if (!is_array($m) || !isset($m['id'], $m['title']) || !is_string($m['id']) || !is_string($m['title']) ||
                 isset($seen[$m['id']]) || (isset($m['type']) && $m['type'] === 'series'))
@@ -731,7 +786,10 @@ function mel_lib_movies()
             list($y1, $y2) = mel_lib_years(isset($m['years']) ? $m['years'] : '');
             $res[] = array($m['id'], $names, $y1, $y2);
         }
+        unset($list);
     }
+    if ($skipped)
+        mel_log("library: folder_movies budget: $skipped folders skipped");
     MelLib::$movies = $res;
     MelLib::$movies_sig = $sig;
     mel_log('library: folder_movies read, ' . count($res) . ' titles, ' . round((microtime(true) - $t) * 1000) . ' ms');
@@ -858,8 +916,8 @@ function mel_lib_mid($t, &$by = '')
 
 // --- The line of a copy in the menu of the copies.
 
-// The resolution of a copy to show: by its media tags (4K, 2K, 1080p, 720p), by the name of its file
-// (mel_lib_quality) only when it has no tags; '' for none. The words of mel_lib_res_rank.
+// The resolution of a file of the index, the one of its copy to show and to sort by (mel_lib_res_rank): by its media
+// tags (4K, 2K, 1080p, 720p), by the name of its file (mel_lib_quality) only when it has no tags; '' for none.
 /**
  * @param string $tags
  * @param string $path
@@ -971,9 +1029,8 @@ function mel_lib_label($copy, $copies, $lang)
     else
         $path = strval(substr($copy['path'], mel_lib_common_len($paths)));
     $parts = array();
-    $res = mel_lib_res($copy['tags'], $copy['path']);
-    if ($res !== '')
-        $parts[] = $res;
+    if ($copy['res'] !== '')
+        $parts[] = $copy['res'];
     if ($copy['size'] > 0)
         $parts[] = mel_size_str($copy['size'], $lang);
     $parts[] = mel_lib_cut($path, MEL_LIB_LABEL_MAX);

@@ -603,10 +603,10 @@ parameters:
         MelLibNf: 'array{id: string, name: string, type: string, server: string, dir: string}'
         # A share the shell mounted, no login or password (mel_lib_mounts, library.php).
         MelLibMount: 'array{path: string, type: string, server: string, server_ipaddr: string, dir: string, status: string}'
-        # A file of the index of the media library (mel_lib_folder_index, library.php); tags: the media tags of the indexer, raw.
-        MelLibFile: 'array{folder: string, path: string, mid: string, s: int, e: int, ass: int, hash: string, size: float, tags: string}'
-        # A copy of a movie on a mounted share (mel_lib_copies, library.php): url - the path to play, q - the resolution by the name, key - lib-<12 hex>.
-        MelLibCopy: 'array{folder: string, path: string, mid: string, s: int, e: int, ass: int, hash: string, size: float, tags: string, url: string, q: string, key: string}'
+        # A movie file of the index of the media library (mel_lib_folder_index, library.php); tags: the media tags of the indexer, raw; res: the resolution by the tags, else by the name (mel_lib_res).
+        MelLibFile: 'array{folder: string, path: string, mid: string, hash: string, size: float, tags: string, res: string}'
+        # A copy of a movie on a mounted share (mel_lib_copies, library.php): url - the path to play, mnt - where the source of its folder is mounted (url starts with it), key - lib-<12 hex>.
+        MelLibCopy: 'array{folder: string, path: string, mid: string, hash: string, size: float, tags: string, res: string, url: string, mnt: string, key: string}'
         # A title whose files are looked for in the media library (mel_lib_mid, library.php): its card of the Dune, IMDb, TMDB of a movie, type (movie, series), year, names (of the tile, English, original).
         MelLibTitle: 'array{dune: string, imdb: string, tmdb: string, type: string, year: string, names: list<string>}'
         # A strip of a row under a frame of the focus (view_card_row.php).
