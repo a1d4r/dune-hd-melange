@@ -14,13 +14,21 @@
 //            'menu' - the description of a submenu, it takes the place of the panel - or 'act' - an action run after
 //            the close: plugin_open_folder of a screen, a handle_user_input of the screen);
 //   a check list  title, sub, dim, all (the label of the line «all», '' none), items: array('id', 'label', 'count',
-//            'on'), move (the label of the hint «› Переместить»: RIGHT takes a line; '' none), done: array('label',
-//            'count' - «Выбрано: {n} из {m}», 'act' - run after the close, its choice by mel_kp_done).
-// An item whose id is not a string, or the id of one before, is left out (logged); an empty group too.
+//            'on'), move (the label of the hint «› Переместить»: RIGHT takes a line; '' none), done (none: no line
+//            «Готово»): array('label', 'count' - «Выбрано: {n} из {m}», 'act' - run after the close, its choice by
+//            mel_kp_done).
+// A submenu (MelKpSubDesc) is a menu of items with no submenu of their own, or a check list. An item whose id is not a
+// string, or the id of one before, is left out (logged); an empty group too; a menu that is not an array, none
+// (logged); no title: '' (logged).
+// A check list as a submenu (owner, by the lead 19.11: back to «Действия» on the same item, RETURN applies the
+// choice): LEFT, RETURN and «Готово» go back to the panel on the item that opened it, its choice kept by the id of
+// that item (opened again, it shows it); the close of the panel leaves them all to the screen (mel_kp_done by that
+// id), then runs what closed it (an item: its act) or, by RETURN, the act of «Готово» of the last one left.
 // The state, MelOvl::$st['kp'] (MelKp): stack, the panels, the first the top one, the last the one on screen (a
 // submenu), each (MelKpFrame): desc, its description; its, its items by id; groups, the ids of a menu by group; cur,
 // the cursor (a line of mel_kp_lines); top, the first line of the list shown; on, order: of a check list, id =>
-// checked and the ids in their order; move: a line taken.
+// checked and the ids in their order; move: a line taken. done: the choices of the check lists left, by the id of the
+// item of their submenu ('' the panel itself); act: the act of «Готово» of the last one left.
 
 // The prefix of the ids of the panel (MelKit::panel): kp_dim, kp_pnl, kp_rows, …
 define('MEL_KP', 'kp');
@@ -63,7 +71,8 @@ function mel_kp_lines($f)
     }
     foreach ($f['order'] as $j => $id)
         $out[] = array('check', $id, $g, $j);
-    $out[] = array('done', '', -1, -1);
+    if (isset($f['desc']['done']))
+        $out[] = array('done', '', -1, -1);
     return $out;
 }
 
@@ -77,14 +86,42 @@ function mel_kp_id($it)
     return isset($it['id']) && is_string($it['id']) ? $it['id'] : null;
 }
 
-// A frame of description $d: its items by id; the cursor on its first picked item (a submenu: the current sort), else
-// on the first line; of a check list the checks and the order of its items.
+// The submenu of item $it of a menu «$title»: its description; none, or not an array (logged): null.
 /**
- * @param MelKpDesc $d
+ * @param array<string, mixed> $it
+ * @param string $title
+ * @return MelKpSubDesc|null
+ */
+function mel_kp_sub($it, $title)
+{
+    if (!isset($it['menu']))
+        return null;
+    if (!is_array($it['menu']))
+    {
+        mel_log("kit panel: «{$title}»: the menu of an item is not a description, none");
+        return null;
+    }
+    /** @var MelKpSubDesc $m */
+    $m = $it['menu'];
+    return $m;
+}
+
+// A frame of description $d: its items by id (a menu not a description: none); the cursor on its first picked item (a
+// submenu: the current sort), else on the first line; of a check list the checks and the order of its items, or
+// those of choice $was (MelKpChoice: the submenu opened again).
+/**
+ * @param MelKpDesc|MelKpSubDesc $d
+ * @param MelKpChoice|null $was
  * @return MelKpFrame
  */
-function mel_kp_frame($d)
+function mel_kp_frame($d, $was = null)
 {
+    if (!isset($d['title']))
+    {
+        mel_log('kit panel: a panel with no title');
+        $d['title'] = '';
+    }
+    $title = (string) $d['title'];
     $f = array('desc' => $d, 'its' => array(), 'groups' => array(), 'cur' => 0, 'top' => 0, 'on' => array(),
         'order' => array(), 'move' => false);
     $check = isset($d['items']);
@@ -96,8 +133,15 @@ function mel_kp_frame($d)
             $id = mel_kp_id($it);
             if ($id === null || isset($f['its'][$id]))
             {
-                mel_log('kit panel: «' . $d['title'] . '»: an item with no id of its own, left out');
+                mel_log("kit panel: «{$title}»: an item with no id of its own, left out");
                 continue;
+            }
+            if (!$check)
+            {
+                $sub = mel_kp_sub($it, $title);
+                unset($it['menu']);
+                if ($sub !== null)
+                    $it['menu'] = $sub;
             }
             $f['its'][$id] = $it;
             $ids[] = $id;
@@ -108,6 +152,13 @@ function mel_kp_frame($d)
             $f['order'] = $ids;
         elseif ($ids)
             $f['groups'][] = $ids;
+    }
+    if ($check && $was !== null)
+    {
+        $known = array_values(array_intersect($was['order'], $f['order']));
+        $f['order'] = array_merge($known, array_values(array_diff($f['order'], $known)));
+        foreach ($f['on'] as $id => $on)
+            $f['on'][$id] = in_array($id, $was['on'], true);
     }
     if ($check)
         return $f;
@@ -150,7 +201,8 @@ function mel_kp_window($f)
 function mel_kp_row($f, $l, $st, $all)
 {
     if ($l[0] === 'all')
-        return array('id' => MEL_KP . '_all', 'label' => (string) $f['desc']['all'], 'state' => $st, 'check' => $all);
+        return array('id' => MEL_KP . '_all', 'label' => isset($f['desc']['all']) ? (string) $f['desc']['all'] : '',
+            'state' => $st, 'check' => $all);
     $it = $f['its'][$l[1]];
     $r = array('id' => mel_kp_row_id($l[1]), 'label' => (string) $it['label'], 'state' => $st);
     if ($l[0] === 'check')
@@ -173,7 +225,7 @@ function mel_kp_row($f, $l, $st, $all)
  */
 function mel_kp_done_view($f, $st)
 {
-    $d = $f['desc']['done'];
+    $d = isset($f['desc']['done']) ? $f['desc']['done'] : array('label' => '');
     $n = count(array_filter($f['on']));
     return array('label' => (string) $d['label'], 'state' => $st, 'count' => str_replace(array('{n}', '{m}'),
         array(strval($n), strval(count($f['on']))), isset($d['count']) ? (string) $d['count'] : ''));
@@ -200,21 +252,31 @@ function mel_kp_state($f, $k)
 function mel_kp_view($f, $back, $x)
 {
     $d = $f['desc'];
-    $v = array('id' => MEL_KP, 'title' => (string) $d['title'], 'back' => $back,
-        'sub' => isset($d['sub']) ? (string) $d['sub'] : '', 'dim' => isset($d['dim']) ? (string) $d['dim'] : 'dim',
-        'x' => $x, 'groups' => array(), 'top' => $f['top'], 'hint' => '', 'done' => null,
-        'note' => isset($d['note']) ? (string) $d['note'] : '');
+    $done = null;
+    $groups = array();
     $all = !in_array(false, $f['on'], true);
     foreach (mel_kp_lines($f) as $k => $l)
     {
         if ($l[0] === 'done')
-            $v['done'] = mel_kp_done_view($f, mel_kp_state($f, $k));
+            $done = mel_kp_done_view($f, mel_kp_state($f, $k));
         else
-            $v['groups'][$l[2]][] = mel_kp_row($f, $l, mel_kp_state($f, $k), $all);
+            $groups[$l[2]][] = mel_kp_row($f, $l, mel_kp_state($f, $k), $all);
     }
-    if (isset($d['items']) && isset($d['move']) && $d['move'] !== '')
-        $v['hint'] = (string) $d['move'];
-    return $v;
+    return array('id' => MEL_KP, 'title' => isset($d['title']) ? (string) $d['title'] : '', 'back' => $back,
+        'sub' => isset($d['sub']) ? (string) $d['sub'] : '', 'dim' => mel_kp_dim($f), 'x' => $x,
+        'groups' => array_values($groups), 'top' => $f['top'], 'done' => $done,
+        'hint' => isset($d['items']) && isset($d['move']) ? (string) $d['move'] : '',
+        'note' => isset($d['note']) ? (string) $d['note'] : '');
+}
+
+// The shade of frame $f: dim (the default) or dim_strong.
+/**
+ * @param MelKpFrame $f
+ * @return string
+ */
+function mel_kp_dim($f)
+{
+    return isset($f['desc']['dim']) ? (string) $f['desc']['dim'] : 'dim';
 }
 
 // The components of state $kp, its panel on screen (the last of the stack) at $x: the shade kp_dim and the panel kp_pnl.
@@ -248,11 +310,11 @@ function mel_kp_index($defs, $out = array())
     return $out;
 }
 
-// What a key may change of frame $f, by the id of its group: v, the view of a line (MelKitPanelRow, of «Готово» that of
-// panel_done); j, its place in the list (-1 out of it). No component is built.
+// What a key may change of frame $f, by the id of its group: v, the view of a line (MelKitPanelRow) or d, of «Готово»
+// (that of panel_done), the other null; j, its place in the list (-1 out of it). No component is built.
 /**
  * @param MelKpFrame $f
- * @return array<string, array{v: array<string, mixed>, j: int}>
+ * @return array<string, array{v: MelKitPanelRow|null, d: array{label: string, count: string, state: string}|null, j: int}>
  */
 function mel_kp_looks($f)
 {
@@ -261,11 +323,11 @@ function mel_kp_looks($f)
     foreach (mel_kp_lines($f) as $k => $l)
     {
         if ($l[0] === 'done')
-            $out[MEL_KP . '_done'] = array('v' => mel_kp_done_view($f, mel_kp_state($f, $k)), 'j' => -1);
+            $out[MEL_KP . '_done'] = array('v' => null, 'd' => mel_kp_done_view($f, mel_kp_state($f, $k)), 'j' => -1);
         else
         {
             $r = mel_kp_row($f, $l, mel_kp_state($f, $k), $all);
-            $out[$r['id']] = array('v' => $r, 'j' => $l[3]);
+            $out[isset($r['id']) ? $r['id'] : ''] = array('v' => $r, 'd' => null, 'j' => $l[3]);
         }
     }
     return $out;
@@ -293,13 +355,13 @@ function mel_kp_redraw($was, $f)
         $geom = $x['j'] >= 0 && $x['j'] !== $a[$id]['j'] ? mel_gc_at(MEL_K_PANEL_W, MEL_K_STEP_PANEL, 0,
             $x['j'] * MEL_K_STEP_PANEL) : null;
         $kids = null;
-        if ($x['v'] !== $a[$id]['v'])
-        {
-            $v = $x['v'];
-            $it = $id === MEL_KP . '_done' ? MelKit::panel_done($id, $v['label'], $v['count'], $v['state'])
-                : MelKit::panel_row($id, $v);
+        $it = null;
+        if ($x['d'] !== null && $x['d'] !== $a[$id]['d'])
+            $it = MelKit::panel_done($id, $x['d']['label'], $x['d']['count'], $x['d']['state']);
+        elseif ($x['v'] !== null && $x['v'] !== $a[$id]['v'])
+            $it = MelKit::panel_row($id, $x['v']);
+        if ($it !== null)
             $kids = $it['defs'][0][GComponentDef::specific_def][GCompPanelDef::children];
-        }
         if ($geom !== null || $kids !== null)
             $ch[] = mel_gc_change($id, $geom, $geom !== null ? GCOMP_TRANSITION_DEFAULT : GCOMP_TRANSITION_NONE, $kids);
     }
@@ -338,14 +400,14 @@ function mel_kp_map($owner)
  */
 function mel_kp_open($scr, $d)
 {
-    $kp = array('stack' => array(mel_kp_frame($d)));
+    $kp = array('stack' => array(mel_kp_frame($d)), 'done' => array(), 'act' => null);
     $owner = isset($scr['owner']) && is_string($scr['owner']) ? $scr['owner'] : '';
     $sel = isset($scr['sel']) && is_string($scr['sel']) ? $scr['sel'] : null;
     $slide = mel_ovl_change(array(mel_gc_change(MEL_KP . '_pnl', mel_gc_at(MEL_K_PANEL_W, 1080, 1920 - MEL_K_PANEL_W, 0),
         GCOMP_TRANSITION_DEFAULT)), $sel);
     $a = mel_ovl_open($scr, array('kp' => $kp), mel_kp_map($owner), mel_kp_defs($kp, 1920), $slide);
     if ($a)
-        mel_log('kit panel: open «' . $d['title'] . '»');
+        mel_log('kit panel: open «' . (isset($d['title']) ? $d['title'] : '') . '»');
     return $a;
 }
 
@@ -365,33 +427,49 @@ function mel_kp_choice($f)
     return array('on' => $on, 'order' => $f['order']);
 }
 
-// The close of check list $f by «Готово» or RETURN (both give the choice, as edit_list_config of the shell): the choice
-// kept for its screen (mel_kp_done), then the action of «Готово».
+// The close of the panel of state $kp, then $act (null: the act of «Готово» of the check list of a submenu left last,
+// if any): the choices of its check lists kept for its screen (mel_kp_done).
 /**
+ * @param MelKp $kp
+ * @param MelAction|null $act
+ * @return MelAction|null
+ */
+function mel_kp_close($kp, $act)
+{
+    return mel_ovl_close($act !== null ? $act : $kp['act'], $kp['done'] ? array('kp_done' => $kp['done']) : array());
+}
+
+// The close of check list $f of the panel itself by «Готово» or RETURN (both give the choice, as edit_list_config of
+// the shell): its choice kept for its screen under '' (mel_kp_done), then the action of «Готово».
+/**
+ * @param MelKp $kp
  * @param MelKpFrame $f
  * @return MelAction|null
  */
-function mel_kp_apply($f)
+function mel_kp_apply($kp, $f)
 {
     mel_log('kit panel: done, ' . count(array_filter($f['on'])) . ' of ' . count($f['on']));
-    return mel_ovl_close(isset($f['desc']['done']['act']) ? $f['desc']['done']['act'] : null,
-        array('kp_done' => mel_kp_choice($f)));
+    $kp['done'][''] = mel_kp_choice($f);
+    return mel_kp_close($kp, isset($f['desc']['done']['act']) ? $f['desc']['done']['act'] : null);
 }
 
-// The choice of the check list closed last on the screen of owner $owner (MelKpChoice: on and order, ids of its items
-// in the order of the lines), for the action of its «Готово»; given once. None (another screen, another overlay since):
-// null.
+// The choice of a check list of the panel closed last on the screen of owner $owner (MelKpChoice: on and order, ids of
+// its items in the order of the lines): $id '' of the panel itself, else of the submenu of item $id. Given once. None
+// (another screen, another overlay since, not left): null.
 /**
  * @param string $owner
+ * @param string $id
  * @return MelKpChoice|null
  */
-function mel_kp_done($owner)
+function mel_kp_done($owner, $id = '')
 {
     $st = MelOvl::$st;
-    if (!$st || $st['scr']['owner'] !== $owner || !isset($st['kp_done']))
+    if (!$st || $st['scr']['owner'] !== $owner || !isset($st['kp_done'][$id]))
         return null;
-    unset(MelOvl::$st['kp_done']);
-    return $st['kp_done'];
+    $c = $st['kp_done'][$id];
+    unset($st['kp_done'][$id]);
+    MelOvl::$st = $st;
+    return $c;
 }
 
 // kp_key: a key of an open panel. A stale screen: close_and_run (mel_ovl_stale). A live one with no panel (a key that
@@ -405,7 +483,7 @@ function mel_kp_input($in)
     $a = mel_ovl_stale($in);
     if ($a)
         return $a;
-    if (!MelOvl::$st['open'] || !isset(MelOvl::$st['kp']))
+    if (!MelOvl::$st || !MelOvl::$st['open'] || !isset(MelOvl::$st['kp']))
     {
         mel_log('kit panel: a key after the close, none');
         return null;
@@ -413,15 +491,16 @@ function mel_kp_input($in)
     return mel_kp_key(isset($in->k) && is_string($in->k) ? $in->k : '');
 }
 
-// Key $k of the open panel (MelOvl::$st['kp']) -> the reply, null for none (an edge, a key of no use there):
+// Key $k of the open panel (MelOvl::$st['kp']) -> the reply, null for none (an edge, a key of no use there; no panel
+// open):
 //   up, down    the cursor a line, to the first and the last (no wrap, as the list); the list scrolls with it; a line
 //               taken moves with it among the lines of the list (the geometry of two lines);
 //   enter       a menu item: its submenu in the place of the panel, else its action after the close; a check line or
-//               «all»: its check (and «all» and the count); «Готово»: the close, then its action with the choice;
+//               «all»: its check (and «all» and the count); «Готово»: as return;
 //   right       an item with a submenu: as enter; a check line of a list with move: taken (⇅);
 //   left        a submenu: back, as return;
-//   return      a menu: a submenu back to its panel on the same item, else the close; a check list: the close with the
-//               choice, as «Готово»;
+//   return      a submenu: back to the panel on the same item (a check list: its choice kept); a menu: the close (then
+//               the act of «Готово» of a check list left); a check list: the close with the choice, then its act;
 //   a line taken: enter, right, left and return put it (and nothing else).
 /**
  * @param string $k
@@ -429,7 +508,10 @@ function mel_kp_input($in)
  */
 function mel_kp_key($k)
 {
-    $kp = MelOvl::$st['kp'];
+    $st = MelOvl::$st;
+    if (!$st || !isset($st['kp']))
+        return null;
+    $kp = $st['kp'];
     $n = count($kp['stack']) - 1;
     $f = $kp['stack'][$n];
     $was = $f;
@@ -437,6 +519,7 @@ function mel_kp_key($k)
     // An empty menu: no line.
     $l = isset($lines[$f['cur']]) ? $lines[$f['cur']] : array('', '', -1, -1);
     $check = isset($f['desc']['items']);
+    $back = $k === 'return' || $k === 'left' || ($k === 'enter' && $l[0] === 'done');
     if ($f['move'] && in_array($k, array('enter', 'right', 'left', 'return'), true))
         $f['move'] = false;
     elseif ($k === 'up' || $k === 'down')
@@ -447,32 +530,47 @@ function mel_kp_key($k)
             $j = $l[3] + ($k === 'up' ? -1 : 1);
             if ($j < 0 || $j >= count($f['order']))
                 return null;
-            $f['order'][$l[3]] = $f['order'][$j];
-            $f['order'][$j] = $l[1];
+            $o = $f['order'];
+            $o[$l[3]] = $o[$j];
+            $o[$j] = $l[1];
+            $f['order'] = array_values($o);
         }
         elseif ($to < 0 || $to >= count($lines))
             return null;
         $f['cur'] = $to;
         $f = mel_kp_window($f);
     }
-    elseif ($check && ($k === 'return' || ($k === 'left' && $n > 0)))
-        return mel_kp_apply($f);
-    elseif ($k === 'return' || $k === 'left')
+    elseif ($back && $n > 0)
     {
-        if ($n === 0)
-            return $k === 'return' ? mel_ovl_close() : null;
-        array_pop($kp['stack']);
-        MelOvl::$st['kp'] = $kp;
-        return mel_kp_replace($kp);
+        $stack = $kp['stack'];
+        array_pop($stack);
+        if (!$stack)
+            return null;
+        $kp['stack'] = $stack;
+        if ($check)
+        {
+            // The item of the panel under it that opened it: the cursor stays on it.
+            $p = $kp['stack'][count($kp['stack']) - 1];
+            $pl = mel_kp_lines($p);
+            $from = isset($pl[$p['cur']]) ? $pl[$p['cur']][1] : '';
+            $kp['done'][$from] = mel_kp_choice($f);
+            if (isset($f['desc']['done']['act']))
+                $kp['act'] = $f['desc']['done']['act'];
+            mel_log("kit panel: back from {$from}, " . count(array_filter($f['on'])) . ' of ' . count($f['on']) . ' kept');
+        }
+        return mel_kp_put($kp, $was);
     }
+    elseif ($check && $back && $k !== 'left')
+        return mel_kp_apply($kp, $f);
+    elseif ($k === 'return')
+        return mel_kp_close($kp, null);
     elseif ($l[0] === 'item' && ($k === 'enter' || $k === 'right'))
     {
         $it = $f['its'][$l[1]];
         if (isset($it['menu']))
         {
-            $kp['stack'][] = mel_kp_frame($it['menu']);
-            MelOvl::$st['kp'] = $kp;
-            return mel_kp_replace($kp);
+            $kp['stack'][] = mel_kp_frame($it['menu'], isset($kp['done'][$l[1]]) ? $kp['done'][$l[1]] : null);
+            return mel_kp_put($kp, $was);
         }
         if ($k === 'right')
             return null;
@@ -482,10 +580,8 @@ function mel_kp_key($k)
             return null;
         }
         mel_log("kit panel: item {$l[1]}, closed");
-        return mel_ovl_close($it['act']);
+        return mel_kp_close($kp, $it['act']);
     }
-    elseif ($k === 'enter' && $l[0] === 'done')
-        return mel_kp_apply($f);
     elseif ($k === 'enter' && $l[0] === 'all')
         $f['on'] = array_fill_keys(array_keys($f['on']), in_array(false, $f['on'], true));
     elseif ($k === 'enter' && $l[0] === 'check')
@@ -495,19 +591,32 @@ function mel_kp_key($k)
     else
         return null;
     $kp['stack'][$n] = $f;
-    MelOvl::$st['kp'] = $kp;
+    $st['kp'] = $kp;
+    MelOvl::$st = $st;
     $ch = mel_kp_redraw($was, $f);
-    return $ch ? mel_ovl_change($ch, MelOvl::$st['scr']['sel']) : null;
+    return $ch ? mel_ovl_change($ch, $st['scr']['sel']) : null;
 }
 
-// The panel on screen of state $kp (after a submenu in or out) in the place of the one before: the children of kp_pnl.
+// State $kp (a submenu in or out) kept, its panel on screen in the place of that of frame $was: the children of kp_pnl
+// and, when its shade is another (dim, dim_strong), of kp_dim - what a build of it whole gives.
 /**
  * @param MelKp $kp
- * @return MelAction
+ * @param MelKpFrame $was
+ * @return MelAction|null
  */
-function mel_kp_replace($kp)
+function mel_kp_put($kp, $was)
 {
+    $st = MelOvl::$st;
+    if (!$st)
+        return null;
+    $st['kp'] = $kp;
+    MelOvl::$st = $st;
     $defs = mel_kp_index(mel_kp_defs($kp));
-    return mel_ovl_change(array(mel_gc_change(MEL_KP . '_pnl', null, GCOMP_TRANSITION_NONE,
-        $defs[MEL_KP . '_pnl'][GComponentDef::specific_def][GCompPanelDef::children])), MelOvl::$st['scr']['sel']);
+    $ch = array();
+    if (mel_kp_dim($kp['stack'][count($kp['stack']) - 1]) !== mel_kp_dim($was))
+        $ch[] = mel_gc_change(MEL_KP . '_dim', null, GCOMP_TRANSITION_NONE,
+            $defs[MEL_KP . '_dim'][GComponentDef::specific_def][GCompPanelDef::children]);
+    $ch[] = mel_gc_change(MEL_KP . '_pnl', null, GCOMP_TRANSITION_NONE,
+        $defs[MEL_KP . '_pnl'][GComponentDef::specific_def][GCompPanelDef::children]);
+    return mel_ovl_change($ch, $st['scr']['sel']);
 }

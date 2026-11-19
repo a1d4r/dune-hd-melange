@@ -1491,7 +1491,8 @@ class MelKit
     // the panel, its thumb {id}_thumb) on the right of the list; then -s- the hint «› hint» (the key of RIGHT: hint),
     // -m- the line done (panel_done, the group {id}_done) and -m- the note (MEL_K_PX_CAPTION, text 3, 2 lines a step
     // MEL_K_STEP_PANEL_NOTE). $v:
-    //   id      the prefix of the ids (default kp): {id}_dim, the dim of the screen, and the panel {id}_pnl;
+    //   id      the prefix of the ids (default kp): {id}_dim, the dim of the screen (a panel of the screen with its
+    //           rect: a submenu changes its colour by its children), and the panel {id}_pnl;
     //   title, back, sub  the title, ‹ before it (a submenu) and the subtitle (MEL_K_PX_SECONDARY, text 2; '' none);
     //   dim     dim (MEL_K_C_DIM: «Действия») or dim_strong (MEL_K_C_DIM_STRONG: «Озвучка», «Балансеры»);
     //   x       the left of the panel (default 1920 - MEL_K_PANEL_W; 1920: off the screen, to slide in);
@@ -1559,7 +1560,8 @@ class MelKit
         $pnl = mel_gc_panel("{$p}_pnl", mel_gc_at($W, 1080, $x, 0), array_merge(array(
             mel_gc_rect(mel_gc_at($W, 1080, 0, 0), MEL_K_C_PANEL), mel_gc_rect(mel_gc_at(1, 1080, 0, 0), MEL_K_C_LINE)),
             $body['defs']));
-        $out = self::box(array(mel_gc_rect(mel_gc_at(1920, 1080, 0, 0), $dim, "{$p}_dim"), $pnl), 0, 0, 1920, 1080);
+        $full = mel_gc_at(1920, 1080, 0, 0);
+        $out = self::box(array(mel_gc_panel("{$p}_dim", $full, array(mel_gc_rect($full, $dim))), $pnl), 0, 0, 1920, 1080);
         $out['kind'] = 'panel';
         return $out;
     }

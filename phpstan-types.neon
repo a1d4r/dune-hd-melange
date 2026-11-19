@@ -298,8 +298,9 @@ parameters:
         # The record of a GComps screen under an overlay (kit_ovl.php): its owner, action map, timer and sel_state.
         MelOvlScreen: 'array{owner: string, map: array<string, MelAction>, timer: array<string, int>|null, sel: string|null}'
         # The overlay of the last screen that opened one (MelOvl::$st, kit_ovl.php): the record of the screen, shown or
-        # not; the side panel open, the choice of a check list left after its close.
-        MelOvlState: 'array{scr: MelOvlScreen, open: bool, kp?: MelKp, kp_done?: MelKpChoice, dlg?: MelDlg, wt?: MelWait, wt_end?: string}'
+        # not; the side panel open, the choices of its check lists left after its close (by the id of the item of their
+        # submenu, '' the panel itself).
+        MelOvlState: 'array{scr: MelOvlScreen, open: bool, kp?: MelKp, kp_done?: array<string, MelKpChoice>, dlg?: MelDlg, wt?: MelWait, wt_end?: string}'
         # A button of the own dialog or wait (kit_dlg.php, mel_dlg_buttons): its id, label, icon, the action after the
         # close (null none), RETURN presses it (cancel, of a wait).
         MelDlgButton: 'array{id: string, label: string, icon: string, act: MelAction|null, cancel: bool}'
@@ -315,17 +316,18 @@ parameters:
         # An error or a wait screen kept (MelKs::$scr): its look, the detail line of an error, the error (as the own dialog)
         # or the wait, its end (null: live).
         MelKsScreen: 'array{look: MelKsLook, detail: string, dlg: MelDlg|null, wt: MelWait|null, end: string|null}'
-        # The side panel open (kit_panel.php): its panels, a submenu over its panel last.
-        MelKp: 'array{stack: non-empty-list<MelKpFrame>}'
+        # The side panel open (kit_panel.php): its panels, a submenu over its panel last; the choices of the check lists
+        # of submenus left (by the id of their item) and the act of «Готово» of the last one.
+        MelKp: 'array{stack: non-empty-list<MelKpFrame>, done: array<string, MelKpChoice>, act: MelAction|null}'
         # A panel of MelKp: its description, its items by id, the ids of a menu by group, the cursor, the first line of
         # the list shown; of a check list the checks, the order and a line taken.
-        MelKpFrame: 'array{desc: MelKpDesc, its: array<string, MelKpItem|MelKpCheck>, groups: list<list<string>>, cur: int, top: int, on: array<string, bool>, order: list<string>, move: bool}'
+        MelKpFrame: 'array{desc: MelKpDesc|MelKpSubDesc, its: array<string, MelKpItem|MelKpLeaf|MelKpCheck>, groups: list<list<string>>, cur: int, top: int, on: array<string, bool>, order: list<string>, move: bool}'
         # The choice of a check list at its close (mel_kp_done): the ids checked and all the ids, in the order of the lines.
         MelKpChoice: 'array{on: list<string>, order: list<string>}'
         # The description of a panel by its screen (kit_panel.php): a menu (groups) or a check list (items).
         MelKpDesc: '''
             array{
-                title: string,
+                title?: string,
                 sub?: string,
                 dim?: string,
                 note?: string,
@@ -333,12 +335,27 @@ parameters:
                 all?: string,
                 items?: list<MelKpCheck>,
                 move?: string,
-                done?: array{label: string, count?: string, act: MelAction}
+                done?: array{label: string, count?: string, act?: MelAction}
             }
         '''
-        # An item of a menu of the side panel: menu, the description of its submenu (MelKpDesc: a type alias may not
-        # refer to itself), or act, its action.
-        MelKpItem: 'array{id: string, label: string, icon?: string, detail?: string, value?: string, picked?: bool, way?: string, menu?: array<string, mixed>, act?: MelAction}'
+        # The description of a submenu (MelKpItem menu): as MelKpDesc, its items with no submenu of their own.
+        MelKpSubDesc: '''
+            array{
+                title?: string,
+                sub?: string,
+                dim?: string,
+                note?: string,
+                groups?: list<list<MelKpLeaf>>,
+                all?: string,
+                items?: list<MelKpCheck>,
+                move?: string,
+                done?: array{label: string, count?: string, act?: MelAction}
+            }
+        '''
+        # An item of a menu of the side panel: menu, the description of its submenu, or act, its action.
+        MelKpItem: 'array{id: string, label: string, icon?: string, detail?: string, value?: string, picked?: bool, way?: string, menu?: MelKpSubDesc, act?: MelAction}'
+        # An item of a submenu: no submenu of its own.
+        MelKpLeaf: 'array{id: string, label: string, icon?: string, detail?: string, value?: string, picked?: bool, way?: string, act?: MelAction}'
         # An item of a check list of the side panel.
         MelKpCheck: 'array{id: string, label: string, count?: string, on?: bool}'
         # The row and the map of the last start through TorrServer (Mel::$ts_pack, torrserver.php).
