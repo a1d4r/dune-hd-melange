@@ -39,6 +39,7 @@ define('MEL_GC_GAP', 16);      // between columns
 define('MEL_GC_TRACKER_MIN', 145);
 define('MEL_GC_FLAG', 36);         // a flag of the skin, square
 define('MEL_GC_FLAG_GAP', 6);
+define('MEL_GC_SUBS_GAP', 12);    // the last flag or "?" -> the plate of the subtitles mark
 define('MEL_GC_VX', 156);      // card values after the labels ("Субтитры")
 define('MEL_GC_SIDE_GAP', 26);  // the poster -> the column beside it (r5; between m 24 and l 32 of the rhythm)
 define('MEL_GC_NAME_MAX', 400);    // characters of the name in the card, at most
@@ -392,6 +393,16 @@ function mel_gc_tail_langs($langs)
     return $out['flag'] || $out['text'] ? array_merge($out['flag'], $out['text']) : $out['service'];
 }
 
+// The service codes of $langs (MULTI, DUAL, DUB, ORIG), in their order.
+/**
+ * @param list<string> $langs
+ * @return list<string>
+ */
+function mel_gc_service_langs($langs)
+{
+    return array_values(array_intersect($langs, array('MULTI', 'DUAL', 'DUB', 'ORIG')));
+}
+
 /**
  * @param MelState $st
  * @return 'ru'|'en'
@@ -470,47 +481,72 @@ function mel_gc_plural($lang, $n, $key)
     return mel_tr($lang, "{$key}_$form");
 }
 
-// Languages of a row: up to MEL_GC_LANGS_MAX flags of the skin, a code
-// without a flag as text (MEL_K_PX_CAPTION), the rest as "+N"; service codes
-// (MULTI, DUAL, ...) only without a real language. Only what fits $width with
-// the "+N" after it. -> array(flag|text, value, width).
+// Languages of row $r (variant B, 19.11.2026): its confirmed ones (mel_row_voice_langs 'ok') as up to
+// MEL_GC_LANGS_MAX flags of the skin, a code without a flag as text (MEL_K_PX_CAPTION), the rest as "+N"; one "?"
+// (k_lang_q, in the slot of a flag) for all the guessed ones ('q'); the plate of the subtitles mark
+// (mel_row_subs_mark, k_badge_subs-*) MEL_GC_SUBS_GAP after them. Service codes of 'langs' (MULTI, DUAL, ...) as
+// text only without a language confirmed or guessed. What does not fit $width: the flags go into the "+N" first,
+// the "?" and the plate stay. -> array(flag|text|q|subs, value (flag, text, picture, badge id), width).
 /**
- * @param list<string> $langs
+ * @param MelRow $r
  * @param int $width
- * @return list<array{'flag'|'text', string, int}>
+ * @return list<array{'flag'|'text'|'q'|'subs', string, int}>
  */
-function mel_gc_lang_items($langs, $width)
+function mel_gc_lang_items($r, $width)
 {
     $flags = mel_gc_flags();
-    $tail = mel_gc_tail_langs($langs);
+    $vl = mel_row_voice_langs($r);
+    $tail = $vl['ok'] || $vl['q'] ? mel_gc_tail_langs($vl['ok']) : mel_gc_service_langs($r['langs']);
+    $end = array();
+    if ($vl['q'])
+    {
+        $p = MelKit::pic('k_lang_q');
+        $end[] = array('q', 'k_lang_q', $p['w']);
+    }
+    $m = strtolower(mel_row_subs_mark($r));
+    // A plate b2 (k_badge_subs-*); a mark of no picture: none.
+    $w = $m !== '' ? MelKit::badges_w(array("subs-$m")) : 0;
+    if ($w > 0)
+        $end[] = array('subs', "subs-$m", $w);
     $items = array();
-    $x = 0;
     foreach (array_slice($tail, 0, MEL_GC_LANGS_MAX) as $i => $c)
     {
         $it = isset($flags[$c]) ? array('flag', $flags[$c], MEL_GC_FLAG) :
             array('text', $c, MelKit::w($c, MEL_K_PX_CAPTION));
         $rest = count($tail) - $i - 1;
-        if ($x + $it[2] + ($rest > 0 ? MEL_GC_FLAG_GAP + MelKit::w("+$rest", MEL_K_PX_CAPTION) : 0) > $width)
+        $try = array_merge($items, array($it), $rest > 0 ?
+            array(array('text', "+$rest", MelKit::w("+$rest", MEL_K_PX_CAPTION))) : array(), $end);
+        if (mel_gc_items_w($try) > $width)
             break;
         $items[] = $it;
-        $x += $it[2] + MEL_GC_FLAG_GAP;
     }
     $rest = count($tail) - count($items);
     if ($rest > 0)
         $items[] = array('text', "+$rest", MelKit::w("+$rest", MEL_K_PX_CAPTION));
-    return $items;
+    return array_merge($items, $end);
+}
+
+// The gap before language item $it of a row (mel_gc_lang_items): MEL_GC_SUBS_GAP before the plate of the
+// subtitles, else MEL_GC_FLAG_GAP.
+/**
+ * @param array{'flag'|'text'|'q'|'subs', string, int} $it
+ * @return int
+ */
+function mel_gc_item_gap($it)
+{
+    return $it[0] === 'subs' ? MEL_GC_SUBS_GAP : MEL_GC_FLAG_GAP;
 }
 
 /**
- * @param list<array{'flag'|'text', string, int}> $items
+ * @param list<array{'flag'|'text'|'q'|'subs', string, int}> $items
  * @return int
  */
 function mel_gc_items_w($items)
 {
     $w = 0;
-    foreach ($items as $it)
-        $w += $it[2];
-    return $items ? $w + MEL_GC_FLAG_GAP * (count($items) - 1) : 0;
+    foreach ($items as $i => $it)
+        $w += ($i ? mel_gc_item_gap($it) : 0) + $it[2];
+    return $w;
 }
 
 // "rutracker, bitru +2" if that fits $width at MEL_K_PX_SECONDARY, else
@@ -587,7 +623,7 @@ function mel_gc_cols($rows, $tt)
             $max[$k] = max($max[$k], MelKit::badges_w($ids));
         $max['size'] = max($max['size'], $r['size'] > 0 ?
             min(180, MelKit::w(mel_size_str($r['size'], $tt['lang']), MEL_K_PX_ROW)) : 0);
-        $langs = max($langs, min(260, mel_gc_items_w(mel_gc_lang_items($r['langs'], PHP_INT_MAX))));
+        $langs = max($langs, min(260, mel_gc_items_w(mel_gc_lang_items($r, PHP_INT_MAX))));
         $any_tracker = $any_tracker || $r['expr'] !== '' || $r['trackers'] || $r['addon'] !== '';
     }
     $cols = array('icon' => array(12, $icon));
@@ -761,17 +797,27 @@ function mel_gc_row_items($r, $tt, $c, $on, $share = 0)
     if (isset($c['langs']))
     {
         $x = $c['langs'][0];
-        foreach (mel_gc_lang_items($r['langs'], $c['langs'][1]) as $l)
+        foreach (mel_gc_lang_items($r, $c['langs'][1]) as $i => $l)
         {
-            if ($l[0] === 'flag')
+            $x += $i ? mel_gc_item_gap($l) : 0;
+            if ($l[0] === 'flag' || $l[0] === 'q')
             {
+                // "?" in the slot of a flag, as a flag: only its picture differs.
+                $url = "gui_skin://flags/{$l[1]}.png";
+                if ($l[0] === 'q')
+                {
+                    $p = MelKit::pic($l[1]);
+                    $url = $p['url'];
+                }
                 $fy = intval($y - MEL_GC_FLAG / 2);
-                $it[] = MelKit::box(array(mel_gc_image(mel_gc_at(MEL_GC_FLAG, MEL_GC_FLAG, $x, $fy),
-                    "gui_skin://flags/{$l[1]}.png")), $x, $fy, MEL_GC_FLAG, MEL_GC_FLAG);
+                $it[] = MelKit::box(array(mel_gc_image(mel_gc_at(MEL_GC_FLAG, MEL_GC_FLAG, $x, $fy), $url)), $x, $fy,
+                    MEL_GC_FLAG, MEL_GC_FLAG);
             }
+            elseif ($l[0] === 'subs')
+                $it[] = MelKit::badges(array($l[1]), $x, $y, 'badges subs');
             else
                 $it[] = MelKit::text($l[1], MEL_K_PX_CAPTION, $fg2, $x, $y);
-            $x += $l[2] + MEL_GC_FLAG_GAP;
+            $x += $l[2];
         }
     }
     // The name of the AIOStreams expression in place of the trackers (the
@@ -875,6 +921,21 @@ function mel_gc_field_lines($k, $v, $n, $alone)
     return MelKit::wrap($v, $px, '', $w, $n);
 }
 
+// The field "Языки" of the card of row $r (variant B): the confirmed languages (mel_row_voice_langs), then each
+// guessed one with "?" ("JA, RU?"), then the service codes of 'langs' (MULTI, DUAL, ...) as before.
+/**
+ * @param MelRow $r
+ * @return string
+ */
+function mel_gc_langs_text($r)
+{
+    $vl = mel_row_voice_langs($r);
+    $out = $vl['ok'];
+    foreach ($vl['q'] as $c)
+        $out[] = "$c?";
+    return implode(', ', array_merge($out, mel_gc_service_langs($r['langs'])));
+}
+
 // The visible bottom of blocks $blocks stacked from $top MEL_K_GAP_M apart.
 /**
  * @param int $top
@@ -917,7 +978,7 @@ function mel_gc_fields($r, $tt, $addon_side, $top, $bottom)
         // Subtitles have a field of their own.
         array('voices', mel_voices_struct_text($vs, $tt['lang'], false)),
         array('subs', mel_cut(implode(', ', $r['subs']), MEL_TEXT_MAX)),
-        array('langs', mel_cut(implode(', ', $r['langs']), MEL_TEXT_MAX)),
+        array('langs', mel_cut(mel_gc_langs_text($r), MEL_TEXT_MAX)),
         $r['trackers'] ? array('trackers', mel_cut(implode(', ', $r['trackers']), MEL_TEXT_MAX)) :
             array('addon', $addon_side ? '' : $r['addon']));
     // The capitals of a line: its top to its baseline.
