@@ -51,7 +51,7 @@ define('MEL_GC_VOICES_LH', 32);
 define('MEL_GC_NAME_LINES', 3);    // the name in the card: up to 3 lines by fact
 define('MEL_GC_VOICES_LINES', 5);  // lines of the voices in the card, at most
 define('MEL_GC_CARD_BOTTOM', 1040);   // the card ends above this y on any data
-define('MEL_GC_LANGS_MAX', 3);     // language flags of a row, the rest as "+N"
+define('MEL_GC_LANGS_MAX', 2);     // language flags of a row, the rest as "+N" (the owner 20.11.2026)
 define('MEL_GC_STEPS', 5);     // change_gcomps animation steps (vendor default)
 
 define('MEL_GC_TEXT', '#FFFFFFE0');
