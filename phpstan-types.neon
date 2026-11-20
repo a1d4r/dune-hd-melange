@@ -307,8 +307,12 @@ parameters:
         MelOvlScreen: 'array{owner: string, map: array<string, MelAction>, timer: array<string, int>|null, sel: string|null}'
         # The overlay of the last screen that opened one (MelOvl::$st, kit_ovl.php): the record of the screen, shown or
         # not; the side panel open, the choices of its check lists left after its close (by the id of the item of their
-        # submenu, '' the panel itself).
-        MelOvlState: 'array{scr: MelOvlScreen, open: bool, kp?: MelKp, kp_done?: array<string, MelKpChoice>, dlg?: MelDlg, wt?: MelWait}'
+        # submenu, '' the panel itself); the window of the copies of the own card open (lw).
+        MelOvlState: 'array{scr: MelOvlScreen, open: bool, kp?: MelKp, kp_done?: array<string, MelKpChoice>, dlg?: MelDlg, wt?: MelWait, lw?: MelLibWin}'
+        # The window of the copies on the disk over the own card (W2, MelOvl::$st['lw'], view_card_lib.php): copies, its
+        # lines (the best first); at, the line of the cursor; mode, first (the first "Смотреть") or menu (MENU "Копия на
+        # диске…"); s, e, the episode (-1 of a movie); cur, the cid of the copy "· сейчас" ('' none).
+        MelLibWin: 'array{copies: list<MelLibCopy>, at: int, mode: string, s: int, e: int, cur: string}'
         # A button of the own dialog or wait (kit_dlg.php, mel_dlg_buttons): its id, label, icon, the action after the
         # close (null none), RETURN presses it (cancel, of a wait).
         MelDlgButton: 'array{id: string, label: string, icon: string, act: MelAction|null, cancel: bool}'

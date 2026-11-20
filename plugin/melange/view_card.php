@@ -20,10 +20,13 @@
 // travels in sel_state.
 // ENTER on a tile does the network (mel_oc_enter: the meta; the rows of posters on r24); the screen
 // is built from memory; from r25 its timer asks the rows of posters (mel_oc_load).
+// A title with copies on the disk has the slot of the overlay of the UI Kit last (kit_ovl.php: the window of the
+// copies over the card), the record of its screen mel_oc_scr.
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, card_more.php, history.php, playback.php, progress.php,
-// continue.php, view_catalog.php, view_gcomps.php, gcomps.php, playback_lib.php; the seasons and the episodes of a
-// series: view_card_series.php; the strip of a row and the frame of the focus: view_card_row.php; the rows of the
-// card (the cast, the posters), ENTER on their items and the timer of the posters: view_card_rows.php.
+// continue.php, view_catalog.php, view_gcomps.php, gcomps.php, playback_lib.php, kit_ovl.php, view_my_list.php; the
+// seasons and the episodes of a series: view_card_series.php; the strip of a row and the frame of the focus:
+// view_card_row.php; the rows of the card (the cast, the posters), ENTER on their items and the timer of the posters:
+// view_card_rows.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // Cards kept in memory by "<type>:<id>", MEL_CM_KEEP_EPS episodes in all at most; the oldest
@@ -1408,6 +1411,9 @@ function mel_oc_window($c, $l, $pos)
     // What the first screen alone shows, over the clip: the arrow of a series is under its bottom.
     $d[] = mel_gc_panel('first', mel_gc_at(1920, 1080, 0, 0), $pos['z'] === 'down' ? array() : $l['first']);
     $d[] = mel_gc_panel('ri', mel_gc_at(1920, MEL_OC_RI_Y - MEL_OC_INK, 0, 0), mel_oc_ri($c, $l, $pos));
+    // A title with copies on the disk: the slot of the overlay (the window of the copies) last; the others as before.
+    if ($l['lib'] || $l['lib_eps'])
+        $d[] = mel_ovl_slot();
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
         GCompWindowDef::background_url => null,
@@ -1460,6 +1466,30 @@ function mel_oc_folder_view($media_url, $sel_state)
     MelOc::$cards[$key]['nav'] = $nav;
     mel_log("card: own $key: screen, " . count($l['btns']) . ' buttons, ' . count($l['stops']) . " stops, at {$pos['z']} " .
         "{$pos['b']}, {$pos['p']}" . ($pos['s'] > 0 ? ", S{$pos['s']}E{$pos['e']}" : '') . mel_oc_rows_log($pos));
+    list($acts, $timer) = mel_oc_acts($key, $c, $nav);
+    return array(
+        PluginFolderView::multiple_views_supported => false,
+        PluginFolderView::archive => null,
+        PluginFolderView::folder_type => null,
+        PluginFolderView::view_kind => PLUGIN_FOLDER_VIEW_GCOMPS,
+        PluginFolderView::data => array(
+            PluginGCompsFolderView::window_def => mel_oc_window($c, $l, $pos),
+            PluginGCompsFolderView::sel_state => mel_oc_state($pos, $l),
+            PluginGCompsFolderView::actions => $acts,
+            PluginGCompsFolderView::timer => $timer));
+}
+
+// The action map of the screen of card $c ($key) laid out as $l, and its timer (null none): the keys of the card, back
+// from the player of a movie with a copy on the disk, the timer of the rows of posters still asked (card_load). No
+// RETURN: the shell leaves the screen by it.
+/**
+ * @param string $key
+ * @param MelOcCard $c
+ * @param MelOcNav $l
+ * @return array{array<string, MelAction>, array<string, int>|null}
+ */
+function mel_oc_acts($key, $c, $l)
+{
     $k = array('c' => $key);
     $acts = array(
         GUI_EVENT_KEY_LEFT => mel_input('card_move', $k + array('d' => 'left')),
@@ -1485,16 +1515,38 @@ function mel_oc_folder_view($media_url, $sel_state)
         $acts[GUI_EVENT_TIMER] = mel_input('card_load', $k);
         $timer = array(GuiTimerDef::delay_ms => MEL_OC_TICK_MS);
     }
-    return array(
-        PluginFolderView::multiple_views_supported => false,
-        PluginFolderView::archive => null,
-        PluginFolderView::folder_type => null,
-        PluginFolderView::view_kind => PLUGIN_FOLDER_VIEW_GCOMPS,
-        PluginFolderView::data => array(
-            PluginGCompsFolderView::window_def => mel_oc_window($c, $l, $pos),
-            PluginGCompsFolderView::sel_state => mel_oc_state($pos, $l),
-            PluginGCompsFolderView::actions => $acts,
-            PluginGCompsFolderView::timer => $timer));
+    return array($acts, $timer);
+}
+
+// The record of the screen of card $key under an overlay (MelOvlScreen, kit_ovl.php): owner the key, its action map
+// as the shell has it (mel_oc_acts and the keys Fav 2 and Fav 1 mel_mlv_keys adds: the close puts the map back whole by
+// change_behaviour; no RETURN), its timer (card_load of the rows of posters still asked, else null; off while the overlay
+// is open: a tick puts the screen anew), its sel_state at the place of the focus. A card not in memory or not shown
+// (no nav): null.
+/**
+ * @param string $key
+ * @return MelOvlScreen|null
+ */
+function mel_oc_scr($key)
+{
+    if (!isset(MelOc::$cards[$key]['nav']))
+        return null;
+    $c = MelOc::$cards[$key];
+    $l = $c['nav'];
+    list($acts, $timer) = mel_oc_acts($key, $c, $l);
+    return array('owner' => $key, 'map' => $acts + mel_mlv_key_acts("card:$key"), 'timer' => $timer,
+        'sel' => mel_oc_state($c['pos'], $l));
+}
+
+// The screen of card $key put anew (card_load, card_finish): the overlay it opened (the window of the copies) is not
+// that of the new one - its state gone (a key of it after this one is of a stale screen, mel_ovl_stale).
+/**
+ * @param string $key
+ */
+function mel_oc_ovl_drop($key)
+{
+    if (MelOvl::$st && MelOvl::$st['scr']['owner'] === $key)
+        MelOvl::$st = null;
 }
 
 // --- Keys.
@@ -1882,7 +1934,10 @@ function mel_oc_input($in, $control)
     if ($control === 'card_trailer')
         return mel_ct_play($c);
     if ($control === 'card_finish')
+    {
+        mel_oc_ovl_drop($key);
         return mel_oc_finish($key, $c);
+    }
     if ($control === 'card_src_menu')
         return mel_src_popup($c['ui'], 'card_src', mel_oc_src_params($in));
     $l = isset($c['nav']) ? $c['nav'] : mel_oc_layout($c);
@@ -1894,7 +1949,10 @@ function mel_oc_input($in, $control)
     $pos = mel_oc_pos($c, $l, $raw);
     MelOc::$cards[$key]['pos'] = $pos;
     if ($control === 'card_load')
+    {
+        mel_oc_ovl_drop($key);
         return mel_oc_load($key, MelOc::$cards[$key], $l);
+    }
     if ($control === 'card_menu')
         return mel_oc_menu($c['ui'], array_merge(mel_oc_src_items($key, $c, $l, $pos), mel_oc_lib_menu_items($key, $c, $l, $pos),
             $l['kind'] === 'movie' ?
