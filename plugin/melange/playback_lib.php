@@ -457,7 +457,7 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
 // the numbers of a copy anew. Pure, it knows no numbering: $seasons comes with the invariant in it - season => the
 // set of the numbers of its episodes (number => true), only the seasons asked as they are (the own card: the episodes
 // of its meta, the ones not out and of no date too, of the seasons with mel_cm_req_s = s, mel_oc_lib_eps - a season of
-// E9-E16 has no E1-E8; C7: the counts of season_numbers of the shell, mel_lib_resume_ep - each season 1..N, no episode
+// E9-E16 has no E1-E8; C7 and lib_next: the counts of season_numbers, mel_lib_mv_eps - each season 1..N, no episode
 // numbers there to look at), $cin - the runs of the numbering of Cinemeta (aio_cin, mel_cin_load). With $cin the
 // seasons are of Cinemeta (by_cin: asked as they are), an episode there when a run of its season has it (mel_cin_abs);
 // without, when the set of its season in $seasons has its number. So a season numbered on by TMDB (One Piece S2 is
@@ -505,6 +505,24 @@ function mel_lib_ep_same_one($s, $e, $seasons, $cin)
     return isset($seasons[$s][$e]);
 }
 
+// The episodes of series $y of the index for card $mv by the invariant of the numberings (mel_lib_ep_same), of C7 and
+// of lib_next (its card saved by mel_lib_play, of the own card too): the seasons of $mv['seasons'] - the counts of
+// season_numbers, each season 1..N (no episode numbers there to look at) - and its runs of Cinemeta $mv['cin']. ->
+// array(their copies "q:e" => copies, mel_lib_ep_copies; the hashes of the files, hash => array(q, e) | 'skip',
+// mel_lib_ep_hashes).
+/**
+ * @param MelMovie $mv
+ * @param string $y
+ * @return array{array<string, list<MelLibCopy>>, array<string, array{int, int}|string>}
+ */
+function mel_lib_mv_eps($mv, $y)
+{
+    $seasons = array();
+    foreach ($mv['seasons'] as $sn => $n)
+        $seasons[$sn] = $n >= 1 ? array_fill_keys(range(1, $n), true) : array();
+    return mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), $seasons, $mv['cin']);
+}
+
 // "Continue" of an episode of a copy on the disk (C7: play_action of wh_mode local, the record $r of mel_resume) of
 // series $mv, the fields $m of its movie_str. The key of the record: of its uid when that is of its episode
 // "aio:H:<wh_s>:<wh_e>:lib-..." (a vod_play has one recent_action_params, of its start episode), else wh_release; a
@@ -534,18 +552,9 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
     $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $y);
     if ($t['tmdb'] !== '')
         $mv['tmdb'] = $t['tmdb'];
-    // The copies of its episodes "q:e" => copies (mel_lib_ep_copies) and the hashes of its files hash => array(q, e) |
-    // 'skip' (mel_lib_ep_hashes), both by the invariant of the numberings (mel_lib_ep_same: q the season as asked; the
-    // counts of season_numbers - each season 1..N); not found: none.
-    $eps = array();
-    $fix = array();
-    if ($y !== '')
-    {
-        $seasons = array();
-        foreach ($mv['seasons'] as $sn => $n)
-            $seasons[$sn] = $n >= 1 ? array_fill_keys(range(1, $n), true) : array();
-        list($eps, $fix) = mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), $seasons, $mv['cin']);
-    }
+    // The copies of its episodes and the hashes of its files by the invariant of the numberings (mel_lib_mv_eps); not
+    // found: none.
+    list($eps, $fix) = $y !== '' ? mel_lib_mv_eps($mv, $y) : array(array(), array());
     $hid = $mv['dune_id'];
     $u = mel_wh_uid($r['uid'], $hid);
     // A record of season 1 has no s (the player writes it of S2+ only; wh_s -1): the season of its uid, else 1.
@@ -660,7 +669,9 @@ function mel_lib_next($in)
     mel_log("lib_next: S{$q}E{$e} $c");
     if ($c === '-')
         return mel_lib_next_missing($mv, $q, $e, 'none', $lang);
-    $eps = mel_lib_ep_copies($y);
+    // The episodes by the invariant of the numberings, as C7 (mel_lib_mv_eps): the playlist anew of them, not of the
+    // index as it is - a season of the index not the season of the card gives no file to the episodes of the card.
+    list($eps) = mel_lib_mv_eps($mv, $y);
     $go = mel_lib_start(isset($eps["$q:$e"]) ? $eps["$q:$e"] : array(), $c, 0, 0, true);
     if (isset($go['copy']))
         return mel_lib_play($mv, $go, $lang, array('y' => $y, 'q' => $q, 'e' => $e, 'eps' => $eps));
