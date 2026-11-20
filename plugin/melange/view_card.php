@@ -65,12 +65,13 @@ define('MEL_OC_INK', 10);
 // look, mel_pg_info_line) takes the 4th, the line of the copy on the disk ("С диска", MEL_OC_LIB_Y of
 // view_card_lib.php) or the line why at LINE_Y (no copy: "Только Lampac", no history, no IMDb) the 3rd - those over
 // them go too: the description 3 lines with the history alone, 2 with either line, the slot of the history empty when
-// there is none; the buttons and the rows do not move.
+// there is none; the buttons and the rows do not move. DESC_BOTTOM: the bottom of the slot of the history - that of the
+// line of the panel of the catalog (mel_catv_hist_y in a panel at MEL_CATV_PANE_Y, MEL_PG_INFO_H high), 589.
 define('MEL_OC_FACTS_Y', 269);
 define('MEL_OC_GENRES_Y', 315);
 define('MEL_OC_DIRECTOR_Y', 361);
 define('MEL_OC_DESC_LH', 42);
-define('MEL_OC_DESC_BOTTOM', 589);
+define('MEL_OC_DESC_BOTTOM', MEL_CATV_PANE_Y + mel_catv_hist_y() + MEL_PG_INFO_H);
 define('MEL_OC_BTN_Y', 602);
 define('MEL_OC_BTN_H', 64);
 define('MEL_OC_BTN_PAD', 32);
@@ -685,8 +686,8 @@ function mel_oc_hd($c, $l, $pos)
     return $ep ? mel_oc_ep_head($c, $ep, mel_oc_lib_ep_cur($l, $ep['s'], $ep['e'])) : mel_oc_head_lines($c, $l);
 }
 
-// The lines of the panel (x of the catalog), the description to DESC_BOTTOM, cut lines higher (a movie: the lines over
-// the buttons take them, mel_oc_first_movie); a series: DESC_GAP_SER, DESC_LH_SER, DESC_BOTTOM_SER.
+// The lines of the panel (x of the catalog), the description to the top of the highest line over the buttons (a movie,
+// over_y of mel_oc_first_movie: DESC_BOTTOM without one); a series: DESC_GAP_SER, DESC_LH_SER, DESC_BOTTOM_SER.
 /**
  * @param MelOcCard $c
  * @param MelOcNav $l
@@ -721,7 +722,7 @@ function mel_oc_head_lines($c, $l)
     $ser = $l['kind'] === 'series';
     $y += $ser ? MEL_OC_DESC_GAP_SER : 14;
     $lh = $ser ? MEL_OC_DESC_LH_SER : MEL_OC_DESC_LH;
-    $bottom = $ser ? MEL_OC_DESC_BOTTOM_SER : MEL_OC_DESC_BOTTOM - $l['cut'] * MEL_OC_DESC_LH;
+    $bottom = $ser ? MEL_OC_DESC_BOTTOM_SER : $l['over_y'];
     $n = max(0, intval(($bottom - $y) / $lh));
     $desc = $c['meta'] && $c['meta']['description'] !== '' ? $c['meta']['description'] : $c['tile']['description'];
     foreach (mel_gc_wrap(mel_clean($desc), MEL_CATV_LINE_PX, MEL_CATV_TEXT_W, $n, true) as $i => $line)
@@ -1000,9 +1001,9 @@ function mel_oc_stops($bands, $strips, $about, $off)
 // of a movie, TITLE_W at most), what the first screen alone shows (what the keys need,
 // MelOcNav), the components of "About" under the rows (the rows over them by the place,
 // mel_oc_window). The first screen alone: the lines over the buttons (a movie: the line of its history, read here
-// once a request, and that of its copy or why, mel_oc_first_movie; cut: the lines of the description they take,
-// mel_oc_head_lines) - their foot would peep under the logo at DOWN - and the hint of what DOWN shows ("Похожие, в
-// ролях и о фильме"). A series: the history read once (mel_oc_pick): the episode to offer and the progress of the
+// once a request, and that of its copy or why, mel_oc_first_movie; over_y: the top of the highest of them, the
+// description over it, mel_oc_head_lines) - their foot would peep under the logo at DOWN - and the hint of what DOWN
+// shows ("Похожие, в ролях и о фильме"). A series: the history read once (mel_oc_pick): the episode to offer and the progress of the
 // episodes; the tabs of its seasons and the row, or the line "did not load" without the meta.
 /**
  * @param MelOcCard $c
@@ -1040,12 +1041,12 @@ function mel_oc_layout($c)
         $zones[] = 'row';
     if (count($stops) > 1)
         $zones[] = 'down';
-    $cut = 0;
+    $over_y = MEL_OC_DESC_BOTTOM;
     if ($series)
         $only = mel_oc_first_series($c, $btns, $down || $cast || $posters);
     else
     {
-        list($only, $cut) = mel_oc_first_movie($c, $ol['lib'], $ol['hid']);
+        list($only, $over_y) = mel_oc_first_movie($c, $ol['lib'], $ol['hid']);
         if ($down || $posters)
         {
             $below = array_slice($rows, 1);
@@ -1061,7 +1062,7 @@ function mel_oc_layout($c)
     return array('kind' => $series ? 'series' : 'movie', 'btns' => $btns, 'btn_y' => $series ? MEL_OC_BTN_Y_SER : MEL_OC_BTN_Y,
         'stops' => $stops, 'clips' => $clips, 'tops' => $tops, 'h' => max(1080, $stops[count($stops) - 1] + MEL_OC_SHOW_BOTTOM), 'off' => $off,
         'zones' => $zones, 'tabs' => $tabs, 'ep' => $ep, 'prog' => $prog, 'rows' => $rows, 'strips' => $strips, 'tw' => $tw,
-        'first' => $only, 'cut' => $cut, 'down' => $down, 'lib' => $ol['lib'], 'hid' => $ol['hid'],
+        'first' => $only, 'over_y' => $over_y, 'down' => $down, 'lib' => $ol['lib'], 'hid' => $ol['hid'],
         'lib_eps' => $ol['lib_eps'], 'lib_y' => $ol['lib_y'], 'lib_cur' => $ol['lib_cur']);
 }
 
@@ -1086,8 +1087,9 @@ function mel_oc_first_series($c, $btns, $more)
 
 // The first screen of the movie of card $c alone, of copies on the disk $lib of card of history $hid (mel_oc_lib): the
 // lines over the buttons (variant Б, owner 20.11.2026) - that of its history (mel_oc_hist) and that of its copy
-// (mel_oc_lib_line) or why (mel_oc_under) -> array(the components, cut: the lines of the description they take - 2 with
-// the line of the copy or why, 1 with the history alone).
+// (mel_oc_lib_line) or why (mel_oc_under) -> array(the components, the top of the highest of them: the line of the copy
+// (MEL_OC_LIB_Y) or why (MEL_OC_LINE_Y), else that of the history (its panel at MEL_CATV_PANE_Y, mel_catv_hist_y), else
+// DESC_BOTTOM - the description over it, mel_oc_head_lines).
 /**
  * @param MelOcCard $c
  * @param list<MelLibCopy> $lib
@@ -1109,7 +1111,8 @@ function mel_oc_first_movie($c, $lib, $hid)
     }
     else
         $line = mel_oc_under($c, (bool) $hist);
-    return array(array_merge($hist, $line), $line ? 2 : ($hist ? 1 : 0));
+    $top = $line ? ($lib ? MEL_OC_LIB_Y : MEL_OC_LINE_Y) : ($hist ? MEL_CATV_PANE_Y + mel_catv_hist_y() : MEL_OC_DESC_BOTTOM);
+    return array(array_merge($hist, $line), $top);
 }
 
 // The clip of the page at stop $p of layout $l, from its top (under the logo; at the stop of a row of posters under
