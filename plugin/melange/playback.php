@@ -105,6 +105,21 @@ function mel_lazy_series($mv, $s, $e, $hash, $list, $mode)
         PluginVodSeriesInfo::playback_url_is_stream_url => false);
 }
 
+// A lazy episode of a playlist of the disk (mel_lib_play), "lib_next:<H>:<Y>:<q>:<e>:<key>" -> lib_next
+// (mel_lazy_action): H the card of the history, Y the series of the index, the key of its copy, '-' none on the disk.
+/**
+ * @param string $hid
+ * @param string $y
+ * @param int $q
+ * @param int $e
+ * @param string $key
+ * @return string
+ */
+function mel_lib_lazy_url($hid, $y, $q, $e, $key)
+{
+    return "lib_next:$hid:$y:$q:$e:$key";
+}
+
 // A playlist item of URL $url, linked to the card by $hash ('' - unlinked);
 // $list: in a playlist of several (mel_ser_name). Its recent_uid is read back
 // by history.php: mel_wh_pick (the release), mel_wh_progress, mel_wh_series
@@ -327,28 +342,27 @@ function mel_pf_check($a)
 // and mel_lib_title read of a movie.
 define('MEL_LIB_MOVIE_KEYS', 'id imdb_id tmdb_id title native_title aio_en_title year poster_url fanart_url rate_imdb');
 
-// vod_play of the copy $copy (the $i-th of $n of its title, for the log) of title $mv from $pos s (0: the start; the
-// player offers the place of the record itself). No stream check, no TorrServer. Linked by the card $mv['dune_id'] (H,
-// set by the caller: of the own card, else of the index): recent_uid "aio:H:q:e:lib-...", mdb_info, "Continue" back to
-// play_action with wh_mode local; no H - unlinked. A movie ($ep null): one item, no markers. An episode ($ep: y - the
-// series of the index, q, e - the episode, the season as asked, eps - the copies of the series "q:e" => copies, dur -
-// the length of the MKV of the copy, 0 unknown): its markers by that length (the file is not read here); linked, a
-// playlist of its season and E1 of the next one as mel_play (by season_numbers; none, the episode past them or a season
-// over MEL_EPISODES_MAX - alone), the others lazy "lib_next:H:Y:q:e:<key>" (mel_lazy_action; '-' none on the disk): the
-// copy by mel_lib_ep_pick - F the pack of this copy (the choice just made), the record only of an episode not watched;
-// the card saved for lib_next (mel_movie_save). The log has the key, no path, no name.
+// vod_play of the copy of title $mv the check found there ($go of mel_lib_start: copy, from at s - 0: the start, the
+// player offers the place of the record itself; the i-th of n of its title, for the log; dur - the length of its MKV).
+// No stream check, no TorrServer. Linked by the card $mv['dune_id'] (H, set by the caller: of the own card, else of the
+// index): recent_uid "aio:H:q:e:lib-...", mdb_info, "Continue" back to play_action with wh_mode local; no H - unlinked.
+// A movie ($ep null): one item, no markers. An episode ($ep: y - the series of the index, q, e - the episode, the season
+// as asked, eps - the copies of the series "q:e" => copies): its markers by the length of its MKV (0 unknown; the file
+// is not read here); linked, a playlist of its season and E1 of the next one as mel_play (by season_numbers; none, the
+// episode past them or a season over MEL_EPISODES_MAX - alone), the others lazy (mel_lib_lazy_url; '-' none on the
+// disk): the copy by mel_lib_ep_pick - F the pack of this copy (the choice just made), the record only of an episode
+// not watched; the card saved for lib_next (mel_movie_save). The log has the key, no path, no name.
 /**
  * @param MelMovie $mv
- * @param MelLibCopy $copy
- * @param int $pos
+ * @param MelLibHere $go
  * @param string $lang
- * @param int $i
- * @param int $n
  * @param MelLibEp|null $ep
  * @return MelAction
  */
-function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1, $ep = null)
+function mel_lib_play($mv, $go, $lang, $ep = null)
 {
+    $copy = $go['copy'];
+    $pos = $go['at'];
     $linked = $mv['dune_id'] !== '';
     $q = $ep ? $ep['q'] : -1;
     $e = $ep ? $ep['e'] : -1;
@@ -359,7 +373,7 @@ function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1, $ep = null)
     $ser = mel_vod_item($mv, $q, $e, $copy['url'], $linked ? $copy['key'] : '', $list);
     if ($ep)
     {
-        $mk = mel_markers($mv['imdb'], $q, $e, $ep['dur'], '', '');
+        $mk = mel_markers($mv['imdb'], $q, $e, $go['dur'], '', '');
         if ($mk)
             $ser[PluginVodSeriesInfo::markers] = $mk;
     }
@@ -386,7 +400,7 @@ function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1, $ep = null)
         $whys[$why] = (isset($whys[$why]) ? $whys[$why] : 0) + 1;
         $series[] = array(
             PluginVodSeriesInfo::name => mel_ser_name($mv, $pq, $pe, true),
-            PluginVodSeriesInfo::playback_url => "lib_next:{$mv['dune_id']}:$y:$pq:$pe:" . ($of ? $of[0]['key'] : '-'),
+            PluginVodSeriesInfo::playback_url => mel_lib_lazy_url($mv['dune_id'], $y, $pq, $pe, $of ? $of[0]['key'] : '-'),
             PluginVodSeriesInfo::playback_url_is_stream_url => false);
     }
     $p = strrpos($copy['path'], '/');
@@ -414,7 +428,8 @@ function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1, $ep = null)
         mel_movie_save($mv, $lang);
     mel_pg_link_movie($mv);
     mel_log("play: local {$copy['key']}" . ($ep ? " S{$q}E{$e}" : '') . " pos=$pos linked=" . ($linked ? 1 : 0) .
-        ($ep ? ', playlist ' . count($series) : '') . ', copy ' . ($i + 1) . " of $n" . ($copy['res'] !== '' ? ", {$copy['res']}" : ''));
+        ($ep ? ', playlist ' . count($series) : '') . ', copy ' . ($go['i'] + 1) . " of {$go['n']}" .
+        ($copy['res'] !== '' ? ", {$copy['res']}" : ''));
     if ($whys)
     {
         ksort($whys);
@@ -434,20 +449,20 @@ function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1, $ep = null)
 // chosen ('' none; not among them - logged, as none) - from $first_pos s, if its file is there (mel_lib_here); else (or
 // none such) by the copies left from $pos s - one: it, if there; several: their choice to the caller (pick), $auto - the
 // first there of them in their order (no window: under the player). -> MelLibGo: copy, at (the place), i of n (for the
-// log), dur (of $mkv: the length of its MKV, else 0) - the file there; pick - the copies left, 2+; gone 'no' | 'slow' -
-// none left. One check a copy at most; a copy that does not answer ('slow') takes the copies of all the shares of its
-// server out unchecked (srv: the NAS sleeps or is off - one wait, not one a share; a mirror on another server is still
-// checked), and no check starts that the operation (MEL_OP_BUDGET) has no time left for (with $mkv: and its read).
+// log), dur (of an episode: the length of its MKV, read by the same check, 0 unknown; of a movie 0) - the file there;
+// pick - the copies left, 2+; gone 'no' | 'slow' - none left. One check a copy at most; a copy that does not answer
+// ('slow') takes the copies of all the shares of its server out unchecked (srv: the NAS sleeps or is off - one wait,
+// not one a share; a mirror on another server is still checked), and no check starts that the operation
+// (MEL_OP_BUDGET) has no time left for (of an episode: and its read).
 /**
  * @param list<MelLibCopy> $copies
  * @param string $first
  * @param int $first_pos
  * @param int $pos
  * @param bool $auto
- * @param bool $mkv
  * @return MelLibGo
  */
-function mel_lib_start($copies, $first, $first_pos, $pos, $auto, $mkv)
+function mel_lib_start($copies, $first, $first_pos, $pos, $auto)
 {
     $left = $copies;
     $want = mel_lib_copies_of($copies, $first);
@@ -456,7 +471,6 @@ function mel_lib_start($copies, $first, $first_pos, $pos, $auto, $mkv)
             'not among ' . count($copies) . ' copies')));
     $at = $first_pos;
     $slow = false;
-    $need = (int) (MEL_LIB_HERE_S + ($mkv ? ceil(MEL_LIB_MKV_MS / 1000) : 0));
     for (;;)
     {
         if (!$want)
@@ -469,6 +483,9 @@ function mel_lib_start($copies, $first, $first_pos, $pos, $auto, $mkv)
             $at = $pos;
         }
         $try = array_shift($want);
+        // An episode: the markers by the length of its MKV (a movie has none).
+        $mkv = $try['e'] > 0;
+        $need = (int) (MEL_LIB_HERE_S + ($mkv ? ceil(MEL_LIB_MKV_MS / 1000) : 0));
         if (mel_op_total($need, $need, "library: here {$try['key']}") === 0)
             return array('gone' => 'slow');
         $dur = 0.0;
@@ -655,9 +672,9 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
     $keep = array_intersect_key($m, array_flip(explode(' ', MEL_LIB_MOVIE_KEYS)));
     $back = array('lib_copy', array('movie_str' => strval(json_encode($keep)), 'series_type' => 'single',
         'lang' => $lang, 'pos' => strval($pos)));
-    $go = mel_lib_start($copies, $key, $pos, $pos, false, false);
+    $go = mel_lib_start($copies, $key, $pos, $pos, false);
     if (isset($go['copy']))
-        return mel_lib_play($mv, $go['copy'], $go['at'], $lang, $go['i'], $go['n']);
+        return mel_lib_play($mv, $go, $lang);
     return isset($go['pick']) ? mel_lib_pick_menu($back[0], $back[1], $go['pick'], '', $lang) : mel_lib_gone($go['gone']);
 }
 

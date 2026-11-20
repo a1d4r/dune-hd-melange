@@ -614,10 +614,12 @@ parameters:
         MelLibCopy: 'array{folder: string, path: string, mid: string, hash: string, size: float, tags: list<string>, res: string, s: int, e: int, dir: string, url: string, mnt: string, srv: string, key: string, cid: string, caption: string}'
         # A title whose files are looked for in the media library (mel_lib_mid, library.php): its card of the Dune, IMDb, TMDB (of a series its TMDB of series), type (movie, series), year, names (of the tile, English, original).
         MelLibTitle: 'array{dune: string, imdb: string, tmdb: string, type: string, year: string, names: list<string>}'
-        # What the check of the copies before a start gives (mel_lib_start, playback.php): the copy there (at - the place in s, i of n - which copy, for the log, dur - the length of its MKV, 0 unknown); the copies left to choose of, 2+; none left - gone 'no' or 'slow'.
-        MelLibGo: 'array{copy: MelLibCopy, at: int, i: int, n: int, dur: float}|array{pick: list<MelLibCopy>}|array{gone: string}'
-        # The episode of a start of a copy on the disk (mel_lib_play, playback.php): y - the series of the index, q, e - the episode (the season as asked), eps - the copies of the series "q:e" => copies (mel_lib_ep_copies), dur - the length of the MKV of the copy, 0 unknown.
-        MelLibEp: 'array{y: string, q: int, e: int, eps: array<string, list<MelLibCopy>>, dur: float}'
+        # The copy the check before a start found there (mel_lib_start, mel_lib_play, playback.php): at - the place in s, i of n - which copy, for the log, dur - the length of its MKV (of an episode), 0 unknown.
+        MelLibHere: 'array{copy: MelLibCopy, at: int, i: int, n: int, dur: float}'
+        # What the check of the copies before a start gives (mel_lib_start, playback.php): the copy there (MelLibHere); the copies left to choose of, 2+; none left - gone 'no' or 'slow'.
+        MelLibGo: 'MelLibHere|array{pick: list<MelLibCopy>}|array{gone: string}'
+        # The episode of a start of a copy on the disk (mel_lib_play, playback.php): y - the series of the index, q, e - the episode (the season as asked), eps - the copies of the series "q:e" => copies (mel_lib_ep_copies).
+        MelLibEp: 'array{y: string, q: int, e: int, eps: array<string, list<MelLibCopy>>}'
         # The latest record of a copy on the disk of a card (MelWh::$lib, history.php): key, pos and len in s, its end.
         MelLibRec: 'array{key: string, pos: float, len: float, end: int}'
         # A strip of a row under a frame of the focus (view_card_row.php).

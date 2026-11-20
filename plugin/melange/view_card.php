@@ -1826,9 +1826,9 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
     mel_log("card: own $key: watch a copy on the disk");
     list($first, $first_pos, $pos) = mel_lib_place($l['hid'], $copies, $k);
     MelOc::$cards[$key]['played'] = true;
-    $go = mel_lib_start($copies, $first, $first_pos, $pos, false, false);
+    $go = mel_lib_start($copies, $first, $first_pos, $pos, false);
     if (isset($go['copy']))
-        return mel_lib_play($mv, $go['copy'], $go['at'], $c['ui'], $go['i'], $go['n']);
+        return mel_lib_play($mv, $go, $c['ui']);
     return isset($go['pick']) ? mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'first'), $go['pick'], '',
         $c['ui']) : mel_lib_gone($go['gone']);
 }
