@@ -1741,7 +1741,8 @@ function mel_oc_src_items($key, $c, $l, $pos)
 }
 
 // card_finish (GUI_EVENT_MENU_PLAYBACK_FINISH of the screen of card $c, $key; after STOP): the card anew in place (its
-// progress, its lines over the buttons); after a copy on the disk (played) also the tab "TV" built anew (mel_tv_flag)
+// progress, its lines over the buttons), the history stale first (mel_pg_stale: the shell may write the record after
+// PLAYBACK_FINISH, within MEL_PG_SIG_S of the last read, and the line of the history would show the old one); after a copy on the disk (played) also the tab "TV" built anew (mel_tv_flag)
 // and the main screens of the catalog anew first (mel_catv_after_player: the row "Continue" and the badges), as
 // mel_finish of the list.
 /**
@@ -1754,6 +1755,7 @@ function mel_oc_finish($key, $c)
     $played = !empty($c['played']);
     unset(MelOc::$cards[$key]['played']);
     mel_log("card: own $key: back from the player" . ($played ? ', a copy on the disk' : ''));
+    mel_pg_stale();
     $a = mel_replace_act("card:$key", $c['tile']['name']);
     if (!$played)
         return $a;
