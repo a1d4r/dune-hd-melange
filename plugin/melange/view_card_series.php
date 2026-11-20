@@ -756,8 +756,9 @@ function mel_oc_mark_items($key, $c, $prog, $pos)
 // card_mark of MENU of an episode (mel_oc_mark_items: s, e of the meta, w: on, off, prev) of series
 // card $c ($key) -> update_watched_marks (mel_pg_mark_act): on/off the episode, prev the episodes out before it
 // (mel_oc_prev_eps), the mark of the own card of each and the uids of the records of our releases of it
-// (mel_wh_mark_ids); then mel_oc_mark_post, the focus on the episode (the shell has written watched_files.txt by
-// then). Nothing for a bad input.
+// (mel_wh_mark_ids), and the native uids of its files on the disk, mounted or not (C10, mel_oc_lib_native_uids); then
+// mel_oc_mark_post, the focus on the episode (the shell has written watched_files.txt by then). Nothing for a bad input.
+// The log: the counts (", N native uids" with files only), no path.
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -780,10 +781,11 @@ function mel_oc_mark($key, $c, $in)
     if (!$keys)
         return null;
     $ids = mel_wh_mark_ids($c['dune'], $keys);
+    $nat = mel_oc_lib_native_uids($c, $keys);
     MelOc::$cards[$key]['pos'] = array_merge($c['pos'], array('z' => 'row', 'p' => 0, 's' => $s, 'e' => $e));
     mel_log("card: own $key: mark $w on S{$s}E{$e}: " . count($keys) . ' episodes, ' . (count($ids) - count($keys)) .
-        ' uids of records');
-    return mel_pg_mark_act($ids, array(), $w !== 'off', mel_oc_mark_post($key, $c));
+        ' uids of records' . ($nat ? ', ' . count($nat) . ' native uids' : ''));
+    return mel_pg_mark_act(array_merge($ids, $nat), array(), $w !== 'off', mel_oc_mark_post($key, $c));
 }
 
 // ENTER on "did not load" of series card $c ($key): the meta asked again; got - the card anew with

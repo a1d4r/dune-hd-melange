@@ -1735,7 +1735,8 @@ function mel_oc_movie_mark_items($key, $c)
 
 // card_mark_movie of MENU of a movie (mel_oc_movie_mark_items, $on: w on) of card $c ($key) -> update_watched_marks of
 // its card of the Dune (mel_pg_mark_act: movie_ids; off also the uid of its latest record if marked,
-// mel_wh_movie_off_ids), then mel_oc_mark_post.
+// mel_wh_movie_off_ids; on and off the native uids of its files on the disk, mounted or not, C10:
+// mel_oc_lib_native_uids), then mel_oc_mark_post. The log: the counts (", N native uids" with files only), no path.
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1747,8 +1748,10 @@ function mel_oc_mark_movie($key, $c, $on)
     if ($c['tile']['type'] !== 'movie' || $c['dune'] === '')
         return null;
     $ids = $on ? array() : mel_wh_movie_off_ids($c['dune']);
-    mel_log("card: own $key: mark " . ($on ? 'on' : 'off') . ' of the movie, ' . count($ids) . ' uids');
-    return mel_pg_mark_act($ids, array($c['dune']), $on, mel_oc_mark_post($key, $c));
+    $nat = mel_oc_lib_native_uids($c);
+    mel_log("card: own $key: mark " . ($on ? 'on' : 'off') . ' of the movie, ' . count($ids) . ' uids' .
+        ($nat ? ', ' . count($nat) . ' native uids' : ''));
+    return mel_pg_mark_act(array_merge($ids, $nat), array($c['dune']), $on, mel_oc_mark_post($key, $c));
 }
 
 // After a mark of MENU of card $c ($key), the post_action of update_watched_marks: the card anew in place (its line

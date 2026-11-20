@@ -298,6 +298,17 @@ function mel_oc_lib_eps($c, $y)
     $m = $c['meta'];
     if (!$m || $y === '')
         return array(array(), array());
+    return mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), mel_oc_lib_seasons($m), $m['cin']);
+}
+
+// The seasons of meta $m by the invariant of the numberings (mel_oc_lib_eps): season => the set of the numbers of its
+// episodes (those not out and of no date too), only a season asked as it is (mel_cm_req_s = s).
+/**
+ * @param MelCardMeta $m
+ * @return array<int, array<int, true>>
+ */
+function mel_oc_lib_seasons($m)
+{
     $seasons = array();
     foreach ($m['seasons'] as $s => $eps)
     {
@@ -306,7 +317,54 @@ function mel_oc_lib_eps($c, $y)
         foreach ($eps as $ep)
             $seasons[$s][$ep['e']] = true;
     }
-    return mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), $seasons, $m['cin']);
+    return $seasons;
+}
+
+// The uids of the native records of the files on the disk of card $c (C10, spec §7.5: the marks "watched" of the card
+// on them too) - of every file of them in the index, mounted or not (mel_lib_native_uid: of the index alone, no share
+// touched), each once: of a movie all its files; of a series the files of episodes $keys ("q:e" of the history,
+// mel_cm_hkey) by the invariant of the numberings (mel_oc_lib_seasons, mel_lib_ep_same_one: "s:e" of the index is "q:e"
+// then). Y of the screen shown (nav lib_y), else found anew (mel_oc_lib). No Y, a series of no meta: none.
+/**
+ * @param MelOcCard $c
+ * @param list<string> $keys
+ * @return list<string>
+ */
+function mel_oc_lib_native_uids($c, $keys = array())
+{
+    if (isset($c['nav']))
+        $y = $c['nav']['lib_y'];
+    else
+    {
+        $ol = mel_oc_lib($c);
+        $y = $ol['lib_y'];
+    }
+    $m = $c['meta'];
+    $series = $c['tile']['type'] === 'series';
+    mel_lib_index();
+    if ($y === '')
+        return array();
+    $files = array();
+    if (!$series)
+        $files = isset(MelLib::$by_mid[$y]) ? MelLib::$by_mid[$y] : array();
+    else if ($m && isset(MelLib::$eps[$y]))
+    {
+        $want = array_flip($keys);
+        $seasons = mel_oc_lib_seasons($m);
+        foreach (MelLib::$eps[$y] as $r)
+        {
+            if (isset($want[mel_oc_se($r['s'], $r['e'])]) && mel_lib_ep_same_one($r['s'], $r['e'], $seasons, $m['cin']))
+                $files[] = $r;
+        }
+    }
+    $out = array();
+    foreach ($files as $f)
+    {
+        $u = mel_lib_native_uid($f);
+        if ($u !== '')
+            $out[$u] = 1;
+    }
+    return array_keys($out);
 }
 
 // The episode to offer of series card $c and the progress of its episodes (mel_oc_pick) by the history of H with the
