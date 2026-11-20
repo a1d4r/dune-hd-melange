@@ -516,8 +516,9 @@ function mel_gc_lang_items($r, $width)
     $end = array();
     if ($q !== '')
     {
-        $p = MelKit::pic("k_lang_$q");
-        $end[] = array('q', "k_lang_$q", $p['w']);
+        $name = 'k_lang_' . $q;
+        $p = MelKit::pic($name);
+        $end[] = array('q', $name, $p['w']);
     }
     $m = strtolower(mel_row_subs_mark($r));
     // A plate b2 (k_badge_subs-*); a mark of no picture: none.
