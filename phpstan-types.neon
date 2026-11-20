@@ -311,8 +311,9 @@ parameters:
         MelOvlState: 'array{scr: MelOvlScreen, open: bool, kp?: MelKp, kp_done?: array<string, MelKpChoice>, dlg?: MelDlg, wt?: MelWait, lw?: MelLibWin}'
         # The window of the copies on the disk over the own card (W2, MelOvl::$st['lw'], view_card_lib.php): copies, its
         # lines (the best first); at, the line of the cursor; mode, first (the first "Смотреть") or menu (MENU "Копия на
-        # диске…"); s, e, the episode (-1 of a movie); cur, the cid of the copy "· сейчас" ('' none).
-        MelLibWin: 'array{copies: list<MelLibCopy>, at: int, mode: string, s: int, e: int, cur: string}'
+        # диске…"); s, e, the episode (-1 of a movie); cur, the cid of the copy "· сейчас" ('' none); top, the first line
+        # shown; share, the progress of the line "сейчас" (0 none: no bar).
+        MelLibWin: 'array{copies: list<MelLibCopy>, at: int, mode: string, s: int, e: int, cur: string, top: int, share: float}'
         # A button of the own dialog or wait (kit_dlg.php, mel_dlg_buttons): its id, label, icon, the action after the
         # close (null none), RETURN presses it (cancel, of a wait).
         MelDlgButton: 'array{id: string, label: string, icon: string, act: MelAction|null, cancel: bool}'

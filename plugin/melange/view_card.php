@@ -1538,8 +1538,9 @@ function mel_oc_scr($key)
         'sel' => mel_oc_state($c['pos'], $l));
 }
 
-// The screen of card $key put anew (card_load, card_finish): the overlay it opened (the window of the copies) is not
-// that of the new one - its state gone (a key of it after this one is of a stale screen, mel_ovl_stale).
+// The screen of card $key put anew (card_load with the overlay closed, card_finish): the overlay it opened (the window
+// of the copies) is not that of the new one - its state gone (a key of it after this one is of a stale screen,
+// mel_ovl_stale).
 /**
  * @param string $key
  */
@@ -1945,6 +1946,13 @@ function mel_oc_input($in, $control)
         return mel_oc_src($c, $l, $in);
     if ($control === 'card_lib_copies' || $control === 'card_lib_copy')
         return mel_oc_lib_input($key, $c, $l, $in, $control);
+    // A tick of the rows of posters sent before the overlay of the card took the timer off (its window of the copies
+    // open): nothing - the screen put anew would take the window away; the close gives the timer back, a tick then.
+    if ($control === 'card_load' && MelOvl::$st && MelOvl::$st['open'] && MelOvl::$st['scr']['owner'] === $key)
+    {
+        mel_log("card: own $key: a tick under the overlay, none");
+        return null;
+    }
     $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;
     $pos = mel_oc_pos($c, $l, $raw);
     MelOc::$cards[$key]['pos'] = $pos;

@@ -2336,6 +2336,8 @@ function mel_handle_user_input($in)
         return mel_gc_input($in);
     if ($control === 'kp_key')
         return mel_kp_input($in);
+    if ($control === 'lw_key')
+        return mel_lib_win_input($in);
     if ($control === 'dlg_key' || $control === 'wt_key' || $control === 'wt_tick')
         return mel_dlg_input($in, $control);
     if ($control === 'ks_key' || $control === 'ks_tick')
