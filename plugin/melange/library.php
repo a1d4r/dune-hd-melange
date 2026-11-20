@@ -46,16 +46,20 @@ if (!defined('MEL_LIB_MKV_MS'))
     define('MEL_LIB_MKV_MS', 1000);
 // The script of the check (sh -c, POSIX: bash, dash, mksh, busybox ash): 1 or 0 for a file at $MEL_P to $MEL_R,
 // renamed there whole; with $MEL_B set, of a file there then its first 64 KB to $MEL_R.b (dd: head -c is not POSIX),
-// renamed there whole too; the paths only in the environment. Its lifetime bound inside, with no timeout(1) (that of
-// busybox before 1.30 of old boxes takes "-t N", toybox "-s KILL N"; which one PATH finds is not known): a watcher in
-// the background kills the script (kill -9, MEL_LIB_HERE_S + 2 s), the read too; the script done, it kills the
-// watcher, and the watcher its sleep (no sleep left behind, no kill of a pid reused later).
+// renamed there whole too, an empty $MEL_R.b for a read failed (dd or mv); the paths only in the environment. Its
+// lifetime bound inside, with no timeout(1) (that of busybox before 1.30 of old boxes takes "-t N", toybox "-s KILL
+// N"; which one PATH finds is not known): a watcher in the background kills the script (kill -9 at MEL_LIB_HERE_S + 2
+// s, by steps of sleep 1) - not a dd it waits for, a process of its own: that one an orphan then, done by itself, its
+// $MEL_R.b.p removed by the next check. The script done, it kills the watcher (no kill of a pid reused later); the
+// sleep 1 of the watcher of that moment is left, 1 s at most (a kill of a sleep of its own would miss the one forked
+// but not started yet).
 define('MEL_LIB_HERE_SH',
-    '( trap \'kill $s 2>/dev/null; exit 0\' TERM; sleep ' . (MEL_LIB_HERE_S + 2) . ' & s=$!; wait $s; kill -9 $$ ) & ' .
+    '( for i in ' . implode(' ', range(1, MEL_LIB_HERE_S + 2)) . '; do sleep 1; done; kill -9 $$ ) & ' .
     'w=$!; ' . MEL_LIB_HERE_TEST . 'if test -f "$MEL_P"; then r=1; else r=0; fi; ' .
     'echo $r >"$MEL_R.p" && mv -f "$MEL_R.p" "$MEL_R"; ' .
     'if test $r = 1 && test -n "$MEL_B"; then ' .
-    'dd if="$MEL_P" of="$MEL_R.b.p" bs=4096 count=16 2>/dev/null && mv -f "$MEL_R.b.p" "$MEL_R.b"; fi; kill $w');
+    '{ dd if="$MEL_P" of="$MEL_R.b.p" bs=4096 count=16 2>/dev/null && mv -f "$MEL_R.b.p" "$MEL_R.b"; } || ' .
+    ': >"$MEL_R.b"; fi; kill $w');
 
 // The library in the memory of php_server, until its files change (mel_lib_index).
 class MelLib
@@ -71,8 +75,9 @@ class MelLib
     /** @var array<string, list<MelLibFile>> */
     public static $by_mid = array();
     // Episode files (ass 0, s >= 1, e >= 1) by their movie_id, their season and episode after the rules of the numbers
-    // (mel_lib_eps_fix); a movie_id with none of them taken is not here.
-    /** @var array<string, list<MelLibFile>> */
+    // (mel_lib_eps_fix); a movie_id with none of them taken is not here. Only the fields of a file of a copy not got
+    // from the others (mel_lib_ep_file): a library may have tens of thousands of them, all in the memory of php_server.
+    /** @var array<string, list<MelLibEp>> */
     public static $eps = array();
     // The hashes of the episode files mel_lib_eps_fix dropped, by their movie_id.
     /** @var array<string, list<string>> */
@@ -522,24 +527,29 @@ function mel_lib_read_index($id, $kind, &$left)
 // episode) -> list of MelLibFile, $left: the bytes of the budget left
 // (mel_lib_read_index). As load_index_for_folder of the shell: a record
 // without hash or id is skipped, the first of a path kept. $info: 'N records,
-// M files' (of movies) or why there are none. $eps: by movie_id, its episode
-// files (ass_type 0, season and episode 1 or more: f, numbers as in the index)
-// and the count of its records neither a movie nor an episode (b: a bonus, a
-// season 0, a season with no episode).
+// M files' (of movies) or why there are none. $ep_in: added to, by movie_id,
+// its episode files (ass_type 0, season and episode 1 or more: f, MelLibEpIn,
+// numbers as in the index, only the fields the rules of the numbers and the
+// episodes kept need) and the count of its records neither a movie nor an
+// episode (b: a bonus, a season 0, a season with no episode); of all the
+// folders in one: the episode files are many, no copy of them.
 /**
  * @param int|string $folder_id
  * @param string $info
  * @param int $left
- * @param array<string, array{f: list<MelLibEpIn>, b: int}>|null $eps
- * @param-out array<string, array{f: list<MelLibEpIn>, b: int}> $eps
+ * @param array<string, array{f: list<MelLibEpIn>, b: int}>|null $ep_in
+ * @param-out array<string, array{f: list<MelLibEpIn>, b: int}> $ep_in
  * @return list<MelLibFile>
  */
-function mel_lib_folder_index($folder_id, &$info, &$left, &$eps = null)
+function mel_lib_folder_index($folder_id, &$info, &$left, &$ep_in = null)
 {
-    $eps = array();
+    if ($ep_in === null)
+        $ep_in = array();
     list($list, $info) = mel_lib_read_index($folder_id, 'files', $left);
     if ($list === null)
         return array();
+    // One string of the folder for all its records (not one each).
+    $fid = strval($folder_id);
     $files = array();
     $seen = array();
     foreach ($list as $f)
@@ -558,56 +568,83 @@ function mel_lib_folder_index($folder_id, &$info, &$left, &$eps = null)
         $ep = $ass === 0 && $s >= 1 && $e >= 1;
         if (!$ep && ($ass !== 0 || $s >= 0 || $e >= 0))
         {
-            if (!isset($eps[$mid]))
-                $eps[$mid] = array('f' => array(), 'b' => 0);
-            $eps[$mid]['b']++;
+            if (!isset($ep_in[$mid]))
+                $ep_in[$mid] = array('f' => array(), 'b' => 0);
+            $ep_in[$mid]['b']++;
+            continue;
+        }
+        $tg = isset($f['tags']) && is_string($f['tags']) ? $f['tags'] : '';
+        // The folder of the file in the folder of the library ('' at its root), for the path of a copy shown and the
+        // packs of the episodes.
+        $dir = mel_ts_dirname($f['path']);
+        if ($ep)
+        {
+            if (!isset($ep_in[$mid]))
+                $ep_in[$mid] = array('f' => array(), 'b' => 0);
+            // The tags as the index has them (mel_lib_ep_file reads them for a copy); match_confirmed: only for the
+            // rule of the confirmed (mel_lib_eps_fix), not in the file taken.
+            $ep_in[$mid]['f'][] = array('folder' => $fid, 'path' => $f['path'], 'hash' => strval($f['hash']),
+                'size' => mel_num(isset($f['size']) ? $f['size'] : 0), 'tg' => $tg, 's' => $s, 'e' => $e,
+                'dir' => $dir, 'mc' => isset($f['match_confirmed']) && $f['match_confirmed'] === 'yes');
             continue;
         }
         // The media tags of the indexer ("MKV,4K,23.976,DV,HEVC,16:9,Atmos,7.1"), read once (mel_lib_tags).
-        $tags = mel_lib_tags(isset($f['tags']) && is_string($f['tags']) ? $f['tags'] : '');
-        $rec = array(
-            'folder' => strval($folder_id),
+        $tags = mel_lib_tags($tg);
+        $files[] = array(
+            'folder' => $fid,
             'path' => $f['path'],
             'mid' => $mid,
             'hash' => strval($f['hash']),
             'size' => mel_num(isset($f['size']) ? $f['size'] : 0),
             'tags' => $tags,
-            'res' => mel_lib_res($tags, $f['path']));
-        // The folder of the file in the folder of the library ('' at its root), for the path of a copy shown.
-        $dir = mel_ts_dirname($f['path']);
-        if (!$ep)
-        {
-            $files[] = $rec + array('s' => -1, 'e' => -1, 'dir' => $dir);
-            continue;
-        }
-        if (!isset($eps[$mid]))
-            $eps[$mid] = array('f' => array(), 'b' => 0);
-        // match_confirmed: only for the rule of the confirmed (mel_lib_eps_fix), not in the file taken.
-        $eps[$mid]['f'][] = $rec + array('s' => $s, 'e' => $e, 'dir' => $dir,
-            'mc' => isset($f['match_confirmed']) && $f['match_confirmed'] === 'yes');
+            'res' => mel_lib_res($tags, $f['path']),
+            's' => -1,
+            'e' => -1,
+            'dir' => $dir);
     }
     $info = count($list) . ' records, ' . count($files) . ' files';
     unset($list, $seen);
     return $files;
 }
 
+// The file of a copy (MelLibFile) of the episode file $f of the series $mid kept (MelLib::$eps): its tags read, its
+// resolution by them, else by the name, its folder in the folder of the library.
+/**
+ * @param string $mid
+ * @param MelLibEp $f
+ * @return MelLibFile
+ */
+function mel_lib_ep_file($mid, $f)
+{
+    $tags = mel_lib_tags($f['tg']);
+    return array('folder' => $f['folder'], 'path' => $f['path'], 'mid' => $mid, 'hash' => $f['hash'],
+        'size' => $f['size'], 'tags' => $tags, 'res' => mel_lib_res($tags, $f['path']), 's' => $f['s'],
+        'e' => $f['e'], 'dir' => mel_ts_dirname($f['path']));
+}
+
 // The rules of the numbers of the episode files of one movie_id (as the index has them, mel_lib_folder_index) ->
-// files: the ones taken, their season and episode final (in their order, no mc); drop: the hashes of the rest; the
-// counts for the log. A pack: mel_lib_pack. By the name of the file the number (mel_ts_ep, else the number leading the
-// name mel_ts_ep_lead) and the season if any:
+// files: the ones taken, their season and episode final (in their order, no mc, no dir: MelLibEp); drop: the hashes
+// of the rest; the counts for the log. A pack: mel_lib_pack. By the name of the file the number (mel_ts_ep, else the
+// number leading the name mel_ts_ep_lead) and the season if any:
 // 1. no number in the name: taken as in the index;
 // 2. the same as the index: taken as in the index - an anchor of its pack;
-// 3. another one, no anchor in its pack (a pack of absolute numbers): taken as in the index;
-// 4. another one, an anchor in its pack (an index error of the season): the season of the rest of its pack taken as
-// in the index (1, 2), if one, the episode of the name; a season in the name other than that one, or the number of
-// another file of the pack (after the fixes) - dropped;
+// 3. another one, no anchor in its pack (a pack of absolute numbers), or all such files of the pack of one season of
+// the index other than the seasons of 1 and 2 there, with no season in the name and the number of the name past the
+// episode of the index by one shift (a folder of two seasons numbered on: "- 05" is S2E1 past S1E1-4): taken as in
+// the index;
+// 4. another one, an anchor in its pack (an index error of the season): the season of the rest of its pack taken as in
+// the index (1, 2), if one, the episode of the name; a season in the name other than that one, a number 0 of the name,
+// or the number of another file of the pack (after the fixes) - dropped;
 // 5. of a season and episode with a file of match_confirmed, the files without it dropped.
 /**
  * @param list<MelLibEpIn> $files
- * @return array{files: list<MelLibFile>, drop: list<string>, eps: int, fixed: int, index: int, name: int, hidden: int}
+ * @return array{files: list<MelLibEp>, drop: list<string>, eps: int, fixed: int, index: int, name: int, hidden: int}
  */
 function mel_lib_eps_fix($files)
 {
+    $res = array('files' => array(), 'drop' => array(), 'eps' => 0, 'fixed' => 0, 'index' => 0, 'name' => 0,
+        'hidden' => 0);
+    // The number of the name of each file, the same as the index or not; the packs with an anchor (2).
     $num = array();
     $anchor = array();
     foreach ($files as $i => $f)
@@ -620,53 +657,82 @@ function mel_lib_eps_fix($files)
         if ($same)
             $anchor[mel_lib_pack($f)] = true;
     }
-    // Index of $files => array(season, episode) taken; by pack: the seasons and the numbers of the files taken as in
-    // the index (1, 2).
+    // Index of $files => array(season, episode) taken; by pack: the seasons ($se_of) and the "s:e" ($se_seen) of the
+    // files taken as in the index (1, 2), the files of another number with an anchor ($fix).
     $ok = array();
-    $seasons = array();
-    $taken = array();
+    $se_of = array();
+    $se_seen = array();
     $fix = array();
-    $res = array('files' => array(), 'drop' => array(), 'eps' => 0, 'fixed' => 0, 'index' => 0, 'name' => 0,
-        'hidden' => 0);
     foreach ($files as $i => $f)
     {
-        $p = mel_lib_pack($f);
+        $pack = mel_lib_pack($f);
         list($n, $same) = $num[$i];
+        // step 1, 2: no number in the name, the same number.
         if ($n === null || $same)
         {
             $ok[$i] = array($f['s'], $f['e']);
-            $seasons[$p][$f['s']] = true;
-            $taken[$p][$f['s'] . ':' . $f['e']] = true;
+            $se_of[$pack][$f['s']] = true;
+            $se_seen[$pack][$f['s'] . ':' . $f['e']] = true;
         }
-        else if (empty($anchor[$p]))
+        // step 3, no anchor in the pack.
+        else if (empty($anchor[$pack]))
         {
             $ok[$i] = array($f['s'], $f['e']);
             $res['index']++;
         }
         else
-            $fix[$i] = $n;
+            $fix[$pack][$i] = $n;
     }
+    // step 3, numbered on: by pack, all its files of another number of one season of the index not of its anchors, no
+    // season in the name, one shift of the number over 0.
+    foreach ($fix as $pack => $nums)
+    {
+        // array(season, shift) of the files so far; false: not numbered on.
+        $on = null;
+        foreach ($nums as $i => $n)
+        {
+            $f = $files[$i];
+            $one = array($f['s'], $n[1] - $f['e']);
+            if ($n[0] !== null || isset($se_of[$pack][$f['s']]) || $one[1] < 1 || ($on !== null && $one !== $on))
+            {
+                $on = false;
+                break;
+            }
+            $on = $one;
+        }
+        if (!$on)
+            continue;
+        foreach ($nums as $i => $n)
+        {
+            $ok[$i] = array($files[$i]['s'], $files[$i]['e']);
+            $res['index']++;
+        }
+        unset($fix[$pack]);
+    }
+    // step 4: the season of the pack, the number of the name; one file of each "s:e" in its pack.
     $cand = array();
     $count = array();
-    foreach ($fix as $i => $n)
+    foreach ($fix as $pack => $nums)
     {
-        $p = mel_lib_pack($files[$i]);
-        $ss = isset($seasons[$p]) ? array_keys($seasons[$p]) : array();
-        if (count($ss) !== 1 || ($n[0] !== null && $n[0] !== $ss[0]))
-            continue;
-        $cand[$i] = array($ss[0], $n[1]);
-        $k = $ss[0] . ':' . $n[1];
-        $count[$p][$k] = isset($count[$p][$k]) ? $count[$p][$k] + 1 : 1;
+        $ss = isset($se_of[$pack]) ? array_keys($se_of[$pack]) : array();
+        foreach ($nums as $i => $n)
+        {
+            if (count($ss) !== 1 || $n[1] < 1 || ($n[0] !== null && $n[0] !== $ss[0]))
+                continue;
+            $k = $ss[0] . ':' . $n[1];
+            $cand[$i] = array($pack, $k, array($ss[0], $n[1]));
+            $count[$pack][$k] = isset($count[$pack][$k]) ? $count[$pack][$k] + 1 : 1;
+        }
     }
-    foreach ($cand as $i => $se)
+    foreach ($cand as $i => $c)
     {
-        $p = mel_lib_pack($files[$i]);
-        $k = $se[0] . ':' . $se[1];
-        if (isset($taken[$p][$k]) || $count[$p][$k] > 1)
+        list($pack, $k, $se) = $c;
+        if (isset($se_seen[$pack][$k]) || $count[$pack][$k] > 1)
             continue;
         $ok[$i] = $se;
         $res['fixed']++;
     }
+    // step 5: the files not confirmed of an episode with a confirmed one.
     $conf = array();
     foreach ($ok as $i => $se)
     {
@@ -692,7 +758,7 @@ function mel_lib_eps_fix($files)
         $eps[$k] = true;
         $f['s'] = $ok[$i][0];
         $f['e'] = $ok[$i][1];
-        unset($f['mc']);
+        unset($f['mc'], $f['dir']);
         $res['files'][] = $f;
     }
     $res['eps'] = count($eps);
@@ -775,53 +841,53 @@ function mel_lib_index()
     if ($ids !== array_keys(MelLib::$folders))
         $sig = $cfg . mel_lib_sig_files($ids);
     $by_mid = array();
-    $in = array();
+    $ep_in = array();
     $n = 0;
+    // The episode files of the folders read so far.
+    $ne = 0;
     $skipped = 0;
     $left = MEL_LIB_BUDGET_BYTES;
     foreach ($ids as $id)
     {
         $info = '';
-        $fe = array();
-        $files = mel_lib_folder_index($id, $info, $left, $fe);
+        $files = mel_lib_folder_index($id, $info, $left, $ep_in);
+        $ne0 = $ne;
         $ne = 0;
-        foreach ($fe as $mid => $x)
-        {
+        foreach ($ep_in as $x)
             $ne += count($x['f']);
-            if (!isset($in[$mid]))
-                $in[$mid] = array('f' => array(), 'b' => 0);
-            $in[$mid]['f'] = array_merge($in[$mid]['f'], $x['f']);
-            $in[$mid]['b'] += $x['b'];
-        }
         if ($info === 'too big' || $info === 'over budget')
             $skipped++;
-        else if (!$files && !$ne)
+        else if (!$files && $ne === $ne0)
             mel_log("library: folder $id: $info");
         $n += count($files);
         foreach ($files as $f)
             $by_mid[$f['mid']][] = $f;
-        unset($files, $fe);
+        unset($files);
     }
     if ($skipped)
         mel_log("library: index budget: $skipped folders skipped");
     // The rules on the episodes of all the folders of a movie_id at once: the confirmed file of an episode may be in
-    // another folder (a pack is of one folder).
+    // another folder (a pack is of one folder). The files as the index has them dropped at once, one movie_id after
+    // another (not all of them kept with all those taken).
     $eps = array();
     $drop = array();
-    foreach ($in as $mid => $x)
+    foreach (array_keys($ep_in) as $mid)
     {
-        if (!$x['f'])
+        $nf = count($ep_in[$mid]['f']);
+        $b = $ep_in[$mid]['b'];
+        $r = $nf ? mel_lib_eps_fix($ep_in[$mid]['f']) : null;
+        unset($ep_in[$mid]);
+        if (!$r)
             continue;
-        $r = mel_lib_eps_fix($x['f']);
         if ($r['files'])
             $eps[$mid] = $r['files'];
         if ($r['drop'])
             $drop[$mid] = $r['drop'];
-        mel_log("library: series $mid: " . count($x['f']) . " files, {$r['eps']} episodes, " .
+        mel_log("library: series $mid: $nf files, {$r['eps']} episodes, " .
             "{$r['fixed']} fixed by name, {$r['index']} by index (no anchors), {$r['name']} dropped (name), " .
-            "{$r['hidden']} unconfirmed hidden, {$x['b']} skipped (bonus/no number)");
+            "{$r['hidden']} unconfirmed hidden, $b skipped (bonus/no number)");
+        unset($r);
     }
-    unset($in);
     // Kept with folders skipped too: they are not read again on each card, only when their files change.
     MelLib::$sig = $sig;
     MelLib::$folders = $folders;
@@ -830,7 +896,7 @@ function mel_lib_index()
     MelLib::$eps = $eps;
     MelLib::$eps_drop = $drop;
     MelLib::$found = array();
-    mel_log('library: index read, ' . count($folders) . " folders, $n files, " .
+    mel_log('library: index read, ' . count($folders) . " folders, $n files, $ne episode files, " .
         round((microtime(true) - $t) * 1000) . ' ms');
 }
 
@@ -1153,8 +1219,11 @@ function mel_lib_ep_copies($mid)
     mel_lib_index();
     if (empty(MelLib::$eps[$mid]))
         return array();
+    $files = array();
+    foreach (MelLib::$eps[$mid] as $f)
+        $files[] = mel_lib_ep_file($mid, $f);
     $res = array();
-    foreach (mel_lib_files_copies(MelLib::$eps[$mid]) as $c)
+    foreach (mel_lib_files_copies($files) as $c)
         $res[$c['s'] . ':' . $c['e']][] = $c;
     uksort($res, 'strnatcmp');
     return $res;
@@ -1209,7 +1278,7 @@ function mel_lib_key_packs($mid, $key)
     $res = array();
     foreach (isset(MelLib::$eps[$mid]) ? MelLib::$eps[$mid] : array() as $f)
     {
-        $p = mel_lib_pack($f);
+        $p = mel_lib_pack(array('folder' => $f['folder'], 'dir' => mel_ts_dirname($f['path'])));
         if (mel_lib_key($f['hash']) === $key && !in_array($p, $res, true))
             $res[] = $p;
     }
@@ -1246,7 +1315,7 @@ function mel_lib_pack_near($a, $b)
 // library with no slashes around and "/" (none of the root), the path of the file. Its server, share and path: never
 // in the log.
 /**
- * @param MelLibCopy $copy
+ * @param array{folder: string, path: string} $copy
  * @return string
  */
 function mel_lib_native_uid($copy)
@@ -1441,7 +1510,20 @@ function mel_lib_by_movies($t, $movies)
     return $res;
 }
 
-// The movie_id $mid has files of the type $type in the index: movie files of a movie, episodes of a series.
+// The files of the index of the titles of the type $type by movie_id: of a movie its movie files (MelLib::$by_mid), of
+// a series its episodes (MelLib::$eps); none of another type.
+/**
+ * @param string $type
+ * @return array<string, list<MelLibFile>>|array<string, list<MelLibEp>>
+ */
+function mel_lib_map($type)
+{
+    if ($type === 'series')
+        return MelLib::$eps;
+    return $type === 'movie' ? MelLib::$by_mid : array();
+}
+
+// The movie_id $mid has files of the type $type in the index (mel_lib_map).
 /**
  * @param string $mid
  * @param string $type
@@ -1449,7 +1531,8 @@ function mel_lib_by_movies($t, $movies)
  */
 function mel_lib_has($mid, $type)
 {
-    return $type === 'series' ? !empty(MelLib::$eps[$mid]) : !empty(MelLib::$by_mid[$mid]);
+    $map = mel_lib_map($type);
+    return !empty($map[$mid]);
 }
 
 // The movie_id of a card of the pairs (links.php, mel_pg_rev) with the IMDb or the TMDB of the title $t (of a series
@@ -1496,7 +1579,7 @@ function mel_lib_by_pairs($t)
 function mel_lib_mid($t)
 {
     mel_lib_index();
-    if ($t['type'] === 'series' ? !MelLib::$eps : ($t['type'] !== 'movie' || !MelLib::$by_mid))
+    if (!mel_lib_map($t['type']))
         return '';
     $by = 'dune';
     $y = $t['dune'] !== '' && mel_lib_has($t['dune'], $t['type']) ? $t['dune'] : '';
@@ -1619,7 +1702,8 @@ function mel_lib_here($copy, $mkv = false, &$dur = null)
 }
 
 // The length of the MKV of the copy $copy by its first bytes, the file $b of its check (mel_lib_here) waited for
-// MEL_LIB_MKV_MS, removed then -> s, 0.0 for none: not in time (removed by the next check), not MKV, no length.
+// MEL_LIB_MKV_MS, removed then -> s, 0.0 for none: not in time (removed by the next check), not read (an empty $b: the
+// read failed), not MKV, no length.
 /**
  * @param MelLibCopy $copy
  * @param string $b
@@ -1635,8 +1719,12 @@ function mel_lib_here_mkv($copy, $b)
         clearstatcache();
         if (is_file($b))
         {
-            $dur = mel_mkv_duration(strval(file_get_contents($b)), $why);
+            $head = strval(file_get_contents($b));
             unlink($b);
+            if ($head === '')
+                $why = 'not read';
+            else
+                $dur = mel_mkv_duration($head, $why);
             break;
         }
         usleep(20000);
