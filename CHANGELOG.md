@@ -2,6 +2,19 @@
 
 **English version**
 
+## 0.66.0 — unreleased
+- **New look for the release list.** Video and audio tags are now pictures: resolution (4K, FHD, HD, SD), HDR (Vision, HDR10, HDR10+, HLG), audio (Atmos, TrueHD, DTS-HD MA, Digital+, AAC and others), source (Remux, WebDL, BluRay, BDRip and others) and 10bit. Each row shows only the main tag, so "TrueHD Atmos" shows as Atmos. Tags line up in columns: tags in one column are the same width, with even gaps between them.
+- **New icons and focus.** A lightning bolt marks a release in the Debrid cache, and a P2P release shows its seeders. The row in focus is blue. The release name in the card on the left takes up to three lines.
+- **Faster scrolling.** Holding an arrow in a list of 100 releases scrolls about 4.4 lines per second, up from 4.0 in 0.65.0.
+- **BDRip.** A BDRip or BRRip release with BluRay quality gets its own BDRip tag, and the "Video" field of the card and of "Details" says BDRip instead of BluRay.
+- **Language flags.** The voice-over languages of a row are flags. A flag means the language is confirmed: by the file's tracks, a RUS(int)/RUS(ext) mark in the name, a dubbing studio, or the words "Дубляж", "ДБ", "MVO", "ПМ". A language that is only a guess (Cyrillic in the release name, addon flags with nothing in the name to back them) adds one "?" after the flags. Flags that do not fit (more than two, or not enough room) fold into "+N", and then the row has no "?". If there are no languages but the release is marked MULTI, DUAL, DUB or ORIG, one word shows on a small plate, like the "?": the first of these that applies. In the card, a guessed language has a question mark: "Languages: JA, RU?".
+- **Russian subtitles tag.** A tag with a subtitles icon and "RU" shows when the release has Russian subtitles according to the indexer, a file probe or the Crunchyroll list. The English interface shows RU too.
+- **Russian in Voices.** For a release marked RUS(int)/RUS(ext), "Voices" now says "Russian". Russian used to be missing there.
+- **Comet placeholders.** When Comet returns a placeholder clip instead of the video, the error window gives the reason: not found, limit, not cached yet, service unavailable, key or account. It used to say "HTTP 200, N KB".
+- **Same episode, another release / Same movie, another release.** If a release fails to start (no file, a placeholder, copyright, an archive) and the list has the same file of the same size in another cached release, the error window has a button that starts it.
+- **No more "already in the Debrid library" sorting.** The Melange AIOStreams template no longer sets it, so a release that a failed probe added to the service does not rise to the top of later lists. Melange also removes this key from configs it created before.
+- Fixed: when an addon queries other addons, the list and "Details" showed trackers as "Comet/StremThru/Rutracker". Now only the tracker, the last link, shows, and repeats are dropped regardless of case.
+
 ## 0.65.0 — 19.11.2026
 - **Hide a title.** POP UP on a tile → "Hide". The title disappears from the catalog rows, "Show all", the TV tab of the home screen and the "Similar", "Franchise" and filmography rows of the Melange card. Search still shows it. Favorites rows have no such item.
 - **Age rating limit.** On the settings page, the "Hide from the catalog" screen has "Age rating": All, Up to 16+, Up to 12+, Up to 6+ or 0+ only. Melange takes the Russian age rating, or the US one if there is no Russian one, by its stricter side. Titles with no age rating stay visible. The limit applies in search too, but not to Favorites. The same screen lists "Hidden" titles with an "Unhide" button. Backup saves the hidden titles, and loading it brings them back.
@@ -288,6 +301,19 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.66.0 — не выпущено
+- **Новый вид списка раздач.** Плашки видео и звука стали картинками: разрешение (4K, FHD, HD, SD), HDR (Vision, HDR10, HDR10+, HLG), звук (Atmos, TrueHD, DTS-HD MA, Digital+, AAC и др.), источник (Remux, WebDL, BluRay, BDRip и др.) и 10bit. В строке только главное: у «TrueHD Atmos» — Atmos. Плашки стоят колонками, у плашек одной колонки одинаковая ширина, промежутки между ними ровные.
+- **Новые значки и фокус.** Молния значит, что раздача в кэше Debrid. У P2P видно число сидов. Строка в фокусе синяя. Название раздачи в карточке слева занимает до трёх строк.
+- **Прокрутка быстрее.** С зажатой стрелкой список из 100 раздач идёт примерно на 4,4 строки в секунду, в 0.65.0 было 4,0.
+- **BDRip.** У раздачи BDRip или BRRip с качеством BluRay своя плашка BDRip, и в поле «Видео» карточки и «Сведений» теперь BDRip, а не BluRay.
+- **Флаги языков.** Языки озвучки в строке показаны флагами. Флаг ставится, когда язык подтверждён: дорожками файла, пометкой RUS(int)/RUS(ext) в имени, студией озвучки, словами «Дубляж», «ДБ», «MVO», «ПМ». Если язык известен только по догадке (кириллица в названии раздачи, флаги аддона без опоры в имени), после флагов стоит один знак «?». Флаги, которые не помещаются (больше двух или не хватает места), сворачиваются в «+N», и тогда «?» в строке нет. Если языков нет, а раздача помечена MULTI, DUAL, DUB или ORIG, маленькой плашкой, как «?», стоит одно слово, первое из этого ряда. В карточке угаданный язык с вопросительным знаком: «Языки: JA, RU?».
+- **Метка русских субтитров.** Плашка со значком субтитров и «RU» появляется, если у раздачи есть русские субтитры по данным индексатора, пробы файла или списка Crunchyroll. В английском интерфейсе тоже RU.
+- **«Русская» в «Озвучках».** У раздачи с пометкой RUS(int)/RUS(ext) в «Озвучках» теперь написано «русская», раньше русской там не было.
+- **Заглушки Comet.** Когда Comet вместо видео отдаёт ролик-заглушку, окно ошибки называет причину: не найдено, лимит, ещё не в кэше, сервис недоступен, ключ или аккаунт. Раньше было «HTTP 200, N KB».
+- **«Та же серия из другой раздачи» / «Тот же фильм из другой раздачи».** Если раздача не запустилась (нет файла, заглушка, авторские права, архив), а в списке есть тот же файл того же размера в другой раздаче в кэше, в окне ошибки есть кнопка, которая запускает её.
+- **Без сортировки «уже в библиотеке Debrid».** Шаблон AIOStreams Melange её больше не ставит, и раздача, которую неудачная проба добавила в сервис, не поднимается наверх следующих списков. Из уже созданных конфигов Melange этот ключ тоже убирает.
+- Исправлено: если аддон опрашивает другие аддоны, в списке и «Сведениях» трекер был «Comet/StremThru/Rutracker». Теперь там только трекер, последнее звено, а повторы убираются без учёта регистра.
 
 ## 0.65.0 — 19.11.2026
 - **Скрыть тайтл.** POP UP на плитке → «Скрыть». Тайтл пропадает из рядов каталога, «Показать все», вкладки «ТВ» на главном экране и из рядов «Похожие», «Части франшизы» и фильмографии в карточке Melange. В поиске он виден. У рядов «Избранное» такого пункта нет.

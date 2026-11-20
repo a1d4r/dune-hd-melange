@@ -189,6 +189,7 @@ parameters:
         # A row of the stream list (mel_row, parse.php). names: until
         # mel_row_voices (voices_parse.php) puts voices in its place. copies,
         # copy: a file cached on several services (mel_row_merge, parse.php).
+        # voice_langs: mel_row_langs of a row of a list (mel_list_state, main.php).
         MelRow: '''
             array{
                 url: string,
@@ -220,6 +221,7 @@ parameters:
                 pf_episodes: list<int>,
                 names?: array{string, string},
                 voices?: MelVoices,
+                voice_langs?: MelRowLangs,
                 label: string,
                 raw: array<mixed>,
                 ord: int,
@@ -270,7 +272,7 @@ parameters:
         # A stream list (Mel::$state, mel_list_state, main.php), rows in the order
         # of sort (mel_sort_keys), reversed by sort_rev; rows may be empty from
         # 0.58.0 (a source profile with no streams, mel_gc_src); gc (sel, top:
-        # the last cursor), gc_new, gc_prog: of view_gcomps.php.
+        # the last cursor), gc_new, gc_prog, gc_cols: of view_gcomps.php.
         MelState: '''
             array{
                 rid: string,
@@ -285,6 +287,7 @@ parameters:
                 gc?: array{int, int},
                 gc_new?: bool,
                 gc_prog?: MelProgress,
+                gc_cols?: MelGcCols,
                 pack_only?: bool,
                 pack_map?: array<int, array<int, int>>,
                 lp?: MelLpView,
@@ -295,6 +298,69 @@ parameters:
                 lp_prof: string
             }
         '''
+        # The record of a GComps screen under an overlay (kit_ovl.php): its owner, action map, timer and sel_state.
+        MelOvlScreen: 'array{owner: string, map: array<string, MelAction>, timer: array<string, int>|null, sel: string|null}'
+        # The overlay of the last screen that opened one (MelOvl::$st, kit_ovl.php): the record of the screen, shown or
+        # not; the side panel open, the choices of its check lists left after its close (by the id of the item of their
+        # submenu, '' the panel itself).
+        MelOvlState: 'array{scr: MelOvlScreen, open: bool, kp?: MelKp, kp_done?: array<string, MelKpChoice>, dlg?: MelDlg, wt?: MelWait}'
+        # A button of the own dialog or wait (kit_dlg.php, mel_dlg_buttons): its id, label, icon, the action after the
+        # close (null none), RETURN presses it (cancel, of a wait).
+        MelDlgButton: 'array{id: string, label: string, icon: string, act: MelAction|null, cancel: bool}'
+        # The own dialog open (kit_dlg.php): its icon, tone, title, text, buttons, the one in focus, the action of RETURN.
+        MelDlg: 'array{icon: string, tone: string, title: string, text: string, buttons: list<MelDlgButton>, cur: int, cancel: MelAction|null}'
+        # The wait open (kit_dlg.php): the view of its window (live, share and the seconds of the live line, elapsed its
+        # start), the action of RETURN with no cancel button, the function of its ticks and its data, the open time, the
+        # period of its ticks (ms), late (null: none or passed) and its time, the text of late that stays.
+        MelWait: 'array{icon: string, tone: string, title: string, text: string, live: string, share: float|null, elapsed: string, buttons: list<MelDlgButton>, cur: int, cancel: MelAction|null, tick: string, data: mixed, t0: int, sec: int, ms: int, late: array<string, mixed>|null, late_at: int, late_text: string|null}'
+        # The look of an error or a wait screen (kit_scr.php, MelKit::error_screen): the card background of the title or ''
+        # (that of Melange), the one while it loads, the logo baked into it, the line under «Melange» of the head.
+        MelKsLook: 'array{bg: string, nl: string|null, logo: bool, sub: string}'
+        # An error or a wait screen kept (MelKs::$scr): its look, the detail line of an error, the error (as the own dialog)
+        # or the wait, its end (null: live).
+        MelKsScreen: 'array{look: MelKsLook, detail: string, dlg: MelDlg|null, wt: MelWait|null, end: string|null}'
+        # The side panel open (kit_panel.php): its panels, a submenu over its panel last; the choices of the check lists
+        # of submenus left (by the id of their item) and the act of «Готово» of the last one.
+        MelKp: 'array{stack: non-empty-list<MelKpFrame>, done: array<string, MelKpChoice>, act: MelAction|null}'
+        # A panel of MelKp: its description, its items by id, the ids of a menu by group, the cursor, the first line of
+        # the list shown; of a check list the checks, the order and a line taken.
+        MelKpFrame: 'array{desc: MelKpDesc|MelKpSubDesc, its: array<string, MelKpItem|MelKpLeaf|MelKpCheck>, groups: list<list<string>>, cur: int, top: int, on: array<string, bool>, order: list<string>, move: bool}'
+        # The choice of a check list at its close (mel_kp_done): the ids checked and all the ids, in the order of the lines.
+        MelKpChoice: 'array{on: list<string>, order: list<string>}'
+        # The description of a panel by its screen (kit_panel.php): a menu (groups) or a check list (items).
+        MelKpDesc: '''
+            array{
+                title?: string,
+                sub?: string,
+                dim?: string,
+                note?: string,
+                groups?: list<list<MelKpItem>>,
+                all?: string,
+                items?: list<MelKpCheck>,
+                move?: string,
+                done?: array{label: string, count?: string, act?: MelAction}
+            }
+        '''
+        # The description of a submenu (MelKpItem menu): as MelKpDesc, its items with no submenu of their own.
+        MelKpSubDesc: '''
+            array{
+                title?: string,
+                sub?: string,
+                dim?: string,
+                note?: string,
+                groups?: list<list<MelKpLeaf>>,
+                all?: string,
+                items?: list<MelKpCheck>,
+                move?: string,
+                done?: array{label: string, count?: string, act?: MelAction}
+            }
+        '''
+        # An item of a menu of the side panel: menu, the description of its submenu, or act, its action.
+        MelKpItem: 'array{id: string, label: string, icon?: string, detail?: string, value?: string, picked?: bool, way?: string, menu?: MelKpSubDesc, act?: MelAction}'
+        # An item of a submenu: no submenu of its own.
+        MelKpLeaf: 'array{id: string, label: string, icon?: string, detail?: string, value?: string, picked?: bool, way?: string, act?: MelAction}'
+        # An item of a check list of the side panel.
+        MelKpCheck: 'array{id: string, label: string, count?: string, on?: bool}'
         # The row and the map of the last start through TorrServer (Mel::$ts_pack, torrserver.php).
         MelTsPack: 'array{key: string, hash: string, row: MelRow, map: array<int, array<int, int>>}'
         # Of the shell: a GuiAction (handler_string_id, data, params, ...),
@@ -375,6 +441,32 @@ parameters:
                 specific_def: array<string, mixed>
             }
         '''
+        # An item of the kit (kit.php): its components and its visible edges;
+        # a text also its width, size, face, lines, baseline and step.
+        MelKitItem: '''
+            array{
+                kind: string,
+                defs: list<MelGcComp>,
+                x0: int,
+                x1: int,
+                top: int,
+                bottom: int,
+                mid: int|float,
+                cy: int|float,
+                caps: bool,
+                ids: list<string>,
+                w?: int,
+                px?: int,
+                face?: string,
+                lines?: list<string>,
+                base?: int,
+                step?: int
+            }
+        '''
+        # A line of the side panel (MelKit::panel_row): its group id (in MelKit::panel), label, state and the rest.
+        MelKitPanelRow: 'array{id?: string, label: string, state?: string, icon?: string, check?: bool, detail?: string, value?: string, chevron?: bool, count?: string, picked?: bool, way?: string}'
+        # The view of the side panel (MelKit::panel): its lines by group, the first line of the list shown, «Готово».
+        MelKitPanel: 'array{id?: string, title: string, back?: bool, sub?: string, dim?: string, x?: int, groups: list<list<MelKitPanelRow>>, top?: int, hint?: string, done?: array{label: string, count: string, state: string}|null, note?: string}'
         # ChangeGCompDef of change_gcomps (mel_gc_change).
         MelGcChange: '''
             array{
@@ -404,7 +496,11 @@ parameters:
         # Voices of one release name (mel_voices_parse, voices_parse.php):
         # type ids (dub, mvo, dvo, avo) in the order of the name, studios
         # shown, orig '' | 'orig' | 'jap', the name without JacRed's tails,
-        # keys: studio => its key of voices.php, stype: studio => its type id.
+        # keys: studio => its key of voices.php, stype: studio => its type id;
+        # ru: 'int' | 'ext' of "RUS(int)", "RUS(ext)", '' none; ru_type: a type
+        # of a Russian voice; ru_subs: Russian subtitles, ukr: a Ukrainian mark
+        # (mel_voices_ru_marks); loose: studios not of its voices, ru_hint: a
+        # Russian mark (mel_row_langs).
         MelVoicesName: '''
             array{
                 types: list<string>,
@@ -413,11 +509,19 @@ parameters:
                 subs: bool,
                 name: string,
                 keys: array<string, string>,
-                stype: array<string, string>
+                stype: array<string, string>,
+                ru: string,
+                ru_type: bool,
+                ru_subs: bool,
+                ukr: bool,
+                loose: array<string, true>,
+                ru_hint: bool
             }
         '''
         # Voices of a row from its names (mel_voices, voices_parse.php); ua:
-        # "(УКР.)" in a name (mel_row_voices).
+        # "(УКР.)" in a name (mel_row_voices); ru, ru_type, ru_subs, ukr,
+        # ru_hint: as of MelVoicesName, of all the names; loose: studios no name
+        # has in its voices.
         MelVoices: '''
             array{
                 types: list<string>,
@@ -425,21 +529,31 @@ parameters:
                 orig: string,
                 subs: bool,
                 stype: array<string, string>,
+                ru?: string,
+                ru_type?: bool,
+                ru_subs?: bool,
+                ukr?: bool,
+                loose?: array<string, true>,
+                ru_hint?: bool,
                 ua?: true
             }
         '''
         # What the "Voices" field shows (mel_row_voices_struct,
         # voices_parse.php): groups: type id (dub, mvo, dvo, avo) => its
-        # studios, types without studios, studios without a type.
+        # studios, types without studios, studios without a type; ru: of the names.
         MelVoicesStruct: '''
             array{
                 groups: array<string, list<string>>,
                 types: list<string>,
                 studios: list<string>,
                 orig: string,
-                subs: bool
+                subs: bool,
+                ru: string
             }
         '''
+        # Languages of the voices of a row (mel_row_langs, voices_parse.php):
+        # confirmed, Russian first; guessed.
+        MelRowLangs: 'array{ok: list<string>, q: list<string>}'
         # Tokens of a name (mel_voices_tokens, voices_parse.php), by word from
         # 0: as written, lower case, the joint to the next, the separator after
         # it, its part between "|", its depth in brackets, inside the leading
@@ -500,6 +614,6 @@ parameters:
         # The page of a person laid out (mel_pp_layout, view_person.php).
         MelPpLayout: 'array{state: string, strip: MelOcStrip, bio: list<string>, pages: list<list<array{string, bool, int}>>}'
         # The fields of a link of the public action open, '' for one not given (mel_dl_parse, deep_link.php).
-        MelDlLink: 'array{to: string, type: string, imdb: string, tmdb: string, s: string, e: string, tab: string, n: string, q: string}'
+        MelDlLink: 'array{to: string, type: string, imdb: string, tmdb: string, s: string, e: string, tab: string, n: string, q: string, src: string}'
         # An episode of the own card (mel_cm_eps, card_meta.php).
         MelCardEp: 'array{s: int, e: int, title: string, date: string, img: string, min: int, soon: bool, desc: string}'

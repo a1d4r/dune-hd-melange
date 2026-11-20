@@ -14,7 +14,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
    <img src="../screenshots/own-card-film.jpg" alt="Melange card for The Dark Knight, focus on Watch, Trailer and Favorites next to it" width="100%">
 
-4. Choose a release and press **ENTER**. Releases are versions of the movie file: quality, voice-over, size. The more seeders (people sharing it, the number in the first column), the sooner the movie starts.
+4. Choose a release and press **ENTER**. Releases are versions of the movie file: quality, voice-over, size. The more seeders (people sharing it, the number in the first column), the sooner the movie starts. The flags show dub languages: two at most, the rest as "+1", "+2". A "?" instead of a flag means the language is not confirmed (the card on the left shows it with a question mark: "RU?"). An "RU" label with a subtitles icon means the release has Russian subtitles.
 
    <img src="../screenshots/film-list-p2p.jpg" alt="Release list: number of seeders in the first column" width="100%">
 
@@ -30,9 +30,9 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
    <img src="../screenshots/own-card-series.jpg" alt="Melange card for Breaking Bad: season tabs and a row of episodes" width="100%">
 
-2. Choose a release the same way as for a movie. Episodes then play one after another, and you can open the next or previous one right from the release list (buttons in the hint at the bottom). The frame shows a Debrid list with lightning bolts; with torrents you see seeders instead, as for a movie.
+2. Choose a release the same way as for a movie. Episodes then play one after another, and you can open the next or previous one right from the release list (buttons in the hint at the bottom). The frame shows a torrent list with seeders; with Debrid you see lightning bolts instead.
 
-   <img src="../screenshots/series-list.jpg" alt="Release list of an episode, Episodes hint at the bottom" width="100%">
+   <img src="../screenshots/series-list.jpg" alt="Release list of a Breaking Bad episode: seeders in the first column, Episodes hint at the bottom" width="100%">
 
 ## Continue
 

@@ -18,6 +18,8 @@ require_once dirname(__FILE__) . '/parse.php';
 require_once dirname(__FILE__) . '/jacred.php';
 // Dune's watch history.
 require_once dirname(__FILE__) . '/history.php';
+// The tokens of the UI kit (generated): colours, sizes, the font metric; before the screens and gcomps.php.
+require_once dirname(__FILE__) . '/kit_tokens.php';
 // The state of the history for the badges of the catalog; the pairs card -> IMDb / TMDB.
 require_once dirname(__FILE__) . '/progress.php';
 require_once dirname(__FILE__) . '/links.php';
@@ -75,6 +77,16 @@ define('MEL_DELAY_INPUT', 10000);
 require_once dirname(__FILE__) . '/voices.php';
 require_once dirname(__FILE__) . '/voices_parse.php';
 require_once dirname(__FILE__) . '/view_gcomps.php';
+// The components of the UI kit (row, stack, text, icon) over gcomps.php.
+require_once dirname(__FILE__) . '/kit.php';
+// The overlay of a GComps screen (the side panel, a dialog, a wait of our own): its open, close and state.
+require_once dirname(__FILE__) . '/kit_ovl.php';
+// The side panel on the right of a GComps screen: its keys, state and changes over the builders of kit.php.
+require_once dirname(__FILE__) . '/kit_panel.php';
+// The own dialog and the wait window over a GComps screen: their keys, state and the ticks of a wait.
+require_once dirname(__FILE__) . '/kit_dlg.php';
+// The screen of an error and the wait screen of our own (a GComps folder): its view, keys and ticks.
+require_once dirname(__FILE__) . '/kit_scr.php';
 require_once dirname(__FILE__) . '/view_info.php';
 require_once dirname(__FILE__) . '/view_setup.php';
 // The catalog: client, ENTER on a tile, its screens.
@@ -920,8 +932,8 @@ function mel_op_title($id, $kind)
 }
 
 // The settings of the operation (mel_op_use) of profile $id chosen by "Смотреть из…" (mel_play_action; its caller
-// checked it there and ready: mel_src_watch_pick): it and the other one of the pair of the main one, logged; nothing
-// written. -> it is Lampac (the title opens online).
+// checked it there and ready: mel_src_watch_pick, mel_dl_src (deep_link.php)): it and the other one of the pair of
+// the main one, logged; nothing written. -> it is Lampac (the title opens online).
 /**
  * @param string $id
  * @return bool
@@ -1787,6 +1799,8 @@ function mel_folder_view($media_url, $sel_state)
         return mel_oc_folder_view($media_url, $sel_state);
     if (strpos($media_url, 'person:') === 0)
         return mel_pp_folder_view($media_url, $sel_state);
+    if (strpos($media_url, MEL_KS_URL) === 0)
+        return mel_ks_folder_view($media_url);
     $st = Mel::$state;
     if ($st && $media_url === 'streams:' . $st['rid'])
         return !empty($st['lp_on']) && isset($st['lp']) ? mel_lpv_folder_view($st, $sel_state) : mel_gc_folder_view($st, $sel_state);
@@ -1800,11 +1814,42 @@ function mel_rid()
     return substr(md5(uniqid('', true)), 0, 12);
 }
 
+// The original language of the title of card $mv as a code of mel_lang_code
+// (mel_iso_lang): of movie_str of its play_action kept in MelLpv::$ids (Melange's
+// own cards, mel_lpv_ids_keep); '' unknown (a native card of the Dune).
+/**
+ * @param MelMovie $mv
+ * @return string
+ */
+function mel_list_orig($mv)
+{
+    $k = mel_lpv_key($mv);
+    return isset(MelLpv::$ids[$k]) ? mel_iso_lang(MelLpv::$ids[$k]['original_language']) : '';
+}
+
+// ISO 639-1 or 639-2 code $l ("ja", "jpn") -> a code of mel_lang_code ("JA";
+// Ukrainian UA as on Russian trackers); '' for none or an unknown 639-2 one.
+/**
+ * @param string $l
+ * @return string
+ */
+function mel_iso_lang($l)
+{
+    $l = strtolower($l);
+    if (preg_match('/^[a-z]{3}$/D', $l))
+        return mel_jr_lang($l) !== $l ? mel_lang_code(mel_jr_lang($l)) : '';
+    if (!preg_match('/^[a-z]{2}$/D', $l))
+        return '';
+    return $l === 'uk' ? 'UA' : strtoupper($l);
+}
+
 // State of a stream list (Mel::$state): its screen "streams:<rid>", the card,
 // season and episode (-1 for a movie), rows in the order of 'sort' and
 // 'sort_rev' (of the settings: mel_rows_sort; none from 0.58.0: a source profile
 // with no streams, mel_gc_src), the shell language of play_action,
 // 'errors': the reasons of the error streams of its reply (mel_error_streams).
+// A row of no 'voice_langs' gets them (mel_row_langs, by mel_list_orig of the
+// card): a list sorted anew keeps them.
 // view_gcomps.php adds 'gc' - array(sel, top), the last cursor; 'gc_new' -
 // the first view of a replaced screen ignores the shell's sel_state; 'gc_prog'
 // - progress of the rows for their redraw. A screen replaced by a new list
@@ -1821,8 +1866,16 @@ function mel_list_state($mv, $s, $e, $rows, $lang, $errors)
     $sort = Mel::$settings['sort'];
     $rev = Mel::$settings['sort_rev'];
     // A file cached on several services: the copy of the main one on top (its status, INFO).
+    $orig = null;
     foreach ($rows as $i => $r)
+    {
         $rows[$i] = mel_row_pick($r, Mel::$settings['debrid_main']);
+        if (!isset($r['voice_langs']))
+        {
+            $orig = $orig === null ? mel_list_orig($mv) : $orig;
+            $rows[$i]['voice_langs'] = mel_row_langs($rows[$i], $orig);
+        }
+    }
     return array('rid' => mel_rid(), 'movie' => $mv, 's' => $s, 'e' => $e, 'rows' => mel_rows_sort($rows, $sort, $rev),
         'lang' => $lang, 'sort' => $sort, 'sort_rev' => $rev, 'errors' => $errors, 'prof' => Mel::$settings['prof'],
         'lp_prof' => Mel::$settings['lp_prof']);
@@ -1833,7 +1886,8 @@ function mel_list_state($mv, $s, $e, $rows, $lang, $errors)
 // play_action $in; $hist: the episode of the history (mel_wh_pick) $in asks, null none - the own card (mel_oc_watch,
 // MelOcEp of mel_oc_pick), the main card (mel_wh_episode here). With no "Continue" its list opens at its release
 // (hash), or its online list at the row of its online record (key). $src: the id of the ready profile chosen by
-// "Смотреть из…" (mel_oc_watch_from), its list at once (mel_op_src), nothing remembered; '' - by the record (mel_op_title).
+// "Смотреть из…" (mel_oc_watch_from; checked by mel_src_watch_pick, mel_dl_src (deep_link.php)), its list at once
+// (mel_op_src), nothing remembered; '' - by the record (mel_op_title).
 // A movie_str made by Melange itself adds mel_lpv_tile_ids: Lampac puts the quality into the name of a balancer and show
 // false only with a TMDB id. No IMDb: the search of Lampac always (its "Continue" too), its windows of nothing online
 // and of no answer, never the releases; no Lampac - err_no_imdb_rel.
@@ -2196,6 +2250,12 @@ function mel_handle_user_input($in)
         return mel_dl_open($in);
     if ($control === 'gc_move' || $control === 'gc_pick' || $control === 'gc_info')
         return mel_gc_input($in);
+    if ($control === 'kp_key')
+        return mel_kp_input($in);
+    if ($control === 'dlg_key' || $control === 'wt_key' || $control === 'wt_tick')
+        return mel_dlg_input($in, $control);
+    if ($control === 'ks_key' || $control === 'ks_tick')
+        return mel_ks_input($in, $control);
     if ($control === 'info_page')
         return mel_info_input($in);
     if ($control === 'next')

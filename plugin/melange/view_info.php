@@ -37,6 +37,33 @@ define('MEL_INF_QR_SIDE', 520); // the QR page: side of the QR at most, px (a mo
 define('MEL_INF_QR_GAP', 60);   // the QR page: from the QR to the text
 define('MEL_INF_QR_LINES', 8);  // the QR page: lines of the address at most (30 px)
 
+// Status $s of mel_gc_status (view_gcomps.php) in lines of at most $width: each of its lines
+// wrapped after spaces ("Real-Debrid" whole), no line ends with a comma;
+// more than $max: the last ends with "…".
+/**
+ * @param string $s
+ * @param int $px
+ * @param int $width
+ * @param int $max
+ * @return list<string>
+ */
+function mel_gc_status_lines($s, $px, $width, $max)
+{
+    $lines = array();
+    foreach (explode("\n", $s) as $part)
+    {
+        foreach (mel_gc_wrap($part, $px, $width, $max + 1, true) as $l)
+            $lines[] = rtrim($l, ' ,');
+    }
+    if (count($lines) <= $max)
+        return $lines;
+    $lines = array_slice($lines, 0, $max);
+    $ell = "\xE2\x80\xA6";
+    $l = (string) array_pop($lines);
+    $lines[] = rtrim(mb_substr($l, 0, mel_gc_fit($l, $px, $width - mel_gc_w($ell, $px)), 'UTF-8'), ' ,') . $ell;
+    return $lines;
+}
+
 // open_folder of the details screen of row $n of list $st.
 /**
  * @param MelState $st
@@ -371,7 +398,7 @@ function mel_info_audio($r, $pf)
 // Subtitles of row $r, null without any: the label with the count of all,
 // the tracks of parsedFile.subtitleTracks (mel_info_wrap_tracks in the lines
 // of a column), else the languages (JacRed, parsedFile.subtitles) joined by
-// ", "; the lines the middle column gives them at most: all of the tracks,
+// ", " (mel_row_subs); the lines the middle column gives them at most: all of the tracks,
 // MEL_INF_SUBS_MIN of the languages.
 /**
  * @param MelRow $r
@@ -393,11 +420,16 @@ function mel_info_subs($r, $pf, $tt)
         $out[] = mel_info_track($l !== '' ? mel_lang_code($l) : '', mel_info_sub_codec(mel_str($t, 'codec')), '',
             mel_info_clean(mel_str($t, 'title')), isset($t['default']) && $t['default'] === true);
     }
-    if (!$out && !$r['subs'])
+    $subs = mel_row_subs($r);
+    // The language only the names tell (mel_row_subs) after the tracks too.
+    $more = $out ? array_diff($subs, $r['subs']) : array();
+    foreach ($more as $c)
+        $out[] = mel_info_track($c, '', '', '', false);
+    if (!$out && !$subs)
         return null;
-    $n = $out ? count($all) : count($r['subs']);
+    $n = $out ? count($all) + count($more) : count($subs);
     $st = mel_info_wrap_tracks($out, $max);
-    $codes = $out ? '' : implode(', ', $r['subs']);
+    $codes = $out ? '' : implode(', ', $subs);
     return array('label' => "{$tt['subs']} ($n)", 'st' => $st, 'codes' => $codes, 'n' => $n,
         'lines' => $codes !== '' ? count(mel_gc_wrap($codes, 26, MEL_INF_CW, MEL_INF_SUBS_MIN)) : mel_info_nlines($st));
 }
@@ -526,7 +558,7 @@ function mel_info_col_file($r, $raw, $sd, $pf, $tt, $top)
     }
     $dur = mel_row_duration($r);
     mel_info_field($c, $l['duration'], $dur >= 1 ? mel_info_duration($dur) : '', 1);
-    $video = implode(' · ', array_filter(array($r['resolution'], $r['quality'], mel_str($pf, 'encode')), 'strlen'));
+    $video = implode(' · ', array_filter(array($r['resolution'], mel_row_quality_text($r), mel_str($pf, 'encode')), 'strlen'));
     mel_info_field($c, $tt['video'], $video !== '' ? $video : "\xE2\x80\x94", 2, false, true);
     $vis = array();
     foreach (mel_arr($pf, 'visualTags') as $t)

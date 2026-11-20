@@ -38,7 +38,7 @@ No subscription yet? Get one through the author's link to support Melange: [Real
 
 7. Open a movie on the Dune. A lightning bolt on a release means it is cached (already downloaded by the Debrid service) and starts right away.
 
-   <img src="../screenshots/film-list.jpg" alt="Release list for Dune: Part Two: releases with a lightning icon, Cached in Real-Debrid on the left" width="100%">
+   <img src="../screenshots/film-list.jpg" alt="Release list for Dune: Part Two: releases with a lightning icon, Cached in Real-Debrid and TorBox on the left" width="100%">
 
 8. A release without a lightning bolt can play via TorrServer: move to it, press **POP UP** and choose "Watch via TorrServer". This needs TorrServe on the Dune. To install it, see [Quick start](start.en.md#via-dune-backup), step 5; to set it up, [First setup](start.en.md#first-setup), step 1.
 

@@ -262,7 +262,7 @@ function mel_carry_tracks($rows, $old)
 // Rows without audio tracks get those of their release in $by_hash (infoHash
 // => array('tracks' => ..., 'subs' => ...)), its subtitle languages if they
 // have none, the audio of the card from the tracks if they have none and the
-// languages of the tracks (mel_track_langs).
+// languages of the tracks (mel_track_langs), confirmed (mel_row_langs).
 /**
  * @param list<MelRow> $rows
  * @param array<string, MelTracks> $by_hash
@@ -280,6 +280,9 @@ function mel_fill_tracks($rows, $by_hash)
             $rows[$i]['audio_full'] = mel_jr_audio_text($rows[$i]['tracks']);
         if (!$r['subs'])
             $rows[$i]['subs'] = $by_hash[$r['hash']]['subs'];
+        // Tracks of a language confirm the voices anew: the original of the title counts only without them.
+        if (mel_track_langs($rows[$i]['tracks'], array()))
+            $rows[$i]['voice_langs'] = mel_row_langs($rows[$i], '');
     }
     return $rows;
 }

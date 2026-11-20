@@ -122,7 +122,7 @@ define('MEL_CATV_ICON_MYLIST', 'xxx3.png');
 // screen of the Dune, and in POP UP.
 define('MEL_CATV_ICON_CONT', 'xxx2.png');
 // Our pictures of the panel, img/cat<N>_*: N goes up when they change, as the shell keeps a
-// picture by its URL even across a reinstall (plugins/melange_catalog_img.py of the kitchen). The
+// picture by its URL even across a reinstall (the kit generator). The
 // mask: of the shell, but darker to the right, so the text column (TEXT_W) stays on the dark
 // whatever the background; card0.jpg: the dark background of vod_r of the whole screen without a
 // card background (mel_catv_card). cat2_mask.png: baked into card/v1 (MEL_CATV_CARD).

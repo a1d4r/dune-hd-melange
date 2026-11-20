@@ -194,6 +194,15 @@ function mel_lang_code($name)
     return strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $name), 0, 3));
 }
 
+// The codes of mel_lang_code() that are no language: MULTI, DUAL, DUB, ORIG.
+/**
+ * @return array<string, true>
+ */
+function mel_lang_service()
+{
+    return array('MULTI' => true, 'DUAL' => true, 'DUB' => true, 'ORIG' => true);
+}
+
 // Audio badges: id => array(family, tier, audioTags it needs), the best of a
 // family first (Smart Tier of Nuvio).
 /**
@@ -225,14 +234,18 @@ function mel_audio_rules()
 // the file names of kingsizew/badges; the hierarchy is the Smart Tier of
 // Nuvio, only AI stands apart. Tags come in
 // any order: only presence counts. $res overrides parsedFile.resolution.
+// $name: the names of the release (file, folder): AIOStreams gives BDRip(s), BRRip(s)
+// and Blu-ray Rip as the quality BluRay, the name tells them (bdrip, the owner
+// 19.11.2026).
 // -> array('res' => id|'', 'src' => id|'', 'vis' => id|'', 'ai' => bool,
 //    'audio' => array() or array(the best audio id), 'tags' => IMAX, editions, flags)
 /**
  * @param array<mixed> $pf
  * @param string|null $res
+ * @param string $name
  * @return MelBadges
  */
-function mel_badges($pf, $res = null)
+function mel_badges($pf, $res = null, $name = '')
 {
     $set = array();
     foreach (array('visualTags', 'audioTags', 'editions') as $k)
@@ -257,6 +270,8 @@ function mel_badges($pf, $res = null)
         'DVDRip' => 'dvdrip', 'HDTV' => 'hdtv', 'CAM' => 'cam', 'TS' => 'ts', 'TC' => 'tc', 'SCR' => 'scr');
     $q = mel_str($pf, 'quality');
     $src = isset($srcs[$q]) ? $srcs[$q] : '';
+    if ($src === 'bluray' && preg_match('/(?<![a-z0-9])(?:b[dr]|blu[ ._-]?ray)[ ._-]?rips?(?![a-z0-9])/i', $name))
+        $src = 'bdrip';
 
     // Picture: one badge, DV with its HDR first, 10bit last; SDR has none.
     // HDR+DV, DV Only, HDR Only: service tags AIOStreams cuts before the reply.
@@ -305,6 +320,23 @@ function mel_badges($pf, $res = null)
         'audio' => $audio, 'tags' => $tags);
 }
 
+// The senior part of badge id $id of mel_badges, the plate b2 of a row of the list (the owner 18.11.2026): the
+// picture «Vision» without its HDR (dolby-vision-hdr10 -> dolby-vision), the sound «Atmos» when it has it
+// (dolby-atmos-truehd -> dolby-atmos), DTS:X so (dts-x-hd-ma -> dts-x), else the id itself (the codec).
+/**
+ * @param string $id
+ * @return string
+ */
+function mel_badge_senior($id)
+{
+    foreach (array('dolby-vision', 'dolby-atmos', 'dts-x') as $p)
+    {
+        if (strpos($id, "$p-") === 0)
+            return $p;
+    }
+    return $id;
+}
+
 // Badge id of mel_badges as text, for the card: "DV · HDR10", "TrueHD Atmos".
 /**
  * @param string $id
@@ -321,6 +353,17 @@ function mel_badge_text($id)
         'dts-hd-ma' => 'DTS-HD MA', 'dts-hd' => 'DTS-HD', 'dts-es' => 'DTS-ES', 'dts' => 'DTS',
         'flac' => 'FLAC', 'pcm' => 'PCM', 'opus' => 'OPUS', 'aac' => 'AAC');
     return isset($t[$id]) ? $t[$id] : '';
+}
+
+// The quality of row $r in words for the field «Video» of the card and of INFO: BDRip when the source badge
+// of mel_badges is bdrip (the same rule as the badge, the owner 19.11.2026), else the quality of AIOStreams.
+/**
+ * @param MelRow $r
+ * @return string
+ */
+function mel_row_quality_text($r)
+{
+    return $r['badges']['src'] === 'bdrip' ? 'BDRip' : $r['quality'];
 }
 
 // All audio of a release in words for the card: codecs from the best down
@@ -512,6 +555,8 @@ function mel_service_name($id)
 //                episodes (mel_has_ep)
 //   names        array(folder, file); mel_row_voices replaces it by 'voices'
 //                (mel_voices) and may shorten 'label'
+//   voice_langs  the languages of the voices confirmed and guessed (mel_row_langs):
+//                of a row of a list only (mel_list_state, mel_fill_tracks)
 //   label        name of the release: the file of a movie, the folder of a season pack
 //   raw          the stream as it came, for the details screen (INFO); memory of
 //                php_server only, as the URL: never logged nor saved
@@ -641,7 +686,7 @@ function mel_row($st, $series)
         'age' => $age >= 0 && $age < 1e9 ? $age : null,
         'service' => mel_service_name(mel_str($svc, 'id')),
         'resolution' => $res,
-        'badges' => mel_badges($pf, $res),
+        'badges' => mel_badges($pf, $res, $file . ' ' . $folder),
         'audio_full' => mel_audio_text($pf),
         'tracks' => $tracks,
         'subs' => array_values($subs),

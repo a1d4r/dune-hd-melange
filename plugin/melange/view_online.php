@@ -23,6 +23,150 @@ define('MEL_LPV_INDENT', 48);
 // The line over a block of rows of a balancer.
 define('MEL_LPV_LINE', '#40FFFFFF');
 
+// --- The old frame of the list of releases (before the UI kit, view_gcomps.php), drawn by the online list until its
+// stage: the badges of the quality (nb2_*), the bar of a row, the title row, the counter, the hints of the vendor keys.
+
+// The hint row and the sort tabs of the old frame: the keys at the vendor size, unscaled (scaled down they blur on
+// the device): P+/P- 114x50, POP UP 52x50, the episode arrows (the vendor's bare chevron) at half size; the gap 10 to
+// a label, 40 between hints (vendor HINTS_SMALL_HGAP). The tabs in the row y 125..175, the line under the current
+// tab 4 px, 3 px under the keys, its direction a triangle of img/ (sort_down.png, sort_up.png); a number of source
+// errors in amber. The bar of a row watched before: white done, grey the rest.
+// KEY_H, LABEL_H, HINT_PX: the name of the source over a list (sources.php) too.
+define('MEL_GC_KEY_H', 50);
+define('MEL_GC_LABEL_H', 40);
+define('MEL_GC_HINT_PX', 30);
+define('MEL_GC_HINT_Y', 990);  // the vendor hint row 990..1040
+define('MEL_GC_KEY_W', 52);    // a vendor key of one button: the colour keys
+define('MEL_GC_ARROW_W', 26);  // right_arrow.png 52x50 / 2
+define('MEL_GC_ARROW_H', 25);
+define('MEL_GC_KEY_GAP', 10);   // key -> its label
+define('MEL_GC_HINT_GAP', 40);  // between hints (vendor HINTS_SMALL_HGAP)
+define('MEL_GC_TABS_Y', 125);
+define('MEL_GC_TAB_LINE', 4);
+define('MEL_GC_TAB_LINE_Y', MEL_GC_KEY_H + 3);
+define('MEL_GC_SORT_ARROW_W', 18);
+define('MEL_GC_SORT_ARROW_H', 12);
+define('MEL_GC_SORT_ARROW_GAP', 10);    // label -> its triangle
+define('MEL_GC_AMBER', '#FFFFB340');   // the number of source errors over the online list
+define('MEL_GC_BAR_DONE', '#FFFFFFFF');
+define('MEL_GC_BAR_REST', '#FF404040');
+define('MEL_GC_BADGE_H', 46);  // badge pictures with their plate
+// Revision in the badge file names (BADGE_REV of their generator):
+// the shell caches pictures by URL even across a reinstall.
+define('MEL_GC_BADGE_REV', 2);
+define('MEL_GC_BADGE_GAP', 10);    // between badges of one column
+
+class MelGc
+{
+    // Badge id of the quality of a line (mel_lpv_badge) -> width of img/nb<REV>_<id>.png, 46 px high with the
+    // plate: the output of the badge generator (the tests compare it with the PNGs).
+    /** @var array<string, int> */
+    public static $badge_w = array(
+        '4k' => 58, '1440p' => 58, '1080p' => 79, '720p' => 62, '576p' => 90, '480p' => 92,
+        '360p' => 89, '240p' => 91, '144p' => 86);
+}
+
+// Children of the row of the title of list $st (mel_lpv_window): the title (mel_gc_title) at the left, whole
+// when it fits; "S5 E3" of an episode at the right; between them yellow line $note ('' none: the releases, mel_lpv_note;
+// the online list, its note), 26 px, in the room the title leaves, 300 px at least (the title cut then).
+/**
+ * @param MelState $st
+ * @param string $note
+ * @return list<MelGcComp>
+ */
+function mel_gc_title_row($st, $note)
+{
+    list($title, $ep) = mel_gc_title($st);
+    $right = MEL_GC_LX + MEL_GC_LW - 16;
+    $ew = $ep === '' ? 0 : mel_gc_w($ep, 36);
+    $nr = $right - ($ew > 0 ? $ew + 30 : 0);
+    $nt = $note === '' ? '' : mel_gc_cut_w($note, 26, max(300, $nr - MEL_GC_LX - mel_gc_w($title, 48) - 30));
+    $nw = $nt === '' ? 0 : mel_gc_w($nt, 26);
+    $d = array(mel_gc_cut(null, mel_gc_at($nr - MEL_GC_LX - ($nw > 0 ? $nw + 30 : 0), 66, MEL_GC_LX, 40), $title, 48,
+        MEL_GC_TEXT));
+    if ($nt !== '')
+        $d[] = mel_gc_cut(null, mel_gc_at($nw, 36, $nr - $nw, 58), $nt, 26, MEL_GC_AMBER);
+    if ($ep !== '')
+        $d[] = mel_gc_cut(null, mel_gc_at($ew, 50, $right - $ew, 52), $ep, 36, MEL_GC_TEXT2,
+            array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
+    return $d;
+}
+
+// Badge pictures (the plate is in the PNG) from x, centred in the row.
+/**
+ * @param list<string> $ids
+ * @param int $x
+ * @return list<MelGcComp>
+ */
+function mel_gc_plates($ids, $x)
+{
+    $d = array();
+    foreach ($ids as $id)
+    {
+        $d[] = mel_gc_image(mel_gc_left_center(MelGc::$badge_w[$id], MEL_GC_BADGE_H, $x),
+            'plugin_file://img/nb' . MEL_GC_BADGE_REV . "_$id.png");
+        $x += MelGc::$badge_w[$id] + MEL_GC_BADGE_GAP;
+    }
+    return $d;
+}
+
+// The bar of share $share (0 none) watched under a row of the online list (mel_lpv_row_items).
+/**
+ * @param float|int $share
+ * @return list<MelGcComp>
+ */
+function mel_gc_bar($share)
+{
+    if ($share <= 0)
+        return array();
+    $w = MEL_GC_LW - 2 * MEL_GC_PAD;
+    $fw = max(MEL_GC_BAR_MIN, intval(round($w * min(1, $share))));
+    $y = MEL_GC_ROW_H - MEL_GC_BAR_H;
+    $d = array(mel_gc_rect(mel_gc_at($fw, MEL_GC_BAR_H, MEL_GC_PAD, $y), MEL_GC_BAR_DONE));
+    if ($fw < $w)
+        $d[] = mel_gc_rect(mel_gc_at($w - $fw, MEL_GC_BAR_H, MEL_GC_PAD + $fw, $y), MEL_GC_BAR_REST);
+    return $d;
+}
+
+// Children of 'counter' (the hint row at the right, 300 x MEL_GC_KEY_H):
+// "5 / 60", placed as a hint label.
+/**
+ * @param int $sel
+ * @param int $n
+ * @return list<MelGcComp>
+ */
+function mel_gc_counter($sel, $n)
+{
+    return array(mel_gc_cut(null, mel_gc_at(300, MEL_GC_LABEL_H, 0, (MEL_GC_KEY_H - MEL_GC_LABEL_H) / 2),
+        min($sel + 1, $n) . " / $n", MEL_GC_HINT_PX, MEL_GC_TEXT2, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
+}
+
+// A hint at x of row y: key pictures $keys (url => width, $h high) side by
+// side, then label $text, both centred in the row of MEL_GC_KEY_H; returns
+// the x of the next hint.
+/**
+ * @param list<MelGcComp> $d
+ * @param int $x
+ * @param int $y
+ * @param array<string, int> $keys
+ * @param string $text
+ * @param int $h
+ * @return int
+ */
+function mel_gc_hint(&$d, $x, $y, $keys, $text, $h = MEL_GC_KEY_H)
+{
+    foreach ($keys as $url => $w)
+    {
+        $d[] = mel_gc_image(mel_gc_at($w, $h, $x, $y + intval((MEL_GC_KEY_H - $h) / 2)), $url);
+        $x += $w;
+    }
+    $x += MEL_GC_KEY_GAP;
+    $w = mel_gc_w($text, MEL_GC_HINT_PX);
+    $d[] = mel_gc_cut(null, mel_gc_at($w, MEL_GC_LABEL_H, $x, $y + (MEL_GC_KEY_H - MEL_GC_LABEL_H) / 2), $text,
+        MEL_GC_HINT_PX, MEL_GC_TEXT2);
+    return $x + $w + MEL_GC_HINT_GAP;
+}
+
 class MelLpv
 {
     // The search of the window on screen (mel_lpv_search_open), null none.
@@ -134,7 +278,7 @@ function mel_lpv_why($lang, $why, $detail)
 }
 
 // The yellow line of the releases of list $st (lp_note: "Онлайн не отвечает — показаны раздачи") in the row of the title
-// (mel_gc_title_row), '' none.
+// (mel_gc_head, view_gcomps.php), '' none.
 /**
  * @param MelState $st
  * @return string
