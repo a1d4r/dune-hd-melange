@@ -1188,7 +1188,7 @@ function mel_oc_lib($c)
     $lib = mel_lib_copies($y);
     mel_log("card: own movie:" . mel_cm_id($c['tile']) . ": library $y, " . count($lib) . ' copies (' .
         count(MelLib::$by_mid[$y]) . ' in index)');
-    return array($lib, $lib && $c['dune'] === '' ? $y : $c['dune']);
+    return array($lib, $lib ? mel_lib_hid($c['dune'], $y) : $c['dune']);
 }
 
 // The copy of copies $lib of the latest record of a copy of the card of history $hid (mel_wh_lib_last), there; null
@@ -1848,11 +1848,10 @@ function mel_oc_lib_menu_items($key, $c, $l, $pos)
 }
 
 // The start of a copy on the disk of the movie of card $c ($key) of layout $l (C2-C4 of the spec): its copies read
-// anew (a share may be gone since the screen; mel_lib_copies), the latest record of a copy of the card of its history
-// (mel_wh_lib_last). The copy of id $k chosen in the menu of the copies ('' - "Смотреть": the copy of the record, of
+// anew (a share may be gone since the screen; mel_lib_copies), the copy and the place by the history of the card
+// (mel_lib_place). The copy of id $k chosen in the menu of the copies ('' - "Смотреть": the copy of the record, of
 // its mirrors the first there; none - the copies by mel_lib_start: one plays, several - their menu back to
-// card_lib_copy). The place: of the latest record of the movie of any supplier (0 when it was watched to the end);
-// the copy of our record when that one is the latest from its start (the player offers its place).
+// card_lib_copy).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1867,22 +1866,11 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
         return null;
     if ($mv['dune_id'] === '')
         $mv['dune_id'] = $l['hid'];
-    $rec = mel_wh_lib_last($l['hid']);
-    $rk = $rec ? $rec['key'] : '';
-    // The place: of the latest record of the movie of any supplier, as the line shows it (mel_wh_movie; B1 of the owner,
-    // step 1: of the newer record), 0 watched. The copy of our record (of its key) when that record is the latest:
-    // from its start, the player offers the place itself.
-    $any = mel_wh_movie_last($l['hid']);
-    $pos = $any && !mel_wh_full($any[0], $any[1]) ? intval($any[0]) : 0;
-    $own = $any && $rk !== '' && $any[2] === MEL_SUP_ID . ":{$l['hid']}:-1:-1:$rk";
     $copies = mel_lib_copies($l['lib'][0]['mid']);
-    $chosen = $k !== '' ? mel_lib_copies_of($copies, $k) : array();
-    $first = $k !== '' ? $k : $rk;
-    $of_rec = $k !== '' ? $chosen && $chosen[0]['key'] === $rk : $rk !== '';
-    mel_log("card: own $key: watch a copy on the disk" . ($rk !== '' ? ", the record $rk" : ', no record') .
-        ", at $pos s" . ($own ? ', the latest' : ''));
+    mel_log("card: own $key: watch a copy on the disk");
+    list($first, $first_pos, $pos) = mel_lib_place($l['hid'], $copies, $k);
     MelOc::$cards[$key]['played'] = true;
-    return mel_lib_start($mv, $copies, $first, $of_rec && $own ? 0 : $pos, $pos, $c['ui'],
+    return mel_lib_start($mv, $copies, $first, $first_pos, $pos, $c['ui'],
         array('card_lib_copy', array('c' => $key, 'from' => 'first')));
 }
 

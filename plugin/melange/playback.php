@@ -446,6 +446,44 @@ function mel_lib_copies_but($copies, $try, $slow)
     return $res;
 }
 
+// H, the card of the history of a movie with copies on the disk: its card of the Dune $dune_id, else its movie $y of the
+// index (mel_lib_mid). The own card (mel_oc_lib) and "Continue" (mel_lib_resume) alike.
+/**
+ * @param string $dune_id
+ * @param string $y
+ * @return string
+ */
+function mel_lib_hid($dune_id, $y)
+{
+    return $dune_id !== '' ? $dune_id : $y;
+}
+
+// Where a copy of the movie of card of history $hid starts on the own card (C2-C4 of the spec), of its copies $copies
+// now (mel_lib_copies) -> array($first, $first_pos, $pos) of mel_lib_start. $first: the copy of id $k chosen in the menu
+// of the copies, '' ("Смотреть") - the key of the latest record of a copy of the card (mel_wh_lib_last; '' none). The
+// place $pos: of the latest record of the movie of any supplier, as the line shows it (mel_wh_movie; B1 of the owner,
+// step 1: of the newer record), 0 watched. $first_pos: 0 when $first is the copy of our record and that record is the
+// latest (the player offers its place itself), else $pos.
+/**
+ * @param string $hid
+ * @param list<MelLibCopy> $copies
+ * @param string $k
+ * @return array{string, int, int}
+ */
+function mel_lib_place($hid, $copies, $k)
+{
+    $rec = mel_wh_lib_last($hid);
+    $rk = $rec ? $rec['key'] : '';
+    $any = mel_wh_movie_last($hid);
+    $pos = $any && !mel_wh_full($any[0], $any[1]) ? intval($any[0]) : 0;
+    $u = $any && $rk !== '' ? mel_wh_uid($any[2], $hid) : null;
+    $own = $u !== null && $u[0] === -1 && $u[1] === -1 && $u[2] === $rk;
+    $chosen = $k !== '' ? mel_lib_copies_of($copies, $k) : array();
+    $of_rec = $k !== '' ? $chosen && $chosen[0]['key'] === $rk : $rk !== '';
+    mel_log('library: place: ' . ($rk !== '' ? "the record $rk" : 'no record') . ", at $pos s" . ($own ? ', the latest' : ''));
+    return array($k !== '' ? $k : $rk, $of_rec && $own ? 0 : $pos, $pos);
+}
+
 // "Continue" of the copy of key $key of movie $mv from $pos s (play_action of wh_mode local; $key the id of a copy of
 // the menu of the copies of it, mel_lib_copy_input): the fields $m of its movie_str find the movie in the index (mel_lib_title, mel_lib_mid), the
 // card of the record H is its card of the Dune, else of the index. The copy of the key from $pos; it gone - the others
@@ -462,8 +500,7 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
 {
     $y = mel_lib_mid(mel_lib_title($m, false));
     $copies = $y !== '' ? mel_lib_copies($y) : array();
-    if ($mv['dune_id'] === '')
-        $mv['dune_id'] = $y;
+    $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $y);
     mel_log("resume: local $key pos=$pos");
     $keep = array_intersect_key($m, array_flip(explode(' ', MEL_LIB_MOVIE_KEYS)));
     $back = array('lib_copy', array('movie_str' => strval(json_encode($keep)), 'series_type' => 'single',
