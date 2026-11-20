@@ -1135,22 +1135,7 @@ function mel_oc_layout($c)
     }
     else
     {
-        $w0 = $btns ? mel_oc_btn_w($btns[0]) : 0;
-        // The history: by $hid with a copy (the file plays), else by the card of the Dune when "Watch" plays.
-        $h = $lib ? $hid : ($c['dune'] !== '' && mel_oc_can_watch($c) ? $c['dune'] : '');
-        $only = array();
-        if ($h !== '')
-            $only = mel_oc_over($c['ui'], mel_wh_movie($h), $w0, mel_pg_mark_kind($h, 'movie') === 'off');
-        $over = (bool) $only;
-        // A copy on the disk: the line of that of its latest record (mel_oc_lib_cur), else of the best (owner
-        // 18-19.11.2026), in place of the lines of no IMDb, no Lampac or no card of the Dune (the file plays).
-        if ($lib)
-        {
-            $cur = mel_oc_lib_cur($lib, $hid);
-            $only = array_merge($only, mel_oc_lib_line($c['ui'], $cur ? $cur : $lib[0], MEL_CATV_CARD_X));
-        }
-        else
-            $only = array_merge($only, mel_oc_under($c, $over));
+        list($only, $over) = mel_oc_first_movie($c, $btns, $lib, $hid);
         if ($down || $posters)
         {
             $below = array_slice($rows, 1);
@@ -1167,6 +1152,35 @@ function mel_oc_layout($c)
         'stops' => $stops, 'clips' => $clips, 'tops' => $tops, 'h' => max(1080, $stops[count($stops) - 1] + MEL_OC_SHOW_BOTTOM), 'off' => $off,
         'zones' => $zones, 'tabs' => $tabs, 'ep' => $ep, 'prog' => $prog, 'rows' => $rows, 'strips' => $strips, 'tw' => $tw,
         'first' => $only, 'over' => $over, 'down' => $down, 'lib' => $lib, 'hid' => $hid);
+}
+
+// The first screen of the movie of card $c alone, of buttons $btns and copies on the disk $lib of card of history $hid
+// (mel_oc_lib): the line over the buttons (its progress, mel_wh_movie, or "Watched", mel_oc_over) and that under them
+// -> array(the components, over: whether the line over them is there).
+/**
+ * @param MelOcCard $c
+ * @param list<array{string, string, string, int}> $btns
+ * @param list<MelLibCopy> $lib
+ * @param string $hid
+ * @return array{list<array<string, mixed>>, bool}
+ */
+function mel_oc_first_movie($c, $btns, $lib, $hid)
+{
+    $w0 = $btns ? mel_oc_btn_w($btns[0]) : 0;
+    // The history: by $hid with a copy (the file plays), else by the card of the Dune when "Watch" plays.
+    $h = $lib ? $hid : ($c['dune'] !== '' && mel_oc_can_watch($c) ? $c['dune'] : '');
+    $only = array();
+    if ($h !== '')
+        $only = mel_oc_over($c['ui'], mel_wh_movie($h), $w0, mel_pg_mark_kind($h, 'movie') === 'off');
+    $over = (bool) $only;
+    // A copy on the disk: the line of that of its latest record (mel_oc_lib_cur), else of the best (owner
+    // 18-19.11.2026), in place of the lines of no IMDb, no Lampac or no card of the Dune (the file plays).
+    if ($lib)
+    {
+        $cur = mel_oc_lib_cur($lib, $hid);
+        return array(array_merge($only, mel_oc_lib_line($c['ui'], $cur ? $cur : $lib[0], MEL_CATV_CARD_X)), $over);
+    }
+    return array(array_merge($only, mel_oc_under($c, $over)), $over);
 }
 
 // The copies on the disk of the movie of card $c (library.php): the movie found in the media library by the movie_str
