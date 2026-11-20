@@ -3,6 +3,7 @@
 **English version**
 
 ## 0.66.1
+- **Releases for titles without an IMDb ID.** If a movie or series has no IMDb ID but has a TMDB id, Melange looks for releases by it, as for any other title: **Watch** opens the release list of the main source, and "Watch from…" and "Get films from…" list all sources. If there are no releases and Lampac is among your sources, the "No releases" window offers "Search online". The "Lampac only: no IMDb ID" line is gone. A title with neither ID still opens in Lampac, and without Lampac Melange says "No IMDb or TMDB ID: no releases".
 - Fixed: the microphone button on the remote opened Dune voice search on the Melange card and other screens outside the catalog; now it opens Melange search there too.
 - Fixed: after a Melange update, rows could disappear from the TV tab of the home screen for an hour or two. "TV → Series" showed only Continue Watching, "TV → Movies" had no genre rows, and a reboot did not help. Now, until the rows refresh, they show the posters saved by the previous version, and movie and series rows refresh alternately.
 - **DTS logos.** In the release list, the DTS, DTS-HD, DTS:X and DTS-ES logos are slightly larger and as tall as the Dolby Atmos and TrueHD tags. A DTS-HD MA release shows "dts-HD" in its row instead of the small "dts-HD MA" logo. The card still says "DTS-HD MA".
@@ -306,6 +307,7 @@ First public release. What it does:
 **Russian version**
 
 ## 0.66.1
+- **Раздачи у тайтлов без IMDb-id.** Если у фильма или сериала нет IMDb-id, но есть id в TMDB, Melange ищет раздачи по нему, как у любого другого тайтла: **Смотреть** открывает список раздач основного источника, «Смотреть из…» и «Откуда брать…» показывают все источники. Если раздач нет, а среди источников есть Lampac, откроется окно «Раздач нет» с кнопкой «Искать онлайн». Надписи «Только Lampac: нет IMDb-id» больше нет. Тайтл без обоих id по-прежнему открывается в Lampac, а без Lampac Melange пишет «Нет IMDb и TMDB: раздач нет».
 - Исправлено: в карточке Melange и на других экранах вне каталога кнопка микрофона на пульте открывала голосовой поиск Дюны, теперь — поиск Melange.
 - **Логотипы DTS.** В списке раздач логотипы DTS, DTS-HD, DTS:X и DTS-ES стали чуть крупнее, по высоте как плашки Dolby Atmos и TrueHD. У раздачи DTS-HD MA в строке стоит «dts-HD» вместо мелкого логотипа «dts-HD MA». В карточке по-прежнему «DTS-HD MA».
 - Исправлено: после обновления Melange ряды во вкладке «ТВ» главного экрана пропадали на час-два. В «Сериалах» оставалось только «Продолжить», в «Фильмах» не было жанров, перезагрузка не помогала. Теперь, пока ряды не обновились, в них постеры, сохранённые прежней версией, а ряды фильмов и сериалов обновляются поочерёдно.
