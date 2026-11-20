@@ -139,7 +139,7 @@ function mel_oc_lib_line($lang, $copy, $x, $n, $ep = false)
     {
         if ($drop !== '')
             $on[$drop] = false;
-        list($d, $w) = mel_oc_lib_parts($head, $p, $on, $more, $tx, $y, $px, $cy);
+        list($d, $w) = mel_oc_lib_parts($head, $p, $on, $more, $tx, $y, $px);
         if ($tx + $w <= $r)
             break;
     }
@@ -150,9 +150,9 @@ function mel_oc_lib_line($lang, $copy, $x, $n, $ep = false)
     return array_merge(array($disk), $d);
 }
 
-// The parts of the line of mel_oc_lib_line at $x, the labels at $y, $px, the plates centred at $cy (mel_oc_label_cy),
-// of the data $p of its copy those $on keeps (more, size, ch, audio): the text $head, the badges (ids, without audio
-// quiet) and the plate of the channels after them, " · " and the tail (the size, $more; after $head without badges),
+// The parts of the line of mel_oc_lib_line at $x, the labels at $y, $px, the plates centred on their capitals
+// (mel_oc_label_cy), of the data $p of its copy those $on keeps (more, size, ch, audio): the text $head, the plates
+// (mel_lib_plate_ids: the badges, the plate of the channels after them), " · " and the tail (the size, $more; after $head without badges),
 // LIB_GAP apart -> array(the components, the width). $head '' (the head of an episode): the plates EP_PLATE_GAP from $x, the tail after them; no
 // plates - the tail at $x, no " · " before it.
 /**
@@ -163,14 +163,12 @@ function mel_oc_lib_line($lang, $copy, $x, $n, $ep = false)
  * @param int $x
  * @param int $y
  * @param int $px
- * @param float $cy
  * @return array{list<array<string, mixed>>, int}
  */
-function mel_oc_lib_parts($head, $p, $on, $more, $x, $y, $px, $cy)
+function mel_oc_lib_parts($head, $p, $on, $more, $x, $y, $px)
 {
-    $ids = $on['audio'] ? $p['ids'] : $p['quiet'];
-    if ($on['ch'] && $p['ch'] !== '')
-        $ids[] = $p['ch'];
+    $cy = mel_oc_label_cy($y, $px);
+    $ids = mel_lib_plate_ids($p, $on['audio'], $on['ch']);
     $tail = implode(' · ', array_filter(array($on['size'] ? $p['size'] : '', $on['more'] ? $more : ''), 'strlen'));
     if (!$ids && $tail !== '' && $head !== '')
     {
@@ -188,25 +186,8 @@ function mel_oc_lib_parts($head, $p, $on, $more, $x, $y, $px, $cy)
     }
     if ($ids)
     {
-        // The plates b2 side by side, their glyphs LIB_GAP apart, dimmed whole: the pictures by alpha, the rects of
-        // the plates by the alpha of their colour.
-        $items = array();
-        foreach ($ids as $id)
-            $items[] = MelKit::b2($id, 0, MEL_K_PLATE_H / 2);
-        $row = MelKit::row($items, MEL_OC_LIB_GAP - 2 * MEL_K_PLATE_PAD, 0, MEL_K_PLATE_H / 2, 'lib');
-        $pw = $row['x1'] - $row['x0'];
-        $plates = $row['defs'];
-        foreach ($plates as $i => $def)
-        {
-            if ($def[GComponentDef::kind] === GCOMPONENT_IMAGE)
-                $plates[$i][GComponentDef::specific_def][GCompImageDef::alpha] = MEL_OC_LIB_ALPHA;
-            else if ($def[GComponentDef::kind] === GCOMPONENT_RECT)
-            {
-                $c = (string) $def[GComponentDef::specific_def][GCompRectDef::color];
-                $plates[$i][GComponentDef::specific_def][GCompRectDef::color] = sprintf('#%02X',
-                    intval(hexdec(substr($c, 1, 2)) * MEL_OC_LIB_ALPHA / 255)) . substr($c, 3);
-            }
-        }
+        // The plates b2 side by side, their glyphs LIB_GAP apart, dimmed whole.
+        list($plates, $pw) = mel_oc_lib_plates($ids, MEL_OC_LIB_ALPHA, MEL_OC_LIB_GAP - 2 * MEL_K_PLATE_PAD);
         // The middle of the plates at the pixel under $cy: the capitals of 4K and Vision sit 0.5 px under the middle
         // of their pictures, those of Atmos 1 px over it; so all of them are within 1 px of the capitals of the text.
         $d[] = mel_gc_panel('lib', mel_gc_at($pw, MEL_K_PLATE_H, $x + $w + $gap,
@@ -225,6 +206,54 @@ function mel_oc_lib_parts($head, $p, $on, $more, $x, $y, $px, $cy)
         $w += $gap + $tw;
     }
     return array($d, $w);
+}
+
+// The ids of the plates b2 of the data $p of a copy (mel_lib_copy_parts) in their order, one for all its lines (the line
+// "С диска", the head of an episode, the window of the copies): the badges (without the audio: not $audio), then the
+// plate of the channels after the audio (spec §15; none: not $ch).
+/**
+ * @param MelLibParts $p
+ * @param bool $audio
+ * @param bool $ch
+ * @return list<string>
+ */
+function mel_lib_plate_ids($p, $audio = true, $ch = true)
+{
+    $ids = $audio ? $p['ids'] : $p['quiet'];
+    if ($ch && $p['ch'] !== '')
+        $ids[] = $p['ch'];
+    return $ids;
+}
+
+// The plates b2 of $ids side by side $gap apart (between the plates), their centre at MEL_K_PLATE_H / 2 and their left
+// at 0 (the panel of the caller puts them), dimmed whole by $alpha (255: as they are; else the pictures by alpha, the
+// rects of the plates by the alpha of their colour) -> array(the components, the width).
+/**
+ * @param list<string> $ids
+ * @param int $alpha
+ * @param int $gap
+ * @return array{list<MelGcComp>, int}
+ */
+function mel_oc_lib_plates($ids, $alpha, $gap)
+{
+    $items = array();
+    foreach ($ids as $id)
+        $items[] = MelKit::b2($id, 0, MEL_K_PLATE_H / 2);
+    $row = MelKit::row($items, $gap, 0, MEL_K_PLATE_H / 2, 'lib');
+    $plates = $row['defs'];
+    foreach ($alpha < 255 ? $plates : array() as $i => $def)
+    {
+        if ($def[GComponentDef::kind] === GCOMPONENT_IMAGE)
+            $plates[$i][GComponentDef::specific_def][GCompImageDef::alpha] = $alpha;
+        else if ($def[GComponentDef::kind] === GCOMPONENT_RECT)
+        {
+            $c = (string) $def[GComponentDef::specific_def][GCompRectDef::color];
+            $plates[$i][GComponentDef::specific_def][GCompRectDef::color] = sprintf('#%02X',
+                intval(hexdec(substr($c, 1, 2)) * $alpha / 255)) . substr($c, 3);
+        }
+    }
+    /** @var list<MelGcComp> $plates */
+    return array($plates, $row['x1'] - $row['x0']);
 }
 
 // The copies on the disk of card $c (library.php): the title found in the media library by the movie_str of its
