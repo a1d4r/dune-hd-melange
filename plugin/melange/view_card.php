@@ -731,14 +731,14 @@ function mel_oc_head_lines($c, $l)
 }
 
 // The line why of a movie without a copy on the disk, at LINE_Y over the buttons (owner 20.11.2026: from under them):
-// no "Смотреть" (mel_oc_can_watch) - the meta failed; no card of the Dune - no history; else none ($over: the line of
+// no "Смотреть" (mel_oc_can_watch) - the meta failed; no card of the Dune - no history; else none ($hist: the line of
 // the history is there, mel_oc_hist; no line of it).
 /**
  * @param MelOcCard $c
- * @param bool $over
+ * @param bool $hist
  * @return list<array<string, mixed>>
  */
-function mel_oc_under($c, $over)
+function mel_oc_why($c, $hist)
 {
     $line = '';
     if (!mel_oc_can_watch($c))
@@ -1087,7 +1087,7 @@ function mel_oc_first_series($c, $btns, $more)
 
 // The first screen of the movie of card $c alone, of copies on the disk $lib of card of history $hid (mel_oc_lib): the
 // lines over the buttons (variant Б, owner 20.11.2026) - that of its history (mel_oc_hist) and that of its copy
-// (mel_oc_lib_line) or why (mel_oc_under) -> array(the components, the top of the highest of them: the line of the copy
+// (mel_oc_lib_line) or why (mel_oc_why) -> array(the components, the top of the highest of them: the line of the copy
 // (MEL_OC_LIB_Y) or why (MEL_OC_LINE_Y), else that of the history (its panel at MEL_CATV_PANE_Y, mel_catv_hist_y), else
 // DESC_BOTTOM - the description over it, mel_oc_head_lines).
 /**
@@ -1110,7 +1110,7 @@ function mel_oc_first_movie($c, $lib, $hid)
         $line = mel_oc_lib_line($c['ui'], $cur ? $cur : $lib[0], MEL_CATV_CARD_X, count($lib));
     }
     else
-        $line = mel_oc_under($c, (bool) $hist);
+        $line = mel_oc_why($c, (bool) $hist);
     $top = $line ? ($lib ? MEL_OC_LIB_Y : MEL_OC_LINE_Y) : ($hist ? MEL_CATV_PANE_Y + mel_catv_hist_y() : MEL_OC_DESC_BOTTOM);
     return array(array_merge($hist, $line), $top);
 }
@@ -1610,7 +1610,8 @@ function mel_oc_watch_from($c, $ep, $x, $src)
 // profile $src: its own card in memory with its meta, else one made as by ENTER (mel_oc_enter) with no screen, not
 // kept: no rows of posters, the tile filled by the meta, no rating asked (mel_oc_fill), a series with a card of the Dune
 // - its episodes of the meta to the pair (mel_pg_link_meta, as mel_oc_build) -> mel_oc_watch_from (a series: the
-// episode offered, mel_oc_pick). No "Смотреть" (mel_oc_can_watch): the meta did not load (a tile of TMDB alone).
+// episode offered, mel_oc_pick). No "Смотреть" (mel_oc_can_watch): the message of the card (mel_oc_why) - the meta did
+// not load (a tile of TMDB alone).
 /**
  * @param MelCatTile $tile
  * @param string $lang
