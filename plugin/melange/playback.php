@@ -340,8 +340,10 @@ function mel_pf_check($a)
 // --- A copy of a movie of the media library of the Dune (library.php): its file played by the path of its mount.
 
 // The fields of a movie_str a menu of the copies of play_action gives on (mel_lib_resume -> lib_copy): what mel_movie
-// and mel_lib_title read of a movie.
-define('MEL_LIB_MOVIE_KEYS', 'id imdb_id tmdb_id title native_title aio_en_title year poster_url fanart_url rate_imdb');
+// and mel_lib_title read of a movie and of a series (its type, TMDB of series, seasons, the numbering of Cinemeta and
+// the titles of the episodes of the own card, as mel_oc_watch_in puts them).
+define('MEL_LIB_MOVIE_KEYS', 'id imdb_id tmdb_id tmdbtv_id series_type title native_title aio_en_title year poster_url ' .
+    'fanart_url rate_imdb season_numbers aio_cin aio_titles');
 
 // vod_play of the copy of title $mv the check found there ($go of mel_lib_start: copy, from at s - 0: the start, the
 // player offers the place of the record itself; the i-th of n of its title, for the log; dur - the length of its MKV).
@@ -675,8 +677,8 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
     $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $y);
     mel_log("resume: local $key pos=$pos");
     $keep = array_intersect_key($m, array_flip(explode(' ', MEL_LIB_MOVIE_KEYS)));
-    $back = array('lib_copy', array('movie_str' => strval(json_encode($keep)), 'series_type' => 'single',
-        'lang' => $lang, 'pos' => strval($pos)));
+    $back = array('lib_copy', array('movie_str' => strval(json_encode($keep)), 'series_type' =>
+        $mv['series'] ? 'series' : 'single', 'lang' => $lang, 'pos' => strval($pos)));
     $go = mel_lib_start($copies, $key, $pos, $pos, false);
     if (isset($go['copy']))
         return mel_lib_play($mv, $go, $lang);
