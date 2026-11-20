@@ -614,6 +614,8 @@ parameters:
         MelLibCopy: 'array{folder: string, path: string, mid: string, hash: string, size: float, tags: list<string>, res: string, s: int, e: int, dir: string, url: string, mnt: string, srv: string, key: string, cid: string, caption: string}'
         # A title whose files are looked for in the media library (mel_lib_mid, library.php): its card of the Dune, IMDb, TMDB (of a series its TMDB of series), type (movie, series), year, names (of the tile, English, original).
         MelLibTitle: 'array{dune: string, imdb: string, tmdb: string, type: string, year: string, names: list<string>}'
+        # What the check of the copies before a start gives (mel_lib_start, playback.php): the copy there (at - the place in s, i of n - which copy, for the log, dur - the length of its MKV, 0 unknown); the copies left to choose of, 2+; none left - gone 'no' or 'slow'.
+        MelLibGo: 'array{copy: MelLibCopy, at: int, i: int, n: int, dur: float}|array{pick: list<MelLibCopy>}|array{gone: string}'
         # The latest record of a copy on the disk of a card (MelWh::$lib, history.php): key, pos and len in s, its end.
         MelLibRec: 'array{key: string, pos: float, len: float, end: int}'
         # A strip of a row under a frame of the focus (view_card_row.php).

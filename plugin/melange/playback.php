@@ -372,25 +372,26 @@ function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1)
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
 }
 
-// The start of a copy of movie $mv of its copies $copies now (mel_lib_copies, the best first), the own card and
-// play_action alike: of $first - the key of a record (its mirrors in their order, the first there plays) or the id of
-// the copy chosen ('' none; not among them - logged, as none) - from $first_pos s, if its file is there (mel_lib_here);
-// else (or none such) by the copies left - none: mel_lib_gone; one: it from $pos s, if there; several: their menu
-// (mel_lib_pick_menu) to $back = array(control, params), with k - the id of the copy chosen. One check a copy at most;
-// a copy that does not answer ('slow') takes the copies of all the shares of its server out unchecked (srv: the NAS
-// sleeps or is off - one wait, not one a share; a mirror on another server is still checked), and no check starts that
-// the operation (MEL_OP_BUDGET) has no time left for.
+// The check of the copies of a movie or an episode before a start, the own card, play_action and the lazy episodes
+// alike (the caller shows what it gives, a line or two): of its copies now $copies (mel_lib_copies, mel_lib_ep_copies;
+// the best first), of $first - the key of a record (its mirrors in their order, the first there) or the id of the copy
+// chosen ('' none; not among them - logged, as none) - from $first_pos s, if its file is there (mel_lib_here); else (or
+// none such) by the copies left from $pos s - one: it, if there; several: their choice to the caller (pick), $auto - the
+// first there of them in their order (no window: under the player). -> MelLibGo: copy, at (the place), i of n (for the
+// log), dur (of $mkv: the length of its MKV, else 0) - the file there; pick - the copies left, 2+; gone 'no' | 'slow' -
+// none left. One check a copy at most; a copy that does not answer ('slow') takes the copies of all the shares of its
+// server out unchecked (srv: the NAS sleeps or is off - one wait, not one a share; a mirror on another server is still
+// checked), and no check starts that the operation (MEL_OP_BUDGET) has no time left for (with $mkv: and its read).
 /**
- * @param MelMovie $mv
  * @param list<MelLibCopy> $copies
  * @param string $first
  * @param int $first_pos
  * @param int $pos
- * @param string $lang
- * @param array{string, array<string, string>} $back
- * @return MelAction
+ * @param bool $auto
+ * @param bool $mkv
+ * @return MelLibGo
  */
-function mel_lib_start($mv, $copies, $first, $first_pos, $pos, $lang, $back)
+function mel_lib_start($copies, $first, $first_pos, $pos, $auto, $mkv)
 {
     $left = $copies;
     $want = mel_lib_copies_of($copies, $first);
@@ -399,29 +400,33 @@ function mel_lib_start($mv, $copies, $first, $first_pos, $pos, $lang, $back)
             'not among ' . count($copies) . ' copies')));
     $at = $first_pos;
     $slow = false;
+    $need = (int) (MEL_LIB_HERE_S + ($mkv ? ceil(MEL_LIB_MKV_MS / 1000) : 0));
     for (;;)
     {
         if (!$want)
         {
             if (!$left)
-                return mel_lib_gone($slow ? 'slow' : 'no');
-            if (count($left) > 1)
-                return mel_lib_pick_menu($back[0], $back[1], $left, '', $lang);
+                return array('gone' => $slow ? 'slow' : 'no');
+            if (count($left) > 1 && !$auto)
+                return array('pick' => $left);
             $want = $left;
             $at = $pos;
         }
         $try = array_shift($want);
-        if (mel_op_total(MEL_LIB_HERE_S, MEL_LIB_HERE_S, "library: here {$try['key']}") === 0)
-            return mel_lib_gone('slow');
-        $here = mel_lib_here($try);
-        $i = 0;
-        foreach ($copies as $n => $c)
-        {
-            if ($c['cid'] === $try['cid'])
-                $i = $n;
-        }
+        if (mel_op_total($need, $need, "library: here {$try['key']}") === 0)
+            return array('gone' => 'slow');
+        $dur = 0.0;
+        $here = mel_lib_here($try, $mkv, $dur);
         if ($here === 'yes')
-            return mel_lib_play($mv, $try, $at, $lang, $i, count($copies));
+        {
+            $i = 0;
+            foreach ($copies as $n => $c)
+            {
+                if ($c['cid'] === $try['cid'])
+                    $i = $n;
+            }
+            return array('copy' => $try, 'at' => $at, 'i' => $i, 'n' => count($copies), 'dur' => $dur);
+        }
         $slow = $slow || $here === 'slow';
         $left = mel_lib_copies_but($left, $try, $here === 'slow');
         $want = mel_lib_copies_but($want, $try, $here === 'slow');
@@ -571,7 +576,7 @@ function mel_lib_ep_ctx($hid, $y, $q, $e)
 // "Continue" of the copy of key $key of movie $mv from $pos s (play_action of wh_mode local; $key the id of a copy of
 // the menu of the copies of it, mel_lib_copy_input): the fields $m of its movie_str find the movie in the index (mel_lib_title, mel_lib_mid), the
 // card of the record H is its card of the Dune, else of the index. The copy of the key from $pos; it gone - the others
-// (mel_lib_start), their menu back here (lib_copy) with the place of the record.
+// (mel_lib_start), their menu (mel_lib_pick_menu) back here (lib_copy) with the place of the record; none - mel_lib_gone.
 /**
  * @param MelMovie $mv
  * @param array<mixed> $m
@@ -589,7 +594,10 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
     $keep = array_intersect_key($m, array_flip(explode(' ', MEL_LIB_MOVIE_KEYS)));
     $back = array('lib_copy', array('movie_str' => strval(json_encode($keep)), 'series_type' => 'single',
         'lang' => $lang, 'pos' => strval($pos)));
-    return mel_lib_start($mv, $copies, $key, $pos, $pos, $lang, $back);
+    $go = mel_lib_start($copies, $key, $pos, $pos, false, false);
+    if (isset($go['copy']))
+        return mel_lib_play($mv, $go['copy'], $go['at'], $lang, $go['i'], $go['n']);
+    return isset($go['pick']) ? mel_lib_pick_menu($back[0], $back[1], $go['pick'], '', $lang) : mel_lib_gone($go['gone']);
 }
 
 // lib_copy: the copy of id k (mel_lib_cid) chosen in the menu of the copies of play_action (mel_lib_resume) - from pos

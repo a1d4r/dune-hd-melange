@@ -1808,7 +1808,7 @@ function mel_oc_lib_menu_items($key, $c, $l, $pos)
 // anew (a share may be gone since the screen; mel_lib_copies), the copy and the place by the history of the card
 // (mel_lib_place). The copy of id $k chosen in the menu of the copies ('' - "Смотреть": the copy of the record, of
 // its mirrors the first there; none - the copies by mel_lib_start: one plays, several - their menu back to
-// card_lib_copy).
+// card_lib_copy, none there - mel_lib_gone).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1826,8 +1826,11 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
     mel_log("card: own $key: watch a copy on the disk");
     list($first, $first_pos, $pos) = mel_lib_place($l['hid'], $copies, $k);
     MelOc::$cards[$key]['played'] = true;
-    return mel_lib_start($mv, $copies, $first, $first_pos, $pos, $c['ui'],
-        array('card_lib_copy', array('c' => $key, 'from' => 'first')));
+    $go = mel_lib_start($copies, $first, $first_pos, $pos, false, false);
+    if (isset($go['copy']))
+        return mel_lib_play($mv, $go['copy'], $go['at'], $c['ui'], $go['i'], $go['n']);
+    return isset($go['pick']) ? mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'first'), $go['pick'], '',
+        $c['ui']) : mel_lib_gone($go['gone']);
 }
 
 // card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the id of the copy of the menu of the copies; from:
