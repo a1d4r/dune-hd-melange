@@ -31,6 +31,12 @@ class MelWh
     public static $lib = array();
     /** @var array<string, MelLibRec> */
     public static $lib_new = array();
+    // The latest of our records of a copy of each episode (s, e >= 1 of its uid; the season as asked) of each card, by
+    // its end: "<dune id>:<s>:<e>" => MelLibRec. $lib_ep_new: while the files are read.
+    /** @var array<string, MelLibRec> */
+    public static $lib_ep = array();
+    /** @var array<string, MelLibRec> */
+    public static $lib_ep_new = array();
 }
 
 // The card of a record that WatchHistory::do_update keeps: not deleted, wh_item_is_suitable of the
@@ -189,12 +195,18 @@ function mel_wh_ours_visit($w, $arg, &$acc)
     $end = mel_wh_end($w);
     $acc[$w->uid] = mel_wh_full($pos, $len) || mel_wh_mark_on($mark, $end) ? 1.0 :
         ($len > 0 && $pos > 0 ? min(1.0, $pos / $len) : 0.0);
-    if (!preg_match('/^[^:]+:(' . MEL_DUNE_ID . '):-?[0-9]{1,5}:-?[0-9]{1,5}:([^:]+)\z/', $w->uid, $m))
+    if (!preg_match('/^[^:]+:(' . MEL_DUNE_ID . '):(-?[0-9]{1,5}):(-?[0-9]{1,5}):([^:]+)\z/', $w->uid, $m))
         return false;
     if (!isset(MelWh::$last_new[$m[1]]) || MelWh::$last_new[$m[1]][2] < $end)
-        MelWh::$last_new[$m[1]] = array($m[2], mel_wh_prof($w), $end);
-    if (mel_lib_key_ok($m[2]) && (!isset(MelWh::$lib_new[$m[1]]) || MelWh::$lib_new[$m[1]]['end'] < $end))
-        MelWh::$lib_new[$m[1]] = array('key' => $m[2], 'pos' => max(0.0, $pos), 'len' => $len, 'end' => $end);
+        MelWh::$last_new[$m[1]] = array($m[4], mel_wh_prof($w), $end);
+    if (!mel_lib_key_ok($m[4]))
+        return false;
+    $rec = array('key' => $m[4], 'pos' => max(0.0, $pos), 'len' => $len, 'end' => $end);
+    if (!isset(MelWh::$lib_new[$m[1]]) || MelWh::$lib_new[$m[1]]['end'] < $end)
+        MelWh::$lib_new[$m[1]] = $rec;
+    $k = $m[1] . ':' . intval($m[2]) . ':' . intval($m[3]);
+    if (intval($m[2]) >= 1 && intval($m[3]) >= 1 && (!isset(MelWh::$lib_ep_new[$k]) || MelWh::$lib_ep_new[$k]['end'] < $end))
+        MelWh::$lib_ep_new[$k] = $rec;
     return false;
 }
 
@@ -245,6 +257,21 @@ function mel_wh_lib_last($hid)
 {
     mel_wh_ours_all();
     return $hid !== '' && isset(MelWh::$lib[$hid]) ? MelWh::$lib[$hid] : null;
+}
+
+// The latest of our records of a copy on the disk of episode S$q E$e (the season as asked) of card $hid
+// (MelWh::$lib_ep), null none.
+/**
+ * @param string $hid
+ * @param int $q
+ * @param int $e
+ * @return MelLibRec|null
+ */
+function mel_wh_lib_ep_last($hid, $q, $e)
+{
+    mel_wh_ours_all();
+    $k = "$hid:$q:$e";
+    return $hid !== '' && isset(MelWh::$lib_ep[$k]) ? MelWh::$lib_ep[$k] : null;
 }
 
 // is_fully_watched of the shell with its default settings: 90 %, 30 s left.
@@ -325,6 +352,39 @@ function mel_wh_movie_visit($w, $dune_id, &$acc)
     return (bool)$acc;
 }
 
+// The latest record of episode S$q E$e (the season as asked) of the series of card $hid, of any supplier or a local
+// file, as mel_wh_movie_last -> array(pos, len, uid), null for none.
+/**
+ * @param string $hid
+ * @param int $q
+ * @param int $e
+ * @return array{float, float, string}|null
+ */
+function mel_wh_ep_last($hid, $q, $e)
+{
+    $found = mel_wh_find('history: episode', 'mel_wh_ep_visit', array($hid, $q, $e));
+    if (!$found)
+        return null;
+    list(, , $pos, $len, $uid) = mel_wh_rec($found[0]);
+    return $len > 0 ? array(max(0.0, $pos), $len, $uid) : null;
+}
+
+/**
+ * @param mixed $w
+ * @param array{string, int, int} $arg
+ * @param list<stdClass> $acc
+ * @return bool
+ */
+function mel_wh_ep_visit($w, $arg, &$acc)
+{
+    if (!mel_wh_match($w, $arg[0]))
+        return false;
+    list($s, $e) = mel_wh_rec($w);
+    if ($s === $arg[1] && $e === $arg[2])
+        $acc[] = $w;
+    return (bool)$acc;
+}
+
 // Our records (uid "aio:..."): uid => share of its latest record, 0 without
 // progress, 1 once watched (by position or marked). Read again only when the
 // history files change.
@@ -342,6 +402,7 @@ function mel_wh_ours_all()
     }
     MelWh::$last_new = array();
     MelWh::$lib_new = array();
+    MelWh::$lib_ep_new = array();
     $all = mel_wh_find('progress', 'mel_wh_ours_visit', array(MEL_SUP_ID . ':', mel_wh_marked_set()));
     MelWh::$sig = $sig;
     MelWh::$all = $all;
@@ -349,6 +410,8 @@ function mel_wh_ours_all()
     MelWh::$last_new = array();
     MelWh::$lib = MelWh::$lib_new;
     MelWh::$lib_new = array();
+    MelWh::$lib_ep = MelWh::$lib_ep_new;
+    MelWh::$lib_ep_new = array();
     return $all;
 }
 

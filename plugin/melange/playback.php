@@ -463,24 +463,32 @@ function mel_lib_hid($dune_id, $y)
 // of the copies, '' ("Смотреть") - the key of the latest record of a copy of the card (mel_wh_lib_last; '' none). The
 // place $pos: of the latest record of the movie of any supplier, as the line shows it (mel_wh_movie; B1 of the owner,
 // step 1: of the newer record), 0 watched. $first_pos: 0 when $first is the copy of our record and that record is the
-// latest (the player offers its place itself), else $pos.
+// latest (the player offers its place itself), else $pos. Episode S$q E$e ($e >= 1, the season as asked; $copies of it):
+// the same by the records of the episode - $k the choice of mel_lib_ep_pick or the id of a copy chosen, the record of a
+// copy of it (mel_wh_lib_ep_last), the place of its latest record (mel_wh_ep_last).
 /**
  * @param string $hid
  * @param list<MelLibCopy> $copies
  * @param string $k
+ * @param int $q
+ * @param int $e
  * @return array{string, int, int}
  */
-function mel_lib_place($hid, $copies, $k)
+function mel_lib_place($hid, $copies, $k, $q = -1, $e = -1)
 {
-    $rec = mel_wh_lib_last($hid);
+    $ep = $e >= 1;
+    if (!$ep)
+        $q = $e = -1;
+    $rec = $ep ? mel_wh_lib_ep_last($hid, $q, $e) : mel_wh_lib_last($hid);
     $rk = $rec ? $rec['key'] : '';
-    $any = mel_wh_movie_last($hid);
+    $any = $ep ? mel_wh_ep_last($hid, $q, $e) : mel_wh_movie_last($hid);
     $pos = $any && !mel_wh_full($any[0], $any[1]) ? intval($any[0]) : 0;
     $u = $any && $rk !== '' ? mel_wh_uid($any[2], $hid) : null;
-    $own = $u !== null && $u[0] === -1 && $u[1] === -1 && $u[2] === $rk;
+    $own = $u !== null && $u[0] === $q && $u[1] === $e && $u[2] === $rk;
     $chosen = $k !== '' ? mel_lib_copies_of($copies, $k) : array();
     $of_rec = $k !== '' ? $chosen && $chosen[0]['key'] === $rk : $rk !== '';
-    mel_log('library: place: ' . ($rk !== '' ? "the record $rk" : 'no record') . ", at $pos s" . ($own ? ', the latest' : ''));
+    mel_log('library: place' . ($ep ? " S{$q}E{$e}" : '') . ': ' . ($rk !== '' ? "the record $rk" : 'no record') .
+        ", at $pos s" . ($own ? ', the latest' : ''));
     return array($k !== '' ? $k : $rk, $of_rec && $own ? 0 : $pos, $pos);
 }
 
