@@ -244,9 +244,10 @@ function mel_oc_lib_series($c, $res)
 }
 
 // The episodes of series $y of the index for card $c, by the invariant of the numberings (mel_lib_ep_same): the
-// seasons of the meta of the card, season => its last episode, of the episodes not out yet and of no date too (soon: a
-// file of one on the disk has its mark on its still, though season_numbers leaves it out, mel_cm_out), and only a season
-// the request asks as it is (mel_cm_req_s = s, checked here: a season numbered on by TMDB is none). -> array(their copies
+// seasons of the meta of the card, season => the set of the numbers of its episodes (not 1..the last one: a season of
+// E9-E16 has no E1-E8), of the episodes not out yet and of no date too (soon: a file of one on the disk has its mark on
+// its still, though season_numbers leaves it out, mel_cm_out), and only a season the request asks as it is
+// (mel_cm_req_s = s, checked here: a season numbered on by TMDB is none). -> array(their copies
 // now "s:e" => copies, mel_lib_ep_copies - the season of the index is that of the card; the files of them for the
 // history, hash => array(q, e) | 'skip', for mel_wh_series and mel_lib_place - q = s by the invariant, as they are). No
 // meta or no Y: none.
@@ -263,8 +264,10 @@ function mel_oc_lib_eps($c, $y)
     $seasons = array();
     foreach ($m['seasons'] as $s => $eps)
     {
-        if ($eps && mel_cm_req_s($m, $s) === $s)
-            $seasons[$s] = $eps[count($eps) - 1]['e'];
+        if (!$eps || mel_cm_req_s($m, $s) !== $s)
+            continue;
+        foreach ($eps as $ep)
+            $seasons[$s][$ep['e']] = true;
     }
     return mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), $seasons, $m['cin']);
 }

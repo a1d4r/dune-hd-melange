@@ -430,12 +430,13 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
 // S$s E$e of the index is taken only when the meta of the title has it and asks its season as it is (mel_cm_req_s =
 // s): then the season of the index is the season of the card, the season of the request and of the history (the
 // key "s:e" of the stills, mel_cm_hkey, our uid "aio:H:s:e:...", the episodes of a playlist) - none of them counts
-// the numbers of a copy anew. Pure, it knows no numbering: $seasons comes with the invariant in it - season => its
-// episodes 1..N, only the seasons asked as they are (the own card: the seasons of its meta, the ones not out too, with
-// mel_cm_req_s = s, mel_oc_lib_eps; C7: the count of season_numbers of the shell, mel_lib_series - each season 1..N,
-// no episode numbers there to look at), $cin - the runs of the numbering of Cinemeta (aio_cin, mel_cin_load). With
-// $cin the seasons are of Cinemeta (by_cin: asked as they are), an episode there when a run of its season has it
-// (mel_cin_abs); without, when its season is in $seasons and has it. So a season numbered on by TMDB (One Piece S2 is
+// the numbers of a copy anew. Pure, it knows no numbering: $seasons comes with the invariant in it - season => the
+// set of the numbers of its episodes (number => true), only the seasons asked as they are (the own card: the episodes
+// of its meta, the ones not out and of no date too, of the seasons with mel_cm_req_s = s, mel_oc_lib_eps - a season of
+// E9-E16 has no E1-E8; C7: the counts of season_numbers of the shell, mel_lib_series - each season 1..N, no episode
+// numbers there to look at), $cin - the runs of the numbering of Cinemeta (aio_cin, mel_cin_load). With $cin the
+// seasons are of Cinemeta (by_cin: asked as they are), an episode there when a run of its season has it (mel_cin_abs);
+// without, when the set of its season in $seasons has its number. So a season numbered on by TMDB (One Piece S2 is
 // E62-E77, asked as season 1) is not there - its files give no badge; a season of the index the meta has not (the
 // numbers of TMDB of a series with no pairs of Cinemeta: its season 3 is no season there) - none either. Of the copies
 // $eps ("s:e" of the index => copies, mel_lib_ep_copies) and the hashes $hashes (mel_lib_ep_hashes) -> array(the
@@ -444,7 +445,7 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
 /**
  * @param array<string, list<MelLibCopy>> $eps
  * @param array<string, array{int, int}|string> $hashes
- * @param array<int, int> $seasons
+ * @param array<int, array<int, true>> $seasons
  * @param list<array{int, int, int}> $cin
  * @return array{array<string, list<MelLibCopy>>, array<string, array{int, int}|string>}
  */
@@ -469,7 +470,7 @@ function mel_lib_ep_same($eps, $hashes, $seasons, $cin)
 /**
  * @param int $s
  * @param int $e
- * @param array<int, int> $seasons
+ * @param array<int, array<int, true>> $seasons
  * @param list<array{int, int, int}> $cin
  * @return bool
  */
@@ -477,7 +478,7 @@ function mel_lib_ep_same_one($s, $e, $seasons, $cin)
 {
     if ($cin)
         return mel_cin_abs($cin, $s, $e) > 0;
-    return $e >= 1 && isset($seasons[$s]) && $e <= $seasons[$s];
+    return isset($seasons[$s][$e]);
 }
 
 // The series of $mv (the fields $m of its movie_str) in the index -> array($mv of the card of the history H, Y, the
@@ -495,7 +496,11 @@ function mel_lib_series($mv, $m)
     $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $y);
     if ($y === '')
         return array($mv, $y, array(), array());
-    list($eps, $fix) = mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), $mv['seasons'], $mv['cin']);
+    // The counts of season_numbers: each season 1..N.
+    $seasons = array();
+    foreach ($mv['seasons'] as $s => $n)
+        $seasons[$s] = $n >= 1 ? array_fill_keys(range(1, $n), true) : array();
+    list($eps, $fix) = mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), $seasons, $mv['cin']);
     return array($mv, $y, $eps, $fix);
 }
 
