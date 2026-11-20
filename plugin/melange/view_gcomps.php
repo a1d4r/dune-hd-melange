@@ -402,6 +402,21 @@ function mel_gc_service_langs($langs)
     return array_values(array_intersect($langs, array_keys(mel_lang_service())));
 }
 
+// The senior service code of $langs (MULTI > DUAL > DUB > ORIG), '' none: the one word of the language column.
+/**
+ * @param list<string> $langs
+ * @return string
+ */
+function mel_gc_service_word($langs)
+{
+    foreach (array('MULTI', 'DUAL', 'DUB', 'ORIG') as $c)
+    {
+        if (in_array($c, $langs, true))
+            return $c;
+    }
+    return '';
+}
+
 /**
  * @param MelState $st
  * @return 'ru'|'en'
@@ -483,9 +498,10 @@ function mel_gc_plural($lang, $n, $key)
 // Languages of row $r (variant B, 19.11.2026): its confirmed ones (mel_row_voice_langs 'ok') as up to
 // MEL_GC_LANGS_MAX flags of the skin, a code without a flag as text (MEL_K_PX_CAPTION), the rest as "+N"; one "?"
 // (k_lang_q, in the slot of a flag) for all the guessed ones ('q'); the plate of the subtitles mark
-// (mel_row_subs_mark, k_badge_subs-*) MEL_GC_SUBS_GAP after them. Service codes of 'langs' (MULTI, DUAL, ...) as
-// text only without a language confirmed or guessed. What does not fit $width: the flags go into the "+N" first,
-// the "?" and the plate stay. -> array(flag|text|q|subs, value (flag, text, picture, badge id), width).
+// (mel_row_subs_mark, k_badge_subs-*) MEL_GC_SUBS_GAP after them. Without a language confirmed or guessed the
+// senior service code of 'langs' (mel_gc_service_word) as a small plate in place of "?" (k_lang_multi, ...; the
+// owner 20.11.2026, variant B). What does not fit $width: the flags go into the "+N" first, the "?" (or the word)
+// and the plate stay. -> array(flag|text|q|subs, value (flag, text, picture, badge id), width).
 /**
  * @param MelRow $r
  * @param int $width
@@ -495,12 +511,13 @@ function mel_gc_lang_items($r, $width)
 {
     $flags = mel_gc_flags();
     $vl = mel_row_voice_langs($r);
-    $tail = $vl['ok'] || $vl['q'] ? mel_gc_tail_langs($vl['ok']) : mel_gc_service_langs($r['langs']);
+    $tail = mel_gc_tail_langs($vl['ok']);
+    $q = $vl['q'] ? 'q' : ($vl['ok'] ? '' : strtolower(mel_gc_service_word($r['langs'])));
     $end = array();
-    if ($vl['q'])
+    if ($q !== '')
     {
-        $p = MelKit::pic('k_lang_q');
-        $end[] = array('q', 'k_lang_q', $p['w']);
+        $p = MelKit::pic("k_lang_$q");
+        $end[] = array('q', "k_lang_$q", $p['w']);
     }
     $m = strtolower(mel_row_subs_mark($r));
     // A plate b2 (k_badge_subs-*); a mark of no picture: none.
@@ -804,16 +821,18 @@ function mel_gc_row_items($r, $tt, $c, $on, $share = 0)
             $x += $i ? mel_gc_item_gap($l) : 0;
             if ($l[0] === 'flag' || $l[0] === 'q')
             {
-                // "?" in the slot of a flag, as a flag: only its picture differs.
+                // "?" (or the service word) in the slot of a flag, as a flag: its picture as wide as it is.
                 $url = "gui_skin://flags/{$l[1]}.png";
+                $fw = MEL_GC_FLAG;
                 if ($l[0] === 'q')
                 {
                     $p = MelKit::pic($l[1]);
                     $url = $p['url'];
+                    $fw = $p['w'];
                 }
                 $fy = intval($y - MEL_GC_FLAG / 2);
-                $it[] = MelKit::box(array(mel_gc_image(mel_gc_at(MEL_GC_FLAG, MEL_GC_FLAG, $x, $fy), $url)), $x, $fy,
-                    MEL_GC_FLAG, MEL_GC_FLAG);
+                $it[] = MelKit::box(array(mel_gc_image(mel_gc_at($fw, MEL_GC_FLAG, $x, $fy), $url)), $x, $fy,
+                    $fw, MEL_GC_FLAG);
             }
             elseif ($l[0] === 'subs')
                 $it[] = MelKit::badges(array($l[1]), $x, $y, 'badges subs');

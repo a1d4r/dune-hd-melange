@@ -414,6 +414,10 @@ function mel_k_pic()
         'k_glyph_aac' => array('url' => 'plugin_file://img/k_glyph_aac.c3a94e6b.png', 'w' => 96, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_badge_subs-ru' => array('url' => 'plugin_file://img/k_badge_subs_ru.f18cf4a8.png', 'w' => 93, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_lang_q' => array('url' => 'plugin_file://img/k_lang_q.ce71fd18.png', 'w' => 36, 'h' => 36, 'mid' => null, 'ink' => null),
+        'k_lang_multi' => array('url' => 'plugin_file://img/k_lang_multi.7a6b4484.png', 'w' => 75, 'h' => 36, 'mid' => null, 'ink' => null),
+        'k_lang_dual' => array('url' => 'plugin_file://img/k_lang_dual.bc926005.png', 'w' => 68, 'h' => 36, 'mid' => null, 'ink' => null),
+        'k_lang_dub' => array('url' => 'plugin_file://img/k_lang_dub.c60b1d43.png', 'w' => 56, 'h' => 36, 'mid' => null, 'ink' => null),
+        'k_lang_orig' => array('url' => 'plugin_file://img/k_lang_orig.21a500cb.png', 'w' => 63, 'h' => 36, 'mid' => null, 'ink' => null),
         'k_key_info' => array('url' => 'plugin_file://img/k_key_info.4abf6008.png', 'w' => 96, 'h' => 96, 'mid' => array(48.0, 48.0), 'ink' => array(43, 16, 53, 80)),
         'k_mask_page' => array('url' => 'plugin_file://img/k_mask_page.bc9369ac.png', 'w' => 900, 'h' => 880, 'mid' => null, 'ink' => null)
     );
