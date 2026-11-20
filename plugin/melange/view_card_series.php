@@ -405,21 +405,20 @@ function mel_oc_ep_titles($c, $ep, $pr, $on)
 
 // The still of episode $ep at index $i of its season: the frame of the server (loading: the
 // picture of the shell; not out yet or none: the empty one of the shell), with a copy on the disk (of the copies of
-// episodes $lib_eps, nav lib_eps; Z3, spec §7.2) the disk at the top left on the plate of the mark (EP_DISK_W white on
-// 44 x 44, 8 in), the bar of the progress at its foot if begun, the mark at the top right if watched; the titles under
-// it ("tt<i>").
+// episodes of layout $l, lib_eps; Z3, spec §7.2) the disk at the top left on the plate of the mark (EP_DISK_W white on
+// 44 x 44, 8 in), the bar of the progress at its foot if begun (by the progress of $l, prog), the mark at the top right
+// if watched; the titles under it ("tt<i>").
 /**
  * @param MelOcCard $c
- * @param array<string, array{float, float, bool}> $prog
- * @param array<string, list<MelLibCopy>> $lib_eps
+ * @param array{prog: array<string, array{float, float, bool}>, lib_eps: array<string, list<MelLibCopy>>} $l
  * @param int $i
  * @param MelCardEp $ep
  * @param bool $on
  * @return MelGcComp
  */
-function mel_oc_ep_card($c, $prog, $lib_eps, $i, $ep, $on)
+function mel_oc_ep_card($c, $l, $i, $ep, $on)
 {
-    $pr = mel_oc_prog($c, $prog, $ep);
+    $pr = mel_oc_prog($c, $l['prog'], $ep);
     $img = mel_gc_image(mel_gc_at(MEL_OC_EP_W, MEL_OC_EP_H, 0, 0),
         $ep['soon'] || $ep['img'] === '' ? MEL_OC_ICONS . 'loading_episode_image.png' : $ep['img']);
     if (!$ep['soon'] && $ep['img'] !== '')
@@ -428,7 +427,7 @@ function mel_oc_ep_card($c, $prog, $lib_eps, $i, $ep, $on)
         $img[GComponentDef::specific_def][GCompImageDef::load_failed_url] = MEL_OC_ICONS . 'no_episode_image.png';
     }
     $d = array(mel_gc_rect(mel_gc_at(MEL_OC_EP_W, MEL_OC_EP_H, 0, 0), MEL_OC_NO_PHOTO), $img);
-    if (!empty($lib_eps["{$ep['s']}:{$ep['e']}"]))
+    if (!empty($l['lib_eps'][mel_oc_se($ep['s'], $ep['e'])]))
     {
         $d[] = mel_gc_rect(mel_gc_at(44, 44, 8, 8), MEL_OC_MARK_BG);
         $d[] = mel_gc_image(mel_gc_at(MEL_OC_EP_DISK_W, MEL_OC_EP_DISK_W, 16, 16), MEL_OC_IMG . 'ep_disk.png');
@@ -449,23 +448,23 @@ function mel_oc_ep_card($c, $prog, $lib_eps, $i, $ep, $on)
     return mel_gc_panel("c$i", mel_gc_at(MEL_OC_EP_W, MEL_OC_ROW_H, $i * MEL_OC_EP_STEP, 0), $d);
 }
 
-// The stills $lo..$hi of season $s, the one at $focus lit (-1: none); the copies of episodes $lib_eps (mel_oc_ep_card).
+// The stills $lo..$hi of season $s, the one at $focus lit (-1: none); the progress and the copies of the episodes of
+// layout $l (mel_oc_ep_card).
 /**
  * @param MelOcCard $c
- * @param array<string, array{float, float, bool}> $prog
- * @param array<string, list<MelLibCopy>> $lib_eps
+ * @param array{prog: array<string, array{float, float, bool}>, lib_eps: array<string, list<MelLibCopy>>} $l
  * @param int $s
  * @param int $lo
  * @param int $hi
  * @param int $focus
  * @return list<MelGcComp>
  */
-function mel_oc_ep_cards($c, $prog, $lib_eps, $s, $lo, $hi, $focus)
+function mel_oc_ep_cards($c, $l, $s, $lo, $hi, $focus)
 {
     $eps = mel_oc_eps($c, $s);
     $d = array();
     for ($i = $lo; $i <= $hi; $i++)
-        $d[] = mel_oc_ep_card($c, $prog, $lib_eps, $i, $eps[$i], $i === $focus);
+        $d[] = mel_oc_ep_card($c, $l, $i, $eps[$i], $i === $focus);
     return $d;
 }
 
@@ -522,7 +521,7 @@ function mel_oc_series($c, $l, $pos)
         mel_oc_count($c, $pos['s'], $t, $l['lib_eps']));
     list(, $i, , $lo, $hi, $st) = mel_oc_row($c, $pos);
     $d[] = mel_gc_panel('row', mel_gc_at(1920, MEL_OC_ROW_H, 0, MEL_OC_ROW_Y),
-        array(mel_oc_strip_panel($st, $i, mel_oc_ep_cards($c, $l['prog'], $l['lib_eps'], $pos['s'], $lo, $hi,
+        array(mel_oc_strip_panel($st, $i, mel_oc_ep_cards($c, $l, $pos['s'], $lo, $hi,
             $pos['z'] === 'row' ? $i : -1))), 0);
     $d[] = mel_oc_strip_frame($st, $i, $pos['z'] === 'row');
     return $d;
@@ -606,7 +605,7 @@ function mel_oc_row_changes($c, $l, $old, $new)
     if ($new['s'] !== $old['s'] || $lo > $ohi || $hi < $olo)
     {
         $ch[] = mel_gc_change('est', mel_oc_strip_geom($st, $off), GCOMP_TRANSITION_NONE,
-            mel_oc_ep_cards($c, $l['prog'], $l['lib_eps'], $new['s'], $lo, $hi, $lit));
+            mel_oc_ep_cards($c, $l, $new['s'], $lo, $hi, $lit));
         $fg = mel_oc_strip_frame_geom($st, $i, $off);
     }
     else
@@ -624,7 +623,7 @@ function mel_oc_row_changes($c, $l, $old, $new)
         for ($k = $lo; $k <= $hi; $k++)
         {
             if ($k < $olo || $k > $ohi)
-                $add[] = mel_oc_ep_card($c, $l['prog'], $l['lib_eps'], $k, $eps[$k], $k === $lit);
+                $add[] = mel_oc_ep_card($c, $l, $k, $eps[$k], $k === $lit);
         }
         if ($add || $off !== $ooff)
         {

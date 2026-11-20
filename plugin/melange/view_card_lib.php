@@ -272,7 +272,7 @@ function mel_oc_lib_series($c, $res)
     }
     $all = array();
     foreach ($y !== '' && isset(MelLib::$eps[$y]) ? MelLib::$eps[$y] : array() as $r)
-        $all["{$r['s']}:{$r['e']}"] = 1;
+        $all[mel_oc_se($r['s'], $r['e'])] = 1;
     // No line with no series in the library at all (as a movie with none).
     if ($y !== '' || MelLib::$eps)
         mel_log('card: own series:' . mel_cm_id($c['tile']) . ': library ' . ($y !== '' ? $y : 'none') . ', ' .
@@ -322,6 +322,18 @@ function mel_oc_lib_cur($lib, $hid)
     return $rec ? mel_lib_copy_by_key($lib, $rec['key']) : null;
 }
 
+// The key "s:e" of episode $e of season $s of the card in the copies of its episodes (nav lib_eps, lib_cur; the same of
+// the index and of the history by the invariant, mel_lib_ep_same), one for all of the card.
+/**
+ * @param int $s
+ * @param int $e
+ * @return string
+ */
+function mel_oc_se($s, $e)
+{
+    return "$s:$e";
+}
+
 // The copy of episode $e of season $s of the card of layout $l its line shows (the head, B10): the one OK plays
 // (lib_cur), else the first of its copies; null - the episode has none.
 /**
@@ -332,7 +344,7 @@ function mel_oc_lib_cur($lib, $hid)
  */
 function mel_oc_lib_ep_cur($l, $s, $e)
 {
-    $se = "$s:$e";
+    $se = mel_oc_se($s, $e);
     if (empty($l['lib_eps'][$se]))
         return null;
     $copies = $l['lib_eps'][$se];
@@ -345,7 +357,7 @@ function mel_oc_lib_ep_cur($l, $s, $e)
 }
 
 // The episodes of season $s with copies on the disk of the copies of episodes $lib_eps (nav lib_eps: "s:e" of the
-// card) - the count of the season (mel_oc_count_text).
+// card, mel_oc_se; the season of the copies of a key is its season) - the count of the season (mel_oc_count_text).
 /**
  * @param array<string, list<MelLibCopy>> $lib_eps
  * @param int $s
@@ -354,9 +366,9 @@ function mel_oc_lib_ep_cur($l, $s, $e)
 function mel_oc_lib_on_disk($lib_eps, $s)
 {
     $n = 0;
-    foreach (array_keys($lib_eps) as $se)
+    foreach ($lib_eps as $copies)
     {
-        if (strpos($se, "$s:") === 0)
+        if ($copies && $copies[0]['s'] === $s)
             $n++;
     }
     return $n;
