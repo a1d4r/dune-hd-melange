@@ -500,8 +500,9 @@ function mel_gc_plural($lang, $n, $key)
 // (k_lang_q, in the slot of a flag) for all the guessed ones ('q'); the plate of the subtitles mark
 // (mel_row_subs_mark, k_badge_subs-*) MEL_GC_SUBS_GAP after them. Without a language confirmed or guessed the
 // senior service code of 'langs' (mel_gc_service_word) as a small plate in place of "?" (k_lang_multi, ...; the
-// owner 20.11.2026, variant B). What does not fit $width: the flags go into the "+N" first, the "?" (or the word)
-// and the plate stay. -> array(flag|text|q|subs, value (flag, text, picture, badge id), width).
+// owner 20.11.2026, variant B). With a "+N" (more than MEL_GC_LANGS_MAX, or folded by $width) no "?" (the owner
+// 20.11.2026; the card keeps "RU?"). What does not fit $width: the flags go into the "+N" first, the plate stays.
+// -> array(flag|text|q|subs, value (flag, text, picture, badge id), width).
 /**
  * @param MelRow $r
  * @param int $width
@@ -513,7 +514,8 @@ function mel_gc_lang_items($r, $width)
     $vl = mel_row_voice_langs($r);
     $tail = mel_gc_tail_langs($vl['ok']);
     $q = $vl['q'] ? 'q' : ($vl['ok'] ? '' : strtolower(mel_gc_service_word($r['langs'])));
-    $end = array();
+    // $end after the languages without a "+N", $plus_end after a "+N" (no "?").
+    $end = $plus_end = array();
     if ($q !== '')
     {
         $name = 'k_lang_' . $q;
@@ -524,7 +526,7 @@ function mel_gc_lang_items($r, $width)
     // A plate b2 (k_badge_subs-*); a mark of no picture: none.
     $w = $m !== '' ? MelKit::badges_w(array("subs-$m")) : 0;
     if ($w > 0)
-        $end[] = array('subs', "subs-$m", $w);
+        $end[] = $plus_end[] = array('subs', "subs-$m", $w);
     $items = array();
     foreach (array_slice($tail, 0, MEL_GC_LANGS_MAX) as $i => $c)
     {
@@ -532,15 +534,16 @@ function mel_gc_lang_items($r, $width)
             array('text', $c, MelKit::w($c, MEL_K_PX_CAPTION));
         $rest = count($tail) - $i - 1;
         $try = array_merge($items, array($it), $rest > 0 ?
-            array(array('text', "+$rest", MelKit::w("+$rest", MEL_K_PX_CAPTION))) : array(), $end);
+            array_merge(array(array('text', "+$rest", MelKit::w("+$rest", MEL_K_PX_CAPTION))), $plus_end) : $end);
         if (mel_gc_items_w($try) > $width)
             break;
         $items[] = $it;
     }
     $rest = count($tail) - count($items);
-    if ($rest > 0)
-        $items[] = array('text', "+$rest", MelKit::w("+$rest", MEL_K_PX_CAPTION));
-    return array_merge($items, $end);
+    if ($rest <= 0)
+        return array_merge($items, $end);
+    $items[] = array('text', "+$rest", MelKit::w("+$rest", MEL_K_PX_CAPTION));
+    return array_merge($items, $plus_end);
 }
 
 // The gap before language item $it of a row (mel_gc_lang_items): MEL_GC_SUBS_GAP before the plate of the
@@ -615,9 +618,9 @@ function mel_gc_row_badges($b)
 // row as wide as the column, the glyph in its middle: the owner 20.11.2026,
 // variant C), the size keep their width; the languages
 // get what is left but MEL_GC_TRACKER_MIN of the trackers (or the expression
-// name, or the add-on): their flags fold into "+N" first, "?" and the plate of
-// the subtitles stay (the owner 19.11.2026); the trackers get the rest if it
-// is at least MEL_GC_TRACKER_MIN.
+// name, or the add-on): their flags fold into "+N" first, the plate of the
+// subtitles stays (the owner 19.11.2026; with a "+N" no "?": mel_gc_lang_items);
+// the trackers get the rest if it is at least MEL_GC_TRACKER_MIN.
 /**
  * @param list<MelRow> $rows
  * @param MelGcText $tt
