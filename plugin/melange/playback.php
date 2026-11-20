@@ -271,7 +271,7 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
     }
 
     $info = array(
-        PluginVodInfo::id => 'aio.' . ($mv['dune_id'] !== '' ? $mv['dune_id'] : $mv['imdb']),
+        PluginVodInfo::id => 'aio.' . ($mv['dune_id'] !== '' ? $mv['dune_id'] : mel_rel_id($mv)),
         PluginVodInfo::name => $list ? $mv['title'] : mel_ser_name($mv, $s, $e, false),
         // The second line of INFO: the release, as the card names it.
         PluginVodInfo::sub_name => mel_clean($r['label']),
@@ -1242,7 +1242,7 @@ function mel_download($in)
 // for the rest. Cursor on release $hash (an episode: with it in its file
 // first), else the first row. -> array('error' => key, 'detail' => text,
 // maybe 'errors') of mel_fetch or array('st' => new state, 'sel' => row, 'by' =>
-// why that row). A card of no IMDb (Lampac only): err_no_imdb_rel, no request.
+// why that row). A card of no IMDb and no TMDB (Lampac only, mel_rel_id): err_no_imdb_rel, no request.
 /**
  * @param MelState $st
  * @param int $s
@@ -1253,7 +1253,7 @@ function mel_download($in)
 function mel_relist($st, $s, $e, $hash)
 {
     $mv = $st['movie'];
-    if ($mv['imdb'] === '')
+    if (mel_rel_id($mv) === '')
         $res = array('error' => 'err_no_imdb_rel', 'detail' => '');
     // From the list screen the player may be near: no detour to the settings.
     else if (Mel::$settings['base'] === '')
@@ -1403,13 +1403,17 @@ function mel_movie_load($key)
     $path = mel_movie_path($key);
     $d = $path !== '' && is_file($path) ? json_decode(strval(file_get_contents($path)), true) : null;
     $m = is_array($d) && isset($d['movie']) && is_array($d['movie']) ? $d['movie'] : null;
-    // No IMDb: a card of Lampac only (mel_play_action), of its card of the Dune.
+    // No IMDb: a card of its TMDB (mel_rel_id) or of Lampac only (mel_play_action), of its card of the Dune.
     $imdb = mel_str($m, 'imdb');
-    if (!$m || $key === '' || mel_str($m, 'dune_id') !== $key || ($imdb !== '' && !preg_match('/^tt[0-9]{1,10}$/D', $imdb)))
+    $tmdb = mel_str($m, 'tmdb');
+    if (!$m || $key === '' || mel_str($m, 'dune_id') !== $key || ($imdb !== '' && !preg_match('/^tt[0-9]{1,10}$/D', $imdb)) ||
+        ($tmdb !== '' && !preg_match('/^[0-9]{1,10}$/D', $tmdb)))
         return null;
     $mv = array('series' => true, 'seasons' => array());
     foreach (array('imdb', 'dune_id', 'title', 'native', 'year', 'poster', 'fanart', 'rate_imdb') as $f)
         $mv[$f] = mel_str($m, $f);
+    if ($tmdb !== '')
+        $mv['tmdb'] = $tmdb;
     foreach (mel_arr($m, 'seasons') as $n => $c)
     {
         if (intval($n) >= 1 && is_int($c) && $c >= 1)
@@ -1510,8 +1514,8 @@ function mel_next_fetch($key, $s, $e)
     if (!$saved)
         return array('error' => 'err_list_expired', 'detail' => '', 'lang' => '', 'errors' => mel_no_errors());
     $mv = $saved['movie'];
-    // A card of no IMDb (Lampac only): no releases, no request.
-    if ($mv['imdb'] === '')
+    // A card of no IMDb and no TMDB (Lampac only, mel_rel_id): no releases, no request.
+    if (mel_rel_id($mv) === '')
         return array('error' => 'err_no_imdb_rel', 'detail' => '', 'lang' => $saved['lang'], 'errors' => mel_no_errors());
     // Under the player: only the error with the way to the settings.
     if (Mel::$settings['base'] === '')

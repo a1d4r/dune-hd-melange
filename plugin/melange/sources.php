@@ -19,7 +19,7 @@ function mel_src_now($st)
 }
 
 // The ready profiles of settings.json of the operation (Mel::$settings profiles) in their order; $lp_only - of Lampac
-// only (a title of no IMDb has no releases, owner 19.11.2026).
+// only (a title of no IMDb and no TMDB has no releases, mel_rel_id; owner 19.11.2026).
 /**
  * @param bool $lp_only
  * @return list<array{id: string, name: string, kind: string, ready: bool}>
@@ -60,7 +60,7 @@ function mel_gc_src_menu($in)
         mel_log('source: menu of no live list');
         return mel_error('err_list_expired');
     }
-    return mel_src_popup($st['lang'], 'gc_src', array('rid' => $st['rid']), mel_src_now($st), $st['movie']['imdb'] === '');
+    return mel_src_popup($st['lang'], 'gc_src', array('rid' => $st['rid']), mel_src_now($st), mel_rel_id($st['movie']) === '');
 }
 
 // The popup menu of the ready profiles in their order, Lampac with its own icon, each to $control of $params with p (its
@@ -105,17 +105,16 @@ function mel_src_popup($lang, $control, $params, $now = '', $lp_only = false)
 // chosen (mel_play_action with its profile), not of the record or the main one; nothing remembered, as "Откуда брать…".
 
 // The item "Смотреть из…" to $control of $params (its menu of sources: mel_src_popup), with two ready profiles or more
-// (mel_src_in_menu; $lp_only: of Lampac); none else.
+// (mel_src_in_menu); none else.
 /**
  * @param string $lang
  * @param string $control
  * @param array<string, string> $params
- * @param bool $lp_only
  * @return list<array<string, mixed>>
  */
-function mel_src_watch_item($lang, $control, $params, $lp_only = false)
+function mel_src_watch_item($lang, $control, $params)
 {
-    if (!mel_src_in_menu($lp_only))
+    if (!mel_src_in_menu())
         return array();
     return array(array(
         GuiMenuItemDef::caption => mel_tr($lang, 'src_watch'),
@@ -210,10 +209,10 @@ function mel_gc_src($in)
     }
     if (!mel_profile_rel($s['profiles'][$k]))
         return mel_src_lampac($st, $id, $tag);
-    // No IMDb: no releases (the menu has none of them; one of an old menu - the message).
-    if ($st['movie']['imdb'] === '')
+    // No IMDb and no TMDB: no releases (the menu has none of them; one of an old menu - the message).
+    if (mel_rel_id($st['movie']) === '')
     {
-        mel_log("$tag: no IMDb, no releases");
+        mel_log("$tag: no IMDb and no TMDB, no releases");
         return mel_error('err_no_imdb_rel');
     }
     return mel_src_releases($st, $id, $tag, $title, isset($in->parent_sel_state) ? $in->parent_sel_state : null);

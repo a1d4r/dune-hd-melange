@@ -231,7 +231,8 @@ parameters:
         '''
         # The card of play_action (mel_movie, main.php); own_card: of a list opened from the own card (aio_own_card of movie_str, mel_oc_watch); cin: the
         # runs of the numbering of Cinemeta of its series numbered on (mel_cin_valid), none for any other; titles: of the
-        # episodes of a list from the own card, "s:e" => title (mel_titles_valid).
+        # episodes of a list from the own card, "s:e" => title (mel_titles_valid); tmdb: the digits of its TMDB (a series: of
+        # tmdbtv_id), the releases of a card of no IMDb (mel_rel_id).
         MelMovie: '''
             array{
                 series: bool,
@@ -245,6 +246,7 @@ parameters:
                 rate_imdb: string,
                 seasons: array<int, int>,
                 own_card?: bool,
+                tmdb?: string,
                 lpv_key?: string,
                 cin: list<array{int, int, int}>,
                 titles?: array<string, string>

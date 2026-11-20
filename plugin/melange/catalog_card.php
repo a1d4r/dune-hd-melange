@@ -626,5 +626,6 @@ function mel_card_enter($tile, $lang)
         mel_lpv_ids_put($id, array('tmdb' => '', 'kp' => '', 'original_language' => $tile['originalLanguage']));
         return mel_card_open($id);
     }
-    return $tile['imdb_id'] !== '' ? mel_card_releases($tile, $lang) : mel_error('err_card_no_source');
+    // No IMDb: the releases by its TMDB (mel_rel_id, owner 20.11.2026).
+    return $tile['imdb_id'] !== '' || $tile['_tmdbId'] !== '' ? mel_card_releases($tile, $lang) : mel_error('err_card_no_source');
 }

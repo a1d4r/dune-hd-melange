@@ -1644,14 +1644,14 @@ function mel_gc_main($in)
 // this screen only. Here the item only; its menu and the choice: sources.php.
 
 // The MENU item "Откуда брать…" of live list $st (gc_src_menu: the menu of all ready profiles, any kind; of a card of no
-// IMDb those of Lampac), or null: fewer than two ready (mel_src_in_menu).
+// IMDb and no TMDB, mel_rel_id, those of Lampac), or null: fewer than two ready (mel_src_in_menu).
 /**
  * @param MelState $st
  * @return array<string, mixed>|null
  */
 function mel_gc_src_item($st)
 {
-    if (!mel_src_in_menu($st['movie']['imdb'] === ''))
+    if (!mel_src_in_menu(mel_rel_id($st['movie']) === ''))
         return null;
     return array(
         GuiMenuItemDef::caption => mel_tr($st['lang'], 'src_list'),

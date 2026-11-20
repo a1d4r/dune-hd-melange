@@ -513,18 +513,18 @@ function mel_oc_progress_text($pos, $len, $lang)
 
 // --- Layout.
 
-// "Смотреть" of card $c: with an IMDb, else (Lampac only, owner 19.11.2026) of its meta loaded (an IMDb may be in one not
-// loaded: "Повторить" first) and with a Lampac of the settings.
+// "Смотреть" of card $c: with an IMDb, else of its meta loaded (an IMDb may be in one not loaded: "Повторить" first),
+// the releases by its TMDB (a card of no IMDb has one, mel_cm_id; mel_rel_id, owner 20.11.2026).
 /**
  * @param MelOcCard $c
  * @return bool
  */
 function mel_oc_can_watch($c)
 {
-    return $c['imdb'] !== '' || ($c['meta'] !== null && Mel::$settings['lp'] !== '');
+    return $c['imdb'] !== '' || $c['meta'] !== null;
 }
 
-// The buttons: "Watch" with an IMDb or Lampac (mel_oc_can_watch), "Trailer" with one (card_trailer.php), "♡ В избранное" / "✓ В избранном" ("Мой список" of the code) (the
+// The buttons: "Watch" with an IMDb or the meta (mel_oc_can_watch), "Trailer" with one (card_trailer.php), "♡ В избранное" / "✓ В избранном" ("Мой список" of the code) (the
 // list now, mel_ml_in); array(kind, text, its icon - the picture MEL_OC_IMG<icon>_icon.png, '' none, the least
 // width: the button of the list as wide as the longer of its two texts, design-my-list.md, A: ENTER changes it in
 // place, nothing moves; 0 for the others). "Dune card" is in MENU (mel_oc_dune_items), owner 15.11.2026.
@@ -703,11 +703,9 @@ function mel_oc_head_lines($c, $l)
     return $d;
 }
 
-// Under the buttons ($w0: the width of the first): no IMDb and no Lampac - nothing plays (the meta failed: it
-// did not load, else it has none: no releases); no IMDb, Lampac (mel_oc_can_watch) - the progress or "Watched" as
-// below, else "Только Lampac" (card_lp_only), never "no history" (owner 19.11.2026); no card of the Dune - no history;
-// else the progress $wh of the movie under "Watch", if begun, or "Watched" grey without the bar (watched by its position
-// or $marked: by a mark, mel_pg_mark_kind).
+// Under the buttons ($w0: the width of the first): no "Смотреть" (mel_oc_can_watch) - the meta failed; no card of the
+// Dune - no history; else the progress $wh of the movie under "Watch", if begun, or "Watched" grey without the bar
+// (watched by its position or $marked: by a mark, mel_pg_mark_kind).
 /**
  * @param MelOcCard $c
  * @param array{float, float}|null $wh
@@ -722,8 +720,8 @@ function mel_oc_under($c, $wh, $w0, $marked = false)
     $line = '';
     $color = MEL_CATV_TEXT_COLOR;
     if (!mel_oc_can_watch($c))
-        $line = mel_tr($c['ui'], $c['meta'] ? 'err_no_imdb_rel' : 'cat_row_failed');
-    else if ($c['dune'] === '' && $c['imdb'] !== '')
+        $line = mel_tr($c['ui'], 'cat_row_failed');
+    else if ($c['dune'] === '')
         $line = mel_tr($c['ui'], 'card_no_history');
     else
     {
@@ -742,16 +740,14 @@ function mel_oc_under($c, $wh, $w0, $marked = false)
             $d[] = mel_oc_label($x0 + $w0 + MEL_OC_BTN_GAP, MEL_OC_LINE_Y, 1920 - $x0 - $w0 - MEL_OC_BTN_GAP - 75, $p, 24,
                 MEL_CATV_TEXT_COLOR);
         }
-        else if ($c['imdb'] === '')
-            $line = mel_tr($c['ui'], 'card_lp_only');
     }
     if ($line !== '')
         $d[] = mel_oc_label($x0, MEL_OC_LINE_Y, MEL_CATV_TEXT_W, $line, 24, $color);
     return $d;
 }
 
-// A series without a card of the Dune or an IMDb: the line why, right of the buttons ($x: their
-// end), as high as their middle; of Lampac only (mel_oc_can_watch) - "Только Lampac", a card of the Dune or none.
+// A series without a card of the Dune or "Смотреть" (mel_oc_can_watch: the meta failed): the line why, right of the
+// buttons ($x: their end), as high as their middle.
 /**
  * @param MelOcCard $c
  * @param int $x
@@ -759,12 +755,10 @@ function mel_oc_under($c, $wh, $w0, $marked = false)
  */
 function mel_oc_under_ser($c, $x)
 {
-    if ($c['imdb'] !== '' && $c['dune'] !== '')
+    $can = mel_oc_can_watch($c);
+    if ($can && $c['dune'] !== '')
         return array();
-    $k = $c['imdb'] !== '' ? 'card_no_history' : 'card_lp_only';
-    if (!mel_oc_can_watch($c))
-        $k = $c['meta'] ? 'err_no_imdb_rel' : 'cat_row_failed';
-    $line = mel_tr($c['ui'], $k);
+    $line = mel_tr($c['ui'], $can ? 'card_no_history' : 'cat_row_failed');
     return array(mel_oc_label($x, MEL_OC_BTN_Y_SER + (MEL_OC_BTN_H - 34) / 2, MEL_OC_HINT_R - $x, $line, 24, MEL_CATV_TEXT_COLOR));
 }
 
@@ -1527,8 +1521,7 @@ function mel_oc_watch_from($c, $ep, $x, $src)
 // profile $src: its own card in memory with its meta, else one made as by ENTER (mel_oc_enter) with no screen, not
 // kept: no rows of posters, the tile filled by the meta, no rating asked (mel_oc_fill), a series with a card of the Dune
 // - its episodes of the meta to the pair (mel_pg_link_meta, as mel_oc_build) -> mel_oc_watch_from (a series: the
-// episode offered, mel_oc_pick). No "Смотреть" (mel_oc_can_watch): the message of the card (mel_oc_under) - the meta did
-// not load (a tile of TMDB alone), else no IMDb in it and no Lampac.
+// episode offered, mel_oc_pick). No "Смотреть" (mel_oc_can_watch): the meta did not load (a tile of TMDB alone).
 /**
  * @param MelCatTile $tile
  * @param string $lang
@@ -1559,7 +1552,7 @@ function mel_oc_tile_watch($tile, $lang, $dune, $src)
     mel_log("card: own $key: watch from, the card " . ($kept ? 'in memory' : 'made') . ', of the Dune ' .
         ($c['dune'] !== '' ? $c['dune'] : 'none'));
     if (!mel_oc_can_watch($c))
-        return mel_error($c['meta'] ? 'err_no_imdb_rel' : 'card_meta_failed');
+        return mel_error('card_meta_failed');
     $ep = null;
     if ($tile['type'] === 'series')
         list($ep) = mel_oc_pick($c);
@@ -1636,7 +1629,7 @@ function mel_oc_menu($lang, $items = array())
 
 // "Смотреть из…" of MENU of card $c ($key) at place $pos of layout $l (mel_src_watch_item: two ready profiles or more):
 // card_src_menu of the card, of an episode in focus in the row its s and e; none without "Смотреть" (mel_oc_can_watch)
-// and on a strip of posters or of the cast (the title there is another one); no IMDb - of Lampac only.
+// and on a strip of posters or of the cast (the title there is another one).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1651,7 +1644,7 @@ function mel_oc_src_items($key, $c, $l, $pos)
     $p = array('c' => $key);
     if ($pos['z'] === 'row')
         $p += array('s' => strval($pos['s']), 'e' => strval($pos['e']));
-    return mel_src_watch_item($c['ui'], 'card_src_menu', $p, $c['imdb'] === '');
+    return mel_src_watch_item($c['ui'], 'card_src_menu', $p);
 }
 
 // The params of card_src_menu of input $in for its menu of sources: c, s and e of an episode when there.
@@ -1771,7 +1764,7 @@ function mel_oc_input($in, $control)
     if ($control === 'card_trailer')
         return mel_ct_play($c);
     if ($control === 'card_src_menu')
-        return mel_src_popup($c['ui'], 'card_src', mel_oc_src_params($in), '', $c['imdb'] === '');
+        return mel_src_popup($c['ui'], 'card_src', mel_oc_src_params($in));
     $l = isset($c['nav']) ? $c['nav'] : mel_oc_layout($c);
     if ($control === 'card_src')
         return mel_oc_src($c, $l, $in);

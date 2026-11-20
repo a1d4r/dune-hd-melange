@@ -267,7 +267,7 @@ function mel_log_input($in)
         {
             $m = is_string($v) ? json_decode($v, true) : null;
             $v = '';
-            foreach (array('id', 'imdb_id', 'series_type', 'title', 'native_title', 'year') as $f)
+            foreach (array('id', 'imdb_id', 'tmdb_id', 'tmdbtv_id', 'series_type', 'title', 'native_title', 'year') as $f)
                 $v .= "$f=" . mel_str($m, $f) . ' ';
         }
         else if (!is_string($v))
@@ -303,6 +303,11 @@ function mel_movie($in)
         'fanart' => mel_str($m, 'fanart_url'),
         'rate_imdb' => mel_str($m, 'rate_imdb'),
         'seasons' => mel_seasons($m));
+    // The TMDB of the releases of a card of no IMDb (mel_rel_id): of a series its tmdbtv_id only (its tmdb_id may be of a
+    // movie), of a movie its tmdb_id.
+    $tmdb = mel_str($m, $series ? 'tmdbtv_id' : 'tmdb_id');
+    if (preg_match('/^[0-9]{1,10}$/D', $tmdb))
+        $mv['tmdb'] = $tmdb;
     // No card of the Dune and no IMDb: the key of the card (mel_lpv_key) of its TMDB of movie_str, "tmdb:<id>" / "tmdbtv:<id>".
     $tmdb = $series ? mel_str($m, 'tmdbtv_id') : '';
     if ($tmdb === '')
@@ -465,8 +470,22 @@ function mel_cin_n($runs, $s, $e)
     return $n > 0 && !($s === 1 && $n === $e) ? $n : 0;
 }
 
-// The id of the streams of S$s E$e of $mv (a movie: its IMDb alone): "<imdb>:<s>:<e>". -> array(id, for mel_fetch:
-// array(its number of the meta, season, episode) for a list of an anime numbered on (mel_cin_n; logged), else null).
+// The id of the releases of card $mv: its IMDb, else "tmdb:<id>" of its TMDB (a series too: AIOStreams takes no
+// "tmdbtv:"; owner 20.11.2026); '' none - no releases (Lampac only).
+/**
+ * @param MelMovie $mv
+ * @return string
+ */
+function mel_rel_id($mv)
+{
+    if ($mv['imdb'] !== '')
+        return $mv['imdb'];
+    return isset($mv['tmdb']) && $mv['tmdb'] !== '' ? "tmdb:{$mv['tmdb']}" : '';
+}
+
+// The id of the streams of S$s E$e of $mv (mel_rel_id; a movie: the id alone): "<id>:<s>:<e>". -> array(id, for
+// mel_fetch: array(its number of the meta, season, episode) for a list of an anime numbered on (mel_cin_n; logged),
+// else null).
 /**
  * @param MelMovie $mv
  * @param int $s
@@ -475,12 +494,13 @@ function mel_cin_n($runs, $s, $e)
  */
 function mel_stream_ask($mv, $s, $e)
 {
+    $id = mel_rel_id($mv);
     if (!$mv['series'])
-        return array($mv['imdb'], null);
+        return array($id, null);
     $n = mel_cin_n($mv['cin'], $s, $e);
     if ($n > 0)
         mel_log(sprintf('cinemeta: S%02dE%02d is the episode %d', $s, $e, $n));
-    return array("{$mv['imdb']}:$s:$e", $n > 0 ? array($n, $s, $e) : null);
+    return array("$id:$s:$e", $n > 0 ? array($n, $s, $e) : null);
 }
 
 // Row $r of a reply of an episode of an anime numbered on ($cin of mel_stream_ask) has a wrong file of a pack:
@@ -1889,8 +1909,8 @@ function mel_list_state($mv, $s, $e, $rows, $lang, $errors)
 // "Смотреть из…" (mel_oc_watch_from; checked by mel_src_watch_pick, mel_dl_src (deep_link.php)), its list at once
 // (mel_op_src), nothing remembered; '' - by the record (mel_op_title).
 // A movie_str made by Melange itself adds mel_lpv_tile_ids: Lampac puts the quality into the name of a balancer and show
-// false only with a TMDB id. No IMDb: the search of Lampac always (its "Continue" too), its windows of nothing online
-// and of no answer, never the releases; no Lampac - err_no_imdb_rel.
+// false only with a TMDB id. No IMDb and no TMDB (mel_rel_id): the search of Lampac always (its "Continue" too), its
+// windows of nothing online and of no answer, never the releases; no Lampac - err_no_imdb_rel.
 /**
  * @param stdClass $in
  * @param MelWhPick|MelOcEp|null $hist
@@ -1907,8 +1927,8 @@ function mel_play_action($in, $hist = null, $src = '')
     $mv = mel_movie($in);
     if (!$mv)
         return mel_error('err_no_imdb');
-    // No IMDb: no releases; only Lampac, by the title (owner 19.11.2026), no way to the releases.
-    $no_id = $mv['imdb'] === '';
+    // No IMDb and no TMDB: no releases; only Lampac, by the title (owner 19.11.2026), no way to the releases.
+    $no_id = mel_rel_id($mv) === '';
     if ($no_id && Mel::$settings['lp'] === '')
         return mel_error('err_no_imdb_rel');
     mel_pg_link_movie($mv);
@@ -1970,7 +1990,7 @@ function mel_play_action($in, $hist = null, $src = '')
     $rec = $si ? array($si['prof'], $si['mode'] === 'lampac' ? 'lp' : 'rel') :
         ($r ? array($r['prof'], $r['key'] !== '' ? 'lp' : 'rel') : array('', ''));
     $online = $src !== '' ? mel_op_src($src) : mel_op_title($rec[0], $rec[1]);
-    // A source of releases chosen for a title of no IMDb ("Смотреть из…" of a tile of its meta not known then): none.
+    // A source of releases chosen for a title of no IMDb and no TMDB: none.
     if ($no_id && $src !== '' && !$online)
         return mel_error('err_no_imdb_rel');
     $online = $online || $no_id;
