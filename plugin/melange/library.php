@@ -1611,8 +1611,8 @@ function mel_lib_mid($t)
 
 // The title of mel_lib_mid of the fields $m of a movie_str: of the shell (play_action) or of the own card (its
 // movie_str, mel_oc_watch) - so the card and play_action of one title look for it alike (the same names, the same key
-// of MelLib::$found). dune: id; imdb: imdb_id; tmdb: tmdb_id of a movie, of a series its TMDB of series tmdbtv_id (as
-// the shell and the own card give it), else tmdb_id (mel_movie); names: title, native_title and aio_en_title
+// of MelLib::$found). dune: id; imdb: imdb_id; tmdb: tmdb_id of a movie, of a series its TMDB of series tmdbtv_id only
+// (as the shell and the own card give it; none - '', as mel_movie); names: title, native_title and aio_en_title
 // (the English name the own card adds), in that order, each once, none empty. Ids not of their form: ''.
 /**
  * @param array<mixed> $m
@@ -1630,9 +1630,8 @@ function mel_lib_title($m, $series)
     }
     $dune = mel_str($m, 'id');
     $imdb = mel_str($m, 'imdb_id');
-    $tmdb = $series ? mel_str($m, 'tmdbtv_id') : '';
-    if ($tmdb === '')
-        $tmdb = mel_str($m, 'tmdb_id');
+    // Of a series its tmdbtv_id only: its tmdb_id may be of a movie (mel_movie).
+    $tmdb = mel_str($m, $series ? 'tmdbtv_id' : 'tmdb_id');
     return array(
         'dune' => preg_match('/^' . MEL_DUNE_ID . '$/D', $dune) ? $dune : '',
         'imdb' => preg_match('/^tt[0-9]{1,10}$/D', $imdb) ? $imdb : '',
