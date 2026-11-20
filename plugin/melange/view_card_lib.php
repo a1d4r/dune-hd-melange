@@ -30,8 +30,9 @@ define('MEL_OC_EP_PLATE_GAP', 4);
 // them, as the list of releases gives its tags (mel_lib_pf -> mel_badges with the path of the copy ->
 // mel_gc_row_badges: the ids of the plates b2 of the UI Kit); ch - the id of the plate b2 of its channels, the best of
 // them (owner 20.11.2026, spec §15: a plate in the own library, the list of releases writes them): ch-71 of 7.1 / 2.0
-// (k_glyph_ch-71); a layout with no glyph of the kit (2.1, 5.0, 9.1) none, not a plate of another layout and not text
-// by the plates; size - mel_size_str ('' none).
+// (k_glyph_ch-71) - each layout of the tags of the indexer has its glyph in the kit (9.1 7.1 6.1 5.1 4.1 4.0 2.1 2.0
+// 1.0); another one (5.0: not a tag of the indexer) none, not a plate of another layout and not text by the plates;
+// size - mel_size_str ('' none).
 /**
  * @param MelLibCopy $copy
  * @param string $lang
