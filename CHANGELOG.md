@@ -4,7 +4,7 @@
 
 ## 0.66.0 — 20.11.2026
 - **New look for the release list.** A row now shows only the main tag of each kind: Vision instead of the two-line Dolby Vision · HDR10 logo, Atmos instead of Dolby Atmos · TrueHD. Tags in one column are the same width, with even gaps between them. Tags: resolution (4K, FHD, HD, SD), HDR (Vision, HDR10, HDR10+, HLG), audio (Atmos, TrueHD, DTS-HD MA, Digital+, AAC and others), source (Remux, WebDL, BluRay, BDRip and others) and 10bit.
-- **New icons and focus.** The row in focus is a brighter blue. The release name in the card on the left takes up to three lines instead of two.
+- **Focus and card.** The row in focus is a brighter blue. The release name in the card on the left takes up to three lines instead of two.
 - **Faster scrolling.** Holding an arrow in a list of 100 releases scrolls about 4.4 lines per second, up from 4.0 in 0.65.0.
 - **BDRip.** A BDRip or BRRip release with BluRay quality gets its own BDRip tag, and the "Video" field of the card and of "Details" says BDRip instead of BluRay.
 - **Language flags.** The voice-over languages of a row are flags. A flag means the language is confirmed: by the file's tracks, a RUS(int)/RUS(ext) mark in the name, a dubbing studio, or the words "Дубляж", "ДБ", "MVO", "ПМ". A language that is only a guess (Cyrillic in the release name, addon flags with nothing in the name to back them) adds one "?" after the flags. Flags that do not fit (more than two, or not enough room) fold into "+N", and then the row has no "?". If there are no languages but the release is marked MULTI, DUAL, DUB or ORIG, one word shows on a small plate, like the "?": the first of these that applies. In the card, a guessed language has a question mark: "Languages: JA, RU?".
@@ -304,7 +304,7 @@ First public release. What it does:
 
 ## 0.66.0 — 20.11.2026
 - **Новый вид списка раздач.** В строке теперь только главная плашка каждого вида: Vision вместо двухстрочного логотипа Dolby Vision · HDR10, Atmos вместо Dolby Atmos · TrueHD. У плашек одной колонки одинаковая ширина, промежутки между ними ровные. Плашки: разрешение (4K, FHD, HD, SD), HDR (Vision, HDR10, HDR10+, HLG), звук (Atmos, TrueHD, DTS-HD MA, Digital+, AAC и др.), источник (Remux, WebDL, BluRay, BDRip и др.) и 10bit.
-- **Новые значки и фокус.** Строка в фокусе теперь ярко-синяя. Название раздачи в карточке слева занимает до трёх строк, раньше — до двух.
+- **Фокус и карточка.** Строка в фокусе теперь ярко-синяя. Название раздачи в карточке слева занимает до трёх строк, раньше — до двух.
 - **Прокрутка быстрее.** С зажатой стрелкой список из 100 раздач идёт примерно на 4,4 строки в секунду, в 0.65.0 было 4,0.
 - **BDRip.** У раздачи BDRip или BRRip с качеством BluRay своя плашка BDRip, и в поле «Видео» карточки и «Сведений» теперь BDRip, а не BluRay.
 - **Флаги языков.** Языки озвучки в строке показаны флагами. Флаг ставится, когда язык подтверждён: дорожками файла, пометкой RUS(int)/RUS(ext) в имени, студией озвучки, словами «Дубляж», «ДБ», «MVO», «ПМ». Если язык известен только по догадке (кириллица в названии раздачи, флаги аддона без опоры в имени), после флагов стоит один знак «?». Флаги, которые не помещаются (больше двух или не хватает места), сворачиваются в «+N», и тогда «?» в строке нет. Если языков нет, а раздача помечена MULTI, DUAL, DUB или ORIG, маленькой плашкой, как «?», стоит одно слово, первое из этого ряда. В карточке угаданный язык с вопросительным знаком: «Языки: JA, RU?».
