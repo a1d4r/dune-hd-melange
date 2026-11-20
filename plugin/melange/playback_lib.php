@@ -53,8 +53,8 @@ define('MEL_LIB_MOVIE_KEYS', 'id imdb_id tmdb_id tmdbtv_id series_type title nat
 // as asked, eps - the copies of the series "q:e" => copies): its markers by the length of its MKV (0 unknown; the file
 // is not read here); linked, a playlist of its season and E1 of the next one as mel_play (by season_numbers; none, the
 // episode past them, a season over MEL_EPISODES_MAX, H or Y not of MEL_DUNE_ID - alone), the others lazy
-// (mel_lib_lazy_url; '-' none on the disk): the copy by mel_lib_ep_pick - F the pack of this copy (the choice just
-// made), the record only of an episode not watched (its key shared by mirrors: the copy of F of them, else the first);
+// (mel_lib_lazy_url; '-' none on the disk): the copy by mel_lib_ep_cid - F the pack of this copy (the choice just
+// made), the record only of an episode not watched;
 // the card saved for lib_next (mel_movie_save). The log has the key, no path, no name.
 /**
  * @param MelMovie $mv
@@ -90,7 +90,7 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
     $y = $ep ? $ep['y'] : '';
     $eps = $ep ? $ep['eps'] : array();
     list($recs) = $list ? mel_lib_ep_ctx($mv['dune_id'], $y, true) : array(array());
-    $f = array(mel_lib_pack($copy));
+    $ctx = array($recs, array(mel_lib_pack($copy)));
     $series = array();
     $ndx = 0;
     $whys = array();
@@ -104,22 +104,9 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
             continue;
         }
         $se = "$pq:$pe";
-        $copies = isset($eps[$se]) ? $eps[$se] : array();
-        list($first, $why) = mel_lib_ep_pick($copies, isset($recs[$se]) ? $recs[$se] : '', $f, true);
-        $of = mel_lib_copies_of($copies, $first);
-        $cid = $of ? $of[0]['cid'] : '-';
-        // The key of a record is shared by mirrors: of them the copy of F (owner 3), else the first.
-        if ($why === 'record')
-        {
-            foreach ($of as $c)
-            {
-                if (in_array(mel_lib_pack($c), $f, true))
-                {
-                    $cid = $c['cid'];
-                    break;
-                }
-            }
-        }
+        list($cid, $why) = mel_lib_ep_cid(isset($eps[$se]) ? $eps[$se] : array(), $ctx, $se, true);
+        if ($cid === '')
+            $cid = '-';
         $whys[$why] = (isset($whys[$why]) ? $whys[$why] : 0) + 1;
         $series[] = array(
             PluginVodSeriesInfo::name => mel_ser_name($mv, $pq, $pe, true),
@@ -173,9 +160,10 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
 // none such) by the copies left from $pos s - one: it, if there; several: their choice to the caller (pick), $auto - the
 // first there of them in their order (no window: under the player). -> MelLibGo: copy, at (the place), i of n (for the
 // log), dur (of an episode: the length of its MKV, read by the same check, 0 unknown; of a movie 0) - the file there;
-// pick - the copies left, 2+; gone 'no' | 'slow' - none left. One check a copy at most; a copy that does not answer
-// ('slow') takes the copies of all the shares of its server out unchecked (srv: the NAS sleeps or is off - one wait,
-// not one a share; a mirror on another server is still checked), and no check starts that the operation
+// pick - the copies left, 2+; gone 'no' | 'slow' - none left. Of the mirrors of a key the copy of a pack of $f_packs
+// first (mel_lib_ep_of: the rule of mel_lib_ep_cid; none - in their order). One check a copy at most; a copy that does
+// not answer ('slow') takes the copies of all the shares of its server out unchecked (srv: the NAS sleeps or is off -
+// one wait, not one a share; a mirror on another server is still checked), and no check starts that the operation
 // (MEL_OP_BUDGET) has no time left for (of an episode: and its read).
 /**
  * @param list<MelLibCopy> $copies
@@ -183,12 +171,13 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
  * @param int $first_pos
  * @param int $pos
  * @param bool $auto
+ * @param list<string> $f_packs
  * @return MelLibGo
  */
-function mel_lib_start($copies, $first, $first_pos, $pos, $auto)
+function mel_lib_start($copies, $first, $first_pos, $pos, $auto, $f_packs = array())
 {
     $left = $copies;
-    $want = mel_lib_copies_of($copies, $first);
+    $want = mel_lib_ep_of($copies, $first, $f_packs);
     if ($first !== '')
         mel_log("library: start $first: " . (count($want) === 1 ? 'its copy' : ($want ? 'its ' . count($want) . ' copies' :
             'not among ' . count($copies) . ' copies')));
@@ -345,6 +334,48 @@ function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
     else
         $why = $auto ? 'auto-best' : 'window';
     return array($why === 'record' ? $rec_key : ($why === 'window' ? '' : $top['cid']), $why);
+}
+
+// The copy OK plays of episode "q:e" $se, of its copies now $copies_ep (mel_lib_ep_copies), by what mel_lib_ep_ctx
+// gives $ctx (array("q:e" => the key of our record, the packs F)) - one rule for the line of the card (lib_cur), the
+// playlist and the start (owner 3, the review of 2в1б): mel_lib_ep_pick, and the key of a record, shared by mirrors -
+// of them the copy of a pack F, else the first (mel_lib_ep_of). -> array(its id, '' - none, or the window of not
+// $auto; why of mel_lib_ep_pick).
+/**
+ * @param list<MelLibCopy> $copies_ep
+ * @param array{array<string, string>, list<string>} $ctx
+ * @param string $se
+ * @param bool $auto
+ * @return array{string, string}
+ */
+function mel_lib_ep_cid($copies_ep, $ctx, $se, $auto)
+{
+    list($recs, $f) = $ctx;
+    list($k, $why) = mel_lib_ep_pick($copies_ep, isset($recs[$se]) ? $recs[$se] : '', $f, $auto);
+    $of = mel_lib_ep_of($copies_ep, $k, $f);
+    return array($of ? $of[0]['cid'] : '', $why);
+}
+
+// The copies of copies $copies of $k (mel_lib_copies_of: the key of a record - its mirrors, or the id of one), of the
+// mirrors the copies of a pack of $f_packs first, the rest after them, each in their order.
+/**
+ * @param list<MelLibCopy> $copies
+ * @param string $k
+ * @param list<string> $f_packs
+ * @return list<MelLibCopy>
+ */
+function mel_lib_ep_of($copies, $k, $f_packs)
+{
+    $in = array();
+    $out = array();
+    foreach (mel_lib_copies_of($copies, $k) as $c)
+    {
+        if (in_array(mel_lib_pack($c), $f_packs, true))
+            $in[] = $c;
+        else
+            $out[] = $c;
+    }
+    return array_merge($in, $out);
 }
 
 // What mel_lib_ep_pick goes by for the episodes of the series $y of the index, card of history $hid -> array("q:e" =>
@@ -517,20 +548,21 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
         return mel_lib_resume_go($mv, $m, $copies, $key, $r['pos'], $r['pos'], $lang, $ep);
     }
     list($recs) = mel_lib_ep_ctx($hid, $y, true);
-    list($first, $why) = mel_lib_ep_pick($copies, isset($recs["$q:$e"]) ? $recs["$q:$e"] : '',
-        mel_lib_key_packs($y, $key), false);
+    $f = mel_lib_key_packs($y, $key);
+    list($first, $why) = mel_lib_ep_pick($copies, isset($recs["$q:$e"]) ? $recs["$q:$e"] : '', $f, false);
     mel_log("$tag, $why");
     // The native records of the series by their files (mel_wh_fix_se).
     list($k, $first_pos, $pos) = mel_lib_place($hid, $copies, $first, $q, $e, $fix);
-    // No copy to take (the window): their menu, none checked (not the copy of a record mel_lib_place gives).
+    // No copy to take (the window): their menu, none checked (not the copy of a record mel_lib_place gives). Of the
+    // mirrors of a record the copy of F first (mel_lib_ep_cid).
     return $first === '' ? mel_lib_resume_go($mv, $m, $copies, '', $pos, $pos, $lang, $ep) :
-        mel_lib_resume_go($mv, $m, $copies, $k, $first_pos, $pos, $lang, $ep);
+        mel_lib_resume_go($mv, $m, $copies, $k, $first_pos, $pos, $lang, $ep, $f);
 }
 
 // The start of "Continue" of a copy on the disk of movie $mv (H set), the fields $m of its movie_str, of its copies
 // $copies, $ep null; of an episode ($ep: of mel_lib_ep_copies, $copies of it). By mel_lib_start of $first, $first_pos,
-// $pos: the copy there - its vod_play; the copies left - their menu (mel_lib_pick_menu) back to lib_copy with the place
-// $pos and the type of the title (of an episode: it); none - mel_lib_gone.
+// $pos, the packs F $f_packs: the copy there - its vod_play; the copies left - their menu (mel_lib_pick_menu) back to
+// lib_copy with the place $pos and the type of the title (of an episode: it); none - mel_lib_gone.
 /**
  * @param MelMovie $mv
  * @param array<mixed> $m
@@ -540,11 +572,12 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
  * @param int $pos
  * @param string $lang
  * @param MelLibEp|null $ep
+ * @param list<string> $f_packs
  * @return MelAction
  */
-function mel_lib_resume_go($mv, $m, $copies, $first, $first_pos, $pos, $lang, $ep = null)
+function mel_lib_resume_go($mv, $m, $copies, $first, $first_pos, $pos, $lang, $ep = null, $f_packs = array())
 {
-    $go = mel_lib_start($copies, $first, $first_pos, $pos, false);
+    $go = mel_lib_start($copies, $first, $first_pos, $pos, false, $f_packs);
     if (isset($go['copy']))
         return mel_lib_play($mv, $go, $lang, $ep);
     if (isset($go['gone']))

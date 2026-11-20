@@ -192,9 +192,10 @@ function mel_oc_lib($c)
 
 // The series of card $c in the media library (mel_oc_lib): Y of the movie_str of its start; its episodes on the disk
 // and the files of them (mel_oc_lib_eps); H by Y when there are copies, else the card of the Dune; of each episode the
-// copy OK plays (mel_lib_ep_pick with $auto, as the line of the head and "· сейчас" of the window show it: of the
-// history in memory, mel_lib_ep_ctx; the key of a record - its first mirror, as mel_lib_start takes it). The keys "s:e"
-// of the copies are of the card, of the history and of the request at once (the invariant, mel_lib_ep_same).
+// copy OK plays (mel_lib_ep_cid with $auto, as the line of the head and "· сейчас" of the window show it: of the
+// history in memory, mel_lib_ep_ctx; of the mirrors of a record the copy of F, as the playlist and the start take
+// it). The keys "s:e" of the copies are of the card, of the history and of the request at once (the invariant,
+// mel_lib_ep_same).
 // -> array(none, H, "s:e" => copies, Y, "s:e" => the id of a copy, hash => array(q, e) | 'skip').
 /**
  * @param MelOcCard $c
@@ -208,12 +209,10 @@ function mel_oc_lib_series($c)
     $hid = $eps ? mel_lib_hid($c['dune'], $y) : $c['dune'];
     $cur = array();
     $seasons = array();
-    list($recs, $f) = $eps ? mel_lib_ep_ctx($hid, $y) : array(array(), array());
+    $ctx = $eps ? mel_lib_ep_ctx($hid, $y) : array(array(), array());
     foreach ($eps as $se => $copies)
     {
-        list($first) = mel_lib_ep_pick($copies, isset($recs[$se]) ? $recs[$se] : '', $f, true);
-        $of = mel_lib_copies_of($copies, $first);
-        $cur[$se] = $of ? $of[0]['cid'] : $copies[0]['cid'];
+        list($cur[$se]) = mel_lib_ep_cid($copies, $ctx, $se, true);
         $seasons[$copies[0]['s']] = 1;
     }
     $all = array();
