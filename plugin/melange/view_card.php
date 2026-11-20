@@ -1785,8 +1785,9 @@ function mel_oc_menu($lang, $items = array())
 
 // "Смотреть из…" of MENU of card $c ($key) at place $pos of layout $l (mel_src_watch_item: two ready profiles or more):
 // card_src_menu of the card, of an episode in focus in the row its s and e; none without "Смотреть" (mel_oc_can_watch)
-// and on a strip of posters or of the cast (the title there is another one). A movie with a copy on the disk: of one
-// ready profile too, "Смотреть из «<name>»" to its list at once (mel_src_watch_items_lib).
+// and on a strip of posters or of the cast (the title there is another one). A movie with a copy on the disk, a series
+// with one of an episode (C4: "Смотреть" may play a file): of one ready profile too, "Смотреть из «<name>»" to its list
+// at once (mel_src_watch_items_lib).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1801,7 +1802,7 @@ function mel_oc_src_items($key, $c, $l, $pos)
     $p = array('c' => $key);
     if ($pos['z'] === 'row')
         $p += array('s' => strval($pos['s']), 'e' => strval($pos['e']));
-    if ($l['lib'])
+    if ($l['lib'] || $l['lib_eps'])
         return mel_src_watch_items_lib($c['ui'], 'card_src_menu', 'card_src', $p);
     return mel_src_watch_item($c['ui'], 'card_src_menu', $p);
 }

@@ -123,9 +123,10 @@ function mel_src_watch_item($lang, $control, $params)
         GuiMenuItemDef::action => mel_input($control, $params)));
 }
 
-// The item of the sources of MENU of a movie with a copy on the disk ("Смотреть" plays the file; owner 18.11.2026):
-// always one when a profile is ready - of one, "Смотреть из «<name>»" to $pick_control of $params with p and n of it (its
-// list at once); of two and more, "Смотреть из…" to $menu_control (mel_src_watch_item); none ready - none.
+// The item of the sources of MENU of a movie with a copy on the disk, of a series with one of an episode ("Смотреть"
+// plays the file; owner 18.11.2026): always one when a profile is ready - of one, "Смотреть из «<name>»" to
+// $pick_control of $params with p and n of it (its list at once); of two and more, "Смотреть из…" to $menu_control
+// (mel_src_watch_item); none ready - none.
 /**
  * @param string $lang
  * @param string $menu_control
