@@ -113,6 +113,6 @@
     <required>no</required>
     <auto>yes</auto>
   </check_update>
-  <version>0.65.0</version>
-  <version_index>125</version_index>
+  <version>0.66.0</version>
+  <version_index>126</version_index>
 </dune_plugin>
