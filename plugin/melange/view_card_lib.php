@@ -115,26 +115,89 @@ function mel_oc_lib_parts($head, $ids, $tail, $x, $cy)
     return array($d, $w);
 }
 
-// The copies on the disk of the movie of card $c (library.php): the movie found in the media library by the movie_str
-// of its start (mel_oc_watch_in, mel_lib_title: the same as play_action looks for it by), its copies on the shares
-// mounted now (mel_lib_copies; no share touched) -> array(the copies, H: the card of its history - of the Dune, else of
-// the index when there are copies). A series, no copy: none, H the card of the Dune.
+// The copies on the disk of card $c (library.php): the title found in the media library by the movie_str of its
+// start (mel_oc_watch_in, mel_lib_title: the same as play_action looks for it by) -> array(the copies of a movie on
+// the shares mounted now (mel_lib_copies; no share touched), H: the card of its history - of the Dune, else of the
+// index when there are copies, Y: the title in the index ('' none), the copies of the episodes of a series and the
+// copy of each OK plays, the files of its episodes for the history; mel_oc_lib_series). A movie: no episodes.
 /**
  * @param MelOcCard $c
- * @return array{list<MelLibCopy>, string}
+ * @return array{list<MelLibCopy>, string, array<string, list<MelLibCopy>>, string, array<string, string>, array<string, array{int, int}|string>}
  */
 function mel_oc_lib($c)
 {
+    if ($c['tile']['type'] === 'series')
+        return mel_oc_lib_series($c);
     if ($c['tile']['type'] !== 'movie')
-        return array(array(), $c['dune']);
+        return array(array(), $c['dune'], array(), '', array(), array());
     $in = mel_oc_watch_in($c);
     $y = mel_lib_mid(mel_lib_title((array) json_decode(strval($in->movie_str), true), false));
     if ($y === '')
-        return array(array(), $c['dune']);
+        return array(array(), $c['dune'], array(), '', array(), array());
     $lib = mel_lib_copies($y);
     mel_log("card: own movie:" . mel_cm_id($c['tile']) . ": library $y, " . count($lib) . ' copies (' .
         count(MelLib::$by_mid[$y]) . ' in index)');
-    return array($lib, $lib ? mel_lib_hid($c['dune'], $y) : $c['dune']);
+    return array($lib, $lib ? mel_lib_hid($c['dune'], $y) : $c['dune'], array(), $y, array(), array());
+}
+
+// The series of card $c in the media library (mel_oc_lib): Y of the movie_str of its start; its episodes on the disk
+// and the files of them (mel_oc_lib_eps); H by Y when there are copies, else the card of the Dune; of each episode the
+// copy OK plays (mel_lib_ep_pick with $auto, as the line of the head and "· сейчас" of the window show it: of the
+// history in memory, mel_lib_ep_ctx; the key of a record - its first mirror, as mel_lib_start takes it). The keys "s:e"
+// of the copies are of the card, of the history and of the request at once (the invariant, mel_lib_ep_same).
+// -> array(none, H, "s:e" => copies, Y, "s:e" => the id of a copy, hash => array(q, e) | 'skip').
+/**
+ * @param MelOcCard $c
+ * @return array{list<MelLibCopy>, string, array<string, list<MelLibCopy>>, string, array<string, string>, array<string, array{int, int}|string>}
+ */
+function mel_oc_lib_series($c)
+{
+    $in = mel_oc_watch_in($c);
+    $y = mel_lib_mid(mel_lib_title((array) json_decode(strval($in->movie_str), true), true));
+    list($eps, $fix) = mel_oc_lib_eps($c, $y);
+    $hid = $eps ? mel_lib_hid($c['dune'], $y) : $c['dune'];
+    $cur = array();
+    $seasons = array();
+    list($recs, $f) = $eps ? mel_lib_ep_ctx($hid, $y) : array(array(), array());
+    foreach ($eps as $se => $copies)
+    {
+        list($first) = mel_lib_ep_pick($copies, isset($recs[$se]) ? $recs[$se] : '', $f, true);
+        $of = mel_lib_copies_of($copies, $first);
+        $cur[$se] = $of ? $of[0]['cid'] : $copies[0]['cid'];
+        $seasons[$copies[0]['s']] = 1;
+    }
+    $all = array();
+    foreach ($y !== '' && isset(MelLib::$eps[$y]) ? MelLib::$eps[$y] : array() as $r)
+        $all["{$r['s']}:{$r['e']}"] = 1;
+    // No line with no series in the library at all (as a movie with none).
+    if ($y !== '' || MelLib::$eps)
+        mel_log('card: own series:' . mel_cm_id($c['tile']) . ': library ' . ($y !== '' ? $y : 'none') . ', ' .
+            count($eps) . ' episodes on disk in ' . count($seasons) . ' seasons (' . count($all) . ' in index)');
+    return array(array(), $hid, $eps, $y, $cur, $fix);
+}
+
+// The episodes of series $y of the index for card $c, by the invariant of the numberings (mel_lib_ep_same, of the meta
+// of the card as its movie_str has it: season_numbers, cin; mel_oc_watch_in): array(their copies now "s:e" =>
+// copies, mel_lib_ep_copies - the season of the index is that of the card; the files of them for the history,
+// hash => array(q, e) - q the season of the history (mel_cm_req_s, the same by the invariant) | 'skip', for
+// mel_wh_series and mel_lib_place). No meta or no Y: none.
+/**
+ * @param MelOcCard $c
+ * @param string $y
+ * @return array{array<string, list<MelLibCopy>>, array<string, array{int, int}|string>}
+ */
+function mel_oc_lib_eps($c, $y)
+{
+    $m = $c['meta'];
+    if (!$m || $y === '')
+        return array(array(), array());
+    list($eps, $fix) = mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), $m['season_numbers'], $m['cin']);
+    foreach ($fix as $h => $se)
+    {
+        if (is_array($se))
+            $fix[$h] = array(mel_cm_req_s($m, $se[0]), $se[1]);
+    }
+    return array($eps, $fix);
 }
 
 // The copy of copies $lib of the latest record of a copy of the card of history $hid (mel_wh_lib_last), there; null
