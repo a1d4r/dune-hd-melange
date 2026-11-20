@@ -61,9 +61,10 @@ function mel_lib_copy_parts($copy, $lang)
 // the plates b2 as high as in the list of releases, MEL_OC_LIB_ALPHA), the plate of the channels after them, the size as text; $n 2 or more - and the tail
 // "2 копии — MENU" (lib_copies, owner 20.11.2026). The head of an episode ($ep true, B10 A): the box at MEL_OC_EP_LIB_Y,
 // MEL_CATV_LINE_PX, to EP_LIB_R; the disk EP_DISK_W dimmed as the badges, no words, no tail.
-// Wider than the edge: the parts out one by one in the order of $drop - the size, the tail of the copies (owner
-// 20.11.2026: the tail stays longer than the size), the plate of the channels, the audio (owner 19.11.2026); the
-// resolution and the picture stay. The head of an episode has no tail: the size, the channels, the audio.
+// Wider than the edge: the parts out one by one in the order of $steps - the size, then of the tail of the copies and the
+// size the one that fits (owner 20.11.2026: the tail stays longer than the size; решение лида 2г1г: the size in place of
+// the tail before the channels), then neither, the plate of the channels, the audio (owner 19.11.2026); the resolution
+// and the picture stay. The head of an episode has no tail: the size, the channels, the audio.
 /**
  * @param string $lang
  * @param MelLibCopy $copy
@@ -85,10 +86,11 @@ function mel_oc_lib_line($lang, $copy, $x, $n, $ep = false)
     $tx = $x + $dw + MEL_OC_DISK_GAP;
     $on = array('more' => $more !== '', 'size' => true, 'ch' => true, 'audio' => true);
     $d = array();
-    foreach (array('', 'size', 'more', 'ch', 'audio') as $drop)
+    $steps = array(array(), array('size' => false), array('more' => false, 'size' => true), array('size' => false),
+        array('ch' => false), array('audio' => false));
+    foreach ($steps as $st)
     {
-        if ($drop !== '')
-            $on[$drop] = false;
+        $on = array_merge($on, $st);
         list($d, $w) = mel_oc_lib_parts($head, $p, $on, $more, $tx, $y, $px);
         if ($tx + $w <= $r)
             break;
