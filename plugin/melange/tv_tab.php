@@ -363,7 +363,7 @@ function mel_tv_tiles_save($tiles)
 // The tile $id (without the mode, "<rid>:<id>") of tv.json as written (mel_tv_tiles_save): the tab "TV"
 // shows the file, while a screen of Melange may have got its rows anew since, without it. From memory,
 // read again when the file is another one (a restart of php_server: from the disk). null: not in it.
-// As a copy of the catalog (mel_cat_cache_read, mel_cat_page_cached): of another MEL_CAT_CACHE_V none,
+// As a copy of the catalog (mel_cat_cache_read, mel_cat_page_cached): of a version not read (mel_cat_v_ok) none,
 // each tile made again by mel_cat_tile, so a key MelCatTile got since (an update of the zip) has its value.
 /**
  * @param string $id
@@ -376,7 +376,7 @@ function mel_tv_tile($id)
     {
         $j = $sig === '' ? null : json_decode(strval(file_get_contents(mel_data_dir() . '/' . MEL_TV_TILES_FILE)), true);
         MelTv::$tiles = array();
-        if (is_array($j) && isset($j['v'], $j['tiles']) && $j['v'] === MEL_CAT_CACHE_V && is_array($j['tiles']))
+        if (is_array($j) && isset($j['v'], $j['tiles']) && mel_cat_v_ok($j['v']) && is_array($j['tiles']))
         {
             foreach ($j['tiles'] as $k => $m)
             {
@@ -605,12 +605,12 @@ function mel_tv_timer_state($lang)
 
 // The timer: the copy of the manifest older than MEL_CAT_FRESH asked anew (not MEL_CAT_MANIFEST_FRESH:
 // the timer comes every 10 min), then the first pages
-// of the rows of the file without a copy or with one older than MEL_CAT_FRESH, one by one in $limit s: those
-// without a copy first, then the oldest copy (of the same time in the order of the file), then the rows that timed
-// out before (MelCat::$slow, as mel_catv_open: one slow row does not take the budget of every tick). A timeout is
-// not the server down; after a failure of the server (mel_cat_err_down) no more. Fresh copies are not asked: at most
-// a request a row an hour, however often the shell calls. No flag of each copy (MelTv::$quiet), they are counted
-// (MelTv::$new_copies). Each request gets the whole seconds left (curl takes whole ones: rounded up, the
+// of the rows of the file without a copy or with one older than MEL_CAT_FRESH, one by one in $limit s, a movie and a
+// series in turn: of each those without a copy first, then the oldest copy (of the same time in the order of the
+// file); then the rows that timed out before (MelCat::$slow, as mel_catv_open: one slow row does not take the
+// budget of every tick). A timeout is not the server down; after a failure of the server (mel_cat_err_down) no more.
+// Fresh copies are not asked: at most a request a row an hour, however often the shell calls. No flag of each copy
+// (MelTv::$quiet), they are counted (MelTv::$new_copies). Each request gets the whole seconds left (curl takes whole ones: rounded up, the
 // last could run past $limit), none begins with less than 1 s. -> for the log.
 /**
  * @param float $limit
@@ -650,7 +650,14 @@ function mel_tv_refresh($limit)
             $old_t[] = $c ? $c['t'] : 0;
         }
     }
-    $queue = array_merge(mel_cat_oldest_first($old, $old_t), $slow);
+    // Movies and series in turn (by the place of each in its tab), each the oldest first: copies of an older version
+    // are all old at once, a few rows a tick, the series would wait for all the movies.
+    $sorted = mel_cat_oldest_first($old, $old_t);
+    $n = array('movie' => 0, 'series' => 0);
+    $turn = array();
+    foreach ($sorted as $i)
+        $turn[] = $n[mel_cat_row_tab($tv_rows[$i])]++;
+    $queue = array_merge(mel_cat_oldest_first($sorted, $turn), $slow);
     $asked = 0;
     foreach ($queue as $i)
     {

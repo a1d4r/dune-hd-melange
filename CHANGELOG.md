@@ -4,6 +4,7 @@
 
 ## 0.66.1
 - Fixed: the microphone button on the remote opened Dune voice search on the Melange card and other screens outside the catalog; now it opens Melange search there too.
+- Fixed: after a Melange update, rows could disappear from the TV tab of the home screen for an hour or two. "TV → Series" showed only Continue Watching, "TV → Movies" had no genre rows, and a reboot did not help. Now, until the rows refresh, they show the posters saved by the previous version, and movie and series rows refresh alternately.
 - **DTS logos.** In the release list, the DTS, DTS-HD, DTS:X and DTS-ES logos are slightly larger and as tall as the Dolby Atmos and TrueHD tags. A DTS-HD MA release shows "dts-HD" in its row instead of the small "dts-HD MA" logo. The card still says "DTS-HD MA".
 
 ## 0.66.0 — 20.11.2026
@@ -306,6 +307,7 @@ First public release. What it does:
 
 ## 0.66.1
 - Исправлено: в карточке Melange и на других экранах вне каталога кнопка микрофона на пульте открывала голосовой поиск Дюны, теперь — поиск Melange.
+- Исправлено: после обновления Melange ряды во вкладке «ТВ» главного экрана пропадали на час-два. В «Сериалах» оставалось только «Продолжить», в «Фильмах» не было жанров, перезагрузка не помогала. Теперь, пока ряды не обновились, в них постеры, сохранённые прежней версией, а ряды фильмов и сериалов обновляются поочерёдно.
 
 ## 0.66.0 — 20.11.2026
 - **Новый вид списка раздач.** Список раздач перерисован: плашки проще, в строке только главное, например Vision и Atmos.
