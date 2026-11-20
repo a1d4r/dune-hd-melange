@@ -90,7 +90,7 @@ define('MEL_K_BTN_PAD', 28);
 define('MEL_K_PLATE_H', 40);
 define('MEL_K_PLATE_PAD', 11);
 define('MEL_K_PLATE_CAP', 18);
-define('MEL_K_PLATE_CAP_DTS', 22);
+define('MEL_K_PLATE_CAP_DTS', 19);
 define('MEL_K_PLATE_GAP', 10);
 define('MEL_K_CHIP_H', 34);
 define('MEL_K_CHIP_PAD', 10);
@@ -404,11 +404,11 @@ function mel_k_pic()
         'k_glyph_dolby-truehd' => array('url' => 'plugin_file://img/k_glyph_dolby_truehd.c23fa877.png', 'w' => 139, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_glyph_dolby-digital-plus' => array('url' => 'plugin_file://img/k_glyph_dolby_digital_plus.862ac487.png', 'w' => 144, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_glyph_dolby-digital' => array('url' => 'plugin_file://img/k_glyph_dolby_digital.9102c363.png', 'w' => 130, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_glyph_dts-x' => array('url' => 'plugin_file://img/k_glyph_dts_x.ca02b09b.png', 'w' => 105, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_glyph_dts-hd-ma' => array('url' => 'plugin_file://img/k_glyph_dts_hd_ma.2da60e14.png', 'w' => 117, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_glyph_dts-hd' => array('url' => 'plugin_file://img/k_glyph_dts_hd.2da60e14.png', 'w' => 117, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_glyph_dts-es' => array('url' => 'plugin_file://img/k_glyph_dts_es.c42ca0fa.png', 'w' => 152, 'h' => 40, 'mid' => null, 'ink' => null),
-        'k_glyph_dts' => array('url' => 'plugin_file://img/k_glyph_dts.75ef909b.png', 'w' => 75, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_glyph_dts-x' => array('url' => 'plugin_file://img/k_glyph_dts_x.65bf2d2b.png', 'w' => 94, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_glyph_dts-hd-ma' => array('url' => 'plugin_file://img/k_glyph_dts_hd_ma.954ff825.png', 'w' => 104, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_glyph_dts-hd' => array('url' => 'plugin_file://img/k_glyph_dts_hd.954ff825.png', 'w' => 104, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_glyph_dts-es' => array('url' => 'plugin_file://img/k_glyph_dts_es.6e157d9f.png', 'w' => 134, 'h' => 40, 'mid' => null, 'ink' => null),
+        'k_glyph_dts' => array('url' => 'plugin_file://img/k_glyph_dts.9735558c.png', 'w' => 68, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_glyph_flac' => array('url' => 'plugin_file://img/k_glyph_flac.fe495cfa.png', 'w' => 106, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_glyph_pcm' => array('url' => 'plugin_file://img/k_glyph_pcm.56459832.png', 'w' => 76, 'h' => 40, 'mid' => null, 'ink' => null),
         'k_glyph_opus' => array('url' => 'plugin_file://img/k_glyph_opus.b5c1d6e3.png', 'w' => 111, 'h' => 40, 'mid' => null, 'ink' => null),
