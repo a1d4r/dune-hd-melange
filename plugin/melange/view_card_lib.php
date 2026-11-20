@@ -75,8 +75,9 @@ function mel_lib_win_paths($copies, $series)
 }
 
 // Path $s at $px (the font of the kit, MelKit::w) wider than $w cut in the middle: its start up to the first "/" (its
-// folder) kept, "…", then of its end as much as fits (mock_library_v4.py cut_mid); no "/" - "…" and the end. Not wider:
-// as it is.
+// folder) kept, "…", then of its end as much as fits (mock_library_v4.py cut_mid); no "/" - "…" and the end. A start
+// to the first "/" wider than half of $w (with "…"): no start kept by "/" - of the start as much as fits half of $w, "…",
+// of the end the rest. Never wider than $w. Not wider: as it is.
 /**
  * @param string $s
  * @param int $px
@@ -90,7 +91,21 @@ function mel_lib_cut_mid($s, $px, $w)
         return $s;
     $i = strpos($s, '/');
     $head = $i === false ? '' : substr($s, 0, $i + 1);
-    // The width of a line is the sum of those of its glyphs (MelKit::w): the end grows from its last one.
+    // The width of a line is the sum of those of its glyphs (MelKit::w): the start grows from its first one, the end
+    // from its last one.
+    if (MelKit::w($head . '…', $px) * 2 > $w)
+    {
+        $half = intval(($w - MelKit::w('…', $px)) / 2);
+        $head = '';
+        foreach (preg_split('//u', $s, -1, PREG_SPLIT_NO_EMPTY) ?: array() as $ch)
+        {
+            $cw = MelKit::w($ch, $px);
+            if ($cw > $half)
+                break;
+            $half -= $cw;
+            $head .= $ch;
+        }
+    }
     $left = $w - MelKit::w($head . '…', $px);
     $chars = preg_split('//u', strval(substr($s, strlen($head))), -1, PREG_SPLIT_NO_EMPTY) ?: array();
     $tail = '';

@@ -229,8 +229,9 @@ function mel_lib_common_len($paths)
 
 // The tails of the paths of copies $copies by their cid (P1, as the screen "Files" of the shell shows them): of a movie
 // its path, of an episode ($series) the folder of its pack (dir) - the copies in one folder of the library without the
-// start of the folders common to them all (mel_lib_common_len), in several "<caption of its folder>/<path>" (an
-// episode at the root of its folder: the caption alone). The window of the copies and the menu of the copies alike.
+// start of the folders common to them all (mel_lib_common_len), in several "<caption of its folder>/<path>"; nothing
+// left (an episode at the root of its folder of the library): the caption alone. The window of the copies and the menu
+// of the copies alike.
 /**
  * @param list<MelLibCopy> $copies
  * @param bool $series
@@ -252,10 +253,8 @@ function mel_lib_tails($copies, $series)
     foreach ($copies as $c)
     {
         $p = $series ? $c['dir'] : $c['path'];
-        if ($n >= 0)
-            $out[$c['cid']] = strval(substr($p, $n));
-        else
-            $out[$c['cid']] = $p === '' ? $c['caption'] : $c['caption'] . '/' . $p;
+        $t = $n >= 0 ? strval(substr($p, $n)) : ($p === '' ? '' : $c['caption'] . '/' . $p);
+        $out[$c['cid']] = $t === '' ? $c['caption'] : $t;
     }
     return $out;
 }
