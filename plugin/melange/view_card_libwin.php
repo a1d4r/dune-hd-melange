@@ -6,7 +6,7 @@
 // view_card_lib.php (the line "С диска" and the plates of a copy there).
 // Needs view_card_lib.php (mel_lib_copy_parts, mel_lib_plate_ids, mel_oc_lib_plates, mel_oc_lib_cur, mel_oc_se,
 // MEL_OC_LIB_GAP), view_card.php (MelOc, mel_oc_scr), view_card_series.php (mel_oc_ep, mel_oc_prog), kit.php,
-// kit_ovl.php, gcomps.php, playback_lib.php (mel_lib_place), history.php (mel_wh_lib_last), continue.php (mel_cp_badge),
+// kit_ovl.php, gcomps.php, playback_lib.php (mel_lib_place, mel_lib_ep_cid, mel_lib_ep_ctx), continue.php (mel_cp_badge),
 // view_catalog.php (mel_catv_ui_lang), main.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
@@ -189,9 +189,10 @@ define('MEL_LIB_WIN_FOOT_BASE', 44);
 define('MEL_LIB_WIN', 'lw');
 
 // The copy "· сейчас" of the window of the copies $copies of card $key (spec §8.3): of a movie the copy of the latest
-// record of a copy of the card (mel_oc_lib_cur); of episode $s, $e the copy OK plays (nav lib_cur, решение лида 5 (а):
-// of the folder it plays from), unless the series was never watched from the disk (no record of a copy of the card) -
-// none then. Not among $copies, no card shown: '' (none; the cursor on the first line).
+// record of a copy of the card (mel_oc_lib_cur); of episode $s, $e the copy OK plays (решение лида 5 (а): of the folder
+// it plays from) - the rule of OK of its copies on the screen (mel_lib_ep_cid of mel_lib_ep_ctx, no $auto), not lib_cur
+// (the best of $auto): OK of no copy to take gives the window (the series never watched from the disk, no record and
+// no F to go by) - none then. Not among $copies, no card shown: '' (none; the cursor on the first line).
 /**
  * @param string $key
  * @param list<MelLibCopy> $copies
@@ -210,7 +211,8 @@ function mel_lib_win_cur($key, $copies, $s = -1, $e = -1)
         return $cp ? $cp['cid'] : '';
     }
     $se = mel_oc_se($s, $e);
-    $cid = isset($l['lib_cur'][$se]) && mel_wh_lib_last($l['hid']) ? $l['lib_cur'][$se] : '';
+    list($cid) = mel_lib_ep_cid(isset($l['lib_eps'][$se]) ? $l['lib_eps'][$se] : $copies,
+        mel_lib_ep_ctx($l['hid'], $l['lib_y']), $se, false);
     foreach ($copies as $cp)
     {
         if ($cp['cid'] === $cid)

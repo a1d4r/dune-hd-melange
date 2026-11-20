@@ -249,8 +249,9 @@ function mel_oc_lib($c)
 
 // The series of card $c in the media library (mel_oc_lib, $res of it with Y): its episodes on the disk and the files
 // of them (mel_oc_lib_eps); H by Y when there are copies, else the card of the Dune; of each episode the copy OK plays
-// (mel_lib_ep_cid with $auto, as the line of the head and "· сейчас" of the window show it: of the history in memory,
-// mel_lib_ep_ctx; of the mirrors of a record the copy of F, as the playlist and the start take it). The keys "s:e" of
+// (mel_lib_ep_cid with $auto, as the line of the head shows it: of the history in memory, mel_lib_ep_ctx; of the
+// mirrors of a record the copy of F, as the playlist and the start take it; no copy to take - the best, where OK gives
+// the window and its "· сейчас" none, mel_lib_win_cur). The keys "s:e" of
 // the copies are of the card, of the history and of the request at once (the invariant, mel_lib_ep_same).
 /**
  * @param MelOcCard $c
@@ -530,7 +531,7 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
 // "▶ Смотреть / Продолжить"): the copy and the place by the history of H (mel_lib_ep_ctx -> mel_lib_ep_place). Then
 // mel_lib_start (of the mirrors of a record the copy of F first): the file there - vod_play of the playlist of its
 // season (mel_lib_play), played (card_finish after the player); several left or none to take - the window of the copies
-// of the episode over the screen (mel_lib_win_open, mode first; its "· сейчас" of lib_cur; none - the screen shown has no
+// of the episode over the screen (mel_lib_win_open, mode first; its "· сейчас" mel_lib_win_cur; none - the screen has no
 // slot of the overlay: nothing, logged there); none there - mel_lib_gone of the episode. No episode on the disk now: as
 // none there. No movie of the card: null.
 /**
