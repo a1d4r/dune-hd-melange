@@ -1945,7 +1945,9 @@ function mel_list_state($mv, $s, $e, $rows, $lang, $errors)
 // A movie_str made by Melange itself adds mel_lpv_tile_ids: Lampac puts the quality into the name of a balancer and show
 // false only with a TMDB id. No IMDb and no TMDB (mel_rel_id): the search of Lampac always (its "Continue" too), its
 // windows of nothing online and of no answer, never the releases; no Lampac - err_no_imdb_rel. "Continue" of a copy on
-// the disk (wh_mode local) of a movie: the file (mel_lib_resume), before all that - no IMDb, no profile, no network needed.
+// the disk (wh_mode local) of a movie: the file (mel_lib_resume), of a series: the file of the episode
+// (mel_lib_resume_ep), before all that - no IMDb, no profile, no network needed; an episode of none on the disk - the
+// list of that episode.
 /**
  * @param stdClass $in
  * @param MelWhPick|MelOcEp|null $hist
@@ -1966,6 +1968,8 @@ function mel_play_action($in, $hist = null, $src = '')
 
     $si = mel_resume($in);
     $resume = $si;
+    // The episode of "Continue" of a copy on the disk of a series, none of it there: its list (mel_lib_resume_ep).
+    $lib_se = null;
     // r25 shell attaches the history to our own button "Melange NN%" in the
     // "Play..." dialog too: that one opens the list, as in r24.
     if ($si && isset($in->selected_control_id) && $in->selected_control_id === 'play_online')
@@ -1975,11 +1979,16 @@ function mel_play_action($in, $hist = null, $src = '')
     }
     if ($resume && $resume['mode'] === 'local')
     {
+        $m = (array) json_decode(strval($in->movie_str), true);
         if (!$mv['series'])
-            return mel_lib_resume($mv, (array) json_decode(strval($in->movie_str), true), $resume['hash'], $resume['pos'],
-                $lang);
-        // Stage 1 writes no such record of a series: its list, as of no record.
-        mel_log('resume: a record of a copy on the disk of a series ignored -> list');
+            return mel_lib_resume($mv, $m, $resume['hash'], $resume['pos'], $lang);
+        $a = mel_lib_resume_ep($mv, $m, $resume, $lang, $lib_se);
+        if ($a)
+            return $a;
+        // None of it on the disk: the list of the releases of that episode ($lib_se), no cursor; a record of no
+        // episode - as of no record.
+        if (!$lib_se)
+            mel_log('resume: a record of a copy on the disk of a series ignored -> list');
         $si = $resume = null;
     }
 
@@ -1992,11 +2001,13 @@ function mel_play_action($in, $hist = null, $src = '')
     $lpk = $resume && $resume['mode'] === 'lampac' ? $resume['hash'] : '';
     $s = -1;
     $e = -1;
+    if ($lib_se)
+        list($s, $e) = $lib_se;
     // A list opens with the cursor on this release (the one of the history).
     $hash = $resume && $lpk === '' ? $resume['hash'] : '';
     // The record is of a release (debrid, ts), even when mel_wh_resume_ep leaves no episode to play of it.
     $rel = $resume && $lpk === '';
-    if ($mv['series'])
+    if ($mv['series'] && !$lib_se)
     {
         // Back from "Continue watching" the shell sends season = episode = -1.
         // $resume null after it: watched, no later episode - its list.

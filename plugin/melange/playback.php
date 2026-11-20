@@ -659,9 +659,9 @@ function mel_lib_ep_ctx($hid, $y, $unfinished = false)
 }
 
 // "Continue" of the copy of key $key of movie $mv from $pos s (play_action of wh_mode local; $key the id of a copy of
-// the menu of the copies of it, mel_lib_copy_input): the fields $m of its movie_str find the movie in the index (mel_lib_title, mel_lib_mid), the
-// card of the record H is its card of the Dune, else of the index. The copy of the key from $pos; it gone - the others
-// (mel_lib_start), their menu (mel_lib_pick_menu) back here (lib_copy) with the place of the record; none - mel_lib_gone.
+// the menu of the copies of it, mel_lib_copy_input): the fields $m of its movie_str find the movie in the index
+// (mel_lib_title, mel_lib_mid), the card of the record H is its card of the Dune, else of the index. The copy of the key
+// from $pos (mel_lib_resume_go).
 /**
  * @param MelMovie $mv
  * @param array<mixed> $m
@@ -676,17 +676,113 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
     $copies = $y !== '' ? mel_lib_copies($y) : array();
     $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $y);
     mel_log("resume: local $key pos=$pos");
-    $keep = array_intersect_key($m, array_flip(explode(' ', MEL_LIB_MOVIE_KEYS)));
-    $back = array('lib_copy', array('movie_str' => strval(json_encode($keep)), 'series_type' =>
-        $mv['series'] ? 'series' : 'single', 'lang' => $lang, 'pos' => strval($pos)));
-    $go = mel_lib_start($copies, $key, $pos, $pos, false);
-    if (isset($go['copy']))
-        return mel_lib_play($mv, $go, $lang);
-    return isset($go['pick']) ? mel_lib_pick_menu($back[0], $back[1], $go['pick'], '', $lang) : mel_lib_gone($go['gone']);
+    return mel_lib_resume_go($mv, $m, $copies, $key, $pos, $pos, $lang);
 }
 
-// lib_copy: the copy of id k (mel_lib_cid) chosen in the menu of the copies of play_action (mel_lib_resume) - from pos
-// s, of the movie of movie_str; a bad input: nothing.
+// The series of $mv (the fields $m of its movie_str) in the index -> array($mv of the card of the history H, Y, the
+// copies of its episodes "q:e" => copies, mel_lib_ep_copies); not found: Y '', no copies.
+/**
+ * @param MelMovie $mv
+ * @param array<mixed> $m
+ * @return array{MelMovie, string, array<string, list<MelLibCopy>>}
+ */
+function mel_lib_series($mv, $m)
+{
+    $y = mel_lib_mid(mel_lib_title($m, true));
+    $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $y);
+    return array($mv, $y, $y !== '' ? mel_lib_ep_copies($y) : array());
+}
+
+// "Continue" of an episode of a copy on the disk (C7: play_action of wh_mode local, the record $r of mel_resume) of
+// series $mv, the fields $m of its movie_str. The key of the record: of its uid when that is of its episode
+// "aio:H:<wh_s>:<wh_e>:lib-..." (a vod_play has one recent_action_params, of its start episode), else wh_release. The
+// episode by mel_wh_resume_ep: not watched - its copy of the key from its place; watched - the next one, its copy by
+// mel_lib_ep_pick (the record: ours of it not watched; F the packs of the key of the record), from its place
+// (mel_lib_place, the native records by their files). -> its start (mel_lib_resume_go: their menu until the own card
+// takes it, stage 2г4); null - none of it on the disk (no copy, the series not in the index, no episode after a
+// watched one): $se the episode for the list of its releases; null both - a record of no episode, as of none.
+/**
+ * @param MelMovie $mv
+ * @param array<mixed> $m
+ * @param MelResume $r
+ * @param string $lang
+ * @param array{int, int}|null $se
+ * @param-out array{int, int}|null $se
+ * @return MelAction|null
+ */
+function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
+{
+    $se = null;
+    $s0 = $r['s'];
+    $e0 = $r['e'];
+    if ($s0 < 1 || $e0 < 1)
+        return null;
+    list($mv, $y, $eps) = mel_lib_series($mv, $m);
+    $hid = $mv['dune_id'];
+    $u = mel_wh_uid($r['uid'], $hid);
+    $key = $u && $u[0] === $s0 && $u[1] === $e0 && mel_lib_key_ok($u[2]) ? $u[2] : $r['hash'];
+    list($r, $q, $e) = mel_wh_resume_ep($mv, $r);
+    $copies = isset($eps["$q:$e"]) ? $eps["$q:$e"] : array();
+    $next = !$r || $r['next'];
+    $tag = "resume: local series S{$s0}E{$e0} -> S{$q}E{$e} (" . ($next ? 'next' : 'same') . ')';
+    if (!$r || !$copies)
+    {
+        mel_log("$tag, not on the disk -> its list");
+        $se = array($q, $e);
+        return null;
+    }
+    $ep = array('y' => $y, 'q' => $q, 'e' => $e, 'eps' => $eps);
+    if (!$next)
+    {
+        mel_log("$tag, the key of the record $key");
+        return mel_lib_resume_go($mv, $m, $copies, $key, $r['pos'], $r['pos'], $lang, $ep);
+    }
+    list($recs) = mel_lib_ep_ctx($hid, $y, true);
+    list($first, $why) = mel_lib_ep_pick($copies, isset($recs["$q:$e"]) ? $recs["$q:$e"] : '',
+        mel_lib_key_packs($y, $key), false);
+    mel_log("$tag, $why");
+    // The native records of the series by their files (mel_wh_fix_se): "q:e" of a file, 'skip' of one dropped.
+    $fix = array();
+    foreach (mel_lib_ep_hashes($y) as $h => $hse)
+        $fix[$h] = is_array($hse) ? implode(':', $hse) : $hse;
+    list($k, $first_pos, $pos) = mel_lib_place($hid, $copies, $first, $q, $e, $fix);
+    // No copy to take (the window): their menu, none checked (not the copy of a record mel_lib_place gives).
+    return $first === '' ? mel_lib_resume_go($mv, $m, $copies, '', $pos, $pos, $lang, $ep) :
+        mel_lib_resume_go($mv, $m, $copies, $k, $first_pos, $pos, $lang, $ep);
+}
+
+// The start of "Continue" of a copy on the disk of movie $mv (H set), the fields $m of its movie_str, of its copies
+// $copies, $ep null; of an episode ($ep: of mel_lib_ep_copies, $copies of it). By mel_lib_start of $first, $first_pos,
+// $pos: the copy there - its vod_play; the copies left - their menu (mel_lib_pick_menu) back to lib_copy with the place
+// $pos and the type of the title (of an episode: it); none - mel_lib_gone.
+/**
+ * @param MelMovie $mv
+ * @param array<mixed> $m
+ * @param list<MelLibCopy> $copies
+ * @param string $first
+ * @param int $first_pos
+ * @param int $pos
+ * @param string $lang
+ * @param MelLibEp|null $ep
+ * @return MelAction
+ */
+function mel_lib_resume_go($mv, $m, $copies, $first, $first_pos, $pos, $lang, $ep = null)
+{
+    $go = mel_lib_start($copies, $first, $first_pos, $pos, false);
+    if (isset($go['copy']))
+        return mel_lib_play($mv, $go, $lang, $ep);
+    if (isset($go['gone']))
+        return $ep ? mel_lib_gone($go['gone'], $lang, $ep['q'], $ep['e']) : mel_lib_gone($go['gone']);
+    $keep = array_intersect_key($m, array_flip(explode(' ', MEL_LIB_MOVIE_KEYS)));
+    $back = array('movie_str' => strval(json_encode($keep)), 'series_type' => $mv['series'] ? 'series' : 'single',
+        'lang' => $lang, 'pos' => strval($pos));
+    if ($ep)
+        $back += array('season' => strval($ep['q']), 'episode' => strval($ep['e']));
+    return mel_lib_pick_menu('lib_copy', $back, $go['pick'], '', $lang);
+}
+
+// lib_copy: the copy of id k (mel_lib_cid) chosen in the menu of the copies of play_action (mel_lib_resume_go) - from
+// pos s, of the movie of movie_str; of a series - of its episode season, episode; a bad input: nothing.
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -695,26 +791,43 @@ function mel_lib_copy_input($in)
 {
     $mv = mel_movie($in);
     $key = isset($in->k) && mel_lib_cid_ok($in->k) ? strval($in->k) : '';
-    if (!$mv || $mv['series'] || $key === '')
+    $q = mel_int($in, 'season', -1);
+    $e = mel_int($in, 'episode', -1);
+    if (!$mv || $key === '' || ($mv['series'] && ($q < 1 || $e < 1)))
     {
-        mel_log('library: copy: no movie or no key, nothing');
+        mel_log('library: copy: no movie, no episode or no key, nothing');
         return null;
     }
-    mel_log("library: copy $key chosen");
-    return mel_lib_resume($mv, (array) json_decode(strval($in->movie_str), true), $key, max(0, mel_int($in, 'pos', 0)),
-        isset($in->lang) && is_string($in->lang) ? $in->lang : '');
+    mel_log("library: copy $key chosen" . ($mv['series'] ? " of S{$q}E{$e}" : ''));
+    $m = (array) json_decode(strval($in->movie_str), true);
+    $pos = max(0, mel_int($in, 'pos', 0));
+    $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
+    if (!$mv['series'])
+        return mel_lib_resume($mv, $m, $key, $pos, $lang);
+    list($mv, $y, $eps) = mel_lib_series($mv, $m);
+    return mel_lib_resume_go($mv, $m, isset($eps["$q:$e"]) ? $eps["$q:$e"] : array(), $key, $pos, $pos, $lang,
+        array('y' => $y, 'q' => $q, 'e' => $e, 'eps' => $eps));
 }
 
 // What a start says when the file of a movie is not there and no other copy is (C5, owner 19.11.2026: a message with
-// OK, the card stays): $why 'slow' - the disk did not answer in time, else the file is gone. All of it here: another
-// look of it is one edit.
+// OK, the card stays): $why 'slow' - the disk did not answer in time, else the file is gone. Of episode S$q E$e ($e >=
+// 1, "Continue" of the native): the same of the episode, in the words of the dialog of lib_next. All of it here:
+// another look of it is one edit.
 /**
  * @param string $why
+ * @param string $lang
+ * @param int $q
+ * @param int $e
  * @return MelAction
  */
-function mel_lib_gone($why)
+function mel_lib_gone($why, $lang = '', $q = -1, $e = -1)
 {
-    return mel_error($why === 'slow' ? 'lib_slow' : 'lib_gone');
+    if ($e < 1)
+        return mel_error($why === 'slow' ? 'lib_slow' : 'lib_gone');
+    $k = $why === 'slow' ? 'lib_next_slow' : 'lib_next_no_disk';
+    $a = mel_error($k);
+    $a[GuiAction::data][PluginShowErrorActionData::title] = mel_tr($lang, $k, mel_se($q, $e));
+    return $a;
 }
 
 // lib_next: a lazy episode of a playlist of the disk (mel_lib_lazy_url, mel_lazy_action) - k the card of the history H
