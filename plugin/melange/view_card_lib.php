@@ -170,8 +170,8 @@ function mel_oc_lib_parts($head, $ids, $tail, $x, $y, $px, $cy)
 // series -> MelOcLib (the keys of nav, and fix): lib - the copies of a movie on the shares mounted now (mel_lib_copies;
 // no share touched), hid - H, the card of its history: of the Dune, else of the index when there are copies, lib_y - Y,
 // the title in the index ('' none); of a series lib_eps, lib_cur - the copies of its episodes and the copy of each OK
-// plays, fix - the files of its episodes for the history (mel_oc_lib_series). A movie: no episodes; another type, no Y:
-// none of it.
+// plays, fix - the files of its episodes for the history (mel_oc_lib_series). A movie: no episodes; another type, no Y,
+// a series with no series in the index (not looked for): none of it.
 /**
  * @param MelOcCard $c
  * @return MelOcLib
@@ -183,6 +183,13 @@ function mel_oc_lib($c)
     $series = $c['tile']['type'] === 'series';
     if (!$series && $c['tile']['type'] !== 'movie')
         return $res;
+    // No series in the index at all: a series has nothing to look for (spec §10: no movie_str, no Y).
+    if ($series)
+    {
+        mel_lib_index();
+        if (!MelLib::$eps)
+            return $res;
+    }
     $in = mel_oc_watch_in($c);
     $res['lib_y'] = $y = mel_lib_mid(mel_lib_title((array) json_decode(strval($in->movie_str), true), $series));
     if ($series)
