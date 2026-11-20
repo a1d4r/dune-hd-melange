@@ -327,10 +327,16 @@ function mel_pf_check($a)
 // and mel_lib_title read of a movie.
 define('MEL_LIB_MOVIE_KEYS', 'id imdb_id tmdb_id title native_title aio_en_title year poster_url fanart_url rate_imdb');
 
-// vod_play of the copy $copy (the $i-th of $n of its movie, for the log) of movie $mv from $pos s (0: the start; the
-// player offers the place of the record itself). No stream check, no TorrServer, no markers, one item. Linked by the
-// card $mv['dune_id'] (H: of the own card, else of the index, mel_lib_resume): recent_uid "aio:H:-1:-1:lib-...",
-// mdb_info, "Continue" back to play_action with wh_mode local; no H - unlinked. The log has its key, no path, no name.
+// vod_play of the copy $copy (the $i-th of $n of its title, for the log) of title $mv from $pos s (0: the start; the
+// player offers the place of the record itself). No stream check, no TorrServer. Linked by the card $mv['dune_id'] (H,
+// set by the caller: of the own card, else of the index): recent_uid "aio:H:q:e:lib-...", mdb_info, "Continue" back to
+// play_action with wh_mode local; no H - unlinked. A movie ($ep null): one item, no markers. An episode ($ep: y - the
+// series of the index, q, e - the episode, the season as asked, eps - the copies of the series "q:e" => copies, dur -
+// the length of the MKV of the copy, 0 unknown): its markers by that length (the file is not read here); linked, a
+// playlist of its season and E1 of the next one as mel_play (by season_numbers; none, the episode past them or a season
+// over MEL_EPISODES_MAX - alone), the others lazy "lib_next:H:Y:q:e:<key>" (mel_lazy_action; '-' none on the disk): the
+// copy by mel_lib_ep_pick - F the pack of this copy (the choice just made), the record only of an episode not watched;
+// the card saved for lib_next (mel_movie_save). The log has the key, no path, no name.
 /**
  * @param MelMovie $mv
  * @param MelLibCopy $copy
@@ -338,20 +344,60 @@ define('MEL_LIB_MOVIE_KEYS', 'id imdb_id tmdb_id title native_title aio_en_title
  * @param string $lang
  * @param int $i
  * @param int $n
+ * @param MelLibEp|null $ep
  * @return MelAction
  */
-function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1)
+function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1, $ep = null)
 {
     $linked = $mv['dune_id'] !== '';
+    $q = $ep ? $ep['q'] : -1;
+    $e = $ep ? $ep['e'] : -1;
+    $seasons = $mv['seasons'];
+    $season = $ep && $linked && $e > 0 && isset($seasons[$q]) && $e <= $seasons[$q] && $seasons[$q] <= MEL_EPISODES_MAX;
+    $plan = $season ? mel_play_plan($seasons, $q, array()) : array(array($q, $e));
+    $list = count($plan) > 1;
+    $ser = mel_vod_item($mv, $q, $e, $copy['url'], $linked ? $copy['key'] : '', $list);
+    if ($ep)
+    {
+        $mk = mel_markers($mv['imdb'], $q, $e, $ep['dur'], '', '');
+        if ($mk)
+            $ser[PluginVodSeriesInfo::markers] = $mk;
+    }
+    $y = $ep ? $ep['y'] : '';
+    $eps = $ep ? $ep['eps'] : array();
+    list($recs) = $list ? mel_lib_ep_ctx($mv['dune_id'], $y, true) : array(array());
+    $f = array(mel_lib_pack($copy));
+    $series = array();
+    $ndx = 0;
+    $whys = array();
+    foreach ($plan as $k => $p)
+    {
+        list($pq, $pe) = $p;
+        if ($pq === $q && $pe === $e)
+        {
+            $ndx = $k;
+            $series[] = $ser;
+            continue;
+        }
+        $se = "$pq:$pe";
+        $copies = isset($eps[$se]) ? $eps[$se] : array();
+        list($first, $why) = mel_lib_ep_pick($copies, isset($recs[$se]) ? $recs[$se] : '', $f, true);
+        $of = mel_lib_copies_of($copies, $first);
+        $whys[$why] = (isset($whys[$why]) ? $whys[$why] : 0) + 1;
+        $series[] = array(
+            PluginVodSeriesInfo::name => mel_ser_name($mv, $pq, $pe, true),
+            PluginVodSeriesInfo::playback_url => "lib_next:{$mv['dune_id']}:$y:$pq:$pe:" . ($of ? $of[0]['key'] : '-'),
+            PluginVodSeriesInfo::playback_url_is_stream_url => false);
+    }
     $p = strrpos($copy['path'], '/');
     $info = array(
         PluginVodInfo::id => 'aio.' . ($linked ? $mv['dune_id'] : $mv['imdb']),
-        PluginVodInfo::name => mel_ser_name($mv, -1, -1, false),
+        PluginVodInfo::name => $list ? $mv['title'] : mel_ser_name($mv, $q, $e, false),
         // The second line of INFO: the file, as a release by its name.
         PluginVodInfo::sub_name => mel_clean($p === false ? $copy['path'] : substr($copy['path'], $p + 1)),
         PluginVodInfo::poster_url => $mv['poster'],
-        PluginVodInfo::series => array(mel_vod_item($mv, -1, -1, $copy['url'], $linked ? $copy['key'] : '', false)),
-        PluginVodInfo::initial_series_ndx => 0,
+        PluginVodInfo::series => $series,
+        PluginVodInfo::initial_series_ndx => $ndx,
         PluginVodInfo::description => implode(' · ', array_filter(array($copy['res'],
             $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : ''), 'strlen')),
         PluginVodInfo::buffering_ms => 3000,
@@ -364,9 +410,19 @@ function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1)
         $info[PluginVodInfo::recent_plugin] = 'shell_ext';
         $info[PluginVodInfo::recent_action_params] = mel_recent_params($mv['dune_id'], $copy['key'], 'local', '');
     }
+    if ($season)
+        mel_movie_save($mv, $lang);
     mel_pg_link_movie($mv);
-    mel_log("play: local {$copy['key']} pos=$pos linked=" . ($linked ? 1 : 0) . ', copy ' . ($i + 1) . " of $n" .
-        ($copy['res'] !== '' ? ", {$copy['res']}" : ''));
+    mel_log("play: local {$copy['key']}" . ($ep ? " S{$q}E{$e}" : '') . " pos=$pos linked=" . ($linked ? 1 : 0) .
+        ($ep ? ', playlist ' . count($series) : '') . ', copy ' . ($i + 1) . " of $n" . ($copy['res'] !== '' ? ", {$copy['res']}" : ''));
+    if ($whys)
+    {
+        ksort($whys);
+        $w = array();
+        foreach ($whys as $why => $c)
+            $w[] = "$why $c";
+        mel_log("library: playlist S$q of the disk: " . implode(', ', $w));
+    }
     return array(
         GuiAction::handler_string_id => PLUGIN_VOD_PLAY_ACTION_ID,
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
@@ -505,7 +561,7 @@ function mel_lib_place($hid, $copies, $k, $q = -1, $e = -1, $fix = array())
 // (the playlist, the line of the card). -> array(the key of the record or the id of a copy, '' - the window; why):
 // record - the copy of the record; folder - of a pack F (the first of several); near - of the pack nearest to F
 // (mel_lib_pack_near, the most of the packs F), near-best - the first of several as near; one - the only copy; auto-best -
-// the first; window - none of these; none - no copy. One log line, no path.
+// the first; window - none of these; none - no copy. No log: the caller logs a line an action.
 /**
  * @param list<MelLibCopy> $copies_ep
  * @param string $rec_key
@@ -548,29 +604,34 @@ function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
         $why = 'one';
     else
         $why = $auto ? 'auto-best' : 'window';
-    mel_log("library: episode S{$top['s']}E{$top['e']}: $why");
     return array($why === 'record' ? $rec_key : ($why === 'window' ? '' : $top['cid']), $why);
 }
 
-// What mel_lib_ep_pick goes by for episode S$q E$e (the season as asked) of the series $y of the index, card of history
-// $hid -> array($rec_key, $f_packs): the key of our record of a copy of the episode (mel_wh_lib_ep_last) while it is not
-// watched or it is the last choice of a folder (its end not less than of the latest record of a copy of the card,
-// mel_wh_lib_last), else '' - the episode goes of the pack F; F - the packs of the key of that latest record by the
-// index (mel_lib_key_packs: its copy may be not mounted now, "the same folder" is there). The playlist and "Continue"
-// of the native take their own F (the start copy, the key of the record).
+// What mel_lib_ep_pick goes by for the episodes of the series $y of the index, card of history $hid -> array("q:e" =>
+// $rec_key, $f_packs), the history read once: of an episode (the season as asked) the key of our record of a copy of
+// it (MelWh::$lib_ep) while that record is not watched or - not $unfinished - it is the last choice of a folder (its end
+// not less than of the latest record of a copy of the card, mel_wh_lib_last); an episode not in the map goes of the
+// pack F. F - the packs of the key of that latest record by the index (mel_lib_key_packs: its copy may be not mounted
+// now, "the same folder" is there). The playlist ($unfinished: F the start copy) and "Continue" of the native (F the
+// key of the record) take their own F.
 /**
  * @param string $hid
  * @param string $y
- * @param int $q
- * @param int $e
- * @return array{string, list<string>}
+ * @param bool $unfinished
+ * @return array{array<string, string>, list<string>}
  */
-function mel_lib_ep_ctx($hid, $y, $q, $e)
+function mel_lib_ep_ctx($hid, $y, $unfinished = false)
 {
     $last = mel_wh_lib_last($hid);
-    $rec = mel_wh_lib_ep_last($hid, $q, $e);
-    $key = $rec && (!mel_wh_full($rec['pos'], $rec['len']) || ($last && $rec['end'] >= $last['end'])) ? $rec['key'] : '';
-    return array($key, $last ? mel_lib_key_packs($y, $last['key']) : array());
+    $keys = array();
+    $pre = "$hid:";
+    foreach ($hid !== '' ? MelWh::$lib_ep : array() as $k => $rec)
+    {
+        if (strpos($k, $pre) === 0 && (!mel_wh_full($rec['pos'], $rec['len']) ||
+            (!$unfinished && $last && $rec['end'] >= $last['end'])))
+            $keys[substr($k, strlen($pre))] = $rec['key'];
+    }
+    return array($keys, $last ? mel_lib_key_packs($y, $last['key']) : array());
 }
 
 // "Continue" of the copy of key $key of movie $mv from $pos s (play_action of wh_mode local; $key the id of a copy of
