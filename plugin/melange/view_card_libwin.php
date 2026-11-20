@@ -288,9 +288,12 @@ function mel_lib_win_open($key, $copies, $mode, $s = -1, $e = -1, $cur = null)
 // $left to choose from (2+, pick of mel_lib_start; of episode $s, $e of a series, $e >= 1): the own card of the title and
 // the window W2 of them over it (owner 1 (б), spec §8.3). The card by the id of the title - the IMDb of $mv, else its
 // TMDB (tmdb, mel_lib_resume and mel_lib_resume_ep put it) - as a link to=card makes it (mel_dl_card_of: of the meta,
-// else the one in memory, else of the ids); the window its first tick opens (lw_auto, mel_oc_tick: mode first, only of
-// the copies its screen shows), the reply - plugin_open_folder "card:<key>" (mel_dl_card_open). The choice - card_lib_copy
-// of the card (from the place of mel_lib_place), RETURN - the card stays. No id of the title: null (the caller plays).
+// else the one in memory, else of the ids); only a card that has copies of the title (of the episode) itself
+// (mel_oc_lib, mel_oc_lib_shown: no meta, the card of the ids, a series numbered otherwise - none, its screen would have
+// no window). The window its first tick opens (lw_auto, mel_oc_tick: mode first, only of the copies its screen shows),
+// the reply - plugin_open_folder "card:<key>" (mel_dl_card_open). The choice - card_lib_copy of the card (from the place
+// of mel_lib_place), RETURN - the card stays. No such card (no id of the title, an id off its form, a card with none of
+// the copies): null (the caller plays the first there).
 /**
  * @param MelMovie $mv
  * @param list<MelLibCopy> $left
@@ -301,19 +304,28 @@ function mel_lib_win_open($key, $copies, $mode, $s = -1, $e = -1, $cur = null)
 function mel_lib_win_card($mv, $left, $s, $e)
 {
     $tmdb = isset($mv['tmdb']) ? $mv['tmdb'] : '';
-    $kc = $mv['imdb'] !== '' || $tmdb !== '' ? mel_dl_card_of(array('to' => 'card', 'type' => $mv['series'] ? 'series' :
-        'movie', 'imdb' => $mv['imdb'], 'tmdb' => $mv['imdb'] === '' ? $tmdb : '', 's' => '', 'e' => '', 'tab' => '',
-        'n' => '', 'q' => '', 'src' => '')) : null;
-    $se = $e >= 1 ? " of S{$s}E{$e}" : '';
+    $tag = 'library: ' . count($left) . ' copies' . ($e >= 1 ? " of S{$s}E{$e}" : '') . ' to choose';
+    if ($mv['imdb'] === '' && $tmdb === '')
+    {
+        mel_log("$tag, no own card (no IMDb, no TMDB)");
+        return null;
+    }
+    $kc = mel_dl_card_of(array('to' => 'card', 'type' => $mv['series'] ? 'series' : 'movie', 'imdb' => $mv['imdb'],
+        'tmdb' => $mv['imdb'] === '' ? $tmdb : '', 's' => '', 'e' => '', 'tab' => '', 'n' => '', 'q' => '', 'src' => ''));
     if (!$kc)
     {
-        mel_log('library: ' . count($left) . " copies$se to choose, no own card (no IMDb, no TMDB)");
+        mel_log("$tag, no own card (" . ($mv['imdb'] !== '' ? 'IMDb' : 'TMDB') . ' off its form)');
         return null;
     }
     list($key, $card) = $kc;
+    if (!mel_oc_lib_shown(mel_oc_lib($card), $s, $e))
+    {
+        mel_log("$tag, the own card $key has none of them: no own card");
+        return null;
+    }
     $card['lw_auto'] = array('copies' => $left, 'mode' => 'first', 's' => $e >= 1 ? $s : -1, 'e' => $e >= 1 ? $e : -1);
     MelOc::$cards[$key] = $card;
-    mel_log('library: ' . count($left) . " copies$se to choose -> the own card $key, the window of them by its first tick");
+    mel_log("$tag -> the own card $key, the window of them by its first tick");
     return mel_dl_card_open($key, $card);
 }
 

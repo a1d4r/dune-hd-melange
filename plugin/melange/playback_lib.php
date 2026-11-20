@@ -582,8 +582,8 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
 // The start of "Continue" of a copy on the disk of movie $mv (H set; its TMDB, tmdb, for the own card), of its copies
 // $copies, $ep null; of an episode ($ep: of mel_lib_ep_copies, $copies of it). By mel_lib_start of $first, $first_pos,
 // $pos, the packs F $f_packs: the copy there - its vod_play; the copies left - the own card of the title and the window
-// W2 of them over it (mel_lib_win_card; owner 1 (б)), no own card (no id of the title) - the first there of them in
-// their order from $pos (as under the player); none - mel_lib_gone.
+// W2 of them over it (mel_lib_win_card; owner 1 (б)), no own card (no id of the title, or its card has none of them) -
+// the first there of them in their order from $pos (as under the player); none - mel_lib_gone.
 /**
  * @param MelMovie $mv
  * @param list<MelLibCopy> $copies

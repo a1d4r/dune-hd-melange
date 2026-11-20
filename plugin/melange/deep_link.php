@@ -111,7 +111,7 @@ function mel_dl_open($in)
 // The own card of link $q, kept, of the ids alone: made of the meta (mel_oc_of_meta: its tile, the card of the Dune
 // by it), as ENTER on a tile makes it (mel_oc_enter). No meta: the card in memory if there is one (another screen of
 // it may be under this one: not to lose its name), else the card of the ids, no name, as of a tile whose meta failed.
-// -> array(the key "<type>:<id of the link>", the card).
+// -> array(the key "<type>:<id of the link>", the card); null - the id off its form (no tile of it, or of no id).
 /**
  * @param MelDlLink $q
  * @return array{string, MelOcCard}|null
@@ -119,7 +119,7 @@ function mel_dl_open($in)
 function mel_dl_card_of($q)
 {
     $tile = mel_oc_id_tile($q['type'], $q['imdb'] !== '' ? $q['imdb'] : "tmdb:{$q['tmdb']}");
-    if (!$tile)
+    if (!$tile || mel_cm_id($tile) === '')
         return null;
     $key = $q['type'] . ':' . mel_cm_id($tile);
     $r = mel_oc_of_meta($key, $tile);

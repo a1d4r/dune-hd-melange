@@ -394,6 +394,19 @@ function mel_oc_lib_cur($lib, $hid)
     return $rec ? mel_lib_copy_by_key($lib, $rec['key']) : null;
 }
 
+// The screen of copies $l (nav, or mel_oc_lib of a card) has copies of its title: of episode $s, $e ($e >= 1) of a
+// series - of that episode (lib_eps), else of the movie (lib).
+/**
+ * @param array{lib: list<MelLibCopy>, lib_eps: array<string, list<MelLibCopy>>} $l
+ * @param int $s
+ * @param int $e
+ * @return bool
+ */
+function mel_oc_lib_shown($l, $s = -1, $e = -1)
+{
+    return $e >= 1 ? !empty($l['lib_eps'][mel_oc_se($s, $e)]) : (bool) $l['lib'];
+}
+
 // The key "s:e" of episode $e of season $s of the card in the copies of its episodes (nav lib_eps, lib_cur; the same of
 // the index and of the history by the invariant, mel_lib_ep_same), one for all of the card.
 /**
