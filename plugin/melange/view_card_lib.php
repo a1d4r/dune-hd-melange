@@ -1,7 +1,8 @@
 <?php
 // The copies on the disk in the own card of a movie: the line "С диска" of a copy under the buttons (R1, owner
 // 20.11.2026) on the UI Kit - the widths by MelKit::w, the badges the plates b2 of the list of releases (MelKit::b2);
-// the labels as the other lines of the card (mel_oc_label).
+// the labels as the other lines of the card (mel_oc_label). And the copies of the card: found (mel_oc_lib), the current
+// one (mel_oc_lib_cur), "Копия на диске…" of MENU, the start (mel_oc_lib_start, mel_oc_lib_input).
 
 // The line: its text, its right edge; the disk before it (MEL_OC_IMG disk.png, DISK_W square), a part of the label
 // "С диска": DISK_GAP from the picture to the text (its strokes 3 px in from the edge: 11 px seen, as before the kit).
@@ -112,4 +113,119 @@ function mel_oc_lib_parts($head, $ids, $tail, $x, $cy)
         $w += $gap + $tw;
     }
     return array($d, $w);
+}
+
+// The copies on the disk of the movie of card $c (library.php): the movie found in the media library by the movie_str
+// of its start (mel_oc_watch_in, mel_lib_title: the same as play_action looks for it by), its copies on the shares
+// mounted now (mel_lib_copies; no share touched) -> array(the copies, H: the card of its history - of the Dune, else of
+// the index when there are copies). A series, no copy: none, H the card of the Dune.
+/**
+ * @param MelOcCard $c
+ * @return array{list<MelLibCopy>, string}
+ */
+function mel_oc_lib($c)
+{
+    if ($c['tile']['type'] !== 'movie')
+        return array(array(), $c['dune']);
+    $in = mel_oc_watch_in($c);
+    $y = mel_lib_mid(mel_lib_title((array) json_decode(strval($in->movie_str), true), false));
+    if ($y === '')
+        return array(array(), $c['dune']);
+    $lib = mel_lib_copies($y);
+    mel_log("card: own movie:" . mel_cm_id($c['tile']) . ": library $y, " . count($lib) . ' copies (' .
+        count(MelLib::$by_mid[$y]) . ' in index)');
+    return array($lib, $lib ? mel_lib_hid($c['dune'], $y) : $c['dune']);
+}
+
+// The copy of copies $lib of the latest record of a copy of the card of history $hid (mel_wh_lib_last), there; null
+// none (no record, or its copy not among them): no copy is the current one then.
+/**
+ * @param list<MelLibCopy> $lib
+ * @param string $hid
+ * @return MelLibCopy|null
+ */
+function mel_oc_lib_cur($lib, $hid)
+{
+    $rec = mel_wh_lib_last($hid);
+    return $rec ? mel_lib_copy_by_key($lib, $rec['key']) : null;
+}
+
+// "Копия на диске…" of MENU of a movie of card $c ($key) at place $pos of layout $l with two copies on the disk or more:
+// card_lib_copies (the menu of the copies, mel_oc_lib_input); none on a strip of posters or of the cast.
+/**
+ * @param string $key
+ * @param MelOcCard $c
+ * @param MelOcNav $l
+ * @param MelOcPos $pos
+ * @return list<array<string, mixed>>
+ */
+function mel_oc_lib_menu_items($key, $c, $l, $pos)
+{
+    if (count($l['lib']) < 2 || mel_oc_strip_on($l, $pos) !== '')
+        return array();
+    return array(array(
+        GuiMenuItemDef::caption => mel_tr($c['ui'], 'lib_copy_menu'),
+        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
+        GuiMenuItemDef::action => mel_input('card_lib_copies', array('c' => $key))));
+}
+
+// The start of a copy on the disk of the movie of card $c ($key) of layout $l (C2-C4 of the spec): its copies read
+// anew (a share may be gone since the screen; mel_lib_copies), the copy and the place by the history of the card
+// (mel_lib_place). The copy of id $k chosen in the menu of the copies ('' - "Смотреть": the copy of the record, of
+// its mirrors the first there; none - the copies by mel_lib_start: one plays, several - their menu back to
+// card_lib_copy, none there - mel_lib_gone).
+/**
+ * @param string $key
+ * @param MelOcCard $c
+ * @param MelOcNav $l
+ * @param string $k
+ * @return MelAction|null
+ */
+function mel_oc_lib_start($key, $c, $l, $k = '')
+{
+    $mv = mel_movie(mel_oc_watch_in($c));
+    if (!$mv || !$l['lib'])
+        return null;
+    $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $l['hid']);
+    $copies = mel_lib_copies($l['lib'][0]['mid']);
+    mel_log("card: own $key: watch a copy on the disk");
+    list($first, $first_pos, $pos) = mel_lib_place($l['hid'], $copies, $k);
+    MelOc::$cards[$key]['played'] = true;
+    $go = mel_lib_start($copies, $first, $first_pos, $pos, false);
+    if (isset($go['copy']))
+        return mel_lib_play($mv, $go, $c['ui']);
+    return isset($go['pick']) ? mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'first'), $go['pick'], '',
+        $c['ui']) : mel_lib_gone($go['gone']);
+}
+
+// card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the id of the copy of the menu of the copies; from:
+// first - of "Смотреть", menu - of MENU) of the movie of card $c ($key) of layout $l. The menu: the copies read anew, the
+// one of the latest record (mel_oc_lib_cur) "· сейчас" and selected, no record - none of them, the first selected;
+// none left - lib_gone. A copy: mel_oc_lib_start.
+/**
+ * @param string $key
+ * @param MelOcCard $c
+ * @param MelOcNav $l
+ * @param stdClass $in
+ * @param string $control
+ * @return MelAction|null
+ */
+function mel_oc_lib_input($key, $c, $l, $in, $control)
+{
+    if (!$l['lib'])
+        return null;
+    if ($control === 'card_lib_copy')
+    {
+        $k = mel_catv_in($in, 'k');
+        if (!mel_lib_cid_ok($k))
+            return null;
+        mel_log("card: own $key: copy $k of the menu (" . mel_catv_in($in, 'from') . ')');
+        return mel_oc_lib_start($key, $c, $l, $k);
+    }
+    $copies = mel_lib_copies($l['lib'][0]['mid']);
+    if (!$copies)
+        return mel_lib_gone('no');
+    $cur = mel_oc_lib_cur($copies, $l['hid']);
+    return mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'menu'), $copies, $cur ? $cur['cid'] : '',
+        $c['ui']);
 }
