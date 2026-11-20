@@ -84,7 +84,7 @@ class MelKit
     // (once), r 0 and no corners.
     /**
      * @param string $key
-     * @return array{r: int, ring: int, color: string, tl: string, tr: string, bl: string, br: string, o: string}
+     * @return array{r: int, ring: int, color: string, tl: string, tr: string, bl: string, br: string, o: string, el: string, er: string}
      */
     public static function corner($key)
     {
@@ -93,7 +93,7 @@ class MelKit
             return $t[$key];
         self::miss('corner', $key);
         return array('r' => 0, 'ring' => 0, 'color' => MEL_K_C_NONE, 'tl' => '', 'tr' => '', 'bl' => '', 'br' => '',
-            'o' => '');
+            'o' => '', 'el' => '', 'er' => '');
     }
 
     /**
@@ -830,8 +830,10 @@ class MelKit
     // A plate (ring) of mel_k_corner() $key, $w x $h with its top left at
     // ($x, $y): its 4 corners r x r and rects of its colour between them, butt
     // to butt (a ring: only its band). Smaller than 2r: 2r. A circle (o of
-    // the table): its one picture, always 2r x 2r (larger: logged once). Its
-    // edges: the box.
+    // the table): its one picture, always 2r x 2r (larger: logged once). A
+    // plate of one height (el, er of the table: its ends r x h): the left end,
+    // a rect of its colour, the right end, butt to butt, always that h
+    // (another: logged once). Its edges: the box.
     /**
      * @param string $key
      * @param int $x
@@ -853,6 +855,24 @@ class MelKit
             $p = self::pic($c['o']);
             $out = self::box($p['url'] !== '' ? array(mel_gc_image(mel_gc_at($d, $d, $x, $y), $p['url'])) : array(),
                 $x, $y, $d, $d);
+            $out['kind'] = 'plate';
+            return $out;
+        }
+        if ($c['el'] !== '')
+        {
+            $l = self::pic($c['el']);
+            $e = self::pic($c['er']);
+            if ($h !== $l['h'])
+                self::once("ends $key", "kit: plate '$key' is {$l['h']} high, not $h");
+            $h = $l['h'];
+            $w = max($w, 2 * $r);
+            $defs = $w > 2 * $r ? array(mel_gc_rect(mel_gc_at($w - 2 * $r, $h, $x + $r, $y), $c['color'])) : array();
+            foreach (array(array($l, $x), array($e, $x + $w - $r)) as $q)
+            {
+                if ($q[0]['url'] !== '')
+                    $defs[] = mel_gc_image(mel_gc_at($r, $h, $q[1], $y), $q[0]['url']);
+            }
+            $out = self::box($defs, $x, $y, $w, $h);
             $out['kind'] = 'plate';
             return $out;
         }
@@ -989,7 +1009,8 @@ class MelKit
         return self::on('chip', $p, $t);
     }
 
-    // The plates b2 k_badge_<id> of $ids (which ids: the caller) in a row
+    // The plates b2 k_badge_<id> of $ids (which ids: the caller; the plates
+    // of one picture, the subtitles of the language column) in a row
     // MEL_K_PLATE_GAP apart, each as wide as its picture (mel_k_pic()); the
     // left at $x, their centre at $y. An unknown id: logged, left out.
     /**
@@ -1035,7 +1056,49 @@ class MelKit
         return $n ? $w + MEL_K_PLATE_GAP * ($n - 1) : 0;
     }
 
-    // A text plate b2 (IMAX, an edition: what no picture k_badge_* is) as
+    // The plate b2 of video or sound $id of a row of a list (the owner
+    // 20.11.2026, variant C): the plate badge $w wide (narrower than the
+    // picture k_glyph_<id>: as wide as it) MEL_K_PLATE_H high, the glyph
+    // k_glyph_<id> on it in its middle (whole px, the odd one to the right);
+    // the left at $x, the centre at $y. An unknown id: logged, nothing, 0 wide
+    // at $x.
+    /**
+     * @param string $id
+     * @param int $x
+     * @param int|float $y
+     * @param int $w
+     * @return MelKitItem
+     */
+    public static function b2($id, $x = 0, $y = 0, $w = 0)
+    {
+        $y = (int) round($y);
+        $g = self::pic("k_glyph_$id");
+        if ($g['url'] === '')
+            return self::box(array(), $x, $y, 0, 0);
+        $w = max($w, $g['w']);
+        $top = $y - intval(MEL_K_PLATE_H / 2);
+        $gx = $x + intval(($w - $g['w']) / 2);
+        $gy = $y - intval($g['h'] / 2);
+        $out = self::join('b2', array(self::plate('badge', $x, $top, $w, MEL_K_PLATE_H),
+            self::box(array(mel_gc_image(mel_gc_at($g['w'], $g['h'], $gx, $gy), $g['url'])), $gx, $gy, $g['w'], $g['h'])));
+        $out['mid'] = $out['cy'] = $y;
+        return $out;
+    }
+
+    // The least width of the plate b2 of $id (b2()): that of its glyph's
+    // picture k_glyph_<id>; a column of a list by its widest row. An unknown
+    // id: logged, 0.
+    /**
+     * @param string $id
+     * @return int
+     */
+    public static function b2_w($id)
+    {
+        $p = self::pic("k_glyph_$id");
+        return $p['url'] !== '' ? $p['w'] : 0;
+    }
+
+    // A text plate b2 (IMAX, an edition: what no picture k_glyph_* is) as
     // high as they, MEL_K_PLATE_H: $text (MEL_K_PX_BADGE, condensed, text 1)
     // between the pads MEL_K_PLATE_PAD on their plate (plate); the left at
     // $x, the plate and the capitals centred at $y. The height of capitals

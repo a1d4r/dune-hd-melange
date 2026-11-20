@@ -571,34 +571,31 @@ function mel_gc_tracker($r, $width)
     return MelKit::cut(mel_clean($r['trackers'][0]), $px, '', $width - MelKit::w($more, $px)) . $more;
 }
 
-// Badges of a row by column (b2, the owner 18.11.2026): resolution, source, picture, sound, each its senior part
-// (mel_badge_senior: «Vision» without HDR10, «Atmos», else the codec) with a plate k_badge_* (mel_k_pic(); no
-// other). AI, IMAX and the editions only in the card (the field "Видео").
+// Badges of a row by column (b2, the owner 18.11.2026): resolution, source, picture, sound, one each (mel_badges),
+// its senior part (mel_badge_senior: «Vision» without HDR10, «Atmos», else the codec) with a glyph k_glyph_*
+// (mel_k_pic(); no other: ''). AI, IMAX and the editions only in the card (the field "Видео").
 /**
  * @param MelBadges $b
- * @return array{res: list<string>, src: list<string>, vis: list<string>, audio: list<string>}
+ * @return array{res: string, src: string, vis: string, audio: string}
  */
 function mel_gc_row_badges($b)
 {
     $pics = mel_k_pic();
-    $cols = array('res' => array($b['res']), 'src' => array($b['src']), 'vis' => array($b['vis']), 'audio' => $b['audio']);
-    foreach ($cols as $k => $ids)
+    $cols = array('res' => $b['res'], 'src' => $b['src'], 'vis' => $b['vis'],
+        'audio' => $b['audio'] ? $b['audio'][0] : '');
+    foreach ($cols as $k => $id)
     {
-        $cols[$k] = array();
-        foreach ($ids as $id)
-        {
-            $id = mel_badge_senior($id);
-            if ($id !== '' && isset($pics["k_badge_$id"]))
-                $cols[$k][] = $id;
-        }
+        $id = mel_badge_senior($id);
+        $cols[$k] = $id !== '' && isset($pics["k_glyph_$id"]) ? $id : '';
     }
     return $cols;
 }
 
 // Column x and width for this list, each by its widest value; empty columns
 // take no room; the icon column as wide as the plate of the cache, wider only
-// for wider seeders. A column of the badges for each part (its plates of every
-// row from its x, one under another), the size keep their width; the languages
+// for wider seeders. A column of the badges for each part (the plate of every
+// row as wide as the column, the glyph in its middle: the owner 20.11.2026,
+// variant C), the size keep their width; the languages
 // get what is left but MEL_GC_TRACKER_MIN of the trackers (or the expression
 // name, or the add-on): their flags fold into "+N" first, "?" and the plate of
 // the subtitles stay (the owner 19.11.2026); the trackers get the rest if it
@@ -622,8 +619,8 @@ function mel_gc_cols($rows, $tt)
         $n = mel_gc_seeds($r);
         if (!is_null($n))
             $icon = max($icon, MelKit::w(mel_gc_seeds_str($n), MEL_K_PX_SECONDARY));
-        foreach (mel_gc_row_badges($r['badges']) as $k => $ids)
-            $max[$k] = max($max[$k], MelKit::badges_w($ids));
+        foreach (mel_gc_row_badges($r['badges']) as $k => $id)
+            $max[$k] = max($max[$k], $id !== '' ? MelKit::b2_w($id) : 0);
         $max['size'] = max($max['size'], $r['size'] > 0 ?
             min(180, MelKit::w(mel_size_str($r['size'], $tt['lang']), MEL_K_PX_ROW)) : 0);
         $langs = max($langs, min(260, mel_gc_items_w(mel_gc_lang_items($r, PHP_INT_MAX))));
@@ -791,8 +788,8 @@ function mel_gc_row_items($r, $tt, $c, $on, $share = 0)
     $b = mel_gc_row_badges($r['badges']);
     foreach (array('res', 'src', 'vis', 'audio') as $k)
     {
-        if ($b[$k] && isset($c[$k]))
-            $it[] = MelKit::badges($b[$k], $c[$k][0], $y, "badges $k");
+        if ($b[$k] !== '' && isset($c[$k]))
+            $it[] = MelKit::b2($b[$k], $c[$k][0], $y, $c[$k][1]);
     }
     if ($r['size'] > 0 && isset($c['size']))
     {
