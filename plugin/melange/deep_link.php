@@ -7,9 +7,11 @@
 // dune_card - the card of the Dune (file_movie); person - the page of a person (view_person.php); search - the results
 // of a search of the catalog by the text, no dialog; tab - the catalog at a tab; row - "Show all" of a row of a tab by
 // its number on the screen. A value off its pattern, a field the target does not take, one it lacks: a line of the
-// log, no screen. Each call: a line of the log with the target and the ids.
+// log, no screen. Each call: a line of the log with the target and the ids. The same card of the ids for "Continue" of
+// the native with a copy on the disk to choose (mel_lib_win_card, playback_lib.php).
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_card.php, view_card_series.php, view_card_lib.php
-// (mel_oc_lib_pick), view_catalog.php, view_person.php, continue.php (mel_cp_items), source_profiles.php.
+// (mel_oc_lib_pick; mel_oc_lib, mel_oc_lib_shown of mel_lib_win_card), view_catalog.php, view_person.php, continue.php
+// (mel_cp_items), source_profiles.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The targets: fn - the handler of the link; id - the fields of an id it takes, exactly one of them given (none: no
@@ -108,20 +110,23 @@ function mel_dl_open($in)
     return call_user_func($all[$q['to']]['fn'], $q);
 }
 
-// The own card of link $q, kept, of the ids alone: made of the meta (mel_oc_of_meta: its tile, the card of the Dune
+// The own card of type $type of IMDb $imdb, else of TMDB $tmdb (of a link, of "Continue"), kept, of the ids alone: made
+// of the meta (mel_oc_of_meta: its tile, the card of the Dune
 // by it), as ENTER on a tile makes it (mel_oc_enter). No meta: the card in memory if there is one (another screen of
 // it may be under this one: not to lose its name), else the card of the ids, no name, as of a tile whose meta failed.
 // -> array(the key "<type>:<id of the link>", the card); null - the id off its form (no tile of it, or of no id).
 /**
- * @param MelDlLink $q
+ * @param string $type
+ * @param string $imdb
+ * @param string $tmdb
  * @return array{string, MelOcCard}|null
  */
-function mel_dl_card_of($q)
+function mel_dl_card_of($type, $imdb, $tmdb)
 {
-    $tile = mel_oc_id_tile($q['type'], $q['imdb'] !== '' ? $q['imdb'] : "tmdb:{$q['tmdb']}");
+    $tile = mel_oc_id_tile($type, $imdb !== '' ? $imdb : "tmdb:$tmdb");
     if (!$tile || mel_cm_id($tile) === '')
         return null;
-    $key = $q['type'] . ':' . mel_cm_id($tile);
+    $key = $type . ':' . mel_cm_id($tile);
     $r = mel_oc_of_meta($key, $tile);
     $card = $r['card'];
     $was = !$card && isset(MelOc::$cards[$key]);
@@ -142,10 +147,54 @@ function mel_dl_card_of($q)
  */
 function mel_dl_card($q)
 {
-    $kc = mel_dl_card_of($q);
+    $kc = mel_dl_card_of($q['type'], $q['imdb'], $q['tmdb']);
     if (!$kc)
         return null;
     list($key, $card) = $kc;
+    return mel_dl_card_open($key, $card);
+}
+
+// "Continue" of the native (play_action, C7: of a movie mel_lib_resume, of an episode mel_lib_resume_ep) with the copies
+// $left to choose from (2+, pick of mel_lib_start; of episode $s, $e of a series, $e >= 1): the own card of the title and
+// the window W2 of them over it (owner 1 (б), spec §8.3). The card by the id of the title - the IMDb of $mv, else its
+// TMDB (tmdb, mel_lib_resume and mel_lib_resume_ep put it) - as a link to=card makes it (mel_dl_card_of: of the meta,
+// else the one in memory, else of the ids); only a card that has copies of the title (of the episode) itself
+// (mel_oc_lib, mel_oc_lib_shown: no meta, the card of the ids, a series numbered otherwise - none, its screen would have
+// no window). The window its first tick opens (lw_auto, mel_oc_tick: mode first, only of the copies its screen shows),
+// the reply - plugin_open_folder "card:<key>" (mel_dl_card_open). The choice - card_lib_copy of the card (from the place
+// of mel_lib_place), RETURN - the card stays. No such card (no id of the title, an id off its form, a card with none of
+// the copies): null (the caller plays the first there).
+/**
+ * @param MelMovie $mv
+ * @param list<MelLibCopy> $left
+ * @param int $s
+ * @param int $e
+ * @return MelAction|null
+ */
+function mel_lib_win_card($mv, $left, $s, $e)
+{
+    $tmdb = isset($mv['tmdb']) ? $mv['tmdb'] : '';
+    $tag = 'library: ' . count($left) . ' copies' . ($e >= 1 ? " of S{$s}E{$e}" : '') . ' to choose';
+    if ($mv['imdb'] === '' && $tmdb === '')
+    {
+        mel_log("$tag, no own card (no IMDb, no TMDB)");
+        return null;
+    }
+    $kc = mel_dl_card_of($mv['series'] ? 'series' : 'movie', $mv['imdb'], $mv['imdb'] === '' ? $tmdb : '');
+    if (!$kc)
+    {
+        mel_log("$tag, no own card (" . ($mv['imdb'] !== '' ? 'IMDb' : 'TMDB') . ' off its form)');
+        return null;
+    }
+    list($key, $card) = $kc;
+    if (!mel_oc_lib_shown(mel_oc_lib($card), $s, $e))
+    {
+        mel_log("$tag, the own card $key has none of them: no own card");
+        return null;
+    }
+    $card['lw_auto'] = array('copies' => $left, 'mode' => 'first', 's' => $e >= 1 ? $s : -1, 'e' => $e >= 1 ? $e : -1);
+    MelOc::$cards[$key] = $card;
+    mel_log("$tag -> the own card $key, the window of them by its first tick");
     return mel_dl_card_open($key, $card);
 }
 
@@ -220,7 +269,7 @@ function mel_dl_streams($q)
             return null;
         }
     }
-    $kc = mel_dl_card_of($q);
+    $kc = mel_dl_card_of($q['type'], $q['imdb'], $q['tmdb']);
     if (!$kc)
         return null;
     $c = $kc[1];

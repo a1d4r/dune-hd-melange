@@ -2,7 +2,7 @@
 // The start of the files of the media library of the Dune (the own library, library.php): a copy of a movie or of an
 // episode played by the path of its mount (mel_lib_play), the check of its copies, the lazy episodes of the disk
 // (lib_next), "Continue" of play_action of wh_mode local (a copy to choose: the own card and the window W2 over it,
-// mel_lib_win_card).
+// mel_lib_win_card of deep_link.php).
 
 // A lazy episode of a playlist of the disk (mel_lib_play), "lib_next:<H>:<Y>:<q>:<e>:<cid>" -> lib_next
 // (mel_lazy_action): H the card of the history, Y the series of the index, the id of its copy (mel_lib_cid: of the one

@@ -1,13 +1,13 @@
 <?php
 // The window of the copies on the disk W2 over the own card (spec §8.1-§8.3): its open over the screen of the card
-// (mel_lib_win_open, "· сейчас" mel_lib_win_cur; of "Continue" of the native over the own card it opens,
-// mel_lib_win_card), its components (mel_lib_win_defs), its keys (mel_lib_win_input), the paths of its lines
-// (mel_lib_win_paths: P1 by mel_lib_tails, mel_lib_common_len; mel_lib_cut_mid). Split out of view_card_lib.php (the
-// line "С диска" and the plates of a copy there).
+// (mel_lib_win_open, "· сейчас" mel_lib_win_cur; of "Continue" of the native over the own card it opens by
+// mel_lib_win_card of deep_link.php), its components (mel_lib_win_defs), its keys (mel_lib_win_input), the paths of
+// its lines (mel_lib_win_paths: P1 by mel_lib_tails, mel_lib_common_len; mel_lib_cut_mid). Split out of
+// view_card_lib.php (the line "С диска" and the plates of a copy there).
 // Needs view_card_lib.php (mel_lib_copy_parts, mel_lib_plate_ids, mel_oc_lib_plates, mel_oc_lib_cur, mel_oc_se,
 // MEL_OC_LIB_GAP), view_card.php (MelOc, mel_oc_scr), view_card_series.php (mel_oc_ep, mel_oc_prog), kit.php,
 // kit_ovl.php, gcomps.php, playback_lib.php (mel_lib_place), history.php (mel_wh_lib_last), continue.php (mel_cp_badge),
-// view_catalog.php (mel_catv_ui_lang), deep_link.php (mel_dl_card_of, mel_dl_card_open), main.php.
+// view_catalog.php (mel_catv_ui_lang), main.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The path of a line of the window of the copies (W2, spec §8.2): its text WIN_PATH_PX, its width WIN_PATH_W at most.
@@ -284,51 +284,6 @@ function mel_lib_win_open($key, $copies, $mode, $s = -1, $e = -1, $cur = null)
     mel_log("card: own $key: the window of " . count($copies) . " copies ($mode" . ($e >= 1 ? ", S{$s}E{$e}" : '') .
         ')' . ($cur !== '' ? ', the current one at ' . ($at + 1) : ''));
     return mel_ovl_open($scr, array('lw' => $lw), mel_lib_win_map($key), mel_lib_win_defs($lw, $foot, $c['ui']));
-}
-
-// "Continue" of the native (play_action, C7: of a movie mel_lib_resume, of an episode mel_lib_resume_ep) with the copies
-// $left to choose from (2+, pick of mel_lib_start; of episode $s, $e of a series, $e >= 1): the own card of the title and
-// the window W2 of them over it (owner 1 (б), spec §8.3). The card by the id of the title - the IMDb of $mv, else its
-// TMDB (tmdb, mel_lib_resume and mel_lib_resume_ep put it) - as a link to=card makes it (mel_dl_card_of: of the meta,
-// else the one in memory, else of the ids); only a card that has copies of the title (of the episode) itself
-// (mel_oc_lib, mel_oc_lib_shown: no meta, the card of the ids, a series numbered otherwise - none, its screen would have
-// no window). The window its first tick opens (lw_auto, mel_oc_tick: mode first, only of the copies its screen shows),
-// the reply - plugin_open_folder "card:<key>" (mel_dl_card_open). The choice - card_lib_copy of the card (from the place
-// of mel_lib_place), RETURN - the card stays. No such card (no id of the title, an id off its form, a card with none of
-// the copies): null (the caller plays the first there).
-/**
- * @param MelMovie $mv
- * @param list<MelLibCopy> $left
- * @param int $s
- * @param int $e
- * @return MelAction|null
- */
-function mel_lib_win_card($mv, $left, $s, $e)
-{
-    $tmdb = isset($mv['tmdb']) ? $mv['tmdb'] : '';
-    $tag = 'library: ' . count($left) . ' copies' . ($e >= 1 ? " of S{$s}E{$e}" : '') . ' to choose';
-    if ($mv['imdb'] === '' && $tmdb === '')
-    {
-        mel_log("$tag, no own card (no IMDb, no TMDB)");
-        return null;
-    }
-    $kc = mel_dl_card_of(array('to' => 'card', 'type' => $mv['series'] ? 'series' : 'movie', 'imdb' => $mv['imdb'],
-        'tmdb' => $mv['imdb'] === '' ? $tmdb : '', 's' => '', 'e' => '', 'tab' => '', 'n' => '', 'q' => '', 'src' => ''));
-    if (!$kc)
-    {
-        mel_log("$tag, no own card (" . ($mv['imdb'] !== '' ? 'IMDb' : 'TMDB') . ' off its form)');
-        return null;
-    }
-    list($key, $card) = $kc;
-    if (!mel_oc_lib_shown(mel_oc_lib($card), $s, $e))
-    {
-        mel_log("$tag, the own card $key has none of them: no own card");
-        return null;
-    }
-    $card['lw_auto'] = array('copies' => $left, 'mode' => 'first', 's' => $e >= 1 ? $s : -1, 'e' => $e >= 1 ? $e : -1);
-    MelOc::$cards[$key] = $card;
-    mel_log("$tag -> the own card $key, the window of them by its first tick");
-    return mel_dl_card_open($key, $card);
 }
 
 // The action map of the open window of the copies of the screen of owner $owner: UP, DOWN, ENTER, RETURN to lw_key,
