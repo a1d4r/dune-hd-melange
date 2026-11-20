@@ -14,7 +14,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
    <img src="../screenshots/own-card-film.jpg" alt="Melange card for The Dark Knight, focus on Watch, Trailer and Favorites next to it" width="100%">
 
-4. Choose a release and press **ENTER**. Releases are versions of the movie file: quality, voice-over, size. The more seeders (people sharing it, the number in the first column), the sooner the movie starts. The flags show dub languages. A "?" instead of a flag means the language is not confirmed (the card on the left shows it with a question mark: "RU?"). An "RU" label with a subtitles icon means the release has Russian subtitles.
+4. Choose a release and press **ENTER**. Releases are versions of the movie file: quality, voice-over, size. The more seeders (people sharing it, the number in the first column), the sooner the movie starts. The flags show dub languages: two at most, the rest as "+1", "+2". A "?" instead of a flag means the language is not confirmed (the card on the left shows it with a question mark: "RU?"). An "RU" label with a subtitles icon means the release has Russian subtitles.
 
    <img src="../screenshots/film-list-p2p.jpg" alt="Release list: number of seeders in the first column" width="100%">
 
