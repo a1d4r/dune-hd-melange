@@ -233,7 +233,7 @@ parameters:
         # runs of the numbering of Cinemeta of its series numbered on (mel_cin_valid), none for any other; titles: of the
         # episodes of a list from the own card, "s:e" => title (mel_titles_valid); tmdb: the digits of its TMDB (a series: of
         # tmdbtv_id), the releases of a card of no IMDb (mel_rel_id); of "Continue" of a copy on the disk that of the title of
-        # the index (mel_lib_resume, mel_lib_series), the own card of its copies by it (mel_lib_win_card).
+        # the index (mel_lib_resume, mel_lib_resume_ep), the own card of its copies by it (mel_lib_win_card).
         MelMovie: '''
             array{
                 series: bool,

@@ -1,7 +1,8 @@
 <?php
 // The start of the files of the media library of the Dune (the own library, library.php): a copy of a movie or of an
 // episode played by the path of its mount (mel_lib_play), the check of its copies, the lazy episodes of the disk
-// (lib_next), "Continue" of play_action of wh_mode local and the menu of its copies (lib_copy).
+// (lib_next), "Continue" of play_action of wh_mode local (a copy to choose: the own card and the window W2 over it,
+// mel_lib_win_card).
 
 // A lazy episode of a playlist of the disk (mel_lib_play), "lib_next:<H>:<Y>:<q>:<e>:<cid>" -> lib_next
 // (mel_lazy_action): H the card of the history, Y the series of the index, the id of its copy (mel_lib_cid: of the one
@@ -38,12 +39,6 @@ function mel_lib_lazy($pb)
 }
 
 // --- A copy of a movie of the media library of the Dune (library.php): its file played by the path of its mount.
-
-// The fields of a movie_str a menu of the copies of play_action gives on (mel_lib_resume -> lib_copy): what mel_movie
-// and mel_lib_title read of a movie and of a series (its type, TMDB of series, seasons, the numbering of Cinemeta and
-// the titles of the episodes of the own card, as mel_oc_watch_in puts them).
-define('MEL_LIB_MOVIE_KEYS', 'id imdb_id tmdb_id tmdbtv_id series_type title native_title aio_en_title year poster_url ' .
-    'fanart_url rate_imdb season_numbers aio_cin aio_titles');
 
 // vod_play of the copy of title $mv the check found there ($go of mel_lib_start: copy, from at s - 0: the start, the
 // player offers the place of the record itself; the i-th of n of its title, for the log; dur - the length of its MKV).
@@ -431,10 +426,10 @@ function mel_lib_ep_place($hid, $copies, $q, $e, $rec_key, $f_packs, $fix)
     return $first === '' ? array('', $pos, $pos) : array($k, $first_pos, $pos);
 }
 
-// "Continue" of the copy of key $key of movie $mv from $pos s (play_action of wh_mode local; $key the id of a copy of
-// the menu of the copies of it, mel_lib_copy_input): the fields $m of its movie_str find the movie in the index
-// (mel_lib_title, mel_lib_mid), the card of the record H is its card of the Dune, else of the index. The copy of the key
-// from $pos (mel_lib_resume_go).
+// "Continue" of the copy of key $key of movie $mv from $pos s (play_action of wh_mode local): the fields $m of its
+// movie_str find the movie in the index (mel_lib_title, mel_lib_mid), the card of the record H is its card of the Dune,
+// else of the index; its TMDB for the own card of the copies (tmdb, mel_lib_win_card). The copy of the key from $pos
+// (mel_lib_resume_go).
 /**
  * @param MelMovie $mv
  * @param array<mixed> $m
@@ -452,7 +447,7 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
     if ($t['tmdb'] !== '')
         $mv['tmdb'] = $t['tmdb'];
     mel_log("resume: local $key pos=$pos");
-    return mel_lib_resume_go($mv, $m, $copies, $key, $pos, $pos, $lang);
+    return mel_lib_resume_go($mv, $copies, $key, $pos, $pos, $lang);
 }
 
 // The invariant of the three numberings, one place for the own card and "Continue" of the native (C7): an episode
@@ -462,7 +457,7 @@ function mel_lib_resume($mv, $m, $key, $pos, $lang)
 // the numbers of a copy anew. Pure, it knows no numbering: $seasons comes with the invariant in it - season => the
 // set of the numbers of its episodes (number => true), only the seasons asked as they are (the own card: the episodes
 // of its meta, the ones not out and of no date too, of the seasons with mel_cm_req_s = s, mel_oc_lib_eps - a season of
-// E9-E16 has no E1-E8; C7: the counts of season_numbers of the shell, mel_lib_series - each season 1..N, no episode
+// E9-E16 has no E1-E8; C7: the counts of season_numbers of the shell, mel_lib_resume_ep - each season 1..N, no episode
 // numbers there to look at), $cin - the runs of the numbering of Cinemeta (aio_cin, mel_cin_load). With $cin the
 // seasons are of Cinemeta (by_cin: asked as they are), an episode there when a run of its season has it (mel_cin_abs);
 // without, when the set of its season in $seasons has its number. So a season numbered on by TMDB (One Piece S2 is
@@ -510,39 +505,13 @@ function mel_lib_ep_same_one($s, $e, $seasons, $cin)
     return isset($seasons[$s][$e]);
 }
 
-// The series of $mv (the fields $m of its movie_str) in the index -> array($mv of the card of the history H, Y, the
-// copies of its episodes "q:e" => copies, mel_lib_ep_copies; the hashes of its files hash => array(q, e) | 'skip',
-// mel_lib_ep_hashes), both by the invariant of the numberings (mel_lib_ep_same: q the season as asked); not found: Y
-// '', no copies, no hashes.
-/**
- * @param MelMovie $mv
- * @param array<mixed> $m
- * @return array{MelMovie, string, array<string, list<MelLibCopy>>, array<string, array{int, int}|string>}
- */
-function mel_lib_series($mv, $m)
-{
-    $t = mel_lib_title($m, true);
-    $y = mel_lib_mid($t);
-    $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $y);
-    if ($t['tmdb'] !== '')
-        $mv['tmdb'] = $t['tmdb'];
-    if ($y === '')
-        return array($mv, $y, array(), array());
-    // The counts of season_numbers: each season 1..N.
-    $seasons = array();
-    foreach ($mv['seasons'] as $s => $n)
-        $seasons[$s] = $n >= 1 ? array_fill_keys(range(1, $n), true) : array();
-    list($eps, $fix) = mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), $seasons, $mv['cin']);
-    return array($mv, $y, $eps, $fix);
-}
-
 // "Continue" of an episode of a copy on the disk (C7: play_action of wh_mode local, the record $r of mel_resume) of
 // series $mv, the fields $m of its movie_str. The key of the record: of its uid when that is of its episode
 // "aio:H:<wh_s>:<wh_e>:lib-..." (a vod_play has one recent_action_params, of its start episode), else wh_release; a
 // record of season 1 has no s (wh_s -1) - the season of that uid, else 1. The episode by mel_wh_resume_ep: not
 // watched - its copy of the key from its place; watched - the next one, its copy and its place by mel_lib_ep_place (the
-// record: ours of it not watched; F the packs of the key of the record; the native records by their files). -> its start (mel_lib_resume_go: several to choose - the own
-// card and the window W2 over it); null - none of it on the disk (no copy, the series not in the index, no episode after a
+// record: ours of it not watched; F the packs of the key of the record; the native records by their files). -> its start
+// (mel_lib_resume_go: several to choose - the own card and the window W2 over it); null - none of it on the disk (no copy, the series not in the index, no episode after a
 // watched one): $se the episode for the list of its releases; null both - a record of no episode, as of none.
 /**
  * @param MelMovie $mv
@@ -559,7 +528,24 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
     $e0 = $r['e'];
     if ($e0 < 1)
         return null;
-    list($mv, $y, $eps, $fix) = mel_lib_series($mv, $m);
+    // The series in the index: H its card of the Dune, else Y; its TMDB for the own card of the copies (mel_lib_win_card).
+    $t = mel_lib_title($m, true);
+    $y = mel_lib_mid($t);
+    $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $y);
+    if ($t['tmdb'] !== '')
+        $mv['tmdb'] = $t['tmdb'];
+    // The copies of its episodes "q:e" => copies (mel_lib_ep_copies) and the hashes of its files hash => array(q, e) |
+    // 'skip' (mel_lib_ep_hashes), both by the invariant of the numberings (mel_lib_ep_same: q the season as asked; the
+    // counts of season_numbers - each season 1..N); not found: none.
+    $eps = array();
+    $fix = array();
+    if ($y !== '')
+    {
+        $seasons = array();
+        foreach ($mv['seasons'] as $sn => $n)
+            $seasons[$sn] = $n >= 1 ? array_fill_keys(range(1, $n), true) : array();
+        list($eps, $fix) = mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), $seasons, $mv['cin']);
+    }
     $hid = $mv['dune_id'];
     $u = mel_wh_uid($r['uid'], $hid);
     // A record of season 1 has no s (the player writes it of S2+ only; wh_s -1): the season of its uid, else 1.
@@ -581,7 +567,7 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
     if (!$next)
     {
         mel_log("$tag, the key of the record $key");
-        return mel_lib_resume_go($mv, $m, $copies, $key, $r['pos'], $r['pos'], $lang, $ep);
+        return mel_lib_resume_go($mv, $copies, $key, $r['pos'], $r['pos'], $lang, $ep);
     }
     mel_log($tag);
     list($recs) = mel_lib_ep_ctx($hid, $y, true);
@@ -590,17 +576,16 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
     // and the window W2 of them, none checked. Of the mirrors of a record the copy of F first (mel_lib_ep_cid).
     list($k, $first_pos, $pos) = mel_lib_ep_place($hid, $copies, $q, $e, isset($recs["$q:$e"]) ? $recs["$q:$e"] : '', $f,
         $fix);
-    return mel_lib_resume_go($mv, $m, $copies, $k, $first_pos, $pos, $lang, $ep, $f);
+    return mel_lib_resume_go($mv, $copies, $k, $first_pos, $pos, $lang, $ep, $f);
 }
 
-// The start of "Continue" of a copy on the disk of movie $mv (H set), the fields $m of its movie_str, of its copies
+// The start of "Continue" of a copy on the disk of movie $mv (H set; its TMDB, tmdb, for the own card), of its copies
 // $copies, $ep null; of an episode ($ep: of mel_lib_ep_copies, $copies of it). By mel_lib_start of $first, $first_pos,
 // $pos, the packs F $f_packs: the copy there - its vod_play; the copies left - the own card of the title and the window
 // W2 of them over it (mel_lib_win_card; owner 1 (б)), no own card (no id of the title) - the first there of them in
 // their order from $pos (as under the player); none - mel_lib_gone.
 /**
  * @param MelMovie $mv
- * @param array<mixed> $m
  * @param list<MelLibCopy> $copies
  * @param string $first
  * @param int $first_pos
@@ -610,7 +595,7 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
  * @param list<string> $f_packs
  * @return MelAction
  */
-function mel_lib_resume_go($mv, $m, $copies, $first, $first_pos, $pos, $lang, $ep = null, $f_packs = array())
+function mel_lib_resume_go($mv, $copies, $first, $first_pos, $pos, $lang, $ep = null, $f_packs = array())
 {
     $go = mel_lib_start($copies, $first, $first_pos, $pos, false, $f_packs);
     if (isset($go['pick']))
@@ -624,34 +609,6 @@ function mel_lib_resume_go($mv, $m, $copies, $first, $first_pos, $pos, $lang, $e
         return mel_lib_play($mv, $go, $lang, $ep);
     $why = isset($go['gone']) ? $go['gone'] : 'no';
     return $ep ? mel_lib_gone($why, $lang, $ep['q'], $ep['e']) : mel_lib_gone($why);
-}
-
-// lib_copy: the copy of id k (mel_lib_cid) chosen in the menu of the copies of play_action (mel_lib_resume_go) - from
-// pos s, of the movie of movie_str; of a series - of its episode season, episode; a bad input: nothing.
-/**
- * @param stdClass $in
- * @return MelAction|null
- */
-function mel_lib_copy_input($in)
-{
-    $mv = mel_movie($in);
-    $key = isset($in->k) && mel_lib_cid_ok($in->k) ? strval($in->k) : '';
-    $q = mel_int($in, 'season', -1);
-    $e = mel_int($in, 'episode', -1);
-    if (!$mv || $key === '' || ($mv['series'] && ($q < 1 || $e < 1)))
-    {
-        mel_log('library: copy: no movie, no episode or no key, nothing');
-        return null;
-    }
-    mel_log("library: copy $key chosen" . ($mv['series'] ? " of S{$q}E{$e}" : ''));
-    $m = (array) json_decode(strval($in->movie_str), true);
-    $pos = max(0, mel_int($in, 'pos', 0));
-    $lang = isset($in->lang) && is_string($in->lang) ? $in->lang : '';
-    if (!$mv['series'])
-        return mel_lib_resume($mv, $m, $key, $pos, $lang);
-    list($mv, $y, $eps) = mel_lib_series($mv, $m);
-    return mel_lib_resume_go($mv, $m, isset($eps["$q:$e"]) ? $eps["$q:$e"] : array(), $key, $pos, $pos, $lang,
-        array('y' => $y, 'q' => $q, 'e' => $e, 'eps' => $eps));
 }
 
 // What a start says when the file of a movie is not there and no other copy is (C5, owner 19.11.2026: a message with

@@ -2321,8 +2321,6 @@ function mel_handle_user_input($in)
         return null;
     if ($control === 'play')
         return mel_play_action($in);
-    if ($control === 'lib_copy')
-        return mel_lib_copy_input($in);
     if ($control === 'tv_update')
         return mel_tv_update($in);
     if ($control === 'tv_timer')

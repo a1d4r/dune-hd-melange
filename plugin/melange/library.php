@@ -13,7 +13,7 @@
 // their key lib-... (mel_lib_key).
 // Needs main.php (mel_log, mel_num, mel_str), links.php (mel_pg_links, mel_pg_rev, mel_pg_shell_pair, mel_pg_link_put,
 // mel_pg_links_save), torrserver.php (mel_ts_dirname, mel_ts_ep, mel_ts_ep_lead), segments.php (mel_mkv_duration). The
-// menu of the copies: mel_lib_pick_menu, mel_lib_label (sources.php); their start: mel_lib_start (playback_lib.php).
+// window of the copies: view_card_libwin.php (their paths mel_lib_tails); their start: mel_lib_start (playback_lib.php).
 
 // The files of the shell. PHP on the Dune adds FS_PREFIX to /config,
 // /flashdata and /tmp itself; a failed plain read is tried with FS_PREFIX.
@@ -924,10 +924,10 @@ function mel_lib_key_ok($k)
     return is_string($k) && preg_match('/^lib-[0-9a-f]{12}$/D', $k) === 1;
 }
 
-// The id of a copy (mel_lib_cid) in a regex: of the menu of the copies (mel_lib_cid_ok) and of lib_next: (mel_lib_lazy).
+// The id of a copy (mel_lib_cid) in a regex: of the window of the copies (mel_lib_cid_ok) and of lib_next: (mel_lib_lazy).
 define('MEL_LIB_CID', 'cp-[0-9a-f]{12}');
 
-// 'cp-' + 12 hex of the path to play of a copy (MEL_LIB_CID): its id in the menu of the copies and the choice of it
+// 'cp-' + 12 hex of the path to play of a copy (MEL_LIB_CID): its id in the window of the copies and the choice of it
 // (one of mirrors of one key), no path in the params of an action.
 /**
  * @param string $url
@@ -938,7 +938,7 @@ function mel_lib_cid($url)
     return 'cp-' . substr(md5($url), 0, 12);
 }
 
-// $k is the id of a copy (mel_lib_cid): of the menu of the copies.
+// $k is the id of a copy (mel_lib_cid): of the window of the copies.
 /**
  * @param mixed $k
  * @return bool
@@ -1172,7 +1172,7 @@ function mel_lib_copies($mid)
 }
 
 // The copies of the files $files of the index: the ones whose source is mounted now (with the caption of their folder,
-// for mel_lib_label), each path to play once (one share in two network folders, by the name and by the IP of its
+// for mel_lib_tails), each path to play once (one share in two network folders, by the name and by the IP of its
 // server: the first), the best first, as the shell chooses (mel_lib_cmp_copies). Reads the mount list.
 /**
  * @param list<MelLibFile> $files

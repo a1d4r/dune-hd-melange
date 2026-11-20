@@ -1,17 +1,99 @@
 <?php
 // The window of the copies on the disk W2 over the own card (spec §8.1-§8.3): its open over the screen of the card
-// (mel_lib_win_open, "· сейчас" mel_lib_win_cur; of "Continue" of the native over the own card it opens, mel_lib_win_card), its components (mel_lib_win_defs), its keys (mel_lib_win_input), the
-// paths of its lines (mel_lib_win_paths, mel_lib_cut_mid). Split out of view_card_lib.php (the line "С диска" and the
-// plates of a copy there).
+// (mel_lib_win_open, "· сейчас" mel_lib_win_cur; of "Continue" of the native over the own card it opens,
+// mel_lib_win_card), its components (mel_lib_win_defs), its keys (mel_lib_win_input), the paths of its lines
+// (mel_lib_win_paths: P1 by mel_lib_tails, mel_lib_common_len; mel_lib_cut_mid). Split out of view_card_lib.php (the
+// line "С диска" and the plates of a copy there).
 // Needs view_card_lib.php (mel_lib_copy_parts, mel_lib_plate_ids, mel_oc_lib_plates, mel_oc_lib_cur, mel_oc_se,
-// MEL_OC_LIB_GAP), view_card.php (MelOc, mel_oc_scr), view_card_series.php (mel_oc_ep, mel_oc_prog), kit.php, kit_ovl.php, gcomps.php,
-// sources.php (mel_lib_tails), playback_lib.php (mel_lib_place), history.php (mel_wh_lib_last), continue.php
-// (mel_cp_badge), view_catalog.php (mel_catv_ui_lang), deep_link.php (mel_dl_card_of, mel_dl_card_open), main.php.
+// MEL_OC_LIB_GAP), view_card.php (MelOc, mel_oc_scr), view_card_series.php (mel_oc_ep, mel_oc_prog), kit.php,
+// kit_ovl.php, gcomps.php, playback_lib.php (mel_lib_place), history.php (mel_wh_lib_last), continue.php (mel_cp_badge),
+// view_catalog.php (mel_catv_ui_lang), deep_link.php (mel_dl_card_of, mel_dl_card_open), main.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The path of a line of the window of the copies (W2, spec §8.2): its text WIN_PATH_PX, its width WIN_PATH_W at most.
 define('MEL_LIB_WIN_PATH_PX', MEL_K_PX_CAPTION);
 define('MEL_LIB_WIN_PATH_W', 1000);
+
+// The length of the common start of two paths, whole parts only (PathUtils::get_common_path_prefix_len of the shell).
+/**
+ * @param string $a
+ * @param string $b
+ * @return int
+ */
+function mel_lib_prefix_len($a, $b)
+{
+    $la = strlen($a);
+    $lb = strlen($b);
+    if ($la === 0 || $lb === 0 || $a[0] !== $b[0])
+        return 0;
+    $n = $a[0] === '/' ? 1 : 0;
+    for (;;)
+    {
+        $na = strpos($a, '/', $n);
+        $nb = strpos($b, '/', $n);
+        if ($na === false || $na !== $nb || substr($a, $n, $na - $n) !== substr($b, $n, $nb - $n) ||
+            $na + 1 >= $la || $na + 1 >= $lb)
+            break;
+        $n = $na + 1;
+    }
+    return $n;
+}
+
+// The length of the start of the paths the screen "Files" of the shell cuts off (PathUtils::get_common_file_prefix_len):
+// their common start; of one path, all but its file and its folder.
+/**
+ * @param list<string> $paths
+ * @return int
+ */
+function mel_lib_common_len($paths)
+{
+    if (!$paths)
+        return 0;
+    if (count($paths) === 1)
+    {
+        $p = $paths[0];
+        $pos = strrpos($p, '/');
+        if (!$pos)
+            return 0;
+        $pos = strrpos($p, '/', -(strlen($p) - $pos + 1));
+        return $pos === false ? 0 : $pos + 1;
+    }
+    $n = mel_lib_prefix_len($paths[0], $paths[1]);
+    for ($i = 2; $i < count($paths); $i++)
+        $n = min($n, mel_lib_prefix_len($paths[0], $paths[$i]));
+    return $n;
+}
+
+// The tails of the paths of copies $copies by their cid (P1, as the screen "Files" of the shell shows them): of a movie
+// its path, of an episode ($series) the folder of its pack (dir) - the copies in one folder of the library without the
+// start of the folders common to them all (mel_lib_common_len), in several "<caption of its folder>/<path>"; nothing
+// left (an episode at the root of its folder of the library): the caption alone.
+/**
+ * @param list<MelLibCopy> $copies
+ * @param bool $series
+ * @return array<string, string>
+ */
+function mel_lib_tails($copies, $series)
+{
+    $folders = array();
+    $paths = array();
+    foreach ($copies as $c)
+    {
+        $folders[$c['folder']] = 1;
+        $p = $series ? $c['dir'] : $c['path'];
+        if (!in_array($p, $paths, true))
+            $paths[] = $p;
+    }
+    $n = count($folders) > 1 ? -1 : mel_lib_common_len($paths);
+    $out = array();
+    foreach ($copies as $c)
+    {
+        $p = $series ? $c['dir'] : $c['path'];
+        $t = $n >= 0 ? strval(substr($p, $n)) : ($p === '' ? '' : $c['caption'] . '/' . $p);
+        $out[$c['cid']] = $t === '' ? $c['caption'] : $t;
+    }
+    return $out;
+}
 
 // The paths of the lines of the window of copies $copies (of the episodes of a series: $series) by cid: their tails
 // (mel_lib_tails) cut in the middle to the width of the window (mel_lib_cut_mid).
