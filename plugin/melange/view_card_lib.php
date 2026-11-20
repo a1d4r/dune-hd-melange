@@ -166,45 +166,50 @@ function mel_oc_lib_parts($head, $ids, $tail, $x, $y, $px, $cy)
 }
 
 // The copies on the disk of card $c (library.php): the title found in the media library by the movie_str of its
-// start (mel_oc_watch_in, mel_lib_title: the same as play_action looks for it by) -> array(the copies of a movie on
-// the shares mounted now (mel_lib_copies; no share touched), H: the card of its history - of the Dune, else of the
-// index when there are copies, Y: the title in the index ('' none), the copies of the episodes of a series and the
-// copy of each OK plays, the files of its episodes for the history; mel_oc_lib_series). A movie: no episodes.
+// start (mel_oc_watch_in, mel_lib_title: the same as play_action looks for it by), Y found once for a movie and a
+// series -> MelOcLib (the keys of nav, and fix): lib - the copies of a movie on the shares mounted now (mel_lib_copies;
+// no share touched), hid - H, the card of its history: of the Dune, else of the index when there are copies, lib_y - Y,
+// the title in the index ('' none); of a series lib_eps, lib_cur - the copies of its episodes and the copy of each OK
+// plays, fix - the files of its episodes for the history (mel_oc_lib_series). A movie: no episodes; another type, no Y:
+// none of it.
 /**
  * @param MelOcCard $c
- * @return array{list<MelLibCopy>, string, array<string, list<MelLibCopy>>, string, array<string, string>, array<string, array{int, int}|string>}
+ * @return MelOcLib
  */
 function mel_oc_lib($c)
 {
-    if ($c['tile']['type'] === 'series')
-        return mel_oc_lib_series($c);
-    if ($c['tile']['type'] !== 'movie')
-        return array(array(), $c['dune'], array(), '', array(), array());
+    $res = array('lib' => array(), 'hid' => $c['dune'], 'lib_eps' => array(), 'lib_y' => '', 'lib_cur' => array(),
+        'fix' => array());
+    $series = $c['tile']['type'] === 'series';
+    if (!$series && $c['tile']['type'] !== 'movie')
+        return $res;
     $in = mel_oc_watch_in($c);
-    $y = mel_lib_mid(mel_lib_title((array) json_decode(strval($in->movie_str), true), false));
+    $res['lib_y'] = $y = mel_lib_mid(mel_lib_title((array) json_decode(strval($in->movie_str), true), $series));
+    if ($series)
+        return mel_oc_lib_series($c, $res);
     if ($y === '')
-        return array(array(), $c['dune'], array(), '', array(), array());
-    $lib = mel_lib_copies($y);
-    mel_log("card: own movie:" . mel_cm_id($c['tile']) . ": library $y, " . count($lib) . ' copies (' .
+        return $res;
+    $res['lib'] = mel_lib_copies($y);
+    mel_log("card: own movie:" . mel_cm_id($c['tile']) . ": library $y, " . count($res['lib']) . ' copies (' .
         count(MelLib::$by_mid[$y]) . ' in index)');
-    return array($lib, $lib ? mel_lib_hid($c['dune'], $y) : $c['dune'], array(), $y, array(), array());
+    if ($res['lib'])
+        $res['hid'] = mel_lib_hid($c['dune'], $y);
+    return $res;
 }
 
-// The series of card $c in the media library (mel_oc_lib): Y of the movie_str of its start; its episodes on the disk
-// and the files of them (mel_oc_lib_eps); H by Y when there are copies, else the card of the Dune; of each episode the
-// copy OK plays (mel_lib_ep_cid with $auto, as the line of the head and "· сейчас" of the window show it: of the
-// history in memory, mel_lib_ep_ctx; of the mirrors of a record the copy of F, as the playlist and the start take
-// it). The keys "s:e" of the copies are of the card, of the history and of the request at once (the invariant,
-// mel_lib_ep_same).
-// -> array(none, H, "s:e" => copies, Y, "s:e" => the id of a copy, hash => array(q, e) | 'skip').
+// The series of card $c in the media library (mel_oc_lib, $res of it with Y): its episodes on the disk and the files
+// of them (mel_oc_lib_eps); H by Y when there are copies, else the card of the Dune; of each episode the copy OK plays
+// (mel_lib_ep_cid with $auto, as the line of the head and "· сейчас" of the window show it: of the history in memory,
+// mel_lib_ep_ctx; of the mirrors of a record the copy of F, as the playlist and the start take it). The keys "s:e" of
+// the copies are of the card, of the history and of the request at once (the invariant, mel_lib_ep_same).
 /**
  * @param MelOcCard $c
- * @return array{list<MelLibCopy>, string, array<string, list<MelLibCopy>>, string, array<string, string>, array<string, array{int, int}|string>}
+ * @param MelOcLib $res
+ * @return MelOcLib
  */
-function mel_oc_lib_series($c)
+function mel_oc_lib_series($c, $res)
 {
-    $in = mel_oc_watch_in($c);
-    $y = mel_lib_mid(mel_lib_title((array) json_decode(strval($in->movie_str), true), true));
+    $y = $res['lib_y'];
     list($eps, $fix) = mel_oc_lib_eps($c, $y);
     $hid = $eps ? mel_lib_hid($c['dune'], $y) : $c['dune'];
     $cur = array();
@@ -222,7 +227,7 @@ function mel_oc_lib_series($c)
     if ($y !== '' || MelLib::$eps)
         mel_log('card: own series:' . mel_cm_id($c['tile']) . ': library ' . ($y !== '' ? $y : 'none') . ', ' .
             count($eps) . ' episodes on disk in ' . count($seasons) . ' seasons (' . count($all) . ' in index)');
-    return array(array(), $hid, $eps, $y, $cur, $fix);
+    return array('hid' => $hid, 'lib_eps' => $eps, 'lib_cur' => $cur, 'fix' => $fix) + $res;
 }
 
 // The episodes of series $y of the index for card $c, by the invariant of the numberings (mel_lib_ep_same): the

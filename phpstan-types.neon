@@ -594,6 +594,8 @@ parameters:
         # The rows of posters of an own card (mel_cm_posters, card_more.php): similar titles, the movies of a franchise; what is
         # left to ask (wait), how each went (st), the time of the asks (ms).
         MelCmPosters: 'array{sim: list<MelCatTile>, parts: list<MelCatTile>, cur: int, coll: string, wait: list<string>, st: array<string, string>, ms: int}'
+        # The copies on the disk of an own card (mel_oc_lib, view_card_lib.php): the keys of MelOcNav, and the files of the episodes for the history.
+        MelOcLib: 'array{lib: list<MelLibCopy>, hid: string, lib_eps: array<string, list<MelLibCopy>>, lib_y: string, lib_cur: array<string, string>, fix: array<string, array{int, int}|string>}'
         # A place of the focus on the own card, in MelOcCard and in sel_state (mel_oc_pos, view_card.php).
         MelOcPos: 'array{z: string, b: int, p: int, s: int, e: int, r: array<string, int>}'
         # What the keys of the own card need of its layout (view_card.php).

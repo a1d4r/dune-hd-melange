@@ -1052,13 +1052,13 @@ function mel_oc_layout($c)
     list($down, $bands) = mel_oc_down($c, $about);
     $ep = null;
     $prog = array();
-    list($lib, $hid, $lib_eps, $lib_y, $lib_cur, $fix) = mel_oc_lib($c);
+    $ol = mel_oc_lib($c);
     if ($series)
-        list($ep, $prog) = mel_oc_pick($c, $fix, $hid);
-    $btns = mel_oc_buttons($c, $ep, (bool) $lib);
+        list($ep, $prog) = mel_oc_pick($c, $ol['fix'], $ol['hid']);
+    $btns = mel_oc_buttons($c, $ep, (bool) $ol['lib']);
     list($stops, $clips, $tops) = mel_oc_stops($bands, $strips, $about, $off);
     $tw = MEL_OC_TITLE_W;
-    $tabs = $series && $c['meta'] ? mel_oc_tabs_layout($c, $lib_eps)
+    $tabs = $series && $c['meta'] ? mel_oc_tabs_layout($c, $ol['lib_eps'])
         : array('list' => array(), 'x' => 0, 'w' => 0, 'all' => 0, 'word' => 0, 'cx' => 0);
     $zones = array('btn');
     if ($series && (!$c['meta'] || $tabs['list']))
@@ -1072,7 +1072,7 @@ function mel_oc_layout($c)
         $only = mel_oc_first_series($c, $btns, $down || $cast || $posters);
     else
     {
-        list($only, $over) = mel_oc_first_movie($c, $btns, $lib, $hid);
+        list($only, $over) = mel_oc_first_movie($c, $btns, $ol['lib'], $ol['hid']);
         if ($down || $posters)
         {
             $below = array_slice($rows, 1);
@@ -1088,8 +1088,8 @@ function mel_oc_layout($c)
     return array('kind' => $series ? 'series' : 'movie', 'btns' => $btns, 'btn_y' => $series ? MEL_OC_BTN_Y_SER : MEL_OC_BTN_Y,
         'stops' => $stops, 'clips' => $clips, 'tops' => $tops, 'h' => max(1080, $stops[count($stops) - 1] + MEL_OC_SHOW_BOTTOM), 'off' => $off,
         'zones' => $zones, 'tabs' => $tabs, 'ep' => $ep, 'prog' => $prog, 'rows' => $rows, 'strips' => $strips, 'tw' => $tw,
-        'first' => $only, 'over' => $over, 'down' => $down, 'lib' => $lib, 'hid' => $hid, 'lib_eps' => $lib_eps,
-        'lib_y' => $lib_y, 'lib_cur' => $lib_cur);
+        'first' => $only, 'over' => $over, 'down' => $down, 'lib' => $ol['lib'], 'hid' => $ol['hid'],
+        'lib_eps' => $ol['lib_eps'], 'lib_y' => $ol['lib_y'], 'lib_cur' => $ol['lib_cur']);
 }
 
 // The first screen of the series of card $c alone, of buttons $btns: the line why right of them (mel_oc_under_ser),
