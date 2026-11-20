@@ -4,6 +4,7 @@
 
 ## 0.66.1
 - Fixed: the microphone button on the remote opened Dune voice search on the Melange card and other screens outside the catalog; now it opens Melange search there too.
+- **DTS logos.** In the release list, the DTS, DTS-HD, DTS:X and DTS-ES logos are slightly larger and as tall as the Dolby Atmos and TrueHD tags. A DTS-HD MA release shows "dts-HD" in its row instead of the small "dts-HD MA" logo. The card still says "DTS-HD MA".
 
 ## 0.66.0 — 20.11.2026
 - **New look for the release list.** The release list is redrawn with simpler tags, and a row shows only the main ones, such as Vision and Atmos.
