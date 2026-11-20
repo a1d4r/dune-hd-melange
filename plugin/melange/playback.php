@@ -352,10 +352,10 @@ define('MEL_LIB_MOVIE_KEYS', 'id imdb_id tmdb_id tmdbtv_id series_type title nat
 // A movie ($ep null): one item, no markers. An episode ($ep: y - the series of the index, q, e - the episode, the season
 // as asked, eps - the copies of the series "q:e" => copies): its markers by the length of its MKV (0 unknown; the file
 // is not read here); linked, a playlist of its season and E1 of the next one as mel_play (by season_numbers; none, the
-// episode past them or a season over MEL_EPISODES_MAX - alone), the others lazy (mel_lib_lazy_url; '-' none on the
-// disk): the copy by mel_lib_ep_pick - F the pack of this copy (the choice just made), the record only of an episode
-// not watched (its key shared by mirrors: the copy of F of them, else the first); the card saved for lib_next
-// (mel_movie_save). The log has the key, no path, no name.
+// episode past them, a season over MEL_EPISODES_MAX, H or Y not of MEL_DUNE_ID - alone), the others lazy
+// (mel_lib_lazy_url; '-' none on the disk): the copy by mel_lib_ep_pick - F the pack of this copy (the choice just
+// made), the record only of an episode not watched (its key shared by mirrors: the copy of F of them, else the first);
+// the card saved for lib_next (mel_movie_save). The log has the key, no path, no name.
 /**
  * @param MelMovie $mv
  * @param MelLibHere $go
@@ -371,7 +371,10 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
     $q = $ep ? $ep['q'] : -1;
     $e = $ep ? $ep['e'] : -1;
     $seasons = $mv['seasons'];
-    $season = $ep && $linked && $e > 0 && isset($seasons[$q]) && $e <= $seasons[$q] && $seasons[$q] <= MEL_EPISODES_MAX;
+    // H and Y go into lib_next: (mel_lib_lazy_url), H into a file name (mel_movie_save): of no form of an id - alone.
+    $ids = $ep && preg_match('/^' . MEL_DUNE_ID . '$/D', $mv['dune_id']) &&
+        preg_match('/^' . MEL_DUNE_ID . '$/D', $ep['y']);
+    $season = $ids && $e > 0 && isset($seasons[$q]) && $e <= $seasons[$q] && $seasons[$q] <= MEL_EPISODES_MAX;
     $plan = $season ? mel_play_plan($seasons, $q, array()) : array();
     // The start one not in the plan (never by season_numbers): alone, no other one started in its place.
     if (!in_array(array($q, $e), $plan, true))
