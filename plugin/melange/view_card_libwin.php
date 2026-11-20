@@ -138,7 +138,8 @@ function mel_lib_win_cur($key, $copies, $s = -1, $e = -1)
 
 // Open over the screen of card $key (its record mel_oc_scr: only so) the window of the copies $copies (2+, the best
 // first) of its movie, of episode $s, $e of its series ($e >= 1), in mode $mode (first: the first "Смотреть"; menu: MENU
-// "Копия на диске…"); $cur the copy "· сейчас" (mel_lib_win_cur; '' none): the cursor on it, else on the first line.
+// "Копия на диске…"); the copy "· сейчас" by mel_lib_win_cur ($cur null; a cid or '' none - only the tests of the
+// scroll give it): the cursor on it, else on the first line.
 // The bar of the line "сейчас" and the hint: of an episode the progress of its still (nav prog, mel_oc_prog), the hint
 // lib_win_series; of a movie the progress of the line of its history (mel_cp_badge, as mel_oc_hist), the hint of mode
 // first lib_win_first, of menu the place the start of a copy takes (mel_lib_place, as mel_oc_lib_start): "Продолжит с
@@ -146,13 +147,13 @@ function mel_lib_win_cur($key, $copies, $s = -1, $e = -1)
 /**
  * @param string $key
  * @param list<MelLibCopy> $copies
- * @param string $cur
  * @param string $mode
  * @param int $s
  * @param int $e
+ * @param string|null $cur
  * @return MelAction|null
  */
-function mel_lib_win_open($key, $copies, $cur, $mode, $s = -1, $e = -1)
+function mel_lib_win_open($key, $copies, $mode, $s = -1, $e = -1, $cur = null)
 {
     $scr = mel_oc_scr($key);
     if (!$scr || !$copies || !isset(MelOc::$cards[$key]['nav']))
@@ -160,6 +161,8 @@ function mel_lib_win_open($key, $copies, $cur, $mode, $s = -1, $e = -1)
         mel_log("card: own $key: the window of the copies not opened (" . (!$scr ? 'no screen' : 'no copies') . ')');
         return null;
     }
+    if ($cur === null)
+        $cur = mel_lib_win_cur($key, $copies, $s, $e);
     $c = MelOc::$cards[$key];
     $l = $c['nav'];
     $at = 0;
