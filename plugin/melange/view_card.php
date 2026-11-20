@@ -1878,8 +1878,7 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
     $mv = mel_movie(mel_oc_watch_in($c));
     if (!$mv || !$l['lib'])
         return null;
-    if ($mv['dune_id'] === '')
-        $mv['dune_id'] = $l['hid'];
+    $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $l['hid']);
     $copies = mel_lib_copies($l['lib'][0]['mid']);
     mel_log("card: own $key: watch a copy on the disk");
     list($first, $first_pos, $pos) = mel_lib_place($l['hid'], $copies, $k);
