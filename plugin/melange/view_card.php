@@ -1446,7 +1446,8 @@ function mel_oc_rows_log($pos)
 }
 
 // get_folder_view of "card:<type>:<id>"; a card not in memory and not made anew: "outdated". Rows of
-// posters still asked: the timer (mel_oc_load).
+// posters still asked: the timer (mel_oc_load). The overlay of an old screen of the card dropped (mel_oc_ovl_drop): open,
+// it would keep card_load of the new one from putting it.
 /**
  * @param string $media_url
  * @param mixed $sel_state
@@ -1458,6 +1459,7 @@ function mel_oc_folder_view($media_url, $sel_state)
     $c = mel_oc_get($key);
     if (!$c)
         return mel_lines_view(array(mel_expired_item()));
+    mel_oc_ovl_drop($key);
     $l = mel_oc_layout($c);
     $pos = mel_oc_pos($c, $l, $sel_state);
     MelOc::$cards[$key]['pos'] = $pos;
@@ -1538,9 +1540,9 @@ function mel_oc_scr($key)
         'sel' => mel_oc_state($c['pos'], $l));
 }
 
-// The screen of card $key put anew (card_load with the overlay closed, card_finish): the overlay it opened (the window
-// of the copies) is not that of the new one - its state gone (a key of it after this one is of a stale screen,
-// mel_ovl_stale).
+// The screen of card $key put anew (card_load with the overlay closed, card_finish, a new screen of the card: left by
+// Home with the window open, then opened again): the overlay it opened (the window of the copies) is not that of the
+// new one - its state gone (a key of it after this one is of a stale screen, mel_ovl_stale).
 /**
  * @param string $key
  */
