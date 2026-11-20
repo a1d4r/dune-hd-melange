@@ -729,10 +729,11 @@ function mel_lib_series($mv, $m)
 
 // "Continue" of an episode of a copy on the disk (C7: play_action of wh_mode local, the record $r of mel_resume) of
 // series $mv, the fields $m of its movie_str. The key of the record: of its uid when that is of its episode
-// "aio:H:<wh_s>:<wh_e>:lib-..." (a vod_play has one recent_action_params, of its start episode), else wh_release. The
-// episode by mel_wh_resume_ep: not watched - its copy of the key from its place; watched - the next one, its copy by
-// mel_lib_ep_pick (the record: ours of it not watched; F the packs of the key of the record), from its place
-// (mel_lib_place, the native records by their files). -> its start (mel_lib_resume_go: their menu until the own card
+// "aio:H:<wh_s>:<wh_e>:lib-..." (a vod_play has one recent_action_params, of its start episode), else wh_release; a
+// record of season 1 has no s (wh_s -1) - the season of that uid, else 1. The episode by mel_wh_resume_ep: not
+// watched - its copy of the key from its place; watched - the next one, its copy by mel_lib_ep_pick (the record: ours
+// of it not watched; F the packs of the key of the record), from its place (mel_lib_place, the native records by
+// their files). -> its start (mel_lib_resume_go: their menu until the own card
 // takes it, stage 2г4); null - none of it on the disk (no copy, the series not in the index, no episode after a
 // watched one): $se the episode for the list of its releases; null both - a record of no episode, as of none.
 /**
@@ -747,13 +748,16 @@ function mel_lib_series($mv, $m)
 function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
 {
     $se = null;
-    $s0 = $r['s'];
     $e0 = $r['e'];
-    if ($s0 < 1 || $e0 < 1)
+    if ($e0 < 1)
         return null;
     list($mv, $y, $eps) = mel_lib_series($mv, $m);
     $hid = $mv['dune_id'];
     $u = mel_wh_uid($r['uid'], $hid);
+    // A record of season 1 has no s (the player writes it of S2+ only; wh_s -1): the season of its uid, else 1.
+    if ($r['s'] < 1)
+        $r['s'] = $u && $u[1] === $e0 && $u[0] >= 1 ? $u[0] : 1;
+    $s0 = $r['s'];
     $key = $u && $u[0] === $s0 && $u[1] === $e0 && mel_lib_key_ok($u[2]) ? $u[2] : $r['hash'];
     list($r, $q, $e) = mel_wh_resume_ep($mv, $r);
     $copies = isset($eps["$q:$e"]) ? $eps["$q:$e"] : array();
