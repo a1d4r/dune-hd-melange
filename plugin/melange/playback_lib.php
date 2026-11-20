@@ -375,7 +375,7 @@ function mel_lib_ep_of($copies, $k, $f_packs)
 
 // What mel_lib_ep_pick goes by for the episodes of the series $y of the index, card of history $hid -> array("q:e" =>
 // $rec_key, $f_packs), the history read once: of an episode (the season as asked) the key of our record of a copy of
-// it (MelWh::$lib_ep) while that record is not watched or - not $unfinished - it is the last choice of a folder (its end
+// it (mel_wh_lib_eps) while that record is not watched or - not $unfinished - it is the last choice of a folder (its end
 // not less than of the latest record of a copy of the card, mel_wh_lib_last); an episode not in the map goes of the
 // pack F. F - the packs of the key of that latest record by the index (mel_lib_key_packs: its copy may be not mounted
 // now, "the same folder" is there). The playlist ($unfinished: F the start copy) and "Continue" of the native (F the
@@ -390,12 +390,10 @@ function mel_lib_ep_ctx($hid, $y, $unfinished = false)
 {
     $last = mel_wh_lib_last($hid);
     $keys = array();
-    $pre = "$hid:";
-    foreach ($hid !== '' ? MelWh::$lib_ep : array() as $k => $rec)
+    foreach (mel_wh_lib_eps($hid) as $se => $rec)
     {
-        if (strpos($k, $pre) === 0 && (!mel_wh_full($rec['pos'], $rec['len']) ||
-            (!$unfinished && $last && $rec['end'] >= $last['end'])))
-            $keys[substr($k, strlen($pre))] = $rec['key'];
+        if (!mel_wh_full($rec['pos'], $rec['len']) || (!$unfinished && $last && $rec['end'] >= $last['end']))
+            $keys[$se] = $rec['key'];
     }
     return array($keys, $last ? mel_lib_key_packs($y, $last['key']) : array());
 }

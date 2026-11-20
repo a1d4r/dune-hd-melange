@@ -274,6 +274,25 @@ function mel_wh_lib_ep_last($hid, $q, $e)
     return $hid !== '' && isset(MelWh::$lib_ep[$k]) ? MelWh::$lib_ep[$k] : null;
 }
 
+// Our records of a copy on the disk of the episodes of card $hid, the latest of each (MelWh::$lib_ep): "q:e" (the
+// season as asked) => its record; none of no card.
+/**
+ * @param string $hid
+ * @return array<string, MelLibRec>
+ */
+function mel_wh_lib_eps($hid)
+{
+    mel_wh_ours_all();
+    $out = array();
+    $pre = "$hid:";
+    foreach ($hid !== '' ? MelWh::$lib_ep : array() as $k => $rec)
+    {
+        if (strpos($k, $pre) === 0)
+            $out[substr($k, strlen($pre))] = $rec;
+    }
+    return $out;
+}
+
 // is_fully_watched of the shell with its default settings: 90 %, 30 s left.
 /**
  * @param float|int $pos
