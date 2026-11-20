@@ -4,15 +4,16 @@
 // (network_folders.properties), the shares the shell has mounted
 // (network_mount_list.xml) and the index of the files of each folder
 // (folder_files.<id>.json), as shell_ext/movies of r25 reads them
-// (data_model.php, nf_common.php, gui_common.php). The copies of a movie are
-// its files whose share is mounted now. Only mel_lib_here touches a share: a
-// test -f of one file in the background, from the operation of a start only.
+// (data_model.php, nf_common.php, gui_common.php). The copies of a movie (of an
+// episode) are its files whose share is mounted now. Only mel_lib_here touches a
+// share: a test -f of one file (and the read of its first 64 KB) in the
+// background, from the operation of a start only.
 // No login or password of a share is kept, returned or logged; the log has no
 // path, server, share, folder caption or file name: folders by id, files by
 // their key lib-... (mel_lib_key).
 // Needs main.php (mel_log, mel_num, mel_str), links.php (mel_pg_links, mel_pg_rev, mel_pg_shell_pair, mel_pg_link_put,
-// mel_pg_links_save), torrserver.php (mel_ts_dirname, mel_ts_ep, mel_ts_ep_lead). The menu of the copies:
-// mel_lib_pick_menu, mel_lib_label (sources.php); their start: mel_lib_start (playback.php).
+// mel_pg_links_save), torrserver.php (mel_ts_dirname, mel_ts_ep, mel_ts_ep_lead), segments.php (mel_mkv_duration). The
+// menu of the copies: mel_lib_pick_menu, mel_lib_label (sources.php); their start: mel_lib_start (playback.php).
 
 // The files of the shell. PHP on the Dune adds FS_PREFIX to /config,
 // /flashdata and /tmp itself; a failed plain read is tried with FS_PREFIX.
@@ -39,15 +40,22 @@ if (!defined('MEL_LIB_HERE_S'))
 // A step of the check before its test -f: tests define one first (a check that does not answer in time).
 if (!defined('MEL_LIB_HERE_TEST'))
     define('MEL_LIB_HERE_TEST', '');
+// Milliseconds mel_lib_here waits for the first bytes of a file there past its answer (the length of an MKV): in the
+// budget of the operation; past them the length is unknown.
+if (!defined('MEL_LIB_MKV_MS'))
+    define('MEL_LIB_MKV_MS', 1000);
 // The script of the check (sh -c, POSIX: bash, dash, mksh, busybox ash): 1 or 0 for a file at $MEL_P to $MEL_R,
-// renamed there whole; the paths only in the environment. Its lifetime bound inside, with no timeout(1) (that of
+// renamed there whole; with $MEL_B set, of a file there then its first 64 KB to $MEL_R.b (dd: head -c is not POSIX),
+// renamed there whole too; the paths only in the environment. Its lifetime bound inside, with no timeout(1) (that of
 // busybox before 1.30 of old boxes takes "-t N", toybox "-s KILL N"; which one PATH finds is not known): a watcher in
-// the background kills the script (kill -9, MEL_LIB_HERE_S + 2 s); the test done, the script kills the watcher, and
-// the watcher its sleep (no sleep left behind, no kill of a pid reused later).
+// the background kills the script (kill -9, MEL_LIB_HERE_S + 2 s), the read too; the script done, it kills the
+// watcher, and the watcher its sleep (no sleep left behind, no kill of a pid reused later).
 define('MEL_LIB_HERE_SH',
     '( trap \'kill $s 2>/dev/null; exit 0\' TERM; sleep ' . (MEL_LIB_HERE_S + 2) . ' & s=$!; wait $s; kill -9 $$ ) & ' .
     'w=$!; ' . MEL_LIB_HERE_TEST . 'if test -f "$MEL_P"; then r=1; else r=0; fi; ' .
-    'echo $r >"$MEL_R.p" && mv -f "$MEL_R.p" "$MEL_R"; kill $w');
+    'echo $r >"$MEL_R.p" && mv -f "$MEL_R.p" "$MEL_R"; ' .
+    'if test $r = 1 && test -n "$MEL_B"; then ' .
+    'dd if="$MEL_P" of="$MEL_R.b.p" bs=4096 count=16 2>/dev/null && mv -f "$MEL_R.b.p" "$MEL_R.b"; fi; kill $w');
 
 // The library in the memory of php_server, until its files change (mel_lib_index).
 class MelLib
@@ -73,8 +81,9 @@ class MelLib
     /** @var int */
     public static $reads = 0;
     // The titles of the folders (folder_movies, mel_lib_movies): movie_id, the normalized names, the first and the
-    // last year; null: not read. Read lazily, again when the stat of their files changes ($movies_sig).
-    /** @var list<array{string, list<string>, int, int}>|null */
+    // last year, the type (movie, series); null: not read. Read lazily, again when the stat of their files changes
+    // ($movies_sig).
+    /** @var list<array{string, list<string>, int, int, string}>|null */
     public static $movies = null;
     /** @var string */
     public static $movies_sig = '';
@@ -403,6 +412,19 @@ function mel_lib_mount_for_nf($nf, $mounts)
  */
 function mel_lib_source_mount($folder, $nfs, $mounts)
 {
+    $nf = mel_lib_source_nf($folder, $nfs);
+    return $nf ? mel_lib_mount_for_nf($nf, $mounts) : array('', '');
+}
+
+// The network folder of the source of a folder of the library (network_folder_id://<id>, network_folder://<name>),
+// null for none or another source.
+/**
+ * @param MelLibFolder $folder
+ * @param array<string, MelLibNf> $nfs
+ * @return MelLibNf|null
+ */
+function mel_lib_source_nf($folder, $nfs)
+{
     $sid = $folder['source_id'];
     $nf = null;
     if (strpos($sid, 'network_folder_id://') === 0)
@@ -419,7 +441,7 @@ function mel_lib_source_mount($folder, $nfs, $mounts)
                 $nf = $x;
         }
     }
-    return $nf ? mel_lib_mount_for_nf($nf, $mounts) : array('', '');
+    return $nf;
 }
 
 // UrlUtils::make_rel_path of the shell: the path of a file under the root of
@@ -571,8 +593,8 @@ function mel_lib_folder_index($folder_id, &$info, &$left, &$eps = null)
 
 // The rules of the numbers of the episode files of one movie_id (as the index has them, mel_lib_folder_index) ->
 // files: the ones taken, their season and episode final (in their order, no mc); drop: the hashes of the rest; the
-// counts for the log. A pack: the folder of the library and the folder of the file in it. By the name of the file the
-// number (mel_ts_ep, else the number leading the name mel_ts_ep_lead) and the season if any:
+// counts for the log. A pack: mel_lib_pack. By the name of the file the number (mel_ts_ep, else the number leading the
+// name mel_ts_ep_lead) and the season if any:
 // 1. no number in the name: taken as in the index;
 // 2. the same as the index: taken as in the index - an anchor of its pack;
 // 3. another one, no anchor in its pack (a pack of absolute numbers): taken as in the index;
@@ -596,7 +618,7 @@ function mel_lib_eps_fix($files)
         $same = $n !== null && $n[1] === $f['e'] && ($n[0] === null || $n[0] === $f['s']);
         $num[$i] = array($n, $same);
         if ($same)
-            $anchor[$f['folder'] . '|' . $f['dir']] = true;
+            $anchor[mel_lib_pack($f)] = true;
     }
     // Index of $files => array(season, episode) taken; by pack: the seasons and the numbers of the files taken as in
     // the index (1, 2).
@@ -608,7 +630,7 @@ function mel_lib_eps_fix($files)
         'hidden' => 0);
     foreach ($files as $i => $f)
     {
-        $p = $f['folder'] . '|' . $f['dir'];
+        $p = mel_lib_pack($f);
         list($n, $same) = $num[$i];
         if ($n === null || $same)
         {
@@ -628,7 +650,7 @@ function mel_lib_eps_fix($files)
     $count = array();
     foreach ($fix as $i => $n)
     {
-        $p = $files[$i]['folder'] . '|' . $files[$i]['dir'];
+        $p = mel_lib_pack($files[$i]);
         $ss = isset($seasons[$p]) ? array_keys($seasons[$p]) : array();
         if (count($ss) !== 1 || ($n[0] !== null && $n[0] !== $ss[0]))
             continue;
@@ -638,7 +660,7 @@ function mel_lib_eps_fix($files)
     }
     foreach ($cand as $i => $se)
     {
-        $p = $files[$i]['folder'] . '|' . $files[$i]['dir'];
+        $p = mel_lib_pack($files[$i]);
         $k = $se[0] . ':' . $se[1];
         if (isset($taken[$p][$k]) || $count[$p][$k] > 1)
             continue;
@@ -1068,11 +1090,8 @@ function mel_lib_copies_of($copies, $k)
     return $res;
 }
 
-// The copies of the movie $mid of the index: its files whose source is
-// mounted now (with the caption of their folder, for mel_lib_label), each path to play once (one share in two network folders, by
-// the name and by the IP of its server: the first), the best first, as the shell chooses
-// (mel_lib_cmp_copies). The mount list is read on every call, and only when
-// the movie has files in the index.
+// The copies of the movie $mid of the index: its files whose source is mounted now (mel_lib_files_copies), the best
+// first. The mount list is read on every call, and only when the movie has files in the index.
 /**
  * @param string $mid
  * @return list<MelLibCopy>
@@ -1080,8 +1099,18 @@ function mel_lib_copies_of($copies, $k)
 function mel_lib_copies($mid)
 {
     mel_lib_index();
-    if (empty(MelLib::$by_mid[$mid]))
-        return array();
+    return empty(MelLib::$by_mid[$mid]) ? array() : mel_lib_files_copies(MelLib::$by_mid[$mid]);
+}
+
+// The copies of the files $files of the index: the ones whose source is mounted now (with the caption of their folder,
+// for mel_lib_label), each path to play once (one share in two network folders, by the name and by the IP of its
+// server: the first), the best first, as the shell chooses (mel_lib_cmp_copies). Reads the mount list.
+/**
+ * @param list<MelLibFile> $files
+ * @return list<MelLibCopy>
+ */
+function mel_lib_files_copies($files)
+{
     $err = '';
     $mounts = mel_lib_mounts($err);
     if ($err !== '')
@@ -1089,7 +1118,7 @@ function mel_lib_copies($mid)
     $res = array();
     $mnt = array();
     $urls = array();
-    foreach (MelLib::$by_mid[$mid] as $f)
+    foreach ($files as $f)
     {
         $id = $f['folder'];
         if (!isset(MelLib::$folders[$id]))
@@ -1108,6 +1137,131 @@ function mel_lib_copies($mid)
     }
     usort($res, 'mel_lib_cmp_copies');
     return $res;
+}
+
+// --- Episodes.
+
+// The copies of the episodes of the series $mid of the index (MelLib::$eps: the season and the episode after the rules
+// of the numbers) -> "s:e" => its copies (mel_lib_files_copies, the best first), the episodes in order. The mount list
+// is read on every call, and only when the series has episodes in the index.
+/**
+ * @param string $mid
+ * @return array<string, list<MelLibCopy>>
+ */
+function mel_lib_ep_copies($mid)
+{
+    mel_lib_index();
+    if (empty(MelLib::$eps[$mid]))
+        return array();
+    $res = array();
+    foreach (mel_lib_files_copies(MelLib::$eps[$mid]) as $c)
+        $res[$c['s'] . ':' . $c['e']][] = $c;
+    uksort($res, 'strnatcmp');
+    return $res;
+}
+
+// The hashes of the episode files of the series $mid of the index, mounted or not (the number of an episode of a record
+// of the history by its file, video_id "hash:<hash>"): hash => array(season, episode) of the files taken, 'skip' of the
+// files the rules of the numbers dropped (mel_lib_eps_fix: a number not sure, a copy not confirmed hidden) - a record
+// of one is of no episode. A hash of a file taken and of one dropped (mirrors): the one taken.
+/**
+ * @param string $mid
+ * @return array<string, array{int, int}|string>
+ */
+function mel_lib_ep_hashes($mid)
+{
+    mel_lib_index();
+    $res = array();
+    foreach (isset(MelLib::$eps[$mid]) ? MelLib::$eps[$mid] : array() as $f)
+    {
+        if (!isset($res[$f['hash']]))
+            $res[$f['hash']] = array($f['s'], $f['e']);
+    }
+    foreach (isset(MelLib::$eps_drop[$mid]) ? MelLib::$eps_drop[$mid] : array() as $h)
+    {
+        if (!isset($res[$h]))
+            $res[$h] = 'skip';
+    }
+    return $res;
+}
+
+// The pack of a file or a copy of the index: its folder of the library and the folder of the file in it,
+// "<folder>|<dir>" (the folder an id: the first '|' ends it). A path: never in the log.
+/**
+ * @param array{folder: string, dir: string} $f
+ * @return string
+ */
+function mel_lib_pack($f)
+{
+    return $f['folder'] . '|' . $f['dir'];
+}
+
+// The packs of the episode files of the series $mid of the index of the key $key (mel_lib_key; mirrors: a pack each),
+// mounted or not: "the same folder" of the last choice of a copy, though its share is not mounted now.
+/**
+ * @param string $mid
+ * @param string $key
+ * @return list<string>
+ */
+function mel_lib_key_packs($mid, $key)
+{
+    mel_lib_index();
+    $res = array();
+    foreach (isset(MelLib::$eps[$mid]) ? MelLib::$eps[$mid] : array() as $f)
+    {
+        $p = mel_lib_pack($f);
+        if (mel_lib_key($f['hash']) === $key && !in_array($p, $res, true))
+            $res[] = $p;
+    }
+    return $res;
+}
+
+// How near the pack $b is to the pack $a (mel_lib_pack): -1 of another folder of the library, else the count of the
+// folders of their dirs the same from the root of the folder of the library (0: only the folder of the library) -
+// "Show/Season 2" is nearer to "Show/Season 1" (1) than "Other/Season 2" (0).
+/**
+ * @param string $a
+ * @param string $b
+ * @return int
+ */
+function mel_lib_pack_near($a, $b)
+{
+    $pa = explode('|', $a, 2);
+    $pb = explode('|', $b, 2);
+    if (count($pa) < 2 || count($pb) < 2 || $pa[0] !== $pb[0])
+        return -1;
+    $da = $pa[1] === '' ? array() : explode('/', $pa[1]);
+    $db = $pb[1] === '' ? array() : explode('/', $pb[1]);
+    $n = 0;
+    while ($n < count($da) && $n < count($db) && $da[$n] === $db[$n])
+        $n++;
+    return $n;
+}
+
+// The uid of the file of the copy $copy in the history of the shell (its own record of the file, its mark "watched"),
+// '' for a source not a network folder: as the shell makes it (DataModel::make_network_folder_uid_prefix and
+// get_folder_uid_prefix, data_model.php r25; GuiCommon::get_qualified_uid_by_file, gui_common.php) -
+// smb://<server>/<dir> of the network folder (the server and the share in lower case, mel_lib_network_folders),
+// nfs://<server><dir> with no ":/", the slashes squeezed, none at the end; then "/", the path of the folder of the
+// library with no slashes around and "/" (none of the root), the path of the file. Its server, share and path: never
+// in the log.
+/**
+ * @param MelLibCopy $copy
+ * @return string
+ */
+function mel_lib_native_uid($copy)
+{
+    if (!isset(MelLib::$folders[$copy['folder']]))
+        return '';
+    $folder = MelLib::$folders[$copy['folder']];
+    $nf = mel_lib_source_nf($folder, MelLib::$nfs);
+    if (!$nf)
+        return '';
+    $p = $nf['type'] === 'smb' ? "smb://{$nf['server']}/{$nf['dir']}" : strval(preg_replace(
+        array('@^nfs://([^/]*):/@', '@^nfs://([^/]*)/:/@'), 'nfs://$1/', "nfs://{$nf['server']}{$nf['dir']}"));
+    $p = substr($p, 0, 6) . rtrim(strval(preg_replace('@/+@', '/', substr($p, 6))), '/');
+    $path = trim($folder['path'], '/');
+    return "$p/" . ($path === '' ? '' : "$path/") . $copy['path'];
 }
 
 // --- The movie_id of a title.
@@ -1137,11 +1291,11 @@ function mel_lib_years($years)
     return array(intval(substr($y, 0, $p)), intval(substr($y, $p + 1)));
 }
 
-// The movies of folder_movies.<id>.json of all the folders (load_folder_movies_file of the shell; a series out), each
-// movie_id once: read when the stat of these files changed since the last read. Each file up to MEL_LIB_MAX_BYTES, all
-// up to MEL_LIB_BUDGET_BYTES; a folder past them is skipped, their count in the log.
+// The titles of folder_movies.<id>.json of all the folders (load_folder_movies_file of the shell), movies and series,
+// each movie_id once of a type: read when the stat of these files changed since the last read. Each file up to
+// MEL_LIB_MAX_BYTES, all up to MEL_LIB_BUDGET_BYTES; a folder past them is skipped, their count in the log.
 /**
- * @return list<array{string, list<string>, int, int}>
+ * @return list<array{string, list<string>, int, int, string}>
  */
 function mel_lib_movies()
 {
@@ -1163,10 +1317,12 @@ function mel_lib_movies()
             mel_log("library: folder $id: folder_movies $why");
         foreach ($list !== null ? $list : array() as $m)
         {
-            if (!is_array($m) || !isset($m['id'], $m['title']) || !is_string($m['id']) || !is_string($m['title']) ||
-                isset($seen[$m['id']]) || (isset($m['type']) && $m['type'] === 'series'))
+            if (!is_array($m) || !isset($m['id'], $m['title']) || !is_string($m['id']) || !is_string($m['title']))
                 continue;
-            $seen[$m['id']] = 1;
+            $type = isset($m['type']) && $m['type'] === 'series' ? 'series' : 'movie';
+            if (isset($seen["$type:{$m['id']}"]))
+                continue;
+            $seen["$type:{$m['id']}"] = 1;
             $names = array();
             foreach (array($m['title'], isset($m['native_title']) ? $m['native_title'] : '') as $n)
             {
@@ -1175,7 +1331,7 @@ function mel_lib_movies()
                     $names[] = $n;
             }
             list($y1, $y2) = mel_lib_years(isset($m['years']) ? $m['years'] : '');
-            $res[] = array($m['id'], $names, $y1, $y2);
+            $res[] = array($m['id'], $names, $y1, $y2, $type);
         }
         unset($list);
     }
@@ -1207,8 +1363,8 @@ function mel_lib_names($t)
     return array_map('strval', array_keys($names));
 }
 
-// The key of MelLib::$found of the title $t: all mel_lib_by_movies goes by (IMDb, TMDB, the year, mel_lib_names);
-// '' when it does not look (no year, no names, no ids).
+// The key of MelLib::$found of the title $t: all mel_lib_by_movies goes by (the type, IMDb, TMDB, the year,
+// mel_lib_names); '' when it does not look (no year, no names, no ids).
 /**
  * @param MelLibTitle $t
  * @return string
@@ -1219,17 +1375,18 @@ function mel_lib_movies_key($t)
     $names = mel_lib_names($t);
     if ($year <= 0 || !$names || ($t['imdb'] === '' && $t['tmdb'] === ''))
         return '';
-    return "{$t['imdb']}|{$t['tmdb']}|$year|" . implode('|', $names);
+    return "{$t['type']}|{$t['imdb']}|{$t['tmdb']}|$year|" . implode('|', $names);
 }
 
-// The movie_id of the files of the title $t by its name and year (mel_lib_movies_key not ''): the movies $movies of
-// folder_movies (mel_lib_movies) of the year +-1 with the same title or native_title (mel_lib_norm) and files in the
-// index, the first MEL_LIB_CANDIDATES of them; the first whose pair (links.php) has the IMDb or the TMDB of $t. The pair
-// of a candidate known is taken as is, else read from its card of the shell; each pair read is kept
-// (mel_pg_link_put), the pairs written once: the next time the pairs find it and no card is read again. '' for none.
+// The movie_id of the files of the title $t by its name and year (mel_lib_movies_key not ''): the titles $movies of
+// folder_movies (mel_lib_movies) of its type, of the year +-1, with the same title or native_title (mel_lib_norm) and
+// files in the index (mel_lib_has), the first MEL_LIB_CANDIDATES of them; the first whose pair (links.php) has the IMDb
+// or the TMDB of $t (of a series its tmdbtv). The pair of a candidate known is taken as is, else read from its card of
+// the shell; each pair read is kept (mel_pg_link_put), the pairs written once: the next time the pairs find it and no
+// card is read again. '' for none.
 /**
  * @param MelLibTitle $t
- * @param list<array{string, list<string>, int, int}> $movies
+ * @param list<array{string, list<string>, int, int, string}> $movies
  * @return string
  */
 function mel_lib_by_movies($t, $movies)
@@ -1239,8 +1396,8 @@ function mel_lib_by_movies($t, $movies)
     $cands = array();
     foreach ($movies as $m)
     {
-        list($mid, $mnames, $y1, $y2) = $m;
-        if ($year < $y1 - 1 || $year > $y2 + 1 || empty(MelLib::$by_mid[$mid]))
+        list($mid, $mnames, $y1, $y2, $type) = $m;
+        if ($type !== $t['type'] || $year < $y1 - 1 || $year > $y2 + 1 || !mel_lib_has($mid, $type))
             continue;
         foreach ($mnames as $n)
         {
@@ -1255,6 +1412,7 @@ function mel_lib_by_movies($t, $movies)
     }
     $res = '';
     $put = false;
+    $tk = $t['type'] === 'series' ? 'tmdbtv' : 'tmdb';
     foreach ($cands as $mid)
     {
         $links = mel_pg_links();
@@ -1268,7 +1426,7 @@ function mel_lib_by_movies($t, $movies)
                 $put = true;
         }
         $same = $pair && (($t['imdb'] !== '' && isset($pair['imdb']) && $pair['imdb'] === $t['imdb']) ||
-            ($t['tmdb'] !== '' && isset($pair['tmdb']) && $pair['tmdb'] === $t['tmdb']));
+            ($t['tmdb'] !== '' && isset($pair[$tk]) && $pair[$tk] === $t['tmdb']));
         if (!$known)
             mel_log("library: card $mid: shell card " . ($pair ? 'read' : 'none') . ', ' .
                 round((microtime(true) - $t0) * 1000) . ' ms' . ($pair ? ($same ? ', the same ids' : ', not the same ids') : ''));
@@ -1283,8 +1441,19 @@ function mel_lib_by_movies($t, $movies)
     return $res;
 }
 
-// The movie_id of a card of the pairs (links.php, mel_pg_rev) with the IMDb or the TMDB of the title $t and files in
-// the index, '' for none. No read.
+// The movie_id $mid has files of the type $type in the index: movie files of a movie, episodes of a series.
+/**
+ * @param string $mid
+ * @param string $type
+ * @return bool
+ */
+function mel_lib_has($mid, $type)
+{
+    return $type === 'series' ? !empty(MelLib::$eps[$mid]) : !empty(MelLib::$by_mid[$mid]);
+}
+
+// The movie_id of a card of the pairs (links.php, mel_pg_rev) with the IMDb or the TMDB of the title $t (of a series
+// its tmdbtv) and files in the index (mel_lib_has), '' for none. No read.
 /**
  * @param MelLibTitle $t
  * @return string
@@ -1295,13 +1464,13 @@ function mel_lib_by_pairs($t)
     if ($t['imdb'] !== '')
         $keys[] = 'imdb:' . $t['imdb'];
     if ($t['tmdb'] !== '')
-        $keys[] = 'tmdb:' . $t['tmdb'];
+        $keys[] = ($t['type'] === 'series' ? 'tmdbtv:' : 'tmdb:') . $t['tmdb'];
     $mids = array();
     foreach ($keys as $k)
     {
         foreach (mel_pg_rev($k) as $mid)
         {
-            if (!empty(MelLib::$by_mid[$mid]) && !in_array($mid, $mids, true))
+            if (mel_lib_has($mid, $t['type']) && !in_array($mid, $mids, true))
                 $mids[] = $mid;
         }
     }
@@ -1313,8 +1482,9 @@ function mel_lib_by_pairs($t)
     return $mids[0];
 }
 
-// The movie_id of the index for the title $t (a movie), '' for none (a series, no library, no files): its card of the
-// Dune, else a card of the pairs (mel_lib_by_pairs), else mel_lib_by_movies. Only cards with files in the index count.
+// The movie_id of the index for the title $t (a movie or a series), '' for none (no library, no files): its card of the
+// Dune, else a card of the pairs (mel_lib_by_pairs), else mel_lib_by_movies. Only cards with files of its type in the
+// index count (mel_lib_has: movie files of a movie, episodes of a series).
 // The first two read nothing and are looked at on each call; what mel_lib_by_movies found (and '') is kept in
 // MelLib::$found until the index or folder_movies is read again: the same card opened again reads no card of the
 // shell, and no line of the log. Else one line: "library: title -> <movie_id> by dune|pairs|folder_movies" or
@@ -1326,10 +1496,10 @@ function mel_lib_by_pairs($t)
 function mel_lib_mid($t)
 {
     mel_lib_index();
-    if ($t['type'] !== 'movie' || !MelLib::$by_mid)
+    if ($t['type'] === 'series' ? !MelLib::$eps : ($t['type'] !== 'movie' || !MelLib::$by_mid))
         return '';
     $by = 'dune';
-    $y = $t['dune'] !== '' && !empty(MelLib::$by_mid[$t['dune']]) ? $t['dune'] : '';
+    $y = $t['dune'] !== '' && mel_lib_has($t['dune'], $t['type']) ? $t['dune'] : '';
     if ($y === '')
     {
         $by = 'pairs';
@@ -1352,7 +1522,8 @@ function mel_lib_mid($t)
 
 // The title of mel_lib_mid of the fields $m of a movie_str: of the shell (play_action) or of the own card (its
 // movie_str, mel_oc_watch) - so the card and play_action of one title look for it alike (the same names, the same key
-// of MelLib::$found). dune: id; imdb: imdb_id; tmdb: tmdb_id of a movie; names: title, native_title and aio_en_title
+// of MelLib::$found). dune: id; imdb: imdb_id; tmdb: tmdb_id of a movie, of a series its TMDB of series tmdbtv_id (as
+// the shell and the own card give it), else tmdb_id (mel_movie); names: title, native_title and aio_en_title
 // (the English name the own card adds), in that order, each once, none empty. Ids not of their form: ''.
 /**
  * @param array<mixed> $m
@@ -1370,7 +1541,9 @@ function mel_lib_title($m, $series)
     }
     $dune = mel_str($m, 'id');
     $imdb = mel_str($m, 'imdb_id');
-    $tmdb = $series ? '' : mel_str($m, 'tmdb_id');
+    $tmdb = $series ? mel_str($m, 'tmdbtv_id') : '';
+    if ($tmdb === '')
+        $tmdb = mel_str($m, 'tmdb_id');
     return array(
         'dune' => preg_match('/^' . MEL_DUNE_ID . '$/D', $dune) ? $dune : '',
         'imdb' => preg_match('/^tt[0-9]{1,10}$/D', $imdb) ? $imdb : '',
@@ -1389,13 +1562,20 @@ function mel_lib_title($m, $series)
 // one '&': exec() does not wait for it), its answer polled every 50 ms in a file of tmp_dir, removed then (and those of
 // checks answered too late). The paths only in the environment of the check (putenv, taken out after exec()): not in
 // the command, where escapeshellarg of PHP 5.3 in the locale C drops the bytes of a Cyrillic path. The log: "library:
-// here lib-... yes|no|slow in N ms". No tmp_dir: 'yes', not checked (the player tells).
+// here lib-... yes|no|slow in N ms". No tmp_dir: 'yes', not checked (the player tells). $mkv: of a file there, $dur -
+// the length of its MKV (mel_mkv_duration) by its first 64 KB, read by the same check past its answer (php_server reads
+// no share), waited for MEL_LIB_MKV_MS more; 0 for none in time, not MKV, no length. The log: "library: mkv lib-... N s
+// in N ms" or "library: mkv lib-... unknown (why) in N ms".
 /**
  * @param MelLibCopy $copy
+ * @param bool $mkv
+ * @param float|null $dur
+ * @param-out float $dur
  * @return string
  */
-function mel_lib_here($copy)
+function mel_lib_here($copy, $mkv = false, &$dur = null)
 {
+    $dur = 0.0;
     $t = microtime(true);
     $tmp = isset(DuneSystem::$properties['tmp_dir_path']) ?
         rtrim(strval(DuneSystem::$properties['tmp_dir_path']), '/') : '';
@@ -1412,9 +1592,13 @@ function mel_lib_here($copy)
     $res = "$tmp/lib_here_" . getmypid() . '_' . str_replace('.', '', uniqid('', true));
     putenv('MEL_P=' . $copy['url']);
     putenv('MEL_R=' . $res);
+    if ($mkv)
+        putenv('MEL_B=1');
     exec('sh -c ' . escapeshellarg(MEL_LIB_HERE_SH) . ' </dev/null >/dev/null 2>&1 &');
     putenv('MEL_P');
     putenv('MEL_R');
+    if ($mkv)
+        putenv('MEL_B');
     $ans = 'slow';
     do
     {
@@ -1429,5 +1613,36 @@ function mel_lib_here($copy)
     }
     while (microtime(true) - $t < MEL_LIB_HERE_S);
     mel_log("library: here {$copy['key']} $ans in " . round((microtime(true) - $t) * 1000) . ' ms');
+    if ($mkv && $ans === 'yes')
+        $dur = mel_lib_here_mkv($copy, "$res.b");
     return $ans;
+}
+
+// The length of the MKV of the copy $copy by its first bytes, the file $b of its check (mel_lib_here) waited for
+// MEL_LIB_MKV_MS, removed then -> s, 0.0 for none: not in time (removed by the next check), not MKV, no length.
+/**
+ * @param MelLibCopy $copy
+ * @param string $b
+ * @return float
+ */
+function mel_lib_here_mkv($copy, $b)
+{
+    $t = microtime(true);
+    $why = 'not in time';
+    $dur = 0.0;
+    do
+    {
+        clearstatcache();
+        if (is_file($b))
+        {
+            $dur = mel_mkv_duration(strval(file_get_contents($b)), $why);
+            unlink($b);
+            break;
+        }
+        usleep(20000);
+    }
+    while ((microtime(true) - $t) * 1000 < MEL_LIB_MKV_MS);
+    mel_log("library: mkv {$copy['key']} " . ($dur > 0 ? round($dur) . ' s' : "unknown ($why)") . ' in ' .
+        round((microtime(true) - $t) * 1000) . ' ms');
+    return $dur;
 }
