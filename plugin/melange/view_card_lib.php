@@ -447,7 +447,7 @@ function mel_oc_lib_on_disk($lib_eps, $s)
 }
 
 // "Копия на диске…" of MENU of card $c ($key) at place $pos of layout $l: a movie with two copies on the disk or more -
-// card_lib_copies (the menu of the copies, mel_oc_lib_input); a series - of the episode in focus in the row, else of
+// card_lib_copies (the window W2 of them, mel_oc_lib_input); a series - of the episode in focus in the row, else of
 // "Смотреть" (the episode offered, $l['ep']) with two copies or more, card_lib_copies with its s, e (the window W2 of
 // it). None on a strip of posters or of the cast.
 /**
@@ -479,11 +479,12 @@ function mel_oc_lib_menu_items($key, $c, $l, $pos)
         GuiMenuItemDef::action => mel_input('card_lib_copies', $p)));
 }
 
-// The start of a copy on the disk of the movie of card $c ($key) of layout $l (C2-C4 of the spec): its copies read
+// The start of a copy on the disk of the movie of card $c ($key) of layout $l (C2-C4, C11 of the spec): its copies read
 // anew (a share may be gone since the screen; mel_lib_copies), the copy and the place by the history of the card
-// (mel_lib_place). The copy of id $k chosen in the menu of the copies ('' - "Смотреть": the copy of the record, of
-// its mirrors the first there; none - the copies by mel_lib_start: one plays, several - their menu back to
-// card_lib_copy, none there - mel_lib_gone).
+// (mel_lib_place). The copy of id $k chosen in the window of the copies ('' - "Смотреть": the copy of the record, of
+// its mirrors the first there; none - the copies by mel_lib_start: one plays, several - the window W2 of them over the
+// screen, mode first (mel_lib_win_open; none - the screen shown has no slot of the overlay: nothing, logged there), none
+// there - mel_lib_gone).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -504,8 +505,7 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
     $go = mel_lib_start($copies, $first, $first_pos, $pos, false);
     if (isset($go['copy']))
         return mel_lib_play($mv, $go, $c['ui']);
-    return isset($go['pick']) ? mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'first'), $go['pick'], '',
-        $c['ui']) : mel_lib_gone($go['gone']);
+    return isset($go['pick']) ? mel_lib_win_open($key, $go['pick'], 'first') : mel_lib_gone($go['gone']);
 }
 
 // The start of a copy on the disk of episode $e of season $s of the series of card $c ($key) of layout $l (C2, C4 of the
@@ -557,10 +557,12 @@ function mel_oc_lib_start_ep($key, $c, $l, $s, $e, $k = '')
     return mel_lib_gone($go['gone'], $c['ui'], $s, $e);
 }
 
-// card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the id of the copy of the menu of the copies; from:
-// first - of "Смотреть", menu - of MENU) of the movie of card $c ($key) of layout $l. The menu: the copies read anew, the
-// one of the latest record (mel_oc_lib_cur) "· сейчас" and selected, no record - none of them, the first selected;
-// none left - lib_gone. A copy: mel_oc_lib_start. Of an episode (s, e; mel_oc_lib_input_ep): the window W2, its copy.
+// card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the id of the copy of the window of the copies; from:
+// first - of "Смотреть", menu - of MENU) of the movie of card $c ($key) of layout $l. MENU: the copies read anew, the
+// window W2 of them over the screen, mode menu (mel_lib_win_open: "· сейчас" and the cursor on the copy of the latest
+// record, mel_oc_lib_cur; no record - none, the cursor on the first); none left - lib_gone. A copy: mel_oc_lib_start
+// (from the place of mel_lib_place). Only of a movie with copies on the screen shown (nav lib: its slot of the overlay).
+// Of an episode (s, e; mel_oc_lib_input_ep): the window W2, its copy.
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -586,9 +588,7 @@ function mel_oc_lib_input($key, $c, $l, $in, $control)
     $copies = mel_lib_copies($l['lib'][0]['mid']);
     if (!$copies)
         return mel_lib_gone('no');
-    $cur = mel_oc_lib_cur($copies, $l['hid']);
-    return mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'menu'), $copies, $cur ? $cur['cid'] : '',
-        $c['ui']);
+    return mel_lib_win_open($key, $copies, 'menu');
 }
 
 // card_lib_copies and card_lib_copy of episode s, e of the series of card $c ($key) of layout $l (C4, spec §7.5). Only
