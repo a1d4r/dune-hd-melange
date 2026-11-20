@@ -554,13 +554,12 @@ function mel_oc_lib_start_ep($key, $c, $l, $s, $e, $k = '')
     $se = mel_oc_se($s, $e);
     $copies = isset($eps[$se]) ? $eps[$se] : array();
     mel_log("card: own $key: watch S{$s}E{$e} on the disk, " . count($copies) . ' copies' . ($k !== '' ? ", $k chosen" : ''));
-    list($recs, $f) = mel_lib_ep_ctx($hid, $y);
+    $ctx = mel_lib_ep_ctx($hid, $y);
     if ($k !== '')
         list($first, $first_pos, $pos) = mel_lib_place($hid, $copies, $k, $s, $e, $fix);
     else
-        list($first, $first_pos, $pos) = mel_lib_ep_place($hid, $copies, $s, $e, isset($recs[$se]) ? $recs[$se] : '', $f,
-            $fix);
-    $go = mel_lib_start($copies, $first, $first_pos, $pos, false, $f);
+        list($first, $first_pos, $pos) = mel_lib_ep_place($hid, $copies, $s, $e, $ctx, $fix);
+    $go = mel_lib_start($copies, $first, $first_pos, $pos, false, $ctx[1]);
     if (isset($go['copy']))
     {
         MelOc::$cards[$key]['played'] = true;

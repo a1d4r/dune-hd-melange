@@ -402,25 +402,25 @@ function mel_lib_ep_ctx($hid, $y, $unfinished = false)
 
 // Where episode S$q E$e of card of history $hid starts when no copy of it is chosen (OK on the own card, "Continue" of
 // the native of a watched episode; C2, C7), of its copies now $copies (mel_lib_ep_copies, the best first): the copy by
-// mel_lib_ep_pick (no $auto) of the key $rec_key of our record of it that still holds and the packs F $f_packs (the
-// caller takes them: mel_lib_ep_ctx, of C7 the packs of the key of its record), the place by mel_lib_place of the
-// native records by their files $fix (mel_lib_ep_hashes by the invariant, mel_lib_ep_same). -> array($first,
+// mel_lib_ep_pick (no $auto) of what mel_lib_ep_ctx gives $ctx, as mel_lib_ep_cid takes it (array("q:e" => the key of
+// our record that still holds, the packs F); of C7 F the packs of the key of its record), the place by mel_lib_place of
+// the native records by their files $fix (mel_lib_ep_hashes by the invariant, mel_lib_ep_same). -> array($first,
 // $first_pos, $pos) of mel_lib_start (the mirrors of a key: the copy of F first there, mel_lib_ep_of - the caller gives
-// it F too); $first '' - the window (no copy to take: not the key of the record mel_lib_place would give), from $pos.
+// it $ctx[1]); $first '' - the window (no copy to take: not the key of the record mel_lib_place would give), from $pos.
 // The log: "library: episode S3E4: <why>" (no path).
 /**
  * @param string $hid
  * @param list<MelLibCopy> $copies
  * @param int $q
  * @param int $e
- * @param string $rec_key
- * @param list<string> $f_packs
+ * @param array{array<string, string>, list<string>} $ctx
  * @param array<string, array{int, int}|string> $fix
  * @return array{string, int, int}
  */
-function mel_lib_ep_place($hid, $copies, $q, $e, $rec_key, $f_packs, $fix)
+function mel_lib_ep_place($hid, $copies, $q, $e, $ctx, $fix)
 {
-    list($first, $why) = mel_lib_ep_pick($copies, $rec_key, $f_packs, false);
+    list($recs, $f) = $ctx;
+    list($first, $why) = mel_lib_ep_pick($copies, isset($recs["$q:$e"]) ? $recs["$q:$e"] : '', $f, false);
     mel_log("library: episode S{$q}E{$e}: $why");
     list($k, $first_pos, $pos) = mel_lib_place($hid, $copies, $first, $q, $e, $fix);
     return $first === '' ? array('', $pos, $pos) : array($k, $first_pos, $pos);
@@ -570,13 +570,13 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
         return mel_lib_resume_go($mv, $copies, $key, $r['pos'], $r['pos'], $lang, $ep);
     }
     mel_log($tag);
+    // F the packs of the key of the record (not of the latest record of the card).
     list($recs) = mel_lib_ep_ctx($hid, $y, true);
-    $f = mel_lib_key_packs($y, $key);
+    $ctx = array($recs, mel_lib_key_packs($y, $key));
     // The native records of the series by their files (mel_wh_fix_se). No copy to take (the window, $k ''): the own card
     // and the window W2 of them, none checked. Of the mirrors of a record the copy of F first (mel_lib_ep_cid).
-    list($k, $first_pos, $pos) = mel_lib_ep_place($hid, $copies, $q, $e, isset($recs["$q:$e"]) ? $recs["$q:$e"] : '', $f,
-        $fix);
-    return mel_lib_resume_go($mv, $copies, $k, $first_pos, $pos, $lang, $ep, $f);
+    list($k, $first_pos, $pos) = mel_lib_ep_place($hid, $copies, $q, $e, $ctx, $fix);
+    return mel_lib_resume_go($mv, $copies, $k, $first_pos, $pos, $lang, $ep, $ctx[1]);
 }
 
 // The start of "Continue" of a copy on the disk of movie $mv (H set; its TMDB, tmdb, for the own card), of its copies
