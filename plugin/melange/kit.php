@@ -14,7 +14,7 @@
 //
 // An item (MelKitItem), coordinates of the parent:
 //   kind      text, icon, box, row, stack, group, or the component (plate,
-//             button, chip, badges, badge_text, key, tab, tabs, bar, rating,
+//             button, chip, badges, b2, badge_text, key, tab, tabs, bar, rating,
 //             facts, sources);
 //   defs      its components;
 //   x0, x1    the visible left and right (a text: its advances by the model;
@@ -1100,7 +1100,7 @@ class MelKit
 
     // A text plate b2 (IMAX, an edition: what no picture k_glyph_* is) as
     // high as they, MEL_K_PLATE_H: $text (MEL_K_PX_BADGE, condensed, text 1)
-    // between the pads MEL_K_PLATE_PAD on their plate (plate); the left at
+    // between the pads MEL_K_PLATE_PAD on their plate (badge); the left at
     // $x, the plate and the capitals centred at $y. The height of capitals
     // of MEL_K_PX_BADGE is a guess (mel_k_cap()), not measured on the device.
     /**
@@ -1114,7 +1114,7 @@ class MelKit
         $y = (int) round($y);
         $t = self::text($text, MEL_K_PX_BADGE, MEL_K_C_TEXT1, $x + MEL_K_PLATE_PAD, $y,
             array('face' => MEL_K_FACE_CONDENSED));
-        $p = self::plate('plate', $x, $y - intval(MEL_K_PLATE_H / 2), $t['x1'] - $t['x0'] + 2 * MEL_K_PLATE_PAD,
+        $p = self::plate('badge', $x, $y - intval(MEL_K_PLATE_H / 2), $t['x1'] - $t['x0'] + 2 * MEL_K_PLATE_PAD,
             MEL_K_PLATE_H);
         return self::on('badge_text', $p, $t);
     }
