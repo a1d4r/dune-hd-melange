@@ -3,7 +3,8 @@
 // 20.11.2026) and the line of the copy of an episode in its head (B10) on the UI Kit - the widths by MelKit::w, the
 // badges the plates b2 of the list of releases (MelKit::b2); the labels as the other lines of the card (mel_oc_label).
 // And the copies of the card: found (mel_oc_lib), the current one (mel_oc_lib_cur, of an episode mel_oc_lib_ep_cur),
-// "Копия на диске…" of MENU, the start (mel_oc_lib_start, mel_oc_lib_input).
+// "Копия на диске…" of MENU, the start (mel_oc_lib_start, mel_oc_lib_input). The paths of the window of the copies
+// (mel_lib_win_paths).
 
 // The line of a movie: the y of its label box, its text, its right edge (that of the description, as the head of an
 // episode: MEL_OC_EP_LIB_R); the disk before it (MEL_OC_IMG disk.png, DISK_W square), a part of the label
@@ -52,6 +53,56 @@ function mel_lib_copy_parts($copy, $lang)
     $pics = mel_k_pic();
     return array('quiet' => $quiet, 'ids' => $cols['audio'] !== '' ? array_merge($quiet, array($cols['audio'])) : $quiet,
         'ch' => isset($pics["k_glyph_$ch"]) ? $ch : '', 'size' => $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '');
+}
+
+// The path of a line of the window of the copies (W2, spec §8.2): its text WIN_PATH_PX, its width WIN_PATH_W at most.
+define('MEL_LIB_WIN_PATH_PX', MEL_K_PX_CAPTION);
+define('MEL_LIB_WIN_PATH_W', 1000);
+
+// The paths of the lines of the window of copies $copies (of the episodes of a series: $series) by cid: their tails
+// (mel_lib_tails) cut in the middle to the width of the window (mel_lib_cut_mid).
+/**
+ * @param list<MelLibCopy> $copies
+ * @param bool $series
+ * @return array<string, string>
+ */
+function mel_lib_win_paths($copies, $series)
+{
+    $out = array();
+    foreach (mel_lib_tails($copies, $series) as $cid => $t)
+        $out[$cid] = mel_lib_cut_mid($t, MEL_LIB_WIN_PATH_PX, MEL_LIB_WIN_PATH_W);
+    return $out;
+}
+
+// Path $s at $px (the font of the kit, MelKit::w) wider than $w cut in the middle: its start up to the first "/" (its
+// folder) kept, "…", then of its end as much as fits (mock_library_v4.py cut_mid); no "/" - "…" and the end. Not wider:
+// as it is.
+/**
+ * @param string $s
+ * @param int $px
+ * @param int $w
+ * @return string
+ */
+function mel_lib_cut_mid($s, $px, $w)
+{
+    $s = preg_match('//u', $s) ? $s : mel_utf8($s);
+    if (MelKit::w($s, $px) <= $w)
+        return $s;
+    $i = strpos($s, '/');
+    $head = $i === false ? '' : substr($s, 0, $i + 1);
+    // The width of a line is the sum of those of its glyphs (MelKit::w): the end grows from its last one.
+    $left = $w - MelKit::w($head . '…', $px);
+    $chars = preg_split('//u', strval(substr($s, strlen($head))), -1, PREG_SPLIT_NO_EMPTY) ?: array();
+    $tail = '';
+    for ($k = count($chars) - 1; $k >= 0; $k--)
+    {
+        $cw = MelKit::w($chars[$k], $px);
+        if ($cw > $left)
+            break;
+        $left -= $cw;
+        $tail = $chars[$k] . $tail;
+    }
+    return $head . '…' . $tail;
 }
 
 // The line of copy $copy of a title of $n copies at $x. The movie ($ep false) over the buttons, the line of its history

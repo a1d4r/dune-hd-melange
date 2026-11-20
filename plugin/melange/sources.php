@@ -227,6 +227,39 @@ function mel_lib_common_len($paths)
     return $n;
 }
 
+// The tails of the paths of copies $copies by their cid (P1, as the screen "Files" of the shell shows them): of a movie
+// its path, of an episode ($series) the folder of its pack (dir) - the copies in one folder of the library without the
+// start of the folders common to them all (mel_lib_common_len), in several "<caption of its folder>/<path>" (an
+// episode at the root of its folder: the caption alone). The window of the copies and the menu of the copies alike.
+/**
+ * @param list<MelLibCopy> $copies
+ * @param bool $series
+ * @return array<string, string>
+ */
+function mel_lib_tails($copies, $series)
+{
+    $folders = array();
+    $paths = array();
+    foreach ($copies as $c)
+    {
+        $folders[$c['folder']] = 1;
+        $p = $series ? $c['dir'] : $c['path'];
+        if (!in_array($p, $paths, true))
+            $paths[] = $p;
+    }
+    $n = count($folders) > 1 ? -1 : mel_lib_common_len($paths);
+    $out = array();
+    foreach ($copies as $c)
+    {
+        $p = $series ? $c['dir'] : $c['path'];
+        if ($n >= 0)
+            $out[$c['cid']] = strval(substr($p, $n));
+        else
+            $out[$c['cid']] = $p === '' ? $c['caption'] : $c['caption'] . '/' . $p;
+    }
+    return $out;
+}
+
 // $s of over $max characters: its middle replaced by '…' (the start of the path and the end of the name stay).
 /**
  * @param string $s
@@ -242,9 +275,8 @@ function mel_lib_cut($s, $max)
 }
 
 // The line of the copy $copy (one of $copies) in the menu of the copies: "4K · 58.3 ГБ · <path>" - its resolution
-// (res, none left out), the size (none left out), the path as the screen "Files" of the shell shows it: the copies in
-// one folder of the library - the path without the start common to them all; in several - "<caption of its
-// folder>/<path>"; over MEL_LIB_LABEL_MAX characters cut in the middle. Of the copies alone, nothing else read.
+// (res, none left out), the size (none left out), the tail of its path (mel_lib_tails) over MEL_LIB_LABEL_MAX
+// characters cut in the middle. Of the copies alone, nothing else read.
 /**
  * @param MelLibCopy $copy
  * @param list<MelLibCopy> $copies
@@ -253,18 +285,8 @@ function mel_lib_cut($s, $max)
  */
 function mel_lib_label($copy, $copies, $lang)
 {
-    $folders = array($copy['folder'] => 1);
-    $paths = array($copy['path']);
-    foreach ($copies as $c)
-    {
-        $folders[$c['folder']] = 1;
-        if (!in_array($c['path'], $paths, true))
-            $paths[] = $c['path'];
-    }
-    if (count($folders) > 1)
-        $path = $copy['caption'] . '/' . $copy['path'];
-    else
-        $path = strval(substr($copy['path'], mel_lib_common_len($paths)));
+    $tails = mel_lib_tails(array_merge(array($copy), $copies), false);
+    $path = $tails[$copy['cid']];
     $parts = array();
     if ($copy['res'] !== '')
         $parts[] = $copy['res'];
