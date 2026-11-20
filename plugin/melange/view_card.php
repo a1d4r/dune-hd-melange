@@ -1068,14 +1068,7 @@ function mel_oc_layout($c)
         $zones[] = 'down';
     $over = false;
     if ($series)
-    {
-        $x = MEL_CATV_CARD_X;
-        foreach ($btns as $b)
-            $x += mel_oc_btn_w($b) + MEL_OC_BTN_GAP;
-        $only = mel_oc_under_ser($c, $x + 12);
-        if ($down || $cast || $posters)
-            $only[] = mel_oc_more(MEL_OC_HINT_X_SER, MEL_OC_HINT_Y_SER);
-    }
+        $only = mel_oc_first_series($c, $btns, $down || $cast || $posters);
     else
     {
         list($only, $over) = mel_oc_first_movie($c, $btns, $lib, $hid);
@@ -1095,6 +1088,25 @@ function mel_oc_layout($c)
         'stops' => $stops, 'clips' => $clips, 'tops' => $tops, 'h' => max(1080, $stops[count($stops) - 1] + MEL_OC_SHOW_BOTTOM), 'off' => $off,
         'zones' => $zones, 'tabs' => $tabs, 'ep' => $ep, 'prog' => $prog, 'rows' => $rows, 'strips' => $strips, 'tw' => $tw,
         'first' => $only, 'over' => $over, 'down' => $down, 'lib' => $lib, 'hid' => $hid);
+}
+
+// The first screen of the series of card $c alone, of buttons $btns: the line why right of them (mel_oc_under_ser),
+// the arrow of what DOWN shows when there is something below ($more).
+/**
+ * @param MelOcCard $c
+ * @param list<array{string, string, string, int}> $btns
+ * @param bool $more
+ * @return list<array<string, mixed>>
+ */
+function mel_oc_first_series($c, $btns, $more)
+{
+    $x = MEL_CATV_CARD_X;
+    foreach ($btns as $b)
+        $x += mel_oc_btn_w($b) + MEL_OC_BTN_GAP;
+    $only = mel_oc_under_ser($c, $x + 12);
+    if ($more)
+        $only[] = mel_oc_more(MEL_OC_HINT_X_SER, MEL_OC_HINT_Y_SER);
+    return $only;
 }
 
 // The first screen of the movie of card $c alone, of buttons $btns and copies on the disk $lib of card of history $hid
