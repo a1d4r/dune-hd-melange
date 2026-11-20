@@ -251,7 +251,7 @@ function mel_lib_hid($dune_id, $y)
 // Where a copy of the movie of card of history $hid starts on the own card (C2-C4 of the spec), of its copies $copies
 // now (mel_lib_copies) -> array($first, $first_pos, $pos) of mel_lib_start. $first: the copy of id $k chosen in the menu
 // of the copies, '' ("Смотреть") - the key of the latest record of a copy of the card (mel_wh_lib_last; '' none). The
-// place $pos: of the latest record of the movie of any supplier, as the line shows it (mel_wh_movie; B1 of the owner,
+// place $pos: of the latest record of the movie of any supplier (mel_wh_movie_last; B1 of the owner,
 // step 1: of the newer record), 0 watched. $first_pos: 0 when $first is the copy of our record and that record is the
 // latest (the player offers its place itself), else $pos. Episode S$q E$e ($e >= 1, the season as asked; $copies of it):
 // the same by the records of the episode - $k the choice of mel_lib_ep_pick or the id of a copy chosen, the record of a

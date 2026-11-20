@@ -1,5 +1,5 @@
 <?php
-// The copies on the disk in the own card: the line "С диска" of a copy of a movie under the buttons (R1, owner
+// The copies on the disk in the own card: the line "С диска" of a copy of a movie over the buttons (variant Б, owner
 // 20.11.2026) and the line of the copy of an episode in its head (B10) on the UI Kit - the widths by MelKit::w, the
 // badges the plates b2 of the list of releases (MelKit::b2); the labels as the other lines of the card (mel_oc_label).
 // And the copies of the card: found (mel_oc_lib), the current one (mel_oc_lib_cur, of an episode mel_oc_lib_ep_cur),
@@ -12,8 +12,9 @@
 // b2 (MEL_K_PLATE_PAD in from the edges of the plate: the dark plate hardly shows on the card, the glyph is what is
 // seen) and "·" of the tail. The rhythm m: well over the 10 px between the icon and the word inside a glyph ("DV
 // Vision"), and the plates side by side, not over one another (LIB_GAP - 2 MEL_K_PLATE_PAD apart). The disk and the
-// plates on the centre of the capitals of the text (mel_oc_label_cy).
-define('MEL_OC_LIB_Y', 660);
+// plates on the centre of the capitals of the text (mel_oc_label_cy). The line in place of the 3rd line of the
+// description under the director (variant Б, owner 20.11.2026): its capitals on those of that line (532).
+define('MEL_OC_LIB_Y', 512);
 define('MEL_OC_LIB_PX', MEL_OC_LINE_PX);
 define('MEL_OC_LIB_R', MEL_CATV_CARD_X + MEL_CATV_TEXT_W);
 define('MEL_OC_LIB_GAP', MEL_K_GAP_M);
@@ -53,10 +54,10 @@ function mel_lib_copy_parts($copy, $lang)
         'ch' => isset($pics["k_glyph_$ch"]) ? $ch : '', 'size' => $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '');
 }
 
-// The line of copy $copy of a title of $n copies at $x. The movie ($ep false) under the buttons, the same whatever the
-// progress (R1, owner 20.11.2026): its label box at MEL_OC_LIB_Y, LIB_PX, to the right edge LIB_R at most; the disk
-// (MEL_OC_DISK_W), "С диска" (lib_from_disk), the badges (mel_lib_copy_parts: the plates b2 as high as in the list of
-// releases, MEL_OC_LIB_ALPHA), the plate of the channels after them, the size as text; $n 2 or more - and the tail
+// The line of copy $copy of a title of $n copies at $x. The movie ($ep false) over the buttons, the line of its history
+// under it (variant Б, owner 20.11.2026), the same whatever the progress: its label box at MEL_OC_LIB_Y, LIB_PX, to
+// the right edge LIB_R at most; the disk (MEL_OC_DISK_W), "С диска" (lib_from_disk), the badges (mel_lib_copy_parts:
+// the plates b2 as high as in the list of releases, MEL_OC_LIB_ALPHA), the plate of the channels after them, the size as text; $n 2 or more - and the tail
 // "2 копии — MENU" (lib_copies, owner 20.11.2026). The head of an episode ($ep true, B10 A): the box at MEL_OC_EP_LIB_Y,
 // MEL_CATV_LINE_PX, to EP_LIB_R; the disk EP_DISK_W dimmed as the badges, no words, no tail.
 // Wider than the edge: the parts out one by one in the order of $drop - the tail of the copies, the size, the

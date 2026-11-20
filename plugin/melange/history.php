@@ -311,19 +311,8 @@ function mel_wh_sig()
     return $sig;
 }
 
-// The progress of the movie of card $dune_id: its latest record of any supplier or a local
-// file (no episode), as the native card shows it -> array(pos, len) in s, len > 0; null for none.
-/**
- * @param string $dune_id
- * @return array{float, float}|null
- */
-function mel_wh_movie($dune_id)
-{
-    $r = mel_wh_movie_last($dune_id);
-    return $r ? array($r[0], $r[1]) : null;
-}
-
-// mel_wh_movie with the uid of that record -> array(pos, len, uid), null for none.
+// The progress of the movie of card $dune_id: its latest record of any supplier or a local file (no episode), as the
+// native card shows it -> array(pos, len, uid) in s, len > 0, the uid of that record; null for none.
 /**
  * @param string $dune_id
  * @return array{float, float, string}|null

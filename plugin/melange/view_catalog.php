@@ -2612,6 +2612,27 @@ function mel_catv_title_label($name, $bottom)
         $spec, GCOMP_OPT_TTF_LAYOUT_FIX | GCOMP_OPT_TTF_COMPACT_HEIGHT);
 }
 
+// The top of the last line of a description of MEL_CATV_DESC_HIST lines under all the lines of the panel (facts,
+// genres, cast), lines of 30 px 5 px apart, 13 px under them (mel_catv_info), in the panel.
+/**
+ * @return int
+ */
+function mel_catv_hist_last()
+{
+    return MEL_CATV_LINES_Y + 3 * MEL_CATV_LINE_H + 13 + (MEL_CATV_DESC_HIST - 1) * (MEL_CATV_LINE_PX + 5);
+}
+
+// The y of the line of the history of the panel (mel_pg_info_line, mel_pg_info_words) in it, at one place whatever the
+// lines over it: its middle MEL_PG_INFO_GAP under the middle of the last line of such a description
+// (mel_catv_hist_last). The own card of a movie has its line there too (mel_oc_hist), so it does not jump on the way.
+/**
+ * @return int
+ */
+function mel_catv_hist_y()
+{
+    return mel_catv_hist_last() + MEL_CATV_DESC_MID + MEL_PG_INFO_GAP - intval(MEL_PG_INFO_H / 2);
+}
+
 // The panel on the coordinates of the native one (movie_helper.php, the same info_r), 30 px lower,
 // nearer the rows: the title (mel_catv_title_label), none when the background has the logo in its
 // place (mel_catv_card); without the logo, the English name of the tile under the title when it is not
@@ -2696,9 +2717,8 @@ function mel_catv_info($in)
     $step = MEL_CATV_LINE_PX + 5;
     $n = intval((MEL_CATV_PANE_H - $y - MEL_CATV_LINE_PX) / $step);
     // The line of the history (mel_pg_info_line), V2b of the designer: under the description, as the native one, at one
-    // place whatever the length of the description and the lines over it: its middle MEL_PG_INFO_GAP under the middle of
-    // the last line of a description of MEL_CATV_DESC_HIST lines under all the lines of the panel (facts, genres, cast);
-    // the description as many lines as are over it.
+    // place whatever the length of the description and the lines over it (mel_catv_hist_y); the description as many
+    // lines as are over it.
     // A title of "Мой список": " · В моём списке" after it; in the list with no history the words alone there.
     $mid = mel_cp_mid_of($id);
     $b = $t ? ($mid !== '' ? mel_cp_badge($mid, $t['type']) : mel_pg_tile_badge($t)) : null;
@@ -2706,10 +2726,8 @@ function mel_catv_info($in)
     $hist = array();
     if ($b || $ml !== '')
     {
-        // The top of the last line of such a description.
-        $last = MEL_CATV_LINES_Y + 3 * MEL_CATV_LINE_H + 13 + (MEL_CATV_DESC_HIST - 1) * $step;
-        $n = min($n, intval(($last - $y) / $step) + 1);
-        $hy = $last + MEL_CATV_DESC_MID + MEL_PG_INFO_GAP - intval(MEL_PG_INFO_H / 2);
+        $n = min($n, intval((mel_catv_hist_last() - $y) / $step) + 1);
+        $hy = mel_catv_hist_y();
         $hist = $b ? mel_pg_info_line($b, $hy, mel_catv_ui_lang(), $ml !== '' ? " · $ml" : '') : mel_pg_info_words($ml, $hy);
     }
     $desc = implode(' ', mel_gc_wrap(mel_clean($desc), MEL_CATV_LINE_PX, MEL_CATV_TEXT_W, $n, true));

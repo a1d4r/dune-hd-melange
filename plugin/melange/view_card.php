@@ -3,10 +3,10 @@
 // catalog grown into a card (R1 of design-own-card.md). The card background of the server
 // (mel_catv_card) with the logo, or the dark one and the title as text; the lines of the panel of
 // the catalog at its places (facts, genres and countries, the director, the description), the
-// buttons in a row ("Watch", "Trailer", "My list") over a band of our own, over them the progress of the movie, under
-// them its copy on the disk or why there is no history; at the bottom the first of the rows (the movies of a long
-// franchise, similar titles with the parts of a short one first, the cast of the meta, card_meta.php) and at
-// its right the hint "Похожие, в ролях и о фильме". DOWN scrolls the page under the logo:
+// buttons in a row ("Watch", "Trailer", "My list") over a band of our own, over them the line of the history of the
+// movie as the catalog has it, over that its copy on the disk or why there is no history; at the bottom the first of
+// the rows (the movies of a long franchise, similar titles with the parts of a short one first, the cast of the meta,
+// card_meta.php) and at its right the hint "Похожие, в ролях и о фильме". DOWN scrolls the page under the logo:
 // the rows one by one under the logo, a stop each, then "About the movie" (the tagline, the whole
 // description, the details) under them, the background gone, the screen black; DOWN again
 // further while there is more, UP back, at last to the button left. A series (H3): the buttons
@@ -20,10 +20,10 @@
 // travels in sel_state.
 // ENTER on a tile does the network (mel_oc_enter: the meta; the rows of posters on r24); the screen
 // is built from memory; from r25 its timer asks the rows of posters (mel_oc_load).
-// Needs main.php, catalog.php, catalog_card.php, card_meta.php, card_more.php, history.php, playback.php, view_catalog.php,
-// view_gcomps.php, gcomps.php, playback_lib.php; the seasons and the episodes of a series: view_card_series.php; the
-// strip of a row and the frame of the focus: view_card_row.php; the rows of the card (the cast, the
-// posters), ENTER on their items and the timer of the posters: view_card_rows.php.
+// Needs main.php, catalog.php, catalog_card.php, card_meta.php, card_more.php, history.php, playback.php, progress.php,
+// continue.php, view_catalog.php, view_gcomps.php, gcomps.php, playback_lib.php; the seasons and the episodes of a
+// series: view_card_series.php; the strip of a row and the frame of the focus: view_card_row.php; the rows of the
+// card (the cast, the posters), ENTER on their items and the timer of the posters: view_card_rows.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // Cards kept in memory by "<type>:<id>", MEL_CM_KEEP_EPS episodes in all at most; the oldest
@@ -58,26 +58,31 @@ define('MEL_OC_INK', 10);
 // The first screen (design-own-card.md, B): lines of the panel, the description in 30 px lines
 // DESC_LH apart from under the director (or the genres) down to DESC_BOTTOM; buttons BTN_H high
 // at BTN_Y, the text PAD from the edges (and the icon of "Watch" ICON_W more), GAP apart; CAP: the
-// rounded ends (PNG), a rect between them; a line under them at LINE_Y; the progress over them at OVER_Y, in place of
-// the last line of the description (R1, owner 20.11.2026), the bar BAR_H high in the middle of its LINE_H; the hint at
-// the line of the cast, its right edge at HINT_R, its arrow HINT_ARROW_DX after the text.
+// rounded ends (PNG), a rect between them; the hint at the line of the cast, its right edge at HINT_R, its arrow
+// HINT_ARROW_DX after the text.
+// A movie, variant Б of the fifth pass (owner 20.11.2026, design-local-library.md, v10_B_*.png): under the director 4
+// lines of the description down to the buttons; the line of the history of the catalog (mel_oc_hist: its place and
+// look, mel_pg_info_line) takes the 4th, the line of the copy on the disk ("С диска", MEL_OC_LIB_Y of
+// view_card_lib.php) or the line why at LINE_Y (no copy: "Только Lampac", no history, no IMDb) the 3rd - those over
+// them go too: the description 3 lines with the history alone, 2 with either line, the slot of the history empty when
+// there is none; the buttons and the rows do not move.
 define('MEL_OC_FACTS_Y', 269);
 define('MEL_OC_GENRES_Y', 315);
 define('MEL_OC_DIRECTOR_Y', 361);
 define('MEL_OC_DESC_LH', 42);
-define('MEL_OC_DESC_BOTTOM', 560);
-define('MEL_OC_BTN_Y', 584);
+define('MEL_OC_DESC_BOTTOM', 589);
+define('MEL_OC_BTN_Y', 602);
 define('MEL_OC_BTN_H', 64);
 define('MEL_OC_BTN_PAD', 32);
 define('MEL_OC_ICON_W', 34);
 define('MEL_OC_BTN_GAP', 20);
 define('MEL_OC_CAP', 12);
-define('MEL_OC_LINE_Y', 660);
-// The height of a label of the card smaller than the lines of the panel (24 px: mel_oc_label), of the lines under and
-// over the buttons; their text MEL_OC_LINE_PX.
+// The line why: its capitals on those of the 3rd line of the description (532), as the line "С диска".
+define('MEL_OC_LINE_Y', 512);
+// The height of a label of the card smaller than the lines of the panel (24 px: mel_oc_label), of the lines over the
+// buttons; their text MEL_OC_LINE_PX. The bar of the progress of an episode on its still BAR_H high.
 define('MEL_OC_LINE_H', 34);
 define('MEL_OC_LINE_PX', MEL_K_PX_CAPTION);
-define('MEL_OC_OVER_Y', MEL_OC_DESC_BOTTOM - MEL_OC_DESC_LH);
 define('MEL_OC_BAR_H', 6);
 define('MEL_OC_HINT_R', 1845);
 define('MEL_OC_HINT_ARROW_DX', 16);
@@ -504,23 +509,6 @@ function mel_oc_date($d, $lang)
     return mel_oc_day($d, $lang);
 }
 
-// "Просмотрено 53 % · осталось 1 ч 12 мин" of a movie at $pos of $len s; '' when not begun or watched
-// (mel_wh_full).
-/**
- * @param float $pos
- * @param float $len
- * @param string $lang
- * @return string
- */
-function mel_oc_progress_text($pos, $len, $lang)
-{
-    if ($pos <= 0 || mel_wh_full($pos, $len))
-        return '';
-    $left = mel_catv_runtime(intval(ceil(max(0, $len - $pos) / 60)) . 'min', $lang);
-    return str_replace(array('{p}', '{t}'), array(strval(intval(round($pos * 100 / $len))), $left),
-        mel_tr($lang, 'card_progress'));
-}
-
 // --- Layout.
 
 // "Смотреть" of card $c: with an IMDb, else of its meta loaded (an IMDb may be in one not loaded: "Повторить" first),
@@ -697,8 +685,8 @@ function mel_oc_hd($c, $l, $pos)
     return $ep ? mel_oc_ep_head($c, $ep, mel_oc_lib_ep_cur($l, $ep['s'], $ep['e'])) : mel_oc_head_lines($c, $l);
 }
 
-// The lines of the panel (x of the catalog), the description to DESC_BOTTOM, a line higher with the progress or
-// "Watched" over the buttons (over, mel_oc_over); a series: DESC_GAP_SER, DESC_LH_SER, DESC_BOTTOM_SER.
+// The lines of the panel (x of the catalog), the description to DESC_BOTTOM, cut lines higher (a movie: the lines over
+// the buttons take them, mel_oc_first_movie); a series: DESC_GAP_SER, DESC_LH_SER, DESC_BOTTOM_SER.
 /**
  * @param MelOcCard $c
  * @param MelOcNav $l
@@ -733,7 +721,7 @@ function mel_oc_head_lines($c, $l)
     $ser = $l['kind'] === 'series';
     $y += $ser ? MEL_OC_DESC_GAP_SER : 14;
     $lh = $ser ? MEL_OC_DESC_LH_SER : MEL_OC_DESC_LH;
-    $bottom = $ser ? MEL_OC_DESC_BOTTOM_SER : MEL_OC_DESC_BOTTOM - ($l['over'] ? MEL_OC_DESC_LH : 0);
+    $bottom = $ser ? MEL_OC_DESC_BOTTOM_SER : MEL_OC_DESC_BOTTOM - $l['cut'] * MEL_OC_DESC_LH;
     $n = max(0, intval(($bottom - $y) / $lh));
     $desc = $c['meta'] && $c['meta']['description'] !== '' ? $c['meta']['description'] : $c['tile']['description'];
     foreach (mel_gc_wrap(mel_clean($desc), MEL_CATV_LINE_PX, MEL_CATV_TEXT_W, $n, true) as $i => $line)
@@ -741,8 +729,9 @@ function mel_oc_head_lines($c, $l)
     return $d;
 }
 
-// Under the buttons of a movie without a copy on the disk: no "Смотреть" (mel_oc_can_watch) - the meta failed; no card
-// of the Dune - no history; else none ($over: the progress or "Watched" over the buttons, mel_oc_over; no line of it).
+// The line why of a movie without a copy on the disk, at LINE_Y over the buttons (owner 20.11.2026: from under them):
+// no "Смотреть" (mel_oc_can_watch) - the meta failed; no card of the Dune - no history; else none ($over: the line of
+// the history is there, mel_oc_hist; no line of it).
 /**
  * @param MelOcCard $c
  * @param bool $over
@@ -760,44 +749,22 @@ function mel_oc_under($c, $over)
     return array(mel_oc_label(MEL_CATV_CARD_X, MEL_OC_LINE_Y, MEL_CATV_TEXT_W, $line, MEL_OC_LINE_PX, MEL_CATV_TEXT_COLOR));
 }
 
-// Over the buttons of a movie, with a copy on the disk or not (R1, owner 20.11.2026), in place of the last line of the
-// description: its progress $wh, if begun - the bar as wide as "Watch" ($w0: its width) and the text right of it;
-// watched (by its position or $marked: by a mark, mel_pg_mark_kind) - "Watched" grey without the bar; else none.
+// The line of the history of the movie of card of history $h over the buttons (variant Б, owner 20.11.2026): that of the
+// panel of the catalog (mel_pg_info_line of its badge, mel_cp_badge: the bar, "Осталось 0:58"; watched - the bar full,
+// "Просмотрено" and the tick) at its place on the screen (mel_catv_hist_y), in a panel where that of the catalog is
+// (MEL_CATV_CARD_X, MEL_CATV_PANE_Y): it does not jump on the way catalog -> card. Not begun: none.
 /**
  * @param string $lang
- * @param array{float, float}|null $wh
- * @param int $w0
- * @param bool $marked
+ * @param string $h
  * @return list<array<string, mixed>>
  */
-function mel_oc_over($lang, $wh, $w0, $marked)
+function mel_oc_hist($lang, $h)
 {
-    $x0 = MEL_CATV_CARD_X;
-    if ($marked || ($wh && mel_wh_full($wh[0], $wh[1])))
-        return array(mel_oc_label($x0, MEL_OC_OVER_Y, MEL_CATV_TEXT_W, mel_tr($lang, 'card_watched'), MEL_OC_LINE_PX,
-            MEL_GC_DIM));
-    $p = $wh ? mel_oc_progress_text($wh[0], $wh[1], $lang) : '';
-    if ($p === '')
+    $b = mel_cp_badge($h, 'movie');
+    if (!$b)
         return array();
-    $d = mel_oc_bar($wh, $w0);
-    $d[] = mel_oc_label($x0 + $w0 + MEL_OC_BTN_GAP, MEL_OC_OVER_Y, 1920 - $x0 - $w0 - MEL_OC_BTN_GAP - 75, $p,
-        MEL_OC_LINE_PX, MEL_CATV_TEXT_COLOR);
-    return $d;
-}
-
-// The bar of progress $wh (begun) of a movie over "Watch" ($w0: its width), in the middle of the line of its text.
-/**
- * @param array{float, float} $wh
- * @param int $w0
- * @return list<MelGcComp>
- */
-function mel_oc_bar($wh, $w0)
-{
-    $x0 = MEL_CATV_CARD_X;
-    $by = MEL_OC_OVER_Y + intval((MEL_OC_LINE_H - MEL_OC_BAR_H) / 2);
-    $fw = max(MEL_GC_BAR_MIN, intval(round($w0 * min(1, $wh[0] / $wh[1]))));
-    return array(mel_gc_rect(mel_gc_at($w0, MEL_OC_BAR_H, $x0, $by), MEL_OC_BAR_REST),
-        mel_gc_rect(mel_gc_at($fw, MEL_OC_BAR_H, $x0, $by), MEL_GC_TEXT));
+    return array(mel_gc_panel('hist', mel_gc_at(MEL_CATV_PANE_W, MEL_CATV_PANE_H, MEL_CATV_CARD_X, MEL_CATV_PANE_Y),
+        mel_pg_info_line($b, mel_catv_hist_y(), $lang)));
 }
 
 // A series without a card of the Dune or "Смотреть" (mel_oc_can_watch: the meta failed): the line why, right of the
@@ -1032,11 +999,11 @@ function mel_oc_stops($bands, $strips, $about, $off)
 // first of them under the buttons), the width of the title of the first row (tw: before the hint
 // of a movie, TITLE_W at most), what the first screen alone shows (what the keys need,
 // MelOcNav), the components of "About" under the rows (the rows over them by the place,
-// mel_oc_window). The first screen alone: the line under the buttons and that over them (a movie: its progress,
-// mel_wh_movie, read here once a request, mel_oc_over; over: whether it is there, the description a line shorter,
-// mel_oc_head_lines) - its foot would peep under the logo at DOWN - and the hint of what DOWN shows ("Похожие, в ролях
-// и о фильме"). A series: the history read once (mel_oc_pick): the episode to offer and the progress of the episodes;
-// the tabs of its seasons and the row, or the line "did not load" without the meta.
+// mel_oc_window). The first screen alone: the lines over the buttons (a movie: the line of its history, read here
+// once a request, and that of its copy or why, mel_oc_first_movie; cut: the lines of the description they take,
+// mel_oc_head_lines) - their foot would peep under the logo at DOWN - and the hint of what DOWN shows ("Похожие, в
+// ролях и о фильме"). A series: the history read once (mel_oc_pick): the episode to offer and the progress of the
+// episodes; the tabs of its seasons and the row, or the line "did not load" without the meta.
 /**
  * @param MelOcCard $c
  * @return MelOcLayout
@@ -1073,12 +1040,12 @@ function mel_oc_layout($c)
         $zones[] = 'row';
     if (count($stops) > 1)
         $zones[] = 'down';
-    $over = false;
+    $cut = 0;
     if ($series)
         $only = mel_oc_first_series($c, $btns, $down || $cast || $posters);
     else
     {
-        list($only, $over) = mel_oc_first_movie($c, $btns, $ol['lib'], $ol['hid']);
+        list($only, $cut) = mel_oc_first_movie($c, $ol['lib'], $ol['hid']);
         if ($down || $posters)
         {
             $below = array_slice($rows, 1);
@@ -1094,7 +1061,7 @@ function mel_oc_layout($c)
     return array('kind' => $series ? 'series' : 'movie', 'btns' => $btns, 'btn_y' => $series ? MEL_OC_BTN_Y_SER : MEL_OC_BTN_Y,
         'stops' => $stops, 'clips' => $clips, 'tops' => $tops, 'h' => max(1080, $stops[count($stops) - 1] + MEL_OC_SHOW_BOTTOM), 'off' => $off,
         'zones' => $zones, 'tabs' => $tabs, 'ep' => $ep, 'prog' => $prog, 'rows' => $rows, 'strips' => $strips, 'tw' => $tw,
-        'first' => $only, 'over' => $over, 'down' => $down, 'lib' => $ol['lib'], 'hid' => $ol['hid'],
+        'first' => $only, 'cut' => $cut, 'down' => $down, 'lib' => $ol['lib'], 'hid' => $ol['hid'],
         'lib_eps' => $ol['lib_eps'], 'lib_y' => $ol['lib_y'], 'lib_cur' => $ol['lib_cur']);
 }
 
@@ -1117,35 +1084,32 @@ function mel_oc_first_series($c, $btns, $more)
     return $only;
 }
 
-// The first screen of the movie of card $c alone, of buttons $btns and copies on the disk $lib of card of history $hid
-// (mel_oc_lib): the line over the buttons (its progress, mel_wh_movie, or "Watched", mel_oc_over) and that under them
-// -> array(the components, over: whether the line over them is there).
+// The first screen of the movie of card $c alone, of copies on the disk $lib of card of history $hid (mel_oc_lib): the
+// lines over the buttons (variant Б, owner 20.11.2026) - that of its history (mel_oc_hist) and that of its copy
+// (mel_oc_lib_line) or why (mel_oc_under) -> array(the components, cut: the lines of the description they take - 2 with
+// the line of the copy or why, 1 with the history alone).
 /**
  * @param MelOcCard $c
- * @param list<array{string, string, string, int}> $btns
  * @param list<MelLibCopy> $lib
  * @param string $hid
- * @return array{list<array<string, mixed>>, bool}
+ * @return array{list<array<string, mixed>>, int}
  */
-function mel_oc_first_movie($c, $btns, $lib, $hid)
+function mel_oc_first_movie($c, $lib, $hid)
 {
-    $w0 = $btns ? mel_oc_btn_w($btns[0]) : 0;
     // The history: by $hid with a copy (the file plays), else by the card of the Dune when "Watch" plays.
     $h = $lib ? $hid : ($c['dune'] !== '' && mel_oc_can_watch($c) ? $c['dune'] : '');
-    $only = array();
-    if ($h !== '')
-        $only = mel_oc_over($c['ui'], mel_wh_movie($h), $w0, mel_pg_mark_kind($h, 'movie') === 'off');
-    $over = (bool) $only;
+    $hist = $h !== '' ? mel_oc_hist($c['ui'], $h) : array();
     // A copy on the disk: the line of that of its latest record (mel_oc_lib_cur), else of the best (owner
     // 18-19.11.2026), with the count of two copies or more, in place of the lines of no IMDb, no Lampac or no card of
     // the Dune (the file plays).
     if ($lib)
     {
         $cur = mel_oc_lib_cur($lib, $hid);
-        return array(array_merge($only, mel_oc_lib_line($c['ui'], $cur ? $cur : $lib[0], MEL_CATV_CARD_X, count($lib))),
-            $over);
+        $line = mel_oc_lib_line($c['ui'], $cur ? $cur : $lib[0], MEL_CATV_CARD_X, count($lib));
     }
-    return array(array_merge($only, mel_oc_under($c, $over)), $over);
+    else
+        $line = mel_oc_under($c, (bool) $hist);
+    return array(array_merge($hist, $line), $line ? 2 : ($hist ? 1 : 0));
 }
 
 // The clip of the page at stop $p of layout $l, from its top (under the logo; at the stop of a row of posters under
@@ -1773,7 +1737,7 @@ function mel_oc_src_items($key, $c, $l, $pos)
 }
 
 // card_finish (GUI_EVENT_MENU_PLAYBACK_FINISH of the screen of card $c, $key; after STOP): the card anew in place (its
-// progress, its line under the buttons); after a copy on the disk (played) also the tab "TV" built anew (mel_tv_flag)
+// progress, its lines over the buttons); after a copy on the disk (played) also the tab "TV" built anew (mel_tv_flag)
 // and the main screens of the catalog anew first (mel_catv_after_player: the row "Continue" and the badges), as
 // mel_finish of the list.
 /**
