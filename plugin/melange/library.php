@@ -77,7 +77,7 @@ class MelLib
     // Episode files (ass 0, s >= 1, e >= 1) by their movie_id, their season and episode after the rules of the numbers
     // (mel_lib_eps_fix); a movie_id with none of them taken is not here. Only the fields of a file of a copy not got
     // from the others (mel_lib_ep_file): a library may have tens of thousands of them, all in the memory of php_server.
-    /** @var array<string, list<MelLibEp>> */
+    /** @var array<string, list<MelLibEpRec>> */
     public static $eps = array();
     // The hashes of the episode files mel_lib_eps_fix dropped, by their movie_id.
     /** @var array<string, list<string>> */
@@ -611,7 +611,7 @@ function mel_lib_folder_index($folder_id, &$info, &$left, &$ep_in = null)
 // resolution by them, else by the name, its folder in the folder of the library.
 /**
  * @param string $mid
- * @param MelLibEp $f
+ * @param MelLibEpRec $f
  * @return MelLibFile
  */
 function mel_lib_ep_file($mid, $f)
@@ -623,7 +623,7 @@ function mel_lib_ep_file($mid, $f)
 }
 
 // The rules of the numbers of the episode files of one movie_id (as the index has them, mel_lib_folder_index) ->
-// files: the ones taken, their season and episode final (in their order, no mc, no dir: MelLibEp); drop: the hashes
+// files: the ones taken, their season and episode final (in their order, no mc, no dir: MelLibEpRec); drop: the hashes
 // of the rest; the counts for the log. A pack: mel_lib_pack. By the name of the file the number (mel_ts_ep, else the
 // number leading the name mel_ts_ep_lead) and the season if any:
 // 1. no number in the name: taken as in the index;
@@ -638,7 +638,7 @@ function mel_lib_ep_file($mid, $f)
 // 5. of a season and episode with a file of match_confirmed, the files without it dropped.
 /**
  * @param list<MelLibEpIn> $files
- * @return array{files: list<MelLibEp>, drop: list<string>, eps: int, fixed: int, index: int, name: int, hidden: int}
+ * @return array{files: list<MelLibEpRec>, drop: list<string>, eps: int, fixed: int, index: int, name: int, hidden: int}
  */
 function mel_lib_eps_fix($files)
 {
@@ -1514,7 +1514,7 @@ function mel_lib_by_movies($t, $movies)
 // a series its episodes (MelLib::$eps); none of another type.
 /**
  * @param string $type
- * @return array<string, list<MelLibFile>>|array<string, list<MelLibEp>>
+ * @return array<string, list<MelLibFile>>|array<string, list<MelLibEpRec>>
  */
 function mel_lib_map($type)
 {
