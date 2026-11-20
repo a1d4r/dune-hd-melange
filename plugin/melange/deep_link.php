@@ -154,9 +154,9 @@ function mel_dl_card($q)
             PluginOpenFolderActionData::caption => $card['tile']['name'] !== '' ? $card['tile']['name'] : '%tr%plugin_caption'));
 }
 
-// The profile of src of a link: of the id if it is one (mel_profile_id_ok) of a profile there, else of the name
-// trimmed as the page trims one (mel_profile_name): the same, else the same of no case (two such: the first) ->
-// array(its id, '' none; why none: 'no such source', 'not ready' (mel_profile_ready), '' for one).
+// The profile of src of a link, trimmed as the page trims a name (mel_profile_name): of the id if it is one
+// (mel_profile_id_ok) of a profile there, else of the name: the same, else the same of no case and ё as е (two such:
+// the first) -> array(its id, '' none; why none: 'no such source', 'not ready' (mel_profile_ready), '' for one).
 /**
  * @param string $src
  * @return array{string, string}
@@ -166,14 +166,14 @@ function mel_dl_src($src)
     $s = Mel::$file;
     if (!$s)
         return array('', 'no such source');
-    $k = mel_profile_id_ok($src) ? mel_profile_index($s, $src) : -1;
     $name = mel_profile_name($src);
+    $k = mel_profile_id_ok($name) ? mel_profile_index($s, $name) : -1;
     if ($k < 0)
         $k = mel_profile_find($s, $name);
-    $low = mb_strtolower($name, 'UTF-8');
+    $low = mb_strtolower(str_replace(array('ё', 'Ё'), 'е', $name), 'UTF-8');
     foreach ($k < 0 && $name !== '' ? $s['profiles'] : array() as $i => $p)
     {
-        if (mb_strtolower($p['name'], 'UTF-8') === $low)
+        if (mb_strtolower(str_replace(array('ё', 'Ё'), 'е', $p['name']), 'UTF-8') === $low)
         {
             $k = $i;
             break;

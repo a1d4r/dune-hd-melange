@@ -932,8 +932,8 @@ function mel_op_title($id, $kind)
 }
 
 // The settings of the operation (mel_op_use) of profile $id chosen by "Смотреть из…" (mel_play_action; its caller
-// checked it there and ready: mel_src_watch_pick): it and the other one of the pair of the main one, logged; nothing
-// written. -> it is Lampac (the title opens online).
+// checked it there and ready: mel_src_watch_pick, mel_dl_src (deep_link.php)): it and the other one of the pair of
+// the main one, logged; nothing written. -> it is Lampac (the title opens online).
 /**
  * @param string $id
  * @return bool
@@ -1886,7 +1886,8 @@ function mel_list_state($mv, $s, $e, $rows, $lang, $errors)
 // play_action $in; $hist: the episode of the history (mel_wh_pick) $in asks, null none - the own card (mel_oc_watch,
 // MelOcEp of mel_oc_pick), the main card (mel_wh_episode here). With no "Continue" its list opens at its release
 // (hash), or its online list at the row of its online record (key). $src: the id of the ready profile chosen by
-// "Смотреть из…" (mel_oc_watch_from), its list at once (mel_op_src), nothing remembered; '' - by the record (mel_op_title).
+// "Смотреть из…" (mel_oc_watch_from; checked by mel_src_watch_pick, mel_dl_src (deep_link.php)), its list at once
+// (mel_op_src), nothing remembered; '' - by the record (mel_op_title).
 // A movie_str made by Melange itself adds mel_lpv_tile_ids: Lampac puts the quality into the name of a balancer and show
 // false only with a TMDB id. No IMDb: the search of Lampac always (its "Continue" too), its windows of nothing online
 // and of no answer, never the releases; no Lampac - err_no_imdb_rel.
