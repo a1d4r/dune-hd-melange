@@ -685,8 +685,8 @@ function mel_lib_next_ep($in)
 
 // The dialog over the stopped player when the next episode S$q E$e of the disk does not play ($why: none - no copy of
 // it on the disk, no - its file not there now, slow - the disk did not answer; owner 3 (a)): "Choose a release" (the
-// list of the episode, lib_next_pick) and "Stop", as "not in this release" (mel_next_missing). No IMDb: "Stop" only
-// (no releases, mel_next_fetch). The title here: another one is one edit.
+// list of the episode, lib_next_pick) and "Stop", as "not in this release" (mel_next_missing). No IMDb nor TMDB
+// (mel_rel_id): "Stop" only (no releases, mel_next_fetch). The title here: another one is one edit.
 /**
  * @param MelMovie $mv
  * @param int $q
@@ -698,9 +698,10 @@ function mel_lib_next_ep($in)
 function mel_lib_next_missing($mv, $q, $e, $why, $lang)
 {
     mel_log(sprintf('lib_next: -> dialog: S%02dE%02d ', $q, $e) . ($why === 'slow' ? 'the disk did not answer' :
-        ($why === 'no' ? 'the file not there' : 'not on the disk')) . ($mv['imdb'] === '' ? ', no IMDb' : ''));
+        ($why === 'no' ? 'the file not there' : 'not on the disk')) .
+        (mel_rel_id($mv) === '' ? ', no IMDb, no TMDB' : ''));
     $buttons = array();
-    if ($mv['imdb'] !== '')
+    if (mel_rel_id($mv) !== '')
         $buttons[mel_tr($lang, 'next_pick')] = mel_input('lib_next_pick', array('k' => $mv['dune_id'],
             's' => strval($q), 'e' => strval($e)));
     $buttons[mel_tr($lang, 'next_stop')] = mel_input('next_stop');

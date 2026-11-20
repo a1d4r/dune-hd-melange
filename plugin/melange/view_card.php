@@ -66,10 +66,11 @@ define('MEL_OC_INK', 10);
 // A movie, variant Б of the fifth pass (owner 20.11.2026, design-local-library.md, v10_B_*.png): under the director 4
 // lines of the description down to the buttons; the line of the history of the catalog (mel_oc_hist: its place and
 // look, mel_pg_info_line) takes the 4th, the line of the copy on the disk ("С диска", MEL_OC_LIB_Y of
-// view_card_lib.php) or the line why at LINE_Y (no copy: "Только Lampac", no history, no IMDb) the 3rd - those over
-// them go too: the description 3 lines with the history alone, 2 with either line, the slot of the history empty when
-// there is none; the buttons and the rows do not move. DESC_BOTTOM: the bottom of the slot of the history - that of the
-// line of the panel of the catalog (mel_catv_hist_y in a panel at MEL_CATV_PANE_Y, MEL_PG_INFO_H high), 589.
+// view_card_lib.php) or the line why at LINE_Y (no copy, mel_oc_why: the meta failed - cat_row_failed, else no card of
+// the Dune - card_no_history) the 3rd - those over them go too: the description 3 lines with the history alone, 2 with
+// either line, the slot of the history empty when there is none; the buttons and the rows do not move. DESC_BOTTOM:
+// the bottom of the slot of the history - that of the line of the panel of the catalog (mel_catv_hist_y in a panel at
+// MEL_CATV_PANE_Y, MEL_PG_INFO_H high), 589.
 define('MEL_OC_FACTS_Y', 269);
 define('MEL_OC_GENRES_Y', 315);
 define('MEL_OC_DIRECTOR_Y', 361);
@@ -734,14 +735,12 @@ function mel_oc_head_lines($c, $l)
 }
 
 // The line why of a movie without a copy on the disk, at LINE_Y over the buttons (owner 20.11.2026: from under them):
-// no "Смотреть" (mel_oc_can_watch) - the meta failed; no card of the Dune - no history; else none ($hist: the line of
-// the history is there, mel_oc_hist; no line of it).
+// no "Смотреть" (mel_oc_can_watch) - the meta failed; no card of the Dune - no history; else none.
 /**
  * @param MelOcCard $c
- * @param bool $hist
  * @return list<array<string, mixed>>
  */
-function mel_oc_why($c, $hist)
+function mel_oc_why($c)
 {
     $line = '';
     if (!mel_oc_can_watch($c))
@@ -1113,7 +1112,7 @@ function mel_oc_first_movie($c, $lib, $hid)
         $line = mel_oc_lib_line($c['ui'], $cur ? $cur : $lib[0], MEL_CATV_CARD_X, count($lib));
     }
     else
-        $line = mel_oc_why($c, (bool) $hist);
+        $line = mel_oc_why($c);
     $top = $line ? ($lib ? MEL_OC_LIB_Y : MEL_OC_LINE_Y) : ($hist ? MEL_CATV_PANE_Y + mel_catv_hist_y() : MEL_OC_DESC_BOTTOM);
     return array(array_merge($hist, $line), $top);
 }
