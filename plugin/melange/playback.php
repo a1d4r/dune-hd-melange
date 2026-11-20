@@ -121,6 +121,24 @@ function mel_lib_lazy_url($hid, $y, $q, $e, $cid)
     return "lib_next:$hid:$y:$q:$e:$cid";
 }
 
+// get_vod_stream_url of lazy episode $pb of the disk (mel_lib_lazy_url; mel_lazy_action) -> error_action:
+// handle_user_input lib_next (mel_lib_next), its copy checked there. A bad one: the error.
+/**
+ * @param string $pb
+ * @return MelAction
+ */
+function mel_lib_lazy($pb)
+{
+    if (!preg_match('/^lib_next:(' . MEL_DUNE_ID . '):(' . MEL_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):(' .
+        MEL_LIB_CID . '|-)$/D', $pb, $m))
+    {
+        mel_log('lazy: bad playback_url ' . mel_cut(mel_mask($pb), 100));
+        return mel_error('err_list_expired', '', true);
+    }
+    mel_log("lazy: S{$m[3]}E{$m[4]} of the disk {$m[5]} -> handle_user_input lib_next");
+    return mel_input('lib_next', array('k' => $m[1], 'y' => $m[2], 's' => $m[3], 'e' => $m[4], 'c' => $m[5]));
+}
+
 // A playlist item of URL $url, linked to the card by $hash ('' - unlinked);
 // $list: in a playlist of several (mel_ser_name). Its recent_uid is read back
 // by history.php: mel_wh_pick (the release), mel_wh_progress, mel_wh_series
@@ -2051,13 +2069,9 @@ function mel_lazy_action($pb)
     // An episode of "Онлайн" (online_play.php).
     if (is_string($pb) && strpos($pb, 'lampac_next:') === 0)
         return mel_lpv_lazy($pb);
-    // An episode of the disk (mel_lib_lazy_url): its copy checked by lib_next (mel_lib_next).
-    if (is_string($pb) && preg_match('/^lib_next:(' . MEL_DUNE_ID . '):(' . MEL_DUNE_ID . '):([1-9][0-9]{0,3}):' .
-        '([1-9][0-9]{0,4}):(cp-[0-9a-f]{12}|-)$/D', $pb, $m))
-    {
-        mel_log("lazy: S{$m[3]}E{$m[4]} of the disk {$m[5]} -> handle_user_input lib_next");
-        return mel_input('lib_next', array('k' => $m[1], 'y' => $m[2], 's' => $m[3], 'e' => $m[4], 'c' => $m[5]));
-    }
+    // An episode of the disk (mel_lib_lazy_url).
+    if (is_string($pb) && strpos($pb, 'lib_next:') === 0)
+        return mel_lib_lazy($pb);
     if (!is_string($pb) || !preg_match('/^aio_next:(' . MEL_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([0-9a-f]{40}):(debrid|ts)' .
         '(?::([a-z0-9]{8}))?$/D', $pb, $m))
     {

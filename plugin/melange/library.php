@@ -924,8 +924,11 @@ function mel_lib_key_ok($k)
     return is_string($k) && preg_match('/^lib-[0-9a-f]{12}$/D', $k) === 1;
 }
 
-// 'cp-' + 12 hex of the path to play of a copy: its id in the menu of the copies and the choice of it (one of
-// mirrors of one key), no path in the params of an action.
+// The id of a copy (mel_lib_cid) in a regex: of the menu of the copies (mel_lib_cid_ok) and of lib_next: (mel_lib_lazy).
+define('MEL_LIB_CID', 'cp-[0-9a-f]{12}');
+
+// 'cp-' + 12 hex of the path to play of a copy (MEL_LIB_CID): its id in the menu of the copies and the choice of it
+// (one of mirrors of one key), no path in the params of an action.
 /**
  * @param string $url
  * @return string
@@ -942,7 +945,7 @@ function mel_lib_cid($url)
  */
 function mel_lib_cid_ok($k)
 {
-    return is_string($k) && preg_match('/^cp-[0-9a-f]{12}$/D', $k) === 1;
+    return is_string($k) && preg_match('/^' . MEL_LIB_CID . '$/D', $k) === 1;
 }
 
 // The resolution in the name of a file (the last part of its path): '4K',
