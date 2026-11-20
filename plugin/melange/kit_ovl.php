@@ -8,8 +8,9 @@
 //   owner  whose screen: the rid of a list of releases, the key of an own card (MelOc::$cards), the key of an online
 //          list. Every key of the overlay carries it (o); a key of another owner, or with no state (a php_server
 //          restart), is of a stale screen;
-//   map    the action map of the screen, without RETURN (the shell leaves the screen by it) [device, gcomps_overlay_probe
-//          P3]; the open puts the map of the overlay in its place (change_behaviour), the close puts it back;
+//   map    the action map of the screen whole, with the keys Fav (mel_mlv_key_acts), without RETURN (the shell leaves
+//          the screen by it) [device, gcomps_overlay_probe P3]; the open puts the map of the overlay in its place
+//          (change_behaviour), the close puts it back;
 //   timer  the timer of the screen (GuiTimerDef, null none): off while the overlay is open (a tick replacing the screen,
 //          as card_load of the own card, would take the overlay away), back at the close;
 //   sel    the sel_state of the screen, given to every change_gcomps of the overlay.

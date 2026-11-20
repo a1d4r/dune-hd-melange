@@ -147,7 +147,7 @@ function mel_lib_win_cur($key, $copies, $s = -1, $e = -1)
 /**
  * @param string $key
  * @param list<MelLibCopy> $copies
- * @param string $mode
+ * @param 'first'|'menu' $mode
  * @param int $s
  * @param int $e
  * @param string|null $cur

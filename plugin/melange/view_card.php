@@ -1411,8 +1411,8 @@ function mel_oc_window($c, $l, $pos)
     // What the first screen alone shows, over the clip: the arrow of a series is under its bottom.
     $d[] = mel_gc_panel('first', mel_gc_at(1920, 1080, 0, 0), $pos['z'] === 'down' ? array() : $l['first']);
     $d[] = mel_gc_panel('ri', mel_gc_at(1920, MEL_OC_RI_Y - MEL_OC_INK, 0, 0), mel_oc_ri($c, $l, $pos));
-    // A title with copies on the disk: the slot of the overlay (the window of the copies) last; the others as before.
-    if ($l['lib'] || $l['lib_eps'])
+    // The slot of the overlay (the window of the copies) last; the others as before.
+    if (mel_oc_slot($l))
         $d[] = mel_ovl_slot();
     return array(
         GCompWindowDef::background_color => 'rgb(0,0,0)',
@@ -1524,20 +1524,31 @@ function mel_oc_acts($key, $c, $l)
 // as the shell has it (mel_oc_acts and the keys Fav 2 and Fav 1 mel_mlv_keys adds: the close puts the map back whole by
 // change_behaviour; no RETURN), its timer (card_load of the rows of posters still asked, else null; off while the overlay
 // is open: a tick puts the screen anew), its sel_state at the place of the focus. A card not in memory or not shown
-// (no nav): null.
+// (no nav), or its screen with no slot of the overlay (mel_oc_slot): null.
 /**
  * @param string $key
  * @return MelOvlScreen|null
  */
 function mel_oc_scr($key)
 {
-    if (!isset(MelOc::$cards[$key]['nav']))
+    if (!isset(MelOc::$cards[$key]['nav']) || !mel_oc_slot(MelOc::$cards[$key]['nav']))
         return null;
     $c = MelOc::$cards[$key];
     $l = $c['nav'];
     list($acts, $timer) = mel_oc_acts($key, $c, $l);
     return array('owner' => $key, 'map' => $acts + mel_mlv_key_acts("card:$key"), 'timer' => $timer,
         'sel' => mel_oc_state($c['pos'], $l));
+}
+
+// The screen of the card of copies $l (its layout or nav) has the slot of the overlay (mel_oc_window), one opens over it
+// (mel_oc_scr): a title with copies on the disk - of a movie or of the episodes of a series.
+/**
+ * @param array{lib: list<MelLibCopy>, lib_eps: array<string, list<MelLibCopy>>} $l
+ * @return bool
+ */
+function mel_oc_slot($l)
+{
+    return $l['lib'] || $l['lib_eps'];
 }
 
 // The screen of card $key put anew (card_load with the overlay closed, card_finish, a new screen of the card: left by
