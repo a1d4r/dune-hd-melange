@@ -314,6 +314,10 @@ parameters:
         # диске…"); s, e, the episode (-1 of a movie); cur, the cid of the copy "· сейчас" ('' none); top, the first line
         # shown; share, the progress of the line "сейчас" (0 none: no bar).
         MelLibWin: "array{copies: list<MelLibCopy>, at: int, mode: 'first'|'menu', s: int, e: int, cur: string, top: int, share: float}"
+        # The window of the copies the first tick of the screen of an own card opens over it (MelOcCard lw_auto: "Continue"
+        # of the native with a copy to choose, mel_lib_win_card): its copies (2+, the best first), mode, s, e the episode
+        # (-1 of a movie).
+        MelLibAuto: "array{copies: list<MelLibCopy>, mode: 'first'|'menu', s: int, e: int}"
         # A button of the own dialog or wait (kit_dlg.php, mel_dlg_buttons): its id, label, icon, the action after the
         # close (null none), RETURN presses it (cancel, of a wait).
         MelDlgButton: 'array{id: string, label: string, icon: string, act: MelAction|null, cancel: bool}'
@@ -594,8 +598,9 @@ parameters:
         MelVoicesSide: 'array{studios: list<string>, n: int, other: bool}'
         # The meta of a title for its own card (mel_cm_parse, card_meta.php).
         MelCardMeta: 'array{type: string, id: string, imdb: string, tile: MelCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<MelCardCredit>, directors: list<MelCardCredit>, writers: list<MelCardCredit>, creators: list<MelCardCredit>, collection: array{id: string, name: string}, seasons: array<int, list<MelCardEp>>, season_numbers: array<int, int>, trailer: bool, by_cin: bool, cin: list<array{int, int, int}>}'
-        # A card of the own card screen in memory (MelOc::$cards, view_card.php).
-        MelOcCard: 'array{tile: MelCatTile, meta: MelCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: MelOcPos, n: int, posters: MelCmPosters, nav?: MelOcNav, played?: bool}'
+        # A card of the own card screen in memory (MelOc::$cards, view_card.php); lw_auto - the window of the copies its
+        # first tick opens (mel_lib_win_card, mel_oc_tick).
+        MelOcCard: 'array{tile: MelCatTile, meta: MelCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: MelOcPos, n: int, posters: MelCmPosters, nav?: MelOcNav, played?: bool, lw_auto?: MelLibAuto}'
         # The rows of posters of an own card (mel_cm_posters, card_more.php): similar titles, the movies of a franchise; what is
         # left to ask (wait), how each went (st), the time of the asks (ms).
         MelCmPosters: 'array{sim: list<MelCatTile>, parts: list<MelCatTile>, cur: int, coll: string, wait: list<string>, st: array<string, string>, ms: int}'

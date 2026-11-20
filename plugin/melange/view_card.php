@@ -1482,8 +1482,9 @@ function mel_oc_folder_view($media_url, $sel_state)
 }
 
 // The action map of the screen of card $c ($key) laid out as $l, and its timer (null none): the keys of the card, back
-// from the player of a title with a copy on the disk (a movie, an episode), the timer of the rows of posters still asked (card_load). No
-// RETURN: the shell leaves the screen by it.
+// from the player of a title with a copy on the disk (a movie, an episode), the timer (card_load, mel_oc_tick) of the
+// rows of posters still asked or of the window of the copies to open (lw_auto). No RETURN: the shell leaves the screen
+// by it.
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1513,7 +1514,8 @@ function mel_oc_acts($key, $c, $l)
             GUI_EVENT_KEY_P_PLUS => mel_input('card_move', $k + array('d' => 'pgup')),
             GUI_EVENT_KEY_P_MINUS => mel_input('card_move', $k + array('d' => 'pgdn')));
     $timer = null;
-    if ($c['posters']['wait'])
+    // The rows of posters still asked, a window of the copies to open (lw_auto): the first tick (mel_oc_tick).
+    if ($c['posters']['wait'] || isset($c['lw_auto']))
     {
         $acts[GUI_EVENT_TIMER] = mel_input('card_load', $k);
         $timer = array(GuiTimerDef::delay_ms => MEL_OC_TICK_MS);
@@ -1562,6 +1564,41 @@ function mel_oc_ovl_drop($key)
 {
     if (MelOvl::$st && MelOvl::$st['scr']['owner'] === $key)
         MelOvl::$st = null;
+}
+
+// card_load, the timer of the screen of card $key laid out as $l (mel_oc_acts), in this order:
+//   - its window of the copies open (a tick sent before the overlay took the timer off): nothing - the screen put anew
+//     would take the window away; the close gives the timer back, a tick then;
+//   - a window to open (lw_auto, mel_lib_win_card: "Continue" of the native with a copy to choose): the flag off, the
+//     window W2 of those copies over the screen, mode first (mel_lib_win_open) - before the rows of posters (mel_oc_load
+//     puts the screen anew, its nav gone); only of the copies the screen shown has (nav: lib of a movie, lib_eps of the
+//     episode), else none, logged, and on to the posters;
+//   - the rows of posters (mel_oc_load), the overlay of the screen before dropped (mel_oc_ovl_drop).
+/**
+ * @param string $key
+ * @param MelOcNav $l
+ * @return MelAction|null
+ */
+function mel_oc_tick($key, $l)
+{
+    if (MelOvl::$st && MelOvl::$st['open'] && MelOvl::$st['scr']['owner'] === $key)
+    {
+        mel_log("card: own $key: a tick under the overlay, none");
+        return null;
+    }
+    mel_oc_ovl_drop($key);
+    if (isset(MelOc::$cards[$key]['lw_auto']))
+    {
+        $w = MelOc::$cards[$key]['lw_auto'];
+        unset(MelOc::$cards[$key]['lw_auto']);
+        $shown = isset(MelOc::$cards[$key]['nav']) && ($w['e'] >= 1 ? !empty($l['lib_eps'][mel_oc_se($w['s'], $w['e'])]) :
+            (bool) $l['lib']);
+        $a = $shown ? mel_lib_win_open($key, $w['copies'], $w['mode'], $w['s'], $w['e']) : null;
+        if ($a)
+            return $a;
+        mel_log("card: own $key: the window of the copies of \"Continue\" not opened, the screen has none of them");
+    }
+    return mel_oc_load($key, MelOc::$cards[$key], $l);
 }
 
 // --- Keys.
@@ -1918,7 +1955,7 @@ function mel_oc_list($key, $c, $l, $pos)
 }
 
 // card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (mel_oc_mark), card_mark_movie,
-// card_load (the timer, mel_oc_load), card_src_menu, card_src ("Смотреть из…", mel_oc_src), card_lib_copies,
+// card_load (the timer, mel_oc_tick), card_src_menu, card_src ("Смотреть из…", mel_oc_src), card_lib_copies,
 // card_lib_copy (the copies on the disk, mel_oc_lib_input), card_finish (back from the player, mel_oc_finish) of the
 // card c. MENU: "Смотреть из…" (mel_oc_src_items), "Копия на диске…" (mel_oc_lib_menu_items), the marks of the episode in focus in the
 // row (of a movie: its mark, mel_oc_movie_mark_items), "Карточка Дюны" (mel_oc_dune_items), then "Settings". The keys: the place of mel_oc_next by change_gcomps, null at an edge; the layout of the screen shown
@@ -1966,21 +2003,11 @@ function mel_oc_input($in, $control)
         return mel_oc_src($c, $l, $in);
     if ($control === 'card_lib_copies' || $control === 'card_lib_copy')
         return mel_oc_lib_input($key, $c, $l, $in, $control);
-    // A tick of the rows of posters sent before the overlay of the card took the timer off (its window of the copies
-    // open): nothing - the screen put anew would take the window away; the close gives the timer back, a tick then.
-    if ($control === 'card_load' && MelOvl::$st && MelOvl::$st['open'] && MelOvl::$st['scr']['owner'] === $key)
-    {
-        mel_log("card: own $key: a tick under the overlay, none");
-        return null;
-    }
     $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;
     $pos = mel_oc_pos($c, $l, $raw);
     MelOc::$cards[$key]['pos'] = $pos;
     if ($control === 'card_load')
-    {
-        mel_oc_ovl_drop($key);
-        return mel_oc_load($key, MelOc::$cards[$key], $l);
-    }
+        return mel_oc_tick($key, $l);
     if ($control === 'card_menu')
         return mel_oc_menu($c['ui'], array_merge(mel_oc_src_items($key, $c, $l, $pos), mel_oc_lib_menu_items($key, $c, $l, $pos),
             $l['kind'] === 'movie' ?
