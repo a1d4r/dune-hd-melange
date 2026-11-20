@@ -4,8 +4,8 @@
 // mel_lib_win_card of deep_link.php), its components (mel_lib_win_defs), its keys (mel_lib_win_input), the paths of
 // its lines (mel_lib_win_paths: P1 by mel_lib_tails, mel_lib_common_len; mel_lib_cut_mid). Split out of
 // view_card_lib.php (the line "С диска" and the plates of a copy there).
-// Needs view_card_lib.php (mel_lib_copy_parts, mel_lib_plate_ids, mel_oc_lib_plates, mel_oc_lib_cur, mel_oc_se,
-// MEL_OC_LIB_GAP), view_card.php (MelOc, mel_oc_scr), view_card_series.php (mel_oc_ep, mel_oc_prog), kit.php,
+// Needs view_card_lib.php (mel_lib_copy_parts, mel_lib_plate_ids, mel_oc_lib_plates, mel_oc_lib_cur, MEL_OC_LIB_GAP),
+// library.php (mel_lib_se), view_card.php (MelOc, mel_oc_scr), view_card_series.php (mel_oc_ep, mel_oc_prog), kit.php,
 // kit_ovl.php, gcomps.php, playback_lib.php (mel_lib_place, mel_lib_ep_cid, mel_lib_ep_ctx), continue.php (mel_cp_badge),
 // view_catalog.php (mel_catv_ui_lang), main.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
@@ -210,7 +210,7 @@ function mel_lib_win_cur($key, $copies, $s = -1, $e = -1)
         $cp = mel_oc_lib_cur($copies, $l['hid']);
         return $cp ? $cp['cid'] : '';
     }
-    $se = mel_oc_se($s, $e);
+    $se = mel_lib_se($s, $e);
     list($cid) = mel_lib_ep_cid(isset($l['lib_eps'][$se]) ? $l['lib_eps'][$se] : $copies,
         mel_lib_ep_ctx($l['hid'], $l['lib_y']), $se, false);
     foreach ($copies as $cp)

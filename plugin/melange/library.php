@@ -672,7 +672,7 @@ function mel_lib_eps_fix($files)
         {
             $ok[$i] = array($f['s'], $f['e']);
             $se_of[$pack][$f['s']] = true;
-            $se_seen[$pack][$f['s'] . ':' . $f['e']] = true;
+            $se_seen[$pack][mel_lib_se($f['s'], $f['e'])] = true;
         }
         // step 3, no anchor in the pack.
         else if (empty($anchor[$pack]))
@@ -719,7 +719,7 @@ function mel_lib_eps_fix($files)
         {
             if (count($ss) !== 1 || $n[1] < 1 || ($n[0] !== null && $n[0] !== $ss[0]))
                 continue;
-            $k = $ss[0] . ':' . $n[1];
+            $k = mel_lib_se($ss[0], $n[1]);
             $cand[$i] = array($pack, $k, array($ss[0], $n[1]));
             $count[$pack][$k] = isset($count[$pack][$k]) ? $count[$pack][$k] + 1 : 1;
         }
@@ -737,7 +737,7 @@ function mel_lib_eps_fix($files)
     foreach ($ok as $i => $se)
     {
         if ($files[$i]['mc'])
-            $conf[$se[0] . ':' . $se[1]] = true;
+            $conf[mel_lib_se($se[0], $se[1])] = true;
     }
     $eps = array();
     foreach ($files as $i => $f)
@@ -748,7 +748,7 @@ function mel_lib_eps_fix($files)
             $res['name']++;
             continue;
         }
-        $k = $ok[$i][0] . ':' . $ok[$i][1];
+        $k = mel_lib_se($ok[$i][0], $ok[$i][1]);
         if (!$f['mc'] && isset($conf[$k]))
         {
             $res['drop'][] = $f['hash'];
@@ -1210,6 +1210,19 @@ function mel_lib_files_copies($files)
 
 // --- Episodes.
 
+// The key "s:e" of episode S$s E$e of a series of the index in the copies of its episodes (mel_lib_ep_copies; the own
+// card: nav lib_eps, lib_cur; the playlist and lib_next; the same of the card and of the history by the invariant,
+// mel_lib_ep_same), one for all.
+/**
+ * @param int $s
+ * @param int $e
+ * @return string
+ */
+function mel_lib_se($s, $e)
+{
+    return "$s:$e";
+}
+
 // The copies of the episodes of the series $mid of the index (MelLib::$eps: the season and the episode after the rules
 // of the numbers) -> "s:e" => its copies (mel_lib_files_copies, the best first), the episodes in order. The mount list
 // is read on every call, and only when the series has episodes in the index.
@@ -1227,7 +1240,7 @@ function mel_lib_ep_copies($mid)
         $files[] = mel_lib_ep_file($mid, $f);
     $res = array();
     foreach (mel_lib_files_copies($files) as $c)
-        $res[$c['s'] . ':' . $c['e']][] = $c;
+        $res[mel_lib_se($c['s'], $c['e'])][] = $c;
     uksort($res, 'strnatcmp');
     return $res;
 }

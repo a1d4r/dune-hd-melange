@@ -428,7 +428,7 @@ function mel_oc_ep_card($c, $l, $i, $ep, $on)
         $img[GComponentDef::specific_def][GCompImageDef::load_failed_url] = MEL_OC_ICONS . 'no_episode_image.png';
     }
     $d = array(mel_gc_rect(mel_gc_at(MEL_OC_EP_W, MEL_OC_EP_H, 0, 0), MEL_OC_NO_PHOTO), $img);
-    if (!empty($l['lib_eps'][mel_oc_se($ep['s'], $ep['e'])]))
+    if (!empty($l['lib_eps'][mel_lib_se($ep['s'], $ep['e'])]))
     {
         $d[] = mel_gc_rect(mel_gc_at(44, 44, 8, 8), MEL_OC_MARK_BG);
         $d[] = mel_gc_image(mel_gc_at(MEL_OC_EP_DISK_W, MEL_OC_EP_DISK_W, 16, 16), MEL_OC_IMG . 'ep_disk.png');

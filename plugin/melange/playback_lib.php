@@ -98,7 +98,7 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
             $series[] = $ser;
             continue;
         }
-        $se = "$pq:$pe";
+        $se = mel_lib_se($pq, $pe);
         list($cid, $why) = mel_lib_ep_cid(isset($eps[$se]) ? $eps[$se] : array(), $ctx, $se, true);
         if ($cid === '')
             $cid = '-';
@@ -418,7 +418,8 @@ function mel_lib_ep_ctx($hid, $y, $unfinished = false)
 function mel_lib_ep_place($hid, $copies, $q, $e, $ctx, $fix)
 {
     list($recs, $f) = $ctx;
-    list($first, $why) = mel_lib_ep_pick($copies, isset($recs["$q:$e"]) ? $recs["$q:$e"] : '', $f, false);
+    $se = mel_lib_se($q, $e);
+    list($first, $why) = mel_lib_ep_pick($copies, isset($recs[$se]) ? $recs[$se] : '', $f, false);
     mel_log("library: episode S{$q}E{$e}: $why");
     list($k, $first_pos, $pos) = mel_lib_place($hid, $copies, $first, $q, $e, $fix);
     return $first === '' ? array('', $pos, $pos) : array($k, $first_pos, $pos);
@@ -561,7 +562,9 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
     $s0 = $r['s'];
     $key = $u && $u[0] === $s0 && $u[1] === $e0 && mel_lib_key_ok($u[2]) ? $u[2] : $r['hash'];
     list($r, $q, $e) = mel_wh_resume_ep($mv, $r);
-    $copies = isset($eps["$q:$e"]) ? $eps["$q:$e"] : array();
+    // The key of the episode (not $se: the episode of the list).
+    $qe = mel_lib_se($q, $e);
+    $copies = isset($eps[$qe]) ? $eps[$qe] : array();
     $next = !$r || $r['next'];
     $tag = "resume: local series S{$s0}E{$e0} -> S{$q}E{$e} (" . ($next ? 'next' : 'same') . ')';
     if (!$r || !$copies)
@@ -670,7 +673,8 @@ function mel_lib_next($in)
     // The episodes by the invariant of the numberings, as C7 (mel_lib_mv_eps): the playlist anew of them, not of the
     // index as it is - a season of the index not the season of the card gives no file to the episodes of the card.
     list($eps) = mel_lib_mv_eps($mv, $y);
-    $go = mel_lib_start(isset($eps["$q:$e"]) ? $eps["$q:$e"] : array(), $c, 0, 0, true);
+    $se = mel_lib_se($q, $e);
+    $go = mel_lib_start(isset($eps[$se]) ? $eps[$se] : array(), $c, 0, 0, true);
     if (isset($go['copy']))
         return mel_lib_play($mv, $go, $lang, array('y' => $y, 'q' => $q, 'e' => $e, 'eps' => $eps));
     return mel_lib_next_missing($mv, $q, $e, isset($go['gone']) ? $go['gone'] : 'no', $lang);
