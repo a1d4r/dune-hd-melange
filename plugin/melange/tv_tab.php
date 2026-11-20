@@ -605,13 +605,14 @@ function mel_tv_timer_state($lang)
 
 // The timer: the copy of the manifest older than MEL_CAT_FRESH asked anew (not MEL_CAT_MANIFEST_FRESH:
 // the timer comes every 10 min), then the first pages
-// of the rows of the file without a copy or with one older than MEL_CAT_FRESH, one by one in $limit s, a movie and a
-// series in turn: of each those without a copy first, then the oldest copy (of the same time in the order of the
-// file); then the rows that timed out before (MelCat::$slow, as mel_catv_open: one slow row does not take the
-// budget of every tick). A timeout is not the server down; after a failure of the server (mel_cat_err_down) no more.
-// Fresh copies are not asked: at most a request a row an hour, however often the shell calls. No flag of each copy
-// (MelTv::$quiet), they are counted (MelTv::$new_copies). Each request gets the whole seconds left (curl takes whole ones: rounded up, the
-// last could run past $limit), none begins with less than 1 s. -> for the log.
+// of the rows of the file without a copy or with one older than MEL_CAT_FRESH, one by one in $limit s: those
+// without a copy first, then the oldest copy (of the same time in the order of the file), each part a movie and a
+// series in turn (mel_tv_in_turn); then the rows that timed out before (MelCat::$slow, as mel_catv_open: one slow
+// row does not take the budget of every tick). A timeout is not the server down; after a failure of the server
+// (mel_cat_err_down) no more. Fresh copies are not asked: at most a request a row an hour, however often the shell
+// calls. No flag of each copy (MelTv::$quiet), they are counted (MelTv::$new_copies). Each request gets the whole
+// seconds left (curl takes whole ones: rounded up, the last could run past $limit), none begins with less than 1 s.
+// -> for the log.
 /**
  * @param float $limit
  * @return string
@@ -634,6 +635,7 @@ function mel_tv_refresh($limit)
         $man = $m ? 'manifest asked' . ($err !== '' ? " ($err)" : '') : 'manifest old, no time';
     }
     $tv_rows = mel_tv_rows($rows);
+    $none = array();
     $old = array();
     $old_t = array();
     $slow = array();
@@ -644,20 +646,17 @@ function mel_tv_refresh($limit)
             continue;
         if (mel_catv_is_slow(mel_catv_rid($row)))
             $slow[] = $i;
+        else if (!$c)
+            $none[] = $i;
         else
         {
             $old[] = $i;
-            $old_t[] = $c ? $c['t'] : 0;
+            $old_t[] = $c['t'];
         }
     }
-    // Movies and series in turn (by the place of each in its tab), each the oldest first: copies of an older version
-    // are all old at once, a few rows a tick, the series would wait for all the movies.
-    $sorted = mel_cat_oldest_first($old, $old_t);
-    $n = array('movie' => 0, 'series' => 0);
-    $turn = array();
-    foreach ($sorted as $i)
-        $turn[] = $n[mel_cat_row_tab($tv_rows[$i])]++;
-    $queue = array_merge(mel_cat_oldest_first($sorted, $turn), $slow);
+    // Copies of an older version are all old at once, a few rows a tick: the series would wait for all the movies.
+    $queue = array_merge(mel_tv_in_turn($tv_rows, $none), mel_tv_in_turn($tv_rows, mel_cat_oldest_first($old, $old_t)),
+        $slow);
     $asked = 0;
     foreach ($queue as $i)
     {
@@ -673,6 +672,22 @@ function mel_tv_refresh($limit)
     }
     MelTv::$quiet = false;
     return sprintf('%s, rows asked %d of %d old', $man, $asked, count($queue));
+}
+
+// $list (indexes of $tv_rows in the order to ask) a movie and a series in turn: by the place of each in the part of
+// $list of its tab, of the same place in the order of $list.
+/**
+ * @param list<MelCatRow> $tv_rows
+ * @param list<int> $list
+ * @return list<int>
+ */
+function mel_tv_in_turn($tv_rows, $list)
+{
+    $n = array_fill_keys(mel_cat_tabs(), 0);
+    $place = array();
+    foreach ($list as $i)
+        $place[] = $n[mel_cat_row_tab($tv_rows[$i])]++;
+    return mel_cat_oldest_first($list, $place);
 }
 
 // topmenu_timer_action of the manifest: the old copies asked anew (mel_tv_refresh, none without AIOStreams:

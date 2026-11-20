@@ -60,7 +60,10 @@ define('MEL_CAT_SEARCH_WAIT', 10);
 // needs at once (ageUs of 3: the filter of the age): a copy of an older version from MEL_CAT_CACHE_V_MIN on is shown as
 // saved long ago (mel_cat_cache_read), asked anew before the other old ones, mel_cat_tile makes its key empty until
 // then. Raise MEL_CAT_CACHE_V_MIN to it when mel_cat_tile makes a wrong tile of an older copy (a key of another
-// meaning, another layout): those under it are dropped. A new key that may stay empty: neither.
+// meaning, another layout): those under it are dropped. A new key that may stay empty: neither. The copies of the
+// manifest and of the cards (catalog_card.php) have the same version: for them a raise of MEL_CAT_CACHE_V is "old, ask
+// anew", another layout of their data one of MEL_CAT_CACHE_V_MIN. The index of the copies (mel_cat_cache_keys) reads
+// only MEL_CAT_CACHE_V.
 define('MEL_CAT_CACHE_V', 3);
 define('MEL_CAT_CACHE_V_MIN', 2);
 define('MEL_CAT_FRESH', 3600);
@@ -1281,17 +1284,18 @@ function mel_cat_cache_prune($dir)
 
 // The keys of the tiles of the text $text of a copy (mel_cat_cache_write: {"v":..,"t":..,"n":..,"data":[tiles of
 // mel_cat_tile]}) of a movie or a series, "<type>|imdb:<IMDb>" and "<type>|tmdb:<TMDB>" (as mel_cp_tile_map): by the
-// fields of a tile in the order mel_cat_tile makes them, no json_decode; none of a version not read (mel_cat_v_ok), of
-// the manifest, of a card (catalog_card.php). The id a run of no quote or backslash at a time: PCRE of PHP 5.3.6
-// recurses on each repeat of a group, one a character would crash it on a long id.
+// fields of a tile in the order mel_cat_tile makes them, no json_decode; none of another version (an older one too:
+// the index goes by the mtime, mel_cpm_build would keep its tile a day instead of asking), of the manifest, of a card
+// (catalog_card.php). The id a run of no quote or backslash at a time: PCRE of PHP 5.3.6 recurses on each repeat of
+// a group, one a character would crash it on a long id.
 /**
  * @param string $text
  * @return list<string>
  */
 function mel_cat_cache_keys($text)
 {
-    if (!preg_match('/^\{"v":([0-9]{1,4}),/', $text, $v) || !mel_cat_v_ok(intval($v[1])) ||
-        !preg_match_all('/\{"id":"(?:[^"\\\\]++|\\\\.)*+","imdb_id":"(tt[0-9]{1,10}|)",' .
+    $head = '{"v":' . MEL_CAT_CACHE_V . ',';
+    if (strncmp($text, $head, strlen($head)) !== 0 || !preg_match_all('/\{"id":"(?:[^"\\\\]++|\\\\.)*+","imdb_id":"(tt[0-9]{1,10}|)",' .
         '"_tmdbId":"([0-9]{0,10})","type":"(movie|series)"/', $text, $m, PREG_SET_ORDER))
         return array();
     $out = array();
