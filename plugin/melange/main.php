@@ -2333,6 +2333,10 @@ function mel_handle_user_input($in)
         return mel_next($in);
     if ($control === 'next_pick')
         return mel_next_pick($in);
+    if ($control === 'lib_next')
+        return mel_lib_next($in);
+    if ($control === 'lib_next_pick')
+        return mel_lib_next_pick($in);
     if ($control === 'pre_via')
         return mel_pre_via($in);
     if ($control === 'pre_twin')
@@ -2427,9 +2431,10 @@ class MelFw extends DunePluginFw
             {
                 $type = PLUGIN_OUT_DATA_GUI_ACTION;
                 $data = mel_handle_user_input($in);
-                // Not "next" nor "lp_next", a lazy episode under the player (mel_lazy_action): the player is on,
-                // pf_check passed with its first start in this session, run_builtin from there not seen on the device.
-                if (!isset($in->control_id) || ($in->control_id !== 'next' && $in->control_id !== 'lp_next'))
+                // Not "next", "lp_next" nor "lib_next", a lazy episode under the player (mel_lazy_action): the player
+                // is on, pf_check passed with its first start in this session, run_builtin from there not seen on the
+                // device.
+                if (!isset($in->control_id) || !in_array($in->control_id, array('next', 'lp_next', 'lib_next'), true))
                     $data = mel_pf_check($data);
             }
             else if ($op === PLUGIN_OP_GET_REGULAR_FOLDER_ITEMS)

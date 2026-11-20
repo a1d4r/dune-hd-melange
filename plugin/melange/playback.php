@@ -105,19 +105,20 @@ function mel_lazy_series($mv, $s, $e, $hash, $list, $mode)
         PluginVodSeriesInfo::playback_url_is_stream_url => false);
 }
 
-// A lazy episode of a playlist of the disk (mel_lib_play), "lib_next:<H>:<Y>:<q>:<e>:<key>" -> lib_next
-// (mel_lazy_action): H the card of the history, Y the series of the index, the key of its copy, '-' none on the disk.
+// A lazy episode of a playlist of the disk (mel_lib_play), "lib_next:<H>:<Y>:<q>:<e>:<cid>" -> lib_next
+// (mel_lazy_action): H the card of the history, Y the series of the index, the id of its copy (mel_lib_cid: of the one
+// of mirrors chosen, not of their key - the next one of the same folder), '-' none on the disk.
 /**
  * @param string $hid
  * @param string $y
  * @param int $q
  * @param int $e
- * @param string $key
+ * @param string $cid
  * @return string
  */
-function mel_lib_lazy_url($hid, $y, $q, $e, $key)
+function mel_lib_lazy_url($hid, $y, $q, $e, $cid)
 {
-    return "lib_next:$hid:$y:$q:$e:$key";
+    return "lib_next:$hid:$y:$q:$e:$cid";
 }
 
 // A playlist item of URL $url, linked to the card by $hash ('' - unlinked);
@@ -368,7 +369,10 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
     $e = $ep ? $ep['e'] : -1;
     $seasons = $mv['seasons'];
     $season = $ep && $linked && $e > 0 && isset($seasons[$q]) && $e <= $seasons[$q] && $seasons[$q] <= MEL_EPISODES_MAX;
-    $plan = $season ? mel_play_plan($seasons, $q, array()) : array(array($q, $e));
+    $plan = $season ? mel_play_plan($seasons, $q, array()) : array();
+    // The start one not in the plan (never by season_numbers): alone, no other one started in its place.
+    if (!in_array(array($q, $e), $plan, true))
+        list($season, $plan) = array(false, array(array($q, $e)));
     $list = count($plan) > 1;
     $ser = mel_vod_item($mv, $q, $e, $copy['url'], $linked ? $copy['key'] : '', $list);
     if ($ep)
@@ -400,7 +404,8 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
         $whys[$why] = (isset($whys[$why]) ? $whys[$why] : 0) + 1;
         $series[] = array(
             PluginVodSeriesInfo::name => mel_ser_name($mv, $pq, $pe, true),
-            PluginVodSeriesInfo::playback_url => mel_lib_lazy_url($mv['dune_id'], $y, $pq, $pe, $of ? $of[0]['key'] : '-'),
+            PluginVodSeriesInfo::playback_url => mel_lib_lazy_url($mv['dune_id'], $y, $pq, $pe,
+                $of ? $of[0]['cid'] : '-'),
             PluginVodSeriesInfo::playback_url_is_stream_url => false);
     }
     $p = strrpos($copy['path'], '/');
@@ -708,6 +713,98 @@ function mel_lib_copy_input($in)
 function mel_lib_gone($why)
 {
     return mel_error($why === 'slow' ? 'lib_slow' : 'lib_gone');
+}
+
+// lib_next: a lazy episode of a playlist of the disk (mel_lib_lazy_url, mel_lazy_action) - k the card of the history H
+// (saved by mel_lib_play), y the series of the index, s, e the episode, c the id of its copy ('-' none on the disk).
+// Its copies now, that one first (mel_lib_start; gone - the others in order, $auto: no window under the player) -> a
+// new vod_play of it with its markers; none there or no copy - the dialog (mel_lib_next_missing). A bad input, the
+// card gone - "the list expired".
+/**
+ * @param stdClass $in
+ * @return MelAction
+ */
+function mel_lib_next($in)
+{
+    $ep = mel_lib_next_ep($in);
+    // The language of the dialogs: of the card by a valid key, though the rest is bad (as mel_next).
+    $saved = isset($in->k) && is_string($in->k) && preg_match('/^' . MEL_DUNE_ID . '$/D', $in->k) ?
+        mel_movie_load($in->k) : null;
+    $lang = $saved ? $saved['lang'] : '';
+    $y = isset($in->y) && is_string($in->y) && preg_match('/^' . MEL_DUNE_ID . '$/D', $in->y) ? $in->y : '';
+    $c = isset($in->c) && (mel_lib_cid_ok($in->c) || $in->c === '-') ? strval($in->c) : '';
+    if (!$ep || !$saved || $y === '' || $c === '')
+    {
+        mel_log('lib_next: bad params or no card');
+        return mel_next_failed($lang, '', 'err_list_expired');
+    }
+    list(, $q, $e) = $ep;
+    $mv = $saved['movie'];
+    mel_log("lib_next: S{$q}E{$e} $c");
+    if ($c === '-')
+        return mel_lib_next_missing($mv, $q, $e, 'none', $lang);
+    $eps = mel_lib_ep_copies($y);
+    $go = mel_lib_start(isset($eps["$q:$e"]) ? $eps["$q:$e"] : array(), $c, 0, 0, true);
+    if (isset($go['copy']))
+        return mel_lib_play($mv, $go, $lang, array('y' => $y, 'q' => $q, 'e' => $e, 'eps' => $eps));
+    return mel_lib_next_missing($mv, $q, $e, isset($go['gone']) ? $go['gone'] : 'no', $lang);
+}
+
+// Params k, s, e of lib_next and lib_next_pick -> array(the card of the history, season, episode) or null.
+/**
+ * @param stdClass $in
+ * @return array{string, int, int}|null
+ */
+function mel_lib_next_ep($in)
+{
+    foreach (array('k' => '/^' . MEL_DUNE_ID . '$/D', 's' => '/^[1-9][0-9]{0,3}$/D', 'e' => '/^[1-9][0-9]{0,4}$/D')
+        as $k => $re)
+    {
+        if (!isset($in->$k) || !is_string($in->$k) || !preg_match($re, $in->$k))
+            return null;
+    }
+    return array(strval($in->k), intval($in->s), intval($in->e));
+}
+
+// The dialog over the stopped player when the next episode S$q E$e of the disk does not play ($why: none - no copy of
+// it on the disk, no - its file not there now, slow - the disk did not answer; owner 3 (a)): "Choose a release" (the
+// list of the episode, lib_next_pick) and "Stop", as "not in this release" (mel_next_missing). No IMDb: "Stop" only
+// (no releases, mel_next_fetch). The title here: another one is one edit.
+/**
+ * @param MelMovie $mv
+ * @param int $q
+ * @param int $e
+ * @param string $why
+ * @param string $lang
+ * @return MelAction
+ */
+function mel_lib_next_missing($mv, $q, $e, $why, $lang)
+{
+    mel_log(sprintf('lib_next: -> dialog: S%02dE%02d ', $q, $e) . ($why === 'slow' ? 'the disk did not answer' :
+        ($why === 'no' ? 'the file not there' : 'not on the disk')) . ($mv['imdb'] === '' ? ', no IMDb' : ''));
+    $buttons = array();
+    if ($mv['imdb'] !== '')
+        $buttons[mel_tr($lang, 'next_pick')] = mel_input('lib_next_pick', array('k' => $mv['dune_id'],
+            's' => strval($q), 'e' => strval($e)));
+    $buttons[mel_tr($lang, 'next_stop')] = mel_input('next_stop');
+    return mel_dialog(mel_tr($lang, $why === 'slow' ? 'lib_next_slow' : 'lib_next_no_disk', mel_se($q, $e)), array(),
+        $buttons);
+}
+
+// lib_next_pick ("Choose a release" of mel_lib_next_missing): the list of the episode of the main profile (a record of
+// the disk has none), as mel_next_pick with no list kept.
+/**
+ * @param stdClass $in
+ * @return MelAction
+ */
+function mel_lib_next_pick($in)
+{
+    $ep = mel_lib_next_ep($in);
+    $res = $ep ? mel_next_fetch($ep[0], $ep[1], $ep[2]) : array('error' => 'err_list_expired', 'detail' => '');
+    if (isset($res['error']))
+        return mel_close_and(mel_error($res['error'], $res['detail']));
+    mel_log(sprintf('lib_next: -> list of S%02dE%02d', $res['st']['s'], $res['st']['e']));
+    return mel_close_and(mel_open_list($res['st']));
 }
 
 /**
@@ -1823,6 +1920,13 @@ function mel_lazy_action($pb)
     // An episode of "Онлайн" (online_play.php).
     if (is_string($pb) && strpos($pb, 'lampac_next:') === 0)
         return mel_lpv_lazy($pb);
+    // An episode of the disk (mel_lib_lazy_url): its copy checked by lib_next (mel_lib_next).
+    if (is_string($pb) && preg_match('/^lib_next:(' . MEL_DUNE_ID . '):(' . MEL_DUNE_ID . '):([1-9][0-9]{0,3}):' .
+        '([1-9][0-9]{0,4}):(cp-[0-9a-f]{12}|-)$/D', $pb, $m))
+    {
+        mel_log("lazy: S{$m[3]}E{$m[4]} of the disk {$m[5]} -> handle_user_input lib_next");
+        return mel_input('lib_next', array('k' => $m[1], 'y' => $m[2], 's' => $m[3], 'e' => $m[4], 'c' => $m[5]));
+    }
     if (!is_string($pb) || !preg_match('/^aio_next:(' . MEL_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([0-9a-f]{40}):(debrid|ts)' .
         '(?::([a-z0-9]{8}))?$/D', $pb, $m))
     {
