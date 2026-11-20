@@ -3,7 +3,7 @@
 // 20.11.2026) and the line of the copy of an episode in its head (B10) on the UI Kit - the widths by MelKit::w, the
 // badges the plates b2 of the list of releases (MelKit::b2); the labels as the other lines of the card (mel_oc_label).
 // And the copies of the card: found (mel_oc_lib), the current one (mel_oc_lib_cur, of an episode mel_oc_lib_ep_cur),
-// "Копия на диске…" of MENU, the start (mel_oc_lib_start, mel_oc_lib_input). The window of the copies W2 over the card:
+// "Копия на диске…" of MENU, the start (mel_oc_lib_start, of an episode mel_oc_lib_start_ep; mel_oc_lib_input). The window of the copies W2 over the card:
 // view_card_libwin.php.
 
 // The line of a movie: the y of its label box, its text, its right edge (that of the description, as the head of an
@@ -434,6 +434,55 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
         return mel_lib_play($mv, $go, $c['ui']);
     return isset($go['pick']) ? mel_lib_pick_menu('card_lib_copy', array('c' => $key, 'from' => 'first'), $go['pick'], '',
         $c['ui']) : mel_lib_gone($go['gone']);
+}
+
+// The start of a copy on the disk of episode $e of season $s of the series of card $c ($key) of layout $l (C2, C4 of the
+// spec, §7.5): the copies of its episodes and the files of them read anew (mel_oc_lib_eps: a share may be gone since the
+// screen; the map of the files is not in nav), the season as asked is $s (the invariant: a key of lib_eps is of a season
+// asked as it is). The copy of id $k chosen in the window of the copies (card_lib_copy) from the place of the episode
+// (mel_lib_place; the choice goes into the history - the next episodes of its folder, owner 3); '' (OK on the still,
+// "▶ Смотреть / Продолжить"): the copy and the place by the history of H (mel_lib_ep_ctx -> mel_lib_ep_place). Then
+// mel_lib_start (of the mirrors of a record the copy of F first): the file there - vod_play of the playlist of its
+// season (mel_lib_play), played (card_finish after the player); several left or none to take - the window of the copies
+// of the episode over the screen (mel_lib_win_open, mode first; its "· сейчас" of lib_cur; none - the screen shown has no
+// slot of the overlay: nothing, logged there); none there - mel_lib_gone of the episode. No episode on the disk now: as
+// none there. No movie of the card: null.
+/**
+ * @param string $key
+ * @param MelOcCard $c
+ * @param MelOcNav $l
+ * @param int $s
+ * @param int $e
+ * @param string $k
+ * @return MelAction|null
+ */
+function mel_oc_lib_start_ep($key, $c, $l, $s, $e, $k = '')
+{
+    $y = $l['lib_y'];
+    $mv = mel_movie(mel_oc_watch_in($c, $s, $e));
+    if (!$mv || $y === '')
+        return null;
+    $hid = $l['hid'];
+    $mv['dune_id'] = $hid;
+    list($eps, $fix) = mel_oc_lib_eps($c, $y);
+    $se = mel_oc_se($s, $e);
+    $copies = isset($eps[$se]) ? $eps[$se] : array();
+    mel_log("card: own $key: watch S{$s}E{$e} on the disk, " . count($copies) . ' copies' . ($k !== '' ? ", $k chosen" : ''));
+    list($recs, $f) = mel_lib_ep_ctx($hid, $y);
+    if ($k !== '')
+        list($first, $first_pos, $pos) = mel_lib_place($hid, $copies, $k, $s, $e, $fix);
+    else
+        list($first, $first_pos, $pos) = mel_lib_ep_place($hid, $copies, $s, $e, isset($recs[$se]) ? $recs[$se] : '', $f,
+            $fix);
+    $go = mel_lib_start($copies, $first, $first_pos, $pos, false, $f);
+    if (isset($go['copy']))
+    {
+        MelOc::$cards[$key]['played'] = true;
+        return mel_lib_play($mv, $go, $c['ui'], array('y' => $y, 'q' => $s, 'e' => $e, 'eps' => $eps));
+    }
+    if (isset($go['pick']))
+        return mel_lib_win_open($key, $go['pick'], 'first', $s, $e);
+    return mel_lib_gone($go['gone'], $c['ui'], $s, $e);
 }
 
 // card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the id of the copy of the menu of the copies; from:

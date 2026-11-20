@@ -1917,9 +1917,10 @@ function mel_oc_list($key, $c, $l, $pos)
 // card c. MENU: "Смотреть из…" (mel_oc_src_items), "Копия на диске…" (mel_oc_lib_menu_items), the marks of the episode in focus in the
 // row (of a movie: its mark, mel_oc_movie_mark_items), "Карточка Дюны" (mel_oc_dune_items), then "Settings". The keys: the place of mel_oc_next by change_gcomps, null at an edge; the layout of the screen shown
 // (nav), else laid out anew. ENTER on a button: "Watch" - a movie with a copy on the disk: the file (mel_oc_lib_start),
-// else the list of the episode offered, an
+// the episode offered with one: its file (mel_oc_lib_start_ep), else the list of the episode offered, an
 // episode not out yet - the focus to it in the row, the button of the list - into it or out (mel_oc_list);
-// on "did not load" - the meta again; on an episode - its list, one not out yet - the message; on
+// on "did not load" - the meta again; on an episode - with a copy on the disk its file (mel_oc_lib_start_ep), else its
+// list, one not out yet - the message; on
 // a person of the cast - its page (mel_oc_person); on a poster - the own card of its title
 // (mel_oc_tile_enter); below them nothing. A move or ENTER on a screen of rows other than those of
 // the layout (rs of its sel_state; another screen of the card got the rows since): the screen anew
@@ -2001,6 +2002,9 @@ function mel_oc_input($in, $control)
         {
             $x = mel_oc_ep($c, $pos['s'], $pos['e']);
             mel_log("card: own $key: ENTER on S{$pos['s']}E{$pos['e']}" . ($x && $x['soon'] ? ', not out yet' : ''));
+            // With a copy on the disk (one not out yet too: its file is there) - the file (C2).
+            if ($x && !empty($l['lib_eps'][mel_oc_se($x['s'], $x['e'])]))
+                return mel_oc_lib_start_ep($key, $c, $l, $x['s'], $x['e']);
             return $x ? mel_oc_ep_watch($c, $x, $ep) : null;
         }
         if ($pos['z'] !== 'btn' || !isset($l['btns'][$b]))
@@ -2013,6 +2017,9 @@ function mel_oc_input($in, $control)
             return mel_ct_enter($key);
         if ($kind === 'watch' && !$ep && $l['lib'])
             return mel_oc_lib_start($key, $c, $l);
+        // The episode offered with a copy on the disk (its season of the card $ep['s']): the file (C2).
+        if ($kind === 'watch' && $ep && !empty($l['lib_eps'][mel_oc_se($ep['s'], $ep['e'])]))
+            return mel_oc_lib_start_ep($key, $c, $l, $ep['s'], $ep['e']);
         if ($kind === 'watch')
             return $ep ? mel_oc_watch($c, $ep['q'], $ep['e'], $ep) : mel_oc_watch($c);
         // Not out yet: the focus to it in the row.
