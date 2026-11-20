@@ -614,6 +614,6 @@ parameters:
         # The page of a person laid out (mel_pp_layout, view_person.php).
         MelPpLayout: 'array{state: string, strip: MelOcStrip, bio: list<string>, pages: list<list<array{string, bool, int}>>}'
         # The fields of a link of the public action open, '' for one not given (mel_dl_parse, deep_link.php).
-        MelDlLink: 'array{to: string, type: string, imdb: string, tmdb: string, s: string, e: string, tab: string, n: string, q: string}'
+        MelDlLink: 'array{to: string, type: string, imdb: string, tmdb: string, s: string, e: string, tab: string, n: string, q: string, src: string}'
         # An episode of the own card (mel_cm_eps, card_meta.php).
         MelCardEp: 'array{s: int, e: int, title: string, date: string, img: string, min: int, soon: bool, desc: string}'

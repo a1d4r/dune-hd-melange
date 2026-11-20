@@ -3,13 +3,13 @@
 // plugin_launcher://{name=melange}{action_id=open}{to=<target>}{<field>=<value>}... opens a screen of Melange by ids.
 // The shell gives the pairs to handle_user_input as they are (no URL decoding; no { or } in a value). The targets
 // (mel_dl_targets): card - the own card, as ENTER on a tile (mel_oc_enter); streams - the list of streams of the card,
-// as its "Watch" or ENTER on an episode (mel_oc_watch), nothing started; dune_card - the card of the Dune (file_movie);
-// person - the page of a person (view_person.php); search - the results of a search of the catalog by the text, no
-// dialog; tab - the catalog at a tab; row - "Show all" of a row of a tab by its number on the screen. A value off its
-// pattern, a field the target does not take, one it lacks: a line of the log, no screen. Each call: a line of the log
-// with the target and the ids.
+// as its "Watch" or ENTER on an episode (mel_oc_watch), nothing started, of source src if given (as "Смотреть из…");
+// dune_card - the card of the Dune (file_movie); person - the page of a person (view_person.php); search - the results
+// of a search of the catalog by the text, no dialog; tab - the catalog at a tab; row - "Show all" of a row of a tab by
+// its number on the screen. A value off its pattern, a field the target does not take, one it lacks: a line of the
+// log, no screen. Each call: a line of the log with the target and the ids.
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_card.php, view_card_series.php, view_catalog.php,
-// view_person.php, continue.php (mel_cp_items).
+// view_person.php, continue.php (mel_cp_items), source_profiles.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The targets: fn - the handler of the link; id - the fields of an id it takes, exactly one of them given (none: no
@@ -22,8 +22,8 @@ function mel_dl_targets()
 {
     return array(
         'card' => array('fn' => 'mel_dl_card', 'id' => array('imdb', 'tmdb'), 'need' => array('type'), 'may' => array(), 'se' => false),
-        'streams' => array('fn' => 'mel_dl_streams', 'id' => array('imdb', 'tmdb'), 'need' => array('type'), 'may' => array(),
-            'se' => true),
+        'streams' => array('fn' => 'mel_dl_streams', 'id' => array('imdb', 'tmdb'), 'need' => array('type'),
+            'may' => array('src'), 'se' => true),
         'dune_card' => array('fn' => 'mel_dl_dune_card', 'id' => array('imdb'), 'need' => array(), 'may' => array('type'), 'se' => false),
         'person' => array('fn' => 'mel_dl_person', 'id' => array('tmdb'), 'need' => array(), 'may' => array(), 'se' => false),
         'search' => array('fn' => 'mel_dl_search', 'id' => array(), 'need' => array('q'), 'may' => array(), 'se' => false),
@@ -35,7 +35,9 @@ function mel_dl_targets()
 
 // The fields of $in of a link (the others not read) -> array(why it is wrong: "<field>" (off its pattern), "<field>:
 // none" (lacking), "<field>: not taken" (by the target), '' for none; the fields, '' for one not given). No value
-// logged. q, the text of a search: 1-MEL_CAT_QUERY_MAX characters of UTF-8, no control ones, not blank.
+// logged. q, the text of a search: 1-MEL_CAT_QUERY_MAX characters of UTF-8, no control ones, not blank. src, a source:
+// the id or the name of a profile (mel_dl_src), of UTF-8, no control characters, room for spaces at the ends; empty -
+// not given.
 /**
  * @param stdClass $in
  * @return array{string, MelDlLink}
@@ -45,7 +47,8 @@ function mel_dl_parse($in)
     $re = array('to' => '/^[a-z_]{1,20}$/D', 'type' => '/^(movie|series)$/D', 'imdb' => '/^tt[0-9]{1,10}$/D',
         'tmdb' => '/^[0-9]{1,9}$/D', 's' => '/^[0-9]{1,9}$/D', 'e' => '/^[0-9]{1,9}$/D', 'tab' => '/^(movie|series)$/D',
         'n' => '/^[1-9][0-9]{0,8}$/D',
-        'q' => '/^[^\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]{1,' . MEL_CAT_QUERY_MAX . '}$/uD');
+        'q' => '/^[^\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]{1,' . MEL_CAT_QUERY_MAX . '}$/uD',
+        'src' => '/^[^\x00-\x1F\x7F\x{0085}\x{2028}\x{2029}]{0,' . 2 * MEL_PROFILE_NAME_MAX . '}$/uD');
     $q = array_fill_keys(array_keys($re), '');
     foreach ($re as $k => $p)
     {
@@ -151,28 +154,72 @@ function mel_dl_card($q)
             PluginOpenFolderActionData::caption => $card['tile']['name'] !== '' ? $card['tile']['name'] : '%tr%plugin_caption'));
 }
 
+// The profile of src of a link: of the id if it is one (mel_profile_id_ok) of a profile there, else of the name
+// trimmed as the page trims one (mel_profile_name): the same, else the same of no case (two such: the first) ->
+// array(its id, '' none; why none: 'no such source', 'not ready' (mel_profile_ready), '' for one).
+/**
+ * @param string $src
+ * @return array{string, string}
+ */
+function mel_dl_src($src)
+{
+    $s = Mel::$file;
+    if (!$s)
+        return array('', 'no such source');
+    $k = mel_profile_id_ok($src) ? mel_profile_index($s, $src) : -1;
+    $name = mel_profile_name($src);
+    if ($k < 0)
+        $k = mel_profile_find($s, $name);
+    $low = mb_strtolower($name, 'UTF-8');
+    foreach ($k < 0 && $name !== '' ? $s['profiles'] : array() as $i => $p)
+    {
+        if (mb_strtolower($p['name'], 'UTF-8') === $low)
+        {
+            $k = $i;
+            break;
+        }
+    }
+    if ($k < 0)
+        return array('', 'no such source');
+    if (!mel_profile_ready($s['profiles'][$k]))
+        return array('', 'not ready');
+    return array($s['profiles'][$k]['id'], '');
+}
+
 // to=streams: the list of the card of the link, as "Watch" of the card opens it (a movie) or ENTER on episode e of
 // season s of the meta (a series, mel_oc_ep_watch: one not out yet - its message); not in the meta, or no meta:
 // asked as s, e. Only the list: play_action gets no selected_control_id, so no resume starts a player (mel_resume).
+// src given: the list from that profile (mel_dl_src), as "Смотреть из…" of the card (mel_oc_watch_from): nothing
+// remembered, the record and the main one not used; no such profile or not ready: null, logged, nothing asked.
 /**
  * @param MelDlLink $q
  * @return MelAction|null
  */
 function mel_dl_streams($q)
 {
+    $src = '';
+    if ($q['src'] !== '')
+    {
+        list($src, $why) = mel_dl_src($q['src']);
+        if ($why !== '')
+        {
+            mel_log("open: bad src: $why");
+            return null;
+        }
+    }
     $kc = mel_dl_card_of($q);
     if (!$kc)
         return null;
     $c = $kc[1];
     if ($q['type'] !== 'series')
-        return mel_oc_watch($c);
+        return mel_oc_watch($c, -1, -1, null, $src);
     $s = intval($q['s']);
     $e = intval($q['e']);
     $x = mel_oc_ep($c, $s, $e);
     if (!$x)
-        return mel_oc_watch($c, $s, $e);
+        return mel_oc_watch($c, $s, $e, null, $src);
     list($ep) = mel_oc_pick($c);
-    return mel_oc_ep_watch($c, $x, $ep);
+    return mel_oc_ep_watch($c, $x, $ep, $src);
 }
 
 // to=dune_card: the card of the Dune of the IMDb of the link (mel_card_id; the type, if given, picks of two cards),
