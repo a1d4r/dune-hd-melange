@@ -354,7 +354,8 @@ define('MEL_LIB_MOVIE_KEYS', 'id imdb_id tmdb_id tmdbtv_id series_type title nat
 // is not read here); linked, a playlist of its season and E1 of the next one as mel_play (by season_numbers; none, the
 // episode past them or a season over MEL_EPISODES_MAX - alone), the others lazy (mel_lib_lazy_url; '-' none on the
 // disk): the copy by mel_lib_ep_pick - F the pack of this copy (the choice just made), the record only of an episode
-// not watched; the card saved for lib_next (mel_movie_save). The log has the key, no path, no name.
+// not watched (its key shared by mirrors: the copy of F of them, else the first); the card saved for lib_next
+// (mel_movie_save). The log has the key, no path, no name.
 /**
  * @param MelMovie $mv
  * @param MelLibHere $go
@@ -403,11 +404,23 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
         $copies = isset($eps[$se]) ? $eps[$se] : array();
         list($first, $why) = mel_lib_ep_pick($copies, isset($recs[$se]) ? $recs[$se] : '', $f, true);
         $of = mel_lib_copies_of($copies, $first);
+        $cid = $of ? $of[0]['cid'] : '-';
+        // The key of a record is shared by mirrors: of them the copy of F (owner 3), else the first.
+        if ($why === 'record')
+        {
+            foreach ($of as $c)
+            {
+                if (in_array(mel_lib_pack($c), $f, true))
+                {
+                    $cid = $c['cid'];
+                    break;
+                }
+            }
+        }
         $whys[$why] = (isset($whys[$why]) ? $whys[$why] : 0) + 1;
         $series[] = array(
             PluginVodSeriesInfo::name => mel_ser_name($mv, $pq, $pe, true),
-            PluginVodSeriesInfo::playback_url => mel_lib_lazy_url($mv['dune_id'], $y, $pq, $pe,
-                $of ? $of[0]['cid'] : '-'),
+            PluginVodSeriesInfo::playback_url => mel_lib_lazy_url($mv['dune_id'], $y, $pq, $pe, $cid),
             PluginVodSeriesInfo::playback_url_is_stream_url => false);
     }
     $p = strrpos($copy['path'], '/');
