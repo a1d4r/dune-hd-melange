@@ -11,8 +11,8 @@
 // path, server, share, folder caption or file name: folders by id, files by
 // their key lib-... (mel_lib_key).
 // Needs main.php (mel_log, mel_num, mel_str), links.php (mel_pg_links, mel_pg_rev, mel_pg_shell_pair, mel_pg_link_put,
-// mel_pg_links_save). The menu of the copies: mel_lib_pick_menu, mel_lib_label (sources.php); their start:
-// mel_lib_start (playback.php).
+// mel_pg_links_save), torrserver.php (mel_ts_dirname, mel_ts_ep, mel_ts_ep_lead). The menu of the copies:
+// mel_lib_pick_menu, mel_lib_label (sources.php); their start: mel_lib_start (playback.php).
 
 // The files of the shell. PHP on the Dune adds FS_PREFIX to /config,
 // /flashdata and /tmp itself; a failed plain read is tried with FS_PREFIX.
@@ -62,6 +62,13 @@ class MelLib
     // Movie files only (ass 0, s < 0, e < 0) by their movie_id.
     /** @var array<string, list<MelLibFile>> */
     public static $by_mid = array();
+    // Episode files (ass 0, s >= 1, e >= 1) by their movie_id, their season and episode after the rules of the numbers
+    // (mel_lib_eps_fix); a movie_id with none of them taken is not here.
+    /** @var array<string, list<MelLibFile>> */
+    public static $eps = array();
+    // The hashes of the episode files mel_lib_eps_fix dropped, by their movie_id.
+    /** @var array<string, list<string>> */
+    public static $eps_drop = array();
     // Files of the shell read so far (tests count the reads by it).
     /** @var int */
     public static $reads = 0;
@@ -493,15 +500,21 @@ function mel_lib_read_index($id, $kind, &$left)
 // episode) -> list of MelLibFile, $left: the bytes of the budget left
 // (mel_lib_read_index). As load_index_for_folder of the shell: a record
 // without hash or id is skipped, the first of a path kept. $info: 'N records,
-// M files' or why there are none.
+// M files' (of movies) or why there are none. $eps: by movie_id, its episode
+// files (ass_type 0, season and episode 1 or more: f, numbers as in the index)
+// and the count of its records neither a movie nor an episode (b: a bonus, a
+// season 0, a season with no episode).
 /**
  * @param int|string $folder_id
  * @param string $info
  * @param int $left
+ * @param array<string, array{f: list<MelLibEpIn>, b: int}>|null $eps
+ * @param-out array<string, array{f: list<MelLibEpIn>, b: int}> $eps
  * @return list<MelLibFile>
  */
-function mel_lib_folder_index($folder_id, &$info, &$left)
+function mel_lib_folder_index($folder_id, &$info, &$left, &$eps = null)
 {
+    $eps = array();
     list($list, $info) = mel_lib_read_index($folder_id, 'files', $left);
     if ($list === null)
         return array();
@@ -519,22 +532,149 @@ function mel_lib_folder_index($folder_id, &$info, &$left)
         $s = isset($f['s']) && is_numeric($f['s']) ? intval($f['s']) : -1;
         $e = isset($f['e']) && is_numeric($f['e']) ? intval($f['e']) : -1;
         $ass = isset($f['ass_type']) && is_numeric($f['ass_type']) ? intval($f['ass_type']) : 0;
-        if ($ass !== 0 || $s >= 0 || $e >= 0)
+        $mid = strval($f['id']);
+        $ep = $ass === 0 && $s >= 1 && $e >= 1;
+        if (!$ep && ($ass !== 0 || $s >= 0 || $e >= 0))
+        {
+            if (!isset($eps[$mid]))
+                $eps[$mid] = array('f' => array(), 'b' => 0);
+            $eps[$mid]['b']++;
             continue;
+        }
         // The media tags of the indexer ("MKV,4K,23.976,DV,HEVC,16:9,Atmos,7.1"), read once (mel_lib_tags).
         $tags = mel_lib_tags(isset($f['tags']) && is_string($f['tags']) ? $f['tags'] : '');
-        $files[] = array(
+        $rec = array(
             'folder' => strval($folder_id),
             'path' => $f['path'],
-            'mid' => strval($f['id']),
+            'mid' => $mid,
             'hash' => strval($f['hash']),
             'size' => mel_num(isset($f['size']) ? $f['size'] : 0),
             'tags' => $tags,
             'res' => mel_lib_res($tags, $f['path']));
+        // The folder of the file in the folder of the library ('' at its root), for the path of a copy shown.
+        $dir = mel_ts_dirname($f['path']);
+        if (!$ep)
+        {
+            $files[] = $rec + array('s' => -1, 'e' => -1, 'dir' => $dir);
+            continue;
+        }
+        if (!isset($eps[$mid]))
+            $eps[$mid] = array('f' => array(), 'b' => 0);
+        // match_confirmed: only for the rule of the confirmed (mel_lib_eps_fix), not in the file taken.
+        $eps[$mid]['f'][] = $rec + array('s' => $s, 'e' => $e, 'dir' => $dir,
+            'mc' => isset($f['match_confirmed']) && $f['match_confirmed'] === 'yes');
     }
     $info = count($list) . ' records, ' . count($files) . ' files';
     unset($list, $seen);
     return $files;
+}
+
+// The rules of the numbers of the episode files of one movie_id (as the index has them, mel_lib_folder_index) ->
+// files: the ones taken, their season and episode final (in their order, no mc); drop: the hashes of the rest; the
+// counts for the log. A pack: the folder of the library and the folder of the file in it. By the name of the file the
+// number (mel_ts_ep, else the number leading the name mel_ts_ep_lead) and the season if any:
+// 1. no number in the name: taken as in the index;
+// 2. the same as the index: taken as in the index - an anchor of its pack;
+// 3. another one, no anchor in its pack (a pack of absolute numbers): taken as in the index;
+// 4. another one, an anchor in its pack (an index error of the season): the season of the rest of its pack taken as
+// in the index (1, 2), if one, the episode of the name; a season in the name other than that one, or the number of
+// another file of the pack (after the fixes) - dropped;
+// 5. of a season and episode with a file of match_confirmed, the files without it dropped.
+/**
+ * @param list<MelLibEpIn> $files
+ * @return array{files: list<MelLibFile>, drop: list<string>, eps: int, fixed: int, index: int, name: int, hidden: int}
+ */
+function mel_lib_eps_fix($files)
+{
+    $num = array();
+    $anchor = array();
+    foreach ($files as $i => $f)
+    {
+        $n = mel_ts_ep($f['path']);
+        if ($n === null)
+            $n = mel_ts_ep_lead($f['path']);
+        $same = $n !== null && $n[1] === $f['e'] && ($n[0] === null || $n[0] === $f['s']);
+        $num[$i] = array($n, $same);
+        if ($same)
+            $anchor[$f['folder'] . '|' . $f['dir']] = true;
+    }
+    // Index of $files => array(season, episode) taken; by pack: the seasons and the numbers of the files taken as in
+    // the index (1, 2).
+    $ok = array();
+    $seasons = array();
+    $taken = array();
+    $fix = array();
+    $res = array('files' => array(), 'drop' => array(), 'eps' => 0, 'fixed' => 0, 'index' => 0, 'name' => 0,
+        'hidden' => 0);
+    foreach ($files as $i => $f)
+    {
+        $p = $f['folder'] . '|' . $f['dir'];
+        list($n, $same) = $num[$i];
+        if ($n === null || $same)
+        {
+            $ok[$i] = array($f['s'], $f['e']);
+            $seasons[$p][$f['s']] = true;
+            $taken[$p][$f['s'] . ':' . $f['e']] = true;
+        }
+        else if (empty($anchor[$p]))
+        {
+            $ok[$i] = array($f['s'], $f['e']);
+            $res['index']++;
+        }
+        else
+            $fix[$i] = $n;
+    }
+    $cand = array();
+    $count = array();
+    foreach ($fix as $i => $n)
+    {
+        $p = $files[$i]['folder'] . '|' . $files[$i]['dir'];
+        $ss = isset($seasons[$p]) ? array_keys($seasons[$p]) : array();
+        if (count($ss) !== 1 || ($n[0] !== null && $n[0] !== $ss[0]))
+            continue;
+        $cand[$i] = array($ss[0], $n[1]);
+        $k = $ss[0] . ':' . $n[1];
+        $count[$p][$k] = isset($count[$p][$k]) ? $count[$p][$k] + 1 : 1;
+    }
+    foreach ($cand as $i => $se)
+    {
+        $p = $files[$i]['folder'] . '|' . $files[$i]['dir'];
+        $k = $se[0] . ':' . $se[1];
+        if (isset($taken[$p][$k]) || $count[$p][$k] > 1)
+            continue;
+        $ok[$i] = $se;
+        $res['fixed']++;
+    }
+    $conf = array();
+    foreach ($ok as $i => $se)
+    {
+        if ($files[$i]['mc'])
+            $conf[$se[0] . ':' . $se[1]] = true;
+    }
+    $eps = array();
+    foreach ($files as $i => $f)
+    {
+        if (!isset($ok[$i]))
+        {
+            $res['drop'][] = $f['hash'];
+            $res['name']++;
+            continue;
+        }
+        $k = $ok[$i][0] . ':' . $ok[$i][1];
+        if (!$f['mc'] && isset($conf[$k]))
+        {
+            $res['drop'][] = $f['hash'];
+            $res['hidden']++;
+            continue;
+        }
+        $eps[$k] = true;
+        $f['s'] = $ok[$i][0];
+        $f['e'] = $ok[$i][1];
+        unset($f['mc']);
+        $res['files'][] = $f;
+    }
+    $res['eps'] = count($eps);
+    return $res;
 }
 
 // The signature of the configs: '' when there is no movie_index_config.xml.
@@ -592,6 +732,8 @@ function mel_lib_index()
             MelLib::$folders = array();
             MelLib::$nfs = array();
             MelLib::$by_mid = array();
+            MelLib::$eps = array();
+            MelLib::$eps_drop = array();
             MelLib::$found = array();
         }
         return;
@@ -611,29 +753,60 @@ function mel_lib_index()
     if ($ids !== array_keys(MelLib::$folders))
         $sig = $cfg . mel_lib_sig_files($ids);
     $by_mid = array();
+    $in = array();
     $n = 0;
     $skipped = 0;
     $left = MEL_LIB_BUDGET_BYTES;
     foreach ($ids as $id)
     {
         $info = '';
-        $files = mel_lib_folder_index($id, $info, $left);
+        $fe = array();
+        $files = mel_lib_folder_index($id, $info, $left, $fe);
+        $ne = 0;
+        foreach ($fe as $mid => $x)
+        {
+            $ne += count($x['f']);
+            if (!isset($in[$mid]))
+                $in[$mid] = array('f' => array(), 'b' => 0);
+            $in[$mid]['f'] = array_merge($in[$mid]['f'], $x['f']);
+            $in[$mid]['b'] += $x['b'];
+        }
         if ($info === 'too big' || $info === 'over budget')
             $skipped++;
-        else if (!$files)
+        else if (!$files && !$ne)
             mel_log("library: folder $id: $info");
         $n += count($files);
         foreach ($files as $f)
             $by_mid[$f['mid']][] = $f;
-        unset($files);
+        unset($files, $fe);
     }
     if ($skipped)
         mel_log("library: index budget: $skipped folders skipped");
+    // The rules on the episodes of all the folders of a movie_id at once: the confirmed file of an episode may be in
+    // another folder (a pack is of one folder).
+    $eps = array();
+    $drop = array();
+    foreach ($in as $mid => $x)
+    {
+        if (!$x['f'])
+            continue;
+        $r = mel_lib_eps_fix($x['f']);
+        if ($r['files'])
+            $eps[$mid] = $r['files'];
+        if ($r['drop'])
+            $drop[$mid] = $r['drop'];
+        mel_log("library: series $mid: " . count($x['f']) . " files, {$r['eps']} episodes, " .
+            "{$r['fixed']} fixed by name, {$r['index']} by index (no anchors), {$r['name']} dropped (name), " .
+            "{$r['hidden']} unconfirmed hidden, {$x['b']} skipped (bonus/no number)");
+    }
+    unset($in);
     // Kept with folders skipped too: they are not read again on each card, only when their files change.
     MelLib::$sig = $sig;
     MelLib::$folders = $folders;
     MelLib::$nfs = $nfs;
     MelLib::$by_mid = $by_mid;
+    MelLib::$eps = $eps;
+    MelLib::$eps_drop = $drop;
     MelLib::$found = array();
     mel_log('library: index read, ' . count($folders) . " folders, $n files, " .
         round((microtime(true) - $t) * 1000) . ' ms');
