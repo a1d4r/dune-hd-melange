@@ -2032,6 +2032,9 @@ function mel_play_action($in, $hist = null, $src = '')
         $r = mel_wh_card_last($mv['dune_id']);
     if ($r && $cur)
         list($hash, $lpk) = array($r['hash'], $r['key']);
+    // $si of mode local here: the button "Melange NN%" of r25 (play_online) of a record of a copy on the disk ($resume
+    // null above, its branch skipped). Of kind '' - the main profile, as of no record: a copy on the disk is of no
+    // profile of releases ('rel' would take the first of them over a main Lampac).
     $rec = $si ? array($si['prof'], $si['mode'] === 'lampac' ? 'lp' : ($si['mode'] === 'local' ? '' : 'rel')) :
         ($r ? array($r['prof'], $r['key'] !== '' ? 'lp' : 'rel') : array('', ''));
     $online = $src !== '' ? mel_op_src($src) : mel_op_title($rec[0], $rec[1]);
