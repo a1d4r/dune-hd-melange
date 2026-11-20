@@ -157,6 +157,12 @@ define('MEL_OC_BTN_Y_SER', 526);
 define('MEL_OC_DESC_GAP_SER', 6);
 define('MEL_OC_DESC_LH_SER', 40);
 define('MEL_OC_DESC_BOTTOM_SER', 491);
+// The head of an episode with a copy on the disk (spec §7.3, v8_S_head_A.png): its description in EP_LIB_LINES lines
+// (not EP_LINES), the line of the copy the next line (its box at EP_LIB_Y, 46 high at MEL_CATV_LINE_PX), to the right
+// edge of the text of the head (mel_oc_lib_line of view_card_lib.php).
+define('MEL_OC_EP_LIB_LINES', 2);
+define('MEL_OC_EP_LIB_Y', MEL_OC_EP_DESC_Y + MEL_OC_EP_LIB_LINES * MEL_OC_DESC_LH_SER);
+define('MEL_OC_EP_LIB_R', MEL_CATV_CARD_X + MEL_CATV_TEXT_W);
 define('MEL_OC_TAB_Y', 618);
 define('MEL_OC_TAB_H', 52);
 define('MEL_OC_TAB_PAD', 24);

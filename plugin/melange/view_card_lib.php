@@ -24,12 +24,6 @@ define('MEL_OC_LIB_ALPHA', 175);
 // after it (spec §7.3: "8 + 4"; its glyph MEL_K_PLATE_PAD further), no plates - the text DISK_GAP after it.
 define('MEL_OC_EP_DISK_W', 28);
 define('MEL_OC_EP_PLATE_GAP', 4);
-// The head of an episode with a copy (spec §7.3, v8_S_head_A.png): its description in EP_LIB_LINES lines (not
-// MEL_OC_EP_LINES), the line of the copy the next line (its box at EP_LIB_Y, 46 high at MEL_CATV_LINE_PX), to the right
-// edge of the text of the head.
-define('MEL_OC_EP_LIB_LINES', 2);
-define('MEL_OC_EP_LIB_Y', MEL_OC_EP_DESC_Y + MEL_OC_EP_LIB_LINES * MEL_OC_DESC_LH_SER);
-define('MEL_OC_EP_LIB_R', MEL_CATV_CARD_X + MEL_CATV_TEXT_W);
 
 // The data of copy $copy for its lines, apart from their layout (the line "С диска", the head of an episode, the
 // window of the copies): quiet - the badges without the audio (the resolution, the source, the picture), ids - all of
@@ -52,64 +46,71 @@ function mel_lib_copy_parts($copy, $lang)
         'ch' => implode(' / ', $ch), 'size' => $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '');
 }
 
-// The line of copy $copy of a title of $n copies at $x, the label box at $y, $px (mel_oc_label), to the right edge $r
-// at most. The movie under the buttons (the defaults), the same whatever the progress (R1, owner 20.11.2026): the disk
-// (MEL_OC_DISK_W), $head "С диска" (null: lib_from_disk), the badges (mel_lib_copy_parts: the plates b2 as high as in
-// the list of releases, MEL_OC_LIB_ALPHA), the channels and the size as text; $n 2 or more - and the tail "2 копии —
-// MENU" (lib_copies, owner 20.11.2026). $head '': the head of an episode (B10 A): the disk EP_DISK_W, no words, no tail.
-// Wider than $r: the tail of the copies out first, then the size, then the channels, then the audio (owner 19.11.2026);
-// the resolution and the picture stay.
+// The line of copy $copy of a title of $n copies at $x. The movie ($ep false) under the buttons, the same whatever the
+// progress (R1, owner 20.11.2026): its label box at MEL_OC_LINE_Y, LIB_PX, to the right edge LIB_R at most; the disk
+// (MEL_OC_DISK_W), "С диска" (lib_from_disk), the badges (mel_lib_copy_parts: the plates b2 as high as in the list of
+// releases, MEL_OC_LIB_ALPHA), the channels and the size as text; $n 2 or more - and the tail "2 копии — MENU"
+// (lib_copies, owner 20.11.2026). The head of an episode ($ep true, B10 A): the box at MEL_OC_EP_LIB_Y,
+// MEL_CATV_LINE_PX, to EP_LIB_R; the disk EP_DISK_W dimmed as the badges, no words, no tail.
+// Wider than the edge: the parts out one by one in the order of $drop - the tail of the copies, the size, the
+// channels, the audio (owner 19.11.2026); the resolution and the picture stay.
 /**
  * @param string $lang
  * @param MelLibCopy $copy
  * @param int $x
  * @param int $n
- * @param int $y
- * @param int $px
- * @param int $r
- * @param string|null $head
+ * @param bool $ep
  * @return list<array<string, mixed>>
  */
-function mel_oc_lib_line($lang, $copy, $x, $n = 1, $y = MEL_OC_LINE_Y, $px = MEL_OC_LIB_PX, $r = MEL_OC_LIB_R, $head = null)
+function mel_oc_lib_line($lang, $copy, $x, $n, $ep = false)
 {
     $p = mel_lib_copy_parts($copy, $lang);
-    $head = $head !== null ? $head : mel_tr($lang, 'lib_from_disk');
-    $more = $n > 1 && $head !== '' ? str_replace('{n}', strval($n), mel_gc_plural($lang, $n, 'lib_copies')) : '';
+    if ($ep)
+        list($y, $px, $r, $dw, $head, $more) = array(MEL_OC_EP_LIB_Y, MEL_CATV_LINE_PX, MEL_OC_EP_LIB_R, MEL_OC_EP_DISK_W,
+            '', '');
+    else
+        list($y, $px, $r, $dw, $head, $more) = array(MEL_OC_LINE_Y, MEL_OC_LIB_PX, MEL_OC_LIB_R, MEL_OC_DISK_W,
+            mel_tr($lang, 'lib_from_disk'), $n > 1 ? str_replace('{n}', strval($n), mel_gc_plural($lang, $n, 'lib_copies')) : '');
     $cy = mel_oc_label_cy($y, $px);
-    $dw = $head !== '' ? MEL_OC_DISK_W : MEL_OC_EP_DISK_W;
     $tx = $x + $dw + MEL_OC_DISK_GAP;
+    $on = array('more' => $more !== '', 'size' => true, 'ch' => true, 'audio' => true);
     $d = array();
-    foreach (array(array($p['ch'], $p['size'], $more, $p['ids']), array($p['ch'], $p['size'], '', $p['ids']),
-        array($p['ch'], '', '', $p['ids']), array('', '', '', $p['ids']), array('', '', '', $p['quiet'])) as $v)
+    foreach (array('', 'more', 'size', 'ch', 'audio') as $drop)
     {
-        list($d, $w) = mel_oc_lib_parts($head, $v[3], implode(' · ', array_filter(array($v[0], $v[1], $v[2]), 'strlen')),
-            $tx, $y, $px, $cy);
+        if ($drop !== '')
+            $on[$drop] = false;
+        list($d, $w) = mel_oc_lib_parts($head, $p, $on, $more, $tx, $y, $px, $cy);
         if ($tx + $w <= $r)
             break;
     }
-    $disk = mel_gc_image(mel_gc_at($dw, $dw, $x, (int) round($cy - $dw / 2)), MEL_OC_IMG . ($head !== '' ? 'disk.png' :
-        'ep_disk.png'));
-    if ($head === '')
+    $disk = mel_gc_image(mel_gc_at($dw, $dw, $x, (int) round($cy - $dw / 2)), MEL_OC_IMG . ($ep ? 'ep_disk.png' :
+        'disk.png'));
+    if ($ep)
         $disk[GComponentDef::specific_def][GCompImageDef::alpha] = MEL_OC_LIB_ALPHA;
     return array_merge(array($disk), $d);
 }
 
-// The parts of the line of mel_oc_lib_line at $x, the labels at $y, $px, the plates centred at $cy (mel_oc_label_cy):
-// the text $head, the badges $ids, " · " and the text $tail (after $head without badges), LIB_GAP apart -> array(the
-// components, the width). $head '': the plates EP_PLATE_GAP from $x, the tail after them; no plates - the tail at $x,
-// no " · " before it.
+// The parts of the line of mel_oc_lib_line at $x, the labels at $y, $px, the plates centred at $cy (mel_oc_label_cy),
+// of the data $p of its copy those $on keeps (more, size, ch, audio): the text $head, the badges (ids, without audio
+// quiet), " · " and the tail (the channels, the size, $more; after $head without badges), LIB_GAP apart -> array(the
+// components, the width). $head '' (the head of an episode): the plates EP_PLATE_GAP from $x, the tail after them; no
+// plates - the tail at $x, no " · " before it.
 /**
  * @param string $head
- * @param list<string> $ids
- * @param string $tail
+ * @param MelLibParts $p
+ * @param array{more: bool, size: bool, ch: bool, audio: bool} $on
+ * @param string $more
  * @param int $x
  * @param int $y
  * @param int $px
  * @param float $cy
  * @return array{list<array<string, mixed>>, int}
  */
-function mel_oc_lib_parts($head, $ids, $tail, $x, $y, $px, $cy)
+function mel_oc_lib_parts($head, $p, $on, $more, $x, $y, $px, $cy)
 {
+    $ids = $on['audio'] ? $p['ids'] : $p['quiet'];
+    $tail = implode(' · ', array_filter(array($on['ch'] ? $p['ch'] : '', $on['size'] ? $p['size'] : '',
+        $on['more'] ? $more : ''), 'strlen'));
     if (!$ids && $tail !== '' && $head !== '')
     {
         $head .= " · $tail";

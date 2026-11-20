@@ -138,7 +138,7 @@ function mel_oc_ep_head($c, $ep, $copy = null)
         $d[] = mel_oc_label($x0, MEL_OC_EP_DESC_Y + $i * MEL_OC_DESC_LH_SER, MEL_CATV_TEXT_W, $line, MEL_CATV_LINE_PX,
             MEL_CATV_TEXT_COLOR);
     if ($copy)
-        $d = array_merge($d, mel_oc_lib_line($ui, $copy, $x0, 1, MEL_OC_EP_LIB_Y, MEL_CATV_LINE_PX, MEL_OC_EP_LIB_R, ''));
+        $d = array_merge($d, mel_oc_lib_line($ui, $copy, $x0, 1, true));
     return $d;
 }
 
@@ -405,19 +405,19 @@ function mel_oc_ep_titles($c, $ep, $pr, $on)
 
 // The still of episode $ep at index $i of its season: the frame of the server (loading: the
 // picture of the shell; not out yet or none: the empty one of the shell), with a copy on the disk (of the copies of
-// episodes $lib, nav lib_eps; Z3, spec §7.2) the disk at the top left on the plate of the mark (EP_DISK_W white on
+// episodes $lib_eps, nav lib_eps; Z3, spec §7.2) the disk at the top left on the plate of the mark (EP_DISK_W white on
 // 44 x 44, 8 in), the bar of the progress at its foot if begun, the mark at the top right if watched; the titles under
 // it ("tt<i>").
 /**
  * @param MelOcCard $c
  * @param array<string, array{float, float, bool}> $prog
- * @param array<string, list<MelLibCopy>> $lib
+ * @param array<string, list<MelLibCopy>> $lib_eps
  * @param int $i
  * @param MelCardEp $ep
  * @param bool $on
  * @return MelGcComp
  */
-function mel_oc_ep_card($c, $prog, $lib, $i, $ep, $on)
+function mel_oc_ep_card($c, $prog, $lib_eps, $i, $ep, $on)
 {
     $pr = mel_oc_prog($c, $prog, $ep);
     $img = mel_gc_image(mel_gc_at(MEL_OC_EP_W, MEL_OC_EP_H, 0, 0),
@@ -428,7 +428,7 @@ function mel_oc_ep_card($c, $prog, $lib, $i, $ep, $on)
         $img[GComponentDef::specific_def][GCompImageDef::load_failed_url] = MEL_OC_ICONS . 'no_episode_image.png';
     }
     $d = array(mel_gc_rect(mel_gc_at(MEL_OC_EP_W, MEL_OC_EP_H, 0, 0), MEL_OC_NO_PHOTO), $img);
-    if (!empty($lib["{$ep['s']}:{$ep['e']}"]))
+    if (!empty($lib_eps["{$ep['s']}:{$ep['e']}"]))
     {
         $d[] = mel_gc_rect(mel_gc_at(44, 44, 8, 8), MEL_OC_MARK_BG);
         $d[] = mel_gc_image(mel_gc_at(MEL_OC_EP_DISK_W, MEL_OC_EP_DISK_W, 16, 16), MEL_OC_IMG . 'ep_disk.png');
@@ -449,23 +449,23 @@ function mel_oc_ep_card($c, $prog, $lib, $i, $ep, $on)
     return mel_gc_panel("c$i", mel_gc_at(MEL_OC_EP_W, MEL_OC_ROW_H, $i * MEL_OC_EP_STEP, 0), $d);
 }
 
-// The stills $lo..$hi of season $s, the one at $focus lit (-1: none); the copies of episodes $lib (mel_oc_ep_card).
+// The stills $lo..$hi of season $s, the one at $focus lit (-1: none); the copies of episodes $lib_eps (mel_oc_ep_card).
 /**
  * @param MelOcCard $c
  * @param array<string, array{float, float, bool}> $prog
- * @param array<string, list<MelLibCopy>> $lib
+ * @param array<string, list<MelLibCopy>> $lib_eps
  * @param int $s
  * @param int $lo
  * @param int $hi
  * @param int $focus
  * @return list<MelGcComp>
  */
-function mel_oc_ep_cards($c, $prog, $lib, $s, $lo, $hi, $focus)
+function mel_oc_ep_cards($c, $prog, $lib_eps, $s, $lo, $hi, $focus)
 {
     $eps = mel_oc_eps($c, $s);
     $d = array();
     for ($i = $lo; $i <= $hi; $i++)
-        $d[] = mel_oc_ep_card($c, $prog, $lib, $i, $eps[$i], $i === $focus);
+        $d[] = mel_oc_ep_card($c, $prog, $lib_eps, $i, $eps[$i], $i === $focus);
     return $d;
 }
 
