@@ -1676,7 +1676,7 @@ function mel_oc_watch_from($c, $ep, $x, $src)
 // profile $src: its own card in memory with its meta, else one made as by ENTER (mel_oc_enter) with no screen, not
 // kept: no rows of posters, the tile filled by the meta, no rating asked (mel_oc_fill), a series with a card of the Dune
 // - its episodes of the meta to the pair (mel_pg_link_meta, as mel_oc_build) -> mel_oc_watch_from (a series: the
-// episode offered, mel_oc_pick). No "Смотреть" (mel_oc_can_watch): the message of the card (mel_oc_why) - the meta did
+// episode offered, as "▶ Продолжить" of its screen: by H and the files on the disk, mel_oc_lib_pick). No "Смотреть" (mel_oc_can_watch): the message of the card (mel_oc_why) - the meta did
 // not load (a tile of TMDB alone).
 /**
  * @param MelCatTile $tile
@@ -1711,7 +1711,7 @@ function mel_oc_tile_watch($tile, $lang, $dune, $src)
         return mel_error('card_meta_failed');
     $ep = null;
     if ($tile['type'] === 'series')
-        list($ep) = mel_oc_pick($c);
+        list($ep) = mel_oc_lib_pick($c);
     return mel_oc_watch_from($c, $ep, null, $src);
 }
 

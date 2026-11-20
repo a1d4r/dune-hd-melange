@@ -56,19 +56,20 @@ function mel_oc_prog($c, $prog, $ep)
 // The episode to offer of a series card (mel_wh_pick of its history and its marks by the episodes
 // of the meta, those not out too; without the meta as play_action without season_numbers): q, e - as
 // asked, s - the season of the meta (0: none has it); hash, key, prof (the profile of the record, v2), kind of
-// mel_wh_pick. The history of the card $hid (H of its copies on the disk, mel_oc_lib; null - the card of the Dune),
-// the native records of the files of the library by their episodes $fix (mel_oc_lib_eps, mel_wh_fix_se). -> array(it,
-// the progress of its episodes, mel_wh_series).
+// mel_wh_pick. The history of the card $hid (H of its copies on the disk, mel_oc_lib: else the card of the Dune), the
+// native records of the files of the library by their episodes $fix (mel_oc_lib_eps, mel_wh_fix_se) - both given by
+// every caller (mel_oc_lib_pick for a card with no layout): the screen, "Смотреть из…" and the link offer one episode.
+// -> array(it, the progress of its episodes, mel_wh_series).
 /**
  * @param MelOcCard $c
  * @param array<string, array{int, int}|string> $fix
- * @param string|null $hid
+ * @param string $hid
  * @return array{MelOcEp, array<string, array{float, float, bool}>}
  */
-function mel_oc_pick($c, $fix = array(), $hid = null)
+function mel_oc_pick($c, $fix, $hid)
 {
     $m = $c['meta'];
-    $h = $hid !== null ? $hid : $c['dune'];
+    $h = $hid;
     $st = $h !== '' ? mel_wh_series($h, mel_wh_marked_set(), $fix) : array(null, array(), array());
     $p = mel_wh_pick($st, $h, $m ? mel_cm_lists($m) : array());
     $s = $m ? mel_cm_season_of($m, $p['s'], $p['e']) : 0;

@@ -8,8 +8,8 @@
 // of a search of the catalog by the text, no dialog; tab - the catalog at a tab; row - "Show all" of a row of a tab by
 // its number on the screen. A value off its pattern, a field the target does not take, one it lacks: a line of the
 // log, no screen. Each call: a line of the log with the target and the ids.
-// Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_card.php, view_card_series.php, view_catalog.php,
-// view_person.php, continue.php (mel_cp_items), source_profiles.php.
+// Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_card.php, view_card_series.php, view_card_lib.php
+// (mel_oc_lib_pick), view_catalog.php, view_person.php, continue.php (mel_cp_items), source_profiles.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The targets: fn - the handler of the link; id - the fields of an id it takes, exactly one of them given (none: no
@@ -187,7 +187,8 @@ function mel_dl_src($src)
 }
 
 // to=streams: the list of the card of the link, as "Watch" of the card opens it (a movie) or ENTER on episode e of
-// season s of the meta (a series, mel_oc_ep_watch: one not out yet - its message); not in the meta, or no meta:
+// season s of the meta (a series, mel_oc_ep_watch: one not out yet - its message; the episode offered - by H and the
+// files on the disk, mel_oc_lib_pick, as the screen of the card); not in the meta, or no meta:
 // asked as s, e. Only the list: play_action gets no selected_control_id, so no resume starts a player (mel_resume).
 // src given: the list from that profile (mel_dl_src), as "Смотреть из…" of the card (mel_oc_watch_from): nothing
 // remembered, the record and the main one not used; no such profile or not ready: null, logged, nothing asked.
@@ -218,7 +219,7 @@ function mel_dl_streams($q)
     $x = mel_oc_ep($c, $s, $e);
     if (!$x)
         return mel_oc_watch($c, $s, $e, null, $src);
-    list($ep) = mel_oc_pick($c);
+    list($ep) = mel_oc_lib_pick($c);
     return mel_oc_ep_watch($c, $x, $ep, $src);
 }
 

@@ -309,6 +309,20 @@ function mel_oc_lib_eps($c, $y)
     return mel_lib_ep_same(mel_lib_ep_copies($y), mel_lib_ep_hashes($y), $seasons, $m['cin']);
 }
 
+// The episode to offer of series card $c and the progress of its episodes (mel_oc_pick) by the history of H with the
+// native records of the files of its episodes on the disk (mel_oc_lib: hid, fix), as the screen of the card offers it
+// ("▶ Продолжить") - for a card with no layout at hand: "Смотреть из…" of a tile (mel_oc_tile_watch), the link of
+// streams (mel_dl_streams). The map of the files is not kept (nav has none).
+/**
+ * @param MelOcCard $c
+ * @return array{MelOcEp, array<string, array{float, float, bool}>}
+ */
+function mel_oc_lib_pick($c)
+{
+    $ol = mel_oc_lib($c);
+    return mel_oc_pick($c, $ol['fix'], $ol['hid']);
+}
+
 // The copy of copies $lib of the latest record of a copy of the card of history $hid (mel_wh_lib_last), there; null
 // none (no record, or its copy not among them): no copy is the current one then.
 /**
