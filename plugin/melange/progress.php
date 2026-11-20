@@ -115,7 +115,7 @@ function mel_pg_visit($w, $arg, &$acc)
     {
         $st = $acc[$mid]['st'];
         $had = isset($st['last']);
-        mel_wh_series_visit($w, array($mid, $arg[0], $marks), $st);
+        mel_wh_series_visit($w, array($mid, $arg[0], $marks, array()), $st);
         if (!$had && isset($st['last']))
             $st['last'] = mel_pg_slim($st['last']);
         $acc[$mid]['st'] = $st;

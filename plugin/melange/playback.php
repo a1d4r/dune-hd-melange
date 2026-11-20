@@ -465,23 +465,24 @@ function mel_lib_hid($dune_id, $y)
 // step 1: of the newer record), 0 watched. $first_pos: 0 when $first is the copy of our record and that record is the
 // latest (the player offers its place itself), else $pos. Episode S$q E$e ($e >= 1, the season as asked; $copies of it):
 // the same by the records of the episode - $k the choice of mel_lib_ep_pick or the id of a copy chosen, the record of a
-// copy of it (mel_wh_lib_ep_last), the place of its latest record (mel_wh_ep_last).
+// copy of it (mel_wh_lib_ep_last), the place of its latest record (mel_wh_ep_last, by the files $fix).
 /**
  * @param string $hid
  * @param list<MelLibCopy> $copies
  * @param string $k
  * @param int $q
  * @param int $e
+ * @param array<string, string> $fix
  * @return array{string, int, int}
  */
-function mel_lib_place($hid, $copies, $k, $q = -1, $e = -1)
+function mel_lib_place($hid, $copies, $k, $q = -1, $e = -1, $fix = array())
 {
     $ep = $e >= 1;
     if (!$ep)
         $q = $e = -1;
     $rec = $ep ? mel_wh_lib_ep_last($hid, $q, $e) : mel_wh_lib_last($hid);
     $rk = $rec ? $rec['key'] : '';
-    $any = $ep ? mel_wh_ep_last($hid, $q, $e) : mel_wh_movie_last($hid);
+    $any = $ep ? mel_wh_ep_last($hid, $q, $e, $fix) : mel_wh_movie_last($hid);
     $pos = $any && !mel_wh_full($any[0], $any[1]) ? intval($any[0]) : 0;
     $u = $any && $rk !== '' ? mel_wh_uid($any[2], $hid) : null;
     $own = $u !== null && $u[0] === $q && $u[1] === $e && $u[2] === $rk;
@@ -490,6 +491,81 @@ function mel_lib_place($hid, $copies, $k, $q = -1, $e = -1)
     mel_log('library: place' . ($ep ? " S{$q}E{$e}" : '') . ': ' . ($rk !== '' ? "the record $rk" : 'no record') .
         ", at $pos s" . ($own ? ', the latest' : ''));
     return array($k !== '' ? $k : $rk, $of_rec && $own ? 0 : $pos, $pos);
+}
+
+// The copy of an episode to play, one rule for all the ways (the own card, the playlist, "Continue" of the native; owner
+// 3: after a change of the copy the next episodes are of the new folder). Pure, no history, no index: of its copies now
+// $copies_ep (the best first, mel_lib_ep_copies), the key $rec_key of our record of the episode that still holds ('' none,
+// mel_lib_ep_ctx), the packs F $f_packs of the last choice of a folder (mirrors: several; none - no F), $auto - no window
+// (the playlist, the line of the card). -> array(the key of the record or the id of a copy, '' - the window; why):
+// record - the copy of the record; folder - of a pack F (the first of several); near - of the pack nearest to F
+// (mel_lib_pack_near, the most of the packs F), near-best - the first of several as near; one - the only copy; auto-best -
+// the first; window - none of these; none - no copy. One log line, no path.
+/**
+ * @param list<MelLibCopy> $copies_ep
+ * @param string $rec_key
+ * @param list<string> $f_packs
+ * @param bool $auto
+ * @return array{string, string}
+ */
+function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
+{
+    if (!$copies_ep)
+        return array('', 'none');
+    $top = $copies_ep[0];
+    if ($rec_key !== '' && mel_lib_copies_of($copies_ep, $rec_key))
+        $why = 'record';
+    else if ($f_packs)
+    {
+        $why = '';
+        $at = -2;
+        $ties = 0;
+        foreach ($copies_ep as $c)
+        {
+            $p = mel_lib_pack($c);
+            if (in_array($p, $f_packs, true))
+            {
+                list($top, $why) = array($c, 'folder');
+                break;
+            }
+            $d = -1;
+            foreach ($f_packs as $f)
+                $d = max($d, mel_lib_pack_near($f, $p));
+            if ($d > $at)
+                list($top, $at, $ties) = array($c, $d, 1);
+            else if ($d === $at)
+                $ties++;
+        }
+        if ($why === '')
+            $why = $ties > 1 ? 'near-best' : 'near';
+    }
+    else if (count($copies_ep) === 1)
+        $why = 'one';
+    else
+        $why = $auto ? 'auto-best' : 'window';
+    mel_log("library: episode S{$top['s']}E{$top['e']}: $why");
+    return array($why === 'record' ? $rec_key : ($why === 'window' ? '' : $top['cid']), $why);
+}
+
+// What mel_lib_ep_pick goes by for episode S$q E$e (the season as asked) of the series $y of the index, card of history
+// $hid -> array($rec_key, $f_packs): the key of our record of a copy of the episode (mel_wh_lib_ep_last) while it is not
+// watched or it is the last choice of a folder (its end not less than of the latest record of a copy of the card,
+// mel_wh_lib_last), else '' - the episode goes of the pack F; F - the packs of the key of that latest record by the
+// index (mel_lib_key_packs: its copy may be not mounted now, "the same folder" is there). The playlist and "Continue"
+// of the native take their own F (the start copy, the key of the record).
+/**
+ * @param string $hid
+ * @param string $y
+ * @param int $q
+ * @param int $e
+ * @return array{string, list<string>}
+ */
+function mel_lib_ep_ctx($hid, $y, $q, $e)
+{
+    $last = mel_wh_lib_last($hid);
+    $rec = mel_wh_lib_ep_last($hid, $q, $e);
+    $key = $rec && (!mel_wh_full($rec['pos'], $rec['len']) || ($last && $rec['end'] >= $last['end'])) ? $rec['key'] : '';
+    return array($key, $last ? mel_lib_key_packs($y, $last['key']) : array());
 }
 
 // "Continue" of the copy of key $key of movie $mv from $pos s (play_action of wh_mode local; $key the id of a copy of

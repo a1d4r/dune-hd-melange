@@ -353,16 +353,17 @@ function mel_wh_movie_visit($w, $dune_id, &$acc)
 }
 
 // The latest record of episode S$q E$e (the season as asked) of the series of card $hid, of any supplier or a local
-// file, as mel_wh_movie_last -> array(pos, len, uid), null for none.
+// file, its episode by its file ($fix, mel_wh_fix_se), as mel_wh_movie_last -> array(pos, len, uid), null for none.
 /**
  * @param string $hid
  * @param int $q
  * @param int $e
+ * @param array<string, string> $fix
  * @return array{float, float, string}|null
  */
-function mel_wh_ep_last($hid, $q, $e)
+function mel_wh_ep_last($hid, $q, $e, $fix = array())
 {
-    $found = mel_wh_find('history: episode', 'mel_wh_ep_visit', array($hid, $q, $e));
+    $found = mel_wh_find('history: episode', 'mel_wh_ep_visit', array($hid, $q, $e, array_change_key_case($fix, CASE_UPPER)));
     if (!$found)
         return null;
     list(, , $pos, $len, $uid) = mel_wh_rec($found[0]);
@@ -371,18 +372,46 @@ function mel_wh_ep_last($hid, $q, $e)
 
 /**
  * @param mixed $w
- * @param array{string, int, int} $arg
+ * @param array{string, int, int, array<string, string>} $arg
  * @param list<stdClass> $acc
  * @return bool
  */
 function mel_wh_ep_visit($w, $arg, &$acc)
 {
-    if (!mel_wh_match($w, $arg[0]))
+    $w = mel_wh_match($w, $arg[0]) ? mel_wh_fix_se($w, $arg[3]) : null;
+    if (!$w)
         return false;
     list($s, $e) = mel_wh_rec($w);
     if ($s === $arg[1] && $e === $arg[2])
         $acc[] = $w;
     return (bool)$acc;
+}
+
+// Episode record $w by its file (B11 of the spec: the native records of a file of the library may have another number):
+// its video_id "hash:<hash>" of a file of the index in $fix (the hash in upper case => "q:e" of the file, the season as
+// asked; 'skip' - a file the rules of the numbers dropped, mel_lib_ep_hashes) -> a copy of $w with s/e of the file, null
+// for 'skip' (a record of no episode); else $w as it is. The hash of video_id in upper case (so the shell writes it).
+/**
+ * @param stdClass $w
+ * @param array<string, string> $fix
+ * @return stdClass|null
+ */
+function mel_wh_fix_se($w, $fix)
+{
+    if (!$fix || !isset($w->video_id) || !is_string($w->video_id) || strncmp($w->video_id, 'hash:', 5) !== 0)
+        return $w;
+    $h = strtoupper(substr($w->video_id, 5));
+    if (!isset($fix[$h]))
+        return $w;
+    if ($fix[$h] === 'skip')
+        return null;
+    $se = explode(':', $fix[$h]);
+    if (count($se) !== 2)
+        return $w;
+    $c = clone $w;
+    $c->s = intval($se[0]);
+    $c->e = intval($se[1]);
+    return $c;
 }
 
 // Our records (uid "aio:..."): uid => share of its latest record, 0 without
@@ -775,7 +804,7 @@ function mel_wh_alone($w, $dune_id, $set)
 {
     $acc = array();
     if ($w)
-        mel_wh_series_visit($w, array($dune_id, $set, array()), $acc);
+        mel_wh_series_visit($w, array($dune_id, $set, array(), array()), $acc);
     unset($acc['last']);
     return array($w, $acc, array());
 }
@@ -802,16 +831,19 @@ function mel_wh_episode($mv)
 // (mel_wh_pick) or null, "s:e" => array(pos, len, watched), the marks of the own card
 // (mel_wh_marks)). Watched: by position, its uid marked (mel_wh_mark_on the end of the record), or
 // the mark of the own card of its S/E made after the record ends; an episode with such a mark and
-// no record: array(-1, 0, true). Another reader of recent_uid besides mel_wh_progress.
+// no record: array(-1, 0, true). Another reader of recent_uid besides mel_wh_progress. $fix: the episodes of the files
+// of the library by their hashes (mel_wh_fix_se, any case) - a record of a file is of its episode, the latest one too.
 /**
  * @param string $dune_id
  * @param array<int|string, int> $set
+ * @param array<string, string> $fix
  * @return MelWhSeries
  */
-function mel_wh_series($dune_id, $set)
+function mel_wh_series($dune_id, $set, $fix = array())
 {
     $marks = mel_wh_marks($dune_id, $set);
-    $acc = mel_wh_find('history: series', 'mel_wh_series_visit', array($dune_id, $set, $marks));
+    $acc = mel_wh_find('history: series', 'mel_wh_series_visit', array($dune_id, $set, $marks,
+        array_change_key_case($fix, CASE_UPPER)));
     $last = isset($acc['last']) ? $acc['last'] : null;
     unset($acc['last']);
     return array($last, mel_wh_series_fill($acc, $marks), $marks);
@@ -836,13 +868,14 @@ function mel_wh_series_fill($prog, $marks)
 
 /**
  * @param mixed $w
- * @param array{string, array<int|string, int>, array<string, int>} $arg
+ * @param array{string, array<int|string, int>, array<string, int>, array<string, string>} $arg
  * @param array<string, mixed> $acc
  * @return bool
  */
 function mel_wh_series_visit($w, $arg, &$acc)
 {
-    if (!mel_wh_match($w, $arg[0]))
+    $w = mel_wh_match($w, $arg[0]) ? mel_wh_fix_se($w, $arg[3]) : null;
+    if (!$w)
         return false;
     if (!isset($acc['last']))
         $acc['last'] = $w;
