@@ -11,6 +11,7 @@
 - **Same episode, another release / Same movie, another release.** If a release fails to start and the list has the same file in another release, the error window has a button that starts it.
 - **No more "already in the Debrid library" sorting.** The Melange AIOStreams template no longer sets it, so a release that a failed probe added to the service does not rise to the top of later lists. Melange also removes this key from configs it created before.
 - Fixed: when an addon queries other addons, the list and "Details" showed trackers as "Comet/StremThru/Rutracker". Now only the tracker, the last link, shows, and repeats are dropped regardless of case.
+- Fixed: when Comet did not return the video, the error window said "HTTP 200, N KB" instead of the reason.
 
 ## 0.65.0 — 19.11.2026
 - **Hide a title.** POP UP on a tile → "Hide". The title disappears from the catalog rows, "Show all", the TV tab of the home screen and the "Similar", "Franchise" and filmography rows of the Melange card. Search still shows it. Favorites rows have no such item.
@@ -308,6 +309,7 @@ First public release. What it does:
 - **«Та же серия из другой раздачи» / «Тот же фильм из другой раздачи».** Если раздача не запустилась, а в списке есть тот же файл в другой раздаче, в окне ошибки есть кнопка, которая его запускает.
 - **Без сортировки «уже в библиотеке Debrid».** Шаблон AIOStreams Melange её больше не ставит, и раздача, которую неудачная проба добавила в сервис, не поднимается наверх следующих списков. Из уже созданных конфигов Melange этот ключ тоже убирает.
 - Исправлено: если аддон опрашивает другие аддоны, в списке и «Сведениях» трекер был «Comet/StremThru/Rutracker». Теперь там только трекер, последнее звено, а повторы убираются без учёта регистра.
+- Исправлено: когда Comet не отдавал видео, окно ошибки писало «HTTP 200, N KB» вместо причины.
 
 ## 0.65.0 — 19.11.2026
 - **Скрыть тайтл.** POP UP на плитке → «Скрыть». Тайтл пропадает из рядов каталога, «Показать все», вкладки «ТВ» на главном экране и из рядов «Похожие», «Части франшизы» и фильмографии в карточке Melange. В поиске он виден. У рядов «Избранное» такого пункта нет.
