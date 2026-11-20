@@ -316,9 +316,9 @@ parameters:
         # shown; share, the progress of the line "сейчас" (0 none: no bar).
         MelLibWin: "array{copies: list<MelLibCopy>, at: int, mode: 'first'|'menu', s: int, e: int, cur: string, top: int, share: float}"
         # The window of the copies the first tick of the screen of an own card opens over it (MelOcCard lw_auto: "Continue"
-        # of the native with a copy to choose, mel_lib_win_card): its copies (2+, the best first), mode, s, e the episode
-        # (-1 of a movie).
-        MelLibAuto: "array{copies: list<MelLibCopy>, mode: 'first'|'menu', s: int, e: int}"
+        # of the native with a copy to choose, mel_lib_win_card; its mode first): its copies (2+, the best first), s, e the
+        # episode (-1 of a movie).
+        MelLibAuto: 'array{copies: list<MelLibCopy>, s: int, e: int}'
         # A button of the own dialog or wait (kit_dlg.php, mel_dlg_buttons): its id, label, icon, the action after the
         # close (null none), RETURN presses it (cancel, of a wait).
         MelDlgButton: 'array{id: string, label: string, icon: string, act: MelAction|null, cancel: bool}'

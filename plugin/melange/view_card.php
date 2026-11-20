@@ -1571,8 +1571,8 @@ function mel_oc_ovl_drop($key)
 //     would take the window away; the close gives the timer back, a tick then;
 //   - a window to open (lw_auto, mel_lib_win_card: "Continue" of the native with a copy to choose): the flag off, the
 //     window W2 of those copies over the screen, mode first (mel_lib_win_open) - before the rows of posters (mel_oc_load
-//     puts the screen anew, its nav gone); only of the copies the screen shown has (nav: lib of a movie, lib_eps of the
-//     episode), else none, logged, and on to the posters;
+//     puts the screen anew, its nav gone); only of the copies the screen shown has (mel_oc_lib_shown of nav), else
+//     none, logged, and on to the posters;
 //   - the rows of posters (mel_oc_load), the overlay of the screen before dropped (mel_oc_ovl_drop).
 /**
  * @param string $key
@@ -1591,9 +1591,8 @@ function mel_oc_tick($key, $l)
     {
         $w = MelOc::$cards[$key]['lw_auto'];
         unset(MelOc::$cards[$key]['lw_auto']);
-        $shown = isset(MelOc::$cards[$key]['nav']) && ($w['e'] >= 1 ? !empty($l['lib_eps'][mel_oc_se($w['s'], $w['e'])]) :
-            (bool) $l['lib']);
-        $a = $shown ? mel_lib_win_open($key, $w['copies'], $w['mode'], $w['s'], $w['e']) : null;
+        $shown = isset(MelOc::$cards[$key]['nav']) && mel_oc_lib_shown($l, $w['s'], $w['e']);
+        $a = $shown ? mel_lib_win_open($key, $w['copies'], 'first', $w['s'], $w['e']) : null;
         if ($a)
             return $a;
         mel_log("card: own $key: the window of the copies of \"Continue\" not opened, the screen has none of them");
@@ -2036,7 +2035,7 @@ function mel_oc_input($in, $control)
             $x = mel_oc_ep($c, $pos['s'], $pos['e']);
             mel_log("card: own $key: ENTER on S{$pos['s']}E{$pos['e']}" . ($x && $x['soon'] ? ', not out yet' : ''));
             // With a copy on the disk (one not out yet too: its file is there) - the file (C2).
-            if ($x && !empty($l['lib_eps'][mel_oc_se($x['s'], $x['e'])]))
+            if ($x && mel_oc_lib_shown($l, $x['s'], $x['e']))
                 return mel_oc_lib_start_ep($key, $c, $l, $x['s'], $x['e']);
             return $x ? mel_oc_ep_watch($c, $x, $ep) : null;
         }
@@ -2048,10 +2047,10 @@ function mel_oc_input($in, $control)
             return mel_oc_list($key, $c, $l, $pos);
         if ($kind === 'trailer')
             return mel_ct_enter($key);
-        if ($kind === 'watch' && !$ep && $l['lib'])
+        if ($kind === 'watch' && !$ep && mel_oc_lib_shown($l))
             return mel_oc_lib_start($key, $c, $l);
         // The episode offered with a copy on the disk (its season of the card $ep['s']): the file (C2).
-        if ($kind === 'watch' && $ep && !empty($l['lib_eps'][mel_oc_se($ep['s'], $ep['e'])]))
+        if ($kind === 'watch' && $ep && mel_oc_lib_shown($l, $ep['s'], $ep['e']))
             return mel_oc_lib_start_ep($key, $c, $l, $ep['s'], $ep['e']);
         if ($kind === 'watch')
             return $ep ? mel_oc_watch($c, $ep['q'], $ep['e'], $ep) : mel_oc_watch($c);

@@ -192,7 +192,7 @@ function mel_lib_win_card($mv, $left, $s, $e)
         mel_log("$tag, the own card $key has none of them: no own card");
         return null;
     }
-    $card['lw_auto'] = array('copies' => $left, 'mode' => 'first', 's' => $e >= 1 ? $s : -1, 'e' => $e >= 1 ? $e : -1);
+    $card['lw_auto'] = array('copies' => $left, 's' => $e >= 1 ? $s : -1, 'e' => $e >= 1 ? $e : -1);
     MelOc::$cards[$key] = $card;
     mel_log("$tag -> the own card $key, the window of them by its first tick");
     return mel_dl_card_open($key, $card);

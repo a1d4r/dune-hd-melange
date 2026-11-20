@@ -479,8 +479,7 @@ function mel_oc_lib_menu_items($key, $c, $l, $pos)
     {
         list($s, $e) = $pos['z'] === 'row' ? array($pos['s'], $pos['e']) : ($l['ep'] ? array($l['ep']['s'], $l['ep']['e']) :
             array(0, 0));
-        $se = mel_oc_se($s, $e);
-        if (!isset($l['lib_eps'][$se]) || count($l['lib_eps'][$se]) < 2)
+        if (!mel_oc_lib_shown($l, $s, $e) || count($l['lib_eps'][mel_oc_se($s, $e)]) < 2)
             return array();
         $p += array('s' => strval($s), 'e' => strval($e));
     }
