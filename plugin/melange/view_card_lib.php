@@ -497,7 +497,7 @@ function mel_oc_lib_menu_items($key, $c, $l, $pos)
 // (mel_lib_place). The copy of id $k chosen in the window of the copies ('' - "Смотреть": the copy of the record, of
 // its mirrors the first there; none - the copies by mel_lib_start: one plays, several - the window W2 of them over the
 // screen, mode first (mel_lib_win_open; none - the screen shown has no slot of the overlay: nothing, logged there), none
-// there - mel_lib_gone).
+// there - mel_lib_gone). Played (card_finish after the player) only when its file starts, as of an episode.
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -514,10 +514,12 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
     $copies = mel_lib_copies($l['lib'][0]['mid']);
     mel_log("card: own $key: watch a copy on the disk");
     list($first, $first_pos, $pos) = mel_lib_place($l['hid'], $copies, $k);
-    MelOc::$cards[$key]['played'] = true;
     $go = mel_lib_start($copies, $first, $first_pos, $pos, false);
     if (isset($go['copy']))
+    {
+        MelOc::$cards[$key]['played'] = true;
         return mel_lib_play($mv, $go, $c['ui']);
+    }
     return isset($go['pick']) ? mel_lib_win_open($key, $go['pick'], 'first') : mel_lib_gone($go['gone']);
 }
 
@@ -571,11 +573,13 @@ function mel_oc_lib_start_ep($key, $c, $l, $s, $e, $k = '')
 }
 
 // card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the id of the copy of the window of the copies; from:
-// first - of "Смотреть", menu - of MENU) of the movie of card $c ($key) of layout $l. MENU: the copies read anew, the
-// window W2 of them over the screen, mode menu (mel_lib_win_open: "· сейчас" and the cursor on the copy of the latest
-// record, mel_oc_lib_cur; no record - none, the cursor on the first); none left - lib_gone. A copy: mel_oc_lib_start
-// (from the place of mel_lib_place). Only of a movie with copies on the screen shown (nav lib: its slot of the overlay).
-// Of an episode (s, e; mel_oc_lib_input_ep): the window W2, its copy.
+// first - of "Смотреть", menu - of MENU) of card $c ($key) of layout $l: of its movie, of episode s, e of its series (C4,
+// spec §7.5; both given, numbers). Only of a title (an episode) with copies on the screen shown (mel_oc_lib_shown: its
+// slot of the overlay; not by the copies now). MENU: the copies read anew (of an episode mel_oc_lib_eps), the window W2
+// of them over the screen, mode menu (mel_lib_win_open: "· сейчас" and the cursor by mel_lib_win_cur; none - on the
+// first); none now - lib_gone, of an episode its message (mel_lib_gone). A copy (k, of the window): mel_oc_lib_start,
+// of an episode mel_oc_lib_start_ep - from the place of mel_lib_place (of an episode the latest record of it of any
+// supplier; owner 3: the record of it makes its folder the one of the next episodes). A bad input: nothing.
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -586,58 +590,36 @@ function mel_oc_lib_start_ep($key, $c, $l, $s, $e, $k = '')
  */
 function mel_oc_lib_input($key, $c, $l, $in, $control)
 {
-    if (mel_catv_in($in, 's') !== '' || mel_catv_in($in, 'e') !== '')
-        return mel_oc_lib_input_ep($key, $c, $l, $in, $control);
-    if (!$l['lib'])
+    $s = $e = -1;
+    $is = mel_catv_in($in, 's');
+    $ie = mel_catv_in($in, 'e');
+    if ($is !== '' || $ie !== '')
+    {
+        if (!preg_match('/^[0-9]{1,5}$/D', $is) || !preg_match('/^[0-9]{1,5}$/D', $ie) || intval($ie) < 1)
+            return null;
+        $s = intval($is);
+        $e = intval($ie);
+    }
+    if (!mel_oc_lib_shown($l, $s, $e))
         return null;
+    $tag = $e >= 1 ? " of S{$s}E{$e}" : '';
     if ($control === 'card_lib_copy')
     {
         $k = mel_catv_in($in, 'k');
         if (!mel_lib_cid_ok($k))
             return null;
-        mel_log("card: own $key: copy $k of the menu (" . mel_catv_in($in, 'from') . ')');
-        return mel_oc_lib_start($key, $c, $l, $k);
+        mel_log("card: own $key: copy $k$tag of the window (" . mel_catv_in($in, 'from') . ')');
+        return $e >= 1 ? mel_oc_lib_start_ep($key, $c, $l, $s, $e, $k) : mel_oc_lib_start($key, $c, $l, $k);
     }
-    $copies = mel_lib_copies($l['lib'][0]['mid']);
+    if ($e >= 1)
+    {
+        list($eps) = mel_oc_lib_eps($c, $l['lib_y']);
+        $se = mel_oc_se($s, $e);
+        $copies = isset($eps[$se]) ? $eps[$se] : array();
+    }
+    else
+        $copies = mel_lib_copies($l['lib'][0]['mid']);
     if (!$copies)
-        return mel_lib_gone('no');
-    return mel_lib_win_open($key, $copies, 'menu');
-}
-
-// card_lib_copies and card_lib_copy of episode s, e of the series of card $c ($key) of layout $l (C4, spec §7.5). Only
-// of an episode with copies on the screen shown (nav lib_eps: its slot of the overlay; not by the copies now). The
-// window: the copies of the episode read anew (mel_oc_lib_eps), W2 of mode menu over the screen (mel_lib_win_open:
-// "· сейчас" of lib_cur); none now - the message of the episode (mel_lib_gone). A copy (k, of the window): it plays from
-// the place of the latest record of the episode of any supplier (mel_oc_lib_start_ep -> mel_lib_place; owner 3: the
-// record of it makes its folder the one of the next episodes). A bad input, an episode with none: nothing.
-/**
- * @param string $key
- * @param MelOcCard $c
- * @param MelOcNav $l
- * @param stdClass $in
- * @param string $control
- * @return MelAction|null
- */
-function mel_oc_lib_input_ep($key, $c, $l, $in, $control)
-{
-    $s = mel_catv_in($in, 's');
-    $e = mel_catv_in($in, 'e');
-    if (!preg_match('/^[0-9]{1,5}$/D', $s) || !preg_match('/^[0-9]{1,5}$/D', $e) ||
-        empty($l['lib_eps'][mel_oc_se(intval($s), intval($e))]))
-        return null;
-    $s = intval($s);
-    $e = intval($e);
-    if ($control === 'card_lib_copy')
-    {
-        $k = mel_catv_in($in, 'k');
-        if (!mel_lib_cid_ok($k))
-            return null;
-        mel_log("card: own $key: copy $k of S{$s}E{$e} of the window (" . mel_catv_in($in, 'from') . ')');
-        return mel_oc_lib_start_ep($key, $c, $l, $s, $e, $k);
-    }
-    list($eps) = mel_oc_lib_eps($c, $l['lib_y']);
-    $se = mel_oc_se($s, $e);
-    if (empty($eps[$se]))
         return mel_lib_gone('no', $c['ui'], $s, $e);
-    return mel_lib_win_open($key, $eps[$se], 'menu', $s, $e);
+    return mel_lib_win_open($key, $copies, 'menu', $s, $e);
 }
