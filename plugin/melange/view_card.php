@@ -76,16 +76,8 @@ define('MEL_OC_LINE_Y', 660);
 // The height of a label of the card smaller than the lines of the panel (24 px: mel_oc_label), of the lines under and
 // over the buttons; their text MEL_OC_LINE_PX.
 define('MEL_OC_LINE_H', 34);
-define('MEL_OC_LINE_PX', 24);
+define('MEL_OC_LINE_PX', MEL_K_PX_CAPTION);
 define('MEL_OC_OVER_Y', MEL_OC_DESC_BOTTOM - MEL_OC_DESC_LH);
-// The line "С диска" of a copy on the disk (mel_oc_lib_line, view_card_lib.php): its text, its right edge;
-// the disk before it (MEL_OC_IMG disk.png, DISK_W square, in the middle of the line) DISK_GAP from the text.
-define('MEL_OC_LIB_PX', MEL_OC_LINE_PX);
-define('MEL_OC_LIB_R', 1845);
-define('MEL_OC_DISK_W', 24);
-define('MEL_OC_DISK_GAP', 8);
-// The alpha of the badges of that line (T1, owner 18.11.2026): their white in the tone of the grey text by them.
-define('MEL_OC_LIB_ALPHA', 175);
 define('MEL_OC_BAR_H', 6);
 define('MEL_OC_HINT_R', 1845);
 define('MEL_OC_HINT_ARROW_DX', 16);
@@ -632,10 +624,34 @@ function mel_oc_btn_items($b, $w, $on)
  */
 function mel_oc_label($x, $y, $w, $text, $px, $color, $spec = array())
 {
-    $h = $px === MEL_CATV_LINE_PX ? MEL_CATV_LINE_H : MEL_OC_LINE_H;
-    $l = mel_catv_info_label(mel_clean($text), $px, $color, $w, $h, $y, $spec);
+    $l = mel_catv_info_label(mel_clean($text), $px, $color, $w, mel_oc_label_h($px), $y, $spec);
     $l[GComponentDef::geom_def][GCompGeometryDef::align_def][GCompAlignDef::x] = $x;
     return $l;
+}
+
+// The height of the box of a label of mel_oc_label of size $px: LINE_H of the panel at its size, else MEL_OC_LINE_H.
+/**
+ * @param int $px
+ * @return int
+ */
+function mel_oc_label_h($px)
+{
+    return $px === MEL_CATV_LINE_PX ? MEL_CATV_LINE_H : MEL_OC_LINE_H;
+}
+
+// The centre of the capitals of a label of mel_oc_label of size $px at $y, px of the page: the shell sets a label with
+// no flags as a line $px high in the middle of its box, the baseline at the bottom of that line (the line under the
+// buttons on the device, 20.11.2026: 24 px in 34, the capitals 672-688 at 660); the capitals mel_k_cap() high.
+/**
+ * @param int $y
+ * @param int $px
+ * @return float
+ */
+function mel_oc_label_cy($y, $px)
+{
+    $caps = mel_k_cap();
+    $cap = isset($caps[$px]) ? $caps[$px] : 0.7135 * $px;
+    return $y + intval((mel_oc_label_h($px) - $px) / 2) + $px - $cap / 2;
 }
 
 // The first screen in the page at place $pos: the head in its panel "hd" (mel_oc_hd), the buttons at the y of the
