@@ -28,8 +28,10 @@ define('MEL_OC_EP_PLATE_GAP', 4);
 // The data of copy $copy for its lines, apart from their layout (the line "С диска", the head of an episode, the
 // window of the copies): quiet - the badges without the audio (the resolution, the source, the picture), ids - all of
 // them, as the list of releases gives its tags (mel_lib_pf -> mel_badges with the path of the copy ->
-// mel_gc_row_badges: the ids of the plates b2 of the UI Kit); ch - the channels as the card of a release has them ("7.1
-// / 2.0", mel_audio_text), size - mel_size_str ('' none).
+// mel_gc_row_badges: the ids of the plates b2 of the UI Kit); ch - the id of the plate b2 of its channels, the best of
+// them (owner 20.11.2026, spec §15: a plate in the own library, the list of releases writes them): ch-71 of 7.1 / 2.0
+// (k_glyph_ch-71); a layout with no glyph of the kit (2.1, 5.0, 9.1) none, not a plate of another layout and not text
+// by the plates; size - mel_size_str ('' none).
 /**
  * @param MelLibCopy $copy
  * @param string $lang
@@ -42,18 +44,20 @@ function mel_lib_copy_parts($copy, $lang)
     $quiet = array_values(array_filter(array($cols['res'], $cols['src'], $cols['vis']), 'strlen'));
     $ch = $pf['audioChannels'];
     rsort($ch);
+    $ch = $ch ? 'ch-' . str_replace('.', '', $ch[0]) : '';
+    $pics = mel_k_pic();
     return array('quiet' => $quiet, 'ids' => $cols['audio'] !== '' ? array_merge($quiet, array($cols['audio'])) : $quiet,
-        'ch' => implode(' / ', $ch), 'size' => $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '');
+        'ch' => isset($pics["k_glyph_$ch"]) ? $ch : '', 'size' => $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '');
 }
 
 // The line of copy $copy of a title of $n copies at $x. The movie ($ep false) under the buttons, the same whatever the
 // progress (R1, owner 20.11.2026): its label box at MEL_OC_LINE_Y, LIB_PX, to the right edge LIB_R at most; the disk
 // (MEL_OC_DISK_W), "С диска" (lib_from_disk), the badges (mel_lib_copy_parts: the plates b2 as high as in the list of
-// releases, MEL_OC_LIB_ALPHA), the channels and the size as text; $n 2 or more - and the tail "2 копии — MENU"
-// (lib_copies, owner 20.11.2026). The head of an episode ($ep true, B10 A): the box at MEL_OC_EP_LIB_Y,
+// releases, MEL_OC_LIB_ALPHA), the plate of the channels after them, the size as text; $n 2 or more - and the tail
+// "2 копии — MENU" (lib_copies, owner 20.11.2026). The head of an episode ($ep true, B10 A): the box at MEL_OC_EP_LIB_Y,
 // MEL_CATV_LINE_PX, to EP_LIB_R; the disk EP_DISK_W dimmed as the badges, no words, no tail.
 // Wider than the edge: the parts out one by one in the order of $drop - the tail of the copies, the size, the
-// channels, the audio (owner 19.11.2026); the resolution and the picture stay.
+// plate of the channels, the audio (owner 19.11.2026); the resolution and the picture stay.
 /**
  * @param string $lang
  * @param MelLibCopy $copy
@@ -92,8 +96,8 @@ function mel_oc_lib_line($lang, $copy, $x, $n, $ep = false)
 
 // The parts of the line of mel_oc_lib_line at $x, the labels at $y, $px, the plates centred at $cy (mel_oc_label_cy),
 // of the data $p of its copy those $on keeps (more, size, ch, audio): the text $head, the badges (ids, without audio
-// quiet), " · " and the tail (the channels, the size, $more; after $head without badges), LIB_GAP apart -> array(the
-// components, the width). $head '' (the head of an episode): the plates EP_PLATE_GAP from $x, the tail after them; no
+// quiet) and the plate of the channels after them, " · " and the tail (the size, $more; after $head without badges),
+// LIB_GAP apart -> array(the components, the width). $head '' (the head of an episode): the plates EP_PLATE_GAP from $x, the tail after them; no
 // plates - the tail at $x, no " · " before it.
 /**
  * @param string $head
@@ -109,8 +113,9 @@ function mel_oc_lib_line($lang, $copy, $x, $n, $ep = false)
 function mel_oc_lib_parts($head, $p, $on, $more, $x, $y, $px, $cy)
 {
     $ids = $on['audio'] ? $p['ids'] : $p['quiet'];
-    $tail = implode(' · ', array_filter(array($on['ch'] ? $p['ch'] : '', $on['size'] ? $p['size'] : '',
-        $on['more'] ? $more : ''), 'strlen'));
+    if ($on['ch'] && $p['ch'] !== '')
+        $ids[] = $p['ch'];
+    $tail = implode(' · ', array_filter(array($on['size'] ? $p['size'] : '', $on['more'] ? $more : ''), 'strlen'));
     if (!$ids && $tail !== '' && $head !== '')
     {
         $head .= " · $tail";

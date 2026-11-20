@@ -108,7 +108,7 @@ function mel_oc_ep_on($c, $pos)
 // "S1 E2" (mel_se) white and "· 28 января 2008 · 49 мин" grey after it (not out yet: "· выйдет 16 ноября 2026", no
 // description), its description in EP_LINES lines, "…" on the last; TEXT_W wide. With $copy, its copy on the disk
 // (mel_oc_lib_ep_cur; B10 A, spec §7.3): the description in EP_LIB_LINES, the line of the copy under it without
-// words (mel_oc_lib_line: the disk, the badges, the channels and the size) to the right edge of the text.
+// words (mel_oc_lib_line: the disk, the badges, the plate of the channels, the size) to the right edge of the text.
 /**
  * @param MelOcCard $c
  * @param MelCardEp $ep
