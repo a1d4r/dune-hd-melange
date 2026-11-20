@@ -222,7 +222,8 @@ function mel_lib_win_cur($key, $copies, $s = -1, $e = -1)
 // Open over the screen of card $key (its record mel_oc_scr: only so) the window of the copies $copies (2+, the best
 // first) of its movie, of episode $s, $e of its series ($e >= 1), in mode $mode (first: the first "Смотреть"; menu: MENU
 // "Копия на диске…"); the copy "· сейчас" by mel_lib_win_cur ($cur null; a cid or '' none - only the tests of the
-// scroll give it): the cursor on it, else on the first line.
+// scroll give it): the cursor on it, else on the first line. A window to open by the first tick (lw_auto of "Continue",
+// mel_lib_win_card) is off then: this one is it, it does not come again after its RETURN or the player.
 // The bar of the line "сейчас" and the hint: of an episode the progress of its still (nav prog, mel_oc_prog), the hint
 // lib_win_series; of a movie the progress of the line of its history (mel_cp_badge, as mel_oc_hist), the hint of mode
 // first lib_win_first, of menu the place the start of a copy takes (mel_lib_place, as mel_oc_lib_start): "Продолжит с
@@ -244,6 +245,7 @@ function mel_lib_win_open($key, $copies, $mode, $s = -1, $e = -1, $cur = null)
         mel_log("card: own $key: the window of the copies not opened (" . (!$scr ? 'no screen' : 'no copies') . ')');
         return null;
     }
+    unset(MelOc::$cards[$key]['lw_auto']);
     if ($cur === null)
         $cur = mel_lib_win_cur($key, $copies, $s, $e);
     $c = MelOc::$cards[$key];
