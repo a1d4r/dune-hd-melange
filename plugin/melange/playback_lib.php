@@ -110,7 +110,7 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
     }
     $p = strrpos($copy['path'], '/');
     $info = array(
-        PluginVodInfo::id => 'aio.' . ($linked ? $mv['dune_id'] : $mv['imdb']),
+        PluginVodInfo::id => 'aio.' . mel_lpv_key($mv),
         PluginVodInfo::name => $list ? $mv['title'] : mel_ser_name($mv, $q, $e, false),
         // The second line of INFO: the file, as a release by its name.
         PluginVodInfo::sub_name => mel_clean($p === false ? $copy['path'] : substr($copy['path'], $p + 1)),

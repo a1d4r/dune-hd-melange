@@ -1104,8 +1104,8 @@ function mel_oc_first_movie($c, $lib, $hid)
     $h = $lib ? $hid : ($c['dune'] !== '' && mel_oc_can_watch($c) ? $c['dune'] : '');
     $hist = $h !== '' ? mel_oc_hist($c['ui'], $h) : array();
     // A copy on the disk: the line of that of its latest record (mel_oc_lib_cur), else of the best (owner
-    // 18-19.11.2026), with the count of two copies or more, in place of the lines of no IMDb, no Lampac or no card of
-    // the Dune (the file plays).
+    // 18-19.11.2026), with the count of two copies or more, in place of the line why (mel_oc_why: the meta failed, no
+    // card of the Dune - the file plays).
     if ($lib)
     {
         $cur = mel_oc_lib_cur($lib, $hid);
