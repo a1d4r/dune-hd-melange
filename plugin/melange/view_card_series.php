@@ -106,13 +106,16 @@ function mel_oc_ep_on($c, $pos)
 
 // The head of a series with the focus on episode $ep in the row (H3), under the logo: its title 48 px (none without),
 // "S1 E2" (mel_se) white and "· 28 января 2008 · 49 мин" grey after it (not out yet: "· выйдет 16 ноября 2026", no
-// description), its description in EP_LINES lines, "…" on the last; TEXT_W wide.
+// description), its description in EP_LINES lines, "…" on the last; TEXT_W wide. With $copy, its copy on the disk
+// (mel_oc_lib_ep_cur; B10 A, spec §7.3): the description in EP_LIB_LINES, the line of the copy under it without
+// words (mel_oc_lib_line: the disk, the badges, the channels and the size) to the right edge of the text.
 /**
  * @param MelOcCard $c
  * @param MelCardEp $ep
+ * @param MelLibCopy|null $copy
  * @return list<MelGcComp>
  */
-function mel_oc_ep_head($c, $ep)
+function mel_oc_ep_head($c, $ep, $copy = null)
 {
     $ui = $c['ui'];
     $x0 = MEL_CATV_CARD_X;
@@ -130,10 +133,12 @@ function mel_oc_ep_head($c, $ep)
         $d[] = mel_oc_label($x, MEL_OC_EP_FACTS_Y, MEL_CATV_TEXT_W - $x + $x0,
             mel_gc_cut_w("· $when", MEL_CATV_LINE_PX, MEL_CATV_TEXT_W - $x + $x0), MEL_CATV_LINE_PX, MEL_CATV_TEXT_COLOR);
     }
-    foreach ($ep['soon'] ? array() : mel_gc_wrap(mel_clean($ep['desc']), MEL_CATV_LINE_PX, MEL_CATV_TEXT_W, MEL_OC_EP_LINES, true)
-        as $i => $line)
+    foreach ($ep['soon'] ? array() : mel_gc_wrap(mel_clean($ep['desc']), MEL_CATV_LINE_PX, MEL_CATV_TEXT_W,
+        $copy ? MEL_OC_EP_LIB_LINES : MEL_OC_EP_LINES, true) as $i => $line)
         $d[] = mel_oc_label($x0, MEL_OC_EP_DESC_Y + $i * MEL_OC_DESC_LH_SER, MEL_CATV_TEXT_W, $line, MEL_CATV_LINE_PX,
             MEL_CATV_TEXT_COLOR);
+    if ($copy)
+        $d = array_merge($d, mel_oc_lib_line($ui, $copy, $x0, 1, MEL_OC_EP_LIB_Y, MEL_CATV_LINE_PX, MEL_OC_EP_LIB_R, ''));
     return $d;
 }
 
@@ -144,14 +149,15 @@ function mel_oc_ep_head($c, $ep)
 // more than TABS_MAX: then the tabs are numbers; CHEV_SLOT further when not all fit, the slot of
 // the left chevron), w - the width of its clip at most (all of it when all fit), all - the width
 // of the strip, word - x of "Сезон", 0 for none, cx - x of the count: the widest of the seasons
-// (mel_oc_count_text) ends at HINT_R, the strip CNT_GAP before it and
+// (mel_oc_count_text, with the episodes on the disk of $lib_eps) ends at HINT_R, the strip CNT_GAP before it and
 // CHEV_SLOT more for the right chevron when not all fit; one for the series, so nothing moves as
 // the season changes.
 /**
  * @param MelOcCard $c
+ * @param array<string, list<MelLibCopy>> $lib_eps
  * @return MelOcTabs
  */
-function mel_oc_tabs_layout($c)
+function mel_oc_tabs_layout($c, $lib_eps)
 {
     $ui = $c['ui'];
     $seasons = array_keys($c['meta']['seasons']);
@@ -172,7 +178,7 @@ function mel_oc_tabs_layout($c)
         $w = mel_gc_w($t, MEL_CATV_LINE_PX) + 2 * MEL_OC_TAB_PAD;
         $list[] = array($s, $t, $tx, $w);
         $tx += $w + MEL_OC_TAB_GAP;
-        $cw = max($cw, mel_gc_w(mel_oc_count_text($c, $s), MEL_OC_CNT_PX));
+        $cw = max($cw, mel_gc_w(mel_oc_count_text($c, $s, $lib_eps), MEL_OC_CNT_PX));
     }
     $all = $list ? $tx - MEL_OC_TAB_GAP : 0;
     $cx = MEL_OC_HINT_R - $cw;
@@ -299,29 +305,35 @@ function mel_oc_tab_state($pos, $s)
     return $s !== $pos['s'] ? 0 : ($pos['z'] === 'pill' ? 2 : 1);
 }
 
-// The count of season $s: "Сезон 2 · 13 серий".
+// The count of season $s: "Сезон 2 · 13 серий"; with episodes on the disk (of the copies of episodes $lib_eps, nav
+// lib_eps; spec §7.4) " · 4 на диске" after it (card_on_disk).
 /**
  * @param MelOcCard $c
  * @param int $s
+ * @param array<string, list<MelLibCopy>> $lib_eps
  * @return string
  */
-function mel_oc_count_text($c, $s)
+function mel_oc_count_text($c, $s, $lib_eps)
 {
     $n = count(mel_oc_eps($c, $s));
-    return str_replace(array('{s}', '{n}'), array(strval($s), $n . ' ' . mel_gc_plural($c['ui'], $n, 'card_eps')),
+    $t = str_replace(array('{s}', '{n}'), array(strval($s), $n . ' ' . mel_gc_plural($c['ui'], $n, 'card_eps')),
         mel_tr($c['ui'], 'card_season_count'));
+    $k = mel_oc_lib_on_disk($lib_eps, $s);
+    return $k > 0 ? $t . ' · ' . str_replace('{n}', strval($k), mel_tr($c['ui'], 'card_on_disk')) : $t;
 }
 
-// The count of season $s at the right of the line of the tabs $t, in its panel from cx to HINT_R.
+// The count of season $s at the right of the line of the tabs $t, in its panel from cx to HINT_R; the episodes on the
+// disk of $lib_eps.
 /**
  * @param MelOcCard $c
  * @param int $s
  * @param MelOcTabs $t
+ * @param array<string, list<MelLibCopy>> $lib_eps
  * @return list<MelGcComp>
  */
-function mel_oc_count($c, $s, $t)
+function mel_oc_count($c, $s, $t, $lib_eps)
 {
-    return array(mel_gc_cut(null, mel_gc_left_center(MEL_OC_HINT_R - $t['cx'], 34, 0), mel_oc_count_text($c, $s),
+    return array(mel_gc_cut(null, mel_gc_left_center(MEL_OC_HINT_R - $t['cx'], 34, 0), mel_oc_count_text($c, $s, $lib_eps),
         MEL_OC_CNT_PX, MEL_GC_TEXT2, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
 }
 
@@ -392,17 +404,20 @@ function mel_oc_ep_titles($c, $ep, $pr, $on)
 }
 
 // The still of episode $ep at index $i of its season: the frame of the server (loading: the
-// picture of the shell; not out yet or none: the empty one of the shell), the bar of the progress
-// at its foot if begun, the mark at the top right if watched; the titles under it ("tt<i>").
+// picture of the shell; not out yet or none: the empty one of the shell), with a copy on the disk (of the copies of
+// episodes $lib, nav lib_eps; Z3, spec §7.2) the disk at the top left on the plate of the mark (EP_DISK_W white on
+// 44 x 44, 8 in), the bar of the progress at its foot if begun, the mark at the top right if watched; the titles under
+// it ("tt<i>").
 /**
  * @param MelOcCard $c
  * @param array<string, array{float, float, bool}> $prog
+ * @param array<string, list<MelLibCopy>> $lib
  * @param int $i
  * @param MelCardEp $ep
  * @param bool $on
  * @return MelGcComp
  */
-function mel_oc_ep_card($c, $prog, $i, $ep, $on)
+function mel_oc_ep_card($c, $prog, $lib, $i, $ep, $on)
 {
     $pr = mel_oc_prog($c, $prog, $ep);
     $img = mel_gc_image(mel_gc_at(MEL_OC_EP_W, MEL_OC_EP_H, 0, 0),
@@ -413,6 +428,11 @@ function mel_oc_ep_card($c, $prog, $i, $ep, $on)
         $img[GComponentDef::specific_def][GCompImageDef::load_failed_url] = MEL_OC_ICONS . 'no_episode_image.png';
     }
     $d = array(mel_gc_rect(mel_gc_at(MEL_OC_EP_W, MEL_OC_EP_H, 0, 0), MEL_OC_NO_PHOTO), $img);
+    if (!empty($lib["{$ep['s']}:{$ep['e']}"]))
+    {
+        $d[] = mel_gc_rect(mel_gc_at(44, 44, 8, 8), MEL_OC_MARK_BG);
+        $d[] = mel_gc_image(mel_gc_at(MEL_OC_EP_DISK_W, MEL_OC_EP_DISK_W, 16, 16), MEL_OC_IMG . 'ep_disk.png');
+    }
     if ($pr && $pr[2])
     {
         $d[] = mel_gc_rect(mel_gc_at(44, 44, MEL_OC_EP_W - 52, 8), MEL_OC_MARK_BG);
@@ -429,22 +449,23 @@ function mel_oc_ep_card($c, $prog, $i, $ep, $on)
     return mel_gc_panel("c$i", mel_gc_at(MEL_OC_EP_W, MEL_OC_ROW_H, $i * MEL_OC_EP_STEP, 0), $d);
 }
 
-// The stills $lo..$hi of season $s, the one at $focus lit (-1: none).
+// The stills $lo..$hi of season $s, the one at $focus lit (-1: none); the copies of episodes $lib (mel_oc_ep_card).
 /**
  * @param MelOcCard $c
  * @param array<string, array{float, float, bool}> $prog
+ * @param array<string, list<MelLibCopy>> $lib
  * @param int $s
  * @param int $lo
  * @param int $hi
  * @param int $focus
  * @return list<MelGcComp>
  */
-function mel_oc_ep_cards($c, $prog, $s, $lo, $hi, $focus)
+function mel_oc_ep_cards($c, $prog, $lib, $s, $lo, $hi, $focus)
 {
     $eps = mel_oc_eps($c, $s);
     $d = array();
     for ($i = $lo; $i <= $hi; $i++)
-        $d[] = mel_oc_ep_card($c, $prog, $i, $eps[$i], $i === $focus);
+        $d[] = mel_oc_ep_card($c, $prog, $lib, $i, $eps[$i], $i === $focus);
     return $d;
 }
 
@@ -498,10 +519,11 @@ function mel_oc_series($c, $l, $pos)
             $d[] = mel_gc_panel($id, $v[0], $v[1]);
     }
     $d[] = mel_gc_panel('cnt', mel_gc_at(MEL_OC_HINT_R - $t['cx'], MEL_OC_TAB_H, $t['cx'], MEL_OC_TAB_Y),
-        mel_oc_count($c, $pos['s'], $t));
+        mel_oc_count($c, $pos['s'], $t, $l['lib_eps']));
     list(, $i, , $lo, $hi, $st) = mel_oc_row($c, $pos);
     $d[] = mel_gc_panel('row', mel_gc_at(1920, MEL_OC_ROW_H, 0, MEL_OC_ROW_Y),
-        array(mel_oc_strip_panel($st, $i, mel_oc_ep_cards($c, $l['prog'], $pos['s'], $lo, $hi, $pos['z'] === 'row' ? $i : -1))), 0);
+        array(mel_oc_strip_panel($st, $i, mel_oc_ep_cards($c, $l['prog'], $l['lib_eps'], $pos['s'], $lo, $hi,
+            $pos['z'] === 'row' ? $i : -1))), 0);
     $d[] = mel_oc_strip_frame($st, $i, $pos['z'] === 'row');
     return $d;
 }
@@ -580,11 +602,11 @@ function mel_oc_row_changes($c, $l, $old, $new)
         }
     }
     if ($new['s'] !== $old['s'])
-        $ch[] = mel_gc_change('cnt', null, GCOMP_TRANSITION_NONE, mel_oc_count($c, $new['s'], $t));
+        $ch[] = mel_gc_change('cnt', null, GCOMP_TRANSITION_NONE, mel_oc_count($c, $new['s'], $t, $l['lib_eps']));
     if ($new['s'] !== $old['s'] || $lo > $ohi || $hi < $olo)
     {
         $ch[] = mel_gc_change('est', mel_oc_strip_geom($st, $off), GCOMP_TRANSITION_NONE,
-            mel_oc_ep_cards($c, $l['prog'], $new['s'], $lo, $hi, $lit));
+            mel_oc_ep_cards($c, $l['prog'], $l['lib_eps'], $new['s'], $lo, $hi, $lit));
         $fg = mel_oc_strip_frame_geom($st, $i, $off);
     }
     else
@@ -602,7 +624,7 @@ function mel_oc_row_changes($c, $l, $old, $new)
         for ($k = $lo; $k <= $hi; $k++)
         {
             if ($k < $olo || $k > $ohi)
-                $add[] = mel_oc_ep_card($c, $l['prog'], $k, $eps[$k], $k === $lit);
+                $add[] = mel_oc_ep_card($c, $l['prog'], $l['lib_eps'], $k, $eps[$k], $k === $lit);
         }
         if ($add || $off !== $ooff)
         {

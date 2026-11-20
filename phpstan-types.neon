@@ -614,6 +614,8 @@ parameters:
         MelLibEpRec: 'array{folder: string, path: string, hash: string, size: float, tg: string, s: int, e: int}'
         # A copy of a movie or an episode on a mounted share (mel_lib_copies, mel_lib_ep_copies, library.php): the fields of its file (MelLibFile), url - the path to play, mnt - where the source of its folder is mounted (url starts with it), srv - the server of that mount (server_ipaddr, else its name in lower case), key - lib-<12 hex> (one of mirrors), cid - cp-<12 hex> of url (mel_lib_cid), caption - of its folder (mel_lib_label, sources.php).
         MelLibCopy: 'array{folder: string, path: string, mid: string, hash: string, size: float, tags: list<string>, res: string, s: int, e: int, dir: string, url: string, mnt: string, srv: string, key: string, cid: string, caption: string}'
+        # The data of a copy for its lines (mel_lib_copy_parts, view_card_lib.php): quiet - the ids of the plates b2 without the audio, ids - all of them, ch - the channels as text, size - as text ('' none).
+        MelLibParts: 'array{quiet: list<string>, ids: list<string>, ch: string, size: string}'
         # A title whose files are looked for in the media library (mel_lib_mid, library.php): its card of the Dune, IMDb, TMDB (of a series its TMDB of series), type (movie, series), year, names (of the tile, English, original).
         MelLibTitle: 'array{dune: string, imdb: string, tmdb: string, type: string, year: string, names: list<string>}'
         # The copy the check before a start found there (mel_lib_start, mel_lib_play, playback_lib.php): at - the place in s, i of n - which copy, for the log, dur - the length of its MKV (of an episode), 0 unknown.

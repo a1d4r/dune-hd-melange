@@ -1,8 +1,9 @@
 <?php
-// The copies on the disk in the own card of a movie: the line "С диска" of a copy under the buttons (R1, owner
-// 20.11.2026) on the UI Kit - the widths by MelKit::w, the badges the plates b2 of the list of releases (MelKit::b2);
-// the labels as the other lines of the card (mel_oc_label). And the copies of the card: found (mel_oc_lib), the current
-// one (mel_oc_lib_cur), "Копия на диске…" of MENU, the start (mel_oc_lib_start, mel_oc_lib_input).
+// The copies on the disk in the own card: the line "С диска" of a copy of a movie under the buttons (R1, owner
+// 20.11.2026) and the line of the copy of an episode in its head (B10) on the UI Kit - the widths by MelKit::w, the
+// badges the plates b2 of the list of releases (MelKit::b2); the labels as the other lines of the card (mel_oc_label).
+// And the copies of the card: found (mel_oc_lib), the current one (mel_oc_lib_cur, of an episode mel_oc_lib_ep_cur),
+// "Копия на диске…" of MENU, the start (mel_oc_lib_start, mel_oc_lib_input).
 
 // The line: its text, its right edge; the disk before it (MEL_OC_IMG disk.png, DISK_W square), a part of the label
 // "С диска": DISK_GAP from the picture to the text (its strokes 3 px in from the edge: 11 px seen, as before the kit).
@@ -18,65 +19,111 @@ define('MEL_OC_DISK_W', 24);
 define('MEL_OC_DISK_GAP', MEL_K_GAP_XS);
 // The alpha of the badges of that line (T1, owner 18.11.2026): their white in the tone of the grey text by them.
 define('MEL_OC_LIB_ALPHA', 175);
+// The line without words (the head of an episode, B10 A, v8_S_head_A.png): the disk EP_DISK_W (ep_disk.png, the
+// white of the mark of a still, dimmed as the badges by it: MEL_OC_LIB_ALPHA), the first plate DISK_GAP + EP_PLATE_GAP
+// after it (spec §7.3: "8 + 4"; its glyph MEL_K_PLATE_PAD further), no plates - the text DISK_GAP after it.
+define('MEL_OC_EP_DISK_W', 28);
+define('MEL_OC_EP_PLATE_GAP', 4);
+// The head of an episode with a copy (spec §7.3, v8_S_head_A.png): its description in EP_LIB_LINES lines (not
+// MEL_OC_EP_LINES), the line of the copy the next line (its box at EP_LIB_Y, 46 high at MEL_CATV_LINE_PX), to the right
+// edge of the text of the head.
+define('MEL_OC_EP_LIB_LINES', 2);
+define('MEL_OC_EP_LIB_Y', MEL_OC_EP_DESC_Y + MEL_OC_EP_LIB_LINES * MEL_OC_DESC_LH_SER);
+define('MEL_OC_EP_LIB_R', MEL_CATV_CARD_X + MEL_CATV_TEXT_W);
 
-// The line of copy $copy at $x under the buttons, the same whatever the progress (R1, owner 20.11.2026): the disk
-// (MEL_OC_DISK_W), "С диска" (lib_from_disk), the badges the list of releases gives its tags (mel_lib_pf ->
-// mel_badges with the path of the copy -> mel_gc_row_badges: the resolution, the source, the picture, the audio, the
-// plates b2 of the UI Kit, MelKit::b2, as high as there, MEL_OC_LIB_ALPHA), the channels as the card of a release has them ("7.1 / 2.0", mel_audio_text) and the size
-// as text. Wider than to MEL_OC_LIB_R: the size out first, then the channels, then the audio (owner 19.11.2026); the
-// resolution and the picture stay.
+// The data of copy $copy for its lines, apart from their layout (the line "С диска", the head of an episode, the
+// window of the copies): quiet - the badges without the audio (the resolution, the source, the picture), ids - all of
+// them, as the list of releases gives its tags (mel_lib_pf -> mel_badges with the path of the copy ->
+// mel_gc_row_badges: the ids of the plates b2 of the UI Kit); ch - the channels as the card of a release has them ("7.1
+// / 2.0", mel_audio_text), size - mel_size_str ('' none).
 /**
- * @param string $lang
  * @param MelLibCopy $copy
- * @param int $x
- * @return list<array<string, mixed>>
+ * @param string $lang
+ * @return MelLibParts
  */
-function mel_oc_lib_line($lang, $copy, $x)
+function mel_lib_copy_parts($copy, $lang)
 {
     $pf = mel_lib_pf($copy);
     $cols = mel_gc_row_badges(mel_badges($pf, null, $copy['path']));
     $quiet = array_values(array_filter(array($cols['res'], $cols['src'], $cols['vis']), 'strlen'));
-    $ids = $cols['audio'] !== '' ? array_merge($quiet, array($cols['audio'])) : $quiet;
     $ch = $pf['audioChannels'];
     rsort($ch);
-    $ch = implode(' / ', $ch);
-    $size = $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '';
-    $head = mel_tr($lang, 'lib_from_disk');
-    $cy = mel_oc_label_cy(MEL_OC_LINE_Y, MEL_OC_LIB_PX);
-    $tx = $x + MEL_OC_DISK_W + MEL_OC_DISK_GAP;
+    return array('quiet' => $quiet, 'ids' => $cols['audio'] !== '' ? array_merge($quiet, array($cols['audio'])) : $quiet,
+        'ch' => implode(' / ', $ch), 'size' => $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '');
+}
+
+// The line of copy $copy of a title of $n copies at $x, the label box at $y, $px (mel_oc_label), to the right edge $r
+// at most. The movie under the buttons (the defaults), the same whatever the progress (R1, owner 20.11.2026): the disk
+// (MEL_OC_DISK_W), $head "С диска" (null: lib_from_disk), the badges (mel_lib_copy_parts: the plates b2 as high as in
+// the list of releases, MEL_OC_LIB_ALPHA), the channels and the size as text; $n 2 or more - and the tail "2 копии —
+// MENU" (lib_copies, owner 20.11.2026). $head '': the head of an episode (B10 A): the disk EP_DISK_W, no words, no tail.
+// Wider than $r: the tail of the copies out first, then the size, then the channels, then the audio (owner 19.11.2026);
+// the resolution and the picture stay.
+/**
+ * @param string $lang
+ * @param MelLibCopy $copy
+ * @param int $x
+ * @param int $n
+ * @param int $y
+ * @param int $px
+ * @param int $r
+ * @param string|null $head
+ * @return list<array<string, mixed>>
+ */
+function mel_oc_lib_line($lang, $copy, $x, $n = 1, $y = MEL_OC_LINE_Y, $px = MEL_OC_LIB_PX, $r = MEL_OC_LIB_R, $head = null)
+{
+    $p = mel_lib_copy_parts($copy, $lang);
+    $head = $head !== null ? $head : mel_tr($lang, 'lib_from_disk');
+    $more = $n > 1 && $head !== '' ? str_replace('{n}', strval($n), mel_gc_plural($lang, $n, 'lib_copies')) : '';
+    $cy = mel_oc_label_cy($y, $px);
+    $dw = $head !== '' ? MEL_OC_DISK_W : MEL_OC_EP_DISK_W;
+    $tx = $x + $dw + MEL_OC_DISK_GAP;
     $d = array();
-    foreach (array(array($ch, $size, $ids), array($ch, '', $ids), array('', '', $ids), array('', '', $quiet)) as $v)
+    foreach (array(array($p['ch'], $p['size'], $more, $p['ids']), array($p['ch'], $p['size'], '', $p['ids']),
+        array($p['ch'], '', '', $p['ids']), array('', '', '', $p['ids']), array('', '', '', $p['quiet'])) as $v)
     {
-        list($d, $w) = mel_oc_lib_parts($head, $v[2], implode(' · ', array_filter(array($v[0], $v[1]), 'strlen')), $tx,
-            $cy);
-        if ($tx + $w <= MEL_OC_LIB_R)
+        list($d, $w) = mel_oc_lib_parts($head, $v[3], implode(' · ', array_filter(array($v[0], $v[1], $v[2]), 'strlen')),
+            $tx, $y, $px, $cy);
+        if ($tx + $w <= $r)
             break;
     }
-    $disk = mel_gc_image(mel_gc_at(MEL_OC_DISK_W, MEL_OC_DISK_W, $x, (int) round($cy - MEL_OC_DISK_W / 2)),
-        MEL_OC_IMG . 'disk.png');
+    $disk = mel_gc_image(mel_gc_at($dw, $dw, $x, (int) round($cy - $dw / 2)), MEL_OC_IMG . ($head !== '' ? 'disk.png' :
+        'ep_disk.png'));
+    if ($head === '')
+        $disk[GComponentDef::specific_def][GCompImageDef::alpha] = MEL_OC_LIB_ALPHA;
     return array_merge(array($disk), $d);
 }
 
-// The parts of the line of mel_oc_lib_line at $x, the plates centred at $cy (mel_oc_label_cy): the text $head, the
-// badges $ids, " · " and the text $tail (after $head without badges), LIB_GAP apart -> array(the components, the
-// width).
+// The parts of the line of mel_oc_lib_line at $x, the labels at $y, $px, the plates centred at $cy (mel_oc_label_cy):
+// the text $head, the badges $ids, " · " and the text $tail (after $head without badges), LIB_GAP apart -> array(the
+// components, the width). $head '': the plates EP_PLATE_GAP from $x, the tail after them; no plates - the tail at $x,
+// no " · " before it.
 /**
  * @param string $head
  * @param list<string> $ids
  * @param string $tail
  * @param int $x
+ * @param int $y
+ * @param int $px
  * @param float $cy
  * @return array{list<array<string, mixed>>, int}
  */
-function mel_oc_lib_parts($head, $ids, $tail, $x, $cy)
+function mel_oc_lib_parts($head, $ids, $tail, $x, $y, $px, $cy)
 {
-    if (!$ids && $tail !== '')
+    if (!$ids && $tail !== '' && $head !== '')
     {
         $head .= " · $tail";
         $tail = '';
     }
-    $w = MelKit::w($head, MEL_OC_LIB_PX);
-    $d = array(mel_oc_label($x, MEL_OC_LINE_Y, $w + MEL_OC_LIB_PX, $head, MEL_OC_LIB_PX, MEL_CATV_TEXT_COLOR));
+    $d = array();
+    $w = 0;
+    $gap = MEL_OC_EP_PLATE_GAP;
+    if ($head !== '')
+    {
+        $w = MelKit::w($head, $px);
+        $d[] = mel_oc_label($x, $y, $w + $px, $head, $px, MEL_CATV_TEXT_COLOR);
+        $gap = MEL_OC_LIB_GAP - MEL_K_PLATE_PAD;
+    }
     if ($ids)
     {
         // The plates b2 side by side, their glyphs LIB_GAP apart, dimmed whole: the pictures by alpha, the rects of
@@ -100,16 +147,19 @@ function mel_oc_lib_parts($head, $ids, $tail, $x, $cy)
         }
         // The middle of the plates at the pixel under $cy: the capitals of 4K and Vision sit 0.5 px under the middle
         // of their pictures, those of Atmos 1 px over it; so all of them are within 1 px of the capitals of the text.
-        $d[] = mel_gc_panel('lib', mel_gc_at($pw, MEL_K_PLATE_H, $x + $w + MEL_OC_LIB_GAP - MEL_K_PLATE_PAD,
+        $d[] = mel_gc_panel('lib', mel_gc_at($pw, MEL_K_PLATE_H, $x + $w + $gap,
             (int) ceil($cy) - intval(MEL_K_PLATE_H / 2)), $plates);
-        $w += MEL_OC_LIB_GAP - MEL_K_PLATE_PAD + $pw;
+        $w += $gap + $pw;
+        $gap = MEL_OC_LIB_GAP - MEL_K_PLATE_PAD;
     }
     if ($tail !== '')
     {
-        $tail = "· $tail";
-        $tw = MelKit::w($tail, MEL_OC_LIB_PX);
-        $gap = MEL_OC_LIB_GAP - MEL_K_PLATE_PAD;
-        $d[] = mel_oc_label($x + $w + $gap, MEL_OC_LINE_Y, $tw + MEL_OC_LIB_PX, $tail, MEL_OC_LIB_PX, MEL_CATV_TEXT_COLOR);
+        if ($w > 0)
+            $tail = "· $tail";
+        else
+            $gap = 0;
+        $tw = MelKit::w($tail, $px);
+        $d[] = mel_oc_label($x + $w + $gap, $y, $tw + $px, $tail, $px, MEL_CATV_TEXT_COLOR);
         $w += $gap + $tw;
     }
     return array($d, $w);
@@ -211,6 +261,46 @@ function mel_oc_lib_cur($lib, $hid)
 {
     $rec = mel_wh_lib_last($hid);
     return $rec ? mel_lib_copy_by_key($lib, $rec['key']) : null;
+}
+
+// The copy of episode $e of season $s of the card of layout $l its line shows (the head, B10): the one OK plays
+// (lib_cur), else the first of its copies; null - the episode has none.
+/**
+ * @param MelOcNav $l
+ * @param int $s
+ * @param int $e
+ * @return MelLibCopy|null
+ */
+function mel_oc_lib_ep_cur($l, $s, $e)
+{
+    $se = "$s:$e";
+    if (empty($l['lib_eps'][$se]))
+        return null;
+    $copies = $l['lib_eps'][$se];
+    foreach ($copies as $cp)
+    {
+        if (isset($l['lib_cur'][$se]) && $cp['cid'] === $l['lib_cur'][$se])
+            return $cp;
+    }
+    return $copies[0];
+}
+
+// The episodes of season $s with copies on the disk of the copies of episodes $lib_eps (nav lib_eps: "s:e" of the
+// card) - the count of the season (mel_oc_count_text).
+/**
+ * @param array<string, list<MelLibCopy>> $lib_eps
+ * @param int $s
+ * @return int
+ */
+function mel_oc_lib_on_disk($lib_eps, $s)
+{
+    $n = 0;
+    foreach (array_keys($lib_eps) as $se)
+    {
+        if (strpos($se, "$s:") === 0)
+            $n++;
+    }
+    return $n;
 }
 
 // "Копия на диске…" of MENU of a movie of card $c ($key) at place $pos of layout $l with two copies on the disk or more:

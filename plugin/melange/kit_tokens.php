@@ -242,6 +242,7 @@ function mel_k_pic()
         'card_more_down' => array('url' => 'plugin_file://img/card1_more_down.png', 'w' => 30, 'h' => 14, 'mid' => null, 'ink' => null),
         'card_rate' => array('url' => 'plugin_file://img/card1_rate.png', 'w' => 66, 'h' => 40, 'mid' => null, 'ink' => null),
         'card_disk' => array('url' => 'plugin_file://img/card1_disk.png', 'w' => 24, 'h' => 24, 'mid' => null, 'ink' => null),
+        'card_ep_disk' => array('url' => 'plugin_file://img/card1_ep_disk.png', 'w' => 28, 'h' => 28, 'mid' => null, 'ink' => null),
         'cat_mask' => array('url' => 'plugin_file://img/cat2_mask.png', 'w' => 1280, 'h' => 720, 'mid' => null, 'ink' => null),
         'cat_card0' => array('url' => 'plugin_file://img/cat2_card0.jpg', 'w' => 1920, 'h' => 1080, 'mid' => null, 'ink' => null),
         'cat_kp' => array('url' => 'plugin_file://img/cat2_kp.png', 'w' => 117, 'h' => 40, 'mid' => null, 'ink' => null),

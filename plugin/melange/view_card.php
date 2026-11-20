@@ -677,7 +677,8 @@ function mel_oc_head($c, $l, $pos)
 }
 
 // The head of the first screen at place $pos, the children of the panel "hd": of a series with the focus in the row of
-// episodes the episode in focus (mel_oc_ep_head), else the lines of the card (mel_oc_head_lines).
+// episodes the episode in focus (mel_oc_ep_head; with the line of its copy on the disk, mel_oc_lib_ep_cur), else the
+// lines of the card (mel_oc_head_lines).
 /**
  * @param MelOcCard $c
  * @param MelOcNav $l
@@ -687,7 +688,7 @@ function mel_oc_head($c, $l, $pos)
 function mel_oc_hd($c, $l, $pos)
 {
     $ep = mel_oc_ep_on($c, $pos);
-    return $ep ? mel_oc_ep_head($c, $ep) : mel_oc_head_lines($c, $l);
+    return $ep ? mel_oc_ep_head($c, $ep, mel_oc_lib_ep_cur($l, $ep['s'], $ep['e'])) : mel_oc_head_lines($c, $l);
 }
 
 // The lines of the panel (x of the catalog), the description to DESC_BOTTOM, a line higher with the progress or
@@ -1057,7 +1058,7 @@ function mel_oc_layout($c)
     $btns = mel_oc_buttons($c, $ep, (bool) $lib);
     list($stops, $clips, $tops) = mel_oc_stops($bands, $strips, $about, $off);
     $tw = MEL_OC_TITLE_W;
-    $tabs = $series && $c['meta'] ? mel_oc_tabs_layout($c)
+    $tabs = $series && $c['meta'] ? mel_oc_tabs_layout($c, $lib_eps)
         : array('list' => array(), 'x' => 0, 'w' => 0, 'all' => 0, 'word' => 0, 'cx' => 0);
     $zones = array('btn');
     if ($series && (!$c['meta'] || $tabs['list']))
@@ -1130,11 +1131,13 @@ function mel_oc_first_movie($c, $btns, $lib, $hid)
         $only = mel_oc_over($c['ui'], mel_wh_movie($h), $w0, mel_pg_mark_kind($h, 'movie') === 'off');
     $over = (bool) $only;
     // A copy on the disk: the line of that of its latest record (mel_oc_lib_cur), else of the best (owner
-    // 18-19.11.2026), in place of the lines of no IMDb, no Lampac or no card of the Dune (the file plays).
+    // 18-19.11.2026), with the count of two copies or more, in place of the lines of no IMDb, no Lampac or no card of
+    // the Dune (the file plays).
     if ($lib)
     {
         $cur = mel_oc_lib_cur($lib, $hid);
-        return array(array_merge($only, mel_oc_lib_line($c['ui'], $cur ? $cur : $lib[0], MEL_CATV_CARD_X)), $over);
+        return array(array_merge($only, mel_oc_lib_line($c['ui'], $cur ? $cur : $lib[0], MEL_CATV_CARD_X, count($lib))),
+            $over);
     }
     return array(array_merge($only, mel_oc_under($c, $over)), $over);
 }
