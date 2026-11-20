@@ -271,7 +271,7 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
     }
 
     $info = array(
-        PluginVodInfo::id => 'aio.' . ($mv['dune_id'] !== '' ? $mv['dune_id'] : mel_rel_id($mv)),
+        PluginVodInfo::id => 'aio.' . mel_lpv_key($mv),
         PluginVodInfo::name => $list ? $mv['title'] : mel_ser_name($mv, $s, $e, false),
         // The second line of INFO: the release, as the card names it.
         PluginVodInfo::sub_name => mel_clean($r['label']),

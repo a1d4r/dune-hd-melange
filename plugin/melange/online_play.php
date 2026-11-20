@@ -85,7 +85,8 @@ function mel_lpv_ids_put($k, $new)
 // mel_lpv_ids_keep): the TMDB id of the tile, else of the tile of its meta $meta (in hand, no request), as tmdbtv_id of a
 // series, else tmdb_id; kp_id of Kinopoisk and original_language (mel_cat_orig_lang) the same way. None empty. Lampac puts
 // the quality into the name of a balancer and show false only with a TMDB id, and its balancers of anime only with
-// the language ja or zh: every way of Melange that makes movie_str for mel_play_action adds these.
+// the language ja or zh: every way of Melange that makes movie_str for mel_play_action adds these. Its tmdb_id /
+// tmdbtv_id is the id of the releases of a title of no IMDb too (mel_movie, mel_rel_id).
 /**
  * @param MelCatTile $t
  * @param MelCardMeta|null $meta
