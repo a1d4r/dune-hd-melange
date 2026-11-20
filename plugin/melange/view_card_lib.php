@@ -3,18 +3,18 @@
 // 20.11.2026) on the UI Kit - the widths by MelKit::w, the badges the plates b2 of the list of releases (MelKit::b2);
 // the labels as the other lines of the card (mel_oc_label).
 
-// The line: its text, its right edge; the disk before it (MEL_OC_IMG disk.png, DISK_W square, its strokes DISK_PAD in
-// from the left and the right of the picture). LIB_GAP between the visible edges of the parts of the line: the strokes
-// of the disk, the text (by its advance), the glyph of each plate b2 (MEL_K_PLATE_PAD in from the edges of the plate:
-// the dark plate hardly shows on the card, the glyph is what is seen) and "·" of the tail. The rhythm m: well over
-// the 10 px between the icon and the word inside a glyph ("DV Vision"), and the plates side by side, not over one
-// another (LIB_GAP - 2 MEL_K_PLATE_PAD apart). The disk and the plates on the centre of the capitals of the text
-// (mel_oc_label_cy).
+// The line: its text, its right edge; the disk before it (MEL_OC_IMG disk.png, DISK_W square), a part of the label
+// "С диска": DISK_GAP from the picture to the text (its strokes 3 px in from the edge: 11 px seen, as before the kit).
+// LIB_GAP between the visible edges of the other parts of the line: the text (by its advance), the glyph of each plate
+// b2 (MEL_K_PLATE_PAD in from the edges of the plate: the dark plate hardly shows on the card, the glyph is what is
+// seen) and "·" of the tail. The rhythm m: well over the 10 px between the icon and the word inside a glyph ("DV
+// Vision"), and the plates side by side, not over one another (LIB_GAP - 2 MEL_K_PLATE_PAD apart). The disk and the
+// plates on the centre of the capitals of the text (mel_oc_label_cy).
 define('MEL_OC_LIB_PX', MEL_OC_LINE_PX);
 define('MEL_OC_LIB_R', 1845);
 define('MEL_OC_LIB_GAP', MEL_K_GAP_M);
 define('MEL_OC_DISK_W', 24);
-define('MEL_OC_DISK_PAD', 3);
+define('MEL_OC_DISK_GAP', MEL_K_GAP_XS);
 // The alpha of the badges of that line (T1, owner 18.11.2026): their white in the tone of the grey text by them.
 define('MEL_OC_LIB_ALPHA', 175);
 
@@ -42,7 +42,7 @@ function mel_oc_lib_line($lang, $copy, $x)
     $size = $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '';
     $head = mel_tr($lang, 'lib_from_disk');
     $cy = mel_oc_label_cy(MEL_OC_LINE_Y, MEL_OC_LIB_PX);
-    $tx = $x + MEL_OC_DISK_W - MEL_OC_DISK_PAD + MEL_OC_LIB_GAP;
+    $tx = $x + MEL_OC_DISK_W + MEL_OC_DISK_GAP;
     $d = array();
     foreach (array(array($ch, $size, $ids), array($ch, '', $ids), array('', '', $ids), array('', '', $quiet)) as $v)
     {
