@@ -1482,7 +1482,7 @@ function mel_oc_folder_view($media_url, $sel_state)
 }
 
 // The action map of the screen of card $c ($key) laid out as $l, and its timer (null none): the keys of the card, back
-// from the player of a movie with a copy on the disk, the timer of the rows of posters still asked (card_load). No
+// from the player of a title with a copy on the disk (a movie, an episode), the timer of the rows of posters still asked (card_load). No
 // RETURN: the shell leaves the screen by it.
 /**
  * @param string $key
@@ -1500,9 +1500,10 @@ function mel_oc_acts($key, $c, $l)
         GUI_EVENT_KEY_DOWN => mel_input('card_move', $k + array('d' => 'down')),
         GUI_EVENT_KEY_ENTER => mel_input('card_enter', $k),
         GUI_EVENT_KEY_POPUP_MENU => mel_input('card_menu', $k)) + mel_egg_acts();
-    // A movie with a copy on the disk (it plays from this screen): back from the player after STOP only, not between the
-    // episodes (as mel_finish_act). No copy: the screen as before 1г, the list has its own.
-    if ($l['lib'])
+    // A movie with a copy on the disk, a series with one of an episode (it plays from this screen; C8): back from the
+    // player after STOP only, not between the episodes (as mel_finish_act). No copy: the screen as before 1г, the list
+    // has its own.
+    if (mel_oc_slot($l))
     {
         $acts[GUI_EVENT_MENU_PLAYBACK_FINISH] = mel_input('card_finish', $k);
         $acts[GUI_EVENT_MENU_PLAYBACK_FINISH][GuiAction::flags] = GUI_ACTION_FLAG_SKIP_ON_PLAY_RESTART;
@@ -1810,8 +1811,9 @@ function mel_oc_src_items($key, $c, $l, $pos)
     return mel_src_watch_item($c['ui'], 'card_src_menu', $p);
 }
 
-// card_finish (GUI_EVENT_MENU_PLAYBACK_FINISH of the screen of card $c, $key; after STOP): the card anew in place (its
-// progress, its lines over the buttons), the history stale first (mel_pg_stale: the shell may write the record after
+// card_finish (GUI_EVENT_MENU_PLAYBACK_FINISH of the screen of card $c, $key; after STOP; the caller drops its overlay,
+// mel_oc_ovl_drop): the card anew in place (its progress, its lines over the buttons; of a series the marks and the bars
+// of the stills, the episode offered, the copy OK plays, lib_cur), the history stale first (mel_pg_stale: the shell may write the record after
 // PLAYBACK_FINISH, within MEL_PG_SIG_S of the last read, and the line of the history would show the old one); after a copy on the disk (played) also the tab "TV" built anew (mel_tv_flag)
 // and the main screens of the catalog anew first (mel_catv_after_player: the row "Continue" and the badges), as
 // mel_finish of the list.
