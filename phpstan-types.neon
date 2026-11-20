@@ -268,6 +268,9 @@ parameters:
         # "Continue watching" of play_action (mel_resume, main.php; next:
         # mel_wh_resume_ep, history.php). mode: debrid, ts, lampac (hash: the key of an online record), ''; prof: wh_prof, the id of the profile of the start ('' none, v2).
         MelResume: 'array{hash: string, mode: string, s: int, e: int, pos: int, len: int, uid: string, prof: string, next: bool}'
+        # recent_action_params of a linked vod_play (mel_recent_params, main.php): what "Continue watching" brings back
+        # to play_action, kept in the records of the history - its keys and values never change.
+        MelRecentParams: 'array{handler_id: string, control_id: string, sup_id: string, movie_id: string, sup_data: string, wh_release: string, wh_mode: string, wh_prof: string}'
         # Reasons of the error streams of a reply (mel_error_streams, main.php):
         # different lines up to MEL_ERRORS_MAX, more: different ones past them.
         MelErrors: 'array{lines: list<string>, more: int}'

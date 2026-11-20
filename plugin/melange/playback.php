@@ -294,15 +294,8 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
     if ($linked)
     {
         $info[PluginVodInfo::recent_plugin] = 'shell_ext';
-        $info[PluginVodInfo::recent_action_params] = array(
-            'handler_id' => 'entry',
-            'control_id' => 'play_recent',
-            'sup_id' => MEL_SUP_ID,
-            'movie_id' => $mv['dune_id'],
-            'sup_data' => 'auto',
-            'wh_release' => $r['hash'],
-            'wh_mode' => $mode,
-            'wh_prof' => Mel::$settings['prof']);
+        $info[PluginVodInfo::recent_action_params] = mel_recent_params($mv['dune_id'], $r['hash'], $mode,
+            Mel::$settings['prof']);
     }
     // A file cached on several services: which copy plays.
     $copy = !$ts && isset($r['copies'], $r['copy']) ? sprintf(', copy %d of %d: %s', $r['copy'] + 1, count($r['copies']),
@@ -369,15 +362,7 @@ function mel_lib_play($mv, $copy, $pos, $lang, $i = 0, $n = 1)
     if ($linked)
     {
         $info[PluginVodInfo::recent_plugin] = 'shell_ext';
-        $info[PluginVodInfo::recent_action_params] = array(
-            'handler_id' => 'entry',
-            'control_id' => 'play_recent',
-            'sup_id' => MEL_SUP_ID,
-            'movie_id' => $mv['dune_id'],
-            'sup_data' => 'auto',
-            'wh_release' => $copy['key'],
-            'wh_mode' => 'local',
-            'wh_prof' => '');
+        $info[PluginVodInfo::recent_action_params] = mel_recent_params($mv['dune_id'], $copy['key'], 'local', '');
     }
     mel_pg_link_movie($mv);
     mel_log("play: local {$copy['key']} pos=$pos linked=" . ($linked ? 1 : 0) . ', copy ' . ($i + 1) . " of $n" .

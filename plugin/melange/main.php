@@ -574,6 +574,31 @@ function mel_resume($in)
         'next' => false);
 }
 
+// recent_action_params of a vod_play linked to card $dune_id: "Continue watching" brings them back to play_action
+// (shell_ext play_recent), its supplier_info read by mel_resume - wh_release $release (an infoHash, the key of an
+// online row, the key of a copy on the disk), wh_mode $mode ('debrid', 'ts', 'lampac', 'local'), wh_prof $prof (the id
+// of the profile of the start, '' none). The records of the history on the devices keep them: keys and values as
+// they are (mel_play, mel_lpv_ep_play, mel_lib_play).
+/**
+ * @param string $dune_id
+ * @param string $release
+ * @param string $mode
+ * @param string $prof
+ * @return MelRecentParams
+ */
+function mel_recent_params($dune_id, $release, $mode, $prof)
+{
+    return array(
+        'handler_id' => 'entry',
+        'control_id' => 'play_recent',
+        'sup_id' => MEL_SUP_ID,
+        'movie_id' => $dune_id,
+        'sup_data' => 'auto',
+        'wh_release' => $release,
+        'wh_mode' => $mode,
+        'wh_prof' => $prof);
+}
+
 // --- Settings.
 
 // '' when the shell gave no data_dir_path (SDK: an STB without storage).

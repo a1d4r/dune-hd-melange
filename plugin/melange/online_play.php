@@ -236,15 +236,8 @@ function mel_lpv_ep_play($mv, $lang, $f, $s, $e, $pos, $deadline)
     if ($linked)
     {
         $info[PluginVodInfo::recent_plugin] = 'shell_ext';
-        $info[PluginVodInfo::recent_action_params] = array(
-            'handler_id' => 'entry',
-            'control_id' => 'play_recent',
-            'sup_id' => MEL_SUP_ID,
-            'movie_id' => $mv['dune_id'],
-            'sup_data' => 'auto',
-            'wh_release' => $r['key'],
-            'wh_mode' => 'lampac',
-            'wh_prof' => Mel::$settings['lp_prof']);
+        $info[PluginVodInfo::recent_action_params] = mel_recent_params($mv['dune_id'], $r['key'], 'lampac',
+            Mel::$settings['lp_prof']);
     }
     mel_log("play: lampac {$r['key']}" . ($e > 0 ? sprintf(' S%02dE%02d', $s, $e) : '') . " pos=$pos linked=" .
         ($linked ? 1 : 0) . ($list ? ', ' . count($eps) . ' episodes' : ''));
