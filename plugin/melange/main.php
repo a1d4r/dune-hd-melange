@@ -2348,7 +2348,8 @@ class MelFw extends DunePluginFw
             {
                 $type = PLUGIN_OUT_DATA_PLUGIN_FOLDER_VIEW;
                 $url = isset($in->media_url) && is_string($in->media_url) ? $in->media_url : '';
-                // Every screen of Melange: the keys Fav 2 and Fav 1 to "Мой список" and "Продолжить" (view_my_list.php).
+                // Every screen of Melange: the keys Fav 2 and Fav 1 to "Мой список" and "Продолжить", the search key to
+                // the search of Melange (view_my_list.php).
                 $data = mel_mlv_keys(mel_folder_view($url, isset($in->sel_state) ? $in->sel_state : null), $url);
             }
             else if ($op === PLUGIN_OP_HANDLE_USER_INPUT)

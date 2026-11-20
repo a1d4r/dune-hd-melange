@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.66.1
+- Fixed: the microphone button on the remote opened Dune voice search on the Melange card and other screens outside the catalog; now it opens Melange search there too.
+
 ## 0.66.0 — 20.11.2026
 - **New look for the release list.** The release list is redrawn with simpler tags, and a row shows only the main ones, such as Vision and Atmos.
 - **BDRip.** A BDRip or BRRip release with BluRay quality gets its own BDRip tag, and the "Video" field of the card and of "Details" says BDRip instead of BluRay.
@@ -299,6 +302,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.66.1
+- Исправлено: в карточке Melange и на других экранах вне каталога кнопка микрофона на пульте открывала голосовой поиск Дюны, теперь — поиск Melange.
 
 ## 0.66.0 — 20.11.2026
 - **Новый вид списка раздач.** Список раздач перерисован: плашки проще, в строке только главное, например Vision и Atmos.

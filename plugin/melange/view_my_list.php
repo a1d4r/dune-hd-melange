@@ -7,9 +7,10 @@
 // no request at the opening (mel_cpm_local), then r25 the ticks of a timer of the screen (mel_mlv_tick), r24 the first
 // tiles asked in the opening (mel_cpm_ask_due). The ways to them: the heart and the clock on the strip of the catalog
 // and in its POP UP (mel_catv_strip_rows, mel_catv_menu) and the keys Fav 2 (key_favorites: "Мой список") and Fav 1
-// (key_dune: "Продолжить") of the remote on every screen of Melange (mel_mlv_keys; the player has no folder view). An empty
-// "Мой список": the hint tile, its POP UP the import of the Favorites of the Dune (mel_mlv_import). The file, the
-// copy of the backup and the reading of the Favorites are of my_list.php (the settings page has it alone).
+// (key_dune: "Продолжить") of the remote on every screen of Melange, with the search key (mel_mlv_keys; the player has
+// no folder view). An empty "Мой список": the hint tile, its POP UP the import of the Favorites of the Dune
+// (mel_mlv_import). The file, the copy of the backup and the reading of the Favorites are of my_list.php (the settings
+// page has it alone).
 // Needs my_list.php, view_catalog.php (mel_catv_*), continue.php, cp_meta.php (MelCpm, mel_cpm_*), links.php (mel_pg_links,
 // mel_pg_link_now, mel_pg_paused), progress.php, catalog.php (mel_cat_tile), catalog_card.php (mel_card_enter,
 // mel_card_open, MEL_CARD_DELAY), view_card.php (mel_oc_enter), card_meta.php (mel_cm_id), tv_tab.php (mel_tv_flag,
@@ -749,7 +750,8 @@ function mel_ml_row_defs($tab, $lang, &$tiles = null, &$miss = null)
 
 // --- The ways to the screens.
 
-// The keys Fav 2 and Fav 1 of screen $from.
+// The keys Fav 2 and Fav 1 of screen $from and the search key (the microphone): the dialog "Поиск" of Melange
+// (mel_catv_search_ask), its results over $from, not the voice search of the shell.
 /**
  * @param string $from
  * @return array<string, MelAction>
@@ -758,14 +760,16 @@ function mel_mlv_key_acts($from)
 {
     return array(
         MEL_MLV_KEY_LIST => mel_input('cat_fav', array('from' => $from, 'w' => 'list')),
-        MEL_MLV_KEY_CONT => mel_input('cat_fav', array('from' => $from, 'w' => 'continue')));
+        MEL_MLV_KEY_CONT => mel_input('cat_fav', array('from' => $from, 'w' => 'continue')),
+        GUI_EVENT_KEY_SEARCH => mel_input('cat_search', array('from' => $from)));
 }
 
 // Folder view $view of screen $media_url (mel_folder_view: every screen of Melange - the catalog, "Show all", a search,
-// the own card, a person, the list of streams, the details, the settings, these two) with the keys Fav 2 and Fav 1 in
-// its actions, the actions of the screen kept. A file of the tab "TV" is no such view: the keys stay with the shell
-// there, as the colour keys (tv_tab.php). A new change_behaviour with actions on a screen of the catalog replaces its
-// actions whole and loses the Fav keys: add mel_mlv_key_acts to them (as mel_catv_all_tick does).
+// the own card, a person, the list of streams, the details, the settings, these two) with the keys Fav 2 and Fav 1 and
+// the search key in its actions, the actions of the screen kept (the rows of the catalog have their own search key). A
+// file of the tab "TV" is no such view: the keys stay with the shell there, as the colour keys (tv_tab.php). A new
+// change_behaviour with actions on a screen of the catalog replaces its actions whole and loses these keys: add
+// mel_mlv_key_acts to them (as mel_catv_all_tick does).
 /**
  * @param mixed $view
  * @param string $media_url

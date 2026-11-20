@@ -2,7 +2,7 @@
 
 Find a movie or series by title, typed or spoken. [← Contents](README.en.md)
 
-1. In the Melange catalog, open search: the magnifier on the bar at the top, the microphone button on the remote, or **POP UP** → "Search".
+1. In the Melange catalog, open search: the magnifier on the bar at the top, the microphone button on the remote, or **POP UP** → "Search". The microphone button opens search on other Melange screens too, such as the card. In the TV tab it works as usual in Dune.
 
    <img src="../screenshots/search-dialog.jpg" alt="Melange «Поиск» (Search) window: input field and on-screen keyboard" width="100%">
 

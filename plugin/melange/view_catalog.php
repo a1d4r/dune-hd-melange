@@ -2205,7 +2205,7 @@ function mel_catv_tick($url)
 }
 
 // r25: the timer of the main screen $url again (mel_pg_tick_again): change_behaviour, its actions whole as of
-// mel_catv_rows_view with the tick and the Fav keys (mel_mlv_keys); the focus and the tiles stay.
+// mel_catv_rows_view with the tick and the Fav and search keys (mel_mlv_keys); the focus and the tiles stay.
 /**
  * @param string $url
  * @return MelAction
@@ -2221,8 +2221,8 @@ function mel_catv_tick_again($url)
 }
 
 // The view of "Show all" $url (or "Продолжить", "Мой список": mel_mlv_tick) again with its timer in $ms:
-// change_behaviour, its actions whole (mel_catv_all_actions with the tick) and the Fav keys (mel_mlv_key_acts); the
-// focus and the tiles stay.
+// change_behaviour, its actions whole (mel_catv_all_actions with the tick) and the Fav and search keys
+// (mel_mlv_key_acts); the focus and the tiles stay.
 /**
  * @param string $url
  * @param int $ms
@@ -3314,7 +3314,7 @@ function mel_catv_search_run($q, $from)
         mel_catv_search_drop(strval(key(MelCat::$searches)));
     }
     // One type found: its "Show all" at once, named after its row, as mel_catv_all_open. Only as
-    // the expanded row of r25: the grid of r24 has neither the search key nor the info panel. Not
+    // the expanded row of r25: the grid of r24 has no info panel. Not
     // after a failure or of a saved copy: the results say so on the row and do not ask again.
     $one = count($rids) === 1 && $whole && mel_catv_all_ok();
     if ($one)
