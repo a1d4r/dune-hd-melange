@@ -26,7 +26,7 @@ What Melange cannot do, or does with caveats. [← Contents](README.en.md)
 
 ## Movies and the release list
 
-- Melange finds releases only for movies and series with an IMDb ID: on the Dune card or on the poster in the catalog. If Lampac is among your [sources](profiles.en.md), you can watch a movie without an IMDb ID through it. Lampac searches for such a movie by title and year, so the list may include other movies with the same title.
+- Melange looks for releases by the IMDb ID of a movie or series, taken from the Dune card or the poster in the catalog, and by its TMDB id when there is no IMDb ID. Without an IMDb ID, the list more often includes releases of other movies with the same title. With neither ID there are no releases, but you can still watch the movie through Lampac if it is among your [sources](profiles.en.md). Lampac searches by title and year, so its list may include other movies with the same title too.
 - The screen shows at most 100 releases; the rest are not shown. A server reply over 6 MB does not open.
 - The "Watch via TorrServer", "Open in an app…" and "Download to server…" items are not on every release: only on those for which the source sent a torrent hash, and not with the "No torrents" setting.
 - "Open in an app…" starts a release without an episode playlist, history or **Continue Watching**.
