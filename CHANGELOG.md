@@ -2,7 +2,7 @@
 
 **English version**
 
-## 0.66.0 — unreleased
+## 0.66.0 — 20.11.2026
 - **New look for the release list.** Video and audio tags are now pictures: resolution (4K, FHD, HD, SD), HDR (Vision, HDR10, HDR10+, HLG), audio (Atmos, TrueHD, DTS-HD MA, Digital+, AAC and others), source (Remux, WebDL, BluRay, BDRip and others) and 10bit. Each row shows only the main tag, so "TrueHD Atmos" shows as Atmos. Tags line up in columns: tags in one column are the same width, with even gaps between them.
 - **New icons and focus.** A lightning bolt marks a release in the Debrid cache, and a P2P release shows its seeders. The row in focus is blue. The release name in the card on the left takes up to three lines.
 - **Faster scrolling.** Holding an arrow in a list of 100 releases scrolls about 4.4 lines per second, up from 4.0 in 0.65.0.
@@ -302,7 +302,7 @@ First public release. What it does:
 
 **Russian version**
 
-## 0.66.0 — не выпущено
+## 0.66.0 — 20.11.2026
 - **Новый вид списка раздач.** Плашки видео и звука стали картинками: разрешение (4K, FHD, HD, SD), HDR (Vision, HDR10, HDR10+, HLG), звук (Atmos, TrueHD, DTS-HD MA, Digital+, AAC и др.), источник (Remux, WebDL, BluRay, BDRip и др.) и 10bit. В строке только главное: у «TrueHD Atmos» — Atmos. Плашки стоят колонками, у плашек одной колонки одинаковая ширина, промежутки между ними ровные.
 - **Новые значки и фокус.** Молния значит, что раздача в кэше Debrid. У P2P видно число сидов. Строка в фокусе синяя. Название раздачи в карточке слева занимает до трёх строк.
 - **Прокрутка быстрее.** С зажатой стрелкой список из 100 раздач идёт примерно на 4,4 строки в секунду, в 0.65.0 было 4,0.
