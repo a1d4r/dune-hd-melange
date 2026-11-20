@@ -445,9 +445,12 @@ function mel_lib_ep_place($hid, $copies, $q, $e, $rec_key, $f_packs, $fix)
  */
 function mel_lib_resume($mv, $m, $key, $pos, $lang)
 {
-    $y = mel_lib_mid(mel_lib_title($m, false));
+    $t = mel_lib_title($m, false);
+    $y = mel_lib_mid($t);
     $copies = $y !== '' ? mel_lib_copies($y) : array();
     $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $y);
+    if ($t['tmdb'] !== '')
+        $mv['tmdb'] = $t['tmdb'];
     mel_log("resume: local $key pos=$pos");
     return mel_lib_resume_go($mv, $m, $copies, $key, $pos, $pos, $lang);
 }
@@ -518,8 +521,11 @@ function mel_lib_ep_same_one($s, $e, $seasons, $cin)
  */
 function mel_lib_series($mv, $m)
 {
-    $y = mel_lib_mid(mel_lib_title($m, true));
+    $t = mel_lib_title($m, true);
+    $y = mel_lib_mid($t);
     $mv['dune_id'] = mel_lib_hid($mv['dune_id'], $y);
+    if ($t['tmdb'] !== '')
+        $mv['tmdb'] = $t['tmdb'];
     if ($y === '')
         return array($mv, $y, array(), array());
     // The counts of season_numbers: each season 1..N.
@@ -535,8 +541,8 @@ function mel_lib_series($mv, $m)
 // "aio:H:<wh_s>:<wh_e>:lib-..." (a vod_play has one recent_action_params, of its start episode), else wh_release; a
 // record of season 1 has no s (wh_s -1) - the season of that uid, else 1. The episode by mel_wh_resume_ep: not
 // watched - its copy of the key from its place; watched - the next one, its copy and its place by mel_lib_ep_place (the
-// record: ours of it not watched; F the packs of the key of the record; the native records by their files). -> its start (mel_lib_resume_go: their menu until the own card
-// takes it, stage 2г4); null - none of it on the disk (no copy, the series not in the index, no episode after a
+// record: ours of it not watched; F the packs of the key of the record; the native records by their files). -> its start (mel_lib_resume_go: several to choose - the own
+// card and the window W2 over it); null - none of it on the disk (no copy, the series not in the index, no episode after a
 // watched one): $se the episode for the list of its releases; null both - a record of no episode, as of none.
 /**
  * @param MelMovie $mv
@@ -580,8 +586,8 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
     mel_log($tag);
     list($recs) = mel_lib_ep_ctx($hid, $y, true);
     $f = mel_lib_key_packs($y, $key);
-    // The native records of the series by their files (mel_wh_fix_se). No copy to take (the window, $k ''): their menu,
-    // none checked. Of the mirrors of a record the copy of F first (mel_lib_ep_cid).
+    // The native records of the series by their files (mel_wh_fix_se). No copy to take (the window, $k ''): the own card
+    // and the window W2 of them, none checked. Of the mirrors of a record the copy of F first (mel_lib_ep_cid).
     list($k, $first_pos, $pos) = mel_lib_ep_place($hid, $copies, $q, $e, isset($recs["$q:$e"]) ? $recs["$q:$e"] : '', $f,
         $fix);
     return mel_lib_resume_go($mv, $m, $copies, $k, $first_pos, $pos, $lang, $ep, $f);
@@ -589,8 +595,9 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
 
 // The start of "Continue" of a copy on the disk of movie $mv (H set), the fields $m of its movie_str, of its copies
 // $copies, $ep null; of an episode ($ep: of mel_lib_ep_copies, $copies of it). By mel_lib_start of $first, $first_pos,
-// $pos, the packs F $f_packs: the copy there - its vod_play; the copies left - their menu (mel_lib_pick_menu) back to
-// lib_copy with the place $pos and the type of the title (of an episode: it); none - mel_lib_gone.
+// $pos, the packs F $f_packs: the copy there - its vod_play; the copies left - the own card of the title and the window
+// W2 of them over it (mel_lib_win_card; owner 1 (б)), no own card (no id of the title) - the first there of them in
+// their order from $pos (as under the player); none - mel_lib_gone.
 /**
  * @param MelMovie $mv
  * @param array<mixed> $m
@@ -606,16 +613,17 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
 function mel_lib_resume_go($mv, $m, $copies, $first, $first_pos, $pos, $lang, $ep = null, $f_packs = array())
 {
     $go = mel_lib_start($copies, $first, $first_pos, $pos, false, $f_packs);
+    if (isset($go['pick']))
+    {
+        $a = mel_lib_win_card($mv, $go['pick'], $ep ? $ep['q'] : -1, $ep ? $ep['e'] : -1);
+        if ($a)
+            return $a;
+        $go = mel_lib_start($go['pick'], '', $pos, $pos, true, $f_packs);
+    }
     if (isset($go['copy']))
         return mel_lib_play($mv, $go, $lang, $ep);
-    if (isset($go['gone']))
-        return $ep ? mel_lib_gone($go['gone'], $lang, $ep['q'], $ep['e']) : mel_lib_gone($go['gone']);
-    $keep = array_intersect_key($m, array_flip(explode(' ', MEL_LIB_MOVIE_KEYS)));
-    $back = array('movie_str' => strval(json_encode($keep)), 'series_type' => $mv['series'] ? 'series' : 'single',
-        'lang' => $lang, 'pos' => strval($pos));
-    if ($ep)
-        $back += array('season' => strval($ep['q']), 'episode' => strval($ep['e']));
-    return mel_lib_pick_menu('lib_copy', $back, $go['pick'], '', $lang);
+    $why = isset($go['gone']) ? $go['gone'] : 'no';
+    return $ep ? mel_lib_gone($why, $lang, $ep['q'], $ep['e']) : mel_lib_gone($why);
 }
 
 // lib_copy: the copy of id k (mel_lib_cid) chosen in the menu of the copies of play_action (mel_lib_resume_go) - from

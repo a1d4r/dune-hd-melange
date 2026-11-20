@@ -146,6 +146,18 @@ function mel_dl_card($q)
     if (!$kc)
         return null;
     list($key, $card) = $kc;
+    return mel_dl_card_open($key, $card);
+}
+
+// The screen "card:<key>" of own card $card of key $key (to=card, mel_lib_win_card): plugin_open_folder, its caption the
+// name of the tile, none - of the plugin.
+/**
+ * @param string $key
+ * @param MelOcCard $card
+ * @return MelAction
+ */
+function mel_dl_card_open($key, $card)
+{
     return array(
         GuiAction::handler_string_id => PLUGIN_OPEN_FOLDER_ACTION_ID,
         GuiAction::plugin_name => MEL_PLUGIN,
