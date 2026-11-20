@@ -273,7 +273,7 @@ function mel_lib_hid($dune_id, $y)
  * @param string $k
  * @param int $q
  * @param int $e
- * @param array<string, string> $fix
+ * @param array<string, array{int, int}|string> $fix hash => array(s, e), or 'skip' (mel_lib_ep_hashes)
  * @return array{string, int, int}
  */
 function mel_lib_place($hid, $copies, $k, $q = -1, $e = -1, $fix = array())
@@ -461,11 +461,8 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se)
     list($first, $why) = mel_lib_ep_pick($copies, isset($recs["$q:$e"]) ? $recs["$q:$e"] : '',
         mel_lib_key_packs($y, $key), false);
     mel_log("$tag, $why");
-    // The native records of the series by their files (mel_wh_fix_se): "q:e" of a file, 'skip' of one dropped.
-    $fix = array();
-    foreach (mel_lib_ep_hashes($y) as $h => $hse)
-        $fix[$h] = is_array($hse) ? implode(':', $hse) : $hse;
-    list($k, $first_pos, $pos) = mel_lib_place($hid, $copies, $first, $q, $e, $fix);
+    // The native records of the series by their files (mel_wh_fix_se).
+    list($k, $first_pos, $pos) = mel_lib_place($hid, $copies, $first, $q, $e, mel_lib_ep_hashes($y));
     // No copy to take (the window): their menu, none checked (not the copy of a record mel_lib_place gives).
     return $first === '' ? mel_lib_resume_go($mv, $m, $copies, '', $pos, $pos, $lang, $ep) :
         mel_lib_resume_go($mv, $m, $copies, $k, $first_pos, $pos, $lang, $ep);

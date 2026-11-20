@@ -1235,7 +1235,8 @@ function mel_lib_ep_copies($mid)
 // The hashes of the episode files of the series $mid of the index, mounted or not (the number of an episode of a record
 // of the history by its file, video_id "hash:<hash>"): hash => array(season, episode) of the files taken, 'skip' of the
 // files the rules of the numbers dropped (mel_lib_eps_fix: a number not sure, a copy not confirmed hidden) - a record
-// of one is of no episode. A hash of a file taken and of one dropped (mirrors): the one taken.
+// of one is of no episode. A hash of a file taken and of one dropped (mirrors): the one taken. The hashes in upper case
+// (as the shell writes video_id; mel_wh_fix_se).
 /**
  * @param string $mid
  * @return array<string, array{int, int}|string>
@@ -1246,11 +1247,13 @@ function mel_lib_ep_hashes($mid)
     $res = array();
     foreach (isset(MelLib::$eps[$mid]) ? MelLib::$eps[$mid] : array() as $f)
     {
-        if (!isset($res[$f['hash']]))
-            $res[$f['hash']] = array($f['s'], $f['e']);
+        $h = strtoupper($f['hash']);
+        if (!isset($res[$h]))
+            $res[$h] = array($f['s'], $f['e']);
     }
     foreach (isset(MelLib::$eps_drop[$mid]) ? MelLib::$eps_drop[$mid] : array() as $h)
     {
+        $h = strtoupper($h);
         if (!isset($res[$h]))
             $res[$h] = 'skip';
     }
