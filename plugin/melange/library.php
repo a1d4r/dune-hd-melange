@@ -13,7 +13,7 @@
 // their key lib-... (mel_lib_key).
 // Needs main.php (mel_log, mel_num, mel_str), links.php (mel_pg_links, mel_pg_rev, mel_pg_shell_pair, mel_pg_link_put,
 // mel_pg_links_save), torrserver.php (mel_ts_dirname, mel_ts_ep, mel_ts_ep_lead), segments.php (mel_mkv_duration). The
-// menu of the copies: mel_lib_pick_menu, mel_lib_label (sources.php); their start: mel_lib_start (playback.php).
+// menu of the copies: mel_lib_pick_menu, mel_lib_label (sources.php); their start: mel_lib_start (playback_lib.php).
 
 // The files of the shell. PHP on the Dune adds FS_PREFIX to /config,
 // /flashdata and /tmp itself; a failed plain read is tried with FS_PREFIX.

@@ -21,7 +21,7 @@
 // ENTER on a tile does the network (mel_oc_enter: the meta; the rows of posters on r24); the screen
 // is built from memory; from r25 its timer asks the rows of posters (mel_oc_load).
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, card_more.php, history.php, playback.php, view_catalog.php,
-// view_gcomps.php, gcomps.php; the seasons and the episodes of a series: view_card_series.php; the
+// view_gcomps.php, gcomps.php, playback_lib.php; the seasons and the episodes of a series: view_card_series.php; the
 // strip of a row and the frame of the focus: view_card_row.php; the rows of the card (the cast, the
 // posters), ENTER on their items and the timer of the posters: view_card_rows.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.

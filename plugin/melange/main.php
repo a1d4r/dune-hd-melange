@@ -26,6 +26,8 @@ require_once dirname(__FILE__) . '/links.php';
 require_once dirname(__FILE__) . '/library.php';
 // Playback, the episodes around it and the lazy ones.
 require_once dirname(__FILE__) . '/playback.php';
+// The start of the files of the media library of the Dune (the own library).
+require_once dirname(__FILE__) . '/playback_lib.php';
 // Markers of an episode: "Skip intro", "Next episode".
 require_once dirname(__FILE__) . '/segments.php';
 // "Download to server": qBittorrent WebAPI.
