@@ -403,7 +403,7 @@ function mel_wh_fix_se($w, $fix)
     if (!$fix || !isset($w->video_id) || !is_string($w->video_id) || strncmp($w->video_id, 'hash:', 5) !== 0)
         return $w;
     list(, , , , $uid) = mel_wh_rec($w);
-    if (strncmp($uid, 'aio:', 4) === 0)
+    if (strpos($uid, MEL_SUP_ID . ':') === 0)
         return $w;
     $h = strtoupper(substr($w->video_id, 5));
     if (!isset($fix[$h]))
