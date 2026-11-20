@@ -59,7 +59,7 @@ define('MEL_OC_INK', 10);
 // DESC_LH apart from under the director (or the genres) down to DESC_BOTTOM; buttons BTN_H high
 // at BTN_Y, the text PAD from the edges (and the icon of "Watch" ICON_W more), GAP apart; CAP: the
 // rounded ends (PNG), a rect between them; a line under them at LINE_Y; the progress over them at OVER_Y, in place of
-// the last line of the description (R1, owner 20.11.2026), the bar BAR_H high in the middle of its 34 px; the hint at
+// the last line of the description (R1, owner 20.11.2026), the bar BAR_H high in the middle of its LINE_H; the hint at
 // the line of the cast, its right edge at HINT_R, its arrow HINT_ARROW_DX after the text.
 define('MEL_OC_FACTS_Y', 269);
 define('MEL_OC_GENRES_Y', 315);
@@ -73,7 +73,10 @@ define('MEL_OC_ICON_W', 34);
 define('MEL_OC_BTN_GAP', 20);
 define('MEL_OC_CAP', 12);
 define('MEL_OC_LINE_Y', 660);
-define('MEL_OC_OVER_Y', 518);
+// The height of a label of the card smaller than the lines of the panel (24 px: mel_oc_label), of the lines under and
+// over the buttons.
+define('MEL_OC_LINE_H', 34);
+define('MEL_OC_OVER_Y', MEL_OC_DESC_BOTTOM - MEL_OC_DESC_LH);
 // The line "С диска" of a copy on the disk (mel_oc_lib_line): its text, its right edge;
 // the disk before it (MEL_OC_IMG disk.png, DISK_W square, in the middle of the line) DISK_GAP from the text.
 define('MEL_OC_LIB_PX', 24);
@@ -628,7 +631,8 @@ function mel_oc_btn_items($b, $w, $on)
  */
 function mel_oc_label($x, $y, $w, $text, $px, $color, $spec = array())
 {
-    $l = mel_catv_info_label(mel_clean($text), $px, $color, $w, $px === MEL_CATV_LINE_PX ? MEL_CATV_LINE_H : 34, $y, $spec);
+    $h = $px === MEL_CATV_LINE_PX ? MEL_CATV_LINE_H : MEL_OC_LINE_H;
+    $l = mel_catv_info_label(mel_clean($text), $px, $color, $w, $h, $y, $spec);
     $l[GComponentDef::geom_def][GCompGeometryDef::align_def][GCompAlignDef::x] = $x;
     return $l;
 }
@@ -765,7 +769,7 @@ function mel_oc_over($lang, $wh, $w0, $marked)
 function mel_oc_bar($wh, $w0)
 {
     $x0 = MEL_CATV_CARD_X;
-    $by = MEL_OC_OVER_Y + intval((34 - MEL_OC_BAR_H) / 2);
+    $by = MEL_OC_OVER_Y + intval((MEL_OC_LINE_H - MEL_OC_BAR_H) / 2);
     $fw = max(MEL_GC_BAR_MIN, intval(round($w0 * min(1, $wh[0] / $wh[1]))));
     return array(mel_gc_rect(mel_gc_at($w0, MEL_OC_BAR_H, $x0, $by), MEL_OC_BAR_REST),
         mel_gc_rect(mel_gc_at($fw, MEL_OC_BAR_H, $x0, $by), MEL_GC_TEXT));
@@ -802,8 +806,8 @@ function mel_oc_lib_line($lang, $copy, $x)
         if ($tx + $w <= MEL_OC_LIB_R)
             break;
     }
-    $disk = mel_gc_image(mel_gc_at(MEL_OC_DISK_W, MEL_OC_DISK_W, $x, MEL_OC_LINE_Y + intval((34 - MEL_OC_DISK_W) / 2)),
-        MEL_OC_IMG . 'disk.png');
+    $disk = mel_gc_image(mel_gc_at(MEL_OC_DISK_W, MEL_OC_DISK_W, $x,
+        MEL_OC_LINE_Y + intval((MEL_OC_LINE_H - MEL_OC_DISK_W) / 2)), MEL_OC_IMG . 'disk.png');
     return array_merge(array($disk), $d);
 }
 
@@ -833,7 +837,7 @@ function mel_oc_lib_parts($head, $ids, $tail, $x)
         foreach ($plates as $i => $p)
             $plates[$i][GComponentDef::specific_def][GCompImageDef::alpha] = MEL_OC_LIB_ALPHA;
         $d[] = mel_gc_panel('lib', mel_gc_at($pw, MEL_GC_BADGE_H, $x + $w + MEL_GC_BADGE_GAP,
-            MEL_OC_LINE_Y + intval((34 - MEL_GC_BADGE_H) / 2)), $plates);
+            MEL_OC_LINE_Y + intval((MEL_OC_LINE_H - MEL_GC_BADGE_H) / 2)), $plates);
         $w += MEL_GC_BADGE_GAP + $pw;
     }
     if ($tail !== '')
