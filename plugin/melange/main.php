@@ -109,6 +109,7 @@ require_once dirname(__FILE__) . '/card_meta.php';
 require_once dirname(__FILE__) . '/card_more.php';
 require_once dirname(__FILE__) . '/card_trailer.php';
 require_once dirname(__FILE__) . '/view_card.php';
+require_once dirname(__FILE__) . '/view_card_lib.php';
 require_once dirname(__FILE__) . '/view_card_series.php';
 require_once dirname(__FILE__) . '/view_card_row.php';
 require_once dirname(__FILE__) . '/view_card_rows.php';

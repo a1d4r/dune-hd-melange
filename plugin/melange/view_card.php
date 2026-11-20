@@ -74,12 +74,13 @@ define('MEL_OC_BTN_GAP', 20);
 define('MEL_OC_CAP', 12);
 define('MEL_OC_LINE_Y', 660);
 // The height of a label of the card smaller than the lines of the panel (24 px: mel_oc_label), of the lines under and
-// over the buttons.
+// over the buttons; their text MEL_OC_LINE_PX.
 define('MEL_OC_LINE_H', 34);
+define('MEL_OC_LINE_PX', 24);
 define('MEL_OC_OVER_Y', MEL_OC_DESC_BOTTOM - MEL_OC_DESC_LH);
-// The line "С диска" of a copy on the disk (mel_oc_lib_line): its text, its right edge;
+// The line "С диска" of a copy on the disk (mel_oc_lib_line, view_card_lib.php): its text, its right edge;
 // the disk before it (MEL_OC_IMG disk.png, DISK_W square, in the middle of the line) DISK_GAP from the text.
-define('MEL_OC_LIB_PX', 24);
+define('MEL_OC_LIB_PX', MEL_OC_LINE_PX);
 define('MEL_OC_LIB_R', 1845);
 define('MEL_OC_DISK_W', 24);
 define('MEL_OC_DISK_GAP', 8);
@@ -733,7 +734,7 @@ function mel_oc_under($c, $over)
         $line = mel_tr($c['ui'], 'card_no_history');
     if ($line === '')
         return array();
-    return array(mel_oc_label(MEL_CATV_CARD_X, MEL_OC_LINE_Y, MEL_CATV_TEXT_W, $line, 24, MEL_CATV_TEXT_COLOR));
+    return array(mel_oc_label(MEL_CATV_CARD_X, MEL_OC_LINE_Y, MEL_CATV_TEXT_W, $line, MEL_OC_LINE_PX, MEL_CATV_TEXT_COLOR));
 }
 
 // Over the buttons of a movie, with a copy on the disk or not (R1, owner 20.11.2026), in place of the last line of the
@@ -750,13 +751,14 @@ function mel_oc_over($lang, $wh, $w0, $marked)
 {
     $x0 = MEL_CATV_CARD_X;
     if ($marked || ($wh && mel_wh_full($wh[0], $wh[1])))
-        return array(mel_oc_label($x0, MEL_OC_OVER_Y, MEL_CATV_TEXT_W, mel_tr($lang, 'card_watched'), 24, MEL_GC_DIM));
+        return array(mel_oc_label($x0, MEL_OC_OVER_Y, MEL_CATV_TEXT_W, mel_tr($lang, 'card_watched'), MEL_OC_LINE_PX,
+            MEL_GC_DIM));
     $p = $wh ? mel_oc_progress_text($wh[0], $wh[1], $lang) : '';
     if ($p === '')
         return array();
     $d = mel_oc_bar($wh, $w0);
-    $d[] = mel_oc_label($x0 + $w0 + MEL_OC_BTN_GAP, MEL_OC_OVER_Y, 1920 - $x0 - $w0 - MEL_OC_BTN_GAP - 75, $p, 24,
-        MEL_CATV_TEXT_COLOR);
+    $d[] = mel_oc_label($x0 + $w0 + MEL_OC_BTN_GAP, MEL_OC_OVER_Y, 1920 - $x0 - $w0 - MEL_OC_BTN_GAP - 75, $p,
+        MEL_OC_LINE_PX, MEL_CATV_TEXT_COLOR);
     return $d;
 }
 
@@ -773,81 +775,6 @@ function mel_oc_bar($wh, $w0)
     $fw = max(MEL_GC_BAR_MIN, intval(round($w0 * min(1, $wh[0] / $wh[1]))));
     return array(mel_gc_rect(mel_gc_at($w0, MEL_OC_BAR_H, $x0, $by), MEL_OC_BAR_REST),
         mel_gc_rect(mel_gc_at($fw, MEL_OC_BAR_H, $x0, $by), MEL_GC_TEXT));
-}
-
-// The line of copy $copy at $x under the buttons, the same whatever the progress (R1, owner 20.11.2026): the disk
-// (MEL_OC_DISK_W), "С диска" (lib_from_disk), the badges the list of releases gives its tags (mel_lib_pf ->
-// mel_badges -> mel_gc_row_badges: the resolution, the source, the picture, the audio, by mel_gc_plates, as high as
-// there, MEL_OC_LIB_ALPHA), the channels as the card of a release has them ("7.1 / 2.0", mel_audio_text) and the size
-// as text. Wider than to MEL_OC_LIB_R: the size out first, then the channels, then the audio (owner 19.11.2026); the
-// resolution and the picture stay.
-/**
- * @param string $lang
- * @param MelLibCopy $copy
- * @param int $x
- * @return list<array<string, mixed>>
- */
-function mel_oc_lib_line($lang, $copy, $x)
-{
-    $pf = mel_lib_pf($copy);
-    $cols = mel_gc_row_badges(mel_badges($pf));
-    $quiet = array_merge($cols['res'], $cols['src'], $cols['vis']);
-    $ids = array_merge($quiet, $cols['audio']);
-    $ch = $pf['audioChannels'];
-    rsort($ch);
-    $ch = implode(' / ', $ch);
-    $size = $copy['size'] > 0 ? mel_size_str($copy['size'], $lang) : '';
-    $head = mel_tr($lang, 'lib_from_disk');
-    $tx = $x + MEL_OC_DISK_W + MEL_OC_DISK_GAP;
-    $d = array();
-    foreach (array(array($ch, $size, $ids), array($ch, '', $ids), array('', '', $ids), array('', '', $quiet)) as $v)
-    {
-        list($d, $w) = mel_oc_lib_parts($head, $v[2], implode(' · ', array_filter(array($v[0], $v[1]), 'strlen')), $tx);
-        if ($tx + $w <= MEL_OC_LIB_R)
-            break;
-    }
-    $disk = mel_gc_image(mel_gc_at(MEL_OC_DISK_W, MEL_OC_DISK_W, $x,
-        MEL_OC_LINE_Y + intval((MEL_OC_LINE_H - MEL_OC_DISK_W) / 2)), MEL_OC_IMG . 'disk.png');
-    return array_merge(array($disk), $d);
-}
-
-// The parts of the line of mel_oc_lib_line at $x: the text $head, the badges $ids, " · " and the text $tail (after
-// $head without badges) -> array(the components, the width).
-/**
- * @param string $head
- * @param list<string> $ids
- * @param string $tail
- * @param int $x
- * @return array{list<array<string, mixed>>, int}
- */
-function mel_oc_lib_parts($head, $ids, $tail, $x)
-{
-    if (!$ids && $tail !== '')
-    {
-        $head .= " · $tail";
-        $tail = '';
-    }
-    $w = intval(mel_gc_sum($head, MEL_OC_LIB_PX));
-    $d = array(mel_oc_label($x, MEL_OC_LINE_Y, mel_gc_w($head, MEL_OC_LIB_PX), $head, MEL_OC_LIB_PX,
-        MEL_CATV_TEXT_COLOR));
-    if ($ids)
-    {
-        $pw = mel_gc_plates_w($ids);
-        $plates = mel_gc_plates($ids, 0);
-        foreach ($plates as $i => $p)
-            $plates[$i][GComponentDef::specific_def][GCompImageDef::alpha] = MEL_OC_LIB_ALPHA;
-        $d[] = mel_gc_panel('lib', mel_gc_at($pw, MEL_GC_BADGE_H, $x + $w + MEL_GC_BADGE_GAP,
-            MEL_OC_LINE_Y + intval((MEL_OC_LINE_H - MEL_GC_BADGE_H) / 2)), $plates);
-        $w += MEL_GC_BADGE_GAP + $pw;
-    }
-    if ($tail !== '')
-    {
-        $tail = "· $tail";
-        $d[] = mel_oc_label($x + $w + MEL_GC_BADGE_GAP, MEL_OC_LINE_Y, mel_gc_w($tail, MEL_OC_LIB_PX), $tail, MEL_OC_LIB_PX,
-            MEL_CATV_TEXT_COLOR);
-        $w += MEL_GC_BADGE_GAP + intval(mel_gc_sum($tail, MEL_OC_LIB_PX));
-    }
-    return array($d, $w);
 }
 
 // A series without a card of the Dune or "Смотреть" (mel_oc_can_watch: the meta failed): the line why, right of the
