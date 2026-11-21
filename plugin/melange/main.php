@@ -2206,9 +2206,9 @@ function mel_close_and($post)
         GuiAction::data => array(CloseDialogAndRunActionData::post_action => $post));
 }
 
-// The dialog over the player closed, the player stopped, then $post (null: nothing): "Stop" of the dialogs of a lazy
-// episode, and their "Choose a release" - its list over no player: over a player waiting for the URL of the episode,
-// RETURN of the list took back to it (its clock, the OSD).
+// The dialog over the player closed, the player stopped (waited for), then $post (null: nothing): "Stop" and "Choose a
+// release" of the dialogs of a lazy episode. A list over a player waiting for the URL of the episode takes back to that
+// player on RETURN - so the stop first.
 function mel_stop_and($post)
 {
     return mel_close_and(array(

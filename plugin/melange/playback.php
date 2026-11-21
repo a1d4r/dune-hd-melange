@@ -1801,7 +1801,7 @@ function mel_next_pick($in)
         $p = mel_next_params($in);
         $res = $p ? mel_next_fetch($p[0], $p[1], $p[2]) : array('error' => 'err_list_expired', 'detail' => '');
         if (isset($res['error']))
-            return mel_close_and(mel_error($res['error'], $res['detail']));
+            return mel_stop_and(mel_error($res['error'], $res['detail']));
         $st = $res['st'];
     }
     Mel::$next = null;

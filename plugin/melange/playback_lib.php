@@ -747,7 +747,7 @@ function mel_lib_next_pick($in)
     $ep = mel_lib_next_ep($in);
     $res = $ep ? mel_next_fetch($ep[0], $ep[1], $ep[2]) : array('error' => 'err_list_expired', 'detail' => '');
     if (isset($res['error']))
-        return mel_close_and(mel_error($res['error'], $res['detail']));
+        return mel_stop_and(mel_error($res['error'], $res['detail']));
     mel_log(sprintf('lib_next: -> list of S%02dE%02d', $res['st']['s'], $res['st']['e']));
     return mel_stop_and(mel_open_list($res['st']));
 }
