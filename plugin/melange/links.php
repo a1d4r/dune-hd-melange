@@ -345,7 +345,8 @@ function mel_pg_tick_again($url)
 // its tiles $titles, its cards $mids) -> '': a meta of the row "Continue" to ask (mel_cpm_todo) with no pause of
 // it and the catalog server not down, or a card to ask (mel_pg_link_queue) with no pause and dune_auth, or of the main
 // screen a card of the shell of a title of the library to read (mel_pg_lib_queue); else 'pause'
-// (of either queue), 'server down' (the catalog server, of the meta), 'no dune_auth', 'queue empty'.
+// (of either queue), 'server down' (the catalog server, of the meta), 'no dune_auth', 'queue empty'. No arguments
+// ($titles and $mids null): the main screen (mel_pg_tick_again), the only one whose ticks the library step keeps.
 /**
  * @param list<array{string, string, string}>|null $titles
  * @param list<string>|null $mids
@@ -577,15 +578,17 @@ function mel_pg_links_save()
 // own card is opened); else the larger number of episodes of each. soon replaced only by a source of dates ($l has
 // it, even empty: the card of the shell, the meta). A pair of before src (the seasons of the meta mixed in by the
 // larger) is of the meta again at the next one. Written (mel_pg_links_save) only on a change and with $save; else
-// the caller writes them once. No log line: the caller says what it found. -> it changed.
+// the caller writes them once. MelPgLinks::$rev built anew only with $rev; else the caller builds it once
+// (mel_pg_rev_build). No log line: the caller says what it found. -> it changed.
 /**
  * @param string $mid
  * @param mixed $l
  * @param bool $save
  * @param bool $undated
+ * @param bool $rev
  * @return bool
  */
-function mel_pg_link_put($mid, $l, $save = true, $undated = false)
+function mel_pg_link_put($mid, $l, $save = true, $undated = false, $rev = true)
 {
     $dated = is_array($l) && array_key_exists('soon', $l);
     $l = mel_pg_link_clean($l);
@@ -648,9 +651,11 @@ function mel_pg_link_put($mid, $l, $save = true, $undated = false)
         unset($new['sq']);
     if ($new == $old)
         return false;
-    $links[$mid] = $new;
-    MelPgLinks::$links = $links;
-    mel_pg_rev_build();
+    // No copy of the pairs: the one of the static only.
+    unset($links);
+    MelPgLinks::$links[$mid] = $new;
+    if ($rev)
+        mel_pg_rev_build();
     if ($save)
         mel_pg_links_save();
     return true;
@@ -854,16 +859,19 @@ function mel_pg_src_ids($src, $aux)
     return $l;
 }
 
-// The ids of a card of the shell only (the pair of a title of the library: no type, no seasons): its first block of
-// MEL_PG_SRC_RE - the one of the card in the cards of the shell (one such block in each), ~4 times cheaper than
-// mel_pg_parse_card. -> the pair (mel_pg_link_clean), null for none.
+// The ids of a card of the shell only (the pair of a title of the library: no type, no seasons): its one block of
+// MEL_PG_SRC_RE - the one of the card in the cards of the shell, ~4 times cheaper than mel_pg_parse_card; more blocks
+// (of a list too): mel_pg_parse_card, the one out of the lists. -> the pair (mel_pg_link_clean), null for none.
 /**
  * @param string $text
  * @return MelPgLink|null
  */
 function mel_pg_card_ids($text)
 {
-    return preg_match(MEL_PG_SRC_RE, $text, $m) ? mel_pg_link_clean(mel_pg_src_ids($m[1], $m[2])) : null;
+    $n = preg_match_all(MEL_PG_SRC_RE, $text, $m, PREG_SET_ORDER);
+    if ($n > 1)
+        return mel_pg_parse_card($text);
+    return $n === 1 ? mel_pg_link_clean(mel_pg_src_ids($m[0][1], $m[0][2])) : null;
 }
 
 // A string of the raw text of a card ($m[0], $m[1] ':' of a key) -> it, a key or a date "YYYY-MM-DD"; else "".
@@ -965,6 +973,18 @@ function mel_pg_shell_path($mid)
     return '';
 }
 
+// The text of the card of the shell of movie_id $mid (an id of the dunemdb API), '' for none (no file, too big).
+/**
+ * @param string $mid
+ * @return string
+ */
+function mel_pg_shell_text($mid)
+{
+    $path = preg_match('/^[0-9a-f]{24}$/D', $mid) ? mel_pg_shell_path($mid) : '';
+    $size = $path !== '' ? filesize($path) : 0;
+    return $size > 0 && $size <= MEL_PG_SHELL_MAX_BYTES ? strval(file_get_contents($path)) : '';
+}
+
 // The pair of $mid from the card of the shell, null for none (no file, too big, no ids). Not asked again
 // for it while php_server runs.
 /**
@@ -974,11 +994,8 @@ function mel_pg_shell_path($mid)
 function mel_pg_shell_pair($mid)
 {
     MelPgLinks::$shell_seen[$mid] = true;
-    $path = preg_match('/^[0-9a-f]{24}$/D', $mid) ? mel_pg_shell_path($mid) : '';
-    $size = $path !== '' ? filesize($path) : 0;
-    if ($size <= 0 || $size > MEL_PG_SHELL_MAX_BYTES)
-        return null;
-    return mel_pg_parse_card(strval(file_get_contents($path)));
+    $text = mel_pg_shell_text($mid);
+    return $text !== '' ? mel_pg_parse_card($text) : null;
 }
 
 // The cards of the history a card of the dunemdb API is wanted for, their records ending the latest first: with no
@@ -1029,10 +1046,10 @@ function mel_pg_shell_step()
 }
 
 // The titles of the library (MelLib: movie files, episodes; its index read again only when it changed) with no pair or
-// a failed one, whose card of the shell gave none not within MEL_PG_FAIL_S nor since the index changed; ids of the
-// Dune. -> movie_ids.
+// a failed one, whose card of the shell gave none not within MEL_PG_FAIL_S nor since the index changed. -> movie_id =>
+// its type by the index: movie (movie files), series (episodes), '' (both: the card tells, mel_pg_lib_step).
 /**
- * @return list<string>
+ * @return array<string, string>
  */
 function mel_pg_lib_queue()
 {
@@ -1045,24 +1062,26 @@ function mel_pg_lib_queue()
     $links = mel_pg_links();
     $now = time();
     $out = array();
-    foreach (array(MelLib::$by_mid, MelLib::$eps) as $map)
+    foreach (array('movie' => MelLib::$by_mid, 'series' => MelLib::$eps) as $type => $map)
     {
         foreach (array_keys($map) as $mid)
         {
             $mid = strval($mid);
             $t = isset(MelPgLinks::$lib_seen[$mid]) ? MelPgLinks::$lib_seen[$mid] : null;
-            if (isset($out[$mid]) || (isset($links[$mid]) && !isset($links[$mid]['fail'])) ||
-                ($t !== null && $now - $t >= 0 && $now - $t < MEL_PG_FAIL_S) || !preg_match('/^[0-9a-f]{24}$/D', $mid))
+            if ((isset($links[$mid]) && !isset($links[$mid]['fail'])) ||
+                ($t !== null && $now - $t >= 0 && $now - $t < MEL_PG_FAIL_S))
                 continue;
-            $out[$mid] = true;
+            $out[$mid] = isset($out[$mid]) ? '' : $type;
         }
     }
-    return array_map('strval', array_keys($out));
+    return $out;
 }
 
-// The pairs of the titles of the library (mel_pg_lib_queue) from their cards of the shell, by their ids only
-// (mel_pg_card_ids), in $ms (one card at least); the pairs written once. A line of the log of a step that looked at a
-// card: read, pairs, none (no card, too big, no ids: MelPgLinks::$lib_seen), ms. No library: nothing read.
+// The pairs of the titles of the library (mel_pg_lib_queue) from their cards of the shell, by their ids (mel_pg_card_ids)
+// and the type of the index (a series wants its seasons, mel_pg_wanted), of a title of both types the whole card
+// (mel_pg_parse_card), in $ms (one card at least); the pairs and MelPgLinks::$rev once. A line of the log of a step
+// that looked at a card: read, pairs, none (no card, too big, no ids: MelPgLinks::$lib_seen), ms. No library: nothing
+// read.
 /**
  * @param float $ms
  * @return void
@@ -1073,19 +1092,21 @@ function mel_pg_lib_step($ms)
     $read = 0;
     $found = 0;
     $none = 0;
-    foreach (mel_pg_lib_queue() as $mid)
+    foreach (mel_pg_lib_queue() as $mid => $type)
     {
+        $mid = strval($mid);
         if (($found || $none) && (microtime(true) - $t) * 1000 >= $ms)
             break;
-        $path = mel_pg_shell_path($mid);
-        $size = $path !== '' ? filesize($path) : 0;
+        $text = mel_pg_shell_text($mid);
         $l = null;
-        if ($size > 0 && $size <= MEL_PG_SHELL_MAX_BYTES)
+        if ($text !== '')
         {
             $read++;
-            $l = mel_pg_card_ids(strval(file_get_contents($path)));
+            $l = $type !== '' ? mel_pg_card_ids($text) : mel_pg_parse_card($text);
         }
-        if ($l && mel_pg_link_put($mid, $l, false))
+        if ($l && !isset($l['type']) && $type !== '')
+            $l['type'] = $type;
+        if ($l && mel_pg_link_put($mid, $l, false, false, false))
             $found++;
         else
         {
@@ -1094,7 +1115,10 @@ function mel_pg_lib_step($ms)
         }
     }
     if ($found)
+    {
+        mel_pg_rev_build();
         mel_pg_links_save();
+    }
     if ($found || $none)
         mel_log(sprintf('progress: library cards: %d read, %d pairs, %d none, %.0f ms', $read, $found, $none,
             (microtime(true) - $t) * 1000));
