@@ -1029,8 +1029,9 @@ function mel_gc_line_comp($st, $lv, $j, $tt, $c, $on, $prog)
 }
 
 // The rules of the group of lines $lv in panel 'rows' (MEL_K_LIST_RULE high, colour line, from MEL_GC_PAD to as far
-// from the right): under the line of the group; unfolded with rows of the main list after it, after its last row
-// too. Each on the top edge of the line under it, above the plate of the focus of that line.
+// from the right): folded, under the line of the group; unfolded, none under it, after its last row when rows of the
+// main list follow (the frames D1, E1a, C1, E2a of the owner). On the top edge of the line under it, above the plate
+// of the focus of that line.
 /**
  * @param MelGcLv $lv
  * @return list<MelGcComp>
@@ -1039,8 +1040,10 @@ function mel_gc_rules($lv)
 {
     if ($lv['t'] === 0)
         return array();
-    $at = array(1);
-    if ($lv['o'] && $lv['t'] < $lv['n'])
+    $at = array();
+    if (!$lv['o'])
+        $at[] = 1;
+    elseif ($lv['t'] < $lv['n'])
         $at[] = 1 + $lv['t'];
     $d = array();
     foreach ($at as $k => $j)
