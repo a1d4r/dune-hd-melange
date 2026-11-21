@@ -642,6 +642,12 @@ function mel_lib_gone($why, $lang = '', $q = -1, $e = -1)
     return $a;
 }
 
+// Seconds from the start of the operation (Mel::$t0) lib_next answers a new vod_play in, at the soonest: the native writes
+// the record of the episode stopped ~0.9 s past its stop, and a vod_play before that takes it without recent_uid - the
+// record is dropped (Dune 21.11.2026; next of the releases answers in 1.2-2 s, its record is there). Tests define it first.
+if (!defined('MEL_LIB_NEXT_MIN'))
+    define('MEL_LIB_NEXT_MIN', 1.5);
+
 // lib_next: a lazy episode of a playlist of the disk (mel_lib_lazy_url, mel_lazy_action) - k the card of the history H
 // (saved by mel_lib_play), y the series of the index, s, e the episode, c the id of its copy ('-' none on the disk).
 // Its copies now, that one first (mel_lib_start; gone - the others in order, $auto: no window under the player) -> a
@@ -676,7 +682,17 @@ function mel_lib_next($in)
     $se = mel_lib_se($q, $e);
     $go = mel_lib_start(isset($eps[$se]) ? $eps[$se] : array(), $c, 0, 0, true);
     if (isset($go['copy']))
-        return mel_lib_play($mv, $go, $lang, array('y' => $y, 'q' => $q, 'e' => $e, 'eps' => $eps));
+    {
+        $a = mel_lib_play($mv, $go, $lang, array('y' => $y, 'q' => $q, 'e' => $e, 'eps' => $eps));
+        // Not sooner than MEL_LIB_NEXT_MIN from the start of the operation: the record of the episode stopped.
+        $left = Mel::$t0 > 0 ? MEL_LIB_NEXT_MIN - (microtime(true) - Mel::$t0) : 0;
+        if ($left > 0)
+        {
+            mel_log(sprintf('lib_next: waits %d ms for the record of the episode stopped', $left * 1000));
+            usleep(intval($left * 1000000));
+        }
+        return $a;
+    }
     return mel_lib_next_missing($mv, $q, $e, isset($go['gone']) ? $go['gone'] : 'no', $lang);
 }
 

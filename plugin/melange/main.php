@@ -205,9 +205,10 @@ class Mel
     // Start of the operation (microtime): set at the start of every
     // call_plugin and never reset (php_server keeps the last one). Its
     // readers - mel_precheck (time left to the stream check), mel_jacred
-    // (cutoff), mel_relist_screen (log times) - run only inside call_plugin;
+    // (cutoff), mel_relist_screen (log times), mel_lib_next (its soonest
+    // answer) - run only inside call_plugin;
     // tests set it themselves. 0: mel_precheck takes its full timeout,
-    // mel_jacred skips the request.
+    // mel_jacred skips the request, mel_lib_next does not wait.
     public static $t0 = 0;
     // Why settings.json was not read and the file then (mel_settings_read_logged):
     // a reason is logged once, not on every read.
