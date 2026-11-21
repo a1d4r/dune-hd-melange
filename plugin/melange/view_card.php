@@ -242,8 +242,7 @@ class MelOc
 // ENTER on a tile of a movie or a series with IMDb or TMDB (mel_card_enter): the id of the card of the Dune
 // (mel_card_id; none: an old local card m-melange-..., none is written now; $dune: known, of the row "Continue",
 // no request of it, its rating of Kinopoisk not known: mel_oc_fill asks it), the meta (mel_cm_get; a failure: the
-// card of the tile), the card of them (mel_oc_build) -> the card screen; before it, the episodes stopped in their credits
-// and not marked yet (left the player to the main screen of the Dune) marked watched (mel_cw_apply).
+// card of the tile), the card of them (mel_oc_build) -> the card screen (mel_oc_open_act).
 /**
  * @param MelCatTile $tile
  * @param string $lang
@@ -258,12 +257,28 @@ function mel_oc_enter($tile, $lang, $dune = '')
     $card = mel_oc_build($key, $tile, $g['meta'], $c, $lang);
     mel_log("card: own $key: card " . ($card['dune'] !== '' ? $card['dune'] : 'none') . ', meta ' .
         ($g['err'] !== '' ? "failed ({$g['err']})" : 'ok') . ', imdb ' . ($card['imdb'] !== '' ? $card['imdb'] : 'none'));
-    return mel_cw_apply(array(
+    return mel_oc_open_act($key, $tile['name']);
+}
+
+// The screen "card:<key>" of the own card of key $key, its caption $caption: plugin_open_folder (mel_oc_enter,
+// mel_dl_card_open); before it, the episodes stopped in their credits and not marked yet (left the player to the main
+// screen of the Dune) marked watched (mel_cw_take), then the main screens of the catalog anew too (mel_catv_after_player:
+// the row "Continue" and the badges after Back), as card_finish.
+/**
+ * @param string $key
+ * @param string $caption
+ * @return MelAction
+ */
+function mel_oc_open_act($key, $caption)
+{
+    $a = array(
         GuiAction::handler_string_id => PLUGIN_OPEN_FOLDER_ACTION_ID,
         GuiAction::plugin_name => MEL_PLUGIN,
         GuiAction::data => array(
             PluginOpenFolderActionData::media_url => "card:$key",
-            PluginOpenFolderActionData::caption => $tile['name'])));
+            PluginOpenFolderActionData::caption => $caption));
+    $ids = mel_cw_take();
+    return $ids ? mel_pg_mark_act($ids, array(), true, mel_catv_after_player($a)) : $a;
 }
 
 // The tile of a card with what the header needs: a tile not of a row of the catalog (of the
@@ -1865,10 +1880,12 @@ function mel_oc_finish($key, $c)
     mel_log("card: own $key: back from the player" . ($played ? ', a copy on the disk' : ''));
     mel_pg_stale();
     $a = mel_replace_act("card:$key", $c['tile']['name']);
-    if (!$played)
-        return mel_cw_apply($a);
-    mel_tv_flag('back from the player');
-    return mel_cw_apply(mel_catv_after_player($a));
+    if ($played)
+    {
+        mel_tv_flag('back from the player');
+        $a = mel_catv_after_player($a);
+    }
+    return mel_cw_apply($a);
 }
 
 // The params of card_src_menu of input $in for its menu of sources: c, s and e of an episode when there.

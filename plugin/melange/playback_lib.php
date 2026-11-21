@@ -101,7 +101,7 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
         $se = mel_lib_se($q, $e);
         foreach (array_merge(array($copy), isset($ep['eps'][$se]) ? $ep['eps'][$se] : array()) as $f)
             $nat[] = mel_lib_native_uid($f);
-        mel_cw_note($ser, $mk, array_values(array_diff($nat, array(''))));
+        mel_cw_note($ser, $mk, $mv['dune_id'], $q, $e, array_values(array_diff($nat, array(''))));
     }
     $y = $ep ? $ep['y'] : '';
     $eps = $ep ? $ep['eps'] : array();

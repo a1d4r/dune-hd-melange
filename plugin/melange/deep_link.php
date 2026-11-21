@@ -198,8 +198,8 @@ function mel_lib_win_card($mv, $left, $s, $e)
     return mel_dl_card_open($key, $card);
 }
 
-// The screen "card:<key>" of own card $card of key $key (to=card, mel_lib_win_card): plugin_open_folder, its caption the
-// name of the tile, none - of the plugin; before it, the episodes stopped in their credits marked watched (mel_cw_apply).
+// The screen "card:<key>" of own card $card of key $key (to=card, mel_lib_win_card): mel_oc_open_act, its caption the
+// name of the tile, none - of the plugin.
 /**
  * @param string $key
  * @param MelOcCard $card
@@ -207,12 +207,7 @@ function mel_lib_win_card($mv, $left, $s, $e)
  */
 function mel_dl_card_open($key, $card)
 {
-    return mel_cw_apply(array(
-        GuiAction::handler_string_id => PLUGIN_OPEN_FOLDER_ACTION_ID,
-        GuiAction::plugin_name => MEL_PLUGIN,
-        GuiAction::data => array(
-            PluginOpenFolderActionData::media_url => "card:$key",
-            PluginOpenFolderActionData::caption => $card['tile']['name'] !== '' ? $card['tile']['name'] : '%tr%plugin_caption')));
+    return mel_oc_open_act($key, $card['tile']['name'] !== '' ? $card['tile']['name'] : '%tr%plugin_caption');
 }
 
 // The profile of src of a link, trimmed as the page trims a name (mel_profile_name): of the id if it is one

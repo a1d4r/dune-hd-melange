@@ -247,7 +247,7 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
         $mk = mel_markers($mv['imdb'], $s, $e, mel_row_duration($r), $ts || $ready ? $url : '', $ts ? Mel::$settings['ts_auth'] : '');
         if ($mk)
             $ser[PluginVodSeriesInfo::markers] = $mk;
-        mel_cw_note($ser, $mk);
+        mel_cw_note($ser, $mk, $mv['dune_id'], $s, $e);
     }
     $series = array($ser);
     $ndx = 0;

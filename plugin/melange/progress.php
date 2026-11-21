@@ -305,7 +305,8 @@ function mel_pg_mark_act($ids, $movie_ids, $on, $post)
 // its countdown or by OK, P+, STOP) is watched by the mark of update_watched_marks, as "Отметить просмотренной" of the own
 // card (the shell and mel_wh_full count it watched at 90 % and 30 s to the end only; decision of the owner 21.11.2026).
 // The episodes played with credits (mel_cw_note): <tmp_dir>/MEL_CW_FILE, uid => array(the start of the credits, s; the
-// time of the note; the uids to mark), the MEL_CW_MAX newest, none older than MEL_CW_AGE s.
+// time of the note; the uids to mark), the MEL_CW_MAX newest, none older than MEL_CW_AGE s; all gone once applied
+// (mel_cw_take), those limits for a file never applied.
 define('MEL_CW_FILE', 'credits_watched.json');
 define('MEL_CW_MAX', 20);
 define('MEL_CW_AGE', 604800);
@@ -339,7 +340,8 @@ function mel_cw_read()
     return $out;
 }
 
-// The episodes $all to their file, the MEL_CW_MAX newest.
+// The episodes $all to their file, the MEL_CW_MAX newest; tmp_dir made when not there (none after a reboot, and the
+// note of mel_play goes before mel_movie_save).
 /**
  * @param array<string, array{int, int, list<string>}> $all
  * @return void
@@ -347,19 +349,25 @@ function mel_cw_read()
 function mel_cw_write($all)
 {
     $f = mel_cw_path();
-    if ($f === '' || !mel_write_file($f, json_encode(array_slice($all, -MEL_CW_MAX, MEL_CW_MAX, true))))
+    if ($f === '' || (!is_dir(dirname($f)) && !mkdir(dirname($f), 0755, true)) ||
+        !mel_write_file($f, json_encode(array_slice($all, -MEL_CW_MAX, MEL_CW_MAX, true))))
         mel_log('credits: not written to tmp_dir');
 }
 
-// Item $ser of a vod_play with its markers $mk: the start of its closing credits noted by its recent_uid, the uids to
-// mark it and $also (the native ones of its files on the disk). No credits, no uid (not linked): nothing.
+// Item $ser of a vod_play with its markers $mk, episode $q:$e (the season as in its recent_uid, as asked: mel_cm_hkey)
+// of card $dune_id: the start of its closing credits noted by its recent_uid, the uids to mark it as card_mark does -
+// the mark of the own card (mel_wh_mark_uid: the native "Continue" of mel_wh_resume_ep sees it with wh_len), its
+// recent_uid and $also (the native ones of its files on the disk). No credits, no uid (not linked): nothing.
 /**
  * @param array<string, mixed> $ser
  * @param list<array<string, int|string>> $mk
+ * @param string $dune_id
+ * @param int|string $q
+ * @param int $e
  * @param list<string> $also
  * @return void
  */
-function mel_cw_note($ser, $mk, $also = array())
+function mel_cw_note($ser, $mk, $dune_id, $q, $e, $also = array())
 {
     $uid = isset($ser[PluginVodSeriesInfo::recent_uid]) ? strval($ser[PluginVodSeriesInfo::recent_uid]) : '';
     foreach ($mk as $m)
@@ -368,63 +376,99 @@ function mel_cw_note($ser, $mk, $also = array())
         {
             $all = mel_cw_read();
             unset($all[$uid]);
-            $all[$uid] = array(intval($m[StreamMarker::from]), time(), array_values(array_unique(array_merge(array($uid), $also))));
+            $all[$uid] = array(intval($m[StreamMarker::from]), time(),
+                array_values(array_unique(array_merge(array(mel_wh_mark_uid($dune_id, $q, $e), $uid), $also))));
             mel_cw_write($all);
             return;
         }
     }
 }
 
+// The uids to mark of the episodes noted (mel_cw_read) whose latest record (mel_cw_visit: of their uids, the native
+// ones of their files too, the one begun last) began after their note, at the start of their credits or past it, not
+// watched by its position (mel_wh_full) and the credits in its second half (no length: any) -> update_watched_marks of
+// them; then all the notes gone (applied never while one of them plays: its record is there by then). The log: the
+// counts. None noted, none to mark: array().
+/**
+ * @return list<string>
+ */
+function mel_cw_take()
+{
+    $all = mel_cw_read();
+    if (!$all)
+        return array();
+    $of = array();
+    foreach ($all as $x)
+        $of += array_fill_keys($x[2], true);
+    $recs = mel_wh_find('history: credits', 'mel_cw_visit', array($all, $of));
+    $ids = array();
+    $n = 0;
+    foreach ($all as $x)
+    {
+        $w = null;
+        foreach ($x[2] as $u)
+        {
+            if (isset($recs[$u]) && (!$w || mel_cw_start($recs[$u]) > mel_cw_start($w)))
+                $w = $recs[$u];
+        }
+        if (!$w || mel_cw_start($w) < $x[1])
+            continue;
+        list(, , $pos, $len) = mel_wh_rec($w);
+        if ($pos >= $x[0] && !mel_wh_full($pos, $len) && ($len <= 0 || $x[0] >= $len / 2))
+        {
+            $ids = array_merge($ids, $x[2]);
+            $n++;
+        }
+    }
+    mel_cw_write(array());
+    if ($ids)
+        mel_log("credits: $n episodes stopped in their credits marked watched, of " . count($all) . ' noted');
+    return array_values(array_unique($ids));
+}
+
 // Before $post (back from the player: card_finish, finish of the list; the own card opened; null: none): the episodes
-// noted whose latest record began after their note, at the start of their credits or past it and not watched by its
-// position (mel_wh_full) -> update_watched_marks of their uids, then $post. Those of a record after the note are
-// dropped; those of none yet stay (the player left to the main screen of the Dune: the next time). The log: the counts.
+// stopped in their credits (mel_cw_take) -> update_watched_marks of them, then $post; none: $post.
 /**
  * @param MelAction|null $post
  * @return ($post is null ? MelAction|null : MelAction)
  */
 function mel_cw_apply($post)
 {
-    $all = mel_cw_read();
-    $recs = $all ? mel_wh_find('history: credits', 'mel_cw_visit', $all) : array();
-    $ids = array();
-    $n = 0;
-    $gone = false;
-    foreach ($recs as $uid => $w)
-    {
-        if (!$w)
-            continue;
-        list(, , $pos, $len) = mel_wh_rec($w);
-        if ($pos >= $all[$uid][0] && !mel_wh_full($pos, $len))
-        {
-            $ids = array_merge($ids, $all[$uid][2]);
-            $n++;
-        }
-        unset($all[$uid]);
-        $gone = true;
-    }
-    if ($gone)
-        mel_cw_write($all);
-    if (!$ids)
-        return $post;
-    mel_log("credits: $n episodes stopped in their credits marked watched, " . count($all) . ' left');
-    return mel_pg_mark_act(array_values(array_unique($ids)), array(), true, $post);
+    $ids = mel_cw_take();
+    return $ids ? mel_pg_mark_act($ids, array(), true, $post) : $post;
 }
 
-// The latest record of each uid of $all (mel_cw_read): it if it began after the note, else null.
+// The start of record $w; none: 0.
+/**
+ * @param stdClass $w
+ * @return int
+ */
+function mel_cw_start($w)
+{
+    return isset($w->start) && is_numeric($w->start) ? intval($w->start) : 0;
+}
+
+// The latest record of each uid of the notes (array(the notes of mel_cw_read, their uids => true)), not deleted; done
+// once each note has its own (its recent_uid): the records of the history go in time, a later one of a native uid of
+// its file is met by then.
 /**
  * @param mixed $w
- * @param array<string, array{int, int, list<string>}> $all
- * @param array<string, stdClass|null> $acc
+ * @param array{array<string, array{int, int, list<string>}>, array<string, true>} $arg
+ * @param array<string, stdClass> $acc
  * @return bool
  */
-function mel_cw_visit($w, $all, &$acc)
+function mel_cw_visit($w, $arg, &$acc)
 {
     $uid = $w instanceof stdClass && isset($w->uid) && is_string($w->uid) ? $w->uid : '';
-    if ($uid === '' || !isset($all[$uid]) || array_key_exists($uid, $acc) || (isset($w->deleted) && $w->deleted == 1))
+    if ($uid === '' || !isset($arg[1][$uid]) || isset($acc[$uid]) || (isset($w->deleted) && $w->deleted == 1))
         return false;
-    $acc[$uid] = isset($w->start) && is_numeric($w->start) && intval($w->start) >= $all[$uid][1] ? $w : null;
-    return count($acc) === count($all);
+    $acc[$uid] = $w;
+    foreach ($arg[0] as $k => $x)
+    {
+        if (!isset($acc[$k]))
+            return false;
+    }
+    return true;
 }
 
 // Begun by the row "Continue": MEL_PG_BEGUN_S or MEL_PG_BEGUN_PCT of $len watched.
