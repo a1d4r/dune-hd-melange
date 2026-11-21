@@ -1779,5 +1779,5 @@ function mel_next_pick($in)
     }
     Mel::$next = null;
     mel_log(sprintf('next: -> list of S%02dE%02d', $st['s'], $st['e']));
-    return mel_close_and(mel_open_list($st));
+    return mel_stop_and(mel_open_list($st));
 }

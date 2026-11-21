@@ -2206,6 +2206,18 @@ function mel_close_and($post)
         GuiAction::data => array(CloseDialogAndRunActionData::post_action => $post));
 }
 
+// The dialog over the player closed, the player stopped, then $post (null: nothing): "Stop" of the dialogs of a lazy
+// episode, and their "Choose a release" - its list over no player: over a player waiting for the URL of the episode,
+// RETURN of the list took back to it (its clock, the OSD).
+function mel_stop_and($post)
+{
+    return mel_close_and(array(
+        GuiAction::handler_string_id => STOP_PLAYBACK_ACTION_ID,
+        GuiAction::data => array(
+            StopPlaybackActionData::wait_for_completion => true,
+            StopPlaybackActionData::post_action => $post)));
+}
+
 // Dialog over the stopped player or a screen: text lines and buttons
 // (caption => action, named btn0, btn1, ...).
 function mel_dialog($title, $lines, $buttons)
@@ -2404,11 +2416,7 @@ function mel_handle_user_input($in)
     if (is_string($control) && strpos($control, 'cat_') === 0)
         return mel_catv_input($in, $control);
     if ($control === 'next_stop')
-        return mel_close_and(array(
-            GuiAction::handler_string_id => STOP_PLAYBACK_ACTION_ID,
-            GuiAction::data => array(
-                StopPlaybackActionData::wait_for_completion => true,
-                StopPlaybackActionData::post_action => null)));
+        return mel_stop_and(null);
     return null;
 }
 
