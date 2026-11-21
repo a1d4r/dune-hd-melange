@@ -1449,6 +1449,33 @@ function mel_lazy_action($pb)
     return mel_input('next', array('k' => $m[1], 's' => $m[2], 'e' => $m[3], 'h' => $m[4], 'm' => $m[5], 'p' => $prof));
 }
 
+// Seconds from the start of the operation (Mel::$t0) a lazy episode under the player answers a new vod_play in, at the
+// soonest: the native writes the record of the episode stopped ~0.9 s past its stop, and a vod_play before that takes
+// it without recent_uid - the record is dropped (Dune 21.11.2026). Tests define it first.
+if (!defined('MEL_NEXT_MIN'))
+    define('MEL_NEXT_MIN', 1.5);
+
+// Reply $a of handle_user_input of a lazy episode under the player (next, lp_next, lib_next): a vod_play not sooner than
+// MEL_NEXT_MIN from Mel::$t0, a line; a dialog, Mel::$t0 0 (no start known), an operation longer already - at once.
+// At most MEL_NEXT_MIN: the clock may go back (NTP). -> $a.
+/**
+ * @param mixed $a
+ * @return mixed
+ */
+function mel_lazy_hold($a)
+{
+    if (!is_array($a) || !isset($a[GuiAction::handler_string_id]) ||
+        $a[GuiAction::handler_string_id] !== PLUGIN_VOD_PLAY_ACTION_ID || Mel::$t0 <= 0)
+        return $a;
+    $left = min(MEL_NEXT_MIN - (microtime(true) - Mel::$t0), MEL_NEXT_MIN);
+    if ($left > 0)
+    {
+        mel_log(sprintf('lazy: waits %d ms for the record of the episode stopped', $left * 1000));
+        usleep(intval($left * 1000000));
+    }
+    return $a;
+}
+
 // "Episode SxEy did not load": the error, $labels (mel_errors_labels) and "Stop" only.
 /**
  * @param string $lang

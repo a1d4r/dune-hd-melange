@@ -205,10 +205,10 @@ class Mel
     // Start of the operation (microtime): set at the start of every
     // call_plugin and never reset (php_server keeps the last one). Its
     // readers - mel_precheck (time left to the stream check), mel_jacred
-    // (cutoff), mel_relist_screen (log times), mel_lib_next (its soonest
-    // answer) - run only inside call_plugin;
+    // (cutoff), mel_relist_screen (log times), mel_lazy_hold (the soonest
+    // vod_play of a lazy episode) - run only inside call_plugin;
     // tests set it themselves. 0: mel_precheck takes its full timeout,
-    // mel_jacred skips the request, mel_lib_next does not wait.
+    // mel_jacred skips the request, mel_lazy_hold does not wait.
     public static $t0 = 0;
     // Why settings.json was not read and the file then (mel_settings_read_logged):
     // a reason is logged once, not on every read.
@@ -2454,10 +2454,12 @@ class MelFw extends DunePluginFw
             {
                 $type = PLUGIN_OUT_DATA_GUI_ACTION;
                 $data = mel_handle_user_input($in);
-                // Not "next", "lp_next" nor "lib_next", a lazy episode under the player (mel_lazy_action): the player
-                // is on, pf_check passed with its first start in this session, run_builtin from there not seen on the
-                // device.
-                if (!isset($in->control_id) || !in_array($in->control_id, array('next', 'lp_next', 'lib_next'), true))
+                // "next", "lp_next" and "lib_next", a lazy episode under the player (mel_lazy_action): its vod_play
+                // not sooner than MEL_NEXT_MIN (mel_lazy_hold); no pf_check - the player is on, pf_check passed with
+                // its first start in this session, run_builtin from there not seen on the device.
+                if (isset($in->control_id) && in_array($in->control_id, array('next', 'lp_next', 'lib_next'), true))
+                    $data = mel_lazy_hold($data);
+                else
                     $data = mel_pf_check($data);
             }
             else if ($op === PLUGIN_OP_GET_REGULAR_FOLDER_ITEMS)
