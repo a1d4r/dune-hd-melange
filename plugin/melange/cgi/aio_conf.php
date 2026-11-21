@@ -104,6 +104,9 @@ function mel_conf_encode($v)
 // AIOStreams servers whose JacRed in the template P2P is Torznab of
 // AIOStreams, not Magnetio: the fork of melange there makes P2P rows of
 // Torznab with no Debrid service (elsewhere the server refuses it: 400).
+// The servers of the fork of melange: Torznab in P2P and the tier softMatching
+// (mel_conf_template, mel_conf_step_tier). A server added here: the configs
+// past the schema 4 do not get the tier - a new step of the migration is needed.
 function mel_conf_p2p_torznab()
 {
     return array('https://aiostreams.kompotik.com');
@@ -135,7 +138,9 @@ function mel_conf_soft_on($c)
 // "Не подтверждены" on, mel_conf_soft_on, in either mode)
 // as an object, null when unreadable or no such template. No $base on
 // purpose: the template with Magnetio whatever the server (the patch of a
-// P2P config made with Magnetio, mel_cgi_aio_sync; mel_conf_tpl_of).
+// P2P config made with Magnetio, mel_cgi_aio_sync; mel_conf_tpl_of). Such a
+// template has no softMatching: good as the source of a preset only ($tpl_patch
+// of mel_cgi_aio_sync), not as a config of the server.
 function mel_conf_template($id = 'addons', $base = '')
 {
     $tpls = mel_aio_tpls();

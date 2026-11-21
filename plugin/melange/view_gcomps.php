@@ -9,7 +9,7 @@
 // "Actions", INFO "Details") and "1 / 60" at the right. The plugin draws and moves the selection (the blue plate
 // row_on) itself with change_gcomps; the position travels in sel_state {"sel":N,"top":T}, N and T of the lines of
 // the screen (mel_gc_lv): the rows of the tier "Не подтверждены" (first in the rows) under a line of their group
-// at the top, shown when it is unfolded; every action takes its row of the rows by mel_gc_line_row. The old frame
+// at the top, shown when it is unfolded; every action takes its row of the rows by mel_gc_row_of. The old frame
 // of the list that the online list (view_online.php) still draws stays there until its stage.
 // Reads Mel (state, settings), writes the cursor keys of Mel::$state;
 // mel_gc_sort replaces it by the list sorted anew.
@@ -37,6 +37,7 @@ define('MEL_GC_HINT_MID', 1012);
 define('MEL_GC_COUNT_W', 300);   // the counter "5 / 60" at the right of the hint line
 define('MEL_GC_PAD', 16);      // row padding left and right
 define('MEL_GC_GAP', 16);      // between columns
+define('MEL_GC_ICON_GAP', 14);  // the icon column -> the first column of the plates and the caption of the group
 // "rutracker +3" with a margin; less room: no tracker column (the card has them).
 define('MEL_GC_TRACKER_MIN', 145);
 define('MEL_GC_FLAG', 36);         // a flag of the skin, square
@@ -233,7 +234,7 @@ function mel_gc_pos($st, $raw)
 function mel_gc_row_now($st, $raw)
 {
     list($sel) = mel_gc_pos($st, $raw);
-    return mel_gc_line_row(mel_gc_lv($st), $sel);
+    return mel_gc_row_of(mel_gc_lv($st), $sel);
 }
 
 // --- The tier "Не подтверждены": the lines of the screen over the rows.
@@ -262,7 +263,7 @@ function mel_gc_lv($st)
  * @param int $j
  * @return int
  */
-function mel_gc_line_row($lv, $j)
+function mel_gc_row_of($lv, $j)
 {
     if ($lv['t'] === 0)
         return $j >= 0 && $j < $lv['n'] ? $j : -1;
@@ -277,7 +278,7 @@ function mel_gc_line_row($lv, $j)
  * @param int $i
  * @return int
  */
-function mel_gc_row_line($lv, $i)
+function mel_gc_line_of($lv, $i)
 {
     if ($lv['t'] === 0)
         return $i;
@@ -331,7 +332,7 @@ function mel_gc_put_cursor($st, $sel, $was = null)
         $st['tier_open'] = true;
         $lv = mel_gc_lv($st);
     }
-    $st['gc'] = mel_gc_cursor($sel >= 0 && $sel < $lv['n'] ? mel_gc_row_line($lv, $sel) : mel_gc_first($lv), $lv['l']);
+    $st['gc'] = mel_gc_cursor($sel >= 0 && $sel < $lv['n'] ? mel_gc_line_of($lv, $sel) : mel_gc_first($lv), $lv['l']);
     $st['gc_new'] = true;
     return $st;
 }
@@ -745,7 +746,7 @@ function mel_gc_cols($rows, $tt)
         $any_tracker = $any_tracker || $r['expr'] !== '' || $r['trackers'] || $r['addon'] !== '';
     }
     $cols = array('icon' => array(12, $icon));
-    $x = 12 + $icon + 14;
+    $x = 12 + $icon + MEL_GC_ICON_GAP;
     foreach ($max as $k => $w)
     {
         if ($w > 0)
@@ -981,7 +982,7 @@ function mel_gc_row($i, $r, $tt, $c, $on = false, $share = 0)
 }
 
 // Children of the line of the group of lines $lv: MelKit::group_line from the left of the first column of the plates
-// (mel_gc_cols: 14 after the icon column), "Не подтверждены" and "4 раздачи", on the centre of the line.
+// (mel_gc_cols: MEL_GC_ICON_GAP after the icon column), "Не подтверждены" and "4 раздачи", on the centre of the line.
 /**
  * @param MelGcLv $lv
  * @param MelGcText $tt
@@ -992,7 +993,7 @@ function mel_gc_row($i, $r, $tt, $c, $on = false, $share = 0)
 function mel_gc_group_items($lv, $tt, $c, $on)
 {
     $g = MelKit::group_line($tt['tier'], mel_gc_tier_count($tt, $lv['t']), $lv['o'], $on,
-        $c['icon'][0] + $c['icon'][1] + 14, MEL_GC_ROW_H / 2);
+        $c['icon'][0] + $c['icon'][1] + MEL_GC_ICON_GAP, MEL_GC_ROW_H / 2);
     return $g['defs'];
 }
 
@@ -1010,7 +1011,7 @@ function mel_gc_group_items($lv, $tt, $c, $on)
  */
 function mel_gc_line_items($st, $lv, $j, $tt, $c, $on, $prog)
 {
-    $i = mel_gc_line_row($lv, $j);
+    $i = mel_gc_row_of($lv, $j);
     if ($i < 0)
         return mel_gc_group_items($lv, $tt, $c, $on);
     return mel_gc_row_items($st['rows'][$i], $tt, $c, $on, mel_gc_share($prog, $st['rows'][$i]));
@@ -1042,18 +1043,12 @@ function mel_gc_line_comp($st, $lv, $j, $tt, $c, $on, $prog)
  */
 function mel_gc_rules($lv)
 {
-    if ($lv['t'] === 0)
+    // One rule at most: none without the tier or unfolded with no row of the main list.
+    if ($lv['t'] === 0 || ($lv['o'] && $lv['t'] === $lv['n']))
         return array();
-    $at = array();
-    if (!$lv['o'])
-        $at[] = 1;
-    elseif ($lv['t'] < $lv['n'])
-        $at[] = 1 + $lv['t'];
-    $d = array();
-    foreach ($at as $k => $j)
-        $d[] = mel_gc_rect(mel_gc_at(MEL_GC_LW - 2 * MEL_GC_PAD, MEL_K_LIST_RULE, MEL_GC_PAD, $j * MEL_GC_ROW_H),
-            MEL_K_C_LINE, "rule$k");
-    return $d;
+    $j = $lv['o'] ? 1 + $lv['t'] : 1;
+    return array(mel_gc_rect(mel_gc_at(MEL_GC_LW - 2 * MEL_GC_PAD, MEL_K_LIST_RULE, MEL_GC_PAD, $j * MEL_GC_ROW_H),
+        MEL_K_C_LINE, 'rule0'));
 }
 
 // Share of the release of a row watched before (mel_wh_progress), or 0.
@@ -1372,7 +1367,7 @@ function mel_gc_group_card($st, $lv)
  */
 function mel_gc_line_card($st, $lv, $j)
 {
-    return $lv['t'] > 0 && $j === 0 ? mel_gc_group_card($st, $lv) : mel_gc_card($st, mel_gc_line_row($lv, $j));
+    return $lv['t'] > 0 && $j === 0 ? mel_gc_group_card($st, $lv) : mel_gc_card($st, mel_gc_row_of($lv, $j));
 }
 
 // Bit rate: "59 Мбит/с", "≈ 7.4 Mbps" (one decimal under 10).
@@ -1405,8 +1400,21 @@ function mel_gc_count($sel, $n)
     return $t['defs'];
 }
 
-// The counter on line $j of lines $lv: the place of its row among the releases on the screen and their number
-// (mel_gc_count: the group folded, those of the main list); on the line of the group none.
+// Line $j of lines $lv -> array(its place from 1 among the releases on the screen, their number): the lines but that
+// of the group (the group folded: those of the main list). The counter (mel_gc_count_of) and the caption of INFO
+// (mel_info_open).
+/**
+ * @param MelGcLv $lv
+ * @param int $j
+ * @return array{0: int, 1: int}
+ */
+function mel_gc_place($lv, $j)
+{
+    $k = $lv['t'] > 0 ? 1 : 0;
+    return array($j - $k + 1, $lv['l'] - $k);
+}
+
+// The counter on line $j of lines $lv (mel_gc_count of mel_gc_place); on the line of the group none.
 /**
  * @param MelGcLv $lv
  * @param int $j
@@ -1414,9 +1422,10 @@ function mel_gc_count($sel, $n)
  */
 function mel_gc_count_of($lv, $j)
 {
-    if ($lv['t'] === 0)
-        return mel_gc_count($j, $lv['l']);
-    return $j > 0 ? mel_gc_count($j - 1, $lv['l'] - 1) : array();
+    if ($lv['t'] > 0 && $j <= 0)
+        return array();
+    list($p, $n) = mel_gc_place($lv, $j);
+    return mel_gc_count($p - 1, $n);
 }
 
 // The hint line of list $st of $n rows (MelKit::hint, from MEL_GC_LX on MEL_GC_HINT_MID): «P+ P−» "Прокрутка" (more
@@ -1680,8 +1689,8 @@ function mel_gc_bar_update($st, $hash)
     $ch = array();
     foreach ($rows as $i)
     {
-        $j = mel_gc_row_line($lv, $i);
-        if ($j >= $lo && $j < $hi && mel_gc_line_row($lv, $j) === $i)
+        $j = mel_gc_line_of($lv, $i);
+        if ($j >= $lo && $j < $hi && mel_gc_row_of($lv, $j) === $i)
             $ch[] = mel_gc_change("r$j", null, GCOMP_TRANSITION_NONE,
                 mel_gc_row_items($st['rows'][$i], $tt, $cols, $j === $sel, $now));
     }
@@ -1881,7 +1890,7 @@ function mel_gc_main($in)
     Mel::$settings['debrid_main'] = $k;
     $ns = mel_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang'], $st['errors']);
     mel_log("debrid main: $was -> $k, " . mel_ep_tag($st) . ', screen replaced');
-    $cur = isset($st['gc']) ? mel_gc_line_row(mel_gc_lv($st), $st['gc'][0]) : -1;
+    $cur = isset($st['gc']) ? mel_gc_row_of(mel_gc_lv($st), $st['gc'][0]) : -1;
     return mel_list_replace(mel_gc_put_cursor($ns, $cur, $st));
 }
 
@@ -1935,16 +1944,16 @@ function mel_gc_menu($in)
     list($sel, $top) = mel_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     Mel::$state['gc'] = array($sel, $top);
     // The items of a release take its row; on the line of the group (-1) none of them.
-    $sel = mel_gc_line_row(mel_gc_lv($st), $sel);
+    $row = mel_gc_row_of(mel_gc_lv($st), $sel);
     $rid = $st['rid'];
     $menu = array();
     if (mel_gc_keys_in_menu())
     {
-        if ($sel >= 0)
+        if ($row >= 0)
             $menu[] = array(
                 GuiMenuItemDef::caption => mel_tr($st['lang'], 'info_menu'),
                 GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
-                GuiMenuItemDef::action => mel_gc_act('gc_info', $rid, array('i' => strval($sel))));
+                GuiMenuItemDef::action => mel_gc_act('gc_info', $rid, array('i' => strval($row))));
         $tt = mel_gc_text(mel_gc_lang($st));
         $menu[] = array(
             GuiMenuItemDef::caption => str_replace('{name}', $tt[mel_gc_sort_word($st, $st['sort'])],
@@ -1972,22 +1981,22 @@ function mel_gc_menu($in)
     $src = mel_gc_src_item($st);
     if ($src)
         $menu[] = $src;
-    $tor = isset($st['rows'][$sel]) && $st['rows'][$sel]['hash'] !== '' && !Mel::$settings['no_torrents'];
+    $tor = isset($st['rows'][$row]) && $st['rows'][$row]['hash'] !== '' && !Mel::$settings['no_torrents'];
     if ($tor)
         $menu[] = array(
             GuiMenuItemDef::caption => mel_tr($st['lang'], 'ts_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/torrents.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_ts', $rid, array('i' => strval($sel))));
+            GuiMenuItemDef::action => mel_gc_act('gc_ts', $rid, array('i' => strval($row))));
     if ($tor)
         $menu[] = array(
             GuiMenuItemDef::caption => mel_tr($st['lang'], 'dl_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/torrent_file.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_dl', $rid, array('i' => strval($sel))));
+            GuiMenuItemDef::action => mel_gc_act('gc_dl', $rid, array('i' => strval($row))));
     if ($tor && Mel::$settings['servers'])
         $menu[] = array(
             GuiMenuItemDef::caption => mel_tr($st['lang'], 'srv_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/network_folder.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_srv', $rid, array('i' => strval($sel))));
+            GuiMenuItemDef::action => mel_gc_act('gc_srv', $rid, array('i' => strval($row))));
     if (mel_errors_shown($st['errors']))
         $menu[] = array(
             GuiMenuItemDef::caption => mel_tr($st['lang'], 'errors_menu'),
@@ -2067,11 +2076,11 @@ function mel_gc_input($in)
                 mel_log('info: menu of no live row');
                 return mel_error('err_list_expired');
             }
-            if ($i !== mel_gc_line_row($lv, $sel))
-                list($sel, $top) = mel_gc_cursor(mel_gc_row_line($lv, $i), $lv['l']);
+            if ($i !== mel_gc_row_of($lv, $sel))
+                list($sel, $top) = mel_gc_cursor(mel_gc_line_of($lv, $i), $lv['l']);
         }
         Mel::$state['gc'] = array($sel, $top);
-        $row = mel_gc_line_row($lv, $sel);
+        $row = mel_gc_row_of($lv, $sel);
         if ($row < 0)
             return $in->control_id === 'gc_pick' ? mel_gc_fold($st, $lv) : null;
         if ($in->control_id === 'gc_info')

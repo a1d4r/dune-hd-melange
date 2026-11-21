@@ -1122,7 +1122,7 @@ function mel_choose($in)
     }
     // The cursor of the list for gc_chosen: its parent_sel_state is the shell's.
     Mel::$state['gc'] = mel_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
-    mel_log('choose: ' . mel_ep_tag($st) . " of list {$st['rid']}, row " . Mel::$state['gc'][0] .
+    mel_log('choose: ' . mel_ep_tag($st) . " of list {$st['rid']}, line " . Mel::$state['gc'][0] .
         ' -> seasons screen of the shell');
     return mel_choose_act($st['rid'], 'gc_chosen');
 }

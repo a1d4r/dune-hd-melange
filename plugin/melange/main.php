@@ -1737,7 +1737,9 @@ function mel_fetch($base, $id, $series, $cin = null)
     {
         // A row of the tier needs a place left (by the main rows before it), the main list a place of its own.
         $in_tier = is_array($st) && mel_tier_why(mel_arr($st, 'streamData')) !== null;
-        if (($in_tier ? count($rows) : count($rows) - $tiered + $mx['untier']) >= MEL_MAX_ROWS)
+        // The rows of the main list so far: those of the tier made rows of it by a copy (mel_row_merge) count.
+        $main_n = count($rows) - ($tiered - $mx['untier']);
+        if (($in_tier ? count($rows) : $main_n) >= MEL_MAX_ROWS)
         {
             $k = is_array($st) ? mel_merge_key($st, $mx['series']) : null;
             $r = $k && mel_merge_find($mx, $k) ? mel_row($st, $series) : null;
