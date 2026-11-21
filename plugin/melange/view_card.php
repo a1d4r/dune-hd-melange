@@ -1888,6 +1888,44 @@ function mel_oc_finish($key, $c)
     return mel_cw_apply($a);
 }
 
+// The player stopped by "Choose a release" of the dialog over it (mel_lib_next_pick, mel_next_pick: no card_finish
+// then, nor a finish of the list), then $post: as card_finish and mel_finish - the history stale (mel_pg_stale), the
+// tab "TV" built anew (mel_tv_flag), the screens "card:<key>" of the own cards a copy on the disk played from (played;
+// the flag off) invalidated, on r24 too (the shell builds them again in the stack: the marks, the bars, "Continue" of
+// the history when back on them by RETURN), the main screens of the catalog too (mel_catv_after_player); before all,
+// the episodes stopped in their credits marked watched (mel_cw_apply: their record is there, the dialog came after the
+// wait of the next one).
+/**
+ * @param MelAction|null $post
+ * @return MelAction|null
+ */
+function mel_oc_after_stop($post)
+{
+    $keys = array();
+    $urls = array();
+    foreach (MelOc::$cards as $key => $c)
+    {
+        if (!empty($c['played']))
+        {
+            unset(MelOc::$cards[$key]['played']);
+            $keys[] = $key;
+            $urls[] = "card:$key";
+        }
+    }
+    mel_pg_stale();
+    mel_tv_flag('back from the player');
+    $a = mel_catv_after_player($post);
+    if ($urls)
+    {
+        mel_log('card: own ' . implode(', ', $keys) . ': the player stopped, the screen anew');
+        $inv = mel_catv_invalidate($urls[0]);
+        $inv[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = $urls;
+        $inv[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $a;
+        $a = $inv;
+    }
+    return mel_cw_apply($a);
+}
+
 // The params of card_src_menu of input $in for its menu of sources: c, s and e of an episode when there.
 /**
  * @param stdClass $in

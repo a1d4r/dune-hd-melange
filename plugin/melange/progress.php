@@ -310,6 +310,11 @@ function mel_pg_mark_act($ids, $movie_ids, $on, $post)
 define('MEL_CW_FILE', 'credits_watched.json');
 define('MEL_CW_MAX', 20);
 define('MEL_CW_AGE', 604800);
+// A record begun up to MEL_CW_SLACK s before its note is of that start (mel_cw_take): the shell keeps the start of a
+// record 0-2 s before the one of its log line ((ADD) start), and a file of the disk starts at once - its record may be
+// begun before the note; a record of a play before, older by more, is not.
+if (!defined('MEL_CW_SLACK'))
+    define('MEL_CW_SLACK', 10);
 
 // The file of the episodes noted; '' without tmp_dir.
 /**
@@ -385,10 +390,10 @@ function mel_cw_note($ser, $mk, $dune_id, $q, $e, $also = array())
 }
 
 // The uids to mark of the episodes noted (mel_cw_read) whose latest record (mel_cw_visit: of their uids, the native
-// ones of their files too, the one begun last) began after their note, at the start of their credits or past it, not
-// watched by its position (mel_wh_full) and the credits in its second half (no length: any) -> update_watched_marks of
-// them; then all the notes gone (applied never while one of them plays: its record is there by then). The log: the
-// counts. None noted, none to mark: array().
+// ones of their files too, the one begun last) began after their note (up to MEL_CW_SLACK s before it too), at the
+// start of their credits or past it, not watched by its position (mel_wh_full) and the credits in its second half (no
+// length: any) -> update_watched_marks of them; then all the notes gone (applied never while one of them plays: its
+// record is there by then). The log: the counts. None noted, none to mark: array().
 /**
  * @return list<string>
  */
@@ -411,7 +416,7 @@ function mel_cw_take()
             if (isset($recs[$u]) && (!$w || mel_cw_start($recs[$u]) > mel_cw_start($w)))
                 $w = $recs[$u];
         }
-        if (!$w || mel_cw_start($w) < $x[1])
+        if (!$w || mel_cw_start($w) < $x[1] - MEL_CW_SLACK)
             continue;
         list(, , $pos, $len) = mel_wh_rec($w);
         if ($pos >= $x[0] && !mel_wh_full($pos, $len) && ($len <= 0 || $x[0] >= $len / 2))

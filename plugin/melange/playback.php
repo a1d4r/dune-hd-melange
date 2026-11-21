@@ -1789,7 +1789,7 @@ function mel_next_missing($st, $hash, $errors)
 }
 
 // "Choose a release": the list of the episode (fetched again after a
-// php_server restart).
+// php_server restart); the player stopped first, back from it as mel_finish (mel_oc_after_stop).
 /**
  * @param stdClass $in
  * @return MelAction
@@ -1803,10 +1803,10 @@ function mel_next_pick($in)
         $p = mel_next_params($in);
         $res = $p ? mel_next_fetch($p[0], $p[1], $p[2]) : array('error' => 'err_list_expired', 'detail' => '');
         if (isset($res['error']))
-            return mel_stop_and(mel_error($res['error'], $res['detail']));
+            return mel_stop_and(mel_oc_after_stop(mel_error($res['error'], $res['detail'])));
         $st = $res['st'];
     }
     Mel::$next = null;
     mel_log(sprintf('next: -> list of S%02dE%02d', $st['s'], $st['e']));
-    return mel_stop_and(mel_open_list($st));
+    return mel_stop_and(mel_oc_after_stop(mel_open_list($st)));
 }
