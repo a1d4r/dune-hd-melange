@@ -28,7 +28,8 @@ define('MEL_LIB_MOUNTS', '/tmp/run/network_mount_list.xml');
 // the dir of a link /tmp/mnt/storage/<name> of each one mounted (update_local_folders_file.sh of the shell).
 define('MEL_LIB_STORAGES', '/tmp/run/storage_list.xml');
 define('MEL_LIB_STORAGE_LINKS', '/tmp/mnt/storage');
-// The root of sdcard:// (GuiCommon::get_mount_path_by_source_id).
+// The source of the internal memory and its root (GuiCommon::get_mount_path_by_source_id).
+define('MEL_LIB_SDCARD_SID', 'sdcard://');
 define('MEL_LIB_SDCARD', '/sdcard');
 // A bigger file is not read: not a config of this box, or an index json_decode can not take in the memory of
 // php_server (memory_limit 128M; an index of 16 MB is a Fatal there).
@@ -54,10 +55,11 @@ if (!defined('MEL_LIB_HERE_TEST'))
 // budget of the operation; past them the length is unknown.
 if (!defined('MEL_LIB_MKV_MS'))
     define('MEL_LIB_MKV_MS', 1000);
-// The script of the check (sh -c, POSIX: bash, dash, mksh, busybox ash): 1 or 0 for a file at $MEL_P to $MEL_R,
-// renamed there whole; with $MEL_B set, of a file there then its first 64 KB to $MEL_R.b (dd: head -c is not POSIX),
-// renamed there whole too, an empty $MEL_R.b for a read failed (dd or mv); the paths only in the environment. Its
-// lifetime bound inside, with no timeout(1) (that of busybox before 1.30 of old boxes takes "-t N", toybox "-s KILL
+// The script of the check (sh -c, POSIX: bash, dash, mksh, busybox ash): 1 or 0 for a file at $MEL_P to $MEL_R, renamed
+// there whole; of no file with $MEL_M set (the root of the mount of a storage), two more digits: test -d and test -r of
+// it (builtins: no process more); with $MEL_B set, of a file there then its first 64 KB to $MEL_R.b (dd: head -c is not
+// POSIX), renamed there whole too, an empty $MEL_R.b for a read failed (dd or mv); the paths only in the environment.
+// Its lifetime bound inside, with no timeout(1) (that of busybox before 1.30 of old boxes takes "-t N", toybox "-s KILL
 // N"; which one PATH finds is not known): a watcher in the background kills the script (kill -9 at MEL_LIB_HERE_S + 2
 // s, by steps of sleep 1) - not a dd it waits for, a process of its own: that one an orphan then, done by itself, its
 // $MEL_R.b.p removed by the next check. The script done, it kills the watcher (no kill of a pid reused later); the
@@ -65,7 +67,9 @@ if (!defined('MEL_LIB_MKV_MS'))
 // but not started yet).
 define('MEL_LIB_HERE_SH',
     '( for i in ' . implode(' ', range(1, MEL_LIB_HERE_S + 2)) . '; do sleep 1; done; kill -9 $$ ) & ' .
-    'w=$!; ' . MEL_LIB_HERE_TEST . 'if test -f "$MEL_P"; then r=1; else r=0; fi; ' .
+    'w=$!; ' . MEL_LIB_HERE_TEST . 'if test -f "$MEL_P"; then r=1; else r=0; if test -n "$MEL_M"; then ' .
+    'if test -d "$MEL_M"; then r=${r}1; else r=${r}0; fi; ' .
+    'if test -r "$MEL_M"; then r=${r}1; else r=${r}0; fi; fi; fi; ' .
     'echo $r >"$MEL_R.p" && mv -f "$MEL_R.p" "$MEL_R"; ' .
     'if test $r = 1 && test -n "$MEL_B"; then ' .
     '{ dd if="$MEL_P" of="$MEL_R.b.p" bs=4096 count=16 2>/dev/null && mv -f "$MEL_R.b.p" "$MEL_R.b"; } || ' .
@@ -114,6 +118,12 @@ class MelLib
     // When mel_lib_tile_start looked at the index last (microtime), 0: never.
     /** @var float */
     public static $tile_t = 0.0;
+    // stat of storage_list.xml when the line of the local folders (mel_lib_local_line) was made last, and that line:
+    // not in the signature of the index (the index does not depend on it), its line logged again when it changes.
+    /** @var string|null */
+    public static $sl = null;
+    /** @var string */
+    public static $local = '';
 }
 
 // --- Reads.
@@ -229,8 +239,10 @@ function mel_lib_xml_elements($doc, $name, $keys)
     return $res;
 }
 
-// An XML file of the shell -> its root (SimpleXML), false: not XML or a DTD (no entities of its own, nothing from the
-// network). No warning in the log.
+// An XML file of the shell -> its root (SimpleXML), false: not XML or a DTD. The files of /tmp/run are writable by any
+// process (-rw-rw-rw-), and a DTD in another encoding (UTF-16) passes the check of '<!DOCTYPE': so no external entity
+// is loaded while it is parsed (no file, nothing from the network); the loader is set back after it
+// (simplexml_load_file and DOMDocument::load elsewhere in php_server need it). No warning in the log.
 /**
  * @param string $doc
  * @return SimpleXMLElement|false
@@ -240,7 +252,9 @@ function mel_lib_xml_load($doc)
     if (stripos($doc, '<!DOCTYPE') !== false)
         return false;
     $quiet = libxml_use_internal_errors(true);
+    $loader = libxml_disable_entity_loader(true);
     $xml = simplexml_load_string($doc);
+    libxml_disable_entity_loader($loader);
     libxml_clear_errors();
     libxml_use_internal_errors($quiet);
     return $xml;
@@ -439,11 +453,12 @@ function mel_lib_mount_for_nf($nf, $mounts)
 // storage_list.xml (written by the storage service of the shell; the fields of a storage its child elements, a field of
 // no value left out) -> name => MelLibStorage of the storages the shell takes (DataModel::do_reload_storage_list,
 // data_model.php r25): /*/storages/storage with a name, not is_persistfs_capable, the first of a name. Its path: '' of
-// one not connected (mount_path not from '/', GuiCommon::source_is_connected), else secondary_mount_path when it is from
-// '/' (/tmp/mnt/storage/<name>, bound to the name: mount_path of the main storage is /tmp/mnt/D, which may move to
-// another one), else mount_path. An empty file: none. $err: why none ('' for an empty file); $diag, for the log, with no
-// name, label, uuid or path: the count of the storages taken and the kind of each (" off": not connected); of none
-// taken, the size of the file and the names of its tags and attributes down to the fields of a storage.
+// one not connected (mount_path not from '/', GuiCommon::source_is_connected), else secondary_mount_path when it is
+// from '/' (/tmp/mnt/storage/<name>, bound to the name: mount_path of the main storage is /tmp/mnt/D, which may move to
+// another one), else mount_path; with FS_PREFIX in front, as the shell (mel_lib_fs). An empty file: none. $err: why
+// none ('' for an empty file); $diag, for the log, with no name, label, uuid or path: the count of the storages taken
+// and the kind of each (" off": not connected); of none taken, the size of the file and the names of its tags and
+// attributes down to the fields of a storage.
 /**
  * @param string $err
  * @param string $diag
@@ -476,7 +491,7 @@ function mel_lib_storages(&$err, &$diag)
         $sp = strval($el->secondary_mount_path);
         $kind = strval(substr(strval(preg_replace('/[^a-z0-9_]/', '', strtolower(strval($el->kind)))), 0, 24));
         $kind = $kind === '' ? '?' : $kind;
-        $path = substr($mp, 0, 1) !== '/' ? '' : (substr($sp, 0, 1) === '/' ? $sp : $mp);
+        $path = substr($mp, 0, 1) !== '/' ? '' : mel_lib_fs(substr($sp, 0, 1) === '/' ? $sp : $mp);
         $res[$name] = array('path' => $path, 'kind' => $kind);
         $kinds[] = $path === '' ? "$kind off" : $kind;
     }
@@ -489,6 +504,19 @@ function mel_lib_storages(&$err, &$diag)
         $diag .= ' (' . strlen($doc) . ' bytes' . ($names ? ', tags ' . implode(' ', $names) : '') . ')';
     }
     return $res;
+}
+
+// A path from '/' of the shell as the shell takes a mount path of a storage (HD::get_fs_prefix() . $mount_path,
+// DataModel::do_reload_storage_list): FS_PREFIX in front (AOSP 11: $FS_PREFIX/tmp is /tmp; ATV has no /tmp of its
+// own); as is with no FS_PREFIX (older Android).
+/**
+ * @param string $p
+ * @return string
+ */
+function mel_lib_fs($p)
+{
+    $fp = getenv('FS_PREFIX');
+    return is_string($fp) ? $fp . $p : $p;
 }
 
 // The names of the element $el, of its attributes (@name) and of those of its children down to $depth levels, each
@@ -534,8 +562,9 @@ function mel_lib_storage_name($folder)
 
 // Where the storage $name is mounted: its path in storage_list.xml ($storages of mel_lib_storages; $how 'list'); not
 // there at all, its link /tmp/mnt/storage/<name> when that is a dir ('symlink'; the format of the file is known by the
-// code of r25 only, update_local_folders_file.sh of the shell takes the link); else '' ('none': not connected - as a
-// share not mounted). No dir of the storage is read.
+// code of r25 only, update_local_folders_file.sh of the shell takes the link) - with FS_PREFIX, as a path of the list
+// (mel_lib_fs), the one looked at (under MEL_LIB_ROOT with no FS_PREFIX, as mel_lib_paths); else '' ('none': not
+// connected - as a share not mounted). No dir of the storage is read.
 /**
  * @param string $name
  * @param array<string, MelLibStorage> $storages
@@ -553,16 +582,12 @@ function mel_lib_storage_path($name, $storages, &$how)
             $how = 'list';
         return $storages[$name]['path'];
     }
-    $p = MEL_LIB_STORAGE_LINKS . "/$name";
-    foreach (mel_lib_paths($p) as $f)
-    {
-        if (is_dir($f))
-        {
-            $how = 'symlink';
-            return $p;
-        }
-    }
-    return '';
+    $link = MEL_LIB_STORAGE_LINKS . "/$name";
+    $p = mel_lib_fs($link);
+    if (!is_dir($p === $link ? MEL_LIB_ROOT . $p : $p))
+        return '';
+    $how = 'symlink';
+    return $p;
 }
 
 // The mount of the source of a folder of the library: array(its path, its server), array('', '') when it is not
@@ -576,10 +601,10 @@ function mel_lib_storage_path($name, $storages, &$how)
  * @param array<string, MelLibStorage> $storages
  * @return array{string, string}
  */
-function mel_lib_source_mount($folder, $nfs, $mounts, $storages = array())
+function mel_lib_source_mount($folder, $nfs, $mounts, $storages)
 {
     $sid = $folder['source_id'];
-    if ($sid === 'sdcard://')
+    if ($sid === MEL_LIB_SDCARD_SID)
         return array(MEL_LIB_SDCARD, $sid);
     $name = mel_lib_storage_name($folder);
     if ($name !== null)
@@ -602,7 +627,7 @@ function mel_lib_source_mount($folder, $nfs, $mounts, $storages = array())
 function mel_lib_source_known($folder, $nfs)
 {
     $name = mel_lib_storage_name($folder);
-    return $folder['source_id'] === 'sdcard://' || ($name !== null && $name !== '') ||
+    return $folder['source_id'] === MEL_LIB_SDCARD_SID || ($name !== null && $name !== '') ||
         mel_lib_source_nf($folder, $nfs) !== null;
 }
 
@@ -622,7 +647,7 @@ function mel_lib_local_line($folders)
     foreach ($folders as $id => $f)
     {
         $sid = $f['source_id'];
-        if (strpos($sid, 'network_folder_id://') === 0 || strpos($sid, 'network_folder://') === 0)
+        if (mel_lib_sid_nf($sid) !== null)
             continue;
         $name = mel_lib_storage_name($f);
         if ($name !== null && $storages === null)
@@ -633,7 +658,7 @@ function mel_lib_local_line($folders)
             $list = $err === '' ? " $d" : ": $err" . ($d !== '' ? ", $d" : '');
         }
         $how = 'none';
-        if ($sid === 'sdcard://')
+        if ($sid === MEL_LIB_SDCARD_SID)
             $how = 'fixed';
         else if ($name !== null)
             mel_lib_storage_path($name, $storages, $how);
@@ -654,23 +679,36 @@ function mel_lib_local_line($folders)
  */
 function mel_lib_source_nf($folder, $nfs)
 {
-    $sid = $folder['source_id'];
+    $ref = mel_lib_sid_nf($folder['source_id']);
+    if ($ref === null)
+        return null;
     $nf = null;
-    if (strpos($sid, 'network_folder_id://') === 0)
+    if ($ref[0] === 'id')
+        $nf = isset($nfs[$ref[1]]) ? $nfs[$ref[1]] : null;
+    else
     {
-        $id = substr($sid, 20);
-        $nf = isset($nfs[$id]) ? $nfs[$id] : null;
-    }
-    else if (strpos($sid, 'network_folder://') === 0)
-    {
-        $name = substr($sid, 17);
         foreach ($nfs as $x)
         {
-            if ($x['name'] === $name)
+            if ($x['name'] === $ref[1])
                 $nf = $x;
         }
     }
     return $nf;
+}
+
+// The network folder a source_id names: array('id', <id>) of network_folder_id://<id>, array('name', <name>) of
+// network_folder://<name>; null for another source.
+/**
+ * @param string $sid
+ * @return array{string, string}|null
+ */
+function mel_lib_sid_nf($sid)
+{
+    if (strpos($sid, 'network_folder_id://') === 0)
+        return array('id', strval(substr($sid, 20)));
+    if (strpos($sid, 'network_folder://') === 0)
+        return array('name', strval(substr($sid, 17)));
+    return null;
 }
 
 // UrlUtils::make_rel_path of the shell: the path of a file under the root of
@@ -1001,15 +1039,15 @@ function mel_lib_eps_fix($files)
     return $res;
 }
 
-// The signature of the configs: '' when there is no movie_index_config.xml. With the list of the storages (tmpfs): a
-// storage put in or out, the line of the local folders again (mel_lib_local_line).
+// The signature of the configs: '' when there is no movie_index_config.xml. Not storage_list.xml: the index does not
+// depend on it (MelLib::$play by the config; the copies read it each time), and its service may write it often.
 /**
  * @return string
  */
 function mel_lib_sig_cfg()
 {
     $c = mel_lib_stat(MEL_LIB_CONFIG);
-    return $c === '' ? '' : $c . '|' . mel_lib_stat(MEL_LIB_NF) . '|' . mel_lib_stat(MEL_LIB_STORAGES);
+    return $c === '' ? '' : $c . '|' . mel_lib_stat(MEL_LIB_NF);
 }
 
 // The signature of the indexes of the folders $ids (of their folder_movies for $kind 'movies').
@@ -1040,7 +1078,9 @@ function mel_lib_sig_files($ids, $kind = 'files')
 // folder changes the config itself). The indexes one by one, each up to
 // MEL_LIB_MAX_BYTES, all up to MEL_LIB_BUDGET_BYTES; a folder past them is
 // skipped, their count in the log. No movie_index_config.xml: an empty
-// library, "library: none" in the log once.
+// library, "library: none" in the log once. The line of the local folders at
+// each read, and again, with no read, when storage_list.xml changes it (a
+// storage put in or out).
 /**
  * @return void
  */
@@ -1048,6 +1088,7 @@ function mel_lib_index()
 {
     clearstatcache();
     $cfg = mel_lib_sig_cfg();
+    $sl = mel_lib_stat(MEL_LIB_STORAGES);
     if ($cfg === '')
     {
         if (MelLib::$sig !== '')
@@ -1066,7 +1107,17 @@ function mel_lib_index()
     }
     $sig = $cfg . mel_lib_sig_files(array_keys(MelLib::$folders));
     if ($sig === MelLib::$sig)
+    {
+        if ($sl !== MelLib::$sl)
+        {
+            MelLib::$sl = $sl;
+            $local = mel_lib_local_line(MelLib::$folders);
+            if ($local !== MelLib::$local && $local !== '')
+                mel_log($local);
+            MelLib::$local = $local;
+        }
         return;
+    }
     $t = microtime(true);
     $err = '';
     $folders = mel_lib_folders($err);
@@ -1078,6 +1129,8 @@ function mel_lib_index()
     $local = mel_lib_local_line($folders);
     if ($local !== '')
         mel_log($local);
+    MelLib::$sl = $sl;
+    MelLib::$local = $local;
     $ids = array_keys($folders);
     if ($ids !== array_keys(MelLib::$folders))
         $sig = $cfg . mel_lib_sig_files($ids);
@@ -1646,10 +1699,10 @@ function mel_lib_native_uid($copy)
     if (!isset(MelLib::$folders[$copy['folder']]))
         return '';
     $folder = MelLib::$folders[$copy['folder']];
-    $name = strval(substr($folder['source_id'], 15));
-    if ($folder['source_id'] === 'sdcard://')
-        $p = 'sdcard://';
-    else if (strpos($folder['source_id'], 'storage_name://') === 0 && $name !== '')
+    $name = mel_lib_storage_name($folder);
+    if ($folder['source_id'] === MEL_LIB_SDCARD_SID)
+        $p = MEL_LIB_SDCARD_SID;
+    else if ($name !== null && $name !== '')
         $p = 'storage_name://' . mb_strtolower($name, 'UTF-8');
     else
     {
@@ -2023,10 +2076,12 @@ function mel_lib_title($m, $series)
 // one '&': exec() does not wait for it), its answer polled every 50 ms in a file of tmp_dir, removed then (and those of
 // checks answered too late). The paths only in the environment of the check (putenv, taken out after exec()): not in
 // the command, where escapeshellarg of PHP 5.3 in the locale C drops the bytes of a Cyrillic path. The log: "library:
-// here lib-... yes|no|slow in N ms". No tmp_dir: 'yes', not checked (the player tells). $mkv: of a file there, $dur -
-// the length of its MKV (mel_mkv_duration) by its first 64 KB, read by the same check past its answer (php_server reads
-// no share), waited for MEL_LIB_MKV_MS more; 0 for none in time, not MKV, no length. The log: "library: mkv lib-... N s
-// in N ms" or "library: mkv lib-... unknown (why) in N ms".
+// here lib-... yes|no|slow in N ms"; a copy of a storage or of the internal memory not there: "...; mount dir yes|no,
+// readable yes|no" of the root of its mount (a wrong path apart from no access), no path. No tmp_dir: 'yes', not
+// checked (the player tells). $mkv: of a file there, $dur - the length of its MKV (mel_mkv_duration) by its first 64
+// KB, read by the same check past its answer (php_server reads no share), waited for MEL_LIB_MKV_MS more; 0 for none in
+// time, not MKV, no length. The log: "library: mkv lib-... N s in N ms" or "library: mkv lib-... unknown (why) in N
+// ms".
 /**
  * @param MelLibCopy $copy
  * @param bool $mkv
@@ -2051,29 +2106,39 @@ function mel_lib_here($copy, $mkv = false, &$dur = null)
             unlink($old);
     }
     $res = "$tmp/lib_here_" . getmypid() . '_' . str_replace('.', '', uniqid('', true));
+    $local = isset(MelLib::$folders[$copy['folder']]) &&
+        mel_lib_sid_nf(MelLib::$folders[$copy['folder']]['source_id']) === null;
     putenv('MEL_P=' . $copy['url']);
     putenv('MEL_R=' . $res);
     if ($mkv)
         putenv('MEL_B=1');
+    if ($local)
+        putenv('MEL_M=' . $copy['mnt']);
     exec('sh -c ' . escapeshellarg(MEL_LIB_HERE_SH) . ' </dev/null >/dev/null 2>&1 &');
     putenv('MEL_P');
     putenv('MEL_R');
     if ($mkv)
         putenv('MEL_B');
+    if ($local)
+        putenv('MEL_M');
     $ans = 'slow';
+    $mnt = '';
     do
     {
         clearstatcache();
         if (is_file($res))
         {
-            $ans = trim(strval(file_get_contents($res))) === '1' ? 'yes' : 'no';
+            $out = trim(strval(file_get_contents($res)));
+            $ans = $out === '1' ? 'yes' : 'no';
+            if (preg_match('/^0([01])([01])$/D', $out, $m))
+                $mnt = '; mount dir ' . ($m[1] === '1' ? 'yes' : 'no') . ', readable ' . ($m[2] === '1' ? 'yes' : 'no');
             unlink($res);
             break;
         }
         usleep(50000);
     }
     while (microtime(true) - $t < MEL_LIB_HERE_S);
-    mel_log("library: here {$copy['key']} $ans in " . round((microtime(true) - $t) * 1000) . ' ms');
+    mel_log("library: here {$copy['key']} $ans in " . round((microtime(true) - $t) * 1000) . " ms$mnt");
     if ($mkv && $ans === 'yes')
         $dur = mel_lib_here_mkv($copy, "$res.b");
     return $ans;

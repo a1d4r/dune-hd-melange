@@ -1,8 +1,8 @@
 # Movies and series from your disk
 
-If a movie or an episode is already on a NAS, a computer on your network, a USB drive, the Dune's internal disk or its memory, Melange plays it straight from there. [← Contents](README.en.md)
+If a movie or an episode is already on a NAS, a computer on your network, a USB drive or the Dune's internal disk, Melange plays it straight from there. [← Contents](README.en.md)
 
-Before you start: the Dune media library with your folders on the network, a USB drive, the internal disk or in the Dune's memory (home screen → Movies or Series: your files show up there) and "Own card" turned on in [Appearance](appearance.en.md) (it is on by default).
+Before you start: the Dune media library with your folders on the network, a USB drive or the internal disk (home screen → Movies or Series: your files show up there) and "Own card" turned on in [Appearance](appearance.en.md) (it is on by default).
 
 In the catalog, movies and series on the disk have a disk icon in the top right corner of the poster. A series gets it if at least one episode is on the disk.
 
@@ -34,7 +34,7 @@ An episode stopped during the end credits is marked as watched. You can also res
 
 ## If it didn't work
 
-- No "From disk" line and no icons: the file isn't in the Dune media library, or the disk isn't connected right now (the NAS is off, the USB drive is unplugged). Open the movie in the Dune Movies catalog: if the file isn't there, Melange can't see it either.
+- No "From disk" line and no icons: the file isn't in the Dune media library. Open the movie in the Dune Movies catalog: if the file isn't there, Melange can't see it either.
 - The poster has a disk icon, but the card has no "From disk" line: the disk isn't connected right now. The icon comes from the Dune media library and doesn't depend on whether the disk is connected.
 - "The disk with the movie is not responding" or "The disk with the episode is not responding": the NAS or the disk took longer than 25 seconds to wake up. Press "Retry".
 
