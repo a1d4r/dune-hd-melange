@@ -312,15 +312,19 @@ function mel_gc_cursor($sel, $n)
 }
 
 // List state $st put in with row $sel of $st['rows'] selected (mel_finish, mel_relist): a row of the tier unfolds
-// its group ('tier_open'); -1 (or no such row): the line the list opens on (mel_gc_first). The cursor on its line as
-// mel_gc_cursor, and its first view ignores the shell's sel_state.
+// its group ('tier_open'); -1 (or no such row): the line the list opens on (mel_gc_first). $was: the list it replaces
+// (of the same title: another episode, the request anew, the sort), its group folded or not taken over first, before
+// the lines are counted. The cursor on its line as mel_gc_cursor, and its first view ignores the shell's sel_state.
 /**
  * @param MelState $st
  * @param int $sel
+ * @param MelState|null $was
  * @return MelState
  */
-function mel_gc_put_cursor($st, $sel)
+function mel_gc_put_cursor($st, $sel, $was = null)
 {
+    if ($was !== null)
+        $st['tier_open'] = !empty($was['tier_open']);
     $lv = mel_gc_lv($st);
     if ($sel >= 0 && $sel < $lv['t'] && !$lv['o'])
     {
@@ -1772,8 +1776,7 @@ function mel_gc_sort($in)
     $ns = mel_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang'], $st['errors']);
     mel_log('sort: ' . mel_sort_tag($st['sort'], $st['sort_rev']) . " -> $tag, " . mel_ep_tag($st) . ', ' .
         count($st['rows']) . ' rows, screen replaced');
-    $ns['tier_open'] = !empty($st['tier_open']);
-    return mel_list_replace(mel_gc_put_cursor($ns, -1));
+    return mel_list_replace(mel_gc_put_cursor($ns, -1, $st));
 }
 
 // The sort and the details of a release in MENU of a list too (0.61.0): "Пульт без цветных кнопок" of the
@@ -1878,9 +1881,8 @@ function mel_gc_main($in)
     Mel::$settings['debrid_main'] = $k;
     $ns = mel_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang'], $st['errors']);
     mel_log("debrid main: $was -> $k, " . mel_ep_tag($st) . ', screen replaced');
-    $ns['tier_open'] = !empty($st['tier_open']);
     $cur = isset($st['gc']) ? mel_gc_line_row(mel_gc_lv($st), $st['gc'][0]) : -1;
-    return mel_list_replace(mel_gc_put_cursor($ns, $cur));
+    return mel_list_replace(mel_gc_put_cursor($ns, $cur, $st));
 }
 
 // --- The sources in MENU of a list (v2): the user saved them on the page (settings.json, profiles); a choice is of

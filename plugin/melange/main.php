@@ -1897,7 +1897,9 @@ function mel_iso_lang($l)
 // card): a list sorted anew keeps them.
 // view_gcomps.php adds 'gc' - array(sel, top), the last cursor; 'gc_new' -
 // the first view of a replaced screen ignores the shell's sel_state; 'gc_prog'
-// - progress of the rows for their redraw. A screen replaced by a new list
+// - progress of the rows for their redraw; 'tier_open' - the group of the tier unfolded (mel_gc_lv), of
+// this list only: a list of another title opens without it, a new list of this one (mel_relist,
+// mel_finish, the sort, the main Debrid) takes it over (mel_gc_put_cursor). A screen replaced by a new list
 // sets its cursor only by mel_gc_put_cursor, else 'gc_new' is lost. The one
 // writer outside view_gcomps.php: mel_choose keeps 'gc' before it leaves.
 // mel_ts_pack_state adds 'pack_only' and 'pack_map': the one row, never shown.
@@ -2102,8 +2104,7 @@ function mel_list_cursor($st, $hash)
 {
     list($sel, $by) = mel_release_row($st['rows'], $hash, $st['s'], $st['e'], mel_cin_n($st['movie']['cin'], $st['s'], $st['e']));
     mel_log("list: cursor on row $sel of " . count($st['rows']) . ", $by");
-    // No such release: the line a list opens on (mel_gc_put_cursor), not the first row (of the tier maybe).
-    return mel_gc_put_cursor($st, $by === 'no such release' ? -1 : $sel);
+    return mel_gc_put_cursor($st, $sel);
 }
 
 // Opens the list of $st.
