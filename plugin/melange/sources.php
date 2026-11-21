@@ -246,7 +246,7 @@ function mel_src_releases($st, $id, $tag, $title, $sel_state)
         return mel_list_replace($ns);
     }
     // The online list: the cursor of the releases, not of its rows.
-    list($cur) = mel_gc_pos($st, empty($st['lp_on']) ? $sel_state : null);
+    $cur = mel_gc_row_now($st, empty($st['lp_on']) ? $sel_state : null);
     $old = Mel::$settings;
     mel_op_use($id, $st['lp_prof']);
     $r = mel_relist($st, $st['s'], $st['e'], '');

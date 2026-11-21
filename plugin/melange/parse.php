@@ -560,8 +560,9 @@ function mel_service_name($id)
 //   label        name of the release: the file of a movie, the folder of a season pack
 //   raw          the stream as it came, for the details screen (INFO); memory of
 //                php_server only, as the URL: never logged nor saved
-//   ord          place in the reply, from 0 (mel_fetch numbers the rows): the order of
-//                AIOStreams that every sort keeps for equal values (mel_rows_sort)
+//   ord          place among the rows of mel_fetch, from 0: those of the main list first, then
+//                those of the tier, each in the order of the reply; every sort keeps it for equal
+//                values (mel_rows_sort), mel_release_pick prefers a copy of the main list by it
 //   copies, copy a file cached on several services, one row (mel_row_merge): its
 //                copies (MelCopy) and the index of the one on top; none for one copy
 //   tier         a row of the tier "Не подтверждены" (streamData.unconfirmed of the
@@ -1161,11 +1162,13 @@ function mel_rows_debrid($rows)
 
 // Rows in the order of sort $key, by default descending: more seeders (a
 // Debrid list: the cached rows, then the rest), bigger, newer (smaller age);
-// 'aio' (or an unknown key) the order of the reply. $rev: the other way, the
+// 'aio' (or an unknown key) the order of the reply (ord). $rev: the other way, the
 // value only: fewer seeders (not cached first), smaller, older; 'aio' the
 // reply backwards. Stable either way: equal values keep the order of
 // AIOStreams (ord); rows without the value (no seeders, size 0, no age) go to
-// the end in that order.
+// the end in that order. The rows of the tier (tier) first by any key, $rev
+// or not, then those of the main list, each part in that order: the screen
+// shows the tier as a group of its own at the top (view_gcomps.php, mel_gc_lv).
 /**
  * @param list<MelRow> $rows
  * @param string $key
@@ -1175,9 +1178,10 @@ function mel_rows_debrid($rows)
 function mel_rows_sort($rows, $key, $rev = false)
 {
     $deb = mel_rows_debrid($rows);
-    $miss = $val = $ord = $pos = array();
+    $tier = $miss = $val = $ord = $pos = array();
     foreach ($rows as $i => $r)
     {
+        $tier[] = empty($r['tier']) ? 1 : 0;
         if ($key === 'seeds')
             $v = $deb ? ($r['cached'] === true ? 1 : 0) : $r['seeders'];
         else if ($key === 'size')
@@ -1193,7 +1197,7 @@ function mel_rows_sort($rows, $key, $rev = false)
         $pos[] = $i;
     }
     $dir = $rev ? SORT_ASC : SORT_DESC;
-    array_multisort($miss, SORT_ASC, $val, $dir, $ord, SORT_ASC, $pos, SORT_ASC, $rows);
+    array_multisort($tier, SORT_ASC, $miss, SORT_ASC, $val, $dir, $ord, SORT_ASC, $pos, SORT_ASC, $rows);
     return $rows;
 }
 

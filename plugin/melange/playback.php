@@ -1065,7 +1065,7 @@ function mel_flip($in)
     if (!$to)
         return null;
     list($s, $e) = $to;
-    list($cur) = mel_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    $cur = mel_gc_row_now($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     $ep = sprintf('S%02dE%02d', $s, $e);
     return mel_relist_screen($st, $s, $e, $cur, 'flip: ' . mel_ep_tag($st) . " -> $ep", false,
         mel_tr($st['lang'], 'next_failed', mel_se($s, $e)), 1);
@@ -1087,7 +1087,7 @@ function mel_refresh($in)
         mel_log('refresh: not a live list, nothing');
         return null;
     }
-    list($cur) = mel_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    $cur = mel_gc_row_now($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     return mel_relist_screen($st, $st['s'], $st['e'], $cur, 'refresh: ' . mel_ep_tag($st), true,
         mel_tr($st['lang'], 'refresh_failed'), 1);
 }
@@ -1188,7 +1188,7 @@ function mel_chosen($in)
     }
     $how = isset($in->se_chosen_manually) && is_scalar($in->se_chosen_manually) ?
         mel_cut(strval($in->se_chosen_manually), 10) : '-';
-    list($cur) = mel_gc_pos($st, null);
+    $cur = mel_gc_row_now($st, null);
     $ep = sprintf('S%02dE%02d', $s, $e);
     return mel_relist_screen($st, $s, $e, $cur, 'pick: ' . mel_ep_tag($st) . " -> $ep (manually $how)", false,
         mel_tr($st['lang'], 'next_failed', mel_se($s, $e)), 3);
@@ -1270,7 +1270,8 @@ function mel_relist($st, $s, $e, $hash)
         $rows = mel_jacred($rows, $mv, $s, $e);
     $ns = mel_list_state($mv, $s, $e, $rows, $st['lang'], $res['errors']);
     list($sel, $by) = mel_release_row($ns['rows'], $hash, $s, $e, mel_cin_n($mv['cin'], $s, $e));
-    return array('st' => mel_gc_put_cursor($ns, $sel), 'sel' => $sel, 'by' => $by);
+    // No such release: the line a list opens on (mel_gc_put_cursor), not the first row (of the tier maybe).
+    return array('st' => mel_gc_put_cursor($ns, $by === 'no such release' ? -1 : $sel), 'sel' => $sel, 'by' => $by);
 }
 
 // The row of release $hash in $rows of S$s E$e: with the episode in its file

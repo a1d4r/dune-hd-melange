@@ -64,7 +64,8 @@ function mel_gc_status_lines($s, $px, $width, $max)
     return $lines;
 }
 
-// open_folder of the details screen of row $n of list $st.
+// open_folder of the details screen of row $n of list $st; its caption "N / M" as the counter of the list
+// (mel_gc_count_of: among the releases on the screen).
 /**
  * @param MelState $st
  * @param int $n
@@ -73,13 +74,15 @@ function mel_gc_status_lines($s, $px, $width, $max)
 function mel_info_open($st, $n)
 {
     mel_log("info: row $n of " . count($st['rows']));
+    $lv = mel_gc_lv($st);
+    $k = $lv['t'] > 0 ? 1 : 0;
     return array(
         GuiAction::handler_string_id => PLUGIN_OPEN_FOLDER_ACTION_ID,
         GuiAction::plugin_name => MEL_PLUGIN,
         GuiAction::data => array(
             PluginOpenFolderActionData::media_url => "info:{$st['rid']}:$n",
-            PluginOpenFolderActionData::caption =>
-                mel_tr($st['lang'], 'info_title') . ' ' . ($n + 1) . ' / ' . count($st['rows'])));
+            PluginOpenFolderActionData::caption => mel_tr($st['lang'], 'info_title') . ' ' .
+                (mel_gc_row_line($lv, $n) - $k + 1) . ' / ' . ($lv['l'] - $k)));
 }
 
 // "https://host:port/…" of a URL (no path, query or user: the user part

@@ -281,7 +281,8 @@ parameters:
         # A stream list (Mel::$state, mel_list_state, main.php), rows in the order
         # of sort (mel_sort_keys), reversed by sort_rev; rows may be empty from
         # 0.58.0 (a source profile with no streams, mel_gc_src); gc (sel, top:
-        # the last cursor), gc_new, gc_prog, gc_cols: of view_gcomps.php.
+        # the last cursor, of the lines of mel_gc_lv), gc_new, gc_prog, gc_cols,
+        # tier_open (the group "Не подтверждены" unfolded): of view_gcomps.php.
         MelState: '''
             array{
                 rid: string,
@@ -297,6 +298,7 @@ parameters:
                 gc_new?: bool,
                 gc_prog?: MelProgress,
                 gc_cols?: MelGcCols,
+                tier_open?: bool,
                 pack_only?: bool,
                 pack_map?: array<int, array<int, int>>,
                 lp?: MelLpView,
@@ -416,9 +418,13 @@ parameters:
                 cached: string, cached_in: string, cached_and: string, download: string, unknown: string, p2p: string,
                 video: string, audio: string, voices: string, subs: string, langs: string,
                 trackers: string, addon: string, flip: string, actions: string, details: string,
-                sort_aio: string, sort_seeds: string, sort_cached: string, sort_size: string, sort_date: string, errors: string
+                sort_aio: string, sort_seeds: string, sort_cached: string, sort_size: string, sort_date: string, errors: string,
+                tier: string, tier_card: string, tier_show: string, tier_hide: string, check: string
             }
         '''
+        # The lines of the list screen over its rows (mel_gc_lv, view_gcomps.php): rows of the tier (first in the
+        # rows), the group of them unfolded, rows, lines.
+        MelGcLv: 'array{t: int, o: bool, n: int, l: int}'
         # Columns of the list (mel_gc_cols, view_gcomps.php): x and width;
         # an empty column is not there.
         MelGcCols: '''

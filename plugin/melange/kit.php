@@ -1119,6 +1119,28 @@ class MelKit
         return self::on('badge_text', $p, $t);
     }
 
+    // The line of a group of a list (the tier "Не подтверждены" of the list of releases): $label (MEL_K_PX_ROW,
+    // text 1) -s- $count (MEL_K_PX_SECONDARY, text 2) -s- the chevron MEL_K_ICON_GROUP in text 2, down when the group
+    // is folded, up when $open; the left at $x, the centre of the capitals of the label at $y; nothing at the right.
+    // $on: on the plate of the focus (the caller's, as of a row), white and on_accent2.
+    /**
+     * @param string $label
+     * @param string $count
+     * @param bool $open
+     * @param bool $on
+     * @param int $x
+     * @param int|float $y
+     * @return MelKitItem
+     */
+    public static function group_line($label, $count, $open, $on, $x = 0, $y = 0)
+    {
+        $c2 = $on ? MEL_K_C_ON_ACCENT2 : MEL_K_C_TEXT2;
+        return self::row(array(self::text($label, MEL_K_PX_ROW, $on ? MEL_K_C_ON_ACCENT : MEL_K_C_TEXT1),
+            self::text($count, MEL_K_PX_SECONDARY, $c2),
+            self::icon($open ? 'k_icon_chevron-up' : 'k_icon_chevron-down', MEL_K_ICON_GROUP, $c2)), 's', $x,
+            (int) round($y), 'group');
+    }
+
     // A key of the remote on its plate (key) MEL_K_KEY_H high: 'pp' the two
     // runs «P+» -MEL_K_KEY_GAP- «P−» (MEL_K_PX_KEY) between the pads
     // MEL_K_KEY_PAD; 'lr' the chevrons left and right (MEL_K_ICON_PANEL_CHEVRON)

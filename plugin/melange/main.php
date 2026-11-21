@@ -2102,7 +2102,8 @@ function mel_list_cursor($st, $hash)
 {
     list($sel, $by) = mel_release_row($st['rows'], $hash, $st['s'], $st['e'], mel_cin_n($st['movie']['cin'], $st['s'], $st['e']));
     mel_log("list: cursor on row $sel of " . count($st['rows']) . ", $by");
-    return mel_gc_put_cursor($st, $sel);
+    // No such release: the line a list opens on (mel_gc_put_cursor), not the first row (of the tier maybe).
+    return mel_gc_put_cursor($st, $by === 'no such release' ? -1 : $sel);
 }
 
 // Opens the list of $st.
