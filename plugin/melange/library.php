@@ -2,7 +2,8 @@
 // The media library of the Dune ("Фильмы" of the shell), read only: its
 // folders (movie_index_config.xml), the network folders of their sources
 // (network_folders.properties), the shares the shell has mounted
-// (network_mount_list.xml) and the index of the files of each folder
+// (network_mount_list.xml), the storages of the box - USB, the disk of the bay
+// (storage_list.xml) - and the index of the files of each folder
 // (folder_files.<id>.json), as shell_ext/movies of r25 reads them
 // (data_model.php, nf_common.php, gui_common.php). The copies of a movie (of an
 // episode) are its files whose share is mounted now. Only mel_lib_here touches a
@@ -23,6 +24,12 @@ if (!defined('MEL_LIB_ROOT'))
 define('MEL_LIB_CONFIG', '/config/movie_index_config.xml');
 define('MEL_LIB_NF', '/config/network_folders.properties');
 define('MEL_LIB_MOUNTS', '/tmp/run/network_mount_list.xml');
+// The storages (USB, the disk of the bay) the storage service of the shell lists (StorageHelper::STORAGE_LIST_FILE), and
+// the dir of a link /tmp/mnt/storage/<name> of each one mounted (update_local_folders_file.sh of the shell).
+define('MEL_LIB_STORAGES', '/tmp/run/storage_list.xml');
+define('MEL_LIB_STORAGE_LINKS', '/tmp/mnt/storage');
+// The root of sdcard:// (GuiCommon::get_mount_path_by_source_id).
+define('MEL_LIB_SDCARD', '/sdcard');
 // A bigger file is not read: not a config of this box, or an index json_decode can not take in the memory of
 // php_server (memory_limit 128M; an index of 16 MB is a Fatal there).
 if (!defined('MEL_LIB_MAX_BYTES'))
@@ -99,9 +106,9 @@ class MelLib
     // when the index or folder_movies is read again.
     /** @var array<string, string> */
     public static $found = array();
-    // The titles with a file in a folder of a network source (mel_lib_source_nf, by the config; mounted or not), the
-    // ones Melange can play (mel_lib_source_mount): of the badge "on the disk" (mel_lib_tile_has) and of the queue of
-    // the pairs (mel_pg_lib_queue). movie_id => its type: movie (movie files), series (episodes), '' (both).
+    // The titles with a file in a folder of a source Melange can play (mel_lib_source_known, by the config; mounted,
+    // connected or not - mel_lib_source_mount): of the badge "on the disk" (mel_lib_tile_has) and of the queue of the
+    // pairs (mel_pg_lib_queue). movie_id => its type: movie (movie files), series (episodes), '' (both).
     /** @var array<string, string> */
     public static $play = array();
     // When mel_lib_tile_start looked at the index last (microtime), 0: never.
@@ -204,12 +211,7 @@ function mel_lib_stat($p)
  */
 function mel_lib_xml_elements($doc, $name, $keys)
 {
-    if (stripos($doc, '<!DOCTYPE') !== false)
-        return false;
-    $quiet = libxml_use_internal_errors(true);
-    $xml = simplexml_load_string($doc);
-    libxml_clear_errors();
-    libxml_use_internal_errors($quiet);
+    $xml = mel_lib_xml_load($doc);
     if ($xml === false)
         return false;
     $els = $xml->xpath('//' . $name);
@@ -225,6 +227,23 @@ function mel_lib_xml_elements($doc, $name, $keys)
         $res[] = $a;
     }
     return $res;
+}
+
+// An XML file of the shell -> its root (SimpleXML), false: not XML or a DTD (no entities of its own, nothing from the
+// network). No warning in the log.
+/**
+ * @param string $doc
+ * @return SimpleXMLElement|false
+ */
+function mel_lib_xml_load($doc)
+{
+    if (stripos($doc, '<!DOCTYPE') !== false)
+        return false;
+    $quiet = libxml_use_internal_errors(true);
+    $xml = simplexml_load_string($doc);
+    libxml_clear_errors();
+    libxml_use_internal_errors($quiet);
+    return $xml;
 }
 
 /**
@@ -417,19 +436,213 @@ function mel_lib_mount_for_nf($nf, $mounts)
     return array('', '');
 }
 
-// The mount of the source of a folder of the library (mel_lib_mount_for_nf): array(its path, its server), array('', '')
-// when it is not mounted. Only network folders (network_folder_id://<id>, network_folder://<name>); other sources (USB,
-// the internal memory) are not supported yet.
+// storage_list.xml (written by the storage service of the shell; the fields of a storage its child elements, a field of
+// no value left out) -> name => MelLibStorage of the storages the shell takes (DataModel::do_reload_storage_list,
+// data_model.php r25): /*/storages/storage with a name, not is_persistfs_capable, the first of a name. Its path: '' of
+// one not connected (mount_path not from '/', GuiCommon::source_is_connected), else secondary_mount_path when it is from
+// '/' (/tmp/mnt/storage/<name>, bound to the name: mount_path of the main storage is /tmp/mnt/D, which may move to
+// another one), else mount_path. An empty file: none. $err: why none ('' for an empty file); $diag, for the log, with no
+// name, label, uuid or path: the count of the storages taken and the kind of each (" off": not connected); of none
+// taken, the size of the file and the names of its tags and attributes down to the fields of a storage.
+/**
+ * @param string $err
+ * @param string $diag
+ * @return array<string, MelLibStorage>
+ */
+function mel_lib_storages(&$err, &$diag)
+{
+    $err = '';
+    $diag = '';
+    list($doc, $why) = mel_lib_read(MEL_LIB_STORAGES);
+    if ($doc === false)
+    {
+        $err = $why;
+        return array();
+    }
+    $xml = trim($doc) === '' ? null : mel_lib_xml_load($doc);
+    if ($xml === false)
+        $err = 'not XML';
+    $els = $xml ? $xml->xpath('/*/storages/storage') : array();
+    $res = array();
+    $kinds = array();
+    foreach (is_array($els) ? $els : array() as $el)
+    {
+        if (intval(strval($el->is_persistfs_capable)) === 1 || !isset($el->name))
+            continue;
+        $name = strval($el->name);
+        if (isset($res[$name]))
+            continue;
+        $mp = strval($el->mount_path);
+        $sp = strval($el->secondary_mount_path);
+        $kind = strval(substr(strval(preg_replace('/[^a-z0-9_]/', '', strtolower(strval($el->kind)))), 0, 24));
+        $kind = $kind === '' ? '?' : $kind;
+        $path = substr($mp, 0, 1) !== '/' ? '' : (substr($sp, 0, 1) === '/' ? $sp : $mp);
+        $res[$name] = array('path' => $path, 'kind' => $kind);
+        $kinds[] = $path === '' ? "$kind off" : $kind;
+    }
+    $diag = count($res) . ($kinds ? ' (' . implode(', ', $kinds) . ')' : '');
+    if (!$res)
+    {
+        $names = array();
+        if ($xml)
+            mel_lib_xml_names($xml, 3, $names);
+        $diag .= ' (' . strlen($doc) . ' bytes' . ($names ? ', tags ' . implode(' ', $names) : '') . ')';
+    }
+    return $res;
+}
+
+// The names of the element $el, of its attributes (@name) and of those of its children down to $depth levels, each
+// once, in their order, up to 40 -> $names. Names only, never a value.
+/**
+ * @param SimpleXMLElement $el
+ * @param int $depth
+ * @param list<string> $names
+ * @return void
+ */
+function mel_lib_xml_names($el, $depth, &$names)
+{
+    $all = array($el->getName());
+    foreach ($el->attributes() as $k => $v)
+        $all[] = "@$k";
+    foreach ($all as $n)
+    {
+        $n = strval(substr(strval(preg_replace('/[^A-Za-z0-9_.:@-]/', '', $n)), 0, 32));
+        if ($n !== '' && count($names) < 40 && !in_array($n, $names, true))
+            $names[] = $n;
+    }
+    if ($depth > 0)
+    {
+        foreach ($el->children() as $c)
+            mel_lib_xml_names($c, $depth - 1, $names);
+    }
+}
+
+// The name of the storage of the source of a folder of the library (storage_name://<name>; as is, the shell compares it
+// so, DataModel::get_storage_by_name), null for another source; '' for none, '.', '..' or one with a '/' or a NUL.
+/**
+ * @param MelLibFolder $folder
+ * @return string|null
+ */
+function mel_lib_storage_name($folder)
+{
+    $sid = $folder['source_id'];
+    if (strpos($sid, 'storage_name://') !== 0)
+        return null;
+    $name = strval(substr($sid, 15));
+    return preg_match('@[/\x00]@', $name) || $name === '.' || $name === '..' ? '' : $name;
+}
+
+// Where the storage $name is mounted: its path in storage_list.xml ($storages of mel_lib_storages; $how 'list'); not
+// there at all, its link /tmp/mnt/storage/<name> when that is a dir ('symlink'; the format of the file is known by the
+// code of r25 only, update_local_folders_file.sh of the shell takes the link); else '' ('none': not connected - as a
+// share not mounted). No dir of the storage is read.
+/**
+ * @param string $name
+ * @param array<string, MelLibStorage> $storages
+ * @param string $how
+ * @return string
+ */
+function mel_lib_storage_path($name, $storages, &$how)
+{
+    $how = 'none';
+    if ($name === '')
+        return '';
+    if (isset($storages[$name]))
+    {
+        if ($storages[$name]['path'] !== '')
+            $how = 'list';
+        return $storages[$name]['path'];
+    }
+    $p = MEL_LIB_STORAGE_LINKS . "/$name";
+    foreach (mel_lib_paths($p) as $f)
+    {
+        if (is_dir($f))
+        {
+            $how = 'symlink';
+            return $p;
+        }
+    }
+    return '';
+}
+
+// The mount of the source of a folder of the library: array(its path, its server), array('', '') when it is not
+// mounted. A network folder (network_folder_id://<id>, network_folder://<name>) by its share (mel_lib_mount_for_nf); a
+// storage (storage_name://<name>: USB, the disk of the bay) by $storages (mel_lib_storage_path); the internal memory
+// (sdcard://) at /sdcard. The server of a storage, of sdcard://: its source_id (the disk that sleeps, apart from a NAS).
 /**
  * @param MelLibFolder $folder
  * @param array<string, MelLibNf> $nfs
  * @param list<MelLibMount> $mounts
+ * @param array<string, MelLibStorage> $storages
  * @return array{string, string}
  */
-function mel_lib_source_mount($folder, $nfs, $mounts)
+function mel_lib_source_mount($folder, $nfs, $mounts, $storages = array())
 {
+    $sid = $folder['source_id'];
+    if ($sid === 'sdcard://')
+        return array(MEL_LIB_SDCARD, $sid);
+    $name = mel_lib_storage_name($folder);
+    if ($name !== null)
+    {
+        $how = '';
+        $p = mel_lib_storage_path($name, $storages, $how);
+        return $p === '' ? array('', '') : array($p, $sid);
+    }
     $nf = mel_lib_source_nf($folder, $nfs);
     return $nf ? mel_lib_mount_for_nf($nf, $mounts) : array('', '');
+}
+
+// A source Melange can play the files of, by the config only (MelLib::$play): a network folder of the settings, a
+// storage of a name, the internal memory. Its share or storage connected or not.
+/**
+ * @param MelLibFolder $folder
+ * @param array<string, MelLibNf> $nfs
+ * @return bool
+ */
+function mel_lib_source_known($folder, $nfs)
+{
+    $name = mel_lib_storage_name($folder);
+    return $folder['source_id'] === 'sdcard://' || ($name !== null && $name !== '') ||
+        mel_lib_source_nf($folder, $nfs) !== null;
+}
+
+// The line of the log of the folders of the library of a source not a network folder, '' for none: the storages of
+// storage_list.xml (mel_lib_storages: their count, kinds, or why none), each such folder by its id with the scheme of
+// its source and how its path was found - list, symlink, none (mel_lib_storage_path), fixed (sdcard://). No name,
+// label or uuid of a storage, no path.
+/**
+ * @param array<int|string, MelLibFolder> $folders
+ * @return string
+ */
+function mel_lib_local_line($folders)
+{
+    $parts = array();
+    $storages = null;
+    $list = '';
+    foreach ($folders as $id => $f)
+    {
+        $sid = $f['source_id'];
+        if (strpos($sid, 'network_folder_id://') === 0 || strpos($sid, 'network_folder://') === 0)
+            continue;
+        $name = mel_lib_storage_name($f);
+        if ($name !== null && $storages === null)
+        {
+            $err = '';
+            $d = '';
+            $storages = mel_lib_storages($err, $d);
+            $list = $err === '' ? " $d" : ": $err" . ($d !== '' ? ", $d" : '');
+        }
+        $how = 'none';
+        if ($sid === 'sdcard://')
+            $how = 'fixed';
+        else if ($name !== null)
+            mel_lib_storage_path($name, $storages, $how);
+        $scheme = preg_match('@^([a-z_]{1,24})://@', $sid, $m) ? $m[1] : 'other';
+        $parts[] = "folder $id $scheme $how";
+    }
+    if (!$parts)
+        return '';
+    return 'library: local folders: ' . implode(', ', $parts) . ($storages === null ? '' : "; storages$list");
 }
 
 // The network folder of the source of a folder of the library (network_folder_id://<id>, network_folder://<name>),
@@ -788,14 +1001,15 @@ function mel_lib_eps_fix($files)
     return $res;
 }
 
-// The signature of the configs: '' when there is no movie_index_config.xml.
+// The signature of the configs: '' when there is no movie_index_config.xml. With the list of the storages (tmpfs): a
+// storage put in or out, the line of the local folders again (mel_lib_local_line).
 /**
  * @return string
  */
 function mel_lib_sig_cfg()
 {
     $c = mel_lib_stat(MEL_LIB_CONFIG);
-    return $c === '' ? '' : $c . '|' . mel_lib_stat(MEL_LIB_NF);
+    return $c === '' ? '' : $c . '|' . mel_lib_stat(MEL_LIB_NF) . '|' . mel_lib_stat(MEL_LIB_STORAGES);
 }
 
 // The signature of the indexes of the folders $ids (of their folder_movies for $kind 'movies').
@@ -861,6 +1075,9 @@ function mel_lib_index()
     $nfs = mel_lib_network_folders($err);
     if ($err !== '')
         mel_log("library: network folders: $err");
+    $local = mel_lib_local_line($folders);
+    if ($local !== '')
+        mel_log($local);
     $ids = array_keys($folders);
     if ($ids !== array_keys(MelLib::$folders))
         $sig = $cfg . mel_lib_sig_files($ids);
@@ -940,8 +1157,8 @@ function mel_lib_index()
         round((microtime(true) - $t) * 1000) . ' ms');
 }
 
-// The titles of $by_mid and $eps with a file in a folder of a network source (MelLib::$play) -> movie_id => movie,
-// series, '' (both). By the config only: no share looked at.
+// The titles of $by_mid and $eps with a file in a folder of a source Melange can play (mel_lib_source_known;
+// MelLib::$play) -> movie_id => movie, series, '' (both). By the config only: no share or storage looked at.
 /**
  * @param array<int|string, MelLibFolder> $folders
  * @param array<string, MelLibNf> $nfs
@@ -954,7 +1171,7 @@ function mel_lib_play_map($folders, $nfs, $by_mid, $eps)
     $net = array();
     foreach ($folders as $id => $f)
     {
-        if (mel_lib_source_nf($f, $nfs))
+        if (mel_lib_source_known($f, $nfs))
             $net[strval($id)] = true;
     }
     $out = array();
@@ -1251,7 +1468,8 @@ function mel_lib_copies($mid)
 
 // The copies of the files $files of the index: the ones whose source is mounted now (with the caption of their folder,
 // for mel_lib_tails), each path to play once (one share in two network folders, by the name and by the IP of its
-// server: the first), the best first, as the shell chooses (mel_lib_cmp_copies). Reads the mount list.
+// server: the first), the best first, as the shell chooses (mel_lib_cmp_copies). Reads the mount list, and the list of
+// the storages for a file of a folder of one.
 /**
  * @param list<MelLibFile> $files
  * @return list<MelLibCopy>
@@ -1265,14 +1483,22 @@ function mel_lib_files_copies($files)
     $res = array();
     $mnt = array();
     $urls = array();
+    $storages = null;
     foreach ($files as $f)
     {
         $id = $f['folder'];
         if (!isset(MelLib::$folders[$id]))
             continue;
         $folder = MelLib::$folders[$id];
+        if ($storages === null && mel_lib_storage_name($folder) !== null)
+        {
+            $d = '';
+            $storages = mel_lib_storages($err, $d);
+            if ($err !== '')
+                mel_log("library: storages: $err");
+        }
         if (!isset($mnt[$id]))
-            $mnt[$id] = mel_lib_source_mount($folder, MelLib::$nfs, $mounts);
+            $mnt[$id] = mel_lib_source_mount($folder, MelLib::$nfs, $mounts, $storages === null ? array() : $storages);
         if ($mnt[$id][0] === '')
             continue;
         $url = $mnt[$id][0] . mel_lib_rel_path($folder['path'], $f['path']);
@@ -1405,12 +1631,12 @@ function mel_lib_pack_near($a, $b)
 }
 
 // The uid of the file of the copy $copy in the history of the shell (its own record of the file, its mark "watched"),
-// '' for a source not a network folder: as the shell makes it (DataModel::make_network_folder_uid_prefix and
-// get_folder_uid_prefix, data_model.php r25; GuiCommon::get_qualified_uid_by_file, gui_common.php) -
-// smb://<server>/<dir> of the network folder (the server and the share in lower case, mel_lib_network_folders),
-// nfs://<server><dir> with no ":/", the slashes squeezed, none at the end; then "/", the path of the folder of the
-// library with no slashes around and "/" (none of the root), the path of the file. Its server, share and path: never
-// in the log.
+// '' for another source: as the shell makes it (DataModel::make_network_folder_uid_prefix and get_folder_uid_prefix,
+// data_model.php r25; GuiCommon::get_qualified_uid_by_file, gui_common.php) - smb://<server>/<dir> of the network
+// folder (the server and the share in lower case, mel_lib_network_folders), nfs://<server><dir> with no ":/", the
+// slashes squeezed, none at the end; storage_name://<the name of the storage in lower case>; sdcard:// (then "/": three
+// slashes); then "/", the path of the folder of the library with no slashes around and "/" (none of the root), the path
+// of the file. Its server, share, storage and path: never in the log.
 /**
  * @param array{folder: string, path: string} $copy
  * @return string
@@ -1420,12 +1646,20 @@ function mel_lib_native_uid($copy)
     if (!isset(MelLib::$folders[$copy['folder']]))
         return '';
     $folder = MelLib::$folders[$copy['folder']];
-    $nf = mel_lib_source_nf($folder, MelLib::$nfs);
-    if (!$nf)
-        return '';
-    $p = $nf['type'] === 'smb' ? "smb://{$nf['server']}/{$nf['dir']}" : strval(preg_replace(
-        array('@^nfs://([^/]*):/@', '@^nfs://([^/]*)/:/@'), 'nfs://$1/', "nfs://{$nf['server']}{$nf['dir']}"));
-    $p = substr($p, 0, 6) . rtrim(strval(preg_replace('@/+@', '/', substr($p, 6))), '/');
+    $name = strval(substr($folder['source_id'], 15));
+    if ($folder['source_id'] === 'sdcard://')
+        $p = 'sdcard://';
+    else if (strpos($folder['source_id'], 'storage_name://') === 0 && $name !== '')
+        $p = 'storage_name://' . mb_strtolower($name, 'UTF-8');
+    else
+    {
+        $nf = mel_lib_source_nf($folder, MelLib::$nfs);
+        if (!$nf)
+            return '';
+        $p = $nf['type'] === 'smb' ? "smb://{$nf['server']}/{$nf['dir']}" : strval(preg_replace(
+            array('@^nfs://([^/]*):/@', '@^nfs://([^/]*)/:/@'), 'nfs://$1/', "nfs://{$nf['server']}{$nf['dir']}"));
+        $p = substr($p, 0, 6) . rtrim(strval(preg_replace('@/+@', '/', substr($p, 6))), '/');
+    }
     $path = trim($folder['path'], '/');
     return "$p/" . ($path === '' ? '' : "$path/") . $copy['path'];
 }
