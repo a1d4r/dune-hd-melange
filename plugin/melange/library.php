@@ -12,7 +12,7 @@
 // path, server, share, folder caption or file name: folders by id, files by
 // their key lib-... (mel_lib_key).
 // Needs main.php (mel_log, mel_num, mel_str), links.php (mel_pg_links, mel_pg_rev, mel_pg_shell_pair, mel_pg_link_put,
-// mel_pg_links_save), torrserver.php (mel_ts_dirname, mel_ts_ep, mel_ts_ep_lead), segments.php (mel_mkv_duration). The
+// mel_pg_links_save, mel_pg_tile_cards), torrserver.php (mel_ts_dirname, mel_ts_ep, mel_ts_ep_lead), segments.php (mel_mkv_duration). The
 // window of the copies: view_card_libwin.php (their paths mel_lib_tails); their start: mel_lib_start (playback_lib.php).
 
 // The files of the shell. PHP on the Dune adds FS_PREFIX to /config,
@@ -33,6 +33,8 @@ if (!defined('MEL_LIB_BUDGET_BYTES'))
     define('MEL_LIB_BUDGET_BYTES', 8388608);
 // Cards of the shell read for a title not found by its ids (mel_lib_by_movies).
 define('MEL_LIB_CANDIDATES', 3);
+// The index looked at once in this many s for the badges "on the disk" of the tiles (mel_lib_tile_has): once a screen.
+define('MEL_LIB_TILE_S', 1.0);
 // Seconds mel_lib_here waits for its check of a file: a NAS asleep spins its disks up (8 s were short on the Dune, a disk
 // of a NAS asleep 15 min: the check woke it, the next one answered in 65 ms; owner 21.11.2026: 25 s); a share still
 // "mounted" of a NAS off answers only by the timeout of cifs (the check is in the background: php_server does not hang).
@@ -97,6 +99,9 @@ class MelLib
     // when the index or folder_movies is read again.
     /** @var array<string, string> */
     public static $found = array();
+    // When mel_lib_tile_has looked at the index last (microtime), 0: never.
+    /** @var float */
+    public static $tile_t = 0.0;
 }
 
 // --- Reads.
@@ -1580,6 +1585,37 @@ function mel_lib_has($mid, $type)
 {
     $map = mel_lib_map($type);
     return !empty($map[$mid]);
+}
+
+// The title of tile $t (of a row, of the own card) has files in the index (mel_lib_has): its movie_id $mid of the history,
+// else a card of its pairs (mel_pg_tile_cards); of a tile of no type files of either type. No file of the shell read, no
+// line of the log; the index looked at once in MEL_LIB_TILE_S. No library: nothing more.
+/**
+ * @param MelCatTile $t
+ * @param string $mid
+ * @return bool
+ */
+function mel_lib_tile_has($t, $mid = '')
+{
+    $now = microtime(true);
+    if (!(MelLib::$tile_t > 0 && $now - MelLib::$tile_t >= 0 && $now - MelLib::$tile_t < MEL_LIB_TILE_S))
+    {
+        MelLib::$tile_t = $now;
+        mel_lib_index();
+    }
+    if (!MelLib::$by_mid && !MelLib::$eps)
+        return false;
+    $types = $t['type'] === 'movie' || $t['type'] === 'series' ? array($t['type']) : array('movie', 'series');
+    $mids = $mid !== '' ? array($mid) : array();
+    foreach (array_merge($mids, mel_pg_tile_cards($t)) as $m)
+    {
+        foreach ($types as $type)
+        {
+            if (mel_lib_has($m, $type))
+                return true;
+        }
+    }
+    return false;
 }
 
 // The movie_id of a card of the pairs (links.php, mel_pg_rev) with the IMDb or the TMDB of the title $t (of a series

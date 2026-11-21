@@ -135,6 +135,10 @@ define('MEL_CATV_RATE_PAD', 8);
 define('MEL_CATV_RATE_W', 52);
 define('MEL_CATV_RATE_H', 32);
 define('MEL_CATV_RATE_PX', 25);
+// The badge "on the disk" of a tile (mel_catv_disk_stickers) in the top right corner, the mirror of the plate of the
+// rating: DISK_WH square at RATE_PAD from the top and the right, a white disk on a plate of the same black.
+define('MEL_CATV_DISK', 'plugin_file://img/rate1_disk.png');
+define('MEL_CATV_DISK_WH', 32);
 // The card backgrounds of the server: <base>/<CARD>... (mel_catv_card). Its layout - the logo up to
 // 780x200 at CARD_X, its bottom at PANE_Y + TITLE_BOTTOM (256), the mask cat2_mask.png - is baked
 // into card/v1 of the server (addon/lib/posterCache/card.ts of the fork of AIOMetadata): a change
@@ -769,8 +773,8 @@ function mel_catv_item($id, $caption, $icon)
 }
 
 // The tile of a title in a row: its poster, the IMDb rating in the corner if it has one and
-// cat_rating of the screen is on (mel_catv_rating_on), the badges of the history at the bottom
-// (mel_pg_stickers; made now, never in the cache of the pages).
+// cat_rating of the screen is on (mel_catv_rating_on), the badge "on the disk" (mel_catv_disk_stickers),
+// the badges of the history at the bottom (mel_pg_stickers; made now, never in the cache of the pages).
 /**
  * @param string $rid
  * @param MelCatTile $t
@@ -780,6 +784,7 @@ function mel_catv_title_item($rid, $t)
 {
     $item = mel_catv_item(mel_catv_tile_id("$rid:{$t['id']}"), $t['name'], mel_catv_poster($t));
     $stickers = mel_catv_rating_on() ? mel_catv_rate_stickers($t['imdbRating']) : array();
+    $stickers = array_merge($stickers, mel_catv_disk_stickers($t));
     $b = mel_pg_tile_badge($t);
     if ($b)
         $stickers = array_merge($stickers, mel_pg_stickers($b));
@@ -823,6 +828,21 @@ function mel_catv_rate_stickers($rating)
             PluginRegularSticker::icon_url => MEL_CATV_RATE_PLATE),
         array(PluginRegularSticker::r => array('w' => $p + MEL_CATV_RATE_W - $x, 'h' => MEL_CATV_RATE_H, 'x' => $x, 'y' => $p + 1),
             PluginRegularSticker::text => $s));
+}
+
+// The badge "on the disk" of tile $t (mel_lib_tile_has; $mid: its movie_id of the history, '' none), none for none.
+/**
+ * @param MelCatTile $t
+ * @param string $mid
+ * @return list<array<string, mixed>>
+ */
+function mel_catv_disk_stickers($t, $mid = '')
+{
+    if (!mel_lib_tile_has($t, $mid))
+        return array();
+    $wh = MEL_CATV_DISK_WH;
+    return array(array(PluginRegularSticker::r => array('w' => $wh, 'h' => $wh, 'x' => MEL_PG_W - MEL_CATV_RATE_PAD - $wh,
+        'y' => MEL_CATV_RATE_PAD), PluginRegularSticker::icon_url => MEL_CATV_DISK));
 }
 
 // The title over the row of group "row:$g".

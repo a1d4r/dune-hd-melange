@@ -42,6 +42,9 @@ define('MEL_OC_RATE_W', 66);
 define('MEL_OC_RATE_H', 40);
 define('MEL_OC_RATE_PX', 32);
 define('MEL_OC_RATE_TH', 46);
+// The badge "on the disk" in the top right corner (mel_oc_disk_over), the badge of the catalog (MEL_CATV_DISK_*)
+// scaled the same way: DISK_WH square at RATE_PAD from the top and the right, img/card1_disk_mark.png.
+define('MEL_OC_DISK_WH', 40);
 
 // The initials shared by the cast and the page of a person without a photo.
 /**
@@ -316,8 +319,20 @@ function mel_oc_rate_over($rating)
             MEL_OC_RATE_PX, MEL_GC_TEXT, array(GCompTtfLabelDef::halign => HALIGN_CENTER)));
 }
 
+// The badge "on the disk" of tile $t over its poster (mel_lib_tile_has), as on the posters of the catalog; none for none.
+/**
+ * @param MelCatTile $t
+ * @return list<MelGcComp>
+ */
+function mel_oc_disk_over($t)
+{
+    $wh = MEL_OC_DISK_WH;
+    return mel_lib_tile_has($t) ? array(mel_gc_image(mel_gc_at($wh, $wh, MEL_OC_POSTER_W - MEL_OC_RATE_PAD - $wh,
+        MEL_OC_RATE_PAD), MEL_OC_IMG . 'disk_mark.png')) : array();
+}
+
 // The poster of tile $t at $i of strip $s ("<id><i>") as in the catalog (mel_catv_poster), its IMDb
-// rating (mel_oc_rate_over) and $over over it, its titles under it ("<id>n<i>", mel_oc_poster_titles).
+// rating (mel_oc_rate_over), its badge "on the disk" (mel_oc_disk_over) and $over over it, its titles under it ("<id>n<i>", mel_oc_poster_titles).
 /**
  * @param MelOcStrip $s
  * @param int $i
@@ -330,7 +345,7 @@ function mel_oc_poster_cell($s, $i, $t, $titles, $over = array())
 {
     $d = array_merge(array(mel_gc_rect(mel_gc_at(MEL_OC_POSTER_W, MEL_OC_POSTER_H, 0, 0), MEL_OC_NO_PHOTO),
         mel_gc_image(mel_gc_at(MEL_OC_POSTER_W, MEL_OC_POSTER_H, 0, 0), mel_catv_poster($t), true)),
-        mel_oc_rate_over($t['imdbRating']), $over);
+        mel_oc_rate_over($t['imdbRating']), mel_oc_disk_over($t), $over);
     $d[] = mel_gc_panel("{$s['id']}n$i", mel_gc_at(MEL_OC_POSTER_W, $s['ch'] - MEL_OC_POSTER_H - MEL_OC_POSTER_CAP_DY, 0,
         MEL_OC_POSTER_H + MEL_OC_POSTER_CAP_DY), $titles);
     return mel_gc_panel("{$s['id']}$i", mel_gc_at(MEL_OC_POSTER_W, $s['ch'], mel_oc_strip_x($s, $i), 0), $d);
