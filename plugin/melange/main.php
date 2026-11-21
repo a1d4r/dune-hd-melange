@@ -2151,7 +2151,8 @@ function mel_tr($lang, $key, $ep = '')
 
 // The text of the field "Сверка" of a row of the tier: its reason $why (mel_tier_why) for a
 // series ($series) or a film, in the language $lang. The years when the server gave both
-// (the years of a series as "2022–2024"); a code Melange does not know: the general text.
+// (the years of a series as "2022–2024"); "date" and "dub" by the series too; a code Melange does not
+// know: the general text.
 /**
  * @param MelTierWhy $why
  * @param bool $series
@@ -2165,7 +2166,9 @@ function mel_tier_text($why, $series, $lang)
         return str_replace(array('{r}', '{t}'), array(strval($why['ry']), $why['ty'] .
             ($why['te'] !== null && $why['te'] > $why['ty'] ? '–' . $why['te'] : '')),
             mel_tr($lang, $series ? 'tier_why_year_series' : 'tier_why_year_film'));
-    return mel_tr($lang, in_array($c, array('year', 'title', 'date', 'dub'), true) ? "tier_why_$c" : 'tier_why_other');
+    if ($c === 'date' || $c === 'dub')
+        return mel_tr($lang, "tier_why_$c" . ($series ? '_series' : ''));
+    return mel_tr($lang, in_array($c, array('year', 'title'), true) ? "tier_why_$c" : 'tier_why_other');
 }
 
 // handle_user_input of our plugin, the shell waiting $timeout ms for it (60 s;
