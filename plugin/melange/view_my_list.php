@@ -283,6 +283,7 @@ function mel_mlv_list_cells($types, $max, &$miss = null)
     $out = array();
     $miss = array();
     $map = null;
+    mel_lib_tile_start();
     foreach (mel_ml_list() as $e)
     {
         if (!in_array($e['type'], $types, true))

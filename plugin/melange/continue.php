@@ -286,19 +286,22 @@ function mel_cp_badge($mid, $type)
 // The cells of the row of the types $types, $max at most (mel_cp_items), by "continue:<movie_id>": the item (the title
 // and the poster of the record, the plate of the rating of the meta kept or of a tile of a row in memory, the badges)
 // and its tile; $miss: those of a pair with neither, in their order (array(type, IMDb, TMDB): the lazy meta,
-// MelCpm::$miss and MelCpm::$more).
+// MelCpm::$miss and MelCpm::$more); $disk false: no badge "on the disk" (only $miss wanted).
 /**
  * @param list<string> $types
  * @param int $max
  * @param list<array{string, string, string}>|null $miss
  * @param-out list<array{string, string, string}> $miss
+ * @param bool $disk
  * @return array<string, array{item: array<string, mixed>, tile: MelCatTile}>
  */
-function mel_cp_tile_items($types, $max, &$miss = null)
+function mel_cp_tile_items($types, $max, &$miss = null, $disk = true)
 {
     $out = array();
     $map = null;
     $miss = array();
+    if ($disk)
+        mel_lib_tile_start();
     foreach (mel_cp_items($types, $max) as $mid => $it)
     {
         if ($map === null)
@@ -312,7 +315,8 @@ function mel_cp_tile_items($types, $max, &$miss = null)
         $item = mel_catv_item(mel_catv_tile_id($id), isset($it['w']->title) ? mel_clean($it['w']->title) : $t['name'],
             mel_img(isset($it['w']->icon) && is_string($it['w']->icon) ? $it['w']->icon : ''));
         $stickers = mel_catv_rating_on() ? mel_catv_rate_stickers($t['imdbRating']) : array();
-        $stickers = array_merge($stickers, mel_catv_disk_stickers($t, strval($mid)));
+        if ($disk)
+            $stickers = array_merge($stickers, mel_catv_disk_stickers($t, strval($mid)));
         if ($it['b'])
             $stickers = array_merge($stickers, mel_pg_stickers($it['b']));
         if ($stickers)
@@ -330,7 +334,7 @@ function mel_cp_tile_items($types, $max, &$miss = null)
  */
 function mel_cp_row_miss($tab)
 {
-    mel_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), MEL_CATV_ROW_TILES, $miss);
+    mel_cp_tile_items($tab === '' ? array('movie', 'series') : array($tab), MEL_CATV_ROW_TILES, $miss, false);
     return $miss;
 }
 

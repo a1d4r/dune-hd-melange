@@ -33,7 +33,7 @@ if (!defined('MEL_LIB_BUDGET_BYTES'))
     define('MEL_LIB_BUDGET_BYTES', 8388608);
 // Cards of the shell read for a title not found by its ids (mel_lib_by_movies).
 define('MEL_LIB_CANDIDATES', 3);
-// The index looked at once in this many s for the badges "on the disk" of the tiles (mel_lib_tile_has): once a screen.
+// The index looked at once in this many s for the badges "on the disk" of the tiles (mel_lib_tile_start): once a screen.
 define('MEL_LIB_TILE_S', 1.0);
 // Seconds mel_lib_here waits for its check of a file: a NAS asleep spins its disks up (8 s were short on the Dune, a disk
 // of a NAS asleep 15 min: the check woke it, the next one answered in 65 ms; owner 21.11.2026: 25 s); a share still
@@ -99,7 +99,12 @@ class MelLib
     // when the index or folder_movies is read again.
     /** @var array<string, string> */
     public static $found = array();
-    // When mel_lib_tile_has looked at the index last (microtime), 0: never.
+    // The titles with a file in a folder of a network source (mel_lib_source_nf, by the config; mounted or not), the
+    // ones Melange can play (mel_lib_source_mount): of the badge "on the disk" (mel_lib_tile_has) and of the queue of
+    // the pairs (mel_pg_lib_queue). movie_id => its type: movie (movie files), series (episodes), '' (both).
+    /** @var array<string, string> */
+    public static $play = array();
+    // When mel_lib_tile_start looked at the index last (microtime), 0: never.
     /** @var float */
     public static $tile_t = 0.0;
 }
@@ -840,6 +845,7 @@ function mel_lib_index()
             MelLib::$by_mid = array();
             MelLib::$eps = array();
             MelLib::$eps_drop = array();
+            MelLib::$play = array();
             MelLib::$found = array();
         }
         return;
@@ -928,9 +934,48 @@ function mel_lib_index()
     MelLib::$by_mid = $by_mid;
     MelLib::$eps = $eps;
     MelLib::$eps_drop = $drop;
+    MelLib::$play = mel_lib_play_map($folders, $nfs, $by_mid, $eps);
     MelLib::$found = array();
     mel_log('library: index read, ' . count($folders) . " folders, $n files, $ne episode files, " .
         round((microtime(true) - $t) * 1000) . ' ms');
+}
+
+// The titles of $by_mid and $eps with a file in a folder of a network source (MelLib::$play) -> movie_id => movie,
+// series, '' (both). By the config only: no share looked at.
+/**
+ * @param array<int|string, MelLibFolder> $folders
+ * @param array<string, MelLibNf> $nfs
+ * @param array<string, list<MelLibFile>> $by_mid
+ * @param array<string, list<MelLibEpRec>> $eps
+ * @return array<string, string>
+ */
+function mel_lib_play_map($folders, $nfs, $by_mid, $eps)
+{
+    $net = array();
+    foreach ($folders as $id => $f)
+    {
+        if (mel_lib_source_nf($f, $nfs))
+            $net[strval($id)] = true;
+    }
+    $out = array();
+    if (!$net)
+        return $out;
+    foreach (array('movie' => $by_mid, 'series' => $eps) as $type => $map)
+    {
+        foreach ($map as $mid => $files)
+        {
+            foreach ($files as $f)
+            {
+                if (isset($net[$f['folder']]))
+                {
+                    $mid = strval($mid);
+                    $out[$mid] = isset($out[$mid]) ? '' : $type;
+                    break;
+                }
+            }
+        }
+    }
+    return $out;
 }
 
 // --- Copies.
@@ -1587,9 +1632,25 @@ function mel_lib_has($mid, $type)
     return !empty($map[$mid]);
 }
 
-// The title of tile $t (of a row, of the own card) has files in the index (mel_lib_has): its movie_id $mid of the history,
-// else a card of its pairs (mel_pg_tile_cards); of a tile of no type files of either type. No file of the shell read, no
-// line of the log; the index looked at once in MEL_LIB_TILE_S. No library: nothing more.
+// The index (mel_lib_index) and the pairs (mel_pg_links) ready for the badges of the tiles (mel_lib_tile_has): once a
+// build of a screen or a row, the index looked at once in MEL_LIB_TILE_S.
+/**
+ * @return void
+ */
+function mel_lib_tile_start()
+{
+    $now = microtime(true);
+    if (MelLib::$tile_t > 0 && $now - MelLib::$tile_t >= 0 && $now - MelLib::$tile_t < MEL_LIB_TILE_S)
+        return;
+    MelLib::$tile_t = $now;
+    mel_lib_index();
+    mel_pg_links();
+}
+
+// The title of tile $t (of a row, of the own card) can be played from the disk (MelLib::$play): its movie_id $mid of
+// the history, else a card of its pairs (mel_pg_tile_keys); a movie by its movie files, a series by its episodes, a
+// tile of no type by either. Only a look in memory (mel_lib_tile_start once before, else here): no file of the shell
+// read, no line of the log of its own. No library: nothing more.
 /**
  * @param MelCatTile $t
  * @param string $mid
@@ -1597,21 +1658,22 @@ function mel_lib_has($mid, $type)
  */
 function mel_lib_tile_has($t, $mid = '')
 {
-    $now = microtime(true);
-    if (!(MelLib::$tile_t > 0 && $now - MelLib::$tile_t >= 0 && $now - MelLib::$tile_t < MEL_LIB_TILE_S))
-    {
-        MelLib::$tile_t = $now;
-        mel_lib_index();
-    }
-    if (!MelLib::$by_mid && !MelLib::$eps)
+    if (!(MelLib::$tile_t > 0))
+        mel_lib_tile_start();
+    if (!MelLib::$play)
         return false;
-    $types = $t['type'] === 'movie' || $t['type'] === 'series' ? array($t['type']) : array('movie', 'series');
-    $mids = $mid !== '' ? array($mid) : array();
-    foreach (array_merge($mids, mel_pg_tile_cards($t)) as $m)
+    $any = $t['type'] !== 'movie' && $t['type'] !== 'series';
+    $lists = $mid !== '' ? array(array($mid)) : array();
+    foreach (mel_pg_tile_keys($t) as $k)
     {
-        foreach ($types as $type)
+        if (isset(MelPgLinks::$rev[$k]))
+            $lists[] = MelPgLinks::$rev[$k];
+    }
+    foreach ($lists as $list)
+    {
+        foreach ($list as $m)
         {
-            if (mel_lib_has($m, $type))
+            if (isset(MelLib::$play[$m]) && ($any || MelLib::$play[$m] === '' || MelLib::$play[$m] === $t['type']))
                 return true;
         }
     }

@@ -430,6 +430,7 @@ function mel_pp_page($e, $p, $l, $pos)
     $cells = array();
     if ($p)
     {
+        mel_lib_tile_start();
         foreach ($p['works'] as $i => $wk)
             $cells[] = mel_oc_poster_cell($s, $i, $wk['tile'], mel_pp_work_titles($wk, $kf, $i === $pos['k'], $ui));
     }

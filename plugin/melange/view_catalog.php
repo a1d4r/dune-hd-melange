@@ -894,6 +894,7 @@ function mel_catv_row_defs($list, $lang, $items = null, $options = 0, $rid = '')
     if ($items === null)
     {
         $items = array();
+        mel_lib_tile_start();
         foreach (array_slice($list['tiles'], 0, MEL_CATV_ROW_TILES) as $t)
             $items[] = mel_catv_title_item($rid, $t);
         // A search row: "Show all" past a row of its screen, so a long one is not scrolled through.
@@ -2192,6 +2193,7 @@ function mel_catv_all_def($id, $items, $options = 0)
 function mel_catv_all_row($rid, $k, $list)
 {
     $items = array();
+    mel_lib_tile_start();
     foreach (array_slice($list['tiles'], MEL_CATV_ALL_COLS * $k, MEL_CATV_ALL_COLS) as $t)
         $items[] = mel_catv_title_item($rid, $t);
     return mel_catv_all_def("row$k", $items);

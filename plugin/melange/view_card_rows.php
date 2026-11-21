@@ -366,6 +366,7 @@ function mel_oc_rows($c, $l, $pos)
 {
     $d = array();
     $posters = mel_oc_poster_rows($c);
+    mel_lib_tile_start();
     foreach ($l['strips'] as $id => $s)
     {
         $items = mel_oc_row_items($c, $id);

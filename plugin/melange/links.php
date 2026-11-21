@@ -736,6 +736,20 @@ function mel_pg_link_tile($id, $t)
         mel_log('progress: a pair of ENTER');
 }
 
+// The keys of the pairs (MelPgLinks::$rev) of tile $t: of its IMDb, then of its TMDB of its type (none of a tile of no
+// type, as mel_pg_tile_cards).
+/**
+ * @param MelCatTile $t
+ * @return list<string>
+ */
+function mel_pg_tile_keys($t)
+{
+    $keys = array('imdb:' . $t['imdb_id']);
+    if ($t['_tmdbId'] !== '' && ($t['type'] === 'movie' || $t['type'] === 'series'))
+        $keys[] = ($t['type'] === 'series' ? 'tmdbtv:' : 'tmdb:') . $t['_tmdbId'];
+    return $keys;
+}
+
 // The movie_ids of the card of tile $t by the pairs: of its IMDb, then of its TMDB of its type. A tile of no
 // type (a row of anime) has no TMDB key: the numbers of movies and series of TMDB are not the same ids.
 /**
@@ -745,11 +759,8 @@ function mel_pg_link_tile($id, $t)
 function mel_pg_tile_cards($t)
 {
     mel_pg_links();
-    $keys = array('imdb:' . $t['imdb_id']);
-    if ($t['_tmdbId'] !== '' && ($t['type'] === 'movie' || $t['type'] === 'series'))
-        $keys[] = ($t['type'] === 'series' ? 'tmdbtv:' : 'tmdb:') . $t['_tmdbId'];
     $out = array();
-    foreach ($keys as $k)
+    foreach (mel_pg_tile_keys($t) as $k)
     {
         foreach (isset(MelPgLinks::$rev[$k]) ? MelPgLinks::$rev[$k] : array() as $mid)
             $out[] = $mid;
@@ -1045,9 +1056,10 @@ function mel_pg_shell_step()
         mel_log(sprintf('progress: shell cards: %d looked at, %d pairs, %.0f ms', $read, $found, (microtime(true) - $t) * 1000));
 }
 
-// The titles of the library (MelLib: movie files, episodes; its index read again only when it changed) with no pair or
-// a failed one, whose card of the shell gave none not within MEL_PG_FAIL_S nor since the index changed. -> movie_id =>
-// its type by the index: movie (movie files), series (episodes), '' (both: the card tells, mel_pg_lib_step).
+// The titles of the library Melange can play (MelLib::$play: of a network source; its index read again only when it
+// changed) with no pair or a failed one, whose card of the shell gave none not within MEL_PG_FAIL_S nor since the index
+// changed: no card read for a title of no badge. -> movie_id => its type by the index: movie (movie files), series
+// (episodes), '' (both: the card tells, mel_pg_lib_step).
 /**
  * @return array<string, string>
  */
@@ -1062,17 +1074,14 @@ function mel_pg_lib_queue()
     $links = mel_pg_links();
     $now = time();
     $out = array();
-    foreach (array('movie' => MelLib::$by_mid, 'series' => MelLib::$eps) as $type => $map)
+    foreach (MelLib::$play as $mid => $type)
     {
-        foreach (array_keys($map) as $mid)
-        {
-            $mid = strval($mid);
-            $t = isset(MelPgLinks::$lib_seen[$mid]) ? MelPgLinks::$lib_seen[$mid] : null;
-            if ((isset($links[$mid]) && !isset($links[$mid]['fail'])) ||
-                ($t !== null && $now - $t >= 0 && $now - $t < MEL_PG_FAIL_S))
-                continue;
-            $out[$mid] = isset($out[$mid]) ? '' : $type;
-        }
+        $mid = strval($mid);
+        $t = isset(MelPgLinks::$lib_seen[$mid]) ? MelPgLinks::$lib_seen[$mid] : null;
+        if ((isset($links[$mid]) && !isset($links[$mid]['fail'])) ||
+            ($t !== null && $now - $t >= 0 && $now - $t < MEL_PG_FAIL_S))
+            continue;
+        $out[$mid] = $type;
     }
     return $out;
 }
