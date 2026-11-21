@@ -510,7 +510,7 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
         return mel_lib_play($mv, $go, $c['ui']);
     }
     return isset($go['pick']) ? mel_lib_win_open($key, $go['pick'], 'first') :
-        mel_lib_gone($go['gone'], $c['ui'], -1, -1, mel_oc_lib_retry($key, $k));
+        mel_lib_gone($go['gone'], $c['ui'], -1, -1, mel_oc_lib_retry_act($key, $k));
 }
 
 // The start again of "Повторить" of mel_lib_gone (the disk did not answer) of card $key: of the copy of id $k chosen in
@@ -523,7 +523,7 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
  * @param int $e
  * @return MelAction
  */
-function mel_oc_lib_retry($key, $k, $s = -1, $e = -1)
+function mel_oc_lib_retry_act($key, $k, $s = -1, $e = -1)
 {
     if ($k === '')
         return mel_input('card_enter', array('c' => $key));
@@ -543,7 +543,7 @@ function mel_oc_lib_retry($key, $k, $s = -1, $e = -1)
 // season (mel_lib_play), played (card_finish after the player); several left or none to take - the window of the copies
 // of the episode over the screen (mel_lib_win_open, mode first; its "· сейчас" mel_lib_win_cur; none - the screen has no
 // slot of the overlay: nothing, logged there); none there - mel_lib_gone of the episode (the disk did not answer - with
-// "Повторить", mel_oc_lib_retry). No episode on the disk now: as
+// "Повторить", mel_oc_lib_retry_act). No episode on the disk now: as
 // none there. No movie of the card: null.
 /**
  * @param string $key
@@ -579,12 +579,12 @@ function mel_oc_lib_start_ep($key, $c, $l, $s, $e, $k = '')
     }
     if (isset($go['pick']))
         return mel_lib_win_open($key, $go['pick'], 'first', $s, $e);
-    return mel_lib_gone($go['gone'], $c['ui'], $s, $e, mel_oc_lib_retry($key, $k, $s, $e));
+    return mel_lib_gone($go['gone'], $c['ui'], $s, $e, mel_oc_lib_retry_act($key, $k, $s, $e));
 }
 
 // card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the id of the copy of the window of the copies; from:
-// first - of "Смотреть", menu - of MENU) of card $c ($key) of layout $l: of its movie, of episode s, e of its series (C4,
-// spec §7.5; both given, numbers). Only of a title (an episode) with copies on the screen shown (mel_oc_lib_shown: its
+// first - of "Смотреть", menu - of MENU, retry - of "Повторить", mel_oc_lib_retry_act) of card $c ($key) of layout
+// $l: of its movie, of episode s, e of its series (C4, spec §7.5; both given, numbers). Only of a title (an episode) with copies on the screen shown (mel_oc_lib_shown: its
 // slot of the overlay; not by the copies now). MENU: the copies read anew (of an episode mel_oc_lib_eps), the window W2
 // of them over the screen, mode menu (mel_lib_win_open: "· сейчас" and the cursor by mel_lib_win_cur; none - on the
 // first); none now - lib_gone, of an episode its message (mel_lib_gone). A copy (k, of the window): mel_oc_lib_start,

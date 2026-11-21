@@ -1984,9 +1984,12 @@ function mel_play_action($in, $hist = null, $src = '')
     if ($resume && $resume['mode'] === 'local')
     {
         $m = (array) json_decode(strval($in->movie_str), true);
+        // "Повторить" of the disk that did not answer (mel_lib_gone): this play_action again, of its fields read here.
+        $retry = mel_input('play', array_filter(array_intersect_key(get_object_vars($in),
+            array_flip(array('movie_str', 'series_type', 'lang', 'supplier_info'))), 'is_string'));
         if (!$mv['series'])
-            return mel_lib_resume($mv, $m, $resume['hash'], $resume['pos'], $lang);
-        $a = mel_lib_resume_ep($mv, $m, $resume, $lang, $lib_se);
+            return mel_lib_resume($mv, $m, $resume['hash'], $resume['pos'], $lang, $retry);
+        $a = mel_lib_resume_ep($mv, $m, $resume, $lang, $lib_se, $retry);
         if ($a)
             return $a;
         // None of it on the disk: the list of the releases of that episode ($lib_se), no cursor; a record of no
