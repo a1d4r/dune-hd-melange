@@ -2,7 +2,7 @@
 
 **English version**
 
-## 0.67.0
+## 0.67.0 — 22.11.2026
 - **Releases with a different year or title.** Movies such as "Kill Bill: The Whole Bloody Affair" are no longer empty. Releases whose year or title on the tracker differs from the movie card are gathered in the "Unconfirmed" group at the top of the list (on the Melange server), and the "Check" line in the release card says why.
 - **Movies and series from your disk.** If a movie or an episode is in the Dune media library (network folders on a NAS or a computer), the Melange card plays it straight from the disk. A movie shows a "From disk" line with the quality and file size, episodes have a disk icon on the frame, and a season says "N on disk". The next episodes play from the disk one after another, also from the next season's folder. If the next episode is not on the disk, Melange offers "Choose a release" or "Stop". Melange waits up to 25 seconds for a sleeping NAS, and if it still does not answer, there is "Retry". With several copies, Melange asks "Which copy to watch?", and you can switch copies with MENU → "Copy on disk…"; releases from the internet are in MENU → "Watch from…". More in [Movies and series from your disk](docs/library.en.md).
 - **Progress in the movie card.** A started movie shows a bar and "0:58 left" in its Melange card, as in the panel above the catalog rows, and a watched one shows a full bar and a check mark. The card used to say "Watched 40% · 0:58 left".
@@ -314,7 +314,7 @@ First public release. What it does:
 
 **Russian version**
 
-## 0.67.0
+## 0.67.0 — 22.11.2026
 - **Раздачи с другим годом или названием.** Фильмы вроде «Убить Билла: Кровавое дело целиком» больше не пустые. Раздачи, у которых на трекере другой год или название, чем в карточке фильма, собраны в группу «Не подтверждены» первой строкой списка (на сервере Melange). Причину показывает строка «Сверка» в карточке раздачи.
 - **Фильмы и сериалы с диска.** Если фильм или серия есть в медиатеке Дюны (сетевые папки на NAS или компьютере), карточка Melange включает их прямо с диска. У фильма строка «С диска» с качеством и размером файла, у серий значок диска на кадре, у сезона надпись «N на диске». Следующие серии идут с диска подряд, в том числе из папки следующего сезона. Если следующей серии на диске нет, Melange предложит «Выбрать раздачу» или «Стоп». Спящий NAS Melange ждёт до 25 секунд, а если он так и не ответил, есть кнопка «Повторить». Если копий несколько, Melange спросит «Какую копию смотреть?», сменить копию можно через MENU → «Копия на диске…», а раздачи из интернета открываются через MENU → «Смотреть из…». Подробнее в главе [Фильмы и сериалы с диска](docs/library.md).
 - **Прогресс в карточке фильма.** У начатого фильма в карточке Melange полоса и «Осталось 0:58», как в панели над рядами каталога, у просмотренного — полная полоса и галочка. Раньше там была надпись «Просмотрено 40 % · осталось 0:58».
