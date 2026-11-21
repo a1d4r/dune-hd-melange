@@ -692,23 +692,24 @@ function mel_wh_rec($w)
 // The episode after the marks of the own card in state $st of a series (mel_wh_series) made after
 // its latest episode record ends (none: any): the first one not watched (by the progress of $st)
 // after the last of them by $eps (season => its episodes, ascending). A mark of an episode before
-// the one of the record by $eps does not count: a mark of the credits made later (mel_cw_take)
-// must not take it back past the episodes played after it (the episode of the record not in $eps:
-// all count). -> array(s, e, a later one: false - all watched after it, S1E1, why); null: no such
-// mark, the record decides.
+// the one of the record ($at "s:e" if given: the record the caller falls back to) by $eps does not
+// count: a mark of the credits made later (mel_cw_take) must not take it back past the episodes
+// played after it (that episode not in $eps: all count). -> array(s, e, a later one: false - all
+// watched after it, S1E1, why); null: no such mark, the record decides.
 /**
  * @param MelWhSeries $st
  * @param array<int, list<int>> $eps
+ * @param string $at
  * @return array{int, int, bool, string}|null
  */
-function mel_wh_mark_next($st, $eps)
+function mel_wh_mark_next($st, $eps, $at = '')
 {
     list($w, $prog, $marks) = $st;
     if (!$marks)
         return null;
     $end = $w ? mel_wh_end($w) : 0;
-    $rk = '';
-    if ($w)
+    $rk = $at;
+    if ($rk === '' && $w)
     {
         list($rs, $re) = mel_wh_rec($w);
         $rk = "$rs:$re";
@@ -1027,7 +1028,7 @@ function mel_wh_resume_ep($mv, $r)
     $e = $r['e'];
     $d = $mv['dune_id'];
     $eps = mel_wh_lists($mv['seasons']);
-    $mk = mel_wh_mark_next(mel_wh_native($d, $eps, false), $eps);
+    $mk = mel_wh_mark_next(mel_wh_native($d, $eps, false), $eps, "$s:$e");
     if ($mk)
     {
         $same = $mk[0] === $s && $mk[1] === $e;
