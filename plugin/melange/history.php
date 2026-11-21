@@ -691,8 +691,11 @@ function mel_wh_rec($w)
 
 // The episode after the marks of the own card in state $st of a series (mel_wh_series) made after
 // its latest episode record ends (none: any): the first one not watched (by the progress of $st)
-// after the last of them by $eps (season => its episodes, ascending). -> array(s, e, a later one:
-// false - all watched after it, S1E1, why); null: no such mark, the record decides.
+// after the last of them by $eps (season => its episodes, ascending). A mark of an episode before
+// the one of the record by $eps does not count: a mark of the credits made later (mel_cw_take)
+// must not take it back past the episodes played after it (the episode of the record not in $eps:
+// all count). -> array(s, e, a later one: false - all watched after it, S1E1, why); null: no such
+// mark, the record decides.
 /**
  * @param MelWhSeries $st
  * @param array<int, list<int>> $eps
@@ -704,15 +707,31 @@ function mel_wh_mark_next($st, $eps)
     if (!$marks)
         return null;
     $end = $w ? mel_wh_end($w) : 0;
+    $rk = '';
+    if ($w)
+    {
+        list($rs, $re) = mel_wh_rec($w);
+        $rk = "$rs:$re";
+    }
+    $seen = false;
+    $any = '';
     $last = '';
     foreach ($eps as $s => $list)
     {
         foreach ($list as $e)
         {
+            if ("$s:$e" === $rk)
+                $seen = true;
             if (isset($marks["$s:$e"]) && $marks["$s:$e"] > $end)
-                $last = "$s:$e";
+            {
+                $any = "$s:$e";
+                if ($seen)
+                    $last = $any;
+            }
         }
     }
+    if (!$seen)
+        $last = $any;
     if ($last === '')
         return null;
     $after = false;
