@@ -96,6 +96,12 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
         $mk = mel_markers($mv['imdb'], $q, $e, $go['dur'], '', '');
         if ($mk)
             $ser[PluginVodSeriesInfo::markers] = $mk;
+        // The native uids of its files on the disk too (as card_mark, mel_oc_lib_native_uids): its season of the Dune.
+        $nat = array();
+        $se = mel_lib_se($q, $e);
+        foreach (array_merge(array($copy), isset($ep['eps'][$se]) ? $ep['eps'][$se] : array()) as $f)
+            $nat[] = mel_lib_native_uid($f);
+        mel_cw_note($ser, $mk, array_values(array_diff($nat, array(''))));
     }
     $y = $ep ? $ep['y'] : '';
     $eps = $ep ? $ep['eps'] : array();

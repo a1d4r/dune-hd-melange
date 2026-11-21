@@ -247,6 +247,7 @@ function mel_play($st, $r, $pos, $ts = null, $lazy = false, $pre = null, $from =
         $mk = mel_markers($mv['imdb'], $s, $e, mel_row_duration($r), $ts || $ready ? $url : '', $ts ? Mel::$settings['ts_auth'] : '');
         if ($mk)
             $ser[PluginVodSeriesInfo::markers] = $mk;
+        mel_cw_note($ser, $mk);
     }
     $series = array($ser);
     $ndx = 0;
@@ -884,6 +885,7 @@ function mel_finish_act($rid)
 // request; of a state of one row (mel_ts_pack_state), one request of that episode.
 // JacRed tracks of the old list go over by hash (one release). The tab "TV" built anew (mel_tv_flag) and the main
 // screens of the catalog invalidated (mel_catv_after_player): the row "Continue" and the badges are of the history.
+// Before all, the episodes stopped in their credits marked watched (mel_cw_apply).
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -891,7 +893,7 @@ function mel_finish_act($rid)
 function mel_finish($in)
 {
     mel_tv_flag('back from the player');
-    return mel_catv_after_player(mel_finish_list($in));
+    return mel_cw_apply(mel_catv_after_player(mel_finish_list($in)));
 }
 
 // mel_finish of list $in->rid: the action of its screen.

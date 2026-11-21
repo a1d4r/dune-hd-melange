@@ -242,7 +242,8 @@ class MelOc
 // ENTER on a tile of a movie or a series with IMDb or TMDB (mel_card_enter): the id of the card of the Dune
 // (mel_card_id; none: an old local card m-melange-..., none is written now; $dune: known, of the row "Continue",
 // no request of it, its rating of Kinopoisk not known: mel_oc_fill asks it), the meta (mel_cm_get; a failure: the
-// card of the tile), the card of them (mel_oc_build) -> the card screen.
+// card of the tile), the card of them (mel_oc_build) -> the card screen; before it, the episodes stopped in their credits
+// and not marked yet (left the player to the main screen of the Dune) marked watched (mel_cw_apply).
 /**
  * @param MelCatTile $tile
  * @param string $lang
@@ -257,12 +258,12 @@ function mel_oc_enter($tile, $lang, $dune = '')
     $card = mel_oc_build($key, $tile, $g['meta'], $c, $lang);
     mel_log("card: own $key: card " . ($card['dune'] !== '' ? $card['dune'] : 'none') . ', meta ' .
         ($g['err'] !== '' ? "failed ({$g['err']})" : 'ok') . ', imdb ' . ($card['imdb'] !== '' ? $card['imdb'] : 'none'));
-    return array(
+    return mel_cw_apply(array(
         GuiAction::handler_string_id => PLUGIN_OPEN_FOLDER_ACTION_ID,
         GuiAction::plugin_name => MEL_PLUGIN,
         GuiAction::data => array(
             PluginOpenFolderActionData::media_url => "card:$key",
-            PluginOpenFolderActionData::caption => $tile['name']));
+            PluginOpenFolderActionData::caption => $tile['name'])));
 }
 
 // The tile of a card with what the header needs: a tile not of a row of the catalog (of the
@@ -1851,7 +1852,7 @@ function mel_oc_src_items($key, $c, $l, $pos)
 // of the stills, the episode offered, the copy OK plays, lib_cur), the history stale first (mel_pg_stale: the shell may write the record after
 // PLAYBACK_FINISH, within MEL_PG_SIG_S of the last read, and the line of the history would show the old one); after a copy on the disk (played) also the tab "TV" built anew (mel_tv_flag)
 // and the main screens of the catalog anew first (mel_catv_after_player: the row "Continue" and the badges), as
-// mel_finish of the list.
+// mel_finish of the list; before all, the episodes stopped in their credits marked watched (mel_cw_apply).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1865,9 +1866,9 @@ function mel_oc_finish($key, $c)
     mel_pg_stale();
     $a = mel_replace_act("card:$key", $c['tile']['name']);
     if (!$played)
-        return $a;
+        return mel_cw_apply($a);
     mel_tv_flag('back from the player');
-    return mel_catv_after_player($a);
+    return mel_cw_apply(mel_catv_after_player($a));
 }
 
 // The params of card_src_menu of input $in for its menu of sources: c, s and e of an episode when there.
