@@ -1462,7 +1462,10 @@ function mel_oc_rows_log($pos)
 
 // get_folder_view of "card:<type>:<id>"; a card not in memory and not made anew: "outdated". Rows of
 // posters still asked: the timer (mel_oc_load). The overlay of an old screen of the card dropped (mel_oc_ovl_drop): open,
-// it would keep card_load of the new one from putting it.
+// it would keep card_load of the new one from putting it. The first view after the invalidate of mel_oc_after_stop
+// (stopped; the flag off): at the place of the start (MelOc pos, of the key that started the player), not by $sel_state
+// - the shell keeps its focus where it was and may bring the sel_state of another screen of the same card in its stack
+// (device r25: the start on "Continue", the frame on the still).
 /**
  * @param string $media_url
  * @param mixed $sel_state
@@ -1476,13 +1479,16 @@ function mel_oc_folder_view($media_url, $sel_state)
         return mel_lines_view(array(mel_expired_item()));
     mel_oc_ovl_drop($key);
     $l = mel_oc_layout($c);
-    $pos = mel_oc_pos($c, $l, $sel_state);
+    $kept = !empty($c['stopped']);
+    unset(MelOc::$cards[$key]['stopped']);
+    $pos = mel_oc_pos($c, $l, $kept ? null : $sel_state);
     MelOc::$cards[$key]['pos'] = $pos;
     $nav = $l;
     unset($nav['down']);
     MelOc::$cards[$key]['nav'] = $nav;
     mel_log("card: own $key: screen, " . count($l['btns']) . ' buttons, ' . count($l['stops']) . " stops, at {$pos['z']} " .
-        "{$pos['b']}, {$pos['p']}" . ($pos['s'] > 0 ? ", S{$pos['s']}E{$pos['e']}" : '') . mel_oc_rows_log($pos));
+        "{$pos['b']}, {$pos['p']}" . ($pos['s'] > 0 ? ", S{$pos['s']}E{$pos['e']}" : '') . mel_oc_rows_log($pos) .
+        ($kept ? ', the place of the start' : ''));
     list($acts, $timer) = mel_oc_acts($key, $c, $nav);
     return array(
         PluginFolderView::multiple_views_supported => false,
@@ -1892,7 +1898,8 @@ function mel_oc_finish($key, $c)
 // then, nor a finish of the list), then $post: as card_finish and mel_finish - the history stale (mel_pg_stale), the
 // tab "TV" built anew (mel_tv_flag), the screens "card:<key>" of the own cards a copy on the disk played from (played;
 // the flag off) invalidated, on r24 too (the shell builds them again in the stack: the marks, the bars, "Continue" of
-// the history when back on them by RETURN), the main screens of the catalog too (mel_catv_after_player); before all,
+// the history when back on them by RETURN), at the place of the start (stopped, mel_oc_folder_view), the main screens
+// of the catalog too (mel_catv_after_player); before all,
 // the episodes stopped in their credits marked watched (mel_cw_apply: their record is there, the dialog came after the
 // wait of the next one).
 /**
@@ -1908,6 +1915,7 @@ function mel_oc_after_stop($post)
         if (!empty($c['played']))
         {
             unset(MelOc::$cards[$key]['played']);
+            MelOc::$cards[$key]['stopped'] = true;
             $keys[] = $key;
             $urls[] = "card:$key";
         }
