@@ -1438,14 +1438,16 @@ function mel_gc_count_of($lv, $j)
 }
 
 // The hint line of list $st of $n rows (MelKit::hint, from MEL_GC_LX on MEL_GC_HINT_MID): «P+ P−» "Прокрутка" (more
-// rows than the screen), the chevrons "Серии" (an episode), MENU "Действия", INFO "Сведения".
+// rows than the screen), the chevrons "Серии" (an episode), MENU "Действия", INFO "Сведения" ($details false: none,
+// the cursor on the line of the group, where INFO does nothing).
 /**
  * @param MelState $st
  * @param MelGcText $tt
  * @param int $n
+ * @param bool $details
  * @return MelKitItem
  */
-function mel_gc_hints($st, $tt, $n)
+function mel_gc_hints($st, $tt, $n, $details)
 {
     $items = array();
     if ($n > MEL_GC_VIS)
@@ -1454,8 +1456,24 @@ function mel_gc_hints($st, $tt, $n)
     if ($st['e'] > 0)
         $items[] = array('lr', $tt['flip']);
     $items[] = array('k_icon_menu', $tt['actions']);
-    $items[] = array('k_key_info', $tt['details']);
+    if ($details)
+        $items[] = array('k_key_info', $tt['details']);
     return MelKit::hint($items, MEL_GC_LX, MEL_GC_HINT_MID);
+}
+
+// Panel 'hint' of the hint line (mel_gc_hints) on line $j of lines $lv: at 0, 0, its children in the coordinates of
+// the screen; a step that comes to the group or leaves it replaces them (mel_gc_input).
+/**
+ * @param MelState $st
+ * @param MelGcText $tt
+ * @param MelGcLv $lv
+ * @param int $j
+ * @return list<MelGcComp>
+ */
+function mel_gc_hint_defs($st, $tt, $lv, $j)
+{
+    $h = mel_gc_hints($st, $tt, $lv['l'], !mel_gc_on_group($lv, $j));
+    return $h['defs'];
 }
 
 // The remote has the colour keys, as the vendor screens check it
@@ -1594,8 +1612,7 @@ function mel_gc_window($st, $sel, $top)
             MEL_K_C_SCROLL_TRACK);
         $d[] = mel_gc_rect(mel_gc_thumb_geom($top, $n), MEL_K_C_SCROLL_THUMB, 'thumb');
     }
-    $h = mel_gc_hints($st, $tt, $n);
-    $d = array_merge($d, $h['defs']);
+    $d[] = mel_gc_panel('hint', mel_gc_at(1920, 1080, 0, 0), mel_gc_hint_defs($st, $tt, $lv, $sel));
     $right = MEL_GC_LX + MEL_GC_LW - MEL_GC_PAD;
     $d[] = mel_gc_panel('counter', mel_gc_at(MEL_GC_COUNT_W, MEL_K_KEY_H, $right - MEL_GC_COUNT_W,
         MEL_GC_HINT_MID - intval(MEL_K_KEY_H / 2)), mel_gc_count_of($lv, $sel));
@@ -2160,5 +2177,8 @@ function mel_gc_input($in)
         mel_gc_line_items($st, $lv, $nsel, $tt, $cols, true, $prog));
     $ch[] = mel_gc_change('card', null, GCOMP_TRANSITION_NONE, mel_gc_line_card($st, $lv, $nsel));
     $ch[] = mel_gc_change('counter', null, GCOMP_TRANSITION_NONE, mel_gc_count_of($lv, $nsel));
+    // To the group or off it: "Сведения" goes or comes back.
+    if (mel_gc_on_group($lv, $nsel) !== mel_gc_on_group($lv, $sel))
+        $ch[] = mel_gc_change('hint', null, GCOMP_TRANSITION_NONE, mel_gc_hint_defs($st, $tt, $lv, $nsel));
     return mel_gc_changes_act($ch, $nsel, $ntop);
 }
