@@ -8,6 +8,7 @@
 - **Progress in the movie card.** A started movie shows a bar and "0:58 left" in its Melange card, as in the panel above the catalog rows, and a watched one shows a full bar and a check mark. The card used to say "Watched 40% · 0:58 left".
 - **Episodes stopped in the credits count as watched.** An episode you stop or skip with "Next episode" during the credits is now marked as watched in Melange and on the Dune season screen, and "Continue" goes to the next one.
 - Fixed: in the "Episode is not in this release" window, "Choose a release" opened the list, and RETURN from it went back to a stuck player. Now the player stops first. The same goes for the error shown when the release list does not open.
+- Fixed: new Russian series and movies that have no IMDb ID in TMDB could show no releases for a few hours after they were first opened. Now their releases show up right away.
 
 ## 0.66.1 — 20.11.2026
 - **Releases for titles without an IMDb ID.** If a movie or series has no IMDb ID but has a TMDB id, Melange looks for releases by it, as for any other title: **Watch** opens the release list of the main source, and "Watch from…" and "Get films from…" list all sources. If there are no releases and Lampac is among your sources, the "No releases" window offers "Search online". The "Lampac only: no IMDb ID" line is gone. A title with neither ID still opens in Lampac, and without Lampac Melange says "No IMDb or TMDB ID: no releases".
@@ -319,6 +320,7 @@ First public release. What it does:
 - **Прогресс в карточке фильма.** У начатого фильма в карточке Melange полоса и «Осталось 0:58», как в панели над рядами каталога, у просмотренного — полная полоса и галочка. Раньше там была надпись «Просмотрено 40 % · осталось 0:58».
 - **Серия, остановленная на титрах, считается просмотренной.** Если серию остановили или переключили кнопкой «Следующий эпизод» во время титров, она отмечается просмотренной в Melange и на экране сезона Дюны, а «Продолжить» ведёт к следующей.
 - Исправлено: в окне «Серии нет в этой раздаче» кнопка «Выбрать раздачу» открывала список, а RETURN из него возвращал к зависшему плееру. Теперь плеер сначала останавливается. Так же и с ошибкой, если список раздач не открылся.
+- Исправлено: новые русские сериалы и фильмы, у которых в TMDB нет IMDb-id, после первого открытия могли несколько часов оставаться без раздач. Теперь раздачи есть сразу.
 
 ## 0.66.1 — 20.11.2026
 - **Раздачи у тайтлов без IMDb-id.** Если у фильма или сериала нет IMDb-id, но есть id в TMDB, Melange ищет раздачи по нему, как у любого другого тайтла: **Смотреть** открывает список раздач основного источника, «Смотреть из…» и «Откуда брать…» показывают все источники. Если раздач нет, а среди источников есть Lampac, откроется окно «Раздач нет» с кнопкой «Искать онлайн». Надписи «Только Lampac: нет IMDb-id» больше нет. Тайтл без обоих id по-прежнему открывается в Lampac, а без Lampac Melange пишет «Нет IMDb и TMDB: раздач нет».
