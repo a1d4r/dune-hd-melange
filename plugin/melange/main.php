@@ -1951,7 +1951,8 @@ function mel_list_state($mv, $s, $e, $rows, $lang, $errors)
 // windows of nothing online and of no answer, never the releases; no Lampac - err_no_imdb_rel. "Continue" of a copy on
 // the disk (wh_mode local) of a movie: the file (mel_lib_resume), of a series: the file of the episode
 // (mel_lib_resume_ep), before all that - no IMDb, no profile, no network needed; an episode of none on the disk - the
-// list of that episode.
+// list of that episode. "Continue" of a series with episodes stopped in their credits not marked yet: their marks
+// (mel_cw_take), then this play_action again (cw), before any of it.
 /**
  * @param stdClass $in
  * @param MelWhPick|MelOcEp|null $hist
@@ -1981,12 +1982,25 @@ function mel_play_action($in, $hist = null, $src = '')
         mel_log('resume: supplier_info of the play_online button ignored -> list');
         $resume = null;
     }
+    // This play_action again, of its fields read here: "Повторить" of the disk that did not answer (mel_lib_gone), and
+    // after the marks of the episodes stopped in their credits (mel_cw_take; cw: they are made, never twice).
+    $again = $resume ? array_filter(array_intersect_key(get_object_vars($in), array_flip(array('movie_str', 'series_type',
+        'lang', 'supplier_info', 'selected_control_id'))), 'is_string') : array();
+    $retry = $resume ? mel_input('play', $again) : null;
+    // "Continue" of a series: those marks first, so the episode is chosen by them (mel_wh_resume_ep: the marks of the own
+    // card), as if the own card was opened.
+    if ($resume && $mv['series'] && !isset($in->cw))
+    {
+        $ids = mel_cw_take();
+        if ($ids)
+        {
+            mel_log('resume: the episodes stopped in their credits marked first, then this play_action again');
+            return mel_pg_mark_act($ids, array(), true, mel_input('play', $again + array('cw' => '1')));
+        }
+    }
     if ($resume && $resume['mode'] === 'local')
     {
         $m = (array) json_decode(strval($in->movie_str), true);
-        // "Повторить" of the disk that did not answer (mel_lib_gone): this play_action again, of its fields read here.
-        $retry = mel_input('play', array_filter(array_intersect_key(get_object_vars($in),
-            array_flip(array('movie_str', 'series_type', 'lang', 'supplier_info'))), 'is_string'));
         if (!$mv['series'])
             return mel_lib_resume($mv, $m, $resume['hash'], $resume['pos'], $lang, $retry);
         $a = mel_lib_resume_ep($mv, $m, $resume, $lang, $lib_se, $retry);
