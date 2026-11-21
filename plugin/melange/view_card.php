@@ -1668,6 +1668,9 @@ function mel_oc_watch_in($c, $q = -1, $e = -1)
         $mv['aio_en_title'] = $t['englishTitle'];
     // The list, its online one too (the window of the search builds it later), marked own (mel_movie).
     $mv['aio_own_card'] = true;
+    // An IMDb the catalog matched: the releases by TMDB (mel_rel_id).
+    if ($c['meta'] && $c['meta']['matched'])
+        $mv['aio_rel_tmdb'] = true;
     if ($series && $c['meta'])
     {
         $sn = array();

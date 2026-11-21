@@ -1415,6 +1415,8 @@ function mel_movie_load($key)
         $mv[$f] = mel_str($m, $f);
     if ($tmdb !== '')
         $mv['tmdb'] = $tmdb;
+    if ($tmdb !== '' && isset($m['rel_tmdb']) && $m['rel_tmdb'] === true)
+        $mv['rel_tmdb'] = true;
     foreach (mel_arr($m, 'seasons') as $n => $c)
     {
         if (intval($n) >= 1 && is_int($c) && $c >= 1)

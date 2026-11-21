@@ -65,7 +65,7 @@ define('MEL_PLUGIN', 'melange');
 // legacy data kept by the users, so they stay "aio": this supplier id and the
 // handler_id "aio", the uid "aio:..." of the watch history (the shell finds the
 // supplier by the prefix of a uid), the scheme aio_next: and the fields aio_cin,
-// aio_titles, aio_own_card of movie_str.
+// aio_titles, aio_own_card, aio_rel_tmdb of movie_str.
 define('MEL_SUP_ID', 'aio');
 // Id of a Dune card in a regex: of the server (24 hex) or a local one of the shell
 // (custom_mdb/user_movie, "m-..."). No ':' or '/': it goes into recent_uid,
@@ -314,6 +314,18 @@ function mel_movie($in)
     $tmdb = mel_str($m, $series ? 'tmdbtv_id' : 'tmdb_id');
     if (preg_match('/^[0-9]{1,10}$/D', $tmdb))
         $mv['tmdb'] = $tmdb;
+    // An IMDb the catalog matched (TMDB knows none; owner 21.11.2026): the releases by that TMDB too (mel_rel_id). Of the
+    // own card (aio_rel_tmdb, mel_oc_watch_in), else of its meta in memory (a card of the Dune, mel_cm_mem_matched).
+    if ($mv['imdb'] !== '' && isset($mv['tmdb']))
+    {
+        $own = isset($m['aio_rel_tmdb']) && $m['aio_rel_tmdb'] === true;
+        if ($own || mel_cm_mem_matched($series ? 'series' : 'movie', $mv['imdb'], $mv['tmdb']))
+        {
+            $mv['rel_tmdb'] = true;
+            mel_log("movie: {$mv['imdb']} matched by the catalog (" . ($own ? 'own card' : 'meta in memory') .
+                "): the releases by tmdb:{$mv['tmdb']}");
+        }
+    }
     // No card of the Dune and no IMDb: the key of the card (mel_lpv_key) of that TMDB, "tmdb:<id>" / "tmdbtv:<id>".
     if ($mv['imdb'] === '' && $mv['dune_id'] === '' && isset($mv['tmdb']))
         $mv['lpv_key'] = ($series ? 'tmdbtv:' : 'tmdb:') . $mv['tmdb'];
@@ -474,16 +486,18 @@ function mel_cin_n($runs, $s, $e)
 }
 
 // The id of the releases of card $mv: its IMDb, else "tmdb:<id>" of its TMDB (a series too: AIOStreams takes no
-// "tmdbtv:"; owner 20.11.2026); '' none - no releases (Lampac only).
+// "tmdbtv:"; owner 20.11.2026); '' none - no releases (Lampac only). An IMDb the catalog matched (rel_tmdb, mel_movie):
+// its TMDB (owner 21.11.2026; AIOStreams knows that tt hours later only), the numbering of the episodes as it is.
 /**
  * @param MelMovie $mv
  * @return string
  */
 function mel_rel_id($mv)
 {
-    if ($mv['imdb'] !== '')
+    $tmdb = isset($mv['tmdb']) ? $mv['tmdb'] : '';
+    if ($mv['imdb'] !== '' && ($tmdb === '' || empty($mv['rel_tmdb'])))
         return $mv['imdb'];
-    return isset($mv['tmdb']) && $mv['tmdb'] !== '' ? "tmdb:{$mv['tmdb']}" : '';
+    return $tmdb !== '' ? "tmdb:$tmdb" : '';
 }
 
 // The id of the streams of S$s E$e of $mv (mel_rel_id; a movie: the id alone): "<id>:<s>:<e>". -> array(id, for

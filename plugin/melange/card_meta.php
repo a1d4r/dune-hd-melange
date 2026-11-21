@@ -74,6 +74,26 @@ function mel_cm_mem_tile($t)
     return $m;
 }
 
+// The IMDb $imdb of a title of $type and TMDB $tmdb was matched by the catalog (matched of mel_cm_parse) by its meta in
+// memory (asked by the IMDb or by tmdb:<n>, kept even when old: a match stays); none in memory - false. No request: a card
+// of the Dune (its movie_str, mel_movie) has no sign of it.
+/**
+ * @param string $type
+ * @param string $imdb
+ * @param string $tmdb
+ * @return bool
+ */
+function mel_cm_mem_matched($type, $imdb, $tmdb)
+{
+    foreach (array($imdb, "tmdb:$tmdb") as $id)
+    {
+        $key = "$type:$id";
+        if (isset(MelCm::$cache[$key]))
+            return MelCm::$cache[$key]['m']['matched'] && MelCm::$cache[$key]['m']['imdb'] === $imdb;
+    }
+    return false;
+}
+
 // A picture of the meta -> the address the Dune loads, '' for none. TMDB (blocked for many,
 // straight or already in the cache of the server) goes through the cache of the server in
 // class $class: background keeps the size and shape (a still 500x281, a face 276x350), w342/poster
@@ -300,7 +320,9 @@ function mel_cm_same($m, $id)
 // Cinemeta (by_cin: imdbPairs of the meta true, mel_cm_pairs; cin: the runs of an anime numbered on, none for
 // any other). With no pairs (imdbPairs not true) an anime numbered on by TMDB goes by the runs file of its
 // last opening with them (mel_cin_load: the pair of an episode by its number, mel_cin_pair), as with the pairs;
-// with no file by TMDB. trailer: trailers[] not empty (the button "Трейлер", card_trailer.php).
+// with no file by TMDB. trailer: trailers[] not empty (the button "Трейлер", card_trailer.php). matched: the IMDb is
+// one the catalog matched itself, TMDB knows none (meta.id "tmdb:<n>" with an IMDb, asked by it or by the tt;
+// melange-vps docs/aiometadata-fork.md): the releases by TMDB (mel_rel_id; AIOStreams knows that tt hours later only).
 /**
  * @param array<mixed> $m
  * @param string $type
@@ -339,7 +361,8 @@ function mel_cm_parse($m, $type, $id, $now)
         'countries' => mel_cm_names($countries, MEL_CARD_COUNTRIES_MAX), 'cast' => $people['cast'],
         'directors' => $people['directors'], 'writers' => $people['writers'], 'creators' => $people['creators'],
         'collection' => $coll, 'seasons' => $eps['seasons'], 'season_numbers' => $eps['season_numbers'],
-        'trailer' => count(mel_arr($m, 'trailers')) > 0, 'by_cin' => false, 'cin' => array());
+        'trailer' => count(mel_arr($m, 'trailers')) > 0, 'by_cin' => false, 'cin' => array(),
+        'matched' => $imdb !== '' && strpos(mel_str($m, 'id'), 'tmdb:') === 0);
     if ($type !== 'series')
         return $out;
     if (isset($m['imdbPairs']) && $m['imdbPairs'] === true)

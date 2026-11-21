@@ -240,7 +240,8 @@ parameters:
         # runs of the numbering of Cinemeta of its series numbered on (mel_cin_valid), none for any other; titles: of the
         # episodes of a list from the own card, "s:e" => title (mel_titles_valid); tmdb: the digits of its TMDB (a series: of
         # tmdbtv_id), the releases of a card of no IMDb (mel_rel_id); of "Continue" of a copy on the disk that of the title of
-        # the index (mel_lib_resume, mel_lib_resume_ep), the own card of its copies by it (mel_lib_win_card).
+        # the index (mel_lib_resume, mel_lib_resume_ep), the own card of its copies by it (mel_lib_win_card); rel_tmdb: an
+        # IMDb the catalog matched, the releases by tmdb (mel_rel_id).
         MelMovie: '''
             array{
                 series: bool,
@@ -255,6 +256,7 @@ parameters:
                 seasons: array<int, int>,
                 own_card?: bool,
                 tmdb?: string,
+                rel_tmdb?: bool,
                 lpv_key?: string,
                 cin: list<array{int, int, int}>,
                 titles?: array<string, string>
@@ -611,7 +613,7 @@ parameters:
         # A side of brackets of a track title (mel_voices_side, voices_parse.php).
         MelVoicesSide: 'array{studios: list<string>, n: int, other: bool}'
         # The meta of a title for its own card (mel_cm_parse, card_meta.php).
-        MelCardMeta: 'array{type: string, id: string, imdb: string, tile: MelCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<MelCardCredit>, directors: list<MelCardCredit>, writers: list<MelCardCredit>, creators: list<MelCardCredit>, collection: array{id: string, name: string}, seasons: array<int, list<MelCardEp>>, season_numbers: array<int, int>, trailer: bool, by_cin: bool, cin: list<array{int, int, int}>}'
+        MelCardMeta: 'array{type: string, id: string, imdb: string, tile: MelCatTile|null, original: string, description: string, tagline: string, released: string, studios: list<string>, networks: list<string>, status: string, countries: list<string>, cast: list<MelCardCredit>, directors: list<MelCardCredit>, writers: list<MelCardCredit>, creators: list<MelCardCredit>, collection: array{id: string, name: string}, seasons: array<int, list<MelCardEp>>, season_numbers: array<int, int>, trailer: bool, by_cin: bool, cin: list<array{int, int, int}>, matched: bool}'
         # A card of the own card screen in memory (MelOc::$cards, view_card.php); lw_auto - the window of the copies its
         # first tick opens (mel_lib_win_card, mel_oc_tick).
         MelOcCard: 'array{tile: MelCatTile, meta: MelCardMeta|null, imdb: string, dune: string, lang: string, ui: string, pos: MelOcPos, n: int, posters: MelCmPosters, nav?: MelOcNav, played?: bool, stopped?: bool, lw_auto?: MelLibAuto}'
