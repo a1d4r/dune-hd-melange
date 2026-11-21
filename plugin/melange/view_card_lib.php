@@ -485,7 +485,8 @@ function mel_oc_lib_menu_items($key, $c, $l, $pos)
 // (mel_lib_place). The copy of id $k chosen in the window of the copies ('' - "Смотреть": the copy of the record, of
 // its mirrors the first there; none - the copies by mel_lib_start: one plays, several - the window W2 of them over the
 // screen, mode first (mel_lib_win_open; none - the screen shown has no slot of the overlay: nothing, logged there), none
-// there - mel_lib_gone). Played (card_finish after the player) only when its file starts, as of an episode.
+// there - mel_lib_gone; the disk did not answer - with "Повторить": this start again, card_enter of the card or
+// card_lib_copy of the copy). Played (card_finish after the player) only when its file starts, as of an episode.
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -508,7 +509,28 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
         MelOc::$cards[$key]['played'] = true;
         return mel_lib_play($mv, $go, $c['ui']);
     }
-    return isset($go['pick']) ? mel_lib_win_open($key, $go['pick'], 'first') : mel_lib_gone($go['gone']);
+    return isset($go['pick']) ? mel_lib_win_open($key, $go['pick'], 'first') :
+        mel_lib_gone($go['gone'], $c['ui'], -1, -1, mel_oc_lib_retry($key, $k));
+}
+
+// The start again of "Повторить" of mel_lib_gone (the disk did not answer) of card $key: of the copy of id $k chosen in
+// the window of the copies - card_lib_copy of it (from "retry"; of episode $s, $e); none chosen - card_enter of the card,
+// at the place of the screen kept (MelOc pos).
+/**
+ * @param string $key
+ * @param string $k
+ * @param int $s
+ * @param int $e
+ * @return MelAction
+ */
+function mel_oc_lib_retry($key, $k, $s = -1, $e = -1)
+{
+    if ($k === '')
+        return mel_input('card_enter', array('c' => $key));
+    $p = array('c' => $key, 'k' => $k, 'from' => 'retry');
+    if ($e >= 1)
+        $p += array('s' => strval($s), 'e' => strval($e));
+    return mel_input('card_lib_copy', $p);
 }
 
 // The start of a copy on the disk of episode $e of season $s of the series of card $c ($key) of layout $l (C2, C4 of the
@@ -520,7 +542,8 @@ function mel_oc_lib_start($key, $c, $l, $k = '')
 // mel_lib_start (of the mirrors of a record the copy of F first): the file there - vod_play of the playlist of its
 // season (mel_lib_play), played (card_finish after the player); several left or none to take - the window of the copies
 // of the episode over the screen (mel_lib_win_open, mode first; its "· сейчас" mel_lib_win_cur; none - the screen has no
-// slot of the overlay: nothing, logged there); none there - mel_lib_gone of the episode. No episode on the disk now: as
+// slot of the overlay: nothing, logged there); none there - mel_lib_gone of the episode (the disk did not answer - with
+// "Повторить", mel_oc_lib_retry). No episode on the disk now: as
 // none there. No movie of the card: null.
 /**
  * @param string $key
@@ -556,7 +579,7 @@ function mel_oc_lib_start_ep($key, $c, $l, $s, $e, $k = '')
     }
     if (isset($go['pick']))
         return mel_lib_win_open($key, $go['pick'], 'first', $s, $e);
-    return mel_lib_gone($go['gone'], $c['ui'], $s, $e);
+    return mel_lib_gone($go['gone'], $c['ui'], $s, $e, mel_oc_lib_retry($key, $k, $s, $e));
 }
 
 // card_lib_copies (MENU "Копия на диске…") and card_lib_copy (k: the id of the copy of the window of the copies; from:

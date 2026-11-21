@@ -623,17 +623,26 @@ function mel_lib_resume_go($mv, $copies, $first, $first_pos, $pos, $lang, $ep = 
 
 // What a start says when the file of a movie is not there and no other copy is (C5, owner 19.11.2026: a message with
 // OK, the card stays): $why 'slow' - the disk did not answer in time, else the file is gone. Of episode S$q E$e ($e >=
-// 1, "Continue" of the native): the same of the episode, in the words of the dialog of lib_next. All of it here:
-// another look of it is one edit.
+// 1, "Continue" of the native): the same of the episode, in the words of the dialog of lib_next. 'slow' with $retry (the
+// own card: its start again) - a dialog of the same text, "Повторить" ($retry after the dialog closed) first, then OK
+// (owner 21.11.2026: the check wakes a disk asleep). All of it here: another look of it is one edit.
 /**
  * @param string $why
  * @param string $lang
  * @param int $q
  * @param int $e
+ * @param MelAction|null $retry
  * @return MelAction
  */
-function mel_lib_gone($why, $lang = '', $q = -1, $e = -1)
+function mel_lib_gone($why, $lang = '', $q = -1, $e = -1, $retry = null)
 {
+    if ($why === 'slow' && $retry)
+    {
+        $k = $e < 1 ? 'lib_slow' : 'lib_next_slow';
+        mel_log("error: $k, with retry");
+        return mel_dialog(mel_tr($lang, $k, $e < 1 ? '' : mel_se($q, $e)), array(),
+            array(mel_tr($lang, 'cat_retry') => mel_close_and($retry), 'OK' => mel_close_and(null)));
+    }
     if ($e < 1)
         return mel_error($why === 'slow' ? 'lib_slow' : 'lib_gone');
     $k = $why === 'slow' ? 'lib_next_slow' : 'lib_next_no_disk';
@@ -651,8 +660,8 @@ if (!defined('MEL_LIB_NEXT_MIN'))
 // lib_next: a lazy episode of a playlist of the disk (mel_lib_lazy_url, mel_lazy_action) - k the card of the history H
 // (saved by mel_lib_play), y the series of the index, s, e the episode, c the id of its copy ('-' none on the disk).
 // Its copies now, that one first (mel_lib_start; gone - the others in order, $auto: no window under the player) -> a
-// new vod_play of it with its markers; none there or no copy - the dialog (mel_lib_next_missing). A bad input, the
-// card gone - "the list expired".
+// new vod_play of it with its markers; none there or no copy - the dialog (mel_lib_next_missing; the disk did not
+// answer - with "Повторить": this lib_next again). A bad input, the card gone - "the list expired".
 /**
  * @param stdClass $in
  * @return MelAction
@@ -693,7 +702,8 @@ function mel_lib_next($in)
         }
         return $a;
     }
-    return mel_lib_next_missing($mv, $q, $e, isset($go['gone']) ? $go['gone'] : 'no', $lang);
+    return mel_lib_next_missing($mv, $q, $e, isset($go['gone']) ? $go['gone'] : 'no', $lang,
+        mel_input('lib_next', array('k' => strval($in->k), 'y' => $y, 's' => strval($q), 'e' => strval($e), 'c' => $c)));
 }
 
 // Params k, s, e of lib_next and lib_next_pick -> array(the card of the history, season, episode) or null.
@@ -714,22 +724,26 @@ function mel_lib_next_ep($in)
 
 // The dialog over the stopped player when the next episode S$q E$e of the disk does not play ($why: none - no copy of
 // it on the disk, no - its file not there now, slow - the disk did not answer; owner 3 (a)): "Choose a release" (the
-// list of the episode, lib_next_pick) and "Stop", as "not in this release" (mel_next_missing). No IMDb nor TMDB
-// (mel_rel_id): "Stop" only (no releases, mel_next_fetch). The title here: another one is one edit.
+// list of the episode, lib_next_pick) and "Stop", as "not in this release" (mel_next_missing); slow - "Retry" first
+// ($retry, the same lib_next, after the dialog closed: the player still waits for the URL; owner 21.11.2026). No IMDb
+// nor TMDB (mel_rel_id): no "Choose a release" (no releases, mel_next_fetch). The title here: another one is one edit.
 /**
  * @param MelMovie $mv
  * @param int $q
  * @param int $e
  * @param string $why
  * @param string $lang
+ * @param MelAction|null $retry
  * @return MelAction
  */
-function mel_lib_next_missing($mv, $q, $e, $why, $lang)
+function mel_lib_next_missing($mv, $q, $e, $why, $lang, $retry = null)
 {
     mel_log(sprintf('lib_next: -> dialog: S%02dE%02d ', $q, $e) . ($why === 'slow' ? 'the disk did not answer' :
         ($why === 'no' ? 'the file not there' : 'not on the disk')) .
         (mel_rel_id($mv) === '' ? ', no IMDb, no TMDB' : ''));
     $buttons = array();
+    if ($why === 'slow' && $retry)
+        $buttons[mel_tr($lang, 'cat_retry')] = mel_close_and($retry);
     if (mel_rel_id($mv) !== '')
         $buttons[mel_tr($lang, 'next_pick')] = mel_input('lib_next_pick', array('k' => $mv['dune_id'],
             's' => strval($q), 'e' => strval($e)));

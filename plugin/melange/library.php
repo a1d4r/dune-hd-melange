@@ -33,10 +33,11 @@ if (!defined('MEL_LIB_BUDGET_BYTES'))
     define('MEL_LIB_BUDGET_BYTES', 8388608);
 // Cards of the shell read for a title not found by its ids (mel_lib_by_movies).
 define('MEL_LIB_CANDIDATES', 3);
-// Seconds mel_lib_here waits for its check of a file: a NAS asleep spins its disks up; a share still "mounted" of a NAS
-// off answers only by the timeout of cifs (the check is in the background: php_server does not hang).
+// Seconds mel_lib_here waits for its check of a file: a NAS asleep spins its disks up (8 s were short on the Dune, a disk
+// of a NAS asleep 15 min: the check woke it, the next one answered in 65 ms; owner 21.11.2026: 25 s); a share still
+// "mounted" of a NAS off answers only by the timeout of cifs (the check is in the background: php_server does not hang).
 if (!defined('MEL_LIB_HERE_S'))
-    define('MEL_LIB_HERE_S', 8);
+    define('MEL_LIB_HERE_S', 25);
 // A step of the check before its test -f: tests define one first (a check that does not answer in time).
 if (!defined('MEL_LIB_HERE_TEST'))
     define('MEL_LIB_HERE_TEST', '');
