@@ -621,14 +621,17 @@ function mel_cat_kp($kp, $votes)
 }
 
 // Tile $t has an IMDb ID Melange's AIOMetadata matched itself, TMDB knows none (its id "tmdb:<n>" with an IMDb, as
-// rel_tmdb of mel_cm_parse; owner 21.11.2026): the releases by TMDB (aio_rel_tmdb of movie_str, mel_rel_id).
+// rel_tmdb of mel_cm_parse; owner 21.11.2026): the releases by TMDB (aio_rel_tmdb of movie_str, mel_rel_id). Only of
+// a movie or a series: of a tile with no type its TMDB may be of either (mel_card_enter), so by the IMDb.
 /**
  * @param MelCatTile $t
  * @return bool
  */
 function mel_cat_rel_tmdb($t)
 {
-    return mel_str($t, 'imdb_id') !== '' && strpos(mel_str($t, 'id'), 'tmdb:') === 0;
+    $type = mel_str($t, 'type');
+    return ($type === 'movie' || $type === 'series') && mel_str($t, 'imdb_id') !== '' &&
+        strpos(mel_str($t, 'id'), 'tmdb:') === 0;
 }
 
 // A tile of the server -> only what is needed (links with the UUID, app_extras,
