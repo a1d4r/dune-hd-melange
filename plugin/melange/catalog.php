@@ -620,6 +620,17 @@ function mel_cat_kp($kp, $votes)
     return (float) $kp > 0 ? $kp : '';
 }
 
+// Tile $t has an IMDb ID Melange's AIOMetadata matched itself, TMDB knows none (its id "tmdb:<n>" with an IMDb, as
+// rel_tmdb of mel_cm_parse; owner 21.11.2026): the releases by TMDB (aio_rel_tmdb of movie_str, mel_rel_id).
+/**
+ * @param MelCatTile $t
+ * @return bool
+ */
+function mel_cat_rel_tmdb($t)
+{
+    return mel_str($t, 'imdb_id') !== '' && strpos(mel_str($t, 'id'), 'tmdb:') === 0;
+}
+
 // A tile of the server -> only what is needed (links with the UUID, app_extras,
 // a logo not in Russian and the rest are gone from here on), or null without an id or a name.
 // All values strings, genres and cast lists. imdb_id and _tmdbId: also from the id itself,

@@ -594,9 +594,13 @@ function mel_card_local($tile, $make)
 function mel_card_releases($tile, $lang)
 {
     $in = new stdClass();
-    $in->movie_str = json_encode(array('imdb_id' => $tile['imdb_id'], 'title' => $tile['name'], 'year' => $tile['year'],
+    $mv = array('imdb_id' => $tile['imdb_id'], 'title' => $tile['name'], 'year' => $tile['year'],
         'poster_url' => $tile['poster'], 'fanart_url' => $tile['background'], 'rate_imdb' => $tile['imdbRating'],
-        'description' => $tile['description']) + mel_lpv_tile_ids($tile));
+        'description' => $tile['description']) + mel_lpv_tile_ids($tile);
+    // An IMDb the catalog matched: the releases by TMDB (mel_rel_id).
+    if (mel_cat_rel_tmdb($tile))
+        $mv['aio_rel_tmdb'] = true;
+    $in->movie_str = json_encode($mv);
     $in->series_type = $tile['type'] === 'series' ? 'series' : 'single';
     $in->lang = $lang;
     $act = mel_play_action($in);
