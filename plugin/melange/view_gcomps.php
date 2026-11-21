@@ -7,8 +7,10 @@
 // a release watched before; between the title and the list the sort tabs of the colour keys (a
 // remote with them), the name of the source at the right; under the list the hint line (P+ P-, <- ->, MENU
 // "Actions", INFO "Details") and "1 / 60" at the right. The plugin draws and moves the selection (the blue plate
-// row_on) itself with change_gcomps; the position travels in sel_state {"sel":N,"top":T}. The old frame of the list
-// that the online list (view_online.php) still draws stays there until its stage.
+// row_on) itself with change_gcomps; the position travels in sel_state {"sel":N,"top":T}, N and T of the lines of
+// the screen (mel_gc_lv): the rows of the tier "Не подтверждены" (first in the rows) under a line of their group
+// at the top, shown when it is unfolded; every action takes its row of the rows by mel_gc_row_of. The old frame
+// of the list that the online list (view_online.php) still draws stays there until its stage.
 // Reads Mel (state, settings), writes the cursor keys of Mel::$state;
 // mel_gc_sort replaces it by the list sorted anew.
 // PHP 5.3.6, firmware API only.
@@ -35,6 +37,7 @@ define('MEL_GC_HINT_MID', 1012);
 define('MEL_GC_COUNT_W', 300);   // the counter "5 / 60" at the right of the hint line
 define('MEL_GC_PAD', 16);      // row padding left and right
 define('MEL_GC_GAP', 16);      // between columns
+define('MEL_GC_ICON_GAP', 14);  // the icon column -> the first column of the plates and the caption of the group
 // "rutracker +3" with a margin; less room: no tracker column (the card has them).
 define('MEL_GC_TRACKER_MIN', 145);
 define('MEL_GC_FLAG', 36);         // a flag of the skin, square
@@ -92,7 +95,10 @@ function mel_gc_text($lang)
         'actions' => mel_tr($lang, 'gc_actions'), 'details' => mel_tr($lang, 'gc_details'),
         'sort_aio' => mel_tr($lang, 'gc_sort_aio'), 'sort_seeds' => mel_tr($lang, 'gc_sort_seeds'),
         'sort_cached' => mel_tr($lang, 'gc_sort_cached'), 'sort_size' => mel_tr($lang, 'gc_sort_size'),
-        'sort_date' => mel_tr($lang, 'gc_sort_date'), 'errors' => mel_tr($lang, 'gc_errors'));
+        'sort_date' => mel_tr($lang, 'gc_sort_date'), 'errors' => mel_tr($lang, 'gc_errors'),
+        'tier' => mel_tr($lang, 'gc_tier'), 'tier_card' => mel_tr($lang, 'gc_tier_card'),
+        'tier_show' => mel_tr($lang, 'gc_tier_show'), 'tier_hide' => mel_tr($lang, 'gc_tier_hide'),
+        'check' => mel_tr($lang, 'gc_tier_check'));
 }
 
 // The cache status of row $r: "В кэше <service>" (a file cached on several:
@@ -203,7 +209,8 @@ function mel_gc_pos_in($raw, $n, $gc)
     return $p ? $p : array(0, 0);
 }
 
-// From the shell's sel_state; else the last known position of this list.
+// The cursor of list $st, of its lines (mel_gc_lv): from the shell's sel_state $raw; else the last known position of
+// this list; else the line a list opens on (mel_gc_first). -> array(sel, top).
 /**
  * @param MelState $st
  * @param mixed $raw
@@ -211,7 +218,95 @@ function mel_gc_pos_in($raw, $n, $gc)
  */
 function mel_gc_pos($st, $raw)
 {
-    return mel_gc_pos_in($raw, count($st['rows']), isset($st['gc']) ? $st['gc'] : null);
+    $lv = mel_gc_lv($st);
+    $p = mel_gc_parse($raw, $lv['l']);
+    if (!$p && isset($st['gc']))
+        $p = mel_gc_parse(mel_gc_state($st['gc'][0], $st['gc'][1]), $lv['l']);
+    return $p ? $p : mel_gc_cursor(mel_gc_first($lv), $lv['l']);
+}
+
+// The row of $st['rows'] under the cursor of list $st (mel_gc_pos of sel_state $raw), -1 on the line of the group.
+/**
+ * @param MelState $st
+ * @param mixed $raw
+ * @return int
+ */
+function mel_gc_row_now($st, $raw)
+{
+    list($sel) = mel_gc_pos($st, $raw);
+    return mel_gc_row_of(mel_gc_lv($st), $sel);
+}
+
+// --- The tier "Не подтверждены": the lines of the screen over the rows.
+
+// The lines of list $st: its rows of the tier come first (mel_rows_sort), so their number is enough; with one the first
+// line is that of their group, its rows under it when it is unfolded, then the rows of the main list. Unfolded:
+// 'tier_open' of the state (ENTER on the line of the group, mel_gc_put_cursor of a row of it); always without a row of
+// the main list. -> array(t: rows of the tier, o: unfolded, n: rows, l: lines).
+/**
+ * @param MelState $st
+ * @return MelGcLv
+ */
+function mel_gc_lv($st)
+{
+    $n = count($st['rows']);
+    $t = 0;
+    while ($t < $n && !empty($st['rows'][$t]['tier']))
+        $t++;
+    $o = $t > 0 && ($t === $n || !empty($st['tier_open']));
+    return array('t' => $t, 'o' => $o, 'n' => $n, 'l' => $t === 0 ? $n : 1 + ($o ? $n : $n - $t));
+}
+
+// The row of $st['rows'] of line $j of lines $lv (mel_gc_lv), -1 the line of the group or none.
+/**
+ * @param MelGcLv $lv
+ * @param int $j
+ * @return int
+ */
+function mel_gc_row_of($lv, $j)
+{
+    if ($lv['t'] === 0)
+        return $j >= 0 && $j < $lv['n'] ? $j : -1;
+    if ($j <= 0 || $j >= $lv['l'])
+        return -1;
+    return $lv['o'] ? $j - 1 : $lv['t'] + $j - 1;
+}
+
+// The line of row $i of lines $lv; a row of the group folded: the line of the group.
+/**
+ * @param MelGcLv $lv
+ * @param int $i
+ * @return int
+ */
+function mel_gc_line_of($lv, $i)
+{
+    if ($lv['t'] === 0)
+        return $i;
+    if ($lv['o'])
+        return $i + 1;
+    return $i < $lv['t'] ? 0 : $i - $lv['t'] + 1;
+}
+
+// Whether line $j of lines $lv (mel_gc_lv) is that of the group of the tier.
+/**
+ * @param MelGcLv $lv
+ * @param int $j
+ * @return bool
+ */
+function mel_gc_on_group($lv, $j)
+{
+    return $lv['t'] > 0 && $j === 0;
+}
+
+// The line a list of lines $lv opens on: the first row of the main list (the group folded above it, or unfolded:
+// after its rows); none: the first row of the tier (the group unfolded, the line under it); no tier: the first line.
+/**
+ * @param MelGcLv $lv
+ * @return int
+ */
+function mel_gc_first($lv)
+{
+    return mel_gc_line_of($lv, $lv['t'] < $lv['n'] ? $lv['t'] : 0);
 }
 
 // Position of a list put in with row $sel of $n selected: the row in the
@@ -226,16 +321,27 @@ function mel_gc_cursor($sel, $n)
     return array($sel, max(0, min($sel - intval(MEL_GC_VIS / 2), $n - MEL_GC_VIS)));
 }
 
-// List state $st put in with row $sel selected (mel_finish, mel_relist): the
-// cursor as mel_gc_cursor, and its first view ignores the shell's sel_state.
+// List state $st put in with row $sel of $st['rows'] selected (mel_finish, mel_relist): a row of the tier unfolds
+// its group ('tier_open'); -1 (or no such row): the line the list opens on (mel_gc_first). $was: the list it replaces
+// (of the same title: another episode, the request anew, the sort), its group folded or not taken over first, before
+// the lines are counted; null: none (a list opened anew, its own flag). The cursor on its line as mel_gc_cursor, and its first view ignores the shell's sel_state.
 /**
  * @param MelState $st
  * @param int $sel
+ * @param MelState|null $was
  * @return MelState
  */
-function mel_gc_put_cursor($st, $sel)
+function mel_gc_put_cursor($st, $sel, $was)
 {
-    $st['gc'] = mel_gc_cursor($sel, count($st['rows']));
+    if ($was !== null)
+        $st['tier_open'] = !empty($was['tier_open']);
+    $lv = mel_gc_lv($st);
+    if ($sel >= 0 && $sel < $lv['t'] && !$lv['o'])
+    {
+        $st['tier_open'] = true;
+        $lv = mel_gc_lv($st);
+    }
+    $st['gc'] = mel_gc_cursor($sel >= 0 && $sel < $lv['n'] ? mel_gc_line_of($lv, $sel) : mel_gc_first($lv), $lv['l']);
     $st['gc_new'] = true;
     return $st;
 }
@@ -649,7 +755,7 @@ function mel_gc_cols($rows, $tt)
         $any_tracker = $any_tracker || $r['expr'] !== '' || $r['trackers'] || $r['addon'] !== '';
     }
     $cols = array('icon' => array(12, $icon));
-    $x = 12 + $icon + 14;
+    $x = 12 + $icon + MEL_GC_ICON_GAP;
     foreach ($max as $k => $w)
     {
         if ($w > 0)
@@ -884,6 +990,76 @@ function mel_gc_row($i, $r, $tt, $c, $on = false, $share = 0)
     return mel_gc_panel("r$i", mel_gc_row_geom($i), mel_gc_row_items($r, $tt, $c, $on, $share));
 }
 
+// Children of the line of the group of lines $lv: MelKit::group_line from the left of the first column of the plates
+// (mel_gc_cols: MEL_GC_ICON_GAP after the icon column), "Не подтверждены" and "4 раздачи", on the centre of the line.
+/**
+ * @param MelGcLv $lv
+ * @param MelGcText $tt
+ * @param MelGcCols $c
+ * @param bool $on
+ * @return list<MelGcComp>
+ */
+function mel_gc_group_items($lv, $tt, $c, $on)
+{
+    $g = MelKit::group_line($tt['tier'], mel_gc_tier_count($tt, $lv['t']), $lv['o'], $on,
+        $c['icon'][0] + $c['icon'][1] + MEL_GC_ICON_GAP, MEL_GC_ROW_H / 2);
+    return $g['defs'];
+}
+
+// Children of panel "r$j" of line $j of lines $lv of list $st: the group (mel_gc_group_items) or its row
+// (mel_gc_row_items, the share of mel_gc_share of progress $prog).
+/**
+ * @param MelState $st
+ * @param MelGcLv $lv
+ * @param int $j
+ * @param MelGcText $tt
+ * @param MelGcCols $c
+ * @param bool $on
+ * @param MelProgress $prog
+ * @return list<MelGcComp>
+ */
+function mel_gc_line_items($st, $lv, $j, $tt, $c, $on, $prog)
+{
+    if (mel_gc_on_group($lv, $j))
+        return mel_gc_group_items($lv, $tt, $c, $on);
+    $i = mel_gc_row_of($lv, $j);
+    return mel_gc_row_items($st['rows'][$i], $tt, $c, $on, mel_gc_share($prog, $st['rows'][$i]));
+}
+
+// Panel "r$j" of line $j (mel_gc_line_items).
+/**
+ * @param MelState $st
+ * @param MelGcLv $lv
+ * @param int $j
+ * @param MelGcText $tt
+ * @param MelGcCols $c
+ * @param bool $on
+ * @param MelProgress $prog
+ * @return MelGcComp
+ */
+function mel_gc_line_comp($st, $lv, $j, $tt, $c, $on, $prog)
+{
+    return mel_gc_panel("r$j", mel_gc_row_geom($j), mel_gc_line_items($st, $lv, $j, $tt, $c, $on, $prog));
+}
+
+// The rules of the group of lines $lv in panel 'rows' (MEL_K_LIST_RULE high, colour line, from MEL_GC_PAD to as far
+// from the right): folded, under the line of the group; unfolded, none under it, after its last row when rows of the
+// main list follow (the frames D1, E1a, C1, E2a of the owner). On the top edge of the line under it, above the plate
+// of the focus of that line.
+/**
+ * @param MelGcLv $lv
+ * @return list<MelGcComp>
+ */
+function mel_gc_rules($lv)
+{
+    // One rule at most: none without the tier or unfolded with no row of the main list.
+    if ($lv['t'] === 0 || ($lv['o'] && $lv['t'] === $lv['n']))
+        return array();
+    $j = mel_gc_line_of($lv, $lv['t']);
+    return array(mel_gc_rect(mel_gc_at(MEL_GC_LW - 2 * MEL_GC_PAD, MEL_K_LIST_RULE, MEL_GC_PAD, $j * MEL_GC_ROW_H),
+        MEL_K_C_LINE, 'rule0'));
+}
+
 // Share of the release of a row watched before (mel_wh_progress), or 0.
 /**
  * @param MelProgress $prog
@@ -908,18 +1084,19 @@ function mel_gc_sel($sel)
 }
 
 // A field of the card: label $label (MEL_K_PX_CAPTION, text 3) and the lines $lines of its value (MEL_K_PX_SECONDARY,
-// text 1, step $lh) from x MEL_GC_VX, the first on the centre of the capitals of the label.
+// in $color, step $lh) from x MEL_GC_VX, the first on the centre of the capitals of the label.
 /**
  * @param string $label
  * @param list<string> $lines
  * @param int $lh
+ * @param string $color
  * @return MelKitItem
  */
-function mel_gc_field($label, $lines, $lh)
+function mel_gc_field($label, $lines, $lh, $color = MEL_K_C_TEXT1)
 {
     $vw = MEL_GC_CW - MEL_GC_VX;
     $l = MelKit::text($label, MEL_K_PX_CAPTION, MEL_K_C_TEXT3, 0, 0, array('w' => MEL_GC_VX - MEL_K_GAP_XS));
-    $v = MelKit::text($lines, MEL_K_PX_SECONDARY, MEL_K_C_TEXT1, 0, 0,
+    $v = MelKit::text($lines, MEL_K_PX_SECONDARY, $color, 0, 0,
         array('w' => $vw, 'ls' => $lh - MEL_K_PX_SECONDARY));
     // The rhythm of the card by the text of the row: the top of the capitals of its first (the label), the baseline
     // of its last.
@@ -975,22 +1152,23 @@ function mel_gc_stack_end($top, $blocks)
     return $end;
 }
 
-// The fields of the card under the name, from $top (the top of their capitals), in the order of priority: video,
-// audio, voices (of the audio tracks and the name), subtitles, languages, trackers (without them the add-on,
-// unless $addon_side: beside the poster), each up to 2 lines (the voices MEL_GC_VOICES_LINES), MEL_K_GAP_M apart;
-// the last baseline at $bottom at most. Video and audio are always there (a dash), the others only with data.
-// What does not fit: the last field by priority goes whole (trackers or add-on, then languages), then the
-// subtitles lose lines; video, audio and voices are never left out so (their lines only on a card that could not
-// hold them at all). -> list of the blocks, not yet stacked.
+// The fields of the card under the name, from $top (the top of their capitals), in the order of priority: "Сверка"
+// of a row of the tier ($check, mel_tier_text, in amber; '' none), video, audio, voices (of the audio tracks and the
+// name), subtitles, languages, trackers (without them the add-on, unless $addon_side: beside the poster), each up to
+// 2 lines (the voices MEL_GC_VOICES_LINES), MEL_K_GAP_M apart; the last baseline at $bottom at most. Video and audio
+// are always there (a dash), the others only with data. What does not fit: the last field by priority goes whole
+// (trackers or add-on, then languages), then the subtitles lose lines; "Сверка", video, audio and voices are never
+// left out so (their lines only on a card that could not hold them at all). -> list of the blocks, not yet stacked.
 /**
  * @param MelRow $r
  * @param MelGcText $tt
  * @param bool $addon_side
  * @param int $top
  * @param int $bottom
+ * @param string $check
  * @return list<MelKitItem>
  */
-function mel_gc_fields($r, $tt, $addon_side, $top, $bottom)
+function mel_gc_fields($r, $tt, $addon_side, $top, $bottom, $check = '')
 {
     $vs = mel_row_voices_struct($r);
     $alone = mel_voices_dub_first($vs);
@@ -998,6 +1176,7 @@ function mel_gc_fields($r, $tt, $addon_side, $top, $bottom)
     $video = array($r['resolution'], mel_badge_text($b['vis']), $b['ai'] ? 'AI' : '', mel_row_quality_text($r),
         implode(' ', $b['tags']));
     $fields = array(
+        array('check', $check),
         array('video', implode(' · ', array_filter($video, 'strlen'))),
         array('audio', $r['audio_full']),
         // Subtitles have a field of their own.
@@ -1015,7 +1194,7 @@ function mel_gc_fields($r, $tt, $addon_side, $top, $bottom)
     foreach ($fields as $f)
     {
         $v = mel_clean($f[1]);
-        $ess = in_array($f[0], array('video', 'audio', 'voices'), true);
+        $ess = in_array($f[0], array('check', 'video', 'audio', 'voices'), true);
         // Video and audio are always there (a dash); the others only with data.
         if ($v === '' && $f[0] !== 'video' && $f[0] !== 'audio')
             continue;
@@ -1027,7 +1206,8 @@ function mel_gc_fields($r, $tt, $addon_side, $top, $bottom)
             $max = min($max, (int) floor(($bottom - $at - $cap) / $lh) + 1);
             if ($max < 1)
                 continue;
-            $it = mel_gc_field($tt[$f[0]], mel_gc_field_lines($f[0], $v, $max, $alone), $lh);
+            $it = mel_gc_field($tt[$f[0]], mel_gc_field_lines($f[0], $v, $max, $alone), $lh,
+                $f[0] === 'check' ? MEL_K_C_WARN : MEL_K_C_TEXT1);
             $out[] = $it;
             $at += $it['bottom'] - $it['top'] + MEL_K_GAP_M;
             continue;
@@ -1144,10 +1324,59 @@ function mel_gc_card($st, $sel)
     $blocks = array(MelKit::text($name, MEL_K_PX_SECONDARY, MEL_K_C_TEXT1, 0, 0,
         array('w' => $w, 'lines' => MEL_GC_NAME_LINES, 'ls' => MEL_GC_NAME_LH - MEL_K_PX_SECONDARY)));
     $top = MEL_GC_PH + MEL_K_GAP_M;
+    $check = !empty($r['tier']) && is_array($r['tier_why']) ?
+        mel_tier_text($r['tier_why'], (bool) $st['movie']['series'], $tt['lang']) : '';
     $blocks = array_merge($blocks, mel_gc_fields($r, $tt, $addon_side, $top + $blocks[0]['bottom'] - $blocks[0]['top'] +
-        MEL_K_GAP_M, MEL_GC_CARD_BOTTOM - MEL_GC_CY - MEL_K_GAP_XS));
+        MEL_K_GAP_M, MEL_GC_CARD_BOTTOM - MEL_GC_CY - MEL_K_GAP_XS, $check));
     $under = MelKit::stack($blocks, 'm', $top, 'card');
     return array_merge($d, $under['defs']);
+}
+
+// "4 раздачи", "13 releases": $n rows of the tier.
+/**
+ * @param MelGcText $tt
+ * @param int $n
+ * @return string
+ */
+function mel_gc_tier_count($tt, $n)
+{
+    return "$n " . mel_gc_plural($tt['lang'], $n, 'gc_rel');
+}
+
+// Children of 'card' on the line of the group of lines $lv (mel_gc_lv) of list $st, beside the poster as the card of a
+// release (MEL_K_GAP_M apart): "4 раздачи" in the place of the size (MEL_K_PX_PANEL_TITLE, text 1), "не подтверждены"
+// in that of the status (MEL_K_PX_ROW, text 2), "ENTER — показать" (unfolded: "ENTER — свернуть"; MEL_K_PX_SECONDARY,
+// text 2) - none when ENTER does nothing there (no row of the main list: the group always unfolded). Nothing under the
+// poster.
+/**
+ * @param MelState $st
+ * @param MelGcLv $lv
+ * @return list<MelGcComp>
+ */
+function mel_gc_group_card($st, $lv)
+{
+    $tt = mel_gc_text(mel_gc_lang($st));
+    $sx = mel_img($st['movie']['poster']) !== '' ? MEL_GC_PW + MEL_GC_SIDE_GAP : 0;
+    $o = array('w' => MEL_GC_CW - $sx);
+    $b = array(MelKit::text(mel_gc_tier_count($tt, $lv['t']), MEL_K_PX_PANEL_TITLE, MEL_K_C_TEXT1, $sx, 0, $o),
+        MelKit::text($tt['tier_card'], MEL_K_PX_ROW, MEL_K_C_TEXT2, $sx, 0, $o));
+    if ($lv['t'] < $lv['n'])
+        $b[] = MelKit::text($lv['o'] ? $tt['tier_hide'] : $tt['tier_show'], MEL_K_PX_SECONDARY, MEL_K_C_TEXT2, $sx, 0,
+            $o);
+    $s = MelKit::stack($b, 'm', 0, 'side');
+    return $s['defs'];
+}
+
+// Children of 'card' of line $j of lines $lv of list $st: of the group mel_gc_group_card, of a row mel_gc_card.
+/**
+ * @param MelState $st
+ * @param MelGcLv $lv
+ * @param int $j
+ * @return list<MelGcComp>
+ */
+function mel_gc_line_card($st, $lv, $j)
+{
+    return mel_gc_on_group($lv, $j) ? mel_gc_group_card($st, $lv) : mel_gc_card($st, mel_gc_row_of($lv, $j));
 }
 
 // Bit rate: "59 Мбит/с", "≈ 7.4 Mbps" (one decimal under 10).
@@ -1180,15 +1409,45 @@ function mel_gc_count($sel, $n)
     return $t['defs'];
 }
 
+// Line $j of lines $lv -> array(its place from 1 among the releases on the screen, their number): the lines but that
+// of the group (the group folded: those of the main list). The counter (mel_gc_count_of) and the caption of INFO
+// (mel_info_open).
+/**
+ * @param MelGcLv $lv
+ * @param int $j
+ * @return array{0: int, 1: int}
+ */
+function mel_gc_place($lv, $j)
+{
+    $k = $lv['t'] > 0 ? 1 : 0;
+    return array($j - $k + 1, $lv['l'] - $k);
+}
+
+// The counter on line $j of lines $lv (mel_gc_count of mel_gc_place); on the line of the group none.
+/**
+ * @param MelGcLv $lv
+ * @param int $j
+ * @return list<MelGcComp>
+ */
+function mel_gc_count_of($lv, $j)
+{
+    if (mel_gc_on_group($lv, $j))
+        return array();
+    list($p, $n) = mel_gc_place($lv, $j);
+    return mel_gc_count($p - 1, $n);
+}
+
 // The hint line of list $st of $n rows (MelKit::hint, from MEL_GC_LX on MEL_GC_HINT_MID): «P+ P−» "Прокрутка" (more
-// rows than the screen), the chevrons "Серии" (an episode), MENU "Действия", INFO "Сведения".
+// rows than the screen), the chevrons "Серии" (an episode), MENU "Действия", INFO "Сведения" ($details false: none,
+// the cursor on the line of the group, where INFO does nothing).
 /**
  * @param MelState $st
  * @param MelGcText $tt
  * @param int $n
+ * @param bool $details
  * @return MelKitItem
  */
-function mel_gc_hints($st, $tt, $n)
+function mel_gc_hints($st, $tt, $n, $details)
 {
     $items = array();
     if ($n > MEL_GC_VIS)
@@ -1197,8 +1456,24 @@ function mel_gc_hints($st, $tt, $n)
     if ($st['e'] > 0)
         $items[] = array('lr', $tt['flip']);
     $items[] = array('k_icon_menu', $tt['actions']);
-    $items[] = array('k_key_info', $tt['details']);
+    if ($details)
+        $items[] = array('k_key_info', $tt['details']);
     return MelKit::hint($items, MEL_GC_LX, MEL_GC_HINT_MID);
+}
+
+// Panel 'hint' of the hint line (mel_gc_hints) on line $j of lines $lv: at 0, 0, its children in the coordinates of
+// the screen; a step that comes to the group or leaves it replaces them (mel_gc_input).
+/**
+ * @param MelState $st
+ * @param MelGcText $tt
+ * @param MelGcLv $lv
+ * @param int $j
+ * @return list<MelGcComp>
+ */
+function mel_gc_hint_defs($st, $tt, $lv, $j)
+{
+    $h = mel_gc_hints($st, $tt, $lv['l'], !mel_gc_on_group($lv, $j));
+    return $h['defs'];
 }
 
 // The remote has the colour keys, as the vendor screens check it
@@ -1297,8 +1572,8 @@ function mel_gc_tabs_right($st, $tt, $left, $right)
 function mel_gc_window($st, $sel, $top)
 {
     $mv = $st['movie'];
-    $rows = $st['rows'];
-    $n = count($rows);
+    $lv = mel_gc_lv($st);
+    $n = $lv['l'];
     $tt = mel_gc_text(mel_gc_lang($st));
     $cols = mel_gc_cols_st($st);
     $d = array();
@@ -1307,18 +1582,19 @@ function mel_gc_window($st, $sel, $top)
     if ($poster !== '')
         $d[] = mel_gc_image(mel_gc_at(MEL_GC_PW, MEL_GC_PH, MEL_GC_CX, MEL_GC_CY), $poster, true);
     $d[] = mel_gc_panel('card', mel_gc_at(MEL_GC_CW, MEL_GC_CARD_BOTTOM - MEL_GC_CY, MEL_GC_CX, MEL_GC_CY),
-        mel_gc_card($st, $sel));
+        mel_gc_line_card($st, $lv, $sel));
 
     // The yellow line of "Онлайн" (view_online.php) in the row of the title.
     $d = array_merge($d, mel_gc_head($st, mel_lpv_note($st)));
 
-    // Viewport: clipping panel 'list'; the inner panel 'rows' (as high as all the rows) moves to scroll, the rows of
-    // the window (mel_gc_win) in it at their places.
+    // Viewport: clipping panel 'list'; the inner panel 'rows' (as high as all the lines) moves to scroll, the lines of
+    // the window (mel_gc_win) in it at their places, the rules of the group after them.
     $prog = isset($st['gc_prog']) ? $st['gc_prog'] : array();
     $in = array(mel_gc_sel($sel));
     list($lo, $hi) = mel_gc_win($top, $n);
-    for ($i = $lo; $i < $hi; $i++)
-        $in[] = mel_gc_row($i, $rows[$i], $tt, $cols, $i === $sel, mel_gc_share($prog, $rows[$i]));
+    for ($j = $lo; $j < $hi; $j++)
+        $in[] = mel_gc_line_comp($st, $lv, $j, $tt, $cols, $j === $sel, $prog);
+    $in = array_merge($in, mel_gc_rules($lv));
     // An empty list (the source of a profile has no streams, mel_gc_src): the line
     // of the error in place of the rows.
     if ($n === 0)
@@ -1336,11 +1612,10 @@ function mel_gc_window($st, $sel, $top)
             MEL_K_C_SCROLL_TRACK);
         $d[] = mel_gc_rect(mel_gc_thumb_geom($top, $n), MEL_K_C_SCROLL_THUMB, 'thumb');
     }
-    $h = mel_gc_hints($st, $tt, $n);
-    $d = array_merge($d, $h['defs']);
+    $d[] = mel_gc_panel('hint', mel_gc_at(1920, 1080, 0, 0), mel_gc_hint_defs($st, $tt, $lv, $sel));
     $right = MEL_GC_LX + MEL_GC_LW - MEL_GC_PAD;
     $d[] = mel_gc_panel('counter', mel_gc_at(MEL_GC_COUNT_W, MEL_K_KEY_H, $right - MEL_GC_COUNT_W,
-        MEL_GC_HINT_MID - intval(MEL_K_KEY_H / 2)), mel_gc_count($sel, $n));
+        MEL_GC_HINT_MID - intval(MEL_K_KEY_H / 2)), mel_gc_count_of($lv, $sel));
     $left = MEL_GC_LX;
     if (mel_gc_color_keys())
     {
@@ -1433,14 +1708,17 @@ function mel_gc_bar_update($st, $hash)
     list($sel, $top) = mel_gc_pos($st, null);
     $tt = mel_gc_text(mel_gc_lang($st));
     $cols = mel_gc_cols_st($st);
-    // Only the rows on the screen (mel_gc_win); the others get the share when the window comes to them.
-    list($lo, $hi) = mel_gc_win($top, count($st['rows']));
+    // Only the rows on the screen (mel_gc_win; not those of the group folded); the others get the share when the
+    // window comes to them.
+    $lv = mel_gc_lv($st);
+    list($lo, $hi) = mel_gc_win($top, $lv['l']);
     $ch = array();
     foreach ($rows as $i)
     {
-        if ($i >= $lo && $i < $hi)
-            $ch[] = mel_gc_change("r$i", null, GCOMP_TRANSITION_NONE,
-                mel_gc_row_items($st['rows'][$i], $tt, $cols, $i === $sel, $now));
+        $j = mel_gc_line_of($lv, $i);
+        if ($j >= $lo && $j < $hi && mel_gc_row_of($lv, $j) === $i)
+            $ch[] = mel_gc_change("r$j", null, GCOMP_TRANSITION_NONE,
+                mel_gc_row_items($st['rows'][$i], $tt, $cols, $j === $sel, $now));
     }
     return $ch ? mel_gc_changes_act($ch, $sel, $top) : null;
 }
@@ -1510,7 +1788,8 @@ function mel_sort_tag($k, $rev)
 // order, by default descending (mel_rows_sort); the key of the list's sort
 // again: the other way round. The sort kept for new lists (mel_sort_set;
 // not written: this list only); the screen replaced as by mel_refresh (a new
-// rid), the cursor on the first row. A bad key, a list not live: nothing.
+// rid), the group of the tier folded or not as it was, the cursor on the line a list opens on (mel_gc_first). A bad
+// key, a list not live: nothing.
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -1532,7 +1811,7 @@ function mel_gc_sort($in)
     $ns = mel_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang'], $st['errors']);
     mel_log('sort: ' . mel_sort_tag($st['sort'], $st['sort_rev']) . " -> $tag, " . mel_ep_tag($st) . ', ' .
         count($st['rows']) . ' rows, screen replaced');
-    return mel_list_replace(mel_gc_put_cursor($ns, 0));
+    return mel_list_replace(mel_gc_put_cursor($ns, -1, $st));
 }
 
 // The sort and the details of a release in MENU of a list too (0.61.0): "Пульт без цветных кнопок" of the
@@ -1637,7 +1916,8 @@ function mel_gc_main($in)
     Mel::$settings['debrid_main'] = $k;
     $ns = mel_list_state($st['movie'], $st['s'], $st['e'], $st['rows'], $st['lang'], $st['errors']);
     mel_log("debrid main: $was -> $k, " . mel_ep_tag($st) . ', screen replaced');
-    return mel_list_replace(mel_gc_put_cursor($ns, isset($st['gc']) ? $st['gc'][0] : 0));
+    $cur = isset($st['gc']) ? mel_gc_row_of(mel_gc_lv($st), $st['gc'][0]) : -1;
+    return mel_list_replace(mel_gc_put_cursor($ns, $cur, $st));
 }
 
 // --- The sources in MENU of a list (v2): the user saved them on the page (settings.json, profiles); a choice is of
@@ -1666,7 +1946,8 @@ function mel_gc_src_item($st)
 // sources: "Get films from…" (mel_gc_src_item), a row
 // with infoHash: "Download in app" (mel_download) and, with a server in the
 // settings, "Download to server" (mel_srv_menu; these three not with "no torrents"), source errors of the
-// reply if shown (mel_gc_errors), "Settings". A screen of a
+// reply if shown (mel_gc_errors), "Settings". On the line of the group of the tier no item of a release (details,
+// TorrServer, download); 'i' of those is the row of $st['rows'], not the line. A screen of a
 // lost list (replaced, php_server restarted): "Settings" only.
 /**
  * @param stdClass $in
@@ -1688,15 +1969,17 @@ function mel_gc_menu($in)
     }
     list($sel, $top) = mel_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     Mel::$state['gc'] = array($sel, $top);
+    // The items of a release take its row; on the line of the group (-1) none of them.
+    $row = mel_gc_row_of(mel_gc_lv($st), $sel);
     $rid = $st['rid'];
     $menu = array();
     if (mel_gc_keys_in_menu())
     {
-        if ($st['rows'])
+        if ($row >= 0)
             $menu[] = array(
                 GuiMenuItemDef::caption => mel_tr($st['lang'], 'info_menu'),
                 GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
-                GuiMenuItemDef::action => mel_gc_act('gc_info', $rid, array('i' => strval($sel))));
+                GuiMenuItemDef::action => mel_gc_act('gc_info', $rid, array('i' => strval($row))));
         $tt = mel_gc_text(mel_gc_lang($st));
         $menu[] = array(
             GuiMenuItemDef::caption => str_replace('{name}', $tt[mel_gc_sort_word($st, $st['sort'])],
@@ -1724,22 +2007,22 @@ function mel_gc_menu($in)
     $src = mel_gc_src_item($st);
     if ($src)
         $menu[] = $src;
-    $tor = isset($st['rows'][$sel]) && $st['rows'][$sel]['hash'] !== '' && !Mel::$settings['no_torrents'];
+    $tor = isset($st['rows'][$row]) && $st['rows'][$row]['hash'] !== '' && !Mel::$settings['no_torrents'];
     if ($tor)
         $menu[] = array(
             GuiMenuItemDef::caption => mel_tr($st['lang'], 'ts_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/torrents.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_ts', $rid, array('i' => strval($sel))));
+            GuiMenuItemDef::action => mel_gc_act('gc_ts', $rid, array('i' => strval($row))));
     if ($tor)
         $menu[] = array(
             GuiMenuItemDef::caption => mel_tr($st['lang'], 'dl_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/torrent_file.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_dl', $rid, array('i' => strval($sel))));
+            GuiMenuItemDef::action => mel_gc_act('gc_dl', $rid, array('i' => strval($row))));
     if ($tor && Mel::$settings['servers'])
         $menu[] = array(
             GuiMenuItemDef::caption => mel_tr($st['lang'], 'srv_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/network_folder.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_srv', $rid, array('i' => strval($sel))));
+            GuiMenuItemDef::action => mel_gc_act('gc_srv', $rid, array('i' => strval($row))));
     if (mel_errors_shown($st['errors']))
         $menu[] = array(
             GuiMenuItemDef::caption => mel_tr($st['lang'], 'errors_menu'),
@@ -1767,9 +2050,33 @@ function mel_gc_errors($in)
     return mel_errors_dialog(mel_tr($st['lang'], 'errors_menu'), $st['lang'], $st['errors']);
 }
 
+// ENTER on the line of the group of the tier of list $st (lines $lv): folded - unfolded, the cursor on its first row;
+// unfolded - folded, the cursor on its line. With no row of the main list it is always unfolded: nothing. The screen
+// replaced from the state (a new rid), no request, as a balancer of the online list (mel_lpv_fold).
+/**
+ * @param MelState $st
+ * @param MelGcLv $lv
+ * @return MelAction|null
+ */
+function mel_gc_fold($st, $lv)
+{
+    if ($lv['t'] === $lv['n'])
+        return null;
+    $ns = $st;
+    $ns['rid'] = mel_rid();
+    $ns['tier_open'] = !$lv['o'];
+    // Folded: the line of the group; unfolded: that of its first row.
+    $ns['gc'] = array(mel_gc_line_of(mel_gc_lv($ns), 0), 0);
+    $ns['gc_new'] = true;
+    mel_log('tier: ' . ($lv['o'] ? 'folded' : 'unfolded') . ", {$lv['t']} rows, screen replaced");
+    return mel_list_replace($ns);
+}
+
 // gc_move -> change_gcomps (null at an edge); gc_pick -> playback; gc_info ->
-// the details screen (back on this one, mel_gc_pos finds the row in 'gc'); from MENU
-// (mel_gc_menu) gc_info has the row in 'i', a row not in the list: outdated.
+// the details screen (back on this one, mel_gc_pos finds the line in 'gc'); from MENU
+// (mel_gc_menu) gc_info has the row in 'i', a row not in the list: outdated. All by the lines of the screen
+// (mel_gc_lv): a release by its row of $st['rows']; on the line of the group ENTER folds or unfolds it (mel_gc_fold),
+// INFO nothing.
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -1786,6 +2093,7 @@ function mel_gc_input($in)
         // An empty list (mel_gc_src): no row to play or to show.
         if (!$st['rows'])
             return null;
+        $lv = mel_gc_lv($st);
         list($sel, $top) = mel_gc_pos($st, $raw);
         if ($in->control_id === 'gc_info' && isset($in->i))
         {
@@ -1795,28 +2103,32 @@ function mel_gc_input($in)
                 mel_log('info: menu of no live row');
                 return mel_error('err_list_expired');
             }
-            if ($i !== $sel)
-                list($sel, $top) = mel_gc_cursor($i, count($st['rows']));
+            if ($i !== mel_gc_row_of($lv, $sel))
+                list($sel, $top) = mel_gc_cursor(mel_gc_line_of($lv, $i), $lv['l']);
         }
         Mel::$state['gc'] = array($sel, $top);
+        if (mel_gc_on_group($lv, $sel))
+            return $in->control_id === 'gc_pick' ? mel_gc_fold($st, $lv) : null;
+        $row = mel_gc_row_of($lv, $sel);
         if ($in->control_id === 'gc_info')
-            return mel_info_open($st, $sel);
+            return mel_info_open($st, $row);
         // A new start: the main Debrid again, not one of "Via <service>" before.
         Mel::$alt = null;
         Mel::$via = null;
         // A P2P stream (no URL, infoHash only): through TorrServer.
-        if (mel_is_p2p($st['rows'][$sel]))
-            return mel_ts_open(Mel::$state, $sel, 0, $st['rid']);
-        $a = mel_play($st, $st['rows'][$sel], 0, null, false, null, $st['rid']);
+        if (mel_is_p2p($st['rows'][$row]))
+            return mel_ts_open(Mel::$state, $row, 0, $st['rid']);
+        $a = mel_play($st, $st['rows'][$row], 0, null, false, null, $st['rid']);
         if ($a[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
-            mel_playing($st['rid'], Mel::$state, $sel);
+            mel_playing($st['rid'], Mel::$state, $row);
         return $a;
     }
 
     $key = mel_gc_key($in);
     if (!$live || $key === null)
         return null;
-    $n = count($st['rows']);
+    $lv = mel_gc_lv($st);
+    $n = $lv['l'];
     list($sel, $top) = mel_gc_pos($st, $raw);
     list($nsel, $ntop) = mel_gc_step($sel, $top, $n, $key);
     Mel::$state['gc'] = array($nsel, $ntop);
@@ -1826,9 +2138,9 @@ function mel_gc_input($in)
     $tt = mel_gc_text(mel_gc_lang($st));
     $cols = mel_gc_cols_st($st);
     $prog = isset($st['gc_prog']) ? $st['gc_prog'] : array();
-    // As mel_gc_cursor_changes, and the window of rows follows the top (mel_gc_win): the rows that leave it removed,
-    // those that come in (with the 'rows' change, after the row before them; above all: after 'sel', over it), as
-    // the episodes of the own card (view_card_series.php). Both cursor rows stay: the window holds a page above and
+    // As mel_gc_cursor_changes, and the window of lines follows the top (mel_gc_win): the lines that leave it removed,
+    // those that come in (with the 'rows' change, after the line before them; above all: after 'sel', over it), as
+    // the episodes of the own card (view_card_series.php). Both cursor lines stay: the window holds a page above and
     // below the screen.
     $ch = array(mel_gc_change('sel', mel_gc_row_geom($nsel), GCOMP_TRANSITION_DEFAULT));
     if ($ntop !== $top)
@@ -1836,18 +2148,18 @@ function mel_gc_input($in)
         list($olo, $ohi) = mel_gc_win($top, $n);
         list($lo, $hi) = mel_gc_win($ntop, $n);
         $add = array();
-        for ($i = min($olo, $lo); $i < max($ohi, $hi); $i++)
+        for ($j = min($olo, $lo); $j < max($ohi, $hi); $j++)
         {
-            $was = $i >= $olo && $i < $ohi;
-            $now = $i >= $lo && $i < $hi;
+            $was = $j >= $olo && $j < $ohi;
+            $now = $j >= $lo && $j < $hi;
             if ($was && !$now)
             {
-                $x = mel_gc_change("r$i", null, GCOMP_TRANSITION_NONE);
+                $x = mel_gc_change("r$j", null, GCOMP_TRANSITION_NONE);
                 $x[ChangeGCompDef::remove] = true;
                 $ch[] = $x;
             }
             elseif ($now && !$was)
-                $add[] = mel_gc_row($i, $st['rows'][$i], $tt, $cols, false, mel_gc_share($prog, $st['rows'][$i]));
+                $add[] = mel_gc_line_comp($st, $lv, $j, $tt, $cols, false, $prog);
         }
         $x = mel_gc_change('rows', mel_gc_rows_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT, $add ? $add : null);
         if ($add)
@@ -1858,12 +2170,15 @@ function mel_gc_input($in)
         $ch[] = $x;
         $ch[] = mel_gc_change('thumb', mel_gc_thumb_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
     }
-    // The focus brightness moves with the row.
+    // The focus brightness moves with the line.
     $ch[] = mel_gc_change("r$sel", null, GCOMP_TRANSITION_NONE,
-        mel_gc_row_items($st['rows'][$sel], $tt, $cols, false, mel_gc_share($prog, $st['rows'][$sel])));
+        mel_gc_line_items($st, $lv, $sel, $tt, $cols, false, $prog));
     $ch[] = mel_gc_change("r$nsel", null, GCOMP_TRANSITION_NONE,
-        mel_gc_row_items($st['rows'][$nsel], $tt, $cols, true, mel_gc_share($prog, $st['rows'][$nsel])));
-    $ch[] = mel_gc_change('card', null, GCOMP_TRANSITION_NONE, mel_gc_card($st, $nsel));
-    $ch[] = mel_gc_change('counter', null, GCOMP_TRANSITION_NONE, mel_gc_count($nsel, $n));
+        mel_gc_line_items($st, $lv, $nsel, $tt, $cols, true, $prog));
+    $ch[] = mel_gc_change('card', null, GCOMP_TRANSITION_NONE, mel_gc_line_card($st, $lv, $nsel));
+    $ch[] = mel_gc_change('counter', null, GCOMP_TRANSITION_NONE, mel_gc_count_of($lv, $nsel));
+    // To the group or off it: "Сведения" goes or comes back.
+    if (mel_gc_on_group($lv, $nsel) !== mel_gc_on_group($lv, $sel))
+        $ch[] = mel_gc_change('hint', null, GCOMP_TRANSITION_NONE, mel_gc_hint_defs($st, $tt, $lv, $nsel));
     return mel_gc_changes_act($ch, $nsel, $ntop);
 }

@@ -841,7 +841,8 @@ function mel_precheck($url)
 
 // --- Back from the player to the list screen.
 
-// Playback of row $sel of list state $st; $from: rid of the screen under the player.
+// Playback of row $sel of list state $st; $from: rid of the screen under the player. $sel -1: the release is not in the
+// list (mel_finish_list of a pack: the new list has no row of it); its readers take the row by isset.
 /**
  * @param string $from
  * @param MelState $st
@@ -882,7 +883,9 @@ function mel_finish_act($rid)
 // screen, if the shell keeps it, only says "outdated". Same episode: the
 // shell keeps the screen and its cursor; only the progress bar of the
 // release played may change (mel_gc_bar_update). The rows are those of "next", no
-// request; of a state of one row (mel_ts_pack_state), one request of that episode.
+// request; of a state of one row (mel_ts_pack_state), one request of that episode, the release
+// gone from it: the line a list opens on. The group of the tier of the new list folded or not as
+// on the old screen, unfolded for a release of it (mel_gc_put_cursor).
 // JacRed tracks of the old list go over by hash (one release). The tab "TV" built anew (mel_tv_flag) and the main
 // screens of the catalog invalidated (mel_catv_after_player): the row "Continue" and the badges are of the history.
 // Before all, the episodes stopped in their credits marked watched (mel_cw_apply).
@@ -932,11 +935,12 @@ function mel_finish_list($in)
             return null;
         }
         $ns = $res['st'];
+        // The row of the release, -1 none (mel_gc_put_cursor: the line a list opens on).
         $pick = mel_release_pick($ns['rows'], $hash, -1, -1);
-        $sel = max($pick['ts'], 0);
+        $sel = $pick['ts'];
     }
     $n = count($ns['rows']);
-    $ns = mel_gc_put_cursor($ns, $sel);
+    $ns = mel_gc_put_cursor($ns, $sel, $st);
     $ns['rows'] = mel_carry_tracks($ns['rows'], $st['rows']);
     // The playback goes on from the new screen: if the event came while the
     // player only switched episodes, the next ones still find their screen.
@@ -1036,8 +1040,8 @@ function mel_flip_ep($seasons, $s, $e, $dir)
 // gc_flip (d = prev|next) of a live list of an episode: the list of the
 // episode before or after it replaces the screen, as mel_finish does: "Back"
 // goes to the card, the old rid is outdated. Cursor on the release of the
-// current row (with the episode first), else on the first. An error: a dialog, the screen and the
-// state stay as they were.
+// current row (with the episode first), else on the line a list opens on; the group of the tier as it was.
+// An error: a dialog, the screen and the state stay as they were.
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -1060,7 +1064,7 @@ function mel_flip($in)
     if (!$to)
         return null;
     list($s, $e) = $to;
-    list($cur) = mel_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    $cur = mel_gc_row_now($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     $ep = sprintf('S%02dE%02d', $s, $e);
     return mel_relist_screen($st, $s, $e, $cur, 'flip: ' . mel_ep_tag($st) . " -> $ep", false,
         mel_tr($st['lang'], 'next_failed', mel_se($s, $e)), 1);
@@ -1068,7 +1072,7 @@ function mel_flip($in)
 
 // gc_refresh (MENU "Refresh") of a live list, a movie or an episode: the same
 // request anew, the screen replaced as by mel_flip, cursor on the same
-// release, else the first row. An error: a dialog, the screen and the state
+// release, else the line a list opens on; the group of the tier as it was. An error: a dialog, the screen and the state
 // stay as they were.
 /**
  * @param stdClass $in
@@ -1082,7 +1086,7 @@ function mel_refresh($in)
         mel_log('refresh: not a live list, nothing');
         return null;
     }
-    list($cur) = mel_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    $cur = mel_gc_row_now($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     return mel_relist_screen($st, $st['s'], $st['e'], $cur, 'refresh: ' . mel_ep_tag($st), true,
         mel_tr($st['lang'], 'refresh_failed'), 1);
 }
@@ -1114,7 +1118,7 @@ function mel_choose($in)
     }
     // The cursor of the list for gc_chosen: its parent_sel_state is the shell's.
     Mel::$state['gc'] = mel_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
-    mel_log('choose: ' . mel_ep_tag($st) . " of list {$st['rid']}, row " . Mel::$state['gc'][0] .
+    mel_log('choose: ' . mel_ep_tag($st) . " of list {$st['rid']}, line " . Mel::$state['gc'][0] .
         ' -> seasons screen of the shell');
     return mel_choose_act($st['rid'], 'gc_chosen');
 }
@@ -1183,7 +1187,7 @@ function mel_chosen($in)
     }
     $how = isset($in->se_chosen_manually) && is_scalar($in->se_chosen_manually) ?
         mel_cut(strval($in->se_chosen_manually), 10) : '-';
-    list($cur) = mel_gc_pos($st, null);
+    $cur = mel_gc_row_now($st, null);
     $ep = sprintf('S%02dE%02d', $s, $e);
     return mel_relist_screen($st, $s, $e, $cur, 'pick: ' . mel_ep_tag($st) . " -> $ep (manually $how)", false,
         mel_tr($st['lang'], 'next_failed', mel_se($s, $e)), 3);
@@ -1235,8 +1239,10 @@ function mel_download($in)
 // The list of S$s E$e (-1 -1: the movie) of the card of $st anew, the request
 // of play_action. Tracks of the old list by hash first: JacRed then asks only
 // for the rest. Cursor on release $hash (an episode: with it in its file
-// first), else the first row. -> array('error' => key, 'detail' => text,
-// maybe 'errors') of mel_fetch or array('st' => new state, 'sel' => row, 'by' =>
+// first), else the line a list opens on (mel_gc_put_cursor); the group of the tier
+// folded or not as in $st (a row of it under the cursor: unfolded; a reply of
+// the tier only: a list of it, unfolded). -> array('error' => key, 'detail' => text,
+// maybe 'errors') of mel_fetch or array('st' => new state, 'sel' => row (-1 none), 'by' =>
 // why that row). A card of no IMDb and no TMDB (Lampac only, mel_rel_id): err_no_imdb_rel, no request.
 /**
  * @param MelState $st
@@ -1265,13 +1271,14 @@ function mel_relist($st, $s, $e, $hash)
         $rows = mel_jacred($rows, $mv, $s, $e);
     $ns = mel_list_state($mv, $s, $e, $rows, $st['lang'], $res['errors']);
     list($sel, $by) = mel_release_row($ns['rows'], $hash, $s, $e, mel_cin_n($mv['cin'], $s, $e));
-    return array('st' => mel_gc_put_cursor($ns, $sel), 'sel' => $sel, 'by' => $by);
+    return array('st' => mel_gc_put_cursor($ns, $sel, $st), 'sel' => $sel, 'by' => $by);
 }
 
 // The row of release $hash in $rows of S$s E$e: with the episode in its file
 // first (mel_has_ep, by its number $n too), as mel_next (a release not in the cache has its hash in every reply,
-// even a pack of another season), else any of it, else the first row. Found
-// in the rows as the list has them: sorted. -> array(row, why that row)
+// even a pack of another season), else any of it, else -1 (mel_gc_put_cursor: the line a list opens on); of rows
+// alike a row of the main list before one of the tier (a copy of the release there, which the rows put first, would
+// unfold the group). Found in the rows as the list has them: sorted. -> array(row, why that row)
 /**
  * @param list<MelRow> $rows
  * @param string $hash
@@ -1284,23 +1291,22 @@ function mel_release_row($rows, $hash, $s, $e, $n = 0)
 {
     $sel = -1;
     $by = 'no such release';
+    $best = -1;
     foreach ($rows as $i => $r)
     {
         if ($hash === '' || $r['hash'] !== $hash)
             continue;
-        if ($e < 1 || mel_has_ep($r, $s, $e, $n))
-        {
-            $sel = $i;
-            $by = $e < 1 ? 'same release' : 'same release with the episode';
+        $ep = $e < 1 || mel_has_ep($r, $s, $e, $n);
+        $rank = ($ep ? 2 : 0) + (empty($r['tier']) ? 1 : 0);
+        if ($rank <= $best)
+            continue;
+        $best = $rank;
+        $sel = $i;
+        $by = $e < 1 ? 'same release' : ($ep ? 'same release with the episode' : 'same release, episode not in its file');
+        if ($rank === 3)
             break;
-        }
-        if ($sel < 0)
-        {
-            $sel = $i;
-            $by = 'same release, episode not in its file';
-        }
     }
-    return array(max(0, $sel), $by);
+    return array($sel, $by);
 }
 
 // The dialog of a failed mel_relist: the error, its detail, OK; a reply of error

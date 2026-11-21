@@ -560,10 +560,14 @@ function mel_service_name($id)
 //   label        name of the release: the file of a movie, the folder of a season pack
 //   raw          the stream as it came, for the details screen (INFO); memory of
 //                php_server only, as the URL: never logged nor saved
-//   ord          place in the reply, from 0 (mel_fetch numbers the rows): the order of
-//                AIOStreams that every sort keeps for equal values (mel_rows_sort)
+//   ord          place among the rows of mel_fetch, from 0: those of the main list first, then
+//                those of the tier, each in the order of the reply; every sort keeps it for equal
+//                values (mel_rows_sort), mel_release_pick prefers a copy of the main list by it
 //   copies, copy a file cached on several services, one row (mel_row_merge): its
 //                copies (MelCopy) and the index of the one on top; none for one copy
+//   tier         a row of the tier "Не подтверждены" (streamData.unconfirmed of the
+//                fork of AIOStreams: a check of the title would have removed it); false:
+//                of the main list. tier_why: its reason (mel_tier_why), null when not tier
 /**
  * @param array<mixed> $st
  * @param bool $series
@@ -678,6 +682,7 @@ function mel_row($st, $series)
     $age = isset($sd['age']) ? $sd['age'] : null;
     $age = is_int($age) || is_float($age) || (is_string($age) && preg_match('/^\d+(\.\d+)?$/D', $age)) ?
         (float) $age : -1.0;
+    $why = mel_tier_why($sd);
     return array(
         'url' => $url,
         'hash' => $hash,
@@ -710,7 +715,35 @@ function mel_row($st, $series)
         'names' => array($folder, $file),
         'label' => $label !== '' ? $label : mel_plain_name($name),
         'raw' => $st,
-        'ord' => 0);
+        'ord' => 0,
+        'tier' => $why !== null,
+        'tier_why' => $why);
+}
+
+// The years of streamData.unconfirmed believed: of four digits (the screen has room for them).
+define('MEL_TIER_YEAR_MIN', 1000);
+define('MEL_TIER_YEAR_MAX', 9999);
+
+// The mark of the tier of streamData $sd of a stream (the fork of AIOStreams: "unconfirmed": {"reason":
+// "year", "releaseYear": 2006, "titleYear": 2011[, "titleYearEnd": 2013]}) -> array(code: the reason,
+// ry, ty, te: the year of the release, of the title, the end of the years of the title - an int of four
+// digits, else null); the dates of reason date are not kept. null: no mark - none, or not an object with
+// a string reason (true, a string, {}): a row of the main list, as of a server without the tier.
+/**
+ * @param array<mixed> $sd
+ * @return MelTierWhy|null
+ */
+function mel_tier_why($sd)
+{
+    $u = isset($sd['unconfirmed']) ? $sd['unconfirmed'] : null;
+    if (!is_array($u) || !isset($u['reason']) || !is_string($u['reason']))
+        return null;
+    $y = array();
+    foreach (array('ry' => 'releaseYear', 'ty' => 'titleYear', 'te' => 'titleYearEnd') as $k => $f)
+        $y[$k] = isset($u[$f]) && is_int($u[$f]) && $u[$f] >= MEL_TIER_YEAR_MIN && $u[$f] <= MEL_TIER_YEAR_MAX ? $u[$f] : null;
+    // A code of a later server is shown by the general text (mel_tier_text): only its letters kept.
+    return array('code' => preg_match('/^[a-z_]{1,40}\z/', $u['reason']) ? $u['reason'] : '', 'ry' => $y['ry'],
+        'ty' => $y['ty'], 'te' => $y['te']);
 }
 
 // streamData.infoUrl $v (the Melange server: <comments> of Torznab) as it
@@ -1003,7 +1036,8 @@ function mel_merge_group($keys, $k)
  */
 function mel_merge_start($series)
 {
-    return array('g' => array(), 'hash' => array(), 'name' => array(), 'by_hash' => 0, 'by_name' => 0, 'series' => $series);
+    return array('g' => array(), 'hash' => array(), 'name' => array(), 'by_hash' => 0, 'by_name' => 0, 'untier' => 0,
+        'series' => $series);
 }
 
 // The row of $mx (mel_merge_start) copy $k (mel_merge_key) joins: of the file
@@ -1036,7 +1070,8 @@ function mel_merge_find($mx, $k)
 // mel_list_state; the row without an infoHash gets that of the copy) -> true.
 // Else false: $r is the next row of $rows, the caller puts it there; $mx
 // (mel_merge_start) notes it. Not merged: not cached, P2P, a copy of the same
-// service, a row of MEL_MERGE_MAX copies.
+// service, a row of MEL_MERGE_MAX copies. A row of the tier with a copy of the
+// main list (either first): of the main list, counted in $mx['untier'].
 /**
  * @param list<MelRow> $rows
  * @param MelMerge $mx
@@ -1060,6 +1095,13 @@ function mel_row_merge(&$rows, &$mx, $r)
         {
             $row['hash'] = $k['hash'];
             $mx['hash'][$k['hash']][] = $gi;
+        }
+        // A copy of the main list makes the row one of it, as the server tells a file (mel_tier_why).
+        if ($row['tier'] && !$r['tier'])
+        {
+            $row['tier'] = false;
+            $row['tier_why'] = null;
+            $mx['untier']++;
         }
         $rows[$gi] = mel_row_use($row, 0);
         $g = $mx['g'][$gi];
@@ -1120,11 +1162,13 @@ function mel_rows_debrid($rows)
 
 // Rows in the order of sort $key, by default descending: more seeders (a
 // Debrid list: the cached rows, then the rest), bigger, newer (smaller age);
-// 'aio' (or an unknown key) the order of the reply. $rev: the other way, the
+// 'aio' (or an unknown key) the order of the reply (ord). $rev: the other way, the
 // value only: fewer seeders (not cached first), smaller, older; 'aio' the
 // reply backwards. Stable either way: equal values keep the order of
 // AIOStreams (ord); rows without the value (no seeders, size 0, no age) go to
-// the end in that order.
+// the end in that order. The rows of the tier (tier) first by any key, $rev
+// or not, then those of the main list, each part in that order: the screen
+// shows the tier as a group of its own at the top (view_gcomps.php, mel_gc_lv).
 /**
  * @param list<MelRow> $rows
  * @param string $key
@@ -1134,9 +1178,10 @@ function mel_rows_debrid($rows)
 function mel_rows_sort($rows, $key, $rev = false)
 {
     $deb = mel_rows_debrid($rows);
-    $miss = $val = $ord = $pos = array();
+    $tier = $miss = $val = $ord = $pos = array();
     foreach ($rows as $i => $r)
     {
+        $tier[] = empty($r['tier']) ? 1 : 0;
         if ($key === 'seeds')
             $v = $deb ? ($r['cached'] === true ? 1 : 0) : $r['seeders'];
         else if ($key === 'size')
@@ -1152,7 +1197,7 @@ function mel_rows_sort($rows, $key, $rev = false)
         $pos[] = $i;
     }
     $dir = $rev ? SORT_ASC : SORT_DESC;
-    array_multisort($miss, SORT_ASC, $val, $dir, $ord, SORT_ASC, $pos, SORT_ASC, $rows);
+    array_multisort($tier, SORT_ASC, $miss, SORT_ASC, $val, $dir, $ord, SORT_ASC, $pos, SORT_ASC, $rows);
     return $rows;
 }
 

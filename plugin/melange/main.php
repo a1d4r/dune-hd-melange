@@ -1728,7 +1728,8 @@ function mel_mig_run()
         MEL_CONF_SCHEMA, $line, microtime(true) - $t));
 }
 
-// -> array('rows' => list) or array('error' => key, 'detail' => text); 'errors':
+// -> array('rows' => list: those of the main list, then those of the tier, MelRow tier) or
+// array('error' => key, 'detail' => text) - err_no_streams: no row of either; 'errors':
 // the reasons of the error streams of the reply (mel_error_streams), with the
 // rows and with err_no_streams. Asked by the numbering of Cinemeta ($cin of
 // mel_stream_ask): the rows of a wrong file of a pack (mel_cin_wrong) left out.
@@ -1759,18 +1760,27 @@ function mel_fetch($base, $id, $series, $cin = null)
     unset($body);
     if (!is_array($j) || !isset($j['streams']) || !is_array($j['streams']))
         return array('error' => 'err_bad_reply', 'detail' => '');
-    // The first MEL_MAX_ROWS playable streams. No torrents: P2P rows hidden
+    // The first MEL_MAX_ROWS playable streams: those of the main list first, the places
+    // left to the rows of the tier (mel_tier_why), each in the order of the reply (the
+    // server puts the tier last; not relied on). No torrents: P2P rows hidden
     // here, the one way of every list into the state. A file cached on several
     // services: one row (mel_row_merge), before the cut - the places freed go
-    // to the next streams; after it a stream is made a row (mel_row) only to
-    // be a copy of one there (mel_merge_find), the rest is not looked at.
+    // to the next streams; after it (MEL_MAX_ROWS rows of the main list; of a stream of
+    // the tier: rows of both) a stream is made a row (mel_row) only to
+    // be a copy of one there (mel_merge_find), the rest is not looked at. The voices
+    // (mel_row_voices) of the rows kept only.
     $rows = array();
+    $tiered = 0;
     $hidden = 0;
     $wrong = 0;
     $mx = mel_merge_start($series);
     foreach ($j['streams'] as $st)
     {
-        if (count($rows) === MEL_MAX_ROWS)
+        // A row of the tier needs a place left (by the main rows before it), the main list a place of its own.
+        $in_tier = is_array($st) && mel_tier_why(mel_arr($st, 'streamData')) !== null;
+        // The rows of the main list so far: those of the tier made rows of it by a copy (mel_row_merge) count.
+        $main_n = count($rows) - ($tiered - $mx['untier']);
+        if (($in_tier ? count($rows) : $main_n) >= MEL_MAX_ROWS)
         {
             $k = is_array($st) ? mel_merge_key($st, $mx['series']) : null;
             $r = $k && mel_merge_find($mx, $k) ? mel_row($st, $series) : null;
@@ -1793,12 +1803,32 @@ function mel_fetch($base, $id, $series, $cin = null)
             continue;
         if ($r)
         {
-            $r['ord'] = count($rows);
-            $rows[] = mel_row_voices($r);
+            $rows[] = $r;
+            $tiered += $r['tier'] ? 1 : 0;
         }
     }
-    mel_log(sprintf('streams: %d, listed: %d%s%s, memory peak %.1f MB', count($j['streams']), count($rows),
-        $hidden ? ", P2P hidden: $hidden" : '', $wrong ? ", wrong files of packs: $wrong" : '', memory_get_peak_usage() / 1048576));
+    // The main rows first, then those of the tier, MEL_MAX_ROWS in all (a copy of the main list after
+    // its cut may have made a row of the tier one more of it: mel_row_merge).
+    $main = array();
+    $low = array();
+    foreach ($rows as $r)
+    {
+        if ($r['tier'])
+            $low[] = $r;
+        else
+            $main[] = $r;
+    }
+    $rows = array_slice(array_merge($main, $low), 0, MEL_MAX_ROWS);
+    $tn = 0;
+    foreach ($rows as $i => $r)
+    {
+        $r['ord'] = $i;
+        $rows[$i] = mel_row_voices($r);
+        $tn += $r['tier'] ? 1 : 0;
+    }
+    mel_log(sprintf('streams: %d, listed: %d%s%s%s, memory peak %.1f MB', count($j['streams']), count($rows),
+        $tn ? ", unconfirmed: $tn" : '', $hidden ? ", P2P hidden: $hidden" : '', $wrong ? ", wrong files of packs: $wrong" : '',
+        memory_get_peak_usage() / 1048576));
     if ($mx['by_hash'] + $mx['by_name'] > 0)
         mel_log(sprintf('merged copies of a file on another service: %d (by infoHash %d, by name and size %d)',
             $mx['by_hash'] + $mx['by_name'], $mx['by_hash'], $mx['by_name']));
@@ -1910,7 +1940,9 @@ function mel_iso_lang($l)
 // card): a list sorted anew keeps them.
 // view_gcomps.php adds 'gc' - array(sel, top), the last cursor; 'gc_new' -
 // the first view of a replaced screen ignores the shell's sel_state; 'gc_prog'
-// - progress of the rows for their redraw. A screen replaced by a new list
+// - progress of the rows for their redraw; 'tier_open' - the group of the tier unfolded (mel_gc_lv), of
+// this list only: a list of another title opens without it, a new list of this one (mel_relist,
+// mel_finish, the sort, the main Debrid) takes it over (mel_gc_put_cursor). A screen replaced by a new list
 // sets its cursor only by mel_gc_put_cursor, else 'gc_new' is lost. The one
 // writer outside view_gcomps.php: mel_choose keeps 'gc' before it leaves.
 // mel_ts_pack_state adds 'pack_only' and 'pack_map': the one row, never shown.
@@ -2158,7 +2190,7 @@ function mel_list_cursor($st, $hash)
 {
     list($sel, $by) = mel_release_row($st['rows'], $hash, $st['s'], $st['e'], mel_cin_n($st['movie']['cin'], $st['s'], $st['e']));
     mel_log("list: cursor on row $sel of " . count($st['rows']) . ", $by");
-    return mel_gc_put_cursor($st, $sel);
+    return mel_gc_put_cursor($st, $sel, null);
 }
 
 // Opens the list of $st.
@@ -2199,6 +2231,28 @@ function mel_tr($lang, $key, $ep = '')
     }
     $s = isset($t[$file][$key]) ? $t[$file][$key] : $key;
     return $ep !== '' ? str_replace('{ep}', $ep, $s) : trim(str_replace(array(' {ep}', '{ep}'), '', $s));
+}
+
+// The text of the field "Сверка" of a row of the tier: its reason $why (mel_tier_why) for a
+// series ($series) or a film, in the language $lang. The years when the server gave both
+// (the years of a series as "2022–2024"); "date" and "dub" by the series too; a code Melange does not
+// know: the general text.
+/**
+ * @param MelTierWhy $why
+ * @param bool $series
+ * @param string $lang
+ * @return string
+ */
+function mel_tier_text($why, $series, $lang)
+{
+    $c = $why['code'];
+    if ($c === 'year' && $why['ry'] !== null && $why['ty'] !== null)
+        return str_replace(array('{r}', '{t}'), array(strval($why['ry']), $why['ty'] .
+            ($why['te'] !== null && $why['te'] > $why['ty'] ? '–' . $why['te'] : '')),
+            mel_tr($lang, $series ? 'tier_why_year_series' : 'tier_why_year_film'));
+    if ($c === 'date' || $c === 'dub')
+        return mel_tr($lang, "tier_why_$c" . ($series ? '_series' : ''));
+    return mel_tr($lang, in_array($c, array('year', 'title'), true) ? "tier_why_$c" : 'tier_why_other');
 }
 
 // handle_user_input of our plugin, the shell waiting $timeout ms for it (60 s;

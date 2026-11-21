@@ -84,6 +84,7 @@ define('MEL_K_LS_INFO_DESC', 5);
 
 // Sizes.
 define('MEL_K_ROW_H', 64);
+define('MEL_K_LIST_RULE', 2);
 define('MEL_K_ROW_ON_H', 60);
 define('MEL_K_BTN_H', 64);
 define('MEL_K_BTN_PAD', 28);
@@ -175,6 +176,7 @@ define('MEL_K_ICON_CACHED', 30);
 define('MEL_K_ICON_LIST_ZAP', 22);
 define('MEL_K_ICON_LIST_DOWNLOAD', 30);
 define('MEL_K_ICON_SORT', 26);
+define('MEL_K_ICON_GROUP', 26);
 define('MEL_K_ICON_SETUP_SOURCE', 30);
 define('MEL_K_ICON_SETUP_STATUS', 44);
 define('MEL_K_ICON_DIALOG', 44);

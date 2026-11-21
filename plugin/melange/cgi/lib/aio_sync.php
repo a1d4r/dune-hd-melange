@@ -282,7 +282,7 @@ function mel_cgi_aio_sync($dir, $reset = false, $prof = '')
         $from = mel_conf_mig_of(mel_conf_mig_read($dir), $conf['uuid']);
         if ($from < MEL_CONF_SCHEMA)
         {
-            $mig = mel_conf_migrate_apply($u, $from);
+            $mig = mel_conf_migrate_apply($u, $from, $base);
             mel_cgi_log("aio sync: migrations $from -> " . MEL_CONF_SCHEMA . ($mig ? ': ' . implode(', ', $mig) : ''));
         }
         // As it is there after the migrations (a step may change the presets), before our

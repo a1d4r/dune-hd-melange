@@ -246,8 +246,9 @@ function mel_gc_src($in)
 // of the shell - the cursor of the releases). Its releases there (the screen shows its online list over them): back to
 // them, no request, the cursor where it was (the same list, the same order). Else asked with its settings (mel_relist;
 // the log masked by them too), the online list of the screen kept as its second one (of the same Lampac only), the
-// screen replaced, the cursor on the first row (another source sorts the releases its own way: the one under the
-// cursor would be lower); no streams - an empty list; an error - its dialog, the screen, the state and the settings
+// screen replaced, the cursor on the line a list opens on (another source sorts the releases its own way: the one under
+// the cursor would be lower), the group of the tier folded or not as on the screen (rows of the tier only: unfolded);
+// no streams - an empty list; an error - its dialog, the screen, the state and the settings
 // of the operation kept (mel_op_apply).
 /**
  * @param MelState $st
@@ -270,18 +271,18 @@ function mel_src_releases($st, $id, $tag, $title, $sel_state)
         return mel_list_replace($ns);
     }
     // The online list: the cursor of the releases, not of its rows.
-    list($cur) = mel_gc_pos($st, empty($st['lp_on']) ? $sel_state : null);
+    $cur = mel_gc_row_now($st, empty($st['lp_on']) ? $sel_state : null);
     $old = Mel::$settings;
     mel_op_use($id, $st['lp_prof']);
     $r = mel_relist($st, $st['s'], $st['e'], '');
     if (!isset($r['error']))
-        $r['by'] = 'first row';
+        $r['by'] = 'the line a list opens on';
     else
     {
         $errors = isset($r['errors']) ? $r['errors'] : mel_no_errors();
         if ($r['error'] === 'err_no_streams' && !$errors['lines'])
             $r = array('st' => mel_gc_put_cursor(mel_list_state($st['movie'], $st['s'], $st['e'], array(), $st['lang'],
-                $errors), 0), 'sel' => 0, 'by' => 'no streams');
+                $errors), 0, null), 'sel' => 0, 'by' => 'no streams');
         else
         {
             mel_log(sprintf('%s failed: %s, %.2f s, the screen kept', $tag,

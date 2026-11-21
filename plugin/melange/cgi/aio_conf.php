@@ -104,6 +104,9 @@ function mel_conf_encode($v)
 // AIOStreams servers whose JacRed in the template P2P is Torznab of
 // AIOStreams, not Magnetio: the fork of melange there makes P2P rows of
 // Torznab with no Debrid service (elsewhere the server refuses it: 400).
+// The servers of the fork of melange: Torznab in P2P and the tier softMatching
+// (mel_conf_template, mel_conf_step_tier). A server added here: the configs
+// past the schema 4 do not get the tier - a new step of the migration is needed.
 function mel_conf_p2p_torznab()
 {
     return array('https://aiostreams.kompotik.com');
@@ -115,14 +118,29 @@ function mel_conf_has_torznab($base)
     return in_array($base, mel_conf_p2p_torznab(), true);
 }
 
+// The tier "Не подтверждены" turned on in the config $c, in place: softMatching.enabled
+// true. The fork of melange there (mel_conf_p2p_torznab) leaves in, with a mark, the releases its
+// checks of the title (the year, the title, the date) removed; elsewhere the field is not sent.
+/**
+ * @param object $c
+ * @return void
+ */
+function mel_conf_soft_on($c)
+{
+    mel_conf_obj($c, 'softMatching')->enabled = true;
+}
+
 // The template $id (a key of mel_aio_tpls of common.php: the file with only
 // its presets, in its order; the title and year matched for its JacRed
 // only; one of P2P (aio_tpl_p2p): the fields of MEL_CONF_TEMPLATE_P2P over,
 // those of an object into it) for the AIOStreams server $base ('' - none: P2P with Magnetio;
-// one of mel_conf_p2p_torznab: P2P with Torznab in the place of Magnetio)
+// one of mel_conf_p2p_torznab: P2P with Torznab in the place of Magnetio; the tier
+// "Не подтверждены" on, mel_conf_soft_on, in either mode)
 // as an object, null when unreadable or no such template. No $base on
 // purpose: the template with Magnetio whatever the server (the patch of a
-// P2P config made with Magnetio, mel_cgi_aio_sync; mel_conf_tpl_of).
+// P2P config made with Magnetio, mel_cgi_aio_sync; mel_conf_tpl_of). Such a
+// template has no softMatching: good as the source of a preset only ($tpl_patch
+// of mel_cgi_aio_sync), not as a config of the server.
 function mel_conf_template($id = 'addons', $base = '')
 {
     $tpls = mel_aio_tpls();
@@ -140,6 +158,8 @@ function mel_conf_template($id = 'addons', $base = '')
     $j->presets = $keep;
     foreach (array('titleMatching', 'yearMatching') as $k)
         mel_conf_obj($j, $k)->addons = array(mel_conf_jacred_id($j));
+    if ($torznab)
+        mel_conf_soft_on($j);
     if (mel_tpl_p2p($id))
     {
         $o = mel_conf_decode(@file_get_contents(dirname(__FILE__) . '/' . MEL_CONF_TEMPLATE_P2P));
@@ -354,12 +374,13 @@ function mel_conf_patch($c, $tpl, $p)
 // (mel_conf_migrate) and by "Сохранить" (mel_cgi_aio_sync, before
 // mel_conf_patch). The schema a config is at: data_dir/aio_conf_mig, not
 // settings.json (a write there moves saved_at; an import would bring old marks).
-define('MEL_CONF_SCHEMA', 3);
+define('MEL_CONF_SCHEMA', 4);
 define('MEL_CONF_MIG_FILE', 'aio_conf_mig');
 
 // The migrations by the schema each brings a config to: the names of the steps,
-// mel_conf_step_<name> - a function of userData of GET, changed in place -> it
-// changed. Each looks at the value itself, so a second run changes nothing.
+// mel_conf_step_<name> - a function of userData of GET, changed in place, and the
+// server of the config (as mel_conf_template takes it) -> it changed. Each looks at
+// the value itself, so a second run changes nothing.
 // The plugin (mel_conf_migrate) does not update conf['tpl'] of settings.json: a step
 // that changes the set of presets gets its tpl only at "Сохранить". A released step
 // is never removed or renumbered: the marks in data_dir/aio_conf_mig refer to its number.
@@ -368,7 +389,7 @@ define('MEL_CONF_MIG_FILE', 'aio_conf_mig');
  */
 function mel_conf_migrations()
 {
-    return array(1 => 'dedup', 2 => 'both', 3 => 'library');
+    return array(1 => 'dedup', 2 => 'both', 3 => 'library', 4 => 'tier');
 }
 
 // 1 (0.56.0): a copy of a cached file per service (one service: the same as
@@ -438,19 +459,38 @@ function mel_conf_step_library($u)
     return true;
 }
 
-// The migrations after the schema $from applied to $u in place -> the names of
-// those that changed it (as mel_conf_migrations names them), none: $u as it was.
+// 4: the tier "Не подтверждены" on (mel_conf_soft_on), as in the template now, on a
+// server of mel_conf_p2p_torznab only; P2P and Debrid alike. softMatching there already (enabled
+// false too: turned off by hand; not an object) is not touched.
+/**
+ * @param object $u
+ * @param string $base
+ * @return bool
+ */
+function mel_conf_step_tier($u, $base)
+{
+    if (!mel_conf_has_torznab($base) || (isset($u->softMatching) &&
+        (!is_object($u->softMatching) || property_exists($u->softMatching, 'enabled'))))
+        return false;
+    mel_conf_soft_on($u);
+    return true;
+}
+
+// The migrations after the schema $from applied to $u in place (a config of
+// the server $base) -> the names of those that changed it (as
+// mel_conf_migrations names them), none: $u as it was.
 /**
  * @param object $u
  * @param int $from
+ * @param string $base
  * @return list<string>
  */
-function mel_conf_migrate_apply($u, $from)
+function mel_conf_migrate_apply($u, $from, $base)
 {
     $done = array();
     foreach (mel_conf_migrations() as $n => $name)
     {
-        if ($n > $from && call_user_func('mel_conf_step_' . $name, $u))
+        if ($n > $from && call_user_func('mel_conf_step_' . $name, $u, $base))
             $done[] = $name;
     }
     return $done;
@@ -574,7 +614,7 @@ function mel_conf_migrate($base, $mode, $conf, $from, $req)
     $line = 'get ' . mel_conf_mig_res($r);
     if (!$u)
         return array(mel_conf_mig_class($r), $line);
-    $done = mel_conf_migrate_apply($u, $from);
+    $done = mel_conf_migrate_apply($u, $from, $base);
     if (!$done)
         return array('done', "$line, nothing to change");
     $line .= ', ' . implode(', ', $done);
