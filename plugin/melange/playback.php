@@ -847,7 +847,8 @@ function mel_precheck($url)
 
 // --- Back from the player to the list screen.
 
-// Playback of row $sel of list state $st; $from: rid of the screen under the player.
+// Playback of row $sel of list state $st; $from: rid of the screen under the player. $sel -1: the release is not in the
+// list (mel_finish_list of a pack: the new list has no row of it); its readers take the row by isset.
 /**
  * @param string $from
  * @param MelState $st

@@ -287,6 +287,17 @@ function mel_gc_line_of($lv, $i)
     return $i < $lv['t'] ? 0 : $i - $lv['t'] + 1;
 }
 
+// Whether line $j of lines $lv (mel_gc_lv) is that of the group of the tier.
+/**
+ * @param MelGcLv $lv
+ * @param int $j
+ * @return bool
+ */
+function mel_gc_on_group($lv, $j)
+{
+    return $lv['t'] > 0 && $j === 0;
+}
+
 // The line a list of lines $lv opens on: the first row of the main list (the group folded above it, or unfolded:
 // after its rows); none: the first row of the tier (the group unfolded, the line under it); no tier: the first line.
 /**
@@ -295,9 +306,7 @@ function mel_gc_line_of($lv, $i)
  */
 function mel_gc_first($lv)
 {
-    if ($lv['t'] === 0)
-        return 0;
-    return $lv['o'] && $lv['t'] < $lv['n'] ? 1 + $lv['t'] : 1;
+    return mel_gc_line_of($lv, $lv['t'] < $lv['n'] ? $lv['t'] : 0);
 }
 
 // Position of a list put in with row $sel of $n selected: the row in the
@@ -315,14 +324,14 @@ function mel_gc_cursor($sel, $n)
 // List state $st put in with row $sel of $st['rows'] selected (mel_finish, mel_relist): a row of the tier unfolds
 // its group ('tier_open'); -1 (or no such row): the line the list opens on (mel_gc_first). $was: the list it replaces
 // (of the same title: another episode, the request anew, the sort), its group folded or not taken over first, before
-// the lines are counted. The cursor on its line as mel_gc_cursor, and its first view ignores the shell's sel_state.
+// the lines are counted; null: none (a list opened anew, its own flag). The cursor on its line as mel_gc_cursor, and its first view ignores the shell's sel_state.
 /**
  * @param MelState $st
  * @param int $sel
  * @param MelState|null $was
  * @return MelState
  */
-function mel_gc_put_cursor($st, $sel, $was = null)
+function mel_gc_put_cursor($st, $sel, $was)
 {
     if ($was !== null)
         $st['tier_open'] = !empty($was['tier_open']);
@@ -1011,9 +1020,9 @@ function mel_gc_group_items($lv, $tt, $c, $on)
  */
 function mel_gc_line_items($st, $lv, $j, $tt, $c, $on, $prog)
 {
-    $i = mel_gc_row_of($lv, $j);
-    if ($i < 0)
+    if (mel_gc_on_group($lv, $j))
         return mel_gc_group_items($lv, $tt, $c, $on);
+    $i = mel_gc_row_of($lv, $j);
     return mel_gc_row_items($st['rows'][$i], $tt, $c, $on, mel_gc_share($prog, $st['rows'][$i]));
 }
 
@@ -1046,7 +1055,7 @@ function mel_gc_rules($lv)
     // One rule at most: none without the tier or unfolded with no row of the main list.
     if ($lv['t'] === 0 || ($lv['o'] && $lv['t'] === $lv['n']))
         return array();
-    $j = $lv['o'] ? 1 + $lv['t'] : 1;
+    $j = mel_gc_line_of($lv, $lv['t']);
     return array(mel_gc_rect(mel_gc_at(MEL_GC_LW - 2 * MEL_GC_PAD, MEL_K_LIST_RULE, MEL_GC_PAD, $j * MEL_GC_ROW_H),
         MEL_K_C_LINE, 'rule0'));
 }
@@ -1367,7 +1376,7 @@ function mel_gc_group_card($st, $lv)
  */
 function mel_gc_line_card($st, $lv, $j)
 {
-    return $lv['t'] > 0 && $j === 0 ? mel_gc_group_card($st, $lv) : mel_gc_card($st, mel_gc_row_of($lv, $j));
+    return mel_gc_on_group($lv, $j) ? mel_gc_group_card($st, $lv) : mel_gc_card($st, mel_gc_row_of($lv, $j));
 }
 
 // Bit rate: "59 Мбит/с", "≈ 7.4 Mbps" (one decimal under 10).
@@ -1422,7 +1431,7 @@ function mel_gc_place($lv, $j)
  */
 function mel_gc_count_of($lv, $j)
 {
-    if ($lv['t'] > 0 && $j <= 0)
+    if (mel_gc_on_group($lv, $j))
         return array();
     list($p, $n) = mel_gc_place($lv, $j);
     return mel_gc_count($p - 1, $n);
@@ -2039,7 +2048,8 @@ function mel_gc_fold($st, $lv)
     $ns = $st;
     $ns['rid'] = mel_rid();
     $ns['tier_open'] = !$lv['o'];
-    $ns['gc'] = array($lv['o'] ? 0 : 1, 0);
+    // Folded: the line of the group; unfolded: that of its first row.
+    $ns['gc'] = array(mel_gc_line_of(mel_gc_lv($ns), 0), 0);
     $ns['gc_new'] = true;
     mel_log('tier: ' . ($lv['o'] ? 'folded' : 'unfolded') . ", {$lv['t']} rows, screen replaced");
     return mel_list_replace($ns);
@@ -2080,9 +2090,9 @@ function mel_gc_input($in)
                 list($sel, $top) = mel_gc_cursor(mel_gc_line_of($lv, $i), $lv['l']);
         }
         Mel::$state['gc'] = array($sel, $top);
-        $row = mel_gc_row_of($lv, $sel);
-        if ($row < 0)
+        if (mel_gc_on_group($lv, $sel))
             return $in->control_id === 'gc_pick' ? mel_gc_fold($st, $lv) : null;
+        $row = mel_gc_row_of($lv, $sel);
         if ($in->control_id === 'gc_info')
             return mel_info_open($st, $row);
         // A new start: the main Debrid again, not one of "Via <service>" before.

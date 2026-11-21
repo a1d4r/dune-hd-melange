@@ -258,7 +258,7 @@ function mel_src_releases($st, $id, $tag, $title, $sel_state)
         $errors = isset($r['errors']) ? $r['errors'] : mel_no_errors();
         if ($r['error'] === 'err_no_streams' && !$errors['lines'])
             $r = array('st' => mel_gc_put_cursor(mel_list_state($st['movie'], $st['s'], $st['e'], array(), $st['lang'],
-                $errors), 0), 'sel' => 0, 'by' => 'no streams');
+                $errors), 0, null), 'sel' => 0, 'by' => 'no streams');
         else
         {
             mel_log(sprintf('%s failed: %s, %.2f s, the screen kept', $tag,

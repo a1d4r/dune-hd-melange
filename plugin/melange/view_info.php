@@ -1106,8 +1106,11 @@ function mel_info_window($st, $n, $pages, $page)
     $d = array(mel_gc_rect(mel_gc_at(1920, 1080, 0, 0), '#C0000000'));
     // The title as the list's; the episode and the row at the right.
     list($title) = mel_gc_title($st);
+    // As the caption of mel_info_open: the place of the line among the releases on the screen.
+    $lv = mel_gc_lv($st);
+    list($at, $of) = mel_gc_place($lv, mel_gc_line_of($lv, $n));
     $count = ($st['e'] > 0 ? mel_ep_code($mv, $st['s'], $st['e']) . ' · ' : '') .
-        mel_tr($tt['lang'], 'info_stream') . ' ' . ($n + 1) . ' / ' . count($st['rows']);
+        mel_tr($tt['lang'], 'info_stream') . " $at / $of";
     $cw = min(600, mel_gc_w($count, 36));
     $d[] = mel_gc_cut(null, mel_gc_at(MEL_INF_W - $cw - 30, 66, MEL_INF_X, 40), $title, 48, MEL_GC_TEXT);
     $d[] = mel_gc_cut(null, mel_gc_at($cw, 50, MEL_INF_X + MEL_INF_W - $cw, 52), $count, 36, MEL_GC_TEXT2,

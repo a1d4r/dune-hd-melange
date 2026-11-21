@@ -2106,7 +2106,7 @@ function mel_list_cursor($st, $hash)
 {
     list($sel, $by) = mel_release_row($st['rows'], $hash, $st['s'], $st['e'], mel_cin_n($st['movie']['cin'], $st['s'], $st['e']));
     mel_log("list: cursor on row $sel of " . count($st['rows']) . ", $by");
-    return mel_gc_put_cursor($st, $sel);
+    return mel_gc_put_cursor($st, $sel, null);
 }
 
 // Opens the list of $st.
