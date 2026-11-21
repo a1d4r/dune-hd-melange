@@ -185,11 +185,16 @@ parameters:
         # The state of mel_row_merge over a reply (mel_merge_start, parse.php):
         # the rows by index, the index of rows by infoHash and by file name and size;
         # series: a reply of an episode.
-        MelMerge: 'array{g: array<int, array{keys: list<MelMergeKey>, svcs: list<string>}>, hash: array<string, list<int>>, name: array<string, list<int>>, by_hash: int, by_name: int, series: bool}'
+        # untier: rows of the tier made of the main list by a copy of it.
+        MelMerge: 'array{g: array<int, array{keys: list<MelMergeKey>, svcs: list<string>}>, hash: array<string, list<int>>, name: array<string, list<int>>, by_hash: int, by_name: int, untier: int, series: bool}'
+        # The reason of a row of the tier (mel_tier_why, parse.php): the code of the server ('' not of
+        # letters), the years of the release, of the title and the end of those of the title (null: none).
+        MelTierWhy: 'array{code: string, ry: int|null, ty: int|null, te: int|null}'
         # A row of the stream list (mel_row, parse.php). names: until
         # mel_row_voices (voices_parse.php) puts voices in its place. copies,
         # copy: a file cached on several services (mel_row_merge, parse.php).
         # voice_langs: mel_row_langs of a row of a list (mel_list_state, main.php).
+        # tier, tier_why: a row of the tier "Не подтверждены" and its reason (mel_row).
         MelRow: '''
             array{
                 url: string,
@@ -226,7 +231,9 @@ parameters:
                 raw: array<mixed>,
                 ord: int,
                 copies?: list<MelCopy>,
-                copy?: int
+                copy?: int,
+                tier: bool,
+                tier_why: MelTierWhy|null
             }
         '''
         # The card of play_action (mel_movie, main.php); own_card: of a list opened from the own card (aio_own_card of movie_str, mel_oc_watch); cin: the
