@@ -2,10 +2,11 @@
 // The pairs card of the Dune (movie_id) -> IMDb / TMDB for the badges of the history (progress.php): kept in a
 // file of data_dir; found by play_action, ENTER, the cards the shell keeps and, lazily, a request of the card
 // to the dunemdb API: r24 in an opening of the catalog, r25 at the tick of the timer of its screen (mel_pg_tick); the
-// lazy meta of the row "Continue" after them (cp_meta.php, mel_cpm_step).
-// Needs progress.php (mel_pg_index), main.php (mel_log, mel_write_file, mel_data_dir, mel_http_get, mel_http_get_many,
-// MEL_DUNE_ID, MEL_HTTP_TOO_BIG), parse.php (mel_str), catalog.php (MEL_CAT_MAX_BYTES), catalog_card.php
-// (mel_card_token, mel_card_api), view_catalog.php (mel_catv_is_down).
+// lazy meta of the row "Continue" after them (cp_meta.php, mel_cpm_step). The titles of the media library get theirs
+// by the cards of the shell too, step by step at the same moments (mel_pg_lib_step): the badge "on the disk" of a tile.
+// Needs library.php (mel_lib_index, MelLib), progress.php (mel_pg_index), main.php (mel_log, mel_write_file,
+// mel_data_dir, mel_http_get, mel_http_get_many, MEL_DUNE_ID, MEL_HTTP_TOO_BIG), parse.php (mel_str), catalog.php
+// (MEL_CAT_MAX_BYTES), catalog_card.php (mel_card_token, mel_card_api), view_catalog.php (mel_catv_is_down).
 
 // The cards the shell keeps (movies/storage_helper.php: /flashdata, /persistfs on old models): PHP of the
 // Dune adds FS_PREFIX itself. Tests may define them first.
@@ -17,6 +18,13 @@ if (!defined('MEL_PG_SHELL_DIR2'))
 define('MEL_PG_SHELL_MAX_BYTES', 2000000);
 // ms of an opening for the cards of the shell; one card is read even past it.
 define('MEL_PG_SHELL_MS', 150);
+// ms of an opening for the cards of the shell of the titles of the library (mel_pg_lib_step), its index read too; one
+// card even past it. r25: s of a tick for them at most, of what the pairs and the meta left of MEL_CPM_TICK_S.
+define('MEL_PG_LIB_MS', 200);
+define('MEL_PG_LIB_TICK_S', 0.4);
+// The ids of a card of the dunemdb API in its raw text: "sources" with "auxSources" after it, not of a person or a
+// supplier ("type":N before them); either may be an empty [].
+define('MEL_PG_SRC_RE', '/(?<!"type":\d,)(?<!"type":\d\d,)"sources":(\{[^{}]*+\}|\[\]),"auxSources":(\{[^{}]*+\}|\[\])/');
 // The pairs, in data_dir.
 define('MEL_PG_LINKS_FILE', 'wh_links.json');
 // A failed request is asked again after this many s (no reply of the server: MEL_PG_PAUSE_S); "no pair" stays.
@@ -61,6 +69,12 @@ class MelPgLinks
     // movie_ids whose card of the shell was looked at since the start of php_server.
     /** @var array<string, bool> */
     public static $shell_seen = array();
+    // movie_ids of the library whose card of the shell gave no pair (no card, no ids; mel_pg_lib_step) => when; looked
+    // at again after MEL_PG_FAIL_S or when the index changes (MelLib::$sig, the one of them: $lib_sig).
+    /** @var array<string, int> */
+    public static $lib_seen = array();
+    /** @var string|null */
+    public static $lib_sig = null;
     // No request before this time (mel_pg_link_now: no connection, 5xx); 0: none.
     /** @var int */
     public static $pause = 0;
@@ -98,6 +112,7 @@ class MelPgLinks
 function mel_pg_screen_start()
 {
     mel_pg_shell_step();
+    mel_pg_lib_step(MEL_PG_LIB_MS);
     MelPgLinks::$tick_url = '';
     MelPgLinks::$screen = '';
     MelPgLinks::$ticks = 0;
@@ -206,10 +221,11 @@ function mel_pg_tick_set($url, $anew = false)
 // within MEL_PG_FAV_QUIET_S of the end of a tick of a screen of Fav (the main one under it or just after Back: the
 // timer again, not one of MEL_PG_TICK_MAX; no two timers asking at once), a tick after the last one of the screen, a
 // tick of another or an old one, a tick with no screen since the start of php_server. A line of the log of each, in its
-// own words. The tiles of the row "Continue" of the screen paired first (mel_cp_row_mids). Cards paired: the tiles of
-// that row with no meta again (MelCpm::$miss, mel_cp_row_miss), theirs asked in the same tick. The meta of a tile of
-// the screen got (MelCpm::$miss, MelCpm::$ml; not of MelCpm::$more, a screen of Fav): the screen built again
-// (mel_pg_tick_anew), no timer again here. -> the timer again (mel_catv_input: change_behaviour).
+// own words. The tiles of the row "Continue" of the screen paired first (mel_cp_row_mids); the titles of the library
+// last, in what is left (mel_pg_lib_step, MEL_PG_LIB_TICK_S at most). Cards paired: the tiles of that row with no
+// meta again (MelCpm::$miss, mel_cp_row_miss), theirs asked in the same tick. The meta of a tile of the screen got
+// (MelCpm::$miss, MelCpm::$ml; not of MelCpm::$more, a screen of Fav): the screen built again (mel_pg_tick_anew), no
+// timer again here. -> the timer again (mel_catv_input: change_behaviour).
 /**
  * @param string $url
  * @return bool
@@ -250,6 +266,9 @@ function mel_pg_tick($url)
             MelCpm::$miss = mel_cp_row_miss($tab);
         $mine = mel_cpm_queue(array_merge(MelCpm::$miss, MelCpm::$ml));
         $got = mel_cpm_step(MEL_CPM_TICK_S - (microtime(true) - $t), MEL_CPM_N - $rounds, true);
+        $left = min(MEL_PG_LIB_TICK_S, MEL_CPM_TICK_S - (microtime(true) - $t));
+        if ($left > 0)
+            mel_pg_lib_step($left * 1000);
         $c = $got ? mel_cpm_read() : array();
         $shown = 0;
         foreach ($got ? $mine : array() as $m)
@@ -324,7 +343,8 @@ function mel_pg_tick_again($url)
 
 // r25: why a tick would ask nothing (mel_pg_tick_set, mel_pg_tick_again; of the screen "Продолжить" or "Мой список":
 // its tiles $titles, its cards $mids) -> '': a meta of the row "Continue" to ask (mel_cpm_todo) with no pause of
-// it and the catalog server not down, or a card to ask (mel_pg_link_queue) with no pause and dune_auth; else 'pause'
+// it and the catalog server not down, or a card to ask (mel_pg_link_queue) with no pause and dune_auth, or of the main
+// screen a card of the shell of a title of the library to read (mel_pg_lib_queue); else 'pause'
 // (of either queue), 'server down' (the catalog server, of the meta), 'no dune_auth', 'queue empty'.
 /**
  * @param list<array{string, string, string}>|null $titles
@@ -333,6 +353,8 @@ function mel_pg_tick_again($url)
  */
 function mel_pg_tick_why($titles = null, $mids = null)
 {
+    if ($titles === null && $mids === null && mel_pg_lib_queue())
+        return '';
     $cpm = mel_cpm_todo($titles) !== array();
     if ($cpm && !mel_cpm_paused() && !mel_catv_is_down())
         return '';
@@ -776,9 +798,7 @@ function mel_pg_out_of_lists($text, $offs, $first = false)
 function mel_pg_parse_card($text, &$found = false)
 {
     $found = false;
-    $obj = '(\{[^{}]*+\}|\[\])';
-    if (!preg_match_all('/(?<!"type":\d,)(?<!"type":\d\d,)"sources":' . $obj . ',"auxSources":' . $obj . '/', $text, $m,
-        PREG_SET_ORDER | PREG_OFFSET_CAPTURE))
+    if (!preg_match_all(MEL_PG_SRC_RE, $text, $m, PREG_SET_ORDER | PREG_OFFSET_CAPTURE))
         return null;
     $offs = array();
     foreach ($m as $one)
@@ -793,16 +813,7 @@ function mel_pg_parse_card($text, &$found = false)
     if (!$last)
         return null;
     $found = true;
-    $ids = array('imdb' => 'IMDB', 'tmdb' => 'TheMovieDB', 'tmdbtv' => 'TheMovieDBTV');
-    $l = array();
-    foreach ($ids as $k => $src)
-    {
-        foreach (array($last[1][0], $last[2][0]) as $obj)
-        {
-            if (!isset($l[$k]) && preg_match('/"' . $src . '":"([^"]*)"/', $obj, $v))
-                $l[$k] = $v[1];
-        }
-    }
+    $l = mel_pg_src_ids($last[1][0], $last[2][0]);
     if (preg_match_all('/"type":"(single|series)"/', $text, $t, PREG_SET_ORDER | PREG_OFFSET_CAPTURE))
     {
         $offs = array();
@@ -819,6 +830,40 @@ function mel_pg_parse_card($text, &$found = false)
         }
     }
     return mel_pg_link_clean(array_merge($l, mel_pg_parse_seasons($text)));
+}
+
+// The ids of a block of MEL_PG_SRC_RE: its sources $src, its auxSources $aux, of sources first (as the shell) -> imdb,
+// tmdb, tmdbtv found, as they are.
+/**
+ * @param string $src
+ * @param string $aux
+ * @return array<string, string>
+ */
+function mel_pg_src_ids($src, $aux)
+{
+    $ids = array('imdb' => 'IMDB', 'tmdb' => 'TheMovieDB', 'tmdbtv' => 'TheMovieDBTV');
+    $l = array();
+    foreach ($ids as $k => $name)
+    {
+        foreach (array($src, $aux) as $obj)
+        {
+            if (!isset($l[$k]) && preg_match('/"' . $name . '":"([^"]*)"/', $obj, $v))
+                $l[$k] = $v[1];
+        }
+    }
+    return $l;
+}
+
+// The ids of a card of the shell only (the pair of a title of the library: no type, no seasons): its first block of
+// MEL_PG_SRC_RE - the one of the card in the cards of the shell (one such block in each), ~4 times cheaper than
+// mel_pg_parse_card. -> the pair (mel_pg_link_clean), null for none.
+/**
+ * @param string $text
+ * @return MelPgLink|null
+ */
+function mel_pg_card_ids($text)
+{
+    return preg_match(MEL_PG_SRC_RE, $text, $m) ? mel_pg_link_clean(mel_pg_src_ids($m[1], $m[2])) : null;
 }
 
 // A string of the raw text of a card ($m[0], $m[1] ':' of a key) -> it, a key or a date "YYYY-MM-DD"; else "".
@@ -981,6 +1026,78 @@ function mel_pg_shell_step()
         mel_pg_links_save();
     if ($read)
         mel_log(sprintf('progress: shell cards: %d looked at, %d pairs, %.0f ms', $read, $found, (microtime(true) - $t) * 1000));
+}
+
+// The titles of the library (MelLib: movie files, episodes; its index read again only when it changed) with no pair or
+// a failed one, whose card of the shell gave none not within MEL_PG_FAIL_S nor since the index changed; ids of the
+// Dune. -> movie_ids.
+/**
+ * @return list<string>
+ */
+function mel_pg_lib_queue()
+{
+    mel_lib_index();
+    if (MelPgLinks::$lib_sig !== MelLib::$sig)
+    {
+        MelPgLinks::$lib_seen = array();
+        MelPgLinks::$lib_sig = MelLib::$sig;
+    }
+    $links = mel_pg_links();
+    $now = time();
+    $out = array();
+    foreach (array(MelLib::$by_mid, MelLib::$eps) as $map)
+    {
+        foreach (array_keys($map) as $mid)
+        {
+            $mid = strval($mid);
+            $t = isset(MelPgLinks::$lib_seen[$mid]) ? MelPgLinks::$lib_seen[$mid] : null;
+            if (isset($out[$mid]) || (isset($links[$mid]) && !isset($links[$mid]['fail'])) ||
+                ($t !== null && $now - $t >= 0 && $now - $t < MEL_PG_FAIL_S) || !preg_match('/^[0-9a-f]{24}$/D', $mid))
+                continue;
+            $out[$mid] = true;
+        }
+    }
+    return array_map('strval', array_keys($out));
+}
+
+// The pairs of the titles of the library (mel_pg_lib_queue) from their cards of the shell, by their ids only
+// (mel_pg_card_ids), in $ms (one card at least); the pairs written once. A line of the log of a step that looked at a
+// card: read, pairs, none (no card, too big, no ids: MelPgLinks::$lib_seen), ms. No library: nothing read.
+/**
+ * @param float $ms
+ * @return void
+ */
+function mel_pg_lib_step($ms)
+{
+    $t = microtime(true);
+    $read = 0;
+    $found = 0;
+    $none = 0;
+    foreach (mel_pg_lib_queue() as $mid)
+    {
+        if (($found || $none) && (microtime(true) - $t) * 1000 >= $ms)
+            break;
+        $path = mel_pg_shell_path($mid);
+        $size = $path !== '' ? filesize($path) : 0;
+        $l = null;
+        if ($size > 0 && $size <= MEL_PG_SHELL_MAX_BYTES)
+        {
+            $read++;
+            $l = mel_pg_card_ids(strval(file_get_contents($path)));
+        }
+        if ($l && mel_pg_link_put($mid, $l, false))
+            $found++;
+        else
+        {
+            MelPgLinks::$lib_seen[$mid] = time();
+            $none++;
+        }
+    }
+    if ($found)
+        mel_pg_links_save();
+    if ($found || $none)
+        mel_log(sprintf('progress: library cards: %d read, %d pairs, %d none, %.0f ms', $read, $found, $none,
+            (microtime(true) - $t) * 1000));
 }
 
 // --- The request.

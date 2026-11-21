@@ -72,7 +72,7 @@ class MelLib
     public static $folders = array();
     /** @var array<string, MelLibNf> */
     public static $nfs = array();
-    // Movie files only (ass 0, s < 0, e < 0) by their movie_id.
+    // Movie files only (ass 0, s < 0, e < 0; of a title of bonus files only those, ass 2) by their movie_id.
     /** @var array<string, list<MelLibFile>> */
     public static $by_mid = array();
     // Episode files (ass 0, s >= 1, e >= 1) by their movie_id, their season and episode after the rules of the numbers
@@ -533,19 +533,26 @@ function mel_lib_read_index($id, $kind, &$left)
 // numbers as in the index, only the fields the rules of the numbers and the
 // episodes kept need) and the count of its records neither a movie nor an
 // episode (b: a bonus, a season 0, a season with no episode); of all the
-// folders in one: the episode files are many, no copy of them.
+// folders in one: the episode files are many, no copy of them. $bonus: added
+// to, by movie_id, its bonus files of no season and episode (ass_type 2, s and
+// e < 0) as movie files, counted in b too: mel_lib_index takes them for a
+// title of no other record.
 /**
  * @param int|string $folder_id
  * @param string $info
  * @param int $left
  * @param array<string, array{f: list<MelLibEpIn>, b: int}>|null $ep_in
  * @param-out array<string, array{f: list<MelLibEpIn>, b: int}> $ep_in
+ * @param array<string, list<MelLibFile>>|null $bonus
+ * @param-out array<string, list<MelLibFile>> $bonus
  * @return list<MelLibFile>
  */
-function mel_lib_folder_index($folder_id, &$info, &$left, &$ep_in = null)
+function mel_lib_folder_index($folder_id, &$info, &$left, &$ep_in = null, &$bonus = null)
 {
     if ($ep_in === null)
         $ep_in = array();
+    if ($bonus === null)
+        $bonus = array();
     list($list, $info) = mel_lib_read_index($folder_id, 'files', $left);
     if ($list === null)
         return array();
@@ -572,7 +579,8 @@ function mel_lib_folder_index($folder_id, &$info, &$left, &$ep_in = null)
             if (!isset($ep_in[$mid]))
                 $ep_in[$mid] = array('f' => array(), 'b' => 0);
             $ep_in[$mid]['b']++;
-            continue;
+            if ($ass !== 2 || $s >= 0 || $e >= 0)
+                continue;
         }
         $tg = isset($f['tags']) && is_string($f['tags']) ? $f['tags'] : '';
         // The folder of the file in the folder of the library ('' at its root), for the path of a copy shown and the
@@ -591,7 +599,7 @@ function mel_lib_folder_index($folder_id, &$info, &$left, &$ep_in = null)
         }
         // The media tags of the indexer ("MKV,4K,23.976,DV,HEVC,16:9,Atmos,7.1"), read once (mel_lib_tags).
         $tags = mel_lib_tags($tg);
-        $files[] = array(
+        $file = array(
             'folder' => $fid,
             'path' => $f['path'],
             'mid' => $mid,
@@ -602,6 +610,10 @@ function mel_lib_folder_index($folder_id, &$info, &$left, &$ep_in = null)
             's' => -1,
             'e' => -1,
             'dir' => $dir);
+        if ($ass === 0)
+            $files[] = $file;
+        else
+            $bonus[$mid][] = $file;
     }
     $info = count($list) . ' records, ' . count($files) . ' files';
     unset($list, $seen);
@@ -843,6 +855,7 @@ function mel_lib_index()
         $sig = $cfg . mel_lib_sig_files($ids);
     $by_mid = array();
     $ep_in = array();
+    $bonus = array();
     $n = 0;
     // The episode files of the folders read so far.
     $ne = 0;
@@ -851,7 +864,7 @@ function mel_lib_index()
     foreach ($ids as $id)
     {
         $info = '';
-        $files = mel_lib_folder_index($id, $info, $left, $ep_in);
+        $files = mel_lib_folder_index($id, $info, $left, $ep_in, $bonus);
         $ne0 = $ne;
         $ne = 0;
         foreach ($ep_in as $x)
@@ -867,6 +880,20 @@ function mel_lib_index()
     }
     if ($skipped)
         mel_log("library: index budget: $skipped folders skipped");
+    // A title of bonus files only in all the folders (no movie file, no episode, no other record): they are its copies
+    // - full movies the hash base of dunemdb marked so, played by the shell as any. Beside a movie file or of a series
+    // a bonus stays one.
+    $nb = 0;
+    foreach ($bonus as $mid => $list)
+    {
+        if (isset($by_mid[$mid]) || $ep_in[$mid]['f'] || $ep_in[$mid]['b'] !== count($list))
+            continue;
+        $by_mid[$mid] = $list;
+        $nb++;
+    }
+    unset($bonus);
+    if ($nb)
+        mel_log("library: $nb titles of bonus files only, their copies kept");
     // The rules on the episodes of all the folders of a movie_id at once: the confirmed file of an episode may be in
     // another folder (a pack is of one folder). The files as the index has them dropped at once, one movie_id after
     // another (not all of them kept with all those taken).
