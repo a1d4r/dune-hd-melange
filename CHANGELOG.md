@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.67.0
+- **Releases with a different year or title.** Movies such as "Kill Bill: The Whole Bloody Affair" are no longer empty. Releases whose year or title on the tracker differs from the movie card are gathered in the "Unconfirmed" group at the top of the list, and the "Check" line in the release card says why.
+
 ## 0.66.1 — 20.11.2026
 - **Releases for titles without an IMDb ID.** If a movie or series has no IMDb ID but has a TMDB id, Melange looks for releases by it, as for any other title: **Watch** opens the release list of the main source, and "Watch from…" and "Get films from…" list all sources. If there are no releases and Lampac is among your sources, the "No releases" window offers "Search online". The "Lampac only: no IMDb ID" line is gone. A title with neither ID still opens in Lampac, and without Lampac Melange says "No IMDb or TMDB ID: no releases".
 - Fixed: the microphone button on the remote opened Dune voice search on the Melange card and other screens outside the catalog; now it opens Melange search there too.
@@ -305,6 +308,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.67.0
+- **Раздачи с другим годом или названием.** Фильмы вроде «Убить Билла: Кровавое дело целиком» больше не пустые. Раздачи, у которых на трекере другой год или название, чем в карточке фильма, собраны в группу «Не подтверждены» первой строкой списка. Причину показывает строка «Сверка» в карточке раздачи.
 
 ## 0.66.1 — 20.11.2026
 - **Раздачи у тайтлов без IMDb-id.** Если у фильма или сериала нет IMDb-id, но есть id в TMDB, Melange ищет раздачи по нему, как у любого другого тайтла: **Смотреть** открывает список раздач основного источника, «Смотреть из…» и «Откуда брать…» показывают все источники. Если раздач нет, а среди источников есть Lampac, откроется окно «Раздач нет» с кнопкой «Искать онлайн». Надписи «Только Lampac: нет IMDb-id» больше нет. Тайтл без обоих id по-прежнему открывается в Lampac, а без Lampac Melange пишет «Нет IMDb и TMDB: раздач нет».

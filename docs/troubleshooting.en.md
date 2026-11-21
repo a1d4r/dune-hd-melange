@@ -67,7 +67,7 @@ On the Dune, when opening a movie:
 
 | Message | What to do |
 |---|---|
-| "AIOStreams found no streams" | no releases were found for this movie. If this happens with every movie, see [No releases or few](#no-releases-or-few) |
+| "AIOStreams found no streams" | this movie has no releases at all, not even unconfirmed ones. If this happens with every movie, see [No releases or few](#no-releases-or-few) |
 | "The link to your own AIOStreams config is not set", "Set the config link: Setup → Apps → Melange" | your own config is selected, but there is no link: paste it in "Where to get films" ([Settings page on a phone](phone-page.en.md)) |
 | "AIOStreams is not responding", "AIOStreams returned an error", "Unexpected reply from AIOStreams" | a server or network failure: try again later. Details are in the [log](#log) |
 | "Addons returned errors" | the AIOStreams addons did not answer. Try again later; the "Addon errors" setting shows what happened ([Advanced](advanced-options.en.md)) |
@@ -82,6 +82,7 @@ To look into an error, move to a release and press **INFO**: after the release d
 ## No releases or few
 
 - **"AIOStreams found no streams" for every movie.** A common cause is that JacRed did not answer: then there are fewer releases, and with the "Russian trackers only" template none at all. Check whether JacRed answers ([JacRed](jacred.en.md)). The default is the Melange server `jacred.kompotik.com`; choose another one only if it does not answer.
+- **Releases in the "Unconfirmed" group.** On the tracker their year or title differs from the movie card. The group is the first row of the list and opens with **ENTER**. The release card on the left shows why in its "Check" line.
 - **Few releases.** In "Where to look for releases", choose **"Everywhere"**: "Russian trackers only" gives fewer releases, especially with Real-Debrid alone.
 - **The page says "jacred.stream refuses the chosen AIOStreams server: choose another JacRed".** Choose another JacRed.
 - **Few series releases on a server marked "no TMDB".** Set your own TMDB key ([AIOStreams and your own config](aiostreams.en.md)).
