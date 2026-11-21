@@ -14,9 +14,10 @@ New here? Start with Quick start.
 
 1. [Quick start](start.en.md): install and first setup
 2. [Watching](watch.en.md): play a movie and resume where you stopped
-3. [Search](search.en.md): find a movie by typing or by voice
-4. [Continue Watching and Favorites](favorites.en.md): started and saved movies
-5. [Your own catalog rows](catalog-rows.en.md): pick rows and their order, hide titles
+3. [Movies and series from your disk](library.en.md): play a file from your NAS from the Melange card
+4. [Search](search.en.md): find a movie by typing or by voice
+5. [Continue Watching and Favorites](favorites.en.md): started and saved movies
+6. [Your own catalog rows](catalog-rows.en.md): pick rows and their order, hide titles
 
 **Settings**
 
