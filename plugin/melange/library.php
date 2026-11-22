@@ -1598,7 +1598,7 @@ function mel_lib_files_copies($files)
         if ($mnt[$id][0] === '')
             continue;
         // A disc folder: its main stream (mel_lib_hrp) - checked (mel_lib_here), its MKV read; played by the shell by
-        // the URL of the folder (bd, mel_lib_shell_url; none - its main stream, vod_play).
+        // the URL of the folder (shell_url, mel_lib_shell_url; none - its main stream, vod_play).
         $rel = mel_lib_rel_path($folder['path'], $f['path']);
         $url = $mnt[$id][0] . $rel . (isset($f['hrp']) ? '/' . $f['hrp'] : '');
         if (isset($urls[$url]))
@@ -1606,9 +1606,9 @@ function mel_lib_files_copies($files)
         $urls[$url] = 1;
         $c = $f + array('url' => $url, 'mnt' => $mnt[$id][0], 'srv' => $mnt[$id][1],
             'key' => mel_lib_key($f['hash']), 'cid' => mel_lib_cid($url), 'caption' => $folder['caption']);
-        $bd = isset($f['hrp']) ? mel_lib_shell_url($folder, MelLib::$nfs, $rel) : null;
-        if ($bd !== null)
-            $c['bd'] = $bd;
+        $su = isset($f['hrp']) ? mel_lib_shell_url($folder, MelLib::$nfs, $rel) : null;
+        if ($su !== null)
+            $c['shell_url'] = $su;
         $res[] = $c;
     }
     usort($res, 'mel_lib_cmp_copies');

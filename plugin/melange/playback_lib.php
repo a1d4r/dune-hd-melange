@@ -59,7 +59,7 @@ function mel_lib_next_act($hid, $y, $q, $e, $cid)
 // player offers the place of the record itself; the i-th of n of its title, for the log; dur - the length of its MKV).
 // No stream check, no TorrServer. Linked by the card $mv['dune_id'] (H, set by the caller: of the own card, else of the
 // index): recent_uid "aio:H:q:e:lib-...", mdb_info, "Continue" back to play_action with wh_mode local; no H - unlinked.
-// A disc folder the shell plays (bd): mel_lib_play_bd.
+// A disc folder the shell plays (shell_url): mel_lib_play_bd.
 // A movie ($ep null): one item, no markers. An episode ($ep: y - the series of the index, q, e - the episode, the season
 // as asked, eps - the copies of the series "q:e" => copies): its markers by the length of its MKV (0 unknown; the file
 // is not read here); linked, a playlist of its season and E1 of the next one as mel_play (by season_numbers; none, the
@@ -77,8 +77,8 @@ function mel_lib_next_act($hid, $y, $q, $e, $cid)
 function mel_lib_play($mv, $go, $lang, $ep = null)
 {
     $copy = $go['copy'];
-    if (isset($copy['bd']))
-        return mel_lib_play_bd($mv, $go, $copy['bd']);
+    if (isset($copy['shell_url']))
+        return mel_lib_play_bd($mv, $go, $copy['shell_url']);
     $pos = $go['at'];
     $linked = $mv['dune_id'] !== '';
     $q = $ep ? $ep['q'] : -1;
@@ -172,7 +172,7 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
 }
 
-// launch_media_url $url of the copy of a disc folder the shell plays (bd, mel_lib_shell_url; $go of mel_lib_start) of
+// launch_media_url $url of the copy of a disc folder the shell plays (shell_url, mel_lib_shell_url; $go of mel_lib_start) of
 // $mv, as its own card does (MovieHelper::get_play_movie_action of r25; owner 23.11.2026): its windows of the disc folder
 // and of the place by its history, the player of Blu-ray with chapters, its record after STOP (the URL of the folder).
 // No event of the player comes to Melange: no markers, no recent_uid, the place of $go not given. The pair of the card
@@ -640,10 +640,11 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se, $retry = null)
 
 // The start of "Continue" of a copy on the disk of movie $mv (H set; its TMDB, tmdb, for the own card), of its copies
 // $copies, $ep null; of an episode ($ep: of mel_lib_ep_copies, $copies of it). By mel_lib_start of $first, $first_pos,
-// $pos, the packs F $f_packs: the copy there - its vod_play; the copies left - the own card of the title and the window
-// W2 of them over it (mel_lib_win_card; owner 1 (б)), no own card (no id of the title, or its card has none of them) -
-// the first there of them in their order from $pos (as under the player); none - mel_lib_gone (the disk did not answer -
-// with "Повторить": $retry, the same play_action; its copy picked in the own card - "Повторить" of the card).
+// $pos, the packs F $f_packs: the copy there - mel_lib_play (vod_play; a disc folder of shell_url - launch_media_url);
+// the copies left - the own card of the title and the window W2 of them over it (mel_lib_win_card; owner 1 (б)), no own
+// card (no id of the title, or its card has none of them) - the first there of them in their order from $pos (as under
+// the player); none - mel_lib_gone (the disk did not answer - with "Повторить": $retry, the same play_action; its copy
+// picked in the own card - "Повторить" of the card).
 /**
  * @param MelMovie $mv
  * @param list<MelLibCopy> $copies
