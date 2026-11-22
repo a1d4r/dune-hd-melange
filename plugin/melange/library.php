@@ -745,24 +745,37 @@ function mel_lib_shell_url($folder, $nfs, $rel)
     return $nf ? "network_folder_id://{$nf['id']}$rel" : null;
 }
 
-// The URL $url of a record of the history is the one the shell plays a disc folder (mel_lib_hrp) of movie $mid of the
-// index by (mel_lib_shell_url, shell_url of its copy; its record of the shell after launch_media_url, device r25
-// 23.11.2026): of the row "Continue". A URL of another scheme: false at once, nothing read; else the index of memory
-// (mel_lib_tile_start: read only when its files changed), no mount looked at.
+// The URL the shell plays file $f of the index by when it is a disc folder (its hrp, mel_lib_hrp): of the folder
+// (mel_lib_shell_url; launch_media_url, device r25 23.11.2026) - shell_url of its copy, the url of its record of the
+// shell; null: no hrp, a folder not of the index, no URL of its source.
+/**
+ * @param MelLibFile $f
+ * @return string|null
+ */
+function mel_lib_file_shell_url($f)
+{
+    if (!isset($f['hrp'], MelLib::$folders[$f['folder']]))
+        return null;
+    $fo = MelLib::$folders[$f['folder']];
+    return mel_lib_shell_url($fo, MelLib::$nfs, mel_lib_rel_path($fo['path'], $f['path']));
+}
+
+// The URL $url of a record of the history is the one the shell plays a disc folder of movie $mid of the index by
+// (mel_lib_file_shell_url): of the row "Continue". A URL of another scheme: false at once, nothing read; else the index
+// of memory (mel_lib_tile_start: read only when its files changed), no mount looked at.
 /**
  * @param string $mid
  * @param string $url
  * @return bool
  */
-function mel_lib_bd_url($mid, $url)
+function mel_lib_has_bd_url($mid, $url)
 {
     if (!preg_match('~^(?:network_folder_id|storage_name|sdcard)://~', $url))
         return false;
     mel_lib_tile_start();
     foreach (isset(MelLib::$by_mid[$mid]) ? MelLib::$by_mid[$mid] : array() as $f)
     {
-        $fo = isset($f['hrp'], MelLib::$folders[$f['folder']]) ? MelLib::$folders[$f['folder']] : null;
-        if ($fo && mel_lib_shell_url($fo, MelLib::$nfs, mel_lib_rel_path($fo['path'], $f['path'])) === $url)
+        if (mel_lib_file_shell_url($f) === $url)
             return true;
     }
     return false;
@@ -1621,7 +1634,7 @@ function mel_lib_files_copies($files)
         if ($mnt[$id][0] === '')
             continue;
         // A disc folder: its main stream (mel_lib_hrp) - checked (mel_lib_here), its MKV read; played by the shell by
-        // the URL of the folder (shell_url, mel_lib_shell_url; none - its main stream, vod_play).
+        // the URL of the folder (shell_url, mel_lib_file_shell_url; none - its main stream, vod_play).
         $rel = mel_lib_rel_path($folder['path'], $f['path']);
         $url = $mnt[$id][0] . $rel . (isset($f['hrp']) ? '/' . $f['hrp'] : '');
         if (isset($urls[$url]))
@@ -1629,7 +1642,7 @@ function mel_lib_files_copies($files)
         $urls[$url] = 1;
         $c = $f + array('url' => $url, 'mnt' => $mnt[$id][0], 'srv' => $mnt[$id][1],
             'key' => mel_lib_key($f['hash']), 'cid' => mel_lib_cid($url), 'caption' => $folder['caption']);
-        $su = isset($f['hrp']) ? mel_lib_shell_url($folder, MelLib::$nfs, $rel) : null;
+        $su = mel_lib_file_shell_url($f);
         if ($su !== null)
             $c['shell_url'] = $su;
         $res[] = $c;

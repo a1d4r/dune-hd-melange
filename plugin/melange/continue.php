@@ -7,7 +7,7 @@
 // mel_write_file, MEL_SUP_ID), catalog.php (mel_cat_tile, mel_cat_row_state), catalog_card.php (mel_card_open,
 // mel_card_id, mel_card_local_imdb), card_meta.php (mel_cm_id, mel_cm_get), view_card_series.php (mel_cm_eps_before),
 // view_catalog.php (mel_catv_*), view_card.php (mel_oc_enter), cp_meta.php (mel_cpm_tile, MelCpm), view_my_list.php
-// (mel_ml_changed), library.php (mel_lib_bd_url, mel_lib_tile_start).
+// (mel_ml_changed), library.php (mel_lib_has_bd_url, mel_lib_tile_start).
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The rid of the row: its tiles are "continue:<movie_id>" (mel_catv_tile), its rows "items:continue", "title:continue".
@@ -29,6 +29,7 @@ class MelCp
 // --- What the row shows.
 
 // The record $w is of a release of Melange (uid "aio:..."): a local file or another supplier opens no own card.
+// The one exception, a disc folder of the library played by the shell: mel_cp_item (mel_lib_has_bd_url).
 /**
  * @param stdClass|null $w
  * @return bool
@@ -58,9 +59,9 @@ function mel_cp_item($mid, $ent)
     if ($st === null && mel_cp_pair_type($l, false) !== 'series')
     {
         $w = $ent['w'];
-        // Of Melange, or of the shell playing a disc folder of the library by its URL (mel_lib_bd_url).
+        // Of Melange, or of the shell playing a disc folder of the library by its URL (mel_lib_has_bd_url).
         if ($ent['movie_mark'] || $ent['seen'] || !$w ||
-            !(mel_cp_ours($w) || (isset($w->url) && is_string($w->url) && mel_lib_bd_url($mid, $w->url))))
+            !(mel_cp_ours($w) || (isset($w->url) && is_string($w->url) && mel_lib_has_bd_url($mid, $w->url))))
             return null;
         list(, , $pos, $len) = mel_wh_rec($w);
         return mel_pg_begun($pos, $len) ? array('type' => 'movie', 'end' => $ent['end'], 'w' => $w, 's' => -1, 'e' => -1,
