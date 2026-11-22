@@ -4,7 +4,7 @@
 
 ## 0.68.0
 - **Files from a USB drive and the internal disk.** Movies and series from the Dune media library on a USB drive or the disk inside the Dune now play from the Melange card too, and their posters get the disk icon. Before, only network folders worked.
-- **Disk icon on posters.** Movies and series from the Dune media library have a disk icon in the top right corner of the poster: in the catalog rows, Show all, search, Favorites, Continue Watching, the rows of the Melange card and the filmography on an actor's page. A series gets it if at least one episode is on the disk. Melange doesn't check whether the NAS is on, so the icon shows even when it's off. Melange goes through a library of thousands of movies in the background, in about half a minute after the catalog first opens, and the remote doesn't lag while it does.
+- **Disk icon on posters.** Movies and series from the Dune media library have a disk icon in the top right corner of the poster: in the catalog rows, Show all, search, Favorites, Continue Watching, the rows of the Melange card and the filmography on an actor's page. A series gets it if at least one episode is on the disk. Melange doesn't check whether the NAS is on, so the icon shows even when it's off. Melange goes through a library of thousands of movies in the background in about half a minute after the catalog first opens, and the icons appear the next time you open it. The remote doesn't lag meanwhile.
 - Fixed: movies the Dune media library marked as bonus material had no "From disk" line. Now they play from the disk too.
 
 ## 0.67.0 — 22.11.2026
@@ -321,7 +321,7 @@ First public release. What it does:
 
 ## 0.68.0
 - **Файлы с USB-диска и встроенного диска.** Фильмы и сериалы из медиатеки Дюны на USB-диске и на диске внутри Дюны теперь тоже включаются из карточки Melange, и у них на постерах есть значок диска. Раньше — только из сетевых папок.
-- **Значок диска на постерах.** У фильмов и сериалов из медиатеки Дюны в правом верхнем углу постера значок диска: в рядах каталога, «Показать все», поиске, «Избранном», «Продолжить», рядах карточки Melange и фильмографии на странице актёра. Сериал получает значок, если на диске есть хоть одна серия. Включён ли NAS, Melange не проверяет, поэтому значок виден и при выключенном. Медиатеку в тысячи фильмов Melange разбирает в фоне примерно за полминуты после первого открытия каталога, пульт в это время не тормозит.
+- **Значок диска на постерах.** У фильмов и сериалов из медиатеки Дюны в правом верхнем углу постера значок диска: в рядах каталога, «Показать все», поиске, «Избранном», «Продолжить», рядах карточки Melange и фильмографии на странице актёра. Сериал получает значок, если на диске есть хоть одна серия. Включён ли NAS, Melange не проверяет, поэтому значок виден и при выключенном. Медиатеку в тысячи фильмов Melange разбирает в фоне примерно за полминуты после первого открытия каталога, и значки появляются при следующем открытии. Пульт в это время не тормозит.
 - Исправлено: у фильмов, которые медиатека Дюны пометила как бонусные материалы, не было строки «С диска». Теперь они тоже включаются с диска.
 
 ## 0.67.0 — 22.11.2026

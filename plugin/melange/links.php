@@ -8,6 +8,8 @@
 // Needs library.php (mel_lib_index, MelLib), progress.php (mel_pg_index), main.php (mel_log, mel_write_file,
 // mel_data_dir, mel_http_get, mel_http_get_many, MEL_DUNE_ID, MEL_HTTP_TOO_BIG), parse.php (mel_str), catalog.php
 // (MEL_CAT_MAX_BYTES), catalog_card.php (mel_card_token, mel_card_api), view_catalog.php (mel_catv_is_down).
+// Its top level is only define and classes: the pass in a process of its own (php-cgi, bg/lib_map.php) loads it for
+// the functions of the cards (mel_pg_shell_text, mel_pg_lib_pair) with parse.php only (mel_str), no DuneSystem there.
 
 // The cards the shell keeps (movies/storage_helper.php: /flashdata, /persistfs on old models): PHP of the
 // Dune adds FS_PREFIX itself. Tests may define them first.
@@ -973,11 +975,12 @@ function mel_pg_api_head($body)
 // The path of the card of the shell of movie_id $mid, '' for none.
 /**
  * @param string $mid
+ * @param list<string>|null $dirs
  * @return string
  */
-function mel_pg_shell_path($mid)
+function mel_pg_shell_path($mid, $dirs = null)
 {
-    foreach (array(MEL_PG_SHELL_DIR, MEL_PG_SHELL_DIR2) as $dir)
+    foreach ($dirs !== null ? $dirs : array(MEL_PG_SHELL_DIR, MEL_PG_SHELL_DIR2) as $dir)
     {
         if (is_file("$dir/$mid.json"))
             return "$dir/$mid.json";
@@ -985,14 +988,17 @@ function mel_pg_shell_path($mid)
     return '';
 }
 
-// The text of the card of the shell of movie_id $mid (an id of the dunemdb API), '' for none (no file, too big).
+// The text of the card of the shell of movie_id $mid (an id of the dunemdb API), '' for none (no file, too big); of the
+// first of the folders $dirs that has it (null: MEL_PG_SHELL_DIR, MEL_PG_SHELL_DIR2; the pass, mel_pg_bg_run, gives
+// its own).
 /**
  * @param string $mid
+ * @param list<string>|null $dirs
  * @return string
  */
-function mel_pg_shell_text($mid)
+function mel_pg_shell_text($mid, $dirs = null)
 {
-    $path = preg_match('/^[0-9a-f]{24}$/D', $mid) ? mel_pg_shell_path($mid) : '';
+    $path = preg_match('/^[0-9a-f]{24}$/D', $mid) ? mel_pg_shell_path($mid, $dirs) : '';
     $size = $path !== '' ? filesize($path) : 0;
     return $size > 0 && $size <= MEL_PG_SHELL_MAX_BYTES ? strval(file_get_contents($path)) : '';
 }
@@ -1008,6 +1014,22 @@ function mel_pg_shell_pair($mid)
     MelPgLinks::$shell_seen[$mid] = true;
     $text = mel_pg_shell_text($mid);
     return $text !== '' ? mel_pg_parse_card($text) : null;
+}
+
+// The pair of a title of the library of type $type of the index (movie, series, '' of both) by the text $text of its card
+// of the shell, as the step and the pass read it: its ids (mel_pg_card_ids), of a title of both types the whole card
+// (mel_pg_parse_card: its type and seasons); the type of the index when the card has none. -> the pair, null for none.
+/**
+ * @param string $text
+ * @param string $type
+ * @return MelPgLink|null
+ */
+function mel_pg_lib_pair($text, $type)
+{
+    $l = $type !== '' ? mel_pg_card_ids($text) : mel_pg_parse_card($text);
+    if ($l && !isset($l['type']) && $type !== '')
+        $l['type'] = $type;
+    return $l;
 }
 
 // The cards of the history a card of the dunemdb API is wanted for, their records ending the latest first: with no
@@ -1113,10 +1135,8 @@ function mel_pg_lib_step($ms, $q = null)
         if ($text !== '')
         {
             $read++;
-            $l = $type !== '' ? mel_pg_card_ids($text) : mel_pg_parse_card($text);
+            $l = mel_pg_lib_pair($text, $type);
         }
-        if ($l && !isset($l['type']) && $type !== '')
-            $l['type'] = $type;
         if ($l && mel_pg_link_put($mid, $l, false, false, false))
             $found++;
         else

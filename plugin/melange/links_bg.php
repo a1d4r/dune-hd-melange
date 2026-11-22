@@ -6,18 +6,16 @@
 // opening of a screen of rows or a tick of the main one (mel_pg_lib_work). While it runs, the step in php_server reads
 // no card; with no php-cgi, no exec, or after a pass that died, the step as before (mel_pg_lib_step).
 // php_server: needs links.php, library.php (mel_lib_index via mel_pg_lib_queue), main.php (mel_log, mel_write_file).
-// php-cgi (bg/lib_map.php): mel_pg_bg_run only, with parse.php (mel_str) and links.php (mel_pg_card_ids,
-// mel_pg_parse_card); no DuneSystem, no hd_print there.
+// php-cgi (bg/lib_map.php): mel_pg_bg_run only, with parse.php (mel_str) and links.php (mel_pg_shell_text,
+// mel_pg_lib_pair: the reading of the step); no DuneSystem, no hd_print there.
 
 // The files of tmp_dir: the job (php_server: the queue, movie_id => type, and the folders of the cards), the progress
 // (the pass: its pid, how far, at most every MEL_PG_BG_PROGRESS_S s), the result (the pass: the pairs, the titles of
-// none), the output of php-cgi and of timeout.
+// none), the output of php-cgi and of timeout (of the last pass only).
 define('MEL_PG_BG_JOB', 'lib_map_job.json');
 define('MEL_PG_BG_PROG', 'lib_map_prog.json');
 define('MEL_PG_BG_RES', 'lib_map_res.json');
 define('MEL_PG_BG_OUT', 'lib_map.log');
-// The output is removed at a start past this size.
-define('MEL_PG_BG_OUT_MAX', 65536);
 // The pass stops itself past this many s (its result with what it read; the rest at the next start), killed past
 // MEL_PG_BG_KILL_S (timeout of the command): a pass of ~3000 cards takes ~30 s (device r25: 8-12 ms a card).
 if (!defined('MEL_PG_BG_WORK_S'))
@@ -27,8 +25,11 @@ define('MEL_PG_BG_PROGRESS_S', 1.0);
 // A pass is running while its progress is younger than this many s or its pid is alive; with no progress, this long
 // after its start. Past it, with no result: it died (killed by the timeout, or no start at all).
 define('MEL_PG_BG_STALE_S', 10);
-// A bigger result is not read.
-define('MEL_PG_BG_RES_MAX', 8000000);
+// A bigger result is not read (~3000 pairs are ~300 KB).
+define('MEL_PG_BG_RES_MAX', 2000000);
+// The last bytes of the output of php-cgi (MEL_PG_BG_OUT: its fatal error, a notice) in the line of a pass that died or
+// failed.
+define('MEL_PG_BG_OUT_TAIL', 200);
 // Lines of mel_log of a pass (a preg error of the seasons, mel_pg_parse_seasons) in its result, at most.
 define('MEL_PG_BG_LOG_N', 5);
 // php-cgi of the firmware (as the CGI of the settings page, www/cgi-bin/settings), and the folder of nice and timeout
@@ -174,7 +175,8 @@ function mel_pg_bg_dirs()
 }
 
 // The command of the pass (exec of mel_pg_bg_start): nice 19 (php_server is at -10, its child too) and timeout KILL of
-// the folder $bin, each only when there; the paths in the environment (escapeshellarg of PHP 5.3 in the locale C drops
+// the folder $bin, each only when there (with no nice the pass lowers itself, proc_nice; 19 over the -10 of php_server:
+// 9 in all, device r25); the paths in the environment (escapeshellarg of PHP 5.3 in the locale C drops
 // the bytes of a Cyrillic path); stdin, stdout and stderr redirected and one '&', no $! nor $(...): exec does not wait.
 /**
  * @param string $bin
@@ -187,9 +189,9 @@ function mel_pg_bg_cmd($bin = MEL_PG_BG_BIN)
         '"$MEL_BG_PHP" -q -c "$MEL_BG_INI" "$MEL_BG_SCRIPT" >>"$MEL_BG_OUT" 2>&1 </dev/null &';
 }
 
-// The pass of the queue $q (mel_pg_lib_queue) started: the files of the last one out, the job written, exec of
-// mel_pg_bg_cmd; a line of the log: the titles, the ms of the start, no nice or timeout. Not written, exec failed: a
-// line, no pass in this php_server (MelPgBg::$why). -> started.
+// The pass of the queue $q (mel_pg_lib_queue) started: the files of the last one out (its output too), the job written
+// (with nice in the command or not), exec of mel_pg_bg_cmd; a line of the log: the titles, the ms of the start, no nice
+// or timeout. Not written, exec failed: a line, no pass in this php_server (MelPgBg::$why). -> started.
 /**
  * @param array<string, string> $q
  * @return bool
@@ -198,15 +200,13 @@ function mel_pg_bg_start($q)
 {
     $t = microtime(true);
     $tmp = mel_pg_bg_tmp();
-    foreach (array(MEL_PG_BG_RES, MEL_PG_BG_PROG) as $f)
+    foreach (array(MEL_PG_BG_RES, MEL_PG_BG_PROG, MEL_PG_BG_OUT) as $f)
     {
         if (is_file("$tmp/$f"))
             unlink("$tmp/$f");
     }
     $out = "$tmp/" . MEL_PG_BG_OUT;
-    if (is_file($out) && filesize($out) > MEL_PG_BG_OUT_MAX)
-        unlink($out);
-    $job = json_encode(array('v' => 1, 'dirs' => mel_pg_bg_dirs(), 'q' => $q));
+    $job = json_encode(array('v' => 1, 'dirs' => mel_pg_bg_dirs(), 'q' => $q, 'nice' => is_file(MEL_PG_BG_BIN . '/nice')));
     if (!is_string($job) || !mel_write_file("$tmp/" . MEL_PG_BG_JOB, $job))
     {
         MelPgBg::$why = 'no job file';
@@ -252,13 +252,16 @@ function mel_pg_bg_take()
     $tmp = mel_pg_bg_tmp();
     $f = "$tmp/" . MEL_PG_BG_RES;
     $size = is_file($f) ? filesize($f) : 0;
-    $j = $size > 0 && $size <= MEL_PG_BG_RES_MAX ? json_decode(strval(file_get_contents($f)), true) : null;
+    $raw = $size > 0 && $size <= MEL_PG_BG_RES_MAX ? strval(file_get_contents($f)) : '';
+    // The files out before the decode: a fatal error in it (memory) is not of every opening after.
     foreach (array(MEL_PG_BG_RES, MEL_PG_BG_PROG, MEL_PG_BG_JOB) as $x)
     {
         if (is_file("$tmp/$x"))
             unlink("$tmp/$x");
     }
     MelPgBg::$start = 0;
+    $j = $raw !== '' ? json_decode($raw, true) : null;
+    unset($raw);
     if (!is_array($j) || !isset($j['v']) || $j['v'] !== 1 || !isset($j['pairs'], $j['none']) || !is_array($j['pairs']) ||
         !is_array($j['none']))
     {
@@ -268,7 +271,7 @@ function mel_pg_bg_take()
     if (isset($j['err']) && is_string($j['err']) && $j['err'] !== '')
     {
         MelPgBg::$why = 'failed';
-        mel_log('library: bg map: off, ' . substr($j['err'], 0, 80) . '; the step instead');
+        mel_log('library: bg map: off, ' . substr($j['err'], 0, 80) . '; the step instead' . mel_pg_bg_out_tail());
         return 0;
     }
     $found = 0;
@@ -333,8 +336,22 @@ function mel_pg_bg_died()
     $n = array();
     foreach (array('s', 'done', 'total') as $k)
         $n[$k] = is_array($p) && isset($p[$k]) && is_int($p[$k]) ? $p[$k] : 0;
-    mel_log(is_array($p) ? sprintf('library: bg map: died after %d s, %d/%d (killed by the timeout?); the step instead',
-        $n['s'], $n['done'], $n['total']) : 'library: bg map: died, no progress; the step instead');
+    mel_log((is_array($p) ? sprintf('library: bg map: died after %d s, %d/%d (killed by the timeout?); the step instead',
+        $n['s'], $n['done'], $n['total']) : 'library: bg map: died, no progress; the step instead') . mel_pg_bg_out_tail());
+}
+
+// The last MEL_PG_BG_OUT_TAIL bytes of the output of php-cgi (MEL_PG_BG_OUT), its lines joined by " | ", for a line of
+// the log -> '; out: ...', '' for none. No titles there: the errors of PHP and of timeout, the paths of the plugin.
+/**
+ * @return string
+ */
+function mel_pg_bg_out_tail()
+{
+    $f = mel_pg_bg_tmp() . '/' . MEL_PG_BG_OUT;
+    $size = is_file($f) ? intval(filesize($f)) : 0;
+    $tail = $size > 0 ? strval(file_get_contents($f, false, null, max(0, $size - MEL_PG_BG_OUT_TAIL))) : '';
+    $tail = strval(preg_replace('/\s*[\r\n]+\s*/', ' | ', trim($tail)));
+    return $tail !== '' ? "; out: $tail" : '';
 }
 
 // --- The pass (php-cgi, bg/lib_map.php).
@@ -355,9 +372,8 @@ function mel_pg_bg_put($path, $data)
 }
 
 // The pass over the job of tmp_dir $tmp (mel_pg_bg_start): for each title of its queue, in order, its card of the shell
-// of the first of its folders that has it (no bigger than MEL_PG_SHELL_MAX_BYTES), its pair as the step reads it
-// (mel_pg_card_ids, of a title of both types mel_pg_parse_card; the type of the index when the card has none), else
-// none (no card, too big, no ids). The progress at its start and every MEL_PG_BG_PROGRESS_S s; past $limit s (one card
+// of the first of its folders that has it (mel_pg_shell_text), its pair as the step reads it (mel_pg_lib_pair), else
+// none (no card, too big, no ids); none of its folders there - the error 'no card folders'. The progress at its start and every MEL_PG_BG_PROGRESS_S s; past $limit s (one card
 // at least) it stops, the result with what it read. The result: v, pairs (movie_id => pair), none (movie_ids), read,
 // done, total, ms, stop ('time' or ''), log (lines of mel_log of the functions of links.php), err (a bad job). ->
 // the result written.
@@ -389,6 +405,15 @@ function mel_pg_bg_run($tmp, $limit = MEL_PG_BG_WORK_S)
         if (is_string($d) && $d !== '' && is_dir($d))
             $dirs[] = $d;
     }
+    if (!$dirs)
+    {
+        // All would be none for a day (MelPgLinks::$lib_seen): the step of php_server instead, its paths.
+        $res['err'] = 'no card folders';
+        return mel_pg_bg_put("$tmp/" . MEL_PG_BG_RES, strval(json_encode($res)));
+    }
+    // No nice in the command (mel_pg_bg_cmd): lowered here, as nice -n 19.
+    if (empty($job['nice']) && function_exists('proc_nice'))
+        proc_nice(19);
     $prog = "$tmp/" . MEL_PG_BG_PROG;
     $res['total'] = count($job['q']);
     $p = array('pid' => getmypid(), 's' => 0, 'done' => 0, 'total' => $res['total']);
@@ -411,26 +436,14 @@ function mel_pg_bg_run($tmp, $limit = MEL_PG_BG_WORK_S)
             $p['done'] = $res['done'];
             mel_pg_bg_put($prog, strval(json_encode($p)));
         }
-        $type = $type === 'movie' || $type === 'series' ? $type : '';
-        $text = '';
-        foreach (preg_match('/^[0-9a-f]{24}$/D', $mid) ? $dirs : array() as $d)
-        {
-            $path = "$d/$mid.json";
-            if (!is_file($path))
-                continue;
-            $size = filesize($path);
-            $text = $size > 0 && $size <= MEL_PG_SHELL_MAX_BYTES ? strval(file_get_contents($path)) : '';
-            break;
-        }
+        $text = mel_pg_shell_text($mid, $dirs);
         $l = null;
         if ($text !== '')
         {
             $res['read']++;
-            $l = $type !== '' ? mel_pg_card_ids($text) : mel_pg_parse_card($text);
+            $l = mel_pg_lib_pair($text, $type === 'movie' || $type === 'series' ? $type : '');
         }
         unset($text);
-        if ($l && !isset($l['type']) && $type !== '')
-            $l['type'] = $type;
         if ($l)
             $pairs[$mid] = $l;
         else
