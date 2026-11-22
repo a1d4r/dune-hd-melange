@@ -745,6 +745,29 @@ function mel_lib_shell_url($folder, $nfs, $rel)
     return $nf ? "network_folder_id://{$nf['id']}$rel" : null;
 }
 
+// The URL $url of a record of the history is the one the shell plays a disc folder (mel_lib_hrp) of movie $mid of the
+// index by (mel_lib_shell_url, shell_url of its copy; its record of the shell after launch_media_url, device r25
+// 23.11.2026): of the row "Continue". A URL of another scheme: false at once, nothing read; else the index of memory
+// (mel_lib_tile_start: read only when its files changed), no mount looked at.
+/**
+ * @param string $mid
+ * @param string $url
+ * @return bool
+ */
+function mel_lib_bd_url($mid, $url)
+{
+    if (!preg_match('~^(?:network_folder_id|storage_name|sdcard)://~', $url))
+        return false;
+    mel_lib_tile_start();
+    foreach (isset(MelLib::$by_mid[$mid]) ? MelLib::$by_mid[$mid] : array() as $f)
+    {
+        $fo = isset($f['hrp'], MelLib::$folders[$f['folder']]) ? MelLib::$folders[$f['folder']] : null;
+        if ($fo && mel_lib_shell_url($fo, MelLib::$nfs, mel_lib_rel_path($fo['path'], $f['path'])) === $url)
+            return true;
+    }
+    return false;
+}
+
 // The main stream of a disc folder (a Blu-ray folder <name>/BDMV/...: ctype 3 of the index) by its record $f: its hrp,
 // the path of that file in the folder ("BDMV/STREAM/00005.m2ts") - checked in place of the folder, played when the
 // shell can not play the folder (mel_lib_shell_url; vod_play of the folder does not play, of the file it does, with no

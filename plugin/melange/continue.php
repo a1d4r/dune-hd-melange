@@ -7,7 +7,7 @@
 // mel_write_file, MEL_SUP_ID), catalog.php (mel_cat_tile, mel_cat_row_state), catalog_card.php (mel_card_open,
 // mel_card_id, mel_card_local_imdb), card_meta.php (mel_cm_id, mel_cm_get), view_card_series.php (mel_cm_eps_before),
 // view_catalog.php (mel_catv_*), view_card.php (mel_oc_enter), cp_meta.php (mel_cpm_tile, MelCpm), view_my_list.php
-// (mel_ml_changed).
+// (mel_ml_changed), library.php (mel_lib_bd_url, mel_lib_tile_start).
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The rid of the row: its tiles are "continue:<movie_id>" (mel_catv_tile), its rows "items:continue", "title:continue".
@@ -39,8 +39,8 @@ function mel_cp_ours($w)
 }
 
 // The card $mid of the state $ent (mel_pg_index) in the row, null for none: a movie (no episode in the history, the
-// pair not of a series) by its latest record, of Melange, begun (mel_pg_begun) and not watched, not marked in
-// watched_movies.txt; a series by its latest episode record of Melange and its badge (mel_pg_badge: the episode the
+// pair not of a series) by its latest record, of Melange (or of the shell of a disc folder of the library), begun
+// (mel_pg_begun) and not watched, not marked in watched_movies.txt; a series by its latest episode record of Melange and its badge (mel_pg_badge: the episode the
 // own card offers after the one watched, by the episodes of the pair out today; begun; watched with no list of them),
 // none when all of them out are watched (all) or no episode is watched or begun. -> type, end (of the latest record, the
 // order of the row), w (the record: the title, the poster), s, e (of the badge; -1 of a movie), b (the badge the row
@@ -58,7 +58,9 @@ function mel_cp_item($mid, $ent)
     if ($st === null && mel_cp_pair_type($l, false) !== 'series')
     {
         $w = $ent['w'];
-        if ($ent['movie_mark'] || !mel_cp_ours($w) || $ent['seen'])
+        // Of Melange, or of the shell playing a disc folder of the library by its URL (mel_lib_bd_url).
+        if ($ent['movie_mark'] || $ent['seen'] || !$w ||
+            !(mel_cp_ours($w) || (isset($w->url) && is_string($w->url) && mel_lib_bd_url($mid, $w->url))))
             return null;
         list(, , $pos, $len) = mel_wh_rec($w);
         return mel_pg_begun($pos, $len) ? array('type' => 'movie', 'end' => $ent['end'], 'w' => $w, 's' => -1, 'e' => -1,
