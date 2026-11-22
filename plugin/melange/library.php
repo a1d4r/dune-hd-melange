@@ -724,6 +724,22 @@ function mel_lib_rel_path($folder_path, $file_path)
     return $file_path === '/' ? $fp : "$fp/$file_path";
 }
 
+// The main stream of a disc folder (a Blu-ray folder <name>/BDMV/...: ctype 3 of the index) by its record $f: its hrp,
+// the path of that file in the folder ("BDMV/STREAM/00005.m2ts") - played and checked in place of the folder (vod_play
+// of the folder does not play, of the file it does: device r25 22.11.2026); '' for none or a path not safe (absolute,
+// a "." or ".." in it, a control character).
+/**
+ * @param array<mixed> $f
+ * @return string
+ */
+function mel_lib_hrp($f)
+{
+    $h = isset($f['hrp']) && is_string($f['hrp']) ? $f['hrp'] : '';
+    if ($h === '' || $h[0] === '/' || preg_match('~[\x00-\x1f\x7f]|(?:^|/)\.\.?(?:/|\z)~', $h))
+        return '';
+    return $h;
+}
+
 // --- Index.
 
 // Where the shell keeps folder_files.<id>.json (folder_movies.<id>.json for
@@ -871,6 +887,9 @@ function mel_lib_folder_index($folder_id, &$info, &$left, &$ep_in = null, &$bonu
             's' => -1,
             'e' => -1,
             'dir' => $dir);
+        $hrp = mel_lib_hrp($f);
+        if ($hrp !== '')
+            $file['hrp'] = $hrp;
         if ($ass === 0)
             $files[] = $file;
         else
@@ -1554,7 +1573,8 @@ function mel_lib_files_copies($files)
             $mnt[$id] = mel_lib_source_mount($folder, MelLib::$nfs, $mounts, $storages === null ? array() : $storages);
         if ($mnt[$id][0] === '')
             continue;
-        $url = $mnt[$id][0] . mel_lib_rel_path($folder['path'], $f['path']);
+        // A disc folder: its main stream (mel_lib_hrp) - played, checked (mel_lib_here), its MKV read.
+        $url = $mnt[$id][0] . mel_lib_rel_path($folder['path'], $f['path']) . (isset($f['hrp']) ? '/' . $f['hrp'] : '');
         if (isset($urls[$url]))
             continue;
         $urls[$url] = 1;
@@ -2077,7 +2097,8 @@ function mel_lib_title($m, $series)
 // checks answered too late). The paths only in the environment of the check (putenv, taken out after exec()): not in
 // the command, where escapeshellarg of PHP 5.3 in the locale C drops the bytes of a Cyrillic path. The log: "library:
 // here lib-... yes|no|slow in N ms"; a copy of a storage or of the internal memory not there: "...; mount dir yes|no,
-// readable yes|no" of the root of its mount (a wrong path apart from no access), no path. No tmp_dir: 'yes', not
+// readable yes|no" of the root of its mount (a wrong path apart from no access), no path; of a disc folder (its main
+// stream checked, mel_lib_hrp) "...; bd hrp". No tmp_dir: 'yes', not
 // checked (the player tells). $mkv: of a file there, $dur - the length of its MKV (mel_mkv_duration) by its first 64
 // KB, read by the same check past its answer (php_server reads no share), waited for MEL_LIB_MKV_MS more; 0 for none in
 // time, not MKV, no length. The log: "library: mkv lib-... N s in N ms" or "library: mkv lib-... unknown (why) in N
@@ -2138,7 +2159,8 @@ function mel_lib_here($copy, $mkv = false, &$dur = null)
         usleep(50000);
     }
     while (microtime(true) - $t < MEL_LIB_HERE_S);
-    mel_log("library: here {$copy['key']} $ans in " . round((microtime(true) - $t) * 1000) . " ms$mnt");
+    mel_log("library: here {$copy['key']} $ans in " . round((microtime(true) - $t) * 1000) . " ms$mnt" .
+        (isset($copy['hrp']) ? '; bd hrp' : ''));
     if ($mkv && $ans === 'yes')
         $dur = mel_lib_here_mkv($copy, "$res.b");
     return $ans;

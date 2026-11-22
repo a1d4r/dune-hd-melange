@@ -6,6 +6,7 @@
 - **Files from a USB drive and the internal disk.** Movies and series from the Dune media library on a USB drive or the disk inside the Dune now play from the Melange card too, and their posters get the disk icon. Before, only network folders worked.
 - **Disk icon on posters.** Movies and series from the Dune media library have a disk icon in the top right corner of the poster: in the catalog rows, Show all, search, Favorites, Continue Watching, the rows of the Melange card and the filmography on an actor's page. A series gets it if at least one episode is on the disk. Melange doesn't check whether the NAS is on, so the icon shows even when it's off.
 - Fixed: movies the Dune media library marked as bonus material had no "From disk" line. Now they play from the disk too.
+- Fixed: a movie stored in the Dune media library as a Blu-ray folder (BDMV) now plays from the disk (the main video stream, without the disc menu). Before, Watch said "The movie file is not on the disk".
 
 ## 0.67.0 — 22.11.2026
 - **Releases with a different year or title.** Movies such as "Kill Bill: The Whole Bloody Affair" are no longer empty. Releases whose year or title on the tracker differs from the movie card are gathered in the "Unconfirmed" group at the top of the list (on the Melange server), and the "Check" line in the release card says why.
@@ -323,6 +324,7 @@ First public release. What it does:
 - **Файлы с USB-диска и встроенного диска.** Фильмы и сериалы из медиатеки Дюны на USB-диске и на диске внутри Дюны теперь тоже включаются из карточки Melange, и у них на постерах есть значок диска. Раньше — только из сетевых папок.
 - **Значок диска на постерах.** У фильмов и сериалов из медиатеки Дюны в правом верхнем углу постера значок диска: в рядах каталога, «Показать все», поиске, «Избранном», «Продолжить», рядах карточки Melange и фильмографии на странице актёра. Сериал получает значок, если на диске есть хоть одна серия. Включён ли NAS, Melange не проверяет, поэтому значок виден и при выключенном.
 - Исправлено: у фильмов, которые медиатека Дюны пометила как бонусные материалы, не было строки «С диска». Теперь они тоже включаются с диска.
+- Исправлено: фильм, который лежит в медиатеке Дюны папкой Blu-ray (BDMV), теперь включается с диска (основной видеопоток, без меню диска), а раньше «Смотреть» писало «Файла фильма нет на диске».
 
 ## 0.67.0 — 22.11.2026
 - **Раздачи с другим годом или названием.** Фильмы вроде «Убить Билла: Кровавое дело целиком» больше не пустые. Раздачи, у которых на трекере другой год или название, чем в карточке фильма, собраны в группу «Не подтверждены» первой строкой списка (на сервере Melange). Причину показывает строка «Сверка» в карточке раздачи.
