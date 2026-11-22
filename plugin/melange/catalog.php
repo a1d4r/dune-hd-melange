@@ -83,8 +83,6 @@ define('MEL_CAT_TMDB', 'https://image\.tmdb\.org/t/p/[a-z0-9_]+/');
 define('MEL_CAT_GENRES_MAX', 8);
 define('MEL_CAT_CAST_MAX', 3);
 define('MEL_CAT_QUERY_MAX', 100);
-// The rating of Kinopoisk of fewer votes is not shown (the owner's choice).
-define('MEL_CAT_KP_VOTES_MIN', 1000);
 
 class MelCatCopies
 {
@@ -286,8 +284,10 @@ function mel_cat_group($id)
         return $m[1];
     if (strpos($id, 'anilist.') === 0)
         return 'anime';
-    if (strpos($id, 'custom.fresh.') === 0)
-        return 'fresh';
+    // The rows the server makes itself (fresh.py): custom.<group>.<...>, a group of the screens (custom.fresh.kt-new,
+    // custom.top.kp-top250-movies); a server row gets its group with no new version.
+    if (preg_match('/^custom\.([^.]+)\./', $id, $m) && in_array($m[1], mel_cat_groups(), true))
+        return $m[1];
     return $id === 'tmdb.trending' || $id === 'tmdb.top' || $id === 'tmdb.top_rated' || strpos($id, 'letterboxd.') === 0 ? 'top' : 'other';
 }
 
@@ -605,17 +605,15 @@ function mel_cat_runtime_min($r)
     return (isset($x[1]) ? intval($x[1]) * 60 : 0) + (isset($x[2]) ? intval($x[2]) : 0);
 }
 
-// A rating of Kinopoisk ("7.93") of $votes votes -> "7.9" as shown; '' for none, 0, over 10 or
-// under MEL_CAT_KP_VOTES_MIN votes.
+// A rating of Kinopoisk ("7.93") -> "7.9" as shown; '' for none, 0 or over 10. Of any number of votes (the owner's
+// choice 23.11.2026: the votes of the server are live now), none of them too.
 /**
  * @param string $kp
- * @param int $votes
  * @return string
  */
-function mel_cat_kp($kp, $votes)
+function mel_cat_kp($kp)
 {
-    $kp = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $kp) && (float) $kp <= 10 && $votes >= MEL_CAT_KP_VOTES_MIN ?
-        sprintf('%.1F', (float) $kp) : '';
+    $kp = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $kp) && (float) $kp <= 10 ? sprintf('%.1F', (float) $kp) : '';
     // "0.04" is "0.0": none.
     return (float) $kp > 0 ? $kp : '';
 }
@@ -644,9 +642,9 @@ function mel_cat_rel_tmdb($t)
 // of app_extras.certifications.US on the Russian scale (mel_cat_us_age), for the filter of the age (mel_cat_age_of).
 // cast: the first names of app_extras.cast. englishTitle: the English name of the title
 // (a field of our patch of the server; none: ''), as name. kpRating, kpVotes, kpId: of our
-// patch too: the rating "7.9" ('' for none, 0, over 10 or under MEL_CAT_KP_VOTES_MIN votes),
-// its votes (0 for none), the id of Kinopoisk (digits, '' for none). kpVotes is kept for the
-// threshold when a copy of the cache is parsed again (mel_cat_tiles): without it the rating goes.
+// patch too: the rating "7.9" ('' for none, 0 or over 10; mel_cat_kp), its votes (0 for none), the id of
+// Kinopoisk (digits, '' for none). kpVotes decides nothing now; kept as a field of the tile and of the file of
+// My list (my_list.php), which older versions read.
 // logo, logoLang: of our patch too, the logo of the title in place of its name (the card background of
 // the server, mel_catv_card, sizes it): kept only of "ru", its address https, the plain characters of
 // a path, ending in a file of TMDB, PNG or SVG (the server takes an SVG as its PNG of TMDB); else none
@@ -679,7 +677,7 @@ function mel_cat_tile($m, $row_type)
     $rating = mel_str($m, 'imdbRating');
     $votes = mel_str($m, 'kpVotes');
     $votes = preg_match('/^[0-9]{1,9}$/D', $votes) ? intval($votes) : 0;
-    $kp = mel_cat_kp(mel_str($m, 'kpRating'), $votes);
+    $kp = mel_cat_kp(mel_str($m, 'kpRating'));
     $kp_id = mel_str($m, 'kpId');
     $genres = array();
     foreach (mel_arr($m, 'genres') as $g)

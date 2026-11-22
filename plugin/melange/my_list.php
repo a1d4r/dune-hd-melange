@@ -169,8 +169,8 @@ function mel_ml_entry($t, $dune, $now)
         'kpVotes' => $t['kpVotes'], 'dune_id' => $dune, 'added' => $now));
 }
 
-// The tile of entry $e for a row and the own card (mel_oc_enter): what the entry has (its ratings too: kpVotes kept, a
-// copy of the tile parsed again by mel_cat_tile keeps kpRating), the rest empty (the own card takes it from its meta).
+// The tile of entry $e for a row and the own card (mel_oc_enter): what the entry has (its ratings too, kpVotes with
+// them), the rest empty (the own card takes it from its meta).
 /**
  * @param MelMlEntry $e
  * @return MelCatTile

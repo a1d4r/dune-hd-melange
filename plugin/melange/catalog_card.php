@@ -104,7 +104,7 @@ function mel_card_ask($sign, $token)
             $kp = mel_arr(mel_arr($r, 'rating'), 'kp');
             $card = array('id' => $id, 'year' => intval(mel_str($r, 'year')), 'type' => mel_str($r, 'type'),
                 'sup' => isset($r['suppliers']) && is_array($r['suppliers']) ? count($r['suppliers']) : 0,
-                'kp' => mel_cat_kp(mel_str($kp, 'rating'), intval(mel_str($kp, 'vote'))));
+                'kp' => mel_cat_kp(mel_str($kp, 'rating')));
             $why = "$id year={$card['year']} type={$card['type']} sup={$card['sup']}";
         }
         else if ($msg === 'not found')
