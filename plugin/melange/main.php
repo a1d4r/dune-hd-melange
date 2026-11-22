@@ -23,6 +23,7 @@ require_once dirname(__FILE__) . '/kit_tokens.php';
 // The state of the history for the badges of the catalog; the pairs card -> IMDb / TMDB.
 require_once dirname(__FILE__) . '/progress.php';
 require_once dirname(__FILE__) . '/links.php';
+require_once dirname(__FILE__) . '/links_bg.php';
 require_once dirname(__FILE__) . '/library.php';
 // Playback, the episodes around it and the lazy ones.
 require_once dirname(__FILE__) . '/playback.php';

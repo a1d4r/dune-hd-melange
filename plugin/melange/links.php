@@ -3,7 +3,8 @@
 // file of data_dir; found by play_action, ENTER, the cards the shell keeps and, lazily, a request of the card
 // to the dunemdb API: r24 in an opening of the catalog, r25 at the tick of the timer of its screen (mel_pg_tick); the
 // lazy meta of the row "Continue" after them (cp_meta.php, mel_cpm_step). The titles of the media library get theirs
-// by the cards of the shell too, step by step at the same moments (mel_pg_lib_step): the badge "on the disk" of a tile.
+// by the cards of the shell too, at the same moments: by a pass in a process of its own (links_bg.php,
+// mel_pg_lib_work), else step by step (mel_pg_lib_step): the badge "on the disk" of a tile.
 // Needs library.php (mel_lib_index, MelLib), progress.php (mel_pg_index), main.php (mel_log, mel_write_file,
 // mel_data_dir, mel_http_get, mel_http_get_many, MEL_DUNE_ID, MEL_HTTP_TOO_BIG), parse.php (mel_str), catalog.php
 // (MEL_CAT_MAX_BYTES), catalog_card.php (mel_card_token, mel_card_api), view_catalog.php (mel_catv_is_down).
@@ -112,7 +113,7 @@ class MelPgLinks
 function mel_pg_screen_start()
 {
     mel_pg_shell_step();
-    mel_pg_lib_step(MEL_PG_LIB_MS);
+    mel_pg_lib_work(MEL_PG_LIB_MS);
     MelPgLinks::$tick_url = '';
     MelPgLinks::$screen = '';
     MelPgLinks::$ticks = 0;
@@ -222,7 +223,7 @@ function mel_pg_tick_set($url, $anew = false)
 // timer again, not one of MEL_PG_TICK_MAX; no two timers asking at once), a tick after the last one of the screen, a
 // tick of another or an old one, a tick with no screen since the start of php_server. A line of the log of each, in its
 // own words. The tiles of the row "Continue" of the screen paired first (mel_cp_row_mids); the titles of the library
-// last, in what is left (mel_pg_lib_step, MEL_PG_LIB_TICK_S at most). Cards paired: the tiles of that row with no
+// last, in what is left (mel_pg_lib_work: the pass, else the step of MEL_PG_LIB_TICK_S at most). Cards paired: the tiles of that row with no
 // meta again (MelCpm::$miss, mel_cp_row_miss), theirs asked in the same tick. The meta of a tile of the screen got
 // (MelCpm::$miss, MelCpm::$ml; not of MelCpm::$more, a screen of Fav): the screen built again (mel_pg_tick_anew), no
 // timer again here. -> the timer again (mel_catv_input: change_behaviour).
@@ -268,7 +269,7 @@ function mel_pg_tick($url)
         $got = mel_cpm_step(MEL_CPM_TICK_S - (microtime(true) - $t), MEL_CPM_N - $rounds, true);
         $left = min(MEL_PG_LIB_TICK_S, MEL_CPM_TICK_S - (microtime(true) - $t));
         if ($left > 0)
-            mel_pg_lib_step($left * 1000);
+            mel_pg_lib_work($left * 1000);
         $c = $got ? mel_cpm_read() : array();
         $shown = 0;
         foreach ($got ? $mine : array() as $m)
@@ -1090,18 +1091,19 @@ function mel_pg_lib_queue()
 // and the type of the index (a series wants its seasons, mel_pg_wanted), of a title of both types the whole card
 // (mel_pg_parse_card), in $ms (one card at least); the pairs and MelPgLinks::$rev once. A line of the log of a step
 // that looked at a card: read, pairs, none (no card, too big, no ids: MelPgLinks::$lib_seen), ms. No library: nothing
-// read.
+// read. $q: the queue of the caller (mel_pg_lib_work), null: mel_pg_lib_queue.
 /**
  * @param float $ms
+ * @param array<string, string>|null $q
  * @return void
  */
-function mel_pg_lib_step($ms)
+function mel_pg_lib_step($ms, $q = null)
 {
     $t = microtime(true);
     $read = 0;
     $found = 0;
     $none = 0;
-    foreach (mel_pg_lib_queue() as $mid => $type)
+    foreach ($q !== null ? $q : mel_pg_lib_queue() as $mid => $type)
     {
         $mid = strval($mid);
         if (($found || $none) && (microtime(true) - $t) * 1000 >= $ms)
