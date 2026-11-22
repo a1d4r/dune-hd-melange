@@ -726,15 +726,17 @@ function mel_lib_rel_path($folder_path, $file_path)
 
 // The main stream of a disc folder (a Blu-ray folder <name>/BDMV/...: ctype 3 of the index) by its record $f: its hrp,
 // the path of that file in the folder ("BDMV/STREAM/00005.m2ts") - played and checked in place of the folder (vod_play
-// of the folder does not play, of the file it does: device r25 22.11.2026); '' for none or a path not safe (absolute,
-// a "." or ".." in it, a control character).
+// of the folder does not play, of the file it does: device r25 22.11.2026); '' for none, of a record of another ctype
+// (the indexer writes hrp and ctype apart: an ISO file, a DVD folder) or a path not safe (absolute, a "." or ".." in it,
+// a control character).
 /**
  * @param array<mixed> $f
  * @return string
  */
 function mel_lib_hrp($f)
 {
-    $h = isset($f['hrp']) && is_string($f['hrp']) ? $f['hrp'] : '';
+    $h = isset($f['hrp'], $f['ctype']) && is_string($f['hrp']) && is_scalar($f['ctype']) &&
+        strval($f['ctype']) === '3' ? $f['hrp'] : '';
     if ($h === '' || $h[0] === '/' || preg_match('~[\x00-\x1f\x7f]|(?:^|/)\.\.?(?:/|\z)~', $h))
         return '';
     return $h;
@@ -2098,7 +2100,7 @@ function mel_lib_title($m, $series)
 // the command, where escapeshellarg of PHP 5.3 in the locale C drops the bytes of a Cyrillic path. The log: "library:
 // here lib-... yes|no|slow in N ms"; a copy of a storage or of the internal memory not there: "...; mount dir yes|no,
 // readable yes|no" of the root of its mount (a wrong path apart from no access), no path; of a disc folder (its main
-// stream checked, mel_lib_hrp) "...; bd hrp". No tmp_dir: 'yes', not
+// stream checked, mel_lib_hrp) "...; bd hrp", its first bytes not read. No tmp_dir: 'yes', not
 // checked (the player tells). $mkv: of a file there, $dur - the length of its MKV (mel_mkv_duration) by its first 64
 // KB, read by the same check past its answer (php_server reads no share), waited for MEL_LIB_MKV_MS more; 0 for none in
 // time, not MKV, no length. The log: "library: mkv lib-... N s in N ms" or "library: mkv lib-... unknown (why) in N
@@ -2113,6 +2115,9 @@ function mel_lib_title($m, $series)
 function mel_lib_here($copy, $mkv = false, &$dur = null)
 {
     $dur = 0.0;
+    // The main stream of a disc folder (mel_lib_hrp) is no MKV: its first bytes not read.
+    if (isset($copy['hrp']))
+        $mkv = false;
     $t = microtime(true);
     $tmp = isset(DuneSystem::$properties['tmp_dir_path']) ?
         rtrim(strval(DuneSystem::$properties['tmp_dir_path']), '/') : '';
