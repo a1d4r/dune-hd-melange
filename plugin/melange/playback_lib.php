@@ -59,6 +59,7 @@ function mel_lib_next_act($hid, $y, $q, $e, $cid)
 // player offers the place of the record itself; the i-th of n of its title, for the log; dur - the length of its MKV).
 // No stream check, no TorrServer. Linked by the card $mv['dune_id'] (H, set by the caller: of the own card, else of the
 // index): recent_uid "aio:H:q:e:lib-...", mdb_info, "Continue" back to play_action with wh_mode local; no H - unlinked.
+// A disc folder the shell plays (bd): mel_lib_play_bd.
 // A movie ($ep null): one item, no markers. An episode ($ep: y - the series of the index, q, e - the episode, the season
 // as asked, eps - the copies of the series "q:e" => copies): its markers by the length of its MKV (0 unknown; the file
 // is not read here); linked, a playlist of its season and E1 of the next one as mel_play (by season_numbers; none, the
@@ -76,6 +77,8 @@ function mel_lib_next_act($hid, $y, $q, $e, $cid)
 function mel_lib_play($mv, $go, $lang, $ep = null)
 {
     $copy = $go['copy'];
+    if (isset($copy['bd']))
+        return mel_lib_play_bd($mv, $go, $copy['bd']);
     $pos = $go['at'];
     $linked = $mv['dune_id'] !== '';
     $q = $ep ? $ep['q'] : -1;
@@ -167,6 +170,28 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
     return array(
         GuiAction::handler_string_id => PLUGIN_VOD_PLAY_ACTION_ID,
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
+}
+
+// launch_media_url $url of the copy of a disc folder the shell plays (bd, mel_lib_shell_url; $go of mel_lib_start) of
+// $mv, as its own card does (MovieHelper::get_play_movie_action of r25; owner 23.11.2026): its windows of the disc folder
+// and of the place by its history, the player of Blu-ray with chapters, its record after STOP (the URL of the folder).
+// No event of the player comes to Melange: no markers, no recent_uid, the place of $go not given. The pair of the card
+// as of vod_play. The log has the key, no path.
+/**
+ * @param MelMovie $mv
+ * @param MelLibHere $go
+ * @param string $url
+ * @return MelAction
+ */
+function mel_lib_play_bd($mv, $go, $url)
+{
+    $copy = $go['copy'];
+    mel_pg_link_movie($mv);
+    mel_log("library: play {$copy['key']}: a disc folder -> launch_media_url, copy " . ($go['i'] + 1) . " of {$go['n']}");
+    return array(
+        GuiAction::handler_string_id => LAUNCH_MEDIA_URL_ACTION_ID,
+        GuiAction::data => array(LaunchMediaUrlActionData::url => $url,
+            LaunchMediaUrlActionData::caption => $mv['title']));
 }
 
 // The check of the copies of a movie or an episode before a start, the own card, play_action and the lazy episodes

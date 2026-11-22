@@ -724,9 +724,31 @@ function mel_lib_rel_path($folder_path, $file_path)
     return $file_path === '/' ? $fp : "$fp/$file_path";
 }
 
+// The URL the shell plays a file of folder $folder of the library by, $rel its path under the root of the source
+// (mel_lib_rel_path), as GuiCommon::get_playback_url_by_source_id of r25: of sdcard://, of storage_name://<name> - the
+// source and the path; of a network folder (network_folder_id://<id>, network_folder://<name>) -
+// network_folder_id://<its id> and the path. null: another source, a storage of a name not taken (mel_lib_storage_name),
+// a network folder not of the settings.
+/**
+ * @param MelLibFolder $folder
+ * @param array<string, MelLibNf> $nfs
+ * @param string $rel
+ * @return string|null
+ */
+function mel_lib_shell_url($folder, $nfs, $rel)
+{
+    $sid = $folder['source_id'];
+    $name = mel_lib_storage_name($folder);
+    if ($sid === MEL_LIB_SDCARD_SID || ($name !== null && $name !== ''))
+        return $sid . $rel;
+    $nf = mel_lib_source_nf($folder, $nfs);
+    return $nf ? "network_folder_id://{$nf['id']}$rel" : null;
+}
+
 // The main stream of a disc folder (a Blu-ray folder <name>/BDMV/...: ctype 3 of the index) by its record $f: its hrp,
-// the path of that file in the folder ("BDMV/STREAM/00005.m2ts") - played and checked in place of the folder (vod_play
-// of the folder does not play, of the file it does: device r25 22.11.2026); '' for none, of a record of another ctype
+// the path of that file in the folder ("BDMV/STREAM/00005.m2ts") - checked in place of the folder, played when the
+// shell can not play the folder (mel_lib_shell_url; vod_play of the folder does not play, of the file it does, with no
+// chapters: device r25 22.11.2026); '' for none, of a record of another ctype
 // (the indexer writes hrp and ctype apart: an ISO file, a DVD folder) or a path not safe (absolute, a "." or ".." in it,
 // a control character).
 /**
@@ -1575,13 +1597,19 @@ function mel_lib_files_copies($files)
             $mnt[$id] = mel_lib_source_mount($folder, MelLib::$nfs, $mounts, $storages === null ? array() : $storages);
         if ($mnt[$id][0] === '')
             continue;
-        // A disc folder: its main stream (mel_lib_hrp) - played, checked (mel_lib_here), its MKV read.
-        $url = $mnt[$id][0] . mel_lib_rel_path($folder['path'], $f['path']) . (isset($f['hrp']) ? '/' . $f['hrp'] : '');
+        // A disc folder: its main stream (mel_lib_hrp) - checked (mel_lib_here), its MKV read; played by the shell by
+        // the URL of the folder (bd, mel_lib_shell_url; none - its main stream, vod_play).
+        $rel = mel_lib_rel_path($folder['path'], $f['path']);
+        $url = $mnt[$id][0] . $rel . (isset($f['hrp']) ? '/' . $f['hrp'] : '');
         if (isset($urls[$url]))
             continue;
         $urls[$url] = 1;
-        $res[] = $f + array('url' => $url, 'mnt' => $mnt[$id][0], 'srv' => $mnt[$id][1],
+        $c = $f + array('url' => $url, 'mnt' => $mnt[$id][0], 'srv' => $mnt[$id][1],
             'key' => mel_lib_key($f['hash']), 'cid' => mel_lib_cid($url), 'caption' => $folder['caption']);
+        $bd = isset($f['hrp']) ? mel_lib_shell_url($folder, MelLib::$nfs, $rel) : null;
+        if ($bd !== null)
+            $c['bd'] = $bd;
+        $res[] = $c;
     }
     usort($res, 'mel_lib_cmp_copies');
     return $res;
