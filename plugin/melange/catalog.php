@@ -284,9 +284,9 @@ function mel_cat_group($id)
         return $m[1];
     if (strpos($id, 'anilist.') === 0)
         return 'anime';
-    // The rows the server makes itself (fresh.py): custom.<group>.<...>, a group of the screens (custom.fresh.kt-new,
+    // The rows the server makes itself (fresh.py): custom.<group>.<...> (custom.fresh.kt-new,
     // custom.top.kp-top250-movies); a server row gets its group with no new version.
-    if (preg_match('/^custom\.([^.]+)\./', $id, $m) && in_array($m[1], mel_cat_groups(), true))
+    if (preg_match('/^custom\.([^.]+)\./', $id, $m))
         return $m[1];
     return $id === 'tmdb.trending' || $id === 'tmdb.top' || $id === 'tmdb.top_rated' || strpos($id, 'letterboxd.') === 0 ? 'top' : 'other';
 }
