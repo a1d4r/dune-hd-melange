@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.69.1
+- **Wallpaper above the "On TorrServer" rows.** Above the poster rows in "On TorrServer" you now see the Dune wallpaper, the same one as above the icon bar of the catalog. Before, it was black.
+
 ## 0.69.0 — 23.11.2026
 - **"On TorrServer" section.** It shows all the torrents already on TorrServer, newest first, movies and series on one screen. They may have been added from a phone with NUM, KinoTrend or Lampa, or by Melange with "Add & Play". Open it with the icon in the top bar of the catalog (a grey circle with a lightning bolt, after the heart) or with "On TorrServer" in **POP UP**. A tile has the poster and title from TorrServer, and above the rows you see the name, the number of files, the size and the date it was added. Melange doesn't change or delete torrents on TorrServer. If TorrServer doesn't answer or torrents are turned off in the Melange settings, the section says what happened and shows a "Settings" button. More in [Torrents and TorrServer](docs/torrserver.en.md).
 - **Playing from "On TorrServer".** **ENTER** on a torrent with one video starts the player right away. A pack or a series opens a file list: seasons are grouped, watched files have a check mark, and the cursor is on the next unwatched one. The next episodes play in order (**P+**/**P−**). The player offers to resume where you stopped, and what you started shows up in "Recent" on the Dune home screen and continues from there.
@@ -328,6 +331,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.69.1
+- **Обои над рядами «На TorrServer».** Над рядами постеров в разделе «На TorrServer» теперь видны обои Дюны, те же, что над полосой значков каталога. Раньше там был чёрный фон.
 
 ## 0.69.0 — 23.11.2026
 - **Раздел «На TorrServer».** В нём все раздачи, которые уже лежат на TorrServer, свежие сверху, фильмы и сериалы на одном экране. Их могли добавить с телефона через NUM, KinoTrend или Lampa или сам Melange в режиме «Добавить и играть». Раздел открывается значком на полосе сверху каталога (серый круг с молнией, после сердечка) или пунктом «На TorrServer» в **POP UP**. На плитке постер и название из записи TorrServer, над рядами название, число файлов, размер и дата добавления. Melange не меняет и не удаляет раздачи на TorrServer. Если TorrServer не отвечает или торренты выключены в настройках Melange, раздел пишет, что случилось, и даёт кнопку «Настройки». Подробнее в главе [Торренты и TorrServer](docs/torrserver.md).
