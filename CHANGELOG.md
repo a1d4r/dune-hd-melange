@@ -2,6 +2,10 @@
 
 **English version**
 
+## 0.69.0
+- **"On TorrServer" section.** It shows all the torrents already on TorrServer, newest first, movies and series on one screen. They may have been added from a phone with NUM, KinoTrend or Lampa, or by Melange with "Add & Play". Open it with the icon in the top bar of the catalog (a grey circle with a lightning bolt, after the heart) or with "On TorrServer" in **POP UP**. A tile has the poster and title from TorrServer, and above the rows you see the name, the number of files, the size and the date it was added. Melange doesn't change or delete torrents on TorrServer. If TorrServer doesn't answer or is turned off in the settings, the section says what happened and offers "Retry" and "Settings". More in [Torrents and TorrServer](docs/torrserver.en.md).
+- **Playing from "On TorrServer".** **ENTER** on a torrent with one video starts the player right away. A pack or a series opens a file list: seasons are grouped, watched files have a check mark, and the cursor is on the next unwatched one. The next episodes play in order (**P+**/**P−**). The player offers to resume where you stopped, and what you started shows up in "Recent" on the Dune home screen and continues from there.
+
 ## 0.68.1 — 23.11.2026
 - **Kinopoisk rating with any number of votes.** The info panel above the rows and the Melange card now show the Kinopoisk rating whatever the number of votes. Before, it was hidden below 1000 votes.
 - **Kinopoisk rows in Top.** The catalog server now has Kinopoisk rows: «Топ Кинопоиска» (Kinopoisk top), «Топ-250 сериалов КП» (Kinopoisk top 250 series) and «Популярное на КП» (Popular on Kinopoisk) for movies and for series. On the settings page and in **Configure List...** they are in the Top group. Earlier versions put them in Other.
@@ -324,6 +328,10 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.69.0
+- **Раздел «На TorrServer».** В нём все раздачи, которые уже лежат на TorrServer, свежие сверху, фильмы и сериалы на одном экране. Их могли добавить с телефона через NUM, KinoTrend или Lampa или сам Melange в режиме «Добавить и играть». Раздел открывается значком на полосе сверху каталога (серый круг с молнией, после сердечка) или пунктом «На TorrServer» в **POP UP**. На плитке постер и название из записи TorrServer, над рядами название, число файлов, размер и дата добавления. Melange не меняет и не удаляет раздачи на TorrServer. Если TorrServer не отвечает или выключен в настройках, раздел пишет, что случилось, и предлагает «Повторить» и «Настройки». Подробнее в главе [Торренты и TorrServer](docs/torrserver.md).
+- **Просмотр из «На TorrServer».** Раздачу с одним видео **ENTER** сразу включает в плеере. Пак или сериал открывает список файлов: сезоны группами, просмотренные отмечены галочкой, курсор стоит на следующей непросмотренной. Дальше серии идут по порядку (**P+**/**P−**). Плеер сам предложит продолжить с того же места, а запущенное появится в «Последнем» на главном экране Дюны и оттуда продолжится.
 
 ## 0.68.1 — 23.11.2026
 - **Рейтинг Кинопоиска при любом числе голосов.** В панели над рядами и в карточке Melange рейтинг Кинопоиска теперь виден, сколько бы ни было голосов. Раньше он прятался, если голосов меньше 1000.
