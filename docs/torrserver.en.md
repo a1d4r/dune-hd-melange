@@ -24,8 +24,34 @@ You need: the TorrServe app on the Dune ([Quick start](start.en.md)).
 
    <img src="../screenshots/film-list-p2p.jpg" alt="Release list for Dune: Part Two: number of seeders in the first column, P2P · 407 seeders on the left" width="100%">
 
+## Torrents on TorrServer
+
+Torrents already on TorrServer (added from a phone via NUM, KinoTrend, Lampa, or from Melange with "Add & Play") can be watched from Melange.
+
+1. On the Movies or Series tab, open "On TorrServer" (the grey circle with a lightning bolt on the top bar, after the heart) or choose it in **POP UP**.
+
+   <!-- frame: catalog, focus on the TorrServer icon on the top bar -->
+
+2. The screen shows all TorrServer torrents, newest first.
+
+   <!-- frame: "On TorrServer" screen, torrent tiles, title and "Added …" above the rows -->
+
+3. A movie: press **ENTER** and the player starts.
+
+4. A series or a pack: press **ENTER** and choose a file. The cursor is already on the next unwatched episode; watched ones have a check mark. Episodes then play in order (**P+**/**P−**).
+
+   <!-- frame: series file screen, seasons as groups, check marks, focus on the next episode -->
+
+5. Next time the player offers "Continue" by itself. The torrent also shows up in "Recent" on the Dune home screen.
+
+   <!-- frame: "Recent" on the Dune home screen with a torrent from Melange -->
+
+Melange does not change or delete torrents on TorrServer.
+
 ## If it didn't work
 
+- "On TorrServer" says "TorrServer is not responding": start TorrServer or fix the address in Melange settings → TorrServer ("Retry" and "Settings" are on the same screen).
+- "The TorrServer list is over 4 MB": Melange cannot open a list that big.
 - After quick setup the Dune says "TorrServer does not answer": install and start TorrServe ([Quick start](start.en.md)).
 - "Check" shows red text: see [Troubleshooting](troubleshooting.en.md).
 - Few releases: choose "Everywhere" in "Where to look for releases"; if the JacRed server doesn't answer, see [JacRed](jacred.en.md).

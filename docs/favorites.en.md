@@ -22,7 +22,7 @@ Melange keeps what you started and what you saved for later in the first catalog
 
    <img src="../screenshots/progress-clock.jpg" alt="Catalog, Series tab: focus on the clock on the top bar, left of the heart, Continue Watching and Favorites rows below" width="100%">
 
-6. The heart on the top bar, between the clock and the magnifier, opens the Favorites screen. If your remote has **Fav** buttons, **Fav 2** (the heart) opens Favorites too, and **Fav 1** opens everything you started. **ENTER** on a row's name opens the whole row.
+6. The heart on the top bar, between the clock and the TorrServer icon, opens the Favorites screen. If your remote has **Fav** buttons, **Fav 2** (the heart) opens Favorites too, and **Fav 1** opens everything you started. **ENTER** on a row's name opens the whole row.
 
    <img src="../screenshots/progress-heart.jpg" alt="Catalog, Series tab: focus on the heart on the top bar, Continue Watching and Favorites rows below" width="100%">
 
