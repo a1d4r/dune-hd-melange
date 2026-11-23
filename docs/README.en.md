@@ -23,7 +23,7 @@ New here? Start with Quick start.
 
 - [Settings page on a phone](phone-page.en.md): set up Melange from a phone via QR code
 - [Debrid](debrid.en.md): movies start right away, paid subscription
-- [Torrents and TorrServer](torrserver.en.md): watch for free, no subscription
+- [Torrents and TorrServer](torrserver.en.md): watch for free, no subscription; torrents already on TorrServer
 - [JacRed](jacred.en.md): Russian tracker search and what to do if it stops responding
 - [Sources](profiles.en.md): Debrid, torrents and your own configs, picked on the Dune
 - [Your own torrent client](download-server.en.md): download a release to a NAS or computer

@@ -20,11 +20,11 @@ Melange keeps what you started and what you saved for later in the first catalog
 
 5. The clock on the top bar of the catalog opens everything you started, movies and series together. "Continue Watching" in **POP UP** opens it too.
 
-   <img src="../screenshots/progress-clock.jpg" alt="Catalog, Series tab: focus on the clock on the top bar, left of the heart, Continue Watching and Favorites rows below" width="100%">
+   <img src="../screenshots/progress-clock.jpg" alt="Catalog, Series tab: clock, heart, TorrServer icon, magnifier and gear on the top bar, focus on the clock, Continue Watching and Favorites rows below" width="100%">
 
-6. The heart on the top bar, between the clock and the magnifier, opens the Favorites screen. If your remote has **Fav** buttons, **Fav 2** (the heart) opens Favorites too, and **Fav 1** opens everything you started. **ENTER** on a row's name opens the whole row.
+6. The heart on the top bar, between the clock and the TorrServer icon, opens the Favorites screen. If your remote has **Fav** buttons, **Fav 2** (the heart) opens Favorites too, and **Fav 1** opens everything you started. **ENTER** on a row's name opens the whole row.
 
-   <img src="../screenshots/progress-heart.jpg" alt="Catalog, Series tab: focus on the heart on the top bar, Continue Watching and Favorites rows below" width="100%">
+   <img src="../screenshots/progress-heart.jpg" alt="Catalog, Series tab: focus on the heart on the top bar, between the clock and the TorrServer icon, Continue Watching and Favorites rows below" width="100%">
 
    The Favorites screen opens with all your movies and series.
 
@@ -32,7 +32,7 @@ Melange keeps what you started and what you saved for later in the first catalog
 
 7. On a poster, press **POP UP** to add it to Favorites or remove it, mark it as watched or unwatched, or, in Continue Watching, remove it from the row. To bring everything removed back at once, choose "Restore removed" in **POP UP** on the Continue Watching screen (the clock on the top bar opens it).
 
-   <img src="../screenshots/progress-popup.jpg" alt="POP UP on Game of Thrones in Continue Watching: Remove from Continue Watching, Mark as watched, Remove from Favorites, then Movies, Series, Continue Watching, Favorites, Search, Settings" width="100%">
+   <img src="../screenshots/progress-popup.jpg" alt="POP UP on Game of Thrones in Continue Watching: Watch from…, Remove from Continue Watching, Mark as watched, Remove from Favorites, then Movies, Series, Continue Watching, Favorites, On TorrServer, Search, Settings" width="100%">
 
 8. Melange Favorites is separate from Dune Favorites. To bring movies and series over from Dune Favorites, on the Favorites screen press **POP UP** on a tile (on the empty screen, the heart tile) and choose "Add from Dune Favorites". You see "Added from Dune Favorites: N".
 

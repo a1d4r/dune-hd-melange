@@ -1155,20 +1155,23 @@ function mel_catv_strip_focusable($m)
         GCompFocusableDef::background_url => null);
 }
 
-// The icons of the strip in its order, id => (key of the caption, PNG, alpha), for the strip and its
+// The icons of the strip in its order, id => (key of the caption, picture, alpha), for the strip and its
 // items of POP UP (mel_catv_menu). Their glyphs 48x48 at 8, 8 of the PNG; grey #AAAAAA as the
 // native ones: the magnifier is white at most (alpha 170), the clock #F8F8F8 (alpha 175), the gear
-// and the heart #BBBBBB (alpha 232).
+// and the heart #BBBBBB (alpha 232). "На TorrServer" (view_ts.php) after the heart, ours, grey as it.
 /**
  * @return array<string, array{0: string, 1: string, 2: int}>
  */
 function mel_catv_strip_icons()
 {
-    return array(
-        'tab_continue' => array('cp_row_continue', MEL_CATV_ICON_CONT, 175),
-        'tab_mylist' => array('ml_title', MEL_CATV_ICON_MYLIST, 232),
-        'tab_search' => array('cat_search', MEL_CATV_ICON_SEARCH, 170),
-        'tab_setup' => array('setup_menu', MEL_CATV_ICON_SETUP, 232));
+    $icons = array(
+        'tab_continue' => array('cp_row_continue', MEL_CATV_ICONS . MEL_CATV_ICON_CONT, 175),
+        'tab_mylist' => array('ml_title', MEL_CATV_ICONS . MEL_CATV_ICON_MYLIST, 232));
+    if (mel_tsl_on())
+        $icons['tab_ts'] = array('tsl_title', MEL_TSL_ICON, 232);
+    return $icons + array(
+        'tab_search' => array('cat_search', MEL_CATV_ICONS . MEL_CATV_ICON_SEARCH, 170),
+        'tab_setup' => array('setup_menu', MEL_CATV_ICONS . MEL_CATV_ICON_SETUP, 232));
 }
 
 // The strip of the main screen of the tab $tab: its title row, a focusable row of GComps and a
@@ -1214,12 +1217,12 @@ function mel_catv_strip_rows($tab, $lang)
             GComponentDef::focusable_def => mel_catv_strip_focusable(array(10, 2, 10, 3)),
             GComponentDef::kind => GCOMPONENT_IMAGE,
             GComponentDef::specific_def => array(
-                GCompImageDef::url => MEL_CATV_ICONS . $t[1],
+                GCompImageDef::url => $t[1],
                 GCompImageDef::keep_aspect_ratio => true,
                 GCompImageDef::upscale_enabled => false,
                 GCompImageDef::alpha => $t[2]));
         $items[] = array(GCompItemDef::type => GCOMP_ITEM_REGULAR, GCompItemDef::id => $id,
-            GCompItemDef::caption => mel_tr($lang, $t[0]), GCompItemDef::icon_url => MEL_CATV_ICONS . $t[1]);
+            GCompItemDef::caption => mel_tr($lang, $t[0]), GCompItemDef::icon_url => $t[1]);
     }
     $title = mel_tr($lang, 'cat_tab_menu');
     return array(
@@ -1380,7 +1383,7 @@ function mel_catv_screen_of($from)
 function mel_catv_is_screen($media_url)
 {
     return mel_catv_is_main($media_url) || strpos($media_url, 'cat_grid:') === 0 || strpos($media_url, 'cat_search:') === 0 ||
-        mel_mlv_is_screen($media_url);
+        mel_mlv_is_screen($media_url) || $media_url === MEL_TSL_URL;
 }
 
 /**
@@ -1397,6 +1400,8 @@ function mel_catv_folder_view($media_url, $sel_state)
         return mel_catv_results_view(substr($media_url, strlen('cat_search:')), $sel_state);
     if (mel_mlv_is_screen($media_url))
         return mel_mlv_view($media_url, $sel_state);
+    if ($media_url === MEL_TSL_URL)
+        return mel_tsl_view($sel_state);
     return mel_catv_main_view($media_url, $sel_state);
 }
 
@@ -2663,10 +2668,19 @@ function mel_catv_hist_y()
 function mel_catv_info($in)
 {
     $id = mel_catv_in($in, 'item_id');
-    $t = mel_catv_tile($id, mel_tv_is_key(mel_catv_in($in, 'folder_key')));
+    $ts = mel_tsl_info($id);
+    $t = $ts ? null : mel_catv_tile($id, mel_tv_is_key(mel_catv_in($in, 'folder_key')));
     $more_url = mel_catv_more_url($id);
     $more = $more_url !== '' ? mel_catv_all_list($more_url, false) : null;
-    if ($t)
+    // A tile of "На TorrServer": its texts (2C: the title, two lines, the rest of the name smaller), no tile of the catalog
+    // (the background of none, no history, no "Мой список").
+    if ($ts)
+    {
+        list($name, $lines, $desc) = $ts;
+        $sub = '';
+        $facts = array();
+    }
+    else if ($t)
     {
         $name = $t['name'];
         $sub = $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
@@ -2853,7 +2867,7 @@ function mel_catv_after_player($post)
 // (mel_cp_menu_items), then that of "Мой список" (mel_ml_menu_items), then a separator and the import of the Favorites
 // of the Dune (mel_mlv_menu_items: on the screen "Мой список" and its row); a separator after them is for the caller,
 // when items of the screen follow. A tile mel_catv_tile has not (the hint of "Мой список", '' - none in focus) is for
-// each part to tell.
+// each part to tell. A tile of "На TorrServer": none (no title of the catalog; "Отметить" would ask a card by its name).
 /**
  * @param string $id
  * @param string $from
@@ -2862,6 +2876,8 @@ function mel_catv_after_player($post)
  */
 function mel_catv_tile_menu($id, $from, $lang)
 {
+    if (mel_tsl_is_tile($id))
+        return array();
     return mel_catv_menu_join(array_merge(mel_catv_src_items($id, $from, $lang), mel_cp_menu_items($id, $from, $lang),
         mel_ml_menu_items($id, $from, $lang), mel_catv_hide_items($id, $from, $lang)), mel_mlv_menu_items($id, $from, $lang));
 }
@@ -3107,7 +3123,8 @@ function mel_catv_all_open($url)
 // ENTER on the part $id of the strip of the main screen $from. A tab not active: the screen of its
 // type in place of this one (erase_count 1: Back does not grow), the active one: nothing; $up (its
 // item of POP UP, mel_catv_menu): the active one too, the focus up on it. The icons: the dialog of
-// a search, the settings screen and the screens "Продолжить" and "Мой список".
+// a search, the settings screen and the screens "Продолжить", "Мой список"; "На TorrServer" by its input of
+// its own (mel_tsl_open_act: «Подождите» sooner).
 /**
  * @param string $id
  * @param string $from
@@ -3124,6 +3141,8 @@ function mel_catv_strip_enter($id, $from, $up = false)
         return mel_mlv_open('continue', $from);
     if ($id === 'tab_mylist')
         return mel_mlv_open('list', $from);
+    if ($id === 'tab_ts')
+        return mel_tsl_open_act($from);
     $tab = strval(substr($id, strlen('tab_')));
     if (($tab !== 'movie' && $tab !== 'series') || !mel_catv_is_main($from) || (!$up && $tab === mel_catv_tab($from)))
         return null;
@@ -3164,13 +3183,14 @@ function mel_catv_menu($in, $from)
     $screen = mel_catv_rows_menu_items($hid, $tab, $from, $lang);
     // The tabs with icons of their own, then the icons of the strip (mel_catv_strip_icons).
     $parts = array_merge(
-        array('tab_movie' => array('cat_part_movies', 'movies_small.png'), 'tab_series' => array('cat_part_series', 'tv_small.png')),
+        array('tab_movie' => array('cat_part_movies', MEL_CATV_ICONS . 'movies_small.png'),
+            'tab_series' => array('cat_part_series', MEL_CATV_ICONS . 'tv_small.png')),
         mel_catv_strip_icons());
     foreach ($parts as $id => $p)
     {
         $screen[] = array(
             GuiMenuItemDef::caption => mel_tr($lang, $p[0]),
-            GuiMenuItemDef::icon_url => MEL_CATV_ICONS . $p[1],
+            GuiMenuItemDef::icon_url => $p[1],
             GuiMenuItemDef::action => mel_input('cat_part', array('from' => $from, 'part' => $id)));
     }
     return array(
@@ -3199,6 +3219,9 @@ function mel_catv_enter($in)
     // A stub of "Show all": row<k>.<j>.
     if (strpos($id, 'stub:') === 0 || strpos($id, 'empty:') === 0 || mel_mlv_is_hint($id) || preg_match('/^row[0-9]+\.[0-9]+$/D', $id))
         return null;
+    // A tile of "На TorrServer": not a title of the catalog.
+    if (mel_tsl_is_tile($id))
+        return mel_tsl_enter($id);
     // The opening tries again, and the rows after it too; the shell brings sel_state, the focus stays.
     // "Show all" goes on from the same place.
     if (strpos($id, 'fail:') === 0)
@@ -3403,6 +3426,8 @@ function mel_catv_input($in, $control)
         return mel_ml_menu_act($in);
     if ($control === 'cat_fav')
         return mel_mlv_open(mel_catv_in($in, 'w'), $from);
+    if ($control === 'cat_tsl_open')
+        return mel_tsl_open($from);
     if ($control === 'cat_ml_import')
         return mel_mlv_import_ask($from);
     if ($control === 'cat_ml_import_go')

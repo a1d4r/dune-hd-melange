@@ -176,6 +176,19 @@ parameters:
         MelTracks: 'array{tracks: list<MelTrack>, subs: list<string>}'
         # A file of a torrent in TorrServer, ids from 1 (mel_ts_files, torrserver.php).
         MelTsFile: 'array{id: int, path: string, size: float}'
+        # An entry of the list of TorrServer, the section "На TorrServer" (mel_tsl_entry, ts_list.php).
+        MelTsEntry: 'array{hash: string, title: string, raw_title: string, src: string, poster: string, category: string, added: int, size: float, files: list<MelTsFile>|null, lampa: array<mixed>|null}'
+        # A start from the section "На TorrServer" (mel_tsl_run, ts_list.php): the entry, the file id (0 not known yet), the
+        # position (s), the "get" done, the n of the start of the preload (-1 none), the language of the texts.
+        MelTslRun: 'array{e: MelTsEntry, f: int, pos: int, n: int, b: int, l: string, g: bool}'
+        # A group of folder of the screen of files of a pack (mel_tsl_runs, ts_list.php): its folder ('' the root), the index
+        # of its first file among the video files, its files, their size (bytes).
+        MelTslRunDir: 'array{dir: string, from: int, n: int, size: float}'
+        # The screen of files of a pack shown last (MelTsf::$s, view_ts_files.php): the torrent, its entry, the owner of its keys
+        # and overlay, its address, the video files in order, the groups (flat: none on the screen), the groups open, the
+        # lines, the ids marked viewed, one of them a video file, the line in focus, the first on the screen, its next view by
+        # sel and top.
+        MelTsfScreen: 'array{hash: string, e: MelTsEntry, rid: string, url: string, v: list<MelTsFile>, runs: list<MelTslRunDir>, flat: bool, open: array<int, bool>, lines: list<array{string, int}>, seen: array<int, bool>, marked: bool, sel: int, top: int, new: bool}'
         # An add-on that found the release (mel_addons, parse.php).
         MelAddon: 'array{addon: string, cached: bool}'
         # A copy of a row on one Debrid service (mel_row_copy_of, parse.php).

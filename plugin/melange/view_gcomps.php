@@ -175,19 +175,20 @@ function mel_gc_state($sel, $top)
     return json_encode(array('sel' => $sel, 'top' => $top));
 }
 
-// sel_state -> array(sel, top), or null when it does not fit $n rows.
+// sel_state -> array(sel, top), or null when it does not fit $n rows, $vis on the screen.
 /**
  * @param mixed $s
  * @param int $n
+ * @param int $vis
  * @return array{int, int}|null
  */
-function mel_gc_parse($s, $n)
+function mel_gc_parse($s, $n, $vis = MEL_GC_VIS)
 {
     $j = is_string($s) && $s !== '' ? json_decode($s) : null;
     if (!is_object($j) || !isset($j->sel, $j->top) || !is_int($j->sel) || !is_int($j->top))
         return null;
-    if ($j->sel < 0 || $j->sel >= $n || $j->top < 0 || $j->top > max(0, $n - MEL_GC_VIS) ||
-        $j->sel < $j->top || $j->sel >= $j->top + MEL_GC_VIS)
+    if ($j->sel < 0 || $j->sel >= $n || $j->top < 0 || $j->top > max(0, $n - $vis) ||
+        $j->sel < $j->top || $j->sel >= $j->top + $vis)
         return null;
     return array($j->sel, $j->top);
 }
@@ -346,40 +347,104 @@ function mel_gc_put_cursor($st, $sel, $was)
     return $st;
 }
 
-// One key: up, down, pgup (P+), pgdn (P-). A page keeps the row on screen.
+// One key: up, down, pgup (P+), pgdn (P-), $vis rows on the screen (the screen of files of a pack: its own). A page
+// keeps the row on screen.
 /**
  * @param int $sel
  * @param int $top
  * @param int $n
  * @param 'up'|'down'|'pgup'|'pgdn' $key
+ * @param int $vis
  * @return array{int, int}
  */
-function mel_gc_step($sel, $top, $n, $key)
+function mel_gc_step($sel, $top, $n, $key, $vis = MEL_GC_VIS)
 {
-    $d = array('up' => -1, 'down' => 1, 'pgup' => -MEL_GC_VIS, 'pgdn' => MEL_GC_VIS);
-    $max_top = max(0, $n - MEL_GC_VIS);
+    $d = array('up' => -1, 'down' => 1, 'pgup' => -$vis, 'pgdn' => $vis);
+    $max_top = max(0, $n - $vis);
     $nsel = max(0, min($n - 1, $sel + $d[$key]));
     $ntop = abs($d[$key]) > 1 ? max(0, min($max_top, $top + $d[$key])) : $top;
     if ($nsel < $ntop)
         $ntop = $nsel;
-    else if ($nsel >= $ntop + MEL_GC_VIS)
-        $ntop = $nsel - MEL_GC_VIS + 1;
+    else if ($nsel >= $ntop + $vis)
+        $ntop = $nsel - $vis + 1;
     return array($nsel, $ntop);
 }
 
 // The rows of a list of $n rows on the screen with $top first visible: array(first, past the last). A step costs the
 // shell by all the components of the screen, so not all the rows: the visible ones and at least a page (MEL_GC_VIS)
 // above and below them, so that the animated scroll of a page (P+, P-) or of a row never shows a row missing; the
-// window moves by MEL_GC_WIN_STEP rows, 41 rows in all. Of the top only: a sel_state has always the same screen.
+// window moves by MEL_GC_WIN_STEP rows, 41 rows in all. Of the top only: a sel_state has always the same screen. $vis:
+// the rows on the screen (the screen of files of a pack: its own).
 /**
  * @param int $top
  * @param int $n
+ * @param int $vis
  * @return array{int, int}
  */
-function mel_gc_win($top, $n)
+function mel_gc_win($top, $n, $vis = MEL_GC_VIS)
 {
     $b = $top - $top % MEL_GC_WIN_STEP;
-    return array(max(0, $b - MEL_GC_VIS), min($n, $b + MEL_GC_WIN_STEP - 1 + 2 * MEL_GC_VIS));
+    return array(max(0, $b - $vis), min($n, $b + MEL_GC_WIN_STEP - 1 + 2 * $vis));
+}
+
+// The lines that come into the window of lines (mel_gc_win) of a list of $n lines, $vis on the screen, when its top goes
+// from $top to $ntop: their j in order; the caller builds them for mel_gc_win_changes.
+/**
+ * @param int $top
+ * @param int $ntop
+ * @param int $n
+ * @param int $vis
+ * @return list<int>
+ */
+function mel_gc_win_new($top, $ntop, $n, $vis = MEL_GC_VIS)
+{
+    list($olo, $ohi) = mel_gc_win($top, $n, $vis);
+    list($lo, $hi) = mel_gc_win($ntop, $n, $vis);
+    $out = array();
+    for ($j = $lo; $j < $hi; $j++)
+    {
+        if ($j < $olo || $j >= $ohi)
+            $out[] = $j;
+    }
+    return $out;
+}
+
+// The changes of a list of $n lines ($vis on the screen from y $ly) whose top went from $top to $ntop: the lines that
+// leave the window (mel_gc_win) removed, those that come in - $add, built of mel_gc_win_new - put in with the 'rows'
+// change (after the line before them; above all: after 'sel', over it), the thumb. Both cursor lines stay: the window
+// holds a page above and below the screen.
+/**
+ * @param int $top
+ * @param int $ntop
+ * @param int $n
+ * @param list<MelGcComp> $add
+ * @param int $vis
+ * @param int $ly
+ * @return list<MelGcChange>
+ */
+function mel_gc_win_changes($top, $ntop, $n, $add, $vis = MEL_GC_VIS, $ly = MEL_GC_LY)
+{
+    list($olo, $ohi) = mel_gc_win($top, $n, $vis);
+    list($lo, $hi) = mel_gc_win($ntop, $n, $vis);
+    $ch = array();
+    for ($j = $olo; $j < $ohi; $j++)
+    {
+        if ($j < $lo || $j >= $hi)
+        {
+            $x = mel_gc_change("r$j", null, GCOMP_TRANSITION_NONE);
+            $x[ChangeGCompDef::remove] = true;
+            $ch[] = $x;
+        }
+    }
+    $x = mel_gc_change('rows', mel_gc_rows_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT, $add ? $add : null);
+    if ($add)
+    {
+        $x[ChangeGCompDef::children_merge_mode] = true;
+        $x[ChangeGCompDef::children_insert_after_id] = $lo < $olo ? 'sel' : 'r' . ($ohi - 1);
+    }
+    $ch[] = $x;
+    $ch[] = mel_gc_change('thumb', mel_gc_thumb_geom($ntop, $n, $vis, $ly), GCOMP_TRANSITION_DEFAULT);
+    return $ch;
 }
 
 // The key of a move of input $in (its 'd' of mel_gc_act: up, down, pgup, pgdn), null another.
@@ -809,18 +874,21 @@ function mel_gc_rows_geom($top, $n)
     return mel_gc_at(MEL_GC_LW, $n * MEL_GC_ROW_H, 0, -$top * MEL_GC_ROW_H);
 }
 
-// Scrollbar thumb: height by the visible share, y by the top row.
+// Scrollbar thumb: height by the visible share, y by the top row. $vis rows on the screen from y $ly (the screen of
+// files of a pack: its own).
 /**
  * @param int $top
  * @param int $n
+ * @param int $vis
+ * @param int $ly
  * @return MelGcGeom
  */
-function mel_gc_thumb_geom($top, $n)
+function mel_gc_thumb_geom($top, $n, $vis = MEL_GC_VIS, $ly = MEL_GC_LY)
 {
-    $track = MEL_GC_VIS * MEL_GC_ROW_H;
-    $h = max(MEL_K_THUMB_MIN, intval($track * MEL_GC_VIS / $n));
-    $y = intval(round(($track - $h) * $top / ($n - MEL_GC_VIS)));
-    return mel_gc_at(6, $h, MEL_GC_LX + MEL_GC_LW + 10, MEL_GC_LY + $y);
+    $track = $vis * MEL_GC_ROW_H;
+    $h = max(MEL_K_THUMB_MIN, intval($track * $vis / $n));
+    $y = intval(round(($track - $h) * $top / ($n - $vis)));
+    return mel_gc_at(6, $h, MEL_GC_LX + MEL_GC_LW + 10, $ly + $y);
 }
 
 // The colour of status $cached (of mel_gc_status): green in the cache, grey to download, dim unknown.
@@ -2138,37 +2206,15 @@ function mel_gc_input($in)
     $tt = mel_gc_text(mel_gc_lang($st));
     $cols = mel_gc_cols_st($st);
     $prog = isset($st['gc_prog']) ? $st['gc_prog'] : array();
-    // As mel_gc_cursor_changes, and the window of lines follows the top (mel_gc_win): the lines that leave it removed,
-    // those that come in (with the 'rows' change, after the line before them; above all: after 'sel', over it), as
-    // the episodes of the own card (view_card_series.php). Both cursor lines stay: the window holds a page above and
-    // below the screen.
+    // As mel_gc_cursor_changes, and the window of lines follows the top (mel_gc_win_changes), as the episodes of the
+    // own card (view_card_series.php).
     $ch = array(mel_gc_change('sel', mel_gc_row_geom($nsel), GCOMP_TRANSITION_DEFAULT));
     if ($ntop !== $top)
     {
-        list($olo, $ohi) = mel_gc_win($top, $n);
-        list($lo, $hi) = mel_gc_win($ntop, $n);
         $add = array();
-        for ($j = min($olo, $lo); $j < max($ohi, $hi); $j++)
-        {
-            $was = $j >= $olo && $j < $ohi;
-            $now = $j >= $lo && $j < $hi;
-            if ($was && !$now)
-            {
-                $x = mel_gc_change("r$j", null, GCOMP_TRANSITION_NONE);
-                $x[ChangeGCompDef::remove] = true;
-                $ch[] = $x;
-            }
-            elseif ($now && !$was)
-                $add[] = mel_gc_line_comp($st, $lv, $j, $tt, $cols, false, $prog);
-        }
-        $x = mel_gc_change('rows', mel_gc_rows_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT, $add ? $add : null);
-        if ($add)
-        {
-            $x[ChangeGCompDef::children_merge_mode] = true;
-            $x[ChangeGCompDef::children_insert_after_id] = $lo < $olo ? 'sel' : 'r' . ($ohi - 1);
-        }
-        $ch[] = $x;
-        $ch[] = mel_gc_change('thumb', mel_gc_thumb_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
+        foreach (mel_gc_win_new($top, $ntop, $n) as $j)
+            $add[] = mel_gc_line_comp($st, $lv, $j, $tt, $cols, false, $prog);
+        $ch = array_merge($ch, mel_gc_win_changes($top, $ntop, $n, $add));
     }
     // The focus brightness moves with the line.
     $ch[] = mel_gc_change("r$sel", null, GCOMP_TRANSITION_NONE,

@@ -103,6 +103,12 @@ require_once dirname(__FILE__) . '/cp_meta.php';
 // "Мой список": its file; its actions on the screens.
 require_once dirname(__FILE__) . '/my_list.php';
 require_once dirname(__FILE__) . '/view_my_list.php';
+// "На TorrServer": the list of TorrServer, its entries and files (no firmware API); its screen; a start from it; the
+// screen of files of a pack.
+require_once dirname(__FILE__) . '/ts_list.php';
+require_once dirname(__FILE__) . '/view_ts.php';
+require_once dirname(__FILE__) . '/view_ts_play.php';
+require_once dirname(__FILE__) . '/view_ts_files.php';
 // "Скрыть" and the age: the file of the hidden titles, the filter of the rows.
 require_once dirname(__FILE__) . '/hidden_titles.php';
 // The tab "TV" of the main screen.
@@ -1899,6 +1905,8 @@ function mel_folder_view($media_url, $sel_state)
         return mel_pp_folder_view($media_url, $sel_state);
     if (strpos($media_url, MEL_KS_URL) === 0)
         return mel_ks_folder_view($media_url);
+    if (strpos($media_url, MEL_TSF_URL) === 0)
+        return mel_tsf_folder_view($media_url, $sel_state);
     $st = Mel::$state;
     if ($st && $media_url === 'streams:' . $st['rid'])
         return !empty($st['lp_on']) && isset($st['lp']) ? mel_lpv_folder_view($st, $sel_state) : mel_gc_folder_view($st, $sel_state);
@@ -2485,6 +2493,12 @@ function mel_handle_user_input($in)
         return mel_ts_menu($in);
     if ($control === 'ts_tick')
         return mel_ts_tick($in);
+    if ($control === 'tsl_recent')
+        return mel_tsl_recent($in);
+    if ($control === 'tsl_tick')
+        return mel_tsl_tick($in);
+    if ($control === 'tsf_move' || $control === 'tsf_pick' || $control === 'tsf_finish')
+        return mel_tsf_input($in, $control);
     if (in_array($control, array('tsi_open', 'tsi_tick', 'tsi_close', 'tsi_state'), true))
         return mel_tsi_input($in, $control);
     if ($control === 'ts_cancel')
