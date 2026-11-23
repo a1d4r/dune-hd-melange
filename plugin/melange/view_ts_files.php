@@ -46,6 +46,16 @@ class MelTslf
     public static $gen = 0;
 }
 
+// $s with its first letter small: the line «Добавлено …» of the info panel (mel_tsl_texts) on the side.
+/**
+ * @param string $s
+ * @return string
+ */
+function mel_tsl_lc1($s)
+{
+    return mb_strtolower(mb_substr($s, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($s, 1, mb_strlen($s, 'UTF-8'), 'UTF-8');
+}
+
 // The screen of files of torrent $hash, its files $files (kept: mel_tsl_files_keep) -> plugin_open_folder of "tsf:<hash>"
 // (the wait screen leaves for it in its place, mel_ks_leave); it opens anew (the file of mel_tsl_next_file or started last).
 /**

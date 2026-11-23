@@ -1,7 +1,7 @@
 <?php
 // The section "На TorrServer": the torrents kept by TorrServer (POST /torrents list), as they are - no title of
 // Melange, no card. Here the data only: the read of the list, its entries, their video files, the uid of a start; the
-// run of a start ("get", its step, the lines of its wait, its playlist); the screen of files of a pack (its groups of
+// run of a start ("get", its step, its playlist); the screen of files of a pack (its groups of
 // folders, its lines, the marks of TorrServer "viewed", the file it opens on); no firmware API. Reads Mel::$settings,
 // writes MelTsl. Functions are global; the require order is in main.php.
 
@@ -118,12 +118,14 @@ function mel_tsl_cmp($a, $b)
 // no prefix of a client ("[NUM] ", "[KT] ", "[LAMPA] " - src num, kt, lampa; '' none), else the name of its
 // biggest video file, else the start of its hash; raw_title: as TorrServer has it, one line with no control
 // characters. data: the files of TorrServer ({"TorrServer":{"Files":[...]}}, files; ids as of file_stats), a card
-// of Lampa ({"lampa":true,"movie":{...}}, lampa), else neither: files null - known only by "get".
+// of Lampa ({"lampa":true,"movie":{...}}, lampa), else neither: files $stats (those of file_stats of a "get",
+// mel_tsl_got), null - known only by "get".
 /**
  * @param array<mixed> $x
+ * @param list<MelTsFile>|null $stats
  * @return MelTsEntry|null
  */
-function mel_tsl_entry($x)
+function mel_tsl_entry($x, $stats = null)
 {
     $hash = strtolower(mel_str($x, 'hash'));
     $data = mel_str($x, 'data');
@@ -137,6 +139,8 @@ function mel_tsl_entry($x)
         $files = mel_ts_files(array('file_stats' => $own['Files']));
     else if (isset($d['lampa']) && $d['lampa'] === true && isset($d['movie']) && is_array($d['movie']))
         $lampa = $d['movie'];
+    if ($files === null && $stats)
+        $files = $stats;
     $raw = mel_tsl_trim(mel_clean(mel_one_line(mel_str($x, 'title'))));
     $src = '';
     $title = $raw;
@@ -265,7 +269,7 @@ function mel_tsl_kind($videos)
 // The uid of the history of a start of file $id of torrent $hash from the section.
 /**
  * @param string $hash
- * @param int $id
+ * @param int|string $id
  * @return string
  */
 function mel_tsl_uid($hash, $id)
@@ -273,10 +277,49 @@ function mel_tsl_uid($hash, $id)
     return MEL_TSL_UID . ":$hash:$id";
 }
 
+// The uid of the history $uid of a start from the section (mel_tsl_uid) -> array(the hash, the file id), null: not one.
+/**
+ * @param mixed $uid
+ * @return array{string, int}|null
+ */
+function mel_tsl_uid_parse($uid)
+{
+    if (!is_string($uid) || !preg_match('/^' . MEL_TSL_UID . ':([0-9a-f]{40}):([1-9][0-9]{0,5})$/D', $uid, $m))
+        return null;
+    return array($m[1], intval($m[2]));
+}
+
+// The entry of torrent $hash known by its hash only (a record of "Последнее" not in the list: past MEL_TSL_MAX, an active
+// torrent never saved): title '' - a run of it makes it anew of each reply of "get" (mel_tsl_got).
+/**
+ * @param string $hash
+ * @return MelTsEntry
+ */
+function mel_tsl_bare($hash)
+{
+    return array('hash' => $hash, 'title' => '', 'raw_title' => '', 'src' => '', 'poster' => '', 'category' => '',
+        'added' => 0, 'size' => 0.0, 'files' => null, 'lampa' => null);
+}
+
+// The entry of torrent $hash by its TorrentStatus $j of "get" (mel_tsl_bare): as one of the list (mel_tsl_entry: the
+// title, the poster of TorrServer), whatever its stat; files those of file_stats when its data has none.
+/**
+ * @param string $hash
+ * @param array<mixed> $j
+ * @return MelTsEntry
+ */
+function mel_tsl_got($hash, $j)
+{
+    $files = mel_ts_files($j);
+    $e = mel_tsl_entry(array_merge($j, array('hash' => $hash, 'stat' => 5)), $files ? $files : null);
+    return $e !== null ? $e : mel_tsl_bare($hash);
+}
+
 // --- A start from the section (view_ts_play.php shows it): the run of a start, its step, its playlist.
 
 // A new run of a start of file $id of entry $e (0: not known yet, by file_stats) from position $pos (s; 0: from the
-// start, the preload first), the texts in $lang. n: the "get" done; b: the n of the start of the preload, -1 none.
+// start, the preload first), the texts in $lang. n: the "get" done; b: the n of the start of the preload, -1 none; g:
+// the entry known by its hash only (mel_tsl_bare), made anew of each reply of "get".
 /**
  * @param MelTsEntry $e
  * @param int $id
@@ -286,7 +329,7 @@ function mel_tsl_uid($hash, $id)
  */
 function mel_tsl_run($e, $id, $pos, $lang)
 {
-    return array('e' => $e, 'f' => $id, 'pos' => $pos, 'n' => 0, 'b' => -1, 'l' => $lang);
+    return array('e' => $e, 'f' => $id, 'pos' => $pos, 'n' => 0, 'b' => -1, 'l' => $lang, 'g' => $e['title'] === '');
 }
 
 // File $id among $files, null none.
@@ -368,6 +411,8 @@ function mel_tsl_advance($d, $sec)
     $d['n']++;
     $hash = $d['e']['hash'];
     list($rg, $j) = mel_ts_get($hash);
+    if ($d['g'] && $rg['err'] === '' && $rg['code'] === 200 && is_array($j))
+        $d['e'] = mel_tsl_got($hash, $j);
     list($what, $d, $why, $detail, $files) = mel_tsl_step($d, $sec, $rg, $j);
     mel_log(sprintf('ts section: %s get %d, %d s: %s, stat %s, peers %d/%d, seeders %d, %d files', $hash, $d['n'], $sec,
         $rg['err'] !== '' ? $rg['err'] : "HTTP {$rg['code']}", is_array($j) && isset($j['stat']) ? json_encode($j['stat']) : '-',
@@ -390,46 +435,6 @@ function mel_tsl_advance($d, $sec)
     if ($what === 'error')
         mel_log("ts section: $hash -> error $why" . ($detail !== '' ? " ($detail)" : ''));
     return array($what, $d, $why, $detail, $files, $j);
-}
-
-// The lines of the wait of a start (W2 of the UI kit): the text - the status of TorrServer in words (none: the file
-// list awaited), with the preload ($buf) "Буфер N из 32 МБ"; the live line after «прошло N с» - the peers and the
-// seeders, with the preload the speed first; the share of the bar - of the preload, null none.
-/**
- * @param array<mixed>|null $j
- * @param bool $buf
- * @param string $lang
- * @return array{string, string, float|null}
- */
-function mel_tsl_wait_texts($j, $buf, $lang)
-{
-    $peers = mel_tsl_lc1(str_replace(array('{peers}', '{all}', '{seeds}'), array(strval(mel_ts_int($j, 'active_peers')),
-        strval(mel_ts_int($j, 'total_peers')), strval(mel_ts_int($j, 'connected_seeders'))), mel_tr($lang, 'ts_wait_peers')));
-    if ($buf)
-    {
-        $need = mel_ts_buf_need($j);
-        $got = min(mel_num(mel_str($j, 'preloaded_bytes')), $need);
-        $text = str_replace(array('{got}', '{need}'), array(strval(intval(floor($got / 1048576))),
-            strval(intval(ceil($need / 1048576)))), mel_tr($lang, 'ts_wait_buf'));
-        $speed = mel_tsl_lc1(str_replace('{speed}', mel_ts_speed(is_array($j) && isset($j['download_speed']) ?
-            $j['download_speed'] : null, $lang), mel_tr($lang, 'ts_wait_speed')));
-        return array($text, "$speed \xC2\xB7 $peers", $need > 0 ? $got / $need : 0.0);
-    }
-    $stat = mel_one_line(mel_str($j, 'stat_string'));
-    $keys = mel_ts_stats();
-    $low = strtolower($stat);
-    $text = $stat === '' ? mel_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? mel_tr($lang, $keys[$low]) : mel_cut($stat, 30));
-    return array($text, $peers, null);
-}
-
-// $s with its first letter small: a line of the dialog ("Пиров …") in the middle of the live line.
-/**
- * @param string $s
- * @return string
- */
-function mel_tsl_lc1($s)
-{
-    return mb_strtolower(mb_substr($s, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($s, 1, mb_strlen($s, 'UTF-8'), 'UTF-8');
 }
 
 // The playlist of a start of file $id of entry $e among $files (those of file_stats, or of its data: the screen of

@@ -994,6 +994,31 @@ function mel_ts_speed($bps, $lang)
     return $s === "\xE2\x80\x94" ? $s : mel_gc_rate(max(8.0 * $bps, 1e5), false, $lang);
 }
 
+// The status of a wait of a start through TorrServer by TorrentStatus $j: its status in words (none: the file list
+// awaited), or with the preload ($buf: the key of its line, '' none) the MB of it of its target (mel_ts_buf_need) ->
+// array(the line, the share of the preload, null none). The waiting dialog and the wait of the section alike.
+/**
+ * @param array<mixed>|null $j
+ * @param string $buf
+ * @param string $lang
+ * @return array{string, float|null}
+ */
+function mel_ts_wait_status($j, $buf, $lang)
+{
+    if ($buf !== '')
+    {
+        $need = mel_ts_buf_need($j);
+        $got = min(mel_num(mel_str($j, 'preloaded_bytes')), $need);
+        return array(str_replace(array('{got}', '{need}'), array(strval(intval(floor($got / 1048576))),
+            strval(intval(ceil($need / 1048576)))), mel_tr($lang, $buf)), $got / $need);
+    }
+    $stat = mel_one_line(mel_str($j, 'stat_string'));
+    $keys = mel_ts_stats();
+    $low = strtolower($stat);
+    return array($stat === '' ? mel_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? mel_tr($lang, $keys[$low]) :
+        mel_cut($stat, 30)), null);
+}
+
 // Controls of the waiting dialog (0.45.0): the release; the status in words
 // (none: "waiting for the file list"; $buf, the preload: the MB of its target),
 // seconds, peers, connected seeders; the download speed (mel_ts_speed), always:
@@ -1010,15 +1035,7 @@ function mel_ts_speed($bps, $lang)
 function mel_ts_wait_defs($st, $r, $sec, $j, $lazy = false, $buf = false)
 {
     $lang = $st['lang'];
-    $stat = mel_one_line(mel_str($j, 'stat_string'));
-    $keys = mel_ts_stats();
-    $low = strtolower($stat);
-    $status = $stat === '' ? mel_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? mel_tr($lang, $keys[$low]) : mel_cut($stat, 30));
-    $need = $buf ? mel_ts_buf_need($j) : 0.0;
-    if ($buf)
-        $status = str_replace(array('{got}', '{need}'),
-            array(strval(intval(floor(min(mel_num(mel_str($j, 'preloaded_bytes')), $need) / 1048576))),
-            strval(intval(ceil($need / 1048576)))), mel_tr($lang, 'ts_wait_buf'));
+    list($status) = mel_ts_wait_status($j, $buf ? 'ts_wait_buf' : '', $lang);
     $defs = array();
     foreach (mel_dialog_lines($r['label']) as $l)
         $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l));
@@ -1083,6 +1100,7 @@ function mel_ts_tick($in)
         is_array($j) && isset($j['connected_seeders']) ? json_encode($j['connected_seeders']) : '-', count($files)) .
         ($p['b'] !== '' ? sprintf(', preloaded %.0f of %.0f', mel_num(mel_str($j, 'preloaded_bytes')),
         mel_num(mel_str($j, 'preload_size'))) : ''));
+    // The same rules of the wait (401, 404, the time out) for a start from the section: mel_tsl_step (ts_list.php).
     $out = $sec >= MEL_TS_WAIT || intval($p['n']) >= MEL_TS_TICKS;
     $play = '';
     if ($files && $p['b'] === '')

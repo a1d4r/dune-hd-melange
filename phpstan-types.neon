@@ -180,7 +180,7 @@ parameters:
         MelTsEntry: 'array{hash: string, title: string, raw_title: string, src: string, poster: string, category: string, added: int, size: float, files: list<MelTsFile>|null, lampa: array<mixed>|null}'
         # A start from the section "На TorrServer" (mel_tsl_run, ts_list.php): the entry, the file id (0 not known yet), the
         # position (s), the "get" done, the n of the start of the preload (-1 none), the language of the texts.
-        MelTslRun: 'array{e: MelTsEntry, f: int, pos: int, n: int, b: int, l: string}'
+        MelTslRun: 'array{e: MelTsEntry, f: int, pos: int, n: int, b: int, l: string, g: bool}'
         # An add-on that found the release (mel_addons, parse.php).
         MelAddon: 'array{addon: string, cached: bool}'
         # A copy of a row on one Debrid service (mel_row_copy_of, parse.php).

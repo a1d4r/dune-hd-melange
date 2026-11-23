@@ -2494,7 +2494,7 @@ function mel_handle_user_input($in)
     if ($control === 'ts_tick')
         return mel_ts_tick($in);
     if ($control === 'tsl_recent')
-        return mel_tsl_input($in, $control);
+        return mel_tsl_recent($in);
     if ($control === 'tsf_move' || $control === 'tsf_pick')
         return mel_tsf_input($in, $control);
     if (in_array($control, array('tsi_open', 'tsi_tick', 'tsi_close', 'tsi_state'), true))

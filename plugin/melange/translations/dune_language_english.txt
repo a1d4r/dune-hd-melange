@@ -527,3 +527,7 @@ tsl_off_text = Torrents are disabled in the settings.
 tsl_addr = Address: {url}
 tsl_err_gone = This torrent is no longer on TorrServer
 tsl_files_root = No folder
+tsl_wait_buf = Preloading: {got} of {need} MB
+tsl_wait_peers = peers {peers} of {all}, seeders {seeds}
+tsl_wait_speed = speed {speed}
+tsl_wait_seeds = seeders {seeds}

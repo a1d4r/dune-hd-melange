@@ -94,7 +94,7 @@ function mel_tsl_fail($lang, $key, $detail, $scr)
  */
 function mel_tsl_tick($d, $sec)
 {
-    if (!is_array($d) || !isset($d['e']['hash'], $d['f'], $d['pos'], $d['n'], $d['b'], $d['l']))
+    if (!is_array($d) || !isset($d['e']['hash'], $d['f'], $d['pos'], $d['n'], $d['b'], $d['l'], $d['g']))
         return null;
     /** @var MelTslRun $d */
     list($what, $d, $why, $detail, $files, $j) = mel_tsl_advance($d, $sec);
@@ -107,6 +107,27 @@ function mel_tsl_tick($d, $sec)
         return array('dialog' => mel_tsl_fail_desc($d['l'], $why, $detail));
     list($text, $live, $share) = mel_tsl_wait_texts($j, $d['b'] >= 0, $d['l']);
     return array('data' => $d, 'text' => $text, 'live' => $live, 'share' => $share);
+}
+
+// The lines of the wait of a start (W2 of the UI kit) by TorrentStatus $j: the text - the status of TorrServer in words
+// (mel_ts_wait_status), with the preload ($buf) «Предзагрузка: N из M МБ»; the live line after «прошло N с» - the peers
+// and the seeders, with the preload the speed and the seeders; the share of the bar - of the preload, null none.
+/**
+ * @param array<mixed>|null $j
+ * @param bool $buf
+ * @param string $lang
+ * @return array{string, string, float|null}
+ */
+function mel_tsl_wait_texts($j, $buf, $lang)
+{
+    list($text, $share) = mel_ts_wait_status($j, $buf ? 'tsl_wait_buf' : '', $lang);
+    $seeds = strval(mel_ts_int($j, 'connected_seeders'));
+    if (!$buf)
+        return array($text, str_replace(array('{peers}', '{all}', '{seeds}'), array(strval(mel_ts_int($j, 'active_peers')),
+            strval(mel_ts_int($j, 'total_peers')), $seeds), mel_tr($lang, 'tsl_wait_peers')), null);
+    $speed = str_replace('{speed}', mel_ts_speed(is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null,
+        $lang), mel_tr($lang, 'tsl_wait_speed'));
+    return array($text, $speed . " \xC2\xB7 " . str_replace('{seeds}', $seeds, mel_tr($lang, 'tsl_wait_seeds')), $share);
 }
 
 // The look of the screens of a start: the background and the head of Melange, «На TorrServer» under it.
@@ -197,7 +218,7 @@ function mel_tsl_play_act($d, $files, $why)
 }
 
 // The entry of torrent $hash: in memory, else the list read once (a restart of php_server, an old screen) -> array(the
-// entry or null: not on TorrServer; the key of an error of the list, '' none; its detail).
+// entry or null: not in the list; the key of an error of the list, '' none; its detail).
 /**
  * @param string $hash
  * @return array{MelTsEntry|null, string, string}
@@ -215,32 +236,33 @@ function mel_tsl_find($hash)
 
 // tsl_recent: a record of the section chosen in "Последнее" of the Dune - the file of its wh_uid
 // ("aiots:<hash>:<id>": the item played of a playlist), else h and f of recent_action_params, from wh_pos (s) - the
-// start of it (mel_tsl_start; no preload from a position).
+// start of it (mel_tsl_start; no preload from a position). Not in the list (past MEL_TSL_MAX, an active torrent never
+// saved): the start by its hash (mel_tsl_bare); TorrServer has it no more - "get" says it (404, tsl_err_gone).
 /**
  * @param stdClass $in
- * @param string $control
  * @return MelAction|null
  */
-function mel_tsl_input($in, $control)
+function mel_tsl_recent($in)
 {
-    $uid = isset($in->wh_uid) && is_string($in->wh_uid) ? $in->wh_uid : '';
-    $h = isset($in->h) && is_string($in->h) ? $in->h : '';
-    $f = isset($in->f) && is_string($in->f) ? $in->f : '';
-    if ($control === 'tsl_recent' && preg_match('/^' . MEL_TSL_UID . ':([0-9a-f]{40}):([0-9]{1,6})$/D', $uid, $m))
-        list(, $h, $f) = $m;
-    if (!preg_match('/^[0-9a-f]{40}$/D', $h) || !preg_match('/^[0-9]{1,6}$/D', $f) || intval($f) < 1)
+    $u = mel_tsl_uid_parse(isset($in->wh_uid) ? $in->wh_uid : null);
+    if ($u === null && isset($in->h, $in->f) && is_string($in->h) && is_string($in->f))
+        $u = mel_tsl_uid_parse(mel_tsl_uid($in->h, $in->f));
+    if ($u === null)
     {
-        mel_log("ts section: $control with a bad hash or file, none");
+        mel_log('ts section: tsl_recent with a bad hash or file, none');
         return null;
     }
+    list($h, $f) = $u;
     $p = isset($in->wh_pos) ? $in->wh_pos : null;
     $pos = (is_string($p) && preg_match('/^[0-9]{1,7}$/D', $p)) || (is_int($p) && $p >= 0) ? intval($p) : 0;
     mel_log("ts section: recent $h file $f, wh_pos $pos");
-    $lang = mel_catv_lang();
     list($e, $key, $detail) = mel_tsl_find($h);
     if ($key !== '')
-        return mel_tsl_fail_act($lang, $key, $detail);
+        return mel_tsl_fail_act(mel_catv_lang(), $key, $detail);
     if ($e === null)
-        return mel_tsl_fail_act($lang, 'tsl_err_gone', '');
-    return mel_tsl_start($e, intval($f), $pos);
+    {
+        mel_log("ts section: $h not in the list, the start by its hash");
+        $e = mel_tsl_bare($h);
+    }
+    return mel_tsl_start($e, $f, $pos);
 }

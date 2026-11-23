@@ -527,3 +527,7 @@ tsl_off_text = Торренты отключены в настройках.
 tsl_addr = Адрес: {url}
 tsl_err_gone = Этой раздачи уже нет на TorrServer
 tsl_files_root = Без папки
+tsl_wait_buf = Предзагрузка: {got} из {need} МБ
+tsl_wait_peers = пиров {peers} из {all}, сидов {seeds}
+tsl_wait_speed = скорость {speed}
+tsl_wait_seeds = сидов {seeds}
