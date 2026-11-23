@@ -103,6 +103,8 @@ require_once dirname(__FILE__) . '/cp_meta.php';
 // "Мой список": its file; its actions on the screens.
 require_once dirname(__FILE__) . '/my_list.php';
 require_once dirname(__FILE__) . '/view_my_list.php';
+// "На TorrServer": the list of TorrServer, its entries and files (no firmware API).
+require_once dirname(__FILE__) . '/ts_list.php';
 // "Скрыть" and the age: the file of the hidden titles, the filter of the rows.
 require_once dirname(__FILE__) . '/hidden_titles.php';
 // The tab "TV" of the main screen.
