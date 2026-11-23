@@ -301,8 +301,8 @@ function mel_tsl_split($title)
     return array(trim(substr($body, 0, $m[0][1])), trim(trim($lead) . ' ' . $rest));
 }
 
-// The texts of entry $e in language $lang (2C): the title (mel_tsl_split), its two lines - "Сериал · 73 файла · 51.6 ГБ"
-// (the type of its category alone; the video files if two and more; its size; '' none of them) and "Добавлено 18 сентября"
+// The texts of entry $e in language $lang (2C): the title (mel_tsl_split), its two lines - "73 файла · 51.6 ГБ" (the
+// video files if two and more; its size; '' none of them; no type of its category) and "Добавлено 18 сентября"
 // (the year if not this one, UTC; '' no date) - and the rest of the title.
 /**
  * @param MelTsEntry $e
@@ -312,10 +312,7 @@ function mel_tsl_split($title)
 function mel_tsl_texts($e, $lang)
 {
     list($head, $rest) = mel_tsl_split($e['title']);
-    $kinds = array('movie' => 'card_kind_movie', 'tv' => 'cat_kind_series');
     $facts = array();
-    if (isset($kinds[$e['category']]))
-        $facts[] = mel_tr($lang, $kinds[$e['category']]);
     $files = mel_tsl_files_of($e['hash']);
     $v = $files === null ? null : mel_tsl_videos_of($files);
     if ($v !== null && count($v) > 1)
