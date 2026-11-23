@@ -1,7 +1,7 @@
 <?php
 // The section "На TorrServer": the torrents kept by TorrServer (POST /torrents list), as they are - no title of
-// Melange, no card. Here the data only: the read of the list, its entries, their video files, the uid of a start;
-// no firmware API. Reads Mel::$settings, writes MelTsl. Functions are global; the require order is in main.php.
+// Melange, no card. Here the data only: the read of the list, its entries, their video files, the uid of a start; the
+// run of a start ("get", its step, the lines of its wait, its playlist); no firmware API. Reads Mel::$settings, writes MelTsl. Functions are global; the require order is in main.php.
 
 // The tiles of the section at most: those of a "Show all" screen; the entries past them are logged, not shown.
 define('MEL_TSL_MAX', MEL_CATV_ALL_COLS * MEL_CATV_ALL_ROWS);
@@ -237,4 +237,196 @@ function mel_tsl_kind($videos)
 function mel_tsl_uid($hash, $id)
 {
     return MEL_TSL_UID . ":$hash:$id";
+}
+
+// --- A start from the section (view_ts_play.php shows it): the run of a start, its step, its playlist.
+
+// A new run of a start of file $id of entry $e (0: not known yet, by file_stats) from position $pos (s; 0: from the
+// start, the preload first), the texts in $lang. n: the "get" done; b: the n of the start of the preload, -1 none.
+/**
+ * @param MelTsEntry $e
+ * @param int $id
+ * @param int $pos
+ * @param string $lang
+ * @return MelTslRun
+ */
+function mel_tsl_run($e, $id, $pos, $lang)
+{
+    return array('e' => $e, 'f' => $id, 'pos' => $pos, 'n' => 0, 'b' => -1, 'l' => $lang);
+}
+
+// File $id among $files, null none.
+/**
+ * @param list<MelTsFile> $files
+ * @param int $id
+ * @return MelTsFile|null
+ */
+function mel_tsl_file_of($files, $id)
+{
+    foreach ($files as $f)
+    {
+        if ($f['id'] === $id)
+            return $f;
+    }
+    return null;
+}
+
+// One step of run $d, $sec s since its start, after its "get" (n already counted): reply $rg, its TorrentStatus $j ->
+// array(what now, the run after it, why (play: the reason; error: the key of its text), the detail of an error, the
+// files of file_stats). What now: 'play' - file f of the run; 'preload' - ask the preload of file f, then play or
+// wait (mel_tsl_advance); 'files' - two video files and more and no file chosen: the screen of files; 'error'; 'wait'.
+// The errors as a start from the list of releases (mel_ts_tick): no answer to the first "get" (later ones wait on),
+// 401, 404 (TorrServer has it no more), no file_stats in MEL_TS_WAIT s or MEL_TS_TICKS "get", no video file or not the
+// file chosen. No firmware API, no request: the wait screen and the wait window run it alike.
+/**
+ * @param MelTslRun $d
+ * @param int $sec
+ * @param MelTsReply $rg
+ * @param array<mixed>|null $j
+ * @return array{string, MelTslRun, string, string, list<MelTsFile>}
+ */
+function mel_tsl_step($d, $sec, $rg, $j)
+{
+    $files = mel_ts_files($j);
+    $out = $sec >= MEL_TS_WAIT || $d['n'] >= MEL_TS_TICKS;
+    $err = $rg['err'];
+    if ($files)
+    {
+        $v = mel_tsl_videos_of($files);
+        if ($d['f'] === 0)
+        {
+            $kind = mel_tsl_kind($v);
+            if ($kind !== 'movie')
+                return array($kind === 'pack' ? 'files' : 'error', $d, $kind === 'pack' ? '' : 'ts_err_no_video', '', $files);
+            $d['f'] = $v[0]['id'];
+        }
+        if (mel_tsl_file_of($v, $d['f']) === null)
+            return array('error', $d, 'ts_err_no_video', '', $files);
+        if ($d['pos'] > 0)
+            return array('play', $d, 'a position', '', $files);
+        if ($d['b'] < 0)
+            return array($out ? 'play' : 'preload', $d, $out ? 'the time out' : '', '', $files);
+        $why = $out ? 'the time out' : mel_ts_buf_done($j, $d['n'] - $d['b']);
+        return array($why !== '' ? 'play' : 'wait', $d, $why, '', $files);
+    }
+    if ($err !== '' && $d['n'] <= 1)
+        return array('error', $d, 'ts_err_down', $err, $files);
+    if ($err === '' && $rg['code'] === 401)
+        return array('error', $d, mel_ts_auth_err(), '', $files);
+    if ($err === '' && $rg['code'] === 404)
+        return array('error', $d, 'tsl_err_gone', '', $files);
+    if ($out)
+        return array('error', $d, 'ts_err_timeout', $err, $files);
+    return array('wait', $d, '', '', $files);
+}
+
+// One "get" of run $d, $sec s since its start, and its step (mel_tsl_step); a preload asked there (mel_ts_preload_file)
+// -> play at once or wait for it -> array(what now: play, files, error, wait; the run after it; why; the detail; the
+// files of file_stats; the TorrentStatus). A request of 2 s at most, of the preload 0.3 s: a tick holds php_server no
+// longer.
+/**
+ * @param MelTslRun $d
+ * @param int $sec
+ * @return array{string, MelTslRun, string, string, list<MelTsFile>, array<mixed>|null}
+ */
+function mel_tsl_advance($d, $sec)
+{
+    $d['n']++;
+    $hash = $d['e']['hash'];
+    list($rg, $j) = mel_ts_get($hash);
+    list($what, $d, $why, $detail, $files) = mel_tsl_step($d, $sec, $rg, $j);
+    mel_log(sprintf('ts section: %s get %d, %d s: %s, stat %s, peers %d/%d, seeders %d, %d files', $hash, $d['n'], $sec,
+        $rg['err'] !== '' ? $rg['err'] : "HTTP {$rg['code']}", is_array($j) && isset($j['stat']) ? json_encode($j['stat']) : '-',
+        mel_ts_int($j, 'active_peers'), mel_ts_int($j, 'total_peers'), mel_ts_int($j, 'connected_seeders'), count($files)) .
+        ($d['b'] >= 0 ? sprintf(', preloaded %.0f of %.0f', mel_num(mel_str($j, 'preloaded_bytes')),
+        mel_num(mel_str($j, 'preload_size'))) : ''));
+    if ($what === 'preload')
+    {
+        $f = mel_tsl_file_of($files, $d['f']);
+        $why = $f !== null ? mel_ts_preload_file($hash, $f, $j) : 'no file';
+        if ($why !== '')
+            $what = 'play';
+        else
+        {
+            $d['b'] = $d['n'];
+            $what = 'wait';
+            mel_log("ts section: $hash preload of file {$d['f']}, the wait");
+        }
+    }
+    if ($what === 'error')
+        mel_log("ts section: $hash -> error $why" . ($detail !== '' ? " ($detail)" : ''));
+    return array($what, $d, $why, $detail, $files, $j);
+}
+
+// The lines of the wait of a start (W2 of the UI kit): the text - the status of TorrServer in words (none: the file
+// list awaited), with the preload ($buf) "Буфер N из 32 МБ"; the live line after «прошло N с» - the peers and the
+// seeders, with the preload the speed first; the share of the bar - of the preload, null none.
+/**
+ * @param array<mixed>|null $j
+ * @param bool $buf
+ * @param string $lang
+ * @return array{string, string, float|null}
+ */
+function mel_tsl_wait_texts($j, $buf, $lang)
+{
+    $peers = mel_tsl_lc1(str_replace(array('{peers}', '{all}', '{seeds}'), array(strval(mel_ts_int($j, 'active_peers')),
+        strval(mel_ts_int($j, 'total_peers')), strval(mel_ts_int($j, 'connected_seeders'))), mel_tr($lang, 'ts_wait_peers')));
+    if ($buf)
+    {
+        $need = mel_ts_buf_need($j);
+        $got = min(mel_num(mel_str($j, 'preloaded_bytes')), $need);
+        $text = str_replace(array('{got}', '{need}'), array(strval(intval(floor($got / 1048576))),
+            strval(intval(ceil($need / 1048576)))), mel_tr($lang, 'ts_wait_buf'));
+        $speed = mel_tsl_lc1(str_replace('{speed}', mel_ts_speed(is_array($j) && isset($j['download_speed']) ?
+            $j['download_speed'] : null, $lang), mel_tr($lang, 'ts_wait_speed')));
+        return array($text, "$speed \xC2\xB7 $peers", $need > 0 ? $got / $need : 0.0);
+    }
+    $stat = mel_one_line(mel_str($j, 'stat_string'));
+    $keys = mel_ts_stats();
+    $low = strtolower($stat);
+    $text = $stat === '' ? mel_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? mel_tr($lang, $keys[$low]) : mel_cut($stat, 30));
+    return array($text, $peers, null);
+}
+
+// $s with its first letter small: a line of the dialog ("Пиров …") in the middle of the live line.
+/**
+ * @param string $s
+ * @return string
+ */
+function mel_tsl_lc1($s)
+{
+    return mb_strtolower(mb_substr($s, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($s, 1, mb_strlen($s, 'UTF-8'), 'UTF-8');
+}
+
+// The playlist of a start of file $id of entry $e among $files (those of file_stats, or of its data: the screen of
+// files), the streams of TorrServer $base -> array(its items, the index of file $id in them, the video files of the
+// torrent), null: $id is not a video file there. The items: the video files in the natural order of their paths
+// (mel_tsl_videos_of); over MEL_EPISODES_MAX a window of as many - from file $id on, fewer after it: up to the last.
+// An item: the file id, its name (no folder, no extension; of a torrent of one video file the title of the entry), the
+// URL of its stream (mel_ts_url), the uid of its history (mel_tsl_uid), its path.
+/**
+ * @param MelTsEntry $e
+ * @param list<MelTsFile> $files
+ * @param int $id
+ * @param string $base
+ * @return array{list<array{id: int, name: string, url: string, uid: string, path: string}>, int, int}|null
+ */
+function mel_tsl_playlist($e, $files, $id, $base)
+{
+    $v = mel_tsl_videos_of($files);
+    $k = -1;
+    foreach ($v as $n => $f)
+    {
+        if ($f['id'] === $id)
+            $k = $n;
+    }
+    if ($k < 0)
+        return null;
+    $all = count($v);
+    $from = $all > MEL_EPISODES_MAX ? min($k, $all - MEL_EPISODES_MAX) : 0;
+    $items = array();
+    foreach (array_slice($v, $from, MEL_EPISODES_MAX) as $f)
+        $items[] = array('id' => $f['id'], 'name' => $all === 1 ? $e['title'] : mel_tsl_file_name($f),
+            'url' => mel_ts_url($base, $e['hash'], $f), 'uid' => mel_tsl_uid($e['hash'], $f['id']), 'path' => $f['path']);
+    return array($items, $k - $from, $all);
 }

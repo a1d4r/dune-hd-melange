@@ -73,7 +73,20 @@ define('MEL_TSI_NAME_MAX', 200);
  */
 function mel_tsi_vod($r, $ts, $lang)
 {
-    $p = mel_tsi_params($r, $ts, $lang);
+    return $ts ? mel_tsi_vod_of($r['hash'], $r['label'], $lang) : array();
+}
+
+// The fields of vod_info of a stream of torrent $hash named $name via TorrServer (mel_tsi_vod; the section "На
+// TorrServer"): INFO opens the window; none (array()) for a bad hash.
+/**
+ * @param string $hash
+ * @param string $name
+ * @param string $lang
+ * @return array<string, mixed>
+ */
+function mel_tsi_vod_of($hash, $name, $lang)
+{
+    $p = mel_tsi_params_of($hash, $name, $lang);
     return $p ? array(PluginVodInfo::actions => mel_tsi_acts($p, false)) : array();
 }
 
@@ -223,10 +236,22 @@ function mel_tsi_name($s)
  */
 function mel_tsi_params($r, $ts, $lang)
 {
-    if (!$ts || !preg_match('/^[0-9a-f]{40}$/D', $r['hash']))
+    return $ts ? mel_tsi_params_of($r['hash'], $r['label'], $lang) : null;
+}
+
+// Params of the window of torrent $hash named $name (mel_tsi_params) -> null: not a hash.
+/**
+ * @param string $hash
+ * @param string $name
+ * @param string $lang
+ * @return MelTsiParams|null
+ */
+function mel_tsi_params_of($hash, $name, $lang)
+{
+    if (!preg_match('/^[0-9a-f]{40}$/D', $hash))
         return null;
     $l = $lang === 'ru' ? 'ru' : 'en';
-    return array('h' => $r['hash'], 'n' => mel_tsi_name($r['label']), 'l' => $l, 'e' => '0');
+    return array('h' => $hash, 'n' => mel_tsi_name($name), 'l' => $l, 'e' => '0');
 }
 
 // Params of the input -> as mel_tsi_params made them, or null.

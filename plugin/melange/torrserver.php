@@ -889,10 +889,21 @@ function mel_ts_preload($st, $i, $files, $j)
     list($k) = mel_ts_file($st, $i, $files);
     if ($k < 0)
         return 'no file';
-    $f = $files[$k];
+    return mel_ts_preload_file($st['rows'][$i]['hash'], $files[$k], $j);
+}
+
+// The preload of file $f of torrent $hash, $j its TorrentStatus (see mel_ts_preload) -> why the player at once, ''
+// the preload asked. The section "На TorrServer" (view_ts_play.php) too.
+/**
+ * @param string $hash
+ * @param MelTsFile $f
+ * @param array<mixed>|null $j
+ * @return string
+ */
+function mel_ts_preload_file($hash, $f, $j)
+{
     $t = microtime(true);
-    $rp = mel_ts_call(mel_ts_url(Mel::$settings['ts'], $st['rows'][$i]['hash'], $f, 'preload'), null, MEL_TS_PRE_S,
-        Mel::$settings['ts_auth']);
+    $rp = mel_ts_call(mel_ts_url(Mel::$settings['ts'], $hash, $f, 'preload'), null, MEL_TS_PRE_S, Mel::$settings['ts_auth']);
     mel_log(sprintf('ts: preload of file %d: %s, %.2f s: %s', $f['id'], $rp['err'] !== '' ? $rp['err'] : "HTTP {$rp['code']}",
         microtime(true) - $t, mel_cut($f['path'], 200)));
     $got = mel_num(mel_str($j, 'preloaded_bytes'));

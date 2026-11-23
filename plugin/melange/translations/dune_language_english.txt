@@ -525,3 +525,4 @@ tsl_bad_text = TorrServer did not reply with a torrent list.
 tsl_off_title = Torrents are disabled
 tsl_off_text = Torrents are disabled in the settings.
 tsl_addr = Address: {url}
+tsl_err_gone = This torrent is no longer on TorrServer

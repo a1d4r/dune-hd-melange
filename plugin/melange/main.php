@@ -103,9 +103,10 @@ require_once dirname(__FILE__) . '/cp_meta.php';
 // "Мой список": its file; its actions on the screens.
 require_once dirname(__FILE__) . '/my_list.php';
 require_once dirname(__FILE__) . '/view_my_list.php';
-// "На TorrServer": the list of TorrServer, its entries and files (no firmware API); its screen.
+// "На TorrServer": the list of TorrServer, its entries and files (no firmware API); its screen; a start from it.
 require_once dirname(__FILE__) . '/ts_list.php';
 require_once dirname(__FILE__) . '/view_ts.php';
+require_once dirname(__FILE__) . '/view_ts_play.php';
 // "Скрыть" and the age: the file of the hidden titles, the filter of the rows.
 require_once dirname(__FILE__) . '/hidden_titles.php';
 // The tab "TV" of the main screen.
@@ -2488,6 +2489,8 @@ function mel_handle_user_input($in)
         return mel_ts_menu($in);
     if ($control === 'ts_tick')
         return mel_ts_tick($in);
+    if ($control === 'tsl_recent' || $control === 'tsl_files')
+        return mel_tsl_input($in, $control);
     if (in_array($control, array('tsi_open', 'tsi_tick', 'tsi_close', 'tsi_state'), true))
         return mel_tsi_input($in, $control);
     if ($control === 'ts_cancel')

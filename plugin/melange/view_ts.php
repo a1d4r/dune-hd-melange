@@ -7,8 +7,8 @@
 // torrent (2C): its title up to " [" or " (", the facts, the day it was added, the rest of its name smaller.
 // The list is read by the input that opens the screen (the icon, the item, "Повторить"): an error there - the kit error
 // screen over the screen it came from (mel_ks_rows_error); a build of the screen takes the list in memory within
-// MEL_TSL_FRESH_S of its read, else reads it anew (an error then: a tile of it). ENTER on a torrent: a line of the log
-// alone for now (the start: stage 3a). POP UP on a tile: none (no IMDb, no TMDB).
+// MEL_TSL_FRESH_S of its read, else reads it anew (an error then: a tile of it). ENTER on a torrent: its start
+// (view_ts_play.php) or the screen of its files. POP UP on a tile: none (no IMDb, no TMDB).
 // Needs ts_list.php, view_catalog.php, view_my_list.php (mel_mlv_is_screen), kit.php (MelKit::wrap, w), kit_scr.php,
 // view_setup.php, view_card.php (mel_oc_day), view_gcomps.php (mel_gc_plural), main.php. PHP 5.3.6, firmware API only.
 
@@ -357,8 +357,11 @@ function mel_tsl_info($id)
         array($lines[1], MEL_CATV_TEXT_COLOR, MEL_CATV_DATA_MIN_PX)), $rest);
 }
 
-// ENTER on tile $id of the screen (mel_tsl_is_tile): a torrent - a line of the log for now (the start: stage 3a; "-" of a
-// torrent not in memory); the hint - nothing; an error - the list read anew (mel_tsl_open).
+// ENTER on tile $id of the screen (mel_tsl_is_tile), the one place a torrent branches: its entry (mel_tsl_find: in
+// memory, else the list read once; an error of it - the error screen of the list, none there - tsl_err_gone); its video
+// files known: one - the start of it, two and more - the screen of files, none - the error; not known (a record of
+// Lampa, other data) - the start by file_stats (view_ts_play.php). The hint - nothing; an error - the list read anew
+// (mel_tsl_open).
 /**
  * @param string $id
  * @return MelAction|null
@@ -371,7 +374,17 @@ function mel_tsl_enter($id)
     $hash = mel_tsl_hash_of($id);
     if ($hash === '')
         return null;
-    $kind = isset(MelTsl::$list[$hash]) ? mel_tsl_kind(mel_tsl_videos(MelTsl::$list[$hash])) : '-';
+    list($e, $key, $detail) = mel_tsl_find($hash);
+    if ($key !== '')
+        return mel_tsl_error($key, $detail, MEL_TSL_URL);
+    if ($e === null)
+        return mel_tsl_fail_act(mel_catv_lang(), 'tsl_err_gone', '');
+    $v = mel_tsl_videos($e);
+    $kind = mel_tsl_kind($v);
     mel_log("ts section: enter $hash kind $kind");
-    return null;
+    if ($kind === 'none')
+        return mel_tsl_fail_act(mel_catv_lang(), 'ts_err_no_video', '');
+    if ($kind === 'pack' && $e['files'] !== null)
+        return mel_tsl_files_open($hash, $e['files']);
+    return mel_tsl_start($e, $kind === 'movie' && $v ? $v[0]['id'] : 0, 0);
 }
