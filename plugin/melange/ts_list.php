@@ -16,18 +16,17 @@ class MelTsl
     // The entries of the list last read, hash => entry in the order of the section; null: none read.
     /** @var array<string, MelTsEntry>|null */
     public static $list = null;
-    // When it was read (time()), 0: never.
-    /** @var int */
-    public static $t = 0;
 }
 
 // The list of the TorrServer of the settings -> array(entries in the order of the section or null on an error,
-// the key of the error ('' none), its detail); kept in MelTsl when read. Every open of the section reads it anew.
+// the key of the error ('' none), its detail); kept in MelTsl when read, none kept on an error. Every open of the
+// section reads it anew.
 /**
  * @return array{list<MelTsEntry>|null, string, string}
  */
 function mel_tsl_load()
 {
+    MelTsl::$list = null;
     if (Mel::$settings['no_torrents'])
     {
         mel_log('ts section: list: no torrents');
@@ -41,7 +40,7 @@ function mel_tsl_load()
     if ($r['err'] !== '')
     {
         mel_log($head . sprintf('%s, %.0f ms', $r['err'], $ms));
-        $big = $r['err'] === 'reply over ' . MEL_TS_MAX_BYTES . ' bytes';
+        $big = $r['err'] === MEL_TS_TOO_BIG;
         return array(null, $big ? 'tsl_err_big' : 'ts_err_down', $big ? '' : $r['err']);
     }
     if ($r['code'] !== 200)
@@ -63,7 +62,6 @@ function mel_tsl_load()
     foreach ($p[0] as $e)
         $keep[$e['hash']] = $e;
     MelTsl::$list = $keep;
-    MelTsl::$t = time();
     return array($p[0], '', '');
 }
 
@@ -87,7 +85,7 @@ function mel_tsl_parse($body)
         if ($e !== null && !isset($seen[$e['hash']]))
         {
             $seen[$e['hash']] = true;
-            $out[] = array($e['ts'], $k, $e);
+            $out[] = array($e['added'], $k, $e);
         }
     }
     // usort of PHP 5.3 is not stable: the order of the reply breaks a tie.
@@ -110,9 +108,9 @@ function mel_tsl_cmp($a, $b)
 
 // A TorrentStatus of the list -> its entry, null: not kept (mel_tsl_parse). title: the title of TorrServer with
 // no prefix of a client ("[NUM] ", "[KT] ", "[LAMPA] " - src num, kt, lampa; '' none), else the name of its
-// biggest video file, else the start of its hash; raw_title: as TorrServer has it. data: the files of TorrServer
-// ({"TorrServer":{"Files":[...]}}, files; ids as of file_stats), a card of Lampa ({"lampa":true,"movie":{...}},
-// lampa), else neither: files null - known only by "get".
+// biggest video file, else the start of its hash; raw_title: as TorrServer has it, one line with no control
+// characters. data: the files of TorrServer ({"TorrServer":{"Files":[...]}}, files; ids as of file_stats), a card
+// of Lampa ({"lampa":true,"movie":{...}}, lampa), else neither: files null - known only by "get".
 /**
  * @param array<mixed> $x
  * @return MelTsEntry|null
@@ -131,25 +129,38 @@ function mel_tsl_entry($x)
         $files = mel_ts_files(array('file_stats' => $own['Files']));
     else if (isset($d['lampa']) && $d['lampa'] === true && isset($d['movie']) && is_array($d['movie']))
         $lampa = $d['movie'];
-    $raw = mel_clean(mel_str($x, 'title'));
+    $raw = mel_tsl_trim(mel_clean(mel_one_line(mel_str($x, 'title'))));
     $src = '';
     $title = $raw;
-    if (preg_match('/^\[(num|kt|lampa)\]\s*/i', $raw, $m))
+    if (preg_match('/^\[(num|kt|lampa)\]/i', $raw, $m))
     {
         $src = strtolower($m[1]);
-        $title = trim(substr($raw, strlen($m[0])));
+        $title = mel_tsl_trim(substr($raw, strlen($m[0])));
     }
     if ($title === '')
     {
         $big = null;
-        foreach (mel_tsl_videos_of($files === null ? array() : $files) as $f)
-            $big = $big === null || $f['size'] > $big['size'] ? $f : $big;
+        foreach ($files === null ? array() : $files as $f)
+        {
+            if (mel_ts_video($f['path']) && ($big === null || $f['size'] > $big['size']))
+                $big = $f;
+        }
         $title = $big !== null ? mel_tsl_file_name($big) : substr($hash, 0, 8);
     }
     $stamp = isset($x['timestamp']) && is_numeric($x['timestamp']) ? intval($x['timestamp']) : 0;
     return array('hash' => $hash, 'title' => $title, 'raw_title' => $raw, 'src' => $src,
-        'poster' => mel_str($x, 'poster'), 'category' => strtolower(mel_str($x, 'category')), 'ts' => $stamp,
+        'poster' => mel_str($x, 'poster'), 'category' => strtolower(mel_str($x, 'category')), 'added' => $stamp,
         'size' => mel_num(mel_str($x, 'torrent_size')), 'files' => $files, 'lampa' => $lampa);
+}
+
+// $s with no spaces at its ends, no-break ones too.
+/**
+ * @param string $s
+ * @return string
+ */
+function mel_tsl_trim($s)
+{
+    return strval(preg_replace('/^[\s\x{00A0}]+|[\s\x{00A0}]+$/uD', '', $s));
 }
 
 // The name of file $f with no folder and no extension: an item of the player, a title.

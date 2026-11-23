@@ -110,6 +110,8 @@ if (!function_exists('mel_trm_call'))
 
 // A bigger reply is not read (a pack of thousands of files is ~1 MB).
 define('MEL_TS_MAX_BYTES', 4194304);
+// err of mel_ts_call for a reply over MEL_TS_MAX_BYTES.
+define('MEL_TS_TOO_BIG', 'reply over ' . MEL_TS_MAX_BYTES . ' bytes');
 
 // Tests define their own mel_ts_call().
 if (!function_exists('mel_ts_call'))
@@ -171,7 +173,7 @@ if (!function_exists('mel_ts_call'))
         $ok = curl_exec($ch);
         $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
         $errno = curl_errno($ch);
-        $err = $over ? 'reply over ' . MEL_TS_MAX_BYTES . ' bytes' :
+        $err = $over ? MEL_TS_TOO_BIG :
             ($ok === false ? "curl $errno: " . curl_error($ch) : '');
         curl_close($ch);
         return array('code' => $code, 'body' => $err !== '' ? '' : $body, 'err' => $err, 'errno' => $errno);

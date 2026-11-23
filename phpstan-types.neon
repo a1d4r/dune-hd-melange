@@ -177,7 +177,7 @@ parameters:
         # A file of a torrent in TorrServer, ids from 1 (mel_ts_files, torrserver.php).
         MelTsFile: 'array{id: int, path: string, size: float}'
         # An entry of the list of TorrServer, the section "На TorrServer" (mel_tsl_entry, ts_list.php).
-        MelTsEntry: 'array{hash: string, title: string, raw_title: string, src: string, poster: string, category: string, ts: int, size: float, files: list<MelTsFile>|null, lampa: array<mixed>|null}'
+        MelTsEntry: 'array{hash: string, title: string, raw_title: string, src: string, poster: string, category: string, added: int, size: float, files: list<MelTsFile>|null, lampa: array<mixed>|null}'
         # An add-on that found the release (mel_addons, parse.php).
         MelAddon: 'array{addon: string, cached: bool}'
         # A copy of a row on one Debrid service (mel_row_copy_of, parse.php).
