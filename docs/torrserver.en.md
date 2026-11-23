@@ -30,21 +30,21 @@ Torrents already on TorrServer (added from a phone via NUM, KinoTrend, Lampa, or
 
 1. On the Movies or Series tab, open "On TorrServer" (the grey circle with a lightning bolt on the top bar, after the heart) or choose it in **POP UP**.
 
-   <!-- frame: catalog, focus on the TorrServer icon on the top bar -->
+   <img src="../screenshots/ts-strip.jpg" alt="Catalog, Movies tab: focus on the TorrServer icon on the top bar, between the heart and the magnifier" width="100%">
 
 2. The screen shows all TorrServer torrents, newest first.
 
-   <!-- frame: "On TorrServer" screen, torrent tiles, title and "Added …" above the rows -->
+   <img src="../screenshots/ts-section.jpg" alt="On TorrServer screen: torrent tiles, focus on Дом Дракона S03E02, above the rows 4 files · 35.4 GB and the date added" width="100%">
 
 3. A movie: press **ENTER** and the player starts.
 
 4. A series or a pack: press **ENTER** and choose a file. The cursor is already on the next unwatched episode; watched ones have a check mark. Episodes then play in order (**P+**/**P−**).
 
-   <!-- frame: series file screen, seasons as groups, check marks, focus on the next episode -->
+   <img src="../screenshots/ts-files.jpg" alt="Files of Игра престолов / Game of Thrones: seasons as groups, check marks on S02E01–E03, focus on S02E04" width="100%">
 
 5. Next time the player offers "Continue" by itself. The torrent also shows up in "Recent" on the Dune home screen.
 
-   <!-- frame: "Recent" on the Dune home screen with a torrent from Melange -->
+   <img src="../screenshots/ts-recent.jpg" alt="Recent on the Dune home screen: Игра престолов / Game of … at the top with #13 and 1%" width="100%">
 
 Melange does not change or delete torrents on TorrServer.
 
