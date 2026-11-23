@@ -509,6 +509,7 @@ tsl_title = На TorrServer
 tsl_empty = Добавьте раздачу в TorrServer с телефона или из Melange
 tsl_empty_text = Здесь будут раздачи, сохранённые в TorrServer: добавленные с телефона (NUM, KinoTrend, Lampa) или из Melange в режиме «Добавить и играть». Свежие — сверху.
 tsl_added = Добавлено {d}
+tsl_added_lc = добавлено {d}
 tsl_files_one = файл
 tsl_files_few = файла
 tsl_files_many = файлов

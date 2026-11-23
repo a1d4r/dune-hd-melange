@@ -216,16 +216,6 @@ function mel_tsl_path_cmp($a, $b)
     return $c !== 0 ? $c : $a['id'] - $b['id'];
 }
 
-// The video files of entry $e (mel_tsl_videos_of), null: its files are not known (no list of them in data).
-/**
- * @param MelTsEntry $e
- * @return list<MelTsFile>|null
- */
-function mel_tsl_videos($e)
-{
-    return $e['files'] === null ? null : mel_tsl_videos_of($e['files']);
-}
-
 // The files of torrent $hash: those of its entry in memory, else those of its file_stats kept (mel_tsl_files_keep); null
 // none known. The screen of files and a start read them here.
 /**
@@ -478,7 +468,7 @@ function mel_tsl_playlist($e, $files, $id, $base)
 // path ("Season 1/Extras"). The order of the paths first: a folder may come as two runs ("S1/a", "S1/b/c", "S1/d").
 /**
  * @param list<MelTsFile> $v
- * @return array{list<array{dir: string, from: int, n: int, size: float}>, bool}
+ * @return array{list<MelTslRunDir>, bool}
  */
 function mel_tsl_runs($v)
 {
@@ -522,7 +512,7 @@ function mel_tsl_runs($v)
 // lines of its files under it when it is open ($open: the index of a run => true) -> list of array('g', the index of the
 // run) or array('f', the index of the file in the video files).
 /**
- * @param list<array{dir: string, from: int, n: int, size: float}> $runs
+ * @param list<MelTslRunDir> $runs
  * @param bool $flat
  * @param array<int, bool> $open
  * @return list<array{string, int}>
@@ -544,7 +534,7 @@ function mel_tsl_lines($runs, $flat, $open)
 
 // The run of runs $runs (mel_tsl_runs) of the video file of index $i, 0 none.
 /**
- * @param list<array{dir: string, from: int, n: int, size: float}> $runs
+ * @param list<MelTslRunDir> $runs
  * @param int $i
  * @return int
  */

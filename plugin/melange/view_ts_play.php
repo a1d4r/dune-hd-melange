@@ -21,7 +21,7 @@
  * @param MelTsEntry $e
  * @param int $id
  * @param int $pos
- * @param array<string, mixed>|null $scr
+ * @param MelOvlScreen|null $scr
  * @return MelAction|null
  */
 function mel_tsl_start($e, $id, $pos, $scr = null)
@@ -43,7 +43,7 @@ function mel_tsl_start($e, $id, $pos, $scr = null)
     if ($what === 'play')
         return mel_tsl_play_act($d, $files, $why);
     if ($what === 'files')
-        return mel_tsl_files_open($e['hash'], $files);
+        return mel_tsf_open($e['hash'], $files);
     return mel_tsl_fail($lang, $why, $detail, $scr);
 }
 
@@ -70,7 +70,7 @@ function mel_tsl_wait_desc($d, $j, $lang)
  * @param string $lang
  * @param string $key
  * @param string $detail
- * @param array<string, mixed>|null $scr
+ * @param MelOvlScreen|null $scr
  * @return MelAction
  */
 function mel_tsl_fail($lang, $key, $detail, $scr)
@@ -102,7 +102,7 @@ function mel_tsl_tick($d, $sec)
     if ($what === 'play')
         return array('post' => mel_tsl_play_act($d, $files, $why));
     if ($what === 'files')
-        return array('post' => mel_tsl_files_open($hash, $files));
+        return array('post' => mel_tsf_open($hash, $files));
     if ($what === 'error')
         return array('dialog' => mel_tsl_fail_desc($d['l'], $why, $detail));
     list($text, $live, $share) = mel_tsl_wait_texts($j, $d['b'] >= 0, $d['l']);
@@ -237,7 +237,8 @@ function mel_tsl_find($hash)
 // tsl_recent: a record of the section chosen in "Последнее" of the Dune - the file of its wh_uid
 // ("aiots:<hash>:<id>": the item played of a playlist), else h and f of recent_action_params, from wh_pos (s) - the
 // start of it (mel_tsl_start; no preload from a position). Not in the list (past MEL_TSL_MAX, an active torrent never
-// saved): the start by its hash (mel_tsl_bare); TorrServer has it no more - "get" says it (404, tsl_err_gone).
+// saved) or the list not to read (too big, not a list: tsl_err_big, tsl_err_bad): the start by its hash (mel_tsl_bare);
+// TorrServer has it no more - "get" says it (404, tsl_err_gone). TorrServer down, its login: the error screen.
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -257,11 +258,12 @@ function mel_tsl_recent($in)
     $pos = (is_string($p) && preg_match('/^[0-9]{1,7}$/D', $p)) || (is_int($p) && $p >= 0) ? intval($p) : 0;
     mel_log("ts section: recent $h file $f, wh_pos $pos");
     list($e, $key, $detail) = mel_tsl_find($h);
-    if ($key !== '')
+    $bare = $key === 'tsl_err_big' || $key === 'tsl_err_bad';
+    if ($key !== '' && !$bare)
         return mel_tsl_fail_act(mel_catv_lang(), $key, $detail);
     if ($e === null)
     {
-        mel_log("ts section: $h not in the list, the start by its hash");
+        mel_log("ts section: $h " . ($bare ? "of a list not read ($key)" : 'not in the list') . ', the start by its hash');
         $e = mel_tsl_bare($h);
     }
     return mel_tsl_start($e, $f, $pos);

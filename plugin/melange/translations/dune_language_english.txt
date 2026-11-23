@@ -509,6 +509,7 @@ tsl_title = On TorrServer
 tsl_empty = Add a torrent to TorrServer from your phone or from Melange
 tsl_empty_text = Torrents saved in TorrServer show up here: added from a phone (NUM, KinoTrend, Lampa) or from Melange with "Add & Play". Newest first.
 tsl_added = Added {d}
+tsl_added_lc = added {d}
 tsl_files_one = file
 tsl_files_few = files
 tsl_files_many = files

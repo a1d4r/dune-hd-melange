@@ -316,16 +316,29 @@ function mel_tsl_texts($e, $lang)
     $facts = array();
     if (isset($kinds[$e['category']]))
         $facts[] = mel_tr($lang, $kinds[$e['category']]);
-    $v = mel_tsl_videos($e);
+    $files = mel_tsl_files_of($e['hash']);
+    $v = $files === null ? null : mel_tsl_videos_of($files);
     if ($v !== null && count($v) > 1)
         $facts[] = count($v) . ' ' . mel_gc_plural($lang, count($v), 'tsl_files');
     if ($e['size'] > 0)
         $facts[] = mel_size_str($e['size'], $lang);
-    $added = '';
-    if ($e['added'] > 0)
-        $added = str_replace('{d}', mel_oc_day(gmdate('Y-m-d', $e['added']), $lang, false, gmdate('Y', $e['added']) !== gmdate('Y')),
-            mel_tr($lang, 'tsl_added'));
-    return array($head, array(implode(' · ', $facts), $added), $rest);
+    return array($head, array(implode(' · ', $facts), mel_tsl_added($e, $lang, 'tsl_added')), $rest);
+}
+
+// The day entry $e was added in the words of key $key ("{d}": "18 сентября", the year if not this one, UTC): tsl_added
+// of the info panel, tsl_added_lc of the side of the screen of files; '' no date.
+/**
+ * @param MelTsEntry $e
+ * @param string $lang
+ * @param string $key
+ * @return string
+ */
+function mel_tsl_added($e, $lang, $key)
+{
+    if ($e['added'] <= 0)
+        return '';
+    return str_replace('{d}', mel_oc_day(gmdate('Y-m-d', $e['added']), $lang, false, gmdate('Y', $e['added']) !== gmdate('Y')),
+        mel_tr($lang, $key));
 }
 
 // The info panel of tile $id of the screen (mel_catv_info) -> array(title, lines array(text, colour, least px), the
@@ -386,6 +399,6 @@ function mel_tsl_enter($id)
     if ($kind === 'none')
         return mel_tsl_fail_act(mel_catv_lang(), 'ts_err_no_video', '');
     if ($kind === 'pack' && $files !== null)
-        return mel_tsl_files_open($hash, $files);
+        return mel_tsf_open($hash, $files);
     return mel_tsl_start($e, $kind === 'movie' && $v ? $v[0]['id'] : 0, 0);
 }
