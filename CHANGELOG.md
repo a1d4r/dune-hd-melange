@@ -5,7 +5,7 @@
 ## 0.68.1
 - **Kinopoisk rating with any number of votes.** The info panel above the rows and the Melange card now show the Kinopoisk rating whatever the number of votes. Before, it was hidden below 1000 votes.
 - **Kinopoisk rows in Top.** The catalog server now has Kinopoisk rows: «Топ Кинопоиска» (Kinopoisk top), «Топ-250 сериалов КП» (Kinopoisk top 250 series) and «Популярное на КП» (Popular on Kinopoisk) for movies and for series. On the settings page and in **Configure List...** they are in the Top group. Earlier versions put them in Other.
-- **Configure List... on any row.** In the catalog, the **POP UP** menu on any row name now has **Configure List...**, including Continue Watching and Favorites. Before, only rows from the catalog server had it.
+- **Configure List... on any row.** In the catalog, the **POP UP** menu on any row name now has **Configure List...**, including Continue Watching and Favorites. Before, Continue Watching and Favorites didn't have it.
 
 ## 0.68.0 — 23.11.2026
 - **Files from a USB drive and the internal disk.** Movies and series from the Dune media library on a USB drive or the disk inside the Dune now play from the Melange card too, and their posters get the disk icon. Before, only network folders worked.
@@ -328,7 +328,7 @@ First public release. What it does:
 ## 0.68.1
 - **Рейтинг Кинопоиска при любом числе голосов.** В панели над рядами и в карточке Melange рейтинг Кинопоиска теперь виден, сколько бы ни было голосов. Раньше он прятался, если голосов меньше 1000.
 - **Ряды Кинопоиска в «Топах».** На сервере каталога появились ряды Кинопоиска: «Топ Кинопоиска», «Топ-250 сериалов КП» и «Популярное на КП» для фильмов и для сериалов. На странице настроек и в «Настроить список...» они стоят в группе «Топы». Прошлые версии клали их в «Другое».
-- **«Настроить список...» на любом ряду.** В каталоге в меню **POP UP** на названии любого ряда теперь есть «Настроить список...», в том числе у рядов «Продолжить» и «Избранное». Раньше пункт был только у рядов с сервера каталога.
+- **«Настроить список...» на любом ряду.** В каталоге в меню **POP UP** на названии любого ряда теперь есть «Настроить список...», в том числе у рядов «Продолжить» и «Избранное». Раньше его не было у «Продолжить» и «Избранного».
 
 ## 0.68.0 — 23.11.2026
 - **Файлы с USB-диска и встроенного диска.** Фильмы и сериалы из медиатеки Дюны на USB-диске и на диске внутри Дюны теперь тоже включаются из карточки Melange, и у них на постерах есть значок диска. Раньше — только из сетевых папок.

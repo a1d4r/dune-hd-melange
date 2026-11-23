@@ -366,12 +366,9 @@ function mel_catv_rows_merge($chosen, $keys, $tab)
 
 
 // "Configure list…" and a separator for the POP UP of the main screen $from of the tab $tab, on the
-// header $hid (selected_header_id, in the panel of the headers; genre_rows_screen.php r25): the
-// menu of the rows of its tab (mel_catv_rows_menu), that row selected if it is a row of the tab in
-// the copy; on any other header of a row ("Continue", "Мой список", "No rows", a row no longer in
-// the copy: a new list of the server is for the next opening) and on the header of the strip
-// (MEL_CATV_STRIP_HEADER) too, no row selected. Else (a tile, another header of the shell, the copy
-// with no row of the tab: nothing to configure) none.
+// header $hid (selected_header_id, in the panel of the headers; genre_rows_screen.php r25): on any
+// h:* header or MEL_CATV_STRIP_HEADER the menu of the rows of the tab (mel_catv_rows_menu), the row
+// selected if it is in the copy; none if the copy has no row of the tab. Else (a tile) none.
 /**
  * @param string $hid
  * @param string $tab
