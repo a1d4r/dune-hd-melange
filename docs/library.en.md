@@ -1,6 +1,6 @@
 # Movies and series from your disk
 
-If a movie or an episode is already on a NAS, a computer on your network, a USB drive or the Dune's internal disk, Melange plays it straight from there. [← Contents](README.en.md)
+If a movie or an episode is in "My Collection" on your Dune, Melange plays it straight from there. [← Contents](README.en.md)
 
 Before you start: the Dune media library with your folders on the network, a USB drive or the internal disk (home screen → Movies or Series: your files show up there) and "Own card" turned on in [Appearance](appearance.en.md) (it is on by default).
 
@@ -15,8 +15,6 @@ In the catalog, movies and series on the disk have a disk icon in the top right 
 2. Press "Watch". The movie plays from the disk, from where you stopped.
 
 3. Releases from the internet are under **MENU** → "Watch from…".
-
-If the disk has several copies of the movie, the line ends with "· 2 copies — MENU". Melange asks "Which copy to watch?" the first time, and you can switch copies with **MENU** → "Copy on disk…".
 
 ## Series
 
