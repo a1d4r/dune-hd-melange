@@ -45,7 +45,7 @@ class MelTsl
 // its list is one JSON array, newest first (timestamp). A scanner keeps the depth of the brackets and whether it is in a
 // string (a quote after an odd run of backslashes is in it: "data" is JSON in a string); each element of the array, once
 // closed, is decoded alone (mel_ts_decode) and its text dropped: the whole reply is never kept; one over
-// MEL_TSL_ENTRY_MAX is scanned to its end, its text not kept, and counted not JSON. An element is an object or an array;
+// MEL_TSL_ENTRY_MAX is scanned to its end, its text not kept, and skipped (counted apart). An element is an object or an array;
 // a scalar between them is skipped, not counted. No firmware API, no request.
 class MelTslScan
 {
@@ -75,11 +75,13 @@ class MelTslScan
     public $mem;
     /** @var int */
     public $bytes = 0;
-    // The elements read, of them not JSON.
+    // The elements read, of them not JSON, over MEL_TSL_ENTRY_MAX (not decoded).
     /** @var int */
     public $n = 0;
     /** @var int */
     public $bad = 0;
+    /** @var int */
+    public $big = 0;
     // ms of the scan and of the entries (in feed).
     /** @var float */
     public $ms = 0.0;
@@ -116,14 +118,15 @@ class MelTslScan
         return ($this->state === 'list' || $this->state === 'start') && $this->stop === '';
     }
 
-    // Why the read ended, after its last chunk: 'not' - not a list (no "[", not an array, every element not JSON); 'max',
+    // Why the read ended, after its last chunk: 'not' - not a list (no "[", not an array, every element not JSON, those
+    // over MEL_TSL_ENTRY_MAX apart); 'max',
     // 'memory' - stopped there ($stop); 'open' - no end of the array (a reply cut); 'end' - its "]".
     /**
      * @return string
      */
     public function verdict()
     {
-        if ($this->state === 'start' || $this->state === 'not' || ($this->n > 0 && $this->bad === $this->n))
+        if ($this->state === 'start' || $this->state === 'not' || ($this->bad > 0 && $this->bad === $this->n - $this->big))
             return 'not';
         if ($this->stop !== '')
             return $this->stop;
@@ -189,9 +192,14 @@ class MelTslScan
             }
             else if (--$this->depth === 1)
             {
-                // Over MEL_TSL_ENTRY_MAX (its text dropped, or whole in this chunk): not decoded, not JSON.
-                $this->take($this->long || $i - $this->from > MEL_TSL_ENTRY_MAX ? null :
-                    mel_ts_decode(substr($b, $this->from, $i - $this->from)));
+                // Over MEL_TSL_ENTRY_MAX (its text dropped, or whole in this chunk): not decoded, skipped.
+                if ($this->long || $i - $this->from > MEL_TSL_ENTRY_MAX)
+                {
+                    $this->n++;
+                    $this->big++;
+                }
+                else
+                    $this->take(mel_ts_decode(substr($b, $this->from, $i - $this->from)));
                 $this->from = -1;
                 $this->long = false;
             }
@@ -213,13 +221,15 @@ class MelTslScan
         $this->pos = $i - $keep;
         if ($this->from >= 0)
             $this->from = 0;
-        if ($this->stop === '' && memory_get_usage() > $this->mem)
+        // Past "]" nothing more to read: no stop.
+        if ($this->stop === '' && $this->state !== 'end' && memory_get_usage() > $this->mem)
             $this->stop = 'memory';
     }
 
     // Element $x of the array decoded (null: not JSON) -> its entry kept (mel_tsl_entry: a hash of 40 hex and the torrent
     // saved in the base (stat 5, TorrServer InDB) or with data - an active torrent never saved (stat 3, no data) is not;
-    // a hash seen before is not), the read stopped at MEL_TSL_MAX kept or over $mem.
+    // a hash seen before is not), the read stopped at MEL_TSL_MAX kept or over $mem after an entry kept (one not kept
+    // takes no memory: a list of active torrents to its "]").
     /**
      * @param array<mixed>|null $x
      * @return void
@@ -233,11 +243,10 @@ class MelTslScan
             return;
         }
         $e = mel_tsl_entry($x);
-        if ($e !== null && !isset($this->seen[$e['hash']]))
-        {
-            $this->seen[$e['hash']] = true;
-            $this->out[] = array($e['added'], $k, $e);
-        }
+        if ($e === null || isset($this->seen[$e['hash']]))
+            return;
+        $this->seen[$e['hash']] = true;
+        $this->out[] = array($e['added'], $k, $e);
         if (count($this->out) >= MEL_TSL_MAX)
             $this->stop = 'max';
         else if (memory_get_usage() > $this->mem)
@@ -264,7 +273,7 @@ class MelTslScan
 // section reads it anew, as it comes (MelTslScan): up to MEL_TSL_MAX entries kept or MelTsl::$mem_max of memory, the
 // newest (TorrServer sends them first); cut (its time out, a break) - the entries read, none - ts_err_down. Not an
 // array, every element not JSON, cut with no entry, the guard of memory before any entry: tsl_err_bad; an element not
-// JSON (or over MEL_TSL_ENTRY_MAX) is skipped.
+// JSON or over MEL_TSL_ENTRY_MAX is skipped.
 /**
  * @return array{list<MelTsEntry>|null, string, string}
  */
@@ -315,6 +324,7 @@ function mel_tsl_load()
         $how = $cut ? "cut: {$r['err']}" : ($v === 'open' ? 'cut: no end of the list' : 'the end');
     $list = $scan->entries();
     mel_log($line . sprintf('%d entries, %d kept, ', $scan->n, count($list)) . ($scan->bad ? "{$scan->bad} bad, " : '') .
+        ($scan->big ? "{$scan->big} too long, " : '') .
         sprintf('%s, peak %.1f MB', $how, memory_get_peak_usage() / 1048576));
     $keep = array();
     foreach ($list as $e)
