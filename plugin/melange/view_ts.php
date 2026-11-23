@@ -25,6 +25,9 @@ define('MEL_TSL_ERR', MEL_TSL_OWN . 'err:');
 define('MEL_TSL_ICON', 'plugin_file://img/tsl1_logo.png');
 // A build of the screen takes the list in memory within this many s of its read.
 define('MEL_TSL_FRESH_S', 10);
+// show_dialog_delay of an open of the section (cat_tsl_open), ms: the read of the list takes up to MEL_TSL_LIST_S,
+// «Подождите» after 1.5 s, not after MEL_DELAY_INPUT (10 s: a still screen till then).
+define('MEL_TSL_DELAY', 1500);
 
 // The state of the screen (the data: MelTsl of ts_list.php): when the list in memory was read (microtime; 0: none), the
 // detail of the error of the last build (tsl_err_bad: the code, "not a list"; '' none).
@@ -45,9 +48,20 @@ function mel_tsl_on()
     return !Mel::$settings['no_torrents'];
 }
 
-// The icon, its item of POP UP, "Повторить" (cat_tsl_open) on screen $from: the list read (mel_tsl_load); an error - the
-// kit error screen over $from (mel_tsl_error); else the screen over $from, in place of a screen of Fav (as
-// mel_mlv_open); on the screen itself (its tile of an error) the screen built anew.
+// The open of the section from screen $from: cat_tsl_open with its own delay of «Подождите» (MEL_TSL_DELAY). The icon and
+// its item of POP UP (their inputs cat_enter and cat_part wait the delay of the screen), "Повторить", the tile of an error.
+/**
+ * @param string $from
+ * @return MelAction
+ */
+function mel_tsl_open_act($from)
+{
+    return mel_input('cat_tsl_open', array('from' => $from), MEL_TSL_DELAY);
+}
+
+// cat_tsl_open (mel_tsl_open_act) on screen $from: the list read (mel_tsl_load); an error - the kit error screen over
+// $from (mel_tsl_error); else the screen over $from, in place of a screen of Fav (as mel_mlv_open); on the screen itself
+// (its tile of an error) the screen built anew.
 /**
  * @param string $from
  * @return MelAction
@@ -112,10 +126,9 @@ function mel_tsl_addr($lang, $detail)
 }
 
 // The kit error screen of error $key of the list (mel_tsl_load; $detail: its detail) over screen $from (4B, 4C of the
-// designer): its title and text (mel_tsl_err_texts); no answer - «Повторить», «Настройки» and the address
-// of TorrServer under them; not a list - «Повторить», «Настройки» and the address with the code (mel_tsl_addr); the
-// password, «Без торрентов» -
-// «Настройки». «Назад» after them (mel_ks_rows_error).
+// designer): its title and text (mel_tsl_err_texts); no answer - «Повторить», «Настройки» and the address of TorrServer
+// under them; not a list - «Повторить», «Настройки» and the address with the code (mel_tsl_addr); the password, «Без
+// торрентов» - «Настройки». «Назад» after them (mel_ks_rows_error).
 /**
  * @param string $key
  * @param string $detail
@@ -126,7 +139,7 @@ function mel_tsl_error($key, $detail, $from)
 {
     $lang = mel_catv_lang();
     $retry = array('label' => mel_tr($lang, 'ks_retry'), 'icon' => 'k_icon_rotate-ccw',
-        'act' => mel_input('cat_tsl_open', array('from' => $from)));
+        'act' => mel_tsl_open_act($from));
     $setup = array('label' => mel_tr($lang, 'setup_menu'), 'icon' => 'k_icon_settings', 'act' => mel_setup_open_act($from));
     $own = array('ts_err_down' => array($retry, $setup), 'tsl_err_bad' => array($retry, $setup));
     $d = array('buttons' => isset($own[$key]) ? $own[$key] : array($setup));
@@ -383,7 +396,7 @@ function mel_tsl_info($id)
 // memory, else the list read once; an error of it - the error screen of the list, none there - tsl_err_gone); its video
 // files known (mel_tsl_files_of: of its data or of a file_stats before): one - the start of it, two and more - the screen
 // of files (view_ts_files.php), none - the error; not known (a record of Lampa, other data) - the start by file_stats
-// (view_ts_play.php). The hint - nothing; an error - the list read anew (mel_tsl_open).
+// (view_ts_play.php). The hint - nothing; an error - the list read anew (mel_tsl_open_act).
 /**
  * @param string $id
  * @return MelAction|null
@@ -392,7 +405,7 @@ function mel_tsl_enter($id)
 {
     list(, $bare) = mel_catv_id_mode($id);
     if (strpos($bare, MEL_TSL_ERR) === 0)
-        return mel_tsl_open(MEL_TSL_URL);
+        return mel_tsl_open_act(MEL_TSL_URL);
     $hash = mel_tsl_hash_of($id);
     if ($hash === '')
         return null;

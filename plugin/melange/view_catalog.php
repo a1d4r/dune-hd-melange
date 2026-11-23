@@ -3123,7 +3123,8 @@ function mel_catv_all_open($url)
 // ENTER on the part $id of the strip of the main screen $from. A tab not active: the screen of its
 // type in place of this one (erase_count 1: Back does not grow), the active one: nothing; $up (its
 // item of POP UP, mel_catv_menu): the active one too, the focus up on it. The icons: the dialog of
-// a search, the settings screen and the screens "Продолжить", "Мой список" and "На TorrServer".
+// a search, the settings screen and the screens "Продолжить", "Мой список"; "На TorrServer" by its input of
+// its own (mel_tsl_open_act: «Подождите» sooner).
 /**
  * @param string $id
  * @param string $from
@@ -3141,7 +3142,7 @@ function mel_catv_strip_enter($id, $from, $up = false)
     if ($id === 'tab_mylist')
         return mel_mlv_open('list', $from);
     if ($id === 'tab_ts')
-        return mel_tsl_open($from);
+        return mel_tsl_open_act($from);
     $tab = strval(substr($id, strlen('tab_')));
     if (($tab !== 'movie' && $tab !== 'series') || !mel_catv_is_main($from) || (!$up && $tab === mel_catv_tab($from)))
         return null;
