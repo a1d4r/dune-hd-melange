@@ -6,24 +6,35 @@
 // knowledge/melange/design-torrserver-section.md of the kitchen); an empty list - the hint tile (4A). The info panel of a
 // torrent (2C): its title up to " [" or " (", the facts, the day it was added, the rest of its name smaller.
 // The list is read by the input that opens the screen (the icon, the item, "Повторить"): an error there - the kit error
-// screen over the screen it came from (mel_ks_rows_error); the list read goes to the view of the screen within
-// MEL_TSL_FRESH_S, any other build of the screen reads it anew (an error then: a tile of it). ENTER on a torrent: a line
-// of the log alone for now (the start: stage 3a). POP UP on a tile: none (no IMDb, no TMDB).
+// screen over the screen it came from (mel_ks_rows_error); a build of the screen takes the list in memory within
+// MEL_TSL_FRESH_S of its read, else reads it anew (an error then: a tile of it). ENTER on a torrent: a line of the log
+// alone for now (the start: stage 3a). POP UP on a tile: none (no IMDb, no TMDB).
 // Needs ts_list.php, view_catalog.php, view_my_list.php (mel_mlv_is_screen), kit.php (MelKit::wrap, w), kit_scr.php,
 // view_setup.php, view_card.php (mel_oc_day), view_gcomps.php (mel_gc_plural), main.php. PHP 5.3.6, firmware API only.
 
-// The address of the screen; the rid of its tiles of torrents ("tors:<hash>", mel_catv_tile); the hint of an empty list,
-// a tile of an error of a build of the screen ("tsl:err:<key>").
+// The address of the screen; the rid of its tiles of torrents ("tors:<hash>"); the prefix of its other tiles: the hint
+// of an empty list, a tile of an error of a build of the screen ("tsl:err:<key>").
 define('MEL_TSL_URL', 'cat_ts');
 define('MEL_TSL_RID', 'tors');
-define('MEL_TSL_HINT', 'tsl:hint');
-define('MEL_TSL_ERR', 'tsl:err:');
+define('MEL_TSL_OWN', 'tsl:');
+define('MEL_TSL_HINT', MEL_TSL_OWN . 'hint');
+define('MEL_TSL_ERR', MEL_TSL_OWN . 'err:');
 // The icon of the strip, of its item of POP UP and of the plates: L1 of the designer, 64x64, the glyph 48x48 at 8, 8 as
 // the icons of the shell (the N of tsl<N> goes up when it changes: the shell keeps a picture by its URL; made by
 // experiments/ts_section_mock of the kitchen).
 define('MEL_TSL_ICON', 'plugin_file://img/tsl1_logo.png');
-// The list the input read is the one of the view within this many s of it.
+// A build of the screen takes the list in memory within this many s of its read.
 define('MEL_TSL_FRESH_S', 10);
+
+// The state of the screen (the data: MelTsl of ts_list.php): when the list in memory was read (microtime; 0: none), the
+// detail of the error of the last build (tsl_err_bad: the code, "not a list"; '' none).
+class MelTslView
+{
+    /** @var float */
+    public static $read = 0.0;
+    /** @var string */
+    public static $detail = '';
+}
 
 // The icon and the item of the section: always, but with "Без торрентов" on (owner 23.11.2026).
 /**
@@ -43,10 +54,9 @@ function mel_tsl_on()
  */
 function mel_tsl_open($from)
 {
-    list($list, $key, $detail) = mel_tsl_load();
+    list($list, $key, $detail) = mel_tsl_read();
     if ($list === null)
         return mel_tsl_error($key, $detail, $from);
-    MelTsl::$fresh = microtime(true);
     if ($from === MEL_TSL_URL)
     {
         mel_log('ts section: open: anew');
@@ -58,8 +68,38 @@ function mel_tsl_open($from)
     return $replace ? mel_replace_act(MEL_TSL_URL, $caption) : mel_catv_open_act(MEL_TSL_URL, $caption);
 }
 
+// The list read (mel_tsl_load), the time of it kept (MelTslView::$read).
+/**
+ * @return array{list<MelTsEntry>|null, string, string}
+ */
+function mel_tsl_read()
+{
+    $r = mel_tsl_load();
+    if ($r[0] !== null)
+        MelTslView::$read = microtime(true);
+    return $r;
+}
+
+// The title (the cause) and the text (what to do) of error $key of the list (mel_tsl_load) in language $lang (4B, 4C of
+// the designer); the detail $detail of tsl_err_bad (the code, "not a list") after the text, none of another error (no
+// answer: the error of curl).
+/**
+ * @param string $key
+ * @param string $lang
+ * @param string $detail
+ * @return array{string, string}
+ */
+function mel_tsl_err_texts($key, $lang, $detail)
+{
+    $names = array('ts_err_down' => 'down', 'ts_err_auth' => 'auth', 'ts_err_auth_bad' => 'auth_bad', 'tsl_err_big' => 'big',
+        'tsl_err_bad' => 'bad', 'ts_err_off' => 'off');
+    $n = isset($names[$key]) ? $names[$key] : 'bad';
+    $text = mel_tr($lang, "tsl_{$n}_text");
+    return array(mel_tr($lang, "tsl_{$n}_title"), $n === 'bad' && $detail !== '' ? "$text $detail" : $text);
+}
+
 // The kit error screen of error $key of the list (mel_tsl_load; $detail: its detail) over screen $from (4B, 4C of the
-// designer): «Список TorrServer не открылся», the text of the key; no answer - «Повторить», «Настройки» and the address
+// designer): its title and text (mel_tsl_err_texts); no answer - «Повторить», «Настройки» and the address
 // of TorrServer under them; not a list - «Повторить», «Настройки» and the detail; over 4 MB - none of its own; the
 // password, «Без торрентов» - «Настройки». «Назад» after them (mel_ks_rows_error).
 /**
@@ -81,12 +121,14 @@ function mel_tsl_error($key, $detail, $from)
     else if ($key === 'tsl_err_bad')
         $d['detail'] = $detail;
     mel_log("ts section: error $key");
-    return mel_ks_rows_error($lang, mel_tr($lang, 'tsl_title'), mel_tr($lang, 'tsl_err_title'), mel_tr($lang, $key), $d);
+    list($title, $text) = mel_tsl_err_texts($key, $lang, '');
+    return mel_ks_rows_error($lang, mel_tr($lang, 'tsl_title'), $title, $text, $d);
 }
 
-// The screen (get_folder_view of MEL_TSL_URL): the list the input read within MEL_TSL_FRESH_S (once), else read anew;
-// its tiles in its order (mel_tsl_item), none - the hint, an error - a tile of it (ENTER: read anew). r25: rows of
-// MEL_CATV_ALL_COLS as "Show all" (the info panel, ENTER, POP UP, the search); r24, r22: the grid of "Show all".
+// The screen (get_folder_view of MEL_TSL_URL): the list in memory within MEL_TSL_FRESH_S of its read (a second build of
+// one open too), else read anew; its tiles in its order (mel_tsl_item), none - the hint, an error - a tile of it (its
+// detail in its panel; ENTER: read anew). r25: rows of MEL_CATV_ALL_COLS as "Show all" (the info panel, ENTER, POP UP,
+// the search); r24, r22: the grid of "Show all".
 /**
  * @param mixed $sel_state
  * @return array<string, mixed>
@@ -96,14 +138,15 @@ function mel_tsl_view($sel_state)
     $start = microtime(true);
     $lang = mel_catv_lang();
     MelCat::$lang = $lang;
-    $ago = microtime(true) - MelTsl::$fresh;
+    $ago = microtime(true) - MelTslView::$read;
     $kept = MelTsl::$list !== null && $ago >= 0 && $ago < MEL_TSL_FRESH_S;
-    MelTsl::$fresh = 0.0;
     $key = '';
+    $detail = '';
     if ($kept)
         $list = array_values(MelTsl::$list);
     else
-        list($list, $key) = mel_tsl_load();
+        list($list, $key, $detail) = mel_tsl_read();
+    MelTslView::$detail = $detail;
     $none = MEL_CATV_ICONS . 'no_movie_poster.png';
     $rows_ok = mel_catv_all_ok();
     $items = array();
@@ -111,9 +154,9 @@ function mel_tsl_view($sel_state)
     if ($list === null)
     {
         $id = mel_catv_tile_id(MEL_TSL_ERR . $key);
-        $title = mel_tr($lang, 'tsl_err_title');
+        list($title, $text) = mel_tsl_err_texts($key, $lang, $detail);
         $items[] = mel_catv_item($id, $title, $none);
-        $grid[] = mel_tsl_grid_item($id, $title, $none, $title, mel_tr($lang, $key));
+        $grid[] = mel_tsl_grid_item($id, $title, $none, $title, $text);
     }
     else if (!$list)
     {
@@ -238,25 +281,7 @@ function mel_tsl_hash_of($id)
 function mel_tsl_is_tile($id)
 {
     list(, $bare) = mel_catv_id_mode($id);
-    return strpos($bare, MEL_TSL_RID . ':') === 0 || strpos($bare, 'tsl:') === 0;
-}
-
-// The tile of the catalog of the torrent $hash of the list in memory (mel_catv_tile: the info panel, POP UP), null none:
-// no IMDb, TMDB, background, logo; its title and poster; the type of its category (movie, tv), else ''.
-/**
- * @param string $hash
- * @return MelCatTile|null
- */
-function mel_tsl_tile($hash)
-{
-    if (!isset(MelTsl::$list[$hash]))
-        return null;
-    $e = MelTsl::$list[$hash];
-    $types = array('movie' => 'movie', 'tv' => 'series');
-    return array('id' => $hash, 'imdb_id' => '', '_tmdbId' => '', 'type' => isset($types[$e['category']]) ? $types[$e['category']] : '',
-        'name' => $e['title'], 'year' => '', 'imdbRating' => '', 'description' => '', 'genres' => array(), 'poster' => $e['poster'],
-        'background' => '', 'country' => '', 'runtime' => '', 'age' => '', 'ageUs' => '', 'cast' => array(), 'englishTitle' => '',
-        'kpRating' => '', 'kpVotes' => 0, 'kpId' => '', 'logo' => '', 'logoLang' => '', 'originalLanguage' => '');
+    return strpos($bare, MEL_TSL_RID . ':') === 0 || strpos($bare, MEL_TSL_OWN) === 0;
 }
 
 // Title $title as the panel shows it (I2): the head up to the first " [", " (", " / " before a year or "S<n>" (the tags
@@ -304,8 +329,9 @@ function mel_tsl_texts($e, $lang)
 }
 
 // The info panel of tile $id of the screen (mel_catv_info) -> array(title, lines array(text, colour, least px), the
-// description), null for another tile or a torrent not in memory: a torrent (mel_tsl_texts), the hint (the name of the
-// section and what comes there), an error (its title and text).
+// description), null for another tile: a torrent (mel_tsl_texts; not in memory, a restart of php_server - an empty
+// panel, not the one of the tile before; the list is not read here), the hint (the name of the section and what comes
+// there), an error (its title and text, the detail of the last build).
 /**
  * @param string $id
  * @return array{string, list<array{string, string, int}>, string}|null
@@ -317,10 +343,15 @@ function mel_tsl_info($id)
     if ($bare === MEL_TSL_HINT)
         return array(mel_tr($lang, 'tsl_title'), array(), mel_tr($lang, 'tsl_empty_text'));
     if (preg_match('/^' . MEL_TSL_ERR . '([a-z_]+)$/D', $bare, $m))
-        return array(mel_tr($lang, 'tsl_err_title'), array(), mel_tr($lang, $m[1]));
+    {
+        list($title, $text) = mel_tsl_err_texts($m[1], $lang, MelTslView::$detail);
+        return array($title, array(), $text);
+    }
     $hash = mel_tsl_hash_of($id);
-    if ($hash === '' || !isset(MelTsl::$list[$hash]))
+    if ($hash === '')
         return null;
+    if (!isset(MelTsl::$list[$hash]))
+        return array('', array(), '');
     list($head, $lines, $rest) = mel_tsl_texts(MelTsl::$list[$hash], $lang);
     return array($head, array(array($lines[0], MEL_CATV_TEXT_COLOR, MEL_CATV_DATA_MIN_PX),
         array($lines[1], MEL_CATV_TEXT_COLOR, MEL_CATV_DATA_MIN_PX)), $rest);

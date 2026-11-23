@@ -16,10 +16,6 @@ class MelTsl
     // The entries of the list last read, hash => entry in the order of the section; null: none read.
     /** @var array<string, MelTsEntry>|null */
     public static $list = null;
-    // When the input that opens the section read it (microtime; 0: none to take): the view of the screen after it takes
-    // that list (view_ts.php, mel_tsl_view).
-    /** @var float */
-    public static $fresh = 0.0;
 }
 
 // The list of the TorrServer of the settings -> array(entries in the order of the section or null on an error,

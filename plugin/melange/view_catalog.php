@@ -376,8 +376,7 @@ function mel_catv_tile_id($id)
 // The tile of an id of the screen, or null. Looked for in this order:
 // 1. $tv (asked from the tab "TV"): the tiles of its file (mel_tv_tile); the listing in memory may have moved on since.
 //    A tile of the row "Continue" ("continue:<movie_id>"): of the history and the pairs (mel_cp_tile), not of a listing;
-//    of the screen "Мой список" ("mylist:<key>"): of its entry (mel_mlv_tile); a torrent of "На TorrServer" ("tors:<hash>"):
-//    of the list in memory (mel_tsl_tile).
+//    of the screen "Мой список" ("mylist:<key>"): of its entry (mel_mlv_tile).
 // 2. MelCat::$lists, "restored" ones too (mel_catv_list_restore); mel_catv_all_list begins the grid anew
 //    from one older than MEL_CAT_FRESH, mel_catv_all_rows goes on from none older than MEL_CAT_STATE_TTL.
 // 3. MelCat::$on_screen: r25, the flagged rows as the screen shows them; the old copy a grid began anew from.
@@ -401,8 +400,6 @@ function mel_catv_tile($id, $tv = false)
         return mel_cp_mid_of($id) !== '' ? mel_cp_tile($p[1]) : null;
     if ($p[0] === MEL_ML_RID)
         return mel_mlv_tile($p[1]);
-    if ($p[0] === MEL_TSL_RID)
-        return mel_tsl_tile($p[1]);
     if (isset(MelCat::$lists[$p[0]]['tiles'][$p[1]]))
         return MelCat::$lists[$p[0]]['tiles'][$p[1]];
     if (isset(MelCat::$on_screen[$p[0]][$p[1]]))
