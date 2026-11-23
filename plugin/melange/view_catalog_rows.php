@@ -366,10 +366,9 @@ function mel_catv_rows_merge($chosen, $keys, $tab)
 
 
 // "Configure list…" and a separator for the POP UP of the main screen $from of the tab $tab, on the
-// header $hid (selected_header_id, in the panel of the headers; genre_rows_screen.php r25): the
-// menu of the rows of its tab (mel_catv_rows_menu), that row selected; on the row "No rows" of the
-// tab and on the header of the strip (MEL_CATV_STRIP_HEADER) too, no row selected. Else (a tile, a
-// header of no row of the tab) none.
+// header $hid (selected_header_id, in the panel of the headers; genre_rows_screen.php r25): on any
+// h:* header or MEL_CATV_STRIP_HEADER the menu of the rows of the tab (mel_catv_rows_menu), the row
+// selected if it is in the copy; none if the copy has no row of the tab. Else (a tile) none.
 /**
  * @param string $hid
  * @param string $tab
@@ -394,7 +393,7 @@ function mel_catv_rows_menu_items($hid, $tab, $from, $lang)
         if (mel_catv_rid($r) === $rid)
             $sel = $r['key'];
     }
-    if (!$any || ($sel === null && !$strip && $rid !== mel_catv_rid(mel_catv_tab_empty_row($tab, $lang))))
+    if (!$any)
         return array();
     return array(
         array(

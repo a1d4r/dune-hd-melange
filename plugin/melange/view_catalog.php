@@ -1610,18 +1610,6 @@ function mel_catv_tab_copy_defs($tab, $lang)
     return array('defs' => $defs, 'rids' => $rids, 'lists' => $lists);
 }
 
-// The row of the tab $tab without a row to show (mel_catv_tab_empty; its header: mel_catv_menu).
-/**
- * @param string $tab
- * @param string $lang
- * @return MelCatRow
- */
-function mel_catv_tab_empty_row($tab, $lang)
-{
-    return array('key' => "tab/$tab", 'type' => $tab, 'id' => 'tab', 'name' => mel_tr($lang, $tab === 'movie' ? 'cat_movies' : 'cat_series'),
-        'genre' => '', 'home' => false, 'group' => '');
-}
-
 // The tab $tab without a row to show: under the strip one tile that says why. $retry: its rows
 // came empty (r25, hidden for an hour), "retry:<rid>", ENTER is "Retry"; else the manifest has
 // none of its type to show (none chosen and no start row of it, mel_cat_user_rows), "empty:<rid>",
@@ -1634,7 +1622,8 @@ function mel_catv_tab_empty_row($tab, $lang)
  */
 function mel_catv_tab_empty($tab, $lang, $retry)
 {
-    $row = mel_catv_tab_empty_row($tab, $lang);
+    $row = array('key' => "tab/$tab", 'type' => $tab, 'id' => 'tab', 'name' => mel_tr($lang, $tab === 'movie' ? 'cat_movies' : 'cat_series'),
+        'genre' => '', 'home' => false, 'group' => '');
     $rid = mel_catv_rid($row);
     $list = mel_catv_list(mel_cat_row_state($row), array(), false);
     $item = $retry ? mel_catv_item("retry:$rid", mel_tr($lang, 'cat_tab_retry'), MEL_CATV_ICONS . 'no_movie_poster.png') :
