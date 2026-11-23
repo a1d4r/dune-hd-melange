@@ -89,7 +89,7 @@ What Melange cannot do, or does with caveats. [← Contents](README.en.md)
 
 - There is one slot: after you choose Melange, the TV tab no longer shows DUNE-HD.TV channels or another IPTV app.
 - Until Melange is set up, the TV tab has one tile, "Set up Melange".
-- If you remove Melange while it is selected in the TV tab, the tab becomes empty. DUNE-HD.TV does not come back by itself: choose it again ([Troubleshooting](troubleshooting.en.md)).
+- If you remove Melange while it is selected in the TV tab, the tab becomes empty. Your previous app does not come back by itself: choose it again ([Troubleshooting](troubleshooting.en.md)).
 
 ## Removing Melange
 

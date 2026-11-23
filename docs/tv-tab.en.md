@@ -4,11 +4,11 @@ Show Melange catalog rows right on the Dune home screen, in the TV tab. [← Con
 
 1. On the Dune home screen, move to TV, press **POP UP** and choose «TV section Setup».
 
-   In the picture Melange is already in TV; you will still have DUNE-HD.TV channels there, and that is fine.
+   In the picture Melange is already in TV; you will still have your TV channels there, and that is fine.
 
    <img src="../screenshots/tv-tab-popup.jpg" alt="Dune home screen, TV tab, POP UP menu with focus on TV section Setup" width="100%">
 
-2. In the window, choose «Another application...»: a list of apps opens. Choose Melange. TV holds only one app, so the DUNE-HD.TV channels leave the tab. To bring them back, choose DUNE-HD.TV in the same window.
+2. In the window, choose «Another application...»: a list of apps opens. Choose Melange. TV holds only one app, so your TV channels leave the tab. To bring them back, choose your previous app in the same window.
 
    <img src="../screenshots/tv-tab-pick.jpg" alt="App selection list with focus on Melange" width="100%">
 
