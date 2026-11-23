@@ -10,8 +10,6 @@ You need: a phone on the same home network as the Dune.
 
 2. The home screen of the page opens on the phone. The top shows whether Melange is ready to watch; the settings sections are below.
 
-   The green line suggests the path through the Dune **Movies** catalog. The Melange catalog in "Apps" works the same way.
-
    Under **More**, **About Melange** shows the plugin version, build date and Dune firmware. Include them when you report a problem.
 
    <img src="../screenshots/phone-home.jpg" alt="Home screen of the page: green line All set to watch, below it the Watching section with Where to get films, AIOStreams, JacRed, TorrServer" width="300">

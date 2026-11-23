@@ -46,11 +46,11 @@ Series rows are set up the same way, on the "Series" tab.
 
 ## Hide a title and limit the age rating
 
-1. On a poster, press **POP UP** and choose "Hide". The title disappears from the rows, "Show all" and the TV tab, and from "Similar", "Franchise" and the filmography in the Melange card. Search still shows it.
+1. On a poster, press **POP UP** and choose "Hide". The title disappears from the catalog; search still shows it.
 
    <img src="../screenshots/rows-hide.jpg" alt="Trending row, POP UP menu on a poster: focus on Hide" width="100%">
 
-2. To hide everything above an age rating, open "Hide from the catalog" on the settings page, choose a limit in "Age rating", for example "Up to 12+", and press "Save". Titles above it disappear from the same places and from search. Melange takes the Russian age rating, or the US one if there is no Russian one. Titles with no age rating stay visible.
+2. To hide everything above an age rating, open "Hide from the catalog" on the settings page, choose a limit in "Age rating", for example "Up to 12+", and press "Save". Titles above it disappear from the same places and from search. Titles with no age rating stay visible.
 
 3. "Hidden" on the same screen lists everything you hid on this Dune. "Unhide" brings a title back to the catalog.
 

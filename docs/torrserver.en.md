@@ -4,7 +4,7 @@ Set up torrent watching without a Debrid subscription. [← Contents](README.en.
 
 You need: the TorrServe app on the Dune ([Quick start](start.en.md)).
 
-1. Without a phone: open the plugin settings (the gear on the bar at the top) and choose "Quick setup: torrents". The Melange catalog opens: torrents are set up. If that's enough, go to step 5. The item is there only while Melange is not set up yet; if you have set it up before, start from step 2.
+1. Without a phone: open the plugin settings (the gear on the bar at the top) and choose "Quick setup: torrents". The Melange catalog opens: torrents are set up. If that's enough, go to step 5; if you have set Melange up before, start from step 2.
 
    <img src="../screenshots/setup-dune.jpg" alt="Melange settings screen on the Dune, focus on Quick setup: torrents" width="100%">
 

@@ -12,8 +12,6 @@ Turn on the movie logo in place of the title, ratings on posters and the own mov
 
    <img src="../screenshots/appearance-logo-on.jpg" alt="Catalog, Popular row: the movie logo in the panel at the top, IMDb ratings on the posters" width="100%">
 
-   The poster and the logo may show different Russian titles of the same movie: this is normal, not a bug.
-
    Off:
 
    <img src="../screenshots/appearance-logo-off.jpg" alt="Catalog, Popular row: the movie title as text in the panel at the top" width="100%">

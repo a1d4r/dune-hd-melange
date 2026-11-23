@@ -2,7 +2,7 @@
 
 Melange is a movie and series catalog for Dune HD. Pick a movie, and Melange finds it in torrents and plays it in the Dune player right away, without downloading. [← Contents](README.en.md)
 
-We will install Melange and TorrServe (the Dune plays torrents through it) and open the catalog. TorrServe is an app, and TorrServer runs inside it: Melange messages use both names.
+We will install Melange and TorrServe (the Dune plays torrents through it) and open the catalog.
 
 <img src="../screenshots/overview-en.png" alt="Diagram: you pick a movie in the Melange catalog, Melange searches torrents for releases, you pick a release, the movie plays in the Dune player via TorrServe or Debrid" width="100%">
 
@@ -68,7 +68,7 @@ Next: [first setup](#first-setup).
 
    <img src="../screenshots/setup-dune.jpg" alt="Melange settings screen, focus on Quick setup: torrents" width="100%">
 
-   "AIOStreams - Melange config: not set" is expected. AIOStreams is the server that searches for releases, and the config is your settings on it. Melange creates it by itself.
+   "AIOStreams - Melange config: not set" is expected.
 
 4. The Melange catalog opens: you can pick a movie.
 

@@ -2,13 +2,9 @@
 
 If a movie or an episode is in "My Collection" on your Dune, Melange plays it straight from there. [← Contents](README.en.md)
 
-Before you start: the Dune media library with your folders on the network, a USB drive or the internal disk (home screen → Movies or Series: your files show up there) and "Own card" turned on in [Appearance](appearance.en.md) (it is on by default).
-
-In the catalog, movies and series on the disk have a disk icon in the top right corner of the poster. A series gets it if at least one episode is on the disk.
-
 ## Movie
 
-1. Open the movie card in Melange. If the file is on the disk, a "From disk" line with the quality and file size appears under the description. If you've started the movie, the time left is shown below it.
+1. Open the movie card in Melange. If the file is on the disk, a "From disk" line appears under the description.
 
    <img src="../screenshots/library-film.jpg" alt="Melange card for Interstellar: the line From disk 4K Vision TrueHD 5.1 · 71.8 GB, a progress bar and time left below it, focus on Watch" width="100%">
 
@@ -30,8 +26,8 @@ In the catalog, movies and series on the disk have a disk icon in the top right 
 
 ## If it didn't work
 
-- No "From disk" line and no icons: the file isn't in the Dune media library. Open the movie in the Dune Movies catalog: if the file isn't there, Melange can't see it either.
-- The poster has a disk icon, but the card has no "From disk" line: the disk isn't connected right now. The icon comes from the Dune media library and doesn't depend on whether the disk is connected.
+- No "From disk" line and no icons: the file isn't in "My Collection" on your Dune. Open the movie in the Dune Movies catalog: if the file isn't there, Melange can't see it either.
+- The poster has a disk icon, but the card has no "From disk" line: the disk isn't connected right now.
 - "The disk with the movie is not responding" or "The disk with the episode is not responding": the NAS or the disk took longer than 25 seconds to wake up. Press "Retry".
 
 Next: [Search](search.en.md) · [Contents](README.en.md)

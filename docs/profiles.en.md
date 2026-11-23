@@ -24,8 +24,6 @@ Add several sources (Debrid, torrents, your own config) and open a movie on the 
 
    <img src="../screenshots/profiles-pick.jpg" alt="Window with a list of sources, focus on Debrid (Melange) · now" width="100%">
 
-   A movie you have started continues from the source you watched it from: "Continue Watching", the next episode, the movie card.
-
    You can also pick the source before the release list: press **POP UP** on a movie tile or on its Melange card → "Watch from…". The list opens from that source right away. If the movie is on your disk, "Watch" plays the file, and this is the only way to pick a source ([Movies and series from your disk](library.en.md)).
 
 ## If it did not work

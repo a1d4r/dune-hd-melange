@@ -22,7 +22,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
    <img src="../screenshots/torrserver-open.jpg" alt="The Opening via TorrServer window" width="100%">
 
-   The peer and seeder numbers in the window go up. If nothing starts within a minute, choose a release with more seeders.
+   If nothing starts within a minute, choose a release with more seeders.
 
 ## Series
 
@@ -30,7 +30,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
    <img src="../screenshots/own-card-series.jpg" alt="Melange card for Breaking Bad: season tabs and a row of episodes" width="100%">
 
-2. Choose a release the same way as for a movie. Episodes then play one after another, and you can open the next or previous one right from the release list (buttons in the hint at the bottom). The frame shows a torrent list with seeders; with Debrid you see lightning bolts instead.
+2. Choose a release the same way as for a movie. Episodes then play one after another, and you can open the next or previous one right from the release list (buttons in the hint at the bottom).
 
    <img src="../screenshots/series-list.jpg" alt="Release list of a Breaking Bad episode: seeders in the first column, Episodes hint at the bottom" width="100%">
 
