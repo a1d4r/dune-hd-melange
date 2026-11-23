@@ -526,3 +526,4 @@ tsl_off_title = Торренты отключены
 tsl_off_text = Торренты отключены в настройках.
 tsl_addr = Адрес: {url}
 tsl_err_gone = Этой раздачи уже нет на TorrServer
+tsl_files_root = Без папки

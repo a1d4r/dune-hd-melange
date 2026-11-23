@@ -526,3 +526,4 @@ tsl_off_title = Torrents are disabled
 tsl_off_text = Torrents are disabled in the settings.
 tsl_addr = Address: {url}
 tsl_err_gone = This torrent is no longer on TorrServer
+tsl_files_root = No folder

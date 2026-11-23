@@ -8,45 +8,85 @@
 // recent_uid "aiots:<hash>:<file id>" and recent_plugin ours with no mdb_info (with no movie_id it breaks the start,
 // stage 0 of the spec), INFO the window of TorrServer, no markers. The record of "Последнее" brings us back by
 // tsl_recent with wh_pos. The errors: the kit error screen, the texts of a start from the list of releases
-// (mel_ts_fail). Two video files and more: the screen of files (stage 3b; for now a line of the log).
-// Needs ts_list.php, view_ts.php, torrserver.php, ts_info.php, kit_scr.php, kit_dlg.php, main.php. PHP 5.3.6, firmware
-// API only.
+// (mel_ts_fail). Two video files and more: the screen of files (view_ts_files.php); a start from it: the wait window and
+// the error dialog over it.
+// Needs ts_list.php, view_ts.php, view_ts_files.php, torrserver.php, ts_info.php, kit_scr.php, kit_dlg.php, main.php. PHP
+// 5.3.6, firmware API only.
 
-// The start of file $id of entry $e (0: by file_stats, one video file) from position $pos (s) from the rows of the
-// section or "Последнее": the first "get", then vod_play, the screen of files, an error or the wait screen.
+// The start of file $id of entry $e (0: by file_stats, one video file) from position $pos (s): the first "get", then
+// vod_play, the screen of files, an error or the wait. From the rows of the section or "Последнее" ($scr null): the kit
+// wait screen, the kit error screen. From the screen of files, the record of it $scr (MelOvlScreen): the wait window and
+// the error dialog over it.
 /**
  * @param MelTsEntry $e
  * @param int $id
  * @param int $pos
+ * @param array<string, mixed>|null $scr
  * @return MelAction|null
  */
-function mel_tsl_start($e, $id, $pos)
+function mel_tsl_start($e, $id, $pos, $scr = null)
 {
     $lang = mel_catv_lang();
     if (Mel::$settings['no_torrents'])
-        return mel_tsl_fail_act($lang, 'ts_err_off', '');
-    $n = $e['files'] === null ? '-' : strval(count($e['files']));
-    mel_log("ts section: start {$e['hash']} file " . ($id > 0 ? $id : '?') . ", pos $pos, $n files known");
+        return mel_tsl_fail($lang, 'ts_err_off', '', $scr);
+    $known = mel_tsl_files_of($e['hash']);
+    $n = $known === null ? '-' : strval(count($known));
+    mel_log("ts section: start {$e['hash']} file " . ($id > 0 ? $id : '?') . ", pos $pos, $n files known" .
+        ($scr !== null ? ', from the screen of files' : ''));
     list($what, $d, $why, $detail, $files, $j) = mel_tsl_advance(mel_tsl_run($e, $id, $pos, $lang), 0);
     if ($what === 'wait')
     {
-        list($text, $live, $share) = mel_tsl_wait_texts($j, $d['b'] >= 0, $lang);
-        return mel_ks_wait(array_merge(mel_tsl_look($lang), array('icon' => 'k_icon_monitor-play',
-            'title' => mel_tr($lang, 'ts_wait'), 'text' => $text, 'live' => $live, 'share' => $share,
-            'elapsed' => mel_tr($lang, 'ks_wait_elapsed'), 'tick' => 'mel_tsl_tick', 'data' => $d,
-            'buttons' => array(array('id' => 'cancel', 'label' => mel_tr($lang, 'ts_cancel'), 'icon' => 'k_icon_x',
-                'cancel' => true)))), mel_tr($lang, 'tsl_title'), MEL_TS_TICK_MS);
+        $w = mel_tsl_wait_desc($d, $j, $lang);
+        $a = $scr !== null ? mel_wait_open($scr, $w) : null;
+        return $a ? $a : mel_ks_wait(array_merge(mel_tsl_look($lang), $w), mel_tr($lang, 'tsl_title'), MEL_TS_TICK_MS);
     }
     if ($what === 'play')
         return mel_tsl_play_act($d, $files, $why);
     if ($what === 'files')
-        return mel_tsl_files_open($e['hash'], mel_tsl_files_known($e['hash'], $files));
-    return mel_tsl_fail_act($lang, $why, $detail);
+        return mel_tsl_files_open($e['hash'], $files);
+    return mel_tsl_fail($lang, $why, $detail, $scr);
 }
 
-// The tick of a wait of a start (MelWaitDesc tick; the wait screen here, the wait window over the screen of files of
-// stage 3b alike): run $d, $sec s since the start -> post vod_play; post the screen of files (by tsl_files: the wait
-// closes first); dialog an error; else the run and its lines.
+// The wait of run $d (MelWaitDesc, the look none: the wait screen adds it), its first lines of TorrentStatus $j
+// (mel_tsl_wait_texts), its tick mel_tsl_tick, «Отмена».
+/**
+ * @param MelTslRun $d
+ * @param array<mixed>|null $j
+ * @param string $lang
+ * @return array<string, mixed>
+ */
+function mel_tsl_wait_desc($d, $j, $lang)
+{
+    list($text, $live, $share) = mel_tsl_wait_texts($j, $d['b'] >= 0, $lang);
+    return array('icon' => 'k_icon_monitor-play', 'title' => mel_tr($lang, 'ts_wait'), 'text' => $text, 'live' => $live,
+        'share' => $share, 'elapsed' => mel_tr($lang, 'ks_wait_elapsed'), 'tick' => 'mel_tsl_tick', 'data' => $d,
+        'buttons' => array(array('id' => 'cancel', 'label' => mel_tr($lang, 'ts_cancel'), 'icon' => 'k_icon_x',
+            'cancel' => true)));
+}
+
+// The error $key of a start ($detail: its detail): over the screen of files of record $scr the dialog (mel_tsl_fail_desc),
+// with none (or not a record) the kit error screen (mel_tsl_fail_act).
+/**
+ * @param string $lang
+ * @param string $key
+ * @param string $detail
+ * @param array<string, mixed>|null $scr
+ * @return MelAction
+ */
+function mel_tsl_fail($lang, $key, $detail, $scr)
+{
+    $a = $scr !== null ? mel_dlg_open($scr, mel_tsl_fail_desc($lang, $key, $detail)) : null;
+    if ($a)
+    {
+        mel_log("ts section: error dialog $key");
+        return $a;
+    }
+    return mel_tsl_fail_act($lang, $key, $detail);
+}
+
+// The tick of a wait of a start (MelWaitDesc tick; the wait screen, the wait window over the screen of files alike): run
+// $d, $sec s since the start -> post vod_play; post the screen of files (the wait screen leaves for it in its place,
+// mel_ks_leave); dialog an error; else the run and its lines.
 /**
  * @param mixed $d
  * @param int $sec
@@ -62,10 +102,7 @@ function mel_tsl_tick($d, $sec)
     if ($what === 'play')
         return array('post' => mel_tsl_play_act($d, $files, $why));
     if ($what === 'files')
-    {
-        mel_tsl_files_known($hash, $files);
-        return array('post' => mel_input('tsl_files', array('h' => $hash)));
-    }
+        return array('post' => mel_tsl_files_open($hash, $files));
     if ($what === 'error')
         return array('dialog' => mel_tsl_fail_desc($d['l'], $why, $detail));
     list($text, $live, $share) = mel_tsl_wait_texts($j, $d['b'] >= 0, $d['l']);
@@ -159,33 +196,6 @@ function mel_tsl_play_act($d, $files, $why)
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
 }
 
-// The files $files of file_stats of torrent $hash kept in its entry in memory, if it knew none (a record of Lampa,
-// other data): the screen of files reads them there -> $files.
-/**
- * @param string $hash
- * @param list<MelTsFile> $files
- * @return list<MelTsFile>
- */
-function mel_tsl_files_known($hash, $files)
-{
-    if (isset(MelTsl::$list[$hash]) && MelTsl::$list[$hash]['files'] === null)
-        MelTsl::$list[$hash]['files'] = $files;
-    return $files;
-}
-
-// The screen of the files $files of torrent $hash (two video files and more): stage 3b (its open, MelAction). For now a
-// line of the log.
-/**
- * @param string $hash
- * @param list<MelTsFile> $files
- * @return null
- */
-function mel_tsl_files_open($hash, $files)
-{
-    mel_log("ts section: files of $hash: " . count(mel_tsl_videos_of($files)) . ' video files, the screen of files (stage 3b)');
-    return null;
-}
-
 // The entry of torrent $hash: in memory, else the list read once (a restart of php_server, an old screen) -> array(the
 // entry or null: not on TorrServer; the key of an error of the list, '' none; its detail).
 /**
@@ -205,7 +215,7 @@ function mel_tsl_find($hash)
 
 // tsl_recent: a record of the section chosen in "Последнее" of the Dune - the file of its wh_uid
 // ("aiots:<hash>:<id>": the item played of a playlist), else h and f of recent_action_params, from wh_pos (s) - the
-// start of it (mel_tsl_start; no preload from a position). tsl_files: the screen of files after a wait (h).
+// start of it (mel_tsl_start; no preload from a position).
 /**
  * @param stdClass $in
  * @param string $control
@@ -218,19 +228,10 @@ function mel_tsl_input($in, $control)
     $f = isset($in->f) && is_string($in->f) ? $in->f : '';
     if ($control === 'tsl_recent' && preg_match('/^' . MEL_TSL_UID . ':([0-9a-f]{40}):([0-9]{1,6})$/D', $uid, $m))
         list(, $h, $f) = $m;
-    if (!preg_match('/^[0-9a-f]{40}$/D', $h) || ($control === 'tsl_recent' && (!preg_match('/^[0-9]{1,6}$/D', $f) || intval($f) < 1)))
+    if (!preg_match('/^[0-9a-f]{40}$/D', $h) || !preg_match('/^[0-9]{1,6}$/D', $f) || intval($f) < 1)
     {
         mel_log("ts section: $control with a bad hash or file, none");
         return null;
-    }
-    if ($control === 'tsl_files')
-    {
-        if (!isset(MelTsl::$list[$h]) || MelTsl::$list[$h]['files'] === null)
-        {
-            mel_log("ts section: files of $h not in memory, none");
-            return null;
-        }
-        return mel_tsl_files_open($h, MelTsl::$list[$h]['files']);
     }
     $p = isset($in->wh_pos) ? $in->wh_pos : null;
     $pos = (is_string($p) && preg_match('/^[0-9]{1,7}$/D', $p)) || (is_int($p) && $p >= 0) ? intval($p) : 0;

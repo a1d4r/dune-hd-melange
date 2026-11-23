@@ -1,12 +1,16 @@
 <?php
 // The section "На TorrServer": the torrents kept by TorrServer (POST /torrents list), as they are - no title of
 // Melange, no card. Here the data only: the read of the list, its entries, their video files, the uid of a start; the
-// run of a start ("get", its step, the lines of its wait, its playlist); no firmware API. Reads Mel::$settings, writes MelTsl. Functions are global; the require order is in main.php.
+// run of a start ("get", its step, the lines of its wait, its playlist); the screen of files of a pack (its groups of
+// folders, its lines, the marks of TorrServer "viewed", the file it opens on); no firmware API. Reads Mel::$settings,
+// writes MelTsl. Functions are global; the require order is in main.php.
 
 // The tiles of the section at most: those of a "Show all" screen; the entries past them are logged, not shown.
 define('MEL_TSL_MAX', MEL_CATV_ALL_COLS * MEL_CATV_ALL_ROWS);
 // The total s of the request of the list (its connect 1 s, mel_ts_call).
 define('MEL_TSL_LIST_S', 3);
+// The total s of the request of the marks "viewed" of a torrent (the screen of files).
+define('MEL_TSL_VIEWED_S', 2);
 // The prefix of the uid of a start from the section: "aiots:<hash>:<file id>". Not "aio:": that is a release of
 // Melange with a card (mel_cp_ours, mel_wh_ours_all, mel_wh_uid).
 define('MEL_TSL_UID', 'aiots');
@@ -16,6 +20,10 @@ class MelTsl
     // The entries of the list last read, hash => entry in the order of the section; null: none read.
     /** @var array<string, MelTsEntry>|null */
     public static $list = null;
+    // The files of file_stats of torrents whose entry knew none (a record of Lampa), hash => files: a read of the list
+    // anew (mel_tsl_load) keeps them (mel_tsl_files_of).
+    /** @var array<string, list<MelTsFile>> */
+    public static $files = array();
 }
 
 // The list of the TorrServer of the settings -> array(entries in the order of the section or null on an error,
@@ -212,6 +220,32 @@ function mel_tsl_path_cmp($a, $b)
 function mel_tsl_videos($e)
 {
     return $e['files'] === null ? null : mel_tsl_videos_of($e['files']);
+}
+
+// The files of torrent $hash: those of its entry in memory, else those of its file_stats kept (mel_tsl_files_keep); null
+// none known. The screen of files and a start read them here.
+/**
+ * @param string $hash
+ * @return list<MelTsFile>|null
+ */
+function mel_tsl_files_of($hash)
+{
+    if (isset(MelTsl::$list[$hash]) && MelTsl::$list[$hash]['files'] !== null)
+        return MelTsl::$list[$hash]['files'];
+    return isset(MelTsl::$files[$hash]) ? MelTsl::$files[$hash] : null;
+}
+
+// The files $files of file_stats of torrent $hash kept, if its entry knows none (not in memory too) -> $files.
+/**
+ * @param string $hash
+ * @param list<MelTsFile> $files
+ * @return list<MelTsFile>
+ */
+function mel_tsl_files_keep($hash, $files)
+{
+    if (!isset(MelTsl::$list[$hash]) || MelTsl::$list[$hash]['files'] === null)
+        MelTsl::$files[$hash] = $files;
+    return $files;
 }
 
 // What OK on a torrent with video files $videos (null: not known) starts: 'movie' - its one video file, 'pack' - the
@@ -429,4 +463,164 @@ function mel_tsl_playlist($e, $files, $id, $base)
         $items[] = array('id' => $f['id'], 'name' => $all === 1 ? $e['title'] : mel_tsl_file_name($f),
             'url' => mel_ts_url($base, $e['hash'], $f), 'uid' => mel_tsl_uid($e['hash'], $f['id']), 'path' => $f['path']);
     return array($items, $k - $from, $all);
+}
+
+// --- The screen of files of a pack (view_ts_files.php shows it).
+
+// The groups of video files $v (in their order, mel_tsl_videos_of) by folder: the folder of a file with no folder all of
+// them share ('' a file there), each run of files of one folder in a row a group -> array(the runs: dir, from (the index
+// in $v of its first), n, size (bytes); flat: one folder for all - no lines of groups). Nested folders: dir the whole
+// path ("Season 1/Extras"). The order of the paths first: a folder may come as two runs ("S1/a", "S1/b/c", "S1/d").
+/**
+ * @param list<MelTsFile> $v
+ * @return array{list<array{dir: string, from: int, n: int, size: float}>, bool}
+ */
+function mel_tsl_runs($v)
+{
+    $dirs = array();
+    $root = null;
+    foreach ($v as $f)
+    {
+        $p = strrpos($f['path'], '/');
+        $d = $p === false ? '' : substr($f['path'], 0, $p);
+        $dirs[] = $d;
+        if ($root === null)
+            $root = $d;
+        // The longest folder all share: up to the folder over it while it is not one of $d.
+        while ($root !== '' && $d !== $root && strpos($d, $root . '/') !== 0)
+        {
+            $q = strrpos($root, '/');
+            $root = $q === false ? '' : substr($root, 0, $q);
+        }
+    }
+    $runs = array();
+    $cur = null;
+    foreach ($v as $i => $f)
+    {
+        $d = $dirs[$i] === $root ? '' : ($root === '' ? $dirs[$i] : substr($dirs[$i], strlen((string) $root) + 1));
+        if ($cur !== null && $cur['dir'] === $d)
+        {
+            $cur['n']++;
+            $cur['size'] += $f['size'];
+            continue;
+        }
+        if ($cur !== null)
+            $runs[] = $cur;
+        $cur = array('dir' => $d, 'from' => $i, 'n' => 1, 'size' => $f['size']);
+    }
+    if ($cur !== null)
+        $runs[] = $cur;
+    return array($runs, count($runs) < 2);
+}
+
+// The lines of the screen of files of runs $runs (mel_tsl_runs; $flat: no lines of groups): the line of each group, the
+// lines of its files under it when it is open ($open: the index of a run => true) -> list of array('g', the index of the
+// run) or array('f', the index of the file in the video files).
+/**
+ * @param list<array{dir: string, from: int, n: int, size: float}> $runs
+ * @param bool $flat
+ * @param array<int, bool> $open
+ * @return list<array{string, int}>
+ */
+function mel_tsl_lines($runs, $flat, $open)
+{
+    $out = array();
+    foreach ($runs as $k => $r)
+    {
+        if (!$flat)
+            $out[] = array('g', $k);
+        if (!$flat && !isset($open[$k]))
+            continue;
+        for ($i = $r['from']; $i < $r['from'] + $r['n']; $i++)
+            $out[] = array('f', $i);
+    }
+    return $out;
+}
+
+// The run of runs $runs (mel_tsl_runs) of the video file of index $i, 0 none.
+/**
+ * @param list<array{dir: string, from: int, n: int, size: float}> $runs
+ * @param int $i
+ * @return int
+ */
+function mel_tsl_run_of($runs, $i)
+{
+    foreach ($runs as $k => $r)
+    {
+        if ($i >= $r['from'] && $i < $r['from'] + $r['n'])
+            return $k;
+    }
+    return 0;
+}
+
+// The file the screen of files opens on, its index in video files $v ($seen: the ids marked viewed, mel_tsl_viewed): the
+// one after the last marked; the last marked the last file, or none marked: the first not marked; all marked: the first.
+/**
+ * @param list<MelTsFile> $v
+ * @param array<int, bool> $seen
+ * @return int
+ */
+function mel_tsl_next_file($v, $seen)
+{
+    $last = -1;
+    $first = -1;
+    foreach ($v as $i => $f)
+    {
+        if (isset($seen[$f['id']]))
+            $last = $i;
+        else if ($first < 0)
+            $first = $i;
+    }
+    if ($last >= 0 && $last < count($v) - 1)
+        return $last + 1;
+    return $first >= 0 ? $first : 0;
+}
+
+// The files of torrent $hash marked viewed by TorrServer (POST /viewed {"action":"list"}, the address and the login of the
+// list, MEL_TSL_VIEWED_S s) -> their ids => true; an error, not a list, «Без торрентов» - none (a line of the log).
+/**
+ * @param string $hash
+ * @return array<int, bool>
+ */
+function mel_tsl_viewed($hash)
+{
+    if (Mel::$settings['no_torrents'])
+        return array();
+    $t = microtime(true);
+    $r = mel_ts_call(Mel::$settings['ts'] . '/viewed', (string) json_encode(array('action' => 'list', 'hash' => $hash)),
+        MEL_TSL_VIEWED_S, Mel::$settings['ts_auth']);
+    $head = sprintf('ts section: viewed %s: ', $hash);
+    $ms = (microtime(true) - $t) * 1000;
+    if ($r['err'] !== '' || $r['code'] !== 200)
+    {
+        mel_log($head . sprintf('%s, %.0f ms, no marks', $r['err'] !== '' ? $r['err'] : "HTTP {$r['code']}", $ms));
+        return array();
+    }
+    $seen = mel_tsl_viewed_parse($r['body'], $hash);
+    mel_log($head . ($seen === null ? 'not a list, no marks' : sprintf('%d marks, %.0f ms', count($seen), $ms)));
+    return $seen === null ? array() : $seen;
+}
+
+// The body of a reply of /viewed list -> the file ids (file_index, from 1) of torrent $hash in it => true; JSON null
+// (TorrServer: none marked) none; null: neither a JSON array nor null.
+/**
+ * @param string $body
+ * @param string $hash
+ * @return array<int, bool>|null
+ */
+function mel_tsl_viewed_parse($body, $hash)
+{
+    if (trim($body) === 'null')
+        return array();
+    $j = mel_ts_decode($body);
+    if ($j === null || ($j !== array() && array_keys($j) !== range(0, count($j) - 1)))
+        return null;
+    $out = array();
+    foreach ($j as $x)
+    {
+        if (is_array($x) && strtolower(mel_str($x, 'hash')) === $hash && isset($x['file_index']) && is_int($x['file_index']) &&
+            $x['file_index'] > 0)
+            $out[$x['file_index']] = true;
+    }
+    return $out;
 }

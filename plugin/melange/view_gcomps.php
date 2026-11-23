@@ -346,40 +346,44 @@ function mel_gc_put_cursor($st, $sel, $was)
     return $st;
 }
 
-// One key: up, down, pgup (P+), pgdn (P-). A page keeps the row on screen.
+// One key: up, down, pgup (P+), pgdn (P-), $vis rows on the screen (the screen of files of a pack: its own). A page
+// keeps the row on screen.
 /**
  * @param int $sel
  * @param int $top
  * @param int $n
  * @param 'up'|'down'|'pgup'|'pgdn' $key
+ * @param int $vis
  * @return array{int, int}
  */
-function mel_gc_step($sel, $top, $n, $key)
+function mel_gc_step($sel, $top, $n, $key, $vis = MEL_GC_VIS)
 {
-    $d = array('up' => -1, 'down' => 1, 'pgup' => -MEL_GC_VIS, 'pgdn' => MEL_GC_VIS);
-    $max_top = max(0, $n - MEL_GC_VIS);
+    $d = array('up' => -1, 'down' => 1, 'pgup' => -$vis, 'pgdn' => $vis);
+    $max_top = max(0, $n - $vis);
     $nsel = max(0, min($n - 1, $sel + $d[$key]));
     $ntop = abs($d[$key]) > 1 ? max(0, min($max_top, $top + $d[$key])) : $top;
     if ($nsel < $ntop)
         $ntop = $nsel;
-    else if ($nsel >= $ntop + MEL_GC_VIS)
-        $ntop = $nsel - MEL_GC_VIS + 1;
+    else if ($nsel >= $ntop + $vis)
+        $ntop = $nsel - $vis + 1;
     return array($nsel, $ntop);
 }
 
 // The rows of a list of $n rows on the screen with $top first visible: array(first, past the last). A step costs the
 // shell by all the components of the screen, so not all the rows: the visible ones and at least a page (MEL_GC_VIS)
 // above and below them, so that the animated scroll of a page (P+, P-) or of a row never shows a row missing; the
-// window moves by MEL_GC_WIN_STEP rows, 41 rows in all. Of the top only: a sel_state has always the same screen.
+// window moves by MEL_GC_WIN_STEP rows, 41 rows in all. Of the top only: a sel_state has always the same screen. $vis:
+// the rows on the screen (the screen of files of a pack: its own).
 /**
  * @param int $top
  * @param int $n
+ * @param int $vis
  * @return array{int, int}
  */
-function mel_gc_win($top, $n)
+function mel_gc_win($top, $n, $vis = MEL_GC_VIS)
 {
     $b = $top - $top % MEL_GC_WIN_STEP;
-    return array(max(0, $b - MEL_GC_VIS), min($n, $b + MEL_GC_WIN_STEP - 1 + 2 * MEL_GC_VIS));
+    return array(max(0, $b - $vis), min($n, $b + MEL_GC_WIN_STEP - 1 + 2 * $vis));
 }
 
 // The key of a move of input $in (its 'd' of mel_gc_act: up, down, pgup, pgdn), null another.
