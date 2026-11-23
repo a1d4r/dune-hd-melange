@@ -17,6 +17,10 @@ define('MEL_TSL_LIST_S', 10);
 // them in, and the 80 MB over it cover a json_decode of one more entry (~11 times its text: a pack of 10 000 files,
 // ~1.5 MB, ~17 MB for a moment), the screen of the tiles and the other screens of the plugin after it.
 define('MEL_TSL_MEM', 50331648);
+// The text of one entry at most (bytes): a longer one (a pack of 50 000 files and more, 6-10 MB) is skipped as not JSON,
+// its text not kept - its json_decode would take ~11 times as much, over the memory_limit of php_server. 2 MB: a pack of
+// ~13 000 files, ~23 MB for a moment, within the 80 MB over MEL_TSL_MEM.
+define('MEL_TSL_ENTRY_MAX', 2097152);
 // The total s of the request of the marks "viewed" of a torrent (the screen of files).
 define('MEL_TSL_VIEWED_S', 2);
 // The prefix of the uid of a start from the section: "aiots:<hash>:<file id>". Not "aio:": that is a release of
@@ -40,8 +44,9 @@ class MelTsl
 // The read of the reply of "list" as it comes, chunk by chunk (feed; mel_ts_call with a sink): TorrServer has no pages,
 // its list is one JSON array, newest first (timestamp). A scanner keeps the depth of the brackets and whether it is in a
 // string (a quote after an odd run of backslashes is in it: "data" is JSON in a string); each element of the array, once
-// closed, is decoded alone (mel_ts_decode) and its text dropped: the whole reply is never kept. An element is an object
-// or an array; a scalar between them is skipped, not counted. No firmware API, no request.
+// closed, is decoded alone (mel_ts_decode) and its text dropped: the whole reply is never kept; one over
+// MEL_TSL_ENTRY_MAX is scanned to its end, its text not kept, and counted not JSON. An element is an object or an array;
+// a scalar between them is skipped, not counted. No firmware API, no request.
 class MelTslScan
 {
     // The text not taken yet: from the start of the open element (or '' between them).
@@ -52,6 +57,9 @@ class MelTslScan
     public $pos = 0;
     /** @var int */
     public $from = -1;
+    // The open element is over MEL_TSL_ENTRY_MAX: its text dropped ($from -1), the scan goes on to its end.
+    /** @var bool */
+    public $long = false;
     // The brackets open: 1 - in the array, 2 and more - in an element.
     /** @var int */
     public $depth = 0;
@@ -89,7 +97,8 @@ class MelTslScan
         $this->mem = $mem;
     }
 
-    // A chunk of the reply -> go on reading (false: the read is over - the end of the array, not an array, a stop).
+    // A chunk of the reply -> go on reading (false: the read is over - the end of the array, not an array, a stop; spaces
+    // only before "[" - on).
     /**
      * @param string $chunk
      * @return bool
@@ -104,7 +113,21 @@ class MelTslScan
             $this->scan();
         }
         $this->ms += (microtime(true) - $t) * 1000;
-        return $this->state === 'list' && $this->stop === '';
+        return ($this->state === 'list' || $this->state === 'start') && $this->stop === '';
+    }
+
+    // Why the read ended, after its last chunk: 'not' - not a list (no "[", not an array, every element not JSON); 'max',
+    // 'memory' - stopped there ($stop); 'open' - no end of the array (a reply cut); 'end' - its "]".
+    /**
+     * @return string
+     */
+    public function verdict()
+    {
+        if ($this->state === 'start' || $this->state === 'not' || ($this->n > 0 && $this->bad === $this->n))
+            return 'not';
+        if ($this->stop !== '')
+            return $this->stop;
+        return $this->state === 'list' ? 'open' : 'end';
     }
 
     /**
@@ -119,18 +142,21 @@ class MelTslScan
         {
             if ($this->str)
             {
-                // The closing quote: the first after an even run of backslashes (none too). PCRE scans the string (S:
-                // studied, it jumps to a backslash or a quote): 3 times as fast as strpos of each quote, the data is
-                // JSON with its quotes escaped.
-                if (!preg_match('/(?<!\\\\)(?:\\\\\\\\)*"/S', $b, $m, PREG_OFFSET_CAPTURE, $i))
-                {
-                    // Not in this chunk: on from the run of backslashes at its end, if any.
-                    $i = $len;
-                    while ($i > 0 && $b[$i - 1] === '\\')
-                        $i--;
+                // The closing quote: the first not escaped - a backslash takes the byte after it, whatever it is. Not a
+                // regex: PCRE 8.11 of the Dune recurses on its stack over a run of 40 000 backslashes and more and takes
+                // php_server down.
+                $i += strcspn($b, "\\\"", $i);
+                if ($i >= $len)
                     break;
+                if ($b[$i] === '\\')
+                {
+                    // Its byte in the next chunk: on from the backslash.
+                    if ($i + 1 >= $len)
+                        break;
+                    $i += 2;
+                    continue;
                 }
-                $i = $m[0][1] + strlen($m[0][0]);
+                $i++;
                 $this->str = false;
                 continue;
             }
@@ -163,8 +189,11 @@ class MelTslScan
             }
             else if (--$this->depth === 1)
             {
-                $this->take(mel_ts_decode(substr($b, $this->from, $i - $this->from)));
+                // Over MEL_TSL_ENTRY_MAX (its text dropped, or whole in this chunk): not decoded, not JSON.
+                $this->take($this->long || $i - $this->from > MEL_TSL_ENTRY_MAX ? null :
+                    mel_ts_decode(substr($b, $this->from, $i - $this->from)));
                 $this->from = -1;
+                $this->long = false;
             }
             else if ($this->depth === 0)
             {
@@ -172,7 +201,13 @@ class MelTslScan
                 break;
             }
         }
-        // The open element kept, nothing before it; between elements nothing scanned.
+        if ($this->from >= 0 && $len - $this->from > MEL_TSL_ENTRY_MAX)
+        {
+            $this->from = -1;
+            $this->long = true;
+        }
+        // The open element kept, nothing before it (over MEL_TSL_ENTRY_MAX: nothing scanned); between elements nothing
+        // scanned.
         $keep = $this->from >= 0 ? $this->from : $i;
         $this->buf = $keep > 0 ? (string) substr($b, $keep) : $b;
         $this->pos = $i - $keep;
@@ -228,7 +263,8 @@ class MelTslScan
 // the key of the error ('' none), its detail); kept in MelTsl when read, none kept on an error. Every open of the
 // section reads it anew, as it comes (MelTslScan): up to MEL_TSL_MAX entries kept or MelTsl::$mem_max of memory, the
 // newest (TorrServer sends them first); cut (its time out, a break) - the entries read, none - ts_err_down. Not an
-// array, every element not JSON, cut with no entry: tsl_err_bad; an element not JSON is skipped.
+// array, every element not JSON, cut with no entry, the guard of memory before any entry: tsl_err_bad; an element not
+// JSON (or over MEL_TSL_ENTRY_MAX) is skipped.
 /**
  * @return array{list<MelTsEntry>|null, string, string}
  */
@@ -259,19 +295,24 @@ function mel_tsl_load()
         return $r['code'] === 401 ? array(null, mel_ts_auth_err(), '') : array(null, 'tsl_err_bad', "HTTP {$r['code']}");
     }
     $line = $head . sprintf('HTTP 200, %d bytes, %.0f ms, parse %.0f ms, ', $scan->bytes, $ms, $scan->ms);
-    $open = $scan->state === 'list' && $scan->stop === '';
-    if ($scan->state === 'start' || $scan->state === 'not' || ($scan->n > 0 && $scan->bad === $scan->n) ||
-        ($open && !$cut && !$scan->out))
+    $v = $scan->verdict();
+    if ($v === 'not' || ($v === 'open' && !$cut && !$scan->out))
     {
         mel_log($line . sprintf('%d entries, %d bad, not a list', $scan->n, $scan->bad));
         return array(null, 'tsl_err_bad', 'not a list');
     }
     $why = array('max' => 'stopped at ' . MEL_TSL_MAX, 'memory' => sprintf('stopped at memory %.1f MB',
         MelTsl::$mem_max / 1048576));
-    if ($scan->stop !== '')
-        $how = $why[$scan->stop];
+    // Stopped by the guard before any entry: nothing to show, an error - not an empty section.
+    if ($v === 'memory' && !$scan->out)
+    {
+        mel_log($line . sprintf('%d entries, %d bad, %s, no entry', $scan->n, $scan->bad, $why['memory']));
+        return array(null, 'tsl_err_bad', 'memory');
+    }
+    if (isset($why[$v]))
+        $how = $why[$v];
     else
-        $how = $cut ? "cut: {$r['err']}" : ($open ? 'cut: no end of the list' : 'the end');
+        $how = $cut ? "cut: {$r['err']}" : ($v === 'open' ? 'cut: no end of the list' : 'the end');
     $list = $scan->entries();
     mel_log($line . sprintf('%d entries, %d kept, ', $scan->n, count($list)) . ($scan->bad ? "{$scan->bad} bad, " : '') .
         sprintf('%s, peak %.1f MB', $how, memory_get_peak_usage() / 1048576));
