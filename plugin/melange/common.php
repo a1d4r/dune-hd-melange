@@ -5,7 +5,7 @@
 // PHP 5.3: no firmware API, no logging here.
 // Types in the PHPDoc (MelSettings and others): phpstan-types.neon of the repository.
 
-define('MEL_VERSION', '0.68.1');
+define('MEL_VERSION', '0.69.0');
 // HTTPS works only with the firmware CA bundle (curl of the plugin and the page).
 define('MEL_CA_BUNDLE', '/firmware/certs/ca-bundle.crt');
 // In data_dir: written by the settings page and by the plugin (the quick setup, the rows of
