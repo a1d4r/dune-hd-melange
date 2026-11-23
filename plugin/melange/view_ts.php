@@ -398,14 +398,16 @@ function mel_tsl_info($id)
 // The background of the panel of a tile of the section (the shape of mel_catv_card) in the mode $on (cat_logo): the
 // wallpaper (MEL_TSL_BG) in vod_r, not our dark card0.jpg; a reply with no bg_url is black, the shell has no "none" for a
 // tile. On: no mask (MEL_CATV_IMG . 'mask.png' here would dim the left of the screen under the text); off: our mask, as
-// any fanart there.
+// any fanart there. nl_bg_url: card0.jpg, not the wallpaper: the shell takes it after a failed bg_url only when it is
+// another address (a skin with no images/bg.jpg).
 /**
  * @param bool $on
  * @return array{bg: string, nl: string|null, mask: string|null, logo: bool}
  */
 function mel_tsl_card($on)
 {
-    return array('bg' => MEL_TSL_BG, 'nl' => MEL_TSL_BG, 'mask' => $on ? null : MEL_CATV_IMG . 'mask.png', 'logo' => false);
+    return array('bg' => MEL_TSL_BG, 'nl' => MEL_CATV_IMG . 'card0.jpg', 'mask' => $on ? null : MEL_CATV_IMG . 'mask.png',
+        'logo' => false);
 }
 
 // ENTER on tile $id of the screen (mel_tsl_is_tile), the one place a torrent branches: its entry (mel_tsl_find: in
