@@ -18,7 +18,7 @@ In the catalog, movies and series on the disk have a disk icon in the top right 
 
 ## Series
 
-1. Open the series card. Episodes that are on the disk have a disk icon on their thumbnail; to the right of the seasons you'll see how many episodes of the season are on the disk. The focused episode shows the quality and file size.
+1. Open the series card. Episodes on the disk have a disk icon.
 
    <img src="../screenshots/library-series.jpg" alt="Melange card for House of the Dragon, season 3: disk icons on the episode thumbnails, on the right Season 3 · 8 episodes · 8 on disk, episode 4 shows 4K Vision Atmos 5.1 · 9.1 GB" width="100%">
 
@@ -28,7 +28,7 @@ In the catalog, movies and series on the disk have a disk icon in the top right 
 
    <img src="../screenshots/library-next-missing.jpg" alt="Dialog: Episode S3 E5 is not on the disk, with the buttons Choose a release and Stop" width="100%">
 
-An episode stopped during the end credits is marked as watched. You can also resume anything started from the disk from the Continue Watching row on the Dune home screen ([Watching](watch.en.md#continue)).
+You can also resume anything started from the disk from the Continue Watching row on the Dune home screen ([Watching](watch.en.md#continue)).
 
 ## If it didn't work
 
