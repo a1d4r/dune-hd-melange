@@ -28,8 +28,6 @@ In the catalog, movies and series on the disk have a disk icon in the top right 
 
    <img src="../screenshots/library-next-missing.jpg" alt="Dialog: Episode S3 E5 is not on the disk, with the buttons Choose a release and Stop" width="100%">
 
-You can also resume anything started from the disk from the Continue Watching row on the Dune home screen ([Watching](watch.en.md#continue)).
-
 ## If it didn't work
 
 - No "From disk" line and no icons: the file isn't in the Dune media library. Open the movie in the Dune Movies catalog: if the file isn't there, Melange can't see it either.
