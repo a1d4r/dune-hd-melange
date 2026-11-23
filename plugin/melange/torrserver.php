@@ -1019,10 +1019,7 @@ function mel_ts_wait_status($j, $buf, $lang)
         mel_cut($stat, 30)), null);
 }
 
-// Controls of the waiting dialog (0.45.0): the release; the status in words
-// (none: "waiting for the file list"; $buf, the preload: the MB of its target),
-// seconds, peers, connected seeders; the download speed (mel_ts_speed), always:
-// the window keeps its height; with $buf the bit rate of the row, if known; "Cancel".
+// Controls of the waiting dialog (0.45.0) of row $r of $st (mel_ts_wait_ctls; $lazy: «Отмена» stops the player).
 /**
  * @param MelState $st
  * @param MelRow $r
@@ -1034,22 +1031,40 @@ function mel_ts_wait_status($j, $buf, $lang)
  */
 function mel_ts_wait_defs($st, $r, $sec, $j, $lazy = false, $buf = false)
 {
-    $lang = $st['lang'];
+    return mel_ts_wait_ctls($st['lang'], $r['label'], $r['rate'], $sec, $j, $buf, mel_input($lazy ? 'next_stop' : 'ts_cancel'));
+}
+
+// Controls of the waiting dialog: the label $label of what opens; the status in words (none: "waiting for the file
+// list"; $buf, the preload: the MB of its target), seconds $sec, peers, connected seeders of TorrentStatus $j; the
+// download speed (mel_ts_speed), always: the window keeps its height; with $buf the bit rate $rate, if known (> 0);
+// "Cancel" with action $cancel. The start from the list of releases and from the section "На TorrServer" alike.
+/**
+ * @param string $lang
+ * @param string $label
+ * @param float $rate
+ * @param int $sec
+ * @param array<mixed>|null $j
+ * @param bool $buf
+ * @param MelAction $cancel
+ * @return list<array<string, mixed>>
+ */
+function mel_ts_wait_ctls($lang, $label, $rate, $sec, $j, $buf, $cancel)
+{
     list($status) = mel_ts_wait_status($j, $buf ? 'ts_wait_buf' : '', $lang);
     $defs = array();
-    foreach (mel_dialog_lines($r['label']) as $l)
+    foreach (mel_dialog_lines($label) as $l)
         $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l));
     $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption =>
         str_replace(array('{status}', '{sec}'), array($status, $sec), mel_tr($lang, 'ts_wait_line'))));
     $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{peers}', '{all}', '{seeds}'),
         array(mel_ts_int($j, 'active_peers'), mel_ts_int($j, 'total_peers'), mel_ts_int($j, 'connected_seeders')),
         mel_tr($lang, 'ts_wait_peers'))));
-    $rate = $buf && $r['rate'] > 0;
+    $need = $buf && $rate > 0;
     $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => str_replace(array('{speed}', '{rate}'),
         array(mel_ts_speed(is_array($j) && isset($j['download_speed']) ? $j['download_speed'] : null, $lang),
-        $rate ? mel_gc_rate($r['rate'], false, $lang) : ''), mel_tr($lang, $rate ? 'ts_wait_speed_need' : 'ts_wait_speed'))));
+        $need ? mel_gc_rate($rate, false, $lang) : ''), mel_tr($lang, $need ? 'ts_wait_speed_need' : 'ts_wait_speed'))));
     $defs[] = mel_ctl('cancel', GUI_CONTROL_BUTTON, array(GuiButtonDef::caption => mel_tr($lang, 'ts_cancel'),
-        GuiButtonDef::width => 300, GuiButtonDef::push_action => mel_input($lazy ? 'next_stop' : 'ts_cancel')));
+        GuiButtonDef::width => 300, GuiButtonDef::push_action => $cancel));
     return $defs;
 }
 

@@ -8,12 +8,11 @@
 // (/viewed, read when the screen opens and back from the player); under them «P+ P−» and "12 / 73". The plugin draws and
 // moves the focus as the list of releases (view_gcomps.php): only the window of lines (mel_gc_win_changes), the position
 // in sel_state. ENTER on a group: open or close it (the screen replaced, "tsf:<hash>:<n>"); on a file: its start
-// (mel_tsl_start with the record of the screen: the wait window and the error dialog over it), the playlist from it on.
+// (mel_tsl_start: the waiting dialog and the error dialog over the screen), the playlist from it on.
 // Back from the player (the shell does not ask for the screen anew): the screen replaced, the marks read anew. The screen
 // opens on the file started last from it (memory) when no file after it is marked viewed, else on the one after the last
 // marked (mel_tsl_next_file), its group open. Needs ts_list.php, view_ts.php, view_ts_play.php, view_gcomps.php,
-// kit.php, kit_ovl.php, kit_dlg.php, view_my_list.php (mel_mlv_key_acts), egg.php, main.php. PHP 5.3.6, firmware API
-// only.
+// kit.php, egg.php, main.php. PHP 5.3.6, firmware API only.
 
 define('MEL_TSF_URL', 'tsf:');
 // The list: its top, the lines on the screen (the 3D of the designer: 13 lines from y 130 to 962, the title above).
@@ -35,7 +34,7 @@ define('MEL_TSF_GROUP_W', 700);
 class MelTsf
 {
     // The screen of files shown last, null none (memory of php_server): hash, e (its entry), rid (the owner of its keys
-    // and its overlay), url (its address), v (the video files in order), runs, flat (mel_tsl_runs), open (the runs open),
+    // and the screen), url (its address), v (the video files in order), runs, flat (mel_tsl_runs), open (the runs open),
     // lines (mel_tsl_lines), seen (the ids marked viewed), marked (one of v among them: the names move for the checks), sel,
     // top (of the lines), new (its next view takes sel and top, not the sel_state of the shell).
     /** @var MelTsfScreen|null */
@@ -49,7 +48,7 @@ class MelTsf
 }
 
 // The screen of files of torrent $hash, its files $files (kept: mel_tsl_files_keep) -> plugin_open_folder of "tsf:<hash>"
-// (the wait screen leaves for it in its place, mel_ks_leave); it opens anew (the file of mel_tsl_next_file or started last).
+// (after the waiting dialog: closed first); it opens anew (the file of mel_tsl_next_file or started last).
 /**
  * @param string $hash
  * @param list<MelTsFile> $files
@@ -195,8 +194,7 @@ function mel_tsf_acts($s)
 }
 
 // The components of screen $s: the background, the side (mel_tsf_side), the card of the line in focus, the title, the window of lines in
-// the clipping panel 'list', the scroll bar and the hint with more lines than the screen, the counter, the slot of the
-// overlay last.
+// the clipping panel 'list', the scroll bar and the hint with more lines than the screen, the counter.
 /**
  * @param MelTsfScreen $s
  * @return list<MelGcComp>
@@ -233,7 +231,6 @@ function mel_tsf_window($s)
     $right = MEL_GC_LX + MEL_GC_LW - MEL_GC_PAD;
     $d[] = mel_gc_panel('counter', mel_gc_at(MEL_GC_COUNT_W, MEL_K_KEY_H, $right - MEL_GC_COUNT_W,
         MEL_GC_HINT_MID - intval(MEL_K_KEY_H / 2)), mel_tsf_count($s, $sel));
-    $d[] = mel_ovl_slot();
     return $d;
 }
 
@@ -416,23 +413,11 @@ function mel_tsf_marked($v, $seen)
     return false;
 }
 
-// The record of screen $s for its overlay (MelOvlScreen, kit_ovl.php): its rid, its map with the keys Fav, no timer, its
-// sel_state.
-/**
- * @param MelTsfScreen $s
- * @return MelOvlScreen
- */
-function mel_tsf_scr($s)
-{
-    return array('owner' => $s['rid'], 'map' => mel_tsf_acts($s) + mel_mlv_key_acts($s['url']), 'timer' => null,
-        'sel' => mel_gc_state($s['sel'], $s['top']));
-}
-
 // tsf_move, tsf_pick, tsf_finish of the screen of files: the position of the shell (parent_sel_state), else the one kept.
 // A key of a screen not kept (a restart of php_server, another screen made since): the screen of files of its hash built
 // anew in its place. A move: change_gcomps (none at an edge) - the plate of the focus, the window of lines that follows
 // the top (mel_gc_win_changes), the two lines, the card, the counter. ENTER on a group: open or close it, the screen
-// replaced; on a file: its start (mel_tsl_start with the record of the screen), the file kept as started last. Back from
+// replaced; on a file: its start (mel_tsl_start), the file kept as started last. Back from
 // the player: mel_tsf_finish.
 /**
  * @param stdClass $in
@@ -484,8 +469,8 @@ function mel_tsf_input($in, $control)
 }
 
 // ENTER on line $sel of screen $s ($top first on the screen): a group open or closed - the lines anew, the focus on it,
-// the screen replaced ("tsf:<hash>:<n>", its next view by the kept position); a file - its start (mel_tsl_start with the
-// record of the screen: the wait window, the error dialog over it), kept as started last.
+// the screen replaced ("tsf:<hash>:<n>", its next view by the kept position); a file - its start (mel_tsl_start: the
+// waiting dialog, the error dialog over the screen), kept as started last.
 /**
  * @param MelTsfScreen $s
  * @param int $sel
@@ -505,7 +490,7 @@ function mel_tsf_pick($s, $sel, $top)
         MelTsf::$last[$s['hash']] = $f['id'];
         MelTsf::$s = $s;
         mel_log("ts section: files screen of {$s['hash']}: file {$f['id']}, line $sel");
-        return mel_tsl_start($s['e'], $f['id'], 0, mel_tsf_scr($s));
+        return mel_tsl_start($s['e'], $f['id'], 0);
     }
     if (isset($s['open'][$i]))
         unset($s['open'][$i]);

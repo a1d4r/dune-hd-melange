@@ -81,8 +81,8 @@ function mel_tsl_read()
 }
 
 // The title (the cause) and the text (what to do) of error $key of the list (mel_tsl_load) in language $lang (4B, 4C of
-// the designer); the detail $detail of tsl_err_bad (the code, "not a list") after the text, none of another error (no
-// answer: the error of curl).
+// the designer); of tsl_err_bad with its detail $detail (the code, "not a list") its line of the address after the text
+// (mel_tsl_addr), none of another error (no answer: the error of curl).
 /**
  * @param string $key
  * @param string $lang
@@ -95,12 +95,26 @@ function mel_tsl_err_texts($key, $lang, $detail)
         'ts_err_off' => 'off');
     $n = isset($names[$key]) ? $names[$key] : 'bad';
     $text = mel_tr($lang, "tsl_{$n}_text");
-    return array(mel_tr($lang, "tsl_{$n}_title"), $n === 'bad' && $detail !== '' ? "$text $detail" : $text);
+    return array(mel_tr($lang, "tsl_{$n}_title"), $n === 'bad' && $detail !== '' ? "$text " . mel_tsl_addr($lang, $detail) : $text);
+}
+
+// The line of the address of TorrServer under an error of the list: «Адрес: <url>», of a reply not 200 (detail $detail
+// "HTTP <code>") « · HTTP <code>» after it.
+/**
+ * @param string $lang
+ * @param string $detail
+ * @return string
+ */
+function mel_tsl_addr($lang, $detail)
+{
+    $addr = str_replace('{url}', Mel::$settings['ts'], mel_tr($lang, 'tsl_addr'));
+    return strpos($detail, 'HTTP ') === 0 ? "$addr \xC2\xB7 $detail" : $addr;
 }
 
 // The kit error screen of error $key of the list (mel_tsl_load; $detail: its detail) over screen $from (4B, 4C of the
 // designer): its title and text (mel_tsl_err_texts); no answer - «Повторить», «Настройки» and the address
-// of TorrServer under them; not a list - «Повторить», «Настройки» and the detail; the password, «Без торрентов» -
+// of TorrServer under them; not a list - «Повторить», «Настройки» and the address with the code (mel_tsl_addr); the
+// password, «Без торрентов» -
 // «Настройки». «Назад» after them (mel_ks_rows_error).
 /**
  * @param string $key
@@ -116,10 +130,8 @@ function mel_tsl_error($key, $detail, $from)
     $setup = array('label' => mel_tr($lang, 'setup_menu'), 'icon' => 'k_icon_settings', 'act' => mel_setup_open_act($from));
     $own = array('ts_err_down' => array($retry, $setup), 'tsl_err_bad' => array($retry, $setup));
     $d = array('buttons' => isset($own[$key]) ? $own[$key] : array($setup));
-    if ($key === 'ts_err_down')
-        $d['detail'] = str_replace('{url}', Mel::$settings['ts'], mel_tr($lang, 'tsl_addr'));
-    else if ($key === 'tsl_err_bad')
-        $d['detail'] = $detail;
+    if ($key === 'ts_err_down' || $key === 'tsl_err_bad')
+        $d['detail'] = mel_tsl_addr($lang, $key === 'tsl_err_bad' ? $detail : '');
     mel_log("ts section: error $key");
     list($title, $text) = mel_tsl_err_texts($key, $lang, '');
     return mel_ks_rows_error($lang, mel_tr($lang, 'tsl_title'), $title, $text, $d);
@@ -388,13 +400,13 @@ function mel_tsl_enter($id)
     if ($key !== '')
         return mel_tsl_error($key, $detail, MEL_TSL_URL);
     if ($e === null)
-        return mel_tsl_fail_act(mel_catv_lang(), 'tsl_err_gone', '');
+        return mel_ts_fail(mel_catv_lang(), 'tsl_err_gone');
     $files = mel_tsl_files_of($hash);
     $v = $files === null ? null : mel_tsl_videos_of($files);
     $kind = mel_tsl_kind($v);
     mel_log("ts section: enter $hash kind $kind");
     if ($kind === 'none')
-        return mel_tsl_fail_act(mel_catv_lang(), 'ts_err_no_video', '');
+        return mel_ts_fail(mel_catv_lang(), 'ts_err_no_video');
     if ($kind === 'pack' && $files !== null)
         return mel_tsf_open($hash, $files);
     return mel_tsl_start($e, $kind === 'movie' && $v ? $v[0]['id'] : 0, 0);

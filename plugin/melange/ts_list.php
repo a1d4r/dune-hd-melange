@@ -7,8 +7,10 @@
 
 // The tiles of the section at most: those of a "Show all" screen; the read of the list stops at as many entries kept.
 define('MEL_TSL_MAX', MEL_CATV_ALL_COLS * MEL_CATV_ALL_ROWS);
-// The total s of the request of the list (its connect 1 s, mel_ts_call); a list cut by it shows what came.
-define('MEL_TSL_LIST_S', 3);
+// The total s of the request of the list (its connect 1 s, mel_ts_call: TorrServer down fails in 1 s); a list cut by it
+// shows what came. The parse runs in the callback of curl (MelTslScan::feed), inside this time, and on the ARM of the Dune
+// it is ~2x slower than on a PC: 10 s let a long list in whole.
+define('MEL_TSL_LIST_S', 10);
 // memory_get_usage (bytes) past which the read of the list stops on the entries it has (MelTsl::$mem_max). memory_limit
 // of php_server is 128 MB, and a fatal error there takes the whole plugin down. 1008 entries of 40 files (6.5 KB of
 // text each, a usual one) hold 36 MB in a 64-bit PHP 5.3, about half of it in the 32-bit one of the Dune: 48 MB lets
@@ -520,7 +522,7 @@ function mel_tsl_file_of($files, $id)
 // wait (mel_tsl_advance); 'files' - two video files and more and no file chosen: the screen of files; 'error'; 'wait'.
 // The errors as a start from the list of releases (mel_ts_tick): no answer to the first "get" (later ones wait on),
 // 401, 404 (TorrServer has it no more), no file_stats in MEL_TS_WAIT s or MEL_TS_TICKS "get", no video file or not the
-// file chosen. No firmware API, no request: the wait screen and the wait window run it alike.
+// file chosen. No firmware API, no request: the ticks of the waiting dialog run it (mel_tsl_tick).
 /**
  * @param MelTslRun $d
  * @param int $sec

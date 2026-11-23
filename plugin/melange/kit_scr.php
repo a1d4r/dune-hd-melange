@@ -16,9 +16,9 @@
 //   cases: mel_ks_rows_error (over the rows), mel_ks_player_error (pe_stop of the player with its code),
 //   mel_ks_no_releases (in place of an empty list).
 // - A wait, mel_ks_wait($w): its description that of the wait window (MelWaitDesc, kit_dlg.php) and the same ticks
-//   (mel_wait_new, mel_wait_step): its timer MEL_KS_TICK_MS (the next ones: its $ms), the first tick at once. A tick
-//   replies post: the screen leaves for it (the list of releases, the error screen); dialog: it leaves for the error
-//   screen of it, on the same look; else its map and timer again, then the blocks that changed. A button (ENTER, or RETURN on its cancel) leaves
+//   (mel_wait_new, mel_wait_step): its timer MEL_KS_TICK_MS, the first tick at once. A tick replies post: the screen
+//   leaves for it (the list of releases, the error screen); dialog: it leaves for the error screen of it, on the same
+//   look; else its map and timer again, then the blocks that changed. A button (ENTER, or RETURN on its cancel) leaves
 //   for its act, RETURN with no cancel button for the cancel of the description. Every key gives its map and its timer
 //   again.
 // To leave (mel_ks_leave): plugin_open_folder becomes plugin_replace_path of the same screen (Back from it goes where
@@ -110,17 +110,15 @@ function mel_ks_error($d, $caption = '')
         'end' => null), $caption !== '' ? $caption : $dlg['title']);
 }
 
-// The wait screen of description $w (see above) -> plugin_open_folder of it; its ticks after the first every $ms (a
-// tick that waits for a server, not for its own work: MEL_TS_TICK_MS of TorrServer). No function tick: null, logged.
+// The wait screen of description $w (see above) -> plugin_open_folder of it. No function tick: null, logged.
 /**
  * @param array<string, mixed> $w
  * @param string $caption
- * @param int $ms
  * @return MelAction|null
  */
-function mel_ks_wait($w, $caption = '', $ms = MEL_KS_TICK_MS)
+function mel_ks_wait($w, $caption = '')
 {
-    $s = mel_wait_new($w, $ms);
+    $s = mel_wait_new($w, MEL_KS_TICK_MS);
     if ($s === null)
         return null;
     mel_log('kit wait screen: «' . $s['title'] . "», tick {$s['tick']}");
