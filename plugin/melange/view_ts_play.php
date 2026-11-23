@@ -141,7 +141,7 @@ function mel_tsl_look($lang)
 }
 
 // The error of a start (MelDlgDesc): the title and the text of a start from the list of releases (mel_ts_fail; an error
-// of the list, tsl_err_big and tsl_err_bad: its text, mel_tsl_err_texts), $detail under them, «Назад».
+// of the list tsl_err_bad: its text, mel_tsl_err_texts), $detail under them, «Назад».
 /**
  * @param string $lang
  * @param string $key
@@ -150,7 +150,7 @@ function mel_tsl_look($lang)
  */
 function mel_tsl_fail_desc($lang, $key, $detail)
 {
-    if ($key === 'tsl_err_big' || $key === 'tsl_err_bad')
+    if ($key === 'tsl_err_bad')
         list(, $text) = mel_tsl_err_texts($key, $lang, '');
     else
         $text = mel_tr($lang, $key);
@@ -237,7 +237,7 @@ function mel_tsl_find($hash)
 // tsl_recent: a record of the section chosen in "Последнее" of the Dune - the file of its wh_uid
 // ("aiots:<hash>:<id>": the item played of a playlist), else h and f of recent_action_params, from wh_pos (s) - the
 // start of it (mel_tsl_start; no preload from a position). Not in the list (past MEL_TSL_MAX, an active torrent never
-// saved) or the list not to read (too big, not a list: tsl_err_big, tsl_err_bad): the start by its hash (mel_tsl_bare);
+// saved) or the list not to read (not 200, not a list: tsl_err_bad): the start by its hash (mel_tsl_bare);
 // TorrServer has it no more - "get" says it (404, tsl_err_gone). TorrServer down, its login: the error screen.
 /**
  * @param stdClass $in
@@ -258,7 +258,7 @@ function mel_tsl_recent($in)
     $pos = (is_string($p) && preg_match('/^[0-9]{1,7}$/D', $p)) || (is_int($p) && $p >= 0) ? intval($p) : 0;
     mel_log("ts section: recent $h file $f, wh_pos $pos");
     list($e, $key, $detail) = mel_tsl_find($h);
-    $bare = $key === 'tsl_err_big' || $key === 'tsl_err_bad';
+    $bare = $key === 'tsl_err_bad';
     if ($key !== '' && !$bare)
         return mel_tsl_fail_act(mel_catv_lang(), $key, $detail);
     if ($e === null)

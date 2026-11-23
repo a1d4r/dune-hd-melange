@@ -5,10 +5,16 @@
 // folders, its lines, the marks of TorrServer "viewed", the file it opens on); no firmware API. Reads Mel::$settings,
 // writes MelTsl. Functions are global; the require order is in main.php.
 
-// The tiles of the section at most: those of a "Show all" screen; the entries past them are logged, not shown.
+// The tiles of the section at most: those of a "Show all" screen; the read of the list stops at as many entries kept.
 define('MEL_TSL_MAX', MEL_CATV_ALL_COLS * MEL_CATV_ALL_ROWS);
-// The total s of the request of the list (its connect 1 s, mel_ts_call).
+// The total s of the request of the list (its connect 1 s, mel_ts_call); a list cut by it shows what came.
 define('MEL_TSL_LIST_S', 3);
+// memory_get_usage (bytes) past which the read of the list stops on the entries it has (MelTsl::$mem_max). memory_limit
+// of php_server is 128 MB, and a fatal error there takes the whole plugin down. 1008 entries of 40 files (6.5 KB of
+// text each, a usual one) hold 36 MB in a 64-bit PHP 5.3, about half of it in the 32-bit one of the Dune: 48 MB lets
+// them in, and the 80 MB over it cover a json_decode of one more entry (~11 times its text: a pack of 10 000 files,
+// ~1.5 MB, ~17 MB for a moment), the screen of the tiles and the other screens of the plugin after it.
+define('MEL_TSL_MEM', 50331648);
 // The total s of the request of the marks "viewed" of a torrent (the screen of files).
 define('MEL_TSL_VIEWED_S', 2);
 // The prefix of the uid of a start from the section: "aiots:<hash>:<file id>". Not "aio:": that is a release of
@@ -24,11 +30,203 @@ class MelTsl
     // anew (mel_tsl_load) keeps them (mel_tsl_files_of).
     /** @var array<string, list<MelTsFile>> */
     public static $files = array();
+    // The guard of memory of the read of the list (MEL_TSL_MEM; tests set less).
+    /** @var int */
+    public static $mem_max = MEL_TSL_MEM;
 }
 
+// The read of the reply of "list" as it comes, chunk by chunk (feed; mel_ts_call with a sink): TorrServer has no pages,
+// its list is one JSON array, newest first (timestamp). A scanner keeps the depth of the brackets and whether it is in a
+// string (a quote after an odd run of backslashes is in it: "data" is JSON in a string); each element of the array, once
+// closed, is decoded alone (mel_ts_decode) and its text dropped: the whole reply is never kept. An element is an object
+// or an array; a scalar between them is skipped, not counted. No firmware API, no request.
+class MelTslScan
+{
+    // The text not taken yet: from the start of the open element (or '' between them).
+    /** @var string */
+    public $buf = '';
+    // Where the scan goes on in $buf; $from: the start of the open element there, -1 none.
+    /** @var int */
+    public $pos = 0;
+    /** @var int */
+    public $from = -1;
+    // The brackets open: 1 - in the array, 2 and more - in an element.
+    /** @var int */
+    public $depth = 0;
+    /** @var bool */
+    public $str = false;
+    // start - before "[", list - in the array, end - its "]" read; not - the reply is not an array.
+    /** @var string */
+    public $state = 'start';
+    // Why the read stopped early: '' not, 'max' - MEL_TSL_MAX entries kept, 'memory' - over $mem (memory_get_usage).
+    /** @var string */
+    public $stop = '';
+    /** @var int */
+    public $mem;
+    /** @var int */
+    public $bytes = 0;
+    // The elements read, of them not JSON.
+    /** @var int */
+    public $n = 0;
+    /** @var int */
+    public $bad = 0;
+    // ms of the scan and of the entries (in feed).
+    /** @var float */
+    public $ms = 0.0;
+    // The entries kept: array(timestamp, the index in the reply, the entry); the hashes of them.
+    /** @var list<array{int, int, MelTsEntry}> */
+    public $out = array();
+    /** @var array<string, bool> */
+    public $seen = array();
+
+    /**
+     * @param int $mem
+     */
+    public function __construct($mem)
+    {
+        $this->mem = $mem;
+    }
+
+    // A chunk of the reply -> go on reading (false: the read is over - the end of the array, not an array, a stop).
+    /**
+     * @param string $chunk
+     * @return bool
+     */
+    public function feed($chunk)
+    {
+        $t = microtime(true);
+        $this->bytes += strlen($chunk);
+        if ($this->state === 'list' || $this->state === 'start')
+        {
+            $this->buf .= $chunk;
+            $this->scan();
+        }
+        $this->ms += (microtime(true) - $t) * 1000;
+        return $this->state === 'list' && $this->stop === '';
+    }
+
+    /**
+     * @return void
+     */
+    private function scan()
+    {
+        $b = $this->buf;
+        $len = strlen($b);
+        $i = $this->pos;
+        while ($i < $len && $this->stop === '')
+        {
+            if ($this->str)
+            {
+                // The closing quote: the first after an even run of backslashes (none too). PCRE scans the string (S:
+                // studied, it jumps to a backslash or a quote): 3 times as fast as strpos of each quote, the data is
+                // JSON with its quotes escaped.
+                if (!preg_match('/(?<!\\\\)(?:\\\\\\\\)*"/S', $b, $m, PREG_OFFSET_CAPTURE, $i))
+                {
+                    // Not in this chunk: on from the run of backslashes at its end, if any.
+                    $i = $len;
+                    while ($i > 0 && $b[$i - 1] === '\\')
+                        $i--;
+                    break;
+                }
+                $i = $m[0][1] + strlen($m[0][0]);
+                $this->str = false;
+                continue;
+            }
+            if ($this->state === 'start')
+            {
+                $i += strspn($b, " \t\r\n", $i);
+                if ($i >= $len)
+                    break;
+                if ($b[$i] !== '[')
+                {
+                    $this->state = 'not';
+                    break;
+                }
+                $this->state = 'list';
+                $this->depth = 1;
+                $i++;
+                continue;
+            }
+            $i += strcspn($b, '"{}[]', $i);
+            if ($i >= $len)
+                break;
+            $c = $b[$i++];
+            if ($c === '"')
+                $this->str = true;
+            else if ($c === '{' || $c === '[')
+            {
+                if ($this->depth === 1)
+                    $this->from = $i - 1;
+                $this->depth++;
+            }
+            else if (--$this->depth === 1)
+            {
+                $this->take(mel_ts_decode(substr($b, $this->from, $i - $this->from)));
+                $this->from = -1;
+            }
+            else if ($this->depth === 0)
+            {
+                $this->state = 'end';
+                break;
+            }
+        }
+        // The open element kept, nothing before it; between elements nothing scanned.
+        $keep = $this->from >= 0 ? $this->from : $i;
+        $this->buf = $keep > 0 ? (string) substr($b, $keep) : $b;
+        $this->pos = $i - $keep;
+        if ($this->from >= 0)
+            $this->from = 0;
+        if ($this->stop === '' && memory_get_usage() > $this->mem)
+            $this->stop = 'memory';
+    }
+
+    // Element $x of the array decoded (null: not JSON) -> its entry kept (mel_tsl_entry: a hash of 40 hex and the torrent
+    // saved in the base (stat 5, TorrServer InDB) or with data - an active torrent never saved (stat 3, no data) is not;
+    // a hash seen before is not), the read stopped at MEL_TSL_MAX kept or over $mem.
+    /**
+     * @param array<mixed>|null $x
+     * @return void
+     */
+    private function take($x)
+    {
+        $k = $this->n++;
+        if ($x === null)
+        {
+            $this->bad++;
+            return;
+        }
+        $e = mel_tsl_entry($x);
+        if ($e !== null && !isset($this->seen[$e['hash']]))
+        {
+            $this->seen[$e['hash']] = true;
+            $this->out[] = array($e['added'], $k, $e);
+        }
+        if (count($this->out) >= MEL_TSL_MAX)
+            $this->stop = 'max';
+        else if (memory_get_usage() > $this->mem)
+            $this->stop = 'memory';
+    }
+
+    // The entries kept, newest first; a tie in the order of the reply.
+    /**
+     * @return list<MelTsEntry>
+     */
+    public function entries()
+    {
+        $out = $this->out;
+        // usort of PHP 5.3 is not stable: the order of the reply breaks a tie.
+        usort($out, 'mel_tsl_cmp');
+        $list = array();
+        foreach ($out as $o)
+            $list[] = $o[2];
+        return $list;
+    }
+}
 // The list of the TorrServer of the settings -> array(entries in the order of the section or null on an error,
 // the key of the error ('' none), its detail); kept in MelTsl when read, none kept on an error. Every open of the
-// section reads it anew.
+// section reads it anew, as it comes (MelTslScan): up to MEL_TSL_MAX entries kept or MelTsl::$mem_max of memory, the
+// newest (TorrServer sends them first); cut (its time out, a break) - the entries read, none - ts_err_down. Not an
+// array, every element not JSON, cut with no entry: tsl_err_bad; an element not JSON is skipped.
 /**
  * @return array{list<MelTsEntry>|null, string, string}
  */
@@ -41,67 +239,45 @@ function mel_tsl_load()
         return array(null, 'ts_err_off', '');
     }
     $url = Mel::$settings['ts'] . '/torrents';
+    $scan = new MelTslScan(MelTsl::$mem_max);
     $t = microtime(true);
-    $r = mel_ts_call($url, (string) json_encode(array('action' => 'list')), MEL_TSL_LIST_S, Mel::$settings['ts_auth']);
-    $ms = (microtime(true) - $t) * 1000;
+    $r = mel_ts_call($url, (string) json_encode(array('action' => 'list')), MEL_TSL_LIST_S, Mel::$settings['ts_auth'],
+        array($scan, 'feed'));
+    $ms = (microtime(true) - $t) * 1000 - $scan->ms;
     $head = sprintf('ts section: list %s: ', $url);
-    if ($r['err'] !== '')
+    $cut = $r['err'] !== '';
+    if ($cut && ($r['code'] !== 200 || !$scan->out))
     {
-        mel_log($head . sprintf('%s, %.0f ms', $r['err'], $ms));
-        $big = $r['err'] === MEL_TS_TOO_BIG;
-        return array(null, $big ? 'tsl_err_big' : 'ts_err_down', $big ? '' : $r['err']);
+        mel_log($head . sprintf('%s, %d bytes, %.0f ms', $r['err'], $scan->bytes, $ms));
+        return array(null, 'ts_err_down', $r['err']);
     }
     if ($r['code'] !== 200)
     {
         mel_log($head . sprintf('HTTP %d, %.0f ms', $r['code'], $ms));
         return $r['code'] === 401 ? array(null, mel_ts_auth_err(), '') : array(null, 'tsl_err_bad', "HTTP {$r['code']}");
     }
-    $t = microtime(true);
-    $p = mel_tsl_parse($r['body']);
-    $line = $head . sprintf('HTTP 200, %d bytes, %.0f ms, parse %.0f ms, ', strlen($r['body']), $ms,
-        (microtime(true) - $t) * 1000);
-    if ($p === null)
+    $line = $head . sprintf('HTTP 200, %d bytes, %.0f ms, parse %.0f ms, ', $scan->bytes, $ms, $scan->ms);
+    $open = $scan->state === 'list' && $scan->stop === '';
+    if ($scan->state === 'start' || $scan->state === 'not' || ($scan->n > 0 && $scan->bad === $scan->n) ||
+        ($open && !$cut && !$scan->out))
     {
-        mel_log($line . 'not a list');
+        mel_log($line . sprintf('%d entries, %d bad, not a list', $scan->n, $scan->bad));
         return array(null, 'tsl_err_bad', 'not a list');
     }
-    mel_log($line . sprintf('%d entries, %d kept', $p[1], count($p[0])) . ($p[2] ? ", {$p[2]} over " . MEL_TSL_MAX : ''));
+    $why = array('max' => 'stopped at ' . MEL_TSL_MAX, 'memory' => sprintf('stopped at memory %.1f MB',
+        MelTsl::$mem_max / 1048576));
+    if ($scan->stop !== '')
+        $how = $why[$scan->stop];
+    else
+        $how = $cut ? "cut: {$r['err']}" : ($open ? 'cut: no end of the list' : 'the end');
+    $list = $scan->entries();
+    mel_log($line . sprintf('%d entries, %d kept, ', $scan->n, count($list)) . ($scan->bad ? "{$scan->bad} bad, " : '') .
+        sprintf('%s, peak %.1f MB', $how, memory_get_peak_usage() / 1048576));
     $keep = array();
-    foreach ($p[0] as $e)
+    foreach ($list as $e)
         $keep[$e['hash']] = $e;
     MelTsl::$list = $keep;
-    return array($p[0], '', '');
-}
-
-// The body of a reply of "list" -> array(the entries kept, newest first, at most MEL_TSL_MAX; the entries of the
-// reply; those cut by MEL_TSL_MAX), null: not a JSON array. Kept: a hash of 40 hex and the torrent saved in the
-// base (stat 5, TorrServer InDB) or with data: an active torrent never saved (stat 3, no data) is not.
-/**
- * @param string $body
- * @return array{list<MelTsEntry>, int, int}|null
- */
-function mel_tsl_parse($body)
-{
-    $j = mel_ts_decode($body);
-    if ($j === null || ($j !== array() && array_keys($j) !== range(0, count($j) - 1)))
-        return null;
-    $out = array();
-    $seen = array();
-    foreach ($j as $k => $x)
-    {
-        $e = is_array($x) ? mel_tsl_entry($x) : null;
-        if ($e !== null && !isset($seen[$e['hash']]))
-        {
-            $seen[$e['hash']] = true;
-            $out[] = array($e['added'], $k, $e);
-        }
-    }
-    // usort of PHP 5.3 is not stable: the order of the reply breaks a tie.
-    usort($out, 'mel_tsl_cmp');
-    $list = array();
-    foreach (array_slice($out, 0, MEL_TSL_MAX) as $o)
-        $list[] = $o[2];
-    return array($list, count($j), max(0, count($out) - MEL_TSL_MAX));
+    return array($list, '', '');
 }
 
 /**
@@ -114,7 +290,7 @@ function mel_tsl_cmp($a, $b)
     return $a[0] !== $b[0] ? ($a[0] > $b[0] ? -1 : 1) : $a[1] - $b[1];
 }
 
-// A TorrentStatus of the list -> its entry, null: not kept (mel_tsl_parse). title: the title of TorrServer with
+// A TorrentStatus of the list -> its entry, null: not kept (MelTslScan). title: the title of TorrServer with
 // no prefix of a client ("[NUM] ", "[KT] ", "[LAMPA] " - src num, kt, lampa; '' none), else the name of its
 // biggest video file, else the start of its hash; raw_title: as TorrServer has it, one line with no control
 // characters. data: the files of TorrServer ({"TorrServer":{"Files":[...]}}, files; ids as of file_stats), a card

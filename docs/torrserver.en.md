@@ -51,7 +51,6 @@ Melange does not change or delete torrents on TorrServer.
 ## If it didn't work
 
 - "On TorrServer" says "TorrServer is not responding": start TorrServer or fix the address in Melange settings → TorrServer ("Retry" and "Settings" are on the same screen).
-- "The TorrServer list is over 4 MB": Melange cannot open a list that big.
 - After quick setup the Dune says "TorrServer does not answer": install and start TorrServe ([Quick start](start.en.md)).
 - "Check" shows red text: see [Troubleshooting](troubleshooting.en.md).
 - Few releases: choose "Everywhere" in "Where to look for releases"; if the JacRed server doesn't answer, see [JacRed](jacred.en.md).

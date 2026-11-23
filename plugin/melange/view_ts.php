@@ -91,8 +91,8 @@ function mel_tsl_read()
  */
 function mel_tsl_err_texts($key, $lang, $detail)
 {
-    $names = array('ts_err_down' => 'down', 'ts_err_auth' => 'auth', 'ts_err_auth_bad' => 'auth_bad', 'tsl_err_big' => 'big',
-        'tsl_err_bad' => 'bad', 'ts_err_off' => 'off');
+    $names = array('ts_err_down' => 'down', 'ts_err_auth' => 'auth', 'ts_err_auth_bad' => 'auth_bad', 'tsl_err_bad' => 'bad',
+        'ts_err_off' => 'off');
     $n = isset($names[$key]) ? $names[$key] : 'bad';
     $text = mel_tr($lang, "tsl_{$n}_text");
     return array(mel_tr($lang, "tsl_{$n}_title"), $n === 'bad' && $detail !== '' ? "$text $detail" : $text);
@@ -100,8 +100,8 @@ function mel_tsl_err_texts($key, $lang, $detail)
 
 // The kit error screen of error $key of the list (mel_tsl_load; $detail: its detail) over screen $from (4B, 4C of the
 // designer): its title and text (mel_tsl_err_texts); no answer - «Повторить», «Настройки» and the address
-// of TorrServer under them; not a list - «Повторить», «Настройки» and the detail; over 4 MB - none of its own; the
-// password, «Без торрентов» - «Настройки». «Назад» after them (mel_ks_rows_error).
+// of TorrServer under them; not a list - «Повторить», «Настройки» and the detail; the password, «Без торрентов» -
+// «Настройки». «Назад» after them (mel_ks_rows_error).
 /**
  * @param string $key
  * @param string $detail
@@ -114,7 +114,7 @@ function mel_tsl_error($key, $detail, $from)
     $retry = array('label' => mel_tr($lang, 'ks_retry'), 'icon' => 'k_icon_rotate-ccw',
         'act' => mel_input('cat_tsl_open', array('from' => $from)));
     $setup = array('label' => mel_tr($lang, 'setup_menu'), 'icon' => 'k_icon_settings', 'act' => mel_setup_open_act($from));
-    $own = array('ts_err_down' => array($retry, $setup), 'tsl_err_bad' => array($retry, $setup), 'tsl_err_big' => array());
+    $own = array('ts_err_down' => array($retry, $setup), 'tsl_err_bad' => array($retry, $setup));
     $d = array('buttons' => isset($own[$key]) ? $own[$key] : array($setup));
     if ($key === 'ts_err_down')
         $d['detail'] = str_replace('{url}', Mel::$settings['ts'], mel_tr($lang, 'tsl_addr'));

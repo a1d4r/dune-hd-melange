@@ -122,18 +122,22 @@ if (!function_exists('mel_ts_call'))
     // no redirects; the errors of TorrServer have an empty body: the code
     // tells. $auth: "login:password" for Basic auth (0.45.0), '' none. The
     // plugin and the check of the settings page. $total (s): a fraction (the preload, MEL_TS_PRE_S) in ms
-    // with no signals where curl has them, as mel_http_opts; else whole s, rounded up.
+    // with no signals where curl has them, as mel_http_opts; else whole s, rounded up. $sink: each chunk of the body
+    // goes to it as it comes, none kept (body ''), no MEL_TS_MAX_BYTES; it returns false - the read stops there, no
+    // err (the list of the section, mel_tsl_load).
     /**
      * @param string $url
      * @param string|null $post
      * @param int|float $total
      * @param string $auth
+     * @param callable|null $sink
      * @return MelTsReply
      */
-    function mel_ts_call($url, $post, $total = 2, $auth = '')
+    function mel_ts_call($url, $post, $total = 2, $auth = '', $sink = null)
     {
         $body = '';
         $over = false;
+        $stop = false;
         $ch = curl_init($url);
         $ms = $total != floor($total) && defined('CURLOPT_TIMEOUT_MS') && defined('CURLOPT_CONNECTTIMEOUT_MS') &&
             defined('CURLOPT_NOSIGNAL');
@@ -145,8 +149,15 @@ if (!function_exists('mel_ts_call'))
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_USERAGENT => 'Melange-Dune/' . MEL_VERSION,
             CURLOPT_HTTPHEADER => array('Expect:', 'Content-Type: application/json'),
-            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$over)
+            CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$body, &$over, &$stop, $sink)
             {
+                if ($sink !== null)
+                {
+                    if (call_user_func($sink, $chunk) !== false)
+                        return strlen($chunk);
+                    $stop = true;
+                    return 0;
+                }
                 if (strlen($body) + strlen($chunk) > MEL_TS_MAX_BYTES)
                 {
                     $over = true;
@@ -172,9 +183,9 @@ if (!function_exists('mel_ts_call'))
         }
         $ok = curl_exec($ch);
         $code = intval(curl_getinfo($ch, CURLINFO_HTTP_CODE));
-        $errno = curl_errno($ch);
+        $errno = $stop ? 0 : curl_errno($ch);
         $err = $over ? MEL_TS_TOO_BIG :
-            ($ok === false ? "curl $errno: " . curl_error($ch) : '');
+            ($ok === false && !$stop ? "curl $errno: " . curl_error($ch) : '');
         curl_close($ch);
         return array('code' => $code, 'body' => $err !== '' ? '' : $body, 'err' => $err, 'errno' => $errno);
     }
