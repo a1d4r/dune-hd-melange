@@ -33,9 +33,7 @@ function mel_tsl_start($e, $id, $pos)
     if ($what !== 'wait')
         return mel_tsl_done($what, $d, $why, $detail, $files);
     mel_log('ts section: -> the waiting dialog');
-    return mel_dialog_act(mel_tr($lang, 'ts_wait'), mel_tsl_wait_defs($d, 0, $j), array(
-        ShowDialogActionData::actions => mel_tsl_wait_acts($d, $t),
-        ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => MEL_TS_TICK_MS)));
+    return mel_ts_wait_open($lang, mel_tsl_wait_defs($d, 0, $j), mel_tsl_wait_acts($d, $t));
 }
 
 // The end of a step of run $d (mel_tsl_advance) but the wait: play - vod_play (mel_tsl_play_act); files - the screen of
@@ -71,7 +69,7 @@ function mel_tsl_wait_defs($d, $sec, $j)
 }
 
 // The timer of the waiting dialog of run $d started at $t (time()): tsl_tick with the run in its params (the entry by its
-// hash: in memory or bare, mel_tsl_tick).
+// hash: in memory or bare, mel_tsl_tick; label: the title on screen, kept by the tick for an entry not in memory).
 /**
  * @param MelTslRun $d
  * @param int $t
@@ -80,12 +78,14 @@ function mel_tsl_wait_defs($d, $sec, $j)
 function mel_tsl_wait_acts($d, $t)
 {
     return array(GUI_EVENT_TIMER => mel_input('tsl_tick', array('h' => $d['e']['hash'], 'f' => strval($d['f']),
-        'pos' => strval($d['pos']), 'n' => strval($d['n']), 'b' => $d['b'] >= 0 ? strval($d['b']) : '', 't' => strval($t))));
+        'pos' => strval($d['pos']), 'n' => strval($d['n']), 'b' => $d['b'] >= 0 ? strval($d['b']) : '', 't' => strval($t),
+        'label' => $d['e']['title'])));
 }
 
 // tsl_tick, the timer of the waiting dialog of a start: the run of its params (the entry in memory, else bare - made
-// anew of each "get"), one step of it (mel_tsl_advance) -> the wait: the timer again, the lines redrawn (reset_controls);
-// else the dialog closed and the end of it (mel_tsl_done). Bad params: the dialog closed.
+// anew of each "get", the title of the window kept till a "get" answers: a restart of php_server, a torrent not in the
+// list), one step of it (mel_tsl_advance) -> the wait: the timer again, the lines redrawn (mel_ts_wait_again); else the
+// dialog closed and the end of it (mel_tsl_done). Bad params: the dialog closed.
 /**
  * @param stdClass $in
  * @return MelAction
@@ -106,23 +106,15 @@ function mel_tsl_tick($in)
     $h = $p['h'];
     $d = mel_tsl_run(isset(MelTsl::$list[$h]) ? MelTsl::$list[$h] : mel_tsl_bare($h), intval($p['f']), intval($p['pos']),
         mel_catv_lang());
+    if ($d['g'] && isset($in->label) && is_string($in->label))
+        $d['e']['title'] = $in->label;
     $d['n'] = intval($p['n']);
     $d['b'] = $p['b'] !== '' ? intval($p['b']) : -1;
     $sec = max(0, time() - intval($p['t']));
     list($what, $d, $why, $detail, $files, $j) = mel_tsl_advance($d, $sec);
     if ($what !== 'wait')
         return mel_close_and(mel_tsl_done($what, $d, $why, $detail, $files));
-    return array(
-        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
-        GuiAction::data => array(
-            ChangeBehaviourActionData::actions => mel_tsl_wait_acts($d, intval($p['t'])),
-            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => MEL_TS_TICK_MS),
-            ChangeBehaviourActionData::post_action => array(
-                GuiAction::handler_string_id => RESET_CONTROLS_ACTION_ID,
-                GuiAction::data => array(
-                    ResetControlsActionData::defs => mel_tsl_wait_defs($d, $sec, $j),
-                    ResetControlsActionData::initial_sel_ndx => -1,
-                    ResetControlsActionData::post_action => null))));
+    return mel_ts_wait_again(mel_tsl_wait_defs($d, $sec, $j), mel_tsl_wait_acts($d, intval($p['t'])));
 }
 
 // vod_play of file f of run $d among $files (mel_tsl_playlist): a movie one item, a pack its video files (a window of

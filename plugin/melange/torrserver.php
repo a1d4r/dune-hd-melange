@@ -863,9 +863,7 @@ function mel_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_
         'l' => $lazy ? '1' : ($miss_list ? '2' : '0'),
         't' => strval(time()), 'n' => '0', 'b' => $files ? '0' : '');
     mel_log($files ? 'ts: -> the dialog of the preload' : 'ts: no files yet -> waiting dialog');
-    return mel_dialog_act(mel_tr($lang, 'ts_wait'), mel_ts_wait_defs($st, $r, 0, $j, $lazy, $p['b'] !== ''), array(
-        ShowDialogActionData::actions => mel_ts_wait_acts($p),
-        ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => MEL_TS_TICK_MS)));
+    return mel_ts_wait_open($lang, mel_ts_wait_defs($st, $r, 0, $j, $lazy, $p['b'] !== ''), mel_ts_wait_acts($p));
 }
 
 // The preload of the file of row $i of $st among $files (mel_ts_file), a start from 0, $j the
@@ -940,6 +938,44 @@ function mel_ts_buf_done($j, $ticks)
     return $size <= 0 && $ticks >= MEL_TS_PRE_TICKS ? 'no preload' : '';
 }
 
+// The waiting dialog of a start through TorrServer: «Открываю через TorrServer», controls $defs (mel_ts_wait_ctls), the
+// actions $acts (its timer: the tick), a tick every MEL_TS_TICK_MS. A start from the list of releases and from the section
+// alike.
+/**
+ * @param string $lang
+ * @param list<array<string, mixed>> $defs
+ * @param array<string, MelAction> $acts
+ * @return MelAction
+ */
+function mel_ts_wait_open($lang, $defs, $acts)
+{
+    return mel_dialog_act(mel_tr($lang, 'ts_wait'), $defs, array(
+        ShowDialogActionData::actions => $acts,
+        ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => MEL_TS_TICK_MS)));
+}
+
+// The waiting dialog (mel_ts_wait_open) after a tick that waits on: its actions $acts again, the timer again, its controls
+// redrawn as $defs (reset_controls, no focus).
+/**
+ * @param list<array<string, mixed>> $defs
+ * @param array<string, MelAction> $acts
+ * @return MelAction
+ */
+function mel_ts_wait_again($defs, $acts)
+{
+    return array(
+        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
+        GuiAction::data => array(
+            ChangeBehaviourActionData::actions => $acts,
+            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => MEL_TS_TICK_MS),
+            ChangeBehaviourActionData::post_action => array(
+                GuiAction::handler_string_id => RESET_CONTROLS_ACTION_ID,
+                GuiAction::data => array(
+                    ResetControlsActionData::defs => $defs,
+                    ResetControlsActionData::initial_sel_ndx => -1,
+                    ResetControlsActionData::post_action => null))));
+}
+
 /**
  * @param array<string, string> $p
  * @return array<string, MelAction>
@@ -994,14 +1030,14 @@ function mel_ts_speed($bps, $lang)
     return $s === "\xE2\x80\x94" ? $s : mel_gc_rate(max(8.0 * $bps, 1e5), false, $lang);
 }
 
-// The status of a wait of a start through TorrServer by TorrentStatus $j: its status in words (none: the file list
-// awaited), or with the preload ($buf: the key of its line, '' none) the MB of it of its target (mel_ts_buf_need) ->
-// array(the line, the share of the preload, null none). The waiting dialog and the wait of the section alike.
+// The status of a wait of a start through TorrServer by TorrentStatus $j, in words: its status (none: the file list
+// awaited), or with the preload ($buf: the key of its line, '' none) the MB of it of its target (mel_ts_buf_need). The
+// waiting dialog of a start from the list of releases and from the section alike (mel_ts_wait_ctls).
 /**
  * @param array<mixed>|null $j
  * @param string $buf
  * @param string $lang
- * @return array{string, float|null}
+ * @return string
  */
 function mel_ts_wait_status($j, $buf, $lang)
 {
@@ -1009,14 +1045,14 @@ function mel_ts_wait_status($j, $buf, $lang)
     {
         $need = mel_ts_buf_need($j);
         $got = min(mel_num(mel_str($j, 'preloaded_bytes')), $need);
-        return array(str_replace(array('{got}', '{need}'), array(strval(intval(floor($got / 1048576))),
-            strval(intval(ceil($need / 1048576)))), mel_tr($lang, $buf)), $got / $need);
+        return str_replace(array('{got}', '{need}'), array(strval(intval(floor($got / 1048576))),
+            strval(intval(ceil($need / 1048576)))), mel_tr($lang, $buf));
     }
     $stat = mel_one_line(mel_str($j, 'stat_string'));
     $keys = mel_ts_stats();
     $low = strtolower($stat);
-    return array($stat === '' ? mel_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? mel_tr($lang, $keys[$low]) :
-        mel_cut($stat, 30)), null);
+    return $stat === '' ? mel_tr($lang, 'ts_wait_files') : (isset($keys[$low]) ? mel_tr($lang, $keys[$low]) :
+        mel_cut($stat, 30));
 }
 
 // Controls of the waiting dialog (0.45.0) of row $r of $st (mel_ts_wait_ctls; $lazy: «Отмена» stops the player).
@@ -1050,7 +1086,7 @@ function mel_ts_wait_defs($st, $r, $sec, $j, $lazy = false, $buf = false)
  */
 function mel_ts_wait_ctls($lang, $label, $rate, $sec, $j, $buf, $cancel)
 {
-    list($status) = mel_ts_wait_status($j, $buf ? 'ts_wait_buf' : '', $lang);
+    $status = mel_ts_wait_status($j, $buf ? 'ts_wait_buf' : '', $lang);
     $defs = array();
     foreach (mel_dialog_lines($label) as $l)
         $defs[] = mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l));
@@ -1140,17 +1176,7 @@ function mel_ts_tick($in)
         return mel_close_and(mel_ts_fail($lang, 'ts_err_gone', '', $p['l'] === '1'));
     if ($out)
         return mel_close_and(mel_ts_fail($lang, 'ts_err_timeout', $err !== '' ? $err : '', $p['l'] === '1'));
-    return array(
-        GuiAction::handler_string_id => CHANGE_BEHAVIOUR_ACTION_ID,
-        GuiAction::data => array(
-            ChangeBehaviourActionData::actions => mel_ts_wait_acts($p),
-            ChangeBehaviourActionData::timer => array(GuiTimerDef::delay_ms => MEL_TS_TICK_MS),
-            ChangeBehaviourActionData::post_action => array(
-                GuiAction::handler_string_id => RESET_CONTROLS_ACTION_ID,
-                GuiAction::data => array(
-                    ResetControlsActionData::defs => mel_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1', $p['b'] !== ''),
-                    ResetControlsActionData::initial_sel_ndx => -1,
-                    ResetControlsActionData::post_action => null))));
+    return mel_ts_wait_again(mel_ts_wait_defs($st, $r, $sec, $j, $p['l'] === '1', $p['b'] !== ''), mel_ts_wait_acts($p));
 }
 
 // The row of a start through TorrServer for its lazy episodes: without the name,
