@@ -184,6 +184,10 @@ class Mel
     // release" of its dialog.
     /** @var MelState|null */
     public static $next = null;
+    // The reply of a lazy episode that was no URL for get_vod_stream_url (mel_lazy_url): its playback_url, the time,
+    // the action, until its lazy_reply (mel_lazy_replied).
+    /** @var MelLazyReply|null */
+    public static $lazy_reply = null;
     // What plays: array('from' => rid of the list screen under the player
     // ('' if none), 'st' => list state of the episode playing now, 'sel' =>
     // row of its release). Lazy episodes move it on; back on that screen
@@ -2449,6 +2453,8 @@ function mel_handle_user_input($in)
         return mel_next($in);
     if ($control === 'next_pick')
         return mel_next_pick($in);
+    if ($control === 'lazy_reply')
+        return mel_lazy_replied($in);
     if ($control === 'lib_next')
         return mel_lib_next($in);
     if ($control === 'lib_next_pick')
@@ -2549,10 +2555,10 @@ class MelFw extends DunePluginFw
             {
                 $type = PLUGIN_OUT_DATA_GUI_ACTION;
                 $data = mel_handle_user_input($in);
-                // "next", "lp_next" and "lib_next", a lazy episode under the player (mel_lazy_action): its vod_play
-                // not sooner than MEL_NEXT_MIN (mel_lazy_hold); no pf_check - the player is on, pf_check passed with
-                // its first start in this session, run_builtin from there not seen on the device.
-                if (isset($in->control_id) && in_array($in->control_id, array('next', 'lp_next', 'lib_next'), true))
+                // "next", "lp_next", "lib_next" and "lazy_reply", a lazy episode under the player (mel_lazy_action): its
+                // vod_play not sooner than MEL_NEXT_MIN (mel_lazy_hold); no pf_check - the player is on, pf_check passed
+                // with its first start in this session, run_builtin from there not seen on the device.
+                if (isset($in->control_id) && in_array($in->control_id, array('next', 'lp_next', 'lib_next', 'lazy_reply'), true))
                     $data = mel_lazy_hold($data);
                 else
                     $data = mel_pf_check($data);
@@ -2570,13 +2576,22 @@ class MelFw extends DunePluginFw
                 $data = mel_catv_rows_op($in);
             }
             // Lazy episodes: media_url comes to get_vod_stream_url, the whole
-            // input (playback_url) to get_vod_stream_info.
+            // input (playback_url) to get_vod_stream_info. get_vod_stream_url: the URL of the episode itself
+            // (r25 on, mel_lazy_url), else error_action; get_vod_stream_info: error_action (no feature asks for it).
             else if ($op === PLUGIN_OP_GET_VOD_STREAM_URL ||
                 (defined('PLUGIN_OP_GET_VOD_STREAM_INFO') && $op === PLUGIN_OP_GET_VOD_STREAM_INFO))
             {
                 $a = $op === PLUGIN_OP_GET_VOD_STREAM_URL ? 'media_url' : 'playback_url';
                 $b = $op === PLUGIN_OP_GET_VOD_STREAM_URL ? 'playback_url' : 'media_url';
-                $error_action = mel_lazy_action(isset($in->$a) ? $in->$a : (isset($in->$b) ? $in->$b : null));
+                $r = mel_lazy_action(isset($in->$a) ? $in->$a : (isset($in->$b) ? $in->$b : null),
+                    $op === PLUGIN_OP_GET_VOD_STREAM_URL);
+                if (is_string($r))
+                {
+                    $type = PLUGIN_OUT_DATA_URL;
+                    $data = $r;
+                }
+                else
+                    $error_action = $r;
             }
         }
 

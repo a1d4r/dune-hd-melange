@@ -1278,6 +1278,11 @@ define('MEL_FW_TIMER_R', 25);
 // first there (mel_pf_check). r25 has no such check; r22 not looked at. Only this r (===), not a
 // threshold as the other MEL_FW_*_R.
 define('MEL_FW_PF_CHECK_R', 24);
+// From r25 a lazy episode answers get_vod_stream_url with its URL (mel_lazy_action): a new vod_play under the
+// player of r25 drops the record of the episode that began after the end of the file of the one before. The shell
+// of r25 waits for the URL over 65 s (seen on the device); r24 not seen (10 s by the SDK) and may not lose the
+// record at all: r24, older and an unknown firmware answer with the vod_play as before.
+define('MEL_FW_NEXT_URL_R', 25);
 
 class MelFirmware
 {

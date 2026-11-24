@@ -211,10 +211,11 @@ function mel_lpv_ep_play($mv, $lang, $f, $s, $e, $pos, $deadline)
             $series[] = mel_vod_item($mv, $s, $e, $url, $linked ? $r['key'] : '', $list);
         }
         else
+            // Linked as the ready one: its URL may come in the reply of get_vod_stream_url (mel_lazy_action).
             $series[] = array(
                 PluginVodSeriesInfo::name => mel_ser_name($mv, $s, $i, true),
                 PluginVodSeriesInfo::playback_url => "lampac_next:{$mv['dune_id']}:$s:$i:{$r['key']}$prof",
-                PluginVodSeriesInfo::playback_url_is_stream_url => false);
+                PluginVodSeriesInfo::playback_url_is_stream_url => false) + mel_vod_link($mv, $s, $i, $r['key']);
     }
     // The lazy ones find the card after a restart of php_server too.
     if ($list)
@@ -251,12 +252,13 @@ function mel_lpv_ep_play($mv, $lang, $f, $s, $e, $pos, $deadline)
 // get_vod_stream_url of lazy episode $pb "lampac_next:<dune id>:<s>:<e>:<key>[:<id of the profile of Lampac>]"
 // (mel_lazy_action of playback.php; no id: a playlist of before v2 - the main pair) -> error_action:
 // handle_user_input lp_next (mel_lpv_next), as mel_next; the episode is that of $pb, whatever item of the playlist
-// the player is on (plugin_vod_series_ndx). A bad one: the error.
+// the player is on (plugin_vod_series_ndx). A bad one: the error. $here: the caller runs lp_next itself (mel_lazy_url).
 /**
  * @param string $pb
+ * @param bool $here
  * @return MelAction
  */
-function mel_lpv_lazy($pb)
+function mel_lpv_lazy($pb, $here = false)
 {
     if (!preg_match('/^lampac_next:(' . MEL_DUNE_ID . '):([1-9][0-9]{0,3}):([1-9][0-9]{0,4}):([^:]+)(?::([a-z0-9]{8}))?\z/', $pb,
         $m) || mel_lp_key_parse($m[4]) === null)
@@ -265,7 +267,8 @@ function mel_lpv_lazy($pb)
         return mel_error('err_list_expired', '', true);
     }
     $prof = isset($m[5]) ? $m[5] : '';
-    mel_log("lazy: lampac S{$m[2]}E{$m[3]} {$m[4]}" . ($prof !== '' ? " profile $prof" : '') . ' -> handle_user_input lp_next');
+    mel_log("lazy: lampac S{$m[2]}E{$m[3]} {$m[4]}" . ($prof !== '' ? " profile $prof" : '') .
+        ($here ? ' -> the URL here' : ' -> handle_user_input lp_next'));
     return mel_input('lp_next', array('k' => $m[1], 's' => $m[2], 'e' => $m[3], 'key' => $m[4], 'prof' => $prof));
 }
 
