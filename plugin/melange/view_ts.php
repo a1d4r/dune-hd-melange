@@ -483,9 +483,9 @@ function mel_tsl_menu_items($id, $lang)
         GuiMenuItemDef::action => mel_input('cat_tsl_rem_ask', array('from' => MEL_TSL_URL, 'h' => $hash), MEL_TSL_DELAY)));
 }
 
-// cat_tsl_rem_ask of torrent $hash: its entry (mel_tsl_find; an error of the list - its error screen, none there -
-// tsl_err_gone), then the dialog «Удалить «<the title of the panel>» с TorrServer?»: «Удалить» - cat_tsl_rem, «Отмена» -
-// nothing. Not a hash: nothing.
+// cat_tsl_rem_ask of torrent $hash: its entry (mel_tsl_find; an error of the list - its error screen; none there,
+// removed elsewhere - the screen anew, then the window «Этой раздачи уже нет на TorrServer»), then the dialog «Удалить
+// «<the title of the panel>» с TorrServer?»: «Удалить» - cat_tsl_rem, «Отмена» - nothing. Not a hash: nothing.
 /**
  * @param string $hash
  * @return MelAction|null
@@ -499,7 +499,13 @@ function mel_tsl_rem_ask($hash)
     if ($key !== '')
         return mel_tsl_error($key, $detail, MEL_TSL_URL);
     if ($e === null)
-        return mel_ts_fail($lang, 'tsl_err_gone');
+    {
+        mel_log("ts section: rem $hash: not in the list, -> dialog: tsl_err_gone, the screen anew");
+        $a = mel_catv_invalidate(MEL_TSL_URL);
+        $a[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = mel_dialog(mel_tr($lang, 'tsl_err_gone'),
+            array(), array('OK' => mel_close_and(null)));
+        return $a;
+    }
     list($head) = mel_tsl_split($e['title']);
     mel_log("ts section: rem $hash: ask");
     $go = mel_input('cat_tsl_rem', array('from' => MEL_TSL_URL, 'h' => $hash), MEL_TSL_DELAY);
@@ -510,8 +516,8 @@ function mel_tsl_rem_ask($hash)
 
 // cat_tsl_rem of torrent $hash (the dialog closed): "rem" (mel_tsl_rem). An error: a window of why, the list as it was.
 // Removed: the lines of the list in memory less it, in place (plugin_update_folder, as the shell does on its lists of
-// files, movies/movie_files_screen.php), the cursor on the line after it (the last one: the new last; none left: the
-// hint) - not the list read anew: it comes by stream and may be long (up to MEL_TSL_LIST_S), and "rem" changed nothing
+// files, movies/movie_files_screen.php), the cursor on the line after it (its index of mel_tsl_rem; the last one: the
+// new last; none left: the hint) - not the list read anew: it comes by stream and may be long (up to MEL_TSL_LIST_S), and "rem" changed nothing
 // else in it. Not in the list in memory (a restart of php_server): the screen anew (invalidate: its view reads the list).
 /**
  * @param string $hash
@@ -522,11 +528,10 @@ function mel_tsl_rem_act($hash)
     if (!preg_match('/^[0-9a-f]{40}$/D', $hash))
         return null;
     $lang = mel_catv_lang();
-    $i = MelTsl::$list === null ? false : array_search($hash, array_keys(MelTsl::$list), true);
-    list($key, $detail) = mel_tsl_rem($hash);
+    list($key, $detail, $i) = mel_tsl_rem($hash);
     if ($key !== '')
         return mel_tsl_rem_fail($lang, $key, $detail);
-    if ($i === false || MelTsl::$list === null)
+    if ($i < 0 || MelTsl::$list === null)
     {
         mel_log("ts section: rem $hash: not in memory, the screen anew");
         return mel_catv_invalidate(MEL_TSL_URL);

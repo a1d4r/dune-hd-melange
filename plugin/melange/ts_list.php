@@ -27,7 +27,7 @@ define('MEL_TSL_ENTRY_MAX', 2097152);
 // The total s of the request of the marks "viewed" of a torrent (the screen of files).
 define('MEL_TSL_VIEWED_S', 2);
 // The total s of the request "rem" (mel_tsl_rem): TorrServer answers it once the torrent is closed, up to 5 s for an active
-// one (RemTorrent of its torr/apihelper.go).
+// one (RemTorrent of its torr/apihelper.go), its cache off the disk and DLNA restarted; no answer by then - one "get".
 define('MEL_TSL_REM_S', 8);
 // The prefix of the uid of a start from the section: "aiots:<hash>:<file id>". Not "aio:": that is a release of
 // Melange with a card (mel_cp_ours, mel_wh_ours_all, mel_wh_uid).
@@ -340,12 +340,15 @@ function mel_tsl_load()
 }
 
 // "rem" of torrent $hash on the TorrServer of the settings (POP UP of the section, owner 24.11.2026) -> array(the key of
-// the error, '' removed; its detail): no answer - ts_err_down (the error of curl), 401 - the login (mel_ts_auth_err),
-// another code - tsl_rem_bad ("HTTP <code>"). Removed: out of MelTsl too (its entry, its files), the order of the rest
-// kept; the history and the positions of Melange ("aiots:") stay.
+// the error, '' removed; its detail; the index of its entry in MelTsl::$list before, -1 none there or an error): no
+// answer - ts_err_down (the error of curl), 401 - the login (mel_ts_auth_err), another code - tsl_rem_bad ("HTTP
+// <code>"). No answer in MEL_TSL_REM_S (curl 28): TorrServer answers once the cache is off its disk and DLNA restarted,
+// it may take longer - one "get" of it, 404 (TorrServer has it no more): removed, else ts_err_down. Removed: out of
+// MelTsl too (its entry, its files), the order of the rest kept; the history and the positions of Melange ("aiots:")
+// stay.
 /**
  * @param string $hash
- * @return array{string, string}
+ * @return array{string, string, int}
  */
 function mel_tsl_rem($hash)
 {
@@ -353,18 +356,31 @@ function mel_tsl_rem($hash)
     $r = mel_ts_call($url, (string) json_encode(array('action' => 'rem', 'hash' => $hash)), MEL_TSL_REM_S,
         Mel::$settings['ts_auth']);
     $head = "ts section: rem $hash: ";
-    if ($r['err'] !== '')
+    if ($r['err'] !== '' && $r['errno'] === 28)
+    {
+        list($rg) = mel_ts_get($hash);
+        $gone = $rg['err'] === '' && $rg['code'] === 404;
+        mel_log($head . $r['err'] . ', get: ' . ($rg['err'] !== '' ? $rg['err'] : "HTTP {$rg['code']}") .
+            ($gone ? ', removed' : ''));
+        if (!$gone)
+            return array('ts_err_down', $r['err'], -1);
+    }
+    else if ($r['err'] !== '')
     {
         mel_log($head . $r['err']);
-        return array('ts_err_down', $r['err']);
+        return array('ts_err_down', $r['err'], -1);
     }
-    mel_log($head . "HTTP {$r['code']}");
-    if ($r['code'] !== 200)
-        return $r['code'] === 401 ? array(mel_ts_auth_err(), '') : array('tsl_rem_bad', "HTTP {$r['code']}");
-    if (MelTsl::$list !== null)
+    else
+    {
+        mel_log($head . "HTTP {$r['code']}");
+        if ($r['code'] !== 200)
+            return $r['code'] === 401 ? array(mel_ts_auth_err(), '', -1) : array('tsl_rem_bad', "HTTP {$r['code']}", -1);
+    }
+    $i = MelTsl::$list === null ? false : array_search($hash, array_keys(MelTsl::$list), true);
+    if ($i !== false)
         unset(MelTsl::$list[$hash]);
     unset(MelTsl::$files[$hash]);
-    return array('', '');
+    return array('', '', $i === false ? -1 : $i);
 }
 
 /**
