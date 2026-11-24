@@ -225,8 +225,8 @@ function mel_tsl_item($id, $caption, $poster, $texts)
 
 // The view of lines $items: the view "list" of "Фильмы" of the shell (movies/movie_list_screen.php of shell_ext: its
 // get_view_params(1, 11, ..., true, true) over GuiHelper::get_common_regular_params; its lines of 48 px, the caption
-// from the left, 1150 wide; the poster of the panel 310x465, movies/l.php), the texts of the panel small (not large as
-// the vendor: owner 24.11.2026), broken in lines; the background MEL_TSL_BG over the one of the skin
+// from the left, 1150 wide; the poster of the panel 310x465, movies/l.php), the texts of the panel normal (not large as
+// the vendor, small was too small: owner 24.11.2026), broken in lines; the background MEL_TSL_BG over the one of the skin
 // (optimize_full_screen_background off: on, the shell does not paint that one, SDK plugins.txt, and a skin with no
 // images/bg.jpg would be black); ENTER and POP UP as the grid of "Show all" of r24 (cat_enter, cat_menu from the screen).
 /**
@@ -255,7 +255,7 @@ function mel_tsl_pane($items)
                 ViewParams::num_rows => 11,
                 ViewParams::paint_details => true,
                 ViewParams::scroll_animation_enabled => true,
-                ViewParams::item_detailed_info_font_size => FONT_SIZE_SMALL,
+                ViewParams::item_detailed_info_font_size => FONT_SIZE_NORMAL,
                 ViewParams::item_detailed_info_auto_line_break => true,
                 ViewParams::max_icon_width => 288,
                 ViewParams::max_icon_height => 432,
