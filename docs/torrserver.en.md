@@ -34,7 +34,7 @@ Torrents already on TorrServer (added from a phone via NUM, KinoTrend, Lampa, or
 
 2. The screen lists all TorrServer torrents, newest first. Each line shows an icon and the name. On the right is the poster of the selected torrent, with the number of files, the size, the date added and the full name under it.
 
-   <img src="../screenshots/ts-section.jpg" alt="On TorrServer screen: torrent tiles, focus on Дом Дракона S03E02, above the rows 4 files · 35.4 GB and the date added" width="100%">
+   <img src="../screenshots/ts-section.jpg" alt="The On TorrServer list with Gladiator in focus; on the right, the poster with its size and date added below" width="100%">
 
 3. A movie: press **ENTER** and the player starts.
 
