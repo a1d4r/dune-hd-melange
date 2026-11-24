@@ -193,9 +193,15 @@ class Mel
     // row of its release). Lazy episodes move it on; back on that screen
     // mel_finish replaces it with the list of the episode played last.
     // It is also the season of the playlist playing for mel_lazy_url, so
-    // every vod_play of mel_play marks it (mel_playing).
+    // every vod_play of mel_play marks it (mel_playing). Whether the start of that playlist resumed: Mel::$resumed.
     /** @var MelPlaying|null */
     public static $playing = null;
+    // Why the start of the playlist sent last (a vod_play of mel_play or mel_lpv_ep_play: Debrid, TorrServer, Lampac)
+    // resumes, '' it does not (mel_resumed): the shell starts the first item it moves to next from that position too
+    // (Dune 25.11.2026), so that lazy episode goes the old way, a new vod_play (mel_lazy_url). Not in Mel::$playing:
+    // Lampac has none, and mel_ts_play notes it before its mel_play.
+    /** @var string */
+    public static $resumed = '';
     // The dialog of a refused start with "Via <the other one>" or "The same episode
     // from another release" (mel_pre_failed), until its button (mel_pre_via,
     // mel_pre_twin_go) or another start.

@@ -241,8 +241,10 @@ function mel_lpv_ep_play($mv, $lang, $f, $s, $e, $pos, $deadline)
         $info[PluginVodInfo::recent_action_params] = mel_recent_params($mv['dune_id'], $r['key'], 'lampac',
             Mel::$settings['lp_prof']);
     }
+    Mel::$resumed = mel_resumed($info);
     mel_log("play: lampac {$r['key']}" . ($e > 0 ? sprintf(' S%02dE%02d', $s, $e) : '') . " pos=$pos linked=" .
-        ($linked ? 1 : 0) . ($list ? ', ' . count($eps) . ' episodes' : ''));
+        ($linked ? 1 : 0) . ($list ? ', ' . count($eps) . ' episodes' : '') .
+        (Mel::$resumed !== '' ? ', resumed: ' . Mel::$resumed : ''));
     return array(
         GuiAction::handler_string_id => PLUGIN_VOD_PLAY_ACTION_ID,
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
