@@ -16,9 +16,9 @@ Show Melange catalog rows right on the Dune home screen, in the TV tab. [← Con
 
    <img src="../screenshots/tv-tab-rows.jpg" alt="TV tab, Movies sub-item: Melange rows Continue Watching, Favorites and others on the left" width="100%">
 
-4. On a poster, press **POP UP**: it has the same items as in the catalog ([Continue Watching and Favorites](favorites.en.md)).
+4. On a poster, press **POP UP**: it has the same items as in the catalog ([Continue Watching and Favorites](favorites.en.md)), plus Open Melange. On a row name the menu also has **Configure List...**. Rows you turn on there appear in TV usually a few seconds later.
 
-   <img src="../screenshots/tv-tab-poster.jpg" alt="POP UP menu on a poster in the TV tab: Remove from Continue Watching, Mark as watched, Remove from Favorites, Search, Open Melange, Settings" width="100%">
+   <img src="../screenshots/tv-tab-poster.jpg" alt="POP UP menu on a poster in the TV tab: Watch from…, Remove from Continue Watching, Mark as watched, Add to Favorites, Movies, Series, Continue Watching, Favorites, On TorrServer, Search, Open Melange, Settings" width="100%">
 
 ## If it did not work
 

@@ -365,6 +365,17 @@ function mel_catv_rows_merge($chosen, $keys, $tab)
 }
 
 
+// The tab of the rows of the dialogs of $from: of a main screen of the catalog (mel_catv_tab), of an EPF of the tab
+// "TV" of one tab (mel_tv_tab_of: POP UP there, mel_tv_menu, gives them "tv:<tab>"); '' else.
+/**
+ * @param string $from
+ * @return string
+ */
+function mel_catv_rows_tab($from)
+{
+    return mel_tv_is_from($from) ? mel_tv_tab_of($from) : mel_catv_tab($from);
+}
+
 // "Configure list…" and a separator for the POP UP of the main screen $from of the tab $tab, on the
 // header $hid (selected_header_id, in the panel of the headers; genre_rows_screen.php r25): on any
 // h:* header or MEL_CATV_STRIP_HEADER the menu of the rows of the tab (mel_catv_rows_menu), the row
@@ -379,9 +390,9 @@ function mel_catv_rows_merge($chosen, $keys, $tab)
 function mel_catv_rows_menu_items($hid, $tab, $from, $lang)
 {
     $strip = $hid === MEL_CATV_STRIP_HEADER;
+    $rid = mel_catv_header_rid($hid);
     if (!$strip && strpos($hid, MEL_CATV_HEADER) !== 0)
         return array();
-    $rid = $strip ? '' : strval(substr($hid, strlen(MEL_CATV_HEADER)));
     $copy = mel_cat_manifest_copy();
     $any = false;
     $sel = null;
@@ -414,7 +425,7 @@ function mel_catv_rows_menu_items($hid, $tab, $from, $lang)
  */
 function mel_catv_rows_menu($from, $sel)
 {
-    $tab = mel_catv_tab($from);
+    $tab = mel_catv_rows_tab($from);
     if ($tab === '')
         return null;
     $copy = mel_cat_manifest_copy();
@@ -471,7 +482,7 @@ function mel_catv_rows_menu($from, $sel)
  */
 function mel_catv_rows_edit($from, $sel, $g)
 {
-    $tab = mel_catv_tab($from);
+    $tab = mel_catv_rows_tab($from);
     $names = mel_catv_lcfg_groups();
     if ($tab === '' || ($g !== '' && !isset($names[$g])))
         return null;
@@ -483,9 +494,11 @@ function mel_catv_rows_edit($from, $sel, $g)
     if (!$d['ids'])
         return mel_error('cat_outdated');
     $what = $g === '' ? 'order' : "group $g";
+    // From "TV": its EPF in the log, the dialog opened over the main screen of the shell.
+    $at = mel_tv_is_from($from) ? "$tab, $from" : $tab;
     if (!mel_write_file(mel_catv_lcfg_path($tab, $g), mel_catv_lcfg_text($d['ids'], $d['on'], $d['order']), 0644))
     {
-        mel_log("catalog: rows: $tab: $what: the file of the dialog not written");
+        mel_log("catalog: rows: $at: $what: the file of the dialog not written");
         return mel_error('cat_rows_not_opened');
     }
     $items = array();
@@ -504,7 +517,7 @@ function mel_catv_rows_edit($from, $sel, $g)
         $data[EditListConfigActionData::options] = EDIT_LIST_CONFIG_OPT_ALLOW_EMPTY;
     if (isset($d['checked'][$sel]))
         $data[EditListConfigActionData::sel_id] = $sel;
-    mel_log("catalog: rows: $tab: $what: dialog, " . count($items) . ($g === '' ? ' groups' : ' rows, ' . count($d['on']) . ' chosen'));
+    mel_log("catalog: rows: $at: $what: dialog, " . count($items) . ($g === '' ? ' groups' : ' rows, ' . count($d['on']) . ' chosen'));
     return array(GuiAction::handler_string_id => EDIT_LIST_CONFIG_ACTION_ID, GuiAction::data => $data);
 }
 
@@ -524,41 +537,42 @@ function mel_catv_rows_edit($from, $sel, $g)
  */
 function mel_catv_rows_apply($in, $from)
 {
-    $tab = mel_catv_tab($from);
+    $tab = mel_catv_rows_tab($from);
     $g = mel_catv_in($in, 'g');
     $names = mel_catv_lcfg_groups();
     $changed = isset($in->list_config_changed) && is_scalar($in->list_config_changed) ? strval($in->list_config_changed) : '';
     if ($tab === '' || ($g !== '' && !isset($names[$g])) || mel_catv_in($in, 'list_config_id') !== mel_catv_lcfg_id($tab, $g))
         return null;
     $what = $g === '' ? 'order' : "group $g";
+    $at = mel_tv_is_from($from) ? "$tab, $from" : $tab;
     if ($changed !== '1')
     {
-        mel_log("catalog: rows: $tab: $what: dialog closed, no change");
+        mel_log("catalog: rows: $at: $what: dialog closed, no change");
         return null;
     }
     list($text, $no) = mel_catv_lcfg_load(mel_catv_lcfg_path($tab, $g));
     if ($no === 'bad')
     {
-        mel_log("catalog: rows: $tab: $what: the file of the dialog not a file or too big, nothing changed");
+        mel_log("catalog: rows: $at: $what: the file of the dialog not a file or too big, nothing changed");
         return null;
     }
     if ($no === 'none')
-        mel_log("catalog: rows: $tab: $what: no file of the dialog, the defaults");
+        mel_log("catalog: rows: $at: $what: no file of the dialog, the defaults");
     if ($no === 'unread')
     {
-        mel_log("catalog: rows: $tab: $what: the file of the dialog not read, nothing changed");
+        mel_log("catalog: rows: $at: $what: the file of the dialog not read, nothing changed");
         return mel_error('cat_rows_not_saved');
     }
     $copy = mel_cat_manifest_copy();
     $d = mel_catv_lcfg_dialog($copy['rows'], $tab, $g, mel_catv_lang());
     list(, , $has_order, $plus, $minus) = mel_catv_lcfg_read($text, $d['ids'], $d['checked']);
-    mel_log("catalog: rows: $tab: $what: the file: " . ($has_order ? 'an order' : 'no order') . ", $plus on, $minus off");
+    mel_log("catalog: rows: $at: $what: the file: " . ($has_order ? 'an order' : 'no order') . ", $plus on, $minus off");
     $got = mel_catv_lcfg_order($text, $d['ids'], $d['checked'], $d['order']);
     if ($g === '')
     {
         if (!$got)
         {
-            mel_log("catalog: rows: $tab: $what: none chosen in the file, nothing changed");
+            mel_log("catalog: rows: $at: $what: none chosen in the file, nothing changed");
             return null;
         }
         $keys = mel_catv_lcfg_groups_apply($got, $d['blocks']);
@@ -568,7 +582,7 @@ function mel_catv_rows_apply($in, $from)
         $keys = mel_catv_lcfg_group_apply(mel_catv_lcfg_groups_apply(array_keys($d['blocks']), $d['blocks']), $d['ids'], $got ? $got : array());
         if (!$keys)
         {
-            mel_log("catalog: rows: $tab: $what: no row left on the tab, nothing changed");
+            mel_log("catalog: rows: $at: $what: no row left on the tab, nothing changed");
             return mel_error('cat_rows_empty');
         }
     }
@@ -577,21 +591,25 @@ function mel_catv_rows_apply($in, $from)
     $s = $dir !== '' ? mel_settings_read($dir, $why) : null;
     if (!$s || $why !== '')
     {
-        mel_log("catalog: rows: $tab: settings.json not read, not written");
+        mel_log("catalog: rows: $at: settings.json not read, not written");
         return mel_error('cat_rows_not_saved');
     }
     $rows = mel_catv_rows_merge($s['cat_rows'], $keys, $tab);
     if ($rows === $s['cat_rows'])
     {
-        mel_log("catalog: rows: $tab: the same rows");
+        mel_log("catalog: rows: $at: the same rows");
         return null;
     }
+    $was = $s['cat_rows'];
     $s['cat_rows'] = $rows;
     if (!mel_settings_write($s))
     {
-        mel_log("catalog: rows: $tab: settings.json not written");
+        mel_log("catalog: rows: $at: settings.json not written");
         return mel_error('cat_rows_not_saved');
     }
-    mel_log("catalog: rows: $tab: " . count($keys) . ' chosen, saved');
-    return mel_catv_invalidate($from);
+    // In memory too: the files of "TV" are built of it in this operation (mel_tv_rows_saved).
+    Mel::$settings['cat_rows'] = $rows;
+    mel_log("catalog: rows: $at: " . count($keys) . ' chosen, saved');
+    // From "TV": no screen of Melange under the EPF to read again, the files built anew (mel_tv_rows_saved).
+    return mel_tv_is_from($from) ? mel_tv_rows_saved($copy['rows'], $was, $rows) : mel_catv_invalidate($from);
 }

@@ -4,9 +4,10 @@
 // file the shell reads without PHP (embeddable_plugin_folders of the manifest, mapping tv -> tv.json).
 // Focus on a tile asks rows_info of Melange, ENTER opens a screen of Melange.
 // The file: <tmp_dir>/epfs/tv.json, read first by the shell, and $FS_PREFIX/flashdata/plugins_epfs/melange/tv.json,
-// kept over a reboot, with tv.no_internet.json there. Written by the
-// update_action of the manifest (mel_tv_update) and only by it, from the copies on the device: the
-// rows of the tab "Movies", then those of "Series" (mel_catv_tab_copy_defs), no request.
+// kept over a reboot, with tv.no_internet.json there. Written (mel_tv_write) by the update_action of the
+// manifest (mel_tv_update) and by "Configure list…" from the EPF (mel_tv_rows_saved: it has the shell read them
+// anew at once, no flag then), from the copies on the device: the rows of the tab "Movies", then those of "Series"
+// (mel_catv_tab_copy_defs), no request.
 // The same for movie.json and series.json, the rows of one tab each: the sub-items "Movies" and "Series"
 // under "TV" (rows_menu_config.json of the flash directory, topmenu_enabled of the manifest); with them
 // "TV" shows the first sub-item, tv.json is shown without them (the switch data_dir/tv_sub_off, a firmware
@@ -16,8 +17,9 @@
 // Fresh: the shell calls it again on the flag <tmp_dir>/update_epfs_if_needed_flag (mel_tv_flag), set
 // by the timer of the manifest (mel_tv_timer, every 10 min: the old copies asked anew, the history changed)
 // and by Melange when it saves a copy the file is built of (mel_tv_copy_saved), reads a new settings.json or
-// is back from the player (mel_finish). The row "Continue" (continue.php) first in each, of its types; its
-// badges and those of the tiles are of the history when the file is built.
+// is back from the player (mel_finish), and by "Configure list…" when it has nothing for the shell to read anew.
+// The row "Continue" (continue.php) first in each, of its types; its badges and those of the tiles are of the
+// history when the file is built.
 
 define('MEL_TV_EPF', 'tv');
 // "from" of the actions of each EPF: this and its id (mel_tv_is_from): no screen of Melange is under them.
@@ -34,6 +36,9 @@ define('MEL_TV_SUB_MIN_R', 24);
 // top, only in a tick with a new copy or other settings. php_server runs one call at a time: the info
 // panel and ENTER on "TV" wait for it.
 define('MEL_TV_TIMER_S', 3.0);
+// "Configure list…" on "TV" (mel_tv_rows_saved): the requests of the rows chosen anew with no copy in this many s, as
+// the timer asks them (mel_tv_ask); the user waits after the dialog, the rows past it come with the timer.
+define('MEL_TV_ROWS_S', 5.0);
 // In data_dir: the tiles of tv.json by id without the mode (mel_tv_tile), written with it.
 define('MEL_TV_TILES_FILE', 'tv_tiles.json');
 // In data_dir: what the timer last built the EPF with (mel_tv_timer_state), kept over a restart of php_server.
@@ -55,7 +60,8 @@ class MelTv
     // The copies the timer saved meanwhile (the manifest, first pages of rows of the file).
     /** @var int */
     public static $new_copies = 0;
-    // mel_settings_sig at the last operation (mel_tv_settings_seen); null: none since a start of php_server.
+    // mel_settings_sig at the last operation (mel_tv_settings_seen), or of the settings.json mel_tv_rows_saved wrote itself
+    // (it has set the flag of it already: none again at the next operation); null: none since a start of php_server.
     /** @var string|null */
     public static $sig = null;
     // The tiles of MEL_TV_TILES_FILE as read ($tiles_sig: 'ino:mtime:size' of the file then); null: not read.
@@ -128,17 +134,19 @@ function mel_tv_flag($why)
     mel_log("tv: flag: $why" . ($ok ? '' : ', not written'));
 }
 
-// The rows the files are built of: of the tabs of tv.json (mel_tv_epfs) in turn, as mel_catv_tab_copy_defs.
+// The rows the files are built of by cat_rows $chosen: of the tabs of tv.json (mel_tv_epfs) in turn, as
+// mel_catv_tab_copy_defs.
 /**
  * @param list<MelCatRow> $rows
+ * @param mixed $chosen
  * @return list<MelCatRow>
  */
-function mel_tv_rows($rows)
+function mel_tv_rows($rows, $chosen)
 {
     $epfs = mel_tv_epfs();
     $out = array();
     foreach ($epfs[MEL_TV_EPF] as $tab)
-        $out = array_merge($out, mel_cat_user_rows($rows, Mel::$settings['cat_rows'], $tab));
+        $out = array_merge($out, mel_cat_user_rows($rows, $chosen, $tab));
     return $out;
 }
 
@@ -173,7 +181,7 @@ function mel_tv_copy_saved($key)
     if (!$hit)
     {
         $copy = mel_cat_manifest_copy();
-        foreach (mel_tv_rows($copy['rows']) as $row)
+        foreach (mel_tv_rows($copy['rows'], Mel::$settings['cat_rows']) as $row)
             $hit = $hit || mel_cat_page_key($row, 0) === $key;
     }
     if ($hit)
@@ -508,26 +516,37 @@ function mel_tv_update($in)
     $boot = isset($in->first_run_after_boot) && is_scalar($in->first_run_after_boot) ?
         substr(strval(preg_replace('/[^0-9A-Za-z]/', '', strval($in->first_run_after_boot))), 0, 8) : '';
     $what = 'tv: update' . ($boot !== '' ? " first_run_after_boot=$boot" : '') . mel_tv_lang_log($in);
-    $d = mel_tv_dirs();
-    if ($d['tmp'] === '')
-    {
-        mel_log("$what: no tmp_dir_path, nothing written");
-        return $status;
-    }
-    if (!mel_tv_selected())
-    {
-        mel_log("$what: not the TV application, nothing written");
-        return $status;
-    }
     $lang = mel_tv_lang($in);
     // Not set back: the info panel of the tiles of the file (rows_info, mel_catv_ui_lang) speaks its language.
     MelCat::$lang = $lang;
+    mel_log(sprintf('%s%s, %.0f ms', $what, mel_tv_write($lang), (microtime(true) - $t0) * 1000));
+    // The shell takes rows_menu_config.json by its mtime, as of Global TV: no menu read anew here.
+    return $status;
+}
+
+// Each EPF (mel_tv_views) of $lang to both directories of mel_tv_dirs (tmp_dir one there), its .no_internet.json (the
+// same rows: they need no network) to the flash one, then rows_menu_config.json there (mel_tv_menu_put) and the tiles
+// (mel_tv_tiles_save), each only if it changed: a file written anew has a newer mtime, the shell takes no other one
+// ("already up-to-date"). No tmp_dir or not the TV application: nothing written. -> for the log after the name of the
+// caller: " <lang>: <what written>", or ": <why nothing written>" (" <lang>: …" when no JSON of a view). $new: the ids
+// of the EPF with other bytes now.
+/**
+ * @param string $lang
+ * @param list<string>|null $new
+ * @param-out list<string> $new
+ * @return string
+ */
+function mel_tv_write($lang, &$new = null)
+{
+    $new = array();
+    $d = mel_tv_dirs();
+    if ($d['tmp'] === '')
+        return ': no tmp_dir_path, nothing written';
+    if (!mel_tv_selected())
+        return ': not the TV application, nothing written';
     $jsons = mel_tv_jsons($lang, $tiles);
     if ($jsons === null)
-    {
-        mel_log("$what $lang: no JSON of the view, nothing written");
-        return $status;
-    }
+        return " $lang: no JSON of the view, nothing written";
     $out = array();
     $tmp_tv = 'failed';
     // The menu only after every sub-item written: none left out by the switch, none failed.
@@ -541,15 +560,16 @@ function mel_tv_update($in)
             $tmp_tv = $tmp;
         else
             $subs = $subs && $flash !== 'failed';
+        // Not the bytes of the flash already: the shell stores tmp_dir there and removes it, the one of tmp_dir alone is
+        // written again with nothing new to show.
+        if (($tmp === 'new' || $flash === 'new') && $flash !== 'same')
+            $new[] = $epf;
         $out[] = ($epf === MEL_TV_EPF ? '' : "$epf ") . "$tmp/$flash " . strlen($json) . " B, no_internet $ni";
     }
     $menu = mel_tv_menu_put($d['flash'], $lang, $subs);
     // The tiles of the files the shell reads first.
     $ts = $tmp_tv !== 'failed' ? mel_tv_tiles_save($tiles) : 'not written';
-    mel_log(sprintf('%s %s: %s, menu %s, tiles %d %s, %.0f ms', $what, $lang, implode(', ', $out), $menu, count($tiles), $ts,
-        (microtime(true) - $t0) * 1000));
-    // The shell takes rows_menu_config.json by its mtime, as of Global TV: no menu read anew here.
-    return $status;
+    return sprintf(' %s: %s, menu %s, tiles %d %s', $lang, implode(', ', $out), $menu, count($tiles), $ts);
 }
 
 // The file of the EPF $epf the shell shows holds $data: the one of tmp_dir while it is there, else the one
@@ -634,7 +654,7 @@ function mel_tv_refresh($limit)
         $err = $m ? $m['err'] : '';
         $man = $m ? 'manifest asked' . ($err !== '' ? " ($err)" : '') : 'manifest old, no time';
     }
-    $tv_rows = mel_tv_rows($rows);
+    $tv_rows = mel_tv_rows($rows, Mel::$settings['cat_rows']);
     $none = array();
     $old = array();
     $old_t = array();
@@ -657,21 +677,40 @@ function mel_tv_refresh($limit)
     // Copies of an older version are all old at once, a few rows a tick: the series would wait for all the movies.
     $queue = array_merge(mel_tv_in_turn($tv_rows, $none), mel_tv_in_turn($tv_rows, mel_cat_oldest_first($old, $old_t)),
         $slow);
-    $asked = 0;
+    $ask = array();
     foreach ($queue as $i)
+        $ask[] = $tv_rows[$i];
+    $asked = mel_tv_ask($ask, $start, $limit, $err);
+    MelTv::$quiet = false;
+    return sprintf('%s, rows asked %d of %d old', $man, $asked, count($queue));
+}
+
+// The first pages of the rows $rows one by one, in their order, in $limit s since $start: each request the whole
+// seconds left, none begun with less than 1 s, none after a failure of the server (mel_cat_err_down; $err: of a
+// request before). -> how many asked.
+/**
+ * @param list<MelCatRow> $rows
+ * @param float $start
+ * @param float $limit
+ * @param string $err
+ * @return int
+ */
+function mel_tv_ask($rows, $start, $limit, $err = '')
+{
+    $asked = 0;
+    foreach ($rows as $row)
     {
         $secs = floor($limit - (microtime(true) - $start));
         if (mel_cat_err_down($err) || $secs < 1)
             break;
-        $st = mel_cat_row_state($tv_rows[$i]);
+        $st = mel_cat_row_state($row);
         // The first page alone, whatever the filter takes of it: its copy is all the files need.
         $res = mel_cat_more($st, $secs, 0);
         $err = $res['err'];
-        mel_catv_slow_note(mel_catv_rid($tv_rows[$i]), $err);
+        mel_catv_slow_note(mel_catv_rid($row), $err);
         $asked++;
     }
-    MelTv::$quiet = false;
-    return sprintf('%s, rows asked %d of %d old', $man, $asked, count($queue));
+    return $asked;
 }
 
 // $list (indexes of $tv_rows in the order to ask) a movie and a series in turn: by the place of each in the part of
@@ -794,9 +833,87 @@ function mel_tv_enter($in)
     return $a;
 }
 
-// POP UP in the EPF, on any tile: the items of a tile of a title first (mel_catv_tile_menu), then the search
-// (its results a screen of Melange), the catalog, the settings. The search key is not the plugin's there: the main
-// screen has its own (mel_tv_views).
+// The tab of the EPF $from of one tab ("tv:movie", "tv:series"); '' of tv.json (both) and of any other $from.
+/**
+ * @param string $from
+ * @return string
+ */
+function mel_tv_tab_of($from)
+{
+    $epfs = mel_tv_epfs();
+    $id = strval(substr($from, strlen(MEL_TV_FROM_PREFIX)));
+    return mel_tv_is_from($from) && count($epfs[$id]) === 1 ? $epfs[$id][0] : '';
+}
+
+// The tab of the rows "Configure list…" edits from the EPF $from, on the header $hid: of movie.json, series.json theirs;
+// of tv.json (both) the tab of the row of the header in the copy of the manifest, else (the rows "Continue" and "Мой
+// список" of both, a note) the first one, the movies.
+/**
+ * @param string $from
+ * @param string $hid
+ * @return string
+ */
+function mel_tv_rows_tab($from, $hid)
+{
+    $tab = mel_tv_tab_of($from);
+    if ($tab !== '')
+        return $tab;
+    $rid = mel_catv_header_rid($hid);
+    $row = $rid !== '' ? mel_catv_row_by_rid($rid) : null;
+    $epfs = mel_tv_epfs();
+    return $row ? mel_cat_row_tab($row) : $epfs[MEL_TV_EPF][0];
+}
+
+// "Configure list…" from the EPF saved (mel_catv_rows_apply: cat_rows $was -> $now, the copy of the manifest $rows): the
+// rows of the files chosen now and not before with no copy of their first page asked at once (mel_tv_ask in
+// MEL_TV_ROWS_S; none without AIOStreams, as the timer); then the files written here (mel_tv_write, in the language of
+// the settings of the shell) and those written anew invalidated by their ids: the shell reads them again at once, with
+// the focus in the rows too (as DUNE-HD.TV from POP UP of its EPF: update_tv_epf, invalidate_folders of its id; device
+// r25). No flag then: the update_action it calls writes tmp_dir again, and the shell postpones the same view until the
+// focus leaves the rows (code r25, knowledge epf-pending-apply). Nothing written anew (nothing changed, not written,
+// not the TV application): null, as no screen of Melange is under the EPF, and the flag (mel_tv_flag sets none when
+// not the TV application). No flag of each copy (MelTv::$quiet) nor of the new settings.json.
+/**
+ * @param list<MelCatRow> $rows
+ * @param mixed $was
+ * @param mixed $now
+ * @return MelAction|null
+ */
+function mel_tv_rows_saved($rows, $was, $now)
+{
+    $start = microtime(true);
+    $before = mel_catv_lcfg_keys(mel_tv_rows($rows, $was));
+    $none = array();
+    foreach (mel_tv_rows($rows, $now) as $row)
+    {
+        if (!isset($before[$row['key']]) && !mel_cat_page_cached($row, 0))
+            $none[] = $row;
+    }
+    $asked = 0;
+    if ($none && Mel::$settings['ready'])
+    {
+        MelTv::$quiet = true;
+        $asked = mel_tv_ask($none, $start, MEL_TV_ROWS_S);
+        MelTv::$quiet = false;
+    }
+    $res = mel_tv_write(mel_catv_lang(), $new);
+    $a = $new ? mel_catv_invalidate($new[0]) : null;
+    if ($a)
+        $a[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = $new;
+    mel_log(sprintf('tv: rows: %d chosen anew with no copy, %d asked; written%s; %s, %.0f ms', count($none), $asked, $res,
+        $new ? 'invalidate ' . implode(', ', $new) : 'no invalidate', (microtime(true) - $start) * 1000));
+    if (!$a)
+        mel_tv_flag('the rows chosen');
+    // settings.json written here seen: no flag of it again at the next operation (mel_tv_settings_seen).
+    MelTv::$sig = mel_settings_sig();
+    return $a;
+}
+
+// POP UP in the EPF, as on a main screen of the catalog (mel_catv_menu): on a tile of a title its items first
+// (mel_catv_tile_menu), on the header of a row "Configure list…" (mel_catv_rows_menu_items) of its tab
+// (mel_tv_rows_tab), its dialogs from "tv:<tab>"; then the parts of the strip (mel_catv_part_items; each a screen of
+// Melange over the main screen, mel_catv_strip_enter) with "Open Melange" (the catalog) before the settings. The search
+// key is not the plugin's there: the main screen has its own (mel_tv_views).
 /**
  * @param stdClass $in
  * @return MelAction
@@ -804,23 +921,22 @@ function mel_tv_enter($in)
 function mel_tv_menu($in)
 {
     $from = mel_catv_in($in, 'from');
+    $hid = mel_catv_in($in, 'selected_header_id');
     $lang = mel_catv_lang();
-    mel_log("tv: POP UP on '" . mel_cut(mel_catv_in($in, 'selected_item_id'), 100) . "'");
+    mel_log("tv: POP UP on '" . mel_cut(mel_catv_in($in, 'selected_item_id'), 100) . "', header '" . mel_cut($hid, 100) . "'");
     // On a tile (no header in focus), as mel_catv_menu.
-    $tile = mel_catv_in($in, 'selected_header_id') === '' ? mel_catv_in($in, 'selected_item_id') : '';
-    $items = $tile !== '' ? mel_catv_tile_menu($tile, $from, $lang) : array();
-    $screen = array();
-    foreach (array(
-        array('cat_search', MEL_CATV_ICON_SEARCH, mel_input('cat_search', array('from' => $from))),
-        array('tv_open', 'movies_small.png', mel_tv_catalog_act()),
-        array('setup_menu', MEL_CATV_ICON_SETUP, mel_setup_open_act())) as $m)
-    {
-        $screen[] = array(
-            GuiMenuItemDef::caption => mel_tr($lang, $m[0]),
-            GuiMenuItemDef::icon_url => MEL_CATV_ICONS . $m[1],
-            GuiMenuItemDef::action => $m[2]);
-    }
+    $items = $hid === '' ? mel_catv_tile_menu(mel_catv_in($in, 'selected_item_id'), $from, $lang) : array();
+    $tab = mel_tv_rows_tab($from, $hid);
+    $screen = mel_catv_rows_menu_items($hid, $tab, MEL_TV_FROM_PREFIX . $tab, $lang);
+    $parts = mel_catv_part_items($from, $lang);
+    $setup = $parts['tab_setup'];
+    unset($parts['tab_setup']);
+    $parts['tv_open'] = array(
+        GuiMenuItemDef::caption => mel_tr($lang, 'tv_open'),
+        GuiMenuItemDef::icon_url => MEL_CATV_ICONS . 'movies_small.png',
+        GuiMenuItemDef::action => mel_tv_catalog_act());
+    $parts['tab_setup'] = $setup;
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => mel_catv_menu_join($items, $screen)));
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => mel_catv_menu_join($items, array_merge($screen, array_values($parts)))));
 }
