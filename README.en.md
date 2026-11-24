@@ -2,118 +2,27 @@
 
 # Melange for Dune HD
 
-Melange turns your Dune into an online cinema. Movie and series collections like on a streaming service: trending, new digital releases, Kinopoisk top, genres, plus search. Pick a movie, and Melange finds releases, shows their quality and voice-overs, and plays it in the Dune's built-in player. Series play episode after episode; stop, and later you pick up where you left off. Melange also plugs into the Dune's own **Movies** catalog: a movie or series card gets a **Melange** item in its **Play...** menu.
+Melange turns your Dune into an online cinema: a movie and series catalog with curated rows and search. Pick a movie, and Melange finds releases, shows their quality and dubs, and plays the movie in the Dune player. Stop anytime and resume from the same spot. You can also pick a movie in the Dune's own **Movies** catalog: its card has a **Melange** item in the **Play...** menu.
 
-Releases are found by AIOStreams, a service that queries torrent search engines (JacRed for Russian trackers, Torrentio and others) and returns one combined list; what to search is set by the AIOStreams config. You can watch through Debrid, a paid service that downloads torrents on its side and serves them as ordinary video, or for free through TorrServer on the Dune (the TorrServe app).
+<img src="screenshots/overview-collage.jpg" alt="Four Melange screens: the catalog with rows; the release list with quality, audio and dubs; Melange's own movie card; Melange's own series card with seasons and episodes" width="100%">
 
-What it does:
-- its own movie and series catalog: rows of collections (trending, new releases, Russian, genres, streaming services and more; you choose which to show) and search;
-- a list of up to 100 releases with details: resolution, source, HDR / Dolby Vision, audio, size, languages, voice-overs, whether the release is cached in Debrid; sorting with the colored remote buttons;
-- Dune history: Melange's own Continue Watching row and watch marks on posters, the percentage on the **Melange [NN%]** button, resuming from the same spot;
-- your own Favorites, separate from Dune Favorites;
-- series: the episodes of a season play in a row on the same release, and you flip episodes right in the list with ← / →;
-- Debrid (Real-Debrid or TorBox) or, without a subscription, torrents via TorrServer;
-- studio voice-overs (dubbing studios), from the release name and its tracks, plus tracks and voice-overs from JacRed;
-- setup from a phone via a QR code, with **Download the log** on the same page.
-
-<img src="screenshots/catalog.jpg" alt="Melange catalog: Movies and Series tabs, Continue Watching, Favorites and other rows" width="100%">
-
-<img src="screenshots/film-list.jpg" alt="Left: the release list with Debrid, a lightning bolt on cached releases, details of the selected release" width="49%"> <img src="screenshots/film-list-p2p.jpg" alt="Right: the same movie in Torrents mode, seeder counts in the first column, P2P with 407 seeders on the left" width="49%">
+The [guide](docs/README.en.md) walks through every step with screenshots.
 
 ## Requirements
 
-- **A Dune HD on Android with firmware r22 or newer**, r24 or r25 recommended.
-- **Does not work** on Sigma / Linux Dunes (Solo 4K, Duo 4K, Base 3D, TV-303D and older): they have no **Movies** catalog with **Play...** items and no Android apps. On models with 1 GB of memory (SmartBox 4K, SmartBox 4K Plus, Traveler, Neo 4K, 4K Neo, Neo 4K T2) it is not guaranteed to work.
-- **A phone on the same home network** as the Dune, for the settings page.
-- **A source of releases**, one of three options:
+- A Dune HD on Android with firmware r22 or newer, r24 or r25 recommended. Melange does not work on Sigma / Linux Dunes and is not guaranteed to work on models with 1 GB of memory ([Known limitations](docs/limitations.en.md#devices-and-firmware)).
+- One way to watch:
+    - **Torrents via TorrServer**: free, needs the TorrServe app on the Dune ([Torrents and TorrServer](docs/torrserver.en.md)).
+    - **Debrid** (Real-Debrid or TorBox): a paid subscription, movies start right away ([Debrid](docs/debrid.en.md)).
 
-| | Debrid | Torrents | Own AIOStreams config |
-|---|---|---|---|
-| For whom | you want a quick start and lots of releases | you want to try it without a subscription | you have already tuned AIOStreams for yourself |
-| What you need | a Real-Debrid or TorBox subscription and its key | the TorrServe app on the Dune | a link to your config |
-| Price | paid subscription | free | as with your config |
-| Video start | cached releases start at once | slower, depends on seeders | as with your config |
-| AIOStreams config | created by Melange | created by Melange | yours, Melange only reads it |
-| Where releases are searched | JacRed, Torrentio, MediaFusion, Comet, StremThru Torz | by default only JacRed (Russian trackers); the **Everywhere** template adds Torrentio, TorrentsDB, Comet, StremThru Torz | as you set it up |
+## Installation and quick start
 
-An own config without Debrid (P2P releases) also plays via TorrServer. More on the options and on what Melange does with the config: [Release sources](docs/aiostreams.en.md).
-
-JacRed needs no setup: the default is `jacred.kompotik.com`, Melange's JacRed.
-
-## Installation
-
-1. Download the latest release from https://github.com/a1d4r/dune-hd-melange/releases, the `dune_plugin_melange_<version>.zip` file under Assets. Copy it to a USB stick or to the Dune's internal storage.
-2. On the Dune, open **Sources**, find the zip and press ENTER.
-3. In about half a minute, a **Melange** item appears in the **Play...** menu of cards, no reboot needed. If a card was open during the install, leave it and open it again.
-
-**Updates.** The Dune checks for a new Melange version on GitHub Pages by itself, after a reboot and when you enter **Setup → Apps → Melange**, and offers to install it. If no update arrives, install the new zip over the old one the same way. Settings and the settings page link are kept.
-
-**Uninstall** from the Dune's plugin list. The plugin's settings are erased with it; to keep them, save a [backup](docs/backup.en.md) first.
-
-## Quick start
-
-1. If you will watch without Debrid, install the TorrServe app (TorrServer MatriX) on the Dune and set it to start when the Dune boots.
-2. Open **Apps → Melange**. While nothing is set up, the Melange settings screen opens.
-3. Torrents only and no phone at hand: press **Quick setup: torrents**. Melange creates the config itself and opens the catalog. Go to step 6.
-4. Otherwise press **Set up from a phone** and scan the QR code: the settings page opens.
-5. On the page, choose **where to get films** (Debrid, **Torrents** or your own config), enter the Debrid key or the config link and press **Save and create the config** (**Save** for your own config). The QR window on the TV closes by itself.
-6. Open a movie in the Dune **Movies** catalog → **Play...** → **Melange**.
-7. Pick a release and press ENTER.
-
-The same path step by step, with screenshots: [Quick start](docs/start.en.md).
-
-## How to watch
-
-- **Pick a movie** in the [Melange catalog](docs/watch.en.md) (**Apps → Melange**: rows of collections and search) or in the Dune **Movies** catalog. On the card: **Play...** → **Melange**. For a series, first choose an episode via **Seasons**.
-- **Own card:** ENTER on a poster in the Melange catalog opens [a card](docs/appearance.en.md) with ratings, a trailer, seasons and episodes, similar titles and the cast.
-- **In the release list:** up / down moves through releases, P+ / P− through pages, ENTER plays, INFO shows release details, ← / → goes to the neighboring episode. The colored buttons change the order: Auto, Seeders (Cached with Debrid), Size, Date.
-- **Release status** on the left: **Cached in …** starts playing at once, **Not cached** means it is not in the Debrid cache, **P2P** plays via TorrServer.
-- **POP UP** opens the actions menu: refresh the list, choose an episode, watch via TorrServer, open in another app, download to your server, settings.
-- **Continue watching:** a started movie or episode shows up in the Dune's **Continue Watching** row and opens on the same release from the same spot.
-
-Everything about the list, series, TorrServer and history: [Watching](docs/watch.en.md).
+[Quick start](docs/start.en.md) shows how to install and set up Melange. The zip is in [releases](https://github.com/a1d4r/dune-hd-melange/releases/latest).
 
 ## Troubleshooting
 
-- **"No AIOStreams config — open Melange settings"**: the config was not created or another server is selected. In the window, press **Quick setup: torrents** (torrents only) or open the settings page and press **Save and create the config**.
-- **"AIOStreams found no streams"**: with the Melange config, a common cause is that JacRed did not answer the AIOStreams server. Choose another JacRed (the **Compare speed** button in the **JacRed** section) or another AIOStreams server.
-- **"AIOStreams is not responding"** and other server errors: try again later.
-- **Does not open via TorrServer**: install and start TorrServe on the Dune; **Check** in the **TorrServer** section of the settings page tests the connection.
-- Still stuck: download the log on the settings page (**Download the log**) and open an issue: https://github.com/a1d4r/dune-hd-melange/issues
-
-All messages and what to do about them: [Troubleshooting and the log](docs/troubleshooting.en.md).
-
-## Documentation
-
-[Guide contents](docs/README.en.md):
-
-- [Quick start](docs/start.en.md)
-- [Watching](docs/watch.en.md)
-- [Your own catalog rows](docs/catalog-rows.en.md)
-- [Settings page on a phone](docs/phone-page.en.md)
-- [Debrid](docs/debrid.en.md)
-- [Torrents and TorrServer](docs/torrserver.en.md)
-- [JacRed](docs/jacred.en.md)
-- [Sources](docs/profiles.en.md)
-- [Your own torrent client](docs/download-server.en.md)
-- [Appearance](docs/appearance.en.md)
-- [Melange in the TV tab](docs/tv-tab.en.md)
-- [Advanced](docs/advanced-options.en.md)
-- [Backup](docs/backup.en.md)
-- [AIOStreams and your own config](docs/aiostreams.en.md)
-- [Troubleshooting](docs/troubleshooting.en.md)
-- [Known limitations](docs/limitations.en.md)
-
-## Data sources
-
-Movies, series and posters come from [TMDB](https://www.themoviedb.org/), streaming service rows from [JustWatch](https://www.justwatch.com/) data. Thanks to the authors of the collections:
-- the parameters of most rows (genres, themes, studios, decades, streaming, countries, runtime) are from the AIOMetadata template [luckynumb3rs/stremio-perfect-setup](https://github.com/luckynumb3rs/stremio-perfect-setup); the Russian rows and new releases were put together for Melange;
-- Kinopoisk top is an unofficial mirror of the Kinopoisk Top 250, the public list by [lotist on Letterboxd](https://letterboxd.com/lotist/list/250/); it is not Kinopoisk's own rating, and the row has the first 200 movies;
-- "Новинки в качестве" and "Новинки в 4K" follow the open list of [KinoTrend](https://kino-trend.ru/), "Свежие серии с переводом" follows [Kinou](https://kinou.ru/);
-- "Сезон целиком с переводом" follows the open list of SerialTrend: series that already have a release of a whole season with Russian voice-over; a movie or series without an IMDb ID does not get into the rows of the "Fresh releases" group;
-- the "on AniList" anime rows are from [AniList](https://anilist.co/);
-- the catalog server is [AIOMetadata](https://github.com/cedya77/aiometadata).
+[Troubleshooting](docs/troubleshooting.en.md) lists on-screen messages and what to do about them. If that does not help, download the log on the settings page and open an [issue](https://github.com/a1d4r/dune-hd-melange/issues).
 
 ## License
 
-MIT, see the `LICENSE` file in the repository. Quality badges are from [github.com/kingsizew/badges](https://github.com/kingsizew/badges).
+MIT, see the `LICENSE` file.

@@ -8,7 +8,7 @@ Watch for free through TorrServer or with a paid Debrid service.
 
 New here? Start with Quick start.
 
-<img src="../screenshots/overview-collage.jpg" alt="Four Melange screens: the catalog with rows; Melange's own movie card; the release list with quality, audio and dubs; a Dune «Фильмы» (Movies) card with «Смотреть…» (Play...)" width="100%">
+<img src="../screenshots/overview-collage.jpg" alt="Four Melange screens: the catalog with rows; the release list with quality, audio and dubs; Melange's own movie card; Melange's own series card with seasons and episodes" width="100%">
 
 **Getting started**
 
