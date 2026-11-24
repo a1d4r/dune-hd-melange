@@ -792,7 +792,7 @@ function mel_lib_next_missing($mv, $q, $e, $why, $lang, $retry = null)
 
 // lib_next_pick ("Choose a release" of mel_lib_next_missing): the list of the episode of the main profile (a record of
 // the disk has none), as mel_next_pick with no list kept; the player stopped first, back from it as card_finish
-// (mel_oc_after_stop).
+// (mel_oc_after_stop, the own cards of the history k of the episode too).
 /**
  * @param stdClass $in
  * @return MelAction
@@ -802,7 +802,7 @@ function mel_lib_next_pick($in)
     $ep = mel_lib_next_ep($in);
     $res = $ep ? mel_next_fetch($ep[0], $ep[1], $ep[2]) : array('error' => 'err_list_expired', 'detail' => '');
     if (isset($res['error']))
-        return mel_stop_and(mel_oc_after_stop(mel_error($res['error'], $res['detail'])));
+        return mel_stop_and(mel_oc_after_stop(mel_error($res['error'], $res['detail']), $ep ? $ep[0] : ''));
     mel_log(sprintf('lib_next: -> list of S%02dE%02d', $res['st']['s'], $res['st']['e']));
-    return mel_stop_and(mel_oc_after_stop(mel_open_list($res['st'])));
+    return mel_stop_and(mel_oc_after_stop(mel_open_list($res['st']), $ep ? $ep[0] : ''));
 }

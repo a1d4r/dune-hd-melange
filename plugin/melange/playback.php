@@ -888,7 +888,7 @@ function mel_finish_act($rid)
 // on the old screen, unfolded for a release of it (mel_gc_put_cursor).
 // JacRed tracks of the old list go over by hash (one release). The tab "TV" built anew (mel_tv_flag) and the main
 // screens of the catalog invalidated (mel_catv_after_player): the row "Continue" and the badges are of the history.
-// The own cards of the card of the Dune of the list shown invalidated too (mel_oc_anew; also when the list is not that
+// The own cards of the card of the Dune of the list invalidated too (mel_oc_after_stop; also when the list is not that
 // of the playback): the finish comes to the top screen only, the card under it would keep its old progress. Before all,
 // the episodes stopped in their credits marked watched (mel_cw_apply).
 /**
@@ -897,10 +897,9 @@ function mel_finish_act($rid)
  */
 function mel_finish($in)
 {
-    mel_tv_flag('back from the player');
     // Of the list before mel_finish_list: it may put the state of another list.
     $dune = Mel::$state ? Mel::$state['movie']['dune_id'] : '';
-    return mel_cw_apply(mel_oc_anew(mel_catv_after_player(mel_finish_list($in)), $dune));
+    return mel_oc_after_stop(mel_finish_list($in), $dune);
 }
 
 // mel_finish of list $in->rid: the action of its screen.
