@@ -1,30 +1,31 @@
 <?php
 // The section "На TorrServer" on the screens (its data: ts_list.php). The way to it: an icon on the strip of the catalog
 // after the heart and its item of POP UP (mel_catv_strip_icons; none with "Без торрентов", mel_tsl_on). The screen
-// "cat_ts" as "Избранное": on r25 rows of MEL_CATV_ALL_COLS with the info panel of the catalog, on r24 and r22 the grid
-// of "Show all". A tile is a torrent, "tors:<hash>": its poster, none - the plate of the section with its title (2E of
-// knowledge/melange/design-torrserver-section.md of the kitchen); an empty list - the hint tile (4A). The info panel of a
-// torrent (2C): its title up to " [" or " (", the facts, the day it was added, the rest of its name smaller.
+// "cat_ts": on every firmware the list of the view "list" of "Фильмы" of the shell (movies/movie_list_screen.php of
+// shell_ext, owner 24.11.2026): lines of torrents on the left, "tors:<hash>", the icon of the section, the title, its
+// facts and day at the right of the line; the panel on the right: the poster (none - the picture of none of the shell),
+// the title up to " [" or " (", the rest of the name, the facts, the day it was added. An empty list - the line of the
+// hint (4A).
 // The list is read by the input that opens the screen (the icon, the item, "Повторить"): an error there - the kit error
 // screen over the screen it came from (mel_ks_rows_error); a build of the screen takes the list in memory within
-// MEL_TSL_FRESH_S of its read, else reads it anew (an error then: a tile of it). ENTER on a torrent: its start
-// (view_ts_play.php) or the screen of its files (view_ts_files.php). POP UP on a tile: none (no IMDb, no TMDB).
-// Needs ts_list.php, view_catalog.php, view_my_list.php (mel_mlv_is_screen), kit.php (MelKit::wrap, w), kit_scr.php,
-// view_setup.php, view_card.php (mel_oc_day), view_gcomps.php (mel_gc_plural), main.php. PHP 5.3.6, firmware API only.
+// MEL_TSL_FRESH_S of its read, else reads it anew (an error then: a line of it). ENTER on a torrent: its start
+// (view_ts_play.php) or the screen of its files (view_ts_files.php). POP UP on a line: none (no IMDb, no TMDB).
+// Needs ts_list.php, view_catalog.php, view_my_list.php (mel_mlv_is_screen), kit_scr.php, view_setup.php, view_card.php
+// (mel_oc_day), view_gcomps.php (mel_gc_plural), main.php. PHP 5.3.6, firmware API only.
 
-// The address of the screen; the rid of its tiles of torrents ("tors:<hash>"); the prefix of its other tiles: the hint
-// of an empty list, a tile of an error of a build of the screen ("tsl:err:<key>").
+// The address of the screen; the rid of its lines of torrents ("tors:<hash>"); the prefix of its other lines: the hint
+// of an empty list, a line of an error of a build of the screen ("tsl:err:<key>").
 define('MEL_TSL_URL', 'cat_ts');
 define('MEL_TSL_RID', 'tors');
 define('MEL_TSL_OWN', 'tsl:');
 define('MEL_TSL_HINT', MEL_TSL_OWN . 'hint');
 define('MEL_TSL_ERR', MEL_TSL_OWN . 'err:');
-// The icon of the strip, of its item of POP UP and of the plates: L1 of the designer, 64x64, the glyph 48x48 at 8, 8 as
-// the icons of the shell (the N of tsl<N> goes up when it changes: the shell keeps a picture by its URL; made by
-// experiments/ts_section_mock of the kitchen).
+// The icon of the strip, of its item of POP UP and of the lines of the screen: L1 of the designer, 64x64, the glyph
+// 48x48 at 8, 8 as the icons of the shell (the N of tsl<N> goes up when it changes: the shell keeps a picture by its
+// URL; made by experiments/ts_section_mock of the kitchen).
 define('MEL_TSL_ICON', 'plugin_file://img/tsl1_logo.png');
-// The background of the panel of its tiles: the wallpaper of the shell, the picture it paints over the strip of the main
-// screen (no rows_info is asked there); the same address as the default background of shell_ext (gui_helper.php).
+// The background of the screen: the wallpaper of the shell, the picture it paints over the strip of the main screen; the
+// same address as the default background of shell_ext (common/gui_helper.php), there with /config/bg.jpg.
 define('MEL_TSL_BG', 'gui_skin://images/bg.jpg');
 // A build of the screen takes the list in memory within this many s of its read.
 define('MEL_TSL_FRESH_S', 10);
@@ -32,14 +33,11 @@ define('MEL_TSL_FRESH_S', 10);
 // «Подождите» after 1.5 s, not after MEL_DELAY_INPUT (10 s: a still screen till then).
 define('MEL_TSL_DELAY', 1500);
 
-// The state of the screen (the data: MelTsl of ts_list.php): when the list in memory was read (microtime; 0: none), the
-// detail of the error of the last build (tsl_err_bad: the code, "not a list"; '' none).
+// The state of the screen (the data: MelTsl of ts_list.php): when the list in memory was read (microtime; 0: none).
 class MelTslView
 {
     /** @var float */
     public static $read = 0.0;
-    /** @var string */
-    public static $detail = '';
 }
 
 // The icon and the item of the section: always, but with "Без торрентов" on (owner 23.11.2026).
@@ -52,7 +50,7 @@ function mel_tsl_on()
 }
 
 // The open of the section from screen $from: cat_tsl_open with its own delay of «Подождите» (MEL_TSL_DELAY). The icon and
-// its item of POP UP (their inputs cat_enter and cat_part wait the delay of the screen), "Повторить", the tile of an error.
+// its item of POP UP (their inputs cat_enter and cat_part wait the delay of the screen), "Повторить", the line of an error.
 /**
  * @param string $from
  * @return MelAction
@@ -64,7 +62,7 @@ function mel_tsl_open_act($from)
 
 // cat_tsl_open (mel_tsl_open_act) on screen $from: the list read (mel_tsl_load); an error - the kit error screen over
 // $from (mel_tsl_error); else the screen over $from, in place of a screen of Fav (as mel_mlv_open); on the screen itself
-// (its tile of an error) the screen built anew.
+// (its line of an error) the screen built anew.
 /**
  * @param string $from
  * @return MelAction
@@ -154,14 +152,12 @@ function mel_tsl_error($key, $detail, $from)
 }
 
 // The screen (get_folder_view of MEL_TSL_URL): the list in memory within MEL_TSL_FRESH_S of its read (a second build of
-// one open too), else read anew; its tiles in its order (mel_tsl_item), none - the hint, an error - a tile of it (its
-// detail in its panel; ENTER: read anew). r25: rows of MEL_CATV_ALL_COLS as "Show all" (the info panel, ENTER, POP UP,
-// the search); r24, r22: the grid of "Show all".
+// one open too), else read anew; its lines in its order (mel_tsl_line), none - the hint, an error - a line of it (its
+// title and text with the detail in the panel; ENTER: read anew). The list of mel_tsl_pane on every firmware.
 /**
- * @param mixed $sel_state
  * @return array<string, mixed>
  */
-function mel_tsl_view($sel_state)
+function mel_tsl_view()
 {
     $start = microtime(true);
     $lang = mel_catv_lang();
@@ -174,123 +170,139 @@ function mel_tsl_view($sel_state)
         $list = array_values(MelTsl::$list);
     else
         list($list, $key, $detail) = mel_tsl_read();
-    MelTslView::$detail = $detail;
     $none = MEL_CATV_ICONS . 'no_movie_poster.png';
-    $rows_ok = mel_catv_all_ok();
     $items = array();
-    $grid = array();
     if ($list === null)
     {
-        $id = mel_catv_tile_id(MEL_TSL_ERR . $key);
         list($title, $text) = mel_tsl_err_texts($key, $lang, $detail);
-        $items[] = mel_catv_item($id, $title, $none);
-        $grid[] = mel_tsl_grid_item($id, $title, $none, $title, $text);
+        $items[] = mel_tsl_item(MEL_TSL_ERR . $key, $title, $none, array($title, $text), '');
     }
     else if (!$list)
-    {
-        $id = mel_catv_tile_id(MEL_TSL_HINT);
-        $title = mel_tr($lang, 'tsl_title');
-        $item = mel_catv_item($id, $title, $none);
-        $item[PluginRegularItem::stickers] = mel_tsl_plate(mel_tr($lang, 'tsl_empty'), true);
-        $items[] = $item;
-        $grid[] = mel_tsl_grid_item($id, $title, $none, $title, mel_tr($lang, 'tsl_empty_text'));
-    }
+        $items[] = mel_tsl_item(MEL_TSL_HINT, mel_tr($lang, 'tsl_empty'), $none,
+            array(mel_tr($lang, 'tsl_title'), mel_tr($lang, 'tsl_empty_text')), '');
     foreach ($list === null ? array() : $list as $e)
-    {
-        if ($rows_ok)
-        {
-            $items[] = mel_tsl_item($e);
-            continue;
-        }
-        $poster = mel_img($e['poster']);
-        list($head, $lines, $rest) = mel_tsl_texts($e, $lang);
-        $grid[] = mel_tsl_grid_item(mel_catv_tile_id(MEL_TSL_RID . ':' . $e['hash']), $e['title'], $poster !== '' ? $poster : $none,
-            $head, implode(' · ', array_filter(array($lines[0], $lines[1], $rest), 'strlen')));
-    }
-    mel_log(sprintf('ts section: screen: %d tiles, %s, %.0f ms', $list === null ? 0 : count($list),
+        $items[] = mel_tsl_line($e, $lang, $none);
+    mel_log(sprintf('ts section: screen: %d lines, %s, %.0f ms', $list === null ? 0 : count($list),
         $kept ? 'the list of the open' : 'the list read', (microtime(true) - $start) * 1000));
-    if ($rows_ok)
-    {
-        $rows = array();
-        foreach (array_chunk($items, MEL_CATV_ALL_COLS) as $k => $part)
-            $rows[] = mel_catv_all_def("row$k", $part);
-        return mel_catv_all_pane($rows, null, $sel_state, MEL_TSL_URL);
-    }
-    $p = array('from' => MEL_TSL_URL);
-    return mel_catv_grid_pane(array(
-        PluginRegularFolderRange::total => count($grid),
-        PluginRegularFolderRange::more_items_available => false,
-        PluginRegularFolderRange::from_ndx => 0,
-        PluginRegularFolderRange::count => count($grid),
-        PluginRegularFolderRange::items => $grid),
-        array(GUI_EVENT_KEY_ENTER => mel_input('cat_enter', $p, Mel::$settings['cat_card'] ? MEL_CARD_DELAY : MEL_DELAY_INPUT),
-            GUI_EVENT_KEY_POPUP_MENU => mel_input('cat_menu', $p)) + mel_egg_acts());
+    return mel_tsl_pane($items);
 }
 
-// The tile of a row of entry $e: its title, its poster (mel_img: http(s)); none - the plate with the title (2E).
+// The line of entry $e in language $lang: its title; at the right of it its facts and its day, short ("10 файлов ·
+// 120 ГБ · 18 сен", the year if not this one; none of a field left out); the panel: its texts (mel_tsl_texts: the title,
+// the rest of the name, the facts, "Добавлено <день>") under its poster (mel_img: http(s); none - $none).
 /**
  * @param MelTsEntry $e
+ * @param string $lang
+ * @param string $none
  * @return array<string, mixed>
  */
-function mel_tsl_item($e)
+function mel_tsl_line($e, $lang, $none)
 {
     $poster = mel_img($e['poster']);
-    $item = mel_catv_item(mel_catv_tile_id(MEL_TSL_RID . ':' . $e['hash']), $e['title'], $poster);
-    if ($poster === '')
-        $item[PluginRegularItem::stickers] = mel_tsl_plate($e['title'], false);
-    return $item;
+    list($head, $lines, $rest) = mel_tsl_texts($e, $lang);
+    $tail = implode(' · ', array_filter(array($lines[0], mel_tsl_day($e, $lang, true)), 'strlen'));
+    return mel_tsl_item(MEL_TSL_RID . ':' . $e['hash'], $e['title'], $poster !== '' ? $poster : $none,
+        array($head, $rest, $lines[0], $lines[1]), $tail);
 }
 
-// An item of the grid of r24 (as mel_mlv_grid_item): id $id, caption $caption, picture $icon, its details $title and
-// $text.
+// A line of the screen: id $id (the mode of the screen before it), caption $caption, the icon of the section; in the
+// panel picture $poster and texts $texts (the first the title, the empty ones left out); $tail at the right of the line
+// ('' none) as the shell puts the percent of a movie watched there (recent/recent_helper.php: a gap of 40, text 8).
 /**
  * @param string $id
  * @param string $caption
- * @param string $icon
- * @param string $title
- * @param string $text
+ * @param string $poster
+ * @param list<string> $texts
+ * @param string $tail
  * @return array<string, mixed>
  */
-function mel_tsl_grid_item($id, $caption, $icon, $title, $text)
+function mel_tsl_item($id, $caption, $poster, $texts, $tail)
 {
+    $p = array(
+        ViewItemParams::icon_path => MEL_TSL_ICON,
+        ViewItemParams::item_detailed_icon_path => $poster,
+        ViewItemParams::item_detailed_info => implode('|', array_map('mel_clean', array_filter($texts, 'strlen'))));
+    if ($tail !== '')
+        $p[ViewItemParams::item_extra_info] = json_encode(array('items' => array(array('type' => 'gap', 'width' => 40),
+            array('type' => 'text', 'color' => '8', 'text' => $tail))));
     return array(
-        PluginRegularFolderItem::media_url => $id,
+        PluginRegularFolderItem::media_url => mel_catv_tile_id($id),
         PluginRegularFolderItem::caption => $caption,
-        PluginRegularFolderItem::view_item_params => array(
-            ViewItemParams::icon_path => $icon,
-            ViewItemParams::item_detailed_icon_path => $icon,
-            ViewItemParams::item_detailed_info => mel_clean($title) . '|' . mel_clean($text)));
+        PluginRegularFolderItem::view_item_params => $p);
 }
 
-// The stickers of a plate over the whole tile (MEL_PG_W x MEL_PG_H, the shell scales them in focus): the colour of the
-// tiles with no picture (MEL_K_C_NO_PHOTO), the icon of the section and $text in lines of MEL_CATV_RATE_PX (the size of
-// the stickers of the template), 6 at most, measured by the kit (MelKit::wrap: broken after spaces and separators, names
-// of files too). A torrent with no poster (2E): the icon of 40 px in the top left corner, the lines 33 apart under it
-// from the left. The hint ($hint, 4A): the icon of 61 px in the middle at the top, the lines 30 apart under it, centred.
-// The shell puts a text at the left of its r and a pixel over its middle (mel_catv_rate_stickers).
+// The view of lines $items: the view "list" of "Фильмы" of the shell (movies/movie_list_screen.php of shell_ext: its
+// get_view_params(1, 11, ..., true, true) over GuiHelper::get_common_regular_params, the background MEL_TSL_BG; its lines
+// of 48 px, the caption from the left, 1150 wide; the poster of the panel 310x465, movies/l.php), the texts of the panel
+// broken in lines; ENTER and POP UP as the grid of "Show all" of r24 (cat_enter, cat_menu from the screen).
 /**
- * @param string $text
- * @param bool $hint
- * @return list<array<string, mixed>>
+ * @param list<array<string, mixed>> $items
+ * @return array<string, mixed>
  */
-function mel_tsl_plate($text, $hint)
+function mel_tsl_pane($items)
 {
-    $px = MEL_CATV_RATE_PX;
-    // The glyph is 3/4 of the picture: r of 54 is a glyph of 40 at 14, of 81 one of 61.
-    $out = array(array(PluginRegularSticker::r => mel_pg_r(0, 0, MEL_PG_W, MEL_PG_H), PluginRegularSticker::color => MEL_K_C_NO_PHOTO),
-        array(PluginRegularSticker::r => $hint ? mel_pg_r(55, 18, 81, 81) : mel_pg_r(7, 7, 54, 54),
-            PluginRegularSticker::icon_url => MEL_TSL_ICON));
-    $lines = MelKit::wrap($text, $px, MEL_K_FACE_REGULAR, MEL_PG_W - ($hint ? 20 : 28), 6);
-    foreach ($lines as $j => $l)
-    {
-        $x = $hint ? max(0, intval(round((MEL_PG_W - MelKit::w($l, $px, MEL_K_FACE_REGULAR)) / 2))) : 14;
-        $out[] = array(PluginRegularSticker::r => mel_pg_r($x, ($hint ? 100 + 30 * $j : 63 + 33 * $j), MEL_PG_W - $x, 33),
-            PluginRegularSticker::text => $l);
-    }
-    return $out;
+    $p = array('from' => MEL_TSL_URL);
+    return array(
+        PluginFolderView::multiple_views_supported => false,
+        PluginFolderView::view_kind => PLUGIN_FOLDER_VIEW_REGULAR,
+        PluginFolderView::data => array(
+            PluginRegularFolderView::view_params => array(
+                ViewParams::background_path => MEL_TSL_BG,
+                ViewParams::background_order => 0,
+                ViewParams::paint_path_box => true,
+                ViewParams::paint_widget => true,
+                ViewParams::paint_widget_background => true,
+                ViewParams::paint_content_box_background => false,
+                ViewParams::paint_path_box_background => false,
+                ViewParams::paint_details_box_background => false,
+                ViewParams::paint_help_line => true,
+                ViewParams::optimize_full_screen_background => true,
+                ViewParams::num_cols => 1,
+                ViewParams::num_rows => 11,
+                ViewParams::paint_details => true,
+                ViewParams::scroll_animation_enabled => true,
+                ViewParams::item_detailed_info_font_size => FONT_SIZE_LARGE,
+                ViewParams::item_detailed_info_auto_line_break => true,
+                ViewParams::max_icon_width => 288,
+                ViewParams::max_icon_height => 432,
+                ViewParams::item_detailed_info_use_main_icon => false,
+                ViewParams::content_box_x => 100,
+                ViewParams::content_box_width => 1300,
+                ViewParams::content_box_padding_right => 20,
+                ViewParams::content_box_padding_left => 0),
+            PluginRegularFolderView::base_view_item_params => array(
+                ViewItemParams::item_padding_top => 0,
+                ViewItemParams::item_padding_bottom => 0,
+                ViewItemParams::icon_valign => VALIGN_CENTER,
+                ViewItemParams::item_paint_caption => true,
+                ViewItemParams::icon_width => 48,
+                ViewItemParams::icon_height => 48,
+                ViewItemParams::icon_scale_factor => 1.0,
+                ViewItemParams::icon_sel_scale_factor => 1.0,
+                ViewItemParams::item_detailed_icon_width => 310,
+                ViewItemParams::item_detailed_icon_height => 465,
+                ViewItemParams::icon_dx => 13,
+                ViewItemParams::item_layout => HALIGN_LEFT,
+                ViewItemParams::item_caption_width => 1150),
+            PluginRegularFolderView::not_loaded_view_item_params => array(
+                ViewItemParams::icon_path => MEL_TSL_ICON,
+                ViewItemParams::item_detailed_icon_path => MEL_CATV_ICONS . 'loading_movie_poster.png'),
+            PluginRegularFolderView::load_failed_view_item_params => array(
+                ViewItemParams::icon_path => MEL_CATV_ICONS . 'no_movie_poster.png'),
+            PluginRegularFolderView::async_icon_loading => true,
+            PluginRegularFolderView::async_icon_loading_interrupt_enabled => true,
+            PluginRegularFolderView::actions => array(
+                GUI_EVENT_KEY_ENTER => mel_input('cat_enter', $p, Mel::$settings['cat_card'] ? MEL_CARD_DELAY : MEL_DELAY_INPUT),
+                GUI_EVENT_KEY_POPUP_MENU => mel_input('cat_menu', $p)) + mel_egg_acts(),
+            PluginRegularFolderView::initial_range => array(
+                PluginRegularFolderRange::total => count($items),
+                PluginRegularFolderRange::more_items_available => false,
+                PluginRegularFolderRange::from_ndx => 0,
+                PluginRegularFolderRange::count => count($items),
+                PluginRegularFolderRange::items => $items)));
 }
 
-// The hash of tile $id (of any mode) of a torrent, '' another.
+// The hash of line $id (of any mode) of a torrent, '' another.
 /**
  * @param string $id
  * @return string
@@ -301,7 +313,7 @@ function mel_tsl_hash_of($id)
     return preg_match('/^' . MEL_TSL_RID . ':([0-9a-f]{40})$/D', $bare, $m) ? $m[1] : '';
 }
 
-// Tile $id is of the screen: a torrent, the hint, an error.
+// Line $id is of the screen: a torrent, the hint, an error.
 /**
  * @param string $id
  * @return bool
@@ -329,9 +341,9 @@ function mel_tsl_split($title)
     return array(trim(substr($body, 0, $m[0][1])), trim(trim($lead) . ' ' . $rest));
 }
 
-// The texts of entry $e in language $lang (2C): the title (mel_tsl_split), its two lines - "73 файла · 51.6 ГБ" (the
-// video files if two and more; its size; '' none of them; no type of its category) and "Добавлено 18 сентября"
-// (the year if not this one, UTC; '' no date) - and the rest of the title.
+// The texts of entry $e in language $lang for the panel: the title (mel_tsl_split), its two lines - "73 файла · 51.6 ГБ"
+// (the video files if two and more; its size; '' none of them) and "Добавлено 18 сентября" (mel_tsl_added; '' no
+// date) - and the rest of the title.
 /**
  * @param MelTsEntry $e
  * @param string $lang
@@ -350,8 +362,22 @@ function mel_tsl_texts($e, $lang)
     return array($head, array(implode(' · ', $facts), mel_tsl_added($e, $lang, 'tsl_added')), $rest);
 }
 
-// The day entry $e was added in the words of key $key ("{d}": "18 сентября", the year if not this one, UTC): tsl_added
-// of the info panel, tsl_added_lc of the side of the screen of files; '' no date.
+// The day entry $e was added ("18 сентября", $short: "18 сен"; the year if not this one, UTC), '' no date.
+/**
+ * @param MelTsEntry $e
+ * @param string $lang
+ * @param bool $short
+ * @return string
+ */
+function mel_tsl_day($e, $lang, $short)
+{
+    if ($e['added'] <= 0)
+        return '';
+    return mel_oc_day(gmdate('Y-m-d', $e['added']), $lang, $short, gmdate('Y', $e['added']) !== gmdate('Y'));
+}
+
+// The day entry $e was added in the words of key $key ("{d}": mel_tsl_day): tsl_added of the panel, tsl_added_lc of the
+// side of the screen of files; '' no date.
 /**
  * @param MelTsEntry $e
  * @param string $lang
@@ -360,57 +386,11 @@ function mel_tsl_texts($e, $lang)
  */
 function mel_tsl_added($e, $lang, $key)
 {
-    if ($e['added'] <= 0)
-        return '';
-    return str_replace('{d}', mel_oc_day(gmdate('Y-m-d', $e['added']), $lang, false, gmdate('Y', $e['added']) !== gmdate('Y')),
-        mel_tr($lang, $key));
+    $d = mel_tsl_day($e, $lang, false);
+    return $d === '' ? '' : str_replace('{d}', $d, mel_tr($lang, $key));
 }
 
-// The info panel of tile $id of the screen (mel_catv_info) -> array(title, lines array(text, colour, least px), the
-// description), null for another tile: a torrent (mel_tsl_texts; not in memory, a restart of php_server - an empty
-// panel, not the one of the tile before; the list is not read here), the hint (the name of the section and what comes
-// there), an error (its title and text, the detail of the last build).
-/**
- * @param string $id
- * @return array{string, list<array{string, string, int}>, string}|null
- */
-function mel_tsl_info($id)
-{
-    list(, $bare) = mel_catv_id_mode($id);
-    $lang = mel_catv_ui_lang();
-    if ($bare === MEL_TSL_HINT)
-        return array(mel_tr($lang, 'tsl_title'), array(), mel_tr($lang, 'tsl_empty_text'));
-    if (preg_match('/^' . MEL_TSL_ERR . '([a-z_]+)$/D', $bare, $m))
-    {
-        list($title, $text) = mel_tsl_err_texts($m[1], $lang, MelTslView::$detail);
-        return array($title, array(), $text);
-    }
-    $hash = mel_tsl_hash_of($id);
-    if ($hash === '')
-        return null;
-    if (!isset(MelTsl::$list[$hash]))
-        return array('', array(), '');
-    list($head, $lines, $rest) = mel_tsl_texts(MelTsl::$list[$hash], $lang);
-    return array($head, array(array($lines[0], MEL_CATV_TEXT_COLOR, MEL_CATV_DATA_MIN_PX),
-        array($lines[1], MEL_CATV_TEXT_COLOR, MEL_CATV_DATA_MIN_PX)), $rest);
-}
-
-// The background of the panel of a tile of the section (the shape of mel_catv_card) in the mode $on (cat_logo): the
-// wallpaper (MEL_TSL_BG) in vod_r, not our dark card0.jpg; a reply with no bg_url is black, the shell has no "none" for a
-// tile. On: no mask (MEL_CATV_IMG . 'mask.png' here would dim the left of the screen under the text); off: our mask, as
-// any fanart there. nl_bg_url: card0.jpg, not the wallpaper: the shell takes it after a failed bg_url only when it is
-// another address (a skin with no images/bg.jpg).
-/**
- * @param bool $on
- * @return array{bg: string, nl: string|null, mask: string|null, logo: bool}
- */
-function mel_tsl_card($on)
-{
-    return array('bg' => MEL_TSL_BG, 'nl' => MEL_CATV_IMG . 'card0.jpg', 'mask' => $on ? null : MEL_CATV_IMG . 'mask.png',
-        'logo' => false);
-}
-
-// ENTER on tile $id of the screen (mel_tsl_is_tile), the one place a torrent branches: its entry (mel_tsl_find: in
+// ENTER on line $id of the screen (mel_tsl_is_tile), the one place a torrent branches: its entry (mel_tsl_find: in
 // memory, else the list read once; an error of it - the error screen of the list, none there - tsl_err_gone); its video
 // files known (mel_tsl_files_of: of its data or of a file_stats before): one - the start of it, two and more - the screen
 // of files (view_ts_files.php), none - the error; not known (a record of Lampa, other data) - the start by file_stats

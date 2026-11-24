@@ -1401,7 +1401,7 @@ function mel_catv_folder_view($media_url, $sel_state)
     if (mel_mlv_is_screen($media_url))
         return mel_mlv_view($media_url, $sel_state);
     if ($media_url === MEL_TSL_URL)
-        return mel_tsl_view($sel_state);
+        return mel_tsl_view();
     return mel_catv_main_view($media_url, $sel_state);
 }
 
@@ -2668,19 +2668,10 @@ function mel_catv_hist_y()
 function mel_catv_info($in)
 {
     $id = mel_catv_in($in, 'item_id');
-    $ts = mel_tsl_info($id);
-    $t = $ts ? null : mel_catv_tile($id, mel_tv_is_key(mel_catv_in($in, 'folder_key')));
+    $t = mel_catv_tile($id, mel_tv_is_key(mel_catv_in($in, 'folder_key')));
     $more_url = mel_catv_more_url($id);
     $more = $more_url !== '' ? mel_catv_all_list($more_url, false) : null;
-    // A tile of "На TorrServer": its texts (2C: the title, two lines, the rest of the name smaller), no tile of the catalog
-    // (the wallpaper of the shell: mel_tsl_card; no history, no "Мой список").
-    if ($ts)
-    {
-        list($name, $lines, $desc) = $ts;
-        $sub = '';
-        $facts = array();
-    }
-    else if ($t)
+    if ($t)
     {
         $name = $t['name'];
         $sub = $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
@@ -2712,7 +2703,7 @@ function mel_catv_info($in)
     $labels = array();
     $name = mel_clean($name);
     list($on) = mel_catv_id_mode($id);
-    $card = $ts ? mel_tsl_card($on) : mel_catv_card($t, $on);
+    $card = mel_catv_card($t, $on);
     // None under the logo. Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
     $sub = $card['logo'] ? '' : implode(' ', mel_gc_wrap(mel_clean($sub), MEL_CATV_SUB_MIN_PX, MEL_CATV_TEXT_W, 2, true));
     $bottom = MEL_CATV_TITLE_BOTTOM - ($sub !== '' ? MEL_CATV_SUB_H : 0);
