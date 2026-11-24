@@ -531,7 +531,7 @@ function mel_tsl_rem_act($hash)
     list($key, $detail, $i) = mel_tsl_rem($hash);
     if ($key !== '')
         return mel_tsl_rem_fail($lang, $key, $detail);
-    if ($i < 0 || MelTsl::$list === null)
+    if ($i < 0)
     {
         mel_log("ts section: rem $hash: not in memory, the screen anew");
         return mel_catv_invalidate(MEL_TSL_URL);

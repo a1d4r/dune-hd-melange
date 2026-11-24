@@ -27,7 +27,7 @@ define('MEL_TSL_ENTRY_MAX', 2097152);
 // The total s of the request of the marks "viewed" of a torrent (the screen of files).
 define('MEL_TSL_VIEWED_S', 2);
 // The total s of the request "rem" (mel_tsl_rem): TorrServer answers it once the torrent is closed, up to 5 s for an active
-// one (RemTorrent of its torr/apihelper.go), its cache off the disk and DLNA restarted; no answer by then - one "get".
+// one (RemTorrent of its torr/apihelper.go), its cache off the disk and DLNA restarted; no answer by then - "rem" again.
 define('MEL_TSL_REM_S', 8);
 // The prefix of the uid of a start from the section: "aiots:<hash>:<file id>". Not "aio:": that is a release of
 // Melange with a card (mel_cp_ours, mel_wh_ours_all, mel_wh_uid).
@@ -343,7 +343,9 @@ function mel_tsl_load()
 // the error, '' removed; its detail; the index of its entry in MelTsl::$list before, -1 none there or an error): no
 // answer - ts_err_down (the error of curl), 401 - the login (mel_ts_auth_err), another code - tsl_rem_bad ("HTTP
 // <code>"). No answer in MEL_TSL_REM_S (curl 28): TorrServer answers once the cache is off its disk and DLNA restarted,
-// it may take longer - one "get" of it, 404 (TorrServer has it no more): removed, else ts_err_down. Removed: out of
+// it may take longer - "rem" once again, 200: removed, else ts_err_down. Not "get": RemTorrent takes it off the DB last,
+// a "get" before that reads it from the DB back into memory (NewTorrent), and it is in the list again; a "rem" of one
+// no more in memory takes it off the DB and its cache off the disk only. Removed: out of
 // MelTsl too (its entry, its files), the order of the rest kept; the history and the positions of Melange ("aiots:")
 // stay.
 /**
@@ -358,9 +360,10 @@ function mel_tsl_rem($hash)
     $head = "ts section: rem $hash: ";
     if ($r['err'] !== '' && $r['errno'] === 28)
     {
-        list($rg) = mel_ts_get($hash);
-        $gone = $rg['err'] === '' && $rg['code'] === 404;
-        mel_log($head . $r['err'] . ', get: ' . ($rg['err'] !== '' ? $rg['err'] : "HTTP {$rg['code']}") .
+        $r2 = mel_ts_call($url, (string) json_encode(array('action' => 'rem', 'hash' => $hash)), MEL_TSL_REM_S,
+            Mel::$settings['ts_auth']);
+        $gone = $r2['err'] === '' && $r2['code'] === 200;
+        mel_log($head . $r['err'] . ', rem again: ' . ($r2['err'] !== '' ? $r2['err'] : "HTTP {$r2['code']}") .
             ($gone ? ', removed' : ''));
         if (!$gone)
             return array('ts_err_down', $r['err'], -1);
