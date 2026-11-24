@@ -619,6 +619,18 @@ function mel_wh_marked($uid)
     return isset($set[$uid]);
 }
 
+// The shell offers "Continue" for uid $uid: the share of its latest record (mel_wh_ours_all) is in (0, 1). The share
+// of mel_wh_ours_visit: 1 watched (by position) or marked, 0 no position.
+/**
+ * @param string $uid
+ * @return bool
+ */
+function mel_wh_resumes($uid)
+{
+    $all = mel_wh_ours_all();
+    return isset($all[$uid]) && $all[$uid] > 0 && $all[$uid] < 1;
+}
+
 // The episode after the watched S$s E$e by season_numbers, as 0.9.0: the next
 // one of the season, else E1 of the nearest later season; the same one with
 // no data on season $s, S1E1 after the last one. -> array(s, e, next: a later
