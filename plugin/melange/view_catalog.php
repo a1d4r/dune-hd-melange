@@ -3122,9 +3122,10 @@ function mel_catv_all_open($url)
 
 // ENTER on the part $id of the strip of the main screen $from. A tab not active: the screen of its
 // type in place of this one (erase_count 1: Back does not grow), the active one: nothing; $up (its
-// item of POP UP, mel_catv_menu): the active one too, the focus up on it. The icons: the dialog of
-// a search, the settings screen and the screens "Продолжить", "Мой список"; "На TorrServer" by its input of
-// its own (mel_tsl_open_act: «Подождите» sooner).
+// item of POP UP, mel_catv_menu): the active one too, the focus up on it. From an EPF of the tab "TV" (POP UP
+// there, mel_tv_menu) the main screen of the tab over the main screen of the shell: no screen of Melange under it.
+// The icons: the dialog of a search, the settings screen and the screens "Продолжить", "Мой список"; "На
+// TorrServer" by its input of its own (mel_tsl_open_act: «Подождите» sooner); each over an EPF too.
 /**
  * @param string $id
  * @param string $from
@@ -3144,7 +3145,11 @@ function mel_catv_strip_enter($id, $from, $up = false)
     if ($id === 'tab_ts')
         return mel_tsl_open_act($from);
     $tab = strval(substr($id, strlen('tab_')));
-    if (($tab !== 'movie' && $tab !== 'series') || !mel_catv_is_main($from) || (!$up && $tab === mel_catv_tab($from)))
+    if ($tab !== 'movie' && $tab !== 'series')
+        return null;
+    if (mel_tv_is_from($from))
+        return mel_catv_open_act(mel_catv_main_url($tab), '%tr%plugin_caption');
+    if (!mel_catv_is_main($from) || (!$up && $tab === mel_catv_tab($from)))
         return null;
     return mel_replace_act(mel_catv_main_url($tab), '%tr%plugin_caption');
 }
@@ -3180,22 +3185,34 @@ function mel_catv_menu($in, $from)
             GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items)) : null;
     }
     // On a header "Configure list…" and its separator (mel_catv_rows_menu_items), then the parts of the strip.
-    $screen = mel_catv_rows_menu_items($hid, $tab, $from, $lang);
-    // The tabs with icons of their own, then the icons of the strip (mel_catv_strip_icons).
+    $screen = array_merge(mel_catv_rows_menu_items($hid, $tab, $from, $lang), array_values(mel_catv_part_items($from, $lang)));
+    return array(
+        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => mel_catv_menu_join($items, $screen)));
+}
+
+// The parts of the strip as items of POP UP of the screen $from, each as ENTER on it (cat_part, mel_catv_strip_enter):
+// the tabs with icons of their own, then the icons of the strip (mel_catv_strip_icons) -> part id => item.
+/**
+ * @param string $from
+ * @param string $lang
+ * @return array<string, array<string, mixed>>
+ */
+function mel_catv_part_items($from, $lang)
+{
     $parts = array_merge(
         array('tab_movie' => array('cat_part_movies', MEL_CATV_ICONS . 'movies_small.png'),
             'tab_series' => array('cat_part_series', MEL_CATV_ICONS . 'tv_small.png')),
         mel_catv_strip_icons());
+    $out = array();
     foreach ($parts as $id => $p)
     {
-        $screen[] = array(
+        $out[$id] = array(
             GuiMenuItemDef::caption => mel_tr($lang, $p[0]),
             GuiMenuItemDef::icon_url => $p[1],
             GuiMenuItemDef::action => mel_input('cat_part', array('from' => $from, 'part' => $id)));
     }
-    return array(
-        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => mel_catv_menu_join($items, $screen)));
+    return $out;
 }
 
 // ENTER on a tile: selected_item_id on the rows, selected_media_url on the grid.
