@@ -4,7 +4,7 @@
 // "cat_ts": on every firmware the list of the view "list" of "Фильмы" of the shell (movies/movie_list_screen.php of
 // shell_ext, owner 24.11.2026): lines of torrents on the left, "tors:<hash>", the icon of the section, the title, its
 // facts and day at the right of the line; the panel on the right: the poster (none - the picture of none of the shell),
-// the title up to " [" or " (", the rest of the name, the facts, the day it was added. An empty list - the line of the
+// the title up to " [" or " (", the facts, the day it was added, the rest of the name. An empty list - the line of the
 // hint (4A).
 // The list is read by the input that opens the screen (the icon, the item, "Повторить"): an error there - the kit error
 // screen over the screen it came from (mel_ks_rows_error); a build of the screen takes the list in memory within
@@ -189,7 +189,8 @@ function mel_tsl_view()
 
 // The line of entry $e in language $lang: its title; at the right of it its facts and its day, short ("10 файлов ·
 // 120 ГБ · 18 сен", the year if not this one; none of a field left out); the panel: its texts (mel_tsl_texts: the title,
-// the rest of the name, the facts, "Добавлено <день>") under its poster (mel_img: http(s); none - $none).
+// the facts, "Добавлено <день>", the rest of the name last - a long one pushed the lines under it off the panel in 0.2.4)
+// under its poster (mel_img: http(s); none - $none).
 /**
  * @param MelTsEntry $e
  * @param string $lang
@@ -199,10 +200,10 @@ function mel_tsl_view()
 function mel_tsl_line($e, $lang, $none)
 {
     $poster = mel_img($e['poster']);
-    list($head, $lines, $rest) = mel_tsl_texts($e, $lang);
-    $tail = implode(' · ', array_filter(array($lines[0], mel_tsl_day($e, $lang, true)), 'strlen'));
+    $t = mel_tsl_texts($e, $lang);
+    $tail = implode(' · ', array_filter(array($t['facts'], mel_tsl_day($e, $lang, true)), 'strlen'));
     return mel_tsl_item(MEL_TSL_RID . ':' . $e['hash'], $e['title'], $poster !== '' ? $poster : $none,
-        array($head, $rest, $lines[0], $lines[1]), $tail);
+        array($t['head'], $t['facts'], $t['added'], $t['rest']), $tail);
 }
 
 // A line of the screen: id $id (the mode of the screen before it), caption $caption, the icon of the section; in the
@@ -232,9 +233,10 @@ function mel_tsl_item($id, $caption, $poster, $texts, $tail)
 }
 
 // The view of lines $items: the view "list" of "Фильмы" of the shell (movies/movie_list_screen.php of shell_ext: its
-// get_view_params(1, 11, ..., true, true) over GuiHelper::get_common_regular_params, the background MEL_TSL_BG; its lines
-// of 48 px, the caption from the left, 1150 wide; the poster of the panel 310x465, movies/l.php), the texts of the panel
-// broken in lines; ENTER and POP UP as the grid of "Show all" of r24 (cat_enter, cat_menu from the screen).
+// get_view_params(1, 11, ..., true, true) over GuiHelper::get_common_regular_params; its lines of 48 px, the caption
+// from the left, 1150 wide; the poster of the panel 310x465, movies/l.php), the texts of the panel broken in lines; the
+// background MEL_TSL_BG over the one of the skin (optimize_full_screen_background off: on, the shell does not paint that
+// one, SDK plugins.txt, and a skin with no images/bg.jpg would be black); ENTER and POP UP as the grid of "Show all" of r24 (cat_enter, cat_menu from the screen).
 /**
  * @param list<array<string, mixed>> $items
  * @return array<string, mixed>
@@ -256,7 +258,7 @@ function mel_tsl_pane($items)
                 ViewParams::paint_path_box_background => false,
                 ViewParams::paint_details_box_background => false,
                 ViewParams::paint_help_line => true,
-                ViewParams::optimize_full_screen_background => true,
+                ViewParams::optimize_full_screen_background => false,
                 ViewParams::num_cols => 1,
                 ViewParams::num_rows => 11,
                 ViewParams::paint_details => true,
@@ -341,25 +343,26 @@ function mel_tsl_split($title)
     return array(trim(substr($body, 0, $m[0][1])), trim(trim($lead) . ' ' . $rest));
 }
 
-// The texts of entry $e in language $lang for the panel: the title (mel_tsl_split), its two lines - "73 файла · 51.6 ГБ"
-// (the video files if two and more; its size; '' none of them) and "Добавлено 18 сентября" (mel_tsl_added; '' no
-// date) - and the rest of the title.
+// The texts of entry $e in language $lang: head and rest - the title and the rest of it (mel_tsl_split); facts - "73
+// файла · 51.6 ГБ" (the video files if two and more, mel_tsl_video_count; its size; '' none of them); added -
+// "Добавлено 18 сентября" (mel_tsl_added; '' no date).
 /**
  * @param MelTsEntry $e
  * @param string $lang
- * @return array{string, array{string, string}, string}
+ * @return array{head: string, rest: string, facts: string, added: string}
  */
 function mel_tsl_texts($e, $lang)
 {
     list($head, $rest) = mel_tsl_split($e['title']);
     $facts = array();
     $files = mel_tsl_files_of($e['hash']);
-    $v = $files === null ? null : mel_tsl_videos_of($files);
-    if ($v !== null && count($v) > 1)
-        $facts[] = count($v) . ' ' . mel_gc_plural($lang, count($v), 'tsl_files');
+    $n = $files === null ? 0 : mel_tsl_video_count($files);
+    if ($n > 1)
+        $facts[] = $n . ' ' . mel_gc_plural($lang, $n, 'tsl_files');
     if ($e['size'] > 0)
         $facts[] = mel_size_str($e['size'], $lang);
-    return array($head, array(implode(' · ', $facts), mel_tsl_added($e, $lang, 'tsl_added')), $rest);
+    return array('head' => $head, 'rest' => $rest, 'facts' => implode(' · ', $facts),
+        'added' => mel_tsl_added($e, $lang, 'tsl_added'));
 }
 
 // The day entry $e was added ("18 сентября", $short: "18 сен"; the year if not this one, UTC), '' no date.

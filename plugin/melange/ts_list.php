@@ -5,8 +5,10 @@
 // folders, its lines, the marks of TorrServer "viewed", the file it opens on); no firmware API. Reads Mel::$settings,
 // writes MelTsl. Functions are global; the require order is in main.php.
 
-// The tiles of the section at most: those of a "Show all" screen; the read of the list stops at as many entries kept.
-define('MEL_TSL_MAX', MEL_CATV_ALL_COLS * MEL_CATV_ALL_ROWS);
+// The lines of the section at most; the read of the list stops at as many entries kept. 1008 entries of 40 files hold
+// ~36 MB in a 64-bit PHP 5.3, about half of it on the Dune (MEL_TSL_MEM lets them in), and their read and the build of
+// the screen stay within MEL_TSL_LIST_S.
+define('MEL_TSL_MAX', 1008);
 // The total s of the request of the list (its connect 1 s, mel_ts_call: TorrServer down fails in 1 s); a list cut by it
 // shows what came. The parse runs in the callback of curl (MelTslScan::feed), inside this time, and on the ARM of the Dune
 // it is ~2x slower than on a PC: 10 s let a long list in whole.
@@ -414,6 +416,22 @@ function mel_tsl_file_name($f)
     $n = mel_ts_basename($f['path']);
     $p = strrpos($n, '.');
     return $p !== false && $p > 0 ? substr($n, 0, $p) : $n;
+}
+
+// The number of the video files of $files (no order: the line of the section needs the count alone).
+/**
+ * @param list<MelTsFile> $files
+ * @return int
+ */
+function mel_tsl_video_count($files)
+{
+    $n = 0;
+    foreach ($files as $f)
+    {
+        if (mel_ts_video($f['path']))
+            $n++;
+    }
+    return $n;
 }
 
 // The video files of $files in the natural order of their paths ("Серия 2" before "Серия 10", the folders of the
