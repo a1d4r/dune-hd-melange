@@ -158,6 +158,15 @@ define('MEL_CATV_HEADER', 'h:');
 // with a title, so "H0" (device r25: POP UP on "Menu" brings it, the sel_state of a switch of the
 // tab has it). A header_id of the strip would change both; the other rows all have MEL_CATV_HEADER.
 define('MEL_CATV_STRIP_HEADER', 'H0');
+// The rid of the header $hid of a row of tiles (MEL_CATV_HEADER and its rid); '': not such a header.
+/**
+ * @param string $hid
+ * @return string
+ */
+function mel_catv_header_rid($hid)
+{
+    return strpos($hid, MEL_CATV_HEADER) === 0 ? strval(substr($hid, strlen(MEL_CATV_HEADER))) : '';
+}
 // The tabs as the native menu: text in caps, the open one brighter (the colours of the title and
 // the text of the panel, as the native ones), a blue line under it. No focused variant: it does
 // nothing in a row of GComps, only the frame of the shell shows the focus.

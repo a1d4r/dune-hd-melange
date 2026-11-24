@@ -3,7 +3,7 @@
 **English version**
 
 ## 0.69.1
-- **POP UP in the TV tab, as in the catalog.** In the TV tab of the home screen, **POP UP** now has the same items as in the catalog (Movies, Series, Continue Watching, Favorites, On TorrServer, Search, Settings) and also Open Melange. Each opens its Melange screen, and **RETURN** brings you back to TV. On a row name the menu also has **Configure List...**, and rows you turn on there appear in TV a few seconds later.
+- **POP UP in the TV tab, as in the catalog.** In the TV tab of the home screen, **POP UP** now has the same items as in the catalog (Movies, Series, Continue Watching, Favorites, On TorrServer, Search, Settings) and also Open Melange. Each opens its Melange screen, and **RETURN** brings you back to TV. On a row name the menu also has **Configure List...**, and rows you turn on there appear in TV usually a few seconds later.
 - **Wallpaper above the "On TorrServer" rows.** Above the poster rows in "On TorrServer" you now see the Dune wallpaper, the same one as above the icon bar of the catalog. Before, it was black.
 
 ## 0.69.0 — 23.11.2026
@@ -334,7 +334,7 @@ First public release. What it does:
 **Russian version**
 
 ## 0.69.1
-- **POP UP во вкладке «ТВ» как в каталоге.** Во вкладке «ТВ» главного экрана в **POP UP** теперь те же пункты, что в каталоге («Фильмы», «Сериалы», «Продолжить», «Избранное», «На TorrServer», «Поиск», «Настройки»), и ещё «Открыть Melange». Каждый открывает свой экран Melange, а **RETURN** возвращает во «ТВ». На названии ряда в меню есть и «Настроить список...», и включённые там ряды появляются во «ТВ» через несколько секунд.
+- **POP UP во вкладке «ТВ» как в каталоге.** Во вкладке «ТВ» главного экрана в **POP UP** теперь те же пункты, что в каталоге («Фильмы», «Сериалы», «Продолжить», «Избранное», «На TorrServer», «Поиск», «Настройки»), и ещё «Открыть Melange». Каждый открывает свой экран Melange, а **RETURN** возвращает во «ТВ». На названии ряда в меню есть и «Настроить список...», и включённые там ряды появляются во «ТВ» обычно через несколько секунд.
 - **Обои над рядами «На TorrServer».** Над рядами постеров в разделе «На TorrServer» теперь видны обои Дюны, те же, что над полосой значков каталога. Раньше там был чёрный фон.
 
 ## 0.69.0 — 23.11.2026

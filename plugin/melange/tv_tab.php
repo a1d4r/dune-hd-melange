@@ -58,7 +58,8 @@ class MelTv
     // The copies the timer saved meanwhile (the manifest, first pages of rows of the file).
     /** @var int */
     public static $new_copies = 0;
-    // mel_settings_sig at the last operation (mel_tv_settings_seen); null: none since a start of php_server.
+    // mel_settings_sig at the last operation (mel_tv_settings_seen), or of the settings.json mel_tv_rows_saved wrote itself
+    // (it has set the flag of it already: none again at the next operation); null: none since a start of php_server.
     /** @var string|null */
     public static $sig = null;
     // The tiles of MEL_TV_TILES_FILE as read ($tiles_sig: 'ino:mtime:size' of the file then); null: not read.
@@ -843,7 +844,8 @@ function mel_tv_rows_tab($from, $hid)
     $tab = mel_tv_tab_of($from);
     if ($tab !== '')
         return $tab;
-    $row = strpos($hid, MEL_CATV_HEADER) === 0 ? mel_catv_row_by_rid(strval(substr($hid, strlen(MEL_CATV_HEADER)))) : null;
+    $rid = mel_catv_header_rid($hid);
+    $row = $rid !== '' ? mel_catv_row_by_rid($rid) : null;
     $epfs = mel_tv_epfs();
     return $row ? mel_cat_row_tab($row) : $epfs[MEL_TV_EPF][0];
 }

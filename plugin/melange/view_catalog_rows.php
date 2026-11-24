@@ -390,9 +390,9 @@ function mel_catv_rows_tab($from)
 function mel_catv_rows_menu_items($hid, $tab, $from, $lang)
 {
     $strip = $hid === MEL_CATV_STRIP_HEADER;
+    $rid = mel_catv_header_rid($hid);
     if (!$strip && strpos($hid, MEL_CATV_HEADER) !== 0)
         return array();
-    $rid = $strip ? '' : strval(substr($hid, strlen(MEL_CATV_HEADER)));
     $copy = mel_cat_manifest_copy();
     $any = false;
     $sel = null;
