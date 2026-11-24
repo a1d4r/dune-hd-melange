@@ -421,7 +421,8 @@ parameters:
         # The reply of a lazy episode kept for its lazy_reply (Mel::$lazy_reply,
         # mel_lazy_url, playback.php): its playback_url, microtime, the start of its
         # get_vod_stream_url (Mel::$t0, mel_lazy_hold), the action.
-        MelLazyReply: 'array{pb: string, t: float, t0: float, a: MelAction}'
+        MelLazyReply: 'array{pb: string, t: float, a: MelAction}'
+        MelLazyUrl: 'array{url: string, markers?: list<array<string, int|string>>}'
         # What plays (Mel::$playing, mel_playing, playback.php): rid of the
         # list screen under the player ('' none), the list state, its row.
         MelPlaying: 'array{from: string, st: MelState, sel: int}'
