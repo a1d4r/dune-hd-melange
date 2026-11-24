@@ -8,7 +8,8 @@
 // The list is read by the input that opens the screen (the icon, the item, "Повторить"): an error there - the kit error
 // screen over the screen it came from (mel_ks_rows_error); a build of the screen takes the list in memory within
 // MEL_TSL_FRESH_S of its read, else reads it anew (an error then: a line of it). ENTER on a torrent: its start
-// (view_ts_play.php) or the screen of its files (view_ts_files.php). POP UP on a line: none (no IMDb, no TMDB).
+// (view_ts_play.php) or the screen of its files (view_ts_files.php). POP UP on a torrent: «Удалить с TorrServer» alone
+// (no IMDb, no TMDB: no item of a title), its confirmation, then "rem" (mel_tsl_rem_act); none on another line.
 // Needs ts_list.php, view_catalog.php, view_my_list.php (mel_mlv_is_screen), kit_scr.php, view_setup.php, view_card.php
 // (mel_oc_day), view_gcomps.php (mel_gc_plural), main.php. PHP 5.3.6, firmware API only.
 
@@ -169,6 +170,23 @@ function mel_tsl_view()
         $list = array_values(MelTsl::$list);
     else
         list($list, $key, $detail) = mel_tsl_read();
+    $items = mel_tsl_items($list, $key, $detail, $lang);
+    mel_log(sprintf('ts section: screen: %d lines, %s, %.0f ms', $list === null ? 0 : count($list),
+        $kept ? 'the list of the open' : 'the list read', (microtime(true) - $start) * 1000));
+    return mel_tsl_pane($items);
+}
+
+// The lines of the screen of list $list (null: error $key with its detail $detail) in language $lang: its entries in
+// its order (mel_tsl_line), none - the hint, an error - a line of it.
+/**
+ * @param list<MelTsEntry>|null $list
+ * @param string $key
+ * @param string $detail
+ * @param string $lang
+ * @return list<array<string, mixed>>
+ */
+function mel_tsl_items($list, $key, $detail, $lang)
+{
     $none = MEL_CATV_ICONS . 'no_movie_poster.png';
     $items = array();
     if ($list === null)
@@ -181,9 +199,7 @@ function mel_tsl_view()
             array(mel_tr($lang, 'tsl_title'), mel_tr($lang, 'tsl_empty_text')));
     foreach ($list === null ? array() : $list as $e)
         $items[] = mel_tsl_line($e, $lang, $none);
-    mel_log(sprintf('ts section: screen: %d lines, %s, %.0f ms', $list === null ? 0 : count($list),
-        $kept ? 'the list of the open' : 'the list read', (microtime(true) - $start) * 1000));
-    return mel_tsl_pane($items);
+    return $items;
 }
 
 // The line of entry $e in language $lang: its title alone (owner 24.11.2026); the panel: its texts (mel_tsl_texts: the
@@ -288,12 +304,22 @@ function mel_tsl_pane($items)
             PluginRegularFolderView::actions => array(
                 GUI_EVENT_KEY_ENTER => mel_input('cat_enter', $p, Mel::$settings['cat_card'] ? MEL_CARD_DELAY : MEL_DELAY_INPUT),
                 GUI_EVENT_KEY_POPUP_MENU => mel_input('cat_menu', $p)) + mel_egg_acts(),
-            PluginRegularFolderView::initial_range => array(
-                PluginRegularFolderRange::total => count($items),
-                PluginRegularFolderRange::more_items_available => false,
-                PluginRegularFolderRange::from_ndx => 0,
-                PluginRegularFolderRange::count => count($items),
-                PluginRegularFolderRange::items => $items)));
+            PluginRegularFolderView::initial_range => mel_tsl_range($items)));
+}
+
+// The range of all lines $items of the screen (its view, plugin_update_folder after "rem").
+/**
+ * @param list<array<string, mixed>> $items
+ * @return array<string, mixed>
+ */
+function mel_tsl_range($items)
+{
+    return array(
+        PluginRegularFolderRange::total => count($items),
+        PluginRegularFolderRange::more_items_available => false,
+        PluginRegularFolderRange::from_ndx => 0,
+        PluginRegularFolderRange::count => count($items),
+        PluginRegularFolderRange::items => $items);
 }
 
 // The hash of line $id (of any mode) of a torrent, '' another.
@@ -404,4 +430,103 @@ function mel_tsl_enter($id)
     if ($kind === 'pack' && $files !== null)
         return mel_tsf_open($hash, $files);
     return mel_tsl_start($e, $kind === 'movie' && $v ? $v[0]['id'] : 0, 0);
+}
+
+// --- «Удалить с TorrServer» (owner 24.11.2026): POP UP of a torrent line, a confirmation, "rem". Not on the screen of
+// files of a pack; the history and the positions of Melange ("aiots:") stay.
+
+// The items of POP UP of line $id of the screen (mel_catv_tile_menu) in language $lang: a torrent - «Удалить с
+// TorrServer» (cat_tsl_rem_ask: the entry may need the list read, MEL_TSL_DELAY); the hint, an error - none.
+/**
+ * @param string $id
+ * @param string $lang
+ * @return list<array<string, mixed>>
+ */
+function mel_tsl_menu_items($id, $lang)
+{
+    $hash = mel_tsl_hash_of($id);
+    if ($hash === '')
+        return array();
+    return array(array(
+        GuiMenuItemDef::caption => mel_tr($lang, 'tsl_rem'),
+        GuiMenuItemDef::icon_url => MEL_CATV_ICONS . 'cancel_small.png',
+        GuiMenuItemDef::action => mel_input('cat_tsl_rem_ask', array('from' => MEL_TSL_URL, 'h' => $hash), MEL_TSL_DELAY)));
+}
+
+// cat_tsl_rem_ask of torrent $hash: its entry (mel_tsl_find; an error of the list - its error screen, none there -
+// tsl_err_gone), then the dialog «Удалить «<the title of the panel>» с TorrServer?»: «Удалить» - cat_tsl_rem, «Отмена» -
+// nothing. Not a hash: nothing.
+/**
+ * @param string $hash
+ * @return MelAction|null
+ */
+function mel_tsl_rem_ask($hash)
+{
+    if (!preg_match('/^[0-9a-f]{40}$/D', $hash))
+        return null;
+    $lang = mel_catv_lang();
+    list($e, $key, $detail) = mel_tsl_find($hash);
+    if ($key !== '')
+        return mel_tsl_error($key, $detail, MEL_TSL_URL);
+    if ($e === null)
+        return mel_ts_fail($lang, 'tsl_err_gone');
+    list($head) = mel_tsl_split($e['title']);
+    mel_log("ts section: rem $hash: ask");
+    $go = mel_input('cat_tsl_rem', array('from' => MEL_TSL_URL, 'h' => $hash), MEL_TSL_DELAY);
+    return mel_dialog(str_replace('{t}', $head, mel_tr($lang, 'tsl_rem_ask')), array(), array(
+        mel_tr($lang, 'tsl_rem_yes') => mel_close_and($go),
+        mel_tr($lang, 'ts_cancel') => mel_close_and(null)));
+}
+
+// cat_tsl_rem of torrent $hash (the dialog closed): "rem" (mel_tsl_rem). An error: a window of why, the list as it was.
+// Removed: the lines of the list in memory less it, in place (plugin_update_folder, as the shell does on its lists of
+// files, movies/movie_files_screen.php), the cursor on the line after it (the last one: the new last; none left: the
+// hint) - not the list read anew: it comes by stream and may be long (up to MEL_TSL_LIST_S), and "rem" changed nothing
+// else in it. Not in the list in memory (a restart of php_server): the screen anew (invalidate: its view reads the list).
+/**
+ * @param string $hash
+ * @return MelAction|null
+ */
+function mel_tsl_rem_act($hash)
+{
+    if (!preg_match('/^[0-9a-f]{40}$/D', $hash))
+        return null;
+    $lang = mel_catv_lang();
+    $i = MelTsl::$list === null ? false : array_search($hash, array_keys(MelTsl::$list), true);
+    list($key, $detail) = mel_tsl_rem($hash);
+    if ($key !== '')
+        return mel_tsl_rem_fail($lang, $key, $detail);
+    if ($i === false || MelTsl::$list === null)
+    {
+        mel_log("ts section: rem $hash: not in memory, the screen anew");
+        return mel_catv_invalidate(MEL_TSL_URL);
+    }
+    $list = array_values(MelTsl::$list);
+    $n = count($list);
+    $sel = $n ? min($i, $n - 1) : 0;
+    mel_log("ts section: rem $hash: $n lines left, the cursor on $sel");
+    return array(
+        GuiAction::handler_string_id => PLUGIN_UPDATE_FOLDER_ACTION_ID,
+        GuiAction::data => array(
+            PluginUpdateFolderActionData::range => mel_tsl_range(mel_tsl_items($list, '', '', $lang)),
+            PluginUpdateFolderActionData::need_refresh => true,
+            PluginUpdateFolderActionData::sel_ndx => $sel));
+}
+
+// The window of an error $key of "rem" (mel_tsl_rem; $detail its detail) in language $lang: «Раздача не удалена», why
+// (the texts of the errors of a start: ts_err_down, the login; tsl_rem_bad), the address of TorrServer (with the code of
+// a reply not 200, mel_tsl_addr) but under the login, OK.
+/**
+ * @param string $lang
+ * @param string $key
+ * @param string $detail
+ * @return MelAction
+ */
+function mel_tsl_rem_fail($lang, $key, $detail)
+{
+    mel_log("ts section: rem: -> dialog: $key");
+    $lines = mel_dialog_lines(mel_tr($lang, $key));
+    if ($key === 'ts_err_down' || $key === 'tsl_rem_bad')
+        $lines[] = mel_tsl_addr($lang, $detail);
+    return mel_dialog(mel_tr($lang, 'tsl_rem_failed'), $lines, array('OK' => mel_close_and(null)));
 }

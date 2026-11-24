@@ -2867,7 +2867,8 @@ function mel_catv_after_player($post)
 // (mel_cp_menu_items), then that of "Мой список" (mel_ml_menu_items), then a separator and the import of the Favorites
 // of the Dune (mel_mlv_menu_items: on the screen "Мой список" and its row); a separator after them is for the caller,
 // when items of the screen follow. A tile mel_catv_tile has not (the hint of "Мой список", '' - none in focus) is for
-// each part to tell. A tile of "На TorrServer": none (no title of the catalog; "Отметить" would ask a card by its name).
+// each part to tell. A line of "На TorrServer": its own items alone (mel_tsl_menu_items: no title of the catalog;
+// "Отметить" would ask a card by its name).
 /**
  * @param string $id
  * @param string $from
@@ -2877,7 +2878,7 @@ function mel_catv_after_player($post)
 function mel_catv_tile_menu($id, $from, $lang)
 {
     if (mel_tsl_is_tile($id))
-        return array();
+        return mel_tsl_menu_items($id, $lang);
     return mel_catv_menu_join(array_merge(mel_catv_src_items($id, $from, $lang), mel_cp_menu_items($id, $from, $lang),
         mel_ml_menu_items($id, $from, $lang), mel_catv_hide_items($id, $from, $lang)), mel_mlv_menu_items($id, $from, $lang));
 }
@@ -3445,6 +3446,10 @@ function mel_catv_input($in, $control)
         return mel_mlv_open(mel_catv_in($in, 'w'), $from);
     if ($control === 'cat_tsl_open')
         return mel_tsl_open($from);
+    if ($control === 'cat_tsl_rem_ask')
+        return mel_tsl_rem_ask(mel_catv_in($in, 'h'));
+    if ($control === 'cat_tsl_rem')
+        return mel_tsl_rem_act(mel_catv_in($in, 'h'));
     if ($control === 'cat_ml_import')
         return mel_mlv_import_ask($from);
     if ($control === 'cat_ml_import_go')

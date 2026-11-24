@@ -1,6 +1,7 @@
 <?php
 // The section "На TorrServer": the torrents kept by TorrServer (POST /torrents list), as they are - no title of
-// Melange, no card. Here the data only: the read of the list, its entries, their video files, the uid of a start; the
+// Melange, no card. Here the data only: the read of the list, its entries, their video files, the removal of one (rem),
+// the uid of a start; the
 // run of a start ("get", its step, its playlist); the screen of files of a pack (its groups of
 // folders, its lines, the marks of TorrServer "viewed", the file it opens on); no firmware API. Reads Mel::$settings,
 // writes MelTsl. Functions are global; the require order is in main.php.
@@ -25,6 +26,9 @@ define('MEL_TSL_MEM', 50331648);
 define('MEL_TSL_ENTRY_MAX', 2097152);
 // The total s of the request of the marks "viewed" of a torrent (the screen of files).
 define('MEL_TSL_VIEWED_S', 2);
+// The total s of the request "rem" (mel_tsl_rem): TorrServer answers it once the torrent is closed, up to 5 s for an active
+// one (RemTorrent of its torr/apihelper.go).
+define('MEL_TSL_REM_S', 8);
 // The prefix of the uid of a start from the section: "aiots:<hash>:<file id>". Not "aio:": that is a release of
 // Melange with a card (mel_cp_ours, mel_wh_ours_all, mel_wh_uid).
 define('MEL_TSL_UID', 'aiots');
@@ -333,6 +337,34 @@ function mel_tsl_load()
         $keep[$e['hash']] = $e;
     MelTsl::$list = $keep;
     return array($list, '', '');
+}
+
+// "rem" of torrent $hash on the TorrServer of the settings (POP UP of the section, owner 24.11.2026) -> array(the key of
+// the error, '' removed; its detail): no answer - ts_err_down (the error of curl), 401 - the login (mel_ts_auth_err),
+// another code - tsl_rem_bad ("HTTP <code>"). Removed: out of MelTsl too (its entry, its files), the order of the rest
+// kept; the history and the positions of Melange ("aiots:") stay.
+/**
+ * @param string $hash
+ * @return array{string, string}
+ */
+function mel_tsl_rem($hash)
+{
+    $url = Mel::$settings['ts'] . '/torrents';
+    $r = mel_ts_call($url, (string) json_encode(array('action' => 'rem', 'hash' => $hash)), MEL_TSL_REM_S,
+        Mel::$settings['ts_auth']);
+    $head = "ts section: rem $hash: ";
+    if ($r['err'] !== '')
+    {
+        mel_log($head . $r['err']);
+        return array('ts_err_down', $r['err']);
+    }
+    mel_log($head . "HTTP {$r['code']}");
+    if ($r['code'] !== 200)
+        return $r['code'] === 401 ? array(mel_ts_auth_err(), '') : array('tsl_rem_bad', "HTTP {$r['code']}");
+    if (MelTsl::$list !== null)
+        unset(MelTsl::$list[$hash]);
+    unset(MelTsl::$files[$hash]);
+    return array('', '');
 }
 
 /**

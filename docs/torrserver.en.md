@@ -46,7 +46,7 @@ Torrents already on TorrServer (added from a phone via NUM, KinoTrend, Lampa, or
 
    <img src="../screenshots/ts-recent.jpg" alt="Recent on the Dune home screen: Игра престолов / Game of … at the top with #13 and 1%" width="100%">
 
-Melange does not change or delete torrents on TorrServer.
+To remove a torrent from TorrServer, press **POP UP** on it in the list, choose "Remove from TorrServer" and confirm.
 
 ## If it didn't work
 
