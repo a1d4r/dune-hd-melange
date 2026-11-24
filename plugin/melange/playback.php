@@ -897,9 +897,9 @@ function mel_playing($from, $st, $sel)
 
 // vod_info $info of a playlist (mel_play, mel_lpv_ep_play) -> why its start resumes (Mel::$resumed): 'a position' of
 // Melange (initial_position_ms: "Continue" of a record), 'a record not watched' - the shell offers "Continue" for the uid
-// of its item (mel_wh_resumes); else ''. Only when the item after the start is lazy and may get its URL
-// (MEL_FW_NEXT_URL_R): a ready one (the pack of TorrServer, its markers off) is no question to Melange, the history not
-// read for it.
+// of its item (mel_wh_resumes); else ''. Only when an item next to the start (after it, or before it for P-) is lazy and
+// may get its URL (MEL_FW_NEXT_URL_R): a ready one (the pack of TorrServer, its markers off) is no question to Melange,
+// the history not read for it.
 /**
  * @param array<string, mixed> $info
  * @return string
@@ -908,8 +908,10 @@ function mel_resumed($info)
 {
     $series = $info[PluginVodInfo::series];
     $ndx = $info[PluginVodInfo::initial_series_ndx];
-    if (mel_fw_r() < MEL_FW_NEXT_URL_R || !isset($series[$ndx + 1]) ||
-        $series[$ndx + 1][PluginVodSeriesInfo::playback_url_is_stream_url] !== false)
+    $lazy = false;
+    foreach (array($ndx - 1, $ndx + 1) as $i)
+        $lazy = $lazy || (isset($series[$i]) && $series[$i][PluginVodSeriesInfo::playback_url_is_stream_url] === false);
+    if (mel_fw_r() < MEL_FW_NEXT_URL_R || !$lazy)
         return '';
     if (isset($info[PluginVodInfo::initial_position_ms]) && $info[PluginVodInfo::initial_position_ms] > 0)
         return 'a position';
@@ -1584,7 +1586,7 @@ function mel_lazy_run($a)
 // -> of the item of its vod_play (a ready link, the uid of the lazy item): array(url), no markers (get_vod_stream_url has
 // no place for them); array(url, markers if any) for get_vod_stream_info (PluginStreamInfo, literals: none in r22).
 // Else (a dialog, a placeholder, the window of TorrServer, markers for get_vod_stream_url, not linked, an episode of
-// another season, the first episode after a resumed start - Mel::$resumed) the reply kept (Mel::$lazy_reply), held
+// another season, the first lazy episode played after a resumed start - Mel::$resumed) the reply kept (Mel::$lazy_reply), held
 // (mel_lazy_hold) from the start of this operation (Mel::$t0): the search is past -> error_action lazy_reply: it gives
 // that reply, no second search.
 // The line "play: ... linked=1, playlist N" of mel_play is no sign of a vod_play sent: "lazy: ... -> URL" or
@@ -1604,8 +1606,8 @@ function mel_lazy_url($pb, $a, $info = false)
     // season (mel_play_plan) comes with the playlist of its own season, the new vod_play. None (a restart of
     // php_server) - the same. Lampac: a playlist of one season (mel_lpv_ep_play), no such item.
     $season = Mel::$playing ? Mel::$playing['st']['s'] : 0;
-    // A resumed start (Mel::$resumed): the shell would start this first episode after it from the same position, its
-    // URL is not given - the old way, the new vod_play starts it from 0. Taken now, the auto play or P+/P- alike. The
+    // A resumed start (Mel::$resumed): the shell would start the first lazy episode played after it (the autoplay, P+,
+    // P-) from the same position, its URL is not given - the old way, the new vod_play starts it from 0. Taken now. The
     // vod_play of the handler not noted (null: mel_resumed_note): its URL given drops it, the old way notes it below.
     $resumed = strval(Mel::$resumed);
     Mel::$resumed = null;
