@@ -607,6 +607,8 @@ function mel_catv_rows_apply($in, $from)
         mel_log("catalog: rows: $at: settings.json not written");
         return mel_error('cat_rows_not_saved');
     }
+    // In memory too: the files of "TV" are built of it in this operation (mel_tv_rows_saved).
+    Mel::$settings['cat_rows'] = $rows;
     mel_log("catalog: rows: $at: " . count($keys) . ' chosen, saved');
     // From "TV": no screen of Melange under the EPF to read again, the files built anew (mel_tv_rows_saved).
     return mel_tv_is_from($from) ? mel_tv_rows_saved($copy['rows'], $was, $rows) : mel_catv_invalidate($from);
