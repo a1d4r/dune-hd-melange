@@ -361,7 +361,8 @@ function mel_tsl_split($title)
     return array(trim(substr($body, 0, $m[0][1])), trim(trim($lead) . ' ' . $rest));
 }
 
-// The texts of entry $e in language $lang: head and rest - the title and the rest of it (mel_tsl_split); facts - "73
+// The texts of entry $e in language $lang: head and rest - the title and the rest of it (mel_tsl_split); no rest (a
+// short title of Melange) - the name of the torrent by its files (mel_tsl_name; owner 24.11.2026); facts - "73
 // файла · 51.6 ГБ" (the video files if two and more, mel_tsl_video_count; its size; '' none of them); added -
 // "Добавлено 18 сентября" (mel_tsl_added; '' no date).
 /**
@@ -374,6 +375,8 @@ function mel_tsl_texts($e, $lang)
     list($head, $rest) = mel_tsl_split($e['title']);
     $facts = array();
     $files = mel_tsl_files_of($e['hash']);
+    if ($rest === '')
+        $rest = mel_tsl_name($files, $head);
     $n = $files === null ? 0 : mel_tsl_video_count($files);
     if ($n > 1)
         $facts[] = $n . ' ' . mel_gc_plural($lang, $n, 'tsl_files');
@@ -381,6 +384,33 @@ function mel_tsl_texts($e, $lang)
         $facts[] = mel_size_str($e['size'], $lang);
     return array('head' => $head, 'rest' => $rest, 'facts' => implode(' · ', $facts),
         'added' => mel_tsl_added($e, $lang, 'tsl_added'));
+}
+
+// The name of a torrent by its files $files (null: none known) for the panel: the folder all of them are in, else the
+// name of its one file in the root with no extension (mel_tsl_file_name); '' - files in the root with no folder of
+// them all, none known, or the name is head $head (no case, no ".", "_", spaces).
+/**
+ * @param list<MelTsFile>|null $files
+ * @param string $head
+ * @return string
+ */
+function mel_tsl_name($files, $head)
+{
+    if (!$files)
+        return '';
+    $top = null;
+    foreach ($files as $f)
+    {
+        $p = strpos($f['path'], '/');
+        $dir = $p ? (string) substr($f['path'], 0, $p) : '';
+        $top = $top === null || $top === $dir ? $dir : '';
+    }
+    $name = mel_tsl_trim(mel_one_line($top !== '' ? $top : (count($files) === 1 ? mel_tsl_file_name($files[0]) : '')));
+    $key = '/[._\s\x{00A0}]+/u';
+    if ($name === '' || mb_strtolower((string) preg_replace($key, '', $name), 'UTF-8') ===
+        mb_strtolower((string) preg_replace($key, '', $head), 'UTF-8'))
+        return '';
+    return $name;
 }
 
 // The day entry $e was added in the words of key $key ("{d}": "18 сентября", the year if not this one, UTC): tsl_added
