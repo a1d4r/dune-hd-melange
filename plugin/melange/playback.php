@@ -888,7 +888,9 @@ function mel_finish_act($rid)
 // on the old screen, unfolded for a release of it (mel_gc_put_cursor).
 // JacRed tracks of the old list go over by hash (one release). The tab "TV" built anew (mel_tv_flag) and the main
 // screens of the catalog invalidated (mel_catv_after_player): the row "Continue" and the badges are of the history.
-// Before all, the episodes stopped in their credits marked watched (mel_cw_apply).
+// The own cards of the card of the Dune of the list shown invalidated too (mel_oc_anew; also when the list is not that
+// of the playback): the finish comes to the top screen only, the card under it would keep its old progress. Before all,
+// the episodes stopped in their credits marked watched (mel_cw_apply).
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -896,7 +898,9 @@ function mel_finish_act($rid)
 function mel_finish($in)
 {
     mel_tv_flag('back from the player');
-    return mel_cw_apply(mel_catv_after_player(mel_finish_list($in)));
+    // Of the list before mel_finish_list: it may put the state of another list.
+    $dune = Mel::$state ? Mel::$state['movie']['dune_id'] : '';
+    return mel_cw_apply(mel_oc_anew(mel_catv_after_player(mel_finish_list($in)), $dune));
 }
 
 // mel_finish of list $in->rid: the action of its screen.
@@ -1797,7 +1801,8 @@ function mel_next_missing($st, $hash, $errors)
 }
 
 // "Choose a release": the list of the episode (fetched again after a
-// php_server restart); the player stopped first, back from it as mel_finish (mel_oc_after_stop).
+// php_server restart); the player stopped first, back from it as mel_finish (mel_oc_after_stop, the own cards of the
+// card of the Dune of the episode too).
 /**
  * @param stdClass $in
  * @return MelAction
@@ -1811,10 +1816,10 @@ function mel_next_pick($in)
         $p = mel_next_params($in);
         $res = $p ? mel_next_fetch($p[0], $p[1], $p[2]) : array('error' => 'err_list_expired', 'detail' => '');
         if (isset($res['error']))
-            return mel_stop_and(mel_oc_after_stop(mel_error($res['error'], $res['detail'])));
+            return mel_stop_and(mel_oc_after_stop(mel_error($res['error'], $res['detail']), $p ? $p[0] : ''));
         $st = $res['st'];
     }
     Mel::$next = null;
     mel_log(sprintf('next: -> list of S%02dE%02d', $st['s'], $st['e']));
-    return mel_stop_and(mel_oc_after_stop(mel_open_list($st)));
+    return mel_stop_and(mel_oc_after_stop(mel_open_list($st), $st['movie']['dune_id']));
 }

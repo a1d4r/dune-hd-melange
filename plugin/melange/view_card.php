@@ -1462,8 +1462,8 @@ function mel_oc_rows_log($pos)
 
 // get_folder_view of "card:<type>:<id>"; a card not in memory and not made anew: "outdated". Rows of
 // posters still asked: the timer (mel_oc_load). The overlay of an old screen of the card dropped (mel_oc_ovl_drop): open,
-// it would keep card_load of the new one from putting it. The first view after the invalidate of mel_oc_after_stop
-// (stopped; the flag off): at the place of the start (MelOc pos, of the key that started the player), not by $sel_state
+// it would keep card_load of the new one from putting it. The first view after the invalidate of mel_oc_anew (back
+// from the player of a list of the card or of a copy on the disk; stopped, the flag off): at the place of the start (MelOc pos, of the key that started the player), not by $sel_state
 // - the shell keeps its focus where it was and may bring the sel_state of another screen of the same card in its stack
 // (device r25: the start on "Continue", the frame on the still).
 /**
@@ -1876,7 +1876,8 @@ function mel_oc_src_items($key, $c, $l, $pos)
 // of the stills, the episode offered, the copy OK plays, lib_cur), the history stale first (mel_pg_stale: the shell may write the record after
 // PLAYBACK_FINISH, within MEL_PG_SIG_S of the last read, and the line of the history would show the old one); after a copy on the disk (played) also the tab "TV" built anew (mel_tv_flag)
 // and the main screens of the catalog anew first (mel_catv_after_player: the row "Continue" and the badges), as
-// mel_finish of the list; before all, the episodes stopped in their credits marked watched (mel_cw_apply).
+// mel_finish of the list; before all, the episodes stopped in their credits marked watched (mel_cw_apply). A screen with
+// no copy on the disk has no card_finish: the finish of the list played from over it makes it anew (mel_oc_anew).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1899,23 +1900,39 @@ function mel_oc_finish($key, $c)
 
 // The player stopped by "Choose a release" of the dialog over it (mel_lib_next_pick, mel_next_pick: no card_finish
 // then, nor a finish of the list), then $post: as card_finish and mel_finish - the history stale (mel_pg_stale), the
-// tab "TV" built anew (mel_tv_flag), the screens "card:<key>" of the own cards a copy on the disk played from (played;
-// the flag off) invalidated, on r24 too (the shell builds them again in the stack: the marks, the bars, "Continue" of
-// the history when back on them by RETURN), at the place of the start (stopped, mel_oc_folder_view), the main screens
-// of the catalog too (mel_catv_after_player); before all,
+// tab "TV" built anew (mel_tv_flag), the main screens of the catalog anew (mel_catv_after_player), the own cards of the
+// playback anew (mel_oc_anew; $dune: the card of the Dune of the list, '' none); before all,
 // the episodes stopped in their credits marked watched (mel_cw_apply: their record is there, the dialog came after the
 // wait of the next one).
 /**
  * @param MelAction|null $post
+ * @param string $dune
  * @return MelAction|null
  */
-function mel_oc_after_stop($post)
+function mel_oc_after_stop($post, $dune = '')
+{
+    mel_pg_stale();
+    mel_tv_flag('back from the player');
+    return mel_cw_apply(mel_oc_anew(mel_catv_after_player($post), $dune));
+}
+
+// The screens "card:<key>" of the own cards of the playback invalidated before $post, on r24 too (the shell builds
+// them again in the stack: the marks, the bars, "Continue" of the history when back on them): those a copy on the disk
+// played from (played; the flag off) and those shown (nav) of card $dune of the Dune ('' none: the progress of a card is
+// of it, so a list of the same title, own or of the native card, makes it stale), each at the place of the start
+// (stopped, mel_oc_folder_view); the history stale first (mel_pg_stale). None: $post as it is.
+/**
+ * @param MelAction|null $post
+ * @param string $dune
+ * @return MelAction|null
+ */
+function mel_oc_anew($post, $dune)
 {
     $keys = array();
     $urls = array();
     foreach (MelOc::$cards as $key => $c)
     {
-        if (!empty($c['played']))
+        if (!empty($c['played']) || ($dune !== '' && isset($c['nav']) && $c['dune'] === $dune))
         {
             unset(MelOc::$cards[$key]['played']);
             MelOc::$cards[$key]['stopped'] = true;
@@ -1923,18 +1940,14 @@ function mel_oc_after_stop($post)
             $urls[] = "card:$key";
         }
     }
+    if (!$urls)
+        return $post;
     mel_pg_stale();
-    mel_tv_flag('back from the player');
-    $a = mel_catv_after_player($post);
-    if ($urls)
-    {
-        mel_log('card: own ' . implode(', ', $keys) . ': the player stopped, the screen anew');
-        $inv = mel_catv_invalidate($urls[0]);
-        $inv[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = $urls;
-        $inv[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $a;
-        $a = $inv;
-    }
-    return mel_cw_apply($a);
+    mel_log('card: own ' . implode(', ', $keys) . ': the player stopped, the screen anew');
+    $inv = mel_catv_invalidate($urls[0]);
+    $inv[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = $urls;
+    $inv[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $post;
+    return $inv;
 }
 
 // The params of card_src_menu of input $in for its menu of sources: c, s and e of an episode when there.
