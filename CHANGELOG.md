@@ -3,7 +3,7 @@
 **English version**
 
 ## 0.69.1
-- **"On TorrServer" as a list.** The section now looks like the "list" view of the Dune Movies section. Each line has the TorrServer icon and the torrent name, and on its right the number of files (for a pack), the size and the date added, such as "10 files · 120.0 GB · 18 Sep". The poster of the selected torrent is on the right of the screen, with its name, the number of files, the size, the date added and the rest of the torrent name under it. All firmware versions show the same list; before, it was poster rows, or a grid on older firmware.
+- **"On TorrServer" as a list.** The section now looks like the "list" view of the Dune Movies section. Each line has the TorrServer icon and the torrent name, with the number of files (for a pack), the size and the date added on the right, such as "10 files · 120.0 GB · 18 Sep". On the right of the screen is the poster of the selected torrent, with the same details and the full torrent name under it. All firmware versions show the same list; before, it was poster rows, or a grid on older firmware.
 - **Wallpaper behind "On TorrServer".** Melange puts the Dune wallpaper behind the list, the same one as above the icon bar of the catalog. In 0.69.0 the background above the rows was black.
 
 ## 0.69.0 — 23.11.2026
@@ -334,7 +334,7 @@ First public release. What it does:
 **Russian version**
 
 ## 0.69.1
-- **«На TorrServer» списком.** Раздел теперь выглядит как вид «список» в «Фильмах» Дюны. В строке значок TorrServer и название раздачи, а справа число файлов (у пака), размер и дата добавления, например «10 файлов · 120.0 ГБ · 18 сен». Постер выделенной раздачи справа на экране, под ним название, число файлов, размер, дата добавления и остаток имени раздачи. Список одинаковый на всех прошивках, раньше там были ряды постеров, а на старых прошивках — сетка.
+- **«На TorrServer» списком.** Раздел теперь выглядит как вид «список» в «Фильмах» Дюны. В строке значок TorrServer и название раздачи, справа — число файлов (у пака), размер и дата добавления, например «10 файлов · 120.0 ГБ · 18 сен». Справа на экране постер выделенной раздачи, под ним те же данные и полное имя раздачи. Список одинаковый на всех прошивках; раньше были ряды постеров, а на старых прошивках сетка.
 - **Обои за «На TorrServer».** Melange ставит за список обои Дюны, те же, что над полосой значков каталога. В 0.69.0 над рядами был чёрный фон.
 
 ## 0.69.0 — 23.11.2026
