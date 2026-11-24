@@ -1477,18 +1477,20 @@ function mel_movie_load($key)
 }
 
 // Operation $op (get_vod_stream_url, get_vod_stream_info; '' - lazy_reply anew, mel_lazy_replied) of lazy episode $pb
-// -> its URL, else error_action. The URL: from MEL_FW_NEXT_URL_R, get_vod_stream_url of Debrid, TorrServer, Lampac -
-// their handler runs here (mel_lazy_url); the playlist goes on, the shell writes the record of the episode by the uid
-// of its item. Else, the disk, an older firmware: handle_user_input next / lp_next / lib_next, its new vod_play or
-// dialog. A bad $pb: the error.
+// -> its URL (get_vod_stream_url) or array(url, markers if any) (get_vod_stream_info), else error_action. The URL: from
+// MEL_FW_NEXT_URL_R, either operation of Debrid, TorrServer, Lampac - their handler runs here (mel_lazy_url); the
+// playlist goes on, the shell writes the record of the episode by the uid of its item. Else, the disk, an older
+// firmware: handle_user_input next / lp_next / lib_next, its new vod_play or dialog. A bad $pb: the error.
 /**
  * @param mixed $pb
  * @param string $op
- * @return MelAction|string
+ * @return MelAction|array{url: string, markers?: list<array<string, int|string>>}|string
  */
 function mel_lazy_action($pb, $op = '')
 {
-    $here = $op === PLUGIN_OP_GET_VOD_STREAM_URL && mel_fw_r() >= MEL_FW_NEXT_URL_R;
+    // get_vod_stream_info by its literal: the r22 API has no PLUGIN_OP_GET_VOD_STREAM_INFO.
+    $info = $op === 'get_vod_stream_info';
+    $here = ($op === PLUGIN_OP_GET_VOD_STREAM_URL || $info) && mel_fw_r() >= MEL_FW_NEXT_URL_R;
     // An episode of "Онлайн" (online_play.php).
     if (is_string($pb) && strpos($pb, 'lampac_next:') === 0)
         $a = mel_lpv_lazy($pb, $here);
@@ -1508,7 +1510,7 @@ function mel_lazy_action($pb, $op = '')
             ($here ? ' -> the URL here' : ' -> handle_user_input next'));
         $a = mel_input('next', array('k' => $m[1], 's' => $m[2], 'e' => $m[3], 'h' => $m[4], 'm' => $m[5], 'p' => $prof));
     }
-    return $here && $a[GuiAction::handler_string_id] === PLUGIN_HANDLE_USER_INPUT_ACTION_ID ? mel_lazy_url($pb, $a) : $a;
+    return $here && $a[GuiAction::handler_string_id] === PLUGIN_HANDLE_USER_INPUT_ACTION_ID ? mel_lazy_url($pb, $a, $info) : $a;
 }
 
 // Action $a of a lazy episode (mel_lazy_action): of handle_user_input (next, lp_next, lib_next) - its handler run now
@@ -1524,17 +1526,20 @@ function mel_lazy_run($a)
 }
 
 // Lazy episode $pb of handle_user_input $a (next, lp_next; mel_lazy_action) under the player, its handler run in
-// get_vod_stream_url, the same time of the operation (MEL_OP_BUDGET) -> the URL of its vod_play: a ready link, the uid
-// of the lazy item, no markers (get_vod_stream_url has no place for them). Else (a dialog, a placeholder, the window
-// of TorrServer, markers, not linked, an episode of another season) the reply kept (Mel::$lazy_reply) -> error_action
-// lazy_reply: it gives that reply, no second search. The line "play: ... linked=1, playlist N" of mel_play is no sign
-// of a vod_play sent: "lazy: ... -> URL" is.
+// get_vod_stream_url ($info false) or get_vod_stream_info ($info true), the same time of the operation (MEL_OP_BUDGET)
+// -> of the item of its vod_play (a ready link, the uid of the lazy item): the URL, no markers (get_vod_stream_url has
+// no place for them); array(url, markers if any) for get_vod_stream_info (PluginStreamInfo, literals: none in r22).
+// Else (a dialog, a placeholder, the window of TorrServer, markers for get_vod_stream_url, not linked, an episode of
+// another season) the reply kept (Mel::$lazy_reply) -> error_action lazy_reply: it gives that reply, no second search.
+// The line "play: ... linked=1, playlist N" of mel_play is no sign of a vod_play sent: "lazy: ... -> URL" or
+// "lazy: ... -> stream info" is.
 /**
  * @param string $pb
  * @param MelAction $a
- * @return MelAction|string
+ * @param bool $info
+ * @return MelAction|array{url: string, markers?: list<array<string, int|string>>}|string
  */
-function mel_lazy_url($pb, $a)
+function mel_lazy_url($pb, $a, $info = false)
 {
     $t = microtime(true);
     $p = $a[GuiAction::params];
@@ -1549,7 +1554,17 @@ function mel_lazy_url($pb, $a)
         $it = $season > 0 ? 'another season' : 'no playlist known';
     else
         // The uid of the item of the episode (mel_vod_link): of the infoHash "h" of next, the key of the voice "key" of lp_next.
-        $it = mel_lazy_why($r, mel_vod_uid($p['k'], $p['s'], $p['e'], $next ? $p['h'] : $p['key']));
+        $it = mel_lazy_why($r, mel_vod_uid($p['k'], $p['s'], $p['e'], $next ? $p['h'] : $p['key']), $info);
+    if (is_array($it) && $info)
+    {
+        // No markers: no key (as mel_play has its item; the shell plays {url} alone, next_probe_si 24.11.2026).
+        $si = array('url' => $it[PluginVodSeriesInfo::playback_url]);
+        if (isset($it[PluginVodSeriesInfo::markers]))
+            $si['markers'] = $it[PluginVodSeriesInfo::markers];
+        mel_log(sprintf('lazy: %s -> stream info, %d markers, the playlist goes on, %.2f s', $ep,
+            isset($si['markers']) ? count($si['markers']) : 0, microtime(true) - $t));
+        return $si;
+    }
     if (is_array($it))
     {
         mel_log(sprintf('lazy: %s -> URL, the playlist goes on, %.2f s', $ep, microtime(true) - $t));
@@ -1561,13 +1576,15 @@ function mel_lazy_url($pb, $a)
 }
 
 // Reply $r of a lazy episode of uid $uid (mel_lazy_url) -> the item of the episode in its vod_play when that is a URL
-// for get_vod_stream_url, else why not.
+// for get_vod_stream_url ($info false: not with markers, they would be lost) or for get_vod_stream_info ($info true: it
+// carries them), else why not.
 /**
  * @param mixed $r
  * @param string $uid
+ * @param bool $info
  * @return array<string, mixed>|string
  */
-function mel_lazy_why($r, $uid)
+function mel_lazy_why($r, $uid, $info = false)
 {
     if (!is_array($r) || !isset($r[GuiAction::handler_string_id]) || $r[GuiAction::handler_string_id] !== PLUGIN_VOD_PLAY_ACTION_ID)
         return 'a dialog';
@@ -1577,7 +1594,7 @@ function mel_lazy_why($r, $uid)
         return 'not linked';
     if ($ser[PluginVodSeriesInfo::recent_uid] !== $uid)
         return 'the uid of another item';
-    if (isset($ser[PluginVodSeriesInfo::markers]))
+    if (!$info && isset($ser[PluginVodSeriesInfo::markers]))
         return 'markers ' . count($ser[PluginVodSeriesInfo::markers]);
     return $ser[PluginVodSeriesInfo::playback_url_is_stream_url] === true ? $ser : 'no stream URL';
 }
@@ -1586,7 +1603,7 @@ function mel_lazy_why($r, $uid)
 define('MEL_LAZY_REPLY_MAX', 120);
 
 // handle_user_input lazy_reply of lazy episode $in->pb, $in->ep "S03E02" (mel_lazy_url) -> the reply kept for it, once,
-// held (mel_lazy_hold) from the start of its get_vod_stream_url: the search is past. None (a restart of php_server,
+// held (mel_lazy_hold) from the start of its get_vod_stream_url or _info: the search is past. None (a restart of php_server,
 // another episode, older than MEL_LAZY_REPLY_MAX either way: the clock may go back) - its handler anew, as
 // get_vod_stream_url of an older firmware has it (mel_lazy_action), held from now.
 /**
@@ -1602,7 +1619,7 @@ function mel_lazy_replied($in)
     $ago = $k ? microtime(true) - $k['t'] : 0;
     if ($k && $k['pb'] === $pb && abs($ago) <= MEL_LAZY_REPLY_MAX)
     {
-        mel_log(sprintf('lazy: the reply of get_vod_stream_url, %s, %.1f s ago', $ep, $ago));
+        mel_log(sprintf('lazy: the reply kept, %s, %.1f s ago', $ep, $ago));
         return mel_lazy_hold($k['a'], $k['t0']);
     }
     mel_log("lazy: no reply kept for $ep -> its handler anew");
@@ -1612,7 +1629,7 @@ function mel_lazy_replied($in)
 // Seconds from the start of the operation (Mel::$t0) a lazy episode under the player answers a new vod_play in, at the
 // soonest: the native writes the record of the episode stopped ~0.9 s past its stop, and a vod_play before that takes
 // it without recent_uid - the record is dropped (Dune 21.11.2026). Only a reply of handle_user_input (mel_lazy_hold):
-// the URL of get_vod_stream_url (mel_lazy_url) keeps the vod_info, the record is not dropped. Tests define it first.
+// the URL of get_vod_stream_url or _info (mel_lazy_url) keeps the vod_info, the record is not dropped. Tests define it first.
 if (!defined('MEL_NEXT_MIN'))
     define('MEL_NEXT_MIN', 1.5);
 

@@ -184,8 +184,8 @@ class Mel
     // release" of its dialog.
     /** @var MelState|null */
     public static $next = null;
-    // The reply of a lazy episode that was no URL for get_vod_stream_url (mel_lazy_url): its playback_url, the time,
-    // the action, until its lazy_reply (mel_lazy_replied).
+    // The reply of a lazy episode that was no URL for get_vod_stream_url or _info (mel_lazy_url): its playback_url,
+    // the time, the action, until its lazy_reply (mel_lazy_replied).
     /** @var MelLazyReply|null */
     public static $lazy_reply = null;
     // What plays: array('from' => rid of the list screen under the player
@@ -2585,10 +2585,11 @@ class MelFw extends DunePluginFw
                 $data = mel_catv_rows_op($in);
             }
             // Lazy episodes: media_url comes to get_vod_stream_url, the whole
-            // input (playback_url) to get_vod_stream_info. get_vod_stream_url: the URL of the episode itself
-            // (r25 on, mel_lazy_url), else error_action; get_vod_stream_info: error_action (no feature asks for it).
-            else if ($op === PLUGIN_OP_GET_VOD_STREAM_URL ||
-                (defined('PLUGIN_OP_GET_VOD_STREAM_INFO') && $op === PLUGIN_OP_GET_VOD_STREAM_INFO))
+            // input (playback_url) to get_vod_stream_info. The feature vod_get_stream_info of the manifest has the
+            // shell ask get_vod_stream_info (r25 seen; r22 has neither): it carries the markers of the episode. From
+            // MEL_FW_NEXT_URL_R the episode itself (mel_lazy_url): the URL for get_vod_stream_url, plugin_stream_info
+            // {url, markers if any} for get_vod_stream_info - its literals, none in the r22 API; else error_action.
+            else if ($op === PLUGIN_OP_GET_VOD_STREAM_URL || $op === 'get_vod_stream_info')
             {
                 $a = $op === PLUGIN_OP_GET_VOD_STREAM_URL ? 'media_url' : 'playback_url';
                 $b = $op === PLUGIN_OP_GET_VOD_STREAM_URL ? 'playback_url' : 'media_url';
@@ -2596,6 +2597,11 @@ class MelFw extends DunePluginFw
                 if (is_string($r))
                 {
                     $type = PLUGIN_OUT_DATA_URL;
+                    $data = $r;
+                }
+                else if (isset($r['url']))
+                {
+                    $type = 'plugin_stream_info';
                     $data = $r;
                 }
                 else

@@ -5,6 +5,11 @@
   <permissions>
     <permission name="gcomps"/>
   </permissions>
+  <!-- Lazy episodes of a playlist come by get_vod_stream_info, not get_vod_stream_url: its reply carries the
+       markers of the episode (main.php, mel_lazy_url). -->
+  <features>
+    <feature>vod_get_stream_info</feature>
+  </features>
   <params>
     <program>main.php</program>
     <movie_suppliers>aio</movie_suppliers>
