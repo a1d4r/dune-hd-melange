@@ -17,8 +17,9 @@
 // Fresh: the shell calls it again on the flag <tmp_dir>/update_epfs_if_needed_flag (mel_tv_flag), set
 // by the timer of the manifest (mel_tv_timer, every 10 min: the old copies asked anew, the history changed)
 // and by Melange when it saves a copy the file is built of (mel_tv_copy_saved), reads a new settings.json or
-// is back from the player (mel_finish), and by "Configure list…" when it has nothing for the shell to read anew. The row "Continue" (continue.php) first in each, of its types; its
-// badges and those of the tiles are of the history when the file is built.
+// is back from the player (mel_finish), and by "Configure list…" when it has nothing for the shell to read anew.
+// The row "Continue" (continue.php) first in each, of its types; its badges and those of the tiles are of the
+// history when the file is built.
 
 define('MEL_TV_EPF', 'tv');
 // "from" of the actions of each EPF: this and its id (mel_tv_is_from): no screen of Melange is under them.
