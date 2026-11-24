@@ -2,10 +2,9 @@
 // The section "На TorrServer" on the screens (its data: ts_list.php). The way to it: an icon on the strip of the catalog
 // after the heart and its item of POP UP (mel_catv_strip_icons; none with "Без торрентов", mel_tsl_on). The screen
 // "cat_ts": on every firmware the list of the view "list" of "Фильмы" of the shell (movies/movie_list_screen.php of
-// shell_ext, owner 24.11.2026): lines of torrents on the left, "tors:<hash>", the icon of the section, the title, its
-// facts and day at the right of the line; the panel on the right: the poster (none - the picture of none of the shell),
-// the title up to " [" or " (", the facts, the day it was added, the rest of the name. An empty list - the line of the
-// hint (4A).
+// shell_ext, owner 24.11.2026): lines of torrents on the left, "tors:<hash>", the icon of the section and the title
+// alone; the panel on the right: the poster (none - the picture of none of the shell), the title up to " [" or " (",
+// the facts, the day it was added, the rest of the name. An empty list - the line of the hint (4A).
 // The list is read by the input that opens the screen (the icon, the item, "Повторить"): an error there - the kit error
 // screen over the screen it came from (mel_ks_rows_error); a build of the screen takes the list in memory within
 // MEL_TSL_FRESH_S of its read, else reads it anew (an error then: a line of it). ENTER on a torrent: its start
@@ -175,11 +174,11 @@ function mel_tsl_view()
     if ($list === null)
     {
         list($title, $text) = mel_tsl_err_texts($key, $lang, $detail);
-        $items[] = mel_tsl_item(MEL_TSL_ERR . $key, $title, $none, array($title, $text), '');
+        $items[] = mel_tsl_item(MEL_TSL_ERR . $key, $title, $none, array($title, $text));
     }
     else if (!$list)
         $items[] = mel_tsl_item(MEL_TSL_HINT, mel_tr($lang, 'tsl_empty'), $none,
-            array(mel_tr($lang, 'tsl_title'), mel_tr($lang, 'tsl_empty_text')), '');
+            array(mel_tr($lang, 'tsl_title'), mel_tr($lang, 'tsl_empty_text')));
     foreach ($list === null ? array() : $list as $e)
         $items[] = mel_tsl_line($e, $lang, $none);
     mel_log(sprintf('ts section: screen: %d lines, %s, %.0f ms', $list === null ? 0 : count($list),
@@ -187,10 +186,9 @@ function mel_tsl_view()
     return mel_tsl_pane($items);
 }
 
-// The line of entry $e in language $lang: its title; at the right of it its facts and its day, short ("10 файлов ·
-// 120 ГБ · 18 сен", the year if not this one; none of a field left out); the panel: its texts (mel_tsl_texts: the title,
-// the facts, "Добавлено <день>", the rest of the name last - a long one pushed the lines under it off the panel in 0.2.4)
-// under its poster (mel_img: http(s); none - $none).
+// The line of entry $e in language $lang: its title alone (owner 24.11.2026); the panel: its texts (mel_tsl_texts: the
+// title, the facts, "Добавлено <день>", the rest of the name last - a long one pushed the lines under it off the panel
+// in 0.2.4) under its poster (mel_img: http(s); none - $none).
 /**
  * @param MelTsEntry $e
  * @param string $lang
@@ -201,42 +199,36 @@ function mel_tsl_line($e, $lang, $none)
 {
     $poster = mel_img($e['poster']);
     $t = mel_tsl_texts($e, $lang);
-    $tail = implode(' · ', array_filter(array($t['facts'], mel_tsl_day($e, $lang, true)), 'strlen'));
     return mel_tsl_item(MEL_TSL_RID . ':' . $e['hash'], $e['title'], $poster !== '' ? $poster : $none,
-        array($t['head'], $t['facts'], $t['added'], $t['rest']), $tail);
+        array($t['head'], $t['facts'], $t['added'], $t['rest']));
 }
 
 // A line of the screen: id $id (the mode of the screen before it), caption $caption, the icon of the section; in the
-// panel picture $poster and texts $texts (the first the title, the empty ones left out); $tail at the right of the line
-// ('' none) as the shell puts the percent of a movie watched there (recent/recent_helper.php: a gap of 40, text 8).
+// panel picture $poster and texts $texts (the first the title, the empty ones left out); nothing else in the line.
 /**
  * @param string $id
  * @param string $caption
  * @param string $poster
  * @param list<string> $texts
- * @param string $tail
  * @return array<string, mixed>
  */
-function mel_tsl_item($id, $caption, $poster, $texts, $tail)
+function mel_tsl_item($id, $caption, $poster, $texts)
 {
-    $p = array(
-        ViewItemParams::icon_path => MEL_TSL_ICON,
-        ViewItemParams::item_detailed_icon_path => $poster,
-        ViewItemParams::item_detailed_info => implode('|', array_map('mel_clean', array_filter($texts, 'strlen'))));
-    if ($tail !== '')
-        $p[ViewItemParams::item_extra_info] = json_encode(array('items' => array(array('type' => 'gap', 'width' => 40),
-            array('type' => 'text', 'color' => '8', 'text' => $tail))));
     return array(
         PluginRegularFolderItem::media_url => mel_catv_tile_id($id),
         PluginRegularFolderItem::caption => $caption,
-        PluginRegularFolderItem::view_item_params => $p);
+        PluginRegularFolderItem::view_item_params => array(
+            ViewItemParams::icon_path => MEL_TSL_ICON,
+            ViewItemParams::item_detailed_icon_path => $poster,
+            ViewItemParams::item_detailed_info => implode('|', array_map('mel_clean', array_filter($texts, 'strlen')))));
 }
 
 // The view of lines $items: the view "list" of "Фильмы" of the shell (movies/movie_list_screen.php of shell_ext: its
 // get_view_params(1, 11, ..., true, true) over GuiHelper::get_common_regular_params; its lines of 48 px, the caption
-// from the left, 1150 wide; the poster of the panel 310x465, movies/l.php), the texts of the panel broken in lines; the
-// background MEL_TSL_BG over the one of the skin (optimize_full_screen_background off: on, the shell does not paint that
-// one, SDK plugins.txt, and a skin with no images/bg.jpg would be black); ENTER and POP UP as the grid of "Show all" of r24 (cat_enter, cat_menu from the screen).
+// from the left, 1150 wide; the poster of the panel 310x465, movies/l.php), the texts of the panel small (not large as
+// the vendor: owner 24.11.2026), broken in lines; the background MEL_TSL_BG over the one of the skin
+// (optimize_full_screen_background off: on, the shell does not paint that one, SDK plugins.txt, and a skin with no
+// images/bg.jpg would be black); ENTER and POP UP as the grid of "Show all" of r24 (cat_enter, cat_menu from the screen).
 /**
  * @param list<array<string, mixed>> $items
  * @return array<string, mixed>
@@ -263,7 +255,7 @@ function mel_tsl_pane($items)
                 ViewParams::num_rows => 11,
                 ViewParams::paint_details => true,
                 ViewParams::scroll_animation_enabled => true,
-                ViewParams::item_detailed_info_font_size => FONT_SIZE_LARGE,
+                ViewParams::item_detailed_info_font_size => FONT_SIZE_SMALL,
                 ViewParams::item_detailed_info_auto_line_break => true,
                 ViewParams::max_icon_width => 288,
                 ViewParams::max_icon_height => 432,
@@ -365,22 +357,8 @@ function mel_tsl_texts($e, $lang)
         'added' => mel_tsl_added($e, $lang, 'tsl_added'));
 }
 
-// The day entry $e was added ("18 сентября", $short: "18 сен"; the year if not this one, UTC), '' no date.
-/**
- * @param MelTsEntry $e
- * @param string $lang
- * @param bool $short
- * @return string
- */
-function mel_tsl_day($e, $lang, $short)
-{
-    if ($e['added'] <= 0)
-        return '';
-    return mel_oc_day(gmdate('Y-m-d', $e['added']), $lang, $short, gmdate('Y', $e['added']) !== gmdate('Y'));
-}
-
-// The day entry $e was added in the words of key $key ("{d}": mel_tsl_day): tsl_added of the panel, tsl_added_lc of the
-// side of the screen of files; '' no date.
+// The day entry $e was added in the words of key $key ("{d}": "18 сентября", the year if not this one, UTC): tsl_added
+// of the panel, tsl_added_lc of the side of the screen of files; '' no date.
 /**
  * @param MelTsEntry $e
  * @param string $lang
@@ -389,8 +367,10 @@ function mel_tsl_day($e, $lang, $short)
  */
 function mel_tsl_added($e, $lang, $key)
 {
-    $d = mel_tsl_day($e, $lang, false);
-    return $d === '' ? '' : str_replace('{d}', $d, mel_tr($lang, $key));
+    if ($e['added'] <= 0)
+        return '';
+    return str_replace('{d}', mel_oc_day(gmdate('Y-m-d', $e['added']), $lang, false, gmdate('Y', $e['added']) !== gmdate('Y')),
+        mel_tr($lang, $key));
 }
 
 // ENTER on line $id of the screen (mel_tsl_is_tile), the one place a torrent branches: its entry (mel_tsl_find: in

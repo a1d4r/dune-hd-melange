@@ -32,7 +32,7 @@ Torrents already on TorrServer (added from a phone via NUM, KinoTrend, Lampa, or
 
    <img src="../screenshots/ts-strip.jpg" alt="Catalog, Movies tab: focus on the TorrServer icon on the top bar, between the heart and the magnifier" width="100%">
 
-2. The screen lists all TorrServer torrents, newest first. On the right of each line are the number of files, the size and the date added. The poster of the selected torrent is on the right of the screen, with its name and the same details under it.
+2. The screen lists all TorrServer torrents, newest first. Each line shows an icon and the name. On the right is the poster of the selected torrent, with the number of files, the size, the date added and the full name under it.
 
    <img src="../screenshots/ts-section.jpg" alt="On TorrServer screen: torrent tiles, focus on Дом Дракона S03E02, above the rows 4 files · 35.4 GB and the date added" width="100%">
 
