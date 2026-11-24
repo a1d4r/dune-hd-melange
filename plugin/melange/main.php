@@ -2185,7 +2185,14 @@ function mel_play_action($in, $hist = null, $src = '')
             }
         }
         if ($deb)
-            return mel_play($st, $deb, $resume['pos'], null, false, $pre);
+        {
+            $a = mel_play($st, $deb, $resume['pos'], null, false, $pre);
+            // Noted as a start of the list (no screen under the player): the season of the playlist for its lazy
+            // episodes (mel_lazy_url).
+            if ($a[GuiAction::handler_string_id] === PLUGIN_VOD_PLAY_ACTION_ID)
+                mel_playing('', $st, $pick['deb']);
+            return $a;
+        }
         // Through TorrServer, only if it answers; else the list. Mode ts: a P2P
         // row first, else any of the release; no mode: a P2P row only; debrid:
         // none. No torrents: the list, not a word to TorrServer.
@@ -2555,12 +2562,14 @@ class MelFw extends DunePluginFw
             {
                 $type = PLUGIN_OUT_DATA_GUI_ACTION;
                 $data = mel_handle_user_input($in);
-                // "next", "lp_next", "lib_next" and "lazy_reply", a lazy episode under the player (mel_lazy_action): its
-                // vod_play not sooner than MEL_NEXT_MIN (mel_lazy_hold); no pf_check - the player is on, pf_check passed
-                // with its first start in this session, run_builtin from there not seen on the device.
-                if (isset($in->control_id) && in_array($in->control_id, array('next', 'lp_next', 'lib_next', 'lazy_reply'), true))
+                // "next", "lp_next" and "lib_next", a lazy episode under the player (mel_lazy_action): its vod_play
+                // not sooner than MEL_NEXT_MIN (mel_lazy_hold; "lazy_reply" holds its own, mel_lazy_replied); no pf_check
+                // of them - the player is on, pf_check passed with its first start in this session, run_builtin from
+                // there not seen on the device.
+                $c = isset($in->control_id) ? $in->control_id : '';
+                if (in_array($c, array('next', 'lp_next', 'lib_next'), true))
                     $data = mel_lazy_hold($data);
-                else
+                else if ($c !== 'lazy_reply')
                     $data = mel_pf_check($data);
             }
             else if ($op === PLUGIN_OP_GET_REGULAR_FOLDER_ITEMS)
@@ -2583,8 +2592,7 @@ class MelFw extends DunePluginFw
             {
                 $a = $op === PLUGIN_OP_GET_VOD_STREAM_URL ? 'media_url' : 'playback_url';
                 $b = $op === PLUGIN_OP_GET_VOD_STREAM_URL ? 'playback_url' : 'media_url';
-                $r = mel_lazy_action(isset($in->$a) ? $in->$a : (isset($in->$b) ? $in->$b : null),
-                    $op === PLUGIN_OP_GET_VOD_STREAM_URL);
+                $r = mel_lazy_action(isset($in->$a) ? $in->$a : (isset($in->$b) ? $in->$b : null), $op);
                 if (is_string($r))
                 {
                     $type = PLUGIN_OUT_DATA_URL;

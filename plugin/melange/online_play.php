@@ -211,11 +211,12 @@ function mel_lpv_ep_play($mv, $lang, $f, $s, $e, $pos, $deadline)
             $series[] = mel_vod_item($mv, $s, $e, $url, $linked ? $r['key'] : '', $list);
         }
         else
-            // Linked as the ready one: its URL may come in the reply of get_vod_stream_url (mel_lazy_action).
+            // From MEL_FW_NEXT_URL_R linked as the ready one: its URL may come in the reply of get_vod_stream_url
+            // (mel_lazy_action).
             $series[] = array(
                 PluginVodSeriesInfo::name => mel_ser_name($mv, $s, $i, true),
                 PluginVodSeriesInfo::playback_url => "lampac_next:{$mv['dune_id']}:$s:$i:{$r['key']}$prof",
-                PluginVodSeriesInfo::playback_url_is_stream_url => false) + mel_vod_link($mv, $s, $i, $r['key']);
+                PluginVodSeriesInfo::playback_url_is_stream_url => false) + mel_lazy_link($mv, $s, $i, $r['key']);
     }
     // The lazy ones find the card after a restart of php_server too.
     if ($list)
