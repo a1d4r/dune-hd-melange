@@ -302,7 +302,7 @@ function mel_tsl_pane($items)
             PluginRegularFolderView::async_icon_loading => true,
             PluginRegularFolderView::async_icon_loading_interrupt_enabled => true,
             PluginRegularFolderView::actions => array(
-                GUI_EVENT_KEY_ENTER => mel_input('cat_enter', $p, Mel::$settings['cat_card'] ? MEL_CARD_DELAY : MEL_DELAY_INPUT),
+                GUI_EVENT_KEY_ENTER => mel_input('cat_enter', $p, MEL_CARD_DELAY),
                 GUI_EVENT_KEY_POPUP_MENU => mel_input('cat_menu', $p)) + mel_egg_acts(),
             PluginRegularFolderView::initial_range => mel_tsl_range($items)));
 }

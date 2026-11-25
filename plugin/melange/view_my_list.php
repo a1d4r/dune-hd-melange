@@ -504,7 +504,7 @@ function mel_mlv_view($url, $sel_state)
         PluginRegularFolderRange::from_ndx => 0,
         PluginRegularFolderRange::count => count($grid),
         PluginRegularFolderRange::items => $grid),
-        array(GUI_EVENT_KEY_ENTER => mel_input('cat_enter', $p, Mel::$settings['cat_card'] ? MEL_CARD_DELAY : MEL_DELAY_INPUT),
+        array(GUI_EVENT_KEY_ENTER => mel_input('cat_enter', $p, MEL_CARD_DELAY),
             GUI_EVENT_KEY_POPUP_MENU => mel_input('cat_menu', $p)) + mel_egg_acts());
 }
 
@@ -685,8 +685,8 @@ function mel_mlv_key_of($id)
     return strncmp($x, $p, strlen($p)) === 0 ? strval(substr($x, strlen($p))) : null;
 }
 
-// ENTER on tile $id of "Мой список" (another tile: null): the own card ("Своя карточка" on) or the card of the Dune
-// by the card of the Dune of the entry, no request of it; not known - as ENTER on a tile of a row (mel_card_enter). No
+// ENTER on tile $id of "Мой список" (another tile: null): the own card (a tile of no id of the meta: the card of the
+// Dune) by the card of the Dune of the entry, no request of it; not known - as ENTER on a tile of a row (mel_card_enter). No
 // such entry (taken out on another screen): the screen is old.
 /**
  * @param string $id
@@ -707,7 +707,7 @@ function mel_mlv_enter($id, $lang)
     }
     if ($e['dune_id'] === '')
         return mel_card_enter($t, $lang);
-    if (Mel::$settings['cat_card'] && mel_cm_id($t) !== '')
+    if (mel_cm_id($t) !== '')
         return mel_oc_enter($t, $lang, $e['dune_id']);
     return mel_card_open($e['dune_id']);
 }

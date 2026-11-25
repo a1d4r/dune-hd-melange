@@ -85,10 +85,6 @@ function mel_cgi_fields()
         'cat_rating' => array('id' => 'rti', 'name' => 'cat_rating', 'set' => 'cat_rating', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // "Логотип фильма вместо названия" (0.55.0).
         'cat_logo' => array('id' => 'clg', 'name' => 'cat_logo', 'set' => 'cat_logo', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
-        // "Своя карточка" (0.59.0): mel_cgi_cat_card().
-        'cat_card' => array('id' => 'ocd', 'name' => 'cat_card', 'set' => 'cat_card', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
-        // cat_card as the page came (a none chosen shown by the firmware of then): mel_cgi_check_values.
-        'cat_card_was' => array('id' => 'ocw', 'name' => 'cat_card_was', 'set' => '', 'max' => 0, 'type' => 'hidden', 'scr' => 'look'),
         // "Возраст" of "Что не показывать" (0.65.0, lib/hidden.php): mel_cgi_cat_ages().
         'cat_age' => array('id' => 'cag', 'name' => 'cat_age', 'set' => 'cat_age', 'max' => 0, 'type' => 'radio', 'scr' => 'hide'),
         // The rows of the catalog chosen: mel_cgi_rows_screen.
@@ -347,7 +343,7 @@ function mel_cgi_markers_block($v)
 // array(its label, the answers - value => array(name, hint), the answer of true of the settings). Their value of the
 // form (mel_cgi_toggle_of: mel_cgi_values; a form of before without one - the stored one, settings.php), its check
 // (mel_cgi_check_values: "<label>: нет такого ответа"). Not here: ts_save (kept when torrents are off), markers (three
-// answers), cat_card (none chosen: by the firmware).
+// answers).
 function mel_cgi_toggles()
 {
     return array(
@@ -448,46 +444,19 @@ function mel_cgi_lampac_block($v)
         mel_cgi_toggle_block('lp_lampa', $v) . '</div>';
 }
 
-// The answers of "Своя карточка" on the screen #look (radio cat_card, 0.59.0): its value =>
-// array(name, hint); "on" - the own card in effect (mel_card_own).
-function mel_cgi_cat_card()
-{
-    return array(
-        'on' => array(mel_cgi_l('Включена', 'On'), mel_cgi_l(
-            'Карточка Melange с сезонами и сериями вместо карточки Дюны.',
-            'Melange card with seasons and episodes instead of the Dune card.')),
-        'off' => array(mel_cgi_l('Выключена', 'Off'), mel_cgi_l(
-            'Карточка Дюны, как в прежних версиях.',
-            'The Dune card, as in earlier versions.')));
-}
-
-// The answer of mel_cgi_cat_card() of cat_card of the settings (a bool, null - none chosen: by the firmware).
-function mel_cgi_cat_card_of($c)
-{
-    return mel_card_own($c) ? 'on' : 'off';
-}
-
 // The screen #look (a value of the form: '' or another one - none checked). Under the logo:
 // on r24, older or an unknown firmware (mel_fw_vod_r) a warning that it needs r25, the catalog
-// shows the title as text whatever is chosen; else when to turn it off. Under the own card: where
-// it is off when none is chosen (mel_card_own: r22, older or an unknown firmware) a warning that it
-// is seen on r24 and r25 only.
+// shows the title as text whatever is chosen; else when to turn it off. "Своя карточка" is gone (0.70.0: always on; a
+// cat_card of an older settings.json is not read).
 function mel_cgi_look_screen($v)
 {
-    $f = mel_cgi_fields();
     return '<p class="sub">' . mel_cgi_l('Действует со следующего открытия каталога.', 'Takes effect the next time the catalog opens.') .
         '</p>' . mel_cgi_toggle_block('cat_logo', $v) .
         (mel_fw_vod_r() ? '<p class="hint">' . mel_cgi_l('Выключите, если каталог тормозит или карточки грузятся долго.',
         'Turn off if the catalog lags or the cards take long to load.') : '<p class="hint wn">' .
         mel_cgi_l('Логотип работает с прошивки r25. На этой Дюне — название текстом.',
         'The logo needs firmware r25 or newer; this Dune shows the title as text.')) . '</p>' .
-        mel_cgi_toggle_block('cat_rating', $v) .
-        '<p class="lbl">' . mel_cgi_l('Своя карточка', 'Own card') . '</p>' .
-        mel_cgi_choice($f['cat_card'], mel_cgi_cat_card(), $v['cat_card']) .
-        mel_cgi_hidden($f['cat_card_was'], $v['cat_card_was']) .
-        (mel_card_own(null) ? '' : '<p class="hint wn">' . mel_cgi_l(
-        'Своя карточка проверена на прошивках r24 и r25. Здесь по умолчанию выключена.',
-        'The own card is tested on firmware r24 and r25; off by default on this Dune.') . '</p>');
+        mel_cgi_toggle_block('cat_rating', $v);
 }
 
 // The value of the form of cat_rows of the settings (mel_cat_rows_ok): keys by spaces, none in a key.

@@ -43,8 +43,6 @@ const FILLED: [string, string][] = [
   ["cat_rows", ""], ["cat_rows_was", ""],
   ["cat_logo", "on"],
   ["cat_rating", "off"],
-  // "Own card" (0.59.0): the fixtures are of r25, on by default; the answer as the page came.
-  ["cat_card", "on"], ["cat_card_was", "on"],
   // The age of "What not to show" (0.65.0): "Up to 12+" of filled.html.
   ["cat_age", "12"],
   ...servers([["name", "qBittorrent"], ["url", "http://192.168.1.10:8080"], ["user", "admin"], ["pass", "test-pass"], ["category", "movies"]]),

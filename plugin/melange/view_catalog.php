@@ -1144,7 +1144,7 @@ function mel_catv_actions($from)
     // As the sample proven on the device: no timeout and no dialog on a focus move.
     $info[GuiAction::data] = null;
     return array(
-        GUI_EVENT_KEY_ENTER => mel_input('cat_enter', $p, Mel::$settings['cat_card'] ? MEL_CARD_DELAY : MEL_DELAY_INPUT),
+        GUI_EVENT_KEY_ENTER => mel_input('cat_enter', $p, MEL_CARD_DELAY),
         GUI_EVENT_KEY_POPUP_MENU => mel_input('cat_menu', $p),
         GUI_EVENT_KEY_SEARCH => mel_input('cat_search', $p),
         GUI_EVENT_PLUGIN_ROWS_INFO_UPDATE => $info) + mel_egg_acts();

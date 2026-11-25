@@ -153,7 +153,6 @@ class Mel
     // 'cat_rows' - the rows of the catalog chosen on the page, the argument of mel_cat_user_rows.
     // 'cat_logo' - the same of the settings, as stored. 'cat_rating' - the same: mel_catv_title_item. 'cat_age' - the
     // same: mel_ht_now.
-    // 'cat_card' - "Своя карточка" in effect (mel_card_own): mel_card_enter.
     // 'debrid_main' - the main Debrid service (mel_debrid_main_read): of a file cached on
     // several, the copy of it plays (mel_list_state, mel_play); '' - the first in the reply.
     // 'profiles' - the source profiles (v2) in their order for MENU of a list: id, name, kind (mel_profile_kind), ready
@@ -168,7 +167,7 @@ class Mel
     public static $settings = array('base' => '', 'jrs' => array(), 'jrm' => array(), 'servers' => array(),
         'pw' => array(), 'ts' => MEL_TS_DEFAULT, 'ts_auth' => '', 'ts_save' => false, 'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'no_torrents' => false, 'aio' => '', 'own' => false,
         'hosts' => array(), 'sort' => 'aio', 'sort_rev' => false, 'cat_rows' => null, 'cat_logo' => true,
-        'cat_rating' => false, 'cat_age' => null, 'cat_card' => false, 'debrid_main' => '', 'profiles' => array(), 'prof' => '', 'lp_prof' => '',
+        'cat_rating' => false, 'cat_age' => null, 'debrid_main' => '', 'profiles' => array(), 'prof' => '', 'lp_prof' => '',
         'main' => '', 'ready' => false, 'made' => null, 'lp' => '', 'lp_src' => array(),
         'lp_auth' => array('token' => '', 'lampa' => false, 'uid' => ''));
     // settings.json as read at the start of the operation (mel_settings_load): another pair of its profiles takes its
@@ -940,7 +939,6 @@ function mel_op_settings($s, $rel = '', $lp = '')
         'cat_logo' => $s['cat_logo'],
         'cat_rating' => $s['cat_rating'],
         'cat_age' => $s['cat_age'],
-        'cat_card' => mel_card_own($s['cat_card']),
         'debrid_main' => mel_debrid_main_read(mel_data_dir()),
         'profiles' => $profiles,
         'prof' => $rel >= 0 ? $s['profiles'][$rel]['id'] : '',

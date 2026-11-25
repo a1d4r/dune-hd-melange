@@ -130,11 +130,8 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(ratings.map((radio) => [radio.type, radio.value, radio.checked])).toEqual([["radio", "off", true], ["radio", "on", false]]);
     for (const radio of ratings)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("look");
-    // Own card (cat_card, 0.59.0): two radios "on" (by default on r25, the firmware of the fixtures), "off" with their cards on #look.
-    const cards = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=cat_card]"));
-    expect(cards.map((radio) => [radio.type, radio.value, radio.checked])).toEqual([["radio", "on", true], ["radio", "off", false]]);
-    for (const radio of cards)
-      expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("look");
+    // Own card (cat_card, 0.59.0-0.69.1): gone in 0.70.0, the own card is always on; no field of it, none of its "was".
+    expect(form.querySelectorAll("input[name=cat_card], input[name=cat_card_was]").length).toBe(0);
     // The age of What not to show (cat_age, 0.65.0): five radios, "all" by default (filled: "12"), a short name each, on #hide.
     const ages = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=" + NAME.catAge + "]"));
     expect(ages.map((radio) => [radio.type, radio.value, !!radio.getAttribute(DATA.short)])).toEqual(

@@ -154,8 +154,6 @@ function mel_cgi_save($dir, $t)
         if ($v[$k] === '')
             $v[$k] = mel_cgi_toggle_of($k, $view[$f[$k]['set']]);
     }
-    if ($v['cat_card'] === '')
-        $v['cat_card'] = mel_cgi_cat_card_of($cur['cat_card']);
     if ($v['cat_age'] === '')
         $v['cat_age'] = mel_cgi_cat_age_of($cur['cat_age']);
     // "Скрытые" of a form back (lib/hidden.php).

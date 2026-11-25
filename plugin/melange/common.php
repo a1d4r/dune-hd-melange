@@ -880,9 +880,6 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // not a bool - true),
 // 'cat_age' => int|null, the age of "Что не показывать": tiles of the catalog of an older age (mel_cat_age_of) not
 // shown (mel_ht_off; 0.65.0): 16, 12, 6, 0; null - all (another value - null),
-// 'cat_card' => bool|null, "Своя карточка": ENTER on a tile of the catalog opens the own card
-// of Melange (mel_card_enter; 0.59.0); null - none chosen, by the firmware (mel_card_own; not a
-// bool - null),
 // 'no_torrents' => bool, "Без торрентов" (0.49.0; not a bool - false; what it
 // does: mel_no_torrents),
 // 'aio_confs' => base of a server => mode => mel_aio_conf(); a config of
@@ -962,7 +959,7 @@ function mel_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => MEL_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_age' => null, 'cat_card' => null, 'cat_rows' => null) + mel_lp_keys() + array('aio_confs' => array(), 'src_profiles' => false,
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_age' => null, 'cat_rows' => null) + mel_lp_keys() + array('aio_confs' => array(), 'src_profiles' => false,
         'profiles' => array(), 'src_main' => '', 'saved_once' => false, 'mig_lost' => array());
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
@@ -1033,8 +1030,6 @@ function mel_settings_parse($j)
         $r['cat_logo'] = $j['cat_logo'];
     if (isset($j['cat_age']) && in_array($j['cat_age'], array(16, 12, 6, 0), true))
         $r['cat_age'] = $j['cat_age'];
-    if (isset($j['cat_card']) && is_bool($j['cat_card']))
-        $r['cat_card'] = $j['cat_card'];
     if (isset($j['no_torrents']) && is_bool($j['no_torrents']))
         $r['no_torrents'] = $j['no_torrents'];
     if (isset($j['cat_rows']))
@@ -1268,8 +1263,6 @@ function mel_mask_secrets($s, $base, $jrs, $pw = array(), $aio = '', $hosts = ar
 // From r25 the shell sizes the background of the rows by PluginRowsPane::vod_r; r24 puts it
 // at 1280x720 at (640, 0) whatever vod_r is (the field is in the API of both).
 define('MEL_FW_VOD_R_R', 25);
-// The own card of Melange (view_card.php) is seen on r24 and r25: on by default from r24 (mel_card_own).
-define('MEL_FW_CARD_R', 24);
 // The rows of posters of the own card come by the timer of its screen from r25 (seen on the device
 // there; r24 by the code only): asked as the card opens before.
 define('MEL_FW_TIMER_R', 25);
@@ -1357,15 +1350,4 @@ function mel_fw_r()
 function mel_fw_vod_r()
 {
     return mel_fw_r() >= MEL_FW_VOD_R_R;
-}
-
-// "Своя карточка" in effect of cat_card of the settings: as chosen; none chosen (null) - on from
-// MEL_FW_CARD_R, off on r22, older or an unknown firmware (the card of the Dune there).
-/**
- * @param bool|null $c
- * @return bool
- */
-function mel_card_own($c)
-{
-    return $c !== null ? $c : mel_fw_r() >= MEL_FW_CARD_R;
 }

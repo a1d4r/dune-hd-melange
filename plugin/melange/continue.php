@@ -387,9 +387,8 @@ function mel_cp_row_defs($tab, $lang, &$tiles = null, &$miss = null)
     return $defs;
 }
 
-// ENTER on the tile of card $mid of the row: "Своя карточка" off - the card of the Dune at once (no pair needed); else
-// the own card (mel_oc_enter, the card of the Dune known, its rating of Kinopoisk not: asked as of a card not in
-// memory). No pair: one request of it now (mel_pg_link_now, kept for good); failed (no connection, no dune_auth) - the
+// ENTER on the tile of card $mid of the row: the own card (mel_oc_enter, the card of the Dune known, its rating of
+// Kinopoisk not: asked as of a card not in memory). No pair: one request of it now (mel_pg_link_now, kept for good); failed (no connection, no dune_auth) - the
 // message cp_err_link; the card has no IMDb and no TMDB - err_no_imdb. No record of it: the screen is old.
 /**
  * @param string $mid
@@ -398,8 +397,6 @@ function mel_cp_row_defs($tab, $lang, &$tiles = null, &$miss = null)
  */
 function mel_cp_enter($mid, $lang)
 {
-    if (!Mel::$settings['cat_card'])
-        return mel_card_open($mid);
     $links = mel_pg_links();
     $l = isset($links[$mid]) ? $links[$mid] : null;
     if (!$l || isset($l['fail']))

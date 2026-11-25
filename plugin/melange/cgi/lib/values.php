@@ -9,8 +9,7 @@
 // aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
 // settings; tpl_seen, tpl_p2p_seen only posted; ts_save: mel_cgi_ts_save_of()
 // of the settings, markers: mel_cgi_markers_of() (of markers_exact too), those of mel_cgi_toggles(): mel_cgi_toggle_of(),
-// cat_card: mel_cgi_cat_card_of(), cat_age: mel_cgi_cat_age_of(), as posted - none: '',
-// settings.php puts the stored one; cat_card_was: cat_card of the settings, as posted ('' none);
+// cat_age: mel_cgi_cat_age_of(), as posted - none: '', settings.php puts the stored one;
 // pf_sel, pf_from, pf_name - the editor of the sources, '' (mel_cgi_editor_values puts it), as posted;
 // pf_def - the placeholder of the name, pf_list - the block of the sources shown (mel_cgi_editor_values; a save:
 // settings.php); prof - the sources for the script (mel_cgi_profiles_data of the settings, of the file on a save);
@@ -35,8 +34,6 @@ function mel_cgi_values($s)
     $v['markers'] = mel_cgi_markers_of($s['markers'], $s['markers_exact']);
     foreach (mel_cgi_toggles() as $k => $x)
         $v[$k] = mel_cgi_toggle_of($k, $v[$k]);
-    $v['cat_card'] = mel_cgi_cat_card_of($s['cat_card']);
-    $v['cat_card_was'] = $v['cat_card'];
     $v['cat_age'] = mel_cgi_cat_age_of($s['cat_age']);
     // No editor of the sources (mel_cgi_editor_values puts one).
     foreach (array('pf_sel', 'pf_from', 'pf_name', 'pf_def') as $k)
@@ -319,14 +316,6 @@ function mel_cgi_check_values($v)
         $errors[] = mel_cgi_err(mel_cgi_l('Пропуск заставки и титров: нет такого ответа', 'Skip intro and credits: no such answer'),
             $f['markers']['name']);
     }
-    // None chosen in the file and the answer the page showed for it posted (saved for another field): none still, the
-    // default goes on by the firmware (on after an update to r24). Shown: as the page came (cat_card_was: a page of
-    // r22 open over the update shows "off"); a form without it - by the firmware now.
-    $was = $v['cat_card_was'] !== '' ? $v['cat_card_was'] : mel_cgi_cat_card_of(null);
-    $d[$set['cat_card']] = $v['cur'][$set['cat_card']] === null && $v['cat_card'] === $was ? null :
-        $v['cat_card'] === mel_cgi_cat_card_of(true);
-    if (!array_key_exists($v['cat_card'], mel_cgi_cat_card()))
-        $errors[] = mel_cgi_err(mel_cgi_l('Своя карточка: нет такого ответа', 'Own card: no such answer'), $f['cat_card']['name']);
     // None posted: the stored one already (settings.php).
     $d[$set['cat_age']] = mel_cgi_cat_age_set($v['cat_age']);
     if (!array_key_exists($v['cat_age'], mel_cgi_cat_ages()))
