@@ -8,7 +8,8 @@
 // of a search of the catalog by the text, no dialog; tab - the catalog at a tab; row - "Show all" of a row of a tab by
 // its number on the screen. A value off its pattern, a field the target does not take, one it lacks: a line of the
 // log, no screen. Each call: a line of the log with the target and the ids. The same card of the ids for "Continue" of
-// the native with a copy on the disk to choose (mel_lib_win_card, playback_lib.php).
+// the native with a copy on the disk to choose (mel_lib_win_card, playback_lib.php), and for "Melange" of "Play..." of
+// the card of the Dune (mel_sup_card, the supplier aicard).
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_card.php, view_card_series.php, view_card_lib.php
 // (mel_oc_lib_pick; mel_oc_lib, mel_oc_lib_shown of mel_lib_win_card), view_catalog.php, view_person.php, continue.php
 // (mel_cp_items), source_profiles.php.
@@ -195,6 +196,52 @@ function mel_lib_win_card($mv, $left, $s, $e)
     $card['lw_auto'] = array('copies' => $left, 's' => $e >= 1 ? $s : -1, 'e' => $e >= 1 ? $e : -1);
     MelOc::$cards[$key] = $card;
     mel_log("$tag -> the own card $key, the window of them by its first tick");
+    return mel_dl_card_open($key, $card);
+}
+
+// play_action of the supplier aicard, "Melange" of "Play..." of the card of the Dune (control card,
+// bin/movie_suppliers_update.sh): the own card of the title over the card of the Dune, as ENTER on its tile; RETURN -
+// back to the card of the Dune. The title as mel_play_action knows it (mel_movie): its IMDb, else its TMDB (of a series
+// its tmdbtv_id); the card of its meta (mel_oc_of_meta, the card of the Dune of movie_str), else the one in memory. A
+// series with a season of the shell (the screens of a season and of an episode of the card of the Dune; its numbers as
+// they come): the focus on that episode in the row; a season with no episode - the episode of it the card offers; one
+// the meta has not - the place of a card opened from the catalog (mel_oc_pos). No card to open - no movie_str, no IMDb
+// and no TMDB, an id off its form, no meta and none in memory: the play_action of "Melange - watch" as it is
+// (mel_play_action: the list, else its message; no screen of an error of its own).
+/**
+ * @param stdClass $in
+ * @return MelAction
+ */
+function mel_sup_card($in)
+{
+    $mv = mel_movie($in);
+    $id = !$mv ? '' : ($mv['imdb'] !== '' ? $mv['imdb'] : (isset($mv['tmdb']) ? 'tmdb:' . $mv['tmdb'] : ''));
+    $type = $mv && $mv['series'] ? 'series' : 'movie';
+    $s = $mv && $mv['series'] ? mel_int($in, 'season', -1) : -1;
+    $e = $s >= 1 ? mel_int($in, 'episode', -1) : -1;
+    $tag = "card: supplier: $type " . ($id !== '' ? $id : 'of no id') . ($s >= 1 ? " S{$s}E{$e}" : '');
+    $tile = $id !== '' ? mel_oc_id_tile($type, $id) : null;
+    if (!$tile || mel_cm_id($tile) === '')
+    {
+        mel_log("$tag: no own card (" . (!$mv ? 'no movie_str' : ($id === '' ? 'no IMDb, no TMDB' : 'an id off its form')) .
+            ') -> the play_action of the list');
+        return mel_play_action($in);
+    }
+    $key = $type . ':' . mel_cm_id($tile);
+    $r = mel_oc_of_meta($key, $tile, $mv['dune_id']);
+    $card = $r['card'] ? $r['card'] : (isset(MelOc::$cards[$key]) ? MelOc::$cards[$key] : null);
+    if (!$card)
+    {
+        mel_log("$tag: no own card (meta failed: {$r['err']}, none in memory) -> the play_action of the list");
+        return mel_play_action($in);
+    }
+    if ($s >= 1)
+    {
+        $card['pos'] = array_merge($card['pos'], array('z' => 'row', 'p' => 0, 's' => $s, 'e' => max(0, $e)));
+        MelOc::$cards[$key] = $card;
+    }
+    mel_log("$tag -> the own card $key: card " . ($card['dune'] !== '' ? $card['dune'] : 'none') . ', meta ' .
+        ($r['err'] !== '' ? "failed ({$r['err']}), the card in memory" : 'ok'));
     return mel_dl_card_open($key, $card);
 }
 

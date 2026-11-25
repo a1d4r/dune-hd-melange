@@ -421,21 +421,24 @@ function mel_oc_id_tile($type, $id)
 }
 
 // Card $key of tile $t made of its meta (mel_cm_get) with no tile of a row (a restart of php_server, a link,
-// mel_dl_card_of): the tile of the meta, of the type of $t, the card of the Dune by it (mel_card_id), kept
-// (mel_oc_build). -> card: null with no meta (or no tile in it); err: why ('' none, mel_cm_get, "tile").
+// mel_dl_card_of, mel_sup_card): the tile of the meta, of the type of $t, the card of the Dune $dune when known (of
+// movie_str of play_action, its rating of Kinopoisk not), else by the tile (mel_card_id), kept (mel_oc_build). -> card:
+// null with no meta (or no tile in it); err: why ('' none, mel_cm_get, "tile").
 /**
  * @param string $key
  * @param MelCatTile $t
+ * @param string $dune
  * @return array{card: MelOcCard|null, err: string}
  */
-function mel_oc_of_meta($key, $t)
+function mel_oc_of_meta($key, $t, $dune = '')
 {
     $g = mel_cm_get($t);
     if (!$g['meta'] || !$g['meta']['tile'])
         return array('card' => null, 'err' => $g['err'] !== '' ? $g['err'] : 'tile');
     $tile = $g['meta']['tile'];
     $tile['type'] = $t['type'];
-    return array('card' => mel_oc_build($key, $tile, $g['meta'], mel_card_id($tile), mel_catv_lang()), 'err' => '');
+    $c = $dune !== '' ? array('id' => $dune, 'none' => false, 'kp' => null) : mel_card_id($tile);
+    return array('card' => mel_oc_build($key, $tile, $g['meta'], $c, mel_catv_lang()), 'err' => '');
 }
 
 // --- Texts.

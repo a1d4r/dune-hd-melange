@@ -12,7 +12,7 @@
   </features>
   <params>
     <program>main.php</program>
-    <movie_suppliers>aio</movie_suppliers>
+    <movie_suppliers>aio-aicard</movie_suppliers>
   </params>
   <entry_points>
     <entry_point>
@@ -118,6 +118,6 @@
     <required>no</required>
     <auto>yes</auto>
   </check_update>
-  <version>0.69.1</version>
-  <version_index>132</version_index>
+  <version>0.70.0</version>
+  <version_index>133</version_index>
 </dune_plugin>

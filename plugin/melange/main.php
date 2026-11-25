@@ -2444,6 +2444,9 @@ function mel_handle_user_input($in)
         return null;
     if ($control === 'play')
         return mel_play_action($in);
+    // "Melange" of "Play..." of the card of the Dune (the supplier aicard): the own card (deep_link.php).
+    if ($control === 'card')
+        return mel_sup_card($in);
     if ($control === 'tv_update')
         return mel_tv_update($in);
     if ($control === 'tv_timer')

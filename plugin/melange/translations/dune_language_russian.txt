@@ -1,5 +1,6 @@
 plugin_caption = Melange
-supplier_caption = Melange
+supplier_caption = Melange — смотреть
+supplier_card_caption = Melange
 err_unsupported = AIOStreams: неподдерживаемый запрос
 err_no_manifest = Нет конфига AIOStreams — откройте настройки Melange
 err_no_manifest_own = Не задана ссылка на свой конфиг AIOStreams

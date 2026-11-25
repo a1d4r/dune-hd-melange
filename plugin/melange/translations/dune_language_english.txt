@@ -1,5 +1,6 @@
 plugin_caption = Melange
-supplier_caption = Melange
+supplier_caption = Melange — watch
+supplier_card_caption = Melange
 err_unsupported = AIOStreams: unsupported request
 err_no_manifest = No AIOStreams config — open Melange settings
 err_no_manifest_own = The link to your AIOStreams config is not set
