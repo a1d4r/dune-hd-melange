@@ -576,8 +576,9 @@ function mel_lp_on_lampac($url, $src, $base)
 // Item $o of the list of events -> its source, or the reason it is hidden:
 // 'show' (show false: the balancer found nothing), 'rch' (rch true: only the
 // Lampa app plays it), 'bad' (no link). No show or rch at all: the source is
-// tried. The name of the list ("Phantom ~ 2160p" in the life mode): label is
-// it without the quality, q the quality.
+// tried. The name of the list ("Phantom ~ 2160p" in the life mode, "vkmovie 「4K」"
+// of some Lampac-compatible servers): label is it without the quality, q the quality
+// (of a badge 「…」: mel_lp_badge_q).
 /**
  * @param mixed $o
  * @param int $pos
@@ -599,11 +600,30 @@ function mel_lp_source($o, $pos)
     $q = '';
     if (preg_match('/^(.*\S)\s+[~\-]\s+([0-9]{3,4}p|[0-9]K)\z/u', $name, $m))
         list($label, $q) = array($m[1], $m[2]);
+    else if (preg_match('/^(.*\S)\s*\x{300C}([^\x{300D}]{1,20})\x{300D}\z/u', $name, $m))
+        list($label, $q) = array($m[1], mel_lp_badge_q($m[2]));
     else
         $label = $name;
     return array('name' => $name !== '' ? $name : $path, 'label' => $label !== '' ? $label : $path, 'q' => $q,
         'url' => $url, 'path' => $path, 'index' => isset($o['index']) && is_int($o['index']) ? $o['index'] : 0,
         'pos' => $pos);
+}
+
+// A quality badge ("4K" of the source "vkmovie 「4K」" of events, the name "FHD" of an item of a film) -> as
+// a row shows it: "2160p", "4K" as they are; the badges 4K, 2K, FHD, HD, SD "4K", "1440p", "1080p", "720p", "SD";
+// '' for another one.
+/**
+ * @param string $q
+ * @return string
+ */
+function mel_lp_badge_q($q)
+{
+    $q = trim($q);
+    $by = array('4K' => '4K', '2K' => '1440p', 'FHD' => '1080p', 'HD' => '720p', 'SD' => 'SD');
+    $k = strtoupper($q);
+    if (isset($by[$k]))
+        return $by[$k];
+    return preg_match('/^(?:[0-9]{3,4}p|[0-9]K)\z/', $q) ? $q : '';
 }
 
 // The path of a balancer in the link of its source ("phantom" of
@@ -1120,9 +1140,9 @@ function mel_lp_movie($src, $data, $base = '')
             $voice = mel_lp_text(mel_lp_str($x, 'translate'));
             if ($voice === '')
                 $voice = mel_lp_text(mel_lp_str($x, 'voice_name'));
-            // A name of a quality ("1080p", "4K HDR") is none.
+            // A name of a quality ("1080p", "4K HDR", a badge "FHD") is none.
             $name = mel_lp_text(mel_lp_str($x, 'name'));
-            if ($voice === '' && mel_lp_q_num($name) === 0)
+            if ($voice === '' && mel_lp_q_num($name) === 0 && mel_lp_badge_q($name) === '')
                 $voice = $name;
             if (isset($had[$voice . "\n" . $it['url']]))
                 continue;
