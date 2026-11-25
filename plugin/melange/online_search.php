@@ -168,7 +168,13 @@ function mel_lpv_tick($in)
     }
     if ($run['phase'] === 'ids')
     {
-        list($run['v']['title']) = mel_lp_externalids($base, $run['v']['title']);
+        list($run['v']['title'], $why) = mel_lp_externalids($base, $run['v']['title']);
+        // No KinoPoisk id of Lampac: that of the catalog server, in a tick of its own (a tick is a request).
+        $run['phase'] = mel_lpv_kp_ask($run['v']['title'], $why) ? 'kp' : 'start';
+    }
+    else if ($run['phase'] === 'kp')
+    {
+        $run['v']['title'] = mel_lpv_kp_catalog($run['st']['movie'], $run['v']['title']);
         $run['phase'] = 'start';
     }
     else if ($run['phase'] === 'start')
