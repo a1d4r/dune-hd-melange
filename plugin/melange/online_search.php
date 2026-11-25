@@ -52,6 +52,9 @@ function mel_lpv_search_open($st, $how, $opt = array())
         'path' => isset($opt['path']) ? $opt['path'] : '', 'key' => isset($opt['key']) ? $opt['key'] : '',
         'fail' => isset($opt['fail']) ? $opt['fail'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v,
         'poll' => mel_lp_poll_start(count($v['rows'])), 'more' => $more ? count($v['rows']) : -1);
+    // A window of before closed by RETURN of the shell (no lp_cancel) in its replies: its sources into "Источники…".
+    if (MelLpv::$run && MelLpv::$run['phase'] === 'replies')
+        mel_lpv_run_seen(MelLpv::$run);
     MelLpv::$run = $run;
     MelLpv::$redraw = !empty($opt['redraw']) ? array('sid' => $sid, 'st' => $st) : null;
     mel_log("lampac: window $sid, " . mel_ep_tag($st) . ", $how, phase {$run['phase']}" .
@@ -110,9 +113,11 @@ function mel_lpv_search_defs($run)
 {
     $lang = $run['st']['lang'];
     $v = $run['v'];
-    $n = count($v['sources']);
+    // Those of a refusal of RCH (rch true asked, mel_lp_source) not counted, as before.
+    $rch = count(mel_lpv_rch_paths($v));
+    $n = count($v['sources']) - $rch;
     $l1 = mel_lpv_tr($lang, 'lp_search_found', array('n' => $n));
-    $l2 = $run['phase'] === 'replies' ? mel_lpv_tr($lang, 'lp_search_asking', array('k' => $v['next'], 'n' => $n,
+    $l2 = $run['phase'] === 'replies' ? mel_lpv_tr($lang, 'lp_search_asking', array('k' => max(0, $v['next'] - $rch), 'n' => $n,
         'r' => count($v['rows']))) : mel_tr($lang, 'lp_search_wait');
     return array(
         mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l1)),
@@ -183,10 +188,11 @@ function mel_lpv_tick($in)
     $s = $run['search'];
     if ($run['phase'] === 'search' && $s)
     {
-        // Those turned off in "Источники…" not asked, nor counted; the others in its order. Done: the new ones there.
-        if ($s['done'])
-            mel_lpv_srcs_seen($s['sources']);
-        list($run['v']['sources'], $run['v']['off']) = mel_lpv_srcs_pick($s['sources'], Mel::$settings['lp_src']);
+        // Those turned off in "Источники…" not asked, nor counted; the others in its order, the new ones last (put there
+        // at the end of the run, mel_lpv_run_seen).
+        $ch = Mel::$settings['lp_src'];
+        list($run['v']['sources'], $run['v']['off']) = mel_lpv_srcs_pick($s['sources'],
+            array_merge($ch, mel_lpv_srcs_new($ch, $s['sources'])));
         $run['v']['hidden'] = $s['hidden'];
         if ($s['done'])
         {
@@ -209,6 +215,7 @@ function mel_lpv_tick($in)
     if ($run['phase'] === 'done')
     {
         MelLpv::$run = null;
+        mel_lpv_run_seen($run);
         return mel_close_and(mel_lpv_result($run));
     }
     return mel_lpv_redraw_keys(array(
@@ -222,6 +229,42 @@ function mel_lpv_tick($in)
                     ResetControlsActionData::defs => mel_lpv_search_defs($run),
                     ResetControlsActionData::initial_sel_ndx => -1,
                     ResetControlsActionData::post_action => null)))), $run['sid']);
+}
+
+// The paths of the sources of the reason rch (a refusal of RCH: only the Lampa app plays them) of the online list $v,
+// each once.
+/**
+ * @param MelLpView $v
+ * @return array<string, bool>
+ */
+function mel_lpv_rch_paths($v)
+{
+    $out = array();
+    foreach ($v['why'] as $w)
+    {
+        if ($w['why'] === 'rch')
+            $out[$w['path']] = true;
+    }
+    return $out;
+}
+
+// The sources of run $run, its replies done, cancelled or left (a window closed by the shell, mel_lpv_search_open), into
+// "Источники…" (mel_lpv_srcs_seen): those of its search
+// ("Ещё N": of its list) but those of a refusal of RCH (mel_lpv_rch_paths) - not there, as when rch true hid them.
+/**
+ * @param MelLpRun $run
+ * @return void
+ */
+function mel_lpv_run_seen($run)
+{
+    $rch = mel_lpv_rch_paths($run['v']);
+    $out = array();
+    foreach ($run['search'] ? $run['search']['sources'] : $run['v']['sources'] as $x)
+    {
+        if (!isset($rch[$x['path']]))
+            $out[] = $x;
+    }
+    mel_lpv_srcs_seen($out);
 }
 
 // Lampac of run $run did not answer ($why, $detail: MelLpWhy): a title with releases (back) -

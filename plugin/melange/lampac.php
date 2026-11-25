@@ -574,8 +574,10 @@ function mel_lp_on_lampac($url, $src, $base)
 }
 
 // Item $o of the list of events -> its source, or the reason it is hidden:
-// 'show' (show false: the balancer found nothing), 'rch' (rch true: only the
-// Lampa app plays it), 'bad' (no link). No show or rch at all: the source is
+// 'show' (show false: the balancer found nothing), 'bad' (no link). rch true is
+// asked all the same: some Lampac-compatible servers mark so balancers that
+// answer as any; a refusal of RCH comes at once as {"rch":true,"nws":...}, and
+// mel_lp_reply takes that for the reason rch. No show at all: the source is
 // tried. The name of the list ("Phantom ~ 2160p" in the life mode, "vkmovie 「4K」"
 // of some Lampac-compatible servers): label is it without the quality, q the quality
 // (of a badge 「…」: mel_lp_badge_q).
@@ -590,8 +592,6 @@ function mel_lp_source($o, $pos)
         return 'bad';
     if (isset($o['show']) && $o['show'] === false)
         return 'show';
-    if (isset($o['rch']) && $o['rch'] === true)
-        return 'rch';
     $url = isset($o['url']) && is_string($o['url']) && strlen($o['url']) <= MEL_LP_LINK_MAX ? mel_lp_link1($o['url']) : '';
     if ($url === '')
         return 'bad';
@@ -780,7 +780,7 @@ function mel_lp_events_why($r, $j)
 // one events without life next, Lampac has no life mode; done), memkey, seen
 // (items of /lifeevents had), t0 (its start, mel_lp_now), sources (by index;
 // MelLpSource: name, label, q, url, path (mel_lp_path of url), index, pos), gone (items hidden:
-// a key => show, rch or bad), hidden (their counts by reason), tasks and pending (of the last
+// a key => show or bad), hidden (their counts by reason; rch 0: mel_lp_source), tasks and pending (of the last
 // /lifeevents), shown (its items of show not false when all its tasks came and no pending was sent, -1 not so), fails (/lifeevents of no answer in a row), done, capped (the
 // time of the search ran out), err and detail (a reason, '' none: the search
 // failed only if no source came), title (the title of Lampac in q, '' none). One search at a time: two events at once
