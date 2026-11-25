@@ -782,7 +782,7 @@ function mel_oc_mark($key, $c, $in)
         return null;
     $ids = mel_wh_mark_ids($c['dune'], $keys);
     $nat = mel_oc_lib_native_uids($c, $keys);
-    MelOc::$cards[$key]['pos'] = array_merge($c['pos'], array('z' => 'row', 'p' => 0, 's' => $s, 'e' => $e));
+    MelOc::$cards[$key]['pos'] = mel_oc_pos_ep($c['pos'], $s, $e);
     mel_log("card: own $key: mark $w on S{$s}E{$e}: " . count($keys) . ' episodes, ' . (count($ids) - count($keys)) .
         ' uids of records' . ($nat ? ', ' . count($nat) . ' native uids' : ''));
     return mel_pg_mark_act(array_merge($ids, $nat), array(), $w !== 'off', mel_oc_mark_post($key, $c));
@@ -801,7 +801,7 @@ function mel_oc_retry($key, $c)
     $g = mel_cm_get($c['tile']);
     if (!$g['meta'])
         return mel_error('cat_row_failed', $g['err']);
-    $card = mel_oc_build($key, $c['tile'], $g['meta'], array('id' => $c['dune'], 'none' => false, 'kp' => ''), $c['lang']);
+    $card = mel_oc_build($key, $c['tile'], $g['meta'], mel_card_id_known($c['dune']), $c['lang']);
     MelOc::$cards[$key]['pos'] = array_merge($card['pos'], array('z' => 'pill', 'b' => $c['pos']['b']));
     mel_log("card: own $key: meta again, the screen anew");
     return mel_replace_act("card:$key", $c['tile']['name']);

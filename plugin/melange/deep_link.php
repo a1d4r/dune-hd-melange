@@ -111,31 +111,49 @@ function mel_dl_open($in)
     return call_user_func($all[$q['to']]['fn'], $q);
 }
 
-// The own card of type $type of IMDb $imdb, else of TMDB $tmdb (of a link, of "Continue"), kept, of the ids alone: made
-// of the meta (mel_oc_of_meta: its tile, the card of the Dune
-// by it), as ENTER on a tile makes it (mel_oc_enter). No meta: the card in memory if there is one (another screen of
-// it may be under this one: not to lose its name), else the card of the ids, no name, as of a tile whose meta failed.
-// -> array(the key "<type>:<id of the link>", the card); null - the id off its form (no tile of it, or of no id).
+// The id of the own card (mel_cm_id) of a title of $x (a link, MelDlLink; a movie of play_action, MelMovie, of a TMDB
+// only with one): its IMDb, else "tmdb:<its TMDB>"; '' of neither.
+/**
+ * @param array{imdb: string, tmdb?: string} $x
+ * @return string
+ */
+function mel_dl_id($x)
+{
+    if ($x['imdb'] !== '')
+        return $x['imdb'];
+    return isset($x['tmdb']) && $x['tmdb'] !== '' ? 'tmdb:' . $x['tmdb'] : '';
+}
+
+// The own card of type $type of id $id (mel_dl_id: of a link, of "Continue", of the supplier aicard), kept: made of the
+// meta (mel_oc_of_meta: its tile, the card of the Dune $dune when known, else by it), as ENTER on a tile makes it
+// (mel_oc_enter). No meta: the card in memory if there is one (another screen of it may be under this one: not to lose
+// its name), else, $bare, the card of the ids, no name, as of a tile whose meta failed. Logged, $tag first.
+// -> array(the key "<type>:<id>", the card); a string - why none: the id off its form (no tile of it, or of no id), of
+// not $bare no meta and none in memory.
 /**
  * @param string $type
- * @param string $imdb
- * @param string $tmdb
- * @return array{string, MelOcCard}|null
+ * @param string $id
+ * @param string $tag
+ * @param string $dune
+ * @param bool $bare
+ * @return array{string, MelOcCard}|string
  */
-function mel_dl_card_of($type, $imdb, $tmdb)
+function mel_dl_card_of($type, $id, $tag = 'open', $dune = '', $bare = true)
 {
-    $tile = mel_oc_id_tile($type, $imdb !== '' ? $imdb : "tmdb:$tmdb");
+    $tile = $id !== '' ? mel_oc_id_tile($type, $id) : null;
     if (!$tile || mel_cm_id($tile) === '')
-        return null;
+        return 'an id off its form';
     $key = $type . ':' . mel_cm_id($tile);
-    $r = mel_oc_of_meta($key, $tile);
+    $r = mel_oc_of_meta($key, $tile, $dune);
     $card = $r['card'];
     $was = !$card && isset(MelOc::$cards[$key]);
     if ($was)
         $card = MelOc::$cards[$key];
+    if (!$card && !$bare)
+        return "meta failed: {$r['err']}, none in memory";
     if (!$card)
         $card = mel_oc_build($key, $tile, null, mel_card_id($tile), mel_catv_lang());
-    mel_log("open: own $key: card " . ($card['dune'] !== '' ? $card['dune'] : 'none') . ', meta ' .
+    mel_log("$tag: own $key: card " . ($card['dune'] !== '' ? $card['dune'] : 'none') . ', meta ' .
         ($r['err'] !== '' ? "failed ({$r['err']})" . ($was ? ', the card in memory' : '') : 'ok') . ', imdb ' .
         ($card['imdb'] !== '' ? $card['imdb'] : 'none'));
     return array($key, $card);
@@ -148,8 +166,8 @@ function mel_dl_card_of($type, $imdb, $tmdb)
  */
 function mel_dl_card($q)
 {
-    $kc = mel_dl_card_of($q['type'], $q['imdb'], $q['tmdb']);
-    if (!$kc)
+    $kc = mel_dl_card_of($q['type'], mel_dl_id($q));
+    if (!is_array($kc))
         return null;
     list($key, $card) = $kc;
     return mel_dl_card_open($key, $card);
@@ -174,15 +192,15 @@ function mel_dl_card($q)
  */
 function mel_lib_win_card($mv, $left, $s, $e)
 {
-    $tmdb = isset($mv['tmdb']) ? $mv['tmdb'] : '';
+    $id = mel_dl_id($mv);
     $tag = 'library: ' . count($left) . ' copies' . ($e >= 1 ? " of S{$s}E{$e}" : '') . ' to choose';
-    if ($mv['imdb'] === '' && $tmdb === '')
+    if ($id === '')
     {
         mel_log("$tag, no own card (no IMDb, no TMDB)");
         return null;
     }
-    $kc = mel_dl_card_of($mv['series'] ? 'series' : 'movie', $mv['imdb'], $mv['imdb'] === '' ? $tmdb : '');
-    if (!$kc)
+    $kc = mel_dl_card_of($mv['series'] ? 'series' : 'movie', $id);
+    if (!is_array($kc))
     {
         mel_log("$tag, no own card (" . ($mv['imdb'] !== '' ? 'IMDb' : 'TMDB') . ' off its form)');
         return null;
@@ -202,10 +220,11 @@ function mel_lib_win_card($mv, $left, $s, $e)
 // play_action of the supplier aicard, "Melange" of "Play..." of the card of the Dune (control card,
 // bin/movie_suppliers_update.sh): the own card of the title over the card of the Dune, as ENTER on its tile; RETURN -
 // back to the card of the Dune. The title as mel_play_action knows it (mel_movie): its IMDb, else its TMDB (of a series
-// its tmdbtv_id); the card of its meta (mel_oc_of_meta, the card of the Dune of movie_str), else the one in memory. A
-// series with a season of the shell (the screens of a season and of an episode of the card of the Dune; its numbers as
-// they come): the focus on that episode in the row; a season with no episode - the episode of it the card offers; one
-// the meta has not - the place of a card opened from the catalog (mel_oc_pos). No card to open - no movie_str, no IMDb
+// its tmdbtv_id, mel_dl_id); the card of its meta, the card of the Dune of movie_str, else the one in memory
+// (mel_dl_card_of: as a link to=card makes it, but none of the ids alone), logged with the supplier first. A series
+// with a season of the shell (the screens of a season and of an episode of the card of the Dune; its numbers as they
+// come): the focus on that episode in the row; a season with no episode (-1, 0 or less: logged so) - the episode of it
+// the card offers; one the meta has not - the place of a card opened from the catalog (mel_oc_pos). No card to open - no movie_str, no IMDb
 // and no TMDB, an id off its form, no meta and none in memory: the play_action of "Melange - watch" as it is
 // (mel_play_action: the list, else its message; no screen of an error of its own).
 /**
@@ -215,33 +234,27 @@ function mel_lib_win_card($mv, $left, $s, $e)
 function mel_sup_card($in)
 {
     $mv = mel_movie($in);
-    $id = !$mv ? '' : ($mv['imdb'] !== '' ? $mv['imdb'] : (isset($mv['tmdb']) ? 'tmdb:' . $mv['tmdb'] : ''));
+    $id = $mv ? mel_dl_id($mv) : '';
     $type = $mv && $mv['series'] ? 'series' : 'movie';
     $s = $mv && $mv['series'] ? mel_int($in, 'season', -1) : -1;
-    $e = $s >= 1 ? mel_int($in, 'episode', -1) : -1;
-    $tag = "card: supplier: $type " . ($id !== '' ? $id : 'of no id') . ($s >= 1 ? " S{$s}E{$e}" : '');
-    $tile = $id !== '' ? mel_oc_id_tile($type, $id) : null;
-    if (!$tile || mel_cm_id($tile) === '')
+    $e = $s >= 1 ? max(0, mel_int($in, 'episode', -1)) : 0;
+    $tag = "card: supplier: $type " . ($id !== '' ? $id : 'of no id') .
+        ($s >= 1 ? ($e >= 1 ? " S{$s}E{$e}" : " S$s, no episode") : '');
+    if (!$mv || $id === '')
+        $kc = !$mv ? 'no movie_str' : 'no IMDb, no TMDB';
+    else
+        $kc = mel_dl_card_of($type, $id, $tag, $mv['dune_id'], false);
+    if (!is_array($kc))
     {
-        mel_log("$tag: no own card (" . (!$mv ? 'no movie_str' : ($id === '' ? 'no IMDb, no TMDB' : 'an id off its form')) .
-            ') -> the play_action of the list');
+        mel_log("$tag: no own card ($kc) -> the play_action of the list");
         return mel_play_action($in);
     }
-    $key = $type . ':' . mel_cm_id($tile);
-    $r = mel_oc_of_meta($key, $tile, $mv['dune_id']);
-    $card = $r['card'] ? $r['card'] : (isset(MelOc::$cards[$key]) ? MelOc::$cards[$key] : null);
-    if (!$card)
-    {
-        mel_log("$tag: no own card (meta failed: {$r['err']}, none in memory) -> the play_action of the list");
-        return mel_play_action($in);
-    }
+    list($key, $card) = $kc;
     if ($s >= 1)
     {
-        $card['pos'] = array_merge($card['pos'], array('z' => 'row', 'p' => 0, 's' => $s, 'e' => max(0, $e)));
+        $card['pos'] = mel_oc_pos_ep($card['pos'], $s, $e);
         MelOc::$cards[$key] = $card;
     }
-    mel_log("$tag -> the own card $key: card " . ($card['dune'] !== '' ? $card['dune'] : 'none') . ', meta ' .
-        ($r['err'] !== '' ? "failed ({$r['err']}), the card in memory" : 'ok'));
     return mel_dl_card_open($key, $card);
 }
 
@@ -311,8 +324,8 @@ function mel_dl_streams($q)
             return null;
         }
     }
-    $kc = mel_dl_card_of($q['type'], $q['imdb'], $q['tmdb']);
-    if (!$kc)
+    $kc = mel_dl_card_of($q['type'], mel_dl_id($q));
+    if (!is_array($kc))
         return null;
     $c = $kc[1];
     if ($q['type'] !== 'series')

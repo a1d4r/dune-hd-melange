@@ -252,7 +252,7 @@ class MelOc
  */
 function mel_oc_enter($tile, $lang, $dune = '')
 {
-    $c = $dune !== '' ? array('id' => $dune, 'none' => false, 'kp' => null) : mel_card_id($tile);
+    $c = $dune !== '' ? mel_card_id_known($dune) : mel_card_id($tile);
     $g = mel_cm_get($tile);
     $key = $tile['type'] . ':' . mel_cm_id($tile);
     $card = mel_oc_build($key, $tile, $g['meta'], $c, $lang);
@@ -437,7 +437,7 @@ function mel_oc_of_meta($key, $t, $dune = '')
         return array('card' => null, 'err' => $g['err'] !== '' ? $g['err'] : 'tile');
     $tile = $g['meta']['tile'];
     $tile['type'] = $t['type'];
-    $c = $dune !== '' ? array('id' => $dune, 'none' => false, 'kp' => null) : mel_card_id($tile);
+    $c = $dune !== '' ? mel_card_id_known($dune) : mel_card_id($tile);
     return array('card' => mel_oc_build($key, $tile, $g['meta'], $c, mel_catv_lang()), 'err' => '');
 }
 
@@ -1272,6 +1272,18 @@ function mel_oc_pos($c, $l, $raw)
         'r' => $r);
 }
 
+// Place $pos at episode $e of season $s in the row (its first stop; mel_oc_pos takes it to a place of the card).
+/**
+ * @param MelOcPos $pos
+ * @param int $s
+ * @param int $e
+ * @return MelOcPos
+ */
+function mel_oc_pos_ep($pos, $s, $e)
+{
+    return array_merge($pos, array('z' => 'row', 'p' => 0, 's' => $s, 'e' => $e));
+}
+
 // The place after key $d (left, right, up, down, pgup, pgdn) from $pos; $pos itself at an edge.
 // Up and down go from zone to zone in the order of the layout (the buttons, the tabs, the row, the
 // page below), in "down" from stop to stop first, entering it at the first stop. Left and right:
@@ -1766,7 +1778,7 @@ function mel_oc_tile_watch($tile, $lang, $dune, $src)
             $dune = $d['id'];
         }
         $g = mel_cm_get($tile);
-        $c = mel_oc_make(mel_oc_fill($tile, $g['meta'], array('id' => '', 'none' => false, 'kp' => null)), $g['meta'], $dune,
+        $c = mel_oc_make(mel_oc_fill($tile, $g['meta'], mel_card_id_known('')), $g['meta'], $dune,
             $lang, mel_cm_posters_new($tile, $g['meta']));
         if ($g['meta'] && $dune !== '' && $tile['type'] === 'series')
             mel_pg_link_meta($dune, $g['meta']);
@@ -2133,7 +2145,7 @@ function mel_oc_input($in, $control)
             return $ep ? mel_oc_watch($c, $ep['q'], $ep['e'], $ep) : mel_oc_watch($c);
         // Not out yet: the focus to it in the row.
         if ($kind === 'soon')
-            $new = array_merge($pos, array('z' => 'row', 'p' => 0, 's' => $ep['s'], 'e' => $ep['e']));
+            $new = mel_oc_pos_ep($pos, $ep['s'], $ep['e']);
         else
             return null;
     }

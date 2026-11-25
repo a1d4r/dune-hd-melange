@@ -335,7 +335,7 @@ function mel_movie($in)
     if (preg_match('/^[0-9]{1,10}$/D', $tmdb))
         $mv['tmdb'] = $tmdb;
     // An IMDb the catalog matched (TMDB knows none; owner 21.11.2026): the releases by that TMDB (mel_rel_id). Only of a
-    // list of Melange (aio_rel_tmdb: the own card, mel_oc_watch_in; a tile, mel_card_releases); a card of the Dune - by IMDb.
+    // list of Melange (aio_rel_tmdb: the own card, mel_oc_watch_in); a card of the Dune - by IMDb.
     if ($mv['imdb'] !== '' && isset($mv['tmdb']) && isset($m['aio_rel_tmdb']) && $m['aio_rel_tmdb'] === true)
     {
         $mv['rel_tmdb'] = true;

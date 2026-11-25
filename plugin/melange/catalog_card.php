@@ -1,9 +1,9 @@
 <?php
 // ENTER on a tile of the catalog: the own card (view_card.php) of a tile with an id of the meta; of another one the
-// native card of the Dune, its id found by movieBySigns, else a local card of the shell made before (0.58.0 and older;
-// none is written now), else the releases of Melange, no history kept; without an IMDb id either a message. Needs catalog.php
-// (its cache) and main.php. dune_auth is only in the address of a request: no log,
-// dialog or file gets that address.
+// native card of the Dune, its id found by movieBySigns, else a local card of the shell made before (up to 0.69.1, with
+// the own card off or of r22; none is written now: the history of users is on them, mel_card_local_find), else the
+// releases of Melange, no history kept; without an IMDb id either a message. Needs catalog.php (its cache) and main.php.
+// dune_auth is only in the address of a request: no log, dialog or file gets that address.
 // Types in the PHPDoc (MelCatTile, MelAction): phpstan-types.neon of the repository.
 
 define('MEL_CARD_API', 'http://dunemdb.dune-hd.com:5535/');
@@ -208,6 +208,17 @@ function mel_card_id($tile)
     return array('id' => $id, 'none' => $whole && $id === '', 'kp' => $kp);
 }
 
+// The answer of mel_card_id of card $id of the Dune known with no request (of the row "Continue", of movie_str of
+// play_action, of a card open; '' - none): its rating of Kinopoisk not known (mel_oc_fill asks it of a card not in memory).
+/**
+ * @param string $id
+ * @return array{id: string, none: bool, kp: string|null}
+ */
+function mel_card_id_known($id)
+{
+    return array('id' => $id, 'none' => false, 'kp' => null);
+}
+
 // The rating of Kinopoisk of card $id of the Dune of $tile, asked now by one sign (TMDB, else
 // IMDb; mel_card_id got the id of its cache): '' for none, no answer or another card.
 /**
@@ -355,9 +366,9 @@ function mel_card_local_find($tile)
     return '';
 }
 
-// The way of play_action, the movie made from the tile: no id of a card, so no
-// history (mel_play) and a series starts at S1E1. The list opens after a dialog that
-// says so; what mel_play_action says instead of a list goes as it is.
+// The way of play_action of a tile of no type with IMDb (mel_card_enter: a movie or a series has its own card), the
+// movie made from the tile (its releases by the IMDb, mel_rel_id): no id of a card, so no history (mel_play). The list
+// opens after a dialog that says so; what mel_play_action says instead of a list goes as it is.
 /**
  * @param MelCatTile $tile
  * @param string $lang
@@ -369,11 +380,8 @@ function mel_card_releases($tile, $lang)
     $mv = array('imdb_id' => $tile['imdb_id'], 'title' => $tile['name'], 'year' => $tile['year'],
         'poster_url' => $tile['poster'], 'fanart_url' => $tile['background'], 'rate_imdb' => $tile['imdbRating'],
         'description' => $tile['description']) + mel_lpv_tile_ids($tile);
-    // An IMDb the catalog matched: the releases by TMDB (mel_rel_id).
-    if (mel_cat_rel_tmdb($tile))
-        $mv['aio_rel_tmdb'] = true;
     $in->movie_str = json_encode($mv);
-    $in->series_type = $tile['type'] === 'series' ? 'series' : 'single';
+    $in->series_type = 'single';
     $in->lang = $lang;
     $act = mel_play_action($in);
     if ($act[GuiAction::handler_string_id] !== PLUGIN_OPEN_FOLDER_ACTION_ID)
