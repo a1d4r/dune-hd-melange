@@ -52,9 +52,8 @@ function mel_lpv_search_open($st, $how, $opt = array())
         'path' => isset($opt['path']) ? $opt['path'] : '', 'key' => isset($opt['key']) ? $opt['key'] : '',
         'fail' => isset($opt['fail']) ? $opt['fail'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v,
         'poll' => mel_lp_poll_start(count($v['rows'])), 'more' => $more ? count($v['rows']) : -1);
-    // A window of before closed by RETURN of the shell (no lp_cancel) in its replies: its sources into "Источники…".
-    if (MelLpv::$run && MelLpv::$run['phase'] === 'replies')
-        mel_lpv_run_seen(MelLpv::$run);
+    // A window of before closed by RETURN of the shell (no lp_cancel): its end.
+    mel_lpv_run_end();
     MelLpv::$run = $run;
     MelLpv::$redraw = !empty($opt['redraw']) ? array('sid' => $sid, 'st' => $st) : null;
     mel_log("lampac: window $sid, " . mel_ep_tag($st) . ", $how, phase {$run['phase']}" .
@@ -214,8 +213,7 @@ function mel_lpv_tick($in)
     MelLpv::$run = $run;
     if ($run['phase'] === 'done')
     {
-        MelLpv::$run = null;
-        mel_lpv_run_seen($run);
+        mel_lpv_run_end();
         return mel_close_and(mel_lpv_result($run));
     }
     return mel_lpv_redraw_keys(array(
@@ -248,7 +246,29 @@ function mel_lpv_rch_paths($v)
     return $out;
 }
 
-// The sources of run $run, its replies done, cancelled or left (a window closed by the shell, mel_lpv_search_open), into
+// The end of the search window MelLpv::$run: done (mel_lpv_tick), cancelled (lp_cancel) or left (a window closed by the
+// shell, then a new search: mel_lpv_search_open). In its replies or done: its sources into "Источники…" of its own profile
+// of Lampac (mel_lpv_run_seen; the pair of the operation may be another one - that of the main profile, of a new title),
+// that profile gone or not ready - none kept. MelLpv::$run none, the pair of the operation as it was.
+/**
+ * @return void
+ */
+function mel_lpv_run_end()
+{
+    $run = MelLpv::$run;
+    MelLpv::$run = null;
+    if (!$run || ($run['phase'] !== 'replies' && $run['phase'] !== 'done'))
+        return;
+    list($rel, $lp) = array(Mel::$settings['prof'], Mel::$settings['lp_prof']);
+    list(, $l) = mel_op_use($run['st']['prof'], $run['st']['lp_prof']);
+    if ($l !== '' && $l === $run['st']['lp_prof'])
+        mel_lpv_run_seen($run);
+    else
+        mel_log("lampac: window {$run['sid']}: its profile of Lampac gone, its sources not kept");
+    mel_op_use($rel, $lp);
+}
+
+// The sources of run $run (mel_lpv_run_end, of the pair of the run) into
 // "Источники…" (mel_lpv_srcs_seen): those of its search
 // ("Ещё N": of its list) but those of a refusal of RCH (mel_lpv_rch_paths) - not there, as when rch true hid them.
 /**

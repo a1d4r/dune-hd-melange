@@ -2,7 +2,7 @@
 // "Источники…" of the online list of "Онлайн" (view_online.php): which sources of Lampac it shows and in which
 // order - lampac_sources of settings.json, the dialog of the shell edit_list_config. Its MENU item and the dispatcher
 // of lp_* are in view_online.php, the search (mel_lpv_srcs_pick in mel_lpv_tick, mel_lpv_srcs_seen in
-// mel_lpv_run_seen) in online_search.php.
+// mel_lpv_run_seen of mel_lpv_run_end) in online_search.php.
 // PHP 5.3.6, firmware API only. Types (MelLpChoice, MelLpView): phpstan-types.neon.
 
 // --- "Источники…" (MENU of the online list): which sources of Lampac the list shows and in which order, a dialog

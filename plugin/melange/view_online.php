@@ -1701,11 +1701,7 @@ function mel_lpv_input($in, $control)
     if ($control === 'lp_cancel')
     {
         if (MelLpv::$run && isset($in->sid) && $in->sid === MelLpv::$run['sid'])
-        {
-            if (MelLpv::$run['phase'] === 'replies')
-                mel_lpv_run_seen(MelLpv::$run);
-            MelLpv::$run = null;
-        }
+            mel_lpv_run_end();
         mel_log('lampac: the search cancelled');
         return mel_close_and(mel_lpv_redraw($in));
     }
