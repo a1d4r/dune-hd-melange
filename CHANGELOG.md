@@ -3,8 +3,8 @@
 **English version**
 
 ## 0.70.0
-- **Two Melange items in the Dune card.** In the **Play...** window of a movie or series card in the Dune Movies catalog there are now two items. "Melange" opens the Melange card of this title on top of the Dune card, and **RETURN** brings you back. If a season or an episode is open in the Dune card, the Melange card opens on that season with the episode selected. "Melange — watch" works as the old "Melange" item did: the release list, Lampac or the copy on your disk. If you reordered the items in this window before ("Configure List..."), the new item is at the end, and you can hide an item you don't need there too. If the Melange card can't be opened, the item opens the same as "Melange — watch".
-- **PLAY in the Dune card.** When **PLAY** starts an item without the window (for example, on a movie from "My Collection"), it opens the release list, as "Melange — watch" does. Continuing a started movie works as before.
+- **Two Melange items in the Dune card.** The **Play...** window of a movie or series card in the Dune Movies catalog now has two items. "Melange" opens the Melange card on top of the Dune card, on the season and episode open there, and "Melange — watch" works as the old "Melange" item did. If you reordered this window before ("Configure List..."), the new item is at the end.
+- **PLAY in the Dune card.** When **PLAY** starts an item without the window (for example, on a movie from "My Collection"), it opens the same as "Melange — watch". Continuing a started movie works as before.
 - **The Melange card always.** The "Own card" setting is gone: **ENTER** on a poster in the catalog opens the Melange card on any firmware. If you had turned it off, you'll see the Melange card after the update. To open the Dune card, press **MENU** → "Dune card" in the Melange card.
 
 ## 0.69.1 — 25.11.2026
@@ -342,8 +342,8 @@ First public release. What it does:
 **Russian version**
 
 ## 0.70.0
-- **Два пункта Melange в карточке Дюны.** В окне «Смотреть…» карточки фильма или сериала в «Фильмах» Дюны теперь два пункта. «Melange» открывает карточку Melange этого фильма поверх карточки Дюны, **RETURN** возвращает обратно. Если в карточке Дюны открыт сезон или серия, карточка Melange откроется на этом сезоне, с фокусом на этой серии. «Melange — смотреть» работает как прежний пункт «Melange»: список раздач, Lampac или копия с диска. Если вы раньше меняли порядок пунктов в этом окне («Настроить список вариантов»), новый пункт окажется в конце; там же можно скрыть лишний. Если карточку Melange открыть нельзя, пункт откроет то же, что «Melange — смотреть».
-- **PLAY в карточке Дюны.** Если **PLAY** запускает пункт без окна (например, у фильма из «Моей коллекции»), откроется список раздач, как у «Melange — смотреть». Начатое продолжается как раньше.
+- **Два пункта Melange в карточке Дюны.** В окне «Смотреть…» карточки фильма или сериала в «Фильмах» Дюны теперь два пункта. «Melange» открывает карточку Melange поверх карточки Дюны, на открытом там сезоне и серии, а «Melange — смотреть» работает как прежний пункт «Melange». Если вы раньше меняли порядок в этом окне («Настроить список вариантов»), новый пункт окажется в конце.
+- **PLAY в карточке Дюны.** Если **PLAY** запускает пункт без окна (например, у фильма из «Моей коллекции»), откроется то же, что у «Melange — смотреть». Начатое продолжается как раньше.
 - **Всегда карточка Melange.** Настройки «Своя карточка» больше нет: **ENTER** на постере в каталоге открывает карточку Melange на любой прошивке. Если вы её выключали, после обновления увидите карточку Melange. Карточка Дюны — **MENU** → «Карточка Дюны» в карточке Melange.
 
 ## 0.69.1 — 25.11.2026

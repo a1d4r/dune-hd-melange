@@ -2,7 +2,7 @@
 
 # Melange for Dune HD
 
-Melange turns your Dune into an online cinema: a movie and series catalog with curated rows and search. Pick a movie, and Melange finds releases, shows their quality and dubs, and plays the movie in the Dune player. Stop anytime and resume from the same spot. You can also pick a movie in the Dune's own **Movies** catalog: the **Play...** menu of its card has Melange items for the card and the release list.
+Melange turns your Dune into an online cinema: a movie and series catalog with curated rows and search. Pick a movie, and Melange finds releases, shows their quality and dubs, and plays the movie in the Dune player. Stop anytime and resume from the same spot. You can also pick a movie in the Dune's own **Movies** catalog: the **Play...** menu of its card has two Melange items.
 
 <img src="screenshots/overview-collage.jpg" alt="Four Melange screens: the catalog with rows; the release list with quality, audio and dubs; Melange's own movie card; Melange's own series card with seasons and episodes" width="100%">
 

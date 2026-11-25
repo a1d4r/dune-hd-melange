@@ -52,7 +52,7 @@ You can also open Melange from a card in the Dune **Movies** catalog: home scree
 
    <img src="../screenshots/watch-dune-card.jpg" alt="Dune card for Game of Thrones, focus on Play..." width="100%">
 
-2. Choose "Melange — watch": the release list opens. The "Melange" item above it opens the Melange card of the movie or series.
+2. Choose "Melange — watch". The "Melange" item above it opens the Melange card of the movie or series.
 
    <img src="../screenshots/card-watch.jpg" alt="Choose playback method, focus on Melange — watch" width="100%">
 
