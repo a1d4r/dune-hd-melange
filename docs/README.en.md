@@ -2,7 +2,7 @@
 
 [← README](../README.en.md)
 
-Melange turns your Dune into an online cinema: a movie and series catalog with curated rows and search. Pick a movie, and Melange finds releases, shows their quality and dubs, and plays the movie in the Dune player. Stop anytime and resume from the same spot. You can also pick a movie in the Dune's own **Movies** catalog: its card has a **Melange** item in the **Play...** menu.
+Melange turns your Dune into an online cinema: a movie and series catalog with curated rows and search. Pick a movie, and Melange finds releases, shows their quality and dubs, and plays the movie in the Dune player. Stop anytime and resume from the same spot. You can also pick a movie in the Dune's own **Movies** catalog: the **Play...** menu of its card has Melange items for the card and the release list.
 
 Watch for free through TorrServer or with a paid Debrid service.
 
@@ -27,7 +27,7 @@ New here? Start with Quick start.
 - [JacRed](jacred.en.md): Russian tracker search and what to do if it stops responding
 - [Sources](profiles.en.md): Debrid, torrents and your own configs, picked on the Dune
 - [Your own torrent client](download-server.en.md): download a release to a NAS or computer
-- [Appearance](appearance.en.md): logo, ratings on posters, custom movie card
+- [Appearance](appearance.en.md): logo, ratings on posters
 - [Melange in the TV tab](tv-tab.en.md): Melange rows on the Dune home screen
 - [Advanced](advanced-options.en.md): intro skipping, addon errors, menu without color buttons
 - [Backup](backup.en.md): save settings and move them to another Dune

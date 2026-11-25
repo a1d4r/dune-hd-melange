@@ -16,7 +16,7 @@ Find a movie or series by title, typed or spoken. [← Contents](README.en.md)
 
 4. Press **ENTER** on the poster and choose "Watch" on the card, then go on as in [Watching](watch.en.md#movie).
 
-You can also search in the Dune **Movies** catalog and choose **Play...** → "Melange" on the card ([From the Dune Movies catalog](watch.en.md#from-the-dune-movies-catalog)).
+You can also search in the Dune **Movies** catalog and choose **Play...** → "Melange — watch" on the card ([From the Dune Movies catalog](watch.en.md#from-the-dune-movies-catalog)).
 
 ## If it did not work
 

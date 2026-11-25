@@ -2,6 +2,11 @@
 
 **English version**
 
+## 0.70.0
+- **Two Melange items in the Dune card.** In the **Play...** window of a movie or series card in the Dune Movies catalog there are now two items. "Melange" opens the Melange card of this title on top of the Dune card, and **RETURN** brings you back. If a season or an episode is open in the Dune card, the Melange card opens on that season with the episode selected. "Melange — watch" works as the old "Melange" item did: the release list, Lampac or the copy on your disk. If you reordered the items in this window before ("Configure List..."), the new item is at the end, and you can hide an item you don't need there too. If the Melange card can't be opened, the item opens the same as "Melange — watch".
+- **PLAY in the Dune card.** When **PLAY** starts an item without the window (for example, on a movie from "My Collection"), it opens the release list, as "Melange — watch" does. Continuing a started movie works as before.
+- **The Melange card always.** The "Own card" setting is gone: **ENTER** on a poster in the catalog opens the Melange card on any firmware. If you had turned it off, you'll see the Melange card after the update. To open the Dune card, press **MENU** → "Dune card" in the Melange card.
+
 ## 0.69.1 — 25.11.2026
 - **POP UP in the TV tab, as in the catalog.** In the TV tab of the home screen, **POP UP** now has the same items as in the catalog (Movies, Series, Continue Watching, Favorites, On TorrServer, Search, Settings) and also Open Melange. Each opens its Melange screen, and **RETURN** brings you back to TV. On a row name the menu also has **Configure List...**, and rows you turn on there appear in TV usually a few seconds later.
 - **"On TorrServer" as a list.** The section now looks like the "list" view of the Dune Movies section. A line has only the TorrServer icon and the torrent name. The poster of the selected torrent is on the right of the screen, with the number of files, the size, the date added and the full torrent name under it. All firmware versions show the same list; before, it was poster rows, or a grid on older firmware. To remove a torrent from TorrServer, press **POP UP** on it, choose "Remove from TorrServer" and confirm.
@@ -335,6 +340,11 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.70.0
+- **Два пункта Melange в карточке Дюны.** В окне «Смотреть…» карточки фильма или сериала в «Фильмах» Дюны теперь два пункта. «Melange» открывает карточку Melange этого фильма поверх карточки Дюны, **RETURN** возвращает обратно. Если в карточке Дюны открыт сезон или серия, карточка Melange откроется на этом сезоне, с фокусом на этой серии. «Melange — смотреть» работает как прежний пункт «Melange»: список раздач, Lampac или копия с диска. Если вы раньше меняли порядок пунктов в этом окне («Настроить список вариантов»), новый пункт окажется в конце; там же можно скрыть лишний. Если карточку Melange открыть нельзя, пункт откроет то же, что «Melange — смотреть».
+- **PLAY в карточке Дюны.** Если **PLAY** запускает пункт без окна (например, у фильма из «Моей коллекции»), откроется список раздач, как у «Melange — смотреть». Начатое продолжается как раньше.
+- **Всегда карточка Melange.** Настройки «Своя карточка» больше нет: **ENTER** на постере в каталоге открывает карточку Melange на любой прошивке. Если вы её выключали, после обновления увидите карточку Melange. Карточка Дюны — **MENU** → «Карточка Дюны» в карточке Melange.
 
 ## 0.69.1 — 25.11.2026
 - **POP UP во вкладке «ТВ» как в каталоге.** Во вкладке «ТВ» главного экрана в **POP UP** теперь те же пункты, что в каталоге («Фильмы», «Сериалы», «Продолжить», «Избранное», «На TorrServer», «Поиск», «Настройки»), и ещё «Открыть Melange». Каждый открывает свой экран Melange, а **RETURN** возвращает во «ТВ». На названии ряда в меню есть и «Настроить список...», и включённые там ряды появляются во «ТВ» обычно через несколько секунд.
