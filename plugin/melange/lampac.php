@@ -780,7 +780,7 @@ function mel_lp_events_why($r, $j)
 // one events without life next, Lampac has no life mode; done), memkey, seen
 // (items of /lifeevents had), t0 (its start, mel_lp_now), sources (by index;
 // MelLpSource: name, label, q, url, path (mel_lp_path of url), index, pos), gone (items hidden:
-// a key => show or bad), hidden (their counts by reason; rch 0: mel_lp_source), tasks and pending (of the last
+// a key => show or bad), hidden (their counts by reason), tasks and pending (of the last
 // /lifeevents), shown (its items of show not false when all its tasks came and no pending was sent, -1 not so), fails (/lifeevents of no answer in a row), done, capped (the
 // time of the search ran out), err and detail (a reason, '' none: the search
 // failed only if no source came), title (the title of Lampac in q, '' none). One search at a time: two events at once
@@ -794,7 +794,7 @@ function mel_lp_search_start($base, $p)
 {
     $st = array('base' => $base, 'q' => mel_lp_query($p), 'mode' => 'life', 'memkey' => '', 'seen' => 0,
         't0' => mel_lp_now(), 'sources' => array(), 'gone' => array(),
-        'hidden' => array('show' => 0, 'rch' => 0, 'bad' => 0),
+        'hidden' => array('show' => 0, 'bad' => 0),
         'tasks' => 0, 'pending' => 0, 'shown' => -1, 'fails' => 0, 'done' => false, 'capped' => false, 'err' => '',
         'detail' => '', 'title' => '');
     mel_lp_log("search: {$p['id']}/{$p['imdb_id']}/{$p['kinopoisk_id']}, serial {$p['serial']}", $base);
@@ -841,8 +841,7 @@ function mel_lp_search_add($st, $list)
 {
     list($st['sources'], $st['gone']) = mel_lp_sources($list, $st['sources'], $st['gone']);
     $n = array_count_values($st['gone']);
-    $st['hidden'] = array('show' => isset($n['show']) ? $n['show'] : 0, 'rch' => isset($n['rch']) ? $n['rch'] : 0,
-        'bad' => isset($n['bad']) ? $n['bad'] : 0);
+    $st['hidden'] = array('show' => isset($n['show']) ? $n['show'] : 0, 'bad' => isset($n['bad']) ? $n['bad'] : 0);
     return $st;
 }
 
@@ -856,8 +855,8 @@ function mel_lp_search_end($st)
     $st['done'] = true;
     $st['mode'] = 'done';
     $h = $st['hidden'];
-    mel_lp_log(sprintf('search: %d sources (hidden: show %d, rch %d, bad %d)%s%s, %.2f s', count($st['sources']),
-        $h['show'], $h['rch'], $h['bad'], $st['capped'] ? ', out of time' : '',
+    mel_lp_log(sprintf('search: %d sources (hidden: show %d, bad %d)%s%s, %.2f s', count($st['sources']),
+        $h['show'], $h['bad'], $st['capped'] ? ', out of time' : '',
         $st['err'] !== '' ? ", {$st['err']}" . mel_lp_log_detail($st['err'], $st['detail'], ' (%s)') : '',
         mel_lp_now() - $st['t0']), $st['base']);
     return $st;

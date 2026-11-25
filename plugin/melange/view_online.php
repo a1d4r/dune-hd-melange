@@ -1445,14 +1445,11 @@ function mel_lpv_errors_of($st)
     $v = $st['lp'];
     $lang = mel_gc_lang($st);
     $lines = array();
-    $rch = $v['hidden']['rch'];
+    $rch = mel_lpv_rch_n($v);
     foreach ($v['why'] as $w)
     {
         if ($w['why'] === 'rch')
-        {
-            $rch++;
             continue;
-        }
         $lines[] = ($w['src'] !== '' ? $w['src'] : $w['path']) . ': ' . mel_lpv_why($lang, $w['why'], $w['detail']);
     }
     $lines = array_values(array_unique($lines));

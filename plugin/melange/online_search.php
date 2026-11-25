@@ -32,7 +32,7 @@ function mel_lpv_search_open($st, $how, $opt = array())
     $sid = mel_rid();
     $more = !empty($opt['more']) && isset($st['lp']);
     $v = array('title' => mel_lpv_title($st['movie']), 'q' => '', 'sources' => array(),
-        'hidden' => array('show' => 0, 'rch' => 0, 'bad' => 0), 'rows' => array(), 'why' => array(), 'next' => 0,
+        'hidden' => array('show' => 0, 'bad' => 0), 'rows' => array(), 'why' => array(), 'next' => 0,
         'left' => 0, 't' => mel_lp_now(), 'note' => '');
     if ($more)
     {
@@ -113,7 +113,7 @@ function mel_lpv_search_defs($run)
     $lang = $run['st']['lang'];
     $v = $run['v'];
     // Those of a refusal of RCH (rch true asked, mel_lp_source) not counted, as before.
-    $rch = count(mel_lpv_rch_paths($v));
+    $rch = mel_lpv_rch_n($v);
     $n = count($v['sources']) - $rch;
     $l1 = mel_lpv_tr($lang, 'lp_search_found', array('n' => $n));
     $l2 = $run['phase'] === 'replies' ? mel_lpv_tr($lang, 'lp_search_asking', array('k' => max(0, $v['next'] - $rch), 'n' => $n,
@@ -229,21 +229,27 @@ function mel_lpv_tick($in)
                     ResetControlsActionData::post_action => null)))), $run['sid']);
 }
 
-// The paths of the sources of the reason rch (a refusal of RCH: only the Lampa app plays them) of the online list $v,
-// each once.
+// The number of the sources of a refusal of RCH (the reason rch: only the Lampa app plays them) of the online list $v,
+// each source once by its index (at): two sources of one path ("X ~ 2160p", "X ~ 1080p") two. The one count of them:
+// "Найдено N", "Опрошено" (mel_lpv_search_defs), "Скрыто N" (mel_lpv_errors_of).
 /**
  * @param MelLpView $v
- * @return array<string, bool>
+ * @return int
  */
-function mel_lpv_rch_paths($v)
+function mel_lpv_rch_n($v)
 {
-    $out = array();
+    $at = array();
+    $n = 0;
     foreach ($v['why'] as $w)
     {
-        if ($w['why'] === 'rch')
-            $out[$w['path']] = true;
+        if ($w['why'] !== 'rch')
+            continue;
+        if (!isset($w['at']))
+            $n++;
+        else
+            $at[$w['at']] = true;
     }
-    return $out;
+    return $n + count($at);
 }
 
 // The end of the search window MelLpv::$run: done (mel_lpv_tick), cancelled (lp_cancel) or left (a window closed by the
