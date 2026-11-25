@@ -2,7 +2,7 @@
 
 **English version**
 
-## 0.69.1
+## 0.69.1 — 25.11.2026
 - **POP UP in the TV tab, as in the catalog.** In the TV tab of the home screen, **POP UP** now has the same items as in the catalog (Movies, Series, Continue Watching, Favorites, On TorrServer, Search, Settings) and also Open Melange. Each opens its Melange screen, and **RETURN** brings you back to TV. On a row name the menu also has **Configure List...**, and rows you turn on there appear in TV usually a few seconds later.
 - **"On TorrServer" as a list.** The section now looks like the "list" view of the Dune Movies section. A line has only the TorrServer icon and the torrent name. The poster of the selected torrent is on the right of the screen, with the number of files, the size, the date added and the full torrent name under it. All firmware versions show the same list; before, it was poster rows, or a grid on older firmware. To remove a torrent from TorrServer, press **POP UP** on it, choose "Remove from TorrServer" and confirm.
 - **Wallpaper behind "On TorrServer".** Melange puts the Dune wallpaper behind the list, the same one as above the icon bar of the catalog. In 0.69.0 the background above the rows was black.
@@ -336,7 +336,7 @@ First public release. What it does:
 
 **Russian version**
 
-## 0.69.1
+## 0.69.1 — 25.11.2026
 - **POP UP во вкладке «ТВ» как в каталоге.** Во вкладке «ТВ» главного экрана в **POP UP** теперь те же пункты, что в каталоге («Фильмы», «Сериалы», «Продолжить», «Избранное», «На TorrServer», «Поиск», «Настройки»), и ещё «Открыть Melange». Каждый открывает свой экран Melange, а **RETURN** возвращает во «ТВ». На названии ряда в меню есть и «Настроить список...», и включённые там ряды появляются во «ТВ» обычно через несколько секунд.
 - **«На TorrServer» списком.** Раздел теперь выглядит как вид «список» в «Фильмах» Дюны. В строке только значок TorrServer и название раздачи. Справа на экране постер выделенной раздачи, под ним число файлов, размер, дата добавления и полное имя раздачи. Список одинаковый на всех прошивках; раньше были ряды постеров, а на старых прошивках сетка. Чтобы удалить раздачу с TorrServer, нажмите на ней **POP UP**, выберите «Удалить с TorrServer» и подтвердите.
 - **Обои за «На TorrServer».** Melange ставит за список обои Дюны, те же, что над полосой значков каталога. В 0.69.0 над рядами был чёрный фон.
