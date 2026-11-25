@@ -226,7 +226,8 @@ function mel_lib_win_card($mv, $left, $s, $e)
 // come): the focus on that episode in the row; a season with no episode (-1, 0 or less: logged so) - the episode of it
 // the card offers; one the meta has not - the place of a card opened from the catalog (mel_oc_pos). No card to open - no movie_str, no IMDb
 // and no TMDB, an id off its form, no meta and none in memory: the play_action of "Melange - watch" as it is
-// (mel_play_action: the list, else its message; no screen of an error of its own).
+// (mel_play_action: the list, else its message; no screen of an error of its own). Started by the shell with no window
+// (mel_sup_direct): that play_action too, logged so.
 /**
  * @param stdClass $in
  * @return MelAction
@@ -240,6 +241,11 @@ function mel_sup_card($in)
     $e = $s >= 1 ? max(0, mel_int($in, 'episode', -1)) : 0;
     $tag = "card: supplier: $type " . ($id !== '' ? $id : 'of no id') .
         ($s >= 1 ? ($e >= 1 ? " S{$s}E{$e}" : " S$s, no episode") : '');
+    if (mel_sup_direct($in))
+    {
+        mel_log("$tag: started with no window (play_default_directly) -> the play_action of the list");
+        return mel_play_action($in);
+    }
     if (!$mv || $id === '')
         $kc = !$mv ? 'no movie_str' : 'no IMDb, no TMDB';
     else
@@ -256,6 +262,23 @@ function mel_sup_card($in)
         MelOc::$cards[$key] = $card;
     }
     return mel_dl_card_open($key, $card);
+}
+
+// Whether the shell started the supplier with no window of "Play...": r25 plays the first item of it so (PLAY on a
+// movie of "My collection" or in the mode "Continue", movies/movie_helper.php:534-556) and says so in callback_action
+// of the params - JSON (lib/media_url.php:83) of the action of movies/movie_screen.php:397-406, the field
+// play_default_directly in its params (lib/user_input_handler_registry.php:26-53): 1 then (a number or a string of
+// it), 0 for an item chosen in the window. No callback_action (r24), not JSON, not an object, no such field: false.
+/**
+ * @param stdClass $in
+ * @return bool
+ */
+function mel_sup_direct($in)
+{
+    $cb = isset($in->callback_action) && is_string($in->callback_action) ? json_decode($in->callback_action, true) : null;
+    $p = is_array($cb) && isset($cb['params']) && is_array($cb['params']) ? $cb['params'] : array();
+    $v = isset($p['play_default_directly']) ? $p['play_default_directly'] : null;
+    return is_scalar($v) && intval($v) !== 0;
 }
 
 // The screen "card:<key>" of own card $card of key $key (to=card, mel_lib_win_card): mel_oc_open_act, its caption the
