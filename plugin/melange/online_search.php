@@ -112,9 +112,17 @@ function mel_lpv_search_defs($run)
 {
     $lang = $run['st']['lang'];
     $v = $run['v'];
-    // Those of a refusal of RCH (rch true asked, mel_lp_source) not counted, as before.
+    // Not counted, as when rch true hid them: those of a refusal of RCH, and those of rch true of events (mel_lp_source)
+    // not asked yet (from next on) - asked and not refused, they are. A Lampac where they all refuse: N as before; a
+    // server marking so balancers that answer as any: N grows as they answer, never down.
     $rch = mel_lpv_rch_n($v);
-    $n = count($v['sources']) - $rch;
+    $wait = 0;
+    foreach ($v['sources'] as $i => $x)
+    {
+        if ($i >= $v['next'] && !empty($x['rch']))
+            $wait++;
+    }
+    $n = max(0, count($v['sources']) - $rch - $wait);
     $l1 = mel_lpv_tr($lang, 'lp_search_found', array('n' => $n));
     $l2 = $run['phase'] === 'replies' ? mel_lpv_tr($lang, 'lp_search_asking', array('k' => max(0, $v['next'] - $rch), 'n' => $n,
         'r' => count($v['rows']))) : mel_tr($lang, 'lp_search_wait');
