@@ -577,10 +577,10 @@ function mel_lp_on_lampac($url, $src, $base)
 // 'show' (show false: the balancer found nothing), 'bad' (no link). rch true is
 // asked all the same: some Lampac-compatible servers mark so balancers that
 // answer as any; a refusal of RCH comes at once as {"rch":true,"nws":...}, and
-// mel_lp_reply takes that for the reason rch. No show at all: the source is
-// tried. The name of the list ("Phantom ~ 2160p" in the life mode, "vkmovie 「4K」"
-// of some Lampac-compatible servers): label is it without the quality, q the quality
-// (of a badge 「…」: mel_lp_badge_q).
+// mel_lp_reply takes that for the reason rch; rch of the source is that rch
+// true. No show at all: the source is tried. The name of the list ("Phantom ~
+// 2160p" in the life mode, "vkmovie 「4K」" of some Lampac-compatible servers):
+// label is it without the quality, q the quality (of a badge 「…」: mel_lp_badge_q).
 /**
  * @param mixed $o
  * @param int $pos
@@ -606,7 +606,7 @@ function mel_lp_source($o, $pos)
         $label = $name;
     return array('name' => $name !== '' ? $name : $path, 'label' => $label !== '' ? $label : $path, 'q' => $q,
         'url' => $url, 'path' => $path, 'index' => isset($o['index']) && is_int($o['index']) ? $o['index'] : 0,
-        'pos' => $pos);
+        'pos' => $pos, 'rch' => isset($o['rch']) && $o['rch'] === true);
 }
 
 // A quality badge ("4K" of the source "vkmovie 「4K」" of events, the name "FHD" of an item of a film) -> as

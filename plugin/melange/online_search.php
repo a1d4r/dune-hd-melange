@@ -268,20 +268,31 @@ function mel_lpv_run_end()
     mel_op_use($rel, $lp);
 }
 
-// The sources of run $run (mel_lpv_run_end, of the pair of the run) into
-// "Источники…" (mel_lpv_srcs_seen): those of its search
-// ("Ещё N": of its list) but those of a refusal of RCH (mel_lpv_rch_paths) - not there, as when rch true hid them.
+// The sources of run $run (mel_lpv_run_end, of the pair of the run) into "Источники…" (mel_lpv_srcs_seen): those of its
+// search ("Ещё N": of its list) but, by path, those of a refusal of RCH (the reason rch) and those of rch true of events
+// not asked yet (from next on: cancelled before them, they may refuse so too) - not there, as when rch true hid them.
 /**
  * @param MelLpRun $run
  * @return void
  */
 function mel_lpv_run_seen($run)
 {
-    $rch = mel_lpv_rch_paths($run['v']);
-    $out = array();
-    foreach ($run['search'] ? $run['search']['sources'] : $run['v']['sources'] as $x)
+    $v = $run['v'];
+    $skip = array();
+    foreach ($v['why'] as $w)
     {
-        if (!isset($rch[$x['path']]))
+        if ($w['why'] === 'rch')
+            $skip[$w['path']] = true;
+    }
+    foreach ($v['sources'] as $i => $x)
+    {
+        if ($i >= $v['next'] && !empty($x['rch']))
+            $skip[$x['path']] = true;
+    }
+    $out = array();
+    foreach ($run['search'] ? $run['search']['sources'] : $v['sources'] as $x)
+    {
+        if (!isset($skip[$x['path']]))
             $out[] = $x;
     }
     mel_lpv_srcs_seen($out);

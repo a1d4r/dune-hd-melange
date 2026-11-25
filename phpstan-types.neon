@@ -38,8 +38,8 @@ parameters:
         # The ids of a card kept for the search of Lampac (MelLpv::$ids, mel_lpv_ids_put, online_play.php): keys of mel_lp_title;
         # title (of Lampac, fix_title) and title_of (the title of the card it replaced) only when Lampac gave one.
         MelLpvIds: 'array{tmdb: string, kp: string, original_language: string, title?: string, title_of?: string}'
-        # A source of a search of Lampac (mel_lp_source, lampac.php).
-        MelLpSource: 'array{name: string, label: string, q: string, url: string, path: string, index: int, pos: int}'
+        # A source of a search of Lampac (mel_lp_source, lampac.php); rch: rch true of its item of events (none: false).
+        MelLpSource: 'array{name: string, label: string, q: string, url: string, path: string, index: int, pos: int, rch?: bool}'
         # A search of Lampac between the ticks (mel_lp_search_start, lampac.php).
         MelLpSearch: 'array{base: string, q: string, mode: string, memkey: string, seen: int, t0: float, sources: list<MelLpSource>, gone: array<string, string>, hidden: array{show: int, rch: int, bad: int}, tasks: int, pending: int, shown: int, fails: int, done: bool, capped: bool, err: string, detail: string, title: string}'
         # A reason of a source of Lampac (mel_lp_why, lampac.php); at: the index of its source (mel_lp_replies).
