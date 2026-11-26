@@ -219,8 +219,8 @@ export const NAME = {
   lampacAsLampa: "lampac_as_lampa",
   // The age of "Что не показывать" (0.65.0): all, 16, 12, 6, 0; each radio with its line on the main screen (DATA.short).
   catAge: "cat_age",
-  // The lowest IMDb ratings of movies and series there (0.70.0): all (any), 50 ... 80 (tenths); each radio with its part of
-  // that line (DATA.short; empty for all).
+  // The lowest IMDb ratings of movies and series there (0.70.0): lists (select), all (any), 50 ... 80 (tenths); each
+  // option with its part of that line (DATA.short; empty for all).
   catImdbMovie: "cat_imdb_movie",
   catImdbSeries: "cat_imdb_series",
 } as const;

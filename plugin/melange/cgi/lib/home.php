@@ -151,8 +151,8 @@ function mel_cgi_hide_line($x, $movie, $series)
     $imdb = array();
     foreach (array(array(mel_cgi_cat_imdbs(false), $movie), array(mel_cgi_cat_imdbs(true), $series)) as $p)
     {
-        if (isset($p[0][$p[1]]) && $p[0][$p[1]][2] !== '')
-            $imdb[] = $p[0][$p[1]][2];
+        if (isset($p[0][$p[1]]) && $p[0][$p[1]][1] !== '')
+            $imdb[] = $p[0][$p[1]][1];
     }
     if ($imdb)
         $out[] = 'IMDb: ' . implode(', ', $imdb);

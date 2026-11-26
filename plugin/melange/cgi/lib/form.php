@@ -88,10 +88,10 @@ function mel_cgi_fields()
         // "Возраст" of "Что не показывать" (0.65.0, lib/hidden.php): mel_cgi_cat_ages().
         'cat_age' => array('id' => 'cag', 'name' => 'cat_age', 'set' => 'cat_age', 'max' => 0, 'type' => 'radio', 'scr' => 'hide'),
         // "Рейтинг IMDb: фильмы", "...: сериалы" of "Что не показывать" (0.70.0, lib/hidden.php): mel_cgi_cat_imdbs().
-        'cat_imdb_movie' => array('id' => 'cim', 'name' => 'cat_imdb_movie', 'set' => 'cat_imdb_movie', 'max' => 0, 'type' => 'radio',
+        'cat_imdb_movie' => array('id' => 'cim', 'name' => 'cat_imdb_movie', 'set' => 'cat_imdb_movie', 'max' => 0, 'type' => 'select',
             'scr' => 'hide'),
         'cat_imdb_series' => array('id' => 'cis', 'name' => 'cat_imdb_series', 'set' => 'cat_imdb_series', 'max' => 0,
-            'type' => 'radio', 'scr' => 'hide'),
+            'type' => 'select', 'scr' => 'hide'),
         // The rows of the catalog chosen: mel_cgi_rows_screen.
         'cat_rows' => array('id' => 'crv', 'name' => 'cat_rows', 'set' => 'cat_rows', 'max' => 0, 'type' => 'plain', 'scr' => 'rows'),
         // cat_rows as the page came (as debrid_main_was): the save keeps the stored ones when it is posted back.
@@ -192,7 +192,7 @@ function mel_cgi_card($for, $title, $sub, $more = '')
 // A simple choice (div.choice): a card of a radio of the row $f of
 // mel_cgi_fields() each (its id: that of the row and the number of the card),
 // by $opts value => array(title, hint[, data-short of the radio]); $sel: the
-// value checked (a string: a key of digits is an int in PHP, the age of mel_cgi_cat_ages, the rating of mel_cgi_cat_imdbs).
+// value checked (a string: a key of digits is an int in PHP, the age of mel_cgi_cat_ages).
 function mel_cgi_choice($f, $opts, $sel)
 {
     $out = '<div class="choice">';
@@ -204,6 +204,17 @@ function mel_cgi_choice($f, $opts, $sel)
             mel_cgi_h($x[2]) . '"' : '') . mel_cgi_card($f['id'] . $i, mel_cgi_h($x[0]), mel_cgi_h($x[1]));
     }
     return $out . '</div>';
+}
+
+// A list (select) of the row $f of mel_cgi_fields() under its label $label, by $opts value => array(title, data-short
+// of the option); $sel: the value selected (a string, as of mel_cgi_choice; another one: none, the first one shown).
+function mel_cgi_select($f, $label, $opts, $sel)
+{
+    $out = '<label for="' . $f['id'] . '">' . $label . '</label><select id="' . $f['id'] . '" name="' . $f['name'] . '">';
+    foreach ($opts as $val => $x)
+        $out .= '<option value="' . mel_cgi_h($val) . '" data-short="' . mel_cgi_h($x[1]) . '"' .
+            (strval($val) === $sel ? ' selected' : '') . '>' . mel_cgi_h($x[0]) . '</option>';
+    return $out . '</select>';
 }
 
 // A link of a hint, opened without the address of the page (it has the token).

@@ -91,9 +91,15 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
     byId(doc, "vlook").textContent = (checkedValue(form, NAME.catLogo) === VALUE.off ? texts.logoOff : texts.logoOn) + " · " +
       (checkedValue(form, NAME.catRating) === VALUE.off ? texts.ratingOff : texts.ratingOn);
     // The age and the IMDb ratings by their short names, as mel_cgi_hide_line: "До 12+, IMDb: фильмы от 6.5, сериалы
-    // от 7", each part only when set (none checked: all, any); none set - the short name of all, the first radio of the age.
+    // от 7", each part only when set (none checked or selected: all, any); none set - the short name of all, the first
+    // radio of the age. The ratings are lists (0.70.0): the data-short of the option selected ("" of any).
     const short = (radio: HTMLInputElement | null): string => (radio && radio.value !== VALUE.all ? radio.getAttribute(DATA.short) || "" : "");
-    const imdb = [NAME.catImdbMovie, NAME.catImdbSeries].map((name) => short(checkedRadio(form, name))).filter((part) => part !== "");
+    const selected = (name: string): string => {
+      const list = form.elements.namedItem(name) as HTMLSelectElement | null;
+      const option = list && list.selectedIndex >= 0 ? list.options[list.selectedIndex] : null;
+      return option ? option.getAttribute(DATA.short) || "" : "";
+    };
+    const imdb = [NAME.catImdbMovie, NAME.catImdbSeries].map(selected).filter((part) => part !== "");
     const parts = [short(checkedRadio(form, NAME.catAge))].concat(imdb.length ? ["IMDb: " + imdb.join(", ")] : []).filter((part) => part !== "");
     const all = form.querySelector<HTMLInputElement>("input[name=" + NAME.catAge + "]");
     byId(doc, "vhide").textContent = parts.length ? parts.join(", ") : all ? all.getAttribute(DATA.short) || "" : "";
