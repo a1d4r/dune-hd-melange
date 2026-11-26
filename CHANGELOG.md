@@ -2,6 +2,9 @@
 
 **English version**
 
+## 0.70.1
+- Fixed: some titles in Favorites that you brought over from Dune Favorites lost their poster after you restored the settings with "Load from a file". Melange now takes their poster from the catalog.
+
 ## 0.70.0 — 26.11.2026
 - **Two Melange items in the Dune card.** The **Play...** window of a movie or series card in the Dune Movies catalog now has two items. "Melange" opens the Melange card on top of the Dune card, on the season and episode open there, and "Melange — watch" works as the old "Melange" item did. If you reordered this window before ("Configure List..."), the new item is at the end.
 - **PLAY in the Dune card.** When **PLAY** starts an item without the window (for example, on a movie from "My Collection"), it does what "Melange — watch" does. Continuing a started movie works as before.
@@ -349,6 +352,9 @@ First public release. What it does:
 ---
 
 **Russian version**
+
+## 0.70.1
+- Исправлено: у некоторых тайтлов в «Избранном», перенесённых из «Избранного» Дюны, пропадал постер после того, как настройки восстановили через «Загрузить из файла». Теперь Melange берёт их постер из каталога.
 
 ## 0.70.0 — 26.11.2026
 - **Два пункта Melange в карточке Дюны.** В окне «Смотреть…» карточки фильма или сериала в «Фильмах» Дюны теперь два пункта. «Melange» открывает карточку Melange поверх карточки Дюны, на открытом там сезоне и серии, а «Melange — смотреть» работает как прежний пункт «Melange». Если вы раньше меняли порядок в этом окне («Настроить список вариантов»), новый пункт окажется в конце.
