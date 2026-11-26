@@ -1745,6 +1745,20 @@ class MelKit
         return self::group($id, $it);
     }
 
+    // Value $value of a line of the panel (panel_row) of label $label with an icon and a chevron, cut with "…" to what
+    // the label whole leaves of the line: panel_row cuts the label, not the value (a long value would eat it).
+    /**
+     * @param string $label
+     * @param string $value
+     * @return string
+     */
+    public static function panel_value($label, $value)
+    {
+        $room = MEL_K_PANEL_W - 2 * (MEL_K_PANEL_INSET + MEL_K_PANEL_INNER) - MEL_K_ICON_PANEL - MEL_K_ICON_GAP_PANEL -
+            self::w($label, MEL_K_PX_ROW) - MEL_K_GAP_M - MEL_K_GAP_XS - MEL_K_ICON_PANEL_CHEVRON;
+        return self::cut($value, MEL_K_PX_ROW, MEL_K_FACE_REGULAR, max(0, $room));
+    }
+
     // The head of a panel: the title (MEL_K_PX_PANEL_TITLE, text 1) with the centre of its capitals at
     // MEL_K_PANEL_TITLE_Y + MEL_K_PANEL_TITLE_H / 2, from the left of the content, cut to its width; $back (a submenu
     // in the place of the panel): ‹ before it (k_icon_chevron-left MEL_K_ICON_PANEL_BACK, text 2), the content edge

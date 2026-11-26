@@ -2000,7 +2000,7 @@ function mel_gc_can_choose($st)
 
 // The MENU item "Источник" of the online list of $st (mel_lpv_menu, a popup menu of the shell; gc_src_menu: the menu of
 // all ready profiles, any kind; of a card of no IMDb and no TMDB, mel_rel_id, those of Lampac), or null: fewer than two
-// ready (mel_src_in_menu). The list of releases has it in its panel (mel_src_panel).
+// ready (mel_src_in_menu). The list of releases has it in its panel (mel_src_item).
 /**
  * @param MelState $st
  * @return array<string, mixed>|null
@@ -2054,29 +2054,15 @@ function mel_gc_main_menu($st, $now)
     return array('title' => mel_tr($st['lang'], 'main_title'), 'groups' => array($items));
 }
 
-// Value $value on the right of the item "$label" of the panel (an icon, a submenu), cut with "…" to what the label
-// leaves of the line: the kit cuts the label, not the value (a long name of a source would eat it).
-/**
- * @param string $label
- * @param string $value
- * @return string
- */
-function mel_gc_menu_value($label, $value)
-{
-    $room = MEL_K_PANEL_W - 2 * (MEL_K_PANEL_INSET + MEL_K_PANEL_INNER) - MEL_K_ICON_PANEL - MEL_K_ICON_GAP_PANEL -
-        MelKit::w($label, MEL_K_PX_ROW) - MEL_K_GAP_M - MEL_K_GAP_XS - MEL_K_ICON_PANEL_CHEVRON;
-    return MelKit::cut($value, MEL_K_PX_ROW, MEL_K_FACE_REGULAR, max(0, $room));
-}
-
 // The panel "Действия" of live list $st with the cursor on row $row of its rows (-1: the line of the group of the
 // tier, no item of a release), three groups:
 //   of the release under the cursor: with mel_gc_keys_in_menu "Сведения о раздаче" (as INFO); a row with infoHash, not
 //     with "no torrents": "Смотреть через TorrServer" (mel_ts_menu), "Открыть в приложении" (mel_download) and, with a
 //     server in the settings, "Скачать на сервер" (a submenu, mel_srv_panel); 'i' of those is the row;
-//   of the list: "Сортировка" (always; a submenu, mel_gc_sort_menu) and "Источник" (two ready profiles; a submenu,
-//     mel_src_panel) with their value on the right, "Обновить список" (mel_refresh), an episode: "Выбрать серию"
-//     (mel_choose), copies of Real-Debrid and TorBox in the list: "Сменить основной Debrid" (a submenu,
-//     mel_gc_main_menu), source errors of the reply if shown (mel_gc_errors);
+//   of the list: "Сортировка" (always; a submenu, mel_gc_sort_menu) and "Источник" (two ready profiles, of a card of
+//     no IMDb and no TMDB, mel_rel_id, those of Lampac; mel_src_item) with their value on the right, "Обновить
+//     список" (mel_refresh), an episode: "Выбрать серию" (mel_choose), copies of Real-Debrid and TorBox in the list:
+//     "Сменить основной Debrid" (a submenu, mel_gc_main_menu), source errors of the reply if shown (mel_gc_errors);
 //   "Настройки Melange".
 /**
  * @param MelState $st
@@ -2106,10 +2092,9 @@ function mel_gc_actions($st, $row)
     }
     $list = array(array('id' => 'sort', 'label' => mel_tr($lang, 'sort_menu'), 'icon' => 'k_icon_arrow-up-down',
         'value' => $tt[mel_gc_sort_word($st, $st['sort'])], 'menu' => mel_gc_sort_menu($st, $tt)));
-    $src = mel_src_panel($st);
+    $src = mel_src_item($lang, 'gc_src', array('rid' => $rid), mel_src_now($st), mel_rel_id($st['movie']) === '');
     if ($src)
-        $list[] = array('id' => 'src', 'label' => mel_tr($lang, 'src_list'), 'icon' => 'k_icon_layers',
-            'value' => mel_gc_menu_value(mel_tr($lang, 'src_list'), mel_src_name(mel_src_now($st))), 'menu' => $src);
+        $list[] = $src;
     $list[] = array('id' => 'refresh', 'label' => mel_tr($lang, 'refresh_list'), 'icon' => 'k_icon_refresh-cw',
         'act' => mel_gc_act('gc_refresh', $rid));
     if (mel_gc_can_choose($st))
@@ -2210,13 +2195,20 @@ function mel_gc_fold($st, $lv)
 // the details screen (back on this one, mel_gc_pos finds the line in 'gc'); from MENU
 // (mel_gc_menu) gc_info has the row in 'i', a row not in the list: outdated. All by the lines of the screen
 // (mel_gc_lv): a release by its row of $st['rows']; on the line of the group ENTER folds or unfolds it (mel_gc_fold),
-// INFO nothing.
+// INFO nothing. Under the open overlay of the list (the panel "Действия": a key sent before its map was applied): none,
+// nothing changed - the panel was built for the row of the cursor.
 /**
  * @param stdClass $in
  * @return MelAction|null
  */
 function mel_gc_input($in)
 {
+    $o = MelOvl::$st;
+    if ($o && $o['open'] && isset($in->rid) && $o['scr']['owner'] === $in->rid)
+    {
+        mel_log('list: a key under the overlay, none');
+        return null;
+    }
     $st = Mel::$state;
     $live = $st && isset($in->rid) && $in->rid === $st['rid'];
     $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;

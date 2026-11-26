@@ -10,7 +10,7 @@
 // LEFT, RIGHT, ENTER, RETURN to kp_key with the owner) takes the place of that of the screen. Its description
 // (MelKpDesc), one of:
 //   a menu   title, sub (optional), dim ('dim', the default, or 'dim_strong'), note (optional, under the lines), cur
-//            (optional: the id of the item the cursor opens on - the server a download goes to by default), groups:
+//            (optional: the id of the item the cursor opens on), groups:
 //            lists of items (MelKpItem), an item array('id', 'label', 'icon', 'detail', 'value', 'picked', 'way', and
 //            'menu' - the description of a submenu, it takes the place of the panel - or 'act' - an action run after
 //            the close: plugin_open_folder of a screen, a handle_user_input of the screen);

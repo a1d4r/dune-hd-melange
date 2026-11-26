@@ -4,7 +4,7 @@
 // remembered - the next opening goes by the history or the main one (§1.5); what is started from the screen takes its
 // profile into the record (wh_prof). The screen keeps two lists (view_online.php): the releases of one profile of
 // releases (rows, prof) and the online list of one profile of Lampac (lp, lp_prof); a choice of one of them already
-// there - no request. The item of MENU: of the releases a submenu of their panel (mel_src_panel), of the online list
+// there - no request. The item of MENU: of the releases an item of their panel (mel_src_item), of the online list
 // mel_gc_src_item (view_gcomps.php) in mel_lpv_menu (view_online.php), a popup menu of the shell. The name
 // of the source over the lists: mel_gc_tabs_from (view_gcomps.php).
 // Reads and writes Mel (state, settings). Functions are global; the require order is in main.php.
@@ -64,28 +64,50 @@ function mel_gc_src_menu($in)
     return mel_src_popup($st['lang'], 'gc_src', array('rid' => $st['rid']), mel_src_now($st), mel_rel_id($st['movie']) === '');
 }
 
-// The submenu "Источник" of the panel "Действия" of live list $st (mel_gc_actions): the ready profiles in their order
-// (of a card of no IMDb and no TMDB, mel_rel_id, those of Lampac), each by its name with the icon of its kind
-// (mel_profile_kind), gc_src with p (its id) and n (its name for the dialog); the one of the screen (mel_src_now)
-// picked; under the lines where the list is set. Fewer than two ready (mel_src_in_menu): null.
+// The submenu "Источник" of a side panel (mel_src_item), as mel_src_popup of a popup menu: the ready profiles in their
+// order ($lp_only: those of Lampac, mel_src_ready), each by its name with the icon of its kind (mel_profile_kind), to
+// $control of $params with p (its id) and n (its name for the dialog); the one of id $now picked ('' none); under the
+// lines where the list is set. Fewer than two ready (mel_src_in_menu): null.
 /**
- * @param MelState $st
+ * @param string $lang
+ * @param string $control
+ * @param array<string, string> $params
+ * @param string $now
+ * @param bool $lp_only
  * @return MelKpSubDesc|null
  */
-function mel_src_panel($st)
+function mel_src_panel($lang, $control, $params, $now = '', $lp_only = false)
 {
-    $lp_only = mel_rel_id($st['movie']) === '';
     if (!mel_src_in_menu($lp_only))
         return null;
     $icons = array('debrid' => 'k_icon_zap', 'p2p' => 'k_icon_magnet', 'own' => 'k_icon_layers', 'lampac' => 'k_icon_tv');
-    $now = mel_src_now($st);
     $items = array();
     foreach (mel_src_ready($lp_only) as $p)
         $items[] = array('id' => 'src_' . $p['id'], 'label' => $p['name'],
             'icon' => isset($icons[$p['kind']]) ? $icons[$p['kind']] : 'k_icon_layers', 'picked' => $p['id'] === $now,
-            'act' => mel_gc_act('gc_src', $st['rid'], array('p' => $p['id'], 'n' => $p['name'])));
-    return array('title' => mel_tr($st['lang'], 'src_list'), 'groups' => array($items),
-        'note' => mel_tr($st['lang'], 'src_note'));
+            'act' => mel_input($control, array_merge($params, array('p' => $p['id'], 'n' => $p['name']))));
+    return array('title' => mel_tr($lang, 'src_list'), 'groups' => array($items), 'note' => mel_tr($lang, 'src_note'));
+}
+
+// The item "Источник" of a side panel: its icon, on the right the name of the profile of id $now (cut to what the label
+// leaves of the line, MelKit::panel_value), its submenu (mel_src_panel of the same arguments). Fewer than two ready:
+// null.
+/**
+ * @param string $lang
+ * @param string $control
+ * @param array<string, string> $params
+ * @param string $now
+ * @param bool $lp_only
+ * @return MelKpItem|null
+ */
+function mel_src_item($lang, $control, $params, $now = '', $lp_only = false)
+{
+    $menu = mel_src_panel($lang, $control, $params, $now, $lp_only);
+    if (!$menu)
+        return null;
+    $label = mel_tr($lang, 'src_list');
+    return array('id' => 'src', 'label' => $label, 'icon' => 'k_icon_layers',
+        'value' => MelKit::panel_value($label, mel_src_name($now)), 'menu' => $menu);
 }
 
 // The popup menu of the ready profiles in their order, Lampac with its own icon, each to $control of $params with p (its
