@@ -922,7 +922,7 @@ function mel_lpv_row_items($v, $L, $j, $c, $on, $top, $lang)
     {
         $t = mel_lpv_tr($lang, 'lp_side_q', array('q' => $l['q']));
         $qx -= MelKit::w($t, MEL_K_PX_ROW);
-        $qt = MelKit::text($t, MEL_K_PX_ROW, $l['k'] === 'head' ? ($on ? MEL_K_C_ON_ACCENT2 : MEL_K_C_TEXT2) : $fg, $qx, $y);
+        $qt = MelKit::text($t, MEL_K_PX_ROW, $fg, $qx, $y);
         $qx -= MEL_K_GAP_M;
     }
     if ($l['k'] === 'head' || $l['k'] === 'shut')
