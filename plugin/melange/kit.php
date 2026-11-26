@@ -1941,7 +1941,7 @@ class MelKit
     // the screen: the plate dialog and over it its outline dialog_line. In it from the top down by stack, -l- from its
     // top: the head {id}_head, the title (MEL_K_PX_STATUS_TITLE, text 1, 2 lines a step MEL_K_STEP_DIALOG_TITLE) after
     // the icon (MEL_K_ICON_DIALOG, its box at MEL_K_DIALOG_PAD -MEL_K_ICON_GAP_DIALOG- the title, on the centre of the
-    // capitals of its first line; the rhythm goes by the title, the icon stands over it, as r6) -s- the text {id}_text
+    // capitals of its first line; the rhythm goes by the title, the icon stands over it, as r6) -m- the text {id}_text
     // (MEL_K_PX_DESCRIPTION, text 2, 3 lines a step MEL_K_STEP_DIALOG_TEXT) -l- the buttons {id}_b0, {id}_b1, …
     // (button, MEL_K_DIALOG_BTN_GAP apart, from MEL_K_DIALOG_PAD) -l- the bottom of the window. The text and what
     // follows it start where the title does. A line of buttons wider than the window: the window wider, up to
@@ -1949,7 +1949,7 @@ class MelKit
     // from the left too, -s- under the first (lead 19.11, in «the buttons in a line on the left» of the owner). $v:
     //   id       the prefix of the ids (default dlg);
     //   icon     k_icon_* ('' or none: no icon, the title from MEL_K_DIALOG_PAD); tone: its colour, '' text 2, warn,
-    //            err (another: logged once, '');
+    //            err, ok (another: logged once, '');
     //   title, text  the text '' or none: no block;
     //   buttons  list of array('label', 'icon' (k_icon_*, '' none), 'state' ('' or focus, see button)); 3 at most
     //            (more: logged once, the first 3); none: no line of buttons.
@@ -1966,8 +1966,9 @@ class MelKit
 
     // The wait window over a screen (r6 W2_ts_window; owner 19.11: the wait of a screen of ours is a window over it):
     // the dialog (see dialog), after its text -s- the live line {id}_live (MEL_K_PX_SECONDARY, text 3, one line: «прошло
-    // 25 с · скорость 2.1 МБ/с»; '' or none: no block) -s- the bar {id}_bar (bar wait MEL_K_DIALOG_BAR_H high, as wide
-    // as the text, done share of it) when share is not null. $v: those of dialog, live, share (0..1 or null).
+    // 25 с · скорость 2.1 МБ/с»; '' or none: no block; with no text -m- after the head) -m- the bar {id}_bar (bar wait
+    // MEL_K_DIALOG_BAR_H high, as wide as the text, done share of it) when share is not null. $v: those of dialog,
+    // live, share (0..1 or null).
     /**
      * @param array<string, mixed> $v
      * @return MelKitItem
@@ -2173,31 +2174,35 @@ class MelKit
         $head = $t;
         if ($icon !== '')
         {
-            $tone = self::state('dialog tone', isset($v['tone']) ? (string) $v['tone'] : '', array('warn', 'err'));
-            $fg = $tone === 'err' ? MEL_K_C_ERR : ($tone === 'warn' ? MEL_K_C_WARN : MEL_K_C_TEXT2);
+            $tone = self::state('dialog tone', isset($v['tone']) ? (string) $v['tone'] : '', array('warn', 'err', 'ok'));
+            $fg = $tone === 'err' ? MEL_K_C_ERR : ($tone === 'warn' ? MEL_K_C_WARN : ($tone === 'ok' ? MEL_K_C_OK
+                : MEL_K_C_TEXT2));
             // The row sets the title where it is (the first text), the icon on its line; the rhythm goes by the title.
             $head = self::row(array(self::icon($icon, MEL_K_ICON_DIALOG, $fg, 0, 0, array('box' => true)), $t),
                 MEL_K_ICON_GAP_DIALOG, $pad, null, 'dialog head', true);
         }
         $blocks = array(self::wide("{$p}_head", $head, $pad, $W - $pad));
         $gaps = array();
+        // The gaps by groups: the head -m- the text -s- the live line -m- the bar.
+        $gap = 'm';
         $text = isset($v['text']) ? (string) $v['text'] : '';
         if ($text !== '')
         {
             $blocks[] = self::wide("{$p}_text", self::text($text, MEL_K_PX_DESCRIPTION, MEL_K_C_TEXT2, $tx, 0,
                 array('w' => $tw, 'lines' => 3, 'ls' => MEL_K_STEP_DIALOG_TEXT - MEL_K_PX_DESCRIPTION)), $tx, $W - $pad);
-            $gaps[] = 's';
+            $gaps[] = $gap;
+            $gap = 's';
         }
         if ($live !== null && $live !== '')
         {
             $blocks[] = self::wide("{$p}_live", self::text($live, MEL_K_PX_SECONDARY, MEL_K_C_TEXT3, $tx, 0,
                 array('w' => $tw)), $tx, $W - $pad);
-            $gaps[] = 's';
+            $gaps[] = $gap;
         }
         if ($share !== null)
         {
             $blocks[] = self::group("{$p}_bar", self::bar('wait', $tx, 0, $tw, MEL_K_DIALOG_BAR_H, $share));
-            $gaps[] = 's';
+            $gaps[] = 'm';
         }
         // The lines of buttons: as many as fit in the window from the pad, the rest on the next line.
         $rows = array(array());

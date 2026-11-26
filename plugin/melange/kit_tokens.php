@@ -102,7 +102,7 @@ define('MEL_K_BAR_MIN', 4);
 define('MEL_K_THUMB_MIN', 40);
 define('MEL_K_RATING_LINE', 2);
 define('MEL_K_RING_W', 6);
-define('MEL_K_DIALOG_W', 960);
+define('MEL_K_DIALOG_W', 1080);
 define('MEL_K_DIALOG_W_MAX', 1440);
 define('MEL_K_DIALOG_PAD', 40);
 define('MEL_K_DIALOG_LINE', 2);
