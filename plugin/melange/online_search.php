@@ -37,7 +37,7 @@ function mel_lpv_search_open($st, $how, $opt = array())
     if ($more)
     {
         $v = $st['lp'];
-        unset($v['gc'], $v['gc_new'], $v['gc_prog']);
+        unset($v['gc'], $v['gc_new'], $v['gc_prog'], $v['gc_cols']);
     }
     else
     {

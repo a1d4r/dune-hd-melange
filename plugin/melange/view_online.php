@@ -1071,6 +1071,18 @@ function mel_lpv_cols($v, $L)
     return array($x, $x + $sw + 40);
 }
 
+// The columns of lines $L of view $v: those of its last full view (gc_cols, mel_lpv_folder_view), else counted
+// (mel_lpv_cols) - they go over all the lines, a step does not count them again.
+/**
+ * @param MelLpView $v
+ * @param list<MelLpLine> $L
+ * @return array{int, int}
+ */
+function mel_lpv_cols_st($v, $L)
+{
+    return isset($v['gc_cols']) ? $v['gc_cols'] : mel_lpv_cols($v, $L);
+}
+
 // Children of row panel "r$j" of view $v, line $j of its lines $L, $top the first line on screen: a
 // line over a block of an unfolded balancer and after it (none between the lines of the balancers folded and the rows alone);
 // the quality of the line (mel_lpv_lines): its badge, else "до 4320p" at the right; a balancer - its name, the number of
@@ -1211,7 +1223,7 @@ function mel_lpv_window($st, $sel, $top)
     $lang = mel_gc_lang($st);
     $L = mel_lpv_lines($v);
     $n = count($L);
-    $c = mel_lpv_cols($v, $L);
+    $c = mel_lpv_cols_st($v, $L);
     $d = array(mel_gc_rect(mel_gc_at(1920, 1080, 0, 0), '#C0000000'));
     $poster = mel_img($mv['poster']);
     if ($poster !== '')
@@ -1270,6 +1282,8 @@ function mel_lpv_folder_view($st, $sel_state)
     unset(Mel::$state['lp']['gc_new']);
     Mel::$state['lp']['gc'] = array($sel, $top);
     $st['lp']['gc_prog'] = Mel::$state['lp']['gc_prog'] = mel_wh_progress($st);
+    // The columns, counted once a full view (mel_lpv_cols_st).
+    $st['lp']['gc_cols'] = Mel::$state['lp']['gc_cols'] = mel_lpv_cols($st['lp'], mel_lpv_lines($st['lp']));
     $rid = $st['rid'];
     $acts = array(
         GUI_EVENT_KEY_UP => mel_gc_act('lp_move', $rid, array('d' => 'up')),
@@ -1326,7 +1340,7 @@ function mel_lpv_move($in, $st)
         return null;
     $ch = mel_gc_cursor_changes($top, $nsel, $ntop, $n);
     $lang = mel_gc_lang($st);
-    $c = mel_lpv_cols($v, $L);
+    $c = mel_lpv_cols_st($v, $L);
     foreach (array_unique(array($sel, $nsel, $top, $ntop)) as $j)
         $ch[] = mel_gc_change("r$j", null, GCOMP_TRANSITION_NONE, mel_lpv_row_items($v, $L, $j, $c, $j === $nsel, $ntop, $lang));
     $ch[] = mel_gc_change('card', null, GCOMP_TRANSITION_NONE, mel_lpv_card_of($st, $v, $L, $nsel));
@@ -1357,7 +1371,7 @@ function mel_lpv_finish($st)
     list($sel, $top) = mel_lpv_pos($v, null);
     $lang = mel_gc_lang($st);
     $L = mel_lpv_lines($v);
-    $c = mel_lpv_cols($v, $L);
+    $c = mel_lpv_cols_st($v, $L);
     $ch = array();
     foreach ($L as $j => $l)
     {
