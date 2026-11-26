@@ -1853,19 +1853,25 @@ function mel_oc_watch_from($c, $ep, $x, $src)
 // by the meta, no rating asked (mel_oc_fill), a series with a card of the Dune - its episodes of the meta to the pair
 // (mel_pg_link_meta, as mel_oc_build). A tile of no name (of the ids alone, mel_oc_id_tile): the tile of the meta for it
 // (as mel_oc_of_meta), the meta failed - that of the card in memory (not to lose its name), none - as it is.
+// $fresh: the card a screen opened now would have (mel_dl_card_of; mel_lib_win_card looks for the copies by it before
+// it takes a key) - of the meta asked now (mel_cm_get), not of the card in memory: its meta may be an older one (an
+// episode not there yet); the meta failed - the card in memory, as mel_dl_card_of takes it.
 // -> array(the card; whether that in memory; why no meta of one made, '' - there is, mel_cm_get).
 /**
  * @param MelCatTile $tile
  * @param string $lang
  * @param string $dune
+ * @param bool $fresh
  * @return array{MelOcCard, bool, string}
  */
-function mel_oc_no_screen($tile, $lang, $dune = '')
+function mel_oc_no_screen($tile, $lang, $dune = '', $fresh = false)
 {
     $old = mel_oc_title($tile['type'] . ':' . mel_cm_id($tile));
-    if ($old && $old['meta'])
+    if ($old && $old['meta'] && !$fresh)
         return array($old, true, '');
     $g = mel_cm_get($tile);
+    if ($fresh && $old && !$g['meta'])
+        return array($old, true, $g['err']);
     if ($tile['name'] === '')
     {
         $of = $g['meta'] && $g['meta']['tile'] ? $g['meta']['tile'] : ($old ? $old['tile'] : null);

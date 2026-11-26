@@ -191,8 +191,8 @@ function mel_dl_card($q)
 // the reply - plugin_open_folder "card:<key>" (mel_dl_card_open). The choice - card_lib_copy of the card (from the place
 // of mel_lib_place), RETURN - the card stays. No such card (no id of the title, an id off its form, a card with none of
 // the copies): null (the caller plays the first there) - no screen then, so no key of one taken and no card kept: the
-// copies looked for first by the card of the title with no screen (mel_oc_no_screen), the card of the screen made only
-// when it has them.
+// copies looked for first by the card of the title with no screen (mel_oc_no_screen, fresh: of the meta the screen
+// would be made of, not of a card in memory of an older one), the card of the screen made only when it has them.
 /**
  * @param MelMovie $mv
  * @param list<MelLibCopy> $left
@@ -216,7 +216,7 @@ function mel_lib_win_card($mv, $left, $s, $e)
         mel_log("$tag, no own card (" . ($mv['imdb'] !== '' ? 'IMDb' : 'TMDB') . ' off its form)');
         return null;
     }
-    list($card) = mel_oc_no_screen($tile, mel_catv_lang());
+    list($card) = mel_oc_no_screen($tile, mel_catv_lang(), '', true);
     if (!mel_oc_lib_shown(mel_oc_lib($card), $s, $e))
     {
         mel_log("$tag, the own card $type:" . mel_cm_id($tile) . ' has none of them: no own card');
