@@ -44,7 +44,7 @@ Series rows are set up the same way, on the "Series" tab.
 
    <img src="../screenshots/rows-phone-order.jpg" alt="Shown: rows by groups, groups and rows with To the top, Up, Down and To the bottom buttons, Save at the bottom" width="300">
 
-## Hide a title and limit the age rating
+## Hide a title, limit the age and IMDb rating
 
 1. On a poster, press **POP UP** and choose "Hide". The title disappears from the catalog; search still shows it.
 
