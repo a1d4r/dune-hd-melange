@@ -20,7 +20,7 @@ Keep the collections you need in the catalog, put them in order and hide the tit
 4. To rearrange the groups, open "Group order" and move a group the same way. Clear the (x) of a group to remove all its rows.
    The same list has Continue Watching, Favorites and On TorrServer: you can move or hide them too.
 
-   <img src="../screenshots/rows-move.jpg" alt="Group order: the Genres group is selected for moving, Apply and Cancel at the bottom" width="100%">
+   <img src="../screenshots/rows-move.jpg" alt="Group order: Continue is selected for moving, Apply and Cancel at the bottom" width="100%">
 
 5. Close the window with "Close" at the top of the list, and the catalog shows the new set at once.
 

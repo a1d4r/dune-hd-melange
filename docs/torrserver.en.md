@@ -54,11 +54,11 @@ These torrents can also sit in a catalog row, newest on the left. The row is the
 
 1. Turn the row on: check "On TorrServer" in "Group order" on the Dune or in "Catalog rows" on the phone ([Your own catalog rows](catalog-rows.en.md)). It goes after Favorites, at once or the next time you open the catalog.
 
-   <!-- frame: Group order, focus on On TorrServer with (x) -->
+   <img src="../screenshots/ts-row-order.jpg" alt="Group order: focus on (x) On TorrServer, the row is on" width="100%">
 
 2. Press **ENTER** on a tile: a movie starts, a pack opens its list of files, as in the On TorrServer section. Torrents that Melange started show a poster with a rating, and the panel shows "On TorrServer", the number of files, the size and the date. Others show the torrent name.
 
-   <!-- frame: catalog, On TorrServer row, focus on a tile with a poster, the "On TorrServer · …" line in the panel -->
+   <img src="../screenshots/ts-row-catalog.jpg" alt="On TorrServer row in the catalog: focus on Gladiator, the panel shows On TorrServer · 1 file · 76.8 GB · added November 19" width="100%">
 
 3. To remove a torrent, press **POP UP** on the tile and choose "Remove from TorrServer". **ENTER** on the row name opens the whole section.
 
