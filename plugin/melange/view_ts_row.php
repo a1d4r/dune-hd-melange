@@ -121,9 +121,9 @@ function mel_tsr_info($tile, $lang)
         array($t['added'], MEL_CATV_TEXT_COLOR, MEL_CATV_DATA_MIN_PX)), $t['rest']);
 }
 
-// The text of the line of TorrServer of the panel of a known tile, $tile of the copy, in language $lang: «На
-// TorrServer · 1 файл · 61.3 ГБ · добавлено 3 октября»; the video files from one (nv; not known - none), the size, the
-// day; none of them - left out. No name of the torrent (owner 26.11.2026).
+// The text of the line of TorrServer of the panel of a known tile, $tile of the copy, in language $lang: «1 файл ·
+// 61.3 ГБ · добавлено 3 октября»; the video files from one (nv; not known - none), the size, the day; none of them -
+// left out. No name of the torrent, no "На TorrServer" - the title of the row under it (owner 26.11.2026).
 /**
  * @param MelTsrTile $tile
  * @param string $lang
@@ -131,7 +131,7 @@ function mel_tsr_info($tile, $lang)
  */
 function mel_tsr_line_text($tile, $lang)
 {
-    $parts = array(mel_tr($lang, 'tsl_title'));
+    $parts = array();
     if ($tile['nv'] > 0)
         $parts[] = $tile['nv'] . ' ' . mel_gc_plural($lang, $tile['nv'], 'tsl_files');
     if ($tile['e']['size'] > 0)
