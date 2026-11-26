@@ -481,6 +481,8 @@ function mel_lp_externalids($base, $p)
     $j = $r['err'] === '' && $r['code'] === 200 ? mel_lp_json($r['body']) : null;
     if ($j === null)
     {
+        // Its values "HTTP n", "not JSON" and MEL_LP_TOO_BIG are read by mel_lpv_kp_ask (online_play.php): a reply of
+        // the server, the catalog server asked; another error of curl - not.
         $why = $r['err'] !== '' ? $r['err'] : ($r['code'] !== 200 ? "HTTP {$r['code']}" : 'not JSON');
         mel_lp_log(sprintf('externalids: %s, %.2f s', $why, mel_lp_now() - $t), $base);
         return array($p, $why);
