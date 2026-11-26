@@ -381,7 +381,8 @@ function mel_tsl_added($e, $lang, $key)
 
 // ENTER on line $id of screen $from (mel_tsl_is_tile: the section, a tile of the row of the catalog, the tab "TV"), the one
 // place a torrent branches: its entry (mel_tsl_find: in memory, of the copy of the row, else the list read once; an error
-// of it - the error screen of the list over $from, none there - tsl_err_gone); its video
+// of it - the error screen of the list over $from; none there, removed elsewhere - out of the copy, the screens anew
+// (mel_tsl_anew: its tile off the row, not read again at every OK on it), then the window tsl_err_gone); its video
 // files known (mel_tsl_files_of: of its data or of a file_stats before): one - the start of it, two and more - the screen
 // of files (view_ts_files.php), none - the error; not known (a record of Lampa, other data) - the start by file_stats
 // (view_ts_play.php). The hint - nothing; an error - the list read anew (mel_tsl_open_act).
@@ -390,7 +391,7 @@ function mel_tsl_added($e, $lang, $key)
  * @param string $from
  * @return MelAction|null
  */
-function mel_tsl_enter($id, $from = MEL_TSL_URL)
+function mel_tsl_enter($id, $from)
 {
     list(, $bare) = mel_catv_id_mode($id);
     if (strpos($bare, MEL_TSL_ERR) === 0)
@@ -402,7 +403,10 @@ function mel_tsl_enter($id, $from = MEL_TSL_URL)
     if ($key !== '')
         return mel_tsl_error($key, $detail, $from);
     if ($e === null)
-        return mel_ts_fail(mel_catv_lang(), 'tsl_err_gone');
+    {
+        mel_log("ts section: enter $hash: not in the list, the screens anew");
+        return mel_tsl_anew($from, mel_tsr_drop($hash), mel_ts_fail(mel_catv_lang(), 'tsl_err_gone'), 'after a torrent gone');
+    }
     $files = mel_tsl_files_of($hash);
     $v = $files === null ? null : mel_tsl_videos_of($files);
     $kind = mel_tsl_kind($v);
@@ -457,8 +461,7 @@ function mel_tsl_rem_ask($hash, $from)
     if ($e === null)
     {
         mel_log("ts section: rem $hash: not in the list, -> dialog: tsl_err_gone, the screen anew");
-        mel_tsr_drop($hash);
-        return mel_tsl_anew($from, mel_dialog(mel_tr($lang, 'tsl_err_gone'), array(), array('OK' => mel_close_and(null))),
+        return mel_tsl_anew($from, mel_tsr_drop($hash), mel_dialog(mel_tr($lang, 'tsl_err_gone'), array(), array('OK' => mel_close_and(null))),
             'after a torrent gone');
     }
     list($head) = mel_tsl_split($e['title']);
@@ -487,24 +490,24 @@ function mel_tsl_rem_act($hash, $from)
     if (!preg_match('/^[0-9a-f]{40}$/D', $hash))
         return null;
     $lang = mel_catv_lang();
-    list($key, $detail, $i) = mel_tsl_rem($hash);
+    list($key, $detail, $i, $dropped) = mel_tsl_rem($hash);
     if ($key !== '')
         return mel_tsl_rem_fail($lang, $key, $detail);
     if ($from !== MEL_TSL_URL)
     {
         mel_log("ts row: rem $hash: the screens anew");
-        return mel_tsl_anew($from, null, 'after a removal');
+        return mel_tsl_anew($from, $dropped, null, 'after a removal');
     }
     if ($i < 0)
     {
         mel_log("ts section: rem $hash: not in memory, the screen anew");
-        return mel_tsl_anew(MEL_TSL_URL, null, 'after a removal');
+        return mel_tsl_anew(MEL_TSL_URL, $dropped, null, 'after a removal');
     }
     $list = array_values(MelTsl::$list);
     $n = count($list);
     $sel = $n ? min($i, $n - 1) : 0;
     mel_log("ts section: rem $hash: $n lines left, the cursor on $sel");
-    return mel_tsl_anew('', array(
+    return mel_tsl_anew('', $dropped, array(
         GuiAction::handler_string_id => PLUGIN_UPDATE_FOLDER_ACTION_ID,
         GuiAction::data => array(
             PluginUpdateFolderActionData::range => mel_tsl_range(mel_tsl_items($list, '', '', $lang)),
@@ -513,20 +516,22 @@ function mel_tsl_rem_act($hash, $from)
 }
 
 // The screens built anew after a torrent went off TorrServer (removed, or found gone) from screen $from, then $post: $from
-// when it is the section or a main screen of the catalog ('' none: a screen updated by $post itself, "TV"); the row shown
-// (mel_tsr_any) - on r25 the main screens opened too (mel_catv_mains_anew: one under the section, the other tab), their
-// tiles of it out of the copy already (mel_tsr_drop); on r24 of them those built with another copy (mel_tsr_unseen: the
-// one under the section). The shell keeps the focus by sel_state. None of them: $post.
+// itself (mel_catv_screen_of: '' none, a screen updated by $post itself, "TV"); the row shown (mel_tsr_any) - on r25,
+// its tile out of the copy ($dropped, mel_tsr_drop: one not in it changed no row), the main screens opened too
+// (mel_catv_mains_anew: one under the section, the other tab); on r24 of them those built with another copy, whatever
+// changed it (mel_tsr_unseen: the one under the section, a read of the section too). The shell keeps the focus by
+// sel_state. None of them: $post.
 /**
  * @param string $from
+ * @param bool $dropped
  * @param MelAction|null $post
  * @param string $why
  * @return MelAction|null
  */
-function mel_tsl_anew($from, $post, $why)
+function mel_tsl_anew($from, $dropped, $post, $why)
 {
-    $also = $from === MEL_TSL_URL || mel_catv_is_main($from) ? $from : '';
-    if (mel_tsr_any())
+    $also = mel_catv_screen_of($from);
+    if (mel_tsr_any() && ($dropped || mel_fw_r() < 25))
         return mel_catv_mains_anew($post, $why, array_merge($also !== '' ? array($also) : array(),
             mel_fw_r() >= 25 ? array() : mel_tsr_unseen(MelCat::$mains)), false);
     if ($also === '')

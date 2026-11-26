@@ -365,7 +365,8 @@ function mel_tsl_fetch($tag, $max, $total)
 }
 
 // "rem" of torrent $hash on the TorrServer of the settings (POP UP of the section, owner 24.11.2026) -> array(the key of
-// the error, '' removed; its detail; the index of its entry in MelTsl::$list before, -1 none there or an error): no
+// the error, '' removed; its detail; the index of its entry in MelTsl::$list before, -1 none there or an error; it was
+// in the copy of the row, mel_tsr_drop): no
 // answer - ts_err_down (the error of curl), 401 - the login (mel_ts_auth_err), another code - tsl_rem_bad ("HTTP
 // <code>"). No answer in MEL_TSL_REM_S (curl 28): TorrServer answers once the cache is off its disk and DLNA restarted,
 // it may take longer - "rem" once again, 200: removed, else ts_err_down. Not "get": RemTorrent takes it off the DB last,
@@ -375,7 +376,7 @@ function mel_tsl_fetch($tag, $max, $total)
 // stay; out of the copy of the row of the catalog (mel_tsr_drop).
 /**
  * @param string $hash
- * @return array{string, string, int}
+ * @return array{string, string, int, bool}
  */
 function mel_tsl_rem($hash)
 {
@@ -391,25 +392,26 @@ function mel_tsl_rem($hash)
         mel_log($head . $r['err'] . ', rem again: ' . ($r2['err'] !== '' ? $r2['err'] : "HTTP {$r2['code']}") .
             ($gone ? ', removed' : ''));
         if (!$gone)
-            return array('ts_err_down', $r['err'], -1);
+            return array('ts_err_down', $r['err'], -1, false);
     }
     else if ($r['err'] !== '')
     {
         mel_log($head . $r['err']);
-        return array('ts_err_down', $r['err'], -1);
+        return array('ts_err_down', $r['err'], -1, false);
     }
     else
     {
         mel_log($head . "HTTP {$r['code']}");
         if ($r['code'] !== 200)
-            return $r['code'] === 401 ? array(mel_ts_auth_err(), '', -1) : array('tsl_rem_bad', "HTTP {$r['code']}", -1);
+            return $r['code'] === 401 ? array(mel_ts_auth_err(), '', -1, false) :
+                array('tsl_rem_bad', "HTTP {$r['code']}", -1, false);
     }
     $i = MelTsl::$list === null ? false : array_search($hash, array_keys(MelTsl::$list), true);
     if ($i !== false)
         unset(MelTsl::$list[$hash]);
     unset(MelTsl::$files[$hash]);
-    mel_tsr_drop($hash);
-    return array('', '', $i === false ? -1 : $i);
+    $dropped = mel_tsr_drop($hash);
+    return array('', '', $i === false ? -1 : $i, $dropped);
 }
 
 /**

@@ -3008,7 +3008,7 @@ function mel_catv_mains_urls()
 // them, on r24 too (the screen of a change of "Мой список", mel_ml_changed; the screen of a tick, mel_mlv_tick; the main
 // screens of another copy of "На TorrServer", mel_tsl_anew). $why: for the log.
 // $fav: the screens of Fav opened too; not by a tick (mel_mlv_tick: a screen of Fav lower in the stack built again would
-// take the timer of the screen of the tick).
+// take the timer of the screen of the tick), nor by TorrServer (mel_tsl_anew: no screen of Fav shows its row).
 /**
  * @param MelAction|null $post
  * @param string $why

@@ -1,8 +1,9 @@
 <?php
 // The row "На TorrServer" of the catalog, its data: a copy of the newest entries of the list of TorrServer in data_dir
 // (MEL_TSR_FILE; the row is drawn of it at once, a read of the list refreshes it), only while the row is shown on a tab
-// and not «Без торрентов» (mel_tsr_any): else no read, no write; the movie of a torrent by the history of Melange (its
-// hash in the uid of a record "aio:"). No firmware API. Reads Mel::$settings, MelTsl, the history (history.php); writes
+// and not «Без торрентов» (mel_tsr_any): else no read, no write but of a removal (mel_tsr_drop: the copy on the disk
+// edited with the row hidden too); the movie of a torrent by the history of Melange (its hash in the uid of a record
+// "aio:"). No firmware API. Reads Mel::$settings, MelTsl, the history (history.php); writes
 // MelTsr and the copy. Needs ts_list.php (MelTsl, mel_tsl_fetch, mel_tsl_video_count, mel_tsl_files_of, mel_tsl_on,
 // mel_tsl_split, mel_tsl_name), catalog.php (mel_cat_tab_slots, mel_cat_slot_names), view_catalog.php
 // (MEL_CATV_ROW_TILES), history.php (mel_wh_ours_all), tv_tab.php (mel_tv_flag), parse.php, main.php. Functions are global; the require order is
@@ -195,26 +196,26 @@ function mel_tsr_unseen($urls)
     return $out;
 }
 
-// The tiles the row shows (its slot on a tab aside: the caller's): none with «Без торрентов» (mel_tsl_on), else the
-// copy (mel_tsr_tiles; none - no row). The row on a main screen and the row of a deep link alike.
+// The tiles the row shows, the one test of a copy to use (its slot on a tab aside: the caller's): none with the row
+// shown on no tab or «Без торрентов» (mel_tsr_any), else the copy (mel_tsr_tiles; none - no row). The row on a main
+// screen, the row of a deep link and a tile of the copy (mel_tsr_tile) alike; the raw copy is for mel_tsr_put and
+// mel_tsr_drop alone.
 /**
  * @return array<string, MelTsrTile>
  */
 function mel_tsr_shown_tiles()
 {
-    return mel_tsl_on() ? mel_tsr_tiles() : array();
+    return mel_tsr_any() ? mel_tsr_tiles() : array();
 }
 
-// The tile of the copy of torrent $hash, null none (or the row not shown: mel_tsr_any).
+// The tile of the copy of torrent $hash, null none (or the row not shown: mel_tsr_shown_tiles).
 /**
  * @param string $hash
  * @return MelTsrTile|null
  */
 function mel_tsr_tile($hash)
 {
-    if (!mel_tsr_any())
-        return null;
-    $c = mel_tsr_tiles();
+    $c = mel_tsr_shown_tiles();
     return isset($c[$hash]) ? $c[$hash] : null;
 }
 
@@ -384,20 +385,22 @@ function mel_tsr_read()
     return array($r[1], mel_tsr_take($r));
 }
 
-// Torrent $hash removed from TorrServer (mel_tsl_rem): out of the copy too, the row hidden as well (a copy of it on
-// the disk shown again when the row is), no read of the list.
+// Torrent $hash removed from TorrServer (mel_tsl_rem) or found gone (mel_tsl_enter, mel_tsl_rem_ask): out of the copy, the row hidden as well (a copy of it on
+// the disk shown again when the row is), no read of the list. -> it was in the copy (a tile of it gone: the screens
+// of the row to build anew, mel_tsl_anew).
 /**
  * @param string $hash
- * @return void
+ * @return bool
  */
 function mel_tsr_drop($hash)
 {
     $tiles = mel_tsr_tiles();
     if (!isset($tiles[$hash]))
-        return;
+        return false;
     unset($tiles[$hash]);
     mel_tsr_put($tiles);
     mel_log("ts row: $hash out of the copy");
+    return true;
 }
 
 // The movies of the Dune (movie_id) of the torrents by the history of Melange: hash => movie_id, by the uid of a record
