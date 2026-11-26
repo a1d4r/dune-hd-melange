@@ -5,7 +5,7 @@
 // profile into the record (wh_prof). The screen keeps two lists (view_online.php): the releases of one profile of
 // releases (rows, prof) and the online list of one profile of Lampac (lp, lp_prof); a choice of one of them already
 // there - no request. The item of MENU: mel_gc_src_item (view_gcomps.php), mel_lpv_menu (view_online.php). The name
-// of the source over the lists: mel_gc_tabs_right (view_gcomps.php).
+// of the source over the lists: mel_gc_tabs_from (view_gcomps.php).
 // Reads and writes Mel (state, settings). Functions are global; the require order is in main.php.
 
 // The id of the profile list $st shows: of Lampac on the online list, else of releases ('' none).

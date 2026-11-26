@@ -451,7 +451,7 @@ function mel_lpv_flt_first($v)
 // the list: none); the green key, "Свернуть все" (mel_lpv_fold_word), an action with no state (no balancer of 2 rows:
 // none); the order, "Качество", on by quality (mel_lpv_qsort), no arrow (no row: none). A remote the firmware knows is
 // without the colour keys: no dots, no green tab, of the order a state only - "По качеству" on by quality, else none
-// (MENU has the items). At the right the name of the source (mel_gc_tabs_right, no number of errors: MENU has them).
+// (MENU has the items; mel_lpv_can). At the right the name of the source (mel_gc_tabs_from, no number of errors: MENU has them).
 // No room: the green one in a short word ("Свернуть"), then the name of the filter shorter, 80 px at least; the order
 // always, the name of the source shorter or none then.
 /**
@@ -465,11 +465,13 @@ function mel_lpv_tabs($st, $L)
     $lang = mel_gc_lang($st);
     $keys = mel_gc_color_keys();
     $right = MEL_GC_LX + MEL_GC_LW - MEL_GC_PAD;
-    // What the name of the source takes with its icon (mel_gc_tabs_right), the gap before it.
+    // What the name of the source takes with its icon (mel_gc_tabs_from), the gap before it.
     $from = mel_src_in_menu() ? mel_src_name(mel_src_now($st)) : '';
     $room = $right - MEL_GC_LX - ($from === '' ? 0 :
         min(300, MEL_K_ICON_SORT + MEL_K_KEY_DOT_GAP + MelKit::w($from, MEL_K_PX_ROW)) + MEL_K_HINT_GAP);
-    $flt = (bool) mel_lpv_voices($v, $lang);
+    $flt = mel_lpv_can($st, $L, 'red', 'tab');
+    $green = mel_lpv_can($st, $L, 'green', 'tab');
+    $yellow = mel_lpv_can($st, $L, 'yellow', 'tab');
     $qs = mel_lpv_qsort();
     $short = false;
     $nw = 360;
@@ -479,10 +481,10 @@ function mel_lpv_tabs($st, $L)
         if ($flt)
             $tabs[] = array('key' => $keys ? 'red' : '', 'state' => isset($v['flt']) ? 'on' : '', 'icon' => 'k_icon_chevron-down',
                 'label' => mel_lpv_tr($lang, 'lp_flt_tab', array('name' => mel_lpv_flt_name($v, $lang, $nw))));
-        $fold = $keys ? mel_lpv_fold_word($L, $lang, $short) : '';
+        $fold = $green ? mel_lpv_fold_word($L, $lang, $short) : '';
         if ($fold !== '')
             $tabs[] = array('key' => 'green', 'label' => $fold, 'icon' => '');
-        if ($v['rows'] && ($keys || $qs))
+        if ($yellow)
             $tabs[] = array('key' => $keys ? 'yellow' : '', 'state' => $qs ? 'on' : '', 'icon' => '',
                 'label' => mel_tr($lang, $keys ? 'lp_qsort_key' : 'lp_qsort_tab'));
         $t = MelKit::tabs($tabs, MEL_GC_LX, MEL_GC_TABS_MID);
@@ -506,7 +508,7 @@ function mel_lpv_tabs($st, $L)
         $left = $t['x1'] + MEL_K_HINT_GAP;
         $t = MelKit::group('tabs', $t);
     }
-    return array_merge($t['defs'], mel_gc_tabs_right($st, mel_gc_text($lang), $left, $right, false));
+    return array_merge($t['defs'], mel_gc_tabs_from($st, $left, $right));
 }
 
 // Lines of the online list of view $v on screen (the rows of its filter, mel_lpv_shown): the rows of a balancer in a run of 2 and more
@@ -726,6 +728,36 @@ function mel_lpv_counter($L, $sel)
 {
     $n = mel_lpv_count($L);
     return mel_gc_count(min($sel, $n - 1), $n);
+}
+
+// A colour key of the online list $st, lines $L, is there at place $at, one for the three places. $key: 'red' the
+// filter by voices (a list with voices), 'green' all folded or unfolded (a line of a balancer of 2 rows), 'yellow' the
+// order by quality (a list with rows). $at: 'key' the key is bound (mel_lpv_screen) - the green one always, with no
+// balancer too (mel_lpv_fold_all: nothing then); 'tab' its tab is shown (mel_lpv_tabs) - the green one with the
+// colour keys only, the yellow one without them only on (by quality); 'menu' its item of MENU (mel_lpv_menu) -
+// mel_gc_keys_in_menu only.
+/**
+ * @param MelState $st
+ * @param list<MelLpLine> $L
+ * @param string $key
+ * @param string $at
+ * @return bool
+ */
+function mel_lpv_can($st, $L, $key, $at)
+{
+    if ($key === 'red')
+        $can = (bool) mel_lpv_voices($st['lp'], mel_gc_lang($st));
+    else if ($key === 'green')
+        $can = $at === 'key' || mel_lpv_fold_state($L) !== '';
+    else
+        $can = (bool) $st['lp']['rows'];
+    if ($at === 'menu')
+        return $can && mel_gc_keys_in_menu();
+    if ($at === 'tab' && $key === 'green')
+        return $can && mel_gc_color_keys();
+    if ($at === 'tab' && $key === 'yellow')
+        return $can && (mel_gc_color_keys() || mel_lpv_qsort());
+    return $can;
 }
 
 // --- Folding (ENTER on the line of a balancer, the green key, MENU "Развернуть все" / "Свернуть все"): the rows of a
@@ -1046,7 +1078,7 @@ function mel_lpv_window($st, $sel, $top)
             MEL_K_C_SCROLL_TRACK);
         $d[] = mel_gc_rect(mel_gc_thumb_geom($top, $n), MEL_K_C_SCROLL_THUMB, 'thumb');
     }
-    list(, $hint) = mel_lpv_screen($st, $n);
+    list(, $hint) = mel_lpv_screen($st, $L);
     $h = MelKit::hint($hint, MEL_GC_LX, MEL_GC_HINT_MID);
     $d = array_merge($d, $h['defs']);
     $d[] = mel_gc_panel('counter', mel_gc_at(MEL_GC_COUNT_W, MEL_K_KEY_H, MEL_GC_LX + MEL_GC_LW - MEL_GC_PAD - MEL_GC_COUNT_W,
@@ -1069,17 +1101,31 @@ function mel_lpv_pos($v, $raw)
     return mel_lpv_fix($L, $sel, $top);
 }
 
-// The keys of the online list $st of $n lines and the items of its hint line (MelKit::hint), one for both: the cursor,
+// The cursor of the online list $st of the shell's sel_state of input $in (mel_lpv_pos), kept as the last one of the
+// live list (Mel::$state): what is built over or in place of the list starts from it. -> array(sel, top).
+/**
+ * @param stdClass $in
+ * @param MelState $st
+ * @return array{int, int}
+ */
+function mel_lpv_pos_keep($in, $st)
+{
+    $pos = mel_lpv_pos($st['lp'], isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    Mel::$state['lp']['gc'] = $pos;
+    return $pos;
+}
+
+// The keys of the online list $st of lines $L and the items of its hint line (MelKit::hint), one for both: the cursor,
 // ENTER, MENU "Действия", the green key (mel_lpv_fold_all); «P+ P−» "Прокрутка" with more lines than the screen; the
 // yellow key, the order of the balancers, of a list with rows (its tab, mel_lpv_tabs); the red key, the filter by
-// voices, of a list with voices; an episode: left and right flip the episodes of the season (mel_lpv_flip), "Серии".
-// -> array(actions, hint items).
+// voices, of a list with voices (mel_lpv_can); an episode: left and right flip the episodes of the season
+// (mel_lpv_flip), "Серии". -> array(actions, hint items).
 /**
  * @param MelState $st
- * @param int $n
+ * @param list<MelLpLine> $L
  * @return array{array<string, MelAction>, list<array{string, string}>}
  */
-function mel_lpv_screen($st, $n)
+function mel_lpv_screen($st, $L)
 {
     $rid = $st['rid'];
     $tt = mel_gc_text(mel_gc_lang($st));
@@ -1090,12 +1136,13 @@ function mel_lpv_screen($st, $n)
         GUI_EVENT_KEY_P_MINUS => mel_gc_act('lp_move', $rid, array('d' => 'pgdn')),
         GUI_EVENT_KEY_ENTER => mel_gc_act('lp_pick', $rid),
         GUI_EVENT_MENU_PLAYBACK_FINISH => mel_finish_act($rid),
-        GUI_EVENT_KEY_POPUP_MENU => mel_gc_act('lp_menu', $rid),
-        GUI_EVENT_KEY_B_GREEN => mel_gc_act('lp_fold', $rid));
-    $hint = $n > MEL_GC_VIS ? array(array('pp', $tt['page'])) : array();
-    if ($st['lp']['rows'])
+        GUI_EVENT_KEY_POPUP_MENU => mel_gc_act('lp_menu', $rid));
+    if (mel_lpv_can($st, $L, 'green', 'key'))
+        $acts[GUI_EVENT_KEY_B_GREEN] = mel_gc_act('lp_fold', $rid);
+    $hint = count($L) > MEL_GC_VIS ? array(array('pp', $tt['page'])) : array();
+    if (mel_lpv_can($st, $L, 'yellow', 'key'))
         $acts[GUI_EVENT_KEY_C_YELLOW] = mel_gc_act('lp_qsort', $rid);
-    if (mel_lpv_voices($st['lp'], mel_gc_lang($st)))
+    if (mel_lpv_can($st, $L, 'red', 'key'))
         $acts[GUI_EVENT_KEY_A_RED] = mel_gc_act('lp_flt_menu', $rid);
     if ($st['e'] > 0)
     {
@@ -1123,7 +1170,7 @@ function mel_lpv_folder_view($st, $sel_state)
     // The columns, counted once a full view (mel_lpv_cols_st).
     $L = mel_lpv_lines($st['lp']);
     $st['lp']['gc_cols'] = Mel::$state['lp']['gc_cols'] = mel_lpv_cols($st['lp'], $L);
-    list($acts) = mel_lpv_screen($st, count($L));
+    list($acts) = mel_lpv_screen($st, $L);
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -1217,7 +1264,7 @@ function mel_lpv_finish($st)
 
 // --- MENU of the online list (A4): "Озвучка: …" (of a list with voices), "Развернуть все" / "Свернуть все" and
 // "Сортировать по качеству" / "Порядок как в Балансерах" (of a list with rows) (mel_gc_keys_in_menu: the red, the green and
-// the yellow key), "Обновить", "Выбрать серию"
+// the yellow key; mel_lpv_can), "Обновить", "Выбрать серию"
 // (an episode), "Откуда брать…", "Источники…" (mel_lpv_srcs_edit; some found), "Ошибки источников", "Настройки".
 
 /**
@@ -1229,18 +1276,18 @@ function mel_lpv_menu($st)
     $lang = $st['lang'];
     $rid = $st['rid'];
     $menu = array();
-    if (mel_gc_keys_in_menu() && mel_lpv_voices($st['lp'], $lang))
+    $L = mel_lpv_lines($st['lp']);
+    if (mel_lpv_can($st, $L, 'red', 'menu'))
         $menu[] = array(
             GuiMenuItemDef::caption => mel_lpv_tr($lang, 'lp_flt_menu', array('name' => mel_lpv_flt_name($st['lp'], $lang))),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
             GuiMenuItemDef::action => mel_gc_act('lp_flt_menu', $rid));
-    $fold = mel_lpv_fold_word(mel_lpv_lines($st['lp']), $lang);
-    if (mel_gc_keys_in_menu() && $fold !== '')
+    if (mel_lpv_can($st, $L, 'green', 'menu'))
         $menu[] = array(
-            GuiMenuItemDef::caption => $fold,
+            GuiMenuItemDef::caption => mel_lpv_fold_word($L, $lang),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
             GuiMenuItemDef::action => mel_gc_act('lp_fold', $rid));
-    if (mel_gc_keys_in_menu() && $st['lp']['rows'])
+    if (mel_lpv_can($st, $L, 'yellow', 'menu'))
         $menu[] = array(
             GuiMenuItemDef::caption => mel_tr($lang, mel_lpv_qsort() ? 'lp_qsort_off' : 'lp_qsort_on'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
@@ -1333,8 +1380,7 @@ function mel_lpv_refresh($st)
 function mel_lpv_pick($in, $st)
 {
     $v = $st['lp'];
-    list($sel, $top) = mel_lpv_pos($v, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
-    Mel::$state['lp']['gc'] = array($sel, $top);
+    list($sel, $top) = mel_lpv_pos_keep($in, $st);
     $L = mel_lpv_lines($v);
     if (mel_lpv_is_bal($L, $sel))
         return mel_lpv_fold($st, $sel, $top);
@@ -1485,14 +1531,13 @@ function mel_lpv_flip($in, $st)
     $d = isset($in->d) && is_string($in->d) ? $in->d : '';
     if ($st['e'] < 1 || ($d !== 'prev' && $d !== 'next'))
         return null;
-    list($sel, $top) = mel_lpv_pos($st['lp'], isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    list($sel, $top) = mel_lpv_pos_keep($in, $st);
     $st['lp']['gc'] = array($sel, $top);
     $n = isset($st['movie']['seasons'][$st['s']]) ? $st['movie']['seasons'][$st['s']] : 0;
     $e = $st['e'] + ($d === 'next' ? 1 : -1);
     if ($e < 1 || ($d === 'next' && $e > $n))
     {
         mel_log('lampac: flip: ' . mel_ep_tag($st) . ', ' . ($e < 1 ? 'the first' : "the last ($n)") . ' of the season, nothing');
-        Mel::$state['lp']['gc'] = array($sel, $top);
         return null;
     }
     $ns = mel_lpv_ep_state($st, $st['s'], $e);
@@ -1562,16 +1607,14 @@ function mel_lpv_input($in, $control)
         return mel_lpv_pick($in, $st);
     if ($control === 'lp_menu' || $control === 'lp_flt_menu')
     {
-        list($sel, $top) = mel_lpv_pos($st['lp'], isset($in->parent_sel_state) ? $in->parent_sel_state : null);
-        Mel::$state['lp']['gc'] = array($sel, $top);
+        mel_lpv_pos_keep($in, $st);
         return $control === 'lp_menu' ? mel_lpv_menu($st) : mel_lpv_flt_edit($st);
     }
     if ($control === 'lp_flt_apply')
         return mel_lpv_flt_apply($in, $st);
     if ($control === 'lp_fold')
     {
-        list($sel, $top) = mel_lpv_pos($st['lp'], isset($in->parent_sel_state) ? $in->parent_sel_state : null);
-        Mel::$state['lp']['gc'] = array($sel, $top);
+        list($sel) = mel_lpv_pos_keep($in, $st);
         return mel_lpv_fold_all($st, $sel);
     }
     if ($control === 'lp_qsort')
@@ -1582,7 +1625,7 @@ function mel_lpv_input($in, $control)
     {
         if ($st['e'] < 1)
             return null;
-        Mel::$state['lp']['gc'] = mel_lpv_pos($st['lp'], isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+        mel_lpv_pos_keep($in, $st);
         mel_log('lampac: choose: ' . mel_ep_tag($st) . ' -> seasons screen of the shell');
         return mel_choose_act($st['rid'], 'lp_chosen');
     }

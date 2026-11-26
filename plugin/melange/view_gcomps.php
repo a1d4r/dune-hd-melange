@@ -1588,39 +1588,45 @@ function mel_gc_sort_tabs($st, $tt)
 }
 
 // Right of the row of the tabs, right-aligned to $right on MEL_GC_TABS_MID: the number of the source errors in
-// amber (mel_errors_shown; $errors false, the online list: none, its MENU has them), left of it the name of the
-// source of the list after its icon (two ready profiles or more, sources.php: mel_src_name), in what the tabs leave
-// from $left (less than a few letters: no name).
+// amber (mel_errors_shown; the online list has none, its MENU has them). -> array(its children, the right edge of
+// what is left of it: $right with no number).
 /**
  * @param MelState $st
  * @param MelGcText $tt
+ * @param int $right
+ * @return array{list<MelGcComp>, int}
+ */
+function mel_gc_tabs_errors($st, $tt, $right)
+{
+    if (!mel_errors_shown($st['errors']))
+        return array(array(), $right);
+    $text = str_replace('{n}', strval(mel_errors_total($st['errors'])), $tt['errors']);
+    $w = MelKit::w($text, MEL_K_PX_SECONDARY);
+    $e = MelKit::text($text, MEL_K_PX_SECONDARY, MEL_K_C_WARN, $right - $w, MEL_GC_TABS_MID);
+    return array($e['defs'], $right - $w - MEL_K_HINT_GAP);
+}
+
+// Right of the row of the tabs, right-aligned to $right on MEL_GC_TABS_MID (left of the number of the errors,
+// mel_gc_tabs_errors): the name of the source of the list after its icon (two ready profiles or more, sources.php:
+// mel_src_name), in what the tabs leave from $left (less than a few letters: no name).
+/**
+ * @param MelState $st
  * @param int $left
  * @param int $right
- * @param bool $errors
  * @return list<MelGcComp>
  */
-function mel_gc_tabs_right($st, $tt, $left, $right, $errors = true)
+function mel_gc_tabs_from($st, $left, $right)
 {
-    $d = array();
-    $y = MEL_GC_TABS_MID;
-    if ($errors && mel_errors_shown($st['errors']))
-    {
-        $text = str_replace('{n}', strval(mel_errors_total($st['errors'])), $tt['errors']);
-        $w = MelKit::w($text, MEL_K_PX_SECONDARY);
-        $e = MelKit::text($text, MEL_K_PX_SECONDARY, MEL_K_C_WARN, $right - $w, $y);
-        $d = $e['defs'];
-        $right -= $w + MEL_K_HINT_GAP;
-    }
     $from = mel_src_in_menu() ? mel_src_name(mel_src_now($st)) : '';
     $room = min(300, $right - $left);
     if ($from === '' || $room < 80)
-        return $d;
+        return array();
     $i = MelKit::icon('k_icon_layers', MEL_K_ICON_SORT, MEL_K_C_TEXT3, 0, 0, array('box' => true));
     $t = MelKit::text($from, MEL_K_PX_ROW, MEL_K_C_TEXT2, 0, 0,
         array('w' => $room - ($i['x1'] - $i['x0']) - MEL_K_KEY_DOT_GAP));
-    $row = MelKit::row(array($i, $t), MEL_K_KEY_DOT_GAP, 0, $y, 'from');
+    $row = MelKit::row(array($i, $t), MEL_K_KEY_DOT_GAP, 0, MEL_GC_TABS_MID, 'from');
     $row = MelKit::move($row, $right - $row['x1'], 0);
-    return array_merge($d, $row['defs']);
+    return $row['defs'];
 }
 
 /**
@@ -1684,7 +1690,8 @@ function mel_gc_window($st, $sel, $top)
         $left = $tabs['x1'] + MEL_K_HINT_GAP;
     }
     // Outside the tabs: a remote without the colour keys has them too.
-    $d = array_merge($d, mel_gc_tabs_right($st, $tt, $left, $right));
+    list($errs, $right) = mel_gc_tabs_errors($st, $tt, $right);
+    $d = array_merge($d, $errs, mel_gc_tabs_from($st, $left, $right));
 
     return mel_gc_window_def($d, $mv['fanart']);
 }
