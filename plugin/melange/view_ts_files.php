@@ -6,7 +6,7 @@
 // the title, the lines of the groups of folders (MelKit::group_line; none: all in one folder) and the video files of the
 // groups open, in the natural order of their paths, their names as they are, a check at those TorrServer marked viewed
 // (/viewed, read when the screen opens and back from the player); under them «P+ P−» and "12 / 73". The plugin draws and
-// moves the focus as the list of releases (view_gcomps.php): only the window of lines (mel_gc_win_changes), the position
+// moves the focus as the list of releases (view_gcomps.php): only the window of lines (mel_gc_cursor_changes), the position
 // in sel_state. ENTER on a group: open or close it (the screen replaced, "tsf:<hash>:<n>"); on a file: its start
 // (mel_tsl_start: the waiting dialog and the error dialog over the screen), the playlist from it on.
 // Back from the player (the shell does not ask for the screen anew): the screen replaced, the marks read anew. The screen
@@ -420,7 +420,7 @@ function mel_tsf_marked($v, $seen)
 // tsf_move, tsf_pick, tsf_finish of the screen of files: the position of the shell (parent_sel_state), else the one kept.
 // A key of a screen not kept (a restart of php_server, another screen made since): the screen of files of its hash built
 // anew in its place. A move: change_gcomps (none at an edge) - the plate of the focus, the window of lines that follows
-// the top (mel_gc_win_changes), the two lines, the card, the counter. ENTER on a group: open or close it, the screen
+// the top (mel_gc_cursor_changes), the two lines, the card, the counter. ENTER on a group: open or close it, the screen
 // replaced; on a file: its start (mel_tsl_start), the file kept as started last. Back from
 // the player: mel_tsf_finish.
 /**
@@ -457,14 +457,10 @@ function mel_tsf_input($in, $control)
     if ($nsel === $sel)
         return null;
     $lang = mel_catv_lang();
-    $ch = array(mel_gc_change('sel', mel_gc_row_geom($nsel), GCOMP_TRANSITION_DEFAULT));
-    if ($ntop !== $top)
+    $ch = mel_gc_cursor_changes($top, $nsel, $ntop, $n, function ($j) use ($s, $lang)
     {
-        $add = array();
-        foreach (mel_gc_win_new($top, $ntop, $n, MEL_TSF_VIS) as $j)
-            $add[] = mel_tsf_line($s, $j, false, $lang);
-        $ch = array_merge($ch, mel_gc_win_changes($top, $ntop, $n, $add, MEL_TSF_VIS, MEL_TSF_LY));
-    }
+        return mel_tsf_line($s, $j, false, $lang);
+    }, MEL_TSF_VIS, MEL_TSF_LY);
     $ch[] = mel_gc_change("r$sel", null, GCOMP_TRANSITION_NONE, mel_tsf_line_items($s, $sel, false, $lang));
     $ch[] = mel_gc_change("r$nsel", null, GCOMP_TRANSITION_NONE, mel_tsf_line_items($s, $nsel, true, $lang));
     $ch[] = mel_gc_change('card', null, GCOMP_TRANSITION_NONE, mel_tsf_card($s, $nsel, $lang));

@@ -458,24 +458,36 @@ function mel_gc_key($in)
     return in_array($key, array('up', 'down', 'pgup', 'pgdn'), true) ? $key : null;
 }
 
-// Changes of a list of $n rows whose cursor went to row $nsel, first row on screen from $top to
-// $ntop: the highlight, the rows and the scroll thumb when the page moved.
+// Changes of a list of $n lines ($vis on the screen from y $ly) whose cursor went to line $nsel, the first line on
+// screen from $top to $ntop: the highlight; when the page moved - the panel 'rows' and the scroll thumb, and with $mk
+// (a list that holds a window of its lines, mel_gc_win: j -> the panel "r$j" of line j out of focus) the window of
+// lines follows the top (mel_gc_win_changes), as the episodes of the own card (view_card_series.php). $mk null: all
+// the lines are in 'rows'.
 /**
  * @param int $top
  * @param int $nsel
  * @param int $ntop
  * @param int $n
+ * @param (callable(int): MelGcComp)|null $mk
+ * @param int $vis
+ * @param int $ly
  * @return list<MelGcChange>
  */
-function mel_gc_cursor_changes($top, $nsel, $ntop, $n)
+function mel_gc_cursor_changes($top, $nsel, $ntop, $n, $mk = null, $vis = MEL_GC_VIS, $ly = MEL_GC_LY)
 {
     $ch = array(mel_gc_change('sel', mel_gc_row_geom($nsel), GCOMP_TRANSITION_DEFAULT));
-    if ($ntop !== $top)
+    if ($ntop === $top)
+        return $ch;
+    if ($mk === null)
     {
         $ch[] = mel_gc_change('rows', mel_gc_rows_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
-        $ch[] = mel_gc_change('thumb', mel_gc_thumb_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
+        $ch[] = mel_gc_change('thumb', mel_gc_thumb_geom($ntop, $n, $vis, $ly), GCOMP_TRANSITION_DEFAULT);
+        return $ch;
     }
-    return $ch;
+    $add = array();
+    foreach (mel_gc_win_new($top, $ntop, $n, $vis) as $j)
+        $add[] = call_user_func($mk, $j);
+    return array_merge($ch, mel_gc_win_changes($top, $ntop, $n, $add, $vis, $ly));
 }
 
 // --- Row data.
@@ -2206,16 +2218,11 @@ function mel_gc_input($in)
     $tt = mel_gc_text(mel_gc_lang($st));
     $cols = mel_gc_cols_st($st);
     $prog = isset($st['gc_prog']) ? $st['gc_prog'] : array();
-    // As mel_gc_cursor_changes, and the window of lines follows the top (mel_gc_win_changes), as the episodes of the
-    // own card (view_card_series.php).
-    $ch = array(mel_gc_change('sel', mel_gc_row_geom($nsel), GCOMP_TRANSITION_DEFAULT));
-    if ($ntop !== $top)
+    // The window of lines follows the top (mel_gc_cursor_changes).
+    $ch = mel_gc_cursor_changes($top, $nsel, $ntop, $n, function ($j) use ($st, $lv, $tt, $cols, $prog)
     {
-        $add = array();
-        foreach (mel_gc_win_new($top, $ntop, $n) as $j)
-            $add[] = mel_gc_line_comp($st, $lv, $j, $tt, $cols, false, $prog);
-        $ch = array_merge($ch, mel_gc_win_changes($top, $ntop, $n, $add));
-    }
+        return mel_gc_line_comp($st, $lv, $j, $tt, $cols, false, $prog);
+    });
     // The focus brightness moves with the line.
     $ch[] = mel_gc_change("r$sel", null, GCOMP_TRANSITION_NONE,
         mel_gc_line_items($st, $lv, $sel, $tt, $cols, false, $prog));
