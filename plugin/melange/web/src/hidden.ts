@@ -1,4 +1,4 @@
-// "Скрытые" of "Что не показывать" (#hide, lib/hidden.php): the titles hidden on the Dune (POP UP → "Hide"), from
+// "Скрытые" of "Фильтр каталога" (#hide, lib/hidden.php): the titles hidden on the Dune (POP UP → "Hide"), from
 // #init.hidden - a row each with its name, the line under it and "Unhide" (a=title_unhide: PHP takes it out of the
 // file as it is now, the answer is the list then). An empty list - the line of none; no list (a file of a later
 // Melange, not readable) - why. By the script with fetch only: without it the line of PHP (no list) stays.

@@ -132,13 +132,22 @@ describe.each([...FIXTURES])("%s", (name) => {
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("look");
     // Own card (cat_card, 0.59.0-0.69.1): gone in 0.70.0, the own card is always on; no field of it, none of its "was".
     expect(form.querySelectorAll("input[name=cat_card], input[name=cat_card_was]").length).toBe(0);
-    // The age of What not to show (cat_age, 0.65.0): five radios, "all" by default (filled: "12"), a short name each, on #hide.
-    const ages = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=" + NAME.catAge + "]"));
-    expect(ages.map((radio) => [radio.type, radio.value, !!radio.getAttribute(DATA.short)])).toEqual(
-      ["all", "16", "12", "6", "0"].map((value) => ["radio", value, true]));
-    expect(ages.filter((radio) => radio.checked).map((radio) => radio.value)).toEqual([name === "filled" ? "12" : "all"]);
-    for (const radio of ages)
-      expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("hide");
+    // The age, the IMDb ratings of movies and series of What not to show (cat_age 0.65.0, the ratings 0.70.0): a list each
+    // (select) under its label, "all" by default (filled: age "12", movies "65"), a part of the line of the main screen
+    // each but that of any rating (the age: all ages of all), on #hide.
+    for (const [listName, selected, values] of [
+      [NAME.catAge, name === "filled" ? "12" : VALUE.all, [VALUE.all, "16", "12", "6", "0"]],
+      [NAME.catImdbMovie, name === "filled" ? "65" : VALUE.all, [VALUE.all, "50", "55", "60", "65", "70", "75", "80"]],
+      [NAME.catImdbSeries, VALUE.all, [VALUE.all, "50", "55", "60", "65", "70", "75", "80"]],
+    ] as const) {
+      const lists = Array.from(form.querySelectorAll<HTMLSelectElement>("[name=" + listName + "]"));
+      expect(lists.map((list) => [list.tagName, list.closest("section")!.id])).toEqual([["SELECT", "hide"]]);
+      const list = lists[0]!;
+      expect(Array.from(list.options).map((option) => [option.value, !!option.getAttribute(DATA.short)])).toEqual(
+        values.map((value) => [value, listName === NAME.catAge || value !== VALUE.all]));
+      expect(list.value).toBe(selected);
+      expect(list.previousElementSibling!.matches("label[for=" + list.id + "]")).toBe(true);
+    }
     // The rows of the catalog: one field on #rows, not of type hidden (the bar counts only others), nothing to read by eye.
     const rowsField = form.querySelectorAll<HTMLInputElement>("input[name=cat_rows]");
     expect(Array.from(rowsField).map((field) => [field.id, field.type, field.hidden, field.closest("section")!.id])).toEqual([[ID.rowsValue, "text", true, "rows"]]);

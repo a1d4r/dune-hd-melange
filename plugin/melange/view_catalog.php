@@ -179,7 +179,7 @@ class MelCat
     // only; after a restart a tile or "Show all" asked for brings the saved first page of its row
     // (mel_catv_list_restore). A listing may have no tile: the filter took all its pages (end "filter",
     // mel_catv_load_first), "Скрыть" took its last one (mel_catv_drop_title: asked again at the next opening,
-    // mel_catv_open), a search begun anew by a new age (mel_catv_filter_seen: filled by its screen).
+    // mel_catv_open).
     /** @var array<string, MelCatList> */
     public static $lists = array();
     // The last MEL_CATV_SEARCHES searches, the oldest first: by its id, the rids of its rows.
@@ -255,10 +255,6 @@ class MelCat
     // none since a start of php_server. "Скрыть" sets it anew (mel_catv_hide_act).
     /** @var string|null */
     public static $filter_sig = null;
-    // The age of it (Mel::$settings['cat_age'] then; null - all ages), apart: a change of the age begins the listings of
-    // a search anew, one of the file alone does not (mel_catv_filter_seen).
-    /** @var int|null */
-    public static $filter_age = null;
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -332,8 +328,8 @@ function mel_catv_list($st, $tiles, $stale)
     return $list;
 }
 
-// Listing $list has no tile and is not at its end ("Скрыть" took its last one, a change of the age began it anew
-// empty - mel_catv_filter_seen): its next pages are for its screen to ask.
+// Listing $list has no tile and is not at its end ("Скрыть" took its last one): its next pages are for its screen to
+// ask.
 /**
  * @param MelCatList $list
  * @return bool
@@ -810,10 +806,8 @@ function mel_catv_title_item($rid, $t)
  */
 function mel_catv_rate_text($rating)
 {
-    // "0.04" is "0.0": none, as of kpRating; over 10 ("99.99" is "100.0", wider than the plate) none too.
-    $s = sprintf('%.1F', (float) $rating);
-    if ((float) $s <= 0 || (float) $s > 10)
-        return '';
+    // What a rating is: mel_cat_rate, also of an old record of "Мой список", not of a tile (mel_cat_tile).
+    $s = mel_cat_rate($rating);
     return $s === '10.0' ? '10' : $s;
 }
 
@@ -1645,8 +1639,7 @@ function mel_catv_tab_empty($tab, $lang, $retry)
     return mel_catv_row_defs($list, $lang, array($item));
 }
 
-// The results of search $id: its rows of memory. One begun anew by a new age (mel_catv_filter_seen: no tile, not at
-// its end) is filled first, as the search fills its rows (MEL_CAT_SEARCH_TILES), all in MEL_CATV_OPEN_MAX_S; none came
+// The results of search $id: its rows of memory. One of no tile, not at its end (mel_catv_list_cut) is filled first, as the search fills its rows (MEL_CAT_SEARCH_TILES), all in MEL_CATV_OPEN_MAX_S; none came
 // - one tile "empty" or "did not load" (ENTER: the screen anew, asked again).
 /**
  * @param string $id
@@ -1784,9 +1777,9 @@ function mel_catv_fact_parts($t, $lang)
     $rates = array();
     if ($t['kpRating'] !== '')
         $rates[] = array('kp', mel_tr($lang, 'cat_rate_kp'), $t['kpRating']);
-    $rating = (float) $t['imdbRating'];
-    if ($rating > 0)
-        $rates[] = array('imdb', mel_tr($lang, 'cat_rate_imdb'), sprintf('%.1F', $rating));
+    $rating = mel_cat_rate($t['imdbRating']);
+    if ($rating !== '')
+        $rates[] = array('imdb', mel_tr($lang, 'cat_rate_imdb'), $rating);
     $rest = array_filter(array($t['type'] === 'series' ? mel_tr($lang, 'cat_kind_series') : '', $t['year'],
         mel_catv_runtime($t['runtime'], $lang)), 'strlen');
     return array('rates' => $rates, 'rest' => array_values($rest), 'age' => $t['age']);
@@ -2957,15 +2950,13 @@ function mel_catv_hide_act($in)
 }
 
 // At the start of an operation (settings.json read, mel_settings_load): the filter of the listings (mel_ht_filter_sig:
-// the age of the settings, the file of the hidden titles) another than at the last one - the settings page changed the
-// age or took a title back: the listings in memory begin anew (a title back or of the age now shows), as after a start
-// of php_server, the rows remembered empty too (the filter may have emptied them); the tab "TV" flagged (not by its own
-// operations: tv_update reads the files anyway, tv_timer compares its state). The listings of a search (a search shows
-// the hidden): kept as they are when the file alone changed; the age changed - each begun anew in its place, its
-// search and its id kept, filled by the screen of its results (mel_catv_results_view) or its "Show all"
-// (mel_catv_range): not "outdated". The tiles of the listings begun anew go to MelCat::$on_screen: a screen built
-// before (results, "Show all" of r24, the main one under it) still finds them for ENTER. The first operation after a
-// start only remembers it.
+// the age and the IMDb ratings of the settings, the file of the hidden titles) another than at the last one - the
+// settings page changed the age or a rating or took a title back: the listings in memory begin anew (a title back or
+// of the age now shows), as after a start of php_server, the rows remembered empty too (the filter may have emptied
+// them); the tab "TV" flagged (not by its own operations: tv_update reads the files anyway, tv_timer compares its
+// state). The listings of a search stay as they are: a search is not filtered (mel_cat_take). The tiles of the
+// listings begun anew go to MelCat::$on_screen: a screen built before ("Show all" of r24, the main one under it) still
+// finds them for ENTER. The first operation after a start only remembers it.
 /**
  * @param stdClass $in
  * @return void
@@ -2974,24 +2965,18 @@ function mel_catv_filter_seen($in)
 {
     $sig = mel_ht_filter_sig();
     $was = MelCat::$filter_sig;
-    $age = Mel::$settings['cat_age'] !== MelCat::$filter_age;
     MelCat::$filter_sig = $sig;
-    MelCat::$filter_age = Mel::$settings['cat_age'];
     if ($was === null || $sig === $was)
         return;
     foreach (MelCat::$lists as $rid => $list)
     {
-        $search = isset($list['st']['row']['q']);
-        if ($search && !$age)
+        if (isset($list['st']['row']['q']))
             continue;
         MelCat::$on_screen[$rid] = (isset(MelCat::$on_screen[$rid]) ? MelCat::$on_screen[$rid] : array()) + $list['tiles'];
-        if ($search)
-            MelCat::$lists[$rid] = mel_catv_list(mel_cat_row_state($list['st']['row']), array(), false);
-        else
-            unset(MelCat::$lists[$rid]);
+        unset(MelCat::$lists[$rid]);
     }
     MelCat::$empty = array();
-    mel_log('catalog: the filter changed (' . ($age ? 'the age' : 'the hidden titles') . '): the listings anew');
+    mel_log('catalog: the filter changed: the listings anew');
     $c = isset($in->control_id) ? $in->control_id : '';
     if ($c !== 'tv_update' && $c !== 'tv_timer')
         mel_tv_flag('the filter changed');

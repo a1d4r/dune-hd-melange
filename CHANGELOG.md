@@ -9,6 +9,8 @@
 - **Balancers "for the Lampa app only".** Lampac-compatible servers mark some balancers as working only in the Lampa app. Melange used to hide them without asking. Now it asks them as well and hides only the ones that fail, which still show up in "Balancer errors". A title may get more balancers than before.
 - **Quality from the balancer name.** If a server writes the quality in the balancer name in brackets ("vkmovie 「4K」"), Melange shows it as a quality badge and removes the brackets from the name.
 - **Kinopoisk ID from the catalog.** If you open a movie from the Dune card and the Lampac server gives no Kinopoisk ID, Melange takes it from its catalog, so balancers that search by Kinopoisk find the movie.
+- **IMDb rating limit.** On the settings page, the "Catalog filter" screen has two drop-down lists under "Age rating": "IMDb rating: movies" and "IMDb rating: series". Choose Any or a minimum from 5+ to 8+ in steps of 0.5. Movies or series rated lower disappear from the catalog rows, "Show all", the TV tab and the rows of the Melange card. Search still shows them. Titles with no IMDb rating stay visible. Continue Watching and Favorites are not filtered.
+- **"Catalog filter".** The "Hide from the catalog" screen of the settings page is now called "Catalog filter", and "Age rating" on it is a drop-down list too. Search no longer applies the age rating limit and shows everything it finds.
 - Fixed: in a browser on the Dune itself (such as Yandex Browser), "Save to a file" and "Download the log" on the settings page failed to download. Now they download there too.
 
 ## 0.69.1 — 25.11.2026
@@ -352,6 +354,8 @@ First public release. What it does:
 - **Балансеры «только для Lampa».** Серверы, совместимые с Lampac, помечают часть балансеров как работающие только в приложении Lampa. Раньше Melange прятал их не спрашивая. Теперь он спрашивает и их, а прячет только отказавшие, они по-прежнему в «Ошибках балансеров». Балансеров у фильма может стать больше.
 - **Качество из имени балансера.** Если сервер пишет качество в имени балансера в скобках («vkmovie 「4K」»), Melange показывает его бейджем качества, а из имени скобки убирает.
 - **id Кинопоиска из каталога.** Если фильм открыт из карточки Дюны, а сервер Lampac не дал id Кинопоиска, Melange берёт его из своего каталога, и балансеры, которые ищут по Кинопоиску, находят фильм.
+- **Ограничение по рейтингу IMDb.** На странице настроек на экране «Фильтр каталога» под «Возрастом» появились два выпадающих списка: «Рейтинг IMDb: фильмы» и «Рейтинг IMDb: сериалы». Можно выбрать «Любой» или порог от 5 до 8 с шагом 0.5. Фильмы или сериалы с рейтингом ниже пропадают из рядов каталога, «Показать все», вкладки «ТВ» и рядов карточки Melange. В поиске они остаются. Тайтл без рейтинга IMDb виден. «Продолжить» и «Избранное» не фильтруются.
+- **«Фильтр каталога».** Экран «Что не показывать» на странице настроек теперь называется «Фильтр каталога», а «Возраст» на нём тоже стал выпадающим списком. Поиск больше не учитывает ограничение по возрасту и показывает всё, что нашёл.
 - Исправлено: в браузере на самой Дюне (например, в Яндекс Браузере) «Сохранить в файл» и «Скачать лог» на странице настроек выдавали ошибку загрузки. Теперь файлы скачиваются и там.
 
 ## 0.69.1 — 25.11.2026
