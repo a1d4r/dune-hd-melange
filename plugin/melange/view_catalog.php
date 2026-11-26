@@ -16,6 +16,10 @@ define('MEL_CATV_OPEN_S', 3.0);
 define('MEL_CATV_OPEN_ROW_S', 0.5);
 // r25: one row of get_folder_rows, a key of the user waits for it; the stubs of a row.
 define('MEL_CATV_ROW_S', 5.0);
+// r25: the first row of a main screen built of a copy older than MEL_CAT_FRESH (MelCat::$first_due): its fresh first page
+// at a tick of the timer, one request of this many s (whole s of curl), MEL_CATV_FIRST_TRIES of them an opening at most.
+define('MEL_CATV_FIRST_TICK_S', 1.0);
+define('MEL_CATV_FIRST_TRIES', 2);
 define('MEL_CATV_STUBS', 9);
 // r25: after a failure of the server this many s no row asks it (mel_catv_is_down).
 define('MEL_CATV_DOWN_S', 30);
@@ -259,6 +263,13 @@ class MelCat
     // a search anew, one of the file alone does not (mel_catv_filter_seen).
     /** @var int|null */
     public static $filter_age = null;
+    // r25: the first row of the main screen built at its opening of a copy older than MEL_CAT_FRESH, its fresh first page
+    // for a tick to ask (mel_pg_first_step; null: none), and the requests of it so far. Both anew at an opening
+    // (mel_pg_screen_start).
+    /** @var MelCatRow|null */
+    public static $first_due = null;
+    /** @var int */
+    public static $first_tries = 0;
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -1550,7 +1561,23 @@ function mel_catv_main_view($media_url, $sel_state)
         $rid = mel_catv_rid($row);
         // A flagged first row replaced under the focus on the headers covers the rows under it (device, 0.50.0). Under a
         // row of Melange with tiles the first row of the server is flagged as the others (the focus is not on it; O3).
-        if ($loading && count($defs) === 0)
+        // Of a copy older than MEL_CAT_FRESH (mel_catv_open put it in memory): at once, unmarked, no request; its fresh
+        // first page at a tick of the timer (MelCat::$first_due, mel_pg_first_step). Built again by its own tick: as it
+        // is, the tries of the opening go on.
+        if ($loading && count($defs) === 0 && isset(MelCat::$lists[$rid]) && MelCat::$lists[$rid]['tiles'] &&
+            !mel_cat_state_fresh(MelCat::$lists[$rid]['st']))
+        {
+            $list = MelCat::$lists[$rid];
+            $list['stale'] = false;
+            $defs = array_merge($defs, mel_catv_row_defs($list, $lang));
+            if (!$anew)
+            {
+                MelCat::$first_due = $row;
+                mel_log(sprintf('catalog: first row: %s: a copy of %d min, the tick asks it', $row['key'],
+                    max(0, intval((time() - $list['st']['t0']) / 60))));
+            }
+        }
+        else if ($loading && count($defs) === 0)
         {
             $limit = max(MEL_CATV_MIN_S, min(MEL_CATV_ROW_S, MEL_CATV_OPEN_MAX_S - (microtime(true) - $start)));
             $defs = array_merge($defs, mel_catv_row_now($row, $lang, $limit, false));
