@@ -174,9 +174,14 @@ class MelLpv
     public static $run = null;
     // The TMDB and KinoPoisk ids and the original language of the cards of play_action (movie_str: tmdb_id or
     // tmdbtv_id, kp_id, original_language) by dune id or IMDb: their search needs no /externalids; the title of Lampac
-    // of their search (fix_title, mel_lp_search_start), when it gave one. Memory only.
+    // of their search (fix_title, mel_lp_search_start), when it gave one; the KinoPoisk id of the catalog server when
+    // Lampac gave none (mel_lpv_kp_catalog). Memory only.
     /** @var array<string, MelLpvIds> */
     public static $ids = array();
+    // The titles ("movie:tt…", "series:tmdb:…") whose KinoPoisk id the catalog server did not give (mel_lpv_kp_catalog):
+    // not asked again. Memory only.
+    /** @var array<string, bool> */
+    public static $kp_miss = array();
     // The season of the last start of an episode (online_play.php): the dune id of its card (a key of
     // a voice is the same for two series), its key (mel_lp_season_key), s, the row of the voice, the
     // season in it (MelLpSeason), the id of the profile of Lampac ('' none: one of another server does not fit) - the
@@ -1445,14 +1450,11 @@ function mel_lpv_errors_of($st)
     $v = $st['lp'];
     $lang = mel_gc_lang($st);
     $lines = array();
-    $rch = $v['hidden']['rch'];
+    $rch = mel_lpv_rch_n($v);
     foreach ($v['why'] as $w)
     {
         if ($w['why'] === 'rch')
-        {
-            $rch++;
             continue;
-        }
         $lines[] = ($w['src'] !== '' ? $w['src'] : $w['path']) . ': ' . mel_lpv_why($lang, $w['why'], $w['detail']);
     }
     $lines = array_values(array_unique($lines));
@@ -1701,7 +1703,7 @@ function mel_lpv_input($in, $control)
     if ($control === 'lp_cancel')
     {
         if (MelLpv::$run && isset($in->sid) && $in->sid === MelLpv::$run['sid'])
-            MelLpv::$run = null;
+            mel_lpv_run_end();
         mel_log('lampac: the search cancelled');
         return mel_close_and(mel_lpv_redraw($in));
     }

@@ -38,10 +38,10 @@ parameters:
         # The ids of a card kept for the search of Lampac (MelLpv::$ids, mel_lpv_ids_put, online_play.php): keys of mel_lp_title;
         # title (of Lampac, fix_title) and title_of (the title of the card it replaced) only when Lampac gave one.
         MelLpvIds: 'array{tmdb: string, kp: string, original_language: string, title?: string, title_of?: string}'
-        # A source of a search of Lampac (mel_lp_source, lampac.php).
-        MelLpSource: 'array{name: string, label: string, q: string, url: string, path: string, index: int, pos: int}'
+        # A source of a search of Lampac (mel_lp_source, lampac.php); rch: rch true of its item of events (none: false).
+        MelLpSource: 'array{name: string, label: string, q: string, url: string, path: string, index: int, pos: int, rch?: bool}'
         # A search of Lampac between the ticks (mel_lp_search_start, lampac.php).
-        MelLpSearch: 'array{base: string, q: string, mode: string, memkey: string, seen: int, t0: float, sources: list<MelLpSource>, gone: array<string, string>, hidden: array{show: int, rch: int, bad: int}, tasks: int, pending: int, shown: int, fails: int, done: bool, capped: bool, err: string, detail: string, title: string}'
+        MelLpSearch: 'array{base: string, q: string, mode: string, memkey: string, seen: int, t0: float, sources: list<MelLpSource>, gone: array<string, string>, hidden: array{show: int, bad: int}, tasks: int, pending: int, shown: int, fails: int, done: bool, capped: bool, err: string, detail: string, title: string}'
         # A reason of a source of Lampac (mel_lp_why, lampac.php); at: the index of its source (mel_lp_replies).
         MelLpWhy: 'array{src: string, path: string, why: string, detail: string, at?: int}'
         # A row of a reply of a balancer (mel_lp_movie, mel_lp_season_rows, lampac.php); method play|call|season (its episode: mel_lp_ep_row).
@@ -70,7 +70,7 @@ parameters:
         # the filter by voices: their keys => names, in the order of mel_lpv_voices (none: all); flt_gone - the yellow line is of a filter gone (mel_lpv_flt_keep);
         # off - the paths of the sources of the search turned off in "Источники…" (mel_lpv_srcs_pick), not asked; open - the paths of the
         # balancers unfolded (mel_lpv_lines; none: all folded).
-        MelLpView: 'array{title: MelLpTitle, q: string, sources: list<MelLpSource>, hidden: array{show: int, rch: int, bad: int}, rows: list<MelLpRow>, why: list<MelLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: MelProgress, flt?: non-empty-array<string, string>, flt_gone?: bool, off?: list<string>, open?: array<string, bool>}'
+        MelLpView: 'array{title: MelLpTitle, q: string, sources: list<MelLpSource>, hidden: array{show: int, bad: int}, rows: list<MelLpRow>, why: list<MelLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: MelProgress, flt?: non-empty-array<string, string>, flt_gone?: bool, off?: list<string>, open?: array<string, bool>}'
         # A line of the online list on screen (mel_lpv_lines, view_online.php): k its kind, i its row, n the rows of a
         # balancer, q its quality.
         MelLpLine: "array{k: 'head'|'shut'|'row'|'one'|'more', i: int, n: int, q: string}"

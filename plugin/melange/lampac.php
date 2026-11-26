@@ -481,6 +481,8 @@ function mel_lp_externalids($base, $p)
     $j = $r['err'] === '' && $r['code'] === 200 ? mel_lp_json($r['body']) : null;
     if ($j === null)
     {
+        // Its values "HTTP n", "not JSON" and MEL_LP_TOO_BIG are read by mel_lpv_kp_ask (online_play.php): a reply of
+        // the server, the catalog server asked; another error of curl - not.
         $why = $r['err'] !== '' ? $r['err'] : ($r['code'] !== 200 ? "HTTP {$r['code']}" : 'not JSON');
         mel_lp_log(sprintf('externalids: %s, %.2f s', $why, mel_lp_now() - $t), $base);
         return array($p, $why);
@@ -574,10 +576,13 @@ function mel_lp_on_lampac($url, $src, $base)
 }
 
 // Item $o of the list of events -> its source, or the reason it is hidden:
-// 'show' (show false: the balancer found nothing), 'rch' (rch true: only the
-// Lampa app plays it), 'bad' (no link). No show or rch at all: the source is
-// tried. The name of the list ("Phantom ~ 2160p" in the life mode): label is
-// it without the quality, q the quality.
+// 'show' (show false: the balancer found nothing), 'bad' (no link). rch true is
+// asked all the same: some Lampac-compatible servers mark so balancers that
+// answer as any; a refusal of RCH comes at once as {"rch":true,"nws":...}, and
+// mel_lp_reply takes that for the reason rch; rch of the source is that rch
+// true. No show at all: the source is tried. The name of the list ("Phantom ~
+// 2160p" in the life mode, "vkmovie 「4K」" of some Lampac-compatible servers):
+// label is it without the quality, q the quality (of a badge 「…」: mel_lp_badge_q).
 /**
  * @param mixed $o
  * @param int $pos
@@ -589,8 +594,6 @@ function mel_lp_source($o, $pos)
         return 'bad';
     if (isset($o['show']) && $o['show'] === false)
         return 'show';
-    if (isset($o['rch']) && $o['rch'] === true)
-        return 'rch';
     $url = isset($o['url']) && is_string($o['url']) && strlen($o['url']) <= MEL_LP_LINK_MAX ? mel_lp_link1($o['url']) : '';
     if ($url === '')
         return 'bad';
@@ -599,11 +602,30 @@ function mel_lp_source($o, $pos)
     $q = '';
     if (preg_match('/^(.*\S)\s+[~\-]\s+([0-9]{3,4}p|[0-9]K)\z/u', $name, $m))
         list($label, $q) = array($m[1], $m[2]);
+    else if (preg_match('/^(.*\S)\s*\x{300C}([^\x{300D}]{1,20})\x{300D}\z/u', $name, $m))
+        list($label, $q) = array($m[1], mel_lp_badge_q($m[2]));
     else
         $label = $name;
     return array('name' => $name !== '' ? $name : $path, 'label' => $label !== '' ? $label : $path, 'q' => $q,
         'url' => $url, 'path' => $path, 'index' => isset($o['index']) && is_int($o['index']) ? $o['index'] : 0,
-        'pos' => $pos);
+        'pos' => $pos, 'rch' => isset($o['rch']) && $o['rch'] === true);
+}
+
+// A quality badge ("4K" of the source "vkmovie 「4K」" of events, the name "FHD" of an item of a film) -> as
+// a row shows it: "2160p", "4K" as they are; the badges 4K, 2K, FHD, HD, SD "4K", "1440p", "1080p", "720p", "SD";
+// '' for another one.
+/**
+ * @param string $q
+ * @return string
+ */
+function mel_lp_badge_q($q)
+{
+    $q = trim($q);
+    $by = array('4K' => '4K', '2K' => '1440p', 'FHD' => '1080p', 'HD' => '720p', 'SD' => 'SD');
+    $k = strtoupper($q);
+    if (isset($by[$k]))
+        return $by[$k];
+    return preg_match('/^(?:[0-9]{3,4}p|[0-9]K)\z/', $q) ? $q : '';
 }
 
 // The path of a balancer in the link of its source ("phantom" of
@@ -760,7 +782,7 @@ function mel_lp_events_why($r, $j)
 // one events without life next, Lampac has no life mode; done), memkey, seen
 // (items of /lifeevents had), t0 (its start, mel_lp_now), sources (by index;
 // MelLpSource: name, label, q, url, path (mel_lp_path of url), index, pos), gone (items hidden:
-// a key => show, rch or bad), hidden (their counts by reason), tasks and pending (of the last
+// a key => show or bad), hidden (their counts by reason), tasks and pending (of the last
 // /lifeevents), shown (its items of show not false when all its tasks came and no pending was sent, -1 not so), fails (/lifeevents of no answer in a row), done, capped (the
 // time of the search ran out), err and detail (a reason, '' none: the search
 // failed only if no source came), title (the title of Lampac in q, '' none). One search at a time: two events at once
@@ -774,7 +796,7 @@ function mel_lp_search_start($base, $p)
 {
     $st = array('base' => $base, 'q' => mel_lp_query($p), 'mode' => 'life', 'memkey' => '', 'seen' => 0,
         't0' => mel_lp_now(), 'sources' => array(), 'gone' => array(),
-        'hidden' => array('show' => 0, 'rch' => 0, 'bad' => 0),
+        'hidden' => array('show' => 0, 'bad' => 0),
         'tasks' => 0, 'pending' => 0, 'shown' => -1, 'fails' => 0, 'done' => false, 'capped' => false, 'err' => '',
         'detail' => '', 'title' => '');
     mel_lp_log("search: {$p['id']}/{$p['imdb_id']}/{$p['kinopoisk_id']}, serial {$p['serial']}", $base);
@@ -821,8 +843,7 @@ function mel_lp_search_add($st, $list)
 {
     list($st['sources'], $st['gone']) = mel_lp_sources($list, $st['sources'], $st['gone']);
     $n = array_count_values($st['gone']);
-    $st['hidden'] = array('show' => isset($n['show']) ? $n['show'] : 0, 'rch' => isset($n['rch']) ? $n['rch'] : 0,
-        'bad' => isset($n['bad']) ? $n['bad'] : 0);
+    $st['hidden'] = array('show' => isset($n['show']) ? $n['show'] : 0, 'bad' => isset($n['bad']) ? $n['bad'] : 0);
     return $st;
 }
 
@@ -836,8 +857,8 @@ function mel_lp_search_end($st)
     $st['done'] = true;
     $st['mode'] = 'done';
     $h = $st['hidden'];
-    mel_lp_log(sprintf('search: %d sources (hidden: show %d, rch %d, bad %d)%s%s, %.2f s', count($st['sources']),
-        $h['show'], $h['rch'], $h['bad'], $st['capped'] ? ', out of time' : '',
+    mel_lp_log(sprintf('search: %d sources (hidden: show %d, bad %d)%s%s, %.2f s', count($st['sources']),
+        $h['show'], $h['bad'], $st['capped'] ? ', out of time' : '',
         $st['err'] !== '' ? ", {$st['err']}" . mel_lp_log_detail($st['err'], $st['detail'], ' (%s)') : '',
         mel_lp_now() - $st['t0']), $st['base']);
     return $st;
@@ -1120,9 +1141,9 @@ function mel_lp_movie($src, $data, $base = '')
             $voice = mel_lp_text(mel_lp_str($x, 'translate'));
             if ($voice === '')
                 $voice = mel_lp_text(mel_lp_str($x, 'voice_name'));
-            // A name of a quality ("1080p", "4K HDR") is none.
+            // A name of a quality ("1080p", "4K HDR", a badge "FHD") is none.
             $name = mel_lp_text(mel_lp_str($x, 'name'));
-            if ($voice === '' && mel_lp_q_num($name) === 0)
+            if ($voice === '' && mel_lp_q_num($name) === 0 && mel_lp_badge_q($name) === '')
                 $voice = $name;
             if (isset($had[$voice . "\n" . $it['url']]))
                 continue;

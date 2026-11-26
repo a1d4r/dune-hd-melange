@@ -32,7 +32,7 @@ function mel_lpv_search_open($st, $how, $opt = array())
     $sid = mel_rid();
     $more = !empty($opt['more']) && isset($st['lp']);
     $v = array('title' => mel_lpv_title($st['movie']), 'q' => '', 'sources' => array(),
-        'hidden' => array('show' => 0, 'rch' => 0, 'bad' => 0), 'rows' => array(), 'why' => array(), 'next' => 0,
+        'hidden' => array('show' => 0, 'bad' => 0), 'rows' => array(), 'why' => array(), 'next' => 0,
         'left' => 0, 't' => mel_lp_now(), 'note' => '');
     if ($more)
     {
@@ -52,6 +52,8 @@ function mel_lpv_search_open($st, $how, $opt = array())
         'path' => isset($opt['path']) ? $opt['path'] : '', 'key' => isset($opt['key']) ? $opt['key'] : '',
         'fail' => isset($opt['fail']) ? $opt['fail'] : '', 'phase' => $more ? 'replies' : 'ids', 'search' => null, 'v' => $v,
         'poll' => mel_lp_poll_start(count($v['rows'])), 'more' => $more ? count($v['rows']) : -1);
+    // A window of before closed by RETURN of the shell (no lp_cancel): its end.
+    mel_lpv_run_end();
     MelLpv::$run = $run;
     MelLpv::$redraw = !empty($opt['redraw']) ? array('sid' => $sid, 'st' => $st) : null;
     mel_log("lampac: window $sid, " . mel_ep_tag($st) . ", $how, phase {$run['phase']}" .
@@ -110,9 +112,19 @@ function mel_lpv_search_defs($run)
 {
     $lang = $run['st']['lang'];
     $v = $run['v'];
-    $n = count($v['sources']);
+    // Not counted, as when rch true hid them: those of a refusal of RCH, and those of rch true of events (mel_lp_source)
+    // not asked yet (from next on) - asked and not refused, they are. A Lampac where they all refuse: N as before; a
+    // server marking so balancers that answer as any: N grows as they answer, never down.
+    $rch = mel_lpv_rch_n($v);
+    $wait = 0;
+    foreach ($v['sources'] as $i => $x)
+    {
+        if ($i >= $v['next'] && !empty($x['rch']))
+            $wait++;
+    }
+    $n = max(0, count($v['sources']) - $rch - $wait);
     $l1 = mel_lpv_tr($lang, 'lp_search_found', array('n' => $n));
-    $l2 = $run['phase'] === 'replies' ? mel_lpv_tr($lang, 'lp_search_asking', array('k' => $v['next'], 'n' => $n,
+    $l2 = $run['phase'] === 'replies' ? mel_lpv_tr($lang, 'lp_search_asking', array('k' => max(0, $v['next'] - $rch), 'n' => $n,
         'r' => count($v['rows']))) : mel_tr($lang, 'lp_search_wait');
     return array(
         mel_ctl('', GUI_CONTROL_LABEL, array(GuiLabelDef::caption => $l1)),
@@ -156,7 +168,13 @@ function mel_lpv_tick($in)
     }
     if ($run['phase'] === 'ids')
     {
-        list($run['v']['title']) = mel_lp_externalids($base, $run['v']['title']);
+        list($run['v']['title'], $why) = mel_lp_externalids($base, $run['v']['title']);
+        // No KinoPoisk id of Lampac: that of the catalog server, in a tick of its own (a tick is a request).
+        $run['phase'] = mel_lpv_kp_ask($run['v']['title'], $why) ? 'kp' : 'start';
+    }
+    else if ($run['phase'] === 'kp')
+    {
+        $run['v']['title'] = mel_lpv_kp_catalog($run['st']['movie'], $run['v']['title']);
         $run['phase'] = 'start';
     }
     else if ($run['phase'] === 'start')
@@ -183,10 +201,11 @@ function mel_lpv_tick($in)
     $s = $run['search'];
     if ($run['phase'] === 'search' && $s)
     {
-        // Those turned off in "Источники…" not asked, nor counted; the others in its order. Done: the new ones there.
-        if ($s['done'])
-            mel_lpv_srcs_seen($s['sources']);
-        list($run['v']['sources'], $run['v']['off']) = mel_lpv_srcs_pick($s['sources'], Mel::$settings['lp_src']);
+        // Those turned off in "Источники…" not asked, nor counted; the others in its order, the new ones last (put there
+        // at the end of the run, mel_lpv_run_seen).
+        $ch = Mel::$settings['lp_src'];
+        list($run['v']['sources'], $run['v']['off']) = mel_lpv_srcs_pick($s['sources'],
+            array_merge($ch, mel_lpv_srcs_new($ch, $s['sources'])));
         $run['v']['hidden'] = $s['hidden'];
         if ($s['done'])
         {
@@ -208,7 +227,7 @@ function mel_lpv_tick($in)
     MelLpv::$run = $run;
     if ($run['phase'] === 'done')
     {
-        MelLpv::$run = null;
+        mel_lpv_run_end();
         return mel_close_and(mel_lpv_result($run));
     }
     return mel_lpv_redraw_keys(array(
@@ -222,6 +241,81 @@ function mel_lpv_tick($in)
                     ResetControlsActionData::defs => mel_lpv_search_defs($run),
                     ResetControlsActionData::initial_sel_ndx => -1,
                     ResetControlsActionData::post_action => null)))), $run['sid']);
+}
+
+// The number of the sources of a refusal of RCH (the reason rch: only the Lampa app plays them) of the online list $v,
+// each source once by its index (at): two sources of one path ("X ~ 2160p", "X ~ 1080p") two. The one count of them:
+// "Найдено N", "Опрошено" (mel_lpv_search_defs), "Скрыто N" (mel_lpv_errors_of).
+/**
+ * @param MelLpView $v
+ * @return int
+ */
+function mel_lpv_rch_n($v)
+{
+    $at = array();
+    $n = 0;
+    foreach ($v['why'] as $w)
+    {
+        if ($w['why'] !== 'rch')
+            continue;
+        if (!isset($w['at']))
+            $n++;
+        else
+            $at[$w['at']] = true;
+    }
+    return $n + count($at);
+}
+
+// The end of the search window MelLpv::$run: done (mel_lpv_tick), cancelled (lp_cancel) or left (a window closed by the
+// shell, then a new search: mel_lpv_search_open). In its replies or done: its sources into "Источники…" of its own profile
+// of Lampac (mel_lpv_run_seen; the pair of the operation may be another one - that of the main profile, of a new title),
+// that profile gone or not ready - none kept. MelLpv::$run none, the pair of the operation as it was.
+/**
+ * @return void
+ */
+function mel_lpv_run_end()
+{
+    $run = MelLpv::$run;
+    MelLpv::$run = null;
+    if (!$run || ($run['phase'] !== 'replies' && $run['phase'] !== 'done'))
+        return;
+    list($rel, $lp) = array(Mel::$settings['prof'], Mel::$settings['lp_prof']);
+    list(, $l) = mel_op_use($run['st']['prof'], $run['st']['lp_prof']);
+    if ($l !== '' && $l === $run['st']['lp_prof'])
+        mel_lpv_run_seen($run);
+    else
+        mel_log("lampac: window {$run['sid']}: its profile of Lampac gone, its sources not kept");
+    mel_op_use($rel, $lp);
+}
+
+// The sources of run $run (mel_lpv_run_end, of the pair of the run) into "Источники…" (mel_lpv_srcs_seen): those of its
+// search ("Ещё N": of its list) but, by path, those of a refusal of RCH (the reason rch) and those of rch true of events
+// not asked yet (from next on: cancelled before them, they may refuse so too) - not there, as when rch true hid them.
+/**
+ * @param MelLpRun $run
+ * @return void
+ */
+function mel_lpv_run_seen($run)
+{
+    $v = $run['v'];
+    $skip = array();
+    foreach ($v['why'] as $w)
+    {
+        if ($w['why'] === 'rch')
+            $skip[$w['path']] = true;
+    }
+    foreach ($v['sources'] as $i => $x)
+    {
+        if ($i >= $v['next'] && !empty($x['rch']))
+            $skip[$x['path']] = true;
+    }
+    $out = array();
+    foreach ($run['search'] ? $run['search']['sources'] : $v['sources'] as $x)
+    {
+        if (!isset($skip[$x['path']]))
+            $out[] = $x;
+    }
+    mel_lpv_srcs_seen($out);
 }
 
 // Lampac of run $run did not answer ($why, $detail: MelLpWhy): a title with releases (back) -
