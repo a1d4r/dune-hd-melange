@@ -12,7 +12,7 @@ You need: a torrent client with its web UI turned on.
 
    <img src="../screenshots/phone-saved.jpg" alt="A green line at the top of the page: Saved. The Dune picks up the settings automatically." width="300">
 
-3. On the Dune, in the release list, move to a release and press **POP UP** → "Download to server…".
+3. On the Dune, in the release list, move to a release and press **POP UP** → "Download to server".
 
    <img src="../screenshots/download-server-menu.jpg" alt="Release list for Dune: Part Two, the POP UP menu is open, focus on Download to server…" width="100%">
 
@@ -27,6 +27,6 @@ If you have several servers, choose in "For the cache of" which one to use for r
 ## If it did not work
 
 - "Check" shows a red line: see [Troubleshooting](troubleshooting.en.md).
-- The POP UP menu has no "Download to server…": not every release has it, only those where the source sent a torrent. With "No torrents" it is not there at all ([Advanced](advanced-options.en.md)).
+- The POP UP menu has no "Download to server": not every release has it, only those where the source sent a torrent. With "No torrents" it is not there at all ([Advanced](advanced-options.en.md)).
 
 Next: [Appearance](appearance.en.md) · [Contents](README.en.md)

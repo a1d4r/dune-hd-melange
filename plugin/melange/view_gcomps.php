@@ -1495,21 +1495,16 @@ function mel_gc_count_of($lv, $j)
     return mel_gc_count($p - 1, $n);
 }
 
-// The keys of list $st and the items of its hint line (MelKit::hint) with the cursor on line $sel of its lines
-// (mel_gc_lv), one for both: the cursor, ENTER, INFO, MENU "Действия" (mel_gc_menu, built for the row under the
-// cursor), the colour keys of the sort (mel_gc_sort); «P+ P−» "Прокрутка" with more lines than the screen; an episode:
-// left and right flip the episodes (mel_flip), "Серии"; INFO "Сведения" not on the line of the group, where it does
-// nothing. -> array(actions, hint items).
+// The keys of the screen of the list of rid $rid: the cursor, ENTER, INFO, MENU "Действия" (mel_gc_menu, built for the
+// row under the cursor), the colour keys of the sort (mel_gc_sort); $flip, an episode: left and right flip the episodes
+// (mel_flip). By the rid only: the screen of a list gone has them too (mel_gc_menu).
 /**
- * @param MelState $st
- * @param int $sel
- * @return array{array<string, MelAction>, list<array{string, string}>}
+ * @param string $rid
+ * @param bool $flip
+ * @return array<string, MelAction>
  */
-function mel_gc_screen($st, $sel)
+function mel_gc_keys($rid, $flip)
 {
-    $rid = $st['rid'];
-    $tt = mel_gc_text(mel_gc_lang($st));
-    $lv = mel_gc_lv($st);
     $acts = array(
         GUI_EVENT_KEY_UP => mel_gc_act('gc_move', $rid, array('d' => 'up')),
         GUI_EVENT_KEY_DOWN => mel_gc_act('gc_move', $rid, array('d' => 'down')),
@@ -1519,19 +1514,50 @@ function mel_gc_screen($st, $sel)
         GUI_EVENT_KEY_INFO => mel_gc_act('gc_info', $rid),
         GUI_EVENT_MENU_PLAYBACK_FINISH => mel_finish_act($rid),
         GUI_EVENT_KEY_POPUP_MENU => mel_gc_act('gc_menu', $rid));
-    $hint = $lv['l'] > MEL_GC_VIS ? array(array('pp', $tt['page'])) : array();
-    if ($st['e'] > 0)
+    if ($flip)
     {
         $acts[GUI_EVENT_KEY_LEFT] = mel_gc_act('gc_flip', $rid, array('d' => 'prev'));
         $acts[GUI_EVENT_KEY_RIGHT] = mel_gc_act('gc_flip', $rid, array('d' => 'next'));
-        $hint[] = array('lr', $tt['flip']);
     }
     foreach (mel_gc_sort_keys() as $k => $key)
         $acts[$key[0]] = mel_gc_act('gc_sort', $rid, array('k' => $k));
+    return $acts;
+}
+
+// The keys of list $st (mel_gc_keys) and the items of its hint line (MelKit::hint) with the cursor on line $sel of its
+// lines (mel_gc_lv), one for both: «P+ P−» "Прокрутка" with more lines than the screen; an episode: left and right,
+// "Серии"; MENU "Действия"; INFO "Сведения" not on the line of the group, where it does nothing.
+// -> array(actions, hint items).
+/**
+ * @param MelState $st
+ * @param int $sel
+ * @return array{array<string, MelAction>, list<array{string, string}>}
+ */
+function mel_gc_screen($st, $sel)
+{
+    $tt = mel_gc_text(mel_gc_lang($st));
+    $lv = mel_gc_lv($st);
+    $hint = $lv['l'] > MEL_GC_VIS ? array(array('pp', $tt['page'])) : array();
+    if ($st['e'] > 0)
+        $hint[] = array('lr', $tt['flip']);
     $hint[] = array('k_icon_menu', $tt['actions']);
     if (!mel_gc_on_group($lv, $sel))
         $hint[] = array('k_key_info', $tt['details']);
-    return array($acts, $hint);
+    return array(mel_gc_keys($st['rid'], $st['e'] > 0), $hint);
+}
+
+// The record of the screen of the list of rid $rid under an overlay (MelOvlScreen, kit_ovl.php), of its full view too
+// (mel_gc_folder_view): owner the rid, its action map $acts (mel_gc_screen) with the keys Fav 2, Fav 1 and search
+// mel_mlv_keys adds (the close puts the map back whole by change_behaviour; no RETURN), no timer, its sel_state $sel.
+/**
+ * @param string $rid
+ * @param array<string, MelAction> $acts
+ * @param string|null $sel
+ * @return MelOvlScreen
+ */
+function mel_gc_scr($rid, $acts, $sel)
+{
+    return array('owner' => $rid, 'map' => $acts + mel_mlv_key_acts("streams:$rid"), 'timer' => null, 'sel' => $sel);
 }
 
 // Panel 'hint' of the hint line of list $st (mel_gc_screen; from MEL_GC_LX on MEL_GC_HINT_MID) with the cursor on line
@@ -1707,6 +1733,8 @@ function mel_gc_window($st, $sel, $top)
     // Outside the tabs: a remote without the colour keys has them too.
     list($errs, $right) = mel_gc_tabs_errors($st, $tt, $right);
     $d = array_merge($d, $errs, mel_gc_tabs_from($st, $left, $right));
+    // The slot of the overlay, the last: "Действия" (mel_gc_menu) opens in it.
+    $d[] = mel_ovl_slot();
 
     return mel_gc_window_def($d, $mv['fanart']);
 }
@@ -1823,7 +1851,10 @@ function mel_gc_folder_view($st, $sel_state)
     $st['gc_prog'] = Mel::$state['gc_prog'] = mel_wh_progress($st);
     // The columns too, counted once a full view (mel_gc_cols_st).
     $st['gc_cols'] = Mel::$state['gc_cols'] = mel_gc_cols($st['rows'], mel_gc_text(mel_gc_lang($st)));
+    // A view anew under an open panel: its state is not that of this view (the close would put back the old map).
+    mel_ovl_drop($st['rid']);
     list($acts) = mel_gc_screen($st, $sel);
+    $scr = mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top));
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -1831,9 +1862,9 @@ function mel_gc_folder_view($st, $sel_state)
         PluginFolderView::view_kind => PLUGIN_FOLDER_VIEW_GCOMPS,
         PluginFolderView::data => array(
             PluginGCompsFolderView::window_def => mel_gc_window($st, $sel, $top),
-            PluginGCompsFolderView::sel_state => mel_gc_state($sel, $top),
-            PluginGCompsFolderView::actions => $acts,
-            PluginGCompsFolderView::timer => null));
+            PluginGCompsFolderView::sel_state => $scr['sel'],
+            PluginGCompsFolderView::actions => $scr['map'],
+            PluginGCompsFolderView::timer => $scr['timer']));
 }
 
 // A sort for the log: "size", "size reversed".
@@ -1877,52 +1908,15 @@ function mel_gc_sort($in)
     return mel_list_replace(mel_gc_put_cursor($ns, -1, $st));
 }
 
-// The sort and the details of a release in MENU of a list too (0.61.0): "Пульт без цветных кнопок" of the
-// settings, or a remote the firmware knows is without the colour keys (no sort tabs then).
+// The details of a release in MENU of a list too (0.61.0; of the online list its colour keys): "Пульт без цветных
+// кнопок" of the settings, or a remote the firmware knows is without the colour keys (no sort tabs then). The sort is
+// in MENU of the list of releases always.
 /**
  * @return bool
  */
 function mel_gc_keys_in_menu()
 {
     return Mel::$settings['no_color_keys'] || !mel_gc_color_keys();
-}
-
-// gc_sort_menu (MENU "Сортировка: <sort>", mel_gc_menu) of a live list -> the popup menu of the sorts in
-// the order of the colour keys, each gc_sort as its key (the sort of the list again: the other way round);
-// the sort of the list "<label> · сейчас" (reversed: "…, в обратном порядке") and selected.
-/**
- * @param stdClass $in
- * @return MelAction
- */
-function mel_gc_sort_menu($in)
-{
-    $st = Mel::$state;
-    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
-    {
-        mel_log('sort: menu of no live list');
-        return mel_error('err_list_expired');
-    }
-    $tt = mel_gc_text(mel_gc_lang($st));
-    $items = array();
-    $sel = 0;
-    foreach (mel_sort_keys() as $k)
-    {
-        $text = $tt[mel_gc_sort_word($st, $k)];
-        if ($k === $st['sort'])
-        {
-            $sel = count($items);
-            $text = str_replace('{name}', $text, mel_tr($st['lang'], $st['sort_rev'] ? 'sort_now_rev' : 'sort_now'));
-        }
-        $items[] = array(
-            GuiMenuItemDef::caption => $text,
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_sort', $st['rid'], array('k' => $k)));
-    }
-    return array(
-        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(
-            ShowPopupMenuActionData::menu_items => $items,
-            ShowPopupMenuActionData::selected_menu_item_index => $sel));
 }
 
 // The main Debrid of list $st for its MENU (0.56.0): array(now, the other one)
@@ -1952,11 +1946,11 @@ function mel_gc_main_pair($st)
     return null;
 }
 
-// gc_main (k: an id of mel_debrid_mains, MENU "Main Debrid -> <k>") of a live
+// gc_main (k: an id of mel_debrid_mains, a line of the menu "Main Debrid", mel_gc_main_menu) of a live
 // list: k the main Debrid at once (mel_debrid_main_write), the copies of k on
 // top, the screen replaced (a new rid), the cursor kept. Not written (the next
 // operation reads the file again: the old one would play), a bad id, a list
-// not live: nothing.
+// not live, k the main one of the list already (mel_gc_main_pair): nothing.
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -1968,6 +1962,13 @@ function mel_gc_main($in)
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || !array_key_exists($k, mel_debrid_mains()))
     {
         mel_log('debrid main: not a live list or a bad service, nothing');
+        return null;
+    }
+    // The main one of the list chosen in its menu again (mel_gc_main_menu).
+    $pair = mel_gc_main_pair($st);
+    if ($pair && $pair[0] === $k)
+    {
+        mel_log("debrid main: $k is the main one already, nothing");
         return null;
     }
     $was = Mel::$settings['debrid_main'] !== '' ? Mel::$settings['debrid_main'] : 'first in the reply';
@@ -1983,11 +1984,23 @@ function mel_gc_main($in)
     return mel_list_replace(mel_gc_put_cursor($ns, $cur, $st));
 }
 
-// --- The sources in MENU of a list (v2): the user saved them on the page (settings.json, profiles); a choice is of
-// this screen only. Here the item only; its menu and the choice: sources.php.
+// --- "Действия" of the list: the side panel of the kit (kit_panel.php) over it, opened by MENU.
 
-// The MENU item "Откуда брать…" of live list $st (gc_src_menu: the menu of all ready profiles, any kind; of a card of no
-// IMDb and no TMDB, mel_rel_id, those of Lampac), or null: fewer than two ready (mel_src_in_menu).
+// "Выбрать серию" of MENU of list $st (the releases and the online list): an episode, with a card of the Dune (without
+// one the choice would end in "illegal state" of the shell), not opened from the own card (the seasons of the last
+// native series would come; chosen there).
+/**
+ * @param MelState $st
+ * @return bool
+ */
+function mel_gc_can_choose($st)
+{
+    return $st['e'] > 0 && $st['movie']['dune_id'] !== '' && empty($st['movie']['own_card']);
+}
+
+// The MENU item "Источник" of the online list of $st (mel_lpv_menu, a popup menu of the shell; gc_src_menu: the menu of
+// all ready profiles, any kind; of a card of no IMDb and no TMDB, mel_rel_id, those of Lampac), or null: fewer than two
+// ready (mel_src_in_menu). The list of releases has it in its panel (mel_src_panel).
 /**
  * @param MelState $st
  * @return array<string, mixed>|null
@@ -2002,99 +2015,157 @@ function mel_gc_src_item($st)
         GuiMenuItemDef::action => mel_gc_act('gc_src_menu', $st['rid']));
 }
 
-// gc_menu (MENU) of a live list -> the popup menu of the row under the cursor:
-// with mel_gc_keys_in_menu "Release details" of the row (as INFO; none in an empty list) and "Sort: <sort>"
-// (mel_gc_sort_menu) first; "Refresh" (mel_refresh), an episode: "Choose episode" (mel_choose), copies of
-// Real-Debrid and TorBox in the list: "Main Debrid -> <the other one>" (mel_gc_main), the
-// sources: "Get films from…" (mel_gc_src_item), a row
-// with infoHash: "Download in app" (mel_download) and, with a server in the
-// settings, "Download to server" (mel_srv_menu; these three not with "no torrents"), source errors of the
-// reply if shown (mel_gc_errors), "Settings". On the line of the group of the tier no item of a release (details,
-// TorrServer, download); 'i' of those is the row of $st['rows'], not the line. A screen of a
-// lost list (replaced, php_server restarted): "Settings" only.
+// The submenu "Сортировка" of the panel of list $st: the sorts in the order of the colour keys, each gc_sort as its key
+// (the sort of the list again: the other way round, said under the lines); the sort of the list picked, with its
+// direction (down by default, up reversed, as its tab).
+/**
+ * @param MelState $st
+ * @param MelGcText $tt
+ * @return MelKpSubDesc
+ */
+function mel_gc_sort_menu($st, $tt)
+{
+    $items = array();
+    foreach (mel_sort_keys() as $k)
+    {
+        $it = array('id' => "sort_$k", 'label' => $tt[mel_gc_sort_word($st, $k)], 'picked' => $k === $st['sort'],
+            'act' => mel_gc_act('gc_sort', $st['rid'], array('k' => $k)));
+        if ($k === $st['sort'])
+            $it['way'] = $st['sort_rev'] ? 'k_icon_arrow-up' : 'k_icon_arrow-down';
+        $items[] = $it;
+    }
+    return array('title' => mel_tr($st['lang'], 'sort_menu'), 'groups' => array($items),
+        'note' => mel_tr($st['lang'], 'sort_note'));
+}
+
+// The submenu "Основной Debrid" of the panel of list $st with main Debrid $now (mel_gc_main_pair): the services of
+// mel_debrid_mains, each gc_main with its id, the main one picked (chosen again: nothing, mel_gc_main).
+/**
+ * @param MelState $st
+ * @param string $now
+ * @return MelKpSubDesc
+ */
+function mel_gc_main_menu($st, $now)
+{
+    $items = array();
+    foreach (array_keys(mel_debrid_mains()) as $k)
+        $items[] = array('id' => "main_$k", 'label' => mel_service_name($k), 'picked' => $k === $now,
+            'act' => mel_gc_act('gc_main', $st['rid'], array('k' => $k)));
+    return array('title' => mel_tr($st['lang'], 'main_title'), 'groups' => array($items));
+}
+
+// Value $value on the right of the item "$label" of the panel (an icon, a submenu), cut with "…" to what the label
+// leaves of the line: the kit cuts the label, not the value (a long name of a source would eat it).
+/**
+ * @param string $label
+ * @param string $value
+ * @return string
+ */
+function mel_gc_menu_value($label, $value)
+{
+    $room = MEL_K_PANEL_W - 2 * (MEL_K_PANEL_INSET + MEL_K_PANEL_INNER) - MEL_K_ICON_PANEL - MEL_K_ICON_GAP_PANEL -
+        MelKit::w($label, MEL_K_PX_ROW) - MEL_K_GAP_M - MEL_K_GAP_XS - MEL_K_ICON_PANEL_CHEVRON;
+    return MelKit::cut($value, MEL_K_PX_ROW, MEL_K_FACE_REGULAR, max(0, $room));
+}
+
+// The panel "Действия" of live list $st with the cursor on row $row of its rows (-1: the line of the group of the
+// tier, no item of a release), three groups:
+//   of the release under the cursor: with mel_gc_keys_in_menu "Сведения о раздаче" (as INFO); a row with infoHash, not
+//     with "no torrents": "Смотреть через TorrServer" (mel_ts_menu), "Открыть в приложении" (mel_download) and, with a
+//     server in the settings, "Скачать на сервер" (a submenu, mel_srv_panel); 'i' of those is the row;
+//   of the list: "Сортировка" (always; a submenu, mel_gc_sort_menu) and "Источник" (two ready profiles; a submenu,
+//     mel_src_panel) with their value on the right, "Обновить список" (mel_refresh), an episode: "Выбрать серию"
+//     (mel_choose), copies of Real-Debrid and TorBox in the list: "Сменить основной Debrid" (a submenu,
+//     mel_gc_main_menu), source errors of the reply if shown (mel_gc_errors);
+//   "Настройки Melange".
+/**
+ * @param MelState $st
+ * @param int $row
+ * @return MelKpDesc
+ */
+function mel_gc_actions($st, $row)
+{
+    $lang = $st['lang'];
+    $rid = $st['rid'];
+    $tt = mel_gc_text(mel_gc_lang($st));
+    $i = array('i' => strval($row));
+    $one = array();
+    if ($row >= 0 && mel_gc_keys_in_menu())
+        $one[] = array('id' => 'info', 'label' => mel_tr($lang, 'info_menu'), 'icon' => 'k_icon_info',
+            'act' => mel_gc_act('gc_info', $rid, $i));
+    if (isset($st['rows'][$row]) && $st['rows'][$row]['hash'] !== '' && !Mel::$settings['no_torrents'])
+    {
+        $one[] = array('id' => 'ts', 'label' => mel_tr($lang, 'ts_menu'), 'icon' => 'k_icon_monitor-play',
+            'act' => mel_gc_act('gc_ts', $rid, $i));
+        $one[] = array('id' => 'app', 'label' => mel_tr($lang, 'dl_menu'), 'icon' => 'k_icon_external-link',
+            'act' => mel_gc_act('gc_dl', $rid, $i));
+        $srv = mel_srv_panel($st, $row);
+        if ($srv)
+            $one[] = array('id' => 'srv', 'label' => mel_tr($lang, 'srv_menu'), 'icon' => 'k_icon_hard-drive',
+                'menu' => $srv);
+    }
+    $list = array(array('id' => 'sort', 'label' => mel_tr($lang, 'sort_menu'), 'icon' => 'k_icon_arrow-up-down',
+        'value' => $tt[mel_gc_sort_word($st, $st['sort'])], 'menu' => mel_gc_sort_menu($st, $tt)));
+    $src = mel_src_panel($st);
+    if ($src)
+        $list[] = array('id' => 'src', 'label' => mel_tr($lang, 'src_list'), 'icon' => 'k_icon_layers',
+            'value' => mel_gc_menu_value(mel_tr($lang, 'src_list'), mel_src_name(mel_src_now($st))), 'menu' => $src);
+    $list[] = array('id' => 'refresh', 'label' => mel_tr($lang, 'refresh_list'), 'icon' => 'k_icon_refresh-cw',
+        'act' => mel_gc_act('gc_refresh', $rid));
+    if (mel_gc_can_choose($st))
+        $list[] = array('id' => 'choose', 'label' => mel_tr($lang, 'choose_menu'), 'icon' => 'k_icon_list-video',
+            'act' => mel_gc_act('gc_choose', $rid));
+    $main = mel_gc_main_pair($st);
+    if ($main)
+        $list[] = array('id' => 'main', 'label' => mel_tr($lang, 'main_change_menu'), 'icon' => 'k_icon_zap',
+            'menu' => mel_gc_main_menu($st, $main[0]));
+    if (mel_errors_shown($st['errors']))
+        $list[] = array('id' => 'errors', 'label' => mel_tr($lang, 'errors_menu'), 'icon' => 'k_icon_triangle-alert',
+            'act' => mel_gc_act('gc_errors', $rid));
+    $groups = $one ? array($one, $list) : array($list);
+    $groups[] = array(mel_gc_setup_item($lang));
+    return array('title' => $tt['actions'], 'groups' => $groups);
+}
+
+// The item "Настройки Melange" of the panel in language $lang: the settings screen.
+/**
+ * @param string $lang
+ * @return MelKpItem
+ */
+function mel_gc_setup_item($lang)
+{
+    return array('id' => 'setup', 'label' => mel_tr($lang, 'setup_melange'), 'icon' => 'k_icon_settings',
+        'act' => mel_setup_open_act());
+}
+
+// gc_menu (MENU) of a list -> the panel "Действия" over its screen (mel_kp_open; mel_gc_actions), built for the row
+// under the cursor, the cursor kept as the last one of the list (the actions of the items come with no sel_state of
+// the shell). A screen of a lost list (replaced, php_server restarted): "Настройки Melange" only, in the language of
+// the live list, else of the shell; the record of that screen by its rid - its keys without those of an episode (they
+// do nothing there). No rid: nothing.
 /**
  * @param stdClass $in
- * @return MelAction
+ * @return MelAction|null
  */
 function mel_gc_menu($in)
 {
     $st = Mel::$state;
-    $setup = array(
-        GuiMenuItemDef::caption => $st ? mel_tr($st['lang'], 'setup_menu') : '%tr%setup_menu',
-        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/setup.aai',
-        GuiMenuItemDef::action => mel_setup_open_act());
+    $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;
     if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
     {
         mel_log('menu: list outdated, settings only');
-        return array(
-            GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-            GuiAction::data => array(ShowPopupMenuActionData::menu_items => array($setup)));
+        $lang = $st ? $st['lang'] : mel_catv_lang();
+        $rid = isset($in->rid) && is_string($in->rid) ? $in->rid : '';
+        $tt = mel_gc_text($lang === 'ru' ? 'ru' : 'en');
+        return mel_kp_open(mel_gc_scr($rid, mel_gc_keys($rid, false), is_string($raw) ? $raw : null),
+            array('title' => $tt['actions'], 'groups' => array(array(mel_gc_setup_item($lang)))));
     }
-    list($sel, $top) = mel_gc_pos($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    list($sel, $top) = mel_gc_pos($st, $raw);
     Mel::$state['gc'] = array($sel, $top);
+    list($acts) = mel_gc_screen($st, $sel);
     // The items of a release take its row; on the line of the group (-1) none of them.
-    $row = mel_gc_row_of(mel_gc_lv($st), $sel);
-    $rid = $st['rid'];
-    $menu = array();
-    if (mel_gc_keys_in_menu())
-    {
-        if ($row >= 0)
-            $menu[] = array(
-                GuiMenuItemDef::caption => mel_tr($st['lang'], 'info_menu'),
-                GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
-                GuiMenuItemDef::action => mel_gc_act('gc_info', $rid, array('i' => strval($row))));
-        $tt = mel_gc_text(mel_gc_lang($st));
-        $menu[] = array(
-            GuiMenuItemDef::caption => str_replace('{name}', $tt[mel_gc_sort_word($st, $st['sort'])],
-                mel_tr($st['lang'], 'sort_menu')),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_sort_menu', $rid));
-    }
-    $menu[] = array(
-        GuiMenuItemDef::caption => mel_tr($st['lang'], 'refresh_menu'),
-        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/upgrade.aai',
-        GuiMenuItemDef::action => mel_gc_act('gc_refresh', $rid));
-    // Without a card: the choice would end in "illegal state" of the shell.
-    // From the own card (own_card): the seasons of the last native series would come; chosen there.
-    if ($st['e'] > 0 && $st['movie']['dune_id'] !== '' && empty($st['movie']['own_card']))
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_tr($st['lang'], 'choose_menu'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_choose', $rid));
-    $main = mel_gc_main_pair($st);
-    if ($main)
-        $menu[] = array(
-            GuiMenuItemDef::caption => str_replace('{svc}', mel_service_name($main[1]), mel_tr($st['lang'], 'main_menu')),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sync.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_main', $rid, array('k' => $main[1])));
-    $src = mel_gc_src_item($st);
-    if ($src)
-        $menu[] = $src;
-    $tor = isset($st['rows'][$row]) && $st['rows'][$row]['hash'] !== '' && !Mel::$settings['no_torrents'];
-    if ($tor)
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_tr($st['lang'], 'ts_menu'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/torrents.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_ts', $rid, array('i' => strval($row))));
-    if ($tor)
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_tr($st['lang'], 'dl_menu'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/torrent_file.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_dl', $rid, array('i' => strval($row))));
-    if ($tor && Mel::$settings['servers'])
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_tr($st['lang'], 'srv_menu'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/network_folder.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_srv', $rid, array('i' => strval($row))));
-    if (mel_errors_shown($st['errors']))
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_tr($st['lang'], 'errors_menu'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_errors', $rid));
-    $menu[] = $setup;
-    return array(
-        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => $menu));
+    return mel_kp_open(mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top)),
+        mel_gc_actions($st, mel_gc_row_of(mel_gc_lv($st), $sel)));
 }
 
 // gc_errors (MENU "Source errors") of a live list -> the window of its reasons.

@@ -134,6 +134,19 @@ function mel_ovl_close($post = null, $keep = array())
         GCOMP_TRANSITION_NONE, array())), $scr['sel'], $post));
 }
 
+// The screen of owner $owner put anew (get_folder_view, a tick that replaces it): the overlay it opened is not that of
+// the new one - its state gone (the close would put back the map of the old view; a key of it after this one is of a
+// stale screen, mel_ovl_stale). The overlay of another owner stays.
+/**
+ * @param string $owner
+ * @return void
+ */
+function mel_ovl_drop($owner)
+{
+    if (MelOvl::$st && MelOvl::$st['scr']['owner'] === $owner)
+        MelOvl::$st = null;
+}
+
 // A key $in of an overlay of a stale screen - no state (a php_server restart) or one of another owner than its o:
 // close_and_run leaves the screen, logged. Else null: the screen is live (its overlay open, or closed by the key before
 // this one).

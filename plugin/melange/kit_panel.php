@@ -9,7 +9,8 @@
 // (MelOvlScreen, kit_ovl.php): the shade and the panel become the children of ovl, the map of the panel (UP, DOWN,
 // LEFT, RIGHT, ENTER, RETURN to kp_key with the owner) takes the place of that of the screen. Its description
 // (MelKpDesc), one of:
-//   a menu   title, sub (optional), dim ('dim', the default, or 'dim_strong'), note (optional, under the lines), groups:
+//   a menu   title, sub (optional), dim ('dim', the default, or 'dim_strong'), note (optional, under the lines), cur
+//            (optional: the id of the item the cursor opens on - the server a download goes to by default), groups:
 //            lists of items (MelKpItem), an item array('id', 'label', 'icon', 'detail', 'value', 'picked', 'way', and
 //            'menu' - the description of a submenu, it takes the place of the panel - or 'act' - an action run after
 //            the close: plugin_open_folder of a screen, a handle_user_input of the screen);
@@ -105,8 +106,9 @@ function mel_kp_sub($it, $title)
     return $m;
 }
 
-// A frame of description $d: its items by id (a menu not a description: none); the cursor on its first picked item (a
-// submenu: the current sort), else on the first line; of a check list the checks and the order of its items.
+// A frame of description $d: its items by id (a menu not a description: none); the cursor on the item of its cur, else
+// on its first picked item (a submenu: the current sort), else on the first line; of a check list the checks and the
+// order of its items.
 /**
  * @param MelKpDesc|MelKpSubDesc $d
  * @return MelKpFrame
@@ -152,9 +154,10 @@ function mel_kp_frame($d)
     }
     if ($check)
         return $f;
+    $at = isset($d['cur']) && isset($f['its'][$d['cur']]) ? $d['cur'] : null;
     foreach (mel_kp_lines($f) as $k => $l)
     {
-        if (!empty($f['its'][$l[1]]['picked']))
+        if ($at !== null ? $l[1] === $at : !empty($f['its'][$l[1]]['picked']))
         {
             $f['cur'] = $k;
             break;

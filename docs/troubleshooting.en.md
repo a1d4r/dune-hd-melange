@@ -150,7 +150,7 @@ Answers of the **"Check"** button of a server on the settings page ([Your own to
 | "Labels are kept since Transmission 4.0: this server will skip them" | on Transmission older than 4.0 tags are not kept, everything else works |
 | "The reply does not look like qBittorrent", "The reply does not look like Transmission (HTTP …): check the address", "Login: HTTP …: not a qBittorrent?" | wrong address or the wrong client is selected |
 
-Messages on the Dune after POP UP → "Download to server…":
+Messages on the Dune after POP UP → "Download to server":
 
 - "No connection to the server": check that the server is on.
 - "The client did not accept the torrent (it may already have it)": look in the client.
@@ -172,7 +172,7 @@ On the Dune:
 | Message | What to do |
 |---|---|
 | "Source not changed: …" | the source did not answer. Try again later or choose another one |
-| "Sources changed on the page, the source is kept" | the source was changed on the page while the menu was open: open "Get films from…" again |
+| "Sources changed on the page, the source is kept" | the source was changed on the page while the menu was open: open "Source" again |
 
 ## Catalog and the TV tab
 
@@ -182,7 +182,7 @@ On the Dune:
 - **The microphone button on the remote starts Google Assistant**: open search with the magnifier on the top bar or via **POP UP** → "Search" ([Search](search.en.md)).
 - **The TV tab is empty.** Most likely Melange was removed while it was chosen for TV. On the home screen, move to TV, press **POP UP** → «TV section Setup» and choose your previous TV app (for example, DUNE-HD.TV), or Melange again if you reinstalled it ([Melange in the TV tab](tv-tab.en.md)).
 - **TV has a single "Set up Melange" tile**: Melange is not set up yet. Press it ([Quick start](start.en.md)).
-- **"Open in an app…" always opens the same app**: "Always" was once chosen in the Android window. Clear the default choice in the Android settings of that app.
+- **"Open in an app" always opens the same app**: "Always" was once chosen in the Android window. Clear the default choice in the Android settings of that app.
 
 ## Log
 

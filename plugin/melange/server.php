@@ -47,29 +47,25 @@ function mel_srv_row($in)
     return isset($st['rows'][$i]) && $st['rows'][$i]['hash'] !== '' ? $i : null;
 }
 
-// gc_srv (the MENU item) -> the popup menu of the servers.
-function mel_srv_menu($in)
+// The submenu "Скачать на сервер" of the panel "Действия" of live list $st (mel_gc_actions) for its row $i with
+// infoHash: the servers of the settings by their names, each gc_push of the row to it; the cursor on mel_srv_default;
+// under the lines where the servers are set. No server: null.
+/**
+ * @param MelState $st
+ * @param int $i
+ * @return MelKpSubDesc|null
+ */
+function mel_srv_panel($st, $i)
 {
-    $i = mel_srv_row($in);
     $servers = Mel::$settings['servers'];
-    if (is_null($i) || !$servers)
-    {
-        mel_log('server: menu of no live row or no server');
-        return mel_error('err_list_expired');
-    }
-    $st = Mel::$state;
-    $row = $st['rows'][$i];
+    if (!$servers)
+        return null;
     $items = array();
     foreach ($servers as $k => $s)
-        $items[] = array(
-            GuiMenuItemDef::caption => $s['name'],
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/network.aai',
-            GuiMenuItemDef::action => mel_gc_act('gc_push', $st['rid'], array('i' => strval($i), 'k' => strval($k))));
-    return array(
-        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(
-            ShowPopupMenuActionData::menu_items => $items,
-            ShowPopupMenuActionData::selected_menu_item_index => mel_srv_default($servers, $row)));
+        $items[] = array('id' => "srv_$k", 'label' => $s['name'], 'icon' => 'k_icon_server',
+            'act' => mel_gc_act('gc_push', $st['rid'], array('i' => strval($i), 'k' => strval($k))));
+    return array('title' => mel_tr($st['lang'], 'srv_menu'), 'groups' => array($items),
+        'cur' => 'srv_' . mel_srv_default($servers, $st['rows'][$i]), 'note' => mel_tr($st['lang'], 'srv_note'));
 }
 
 // Text of a reply for the dialog and the log: printable, short.

@@ -548,7 +548,7 @@ function mel_catv_rows_menu_items($hid, $tab, $from, $lang)
 }
 
 // "Configure list…" of the main screen $from, the row $sel ('': none) -> the second menu, as the
-// MENU item "Download to server" (mel_srv_menu): "Group order" (with chosen rows of the tab), a
+// MENU item "Download to server" (mel_srv_panel): "Group order" (with chosen rows of the tab), a
 // separator, the groups of the tab in the order of the page with "N of M" (chosen, all of the tab);
 // a group with no row of the tab not there. The cursor on the first item.
 /**

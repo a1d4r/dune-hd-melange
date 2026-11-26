@@ -1,6 +1,6 @@
 <?php
 // "Онлайн" on the Dune, movies and episodes: the client is lampac.php. Here (the window "Ищу онлайн…" of its search:
-// online_search.php; a profile of Lampac of "Откуда брать…": sources.php) the online list
+// online_search.php; a profile of Lampac of "Источник" of MENU: sources.php) the online list
 // on the screen of the releases (the frame of view_gcomps.php, rows "Phantom · Дублированный"
 // and a card of their own; of an episode a row a voice of its season), its MENU, ENTER (the start:
 // online_play.php, as "Continue" of a record of it and play_action), the left and right keys and
@@ -1264,7 +1264,7 @@ function mel_lpv_finish($st)
 // --- MENU of the online list (A4): "Озвучка: …" (of a list with voices), "Развернуть все" / "Свернуть все" and
 // "Сортировать по качеству" / "Порядок как в Балансерах" (of a list with rows) (mel_gc_keys_in_menu: the red, the green and
 // the yellow key; mel_lpv_can), "Обновить", "Выбрать серию"
-// (an episode), "Откуда брать…", "Источники…" (mel_lpv_srcs_edit; some found), "Ошибки источников", "Настройки".
+// (an episode), "Источник", "Источники…" (mel_lpv_srcs_edit; some found), "Ошибки источников", "Настройки".
 
 /**
  * @param MelState $st
@@ -1295,8 +1295,7 @@ function mel_lpv_menu($st)
         GuiMenuItemDef::caption => mel_tr($lang, 'refresh_menu'),
         GuiMenuItemDef::icon_url => 'gui_skin://small_icons/upgrade.aai',
         GuiMenuItemDef::action => mel_gc_act('lp_refresh', $rid));
-    // As the releases (mel_gc_menu): with a card of the Dune only.
-    if ($st['e'] > 0 && $st['movie']['dune_id'] !== '' && empty($st['movie']['own_card']))
+    if (mel_gc_can_choose($st))
         $menu[] = array(
             GuiMenuItemDef::caption => mel_tr($lang, 'choose_menu'),
             GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',

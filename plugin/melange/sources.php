@@ -1,10 +1,11 @@
 <?php
-// "Откуда брать…" in MENU of a list (v2, spec source-profiles-v2 §2.2): the sources (profiles of settings.json) ready,
+// "Источник" in MENU of a list (v2, spec source-profiles-v2 §2.2): the sources (profiles of settings.json) ready,
 // in their order, by their id. A choice shows this title from that source on this screen only: nothing written, nothing
 // remembered - the next opening goes by the history or the main one (§1.5); what is started from the screen takes its
 // profile into the record (wh_prof). The screen keeps two lists (view_online.php): the releases of one profile of
 // releases (rows, prof) and the online list of one profile of Lampac (lp, lp_prof); a choice of one of them already
-// there - no request. The item of MENU: mel_gc_src_item (view_gcomps.php), mel_lpv_menu (view_online.php). The name
+// there - no request. The item of MENU: of the releases a submenu of their panel (mel_src_panel), of the online list
+// mel_gc_src_item (view_gcomps.php) in mel_lpv_menu (view_online.php), a popup menu of the shell. The name
 // of the source over the lists: mel_gc_tabs_from (view_gcomps.php).
 // Reads and writes Mel (state, settings). Functions are global; the require order is in main.php.
 
@@ -35,7 +36,7 @@ function mel_src_ready($lp_only = false)
     return $r;
 }
 
-// "Откуда брать…" in MENU of a list: two ready profiles or more, of any kind ($lp_only: of Lampac).
+// "Источник" in MENU of a list: two ready profiles or more, of any kind ($lp_only: of Lampac).
 /**
  * @param bool $lp_only
  * @return bool
@@ -45,7 +46,7 @@ function mel_src_in_menu($lp_only = false)
     return count(mel_src_ready($lp_only)) >= 2;
 }
 
-// gc_src_menu (MENU "Откуда брать…") of a live list $in->rid -> the popup menu of the ready profiles in their order, the
+// gc_src_menu (MENU "Источник" of the online list) of a live list $in->rid -> the popup menu of the ready profiles in their order, the
 // one of the screen (mel_src_now) "<name> · сейчас" and selected (marked of the API draws nothing in a popup menu on
 // r24); Lampac with its own icon.
 /**
@@ -61,6 +62,30 @@ function mel_gc_src_menu($in)
         return mel_error('err_list_expired');
     }
     return mel_src_popup($st['lang'], 'gc_src', array('rid' => $st['rid']), mel_src_now($st), mel_rel_id($st['movie']) === '');
+}
+
+// The submenu "Источник" of the panel "Действия" of live list $st (mel_gc_actions): the ready profiles in their order
+// (of a card of no IMDb and no TMDB, mel_rel_id, those of Lampac), each by its name with the icon of its kind
+// (mel_profile_kind), gc_src with p (its id) and n (its name for the dialog); the one of the screen (mel_src_now)
+// picked; under the lines where the list is set. Fewer than two ready (mel_src_in_menu): null.
+/**
+ * @param MelState $st
+ * @return MelKpSubDesc|null
+ */
+function mel_src_panel($st)
+{
+    $lp_only = mel_rel_id($st['movie']) === '';
+    if (!mel_src_in_menu($lp_only))
+        return null;
+    $icons = array('debrid' => 'k_icon_zap', 'p2p' => 'k_icon_magnet', 'own' => 'k_icon_layers', 'lampac' => 'k_icon_tv');
+    $now = mel_src_now($st);
+    $items = array();
+    foreach (mel_src_ready($lp_only) as $p)
+        $items[] = array('id' => 'src_' . $p['id'], 'label' => $p['name'],
+            'icon' => isset($icons[$p['kind']]) ? $icons[$p['kind']] : 'k_icon_layers', 'picked' => $p['id'] === $now,
+            'act' => mel_gc_act('gc_src', $st['rid'], array('p' => $p['id'], 'n' => $p['name'])));
+    return array('title' => mel_tr($st['lang'], 'src_list'), 'groups' => array($items),
+        'note' => mel_tr($st['lang'], 'src_note'));
 }
 
 // The popup menu of the ready profiles in their order, Lampac with its own icon, each to $control of $params with p (its
@@ -102,7 +127,7 @@ function mel_src_popup($lang, $control, $params, $now = '', $lp_only = false)
 }
 
 // --- "Смотреть из…" of POP UP of a tile of a title and of the own card: the list of the title at once from the source
-// chosen (mel_play_action with its profile), not of the record or the main one; nothing remembered, as "Откуда брать…".
+// chosen (mel_play_action with its profile), not of the record or the main one; nothing remembered, as "Источник" of a list.
 
 // The item "Смотреть из…" to $control of $params (its menu of sources: mel_src_popup), with two ready profiles or more
 // (mel_src_in_menu); none else.
@@ -188,7 +213,7 @@ function mel_gc_src_dialog($title, $lang, $res)
     return mel_dialog($title, $lines, array('OK' => mel_close_and(null)));
 }
 
-// gc_src (p: the id of a profile, n: its name for the dialog; MENU "Откуда брать…") of a live list: this title from
+// gc_src (p: the id of a profile, n: its name for the dialog; MENU "Источник") of a live list: this title from
 // that profile on this screen only (spec v2 §2.2, nothing written). The one of the screen: nothing; of the releases
 // with the yellow line - the line gone. A profile of releases: mel_src_releases; of Lampac: mel_src_lampac. The profile
 // gone or not ready (the page changed them since the menu): the dialog "Источник не сменился: <name>" (src_changed), no

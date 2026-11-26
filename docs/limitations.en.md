@@ -29,8 +29,8 @@ What Melange cannot do, or does with caveats. [← Contents](README.en.md)
 - Melange looks for releases by the IMDb ID of a movie or series, taken from the Dune card or the poster in the catalog, and by its TMDB id when there is no IMDb ID. For new Russian movies and series that have no IMDb ID in TMDB, Melange also searches by the TMDB id when you start them from the Melange card, and by the IMDb ID from the Dune card. Without an IMDb ID, the list may occasionally include releases of other movies or series with the same title. With neither ID there are no releases, but you can still watch the movie through Lampac if it is among your [sources](profiles.en.md). Lampac searches by title and year, so its list may include other movies with the same title too.
 - A release whose year, title or release date on the tracker does not match the movie card goes to the "Unconfirmed" group. This happens when the TMDB year differs from the release year. The group exists only on the Melange server `aiostreams.kompotik.com` with a config Melange created; with your own config or other servers such releases are not shown.
 - The screen shows at most 100 releases; the rest are not shown. A server reply over 6 MB does not open.
-- The "Watch via TorrServer", "Open in an app…" and "Download to server…" items are not on every release: only on those for which the source sent a torrent hash, and not with the "No torrents" setting.
-- "Open in an app…" starts a release without an episode playlist, history or **Continue Watching**.
+- The "Watch via TorrServer", "Open in an app" and "Download to server" items are not on every release: only on those for which the source sent a torrent hash, and not with the "No torrents" setting.
+- "Open in an app" starts a release without an episode playlist, history or **Continue Watching**.
 
 ## JacRed
 
@@ -75,7 +75,7 @@ What Melange cannot do, or does with caveats. [← Contents](README.en.md)
 
 - At most 8 sources, and names don't repeat.
 - A source that has no config on the server yet (marked "no config") is not in the POP UP menu on the Dune. To fix it, see [Troubleshooting](troubleshooting.en.md#sources).
-- The choice in "Get films from…" on the Dune is not remembered. A movie started from there later continues from the same source.
+- The choice in "Source" on the Dune is not remembered. A movie started from there later continues from the same source.
 - Unsaved changes are lost if you open another source.
 - Each source has its own Debrid keys. The TMDB key, TorrServer, your own torrent clients and other settings are shared by all sources.
 - After you change the TMDB key, open each source on the page, except your own configs and Lampac, and press "Save": the key gets into a source's config only when you save it.

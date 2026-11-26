@@ -2496,8 +2496,6 @@ function mel_handle_user_input($in)
         return mel_gc_sort($in);
     if ($control === 'gc_main')
         return mel_gc_main($in);
-    if ($control === 'gc_sort_menu')
-        return mel_gc_sort_menu($in);
     if (is_string($control) && strpos($control, 'lp_') === 0)
         return mel_lpv_input($in, $control);
     if ($control === 'gc_src_menu')
@@ -2514,8 +2512,6 @@ function mel_handle_user_input($in)
         return mel_gc_errors($in);
     if ($control === 'gc_dl')
         return mel_download($in);
-    if ($control === 'gc_srv')
-        return mel_srv_menu($in);
     if ($control === 'gc_push')
         return mel_srv_push($in);
     if ($control === 'gc_ts')

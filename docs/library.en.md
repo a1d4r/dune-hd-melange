@@ -10,7 +10,7 @@ If a movie or an episode is in "My Collection" on your Dune, Melange plays it st
 
 2. Press "Watch". The movie plays from the disk, from where you stopped.
 
-3. Releases from the internet are under **MENU** → "Watch from…".
+3. Releases from the internet are under **MENU** → "Watch from".
 
 ## Series
 
