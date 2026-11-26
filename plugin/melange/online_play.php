@@ -116,16 +116,22 @@ function mel_lpv_tile_ids($t, $meta = null)
 
 // The parameters of Lampac $base of card $mv (mel_lpv_title) with the ids they lack: of /externalids
 // (mel_lp_externalids), the KinoPoisk one Lampac did not give - of the catalog server (mel_lpv_kp_ask,
-// mel_lpv_kp_catalog). "Continue" and the next episode; the search window asks the two in ticks of their own.
+// mel_lpv_kp_catalog) in the time left by deadline $deadline (mel_lp_now) over the find of the balancer
+// (MEL_LP_REPLIES_MAX), "call" (MEL_LP_REPLY_MIN at least) and the check of the link (MEL_LPV_CHECK_MIN).
+// "Continue" and the next episode; the search window asks the two in ticks of their own.
 /**
  * @param string $base
  * @param MelMovie $mv
+ * @param float $deadline
  * @return MelLpTitle
  */
-function mel_lpv_ids($base, $mv)
+function mel_lpv_ids($base, $mv, $deadline)
 {
     list($t, $why) = mel_lp_externalids($base, mel_lpv_title($mv));
-    return mel_lpv_kp_ask($t, $why) ? mel_lpv_kp_catalog($mv, $t) : $t;
+    if (!mel_lpv_kp_ask($t, $why))
+        return $t;
+    return mel_lpv_kp_catalog($mv, $t, min(MEL_CARD_META_TOTAL,
+        $deadline - mel_lp_now() - MEL_LP_REPLIES_MAX - MEL_LP_REPLY_MIN - MEL_LPV_CHECK_MIN));
 }
 
 // Title $t (of mel_lp_externalids, $why its reason) has no KinoPoisk id and Lampac answered with none: not JSON, not
@@ -145,17 +151,18 @@ function mel_lpv_kp_ask($t, $why)
 
 // Title $t of card $mv with the KinoPoisk id of the catalog server: kpId of a tile of the title in memory (of the
 // meta of the own card, MelCm::$cache; of "Продолжить" or "Мой список", mel_cp_best_tile), else of its meta asked
-// (by its IMDb, else its TMDB id; mel_lpv_kp_meta); kept for the card (MelLpv::$ids: its next search, "Continue" and
-// the next episode take it with no request). None: $t as it is. A reply about the title (a meta of no kpId, notfound,
-// bad, big, the meta of another title) - not asked again this session (MelLpv::$kp_miss); one of the server (net,
-// timeout, rate, server, http) - asked again by the next search. The catalog server down or paused
-// (mel_catv_is_down, mel_cpm_paused) - not asked, nothing kept.
+// (by its IMDb, else its TMDB id; mel_lpv_kp_meta) in $limit s (under MEL_LP_REPLY_MIN: not asked, nothing kept);
+// kept for the card (MelLpv::$ids: its next search, "Continue" and the next episode take it with no request). None:
+// $t as it is. A reply about the title (a meta of no kpId, notfound, bad, big, the meta of another title) - not asked
+// again this session (MelLpv::$kp_miss); one of the server (net, timeout, rate, server, http) - asked again by the next
+// search. The catalog server down or paused (mel_catv_is_down, mel_cpm_paused) - not asked, nothing kept.
 /**
  * @param MelMovie $mv
  * @param MelLpTitle $t
+ * @param float|int $limit
  * @return MelLpTitle
  */
-function mel_lpv_kp_catalog($mv, $t)
+function mel_lpv_kp_catalog($mv, $t, $limit = MEL_CARD_META_TOTAL)
 {
     $type = $mv['series'] ? 'series' : 'movie';
     $id = $t['imdb_id'] !== '' ? $t['imdb_id'] : ($t['id'] !== '' ? "tmdb:{$t['id']}" : '');
@@ -171,10 +178,10 @@ function mel_lpv_kp_catalog($mv, $t)
     }
     if ($kp !== '')
         mel_log("lampac: kp of a tile in memory for $type:$id: $kp");
-    else if (isset(MelLpv::$kp_miss["$type:$id"]) || mel_catv_is_down() || mel_cpm_paused())
+    else if ($limit < MEL_LP_REPLY_MIN || isset(MelLpv::$kp_miss["$type:$id"]) || mel_catv_is_down() || mel_cpm_paused())
         return $t;
     else
-        $kp = mel_lpv_kp_meta($type, $id, $mv['series']);
+        $kp = mel_lpv_kp_meta($type, $id, $mv['series'], $limit);
     if ($kp === '')
         return $t;
     $t['kinopoisk_id'] = $kp;
@@ -182,17 +189,18 @@ function mel_lpv_kp_catalog($mv, $t)
     return $t;
 }
 
-// kpId of the meta of title $type:$id asked of the catalog server, '' none: a reply about the title kept in
+// kpId of the meta of title $type:$id asked of the catalog server in $limit s, '' none: a reply about the title kept in
 // MelLpv::$kp_miss (mel_lpv_kp_catalog).
 /**
  * @param string $type
  * @param string $id
  * @param bool $series
+ * @param float|int $limit
  * @return string
  */
-function mel_lpv_kp_meta($type, $id, $series)
+function mel_lpv_kp_meta($type, $id, $series, $limit)
 {
-    $g = mel_cat_get("meta/$type/$id.json", "meta $type:$id (kp)", 'meta', MEL_CARD_META_TOTAL, true,
+    $g = mel_cat_get("meta/$type/$id.json", "meta $type:$id (kp)", 'meta', $limit, true,
         $series ? MEL_CM_SERIES_BYTES : MEL_CAT_MAX_BYTES);
     $err = $g['err'] === '' && !mel_cm_same($g['list'], $id) ? 'other' : $g['err'];
     $tile = $err === '' ? mel_cat_tile($g['list'], $type) : null;
@@ -419,7 +427,7 @@ function mel_lpv_next($in)
         mel_log("lampac next: $ep, no season kept for $key -> the balancer");
     if ($base !== '')
     {
-        $t = mel_lpv_ids($base, $mv);
+        $t = mel_lpv_ids($base, $mv, $deadline);
         $f = mel_lp_find($base, $key, mel_lp_query($t), $s, $e,
             min(MEL_LP_REPLIES_MAX, max(0, $deadline - mel_lp_now() - MEL_LPV_CHECK_MIN)));
     }
@@ -510,7 +518,7 @@ function mel_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
     }
     $base = Mel::$settings['lp'];
     $deadline = mel_lp_now() + MEL_LPV_RESUME_MAX;
-    $t = mel_lpv_ids($base, $mv);
+    $t = mel_lpv_ids($base, $mv, $deadline);
     $f = mel_lp_find($base, $r['hash'], mel_lp_query($t), $s, $e,
         min(MEL_LP_REPLIES_MAX, max(0, $deadline - mel_lp_now() - MEL_LPV_CHECK_MIN)));
     $a = mel_lpv_ep_play($mv, $lang, $f, $s, $e, $r['pos'], $deadline);
