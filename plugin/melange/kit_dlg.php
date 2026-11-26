@@ -8,7 +8,7 @@
 // The screen puts mel_ovl_slot() last in its comp_defs and opens over itself, with the record of itself (MelOvlScreen,
 // kit_ovl.php), one of:
 // - a dialog, mel_dlg_open($scr, $d) (mel_dlg_error: the simple one, a title, a reason and one button). Its description
-//   (MelDlgDesc): icon (k_icon_*), tone ('', warn, err: the colour of the icon), title, text, buttons (1 to 3, each
+//   (MelDlgDesc): icon (k_icon_*), tone ('', warn, err, ok: the colour of the icon), title, text, buttons (1 to 3, each
 //   array('label', 'icon', 'act': run after the close, none: the close only)), focus (the button in focus first, default
 //   0), cancel (run after the close by RETURN, none: the close only). LEFT and RIGHT move the focus among the buttons, to
 //   the first and the last (no wrap); ENTER: the close, then the act of the button in focus; RETURN: the close, then

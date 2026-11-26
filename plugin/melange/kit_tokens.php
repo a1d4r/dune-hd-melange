@@ -52,6 +52,7 @@ define('MEL_K_FACE_CONDENSED', 'condensed');
 
 // Font size of a text role (sizes of the scale and of the guesses; the height of capitals: mel_k_cap()).
 define('MEL_K_PX_PANEL_TITLE', 48);
+define('MEL_K_PX_PANEL_HEAD', 36);
 define('MEL_K_PX_STATUS_TITLE', 36);
 define('MEL_K_PX_ROW', 30);
 define('MEL_K_PX_DESCRIPTION', 30);
@@ -101,7 +102,7 @@ define('MEL_K_BAR_MIN', 4);
 define('MEL_K_THUMB_MIN', 40);
 define('MEL_K_RATING_LINE', 2);
 define('MEL_K_RING_W', 6);
-define('MEL_K_DIALOG_W', 960);
+define('MEL_K_DIALOG_W', 1080);
 define('MEL_K_DIALOG_W_MAX', 1440);
 define('MEL_K_DIALOG_PAD', 40);
 define('MEL_K_DIALOG_LINE', 2);
@@ -170,7 +171,7 @@ define('MEL_K_R_BAR', 4);
 define('MEL_K_ICON_BUTTON', 30);
 define('MEL_K_ICON_PANEL', 32);
 define('MEL_K_ICON_PANEL_CHEVRON', 24);
-define('MEL_K_ICON_PANEL_BACK', 36);
+define('MEL_K_ICON_PANEL_BACK', 28);
 define('MEL_K_ICON_PANEL_MOVE', 28);
 define('MEL_K_ICON_CACHED', 30);
 define('MEL_K_ICON_LIST_ZAP', 22);
