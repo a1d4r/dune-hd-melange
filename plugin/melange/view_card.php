@@ -29,9 +29,16 @@
 // view_card_rows.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
-// Cards kept in memory by "<type>:<id>", MEL_CM_KEEP_EPS episodes in all at most; the oldest
-// opened goes.
+// Cards kept in memory by the key of their screen, MEL_CM_KEEP_EPS episodes in all at most (those of a title with
+// several screens counted once); the oldest opened goes.
 define('MEL_OC_KEEP', 8);
+// Keys of screens remembered as given or seen (MelOc::$seen); the oldest goes.
+define('MEL_OC_SEEN', 500);
+// ":s<hex>" after "<type>:<id>" in the key of a screen not the first of its title: as made (sprintf of the time, 8 hex,
+// and the count of the keys made, mel_oc_new_key) and as read (a part of a regex: 9-24 hex; mel_oc_base, and by it
+// mel_oc_get). The form is written here alone.
+define('MEL_OC_SUF_FMT', ':s%08x%x');
+define('MEL_OC_SUF_RE', ':s[0-9a-f]{9,24}');
 // The page: a clipping panel from the bottom of the logo (PANE_Y + TITLE_BOTTOM of the catalog,
 // baked into card/v1) down to SHOW_BOTTOM, higher at a stop where it would cut a line; the page in
 // it in the coordinates of the first screen.
@@ -230,7 +237,11 @@ define('MEL_OC_ICONS', 'plugin_file://%shell_ext%/icons/');
 
 class MelOc
 {
-    // Cards by "<type>:<id>": tile, meta (or null), imdb, dune (the id of the card of the Dune or
+    // Cards by the key of their screen, the screen "card:<key>": "<type>:<id>" of the first screen of a title, of the
+    // next ones of it "<type>:<id>:s<hex>" (mel_oc_new_key) - two screens of a title in the stack of the shell (the
+    // card over the card of the Dune over the card, a link over the card) have each its record, its place and its
+    // address: the shell draws two screens of one media_url alike. The card of a title, whatever screen: mel_oc_title.
+    // Of a record: tile, meta (or null), imdb, dune (the id of the card of the Dune or
     // of an old local one, '' for none), lang (of play_action), ui (of the texts), pos (the place,
     // mel_oc_pos), n (episodes of the meta), posters (the rows of posters, mel_cm_posters); nav (what
     // the keys need of mel_oc_layout) once shown; hid (the id of the history of its progress, mel_oc_lib) once shown,
@@ -238,12 +249,82 @@ class MelOc
     // Memory of php_server only: after a restart the card is made from the meta anew.
     /** @var array<string, MelOcCard> */
     public static $cards = array();
+    // The keys of screens given (kept, mel_oc_keep) or seen (asked of mel_oc_get: a screen of the stack of the shell
+    // after a restart of php_server) since php_server started, MEL_OC_SEEN at most: a record may be gone of $cards
+    // with its screen still in the stack, so a key is taken by this, not by $cards.
+    /** @var array<string, true> */
+    public static $seen = array();
+    // The count of the keys made (mel_oc_new_key).
+    /** @var int */
+    public static $made = 0;
+}
+
+// The key "<type>:<id>" of the title of the key of a screen $key (no ":s<hex>" of mel_oc_new_key, MEL_OC_SUF_RE; one
+// off that form stays).
+/**
+ * @param string $key
+ * @return string
+ */
+function mel_oc_base($key)
+{
+    return strval(preg_replace('/' . MEL_OC_SUF_RE . '$/D', '', $key));
+}
+
+// Key $key of a screen noted as given or seen (MelOc::$seen), the last of them; over MEL_OC_SEEN of them the oldest
+// noted goes. Only a key of a card there is (kept, mel_oc_keep; made anew, mel_oc_get): a key asked of no card must
+// not put out that of a screen in the stack.
+/**
+ * @param string $key
+ * @return void
+ */
+function mel_oc_key_mark($key)
+{
+    unset(MelOc::$seen[$key]);
+    MelOc::$seen[$key] = true;
+    if (count(MelOc::$seen) > MEL_OC_SEEN)
+        array_shift(MelOc::$seen);
+}
+
+// The key of a new screen of the card of title $base ("<type>:<id>"): $base not given or seen yet (MelOc::$seen),
+// else "$base:s<the time, 8 hex><the count of this php_server, hex>" (MEL_OC_SUF_FMT), not one seen - a screen of before a restart of
+// php_server may lie in the stack with a key of an old count. Taken once its card is kept (mel_oc_keep).
+/**
+ * @param string $base
+ * @return string
+ */
+function mel_oc_new_key($base)
+{
+    if (!isset(MelOc::$seen[$base]))
+        return $base;
+    do
+        $key = $base . sprintf(MEL_OC_SUF_FMT, time(), ++MelOc::$made);
+    while (isset(MelOc::$seen[$key]));
+    return $key;
+}
+
+// The card of title $base ("<type>:<id>") in memory, of whatever screen of it: the last kept; null - none. Of the
+// title in it, to take: tile, meta, dune, lang, posters; the rest (pos, nav, hid, the flags played, stopped, lw_auto) is
+// the state of that screen, not of the title.
+/**
+ * @param string $base
+ * @return MelOcCard|null
+ */
+function mel_oc_title($base)
+{
+    $found = null;
+    foreach (MelOc::$cards as $key => $c)
+    {
+        if (mel_oc_base($key) === $base)
+            $found = $c;
+    }
+    return $found;
 }
 
 // ENTER on a tile of a movie or a series with IMDb or TMDB (mel_card_enter): the id of the card of the Dune
 // (mel_card_id; none: an old local card m-melange-..., none is written now; $dune: known, of the row "Continue",
 // no request of it, its rating of Kinopoisk not known: mel_oc_fill asks it), the meta (mel_cm_get; a failure: the
-// card of the tile), the card of them (mel_oc_build) -> the card screen (mel_oc_open_act).
+// card of the tile), the card of them (mel_oc_build) under the key of a new screen (mel_oc_new_key) -> the card screen
+// (mel_oc_open_act).
 /**
  * @param MelCatTile $tile
  * @param string $lang
@@ -254,7 +335,7 @@ function mel_oc_enter($tile, $lang, $dune = '')
 {
     $c = $dune !== '' ? mel_card_id_known($dune) : mel_card_id($tile);
     $g = mel_cm_get($tile);
-    $key = $tile['type'] . ':' . mel_cm_id($tile);
+    $key = mel_oc_new_key($tile['type'] . ':' . mel_cm_id($tile));
     $card = mel_oc_build($key, $tile, $g['meta'], $c, $lang);
     mel_log("card: own $key: card " . ($card['dune'] !== '' ? $card['dune'] : 'none') . ', meta ' .
         ($g['err'] !== '' ? "failed ({$g['err']})" : 'ok') . ', imdb ' . ($card['imdb'] !== '' ? $card['imdb'] : 'none'));
@@ -284,7 +365,7 @@ function mel_oc_open_act($key, $caption)
 
 // The tile of a card with what the header needs: a tile not of a row of the catalog (of the
 // works of a person: id, name, poster, year) has no rating, genres, length or logo. What it lacks
-// is taken of the tile of the card of this title in memory first (opened before, from a row of the
+// is taken of the tile of the card of this title in memory first (mel_oc_title; opened before, from a row of the
 // catalog too: its rating of Kinopoisk and votes), then of the tile of the meta (since 13.11.2026 the
 // server puts the fields of Kino API there too, kpRating, kpVotes, kpId, the age in
 // app_extras.certifications.RU, mel_cat_tile; only if Kino API answered in time); still no rating:
@@ -300,8 +381,8 @@ function mel_oc_fill($tile, $meta, $c)
 {
     static $keys = array('year', 'imdbRating', 'description', 'genres', 'poster', 'background', 'country', 'runtime', 'age',
         'cast', 'englishTitle', 'kpRating', 'kpVotes', 'kpId', 'logo', 'logoLang');
-    $key = $tile['type'] . ':' . mel_cm_id($tile);
-    $was = isset(MelOc::$cards[$key]) ? MelOc::$cards[$key]['tile'] : null;
+    $old = mel_oc_title($tile['type'] . ':' . mel_cm_id($tile));
+    $was = $old ? $old['tile'] : null;
     foreach (array($was, $meta ? $meta['tile'] : null) as $m)
     {
         foreach ($m ? $keys : array() as $k)
@@ -372,19 +453,32 @@ function mel_oc_keep($key, $card)
 {
     unset(MelOc::$cards[$key]);
     MelOc::$cards[$key] = $card;
-    $sum = 0;
-    foreach (MelOc::$cards as $c)
-        $sum += $c['n'];
+    mel_oc_key_mark($key);
     // The card just kept stays, however many episodes it has.
-    while (count(MelOc::$cards) > 1 && (count(MelOc::$cards) > MEL_OC_KEEP || $sum > MEL_CM_KEEP_EPS))
-    {
-        $c = array_shift(MelOc::$cards);
-        $sum -= $c['n'];
-    }
+    while (count(MelOc::$cards) > 1 && (count(MelOc::$cards) > MEL_OC_KEEP || mel_oc_eps_sum() > MEL_CM_KEEP_EPS))
+        array_shift(MelOc::$cards);
 }
 
-// The card of "<type>:<id>" from memory; none there (php_server restarted): made from its meta
-// anew (its tile, the rating of Kinopoisk of the card of the Dune), kept. null: a bad key, no meta.
+// The episodes of the cards in memory, those of a title with several screens once.
+/**
+ * @return int
+ */
+function mel_oc_eps_sum()
+{
+    $n = array();
+    foreach (MelOc::$cards as $key => $c)
+    {
+        $b = mel_oc_base($key);
+        $n[$b] = isset($n[$b]) ? max($n[$b], $c['n']) : $c['n'];
+    }
+    return intval(array_sum($n));
+}
+
+// The card of the screen of key $key ("<type>:<id>", ":s<hex>" after it of a screen not the first of its title,
+// mel_oc_new_key) from memory; none there (php_server restarted): made from the meta of the id anew (its tile, the
+// rating of Kinopoisk of the card of the Dune), kept under the same key (so noted, mel_oc_keep), the key of the title
+// noted with it (mel_oc_key_mark): its first screen may be in the stack too. null: a bad key, no meta - nothing noted
+// then (a key of no title would put out those of the screens in the stack).
 /**
  * @param string $key
  * @return MelOcCard|null
@@ -393,7 +487,8 @@ function mel_oc_get($key)
 {
     if (isset(MelOc::$cards[$key]))
         return MelOc::$cards[$key];
-    if (!preg_match('/^(movie|series):(tt[0-9]{1,10}|tmdb:([0-9]{1,10}))$/D', $key, $m))
+    $base = mel_oc_base($key);
+    if (!preg_match('/^(movie|series):(tt[0-9]{1,10}|tmdb:[0-9]{1,10})$/D', $base, $m))
         return null;
     $t = mel_oc_id_tile($m[1], $m[2]);
     $r = $t ? mel_oc_of_meta($key, $t) : null;
@@ -402,6 +497,7 @@ function mel_oc_get($key)
         mel_log("card: own $key not in memory, no meta: outdated");
         return null;
     }
+    mel_oc_key_mark($base);
     mel_log("card: own $key made anew from its meta");
     return $r['card'];
 }
@@ -1476,12 +1572,11 @@ function mel_oc_rows_log($pos)
     return $out ? ', rows ' . implode(', ', $out) : '';
 }
 
-// get_folder_view of "card:<type>:<id>"; a card not in memory and not made anew: "outdated". Rows of
+// get_folder_view of "card:<key>" (the key of the screen, MelOc); a card not in memory and not made anew: "outdated". Rows of
 // posters still asked: the timer (mel_oc_load). The overlay of an old screen of the card dropped (mel_oc_ovl_drop): open,
 // it would keep card_load of the new one from putting it. The first view after the invalidate of mel_oc_after_stop (back
 // from the player of a list of the card or of a copy on the disk; stopped, the flag off): at the place of the start (MelOc pos, of the key that started the player), not by $sel_state
-// - the shell keeps its focus where it was and may bring the sel_state of another screen of the same card in its stack
-// (device r25: the start on "Continue", the frame on the still).
+// - the shell keeps its focus where it was (device r25: the start on "Continue", the frame on the still).
 /**
  * @param string $media_url
  * @param mixed $sel_state
@@ -1750,10 +1845,57 @@ function mel_oc_watch_from($c, $ep, $x, $src)
     return $ep ? mel_oc_watch($c, $ep['q'], $ep['e'], $ep, $src) : mel_oc_watch($c, -1, -1, null, $src);
 }
 
+// The card of the title of $tile for what opens no screen of it (a list of it: "Смотреть из…" of a tile,
+// mel_oc_tile_watch; a link to=streams, mel_dl_streams; the copies of it, mel_lib_win_card): no key of a screen taken
+// (mel_oc_new_key), not kept - MelOc::$cards and MelOc::$seen as they were. The card of the title in memory (of whatever
+// screen of it, mel_oc_title) with its meta; else (none, or one of no meta - it failed at ENTER: asked again) one made
+// as by ENTER (mel_oc_enter): the card of the Dune $dune, '' - asked (mel_card_id), no rows of posters, the tile filled
+// by the meta, no rating asked (mel_oc_fill), a series with a card of the Dune - its episodes of the meta to the pair
+// (mel_pg_link_meta, as mel_oc_build). A tile of no name (of the ids alone, mel_oc_id_tile): the tile of the meta for it
+// (as mel_oc_of_meta), the meta failed - that of the card in memory (not to lose its name), none - as it is.
+// $fresh: the card a screen opened now would have (mel_dl_card_of; mel_lib_win_card looks for the copies by it before
+// it takes a key) - of the meta asked now (mel_cm_get), not of the card in memory: its meta may be an older one (an
+// episode not there yet); the meta failed - the card in memory, as mel_dl_card_of takes it.
+// -> array(the card; whether that in memory; why no meta of one made, '' - there is, mel_cm_get).
+/**
+ * @param MelCatTile $tile
+ * @param string $lang
+ * @param string $dune
+ * @param bool $fresh
+ * @return array{MelOcCard, bool, string}
+ */
+function mel_oc_no_screen($tile, $lang, $dune = '', $fresh = false)
+{
+    $old = mel_oc_title($tile['type'] . ':' . mel_cm_id($tile));
+    if ($old && $old['meta'] && !$fresh)
+        return array($old, true, '');
+    $g = mel_cm_get($tile);
+    if ($fresh && $old && !$g['meta'])
+        return array($old, true, $g['err']);
+    if ($tile['name'] === '')
+    {
+        $of = $g['meta'] && $g['meta']['tile'] ? $g['meta']['tile'] : ($old ? $old['tile'] : null);
+        if ($of)
+        {
+            $of['type'] = $tile['type'];
+            $tile = $of;
+        }
+    }
+    if ($dune === '')
+    {
+        $d = mel_card_id($tile);
+        $dune = $d['id'];
+    }
+    $c = mel_oc_make(mel_oc_fill($tile, $g['meta'], mel_card_id_known('')), $g['meta'], $dune, $lang,
+        mel_cm_posters_new($tile, $g['meta']));
+    if ($g['meta'] && $dune !== '' && $tile['type'] === 'series')
+        mel_pg_link_meta($dune, $g['meta']);
+    return array($c, false, $g['meta'] ? '' : $g['err']);
+}
+
 // "Смотреть из…" of tile $tile ($dune: its card of the Dune known, '' - asked as by ENTER, mel_card_id) from the source of
-// profile $src: its own card in memory with its meta, else one made as by ENTER (mel_oc_enter) with no screen, not
-// kept: no rows of posters, the tile filled by the meta, no rating asked (mel_oc_fill), a series with a card of the Dune
-// - its episodes of the meta to the pair (mel_pg_link_meta, as mel_oc_build) -> mel_oc_watch_from (a series: the
+// profile $src: the card of its title with no screen (mel_oc_no_screen: that in memory with its meta, else one made,
+// not kept) -> mel_oc_watch_from (a series: the
 // episode offered, as "▶ Продолжить" of its screen: by H and the files on the disk, mel_oc_lib_pick). No "Смотреть" (mel_oc_can_watch): the message of the card (mel_oc_why) - the meta did
 // not load (a tile of TMDB alone).
 /**
@@ -1765,25 +1907,9 @@ function mel_oc_watch_from($c, $ep, $x, $src)
  */
 function mel_oc_tile_watch($tile, $lang, $dune, $src)
 {
-    $key = $tile['type'] . ':' . mel_cm_id($tile);
-    // One in memory of no meta (it failed at ENTER) is made anew: the meta asked again.
-    $kept = isset(MelOc::$cards[$key]) && MelOc::$cards[$key]['meta'];
-    if ($kept)
-        $c = MelOc::$cards[$key];
-    else
-    {
-        if ($dune === '')
-        {
-            $d = mel_card_id($tile);
-            $dune = $d['id'];
-        }
-        $g = mel_cm_get($tile);
-        $c = mel_oc_make(mel_oc_fill($tile, $g['meta'], mel_card_id_known('')), $g['meta'], $dune,
-            $lang, mel_cm_posters_new($tile, $g['meta']));
-        if ($g['meta'] && $dune !== '' && $tile['type'] === 'series')
-            mel_pg_link_meta($dune, $g['meta']);
-    }
-    mel_log("card: own $key: watch from, the card " . ($kept ? 'in memory' : 'made') . ', of the Dune ' .
+    $base = $tile['type'] . ':' . mel_cm_id($tile);
+    list($c, $kept) = mel_oc_no_screen($tile, $lang, $dune);
+    mel_log("card: own $base: watch from, the card " . ($kept ? 'in memory' : 'made') . ', of the Dune ' .
         ($c['dune'] !== '' ? $c['dune'] : 'none'));
     if (!mel_oc_can_watch($c))
         return mel_error('card_meta_failed');
@@ -1832,9 +1958,41 @@ function mel_oc_mark_movie($key, $c, $on)
     return mel_pg_mark_act(array_merge($ids, $nat), array($c['dune']), $on, mel_oc_mark_post($key, $c));
 }
 
+// The other screens of the title of the screen of key $key (the cards in memory of its mel_oc_base, not $key) anew, then
+// $post: the progress and the marks are of the title, a screen of it lower in the stack shows them too (after a mark,
+// mel_oc_mark_post; after a copy on the disk, mel_oc_finish). As mel_oc_after_stop does it: their addresses
+// "card:<key>" invalidated, each to draw at its own place (stopped, mel_oc_folder_view: MelOc pos, not the sel_state the
+// shell brings). None: $post as it is.
+/**
+ * @param string $key
+ * @param MelAction|null $post
+ * @return MelAction|null
+ */
+function mel_oc_others_anew($key, $post)
+{
+    $base = mel_oc_base($key);
+    $urls = array();
+    foreach (MelOc::$cards as $k => $c)
+    {
+        if (strval($k) !== $key && mel_oc_base(strval($k)) === $base)
+        {
+            MelOc::$cards[$k]['stopped'] = true;
+            $urls[] = "card:$k";
+        }
+    }
+    if (!$urls)
+        return $post;
+    mel_log("card: own $key: the other screens of its title anew: " . implode(', ', $urls));
+    $inv = mel_catv_invalidate($urls[0]);
+    $inv[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] = $urls;
+    $inv[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $post;
+    return $inv;
+}
+
 // After a mark of MENU of card $c ($key), the post_action of update_watched_marks: the card anew in place (its line
 // over the buttons, the marks of the episodes), the main screens of the catalog under it anew first
-// (mel_catv_mains_anew: the row "Continue" and the badges), the tab "TV" built anew (mel_tv_flag).
+// (mel_catv_mains_anew: the row "Continue" and the badges), the other screens of its title before them
+// (mel_oc_others_anew), the tab "TV" built anew (mel_tv_flag).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -1843,7 +2001,8 @@ function mel_oc_mark_movie($key, $c, $on)
 function mel_oc_mark_post($key, $c)
 {
     mel_tv_flag('a mark of the own card');
-    return mel_catv_mains_anew(mel_replace_act("card:$key", $c['tile']['name']), 'after a mark of the own card');
+    return mel_oc_others_anew($key,
+        mel_catv_mains_anew(mel_replace_act("card:$key", $c['tile']['name']), 'after a mark of the own card'));
 }
 
 // MENU: $items ("Смотреть из…", mel_oc_src_items; the marks of an episode, mel_oc_mark_items; of a movie,
@@ -1893,7 +2052,8 @@ function mel_oc_src_items($key, $c, $l, $pos)
 // of the stills, the episode offered, the copy OK plays, lib_cur), the history stale first (mel_pg_stale: the shell may write the record after
 // PLAYBACK_FINISH, within MEL_PG_SIG_S of the last read, and the line of the history would show the old one); after a copy on the disk (played) also the tab "TV" built anew (mel_tv_flag)
 // and the main screens of the catalog anew first (mel_catv_after_player: the row "Continue" and the badges), as
-// mel_finish of the list; before all, the episodes stopped in their credits marked watched (mel_cw_apply). A screen with
+// mel_finish of the list; the other screens of its title anew before them, each at its place (mel_oc_others_anew);
+// before all, the episodes stopped in their credits marked watched (mel_cw_apply). A screen with
 // no copy on the disk has no card_finish: the finish of the list played from over it makes it anew (mel_oc_after_stop).
 /**
  * @param string $key
@@ -1912,7 +2072,7 @@ function mel_oc_finish($key, $c)
         mel_tv_flag('back from the player');
         $a = mel_catv_after_player($a);
     }
-    return mel_cw_apply($a);
+    return mel_cw_apply(mel_oc_others_anew($key, $a));
 }
 
 // Back from the player with no card_finish: a finish of the list (mel_finish; $dune of its state before it), or the
@@ -2054,7 +2214,8 @@ function mel_oc_list($key, $c, $l, $pos)
 // list, one not out yet - the message; on
 // a person of the cast - its page (mel_oc_person); on a poster - the own card of its title
 // (mel_oc_tile_enter); below them nothing. A move or ENTER on a screen of rows other than those of
-// the layout (rs of its sel_state; another screen of the card got the rows since): the screen anew
+// the layout (rs of its sel_state; its card made anew since, gone of memory - mel_oc_get: with the rows in memory by
+// then): the screen anew
 // at its place (mel_oc_pos, mel_oc_stop_of), the key not done (its frame and ENTER by the rows it
 // shows); a sel_state of before rs: as it is.
 /**
