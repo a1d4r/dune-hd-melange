@@ -338,8 +338,8 @@ parameters:
         # The record of a GComps screen under an overlay (kit_ovl.php): its owner, action map, timer and sel_state.
         MelOvlScreen: 'array{owner: string, map: array<string, MelAction>, timer: array<string, int>|null, sel: string|null}'
         # The overlay of the last screen that opened one (MelOvl::$st, kit_ovl.php): the record of the screen, shown or
-        # not; the side panel open, the choices of its check lists left after its close (by the id of the item of their
-        # submenu, '' the panel itself); the window of the copies of the own card open (lw).
+        # not; the side panel open, the choice of the check list that closed it last (the panel itself or a submenu of
+        # it), given once by mel_kp_done; the window of the copies of the own card open (lw).
         MelOvlState: 'array{scr: MelOvlScreen, open: bool, kp?: MelKp, kp_done?: MelKpChoice, dlg?: MelDlg, wt?: MelWait, lw?: MelLibWin}'
         # The window of the copies on the disk over the own card (W2, MelOvl::$st['lw'], view_card_libwin.php): copies, its
         # lines (the best first); at, the line of the cursor; mode, first (the first "Смотреть") or menu (MENU "Копия на

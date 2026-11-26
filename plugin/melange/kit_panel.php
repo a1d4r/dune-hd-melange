@@ -22,7 +22,8 @@
 // (logged); no title: '' (logged).
 // A check list as a submenu: LEFT, RETURN and «Готово» with its choice as it was opened (the checks and the order) go
 // back to the panel on the item that opened it; with another choice they close the whole panel as those of a check
-// list opened itself do - the choice left to the screen (mel_kp_done), then the act of «Готово».
+// list opened itself do - the choice left to the screen (mel_kp_done), then the act of «Готово». So a check list as a
+// submenu must have done with act: with none its changed choice closes the panel and nothing takes it.
 // The state, MelOvl::$st['kp'] (MelKp): stack, the panels, the first the top one, the last the one on screen (a
 // submenu), each (MelKpFrame): desc, its description; its, its items by id; groups, the ids of a menu by group; cur,
 // the cursor (a line of mel_kp_lines); top, the first line of the list shown; on, order: of a check list, id =>
@@ -425,7 +426,8 @@ function mel_kp_choice($f)
  */
 function mel_kp_apply($f)
 {
-    mel_log('kit panel: done, ' . count(array_filter($f['on'])) . ' of ' . count($f['on']));
+    mel_log('kit panel: «' . (isset($f['desc']['title']) ? $f['desc']['title'] : '') . '»: done, ' .
+        count(array_filter($f['on'])) . ' of ' . count($f['on']));
     return mel_ovl_close(isset($f['desc']['done']['act']) ? $f['desc']['done']['act'] : null,
         array('kp_done' => mel_kp_choice($f)));
 }
