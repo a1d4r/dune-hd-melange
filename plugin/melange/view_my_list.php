@@ -299,7 +299,7 @@ function mel_mlv_list_cells($types, $max, &$miss = null)
             $miss[] = array($t['type'], $t['imdb_id'], $t['_tmdbId']);
         else if ($m['imdbRating'] !== '')
             $t['imdbRating'] = $m['imdbRating'];
-        // An entry with no poster (of a backup: mel_ml_copy leaves out an address with auth=): that of its best tile; the
+        // An entry with no poster (of a backup: mel_ml_copy leaves out a picture with auth=): that of its best tile; the
         // entry stays as it is.
         if ($m && $t['poster'] === '')
             $t['poster'] = $m['poster'];

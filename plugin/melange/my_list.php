@@ -288,10 +288,10 @@ function mel_ml_broken($why)
 // englishTitle, year, poster, background, imdb_id, _tmdbId, kpId, dune_id, added] and, of a title with a rating,
 // [imdbRating, kpRating, kpVotes] after them (a Melange of before them reads the 11 alone), a picture as [<its part in
 // dirs>, <the rest>] or ''}. No key (mel_ml_key makes it again) and no names of fields: 200 titles take ~80 KB of the
-// body of the import, not ~180 KB of the form of the file. An address (http, https) of a picture with auth= (of
-// @Movies of the Favorites of the Dune, mel_ml_fav_read: the outside IP of this Dune) is '': the file of the export
-// leaves the Dune. A path of a picture of the Favorites stays, one with "?auth=" in the name of its file too (no address
-// in it; loaded back on this Dune after Melange is installed again, it shows).
+// body of the import, not ~180 KB of the form of the file. A picture with auth= (an address of @Movies of the
+// Favorites of the Dune, mel_ml_fav_read, and a path of a picture of the Favorites with "?auth=" in the name of its
+// file: the outside IP of this Dune in both) is '': the file of the export leaves the Dune. A path with no auth= stays
+// (no address in it; loaded back on this Dune after Melange is installed again, it shows).
 /**
  * @param list<MelMlEntry> $list
  * @return array{v: int, dirs: list<string>, items: list<array<int, mixed>>}
@@ -307,7 +307,7 @@ function mel_ml_copy($list)
         {
             $u = $e[$k];
             $p = strrpos($u, '/');
-            if ($u === '' || $p === false || preg_match('~^https?://\S*[?&]auth=~', $u))
+            if ($u === '' || $p === false || preg_match('~[?&]auth=~', $u))
             {
                 $pics[] = '';
                 continue;
