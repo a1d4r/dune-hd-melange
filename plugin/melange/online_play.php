@@ -135,8 +135,8 @@ function mel_lpv_ids($base, $mv, $deadline)
 }
 
 // Title $t (of mel_lp_externalids, $why its reason) has no KinoPoisk id and Lampac answered with none: not JSON, not
-// 200, JSON of an empty or "0" one (mel_lp_title: none) - a Lampac server that answers /externalids with no KinoPoisk
-// id. Only then the catalog server is asked: a Lampac that gives the id costs no request more, one of no answer (curl,
+// 200, a reply over the size limit (MEL_LP_TOO_BIG), JSON of an empty or "0" one (mel_lp_title: none) - a Lampac server
+// that answers /externalids with no KinoPoisk id. Only then the catalog server is asked: a Lampac that gives the id costs no request more, one of no answer (curl,
 // no time) is not one to ask around.
 /**
  * @param MelLpTitle $t
@@ -146,7 +146,7 @@ function mel_lpv_ids($base, $mv, $deadline)
 function mel_lpv_kp_ask($t, $why)
 {
     return $t['kinopoisk_id'] === '' && ($t['imdb_id'] !== '' || $t['id'] !== '') &&
-        ($why === '' || $why === 'not JSON' || strpos($why, 'HTTP ') === 0);
+        ($why === '' || $why === 'not JSON' || $why === MEL_LP_TOO_BIG || strpos($why, 'HTTP ') === 0);
 }
 
 // Title $t of card $mv with the KinoPoisk id of the catalog server: kpId of a tile of the title in memory (of the
