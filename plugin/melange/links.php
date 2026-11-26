@@ -229,7 +229,7 @@ function mel_pg_tick_set($url, $anew = false)
 // tick after the last one of the screen, a tick of another or an old one, a tick with no screen since the start of
 // php_server. A line of the log of each, in its own words. The tiles of the row "Continue" of the screen paired first (mel_cp_row_mids); the titles of the library
 // last, in what is left (mel_pg_lib_work: the pass, else the step of MEL_PG_LIB_TICK_S at most). Cards paired: the tiles of that row with no
-// meta again (MelCpm::$miss, mel_cp_row_miss; the row shown, MelCpm::$shown), theirs asked in the same tick. The meta of a tile of the screen got
+// meta again (MelCpm::$miss, mel_cp_row_miss; the row shown, MelCat::$own), theirs asked in the same tick. The meta of a tile of the screen got
 // (MelCpm::$miss, MelCpm::$ml; not of MelCpm::$more, a screen of Fav): the screen built again (mel_pg_tick_anew), no
 // timer again here. -> the timer again (mel_catv_input: change_behaviour).
 /**
@@ -272,7 +272,7 @@ function mel_pg_tick($url)
         $tab = mel_catv_tab($url);
         mel_pg_link_step(min(MEL_PG_LINK_S, MEL_CPM_TICK_S - (microtime(true) - $t)), true, $rounds, $pairs, null,
             mel_cp_row_mids($tab));
-        if ($pairs && in_array('continue', MelCpm::$shown, true))
+        if ($pairs && in_array('@continue', MelCat::$own, true))
             MelCpm::$miss = mel_cp_row_miss($tab);
         $mine = mel_cpm_queue(array_merge(MelCpm::$miss, MelCpm::$ml));
         $got = mel_cpm_step(MEL_CPM_TICK_S - (microtime(true) - $t), MEL_CPM_N - $rounds, true);

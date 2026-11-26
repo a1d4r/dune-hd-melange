@@ -217,6 +217,10 @@ class MelCat
     // screen built before still find them. It builds no row; the next main screen empties it.
     /** @var array<string, array<int|string, MelCatTile>> */
     public static $on_screen = array();
+    // The rows of Melange the main screen built last shows, in its order (mel_cat_slot_names of mel_cat_tab_slots; the
+    // names of mel_cat_pseudo): one hidden is not built, the titles of its tiles not asked (mel_cpm_queue, mel_pg_tick).
+    /** @var list<string> */
+    public static $own = array('@continue', '@mylist');
     // The language of the last screen of rows ('': not read yet), mel_catv_ui_lang.
     /** @var string */
     public static $lang = '';
@@ -1523,25 +1527,20 @@ function mel_catv_main_view($media_url, $sel_state)
     // (mel_mlv_under): none asked, the ticks of that screen ask; its own timer still (after Back the lazy step goes on),
     // its ticks wait for those of that screen (mel_pg_tick, MEL_PG_FAV_QUIET_S). Built again by its own tick: none asked
     // either, its next ticks ask.
-    $names = array();
-    foreach ($slots as $s)
-    {
-        if (is_string($s))
-            $names[] = substr($s, 1);
-    }
+    $names = mel_cat_slot_names($slots);
     $under = mel_mlv_under($media_url);
     mel_cpm_build($tab, $under !== '' || $anew ? 0.0 : ($loading ? MEL_CPM_BUILD_S :
         max(0.0, min(MEL_CPM_BUILD_S, MEL_CATV_OPEN_S - (microtime(true) - $rows_t0) - MEL_CATV_OPEN_ROW_S))), $names);
     $own = array();
     $miss = array();
     $ml_miss = array();
-    if (in_array('continue', $names, true))
+    if (in_array('@continue', $names, true))
         $own['@continue'] = mel_cp_row_defs($tab, $lang, $cp_tiles, $miss);
-    if (in_array('mylist', $names, true))
+    if (in_array('@mylist', $names, true))
         $own['@mylist'] = mel_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss);
     MelCpm::$miss = $miss;
     MelCpm::$ml = $ml_miss;
-    MelCpm::$shown = $names;
+    MelCat::$own = $names;
     $now = microtime(true);
     $net = mel_catv_open($shown, $loading ? 0 : min(MEL_CATV_OPEN_S - ($now - $rows_t0), MEL_CATV_OPEN_MAX_S - ($now - $start)));
     if (!$loading)
@@ -1564,6 +1563,8 @@ function mel_catv_main_view($media_url, $sel_state)
         // Of a copy older than MEL_CAT_FRESH (mel_catv_open put it in memory): at once, unmarked, no request; its fresh
         // first page at a tick of the timer (MelCat::$first_due, mel_pg_first_step). Built again by its own tick: as it
         // is, the tries of the opening go on.
+        // count($defs) === 0 is "no row above it": mel_catv_row_now and mel_catv_row_defs of a row with tiles never give
+        // none (a failure is a stub, mel_catv_row_note), else the second row of the server would be built at once too.
         if ($loading && count($defs) === 0 && isset(MelCat::$lists[$rid]) && MelCat::$lists[$rid]['tiles'] &&
             !mel_cat_state_fresh(MelCat::$lists[$rid]['st']))
         {
@@ -1647,18 +1648,17 @@ function mel_catv_shown_rows($rows, $loading)
 // "TV"): the rows of the user (mel_cat_tab_slots) of the saved manifest, each by its saved first page
 // of any age; a row without one is left out, so is one the filter (mel_cat_take) took all of (no tile "Show all"
 // alone). No request, no flag, no mark "saved", no strip; the tiles
-// and the plates by the mode of the screen now (mel_catv_logo_of), the caller sets it. -> the defs of
-// the rows (mel_catv_row_defs, for mel_catv_rows_view), their rids and their listings by rid; the slots of the tab in
-// order: the defs of a row of these, or the name of a row of Melange shown ('@continue'), the caller builds its defs.
+// and the plates by the mode of the screen now (mel_catv_logo_of), the caller sets it. -> the slots of the tab in
+// order: the defs of a row of these (mel_catv_row_defs, for mel_catv_rows_view), or the name of a row of Melange shown
+// ('@continue'), the caller builds its defs; the rids of the rows and their listings by rid.
 /**
  * @param string $tab
  * @param string $lang
- * @return array{defs: list<array<string, mixed>>, rids: list<string>, lists: array<string, MelCatList>, slots: list<string|list<array<string, mixed>>>}
+ * @return array{rids: list<string>, lists: array<string, MelCatList>, slots: list<string|list<array<string, mixed>>>}
  */
 function mel_catv_tab_copy_defs($tab, $lang)
 {
     $copy = mel_cat_manifest_copy();
-    $defs = array();
     $rids = array();
     $lists = array();
     $slots = array();
@@ -1677,12 +1677,10 @@ function mel_catv_tab_copy_defs($tab, $lang)
         if (!$list['tiles'])
             continue;
         $lists[$rid] = $list;
-        $one = mel_catv_row_defs($lists[$rid], $lang);
-        $defs = array_merge($defs, $one);
-        $slots[] = $one;
+        $slots[] = mel_catv_row_defs($lists[$rid], $lang);
         $rids[] = $rid;
     }
-    return array('defs' => $defs, 'rids' => $rids, 'lists' => $lists, 'slots' => $slots);
+    return array('rids' => $rids, 'lists' => $lists, 'slots' => $slots);
 }
 
 // The tab $tab without a row to show: under the strip one tile that says why. $retry: its rows
