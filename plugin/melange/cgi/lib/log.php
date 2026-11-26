@@ -154,10 +154,8 @@ function mel_cgi_log_open($f, $name, $max, $none = null)
 // The lines of $fp, each through the mask again ($m: the arguments of
 // mel_mask_secrets; $shell: mel_cgi_mask_shell too), the last one ended. A
 // line the mask lost (a regex failed: '' for a line not empty) is said so.
-// Streamed.
 function mel_cgi_log_lines($fp, $m, $shell)
 {
-    $n = 0;
     while (($line = fgets($fp)) !== false)
     {
         $out = mel_mask_secrets($line, $m['base'], $m['jrs'], $m['pw'], $m['aio'], $m['hosts']);
@@ -165,8 +163,6 @@ function mel_cgi_log_lines($fp, $m, $shell)
             $out = "(line hidden)\n";
         $out = $shell ? mel_cgi_mask_shell($out) : $out;
         echo substr($out, -1) === "\n" ? $out : "$out\n";
-        if (++$n % 500 === 0)
-            flush();
     }
     fclose($fp);
 }
@@ -174,7 +170,9 @@ function mel_cgi_log_lines($fp, $m, $shell)
 // A header (Melange, the servers, the device, the files), then melange.log (its last
 // MEL_CGI_LOG_MAX bytes), every line through the mask again: PHP notices
 // reach the log past mel_log; then the tails of shell.log.old and shell.log
-// of the shell (php_server closed, crashes), masked more.
+// of the shell (php_server closed, crashes), masked more. Buffered whole (at most ~5 MB) for
+// its Content-Length: the downloader of Android (a browser on the Dune) gives up on a body of
+// no known end, and busybox httpd sends neither it nor "Connection: close".
 function mel_cgi_log_download($dir)
 {
     set_time_limit(300);
@@ -189,6 +187,7 @@ function mel_cgi_log_download($dir)
     mel_cgi_headers(200, 'text/plain');
     header('Content-Disposition: attachment; filename="' . MEL_CGI_NAME . '-' . gmdate('Ymd-Hi') . '.log"');
     header('X-Content-Type-Options: nosniff');
+    ob_start();
     $host = $base !== '' ? (string) parse_url($base, PHP_URL_HOST) : '';
     $own = $s['aio_own_url'] !== '' ? (string) parse_url($s['aio_own_url'], PHP_URL_HOST) : '';
     // The host of an own config hidden in the lines (v2: a profile, mel_settings_hosts) - here too.
@@ -217,5 +216,8 @@ function mel_cgi_log_download($dir)
         if ($fp)
             mel_cgi_log_lines($fp, $m, true);
     }
+    $body = ob_get_clean();
+    header('Content-Length: ' . strlen($body));
+    echo $body;
     exit(0);
 }

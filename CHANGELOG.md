@@ -9,6 +9,7 @@
 - **Balancers "for the Lampa app only".** Lampac-compatible servers mark some balancers as working only in the Lampa app. Melange used to hide them without asking. Now it asks them as well and hides only the ones that fail, which still show up in "Balancer errors". A title may get more balancers than before.
 - **Quality from the balancer name.** If a server writes the quality in the balancer name in brackets ("vkmovie 「4K」"), Melange shows it as a quality badge and removes the brackets from the name.
 - **Kinopoisk ID from the catalog.** If you open a movie from the Dune card and the Lampac server gives no Kinopoisk ID, Melange takes it from its catalog, so balancers that search by Kinopoisk find the movie.
+- Fixed: in a browser on the Dune itself (such as Yandex Browser), "Save to a file" and "Download the log" on the settings page failed to download. Now they download there too.
 
 ## 0.69.1 — 25.11.2026
 - **POP UP in the TV tab, as in the catalog.** In the TV tab of the home screen, **POP UP** now has the same items as in the catalog (Movies, Series, Continue Watching, Favorites, On TorrServer, Search, Settings) and also Open Melange. Each opens its Melange screen, and **RETURN** brings you back to TV. On a row name the menu also has **Configure List...**, and rows you turn on there appear in TV usually a few seconds later.
@@ -351,6 +352,7 @@ First public release. What it does:
 - **Балансеры «только для Lampa».** Серверы, совместимые с Lampac, помечают часть балансеров как работающие только в приложении Lampa. Раньше Melange прятал их не спрашивая. Теперь он спрашивает и их, а прячет только отказавшие, они по-прежнему в «Ошибках балансеров». Балансеров у фильма может стать больше.
 - **Качество из имени балансера.** Если сервер пишет качество в имени балансера в скобках («vkmovie 「4K」»), Melange показывает его бейджем качества, а из имени скобки убирает.
 - **id Кинопоиска из каталога.** Если фильм открыт из карточки Дюны, а сервер Lampac не дал id Кинопоиска, Melange берёт его из своего каталога, и балансеры, которые ищут по Кинопоиску, находят фильм.
+- Исправлено: в браузере на самой Дюне (например, в Яндекс Браузере) «Сохранить в файл» и «Скачать лог» на странице настроек выдавали ошибку загрузки. Теперь файлы скачиваются и там.
 
 ## 0.69.1 — 25.11.2026
 - **POP UP во вкладке «ТВ» как в каталоге.** Во вкладке «ТВ» главного экрана в **POP UP** теперь те же пункты, что в каталоге («Фильмы», «Сериалы», «Продолжить», «Избранное», «На TorrServer», «Поиск», «Настройки»), и ещё «Открыть Melange». Каждый открывает свой экран Melange, а **RETURN** возвращает во «ТВ». На названии ряда в меню есть и «Настроить список...», и включённые там ряды появляются во «ТВ» обычно через несколько секунд.
