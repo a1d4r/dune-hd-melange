@@ -5,8 +5,8 @@
 // (list_utils.php): "+id"/"-id" against checked_ids, then "---" and an order. cat_rows of
 // settings.json stays the choice, the page and the dialogs the same: the file is written from it
 // before a dialog opens and read back when it closes; only the keys of that tab change. The rows
-// of a group stay together (mel_cat_by_groups): "Group order" moves the groups, the dialog of a
-// group its rows.
+// of a group stay together (mel_cat_by_groups): "Group order" moves the groups and the rows of
+// Melange (mel_cat_pseudo: "Продолжить", "Избранное", "На TorrServer"), the dialog of a group its rows.
 
 // The groups of the menu: those of the page (mel_cat_groups) in its order, the keys of their names.
 /**
@@ -73,6 +73,51 @@ function mel_catv_lcfg_group_rows($rows, $tab, $g)
     return $out;
 }
 
+// The rows of Melange (mel_cat_pseudo) in "Group order" of a tab: all of them, always, but "На TorrServer" with "Без
+// торрентов" on (mel_tsl_on; its key then stays as it was, mel_catv_lcfg_order_apply).
+/**
+ * @return array<string, array{on: bool, tr: string}>
+ */
+function mel_catv_lcfg_pseudo()
+{
+    $out = mel_cat_pseudo();
+    if (!mel_tsl_on())
+        unset($out['@torrserver']);
+    return $out;
+}
+
+// The rows of Melange with a key of the tab $tab in cat_rows $chosen: name ('@continue') => shown (<tab>/@<name>) or not
+// (:off); the first key of a name counts, as in mel_cat_tab_slots. A name with no key not there.
+/**
+ * @param mixed $chosen
+ * @param string $tab
+ * @return array<string, bool>
+ */
+function mel_catv_lcfg_keyed($chosen, $tab)
+{
+    $out = array();
+    foreach (is_array($chosen) ? $chosen : array() as $k)
+    {
+        $pk = mel_cat_pseudo_key($k);
+        if ($pk !== null && $pk['tab'] === $tab && !isset($out[$pk['name']]))
+            $out[$pk['name']] = !$pk['off'];
+    }
+    return $out;
+}
+
+// The count of the keys of rows of the server in the keys of cat_rows $keys (not of a row of Melange).
+/**
+ * @param list<string> $keys
+ * @return int
+ */
+function mel_catv_lcfg_rows_n($keys)
+{
+    $n = 0;
+    foreach ($keys as $k)
+        $n += mel_cat_pseudo_key($k) === null ? 1 : 0;
+    return $n;
+}
+
 // The keys of the rows $rows -> key => true.
 /**
  * @param list<MelCatRow> $rows
@@ -90,30 +135,49 @@ function mel_catv_lcfg_keys($rows)
 // captions in the language $lang -> ids: its items, in the order of all_items (what "Reset to
 // defaults" gives back); captions: id => caption; checked: its checked_ids, id => checked, every
 // id; on: the ids chosen now (id => true); order: the ids in the order shown now, as the file after
-// "---"; item: a row of the tab => its item (to select the row of the header); blocks: the chosen
-// rows of the tab by groups, group => keys (mel_cat_blocks).
-// "Group order": the groups with chosen rows, all_items in the order of the page (mel_cat_groups),
-// all checked, the order theirs on the tab. A group: its rows in the order of the manifest,
-// checked_ids its start rows (showInHome); shown: its chosen rows in their order, then the others
-// in the order of the manifest. checked_ids are also the state of an id with no line in the file
+// "---"; item: a row of the tab => its item (to select the row of the header); blocks: the slots
+// of the tab (mel_cat_tab_slots) in their order, a group => the keys of its chosen rows
+// (mel_cat_blocks), a row of Melange shown => array(<tab>/@<name>); keyed: mel_catv_lcfg_keyed.
+// "Group order": the rows of Melange (mel_catv_lcfg_pseudo) in their canonical order, then the
+// groups with chosen rows in the order of the page (mel_cat_groups): all_items. checked_ids: the
+// groups and the rows of Melange on by default. Chosen: the groups, the rows of Melange shown. The
+// order: theirs on the tab, a row of Melange hidden where it goes when checked (mel_cat_tab_slots:
+// right after the one before it in the canonical order, none - first). A group: its rows in the
+// order of the manifest, checked_ids its start rows (showInHome); shown: its chosen rows in their
+// order, then the others in the order of the manifest. checked_ids are also the state of an id with no line in the file
 // (list_utils.php r25: a line only against checked_ids).
 /**
  * @param list<MelCatRow> $rows
  * @param string $tab
  * @param string $g
  * @param string $lang
- * @return array{ids: list<string>, captions: array<string, string>, checked: array<string, bool>, on: array<string, true>, order: list<string>, item: array<string, string>, blocks: array<string, list<string>>}
+ * @return array{ids: list<string>, captions: array<string, string>, checked: array<string, bool>, on: array<string, true>, order: list<string>, item: array<string, string>, blocks: array<string, list<string>>, keyed: array<string, bool>}
  */
 function mel_catv_lcfg_dialog($rows, $tab, $g, $lang)
 {
     $blocks = array();
-    foreach (mel_cat_blocks(mel_catv_lcfg_chosen($rows, $tab)) as $b => $rs)
-        $blocks[$b] = array_keys(mel_catv_lcfg_keys($rs));
+    foreach (mel_cat_tab_slots($rows, Mel::$settings['cat_rows'], $tab) as $s)
+    {
+        if (is_string($s))
+            $blocks[$s] = array("$tab/$s");
+        else
+            $blocks[mel_cat_block($s)][] = $s['key'];
+    }
     $names = mel_catv_lcfg_groups();
     $d = array('ids' => array(), 'captions' => array(), 'checked' => array(), 'on' => array(), 'order' => array(), 'item' => array(),
-        'blocks' => $blocks);
+        'blocks' => $blocks, 'keyed' => mel_catv_lcfg_keyed(Mel::$settings['cat_rows'], $tab));
     if ($g === '')
     {
+        $pseudo = mel_catv_lcfg_pseudo();
+        foreach ($pseudo as $p => $x)
+        {
+            $d['ids'][] = $p;
+            $d['captions'][$p] = mel_tr($lang, $x['tr']);
+            $d['checked'][$p] = $x['on'];
+            $d['item'][$p] = $p;
+            if (isset($blocks[$p]))
+                $d['on'][$p] = true;
+        }
         foreach (mel_cat_groups() as $b)
         {
             if (!isset($blocks[$b]))
@@ -124,7 +188,17 @@ function mel_catv_lcfg_dialog($rows, $tab, $g, $lang)
             $d['on'][$b] = true;
         }
         foreach (array_keys($blocks) as $b)
-            $d['order'][] = strval($b);
+        {
+            if (isset($d['checked'][$b]))
+                $d['order'][] = strval($b);
+        }
+        $at = 0;
+        foreach (array_keys($pseudo) as $p)
+        {
+            if (!isset($d['on'][$p]))
+                array_splice($d['order'], $at, 0, array($p));
+            $at = intval(array_search($p, $d['order'], true)) + 1;
+        }
         foreach ($rows as $r)
         {
             if (mel_cat_row_tab($r) === $tab)
@@ -295,19 +369,77 @@ function mel_catv_lcfg_load($path)
     return $text === false ? array('', 'unread') : array($text, '');
 }
 
-// The keys of the tab after "Group order": the rows of the groups $groups (mel_catv_lcfg_order) in
-// their order, each its rows of $blocks (mel_catv_lcfg_dialog) in their order; a group not there
-// goes with its rows.
+// The keys of the tab $tab after "Group order" (its dialog $d, mel_catv_lcfg_dialog): its items checked $got
+// (mel_catv_lcfg_order) in their order, a group its rows of blocks in their order, a row of Melange <tab>/@<name>; a group
+// unchecked goes with its rows; then <tab>/@<name>:off of the rows of Melange unchecked. A row of Melange not in the
+// dialog (mel_catv_lcfg_pseudo) as its key was: shown - right after the nearest item before it on the tab still there,
+// none - first; hidden - :off; no key - none.
 /**
- * @param list<string> $groups
- * @param array<string, list<string>> $blocks
+ * @param list<string> $got
+ * @param array{ids: list<string>, blocks: array<string, list<string>>, keyed: array<string, bool>} $d
+ * @param string $tab
  * @return list<string>
  */
-function mel_catv_lcfg_groups_apply($groups, $blocks)
+function mel_catv_lcfg_order_apply($got, $d, $tab)
 {
+    $ids = array_flip($d['ids']);
+    $was = array_keys($d['blocks']);
+    foreach ($was as $i => $b)
+    {
+        if (isset($ids[$b]))
+            continue;
+        $at = 0;
+        for ($j = $i - 1; $j >= 0; $j--)
+        {
+            $k = array_search($was[$j], $got, true);
+            if ($k !== false)
+            {
+                $at = intval($k) + 1;
+                break;
+            }
+        }
+        array_splice($got, $at, 0, array(strval($b)));
+    }
     $keys = array();
-    foreach ($groups as $b)
-        $keys = array_merge($keys, isset($blocks[$b]) ? $blocks[$b] : array());
+    foreach ($got as $b)
+        $keys = array_merge($keys, $b[0] === '@' ? array("$tab/$b") : (isset($d['blocks'][$b]) ? $d['blocks'][$b] : array()));
+    foreach ($d['ids'] as $id)
+    {
+        if ($id[0] === '@' && !in_array($id, $got, true))
+            $keys[] = "$tab/$id:off";
+    }
+    foreach ($d['keyed'] as $p => $on)
+    {
+        if (!$on && !isset($ids[$p]))
+            $keys[] = "$tab/$p:off";
+    }
+    return $keys;
+}
+
+// The keys of the tab $tab after the dialog of a group (its dialog $d, mel_catv_lcfg_dialog), its rows checked $block in
+// their order (mel_catv_lcfg_group_apply over the keys of blocks): those of Melange as they were - a row shown only with
+// its key in cat_rows (keyed; with none it comes back to the same place by itself), the keys :off last.
+/**
+ * @param array{ids: list<string>, blocks: array<string, list<string>>, keyed: array<string, bool>} $d
+ * @param string $tab
+ * @param list<string> $block
+ * @return list<string>
+ */
+function mel_catv_lcfg_group_keys($d, $tab, $block)
+{
+    $now = array();
+    foreach ($d['blocks'] as $b => $ks)
+    {
+        $b = strval($b);
+        if ($b[0] !== '@' || !empty($d['keyed'][$b]))
+            $now = array_merge($now, $ks);
+    }
+    $keys = mel_catv_lcfg_group_apply($now, $d['ids'], $block);
+    foreach ($d['keyed'] as $p => $on)
+    {
+        if (!$on)
+            $keys[] = "$tab/$p:off";
+    }
     return $keys;
 }
 
@@ -379,7 +511,8 @@ function mel_catv_rows_tab($from)
 // "Configure list…" and a separator for the POP UP of the main screen $from of the tab $tab, on the
 // header $hid (selected_header_id, in the panel of the headers; genre_rows_screen.php r25): on any
 // h:* header or MEL_CATV_STRIP_HEADER the menu of the rows of the tab (mel_catv_rows_menu), the row
-// selected if it is in the copy; none if the copy has no row of the tab. Else (a tile) none.
+// selected if it is in the copy, on "Продолжить" and "Избранное" theirs; none if the copy has no row
+// of the tab. Else (a tile) none.
 /**
  * @param string $hid
  * @param string $tab
@@ -395,7 +528,9 @@ function mel_catv_rows_menu_items($hid, $tab, $from, $lang)
         return array();
     $copy = mel_cat_manifest_copy();
     $any = false;
-    $sel = null;
+    // "Продолжить" and "Избранное": their items of "Group order".
+    $pseudo = array(MEL_CP_RID => '@continue', MEL_ML_RID => '@mylist');
+    $sel = isset($pseudo[$rid]) ? $pseudo[$rid] : null;
     foreach ($copy['rows'] as $r)
     {
         if (mel_cat_row_tab($r) !== $tab)
@@ -524,12 +659,12 @@ function mel_catv_rows_edit($from, $sel, $g)
 // post_action of the dialog $g (as mel_catv_rows_edit) of the main screen $from, at every close;
 // the shell has written its file by then; none: as an empty one (list_utils.php r25: no file, no
 // change against checked_ids); there but not read: an error, nothing written. Changed: "Group order"
-// gives the groups of the tab in their order, a group unchecked going with its rows
-// (mel_catv_lcfg_groups_apply); a group gives its rows in its place (mel_catv_lcfg_group_apply); no
-// row left on the tab: an error, nothing written. The rows go to cat_rows in place of those of the
-// tab, settings.json read again and written as the quick setup does (mel_settings_write), the
-// screen read again in place (invalidate: the shell keeps the focus by sel_state). Anything else:
-// nothing written. Back to the second menu: no.
+// gives the groups and the rows of Melange of the tab in their order (mel_catv_lcfg_order_apply); a
+// group gives its rows in its place, those of Melange as they were (mel_catv_lcfg_group_keys); no row
+// of the server left on the tab (only those of Melange checked): an error, nothing written. The rows
+// go to cat_rows in place of those of the tab, settings.json read again and written as the quick
+// setup does (mel_settings_write), the screen read again in place (invalidate: the shell keeps the
+// focus by sel_state). Anything else: nothing written. Back to the second menu: no.
 /**
  * @param stdClass $in
  * @param string $from
@@ -575,16 +710,14 @@ function mel_catv_rows_apply($in, $from)
             mel_log("catalog: rows: $at: $what: none chosen in the file, nothing changed");
             return null;
         }
-        $keys = mel_catv_lcfg_groups_apply($got, $d['blocks']);
+        $keys = mel_catv_lcfg_order_apply($got, $d, $tab);
     }
     else
+        $keys = mel_catv_lcfg_group_keys($d, $tab, $got ? $got : array());
+    if (!mel_catv_lcfg_rows_n($keys))
     {
-        $keys = mel_catv_lcfg_group_apply(mel_catv_lcfg_groups_apply(array_keys($d['blocks']), $d['blocks']), $d['ids'], $got ? $got : array());
-        if (!$keys)
-        {
-            mel_log("catalog: rows: $at: $what: no row left on the tab, nothing changed");
-            return mel_error('cat_rows_empty');
-        }
+        mel_log("catalog: rows: $at: $what: no row left on the tab, nothing changed");
+        return mel_error('cat_rows_empty');
     }
     $dir = mel_data_dir();
     $why = 'no data_dir';
@@ -609,7 +742,7 @@ function mel_catv_rows_apply($in, $from)
     }
     // In memory too: the files of "TV" are built of it in this operation (mel_tv_rows_saved).
     Mel::$settings['cat_rows'] = $rows;
-    mel_log("catalog: rows: $at: " . count($keys) . ' chosen, saved');
+    mel_log("catalog: rows: $at: " . mel_catv_lcfg_rows_n($keys) . ' chosen, saved');
     // From "TV": no screen of Melange under the EPF to read again, the files built anew (mel_tv_rows_saved).
     return mel_tv_is_from($from) ? mel_tv_rows_saved($copy['rows'], $was, $rows) : mel_catv_invalidate($from);
 }
