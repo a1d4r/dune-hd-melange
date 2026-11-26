@@ -141,9 +141,9 @@ function mel_tsr_line_text($tile, $lang)
 }
 
 // The line of TorrServer of the panel (mel_tsr_line_text) at $y of the panel, LINE_H high: the icon L2 on the left,
-// centred in it, the text after it to the right edge of the panel (wider than MEL_CATV_TEXT_W of the other lines: a size
-// and a day of a year fit so at 28-30 px) in MEL_CATV_LINE_PX, smaller down to MEL_CATV_DATA_MIN_PX to fit, cut with "…"
-// then.
+// its middle at the middle of the capitals of the text, the text after it to the right edge of the panel (wider than
+// MEL_CATV_TEXT_W of the other lines: a size and a day of a year fit so at 28-30 px) in MEL_CATV_LINE_PX, smaller down
+// to MEL_CATV_DATA_MIN_PX to fit, cut with "…" then.
 /**
  * @param string $text
  * @param int $y
@@ -157,7 +157,10 @@ function mel_tsr_line($text, $y)
     $fit = mel_catv_fit(mel_clean($text), MEL_CATV_LINE_PX, MEL_CATV_DATA_MIN_PX, $w);
     $l = mel_catv_info_label($fit[1], $fit[0], MEL_CATV_TEXT_COLOR, $w, MEL_CATV_LINE_H, $y);
     $l[GComponentDef::geom_def][GCompGeometryDef::align_def][GCompAlignDef::x] = $x;
-    return array(mel_gc_image(mel_gc_at($wh, $wh, 0, $y + intval((MEL_CATV_LINE_H - $wh) / 2)), MEL_TSR_LINE_ICON), $l);
+    // A label with no GCOMP_OPT_TTF_LAYOUT_FIX has the capitals (0.713 of the size high) (size - capitals) / 2 under the
+    // middle of its box: 4 px at 26-30 px; the icon as much lower than the middle.
+    $iy = $y + intval((MEL_CATV_LINE_H - $wh) / 2) + intval(round($fit[0] * (1 - 0.713) / 2));
+    return array(mel_gc_image(mel_gc_at($wh, $wh, 0, $iy), MEL_TSR_LINE_ICON), $l);
 }
 
 // The background of the panel of a tile not known (the shape of mel_catv_card) in the mode $on (cat_logo): the picture
