@@ -2,7 +2,7 @@
 // The settings page (cgi/settings.php): the rows of the catalog for its screen #rows.
 // Runs the client of the plugin (catalog.php) with what it takes of main.php, which
 // needs the firmware. Loaded only for this request (and for the start rows after a
-// save, mel_cgi_cat_start). Only reads the cache: the
+// save, mel_cgi_cat_same). Only reads the cache: the
 // manifest older than MEL_CAT_MANIFEST_FRESH is asked again and not kept (mel_cat_cache_dir).
 
 define('MEL_CAT_READ_ONLY', true);
@@ -34,23 +34,27 @@ function mel_http_get($url, &$err, $connect, $total, $max, &$connected = null)
     return array($r['code'], $err !== '' || $r['cut'] ? '' : $r['body']);
 }
 
-// The keys of the start rows as the catalog shows them with nothing chosen (mel_cat_user_rows)
-// and the page posts them: of movies, then of series; null: no copy (or no such row). No request.
+// Whether the catalog shows the same rows in the same order for the choices $a and $b of cat_rows: the
+// slots of each tab (mel_cat_tab_slots) by the copy of the manifest - the start rows for null, the rows of
+// Melange without a key where they stand by default. False without a copy: not known. No request.
 /**
  * @param string $dir
- * @return list<string>|null
+ * @param list<string>|null $a
+ * @param list<string>|null $b
+ * @return bool
  */
-function mel_cgi_cat_start($dir)
+function mel_cgi_cat_same($dir, $a, $b)
 {
     $GLOBALS['MEL_CGI_DATA'] = $dir;
     $c = mel_cat_manifest_copy();
-    $keys = array();
+    if (!$c['rows'])
+        return false;
     foreach (mel_cat_tabs() as $tab)
     {
-        foreach (mel_cat_user_rows($c['rows'], null, $tab) as $r)
-            $keys[] = $r['key'];
+        if (mel_cat_tab_slots($c['rows'], $a, $tab) !== mel_cat_tab_slots($c['rows'], $b, $tab))
+            return false;
     }
-    return $keys ? $keys : null;
+    return true;
 }
 
 // JSON {ok: there is a list, stale: it is the last good copy, rows}: of a row only

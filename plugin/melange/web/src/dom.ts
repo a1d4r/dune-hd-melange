@@ -219,6 +219,8 @@ export const NAME = {
   lampacAsLampa: "lampac_as_lampa",
   // The age of "Что не показывать" (0.65.0): all, 16, 12, 6, 0; each radio with its line on the main screen (DATA.short).
   catAge: "cat_age",
+  // "Running torrents" (0.49.0): VALUE.off - "No torrents" (the radios right in the form, the CSS hides by them).
+  noTorrents: "no_torrents",
 } as const;
 
 // The values of the page the script compares with.

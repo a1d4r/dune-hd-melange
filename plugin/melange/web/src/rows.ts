@@ -1,11 +1,12 @@
 // The screen of the rows of the catalog (#rows): the list comes from the Dune when the screen opens; two parts, as
 // the tabs of the catalog (CatRow.tab), each with its rows shown by groups (a group moves among the groups, a row
-// within its group) and all its groups, one shown by the
+// within its group; a row of Melange, OWN, is a group of its own without lines of rows) and all its groups, the rows of
+// Melange first, one shown by the
 // switch (Movies first, till the page is left); the rows shown go to the field cat_rows, a save posts it. The field stays as it is until the user changes something:
 // no list, or none of its rows left, and the saved choice is not touched.
 
 import type { Api, CatRow } from "./api";
-import { byId, DATA, ID, type Page } from "./dom";
+import { byId, checkedValue, DATA, ID, NAME, type Page, VALUE } from "./dom";
 import { failureText, type Texts } from "./i18n";
 import { addLine, show } from "./ui";
 
@@ -33,9 +34,26 @@ type Tab = CatRow["tab"];
 // The parts of the screen, as the tabs of the catalog; in the field the keys of movies go first.
 const TABS: readonly Tab[] = ["movie", "series"];
 
+// The rows of Melange, as mel_cat_pseudo (common.php), in its canonical order: the name (the key <tab>/<name>, its
+// group of its own), its text, shown when the field has no key of it.
+export const OWN: readonly (readonly [string, keyof Texts, boolean])[] = [
+  ["@continue", "rowContinue", true],
+  ["@mylist", "rowMylist", true],
+  ["@torrserver", "rowTorrserver", false],
+];
+// The one not there with "No torrents" (mel_tsl_on).
+const TORRSERVER = "@torrserver";
+const OWN_NAMES = new Set(OWN.map(([name]) => name));
+// As mel_cat_pseudo_key (common.php): a key of a row of Melange, <tab>/<name>[:off] -> its tab, name, hidden; null - none.
+export function ownKey(key: string): { tab: Tab; name: string; off: boolean } | null {
+  const m = /^(movie|series)\/(@[a-z]+)(:off)?$/.exec(key);
+  return m && OWN_NAMES.has(m[2]!) ? { tab: m[1] as Tab, name: m[2]!, off: !!m[3] } : null;
+}
+const isOwn = (key: string): boolean => ownKey(key) !== null;
+
 const KNOWN = new Set(GROUPS.map(([group]) => group));
-// As mel_cat_block (catalog.php): the group of a row on the screen, one not of GROUPS "other".
-export const groupOf = (row: Pick<CatRow, "group">): string => (KNOWN.has(row.group) ? row.group : "other");
+// As mel_cat_block (catalog.php): the group of a row on the screen, one not of GROUPS "other"; a row of Melange its own.
+export const groupOf = (row: Pick<CatRow, "group">): string => (KNOWN.has(row.group) || row.group[0] === "@" ? row.group : "other");
 
 // As mel_cat_blocks (catalog.php): the rows by groups (groupOf), group => its rows, the groups in the order of their
 // first row, the rows of each in their order.
@@ -53,13 +71,42 @@ export function byGroups(rows: readonly Pick<CatRow, "key" | "group">[]): string
   return ([] as string[]).concat(...[...blocksOf(rows).values()].map((block) => block.map((row) => row.key)));
 }
 
-// As mel_cat_user_rows (catalog.php): the keys of the choice of the tab still in the list, else its start rows; the
-// rows of a group together either way.
+// As mel_cat_tab_slots (catalog.php) of rows of the server: the keys shown on the tab in order. Of the server: those
+// of the choice still in the list, else its start rows (mel_cat_user_rows), the rows of a group together. Of Melange
+// (<tab>/@<name>): where its key stands, a group of rows where its first one; :off - hidden; the first key of a name
+// counts. No key of it: shown when on by default, right after the nearest one before it in OWN that is shown, none -
+// first. The start rows after them.
 export function chosenKeys(rows: CatRow[], value: string, tab: Tab): string[] {
   const of = rows.filter((row) => row.tab === tab);
   const by = new Map(of.map((row) => [row.key, row]));
-  const chosen = [...new Set(value.split(SEPARATOR))].filter((key) => by.has(key)).map((key) => by.get(key)!);
-  return byGroups(chosen.length ? chosen : of.filter((row) => row.home));
+  const keys = [...new Set(value.split(SEPARATOR))];
+  const chosen = keys.filter((key) => by.has(key)).map((key) => by.get(key)!);
+  const blocks = blocksOf(chosen.length ? chosen : of.filter((row) => row.home));
+  // The blocks in their order: a group by its first row, a row of Melange by its key; name => shown, of those with a key.
+  const order: string[] = [],
+    seen = new Map<string, boolean>();
+  for (const key of keys) {
+    const row = by.get(key),
+      own = ownKey(key);
+    let id: string;
+    if (row) id = groupOf(row);
+    else if (own && own.tab === tab && !seen.has(own.name)) {
+      seen.set(own.name, !own.off);
+      if (own.off) continue;
+      id = own.name;
+    } else continue;
+    if (!order.includes(id)) order.push(id);
+  }
+  let prev = "";
+  for (const [name, , on] of OWN) {
+    if (!seen.has(name) && on) {
+      order.splice(prev ? order.indexOf(prev) + 1 : 0, 0, name);
+      seen.set(name, true);
+    }
+    if (seen.get(name)) prev = name;
+  }
+  order.push(...[...blocks.keys()].filter((id) => !order.includes(id)));
+  return ([] as string[]).concat(...order.map((id) => (id[0] === "@" ? [tab + "/" + id] : blocks.get(id)!.map((row) => row.key))));
 }
 
 // The four moves of the screen: to the first place, one up, one down, to the last; the path of its icon (24×24); the
@@ -74,7 +121,7 @@ const SVG = "http://www.w3.org/2000/svg";
 
 // changed: the bar follows (a move is no change event of the form).
 export function setupRows(page: Page, api: Api, changed: () => void): void {
-  const { doc, texts } = page;
+  const { doc, form, texts } = page;
   const field = byId<HTMLInputElement>(doc, ID.rowsValue),
     status = byId(doc, ID.rowsStatus),
     retry = byId(doc, ID.rowsRetry),
@@ -99,7 +146,7 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       last: "rowsLastSeries",
     },
   };
-  const groupText = new Map<string, keyof Texts>(GROUPS);
+  const groupText = new Map<string, keyof Texts>([...GROUPS, ...OWN.map(([name, text]) => [name, text] as const)]);
   const rowOf = new Map<string, CatRow>(),
     // The checkbox of each row in its group; the title of each group: its text and checkbox.
     boxes = new Map<string, HTMLInputElement>(),
@@ -113,6 +160,13 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     refused: HTMLElement | null = null;
   const isOn = (key: string) => chosen[rowOf.get(key)!.tab].includes(key);
   const nameOf = (group: string) => texts[groupText.get(group)!];
+  // Not on the screen: the row of TorrServer with "No torrents" chosen on the page; its key stays as it is.
+  const there = (key: string) => !(key.endsWith("/" + TORRSERVER) && checkedValue(form, NAME.noTorrents) === VALUE.off);
+  // Where a row of Melange goes on: right after the nearest one before it in OWN that is shown, none - first.
+  function ownPlace(tab: Tab, key: string): number {
+    const before = OWN.slice(0, OWN.findIndex(([name]) => key === tab + "/" + name)).map(([name]) => chosen[tab].indexOf(tab + "/" + name));
+    return Math.max(-1, ...before) + 1;
+  }
 
   // The rows shown of the part by groups, in their order: [group, its keys].
   function blocks(tab: Tab): [string, string[]][] {
@@ -159,12 +213,20 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
   function render(): void {
     for (const tab of TABS) {
       const { part, button, shown } = parts[tab],
-        all = blocks(tab);
-      // A move puts the groups back in the order of the screen.
-      const put = () => (chosen[tab] = ([] as string[]).concat(...all.map(([, keys]) => keys)));
+        every = blocks(tab),
+        all = every.filter(([, keys]) => there(keys[0]!));
+      // A move puts the groups back in the order of the screen, one not on it right after the one it was after.
+      const put = () => {
+        const out = [...all];
+        every.forEach((block, at) => {
+          if (!all.includes(block)) out.splice(at ? out.indexOf(every[at - 1]!) + 1 : 0, 0, block);
+        });
+        chosen[tab] = ([] as string[]).concat(...out.map(([, keys]) => keys));
+      };
       part.hidden = tab !== current;
       button.setAttribute("aria-pressed", tab === current ? "true" : "false");
-      button.querySelector("span")!.textContent = " · " + chosen[tab].length;
+      // Only the rows of the server: the rows of Melange were there before they could be chosen.
+      button.querySelector("span")!.textContent = " · " + chosen[tab].filter((key) => !isOwn(key)).length;
       shown.textContent = "";
       all.forEach(([group, keys], at) => {
         const head = doc.createElement("div"),
@@ -173,6 +235,8 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
         name.textContent = nameOf(group);
         head.append(name, ...moveButtons(all, at, nameOf(group), put));
         shown.appendChild(head);
+        // A row of Melange: its title only.
+        if (group[0] === "@") return;
         // The moves of a row splice keys itself, the array in all: put() reads the move from there (a copy would lose it).
         keys.forEach((key, n) => {
           const line = doc.createElement("div");
@@ -182,27 +246,36 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
         });
       });
     }
-    boxes.forEach((check, key) => (check.checked = isOn(key)));
+    boxes.forEach((check, key) => {
+      check.checked = isOn(key);
+      check.parentElement!.hidden = !there(key);
+    });
     for (const { heading, all, name, keys } of titles) {
-      const on = keys.filter(isOn).length;
-      heading.textContent = name + " · " + on + "/" + keys.length;
-      all.checked = on === keys.length;
-      all.indeterminate = on > 0 && on < keys.length;
+      const of = keys.filter(there),
+        on = of.filter(isOn).length;
+      heading.textContent = name + " · " + on + "/" + of.length;
+      all.checked = on === of.length;
+      all.indeterminate = on > 0 && on < of.length;
     }
   }
+  // The field: of each tab the keys shown in order, then those of the rows of Melange hidden, with :off.
   function commit(): void {
     if (refused) refused.remove();
     refused = null;
-    field.value = [...chosen.movie, ...chosen.series].join(SEPARATOR);
+    field.value = ([] as string[])
+      .concat(...TABS.map((tab) => [...chosen[tab], ...OWN.map(([name]) => tab + "/" + name).filter((key) => !isOn(key)).map((key) => key + ":off")]))
+      .join(SEPARATOR);
     render();
     changed();
   }
   // The checkbox of a row or of a group (keys: its rows): the ones not on go on, last in their group in the order of
-  // keys, a group not shown last in the part; all on, all go off.
+  // keys, a group not shown last in the part, a row of Melange where it is by default (ownPlace); all on, all go off.
   function toggle(keys: string[], check: HTMLInputElement): void {
     const tab = rowOf.get(keys[0]!)!.tab;
-    if (!keys.every(isOn)) chosen[tab] = byGroups([...chosen[tab], ...keys.filter((key) => !isOn(key))].map((key) => rowOf.get(key)!));
-    else if (chosen[tab].some((key) => !keys.includes(key))) chosen[tab] = chosen[tab].filter((key) => !keys.includes(key));
+    if (!keys.every(isOn)) {
+      if (isOwn(keys[0]!)) for (const key of keys.filter((key) => !isOn(key))) chosen[tab].splice(ownPlace(tab, key), 0, key);
+      else chosen[tab] = byGroups([...chosen[tab], ...keys.filter((key) => !isOn(key))].map((key) => rowOf.get(key)!));
+    } else if (isOwn(keys[0]!) || chosen[tab].some((key) => !isOwn(key) && !keys.includes(key))) chosen[tab] = chosen[tab].filter((key) => !keys.includes(key));
     else {
       // Never an empty part: its last rows stay, the bar under the screen says why.
       check.checked = true;
@@ -213,9 +286,10 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
     }
     commit();
   }
-  function buildGroups(rows: CatRow[], groupsBox: HTMLElement): void {
-    const of = blocksOf(rows);
-    for (const [group, text] of GROUPS) {
+  // The rows of Melange of the tab first, as a group.
+  function buildGroups(rows: CatRow[], groupsBox: HTMLElement, tab: Tab): void {
+    const of = new Map([["@", OWN.map(([name]) => rowOf.get(tab + "/" + name)!)], ...blocksOf(rows)]);
+    for (const [group, text] of [["@", "groupOwn"] as const, ...GROUPS]) {
       const list = of.get(group);
       if (!list) continue;
       const details = doc.createElement("details"),
@@ -228,7 +302,7 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       all.setAttribute("aria-label", texts.rowsGroupAll + ": " + texts[text]);
       // A click on a form control in the summary leaves the details as they are (Chrome, WebKit and Firefox:
       // the activation is the control's); on the text it opens or closes them.
-      all.addEventListener("change", () => toggle(keys, all));
+      all.addEventListener("change", () => toggle(keys.filter(there), all));
       summary.append(all, heading);
       details.appendChild(summary);
       for (const row of list) {
@@ -258,10 +332,12 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       if (stale) show(status, "warn", [texts.rowsStale]);
       else status.textContent = "";
       for (const tab of TABS) {
+        for (const [name, text, on] of OWN) rowOf.set(tab + "/" + name, { key: tab + "/" + name, name: texts[text], group: name, tab: tab, home: on });
         chosen[tab] = chosenKeys(rows, field.value, tab);
         buildGroups(
           rows.filter((row) => row.tab === tab),
           parts[tab].groups,
+          tab,
         );
       }
       render();
@@ -277,6 +353,8 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       render();
     });
   retry.addEventListener("click", load);
+  // "No torrents" chosen or not: the row of TorrServer goes from the screen or comes back.
+  form.querySelectorAll("input[name=" + NAME.noTorrents + "]").forEach((radio) => radio.addEventListener("change", () => state === "here" && render()));
   doc.defaultView!.addEventListener("hashchange", opened);
   opened();
 }
