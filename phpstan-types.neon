@@ -340,7 +340,7 @@ parameters:
         # The overlay of the last screen that opened one (MelOvl::$st, kit_ovl.php): the record of the screen, shown or
         # not; the side panel open, the choices of its check lists left after its close (by the id of the item of their
         # submenu, '' the panel itself); the window of the copies of the own card open (lw).
-        MelOvlState: 'array{scr: MelOvlScreen, open: bool, kp?: MelKp, kp_done?: array<string, MelKpChoice>, dlg?: MelDlg, wt?: MelWait, lw?: MelLibWin}'
+        MelOvlState: 'array{scr: MelOvlScreen, open: bool, kp?: MelKp, kp_done?: MelKpChoice, dlg?: MelDlg, wt?: MelWait, lw?: MelLibWin}'
         # The window of the copies on the disk over the own card (W2, MelOvl::$st['lw'], view_card_libwin.php): copies, its
         # lines (the best first); at, the line of the cursor; mode, first (the first "Смотреть") or menu (MENU "Копия на
         # диске…"); s, e, the episode (-1 of a movie); cur, the cid of the copy "· сейчас" ('' none); top, the first line
@@ -365,9 +365,8 @@ parameters:
         # An error or a wait screen kept (MelKs::$scr): its look, the detail line of an error, the error (as the own dialog)
         # or the wait, its end (null: live).
         MelKsScreen: 'array{look: MelKsLook, detail: string, dlg: MelDlg|null, wt: MelWait|null, end: string|null}'
-        # The side panel open (kit_panel.php): its panels, a submenu over its panel last; the choices of the check lists
-        # of submenus left (by the id of their item) and the act of «Готово» of the last one.
-        MelKp: 'array{stack: non-empty-list<MelKpFrame>, done: array<string, MelKpChoice>, act: MelAction|null}'
+        # The side panel open (kit_panel.php): its panels, a submenu over its panel last.
+        MelKp: 'array{stack: non-empty-list<MelKpFrame>}'
         # A panel of MelKp: its description, its items by id, the ids of a menu by group, the cursor, the first line of
         # the list shown; of a check list the checks, the order and a line taken.
         MelKpFrame: 'array{desc: MelKpDesc|MelKpSubDesc, its: array<string, MelKpItem|MelKpLeaf|MelKpCheck>, groups: list<list<string>>, cur: int, top: int, on: array<string, bool>, order: list<string>, move: bool}'
