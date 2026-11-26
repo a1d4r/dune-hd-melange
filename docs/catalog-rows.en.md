@@ -56,7 +56,7 @@ Series rows are set up the same way, on the "Series" tab.
 
 4. "Hidden" on the same screen lists everything you hid on this Dune. "Unhide" brings a title back to the catalog.
 
-   <img src="../screenshots/rows-phone-hidden.jpg" alt="Hide from the catalog: Age rating set to All, Hidden lists a film with an Unhide button" width="300">
+   <img src="../screenshots/rows-phone-hidden.jpg" alt="Catalog filter: Age rating set to All, both IMDb rating lists (movies, series) set to Any, Hidden lists a film with an Unhide button" width="300">
 
 Search shows everything it finds. "Continue Watching" and Favorites stay as they are.
 
