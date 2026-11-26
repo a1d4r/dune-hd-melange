@@ -411,8 +411,9 @@ function mel_gc_win_new($top, $ntop, $n, $vis = MEL_GC_VIS)
 
 // The changes of a list of $n lines ($vis on the screen from y $ly) whose top went from $top to $ntop: the lines that
 // leave the window (mel_gc_win) removed, those that come in - $add, built of mel_gc_win_new - put in with the 'rows'
-// change (after the line before them; above all: after 'sel', over it), the thumb. Both cursor lines stay: the window
-// holds a page above and below the screen.
+// change (after the line before them; above all, or a window apart from the old one - a jump of more than the window,
+// none of its lines kept: after 'sel', over it), the thumb. Both cursor lines stay in a step of a page at most: the
+// window holds a page above and below the screen.
 /**
  * @param int $top
  * @param int $ntop
@@ -440,7 +441,7 @@ function mel_gc_win_changes($top, $ntop, $n, $add, $vis = MEL_GC_VIS, $ly = MEL_
     if ($add)
     {
         $x[ChangeGCompDef::children_merge_mode] = true;
-        $x[ChangeGCompDef::children_insert_after_id] = $lo < $olo ? 'sel' : 'r' . ($ohi - 1);
+        $x[ChangeGCompDef::children_insert_after_id] = $lo < $olo || $lo >= $ohi ? 'sel' : 'r' . ($ohi - 1);
     }
     $ch[] = $x;
     $ch[] = mel_gc_change('thumb', mel_gc_thumb_geom($ntop, $n, $vis, $ly), GCOMP_TRANSITION_DEFAULT);
