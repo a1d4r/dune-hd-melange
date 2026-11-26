@@ -105,13 +105,12 @@ class MelCpm
     /** @var list<array{string, string, string}> */
     public static $miss = array();
     // The same of the row "Мой список" (our list, not the Favorites of the Dune) of that screen (mel_ml_row_defs): asked
-    // after those of "Continue", before them when the row is above it ($shown).
+    // after those of "Continue", before them when the row is above it (MelCat::$own).
     /** @var list<array{string, string, string}> */
     public static $ml = array();
-    // The rows of Melange of that screen shown, in its order (mel_cat_tab_slots, the names of mel_cat_pseudo); one
-    // hidden is not built, its titles not asked.
-    /** @var list<string> */
-    public static $shown = array('continue', 'mylist');
+    // The same of the row "На TorrServer" of that screen (mel_tsr_row_defs: its tiles known by the history).
+    /** @var list<array{string, string, string}> */
+    public static $ts = array();
     // The same of the screen "Продолжить" or "Мой список" built last (view_my_list.php), its first MEL_CPM_MORE: asked
     // after those of the rows; a row built again keeps them.
     /** @var list<array{string, string, string}> */
@@ -425,9 +424,24 @@ function mel_cpm_paused()
     return $left > 0 && $left <= MEL_CPM_PAUSE_S ? $left : 0;
 }
 
-// The titles of MelCpm::$miss and MelCpm::$ml (in the order of their rows, MelCpm::$shown), then of MelCpm::$more (of
-// the ticks of a main screen), else of $titles (of the screen "Продолжить" or "Мой список", its tiles with no meta), to
-// ask (mel_cpm_due), in their order. -> keys => array(type, IMDb, TMDB).
+// The tiles with no meta of the rows of Melange of the main screen (MelCpm::$miss, MelCpm::$ml, MelCpm::$ts), in the
+// order of their rows (MelCat::$own). -> array(type, IMDb, TMDB).
+/**
+ * @return list<array{string, string, string}>
+ */
+function mel_cpm_rows()
+{
+    // The list of each row of Melange with one, by its name (mel_cat_pseudo).
+    $of = array('@continue' => MelCpm::$miss, '@mylist' => MelCpm::$ml, '@torrserver' => MelCpm::$ts);
+    $rows = array();
+    foreach (MelCat::$own as $name)
+        $rows = isset($of[$name]) ? array_merge($rows, $of[$name]) : $rows;
+    return $rows;
+}
+
+// The titles of the rows (mel_cpm_rows), then of MelCpm::$more (of the ticks of a main screen), else of $titles (of
+// the screen "Продолжить" or "Мой список", its tiles with no meta; of the rows alone, a tick), to ask (mel_cpm_due), in
+// their order. -> keys => array(type, IMDb, TMDB).
 /**
  * @param list<array{string, string, string}>|null $titles
  * @return array<string, array{string, string, string}>
@@ -437,9 +451,7 @@ function mel_cpm_queue($titles = null)
     $c = mel_cpm_read();
     $now = time();
     $out = array();
-    $rows = array_values(array_intersect(MelCpm::$shown, array('continue', 'mylist'))) === array('mylist', 'continue') ?
-        array_merge(MelCpm::$ml, MelCpm::$miss) : array_merge(MelCpm::$miss, MelCpm::$ml);
-    foreach ($titles !== null ? $titles : array_merge($rows, MelCpm::$more) as $m)
+    foreach ($titles !== null ? $titles : array_merge(mel_cpm_rows(), MelCpm::$more) as $m)
     {
         $key = mel_cpm_key($m[0], $m[1], $m[2]);
         if ($key === '' || isset($out[$key]) || !mel_cpm_due(isset($c[$key]) ? $c[$key] : null, $now))
@@ -753,7 +765,7 @@ function mel_cpm_fill($tiles, $limit, $map = null)
 
 // The titles of the rows "Continue" and "Мой список" of each type, MEL_CATV_ROW_TILES of each (those of a row of both
 // types, the tab "TV", are among them): of tab $tab first ('': the movies first), those of "Continue" before those of
-// the list; only of the rows shown, $names (of mel_cat_pseudo: 'continue', 'mylist'). -> array(type, IMDb, TMDB) each,
+// the list; only of the rows shown, $names (of mel_cat_pseudo: '@continue', '@mylist'). -> array(type, IMDb, TMDB) each,
 // in that order.
 /**
  * @param string $tab
@@ -768,10 +780,10 @@ function mel_cpm_build_titles($tab, $names)
     foreach ($tab === 'series' ? array('series', 'movie') : array('movie', 'series') as $type)
     {
         // As mel_cp_tile asks its tile.
-        foreach (in_array('continue', $names, true) ? mel_cp_items(array($type)) : array() as $mid => $it)
+        foreach (in_array('@continue', $names, true) ? mel_cp_items(array($type)) : array() as $mid => $it)
             $out[] = mel_cp_ids(strval($mid), $idx[strval($mid)]['series'] ? true : false);
         $n = 0;
-        foreach (in_array('mylist', $names, true) ? $list : array() as $e)
+        foreach (in_array('@mylist', $names, true) ? $list : array() as $e)
         {
             if ($e['type'] !== $type)
                 continue;
@@ -1025,7 +1037,7 @@ function mel_cpm_ask_due($due, $t0, $limit, $max)
  * @param list<string> $names
  * @return void
  */
-function mel_cpm_build($tab, $limit, $names = array('continue', 'mylist'))
+function mel_cpm_build($tab, $limit, $names = array('@continue', '@mylist'))
 {
     $t0 = microtime(true);
     $now = time();

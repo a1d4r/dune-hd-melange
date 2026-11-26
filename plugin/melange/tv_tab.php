@@ -267,14 +267,17 @@ function mel_tv_views($lang, &$tiles = null)
         {
             $tabs[$tab] = mel_catv_tab_copy_defs($tab, $lang);
             $lists = $tabs[$tab]['lists'];
-            foreach ($tabs[$tab]['defs'] as $def)
+            foreach ($tabs[$tab]['slots'] as $slot)
             {
-                foreach (isset($def[PluginRow::data][PluginRegularRow::items]) ? $def[PluginRow::data][PluginRegularRow::items] : array() as $it)
+                foreach (is_string($slot) ? array() : $slot as $def)
                 {
-                    list(, $id) = mel_catv_id_mode(strval($it[PluginRegularItem::id]));
-                    $p = explode(':', $id, 2);
-                    if (count($p) === 2 && isset($lists[$p[0]]['tiles'][$p[1]]))
-                        $tiles[$id] = $lists[$p[0]]['tiles'][$p[1]];
+                    foreach (isset($def[PluginRow::data][PluginRegularRow::items]) ? $def[PluginRow::data][PluginRegularRow::items] : array() as $it)
+                    {
+                        list(, $id) = mel_catv_id_mode(strval($it[PluginRegularItem::id]));
+                        $p = explode(':', $id, 2);
+                        if (count($p) === 2 && isset($lists[$p[0]]['tiles'][$p[1]]))
+                            $tiles[$id] = $lists[$p[0]]['tiles'][$p[1]];
+                    }
                 }
             }
         }
@@ -283,17 +286,8 @@ function mel_tv_views($lang, &$tiles = null)
     $off = mel_tv_sub_off();
     // The meta of the tiles of the rows "Continue" and "Мой список" shown on a tab, of no request (mel_cpm_build): kept,
     // of the rows in memory or on the disk.
-    $own_of = array();
-    foreach ($tabs as $tab => $t)
-    {
-        foreach ($t['slots'] as $slot)
-        {
-            if (is_string($slot))
-                $own_of[$tab][$slot] = true;
-        }
-    }
     if (Mel::$settings['ready'])
-        mel_cpm_build('', 0.0, mel_tv_own_names($own_of, $epfs[MEL_TV_EPF]));
+        mel_cpm_build('', 0.0, mel_tv_own_names($tabs, $epfs[MEL_TV_EPF]));
     foreach ($epfs as $epf => $of)
     {
         if ($off && $epf !== MEL_TV_EPF)
@@ -303,11 +297,11 @@ function mel_tv_views($lang, &$tiles = null)
         $one = count($of) === 1 ? $of[0] : '';
         // The rows of the tabs by their slots; a row of Melange of both types (tv.json) once, at its place on the first
         // tab that shows it.
-        $names = mel_tv_own_names($own_of, $of);
+        $names = mel_tv_own_names($tabs, $of);
         $own = array();
-        if (in_array('continue', $names, true))
+        if (in_array('@continue', $names, true))
             $own['@continue'] = mel_cp_row_defs($one, $lang, $cp_tiles);
-        if (in_array('mylist', $names, true))
+        if (in_array('@mylist', $names, true))
             $own['@mylist'] = mel_ml_row_defs($one, $lang, $ml_tiles);
         $tiles = array_merge($tiles, $cp_tiles, $ml_tiles);
         $defs = array();
@@ -341,20 +335,18 @@ function mel_tv_views($lang, &$tiles = null)
     return $views;
 }
 
-// The names of the rows of Melange (mel_cat_pseudo) shown on the tabs $tabs, by $own_of: tab => '@<name>' => true.
+// The names of the rows of Melange (mel_cat_pseudo: '@continue') shown on the tabs $of, by the slots of the tabs $tabs
+// (mel_catv_tab_copy_defs by tab), each once.
 /**
- * @param array<string, array<string, bool>> $own_of
- * @param list<string> $tabs
+ * @param array<string, array{slots: list<string|list<array<string, mixed>>>}> $tabs
+ * @param list<string> $of
  * @return list<string>
  */
-function mel_tv_own_names($own_of, $tabs)
+function mel_tv_own_names($tabs, $of)
 {
     $out = array();
-    foreach ($tabs as $tab)
-    {
-        foreach (isset($own_of[$tab]) ? array_keys($own_of[$tab]) : array() as $slot)
-            $out[] = substr($slot, 1);
-    }
+    foreach ($of as $tab)
+        $out = array_merge($out, isset($tabs[$tab]) ? mel_cat_slot_names($tabs[$tab]['slots']) : array());
     return array_values(array_unique($out));
 }
 

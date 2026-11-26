@@ -4,7 +4,8 @@
 // the uid of a start; the
 // run of a start ("get", its step, its playlist); the screen of files of a pack (its groups of
 // folders, its lines, the marks of TorrServer "viewed", the file it opens on); no firmware API. Reads Mel::$settings,
-// writes MelTsl. Functions are global; the require order is in main.php.
+// writes MelTsl (and the copy of the row of the catalog on a removal, ts_row.php). Functions are global; the require order
+// is in main.php.
 
 // The lines of the section at most; the read of the list stops at as many entries kept. 1008 entries of 40 files hold
 // ~36 MB in a 64-bit PHP 5.3, about half of it on the Dune (MEL_TSL_MEM lets them in), and their read and the build of
@@ -39,7 +40,8 @@ class MelTsl
     /** @var array<string, MelTsEntry>|null */
     public static $list = null;
     // The files of file_stats of torrents whose entry knew none (a record of Lampa), hash => files: a read of the list
-    // anew (mel_tsl_load) keeps them (mel_tsl_files_of).
+    // anew (mel_tsl_load) keeps them (mel_tsl_files_of); also the files of an entry of the copy of the row of the catalog
+    // (mel_tsl_find, ts_row.php) not in the list in memory.
     /** @var array<string, list<MelTsFile>> */
     public static $files = array();
     // The guard of memory of the read of the list (MEL_TSL_MEM; tests set less).
@@ -74,11 +76,14 @@ class MelTslScan
     // start - before "[", list - in the array, end - its "]" read; not - the reply is not an array.
     /** @var string */
     public $state = 'start';
-    // Why the read stopped early: '' not, 'max' - MEL_TSL_MAX entries kept, 'memory' - over $mem (memory_get_usage).
+    // Why the read stopped early: '' not, 'max' - $max entries kept, 'memory' - over $mem (memory_get_usage).
     /** @var string */
     public $stop = '';
     /** @var int */
     public $mem;
+    // The entries kept at most: MEL_TSL_MAX of the section, MEL_TSR_MAX of the row of the catalog (ts_row.php).
+    /** @var int */
+    public $max;
     /** @var int */
     public $bytes = 0;
     // The elements read, of them not JSON, over MEL_TSL_ENTRY_MAX (not decoded).
@@ -99,10 +104,12 @@ class MelTslScan
 
     /**
      * @param int $mem
+     * @param int $max
      */
-    public function __construct($mem)
+    public function __construct($mem, $max = MEL_TSL_MAX)
     {
         $this->mem = $mem;
+        $this->max = $max;
     }
 
     // A chunk of the reply -> go on reading (false: the read is over - the end of the array, not an array, a stop; spaces
@@ -234,7 +241,7 @@ class MelTslScan
 
     // Element $x of the array decoded (null: not JSON) -> its entry kept (mel_tsl_entry: a hash of 40 hex and the torrent
     // saved in the base (stat 5, TorrServer InDB) or with data - an active torrent never saved (stat 3, no data) is not;
-    // a hash seen before is not), the read stopped at MEL_TSL_MAX kept or over $mem after an entry kept (one not kept
+    // a hash seen before is not), the read stopped at $max kept or over $mem after an entry kept (one not kept
     // takes no memory: a list of active torrents to its "]").
     /**
      * @param array<mixed>|null $x
@@ -253,7 +260,7 @@ class MelTslScan
             return;
         $this->seen[$e['hash']] = true;
         $this->out[] = array($e['added'], $k, $e);
-        if (count($this->out) >= MEL_TSL_MAX)
+        if (count($this->out) >= $this->max)
             $this->stop = 'max';
         else if (memory_get_usage() > $this->mem)
             $this->stop = 'memory';
@@ -276,10 +283,7 @@ class MelTslScan
 }
 // The list of the TorrServer of the settings -> array(entries in the order of the section or null on an error,
 // the key of the error ('' none), its detail); kept in MelTsl when read, none kept on an error. Every open of the
-// section reads it anew, as it comes (MelTslScan): up to MEL_TSL_MAX entries kept or MelTsl::$mem_max of memory, the
-// newest (TorrServer sends them first); cut (its time out, a break) - the entries read, none - ts_err_down. Not an
-// array, every element not JSON, cut with no entry, the guard of memory before any entry: tsl_err_bad; an element not
-// JSON or over MEL_TSL_ENTRY_MAX is skipped.
+// section reads it anew (mel_tsl_fetch): up to MEL_TSL_MAX entries, in MEL_TSL_LIST_S.
 /**
  * @return array{list<MelTsEntry>|null, string, string}
  */
@@ -291,13 +295,38 @@ function mel_tsl_load()
         mel_log('ts section: list: no torrents');
         return array(null, 'ts_err_off', '');
     }
+    $r = mel_tsl_fetch('ts section', MEL_TSL_MAX, MEL_TSL_LIST_S);
+    if ($r[0] === null)
+        return $r;
+    $keep = array();
+    foreach ($r[0] as $e)
+        $keep[$e['hash']] = $e;
+    MelTsl::$list = $keep;
+    return $r;
+}
+
+// "list" of the TorrServer of the settings, as it comes (MelTslScan), $total s, up to $max entries kept or
+// MelTsl::$mem_max of memory, the newest (TorrServer sends them first); a line of the log of tag $tag (the section, the
+// row of the catalog) -> array(the entries in their order or null on an error, the key of the error ('' none), its
+// detail: 'memory' with the entries too when the guard stopped the read). Cut (its time out, a break) - the entries read,
+// none - ts_err_down; 401 - the login (mel_ts_auth_err). Not 200, not an array, every element not JSON, cut with no
+// entry, the guard of memory before any entry: tsl_err_bad; an element not JSON or over MEL_TSL_ENTRY_MAX is skipped.
+// Not «Без торрентов»: the caller checks it.
+/**
+ * @param string $tag
+ * @param int $max
+ * @param int|float $total
+ * @return array{list<MelTsEntry>|null, string, string}
+ */
+function mel_tsl_fetch($tag, $max, $total)
+{
     $url = Mel::$settings['ts'] . '/torrents';
-    $scan = new MelTslScan(MelTsl::$mem_max);
+    $scan = new MelTslScan(MelTsl::$mem_max, $max);
     $t = microtime(true);
-    $r = mel_ts_call($url, (string) json_encode(array('action' => 'list')), MEL_TSL_LIST_S, Mel::$settings['ts_auth'],
+    $r = mel_ts_call($url, (string) json_encode(array('action' => 'list')), $total, Mel::$settings['ts_auth'],
         array($scan, 'feed'));
     $ms = (microtime(true) - $t) * 1000 - $scan->ms;
-    $head = sprintf('ts section: list %s: ', $url);
+    $head = sprintf('%s: list %s: ', $tag, $url);
     $cut = $r['err'] !== '';
     if ($cut && ($r['code'] !== 200 || !$scan->out))
     {
@@ -316,7 +345,7 @@ function mel_tsl_load()
         mel_log($line . sprintf('%d entries, %d bad, not a list', $scan->n, $scan->bad));
         return array(null, 'tsl_err_bad', 'not a list');
     }
-    $why = array('max' => 'stopped at ' . MEL_TSL_MAX, 'memory' => sprintf('stopped at memory %.1f MB',
+    $why = array('max' => 'stopped at ' . $max, 'memory' => sprintf('stopped at memory %.1f MB',
         MelTsl::$mem_max / 1048576));
     // Stopped by the guard before any entry: nothing to show, an error - not an empty section.
     if ($v === 'memory' && !$scan->out)
@@ -332,11 +361,7 @@ function mel_tsl_load()
     mel_log($line . sprintf('%d entries, %d kept, ', $scan->n, count($list)) . ($scan->bad ? "{$scan->bad} bad, " : '') .
         ($scan->big ? "{$scan->big} too long, " : '') .
         sprintf('%s, peak %.1f MB', $how, memory_get_peak_usage() / 1048576));
-    $keep = array();
-    foreach ($list as $e)
-        $keep[$e['hash']] = $e;
-    MelTsl::$list = $keep;
-    return array($list, '', '');
+    return array($list, '', $v === 'memory' ? 'memory' : '');
 }
 
 // "rem" of torrent $hash on the TorrServer of the settings (POP UP of the section, owner 24.11.2026) -> array(the key of
@@ -347,7 +372,7 @@ function mel_tsl_load()
 // a "get" before that reads it from the DB back into memory (NewTorrent), and it is in the list again; a "rem" of one
 // no more in memory takes it off the DB and its cache off the disk only. Removed: out of
 // MelTsl too (its entry, its files), the order of the rest kept; the history and the positions of Melange ("aiots:")
-// stay.
+// stay; out of the copy of the row of the catalog (mel_tsr_drop).
 /**
  * @param string $hash
  * @return array{string, string, int}
@@ -383,6 +408,7 @@ function mel_tsl_rem($hash)
     if ($i !== false)
         unset(MelTsl::$list[$hash]);
     unset(MelTsl::$files[$hash]);
+    mel_tsr_drop($hash);
     return array('', '', $i === false ? -1 : $i);
 }
 
@@ -483,6 +509,59 @@ function mel_tsl_video_count($files)
             $n++;
     }
     return $n;
+}
+
+// The icon and the item of the section: always, but with "Без торрентов" on (owner 23.11.2026).
+/**
+ * @return bool
+ */
+function mel_tsl_on()
+{
+    return !Mel::$settings['no_torrents'];
+}
+
+// Title $title as the panel shows it (I2): the head up to the first " [", " (", " / " before a year or "S<n>" (the tags
+// of a group at the start, "[Group] ", go to the rest), the rest after it; none of them, or one in the first 3 bytes: the
+// title whole and ''.
+/**
+ * @param string $title
+ * @return array{string, string}
+ */
+function mel_tsl_split($title)
+{
+    $lead = preg_match('/^(?:\[[^\]]*\]\s*)+/', $title, $m) ? $m[0] : '';
+    $body = (string) substr($title, strlen($lead));
+    if (!preg_match('~ (?=\[)| (?=\()| / (?=(?:19|20)[0-9]{2}\b)| / (?=S[0-9])~', $body, $m, PREG_OFFSET_CAPTURE) || $m[0][1] < 3)
+        return array($title, '');
+    $rest = trim(ltrim(trim(substr($body, $m[0][1])), '/'));
+    return array(trim(substr($body, 0, $m[0][1])), trim(trim($lead) . ' ' . $rest));
+}
+
+// The name of a torrent by its files $files (null: none known) for the panel: the folder all of them are in, else the
+// name of its one file in the root with no extension (mel_tsl_file_name); '' - files in the root with no folder of
+// them all, none known, or the name is head $head (no case, no ".", "_", spaces).
+/**
+ * @param list<MelTsFile>|null $files
+ * @param string $head
+ * @return string
+ */
+function mel_tsl_name($files, $head)
+{
+    if (!$files)
+        return '';
+    $top = null;
+    foreach ($files as $f)
+    {
+        $p = strpos($f['path'], '/');
+        $dir = $p ? (string) substr($f['path'], 0, $p) : '';
+        $top = $top === null || $top === $dir ? $dir : '';
+    }
+    $name = mel_tsl_trim(mel_one_line($top !== '' ? $top : (count($files) === 1 ? mel_tsl_file_name($files[0]) : '')));
+    $key = '/[._\s\x{00A0}]+/u';
+    if ($name === '' || mb_strtolower((string) preg_replace($key, '', $name), 'UTF-8') ===
+        mb_strtolower((string) preg_replace($key, '', $head), 'UTF-8'))
+        return '';
+    return $name;
 }
 
 // The video files of $files in the natural order of their paths ("Серия 2" before "Серия 10", the folders of the

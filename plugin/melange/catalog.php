@@ -556,12 +556,34 @@ function mel_cat_user_rows($rows, $chosen, $tab)
     return mel_cat_by_groups($out);
 }
 
+// Where the row of Melange $name (mel_cat_pseudo) goes in the order $order of the slots of a tab or of the items of
+// "Group order" (mel_catv_lcfg_dialog): right after the nearest one before it in the canonical order that is in $order,
+// none - first. -> the index to put it at.
+/**
+ * @param list<string> $order
+ * @param string $name
+ * @return int
+ */
+function mel_cat_pseudo_at($order, $name)
+{
+    $at = 0;
+    foreach (array_keys(mel_cat_pseudo()) as $p)
+    {
+        if ($p === $name)
+            break;
+        $k = array_search($p, $order, true);
+        if ($k !== false)
+            $at = intval($k) + 1;
+    }
+    return $at;
+}
+
 // The slots of the tab $tab on its screen, in order, only those shown: a row of the server (mel_cat_user_rows of $rows
 // by cat_rows $chosen) or a row of Melange by its name with @ ('@continue'; mel_cat_pseudo). A row of Melange stands
 // where its key <tab>/@<name> is among the keys of the tab; one between the rows of a group goes after the group, as a
 // group goes where its first row is. <tab>/@<name>:off: hidden. The first key of a name counts, the others of it go.
 // No key of it: shown when on by default, right after the nearest one before it in the canonical order that is shown,
-// none - first. No row of the server of the tab chosen: the start rows, after those of Melange. The same rule as
+// none - first (mel_cat_pseudo_at). No row of the server of the tab chosen: the start rows, after those of Melange. The same rule as
 // chosenKeys of web/src/rows.ts.
 /**
  * @param list<MelCatRow> $rows
@@ -583,30 +605,28 @@ function mel_cat_tab_slots($rows, $chosen, $tab)
     {
         if (!is_string($k))
             continue;
+        $pk = mel_cat_pseudo_key($k);
         if (isset($block[$k]))
             $id = $block[$k];
-        else if (preg_match('~^' . preg_quote($tab, '~') . '/@([a-z]+)(:off)?\z~', $k, $m) && isset($pseudo[$m[1]]) && !isset($seen[$m[1]]))
+        else if ($pk !== null && $pk['tab'] === $tab && !isset($seen[$pk['name']]))
         {
-            $seen[$m[1]] = !isset($m[2]);
-            if (isset($m[2]))
+            $seen[$pk['name']] = !$pk['off'];
+            if ($pk['off'])
                 continue;
-            $id = "@{$m[1]}";
+            $id = $pk['name'];
         }
         else
             continue;
         if (!in_array($id, $order, true))
             $order[] = $id;
     }
-    $prev = '';
     foreach ($pseudo as $name => $p)
     {
         if (!isset($seen[$name]) && $p['on'])
         {
-            array_splice($order, $prev !== '' ? intval(array_search($prev, $order, true)) + 1 : 0, 0, array("@$name"));
+            array_splice($order, mel_cat_pseudo_at($order, $name), 0, array($name));
             $seen[$name] = true;
         }
-        if (!empty($seen[$name]))
-            $prev = "@$name";
     }
     $blocks = mel_cat_blocks($user);
     $order = array_merge($order, array_values(array_diff(array_keys($blocks), $order)));
@@ -627,6 +647,23 @@ function mel_cat_slot_rows($slots)
     foreach ($slots as $s)
     {
         if (!is_string($s))
+            $out[] = $s;
+    }
+    return $out;
+}
+
+// The names of the rows of Melange of slots $slots (mel_cat_tab_slots; mel_catv_tab_copy_defs), those shown: '@continue'
+// (mel_cat_pseudo), in their order.
+/**
+ * @param list<string|array<mixed>> $slots
+ * @return list<string>
+ */
+function mel_cat_slot_names($slots)
+{
+    $out = array();
+    foreach ($slots as $s)
+    {
+        if (is_string($s))
             $out[] = $s;
     }
     return $out;

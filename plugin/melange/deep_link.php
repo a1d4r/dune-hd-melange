@@ -12,7 +12,7 @@
 // the card of the Dune (mel_sup_card, the supplier aicard).
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_card.php, view_card_series.php, view_card_lib.php
 // (mel_oc_lib_pick; mel_oc_lib, mel_oc_lib_shown of mel_lib_win_card), view_catalog.php, view_person.php, continue.php
-// (mel_cp_items), source_profiles.php.
+// (mel_cp_items), view_ts.php (MEL_TSL_URL, mel_tsl_on), ts_row.php (mel_tsr_tiles), source_profiles.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The targets: fn - the handler of the link; id - the fields of an id it takes, exactly one of them given (none: no
@@ -442,7 +442,8 @@ function mel_dl_continue($q)
 // to=row: "Show all" (mel_catv_all_open) of row n of tab $q['tab'], counted as the main screen shows them: by the slots
 // of the tab (mel_cat_tab_slots of the saved manifest: those turned off or hidden not there), the row "Continue" when it
 // has tiles of the tab (mel_cp_items), "Мой список" when the list has titles of it - the screens of all of them of the
-// tab (mel_mlv_open of ENTER on their title) -, a row of the server when the screen shows it (mel_catv_shown_rows: on
+// tab (mel_mlv_open of ENTER on their title) -, "На TorrServer" when its copy has torrents and not «Без торрентов» (the
+// section, as ENTER on its title), a row of the server when the screen shows it (mel_catv_shown_rows: on
 // r24 those with tiles in memory, as the last opening of the tab got them). No saved manifest, no such row: null, logged.
 /**
  * @param MelDlLink $q
@@ -475,6 +476,8 @@ function mel_dl_row($q)
             $list[] = MEL_MLV_CONT;
         else if ($s === '@mylist' && mel_mlv_list_cells(array($q['tab']), 1))
             $list[] = MEL_MLV_LIST;
+        else if ($s === '@torrserver' && mel_tsl_on() && mel_tsr_tiles())
+            $list[] = MEL_TSL_URL;
     }
     if (!isset($list[$n - 1]))
     {
@@ -482,6 +485,12 @@ function mel_dl_row($q)
         return null;
     }
     $s = $list[$n - 1];
+    // "На TorrServer": the section, one of both tabs; its screen reads the list (mel_tsl_view).
+    if ($s === MEL_TSL_URL)
+    {
+        mel_log("open: row {$q['tab']} #$n: " . MEL_TSL_URL);
+        return mel_catv_open_act(MEL_TSL_URL, mel_tr(mel_catv_lang(), 'tsl_title'));
+    }
     if (is_string($s))
     {
         $url = $s . ':' . $q['tab'];
