@@ -219,7 +219,7 @@ function mel_tsf_window($s)
         MEL_K_C_TEXT1, MEL_GC_LX + 4, MEL_GC_TITLE_MID);
     $d = array_merge($d, $t['defs']);
     $in = array(mel_gc_sel($sel));
-    list($lo, $hi) = mel_gc_win($top, $n, MEL_TSF_VIS);
+    list($lo, $hi) = mel_gc_rows_span($top, $n, MEL_TSF_VIS);
     for ($j = $lo; $j < $hi; $j++)
         $in[] = mel_tsf_line($s, $j, $j === $sel, $lang);
     $d[] = mel_gc_panel('list', mel_gc_at(MEL_GC_LW, MEL_TSF_VIS * MEL_GC_ROW_H, MEL_GC_LX, MEL_TSF_LY),

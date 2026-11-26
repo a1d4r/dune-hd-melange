@@ -28,7 +28,7 @@ define('MEL_GC_LW', 1165);     // right edge at 1845 = 1920 - 75
 define('MEL_GC_LY', 194);      // under the sort tabs (12 px), no column heads
 define('MEL_GC_ROW_H', 64);
 define('MEL_GC_VIS', 12);      // visible rows: the list ends at y 962
-// The window of rows on the screen (mel_gc_win) moves by this many rows: a move of the window adds and removes as many.
+// The window of rows on the screen (mel_gc_rows_span) moves by this many rows: a move of the window adds and removes as many.
 define('MEL_GC_WIN_STEP', 6);
 // The centres of the capitals of the title, of the sort tabs and of the hint line (r5).
 define('MEL_GC_TITLE_MID', 73);
@@ -370,8 +370,9 @@ function mel_gc_step($sel, $top, $n, $key, $vis = MEL_GC_VIS)
     return array($nsel, $ntop);
 }
 
-// The rows of a list of $n rows on the screen with $top first visible: array(first, past the last). A step costs the
-// shell by all the components of the screen, so not all the rows: the visible ones and at least a page (MEL_GC_VIS)
+// The rows of a list of $n rows on the screen with $top first visible, the span [first, past): array(first, past the
+// last). A step costs the shell by all the components of the screen, so not all the rows: the visible ones and at
+// least a page (MEL_GC_VIS)
 // above and below them, so that the animated scroll of a page (P+, P-) or of a row never shows a row missing; the
 // window moves by MEL_GC_WIN_STEP rows, 41 rows in all. Of the top only: a sel_state has always the same screen. $vis:
 // the rows on the screen (the screen of files of a pack: its own).
@@ -381,13 +382,13 @@ function mel_gc_step($sel, $top, $n, $key, $vis = MEL_GC_VIS)
  * @param int $vis
  * @return array{int, int}
  */
-function mel_gc_win($top, $n, $vis = MEL_GC_VIS)
+function mel_gc_rows_span($top, $n, $vis = MEL_GC_VIS)
 {
     $b = $top - $top % MEL_GC_WIN_STEP;
     return array(max(0, $b - $vis), min($n, $b + MEL_GC_WIN_STEP - 1 + 2 * $vis));
 }
 
-// The lines that come into the window of lines (mel_gc_win) of a list of $n lines, $vis on the screen, when its top goes
+// The lines that come into the window of lines (mel_gc_rows_span) of a list of $n lines, $vis on the screen, when its top goes
 // from $top to $ntop: their j in order; the caller builds them for mel_gc_win_changes.
 /**
  * @param int $top
@@ -398,8 +399,8 @@ function mel_gc_win($top, $n, $vis = MEL_GC_VIS)
  */
 function mel_gc_win_new($top, $ntop, $n, $vis = MEL_GC_VIS)
 {
-    list($olo, $ohi) = mel_gc_win($top, $n, $vis);
-    list($lo, $hi) = mel_gc_win($ntop, $n, $vis);
+    list($olo, $ohi) = mel_gc_rows_span($top, $n, $vis);
+    list($lo, $hi) = mel_gc_rows_span($ntop, $n, $vis);
     $out = array();
     for ($j = $lo; $j < $hi; $j++)
     {
@@ -410,7 +411,7 @@ function mel_gc_win_new($top, $ntop, $n, $vis = MEL_GC_VIS)
 }
 
 // The changes of a list of $n lines ($vis on the screen from y $ly) whose top went from $top to $ntop: the lines that
-// leave the window (mel_gc_win) removed, those that come in - $add, built of mel_gc_win_new - put in with the 'rows'
+// leave the window (mel_gc_rows_span) removed, those that come in - $add, built of mel_gc_win_new - put in with the 'rows'
 // change (after the line before them; above all, or a window apart from the old one - a jump of more than the window,
 // none of its lines kept: after 'sel', over it), the thumb. Both cursor lines stay in a step of a page at most: the
 // window holds a page above and below the screen.
@@ -425,8 +426,8 @@ function mel_gc_win_new($top, $ntop, $n, $vis = MEL_GC_VIS)
  */
 function mel_gc_win_changes($top, $ntop, $n, $add, $vis = MEL_GC_VIS, $ly = MEL_GC_LY)
 {
-    list($olo, $ohi) = mel_gc_win($top, $n, $vis);
-    list($lo, $hi) = mel_gc_win($ntop, $n, $vis);
+    list($olo, $ohi) = mel_gc_rows_span($top, $n, $vis);
+    list($lo, $hi) = mel_gc_rows_span($ntop, $n, $vis);
     $ch = array();
     for ($j = $olo; $j < $ohi; $j++)
     {
@@ -461,7 +462,7 @@ function mel_gc_key($in)
 
 // Changes of a list of $n lines ($vis on the screen from y $ly) whose cursor went to line $nsel, the first line on
 // screen from $top to $ntop: the highlight; when the page moved - the panel 'rows' and the scroll thumb, and with $mk
-// (a list that holds a window of its lines, mel_gc_win: j -> the panel "r$j" of line j out of focus) the window of
+// (a list that holds a window of its lines, mel_gc_rows_span: j -> the panel "r$j" of line j out of focus) the window of
 // lines follows the top (mel_gc_win_changes), as the episodes of the own card (view_card_series.php). $mk null: all
 // the lines are in 'rows'.
 /**
@@ -1669,10 +1670,10 @@ function mel_gc_window($st, $sel, $top)
     $d = array_merge($d, mel_gc_head($st, mel_lpv_note($st)));
 
     // Viewport: clipping panel 'list'; the inner panel 'rows' (as high as all the lines) moves to scroll, the lines of
-    // the window (mel_gc_win) in it at their places, the rules of the group after them.
+    // the window (mel_gc_rows_span) in it at their places, the rules of the group after them.
     $prog = isset($st['gc_prog']) ? $st['gc_prog'] : array();
     $in = array(mel_gc_sel($sel));
-    list($lo, $hi) = mel_gc_win($top, $n);
+    list($lo, $hi) = mel_gc_rows_span($top, $n);
     for ($j = $lo; $j < $hi; $j++)
         $in[] = mel_gc_line_comp($st, $lv, $j, $tt, $cols, $j === $sel, $prog);
     $in = array_merge($in, mel_gc_rules($lv));
@@ -1789,10 +1790,10 @@ function mel_gc_bar_update($st, $hash)
     list($sel, $top) = mel_gc_pos($st, null);
     $tt = mel_gc_text(mel_gc_lang($st));
     $cols = mel_gc_cols_st($st);
-    // Only the rows on the screen (mel_gc_win; not those of the group folded); the others get the share when the
+    // Only the rows on the screen (mel_gc_rows_span; not those of the group folded); the others get the share when the
     // window comes to them.
     $lv = mel_gc_lv($st);
-    list($lo, $hi) = mel_gc_win($top, $lv['l']);
+    list($lo, $hi) = mel_gc_rows_span($top, $lv['l']);
     $ch = array();
     foreach ($rows as $i)
     {
