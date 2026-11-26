@@ -1745,7 +1745,7 @@ class MelKit
         return self::group($id, $it);
     }
 
-    // The head of a panel: the title (MEL_K_PX_PANEL_TITLE, text 1) with the centre of its capitals at
+    // The head of a panel: the title (MEL_K_PX_PANEL_HEAD, text 1) with the centre of its capitals at
     // MEL_K_PANEL_TITLE_Y + MEL_K_PANEL_TITLE_H / 2, from the left of the content, cut to its width; $back (a submenu
     // in the place of the panel): ‹ before it (k_icon_chevron-left MEL_K_ICON_PANEL_BACK, text 2), the content edge
     // at its strokes, -s- the title (r6 panel_title).
@@ -1760,9 +1760,9 @@ class MelKit
         $w = MEL_K_PANEL_W - 2 * $cx0;
         $y = MEL_K_PANEL_TITLE_Y + MEL_K_PANEL_TITLE_H / 2;
         if (!$back)
-            return self::text($title, MEL_K_PX_PANEL_TITLE, MEL_K_C_TEXT1, $cx0, $y, array('w' => $w));
+            return self::text($title, MEL_K_PX_PANEL_HEAD, MEL_K_C_TEXT1, $cx0, $y, array('w' => $w));
         $b = self::icon('k_icon_chevron-left', MEL_K_ICON_PANEL_BACK, MEL_K_C_TEXT2);
-        $t = self::text($title, MEL_K_PX_PANEL_TITLE, MEL_K_C_TEXT1, 0, 0,
+        $t = self::text($title, MEL_K_PX_PANEL_HEAD, MEL_K_C_TEXT1, 0, 0,
             array('w' => max(0, $w - ($b['x1'] - $b['x0']) - MEL_K_GAP_S)));
         return self::row(array($b, $t), 's', $cx0, $y, 'panel head');
     }
