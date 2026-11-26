@@ -269,8 +269,9 @@ function mel_mlv_tile($key)
 }
 
 // The tiles of "Мой список" of the types $types, $max at most: the items of a row (id "mylist:<key>", caption, the
-// poster of the entry, of one with none that of its best tile, stickers: the rating of the best tile, else of the
-// entry, the badges of the history) and their tiles, the best (mel_cp_best_tile: of the meta kept, else of a row in memory) else of the entry; the newest first.
+// poster of the entry, of one with none or with a path of no file that of its best tile, stickers: the rating of the
+// best tile, else of the entry, the badges of the history) and their tiles, the best (mel_cp_best_tile: of the meta
+// kept, else of a row in memory) else of the entry; the newest first.
 // $miss: those with no best tile, in their order (array(type, IMDb, TMDB): the lazy meta, MelCpm::$ml and $more).
 /**
  * @param list<string> $types
@@ -299,9 +300,10 @@ function mel_mlv_list_cells($types, $max, &$miss = null)
             $miss[] = array($t['type'], $t['imdb_id'], $t['_tmdbId']);
         else if ($m['imdbRating'] !== '')
             $t['imdbRating'] = $m['imdbRating'];
-        // An entry with no poster (of a backup: mel_ml_copy leaves out a picture with auth=): that of its best tile; the
-        // entry stays as it is.
-        if ($m && $t['poster'] === '')
+        // An entry with no poster (of a backup: mel_ml_copy leaves out a picture with auth=) or with a path of no file
+        // (as mel_catv_poster has it: the usual picture of none): that of its best tile, if it has one; the entry stays
+        // as it is.
+        if ($m && $m['poster'] !== '' && ($t['poster'] === '' || (substr($t['poster'], 0, 1) === '/' && !is_file($t['poster']))))
             $t['poster'] = $m['poster'];
         // The id of the tile is the key of the entry: a movie and a series of one number of TMDB are two.
         $t['id'] = $e['key'];
