@@ -10,7 +10,7 @@
 - **Quality from the balancer name.** If a server writes the quality in the balancer name in brackets ("vkmovie 「4K」"), Melange shows it as a quality badge and removes the brackets from the name.
 - **Kinopoisk ID from the catalog.** If you open a movie from the Dune card and the Lampac server gives no Kinopoisk ID, Melange takes it from its catalog, so balancers that search by Kinopoisk find the movie.
 - **IMDb rating limit.** On the settings page, the "Catalog filter" screen has two drop-down lists under "Age rating": "IMDb rating: movies" and "IMDb rating: series". Choose Any or a minimum from 5+ to 8+ in steps of 0.5. Movies or series rated lower disappear from the catalog rows, "Show all", the TV tab and the rows of the Melange card. Search still shows them. Titles with no IMDb rating stay visible. Continue Watching and Favorites are not filtered.
-- **"Catalog filter".** The "Hide from the catalog" screen of the settings page is now called "Catalog filter". Search no longer applies the age rating limit and shows everything it finds.
+- **"Catalog filter".** The "Hide from the catalog" screen of the settings page is now called "Catalog filter", and "Age rating" on it is a drop-down list too. Search no longer applies the age rating limit and shows everything it finds.
 
 ## 0.69.1 — 25.11.2026
 - **POP UP in the TV tab, as in the catalog.** In the TV tab of the home screen, **POP UP** now has the same items as in the catalog (Movies, Series, Continue Watching, Favorites, On TorrServer, Search, Settings) and also Open Melange. Each opens its Melange screen, and **RETURN** brings you back to TV. On a row name the menu also has **Configure List...**, and rows you turn on there appear in TV usually a few seconds later.
@@ -354,7 +354,7 @@ First public release. What it does:
 - **Качество из имени балансера.** Если сервер пишет качество в имени балансера в скобках («vkmovie 「4K」»), Melange показывает его бейджем качества, а из имени скобки убирает.
 - **id Кинопоиска из каталога.** Если фильм открыт из карточки Дюны, а сервер Lampac не дал id Кинопоиска, Melange берёт его из своего каталога, и балансеры, которые ищут по Кинопоиску, находят фильм.
 - **Ограничение по рейтингу IMDb.** На странице настроек на экране «Фильтр каталога» под «Возрастом» появились два выпадающих списка: «Рейтинг IMDb: фильмы» и «Рейтинг IMDb: сериалы». Можно выбрать «Любой» или порог от 5 до 8 с шагом 0.5. Фильмы или сериалы с рейтингом ниже пропадают из рядов каталога, «Показать все», вкладки «ТВ» и рядов карточки Melange. В поиске они остаются. Тайтл без рейтинга IMDb виден. «Продолжить» и «Избранное» не фильтруются.
-- **«Фильтр каталога».** Экран «Что не показывать» на странице настроек теперь называется «Фильтр каталога». Поиск больше не учитывает ограничение по возрасту и показывает всё, что нашёл.
+- **«Фильтр каталога».** Экран «Что не показывать» на странице настроек теперь называется «Фильтр каталога», а «Возраст» на нём тоже стал выпадающим списком. Поиск больше не учитывает ограничение по возрасту и показывает всё, что нашёл.
 
 ## 0.69.1 — 25.11.2026
 - **POP UP во вкладке «ТВ» как в каталоге.** Во вкладке «ТВ» главного экрана в **POP UP** теперь те же пункты, что в каталоге («Фильмы», «Сериалы», «Продолжить», «Избранное», «На TorrServer», «Поиск», «Настройки»), и ещё «Открыть Melange». Каждый открывает свой экран Melange, а **RETURN** возвращает во «ТВ». На названии ряда в меню есть и «Настроить список...», и включённые там ряды появляются во «ТВ» обычно через несколько секунд.
