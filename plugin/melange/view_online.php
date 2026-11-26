@@ -4,8 +4,8 @@
 // on the screen of the releases (the frame of view_gcomps.php, rows "Phantom · Дублированный"
 // and a card of their own; of an episode a row a voice of its season), its MENU, ENTER (the start:
 // online_play.php, as "Continue" of a record of it and play_action), the left and right keys and
-// "Выбрать серию" of an episode, "Балансеры…" (which balancers, their order: lampac_sources of the profile of
-// Lampac; online_sources.php), the filter by voices (its dialog "Озвучка": online_voices.php), the balancers by
+// "Выбрать серию" of an episode, "Балансеры" (which balancers, their order: lampac_sources of the profile of
+// Lampac; online_sources.php), the filter by voices (its panel "Озвучка": online_voices.php), the balancers by
 // quality (the yellow key, mel_lpv_qsort) and the window of no such episode in the voice. The mark "online" of a title
 // (data_dir/lampac_choice.json) is gone (v2): a record of the history leads to the online list.
 // The list lives in Mel::$state beside the releases: 'lp' (MelLpView), 'lp_on' - the screen
@@ -46,7 +46,7 @@ class MelLpv
     // under the player, s, e; back from the player the list goes to it (mel_lpv_finish). null none.
     /** @var array{rid: string, s: int, e: int}|null */
     public static $played = null;
-    // The search window of "Источники…" on screen (mel_lpv_srcs_apply): its sid and the list of the new choice, put in
+    // The search window of "Балансеры" on screen (mel_lpv_srcs_apply): its sid and the list of the new choice, put in
     // when the window closes with no list of its own (Cancel, RETURN, no answer, nothing: mel_lpv_redraw). null none.
     /** @var array{sid: string, st: MelState}|null */
     public static $redraw = null;
@@ -163,7 +163,7 @@ function mel_lpv_badge($q)
     return isset($pics["k_glyph_$id"]) ? $id : '';
 }
 
-// --- The filter by voices (the red key, "Озвучка: …" of MENU): the rows of the voices chosen of all balancers. Its state
+// --- The filter by voices (the red key, "Озвучка" of "Действия"): the rows of the voices chosen of all balancers. Its state
 // 'flt' of the view: the keys of the voices (mel_lpv_voice_key) => their names, in the order of mel_lpv_voices when
 // chosen; none: all. It lives with the list of the title (between the episodes too), not past it.
 
@@ -265,7 +265,7 @@ function mel_lpv_shown($v)
 }
 
 // --- The order of the balancers (the yellow key, MENU "Сортировать по качеству" / "Порядок как в Балансерах"): as the rows
-// are (the order of "Балансеры…", mel_lpv_srcs_pick), or by quality. One for all the lists, kept in data_dir/lampac_sort
+// are (the order of "Балансеры", mel_lpv_srcs_pick), or by quality. One for all the lists, kept in data_dir/lampac_sort
 // ("quality"; none or else: as the rows are), not settings.json (the page writes that one); the rows stay as they are.
 
 // The balancers by quality.
@@ -1268,7 +1268,8 @@ function mel_lpv_finish($st)
 
 // The panel "Действия" of the online list $st of lines $L, three groups:
 //   of the view of the list (mel_lpv_can 'menu': with the colour keys too): "Озвучка" with the name of the filter on
-//     the right (a list with voices; as the red key), "Балансеры" (a choice of them saved, lp_src), "Развернуть все" /
+//     the right (a list with voices; its check list, mel_lpv_flt_panel, a submenu; the red key opens it alone),
+//     "Балансеры" (a choice of them saved, lp_src; a check list with "Переместить", mel_lpv_srcs_panel), "Развернуть все" /
 //     "Свернуть все" (a balancer of 2 rows; as the green key), "Сортировать по качеству" / "Порядок как в Балансерах" (a
 //     list with rows; as the yellow key);
 //   of the list: "Обновить список" (mel_lpv_refresh), an episode: "Выбрать серию", "Источник" (two ready profiles, of a
@@ -1290,11 +1291,12 @@ function mel_lpv_actions($st, $L)
         $label = mel_tr($lang, 'lp_flt_title');
         $view[] = array('id' => 'flt', 'label' => $label, 'icon' => 'k_icon_audio-lines',
             'value' => MelKit::panel_value($label, mel_lpv_flt_name($st['lp'], $lang)),
-            'act' => mel_gc_act('lp_flt_menu', $rid));
+            'menu' => mel_lpv_flt_panel($st));
     }
-    if (Mel::$settings['lp_src'])
+    $srcs = mel_lpv_srcs_panel($st);
+    if ($srcs)
         $view[] = array('id' => 'srcs', 'label' => mel_tr($lang, 'lp_srcs_menu'), 'icon' => 'k_icon_list-checks',
-            'act' => mel_gc_act('lp_srcs', $rid));
+            'menu' => $srcs);
     if (mel_lpv_can($st, $L, 'green', 'menu'))
         $view[] = array('id' => 'fold', 'label' => mel_lpv_fold_word($L, $lang),
             'icon' => mel_lpv_fold_state($L) === 'open' ? 'k_icon_chevrons-up' : 'k_icon_chevrons-down',
@@ -1317,6 +1319,20 @@ function mel_lpv_actions($st, $L)
     $groups = $view ? array($view, $list) : array($list);
     $groups[] = array(mel_gc_setup_item($lang));
     return array('title' => $tt['actions'], 'groups' => $groups);
+}
+
+// «Готово» of a check list of the online list in language $lang (mel_lpv_flt_panel, mel_lpv_srcs_panel): its label,
+// the count "Выбрано: {n} из {m}", its action - $control of the list of rid $rid, which takes the choice (mel_kp_done).
+/**
+ * @param string $lang
+ * @param string $control
+ * @param string $rid
+ * @return array{label: string, count: string, act: MelAction}
+ */
+function mel_lpv_done($lang, $control, $rid)
+{
+    return array('label' => mel_tr($lang, 'kp_done'), 'count' => mel_tr($lang, 'kp_count'),
+        'act' => mel_gc_act($control, $rid));
 }
 
 // lp_menu (MENU) of the online list $st -> the panel "Действия" over its screen (mel_kp_open; mel_lpv_actions), the
@@ -1588,6 +1604,11 @@ function mel_lpv_chosen($in, $st)
  */
 function mel_lpv_input($in, $control)
 {
+    // «Готово» of a check list: its choice is taken first, whatever the list is by now (given once; left, it would
+    // stay in the state of the overlay).
+    $choice = null;
+    if ($control === 'lp_flt_done' || $control === 'lp_srcs_done')
+        $choice = mel_kp_done(isset($in->rid) && is_string($in->rid) ? $in->rid : '');
     if ($control === 'lp_tick')
         return mel_lpv_tick($in);
     // Under the player (mel_lpv_lazy): no list.
@@ -1625,12 +1646,9 @@ function mel_lpv_input($in, $control)
     if ($control === 'lp_menu')
         return mel_lpv_menu($in, $st);
     if ($control === 'lp_flt_menu')
-    {
-        mel_lpv_pos_keep($in, $st);
-        return mel_lpv_flt_edit($st);
-    }
-    if ($control === 'lp_flt_apply')
-        return mel_lpv_flt_apply($in, $st);
+        return mel_lpv_flt_open($in, $st);
+    if ($control === 'lp_flt_done')
+        return mel_lpv_flt_apply($st, $choice);
     if ($control === 'lp_fold')
     {
         list($sel) = mel_lpv_pos_keep($in, $st);
@@ -1654,9 +1672,7 @@ function mel_lpv_input($in, $control)
         return mel_errors_dialog(mel_tr($st['lang'], 'lp_errors_menu'), $st['lang'], mel_lpv_errors_of($st));
     if ($control === 'lp_refresh')
         return mel_lpv_refresh($st);
-    if ($control === 'lp_srcs')
-        return mel_lpv_srcs_edit($st);
-    if ($control === 'lp_srcs_apply')
-        return mel_lpv_srcs_apply($in, $st);
+    if ($control === 'lp_srcs_done')
+        return mel_lpv_srcs_apply($st, $choice);
     return null;
 }

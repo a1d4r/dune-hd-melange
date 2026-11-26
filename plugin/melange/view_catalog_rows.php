@@ -219,10 +219,6 @@ function mel_catv_lcfg_dialog($rows, $tab, $g, $lang)
     return $d;
 }
 
-// Shared with the window "Источники…" of the online list (mel_lpv_srcs_edit, mel_lpv_srcs_apply of online_sources.php)
-// and "Озвучка" (mel_lpv_flt_edit, mel_lpv_flt_apply of online_voices.php): mel_catv_lcfg_caption, mel_catv_lcfg_text,
-// mel_catv_lcfg_read, mel_catv_lcfg_sorted, mel_catv_lcfg_load - not of the rows alone.
-
 // The caption of an item of a dialog from $s. The shell puts it into JSON as is ({"type":"text","text":"%s"}, r24, r25):
 // a " or \ breaks it, the row empty. So " -> « and » in turn, \ -> /, control characters -> a space; not \" (a shell
 // that escapes it itself would show \").

@@ -1,19 +1,15 @@
 <?php
-// "Источники…" of the online list of "Онлайн" (view_online.php): which sources of Lampac it shows and in which
-// order - lampac_sources of settings.json, the dialog of the shell edit_list_config. Its MENU item and the dispatcher
-// of lp_* are in view_online.php, the search (mel_lpv_srcs_pick in mel_lpv_tick, mel_lpv_srcs_seen in
-// mel_lpv_run_seen of mel_lpv_run_end) in online_search.php.
+// "Балансеры" of the online list of "Онлайн" (view_online.php): which sources of Lampac it shows and in which
+// order - lampac_sources of settings.json, the side panel of the kit (kit_panel.php) with checks and "Переместить", a
+// submenu of "Действия". Its item of "Действия" and the dispatcher of lp_* are in view_online.php, the search
+// (mel_lpv_srcs_pick in mel_lpv_tick, mel_lpv_srcs_seen in mel_lpv_run_seen of mel_lpv_run_end) in online_search.php.
 // PHP 5.3.6, firmware API only. Types (MelLpChoice, MelLpView): phpstan-types.neon.
 
-// --- "Источники…" (MENU of the online list): which sources of Lampac the list shows and in which order, a dialog
-// of the shell (edit_list_config), as "Настроить список…" of the rows of the catalog (view_catalog_rows.php). Its
-// items: the sources Lampac has found on this Dune (lampac_sources of settings.json: a path, its name, on), one
+// --- "Балансеры" ("Действия" of the online list): which sources of Lampac the list shows and in which order. Its
+// lines: the sources Lampac has found on this Dune (lampac_sources of settings.json: a path, its name, on), one
 // list and one order for all titles; a new one on, last. The key of a source is its path (mel_lp_path: "phantom"
 // of /lite/phantom), as in the key of a row and the history ("Continue" asks that balancer alone, mel_lp_find:
-// a source turned off still plays from there). Its state is the file <FS_PREFIX>/config/lcfg_melange_lp_sources.txt
-// (bin/uninstall.sh removes it), written from the settings before the dialog opens, read back when it closes.
-
-define('MEL_LPV_SRCS_ID', 'melange_lp_sources');
+// a source turned off still plays from there).
 
 // The sources $sources of a search (MelLpSource) by choice $choice (lampac_sources): those turned off out, the
 // others in its order, one not there (a new one, of no path) after them, in their order. -> array(the sources,
@@ -177,60 +173,36 @@ function mel_lpv_srcs_seen($sources)
         mel_log("lampac: sources: $n new, " . count(Mel::$settings['lp_src']) . ' in all, saved');
 }
 
+// The id of the line of the source of path $p in the panel "Балансеры": with a prefix (a path alone may be a number,
+// and a number is no string key of an array).
 /**
+ * @param string $p
  * @return string
  */
-function mel_lpv_srcs_path()
+function mel_lpv_srcs_id($p)
 {
-    return getenv('FS_PREFIX') . '/config/lcfg_' . MEL_LPV_SRCS_ID . '.txt';
+    return 's|' . $p;
 }
 
-// lp_srcs ("Источники…") of the online list $st: the dialog of the sources of lampac_sources in their order, those
-// on checked, "Сброс" all on (checked_ids), the source of the row under the cursor selected. No empty set (no
-// options: a list of no source shows nothing). Its file written first; not written: an error, no dialog (its
-// close would write the last state of the shell over the choice). No close_item_params, dialog_params or params
-// of items: r22 has none (as mel_catv_rows_edit).
+// The panel "Балансеры" of the online list $st, a check list: the sources of lampac_sources in their order by their
+// names, those on checked, "Переместить"; "Готово": lp_srcs_done (mel_lpv_srcs_apply). No choice saved: null.
 /**
  * @param MelState $st
- * @return MelAction|null
+ * @return MelKpSubDesc|null
  */
-function mel_lpv_srcs_edit($st)
+function mel_lpv_srcs_panel($st)
 {
-    $choice = Mel::$settings['lp_src'];
-    if (!$choice || !isset($st['lp']))
-        return null;
-    if (!class_exists('EditListConfigActionData') || !defined('EDIT_LIST_CONFIG_ACTION_ID'))
-        return mel_error('cat_rows_no_dialog');
-    $ids = array();
-    $on = array();
+    $lang = $st['lang'];
     $items = array();
-    foreach ($choice as $c)
-    {
-        $ids[] = $c['path'];
-        if ($c['on'])
-            $on[$c['path']] = true;
-        $items[] = array(GuiItem::id => $c['path'], GuiItem::caption => mel_catv_lcfg_caption($c['name']));
-    }
-    if (!mel_write_file(mel_lpv_srcs_path(), mel_catv_lcfg_text($ids, $on, $ids), 0644))
-    {
-        mel_log('lampac: sources: the file of the dialog not written');
-        return mel_error('lp_srcs_not_opened');
-    }
-    $data = array(
-        EditListConfigActionData::config_id => MEL_LPV_SRCS_ID,
-        EditListConfigActionData::title => mel_tr($st['lang'], 'lp_srcs_title'),
-        EditListConfigActionData::all_items => $items,
-        EditListConfigActionData::checked_ids => $ids,
-        EditListConfigActionData::post_action => mel_gc_act('lp_srcs_apply', $st['rid']));
-    list($sel) = mel_lpv_pos($st['lp'], null);
-    list($i) = mel_lpv_mark(mel_lpv_lines($st['lp']), $sel);
-    if (isset($st['lp']['rows'][$i]) && isset($on[$st['lp']['rows'][$i]['path']]))
-        $data[EditListConfigActionData::sel_id] = $st['lp']['rows'][$i]['path'];
-    mel_log('lampac: sources: dialog, ' . count($ids) . ' sources, ' . count($on) . ' on');
-    return array(GuiAction::handler_string_id => EDIT_LIST_CONFIG_ACTION_ID, GuiAction::data => $data);
+    foreach (Mel::$settings['lp_src'] as $c)
+        $items[] = array('id' => mel_lpv_srcs_id($c['path']), 'label' => $c['name'], 'on' => $c['on']);
+    if (!$items)
+        return null;
+    return array('title' => mel_tr($lang, 'lp_srcs_title'), 'dim' => 'dim_strong', 'items' => $items,
+        'move' => mel_tr($lang, 'kp_move'), 'done' => mel_lpv_done($lang, 'lp_srcs_done', $st['rid']));
 }
 
-// View $v by choice $choice (lampac_sources after "Источники…"), no request: its sources and rows of those turned
+// View $v by choice $choice (lampac_sources after "Балансеры"), no request: its sources and rows of those turned
 // off out, the others in the order of the choice (the rows of a source in their order), those asked before those
 // not ("Ещё N"), the reasons of those off out. -> array(the view; the paths of its sources turned on that were off
 // in its search: not asked, a search anew; a row of $v => its row now).
@@ -296,49 +268,46 @@ function mel_lpv_srcs_view($v, $choice)
     return array($v, $back, $map);
 }
 
-// lp_srcs_apply: post_action of the dialog of "Источники…" of the online list $st, at every close (the shell has
-// written its file by then). Changed: the sources in the order of the file, each on or off, into lampac_sources;
-// none on, the file not a file, the same: nothing written; not read: an error. Then the list at once: a source
-// turned on that was off in its search - the search anew (it was not asked); else the list of what it has
-// (mel_lpv_srcs_view), the cursor on its row if still shown, else the first.
+// lp_srcs_done: "Готово" of the panel "Балансеры" of the online list $st (left with another choice) with choice $c of
+// it (mel_kp_done; none: nothing). The sources in the order of its lines, each on or off, into lampac_sources (one the
+// panel did not have, found meanwhile: after them, as it is); none on, the same: nothing written; not written: an
+// error. Then the list at once: a source turned on that was off in its search - the search anew (it was not asked);
+// else the list of what it has (mel_lpv_srcs_view), the cursor on its row if still shown, else the first.
 /**
- * @param stdClass $in
  * @param MelState $st
+ * @param MelKpChoice|null $c
  * @return MelAction|null
  */
-function mel_lpv_srcs_apply($in, $st)
+function mel_lpv_srcs_apply($st, $c)
 {
-    $changed = isset($in->list_config_changed) && is_scalar($in->list_config_changed) ? strval($in->list_config_changed) : '';
-    if (!isset($in->list_config_id) || $in->list_config_id !== MEL_LPV_SRCS_ID)
-        return null;
-    if ($changed !== '1')
+    if (!$c)
     {
-        mel_log('lampac: sources: dialog closed, no change');
+        mel_log('lampac: sources: no choice of the panel, nothing');
         return null;
-    }
-    list($text, $no) = mel_catv_lcfg_load(mel_lpv_srcs_path());
-    if ($no === 'bad' || $no === 'unread')
-    {
-        mel_log("lampac: sources: the file of the dialog $no, nothing changed");
-        return $no === 'unread' ? mel_error('lp_srcs_not_saved') : null;
     }
     $was = Mel::$settings['lp_src'];
-    $ids = array();
     $by = array();
-    foreach ($was as $c)
+    foreach ($was as $x)
+        $by[mel_lpv_srcs_id($x['path'])] = $x;
+    $on = array_flip($c['on']);
+    $choice = array();
+    foreach ($c['order'] as $id)
     {
-        $ids[] = $c['path'];
-        $by[$c['path']] = $c;
+        if (!isset($by[$id]))
+            continue;
+        $choice[] = array('path' => $by[$id]['path'], 'name' => $by[$id]['name'], 'on' => isset($on[$id]));
+        unset($by[$id]);
     }
-    list($order, $state) = mel_catv_lcfg_sorted($text, $ids, array_fill_keys($ids, true), $ids);
+    foreach ($by as $x)
+        $choice[] = $x;
+    $state = array();
+    foreach ($choice as $x)
+        $state[$x['path']] = $x['on'];
     if (!in_array(true, $state, true))
     {
-        mel_log('lampac: sources: none on in the file, nothing changed');
+        mel_log('lampac: sources: none on, nothing changed');
         return null;
     }
-    $choice = array();
-    foreach ($order as $p)
-        $choice[] = array('path' => $p, 'name' => $by[$p]['name'], 'on' => $state[$p]);
     if ($choice === $was)
     {
         mel_log('lampac: sources: the same');
