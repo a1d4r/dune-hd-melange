@@ -18,8 +18,8 @@
 // by the timer of the manifest (mel_tv_timer, every 10 min: the old copies asked anew, the history changed)
 // and by Melange when it saves a copy the file is built of (mel_tv_copy_saved), reads a new settings.json or
 // is back from the player (mel_finish), and by "Configure list…" when it has nothing for the shell to read anew.
-// The row "Continue" (continue.php) first in each, of its types; its badges and those of the tiles are of the
-// history when the file is built.
+// The rows "Continue" (continue.php) and "Мой список" of their types in each, where the tab has them (mel_cat_tab_slots;
+// by default first); their badges and those of the tiles are of the history when the file is built.
 
 define('MEL_TV_EPF', 'tv');
 // "from" of the actions of each EPF: this and its id (mel_tv_is_from): no screen of Melange is under them.
@@ -236,8 +236,9 @@ function mel_tv_note_defs($id, $key, $lang)
     return mel_catv_row_defs(mel_catv_list(mel_cat_row_state($row), array(), false), $lang, array($item));
 }
 
-// The views of the EPF (mel_tv_epfs) by id: the rows "Continue" and "Мой список" of their tabs (mel_cp_row_defs,
-// mel_ml_row_defs: of both on tv.json), then the rows of their tabs of the catalog from the copies, as
+// The views of the EPF (mel_tv_epfs) by id: the rows of their tabs of the catalog from the copies in the order of the
+// tab (mel_catv_tab_copy_defs), the rows "Continue" and "Мой список" (mel_cp_row_defs, mel_ml_row_defs: of both types on
+// tv.json, there once, at its place on the first tab that shows it) where the tab has them, as
 // a screen of rows opened now (the mode of the tiles and the plates of the settings and the firmware,
 // as mel_catv_logo_of gives, but not kept among its screens: the EPF would push out a screen of Melange).
 // Each tab built once. No source ready (Lampac too): one tile "Set up Melange" ("tv:setup"), as the catalog opens
@@ -280,10 +281,19 @@ function mel_tv_views($lang, &$tiles = null)
     }
     $views = array();
     $off = mel_tv_sub_off();
-    // The meta of the tiles of the rows "Continue" and "Мой список" of no request (mel_cpm_build): kept, of the rows in
-    // memory or on the disk.
+    // The meta of the tiles of the rows "Continue" and "Мой список" shown on a tab, of no request (mel_cpm_build): kept,
+    // of the rows in memory or on the disk.
+    $own_of = array();
+    foreach ($tabs as $tab => $t)
+    {
+        foreach ($t['slots'] as $slot)
+        {
+            if (is_string($slot))
+                $own_of[$tab][$slot] = true;
+        }
+    }
     if (Mel::$settings['ready'])
-        mel_cpm_build('', 0.0);
+        mel_cpm_build('', 0.0, mel_tv_own_names($own_of, $epfs[MEL_TV_EPF]));
     foreach ($epfs as $epf => $of)
     {
         if ($off && $epf !== MEL_TV_EPF)
@@ -291,11 +301,29 @@ function mel_tv_views($lang, &$tiles = null)
         $cp_tiles = array();
         $ml_tiles = array();
         $one = count($of) === 1 ? $of[0] : '';
-        $defs = Mel::$settings['ready'] ? array_merge(mel_cp_row_defs($one, $lang, $cp_tiles), mel_ml_row_defs($one, $lang, $ml_tiles)) :
-            array();
+        // The rows of the tabs by their slots; a row of Melange of both types (tv.json) once, at its place on the first
+        // tab that shows it.
+        $names = mel_tv_own_names($own_of, $of);
+        $own = array();
+        if (in_array('continue', $names, true))
+            $own['@continue'] = mel_cp_row_defs($one, $lang, $cp_tiles);
+        if (in_array('mylist', $names, true))
+            $own['@mylist'] = mel_ml_row_defs($one, $lang, $ml_tiles);
         $tiles = array_merge($tiles, $cp_tiles, $ml_tiles);
+        $defs = array();
         foreach ($of as $tab)
-            $defs = isset($tabs[$tab]) ? array_merge($defs, $tabs[$tab]['defs']) : $defs;
+        {
+            foreach (isset($tabs[$tab]) ? $tabs[$tab]['slots'] : array() as $slot)
+            {
+                if (!is_string($slot))
+                    $defs = array_merge($defs, $slot);
+                else if (isset($own[$slot]))
+                {
+                    $defs = array_merge($defs, $own[$slot]);
+                    unset($own[$slot]);
+                }
+            }
+        }
         if (!Mel::$settings['ready'])
             $defs = mel_tv_note_defs('tv:setup', 'tv_setup', $lang);
         else if (!$defs)
@@ -311,6 +339,23 @@ function mel_tv_views($lang, &$tiles = null)
     MelCat::$logo = $logo;
     MelCat::$rating = $rating;
     return $views;
+}
+
+// The names of the rows of Melange (mel_cat_pseudo) shown on the tabs $tabs, by $own_of: tab => '@<name>' => true.
+/**
+ * @param array<string, array<string, bool>> $own_of
+ * @param list<string> $tabs
+ * @return list<string>
+ */
+function mel_tv_own_names($own_of, $tabs)
+{
+    $out = array();
+    foreach ($tabs as $tab)
+    {
+        foreach (isset($own_of[$tab]) ? array_keys($own_of[$tab]) : array() as $slot)
+            $out[] = substr($slot, 1);
+    }
+    return array_values(array_unique($out));
 }
 
 // The JSON of each EPF (mel_tv_views) by id; null when one can not be made. $tiles: their tiles.
