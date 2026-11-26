@@ -1,6 +1,6 @@
 <?php
 // The settings page (cgi/settings.php): the screen "Фильтр каталога" (#hide, 0.65.0) - the age of the catalog
-// (cat_age, a radio of the form: mel_cgi_cat_ages), the lowest IMDb ratings of movies and series (cat_imdb_movie,
+// (cat_age, a list of the form: mel_cgi_cat_ages), the lowest IMDb ratings of movies and series (cat_imdb_movie,
 // cat_imdb_series, 0.70.0: mel_cgi_cat_imdbs) and "Скрытые", the titles hidden on the Dune (POP UP → «Скрыть»,
 // data_dir/hidden_titles.json of hidden_titles.php), each with "Вернуть" (a=title_unhide, by the script only); the copy
 // of the list in the backup (the field hidden_titles of the export, lib/backup.php). The file is written by the plugin
@@ -16,20 +16,18 @@ require_once dirname(dirname(dirname(__FILE__))) . '/hidden_titles.php';
 define('MEL_CGI_HT_FIELD', 'hidden_titles');
 define('MEL_CGI_HT_COPY_V', 1);
 
-// The answers of the age (radio cat_age): its value => array(name, hint, the value of the line on the main screen
-// (data-short)); 'all' - cat_age null, else the age itself (mel_settings_parse: 16, 12, 6, 0).
+// The answers of the age (select cat_age): its value => array(name with what it hides, 'short' => the value of the line
+// on the main screen); 'all' - cat_age null, else the age itself (mel_settings_parse: 16, 12, 6, 0).
 function mel_cgi_cat_ages()
 {
     return array(
-        'all' => array(mel_cgi_l('Все', 'All'), mel_cgi_l('Возраст не проверяется.', 'The age is not checked.'),
-            mel_cgi_l('Все возрасты', 'All ages')),
-        '16' => array(mel_cgi_l('До 16+', 'Up to 16+'), mel_cgi_l('Скрыты 18+.', '18+ hidden.'), mel_cgi_l('До 16+', 'Up to 16+')),
-        '12' => array(mel_cgi_l('До 12+', 'Up to 12+'), mel_cgi_l('Скрыты 16+ и 18+.', '16+ and 18+ hidden.'),
-            mel_cgi_l('До 12+', 'Up to 12+')),
-        '6' => array(mel_cgi_l('До 6+', 'Up to 6+'), mel_cgi_l('Скрыты 12+, 16+ и 18+.', '12+, 16+ and 18+ hidden.'),
-            mel_cgi_l('До 6+', 'Up to 6+')),
-        '0' => array(mel_cgi_l('Только 0+', '0+ only'), mel_cgi_l('Скрыто всё старше 0+.', 'All over 0+ hidden.'),
-            mel_cgi_l('Только 0+', '0+ only')));
+        'all' => array(mel_cgi_l('Все', 'All'), 'short' => mel_cgi_l('Все возрасты', 'All ages')),
+        '16' => array(mel_cgi_l('До 16+ (скрыты 18+)', 'Up to 16+ (hides 18+)'), 'short' => mel_cgi_l('До 16+', 'Up to 16+')),
+        '12' => array(mel_cgi_l('До 12+ (скрыты 16+ и 18+)', 'Up to 12+ (hides 16+ and 18+)'),
+            'short' => mel_cgi_l('До 12+', 'Up to 12+')),
+        '6' => array(mel_cgi_l('До 6+ (скрыты 12+, 16+ и 18+)', 'Up to 6+ (hides 12+, 16+ and 18+)'),
+            'short' => mel_cgi_l('До 6+', 'Up to 6+')),
+        '0' => array(mel_cgi_l('Только 0+', '0+ only'), 'short' => mel_cgi_l('Только 0+', '0+ only')));
 }
 
 // The answer of mel_cgi_cat_ages() of cat_age of the settings (an int, null - all).
@@ -45,15 +43,15 @@ function mel_cgi_cat_age_set($x)
 }
 
 // The answers of the lowest IMDb rating of movies ($series false: select cat_imdb_movie) or series (cat_imdb_series):
-// its value => array(name, its part of the line on the main screen (data-short; 'all' - none: mel_cgi_hide_line));
+// its value => array(name, 'short' => its part of the line on the main screen; 'all' - none: mel_cgi_hide_line);
 // 'all' - null, else the rating in tenths (mel_imdb_mins: "65" - from 6.5).
 function mel_cgi_cat_imdbs($series)
 {
-    $out = array('all' => array(mel_cgi_l('Любой', 'Any'), ''));
+    $out = array('all' => array(mel_cgi_l('Любой', 'Any'), 'short' => ''));
     foreach (mel_imdb_mins() as $n)
     {
         $r = intval($n / 10) . ($n % 10 ? '.' . $n % 10 : '');
-        $out[strval($n)] = array(mel_cgi_l("От $r", "$r+"), $series ? mel_cgi_l("сериалы от $r", "series $r+") :
+        $out[strval($n)] = array(mel_cgi_l("От $r", "$r+"), 'short' => $series ? mel_cgi_l("сериалы от $r", "series $r+") :
             mel_cgi_l("фильмы от $r", "movies $r+"));
     }
     return $out;
@@ -109,8 +107,8 @@ function mel_cgi_ht_data($dir)
     return array('items' => $list !== null ? mel_cgi_ht_items($list) : array(), 'msg' => $list !== null ? '' : mel_cgi_ht_why_text($why));
 }
 
-// The screen "Фильтр каталога" (#hide): the age (radios) and the IMDb ratings of movies and series (lists; values of
-// the form: '' or another one - none checked, the first one of a list shown), where they and the hidden act (not in a
+// The screen "Фильтр каталога" (#hide): the age and the IMDb ratings of movies and series (lists; values of the form:
+// '' or another one - none selected, the first one of a list shown), where they and the hidden act (not in a
 // search); "Скрытые": the list made by the script (web/src/hidden.ts) from #init.hidden, its lines in #htr (without the
 // script: why there is none).
 function mel_cgi_hide_screen($v)
@@ -118,7 +116,7 @@ function mel_cgi_hide_screen($v)
     $f = mel_cgi_fields();
     return '<p class="sub">' . mel_cgi_l('Действует в каталоге, «ТВ» и карточках. «Продолжить» и «Избранное» не меняются.',
         'Applies to the catalog, "TV" and cards. "Continue Watching" and Favorites stay.') . '</p>' .
-        '<p class="lbl">' . mel_cgi_l('Возраст', 'Age rating') . '</p>' . mel_cgi_choice($f['cat_age'], mel_cgi_cat_ages(), $v['cat_age']) .
+        mel_cgi_select($f['cat_age'], mel_cgi_l('Возраст', 'Age rating'), mel_cgi_cat_ages(), $v['cat_age']) .
         '<p class="hint">' . mel_cgi_l('В поиске возраст не проверяется. Тайтлы без возраста видны.',
         'Search ignores the age rating. Titles without one are shown.') . '</p>' .
         mel_cgi_select($f['cat_imdb_movie'], mel_cgi_l('Рейтинг IMDb: фильмы', 'IMDb rating: movies'), mel_cgi_cat_imdbs(false),

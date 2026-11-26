@@ -106,7 +106,7 @@ function mel_cgi_rows($v)
         $tk = mel_cgi_tpl_keys($w);
         $all = $tk['tpls'] + mel_cgi_tpl_marks();
         $tpl = mel_cgi_tpl_sel($v, $w);
-        $src .= isset($all[$tpl]) ? ' · ' . $all[$tpl][2] : '';
+        $src .= isset($all[$tpl]) ? ' · ' . $all[$tpl]['short'] : '';
     }
     $jr = $v['jacred'] !== 'own' ? $v['jacred'] : mel_cgi_host($v['jo_url']);
     $names = array();
@@ -147,16 +147,16 @@ function mel_cgi_rows($v)
 function mel_cgi_hide_line($x, $movie, $series)
 {
     $a = mel_cgi_cat_ages();
-    $out = $x !== 'all' && isset($a[$x]) ? array($a[$x][2]) : array();
+    $out = $x !== 'all' && isset($a[$x]) ? array($a[$x]['short']) : array();
     $imdb = array();
     foreach (array(array(mel_cgi_cat_imdbs(false), $movie), array(mel_cgi_cat_imdbs(true), $series)) as $p)
     {
-        if (isset($p[0][$p[1]]) && $p[0][$p[1]][1] !== '')
-            $imdb[] = $p[0][$p[1]][1];
+        if (isset($p[0][$p[1]]) && $p[0][$p[1]]['short'] !== '')
+            $imdb[] = $p[0][$p[1]]['short'];
     }
     if ($imdb)
         $out[] = 'IMDb: ' . implode(', ', $imdb);
-    return $out ? implode(', ', $out) : $a['all'][2];
+    return $out ? implode(', ', $out) : $a['all']['short'];
 }
 
 // The value of the line of the source on the main screen with two sources or more (v2, prof of the values $v:

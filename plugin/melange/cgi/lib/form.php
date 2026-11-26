@@ -85,8 +85,8 @@ function mel_cgi_fields()
         'cat_rating' => array('id' => 'rti', 'name' => 'cat_rating', 'set' => 'cat_rating', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // "Логотип фильма вместо названия" (0.55.0).
         'cat_logo' => array('id' => 'clg', 'name' => 'cat_logo', 'set' => 'cat_logo', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
-        // "Возраст" of "Фильтр каталога" (0.65.0, lib/hidden.php): mel_cgi_cat_ages().
-        'cat_age' => array('id' => 'cag', 'name' => 'cat_age', 'set' => 'cat_age', 'max' => 0, 'type' => 'radio', 'scr' => 'hide'),
+        // "Возраст" of "Фильтр каталога" (0.65.0, lib/hidden.php; a list since 0.70.0): mel_cgi_cat_ages().
+        'cat_age' => array('id' => 'cag', 'name' => 'cat_age', 'set' => 'cat_age', 'max' => 0, 'type' => 'select', 'scr' => 'hide'),
         // "Рейтинг IMDb: фильмы", "...: сериалы" of "Фильтр каталога" (0.70.0, lib/hidden.php): mel_cgi_cat_imdbs().
         'cat_imdb_movie' => array('id' => 'cim', 'name' => 'cat_imdb_movie', 'set' => 'cat_imdb_movie', 'max' => 0, 'type' => 'select',
             'scr' => 'hide'),
@@ -191,8 +191,8 @@ function mel_cgi_card($for, $title, $sub, $more = '')
 
 // A simple choice (div.choice): a card of a radio of the row $f of
 // mel_cgi_fields() each (its id: that of the row and the number of the card),
-// by $opts value => array(title, hint[, data-short of the radio]); $sel: the
-// value checked (a string: a key of digits is an int in PHP, the age of mel_cgi_cat_ages).
+// by $opts value => array(title, hint[, 'short' => data-short of the radio]); $sel:
+// the value checked (a string: a key of digits is an int in PHP).
 function mel_cgi_choice($f, $opts, $sel)
 {
     $out = '<div class="choice">';
@@ -200,21 +200,31 @@ function mel_cgi_choice($f, $opts, $sel)
     foreach ($opts as $val => $x)
     {
         $i++;
-        $out .= mel_cgi_vradio($f['id'] . $i, $f['name'], $val, strval($val) === $sel, '', isset($x[2]) ? ' data-short="' .
-            mel_cgi_h($x[2]) . '"' : '') . mel_cgi_card($f['id'] . $i, mel_cgi_h($x[0]), mel_cgi_h($x[1]));
+        $out .= mel_cgi_vradio($f['id'] . $i, $f['name'], $val, strval($val) === $sel, '', isset($x['short']) ?
+            ' data-short="' . mel_cgi_h($x['short']) . '"' : '') . mel_cgi_card($f['id'] . $i, mel_cgi_h($x[0]), mel_cgi_h($x[1]));
     }
     return $out . '</div>';
 }
 
-// A list (select) of the row $f of mel_cgi_fields() under its label $label, by $opts value => array(title, data-short
-// of the option); $sel: the value selected (a string, as of mel_cgi_choice; another one: none, the first one shown).
+// A list (select) of the row $f of mel_cgi_fields() under its label $label, by $opts value => array(title[, 'short' =>
+// data-short of the option]), as mel_cgi_choice; $sel: the value selected (a string, as of mel_cgi_choice: the age of
+// mel_cgi_cat_ages is a key of digits; another one: none, the first one shown).
 function mel_cgi_select($f, $label, $opts, $sel)
 {
     $out = '<label for="' . $f['id'] . '">' . $label . '</label><select id="' . $f['id'] . '" name="' . $f['name'] . '">';
     foreach ($opts as $val => $x)
-        $out .= '<option value="' . mel_cgi_h($val) . '" data-short="' . mel_cgi_h($x[1]) . '"' .
+        $out .= '<option value="' . mel_cgi_h($val) . '"' . (isset($x['short']) ? ' data-short="' . mel_cgi_h($x['short']) . '"' : '') .
             (strval($val) === $sel ? ' selected' : '') . '>' . mel_cgi_h($x[0]) . '</option>';
     return $out . '</select>';
+}
+
+// The options of mel_cgi_select of the names $names (value => name), no data-short.
+function mel_cgi_opts($names)
+{
+    $out = array();
+    foreach ($names as $val => $name)
+        $out[$val] = array($name);
+    return $out;
 }
 
 // A link of a hint, opened without the address of the page (it has the token).
@@ -265,11 +275,7 @@ function mel_cgi_servers($servers)
         $type = isset($types[$v['type']]) ? $v['type'] : 'qbt';
         $out .= '<details class="srv"' . ($filled ? ' open' : '') . '><summary>' . mel_cgi_l('Сервер', 'Server') . " $n" .
             ($v['name'] !== '' ? ': ' . mel_cgi_h($v['name']) : '') . '</summary>' .
-            '<label for="' . $f['type']['id'] . '">' . mel_cgi_l('Клиент', 'Client') . '</label><select id="' .
-            $f['type']['id'] . '" name="' . $f['type']['name'] . '">';
-        foreach ($types as $id => $name)
-            $out .= '<option value="' . $id . '"' . ($type === $id ? ' selected' : '') . '>' . $name . '</option>';
-        $out .= '</select>' .
+            mel_cgi_select($f['type'], mel_cgi_l('Клиент', 'Client'), mel_cgi_opts($types), $type) .
             mel_cgi_input($f['name'], mel_cgi_l('Название', 'Name'), $v['name'], 'qBittorrent') .
             mel_cgi_srv_plain($f['url'], mel_cgi_l('Адрес', 'Address'), $v['url'],
                 array('http://192.168.1.10:8080', 'http://192.168.1.10:9091'), $type) .
@@ -281,11 +287,9 @@ function mel_cgi_servers($servers)
             mel_cgi_srv_plain($f['tags'], array(mel_cgi_l('Теги через запятую (необязательно)', 'Tags, comma-separated (optional)'),
                 mel_cgi_l('Метки через запятую (необязательно)', 'Labels, comma-separated (optional)')), $v['tags'], array('', ''),
                 $type) .
-            '<label for="' . $f['cache']['id'] . '">' . mel_cgi_l('Для кэша', 'For the cache of') . '</label><select id="' .
-            $f['cache']['id'] . '" name="' . $f['cache']['name'] . '">';
-        foreach (array_merge(array('' => mel_cgi_l('Не из кэша', 'Not from a cache')), mel_server_caches()) as $id => $name)
-            $out .= '<option value="' . $id . '"' . ($v['cache'] === $id ? ' selected' : '') . '>' . $name . '</option>';
-        $out .= '</select><button type="button" class="chk srvchk">' . mel_cgi_l('Проверить', 'Check') .
+            mel_cgi_select($f['cache'], mel_cgi_l('Для кэша', 'For the cache of'), mel_cgi_opts(array_merge(
+                array('' => mel_cgi_l('Не из кэша', 'Not from a cache')), mel_server_caches())), $v['cache']) .
+            '<button type="button" class="chk srvchk">' . mel_cgi_l('Проверить', 'Check') .
             '</button><div class="srvr res" aria-live="polite"></div></details>';
     }
     // Shown by the script, which hides the empty blocks; without JS all five are open to fill.
@@ -585,15 +589,15 @@ function mel_cgi_jr403()
 }
 
 // The templates of the Debrid mode (mel_tpl_debrid of common.php, 0.40.0):
-// id => array(its name, its hint, its short name for the main screen).
+// id => array(its name, its hint, 'short' => its short name for the main screen).
 function mel_cgi_tpls()
 {
     return array(
         'addons' => array(mel_cgi_l('Везде', 'Everywhere'), mel_cgi_l('JacRed, Torrentio, MediaFusion и другие — больше раздач в кэше Debrid.',
-            'JacRed, Torrentio, MediaFusion and more: more releases cached in Debrid.'), mel_cgi_l('везде', 'everywhere')),
+            'JacRed, Torrentio, MediaFusion and more: more releases cached in Debrid.'), 'short' => mel_cgi_l('везде', 'everywhere')),
         'jacred' => array(mel_cgi_l('Только русские трекеры', 'Russian trackers only'), mel_cgi_l(
             'JacRed: быстрее; с одним Real-Debrid раздач мало.', 'JacRed: faster; few releases with Real-Debrid alone.'),
-            mel_cgi_l('только русские', 'Russian only')));
+            'short' => mel_cgi_l('только русские', 'Russian only')));
 }
 
 // The templates of the mode P2P (aio_tpl_p2p of common.php, 0.44.0), as mel_cgi_tpls().
@@ -602,10 +606,10 @@ function mel_cgi_tpls_p2p()
     return array(
         MEL_TPL_P2P => array(mel_cgi_l('Везде', 'Everywhere'), mel_cgi_l(
             'Torrentio, JacRed, TorrentsDB, Comet и StremThru Torz — больше раздач.',
-            'Torrentio, JacRed, TorrentsDB, Comet and StremThru Torz: more releases.'), mel_cgi_l('везде', 'everywhere')),
+            'Torrentio, JacRed, TorrentsDB, Comet and StremThru Torz: more releases.'), 'short' => mel_cgi_l('везде', 'everywhere')),
         MEL_TPL_P2P_JACRED => array(mel_cgi_l('Только русские трекеры', 'Russian trackers only'), mel_cgi_l(
             'JacRed: быстрее, раздачи русских трекеров.', 'JacRed: faster, releases of Russian trackers.'),
-            mel_cgi_l('только русские', 'Russian only')));
+            'short' => mel_cgi_l('только русские', 'Russian only')));
 }
 
 // The template choice of the mode $m on the page (0.44.0: one per mode):
@@ -702,10 +706,10 @@ function mel_cgi_tpl_marks()
     return array(
         'custom' => array(mel_cgi_l('Свой набор аддонов (изменён в AIOStreams)', 'Custom set of addons (changed in AIOStreams)'),
             mel_cgi_l('Выберите шаблон, чтобы заменить им конфиг.', 'Choose a template to replace the config with it.'),
-            mel_cgi_l('свой набор', 'custom set')),
+            'short' => mel_cgi_l('свой набор', 'custom set')),
         'none' => array(sprintf(mel_cgi_l('Не определён — нажмите «%s»', 'Unknown - press "%s"'), mel_cgi_saveb()),
             mel_cgi_l('Melange узнает шаблон конфига на сервере при сохранении.',
-            'Melange detects the config template on the server when you save.'), mel_cgi_l('шаблон не определён', 'template unknown')));
+            'Melange detects the config template on the server when you save.'), 'short' => mel_cgi_l('шаблон не определён', 'template unknown')));
 }
 
 // The template chosen on the page in the mode $m (mel_cgi_tpl): one chosen
@@ -742,7 +746,7 @@ function mel_cgi_tpl($v, $m)
     $sel = mel_cgi_tpl_sel($v, $m);
     $out = '<p class="lbl">' . mel_cgi_l('Где искать раздачи', 'Where to look for releases') . '</p><div id="' . $id . 'h">';
     foreach (mel_cgi_tpl_marks() as $mk => $x)
-        $out .= '<p class="mark" data-mark="' . $mk . '" data-short="' . mel_cgi_h($x[2]) . '"' . ($mk === $sel ? '' : ' hidden') . '>' .
+        $out .= '<p class="mark" data-mark="' . $mk . '" data-short="' . mel_cgi_h($x['short']) . '"' . ($mk === $sel ? '' : ' hidden') . '>' .
             '<span class="t">' . mel_cgi_h($x[0]) .
             '</span><span class="v">' . mel_cgi_h($x[1]) . '</span></p>';
     return $out . '</div>' . mel_cgi_choice($f[$k], $tk['tpls'], $sel) . mel_cgi_hidden($f[$seen], $shown);
