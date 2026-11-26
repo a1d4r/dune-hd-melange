@@ -878,9 +878,9 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // 'cat_logo' => bool, "Логотип фильма вместо названия": the card background of
 // the server with the logo in the panel of the catalog (mel_catv_card; 0.55.0;
 // not a bool - true),
-// 'cat_age' => int|null, the age of "Что не показывать": tiles of the catalog of an older age (mel_cat_age_of) not
+// 'cat_age' => int|null, the age of "Фильтр каталога": tiles of the catalog of an older age (mel_cat_age_of) not
 // shown (mel_ht_off; 0.65.0): 16, 12, 6, 0; null - all (another value - null),
-// 'cat_imdb_movie', 'cat_imdb_series' => int|null, "Рейтинг IMDb: фильмы", "...: сериалы" of "Что не показывать": tiles of
+// 'cat_imdb_movie', 'cat_imdb_series' => int|null, "Рейтинг IMDb: фильмы", "...: сериалы" of "Фильтр каталога": tiles of
 // that type of a lower IMDb rating not shown (mel_ht_off; 0.70.0), in tenths: 50, 55 ... 80 (65 - from 6.5); null - any
 // (another value - null),
 // 'no_torrents' => bool, "Без торрентов" (0.49.0; not a bool - false; what it
@@ -946,7 +946,7 @@ function mel_settings_read($dir, &$why = null)
     return mel_settings_parse($j);
 }
 
-// The lowest IMDb ratings of "Что не показывать" (cat_imdb_movie, cat_imdb_series), in tenths: from 5 to 8 by 0.5.
+// The lowest IMDb ratings of "Фильтр каталога" (cat_imdb_movie, cat_imdb_series), in tenths: from 5 to 8 by 0.5.
 /**
  * @return list<int>
  */

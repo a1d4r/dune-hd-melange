@@ -1,5 +1,5 @@
 <?php
-// The settings page (cgi/settings.php): the screen "Что не показывать" (#hide, 0.65.0) - the age of the catalog
+// The settings page (cgi/settings.php): the screen "Фильтр каталога" (#hide, 0.65.0) - the age of the catalog
 // (cat_age, a radio of the form: mel_cgi_cat_ages), the lowest IMDb ratings of movies and series (cat_imdb_movie,
 // cat_imdb_series, 0.70.0: mel_cgi_cat_imdbs) and "Скрытые", the titles hidden on the Dune (POP UP → «Скрыть»,
 // data_dir/hidden_titles.json of hidden_titles.php), each with "Вернуть" (a=title_unhide, by the script only); the copy
@@ -65,11 +65,11 @@ function mel_cgi_cat_imdb_of($a)
     return $a === null ? 'all' : strval($a);
 }
 
-// cat_imdb_movie or cat_imdb_series of the settings of answer $x of the form (mel_cgi_cat_imdbs; another one: null, the
-// check refuses it).
+// cat_imdb_movie or cat_imdb_series of the settings of answer $x of the form (one of mel_imdb_mins, as mel_cgi_cat_imdbs
+// gives them; 'all' or another one: null, the check refuses another one).
 function mel_cgi_cat_imdb_set($x)
 {
-    return $x !== 'all' && array_key_exists($x, mel_cgi_cat_imdbs(false)) ? intval($x) : null;
+    return in_array($x, array_map('strval', mel_imdb_mins()), true) ? intval($x) : null;
 }
 
 // Why the list of the file is not taken (mel_ht_read_file gave null, $why): the line of the page. A broken file
@@ -109,23 +109,24 @@ function mel_cgi_ht_data($dir)
     return array('items' => $list !== null ? mel_cgi_ht_items($list) : array(), 'msg' => $list !== null ? '' : mel_cgi_ht_why_text($why));
 }
 
-// The screen "Что не показывать" (#hide): the age (radios) and the IMDb ratings of movies and series (lists; values of
-// the form: '' or another one - none checked, the first one of a list shown), where they and the hidden act; "Скрытые": the list made by the script
-// (web/src/hidden.ts) from #init.hidden, its lines in #htr (without the script: why there is none).
+// The screen "Фильтр каталога" (#hide): the age (radios) and the IMDb ratings of movies and series (lists; values of
+// the form: '' or another one - none checked, the first one of a list shown), where they and the hidden act (not in a
+// search); "Скрытые": the list made by the script (web/src/hidden.ts) from #init.hidden, its lines in #htr (without the
+// script: why there is none).
 function mel_cgi_hide_screen($v)
 {
     $f = mel_cgi_fields();
     return '<p class="sub">' . mel_cgi_l('Действует в каталоге, «ТВ» и карточках. «Продолжить» и «Избранное» не меняются.',
         'Applies to the catalog, "TV" and cards. "Continue Watching" and Favorites stay.') . '</p>' .
         '<p class="lbl">' . mel_cgi_l('Возраст', 'Age rating') . '</p>' . mel_cgi_choice($f['cat_age'], mel_cgi_cat_ages(), $v['cat_age']) .
-        '<p class="hint">' . mel_cgi_l('Возраст проверяется и в поиске. Тайтлы без возраста видны.',
-        'Search results are filtered too. Titles with no age rating stay visible.') . '</p>' .
+        '<p class="hint">' . mel_cgi_l('В поиске возраст не проверяется. Тайтлы без возраста видны.',
+        'Search ignores the age rating. Titles without one are shown.') . '</p>' .
         mel_cgi_select($f['cat_imdb_movie'], mel_cgi_l('Рейтинг IMDb: фильмы', 'IMDb rating: movies'), mel_cgi_cat_imdbs(false),
         $v['cat_imdb_movie']) .
         mel_cgi_select($f['cat_imdb_series'], mel_cgi_l('Рейтинг IMDb: сериалы', 'IMDb rating: series'), mel_cgi_cat_imdbs(true),
         $v['cat_imdb_series']) .
-        '<p class="hint">' . mel_cgi_l('Рейтинг проверяется и в поиске. Тайтлы без рейтинга IMDb видны.',
-        'Search results are filtered too. Titles with no IMDb rating stay visible.') . '</p>' .
+        '<p class="hint">' . mel_cgi_l('В поиске рейтинг не проверяется. Тайтлы без рейтинга IMDb видны.',
+        'Search ignores the IMDb rating. Titles without one are shown.') . '</p>' .
         '<p class="lbl">' . mel_cgi_l('Скрытые', 'Hidden') . '</p><div id="htl" class="list"></div>' .
         '<div id="htr" class="res" aria-live="polite"><p class="hint">' .
         mel_cgi_l('Список не открылся: нужен браузер с поддержкой скриптов.', 'The list did not open: a browser with scripts is needed.') .

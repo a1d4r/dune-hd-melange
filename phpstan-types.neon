@@ -13,6 +13,8 @@ parameters:
         MelMlEntry: 'array{key: string, type: string, name: string, englishTitle: string, year: string, poster: string, background: string, imdb_id: string, _tmdbId: string, kpId: string, imdbRating: string, kpRating: string, kpVotes: int, dune_id: string, added: int}'
         # A hidden title (mel_ht_clean, hidden_titles.php): key - as of MelMlEntry; hidden - unix time, 0 for none.
         MelHtEntry: 'array{key: string, type: string, imdb_id: string, _tmdbId: string, name: string, year: string, hidden: int}'
+        # The filter of the rows of the catalog (hidden_titles.php mel_ht_now): the hidden ids and that of the settings (mel_ht_set).
+        MelHtFilter: 'array{ids: array<string, bool>, age: int|null, movie: int|null, series: int|null}'
         # A movie of the Favorites of the Dune (mel_ml_fav_read, my_list.php).
         MelMlFav: 'array{dune_id: string, type: string, name: string, year: string, poster: string, file: string}'
         # A listing of a row (mel_cat_row_state, catalog.php).

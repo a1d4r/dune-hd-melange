@@ -61,7 +61,7 @@ function mel_card_api()
 
 // One sign -> st: card, none (not found), refused (no dune_auth accepted), net
 // (transport), bad (anything else); card: id, year (0 if none), type, sup (suppliers),
-// kp (its rating of Kinopoisk as mel_cat_kp: rating.kp of the short answer, often none)
+// kp (its rating of Kinopoisk as mel_cat_rate: rating.kp of the short answer, often none)
 // or null. "Not found" and the refusal both come with code 0, only message tells.
 // lang: no text of the card is used, and ru is what the choice was measured on.
 /**
@@ -97,7 +97,7 @@ function mel_card_ask($sign, $token)
             $kp = mel_arr(mel_arr($r, 'rating'), 'kp');
             $card = array('id' => $id, 'year' => intval(mel_str($r, 'year')), 'type' => mel_str($r, 'type'),
                 'sup' => isset($r['suppliers']) && is_array($r['suppliers']) ? count($r['suppliers']) : 0,
-                'kp' => mel_cat_kp(mel_str($kp, 'rating')));
+                'kp' => mel_cat_rate(mel_str($kp, 'rating')));
             $why = "$id year={$card['year']} type={$card['type']} sup={$card['sup']}";
         }
         else if ($msg === 'not found')

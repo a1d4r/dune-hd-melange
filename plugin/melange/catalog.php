@@ -29,9 +29,9 @@ define('MEL_CAT_PAGE_TILES', 200);
 // silently loses tiles.
 define('MEL_CAT_SKIP_MAX', 1000);
 define('MEL_CAT_STATE_TTL', 18000);
-// Pages past the first one call of mel_cat_more asks at most while the filter ("Скрыть", the age: mel_ht_off) takes
-// all their new tiles; then the listing ends (end "filter"): a strict age would page a row of trends to the limit of
-// skip.
+// Pages past the first one call of mel_cat_more asks at most while the filter ("Скрыть", the age, the IMDb rating:
+// mel_ht_off) takes all their new tiles; then the listing ends (end "filter"): a strict age would page a row of trends
+// to the limit of skip.
 define('MEL_CAT_FILTER_PAGES', 3);
 // skip of a search goes by pages: the server asks its engine for page
 // ceil(skip / size) + 1 and sends what of it passed the filters, so skip by the tiles
@@ -605,17 +605,18 @@ function mel_cat_runtime_min($r)
     return (isset($x[1]) ? intval($x[1]) * 60 : 0) + (isset($x[2]) ? intval($x[2]) : 0);
 }
 
-// A rating of Kinopoisk ("7.93") -> "7.9" as shown; '' for none, 0 or over 10. Of any number of votes (the owner's
-// choice 23.11.2026: the votes of the server are live now), none of them too.
+// A rating of Kinopoisk or of IMDb ("7.93", "6.49") -> "7.9", "6.5" as shown (the poster, the filter of IMDb: one
+// value); '' for none, not a number, 0 or over 10. Of Kinopoisk of any number of votes (the owner's choice 23.11.2026:
+// the votes of the server are live now), none of them too.
 /**
- * @param string $kp
+ * @param string $r
  * @return string
  */
-function mel_cat_kp($kp)
+function mel_cat_rate($r)
 {
-    $kp = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $kp) && (float) $kp <= 10 ? sprintf('%.1F', (float) $kp) : '';
+    $r = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $r) && (float) $r <= 10 ? sprintf('%.1F', (float) $r) : '';
     // "0.04" is "0.0": none.
-    return (float) $kp > 0 ? $kp : '';
+    return (float) $r > 0 ? $r : '';
 }
 
 // Tile $t has an IMDb ID Melange's AIOMetadata matched itself, TMDB knows none (its id "tmdb:<n>" with an IMDb, as
@@ -636,13 +637,14 @@ function mel_cat_rel_tmdb($t)
 // a logo not in Russian and the rest are gone from here on), or null without an id or a name.
 // All values strings, genres and cast lists. imdb_id and _tmdbId: also from the id itself,
 // '' for none (mal:...). type: of the tile (rows of anime hold movie and series),
-// else of the row, '' when neither says. year: 4 digits or ''. country: the English
+// else of the row, '' when neither says. year: 4 digits or ''. imdbRating: "6.5" as shown ('' for none, 0 or over
+// 10; mel_cat_rate: the poster and the filter of the IMDb rating read one value). country: the English
 // name of the first one (mel_cat_country), '' for none. runtime: "1h38min" or "30min" (of an
 // episode for series). age: the Russian rating "16+" of app_extras.certifications.RU. ageUs: the rating of the US
 // of app_extras.certifications.US on the Russian scale (mel_cat_us_age), for the filter of the age (mel_cat_age_of).
 // cast: the first names of app_extras.cast. englishTitle: the English name of the title
 // (a field of our patch of the server; none: ''), as name. kpRating, kpVotes, kpId: of our
-// patch too: the rating "7.9" ('' for none, 0 or over 10; mel_cat_kp), its votes (0 for none), the id of
+// patch too: the rating "7.9" ('' for none, 0 or over 10; mel_cat_rate), its votes (0 for none), the id of
 // Kinopoisk (digits, '' for none). kpVotes decides nothing now; kept as a field of the tile and of the file of
 // My list (my_list.php), which older versions read.
 // logo, logoLang: of our patch too, the logo of the title in place of its name (the card background of
@@ -677,7 +679,7 @@ function mel_cat_tile($m, $row_type)
     $rating = mel_str($m, 'imdbRating');
     $votes = mel_str($m, 'kpVotes');
     $votes = preg_match('/^[0-9]{1,9}$/D', $votes) ? intval($votes) : 0;
-    $kp = mel_cat_kp(mel_str($m, 'kpRating'));
+    $kp = mel_cat_rate(mel_str($m, 'kpRating'));
     $kp_id = mel_str($m, 'kpId');
     $genres = array();
     foreach (mel_arr($m, 'genres') as $g)
@@ -710,7 +712,7 @@ function mel_cat_tile($m, $row_type)
     }
     // The first keys in this order: the index of the copies on the disk reads them so (mel_cat_cache_keys).
     return array('id' => $id, 'imdb_id' => $imdb, '_tmdbId' => $tmdb, 'type' => $type, 'name' => $name, 'year' => $year,
-        'imdbRating' => preg_match('/^[0-9]{1,2}(\.[0-9]+)?$/', $rating) ? $rating : '',
+        'imdbRating' => mel_cat_rate($rating),
         'description' => mel_cut(mel_one_line(mel_str($m, 'description')), MEL_CAT_DESC_MAX), 'genres' => $genres,
         'poster' => mel_cat_img($m, 'poster'), 'background' => mel_cat_img($m, 'background'), 'country' => $country,
         'runtime' => preg_match('/^(?=[0-9])([0-9]{1,2}h)?([0-9]{1,3}min)?$/', $runtime) ? $runtime : '',
@@ -860,8 +862,8 @@ function mel_cat_result()
 
 // A page taken into the listing: new tiles to $res, skip counts all $n got (of a
 // search: MEL_CAT_SEARCH_PAGE a page), end set at its limits. A new tile the filter does not
-// show (mel_ht_off: hidden, but not in a search - a row with q; the age, in a search too) is seen,
-// not taken. -> the number of new tiles.
+// show (mel_ht_off: hidden, the age, the IMDb rating) is seen, not taken; a search (a row with q) is not filtered
+// (the owner 26.11.2026: it shows all it finds). -> the number of new tiles.
 /**
  * @param MelCatState $st
  * @param MelCatResult $res
@@ -874,14 +876,13 @@ function mel_cat_result()
 function mel_cat_take(&$st, &$res, $n, $tiles)
 {
     $new = 0;
-    $f = mel_ht_now();
-    $search = isset($st['row']['q']);
+    $f = isset($st['row']['q']) ? null : mel_ht_now();
     foreach ($tiles as $t)
     {
         if (isset($st['seen'][$t['id']]))
             continue;
         $st['seen'][$t['id']] = true;
-        if (mel_ht_off($f, $t, $search))
+        if ($f !== null && mel_ht_off($f, $t))
             continue;
         $res['tiles'][] = $t;
         $new++;
@@ -1075,8 +1076,8 @@ function mel_cat_search($q, $names, $wait = MEL_CAT_SEARCH_WAIT)
         if (!$row)
             continue;
         $st = mel_cat_row_state($row);
-        // The first page in MEL_CAT_TOTAL; the pages the filter goes past it to (mel_cat_more), as those after it, while
-        // $wait lasts.
+        // The first page in MEL_CAT_TOTAL; the pages it goes past it to (mel_cat_more: of repeats alone, a search is not
+        // filtered), as those after it, while $wait lasts.
         $res = mel_cat_more($st, MEL_CAT_TOTAL, MEL_CAT_FILTER_PAGES, $wait - (microtime(true) - $start));
         while (!$res['stale'] && $res['err'] === '' && $st['end'] === '' && count($res['tiles']) < MEL_CAT_SEARCH_TILES)
         {

@@ -39,7 +39,7 @@ function mel_cgi_screens()
         'adv' => mel_cgi_l('Дополнительно', 'Advanced'),
         'rows' => mel_cgi_l('Ряды каталога', 'Catalog rows'),
         'look' => mel_cgi_l('Внешний вид', 'Appearance'),
-        'hide' => mel_cgi_l('Что не показывать', 'Hide from the catalog'),
+        'hide' => mel_cgi_l('Фильтр каталога', 'Catalog filter'),
         'cfg' => 'AIOStreams', 'bak' => mel_cgi_l('Резервная копия', 'Backup'), 'log' => mel_cgi_l('Лог', 'Log'),
         'about' => mel_cgi_l('О Melange', 'About Melange'));
 }
@@ -141,7 +141,7 @@ function mel_cgi_rows($v)
         'about' => array('none', MEL_VERSION . ' · ' . mel_cgi_l('поддержать автора', 'support the author')));
 }
 
-// The value of the line of "Что не показывать" of the answers of the age $x (mel_cgi_cat_ages), of the IMDb ratings
+// The value of the line of "Фильтр каталога" of the answers of the age $x (mel_cgi_cat_ages), of the IMDb ratings
 // $movie, $series (mel_cgi_cat_imdbs; another one: as all, as any), as web/src/home.ts: "До 12+, IMDb: фильмы от 6.5,
 // сериалы от 7", each part only when set; none set - that of all ages.
 function mel_cgi_hide_line($x, $movie, $series)

@@ -101,7 +101,7 @@ export const ID = {
   backupButton: "bkb",
   backupFile: "bkf",
   backupResult: "bkr",
-  // "Скрытые" of "Что не показывать" (#hide, hidden.ts): the list (a row of each title with "Unhide"), its lines.
+  // "Скрытые" of "Фильтр каталога" (#hide, hidden.ts): the list (a row of each title with "Unhide"), its lines.
   hiddenList: "htl",
   hiddenResult: "htr",
 } as const;
@@ -217,7 +217,7 @@ export const NAME = {
   catRating: "cat_rating",
   // "Present as the Lampa app" (under the token of the Lampac provider): VALUE.on, VALUE.off.
   lampacAsLampa: "lampac_as_lampa",
-  // The age of "Что не показывать" (0.65.0): all, 16, 12, 6, 0; each radio with its line on the main screen (DATA.short).
+  // The age of "Фильтр каталога" (0.65.0): all, 16, 12, 6, 0; each radio with its line on the main screen (DATA.short).
   catAge: "cat_age",
   // The lowest IMDb ratings of movies and series there (0.70.0): lists (select), all (any), 50 ... 80 (tenths); each
   // option with its part of that line (DATA.short; empty for all).

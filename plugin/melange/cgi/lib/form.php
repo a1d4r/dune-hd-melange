@@ -85,9 +85,9 @@ function mel_cgi_fields()
         'cat_rating' => array('id' => 'rti', 'name' => 'cat_rating', 'set' => 'cat_rating', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // "Логотип фильма вместо названия" (0.55.0).
         'cat_logo' => array('id' => 'clg', 'name' => 'cat_logo', 'set' => 'cat_logo', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
-        // "Возраст" of "Что не показывать" (0.65.0, lib/hidden.php): mel_cgi_cat_ages().
+        // "Возраст" of "Фильтр каталога" (0.65.0, lib/hidden.php): mel_cgi_cat_ages().
         'cat_age' => array('id' => 'cag', 'name' => 'cat_age', 'set' => 'cat_age', 'max' => 0, 'type' => 'radio', 'scr' => 'hide'),
-        // "Рейтинг IMDb: фильмы", "...: сериалы" of "Что не показывать" (0.70.0, lib/hidden.php): mel_cgi_cat_imdbs().
+        // "Рейтинг IMDb: фильмы", "...: сериалы" of "Фильтр каталога" (0.70.0, lib/hidden.php): mel_cgi_cat_imdbs().
         'cat_imdb_movie' => array('id' => 'cim', 'name' => 'cat_imdb_movie', 'set' => 'cat_imdb_movie', 'max' => 0, 'type' => 'select',
             'scr' => 'hide'),
         'cat_imdb_series' => array('id' => 'cis', 'name' => 'cat_imdb_series', 'set' => 'cat_imdb_series', 'max' => 0,
@@ -981,7 +981,7 @@ function mel_cgi_js($v)
         'importing' => mel_cgi_l('Загружаю…', 'Loading…'),
         'importTooBig' => mel_cgi_import_big(),
         'importUnread' => mel_cgi_l('Файл не прочитался — выберите его ещё раз', 'The file could not be read: choose it again'),
-        // "Скрытые" of "Что не показывать" (lib/hidden.php): the line of an empty list, the button of a title.
+        // "Скрытые" of "Фильтр каталога" (lib/hidden.php): the line of an empty list, the button of a title.
         'hiddenNone' => mel_cgi_l('Скрытых нет.', 'Nothing hidden.'), 'hiddenReturn' => mel_cgi_l('Вернуть', 'Unhide')) +
         // The lines of the main screen (mel_cgi_rows), the source profiles (lib/profiles.php).
         mel_cgi_home_texts() + mel_cgi_profile_texts();
