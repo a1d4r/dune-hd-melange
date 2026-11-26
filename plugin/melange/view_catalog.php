@@ -1566,7 +1566,10 @@ function mel_catv_main_view($media_url, $sel_state)
     // "На TorrServer": of its copy alone (ts_row.php), no request here.
     $ts_miss = array();
     if (in_array('@torrserver', $names, true))
-        $own['@torrserver'] = mel_tsr_row_defs($tab, $lang, $media_url, $ts_tiles, $ts_miss);
+    {
+        $own['@torrserver'] = mel_tsr_row_defs($tab, $lang, $media_url, $ts_miss);
+        mel_tsr_seen($media_url);
+    }
     MelCpm::$miss = $miss;
     MelCpm::$ml = $ml_miss;
     MelCpm::$ts = $ts_miss;
@@ -3001,21 +3004,23 @@ function mel_catv_mains_urls()
 // The screens opened (mel_catv_mains_urls) invalidated first, then $post: the row "Continue" and the badges of
 // the history anew when the shell is back on one (O2: whether a screen under the card is built again, the focus kept,
 // is not proven); none opened: $post as it is. Only on r25: on r24 a screen of rows lower in the stack built again may
-// go to the network for 3-7 s (not checked there). $also ('' none): a screen invalidated too, first of them, on r24 too
-// (the screen of a change of "Мой список", mel_ml_changed; the screen of a tick, mel_mlv_tick). $why: for the log.
+// go to the network for 3-7 s (not checked there). $also ('' none; a list of them): a screen invalidated too, first of
+// them, on r24 too (the screen of a change of "Мой список", mel_ml_changed; the screen of a tick, mel_mlv_tick; the main
+// screens of another copy of "На TorrServer", mel_tsl_anew). $why: for the log.
 // $fav: the screens of Fav opened too; not by a tick (mel_mlv_tick: a screen of Fav lower in the stack built again would
 // take the timer of the screen of the tick).
 /**
  * @param MelAction|null $post
  * @param string $why
- * @param string $also
+ * @param string|list<string> $also
  * @param bool $fav
  * @return MelAction|null
  */
 function mel_catv_mains_anew($post, $why, $also = '', $fav = true)
 {
     $mains = $fav ? mel_catv_mains_urls() : MelCat::$mains;
-    $urls = array_merge($also !== '' ? array($also) : array(), mel_fw_r() >= 25 ? $mains : array());
+    $also = is_array($also) ? $also : ($also !== '' ? array($also) : array());
+    $urls = array_merge($also, mel_fw_r() >= 25 ? $mains : array());
     $urls = array_values(array_unique($urls));
     if (!$urls)
     {

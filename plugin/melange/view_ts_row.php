@@ -21,22 +21,20 @@ define('MEL_TSR_LINE_GAP', 14);
 // The row of tab $tab ('movie', 'series') of main screen $from in language $lang: its title (tsl_title), its tiles of the
 // copy (MEL_TSR_MAX at most), no "Show all" tile, no flag; ENTER on its title - the section over $from (mel_tsl_open_act).
 // None: «Без торрентов» or no copy (an empty list, no answer ever, 401); the caller builds it for its slot alone (shown
-// on the tab, mel_tsr_on). One map of the movies by the history for all of it (mel_tsr_mids). $tiles: the known
-// ones by their ids with no mode; $miss: those of a record with no meta (array(type, IMDb, TMDB), in their order: the
-// lazy meta, MelCpm::$ts).
+// on the tab, mel_tsr_on). One map of the movies by the history for all of it (mel_tsr_mids): the one source of a known
+// tile, its panel too (mel_catv_info, on "TV" as well: no tile of it in tv_tiles.json). $miss: those of a record with no
+// meta (array(type, IMDb, TMDB), in their order: the lazy meta, MelCpm::$ts).
 /**
  * @param string $tab
  * @param string $lang
  * @param string $from
- * @param array<string, MelCatTile>|null $tiles
- * @param-out array<string, MelCatTile> $tiles
  * @param list<array{string, string, string}>|null $miss
  * @param-out list<array{string, string, string}> $miss
  * @return list<array<string, mixed>>
  */
-function mel_tsr_row_defs($tab, $lang, $from, &$tiles = null, &$miss = null)
+function mel_tsr_row_defs($tab, $lang, $from, &$miss = null)
 {
-    $tiles = array();
+    $known = 0;
     $miss = array();
     $items = array();
     // Its slot is shown (the caller): «Без торрентов» alone hides it here.
@@ -59,7 +57,7 @@ function mel_tsr_row_defs($tab, $lang, $from, &$tiles = null, &$miss = null)
         if ($rec && ($t['imdb_id'] !== '' || $t['_tmdbId'] !== ''))
             $miss[] = array($t['type'], $t['imdb_id'], $t['_tmdbId']);
         $items[] = mel_catv_title_item(MEL_TSL_RID, $t, $hash, $mid);
-        $tiles[MEL_TSL_RID . ":$hash"] = $t;
+        $known++;
     }
     if (!$items)
         return array();
@@ -68,7 +66,7 @@ function mel_tsr_row_defs($tab, $lang, $from, &$tiles = null, &$miss = null)
         'genre' => '', 'home' => false, 'group' => '');
     $defs = mel_catv_row_defs(mel_catv_list(mel_cat_row_state($row), array(), false), $lang, $items, 0, MEL_TSL_RID);
     $defs[1][PluginRow::show_all_action] = mel_tsl_open_act($from);
-    mel_log(sprintf('ts row: %s: %d tiles, %d known, %d with no meta', $tab, count($items), count($tiles), count($miss)));
+    mel_log(sprintf('ts row: %s: %d tiles, %d known, %d with no meta', $tab, count($items), $known, count($miss)));
     return $defs;
 }
 

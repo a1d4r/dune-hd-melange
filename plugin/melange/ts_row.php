@@ -5,7 +5,7 @@
 // hash in the uid of a record "aio:"). No firmware API. Reads Mel::$settings, MelTsl, the history (history.php); writes
 // MelTsr and the copy. Needs ts_list.php (MelTsl, mel_tsl_fetch, mel_tsl_video_count, mel_tsl_files_of, mel_tsl_on,
 // mel_tsl_split, mel_tsl_name), catalog.php (mel_cat_tab_slots, mel_cat_slot_names), view_catalog.php
-// (MEL_CATV_ROW_TILES), history.php (mel_wh_ours_all), parse.php, main.php. Functions are global; the require order is
+// (MEL_CATV_ROW_TILES), history.php (mel_wh_ours_all), tv_tab.php (mel_tv_flag), parse.php, main.php. Functions are global; the require order is
 // in main.php.
 
 // The copy of the row in data_dir: {"v": 1, "sig": mel_tsr_sig, "tiles": [{"e": the entry (mel_tsl_entry; its sizes as
@@ -46,6 +46,10 @@ class MelTsr
     public static $mid = array();
     /** @var string|null */
     public static $mid_sig = null;
+    // r24: the copy each main screen showed the row of when built (mel_tsr_seen_sig) by its media_url: after a removal
+    // one of another copy is built again (mel_tsr_unseen), as r24 does not build the main screens under the section.
+    /** @var array<string, string> */
+    public static $seen = array();
 }
 
 // The address and the login of TorrServer of the settings as one hash: a copy of another one is none. The password is
@@ -79,16 +83,48 @@ function mel_tsr_any()
     return mel_tsr_on('movie') || mel_tsr_on('series');
 }
 
-// The row is shown on tab $tab and its copy is old: no read of the list in this php_server, of another TorrServer or
-// login, or MEL_TSR_FRESH_S ago and more.
+// The copy is older than $s s: no read of the list in this php_server, one of another TorrServer or login, or one $s s
+// ago and more.
+/**
+ * @param float $s
+ * @return bool
+ */
+function mel_tsr_old($s)
+{
+    return MelTsr::$read_sig !== mel_tsr_sig() || MelTsr::$read_t <= 0 || microtime(true) - MelTsr::$read_t >= $s;
+}
+
+// The row is shown on tab $tab and its copy is old (mel_tsr_old of MEL_TSR_FRESH_S).
 /**
  * @param string $tab
  * @return bool
  */
 function mel_tsr_due($tab)
 {
-    return mel_tsr_on($tab) && (MelTsr::$read_sig !== mel_tsr_sig() || MelTsr::$read_t <= 0 ||
-        microtime(true) - MelTsr::$read_t >= MEL_TSR_FRESH_S);
+    return mel_tsr_on($tab) && mel_tsr_old(MEL_TSR_FRESH_S);
+}
+
+// The step of the row of a screen of tab $tab with $left s of its time left: a tick of the main screen (r25,
+// mel_pg_tick) or the end of an opening that went to the network (r24, mel_pg_screen_built). The copy old there
+// (mel_tsr_due): the list read (mel_tsr_read, MEL_TSR_TICK_S) when $left holds it, else not now (still due: the next tick
+// reads it, mel_pg_tick_why keeps the timer). -> the copy new (written): the screen to build again; the same, not
+// written, no answer, 401, the guard of memory - not.
+/**
+ * @param string $tab
+ * @param float $left
+ * @return bool
+ */
+function mel_tsr_step($tab, $left)
+{
+    if (!mel_tsr_due($tab))
+        return false;
+    if ($left < MEL_TSR_TICK_S)
+    {
+        mel_log(sprintf('ts row: %s: %.1f s left, no read now', $tab, max(0.0, $left)));
+        return false;
+    }
+    list(, $new) = mel_tsr_read();
+    return $new;
 }
 
 // The copy of the TorrServer of the settings: hash => its tile in order; from memory, the file read again when it is
@@ -117,6 +153,46 @@ function mel_tsr_tiles()
         MelTsr::$json = $text;
     }
     return MelTsr::$sig === mel_tsr_sig() ? MelTsr::$tiles : array();
+}
+
+// What a screen showing the row now shows of it (mel_tsr_seen): the copy as last read or put (MelTsr::$json; the file
+// read when another one, mel_tsr_tiles) and its TorrServer, «Без торрентов».
+/**
+ * @return string
+ */
+function mel_tsr_seen_sig()
+{
+    $on = mel_tsl_on();
+    if ($on)
+        mel_tsr_tiles();
+    return md5(($on ? '1' : '0') . mel_tsr_sig() . MelTsr::$json);
+}
+
+// r24: main screen $url is built with the row (mel_catv_main_view): what of it it shows kept (MelTsr::$seen).
+/**
+ * @param string $url
+ * @return void
+ */
+function mel_tsr_seen($url)
+{
+    MelTsr::$seen[$url] = mel_tsr_seen_sig();
+}
+
+// r24: of main screens $urls those built with the row of another copy than now (mel_tsr_seen), in their order.
+/**
+ * @param list<string> $urls
+ * @return list<string>
+ */
+function mel_tsr_unseen($urls)
+{
+    $now = mel_tsr_seen_sig();
+    $out = array();
+    foreach ($urls as $url)
+    {
+        if (isset(MelTsr::$seen[$url]) && MelTsr::$seen[$url] !== $now)
+            $out[] = $url;
+    }
+    return $out;
 }
 
 // The tiles the row shows (its slot on a tab aside: the caller's): none with «Без торрентов» (mel_tsl_on), else the
@@ -225,7 +301,9 @@ function mel_tsr_files_out($files)
 // The copy is tiles $tiles (mel_tsr_tiles_of) of the TorrServer of the settings: in memory, and the file written when
 // they are other than the copy last read or put (MelTsr::$json; the flash wears: most reads find the same list) ->
 // 'same', 'new' (written), 'failed' (other, not written: a line of the log, memory as said; the same tiles next time
-// are 'same', no write tried at every read).
+// are 'same', no write tried at every read). Not 'same' - the one place of the flag of the tab "TV", as a copy of the
+// catalog (mel_tv_copy_saved): a read of its timer counted (MelTv::$quiet: it compares the files itself), else with the
+// row shown the flag (mel_tv_flag); so a removal from the row, the section and "TV" alike, a tick, a read of the section.
 /**
  * @param array<string, MelTsrTile> $tiles
  * @return string
@@ -253,6 +331,10 @@ function mel_tsr_put($tiles)
     MelTsr::$sig = mel_tsr_sig();
     MelTsr::$sig_file = mel_file_sig(MEL_TSR_FILE);
     MelTsr::$json = $json;
+    if (MelTv::$quiet)
+        MelTv::$new_copies++;
+    else if (mel_tsr_any())
+        mel_tv_flag('the TorrServer copy');
     return $ok ? 'new' : 'failed';
 }
 
@@ -260,7 +342,7 @@ function mel_tsr_put($tiles)
 // read (none: an empty list); no answer (ts_err_down) - the copy stays (the row of it, owner 26.11.2026), and so when the
 // guard of memory stopped the read short of MEL_TSR_MAX entries (detail 'memory': a big list of the section in memory,
 // not the list of TorrServer); 401, a bad reply - empty (no row). The time of the read kept (mel_tsr_due). The row not
-// shown (mel_tsr_any): nothing. -> the copy changed (mel_tsr_put: not 'same').
+// shown (mel_tsr_any): nothing. -> the copy written anew (mel_tsr_put 'new'; not written - the screen stays).
 /**
  * @param array{list<MelTsEntry>|null, string, string} $r
  * @return bool
@@ -285,12 +367,12 @@ function mel_tsr_take($r)
     $put = mel_tsr_put($tiles);
     mel_log(sprintf('ts row: the copy %d tiles%s, %s', count($tiles), $r[1] !== '' ? " ({$r[1]})" : '',
         $put === 'same' ? 'the same' : $put));
-    return $put !== 'same';
+    return $put === 'new';
 }
 
 // The read of the row: "list" of the TorrServer of the settings up to MEL_TSR_MAX entries (the read stops there: the
 // newest come first), MEL_TSR_TICK_S in all, to the copy (mel_tsr_take) -> array(the key of an error, '' none; the
-// copy changed). The row not shown (mel_tsr_any), «Без торрентов» too: no request ('ts_err_off').
+// copy written anew). The row not shown (mel_tsr_any), «Без торрентов» too: no request ('ts_err_off').
 /**
  * @return array{string, bool}
  */

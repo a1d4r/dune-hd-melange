@@ -515,7 +515,8 @@ function mel_tsl_rem_act($hash, $from)
 // The screens built anew after a torrent went off TorrServer (removed, or found gone) from screen $from, then $post: $from
 // when it is the section or a main screen of the catalog ('' none: a screen updated by $post itself, "TV"); the row shown
 // (mel_tsr_any) - on r25 the main screens opened too (mel_catv_mains_anew: one under the section, the other tab), their
-// tiles of it out of the copy already (mel_tsr_drop). The shell keeps the focus by sel_state. None of them: $post.
+// tiles of it out of the copy already (mel_tsr_drop); on r24 of them those built with another copy (mel_tsr_unseen: the
+// one under the section). The shell keeps the focus by sel_state. None of them: $post.
 /**
  * @param string $from
  * @param MelAction|null $post
@@ -526,7 +527,8 @@ function mel_tsl_anew($from, $post, $why)
 {
     $also = $from === MEL_TSL_URL || mel_catv_is_main($from) ? $from : '';
     if (mel_tsr_any())
-        return mel_catv_mains_anew($post, $why, $also, false);
+        return mel_catv_mains_anew($post, $why, array_merge($also !== '' ? array($also) : array(),
+            mel_fw_r() >= 25 ? array() : mel_tsr_unseen(MelCat::$mains)), false);
     if ($also === '')
         return $post;
     $a = mel_catv_invalidate($also);

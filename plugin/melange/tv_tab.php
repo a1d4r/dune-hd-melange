@@ -19,7 +19,9 @@
 // and by Melange when it saves a copy the file is built of (mel_tv_copy_saved), reads a new settings.json or
 // is back from the player (mel_finish), and by "Configure list…" when it has nothing for the shell to read anew.
 // The rows "Continue" (continue.php) and "Мой список" of their types in each, where the tab has them (mel_cat_tab_slots;
-// by default first); their badges and those of the tiles are of the history when the file is built.
+// by default first); their badges and those of the tiles are of the history when the file is built. So the row "На
+// TorrServer" (view_ts_row.php), of its copy on the disk (ts_row.php): the timer reads the list when the copy is older
+// than MEL_TV_TSR_S, a copy written elsewhere sets the flag itself (mel_tsr_put).
 
 define('MEL_TV_EPF', 'tv');
 // "from" of the actions of each EPF: this and its id (mel_tv_is_from): no screen of Melange is under them.
@@ -36,6 +38,9 @@ define('MEL_TV_SUB_MIN_R', 24);
 // top, only in a tick with a new copy or other settings. php_server runs one call at a time: the info
 // panel and ENTER on "TV" wait for it.
 define('MEL_TV_TIMER_S', 3.0);
+// The timer reads the list of TorrServer for the row "На TorrServer" (mel_tv_tsr_read) when its copy is older than this:
+// the timer comes every 10 min.
+define('MEL_TV_TSR_S', 600);
 // "Configure list…" on "TV" (mel_tv_rows_saved): the requests of the rows chosen anew with no copy in this many s, as
 // the timer asks them (mel_tv_ask); the user waits after the dialog, the rows past it come with the timer.
 define('MEL_TV_ROWS_S', 5.0);
@@ -237,8 +242,9 @@ function mel_tv_note_defs($id, $key, $lang)
 }
 
 // The views of the EPF (mel_tv_epfs) by id: the rows of their tabs of the catalog from the copies in the order of the
-// tab (mel_catv_tab_copy_defs), the rows "Continue" and "Мой список" (mel_cp_row_defs, mel_ml_row_defs: of both types on
-// tv.json, there once, at its place on the first tab that shows it) where the tab has them, as
+// tab (mel_catv_tab_copy_defs), the rows "Continue", "Мой список" and "На TorrServer" (mel_cp_row_defs, mel_ml_row_defs,
+// mel_tsr_row_defs: of both types on tv.json, there once, at its place on the first tab that shows it) where the tab
+// has them, as
 // a screen of rows opened now (the mode of the tiles and the plates of the settings and the firmware,
 // as mel_catv_logo_of gives, but not kept among its screens: the EPF would push out a screen of Melange).
 // Each tab built once. No source ready (Lampac too): one tile "Set up Melange" ("tv:setup"), as the catalog opens
@@ -303,6 +309,9 @@ function mel_tv_views($lang, &$tiles = null)
             $own['@continue'] = mel_cp_row_defs($one, $lang, $cp_tiles);
         if (in_array('@mylist', $names, true))
             $own['@mylist'] = mel_ml_row_defs($one, $lang, $ml_tiles);
+        // Its known tiles by the history alone (mel_catv_info): none to the tiles of the files.
+        if (in_array('@torrserver', $names, true))
+            $own['@torrserver'] = mel_tsr_row_defs($one, $lang, MEL_TV_FROM_PREFIX . $epf);
         $tiles = array_merge($tiles, $cp_tiles, $ml_tiles);
         $defs = array();
         foreach ($of as $tab)
@@ -650,17 +659,20 @@ function mel_tv_code_sig()
 // What the EPF are built with besides the copies: settings.json (mel_settings_sig), the filter of the tiles
 // (mel_ht_filter_sig: the file of the hidden titles - the settings page takes one back), the language, the version and
 // the build of the plugin (another one may build them otherwise), the history (mel_wh_sig: the row "Continue" and the
-// badges; a file of it written within 2 s: none, the next tick builds them again).
+// badges; a file of it written within 2 s: none, the next tick builds them again), the copy of the row "На TorrServer"
+// (written by a tick of the catalog, the section, a removal).
 /**
  * @param string $lang
  * @return string
  */
 function mel_tv_timer_state($lang)
 {
-    return mel_settings_sig() . ' ' . mel_ht_filter_sig() . " $lang " . MEL_VERSION . ' ' . mel_tv_code_sig() . ' ' . md5(strval(mel_wh_sig()));
+    return mel_settings_sig() . ' ' . mel_ht_filter_sig() . " $lang " . MEL_VERSION . ' ' . mel_tv_code_sig() . ' ' .
+        md5(strval(mel_wh_sig())) . ' ' . mel_file_sig(MEL_TSR_FILE);
 }
 
-// The timer: the copy of the manifest older than MEL_CAT_FRESH asked anew (not MEL_CAT_MANIFEST_FRESH:
+// The timer: first the list of TorrServer for the row "На TorrServer" (mel_tv_tsr_read, MEL_TSR_TICK_S of $limit), then
+// the copy of the manifest older than MEL_CAT_FRESH asked anew (not MEL_CAT_MANIFEST_FRESH:
 // the timer comes every 10 min), then the first pages
 // of the rows of the file without a copy or with one older than MEL_CAT_FRESH, one by one in $limit s: those
 // without a copy first, then the oldest copy (of the same time in the order of the file), each part a movie and a
@@ -679,13 +691,14 @@ function mel_tv_refresh($limit)
     $start = microtime(true);
     MelTv::$quiet = true;
     MelTv::$new_copies = 0;
+    $ts = mel_tv_tsr_read();
     $copy = mel_cat_manifest_copy();
     $rows = $copy['rows'];
     $man = 'manifest fresh';
     $err = '';
     if (!$copy['rows'] || !mel_cat_is_fresh($copy))
     {
-        $secs = intval(min(MEL_CATV_REFRESH_S, floor($limit)));
+        $secs = intval(min(MEL_CATV_REFRESH_S, floor($limit - (microtime(true) - $start))));
         $m = $secs >= 1 ? mel_cat_manifest_fetch($secs) : null;
         $rows = $m && $m['rows'] ? $m['rows'] : $rows;
         $err = $m ? $m['err'] : '';
@@ -719,7 +732,22 @@ function mel_tv_refresh($limit)
         $ask[] = $tv_rows[$i];
     $asked = mel_tv_ask($ask, $start, $limit, $err);
     MelTv::$quiet = false;
-    return sprintf('%s, rows asked %d of %d old', $man, $asked, count($queue));
+    return sprintf('%s%s, rows asked %d of %d old', $ts, $man, $asked, count($queue));
+}
+
+// The timer (mel_tv_refresh, its copies counted): the row "На TorrServer" shown on a tab ("TV" shows the rows of the
+// tabs, mel_tsr_any) of a copy older than MEL_TV_TSR_S (mel_tsr_old) - the list read (mel_tsr_read); a new copy counted
+// (mel_tsr_put). -> for the log: '' none read, else "TorrServer <the same, new, the key of the error>, ".
+/**
+ * @return string
+ */
+function mel_tv_tsr_read()
+{
+    if (!mel_tsr_any() || !mel_tsr_old(MEL_TV_TSR_S))
+        return '';
+    $n = MelTv::$new_copies;
+    list($err) = mel_tsr_read();
+    return 'TorrServer ' . ($err !== '' ? $err : (MelTv::$new_copies > $n ? 'new' : 'the same')) . ', ';
 }
 
 // The first pages of the rows $rows one by one, in their order, in $limit s since $start: each request the whole
