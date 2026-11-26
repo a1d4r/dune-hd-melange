@@ -12,7 +12,7 @@
 // the card of the Dune (mel_sup_card, the supplier aicard).
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_card.php, view_card_series.php, view_card_lib.php
 // (mel_oc_lib_pick; mel_oc_lib, mel_oc_lib_shown of mel_lib_win_card), view_catalog.php, view_person.php, continue.php
-// (mel_cp_items), view_ts.php (MEL_TSL_URL, mel_tsl_on), ts_row.php (mel_tsr_entries), source_profiles.php.
+// (mel_cp_items), view_ts.php (MEL_TSL_URL, mel_tsl_on), ts_row.php (mel_tsr_tiles), source_profiles.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The targets: fn - the handler of the link; id - the fields of an id it takes, exactly one of them given (none: no
@@ -476,7 +476,7 @@ function mel_dl_row($q)
             $list[] = MEL_MLV_CONT;
         else if ($s === '@mylist' && mel_mlv_list_cells(array($q['tab']), 1))
             $list[] = MEL_MLV_LIST;
-        else if ($s === '@torrserver' && mel_tsl_on() && mel_tsr_entries())
+        else if ($s === '@torrserver' && mel_tsl_on() && mel_tsr_tiles())
             $list[] = MEL_TSL_URL;
     }
     if (!isset($list[$n - 1]))

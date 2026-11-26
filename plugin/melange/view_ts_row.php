@@ -42,11 +42,11 @@ function mel_tsr_row_defs($tab, $lang, $from, &$tiles = null, &$miss = null)
     // Its slot is shown (the caller): «Без торрентов» alone hides it here.
     if (!mel_tsl_on())
         return array();
-    $entries = mel_tsr_entries();
-    $mids = $entries ? mel_tsr_mids() : array();
+    $copy = mel_tsr_tiles();
+    $mids = $copy ? mel_tsr_mids() : array();
     $map = null;
     mel_lib_tile_start();
-    foreach ($entries as $hash => $r)
+    foreach ($copy as $hash => $c)
     {
         $hash = strval($hash);
         $mid = isset($mids[$hash]) ? $mids[$hash] : '';
@@ -55,7 +55,7 @@ function mel_tsr_row_defs($tab, $lang, $from, &$tiles = null, &$miss = null)
         $t = $mid !== '' ? mel_cp_tile($mid, $map, $rec) : null;
         if (!$t)
         {
-            $items[] = mel_tsr_item($r['e']);
+            $items[] = mel_tsr_item($c['e']);
             continue;
         }
         if ($rec && ($t['imdb_id'] !== '' || $t['_tmdbId'] !== ''))
@@ -130,44 +130,46 @@ function mel_tsr_plate($text)
     return $out;
 }
 
-// The panel of a tile not known of row $r of the copy (null: not in it - an empty panel, not the one of the tile before)
+// The panel of a tile not known, $tile of the copy (null: not in it - an empty panel, not the one of the tile before)
 // in language $lang (2C) -> array(title, lines array(text, colour, least px), the description): the title, "73 файла ·
 // 51.6 ГБ", "Добавлено 18 сентября", the rest of the name (mel_tsl_texts by the copy: no list read).
 /**
- * @param MelTsrRow|null $r
+ * @param MelTsrTile|null $tile
  * @param string $lang
  * @return array{string, list<array{string, string, int}>, string}
  */
-function mel_tsr_info($r, $lang)
+function mel_tsr_info($tile, $lang)
 {
-    if ($r === null)
+    if ($tile === null)
         return array('', array(), '');
-    $t = mel_tsl_texts($r, $lang);
+    $t = mel_tsl_texts($tile, $lang);
     return array($t['head'], array(array($t['facts'], MEL_CATV_TEXT_COLOR, MEL_CATV_DATA_MIN_PX),
         array($t['added'], MEL_CATV_TEXT_COLOR, MEL_CATV_DATA_MIN_PX)), $t['rest']);
 }
 
-// The text of the line of TorrServer of the panel of a known tile of row $r of the copy in language $lang: «На
+// The text of the line of TorrServer of the panel of a known tile, $tile of the copy, in language $lang: «На
 // TorrServer · 1 файл · 61.3 ГБ · добавлено 3 октября»; the video files from one (nv; not known - none), the size, the
 // day; none of them - left out. No name of the torrent (owner 26.11.2026).
 /**
- * @param MelTsrRow $r
+ * @param MelTsrTile $tile
  * @param string $lang
  * @return string
  */
-function mel_tsr_line_text($r, $lang)
+function mel_tsr_line_text($tile, $lang)
 {
     $parts = array(mel_tr($lang, 'tsl_title'));
-    if ($r['nv'] > 0)
-        $parts[] = $r['nv'] . ' ' . mel_gc_plural($lang, $r['nv'], 'tsl_files');
-    if ($r['e']['size'] > 0)
-        $parts[] = mel_size_str($r['e']['size'], $lang);
-    $parts[] = mel_tsl_added($r['e'], $lang, 'tsl_added_lc');
+    if ($tile['nv'] > 0)
+        $parts[] = $tile['nv'] . ' ' . mel_gc_plural($lang, $tile['nv'], 'tsl_files');
+    if ($tile['e']['size'] > 0)
+        $parts[] = mel_size_str($tile['e']['size'], $lang);
+    $parts[] = mel_tsl_added($tile['e'], $lang, 'tsl_added_lc');
     return implode(' · ', array_filter($parts, 'strlen'));
 }
 
 // The line of TorrServer of the panel (mel_tsr_line_text) at $y of the panel, LINE_H high: the icon L2 on the left,
-// centred in it, the text after it in MEL_CATV_LINE_PX, smaller down to MEL_CATV_DATA_MIN_PX to fit, cut with "…" then.
+// centred in it, the text after it to the right edge of the panel (wider than MEL_CATV_TEXT_W of the other lines: a size
+// and a day of a year fit so at 28-30 px) in MEL_CATV_LINE_PX, smaller down to MEL_CATV_DATA_MIN_PX to fit, cut with "…"
+// then.
 /**
  * @param string $text
  * @param int $y
@@ -177,8 +179,9 @@ function mel_tsr_line($text, $y)
 {
     $x = MEL_TSR_LINE_ICON_WH + MEL_TSR_LINE_GAP;
     $wh = MEL_TSR_LINE_ICON_WH;
-    $fit = mel_catv_fit(mel_clean($text), MEL_CATV_LINE_PX, MEL_CATV_DATA_MIN_PX, MEL_CATV_TEXT_W - $x);
-    $l = mel_catv_info_label($fit[1], $fit[0], MEL_CATV_TEXT_COLOR, MEL_CATV_TEXT_W - $x, MEL_CATV_LINE_H, $y);
+    $w = MEL_CATV_PANE_W - $x;
+    $fit = mel_catv_fit(mel_clean($text), MEL_CATV_LINE_PX, MEL_CATV_DATA_MIN_PX, $w);
+    $l = mel_catv_info_label($fit[1], $fit[0], MEL_CATV_TEXT_COLOR, $w, MEL_CATV_LINE_H, $y);
     $l[GComponentDef::geom_def][GCompGeometryDef::align_def][GCompAlignDef::x] = $x;
     return array(mel_gc_image(mel_gc_at($wh, $wh, 0, $y + intval((MEL_CATV_LINE_H - $wh) / 2)), MEL_TSR_LINE_ICON), $l);
 }

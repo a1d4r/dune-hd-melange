@@ -2816,9 +2816,9 @@ function mel_catv_hist_y()
 function mel_catv_info($in)
 {
     $id = mel_catv_in($in, 'item_id');
-    // A tile of "На TorrServer" (view_ts_row.php): its row of the copy, the card of its movie by the history.
+    // A tile of "На TorrServer" (view_ts_row.php): its tile of the copy, the card of its movie by the history.
     $hash = mel_tsl_hash_of($id);
-    $tsr = $hash !== '' ? mel_tsr_entry($hash) : null;
+    $tsr = $hash !== '' ? mel_tsr_tile($hash) : null;
     $mid = $hash !== '' ? mel_tsr_mid($hash) : mel_cp_mid_of($id);
     if ($hash !== '')
         $t = $mid !== '' ? mel_cp_tile($mid) : null;

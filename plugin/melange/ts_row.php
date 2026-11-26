@@ -3,14 +3,17 @@
 // (MEL_TSR_FILE; the row is drawn of it at once, a read of the list refreshes it), only while the row is shown on a tab
 // and not «Без торрентов» (mel_tsr_any): else no read, no write; the movie of a torrent by the history of Melange (its
 // hash in the uid of a record "aio:"). No firmware API. Reads Mel::$settings, MelTsl, the history (history.php); writes
-// MelTsr and the copy. Functions are global; the require order is in main.php.
+// MelTsr and the copy. Needs ts_list.php (MelTsl, mel_tsl_fetch, mel_tsl_video_count, mel_tsl_files_of), view_ts.php
+// (mel_tsl_on, mel_tsl_split, mel_tsl_name), catalog.php (mel_cat_tab_slots, mel_cat_slot_names), view_catalog.php
+// (MEL_CATV_ROW_TILES), history.php (mel_wh_ours_all), parse.php, main.php. Functions are global; the require order is
+// in main.php.
 
-// The copy of the row in data_dir: {"v": 1, "sig": mel_tsr_sig, "entries": [{"e": the entry (mel_tsl_entry; its sizes as
+// The copy of the row in data_dir: {"v": 1, "sig": mel_tsr_sig, "tiles": [{"e": the entry (mel_tsl_entry; its sizes as
 // strings: json_decode of the 32-bit Dune clamps an integer over 2 GB), "nv": its video files (-1 not known), "fname":
 // the name of the torrent by its files (mel_tsl_name)}, ...]}, the newest first. No time of its read in it: a restart of
 // php_server reads the list anew at once (MelTsr::$read_t).
 define('MEL_TSR_FILE', 'ts_row.json');
-// The entries of the row at most: its tiles, as "Продолжить" and "Избранное".
+// The tiles of the row at most, as "Продолжить" and "Избранное".
 define('MEL_TSR_MAX', MEL_CATV_ROW_TILES);
 // The JSON of the files of an entry kept at most (bytes, ~300 files): those of a bigger pack are not kept (files null:
 // known by "get" on OK), its nv and fname are.
@@ -22,14 +25,17 @@ define('MEL_TSR_FRESH_S', 60);
 
 class MelTsr
 {
-    // The copy as read or written: hash => its row in the order of the row; null: not read yet.
-    /** @var array<string, MelTsrRow>|null */
-    public static $entries = null;
-    // mel_tsr_sig of $entries ('' none); mel_file_sig of MEL_TSR_FILE then.
+    // The copy as read or written: hash => its tile in the order of the row; null: not read yet.
+    /** @var array<string, MelTsrTile>|null */
+    public static $tiles = null;
+    // mel_tsr_sig of $tiles ('' none); mel_file_sig of MEL_TSR_FILE then; the JSON of the copy last read of the file or
+    // put ('' none): mel_tsr_put writes only another one.
     /** @var string */
     public static $sig = '';
     /** @var string */
     public static $sig_file = '';
+    /** @var string */
+    public static $json = '';
     // When the list was read last (microtime; 0 never in this php_server), by mel_tsr_sig $read_sig.
     /** @var float */
     public static $read_t = 0.0;
@@ -85,51 +91,53 @@ function mel_tsr_due($tab)
         microtime(true) - MelTsr::$read_t >= MEL_TSR_FRESH_S);
 }
 
-// The copy of the TorrServer of the settings: hash => its row in order; from memory, the file read again when it is
+// The copy of the TorrServer of the settings: hash => its tile in order; from memory, the file read again when it is
 // another one (a restart of php_server: once); none (no file, a broken one, another TorrServer or login) - empty.
 /**
- * @return array<string, MelTsrRow>
+ * @return array<string, MelTsrTile>
  */
-function mel_tsr_entries()
+function mel_tsr_tiles()
 {
     $sig = mel_file_sig(MEL_TSR_FILE);
-    if (MelTsr::$entries === null || $sig !== MelTsr::$sig_file)
+    if (MelTsr::$tiles === null || $sig !== MelTsr::$sig_file)
     {
-        $j = $sig !== '' ? json_decode(strval(file_get_contents(mel_data_dir() . '/' . MEL_TSR_FILE)), true) : null;
+        $text = $sig !== '' ? strval(file_get_contents(mel_data_dir() . '/' . MEL_TSR_FILE)) : '';
+        $j = $text !== '' ? json_decode($text, true) : null;
         $out = array();
         $ok = is_array($j) && isset($j['v'], $j['sig']) && $j['v'] === 1 && is_string($j['sig']);
-        foreach ($ok ? mel_arr($j, 'entries') : array() as $x)
+        foreach ($ok ? mel_arr($j, 'tiles') : array() as $x)
         {
-            $row = mel_tsr_row_parse($x);
-            if ($row !== null && !isset($out[$row['e']['hash']]) && count($out) < MEL_TSR_MAX)
-                $out[$row['e']['hash']] = $row;
+            $tile = mel_tsr_tile_parse($x);
+            if ($tile !== null && !isset($out[$tile['e']['hash']]) && count($out) < MEL_TSR_MAX)
+                $out[$tile['e']['hash']] = $tile;
         }
-        MelTsr::$entries = $out;
+        MelTsr::$tiles = $out;
         MelTsr::$sig = $ok ? strval($j['sig']) : '';
         MelTsr::$sig_file = $sig;
+        MelTsr::$json = $text;
     }
-    return MelTsr::$sig === mel_tsr_sig() ? MelTsr::$entries : array();
+    return MelTsr::$sig === mel_tsr_sig() ? MelTsr::$tiles : array();
 }
 
-// The row of the copy of torrent $hash, null none (or the row not shown: mel_tsr_any).
+// The tile of the copy of torrent $hash, null none (or the row not shown: mel_tsr_any).
 /**
  * @param string $hash
- * @return MelTsrRow|null
+ * @return MelTsrTile|null
  */
-function mel_tsr_entry($hash)
+function mel_tsr_tile($hash)
 {
     if (!mel_tsr_any())
         return null;
-    $c = mel_tsr_entries();
+    $c = mel_tsr_tiles();
     return isset($c[$hash]) ? $c[$hash] : null;
 }
 
-// An element of "entries" of the file -> its row, null: not one (a hash not of 40 hex, a field of a wrong type).
+// An element of "tiles" of the file -> its tile, null: not one (a hash not of 40 hex, a field of a wrong type).
 /**
  * @param mixed $x
- * @return MelTsrRow|null
+ * @return MelTsrTile|null
  */
-function mel_tsr_row_parse($x)
+function mel_tsr_tile_parse($x)
 {
     $e = mel_arr($x, 'e');
     $hash = mel_str($e, 'hash');
@@ -155,35 +163,35 @@ function mel_tsr_row_parse($x)
         'nv' => $x['nv'], 'fname' => mel_str($x, 'fname'));
 }
 
-// The rows of the copy of entries $list (of the list, in its order): the first MEL_TSR_MAX; their files - those of the
-// entry, else of a file_stats kept (MelTsl::$files), their count of video files and the name by them taken of all of
+// The tiles of the copy of entries $list (of the list, in its order): the first MEL_TSR_MAX; their files - those of the
+// entry, else of a file_stats kept (mel_tsl_files_of), their count of video files and the name by them taken of all of
 // them, those over MEL_TSR_FILES_MAX not kept.
 /**
  * @param list<MelTsEntry> $list
- * @return array<string, MelTsrRow>
+ * @return array<string, MelTsrTile>
  */
-function mel_tsr_rows($list)
+function mel_tsr_tiles_of($list)
 {
     $out = array();
     foreach (array_slice($list, 0, MEL_TSR_MAX) as $e)
     {
         $h = $e['hash'];
-        $files = $e['files'] !== null ? $e['files'] : (isset(MelTsl::$files[$h]) ? MelTsl::$files[$h] : null);
-        $r = mel_tsr_tile_of($e, $files);
-        $r['e']['files'] = $files !== null && strlen(strval(json_encode(mel_tsr_files_out($files)))) <= MEL_TSR_FILES_MAX ?
-            $files : null;
-        $out[$h] = $r;
+        $files = $e['files'] !== null ? $e['files'] : mel_tsl_files_of($h);
+        $tile = mel_tsr_tile_of($e, $files);
+        $tile['e']['files'] = $files !== null &&
+            strlen(strval(json_encode(mel_tsr_files_out($files)))) <= MEL_TSR_FILES_MAX ? $files : null;
+        $out[$h] = $tile;
     }
     return $out;
 }
 
-// Entry $e with its files $files (null: not known) as a row of the copy: its video files (mel_tsl_video_count; -1 not
+// Entry $e with its files $files (null: not known) as a tile of the copy: its video files (mel_tsl_video_count; -1 not
 // known) and the name of the torrent by them (mel_tsl_name). The texts of the panel of the section and of the row take
 // it (mel_tsl_texts), so the two never differ.
 /**
  * @param MelTsEntry $e
  * @param list<MelTsFile>|null $files
- * @return MelTsrRow
+ * @return MelTsrTile
  */
 function mel_tsr_tile_of($e, $files)
 {
@@ -204,38 +212,45 @@ function mel_tsr_files_out($files)
     return $out;
 }
 
-// The copy is rows $rows (mel_tsr_rows) of the TorrServer of the settings: in memory, and the file written unless it
-// has them already (the flash wears: most reads find the same list) -> they are other than the file had (the row to
-// draw anew). Not written: a line of the log, memory as said.
+// The copy is tiles $tiles (mel_tsr_tiles_of) of the TorrServer of the settings: in memory, and the file written when
+// they are other than the copy last read or put (MelTsr::$json; the flash wears: most reads find the same list) ->
+// 'same', 'new' (written), 'failed' (other, not written: a line of the log, memory as said; the same tiles next time
+// are 'same', no write tried at every read).
 /**
- * @param array<string, MelTsrRow> $rows
- * @return bool
+ * @param array<string, MelTsrTile> $tiles
+ * @return string
  */
-function mel_tsr_put($rows)
+function mel_tsr_put($tiles)
 {
     $out = array();
-    foreach ($rows as $r)
+    foreach ($tiles as $tile)
     {
-        $e = $r['e'];
+        $e = $tile['e'];
         $e['size'] = sprintf('%.0f', $e['size']);
         $e['files'] = $e['files'] === null ? null : mel_tsr_files_out($e['files']);
-        $out[] = array('e' => $e, 'nv' => $r['nv'], 'fname' => $r['fname']);
+        $out[] = array('e' => $e, 'nv' => $tile['nv'], 'fname' => $tile['fname']);
     }
-    $json = json_encode(array('v' => 1, 'sig' => mel_tsr_sig(), 'entries' => $out));
+    $json = strval(json_encode(array('v' => 1, 'sig' => mel_tsr_sig(), 'tiles' => $out)));
+    // The file changed by another one (removed): MelTsr::$json of it.
+    mel_tsr_tiles();
+    if ($json === MelTsr::$json)
+        return 'same';
     $path = mel_data_dir() . '/' . MEL_TSR_FILE;
-    $old = mel_file_sig(MEL_TSR_FILE) !== '' ? strval(file_get_contents($path)) : '';
-    $new = is_string($json) && $json !== $old;
-    if ($new && (mel_data_dir() === '' || !mel_write_file($path, $json)))
+    $ok = mel_data_dir() !== '' && mel_write_file($path, $json);
+    if (!$ok)
         mel_log('ts row: the copy not written');
-    MelTsr::$entries = $rows;
+    MelTsr::$tiles = $tiles;
     MelTsr::$sig = mel_tsr_sig();
     MelTsr::$sig_file = mel_file_sig(MEL_TSR_FILE);
-    return $new;
+    MelTsr::$json = $json;
+    return $ok ? 'new' : 'failed';
 }
 
-// The copy by read $r of the list (mel_tsl_fetch: the entries or null, the key of the error): the entries read (none:
-// an empty list); no answer (ts_err_down) - the copy stays (the row of it, owner 26.11.2026); 401, a bad reply - empty
-// (no row). The time of the read kept (mel_tsr_due). The row not shown (mel_tsr_any): nothing. -> the copy changed.
+// The copy by read $r of the list (mel_tsl_fetch: the entries or null, the key of the error, its detail): the entries
+// read (none: an empty list); no answer (ts_err_down) - the copy stays (the row of it, owner 26.11.2026), and so when the
+// guard of memory stopped the read short of MEL_TSR_MAX entries (detail 'memory': a big list of the section in memory,
+// not the list of TorrServer); 401, a bad reply - empty (no row). The time of the read kept (mel_tsr_due). The row not
+// shown (mel_tsr_any): nothing. -> the copy changed (mel_tsr_put: not 'same').
 /**
  * @param array{list<MelTsEntry>|null, string, string} $r
  * @return bool
@@ -251,11 +266,16 @@ function mel_tsr_take($r)
         mel_log('ts row: no answer, the copy kept');
         return false;
     }
-    $rows = mel_tsr_rows($r[0] !== null ? $r[0] : array());
-    $new = mel_tsr_put($rows);
-    mel_log(sprintf('ts row: the copy %d entries%s, %s', count($rows), $r[1] !== '' ? " ({$r[1]})" : '',
-        $new ? 'new' : 'the same'));
-    return $new;
+    if ($r[2] === 'memory' && ($r[0] === null || count($r[0]) < MEL_TSR_MAX))
+    {
+        mel_log(sprintf('ts row: stopped at memory, %d entries, the copy kept', $r[0] === null ? 0 : count($r[0])));
+        return false;
+    }
+    $tiles = mel_tsr_tiles_of($r[0] !== null ? $r[0] : array());
+    $put = mel_tsr_put($tiles);
+    mel_log(sprintf('ts row: the copy %d tiles%s, %s', count($tiles), $r[1] !== '' ? " ({$r[1]})" : '',
+        $put === 'same' ? 'the same' : $put));
+    return $put !== 'same';
 }
 
 // The read of the row: "list" of the TorrServer of the settings up to MEL_TSR_MAX entries (the read stops there: the
@@ -272,18 +292,19 @@ function mel_tsr_read()
     return array($r[1], mel_tsr_take($r));
 }
 
-// Torrent $hash removed from TorrServer (mel_tsl_rem): out of the copy too, no read of the list.
+// Torrent $hash removed from TorrServer (mel_tsl_rem): out of the copy too, the row hidden as well (a copy of it on
+// the disk shown again when the row is), no read of the list.
 /**
  * @param string $hash
  * @return void
  */
 function mel_tsr_drop($hash)
 {
-    if (mel_tsr_entry($hash) === null)
+    $tiles = mel_tsr_tiles();
+    if (!isset($tiles[$hash]))
         return;
-    $rows = mel_tsr_entries();
-    unset($rows[$hash]);
-    mel_tsr_put($rows);
+    unset($tiles[$hash]);
+    mel_tsr_put($tiles);
     mel_log("ts row: $hash out of the copy");
 }
 

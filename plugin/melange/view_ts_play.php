@@ -163,9 +163,10 @@ function mel_tsl_play_act($d, $files, $why)
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
 }
 
-// The entry of torrent $hash: in memory, else in the copy of the row of the catalog (mel_tsr_entry; its files kept as of a
-// file_stats, mel_tsl_files_keep), else the list read once (a restart of php_server, an old screen) -> array(the entry
-// or null: not in the list; the key of an error of the list, '' none; its detail).
+// The entry of torrent $hash: in memory, else in the copy of the row of the catalog with its files (mel_tsr_tile; kept
+// as of a file_stats, mel_tsl_files_keep), else the list read once (a restart of php_server, an old screen; a tile of
+// the copy with no files - a big pack, a record of Lampa - too: "get" or the screen of its files needs them) ->
+// array(the entry or null: not in the list; the key of an error of the list, '' none; its detail).
 /**
  * @param string $hash
  * @return array{MelTsEntry|null, string, string}
@@ -174,13 +175,12 @@ function mel_tsl_find($hash)
 {
     if (isset(MelTsl::$list[$hash]))
         return array(MelTsl::$list[$hash], '', '');
-    $row = mel_tsr_entry($hash);
-    if ($row !== null)
+    $tile = mel_tsr_tile($hash);
+    if ($tile !== null && $tile['e']['files'] !== null)
     {
-        if ($row['e']['files'] !== null)
-            mel_tsl_files_keep($hash, $row['e']['files']);
+        mel_tsl_files_keep($hash, $tile['e']['files']);
         mel_log("ts section: $hash of the copy of the row");
-        return array($row['e'], '', '');
+        return array($tile['e'], '', '');
     }
     mel_log("ts section: $hash not in memory, the list read");
     list($list, $key, $detail) = mel_tsl_read();

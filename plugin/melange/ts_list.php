@@ -40,7 +40,8 @@ class MelTsl
     /** @var array<string, MelTsEntry>|null */
     public static $list = null;
     // The files of file_stats of torrents whose entry knew none (a record of Lampa), hash => files: a read of the list
-    // anew (mel_tsl_load) keeps them (mel_tsl_files_of).
+    // anew (mel_tsl_load) keeps them (mel_tsl_files_of); also the files of an entry of the copy of the row of the catalog
+    // (mel_tsl_find, ts_row.php) not in the list in memory.
     /** @var array<string, list<MelTsFile>> */
     public static $files = array();
     // The guard of memory of the read of the list (MEL_TSL_MEM; tests set less).
@@ -307,9 +308,10 @@ function mel_tsl_load()
 // "list" of the TorrServer of the settings, as it comes (MelTslScan), $total s, up to $max entries kept or
 // MelTsl::$mem_max of memory, the newest (TorrServer sends them first); a line of the log of tag $tag (the section, the
 // row of the catalog) -> array(the entries in their order or null on an error, the key of the error ('' none), its
-// detail). Cut (its time out, a break) - the entries read, none - ts_err_down; 401 - the login (mel_ts_auth_err). Not
-// 200, not an array, every element not JSON, cut with no entry, the guard of memory before any entry: tsl_err_bad; an
-// element not JSON or over MEL_TSL_ENTRY_MAX is skipped. Not «Без торрентов»: the caller checks it.
+// detail: 'memory' with the entries too when the guard stopped the read). Cut (its time out, a break) - the entries read,
+// none - ts_err_down; 401 - the login (mel_ts_auth_err). Not 200, not an array, every element not JSON, cut with no
+// entry, the guard of memory before any entry: tsl_err_bad; an element not JSON or over MEL_TSL_ENTRY_MAX is skipped.
+// Not «Без торрентов»: the caller checks it.
 /**
  * @param string $tag
  * @param int $max
@@ -359,7 +361,7 @@ function mel_tsl_fetch($tag, $max, $total)
     mel_log($line . sprintf('%d entries, %d kept, ', $scan->n, count($list)) . ($scan->bad ? "{$scan->bad} bad, " : '') .
         ($scan->big ? "{$scan->big} too long, " : '') .
         sprintf('%s, peak %.1f MB', $how, memory_get_peak_usage() / 1048576));
-    return array($list, '', '');
+    return array($list, '', $v === 'memory' ? 'memory' : '');
 }
 
 // "rem" of torrent $hash on the TorrServer of the settings (POP UP of the section, owner 24.11.2026) -> array(the key of

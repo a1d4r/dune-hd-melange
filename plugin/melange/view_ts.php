@@ -364,23 +364,23 @@ function mel_tsl_split($title)
     return array(trim(substr($body, 0, $m[0][1])), trim(trim($lead) . ' ' . $rest));
 }
 
-// The texts of row $r of a torrent (mel_tsr_tile_of: its entry, video files, name by its files) in language $lang: head
+// The texts of tile $tile of a torrent (mel_tsr_tile_of: its entry, video files, name by its files) in language $lang: head
 // and rest - the title and the rest of it (mel_tsl_split); no rest (a short title of Melange) - the name of the torrent
 // by its files (owner 24.11.2026); facts - "73 файла · 51.6 ГБ" (the video files if two and more; its size; '' none of
 // them); added - "Добавлено 18 сентября" (mel_tsl_added; '' no date). The section and the row of the catalog alike.
 /**
- * @param MelTsrRow $r
+ * @param MelTsrTile $tile
  * @param string $lang
  * @return array{head: string, rest: string, facts: string, added: string}
  */
-function mel_tsl_texts($r, $lang)
+function mel_tsl_texts($tile, $lang)
 {
-    $e = $r['e'];
+    $e = $tile['e'];
     list($head, $rest) = mel_tsl_split($e['title']);
     $facts = array();
     if ($rest === '')
-        $rest = $r['fname'];
-    $n = $r['nv'];
+        $rest = $tile['fname'];
+    $n = $tile['nv'];
     if ($n > 1)
         $facts[] = $n . ' ' . mel_gc_plural($lang, $n, 'tsl_files');
     if ($e['size'] > 0)
