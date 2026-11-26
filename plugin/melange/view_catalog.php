@@ -268,7 +268,7 @@ class MelCat
     /** @var int|null */
     public static $filter_age = null;
     // r25: the first row of the main screen built at its opening of a copy older than MEL_CAT_FRESH, its fresh first page
-    // for a tick to ask (mel_pg_first_step; null: none), and the requests of it so far. Both anew at an opening
+    // for a tick to ask (mel_catv_first_step; null: none), and the requests of it so far. Both anew at an opening
     // (mel_pg_screen_start).
     /** @var MelCatRow|null */
     public static $first_due = null;
@@ -356,6 +356,17 @@ function mel_catv_list($st, $tiles, $stale)
 function mel_catv_list_cut($list)
 {
     return !$list['tiles'] && $list['st']['end'] === '';
+}
+
+// The row of listing $list has "Show all": not at its end, or more tiles than the row shows. A search row: past a row of
+// its screen, so a long one is not scrolled through.
+/**
+ * @param MelCatList $list
+ * @return bool
+ */
+function mel_catv_list_more($list)
+{
+    return $list['st']['end'] === '' || count($list['tiles']) > (isset($list['st']['row']['q']) ? MEL_CATV_ALL_COLS : MEL_CATV_ROW_TILES);
 }
 
 // A listing from the saved first page, as if it was just got.
@@ -643,18 +654,20 @@ function mel_catv_slow_note($rid, $err)
 // took all of (mel_cat_more: end "filter"), its listing kept with no tiles: within MEL_CAT_FRESH an
 // opening of r24 does not ask it again (mel_catv_open), r25 hides it (mel_catv_is_empty).
 // MelCat::$down by its failure: mel_cat_err_down, and a timeout unless $timeout_down is
-// false (an opening: a slow row or the end of its limit, not the server down).
+// false (an opening: a slow row or the end of its limit, not the server down). $past: of mel_cat_more (0: the first
+// page alone, a tick).
 /**
  * @param MelCatRow $row
  * @param float $limit
  * @param bool $timeout_down
+ * @param float|null $past
  * @return MelCatResult
  */
-function mel_catv_load_first($row, $limit, $timeout_down = true)
+function mel_catv_load_first($row, $limit, $timeout_down = true, $past = null)
 {
     $rid = mel_catv_rid($row);
     $st = mel_cat_row_state($row);
-    $res = mel_cat_more($st, $limit);
+    $res = mel_cat_more($st, $limit, MEL_CAT_FILTER_PAGES, $past);
     if ($res['tiles'] || $st['end'] === 'filter')
         MelCat::$lists[$rid] = mel_catv_list($st, $res['tiles'], $res['stale']);
     if (!$res['tiles'] && $res['end'] && $res['err'] === '')
@@ -921,8 +934,7 @@ function mel_catv_row_defs($list, $lang, $items = null, $options = 0, $rid = '')
         mel_lib_tile_start();
         foreach (array_slice($list['tiles'], 0, MEL_CATV_ROW_TILES) as $t)
             $items[] = mel_catv_title_item($rid, $t);
-        // A search row: "Show all" past a row of its screen, so a long one is not scrolled through.
-        if ($list['st']['end'] === '' || count($list['tiles']) > (isset($row['q']) ? MEL_CATV_ALL_COLS : MEL_CATV_ROW_TILES))
+        if (mel_catv_list_more($list))
         {
             // Of a search: and its id, as in cat_grid:.
             $more = mel_catv_tile_id(isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid");
@@ -1561,7 +1573,7 @@ function mel_catv_main_view($media_url, $sel_state)
         // A flagged first row replaced under the focus on the headers covers the rows under it (device, 0.50.0). Under a
         // row of Melange with tiles the first row of the server is flagged as the others (the focus is not on it; O3).
         // Of a copy older than MEL_CAT_FRESH (mel_catv_open put it in memory): at once, unmarked, no request; its fresh
-        // first page at a tick of the timer (MelCat::$first_due, mel_pg_first_step). Built again by its own tick: as it
+        // first page at a tick of the timer (MelCat::$first_due, mel_catv_first_step). Built again by its own tick: as it
         // is, the tries of the opening go on.
         // count($defs) === 0 is "no row above it": mel_catv_row_now and mel_catv_row_defs of a row with tiles never give
         // none (a failure is a stub, mel_catv_row_note), else the second row of the server would be built at once too.
@@ -1621,6 +1633,69 @@ function mel_catv_main_view($media_url, $sel_state)
     if (!$defs)
         return mel_catv_message_view('cat_unavailable', $lang, $media_url);
     return mel_catv_rows_view($defs, $sel_state, $media_url, $loading && mel_pg_tick_set($media_url, $anew));
+}
+
+// r25: the step of a tick of the main screen (mel_pg_tick) for its first row built of an old copy (MelCat::$first_due):
+// its first page alone asked (mel_catv_load_first in MEL_CATV_FIRST_TICK_S, no page past it: a filter that took all of
+// it leaves the copy; it saves the copy; mel_catv_slow_note), the row on the screen before and after compared: the ids of
+// its MEL_CATV_ROW_TILES tiles and "Show all" (mel_catv_list_more). The same: the memory fresh, the screen as it is.
+// Other: the screen to build again (the caller), its first row of memory with no request; the tiles before added to
+// MelCat::$on_screen for ENTER and the panel till then. A failure: the copy stays, asked again at the next tick,
+// MEL_CATV_FIRST_TRIES an opening at most. The server down: none asked, no more. A line of the log. -> the screen to
+// build again.
+/**
+ * @return bool
+ */
+function mel_catv_first_step()
+{
+    $row = MelCat::$first_due;
+    if ($row === null)
+        return false;
+    if (mel_catv_is_down())
+    {
+        MelCat::$first_due = null;
+        mel_log('catalog: first row: tick: no request, the server down; the copy stays');
+        return false;
+    }
+    $rid = mel_catv_rid($row);
+    $was = isset(MelCat::$lists[$rid]) ? MelCat::$lists[$rid] : null;
+    $t = microtime(true);
+    $res = mel_catv_load_first($row, MEL_CATV_FIRST_TICK_S, false, 0.0);
+    mel_catv_slow_note($rid, $res['err']);
+    $n = ++MelCat::$first_tries;
+    $ms = (microtime(true) - $t) * 1000;
+    if ($res['err'] !== '')
+    {
+        $again = $n < MEL_CATV_FIRST_TRIES && !mel_cat_err_down($res['err']);
+        if (!$again)
+            MelCat::$first_due = null;
+        mel_log(sprintf('catalog: first row: tick %d/%d: failed, %s, %.0f ms; the copy stays%s', $n, MEL_CATV_FIRST_TRIES,
+            $res['err'], $ms, $again ? ', again at the next tick' : ''));
+        return false;
+    }
+    MelCat::$first_due = null;
+    $now = isset(MelCat::$lists[$rid]) ? MelCat::$lists[$rid] : null;
+    $same = mel_catv_first_seen($was) === mel_catv_first_seen($now);
+    if (!$same && $was)
+        MelCat::$on_screen[$rid] = (isset(MelCat::$on_screen[$rid]) ? MelCat::$on_screen[$rid] : array()) + $was['tiles'];
+    $how = $same ? 'same' : 'changed, the screen anew';
+    if (!$res['tiles'] && !$res['end'])
+        $how .= ', the filter took the page; the copy stays';
+    mel_log(sprintf('catalog: first row: tick %d/%d: %s, %.0f ms', $n, MEL_CATV_FIRST_TRIES, $how, $ms));
+    return !$same;
+}
+
+// What the first row of listing $list shows (mel_catv_first_step): the ids of its MEL_CATV_ROW_TILES tiles and "Show
+// all" (mel_catv_list_more); null: no listing.
+/**
+ * @param MelCatList|null $list
+ * @return array{list<int|string>, bool}|null
+ */
+function mel_catv_first_seen($list)
+{
+    if (!$list)
+        return null;
+    return array(array_keys(array_slice($list['tiles'], 0, MEL_CATV_ROW_TILES, true)), mel_catv_list_more($list));
 }
 
 // The rows of the tab $rows (mel_cat_slot_rows of mel_cat_tab_slots) the main screen shows (mel_catv_main_view; the

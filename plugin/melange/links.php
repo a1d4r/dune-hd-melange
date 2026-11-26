@@ -7,7 +7,8 @@
 // mel_pg_lib_work), else step by step (mel_pg_lib_step): the badge "on the disk" of a tile.
 // Needs library.php (mel_lib_index, MelLib), progress.php (mel_pg_index), main.php (mel_log, mel_write_file,
 // mel_data_dir, mel_http_get, mel_http_get_many, MEL_DUNE_ID, MEL_HTTP_TOO_BIG), parse.php (mel_str), catalog.php
-// (MEL_CAT_MAX_BYTES), catalog_card.php (mel_card_token, mel_card_api), view_catalog.php (mel_catv_is_down).
+// (MEL_CAT_MAX_BYTES), catalog_card.php (mel_card_token, mel_card_api), view_catalog.php (mel_catv_is_down,
+// mel_catv_first_step, mel_catv_tab, MelCat).
 // Its top level is only define and classes: the pass in a process of its own (php-cgi, bg/lib_map.php) loads it for
 // the functions of the cards (mel_pg_shell_text, mel_pg_lib_pair) with parse.php only (mel_str), no DuneSystem there.
 
@@ -219,7 +220,7 @@ function mel_pg_tick_set($url, $anew = false)
 }
 
 // r25: a tick of the timer of the main screen $url, MEL_CPM_TICK_S at most (a key pressed now waits for it): first the
-// first row of an old copy (mel_pg_first_step, a request of 1 s at most; tiles other than on the screen: the screen built
+// first row of an old copy (mel_catv_first_step, a request of 1 s at most; tiles other than on the screen: the screen built
 // again, as of the meta below); then the step (mel_pg_link_step) once in what is left, of one batch at once, else of
 // one request (~0.5 s; its timeout 1 s, whole s of curl); then the lazy meta of the row "Continue" (mel_cpm_step) in
 // what is left of it: one batch at once, else MEL_CPM_N requests of the tick at most one by one; then the timer again
@@ -264,9 +265,9 @@ function mel_pg_tick($url)
     else
     {
         $t = microtime(true);
-        // A step of a request of up to 1 s (the first row) goes first; another of that weight would wait for the next
-        // tick when this one asked ($first !== ''), or a key pressed now waits past MEL_CPM_TICK_S.
-        $first = mel_pg_first_step();
+        // A heavy step (a request of 1 s and more) after the first goes only with its limit still left of MEL_CPM_TICK_S,
+        // as mel_pg_link_step, else at the next tick: a key pressed now waits no longer. One screen anew a tick.
+        $first = mel_catv_first_step();
         $rounds = 0;
         $pairs = 0;
         $tab = mel_catv_tab($url);
@@ -283,70 +284,26 @@ function mel_pg_tick($url)
         $shown = 0;
         foreach ($got ? $mine : array() as $m)
             $shown += mel_cpm_tile($m[0], $m[1], $m[2], $c) ? 1 : 0;
-        if ($shown || $first === 'changed')
-            return mel_pg_tick_anew($url, $shown);
+        $why = array_merge($shown ? array("$shown got") : array(), $first ? array('the first row new') : array());
+        if ($why)
+            return mel_pg_tick_anew($url, implode(', ', $why));
     }
     return mel_pg_tick_again($url);
 }
 
-// r25: the step of a tick for the first row of the main screen built of an old copy (MelCat::$first_due): its first page
-// asked (mel_catv_load_first in MEL_CATV_FIRST_TICK_S; it saves the copy), the ids of the tiles of the row on the screen
-// (MEL_CATV_ROW_TILES) before and after. The same: the memory fresh, the screen as it is. Others: the screen to build
-// again (the caller), its first row of memory with no request; the tiles before for ENTER and the panel till then
-// (MelCat::$on_screen). A failure: the copy stays, asked again at the next tick, MEL_CATV_FIRST_TRIES an opening at
-// most. The server down: none asked, no more. A line of the log. -> '': none due, 'same', 'changed', 'failed', 'down'.
-/**
- * @return string
- */
-function mel_pg_first_step()
-{
-    $row = MelCat::$first_due;
-    if ($row === null)
-        return '';
-    if (mel_catv_is_down())
-    {
-        MelCat::$first_due = null;
-        mel_log('catalog: first row: tick: no request, the server down; the copy stays');
-        return 'down';
-    }
-    $rid = mel_catv_rid($row);
-    $was = isset(MelCat::$lists[$rid]) ? MelCat::$lists[$rid]['tiles'] : array();
-    $t = microtime(true);
-    $res = mel_catv_load_first($row, MEL_CATV_FIRST_TICK_S, false);
-    $n = ++MelCat::$first_tries;
-    $ms = (microtime(true) - $t) * 1000;
-    if ($res['err'] !== '')
-    {
-        $again = $n < MEL_CATV_FIRST_TRIES && !mel_cat_err_down($res['err']);
-        if (!$again)
-            MelCat::$first_due = null;
-        mel_log(sprintf('catalog: first row: tick %d/%d: failed, %s, %.0f ms; the copy stays%s', $n, MEL_CATV_FIRST_TRIES,
-            $res['err'], $ms, $again ? ', again at the next tick' : ''));
-        return 'failed';
-    }
-    MelCat::$first_due = null;
-    $now = isset(MelCat::$lists[$rid]) ? MelCat::$lists[$rid]['tiles'] : array();
-    $same = array_keys(array_slice($was, 0, MEL_CATV_ROW_TILES, true)) === array_keys(array_slice($now, 0, MEL_CATV_ROW_TILES, true));
-    if (!$same)
-        MelCat::$on_screen[$rid] = $was;
-    mel_log(sprintf('catalog: first row: tick %d/%d: %s, %.0f ms', $n, MEL_CATV_FIRST_TRIES,
-        $same ? 'same' : 'changed, the screen anew', $ms));
-    return $same ? 'same' : 'changed';
-}
-
-// r25: a tick of the main screen $url got the meta of $got tiles: the screen built again with them (mel_catv_input:
-// invalidate of it, the focus by sel_state - device r25), its view the one of this tick (mel_pg_anew; its timer
-// mel_pg_tick_set); a line. -> false: no timer again here.
+// r25: a tick of the main screen $url got what changes it ($why: the meta of tiles, its first row new): the screen built
+// again with it (mel_catv_input: invalidate of it, the focus by sel_state - device r25), its view the one of this tick
+// (mel_pg_anew; its timer mel_pg_tick_set); a line. -> false: no timer again here.
 /**
  * @param string $url
- * @param int $got
+ * @param string $why
  * @return bool
  */
-function mel_pg_tick_anew($url, $got)
+function mel_pg_tick_anew($url, $why)
 {
     MelPgLinks::$anew = $url;
     MelPgLinks::$anew_t = microtime(true);
-    mel_log(sprintf('link: tick %d/%d: %d got, the screen anew', MelPgLinks::$ticks, MEL_PG_TICK_MAX, $got));
+    mel_log(sprintf('link: tick %d/%d: %s, the screen anew', MelPgLinks::$ticks, MEL_PG_TICK_MAX, $why));
     return false;
 }
 
