@@ -1495,42 +1495,57 @@ function mel_gc_count_of($lv, $j)
     return mel_gc_count($p - 1, $n);
 }
 
-// The hint line of list $st of $n rows (MelKit::hint, from MEL_GC_LX on MEL_GC_HINT_MID): «P+ P−» "Прокрутка" (more
-// rows than the screen), the chevrons "Серии" (an episode), MENU "Действия", INFO "Сведения" ($details false: none,
-// the cursor on the line of the group, where INFO does nothing).
+// The keys of list $st and the items of its hint line (MelKit::hint) with the cursor on line $sel of its lines
+// (mel_gc_lv), one for both: the cursor, ENTER, INFO, MENU "Действия" (mel_gc_menu, built for the row under the
+// cursor), the colour keys of the sort (mel_gc_sort); «P+ P−» "Прокрутка" with more lines than the screen; an episode:
+// left and right flip the episodes (mel_flip), "Серии"; INFO "Сведения" not on the line of the group, where it does
+// nothing. -> array(actions, hint items).
 /**
  * @param MelState $st
- * @param MelGcText $tt
- * @param int $n
- * @param bool $details
- * @return MelKitItem
+ * @param int $sel
+ * @return array{array<string, MelAction>, list<array{string, string}>}
  */
-function mel_gc_hints($st, $tt, $n, $details)
+function mel_gc_screen($st, $sel)
 {
-    $items = array();
-    if ($n > MEL_GC_VIS)
-        $items[] = array('pp', $tt['page']);
-    // An episode: the left and right keys go to the episode before and after.
+    $rid = $st['rid'];
+    $tt = mel_gc_text(mel_gc_lang($st));
+    $lv = mel_gc_lv($st);
+    $acts = array(
+        GUI_EVENT_KEY_UP => mel_gc_act('gc_move', $rid, array('d' => 'up')),
+        GUI_EVENT_KEY_DOWN => mel_gc_act('gc_move', $rid, array('d' => 'down')),
+        GUI_EVENT_KEY_P_PLUS => mel_gc_act('gc_move', $rid, array('d' => 'pgup')),
+        GUI_EVENT_KEY_P_MINUS => mel_gc_act('gc_move', $rid, array('d' => 'pgdn')),
+        GUI_EVENT_KEY_ENTER => mel_gc_act('gc_pick', $rid),
+        GUI_EVENT_KEY_INFO => mel_gc_act('gc_info', $rid),
+        GUI_EVENT_MENU_PLAYBACK_FINISH => mel_finish_act($rid),
+        GUI_EVENT_KEY_POPUP_MENU => mel_gc_act('gc_menu', $rid));
+    $hint = $lv['l'] > MEL_GC_VIS ? array(array('pp', $tt['page'])) : array();
     if ($st['e'] > 0)
-        $items[] = array('lr', $tt['flip']);
-    $items[] = array('k_icon_menu', $tt['actions']);
-    if ($details)
-        $items[] = array('k_key_info', $tt['details']);
-    return MelKit::hint($items, MEL_GC_LX, MEL_GC_HINT_MID);
+    {
+        $acts[GUI_EVENT_KEY_LEFT] = mel_gc_act('gc_flip', $rid, array('d' => 'prev'));
+        $acts[GUI_EVENT_KEY_RIGHT] = mel_gc_act('gc_flip', $rid, array('d' => 'next'));
+        $hint[] = array('lr', $tt['flip']);
+    }
+    foreach (mel_gc_sort_keys() as $k => $key)
+        $acts[$key[0]] = mel_gc_act('gc_sort', $rid, array('k' => $k));
+    $hint[] = array('k_icon_menu', $tt['actions']);
+    if (!mel_gc_on_group($lv, $sel))
+        $hint[] = array('k_key_info', $tt['details']);
+    return array($acts, $hint);
 }
 
-// Panel 'hint' of the hint line (mel_gc_hints) on line $j of lines $lv: at 0, 0, its children in the coordinates of
-// the screen; a step that comes to the group or leaves it replaces them (mel_gc_input).
+// Panel 'hint' of the hint line of list $st (mel_gc_screen; from MEL_GC_LX on MEL_GC_HINT_MID) with the cursor on line
+// $j: at 0, 0, its children in the coordinates of the screen; a step that comes to the group or leaves it replaces them
+// (mel_gc_input).
 /**
  * @param MelState $st
- * @param MelGcText $tt
- * @param MelGcLv $lv
  * @param int $j
  * @return list<MelGcComp>
  */
-function mel_gc_hint_defs($st, $tt, $lv, $j)
+function mel_gc_hint_defs($st, $j)
 {
-    $h = mel_gc_hints($st, $tt, $lv['l'], !mel_gc_on_group($lv, $j));
+    list(, $items) = mel_gc_screen($st, $j);
+    $h = MelKit::hint($items, MEL_GC_LX, MEL_GC_HINT_MID);
     return $h['defs'];
 }
 
@@ -1678,7 +1693,7 @@ function mel_gc_window($st, $sel, $top)
             MEL_K_C_SCROLL_TRACK);
         $d[] = mel_gc_rect(mel_gc_thumb_geom($top, $n), MEL_K_C_SCROLL_THUMB, 'thumb');
     }
-    $d[] = mel_gc_panel('hint', mel_gc_at(1920, 1080, 0, 0), mel_gc_hint_defs($st, $tt, $lv, $sel));
+    $d[] = mel_gc_panel('hint', mel_gc_at(1920, 1080, 0, 0), mel_gc_hint_defs($st, $sel));
     $right = MEL_GC_LX + MEL_GC_LW - MEL_GC_PAD;
     $d[] = mel_gc_panel('counter', mel_gc_at(MEL_GC_COUNT_W, MEL_K_KEY_H, $right - MEL_GC_COUNT_W,
         MEL_GC_HINT_MID - intval(MEL_K_KEY_H / 2)), mel_gc_count_of($lv, $sel));
@@ -1808,26 +1823,7 @@ function mel_gc_folder_view($st, $sel_state)
     $st['gc_prog'] = Mel::$state['gc_prog'] = mel_wh_progress($st);
     // The columns too, counted once a full view (mel_gc_cols_st).
     $st['gc_cols'] = Mel::$state['gc_cols'] = mel_gc_cols($st['rows'], mel_gc_text(mel_gc_lang($st)));
-    $rid = $st['rid'];
-    $acts = array(
-        GUI_EVENT_KEY_UP => mel_gc_act('gc_move', $rid, array('d' => 'up')),
-        GUI_EVENT_KEY_DOWN => mel_gc_act('gc_move', $rid, array('d' => 'down')),
-        GUI_EVENT_KEY_P_PLUS => mel_gc_act('gc_move', $rid, array('d' => 'pgup')),
-        GUI_EVENT_KEY_P_MINUS => mel_gc_act('gc_move', $rid, array('d' => 'pgdn')),
-        GUI_EVENT_KEY_ENTER => mel_gc_act('gc_pick', $rid),
-        GUI_EVENT_KEY_INFO => mel_gc_act('gc_info', $rid),
-        GUI_EVENT_MENU_PLAYBACK_FINISH => mel_finish_act($rid),
-        // MENU: built for the row under the cursor (mel_gc_menu).
-        GUI_EVENT_KEY_POPUP_MENU => mel_gc_act('gc_menu', $rid));
-    // An episode: left and right flip episodes (mel_flip).
-    if ($st['e'] > 0)
-    {
-        $acts[GUI_EVENT_KEY_LEFT] = mel_gc_act('gc_flip', $rid, array('d' => 'prev'));
-        $acts[GUI_EVENT_KEY_RIGHT] = mel_gc_act('gc_flip', $rid, array('d' => 'next'));
-    }
-    // The colour keys: the sort (mel_gc_sort).
-    foreach (mel_gc_sort_keys() as $k => $key)
-        $acts[$key[0]] = mel_gc_act('gc_sort', $rid, array('k' => $k));
+    list($acts) = mel_gc_screen($st, $sel);
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -2219,6 +2215,6 @@ function mel_gc_input($in)
     $ch[] = mel_gc_change('counter', null, GCOMP_TRANSITION_NONE, mel_gc_count_of($lv, $nsel));
     // To the group or off it: "Сведения" goes or comes back.
     if (mel_gc_on_group($lv, $nsel) !== mel_gc_on_group($lv, $sel))
-        $ch[] = mel_gc_change('hint', null, GCOMP_TRANSITION_NONE, mel_gc_hint_defs($st, $tt, $lv, $nsel));
+        $ch[] = mel_gc_change('hint', null, GCOMP_TRANSITION_NONE, mel_gc_hint_defs($st, $nsel));
     return mel_gc_changes_act($ch, $nsel, $ntop);
 }
