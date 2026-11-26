@@ -1,0 +1,227 @@
+{
+  "rows": [
+    ["movie/a", "top", true],
+    ["movie/b", "genres", false],
+    ["movie/c", "genres", true]
+  ],
+  "cases": [
+    {
+      "name": "Favorites, Top, Continue: On TorrServer checked goes right after Favorites",
+      "stored": "movie/@mylist movie/a movie/@continue",
+      "torrents": true,
+      "got": ["@mylist", "@torrserver", "top", "@continue"],
+      "dune": "movie/@mylist movie/@torrserver movie/a movie/@continue",
+      "want": ["movie/@mylist", "movie/@torrserver", "movie/a", "movie/@continue"]
+    },
+    {
+      "name": "nothing chosen: Top first, Continue unchecked",
+      "stored": "",
+      "torrents": true,
+      "got": ["top", "@mylist", "genres"],
+      "dune": "movie/a movie/@mylist movie/c movie/@continue:off movie/@torrserver:off",
+      "want": ["movie/a", "movie/@mylist", "movie/c"]
+    },
+    {
+      "name": "No torrents, On TorrServer shown between the groups: it stays after the group it was after",
+      "stored": "movie/@continue movie/a movie/@torrserver movie/c movie/@mylist:off",
+      "torrents": false,
+      "got": ["genres", "@continue", "top"],
+      "dune": "movie/c movie/@continue movie/a movie/@torrserver movie/@mylist:off",
+      "want": ["movie/c", "movie/@continue", "movie/a", "movie/@torrserver"]
+    },
+    {
+      "name": "No torrents, no key of On TorrServer: none written",
+      "stored": "movie/c movie/a",
+      "torrents": false,
+      "got": ["@mylist", "genres", "top"],
+      "dune": "movie/@mylist movie/c movie/a movie/@continue:off",
+      "want": ["movie/@mylist", "movie/c", "movie/a"]
+    }
+  ],
+  "slotRows": [
+    ["movie/a", "top", true],
+    ["series/a", "top", true],
+    ["movie/b", "genres", false],
+    ["movie/c", "genres", true],
+    ["movie/d", "other", true],
+    ["movie/t", "top", false],
+    ["anime/e", "anime", true],
+    ["series/f", "other", false]
+  ],
+  "slots": [
+    {
+      "name": "nothing chosen: Continue and Favorites first, then the start rows, the rows of a group together",
+      "stored": null,
+      "tab": "movie",
+      "want": ["movie/@continue", "movie/@mylist", "movie/a", "movie/c", "movie/d"]
+    },
+    {
+      "name": "nothing chosen, series: anime with them",
+      "stored": null,
+      "tab": "series",
+      "want": ["series/@continue", "series/@mylist", "series/a", "anime/e"]
+    },
+    {
+      "name": "not a list: as nothing chosen",
+      "stored": "movie/@continue",
+      "tab": "movie",
+      "want": ["movie/@continue", "movie/@mylist", "movie/a", "movie/c", "movie/d"]
+    },
+    {
+      "name": "an empty list: as nothing chosen",
+      "stored": [],
+      "tab": "series",
+      "want": ["series/@continue", "series/@mylist", "series/a", "anime/e"]
+    },
+    {
+      "name": "a choice of before, no keys of Melange: theirs first, then the rows of the user",
+      "stored": ["movie/c", "movie/a"],
+      "tab": "movie",
+      "want": ["movie/@continue", "movie/@mylist", "movie/c", "movie/a"]
+    },
+    {
+      "name": "Continue after the rows of a group: at its place, Favorites with no key right after it",
+      "stored": ["movie/a", "movie/t", "movie/@continue", "movie/c"],
+      "tab": "movie",
+      "want": ["movie/a", "movie/t", "movie/@continue", "movie/@mylist", "movie/c"]
+    },
+    {
+      "name": "a key between the rows of one group: after the group",
+      "stored": ["movie/b", "movie/@mylist", "movie/c", "movie/a", "movie/@continue"],
+      "tab": "movie",
+      "want": ["movie/b", "movie/c", "movie/@mylist", "movie/a", "movie/@continue"]
+    },
+    {
+      "name": ":off - hidden, Favorites with no key first then",
+      "stored": ["movie/a", "movie/@continue:off"],
+      "tab": "movie",
+      "want": ["movie/@mylist", "movie/a"]
+    },
+    {
+      "name": ":off of Favorites: Continue at its place by default",
+      "stored": ["movie/c", "movie/@mylist:off"],
+      "tab": "movie",
+      "want": ["movie/@continue", "movie/c"]
+    },
+    {
+      "name": "both off: none",
+      "stored": ["movie/c", "movie/@mylist:off", "movie/@continue:off"],
+      "tab": "movie",
+      "want": ["movie/c"]
+    },
+    {
+      "name": "a name twice: the first key counts",
+      "stored": ["movie/@continue:off", "movie/a", "movie/@continue"],
+      "tab": "movie",
+      "want": ["movie/@mylist", "movie/a"]
+    },
+    {
+      "name": "a name twice, shown first: its later keys go",
+      "stored": ["movie/a", "movie/@mylist", "movie/c", "movie/@mylist:off", "movie/@mylist"],
+      "tab": "movie",
+      "want": ["movie/@continue", "movie/a", "movie/@mylist", "movie/c"]
+    },
+    {
+      "name": "only the keys of Melange: the start rows after them",
+      "stored": ["movie/@mylist", "movie/@continue"],
+      "tab": "movie",
+      "want": ["movie/@mylist", "movie/@continue", "movie/a", "movie/c", "movie/d"]
+    },
+    {
+      "name": "a key gone and Continue off: Favorites, then the start rows",
+      "stored": ["movie/gone", "movie/@continue:off"],
+      "tab": "movie",
+      "want": ["movie/@mylist", "movie/a", "movie/c", "movie/d"]
+    },
+    {
+      "name": "the keys of each tab its own: movies",
+      "stored": ["series/@continue:off", "movie/a", "movie/@continue", "series/f"],
+      "tab": "movie",
+      "want": ["movie/a", "movie/@continue", "movie/@mylist"]
+    },
+    {
+      "name": "the keys of each tab its own: series",
+      "stored": ["series/@continue:off", "movie/a", "movie/@continue", "series/f"],
+      "tab": "series",
+      "want": ["series/@mylist", "series/f"]
+    },
+    {
+      "name": "the keys of each tab its own: a key of movies off, anime on Series",
+      "stored": ["movie/@mylist:off", "anime/e"],
+      "tab": "series",
+      "want": ["series/@continue", "series/@mylist", "anime/e"]
+    },
+    {
+      "name": "unknown and broken keys of Melange go, as not strings",
+      "stored": [
+        "movie/@foo",
+        "movie/@continue:x",
+        "movie/@",
+        "anime/@continue",
+        5,
+        null,
+        ["movie/@continue:off"],
+        "series/@continue:off",
+        "movie/c"
+      ],
+      "tab": "movie",
+      "want": ["movie/@continue", "movie/@mylist", "movie/c"]
+    },
+    {
+      "name": "On TorrServer with a key: at its place",
+      "stored": ["movie/c", "movie/@mylist", "movie/@torrserver"],
+      "tab": "movie",
+      "want": ["movie/@continue", "movie/c", "movie/@mylist", "movie/@torrserver"]
+    },
+    {
+      "name": "On TorrServer hidden: as no key",
+      "stored": ["movie/@torrserver:off", "movie/c"],
+      "tab": "movie",
+      "want": ["movie/@continue", "movie/@mylist", "movie/c"]
+    },
+    {
+      "name": "no rows of the server: only those of Melange",
+      "stored": ["movie/@mylist"],
+      "tab": "movie",
+      "rows": [],
+      "want": ["movie/@continue", "movie/@mylist"]
+    },
+    {
+      "name": "no rows of the server, both keys: in their order",
+      "stored": ["movie/@mylist", "movie/@continue"],
+      "tab": "movie",
+      "rows": [],
+      "want": ["movie/@mylist", "movie/@continue"]
+    },
+    {
+      "name": "a group of the server with @ first (custom.@continue.x): other, not a row of Melange",
+      "stored": ["movie/a", "movie/custom.@continue.x", "movie/@continue"],
+      "tab": "movie",
+      "rows": [
+        ["movie/custom.@continue.x", "@continue", true],
+        ["movie/a", "top", true]
+      ],
+      "want": ["movie/a", "movie/custom.@continue.x", "movie/@continue", "movie/@mylist"]
+    },
+    {
+      "name": "a group of the server with @ first, the start rows: other, as a group new to the plugin",
+      "stored": null,
+      "tab": "movie",
+      "rows": [
+        ["movie/custom.@foo.x", "@foo", true],
+        ["movie/a", "top", true],
+        ["movie/n", "something-new", true]
+      ],
+      "want": ["movie/@continue", "movie/@mylist", "movie/custom.@foo.x", "movie/n", "movie/a"]
+    }
+  ],
+  "keys": [
+    { "key": "movie/@continue", "want": { "tab": "movie", "name": "@continue", "off": false } },
+    { "key": "series/@torrserver:off", "want": { "tab": "series", "name": "@torrserver", "off": true } },
+    { "key": "anime/@continue", "want": null },
+    { "key": "movie/@foo", "want": null },
+    { "key": "movie/@continue:off:off", "want": null },
+    { "key": "movie/@continue\n", "want": null },
+    { "key": "movie/a@mylist", "want": null }
+  ]
+}
