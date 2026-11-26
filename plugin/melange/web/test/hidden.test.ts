@@ -1,4 +1,4 @@
-// "Скрытые" of "Что не показывать" (#hide, 0.65.0): the list of #init.hidden (filled: a movie and a series, the other
+// "Скрытые" of "Фильтр каталога" (#hide, 0.65.0): the list of #init.hidden (filled: a movie and a series, the other
 // fixtures none) - a row each with "Unhide" (a=title_unhide: the key posted, the list of the answer shown), an empty
 // list - its line, no list (a file of a later Melange) - why; held while a save goes; the failures of a request.
 

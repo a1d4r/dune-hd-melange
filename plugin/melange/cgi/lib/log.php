@@ -189,6 +189,9 @@ function mel_cgi_log_download($dir)
     mel_cgi_headers(200, 'text/plain');
     header('Content-Disposition: attachment; filename="' . MEL_CGI_NAME . '-' . gmdate('Ymd-Hi') . '.log"');
     header('X-Content-Type-Options: nosniff');
+    // Streamed, so no Content-Length: the downloader of Android (a browser on the Dune) gives up on a
+    // body of no known end; busybox httpd closes the connection after the CGI anyway.
+    header('Connection: close');
     $host = $base !== '' ? (string) parse_url($base, PHP_URL_HOST) : '';
     $own = $s['aio_own_url'] !== '' ? (string) parse_url($s['aio_own_url'], PHP_URL_HOST) : '';
     // The host of an own config hidden in the lines (v2: a profile, mel_settings_hosts) - here too.

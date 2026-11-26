@@ -1,9 +1,10 @@
 <?php
 // "Скрыть" (0.65.0): the titles the user hid from the rows of the catalog, one JSON file of data_dir, the newest first,
-// only on this Dune; and the filter of the tiles of the rows by it and by the age of the settings (cat_age,
-// mel_settings_parse). Hidden: none in the rows of the catalog, "Show all", the tab "TV", "Похожие" and "Части
-// франшизы" of the own card, the works of a person; a search shows them (its rows have q). The age: there and in a
-// search too. "Continue" and "Мой список" are not filtered (their tiles never go through mel_cat_take).
+// only on this Dune; and the filter of the tiles of the rows by it, by the age of the settings (cat_age,
+// mel_settings_parse) and by the lowest IMDb ratings of movies and series (cat_imdb_movie, cat_imdb_series; 0.70.0).
+// Filtered: the rows of the catalog, "Show all", the tab "TV", "Похожие" and "Части франшизы" of the own card, the
+// works of a person; a search is not (its rows have q: it shows all it finds; the owner 26.11.2026).
+// "Continue" and "Мой список" are not filtered (their tiles never go through mel_cat_take).
 // The functions of the file and of an entry need my_list.php alone (mel_ml_key, mel_ml_same, mel_ml_text,
 // mel_ml_broken) and log nothing: the settings page has them too, with no main.php ("Скрытые", "Вернуть":
 // mel_ht_read_file, mel_ht_broken, mel_ht_without, mel_ht_json, then its own write of the file). Those of php_server need main.php (mel_data_dir, mel_file_sig,
@@ -316,34 +317,62 @@ function mel_ht_hide($t)
     return '';
 }
 
-// The filter now (the list read when the file changed, once for all the tiles of a page): ids - of the list
-// (mel_ht_ids), age - the oldest age shown (cat_age of the settings: 0, 6, 12, 16), null: all.
+// The filter of the settings (the screen "Фильтр каталога" of the page; the one place of its keys): age - the oldest
+// age shown (cat_age: 0, 6, 12, 16), null: all; movie, series - the lowest IMDb rating shown of a tile of that type, in
+// tenths (cat_imdb_movie, cat_imdb_series: 50 ... 80), null: any.
 /**
- * @return array{ids: array<string, bool>, age: int|null}
+ * @return array{age: int|null, movie: int|null, series: int|null}
+ */
+function mel_ht_set()
+{
+    return array('age' => Mel::$settings['cat_age'], 'movie' => Mel::$settings['cat_imdb_movie'],
+        'series' => Mel::$settings['cat_imdb_series']);
+}
+
+// The filter now (the list read when the file changed, once for all the tiles of a page): ids - of the list
+// (mel_ht_ids), and that of the settings (mel_ht_set).
+/**
+ * @return MelHtFilter
  */
 function mel_ht_now()
 {
     mel_ht_list();
-    return array('ids' => MelHt::$ids, 'age' => Mel::$settings['cat_age']);
+    return array('ids' => MelHt::$ids) + mel_ht_set();
 }
 
-// Tile $t is not shown by filter $f (mel_ht_now): hidden (of its type, its IMDb or its TMDB; not in a search: $search),
-// or its age (mel_cat_age_of) over the age of the filter; a tile of no age is shown.
+// Tile $t is in the hidden ones $ids (mel_ht_ids): of its type, its IMDb or its TMDB.
 /**
- * @param array{ids: array<string, bool>, age: int|null} $f
+ * @param array<string, bool> $ids
  * @param MelCatTile $t
- * @param bool $search
  * @return bool
  */
-function mel_ht_off($f, $t, $search)
+function mel_ht_listed($ids, $t)
 {
-    if (!$search && (($t['imdb_id'] !== '' && isset($f['ids'][$t['type'] . '|' . $t['imdb_id']])) ||
-        ($t['_tmdbId'] !== '' && isset($f['ids'][$t['type'] . '|tmdb:' . $t['_tmdbId']]))))
-        return true;
-    return $f['age'] !== null && mel_cat_age_of($t) > $f['age'];
+    return ($t['imdb_id'] !== '' && isset($ids[$t['type'] . '|' . $t['imdb_id']])) ||
+        ($t['_tmdbId'] !== '' && isset($ids[$t['type'] . '|tmdb:' . $t['_tmdbId']]));
 }
 
-// Tile $t is hidden (mel_ht_off of the list alone).
+// Tile $t is not shown by filter $f (mel_ht_now): hidden (mel_ht_listed), its age (mel_cat_age_of) over the age of the
+// filter, or its IMDb rating (mel_cat_rate: "6.5" as on the poster) under the lowest one of its type (a movie, a series;
+// another type, as anime of no type, is not checked); a tile of no age, of no IMDb rating is shown. A search is not
+// filtered (mel_cat_take).
+/**
+ * @param MelHtFilter $f
+ * @param MelCatTile $t
+ * @return bool
+ */
+function mel_ht_off($f, $t)
+{
+    if (mel_ht_listed($f['ids'], $t))
+        return true;
+    if ($f['age'] !== null && mel_cat_age_of($t) > $f['age'])
+        return true;
+    $min = $t['type'] === 'movie' || $t['type'] === 'series' ? $f[$t['type']] : null;
+    // The lowest one in tenths: 65 / 10 is the same double as "6.5" of the tile, no rounding between.
+    return $min !== null && $t['imdbRating'] !== '' && (float) $t['imdbRating'] < $min / 10;
+}
+
+// Tile $t is hidden (mel_ht_listed of the list alone).
 /**
  * @param MelCatTile $t
  * @return bool
@@ -351,10 +380,10 @@ function mel_ht_off($f, $t, $search)
 function mel_ht_has($t)
 {
     mel_ht_list();
-    return mel_ht_off(array('ids' => MelHt::$ids, 'age' => null), $t, false);
+    return mel_ht_listed(MelHt::$ids, $t);
 }
 
-// Tiles $tiles the filter shows (mel_ht_off, not of a search), in their order: the rows of the own card.
+// Tiles $tiles the filter shows (mel_ht_off), in their order: the rows of the own card.
 /**
  * @param list<MelCatTile> $tiles
  * @return list<MelCatTile>
@@ -365,18 +394,18 @@ function mel_ht_keep($tiles)
     $out = array();
     foreach ($tiles as $t)
     {
-        if (!mel_ht_off($f, $t, false))
+        if (!mel_ht_off($f, $t))
             $out[] = $t;
     }
     return $out;
 }
 
-// What the filter is made of: the age of the settings and the file (mel_file_sig) - another one, the listings in memory
-// begin anew (mel_catv_filter_seen).
+// What the filter is made of: that of the settings (mel_ht_set) and the file (mel_file_sig) - another one, the
+// listings in memory begin anew (mel_catv_filter_seen).
 /**
  * @return string
  */
 function mel_ht_filter_sig()
 {
-    return json_encode(Mel::$settings['cat_age']) . ' ' . mel_file_sig(MEL_HT_FILE);
+    return json_encode(mel_ht_set()) . ' ' . mel_file_sig(MEL_HT_FILE);
 }

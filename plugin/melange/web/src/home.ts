@@ -2,7 +2,7 @@
 // by the rules of PHP (mel_cgi_state, mel_cgi_rows in cgi/lib/home.php): the same values give the same page.
 
 import type { Aio } from "./aio";
-import { byId, checkedRadio, checkedValue, DATA, hostOf, ID, NAME, type Page, type Row, SERVER_BLOCK, SERVER_FIELD, trimmed, tsUserinfo, VALUE, watchOf } from "./dom";
+import { byId, checkedValue, DATA, hostOf, ID, NAME, type Page, type Row, SERVER_BLOCK, SERVER_FIELD, trimmed, tsUserinfo, VALUE, watchOf } from "./dom";
 
 export interface Home {
   render(): void;
@@ -90,9 +90,22 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
     // No dot: only the value (a wrong one as on, as PHP).
     byId(doc, "vlook").textContent = (checkedValue(form, NAME.catLogo) === VALUE.off ? texts.logoOff : texts.logoOn) + " · " +
       (checkedValue(form, NAME.catRating) === VALUE.off ? texts.ratingOff : texts.ratingOn);
-    // The age by its short name; none checked - as the first one, all (as PHP).
-    const age = checkedRadio(form, NAME.catAge) || form.querySelector<HTMLInputElement>("input[name=" + NAME.catAge + "]");
-    byId(doc, "vhide").textContent = age ? age.getAttribute(DATA.short) || "" : "";
+    // The age and the IMDb ratings by their short names, as mel_cgi_hide_line: "До 12+, IMDb: фильмы от 6.5, сериалы
+    // от 7", each part only when set (none selected: all, any); none set - the short name of all, the first option of
+    // the age. All three are lists (0.70.0): the data-short of the option selected (none of all ages, "" of any).
+    const option = (name: string, index?: number): HTMLOptionElement | null => {
+      const list = form.elements.namedItem(name) as HTMLSelectElement | null;
+      const at = index !== undefined ? index : list ? list.selectedIndex : -1;
+      return list && at >= 0 && at < list.options.length ? list.options[at]! : null;
+    };
+    const short = (name: string): string => {
+      const chosen = option(name);
+      return chosen && chosen.value !== VALUE.all ? chosen.getAttribute(DATA.short) || "" : "";
+    };
+    const imdb = [NAME.catImdbMovie, NAME.catImdbSeries].map(short).filter((part) => part !== "");
+    const parts = [short(NAME.catAge)].concat(imdb.length ? ["IMDb: " + imdb.join(", ")] : []).filter((part) => part !== "");
+    const all = option(NAME.catAge, 0);
+    byId(doc, "vhide").textContent = parts.length ? parts.join(", ") : all ? all.getAttribute(DATA.short) || "" : "";
   }
   render();
   return {

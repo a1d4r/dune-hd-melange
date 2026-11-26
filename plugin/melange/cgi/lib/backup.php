@@ -56,6 +56,9 @@ function mel_cgi_export($dir, $t)
     mel_cgi_headers(200, 'application/json');
     header('Content-Disposition: attachment; filename="' . MEL_CGI_NAME . '-settings-' . gmdate('Ymd-Hi') . '.json"');
     header('X-Content-Type-Options: nosniff');
+    // The size: the downloader of Android (a browser on the Dune) gives up on a body of no
+    // known end, and busybox httpd sends neither it nor "Connection: close".
+    header('Content-Length: ' . strlen($json));
     echo $json;
     exit(0);
 }

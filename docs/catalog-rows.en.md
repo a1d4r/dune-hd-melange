@@ -45,17 +45,21 @@ Series rows are set up the same way, on the "Series" tab.
 
    <img src="../screenshots/rows-phone-order.jpg" alt="Shown: rows by groups, groups and rows with To the top, Up, Down and To the bottom buttons, Save at the bottom" width="300">
 
-## Hide a title and limit the age rating
+## Hide a title, limit the age and IMDb rating
 
 1. On a poster, press **POP UP** and choose "Hide". The title disappears from the catalog; search still shows it.
 
    <img src="../screenshots/rows-hide.jpg" alt="Trending row, POP UP menu on a poster: focus on Hide" width="100%">
 
-2. To hide everything above an age rating, open "Hide from the catalog" on the settings page, choose a limit in "Age rating", for example "Up to 12+", and press "Save". Titles above it disappear from the same places and from search. Titles with no age rating stay visible.
+2. To hide everything above an age rating, open "Catalog filter" on the settings page, choose a limit in the "Age rating" list, for example "Up to 12+ (hides 16+ and 18+)", and press "Save". Titles above it disappear from the same places. Titles with no age rating stay visible.
 
-3. "Hidden" on the same screen lists everything you hid on this Dune. "Unhide" brings a title back to the catalog.
+3. To hide titles with a low IMDb rating, choose a minimum on the same screen in "IMDb rating: movies" and "IMDb rating: series", for example "6.5+", and press "Save". Titles rated lower disappear from the same places. Titles with no IMDb rating stay visible.
 
-   <img src="../screenshots/rows-phone-hidden.jpg" alt="Hide from the catalog: Age rating set to All, Hidden lists a film with an Unhide button" width="300">
+4. "Hidden" on the same screen lists everything you hid on this Dune. "Unhide" brings a title back to the catalog.
+
+   <img src="../screenshots/rows-phone-hidden.jpg" alt="Catalog filter: the Age rating list set to All, both IMDb rating lists (movies, series) set to Any, Hidden lists a film with an Unhide button" width="300">
+
+Search shows everything it finds. "Continue Watching" and Favorites stay as they are.
 
 Continue Watching and Favorites come first by default. A hidden row only leaves the screen: the clock and the heart on the top bar, the **POP UP** items and the **Fav** buttons still work. At least one row must stay on a tab. The On TorrServer row is off by default; see [Torrents and TorrServer](torrserver.en.md#on-torrserver-row).
 

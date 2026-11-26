@@ -303,8 +303,8 @@ function mel_cm_person($tmdb, $limit)
     return array('err' => '', 'person' => $p);
 }
 
-// Person $p (kept whole in memory) with the works the filter shows (mel_ht_off: hidden, the age of the settings), in
-// their order: a title hidden or the age changed since it was asked shows so at once. The screen of the person
+// Person $p (kept whole in memory) with the works the filter shows (mel_ht_off: hidden, the age and the IMDb rating of
+// the settings), in their order: a title hidden or the filter changed since it was asked shows so at once. The screen of the person
 // (mel_pp_person) draws them; its keys go by the works it drew.
 /**
  * @param MelCmPerson $p
@@ -316,7 +316,7 @@ function mel_cm_person_shown($p)
     $works = array();
     foreach ($p['works'] as $w)
     {
-        if (!mel_ht_off($f, $w['tile'], false))
+        if (!mel_ht_off($f, $w['tile']))
             $works[] = $w;
     }
     $p['works'] = $works;
@@ -422,8 +422,8 @@ function mel_cm_similar_key($type, $id)
 
 // The movies of franchise $coll (collection of MelCardMeta: tmdb.collection.<n>) by the date out,
 // asked by an action, in $limit s at most. -> as mel_cm_more_row, the tiles the filter shows (mel_ht_off: hidden, the
-// age) and the movie of $ids (mel_cm_title_ids: its own card is open) whatever it; current: its index among them, -1
-// for none. A wrong id: none.
+// age, the IMDb rating) and the movie of $ids (mel_cm_title_ids: its own card is open) whatever it; current: its index
+// among them, -1 for none. A wrong id: none.
 /**
  * @param string $coll
  * @param list<string> $ids
@@ -444,7 +444,7 @@ function mel_cm_parts($coll, $ids, $limit)
         $is = mel_cm_tile_is($t, $ids);
         if ($is && $cur < 0)
             $cur = count($tiles);
-        if ($is || !mel_ht_off($f, $t, false))
+        if ($is || !mel_ht_off($f, $t))
             $tiles[] = $t;
     }
     return array('err' => $r['err'], 'tiles' => $tiles, 'current' => $cur);

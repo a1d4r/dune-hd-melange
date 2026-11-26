@@ -156,6 +156,11 @@ function mel_cgi_save($dir, $t)
     }
     if ($v['cat_age'] === '')
         $v['cat_age'] = mel_cgi_cat_age_of($cur['cat_age']);
+    foreach (array('cat_imdb_movie', 'cat_imdb_series') as $k)
+    {
+        if ($v[$k] === '')
+            $v[$k] = mel_cgi_cat_imdb_of($cur[$k]);
+    }
     // "Скрытые" of a form back (lib/hidden.php).
     $v['hidden'] = mel_cgi_ht_data(mel_cgi_dir_ok($dir) ? $dir : '');
     // '' is a choice here (none made), only no field at all means an older form.
