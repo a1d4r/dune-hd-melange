@@ -932,22 +932,6 @@ function mel_gc_card_status($r, $tt)
     return array("$status · $n " . mel_gc_plural($tt['lang'], $n, 'gc_seeds'), mel_gc_seed_color($n, true));
 }
 
-// Items $items set by their own x as one row of the kit (MelKit::row): the gaps between them as they are, their
-// lines on the centre of the capitals of the first text at $y.
-/**
- * @param list<MelKitItem> $items
- * @param int|float $y
- * @param string $name
- * @return MelKitItem
- */
-function mel_gc_line($items, $y, $name)
-{
-    $gaps = array();
-    for ($i = 1; $i < count($items); $i++)
-        $gaps[] = $items[$i]['x0'] - $items[$i - 1]['x1'];
-    return MelKit::row($items, $gaps, $items ? $items[0]['x0'] : 0, $y, $name);
-}
-
 // Children of row panel "r$i", on the centre of the row: the cache status (a lightning on a green disc, the
 // arrow, "?"; the seeders of a P2P row centred in its column), the plates b2 each from the x of its
 // column (mel_gc_cols), the size (right-aligned), the flags, the trackers
@@ -1048,7 +1032,7 @@ function mel_gc_row_items($r, $tt, $c, $on, $share = 0)
             $txt = MelKit::cut(mel_clean($r['addon']), $px, '', $cw);
         $it[] = MelKit::text($txt, $px, $r['expr'] !== '' || $r['trackers'] ? $fg2 : $fg3, $c['tracker'][0], $y);
     }
-    $line = mel_gc_line($it, $y, 'row');
+    $line = MelKit::line($it, $y, 'row');
     $d = $line['defs'];
     if ($share > 0)
     {

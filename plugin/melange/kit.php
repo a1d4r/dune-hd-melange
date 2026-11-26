@@ -785,6 +785,23 @@ class MelKit
         return $out;
     }
 
+    // The items set by their own x as one row (see row): the gaps between
+    // them as they are, their lines on the centre of the capitals of the
+    // first text at $y - a line of a list whose items stand in columns.
+    /**
+     * @param list<MelKitItem> $items
+     * @param int|float $y
+     * @param string $name
+     * @return MelKitItem
+     */
+    public static function line($items, $y, $name)
+    {
+        $gaps = array();
+        for ($i = 1; $i < count($items); $i++)
+            $gaps[] = $items[$i]['x0'] - $items[$i - 1]['x1'];
+        return self::row($items, $gaps, $items ? $items[0]['x0'] : 0, $y, $name);
+    }
+
     // $it as one panel $id (no clip) at its edges, its components the
     // children in the coordinates of the panel: a part of a screen whose
     // children change_gcomps replaces under the same id (the focus of a line,
