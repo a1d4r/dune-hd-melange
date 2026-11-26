@@ -355,10 +355,12 @@ parameters:
         MelDlgButton: 'array{id: string, label: string, icon: string, act: MelAction|null, cancel: bool}'
         # The own dialog open (kit_dlg.php): its icon, tone, title, text, buttons, the one in focus, the action of RETURN.
         MelDlg: 'array{icon: string, tone: string, title: string, text: string, buttons: list<MelDlgButton>, cur: int, cancel: MelAction|null}'
-        # The wait open (kit_dlg.php): the view of its window (live, share and the seconds of the live line, elapsed its
-        # start), the action of RETURN with no cancel button, the function of its ticks and its data, the open time, the
-        # period of its ticks (ms), late (null: none or passed) and its time, the text of late that stays.
-        MelWait: 'array{icon: string, tone: string, title: string, text: string, live: string, share: float|null, elapsed: string, buttons: list<MelDlgButton>, cur: int, cancel: MelAction|null, tick: string, data: mixed, t0: int, sec: int, ms: int, late: array<string, mixed>|null, late_at: int, late_text: string|null}'
+        # The wait open (kit_dlg.php): the view of its window (the facts under the title, the stage and its count over
+        # the bar, share: null the empty bar, the two facts under the bar and the tone of the left one, elapsed: the time
+        # by the title with the seconds sec), the action of RETURN with no cancel button, the function of its ticks and
+        # its data, the open time, the period of its ticks (ms), late (null: none or passed) and its time, the text of
+        # late (the wait screen of kit_scr.php shows it, the window does not).
+        MelWait: 'array{icon: string, tone: string, title: string, facts: string, stage: string, count: string, share: float|null, foot_l: string, foot_r: string, foot_tone: string, elapsed: string, buttons: list<MelDlgButton>, cur: int, cancel: MelAction|null, tick: string, data: mixed, t0: int, sec: int, ms: int, late: array<string, mixed>|null, late_at: int, late_text: string|null}'
         # The look of an error or a wait screen (kit_scr.php, MelKit::error_screen): the card background of the title or ''
         # (that of Melange), the one while it loads, the logo baked into it, the line under «Melange» of the head.
         MelKsLook: 'array{bg: string, nl: string|null, logo: bool, sub: string}'

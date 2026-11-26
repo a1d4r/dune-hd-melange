@@ -15,8 +15,8 @@
 //   of the button in focus, RETURN for cancel (none: back where it came from, the rows, the card, the list). The three
 //   cases: mel_ks_rows_error (over the rows), mel_ks_player_error (pe_stop of the player with its code),
 //   mel_ks_no_releases (in place of an empty list).
-// - A wait, mel_ks_wait($w): its description that of the wait window (MelWaitDesc, kit_dlg.php) and the same ticks
-//   (mel_wait_new, mel_wait_step): its timer MEL_KS_TICK_MS, the first tick at once. A tick replies post: the screen
+// - A wait, mel_ks_wait($w): its description that of the wait window (MelWaitDesc, kit_dlg.php: stage, count, share,
+//   foot_l, foot_r, elapsed; the text of late, see mel_ks_defs) and the same ticks (mel_wait_new, mel_wait_step): its timer MEL_KS_TICK_MS, the first tick at once. A tick replies post: the screen
 //   leaves for it (the list of releases, the error screen); dialog: it leaves for the error screen of it, on the same
 //   look; else its map and timer again, then the blocks that changed. A button (ENTER, or RETURN on its cancel) leaves
 //   for its act, RETURN with no cancel button for the cancel of the description. Every key gives its map and its timer
@@ -194,7 +194,26 @@ function mel_ks_no_releases($lang, $look, $text, $buttons = array())
 
 // --- The folder.
 
-// The components of screen $s: MelKit::error_screen of its look and of its error or wait.
+// Parts $parts but the empty ones as one line, « · » between them.
+/**
+ * @param list<string> $parts
+ * @return string
+ */
+function mel_ks_line($parts)
+{
+    $out = array();
+    foreach ($parts as $p)
+    {
+        if ($p !== '')
+            $out[] = $p;
+    }
+    return implode(" \xC2\xB7 ", $out);
+}
+
+// The components of screen $s: MelKit::error_screen of its look and of its error or wait. A wait, from the fields of
+// the wait window (MelWait): its text the stage and the count (past the late time the text of late), its live line the
+// time and the two facts of the foot; the bar when share is not null; the facts of the title are not shown (the look
+// of the screen names it).
 /**
  * @param MelKsScreen $s
  * @return list<MelGcComp>
@@ -204,8 +223,10 @@ function mel_ks_defs($s)
     if ($s['wt'] !== null)
     {
         $w = $s['wt'];
-        $v = array('icon' => $w['icon'], 'tone' => $w['tone'], 'title' => $w['title'], 'text' => $w['text'],
-            'live' => mel_wait_live($w), 'share' => $w['share'], 'buttons' => mel_dlg_btn_views($w));
+        $v = array('icon' => $w['icon'], 'tone' => $w['tone'], 'title' => $w['title'],
+            'text' => $w['late_text'] !== null ? $w['late_text'] : mel_ks_line(array($w['stage'], $w['count'])),
+            'live' => mel_ks_line(array(mel_wait_time($w), $w['foot_l'], $w['foot_r'])), 'share' => $w['share'],
+            'buttons' => mel_dlg_btn_views($w));
     }
     else
     {
