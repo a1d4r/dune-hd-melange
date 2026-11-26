@@ -36,7 +36,7 @@ Find and play a movie, then continue from the same spot. [← Contents](README.e
 
 ## Continue
 
-1. What you started is in the first row of the Melange catalog, Continue Watching ([Continue Watching and Favorites](favorites.en.md)), and in the **Continue Watching** row on the Dune home screen. **ENTER** plays it from the same spot.
+1. What you started is in the Continue Watching row of the Melange catalog ([Continue Watching and Favorites](favorites.en.md)), and in the **Continue Watching** row on the Dune home screen. **ENTER** plays it from the same spot.
 
    <img src="../screenshots/watch-continue-row.jpg" alt="Dune home screen: the Continue Watching row" width="100%">
 

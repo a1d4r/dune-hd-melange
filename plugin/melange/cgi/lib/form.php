@@ -968,6 +968,9 @@ function mel_cgi_js($v)
         'rowsTop' => mel_cgi_l('В начало', 'To the top'), 'rowsUp' => mel_cgi_l('Выше', 'Up'),
         'rowsDown' => mel_cgi_l('Ниже', 'Down'), 'rowsBottom' => mel_cgi_l('В конец', 'To the bottom'),
         'rowsGroupAll' => mel_cgi_l('Все ряды группы', 'All rows of the group'),
+        // The rows of Melange (mel_cat_pseudo): their names as on the Dune, their group.
+        'rowContinue' => mel_cgi_l('Продолжить', 'Continue Watching'), 'rowMylist' => mel_cgi_l('Избранное', 'Favorites'),
+        'rowTorrserver' => mel_cgi_l('На TorrServer', 'On TorrServer'), 'groupOwn' => mel_cgi_l('Ряды Melange', 'Melange rows'),
         'groupTop' => mel_cgi_l('Топы', 'Top'), 'groupFresh' => mel_cgi_l('Новинки с переводом', 'Fresh releases'),
         'groupRu' => mel_cgi_l('Российское', 'Russian'),
         'groupRuServices' => mel_cgi_l('Российские сервисы', 'Russian services'), 'groupGenres' => mel_cgi_l('Жанры', 'Genres'),

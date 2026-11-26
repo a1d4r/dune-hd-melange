@@ -12,7 +12,7 @@
 // the card of the Dune (mel_sup_card, the supplier aicard).
 // Needs main.php, catalog.php, catalog_card.php, card_meta.php, view_card.php, view_card_series.php, view_card_lib.php
 // (mel_oc_lib_pick; mel_oc_lib, mel_oc_lib_shown of mel_lib_win_card), view_catalog.php, view_person.php, continue.php
-// (mel_cp_items), source_profiles.php.
+// (mel_cp_items), view_ts.php (MEL_TSL_URL, mel_tsl_on), ts_row.php (mel_tsr_tiles), source_profiles.php.
 // PHP 5.3.6, firmware API only. Types in the PHPDoc: phpstan-types.neon of the repository.
 
 // The targets: fn - the handler of the link; id - the fields of an id it takes, exactly one of them given (none: no
@@ -439,11 +439,12 @@ function mel_dl_continue($q)
     return mel_mlv_open('continue', '');
 }
 
-// to=row: "Show all" (mel_catv_all_open) of row n of tab $q['tab'], counted as the main screen shows them: the row
-// "Continue" first when it has tiles of the tab (mel_cp_items), then "Мой список" when the list has titles of it - the
-// screens of all of them of the tab (mel_mlv_open of ENTER on their title), then the rows of the user of the saved
-// manifest (mel_cat_user_rows: those turned off not there) it shows (mel_catv_shown_rows: on r24
-// those with tiles in memory, as the last opening of the tab got them). No saved manifest, no such row: null, logged.
+// to=row: "Show all" (mel_catv_all_open) of row n of tab $q['tab'], counted as the main screen shows them: by the slots
+// of the tab (mel_cat_tab_slots of the saved manifest: those turned off or hidden not there), the row "Continue" when it
+// has tiles of the tab (mel_cp_items), "Мой список" when the list has titles of it - the screens of all of them of the
+// tab (mel_mlv_open of ENTER on their title) -, "На TorrServer" when its copy has torrents and not «Без торрентов» (the
+// section, as ENTER on its title), a row of the server when the screen shows it (mel_catv_shown_rows: on
+// r24 those with tiles in memory, as the last opening of the tab got them). No saved manifest, no such row: null, logged.
 /**
  * @param MelDlLink $q
  * @return MelAction|null
@@ -457,27 +458,46 @@ function mel_dl_row($q)
         return null;
     }
     $n = intval($q['n']);
-    // n is of the rows of the screen, not of the manifest: with "Continue" and "Мой список" on the tab the same row of
-    // the catalog is one or two further, without them - back.
-    $local = array();
-    if (mel_cp_items(array($q['tab']), 1))
-        $local[] = MEL_MLV_CONT;
-    if (mel_mlv_list_cells(array($q['tab']), 1))
-        $local[] = MEL_MLV_LIST;
-    if (isset($local[$n - 1]))
+    // n is of the rows of the screen, not of the manifest: a row of Melange with tiles above a row of the catalog puts it
+    // one further.
+    $slots = mel_cat_tab_slots($copy['rows'], Mel::$settings['cat_rows'], $q['tab']);
+    $on = array();
+    foreach (mel_catv_shown_rows(mel_cat_slot_rows($slots), mel_catv_loading_flag()) as $r)
+        $on[$r['key']] = true;
+    $list = array();
+    foreach ($slots as $s)
     {
-        $url = $local[$n - 1] . ':' . $q['tab'];
-        mel_log("open: row {$q['tab']} #$n: $url");
-        return mel_catv_open_act($url, mel_tr(mel_catv_lang(), $local[$n - 1] === MEL_MLV_LIST ? 'ml_title' : 'cp_row_continue'));
+        if (!is_string($s))
+        {
+            if (isset($on[$s['key']]))
+                $list[] = $s;
+        }
+        else if ($s === '@continue' && mel_cp_items(array($q['tab']), 1))
+            $list[] = MEL_MLV_CONT;
+        else if ($s === '@mylist' && mel_mlv_list_cells(array($q['tab']), 1))
+            $list[] = MEL_MLV_LIST;
+        else if ($s === '@torrserver' && mel_tsr_shown_tiles())
+            $list[] = MEL_TSL_URL;
     }
-    $cp = count($local);
-    $rows = mel_catv_shown_rows(mel_cat_user_rows($copy['rows'], Mel::$settings['cat_rows'], $q['tab']), mel_catv_loading_flag());
-    if (!isset($rows[$n - 1 - $cp]))
+    if (!isset($list[$n - 1]))
     {
-        mel_log("open: row {$q['tab']} #$n: none, " . (count($rows) + $cp) . ' rows on the tab');
+        mel_log("open: row {$q['tab']} #$n: none, " . count($list) . ' rows on the tab');
         return null;
     }
-    $rid = mel_catv_rid($rows[$n - 1 - $cp]);
+    $s = $list[$n - 1];
+    // "На TorrServer": the section, one of both tabs; its screen reads the list (mel_tsl_view).
+    if ($s === MEL_TSL_URL)
+    {
+        mel_log("open: row {$q['tab']} #$n: " . MEL_TSL_URL);
+        return mel_catv_open_act(MEL_TSL_URL, mel_tr(mel_catv_lang(), 'tsl_title'));
+    }
+    if (is_string($s))
+    {
+        $url = $s . ':' . $q['tab'];
+        mel_log("open: row {$q['tab']} #$n: $url");
+        return mel_catv_open_act($url, mel_tr(mel_catv_lang(), $s === MEL_MLV_LIST ? 'ml_title' : 'cp_row_continue'));
+    }
+    $rid = mel_catv_rid($s);
     mel_log("open: row {$q['tab']} #$n: $rid");
     return mel_catv_all_open("cat_grid:$rid");
 }

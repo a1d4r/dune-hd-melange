@@ -85,6 +85,11 @@ export const TEXT_KEYS = [
   "rowsDown",
   "rowsBottom",
   "rowsGroupAll",
+  // The rows of Melange (OWN of rows.ts) and their group in "All rows".
+  "rowContinue",
+  "rowMylist",
+  "rowTorrserver",
+  "groupOwn",
   // The names of the groups of rows (rows.ts).
   "groupTop",
   "groupFresh",

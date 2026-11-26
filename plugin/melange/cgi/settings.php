@@ -248,12 +248,12 @@ function mel_cgi_save($dir, $t)
     // Other rows of the catalog, or their order: the catalog on the Dune takes them only
     // when it opens next, the page says so (rows=1, "rows" of the JSON).
     $rows = $data[$f['cat_rows']['set']] !== $cur['cat_rows'];
-    // Nothing chosen before, now the start rows as they are: the same screen. Without
-    // a copy of the manifest the start rows are not known: a change.
-    if ($rows && $cur['cat_rows'] === null)
+    // Other keys of the same screen (the start rows for nothing chosen, the rows of Melange on their places by
+    // default, keys gone from the list): no change. Without a copy of the manifest the screen is not known: a change.
+    if ($rows)
     {
         require dirname(__FILE__) . '/lib/rows.php';
-        $rows = $data[$f['cat_rows']['set']] !== mel_cgi_cat_start($dir);
+        $rows = !mel_cgi_cat_same($dir, $cur['cat_rows'], $data[$f['cat_rows']['set']]);
     }
     // The page of the source saved (a new one has its id now).
     $next = 'settings?t=' . $t . '&p=' . $prof['id'] . '&saved=1' . ($rows ? '&rows=1' : '');

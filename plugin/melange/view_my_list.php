@@ -170,7 +170,8 @@ function mel_ml_menu_items($id, $from, $lang)
 function mel_ml_changed($from, $post, $why)
 {
     mel_tv_flag($why);
-    return mel_catv_mains_anew($post, $why, mel_catv_screen_of($from));
+    $screen = mel_catv_screen_of($from);
+    return mel_catv_mains_anew($post, $why, $screen !== '' ? array($screen) : array());
 }
 
 // cat_ml of POP UP (mel_ml_menu_items; w add, del) of tile $in->item of screen $in->from: the title into the list or out
@@ -652,7 +653,7 @@ function mel_mlv_tick($url)
         MelMlv::$anew = $url;
         MelMlv::$inv = $url;
         MelMlv::$anew_t = microtime(true);
-        $act = mel_catv_mains_anew(null, "after a tick of $url", $url, false);
+        $act = mel_catv_mains_anew(null, "after a tick of $url", array($url), false);
         $urls = $act ? $act[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] : array();
         MelMlv::$inv_urls = $urls;
         $what = count($urls) > 1 ? 'invalidate with the main screens' : 'invalidate';
@@ -715,8 +716,9 @@ function mel_mlv_enter($id, $lang)
 // --- The row "Мой список" of the main screens.
 
 // The row "Мой список" of the types of tab $tab ('movie', 'series'; '' both: tv.json of "TV") for a screen of rows,
-// second after "Continue": its title and the first MEL_CATV_ROW_TILES titles of the list of them (mel_mlv_list_cells:
-// the newest first, the entry and its best tile, no request), no "Show all" tile, no flag; ENTER on its title the screen of its type
+// at its place among the rows of the tab (mel_cat_tab_slots; by default second after "Continue"): its title and the
+// first MEL_CATV_ROW_TILES titles of the list of them (mel_mlv_list_cells: the newest first, the entry and its best
+// tile, no request), no "Show all" tile, no flag; ENTER on its title the screen of its type
 // (mel_mlv_screen). None when the list has none of them (the empty screen with the hint is of the heart and Fav 2). $tiles:
 // its tiles by "mylist:<key>" (the file of the tab "TV"); $miss: those with no meta (the lazy meta of a main screen,
 // MelCpm::$ml: mel_catv_main_view puts them there).

@@ -7,7 +7,8 @@
 // mel_pg_lib_work), else step by step (mel_pg_lib_step): the badge "on the disk" of a tile.
 // Needs library.php (mel_lib_index, MelLib), progress.php (mel_pg_index), main.php (mel_log, mel_write_file,
 // mel_data_dir, mel_http_get, mel_http_get_many, MEL_DUNE_ID, MEL_HTTP_TOO_BIG), parse.php (mel_str), catalog.php
-// (MEL_CAT_MAX_BYTES), catalog_card.php (mel_card_token, mel_card_api), view_catalog.php (mel_catv_is_down).
+// (MEL_CAT_MAX_BYTES), catalog_card.php (mel_card_token, mel_card_api), view_catalog.php (mel_catv_is_down,
+// mel_catv_first_step, mel_catv_tab, MelCat), ts_row.php (mel_tsr_step, mel_tsr_due).
 // Its top level is only define and classes: the pass in a process of its own (php-cgi, bg/lib_map.php) loads it for
 // the functions of the cards (mel_pg_shell_text, mel_pg_lib_pair) with parse.php only (mel_str), no DuneSystem there.
 
@@ -108,7 +109,7 @@ class MelPgLinks
 // --- When to link: an opening of the rows of the catalog.
 
 // A screen of rows of the catalog opens: new cards of the history paired by the cards of the shell (before the
-// badges of its tiles); the timer of the screen before it is no more for the step.
+// badges of its tiles); the timer of the screen before it is no more for the step, nor its first row to refresh.
 /**
  * @return void
  */
@@ -120,6 +121,8 @@ function mel_pg_screen_start()
     MelPgLinks::$screen = '';
     MelPgLinks::$ticks = 0;
     MelPgLinks::$stop = '';
+    MelCat::$first_due = null;
+    MelCat::$first_tries = 0;
 }
 
 // r25: a screen of Melange $url is asked of get_folder_view (mel_folder_view): another than the main screen of the
@@ -153,8 +156,11 @@ function mel_pg_rows_answered()
 
 // r24: the screen of tab $tab is made, $left s of its opening left, $net: rows of it went to the server in it (old or
 // no copies). The lazy pairs now, the tiles of its row "Continue" first (mel_cp_row_mids), then the lazy meta of that
-// row (mel_cpm_step) in what is left of the time of the step, only with $net: an opening of rows of memory or the
-// cache stays at once.
+// row (mel_cpm_step) in what is left of the time of the step, then the list of TorrServer for the row "На TorrServer"
+// of its old copy (mel_tsr_step) in what is left of $left (its row shown at the next opening), only with $net: an
+// opening of rows of memory or the cache stays at once. No copy of the row at all (mel_tsr_none: the row just shown, a
+// new TorrServer) - its list read in what is left of $left with no $net too: else no row till the copies of the rows of
+// the server get old.
 /**
  * @param float $left
  * @param bool $net
@@ -164,13 +170,18 @@ function mel_pg_rows_answered()
 function mel_pg_screen_built($left, $net, $tab = '')
 {
     if (!$net || $left < 1)
+    {
+        if (mel_tsr_on($tab) && mel_tsr_none())
+            mel_tsr_step($tab, $left);
         return;
+    }
     $t = microtime(true);
     $limit = min($left, MEL_PG_LINK_S);
     $rounds = 0;
     $pairs = 0;
     mel_pg_link_step($limit, false, $rounds, $pairs, null, mel_cp_row_mids($tab));
     mel_cpm_step($limit - (microtime(true) - $t), MEL_CPM_N - $rounds);
+    mel_tsr_step($tab, $left - (microtime(true) - $t));
 }
 
 // r25: the main screen of rows $url is made: the step goes to the ticks of its timer (MEL_PG_TICK_MS, then again while
@@ -216,19 +227,22 @@ function mel_pg_tick_set($url, $anew = false)
     return true;
 }
 
-// r25: a tick of the timer of the main screen $url, MEL_CPM_TICK_S at most (a key pressed now waits for it): the step
-// (mel_pg_link_step) once in it, of one batch at once, else of one request (~0.5 s; its timeout 1 s, whole s of curl);
-// then the lazy meta of the row "Continue" (mel_cpm_step) in what is left of it: one batch at once, else MEL_CPM_N
-// requests of the tick at most one by one; then the timer again or not (mel_pg_tick_again). No step: within
-// MEL_PG_ROWS_QUIET_S of a reply of get_folder_rows (the rows of a cold opening wait for php_server; the timer again),
-// within MEL_PG_FAV_QUIET_S of the end of a tick of a screen of Fav (the main one under it or just after Back: the
-// timer again, not one of MEL_PG_TICK_MAX; no two timers asking at once), a tick after the last one of the screen, a
-// tick of another or an old one, a tick with no screen since the start of php_server. A line of the log of each, in its
-// own words. The tiles of the row "Continue" of the screen paired first (mel_cp_row_mids); the titles of the library
+// r25: a tick of the timer of the main screen $url, MEL_CPM_TICK_S at most (a key pressed now waits for it): first the
+// first row of an old copy (mel_catv_first_step, a request of 1 s at most; tiles other than on the screen: the screen built
+// again, as of the meta below); then the list of TorrServer for the row "На TorrServer" of its tab of an old copy
+// (mel_tsr_step: with its MEL_TSR_TICK_S still left, else at the next tick; the copy written anew: the screen built
+// again); then the step (mel_pg_link_step) once in what is left, of one batch at once, else of
+// one request (~0.5 s; its timeout 1 s, whole s of curl); then the lazy meta of the rows of Melange (mel_cpm_step) in
+// what is left of it: one batch at once, else MEL_CPM_N requests of the tick at most one by one; then the timer again
+// or not (mel_pg_tick_again). No step: within MEL_PG_ROWS_QUIET_S of a reply of get_folder_rows (the rows of a cold
+// opening wait for php_server; the timer again), within MEL_PG_FAV_QUIET_S of the end of a tick of a screen of Fav (the
+// main one under it or just after Back: the timer again, not one of MEL_PG_TICK_MAX; no two timers asking at once), a
+// tick after the last one of the screen, a tick of another or an old one, a tick with no screen since the start of
+// php_server. A line of the log of each, in its own words. The tiles of the row "Continue" of the screen paired first (mel_cp_row_mids); the titles of the library
 // last, in what is left (mel_pg_lib_work: the pass, else the step of MEL_PG_LIB_TICK_S at most). Cards paired: the tiles of that row with no
-// meta again (MelCpm::$miss, mel_cp_row_miss), theirs asked in the same tick. The meta of a tile of the screen got
-// (MelCpm::$miss, MelCpm::$ml; not of MelCpm::$more, a screen of Fav): the screen built again (mel_pg_tick_anew), no
-// timer again here. -> the timer again (mel_catv_input: change_behaviour).
+// meta again (MelCpm::$miss, mel_cp_row_miss; the row shown, MelCat::$own), theirs asked in the same tick. The meta of a tile of the screen got
+// (of its rows of Melange, mel_cpm_rows; not of MelCpm::$more, a screen of Fav): the screen built again
+// (mel_pg_tick_anew), no timer again here. -> the timer again (mel_catv_input: change_behaviour).
 /**
  * @param string $url
  * @return bool
@@ -261,13 +275,18 @@ function mel_pg_tick($url)
     else
     {
         $t = microtime(true);
+        // A heavy step (a request of 1 s and more) after the first goes only with its limit still left of MEL_CPM_TICK_S,
+        // as mel_pg_link_step, else at the next tick: a key pressed now waits no longer. One screen anew a tick.
+        $first = mel_catv_first_step();
+        $tab = mel_catv_tab($url);
+        $ts = mel_tsr_step($tab, MEL_CPM_TICK_S - (microtime(true) - $t));
         $rounds = 0;
         $pairs = 0;
-        $tab = mel_catv_tab($url);
-        mel_pg_link_step(min(MEL_PG_LINK_S, MEL_CPM_TICK_S), true, $rounds, $pairs, null, mel_cp_row_mids($tab));
-        if ($pairs)
+        mel_pg_link_step(min(MEL_PG_LINK_S, MEL_CPM_TICK_S - (microtime(true) - $t)), true, $rounds, $pairs, null,
+            mel_cp_row_mids($tab));
+        if ($pairs && in_array('@continue', MelCat::$own, true))
             MelCpm::$miss = mel_cp_row_miss($tab);
-        $mine = mel_cpm_queue(array_merge(MelCpm::$miss, MelCpm::$ml));
+        $mine = mel_cpm_queue(mel_cpm_rows());
         $got = mel_cpm_step(MEL_CPM_TICK_S - (microtime(true) - $t), MEL_CPM_N - $rounds, true);
         $left = min(MEL_PG_LIB_TICK_S, MEL_CPM_TICK_S - (microtime(true) - $t));
         if ($left > 0)
@@ -276,25 +295,28 @@ function mel_pg_tick($url)
         $shown = 0;
         foreach ($got ? $mine : array() as $m)
             $shown += mel_cpm_tile($m[0], $m[1], $m[2], $c) ? 1 : 0;
-        if ($shown)
-            return mel_pg_tick_anew($url, $shown);
+        $why = array_merge($shown ? array("$shown got") : array(), $first ? array('the first row new') : array(),
+            $ts ? array('the TorrServer row new') : array());
+        if ($why)
+            return mel_pg_tick_anew($url, implode(', ', $why));
     }
     return mel_pg_tick_again($url);
 }
 
-// r25: a tick of the main screen $url got the meta of $got tiles: the screen built again with them (mel_catv_input:
-// invalidate of it, the focus by sel_state - device r25), its view the one of this tick (mel_pg_anew; its timer
-// mel_pg_tick_set); a line. -> false: no timer again here.
+// r25: a tick of the main screen $url got what changes it ($why: the meta of tiles, its first row new, the copy of the
+// row "На TorrServer" new): the screen built again with it (mel_catv_input: invalidate of it, the focus by sel_state -
+// device r25), its view the one of this tick (mel_pg_anew; its timer mel_pg_tick_set); a line. -> false: no timer again
+// here.
 /**
  * @param string $url
- * @param int $got
+ * @param string $why
  * @return bool
  */
-function mel_pg_tick_anew($url, $got)
+function mel_pg_tick_anew($url, $why)
 {
     MelPgLinks::$anew = $url;
     MelPgLinks::$anew_t = microtime(true);
-    mel_log(sprintf('link: tick %d/%d: %d got, the screen anew', MelPgLinks::$ticks, MEL_PG_TICK_MAX, $got));
+    mel_log(sprintf('link: tick %d/%d: %s, the screen anew', MelPgLinks::$ticks, MEL_PG_TICK_MAX, $why));
     return false;
 }
 
@@ -345,9 +367,12 @@ function mel_pg_tick_again($url)
 }
 
 // r25: why a tick would ask nothing (mel_pg_tick_set, mel_pg_tick_again; of the screen "Продолжить" or "Мой список":
-// its tiles $titles, its cards $mids) -> '': a meta of the row "Continue" to ask (mel_cpm_todo) with no pause of
-// it and the catalog server not down, or a card to ask (mel_pg_link_queue) with no pause and dune_auth, or of the main
-// screen a card of the shell of a title of the library to read (mel_pg_lib_queue); else 'pause'
+// its tiles $titles, its cards $mids) -> '': of the main screen its first row of an old copy to refresh
+// (MelCat::$first_due) with the catalog server not down, or its row "На TorrServer" of an old copy (mel_tsr_due of the
+// tab of MelPgLinks::$screen; a pause and the server down of the meta do not hold it), or a meta of the row "Continue"
+// to ask (mel_cpm_todo) with no pause of it and the catalog server not down, or a card to ask (mel_pg_link_queue) with
+// no pause and dune_auth, or of the main screen a card of the shell of a title of the library to read
+// (mel_pg_lib_queue); else 'pause'
 // (of either queue), 'server down' (the catalog server, of the meta), 'no dune_auth', 'queue empty'. No arguments
 // ($titles and $mids null): the main screen (mel_pg_tick_again), the only one whose ticks the library step keeps.
 /**
@@ -357,7 +382,9 @@ function mel_pg_tick_again($url)
  */
 function mel_pg_tick_why($titles = null, $mids = null)
 {
-    if ($titles === null && $mids === null && mel_pg_lib_queue())
+    $main = $titles === null && $mids === null;
+    $first = MelCat::$first_due !== null && !mel_catv_is_down();
+    if ($main && ($first || mel_tsr_due(mel_catv_tab(MelPgLinks::$screen)) || mel_pg_lib_queue()))
         return '';
     $cpm = mel_cpm_todo($titles) !== array();
     if ($cpm && !mel_cpm_paused() && !mel_catv_is_down())

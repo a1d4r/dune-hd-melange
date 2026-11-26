@@ -1,8 +1,8 @@
 # Continue Watching and Favorites
 
-Melange keeps what you started and what you saved for later in the first catalog rows. [← Contents](README.en.md)
+Melange keeps what you started and what you saved for later in catalog rows, first by default. [← Contents](README.en.md)
 
-1. The first catalog row is "Continue Watching": movies you started, and the next episode of a series. The second row is "Favorites". The "Movies" tab shows movies in them, the "Series" tab shows series. An empty row is hidden. It also gets what you started in the Dune's own Movies.
+1. The "Continue Watching" row has movies you started, and the next episode of a series. The "Favorites" row comes after it. You can move or hide them ([Your own catalog rows](catalog-rows.en.md)). The "Movies" tab shows movies in them, the "Series" tab shows series. An empty row is hidden. It also gets what you started in the Dune's own Movies.
 
    <img src="../screenshots/progress-rows.jpg" alt="Catalog, Movies tab: focus on The Martian in Continue Watching, 2:12 left in the info panel, Favorites row below" width="100%">
 

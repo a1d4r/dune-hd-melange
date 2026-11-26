@@ -220,6 +220,8 @@ export const NAME = {
   // The age of "Фильтр каталога" (0.65.0; a list since 0.70.0): all, 16, 12, 6, 0; each option with its line on the main
   // screen (DATA.short).
   catAge: "cat_age",
+  // "Running torrents" (0.49.0): VALUE.off - "No torrents" (the radios right in the form, the CSS hides by them).
+  noTorrents: "no_torrents",
   // The lowest IMDb ratings of movies and series there (0.70.0): lists (select), all (any), 50 ... 80 (tenths); each
   // option with its part of that line (DATA.short; empty for all).
   catImdbMovie: "cat_imdb_movie",

@@ -13,14 +13,16 @@
 // only.
 
 // The start of file $id of entry $e (0: by file_stats, one video file) from position $pos (s): the first "get", then
-// vod_play, the screen of files, the error dialog or the waiting dialog over the screen it came from.
+// vod_play, the screen of files, the error dialog or the waiting dialog over the screen it came from ($from: an OK on a
+// line of it, mel_tsl_enter; '' another start: the screen of files, "Последнее").
 /**
  * @param MelTsEntry $e
  * @param int $id
  * @param int $pos
- * @return MelAction
+ * @param string $from
+ * @return MelAction|null
  */
-function mel_tsl_start($e, $id, $pos)
+function mel_tsl_start($e, $id, $pos, $from)
 {
     $lang = mel_catv_lang();
     if (Mel::$settings['no_torrents'])
@@ -31,27 +33,33 @@ function mel_tsl_start($e, $id, $pos)
     $t = time();
     list($what, $d, $why, $detail, $files, $j) = mel_tsl_advance(mel_tsl_run($e, $id, $pos, $lang), 0);
     if ($what !== 'wait')
-        return mel_tsl_done($what, $d, $why, $detail, $files);
+        return mel_tsl_done($what, $d, $why, $detail, $files, $from);
     mel_log('ts section: -> the waiting dialog');
     return mel_ts_wait_open($lang, mel_tsl_wait_defs($d, 0, $j), mel_tsl_wait_acts($d, $t));
 }
 
 // The end of a step of run $d (mel_tsl_advance) but the wait: play - vod_play (mel_tsl_play_act); files - the screen of
-// files; error - the dialog of it (mel_ts_fail, $why its key, $detail under it).
+// files; error - the dialog of it (mel_ts_fail, $why its key, $detail under it). TorrServer has it no more (404,
+// tsl_err_gone): as one not in the list (mel_tsl_enter) - out of the copy of the row, the screens anew (mel_tsl_anew of
+// screen $from of the start; the section not: its line of memory stays till the list is read again), then the dialog.
 /**
  * @param string $what
  * @param MelTslRun $d
  * @param string $why
  * @param string $detail
  * @param list<MelTsFile> $files
- * @return MelAction
+ * @param string $from
+ * @return MelAction|null
  */
-function mel_tsl_done($what, $d, $why, $detail, $files)
+function mel_tsl_done($what, $d, $why, $detail, $files, $from)
 {
     if ($what === 'play')
         return mel_tsl_play_act($d, $files, $why);
     if ($what === 'files')
         return mel_tsf_open($d['e']['hash'], $files);
+    if ($why === 'tsl_err_gone')
+        return mel_tsl_anew($from === MEL_TSL_URL ? '' : $from, mel_tsr_drop($d['e']['hash']),
+            mel_ts_fail($d['l'], $why, $detail), 'after a torrent gone');
     return mel_ts_fail($d['l'], $why, $detail);
 }
 
@@ -113,7 +121,7 @@ function mel_tsl_tick($in)
     $sec = max(0, time() - intval($p['t']));
     list($what, $d, $why, $detail, $files, $j) = mel_tsl_advance($d, $sec);
     if ($what !== 'wait')
-        return mel_close_and(mel_tsl_done($what, $d, $why, $detail, $files));
+        return mel_close_and(mel_tsl_done($what, $d, $why, $detail, $files, ''));
     return mel_ts_wait_again(mel_tsl_wait_defs($d, $sec, $j), mel_tsl_wait_acts($d, intval($p['t'])));
 }
 
@@ -163,8 +171,10 @@ function mel_tsl_play_act($d, $files, $why)
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
 }
 
-// The entry of torrent $hash: in memory, else the list read once (a restart of php_server, an old screen) -> array(the
-// entry or null: not in the list; the key of an error of the list, '' none; its detail).
+// The entry of torrent $hash: in memory, else in the copy of the row of the catalog with its files (mel_tsr_tile; kept
+// as of a file_stats, mel_tsl_files_keep), else the list read once (a restart of php_server, an old screen; a tile of
+// the copy with no files - a big pack, a record of Lampa - too: "get" or the screen of its files needs them) ->
+// array(the entry or null: not in the list; the key of an error of the list, '' none; its detail).
 /**
  * @param string $hash
  * @return array{MelTsEntry|null, string, string}
@@ -173,6 +183,13 @@ function mel_tsl_find($hash)
 {
     if (isset(MelTsl::$list[$hash]))
         return array(MelTsl::$list[$hash], '', '');
+    $tile = mel_tsr_tile($hash);
+    if ($tile !== null && $tile['e']['files'] !== null)
+    {
+        mel_tsl_files_keep($hash, $tile['e']['files']);
+        mel_log("ts section: $hash of the copy of the row");
+        return array($tile['e'], '', '');
+    }
     mel_log("ts section: $hash not in memory, the list read");
     list($list, $key, $detail) = mel_tsl_read();
     if ($list === null)
@@ -213,5 +230,5 @@ function mel_tsl_recent($in)
         mel_log("ts section: $h " . ($bare ? "of a list not read ($key)" : 'not in the list') . ', the start by its hash');
         $e = mel_tsl_bare($h);
     }
-    return mel_tsl_start($e, $f, $pos);
+    return mel_tsl_start($e, $f, $pos, '');
 }

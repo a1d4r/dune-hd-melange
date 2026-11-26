@@ -18,8 +18,10 @@
 // by the timer of the manifest (mel_tv_timer, every 10 min: the old copies asked anew, the history changed)
 // and by Melange when it saves a copy the file is built of (mel_tv_copy_saved), reads a new settings.json or
 // is back from the player (mel_finish), and by "Configure list…" when it has nothing for the shell to read anew.
-// The row "Continue" (continue.php) first in each, of its types; its badges and those of the tiles are of the
-// history when the file is built.
+// The rows "Continue" (continue.php) and "Мой список" of their types in each, where the tab has them (mel_cat_tab_slots;
+// by default first); their badges and those of the tiles are of the history when the file is built. So the row "На
+// TorrServer" (view_ts_row.php), of its copy on the disk (ts_row.php): the timer reads the list when the copy is older
+// than MEL_TV_TSR_S, a copy written elsewhere sets the flag itself (mel_tv_tsr_saved).
 
 define('MEL_TV_EPF', 'tv');
 // "from" of the actions of each EPF: this and its id (mel_tv_is_from): no screen of Melange is under them.
@@ -36,6 +38,10 @@ define('MEL_TV_SUB_MIN_R', 24);
 // top, only in a tick with a new copy or other settings. php_server runs one call at a time: the info
 // panel and ENTER on "TV" wait for it.
 define('MEL_TV_TIMER_S', 3.0);
+// The timer reads the list of TorrServer for the row "На TorrServer" (mel_tv_tsr_read) when its copy is older than this:
+// the timer comes every 10 min and the read is a part of a second past its start, so 600 would be missed by that part
+// at the next timer and the list read every 20 min; 9 min reads it at each timer.
+define('MEL_TV_TSR_S', 540);
 // "Configure list…" on "TV" (mel_tv_rows_saved): the requests of the rows chosen anew with no copy in this many s, as
 // the timer asks them (mel_tv_ask); the user waits after the dialog, the rows past it come with the timer.
 define('MEL_TV_ROWS_S', 5.0);
@@ -188,6 +194,18 @@ function mel_tv_copy_saved($key)
         mel_tv_flag($key === MEL_CAT_MANIFEST_KEY ? 'the manifest saved' : 'a row saved');
 }
 
+// The copy of the row "На TorrServer" written anew (mel_tsr_put, the row shown): saved by the timer (mel_tv_tsr_read) -
+// counted, no flag; else the flag, as mel_tv_copy_saved.
+/**
+ * @return void
+ */
+function mel_tv_tsr_saved()
+{
+    if (MelTv::$quiet)
+        MelTv::$new_copies++;
+    mel_tv_flag('the TorrServer copy');
+}
+
 // At the start of an operation (settings.json read): a new one (the settings page or Melange wrote it) -
 // the flag, its rows, plates or mode may be others. The settings page itself sets none: it runs as root,
 // a flag of root in tmp_dir may be one php_server can not write again. Not in tv_update (it reads them
@@ -236,8 +254,10 @@ function mel_tv_note_defs($id, $key, $lang)
     return mel_catv_row_defs(mel_catv_list(mel_cat_row_state($row), array(), false), $lang, array($item));
 }
 
-// The views of the EPF (mel_tv_epfs) by id: the rows "Continue" and "Мой список" of their tabs (mel_cp_row_defs,
-// mel_ml_row_defs: of both on tv.json), then the rows of their tabs of the catalog from the copies, as
+// The views of the EPF (mel_tv_epfs) by id: the rows of their tabs of the catalog from the copies in the order of the
+// tab (mel_catv_tab_copy_defs), the rows "Continue", "Мой список" and "На TorrServer" (mel_cp_row_defs, mel_ml_row_defs,
+// mel_tsr_row_defs: of both types on tv.json, there once, at its place on the first tab that shows it) where the tab
+// has them, as
 // a screen of rows opened now (the mode of the tiles and the plates of the settings and the firmware,
 // as mel_catv_logo_of gives, but not kept among its screens: the EPF would push out a screen of Melange).
 // Each tab built once. No source ready (Lampac too): one tile "Set up Melange" ("tv:setup"), as the catalog opens
@@ -266,24 +286,27 @@ function mel_tv_views($lang, &$tiles = null)
         {
             $tabs[$tab] = mel_catv_tab_copy_defs($tab, $lang);
             $lists = $tabs[$tab]['lists'];
-            foreach ($tabs[$tab]['defs'] as $def)
+            foreach ($tabs[$tab]['slots'] as $slot)
             {
-                foreach (isset($def[PluginRow::data][PluginRegularRow::items]) ? $def[PluginRow::data][PluginRegularRow::items] : array() as $it)
+                foreach (is_string($slot) ? array() : $slot as $def)
                 {
-                    list(, $id) = mel_catv_id_mode(strval($it[PluginRegularItem::id]));
-                    $p = explode(':', $id, 2);
-                    if (count($p) === 2 && isset($lists[$p[0]]['tiles'][$p[1]]))
-                        $tiles[$id] = $lists[$p[0]]['tiles'][$p[1]];
+                    foreach (isset($def[PluginRow::data][PluginRegularRow::items]) ? $def[PluginRow::data][PluginRegularRow::items] : array() as $it)
+                    {
+                        list(, $id) = mel_catv_id_mode(strval($it[PluginRegularItem::id]));
+                        $p = explode(':', $id, 2);
+                        if (count($p) === 2 && isset($lists[$p[0]]['tiles'][$p[1]]))
+                            $tiles[$id] = $lists[$p[0]]['tiles'][$p[1]];
+                    }
                 }
             }
         }
     }
     $views = array();
     $off = mel_tv_sub_off();
-    // The meta of the tiles of the rows "Continue" and "Мой список" of no request (mel_cpm_build): kept, of the rows in
-    // memory or on the disk.
+    // The meta of the tiles of the rows "Continue" and "Мой список" shown on a tab, of no request (mel_cpm_build): kept,
+    // of the rows in memory or on the disk.
     if (Mel::$settings['ready'])
-        mel_cpm_build('', 0.0);
+        mel_cpm_build('', 0.0, mel_tv_own_names($tabs, $epfs[MEL_TV_EPF]));
     foreach ($epfs as $epf => $of)
     {
         if ($off && $epf !== MEL_TV_EPF)
@@ -291,11 +314,32 @@ function mel_tv_views($lang, &$tiles = null)
         $cp_tiles = array();
         $ml_tiles = array();
         $one = count($of) === 1 ? $of[0] : '';
-        $defs = Mel::$settings['ready'] ? array_merge(mel_cp_row_defs($one, $lang, $cp_tiles), mel_ml_row_defs($one, $lang, $ml_tiles)) :
-            array();
+        // The rows of the tabs by their slots; a row of Melange of both types (tv.json) once, at its place on the first
+        // tab that shows it.
+        $names = mel_tv_own_names($tabs, $of);
+        $own = array();
+        if (in_array('@continue', $names, true))
+            $own['@continue'] = mel_cp_row_defs($one, $lang, $cp_tiles);
+        if (in_array('@mylist', $names, true))
+            $own['@mylist'] = mel_ml_row_defs($one, $lang, $ml_tiles);
+        // Its known tiles by the history alone (mel_catv_info): none to the tiles of the files.
+        if (in_array('@torrserver', $names, true))
+            $own['@torrserver'] = mel_tsr_row_defs($one, $lang, MEL_TV_FROM_PREFIX . $epf);
         $tiles = array_merge($tiles, $cp_tiles, $ml_tiles);
+        $defs = array();
         foreach ($of as $tab)
-            $defs = isset($tabs[$tab]) ? array_merge($defs, $tabs[$tab]['defs']) : $defs;
+        {
+            foreach (isset($tabs[$tab]) ? $tabs[$tab]['slots'] : array() as $slot)
+            {
+                if (!is_string($slot))
+                    $defs = array_merge($defs, $slot);
+                else if (isset($own[$slot]))
+                {
+                    $defs = array_merge($defs, $own[$slot]);
+                    unset($own[$slot]);
+                }
+            }
+        }
         if (!Mel::$settings['ready'])
             $defs = mel_tv_note_defs('tv:setup', 'tv_setup', $lang);
         else if (!$defs)
@@ -311,6 +355,21 @@ function mel_tv_views($lang, &$tiles = null)
     MelCat::$logo = $logo;
     MelCat::$rating = $rating;
     return $views;
+}
+
+// The names of the rows of Melange (mel_cat_pseudo: '@continue') shown on the tabs $of, by the slots of the tabs $tabs
+// (mel_catv_tab_copy_defs by tab), each once.
+/**
+ * @param array<string, array{slots: list<string|list<array<string, mixed>>>}> $tabs
+ * @param list<string> $of
+ * @return list<string>
+ */
+function mel_tv_own_names($tabs, $of)
+{
+    $out = array();
+    foreach ($of as $tab)
+        $out = array_merge($out, isset($tabs[$tab]) ? mel_cat_slot_names($tabs[$tab]['slots']) : array());
+    return array_values(array_unique($out));
 }
 
 // The JSON of each EPF (mel_tv_views) by id; null when one can not be made. $tiles: their tiles.
@@ -613,17 +672,20 @@ function mel_tv_code_sig()
 // What the EPF are built with besides the copies: settings.json (mel_settings_sig), the filter of the tiles
 // (mel_ht_filter_sig: the file of the hidden titles - the settings page takes one back), the language, the version and
 // the build of the plugin (another one may build them otherwise), the history (mel_wh_sig: the row "Continue" and the
-// badges; a file of it written within 2 s: none, the next tick builds them again).
+// badges; a file of it written within 2 s: none, the next tick builds them again). Not the copy of the row "На
+// TorrServer": each write of it is counted or sets the flag itself (mel_tv_tsr_saved).
 /**
  * @param string $lang
  * @return string
  */
 function mel_tv_timer_state($lang)
 {
-    return mel_settings_sig() . ' ' . mel_ht_filter_sig() . " $lang " . MEL_VERSION . ' ' . mel_tv_code_sig() . ' ' . md5(strval(mel_wh_sig()));
+    return mel_settings_sig() . ' ' . mel_ht_filter_sig() . " $lang " . MEL_VERSION . ' ' . mel_tv_code_sig() . ' ' .
+        md5(strval(mel_wh_sig()));
 }
 
-// The timer: the copy of the manifest older than MEL_CAT_FRESH asked anew (not MEL_CAT_MANIFEST_FRESH:
+// The timer: first the list of TorrServer for the row "На TorrServer" (mel_tv_tsr_read, MEL_TSR_TICK_S of $limit), then
+// the copy of the manifest older than MEL_CAT_FRESH asked anew (not MEL_CAT_MANIFEST_FRESH:
 // the timer comes every 10 min), then the first pages
 // of the rows of the file without a copy or with one older than MEL_CAT_FRESH, one by one in $limit s: those
 // without a copy first, then the oldest copy (of the same time in the order of the file), each part a movie and a
@@ -642,13 +704,14 @@ function mel_tv_refresh($limit)
     $start = microtime(true);
     MelTv::$quiet = true;
     MelTv::$new_copies = 0;
+    $ts = mel_tv_tsr_read();
     $copy = mel_cat_manifest_copy();
     $rows = $copy['rows'];
     $man = 'manifest fresh';
     $err = '';
     if (!$copy['rows'] || !mel_cat_is_fresh($copy))
     {
-        $secs = intval(min(MEL_CATV_REFRESH_S, floor($limit)));
+        $secs = intval(min(MEL_CATV_REFRESH_S, floor($limit - (microtime(true) - $start))));
         $m = $secs >= 1 ? mel_cat_manifest_fetch($secs) : null;
         $rows = $m && $m['rows'] ? $m['rows'] : $rows;
         $err = $m ? $m['err'] : '';
@@ -682,7 +745,21 @@ function mel_tv_refresh($limit)
         $ask[] = $tv_rows[$i];
     $asked = mel_tv_ask($ask, $start, $limit, $err);
     MelTv::$quiet = false;
-    return sprintf('%s, rows asked %d of %d old', $man, $asked, count($queue));
+    return sprintf('%s%s, rows asked %d of %d old', $ts, $man, $asked, count($queue));
+}
+
+// The timer (mel_tv_refresh, its copies counted): the row "На TorrServer" shown on a tab ("TV" shows the rows of the
+// tabs, mel_tsr_any) of a copy older than MEL_TV_TSR_S (mel_tsr_old) - the list read (mel_tsr_read); a new copy counted
+// (mel_tv_tsr_saved). -> for the log: '' none read, else "TorrServer <the same, new, the key of the error>, ".
+/**
+ * @return string
+ */
+function mel_tv_tsr_read()
+{
+    if (!mel_tsr_any() || !mel_tsr_old(MEL_TV_TSR_S))
+        return '';
+    list($err, $new) = mel_tsr_read();
+    return 'TorrServer ' . ($err !== '' ? $err : ($new ? 'new' : 'the same')) . ', ';
 }
 
 // The first pages of the rows $rows one by one, in their order, in $limit s since $start: each request the whole

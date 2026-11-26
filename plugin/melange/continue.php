@@ -289,7 +289,7 @@ function mel_cp_badge($mid, $type)
 // The cells of the row of the types $types, $max at most (mel_cp_items), by "continue:<movie_id>": the item (the title
 // and the poster of the record, the plate of the rating of the meta kept or of a tile of a row in memory, the badges)
 // and its tile; $miss: those of a pair with neither, in their order (array(type, IMDb, TMDB): the lazy meta,
-// MelCpm::$miss and MelCpm::$more); $disk false: no badge "on the disk" (only $miss wanted).
+// MelCpm::$miss and MelCpm::$more); $disk false: no stickers (mel_catv_title_stickers; only $miss wanted).
 /**
  * @param list<string> $types
  * @param int $max
@@ -317,11 +317,7 @@ function mel_cp_tile_items($types, $max, &$miss = null, $disk = true)
         $id = MEL_CP_RID . ":$mid";
         $item = mel_catv_item(mel_catv_tile_id($id), isset($it['w']->title) ? mel_clean($it['w']->title) : $t['name'],
             mel_img(isset($it['w']->icon) && is_string($it['w']->icon) ? $it['w']->icon : ''));
-        $stickers = mel_catv_rating_on() ? mel_catv_rate_stickers($t['imdbRating']) : array();
-        if ($disk)
-            $stickers = array_merge($stickers, mel_catv_disk_stickers($t, strval($mid)));
-        if ($it['b'])
-            $stickers = array_merge($stickers, mel_pg_stickers($it['b']));
+        $stickers = $disk ? mel_catv_title_stickers($t, strval($mid), $it['b']) : array();
         if ($stickers)
             $item[PluginRegularItem::stickers] = $stickers;
         $out[$id] = array('item' => $item, 'tile' => $t);

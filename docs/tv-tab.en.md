@@ -12,7 +12,7 @@ Show Melange catalog rows right on the Dune home screen, in the TV tab. [← Con
 
    <img src="../screenshots/tv-tab-pick.jpg" alt="App selection list with focus on Melange" width="100%">
 
-3. Under TV, the "Movies" and "Series" sub-items appear right away, with the catalog rows.
+3. Under TV, the "Movies" and "Series" sub-items appear right away, with the catalog rows, in the same order as in the catalog.
 
    <img src="../screenshots/tv-tab-rows.jpg" alt="TV tab, Movies sub-item: Melange rows Continue Watching, Favorites and others on the left" width="100%">
 

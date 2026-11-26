@@ -16,6 +16,10 @@ define('MEL_CATV_OPEN_S', 3.0);
 define('MEL_CATV_OPEN_ROW_S', 0.5);
 // r25: one row of get_folder_rows, a key of the user waits for it; the stubs of a row.
 define('MEL_CATV_ROW_S', 5.0);
+// r25: the first row of a main screen built of a copy older than MEL_CAT_FRESH (MelCat::$first_due): its fresh first page
+// at a tick of the timer, one request of this many s (whole s of curl), MEL_CATV_FIRST_TRIES of them an opening at most.
+define('MEL_CATV_FIRST_TICK_S', 1.0);
+define('MEL_CATV_FIRST_TRIES', 2);
 define('MEL_CATV_STUBS', 9);
 // r25: after a failure of the server this many s no row asks it (mel_catv_is_down).
 define('MEL_CATV_DOWN_S', 30);
@@ -213,6 +217,11 @@ class MelCat
     // screen built before still find them. It builds no row; the next main screen empties it.
     /** @var array<string, array<int|string, MelCatTile>> */
     public static $on_screen = array();
+    // The rows of Melange the main screen built last shows, in its order (mel_cat_slot_names of mel_cat_tab_slots; the
+    // names of mel_cat_pseudo; none before one): one hidden is not built, the titles of its tiles not asked (mel_cpm_queue,
+    // mel_pg_tick).
+    /** @var list<string> */
+    public static $own = array();
     // The language of the last screen of rows ('': not read yet), mel_catv_ui_lang.
     /** @var string */
     public static $lang = '';
@@ -255,6 +264,13 @@ class MelCat
     // none since a start of php_server. "Скрыть" sets it anew (mel_catv_hide_act).
     /** @var string|null */
     public static $filter_sig = null;
+    // r25: the first row of the main screen built at its opening of a copy older than MEL_CAT_FRESH, its fresh first page
+    // for a tick to ask (mel_catv_first_step; null: none), and the requests of it so far. Both anew at an opening
+    // (mel_pg_screen_start).
+    /** @var MelCatRow|null */
+    public static $first_due = null;
+    /** @var int */
+    public static $first_tries = 0;
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -337,6 +353,17 @@ function mel_catv_list($st, $tiles, $stale)
 function mel_catv_list_cut($list)
 {
     return !$list['tiles'] && $list['st']['end'] === '';
+}
+
+// The row of listing $list has "Show all": not at its end, or more tiles than the row shows. A search row: past a row of
+// its screen, so a long one is not scrolled through.
+/**
+ * @param MelCatList $list
+ * @return bool
+ */
+function mel_catv_list_more($list)
+{
+    return $list['st']['end'] === '' || count($list['tiles']) > (isset($list['st']['row']['q']) ? MEL_CATV_ALL_COLS : MEL_CATV_ROW_TILES);
 }
 
 // A listing from the saved first page, as if it was just got.
@@ -624,18 +651,20 @@ function mel_catv_slow_note($rid, $err)
 // took all of (mel_cat_more: end "filter"), its listing kept with no tiles: within MEL_CAT_FRESH an
 // opening of r24 does not ask it again (mel_catv_open), r25 hides it (mel_catv_is_empty).
 // MelCat::$down by its failure: mel_cat_err_down, and a timeout unless $timeout_down is
-// false (an opening: a slow row or the end of its limit, not the server down).
+// false (an opening: a slow row or the end of its limit, not the server down). $past: of mel_cat_more (0: the first
+// page alone, a tick).
 /**
  * @param MelCatRow $row
  * @param float $limit
  * @param bool $timeout_down
+ * @param float|null $past
  * @return MelCatResult
  */
-function mel_catv_load_first($row, $limit, $timeout_down = true)
+function mel_catv_load_first($row, $limit, $timeout_down = true, $past = null)
 {
     $rid = mel_catv_rid($row);
     $st = mel_cat_row_state($row);
-    $res = mel_cat_more($st, $limit);
+    $res = mel_cat_more($st, $limit, MEL_CAT_FILTER_PAGES, $past);
     if ($res['tiles'] || $st['end'] === 'filter')
         MelCat::$lists[$rid] = mel_catv_list($st, $res['tiles'], $res['stale']);
     if (!$res['tiles'] && $res['end'] && $res['err'] === '')
@@ -777,25 +806,38 @@ function mel_catv_item($id, $caption, $icon)
         PluginRegularItem::caption => $caption);
 }
 
-// The tile of a title in a row: its poster, the IMDb rating in the corner if it has one and
-// cat_rating of the screen is on (mel_catv_rating_on), the badge "on the disk" (mel_catv_disk_stickers),
-// the badges of the history at the bottom (mel_pg_stickers; made now, never in the cache of the pages).
+// The tile of a title in row $rid: "$rid:$id" ('' the id of $t), its poster, its stickers (mel_catv_title_stickers); $mid:
+// its card of the history ('' none: the badges of the first of its cards, mel_pg_tile_badge), as the panel (mel_catv_info).
 /**
  * @param string $rid
  * @param MelCatTile $t
+ * @param string $id
+ * @param string $mid
  * @return array<string, mixed>
  */
-function mel_catv_title_item($rid, $t)
+function mel_catv_title_item($rid, $t, $id = '', $mid = '')
 {
-    $item = mel_catv_item(mel_catv_tile_id("$rid:{$t['id']}"), $t['name'], mel_catv_poster($t));
-    $stickers = mel_catv_rating_on() ? mel_catv_rate_stickers($t['imdbRating']) : array();
-    $stickers = array_merge($stickers, mel_catv_disk_stickers($t));
-    $b = mel_pg_tile_badge($t);
-    if ($b)
-        $stickers = array_merge($stickers, mel_pg_stickers($b));
+    $item = mel_catv_item(mel_catv_tile_id($rid . ':' . ($id !== '' ? $id : $t['id'])), $t['name'], mel_catv_poster($t));
+    $stickers = mel_catv_title_stickers($t, $mid, $mid !== '' ? mel_cp_badge($mid, $t['type']) : mel_pg_tile_badge($t));
     if ($stickers)
         $item[PluginRegularItem::stickers] = $stickers;
     return $item;
+}
+
+// The stickers of tile $t of a title: the IMDb rating in the corner if it has one and cat_rating of the screen is on
+// (mel_catv_rating_on), the badge "on the disk" (mel_catv_disk_stickers; $mid: its movie_id of the history, '' none),
+// the badges of the history $b at the bottom (mel_pg_stickers; null: none; made now, never in the cache of the pages).
+/**
+ * @param MelCatTile $t
+ * @param string $mid
+ * @param MelPgBadge|null $b
+ * @return list<array<string, mixed>>
+ */
+function mel_catv_title_stickers($t, $mid, $b)
+{
+    $stickers = mel_catv_rating_on() ? mel_catv_rate_stickers($t['imdbRating']) : array();
+    $stickers = array_merge($stickers, mel_catv_disk_stickers($t, $mid));
+    return $b ? array_merge($stickers, mel_pg_stickers($b)) : $stickers;
 }
 
 // The number of an IMDb rating on a poster ("8.6", "10"), '' for none; also of the rows of the own
@@ -900,8 +942,7 @@ function mel_catv_row_defs($list, $lang, $items = null, $options = 0, $rid = '')
         mel_lib_tile_start();
         foreach (array_slice($list['tiles'], 0, MEL_CATV_ROW_TILES) as $t)
             $items[] = mel_catv_title_item($rid, $t);
-        // A search row: "Show all" past a row of its screen, so a long one is not scrolled through.
-        if ($list['st']['end'] === '' || count($list['tiles']) > (isset($row['q']) ? MEL_CATV_ALL_COLS : MEL_CATV_ROW_TILES))
+        if (mel_catv_list_more($list))
         {
             // Of a search: and its id, as in cat_grid:.
             $more = mel_catv_tile_id(isset($row['sid']) ? "more:$rid:{$row['sid']}" : "more:$rid");
@@ -1431,7 +1472,7 @@ function mel_catv_message_view($key, $lang, $from)
 // The manifest: a copy within MEL_CAT_MANIFEST_FRESH as it is; no copy: one request that holds the screen.
 // r25: the first row now (mel_catv_row_now), the others: a fresh copy ready, an old one
 // flagged, none: stubs; get_folder_rows asks for the flagged ones. r24: the rows in MEL_CATV_OPEN_S.
-// Only the rows of the tab of $media_url, in the order of the user.
+// Only the rows of the tab of $media_url, in the order of the user, those of Melange at their places (mel_cat_tab_slots).
 // An older copy is refreshed, once in MEL_CAT_MANIFEST_FRESH even on a failure (mel_catv_manifest_tried): r24 first
 // here (a failure: the copy); r25 in get_folder_rows, or here at the end with none flagged.
 /**
@@ -1479,7 +1520,8 @@ function mel_catv_main_view($media_url, $sel_state)
         if ($new['rows'])
             $rows = $new['rows'];
     }
-    $rows = mel_cat_user_rows($rows, Mel::$settings['cat_rows'], $tab);
+    $slots = mel_cat_tab_slots($rows, Mel::$settings['cat_rows'], $tab);
+    $rows = mel_cat_slot_rows($slots);
     if (!$rows)
     {
         mel_log("catalog: screen: $tab: no rows");
@@ -1497,29 +1539,71 @@ function mel_catv_main_view($media_url, $sel_state)
     }
     if (!$anew)
         mel_pg_screen_start();
-    // The row "Continue" first, of the history, then "Мой список" of the tab: ready at once, the meta of their tiles
-    // first (mel_cpm_build: kept, of the rows in memory or on the disk, else asked in MEL_CPM_BUILD_S; r24 in what is
-    // left of MEL_CATV_OPEN_S but MEL_CATV_OPEN_ROW_S, under MEL_CPM_MIN_S none asked). Their tiles with no meta still
-    // are for the lazy meta of this screen (mel_cpm_step), those of "Continue" first. Built again by the tick of a
-    // screen of Fav over it (mel_mlv_under): none asked, the ticks of that screen ask; its own timer still (after Back the
-    // lazy step goes on), its ticks wait for those of that screen (mel_pg_tick, MEL_PG_FAV_QUIET_S). Built again by its
-    // own tick: none asked either, its next ticks ask.
+    // The rows of Melange shown at their places (by default "Continue" first, of the history, then "Мой список" of the
+    // tab; a hidden one not built): ready at once, the meta of their tiles first (mel_cpm_build: kept, of the rows in
+    // memory or on the disk, else asked in MEL_CPM_BUILD_S; r24 in what is left of MEL_CATV_OPEN_S but
+    // MEL_CATV_OPEN_ROW_S, under MEL_CPM_MIN_S none asked). Their tiles with no meta still are for the lazy meta of this
+    // screen (mel_cpm_step), those of the upper row first. Built again by the tick of a screen of Fav over it
+    // (mel_mlv_under): none asked, the ticks of that screen ask; its own timer still (after Back the lazy step goes on),
+    // its ticks wait for those of that screen (mel_pg_tick, MEL_PG_FAV_QUIET_S). Built again by its own tick: none asked
+    // either, its next ticks ask.
+    $names = mel_cat_slot_names($slots);
     $under = mel_mlv_under($media_url);
     mel_cpm_build($tab, $under !== '' || $anew ? 0.0 : ($loading ? MEL_CPM_BUILD_S :
-        max(0.0, min(MEL_CPM_BUILD_S, MEL_CATV_OPEN_S - (microtime(true) - $rows_t0) - MEL_CATV_OPEN_ROW_S))));
-    $defs = array_merge(mel_cp_row_defs($tab, $lang, $cp_tiles, $miss), mel_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss));
+        max(0.0, min(MEL_CPM_BUILD_S, MEL_CATV_OPEN_S - (microtime(true) - $rows_t0) - MEL_CATV_OPEN_ROW_S))), $names);
+    $own = array();
+    $miss = array();
+    $ml_miss = array();
+    if (in_array('@continue', $names, true))
+        $own['@continue'] = mel_cp_row_defs($tab, $lang, $cp_tiles, $miss);
+    if (in_array('@mylist', $names, true))
+        $own['@mylist'] = mel_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss);
+    // "На TorrServer": of its copy alone (ts_row.php), no request here.
+    $ts_miss = array();
+    if (in_array('@torrserver', $names, true))
+        $own['@torrserver'] = mel_tsr_row_defs($tab, $lang, $media_url, $ts_miss);
     MelCpm::$miss = $miss;
     MelCpm::$ml = $ml_miss;
+    MelCpm::$ts = $ts_miss;
+    MelCat::$own = $names;
     $now = microtime(true);
     $net = mel_catv_open($shown, $loading ? 0 : min(MEL_CATV_OPEN_S - ($now - $rows_t0), MEL_CATV_OPEN_MAX_S - ($now - $start)));
     if (!$loading)
         $shown = mel_catv_shown_rows($shown, $loading);
-    foreach ($shown as $i => $row)
+    $on = array();
+    foreach ($shown as $row)
+        $on[$row['key']] = true;
+    foreach ($slots as $row)
     {
+        if (is_string($row))
+        {
+            $defs = isset($own[$row]) ? array_merge($defs, $own[$row]) : $defs;
+            continue;
+        }
+        if (!isset($on[$row['key']]))
+            continue;
         $rid = mel_catv_rid($row);
-        // A flagged first row replaced under the focus on the headers covers the rows under it (device, 0.50.0). After
-        // the row "Continue" the first row of the server is flagged as the others (the focus is not on it; O3).
-        if ($loading && $i === 0 && count($defs) === 0)
+        // A flagged first row replaced under the focus on the headers covers the rows under it (device, 0.50.0). Under a
+        // row of Melange with tiles the first row of the server is flagged as the others (the focus is not on it; O3).
+        // Of a copy older than MEL_CAT_FRESH (mel_catv_open put it in memory): at once, unmarked, no request; its fresh
+        // first page at a tick of the timer (MelCat::$first_due, mel_catv_first_step). Built again by its own tick: as it
+        // is, the tries of the opening go on.
+        // count($defs) === 0 is "no row above it": mel_catv_row_now and mel_catv_row_defs of a row with tiles never give
+        // none (a failure is a stub, mel_catv_row_note), else the second row of the server would be built at once too.
+        if ($loading && count($defs) === 0 && isset(MelCat::$lists[$rid]) && MelCat::$lists[$rid]['tiles'] &&
+            !mel_cat_state_fresh(MelCat::$lists[$rid]['st']))
+        {
+            $list = MelCat::$lists[$rid];
+            $list['stale'] = false;
+            $defs = array_merge($defs, mel_catv_row_defs($list, $lang));
+            if (!$anew)
+            {
+                MelCat::$first_due = $row;
+                mel_log(sprintf('catalog: first row: %s: a copy of %d min, the tick asks it', $row['key'],
+                    max(0, intval((time() - $list['st']['t0']) / 60))));
+            }
+        }
+        else if ($loading && count($defs) === 0)
         {
             $limit = max(MEL_CATV_MIN_S, min(MEL_CATV_ROW_S, MEL_CATV_OPEN_MAX_S - (microtime(true) - $start)));
             $defs = array_merge($defs, mel_catv_row_now($row, $lang, $limit, false));
@@ -1564,8 +1648,71 @@ function mel_catv_main_view($media_url, $sel_state)
     return mel_catv_rows_view($defs, $sel_state, $media_url, $loading && mel_pg_tick_set($media_url, $anew));
 }
 
-// The rows of the tab $rows (mel_cat_user_rows) the main screen shows (mel_catv_main_view; the link of a row,
-// mel_dl_row): r25 ($loading) all but those come empty within the hour (mel_catv_is_empty), before the opening; r24
+// r25: the step of a tick of the main screen (mel_pg_tick) for its first row built of an old copy (MelCat::$first_due):
+// its first page alone asked (mel_catv_load_first in MEL_CATV_FIRST_TICK_S, no page past it: a filter that took all of
+// it leaves the copy; it saves the copy; mel_catv_slow_note), the row on the screen before and after compared: the ids of
+// its MEL_CATV_ROW_TILES tiles and "Show all" (mel_catv_list_more). The same: the memory fresh, the screen as it is.
+// Other: the screen to build again (the caller), its first row of memory with no request; the tiles before added to
+// MelCat::$on_screen for ENTER and the panel till then. A failure: the copy stays, asked again at the next tick,
+// MEL_CATV_FIRST_TRIES an opening at most. The server down: none asked, no more. A line of the log. -> the screen to
+// build again.
+/**
+ * @return bool
+ */
+function mel_catv_first_step()
+{
+    $row = MelCat::$first_due;
+    if ($row === null)
+        return false;
+    if (mel_catv_is_down())
+    {
+        MelCat::$first_due = null;
+        mel_log('catalog: first row: tick: no request, the server down; the copy stays');
+        return false;
+    }
+    $rid = mel_catv_rid($row);
+    $was = isset(MelCat::$lists[$rid]) ? MelCat::$lists[$rid] : null;
+    $t = microtime(true);
+    $res = mel_catv_load_first($row, MEL_CATV_FIRST_TICK_S, false, 0.0);
+    mel_catv_slow_note($rid, $res['err']);
+    $n = ++MelCat::$first_tries;
+    $ms = (microtime(true) - $t) * 1000;
+    if ($res['err'] !== '')
+    {
+        $again = $n < MEL_CATV_FIRST_TRIES && !mel_cat_err_down($res['err']);
+        if (!$again)
+            MelCat::$first_due = null;
+        mel_log(sprintf('catalog: first row: tick %d/%d: failed, %s, %.0f ms; the copy stays%s', $n, MEL_CATV_FIRST_TRIES,
+            $res['err'], $ms, $again ? ', again at the next tick' : ''));
+        return false;
+    }
+    MelCat::$first_due = null;
+    $now = isset(MelCat::$lists[$rid]) ? MelCat::$lists[$rid] : null;
+    $same = mel_catv_first_seen($was) === mel_catv_first_seen($now);
+    if (!$same && $was)
+        MelCat::$on_screen[$rid] = (isset(MelCat::$on_screen[$rid]) ? MelCat::$on_screen[$rid] : array()) + $was['tiles'];
+    $how = $same ? 'same' : 'changed, the screen anew';
+    if (!$res['tiles'] && !$res['end'])
+        $how .= ', the filter took the page; the copy stays';
+    mel_log(sprintf('catalog: first row: tick %d/%d: %s, %.0f ms', $n, MEL_CATV_FIRST_TRIES, $how, $ms));
+    return !$same;
+}
+
+// What the first row of listing $list shows (mel_catv_first_step): the ids of its MEL_CATV_ROW_TILES tiles and "Show
+// all" (mel_catv_list_more); null: no listing.
+/**
+ * @param MelCatList|null $list
+ * @return array{list<int|string>, bool}|null
+ */
+function mel_catv_first_seen($list)
+{
+    if (!$list)
+        return null;
+    return array(array_keys(array_slice($list['tiles'], 0, MEL_CATV_ROW_TILES, true)), mel_catv_list_more($list));
+}
+
+// The rows of the tab $rows (mel_cat_slot_rows of mel_cat_tab_slots) the main screen shows (mel_catv_main_view; the
+// link of a row, mel_dl_row): r25 ($loading) all but those come empty within the hour (mel_catv_is_empty), before the opening; r24
 // those with tiles in memory, after the opening (mel_catv_open) got them. A new filter goes here, and to the rows of a
 // tab of the copies alone as well (mel_catv_tab_copy_defs).
 /**
@@ -1586,24 +1733,30 @@ function mel_catv_shown_rows($rows, $loading)
 }
 
 // The rows of the tab $tab from the copies alone, for a file the shell shows without PHP (the tab
-// "TV"): the rows of the user (mel_cat_user_rows) of the saved manifest, each by its saved first page
+// "TV"): the rows of the user (mel_cat_tab_slots) of the saved manifest, each by its saved first page
 // of any age; a row without one is left out, so is one the filter (mel_cat_take) took all of (no tile "Show all"
 // alone). No request, no flag, no mark "saved", no strip; the tiles
-// and the plates by the mode of the screen now (mel_catv_logo_of), the caller sets it. -> the defs of
-// the rows (mel_catv_row_defs, for mel_catv_rows_view), their rids and their listings by rid.
+// and the plates by the mode of the screen now (mel_catv_logo_of), the caller sets it. -> the slots of the tab in
+// order: the defs of a row of these (mel_catv_row_defs, for mel_catv_rows_view), or the name of a row of Melange shown
+// ('@continue'), the caller builds its defs; the rids of the rows and their listings by rid.
 /**
  * @param string $tab
  * @param string $lang
- * @return array{defs: list<array<string, mixed>>, rids: list<string>, lists: array<string, MelCatList>}
+ * @return array{rids: list<string>, lists: array<string, MelCatList>, slots: list<string|list<array<string, mixed>>>}
  */
 function mel_catv_tab_copy_defs($tab, $lang)
 {
     $copy = mel_cat_manifest_copy();
-    $defs = array();
     $rids = array();
     $lists = array();
-    foreach (mel_cat_user_rows($copy['rows'], Mel::$settings['cat_rows'], $tab) as $row)
+    $slots = array();
+    foreach (mel_cat_tab_slots($copy['rows'], Mel::$settings['cat_rows'], $tab) as $row)
     {
+        if (is_string($row))
+        {
+            $slots[] = $row;
+            continue;
+        }
         $c = mel_cat_page_cached($row, 0);
         if (!$c)
             continue;
@@ -1612,10 +1765,10 @@ function mel_catv_tab_copy_defs($tab, $lang)
         if (!$list['tiles'])
             continue;
         $lists[$rid] = $list;
-        $defs = array_merge($defs, mel_catv_row_defs($lists[$rid], $lang));
+        $slots[] = mel_catv_row_defs($lists[$rid], $lang);
         $rids[] = $rid;
     }
-    return array('defs' => $defs, 'rids' => $rids, 'lists' => $lists);
+    return array('rids' => $rids, 'lists' => $lists, 'slots' => $slots);
 }
 
 // The tab $tab without a row to show: under the strip one tile that says why. $retry: its rows
@@ -2670,10 +2823,32 @@ function mel_catv_hist_y()
 function mel_catv_info($in)
 {
     $id = mel_catv_in($in, 'item_id');
-    $t = mel_catv_tile($id, mel_tv_is_key(mel_catv_in($in, 'folder_key')));
+    // A tile of "На TorrServer" (view_ts_row.php): its tile of the copy, the card of its movie by the history.
+    $hash = mel_tsl_hash_of($id);
+    if ($hash !== '')
+    {
+        $tsr = mel_tsr_tile($hash);
+        $mid = mel_tsr_mid($hash);
+        $t = $mid !== '' ? mel_cp_tile($mid) : null;
+    }
+    else
+    {
+        $tsr = null;
+        $mid = mel_cp_mid_of($id);
+        $t = mel_catv_tile($id, mel_tv_is_key(mel_catv_in($in, 'folder_key')));
+    }
+    // A tile of "На TorrServer" not known by the history.
+    $ts_plain = $hash !== '' && !$t;
     $more_url = mel_catv_more_url($id);
     $more = $more_url !== '' ? mel_catv_all_list($more_url, false) : null;
-    if ($t)
+    // Not known: 2C (mel_tsr_info), the picture of TorrServer; no history, no "Мой список".
+    if ($ts_plain)
+    {
+        list($name, $lines, $desc) = mel_tsr_info($tsr, mel_catv_ui_lang());
+        $sub = '';
+        $facts = array();
+    }
+    else if ($t)
     {
         $name = $t['name'];
         $sub = $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
@@ -2705,7 +2880,7 @@ function mel_catv_info($in)
     $labels = array();
     $name = mel_clean($name);
     list($on) = mel_catv_id_mode($id);
-    $card = mel_catv_card($t, $on);
+    $card = $ts_plain ? mel_tsr_card($on) : mel_catv_card($t, $on);
     // None under the logo. Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
     $sub = $card['logo'] ? '' : implode(' ', mel_gc_wrap(mel_clean($sub), MEL_CATV_SUB_MIN_PX, MEL_CATV_TEXT_W, 2, true));
     $bottom = MEL_CATV_TITLE_BOTTOM - ($sub !== '' ? MEL_CATV_SUB_H : 0);
@@ -2738,7 +2913,6 @@ function mel_catv_info($in)
     // place whatever the length of the description and the lines over it (mel_catv_hist_y); the description as many
     // lines as are over it.
     // A title of "Мой список": " · В моём списке" after it; in the list with no history the words alone there.
-    $mid = mel_cp_mid_of($id);
     $b = $t ? ($mid !== '' ? mel_cp_badge($mid, $t['type']) : mel_pg_tile_badge($t)) : null;
     $ml = $t && mel_ml_in($t, $mid) !== '' ? mel_tr(mel_catv_ui_lang(), 'ml_in') : '';
     $hist = array();
@@ -2747,6 +2921,15 @@ function mel_catv_info($in)
         $n = min($n, intval((mel_catv_hist_last() - $y) / $step) + 1);
         $hy = mel_catv_hist_y();
         $hist = $b ? mel_pg_info_line($b, $hy, mel_catv_ui_lang(), $ml !== '' ? " · $ml" : '') : mel_pg_info_words($ml, $hy);
+    }
+    // A known tile of "На TorrServer" in the copy: its line (mel_tsr_line, (в) of the designer) in place of the last
+    // line of such a description over the line of the history (none: at its place); the description the lines over it,
+    // 13 px over it as under the cast.
+    if ($t && $tsr)
+    {
+        $ty = $hist ? mel_catv_hist_last() : mel_catv_hist_y();
+        $n = min($n, intval(($ty - 13 - $y + 5) / $step));
+        $hist = array_merge(mel_tsr_line(mel_tsr_line_text($tsr, mel_catv_ui_lang()), $ty), $hist);
     }
     $desc = implode(' ', mel_gc_wrap(mel_clean($desc), MEL_CATV_LINE_PX, MEL_CATV_TEXT_W, $n, true));
     if ($desc !== '')
@@ -2812,21 +2995,22 @@ function mel_catv_mains_urls()
 // The screens opened (mel_catv_mains_urls) invalidated first, then $post: the row "Continue" and the badges of
 // the history anew when the shell is back on one (O2: whether a screen under the card is built again, the focus kept,
 // is not proven); none opened: $post as it is. Only on r25: on r24 a screen of rows lower in the stack built again may
-// go to the network for 3-7 s (not checked there). $also ('' none): a screen invalidated too, first of them, on r24 too
-// (the screen of a change of "Мой список", mel_ml_changed; the screen of a tick, mel_mlv_tick). $why: for the log.
+// go to the network for 3-7 s (not checked there). $also: the screens invalidated too, first of them, on r24 too (the
+// screen of a change of "Мой список", mel_ml_changed; the screen of a tick, mel_mlv_tick; the screen of a removal from
+// TorrServer, mel_tsl_anew). $why: for the log.
 // $fav: the screens of Fav opened too; not by a tick (mel_mlv_tick: a screen of Fav lower in the stack built again would
-// take the timer of the screen of the tick).
+// take the timer of the screen of the tick), nor by TorrServer (mel_tsl_anew: no screen of Fav shows its row).
 /**
  * @param MelAction|null $post
  * @param string $why
- * @param string $also
+ * @param list<string> $also
  * @param bool $fav
  * @return MelAction|null
  */
-function mel_catv_mains_anew($post, $why, $also = '', $fav = true)
+function mel_catv_mains_anew($post, $why, $also = array(), $fav = true)
 {
     $mains = $fav ? mel_catv_mains_urls() : MelCat::$mains;
-    $urls = array_merge($also !== '' ? array($also) : array(), mel_fw_r() >= 25 ? $mains : array());
+    $urls = array_merge($also, mel_fw_r() >= 25 ? $mains : array());
     $urls = array_values(array_unique($urls));
     if (!$urls)
     {
@@ -2871,7 +3055,7 @@ function mel_catv_after_player($post)
 function mel_catv_tile_menu($id, $from, $lang)
 {
     if (mel_tsl_is_tile($id))
-        return mel_tsl_menu_items($id, $lang);
+        return mel_tsl_menu_items($id, $from, $lang);
     return mel_catv_menu_join(array_merge(mel_catv_src_items($id, $from, $lang), mel_cp_menu_items($id, $from, $lang),
         mel_ml_menu_items($id, $from, $lang), mel_catv_hide_items($id, $from, $lang)), mel_mlv_menu_items($id, $from, $lang));
 }
@@ -3222,9 +3406,9 @@ function mel_catv_enter($in)
     // A stub of "Show all": row<k>.<j>.
     if (strpos($id, 'stub:') === 0 || strpos($id, 'empty:') === 0 || mel_mlv_is_hint($id) || preg_match('/^row[0-9]+\.[0-9]+$/D', $id))
         return null;
-    // A tile of "На TorrServer": not a title of the catalog.
+    // A tile of "На TorrServer": not a title of the catalog; its errors over the screen of it.
     if (mel_tsl_is_tile($id))
-        return mel_tsl_enter($id);
+        return mel_tsl_enter($id, mel_catv_in($in, 'from'));
     // The opening tries again, and the rows after it too; the shell brings sel_state, the focus stays.
     // "Show all" goes on from the same place.
     if (strpos($id, 'fail:') === 0)
@@ -3432,9 +3616,9 @@ function mel_catv_input($in, $control)
     if ($control === 'cat_tsl_open')
         return mel_tsl_open($from);
     if ($control === 'cat_tsl_rem_ask')
-        return mel_tsl_rem_ask(mel_catv_in($in, 'h'));
+        return mel_tsl_rem_ask(mel_catv_in($in, 'h'), $from);
     if ($control === 'cat_tsl_rem')
-        return mel_tsl_rem_act(mel_catv_in($in, 'h'));
+        return mel_tsl_rem_act(mel_catv_in($in, 'h'), $from);
     if ($control === 'cat_ml_import')
         return mel_mlv_import_ask($from);
     if ($control === 'cat_ml_import_go')

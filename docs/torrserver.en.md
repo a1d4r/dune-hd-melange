@@ -48,6 +48,22 @@ Torrents already on TorrServer (added from a phone via NUM, KinoTrend, Lampa, or
 
 To remove a torrent from TorrServer, press **POP UP** on it in the list, choose "Remove from TorrServer" and confirm.
 
+## On TorrServer row
+
+These torrents can also sit in a catalog row, newest on the left. The row is the same on Movies and Series and is also in the TV tab.
+
+1. Turn the row on: check "On TorrServer" in "Group order" on the Dune or in "Catalog rows" on the phone ([Your own catalog rows](catalog-rows.en.md)). It goes after Favorites, at once or the next time you open the catalog.
+
+   <img src="../screenshots/ts-row-order.jpg" alt="Group order: focus on (x) On TorrServer, the row is on" width="100%">
+
+2. Press **ENTER** on a tile: a movie starts, a pack opens its list of files, as in the On TorrServer section. Torrents that Melange started show a poster with a rating, and the panel shows "On TorrServer", the number of files, the size and the date. Others show the torrent name.
+
+   <img src="../screenshots/ts-row-catalog.jpg" alt="On TorrServer row in the catalog: focus on Gladiator, the panel shows On TorrServer · 1 file · 76.8 GB · added November 19" width="100%">
+
+3. To remove a torrent, press **POP UP** on the tile and choose "Remove from TorrServer". **ENTER** on the row name opens the whole section.
+
+The row refreshes by itself a couple of seconds after the catalog opens or the next time you open it. It is not there if TorrServer is not set up, "No torrents" is chosen, or TorrServer is empty.
+
 ## If it didn't work
 
 - "On TorrServer" says "TorrServer is not responding": start TorrServer or fix the address in Melange settings → TorrServer ("Retry" and "Settings" are on the same screen).

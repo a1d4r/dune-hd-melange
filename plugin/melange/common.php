@@ -1091,8 +1091,40 @@ function mel_settings_parse($j)
     return $r;
 }
 
+// The rows of Melange itself among the rows of a tab of the catalog, in their canonical order: '@<name>' => on (shown
+// with no key of it in cat_rows), tr (the key of its title). Their keys in cat_rows: <tab>/@<name> (shown, at its
+// place), <tab>/@<name>:off (hidden); mel_cat_tab_slots of catalog.php. Here: the settings page checks cat_rows
+// (mel_cat_rows_ok) without catalog.php. A new row goes here, and to the places that build or count the rows of a
+// screen by name: the main screen (mel_catv_main_view), the tab "TV" (tv_tab.php), the link of a row (mel_dl_row of
+// deep_link.php; else a row shown drops out of the count of to=row&n=), the lazy meta (the map of mel_cpm_rows and
+// mel_cpm_build_titles of cp_meta.php), the tick (mel_pg_tick of links.php), POP UP on the header of the row
+// (mel_catv_rows_menu_items: the map rid => name of view_catalog_rows.php), "Group order" (mel_catv_lcfg_pseudo of
+// view_catalog_rows.php) and the settings page (OWN of web/src/rows.ts, its text in form.php and i18n.ts).
+/**
+ * @return array<string, array{on: bool, tr: string}>
+ */
+function mel_cat_pseudo()
+{
+    return array('@continue' => array('on' => true, 'tr' => 'cp_row_continue'), '@mylist' => array('on' => true, 'tr' => 'ml_title'),
+        '@torrserver' => array('on' => false, 'tr' => 'tsl_title'));
+}
+
+// A key of cat_rows $k of a row of Melange (<tab>/@<name>, <tab>/@<name>:off; mel_cat_pseudo) -> its tab ('movie',
+// 'series'), name ('@continue') and off (hidden); null: not such a key, or not one of a tab and a name known.
+/**
+ * @param mixed $k
+ * @return array{tab: string, name: string, off: bool}|null
+ */
+function mel_cat_pseudo_key($k)
+{
+    if (!is_string($k) || !preg_match('~^(movie|series)/(@[a-z]+)(:off)?\z~', $k, $m) || !array_key_exists($m[2], mel_cat_pseudo()))
+        return null;
+    return array('tab' => $m[1], 'name' => $m[2], 'off' => isset($m[3]));
+}
+
 // cat_rows of settings.json or the form -> the rows chosen: keys of rows (mel_cat_row
-// of catalog.php), in order, unique; what can not be a key goes. null: not a list,
+// of catalog.php) and of the rows of Melange (mel_cat_pseudo: of the tabs movie and series, a name
+// it knows, :off only at the end), in order, unique; what can not be a key goes. null: not a list,
 // or nothing left, as nothing chosen.
 /**
  * @param mixed $v
@@ -1103,8 +1135,11 @@ function mel_cat_rows_ok($v)
     $keys = array();
     foreach (is_array($v) ? $v : array() as $k)
     {
-        if (is_string($k) && preg_match('~^(?:movie|series|anime)/[\x21-\x7e]{1,200}\z~', $k))
-            $keys[$k] = true;
+        if (!is_string($k) || !preg_match('~^(?:movie|series|anime)/[\x21-\x7e]{1,200}\z~', $k))
+            continue;
+        if (preg_match('~^[a-z]+/@~', $k) && mel_cat_pseudo_key($k) === null)
+            continue;
+        $keys[$k] = true;
     }
     return $keys ? array_keys($keys) : null;
 }
