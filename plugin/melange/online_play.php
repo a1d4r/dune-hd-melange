@@ -143,12 +143,13 @@ function mel_lpv_kp_ask($t, $why)
         ($why === '' || $why === 'not JSON' || strpos($why, 'HTTP ') === 0);
 }
 
-// Title $t of card $mv with the KinoPoisk id of the catalog server: kpId of the meta of the title (by its IMDb, else
-// its TMDB id) in MEL_CARD_META_TOTAL s, kept for the card (MelLpv::$ids: its next search, "Continue" and the next
-// episode take it with no request). None: $t as it is. A reply about the title (a meta of no kpId, notfound, bad, big,
-// the meta of another title) - not asked again this session (MelLpv::$kp_miss); one of the server (net, timeout,
-// rate, server, http) - asked again by the next search. The catalog server down or paused (mel_catv_is_down,
-// mel_cpm_paused) - not asked, nothing kept.
+// Title $t of card $mv with the KinoPoisk id of the catalog server: kpId of a tile of the title in memory (of the
+// meta of the own card, MelCm::$cache; of "Продолжить" or "Мой список", mel_cp_best_tile), else of its meta asked
+// (by its IMDb, else its TMDB id; mel_lpv_kp_meta); kept for the card (MelLpv::$ids: its next search, "Continue" and
+// the next episode take it with no request). None: $t as it is. A reply about the title (a meta of no kpId, notfound,
+// bad, big, the meta of another title) - not asked again this session (MelLpv::$kp_miss); one of the server (net,
+// timeout, rate, server, http) - asked again by the next search. The catalog server down or paused
+// (mel_catv_is_down, mel_cpm_paused) - not asked, nothing kept.
 /**
  * @param MelMovie $mv
  * @param MelLpTitle $t
@@ -158,23 +159,48 @@ function mel_lpv_kp_catalog($mv, $t)
 {
     $type = $mv['series'] ? 'series' : 'movie';
     $id = $t['imdb_id'] !== '' ? $t['imdb_id'] : ($t['id'] !== '' ? "tmdb:{$t['id']}" : '');
-    if ($id === '' || isset(MelLpv::$kp_miss["$type:$id"]) || mel_catv_is_down() || mel_cpm_paused())
+    if ($id === '')
         return $t;
+    // As mel_cm_mem_tile (it takes a whole tile): the key is "<type>:<IMDb or tmdb:N>".
+    $x = isset(MelCm::$cache["$type:$id"]) ? MelCm::$cache["$type:$id"]['m']['tile'] : null;
+    $kp = $x ? $x['kpId'] : '';
+    if ($kp === '')
+    {
+        $x = mel_cp_best_tile($type, $t['imdb_id'], $t['id']);
+        $kp = $x ? $x['kpId'] : '';
+    }
+    if ($kp !== '')
+        mel_log("lampac: kp of a tile in memory for $type:$id: $kp");
+    else if (isset(MelLpv::$kp_miss["$type:$id"]) || mel_catv_is_down() || mel_cpm_paused())
+        return $t;
+    else
+        $kp = mel_lpv_kp_meta($type, $id, $mv['series']);
+    if ($kp === '')
+        return $t;
+    $t['kinopoisk_id'] = $kp;
+    mel_lpv_ids_put(mel_lpv_key($mv), array('tmdb' => '', 'kp' => $kp, 'original_language' => ''));
+    return $t;
+}
+
+// kpId of the meta of title $type:$id asked of the catalog server, '' none: a reply about the title kept in
+// MelLpv::$kp_miss (mel_lpv_kp_catalog).
+/**
+ * @param string $type
+ * @param string $id
+ * @param bool $series
+ * @return string
+ */
+function mel_lpv_kp_meta($type, $id, $series)
+{
     $g = mel_cat_get("meta/$type/$id.json", "meta $type:$id (kp)", 'meta', MEL_CARD_META_TOTAL, true,
-        $mv['series'] ? MEL_CM_SERIES_BYTES : MEL_CAT_MAX_BYTES);
+        $series ? MEL_CM_SERIES_BYTES : MEL_CAT_MAX_BYTES);
     $err = $g['err'] === '' && !mel_cm_same($g['list'], $id) ? 'other' : $g['err'];
     $tile = $err === '' ? mel_cat_tile($g['list'], $type) : null;
     $kp = $tile ? $tile['kpId'] : '';
     mel_log("lampac: kp of the catalog for $type:$id: " . ($kp !== '' ? $kp : ($err !== '' ? $err : 'none')));
-    if ($kp === '')
-    {
-        if (!in_array($err, array('net', 'timeout', 'rate', 'server', 'http'), true))
-            MelLpv::$kp_miss["$type:$id"] = true;
-        return $t;
-    }
-    $t['kinopoisk_id'] = $kp;
-    mel_lpv_ids_put(mel_lpv_key($mv), array('tmdb' => '', 'kp' => $kp, 'original_language' => ''));
-    return $t;
+    if ($kp === '' && !in_array($err, array('net', 'timeout', 'rate', 'server', 'http'), true))
+        MelLpv::$kp_miss["$type:$id"] = true;
+    return $kp;
 }
 
 // --- ENTER of a row of the online list (mel_lpv_pick, view_online.php): the link, the player.
