@@ -124,11 +124,13 @@ function mel_dl_id($x)
     return isset($x['tmdb']) && $x['tmdb'] !== '' ? 'tmdb:' . $x['tmdb'] : '';
 }
 
-// The own card of type $type of id $id (mel_dl_id: of a link, of "Continue", of the supplier aicard), kept: made of the
-// meta (mel_oc_of_meta: its tile, the card of the Dune $dune when known, else by it), as ENTER on a tile makes it
-// (mel_oc_enter). No meta: the card in memory if there is one (another screen of it may be under this one: not to lose
-// its name), else, $bare, the card of the ids, no name, as of a tile whose meta failed. Logged, $tag first.
-// -> array(the key "<type>:<id>", the card); a string - why none: the id off its form (no tile of it, or of no id), of
+// The own card of type $type of id $id (mel_dl_id: of a link, of "Continue", of the supplier aicard), kept under the key
+// of a new screen (mel_oc_new_key: another screen of the title may be under this one, its record and its address stay
+// its own): made of the meta (mel_oc_of_meta: its tile, the card of the Dune $dune when known, else by it), as ENTER on
+// a tile makes it (mel_oc_enter). No meta: of the card of the title in memory if there is one (mel_oc_title: its tile,
+// meta and rows of posters - not to lose its name; the place of a card just opened), else, $bare, the card of the ids,
+// no name, as of a tile whose meta failed. Logged, $tag first.
+// -> array(the key of the screen, the card); a string - why none: the id off its form (no tile of it, or of no id), of
 // not $bare no meta and none in memory.
 /**
  * @param string $type
@@ -143,12 +145,17 @@ function mel_dl_card_of($type, $id, $tag = 'open', $dune = '', $bare = true)
     $tile = $id !== '' ? mel_oc_id_tile($type, $id) : null;
     if (!$tile || mel_cm_id($tile) === '')
         return 'an id off its form';
-    $key = $type . ':' . mel_cm_id($tile);
+    $base = $type . ':' . mel_cm_id($tile);
+    $key = mel_oc_new_key($base);
     $r = mel_oc_of_meta($key, $tile, $dune);
     $card = $r['card'];
-    $was = !$card && isset(MelOc::$cards[$key]);
-    if ($was)
-        $card = MelOc::$cards[$key];
+    $old = $card ? null : mel_oc_title($base);
+    $was = $old !== null;
+    if ($old)
+    {
+        $card = mel_oc_make($old['tile'], $old['meta'], $old['dune'], $old['lang'], $old['posters']);
+        mel_oc_keep($key, $card);
+    }
     if (!$card && !$bare)
         return "meta failed: {$r['err']}, none in memory";
     if (!$card)
@@ -177,7 +184,8 @@ function mel_dl_card($q)
 // $left to choose from (2+, pick of mel_lib_start; of episode $s, $e of a series, $e >= 1): the own card of the title and
 // the window W2 of them over it (owner 1 (б), spec §8.3). The card by the id of the title - the IMDb of $mv, else its
 // TMDB (tmdb, mel_lib_resume and mel_lib_resume_ep put it) - as a link to=card makes it (mel_dl_card_of: of the meta,
-// else the one in memory, else of the ids); only a card that has copies of the title (of the episode) itself
+// else of the one in memory, else of the ids; a screen of its own key, lw_auto of it alone - a card of the title under
+// the card of the Dune keeps its record); only a card that has copies of the title (of the episode) itself
 // (mel_oc_lib, mel_oc_lib_shown: no meta, the card of the ids, a series numbered otherwise - none, its screen would have
 // no window). The window its first tick opens (lw_auto, mel_oc_tick: mode first, only of the copies its screen shows),
 // the reply - plugin_open_folder "card:<key>" (mel_dl_card_open). The choice - card_lib_copy of the card (from the place
@@ -220,8 +228,10 @@ function mel_lib_win_card($mv, $left, $s, $e)
 // play_action of the supplier aicard, "Melange" of "Play..." of the card of the Dune (control card,
 // bin/movie_suppliers_update.sh): the own card of the title over the card of the Dune, as ENTER on its tile; RETURN -
 // back to the card of the Dune. The title as mel_play_action knows it (mel_movie): its IMDb, else its TMDB (of a series
-// its tmdbtv_id, mel_dl_id); the card of its meta, the card of the Dune of movie_str, else the one in memory
-// (mel_dl_card_of: as a link to=card makes it, but none of the ids alone), logged with the supplier first. A series
+// its tmdbtv_id, mel_dl_id); the card of its meta, the card of the Dune of movie_str, else of the one in memory
+// (mel_dl_card_of: as a link to=card makes it, but none of the ids alone), logged with the supplier first; a screen of
+// its own key - the own card the card of the Dune was opened from ("Dune card" of MENU) keeps its record, its place and
+// its address under them. A series
 // with a season of the shell (the screens of a season and of an episode of the card of the Dune; its numbers as they
 // come): the focus on that episode in the row; a season with no episode (-1, 0 or less: logged so) - the episode of it
 // the card offers; one the meta has not - the place of a card opened from the catalog (mel_oc_pos). No card to open - no movie_str, no IMDb

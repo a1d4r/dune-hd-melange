@@ -543,8 +543,8 @@ function mel_oc_tile_enter($key, $c, $id, $k)
 // The timer of card $c ($key) shown with layout $l: the next of its rows of posters asked
 // (mel_cm_posters_step, ROW_LIMIT s), the screen anew with it at the same place (its sel_state none:
 // the place of the card), at the same row (mel_oc_stop_of): from the stubs to the first row that
-// came, with none to the row after them. Nothing to ask (a screen shown before the rows came to
-// another of the same card): no request, the screen anew all the same, its stubs gone, no timer.
+// came, with none to the row after them. Nothing to ask (a screen of the stubs whose card went of memory and was made
+// anew with the rows in memory, mel_oc_get): no request, the screen anew all the same, its stubs gone, no timer.
 /**
  * @param string $key
  * @param MelOcCard $c
