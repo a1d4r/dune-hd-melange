@@ -1,0 +1,45 @@
+{
+  "rows": [
+    ["movie/a", "top", true],
+    ["movie/b", "genres", false],
+    ["movie/c", "genres", true]
+  ],
+  "cases": [
+    {
+      "name": "Favorites, Top, Continue: On TorrServer checked goes right after Favorites",
+      "stored": "movie/@mylist movie/a movie/@continue",
+      "torrents": true,
+      "got": ["@mylist", "@torrserver", "top", "@continue"],
+      "dune": "movie/@mylist movie/@torrserver movie/a movie/@continue",
+      "page": "movie/@mylist movie/@torrserver movie/a movie/@continue",
+      "want": ["movie/@mylist", "movie/@torrserver", "movie/a", "movie/@continue"]
+    },
+    {
+      "name": "nothing chosen: Top first, Continue unchecked",
+      "stored": "",
+      "torrents": true,
+      "got": ["top", "@mylist", "genres"],
+      "dune": "movie/a movie/@mylist movie/c movie/@continue:off movie/@torrserver:off",
+      "page": "movie/a movie/@mylist movie/c movie/@continue:off movie/@torrserver:off",
+      "want": ["movie/a", "movie/@mylist", "movie/c"]
+    },
+    {
+      "name": "No torrents, On TorrServer shown between the groups: it stays after the group it was after",
+      "stored": "movie/@continue movie/a movie/@torrserver movie/c movie/@mylist:off",
+      "torrents": false,
+      "got": ["genres", "@continue", "top"],
+      "dune": "movie/c movie/@continue movie/a movie/@torrserver movie/@mylist:off",
+      "page": "movie/c movie/@continue movie/a movie/@torrserver movie/@mylist:off",
+      "want": ["movie/c", "movie/@continue", "movie/a", "movie/@torrserver"]
+    },
+    {
+      "name": "No torrents, no key of On TorrServer: none written",
+      "stored": "movie/c movie/a",
+      "torrents": false,
+      "got": ["@mylist", "genres", "top"],
+      "dune": "movie/@mylist movie/c movie/a movie/@continue:off",
+      "page": "movie/@mylist movie/c movie/a movie/@continue:off",
+      "want": ["movie/@mylist", "movie/c", "movie/a"]
+    }
+  ]
+}

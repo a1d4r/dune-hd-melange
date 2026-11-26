@@ -50,6 +50,17 @@ export function ownKey(key: string): { tab: Tab; name: string; off: boolean } | 
   return m && OWN_NAMES.has(m[2]!) ? { tab: m[1] as Tab, name: m[2]!, off: !!m[3] } : null;
 }
 const isOwn = (key: string): boolean => ownKey(key) !== null;
+// As mel_cat_pseudo_at (catalog.php): where the row of Melange name goes in order (the names of the rows of Melange
+// shown, the other items anything): right after the nearest one before it in OWN that is in order, none - first.
+export function ownAt(order: readonly string[], name: string): number {
+  let at = 0;
+  for (const [own] of OWN) {
+    if (own === name) break;
+    const k = order.indexOf(own);
+    if (k >= 0) at = k + 1;
+  }
+  return at;
+}
 
 const KNOWN = new Set(GROUPS.map(([group]) => group));
 // As mel_cat_block (catalog.php): the group of a row on the screen, one not of GROUPS "other"; a row of Melange its own.
@@ -97,13 +108,11 @@ export function chosenKeys(rows: CatRow[], value: string, tab: Tab): string[] {
     } else continue;
     if (!order.includes(id)) order.push(id);
   }
-  let prev = "";
   for (const [name, , on] of OWN) {
     if (!seen.has(name) && on) {
-      order.splice(prev ? order.indexOf(prev) + 1 : 0, 0, name);
+      order.splice(ownAt(order, name), 0, name);
       seen.set(name, true);
     }
-    if (seen.get(name)) prev = name;
   }
   order.push(...[...blocks.keys()].filter((id) => !order.includes(id)));
   return ([] as string[]).concat(...order.map((id) => (id[0] === "@" ? [tab + "/" + id] : blocks.get(id)!.map((row) => row.key))));
@@ -162,11 +171,8 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
   const nameOf = (group: string) => texts[groupText.get(group)!];
   // Not on the screen: the row of TorrServer with "No torrents" chosen on the page; its key stays as it is.
   const there = (key: string) => !(key.endsWith("/" + TORRSERVER) && checkedValue(form, NAME.noTorrents) === VALUE.off);
-  // Where a row of Melange goes on: right after the nearest one before it in OWN that is shown, none - first.
-  function ownPlace(tab: Tab, key: string): number {
-    const before = OWN.slice(0, OWN.findIndex(([name]) => key === tab + "/" + name)).map(([name]) => chosen[tab].indexOf(tab + "/" + name));
-    return Math.max(-1, ...before) + 1;
-  }
+  // Where a row of Melange goes on among the rows shown of its tab (ownAt).
+  const ownPlace = (tab: Tab, key: string): number => ownAt(chosen[tab].map((k) => ownKey(k)?.name ?? k), ownKey(key)!.name);
 
   // The rows shown of the part by groups, in their order: [group, its keys].
   function blocks(tab: Tab): [string, string[]][] {
@@ -258,12 +264,22 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
       all.indeterminate = on > 0 && on < of.length;
     }
   }
-  // The field: of each tab the keys shown in order, then those of the rows of Melange hidden, with :off.
+  // The field: of each tab the keys shown in order, then those of the rows of Melange hidden, with :off. The row of
+  // TorrServer not on the screen (there) keeps its key as it was in the field, as on the Dune (mel_catv_lcfg_order_apply):
+  // shown - at its place, hidden - :off, none - none.
   function commit(): void {
     if (refused) refused.remove();
     refused = null;
+    const had = new Set(field.value.split(SEPARATOR).map((key) => key.replace(/:off$/, "")));
     field.value = ([] as string[])
-      .concat(...TABS.map((tab) => [...chosen[tab], ...OWN.map(([name]) => tab + "/" + name).filter((key) => !isOn(key)).map((key) => key + ":off")]))
+      .concat(
+        ...TABS.map((tab) => [
+          ...chosen[tab],
+          ...OWN.map(([name]) => tab + "/" + name)
+            .filter((key) => !isOn(key) && (there(key) || had.has(key)))
+            .map((key) => key + ":off"),
+        ]),
+      )
       .join(SEPARATOR);
     render();
     changed();
