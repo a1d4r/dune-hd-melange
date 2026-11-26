@@ -1078,8 +1078,9 @@ function mel_settings_parse($j)
 // place), <tab>/@<name>:off (hidden); mel_cat_tab_slots of catalog.php. Here: the settings page checks cat_rows
 // (mel_cat_rows_ok) without catalog.php. A new row goes here, and to the places that build or count the rows of a
 // screen by name: the main screen (mel_catv_main_view), the tab "TV" (tv_tab.php), the link of a row (mel_dl_row of
-// deep_link.php; else a row shown drops out of the count of to=row&n=), the lazy meta (mel_cpm_queue of cp_meta.php)
-// and the tick (mel_pg_tick of links.php).
+// deep_link.php; else a row shown drops out of the count of to=row&n=), the lazy meta (mel_cpm_queue of cp_meta.php),
+// the tick (mel_pg_tick of links.php) and POP UP on the header of the row (mel_catv_rows_menu_items: the map rid => name
+// of view_catalog_rows.php).
 /**
  * @return array<string, array{on: bool, tr: string}>
  */

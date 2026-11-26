@@ -141,8 +141,8 @@ function mel_catv_lcfg_keys($rows)
 // "Group order": the rows of Melange (mel_catv_lcfg_pseudo) in their canonical order, then the
 // groups with chosen rows in the order of the page (mel_cat_groups): all_items. checked_ids: the
 // groups and the rows of Melange on by default. Chosen: the groups, the rows of Melange shown. The
-// order: theirs on the tab, a row of Melange hidden where it goes when checked (mel_cat_tab_slots:
-// right after the one before it in the canonical order, none - first). A group: its rows in the
+// order: theirs on the tab, a row of Melange hidden where it goes when checked (mel_cat_pseudo_at, as
+// mel_cat_tab_slots: right after the nearest one before it in the canonical order, none - first). A group: its rows in the
 // order of the manifest, checked_ids its start rows (showInHome); shown: its chosen rows in their
 // order, then the others in the order of the manifest. checked_ids are also the state of an id with no line in the file
 // (list_utils.php r25: a line only against checked_ids).
@@ -192,12 +192,10 @@ function mel_catv_lcfg_dialog($rows, $tab, $g, $lang)
             if (isset($d['checked'][$b]))
                 $d['order'][] = strval($b);
         }
-        $at = 0;
         foreach (array_keys($pseudo) as $p)
         {
             if (!isset($d['on'][$p]))
-                array_splice($d['order'], $at, 0, array($p));
-            $at = intval(array_search($p, $d['order'], true)) + 1;
+                array_splice($d['order'], mel_cat_pseudo_at($d['order'], $p), 0, array($p));
         }
         foreach ($rows as $r)
         {
@@ -529,8 +527,8 @@ function mel_catv_rows_menu_items($hid, $tab, $from, $lang)
     $copy = mel_cat_manifest_copy();
     $any = false;
     // "Продолжить" and "Избранное": their items of "Group order".
-    $pseudo = array(MEL_CP_RID => '@continue', MEL_ML_RID => '@mylist');
-    $sel = isset($pseudo[$rid]) ? $pseudo[$rid] : null;
+    $by_rid = array(MEL_CP_RID => '@continue', MEL_ML_RID => '@mylist');
+    $sel = isset($by_rid[$rid]) ? $by_rid[$rid] : null;
     foreach ($copy['rows'] as $r)
     {
         if (mel_cat_row_tab($r) !== $tab)
@@ -652,7 +650,9 @@ function mel_catv_rows_edit($from, $sel, $g)
         $data[EditListConfigActionData::options] = EDIT_LIST_CONFIG_OPT_ALLOW_EMPTY;
     if (isset($d['checked'][$sel]))
         $data[EditListConfigActionData::sel_id] = $sel;
-    mel_log("catalog: rows: $at: $what: dialog, " . count($items) . ($g === '' ? ' groups' : ' rows, ' . count($d['on']) . ' chosen'));
+    $n_pseudo = $g === '' ? count(mel_catv_lcfg_pseudo()) : 0;
+    mel_log("catalog: rows: $at: $what: dialog, " . ($g === '' ? (count($items) - $n_pseudo) . " groups, $n_pseudo rows of Melange" :
+        count($items) . ' rows, ' . count($d['on']) . ' chosen'));
     return array(GuiAction::handler_string_id => EDIT_LIST_CONFIG_ACTION_ID, GuiAction::data => $data);
 }
 
