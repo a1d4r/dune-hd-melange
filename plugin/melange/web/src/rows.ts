@@ -63,12 +63,14 @@ export function ownAt(order: readonly string[], name: string): number {
 }
 
 const KNOWN = new Set(GROUPS.map(([group]) => group));
-// As mel_cat_block (catalog.php): the group of a row on the screen, one not of GROUPS "other"; a row of Melange its own.
-export const groupOf = (row: Pick<CatRow, "group">): string => (KNOWN.has(row.group) || row.group[0] === "@" ? row.group : "other");
+// As mel_cat_block (catalog.php): the group of a row on the screen, one not of GROUPS "other"; a row of Melange (by its
+// key, ownKey) its own, its name. A row of the server never has a key of Melange (mel_cat_row), its group may start with
+// @ (custom.@foo.x): "other" too.
+export const groupOf = (row: Pick<CatRow, "key" | "group">): string => ownKey(row.key)?.name ?? (KNOWN.has(row.group) ? row.group : "other");
 
 // As mel_cat_blocks (catalog.php): the rows by groups (groupOf), group => its rows, the groups in the order of their
 // first row, the rows of each in their order.
-export function blocksOf<T extends Pick<CatRow, "group">>(rows: readonly T[]): Map<string, T[]> {
+export function blocksOf<T extends Pick<CatRow, "key" | "group">>(rows: readonly T[]): Map<string, T[]> {
   const blocks = new Map<string, T[]>();
   for (const row of rows) {
     const group = groupOf(row);
@@ -170,7 +172,7 @@ export function setupRows(page: Page, api: Api, changed: () => void): void {
   const isOn = (key: string) => chosen[rowOf.get(key)!.tab].includes(key);
   const nameOf = (group: string) => texts[groupText.get(group)!];
   // Not on the screen: the row of TorrServer with "No torrents" chosen on the page; its key stays as it is.
-  const there = (key: string) => !(key.endsWith("/" + TORRSERVER) && checkedValue(form, NAME.noTorrents) === VALUE.off);
+  const there = (key: string) => !(ownKey(key)?.name === TORRSERVER && checkedValue(form, NAME.noTorrents) === VALUE.off);
   // Where a row of Melange goes on among the rows shown of its tab (ownAt).
   const ownPlace = (tab: Tab, key: string): number => ownAt(chosen[tab].map((k) => ownKey(k)?.name ?? k), ownKey(key)!.name);
 

@@ -124,28 +124,26 @@ describe("the rule of the choice, as mel_cat_user_rows: by the tab", () => {
   });
 });
 
-// The same cases as for mel_cat_tab_slots (melange_catalog_test.php of the tests of the plugin).
-describe("the rows of Melange, as mel_cat_tab_slots: at their places by the field", () => {
-  const C = "movie/@continue",
-    M = "movie/@mylist",
-    T = "movie/@torrserver";
-  test.each([
-    ["Continue after the rows of a group: at its place, Favorites with no key right after it", "movie/a movie/@continue movie/c", "movie", [
-      "movie/a", C, M, "movie/c"]],
-    ["a key between the rows of one group: after the group", "movie/b movie/@mylist movie/c movie/a movie/@continue", "movie", [
-      "movie/b", "movie/c", M, "movie/a", C]],
-    [":off - hidden, Favorites with no key first then", "movie/a movie/@continue:off", "movie", [M, "movie/a"]],
-    [":off of Favorites: Continue at its place by default", "movie/c movie/@mylist:off", "movie", [C, "movie/c"]],
-    ["both off: none", "movie/c movie/@mylist:off movie/@continue:off", "movie", ["movie/c"]],
-    ["a name twice: the first key counts", "movie/@continue:off movie/a movie/@continue", "movie", [M, "movie/a"]],
-    ["only the keys of Melange: the start rows after them", "movie/@mylist movie/@continue", "movie", [M, C, "movie/a", "movie/c"]],
-    ["the keys of each tab its own: movies", "series/@continue:off movie/a movie/@continue series/a", "movie", ["movie/a", C, M]],
-    ["the keys of each tab its own: series", "series/@continue:off movie/a movie/@continue series/a", "series", ["series/@mylist", "series/a"]],
-    ["unknown and broken keys of Melange go", "movie/@foo movie/@continue:x movie/@ anime/@continue series/@continue:off movie/c", "movie", [C, M, "movie/c"]],
-    ["TorrServer with a key: at its place", "movie/c movie/@mylist movie/@torrserver", "movie", [C, "movie/c", M, T]],
-    ["TorrServer hidden: as no key", "movie/@torrserver:off movie/c", "movie", [C, M, "movie/c"]],
-  ] as const)("%s", (_name, stored, tab, want) => {
-    expect(chosenKeys(ROWS, stored, tab)).toEqual([...want]);
+// The cases of the slots and of the keys of the rows of Melange, the same for mel_cat_tab_slots and mel_cat_pseudo_key
+// (melange_catalog_test.php of the tests of the plugin); the keys of "Group order" and of the page (melange_catalogview_test.php).
+const OWN_CASES: {
+  rows: [string, string, boolean][];
+  cases: { name: string; stored: string; torrents: boolean; got: string[]; dune: string; want: string[] }[];
+  slotRows: [string, string, boolean][];
+  // stored: cat_rows of settings.json, of any JSON; the field of the page has its strings (not a list: nothing).
+  slots: { name: string; stored: unknown; tab: Tab; rows?: [string, string, boolean][]; want: string[] }[];
+  keys: { key: string; want: ReturnType<typeof ownKey> }[];
+} = JSON.parse(readFileSync(import.meta.dir + "/own.json", "utf8"));
+const rowsOf = (list: [string, string, boolean][]) => list.map(([key, group, home]) => row(key, key, group, home));
+
+describe("the rows of Melange, as mel_cat_tab_slots: at their places by the field (own.json)", () => {
+  test.each(OWN_CASES.slots.map((c) => [c.name, c] as const))("%s", (_name, c) => {
+    const stored = Array.isArray(c.stored) ? c.stored.filter((key): key is string => typeof key === "string").join(" ") : "";
+    expect(chosenKeys(rowsOf(c.rows ?? OWN_CASES.slotRows), stored, c.tab)).toEqual(c.want);
+  });
+
+  test.each(OWN_CASES.keys.map((c) => [JSON.stringify(c.key), c] as const))("a key of a row of Melange, as mel_cat_pseudo_key: %s", (_name, c) => {
+    expect(ownKey(c.key)).toEqual(c.want);
   });
 
   test("the place of a row of Melange, as mel_cat_pseudo_at: after the nearest one before it in OWN there, none - first", () => {
@@ -157,19 +155,24 @@ describe("the rows of Melange, as mel_cat_tab_slots: at their places by the fiel
     ]).toEqual([1, 2, 0, 0]);
   });
 
-  test("a key of a row of Melange, as mel_cat_pseudo_key: tab, name, hidden; else none", () => {
-    expect([ownKey("movie/@continue"), ownKey("series/@torrserver:off")]).toEqual([
-      { tab: "movie", name: "@continue", off: false },
-      { tab: "series", name: "@torrserver", off: true },
-    ]);
-    for (const key of ["anime/@continue", "movie/@foo", "movie/@continue:x", "movie/@continue:off:off", "movie/@Continue", "movie/a@mylist", "movie/c"])
-      expect([key, ownKey(key)]).toEqual([key, null]);
-  });
-
   test("the rows of Melange of the page: those of mel_cat_pseudo (common.php), in its order, on by default as there", () => {
     const php = readFileSync(import.meta.dir + "/../../common.php", "utf8");
     const pseudo = /function mel_cat_pseudo\(\)\s*\{([^}]*)\}/.exec(php)![1]!;
     expect([...pseudo.matchAll(/'(@[a-z]+)' => array\('on' => (true|false)/g)].map((m) => [m[1], m[2] === "true"])).toEqual(OWN.map(([name, , on]) => [name, on]));
+  });
+
+  test("the names of the rows of Melange of the page: those of the Dune, of the keys of mel_cat_pseudo in translations/", () => {
+    const root = import.meta.dir + "/../../";
+    const pseudo = /function mel_cat_pseudo\(\)\s*\{([^}]*)\}/.exec(readFileSync(root + "common.php", "utf8"))![1]!;
+    const tr = new Map([...pseudo.matchAll(/'(@[a-z]+)' => array\('on' => (?:true|false), 'tr' => '([a-z_]+)'\)/g)].map((m) => [m[1]!, m[2]!]));
+    const form = readFileSync(root + "cgi/lib/form.php", "utf8");
+    const lang = (file: string) =>
+      new Map([...readFileSync(root + "translations/dune_language_" + file + ".txt", "utf8").matchAll(/^([a-z_0-9]+) = (.*)$/gm)].map((m) => [m[1]!, m[2]!]));
+    const [ru, en] = [lang("russian"), lang("english")];
+    for (const [name, text] of OWN) {
+      const m = new RegExp("'" + text + "' => mel_cgi_l\\('([^']*)', '([^']*)'\\)").exec(form)!;
+      expect([name, m[1], m[2]]).toEqual([name, ru.get(tr.get(name)!), en.get(tr.get(name)!)]);
+    }
   });
 });
 
@@ -234,6 +237,19 @@ describe("the list", () => {
     const { i18n } = page.init;
     expect(groupTitles(page, "movie")).toEqual([i18n.groupOwn + " · 2/3", i18n.groupTop + " · 1/1", i18n.groupFresh + " · 0/1", i18n.groupGenres + " · 0/1"]);
     expect(groupTitles(page, "series")).toEqual([i18n.groupOwn + " · 2/3", i18n.groupTop + " · 1/1", i18n.groupFresh + " · 0/1"]);
+  });
+
+  // mel_cat_group gives custom.<group>.<...> its group as it is: one with @ first is no row of Melange (mel_cat_block).
+  test("a group of the server with @ first: in Other, its rows shown, moved and saved", async () => {
+    const rows = [row("movie/custom.@foo.x", "F", "@foo", true), row("movie/custom.@continue.x", "K", "@continue", true), row("movie/a", "A", "top", true), row("series/a", "A series", "top", true)];
+    const page = await opened(json({ ok: true, stale: false, rows }));
+    const { i18n } = page.init;
+    expect(heads(page)).toEqual([i18n.rowContinue, i18n.rowMylist, i18n.groupOther, i18n.groupTop]);
+    expect(shownRows(page)).toEqual(["F", "K", "A"]);
+    expect(groupTitles(page, "movie")).toEqual([i18n.groupOwn + " · 2/3", i18n.groupTop + " · 1/1", i18n.groupOther + " · 2/2"]);
+    headMoves(page, 2)[DOWN]!.click();
+    expect(heads(page)).toEqual([i18n.rowContinue, i18n.rowMylist, i18n.groupTop, i18n.groupOther]);
+    expect(value(page)).toBe(ON("movie") + " movie/a movie/custom.@foo.x movie/custom.@continue.x " + TS_OFF("movie") + " " + SERIES);
   });
 
   test("the part of a row: its tab as the Dune sends it, not the key", async () => {
@@ -774,20 +790,16 @@ describe("the rows of Melange: Continue, Favorites, On TorrServer", () => {
   });
 
   // The keys of the same screens by "Group order" on the Dune (mel_catv_lcfg_order_apply of its items got, checked in
-  // melange_catalogview_test.php) and by the page: both read to the same slots, as mel_cat_tab_slots reads them there.
-  const OWN_CASES: {
-    rows: [string, string, boolean][];
-    cases: { name: string; stored: string; torrents: boolean; got: string[]; dune: string; page: string; want: string[] }[];
-  } = JSON.parse(readFileSync(import.meta.dir + "/own.json", "utf8"));
+  // melange_catalogview_test.php) and by the page: the page reads them to the slots of the Dune and writes them as they are.
   test.each(OWN_CASES.cases.map((c) => [c.name, c] as const))("the keys of the Dune and of the page, one screen (own.json): %s", async (_name, c) => {
-    const rows = OWN_CASES.rows.map(([key, group, home]) => row(key, key, group, home));
-    expect([chosenKeys(rows, c.dune, "movie"), chosenKeys(rows, c.page, "movie")]).toEqual([c.want, c.want]);
-    // The page on the keys of the Dune: a move there and back, the field as the page writes that screen.
+    const rows = rowsOf(OWN_CASES.rows);
+    expect(chosenKeys(rows, c.dune, "movie")).toEqual(c.want);
+    // The page on the keys of the Dune: a move there and back, the field exactly those keys.
     const page = await opened(json({ ok: true, stale: false, rows }), c.dune);
     if (!c.torrents) noTorrents(page, true);
     headMoves(page, 0)[DOWN]!.click();
     headMoves(page, 1)[UP]!.click();
-    expect(value(page).split(" ").filter((key) => key.startsWith("movie/")).join(" ")).toBe(c.page);
+    expect(value(page).split(" ").filter((key) => key.startsWith("movie/")).join(" ")).toBe(c.dune);
   });
 
   test("On TorrServer on, not in the order of OWN: right after the nearest one before it there (Favorites), as on the Dune", async () => {
