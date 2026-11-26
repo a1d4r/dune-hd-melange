@@ -145,8 +145,10 @@ function mel_lpv_kp_ask($t, $why)
 
 // Title $t of card $mv with the KinoPoisk id of the catalog server: kpId of the meta of the title (by its IMDb, else
 // its TMDB id) in MEL_CARD_META_TOTAL s, kept for the card (MelLpv::$ids: its next search, "Continue" and the next
-// episode take it with no request). None or a failure: $t as it is, the title not asked again this session
-// (MelLpv::$kp_miss).
+// episode take it with no request). None: $t as it is. A reply about the title (a meta of no kpId, notfound, bad, big,
+// the meta of another title) - not asked again this session (MelLpv::$kp_miss); one of the server (net, timeout,
+// rate, server, http) - asked again by the next search. The catalog server down or paused (mel_catv_is_down,
+// mel_cpm_paused) - not asked, nothing kept.
 /**
  * @param MelMovie $mv
  * @param MelLpTitle $t
@@ -156,16 +158,18 @@ function mel_lpv_kp_catalog($mv, $t)
 {
     $type = $mv['series'] ? 'series' : 'movie';
     $id = $t['imdb_id'] !== '' ? $t['imdb_id'] : ($t['id'] !== '' ? "tmdb:{$t['id']}" : '');
-    if ($id === '' || isset(MelLpv::$kp_miss["$type:$id"]))
+    if ($id === '' || isset(MelLpv::$kp_miss["$type:$id"]) || mel_catv_is_down() || mel_cpm_paused())
         return $t;
     $g = mel_cat_get("meta/$type/$id.json", "meta $type:$id (kp)", 'meta', MEL_CARD_META_TOTAL, true,
         $mv['series'] ? MEL_CM_SERIES_BYTES : MEL_CAT_MAX_BYTES);
-    $tile = $g['err'] === '' && mel_cm_same($g['list'], $id) ? mel_cat_tile($g['list'], $type) : null;
+    $err = $g['err'] === '' && !mel_cm_same($g['list'], $id) ? 'other' : $g['err'];
+    $tile = $err === '' ? mel_cat_tile($g['list'], $type) : null;
     $kp = $tile ? $tile['kpId'] : '';
-    mel_log("lampac: kp of the catalog for $type:$id: " . ($kp !== '' ? $kp : ($g['err'] !== '' ? $g['err'] : 'none')));
+    mel_log("lampac: kp of the catalog for $type:$id: " . ($kp !== '' ? $kp : ($err !== '' ? $err : 'none')));
     if ($kp === '')
     {
-        MelLpv::$kp_miss["$type:$id"] = true;
+        if (!in_array($err, array('net', 'timeout', 'rate', 'server', 'http'), true))
+            MelLpv::$kp_miss["$type:$id"] = true;
         return $t;
     }
     $t['kinopoisk_id'] = $kp;
