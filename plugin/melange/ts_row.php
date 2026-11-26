@@ -3,8 +3,8 @@
 // (MEL_TSR_FILE; the row is drawn of it at once, a read of the list refreshes it), only while the row is shown on a tab
 // and not «Без торрентов» (mel_tsr_any): else no read, no write; the movie of a torrent by the history of Melange (its
 // hash in the uid of a record "aio:"). No firmware API. Reads Mel::$settings, MelTsl, the history (history.php); writes
-// MelTsr and the copy. Needs ts_list.php (MelTsl, mel_tsl_fetch, mel_tsl_video_count, mel_tsl_files_of), view_ts.php
-// (mel_tsl_on, mel_tsl_split, mel_tsl_name), catalog.php (mel_cat_tab_slots, mel_cat_slot_names), view_catalog.php
+// MelTsr and the copy. Needs ts_list.php (MelTsl, mel_tsl_fetch, mel_tsl_video_count, mel_tsl_files_of, mel_tsl_on,
+// mel_tsl_split, mel_tsl_name), catalog.php (mel_cat_tab_slots, mel_cat_slot_names), view_catalog.php
 // (MEL_CATV_ROW_TILES), history.php (mel_wh_ours_all), parse.php, main.php. Functions are global; the require order is
 // in main.php.
 

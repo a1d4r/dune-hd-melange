@@ -809,25 +809,38 @@ function mel_catv_item($id, $caption, $icon)
         PluginRegularItem::caption => $caption);
 }
 
-// The tile of a title in a row: its poster, the IMDb rating in the corner if it has one and
-// cat_rating of the screen is on (mel_catv_rating_on), the badge "on the disk" (mel_catv_disk_stickers),
-// the badges of the history at the bottom (mel_pg_stickers; made now, never in the cache of the pages).
+// The tile of a title in row $rid: "$rid:$id" ('' the id of $t), its poster, its stickers (mel_catv_title_stickers); $mid:
+// its card of the history ('' none: the badges of the first of its cards, mel_pg_tile_badge), as the panel (mel_catv_info).
 /**
  * @param string $rid
  * @param MelCatTile $t
+ * @param string $id
+ * @param string $mid
  * @return array<string, mixed>
  */
-function mel_catv_title_item($rid, $t)
+function mel_catv_title_item($rid, $t, $id = '', $mid = '')
 {
-    $item = mel_catv_item(mel_catv_tile_id("$rid:{$t['id']}"), $t['name'], mel_catv_poster($t));
-    $stickers = mel_catv_rating_on() ? mel_catv_rate_stickers($t['imdbRating']) : array();
-    $stickers = array_merge($stickers, mel_catv_disk_stickers($t));
-    $b = mel_pg_tile_badge($t);
-    if ($b)
-        $stickers = array_merge($stickers, mel_pg_stickers($b));
+    $item = mel_catv_item(mel_catv_tile_id($rid . ':' . ($id !== '' ? $id : $t['id'])), $t['name'], mel_catv_poster($t));
+    $stickers = mel_catv_title_stickers($t, $mid, $mid !== '' ? mel_cp_badge($mid, $t['type']) : mel_pg_tile_badge($t));
     if ($stickers)
         $item[PluginRegularItem::stickers] = $stickers;
     return $item;
+}
+
+// The stickers of tile $t of a title: the IMDb rating in the corner if it has one and cat_rating of the screen is on
+// (mel_catv_rating_on), the badge "on the disk" (mel_catv_disk_stickers; $mid: its movie_id of the history, '' none),
+// the badges of the history $b at the bottom (mel_pg_stickers; null: none; made now, never in the cache of the pages).
+/**
+ * @param MelCatTile $t
+ * @param string $mid
+ * @param MelPgBadge|null $b
+ * @return list<array<string, mixed>>
+ */
+function mel_catv_title_stickers($t, $mid, $b)
+{
+    $stickers = mel_catv_rating_on() ? mel_catv_rate_stickers($t['imdbRating']) : array();
+    $stickers = array_merge($stickers, mel_catv_disk_stickers($t, $mid));
+    return $b ? array_merge($stickers, mel_pg_stickers($b)) : $stickers;
 }
 
 // The number of an IMDb rating on a poster ("8.6", "10"), '' for none; also of the rows of the own
@@ -2818,16 +2831,24 @@ function mel_catv_info($in)
     $id = mel_catv_in($in, 'item_id');
     // A tile of "На TorrServer" (view_ts_row.php): its tile of the copy, the card of its movie by the history.
     $hash = mel_tsl_hash_of($id);
-    $tsr = $hash !== '' ? mel_tsr_tile($hash) : null;
-    $mid = $hash !== '' ? mel_tsr_mid($hash) : mel_cp_mid_of($id);
     if ($hash !== '')
+    {
+        $tsr = mel_tsr_tile($hash);
+        $mid = mel_tsr_mid($hash);
         $t = $mid !== '' ? mel_cp_tile($mid) : null;
+    }
     else
+    {
+        $tsr = null;
+        $mid = mel_cp_mid_of($id);
         $t = mel_catv_tile($id, mel_tv_is_key(mel_catv_in($in, 'folder_key')));
+    }
+    // A tile of "На TorrServer" not known by the history.
+    $ts_plain = $hash !== '' && !$t;
     $more_url = mel_catv_more_url($id);
     $more = $more_url !== '' ? mel_catv_all_list($more_url, false) : null;
     // Not known: 2C (mel_tsr_info), the picture of TorrServer; no history, no "Мой список".
-    if ($hash !== '' && !$t)
+    if ($ts_plain)
     {
         list($name, $lines, $desc) = mel_tsr_info($tsr, mel_catv_ui_lang());
         $sub = '';
@@ -2865,7 +2886,7 @@ function mel_catv_info($in)
     $labels = array();
     $name = mel_clean($name);
     list($on) = mel_catv_id_mode($id);
-    $card = $hash !== '' && !$t ? mel_tsr_card($on) : mel_catv_card($t, $on);
+    $card = $ts_plain ? mel_tsr_card($on) : mel_catv_card($t, $on);
     // None under the logo. Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
     $sub = $card['logo'] ? '' : implode(' ', mel_gc_wrap(mel_clean($sub), MEL_CATV_SUB_MIN_PX, MEL_CATV_TEXT_W, 2, true));
     $bottom = MEL_CATV_TITLE_BOTTOM - ($sub !== '' ? MEL_CATV_SUB_H : 0);

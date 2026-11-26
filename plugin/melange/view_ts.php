@@ -41,15 +41,6 @@ class MelTslView
     public static $read = 0.0;
 }
 
-// The icon and the item of the section: always, but with "Без торрентов" on (owner 23.11.2026).
-/**
- * @return bool
- */
-function mel_tsl_on()
-{
-    return !Mel::$settings['no_torrents'];
-}
-
 // The open of the section from screen $from: cat_tsl_open with its own delay of «Подождите» (MEL_TSL_DELAY). The icon and
 // its item of POP UP (their inputs cat_enter and cat_part wait the delay of the screen), "Повторить", the line of an error.
 /**
@@ -347,23 +338,6 @@ function mel_tsl_is_tile($id)
     return strpos($bare, MEL_TSL_RID . ':') === 0 || strpos($bare, MEL_TSL_OWN) === 0;
 }
 
-// Title $title as the panel shows it (I2): the head up to the first " [", " (", " / " before a year or "S<n>" (the tags
-// of a group at the start, "[Group] ", go to the rest), the rest after it; none of them, or one in the first 3 bytes: the
-// title whole and ''.
-/**
- * @param string $title
- * @return array{string, string}
- */
-function mel_tsl_split($title)
-{
-    $lead = preg_match('/^(?:\[[^\]]*\]\s*)+/', $title, $m) ? $m[0] : '';
-    $body = (string) substr($title, strlen($lead));
-    if (!preg_match('~ (?=\[)| (?=\()| / (?=(?:19|20)[0-9]{2}\b)| / (?=S[0-9])~', $body, $m, PREG_OFFSET_CAPTURE) || $m[0][1] < 3)
-        return array($title, '');
-    $rest = trim(ltrim(trim(substr($body, $m[0][1])), '/'));
-    return array(trim(substr($body, 0, $m[0][1])), trim(trim($lead) . ' ' . $rest));
-}
-
 // The texts of tile $tile of a torrent (mel_tsr_tile_of: its entry, video files, name by its files) in language $lang: head
 // and rest - the title and the rest of it (mel_tsl_split); no rest (a short title of Melange) - the name of the torrent
 // by its files (owner 24.11.2026); facts - "73 файла · 51.6 ГБ" (the video files if two and more; its size; '' none of
@@ -387,33 +361,6 @@ function mel_tsl_texts($tile, $lang)
         $facts[] = mel_size_str($e['size'], $lang);
     return array('head' => $head, 'rest' => $rest, 'facts' => implode(' · ', $facts),
         'added' => mel_tsl_added($e, $lang, 'tsl_added'));
-}
-
-// The name of a torrent by its files $files (null: none known) for the panel: the folder all of them are in, else the
-// name of its one file in the root with no extension (mel_tsl_file_name); '' - files in the root with no folder of
-// them all, none known, or the name is head $head (no case, no ".", "_", spaces).
-/**
- * @param list<MelTsFile>|null $files
- * @param string $head
- * @return string
- */
-function mel_tsl_name($files, $head)
-{
-    if (!$files)
-        return '';
-    $top = null;
-    foreach ($files as $f)
-    {
-        $p = strpos($f['path'], '/');
-        $dir = $p ? (string) substr($f['path'], 0, $p) : '';
-        $top = $top === null || $top === $dir ? $dir : '';
-    }
-    $name = mel_tsl_trim(mel_one_line($top !== '' ? $top : (count($files) === 1 ? mel_tsl_file_name($files[0]) : '')));
-    $key = '/[._\s\x{00A0}]+/u';
-    if ($name === '' || mb_strtolower((string) preg_replace($key, '', $name), 'UTF-8') ===
-        mb_strtolower((string) preg_replace($key, '', $head), 'UTF-8'))
-        return '';
-    return $name;
 }
 
 // The day entry $e was added in the words of key $key ("{d}": "18 сентября", the year if not this one, UTC): tsl_added

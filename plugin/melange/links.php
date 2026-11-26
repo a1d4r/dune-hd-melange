@@ -222,7 +222,7 @@ function mel_pg_tick_set($url, $anew = false)
 // r25: a tick of the timer of the main screen $url, MEL_CPM_TICK_S at most (a key pressed now waits for it): first the
 // first row of an old copy (mel_catv_first_step, a request of 1 s at most; tiles other than on the screen: the screen built
 // again, as of the meta below); then the step (mel_pg_link_step) once in what is left, of one batch at once, else of
-// one request (~0.5 s; its timeout 1 s, whole s of curl); then the lazy meta of the row "Continue" (mel_cpm_step) in
+// one request (~0.5 s; its timeout 1 s, whole s of curl); then the lazy meta of the rows of Melange (mel_cpm_step) in
 // what is left of it: one batch at once, else MEL_CPM_N requests of the tick at most one by one; then the timer again
 // or not (mel_pg_tick_again). No step: within MEL_PG_ROWS_QUIET_S of a reply of get_folder_rows (the rows of a cold
 // opening wait for php_server; the timer again), within MEL_PG_FAV_QUIET_S of the end of a tick of a screen of Fav (the
@@ -231,8 +231,8 @@ function mel_pg_tick_set($url, $anew = false)
 // php_server. A line of the log of each, in its own words. The tiles of the row "Continue" of the screen paired first (mel_cp_row_mids); the titles of the library
 // last, in what is left (mel_pg_lib_work: the pass, else the step of MEL_PG_LIB_TICK_S at most). Cards paired: the tiles of that row with no
 // meta again (MelCpm::$miss, mel_cp_row_miss; the row shown, MelCat::$own), theirs asked in the same tick. The meta of a tile of the screen got
-// (MelCpm::$miss, MelCpm::$ml; not of MelCpm::$more, a screen of Fav): the screen built again (mel_pg_tick_anew), no
-// timer again here. -> the timer again (mel_catv_input: change_behaviour).
+// (of its rows of Melange, mel_cpm_rows; not of MelCpm::$more, a screen of Fav): the screen built again
+// (mel_pg_tick_anew), no timer again here. -> the timer again (mel_catv_input: change_behaviour).
 /**
  * @param string $url
  * @return bool
@@ -275,7 +275,7 @@ function mel_pg_tick($url)
             mel_cp_row_mids($tab));
         if ($pairs && in_array('@continue', MelCat::$own, true))
             MelCpm::$miss = mel_cp_row_miss($tab);
-        $mine = mel_cpm_queue(array_merge(MelCpm::$miss, MelCpm::$ml));
+        $mine = mel_cpm_queue(mel_cpm_rows());
         $got = mel_cpm_step(MEL_CPM_TICK_S - (microtime(true) - $t), MEL_CPM_N - $rounds, true);
         $left = min(MEL_PG_LIB_TICK_S, MEL_CPM_TICK_S - (microtime(true) - $t));
         if ($left > 0)

@@ -424,9 +424,24 @@ function mel_cpm_paused()
     return $left > 0 && $left <= MEL_CPM_PAUSE_S ? $left : 0;
 }
 
-// The titles of MelCpm::$miss and MelCpm::$ml (in the order of their rows, MelCat::$own), then of MelCpm::$more (of
-// the ticks of a main screen), else of $titles (of the screen "Продолжить" or "Мой список", its tiles with no meta), to
-// ask (mel_cpm_due), in their order. -> keys => array(type, IMDb, TMDB).
+// The tiles with no meta of the rows of Melange of the main screen (MelCpm::$miss, MelCpm::$ml, MelCpm::$ts), in the
+// order of their rows (MelCat::$own). -> array(type, IMDb, TMDB).
+/**
+ * @return list<array{string, string, string}>
+ */
+function mel_cpm_rows()
+{
+    // The list of each row of Melange with one, by its name (mel_cat_pseudo).
+    $of = array('@continue' => MelCpm::$miss, '@mylist' => MelCpm::$ml, '@torrserver' => MelCpm::$ts);
+    $rows = array();
+    foreach (MelCat::$own as $name)
+        $rows = isset($of[$name]) ? array_merge($rows, $of[$name]) : $rows;
+    return $rows;
+}
+
+// The titles of the rows (mel_cpm_rows), then of MelCpm::$more (of the ticks of a main screen), else of $titles (of
+// the screen "Продолжить" or "Мой список", its tiles with no meta; of the rows alone, a tick), to ask (mel_cpm_due), in
+// their order. -> keys => array(type, IMDb, TMDB).
 /**
  * @param list<array{string, string, string}>|null $titles
  * @return array<string, array{string, string, string}>
@@ -436,12 +451,7 @@ function mel_cpm_queue($titles = null)
     $c = mel_cpm_read();
     $now = time();
     $out = array();
-    // The list of each row of Melange with one, by its name (mel_cat_pseudo).
-    $of = array('@continue' => MelCpm::$miss, '@mylist' => MelCpm::$ml, '@torrserver' => MelCpm::$ts);
-    $rows = array();
-    foreach (MelCat::$own as $name)
-        $rows = isset($of[$name]) ? array_merge($rows, $of[$name]) : $rows;
-    foreach ($titles !== null ? $titles : array_merge($rows, MelCpm::$more) as $m)
+    foreach ($titles !== null ? $titles : array_merge(mel_cpm_rows(), MelCpm::$more) as $m)
     {
         $key = mel_cpm_key($m[0], $m[1], $m[2]);
         if ($key === '' || isset($out[$key]) || !mel_cpm_due(isset($c[$key]) ? $c[$key] : null, $now))

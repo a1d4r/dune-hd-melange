@@ -60,7 +60,7 @@ function mel_tsr_row_defs($tab, $lang, $from, &$tiles = null, &$miss = null)
         }
         if ($rec && ($t['imdb_id'] !== '' || $t['_tmdbId'] !== ''))
             $miss[] = array($t['type'], $t['imdb_id'], $t['_tmdbId']);
-        $items[] = mel_tsr_title_item($hash, $mid, $t);
+        $items[] = mel_catv_title_item(MEL_TSL_RID, $t, $hash, $mid);
         $tiles[MEL_TSL_RID . ":$hash"] = $t;
     }
     if (!$items)
@@ -86,28 +86,6 @@ function mel_tsr_item($e)
     $item = mel_catv_item(mel_catv_tile_id(MEL_TSL_RID . ':' . $e['hash']), $e['title'], $poster);
     if ($poster === '' && mel_catv_loading_flag())
         $item[PluginRegularItem::stickers] = mel_tsr_plate($e['title']);
-    return $item;
-}
-
-// The tile of torrent $hash known as the card $mid of the history, tile $t: as a tile of a title of the catalog
-// (mel_catv_title_item) with the id of the torrent: its poster, the IMDb rating (cat_rating of the screen), the badge of
-// the disk, the badges of the history of the card (mel_cp_badge, as the row "Продолжить").
-/**
- * @param string $hash
- * @param string $mid
- * @param MelCatTile $t
- * @return array<string, mixed>
- */
-function mel_tsr_title_item($hash, $mid, $t)
-{
-    $item = mel_catv_item(mel_catv_tile_id(MEL_TSL_RID . ":$hash"), $t['name'], mel_catv_poster($t));
-    $stickers = mel_catv_rating_on() ? mel_catv_rate_stickers($t['imdbRating']) : array();
-    $stickers = array_merge($stickers, mel_catv_disk_stickers($t, $mid));
-    $b = mel_cp_badge($mid, $t['type']);
-    if ($b)
-        $stickers = array_merge($stickers, mel_pg_stickers($b));
-    if ($stickers)
-        $item[PluginRegularItem::stickers] = $stickers;
     return $item;
 }
 
