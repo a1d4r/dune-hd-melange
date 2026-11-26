@@ -65,7 +65,7 @@ function mel_lib_next_act($hid, $y, $q, $e, $cid)
 // is not read here); linked, a playlist of its season and E1 of the next one as mel_play (by season_numbers; none, the
 // episode past them, a season over MEL_EPISODES_MAX, H or Y not of MEL_DUNE_ID - alone), the others lazy
 // (mel_lib_lazy_url; '-' none on the disk): the copy by mel_lib_ep_cid - F the pack of this copy (the choice just
-// made), the record only of an episode not watched;
+// made; of a copy not confirmed, alt, the copies not confirmed of it too), the record only of an episode not watched;
 // the card saved for lib_next (mel_movie_save). The log has the key, no path, no name.
 /**
  * @param MelMovie $mv
@@ -102,14 +102,15 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
         // The native uids of its files on the disk too (as card_mark, mel_oc_lib_native_uids): its season of the Dune.
         $nat = array();
         $se = mel_lib_se($q, $e);
-        foreach (array_merge(array($copy), isset($ep['eps'][$se]) ? $ep['eps'][$se] : array()) as $f)
+        // Not of its copies not confirmed (alt), but the one played.
+        foreach (array_merge(array($copy), mel_lib_copies_reg(isset($ep['eps'][$se]) ? $ep['eps'][$se] : array())) as $f)
             $nat[] = mel_lib_native_uid($f);
         mel_cw_note($ser, $mk, $mv['dune_id'], $q, $e, array_values(array_diff($nat, array(''))));
     }
     $y = $ep ? $ep['y'] : '';
     $eps = $ep ? $ep['eps'] : array();
     list($recs) = $list ? mel_lib_ep_ctx($mv['dune_id'], $y, true) : array(array());
-    $ctx = array($recs, array(mel_lib_pack($copy)));
+    $ctx = array($recs, array(mel_lib_pack($copy)), !empty($copy['alt']));
     $series = array();
     $ndx = 0;
     $whys = array();
@@ -205,7 +206,9 @@ function mel_lib_play_bd($mv, $go, $url)
 // first (mel_lib_ep_of: the rule of mel_lib_ep_cid; none - in their order). One check a copy at most; a copy that does
 // not answer ('slow') takes the copies of all the shares of its server out unchecked (srv: the NAS sleeps or is off -
 // one wait, not one a share; a mirror on another server is still checked), and no check starts that the operation
-// (MEL_OP_BUDGET) has no time left for (of an episode: and its read).
+// (MEL_OP_BUDGET) has no time left for (of an episode: and its read). A copy not confirmed of an episode (alt,
+// mel_lib_ep_copies) only as $first (chosen in the window, of its record, of a pack F - mel_lib_ep_pick): not among the
+// copies left.
 /**
  * @param list<MelLibCopy> $copies
  * @param string $first
@@ -217,7 +220,7 @@ function mel_lib_play_bd($mv, $go, $url)
  */
 function mel_lib_start($copies, $first, $first_pos, $pos, $auto, $f_packs = array())
 {
-    $left = $copies;
+    $left = mel_lib_copies_reg($copies);
     $want = mel_lib_ep_of($copies, $first, $f_packs);
     if ($first !== '')
         mel_log("library: start $first: " . (count($want) === 1 ? 'its copy' : ($want ? 'its ' . count($want) . ' copies' :
@@ -331,19 +334,24 @@ function mel_lib_place($hid, $copies, $k, $q = -1, $e = -1, $fix = array())
 // (the playlist, the line of the card). -> array(the key of the record or the id of a copy, '' - the window; why):
 // record - the copy of the record; folder - of a pack F (the first of several); near - of the pack nearest to F
 // (mel_lib_pack_near, the most of the packs F), near-best - the first of several as near; one - the only copy; auto-best -
-// the first; window - none of these; none - no copy. No log: the caller logs a line an action.
+// the first; window - none of these; none - no copy. A copy not confirmed (alt, mel_lib_ep_copies; after the others) only
+// by the record of it or, $f_alt, of a pack F - F of the record of a copy not confirmed (one chosen in the window of the
+// copies, then the next ones of its folder; owner 26.11.2026: it never plays by itself): the other rules go by the rest -
+// no F, F of a record of any other copy, none of F - it neither plays nor asks. No log: the caller logs a line an action.
 /**
  * @param list<MelLibCopy> $copies_ep
  * @param string $rec_key
  * @param list<string> $f_packs
  * @param bool $auto
+ * @param bool $f_alt
  * @return array{string, string}
  */
-function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
+function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto, $f_alt = false)
 {
-    if (!$copies_ep)
+    $reg = mel_lib_copies_reg($copies_ep);
+    if (!$reg)
         return array('', 'none');
-    $top = $copies_ep[0];
+    $top = $reg[0];
     if ($rec_key !== '' && mel_lib_copies_of($copies_ep, $rec_key))
         $why = 'record';
     else if ($f_packs)
@@ -351,7 +359,7 @@ function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
         $why = '';
         $at = -2;
         $ties = 0;
-        foreach ($copies_ep as $c)
+        foreach ($f_alt ? $copies_ep : $reg as $c)
         {
             $p = mel_lib_pack($c);
             if (in_array($p, $f_packs, true))
@@ -359,6 +367,8 @@ function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
                 list($top, $why) = array($c, 'folder');
                 break;
             }
+            if (!empty($c['alt']))
+                continue;
             $d = -1;
             foreach ($f_packs as $f)
                 $d = max($d, mel_lib_pack_near($f, $p));
@@ -370,7 +380,7 @@ function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
         if ($why === '')
             $why = $ties > 1 ? 'near-best' : 'near';
     }
-    else if (count($copies_ep) === 1)
+    else if (count($reg) === 1)
         $why = 'one';
     else
         $why = $auto ? 'auto-best' : 'window';
@@ -378,21 +388,21 @@ function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
 }
 
 // The copy OK plays of episode "q:e" $se, of its copies now $copies_ep (mel_lib_ep_copies), by what mel_lib_ep_ctx
-// gives $ctx (array("q:e" => the key of our record, the packs F)) - one rule for the line of the card (lib_cur), the
-// playlist and the start (owner 3, the review of 2в1б): mel_lib_ep_pick, and the key of a record, shared by mirrors -
-// of them the copy of a pack F, else the first (mel_lib_ep_of). -> array(its id, '' - none, or the window of not
-// $auto; why of mel_lib_ep_pick).
+// gives $ctx (array("q:e" => the key of our record, the packs F, F has the copies not confirmed)) - one rule for the
+// line of the card (lib_cur), the playlist and the start (owner 3, the review of 2в1б): mel_lib_ep_pick, and the key of
+// a record, shared by mirrors - of them the copy of a pack F, else the first (mel_lib_ep_of). -> array(its id, '' -
+// none, or the window of not $auto; why of mel_lib_ep_pick).
 /**
  * @param list<MelLibCopy> $copies_ep
- * @param array{array<string, string>, list<string>} $ctx
+ * @param array{array<string, string>, list<string>, bool} $ctx
  * @param string $se
  * @param bool $auto
  * @return array{string, string}
  */
 function mel_lib_ep_cid($copies_ep, $ctx, $se, $auto)
 {
-    list($recs, $f) = $ctx;
-    list($k, $why) = mel_lib_ep_pick($copies_ep, isset($recs[$se]) ? $recs[$se] : '', $f, $auto);
+    list($recs, $f, $f_alt) = $ctx;
+    list($k, $why) = mel_lib_ep_pick($copies_ep, isset($recs[$se]) ? $recs[$se] : '', $f, $auto, $f_alt);
     $of = mel_lib_ep_of($copies_ep, $k, $f);
     return array($of ? $of[0]['cid'] : '', $why);
 }
@@ -420,17 +430,17 @@ function mel_lib_ep_of($copies, $k, $f_packs)
 }
 
 // What mel_lib_ep_pick goes by for the episodes of the series $y of the index, card of history $hid -> array("q:e" =>
-// $rec_key, $f_packs), the history read once: of an episode (the season as asked) the key of our record of a copy of
+// $rec_key, $f_packs, $f_alt), the history read once: of an episode (the season as asked) the key of our record of a copy of
 // it (mel_wh_lib_eps) while that record is not watched or - not $unfinished - it is the last choice of a folder (its end
 // not less than of the latest record of a copy of the card, mel_wh_lib_last); an episode not in the map goes of the
 // pack F. F - the packs of the key of that latest record by the index (mel_lib_key_packs: its copy may be not mounted
-// now, "the same folder" is there). The playlist ($unfinished: F the start copy) and "Continue" of the native (F the
-// key of the record) take their own F.
+// now, "the same folder" is there); $f_alt - that key is of a file not confirmed now (mel_lib_key_alt). The playlist
+// ($unfinished: F the start copy) and "Continue" of the native (F the key of the record) take their own F and $f_alt.
 /**
  * @param string $hid
  * @param string $y
  * @param bool $unfinished
- * @return array{array<string, string>, list<string>}
+ * @return array{array<string, string>, list<string>, bool}
  */
 function mel_lib_ep_ctx($hid, $y, $unfinished = false)
 {
@@ -441,13 +451,14 @@ function mel_lib_ep_ctx($hid, $y, $unfinished = false)
         if (!mel_wh_full($rec['pos'], $rec['len']) || (!$unfinished && $last && $rec['end'] >= $last['end']))
             $keys[$se] = $rec['key'];
     }
-    return array($keys, $last ? mel_lib_key_packs($y, $last['key']) : array());
+    return array($keys, $last ? mel_lib_key_packs($y, $last['key']) : array(), $last && mel_lib_key_alt($y, $last['key']));
 }
 
 // Where episode S$q E$e of card of history $hid starts when no copy of it is chosen (OK on the own card, "Continue" of
 // the native of a watched episode; C2, C7), of its copies now $copies (mel_lib_ep_copies, the best first): the copy by
 // mel_lib_ep_pick (no $auto) of what mel_lib_ep_ctx gives $ctx, as mel_lib_ep_cid takes it (array("q:e" => the key of
-// our record that still holds, the packs F); of C7 F the packs of the key of its record), the place by mel_lib_place of
+// our record that still holds, the packs F, F has the copies not confirmed); of C7 F the packs of the key of its
+// record), the place by mel_lib_place of
 // the native records by their files $fix (mel_lib_ep_hashes by the invariant, mel_lib_ep_same). -> array($first,
 // $first_pos, $pos) of mel_lib_start (the mirrors of a key: the copy of F first there, mel_lib_ep_of - the caller gives
 // it $ctx[1]); $first '' - the window (no copy to take: not the key of the record mel_lib_place would give), from $pos.
@@ -457,15 +468,15 @@ function mel_lib_ep_ctx($hid, $y, $unfinished = false)
  * @param list<MelLibCopy> $copies
  * @param int $q
  * @param int $e
- * @param array{array<string, string>, list<string>} $ctx
+ * @param array{array<string, string>, list<string>, bool} $ctx
  * @param array<string, array{int, int}|string> $fix
  * @return array{string, int, int}
  */
 function mel_lib_ep_place($hid, $copies, $q, $e, $ctx, $fix)
 {
-    list($recs, $f) = $ctx;
+    list($recs, $f, $f_alt) = $ctx;
     $se = mel_lib_se($q, $e);
-    list($first, $why) = mel_lib_ep_pick($copies, isset($recs[$se]) ? $recs[$se] : '', $f, false);
+    list($first, $why) = mel_lib_ep_pick($copies, isset($recs[$se]) ? $recs[$se] : '', $f, false, $f_alt);
     mel_log("library: episode S{$q}E{$e}: $why");
     list($k, $first_pos, $pos) = mel_lib_place($hid, $copies, $first, $q, $e, $fix);
     return $first === '' ? array('', $pos, $pos) : array($k, $first_pos, $pos);
@@ -631,7 +642,7 @@ function mel_lib_resume_ep($mv, $m, $r, $lang, &$se, $retry = null)
     mel_log($tag);
     // F the packs of the key of the record (not of the latest record of the card).
     list($recs) = mel_lib_ep_ctx($hid, $y, true);
-    $ctx = array($recs, mel_lib_key_packs($y, $key));
+    $ctx = array($recs, mel_lib_key_packs($y, $key), mel_lib_key_alt($y, $key));
     // The native records of the series by their files (mel_wh_fix_se). No copy to take (the window, $k ''): the own card
     // and the window W2 of them, none checked. Of the mirrors of a record the copy of F first (mel_lib_ep_cid).
     list($k, $first_pos, $pos) = mel_lib_ep_place($hid, $copies, $q, $e, $ctx, $fix);

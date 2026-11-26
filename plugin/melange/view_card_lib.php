@@ -265,7 +265,7 @@ function mel_oc_lib_series($c, $res)
     $hid = $eps ? mel_lib_hid($c['dune'], $y) : $c['dune'];
     $cur = array();
     $seasons = array();
-    $ctx = $eps ? mel_lib_ep_ctx($hid, $y) : array(array(), array());
+    $ctx = $eps ? mel_lib_ep_ctx($hid, $y) : array(array(), array(), false);
     foreach ($eps as $se => $copies)
     {
         list($cur[$se]) = mel_lib_ep_cid($copies, $ctx, $se, true);
