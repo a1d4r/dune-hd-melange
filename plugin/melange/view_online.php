@@ -732,10 +732,9 @@ function mel_lpv_counter($L, $sel)
 
 // A colour key of the online list $st, lines $L, is there at place $at, one for the three places. $key: 'red' the
 // filter by voices (a list with voices), 'green' all folded or unfolded (a line of a balancer of 2 rows), 'yellow' the
-// order by quality (a list with rows). $at: 'key' the key is bound (mel_lpv_screen) - the green one always, with no
-// balancer too (mel_lpv_fold_all: nothing then); 'tab' its tab is shown (mel_lpv_tabs) - the green one with the
-// colour keys only, the yellow one without them only on (by quality); 'menu' its item of MENU (mel_lpv_menu) -
-// mel_gc_keys_in_menu only.
+// order by quality (a list with rows). $at: 'key' the key is bound (mel_lpv_screen); 'tab' its tab is shown
+// (mel_lpv_tabs) - the green one with the colour keys only, the yellow one without them only on (by quality); 'menu'
+// its item of MENU (mel_lpv_menu) - mel_gc_keys_in_menu only.
 /**
  * @param MelState $st
  * @param list<MelLpLine> $L
@@ -748,7 +747,7 @@ function mel_lpv_can($st, $L, $key, $at)
     if ($key === 'red')
         $can = (bool) mel_lpv_voices($st['lp'], mel_gc_lang($st));
     else if ($key === 'green')
-        $can = $at === 'key' || mel_lpv_fold_state($L) !== '';
+        $can = mel_lpv_fold_state($L) !== '';
     else
         $can = (bool) $st['lp']['rows'];
     if ($at === 'menu')
@@ -1116,7 +1115,7 @@ function mel_lpv_pos_keep($in, $st)
 }
 
 // The keys of the online list $st of lines $L and the items of its hint line (MelKit::hint), one for both: the cursor,
-// ENTER, MENU "Действия", the green key (mel_lpv_fold_all); «P+ P−» "Прокрутка" with more lines than the screen; the
+// ENTER, MENU "Действия"; the green key (mel_lpv_fold_all), of a list with a balancer of 2 rows; «P+ P−» "Прокрутка" with more lines than the screen; the
 // yellow key, the order of the balancers, of a list with rows (its tab, mel_lpv_tabs); the red key, the filter by
 // voices, of a list with voices (mel_lpv_can); an episode: left and right flip the episodes of the season
 // (mel_lpv_flip), "Серии". -> array(actions, hint items).
