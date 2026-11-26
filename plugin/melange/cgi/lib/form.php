@@ -87,6 +87,11 @@ function mel_cgi_fields()
         'cat_logo' => array('id' => 'clg', 'name' => 'cat_logo', 'set' => 'cat_logo', 'max' => 0, 'type' => 'radio', 'scr' => 'look'),
         // "Возраст" of "Что не показывать" (0.65.0, lib/hidden.php): mel_cgi_cat_ages().
         'cat_age' => array('id' => 'cag', 'name' => 'cat_age', 'set' => 'cat_age', 'max' => 0, 'type' => 'radio', 'scr' => 'hide'),
+        // "Рейтинг IMDb: фильмы", "...: сериалы" of "Что не показывать" (0.70.0, lib/hidden.php): mel_cgi_cat_imdbs().
+        'cat_imdb_movie' => array('id' => 'cim', 'name' => 'cat_imdb_movie', 'set' => 'cat_imdb_movie', 'max' => 0, 'type' => 'radio',
+            'scr' => 'hide'),
+        'cat_imdb_series' => array('id' => 'cis', 'name' => 'cat_imdb_series', 'set' => 'cat_imdb_series', 'max' => 0,
+            'type' => 'radio', 'scr' => 'hide'),
         // The rows of the catalog chosen: mel_cgi_rows_screen.
         'cat_rows' => array('id' => 'crv', 'name' => 'cat_rows', 'set' => 'cat_rows', 'max' => 0, 'type' => 'plain', 'scr' => 'rows'),
         // cat_rows as the page came (as debrid_main_was): the save keeps the stored ones when it is posted back.
@@ -187,7 +192,7 @@ function mel_cgi_card($for, $title, $sub, $more = '')
 // A simple choice (div.choice): a card of a radio of the row $f of
 // mel_cgi_fields() each (its id: that of the row and the number of the card),
 // by $opts value => array(title, hint[, data-short of the radio]); $sel: the
-// value checked (a string: a key of digits is an int in PHP, the age of mel_cgi_cat_ages).
+// value checked (a string: a key of digits is an int in PHP, the age of mel_cgi_cat_ages, the rating of mel_cgi_cat_imdbs).
 function mel_cgi_choice($f, $opts, $sel)
 {
     $out = '<div class="choice">';

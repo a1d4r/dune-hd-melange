@@ -52,7 +52,9 @@ Series rows are set up the same way, on the "Series" tab.
 
 2. To hide everything above an age rating, open "Hide from the catalog" on the settings page, choose a limit in "Age rating", for example "Up to 12+", and press "Save". Titles above it disappear from the same places and from search. Titles with no age rating stay visible.
 
-3. "Hidden" on the same screen lists everything you hid on this Dune. "Unhide" brings a title back to the catalog.
+3. To hide titles with a low IMDb rating, choose a minimum on the same screen in "IMDb rating: movies" and "IMDb rating: series", for example "6.5+", and press "Save". Titles rated lower disappear from the same places and from search. Titles with no IMDb rating stay visible.
+
+4. "Hidden" on the same screen lists everything you hid on this Dune. "Unhide" brings a title back to the catalog.
 
    <img src="../screenshots/rows-phone-hidden.jpg" alt="Hide from the catalog: Age rating set to All, Hidden lists a film with an Unhide button" width="300">
 

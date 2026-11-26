@@ -39,16 +39,28 @@ describe("the main screen", () => {
     expect(value()).toEqual(["dot none", t.logoOn + " · " + t.ratingOn]);
   });
 
-  test("the line of What not to show (0.65.0): the short name of the age chosen, none chosen - as All; no dot", () => {
+  test("the line of What not to show (0.65.0): the short names of the age and the IMDb ratings chosen (0.70.0), as PHP; none chosen - as All; no dot", () => {
     const page = open("filled");
     const value = () => [page.el("dhide").className, page.el("vhide").textContent];
-    expect(value()).toEqual(["dot none", "До 12+"]);
+    expect(value()).toEqual(["dot none", "До 12+, IMDb: фильмы от 6.5"]);
+    page.choose(NAME.catImdbSeries, "70");
+    expect(value()).toEqual(["dot none", "До 12+, IMDb: фильмы от 6.5, сериалы от 7"]);
     page.choose(NAME.catAge, "0");
-    expect(value()).toEqual(["dot none", "Только 0+"]);
+    expect(value()).toEqual(["dot none", "Только 0+, IMDb: фильмы от 6.5, сериалы от 7"]);
     page.choose(NAME.catAge, "all");
+    expect(value()).toEqual(["dot none", "IMDb: фильмы от 6.5, сериалы от 7"]);
+    page.choose(NAME.catImdbMovie, "all");
+    expect(value()).toEqual(["dot none", "IMDb: сериалы от 7"]);
+    page.choose(NAME.catImdbSeries, "all");
     expect(value()).toEqual(["dot none", "Все возрасты"]);
+    page.choose(NAME.catAge, "12");
+    expect(value()).toEqual(["dot none", "До 12+"]);
+    page.choose(NAME.catImdbMovie, "55");
     page.doc.querySelectorAll<HTMLInputElement>("input[name=" + NAME.catAge + "]").forEach((radio) => (radio.checked = false));
     page.type(ID.ts, "http://192.0.2.1:8090");
+    expect(value()).toEqual(["dot none", "IMDb: фильмы от 5.5"]);
+    page.doc.querySelectorAll<HTMLInputElement>("input[name^=cat_imdb_]").forEach((radio) => (radio.checked = false));
+    page.type(ID.ts, "http://192.0.2.2:8090");
     expect(value()).toEqual(["dot none", "Все возрасты"]);
   });
 

@@ -45,6 +45,8 @@ const FILLED: [string, string][] = [
   ["cat_rating", "off"],
   // The age of "What not to show" (0.65.0): "Up to 12+" of filled.html.
   ["cat_age", "12"],
+  // The IMDb ratings there (0.70.0): movies from 6.5 of filled.html, series any.
+  ["cat_imdb_movie", "65"], ["cat_imdb_series", "all"],
   ...servers([["name", "qBittorrent"], ["url", "http://192.168.1.10:8080"], ["user", "admin"], ["pass", "test-pass"], ["category", "movies"]]),
   ["markers", "on"],
   ["source_errors", "off"],

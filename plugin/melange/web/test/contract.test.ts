@@ -139,6 +139,16 @@ describe.each([...FIXTURES])("%s", (name) => {
     expect(ages.filter((radio) => radio.checked).map((radio) => radio.value)).toEqual([name === "filled" ? "12" : "all"]);
     for (const radio of ages)
       expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("hide");
+    // The IMDb ratings of movies and series there (0.70.0): eight radios each, "all" by default (filled: movies "65"), a
+    // part of the line of the main screen each but that of all, on #hide.
+    for (const [ratingName, checked] of [[NAME.catImdbMovie, name === "filled" ? "65" : VALUE.all], [NAME.catImdbSeries, VALUE.all]] as const) {
+      const radios = Array.from(form.querySelectorAll<HTMLInputElement>("input[name=" + ratingName + "]"));
+      expect(radios.map((radio) => [radio.type, radio.value, !!radio.getAttribute(DATA.short)])).toEqual(
+        [VALUE.all, "50", "55", "60", "65", "70", "75", "80"].map((value) => ["radio", value, value !== VALUE.all]));
+      expect(radios.filter((radio) => radio.checked).map((radio) => radio.value)).toEqual([checked]);
+      for (const radio of radios)
+        expect(doc.querySelector("label[for=" + radio.id + "]")!.closest(RADIO_GROUP)!.closest("section")!.id).toBe("hide");
+    }
     // The rows of the catalog: one field on #rows, not of type hidden (the bar counts only others), nothing to read by eye.
     const rowsField = form.querySelectorAll<HTMLInputElement>("input[name=cat_rows]");
     expect(Array.from(rowsField).map((field) => [field.id, field.type, field.hidden, field.closest("section")!.id])).toEqual([[ID.rowsValue, "text", true, "rows"]]);

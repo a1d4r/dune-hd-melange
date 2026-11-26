@@ -9,7 +9,8 @@
 // aio_tpl_p2p, aio_mode: the one chosen in a form back, '' from the
 // settings; tpl_seen, tpl_p2p_seen only posted; ts_save: mel_cgi_ts_save_of()
 // of the settings, markers: mel_cgi_markers_of() (of markers_exact too), those of mel_cgi_toggles(): mel_cgi_toggle_of(),
-// cat_age: mel_cgi_cat_age_of(), as posted - none: '', settings.php puts the stored one;
+// cat_age: mel_cgi_cat_age_of(), cat_imdb_movie, cat_imdb_series: mel_cgi_cat_imdb_of(), as posted - none: '',
+// settings.php puts the stored one;
 // pf_sel, pf_from, pf_name - the editor of the sources, '' (mel_cgi_editor_values puts it), as posted;
 // pf_def - the placeholder of the name, pf_list - the block of the sources shown (mel_cgi_editor_values; a save:
 // settings.php); prof - the sources for the script (mel_cgi_profiles_data of the settings, of the file on a save);
@@ -35,6 +36,8 @@ function mel_cgi_values($s)
     foreach (mel_cgi_toggles() as $k => $x)
         $v[$k] = mel_cgi_toggle_of($k, $v[$k]);
     $v['cat_age'] = mel_cgi_cat_age_of($s['cat_age']);
+    $v['cat_imdb_movie'] = mel_cgi_cat_imdb_of($s['cat_imdb_movie']);
+    $v['cat_imdb_series'] = mel_cgi_cat_imdb_of($s['cat_imdb_series']);
     // No editor of the sources (mel_cgi_editor_values puts one).
     foreach (array('pf_sel', 'pf_from', 'pf_name', 'pf_def') as $k)
         $v[$k] = '';
@@ -320,6 +323,15 @@ function mel_cgi_check_values($v)
     $d[$set['cat_age']] = mel_cgi_cat_age_set($v['cat_age']);
     if (!array_key_exists($v['cat_age'], mel_cgi_cat_ages()))
         $errors[] = mel_cgi_err(mel_cgi_l('Возраст: нет такого ответа', 'Age rating: no such answer'), $f['cat_age']['name']);
+    $imdb = array('cat_imdb_movie' => mel_cgi_l('Рейтинг IMDb для фильмов: нет такого ответа',
+        'IMDb rating for movies: no such answer'), 'cat_imdb_series' => mel_cgi_l('Рейтинг IMDb для сериалов: нет такого ответа',
+        'IMDb rating for series: no such answer'));
+    foreach ($imdb as $k => $msg)
+    {
+        $d[$set[$k]] = mel_cgi_cat_imdb_set($v[$k]);
+        if (!array_key_exists($v[$k], mel_cgi_cat_imdbs(false)))
+            $errors[] = mel_cgi_err($msg, $f[$k]['name']);
+    }
     $d[$set['cat_rows']] = mel_cat_rows_ok(explode(' ', $v['cat_rows']));
     // The fields of Lampac: of the answer "Lampac" only (v2: a source of its own), the address needed; else hidden -
     // those of the view (of a source of releases: none).

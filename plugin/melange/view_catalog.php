@@ -255,10 +255,10 @@ class MelCat
     // none since a start of php_server. "Скрыть" sets it anew (mel_catv_hide_act).
     /** @var string|null */
     public static $filter_sig = null;
-    // The age of it (Mel::$settings['cat_age'] then; null - all ages), apart: a change of the age begins the listings of
+    // That of a search apart (mel_ht_search_sig then: the age, the IMDb ratings): a change of it begins the listings of
     // a search anew, one of the file alone does not (mel_catv_filter_seen).
-    /** @var int|null */
-    public static $filter_age = null;
+    /** @var string|null */
+    public static $filter_search = null;
 }
 
 // ru or en, as the settings page reads it (cgi/lib/http.php).
@@ -2957,11 +2957,12 @@ function mel_catv_hide_act($in)
 }
 
 // At the start of an operation (settings.json read, mel_settings_load): the filter of the listings (mel_ht_filter_sig:
-// the age of the settings, the file of the hidden titles) another than at the last one - the settings page changed the
-// age or took a title back: the listings in memory begin anew (a title back or of the age now shows), as after a start
+// the age and the IMDb ratings of the settings, the file of the hidden titles) another than at the last one - the
+// settings page changed the age or a rating or took a title back: the listings in memory begin anew (a title back or
+// of the age now shows), as after a start
 // of php_server, the rows remembered empty too (the filter may have emptied them); the tab "TV" flagged (not by its own
 // operations: tv_update reads the files anyway, tv_timer compares its state). The listings of a search (a search shows
-// the hidden): kept as they are when the file alone changed; the age changed - each begun anew in its place, its
+// the hidden): kept as they are when the file alone changed; the age or a rating changed - each begun anew in its place, its
 // search and its id kept, filled by the screen of its results (mel_catv_results_view) or its "Show all"
 // (mel_catv_range): not "outdated". The tiles of the listings begun anew go to MelCat::$on_screen: a screen built
 // before (results, "Show all" of r24, the main one under it) still finds them for ENTER. The first operation after a
@@ -2974,15 +2975,15 @@ function mel_catv_filter_seen($in)
 {
     $sig = mel_ht_filter_sig();
     $was = MelCat::$filter_sig;
-    $age = Mel::$settings['cat_age'] !== MelCat::$filter_age;
+    $set = mel_ht_search_sig() !== MelCat::$filter_search;
     MelCat::$filter_sig = $sig;
-    MelCat::$filter_age = Mel::$settings['cat_age'];
+    MelCat::$filter_search = mel_ht_search_sig();
     if ($was === null || $sig === $was)
         return;
     foreach (MelCat::$lists as $rid => $list)
     {
         $search = isset($list['st']['row']['q']);
-        if ($search && !$age)
+        if ($search && !$set)
             continue;
         MelCat::$on_screen[$rid] = (isset(MelCat::$on_screen[$rid]) ? MelCat::$on_screen[$rid] : array()) + $list['tiles'];
         if ($search)
@@ -2991,7 +2992,7 @@ function mel_catv_filter_seen($in)
             unset(MelCat::$lists[$rid]);
     }
     MelCat::$empty = array();
-    mel_log('catalog: the filter changed (' . ($age ? 'the age' : 'the hidden titles') . '): the listings anew');
+    mel_log('catalog: the filter changed (' . ($set ? 'the age or the IMDb rating' : 'the hidden titles') . '): the listings anew');
     $c = isset($in->control_id) ? $in->control_id : '';
     if ($c !== 'tv_update' && $c !== 'tv_timer')
         mel_tv_flag('the filter changed');

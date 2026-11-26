@@ -219,6 +219,10 @@ export const NAME = {
   lampacAsLampa: "lampac_as_lampa",
   // The age of "Что не показывать" (0.65.0): all, 16, 12, 6, 0; each radio with its line on the main screen (DATA.short).
   catAge: "cat_age",
+  // The lowest IMDb ratings of movies and series there (0.70.0): all (any), 50 ... 80 (tenths); each radio with its part of
+  // that line (DATA.short; empty for all).
+  catImdbMovie: "cat_imdb_movie",
+  catImdbSeries: "cat_imdb_series",
 } as const;
 
 // The values of the page the script compares with.
@@ -235,6 +239,8 @@ export const VALUE = {
   // The answers of the radios on and off.
   on: "on",
   off: "off",
+  // The answer "all" of the age, "any" of the IMDb ratings of What not to show.
+  all: "all",
 } as const;
 
 // The radios of the choice of JacRed.

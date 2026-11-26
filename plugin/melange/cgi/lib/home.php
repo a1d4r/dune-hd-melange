@@ -134,19 +134,29 @@ function mel_cgi_rows($v)
         // A form back with a wrong value: as on.
         'look' => array('none', ($v['cat_logo'] === mel_cgi_toggle_of('cat_logo', false) ? $t['logoOff'] : $t['logoOn']) . ' · ' .
             ($v['cat_rating'] === mel_cgi_toggle_of('cat_rating', false) ? $t['ratingOff'] : $t['ratingOn'])),
-        // The age (lib/hidden.php): its short name; a form back with a wrong value - all.
-        'hide' => array('none', mel_cgi_hide_line($v['cat_age'])),
+        // The age and the IMDb ratings (lib/hidden.php): their short names; a form back with a wrong value - all, any.
+        'hide' => array('none', mel_cgi_hide_line($v['cat_age'], $v['cat_imdb_movie'], $v['cat_imdb_series'])),
         'bak' => array('none', mel_cgi_l('Настройки в файл и из файла', 'Settings to a file and back')),
         'log' => array('none', mel_cgi_l('С последнего включения Дюны', 'Since the Dune was switched on')),
         'about' => array('none', MEL_VERSION . ' · ' . mel_cgi_l('поддержать автора', 'support the author')));
 }
 
-// The value of the line of "Что не показывать" of the answer $x of the age (mel_cgi_cat_ages; another one: as all, as
-// web/src/home.ts).
-function mel_cgi_hide_line($x)
+// The value of the line of "Что не показывать" of the answers of the age $x (mel_cgi_cat_ages), of the IMDb ratings
+// $movie, $series (mel_cgi_cat_imdbs; another one: as all, as any), as web/src/home.ts: "До 12+, IMDb: фильмы от 6.5,
+// сериалы от 7", each part only when set; none set - that of all ages.
+function mel_cgi_hide_line($x, $movie, $series)
 {
     $a = mel_cgi_cat_ages();
-    return isset($a[$x]) ? $a[$x][2] : $a['all'][2];
+    $out = $x !== 'all' && isset($a[$x]) ? array($a[$x][2]) : array();
+    $imdb = array();
+    foreach (array(array(mel_cgi_cat_imdbs(false), $movie), array(mel_cgi_cat_imdbs(true), $series)) as $p)
+    {
+        if (isset($p[0][$p[1]]) && $p[0][$p[1]][2] !== '')
+            $imdb[] = $p[0][$p[1]][2];
+    }
+    if ($imdb)
+        $out[] = 'IMDb: ' . implode(', ', $imdb);
+    return $out ? implode(', ', $out) : $a['all'][2];
 }
 
 // The value of the line of the source on the main screen with two sources or more (v2, prof of the values $v:

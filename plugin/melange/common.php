@@ -880,6 +880,9 @@ require_once dirname(__FILE__) . '/source_profiles.php';
 // not a bool - true),
 // 'cat_age' => int|null, the age of "Что не показывать": tiles of the catalog of an older age (mel_cat_age_of) not
 // shown (mel_ht_off; 0.65.0): 16, 12, 6, 0; null - all (another value - null),
+// 'cat_imdb_movie', 'cat_imdb_series' => int|null, "Рейтинг IMDb: фильмы", "...: сериалы" of "Что не показывать": tiles of
+// that type of a lower IMDb rating not shown (mel_ht_off; 0.70.0), in tenths: 50, 55 ... 80 (65 - from 6.5); null - any
+// (another value - null),
 // 'no_torrents' => bool, "Без торрентов" (0.49.0; not a bool - false; what it
 // does: mel_no_torrents),
 // 'aio_confs' => base of a server => mode => mel_aio_conf(); a config of
@@ -943,6 +946,15 @@ function mel_settings_read($dir, &$why = null)
     return mel_settings_parse($j);
 }
 
+// The lowest IMDb ratings of "Что не показывать" (cat_imdb_movie, cat_imdb_series), in tenths: from 5 to 8 by 0.5.
+/**
+ * @return list<int>
+ */
+function mel_imdb_mins()
+{
+    return array(50, 55, 60, 65, 70, 75, 80);
+}
+
 // The settings of the decoded JSON of a settings.json (array() - the defaults)
 // by the rules of mel_settings_read; also a file imported by the page
 // (cgi/settings.php a=import).
@@ -959,7 +971,8 @@ function mel_settings_parse($j)
         'jacred_own_url' => '', 'jacred_own_key' => '', 'aio_server' => $servers[0], 'aio_own_url' => '',
         'aio_mode' => MEL_MODE_DEBRID, 'aio_tpl' => key($tpls), 'aio_tpl_p2p' => $tpls_p2p[0], 'tmdb_key' => '',
         'no_torrents' => false, 'servers' => array(), 'ts_url' => '', 'ts_user' => '', 'ts_pass' => '', 'ts_save' => false,
-        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_age' => null, 'cat_rows' => null) + mel_lp_keys() + array('aio_confs' => array(), 'src_profiles' => false,
+        'markers' => true, 'markers_exact' => false, 'source_errors' => false, 'no_color_keys' => false, 'cat_rating' => false, 'cat_logo' => true, 'cat_age' => null, 'cat_imdb_movie' => null,
+        'cat_imdb_series' => null, 'cat_rows' => null) + mel_lp_keys() + array('aio_confs' => array(), 'src_profiles' => false,
         'profiles' => array(), 'src_main' => '', 'saved_once' => false, 'mig_lost' => array());
     $r['saved_once'] = isset($j['saved_at']);
     if (isset($j['manifest_url']))
@@ -1030,6 +1043,11 @@ function mel_settings_parse($j)
         $r['cat_logo'] = $j['cat_logo'];
     if (isset($j['cat_age']) && in_array($j['cat_age'], array(16, 12, 6, 0), true))
         $r['cat_age'] = $j['cat_age'];
+    foreach (array('cat_imdb_movie', 'cat_imdb_series') as $k)
+    {
+        if (isset($j[$k]) && in_array($j[$k], mel_imdb_mins(), true))
+            $r[$k] = $j[$k];
+    }
     if (isset($j['no_torrents']) && is_bool($j['no_torrents']))
         $r['no_torrents'] = $j['no_torrents'];
     if (isset($j['cat_rows']))

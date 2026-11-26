@@ -90,9 +90,13 @@ export function setupHome(page: Page, aio: Pick<Aio, "creates" | "hasConf" | "se
     // No dot: only the value (a wrong one as on, as PHP).
     byId(doc, "vlook").textContent = (checkedValue(form, NAME.catLogo) === VALUE.off ? texts.logoOff : texts.logoOn) + " · " +
       (checkedValue(form, NAME.catRating) === VALUE.off ? texts.ratingOff : texts.ratingOn);
-    // The age by its short name; none checked - as the first one, all (as PHP).
-    const age = checkedRadio(form, NAME.catAge) || form.querySelector<HTMLInputElement>("input[name=" + NAME.catAge + "]");
-    byId(doc, "vhide").textContent = age ? age.getAttribute(DATA.short) || "" : "";
+    // The age and the IMDb ratings by their short names, as mel_cgi_hide_line: "До 12+, IMDb: фильмы от 6.5, сериалы
+    // от 7", each part only when set (none checked: all, any); none set - the short name of all, the first radio of the age.
+    const short = (radio: HTMLInputElement | null): string => (radio && radio.value !== VALUE.all ? radio.getAttribute(DATA.short) || "" : "");
+    const imdb = [NAME.catImdbMovie, NAME.catImdbSeries].map((name) => short(checkedRadio(form, name))).filter((part) => part !== "");
+    const parts = [short(checkedRadio(form, NAME.catAge))].concat(imdb.length ? ["IMDb: " + imdb.join(", ")] : []).filter((part) => part !== "");
+    const all = form.querySelector<HTMLInputElement>("input[name=" + NAME.catAge + "]");
+    byId(doc, "vhide").textContent = parts.length ? parts.join(", ") : all ? all.getAttribute(DATA.short) || "" : "";
   }
   render();
   return {

@@ -1,6 +1,7 @@
 <?php
 // The settings page (cgi/settings.php): the screen "Что не показывать" (#hide, 0.65.0) - the age of the catalog
-// (cat_age, a radio of the form: mel_cgi_cat_ages) and "Скрытые", the titles hidden on the Dune (POP UP → «Скрыть»,
+// (cat_age, a radio of the form: mel_cgi_cat_ages), the lowest IMDb ratings of movies and series (cat_imdb_movie,
+// cat_imdb_series, 0.70.0: mel_cgi_cat_imdbs) and "Скрытые", the titles hidden on the Dune (POP UP → «Скрыть»,
 // data_dir/hidden_titles.json of hidden_titles.php), each with "Вернуть" (a=title_unhide, by the script only); the copy
 // of the list in the backup (the field hidden_titles of the export, lib/backup.php). The file is written by the plugin
 // too, with no lock (an action of the remote and one of the phone in the same instant may lose one): "Вернуть" reads
@@ -43,6 +44,34 @@ function mel_cgi_cat_age_set($x)
     return $x !== 'all' && array_key_exists($x, mel_cgi_cat_ages()) ? intval($x) : null;
 }
 
+// The answers of the lowest IMDb rating of movies ($series false: radio cat_imdb_movie) or series (cat_imdb_series):
+// its value => array(name, hint, its part of the line on the main screen (data-short; 'all' - none: mel_cgi_hide_line));
+// 'all' - null, else the rating in tenths (mel_imdb_mins: "65" - from 6.5).
+function mel_cgi_cat_imdbs($series)
+{
+    $out = array('all' => array(mel_cgi_l('Любой', 'Any'), mel_cgi_l('Рейтинг не проверяется.', 'The rating is not checked.'), ''));
+    foreach (mel_imdb_mins() as $n)
+    {
+        $r = intval($n / 10) . ($n % 10 ? '.' . $n % 10 : '');
+        $out[strval($n)] = array(mel_cgi_l("От $r", "$r+"), '', $series ? mel_cgi_l("сериалы от $r", "series $r+") :
+            mel_cgi_l("фильмы от $r", "movies $r+"));
+    }
+    return $out;
+}
+
+// The answer of mel_cgi_cat_imdbs() of cat_imdb_movie or cat_imdb_series of the settings (an int, null - any).
+function mel_cgi_cat_imdb_of($a)
+{
+    return $a === null ? 'all' : strval($a);
+}
+
+// cat_imdb_movie or cat_imdb_series of the settings of answer $x of the form (mel_cgi_cat_imdbs; another one: null, the
+// check refuses it).
+function mel_cgi_cat_imdb_set($x)
+{
+    return $x !== 'all' && array_key_exists($x, mel_cgi_cat_imdbs(false)) ? intval($x) : null;
+}
+
 // Why the list of the file is not taken (mel_ht_read_file gave null, $why): the line of the page. A broken file
 // (mel_ht_broken): php_server renames it to .bad at its next read and starts a new list (mel_ht_list); the page only
 // reads it.
@@ -80,9 +109,9 @@ function mel_cgi_ht_data($dir)
     return array('items' => $list !== null ? mel_cgi_ht_items($list) : array(), 'msg' => $list !== null ? '' : mel_cgi_ht_why_text($why));
 }
 
-// The screen "Что не показывать" (#hide): the age (a value of the form: '' or another one - none checked), where it and
-// the hidden act; "Скрытые": the list made by the script (web/src/hidden.ts) from #init.hidden, its lines in #htr
-// (without the script: why there is none).
+// The screen "Что не показывать" (#hide): the age and the IMDb ratings of movies and series (values of the form: '' or
+// another one - none checked), where they and the hidden act; "Скрытые": the list made by the script
+// (web/src/hidden.ts) from #init.hidden, its lines in #htr (without the script: why there is none).
 function mel_cgi_hide_screen($v)
 {
     $f = mel_cgi_fields();
@@ -91,6 +120,12 @@ function mel_cgi_hide_screen($v)
         '<p class="lbl">' . mel_cgi_l('Возраст', 'Age rating') . '</p>' . mel_cgi_choice($f['cat_age'], mel_cgi_cat_ages(), $v['cat_age']) .
         '<p class="hint">' . mel_cgi_l('Возраст проверяется и в поиске. Тайтлы без возраста видны.',
         'Search results are filtered too. Titles with no age rating stay visible.') . '</p>' .
+        '<p class="lbl">' . mel_cgi_l('Рейтинг IMDb: фильмы', 'IMDb rating: movies') . '</p>' .
+        mel_cgi_choice($f['cat_imdb_movie'], mel_cgi_cat_imdbs(false), $v['cat_imdb_movie']) .
+        '<p class="lbl">' . mel_cgi_l('Рейтинг IMDb: сериалы', 'IMDb rating: series') . '</p>' .
+        mel_cgi_choice($f['cat_imdb_series'], mel_cgi_cat_imdbs(true), $v['cat_imdb_series']) .
+        '<p class="hint">' . mel_cgi_l('Рейтинг проверяется и в поиске. Тайтлы без рейтинга IMDb видны.',
+        'Search results are filtered too. Titles with no IMDb rating stay visible.') . '</p>' .
         '<p class="lbl">' . mel_cgi_l('Скрытые', 'Hidden') . '</p><div id="htl" class="list"></div>' .
         '<div id="htr" class="res" aria-live="polite"><p class="hint">' .
         mel_cgi_l('Список не открылся: нужен браузер с поддержкой скриптов.', 'The list did not open: a browser with scripts is needed.') .
