@@ -1550,8 +1550,13 @@ function mel_catv_main_view($media_url, $sel_state)
         $own['@continue'] = mel_cp_row_defs($tab, $lang, $cp_tiles, $miss);
     if (in_array('@mylist', $names, true))
         $own['@mylist'] = mel_ml_row_defs($tab, $lang, $ml_tiles, $ml_miss);
+    // "На TorrServer": of its copy alone (ts_row.php), no request here.
+    $ts_miss = array();
+    if (in_array('@torrserver', $names, true))
+        $own['@torrserver'] = mel_tsr_row_defs($tab, $lang, $media_url, $ts_tiles, $ts_miss);
     MelCpm::$miss = $miss;
     MelCpm::$ml = $ml_miss;
+    MelCpm::$ts = $ts_miss;
     MelCat::$own = $names;
     $now = microtime(true);
     $net = mel_catv_open($shown, $loading ? 0 : min(MEL_CATV_OPEN_S - ($now - $rows_t0), MEL_CATV_OPEN_MAX_S - ($now - $start)));
@@ -2811,10 +2816,24 @@ function mel_catv_hist_y()
 function mel_catv_info($in)
 {
     $id = mel_catv_in($in, 'item_id');
-    $t = mel_catv_tile($id, mel_tv_is_key(mel_catv_in($in, 'folder_key')));
+    // A tile of "На TorrServer" (view_ts_row.php): its row of the copy, the card of its movie by the history.
+    $hash = mel_tsl_hash_of($id);
+    $tsr = $hash !== '' ? mel_tsr_entry($hash) : null;
+    $mid = $hash !== '' ? mel_tsr_mid($hash) : mel_cp_mid_of($id);
+    if ($hash !== '')
+        $t = $mid !== '' ? mel_cp_tile($mid) : null;
+    else
+        $t = mel_catv_tile($id, mel_tv_is_key(mel_catv_in($in, 'folder_key')));
     $more_url = mel_catv_more_url($id);
     $more = $more_url !== '' ? mel_catv_all_list($more_url, false) : null;
-    if ($t)
+    // Not known: 2C (mel_tsr_info), the picture of TorrServer; no history, no "Мой список".
+    if ($hash !== '' && !$t)
+    {
+        list($name, $lines, $desc) = mel_tsr_info($tsr, mel_catv_ui_lang());
+        $sub = '';
+        $facts = array();
+    }
+    else if ($t)
     {
         $name = $t['name'];
         $sub = $t['englishTitle'] !== $name ? $t['englishTitle'] : '';
@@ -2846,7 +2865,7 @@ function mel_catv_info($in)
     $labels = array();
     $name = mel_clean($name);
     list($on) = mel_catv_id_mode($id);
-    $card = mel_catv_card($t, $on);
+    $card = $hash !== '' && !$t ? mel_tsr_card($on) : mel_catv_card($t, $on);
     // None under the logo. Cut here to 2 lines of the least size, "…" on the last one; the shell sizes it down to them.
     $sub = $card['logo'] ? '' : implode(' ', mel_gc_wrap(mel_clean($sub), MEL_CATV_SUB_MIN_PX, MEL_CATV_TEXT_W, 2, true));
     $bottom = MEL_CATV_TITLE_BOTTOM - ($sub !== '' ? MEL_CATV_SUB_H : 0);
@@ -2879,7 +2898,6 @@ function mel_catv_info($in)
     // place whatever the length of the description and the lines over it (mel_catv_hist_y); the description as many
     // lines as are over it.
     // A title of "Мой список": " · В моём списке" after it; in the list with no history the words alone there.
-    $mid = mel_cp_mid_of($id);
     $b = $t ? ($mid !== '' ? mel_cp_badge($mid, $t['type']) : mel_pg_tile_badge($t)) : null;
     $ml = $t && mel_ml_in($t, $mid) !== '' ? mel_tr(mel_catv_ui_lang(), 'ml_in') : '';
     $hist = array();
@@ -2888,6 +2906,15 @@ function mel_catv_info($in)
         $n = min($n, intval((mel_catv_hist_last() - $y) / $step) + 1);
         $hy = mel_catv_hist_y();
         $hist = $b ? mel_pg_info_line($b, $hy, mel_catv_ui_lang(), $ml !== '' ? " · $ml" : '') : mel_pg_info_words($ml, $hy);
+    }
+    // A known tile of "На TorrServer" in the copy: its line (mel_tsr_line, (в) of the designer) in place of the last
+    // line of such a description over the line of the history (none: at its place); the description the lines over it,
+    // 13 px over it as under the cast.
+    if ($t && $tsr)
+    {
+        $ty = $hist ? mel_catv_hist_last() : mel_catv_hist_y();
+        $n = min($n, intval(($ty - 13 - $y + 5) / $step));
+        $hist = array_merge(mel_tsr_line(mel_tsr_line_text($tsr, mel_catv_ui_lang()), $ty), $hist);
     }
     $desc = implode(' ', mel_gc_wrap(mel_clean($desc), MEL_CATV_LINE_PX, MEL_CATV_TEXT_W, $n, true));
     if ($desc !== '')

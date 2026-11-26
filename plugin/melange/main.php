@@ -104,12 +104,13 @@ require_once dirname(__FILE__) . '/cp_meta.php';
 require_once dirname(__FILE__) . '/my_list.php';
 require_once dirname(__FILE__) . '/view_my_list.php';
 // "На TorrServer": the list of TorrServer, its entries and files (no firmware API); its screen; a start from it; the
-// screen of files of a pack; the copy of the row of the catalog (no firmware API).
+// screen of files of a pack; the copy of the row of the catalog (no firmware API); the row on a main screen.
 require_once dirname(__FILE__) . '/ts_list.php';
 require_once dirname(__FILE__) . '/view_ts.php';
 require_once dirname(__FILE__) . '/view_ts_play.php';
 require_once dirname(__FILE__) . '/view_ts_files.php';
 require_once dirname(__FILE__) . '/ts_row.php';
+require_once dirname(__FILE__) . '/view_ts_row.php';
 // "Скрыть" and the age: the file of the hidden titles, the filter of the rows.
 require_once dirname(__FILE__) . '/hidden_titles.php';
 // The tab "TV" of the main screen.

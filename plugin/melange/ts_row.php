@@ -169,13 +169,26 @@ function mel_tsr_rows($list)
     {
         $h = $e['hash'];
         $files = $e['files'] !== null ? $e['files'] : (isset(MelTsl::$files[$h]) ? MelTsl::$files[$h] : null);
-        list($head) = mel_tsl_split($e['title']);
-        $e['files'] = $files !== null && strlen(strval(json_encode(mel_tsr_files_out($files)))) <= MEL_TSR_FILES_MAX ?
+        $r = mel_tsr_tile_of($e, $files);
+        $r['e']['files'] = $files !== null && strlen(strval(json_encode(mel_tsr_files_out($files)))) <= MEL_TSR_FILES_MAX ?
             $files : null;
-        $out[$h] = array('e' => $e, 'nv' => $files === null ? -1 : mel_tsl_video_count($files),
-            'fname' => mel_tsl_name($files, $head));
+        $out[$h] = $r;
     }
     return $out;
+}
+
+// Entry $e with its files $files (null: not known) as a row of the copy: its video files (mel_tsl_video_count; -1 not
+// known) and the name of the torrent by them (mel_tsl_name). The texts of the panel of the section and of the row take
+// it (mel_tsl_texts), so the two never differ.
+/**
+ * @param MelTsEntry $e
+ * @param list<MelTsFile>|null $files
+ * @return MelTsrRow
+ */
+function mel_tsr_tile_of($e, $files)
+{
+    list($head) = mel_tsl_split($e['title']);
+    return array('e' => $e, 'nv' => $files === null ? -1 : mel_tsl_video_count($files), 'fname' => mel_tsl_name($files, $head));
 }
 
 // Files $files as the copy writes them: the sizes as strings.
@@ -274,14 +287,14 @@ function mel_tsr_drop($hash)
     mel_log("ts row: $hash out of the copy");
 }
 
-// The movie of the Dune (movie_id) of torrent $hash by the history of Melange: the uid of a record of a release of it
-// "aio:<movie_id>:<s>:<e>:<hash>" (mel_wh_ours_all, the latest first: of several movies the latest), '' none. A start
-// from the section ("aiots:") gives none. No request; the map is made anew when the history changes (MelWh::$sig).
+// The movies of the Dune (movie_id) of the torrents by the history of Melange: hash => movie_id, by the uid of a record
+// of a release of it "aio:<movie_id>:<s>:<e>:<hash>" (mel_wh_ours_all, the latest first: of several movies the latest).
+// A start from the section ("aiots:") gives none. No request; the map is made anew when the history changes
+// (MelWh::$sig; none known - at every call: a row takes it once).
 /**
- * @param string $hash
- * @return string
+ * @return array<string, string>
  */
-function mel_tsr_mid($hash)
+function mel_tsr_mids()
 {
     $all = mel_wh_ours_all();
     if (MelWh::$sig === null || MelWh::$sig !== MelTsr::$mid_sig)
@@ -296,5 +309,16 @@ function mel_tsr_mid($hash)
         MelTsr::$mid = $map;
         MelTsr::$mid_sig = MelWh::$sig;
     }
-    return isset(MelTsr::$mid[$hash]) ? MelTsr::$mid[$hash] : '';
+    return MelTsr::$mid;
+}
+
+// The movie of the Dune of torrent $hash by the history (mel_tsr_mids), '' none.
+/**
+ * @param string $hash
+ * @return string
+ */
+function mel_tsr_mid($hash)
+{
+    $mids = mel_tsr_mids();
+    return isset($mids[$hash]) ? $mids[$hash] : '';
 }

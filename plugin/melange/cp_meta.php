@@ -108,6 +108,9 @@ class MelCpm
     // after those of "Continue", before them when the row is above it (MelCat::$own).
     /** @var list<array{string, string, string}> */
     public static $ml = array();
+    // The same of the row "На TorrServer" of that screen (mel_tsr_row_defs: its tiles known by the history).
+    /** @var list<array{string, string, string}> */
+    public static $ts = array();
     // The same of the screen "Продолжить" or "Мой список" built last (view_my_list.php), its first MEL_CPM_MORE: asked
     // after those of the rows; a row built again keeps them.
     /** @var list<array{string, string, string}> */
@@ -434,7 +437,7 @@ function mel_cpm_queue($titles = null)
     $now = time();
     $out = array();
     // The list of each row of Melange with one, by its name (mel_cat_pseudo).
-    $of = array('@continue' => MelCpm::$miss, '@mylist' => MelCpm::$ml);
+    $of = array('@continue' => MelCpm::$miss, '@mylist' => MelCpm::$ml, '@torrserver' => MelCpm::$ts);
     $rows = array();
     foreach (MelCat::$own as $name)
         $rows = isset($of[$name]) ? array_merge($rows, $of[$name]) : $rows;

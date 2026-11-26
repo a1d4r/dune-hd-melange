@@ -217,7 +217,7 @@ function mel_tsl_items($list, $key, $detail, $lang)
 function mel_tsl_line($e, $lang, $none)
 {
     $poster = mel_img($e['poster']);
-    $t = mel_tsl_texts($e, $lang);
+    $t = mel_tsl_texts(mel_tsr_tile_of($e, mel_tsl_files_of($e['hash'])), $lang);
     return mel_tsl_item(MEL_TSL_RID . ':' . $e['hash'], $e['title'], $poster !== '' ? $poster : $none,
         array($t['head'], $t['facts'], $t['added'], $t['rest']));
 }
@@ -364,23 +364,23 @@ function mel_tsl_split($title)
     return array(trim(substr($body, 0, $m[0][1])), trim(trim($lead) . ' ' . $rest));
 }
 
-// The texts of entry $e in language $lang: head and rest - the title and the rest of it (mel_tsl_split); no rest (a
-// short title of Melange) - the name of the torrent by its files (mel_tsl_name; owner 24.11.2026); facts - "73
-// файла · 51.6 ГБ" (the video files if two and more, mel_tsl_video_count; its size; '' none of them); added -
-// "Добавлено 18 сентября" (mel_tsl_added; '' no date).
+// The texts of row $r of a torrent (mel_tsr_tile_of: its entry, video files, name by its files) in language $lang: head
+// and rest - the title and the rest of it (mel_tsl_split); no rest (a short title of Melange) - the name of the torrent
+// by its files (owner 24.11.2026); facts - "73 файла · 51.6 ГБ" (the video files if two and more; its size; '' none of
+// them); added - "Добавлено 18 сентября" (mel_tsl_added; '' no date). The section and the row of the catalog alike.
 /**
- * @param MelTsEntry $e
+ * @param MelTsrRow $r
  * @param string $lang
  * @return array{head: string, rest: string, facts: string, added: string}
  */
-function mel_tsl_texts($e, $lang)
+function mel_tsl_texts($r, $lang)
 {
+    $e = $r['e'];
     list($head, $rest) = mel_tsl_split($e['title']);
     $facts = array();
-    $files = mel_tsl_files_of($e['hash']);
     if ($rest === '')
-        $rest = mel_tsl_name($files, $head);
-    $n = $files === null ? 0 : mel_tsl_video_count($files);
+        $rest = $r['fname'];
+    $n = $r['nv'];
     if ($n > 1)
         $facts[] = $n . ' ' . mel_gc_plural($lang, $n, 'tsl_files');
     if ($e['size'] > 0)

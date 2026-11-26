@@ -509,7 +509,7 @@ function mel_catv_rows_tab($from)
 // "Configure list…" and a separator for the POP UP of the main screen $from of the tab $tab, on the
 // header $hid (selected_header_id, in the panel of the headers; genre_rows_screen.php r25): on any
 // h:* header or MEL_CATV_STRIP_HEADER the menu of the rows of the tab (mel_catv_rows_menu), the row
-// selected if it is in the copy, on "Продолжить" and "Избранное" theirs; none if the copy has no row
+// selected if it is in the copy, on "Продолжить", "Избранное", "На TorrServer" theirs; none if the copy has no row
 // of the tab. Else (a tile) none.
 /**
  * @param string $hid
@@ -526,8 +526,8 @@ function mel_catv_rows_menu_items($hid, $tab, $from, $lang)
         return array();
     $copy = mel_cat_manifest_copy();
     $any = false;
-    // "Продолжить" and "Избранное": their items of "Group order".
-    $by_rid = array(MEL_CP_RID => '@continue', MEL_ML_RID => '@mylist');
+    // "Продолжить", "Избранное", "На TorrServer": their items of "Group order".
+    $by_rid = array(MEL_CP_RID => '@continue', MEL_ML_RID => '@mylist', MEL_TSL_RID => '@torrserver');
     $sel = isset($by_rid[$rid]) ? $by_rid[$rid] : null;
     foreach ($copy['rows'] as $r)
     {
