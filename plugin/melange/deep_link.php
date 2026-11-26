@@ -190,7 +190,9 @@ function mel_dl_card($q)
 // no window). The window its first tick opens (lw_auto, mel_oc_tick: mode first, only of the copies its screen shows),
 // the reply - plugin_open_folder "card:<key>" (mel_dl_card_open). The choice - card_lib_copy of the card (from the place
 // of mel_lib_place), RETURN - the card stays. No such card (no id of the title, an id off its form, a card with none of
-// the copies): null (the caller plays the first there).
+// the copies): null (the caller plays the first there) - no screen then, so no key of one taken and no card kept: the
+// copies looked for first by the card of the title with no screen (mel_oc_no_screen), the card of the screen made only
+// when it has them.
 /**
  * @param MelMovie $mv
  * @param list<MelLibCopy> $left
@@ -207,18 +209,23 @@ function mel_lib_win_card($mv, $left, $s, $e)
         mel_log("$tag, no own card (no IMDb, no TMDB)");
         return null;
     }
-    $kc = mel_dl_card_of($mv['series'] ? 'series' : 'movie', $id);
-    if (!is_array($kc))
+    $type = $mv['series'] ? 'series' : 'movie';
+    $tile = mel_oc_id_tile($type, $id);
+    if (!$tile || mel_cm_id($tile) === '')
     {
         mel_log("$tag, no own card (" . ($mv['imdb'] !== '' ? 'IMDb' : 'TMDB') . ' off its form)');
         return null;
     }
-    list($key, $card) = $kc;
+    list($card) = mel_oc_no_screen($tile, mel_catv_lang());
     if (!mel_oc_lib_shown(mel_oc_lib($card), $s, $e))
     {
-        mel_log("$tag, the own card $key has none of them: no own card");
+        mel_log("$tag, the own card $type:" . mel_cm_id($tile) . ' has none of them: no own card');
         return null;
     }
+    $kc = mel_dl_card_of($type, $id);
+    if (!is_array($kc))
+        return null;
+    list($key, $card) = $kc;
     $card['lw_auto'] = array('copies' => $left, 's' => $e >= 1 ? $s : -1, 'e' => $e >= 1 ? $e : -1);
     MelOc::$cards[$key] = $card;
     mel_log("$tag -> the own card $key, the window of them by its first tick");
@@ -339,6 +346,8 @@ function mel_dl_src($src)
 // season s of the meta (a series, mel_oc_ep_watch: one not out yet - its message; the episode offered - by H and the
 // files on the disk, mel_oc_lib_pick, as the screen of the card); not in the meta, or no meta:
 // asked as s, e. Only the list: play_action gets no selected_control_id, so no resume starts a player (mel_resume).
+// No screen of the card opens: the card of the title with no screen (mel_oc_no_screen: that in memory with its meta,
+// else made of the meta, else of the ids), no key of a screen taken, nothing kept; an id off its form: null.
 // src given: the list from that profile (mel_dl_src), as "Смотреть из…" of the card (mel_oc_watch_from): nothing
 // remembered, the record and the main one not used; no such profile or not ready: null, logged, nothing asked.
 /**
@@ -357,10 +366,13 @@ function mel_dl_streams($q)
             return null;
         }
     }
-    $kc = mel_dl_card_of($q['type'], mel_dl_id($q));
-    if (!is_array($kc))
+    $id = mel_dl_id($q);
+    $tile = $id !== '' ? mel_oc_id_tile($q['type'], $id) : null;
+    if (!$tile || mel_cm_id($tile) === '')
         return null;
-    $c = $kc[1];
+    list($c, $kept, $err) = mel_oc_no_screen($tile, mel_catv_lang());
+    mel_log("open: own {$q['type']}:" . mel_cm_id($tile) . ': the list, the card ' . ($kept ? 'in memory' :
+        'made, meta ' . ($err !== '' ? "failed ($err)" : 'ok')) . ', of the Dune ' . ($c['dune'] !== '' ? $c['dune'] : 'none'));
     if ($q['type'] !== 'series')
         return mel_oc_watch($c, -1, -1, null, $src);
     $s = intval($q['s']);
