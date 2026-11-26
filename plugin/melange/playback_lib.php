@@ -102,7 +102,8 @@ function mel_lib_play($mv, $go, $lang, $ep = null)
         // The native uids of its files on the disk too (as card_mark, mel_oc_lib_native_uids): its season of the Dune.
         $nat = array();
         $se = mel_lib_se($q, $e);
-        foreach (array_merge(array($copy), isset($ep['eps'][$se]) ? $ep['eps'][$se] : array()) as $f)
+        // Not of its copies not confirmed (alt), but the one played.
+        foreach (array_merge(array($copy), mel_lib_copies_reg(isset($ep['eps'][$se]) ? $ep['eps'][$se] : array())) as $f)
             $nat[] = mel_lib_native_uid($f);
         mel_cw_note($ser, $mk, $mv['dune_id'], $q, $e, array_values(array_diff($nat, array(''))));
     }
@@ -205,7 +206,8 @@ function mel_lib_play_bd($mv, $go, $url)
 // first (mel_lib_ep_of: the rule of mel_lib_ep_cid; none - in their order). One check a copy at most; a copy that does
 // not answer ('slow') takes the copies of all the shares of its server out unchecked (srv: the NAS sleeps or is off -
 // one wait, not one a share; a mirror on another server is still checked), and no check starts that the operation
-// (MEL_OP_BUDGET) has no time left for (of an episode: and its read).
+// (MEL_OP_BUDGET) has no time left for (of an episode: and its read). A copy not confirmed of an episode (alt,
+// mel_lib_ep_copies) only as $first: not among the copies left.
 /**
  * @param list<MelLibCopy> $copies
  * @param string $first
@@ -217,7 +219,7 @@ function mel_lib_play_bd($mv, $go, $url)
  */
 function mel_lib_start($copies, $first, $first_pos, $pos, $auto, $f_packs = array())
 {
-    $left = $copies;
+    $left = mel_lib_copies_reg($copies);
     $want = mel_lib_ep_of($copies, $first, $f_packs);
     if ($first !== '')
         mel_log("library: start $first: " . (count($want) === 1 ? 'its copy' : ($want ? 'its ' . count($want) . ' copies' :
@@ -331,7 +333,8 @@ function mel_lib_place($hid, $copies, $k, $q = -1, $e = -1, $fix = array())
 // (the playlist, the line of the card). -> array(the key of the record or the id of a copy, '' - the window; why):
 // record - the copy of the record; folder - of a pack F (the first of several); near - of the pack nearest to F
 // (mel_lib_pack_near, the most of the packs F), near-best - the first of several as near; one - the only copy; auto-best -
-// the first; window - none of these; none - no copy. No log: the caller logs a line an action.
+// the first; window - none of these; none - no copy. A copy not confirmed (alt, mel_lib_ep_copies) only by the record
+// of it (chosen in the window of the copies): the other rules go by the rest. No log: the caller logs a line an action.
 /**
  * @param list<MelLibCopy> $copies_ep
  * @param string $rec_key
@@ -341,9 +344,10 @@ function mel_lib_place($hid, $copies, $k, $q = -1, $e = -1, $fix = array())
  */
 function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
 {
-    if (!$copies_ep)
+    $reg = mel_lib_copies_reg($copies_ep);
+    if (!$reg)
         return array('', 'none');
-    $top = $copies_ep[0];
+    $top = $reg[0];
     if ($rec_key !== '' && mel_lib_copies_of($copies_ep, $rec_key))
         $why = 'record';
     else if ($f_packs)
@@ -351,7 +355,7 @@ function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
         $why = '';
         $at = -2;
         $ties = 0;
-        foreach ($copies_ep as $c)
+        foreach ($reg as $c)
         {
             $p = mel_lib_pack($c);
             if (in_array($p, $f_packs, true))
@@ -370,7 +374,7 @@ function mel_lib_ep_pick($copies_ep, $rec_key, $f_packs, $auto)
         if ($why === '')
             $why = $ties > 1 ? 'near-best' : 'near';
     }
-    else if (count($copies_ep) === 1)
+    else if (count($reg) === 1)
         $why = 'one';
     else
         $why = $auto ? 'auto-best' : 'window';
@@ -398,7 +402,8 @@ function mel_lib_ep_cid($copies_ep, $ctx, $se, $auto)
 }
 
 // The copies of copies $copies of $k (mel_lib_copies_of: the key of a record - its mirrors, or the id of one), of the
-// mirrors the copies of a pack of $f_packs first, the rest after them, each in their order.
+// mirrors the copies of a pack of $f_packs first, the rest after them, each in their order. Of mirrors some not
+// confirmed (alt, mel_lib_ep_copies) the others only: one of those plays by its id, or by a key of no other copy.
 /**
  * @param list<MelLibCopy> $copies
  * @param string $k
@@ -409,7 +414,9 @@ function mel_lib_ep_of($copies, $k, $f_packs)
 {
     $in = array();
     $out = array();
-    foreach (mel_lib_copies_of($copies, $k) as $c)
+    $of = mel_lib_copies_of($copies, $k);
+    $reg = mel_lib_copies_reg($of);
+    foreach ($reg ? $reg : $of as $c)
     {
         if (in_array(mel_lib_pack($c), $f_packs, true))
             $in[] = $c;
