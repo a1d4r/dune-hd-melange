@@ -1354,6 +1354,18 @@ function mel_lib_key($hash)
     return 'lib-' . substr(md5($hash), 0, 12);
 }
 
+// The key of an episode file not confirmed of hash $hash of an episode with a confirmed one (alt, MelLib::$eps_alt): its
+// own, not of a confirmed mirror of it (mel_lib_key) - the record of the copy chosen in the window of the copies tells
+// it from that mirror (owner 26.11.2026: the copy chosen plays again, its folder is F).
+/**
+ * @param string $hash
+ * @return string
+ */
+function mel_lib_alt_key($hash)
+{
+    return mel_lib_key("alt:$hash");
+}
+
 // $k is a key of a copy (mel_lib_key): of the uid of a record, of wh_release of "Continue".
 /**
  * @param mixed $k
@@ -1671,7 +1683,8 @@ function mel_lib_files_copies($files)
             continue;
         $urls[$url] = 1;
         $c = $f + array('url' => $url, 'mnt' => $mnt[$id][0], 'srv' => $mnt[$id][1],
-            'key' => mel_lib_key($f['hash']), 'cid' => mel_lib_cid($url), 'caption' => $folder['caption']);
+            'key' => isset($f['alt']) ? mel_lib_alt_key($f['hash']) : mel_lib_key($f['hash']), 'cid' => mel_lib_cid($url),
+            'caption' => $folder['caption']);
         $su = mel_lib_file_shell_url($f);
         if ($su !== null)
             $c['shell_url'] = $su;
@@ -1698,9 +1711,10 @@ function mel_lib_se($s, $e)
 
 // The copies of the episodes of the series $mid of the index (MelLib::$eps: the season and the episode after the rules
 // of the numbers) -> "s:e" => its copies (mel_lib_files_copies, the best first), the episodes in order. After them, of
-// an episode with a copy now, the copies of its files not confirmed (MelLib::$eps_alt; alt true, the best first): to
-// choose in the window of the copies, no rule takes one by itself (mel_lib_copies_reg). The mount list is read on every
-// call, and only when the series has episodes in the index.
+// an episode with a copy now, the copies of its files not confirmed (MelLib::$eps_alt; alt true, the best first, the key
+// mel_lib_alt_key): to choose in the window of the copies; by itself one plays only of the folder chosen so (a pack F,
+// mel_lib_ep_pick), no other rule takes it (mel_lib_copies_reg). The mount list is read on every call, and only when
+// the series has episodes in the index.
 /**
  * @param string $mid
  * @return array<string, list<MelLibCopy>>
@@ -1775,7 +1789,8 @@ function mel_lib_pack($f)
 
 // The packs of the episode files of the series $mid of the index of the key $key (mel_lib_key; mirrors: a pack each),
 // mounted or not: "the same folder" of the last choice of a copy, though its share is not mounted now. Of its files
-// not confirmed too (MelLib::$eps_alt): one chosen in the window is a choice of its folder as any.
+// not confirmed too (MelLib::$eps_alt, by their key mel_lib_alt_key): one chosen in the window is a choice of its
+// folder as any.
 /**
  * @param string $mid
  * @param string $key
@@ -1785,11 +1800,12 @@ function mel_lib_key_packs($mid, $key)
 {
     mel_lib_index();
     $res = array();
-    foreach (array_merge(isset(MelLib::$eps[$mid]) ? MelLib::$eps[$mid] : array(),
-        isset(MelLib::$eps_alt[$mid]) ? MelLib::$eps_alt[$mid] : array()) as $f)
+    $eps = isset(MelLib::$eps[$mid]) ? MelLib::$eps[$mid] : array();
+    foreach (array_merge($eps, isset(MelLib::$eps_alt[$mid]) ? MelLib::$eps_alt[$mid] : array()) as $i => $f)
     {
         $p = mel_lib_pack(array('folder' => $f['folder'], 'dir' => mel_ts_dirname($f['path'])));
-        if (mel_lib_key($f['hash']) === $key && !in_array($p, $res, true))
+        $k = $i < count($eps) ? mel_lib_key($f['hash']) : mel_lib_alt_key($f['hash']);
+        if ($k === $key && !in_array($p, $res, true))
             $res[] = $p;
     }
     return $res;
