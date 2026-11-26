@@ -52,7 +52,7 @@ To remove a torrent from TorrServer, press **POP UP** on it in the list, choose 
 
 These torrents can also sit in a catalog row, newest on the left. The row is the same on Movies and Series and is also in the TV tab.
 
-1. Turn the row on: check "On TorrServer" in "Group order" on the Dune or in "Catalog rows" on the phone ([Your own catalog rows](catalog-rows.en.md)). It goes after Favorites.
+1. Turn the row on: check "On TorrServer" in "Group order" on the Dune or in "Catalog rows" on the phone ([Your own catalog rows](catalog-rows.en.md)). It goes after Favorites, at once or the next time you open the catalog.
 
    <!-- frame: Group order, focus on On TorrServer with (x) -->
 
@@ -62,7 +62,7 @@ These torrents can also sit in a catalog row, newest on the left. The row is the
 
 3. To remove a torrent, press **POP UP** on the tile and choose "Remove from TorrServer". **ENTER** on the row name opens the whole section.
 
-The row refreshes by itself a couple of seconds after the catalog opens. It is not there if TorrServer is not set up, "No torrents" is chosen, or TorrServer is empty.
+The row refreshes by itself a couple of seconds after the catalog opens or the next time you open it. It is not there if TorrServer is not set up, "No torrents" is chosen, or TorrServer is empty.
 
 ## If it didn't work
 
