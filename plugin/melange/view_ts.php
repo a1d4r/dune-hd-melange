@@ -516,11 +516,11 @@ function mel_tsl_rem_act($hash, $from)
 }
 
 // The screens built anew after a torrent went off TorrServer (removed, or found gone) from screen $from, then $post: $from
-// itself (mel_catv_screen_of: '' none, a screen updated by $post itself, "TV"); the row shown (mel_tsr_any) - on r25,
-// its tile out of the copy ($dropped, mel_tsr_drop: one not in it changed no row), the main screens opened too
-// (mel_catv_mains_anew: one under the section, the other tab); on r24 of them those built with another copy, whatever
-// changed it (mel_tsr_unseen: the one under the section, a read of the section too). The shell keeps the focus by
-// sel_state. None of them: $post.
+// itself (mel_catv_screen_of: '' none, a screen updated by $post itself, "TV"); the row shown (mel_tsr_any) and its
+// tile out of the copy ($dropped, mel_tsr_drop: one not in it changed no row) - on r25 the main screens opened too
+// (mel_catv_mains_anew: one under the section, the other tab). On r24 not they (a screen of rows lower in the stack
+// built again may go to the network for seconds): a tile of the row left there goes at an OK on it (mel_tsl_enter, the
+// torrent gone: that screen anew) or at the next opening. The shell keeps the focus by sel_state. None of them: $post.
 /**
  * @param string $from
  * @param bool $dropped
@@ -531,9 +531,8 @@ function mel_tsl_rem_act($hash, $from)
 function mel_tsl_anew($from, $dropped, $post, $why)
 {
     $also = mel_catv_screen_of($from);
-    if (mel_tsr_any() && ($dropped || mel_fw_r() < 25))
-        return mel_catv_mains_anew($post, $why, array_merge($also !== '' ? array($also) : array(),
-            mel_fw_r() >= 25 ? array() : mel_tsr_unseen(MelCat::$mains)), false);
+    if (mel_tsr_any() && $dropped && mel_fw_r() >= 25)
+        return mel_catv_mains_anew($post, $why, $also !== '' ? array($also) : array(), false);
     if ($also === '')
         return $post;
     $a = mel_catv_invalidate($also);

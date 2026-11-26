@@ -6,7 +6,7 @@
 // "aio:"). No firmware API. Reads Mel::$settings, MelTsl, the history (history.php); writes
 // MelTsr and the copy. Needs ts_list.php (MelTsl, mel_tsl_fetch, mel_tsl_video_count, mel_tsl_files_of, mel_tsl_on,
 // mel_tsl_split, mel_tsl_name), catalog.php (mel_cat_tab_slots, mel_cat_slot_names), view_catalog.php
-// (MEL_CATV_ROW_TILES), history.php (mel_wh_ours_all), tv_tab.php (mel_tv_flag), parse.php, main.php. Functions are global; the require order is
+// (MEL_CATV_ROW_TILES), history.php (mel_wh_ours_all), tv_tab.php (mel_tv_tsr_saved), parse.php, main.php. Functions are global; the require order is
 // in main.php.
 
 // The copy of the row in data_dir: {"v": 1, "sig": mel_tsr_sig, "tiles": [{"e": the entry (mel_tsl_entry; its sizes as
@@ -47,10 +47,6 @@ class MelTsr
     public static $mid = array();
     /** @var string|null */
     public static $mid_sig = null;
-    // r24: the copy each main screen showed the row of when built (mel_tsr_seen_sig) by its media_url: after a removal
-    // one of another copy is built again (mel_tsr_unseen), as r24 does not build the main screens under the section.
-    /** @var array<string, string> */
-    public static $seen = array();
 }
 
 // The address and the login of TorrServer of the settings as one hash: a copy of another one is none. The password is
@@ -154,46 +150,6 @@ function mel_tsr_tiles()
         MelTsr::$json = $text;
     }
     return MelTsr::$sig === mel_tsr_sig() ? MelTsr::$tiles : array();
-}
-
-// What a screen showing the row now shows of it (mel_tsr_seen): the copy as last read or put (MelTsr::$json; the file
-// read when another one, mel_tsr_tiles) and its TorrServer, «Без торрентов».
-/**
- * @return string
- */
-function mel_tsr_seen_sig()
-{
-    $on = mel_tsl_on();
-    if ($on)
-        mel_tsr_tiles();
-    return md5(($on ? '1' : '0') . mel_tsr_sig() . MelTsr::$json);
-}
-
-// r24: main screen $url is built with the row (mel_catv_main_view): what of it it shows kept (MelTsr::$seen).
-/**
- * @param string $url
- * @return void
- */
-function mel_tsr_seen($url)
-{
-    MelTsr::$seen[$url] = mel_tsr_seen_sig();
-}
-
-// r24: of main screens $urls those built with the row of another copy than now (mel_tsr_seen), in their order.
-/**
- * @param list<string> $urls
- * @return list<string>
- */
-function mel_tsr_unseen($urls)
-{
-    $now = mel_tsr_seen_sig();
-    $out = array();
-    foreach ($urls as $url)
-    {
-        if (isset(MelTsr::$seen[$url]) && MelTsr::$seen[$url] !== $now)
-            $out[] = $url;
-    }
-    return $out;
 }
 
 // The tiles the row shows, the one test of a copy to use (its slot on a tab aside: the caller's): none with the row
@@ -302,9 +258,9 @@ function mel_tsr_files_out($files)
 // The copy is tiles $tiles (mel_tsr_tiles_of) of the TorrServer of the settings: in memory, and the file written when
 // they are other than the copy last read or put (MelTsr::$json; the flash wears: most reads find the same list) ->
 // 'same', 'new' (written), 'failed' (other, not written: a line of the log, memory as said; the same tiles next time
-// are 'same', no write tried at every read). Not 'same' - the one place of the flag of the tab "TV", as a copy of the
-// catalog (mel_tv_copy_saved): a read of its timer counted (MelTv::$quiet: it compares the files itself), else with the
-// row shown the flag (mel_tv_flag); so a removal from the row, the section and "TV" alike, a tick, a read of the section.
+// are 'same', no write tried at every read). Not 'same', the row shown - the one place of the flag of the tab "TV"
+// (mel_tv_tsr_saved: a read of its timer counted, else the flag); so a removal from the row, the section and "TV"
+// alike, a tick, a read of the section.
 /**
  * @param array<string, MelTsrTile> $tiles
  * @return string
@@ -332,10 +288,8 @@ function mel_tsr_put($tiles)
     MelTsr::$sig = mel_tsr_sig();
     MelTsr::$sig_file = mel_file_sig(MEL_TSR_FILE);
     MelTsr::$json = $json;
-    if (MelTv::$quiet)
-        MelTv::$new_copies++;
-    else if (mel_tsr_any())
-        mel_tv_flag('the TorrServer copy');
+    if (mel_tsr_any())
+        mel_tv_tsr_saved();
     return $ok ? 'new' : 'failed';
 }
 

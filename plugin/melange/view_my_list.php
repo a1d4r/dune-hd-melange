@@ -170,7 +170,8 @@ function mel_ml_menu_items($id, $from, $lang)
 function mel_ml_changed($from, $post, $why)
 {
     mel_tv_flag($why);
-    return mel_catv_mains_anew($post, $why, mel_catv_screen_of($from));
+    $screen = mel_catv_screen_of($from);
+    return mel_catv_mains_anew($post, $why, $screen !== '' ? array($screen) : array());
 }
 
 // cat_ml of POP UP (mel_ml_menu_items; w add, del) of tile $in->item of screen $in->from: the title into the list or out
@@ -652,7 +653,7 @@ function mel_mlv_tick($url)
         MelMlv::$anew = $url;
         MelMlv::$inv = $url;
         MelMlv::$anew_t = microtime(true);
-        $act = mel_catv_mains_anew(null, "after a tick of $url", $url, false);
+        $act = mel_catv_mains_anew(null, "after a tick of $url", array($url), false);
         $urls = $act ? $act[GuiAction::data][PluginInvalidateFoldersActionData::media_urls] : array();
         MelMlv::$inv_urls = $urls;
         $what = count($urls) > 1 ? 'invalidate with the main screens' : 'invalidate';
