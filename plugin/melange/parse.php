@@ -807,6 +807,38 @@ function mel_st_size($st)
     return mel_str($sd, 'size') !== '' ? mel_str($sd, 'size') : mel_str(mel_arr($st, 'behaviorHints'), 'videoSize');
 }
 
+// The key of a release in the rest of a uid (mel_vod_link) and in wh_release: its infoHash, or the key of
+// mel_nf_key of a row of none. A piece of a regular expression, no group of its own.
+define('MEL_REL_RE', '[0-9a-f]{40}|nf-[0-9a-f]{12}');
+
+// $t is a key of MEL_REL_RE.
+/**
+ * @param mixed $t
+ * @return bool
+ */
+function mel_rel_ok($t)
+{
+    return is_string($t) && preg_match('/^(?:' . MEL_REL_RE . ')$/D', $t) === 1;
+}
+
+// The key of stream $st of a reply with no infoHash, "nf-<12 hex>": of the name of its release and the size. The name:
+// of a pack its folder (streamData.folderName; there the size is of the whole release: one key for all its episodes,
+// as an infoHash), else that of the file - one release comes with its name as the folder of one episode and as the
+// file, no folder, of another: one key. No size: the name of the file alone (a folder with no size is not taken:
+// several releases share one). The fields as they came, the size in bytes. '' no name.
+/**
+ * @param array<mixed> $st
+ * @return string
+ */
+function mel_nf_key($st)
+{
+    $size = mel_num(mel_st_size($st));
+    $size = $size > 0 ? sprintf('%.0f', $size) : '';
+    $folder = mel_str(mel_arr($st, 'streamData'), 'folderName');
+    $name = $folder !== '' && $size !== '' ? $folder : mel_st_file($st);
+    return $name !== '' ? 'nf-' . substr(md5($name . "\x00" . $size), 0, 12) : '';
+}
+
 // Path $path names a video file, by its extension (files of TorrServer, mel_merge_key).
 /**
  * @param string $path
@@ -892,6 +924,20 @@ function mel_row_use($r, $i)
     }
     $r['copy'] = $i;
     return $r;
+}
+
+// What tells the release of row $r from the others of its list (MEL_REL_RE): its infoHash, else the key of
+// mel_nf_key of its stream - of the first copy of a row of copies, whichever is on top (mel_row_use); '' none.
+// For "the same release" (the uid, the cursor, the bar, "Continue"); a torrent needs $r['hash'] itself.
+/**
+ * @param MelRow $r
+ * @return string
+ */
+function mel_row_rel($r)
+{
+    if ($r['hash'] !== '')
+        return $r['hash'];
+    return mel_nf_key(isset($r['copies'][0]) ? $r['copies'][0]['raw'] : $r['raw']);
 }
 
 // Names of the services of row $r: of the copy on top, then of the others in

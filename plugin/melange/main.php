@@ -571,7 +571,8 @@ function mel_seasons($m)
 // "Continue watching" -> shell_ext play_recent -> our play_action with
 // supplier_info = {sup_data, wh_uid, wh_s, wh_e, wh_pos, wh_len (seconds), wh_*}; on r25
 // the button "Melange NN%" (play_online) too: mel_play_action takes its profile only.
-// 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else;
+// 'mode': wh_mode, 'debrid' or 'ts'; '' for a record before 0.49.0 or anything else; 'hash' of them: the infoHash, of
+// 'debrid' the key of a row of none too (nf-…, mel_row_rel: no way through TorrServer);
 // 'lampac' of an online record (online_play.php): 'hash' its key as it is, of no format
 // checked here (mel_lp_find of mel_lpv_resume does: bad_key, the search window); 'local' of
 // a copy of the media library (mel_lib_play): 'hash' its key lib-<12 hex>, none else.
@@ -596,7 +597,7 @@ function mel_resume($in)
     else if ($mode === 'lampac')
         $ok = true;
     else
-        $ok = preg_match('/^[0-9a-f]{40}$/', $rel) === 1;
+        $ok = preg_match('/^[0-9a-f]{40}$/', $rel) === 1 || ($mode === 'debrid' && mel_rel_ok($rel));
     if (!$ok)
         return null;
     return array(

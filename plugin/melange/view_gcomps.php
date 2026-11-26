@@ -1118,7 +1118,7 @@ function mel_gc_rules($lv)
         MEL_K_C_LINE, 'rule0'));
 }
 
-// Share of the release of a row watched before (mel_wh_progress), or 0.
+// Share of the release of a row (mel_row_rel) watched before (mel_wh_progress), or 0.
 /**
  * @param MelProgress $prog
  * @param MelRow $r
@@ -1126,7 +1126,8 @@ function mel_gc_rules($lv)
  */
 function mel_gc_share($prog, $r)
 {
-    return $r['hash'] !== '' && isset($prog[$r['hash']]) ? $prog[$r['hash']] : 0;
+    $rel = mel_row_rel($r);
+    return $rel !== '' && isset($prog[$rel]) ? $prog[$rel] : 0;
 }
 
 // The plate of the focus of the list (panel 'sel', moved by mel_gc_cursor_changes): row_on, MEL_K_ROW_ON_H high in
@@ -1736,7 +1737,7 @@ function mel_gc_changes_act($ch, $sel, $top)
 
 // Back from the player to the kept screen of list $st (mel_finish): the
 // progress read anew (expected: the shell writes the history before this
-// event - one shell log, unverified); the rows of release $hash (one hash
+// event - one shell log, unverified); the rows of release $hash (mel_row_rel; one
 // may come in several rows: RD and TorBox) redrawn when its share changed,
 // else null.
 /**
@@ -1752,12 +1753,12 @@ function mel_gc_bar_update($st, $hash)
     $rows = array();
     foreach ($st['rows'] as $k => $r)
     {
-        if ($hash !== '' && $r['hash'] === $hash)
+        if ($hash !== '' && mel_row_rel($r) === $hash)
             $rows[] = $k;
     }
     if (!$rows)
     {
-        mel_log('finish: progress: the release played has no infoHash or is not in the list');
+        mel_log('finish: progress: the release played has no key or is not in the list');
         return null;
     }
     $was = isset($old[$hash]) ? $old[$hash] : 0;
