@@ -476,7 +476,7 @@ function mel_dl_row($q)
             $list[] = MEL_MLV_CONT;
         else if ($s === '@mylist' && mel_mlv_list_cells(array($q['tab']), 1))
             $list[] = MEL_MLV_LIST;
-        else if ($s === '@torrserver' && mel_tsl_on() && mel_tsr_tiles())
+        else if ($s === '@torrserver' && mel_tsr_shown_tiles())
             $list[] = MEL_TSL_URL;
     }
     if (!isset($list[$n - 1]))

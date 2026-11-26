@@ -3060,7 +3060,7 @@ function mel_catv_after_player($post)
 function mel_catv_tile_menu($id, $from, $lang)
 {
     if (mel_tsl_is_tile($id))
-        return mel_tsl_menu_items($id, $lang);
+        return mel_tsl_menu_items($id, $from, $lang);
     return mel_catv_menu_join(array_merge(mel_catv_src_items($id, $from, $lang), mel_cp_menu_items($id, $from, $lang),
         mel_ml_menu_items($id, $from, $lang), mel_catv_hide_items($id, $from, $lang)), mel_mlv_menu_items($id, $from, $lang));
 }
@@ -3419,9 +3419,9 @@ function mel_catv_enter($in)
     // A stub of "Show all": row<k>.<j>.
     if (strpos($id, 'stub:') === 0 || strpos($id, 'empty:') === 0 || mel_mlv_is_hint($id) || preg_match('/^row[0-9]+\.[0-9]+$/D', $id))
         return null;
-    // A tile of "На TorrServer": not a title of the catalog.
+    // A tile of "На TorrServer": not a title of the catalog; its errors over the screen of it.
     if (mel_tsl_is_tile($id))
-        return mel_tsl_enter($id);
+        return mel_tsl_enter($id, mel_catv_in($in, 'from'));
     // The opening tries again, and the rows after it too; the shell brings sel_state, the focus stays.
     // "Show all" goes on from the same place.
     if (strpos($id, 'fail:') === 0)
@@ -3629,9 +3629,9 @@ function mel_catv_input($in, $control)
     if ($control === 'cat_tsl_open')
         return mel_tsl_open($from);
     if ($control === 'cat_tsl_rem_ask')
-        return mel_tsl_rem_ask(mel_catv_in($in, 'h'));
+        return mel_tsl_rem_ask(mel_catv_in($in, 'h'), $from);
     if ($control === 'cat_tsl_rem')
-        return mel_tsl_rem_act(mel_catv_in($in, 'h'));
+        return mel_tsl_rem_act(mel_catv_in($in, 'h'), $from);
     if ($control === 'cat_ml_import')
         return mel_mlv_import_ask($from);
     if ($control === 'cat_ml_import_go')

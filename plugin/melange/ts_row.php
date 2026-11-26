@@ -119,6 +119,16 @@ function mel_tsr_tiles()
     return MelTsr::$sig === mel_tsr_sig() ? MelTsr::$tiles : array();
 }
 
+// The tiles the row shows (its slot on a tab aside: the caller's): none with «Без торрентов» (mel_tsl_on), else the
+// copy (mel_tsr_tiles; none - no row). The row on a main screen and the row of a deep link alike.
+/**
+ * @return array<string, MelTsrTile>
+ */
+function mel_tsr_shown_tiles()
+{
+    return mel_tsl_on() ? mel_tsr_tiles() : array();
+}
+
 // The tile of the copy of torrent $hash, null none (or the row not shown: mel_tsr_any).
 /**
  * @param string $hash

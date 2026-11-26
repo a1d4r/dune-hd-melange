@@ -379,26 +379,28 @@ function mel_tsl_added($e, $lang, $key)
         mel_tr($lang, $key));
 }
 
-// ENTER on line $id of the screen (mel_tsl_is_tile), the one place a torrent branches: its entry (mel_tsl_find: in
-// memory, else the list read once; an error of it - the error screen of the list, none there - tsl_err_gone); its video
+// ENTER on line $id of screen $from (mel_tsl_is_tile: the section, a tile of the row of the catalog, the tab "TV"), the one
+// place a torrent branches: its entry (mel_tsl_find: in memory, of the copy of the row, else the list read once; an error
+// of it - the error screen of the list over $from, none there - tsl_err_gone); its video
 // files known (mel_tsl_files_of: of its data or of a file_stats before): one - the start of it, two and more - the screen
 // of files (view_ts_files.php), none - the error; not known (a record of Lampa, other data) - the start by file_stats
 // (view_ts_play.php). The hint - nothing; an error - the list read anew (mel_tsl_open_act).
 /**
  * @param string $id
+ * @param string $from
  * @return MelAction|null
  */
-function mel_tsl_enter($id)
+function mel_tsl_enter($id, $from = MEL_TSL_URL)
 {
     list(, $bare) = mel_catv_id_mode($id);
     if (strpos($bare, MEL_TSL_ERR) === 0)
-        return mel_tsl_open_act(MEL_TSL_URL);
+        return mel_tsl_open_act($from);
     $hash = mel_tsl_hash_of($id);
     if ($hash === '')
         return null;
     list($e, $key, $detail) = mel_tsl_find($hash);
     if ($key !== '')
-        return mel_tsl_error($key, $detail, MEL_TSL_URL);
+        return mel_tsl_error($key, $detail, $from);
     if ($e === null)
         return mel_ts_fail(mel_catv_lang(), 'tsl_err_gone');
     $files = mel_tsl_files_of($hash);
@@ -412,17 +414,19 @@ function mel_tsl_enter($id)
     return mel_tsl_start($e, $kind === 'movie' && $v ? $v[0]['id'] : 0, 0);
 }
 
-// --- «Удалить с TorrServer» (owner 24.11.2026): POP UP of a torrent line, a confirmation, "rem". Not on the screen of
-// files of a pack; the history and the positions of Melange ("aiots:") stay.
+// --- «Удалить с TorrServer» (owner 24.11.2026): POP UP of a torrent line of the section and of a tile of the row of the
+// catalog (owner 26.11.2026), a confirmation, "rem". Not on the screen of files of a pack; the history and the positions
+// of Melange ("aiots:") stay.
 
-// The items of POP UP of line $id of the screen (mel_catv_tile_menu) in language $lang: a torrent - «Удалить с
+// The items of POP UP of line $id of screen $from (mel_catv_tile_menu) in language $lang: a torrent - «Удалить с
 // TorrServer» (cat_tsl_rem_ask: the entry may need the list read, MEL_TSL_DELAY); the hint, an error - none.
 /**
  * @param string $id
+ * @param string $from
  * @param string $lang
  * @return list<array<string, mixed>>
  */
-function mel_tsl_menu_items($id, $lang)
+function mel_tsl_menu_items($id, $from, $lang)
 {
     $hash = mel_tsl_hash_of($id);
     if ($hash === '')
@@ -430,50 +434,55 @@ function mel_tsl_menu_items($id, $lang)
     return array(array(
         GuiMenuItemDef::caption => mel_tr($lang, 'tsl_rem'),
         GuiMenuItemDef::icon_url => MEL_CATV_ICONS . 'cancel_small.png',
-        GuiMenuItemDef::action => mel_input('cat_tsl_rem_ask', array('from' => MEL_TSL_URL, 'h' => $hash), MEL_TSL_DELAY)));
+        GuiMenuItemDef::action => mel_input('cat_tsl_rem_ask', array('from' => $from, 'h' => $hash), MEL_TSL_DELAY)));
 }
 
-// cat_tsl_rem_ask of torrent $hash: its entry (mel_tsl_find; an error of the list - its error screen; none there,
-// removed elsewhere - the screen anew, then the window «Этой раздачи уже нет на TorrServer»), then the dialog «Удалить
-// «<the title of the panel>» с TorrServer?»: «Удалить» - cat_tsl_rem, «Отмена» - nothing. Not a hash: nothing.
+// cat_tsl_rem_ask of torrent $hash of screen $from: its entry (mel_tsl_find: of the copy of the row too, no list read;
+// an error of the list - its error screen over $from; none there, removed elsewhere - out of the copy, the screens anew
+// (mel_tsl_anew), then the window «Этой раздачи уже нет на TorrServer»), then the dialog «Удалить «<the title of the
+// panel>» с TorrServer?»: «Удалить» - cat_tsl_rem, «Отмена» - nothing. Not a hash: nothing.
 /**
  * @param string $hash
+ * @param string $from
  * @return MelAction|null
  */
-function mel_tsl_rem_ask($hash)
+function mel_tsl_rem_ask($hash, $from)
 {
     if (!preg_match('/^[0-9a-f]{40}$/D', $hash))
         return null;
     $lang = mel_catv_lang();
     list($e, $key, $detail) = mel_tsl_find($hash);
     if ($key !== '')
-        return mel_tsl_error($key, $detail, MEL_TSL_URL);
+        return mel_tsl_error($key, $detail, $from);
     if ($e === null)
     {
         mel_log("ts section: rem $hash: not in the list, -> dialog: tsl_err_gone, the screen anew");
-        $a = mel_catv_invalidate(MEL_TSL_URL);
-        $a[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = mel_dialog(mel_tr($lang, 'tsl_err_gone'),
-            array(), array('OK' => mel_close_and(null)));
-        return $a;
+        mel_tsr_drop($hash);
+        return mel_tsl_anew($from, mel_dialog(mel_tr($lang, 'tsl_err_gone'), array(), array('OK' => mel_close_and(null))),
+            'after a torrent gone');
     }
     list($head) = mel_tsl_split($e['title']);
     mel_log("ts section: rem $hash: ask");
-    $go = mel_input('cat_tsl_rem', array('from' => MEL_TSL_URL, 'h' => $hash), MEL_TSL_DELAY);
+    $go = mel_input('cat_tsl_rem', array('from' => $from, 'h' => $hash), MEL_TSL_DELAY);
     return mel_dialog(str_replace('{t}', $head, mel_tr($lang, 'tsl_rem_ask')), array(), array(
         mel_tr($lang, 'tsl_rem_yes') => mel_close_and($go),
         mel_tr($lang, 'ts_cancel') => mel_close_and(null)));
 }
 
-// cat_tsl_rem of torrent $hash (the dialog closed): "rem" (mel_tsl_rem). An error: a window of why, the list as it was.
-// Removed: the lines of the list in memory less it, in place (plugin_update_folder, as the shell does on its lists of
-// files, movies/movie_files_screen.php), the cursor on the line after it (its index of mel_tsl_rem; the last one: the
-// new last; none left: the hint) - not the list read anew: it comes by stream and may be long (up to MEL_TSL_LIST_S), and "rem" changed nothing
-// else in it. Not in the list in memory (a restart of php_server): the screen anew (invalidate: its view reads the list).
+// cat_tsl_rem of torrent $hash of screen $from (the dialog closed): "rem" (mel_tsl_rem: out of the copy of the row too).
+// An error: a window of why, the list and the row as they were. Removed from a tile of the row (a main screen, "TV"):
+// the screens anew (mel_tsl_anew: its tile out). Removed in the section: the lines of the list in memory less it, in
+// place (plugin_update_folder, as the shell does on its lists of files, movies/movie_files_screen.php), the cursor on the
+// line after it (its index of mel_tsl_rem; the last one: the new last; none left: the hint) - not the list read anew: it
+// comes by stream and may be long (up to MEL_TSL_LIST_S), and "rem" changed nothing else in it; the main screens under
+// it anew (mel_tsl_anew). Not in the list in memory (a restart of php_server): the screen anew (invalidate: its view
+// reads the list).
 /**
  * @param string $hash
+ * @param string $from
  * @return MelAction|null
  */
-function mel_tsl_rem_act($hash)
+function mel_tsl_rem_act($hash, $from)
 {
     if (!preg_match('/^[0-9a-f]{40}$/D', $hash))
         return null;
@@ -481,21 +490,48 @@ function mel_tsl_rem_act($hash)
     list($key, $detail, $i) = mel_tsl_rem($hash);
     if ($key !== '')
         return mel_tsl_rem_fail($lang, $key, $detail);
+    if ($from !== MEL_TSL_URL)
+    {
+        mel_log("ts row: rem $hash: the screens anew");
+        return mel_tsl_anew($from, null, 'after a removal');
+    }
     if ($i < 0)
     {
         mel_log("ts section: rem $hash: not in memory, the screen anew");
-        return mel_catv_invalidate(MEL_TSL_URL);
+        return mel_tsl_anew(MEL_TSL_URL, null, 'after a removal');
     }
     $list = array_values(MelTsl::$list);
     $n = count($list);
     $sel = $n ? min($i, $n - 1) : 0;
     mel_log("ts section: rem $hash: $n lines left, the cursor on $sel");
-    return array(
+    return mel_tsl_anew('', array(
         GuiAction::handler_string_id => PLUGIN_UPDATE_FOLDER_ACTION_ID,
         GuiAction::data => array(
             PluginUpdateFolderActionData::range => mel_tsl_range(mel_tsl_items($list, '', '', $lang)),
             PluginUpdateFolderActionData::need_refresh => true,
-            PluginUpdateFolderActionData::sel_ndx => $sel));
+            PluginUpdateFolderActionData::sel_ndx => $sel)), 'after a removal');
+}
+
+// The screens built anew after a torrent went off TorrServer (removed, or found gone) from screen $from, then $post: $from
+// when it is the section or a main screen of the catalog ('' none: a screen updated by $post itself, "TV"); the row shown
+// (mel_tsr_any) - on r25 the main screens opened too (mel_catv_mains_anew: one under the section, the other tab), their
+// tiles of it out of the copy already (mel_tsr_drop). The shell keeps the focus by sel_state. None of them: $post.
+/**
+ * @param string $from
+ * @param MelAction|null $post
+ * @param string $why
+ * @return MelAction|null
+ */
+function mel_tsl_anew($from, $post, $why)
+{
+    $also = $from === MEL_TSL_URL || mel_catv_is_main($from) ? $from : '';
+    if (mel_tsr_any())
+        return mel_catv_mains_anew($post, $why, $also, false);
+    if ($also === '')
+        return $post;
+    $a = mel_catv_invalidate($also);
+    $a[GuiAction::data][PluginInvalidateFoldersActionData::post_action] = $post;
+    return $a;
 }
 
 // The window of an error $key of "rem" (mel_tsl_rem; $detail its detail) in language $lang: «Раздача не удалена», why

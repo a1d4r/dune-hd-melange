@@ -62,14 +62,18 @@ function mel_tsf_open($hash, $files)
     return mel_catv_open_act(MEL_TSF_URL . $hash, mel_tsf_caption($hash));
 }
 
-// The caption of the screen of files of torrent $hash: the title of its entry, else the name of the section.
+// The caption of the screen of files of torrent $hash: the title of its entry in memory (the section), else of the copy
+// of the row (a tile of the row opened it: mel_tsr_tile, no list read), else the name of the section.
 /**
  * @param string $hash
  * @return string
  */
 function mel_tsf_caption($hash)
 {
-    return isset(MelTsl::$list[$hash]) ? MelTsl::$list[$hash]['title'] : mel_tr(mel_catv_lang(), 'tsl_title');
+    if (isset(MelTsl::$list[$hash]))
+        return MelTsl::$list[$hash]['title'];
+    $tile = mel_tsr_tile($hash);
+    return $tile !== null ? $tile['e']['title'] : mel_tr(mel_catv_lang(), 'tsl_title');
 }
 
 // A new state of the screen of files of torrent $hash (MelTsf::$s): its entry (mel_tsl_find), its video files

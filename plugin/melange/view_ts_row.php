@@ -40,9 +40,7 @@ function mel_tsr_row_defs($tab, $lang, $from, &$tiles = null, &$miss = null)
     $miss = array();
     $items = array();
     // Its slot is shown (the caller): «Без торрентов» alone hides it here.
-    if (!mel_tsl_on())
-        return array();
-    $copy = mel_tsr_tiles();
+    $copy = mel_tsr_shown_tiles();
     $mids = $copy ? mel_tsr_mids() : array();
     $map = null;
     mel_lib_tile_start();
