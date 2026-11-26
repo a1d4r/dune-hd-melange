@@ -97,7 +97,8 @@ class MelLib
     /** @var array<string, list<string>> */
     public static $eps_drop = array();
     // The episode files not confirmed of an episode with a confirmed one (rule 5 of mel_lib_eps_fix), by their movie_id:
-    // not in $eps, their hashes in $eps_drop - only a copy to choose in the window of the copies (mel_lib_ep_copies).
+    // not in $eps, their hashes in $eps_drop - only a copy to choose in the window of the copies (mel_lib_ep_copies);
+    // each marked alt (true), its key by it (mel_lib_file_key).
     /** @var array<string, list<MelLibEpRec>> */
     public static $eps_alt = array();
     // Files of the shell read so far (tests count the reads by it).
@@ -965,7 +966,7 @@ function mel_lib_folder_index($folder_id, &$info, &$left, &$ep_in = null, &$bonu
 }
 
 // The file of a copy (MelLibFile) of the episode file $f of the series $mid kept (MelLib::$eps): its tags read, its
-// resolution by them, else by the name, its folder in the folder of the library.
+// resolution by them, else by the name, its folder in the folder of the library; alt as the file has it (MelLib::$eps_alt).
 /**
  * @param string $mid
  * @param MelLibEpRec $f
@@ -974,14 +975,17 @@ function mel_lib_folder_index($folder_id, &$info, &$left, &$ep_in = null, &$bonu
 function mel_lib_ep_file($mid, $f)
 {
     $tags = mel_lib_tags($f['tg']);
-    return array('folder' => $f['folder'], 'path' => $f['path'], 'mid' => $mid, 'hash' => $f['hash'],
+    $res = array('folder' => $f['folder'], 'path' => $f['path'], 'mid' => $mid, 'hash' => $f['hash'],
         'size' => $f['size'], 'tags' => $tags, 'res' => mel_lib_res($tags, $f['path']), 's' => $f['s'],
         'e' => $f['e'], 'dir' => mel_ts_dirname($f['path']));
+    if (isset($f['alt']))
+        $res['alt'] = true;
+    return $res;
 }
 
 // The rules of the numbers of the episode files of one movie_id (as the index has them, mel_lib_folder_index) ->
 // files: the ones taken, their season and episode final (in their order, no mc, no dir: MelLibEpRec); drop: the hashes
-// of the rest; alt: of them the files of rule 5, as the ones taken; the counts for the log. A pack: mel_lib_pack. By the name of the file the number (mel_ts_ep, else the
+// of the rest; alt: of them the files of rule 5, as the ones taken, each marked alt (true); the counts for the log. A pack: mel_lib_pack. By the name of the file the number (mel_ts_ep, else the
 // number leading the name mel_ts_ep_lead) and the season if any:
 // 1. no number in the name: taken as in the index;
 // 2. the same as the index: taken as in the index - an anchor of its pack;
@@ -1115,7 +1119,7 @@ function mel_lib_eps_fix($files)
         if ($alt)
         {
             $res['drop'][] = $f['hash'];
-            $res['alt'][] = $f;
+            $res['alt'][] = $f + array('alt' => true);
             $res['hidden']++;
             continue;
         }
@@ -1364,6 +1368,35 @@ function mel_lib_key($hash)
 function mel_lib_alt_key($hash)
 {
     return mel_lib_key("alt:$hash");
+}
+
+// The key of file $f of the index, the one place that tells which: of an episode file not confirmed (alt) its own
+// (mel_lib_alt_key), else of its hash (mel_lib_key).
+/**
+ * @param array{hash: string, alt?: true} $f
+ * @return string
+ */
+function mel_lib_file_key($f)
+{
+    return isset($f['alt']) ? mel_lib_alt_key($f['hash']) : mel_lib_key($f['hash']);
+}
+
+// $key is the key of an episode file not confirmed (alt, MelLib::$eps_alt) of the series $mid of the index now: a pack
+// F of the record of it has the copies not confirmed too (mel_lib_ep_pick), of any other record not.
+/**
+ * @param string $mid
+ * @param string $key
+ * @return bool
+ */
+function mel_lib_key_alt($mid, $key)
+{
+    mel_lib_index();
+    foreach (isset(MelLib::$eps_alt[$mid]) ? MelLib::$eps_alt[$mid] : array() as $f)
+    {
+        if (mel_lib_file_key($f) === $key)
+            return true;
+    }
+    return false;
 }
 
 // $k is a key of a copy (mel_lib_key): of the uid of a record, of wh_release of "Continue".
@@ -1683,8 +1716,7 @@ function mel_lib_files_copies($files)
             continue;
         $urls[$url] = 1;
         $c = $f + array('url' => $url, 'mnt' => $mnt[$id][0], 'srv' => $mnt[$id][1],
-            'key' => isset($f['alt']) ? mel_lib_alt_key($f['hash']) : mel_lib_key($f['hash']), 'cid' => mel_lib_cid($url),
-            'caption' => $folder['caption']);
+            'key' => mel_lib_file_key($f), 'cid' => mel_lib_cid($url), 'caption' => $folder['caption']);
         $su = mel_lib_file_shell_url($f);
         if ($su !== null)
             $c['shell_url'] = $su;
@@ -1712,9 +1744,9 @@ function mel_lib_se($s, $e)
 // The copies of the episodes of the series $mid of the index (MelLib::$eps: the season and the episode after the rules
 // of the numbers) -> "s:e" => its copies (mel_lib_files_copies, the best first), the episodes in order. After them, of
 // an episode with a copy now, the copies of its files not confirmed (MelLib::$eps_alt; alt true, the best first, the key
-// mel_lib_alt_key): to choose in the window of the copies; by itself one plays only of the folder chosen so (a pack F,
-// mel_lib_ep_pick), no other rule takes it (mel_lib_copies_reg). The mount list is read on every call, and only when
-// the series has episodes in the index.
+// mel_lib_alt_key): to choose in the window of the copies; by itself one plays only of a pack F of the record of a copy
+// not confirmed (one chosen so; mel_lib_ep_pick, mel_lib_key_alt), no other rule takes it (mel_lib_copies_reg). The
+// mount list is read on every call, and only when the series has episodes in the index.
 /**
  * @param string $mid
  * @return array<string, list<MelLibCopy>>
@@ -1725,10 +1757,8 @@ function mel_lib_ep_copies($mid)
     if (empty(MelLib::$eps[$mid]))
         return array();
     $files = array();
-    foreach (MelLib::$eps[$mid] as $f)
+    foreach (array_merge(MelLib::$eps[$mid], isset(MelLib::$eps_alt[$mid]) ? MelLib::$eps_alt[$mid] : array()) as $f)
         $files[] = mel_lib_ep_file($mid, $f);
-    foreach (isset(MelLib::$eps_alt[$mid]) ? MelLib::$eps_alt[$mid] : array() as $f)
-        $files[] = mel_lib_ep_file($mid, $f) + array('alt' => true);
     $res = array();
     $alt = array();
     foreach (mel_lib_files_copies($files) as $c)
@@ -1801,11 +1831,10 @@ function mel_lib_key_packs($mid, $key)
     mel_lib_index();
     $res = array();
     $eps = isset(MelLib::$eps[$mid]) ? MelLib::$eps[$mid] : array();
-    foreach (array_merge($eps, isset(MelLib::$eps_alt[$mid]) ? MelLib::$eps_alt[$mid] : array()) as $i => $f)
+    foreach (array_merge($eps, isset(MelLib::$eps_alt[$mid]) ? MelLib::$eps_alt[$mid] : array()) as $f)
     {
         $p = mel_lib_pack(array('folder' => $f['folder'], 'dir' => mel_ts_dirname($f['path'])));
-        $k = $i < count($eps) ? mel_lib_key($f['hash']) : mel_lib_alt_key($f['hash']);
-        if ($k === $key && !in_array($p, $res, true))
+        if (mel_lib_file_key($f) === $key && !in_array($p, $res, true))
             $res[] = $p;
     }
     return $res;
