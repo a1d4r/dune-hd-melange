@@ -5,7 +5,7 @@
 // profile into the record (wh_prof). The screen keeps two lists (view_online.php): the releases of one profile of
 // releases (rows, prof) and the online list of one profile of Lampac (lp, lp_prof); a choice of one of them already
 // there - no request. The item of MENU: mel_gc_src_item (view_gcomps.php), mel_lpv_menu (view_online.php). The name
-// of the source over the lists: mel_src_tabs_right.
+// of the source over the lists: mel_gc_tabs_right (view_gcomps.php).
 // Reads and writes Mel (state, settings). Functions are global; the require order is in main.php.
 
 // The id of the profile list $st shows: of Lampac on the online list, else of releases ('' none).
@@ -353,25 +353,4 @@ function mel_src_name($id)
             return $p['name'];
     }
     return '';
-}
-
-// Children of the name of the source of list $st ("NAS", no word before it) right-aligned to x $right of the row of the
-// tabs, with two ready profiles or more (spec v2 §2.2), in $room px at most (the tabs left of it; less than a few letters:
-// none). -> array(children, their width; 0 none).
-/**
- * @param MelState $st
- * @param int $right
- * @param int $y
- * @param int $room
- * @return array{list<MelGcComp>, int}
- */
-function mel_src_tabs_right($st, $right, $y, $room)
-{
-    $from = mel_src_in_menu() ? mel_src_name(mel_src_now($st)) : '';
-    if ($from === '' || $room < 80)
-        return array(array(), 0);
-    $name = mel_gc_cut_w($from, MEL_GC_HINT_PX, min(300, $room));
-    $nw = mel_gc_w($name, MEL_GC_HINT_PX);
-    return array(array(mel_gc_cut(null, mel_gc_at($nw, MEL_GC_LABEL_H, $right - $nw, $y + intval((MEL_GC_KEY_H -
-        MEL_GC_LABEL_H) / 2)), $name, MEL_GC_HINT_PX, MEL_GC_TEXT2)), $nw);
 }

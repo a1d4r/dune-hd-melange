@@ -1233,9 +1233,11 @@ class MelKit
     // every tab keeps its room (MEL_K_ICON_GAP_SORT + MEL_K_ICON_SORT after the
     // label, then MEL_K_TAB_PAD), so the tabs stay where they are when the
     // selection moves (as Melange 0.65.0, the owner 19.11.2026; r5 sort_bar
-    // moved them by the arrow).
+    // moved them by the arrow). icon: a tab that sorts nothing (a filter, an
+    // order with no direction) - the picture after its label in every state
+    // ('' none), no arrow and no room kept for one.
     /**
-     * @param list<array{key: string, label: string, state?: string, up?: bool}> $tabs
+     * @param list<array{key: string, label: string, state?: string, up?: bool, icon?: string}> $tabs
      * @param int|null $x
      * @param int|float|null $y
      * @param string $name
@@ -1256,7 +1258,7 @@ class MelKit
 
     // A tab of tabs at x 0, its plate centred at 0.
     /**
-     * @param array{key: string, label: string, state?: string, up?: bool} $t
+     * @param array{key: string, label: string, state?: string, up?: bool, icon?: string} $t
      * @return MelKitItem
      */
     private static function tab($t)
@@ -1274,13 +1276,16 @@ class MelKit
             self::once("tab key {$t['key']}", "kit: tab: no colour key '{$t['key']}', no dot");
         $parts[] = self::text($t['label'], MEL_K_PX_ROW, $fg);
         $gaps[] = MEL_K_ICON_GAP_SORT;
-        if ($state !== '')
-            $parts[] = self::icon(empty($t['up']) ? 'k_icon_arrow-down' : 'k_icon_arrow-up', MEL_K_ICON_SORT, $fg, 0, 0,
-                array('box' => true));
+        $own = isset($t['icon']);
+        $icon = $state !== '' ? (empty($t['up']) ? 'k_icon_arrow-down' : 'k_icon_arrow-up') : '';
+        if ($own)
+            $icon = (string) $t['icon'];
+        if ($icon !== '')
+            $parts[] = self::icon($icon, MEL_K_ICON_SORT, $fg, 0, 0, array('box' => true));
         $c = self::row($parts, $gaps, MEL_K_TAB_PAD, 0, 'tab');
         $top = -intval(MEL_K_TAB_H / 2);
         // No arrow: its room stays, the tabs do not move.
-        $w = $c['x1'] + ($state !== '' ? 0 : MEL_K_ICON_GAP_SORT + MEL_K_ICON_SORT) + MEL_K_TAB_PAD;
+        $w = $c['x1'] + ($state !== '' || $own ? 0 : MEL_K_ICON_GAP_SORT + MEL_K_ICON_SORT) + MEL_K_TAB_PAD;
         $p = $state === '' ? self::box(array(), 0, $top, $w, MEL_K_TAB_H)
             : self::plate($state === 'focus' ? 'tab_on' : 'sort', 0, $top, $w, MEL_K_TAB_H);
         return self::on('tab', $p, $c);

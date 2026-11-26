@@ -9,8 +9,7 @@
 // "Actions", INFO "Details") and "1 / 60" at the right. The plugin draws and moves the selection (the blue plate
 // row_on) itself with change_gcomps; the position travels in sel_state {"sel":N,"top":T}, N and T of the lines of
 // the screen (mel_gc_lv): the rows of the tier "Не подтверждены" (first in the rows) under a line of their group
-// at the top, shown when it is unfolded; every action takes its row of the rows by mel_gc_row_of. The old frame
-// of the list that the online list (view_online.php) still draws stays there until its stage.
+// at the top, shown when it is unfolded; every action takes its row of the rows by mel_gc_row_of.
 // Reads Mel (state, settings), writes the cursor keys of Mel::$state;
 // mel_gc_sort replaces it by the list sorted anew.
 // PHP 5.3.6, firmware API only.
@@ -461,31 +460,24 @@ function mel_gc_key($in)
 }
 
 // Changes of a list of $n lines ($vis on the screen from y $ly) whose cursor went to line $nsel, the first line on
-// screen from $top to $ntop: the highlight; when the page moved - the panel 'rows' and the scroll thumb, and with $mk
-// (a list that holds a window of its lines, mel_gc_rows_span: j -> the panel "r$j" of line j out of focus) the window of
-// lines follows the top (mel_gc_win_changes), as the episodes of the own card (view_card_series.php). $mk null: all
-// the lines are in 'rows'.
+// screen from $top to $ntop: the highlight; when the page moved - the panel 'rows' and the scroll thumb, and the window
+// of lines the list holds (mel_gc_rows_span) follows the top (mel_gc_win_changes), as the episodes of the own card
+// (view_card_series.php): $mk, j -> the panel "r$j" of line j out of focus.
 /**
  * @param int $top
  * @param int $nsel
  * @param int $ntop
  * @param int $n
- * @param (callable(int): MelGcComp)|null $mk
+ * @param callable(int): MelGcComp $mk
  * @param int $vis
  * @param int $ly
  * @return list<MelGcChange>
  */
-function mel_gc_cursor_changes($top, $nsel, $ntop, $n, $mk = null, $vis = MEL_GC_VIS, $ly = MEL_GC_LY)
+function mel_gc_cursor_changes($top, $nsel, $ntop, $n, $mk, $vis = MEL_GC_VIS, $ly = MEL_GC_LY)
 {
     $ch = array(mel_gc_change('sel', mel_gc_row_geom($nsel), GCOMP_TRANSITION_DEFAULT));
     if ($ntop === $top)
         return $ch;
-    if ($mk === null)
-    {
-        $ch[] = mel_gc_change('rows', mel_gc_rows_geom($ntop, $n), GCOMP_TRANSITION_DEFAULT);
-        $ch[] = mel_gc_change('thumb', mel_gc_thumb_geom($ntop, $n, $vis, $ly), GCOMP_TRANSITION_DEFAULT);
-        return $ch;
-    }
     $add = array();
     foreach (mel_gc_win_new($top, $ntop, $n, $vis) as $j)
         $add[] = call_user_func($mk, $j);
@@ -1596,20 +1588,22 @@ function mel_gc_sort_tabs($st, $tt)
 }
 
 // Right of the row of the tabs, right-aligned to $right on MEL_GC_TABS_MID: the number of the source errors in
-// amber (mel_errors_shown), left of it the name of the source of the list after its icon (two ready profiles or
-// more, sources.php: mel_src_name), in what the tabs leave from $left (less than a few letters: no name).
+// amber (mel_errors_shown; $errors false, the online list: none, its MENU has them), left of it the name of the
+// source of the list after its icon (two ready profiles or more, sources.php: mel_src_name), in what the tabs leave
+// from $left (less than a few letters: no name).
 /**
  * @param MelState $st
  * @param MelGcText $tt
  * @param int $left
  * @param int $right
+ * @param bool $errors
  * @return list<MelGcComp>
  */
-function mel_gc_tabs_right($st, $tt, $left, $right)
+function mel_gc_tabs_right($st, $tt, $left, $right, $errors = true)
 {
     $d = array();
     $y = MEL_GC_TABS_MID;
-    if (mel_errors_shown($st['errors']))
+    if ($errors && mel_errors_shown($st['errors']))
     {
         $text = str_replace('{n}', strval(mel_errors_total($st['errors'])), $tt['errors']);
         $w = MelKit::w($text, MEL_K_PX_SECONDARY);

@@ -72,7 +72,7 @@ parameters:
         # the filter by voices: their keys => names, in the order of mel_lpv_voices (none: all); flt_gone - the yellow line is of a filter gone (mel_lpv_flt_keep);
         # off - the paths of the sources of the search turned off in "Источники…" (mel_lpv_srcs_pick), not asked; open - the paths of the
         # balancers unfolded (mel_lpv_lines; none: all folded).
-        MelLpView: 'array{title: MelLpTitle, q: string, sources: list<MelLpSource>, hidden: array{show: int, bad: int}, rows: list<MelLpRow>, why: list<MelLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: MelProgress, gc_cols?: array{int, int}, flt?: non-empty-array<string, string>, flt_gone?: bool, off?: list<string>, open?: array<string, bool>}'
+        MelLpView: 'array{title: MelLpTitle, q: string, sources: list<MelLpSource>, hidden: array{show: int, bad: int}, rows: list<MelLpRow>, why: list<MelLpWhy>, next: int, left: int, t: float, note: string, gc?: array{int, int}, gc_new?: bool, gc_prog?: MelProgress, gc_cols?: array{int, int, int}, flt?: non-empty-array<string, string>, flt_gone?: bool, off?: list<string>, open?: array<string, bool>}'
         # A line of the online list on screen (mel_lpv_lines, view_online.php): k its kind, i its row, n the rows of a
         # balancer, q its quality.
         MelLpLine: "array{k: 'head'|'shut'|'row'|'one'|'more', i: int, n: int, q: string}"

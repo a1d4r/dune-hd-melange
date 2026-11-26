@@ -20,152 +20,6 @@ define('MEL_LPV_REFRESH', 30);
 define('MEL_LPV_SRC_W', 320);
 // A row under the header of its balancer: its voice indented, px.
 define('MEL_LPV_INDENT', 48);
-// The line over a block of rows of a balancer.
-define('MEL_LPV_LINE', '#40FFFFFF');
-
-// --- The old frame of the list of releases (before the UI kit, view_gcomps.php), drawn by the online list until its
-// stage: the badges of the quality (nb2_*), the bar of a row, the title row, the counter, the hints of the vendor keys.
-
-// The hint row and the sort tabs of the old frame: the keys at the vendor size, unscaled (scaled down they blur on
-// the device): P+/P- 114x50, POP UP 52x50, the episode arrows (the vendor's bare chevron) at half size; the gap 10 to
-// a label, 40 between hints (vendor HINTS_SMALL_HGAP). The tabs in the row y 125..175, the line under the current
-// tab 4 px, 3 px under the keys, its direction a triangle of img/ (sort_down.png, sort_up.png); a number of source
-// errors in amber. The bar of a row watched before: white done, grey the rest.
-// KEY_H, LABEL_H, HINT_PX: the name of the source over a list (sources.php) too.
-define('MEL_GC_KEY_H', 50);
-define('MEL_GC_LABEL_H', 40);
-define('MEL_GC_HINT_PX', 30);
-define('MEL_GC_HINT_Y', 990);  // the vendor hint row 990..1040
-define('MEL_GC_KEY_W', 52);    // a vendor key of one button: the colour keys
-define('MEL_GC_ARROW_W', 26);  // right_arrow.png 52x50 / 2
-define('MEL_GC_ARROW_H', 25);
-define('MEL_GC_KEY_GAP', 10);   // key -> its label
-define('MEL_GC_HINT_GAP', 40);  // between hints (vendor HINTS_SMALL_HGAP)
-define('MEL_GC_TABS_Y', 125);
-define('MEL_GC_TAB_LINE', 4);
-define('MEL_GC_TAB_LINE_Y', MEL_GC_KEY_H + 3);
-define('MEL_GC_SORT_ARROW_W', 18);
-define('MEL_GC_SORT_ARROW_H', 12);
-define('MEL_GC_SORT_ARROW_GAP', 10);    // label -> its triangle
-define('MEL_GC_AMBER', '#FFFFB340');   // the number of source errors over the online list
-define('MEL_GC_BAR_DONE', '#FFFFFFFF');
-define('MEL_GC_BAR_REST', '#FF404040');
-define('MEL_GC_BADGE_H', 46);  // badge pictures with their plate
-// Revision in the badge file names (BADGE_REV of their generator):
-// the shell caches pictures by URL even across a reinstall.
-define('MEL_GC_BADGE_REV', 2);
-define('MEL_GC_BADGE_GAP', 10);    // between badges of one column
-
-class MelGc
-{
-    // Badge id of the quality of a line (mel_lpv_badge) -> width of img/nb<REV>_<id>.png, 46 px high with the
-    // plate: the output of the badge generator (the tests compare it with the PNGs).
-    /** @var array<string, int> */
-    public static $badge_w = array(
-        '4k' => 58, '1440p' => 58, '1080p' => 79, '720p' => 62, '576p' => 90, '480p' => 92,
-        '360p' => 89, '240p' => 91, '144p' => 86);
-}
-
-// Children of the row of the title of list $st (mel_lpv_window): the title (mel_gc_title) at the left, whole
-// when it fits; "S5 E3" of an episode at the right; between them yellow line $note ('' none: the releases, mel_lpv_note;
-// the online list, its note), 26 px, in the room the title leaves, 300 px at least (the title cut then).
-/**
- * @param MelState $st
- * @param string $note
- * @return list<MelGcComp>
- */
-function mel_gc_title_row($st, $note)
-{
-    list($title, $ep) = mel_gc_title($st);
-    $right = MEL_GC_LX + MEL_GC_LW - 16;
-    $ew = $ep === '' ? 0 : mel_gc_w($ep, 36);
-    $nr = $right - ($ew > 0 ? $ew + 30 : 0);
-    $nt = $note === '' ? '' : mel_gc_cut_w($note, 26, max(300, $nr - MEL_GC_LX - mel_gc_w($title, 48) - 30));
-    $nw = $nt === '' ? 0 : mel_gc_w($nt, 26);
-    $d = array(mel_gc_cut(null, mel_gc_at($nr - MEL_GC_LX - ($nw > 0 ? $nw + 30 : 0), 66, MEL_GC_LX, 40), $title, 48,
-        MEL_GC_TEXT));
-    if ($nt !== '')
-        $d[] = mel_gc_cut(null, mel_gc_at($nw, 36, $nr - $nw, 58), $nt, 26, MEL_GC_AMBER);
-    if ($ep !== '')
-        $d[] = mel_gc_cut(null, mel_gc_at($ew, 50, $right - $ew, 52), $ep, 36, MEL_GC_TEXT2,
-            array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
-    return $d;
-}
-
-// Badge pictures (the plate is in the PNG) from x, centred in the row.
-/**
- * @param list<string> $ids
- * @param int $x
- * @return list<MelGcComp>
- */
-function mel_gc_plates($ids, $x)
-{
-    $d = array();
-    foreach ($ids as $id)
-    {
-        $d[] = mel_gc_image(mel_gc_left_center(MelGc::$badge_w[$id], MEL_GC_BADGE_H, $x),
-            'plugin_file://img/nb' . MEL_GC_BADGE_REV . "_$id.png");
-        $x += MelGc::$badge_w[$id] + MEL_GC_BADGE_GAP;
-    }
-    return $d;
-}
-
-// The bar of share $share (0 none) watched under a row of the online list (mel_lpv_row_items).
-/**
- * @param float|int $share
- * @return list<MelGcComp>
- */
-function mel_gc_bar($share)
-{
-    if ($share <= 0)
-        return array();
-    $w = MEL_GC_LW - 2 * MEL_GC_PAD;
-    $fw = max(MEL_GC_BAR_MIN, intval(round($w * min(1, $share))));
-    $y = MEL_GC_ROW_H - MEL_GC_BAR_H;
-    $d = array(mel_gc_rect(mel_gc_at($fw, MEL_GC_BAR_H, MEL_GC_PAD, $y), MEL_GC_BAR_DONE));
-    if ($fw < $w)
-        $d[] = mel_gc_rect(mel_gc_at($w - $fw, MEL_GC_BAR_H, MEL_GC_PAD + $fw, $y), MEL_GC_BAR_REST);
-    return $d;
-}
-
-// Children of 'counter' (the hint row at the right, 300 x MEL_GC_KEY_H):
-// "5 / 60", placed as a hint label.
-/**
- * @param int $sel
- * @param int $n
- * @return list<MelGcComp>
- */
-function mel_gc_counter($sel, $n)
-{
-    return array(mel_gc_cut(null, mel_gc_at(300, MEL_GC_LABEL_H, 0, (MEL_GC_KEY_H - MEL_GC_LABEL_H) / 2),
-        min($sel + 1, $n) . " / $n", MEL_GC_HINT_PX, MEL_GC_TEXT2, array(GCompTtfLabelDef::halign => HALIGN_RIGHT)));
-}
-
-// A hint at x of row y: key pictures $keys (url => width, $h high) side by
-// side, then label $text, both centred in the row of MEL_GC_KEY_H; returns
-// the x of the next hint.
-/**
- * @param list<MelGcComp> $d
- * @param int $x
- * @param int $y
- * @param array<string, int> $keys
- * @param string $text
- * @param int $h
- * @return int
- */
-function mel_gc_hint(&$d, $x, $y, $keys, $text, $h = MEL_GC_KEY_H)
-{
-    foreach ($keys as $url => $w)
-    {
-        $d[] = mel_gc_image(mel_gc_at($w, $h, $x, $y + intval((MEL_GC_KEY_H - $h) / 2)), $url);
-        $x += $w;
-    }
-    $x += MEL_GC_KEY_GAP;
-    $w = mel_gc_w($text, MEL_GC_HINT_PX);
-    $d[] = mel_gc_cut(null, mel_gc_at($w, MEL_GC_LABEL_H, $x, $y + (MEL_GC_KEY_H - MEL_GC_LABEL_H) / 2), $text,
-        MEL_GC_HINT_PX, MEL_GC_TEXT2);
-    return $x + $w + MEL_GC_HINT_GAP;
-}
 
 class MelLpv
 {
@@ -295,17 +149,18 @@ function mel_lpv_note($st)
 
 // --- The online list on screen.
 
-// The badge of the quality a balancer claims ("2160p", "1080p", "4K"), '' none.
+// The plate b2 of the quality a balancer claims ("2160p", "1080p", "4K"): its id (k_glyph_<id>), '' none.
 /**
  * @param string $q
  * @return string
  */
 function mel_lpv_badge($q)
 {
-    // 8K (4320p): no badge.
+    // 8K (4320p): no plate.
     $p = mel_lp_q_num($q);
     $id = $p === 2160 ? '4k' : ($p > 0 ? "{$p}p" : '');
-    return isset(MelGc::$badge_w[$id]) ? $id : '';
+    $pics = mel_k_pic();
+    return isset($pics["k_glyph_$id"]) ? $id : '';
 }
 
 // --- The filter by voices (the red key, "Озвучка: …" of MENU): the rows of the voices chosen of all balancers. Its state
@@ -576,7 +431,7 @@ function mel_lpv_flt_name($v, $lang, $w = 0)
         return mel_tr($lang, 'lp_flt_any');
     $name = mel_lpv_flt_first($v);
     if ($w > 0)
-        $name = mel_gc_cut_w($name, MEL_GC_HINT_PX, $w);
+        $name = MelKit::cut($name, MEL_K_PX_ROW, '', $w);
     return count($v['flt']) > 1 ? mel_lpv_tr($lang, 'lp_flt_more', array('name' => $name, 'n' => count($v['flt']) - 1)) : $name;
 }
 
@@ -590,90 +445,15 @@ function mel_lpv_flt_first($v)
     return isset($v['flt']) ? strval(reset($v['flt'])) : '';
 }
 
-// Children of the tab of the filter (where the releases have their sort tabs): the red key (not on a remote the
-// firmware knows is without it), "Озвучка: все", or "Озвучка: LostFilm" ("Озвучка: LostFilm +2") bright with a line
-// under it, the triangle; the name cut to $nw px.
-// -> array(children, their width with the gap after).
-/**
- * @param MelLpView $v
- * @param string $lang
- * @param int $nw
- * @return array{list<MelGcComp>, int}
- */
-function mel_lpv_flt_tab($v, $lang, $nw = 360)
-{
-    $d = array();
-    $x = 0;
-    if (mel_gc_color_keys())
-    {
-        $d[] = mel_gc_image(mel_gc_at(MEL_GC_KEY_W, MEL_GC_KEY_H, 0, 0), 'plugin_file://%shell_ext%/icons/red.png');
-        $x = MEL_GC_KEY_W + MEL_GC_KEY_GAP;
-    }
-    $on = isset($v['flt']);
-    $t = mel_lpv_tr($lang, 'lp_flt_tab', array('name' => mel_lpv_flt_name($v, $lang, $nw)));
-    $w = mel_gc_w($t, MEL_GC_HINT_PX);
-    $d[] = mel_gc_cut(null, mel_gc_at($w, MEL_GC_LABEL_H, $x, (MEL_GC_KEY_H - MEL_GC_LABEL_H) / 2), $t, MEL_GC_HINT_PX,
-        $on ? MEL_GC_TEXT : MEL_GC_TEXT2);
-    $x += $w + MEL_GC_SORT_ARROW_GAP;
-    $d[] = mel_gc_image(mel_gc_at(MEL_GC_SORT_ARROW_W, MEL_GC_SORT_ARROW_H, $x, intval((MEL_GC_KEY_H - MEL_GC_SORT_ARROW_H) / 2)),
-        'plugin_file://img/sort_down.png');
-    $x += MEL_GC_SORT_ARROW_W;
-    if ($on)
-        $d[] = mel_gc_rect(mel_gc_at($x, MEL_GC_TAB_LINE, 0, MEL_GC_TAB_LINE_Y), MEL_GC_TEXT);
-    return array($d, $x + MEL_GC_HINT_GAP);
-}
-
-// Children of the tab of the green key (after the tab of the filter, of a remote with the colour keys): the key and $word
-// ("Свернуть все", mel_lpv_fold_word) dimmed, an action, no state; '' none. -> array(children, their width with the gap after).
-/**
- * @param string $word
- * @return array{list<MelGcComp>, int}
- */
-function mel_lpv_fold_tab($word)
-{
-    $d = array();
-    if ($word === '')
-        return array($d, 0);
-    $w = mel_gc_hint($d, 0, 0, array('plugin_file://%shell_ext%/icons/green.png' => MEL_GC_KEY_W), $word);
-    return array($d, $w);
-}
-
-// Children of the tab of the order of the balancers (after the green one), as a sort tab of the releases with no direction:
-// the yellow key and "Качество", by quality (mel_lpv_qsort) bright with a line under it, else dimmed; on a remote the
-// firmware knows is without the colour keys a state only: "По качеству" bright by quality, else none (MENU has the item).
-// -> array(children, their width with the gap after).
-/**
- * @param string $lang
- * @return array{list<MelGcComp>, int}
- */
-function mel_lpv_qsort_tab($lang)
-{
-    $on = mel_lpv_qsort();
-    $keys = mel_gc_color_keys();
-    if (!$keys && !$on)
-        return array(array(), 0);
-    $d = array();
-    $x = 0;
-    if ($keys)
-    {
-        $d[] = mel_gc_image(mel_gc_at(MEL_GC_KEY_W, MEL_GC_KEY_H, 0, 0), 'plugin_file://%shell_ext%/icons/yellow.png');
-        $x = MEL_GC_KEY_W + MEL_GC_KEY_GAP;
-    }
-    $t = mel_tr($lang, $keys ? 'lp_qsort_key' : 'lp_qsort_tab');
-    $w = mel_gc_w($t, MEL_GC_HINT_PX);
-    $d[] = mel_gc_cut(null, mel_gc_at($w, MEL_GC_LABEL_H, $x, (MEL_GC_KEY_H - MEL_GC_LABEL_H) / 2), $t, MEL_GC_HINT_PX,
-        $on ? MEL_GC_TEXT : MEL_GC_TEXT2);
-    $x += $w;
-    if ($on && $keys)
-        $d[] = mel_gc_rect(mel_gc_at($x, MEL_GC_TAB_LINE, 0, MEL_GC_TAB_LINE_Y), MEL_GC_TEXT);
-    return array($d, $x + MEL_GC_HINT_GAP);
-}
-
-// Children of the row of the tabs of the online list $st, lines $L, in the order of the colour keys: the filter (mel_lpv_flt_tab;
-// no voice in the list: none), the green key (mel_lpv_fold_tab; no balancer of 2 rows, or a remote the firmware knows is without
-// the colour keys: none), the order (mel_lpv_qsort_tab; no row: none); the name of the source at the right (mel_src_tabs_right).
-// No room: the green one in a short word ("Свернуть"), then the name of the filter shorter, 80 px at least; the order always,
-// the name of the source shorter or none then.
+// Children of the row of the tabs of the online list $st, lines $L (MelKit::tabs from MEL_GC_LX on MEL_GC_TABS_MID,
+// panel 'tabs'), in the order of the colour keys, each as its dot and its label, the one that is on on its plate: the
+// filter, "Озвучка: все" or "Озвучка: LostFilm +2" (on), always with the chevron down - it opens a list (no voice in
+// the list: none); the green key, "Свернуть все" (mel_lpv_fold_word), an action with no state (no balancer of 2 rows:
+// none); the order, "Качество", on by quality (mel_lpv_qsort), no arrow (no row: none). A remote the firmware knows is
+// without the colour keys: no dots, no green tab, of the order a state only - "По качеству" on by quality, else none
+// (MENU has the items). At the right the name of the source (mel_gc_tabs_right, no number of errors: MENU has them).
+// No room: the green one in a short word ("Свернуть"), then the name of the filter shorter, 80 px at least; the order
+// always, the name of the source shorter or none then.
 /**
  * @param MelState $st
  * @param list<MelLpLine> $L
@@ -683,38 +463,50 @@ function mel_lpv_tabs($st, $L)
 {
     $v = $st['lp'];
     $lang = mel_gc_lang($st);
-    $right = MEL_GC_LX + MEL_GC_LW - 16;
-    list($from, $sw) = mel_src_tabs_right($st, $right, MEL_GC_TABS_Y, 360);
-    // The gap after the last tab is the one before the source.
-    $room = MEL_GC_LW - 16 + MEL_GC_HINT_GAP - ($sw > 0 ? $sw + MEL_GC_HINT_GAP : 0);
-    list($ft, $fw) = mel_lpv_voices($v, $lang) ? mel_lpv_flt_tab($v, $lang) : array(array(), 0);
-    $fold = mel_gc_color_keys() ? mel_lpv_fold_word($L, $lang) : '';
-    list($gt, $gw) = mel_lpv_fold_tab($fold);
-    list($qt, $qw) = $v['rows'] ? mel_lpv_qsort_tab($lang) : array(array(), 0);
-    if ($fw + $gw + $qw > $room && $fold !== '')
-        list($gt, $gw) = mel_lpv_fold_tab(mel_lpv_fold_word($L, $lang, true));
-    $over = $fw + $gw + $qw - $room;
-    // From the name as wide as it is (360 at most, mel_lpv_flt_tab), not from 360; again while the cut text is wider than
-    // the sum of its parts (mel_gc_w rounds each one).
-    $nw = isset($v['flt']) ? min(360, mel_gc_w(mel_lpv_flt_first($v), MEL_GC_HINT_PX)) : 80;
-    while ($over > 0 && $ft && $nw > 80)
+    $keys = mel_gc_color_keys();
+    $right = MEL_GC_LX + MEL_GC_LW - MEL_GC_PAD;
+    // What the name of the source takes with its icon (mel_gc_tabs_right), the gap before it.
+    $from = mel_src_in_menu() ? mel_src_name(mel_src_now($st)) : '';
+    $room = $right - MEL_GC_LX - ($from === '' ? 0 :
+        min(300, MEL_K_ICON_SORT + MEL_K_KEY_DOT_GAP + MelKit::w($from, MEL_K_PX_ROW)) + MEL_K_HINT_GAP);
+    $flt = (bool) mel_lpv_voices($v, $lang);
+    $qs = mel_lpv_qsort();
+    $short = false;
+    $nw = 360;
+    while (true)
     {
+        $tabs = array();
+        if ($flt)
+            $tabs[] = array('key' => $keys ? 'red' : '', 'state' => isset($v['flt']) ? 'on' : '', 'icon' => 'k_icon_chevron-down',
+                'label' => mel_lpv_tr($lang, 'lp_flt_tab', array('name' => mel_lpv_flt_name($v, $lang, $nw))));
+        $fold = $keys ? mel_lpv_fold_word($L, $lang, $short) : '';
+        if ($fold !== '')
+            $tabs[] = array('key' => 'green', 'label' => $fold, 'icon' => '');
+        if ($v['rows'] && ($keys || $qs))
+            $tabs[] = array('key' => $keys ? 'yellow' : '', 'state' => $qs ? 'on' : '', 'icon' => '',
+                'label' => mel_tr($lang, $keys ? 'lp_qsort_key' : 'lp_qsort_tab'));
+        $t = MelKit::tabs($tabs, MEL_GC_LX, MEL_GC_TABS_MID);
+        $over = $t['x1'] - MEL_GC_LX - $room;
+        if ($over <= 0)
+            break;
+        if ($fold !== '' && !$short)
+        {
+            $short = true;
+            continue;
+        }
+        // From the name as wide as it is, not from 360.
+        $nw = min($nw, MelKit::w(mel_lpv_flt_first($v), MEL_K_PX_ROW));
+        if (!$flt || !isset($v['flt']) || $nw <= 80)
+            break;
         $nw = max(80, $nw - $over);
-        list($ft, $fw) = mel_lpv_flt_tab($v, $lang, $nw);
-        $over = $fw + $gw + $qw - $room;
     }
-    $end = $fw + $gw + $qw;
-    if ($sw > 0 && $end > $room)
-        list($from) = mel_src_tabs_right($st, $right, MEL_GC_TABS_Y, MEL_GC_LW - 16 - $end);
-    $h = MEL_GC_TAB_LINE_Y + MEL_GC_TAB_LINE;
-    $d = $from;
-    if ($ft)
-        $d[] = mel_gc_panel('flt', mel_gc_at($fw, $h, MEL_GC_LX, MEL_GC_TABS_Y), $ft);
-    if ($gt)
-        $d[] = mel_gc_panel('fold', mel_gc_at($gw, $h, MEL_GC_LX + $fw, MEL_GC_TABS_Y), $gt);
-    if ($qt)
-        $d[] = mel_gc_panel('qsort', mel_gc_at($qw, $h, MEL_GC_LX + $fw + $gw, MEL_GC_TABS_Y), $qt);
-    return $d;
+    $left = MEL_GC_LX;
+    if ($tabs)
+    {
+        $left = $t['x1'] + MEL_K_HINT_GAP;
+        $t = MelKit::group('tabs', $t);
+    }
+    return array_merge($t['defs'], mel_gc_tabs_right($st, mel_gc_text($lang), $left, $right, false));
 }
 
 // Lines of the online list of view $v on screen (the rows of its filter, mel_lpv_shown): the rows of a balancer in a run of 2 and more
@@ -924,7 +716,7 @@ function mel_lpv_count($L)
     return $n > 0 && $L[$n - 1]['k'] === 'more' ? $n - 1 : $n;
 }
 
-// The counter of line $sel of lines $L: of the lines but "Ещё N" (on it: the last).
+// The counter of line $sel of lines $L (mel_gc_count): of the lines but "Ещё N" (on it: the last); no line: "0 / 0".
 /**
  * @param list<MelLpLine> $L
  * @param int $sel
@@ -933,7 +725,7 @@ function mel_lpv_count($L)
 function mel_lpv_counter($L, $sel)
 {
     $n = mel_lpv_count($L);
-    return mel_gc_counter(min($sel, $n - 1), $n);
+    return mel_gc_count(min($sel, $n - 1), $n);
 }
 
 // --- Folding (ENTER on the line of a balancer, the green key, MENU "Развернуть все" / "Свернуть все"): the rows of a
@@ -1048,12 +840,13 @@ function mel_lpv_open_all($v)
     return $out;
 }
 
-// Columns of lines $L of view $v: the badge (of the quality of a line), the balancer, the voice of a
-// line alone (after the widest name of those). -> array(x of the balancer, x of the voice of a line alone).
+// Columns of lines $L of view $v: the plate of the quality (b2, as wide as the widest of the lines), the balancer, the
+// voice of a line alone (after the widest name of those). -> array(x of the balancer, x of the voice of a line alone,
+// the width of the plates; 0 none).
 /**
  * @param MelLpView $v
  * @param list<MelLpLine> $L
- * @return array{int, int}
+ * @return array{int, int, int}
  */
 function mel_lpv_cols($v, $L)
 {
@@ -1063,12 +856,12 @@ function mel_lpv_cols($v, $L)
     {
         $b = mel_lpv_badge($l['q']);
         if ($b !== '')
-            $bw = max($bw, MelGc::$badge_w[$b]);
+            $bw = max($bw, MelKit::b2_w($b));
         if ($l['k'] === 'one')
-            $sw = max($sw, min(MEL_LPV_SRC_W, mel_gc_w($v['rows'][$l['i']]['src'], 30)));
+            $sw = max($sw, min(MEL_LPV_SRC_W, MelKit::w($v['rows'][$l['i']]['src'], MEL_K_PX_ROW)));
     }
-    $x = MEL_GC_PAD + ($bw > 0 ? $bw + 24 : 0);
-    return array($x, $x + $sw + 40);
+    $x = MEL_GC_PAD + ($bw > 0 ? $bw + MEL_K_GAP_M : 0);
+    return array($x, $x + $sw + MEL_K_GAP_L, $bw);
 }
 
 // The columns of lines $L of view $v: those of its last full view (gc_cols, mel_lpv_folder_view), else counted
@@ -1076,24 +869,25 @@ function mel_lpv_cols($v, $L)
 /**
  * @param MelLpView $v
  * @param list<MelLpLine> $L
- * @return array{int, int}
+ * @return array{int, int, int}
  */
 function mel_lpv_cols_st($v, $L)
 {
     return isset($v['gc_cols']) ? $v['gc_cols'] : mel_lpv_cols($v, $L);
 }
 
-// Children of row panel "r$j" of view $v, line $j of its lines $L, $top the first line on screen: a
-// line over a block of an unfolded balancer and after it (none between the lines of the balancers folded and the rows alone);
-// the quality of the line (mel_lpv_lines): its badge, else "до 4320p" at the right; a balancer - its name, the number of
-// its rows dimmed ("12 потоков"), the triangle: down folded, up unfolded; a row under it - the voice indented, on the
-// first line of the screen the balancer dimmed before it; a row alone - the balancer and the voice; a row watched: the
-// bar of the share. The line "Ещё N источников — Обновить".
+// Children of row panel "r$j" of view $v, line $j of its lines $L, $top the first line on screen, on the components
+// of the kit as a row of the releases (mel_gc_row_items; $on: on the plate of the focus, its texts white): a rule over
+// a block of an unfolded balancer and after it (none between the lines of the balancers folded and the rows alone);
+// the quality of the line (mel_lpv_lines): its plate b2, else "до 4320p" at the right; a balancer - MelKit::group_line:
+// its name, the number of its rows dimmed ("12 потоков"), the chevron: down folded, up unfolded; a row under it - the
+// voice indented, on the first line of the screen the balancer dimmed before it; a row alone - the balancer and the
+// voice; a row watched: the bar of the share. The line "Ещё N источников — Обновить", dimmed.
 /**
  * @param MelLpView $v
  * @param list<MelLpLine> $L
  * @param int $j
- * @param array{int, int} $c
+ * @param array{int, int, int} $c
  * @param bool $on
  * @param int $top
  * @param string $lang
@@ -1101,52 +895,59 @@ function mel_lpv_cols_st($v, $L)
  */
 function mel_lpv_row_items($v, $L, $j, $c, $on, $top, $lang)
 {
-    $hi = $on ? MEL_GC_TEXT : MEL_GC_TEXT2;
+    $y = MEL_GC_ROW_H / 2;
     $w = MEL_GC_LW - 2 * MEL_GC_PAD;
+    $fg = $on ? MEL_K_C_ON_ACCENT : MEL_K_C_TEXT1;
+    $fg3 = $on ? MEL_K_C_ON_ACCENT2 : MEL_K_C_TEXT3;
     $l = $L[$j];
     if ($l['k'] === 'more')
     {
         $t = mel_lpv_tr($lang, 'lp_more', array('n' => $v['left'], 'sources' => mel_gc_plural($lang, $v['left'], 'lp_sources')));
-        return array(mel_gc_cut(null, mel_gc_left_center($w, 44, MEL_GC_PAD), $t, 30, $on ? MEL_GC_TEXT2 : MEL_GC_DIM));
+        $t = MelKit::text($t, MEL_K_PX_ROW, $fg3, MEL_GC_PAD, $y, array('w' => $w));
+        return $t['defs'];
     }
     $r = $v['rows'][$l['i']];
     $d = array();
     $flat = array('one' => true, 'shut' => true);
     if ($j > 0 && $l['k'] !== 'row' && !(isset($flat[$l['k']]) && isset($flat[$L[$j - 1]['k']])))
-        $d[] = mel_gc_rect(mel_gc_at($w, 2, MEL_GC_PAD, 0), MEL_LPV_LINE);
-    $sw = min(MEL_LPV_SRC_W, mel_gc_w($r['src'], 30));
-    $qw = 0;
+        $d[] = mel_gc_rect(mel_gc_at($w, MEL_K_LIST_RULE, MEL_GC_PAD, 0), MEL_K_C_LINE);
+    $it = array();
     $b = mel_lpv_badge($l['q']);
     if ($b !== '')
-        $d = array_merge($d, mel_gc_plates(array($b), MEL_GC_PAD));
-    // "до 2160p" at the right only of no badge (8K, a quality not known): the badge says it, the card too.
+        $it[] = MelKit::b2($b, MEL_GC_PAD, $y, $c[2]);
+    // "до 2160p" at the right only of no plate (8K, a quality not known): the plate says it, the card too.
+    $qx = MEL_GC_LW - MEL_GC_PAD;
+    $qt = null;
     if ($l['q'] !== '' && $b === '')
     {
         $t = mel_lpv_tr($lang, 'lp_side_q', array('q' => $l['q']));
-        $qw = mel_gc_w($t, 30) + 24;
-        $d[] = mel_gc_cut(null, mel_gc_left_center($qw - 24, 44, MEL_GC_LW - MEL_GC_PAD - $qw + 24), $t, 30,
-            $l['k'] === 'head' ? MEL_GC_TEXT2 : $hi, array(GCompTtfLabelDef::halign => HALIGN_RIGHT));
+        $qx -= MelKit::w($t, MEL_K_PX_ROW);
+        $qt = MelKit::text($t, MEL_K_PX_ROW, $l['k'] === 'head' ? ($on ? MEL_K_C_ON_ACCENT2 : MEL_K_C_TEXT2) : $fg, $qx, $y);
+        $qx -= MEL_K_GAP_M;
     }
     if ($l['k'] === 'head' || $l['k'] === 'shut')
+        $it[] = MelKit::group_line(MelKit::cut($r['src'], MEL_K_PX_ROW, '', MEL_LPV_SRC_W),
+            $l['n'] . ' ' . mel_gc_plural($lang, $l['n'], 'lp_streams'), $l['k'] === 'head', $on, $c[0], $y);
+    else
     {
-        $d[] = mel_gc_cut(null, mel_gc_left_center($sw, 44, $c[0]), $r['src'], 30, MEL_GC_TEXT);
-        $t = $l['n'] . ' ' . mel_gc_plural($lang, $l['n'], 'lp_streams');
-        $x = $c[0] + $sw + 24;
-        $tw = min(300, mel_gc_w($t, 26));
-        $d[] = mel_gc_cut(null, mel_gc_left_center($tw, 44, $x), $t, 26, $on ? MEL_GC_TEXT2 : MEL_GC_DIM);
-        $d[] = mel_gc_image(mel_gc_left_center(MEL_GC_SORT_ARROW_W, MEL_GC_SORT_ARROW_H, $x + $tw + MEL_GC_SORT_ARROW_GAP),
-            'plugin_file://img/' . ($l['k'] === 'head' ? 'sort_up.png' : 'sort_down.png'));
-        return $d;
+        $vx = $l['k'] === 'one' ? $c[1] : $c[0] + MEL_LPV_INDENT;
+        if ($l['k'] === 'one' || $j === $top)
+            $it[] = MelKit::text($r['src'], MEL_K_PX_ROW, $l['k'] === 'one' ? $fg : $fg3, $c[0], $y, array('w' => MEL_LPV_SRC_W));
+        if ($l['k'] === 'row' && $j === $top)
+            $vx = max($vx, $c[0] + min(MEL_LPV_SRC_W, MelKit::w($r['src'], MEL_K_PX_ROW)) + MEL_K_GAP_L);
+        $it[] = MelKit::text(mel_lpv_voice_text($v, $r, $lang), MEL_K_PX_ROW, $fg, $vx, $y, array('w' => max(40, $qx - $vx)));
     }
-    $vx = $l['k'] === 'one' ? $c[1] : $c[0] + MEL_LPV_INDENT;
-    if ($l['k'] === 'one' || $j === $top)
-        $d[] = mel_gc_cut(null, mel_gc_left_center($sw, 44, $c[0]), $r['src'], 30, $l['k'] === 'one' ? $hi : MEL_GC_DIM);
-    if ($l['k'] === 'row' && $j === $top)
-        $vx = max($vx, $c[0] + $sw + 30);
-    $d[] = mel_gc_cut(null, mel_gc_left_center(max(40, MEL_GC_LW - MEL_GC_PAD - $qw - $vx), 44, $vx),
-        mel_lpv_voice_text($v, $r, $lang), 30, $hi);
-    $prog = isset($v['gc_prog']) ? $v['gc_prog'] : array();
-    return array_merge($d, mel_gc_bar(isset($prog[$r['key']]) ? $prog[$r['key']] : 0));
+    if ($qt)
+        $it[] = $qt;
+    $line = MelKit::line($it, $y, 'row');
+    $d = array_merge($d, $line['defs']);
+    $share = ($l['k'] === 'row' || $l['k'] === 'one') && isset($v['gc_prog'][$r['key']]) ? $v['gc_prog'][$r['key']] : 0;
+    if ($share > 0)
+    {
+        $bar = MelKit::bar('progress', MEL_GC_PAD, MEL_GC_BAR_Y, $w, MEL_GC_BAR_H, $share);
+        $d = array_merge($d, $bar['defs']);
+    }
+    return $d;
 }
 
 // Children of 'card' of line $j of lines $L of view $v (mel_lpv_card).
@@ -1162,10 +963,11 @@ function mel_lpv_card_of($st, $v, $L, $j)
     return mel_lpv_is_bal($L, $j) ? mel_lpv_card($st, $v, $L[$j]['i'], $L[$j]['q']) : mel_lpv_card($st, $v, mel_lpv_row_of($L, $j));
 }
 
-// Children of 'card' of row $i (of the list, not of the screen) of view $v: beside the poster the balancer and "до 2160p";
-// under it the voice, the quality ("до 2160p", else "источник не сообщает"), the subtitles that do not
-// go to the player, "Через: Lampac из настроек". Of the line of a balancer (its first row $i; $q its best quality, '' none):
-// no voice, no subtitles. The row "Ещё N" and none: no card.
+// Children of 'card' of row $i (of the list, not of the screen) of view $v, stacks of the kit as the card of a release
+// (mel_gc_card): beside the poster the balancer (MEL_K_PX_PANEL_TITLE) and "до 2160p"; under it the fields (mel_gc_field):
+// the voice, the quality ("до 2160p", else "источник не сообщает"), the subtitles that do not go to the player, "Через:
+// Lampac из настроек". Of the line of a balancer (its first row $i; $q its best quality, '' none): no voice, no
+// subtitles. The row "Ещё N" and none: no card.
 /**
  * @param MelState $st
  * @param MelLpView $v
@@ -1181,14 +983,12 @@ function mel_lpv_card($st, $v, $i, $q = null)
     $bal = $q !== null;
     $q = $bal ? $q : $r['quality'];
     $lang = mel_gc_lang($st);
-    $w = MEL_GC_CW;
-    $sx = mel_img($st['movie']['poster']) !== '' ? MEL_GC_PW + 20 : 0;
-    $sw = $w - $sx;
-    $d = array(mel_gc_cut(null, mel_gc_at($sw, 60, $sx, 0), $r['src'], 48, MEL_GC_TEXT));
+    $sx = mel_img($st['movie']['poster']) !== '' ? MEL_GC_PW + MEL_GC_SIDE_GAP : 0;
+    $so = array('w' => MEL_GC_CW - $sx);
+    $side = array(MelKit::text($r['src'], MEL_K_PX_PANEL_TITLE, MEL_K_C_TEXT1, $sx, 0, $so));
     if ($q !== '')
-        $d[] = mel_gc_cut(null, mel_gc_at($sw, 36, $sx, 64), mel_lpv_tr($lang, 'lp_side_q', array('q' => $q)),
-            30, MEL_GC_TEXT2);
-    $y = MEL_GC_PH + 20;
+        $side[] = MelKit::text(mel_lpv_tr($lang, 'lp_side_q', array('q' => $q)), MEL_K_PX_ROW, MEL_K_C_TEXT2, $sx, 0, $so);
+    $side = MelKit::stack($side, 'm', 0, 'side');
     $fields = $bal ? array() : array(array('lp_card_voice', mel_lpv_voice_text($v, $r, $lang)));
     $fields[] = array('lp_card_quality', $q !== '' ? mel_lpv_tr($lang, 'lp_side_q', array('q' => $q)) :
         mel_tr($lang, 'lp_card_q_none'));
@@ -1197,19 +997,19 @@ function mel_lpv_card($st, $v, $i, $q = null)
     // The profile of Lampac of the list (v2: one of several).
     $via = mel_src_name($st['lp_prof']);
     $fields[] = array('lp_card_via', $via !== '' ? $via : 'Lampac');
+    $blocks = array();
     foreach ($fields as $f)
-    {
-        $d[] = mel_gc_cut(null, mel_gc_at(MEL_GC_VX - 6, 36, 0, $y), mel_tr($lang, $f[0]), 26, MEL_GC_DIM);
-        foreach (mel_gc_wrap($f[1], 30, $w - MEL_GC_VX, 2) as $j => $line)
-            $d[] = mel_gc_cut(null, mel_gc_at($w - MEL_GC_VX, 36, MEL_GC_VX, $y + 36 * $j), $line, 30, MEL_GC_TEXT2);
-        $y += 36 * max(1, count(mel_gc_wrap($f[1], 30, $w - MEL_GC_VX, 2))) + 8;
-    }
-    return $d;
+        $blocks[] = mel_gc_field(mel_tr($lang, $f[0]), MelKit::wrap($f[1], MEL_K_PX_SECONDARY, '', MEL_GC_CW - MEL_GC_VX, 2),
+            MEL_GC_LH);
+    // Under the poster's place even without a poster.
+    $under = MelKit::stack($blocks, 'm', MEL_GC_PH + MEL_K_GAP_M, 'card');
+    return array_merge($side['defs'], $under['defs']);
 }
 
-// The window of the online list of $st (its view 'lp'), line $sel selected, $top the first
-// on screen (mel_lpv_lines): the frame of mel_gc_window (the background, the poster, the title with the yellow line of the
-// view, mel_gc_title_row, the hints, the counter); the row of the tabs of mel_lpv_tabs.
+// The window of the online list of $st (its view 'lp'), line $sel selected, $top the first on screen (mel_lpv_lines),
+// on the components of the kit as the list of releases (mel_gc_window): the background, the poster, the card, the
+// title with the yellow line of the view (mel_gc_head), the lines of the window (mel_gc_rows_span) over the plate of
+// the focus, the scroll bar, the hint line (mel_lpv_screen), the counter, the row of the tabs (mel_lpv_tabs).
 /**
  * @param MelState $st
  * @param int $sel
@@ -1224,33 +1024,33 @@ function mel_lpv_window($st, $sel, $top)
     $L = mel_lpv_lines($v);
     $n = count($L);
     $c = mel_lpv_cols_st($v, $L);
-    $d = array(mel_gc_rect(mel_gc_at(1920, 1080, 0, 0), '#C0000000'));
+    $d = array(mel_gc_rect(mel_gc_at(1920, 1080, 0, 0), MEL_K_C_SCRIM));
     $poster = mel_img($mv['poster']);
     if ($poster !== '')
         $d[] = mel_gc_image(mel_gc_at(MEL_GC_PW, MEL_GC_PH, MEL_GC_CX, MEL_GC_CY), $poster, true);
     $d[] = mel_gc_panel('card', mel_gc_at(MEL_GC_CW, MEL_GC_CARD_BOTTOM - MEL_GC_CY, MEL_GC_CX, MEL_GC_CY),
         mel_lpv_card_of($st, $v, $L, $sel));
-    $d = array_merge($d, mel_gc_title_row($st, $v['note']));
-    $in = array(mel_gc_rect(mel_gc_row_geom($sel), MEL_GC_SEL, 'sel'));
-    for ($i = 0; $i < $n; $i++)
-        $in[] = mel_gc_panel("r$i", mel_gc_row_geom($i), mel_lpv_row_items($v, $L, $i, $c, $i === $sel, $top, $lang));
-    $d[] = mel_gc_panel('list', mel_gc_at(MEL_GC_LW, MEL_GC_VIS * MEL_GC_ROW_H, MEL_GC_LX, MEL_GC_LY),
-        array(mel_gc_panel('rows', mel_gc_rows_geom($top, $n), $in, 0)), 0);
-    $tt = mel_gc_text($lang);
-    $hx = MEL_GC_LX;
+    $d = array_merge($d, mel_gc_head($st, $v['note']));
+    if ($n > 0)
+    {
+        $in = array(mel_gc_sel($sel));
+        list($lo, $hi) = mel_gc_rows_span($top, $n);
+        for ($i = $lo; $i < $hi; $i++)
+            $in[] = mel_gc_panel("r$i", mel_gc_row_geom($i), mel_lpv_row_items($v, $L, $i, $c, $i === $sel, $top, $lang));
+        $d[] = mel_gc_panel('list', mel_gc_at(MEL_GC_LW, MEL_GC_VIS * MEL_GC_ROW_H, MEL_GC_LX, MEL_GC_LY),
+            array(mel_gc_panel('rows', mel_gc_rows_geom($top, $n), $in, 0)), 0);
+    }
     if ($n > MEL_GC_VIS)
     {
-        $d[] = mel_gc_rect(mel_gc_at(6, MEL_GC_VIS * MEL_GC_ROW_H, MEL_GC_LX + MEL_GC_LW + 10, MEL_GC_LY), '#30FFFFFF');
-        $d[] = mel_gc_rect(mel_gc_thumb_geom($top, $n), '#C0FFFFFF', 'thumb');
-        $hx = mel_gc_hint($d, $hx, MEL_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/p_plus_p_minus.png' => 114),
-            $tt['page']);
+        $d[] = mel_gc_rect(mel_gc_at(6, MEL_GC_VIS * MEL_GC_ROW_H, MEL_GC_LX + MEL_GC_LW + 10, MEL_GC_LY),
+            MEL_K_C_SCROLL_TRACK);
+        $d[] = mel_gc_rect(mel_gc_thumb_geom($top, $n), MEL_K_C_SCROLL_THUMB, 'thumb');
     }
-    if ($st['e'] > 0)
-        $hx = mel_gc_hint($d, $hx, MEL_GC_HINT_Y, array('plugin_file://img/left_arrow.png' => MEL_GC_ARROW_W,
-            'plugin_file://%shell_ext%/icons/right_arrow.png' => MEL_GC_ARROW_W), $tt['flip'], MEL_GC_ARROW_H);
-    mel_gc_hint($d, $hx, MEL_GC_HINT_Y, array('plugin_file://%shell_ext%/icons/popup_icon_only.png' => 52), $tt['actions']);
-    $right = MEL_GC_LX + MEL_GC_LW - 16;
-    $d[] = mel_gc_panel('counter', mel_gc_at(300, MEL_GC_KEY_H, $right - 300, MEL_GC_HINT_Y), mel_lpv_counter($L, $sel));
+    list(, $hint) = mel_lpv_screen($st, $n);
+    $h = MelKit::hint($hint, MEL_GC_LX, MEL_GC_HINT_MID);
+    $d = array_merge($d, $h['defs']);
+    $d[] = mel_gc_panel('counter', mel_gc_at(MEL_GC_COUNT_W, MEL_K_KEY_H, MEL_GC_LX + MEL_GC_LW - MEL_GC_PAD - MEL_GC_COUNT_W,
+        MEL_GC_HINT_MID - intval(MEL_K_KEY_H / 2)), mel_lpv_counter($L, $sel));
     $d = array_merge($d, mel_lpv_tabs($st, $L));
     return mel_gc_window_def($d, $mv['fanart']);
 }
@@ -1269,6 +1069,44 @@ function mel_lpv_pos($v, $raw)
     return mel_lpv_fix($L, $sel, $top);
 }
 
+// The keys of the online list $st of $n lines and the items of its hint line (MelKit::hint), one for both: the cursor,
+// ENTER, MENU "Действия", the green key (mel_lpv_fold_all); «P+ P−» "Прокрутка" with more lines than the screen; the
+// yellow key, the order of the balancers, of a list with rows (its tab, mel_lpv_tabs); the red key, the filter by
+// voices, of a list with voices; an episode: left and right flip the episodes of the season (mel_lpv_flip), "Серии".
+// -> array(actions, hint items).
+/**
+ * @param MelState $st
+ * @param int $n
+ * @return array{array<string, MelAction>, list<array{string, string}>}
+ */
+function mel_lpv_screen($st, $n)
+{
+    $rid = $st['rid'];
+    $tt = mel_gc_text(mel_gc_lang($st));
+    $acts = array(
+        GUI_EVENT_KEY_UP => mel_gc_act('lp_move', $rid, array('d' => 'up')),
+        GUI_EVENT_KEY_DOWN => mel_gc_act('lp_move', $rid, array('d' => 'down')),
+        GUI_EVENT_KEY_P_PLUS => mel_gc_act('lp_move', $rid, array('d' => 'pgup')),
+        GUI_EVENT_KEY_P_MINUS => mel_gc_act('lp_move', $rid, array('d' => 'pgdn')),
+        GUI_EVENT_KEY_ENTER => mel_gc_act('lp_pick', $rid),
+        GUI_EVENT_MENU_PLAYBACK_FINISH => mel_finish_act($rid),
+        GUI_EVENT_KEY_POPUP_MENU => mel_gc_act('lp_menu', $rid),
+        GUI_EVENT_KEY_B_GREEN => mel_gc_act('lp_fold', $rid));
+    $hint = $n > MEL_GC_VIS ? array(array('pp', $tt['page'])) : array();
+    if ($st['lp']['rows'])
+        $acts[GUI_EVENT_KEY_C_YELLOW] = mel_gc_act('lp_qsort', $rid);
+    if (mel_lpv_voices($st['lp'], mel_gc_lang($st)))
+        $acts[GUI_EVENT_KEY_A_RED] = mel_gc_act('lp_flt_menu', $rid);
+    if ($st['e'] > 0)
+    {
+        $acts[GUI_EVENT_KEY_LEFT] = mel_gc_act('lp_flip', $rid, array('d' => 'prev'));
+        $acts[GUI_EVENT_KEY_RIGHT] = mel_gc_act('lp_flip', $rid, array('d' => 'next'));
+        $hint[] = array('lr', $tt['flip']);
+    }
+    $hint[] = array('k_icon_menu', $tt['actions']);
+    return array($acts, $hint);
+}
+
 // get_folder_view of the online list of $st (lp_on).
 /**
  * @param MelState $st
@@ -1283,29 +1121,9 @@ function mel_lpv_folder_view($st, $sel_state)
     Mel::$state['lp']['gc'] = array($sel, $top);
     $st['lp']['gc_prog'] = Mel::$state['lp']['gc_prog'] = mel_wh_progress($st);
     // The columns, counted once a full view (mel_lpv_cols_st).
-    $st['lp']['gc_cols'] = Mel::$state['lp']['gc_cols'] = mel_lpv_cols($st['lp'], mel_lpv_lines($st['lp']));
-    $rid = $st['rid'];
-    $acts = array(
-        GUI_EVENT_KEY_UP => mel_gc_act('lp_move', $rid, array('d' => 'up')),
-        GUI_EVENT_KEY_DOWN => mel_gc_act('lp_move', $rid, array('d' => 'down')),
-        GUI_EVENT_KEY_P_PLUS => mel_gc_act('lp_move', $rid, array('d' => 'pgup')),
-        GUI_EVENT_KEY_P_MINUS => mel_gc_act('lp_move', $rid, array('d' => 'pgdn')),
-        GUI_EVENT_KEY_ENTER => mel_gc_act('lp_pick', $rid),
-        GUI_EVENT_MENU_PLAYBACK_FINISH => mel_finish_act($rid),
-        GUI_EVENT_KEY_POPUP_MENU => mel_gc_act('lp_menu', $rid),
-        GUI_EVENT_KEY_B_GREEN => mel_gc_act('lp_fold', $rid));
-    // The yellow key: the order of the balancers, of a list with rows (its tab, mel_lpv_tabs); else nothing.
-    if ($st['lp']['rows'])
-        $acts[GUI_EVENT_KEY_C_YELLOW] = mel_gc_act('lp_qsort', $rid);
-    // The red key: the filter by voices, of a list with voices (its tab, mel_lpv_window).
-    if (mel_lpv_voices($st['lp'], mel_gc_lang($st)))
-        $acts[GUI_EVENT_KEY_A_RED] = mel_gc_act('lp_flt_menu', $rid);
-    // An episode: left and right flip the episodes of the season (mel_lpv_flip).
-    if ($st['e'] > 0)
-    {
-        $acts[GUI_EVENT_KEY_LEFT] = mel_gc_act('lp_flip', $rid, array('d' => 'prev'));
-        $acts[GUI_EVENT_KEY_RIGHT] = mel_gc_act('lp_flip', $rid, array('d' => 'next'));
-    }
+    $L = mel_lpv_lines($st['lp']);
+    $st['lp']['gc_cols'] = Mel::$state['lp']['gc_cols'] = mel_lpv_cols($st['lp'], $L);
+    list($acts) = mel_lpv_screen($st, count($L));
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -1318,8 +1136,9 @@ function mel_lpv_folder_view($st, $sel_state)
             PluginGCompsFolderView::timer => null));
 }
 
-// lp_move of the online list: the cursor (mel_lpv_step), the brightness of the rows, the first line of
-// the screen when it moved (mel_lpv_row_items), the card, the counter.
+// lp_move of the online list: the cursor (mel_lpv_step), the window of lines after the top (mel_gc_cursor_changes), the
+// line the cursor left and the one it came to, the first line of the screen when it moved (mel_lpv_row_items), the card,
+// the counter.
 /**
  * @param stdClass $in
  * @param MelState $st
@@ -1338,9 +1157,13 @@ function mel_lpv_move($in, $st)
     Mel::$state['lp']['gc'] = array($nsel, $ntop);
     if ($nsel === $sel && $ntop === $top)
         return null;
-    $ch = mel_gc_cursor_changes($top, $nsel, $ntop, $n);
     $lang = mel_gc_lang($st);
     $c = mel_lpv_cols_st($v, $L);
+    // A line that comes into the window: as the new top shows it.
+    $ch = mel_gc_cursor_changes($top, $nsel, $ntop, $n, function ($j) use ($v, $L, $c, $ntop, $lang)
+    {
+        return mel_gc_panel("r$j", mel_gc_row_geom($j), mel_lpv_row_items($v, $L, $j, $c, false, $ntop, $lang));
+    });
     foreach (array_unique(array($sel, $nsel, $top, $ntop)) as $j)
         $ch[] = mel_gc_change("r$j", null, GCOMP_TRANSITION_NONE, mel_lpv_row_items($v, $L, $j, $c, $j === $nsel, $ntop, $lang));
     $ch[] = mel_gc_change('card', null, GCOMP_TRANSITION_NONE, mel_lpv_card_of($st, $v, $L, $nsel));
@@ -1372,8 +1195,10 @@ function mel_lpv_finish($st)
     $lang = mel_gc_lang($st);
     $L = mel_lpv_lines($v);
     $c = mel_lpv_cols_st($v, $L);
+    // Only the lines on the screen (mel_gc_rows_span); the others get the share when the window comes to them.
+    list($lo, $hi) = mel_gc_rows_span($top, count($L));
     $ch = array();
-    foreach ($L as $j => $l)
+    for ($j = $lo; $j < $hi; $j++)
     {
         $i = mel_lpv_row_of($L, $j);
         if ($i < 0)
