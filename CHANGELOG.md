@@ -3,6 +3,7 @@
 **English version**
 
 ## 0.70.1
+- Fixed: some titles in Favorites that you brought over from Dune Favorites lost their poster after you restored the settings with "Load from a file". Melange now takes their poster from the catalog.
 - Fixed: for an episode with two copies on the disk, Melange sometimes showed only one, and you couldn't pick the other. Now the other copy is in **MENU** → "Copy on disk…", after the rest. **OK** plays the same copy as before, and Melange remembers the copy you pick in the window.
 
 ## 0.70.0 — 26.11.2026
@@ -354,6 +355,7 @@ First public release. What it does:
 **Russian version**
 
 ## 0.70.1
+- Исправлено: у некоторых тайтлов в «Избранном», перенесённых из «Избранного» Дюны, пропадал постер после того, как настройки восстановили через «Загрузить из файла». Теперь Melange берёт их постер из каталога.
 - Исправлено: у серии с двумя копиями на диске Melange иногда показывал только одну, и выбрать вторую было нельзя. Теперь вторая копия есть в **MENU** → «Копия на диске…», после остальных. **OK** включает ту же копию, что и раньше, а выбранную в окне копию Melange запоминает.
 
 ## 0.70.0 — 26.11.2026
