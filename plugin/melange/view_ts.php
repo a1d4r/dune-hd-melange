@@ -10,8 +10,9 @@
 // MEL_TSL_FRESH_S of its read, else reads it anew (an error then: a line of it). ENTER on a torrent: its start
 // (view_ts_play.php) or the screen of its files (view_ts_files.php). POP UP on a torrent: «Удалить с TorrServer» alone
 // (no IMDb, no TMDB: no item of a title), its confirmation, then "rem" (mel_tsl_rem_act); none on another line.
-// Needs ts_list.php, view_catalog.php, view_my_list.php (mel_mlv_is_screen), kit_scr.php, view_setup.php, view_card.php
-// (mel_oc_day), view_gcomps.php (mel_gc_plural), main.php. PHP 5.3.6, firmware API only.
+// Needs ts_list.php, ts_row.php (the copy of the row of the catalog), view_catalog.php, view_my_list.php
+// (mel_mlv_is_screen), kit_scr.php, view_setup.php, view_card.php (mel_oc_day), view_gcomps.php (mel_gc_plural), main.php.
+// PHP 5.3.6, firmware API only.
 
 // The address of the screen; the rid of its lines of torrents ("tors:<hash>"); the prefix of its other lines: the hint
 // of an empty list, a line of an error of a build of the screen ("tsl:err:<key>").
@@ -83,7 +84,8 @@ function mel_tsl_open($from)
     return $replace ? mel_replace_act(MEL_TSL_URL, $caption) : mel_catv_open_act(MEL_TSL_URL, $caption);
 }
 
-// The list read (mel_tsl_load), the time of it kept (MelTslView::$read).
+// The list read (mel_tsl_load), the time of it kept (MelTslView::$read); its first entries are the copy of the row of
+// the catalog (mel_tsr_take: no second request).
 /**
  * @return array{list<MelTsEntry>|null, string, string}
  */
@@ -92,6 +94,7 @@ function mel_tsl_read()
     $r = mel_tsl_load();
     if ($r[0] !== null)
         MelTslView::$read = microtime(true);
+    mel_tsr_take($r);
     return $r;
 }
 

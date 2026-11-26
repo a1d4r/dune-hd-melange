@@ -163,8 +163,9 @@ function mel_tsl_play_act($d, $files, $why)
         GuiAction::data => array(PluginVodPlayActionData::vod_info => $info));
 }
 
-// The entry of torrent $hash: in memory, else the list read once (a restart of php_server, an old screen) -> array(the
-// entry or null: not in the list; the key of an error of the list, '' none; its detail).
+// The entry of torrent $hash: in memory, else in the copy of the row of the catalog (mel_tsr_entry; its files kept as of a
+// file_stats, mel_tsl_files_keep), else the list read once (a restart of php_server, an old screen) -> array(the entry
+// or null: not in the list; the key of an error of the list, '' none; its detail).
 /**
  * @param string $hash
  * @return array{MelTsEntry|null, string, string}
@@ -173,6 +174,14 @@ function mel_tsl_find($hash)
 {
     if (isset(MelTsl::$list[$hash]))
         return array(MelTsl::$list[$hash], '', '');
+    $row = mel_tsr_entry($hash);
+    if ($row !== null)
+    {
+        if ($row['e']['files'] !== null)
+            mel_tsl_files_keep($hash, $row['e']['files']);
+        mel_log("ts section: $hash of the copy of the row");
+        return array($row['e'], '', '');
+    }
     mel_log("ts section: $hash not in memory, the list read");
     list($list, $key, $detail) = mel_tsl_read();
     if ($list === null)
