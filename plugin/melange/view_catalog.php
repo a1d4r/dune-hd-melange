@@ -806,10 +806,8 @@ function mel_catv_title_item($rid, $t)
  */
 function mel_catv_rate_text($rating)
 {
-    // "0.04" is "0.0": none, as of kpRating; over 10 ("99.99" is "100.0", wider than the plate) none too.
-    $s = sprintf('%.1F', (float) $rating);
-    if ((float) $s <= 0 || (float) $s > 10)
-        return '';
+    // What a rating is: mel_cat_rate, also of an old record of "Мой список", not of a tile (mel_cat_tile).
+    $s = mel_cat_rate($rating);
     return $s === '10.0' ? '10' : $s;
 }
 
@@ -1779,9 +1777,9 @@ function mel_catv_fact_parts($t, $lang)
     $rates = array();
     if ($t['kpRating'] !== '')
         $rates[] = array('kp', mel_tr($lang, 'cat_rate_kp'), $t['kpRating']);
-    $rating = (float) $t['imdbRating'];
-    if ($rating > 0)
-        $rates[] = array('imdb', mel_tr($lang, 'cat_rate_imdb'), sprintf('%.1F', $rating));
+    $rating = mel_cat_rate($t['imdbRating']);
+    if ($rating !== '')
+        $rates[] = array('imdb', mel_tr($lang, 'cat_rate_imdb'), $rating);
     $rest = array_filter(array($t['type'] === 'series' ? mel_tr($lang, 'cat_kind_series') : '', $t['year'],
         mel_catv_runtime($t['runtime'], $lang)), 'strlen');
     return array('rates' => $rates, 'rest' => array_values($rest), 'age' => $t['age']);

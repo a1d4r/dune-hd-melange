@@ -605,7 +605,7 @@ function mel_cat_runtime_min($r)
     return (isset($x[1]) ? intval($x[1]) * 60 : 0) + (isset($x[2]) ? intval($x[2]) : 0);
 }
 
-// A rating of Kinopoisk or of IMDb ("7.93", "6.49") -> "7.9", "6.5" as shown (the poster, the filter of IMDb: one
+// A rating of Kinopoisk or of IMDb ("7.93", "6.49", "6.6666") -> "7.9", "6.5", "6.7" as shown (the poster, the filter of IMDb: one
 // value); '' for none, not a number, 0 or over 10. Of Kinopoisk of any number of votes (the owner's choice 23.11.2026:
 // the votes of the server are live now), none of them too.
 /**
@@ -614,7 +614,7 @@ function mel_cat_runtime_min($r)
  */
 function mel_cat_rate($r)
 {
-    $r = preg_match('/^[0-9]{1,2}(\.[0-9]{1,3})?$/D', $r) && (float) $r <= 10 ? sprintf('%.1F', (float) $r) : '';
+    $r = preg_match('/^[0-9]{1,2}(\.[0-9]+)?$/D', $r) && (float) $r <= 10 ? sprintf('%.1F', (float) $r) : '';
     // "0.04" is "0.0": none.
     return (float) $r > 0 ? $r : '';
 }
