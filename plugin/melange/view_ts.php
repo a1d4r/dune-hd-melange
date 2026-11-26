@@ -415,7 +415,7 @@ function mel_tsl_enter($id, $from)
         return mel_ts_fail(mel_catv_lang(), 'ts_err_no_video');
     if ($kind === 'pack' && $files !== null)
         return mel_tsf_open($hash, $files);
-    return mel_tsl_start($e, $kind === 'movie' && $v ? $v[0]['id'] : 0, 0);
+    return mel_tsl_start($e, $kind === 'movie' && $v ? $v[0]['id'] : 0, 0, $from);
 }
 
 // --- «Удалить с TorrServer» (owner 24.11.2026): POP UP of a torrent line of the section and of a tile of the row of the
@@ -518,9 +518,9 @@ function mel_tsl_rem_act($hash, $from)
 // The screens built anew after a torrent went off TorrServer (removed, or found gone) from screen $from, then $post: $from
 // itself (mel_catv_screen_of: '' none, a screen updated by $post itself, "TV"); the row shown (mel_tsr_any) and its
 // tile out of the copy ($dropped, mel_tsr_drop: one not in it changed no row) - on r25 the main screens opened too
-// (mel_catv_mains_anew: one under the section, the other tab). On r24 not they (a screen of rows lower in the stack
-// built again may go to the network for seconds): a tile of the row left there goes at an OK on it (mel_tsl_enter, the
-// torrent gone: that screen anew) or at the next opening. The shell keeps the focus by sel_state. None of them: $post.
+// (mel_catv_mains_anew: one under the section, the other tab). On r24 not they, $from alone (mel_catv_mains_anew: a
+// screen of rows lower in the stack built again may go to the network for seconds): a tile of the row left there goes
+// at an OK on it (mel_tsl_enter, mel_tsl_done: the torrent gone - that screen anew) or at the next opening. The shell keeps the focus by sel_state. None of them: $post.
 /**
  * @param string $from
  * @param bool $dropped
@@ -531,7 +531,7 @@ function mel_tsl_rem_act($hash, $from)
 function mel_tsl_anew($from, $dropped, $post, $why)
 {
     $also = mel_catv_screen_of($from);
-    if (mel_tsr_any() && $dropped && mel_fw_r() >= 25)
+    if (mel_tsr_any() && $dropped)
         return mel_catv_mains_anew($post, $why, $also !== '' ? array($also) : array(), false);
     if ($also === '')
         return $post;

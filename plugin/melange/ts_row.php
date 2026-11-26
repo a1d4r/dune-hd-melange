@@ -91,6 +91,17 @@ function mel_tsr_old($s)
     return MelTsr::$read_sig !== mel_tsr_sig() || MelTsr::$read_t <= 0 || microtime(true) - MelTsr::$read_t >= $s;
 }
 
+// No copy of the TorrServer of the settings at all: no file, a broken one, one of another TorrServer or login (an
+// empty one of a read is a copy).
+/**
+ * @return bool
+ */
+function mel_tsr_none()
+{
+    mel_tsr_tiles();
+    return MelTsr::$sig !== mel_tsr_sig();
+}
+
 // The row is shown on tab $tab and its copy is old (mel_tsr_old of MEL_TSR_FRESH_S).
 /**
  * @param string $tab
@@ -102,10 +113,10 @@ function mel_tsr_due($tab)
 }
 
 // The step of the row of a screen of tab $tab with $left s of its time left: a tick of the main screen (r25,
-// mel_pg_tick) or the end of an opening that went to the network (r24, mel_pg_screen_built). The copy old there
-// (mel_tsr_due): the list read (mel_tsr_read, MEL_TSR_TICK_S) when $left holds it, else not now (still due: the next tick
-// reads it, mel_pg_tick_why keeps the timer). -> the copy new (written): the screen to build again; the same, not
-// written, no answer, 401, the guard of memory - not.
+// mel_pg_tick) or the end of an opening that went to the network or found no copy (r24, mel_pg_screen_built). The
+// copy old there (mel_tsr_due): the list read (mel_tsr_read, MEL_TSR_TICK_S) when $left holds it, else not now
+// (still due: the next tick reads it, mel_pg_tick_why keeps the timer). -> the copy new (written): the screen to build
+// again; the same, not written, no answer, 401, the guard of memory - not.
 /**
  * @param string $tab
  * @param float $left

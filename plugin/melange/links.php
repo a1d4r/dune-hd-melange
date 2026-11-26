@@ -158,7 +158,9 @@ function mel_pg_rows_answered()
 // no copies). The lazy pairs now, the tiles of its row "Continue" first (mel_cp_row_mids), then the lazy meta of that
 // row (mel_cpm_step) in what is left of the time of the step, then the list of TorrServer for the row "На TorrServer"
 // of its old copy (mel_tsr_step) in what is left of $left (its row shown at the next opening), only with $net: an
-// opening of rows of memory or the cache stays at once.
+// opening of rows of memory or the cache stays at once. No copy of the row at all (mel_tsr_none: the row just shown, a
+// new TorrServer) - its list read in what is left of $left with no $net too: else no row till the copies of the rows of
+// the server get old.
 /**
  * @param float $left
  * @param bool $net
@@ -168,7 +170,11 @@ function mel_pg_rows_answered()
 function mel_pg_screen_built($left, $net, $tab = '')
 {
     if (!$net || $left < 1)
+    {
+        if (mel_tsr_on($tab) && mel_tsr_none())
+            mel_tsr_step($tab, $left);
         return;
+    }
     $t = microtime(true);
     $limit = min($left, MEL_PG_LINK_S);
     $rounds = 0;

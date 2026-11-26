@@ -1025,7 +1025,7 @@ function mel_cpm_ask_due($due, $t0, $limit, $max)
     return array($put, $asked, $got, $marks ? ', ' . implode(', ', $marks) : '');
 }
 
-// The tiles of the rows "Continue" and "Мой список" (mel_cpm_build_titles of tab $tab, of those shown: $names, both by
+// The tiles of the rows "Continue" and "Мой список" (mel_cpm_build_titles of tab $tab, of those shown: $names; none by
 // default) before they are built, so their tiles have the rating and the info panel at once: the steps of no request
 // first (mel_cpm_local: kept, of the rows in memory or on the disk; a stale tile renewed by them), then the titles to
 // ask asked in $limit s from the start (0: none, the tab "TV" builds its file with no request): mel_cpm_ask_due, one
@@ -1037,7 +1037,7 @@ function mel_cpm_ask_due($due, $t0, $limit, $max)
  * @param list<string> $names
  * @return void
  */
-function mel_cpm_build($tab, $limit, $names = array('@continue', '@mylist'))
+function mel_cpm_build($tab, $limit, $names = array())
 {
     $t0 = microtime(true);
     $now = time();

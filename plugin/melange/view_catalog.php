@@ -218,9 +218,10 @@ class MelCat
     /** @var array<string, array<int|string, MelCatTile>> */
     public static $on_screen = array();
     // The rows of Melange the main screen built last shows, in its order (mel_cat_slot_names of mel_cat_tab_slots; the
-    // names of mel_cat_pseudo): one hidden is not built, the titles of its tiles not asked (mel_cpm_queue, mel_pg_tick).
+    // names of mel_cat_pseudo; none before one): one hidden is not built, the titles of its tiles not asked (mel_cpm_queue,
+    // mel_pg_tick).
     /** @var list<string> */
-    public static $own = array('@continue', '@mylist');
+    public static $own = array();
     // The language of the last screen of rows ('': not read yet), mel_catv_ui_lang.
     /** @var string */
     public static $lang = '';

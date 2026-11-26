@@ -494,7 +494,7 @@ function mel_tsf_pick($s, $sel, $top)
         MelTsf::$last[$s['hash']] = $f['id'];
         MelTsf::$s = $s;
         mel_log("ts section: files screen of {$s['hash']}: file {$f['id']}, line $sel");
-        return mel_tsl_start($s['e'], $f['id'], 0);
+        return mel_tsl_start($s['e'], $f['id'], 0, '');
     }
     if (isset($s['open'][$i]))
         unset($s['open'][$i]);
