@@ -1998,23 +1998,6 @@ function mel_gc_can_choose($st)
     return $st['e'] > 0 && $st['movie']['dune_id'] !== '' && empty($st['movie']['own_card']);
 }
 
-// The MENU item "Источник" of the online list of $st (mel_lpv_menu, a popup menu of the shell; gc_src_menu: the menu of
-// all ready profiles, any kind; of a card of no IMDb and no TMDB, mel_rel_id, those of Lampac), or null: fewer than two
-// ready (mel_src_in_menu). The list of releases has it in its panel (mel_src_item).
-/**
- * @param MelState $st
- * @return array<string, mixed>|null
- */
-function mel_gc_src_item($st)
-{
-    if (!mel_src_in_menu(mel_rel_id($st['movie']) === ''))
-        return null;
-    return array(
-        GuiMenuItemDef::caption => mel_tr($st['lang'], 'src_list'),
-        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/sources.aai',
-        GuiMenuItemDef::action => mel_gc_act('gc_src_menu', $st['rid']));
-}
-
 // The submenu "Сортировка" of the panel of list $st: the sorts in the order of the colour keys, each gc_sort as its key
 // (the sort of the list again: the other way round, said under the lines); the sort of the list picked, with its
 // direction (down by default, up reversed, as its tab).

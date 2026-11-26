@@ -734,7 +734,7 @@ function mel_lpv_counter($L, $sel)
 // filter by voices (a list with voices), 'green' all folded or unfolded (a line of a balancer of 2 rows), 'yellow' the
 // order by quality (a list with rows). $at: 'key' the key is bound (mel_lpv_screen); 'tab' its tab is shown
 // (mel_lpv_tabs) - the green one with the colour keys only, the yellow one without them only on (by quality); 'menu'
-// its item of MENU (mel_lpv_menu) - mel_gc_keys_in_menu only.
+// its item of the panel "Действия" (mel_lpv_actions) - always, with the colour keys too.
 /**
  * @param MelState $st
  * @param list<MelLpLine> $L
@@ -750,8 +750,6 @@ function mel_lpv_can($st, $L, $key, $at)
         $can = mel_lpv_fold_state($L) !== '';
     else
         $can = (bool) $st['lp']['rows'];
-    if ($at === 'menu')
-        return $can && mel_gc_keys_in_menu();
     if ($at === 'tab' && $key === 'green')
         return $can && mel_gc_color_keys();
     if ($at === 'tab' && $key === 'yellow')
@@ -1083,6 +1081,8 @@ function mel_lpv_window($st, $sel, $top)
     $d[] = mel_gc_panel('counter', mel_gc_at(MEL_GC_COUNT_W, MEL_K_KEY_H, MEL_GC_LX + MEL_GC_LW - MEL_GC_PAD - MEL_GC_COUNT_W,
         MEL_GC_HINT_MID - intval(MEL_K_KEY_H / 2)), mel_lpv_counter($L, $sel));
     $d = array_merge($d, mel_lpv_tabs($st, $L));
+    // The slot of the overlay, the last: the panels of the list (mel_lpv_menu) open in it.
+    $d[] = mel_ovl_slot();
     return mel_gc_window_def($d, $mv['fanart']);
 }
 
@@ -1169,7 +1169,10 @@ function mel_lpv_folder_view($st, $sel_state)
     // The columns, counted once a full view (mel_lpv_cols_st).
     $L = mel_lpv_lines($st['lp']);
     $st['lp']['gc_cols'] = Mel::$state['lp']['gc_cols'] = mel_lpv_cols($st['lp'], $L);
+    // A view anew under an open panel: its state is not that of this view (the close would put back the old map).
+    mel_ovl_drop($st['rid']);
     list($acts) = mel_lpv_screen($st, $L);
+    $scr = mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top));
     return array(
         PluginFolderView::multiple_views_supported => false,
         PluginFolderView::archive => null,
@@ -1177,9 +1180,9 @@ function mel_lpv_folder_view($st, $sel_state)
         PluginFolderView::view_kind => PLUGIN_FOLDER_VIEW_GCOMPS,
         PluginFolderView::data => array(
             PluginGCompsFolderView::window_def => mel_lpv_window($st, $sel, $top),
-            PluginGCompsFolderView::sel_state => mel_gc_state($sel, $top),
-            PluginGCompsFolderView::actions => $acts,
-            PluginGCompsFolderView::timer => null));
+            PluginGCompsFolderView::sel_state => $scr['sel'],
+            PluginGCompsFolderView::actions => $scr['map'],
+            PluginGCompsFolderView::timer => $scr['timer']));
 }
 
 // lp_move of the online list: the cursor (mel_lpv_step), the window of lines after the top (mel_gc_cursor_changes), the
@@ -1261,66 +1264,74 @@ function mel_lpv_finish($st)
     return mel_gc_changes_act($ch, $sel, $top);
 }
 
-// --- MENU of the online list (A4): "Озвучка: …" (of a list with voices), "Развернуть все" / "Свернуть все" and
-// "Сортировать по качеству" / "Порядок как в Балансерах" (of a list with rows) (mel_gc_keys_in_menu: the red, the green and
-// the yellow key; mel_lpv_can), "Обновить", "Выбрать серию"
-// (an episode), "Источник", "Источники…" (mel_lpv_srcs_edit; some found), "Ошибки источников", "Настройки".
+// --- "Действия" of the online list: the side panel of the kit (kit_panel.php) over it, opened by MENU.
 
+// The panel "Действия" of the online list $st of lines $L, three groups:
+//   of the view of the list (mel_lpv_can 'menu': with the colour keys too): "Озвучка" with the name of the filter on
+//     the right (a list with voices; as the red key), "Балансеры" (a choice of them saved, lp_src), "Развернуть все" /
+//     "Свернуть все" (a balancer of 2 rows; as the green key), "Сортировать по качеству" / "Порядок как в Балансерах" (a
+//     list with rows; as the yellow key);
+//   of the list: "Обновить список" (mel_lpv_refresh), an episode: "Выбрать серию", "Источник" (two ready profiles, of a
+//     card of no IMDb and no TMDB, mel_rel_id, those of Lampac; mel_src_item), "Ошибки балансеров" (reasons of the view);
+//   "Настройки Melange".
 /**
  * @param MelState $st
- * @return MelAction
+ * @param list<MelLpLine> $L
+ * @return MelKpDesc
  */
-function mel_lpv_menu($st)
+function mel_lpv_actions($st, $L)
 {
     $lang = $st['lang'];
     $rid = $st['rid'];
-    $menu = array();
-    $L = mel_lpv_lines($st['lp']);
+    $tt = mel_gc_text(mel_gc_lang($st));
+    $view = array();
     if (mel_lpv_can($st, $L, 'red', 'menu'))
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_lpv_tr($lang, 'lp_flt_menu', array('name' => mel_lpv_flt_name($st['lp'], $lang))),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
-            GuiMenuItemDef::action => mel_gc_act('lp_flt_menu', $rid));
-    if (mel_lpv_can($st, $L, 'green', 'menu'))
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_lpv_fold_word($L, $lang),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
-            GuiMenuItemDef::action => mel_gc_act('lp_fold', $rid));
-    if (mel_lpv_can($st, $L, 'yellow', 'menu'))
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_tr($lang, mel_lpv_qsort() ? 'lp_qsort_off' : 'lp_qsort_on'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
-            GuiMenuItemDef::action => mel_gc_act('lp_qsort', $rid));
-    $menu[] = array(
-        GuiMenuItemDef::caption => mel_tr($lang, 'refresh_menu'),
-        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/upgrade.aai',
-        GuiMenuItemDef::action => mel_gc_act('lp_refresh', $rid));
-    if (mel_gc_can_choose($st))
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_tr($lang, 'choose_menu'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/playlist_file.aai',
-            GuiMenuItemDef::action => mel_gc_act('lp_choose', $rid));
-    $src = mel_gc_src_item($st);
-    if ($src)
-        $menu[] = $src;
+    {
+        $label = mel_tr($lang, 'lp_flt_title');
+        $view[] = array('id' => 'flt', 'label' => $label, 'icon' => 'k_icon_audio-lines',
+            'value' => MelKit::panel_value($label, mel_lpv_flt_name($st['lp'], $lang)),
+            'act' => mel_gc_act('lp_flt_menu', $rid));
+    }
     if (Mel::$settings['lp_src'])
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_tr($lang, 'lp_srcs_menu'),
-            GuiMenuItemDef::icon_url => MEL_CATV_ICONS . 'playlist_small.png',
-            GuiMenuItemDef::action => mel_gc_act('lp_srcs', $rid));
+        $view[] = array('id' => 'srcs', 'label' => mel_tr($lang, 'lp_srcs_menu'), 'icon' => 'k_icon_list-checks',
+            'act' => mel_gc_act('lp_srcs', $rid));
+    if (mel_lpv_can($st, $L, 'green', 'menu'))
+        $view[] = array('id' => 'fold', 'label' => mel_lpv_fold_word($L, $lang),
+            'icon' => mel_lpv_fold_state($L) === 'open' ? 'k_icon_chevrons-up' : 'k_icon_chevrons-down',
+            'act' => mel_gc_act('lp_fold', $rid));
+    if (mel_lpv_can($st, $L, 'yellow', 'menu'))
+        $view[] = array('id' => 'qsort', 'label' => mel_tr($lang, mel_lpv_qsort() ? 'lp_qsort_off' : 'lp_qsort_on'),
+            'icon' => 'k_icon_arrow-up-down', 'act' => mel_gc_act('lp_qsort', $rid));
+    $list = array(array('id' => 'refresh', 'label' => mel_tr($lang, 'refresh_list'), 'icon' => 'k_icon_refresh-cw',
+        'act' => mel_gc_act('lp_refresh', $rid)));
+    if (mel_gc_can_choose($st))
+        $list[] = array('id' => 'choose', 'label' => mel_tr($lang, 'choose_menu'), 'icon' => 'k_icon_list-video',
+            'act' => mel_gc_act('lp_choose', $rid));
+    $src = mel_src_item($lang, 'gc_src', array('rid' => $rid), mel_src_now($st), mel_rel_id($st['movie']) === '');
+    if ($src)
+        $list[] = $src;
     $errors = mel_lpv_errors_of($st);
     if ($errors['lines'])
-        $menu[] = array(
-            GuiMenuItemDef::caption => mel_tr($lang, 'lp_errors_menu'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/info.aai',
-            GuiMenuItemDef::action => mel_gc_act('lp_errors', $rid));
-    $menu[] = array(
-        GuiMenuItemDef::caption => mel_tr($lang, 'setup_menu'),
-        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/setup.aai',
-        GuiMenuItemDef::action => mel_setup_open_act());
-    return array(
-        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => $menu));
+        $list[] = array('id' => 'errors', 'label' => mel_tr($lang, 'lp_errors_menu'), 'icon' => 'k_icon_triangle-alert',
+            'act' => mel_gc_act('lp_errors', $rid));
+    $groups = $view ? array($view, $list) : array($list);
+    $groups[] = array(mel_gc_setup_item($lang));
+    return array('title' => $tt['actions'], 'groups' => $groups);
+}
+
+// lp_menu (MENU) of the online list $st -> the panel "Действия" over its screen (mel_kp_open; mel_lpv_actions), the
+// cursor kept as the last one of the list (the actions of the items come with no sel_state of the shell).
+/**
+ * @param stdClass $in
+ * @param MelState $st
+ * @return MelAction|null
+ */
+function mel_lpv_menu($in, $st)
+{
+    list($sel, $top) = mel_lpv_pos_keep($in, $st);
+    $L = mel_lpv_lines($st['lp']);
+    list($acts) = mel_lpv_screen($st, $L);
+    return mel_kp_open(mel_gc_scr($st['rid'], $acts, mel_gc_state($sel, $top)), mel_lpv_actions($st, $L));
 }
 
 // "Ошибки балансеров" of the online list of $st: a line a reason of a balancer ("Filmix: не
@@ -1599,14 +1610,24 @@ function mel_lpv_input($in, $control)
         return mel_lpv_on($st['movie'], $st['s'], $st['e']) ? mel_lpv_search_open($st, 'open') : null;
     if (empty($st['lp_on']) || !isset($st['lp']))
         return null;
+    // Under the open overlay of the list (a panel: a key sent before its map was applied): none, nothing changed - the
+    // panel was built for this view of the list.
+    $o = MelOvl::$st;
+    if ($o && $o['open'] && $o['scr']['owner'] === $st['rid'])
+    {
+        mel_log("lampac: $control under the overlay, none");
+        return null;
+    }
     if ($control === 'lp_move')
         return mel_lpv_move($in, $st);
     if ($control === 'lp_pick')
         return mel_lpv_pick($in, $st);
-    if ($control === 'lp_menu' || $control === 'lp_flt_menu')
+    if ($control === 'lp_menu')
+        return mel_lpv_menu($in, $st);
+    if ($control === 'lp_flt_menu')
     {
         mel_lpv_pos_keep($in, $st);
-        return $control === 'lp_menu' ? mel_lpv_menu($st) : mel_lpv_flt_edit($st);
+        return mel_lpv_flt_edit($st);
     }
     if ($control === 'lp_flt_apply')
         return mel_lpv_flt_apply($in, $st);

@@ -71,7 +71,6 @@ err_set_address_own = Set the config link: Setup → Apps → Melange
 err_setup_dir = The plugin data folder is missing
 err_setup_ip = The Dune's network IP address was not found
 err_setup_write = Could not write a plugin file
-refresh_menu = Refresh
 refresh_list = Refresh list
 refresh_failed = List not refreshed
 errors_menu = Addon errors

@@ -4,9 +4,9 @@
 // remembered - the next opening goes by the history or the main one (§1.5); what is started from the screen takes its
 // profile into the record (wh_prof). The screen keeps two lists (view_online.php): the releases of one profile of
 // releases (rows, prof) and the online list of one profile of Lampac (lp, lp_prof); a choice of one of them already
-// there - no request. The item of MENU: of the releases an item of their panel (mel_src_item), of the online list
-// mel_gc_src_item (view_gcomps.php) in mel_lpv_menu (view_online.php), a popup menu of the shell. The name
-// of the source over the lists: mel_gc_tabs_from (view_gcomps.php).
+// there - no request. The item of MENU: an item of the panel "Действия" of both lists (mel_src_item; mel_gc_actions of
+// view_gcomps.php, mel_lpv_actions of view_online.php). The name of the source over the lists: mel_gc_tabs_from
+// (view_gcomps.php).
 // Reads and writes Mel (state, settings). Functions are global; the require order is in main.php.
 
 // The id of the profile list $st shows: of Lampac on the online list, else of releases ('' none).
@@ -44,24 +44,6 @@ function mel_src_ready($lp_only = false)
 function mel_src_in_menu($lp_only = false)
 {
     return count(mel_src_ready($lp_only)) >= 2;
-}
-
-// gc_src_menu (MENU "Источник" of the online list) of a live list $in->rid -> the popup menu of the ready profiles in their order, the
-// one of the screen (mel_src_now) "<name> · сейчас" and selected (marked of the API draws nothing in a popup menu on
-// r24); Lampac with its own icon.
-/**
- * @param stdClass $in
- * @return MelAction|null
- */
-function mel_gc_src_menu($in)
-{
-    $st = Mel::$state;
-    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'])
-    {
-        mel_log('source: menu of no live list');
-        return mel_error('err_list_expired');
-    }
-    return mel_src_popup($st['lang'], 'gc_src', array('rid' => $st['rid']), mel_src_now($st), mel_rel_id($st['movie']) === '');
 }
 
 // The submenu "Источник" of a side panel (mel_src_item), as mel_src_popup of a popup menu: the ready profiles in their

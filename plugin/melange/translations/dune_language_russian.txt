@@ -71,7 +71,6 @@ err_set_address_own = Задайте ссылку на конфиг: Настр�
 err_setup_dir = Нет каталога данных плагина
 err_setup_ip = Не найден IP-адрес Дюны в сети
 err_setup_write = Не удалось записать файл плагина
-refresh_menu = Обновить
 refresh_list = Обновить список
 refresh_failed = Список не обновился
 errors_menu = Ошибки аддонов

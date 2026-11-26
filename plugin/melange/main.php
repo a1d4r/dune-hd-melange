@@ -2498,8 +2498,6 @@ function mel_handle_user_input($in)
         return mel_gc_main($in);
     if (is_string($control) && strpos($control, 'lp_') === 0)
         return mel_lpv_input($in, $control);
-    if ($control === 'gc_src_menu')
-        return mel_gc_src_menu($in);
     if ($control === 'gc_src')
         return mel_gc_src($in);
     if ($control === 'gc_choose')
