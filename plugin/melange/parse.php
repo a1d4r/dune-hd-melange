@@ -34,6 +34,32 @@ define('MEL_DIALOG_LINE', 60);
 // (device 08.10.2026).
 define('MEL_DIALOG_LINE_W', 29000);
 
+// Characters of the start of $s (valid UTF-8) that fit a line of a dialog,
+// $dots: with "..." after them. MEL_DIALOG_LINE at most, and their advances
+// (mel_gc_glyph, no margin: it is in the limit) not over MEL_DIALOG_LINE_W:
+// wide letters fill the line sooner (59 Cyrillic ones with quotes were cut,
+// device 27.11.2026). By characters alone where gcomps.php is not loaded
+// (the settings page, bg/).
+/**
+ * @param string $s
+ * @param bool $dots
+ * @return int
+ */
+function mel_dialog_fit($s, $dots = false)
+{
+    $max = MEL_DIALOG_LINE - ($dots ? 3 : 0);
+    if (!function_exists('mel_gc_glyph'))
+        return $max;
+    $w = $dots ? 3 * mel_gc_glyph('.') : 0;
+    foreach (preg_split('//u', mb_substr($s, 0, $max, 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) as $i => $c)
+    {
+        $w += mel_gc_glyph($c);
+        if ($w > MEL_DIALOG_LINE_W)
+            return max(1, $i);
+    }
+    return $max;
+}
+
 // Text (an error detail) -> at most 3 lines of a dialog, wrapped at spaces;
 // a word longer than a line is cut hard, text past 3 lines ends in "...".
 /**
@@ -42,16 +68,16 @@ define('MEL_DIALOG_LINE_W', 29000);
  */
 function mel_dialog_lines($s)
 {
-    $max = MEL_DIALOG_LINE;
     $out = array();
     // Bad UTF-8 counts differently in mb_strrpos and mb_substr.
     $s = trim(preg_replace('/[ \t\r\n]+/', ' ', mel_utf8($s)));
     while ($s !== '')
     {
         $n = mb_strlen($s, 'UTF-8');
+        $max = mel_dialog_fit($s);
         if ($n <= $max || count($out) === 2)
         {
-            $out[] = $n <= $max ? $s : mel_cut($s, $max - 3);
+            $out[] = $n <= $max ? $s : mel_cut($s, mel_dialog_fit($s, true));
             break;
         }
         $sp = mb_strrpos(mb_substr($s, 0, $max + 1, 'UTF-8'), ' ', 0, 'UTF-8');
