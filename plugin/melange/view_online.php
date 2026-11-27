@@ -1632,7 +1632,7 @@ function mel_lpv_input($in, $control)
         return mel_lpv_next($in);
     if ($control === 'lp_wt_done')
         return mel_lpv_wait_done($in);
-    if ($control === 'lp_wt_redraw')
+    if ($control === 'lp_redraw')
         return mel_lpv_redraw($in);
     if ($control === 'lp_cancel')
     {

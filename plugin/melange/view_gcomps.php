@@ -1634,7 +1634,9 @@ function mel_gc_scr_gone($rid, $control, $raw)
 // The controls of the own inputs of the screen of a list (mel_gc_scr_in): the keys of its map, the actions of the
 // items of its panels and of «Готово» of their check lists, of a button of its wait window (lp_wt_done) - of the list
 // of releases (gc_) and of the online list (lp_). Each is one the screen sends: a control here that no map, no panel and no chain of them has would be a name
-// gone, its reply still thought shown over the list.
+// gone, its reply still thought shown over the list. Under the wait window of the screen none of them is done
+// (mel_scr_under, main.php). Not here: lp_redraw, «Закрыть» of the dialog of ours a search of "Источники…" ends by
+// (mel_lpv_msg) - no input of the list: it comes by its sid, with no rid, and its reply is the list replaced.
 /**
  * @return list<string>
  */

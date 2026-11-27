@@ -2559,6 +2559,29 @@ function mel_scr_of($in, $control)
     return $scr && !mel_ovl_open_on($scr['owner']) ? $scr : null;
 }
 
+// Own input $in of control $control of a screen (mel_gc_own, mel_oc_own) with the wait window of that screen open: not
+// done, logged. The keys of its map the gate has already (mel_ovl_under); the others - the action of an item of its
+// panel, of a button of its window - come after the close only, and the wait holds what is going on (a second
+// "Источник" under the wait of the first: a new search, the run of the first left with no end).
+/**
+ * @param stdClass $in
+ * @param mixed $control
+ * @return bool
+ */
+function mel_scr_under($in, $control)
+{
+    if (!is_string($control))
+        return false;
+    if (strpos($control, 'card_') === 0)
+        $o = in_array($control, mel_oc_own(), true) ? mel_catv_in($in, 'c') : '';
+    else
+        $o = in_array($control, mel_gc_own(), true) && isset($in->rid) && is_string($in->rid) ? $in->rid : '';
+    if ($o === '' || !mel_ovl_open_on($o, 'wt'))
+        return false;
+    mel_log("kit overlay: $control of the screen under its wait, none");
+    return true;
+}
+
 // Message $w a builder of a window of the shell said of it (Mel::$dlg, desc) as the simple dialog of ours
 // (mel_dlg_error_desc): the title - of a key, in the language of the shell as its %tr% gives it -, the text, the
 // button, the tone. The dispatcher (mel_dlg_of) and a tick of a wait of ours that ends by a message
@@ -2567,7 +2590,7 @@ function mel_scr_of($in, $control)
  * @param MelDlgSay $w
  * @return array<string, mixed>
  */
-function mel_dlg_say($w)
+function mel_dlg_said($w)
 {
     return mel_dlg_error_desc($w['ok'], $w['key'] !== '' ? mel_tr(mel_catv_lang(), $w['key']) : $w['title'], $w['text'],
         $w['act'], $w['tone']);
@@ -2585,13 +2608,13 @@ function mel_wait_end($a)
 {
     $m = Mel::$dlg;
     if ($m && $m['desc'] && $a === $m['shell'])
-        return array('dialog' => mel_dlg_say($m['desc']), 'shell' => $a);
+        return array('dialog' => mel_dlg_said($m['desc']), 'shell' => $a);
     return array('post' => $a);
 }
 
 // Reply $a to input $in of control $control: the window of the shell its builder said a message of (Mel::$dlg: this
 // very action, built for this input - a window built and another returned is not it), to an own input of a screen with
-// an overlay (mel_scr_of) - the simple dialog of ours over that screen (mel_dlg_say); else $a as it is.
+// an overlay (mel_scr_of) - the simple dialog of ours over that screen (mel_dlg_said); else $a as it is.
 /**
  * @param stdClass $in
  * @param mixed $control
@@ -2606,7 +2629,7 @@ function mel_dlg_of($in, $control, $a)
     $scr = mel_scr_of($in, $control);
     if (!$scr)
         return $a;
-    $d = mel_dlg_open($scr, mel_dlg_say($m['desc']));
+    $d = mel_dlg_open($scr, mel_dlg_said($m['desc']));
     return $d ? $d : $a;
 }
 
@@ -2618,8 +2641,9 @@ function mel_handle_user_input($in)
     $control = isset($in->control_id) ? $in->control_id : null;
     if ($handler !== 'aio')
         return null;
-    // A key or the tick of a screen under its open overlay: not done, before any work on it (the gate, kit_ovl.php).
-    if (mel_ovl_under($in))
+    // A key or the tick of a screen under its open overlay: not done, before any work on it (the gate, kit_ovl.php);
+    // nor an own input the map does not have under its wait window (mel_scr_under).
+    if (mel_ovl_under($in) || mel_scr_under($in, $control))
         return null;
     mel_mlv_input($control);
     // The colour keys of every screen, before the screen's own work (egg.php): a run of them plays the video and

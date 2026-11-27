@@ -116,8 +116,9 @@ function mel_lpv_wait_kit($scr, $run)
 // the window kept for the screen (mel_wt_done), over as a cancelled one (its sources kept, mel_lpv_run_over). «Отмена»
 // (RETURN too): nothing more - of a search of "Источники…" its list of the new choice put in (mel_lpv_redraw), as
 // lp_cancel of the dialog of the shell. «Показать найденное»: the result of the run as it is now (mel_lpv_result) -
-// the list of what the balancers asked so far gave, the others its row "Ещё N"; its profile of Lampac gone meanwhile:
-// the message of it. No run kept (pressed twice, the state of the screen gone): nothing.
+// the list of what the balancers asked so far gave, the others its row "Ещё N"; its Lampac not the one it searched
+// any more (mel_lpv_run_live): the message of it, as the step gives. No run kept (pressed twice, the state of the
+// screen gone): nothing.
 /**
  * @param stdClass $in
  * @return MelAction|null
@@ -138,10 +139,9 @@ function mel_lpv_wait_done($in)
         mel_log('lampac: the search cancelled');
         return mel_lpv_redraw((object) array('sid' => $run['sid']));
     }
-    list(, $lp) = mel_op_use($run['st']['prof'], $run['st']['lp_prof']);
-    if ($lp !== $run['st']['lp_prof'])
+    if (!mel_lpv_run_live($run))
     {
-        mel_log("lampac: window {$run['sid']}: its profile of Lampac gone, what it found not shown");
+        mel_log("lampac: window {$run['sid']}: its profile of Lampac gone or changed on the page, what it found not shown");
         return mel_lpv_msg($run, mel_tr($run['st']['lang'], 'src_changed'), array(), '');
     }
     mel_log("lampac: window {$run['sid']}: shown as found so far");
@@ -169,7 +169,7 @@ function mel_lpv_redraw_keys($a, $sid)
     return $a;
 }
 
-// lp_cancel of the window $in->sid (of the wait window and the dialog of ours in its place: lp_wt_done, lp_wt_redraw):
+// lp_cancel of the window $in->sid (of the wait window and the dialog of ours in its place: lp_wt_done, lp_redraw):
 // of a search of "Источники…" (MelLpv::$redraw) its list of the new choice put in, the screen replaced (else the rows of before stay there, of the sources just turned off too); else nothing.
 /**
  * @param stdClass $in
@@ -243,7 +243,7 @@ function mel_lpv_search_defs($run)
 // A message of the search of run $run, title $title and text $text ('' none) with "Закрыть": the window of the shell
 // of lines $lines (of a search of "Источники…" its button and RETURN to lp_cancel: mel_lpv_close_act,
 // mel_lpv_redraw_keys), said as a message (mel_msg_say) - the end of a wait of ours by it is the dialog of ours
-// (mel_wait_end), which of such a search puts its list in when closed (lp_wt_redraw: mel_lpv_redraw).
+// (mel_wait_end), which of such a search puts its list in when closed (lp_redraw: mel_lpv_redraw).
 /**
  * @param MelLpRun $run
  * @param string $title
@@ -256,7 +256,7 @@ function mel_lpv_msg($run, $title, $lines, $text)
     $ok = mel_tr($run['st']['lang'], 'lp_close');
     $redraw = MelLpv::$redraw && MelLpv::$redraw['sid'] === $run['sid'];
     return mel_msg_say(mel_lpv_redraw_keys(mel_dialog($title, $lines, array($ok => mel_lpv_close_act($run['sid']))),
-        $run['sid']), $title, $text, $ok, null, $redraw ? mel_input('lp_wt_redraw', array('sid' => $run['sid'])) : null);
+        $run['sid']), $title, $text, $ok, null, $redraw ? mel_input('lp_redraw', array('sid' => $run['sid'])) : null);
 }
 
 // One step of the search of run $run, the tick of a wait window (MelWaitTick, kit_dlg.php: the window of ours calls
@@ -274,15 +274,14 @@ function mel_lpv_msg($run, $title, $lines, $text)
 function mel_lpv_wait_tick($run, $sec)
 {
     // A tick is an operation of its own: the Lampac of the list of the run (its profile, spec v2 §2.2), not the main one.
-    list(, $lp) = mel_op_use($run['st']['prof'], $run['st']['lp_prof']);
-    $base = Mel::$settings['lp'];
-    // That profile gone, not ready or of another address since (the page): no request - not to the address of before
-    // with the auth of another Lampac, nor to another one with the balancers of this one.
-    if ($lp !== $run['st']['lp_prof'] || ($run['search'] && $run['search']['base'] !== $base))
+    // Not its Lampac any more: no request - not to the address of before with the auth of another Lampac, nor to
+    // another one with the balancers of this one.
+    if (!mel_lpv_run_live($run))
     {
         mel_log("lampac: window {$run['sid']}: its profile of Lampac gone or changed on the page, closed with no request");
         return mel_wait_end(mel_lpv_msg($run, mel_tr($run['st']['lang'], 'src_changed'), array(), ''));
     }
+    $base = Mel::$settings['lp'];
     if ($base === '')
         return mel_wait_end(mel_lpv_down($run, 'down', 'no address'));
     if ($run['phase'] === 'ids')
@@ -424,7 +423,8 @@ function mel_lpv_run_end()
 
 // The search of run $run is over: done (mel_lpv_wait_tick), cancelled or left. In its replies or done: its sources into
 // "Источники…" of its own profile of Lampac (mel_lpv_run_seen; the pair of the operation may be another one - that of
-// the main profile, of a new title), that profile gone or not ready - none kept. The pair of the operation as it was.
+// the main profile, of a new title), that profile gone, not ready or of another address since (mel_lpv_run_live) -
+// none kept: they are the balancers of another Lampac. The pair of the operation as it was.
 /**
  * @param MelLpRun $run
  * @return void
@@ -434,12 +434,24 @@ function mel_lpv_run_over($run)
     if ($run['phase'] !== 'replies' && $run['phase'] !== 'done')
         return;
     list($rel, $lp) = array(Mel::$settings['prof'], Mel::$settings['lp_prof']);
-    list(, $l) = mel_op_use($run['st']['prof'], $run['st']['lp_prof']);
-    if ($l !== '' && $l === $run['st']['lp_prof'])
+    if ($run['st']['lp_prof'] !== '' && mel_lpv_run_live($run))
         mel_lpv_run_seen($run);
     else
-        mel_log("lampac: window {$run['sid']}: its profile of Lampac gone, its sources not kept");
+        mel_log("lampac: window {$run['sid']}: its profile of Lampac gone or changed on the page, its sources not kept");
     mel_op_use($rel, $lp);
+}
+
+// The Lampac of run $run is the one it searches still: its profile of Lampac there and ready, of the address its search
+// was started at (the page may change both meanwhile). The pair of the operation from now that of the run (mel_op_use:
+// the Lampac of its list, spec v2 §2.2, not the main one), whatever the answer.
+/**
+ * @param MelLpRun $run
+ * @return bool
+ */
+function mel_lpv_run_live($run)
+{
+    list(, $lp) = mel_op_use($run['st']['prof'], $run['st']['lp_prof']);
+    return $lp === $run['st']['lp_prof'] && (!$run['search'] || $run['search']['base'] === Mel::$settings['lp']);
 }
 
 // The sources of run $run (mel_lpv_run_over, of the pair of the run) into "Источники…" (mel_lpv_srcs_seen): those of its

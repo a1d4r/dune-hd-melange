@@ -42,7 +42,9 @@
 // the player (GUI_EVENT_MENU_PLAYBACK_FINISH: no key), the colour keys of egg.php (no param names the screen), and
 // what the map does not have - the keys of the overlay, the action of an item or of «Готово» (it comes after the
 // close), the inputs of the player and of the dialogs of the shell over the screen (next, the ticks of a wait of the
-// shell). A tick of a timer the record does not have: its screen (mel_oc_tick).
+// shell). A tick of a timer the record does not have: its screen (mel_oc_tick). An own input of the screen the map does
+// not have (the action of an item, sent again) under its wait window: the dispatcher, by the lists of the own inputs
+// of the screens (mel_scr_under, main.php).
 // A tick that puts its screen anew checks mel_ovl_open_on itself, the gate or not: the timer of the shell may be one
 // the record does not have (mel_oc_tick). The screens of kit_scr.php are no owners: the o of their keys (ks_key,
 // ks_tick) is the id of the screen (MelKs), they have no overlay and their ticks are their own.
@@ -264,15 +266,16 @@ function mel_ovl_drop($owner)
     unset(MelOvl::$rest[$owner]);
 }
 
-// The overlay of the screen of owner $owner is open, in hand or waiting.
+// The overlay of the screen of owner $owner is open, in hand or waiting; $kind: and of that kind (as mel_ovl_shown).
 /**
  * @param string $owner
+ * @param string|null $kind
  * @return bool
  */
-function mel_ovl_open_on($owner)
+function mel_ovl_open_on($owner, $kind = null)
 {
     $st = isset(MelOvl::$rest[$owner]) ? MelOvl::$rest[$owner] : MelOvl::$st;
-    return $st && $st['open'] && $st['scr']['owner'] === $owner;
+    return $st && $st['open'] && $st['scr']['owner'] === $owner && ($kind === null || isset($st[$kind]));
 }
 
 // The params of action $a of the map of a screen that name its owner $owner: the owner itself (rid, c) or the
