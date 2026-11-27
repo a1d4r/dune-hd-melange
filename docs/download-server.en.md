@@ -26,8 +26,6 @@ You need: a torrent client with its web UI turned on.
 
 If you have several servers, choose in "For the cache of" which one to use for releases from the Debrid cache.
 
-You may not need a separate client. The built-in torrent client of Keenetic routers is Transmission, usually on port 8090. On a TerraMaster NAS you can install qBittorrent or Transmission from the app center.
-
 ## If it did not work
 
 - "Check" shows a red line: see [Troubleshooting](troubleshooting.en.md).
