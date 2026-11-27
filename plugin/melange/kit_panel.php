@@ -20,7 +20,10 @@
 //            line; '' none), done (none: no line «Готово»): array('label', 'count' - «Выбрано: {n} из {m}»,
 //            'count_all' - optional, of a list with «all»: the count with no item checked, «Выбрано: все», 'act' -
 //            run after the close, its choice by mel_kp_done).
-// A submenu (MelKpSubDesc) is a menu of items with no submenu of their own, or a check list. An item whose id is not a
+//   a text   title, dim, text: a list of texts (the reasons of the errors), each wrapped in 2 lines, with no cursor
+//            and no action: UP and DOWN turn its page (MelKit::panel_text: the texts that fit whole, the scroll bar
+//            when more than a page), LEFT and RETURN as of a menu, ENTER and RIGHT nothing.
+// A submenu (MelKpSubDesc) is a menu of items with no submenu of their own, a check list or a text. An item whose id is not a
 // string, or the id of one before, is left out (logged); an empty group too; a menu that is not an array, none
 // (logged); no title: '' (logged).
 // A check list as a submenu: LEFT, RETURN and «Готово» with its choice as it was opened (the checks and the order) go
@@ -30,7 +33,7 @@
 // as a submenu must have done with act: with none its changed choice closes the panel and nothing takes it.
 // The state, MelOvl::$st['kp'] (MelKp): stack, the panels, the first the top one, the last the one on screen (a
 // submenu), each (MelKpFrame): desc, its description; its, its items by id; groups, the ids of a menu by group; cur,
-// the cursor (a line of mel_kp_lines); top, the first line of the list shown; on, order: of a check list, id =>
+// the cursor (a line of mel_kp_lines); top, the first line of the list shown (of a text: the first text shown); on, order: of a check list, id =>
 // checked and the ids in their order; move: a line taken.
 
 // The prefix of the ids of the panel (MelKit::panel): kp_dim, kp_pnl, kp_rows, …
@@ -46,19 +49,32 @@ function mel_kp_row_id($id)
     return MEL_KP . '_r' . substr(md5($id), 0, 10);
 }
 
-// The kind of frame $f, by its description: check (a check list: items), else menu.
+// The kind of frame $f, by its description: text (texts with no cursor: text), check (a check list: items), else menu.
 /**
  * @param MelKpFrame $f
- * @return 'menu'|'check'
+ * @return 'menu'|'check'|'text'
  */
 function mel_kp_kind($f)
 {
+    if (isset($f['desc']['text']))
+        return 'text';
     return isset($f['desc']['items']) ? 'check' : 'menu';
+}
+
+// The texts of frame $f of the kind text: the strings of its description.
+/**
+ * @param MelKpFrame $f
+ * @return list<string>
+ */
+function mel_kp_texts($f)
+{
+    $t = isset($f['desc']['text']) ? $f['desc']['text'] : array();
+    return is_array($t) ? array_values(array_filter($t, 'is_string')) : array();
 }
 
 // The focusable lines of frame $f in their order, each array(kind, key, g, j): kind item (of a menu), all, check (a line
 // of a check list), done; key the id of its item ('' for all and done); g its group in the view, j its place in the
-// last group (the list; -1 out of it).
+// last group (the list; -1 out of it). A text has none.
 /**
  * @param MelKpFrame $f
  * @return list<array{string, string, int, int}>
@@ -66,7 +82,10 @@ function mel_kp_kind($f)
 function mel_kp_lines($f)
 {
     $out = array();
-    if (mel_kp_kind($f) === 'menu')
+    $kind = mel_kp_kind($f);
+    if ($kind === 'text')
+        return $out;
+    if ($kind === 'menu')
     {
         $last = count($f['groups']) - 1;
         foreach ($f['groups'] as $g => $ids)
@@ -270,11 +289,14 @@ function mel_kp_view($f, $back, $x)
         else
             $groups[$l[2]][] = mel_kp_row($f, $l, mel_kp_state($f, $k), $all);
     }
-    return array('id' => MEL_KP, 'title' => isset($d['title']) ? (string) $d['title'] : '', 'back' => $back,
+    $v = array('id' => MEL_KP, 'title' => isset($d['title']) ? (string) $d['title'] : '', 'back' => $back,
         'sub' => isset($d['sub']) ? (string) $d['sub'] : '', 'dim' => mel_kp_dim($f), 'x' => $x,
         'groups' => array_values($groups), 'top' => $f['top'], 'done' => $done,
         'hint' => mel_kp_kind($f) === 'check' && isset($d['move']) ? (string) $d['move'] : '',
         'note' => isset($d['note']) ? (string) $d['note'] : '');
+    if (mel_kp_kind($f) === 'text')
+        $v['text'] = mel_kp_texts($f);
+    return $v;
 }
 
 // The shade of frame $f: dim (the default) or dim_strong.
@@ -343,7 +365,8 @@ function mel_kp_looks($f)
 
 // The changes of a key from frame $was to frame $f of the same panel, one a component, only of what differs: the
 // children of a line or of «Готово» (the focus, a check, the count) - only those lines are built; the geometry of a
-// line of the list (moved), of the list kp_rows and of the thumb (scrolled).
+// line of the list (moved), of the list kp_rows and of the thumb (scrolled). Of a text: the children of kp_text (the
+// texts of the page and the scroll bar) when the page is another.
 /**
  * @param MelKpFrame $was
  * @param MelKpFrame $f
@@ -351,6 +374,14 @@ function mel_kp_looks($f)
  */
 function mel_kp_redraw($was, $f)
 {
+    if (mel_kp_kind($f) === 'text')
+    {
+        if ($f['top'] === $was['top'])
+            return array();
+        $t = MelKit::panel_text(MEL_KP, mel_kp_texts($f), $f['top']);
+        return array(mel_gc_change(MEL_KP . '_text', null, GCOMP_TRANSITION_NONE,
+            $t['it']['defs'][0][GComponentDef::specific_def][GCompPanelDef::children]));
+    }
     $a = mel_kp_looks($was);
     $ch = array();
     $n = 0;
@@ -490,7 +521,8 @@ function mel_kp_input($in)
 // Key $k of the open panel (MelOvl::$st['kp']) -> the reply, null for none (an edge, a key of no use there; no panel
 // open):
 //   up, down    the cursor a line, to the first and the last (no wrap, as the list); the list scrolls with it; a line
-//               taken moves with it among the lines of the list (the geometry of two lines);
+//               taken moves with it among the lines of the list (the geometry of two lines); a text: its page before
+//               and after (at the first and the last none);
 //   enter       a menu item: its submenu in the place of the panel, else its action after the close; a check line:
 //               its check (and «all» and the count); «all»: the check lines unchecked (it alone checked); «Готово»: as
 //               return;
@@ -520,6 +552,13 @@ function mel_kp_key($k)
     $back = $k === 'return' || $k === 'left' || ($k === 'enter' && $l[0] === 'done');
     if ($f['move'] && in_array($k, array('enter', 'right', 'left', 'return'), true))
         $f['move'] = false;
+    elseif (mel_kp_kind($f) === 'text' && ($k === 'up' || $k === 'down'))
+    {
+        $t = MelKit::panel_text(MEL_KP, mel_kp_texts($f), $f['top']);
+        if ($t[$k] === $t['top'])
+            return null;
+        $f['top'] = $t[$k];
+    }
     elseif ($k === 'up' || $k === 'down')
     {
         $to = $f['cur'] + ($k === 'up' ? -1 : 1);

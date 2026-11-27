@@ -374,7 +374,7 @@ parameters:
         MelKpFrame: 'array{desc: MelKpDesc|MelKpSubDesc, its: array<string, MelKpItem|MelKpLeaf|MelKpCheck>, groups: list<list<string>>, cur: int, top: int, on: array<string, bool>, order: list<string>, move: bool}'
         # The choice of a check list at its close (mel_kp_done): the ids checked and all the ids, in the order of the lines.
         MelKpChoice: 'array{on: list<string>, order: list<string>}'
-        # The description of a panel by its screen (kit_panel.php): a menu (groups) or a check list (items).
+        # The description of a panel by its screen (kit_panel.php): a menu (groups), a check list (items) or a text (text).
         MelKpDesc: '''
             array{
                 title?: string,
@@ -385,6 +385,7 @@ parameters:
                 groups?: list<list<MelKpItem>>,
                 all?: string,
                 items?: list<MelKpCheck>,
+                text?: list<string>,
                 move?: string,
                 done?: array{label: string, count?: string, count_all?: string, act?: MelAction}
             }
@@ -400,6 +401,7 @@ parameters:
                 groups?: list<list<MelKpLeaf>>,
                 all?: string,
                 items?: list<MelKpCheck>,
+                text?: list<string>,
                 move?: string,
                 done?: array{label: string, count?: string, count_all?: string, act?: MelAction}
             }
@@ -524,7 +526,7 @@ parameters:
         # A line of the side panel (MelKit::panel_row): its group id (in MelKit::panel), label, state and the rest.
         MelKitPanelRow: 'array{id?: string, label: string, state?: string, icon?: string, check?: bool, detail?: string, value?: string, chevron?: bool, count?: string, picked?: bool, way?: string}'
         # The view of the side panel (MelKit::panel): its lines by group, the first line of the list shown, «Готово».
-        MelKitPanel: 'array{id?: string, title: string, back?: bool, sub?: string, dim?: string, x?: int, groups: list<list<MelKitPanelRow>>, top?: int, hint?: string, done?: array{label: string, count: string, state: string}|null, note?: string}'
+        MelKitPanel: 'array{id?: string, title: string, back?: bool, sub?: string, dim?: string, x?: int, groups: list<list<MelKitPanelRow>>, top?: int, hint?: string, done?: array{label: string, count: string, state: string}|null, note?: string, text?: list<string>}'
         # ChangeGCompDef of change_gcomps (mel_gc_change).
         MelGcChange: '''
             array{

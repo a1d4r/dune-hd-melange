@@ -77,6 +77,7 @@ define('MEL_K_STEP_SETUP', 48);
 define('MEL_K_STEP_CARD_DESC', 42);
 define('MEL_K_STEP_INFO_DESC', 35);
 define('MEL_K_STEP_PANEL_NOTE', 31);
+define('MEL_K_STEP_PANEL_TEXT', 32);
 define('MEL_K_STEP_DIALOG_TITLE', 48);
 define('MEL_K_STEP_DIALOG_TEXT', 42);
 
@@ -137,6 +138,7 @@ define('MEL_K_PANEL_TITLE_Y', 55);
 define('MEL_K_PANEL_TITLE_H', 64);
 define('MEL_K_PANEL_VIS', 10);
 define('MEL_K_PANEL_SCROLL_W', 4);
+define('MEL_K_PANEL_TEXT_H', 900);
 
 // The screen of an error or a wait of the whole screen (MelKit::error_screen).
 define('MEL_K_PAGE_X', 130);

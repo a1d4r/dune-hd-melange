@@ -1822,7 +1822,8 @@ class MelKit
     //   dim     dim (MEL_K_C_DIM: «Действия») or dim_strong (MEL_K_C_DIM_STRONG: «Озвучка», «Балансеры»);
     //   x       the left of the panel (default 1920 - MEL_K_PANEL_W; 1920: off the screen, to slide in);
     //   groups  lists of lines, a line array('id' => the id of its group, …$r of panel_row);
-    //   top     the first line of the list shown (default 0; kept within the list);
+    //   top     the first line of the list shown (default 0; kept within the list); of a text the first one shown;
+    //   text    a panel of texts, no groups: the texts with no cursor (panel_text) -l- under the head;
     //   hint, note  '' or none: none; done: null or array('label', 'count', 'state') of panel_done.
     // Its edges: the screen; ids: those of its components with ids.
     /**
@@ -1860,6 +1861,12 @@ class MelKit
                 $rows[] = self::panel_row(isset($r['id']) ? $r['id'] : '', $r, $k * MEL_K_STEP_PANEL);
             $blocks[] = $g < $last ? self::join('panel_group', $rows)
                 : self::panel_list($p, $rows, isset($v['top']) ? (int) $v['top'] : 0);
+        }
+        if (isset($v['text']))
+        {
+            $t = self::panel_text($p, $v['text'], isset($v['top']) ? (int) $v['top'] : 0);
+            $blocks[] = $t['it'];
+            $gaps[] = 'l';
         }
         if (isset($v['hint']) && $v['hint'] !== '')
         {
@@ -1945,6 +1952,51 @@ class MelKit
             }
         }
         return $out;
+    }
+
+    // The texts of a panel with no cursor and no action (the reasons of the errors; owner 27.11.2026), a page of them
+    // from text $top (kept within what pages there are): each MEL_K_PX_SECONDARY, text 1, from the left of the content,
+    // wrapped in 2 lines a step MEL_K_STEP_PANEL_TEXT (more: the second ends with "…"), -m- between them; as many whole
+    // ones as fit MEL_K_PANEL_TEXT_H from the top of the capitals of the first to the last baseline (one at least),
+    // what does not fit whole is of the next page. The last page is full: it ends with the last text. More than a
+    // page: the scroll bar (bar scroll, as that of the list, MEL_K_PANEL_TEXT_H high) with its thumb at the page.
+    // -> it, the group {$p}_text (the panel wide, MEL_K_PANEL_TEXT_H high whatever the page: a key changes the page by
+    // its children; its top the top of the capitals of the first text); top, the first text shown; up, down: the first
+    // text of the page before and after (top itself: none).
+    /**
+     * @param string $p
+     * @param list<string> $texts
+     * @param int $top
+     * @return array{it: MelKitItem, top: int, up: int, down: int}
+     */
+    public static function panel_text($p, $texts, $top)
+    {
+        $W = MEL_K_PANEL_W;
+        $H = MEL_K_PANEL_TEXT_H;
+        $cx0 = MEL_K_PANEL_INSET + MEL_K_PANEL_INNER;
+        $n = count($texts);
+        $its = array();
+        // The top of each text from that of the first, as stack sets them; $at[$n]: where one more would be.
+        $at = array(0);
+        foreach ($texts as $i => $s)
+        {
+            $its[] = self::text($s, MEL_K_PX_SECONDARY, MEL_K_C_TEXT1, $cx0, 0, array('w' => $W - 2 * $cx0, 'lines' => 2,
+                'ls' => MEL_K_STEP_PANEL_TEXT - MEL_K_PX_SECONDARY));
+            $at[] = $at[$i] + $its[$i]['bottom'] - $its[$i]['top'] + MEL_K_GAP_M;
+        }
+        // The first text of the last page: the rest fits from it.
+        for ($max = 0; $max < $n - 1 && $at[$n] - MEL_K_GAP_M - $at[$max] > $H; $max++);
+        $top = max(0, min($top, $max));
+        for ($end = $top + 1; $end < $n && $at[$end + 1] - MEL_K_GAP_M - $at[$top] <= $H; $end++);
+        for ($up = $top; $up > 0 && $at[$top] - MEL_K_GAP_M - $at[$up - 1] <= $H; $up--);
+        $parts = array(self::box(array(), 0, 0, $W, $H));
+        if ($n)
+            $parts[] = self::stack(array_slice($its, $top, $end - $top), 'm', 0, 'panel text');
+        if ($max > 0)
+            $parts[] = self::bar('scroll', $W - MEL_K_GAP_XS - MEL_K_PANEL_SCROLL_W, 0, MEL_K_PANEL_SCROLL_W, $H,
+                $at[$top] / $at[$max], array('part' => ($at[$end] - $at[$top]) / $at[$n], 'id' => "{$p}_thumb"));
+        return array('it' => self::group("{$p}_text", self::join('panel_text', $parts)), 'top' => $top, 'up' => $top > 0 ? min($up, $top - 1) : 0,
+            'down' => min($end, $max));
     }
 
     // --- The own dialog and the wait window over a screen (stage 6b-1): the builders. The keys, the state and the
