@@ -208,6 +208,7 @@ ts_failed = Не открылось через TorrServer
 ts_err_off = Торренты отключены в настройках
 ts_err_down = TorrServer не отвечает: установите и запустите на Дюне приложение TorrServe или проверьте адрес в настройках Melange
 ts_err_old = Ответил не TorrServer MatriX
+ts_err_silo = Эта версия TorrServe не поддерживается: установите TorrServe MatriX
 ts_err_add = TorrServer не принял раздачу
 ts_err_gone = Списка файлов нет, TorrServer закрыл раздачу: мало сидов
 ts_err_timeout = За минуту нет списка файлов: у раздачи мало сидов

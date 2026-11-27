@@ -24,7 +24,8 @@ define('MEL_TS_BUF_SHARE', 0.98);
 define('MEL_TS_PRE_TICKS', 5);
 define('MEL_TS_PRE_S', 0.3);
 // TorrServer MatriX answers /echo within a second ("Continue watching" asks
-// before it goes there).
+// before it goes there). Answered by another program: TorrServe Silo or not (mel_ts_silo, 1 s more at most) - to
+// the log only.
 /**
  * @return bool
  */
@@ -32,8 +33,9 @@ function mel_ts_alive()
 {
     $r = mel_ts_call(Mel::$settings['ts'] . '/echo', null, 1);
     $ok = $r['err'] === '' && $r['code'] === 200 && strpos($r['body'], 'MatriX.') === 0;
+    $silo = !$ok && $r['err'] === '' && mel_ts_silo(Mel::$settings['ts'], 1);
     mel_log('ts: ' . Mel::$settings['ts'] . ' echo: ' .
-        ($ok ? 'MatriX' : ($r['err'] !== '' ? $r['err'] : "HTTP {$r['code']}")));
+        ($ok ? 'MatriX' : ($r['err'] !== '' ? $r['err'] : "HTTP {$r['code']}" . ($silo ? ', silo' : ''))));
     return $ok;
 }
 
@@ -829,6 +831,9 @@ function mel_ts_open($st, $i, $pos, $from, $lazy = false, $alive = false, $miss_
         $ver = $err === '' && $code === 200 ? mel_cut(trim($re['body']), 40) : '';
         mel_log(sprintf('ts: %s: %s echo: %s, %.2f s', $tag, $base, $err !== '' ? $err : "HTTP $code \"$ver\"",
             microtime(true) - $t));
+        // Answered, and not by a TorrServer MatriX: TorrServe Silo (mel_ts_silo) has its own text, no detail.
+        if ($err === '' && ($code !== 200 || strpos($ver, 'MatriX.') !== 0) && mel_ts_silo($base, 2))
+            return mel_ts_fail($lang, 'ts_err_silo', '', $lazy);
         if ($err !== '' || $code !== 200)
             return mel_ts_fail($lang, 'ts_err_down', $err !== '' ? $err : "HTTP $code", $lazy);
         if (strpos($ver, 'MatriX.') !== 0)
