@@ -36,6 +36,9 @@
 //   there): a tick that comes after the close (sent before it) gets no reply. Every key of a wait, of use or not, gives
 //   its map and its timer again (a key may stop the timer of the shell; not checked on the device).
 // The keys of both (mel_dlg_press) are those of the error and wait screen of kit_scr.php too.
+// The errors and the messages with one button of our screens come here by the dispatcher, not by their code: the reply
+// that is such a window of the shell to an own input of a screen with an overlay opens mel_dlg_error over it
+// (mel_dlg_of, main.php); what has no look of ours approved keeps the window of the shell (Mel::$shell_win).
 // The state, MelOvl::$st: dlg (MelDlg), wt (MelWait) while open.
 
 // The prefixes of the ids of the window (MelKit::dialog, MelKit::wait_box): dlg_win, dlg_b0, wt_stage, wt_bar, …
@@ -281,8 +284,9 @@ function mel_dlg_open($scr, $d)
     $s = mel_dlg_new($d, 'dialog');
     $owner = isset($scr['owner']) && is_string($scr['owner']) ? $scr['owner'] : '';
     $a = mel_ovl_open($scr, array('dlg' => $s), mel_dlg_map('dlg_key', $owner), mel_dlg_defs($s));
+    // Not its title: it may name what is the user's own (a source, a server), and the log is for others to read.
     if ($a)
-        mel_log('kit dialog: open «' . $s['title'] . '», ' . count($s['buttons']) . ' buttons');
+        mel_log('kit dialog: open, ' . count($s['buttons']) . ' buttons');
     return $a;
 }
 

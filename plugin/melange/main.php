@@ -2474,8 +2474,9 @@ function mel_scr_of($in, $control)
 }
 
 // Window $a of the shell that says one thing and only closes -> array(its title, its text, the caption of its
-// button), null: another action. plugin_show_error that does not stop the player (mel_error: its title a key of
-// translations/, in the language of the shell as %tr% gives it, or a text; its lines).
+// button), null: another action. One of: plugin_show_error that does not stop the player (mel_error: its title a key
+// of translations/, in the language of the shell as %tr% gives it, or a text; its lines); the dialog of mel_dialog of
+// lines and one button that closes it, nothing else in it (no keys, no timer).
 /**
  * @param mixed $a
  * @return array{string, string, string}|null
@@ -2493,7 +2494,25 @@ function mel_dlg_simple($a)
         return array(strpos($t, '%tr%') === 0 ? mel_tr(mel_catv_lang(), substr($t, 4)) : $t,
             is_array($lines) ? implode(' ', $lines) : '', 'OK');
     }
-    return null;
+    if ($h !== SHOW_DIALOG_ACTION_ID || !isset($d[ShowDialogActionData::defs], $d[ShowDialogActionData::title]))
+        return null;
+    $lines = array();
+    $ok = null;
+    foreach (is_array($d[ShowDialogActionData::defs]) ? $d[ShowDialogActionData::defs] : array() as $c)
+    {
+        // A button, then anything: not this one.
+        if ($ok !== null || !is_array($c) || !isset($c[GuiControlDef::kind], $c[GuiControlDef::specific_def]))
+            return null;
+        $def = $c[GuiControlDef::specific_def];
+        if ($c[GuiControlDef::kind] === GUI_CONTROL_LABEL)
+            $lines[] = isset($def[GuiLabelDef::caption]) ? strval($def[GuiLabelDef::caption]) : '';
+        else
+            $ok = isset($def[GuiButtonDef::caption]) ? strval($def[GuiButtonDef::caption]) : '';
+    }
+    // Only what mel_dialog itself makes of them: a dialog with keys or a timer of its own is not this one.
+    if ($ok === null || $a !== mel_dialog($d[ShowDialogActionData::title], $lines, array($ok => mel_close_and(null))))
+        return null;
+    return array(strval($d[ShowDialogActionData::title]), implode(' ', $lines), $ok);
 }
 
 // Reply $a to input $in of control $control: a window of the shell that only says and closes (mel_dlg_simple), to an

@@ -216,8 +216,11 @@ function mel_src_watch_pick($in, $lang)
 function mel_gc_src_dialog($title, $lang, $res)
 {
     $lines = array_merge(mel_dialog_lines(mel_tr($lang, $res['error'])), mel_dialog_lines($res['detail']));
-    if (isset($res['errors']))
-        $lines = array_merge($lines, mel_errors_labels($lang, $res['errors']));
+    $why = isset($res['errors']) ? mel_errors_labels($lang, $res['errors']) : array();
+    // The reasons of the add-ons a line each: a window of the shell (the dialog of ours has one text of 3 lines).
+    if ($why)
+        Mel::$shell_win = true;
+    $lines = array_merge($lines, $why);
     return mel_dialog($title, $lines, array('OK' => mel_close_and(null)));
 }
 
