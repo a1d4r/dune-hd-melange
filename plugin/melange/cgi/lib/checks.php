@@ -636,6 +636,78 @@ function mel_cgi_trm_check($srv)
         mel_cgi_l('без входа', 'no login')) . ' · ' . mel_cgi_l('версия', 'version') . " $m[0]"), $more));
 }
 
+// The reply $r (mel_syn_req) of step $what of the check to the log: neither
+// the password nor the sid is there.
+function mel_cgi_syn_log($what, $r)
+{
+    mel_cgi_log("server check: syn $what: " . ($r['err'] !== '' ? $r['err'] : ($r['ok'] ? 'ok' : ($r['code'] ? "error {$r['code']}" :
+        "HTTP {$r['http']}"))));
+}
+
+// A reply (mel_syn_req) that is not ok -> array(false, lines): no connection
+// (as of the other clients), else not a reply of Download Station.
+function mel_cgi_syn_fail($r)
+{
+    if ($r['err'] !== '')
+        return array(false, array(mel_cgi_srv_net(preg_match('/^curl ([0-9]+):/', $r['err'], $m) ? intval($m[1]) : -1)));
+    return array(false, array(sprintf(mel_cgi_l('Ответ не похож на Synology Download Station (%s) — проверьте адрес',
+        'The reply does not look like Synology Download Station (%s): check the address'), $r['code'] ?
+        mel_cgi_l('ошибка', 'error') . " {$r['code']}" : "HTTP {$r['http']}")));
+}
+
+// A Synology Download Station server of mel_server_conf() -> array(ok, lines
+// for the page): the paths of its APIs (mel_syn_query), a login, the version
+// (getinfo), the default folder (getconfig), a logout: no session is kept.
+// The folder typed is not checked. Never the password or the sid in the lines
+// or the log.
+function mel_cgi_syn_check($srv)
+{
+    list($r, $apis) = mel_syn_query($srv, 3, 8);
+    mel_cgi_syn_log('query', $r);
+    // A DSM without the package has no API of Download Station.
+    if (!$r['ok'] || !isset($apis['SYNO.API.Auth'], $apis['SYNO.DownloadStation.Info']) ||
+        !isset($apis['SYNO.DownloadStation.Task']) && !isset($apis['SYNO.DownloadStation2.Task']))
+        return mel_cgi_syn_fail($r);
+    list($r, $sid) = mel_syn_login($srv, $apis, 3, 8);
+    mel_cgi_syn_log('login', $r);
+    if ($r['code'] === 400 || $r['code'] === 401)
+        return array(false, array($srv['user'] === '' ? mel_cgi_l('Сервер требует вход: укажите логин и пароль',
+            'The server requires a login: fill in the login and password') : mel_cgi_l('Неверный логин или пароль',
+            'Wrong login or password')));
+    if ($r['code'] === 402)
+        return array(false, array(mel_cgi_l('У пользователя нет доступа к Download Station: включите его в DSM (Панель ' .
+            'управления → Права приложений)', 'The user has no access to Download Station: allow it in DSM (Control Panel → ' .
+            'Application Privileges)')));
+    // The 2-step verification: of the user (403), required for all (406).
+    if ($r['code'] === 403 || $r['code'] === 406)
+        return array(false, array(mel_cgi_l('У пользователя включена двухэтапная проверка: заведите в DSM отдельного ' .
+            'пользователя без неё', 'The user has 2-step verification on: create a separate DSM user without it')));
+    // DSM blocks the address after wrong passwords, the right one too.
+    if ($r['code'] === 407)
+        return array(false, array(mel_cgi_l('Synology заблокировал адрес Дюны после неверных паролей (автоблокировка в DSM)',
+            'Synology has blocked the address of the Dune after wrong passwords (auto block in DSM)')));
+    if ($sid === '')
+        return mel_cgi_syn_fail($r);
+    $info = mel_syn_api($srv, $apis, 'SYNO.DownloadStation.Info', 1, 'getinfo', array(), $sid, 3, 5);
+    mel_cgi_syn_log('getinfo', $info);
+    $conf = mel_syn_api($srv, $apis, 'SYNO.DownloadStation.Info', 1, 'getconfig', array(), $sid, 3, 5);
+    mel_cgi_syn_log('getconfig', $conf);
+    mel_cgi_syn_log('logout', mel_syn_logout($srv, $apis, $sid, 3, 3));
+    $v = isset($info['data']['version_string']) && is_string($info['data']['version_string']) &&
+        preg_match('/^[0-9][0-9A-Za-z.+\-]{0,19}\z/', $info['data']['version_string']) ? $info['data']['version_string'] : '';
+    if ($v === '')
+        return mel_cgi_syn_fail($info);
+    if ($conf['err'] !== '')
+        return mel_cgi_syn_fail($conf);
+    $lines = array('OK: ' . mel_cgi_l('вход принят', 'logged in') . ' · ' . mel_cgi_l('версия', 'version') . " $v");
+    // Without a default folder of Download Station its tasks wait, a folder typed here or not.
+    if (!isset($conf['data']['default_destination']) || !is_string($conf['data']['default_destination']) ||
+        $conf['data']['default_destination'] === '')
+        $lines[] = mel_cgi_l('В Download Station не задана папка по умолчанию — закачки будут ждать',
+            'Download Station has no default folder set: downloads will wait');
+    return array(true, $lines);
+}
+
 // a=srv_check: the server of the posted block, nothing written.
 function mel_cgi_srv_check_post()
 {
@@ -643,8 +715,12 @@ function mel_cgi_srv_check_post()
     foreach (array('type', 'url', 'user', 'pass', 'category', 'tags') as $k)
         $v[$k] = mel_cgi_param($_POST, $k);
     $srv = mel_server_conf($v);
-    if ($srv)
-        list($ok, $lines) = $srv['type'] === 'tr' ? mel_cgi_trm_check($srv) : mel_cgi_qbt_check($srv);
+    if ($srv && $srv['type'] === 'syn')
+        list($ok, $lines) = mel_cgi_syn_check($srv);
+    elseif ($srv && $srv['type'] === 'tr')
+        list($ok, $lines) = mel_cgi_trm_check($srv);
+    elseif ($srv)
+        list($ok, $lines) = mel_cgi_qbt_check($srv);
     else
     {
         mel_cgi_log('server check: bad format');

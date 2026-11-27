@@ -36,10 +36,12 @@ function isBlank(block: Element): boolean {
   return true;
 }
 
-// The labels and placeholders of a block by its client chosen (data-qbt / data-tr).
+// The labels and placeholders of a block by its client chosen (data-qbt / data-tr / data-syn); the tags are hidden
+// for Synology Download Station (it has none).
 function renderClient(block: Element): void {
   const type = serverFields(block).byKey.type;
-  const attr = type && type.value === "tr" ? DATA.tr : DATA.qbt;
+  const client = type ? type.value : "";
+  const attr = client === "syn" ? DATA.syn : client === "tr" ? DATA.tr : DATA.qbt;
   const swapped = block.querySelectorAll<HTMLElement>("[" + DATA.qbt + "]");
   for (let i = 0; i < swapped.length; i++) {
     const el = swapped[i]!,
@@ -47,6 +49,7 @@ function renderClient(block: Element): void {
     if (el.tagName === "INPUT") (el as HTMLInputElement).placeholder = text;
     else el.textContent = text;
   }
+  query(block, "." + CLS.serverTags).hidden = client === "syn";
 }
 
 export function setupServers(page: Page): Servers {
