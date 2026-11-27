@@ -757,22 +757,55 @@ function mel_ts_map_urls($base, $hash, $files, $map, $s, $e)
 
 // --- The chain.
 
+// The address of TorrServer of the settings as a message shows it: host:port, no scheme (not a URL: as it is)
+// -> array(it, is it the Dune itself: 127.0.0.1, localhost).
+/**
+ * @return array{string, bool}
+ */
+function mel_ts_shown_addr()
+{
+    $u = parse_url(Mel::$settings['ts']);
+    if (!is_array($u) || !isset($u['host']))
+        return array(Mel::$settings['ts'], false);
+    return array($u['host'] . (isset($u['port']) ? ":{$u['port']}" : ''),
+        in_array(strtolower($u['host']), array('127.0.0.1', 'localhost'), true));
+}
+
 // "Could not open via TorrServer": the reason, its detail, OK; over the
-// stopped player of a lazy episode ($lazy) - "Stop", as mel_next_failed.
+// stopped player of a lazy episode ($lazy) - "Stop", as mel_next_failed. No answer (ts_err_down; owner 27.11.2026):
+// "TorrServer is not responding", what to do - the app TorrServe "on the Dune" when the address is the Dune itself -
+// and the address (mel_ts_shown_addr), the detail of curl in the log alone; with $retry (the start again, run after the
+// close; null: nothing to start again) - "Повторить" first and "Отмена", else OK.
 /**
  * @param string $lang
  * @param string $key
  * @param string $detail
  * @param bool $lazy
+ * @param MelAction|null $retry
  * @return MelAction
  */
-function mel_ts_fail($lang, $key, $detail = '', $lazy = false)
+function mel_ts_fail($lang, $key, $detail = '', $lazy = false, $retry = null)
 {
     mel_log("ts: -> dialog: $key" . ($detail !== '' ? " ($detail)" : ''));
+    $title = mel_tr($lang, 'ts_failed');
+    $parts = array(mel_tr($lang, $key), $detail);
+    if ($key === 'ts_err_down')
+    {
+        list($addr, $dune) = mel_ts_shown_addr();
+        $title = mel_tr($lang, 'tsl_down_title');
+        $parts = array(str_replace('{addr}', $addr, mel_tr($lang, $dune ? 'ts_down_dune' : 'ts_down_other')));
+    }
     if ($lazy)
-        return mel_dialog(mel_tr($lang, 'ts_failed'), array_merge(mel_dialog_lines(mel_tr($lang, $key)),
-            mel_dialog_lines($detail)), array(mel_tr($lang, 'next_stop') => mel_input('next_stop')));
-    return mel_msg(mel_tr($lang, 'ts_failed'), array(mel_tr($lang, $key), $detail));
+    {
+        $lines = array();
+        foreach ($parts as $p)
+            $lines = array_merge($lines, mel_dialog_lines($p));
+        return mel_dialog($title, $lines, array(mel_tr($lang, 'next_stop') => mel_input('next_stop')));
+    }
+    if ($key === 'ts_err_down' && $retry)
+        return mel_ask($title, $parts, 'k_icon_circle-x', 'err', array(
+            mel_btn(mel_tr($lang, 'cat_retry'), 'k_icon_refresh-cw', $retry), mel_btn(mel_tr($lang, 'ks_cancel'), 'k_icon_x')));
+    return mel_msg($title, $parts);
 }
 
 // "No torrents" and a row of a list opened before it was set: this dialog, nothing
@@ -835,8 +868,10 @@ function mel_ts_open($st, $i, $pos, $from, $scr = null, $lazy = false, $alive = 
         $ver = $err === '' && $code === 200 ? mel_cut(trim($re['body']), 40) : '';
         mel_log(sprintf('ts: %s: %s echo: %s, %.2f s', $tag, $base, $err !== '' ? $err : "HTTP $code \"$ver\"",
             microtime(true) - $t));
+        // "Повторить" over the list the start is from ($scr): gc_ts of the row - this start again.
         if ($err !== '' || $code !== 200)
-            return mel_ts_fail($lang, 'ts_err_down', $err !== '' ? $err : "HTTP $code", $lazy);
+            return mel_ts_fail($lang, 'ts_err_down', $err !== '' ? $err : "HTTP $code", $lazy,
+                $scr ? mel_gc_act('gc_ts', $st['rid'], array('i' => strval($i))) : null);
         if (strpos($ver, 'MatriX.') !== 0)
             return mel_ts_fail($lang, 'ts_err_old', $ver, $lazy);
     }
