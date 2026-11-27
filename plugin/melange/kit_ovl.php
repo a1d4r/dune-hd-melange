@@ -24,14 +24,15 @@
 // A record dies:
 //   - its screen put anew (get_folder_view, a tick that replaces it) or finished: mel_ovl_drop;
 //   - closed, when another owner comes in hand: a closed one is kept only for the keys right after the close; one
-//     with the choice of a check list not taken yet (kp_done, mel_kp_done) waits as the open ones do;
+//     with what it left to its screen not taken yet - the choice of a check list (kp_done, mel_kp_done), the button
+//     and the data of a wait (wt_done, mel_wt_done) - waits as the open ones do;
 //   - waiting, its screen gone with no word to the plugin (the shell closed it, a list replaced by a new rid): pushed
 //     out as the oldest when more than MEL_OVL_REST wait; a key of a live screen pushed out so is of a stale one;
 //   - a php_server restart: all of them (memory only).
 //
 // The state in hand, the contract: the code of a screen calls only the open of an overlay (mel_kp_open,
-// mel_dlg_open, mel_wait_open, mel_lib_win_open), mel_ovl_open_on, mel_ovl_drop and mel_kp_done - they find the state
-// by the owner. mel_ovl_st, mel_ovl_set, mel_ovl_shown and mel_ovl_close work on the one in hand whoever its owner is:
+// mel_dlg_open, mel_wait_open, mel_lib_win_open), mel_ovl_open_on, mel_ovl_drop, mel_kp_done and mel_wt_done - they find
+// the state by the owner. mel_ovl_st, mel_ovl_set, mel_ovl_shown and mel_ovl_close work on the one in hand whoever its owner is:
 // only for the files of the overlays, and only after mel_ovl_stale($in) or mel_ovl_open in the same request.
 //
 // The gate, one for every screen (mel_ovl_under, the first thing mel_handle_user_input does): under its open overlay
@@ -55,12 +56,12 @@ class MelOvl
 {
     // The overlay in hand - of the owner that opened one or got a key of one last, null none: scr, the record of the
     // screen; open, shown; the state of what is shown (kp: the side panel) or what it left to its screen after the
-    // close (kp_done: the choice of a check list). Kept after the close: a key that comes after it (sent before its
-    // map was applied) is of a live screen. Memory of php_server only.
+    // close (kp_done: the choice of a check list; wt_done: the button and the data of a wait). Kept after the close:
+    // a key that comes after it (sent before its map was applied) is of a live screen. Memory of php_server only.
     /** @var MelOvlState|null */
     public static $st = null;
-    // The overlays of the other owners that wait (the open ones, a closed one with kp_done), by owner, the oldest
-    // first; MEL_OVL_REST at most (see above).
+    // The overlays of the other owners that wait (the open ones, a closed one with kp_done or wt_done), by owner, the
+    // oldest first; MEL_OVL_REST at most (see above).
     /** @var array<string, MelOvlState> */
     public static $rest = array();
 }
@@ -94,8 +95,8 @@ function mel_ovl_shown($kind)
     return MelOvl::$st && MelOvl::$st['open'] && isset(MelOvl::$st[$kind]);
 }
 
-// The overlay in hand out of it: an open one, and a closed one with the choice of a check list not taken yet (kp_done),
-// waits in MelOvl::$rest as the newest (the oldest over MEL_OVL_REST pushed out, logged); another closed one is gone.
+// The overlay in hand out of it: an open one, and a closed one with what it left to its screen not taken yet (kp_done,
+// wt_done), waits in MelOvl::$rest as the newest (the oldest over MEL_OVL_REST pushed out, logged); another closed one is gone.
 /**
  * @return void
  */
@@ -103,7 +104,7 @@ function mel_ovl_park()
 {
     $st = MelOvl::$st;
     MelOvl::$st = null;
-    if (!$st || !($st['open'] || isset($st['kp_done'])))
+    if (!$st || !($st['open'] || isset($st['kp_done']) || isset($st['wt_done'])))
         return;
     $owner = $st['scr']['owner'];
     unset(MelOvl::$rest[$owner]);
@@ -231,7 +232,8 @@ function mel_ovl_open($scr, $st, $map, $defs, $post = null, $timer = null)
 }
 
 // The close of the open overlay in hand, then $post: the record of its screen back (its map, its timer, its sel_state), the
-// children of ovl none; of the state only $keep (array('kp_done' => ...)) left. None open: $post.
+// children of ovl none; of the state only $keep (array('kp_done' => ...), array('wt_done' => ...)) left. None open:
+// $post.
 /**
  * @param MelAction|null $post
  * @param array<string, mixed> $keep

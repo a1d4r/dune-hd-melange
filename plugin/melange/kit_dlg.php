@@ -22,8 +22,10 @@
 //     dialog  it failed: the dialog (MelDlgDesc) in the place of the window, the screen stays under the shade;
 //     else    still at work: stage («Буфер»), count («28 из 32 МБ»), share (0..1; null: the empty bar), foot_l, foot_r
 //             (the facts under the bar: «Скорость 17 Мбит/с, нужно ~69 Мбит/с», «Пиров 9 из 31, сидов 8»), foot_tone
-//             (of foot_l: '', warn, err, ok) and data, each when given; the window redraws only what changed (the
-//             children of its groups), then the timer again.
+//             (of foot_l: '', warn, err, ok) and data, each when given; late false: the late look not yet, whatever
+//             the time (a second button that needs something found: it comes with the first tick past late['sec']
+//             that does not say so); the window redraws only what changed (the children of its groups), then the
+//             timer again.
 //   Its description (MelWaitDesc): icon, tone, title, facts (the line under the title, of the whole wait: «Джентльмены
 //   (2019) · 4K · Remux · 24.2 ГБ»; '' none), stage, count, share, foot_l, foot_r, foot_tone (as a reply), elapsed (the
 //   time by the title, {sec} the seconds: «прошло {sec} с»; '' none), buttons (1 to 3, each array('id', 'label',
@@ -31,16 +33,20 @@
 //   none: the close only), tick (the name of the function), data, late: at late['sec'] s (default MEL_WAIT_LATE),
 //   once, its icon, tone, buttons («Показать найденное» before «Отмена») and focus (default: the button of the same id,
 //   else the first), its text (only the wait screen of kit_scr.php shows it, in the place of the stage; the window has
-//   no long text: owner 27.11.2026). The foot is there when either of its facts is given: a wait that has them gives
-//   them from the open («Скорость —»), so the window keeps its height. A button (ENTER, or RETURN on cancel) closes the window, then runs its act (the screen stops its work
-//   there): a tick that comes after the close (sent before it) gets no reply. Every key of a wait, of use or not, gives
+//   no long text: owner 27.11.2026). The foot is there by the description, for the whole wait: foot true, or either
+//   of its facts given at the open - a tick that empties both leaves its line empty, the window keeps its height. A
+//   button (ENTER, or RETURN on cancel) closes the window, then runs its act (the screen stops its work there): a tick
+//   that comes after the close (sent before it) gets no reply. The button and the data of the wait as its last tick
+//   left it are kept for the screen (wt_done: mel_wt_done($owner), given once - «Показать найденное» shows what the
+//   ticks found); not taken, the record waits as one with kp_done does (mel_ovl_park). Every key of a wait, of use or not, gives
 //   its map and its timer again (a key may stop the timer of the shell; not checked on the device).
 // The keys of both (mel_dlg_press) are those of the error and wait screen of kit_scr.php too.
 // The errors and the messages with one button of our screens come here by the dispatcher, not by their code: the
 // builder of such a window of the shell says the message it is (mel_error, mel_msg: Mel::$dlg, main.php), and the reply
 // that is this window to an own input of a screen with an overlay opens mel_dlg_error over it (mel_dlg_of); what has no
 // look of ours approved keeps the window of the shell (mel_msg with tone false, mel_dialog).
-// The state, MelOvl::$st: dlg (MelDlg), wt (MelWait) while open.
+// The state, MelOvl::$st: dlg (MelDlg), wt (MelWait) while open; wt_done (MelWaitDone) after a wait closed by a
+// button.
 
 // The prefixes of the ids of the window (MelKit::dialog, MelKit::wait_box): dlg_win, dlg_b0, wt_stage, wt_bar, …
 define('MEL_DLG', 'dlg');
@@ -201,8 +207,8 @@ function mel_wait_defs($s)
 {
     $k = MelKit::wait_box(array('id' => MEL_WT, 'icon' => $s['icon'], 'tone' => $s['tone'], 'title' => $s['title'],
         'time' => mel_wait_time($s), 'facts' => $s['facts'], 'stage' => $s['stage'], 'count' => $s['count'],
-        'share' => $s['share'], 'foot_l' => $s['foot_l'], 'foot_r' => $s['foot_r'], 'foot_tone' => $s['foot_tone'],
-        'buttons' => mel_dlg_btn_views($s)));
+        'share' => $s['share'], 'foot' => $s['foot'], 'foot_l' => $s['foot_l'], 'foot_r' => $s['foot_r'],
+        'foot_tone' => $s['foot_tone'], 'buttons' => mel_dlg_btn_views($s)));
     return $k['defs'];
 }
 
@@ -352,10 +358,11 @@ function mel_wait_new($w, $ms = MEL_WAIT_TICK_MS)
     }
     $bs = mel_dlg_buttons(isset($w['buttons']) ? $w['buttons'] : null, 'wait');
     $late = isset($w['late']) && is_array($w['late']) ? $w['late'] : null;
+    $foot = !empty($w['foot']) || mel_dlg_str($w, 'foot_l') !== '' || mel_dlg_str($w, 'foot_r') !== '';
     return array('icon' => mel_dlg_str($w, 'icon'), 'tone' => mel_dlg_str($w, 'tone'), 'title' => mel_dlg_str($w, 'title'),
         'facts' => mel_dlg_str($w, 'facts'), 'stage' => mel_dlg_str($w, 'stage'), 'count' => mel_dlg_str($w, 'count'),
         'share' => isset($w['share']) && (is_int($w['share']) || is_float($w['share'])) ? (float) $w['share'] : null,
-        'foot_l' => mel_dlg_str($w, 'foot_l'), 'foot_r' => mel_dlg_str($w, 'foot_r'),
+        'foot' => $foot, 'foot_l' => mel_dlg_str($w, 'foot_l'), 'foot_r' => mel_dlg_str($w, 'foot_r'),
         'foot_tone' => mel_dlg_str($w, 'foot_tone'),
         'elapsed' => mel_dlg_str($w, 'elapsed'), 'buttons' => $bs,
         'cur' => mel_dlg_focus(isset($w['focus']) ? $w['focus'] : 0, count($bs)), 'cancel' => mel_dlg_act($w, 'cancel'),
@@ -422,7 +429,7 @@ function mel_wait_late($s)
 // One tick of wait $s: the function of the screen called with its data and the seconds since the open -> array(the
 // wait after it, what it asks): array('post' => MelAction), done; array('dialog' => MelDlgDesc), failed (the wait as it
 // was but its seconds); null, still at work: its data, stage, count, share and foot taken (see above), at late_at s
-// the late ones (mel_wait_late). The seconds of the wait (its time, late) are counted after the function: it may take its
+// the late ones (mel_wait_late) unless the reply holds them (late false). The seconds of the wait (its time, late) are counted after the function: it may take its
 // time (a request, a sleep). The caller does the rest: the overlay (mel_wait_tick), the wait screen (kit_scr.php).
 /**
  * @param MelWait $s
@@ -452,7 +459,7 @@ function mel_wait_step($s)
     }
     if (array_key_exists('share', $r))
         $s['share'] = is_int($r['share']) || is_float($r['share']) ? (float) $r['share'] : null;
-    if ($s['late'] !== null && $s['sec'] >= $s['late_at'])
+    if ($s['late'] !== null && $s['sec'] >= $s['late_at'] && !(isset($r['late']) && $r['late'] === false))
         $s = mel_wait_late($s);
     return array($s, null);
 }
@@ -514,7 +521,8 @@ function mel_dlg_now($kind)
 
 // Key $k of open dialog or wait $kind (dlg, wt) -> the reply, null for none (mel_dlg_press): the focus on another
 // button, the children of the two; the end by a button (ENTER, RETURN on the cancel button of a wait): the close, then
-// its act; by RETURN: the close, then cancel. A key of a wait that goes on (none of use too): its map and its timer
+// its act - of a wait the button and its data kept for the screen (wt_done, mel_wt_done); by RETURN: the close, then
+// cancel. A key of a wait that goes on (none of use too): its map and its timer
 // again (mel_wait_again).
 /**
  * @param string $kind
@@ -547,7 +555,28 @@ function mel_dlg_key($kind, $k)
     }
     $b = $r['button'];
     mel_log('kit ' . ($wait ? 'wait' : 'dialog') . ": $k" . ($b !== null ? " on {$b['id']}" : '') . ', closed');
-    return mel_ovl_close($b !== null ? $b['act'] : $s['cancel']);
+    if ($b === null)
+        return mel_ovl_close($s['cancel']);
+    return mel_ovl_close($b['act'], $wait ? array('wt_done' => array('id' => $b['id'], 'data' => $st['wt']['data'])) :
+        array());
+}
+
+// The button that closed the wait last on the screen of owner $owner and the data of the wait as its last tick left it
+// (MelWaitDone: id, data); the state of the owner in hand from now (as mel_kp_done). Given once. None (another overlay
+// of this screen since, the wait ended by its tick or by RETURN with no cancel button): null.
+/**
+ * @param string $owner
+ * @return MelWaitDone|null
+ */
+function mel_wt_done($owner)
+{
+    $st = mel_ovl_take($owner) ? mel_ovl_st() : null;
+    if (!$st || !isset($st['wt_done']))
+        return null;
+    $d = $st['wt_done'];
+    unset($st['wt_done']);
+    mel_ovl_set($st);
+    return $d;
 }
 
 // dlg_key, wt_key, wt_tick: a key of an open dialog or wait, a tick of a wait. A stale screen: close_and_run

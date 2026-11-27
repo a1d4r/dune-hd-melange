@@ -2056,12 +2056,13 @@ class MelKit
     //   -s- the bar {id}_bar (bar wait MEL_K_DIALOG_BAR_H high, done share of it), always there: the empty track at 0;
     //   -m- the foot {id}_foot: two facts at the edges (MEL_K_PX_SECONDARY), foot_l on the left in the colour of
     //       foot_tone («Скорость 17 Мбит/с, нужно ~69 Мбит/с» in warn), foot_r at the right pad in text 3 («Пиров 9 из
-    //       31, сидов 8»); both '' or none: no block;
+    //       31, сидов 8»); there by foot (bool: what the wait said at its open - a tick with both '' leaves the
+    //       line empty, the window keeps its height); foot not given: there when either fact is;
     //   -l- the buttons.
     // Every text is one line: the facts cut with «…» at the width of the content; of two at the edges the right one
     // whole (wider than the content: cut), the left one cut MEL_K_GAP_M before it. $v: id, icon, tone, title, buttons
-    // (as dialog), time, facts, stage, count, share (0..1; none: 0), foot_l, foot_r, foot_tone ('' text 3, warn, err,
-    // ok). The blocks from the title to the right pad, each a group of its id as wide as the content: a tick changes
+    // (as dialog), time, facts, stage, count, share (0..1; none: 0), foot, foot_l, foot_r, foot_tone ('' text 3, warn,
+    // err, ok). The blocks from the title to the right pad, each a group of its id as wide as the content: a tick changes
     // them by their children, the window whole only when the facts, the foot or a button come or go.
     /**
      * @param array<string, mixed> $v
@@ -2091,7 +2092,7 @@ class MelKit
         $gaps[] = 's';
         $fl = isset($v['foot_l']) ? (string) $v['foot_l'] : '';
         $fr = isset($v['foot_r']) ? (string) $v['foot_r'] : '';
-        if ($fl !== '' || $fr !== '')
+        if (isset($v['foot']) ? $v['foot'] : $fl !== '' || $fr !== '')
         {
             $blocks[] = self::wide("{$p}_foot", self::sides($fl, $fr, MEL_K_PX_SECONDARY, self::tone_color(
                 'wait foot tone', isset($v['foot_tone']) ? (string) $v['foot_tone'] : '', MEL_K_C_TEXT3), MEL_K_C_TEXT3,
@@ -2356,8 +2357,9 @@ class MelKit
     }
 
     // Two texts of one line at the edges $x0 and $x1, $px: $l from the left in $cl, $r to the right in $cr; $r whole
-    // (wider than the line: cut with «…»), $l cut MEL_K_GAP_M before it; '' no text, both '' an empty line of its
-    // height. A row $name, its edges those of the text.
+    // (wider than the line: cut with «…»), $l cut MEL_K_GAP_M before it, not there when $r leaves it no room; '' no
+    // text ($r alone stands at $x1 all the same), both '' an empty line of its height. A row $name, its edges those of
+    // the text.
     /**
      * @param string $l
      * @param string $r
@@ -2371,18 +2373,16 @@ class MelKit
      */
     private static function sides($l, $r, $px, $cl, $cr, $x0, $x1, $name)
     {
-        $its = array();
         $room = $x1 - $x0;
         $rt = $r !== '' ? self::text($r, $px, $cr, 0, 0, array('w' => $room)) : null;
-        $rw = $rt !== null ? $rt['x1'] - $rt['x0'] : 0;
-        if ($rt !== null)
-            $room = max(0, $room - $rw - MEL_K_GAP_M);
-        if ($l !== '' || $rt === null)
-            $its[] = self::text($l, $px, $cl, 0, 0, array('w' => $room));
-        $lw = $its ? $its[0]['x1'] - $its[0]['x0'] : 0;
-        if ($rt !== null)
-            $its[] = $rt;
-        return self::row($its, $x1 - $x0 - $lw - $rw, $x0, null, $name, true);
+        if ($rt === null)
+            return self::row(array(self::text($l, $px, $cl, 0, 0, array('w' => $room))), 0, $x0, null, $name, true);
+        $rw = $rt['x1'] - $rt['x0'];
+        $room = max(0, $room - $rw - MEL_K_GAP_M);
+        if ($l === '' || !$room)
+            return self::row(array($rt), 0, $x1 - $rw, null, $name, true);
+        $lt = self::text($l, $px, $cl, 0, 0, array('w' => $room));
+        return self::row(array($lt, $rt), $x1 - $x0 - ($lt['x1'] - $lt['x0']) - $rw, $x0, null, $name, true);
     }
 
     // The window of frame $f with the middle $blocks, from the top down by stack: -l- from its top the head, the
