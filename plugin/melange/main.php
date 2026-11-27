@@ -2468,6 +2468,15 @@ function mel_btn($label, $icon, $act = null)
     return array('label' => $label, 'icon' => $icon, 'act' => $act);
 }
 
+// The button OK of a window that asks: it only closes.
+/**
+ * @return array{label: string, icon: string, act: MelAction|null}
+ */
+function mel_btn_ok()
+{
+    return mel_btn('OK', 'k_icon_check');
+}
+
 // A window with an icon or buttons of its own: title $title, the paragraphs $parts of its text (as mel_msg) and
 // $buttons (mel_btn, 1 to 3, the first in focus; RETURN only closes), said once for both its looks - the dialog of the
 // shell, each button closes it, then its act (mel_close_and), and (Mel::$dlg, the description whole: MelDlgAsk) over a

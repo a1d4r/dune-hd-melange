@@ -541,7 +541,7 @@ function mel_pre_failed($st, $r, $pos, $lazy, $pre, $from)
     $name = $copies ? str_replace('{svc}', $r['service'] !== '' ? $r['service'] : $svc, mel_tr($lang, 'pre_svc_failed')) : '';
     if ($own)
     {
-        $bs[] = mel_btn('OK', 'k_icon_check');
+        $bs[] = mel_btn_ok();
         return $copies ? mel_ask($name, array(mel_tr($lang, $key), $detail), 'k_icon_circle-x', 'err', $bs) :
             mel_ask(mel_tr($lang, $key), array($detail), 'k_icon_circle-x', 'err', $bs);
     }

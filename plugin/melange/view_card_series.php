@@ -674,7 +674,7 @@ function mel_oc_soon_msg($ep, $lang, $own = null)
     if ($own === null)
         return mel_error('card_ep_soon', '', false, true, $t);
     mel_log('error: card_ep_soon');
-    return mel_ask($t, array(), 'k_icon_clock', '', array(mel_btn('OK', 'k_icon_check'),
+    return mel_ask($t, array(), 'k_icon_clock', '', array(mel_btn_ok(),
         mel_btn(mel_tr($lang, 'card_ep_anyway'), 'k_icon_search',
             mel_input('card_anyway', $own + array('s' => strval($ep['s']), 'e' => strval($ep['e']))))));
 }

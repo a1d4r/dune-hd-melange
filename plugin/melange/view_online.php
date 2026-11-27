@@ -1418,7 +1418,7 @@ function mel_lpv_refresh($st, $scr = null)
         mel_log("lampac: refresh in $wait s");
         // Not an error (owner 27.11.2026): the hourglass in grey, OK.
         return mel_ask(mel_lpv_tr($st['lang'], 'lp_refresh_wait', array('n' => $wait)), array(), 'k_icon_hourglass', '',
-            array(mel_btn('OK', 'k_icon_check')));
+            array(mel_btn_ok()));
     }
     return mel_lpv_search_open($st, 'replace', array('scr' => $scr));
 }

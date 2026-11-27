@@ -373,7 +373,7 @@ function mel_srv_push($in)
         list($status, $key, $detail) = mel_qbt_add($srv, $mg);
     // The dialog of ours by the outcome (owner 27.11.2026): added - the check in a circle in green, there already - the
     // same in grey, maybe added - the mark of a warning and the reason, not added - an error.
-    $ok = array(mel_btn('OK', 'k_icon_check'));
+    $ok = array(mel_btn_ok());
     if ($status === 'dup')
     {
         mel_log('server: there already');
