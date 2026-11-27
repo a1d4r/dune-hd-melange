@@ -2,8 +2,9 @@
 // "Онлайн" on the Dune: the window "Ищу онлайн…" of ticks (the search of Lampac, then the replies of its
 // balancers, each call of php_server a few seconds) and its result: the online list (view_online.php) or a window
 // (nothing online, no answer). The search is one step a tick (mel_lpv_wait_tick) that replies as a tick of a wait window
-// (MelWaitTick, kit_dlg.php): the fields of the window, or the end; the dialog of the shell is a host over it
-// (mel_lpv_tick). PHP 5.3.6, firmware API only. Types (MelLpRun, MelLpView, MelLpSearchView): phpstan-types.neon.
+// (MelWaitTick, kit_dlg.php): the fields of the window, or the end. Its hosts: the wait window of ours over the list
+// the search is started from (mel_lpv_wait_kit), the dialog of the shell where there is no screen of ours under it -
+// over a card, over the seasons of the shell (mel_lpv_search_shell, mel_lpv_tick). PHP 5.3.6, firmware API only. Types (MelLpRun, MelLpView, MelLpSearchView): phpstan-types.neon.
 
 // The timer of the window between its ticks, ms: a tick is a request itself.
 define('MEL_LPV_TICK_MS', 100);

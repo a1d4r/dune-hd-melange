@@ -23,7 +23,8 @@ define('MEL_LPV_INDENT', 48);
 
 class MelLpv
 {
-    // The search of the window on screen (mel_lpv_search_open), null none.
+    // The search of the dialog of the shell on screen (mel_lpv_search_shell), null none; that of the wait window of ours
+    // is the data of the window (mel_lpv_wait_kit).
     /** @var MelLpRun|null */
     public static $run = null;
     // The TMDB and KinoPoisk ids and the original language of the cards of play_action (movie_str: tmdb_id or
