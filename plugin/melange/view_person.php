@@ -627,6 +627,21 @@ function mel_pp_changes($e, $p, $l, $old, $new)
     return $ch;
 }
 
+// person_menu (MENU of the page of a person): the popup menu of "Settings" alone.
+/**
+ * @param string $lang
+ * @return MelAction
+ */
+function mel_pp_menu($lang)
+{
+    return array(
+        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => array(array(
+            GuiMenuItemDef::caption => mel_tr($lang, 'setup_menu'),
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/setup.aai',
+            GuiMenuItemDef::action => mel_setup_open_act()))));
+}
+
 // person_move (d), person_enter, person_load (the timer), person_menu of person t. ENTER on a work:
 // its own card; on "did not load": asked again (the screen anew, its timer). The timer: the
 // person asked (mel_cm_person, MEL_CAT_TOTAL at most), the screen anew with it or its failure. Any
@@ -642,7 +657,7 @@ function mel_pp_input($in, $control)
 {
     $tmdb = mel_pp_id('person:' . mel_catv_in($in, 't'));
     if ($control === 'person_menu')
-        return mel_oc_menu(mel_catv_ui_lang());
+        return mel_pp_menu(mel_catv_ui_lang());
     if ($tmdb === '')
         return null;
     $e = mel_pp_entry($tmdb);

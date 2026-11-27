@@ -39,6 +39,8 @@ define('MEL_OC_SEEN', 500);
 // mel_oc_get). The form is written here alone.
 define('MEL_OC_SUF_FMT', ':s%08x%x');
 define('MEL_OC_SUF_RE', ':s[0-9a-f]{9,24}');
+// The key "<type>:<id>" of a title (mel_oc_base of the key of a screen): its type, its id.
+define('MEL_OC_KEY_RE', '/^(movie|series):(tt[0-9]{1,10}|tmdb:[0-9]{1,10})$/D');
 // The page: a clipping panel from the bottom of the logo (PANE_Y + TITLE_BOTTOM of the catalog,
 // baked into card/v1) down to SHOW_BOTTOM, higher at a stop where it would cut a line; the page in
 // it in the coordinates of the first screen.
@@ -270,6 +272,16 @@ function mel_oc_base($key)
     return strval(preg_replace('/' . MEL_OC_SUF_RE . '$/D', '', $key));
 }
 
+// Key $key of a screen is of the form of a card: "<type>:<id>" (MEL_OC_KEY_RE), its ":s<hex>" or none.
+/**
+ * @param string $key
+ * @return bool
+ */
+function mel_oc_key_ok($key)
+{
+    return preg_match(MEL_OC_KEY_RE, mel_oc_base($key)) === 1;
+}
+
 // Key $key of a screen noted as given or seen (MelOc::$seen), the last of them; over MEL_OC_SEEN of them the oldest
 // noted goes. Only a key of a card there is (kept, mel_oc_keep; made anew, mel_oc_get): a key asked of no card must
 // not put out that of a screen in the stack.
@@ -488,7 +500,7 @@ function mel_oc_get($key)
     if (isset(MelOc::$cards[$key]))
         return MelOc::$cards[$key];
     $base = mel_oc_base($key);
-    if (!preg_match('/^(movie|series):(tt[0-9]{1,10}|tmdb:[0-9]{1,10})$/D', $base, $m))
+    if (!preg_match(MEL_OC_KEY_RE, $base, $m))
         return null;
     $t = mel_oc_id_tile($m[1], $m[2]);
     $r = $t ? mel_oc_of_meta($key, $t) : null;
@@ -1679,22 +1691,24 @@ function mel_oc_scr($key)
 {
     if (!isset(MelOc::$cards[$key]['nav']))
         return null;
-    return mel_oc_scr_of($key, MelOc::$cards[$key], MelOc::$cards[$key]['nav']);
+    $c = MelOc::$cards[$key];
+    return mel_oc_scr_of($key, $c, $c['nav'], $c['pos']);
 }
 
-// The record of the screen of card $c ($key) laid out as $l (mel_oc_scr; MENU of a card made anew since its screen,
-// with no nav: its layout), at the place of the card (pos).
+// The record of the screen of card $c ($key) laid out as $l at place $pos (mel_oc_scr: its nav and its pos; MENU of a
+// card made anew since its screen, with no nav: its layout, the place of the key).
 /**
  * @param string $key
  * @param MelOcCard $c
  * @param MelOcNav $l
+ * @param MelOcPos $pos
  * @return MelOvlScreen
  */
-function mel_oc_scr_of($key, $c, $l)
+function mel_oc_scr_of($key, $c, $l, $pos)
 {
     list($acts, $timer) = mel_oc_acts($key, $c, $l);
     return array('owner' => $key, 'map' => $acts + mel_mlv_key_acts("card:$key"), 'timer' => $timer,
-        'sel' => mel_oc_state($c['pos'], $l));
+        'sel' => mel_oc_state($pos, $l));
 }
 
 // The title of the card of copies $l (its layout or nav) has copies on the disk - of a movie or of the episodes of a
@@ -2013,21 +2027,6 @@ function mel_oc_mark_post($key, $c)
         mel_catv_mains_anew(mel_replace_act("card:$key", $c['tile']['name']), 'after a mark of the own card'));
 }
 
-// MENU of the page of a person (view_person.php): the popup menu of "Settings" alone.
-/**
- * @param string $lang
- * @return MelAction
- */
-function mel_oc_menu($lang)
-{
-    return array(
-        GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => array(array(
-            GuiMenuItemDef::caption => mel_tr($lang, 'setup_menu'),
-            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/setup.aai',
-            GuiMenuItemDef::action => mel_setup_open_act()))));
-}
-
 // "Смотреть из" of "Действия" of card $c ($key) at place $pos of layout $l (mel_src_watch_kp: two ready profiles or
 // more - its submenu of them): card_src of the card with the profile, of an episode in focus in the row its s and e;
 // none without "Смотреть" (mel_oc_can_watch) and on a strip of posters or of the cast (the title there is another one).
@@ -2072,7 +2071,7 @@ function mel_oc_actions($key, $c, $l, $pos)
 
 // card_menu (MENU) of card $c ($key) at place $pos (that of the card by now: the actions of the items come with no
 // sel_state of the shell) of layout $l -> the panel "Действия" over its screen (mel_kp_open; mel_oc_actions), the
-// record of the screen by that layout (mel_oc_scr_of).
+// record of the screen by that layout and place (mel_oc_scr_of).
 /**
  * @param string $key
  * @param MelOcCard $c
@@ -2082,11 +2081,12 @@ function mel_oc_actions($key, $c, $l, $pos)
  */
 function mel_oc_menu_open($key, $c, $l, $pos)
 {
-    return mel_kp_open(mel_oc_scr_of($key, $c, $l), mel_oc_actions($key, $c, $l, $pos));
+    return mel_kp_open(mel_oc_scr_of($key, $c, $l, $pos), mel_oc_actions($key, $c, $l, $pos));
 }
 
 // card_menu of a screen of no card (key $key: not in memory, no meta): "Настройки Melange" only, in the language of the
 // shell; the record of that screen - the keys of every card (mel_oc_keys), no timer, the sel_state $raw the shell sent.
+// A key not of the form of a card (mel_oc_key_ok): none, logged without it.
 /**
  * @param string $key
  * @param mixed $raw
@@ -2094,6 +2094,11 @@ function mel_oc_menu_open($key, $c, $l, $pos)
  */
 function mel_oc_menu_lost($key, $raw)
 {
+    if (!mel_oc_key_ok($key))
+    {
+        mel_log('card: own: menu of a bad key, none');
+        return null;
+    }
     mel_log("card: own $key: menu of no card, settings only");
     $lang = mel_catv_ui_lang();
     return mel_kp_open(array('owner' => $key, 'map' => mel_oc_keys($key) + mel_mlv_key_acts("card:$key"),
@@ -2252,7 +2257,7 @@ function mel_oc_list($key, $c, $l, $pos)
 // on "did not load" - the meta again; on an episode - with a copy on the disk its file (mel_oc_lib_start_ep), else its
 // list, one not out yet - the message; on
 // a person of the cast - its page (mel_oc_person); on a poster - the own card of its title
-// (mel_oc_tile_enter); below them nothing. A move or ENTER on a screen of rows other than those of
+// (mel_oc_tile_enter); below them nothing. A move, ENTER or MENU on a screen of rows other than those of
 // the layout (rs of its sel_state; its card made anew since, gone of memory - mel_oc_get: with the rows in memory by
 // then): the screen anew
 // at its place (mel_oc_pos, mel_oc_stop_of), the key not done (its frame and ENTER by the rows it
@@ -2301,8 +2306,6 @@ function mel_oc_input($in, $control)
     MelOc::$cards[$key]['pos'] = $pos;
     if ($control === 'card_load')
         return mel_oc_tick($key, $l);
-    if ($control === 'card_menu')
-        return mel_oc_menu_open($key, MelOc::$cards[$key], $l, $pos);
     $j = is_string($raw) ? json_decode($raw, true) : null;
     $rs = implode(',', $l['rows']);
     if (is_array($j) && isset($j['rs']) && is_string($j['rs']) && $j['rs'] !== $rs)
@@ -2310,6 +2313,9 @@ function mel_oc_input($in, $control)
         mel_log("card: own $key: $control on a screen of rows \"{$j['rs']}\", now \"$rs\": the screen anew");
         return mel_replace_act("card:$key", $c['tile']['name']);
     }
+    // After the rows of the screen: the close of the panel writes a sel_state by this layout.
+    if ($control === 'card_menu')
+        return mel_oc_menu_open($key, $c, $l, $pos);
     $new = $pos;
     if ($control === 'card_enter')
     {
