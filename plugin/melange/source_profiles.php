@@ -751,7 +751,7 @@ function mel_profile_view($s, $p)
 
 // The pair of profiles of an operation (spec v2 §1.9) of the profile $t of a title (an index of the settings $s; -1 -
 // the main one) -> array(the index of the profile of releases, of Lampac; -1 none), both ready: $t of releases - it and
-// the first Lampac (its "Искать онлайн"); $t of Lampac - it and the main one if it is of releases, else the first of
+// the first Lampac (its "Искать в <its source>"); $t of Lampac - it and the main one if it is of releases, else the first of
 // them (its releases when nothing is online). $t not ready (the main one without its config) - the first ready one of
 // its kind, else of the other one.
 /**

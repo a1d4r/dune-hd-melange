@@ -1,5 +1,5 @@
 <?php
-// "Онлайн" on the Dune, movies and episodes: the client is lampac.php. Here (the window "Ищу онлайн…" of its search:
+// "Онлайн" on the Dune, movies and episodes: the client is lampac.php. Here (the window "Ищу в <its source>…" of its search:
 // online_search.php; a profile of Lampac of "Источник" of MENU: sources.php) the online list
 // on the screen of the releases (the frame of view_gcomps.php, rows "Phantom · Дублированный"
 // and a card of their own; of an episode a row a voice of its season), its MENU, ENTER (the start:
@@ -116,6 +116,28 @@ function mel_lpv_tr($lang, $key, $sub = array())
     return $s;
 }
 
+// Text $key about a search of the profile of Lampac of id $id: its {name} the name of that source, as "Источник" and
+// the line over the lists show it (mel_src_name; the owner 27.11.2026, (30): not «онлайн» - the releases are online
+// too), then $sub. No such ready profile (gone on the page since): «Lampac». $w (units of mel_gc_w at 1000; 0: any):
+// a wide name cut with "…" to what the other words leave of it - the words after the name stay.
+/**
+ * @param string $lang
+ * @param string $key
+ * @param string $id
+ * @param array<string, string|int> $sub
+ * @param int $w
+ * @return string
+ */
+function mel_lpv_src_tr($lang, $key, $id, $sub = array(), $w = 0)
+{
+    $name = mel_src_name($id);
+    if ($name === '')
+        $name = 'Lampac';
+    if ($w > 0)
+        $name = mel_gc_cut_w($name, 1000, $w - mel_gc_w(mel_lpv_tr($lang, $key, array('name' => '') + $sub), 1000));
+    return mel_lpv_tr($lang, $key, array('name' => $name) + $sub);
+}
+
 // The words of reason $why (MelLpWhy codes, lampac.php), the address masked. The detail only where
 // the text has {d} and it is short for people (http: the code, accsdb: the message of the
 // provider); a curl error, an unknown type or method - only in the log (mel_lp_call, mel_lp_replies).
@@ -137,7 +159,7 @@ function mel_lpv_why($lang, $why, $detail)
     return str_replace('{d}', mel_cut(mel_one_line($detail), 80), $s);
 }
 
-// The yellow line of the releases of list $st (lp_note: "Онлайн не отвечает — показаны раздачи") in the row of the title
+// The yellow line of the releases of list $st (lp_note: "<its source> не отвечает — показаны раздачи") in the row of the title
 // (mel_gc_head, view_gcomps.php), '' none.
 /**
  * @param MelState $st

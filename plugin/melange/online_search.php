@@ -1,5 +1,5 @@
 <?php
-// "Онлайн" on the Dune: the window "Ищу онлайн…" of ticks (the search of Lampac, then the replies of its
+// "Онлайн" on the Dune: the window "Ищу в <its source>…" of ticks (the search of Lampac, then the replies of its
 // balancers, each call of php_server a few seconds) and its result: the online list (view_online.php) or a window
 // (nothing online, no answer). The search is one step a tick (mel_lpv_wait_tick) that replies as a tick of a wait window
 // (MelWaitTick, kit_dlg.php): the fields of the window, or the end. Its hosts: the wait window of ours over the list
@@ -12,7 +12,7 @@ define('MEL_LPV_TICK_MS', 100);
 // variant found.
 define('MEL_LPV_FOUND_S', 15);
 
-// --- The window "Ищу онлайн…": the search (events, /lifeevents), then the replies of the
+// --- The window "Ищу в <its source>…": the search (events, /lifeevents), then the replies of the
 // balancers, a tick each call of php_server (spec §4.3); the result - the online list, else
 // a window. MelLpv::$run keeps it between the ticks; Cancel or RETURN drops the window.
 
@@ -78,7 +78,7 @@ function mel_lpv_search_open($st, $how, $opt = array())
     return mel_lpv_search_shell($run);
 }
 
-// The search of run $run as the dialog of the shell "Ищу онлайн…": the run kept between its ticks (MelLpv::$run), its
+// The search of run $run as the dialog of the shell "Ищу в <its source>…": the run kept between its ticks (MelLpv::$run), its
 // two lines and "Отмена" (mel_lpv_search_defs), its timer to lp_tick (mel_lpv_tick).
 /**
  * @param MelLpRun $run
@@ -88,13 +88,13 @@ function mel_lpv_search_shell($run)
 {
     $sid = $run['sid'];
     MelLpv::$run = $run;
-    return mel_lpv_redraw_keys(mel_dialog_act(mel_tr($run['st']['lang'], 'lp_search'), mel_lpv_search_defs($run), array(
+    return mel_lpv_redraw_keys(mel_dialog_act(mel_lpv_src_tr($run['st']['lang'], 'lp_search', $run['st']['lp_prof']), mel_lpv_search_defs($run), array(
         ShowDialogActionData::actions => array(GUI_EVENT_TIMER => mel_input('lp_tick', array('sid' => $sid), 30000)),
         ShowDialogActionData::timer => array(GuiTimerDef::delay_ms => MEL_LPV_TICK_MS))), $sid);
 }
 
 // The search of run $run as the wait window of ours (mel_wait_open, kit_dlg.php; the owner 27.11.2026, frame
-// P1_online25) over the screen of record $scr, the list it was started from: «Ищу онлайн», «прошло N с» by the title,
+// P1_online25) over the screen of record $scr, the list it was started from: «Ищу в <its source>», «прошло N с» by the title,
 // the fields of the search now (mel_lpv_search_view: the stage and the variants over the bar; no facts, no line under
 // the bar), «Отмена» (RETURN too); from MEL_LPV_FOUND_S s on and with a variant found (late held by the step)
 // «Показать найденное» after it, the focus still on «Отмена» (the owner 27.11.2026, (32)). Its tick is the step of
@@ -114,7 +114,7 @@ function mel_lpv_wait_kit($scr, $run)
         'act' => $act);
     $found = array('id' => 'found', 'label' => mel_tr($lang, 'lp_show_found'), 'icon' => 'k_icon_list', 'act' => $act);
     return mel_wait_open($scr, array_merge(mel_lpv_search_view($run), array('icon' => 'k_icon_globe',
-        'title' => mel_tr($lang, 'lp_search_title'), 'elapsed' => mel_tr($lang, 'ks_wait_elapsed'),
+        'title' => mel_lpv_src_tr($lang, 'lp_search_title', $run['st']['lp_prof']), 'elapsed' => mel_tr($lang, 'ks_wait_elapsed'),
         'tick' => 'mel_lpv_wait_tick', 'data' => $run, 'ms' => MEL_LPV_TICK_MS, 'buttons' => array($cancel),
         'late' => array('sec' => MEL_LPV_FOUND_S, 'buttons' => array($cancel, $found)))));
 }
@@ -494,7 +494,7 @@ function mel_lpv_run_seen($run)
 }
 
 // Lampac of run $run did not answer ($why, $detail: MelLpWhy): a title with releases (back) -
-// those with the yellow line; else the message "Онлайн не отвечает: <its source>" (mel_lpv_msg).
+// those with the yellow line; else the message "<its source> не отвечает" (mel_lpv_msg, mel_lpv_src_tr).
 /**
  * @param MelLpRun $run
  * @param string $why
@@ -508,12 +508,9 @@ function mel_lpv_down($run, $why, $detail)
     mel_log("lampac: window {$run['sid']}: no answer ($why" . mel_lp_mask(mel_lp_log_detail($why, $detail, ', %s'), Mel::$settings['lp']) .
         ')' . ($run['back'] ? ' -> the releases' : ''));
     if ($run['back'])
-        return mel_lpv_releases($st, mel_tr($lang, 'lp_note_down'));
-    // The source of Lampac of the screen by its name (spec v2: several of them; a wide one cut with "…" - the shell cuts a
-    // title wider than the dialog in the middle), none ready - the words of before.
-    $name = mel_src_name(Mel::$settings['lp_prof']);
-    $title = $name !== '' ? mel_gc_cut_w(str_replace('{name}', $name, mel_tr($lang, 'lp_down_src')), 1000, MEL_DIALOG_LINE_W) :
-        mel_tr($lang, 'lp_down');
+        return mel_lpv_releases($st, mel_lpv_src_tr($lang, 'lp_note_down', $st['lp_prof']));
+    // A wide name cut with "…": the shell cuts a title wider than the dialog in the middle.
+    $title = mel_lpv_src_tr($lang, 'lp_down_src', $st['lp_prof'], array(), MEL_DIALOG_LINE_W);
     $text = mel_lpv_why($lang, $why, $detail);
     return mel_lpv_msg($run, $title, mel_dialog_lines($text), $text);
 }
@@ -530,8 +527,8 @@ function mel_lpv_close_act($sid)
 
 // The end of run $run: the online list (the rows in the order of "Источники…", mel_lpv_srcs_pick: the sources
 // asked in it; the cursor of a new search on the row of the key of the run, else on its balancer,
-// after "Ещё N" on the first new row), its screen opened or the list screen replaced; nothing at all - the message "Онлайн для
-// «…» не нашлось" (a title with releases, back: those with the yellow line). All the sources found turned off in
+// after "Ещё N" on the first new row), its screen opened or the list screen replaced; nothing at all - the message "В
+// <its source> для «…» ничего не нашлось" (a title with releases, back: those with the yellow line). All the sources found turned off in
 // "Источники…" (not back): the list of no row all the same, with the yellow line of it - MENU there turns them on.
 /**
  * @param MelLpRun $run
@@ -552,7 +549,7 @@ function mel_lpv_result($run)
     {
         mel_log("$tag -> " . ($run['back'] ? 'the releases' : 'nothing online'));
         if ($run['back'])
-            return mel_lpv_releases($st, mel_tr($lang, 'lp_note_empty'));
+            return mel_lpv_releases($st, mel_lpv_src_tr($lang, 'lp_note_empty', $st['lp_prof']));
         $lines = array();
         $text = array();
         foreach ($v['why'] as $w)
@@ -563,7 +560,7 @@ function mel_lpv_result($run)
             if (trim($w['detail']) !== '')
                 $text[] = trim($w['detail']);
         }
-        return mel_lpv_msg($run, mel_lpv_tr($lang, 'lp_none', array('title' => $mv['title'])), array_slice($lines, 0, 2),
+        return mel_lpv_msg($run, mel_lpv_src_tr($lang, 'lp_none', $st['lp_prof'], array('title' => $mv['title'])), array_slice($lines, 0, 2),
             implode(MEL_MSG_SEP, array_unique($text)));
     }
     MelLpv::$redraw = null;

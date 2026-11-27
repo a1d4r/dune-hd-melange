@@ -392,8 +392,9 @@ function mel_wait_open($scr, $w)
         return null;
     $owner = isset($scr['owner']) && is_string($scr['owner']) ? $scr['owner'] : '';
     $a = mel_ovl_open($scr, array('wt' => $s), mel_wait_map($owner), mel_wait_defs($s), null, mel_wait_timer($s['ms']));
+    // Not its title, as of a dialog: it may name a source of the user.
     if ($a)
-        mel_log('kit wait: open «' . $s['title'] . "», tick {$s['tick']}");
+        mel_log("kit wait: open, tick {$s['tick']}");
     return $a;
 }
 

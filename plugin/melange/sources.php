@@ -341,7 +341,7 @@ function mel_src_releases($st, $id, $tag, $title, $sel_state)
 }
 
 // The online list of the profile of Lampac $id for list $st (mel_gc_src; $tag of the log): its online list there younger
-// than MEL_LPV_REFRESH s - back to it, no request; else the window "Ищу онлайн…" of it over the screen (of record $scr:
+// than MEL_LPV_REFRESH s - back to it, no request; else the window "Ищу в <its source>…" of it over the screen (of record $scr:
 // the wait window of ours; the list of that Lampac in its place at the end; its windows of no answer, nothing online
 // keep the screen and its profiles). No online list of this list (a series without its episode): nothing.
 /**

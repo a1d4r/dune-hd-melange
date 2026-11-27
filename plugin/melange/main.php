@@ -41,7 +41,7 @@ require_once dirname(__FILE__) . '/torrserver.php';
 require_once dirname(__FILE__) . '/lampac.php';
 // "Онлайн" on the Dune: the online list.
 require_once dirname(__FILE__) . '/view_online.php';
-// "Онлайн": the search window "Ищу онлайн…", its result.
+// "Онлайн": the search window "Ищу в <its source>…", its result.
 require_once dirname(__FILE__) . '/online_search.php';
 // "Источники…" of the online list: which sources, their order.
 require_once dirname(__FILE__) . '/online_sources.php';
@@ -2215,7 +2215,7 @@ function mel_play_action($in, $hist = null, $src = '')
         mel_log('error: only error streams, their dialog');
         return $only;
     }
-    // No releases at all: "Искать онлайн" (online_play.php).
+    // No releases at all: "Искать в <its source>" (online_play.php).
     $none = isset($res['error']) ? mel_lpv_no_releases($mv, $s, $e, $lang, $res) : null;
     if ($none)
         return $none;

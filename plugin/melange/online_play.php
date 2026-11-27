@@ -2,7 +2,7 @@
 // "Онлайн" on the Dune, its start (the list: view_online.php): ENTER of a row ("call", the check
 // of the link, vod_play; an episode in the playlist of its season, the others lazy: lampac_next:),
 // "Continue" of a record of it, play_action of a card with "Онлайн" (an online record, the title of a profile
-// of Lampac), the window "Раздач нет" with "Искать онлайн".
+// of Lampac), the window "Раздач нет" with "Искать в <its source>".
 // PHP 5.3.6, firmware API only. Types (MelLpRow, MelMovie): phpstan-types.neon.
 
 // "Continue": seconds of the whole way (the row of the shell waits ~20 s).
@@ -543,7 +543,7 @@ function mel_lpv_resume($mv, $r, $lang, $s = -1, $e = -1)
 // the series: mel_wh_pick, of a movie: mel_wh_card_last), nothing online - the releases with the yellow line when a
 // profile of releases is there and $back (the online list has a way back to the releases; false: a source chosen by
 // "Смотреть из…" - the window "nothing online" of it). null: the releases (the title of a profile of releases). A source
-// of releases chosen with none for the title: the window "Раздач нет" (mel_lpv_no_releases) still offers "Искать онлайн"
+// of releases chosen with none for the title: the window "Раздач нет" (mel_lpv_no_releases) still offers "Искать в <its source>"
 // of the main Lampac - so meant.
 /**
  * @param stdClass $in
@@ -576,7 +576,7 @@ function mel_lpv_play_action($in, $mv, $lang, $s, $e, $r, $lpk, $online, $back =
 }
 
 // No releases at all for card $mv ($res of mel_fetch: err_no_streams, no reasons) and
-// "Онлайн": the window "Раздач нет" with "Искать онлайн" (the empty list live: lp_find) and
+// "Онлайн": the window "Раздач нет" with "Искать в <the Lampac of the pair>" (the empty list live: lp_find) and
 // "Закрыть". null: the error as before.
 /**
  * @param MelMovie $mv
@@ -595,6 +595,6 @@ function mel_lpv_no_releases($mv, $s, $e, $lang, $res)
     Mel::$state = $st;
     mel_log('lampac: no releases -> the window with the search');
     return mel_dialog(mel_tr($lang, 'lp_no_releases'), array(), array(
-        mel_tr($lang, 'lp_find') => mel_close_and(mel_gc_act('lp_find', $st['rid'])),
+        mel_lpv_src_tr($lang, 'lp_find', $st['lp_prof']) => mel_close_and(mel_gc_act('lp_find', $st['rid'])),
         mel_tr($lang, 'lp_close') => mel_close_and(null)));
 }
