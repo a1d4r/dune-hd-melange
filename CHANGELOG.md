@@ -2,7 +2,7 @@
 
 **English version**
 
-## Unreleased
+## 0.71.0 — 27.11.2026
 - **"Actions" as a side panel.** **MENU** in the release list, in the Lampac list and in the Melange card now opens the "Actions" side panel instead of a menu window. The items are in groups. In the release list the first group is about the release under the cursor ("Watch via TorrServer", "Open in an app", "Download to server"), the second is about the whole list, and "Melange settings" stands apart. "Sort", "Source", "Download to server", "Voice", "Balancers", "Addon errors" and "Balancer errors" open as submenus in the same panel.
 - **New item names in "Actions".** "Get films from…" is now "Source", "Refresh" is "Refresh list", and "Settings" is "Melange settings". "Main Debrid → …" is replaced by "Change main Debrid": it opens the list of services with a check mark on the current one. "Sort" opens the list of sort orders. Choose the current one again to reverse the order.
 - **"Voice" and "Balancers".** Both check lists now open in the panel, with "All voices" or "All balancers" as the first line and "Done" under the list.
@@ -370,7 +370,7 @@ First public release. What it does:
 
 **Russian version**
 
-## Не выпущено
+## 0.71.0 — 27.11.2026
 - **«Действия» боковой панелью.** **MENU** в списке раздач, в списке Lampac и в карточке Melange теперь открывает боковую панель «Действия» вместо окна меню. Пункты разделены на группы. В списке раздач первая группа относится к раздаче под курсором («Смотреть через TorrServer», «Открыть в приложении», «Скачать на сервер»), вторая — ко всему списку, отдельно стоят «Настройки Melange». «Сортировка», «Источник», «Скачать на сервер», «Озвучка», «Балансеры», «Ошибки аддонов» и «Ошибки балансеров» открываются как подменю в той же панели.
 - **Новые названия пунктов в «Действиях».** «Откуда брать…» теперь называется «Источник», «Обновить» — «Обновить список», «Настройки» — «Настройки Melange». Вместо «Основной Debrid → …» появился пункт «Сменить основной Debrid»: он открывает список сервисов, у текущего стоит галочка. «Сортировка» открывает список вариантов. Выберите текущую ещё раз, и порядок станет обратным.
 - **«Озвучка» и «Балансеры».** Оба списка с галочками теперь открываются в панели. Первая строка — «Все озвучки» или «Все балансеры», под списком — «Готово».
