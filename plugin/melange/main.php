@@ -247,11 +247,11 @@ class Mel
     // The zlib function of MelQrPng (in libphp5 of r24 and r25, not known for
     // older ones): mel_qr_file makes no picture without it. Tests name a missing one.
     public static $zlib = 'gzcompress';
-    // The window of the shell built last for this input and what its builder says of it (mel_error, mel_msg; mel_dialog:
-    // nothing): shell, the action whole; desc, the message it is (MelDlgSay) - over a screen of ours the dialog of ours
-    // is shown in its place (mel_dlg_of) - or null: it stays a window of the shell everywhere. Off at the start of
-    // every handle_user_input.
-    /** @var array{shell: MelAction, desc: MelDlgSay|null}|null */
+    // The window of the shell built last for this input and what its builder says of it (mel_error, mel_msg, mel_ask;
+    // mel_dialog: nothing): shell, the action whole; desc, the message it is (MelDlgSay; with an icon or buttons of
+    // its own MelDlgAsk) - over a screen of ours the dialog of ours is shown in its place (mel_dlg_of) - or null: it
+    // stays a window of the shell everywhere. Off at the start of every handle_user_input.
+    /** @var array{shell: MelAction, desc: MelDlgSay|MelDlgAsk|null}|null */
     public static $dlg = null;
 }
 
@@ -2456,6 +2456,51 @@ function mel_msg_say($a, $title, $text, $ok, $tone = null, $act = null)
     return $a;
 }
 
+// A button of a window that asks (mel_ask): its label, its icon in the dialog of ours (k_icon_*), what it runs after
+// the close of the window (null: it only closes).
+/**
+ * @param string $label
+ * @param string $icon
+ * @param MelAction|null $act
+ * @return array{label: string, icon: string, act: MelAction|null}
+ */
+function mel_btn($label, $icon, $act = null)
+{
+    return array('label' => $label, 'icon' => $icon, 'act' => $act);
+}
+
+// A window with an icon or buttons of its own: title $title, the paragraphs $parts of its text (as mel_msg) and
+// $buttons (mel_btn, 1 to 3, the first in focus; RETURN only closes), said once for both its looks - the dialog of the
+// shell, each button closes it, then its act (mel_close_and), and (Mel::$dlg, the description whole: MelDlgAsk) over a
+// screen of ours the dialog of ours with icon $icon (k_icon_*) in tone $tone ('' grey, warn, err, ok), the same
+// buttons with their icons, the act after its close.
+/**
+ * @param string $title
+ * @param list<string> $parts
+ * @param string $icon
+ * @param string $tone
+ * @param list<array{label: string, icon: string, act: MelAction|null}> $buttons
+ * @return MelAction
+ */
+function mel_ask($title, $parts, $icon, $tone, $buttons)
+{
+    $lines = array();
+    $text = array();
+    foreach ($parts as $p)
+    {
+        $lines = array_merge($lines, mel_dialog_lines($p));
+        if (trim($p) !== '')
+            $text[] = trim($p);
+    }
+    $shell = array();
+    foreach ($buttons as $b)
+        $shell[$b['label']] = mel_close_and($b['act']);
+    $a = mel_dialog($title, $lines, $shell);
+    Mel::$dlg = array('shell' => $a, 'desc' => array('icon' => $icon, 'tone' => $tone, 'title' => $title,
+        'text' => implode(MEL_MSG_SEP, $text), 'buttons' => $buttons));
+    return $a;
+}
+
 // show_dialog of controls $defs; $more: fields of the dialog over the usual
 // ones (width, timer).
 function mel_dialog_act($title, $defs, $more = array())
@@ -2584,14 +2629,16 @@ function mel_scr_under($in, $control)
 
 // Message $w a builder of a window of the shell said of it (Mel::$dlg, desc) as the simple dialog of ours
 // (mel_dlg_error_desc): the title - of a key, in the language of the shell as its %tr% gives it -, the text, the
-// button, the tone. The dispatcher (mel_dlg_of) and a tick of a wait of ours that ends by a message
-// (mel_wait_end).
+// button, the tone; a window described whole (mel_ask: MelDlgAsk) - as it is. The dispatcher (mel_dlg_of) and a tick
+// of a wait of ours that ends by a message (mel_wait_end).
 /**
- * @param MelDlgSay $w
+ * @param MelDlgSay|MelDlgAsk $w
  * @return array<string, mixed>
  */
 function mel_dlg_said($w)
 {
+    if (isset($w['buttons']))
+        return $w;
     return mel_dlg_error_desc($w['ok'], $w['key'] !== '' ? mel_tr(mel_catv_lang(), $w['key']) : $w['title'], $w['text'],
         $w['act'], $w['tone']);
 }

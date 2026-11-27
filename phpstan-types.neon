@@ -368,6 +368,10 @@ parameters:
         # one button that closes it: key, the key of translations/ of its title ('' none: title, a text); text, its text
         # ('' none); tone of the dialog of ours (err, warn; null: by the text, mel_dlg_error_desc); ok, the label of the button.
         MelDlgSay: 'array{key: string, title: string, text: string, tone: string|null, ok: string, act: MelAction|null}'
+        # What the builder of a window of the shell with an icon or buttons of its own says of it (Mel::$dlg, main.php:
+        # mel_ask) - the description of the dialog of ours whole: icon (k_icon_*), tone ('', warn, err, ok), title, text
+        # ('' none), buttons (mel_btn: label, icon, the action after the close, null none).
+        MelDlgAsk: 'array{icon: string, tone: string, title: string, text: string, buttons: list<array{label: string, icon: string, act: MelAction|null}>}'
         # The own dialog open (kit_dlg.php): its icon, tone, title, text, buttons, the one in focus, the action of RETURN.
         MelDlg: 'array{icon: string, tone: string, title: string, text: string, buttons: list<MelDlgButton>, cur: int, cancel: MelAction|null}'
         # The wait open (kit_dlg.php): the view of its window (the facts under the title, the stage and its count over

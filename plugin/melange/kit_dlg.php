@@ -46,7 +46,8 @@
 //   its map and its timer again (a key may stop the timer of the shell; not checked on the device).
 // The keys of both (mel_dlg_press) are those of the error and wait screen of kit_scr.php too.
 // The errors and the messages with one button of our screens come here by the dispatcher, not by their code: the
-// builder of such a window of the shell says the message it is (mel_error, mel_msg: Mel::$dlg, main.php), and the reply
+// builder of such a window of the shell says the message it is (mel_error, mel_msg, with an icon or buttons of its
+// own mel_ask: Mel::$dlg, main.php), and the reply
 // that is this window to an own input of a screen with an overlay opens the simple dialog over it (mel_dlg_of); what has no
 // look of ours approved keeps the window of the shell (mel_msg with tone false, mel_dialog).
 // The state, MelOvl::$st: dlg (MelDlg), wt (MelWait) while open; wt_done (MelWaitDone) after a wait closed by a
