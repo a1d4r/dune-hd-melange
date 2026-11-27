@@ -2013,22 +2013,19 @@ function mel_oc_mark_post($key, $c)
         mel_catv_mains_anew(mel_replace_act("card:$key", $c['tile']['name']), 'after a mark of the own card'));
 }
 
-// MENU: $items ("Смотреть из…", mel_oc_src_items; the marks of an episode, mel_oc_mark_items; of a movie,
-// mel_oc_movie_mark_items; "Карточка Дюны", mel_oc_dune_items), then "Settings", as on the list.
+// MENU of the page of a person (view_person.php): the popup menu of "Settings" alone.
 /**
  * @param string $lang
- * @param list<array<string, mixed>> $items
  * @return MelAction
  */
-function mel_oc_menu($lang, $items = array())
+function mel_oc_menu($lang)
 {
-    $items[] = array(
-        GuiMenuItemDef::caption => mel_tr($lang, 'setup_menu'),
-        GuiMenuItemDef::icon_url => 'gui_skin://small_icons/setup.aai',
-        GuiMenuItemDef::action => mel_setup_open_act());
     return array(
         GuiAction::handler_string_id => SHOW_POPUP_MENU_ACTION_ID,
-        GuiAction::data => array(ShowPopupMenuActionData::menu_items => $items));
+        GuiAction::data => array(ShowPopupMenuActionData::menu_items => array(array(
+            GuiMenuItemDef::caption => mel_tr($lang, 'setup_menu'),
+            GuiMenuItemDef::icon_url => 'gui_skin://small_icons/setup.aai',
+            GuiMenuItemDef::action => mel_setup_open_act()))));
 }
 
 // "Смотреть из" of "Действия" of card $c ($key) at place $pos of layout $l (mel_src_watch_kp: two ready profiles or
@@ -2177,20 +2174,7 @@ function mel_oc_after_stop($post, $dune)
     return mel_cw_apply($a);
 }
 
-// The params of card_src_menu of input $in for its menu of sources: c, s and e of an episode when there.
-/**
- * @param stdClass $in
- * @return array<string, string>
- */
-function mel_oc_src_params($in)
-{
-    $p = array('c' => mel_catv_in($in, 'c'));
-    if (mel_catv_in($in, 's') !== '')
-        $p += array('s' => mel_catv_in($in, 's'), 'e' => mel_catv_in($in, 'e'));
-    return $p;
-}
-
-// card_src (p, n of the profile of the menu of sources; s, e of the episode in focus) of card $c of layout $l: the list
+// card_src (p, n of the profile of "Смотреть из" of the panel; s, e of the episode in focus) of card $c of layout $l: the list
 // from that profile (mel_oc_watch_from; the episode of s, e, else that of "Смотреть"); the profile gone or not ready:
 // its dialog (mel_src_watch_pick), no request.
 /**
@@ -2258,7 +2242,7 @@ function mel_oc_list($key, $c, $l, $pos)
 }
 
 // card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (mel_oc_mark), card_mark_movie,
-// card_load (the timer, mel_oc_tick), card_src_menu, card_src ("Смотреть из…", mel_oc_src), card_lib_copies,
+// card_load (the timer, mel_oc_tick), card_src ("Смотреть из", mel_oc_src), card_lib_copies,
 // card_lib_copy (the copies on the disk, mel_oc_lib_input), card_finish (back from the player, mel_oc_finish) of the
 // card c. MENU: the panel "Действия" over the card (mel_oc_menu_open; of no card mel_oc_menu_lost); under the open
 // overlay of the card its arrows, ENTER and MENU are not done. The keys: the place of mel_oc_next by change_gcomps, null at an edge; the layout of the screen shown
@@ -2307,8 +2291,6 @@ function mel_oc_input($in, $control)
         mel_ovl_drop($key);
         return mel_oc_finish($key, $c);
     }
-    if ($control === 'card_src_menu')
-        return mel_src_popup($c['ui'], 'card_src', mel_oc_src_params($in));
     $l = isset($c['nav']) ? $c['nav'] : mel_oc_layout($c);
     if ($control === 'card_src')
         return mel_oc_src($c, $l, $in);
