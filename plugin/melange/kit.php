@@ -1975,22 +1975,74 @@ class MelKit
      */
     public static function dialog($v)
     {
-        return self::window($v, null, null);
+        $f = self::frame($v);
+        $blocks = array();
+        $gaps = array();
+        $text = isset($v['text']) ? (string) $v['text'] : '';
+        if ($text !== '')
+        {
+            $blocks[] = self::wide("{$f['p']}_text", self::text($text, MEL_K_PX_DESCRIPTION, MEL_K_C_TEXT2, $f['tx'], 0,
+                array('w' => $f['tw'], 'lines' => 3, 'ls' => MEL_K_STEP_DIALOG_TEXT - MEL_K_PX_DESCRIPTION)), $f['tx'],
+                $f['W'] - MEL_K_DIALOG_PAD);
+            $gaps[] = 'm';
+        }
+        return self::framed($f, $blocks, $gaps);
     }
 
-    // The wait window over a screen (r6 W2_ts_window; owner 19.11: the wait of a screen of ours is a window over it):
-    // the dialog (see dialog), after its text -s- the live line {id}_live (MEL_K_PX_SECONDARY, text 3, one line: «прошло
-    // 25 с · скорость 2.1 МБ/с»; '' or none: no block; with no text -m- after the head) -m- the bar {id}_bar (bar wait
-    // MEL_K_DIALOG_BAR_H high, as wide as the text, done share of it) when share is not null. $v: those of dialog,
-    // live, share (0..1 or null).
+    // The wait window over a screen (owner 19.11: the wait of a screen of ours is a window over it; owner 27.11.2026,
+    // frames P1: the bar is the main thing, nothing wraps): the frame of the dialog (see dialog: the shade, the window,
+    // the head, the buttons), its title one line, and on its line at the right pad the time {id}_time
+    // (MEL_K_PX_SECONDARY, text 3: «прошло 25 с»; the title cut MEL_K_GAP_M before it). Under the head by stack:
+    //   -m- the facts {id}_facts (MEL_K_PX_SECONDARY, text 3: «Джентльмены (2019) · 4K · Remux · 24.2 ГБ»; '' or
+    //       none: no block);
+    //   -l- (with no facts -m-) the stage {id}_stage: the stage on the left («Буфер»), the count at the right pad
+    //       («28 из 32 МБ»), both MEL_K_PX_DESCRIPTION, text 2; always there, either may be '';
+    //   -s- the bar {id}_bar (bar wait MEL_K_DIALOG_BAR_H high, done share of it), always there: the empty track at 0;
+    //   -m- the foot {id}_foot: two facts at the edges (MEL_K_PX_SECONDARY), foot_l on the left in the colour of
+    //       foot_tone («Скорость 17 Мбит/с, нужно ~69 Мбит/с» in warn), foot_r at the right pad in text 3 («Пиров 9 из
+    //       31, сидов 8»); both '' or none: no block;
+    //   -l- the buttons.
+    // Every text is one line: the facts cut with «…» at the width of the content; of two at the edges the right one
+    // whole (wider than the content: cut), the left one cut MEL_K_GAP_M before it. $v: id, icon, tone, title, buttons
+    // (as dialog), time, facts, stage, count, share (0..1; none: 0), foot_l, foot_r, foot_tone ('' text 3, warn, err,
+    // ok). The blocks from the title to the right pad, each a group of its id as wide as the content: a tick changes
+    // them by their children, the window whole only when the facts, the foot or a button come or go.
     /**
      * @param array<string, mixed> $v
      * @return MelKitItem
      */
     public static function wait_box($v)
     {
-        return self::window($v, isset($v['live']) ? (string) $v['live'] : '',
-            isset($v['share']) ? (float) $v['share'] : null);
+        $f = self::frame($v, 1, isset($v['time']) ? (string) $v['time'] : '');
+        $p = $f['p'];
+        $x0 = $f['tx'];
+        $x1 = $f['W'] - MEL_K_DIALOG_PAD;
+        $blocks = array();
+        $gaps = array();
+        $facts = isset($v['facts']) ? (string) $v['facts'] : '';
+        if ($facts !== '')
+        {
+            $blocks[] = self::wide("{$p}_facts", self::text($facts, MEL_K_PX_SECONDARY, MEL_K_C_TEXT3, $x0, 0,
+                array('w' => $f['tw'])), $x0, $x1);
+            $gaps[] = 'm';
+        }
+        $blocks[] = self::wide("{$p}_stage", self::sides(isset($v['stage']) ? (string) $v['stage'] : '',
+            isset($v['count']) ? (string) $v['count'] : '', MEL_K_PX_DESCRIPTION, MEL_K_C_TEXT2, MEL_K_C_TEXT2, $x0, $x1,
+            'wait stage'), $x0, $x1);
+        $gaps[] = $facts !== '' ? 'l' : 'm';
+        $blocks[] = self::group("{$p}_bar", self::bar('wait', $x0, 0, $f['tw'], MEL_K_DIALOG_BAR_H,
+            isset($v['share']) ? (float) $v['share'] : 0));
+        $gaps[] = 's';
+        $fl = isset($v['foot_l']) ? (string) $v['foot_l'] : '';
+        $fr = isset($v['foot_r']) ? (string) $v['foot_r'] : '';
+        if ($fl !== '' || $fr !== '')
+        {
+            $blocks[] = self::wide("{$p}_foot", self::sides($fl, $fr, MEL_K_PX_SECONDARY, self::tone_color(
+                'wait foot tone', isset($v['foot_tone']) ? (string) $v['foot_tone'] : '', MEL_K_C_TEXT3), MEL_K_C_TEXT3,
+                $x0, $x1, 'wait foot'), $x0, $x1);
+            $gaps[] = 'm';
+        }
+        return self::framed($f, $blocks, $gaps);
     }
 
     // --- The screen of an error or a wait of the whole screen (stage 6b-2): the builder. Its folder, keys and ticks:
@@ -2013,8 +2065,8 @@ class MelKit
     //             (button, MEL_K_DIALOG_BTN_GAP apart, from MEL_K_PAGE_X) -l- the detail {id}_detail
     //             (MEL_K_PX_CAPTION, text 3, from MEL_K_PAGE_X: «Код ошибки плеера: 99»). The text, the bar and the
     //             live line start where the title does; a block '' or none (share null) is not there.
-    // $v: id (default err); bg, nl (null none), logo (bool), sub; icon (k_icon_*, '' none), tone ('' text 2, warn,
-    // err); title, text, live, share, detail; buttons (as dialog, 3 at most). Every block of the column is a group of
+    // $v: id (default err); bg, nl (null none), logo (bool), sub; icon (k_icon_*, '' none), tone (as dialog: '' text 2,
+    // warn, err, ok); title, text, live, share, detail; buttons (as dialog, 3 at most). Every block of the column is a group of
     // its id, the head, the text and the live line as wide as the column: a key or a tick changes a block by its
     // children (mel_dlg_diff of the two components). Edges: the screen.
     /**
@@ -2045,8 +2097,7 @@ class MelKit
         $icon = isset($v['icon']) ? (string) $v['icon'] : '';
         if ($icon !== '')
         {
-            $tone = self::state('page tone', isset($v['tone']) ? (string) $v['tone'] : '', array('warn', 'err'));
-            $fg = $tone === 'err' ? MEL_K_C_ERR : ($tone === 'warn' ? MEL_K_C_WARN : MEL_K_C_TEXT2);
+            $fg = self::tone_color('page tone', isset($v['tone']) ? (string) $v['tone'] : '');
             // The row sets the title where it is (the first text), the icon on its line; the rhythm goes by the title.
             $head = self::row(array(self::icon($icon, MEL_K_ICON_PAGE, $fg, 0, 0, array('box' => true)), $t),
                 MEL_K_ICON_GAP_PAGE, $x, null, 'page head', true);
@@ -2156,14 +2207,37 @@ class MelKit
         return self::group($id, $it);
     }
 
-    // The window of dialog and wait_box: $live null (a dialog) or '' none, $share null none.
+    // The colour of tone $tone of an icon ($what: for the log): warn, err, ok; '' $none; another: logged once, $none.
+    /**
+     * @param string $what
+     * @param string $tone
+     * @param string $none
+     * @return string
+     */
+    private static function tone_color($what, $tone, $none = MEL_K_C_TEXT2)
+    {
+        $c = array('warn' => MEL_K_C_WARN, 'err' => MEL_K_C_ERR, 'ok' => MEL_K_C_OK);
+        $tone = self::state($what, $tone, array_keys($c));
+        return $tone !== '' ? $c[$tone] : $none;
+    }
+
+    // The frame of the window of dialog and wait_box, what does not depend on its middle. $v: id, icon, tone, title,
+    // buttons (see dialog); the title in $lines lines at most; $side: the text at the right pad on the line of the
+    // title (the time of a wait; '' none), the title cut MEL_K_GAP_M before it. ->
+    //   p     the prefix of the ids;
+    //   W     the width of the window: MEL_K_DIALOG_W, wider by its buttons up to MEL_K_DIALOG_W_MAX;
+    //   tx, tw  the left of the title, where the blocks of the middle start, and their width up to the right pad;
+    //   head  the block {p}_head, from the pad to the right pad, at its place in the window (-l- from its top);
+    //   side  the block {p}_time of $side (null none), from the title to the right pad: on the line of the title, not
+    //         in the stack of the window (the rhythm goes by the title);
+    //   rows  the lines of the buttons {p}_b<n>: as many as fit in the window from the pad, the rest on the next line.
     /**
      * @param array<string, mixed> $v
-     * @param string|null $live
-     * @param float|null $share
-     * @return MelKitItem
+     * @param int $lines
+     * @param string $side
+     * @return array{p: string, W: int, tx: int, tw: int, head: MelKitItem, side: MelKitItem|null, rows: list<MelKitItem>}
      */
-    private static function window($v, $live, $share)
+    private static function frame($v, $lines = 2, $side = '')
     {
         $p = isset($v['id']) ? (string) $v['id'] : 'dlg';
         $pad = MEL_K_DIALOG_PAD;
@@ -2183,42 +2257,18 @@ class MelKit
         $icon = isset($v['icon']) ? (string) $v['icon'] : '';
         $tx = $pad + ($icon !== '' ? MEL_K_ICON_DIALOG + MEL_K_ICON_GAP_DIALOG : 0);
         $tw = $W - $pad - $tx;
+        $time = $side !== '' ? self::text($side, MEL_K_PX_SECONDARY, MEL_K_C_TEXT3, 0, 0, array('w' => $tw)) : null;
         $t = self::text(isset($v['title']) ? (string) $v['title'] : '', MEL_K_PX_STATUS_TITLE, MEL_K_C_TEXT1, $tx, 0,
-            array('w' => $tw, 'lines' => 2, 'ls' => MEL_K_STEP_DIALOG_TITLE - MEL_K_PX_STATUS_TITLE));
+            array('w' => max(0, $tw - ($time !== null ? $time['x1'] - $time['x0'] + MEL_K_GAP_M : 0)), 'lines' => $lines,
+                'ls' => MEL_K_STEP_DIALOG_TITLE - MEL_K_PX_STATUS_TITLE));
         $head = $t;
         if ($icon !== '')
         {
-            $tone = self::state('dialog tone', isset($v['tone']) ? (string) $v['tone'] : '', array('warn', 'err', 'ok'));
-            $fg = $tone === 'err' ? MEL_K_C_ERR : ($tone === 'warn' ? MEL_K_C_WARN : ($tone === 'ok' ? MEL_K_C_OK
-                : MEL_K_C_TEXT2));
+            $fg = self::tone_color('dialog tone', isset($v['tone']) ? (string) $v['tone'] : '');
             // The row sets the title where it is (the first text), the icon on its line; the rhythm goes by the title.
             $head = self::row(array(self::icon($icon, MEL_K_ICON_DIALOG, $fg, 0, 0, array('box' => true)), $t),
                 MEL_K_ICON_GAP_DIALOG, $pad, null, 'dialog head', true);
         }
-        $blocks = array(self::wide("{$p}_head", $head, $pad, $W - $pad));
-        $gaps = array();
-        // The gaps by groups: the head -m- the text -s- the live line -m- the bar.
-        $gap = 'm';
-        $text = isset($v['text']) ? (string) $v['text'] : '';
-        if ($text !== '')
-        {
-            $blocks[] = self::wide("{$p}_text", self::text($text, MEL_K_PX_DESCRIPTION, MEL_K_C_TEXT2, $tx, 0,
-                array('w' => $tw, 'lines' => 3, 'ls' => MEL_K_STEP_DIALOG_TEXT - MEL_K_PX_DESCRIPTION)), $tx, $W - $pad);
-            $gaps[] = $gap;
-            $gap = 's';
-        }
-        if ($live !== null && $live !== '')
-        {
-            $blocks[] = self::wide("{$p}_live", self::text($live, MEL_K_PX_SECONDARY, MEL_K_C_TEXT3, $tx, 0,
-                array('w' => $tw)), $tx, $W - $pad);
-            $gaps[] = $gap;
-        }
-        if ($share !== null)
-        {
-            $blocks[] = self::group("{$p}_bar", self::bar('wait', $tx, 0, $tw, MEL_K_DIALOG_BAR_H, $share));
-            $gaps[] = 'm';
-        }
-        // The lines of buttons: as many as fit in the window from the pad, the rest on the next line.
         $rows = array(array());
         $at = $pad;
         foreach ($items as $it)
@@ -2233,9 +2283,70 @@ class MelKit
             $rows[$j][] = $it;
             $at += $w + MEL_K_DIALOG_BTN_GAP;
         }
+        $lined = array();
         foreach ($items ? $rows : array() as $j => $r)
+            $lined[] = self::row($r, MEL_K_DIALOG_BTN_GAP, $pad, null, $j ? 'dialog buttons ' . ($j + 1) : 'dialog buttons');
+        $head = self::move($head, 0, MEL_K_GAP_L - $head['top']);
+        if ($time !== null)
         {
-            $blocks[] = self::row($r, MEL_K_DIALOG_BTN_GAP, $pad, null, $j ? 'dialog buttons ' . ($j + 1) : 'dialog buttons');
+            // By hand, not by row: the block of the title keeps its edges (the gap under the head is from the title).
+            $time = self::move($time, $W - $pad - $time['x1'], (int) round($head['mid'] - $time['mid']));
+            if (self::$trace !== null)
+                self::trace('row', array(array_merge($head, array('ids' => $t['ids'])), $time), 0, 'dialog head side');
+            $time = self::wide("{$p}_time", $time, $tx, $W - $pad);
+        }
+        return array('p' => $p, 'W' => $W, 'tx' => $tx, 'tw' => $tw, 'head' => self::wide("{$p}_head", $head, $pad,
+            $W - $pad), 'side' => $time, 'rows' => $lined);
+    }
+
+    // Two texts of one line at the edges $x0 and $x1, $px: $l from the left in $cl, $r to the right in $cr; $r whole
+    // (wider than the line: cut with «…»), $l cut MEL_K_GAP_M before it; '' no text, both '' an empty line of its
+    // height. A row $name, its edges those of the text.
+    /**
+     * @param string $l
+     * @param string $r
+     * @param int $px
+     * @param string $cl
+     * @param string $cr
+     * @param int $x0
+     * @param int $x1
+     * @param string $name
+     * @return MelKitItem
+     */
+    private static function sides($l, $r, $px, $cl, $cr, $x0, $x1, $name)
+    {
+        $its = array();
+        $room = $x1 - $x0;
+        $rt = $r !== '' ? self::text($r, $px, $cr, 0, 0, array('w' => $room)) : null;
+        $rw = $rt !== null ? $rt['x1'] - $rt['x0'] : 0;
+        if ($rt !== null)
+            $room = max(0, $room - $rw - MEL_K_GAP_M);
+        if ($l !== '' || $rt === null)
+            $its[] = self::text($l, $px, $cl, 0, 0, array('w' => $room));
+        $lw = $its ? $its[0]['x1'] - $its[0]['x0'] : 0;
+        if ($rt !== null)
+            $its[] = $rt;
+        return self::row($its, $x1 - $x0 - $lw - $rw, $x0, null, $name, true);
+    }
+
+    // The window of frame $f with the middle $blocks, from the top down by stack: -l- from its top the head, the
+    // middle ($gaps: the gap before each of its blocks), -l- the lines of the buttons (-s- between two), -l- the
+    // bottom; after them the side of the head (see frame); the plate dialog and its outline dialog_line under them,
+    // the window {p}_win centred on the screen over the shade {p}_dim.
+    /**
+     * @param array{p: string, W: int, tx: int, tw: int, head: MelKitItem, side: MelKitItem|null, rows: list<MelKitItem>} $f
+     * @param list<MelKitItem> $blocks
+     * @param list<string> $gaps
+     * @return MelKitItem
+     */
+    private static function framed($f, $blocks, $gaps)
+    {
+        $p = $f['p'];
+        $W = $f['W'];
+        array_unshift($blocks, $f['head']);
+        foreach ($f['rows'] as $j => $r)
+        {
+            $blocks[] = $r;
             $gaps[] = $j ? 's' : 'l';
         }
         $body = self::stack($blocks, $gaps, MEL_K_GAP_L, 'dialog');
@@ -2243,10 +2354,11 @@ class MelKit
         $bg = self::plate('dialog', 0, 0, $W, $h);
         $line = self::plate('dialog_line', 0, 0, $W, $h);
         $win = mel_gc_panel("{$p}_win", mel_gc_at($W, $h, intval((1920 - $W) / 2), (int) round(540 - $h / 2)),
-            array_merge($bg['defs'], $line['defs'], $body['defs']));
+            array_merge($bg['defs'], $line['defs'], $body['defs'], $f['side'] !== null ? $f['side']['defs'] : array()));
         $out = self::box(array(mel_gc_rect(mel_gc_at(1920, 1080, 0, 0), MEL_K_C_SCRIM, "{$p}_dim"), $win), 0, 0, 1920,
             1080);
         $out['kind'] = 'dialog';
         return $out;
     }
 }
+
