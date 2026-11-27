@@ -466,8 +466,8 @@ function mel_pre_twin($rows, $r, $failed)
 // on several services (0.56.0): the service that refused names the dialog, its
 // reason under it; a copy of a service not refused on this start yet - the button
 // "Via <it>" (mel_pre_via). A reason of mel_pre_twin_key and another release of the
-// file in the list (mel_pre_twin, not refused on this start) - the button "The same
-// episode from another release" (mel_pre_twin_go), after "Via". A button: the start
+// file in the list (mel_pre_twin, not refused on this start) - the button "From
+// another release" (pre_twin, of an episode too: mel_pre_twin_go), after "Via". A button: the start
 // kept in Mel::$alt till then (tried: the services refused of the row, rows: the
 // rows refused, both on this start). A row of one copy without the button: the
 // error as before 0.56.0 (mel_error, mel_next_failed); with it, a dialog of the
@@ -535,8 +535,8 @@ function mel_pre_failed($st, $r, $pos, $lazy, $pre, $from)
         $bs[] = mel_btn(str_replace('{svc}', $via['service'] !== '' ? $via['service'] : $via['svc'], mel_tr($lang, 'pre_via')),
             'k_icon_zap', mel_gc_act($own ? 'gc_via' : 'pre_via', $st['rid'], array('i' => strval($i), 'svc' => $via['svc'])));
     if ($twin >= 0)
-        $bs[] = mel_btn(mel_tr($lang, $st['e'] > 0 ? 'pre_twin' : 'pre_twin_movie'),
-            'k_icon_film', mel_gc_act($own ? 'gc_twin' : 'pre_twin', $st['rid'], array('i' => strval($i), 'j' => strval($twin))));
+        $bs[] = mel_btn(mel_tr($lang, 'pre_twin'), 'k_icon_film',
+            mel_gc_act($own ? 'gc_twin' : 'pre_twin', $st['rid'], array('i' => strval($i), 'j' => strval($twin))));
     $name = $copies ? str_replace('{svc}', $r['service'] !== '' ? $r['service'] : $svc, mel_tr($lang, 'pre_svc_failed')) : '';
     if ($own)
     {
