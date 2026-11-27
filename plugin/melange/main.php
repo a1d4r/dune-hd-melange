@@ -298,8 +298,9 @@ function mel_error_act($key, $detail = '', $stop = false, $title = null)
 }
 
 // The error of key $key with detail $detail (mel_error_act; $title: its title a text, not the key). It says what it
-// is (Mel::$dlg): the title, the detail its text, OK - over a screen of ours the dialog of ours in tone $tone (err,
-// warn; null: err with a detail, warn without); one that stops the player ($stop) stays the window of the shell.
+// is (Mel::$dlg): the title, the detail whole its text (the lines of the window of the shell are cut for its width;
+// the dialog of ours wraps and cuts its own), OK - over a screen of ours the dialog of ours in tone $tone (err, warn;
+// null: err with a detail, warn without); one that stops the player ($stop) stays the window of the shell.
 // $log false: an action shown later, if ever (not logged now).
 /**
  * @param string $key
@@ -315,9 +316,8 @@ function mel_error($key, $detail = '', $stop = false, $log = true, $title = null
     if ($log)
         mel_log("error: $key" . ($detail !== '' ? " ($detail)" : ''));
     $a = mel_error_act($key, $detail, $stop, $title);
-    $lines = $a[GuiAction::data][PluginShowErrorActionData::msg_lines];
     Mel::$dlg = array('shell' => $a, 'desc' => $stop ? null : array('key' => $title !== null ? '' : $key,
-        'title' => strval($title), 'text' => is_array($lines) ? implode(' ', $lines) : '', 'tone' => $tone, 'ok' => 'OK'));
+        'title' => strval($title), 'text' => trim(strval($detail)), 'tone' => $tone, 'ok' => 'OK'));
     return $a;
 }
 
@@ -2389,6 +2389,9 @@ function mel_stop_and($post)
             StopPlaybackActionData::post_action => $post)));
 }
 
+// Between the paragraphs of the text of a message in the dialog of ours (mel_msg): the reason, then its detail.
+define('MEL_MSG_SEP', ' — ');
+
 // Dialog over the stopped player or a screen: text lines and buttons
 // (caption => action, named btn0, btn1, ...). A window of the shell everywhere (Mel::$dlg: no message said of it);
 // the message with OK that is the dialog of ours over a screen of ours: mel_msg.
@@ -2407,9 +2410,11 @@ function mel_dialog($title, $lines, $buttons)
 }
 
 // A message that says one thing and only closes: title $title, the paragraphs $parts of its text (the reason, then
-// its detail; '' none) and OK - the dialog of the shell of their lines (mel_dialog_lines of each). It says what it is
-// (Mel::$dlg): over a screen of ours the dialog of ours in tone $tone (err, warn; null: err with a text, warn
-// without); false: none - no look of ours approved for it (a success, a doubt), the window of the shell everywhere.
+// its detail; '' none) and OK - the dialog of the shell of their lines (mel_dialog_lines of each: cut for its width).
+// It says what it is (Mel::$dlg): over a screen of ours the dialog of ours in tone $tone (err, warn; null: err with a
+// text, warn without), its text the paragraphs whole, MEL_MSG_SEP between them (MelKit::dialog has one text of 3
+// lines and no line break in it; it wraps and cuts its own); false: none - no look of ours approved for it (a
+// success, a doubt), the window of the shell everywhere.
 /**
  * @param string $title
  * @param list<string> $parts
@@ -2419,11 +2424,17 @@ function mel_dialog($title, $lines, $buttons)
 function mel_msg($title, $parts = array(), $tone = null)
 {
     $lines = array();
+    $text = array();
     foreach ($parts as $p)
+    {
         $lines = array_merge($lines, mel_dialog_lines($p));
+        if (trim($p) !== '')
+            $text[] = trim($p);
+    }
     $a = mel_dialog($title, $lines, array('OK' => mel_close_and(null)));
     if ($tone !== false)
-        Mel::$dlg['desc'] = array('key' => '', 'title' => $title, 'text' => implode(' ', $lines), 'tone' => $tone, 'ok' => 'OK');
+        Mel::$dlg['desc'] = array('key' => '', 'title' => $title, 'text' => implode(MEL_MSG_SEP, $text), 'tone' => $tone,
+            'ok' => 'OK');
     return $a;
 }
 
