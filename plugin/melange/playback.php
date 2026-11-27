@@ -526,9 +526,10 @@ function mel_pre_failed($st, $r, $pos, $lazy, $pre, $from)
         $r['copy'] + 1, count($r['copies']), $svc) : '') . ", row $i -> dialog, " .
         ($offer ? implode(', ', $offer) . ' offered' : 'no other copy left'));
     $lines = array_merge(mel_dialog_lines(mel_tr($lang, $key)), mel_dialog_lines($detail));
-    // A start from the list on screen ($from its rid): its buttons are own inputs of the list (gc_via, gc_twin), run
-    // after the close of the window (mel_ask: the dialog of ours over the list). Else - under the player, "Continue"
-    // with no list under it - a window of the shell, its buttons pressed while it is open (pre_via, pre_twin).
+    // $own picks the set of the buttons, not the look of the window (that is of mel_dlg_of: the dialog of ours over a
+    // screen of ours, else the window of the shell). A start from the list on screen ($from its rid): the buttons are
+    // own inputs of the list (gc_via, gc_twin), run after the close of the window (mel_ask). Else - under the player,
+    // "Continue" with no list under it - those pressed while the window is open (pre_via, pre_twin).
     $own = !$lazy && $from !== '' && $from === $st['rid'];
     $bs = array();
     if ($via)
