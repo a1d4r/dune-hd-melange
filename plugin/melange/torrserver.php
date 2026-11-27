@@ -757,8 +757,8 @@ function mel_ts_map_urls($base, $hash, $files, $map, $s, $e)
 
 // --- The chain.
 
-// The address of TorrServer of the settings as a message shows it: host:port, no scheme (not a URL: as it is)
-// -> array(it, is it the Dune itself: 127.0.0.1, localhost).
+// The address of TorrServer of the settings as a message shows it: host:port, no scheme, no login of it (not a URL:
+// '' - none shown, a login may be in it) -> array(it, is it the Dune itself: 127.0.0.1, localhost).
 /**
  * @return array{string, bool}
  */
@@ -766,7 +766,7 @@ function mel_ts_shown_addr()
 {
     $u = parse_url(Mel::$settings['ts']);
     if (!is_array($u) || !isset($u['host']))
-        return array(Mel::$settings['ts'], false);
+        return array('', false);
     return array($u['host'] . (isset($u['port']) ? ":{$u['port']}" : ''),
         in_array(strtolower($u['host']), array('127.0.0.1', 'localhost'), true));
 }
@@ -774,7 +774,7 @@ function mel_ts_shown_addr()
 // "Could not open via TorrServer": the reason, its detail, OK; over the
 // stopped player of a lazy episode ($lazy) - "Stop", as mel_next_failed. No answer (ts_err_down; owner 27.11.2026):
 // "TorrServer is not responding", what to do - the app TorrServe "on the Dune" when the address is the Dune itself -
-// and the address (mel_ts_shown_addr), the detail of curl in the log alone; with $retry (the start again, run after the
+// and the address (mel_ts_shown_addr; none to show: no colon, no address), the detail of curl in the log alone; with $retry (the start again, run after the
 // close; null: nothing to start again) - "Повторить" first and "Отмена", else OK.
 /**
  * @param string $lang
@@ -793,7 +793,8 @@ function mel_ts_fail($lang, $key, $detail = '', $lazy = false, $retry = null)
     {
         list($addr, $dune) = mel_ts_shown_addr();
         $title = mel_tr($lang, 'tsl_down_title');
-        $parts = array(str_replace('{addr}', $addr, mel_tr($lang, $dune ? 'ts_down_dune' : 'ts_down_other')));
+        $text = mel_tr($lang, $dune ? 'ts_down_dune' : 'ts_down_other');
+        $parts = array($addr !== '' ? str_replace('{addr}', $addr, $text) : str_replace(': {addr}', '', $text));
     }
     if ($lazy)
     {
@@ -802,7 +803,7 @@ function mel_ts_fail($lang, $key, $detail = '', $lazy = false, $retry = null)
             $lines = array_merge($lines, mel_dialog_lines($p));
         return mel_dialog($title, $lines, array(mel_tr($lang, 'next_stop') => mel_input('next_stop')));
     }
-    if ($key === 'ts_err_down' && $retry)
+    if ($retry)
         return mel_ask($title, $parts, 'k_icon_circle-x', 'err', array(
             mel_btn(mel_tr($lang, 'cat_retry'), 'k_icon_refresh-cw', $retry), mel_btn(mel_tr($lang, 'ks_cancel'), 'k_icon_x')));
     return mel_msg($title, $parts);
