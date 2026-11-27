@@ -1404,7 +1404,8 @@ function mel_lpv_errors_of($st)
 // --- MENU and the keys of the lists.
 
 // lp_refresh ("Обновить") of the online list $st: a new search, not within MEL_LPV_REFRESH s of
-// the last one (a message then); $scr, the record of its screen: the wait window of ours over it (mel_lpv_search_open).
+// the last one (a message then); $scr, the record of its screen: the wait window of ours over it (mel_lpv_search_open;
+// "Повторить" of its window of no answer: lp_refresh again).
 /**
  * @param MelState $st
  * @param MelOvlScreen|null $scr
@@ -1420,7 +1421,8 @@ function mel_lpv_refresh($st, $scr = null)
         return mel_ask(mel_lpv_tr($st['lang'], 'lp_refresh_wait', array('n' => $wait)), array(), 'k_icon_hourglass', '',
             array(mel_btn_ok()));
     }
-    return mel_lpv_search_open($st, 'replace', array('scr' => $scr));
+    return mel_lpv_search_open($st, 'replace', array('scr' => $scr, 'retry' => mel_gc_act('lp_refresh', $st['rid']),
+        'other' => mel_gc_src_menu_act($st)));
 }
 
 // lp_pick (ENTER) of the online list $st: the line of a balancer - folded or unfolded (mel_lpv_fold); the row "Ещё N" - the

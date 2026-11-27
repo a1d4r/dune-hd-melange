@@ -250,6 +250,38 @@ function mel_gc_errs($in)
     return mel_kp_open($scr, mel_errors_panel(mel_tr($st['lang'], 'errors_menu'), $st['lang'], $st['src_errors']));
 }
 
+// The action of gc_src_menu of live list $st, «Другой источник» of a window over it (mel_gc_src_menu); no submenu
+// "Источник" of it (fewer than two profiles ready, mel_src_panel): null.
+/**
+ * @param MelState $st
+ * @return MelAction|null
+ */
+function mel_gc_src_menu_act($st)
+{
+    return mel_src_in_menu(mel_rel_id($st['movie']) === '') ? mel_gc_act('gc_src_menu', $st['rid']) : null;
+}
+
+// gc_src_menu («Другой источник» of the window of a search with nothing found, mel_lpv_result) of a live list: the
+// submenu "Источник" of its "Действия" (mel_src_panel, as mel_src_item of mel_gc_actions and mel_lpv_actions has it)
+// over it, itself the panel. A list not live, no such submenu: nothing.
+/**
+ * @param stdClass $in
+ * @return MelAction|null
+ */
+function mel_gc_src_menu($in)
+{
+    $st = Mel::$state;
+    $d = $st && isset($in->rid) && $in->rid === $st['rid'] ? mel_src_panel($st['lang'], 'gc_src', array('rid' => $st['rid']),
+        mel_src_now($st), mel_rel_id($st['movie']) === '') : null;
+    if (!$st || !$d)
+    {
+        mel_log('source: menu: not a live list or no choice of sources, nothing');
+        return null;
+    }
+    list($scr) = mel_gc_scr_live($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null, true);
+    return mel_kp_open($scr, $d);
+}
+
 // gc_src (p: the id of a profile, n: its name for the dialog; MENU "Источник") of a live list: this title from
 // that profile on this screen only (spec v2 §2.2, nothing written). The one of the screen: nothing; of the releases
 // with the yellow line - the line gone. A profile of releases: mel_src_releases; of Lampac: mel_src_lampac. The profile
@@ -296,7 +328,8 @@ function mel_gc_src($in)
     if (!mel_profile_rel($s['profiles'][$k]))
     {
         list($scr) = mel_gc_scr_live($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
-        return mel_src_lampac($st, $id, $tag, $scr);
+        // "Повторить" of its window of no answer: this gc_src again.
+        return mel_src_lampac($st, $id, $tag, $scr, mel_gc_act('gc_src', $st['rid'], array('p' => $id, 'n' => $name)));
     }
     // No IMDb and no TMDB: no releases (the menu has none of them; one of an old menu - the message).
     if (mel_rel_id($st['movie']) === '')
@@ -378,15 +411,17 @@ function mel_src_releases($st, $id, $tag, $title, $sel_state, $errs = null)
 // The online list of the profile of Lampac $id for list $st (mel_gc_src; $tag of the log): its online list there younger
 // than MEL_LPV_REFRESH s - back to it, no request; else the window "Ищу в <its source>…" of it over the screen (of record $scr:
 // the wait window of ours; the list of that Lampac in its place at the end; its windows of no answer, nothing online
-// keep the screen and its profiles). No online list of this list (a series without its episode): nothing.
+// keep the screen and its profiles; of the window of ours with $retry, the action of its "Повторить", and "Другой
+// источник" - mel_lpv_search_open). No online list of this list (a series without its episode): nothing.
 /**
  * @param MelState $st
  * @param string $id
  * @param string $tag
  * @param MelOvlScreen|null $scr
+ * @param MelAction|null $retry
  * @return MelAction|null
  */
-function mel_src_lampac($st, $id, $tag, $scr = null)
+function mel_src_lampac($st, $id, $tag, $scr = null, $retry = null)
 {
     $old = Mel::$settings;
     mel_op_use($st['prof'], $id);
@@ -409,7 +444,7 @@ function mel_src_lampac($st, $id, $tag, $scr = null)
     $ns = $st;
     $ns['lp_prof'] = $id;
     mel_log("$tag: the search");
-    return mel_lpv_search_open($ns, 'replace', array('scr' => $scr));
+    return mel_lpv_search_open($ns, 'replace', array('scr' => $scr, 'retry' => $retry, 'other' => mel_gc_src_menu_act($st)));
 }
 
 // --- The name of the source over the lists (the releases and the online list, view_online.php).

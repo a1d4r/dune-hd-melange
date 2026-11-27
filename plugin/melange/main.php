@@ -2422,6 +2422,20 @@ function mel_dialog($title, $lines, $buttons)
  */
 function mel_msg($title, $parts = array(), $tone = null)
 {
+    list($lines, $text) = mel_msg_parts($parts);
+    $a = mel_dialog($title, $lines, array('OK' => mel_close_and(null)));
+    return mel_msg_say($a, $title, $text, 'OK', $tone);
+}
+
+// The paragraphs $parts of the text of a message for both its looks: the lines of the dialog of the shell
+// (mel_dialog_lines of each: cut for its width) and the one text of the dialog of ours (MEL_MSG_SEP between those not
+// empty).
+/**
+ * @param list<string> $parts
+ * @return array{list<string>, string}
+ */
+function mel_msg_parts($parts)
+{
     $lines = array();
     $text = array();
     foreach ($parts as $p)
@@ -2430,8 +2444,7 @@ function mel_msg($title, $parts = array(), $tone = null)
         if (trim($p) !== '')
             $text[] = trim($p);
     }
-    $a = mel_dialog($title, $lines, array('OK' => mel_close_and(null)));
-    return mel_msg_say($a, $title, implode(MEL_MSG_SEP, $text), 'OK', $tone);
+    return array($lines, implode(MEL_MSG_SEP, $text));
 }
 
 // Window $a of the shell, whole as it is returned, is a message that says one thing and only closes by its one
@@ -2479,9 +2492,9 @@ function mel_btn_ok()
 
 // A window with an icon or buttons of its own: title $title, the paragraphs $parts of its text (as mel_msg) and
 // $buttons (mel_btn, 1 to 3, the first in focus; RETURN only closes), said once for both its looks - the dialog of the
-// shell, each button closes it, then its act (mel_close_and), and (Mel::$dlg, the description whole: MelDlgAsk) over a
-// screen of ours the dialog of ours with icon $icon (k_icon_*) in tone $tone ('' grey, warn, err, ok), the same
-// buttons with their icons, the act after its close.
+// shell, each button closes it, then its act (mel_close_and), and (mel_ask_say) over a screen of ours the dialog of
+// ours with icon $icon (k_icon_*) in tone $tone ('' grey, warn, err, ok), the same buttons with their icons, the act
+// after its close.
 /**
  * @param string $title
  * @param list<string> $parts
@@ -2492,20 +2505,32 @@ function mel_btn_ok()
  */
 function mel_ask($title, $parts, $icon, $tone, $buttons)
 {
-    $lines = array();
-    $text = array();
-    foreach ($parts as $p)
-    {
-        $lines = array_merge($lines, mel_dialog_lines($p));
-        if (trim($p) !== '')
-            $text[] = trim($p);
-    }
+    list($lines, $text) = mel_msg_parts($parts);
     $shell = array();
     foreach ($buttons as $b)
         $shell[$b['label']] = mel_close_and($b['act']);
-    $a = mel_dialog($title, $lines, $shell);
+    return mel_ask_say(mel_dialog($title, $lines, $shell), $title, $text, $icon, $tone, $buttons);
+}
+
+// Window $a of the shell, whole as it is returned, is a window with an icon or buttons of its own - said so
+// (Mel::$dlg, the description whole: MelDlgAsk): over a screen of ours the dialog of ours of title $title, text $text
+// ('' none), icon $icon (k_icon_*) in tone $tone ('' grey, warn, err, ok) and $buttons (mel_btn, 1 to 3, the first in
+// focus; the act of each after the close). mel_ask, and a window whose look of the shell is not that of mel_ask (its
+// buttons and keys its own). $cancel: what the dialog of ours runs after its close by RETURN (null: it only closes).
+/**
+ * @param MelAction $a
+ * @param string $title
+ * @param string $text
+ * @param string $icon
+ * @param string $tone
+ * @param list<array{label: string, icon: string, act: MelAction|null}> $buttons
+ * @param MelAction|null $cancel
+ * @return MelAction
+ */
+function mel_ask_say($a, $title, $text, $icon, $tone, $buttons, $cancel = null)
+{
     Mel::$dlg = array('shell' => $a, 'desc' => array('icon' => $icon, 'tone' => $tone, 'title' => $title,
-        'text' => implode(MEL_MSG_SEP, $text), 'buttons' => $buttons));
+        'text' => $text, 'buttons' => $buttons, 'cancel' => $cancel));
     return $a;
 }
 
@@ -2765,6 +2790,8 @@ function mel_handle_user_input($in)
         return mel_gc_src($in);
     if ($control === 'gc_src_errs')
         return mel_gc_errs($in);
+    if ($control === 'gc_src_menu')
+        return mel_gc_src_menu($in);
     if ($control === 'gc_choose')
         return mel_choose($in);
     if ($control === 'gc_chosen')

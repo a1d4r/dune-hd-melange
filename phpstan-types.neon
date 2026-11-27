@@ -84,7 +84,7 @@ parameters:
         MelLpLine: "array{k: 'head'|'shut'|'row'|'one'|'more', i: int, n: int, q: string}"
         # The search window between its ticks (MelLpv::$run, mel_lpv_search_open, online_search.php).
         # The view of the search so far in v, the poll of its replies (mel_lp_poll), more: the rows before "Ещё N" (-1: a new search).
-        MelLpRun: 'array{sid: string, st: MelState, base: string, how: string, back: bool, path: string, key: string, fail: string, phase: string, search: MelLpSearch|null, v: MelLpView, poll: MelLpPoll, more: int}'
+        MelLpRun: 'array{sid: string, st: MelState, base: string, how: string, back: bool, path: string, key: string, fail: string, phase: string, search: MelLpSearch|null, v: MelLpView, poll: MelLpPoll, more: int, retry: MelAction|null, other: MelAction|null}'
         # What the search of a run shows (mel_lpv_search_view): the fields of a wait window (MelWaitTick) and the two lines
         # of the dialog of the shell.
         MelLpSearchView: 'array{stage: string, count: string, share: float, late: bool, shell_lines: array{string, string}}'
@@ -372,8 +372,9 @@ parameters:
         MelDlgSay: 'array{key: string, title: string, text: string, tone: string|null, ok: string, act: MelAction|null}'
         # What the builder of a window of the shell with an icon or buttons of its own says of it (Mel::$dlg, main.php:
         # mel_ask) - the description of the dialog of ours whole: icon (k_icon_*), tone ('', warn, err, ok), title, text
-        # ('' none), buttons (mel_btn: label, icon, the action after the close, null none).
-        MelDlgAsk: 'array{icon: string, tone: string, title: string, text: string, buttons: list<array{label: string, icon: string, act: MelAction|null}>}'
+        # ('' none), buttons (mel_btn: label, icon, the action after the close, null none), cancel (the action after
+        # the close by RETURN, null none).
+        MelDlgAsk: 'array{icon: string, tone: string, title: string, text: string, buttons: list<array{label: string, icon: string, act: MelAction|null}>, cancel: MelAction|null}'
         # The own dialog open (kit_dlg.php): its icon, tone, title, text, buttons, the one in focus, the action of RETURN.
         MelDlg: 'array{icon: string, tone: string, title: string, text: string, buttons: list<MelDlgButton>, cur: int, cancel: MelAction|null}'
         # The wait open (kit_dlg.php): the view of its window (the facts under the title, the stage and its count over

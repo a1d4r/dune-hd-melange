@@ -1640,18 +1640,18 @@ function mel_gc_scr_gone($rid, $control, $raw)
 // The controls of the own inputs of the screen of a list (mel_gc_scr_in): the keys of its map, the actions of the
 // items of its panels and of «Готово» of their check lists, of a button of its wait window (lp_wt_done) and of its
 // dialog of a release that did not start (gc_via, gc_twin: mel_pre_failed) and of a source that failed (gc_src_errs:
-// mel_gc_src_dialog) - of the list
+// mel_gc_src_dialog) and of a search with nothing found (gc_src_menu: mel_lpv_result) - of the list
 // of releases (gc_) and of the online list (lp_). Each is one the screen sends: a control here that no map, no panel and no chain of them has would be a name
 // gone, its reply still thought shown over the list. Under the wait window of the screen none of them is done
 // (mel_scr_under, main.php). Not here: lp_redraw, «Закрыть» of the dialog of ours a search of "Источники…" ends by
-// (mel_lpv_msg) - no input of the list: it comes by its sid, with no rid, and its reply is the list replaced.
+// (mel_lpv_msg, mel_lpv_end_msg) - no input of the list: it comes by its sid, with no rid, and its reply is the list replaced.
 /**
  * @return list<string>
  */
 function mel_gc_own()
 {
     return array('gc_move', 'gc_pick', 'gc_info', 'gc_menu', 'gc_flip', 'gc_sort', 'gc_refresh', 'gc_main', 'gc_src',
-        'gc_choose', 'gc_dl', 'gc_push', 'gc_ts', 'gc_via', 'gc_twin', 'gc_src_errs', 'lp_move', 'lp_pick', 'lp_menu', 'lp_flt_menu', 'lp_flt_done', 'lp_fold',
+        'gc_choose', 'gc_dl', 'gc_push', 'gc_ts', 'gc_via', 'gc_twin', 'gc_src_errs', 'gc_src_menu', 'lp_move', 'lp_pick', 'lp_menu', 'lp_flt_menu', 'lp_flt_done', 'lp_fold',
         'lp_qsort', 'lp_flip', 'lp_choose', 'lp_refresh', 'lp_srcs_done', 'lp_wt_done');
 }
 
