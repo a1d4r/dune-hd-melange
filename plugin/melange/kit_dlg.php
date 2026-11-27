@@ -455,7 +455,7 @@ function mel_wait_step($s)
  */
 function mel_wait_tick()
 {
-    $st = MelOvl::$st;
+    $st = mel_ovl_st();
     if (!$st || !isset($st['wt']))
         return null;
     $was = $st['wt'];
@@ -472,7 +472,7 @@ function mel_wait_tick()
         return $a ? $a : mel_ovl_close();
     }
     $st['wt'] = $s;
-    MelOvl::$st = $st;
+    mel_ovl_set($st);
     return mel_wait_again(mel_dlg_diff(mel_wait_defs($was), mel_wait_defs($s), MEL_WT . '_win'));
 }
 
@@ -484,7 +484,7 @@ function mel_wait_tick()
  */
 function mel_wait_again($ch)
 {
-    $st = MelOvl::$st;
+    $st = mel_ovl_st();
     if (!$st || !isset($st['wt']))
         return null;
     return mel_ovl_behaviour(mel_wait_map($st['scr']['owner']), mel_wait_timer($st['wt']['ms']),
@@ -498,7 +498,7 @@ function mel_wait_again($ch)
  */
 function mel_dlg_now($kind)
 {
-    $st = MelOvl::$st;
+    $st = mel_ovl_st();
     if ($kind === 'wt')
         return isset($st['wt']) ? mel_wait_defs($st['wt']) : array();
     return isset($st['dlg']) ? mel_dlg_defs($st['dlg']) : array();
@@ -515,7 +515,7 @@ function mel_dlg_now($kind)
  */
 function mel_dlg_key($kind, $k)
 {
-    $st = MelOvl::$st;
+    $st = mel_ovl_st();
     $wait = $kind === 'wt';
     if ($wait && isset($st['wt']))
         $s = $st['wt'];
@@ -533,7 +533,7 @@ function mel_dlg_key($kind, $k)
             $st['wt']['cur'] = $r['cur'];
         else
             $st['dlg']['cur'] = $r['cur'];
-        MelOvl::$st = $st;
+        mel_ovl_set($st);
         $ch = mel_dlg_diff($was, mel_dlg_now($kind), "{$kind}_win");
         return $wait ? mel_wait_again($ch) : mel_ovl_change($ch, $st['scr']['sel']);
     }
@@ -556,7 +556,7 @@ function mel_dlg_input($in, $control)
     if ($a)
         return $a;
     $kind = $control === 'dlg_key' ? 'dlg' : 'wt';
-    if (!MelOvl::$st || !MelOvl::$st['open'] || !isset(MelOvl::$st[$kind]))
+    if (!mel_ovl_shown($kind))
     {
         mel_log("kit $kind: $control after the close, none");
         return null;

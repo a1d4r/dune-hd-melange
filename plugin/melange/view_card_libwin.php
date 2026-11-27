@@ -421,7 +421,7 @@ function mel_lib_win_input($in)
     $a = mel_ovl_stale($in);
     if ($a)
         return $a;
-    if (!MelOvl::$st || !MelOvl::$st['open'] || !isset(MelOvl::$st['lw']))
+    if (!mel_ovl_shown('lw'))
     {
         mel_log('card: the window of the copies: a key after the close, none');
         return null;
@@ -441,7 +441,7 @@ function mel_lib_win_input($in)
  */
 function mel_lib_win_key($k)
 {
-    $st = MelOvl::$st;
+    $st = mel_ovl_st();
     if (!$st || !isset($st['lw']))
         return null;
     $lw = $st['lw'];
@@ -472,7 +472,7 @@ function mel_lib_win_key($k)
     elseif ($to >= $lw['top'] + MEL_LIB_WIN_VIS)
         $lw['top'] = $to - MEL_LIB_WIN_VIS + 1;
     $st['lw'] = $lw;
-    MelOvl::$st = $st;
+    mel_ovl_set($st);
     $lang = isset(MelOc::$cards[$owner]) ? MelOc::$cards[$owner]['ui'] : mel_catv_ui_lang();
     $paths = mel_lib_win_paths($lw['copies'], $lw['e'] >= 1);
     $ch = array();

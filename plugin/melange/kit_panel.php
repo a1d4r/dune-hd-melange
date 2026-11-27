@@ -501,12 +501,12 @@ function mel_kp_apply($f)
  */
 function mel_kp_done($owner)
 {
-    $st = MelOvl::$st;
+    $st = mel_ovl_st();
     if (!$st || $st['scr']['owner'] !== $owner || !isset($st['kp_done']))
         return null;
     $c = $st['kp_done'];
     unset($st['kp_done']);
-    MelOvl::$st = $st;
+    mel_ovl_set($st);
     return $c;
 }
 
@@ -521,7 +521,7 @@ function mel_kp_input($in)
     $a = mel_ovl_stale($in);
     if ($a)
         return $a;
-    if (!MelOvl::$st || !MelOvl::$st['open'] || !isset(MelOvl::$st['kp']))
+    if (!mel_ovl_shown('kp'))
     {
         mel_log('kit panel: a key after the close, none');
         return null;
@@ -549,7 +549,7 @@ function mel_kp_input($in)
  */
 function mel_kp_key($k)
 {
-    $st = MelOvl::$st;
+    $st = mel_ovl_st();
     if (!$st || !isset($st['kp']))
         return null;
     $kp = $st['kp'];
@@ -630,7 +630,7 @@ function mel_kp_key($k)
         return null;
     $kp['stack'][$n] = $f;
     $st['kp'] = $kp;
-    MelOvl::$st = $st;
+    mel_ovl_set($st);
     $ch = mel_kp_redraw($was, $f);
     return $ch ? mel_ovl_change($ch, $st['scr']['sel']) : null;
 }
@@ -644,11 +644,11 @@ function mel_kp_key($k)
  */
 function mel_kp_put($kp, $was)
 {
-    $st = MelOvl::$st;
+    $st = mel_ovl_st();
     if (!$st)
         return null;
     $st['kp'] = $kp;
-    MelOvl::$st = $st;
+    mel_ovl_set($st);
     $defs = mel_kp_index(mel_kp_defs($kp));
     $ch = array();
     if (mel_kp_dim($kp['stack'][count($kp['stack']) - 1]) !== mel_kp_dim($was))

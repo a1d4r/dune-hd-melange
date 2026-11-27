@@ -343,7 +343,7 @@ parameters:
         '''
         # The record of a GComps screen under an overlay (kit_ovl.php): its owner, action map, timer and sel_state.
         MelOvlScreen: 'array{owner: string, map: array<string, MelAction>, timer: array<string, int>|null, sel: string|null}'
-        # The overlay of the last screen that opened one (MelOvl::$st, kit_ovl.php): the record of the screen, shown or
+        # The overlay of a screen, by owner (MelOvl::$st in hand, MelOvl::$rest, kit_ovl.php): the record of the screen, shown or
         # not; the side panel open, the choice of the check list that closed it last (the panel itself or a submenu of
         # it), given once by mel_kp_done; the window of the copies of the own card open (lw).
         MelOvlState: 'array{scr: MelOvlScreen, open: bool, kp?: MelKp, kp_done?: MelKpChoice, dlg?: MelDlg, wt?: MelWait, lw?: MelLibWin}'
