@@ -205,22 +205,49 @@ function mel_src_watch_pick($in, $lang)
         array('error' => 'src_changed', 'detail' => '')));
 }
 
-// The dialog of a source that failed (mel_gc_src): $title, the error, its detail, the
-// reasons of the error streams with the setting on, OK.
+// The dialog of a source that failed (mel_gc_src): $title, the error, its detail, OK. With the reasons of the error
+// streams (the setting on; owner 27.11.2026): one - it is the text; two and more with $more (the action of
+// "Ошибки аддонов": the panel of them over the list under the window, mel_gc_errs) - the error, OK and that button
+// after it; with no $more (nowhere to open the panel) - a line each, a window of the shell (the dialog of ours has one
+// text of 3 lines).
 /**
  * @param string $title
  * @param string $lang
  * @param array{error: string, detail: string, errors?: MelErrors} $res
+ * @param MelAction|null $more
  * @return MelAction
  */
-function mel_gc_src_dialog($title, $lang, $res)
+function mel_gc_src_dialog($title, $lang, $res, $more = null)
 {
     $why = isset($res['errors']) ? mel_errors_labels($lang, $res['errors']) : array();
     if (!$why)
         return mel_msg($title, array(mel_tr($lang, $res['error']), $res['detail']));
-    // The reasons of the add-ons a line each: a window of the shell (the dialog of ours has one text of 3 lines).
+    if (isset($res['errors']) && mel_errors_total($res['errors']) === 1)
+        return mel_msg($title, array($res['errors']['lines'][0]));
+    if ($more)
+        return mel_ask($title, array(mel_tr($lang, $res['error'])), 'k_icon_circle-x', 'err', array(mel_btn_ok(),
+            mel_btn(mel_tr($lang, 'errors_menu'), 'k_icon_triangle-alert', $more)));
     return mel_dialog($title, array_merge(mel_dialog_lines(mel_tr($lang, $res['error'])), mel_dialog_lines($res['detail']),
         $why), array('OK' => mel_close_and(null)));
+}
+
+// gc_src_errs ("Ошибки аддонов" of the dialog of a source that failed, mel_gc_src_dialog) of a live list: the panel of the
+// reasons of that reply (kept with the list, src_errors) over it - the one of "Ошибки аддонов" of "Действия", itself
+// the panel. A list not live, no reasons kept: nothing.
+/**
+ * @param stdClass $in
+ * @return MelAction|null
+ */
+function mel_gc_errs($in)
+{
+    $st = Mel::$state;
+    if (!$st || !isset($in->rid) || $in->rid !== $st['rid'] || !isset($st['src_errors']))
+    {
+        mel_log('source: errors: not a live list or no reasons kept, nothing');
+        return null;
+    }
+    list($scr) = mel_gc_scr_live($st, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    return mel_kp_open($scr, mel_errors_panel(mel_tr($st['lang'], 'errors_menu'), $st['lang'], $st['src_errors']));
 }
 
 // gc_src (p: the id of a profile, n: its name for the dialog; MENU "Источник") of a live list: this title from
@@ -277,7 +304,9 @@ function mel_gc_src($in)
         mel_log("$tag: no IMDb and no TMDB, no releases");
         return mel_error('err_no_imdb_rel');
     }
-    return mel_src_releases($st, $id, $tag, $title, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
+    // "Ошибки аддонов" of the dialog of its error: with the list itself under that dialog (the panel opens over it).
+    return mel_src_releases($st, $id, $tag, $title, isset($in->parent_sel_state) ? $in->parent_sel_state : null,
+        mel_scr_of($in, 'gc_src') ? mel_gc_act('gc_src_errs', $st['rid']) : null);
 }
 
 // The releases of profile $id for list $st (mel_gc_src; $tag of the log, $title of the dialog of an error, $sel_state
@@ -287,16 +316,18 @@ function mel_gc_src($in)
 // screen replaced, the cursor on the line a list opens on (another source sorts the releases its own way: the one under
 // the cursor would be lower), the group of the tier folded or not as on the screen (rows of the tier only: unfolded);
 // no streams - an empty list; an error - its dialog, the screen, the state and the settings
-// of the operation kept (mel_op_apply).
+// of the operation kept (mel_op_apply), the reasons of its error streams with the list (src_errors) for $errs - the
+// action of "Ошибки аддонов" of that dialog (mel_gc_src_dialog; null: no such button).
 /**
  * @param MelState $st
  * @param string $id
  * @param string $tag
  * @param string $title
  * @param mixed $sel_state
+ * @param MelAction|null $errs
  * @return MelAction
  */
-function mel_src_releases($st, $id, $tag, $title, $sel_state)
+function mel_src_releases($st, $id, $tag, $title, $sel_state, $errs = null)
 {
     if ($st['prof'] === $id && empty($st['lp_only']))
     {
@@ -328,7 +359,11 @@ function mel_src_releases($st, $id, $tag, $title, $sel_state)
             if ($r['error'] === 'err_no_streams')
                 $r['error'] = 'err_sources_failed';
             mel_op_apply($old);
-            return mel_gc_src_dialog($title, $st['lang'], $r);
+            // The button of two reasons and more alone (one is the text of the dialog).
+            $more = mel_errors_shown($errors) && mel_errors_total($errors) > 1 ? $errs : null;
+            if ($more)
+                Mel::$state['src_errors'] = $errors;
+            return mel_gc_src_dialog($title, $st['lang'], $r, $more);
         }
     }
     $ns = $r['st'];

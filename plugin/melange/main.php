@@ -2763,6 +2763,8 @@ function mel_handle_user_input($in)
         return mel_lpv_input($in, $control);
     if ($control === 'gc_src')
         return mel_gc_src($in);
+    if ($control === 'gc_src_errs')
+        return mel_gc_errs($in);
     if ($control === 'gc_choose')
         return mel_choose($in);
     if ($control === 'gc_chosen')

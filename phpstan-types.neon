@@ -320,6 +320,7 @@ parameters:
         # 0.58.0 (a source profile with no streams, mel_gc_src); gc (sel, top:
         # the last cursor, of the lines of mel_gc_lv), gc_new, gc_prog, gc_cols,
         # tier_open (the group "Не подтверждены" unfolded): of view_gcomps.php.
+        # src_errors: the reasons of the last source that failed (mel_src_releases), of "Ошибки аддонов" of its dialog.
         MelState: '''
             array{
                 rid: string,
@@ -331,6 +332,7 @@ parameters:
                 sort: string,
                 sort_rev: bool,
                 errors: MelErrors,
+                src_errors?: MelErrors,
                 gc?: array{int, int},
                 gc_new?: bool,
                 gc_prog?: MelProgress,
