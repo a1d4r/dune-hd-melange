@@ -1832,8 +1832,7 @@ function mel_oc_watch_in($c, $q = -1, $e = -1)
 }
 
 // ENTER on episode $x of the meta of card $c (the row; the link of streams, mel_dl_streams), $ep the episode the card
-// offers (mel_oc_pick; null none): its list (mel_oc_watch: the season asked by mel_cm_req_s, the cursor on the release
-// or the online row of the history of $ep when it is this episode); one not out yet: the message (mel_oc_soon_msg).
+// offers (mel_oc_pick; null none): its list (mel_oc_ep_list); one not out yet: the message (mel_oc_soon_msg).
 // $src: the profile of "Смотреть из…", '' none. $own: the params of the own input of the screen of the card the reply
 // is to (c: its key; p, n: of "Смотреть из…"), null: no screen of the card (a link, a tile).
 /**
@@ -1848,6 +1847,21 @@ function mel_oc_ep_watch($c, $x, $ep, $src = '', $own = null)
 {
     if ($x['soon'])
         return mel_oc_soon_msg($x, $c['ui'], $own);
+    return mel_oc_ep_list($c, $x, $ep, $src);
+}
+
+// The list of episode $x of card $c, out or not ("Всё равно искать", mel_oc_anyway), $ep and $src as of
+// mel_oc_ep_watch: mel_oc_watch - the season asked by mel_cm_req_s, the cursor on the release or the online row of the
+// history of $ep when it is this episode.
+/**
+ * @param MelOcCard $c
+ * @param MelCardEp $x
+ * @param MelOcEp|null $ep
+ * @param string $src
+ * @return MelAction
+ */
+function mel_oc_ep_list($c, $x, $ep, $src)
+{
     $q = $c['meta'] ? mel_cm_req_s($c['meta'], $x['s']) : $x['s'];
     return mel_oc_watch($c, $q, $x['e'], $ep && $ep['q'] === $q && $ep['e'] === $x['e'] ? $ep : null, $src);
 }
@@ -2123,15 +2137,15 @@ function mel_oc_scr_lost($key, $raw)
 }
 
 // The controls of the own inputs of the screen of the own card (mel_oc_scr_in): the keys of its map, the actions of
-// the items of its panel and of the window of the copies, the trailer ENTER asks for. Each is one the screen sends (as
-// mel_gc_own).
+// the items of its panel and of the window of the copies, the trailer ENTER asks for, "Всё равно искать" of the
+// message of an episode not out yet. Each is one the screen sends (as mel_gc_own).
 /**
  * @return list<string>
  */
 function mel_oc_own()
 {
-    return array('card_move', 'card_enter', 'card_menu', 'card_trailer', 'card_src', 'card_mark', 'card_mark_movie',
-        'card_lib_copies', 'card_lib_copy');
+    return array('card_move', 'card_enter', 'card_menu', 'card_trailer', 'card_src', 'card_anyway', 'card_mark',
+        'card_mark_movie', 'card_lib_copies', 'card_lib_copy');
 }
 
 // The record of the screen of the own card whose own input $in of control $control is: a key of its map, the action
@@ -2248,6 +2262,32 @@ function mel_oc_src($c, $l, $in)
         array('c' => mel_catv_in($in, 'c'), 'p' => $src, 'n' => mel_catv_in($in, 'n')));
 }
 
+// card_anyway ("Всё равно искать" of the message of an episode not out yet, mel_oc_soon_msg: s, e of the episode; p, n
+// of "Смотреть из…" when the message was to it) of card $c ($key) of layout $l: what ENTER on the episode does when it
+// is out - its list (mel_oc_ep_list), from the profile of p (gone or not ready since: its dialog, as mel_oc_src).
+/**
+ * @param string $key
+ * @param MelOcCard $c
+ * @param MelOcNav $l
+ * @param stdClass $in
+ * @return MelAction|null
+ */
+function mel_oc_anyway($key, $c, $l, $in)
+{
+    $src = '';
+    if (mel_catv_in($in, 'p') !== '')
+    {
+        list($src, $err) = mel_src_watch_pick($in, $c['ui']);
+        if ($src === '' || $err)
+            return $err;
+    }
+    $x = mel_oc_ep($c, intval(mel_catv_in($in, 's')), intval(mel_catv_in($in, 'e')));
+    if (!$x)
+        return null;
+    mel_log("card: own $key: S{$x['s']}E{$x['e']} not out yet, the search anyway");
+    return mel_oc_ep_list($c, $x, $l['ep'], $src);
+}
+
 // "Карточка Дюны" of "Действия" of card $c with a card of the Dune (or an old local one): the native card
 // (file_movie); none without one.
 /**
@@ -2297,7 +2337,7 @@ function mel_oc_list($key, $c, $l, $pos)
 }
 
 // card_move (d: left, right, up, down, pgup, pgdn), card_enter, card_menu, card_mark (mel_oc_mark), card_mark_movie,
-// card_load (the timer, mel_oc_tick), card_src ("Смотреть из", mel_oc_src), card_lib_copies,
+// card_load (the timer, mel_oc_tick), card_src ("Смотреть из", mel_oc_src), card_anyway (mel_oc_anyway), card_lib_copies,
 // card_lib_copy (the copies on the disk, mel_oc_lib_input), card_finish (back from the player, mel_oc_finish) of the
 // card c. MENU: the panel "Действия" over the card (mel_oc_menu_open; of no card mel_oc_menu_lost); under the open
 // overlay of the card no key of its map comes here (the gate, kit_ovl.php). The keys: the place of mel_oc_next by change_gcomps, null at an edge; the layout of the screen shown
@@ -2324,7 +2364,7 @@ function mel_oc_input($in, $control)
     if ($control === 'card_menu' && !$c)
         return mel_oc_menu_lost($key, isset($in->parent_sel_state) ? $in->parent_sel_state : null);
     if (!$c)
-        return in_array($control, array('card_enter', 'card_trailer', 'card_src'), true) ? mel_error('cat_outdated') : null;
+        return in_array($control, array('card_enter', 'card_trailer', 'card_src', 'card_anyway'), true) ? mel_error('cat_outdated') : null;
     if ($control === 'card_mark')
         return mel_oc_mark($key, $c, $in);
     if ($control === 'card_mark_movie')
@@ -2342,6 +2382,8 @@ function mel_oc_input($in, $control)
     $l = isset($c['nav']) ? $c['nav'] : mel_oc_layout($c);
     if ($control === 'card_src')
         return mel_oc_src($c, $l, $in);
+    if ($control === 'card_anyway')
+        return mel_oc_anyway($key, $c, $l, $in);
     if ($control === 'card_lib_copies' || $control === 'card_lib_copy')
         return mel_oc_lib_input($key, $c, $l, $in, $control);
     $raw = isset($in->parent_sel_state) ? $in->parent_sel_state : null;

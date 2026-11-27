@@ -307,6 +307,7 @@ card_ep_not_out = not out yet
 card_ep_left = {l} left of {t}
 card_ep_soon = The episode comes out {d}
 card_ep_soon_nodate = The episode is not out yet
+card_ep_anyway = Search anyway
 card_about_series = About the series
 card_sim = Similar
 card_parts = Franchise

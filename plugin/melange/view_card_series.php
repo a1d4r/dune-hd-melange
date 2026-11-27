@@ -659,7 +659,8 @@ function mel_oc_row_changes($c, $l, $old, $new)
 
 // ENTER on an episode not out yet: "Серия выйдет 16 ноября" (no date: "not out yet"), no streams asked. Not an error
 // (owner 27.11.2026): over the screen of the card ($own, see mel_oc_ep_watch) the dialog of ours with the clock in
-// grey and OK; no screen of the card (null) - the window of the shell as it was.
+// grey, OK (in focus) and "Всё равно искать" - a date of the meta may be wrong: card_anyway of $own with s, e of the
+// episode (mel_oc_anyway). No screen of the card (null) - the window of the shell as it was, OK alone.
 /**
  * @param MelCardEp $ep
  * @param string $lang
@@ -673,7 +674,9 @@ function mel_oc_soon_msg($ep, $lang, $own = null)
     if ($own === null)
         return mel_error('card_ep_soon', '', false, true, $t);
     mel_log('error: card_ep_soon');
-    return mel_ask($t, array(), 'k_icon_clock', '', array(mel_btn('OK', 'k_icon_check')));
+    return mel_ask($t, array(), 'k_icon_clock', '', array(mel_btn('OK', 'k_icon_check'),
+        mel_btn(mel_tr($lang, 'card_ep_anyway'), 'k_icon_search',
+            mel_input('card_anyway', $own + array('s' => strval($ep['s']), 'e' => strval($ep['e']))))));
 }
 
 // --- Marks "watched" (update_watched_marks of the shell, uids mel_wh_mark_uid).
