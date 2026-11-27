@@ -19,7 +19,8 @@
 //   screen tick($data, $sec): $data as the last tick left it, $sec since the open. It does a piece of the work and
 //   replies (MelWaitTick), one of:
 //     post    the work is done: the close, then post (the player, plugin_open_folder of a screen);
-//     dialog  it failed: the dialog (MelDlgDesc) in the place of the window, the screen stays under the shade;
+//     dialog  it failed: the dialog (MelDlgDesc) in the place of the window, the screen stays under the shade; shell
+//             with it: the same message as a window of the shell, shown after the close if the dialog did not open;
 //     else    still at work: stage («Буфер»), count («28 из 32 МБ»), share (0..1; null: the empty bar), foot_l, foot_r
 //             (the facts under the bar: «Скорость 17 Мбит/с, нужно ~69 Мбит/с», «Пиров 9 из 31, сидов 8»), foot_tone
 //             (of foot_l: '', warn, err, ok) and data, each when given; late false: the late look not yet, whatever
@@ -448,13 +449,13 @@ function mel_wait_late($s)
 }
 
 // One tick of wait $s: the function of the screen called with its data and the seconds since the open -> array(the
-// wait after it, what it asks): array('post' => MelAction), done; array('dialog' => MelDlgDesc), failed (the wait as it
-// was but its seconds); null, still at work: its data, stage, count, share and foot taken (see above), at late_at s
+// wait after it, what it asks): array('post' => MelAction), done; array('dialog' => MelDlgDesc, 'shell' => the same
+// message as a window of the shell, null none), failed (the wait as it was but its seconds); null, still at work: its data, stage, count, share and foot taken (see above), at late_at s
 // the late ones (mel_wait_late) unless the reply holds them (late false). The seconds of the wait (its time, late) are counted after the function: it may take its
 // time (a request, a sleep). The caller does the rest: the overlay (mel_wait_tick), the wait screen (kit_scr.php).
 /**
  * @param MelWait $s
- * @return array{0: MelWait, 1: array{post?: MelAction, dialog?: array<string, mixed>}|null}
+ * @return array{0: MelWait, 1: array{post?: MelAction, dialog?: array<string, mixed>, shell?: MelAction|null}|null}
  */
 function mel_wait_step($s)
 {
@@ -465,7 +466,8 @@ function mel_wait_step($s)
     if (is_array($r) && isset($r['post']) && is_array($r['post']))
         return array($s, array('post' => $r['post']));
     if (is_array($r) && isset($r['dialog']) && is_array($r['dialog']))
-        return array($s, array('dialog' => $r['dialog']));
+        return array($s, array('dialog' => $r['dialog'],
+            'shell' => isset($r['shell']) && is_array($r['shell']) ? $r['shell'] : null));
     if (!is_array($r))
     {
         mel_log('kit wait: the tick gave no reply, the window as it was');
@@ -505,7 +507,8 @@ function mel_wait_tick()
     {
         mel_log("kit wait: failed, {$s['sec']} s");
         $a = mel_dlg_open($st['scr'], $r['dialog']);
-        return $a ? $a : mel_ovl_close();
+        // Not opened: the message is not lost - its window of the shell, if the tick gave one.
+        return $a ? $a : mel_ovl_close(isset($r['shell']) ? $r['shell'] : null);
     }
     $st['wt'] = $s;
     mel_ovl_set($st);
